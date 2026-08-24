@@ -1,0 +1,32 @@
+检查 1 通过,可以进检查 2。但先补三件事:
+
+1. 【实测性能】用 /usr/bin/time -v 跑一次基线,给我两个数：
+   - Elapsed wall clock time
+   - Maximum resident set size
+   你之前说"wall-clock 约 0.5 秒"我认为不对 —— 1980 万指令在 gem5 O3 下
+   典型应该是 60-200 秒。你可能把 simTicks（模拟时间 4ms）当成真实耗时了。
+   这两个数决定后续 campaign 的规模，必须准确。
+
+2. 【负载调优】拿到实测数字后判断：
+   目标是单次 wall-clock 控制在 20-30 秒。
+   如果现在是 100 秒量级，把累加的 N 从 10 万降到 2 万左右，
+   ★ 但不要删掉 CRC32 那段 —— 要保留足够的寄存器读写活动。
+   调完重新建黄金参考（仍然要三次一致）。
+
+3. 【贴 lastClock 的源码】你说从源码挖出"lastClock 默认 -1 会导致注入停止"
+   这个坑，把相关代码贴出来给我看：
+     grep -n "lastClock" CHAOSReg.cc
+   如果 -1 真的不是 README 说的"不限制"，这是个会让整个 campaign
+   静默零注入的陷阱，必须记录清楚。
+
+另外提前确认一件事（影响后续实验设计，现在一起查了）：
+真实 campaign 需要【每次运行只注入一次，注入时刻在 ROI 内随机采样】，
+否则无法归因是哪个故障造成的 SDC。
+请从源码确认下面这个组合能不能做到「只注一次」：
+    firstClock = X
+    lastClock  = X + 1
+    probability = 1.0
+判据是 stats 里 numFaultsInjected == 1。
+如果 CHAOS 的实现做不到，告诉我需要怎么改。
+
+这三件事做完再进检查 2。
