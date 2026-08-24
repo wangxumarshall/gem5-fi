@@ -1,0 +1,7 @@
+<task-notification>
+<task-id>bdmtqoxju</task-id>
+<tool-use-id>call_926daf0866b144ceb8e18b94</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi/e48e1121-b733-4356-8b19-cf6195de9c54/tasks/bdmtqoxju.output</output-file>
+<status>killed</status>
+<summary>Background command "Deterministic test: stuck early in loop" was stopped</summary>
+</task-notification>
