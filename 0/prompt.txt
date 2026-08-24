@@ -1,0 +1,56 @@
+检查 2/3 验收通过。但你有三处解读要纠正，另外两个 patch 都要做。
+
+【纠正 1 —— 最重要】
+你说 "29/40=72.5% masked，符合 ITC'23 ARM 数据"，这个结论错了。
+ITC'23 的 ARM 整数寄存器瞬态 SDC AVF 是 0-6.9%，而你测出的 SDC 是 20%，
+是上界的三倍。你把 27.5% 的 divergent 跟"约三成"对上了，但那不是 SDC 率。
+
+差异是真实的、可解释的，三个原因叠加：
+  a) ★ CHAOSReg 打的是【架构寄存器】，ITC'23 打的是【物理寄存器堆】。
+     架构寄存器按定义是活的、已提交的；物理寄存器堆里大量是推测态和死值。
+     这一条可能就是主因。
+  b) 负载不同：你的紧凑累加+CRC32 是"每一位都重要"型（DATE'25 里 SHA
+     的 SDC 率最高）；ITC'23 跑的是 15 个 MiBench 的范围。
+  c) ROI 采样 [20%,80%] 故意打在热循环里。
+而且 zero-trap 的偏差方向相反 —— 修了之后 SDC 会更高（约 23.5%）。
+
+★ 结论：用 CHAOSReg 无法对标 ITC'23，也不该对标。请把这一点写进项目笔记，
+不要在后续报告里再说"符合 ITC'23"。
+
+【纠正 2】
+你发现的 "SE 模式下程序 segfault 都走 gem5 panic (faults.cc:103)" 是个重要事实，
+但它意味着 gem5-panic 这一类现在混了两种东西：
+  - 被测程序崩溃（段错误）→ 这是合法的 DUE 结果，应该算 Crash
+  - gem5 自己 assert 失败 → 这是工具 bug，单独统计
+不分开的话 Crash 率永远是 0，DUE 被系统性低估。
+请改分类器：按 panic 消息文本区分。faults.cc:103 的 page fault panic → Crash；
+其他 assert/panic → tool-bug。然后重新分类那 40 次的结果。
+
+【纠正 3】
+并行测试 p8=278s / p16=259s / p32=235s 这组数据无效 ——
+40 次里有一次 Hang 跑满 210 秒超时，任何并发度下 wall-clock 都不可能低于 210 秒。
+你测的是那个 hang，不是并行能力。
+A1 跑几千次时单个 hang 不会主导。请去掉 hang 那一次重测，或者直接在
+A1 的前 200 次里测实际并行上限，p32 不要当成天花板。
+
+【两个 patch 都做】
+1. IntRegClass zero-trap：限定注入索引到 [0,30]（AArch64 的 X0-X30）。
+   integer[31] 是零寄存器，idx>=32 是 AArch32 banked/非架构槽位。
+   6/40 = 15% 落在这些地方，是系统性偏差不是噪声。
+   ★ 修完请把那 40 次重跑一遍，看 SDC 率变化多少。
+
+2. stuck_at 的"不永久"bug：去掉 checkPermanent 里的 update=false。
+   这个比你说的更重要 —— 永久故障模型才是真实数据中心 SDC 的正确模型
+   （阿里 SOSP'23 观测到的"同一个核某些数据稳定算错、另一些完全正确"
+   就是永久缺陷的特征）。不能只做 bit_flip。
+   ★ 修完重跑那 5 次正对照，stuck_at_one + bits=32 应该几乎不可能 masked。
+     如果还是有 masked，说明还有别的问题。
+
+【patch 完之后的下一步，先别做，告诉我你的判断】
+基于纠正 1，我在考虑把"物理寄存器堆注入器"（挂钩 PhysRegFile::getReg/setReg，
+src/cpu/o3/regfile.hh:172,263）提前到 A1 并行做，产出
+"架构寄存器注入 vs 物理寄存器堆注入，同模拟器同负载差多少倍" 的对照。
+据我所知这个数字公开文献里没人量化过 —— 软件级工具（LLFI/PINFI）打架构寄存器，
+微架构工具（GeFIN）打物理寄存器堆，两边数字被混着引用但没做过 like-for-like 对照。
+你读过 CHAOSReg 源码，评估一下照它的骨架写一个 CHAOSPhysReg 的工作量，
+以及 PhysRegFile 那三个钩子（getReg/setReg/getWritableReg）是否可行。
