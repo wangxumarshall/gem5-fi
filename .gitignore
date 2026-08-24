@@ -1,0 +1,21 @@
+# gem5 upstream clone (large, has its own .git)
+gem5/
+CHAOS/gem5/
+
+# gem5 build artifacts
+build/
+m5out/
+
+# logs
+*.log
+
+# local toolchain
+riscv-gnu-toolchain/
+
+# smoke test runs (not part of CHAOS source)
+smoke_test/
+
+# misc
+.DS_Store
+.workbuddy/
+.claude/
