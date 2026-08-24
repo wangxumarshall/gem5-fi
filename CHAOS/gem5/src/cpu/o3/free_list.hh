@@ -105,6 +105,25 @@ class SimpleFreeList
 
     /** True iff there are free registers on the list. */
     bool hasFreeRegs() const { return !freeRegs.empty(); }
+
+    /** True iff the given physical register is currently in the free list
+     *  (= not allocated = dead/inactive). Used by CHAOSPhysReg's liveness
+     *  probe: a phys reg NOT in the free list is allocated and may be read
+     *  by in-flight instructions even if no rename map entry currently
+     *  points to it (e.g. an in-flight inst still holds it as a source).
+     *  O(N) scan of the queue; only called at inject time, not hot path. */
+    bool contains(const PhysRegIdPtr reg) const {
+        // std::queue's underlying container is protected; derive a helper to
+        // expose it so we can scan (queue doesn't support iteration).
+        struct ExposedQueue : public std::queue<PhysRegIdPtr> {
+            using std::queue<PhysRegIdPtr>::c;
+        };
+        const auto &c = static_cast<const ExposedQueue&>(freeRegs).c;
+        for (const auto &r : c) {
+            if (r == reg) return true;
+        }
+        return false;
+    }
 };
 
 
@@ -188,6 +207,14 @@ class UnifiedFreeList
     numFreeRegs(RegClassType type) const
     {
         return freeLists[type].numFreeRegs();
+    }
+
+    /** True iff the given physical register is currently free (inactive).
+     *  Used by CHAOSPhysReg liveness probe. See SimpleFreeList::contains. */
+    bool
+    isFree(RegClassType type, const PhysRegIdPtr reg) const
+    {
+        return freeLists[type].contains(reg);
     }
 };
 

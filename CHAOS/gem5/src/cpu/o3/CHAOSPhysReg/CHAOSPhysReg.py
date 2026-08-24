@@ -1,0 +1,66 @@
+# CHAOSPhysReg — physical-register-file fault injector for O3CPU.
+#
+# Three injection abstractions (selectable via injectionMode):
+#   'arch_commit'  : commitRenameMap.lookup(archReg) -> setReg
+#                    (= original CHAOSReg behavior; FAILS on O3 — kept for
+#                     comparison only, to quantify the artifact)
+#   'arch_frontend': renameMap.lookup(archReg) -> setReg
+#                    (corrected ARCH injection; targets the phys reg that
+#                     in-flight instructions will read)
+#   'phys'         : inject by PHYSICAL register index, regardless of which
+#                    arch reg currently maps to it. This is what ITC'23 /
+#                    GeFIN do; the only abstraction benchmarkable against
+#                    them. A real defective cell doesn't know arch regs.
+#
+# O3-only: dynamic_cast<BaseCPU*, O3CPU*> to reach regFile/renameMap.
+#
+# This file mirrors CHAOSReg.py's parameter set and adds the mode/target knobs.
+
+from m5.params import *
+from m5.SimObject import SimObject
+
+
+class CHAOSPhysReg(SimObject):
+    type = "CHAOSPhysReg"
+    cxx_class = "gem5::CHAOSPhysReg"
+    cxx_header = "cpu/o3/CHAOSPhysReg/CHAOSPhysReg.hh"
+
+    cpu = Param.BaseCPU(NULL, "Target CPU (must be an O3CPU)")
+
+    # --- injection abstraction (the point of this object) ---
+    injectionMode = Param.String(
+        "phys",
+        "Injection abstraction: 'phys' (by phys index, = ITC'23/GeFIN), "
+        "'arch_frontend' (renameMap.lookup = in-flight arch), "
+        "'arch_commit' (commitRenameMap.lookup = original CHAOSReg, "
+        "fails on O3, kept for comparison)")
+
+    # --- target selection (per mode) ---
+    targetPhysRegIdx = Param.Int(
+        -1, "Physical register index to inject (phys mode). -1 = random "
+        "across [0, numPhysicalIntRegs-1].")
+    targetArchRegIdx = Param.Int(
+        0, "Architectural register index (arch_frontend / arch_commit modes). "
+        "On aarch64 X0-X30 = 0-30 (31 = Zero, excluded).")
+
+    # --- fault model (mirrors CHAOSReg) ---
+    probability = Param.Float(1.0, "Per-interval injection probability "
+        "(use 1.0 with maxFaults=1 so the single injection lands at firstClock)")
+    bitsToChange = Param.Int(1, "Number of bits to change (used when faultMask=0)")
+    faultMask = Param.UInt32(0, "Bitmask; 0 = randomly generated (bitsToChange bits)")
+    faultType = Param.String("bit_flip",
+        "bit_flip | stuck_at_zero | stuck_at_one | random")
+
+    # --- timing (lastClock fixed 0 = unrestricted, per project discipline) ---
+    firstClock = Param.UInt64(0, "First clock cycle eligible for injection")
+    lastClock = Param.UInt64(0, "Last cycle (0 = unrestricted). DO NOT use as "
+        "a window: small nonzero values cause silent zero-injection "
+        "(see CHAOSReg.cc). Use maxFaults for count control.")
+
+    # --- campaign control (patched-in, mirrors CHAOSReg) ---
+    maxFaults = Param.UInt64(0, "Max faults to inject; 0 = unlimited. Use 1 "
+        "for single-injection campaigns.")
+    rngSeed = Param.UInt64(0, "RNG seed (std::mt19937). 0 = random_device "
+        "(non-reproducible). Nonzero = fixed for reproducible register/mask.")
+
+    writeLog = Param.Bool(True, "Write a fault_injections.log file")
