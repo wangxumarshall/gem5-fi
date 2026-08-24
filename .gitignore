@@ -1,8 +1,8 @@
-# gem5 upstream clone (large, has its own .git)
-gem5/
-CHAOS/gem5/
-
-# gem5 build artifacts
+# The official gem5 upstream source tree is vendored under CHAOS/gem5/ as
+# ordinary tracked files. These must NOT be committed:
+#   - the upstream .git database (large, nested)
+#   - build/m5out artifacts (huge; also covered by nested upstream .gitignore)
+CHAOS/gem5/.git/
 build/
 m5out/
 
@@ -14,6 +14,9 @@ riscv-gnu-toolchain/
 
 # smoke test runs (not part of CHAOS source)
 smoke_test/
+
+# deferred CHAOSPhysReg work (separate follow-up patch)
+.chaosphysreg-stash/
 
 # misc
 .DS_Store
