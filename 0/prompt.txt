@@ -1,0 +1,43 @@
+我在编译一个带 CHAOS 插件的 ARM 版 gem5，前置步骤已经做完了，现在只差编译。
+
+【当前状态】
+- 目录：~/gem5-fi/CHAOS/gem5/（gem5 已 clone 好，stable 分支）
+- CHAOS 的三个模块已经拷到位：
+    CHAOSReg   → gem5/src/
+    CHAOSCache → gem5/src/mem/cache/
+    CHAOSMem   → gem5/src/mem/
+- 系统依赖已装：m4, zlib-devel, protobuf-devel, protobuf-compiler,
+  boost-devel, gperftools-devel, scons 4.5.2, python3-devel
+- gem5/requirements.txt 装不上（PyPI 不通），已确认那是开发工具，跳过
+
+【本机环境 —— 严格遵守】
+- openEuler 24.03 SP3，主机架构 aarch64（不是 x86）
+- 126 核，但内存总共 29 GB、已用 20 GB、★ 可用只有约 9 GB
+- gcc 12.3.1，Python 3.11.6
+- 磁盘 292 GB 可用，充足
+
+★★★ 编译必须用 -j4，绝对不要用 -j$(nproc) 或 -j126 ★★★
+   可用内存只有 9 GB，每个编译任务约需 2 GB。用 126 会瞬间 OOM 把机器打死。
+   如果 -j4 还 OOM 就降到 -j2。预计要 2-3 小时，这是正常的，不要加大并行度。
+
+【任务】
+cd ~/gem5-fi/CHAOS/gem5 && scons build/ARM/gem5.opt -j4
+
+【可能的问题】
+- 缺 Python 模块 → 单独 pip 装那一个（镜像已配清华源），不要装整个 requirements.txt
+- aarch64 主机相关的编译错误 → gem5 官方 CI 对 ARM 主机覆盖不如 x86，
+  遇到怪错误先判断是不是架构相关
+- CHAOS 的 SConscript 可能是为旧版 gem5 写的 → 报错的话对比 gem5 自带的
+  其他 SimObject 的 SConscript 修正
+- OOM → 立刻降 -j 并告诉我
+
+【★ 验收门槛，三条都要贴真实输出】
+1. ./build/ARM/gem5.opt --help  能跑
+2. ls build/ARM/python/m5/objects/ | grep -i chaos
+   要能看到 CHAOSReg.py / CHAOSCache.py / CHAOSMem.py
+   ⚠️ 看不到说明 SConscript 没被扫到，必须解决，不能跳过
+3. 写个最小脚本验证 from m5.objects import CHAOSReg 能成功
+
+【工作方式】
+每遇到错误，先告诉我错误是什么、打算怎么修，再动手。
+完成后逐条贴三个验收门槛的真实输出，不要只说"通过了"。
