@@ -26,6 +26,7 @@ namespace gem5
         stuck_at_one_prob(p.stuckAtOneProb),
         cycles_permament_fault_check(p.cyclesPermamentFaultCheck),
         write_log(p.writeLog),
+        rng_seed(p.rngSeed),
         attackEvent([this] { this->injectFault(); }, name()),
         periodicCheck([this] { this->checkPermanent(); }, name() + ".periodicCheck"),
         stats(nullptr)
@@ -47,7 +48,7 @@ namespace gem5
             last_tick = last_clock * tick_to_clock_ratio;
             ticks_permament_fault_check = cycles_permament_fault_check * tick_to_clock_ratio;
 
-            rng.seed(rd());
+            rng.seed(rng_seed != 0 ? rng_seed : rd());
             inter_fault_cycles_dist = std::geometric_distribution<unsigned>(probability);
 
             scheduleAttack(first_tick + inter_fault_cycles_dist(rng) * tick_to_clock_ratio);

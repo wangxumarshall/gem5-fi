@@ -20,4 +20,5 @@ class CHAOSMem(SimObject):
     cyclesPermamentFaultCheck = Param.Int(1, "Number of cycles between each periodic check for permanent faults.")
     addr_start = Param.Addr(0, "Start address of the memory-mapped range (default: 0)")
     addr_end = Param.Addr(0, "End address of the memory-mapped range (default: 0, full memory length)")
+    rngSeed = Param.UInt64(0, "Seed for the injection RNG (std::mt19937). 0 = seed from std::random_device (original, NON-reproducible behavior). Nonzero = fixed seed for reproducible address/byte/mask selection.")
     writeLog = Param.Bool(True, "Write a log file")

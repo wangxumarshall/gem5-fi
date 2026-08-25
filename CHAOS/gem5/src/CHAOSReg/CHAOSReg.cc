@@ -186,7 +186,7 @@ namespace gem5{
             } else if (intRegs == 0 && floatRegs > 0) {
                 reg_class = reg_classes[gem5::FloatRegClass];
             } else {
-                reg_class = (rand() % 2 == 0) ? reg_classes[gem5::IntRegClass] : reg_classes[gem5::FloatRegClass];
+                reg_class = (rng() % 2 == 0) ? reg_classes[gem5::IntRegClass] : reg_classes[gem5::FloatRegClass];
             }
         } else if (reg_target_class_enum == TargetClass::Integer) {
             reg_class = reg_classes[gem5::IntRegClass];
