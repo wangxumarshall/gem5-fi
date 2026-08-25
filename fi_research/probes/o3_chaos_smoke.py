@@ -52,6 +52,7 @@ ap.add_argument("--max-tick", default="0", help="0 = no cap; else cap sim (Root.
 ap.add_argument("--lsq-fwd-prob", default="0.0", help="CHAOSLSQFwd per-forward corruption probability (0=off)")
 ap.add_argument("--lsq-fwd-bits", default="1", help="bits to flip on forwarded data")
 ap.add_argument("--lsq-fwd-byte", default="-1", help="byte offset in forwarded buffer (-1=random)")
+
 ap.add_argument("--l1d", default="32KiB")
 a = ap.parse_args()
 
@@ -127,6 +128,7 @@ if float(a.lsq_fwd_prob) > 0.0:
         writeLog=True,
     )
     system.cpu.setLSQFwd(system.lsqfi)
+
 
 root = Root(full_system=False, system=system)
 if int(a.max_tick) > 0:
