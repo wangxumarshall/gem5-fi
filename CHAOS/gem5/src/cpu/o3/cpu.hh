@@ -83,6 +83,12 @@ class ThreadContext;
 class Checkpoint;
 class Process;
 
+// Forward declaration of the store->load forwarding-path fault injector
+// (defined in src/cpu/o3/CHAOSLSQFwd/). The CPU holds a pointer to it so
+// lsq_unit.cc can reach it via the cpu pointer it already holds. nullptr
+// when no injector is attached → the lsq_unit call site short-circuits.
+class CHAOSLSQFwd;
+
 namespace o3
 {
 
@@ -473,6 +479,14 @@ class CPU : public BaseCPU
     PerThreadUnifiedRenameMap &frontRenameMap() { return renameMap; }
     PerThreadUnifiedRenameMap &commitRenameMapAccess() { return commitRenameMap; }
     UnifiedFreeList &physFreeList() { return freeList; }
+
+    /** CHAOSLSQFwd hook: store->load forwarding-path injector. Set externally
+     *  (from a config script) so lsq_unit.cc can reach it via the cpu pointer
+     *  it already holds. Nullptr when no injector is attached → the lsq_unit
+     *  call site short-circuits. See src/cpu/o3/CHAOSLSQFwd/. */
+    class CHAOSLSQFwd *lsqFwd = nullptr;
+    void setLSQFwd(CHAOSLSQFwd *p) { lsqFwd = p; }
+    CHAOSLSQFwd *getLSQFwd() const { return lsqFwd; }
 
     /** Enum to give each stage a specific index, so when calling
      *  activateStage() or deactivateStage(), they can specify which stage
