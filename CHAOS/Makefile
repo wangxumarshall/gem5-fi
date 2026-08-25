@@ -1,22 +1,32 @@
 CHAOS_DIR = CHAOSReg
 CHAOS_CACHE_DIR = CHAOSCache
 CHAOS_MEM_DIR = CHAOSMem
+CHAOS_PHYSREG_DIR = CHAOSPhysReg
 
 GEM5_REPO = https://github.com/gem5/gem5
 GEM5_DIR = gem5
 GEM5_REG_DIR = $(GEM5_DIR)/src/
 GEM5_CACHE_DIR = $(GEM5_DIR)/src/mem/cache/
 GEM5_MEM_DIR = $(GEM5_DIR)/src/mem/
+GEM5_PHYSREG_DIR = $(GEM5_DIR)/src/cpu/o3/
 CONFIG = ARM/gem5.opt
 BUILD_DIR = build/$(CONFIG)
 
-all: install_requirements move_chaos_reg move_chaos_tags move_chaos_mem install_gem5_requirements build_gem5
+all: install_requirements move_chaos_reg move_chaos_tags move_chaos_mem move_chaos_physreg install_gem5_requirements build_gem5
 
 chaosreg: move_chaos_reg install_gem5_requirements build_gem5
 
 chaoscache: move_chaos_tags install_gem5_requirements build_gem5
 
 chaosmem: move_chaos_mem install_gem5_requirements build_gem5
+
+# CHAOSPhysReg is O3-only and lives under src/cpu/o3/. NOTE: this target only
+# copies the plugin directory; it does NOT apply the required source patches
+# to cpu.hh / free_list.hh / regfile.hh (the o3 accessors + read-trace hooks
+# that CHAOSPhysReg.cc calls). Those headers ship pre-patched in the vendored
+# gem5 tree (see BASE_VERSION); when refreshing gem5 from upstream you must
+# re-apply them — diff them against the standalone copies / git history.
+chaosphysreg: move_chaos_physreg install_gem5_requirements build_gem5
 
 toolchain: install_arm_toolchain
 
@@ -60,6 +70,14 @@ move_chaos_mem:
 		exit 1; \
 	fi
 
+move_chaos_physreg:
+	@if [ -d "$(CHAOS_PHYSREG_DIR)" ]; then \
+		cp -rf $(CHAOS_PHYSREG_DIR) $(GEM5_PHYSREG_DIR); \
+	else \
+		echo "CHAOSPhysReg folder not found, does it exist?"; \
+		exit 1; \
+	fi
+
 install_gem5_requirements:
 	@echo "Installing Python dependencies..."
 	@pip3 install -r $(GEM5_DIR)/requirements.txt
@@ -73,4 +91,4 @@ install_arm_toolchain:
 	@sudo apt-get update
 	@sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
 
-.PHONY: all install_requirements clone_gem5 move_chaos_reg move_chaos_tags move_chaos_mem install_gem5_requirements build_gem5 toolchain install_arm_toolchain
+.PHONY: all install_requirements clone_gem5 move_chaos_reg move_chaos_tags move_chaos_mem move_chaos_physreg install_gem5_requirements build_gem5 toolchain install_arm_toolchain

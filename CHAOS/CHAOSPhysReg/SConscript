@@ -1,0 +1,10 @@
+# -*- mode:python -*-
+# CHAOSPhysReg — physical-register-file fault injector (O3 only).
+# Discovered automatically by src/SConscript's os.walk.
+
+Import('*')
+
+SimObject('CHAOSPhysReg.py', sim_objects=['CHAOSPhysReg'], enums=[])
+Source('CHAOSPhysReg.cc')
+
+DebugFlag('CHAOSPhysReg')
