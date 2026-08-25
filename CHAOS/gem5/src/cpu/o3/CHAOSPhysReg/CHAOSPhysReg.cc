@@ -246,12 +246,19 @@ namespace gem5
                 stats->numStuckAtZero++;
                 stats->numPermanentFaults++;
                 permanent_faults[{tid, chosen_phys_idx}] = {chosen, mask, true};
+                // G2: arm the write-path stuck mask so the bit is forced on
+                // EVERY subsequent write to this phys slot — the correct
+                // permanent (cell-stuck) model. Survives program re-writes,
+                // rename reuse, and spec/commit. Polarity 0 = stuck_at_zero.
+                cpu->physRegFile().setStuckTarget(chosen_phys_idx, mask, 0);
                 break;
             case FaultType::StuckAtOne:
                 reg_val |= mask;
                 stats->numStuckAtOne++;
                 stats->numPermanentFaults++;
                 permanent_faults[{tid, chosen_phys_idx}] = {chosen, mask, true};
+                // G2: write-path stuck mask, polarity 1 = stuck_at_one.
+                cpu->physRegFile().setStuckTarget(chosen_phys_idx, mask, 1);
                 break;
             case FaultType::BitFlip:
                 reg_val ^= mask;

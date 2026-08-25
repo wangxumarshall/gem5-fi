@@ -191,6 +191,21 @@ class PhysRegFile
     uint64_t getReadsBeforeOverwrite() const { return reads_before_overwrite; }
     bool isTraceOverwritten() const { return trace_overwritten; }
 
+    /** G2: stuck-at write-path mask (the CORRECT permanent-fault mechanism).
+     *  A stuck cell must force its bit on EVERY write to the phys slot — not
+     *  just once (the old periodic-re-apply in CHAOSPhysReg::checkPermanent did
+     *  not propagate on O3, same root cause as CHAOSReg). This hook lives in
+     *  the write path so it survives program re-writes, rename reuse, and
+     *  speculative commits. stuck_target<0 = no stuck fault in flight. */
+    int stuck_target = -1;          // phys idx with a stuck fault, or -1
+    uint64_t stuck_mask = 0;        // bits affected
+    uint8_t stuck_polarity = 0;    // 0 = stuck_at_zero (force 0), 1 = stuck_at_one (force 1)
+    void setStuckTarget(int idx, uint64_t mask, uint8_t polarity) {
+        stuck_target = idx; stuck_mask = mask; stuck_polarity = polarity;
+    }
+    void clearStuckTarget() { stuck_target = -1; stuck_mask = 0; stuck_polarity = 0; }
+    int getStuckTarget() const { return stuck_target; }
+
     /** Gets a misc register PhysRegIdPtr. */
     PhysRegIdPtr getMiscRegId(RegIndex reg_idx) {
         return &miscRegIds[reg_idx];
@@ -309,6 +324,14 @@ class PhysRegFile
             // set AFTER injection, so this write is a program/rename write.)
             if (read_trace_target >= 0 && (int)idx == read_trace_target)
                 trace_overwritten = true;
+            // G2: stuck-at write-path mask. Force the stuck bits on every
+            // write to this phys slot — the correct permanent-fault model
+            // (a defective cell clamps its bit regardless of what is written).
+            // stuck_target<0 = no stuck fault in flight → short-circuit.
+            if (stuck_target >= 0 && (int)idx == stuck_target) {
+                if (stuck_polarity == 0) val &= ~stuck_mask;  // stuck_at_zero
+                else                      val |=  stuck_mask;  // stuck_at_one
+            }
             intRegFile.reg(idx) = val;
             DPRINTF(IEW, "RegFile: Setting int register %i to %#x\n",
                     idx, val);
