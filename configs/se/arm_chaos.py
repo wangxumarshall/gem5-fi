@@ -17,7 +17,7 @@
 
 import argparse
 import m5
-from m5.objects import CHAOSReg
+from m5.objects import CHAOSReg, CHAOSPhysReg
 from gem5.components.boards.simple_board import SimpleBoard
 from gem5.components.cachehierarchies.classic.private_l1_private_l2_cache_hierarchy import (
     PrivateL1PrivateL2CacheHierarchy,
@@ -50,6 +50,15 @@ p.add_argument("--fault_mask", type=lambda x: int(x,0), default=0)
 p.add_argument("--bits_to_change", type=int, default=1)
 p.add_argument("--reg_class", default="integer",
                choices=["integer","floating_point","both"])
+# CHAOSPhysReg (physical-register-file; valid O3 SDC, ITC'23/GeFIN-style)
+p.add_argument("--chaos_phys", action="store_true",
+               help="attach CHAOSPhysReg (O3 physical-register-file injector)")
+p.add_argument("--phys_mode", default="phys",
+               choices=["phys","arch_frontend","arch_commit"])
+p.add_argument("--phys_target_idx", type=int, default=-1,
+               help="phys reg index (phys mode); -1=random")
+p.add_argument("--phys_target_arch", type=int, default=0,
+               help="arch reg idx (arch_frontend/arch_commit modes)")
 args = p.parse_args()
 
 cache_hierarchy = PrivateL1PrivateL2CacheHierarchy(
@@ -86,6 +95,24 @@ if args.chaos_reg:
         writeLog=True,
     )
     board.chaos_reg = chaos
+
+if args.chaos_phys:
+    chaos_p = CHAOSPhysReg(
+        cpu=cpu0,
+        injectionMode=args.phys_mode,
+        targetPhysRegIdx=args.phys_target_idx,
+        targetArchRegIdx=args.phys_target_arch,
+        probability=args.probability,
+        bitsToChange=args.bits_to_change,
+        faultMask=args.fault_mask,
+        faultType=args.fault_type,
+        firstClock=args.first_clock,
+        lastClock=args.last_clock,
+        maxFaults=args.max_faults,
+        rngSeed=args.rng_seed,
+        writeLog=True,
+    )
+    board.chaos_phys = chaos_p
 
 if args.maxinsts:
     cpu0.max_insts = args.maxinsts

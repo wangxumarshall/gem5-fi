@@ -463,6 +463,17 @@ class CPU : public BaseCPU
     std::vector<BaseISA *> isa;
 
   public:
+    /** Accessors used by CHAOSPhysReg to reach the physical register file
+     * and the two rename maps (frontend renameMap = in-flight mapping;
+     * commitRenameMap = committed mapping). These are otherwise protected;
+     * exposing read/write access lets an external fault injector model
+     * physical-cell defects (the only abstraction benchmarkable against
+     * ITC'23/GeFIN-style tools). See src/cpu/o3/CHAOSPhysReg/. */
+    PhysRegFile &physRegFile() { return regFile; }
+    PerThreadUnifiedRenameMap &frontRenameMap() { return renameMap; }
+    PerThreadUnifiedRenameMap &commitRenameMapAccess() { return commitRenameMap; }
+    UnifiedFreeList &physFreeList() { return freeList; }
+
     /** Enum to give each stage a specific index, so when calling
      *  activateStage() or deactivateStage(), they can specify which stage
      *  is being activated/deactivated.
