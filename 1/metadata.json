@@ -1,0 +1,190 @@
+{
+  "cli_version": "0.10.2",
+  "checkpoint_id": "01M0X07QXWX8SZY3EVTNXWY1WC",
+  "session_id": "e48e1121-b733-4356-8b19-cf6195de9c54",
+  "strategy": "manual-commit",
+  "created_at": "2026-08-25T17:42:13.41978787Z",
+  "branch": "arm64-sdc-base",
+  "checkpoints_count": 12,
+  "save_step_count": 12,
+  "files_touched": [
+    "CHAOS/gem5/src/cpu/o3/cpu.hh",
+    "CHAOS/gem5/src/cpu/o3/regfile.hh"
+  ],
+  "agent": "Claude Code",
+  "model": "glm-5.2",
+  "turn_id": "c839c52a24d2",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 9684512,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 353073664,
+    "output_tokens": 364644,
+    "api_call_count": 1132,
+    "subagent_tokens": {
+      "input_tokens": 47447,
+      "cache_creation_tokens": 0,
+      "cache_read_tokens": 717696,
+      "output_tokens": 6248,
+      "api_call_count": 23
+    }
+  },
+  "session_metrics": {
+    "turn_count": 12
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-08-25T17:42:12.392425127Z",
+    "agent_lines": 0,
+    "agent_removed": 0,
+    "human_added": 655,
+    "human_modified": 10,
+    "human_removed": 0,
+    "total_committed": 655,
+    "total_lines_changed": 666,
+    "agent_percentage": 0,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 4830,
+      "user_lines_removed": 4,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".tmp/no_inj/citations.bib": 123,
+        ".tmp/no_inj/config.ini": 1479,
+        ".tmp/no_inj/config.json": 1892,
+        ".tmp/no_inj/simout.txt": 12,
+        "CHAOS/gem5/src/cpu/o3/regfile.hh": 13,
+        "CLAUDE.md": 44,
+        "cpu.md": 165,
+        "fi.md": 37,
+        "reproduce-method1.md": 170,
+        "reproduce-method2.md": 485,
+        "reproduce-method3.md": 410
+      },
+      "user_removed_per_file": {
+        "CHAOS/gem5/src/cpu/o3/regfile.hh": 4
+      }
+    },
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 4817,
+      "agent_lines_removed": 3
+    },
+    {
+      "checkpoint_number": 3,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 4817,
+      "agent_lines_removed": 3
+    },
+    {
+      "checkpoint_number": 4,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 4817,
+      "agent_lines_removed": 3
+    },
+    {
+      "checkpoint_number": 5,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 204217,
+      "agent_lines_removed": 3
+    },
+    {
+      "checkpoint_number": 6,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 227208,
+      "agent_lines_removed": 3
+    },
+    {
+      "checkpoint_number": 7,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 318940,
+      "agent_lines_removed": 3
+    },
+    {
+      "checkpoint_number": 8,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 330792,
+      "agent_lines_removed": 3
+    },
+    {
+      "checkpoint_number": 9,
+      "user_lines_added": 3623,
+      "user_lines_removed": 3,
+      "agent_lines_added": 330792,
+      "agent_lines_removed": 3,
+      "user_added_per_file": {
+        ".tmp/b_smoke/citations.bib": 123,
+        ".tmp/b_smoke/config.ini": 1477,
+        ".tmp/b_smoke/config.json": 1890,
+        ".tmp/b_smoke/simerr.txt": 19,
+        ".tmp/b_smoke/simout.txt": 11,
+        "CHAOS/gem5/src/cpu/o3/CHAOSRAT/CHAOSRAT.cc": 87,
+        "CHAOS/gem5/src/cpu/o3/CHAOSRAT/CHAOSRAT.hh": 1,
+        "CHAOS/gem5/src/cpu/o3/cpu.cc": 1,
+        "CHAOS/gem5/src/cpu/o3/cpu.hh": 5,
+        "CHAOS/gem5/src/cpu/o3/rename.cc": 9
+      },
+      "user_removed_per_file": {
+        "CHAOS/gem5/src/cpu/o3/CHAOSRAT/CHAOSRAT.cc": 3
+      }
+    },
+    {
+      "checkpoint_number": 10,
+      "user_lines_added": 3608,
+      "user_lines_removed": 3,
+      "agent_lines_added": 334359,
+      "agent_lines_removed": 3,
+      "user_added_per_file": {
+        ".tmp/b_smoke/citations.bib": 123,
+        ".tmp/b_smoke/config.ini": 1477,
+        ".tmp/b_smoke/config.json": 1890,
+        ".tmp/b_smoke/simerr.txt": 19,
+        ".tmp/b_smoke/simout.txt": 11,
+        "CHAOS/gem5/src/cpu/o3/CHAOSRAT/CHAOSRAT.cc": 87,
+        "CHAOS/gem5/src/cpu/o3/CHAOSRAT/CHAOSRAT.hh": 1
+      },
+      "user_removed_per_file": {
+        "CHAOS/gem5/src/cpu/o3/CHAOSRAT/CHAOSRAT.cc": 3
+      }
+    },
+    {
+      "checkpoint_number": 11,
+      "user_lines_added": 3520,
+      "user_lines_removed": 0,
+      "agent_lines_added": 348443,
+      "agent_lines_removed": 3,
+      "user_added_per_file": {
+        ".tmp/b_smoke/citations.bib": 123,
+        ".tmp/b_smoke/config.ini": 1477,
+        ".tmp/b_smoke/config.json": 1890,
+        ".tmp/b_smoke/simerr.txt": 19,
+        ".tmp/b_smoke/simout.txt": 11
+      }
+    },
+    {
+      "checkpoint_number": 12,
+      "user_lines_added": 3520,
+      "user_lines_removed": 0,
+      "agent_lines_added": 353683,
+      "agent_lines_removed": 3,
+      "user_added_per_file": {
+        ".tmp/b_smoke/citations.bib": 123,
+        ".tmp/b_smoke/config.ini": 1477,
+        ".tmp/b_smoke/config.json": 1890,
+        ".tmp/b_smoke/simerr.txt": 19,
+        ".tmp/b_smoke/simout.txt": 11
+      }
+    }
+  ]
+}
