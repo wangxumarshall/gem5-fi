@@ -44,9 +44,26 @@ class CHAOSLSQFwd : public SimObject
     static FaultType stringToFaultType(const std::string &s);
     const char *faultTypeToString(FaultType f);
 
+    // Structural fault modes (P-D1 extension). Distinct from the bit-level
+    // FaultType above: these re-route the *whole* delivered word rather than
+    // flipping bits in one byte. Driven by the core-179 microarch diagnosis
+    // (MICROARCH_SUPPLEMENT §2.2): D1 observed load returns of rol_k(stale
+    // array-head content) and all-zero deliveries — neither expressible as a
+    // single-byte bit flip (verified: no 8-bit-mask XOR produces a rotation).
+    enum class StructuralFault {
+        None,            // no structural fault (default; legacy bit-fault path)
+        ByteLaneSkew,    // rotate the delivered word by `skew_bytes` bytes
+        AllZero          // deliver an all-zero word (empty/invalid slot state)
+    };
+    static StructuralFault stringToStructuralFault(const std::string &s);
+    const char *structuralFaultToString(StructuralFault f);
+    void applyStructuralFault(uint8_t *data, unsigned size, Addr vaddr);
+
     o3::CPU *cpu;
     float probability;
     FaultType fault_type_enum;
+    StructuralFault structural_fault_enum;   // P-D1
+    int skew_bytes;                          // P-D1: rotation amount (1..7); 0=random
     std::bitset<32> fault_mask;
     int num_bits_to_change;
     int byte_offset;       // -1 = random byte within [0,size-1]
@@ -69,6 +86,8 @@ class CHAOSLSQFwd : public SimObject
         statistics::Scalar numBitFlips;
         statistics::Scalar numStuckAtZero;
         statistics::Scalar numStuckAtOne;
+        statistics::Scalar numStructuralByteLaneSkew;  // P-D1
+        statistics::Scalar numStructuralAllZero;       // P-D1
         CHAOSLSQFwdStats(statistics::Group *parent);
     };
     std::unique_ptr<CHAOSLSQFwdStats> stats;

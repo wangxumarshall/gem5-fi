@@ -27,6 +27,18 @@ class CHAOSLSQFwd(SimObject):
 
     faultType = Param.String("bit_flip",
         "bit_flip | stuck_at_zero | stuck_at_one | random")
+
+    # P-D1: structural (whole-word) fault axis. Mutually orthogonal to the
+    # per-byte bit-fault `faultType`. When set != "none", the structural path
+    # takes precedence (a structural byte-lane skew is NOT expressible as a bit
+    # flip). Models core-179's D1 signature: load returned rol_k(stale
+    # array-head content) and all-zero deliveries (MICROARCH_SUPPLEMENT §2.2).
+    structuralFault = Param.String("none",
+        "none | byte_lane_skew | all_zero  (P-D1 structural fault)")
+    skewBytes = Param.Int(0,
+        "For byte_lane_skew: rotation amount (1..7). 0 = random 1..7 per event. "
+        "15:58 crash matched rol1; 0814 matched rol6 — bit-exact.")
+
     faultMask = Param.UInt32(0,
         "Per-byte bitmask applied to the forwarded data (0 = random, "
         "bitsToChange bits). The mask is applied to ONE byte of the "
