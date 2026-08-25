@@ -1,0 +1,162 @@
+{
+  "cli_version": "0.10.2",
+  "checkpoint_id": "01M0WJMY5Z6AT78HB5EX3487MK",
+  "session_id": "2c71b34f-b752-414f-9e5b-c70027601c42",
+  "strategy": "manual-commit",
+  "created_at": "2026-08-25T13:44:42.44865494Z",
+  "branch": "docs/core179-microarch-rootcause",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "docs/cases/core179-microarch-rootcause-synthesis/PLAN.md"
+  ],
+  "agent": "Claude Code",
+  "model": "stealth/ox-alpha[1m]",
+  "turn_id": "d5d4fb62fd82",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 144086,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 4095616,
+    "output_tokens": 44897,
+    "api_call_count": 51
+  },
+  "skill_events_version": 1,
+  "skill_events": [
+    {
+      "id": "prompt-skill-claude-code-goal-2026-08-25T13:15:11.59275128Z",
+      "event_type": "prompt_invocation",
+      "skill": {
+        "name": "goal"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "prompt_slash_command",
+        "confidence": "explicit"
+      },
+      "turn_id": "d5d4fb62fd82",
+      "timestamp": "2026-08-25T13:15:11.59275128Z",
+      "native": {
+        "command": "/goal"
+      },
+      "collapse": {
+        "target": "user_message",
+        "label": "/goal",
+        "default_collapsed": true
+      }
+    },
+    {
+      "id": "claude-skill-da0b26ff-1adb-4c97-a9c3-b5ddf66f1a6d",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "superpowers:systematic-debugging"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "d5d4fb62fd82",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 14,
+        "end": 15,
+        "entry_ids": [
+          "15b7a4a1-4506-4748-98f0-5b4268e4e4f3"
+        ],
+        "tool_use_id": "da0b26ff-1adb-4c97-a9c3-b5ddf66f1a6d"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "da0b26ff-1adb-4c97-a9c3-b5ddf66f1a6d"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: superpowers:systematic-debugging",
+        "default_collapsed": true
+      }
+    },
+    {
+      "id": "claude-skill-a286e348-b3b8-4df2-8876-b7f340e0df62",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "superpowers:writing-plans"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "d5d4fb62fd82",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 58,
+        "end": 59,
+        "entry_ids": [
+          "c8424da1-b375-49ce-84d0-53cfa0089064"
+        ],
+        "tool_use_id": "a286e348-b3b8-4df2-8876-b7f340e0df62"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "a286e348-b3b8-4df2-8876-b7f340e0df62"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: superpowers:writing-plans",
+        "default_collapsed": true
+      }
+    },
+    {
+      "id": "claude-skill-83e7cb48-d751-40ac-8713-6ffdf06b9f35",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "superpowers:executing-plans"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "d5d4fb62fd82",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 104,
+        "end": 105,
+        "entry_ids": [
+          "af9651e8-f4e9-4da0-87ef-1647055bc199"
+        ],
+        "tool_use_id": "83e7cb48-d751-40ac-8713-6ffdf06b9f35"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "83e7cb48-d751-40ac-8713-6ffdf06b9f35"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: superpowers:executing-plans",
+        "default_collapsed": true
+      }
+    }
+  ],
+  "initial_attribution": {
+    "calculated_at": "2026-08-25T13:44:42.36610725Z",
+    "agent_lines": 76,
+    "agent_removed": 0,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 76,
+    "total_lines_changed": 76,
+    "agent_percentage": 100,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    }
+  ]
+}
