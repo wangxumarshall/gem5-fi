@@ -30,6 +30,8 @@ class CHAOSPhysReg : public SimObject
   private:
     enum class FaultType { BitFlip, StuckAtZero, StuckAtOne, Random };
     enum class Mode { Phys, ArchFrontend, ArchCommit };
+    enum class RegClassSel { Integer, FloatingPoint, Vector, Both };
+    static RegClassSel stringToRegClassSel(const std::string &s);
 
     struct PermanentFault {
         FaultType fault_type;
@@ -49,6 +51,7 @@ class CHAOSPhysReg : public SimObject
     // target selection
     int target_phys_idx;     // phys fi_mode; -1 = random
     int target_arch_idx;     // arch_frontend / arch_commit modes
+    RegClassSel reg_target_class;  // integer / floating_point / both
 
     // fault model
     float probability;
