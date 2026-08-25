@@ -49,6 +49,10 @@ ap.add_argument("--probability", default="1.0", help="per-interval injection pro
 ap.add_argument("--seed", default="0")
 ap.add_argument("--no-fi", action="store_true", help="disable injection (golden run)")
 ap.add_argument("--max-tick", default="0", help="0 = no cap; else cap sim (Root.max_tick)")
+ap.add_argument("--lsq-fwd-prob", default="0.0", help="CHAOSLSQFwd per-forward corruption probability (0=off)")
+ap.add_argument("--lsq-fwd-bits", default="1", help="bits to flip on forwarded data")
+ap.add_argument("--lsq-fwd-byte", default="-1", help="byte offset in forwarded buffer (-1=random)")
+
 ap.add_argument("--l1d", default="32KiB")
 a = ap.parse_args()
 
@@ -108,6 +112,23 @@ if not a.no_fi:
         rngSeed=int(a.seed),
         writeLog=True,
     )
+
+# CHAOSLSQFwd: store->load forwarding-path corruption (method2 mechanism).
+# Independent of CHAOSPhysReg (register-cell) — this corrupts the datapath.
+if float(a.lsq_fwd_prob) > 0.0:
+    system.lsqfi = CHAOSLSQFwd(
+        cpu=system.cpu,
+        probability=float(a.lsq_fwd_prob),
+        bitsToChange=int(a.lsq_fwd_bits),
+        byteOffset=int(a.lsq_fwd_byte),
+        firstClock=int(a.first_clock),
+        lastClock=0,
+        maxFaults=int(a.max_faults),
+        rngSeed=int(a.seed),
+        writeLog=True,
+    )
+    system.cpu.setLSQFwd(system.lsqfi)
+
 
 root = Root(full_system=False, system=system)
 if int(a.max_tick) > 0:
