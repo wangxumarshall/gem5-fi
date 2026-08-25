@@ -162,6 +162,20 @@ class Cache : public BaseCache
     Cache(const CacheParams &p);
 
     /**
+     * @name CHAOS fault-injection support
+     * Minimal supported accessor exposing the tag store for the CHAOSCache
+     * fault injector. This REPLACES the unsafe
+     * `static_cast<CacheAccessor*>(targetCache)->getTagsPublic()` downcast
+     * (which poked the protected BaseCache::tags member via a reinterpret
+     * helper — undefined behavior if targetCache is not exactly a Cache).
+     * G3 (plan §4): injectors must use a supported narrow interface, not
+     * a C++ object-layout-breaking downcast.
+     */
+    ///@{
+    BaseTags* getTags() { return tags; }
+    ///@}
+
+    /**
      * Take an MSHR, turn it into a suitable downstream packet, and
      * send it out. This construct allows a queue entry to choose a suitable
      * approach based on its type.

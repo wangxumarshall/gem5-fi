@@ -117,11 +117,13 @@ namespace gem5
     BaseTags*
     CHAOSCache::getTags() const
     {
-        struct CacheAccessor : public Cache {
-            BaseTags* getTagsPublic() { return tags; }
-        };
-        
-        return static_cast<CacheAccessor*>(targetCache)->getTagsPublic();
+        // G3 (plan §4): use the supported Cache::getTags() accessor instead
+        // of the unsafe `static_cast<CacheAccessor*>` downcast that poked
+        // the protected BaseCache::tags member via a reinterpret helper
+        // (undefined behavior if targetCache is not exactly a Cache, and
+        // it broke C++ object-layout assumptions). targetCache is a Cache*
+        // per the param, so this is the supported path.
+        return targetCache->getTags();
     }
 
     uint8_t 
