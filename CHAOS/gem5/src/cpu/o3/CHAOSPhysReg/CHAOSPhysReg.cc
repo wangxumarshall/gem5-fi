@@ -22,6 +22,7 @@ namespace gem5
           fi_mode(stringToMode(p.injectionMode)),
           target_phys_idx(p.targetPhysRegIdx),
           target_arch_idx(p.targetArchRegIdx),
+          reg_target_class(stringToRegClassSel(p.regTargetClass)),
           probability(p.probability),
           num_bits_to_change(p.bitsToChange),
           fault_type_enum(stringToFaultType(p.faultType)),
@@ -104,6 +105,13 @@ namespace gem5
         return Mode::Phys;
     }
 
+    CHAOSPhysReg::RegClassSel
+    CHAOSPhysReg::stringToRegClassSel(const std::string &s) {
+        if (s == "floating_point") return RegClassSel::FloatingPoint;
+        else if (s == "both") return RegClassSel::Both;
+        return RegClassSel::Integer;
+    }
+
     void
     CHAOSPhysReg::scheduleAttackEvent(Cycles delay)
     {
@@ -146,7 +154,18 @@ namespace gem5
     void
     CHAOSPhysReg::processFault(ThreadID tid)
     {
-        // 1. Resolve target physical register id.
+        // 1. Resolve target register class (integer vs floating_point).
+        // 'both' picks one at random per injection (a real cell doesn't know
+        // its class either; this mirrors the ITC'23/GeFIN phys abstraction).
+        gem5::RegClassType target_class = gem5::IntRegClass;
+        if (reg_target_class == RegClassSel::FloatingPoint) {
+            target_class = gem5::FloatRegClass;
+        } else if (reg_target_class == RegClassSel::Both) {
+            target_class = (std::uniform_int_distribution<>(0, 1)(rng) == 0)
+                ? gem5::IntRegClass : gem5::FloatRegClass;
+        }
+
+        // 2. Resolve target physical register id.
         PhysRegIdPtr phys_reg = nullptr;
         int chosen_phys_idx = -1;     // for logging
         int chosen_arch_idx = -1;     // for logging (arch modes)
@@ -155,13 +174,17 @@ namespace gem5
             // Inject by physical register index. A real defective cell has no
             // notion of architectural registers; whoever is allocated to this
             // slot gets hit. This is the ITC'23/GeFIN abstraction.
-            int n = cpu->physRegFile().numIntPhysRegs();
+            int n = (target_class == gem5::FloatRegClass)
+                ? (int)cpu->physRegFile().numFloatPhysRegs()
+                : (int)cpu->physRegFile().numIntPhysRegs();
             if (n <= 0) return;
             chosen_phys_idx = (target_phys_idx >= 0)
                 ? target_phys_idx
                 : std::uniform_int_distribution<>(0, n - 1)(rng);
             if (chosen_phys_idx >= n) return;
-            phys_reg = cpu->physRegFile().intPhysRegId(chosen_phys_idx);
+            phys_reg = (target_class == gem5::FloatRegClass)
+                ? cpu->physRegFile().floatPhysRegId(chosen_phys_idx)
+                : cpu->physRegFile().intPhysRegId(chosen_phys_idx);
 
             // Liveness probe: is this physical slot currently FREE (inactive)
             // or ALLOCATED (active)? Correct criterion per project notes: a phys
@@ -171,10 +194,9 @@ namespace gem5
             // released). So "not free" = active = may be read. (The earlier
             // "rename map reverse-walk" criterion was too narrow and mislabeled
             // some live slots as dead, producing the dead-slot SDC anomaly.)
-            bool is_free = cpu->physFreeList().isFree(
-                gem5::IntRegClass, phys_reg);
+            bool is_free = cpu->physFreeList().isFree(target_class, phys_reg);
             free_list_size_at_inject = cpu->physFreeList().numFreeRegs(
-                gem5::IntRegClass);
+                target_class);
             if (!is_free) {
                 // active — also record which arch reg (if any) maps to it now,
                 // for diagnostics (walk rename map; best-effort, not the
@@ -184,13 +206,16 @@ namespace gem5
                     gem5::BaseISA *isa = tc->getIsaPtr();
                     if (isa) {
                         const auto &rc = isa->regClasses();
-                        const gem5::RegClass *ic = rc[gem5::IntRegClass];
+                        const gem5::RegClass *ic = rc[target_class];
                         int na = ic ? ic->numRegs() : 0;
-                        int cap = na < 31 ? na : 31;  // X0-X30
+                        // X0-X30 (cap 31) for int; V0-V31 (cap 32) for float.
+                        int cap = (target_class == gem5::FloatRegClass)
+                            ? (na < 32 ? na : 32) : (na < 31 ? na : 31);
                         for (int a = 0; a < cap; a++) {
                             gem5::RegId ar(*ic, a);
                             const gem5::RegId flat = ar.flatten(*isa);
-                            PhysRegIdPtr pm = cpu->frontRenameMap()[tid].lookup(flat);
+                            PhysRegIdPtr pm =
+                                cpu->frontRenameMap()[tid].lookup(flat);
                             if (pm && pm->index() == chosen_phys_idx) {
                                 chosen_arch_idx = a;
                                 break;
@@ -209,7 +234,7 @@ namespace gem5
             gem5::BaseISA *isa = thread_context->getIsaPtr();
             if (!isa) return;
             const auto &reg_classes = isa->regClasses();
-            const gem5::RegClass *reg_class = reg_classes[gem5::IntRegClass];
+            const gem5::RegClass *reg_class = reg_classes[target_class];
             if (!reg_class || reg_class->numRegs() == 0) return;
             int arch_idx = target_arch_idx;
             if (arch_idx < 0 || arch_idx >= reg_class->numRegs()) return;
@@ -275,7 +300,7 @@ namespace gem5
         trace_overwritten = false;
         overwrite_recorded = false;
         overwritten_at_cycle = 0;
-        cpu->physRegFile().setReadTraceTarget(chosen_phys_idx);
+        cpu->physRegFile().setReadTraceTarget(target_class, chosen_phys_idx);
         if (!readTraceEvent.scheduled()) {
             schedule(readTraceEvent, cpu->clockEdge(Cycles(100000)));
         }
@@ -288,6 +313,8 @@ namespace gem5
                 << ", Mode: " << (fi_mode == Mode::Phys ? "phys"
                               : fi_mode == Mode::ArchFrontend ? "arch_frontend"
                               : "arch_commit")
+                << ", RegClass: " << (target_class == gem5::FloatRegClass
+                                       ? "fp" : "int")
                 << ", PhysReg[" << chosen_phys_idx << "]"
                 << (fi_mode == Mode::Phys
                     ? (chosen_arch_idx == -2

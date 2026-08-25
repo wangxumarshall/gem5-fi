@@ -38,10 +38,15 @@ class CHAOSPhysReg(SimObject):
     # --- target selection (per mode) ---
     targetPhysRegIdx = Param.Int(
         -1, "Physical register index to inject (phys mode). -1 = random "
-        "across [0, numPhysicalIntRegs-1].")
+        "across the selected register class.")
     targetArchRegIdx = Param.Int(
         0, "Architectural register index (arch_frontend / arch_commit modes). "
-        "On aarch64 X0-X30 = 0-30 (31 = Zero, excluded).")
+        "On aarch64 X0-X30 = 0-30 (31 = Zero, excluded); for floating_point "
+        "class this indexes the FP arch reg file (V0-V31 = 0-31 on aarch64).")
+    regTargetClass = Param.String(
+        "integer", "Register class to target: 'integer' | 'floating_point' | "
+        "'both' (phys mode: random pick across the two classes; arch modes: "
+        "selects the FP vs int rename map).")
 
     # --- fault model (mirrors CHAOSReg) ---
     probability = Param.Float(1.0, "Per-interval injection probability "
