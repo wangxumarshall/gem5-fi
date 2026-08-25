@@ -395,3 +395,18 @@ P6 (bit_spectrum, double, 3 samples, 10 bits):
 
 **研究闭环**：P4 注入 → 真实 SDC → P6 分析 → 复现 method2 现场实测签名。方案的科学有效性已验证，剩余为统计规模扩展（实验 A/D 的 ≥30 seed campaign）与工具补全（P3 ROB / P5 多核）。
 
+### 12.5 H1 子发现：PRF 持续损坏 vs LSQ 转发瞬态损坏的倾向差异（pilot）
+
+实验 A 的先导（fp_fwd_kernel，5 seed × 注入预算 50）观察到一个**未预测但科学上有意义的差异**：
+
+- **CHAOSLSQFwd（转发瞬态损坏）**：50 次转发损坏，5/5 seed 在仿真超时前捕获 IEEE754 SDC（§12.1），且多数能跑完或仅末期崩溃。转发损坏只污染"那一刻的 load 结果"，不持续——故产生静默 SDC 而非全局发散。
+- **CHAOSPhysReg（PRF 持续损坏）**：相同预算下注入活跃 FP phys reg，5/5 seed 仿真发散/超时（数值变 NaN/Inf 导致循环极慢或崩溃）。PRF 损坏**持续污染寄存器值**，被后续指令反复消费 → 发散。
+
+**H1 推论**：两类后端位点的 SDC 产出**机制不同**——
+- 转发通路（datapath）损坏 → 瞬态、静默 SDC（method2 的 reload `ldr` 得到错误值，符合现场）。
+- PRF cell 损坏 → 持续、发散/崩溃倾向（method3 的指针损坏 → Oops 符合）。
+
+这与三份复现报告的分工吻合：method2（转发，静默多位）vs method3（寄存器/写回，崩溃）。**实验 A 应分别统计两类的 {SDC, Crash, Benign} 率**，而非笼统"后端 SDC 率"——这是对原 H1 的细化（仍可证伪：若两类率无差异则 H1 细化无效）。
+
+⚠ pilot 样本量小（5 seed），统计不显著，仅作方向性证据与实验设计细化。完整 H1 需 ≥30 seed/单元格 + 卡方检验。
+
