@@ -173,6 +173,8 @@ class PhysRegFile
     PhysRegIdPtr intPhysRegId(RegIndex idx) { return &intRegIds[idx]; }
     unsigned numFloatPhysRegs() const { return floatRegIds.size(); }
     PhysRegIdPtr floatPhysRegId(RegIndex idx) { return &floatRegIds[idx]; }
+    unsigned numVecPhysRegs() const { return vecRegIds.size(); }
+    PhysRegIdPtr vecPhysRegId(RegIndex idx) { return &vecRegIds[idx]; }
 
     /** Read-tracking hook for CHAOSPhysReg closure verification.
      *  Counts reads of the INJECTED VALUE (not the phys slot): once the
@@ -263,6 +265,11 @@ class PhysRegFile
             break;
           case VecRegClass:
             vectorRegFile.get(idx, val);
+            // CHAOSPhysReg read-trace (vector): symmetric to int/float — count
+            // reads of the injected VecReg cell until it is overwritten.
+            if (trace_type == VecRegClass && !trace_overwritten
+                && (int)idx == trace_idx)
+                ++reads_before_overwrite;
             DPRINTF(IEW, "RegFile: Access to vector register %i, has "
                     "data %s\n", idx, vectorRegFile.regClass.valString(val));
             break;
@@ -363,6 +370,10 @@ class PhysRegFile
             setReg(phys_reg, *(RegVal *)val);
             break;
           case VecRegClass:
+            // CHAOSPhysReg read-trace (vector): a write to the traced cell
+            // destroys the injected value → stop counting reads from here.
+            if (trace_type == VecRegClass && (int)idx == trace_idx)
+                trace_overwritten = true;
             DPRINTF(IEW, "RegFile: Setting vector register %i to %s\n",
                     idx, vectorRegFile.regClass.valString(val));
             vectorRegFile.set(idx, val);

@@ -6,6 +6,8 @@
 #include <vector>
 #include <random>
 #include <bitset>
+#include <cstring>
+#include <cstdint>
 
 #include "base/output.hh"
 #include "cpu/o3/cpu.hh"
@@ -108,6 +110,7 @@ namespace gem5
     CHAOSPhysReg::RegClassSel
     CHAOSPhysReg::stringToRegClassSel(const std::string &s) {
         if (s == "floating_point") return RegClassSel::FloatingPoint;
+        else if (s == "vector") return RegClassSel::Vector;
         else if (s == "both") return RegClassSel::Both;
         return RegClassSel::Integer;
     }
@@ -154,15 +157,21 @@ namespace gem5
     void
     CHAOSPhysReg::processFault(ThreadID tid)
     {
-        // 1. Resolve target register class (integer vs floating_point).
-        // 'both' picks one at random per injection (a real cell doesn't know
-        // its class either; this mirrors the ITC'23/GeFIN phys abstraction).
+        // 1. Resolve target register class (integer / floating_point / vector).
+        // 'both' picks one at random per injection across the three classes (a
+        // real cell doesn't know its class either; this mirrors the ITC'23/GeFIN
+        // phys abstraction).
         gem5::RegClassType target_class = gem5::IntRegClass;
         if (reg_target_class == RegClassSel::FloatingPoint) {
             target_class = gem5::FloatRegClass;
+        } else if (reg_target_class == RegClassSel::Vector) {
+            target_class = gem5::VecRegClass;
         } else if (reg_target_class == RegClassSel::Both) {
-            target_class = (std::uniform_int_distribution<>(0, 1)(rng) == 0)
-                ? gem5::IntRegClass : gem5::FloatRegClass;
+            switch (std::uniform_int_distribution<>(0, 2)(rng)) {
+              case 0: target_class = gem5::IntRegClass; break;
+              case 1: target_class = gem5::FloatRegClass; break;
+              default: target_class = gem5::VecRegClass; break;
+            }
         }
 
         // 2. Resolve target physical register id.
@@ -174,17 +183,24 @@ namespace gem5
             // Inject by physical register index. A real defective cell has no
             // notion of architectural registers; whoever is allocated to this
             // slot gets hit. This is the ITC'23/GeFIN abstraction.
-            int n = (target_class == gem5::FloatRegClass)
-                ? (int)cpu->physRegFile().numFloatPhysRegs()
-                : (int)cpu->physRegFile().numIntPhysRegs();
+            int n;
+            if (target_class == gem5::FloatRegClass)
+                n = (int)cpu->physRegFile().numFloatPhysRegs();
+            else if (target_class == gem5::VecRegClass)
+                n = (int)cpu->physRegFile().numVecPhysRegs();
+            else
+                n = (int)cpu->physRegFile().numIntPhysRegs();
             if (n <= 0) return;
             chosen_phys_idx = (target_phys_idx >= 0)
                 ? target_phys_idx
                 : std::uniform_int_distribution<>(0, n - 1)(rng);
             if (chosen_phys_idx >= n) return;
-            phys_reg = (target_class == gem5::FloatRegClass)
-                ? cpu->physRegFile().floatPhysRegId(chosen_phys_idx)
-                : cpu->physRegFile().intPhysRegId(chosen_phys_idx);
+            if (target_class == gem5::FloatRegClass)
+                phys_reg = cpu->physRegFile().floatPhysRegId(chosen_phys_idx);
+            else if (target_class == gem5::VecRegClass)
+                phys_reg = cpu->physRegFile().vecPhysRegId(chosen_phys_idx);
+            else
+                phys_reg = cpu->physRegFile().intPhysRegId(chosen_phys_idx);
 
             // Liveness probe: is this physical slot currently FREE (inactive)
             // or ALLOCATED (active)? Correct criterion per project notes: a phys
@@ -208,9 +224,13 @@ namespace gem5
                         const auto &rc = isa->regClasses();
                         const gem5::RegClass *ic = rc[target_class];
                         int na = ic ? ic->numRegs() : 0;
-                        // X0-X30 (cap 31) for int; V0-V31 (cap 32) for float.
-                        int cap = (target_class == gem5::FloatRegClass)
-                            ? (na < 32 ? na : 32) : (na < 31 ? na : 31);
+                        // X0-X30 (cap 31) for int; V0-V31 (cap 32) for
+                        // float AND vector (AArch64 V/D/Q share the file).
+                        int cap;
+                        if (target_class == gem5::IntRegClass)
+                            cap = (na < 31 ? na : 31);
+                        else
+                            cap = (na < 32 ? na : 32);
                         for (int a = 0; a < cap; a++) {
                             gem5::RegId ar(*ic, a);
                             const gem5::RegId flat = ar.flatten(*isa);
@@ -252,40 +272,72 @@ namespace gem5
 
         if (!phys_reg) return;
 
-        // 2. Read current physical reg value, apply fault, write back.
-        gem5::RegVal reg_val = cpu->physRegFile().getReg(phys_reg);
-
-        int mask = fault_mask.any()
-            ? fault_mask.to_ulong()
-            : generateRandomMask(rng, num_bits_to_change, sizeof(reg_val) << 3);
-
+        // 3. Read current physical reg value, apply fault, write back.
+        // VecRegClass holds a whole vector in a buffer (not a scalar RegVal),
+        // so it goes through the getReg/setReg void*-overload; the fault mask
+        // is applied to the first 8 bytes (one 64-bit word — enough to corrupt
+        // the low lane of a NEON/SVE vector and propagate as SDC). int/float/
+        // vecelem stay on the scalar RegVal path.
         FaultType chosen = fault_type_enum;
         if (fault_type_enum == FaultType::Random) {
             int idx = random_fault_distribution(rng);
             chosen = static_cast<FaultType>(idx);
         }
 
-        switch (chosen) {
-            case FaultType::StuckAtZero:
+        int mask = fault_mask.any()
+            ? fault_mask.to_ulong()
+            : generateRandomMask(rng, num_bits_to_change, 32);
+
+        if (target_class == gem5::VecRegClass) {
+            // Buffer path: read the whole vector, corrupt the low word, write back.
+            uint8_t buf[64];  // SVE max 2048b=256B; 64B head suffices for low-word FI
+            memset(buf, 0, sizeof(buf));
+            cpu->physRegFile().getReg(phys_reg, buf);
+            uint64_t *word0 = reinterpret_cast<uint64_t*>(buf);
+            switch (chosen) {
+              case FaultType::StuckAtZero:
+                *word0 &= ~(uint64_t)mask;
+                stats->numStuckAtZero++;
+                stats->numPermanentFaults++;
+                permanent_faults[{tid, chosen_phys_idx}] = {chosen, mask, true};
+                break;
+              case FaultType::StuckAtOne:
+                *word0 |= (uint64_t)mask;
+                stats->numStuckAtOne++;
+                stats->numPermanentFaults++;
+                permanent_faults[{tid, chosen_phys_idx}] = {chosen, mask, true};
+                break;
+              case FaultType::BitFlip:
+                *word0 ^= (uint64_t)mask;
+                stats->numBitFlips++;
+                break;
+              default: break;
+            }
+            cpu->physRegFile().setReg(phys_reg, buf);
+        } else {
+            // Scalar path (int / float / vecelem).
+            gem5::RegVal reg_val = cpu->physRegFile().getReg(phys_reg);
+            switch (chosen) {
+              case FaultType::StuckAtZero:
                 reg_val &= ~mask;
                 stats->numStuckAtZero++;
                 stats->numPermanentFaults++;
                 permanent_faults[{tid, chosen_phys_idx}] = {chosen, mask, true};
                 break;
-            case FaultType::StuckAtOne:
+              case FaultType::StuckAtOne:
                 reg_val |= mask;
                 stats->numStuckAtOne++;
                 stats->numPermanentFaults++;
                 permanent_faults[{tid, chosen_phys_idx}] = {chosen, mask, true};
                 break;
-            case FaultType::BitFlip:
+              case FaultType::BitFlip:
                 reg_val ^= mask;
                 stats->numBitFlips++;
                 break;
-            default: break;
+              default: break;
+            }
+            cpu->physRegFile().setReg(phys_reg, reg_val);
         }
-
-        cpu->physRegFile().setReg(phys_reg, reg_val);
         stats->numFaultsInjected++;
         ++faults_injected_count;
 
@@ -314,7 +366,9 @@ namespace gem5
                               : fi_mode == Mode::ArchFrontend ? "arch_frontend"
                               : "arch_commit")
                 << ", RegClass: " << (target_class == gem5::FloatRegClass
-                                       ? "fp" : "int")
+                                       ? "fp"
+                                       : (target_class == gem5::VecRegClass
+                                          ? "vec" : "int"))
                 << ", PhysReg[" << chosen_phys_idx << "]"
                 << (fi_mode == Mode::Phys
                     ? (chosen_arch_idx == -2

@@ -30,7 +30,7 @@ class CHAOSPhysReg : public SimObject
   private:
     enum class FaultType { BitFlip, StuckAtZero, StuckAtOne, Random };
     enum class Mode { Phys, ArchFrontend, ArchCommit };
-    enum class RegClassSel { Integer, FloatingPoint, Both };
+    enum class RegClassSel { Integer, FloatingPoint, Vector, Both };
     static RegClassSel stringToRegClassSel(const std::string &s);
 
     struct PermanentFault {

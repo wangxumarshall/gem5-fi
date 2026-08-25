@@ -45,8 +45,9 @@ class CHAOSPhysReg(SimObject):
         "class this indexes the FP arch reg file (V0-V31 = 0-31 on aarch64).")
     regTargetClass = Param.String(
         "integer", "Register class to target: 'integer' | 'floating_point' | "
-        "'both' (phys mode: random pick across the two classes; arch modes: "
-        "selects the FP vs int rename map).")
+        "'vector' | 'both' (phys mode: random pick across the three classes; "
+        "arch modes: selects the rename map). 'vector' targets VecRegClass "
+        "(whole SVE/NEON vectors — the actual AArch64 FMA/byte-swap hot path).")
 
     # --- fault model (mirrors CHAOSReg) ---
     probability = Param.Float(1.0, "Per-interval injection probability "
