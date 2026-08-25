@@ -114,6 +114,8 @@ if not a.no_fi:
 
 # CHAOSLSQFwd: store->load forwarding-path corruption (method2 mechanism).
 # Independent of CHAOSPhysReg (register-cell) — this corrupts the datapath.
+# The injector registers itself with the CPU in its constructor (cpu->lsqFwd
+# = this), so lsq_unit.cc reaches it via the cpu pointer it already holds.
 if float(a.lsq_fwd_prob) > 0.0:
     system.lsqfi = CHAOSLSQFwd(
         cpu=system.cpu,
@@ -126,7 +128,6 @@ if float(a.lsq_fwd_prob) > 0.0:
         rngSeed=int(a.seed),
         writeLog=True,
     )
-    system.cpu.setLSQFwd(system.lsqfi)
 
 root = Root(full_system=False, system=system)
 if int(a.max_tick) > 0:
