@@ -1,14 +1,9 @@
 # 基于 CHAOS/gem5 的 ARM64（鲲鹏 920 导向）SDC 故障注入实验方案
 
-> 版本：源码审计版 v1.0（2026-08-25）  
-> 研究对象：ARM64/AArch64，重点为鲲鹏 920/TaiShan v110 的公开特征与可校准代理模型  
-> CHAOS 本地源码：`third_party/CHAOS`  
-> CHAOS 固定提交：`72cd7e5cbafd494386c20c933f38e7b655e9201b`  
-> 本文性质：实验设计与后续实施规范；本轮未编译、未运行 benchmark、未修改 CHAOS 源码
 
 ## 0. 一页执行结论
 
-本课题不预设“ARM64 比 x86 更脆弱”。研究假设应写成：**ARM64/鲲鹏特有的状态、弱内存序路径、128B L3 故障域及实现定义的保护边界，是否改变特定结构的条件 SDC 概率与传播路径**。
+研究假设：**ARM64/鲲鹏特有的状态、弱内存序路径、128B L3 故障域及实现定义的保护边界，是否改变特定结构的条件 SDC 概率与传播路径**。
 
 当前下载的 CHAOS 只能作为起点，不能原样用于正式 ARM64 论文实验：
 
@@ -20,7 +15,7 @@
 因此，推荐路线是：
 
 1. 冻结版本并完成七个正确性闸门；以单故障、确定性触发建立 ARM64 GPR/L1I/L1D/内存基线。
-2. 先做最小可发表核心：**GPR + L1I/L1D + NEON lane + TLB/系统寄存器 + LSQ 转发**。
+2. 先做最小可发表核心：**GPR + L1I/L1D + NEON lane + TLB/系统寄存器 + LSQ 转发(load/store buffer)**。
 3. 再做鲲鹏导向扩展：64B sector 配对的 128B L3 故障域代理、coherence/NUMA；明确它不是鲲鹏内部微架构复现。
 4. 最后做同语义、同保护假设的 x86-64 配对对照，并用鲲鹏实机 RAS 能力与日志链路校准。
 
@@ -730,24 +725,4 @@ validate manifest/hash
 
 ## 16. 参考与本地材料
 
-本方案重点继承此前研究报告第 5 章“x86-64 与 ARM64 的敏感性差异”和第 6 章“鲲鹏 920 高价值靶点与优先级”，并以当前下载的 CHAOS 固定提交重新核对实现边界。
-
-本地材料：
-
-- `tmp/pdfs/report-source.md`：此前深度研究报告的可编辑源稿。
-- `output/pdf/ARM64_Kunpeng_SDC_Fault_Injection_Plan.pdf`：此前完整研究报告。
-- `实验方案与提示词_v3.md`：已有字段、分类和实验记录经验。
-- `逐结构注入速查表.md`：结构级靶点与风险速查。
-- `third_party/CHAOS/README.md` 及三个模块源码：本次方案的实现审计依据。
-
-外部版本依据：
-
-- CHAOS：<https://github.com/eliovinciguerra/CHAOS>
-- gem5 releases：<https://github.com/gem5/gem5/releases>
-- gem5 stable source：<https://github.com/gem5/gem5/tree/stable>
-
-## 17. 本轮完成边界
-
-已完成：CHAOS 仓库下载、commit 固定、只读源码审计、ARM64/鲲鹏导向的完整实验方案设计。  
-未执行：gem5/CHAOS 编译、benchmark、fault campaign、源码修改、系统依赖安装。  
-因此，本文中的命令、接口和验收项是后续实施规范，不是已经运行通过的结果。
+- `./ARM64_Kunpeng_SDC_Fault_Injection_Plan.pdf`：完整研究报告。
