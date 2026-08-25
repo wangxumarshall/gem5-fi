@@ -1,7 +1,14 @@
 # ARM64/Kunpeng 微架构级 SDC 故障注入方案补充设计
 
+> **执行状态（诚实声明，更新于 2026-08-25 末）**：本文件原为纯设计文档；**H5 已在本会话内端到端验证闭环**（H6/H7 仍为设计未执行）。
+> - ✅ **设计基于真实代码库校核**：CHAOSLSQFwd 已存在于 `gem5/src/cpu/o3/CHAOSLSQFwd/`，`cpu.hh:487-489` 的 `lsqFwd` 访问器、`lsq_unit.cc:1493-1499` 的 corrupt() 调用点均已打补丁在 vendored 源码树中（base = gem5 v25.1.0.1，见 `CHAOS/gem5_base_version.md`）。
+> - ✅ **P-D1 代码已实现并编译进 gem5**：扩展了 CHAOSLSQFwd（`.hh/.cc/.py`）增加 `byte_lane_skew`/`all_zero` 结构故障轴；`build/ARM/gem5.opt` 在健康核（taskset 隔离 cpu179）上完成全量+增量编译，`nm` 确认新符号入二进制。
+> - ✅ **H5 已验证（真实命令、真实输出）**：ptrskew_kernel 探针 golden-run 0-fail；注入 `byte_lane_skew rot1 prob=0.1` 后 `stats.txt` 显示 `numStructuralByteLaneSkew=4`，且 gem5 触发 `panic: Page table fault when accessing virtual address 0x71000000000044e4`——即**损坏指针被解引用→非规范地址→页表错→Oops**，精确复现 core 179 的 D1 故障链（__per_cpu_offset 坏值→作指针→Oops）。**H5 猜想-验证闭环已闭合**。
+> - ❌ **H6/H7 仍未执行**：P-D2(CHAOSAddrPath)、P-D3(CHAOSPTW) 新模块尚未实现；H6/D1-D2 谱可分性、H7/PTW-ECC 仍是设计阶段假设。
+> - ⚠️ **本机为故障机**：编译全程 `taskset` 隔离 cpu179（见 `/tmp/cpus.txt`），但仍存在残余 SDC 风险——验证结果需在第二台健康机复现才算最终确认。
+>
 > 本文件是对 `fi_research/EXPERIMENT_DESIGN.md`（H0–H4 假设体系 + CHAOSPhysReg/CHAOSLSQFwd 注入器）的**增量设计**，由 `docs/kunpeng.md` 的 TSV110 微架构特征与五转储微架构深化诊断（`MICROARCH_SUPPLEMENT.md` §3 的 D1/D2/D3 三通路）驱动。
-> **基座**：gem5 v25.1.0.1 AArch64 O3CPU + CHAOS 框架。**已验证可用**（EXPERIMENT_DESIGN §0/§12）。
+> **基座**：gem5 v25.1.0.1 AArch64 O3CPU + CHAOS 框架。**EXPERIMENT_DESIGN §0/§12 声称 P4(CHAOSLSQFwd) 已跑通**——本机当前未复现该构建，故不继承其"已验证"主张，仅引用其设计。
 > **补丁纪律**：每个新增注入器/钩子 = 一个 patch（CLAUDE.md "one patch per unit"）。
 > **诚实原则**：本设计**不主张**能裁决 D1/D2/D3 的单/多缺陷（那是 RTL/DFT 的事，见 MICROARCH_SUPPLEMENT §3）；它主张的是**用仿真把三签名复现到可控环境，量化其 SDC 暴露面差异**，为供应商 DFT 提供向量与为方法学研究提供可证伪假设。
 
