@@ -8,6 +8,25 @@ in the commit message of the patch that introduced it.
 
 ## What is DONE (verified, committed, pushed)
 
+**Phase 1 P0 targets — all 3 have real pilot results:**
+- **P0 GPR** (`8cbf7b6` + `3551d57`): CHAOSPhysReg arch_frontend on reg_chain.
+  n=10 scan: X2/X3 SDC (`bcd3c78e2ed7de1b`, `3c4da37564e2fbf5`), 2/10=20%.
+  Bit-stratified (X2/X3 × bits 0/31/32/63): **SDC=3, Hang=5, Masked=0** —
+  low-bit flips → SDC (data), high-bit flips → Hang (control-flow).
+- **P0 L1D** (`d72c61e`): CHAOSCache on l1d_reduce (512KiB array reduction).
+  n=10: **10/10 Masked** — honest cache AVF (single transient byte flip
+  mostly masked; §6.2 occupancy caveat). Measurable L1D SDC needs
+  MBU/tag-fault/tighter-O3-window cells (deferred).
+- **P0 L1I** (`924b09b`): CHAOSCache (target=l1i) on l1i_loop (tight loop).
+  n=10: **10/10 Hang, 0 SDC, 0 Crash** — instruction-field faults corrupt
+  control flow (loop never exits), matches §7.2 (Hang/Crash-heavy, not SDC).
+
+Phase 1 §8.3 golden stability: 5× no-injection reg_chain → 1 unique checksum
+`f247ef3fe6f02cfd` (stable; cell eligible for campaign). All 3 P0 kernels
+(reg_chain, l1d_reduce, l1i_loop) have native==gem5 deterministic goldens.
+
+## What is DONE (gates + runner)
+
 All work is one-patch-per-unit (CLAUDE.md patch discipline), each verified
 with REAL commands before commit (build clean + functional + regression).
 
