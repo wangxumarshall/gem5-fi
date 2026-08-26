@@ -14,6 +14,10 @@ Usage: python3 tools/runner.py <manifest.yaml> <golden_stdout_hash>
 """
 import sys, os, json, subprocess, hashlib, argparse, tempfile
 
+# Shared honest classifier (plan §9.1; report issue #4 fix).
+sys.path.insert(0, os.path.dirname(os.path.realpath(__file__)))
+from classify import classify_run  # noqa: E402
+
 try:
     import yaml
 except ImportError:
@@ -27,7 +31,9 @@ except ImportError:
     HAVE_SCHEMA = False
 
 REPO = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
-G5 = os.path.join(REPO, "CHAOS/gem5/build/ARM/gem5.opt")
+# NOTE: scons builds gem5.opt to the REPO-ROOT build/ARM on this host
+# (NOT CHAOS/gem5/build/ARM — that path holds a stale/duplicate file).
+G5 = os.path.join(REPO, "build/ARM/gem5.opt")
 CFG = os.path.join(REPO, "configs/se/arm_chaos.py")
 
 def sha256_file(path):
@@ -36,28 +42,6 @@ def sha256_file(path):
         for chunk in iter(lambda: f.read(1<<16), b""):
             h.update(chunk)
     return h.hexdigest()
-
-def classify(stdout_text, golden_checksum, exit_code, faults_injected, simerr_text):
-    """Plan §9.1 mutually-exclusive classification (ordered).
-
-    golden_checksum: the workload's own oracle checksum (e.g. the 16-hex
-    value reg_chain prints). We extract the matching line from gem5 stdout
-    and compare — NOT the full gem5 stdout (which has info/warn lines that
-    vary)."""
-    # 1. SimulatorError: simulator UB/assert/tool/config error
-    if simerr_text and ("panic" in simerr_text or "Assertion" in simerr_text
-                        or "SIGSEGV" in simerr_text or "abort" in simerr_text):
-        return "SimulatorError"
-    # 2. Inactive: target absent/invalid at trigger, or XZR discard
-    if faults_injected == 0:
-        return "Inactive"
-    # 3-9: program completed (exit 0) -> extract workload checksum, compare
-    import re
-    m = re.findall(r"^[0-9a-fA-F]{16}$", stdout_text, re.MULTILINE)
-    out_checksum = m[-1] if m else ""
-    if out_checksum == golden_checksum:
-        return "Masked"
-    return "SDC"
 
 def main():
     ap = argparse.ArgumentParser()
@@ -114,13 +98,27 @@ def main():
         cmd += ["--chaos_mem"]
 
     print("[runner] running:", " ".join(cmd[:4]), "...")
-    r = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
+    # Hang timeout (plan §13.2): a normal sim completes in well under the
+    # wall budget; a Hang = no completion within this. Default 600s; the
+    # manifest may specify limits.max_ticks but we bound on wall time here.
+    HANG_TIMEOUT = 600
+    timed_out = False
+    try:
+        r = subprocess.run(cmd, capture_output=True, text=True,
+                           timeout=HANG_TIMEOUT)
+    except subprocess.TimeoutExpired as e:
+        timed_out = True
+        # Build a pseudo-result from whatever was captured.
+        r = subprocess.CompletedProcess(
+            cmd, returncode=-1, stdout=e.stdout or "", stderr=e.stderr or "")
 
     # collect faults_injected from the injection log(s).
     # CHAOSReg log: "Cycle: ..., Register: integer[9], FaultType: bit_flip, ..."
     # CHAOSMem log: "...faults_injected: N" (explicit count)
     # CHAOSCache log: per-injection line. We count NON-Inactive/Error lines as
     # valid injections (an XZR-Inactive or "Error:" line does not count).
+    # CHAOSPhysReg log: a "Cycle:" line with "PhysReg[" is a real injection;
+    #   the "ReadTracePoll:" / "ReadTraceFinal:" lines are NOT.
     outdir = None
     for i, a in enumerate(cmd):
         if a == "-d" and i+1 < len(cmd):
@@ -138,6 +136,9 @@ def main():
                         except Exception:
                             pass
                         continue
+                    # CHAOSPhysReg: exclude ReadTrace* poll lines (not injections)
+                    if line.startswith("ReadTracePoll") or line.startswith("ReadTraceFinal"):
+                        continue
                     # count valid injection lines: exclude Inactive/Error
                     if ("Inactive" in line) or line.startswith("Error"):
                         continue
@@ -146,12 +147,16 @@ def main():
             break
     # G5 assertion: exactly 0 or 1 valid injection
     if faults not in (0,1):
-        print(f"[runner] G5 VIOLATION: faults_injected={faults} (not in {{0,1}})")
+        print(f"[runner] G5 VIOLATION: faults_injected={faults} (not in {{0,1}}) "
+              f"— run invalid")
 
     stdout_text = r.stdout if r.stdout else ""
-    cls = classify(stdout_text, args.golden_checksum, r.returncode, faults, r.stderr)
+    cls, reason = classify_run(stdout_text, r.stderr or "", r.returncode,
+                               faults, args.golden_checksum, timed_out)
     print(f"[runner] RESULT: run_id={m['run_id']} classification={cls} "
-          f"faults_injected={faults} exit={r.returncode}")
+          f"faults_injected={faults} exit={r.returncode} "
+          f"timed_out={timed_out}")
+    print(f"[runner]   reason: {reason}")
     return 0
 
 if __name__ == "__main__":
