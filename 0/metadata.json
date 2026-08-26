@@ -1,0 +1,86 @@
+{
+  "cli_version": "0.10.2",
+  "checkpoint_id": "01M0XZHTEZQHAY3PG9ZW63BHXX",
+  "session_id": "f9898586-c03f-42d7-8904-6493c822e08d",
+  "strategy": "manual-commit",
+  "created_at": "2026-08-26T02:49:28.281303162Z",
+  "branch": "arm64-sdc-base",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "CHAOS/gem5/src/CHAOSReg/CHAOSReg.cc",
+    "CHAOS/gem5/src/mem/CHAOSMem/CHAOSMem.cc",
+    "CHAOS/gem5/src/mem/cache/CHAOSCache/CHAOSCache.cc"
+  ],
+  "agent": "Claude Code",
+  "model": "GLM-5.2[1m]",
+  "turn_id": "f994db29866d",
+  "checkpoint_transcript_start": 2686,
+  "transcript_lines_at_start": 2686,
+  "compact_transcript_start": 543,
+  "token_usage": {
+    "input_tokens": 6110,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 4228096,
+    "output_tokens": 3154,
+    "api_call_count": 16
+  },
+  "skill_events_version": 1,
+  "skill_events": [
+    {
+      "id": "prompt-skill-claude-code-goal-2026-08-25T14:22:21.613713277Z",
+      "event_type": "prompt_invocation",
+      "skill": {
+        "name": "goal"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "prompt_slash_command",
+        "confidence": "explicit"
+      },
+      "turn_id": "ab5bfd265c23",
+      "timestamp": "2026-08-25T14:22:21.613713277Z",
+      "native": {
+        "command": "/goal"
+      },
+      "collapse": {
+        "target": "user_message",
+        "label": "/goal",
+        "default_collapsed": true
+      }
+    },
+    {
+      "id": "prompt-skill-claude-code-goal-2026-08-26T01:28:00.508532561Z",
+      "event_type": "prompt_invocation",
+      "skill": {
+        "name": "goal"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "prompt_slash_command",
+        "confidence": "explicit"
+      },
+      "turn_id": "f994db29866d",
+      "timestamp": "2026-08-26T01:28:00.508532561Z",
+      "native": {
+        "command": "/goal"
+      },
+      "collapse": {
+        "target": "user_message",
+        "label": "/goal",
+        "default_collapsed": true
+      }
+    }
+  ],
+  "initial_attribution": {
+    "calculated_at": "2026-08-26T02:49:27.801867732Z",
+    "agent_lines": 3,
+    "agent_removed": 0,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 3,
+    "total_lines_changed": 3,
+    "agent_percentage": 100,
+    "metric_version": 2
+  }
+}
