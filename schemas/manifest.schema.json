@@ -1,0 +1,58 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "arm-chaos-fi/v1 fault-injection manifest",
+  "description": "Per-run manifest for the ARM64 CHAOS SDC fault-injection campaign (plan §5.1). One manifest == exactly one deterministic fault (max_faults=1).",
+  "type": "object",
+  "required": ["schema_version","run_id","source","platform","workload","trigger","target","fault","rng","limits"],
+  "properties": {
+    "schema_version": {"type":"string","const":"arm-chaos-fi/v1"},
+    "campaign_id": {"type":"string"},
+    "run_id": {"type":"string"},
+    "source": {"type":"object","required":["chaos_commit","gem5_commit"],"properties":{
+      "chaos_commit": {"type":"string"},
+      "gem5_commit": {"type":"string"},
+      "patchset_sha256": {"type":"string"}
+    }},
+    "platform": {"type":"object","required":["isa","mode","cpu_model","config_family"],"properties":{
+      "isa": {"type":"string","const":"ARM64"},
+      "mode": {"type":"string","enum":["SE","FS"]},
+      "cpu_model": {"type":"string"},
+      "config_family": {"type":"string","enum":["C0","C1","C2"]}
+    }},
+    "workload": {"type":"object","required":["binary_sha256"], "properties":{
+      "binary_sha256": {"type":"string"},
+      "input_sha256": {"type":"string"},
+      "roi": {"type":"object","properties":{"begin_symbol":{"type":"string"},"end_symbol":{"type":"string"}}}
+    }},
+    "trigger": {"type":"object","required":["mode","value"],"properties":{
+      "mode": {"type":"string","enum":["tick","cycle","pc","committedInst","event"]},
+      "value": {"type":"integer","minimum":0}
+    }},
+    "target": {"type":"object","required":["layer","component","instance"],"properties":{
+      "layer": {"type":"string","enum":["architectural","physical"]},
+      "component": {"type":"string","enum":["gpr","l1i","l1d","l2","memory","physreg","rat"]},
+      "instance": {"type":"string"},
+      "index": {"type":"integer"},
+      "field": {"type":"string"},
+      "width_bits": {"type":"integer"}
+    }},
+    "fault": {"type":"object","required":["model","duration_events","stage"],"properties":{
+      "model": {"type":"string","enum":["transient_bit_flip","local_mbu","intermittent_burst","stuck_at_zero","stuck_at_one","legal_domain_sub","delay_omission"]},
+      "bit_indices": {"type":"array","items":{"type":"integer"}},
+      "duration_events": {"type":"integer","minimum":1},
+      "stage": {"type":"string","enum":["raw_pre_protection","post_check_escape","metadata_or_checker","no_protection_model"]}
+    }},
+    "rng": {"type":"object","required":["master_seed","selection_seed"],"properties":{
+      "master_seed": {"type":"integer"},
+      "selection_seed": {"type":"integer"}
+    }},
+    "limits": {"type":"object","required":["max_faults"],"properties":{
+      "max_faults": {"type":"integer","minimum":0,"maximum":1},
+      "max_ticks": {"type":"integer"}
+    }},
+    "oracle": {"type":"object","properties":{
+      "kind": {"type":"string","enum":["exact_hash","invariant","allowed_set"]},
+      "golden_id": {"type":"string"}
+    }}
+  }
+}
