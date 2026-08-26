@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.10.2",
+  "checkpoint_id": "01M0Y2N3Z0PEVH7NWDBAQHJDBY",
+  "strategy": "manual-commit",
+  "branch": "arm64-sdc-base",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "tests/p0_gpr_pilot.py"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 828889,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 3355776,
+    "output_tokens": 4233,
+    "api_call_count": 15
+  }
+}
