@@ -25,7 +25,8 @@ namespace gem5{
         rng_seed(p.rngSeed),
         max_reg_idx(p.maxRegIdx),
         fault_type_enum(stringToFaultType(p.faultType)),
-        fault_mask(std::bitset<32>(p.faultMask)),
+        fault_mask((uint64_t)p.faultMask),
+        fault_mask_width(64),  // G1: AArch64 X regs are 64-bit
         bit_flip_prob(p.bitFlipProb),
         stuck_at_zero_prob(p.stuckAtZeroProb),
         stuck_at_one_prob(p.stuckAtOneProb),
@@ -112,6 +113,7 @@ namespace gem5{
             case FaultType::BitFlip: return "bit_flip";
             case FaultType::StuckAtZero: return "stuck_at_zero";
             case FaultType::StuckAtOne: return "stuck_at_one";
+            case FaultType::Random: return "random";  // G7: handle enum to clear -Wswitch
         }
         return "random";
     }
@@ -147,14 +149,39 @@ namespace gem5{
             periodicCheck.squash();
     }
 
-    int 
+    int
     CHAOSReg::generateRandomMask(std::mt19937 &gen, int bits_to_change, int len)
     {
+        // G1: legacy 32-bit path retained for compatibility, but note it has
+        // signed-shift UB for bit >= 32. New callers use generateRandomMask64.
         int mask = 0;
         std::uniform_int_distribution<int> bitDist(0, len-1);
 
         while (bits_to_change-- > 0) {
             mask |= (1 << bitDist(gen));
+        }
+        return mask;
+    }
+
+    uint64_t
+    CHAOSReg::generateRandomMask64(std::mt19937 &gen, int bits_to_change, int len)
+    {
+        // G1: width-aware, no signed-shift UB. 1ULL << bit for bit in [0,64).
+        // bits_to_change distinct bits; len is the register width in bits.
+        uint64_t mask = 0;
+        if (len <= 0 || bits_to_change <= 0) return 0;
+        // cap bits_to_change to the width to avoid an infinite loop
+        if (bits_to_change > len) bits_to_change = len;
+        std::uniform_int_distribution<int> bitDist(0, len - 1);
+        // sample distinct bits (rejection sampling)
+        int placed = 0;
+        while (placed < bits_to_change) {
+            int b = bitDist(gen);
+            uint64_t bit = (b >= 64) ? 0 : (1ULL << b);
+            if ((mask & bit) == 0) {  // not yet set -> add
+                mask |= bit;
+                ++placed;
+            }
         }
         return mask;
     }
@@ -186,7 +213,7 @@ namespace gem5{
             } else if (intRegs == 0 && floatRegs > 0) {
                 reg_class = reg_classes[gem5::FloatRegClass];
             } else {
-                reg_class = (rand() % 2 == 0) ? reg_classes[gem5::IntRegClass] : reg_classes[gem5::FloatRegClass];
+                reg_class = (rng() % 2 == 0) ? reg_classes[gem5::IntRegClass] : reg_classes[gem5::FloatRegClass];
             }
         } else if (reg_target_class_enum == TargetClass::Integer) {
             reg_class = reg_classes[gem5::IntRegClass];
@@ -218,7 +245,27 @@ namespace gem5{
         try {
             gem5::RegVal reg_val = thread_context->getReg(reg_id);
 
-            int mask = fault_mask.any() ? fault_mask.to_ulong() : generateRandomMask(rng, num_bits_to_change, sizeof(reg_val) << 3);
+            int mask_width = fault_mask_width;  // G1: width in bits (64 for X)
+            uint64_t mask = fault_mask ? fault_mask
+                : generateRandomMask64(rng, num_bits_to_change, mask_width);
+
+            // G1: XZR (Zero register, AArch64 integer index 31) is
+            // architecturally discarded on write — injecting it has no
+            // observable effect. Classify as Inactive (do not count it as a
+            // valid injection). We sample only [0, max_reg_idx) above, so
+            // with max_reg_idx=31 XZR is already excluded; this guards the
+            // case where the caller samples the full range (max_reg_idx=0).
+            bool is_xzr = (reg_class == reg_classes[gem5::IntRegClass]
+                           && random_reg == 31);
+            if (is_xzr) {
+                *(log_stream->stream()) << "Cycle: " << cpu->curCycle()
+                    << ", CPU: " << cpu->name()
+                    << ", Thread: " << tid
+                    << ", Register: " << reg_class->name() << "[" << random_reg
+                    << "] (XZR: architecturally discarded write -> Inactive)"
+                    << std::endl;
+                return;  // NOT a valid injection
+            }
     
             FaultType chosen_fault_type_enum = fault_type_enum;
             if (fault_type_enum == FaultType::Random) {
@@ -257,7 +304,8 @@ namespace gem5{
                     << ", Thread: " << tid
                     << ", Register: " << reg_class->name() << "[" << random_reg << "]"
                     << ", FaultType: " << faultTypeToString(chosen_fault_type_enum)
-                    << ", Mask: " << std::bitset<32>(mask)
+                    << ", Mask: 0x" << std::hex << mask << std::dec
+                    << ", Width: " << mask_width
                     << std::endl;
             }
 

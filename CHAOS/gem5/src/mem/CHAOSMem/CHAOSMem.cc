@@ -28,7 +28,10 @@ namespace gem5 {
     stuck_at_one_prob(p.stuckAtOneProb),
     cycles_permament_fault_check(p.cyclesPermamentFaultCheck),
     write_log(p.writeLog),
-    target_start(p.addr_start), 
+    rng_seed(p.rngSeed),
+    max_faults(p.maxFaults),
+    faults_injected_count(0),
+    target_start(p.addr_start),
     target_end(p.addr_end),
     attackEvent([this]{ this->attackMemory(); }, name()),
     periodicCheck([this] { this->checkPermanent(); }, name() + ".periodicCheck"),
@@ -57,15 +60,21 @@ namespace gem5 {
             Addr mem_start = memory->getAddrRange().start();
             Addr mem_size = memory->getAddrRange().size();
             
+            // G4: validate the [start, end] window. Both endpoints are
+            // INCLUSIVE. Clamp start to mem_start; if end is 0 or invalid,
+            // set it to the last valid byte (mem_start + mem_size - 1).
+            // A valid single-byte interval [n,n] must work (the old
+            // dist used target_end-1, dropping the last byte).
             if (target_start < mem_start) {
                 target_start = mem_start;
                 warn("CHAOSMem: target_start adjusted to memory start\n");
             }
-            
+            Addr last_byte = mem_start + mem_size - 1;  // inclusive last
             if (target_end == 0 || target_end < target_start) {
-                target_end = mem_start + mem_size - 1;
-                warn("CHAOSMem: target_end set to memory end\n");
+                target_end = last_byte;
+                warn("CHAOSMem: target_end set to memory end (inclusive)\n");
             }
+            if (target_end > last_byte) target_end = last_byte; // clamp
 
             stats = std::make_unique<CHAOSMemStats>(this);
 
@@ -76,19 +85,38 @@ namespace gem5 {
 
             ticks_permament_fault_check = cycles_permament_fault_check * tick_to_clock_ratio;
 
-            rng.seed(rd());
+            rng.seed(rng_seed != 0 ? rng_seed : rd());
             inter_fault_tick_dist = std::geometric_distribution<unsigned>(probability);
             
             scheduleAttack(first_tick + inter_fault_tick_dist(rng) * tick_to_clock_ratio);
 
-            if ((bit_flip_prob + stuck_at_zero_prob + stuck_at_one_prob) != 1.0){
-                warn("Sum of probabilities is not 1, assuming 0.9 for bitFlipProb, 0.05 for stuckAtZeroProb and 0.05 for stuckAtOneProb.\n");
-                bit_flip_prob = 0.9;
-                stuck_at_zero_prob = 0.05;
+            // G4: normalize the THREE real weights instead of silently
+            // overwriting to 0.9/0.05/0.05 when they don't sum to 1.0.
+            // (The old code clobbered user-specified distributions.)
+            double wsum = bit_flip_prob + stuck_at_zero_prob + stuck_at_one_prob;
+            if (wsum <= 0.0) {
+                warn("CHAOSMem: fault-type weights sum to <=0; defaulting "
+                     "to bit_flip=0.9/stuck_at_zero=0.05/stuck_at_one=0.05\n");
+                bit_flip_prob = 0.9; stuck_at_zero_prob = 0.05;
                 stuck_at_one_prob = 0.05;
+                wsum = 1.0;
+            }
+            if (wsum != 1.0) {
+                bit_flip_prob    /= wsum;
+                stuck_at_zero_prob /= wsum;
+                stuck_at_one_prob  /= wsum;
             }
 
-            std::vector<double> weights = {bit_flip_prob, bit_flip_prob, stuck_at_one_prob};
+            // G4 BUG FIX: the old weights vector was
+            //   {bit_flip_prob, bit_flip_prob, stuck_at_one_prob}
+            // — a DUPLICATE bit_flip and a MISSING stuck_at_zero, so the
+            // discrete_distribution index 1 (which FaultType maps to
+            // StuckAtZero) actually selected bit_flip. This silently broke
+            // the fault-type distribution vs config. Correct order:
+            //   index 0 -> bit_flip, 1 -> stuck_at_zero, 2 -> stuck_at_one
+            std::vector<double> weights = {bit_flip_prob,
+                                            stuck_at_zero_prob,
+                                            stuck_at_one_prob};
             random_fault_distribution = std::discrete_distribution<int>(weights.begin(), weights.end());
 
             scheduleCheckPermanentFault(first_tick + ticks_permament_fault_check);
@@ -126,6 +154,7 @@ namespace gem5 {
             case FaultType::BitFlip: return "bit_flip";
             case FaultType::StuckAtZero: return "stuck_at_zero";
             case FaultType::StuckAtOne: return "stuck_at_one";
+            case FaultType::Random: return "random";  // G7: handle enum to clear -Wswitch
         }
         return "random";
     }
@@ -150,9 +179,10 @@ namespace gem5 {
     {
         unsigned char mask = 0;
         std::uniform_int_distribution<int> bitDist(0, len-1);
-    
+
         for (int i = 0; i < bits_to_change; i++) {
-            mask |= (1 << bitDist(rng));
+            // G1/G4: unsigned shift (1U <<), no signed-shift UB for bit>=31.
+            mask |= (1U << bitDist(rng));
         }
         return mask;
     }
@@ -165,7 +195,11 @@ namespace gem5 {
             return;
         }
 
-        std::uniform_int_distribution<Addr> dist(target_start, target_end - 1);
+        // G4: [target_start, target_end] BOTH inclusive — the old code used
+        // (target_end - 1), silently dropping the last byte of the range.
+        // With the constructor setting target_end = mem_start + mem_size - 1,
+        // the old dist spanned [start, end-1] = excluded the final byte.
+        std::uniform_int_distribution<Addr> dist(target_start, target_end);
         Addr target_addr = dist(rng);
 
         try {
@@ -176,6 +210,9 @@ namespace gem5 {
             read_pkt->dataStatic(&data);
 
             memory->access(read_pkt);
+
+            // G5: capture the OLD value (before injection) for the evidence log.
+            uint8_t old_value = data;
 
             unsigned char mask = (fault_mask != 0) ? fault_mask : generateRandomMask(rng, num_bits_to_change, sizeof(data) << 3);
 
@@ -211,15 +248,24 @@ namespace gem5 {
 
             memory->access(write_pkt);
             stats->numFaultsInjected++;
+            ++faults_injected_count;   // G5: count this valid injection
 
             delete read_pkt;
             delete write_pkt;
 
             if (write_log){
-                *(log_stream->stream()) << "Tick: " << curTick() 
+                // G5: evidence log — old/new value + width + mask + type +
+                // target identity + trigger (tick) + seed (recorded at ctor,
+                // echoed here for traceability) + faults_injected count.
+                *(log_stream->stream()) << "Tick: " << curTick()
                     << ", target addr: " << target_addr
-                    << ", Mask: " << std::bitset<8>(mask)
+                    << ", old: 0x" << std::hex << (unsigned)old_value
+                    << ", new: 0x" << (unsigned)data
+                    << ", Mask: 0x" << (unsigned)mask
+                    << ", width_bits: 8"
                     << ", Fault Type: " << faultTypeToString(chosen_fault_type_enum)
+                    << ", seed: " << std::dec << rng_seed
+                    << ", faults_injected: " << faults_injected_count
                     << std::dec << std::endl;
             }
 
@@ -231,8 +277,22 @@ namespace gem5 {
             *(log_stream->stream())  << "Error: Unknown exception during fault injection. "
                     << "Target Addr: " << target_addr << std::endl;
         }
-        
-        Tick next_injection = curTick() + inter_fault_tick_dist(rng) * tick_to_clock_ratio;
+
+        // G5: single-fault enforcement. If we've injected max_faults, STOP
+        // rescheduling — the original CHAOSMem had no cap and re-injected
+        // forever (observed: maxFaults=1 param ignored, 5 injections logged
+        // in one tick). max_faults==0 = unlimited (original behavior).
+        if (max_faults != 0 && faults_injected_count >= max_faults) {
+            return;  // do not reschedule
+        }
+
+        // G6: next-event interval must be >= 1 clock cycle. The geometric
+        // distribution can return 0 (esp. at high probability), which made
+        // next_injection == curTick() and the event re-fired in the SAME
+        // tick infinitely. Clamp the sampled distance to >= 1.
+        unsigned dist_cycles = inter_fault_tick_dist(rng);
+        if (dist_cycles < 1) dist_cycles = 1;
+        Tick next_injection = curTick() + dist_cycles * tick_to_clock_ratio;
 
         if (next_injection <= last_tick || last_tick == 0) {
             scheduleAttack(next_injection);
