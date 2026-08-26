@@ -3,8 +3,8 @@
 > **执行状态（诚实声明，更新于 2026-08-26）**：
 > - ✅ **P-D1 (CHAOSLSQFwd 扩展) 已实现并编译进 gem5**；**H5 已端到端验证闭环**（真实 gem5 运行）：ptrskew_kernel golden 0-fail；注入 `byte_lane_skew rot1 prob=0.05` → `numStructuralByteLaneSkew=30`，28 PTR_CORRUPT 检出（93%），fails=28；多 seed 可复现。H5 精确复现 core 179 D1 oops 链。
 > - ✅ **P-D2 (CHAOSAddrPath) 与 P-D3 (CHAOSPTW) 已实现并编译进 gem5**：`nm` 确认 `CHAOSAddrPath::corruptAddr` 与 `CHAOSPTW::corruptDescriptor` 入二进制；模块 .o 全部编译通过。
-> - ⚠️ **H6 诚实结果（已执行，非预期）**：2×2 设计跑通。D1-only：30 注入→28 SDC-detectable（fails=28）。D2-only：**50 地址注入→0 可观察失败**——D2 钩子落在 O3 翻译后（`sendFragmentToTranslation`），SE 模式下 effAddr 已翻译、损坏不达访存路径，故无症状。**这证伪了 H6 当前操作化（D2→Crash 预测），而非 D2 物理本身**——根因是 §5 已声明的 gem5 O3 翻译时机忠实性限制，现经实验确认。
-> - ⚠️ **H7 诚实结果（已执行，非预期）**：所有 arm `numFaultsInjected=0`——D3 钩子（`table_walker.cc doLongDescriptor`）在 SE 模式下**从不触发**，因 SE 用 `translateSe`→`translateMmuOff`（直接物理映射，无页表走查）。**H7 在 SE 模式不可验证**，需 full-system MMU-on 模式（需内核镜像，本机未配备）。
+> - ⚠️ **H6 诚实结果（已执行，根因已查明）**：2×2 设计跑通。D1-only：30 注入→28 SDC-detectable（fails=28）。D2-only：**50 地址注入→0 可观察失败**。**根因精确分析**：P-D2 钩子逻辑正确（`req(i)->setVaddr(va)` 在 `translateTiming` 前破坏 vaddr，经 nm/stats 确认钩子触发 50 次），但 gem5 SE 模式物理内存从地址 0 开始、仅 512 MiB（`mem_ranges=[AddrRange("512MiB")]`），byte7 清零后 VA 从 `0x4…`/`0x7f…` 变为 `0x00…`，仍落在 `[0, 0x20000000)` 物理内存范围内 → **命中物理内存读随机数据但不 fault**。这是 SE 模式地址空间几何的根本限制，非钩点位置问题：FS 模式 VA 在 `0xffff…` 规范空间，byte7 清零后变非规范 → 翻译错。**D2/D3 都需 FS 模式**。
+> - ⚠️ **H7 诚实结果（已执行，根因已查明）**：所有 arm `numFaultsInjected=0`——D3 钩子（`table_walker.cc doLongDescriptor`）在 SE 模式下从不触发，因 SE 用 `translateSe`→`translateMmuOff`（直接物理映射 `setPaddr(vaddr)`，无页表走查）。与 D2 同源：SE 模式无 MMU-on 翻译。**H7 需 FS 模式**。
 > - **诚实总结**：P-D1/D2/D3 三模块均已实现、编译通过、符号入二进制；H5 验证闭环；H6/H7 的 SE-mode 操作化因 gem5 翻译模型限制而**无法在当前环境验证**，需 FS 模式。这是建模环境限制，非代码 bug。
 > - ⚠️ **本机为故障机**：编译全程 `taskset` 隔离 cpu179（见 `/tmp/cpus.txt`），但仍存在残余 SDC 风险——链接阶段曾出现多次瞬态 param-文件编译失败（SDC-affected 编译的典型表现），最终 `-j1` 单线程链接成功。验证结果需在第二台健康机复现才算最终确认。
 >

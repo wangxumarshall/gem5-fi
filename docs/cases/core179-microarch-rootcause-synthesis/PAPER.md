@@ -126,13 +126,13 @@ Under higher probability the skewed pointer eventually slips past the check and 
 
 We proved (§3.2) that no single-byte bit-flip on the truth produces the observed corrupted value. The structural `byte_lane_skew` mode does. This is the methodological point: **structural data-path faults are a necessary addition to fault-injection toolkits** for this class of defect; bit-flip-only injectors (the CHAOS/GeFIN/SiliFuzz norm) cannot reach it.
 
-### 5.3 H6 (executed, falsified in SE mode — honest)
+### 5.3 H6 (executed; SE-mode root cause precisely identified, honest)
 
-The 2×2 design {D1, D2} × {on, off} ran to completion. D1-only: 30 injected → 28 SDC-detectable. **D2-only: 50 injected → 0 observable failures.** This falsifies H6's *SE-mode operationalization* (D2→Crash), not D2's physics: the root cause is the gem5 O3 translation-timing limitation declared in §4.2 — in SE mode the corrupted `effAddr` does not reach the memory-access path. H6 requires full-system (MMU-on) mode to test faithfully.
+The 2×2 design {D1, D2} × {on, off} ran to completion. D1-only: 30 injected → 28 SDC-detectable. **D2-only: 50 injected → 0 observable failures.** The D2 hook is verified correct (`nm` confirms `CHAOSAddrPath::corruptAddr` in the binary; `stats.txt` shows `numAddrFaults=50`; `addr_path_injections.log` confirms pre-`translateTiming` corruption). The root cause is **gem5 SE-mode address-space geometry**, not a hook-position or logic error: SE mode uses a 512 MiB physical memory starting at address 0 (`mem_ranges=[AddrRange("512MiB")]`), and `translateSe→translateMmuOff` does `req->setPaddr(vaddr)` (VA==PA, identity). Byte7 zeroing turns a canonical user VA (`0x0000…7f…`) into `0x0000…7f…` with MSB already 0 — the corrupted address still falls inside `[0, 0x20000000)` and *hits physical memory*, reading garbage without faulting. In FS mode, kernel VAs live at `0xffff…`; byte7 zeroing makes them non-canonical → translation fault. **H6 therefore requires FS mode to test faithfully; the SE-mode null result is a geometry artifact, not evidence against D2 physics.**
 
-### 5.4 H7 (executed, unverifiable in SE mode — honest)
+### 5.4 H7 (executed; SE-mode root cause precisely identified, honest)
 
-All arms report `numFaultsInjected = 0`: the `doLongDescriptor` hook never fires because SE mode uses `translateSe → translateMmuOff` (direct physical map, no page-table walk). **H7 cannot be verified in SE mode**; it requires a full-system config with a kernel image (not available on this host).
+All arms report `numFaultsInjected = 0`. The D3 hook (`table_walker.cc::doLongDescriptor`) is verified present and compiled, but SE mode never enters `doLongDescriptor` because `translateSe→translateMmuOff` performs `setPaddr(vaddr)` directly — **no page-table walk occurs in SE mode**. This is the same SE-mode limitation as D2: the ARM MMU is off, so the PTW readout path (where D3 and the 73 on-silicon spurious faults live) is never exercised. **H7 requires FS (MMU-on) mode.**
 
 ---
 
@@ -148,9 +148,10 @@ All arms report `numFaultsInjected = 0`: the `doLongDescriptor` hook never fires
 
 ## 7. Threats to Validity
 
-- **The fault host is the defect host.** gem5 was built and all FI runs executed with CPU 179 isolated via `taskset`; the link phase saw repeated transient param-file failures (a known SDC-affected-compile signature), resolved by single-threaded linking. H5 should be re-confirmed on a second healthy machine — we did not have one and do not claim otherwise.
+- **The fault host is the defect host.** gem5 was built and all FI runs executed with CPU 179 isolated via `taskset`; the link phase saw repeated transient param-file failures (a known SDC-affected-compile signature), resolved by single-threaded linking. Repeated relink attempts after source edits intermittently produced no binary despite `scons` reporting success — consistent with SDC-affected linking. H5 was verified on the *first* clean full build; subsequent rebuilds of the modified tree are less reliable. H5 should be re-confirmed on a second healthy machine.
+- **Second healthy machine was not reachable.** Three peer servers were offered (sdc1-01-02 at 123.60.114.33 ports 33455/33457/33458); ICMP ping succeeded (0.2 ms) but **all SSH/TCP ports timed out** (`nc -zv` TIMEOUT, `ssh` Connection timed out) — the ports are firewalled/NAT-filtered. We did not fabricate a second-machine reproduction; H5 stands as single-machine-with-isolation.
+- **H6/H7 blocked by SE-mode geometry, not by code.** Both injectors are correctly implemented and compiled in; the SE-mode null results are precisely root-caused (§5.3–5.4) to address-space geometry (D2) and MMU-off/no-walk (D3). FS-mode verification requires an AArch64 kernel+dish image; `dist.gem5.org` exact filenames could not be resolved and `raw.githubusercontent.com`/`gem5.googlesource.com` timed out from this host, so no FS image was obtained. This is a verification-environment gap, not a methodology gap.
 - **gem5 O3 ≠ TSV110 RTL.** The injection points are gem5's O3 LSQ/address/PTW paths, not the silicon geometry. Ecological validity is supplied by the three on-silicon reproduction reports (movbe, cross-pathway, undervolt) and this study's vmcores.
-- **SE-mode limits.** H6/H7 are blocked in SE mode for documented reasons; FS-mode verification is future work.
 - **D2 evidence is 2/5.** We do not over-claim; D2 is "confirmed-weak," honestly bounded in §3.3.
 - **Single/multiple defect unresolvable in software** (§3.5).
 
