@@ -1,0 +1,4 @@
+Import('*')
+SimObject('CHAOSAddrPath.py', sim_objects=['CHAOSAddrPath'], enums=[])
+Source('CHAOSAddrPath.cc')
+DebugFlag('CHAOSAddrPath')

@@ -855,6 +855,16 @@ class Request : public Extensible<Request>
         return _vaddr;
     }
 
+    /** CHAOSAddrPath (D2) mutator: overwrite just the virtual address in
+     *  place, preserving size/flags/pc. Used by the address-path fault
+     *  injector to model MSB-byte-zeroing of the address presented to the
+     *  MMU (core 179's D2 signature). */
+    void
+    setVaddr(Addr vaddr)
+    {
+        _vaddr = vaddr;
+    }
+
     /** Accesssor for the requestor id. */
     RequestorID
     requestorId() const

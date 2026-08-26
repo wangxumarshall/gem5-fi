@@ -48,6 +48,7 @@
 #include "base/compiler.hh"
 #include "base/logging.hh"
 #include "cpu/o3/cpu.hh"
+#include "cpu/o3/CHAOSAddrPath/CHAOSAddrPath.hh"
 #include "cpu/o3/dyn_inst.hh"
 #include "cpu/o3/iew.hh"
 #include "cpu/o3/limits.hh"
@@ -1130,6 +1131,24 @@ void
 LSQ::LSQRequest::sendFragmentToTranslation(int i)
 {
     numInTranslationFragments++;
+
+    // CHAOSAddrPath (D2): optionally zero a byte of the request's virtual
+    // address BEFORE translation. This is the faithful address->MMU
+    // boundary — the corrupted vaddr is what the PTW/MMU actually walks,
+    // reproducing core 179's D2 (0814: arch MSB d9 -> MMU saw 00).
+    // Reach the injector via the CPU's accessor (set in its constructor).
+    // nullptr or probability==0 -> corruptAddr returns immediately.
+    if (isLoad() && _inst->getCpuPtr()) {
+        auto *o3cpu = dynamic_cast<CPU *>(_inst->getCpuPtr());
+        if (o3cpu && o3cpu->addrPath) {
+            RequestPtr r = req(i);   // req(i) returns a RequestPtr (shared_ptr)
+            Addr va = r->getVaddr();
+            if (o3cpu->addrPath->corruptAddr(&va, _inst->seqNum)) {
+                r->setVaddr(va);
+            }
+        }
+    }
+
     _port.getMMUPtr()->translateTiming(req(i), _inst->thread->getTC(),
             this, isLoad() ? BaseMMU::Read : BaseMMU::Write);
 }
