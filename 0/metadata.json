@@ -201,6 +201,37 @@
         "label": "Skill: superpowers:executing-plans",
         "default_collapsed": true
       }
+    },
+    {
+      "id": "claude-skill-call_53296718e2cd44f7a9cfffee",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "academic-research-skills:academic-paper"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "df62c8cf3aa9",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 2325,
+        "end": 2326,
+        "entry_ids": [
+          "c40f6d0a-e325-4fde-8b15-5a4f59fc31bd"
+        ],
+        "tool_use_id": "call_53296718e2cd44f7a9cfffee"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "call_53296718e2cd44f7a9cfffee"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: academic-research-skills:academic-paper",
+        "default_collapsed": true
+      }
     }
   ],
   "session_metrics": {
