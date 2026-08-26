@@ -50,6 +50,14 @@ int main(int argc, char **argv) {
         targets[j] = 0x1000ULL * (j + 1);     /* golden: distinct per slot */
         slots[j] = (uint64_t)&targets[j];
     }
+    /* Immutable golden truth captured ONCE, never written again — the bug fix.
+     * The prior version re-read slots[TARGET_IDX] as "truth" right after the
+     * reload, but that re-read can ITSELF be corrupted (same defect path),
+     * yielding xor==0 while the check still fires (truth moved with loaded).
+     * Using a const stack copy taken before any faulting load breaks that
+     * circular dependency. */
+    const uint64_t golden_ptr = (uint64_t)&targets[TARGET_IDX];
+    const uint64_t golden_val = targets[TARGET_IDX];
 
     long ptr_corrupt = 0, val_mismatch = 0;
     for (long it = 0; it < iters; it++) {
@@ -60,29 +68,32 @@ int main(int argc, char **argv) {
          * D1 *defect* sits on the load-return path that store-forwarding also
          * uses; method2/v3 localized the defect precisely on this path. So to
          * exercise the injector we store-then-reload the slot under test. */
-        slots[TARGET_IDX] = (uint64_t)&targets[TARGET_IDX];  /* (re)store truth */
+        slots[TARGET_IDX] = golden_ptr;                       /* (re)store truth */
         volatile uint64_t loaded = slots[TARGET_IDX];          /* reload = forward */
+        /* compiler barrier: ensure `loaded` is materialized before the check so
+         * the comparison uses the actually-forwarded (possibly-corrupted) value,
+         * not a re-issue. */
+        asm volatile("" ::: "memory");
         uint64_t p = loaded;
 
-        /* PTR_CORRUPT detection: the loaded pointer should equal slots[TARGET_IDX].
-         * A byte-lane skew makes it differ from every valid slot. */
-        if (p != (uint64_t)&targets[TARGET_IDX]) {
+        /* PTR_CORRUPT detection: compare against the IMMUTABLE golden_ptr, not
+         * a re-read of slots[]. A byte-lane skew makes loaded != golden_ptr. */
+        if (p != golden_ptr) {
             ptr_corrupt++;
             if (ptr_corrupt <= 8) {
                 fprintf(stderr, "PTR_CORRUPT it=%ld loaded=%016lx truth=%016lx xor=%016lx\n",
-                        it, loaded, (uint64_t)&targets[TARGET_IDX],
-                        loaded ^ (uint64_t)&targets[TARGET_IDX]);
+                        it, loaded, golden_ptr, loaded ^ golden_ptr);
             }
             continue;  /* skip deref — would SIGSEGV/Oops, as the kernel did */
         }
 
         /* deref (analog of rq = *(ptr+base)). */
         uint64_t got = *(uint64_t*)p;
-        if (got != targets[TARGET_IDX]) {
+        if (got != golden_val) {
             val_mismatch++;
             if (val_mismatch <= 8)
                 fprintf(stderr, "VAL_MISMATCH it=%ld got=%016lx golden=%016lx\n",
-                        it, got, targets[TARGET_IDX]);
+                        it, got, golden_val);
         }
     }
 
