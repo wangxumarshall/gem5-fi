@@ -53,10 +53,18 @@ Per the plan's phased structure, these are follow-up patches, not this phase:
   rebuild is heavy and deferred). Done: warning-clean CHAOS compilation.
 - L1I/L1D cache functional end-to-end: the stdlib `SimpleBoard` does not
   expose its L1D Cache SimObject for pre-instantiate CHAOSCache attachment
-  (and the explicit `System()+ArmTimingSimpleCPU` path hits a gem5-v25
-  `release_se` proxy error only the stdlib resolves). The G3 supported
-  accessor (`Cache::getTags()`) is correct; a directed cache test config
-  ships with the runner-extension patch.
+  (the cache SimObjects are created lazily inside `Simulator` and are not
+  reachable from the hierarchy's `_root` CacheNode tree before instantiate).
+  An explicit `ArmSystem()+ArmTimingSimpleCPU` config with classic L1D
+  ALSO fails on gem5 v25: the MMU `release_se` param does not resolve
+  (`Error in unproxying param 'release_se' of system.cpu.mmu`) — the stdlib
+  `SimpleBoard` resolves this implicitly for the CPUs it creates, but that
+  implicit release-wiring is not reproducible in a hand-written explicit
+  config without reverse-engineering the stdlib CPU factory. The G3 supported
+  accessor (`Cache::getTags()`) is correct and compiles; a directed cache
+  test config is blocked on this stdlib/ARM-release interaction and is the
+  first deliverable of a dedicated cache-integration patch. The GPR/mem
+  paths (which use stdlib SimpleBoard directly) are NOT affected and work.
 - Formal P0 cells: per-cell n=384 (GPR by ABI role × bit-field [0:11]/
   [12:47]/[48:63] × bit 31/32/63 boundary), golden 5×, raw/no-protection.
   Done: the pilot (n=10) proving reachability + real SDC.
