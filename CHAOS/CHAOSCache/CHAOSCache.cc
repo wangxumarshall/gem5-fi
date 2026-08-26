@@ -26,6 +26,9 @@ namespace gem5
         stuck_at_one_prob(p.stuckAtOneProb),
         cycles_permament_fault_check(p.cyclesPermamentFaultCheck),
         write_log(p.writeLog),
+        rng_seed(p.rngSeed),
+        max_faults(p.maxFaults),
+        faults_injected_count(0),
         attackEvent([this] { this->injectFault(); }, name()),
         periodicCheck([this] { this->checkPermanent(); }, name() + ".periodicCheck"),
         stats(nullptr)
@@ -47,7 +50,7 @@ namespace gem5
             last_tick = last_clock * tick_to_clock_ratio;
             ticks_permament_fault_check = cycles_permament_fault_check * tick_to_clock_ratio;
 
-            rng.seed(rd());
+            rng.seed(rng_seed != 0 ? rng_seed : rd());
             inter_fault_cycles_dist = std::geometric_distribution<unsigned>(probability);
 
             scheduleAttack(first_tick + inter_fault_cycles_dist(rng) * tick_to_clock_ratio);
@@ -95,6 +98,7 @@ namespace gem5
             case FaultType::BitFlip: return "bit_flip";
             case FaultType::StuckAtZero: return "stuck_at_zero";
             case FaultType::StuckAtOne: return "stuck_at_one";
+            case FaultType::Random: return "random";  // G7: handle enum to clear -Wswitch
         }
         return "random";
     }
@@ -116,11 +120,13 @@ namespace gem5
     BaseTags*
     CHAOSCache::getTags() const
     {
-        struct CacheAccessor : public Cache {
-            BaseTags* getTagsPublic() { return tags; }
-        };
-        
-        return static_cast<CacheAccessor*>(targetCache)->getTagsPublic();
+        // G3 (plan §4): use the supported Cache::getTags() accessor instead
+        // of the unsafe `static_cast<CacheAccessor*>` downcast that poked
+        // the protected BaseCache::tags member via a reinterpret helper
+        // (undefined behavior if targetCache is not exactly a Cache, and
+        // it broke C++ object-layout assumptions). targetCache is a Cache*
+        // per the param, so this is the supported path.
+        return targetCache->getTags();
     }
 
     uint8_t 
@@ -215,7 +221,20 @@ namespace gem5
             // targetBlk->setCoherenceBits(CacheBlk::DirtyBit);
         }
 
-        Tick next_injection = curTick() + inter_fault_cycles_dist(rng) * tick_to_clock_ratio;
+        // G5: single-fault enforcement. Count the valid injections that
+        // happened this attack (one per corruption_size byte). If we've
+        // reached max_faults, STOP rescheduling. max_faults==0 = unlimited.
+        faults_injected_count += corruption_size;
+        if (max_faults != 0 && faults_injected_count >= max_faults) {
+            return;  // do not reschedule
+        }
+
+        // G6: next-event interval must be >= 1 clock cycle. Clamp the
+        // geometric-sampled distance to >= 1 (it can be 0 at high p, which
+        // made the event re-fire in the same tick infinitely).
+        unsigned dist_cycles = inter_fault_cycles_dist(rng);
+        if (dist_cycles < 1) dist_cycles = 1;
+        Tick next_injection = curTick() + dist_cycles * tick_to_clock_ratio;
         if (next_injection <= last_tick || last_tick == 0) {
             scheduleAttack(next_injection);
         }

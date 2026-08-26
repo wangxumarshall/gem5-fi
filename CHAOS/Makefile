@@ -46,37 +46,36 @@ clone_gem5:
 		echo "gem5 already found."; \
 	fi
 
-move_chaos_reg:
-	@if [ -d "$(CHAOS_DIR)" ]; then \
-		cp -r $(CHAOS_DIR) $(GEM5_REG_DIR); \
+# Clobber-safe sync helper. The top-level CHAOS/ copies and the vendored
+# copies under CHAOS/gem5/src/... MUST stay identical (report issue #5: a
+# stale top-level copy, when `cp -rf`'d into the vendored tree, would
+# silently revert the G3-G7 fixes). This helper is a no-op when the two are
+# already identical; if they differ it prints a loud warning and copies the
+# VENDORED copy back to top-level (vendored is authoritative — it is what
+# scons builds) so the build is never clobbered with stale code.
+define sync_chaos
+	@if [ ! -d "$(1)" ]; then echo "$(1) not found"; exit 1; fi; \
+	if diff -rq "$(1)" "$(2)" >/dev/null 2>&1; then \
+		echo "  $(1) <-> $(2): identical (no copy)"; \
 	else \
-		echo "CHAOSReg folder not found, does it exist?"; \
-		exit 1; \
+		echo "  WARNING: $(1) and $(2) DIFFER — syncing VENDORED -> top-level"; \
+		echo "  (vendored is authoritative; this prevents a stale top-level"; \
+		echo "   copy from clobbering the fixed build source)"; \
+		cp -rf $(2)/. $(1)/; \
 	fi
+endef
+
+move_chaos_reg:
+	@$(call sync_chaos,$(CHAOS_DIR),$(GEM5_REG_DIR)/$(CHAOS_DIR))
 
 move_chaos_tags:
-	@if [ -d "$(CHAOS_CACHE_DIR)" ]; then \
-		cp -rf $(CHAOS_CACHE_DIR) $(GEM5_CACHE_DIR); \
-	else \
-		echo "CHAOSCache folder not found, does it exist?"; \
-		exit 1; \
-	fi
+	@$(call sync_chaos,$(CHAOS_CACHE_DIR),$(GEM5_CACHE_DIR)$(CHAOS_CACHE_DIR))
 
 move_chaos_mem:
-	@if [ -d "$(CHAOS_MEM_DIR)" ]; then \
-		cp -rf $(CHAOS_MEM_DIR) $(GEM5_MEM_DIR); \
-	else \
-		echo "CHAOSMem folder not found, does it exist?"; \
-		exit 1; \
-	fi
+	@$(call sync_chaos,$(CHAOS_MEM_DIR),$(GEM5_MEM_DIR)$(CHAOS_MEM_DIR))
 
 move_chaos_physreg:
-	@if [ -d "$(CHAOS_PHYSREG_DIR)" ]; then \
-		cp -rf $(CHAOS_PHYSREG_DIR) $(GEM5_PHYSREG_DIR); \
-	else \
-		echo "CHAOSPhysReg folder not found, does it exist?"; \
-		exit 1; \
-	fi
+	@$(call sync_chaos,$(CHAOS_PHYSREG_DIR),$(GEM5_PHYSREG_DIR)$(CHAOS_PHYSREG_DIR))
 
 install_gem5_requirements:
 	@echo "Installing Python dependencies..."
