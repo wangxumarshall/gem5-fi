@@ -187,6 +187,6 @@ The forensic analysis, injector implementation, and manuscript were produced wit
 3. ARM Architecture Reference Manual, ARMv8-A, §D1.10 (FAR_EL1 semantics).
 4. CHAOS fault-injection framework for gem5 (this repository, `CHAOS/`).
 5. gem5 v25.1.0.1, AArch64 O3CPU model.
-6. Prior on-silicon reproduction reports: `docs/reproduce-method1.md` (eigen_sparse Cholesky), `docs/reproduce-method2.md` (cross-pathway store-forward), `docs/reproduce-method3.md` (undervolt `__per_cpu_offset`).
+6. Prior on-silicon reproduction reports (internal research notes, not independently re-verified by this study): `docs/reproduce-method1.md` (eigen_sparse Cholesky, core 179), `docs/reproduce-method2.md` (cross-pathway store-forward), `docs/reproduce-method3.md` (undervoltage-triggered). The `__per_cpu_offset[cpu] → garbage` userspace observation is recorded in `fi_research/EXPERIMENT_DESIGN.md` §1.3 as a method3 finding; we cite it as ecological-validity support but did not independently re-run it.
 
 > Complete citation DOIs/URLs are in the supplementary `MICROARCH_SUPPLEMENT.md` and `DIAGNOSIS_REPORT.md`; the reference list here is intentionally short to avoid fabricating citations per the academic-paper IRON RULE — every source above is a real, locally-verifiable artifact or well-known mainline item.
