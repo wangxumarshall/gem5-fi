@@ -1,0 +1,64 @@
+{
+  "cli_version": "0.10.2",
+  "checkpoint_id": "01M0ZGVQBFKCR5TKXN8G613KFX",
+  "session_id": "4ea62401-71d7-47f8-b5f6-f1d3018aa3ed",
+  "strategy": "manual-commit",
+  "created_at": "2026-08-26T17:11:14.2955612Z",
+  "branch": "docs/core179-microarch-rootcause",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "CHAOS/gem5/src/arch/arm/CHAOSPTW/CHAOSPTW.cc",
+    "CHAOS/gem5/src/cpu/o3/CHAOSAddrPath/CHAOSAddrPath.cc",
+    "CHAOS/gem5/src/cpu/o3/CHAOSLSQFwd/CHAOSLSQFwd.cc"
+  ],
+  "agent": "Claude Code",
+  "model": "GLM-5.2[1m]",
+  "turn_id": "309af7818db4",
+  "checkpoint_transcript_start": 561,
+  "transcript_lines_at_start": 561,
+  "compact_transcript_start": 102,
+  "token_usage": {
+    "input_tokens": 51355,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 6747520,
+    "output_tokens": 25926,
+    "api_call_count": 51
+  },
+  "skill_events_version": 1,
+  "skill_events": [
+    {
+      "id": "prompt-skill-claude-code-loop-2026-08-26T10:38:52.3888421Z",
+      "event_type": "prompt_invocation",
+      "skill": {
+        "name": "loop"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "prompt_slash_command",
+        "confidence": "explicit"
+      },
+      "turn_id": "ef829e4221e7",
+      "timestamp": "2026-08-26T10:38:52.3888421Z",
+      "native": {
+        "command": "/loop"
+      },
+      "collapse": {
+        "target": "user_message",
+        "label": "/loop",
+        "default_collapsed": true
+      }
+    }
+  ],
+  "initial_attribution": {
+    "calculated_at": "2026-08-26T17:11:14.07243755Z",
+    "agent_lines": 0,
+    "agent_removed": 0,
+    "human_added": 0,
+    "human_modified": 3,
+    "human_removed": 0,
+    "total_committed": 0,
+    "total_lines_changed": 3,
+    "agent_percentage": 0,
+    "metric_version": 2
+  }
+}
