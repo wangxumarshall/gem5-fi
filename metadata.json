@@ -5,15 +5,7 @@
   "branch": "fix/fi-tool-correctness",
   "checkpoints_count": 3,
   "files_touched": [
-    "CHAOS/CHAOSPhysReg/CHAOSPhysReg.cc",
-    "CHAOS/CHAOSPhysReg/CHAOSPhysReg.hh",
-    "CHAOS/CHAOSPhysReg/CHAOSPhysReg.py",
-    "CHAOS/CHAOSReg/CHAOSReg.cc",
-    "CHAOS/CHAOSReg/CHAOSReg.hh",
-    "CHAOS/CHAOSReg/CHAOSReg.py",
-    "CHAOS/gem5/src/cpu/o3/CHAOSPhysReg/CHAOSPhysReg.cc",
-    "CHAOS/gem5/src/cpu/o3/CHAOSPhysReg/CHAOSPhysReg.hh",
-    "CHAOS/gem5/src/cpu/o3/CHAOSPhysReg/CHAOSPhysReg.py"
+    "CHAOS/gem5/src/cpu/o3/regfile.hh"
   ],
   "sessions": [
     {
@@ -32,10 +24,10 @@
     }
   ],
   "token_usage": {
-    "input_tokens": 2062309,
+    "input_tokens": 2070748,
     "cache_creation_tokens": 0,
-    "cache_read_tokens": 53007232,
-    "output_tokens": 84029,
-    "api_call_count": 280
+    "cache_read_tokens": 55633920,
+    "output_tokens": 89137,
+    "api_call_count": 296
   }
 }
