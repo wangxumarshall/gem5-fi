@@ -17,7 +17,7 @@
 
 import argparse
 import m5
-from m5.objects import CHAOSReg, CHAOSPhysReg
+from m5.objects import CHAOSReg, CHAOSPhysReg, CHAOSMem
 from gem5.components.boards.simple_board import SimpleBoard
 from gem5.components.cachehierarchies.classic.private_l1_private_l2_cache_hierarchy import (
     PrivateL1PrivateL2CacheHierarchy,
@@ -59,6 +59,14 @@ p.add_argument("--phys_target_idx", type=int, default=-1,
                help="phys reg index (phys mode); -1=random")
 p.add_argument("--phys_target_arch", type=int, default=0,
                help="arch reg idx (arch_frontend/arch_commit modes)")
+# CHAOSMem (backing-store byte injector; G4 fixed weights/boundary)
+p.add_argument("--chaos_mem", action="store_true",
+               help="attach CHAOSMem to the board DRAM")
+p.add_argument("--addr_start", type=lambda x: int(x,0), default=0)
+p.add_argument("--addr_end", type=lambda x: int(x,0), default=0)
+p.add_argument("--bit_flip_prob", type=float, default=0.9)
+p.add_argument("--stuck_at_zero_prob", type=float, default=0.05)
+p.add_argument("--stuck_at_one_prob", type=float, default=0.05)
 args = p.parse_args()
 
 cache_hierarchy = PrivateL1PrivateL2CacheHierarchy(
@@ -113,6 +121,30 @@ if args.chaos_phys:
         writeLog=True,
     )
     board.chaos_phys = chaos_p
+
+if args.chaos_mem:
+    # G4: attach CHAOSMem to the DRAM AbstractMemory. The stdlib
+    # SingleChannelDDR3_1600 exposes its dram interface via mem_ctrl[0].dram
+    # (DRAMInterface is an AbstractMemory subclass, so access()/getAddrRange()
+    # are available). This is backing-store byte injection only — NOT a
+    # timing DRAM/controller/ECC path (per plan §2.2).
+    dram = memory.mem_ctrl[0].dram
+    board.chaos_mem = CHAOSMem(
+        mem=dram,
+        probability=args.probability,
+        firstClock=args.first_clock,
+        lastClock=0,
+        faultType=args.fault_type,
+        faultMask="0",
+        tickToClockRatio=1000,
+        bitFlipProb=args.bit_flip_prob,
+        stuckAtZeroProb=args.stuck_at_zero_prob,
+        stuckAtOneProb=args.stuck_at_one_prob,
+        addr_start=args.addr_start,
+        addr_end=args.addr_end,
+        rngSeed=args.rng_seed,
+        writeLog=True,
+    )
 
 if args.maxinsts:
     cpu0.max_insts = args.maxinsts

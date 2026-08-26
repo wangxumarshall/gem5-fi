@@ -58,15 +58,21 @@ namespace gem5 {
             Addr mem_start = memory->getAddrRange().start();
             Addr mem_size = memory->getAddrRange().size();
             
+            // G4: validate the [start, end] window. Both endpoints are
+            // INCLUSIVE. Clamp start to mem_start; if end is 0 or invalid,
+            // set it to the last valid byte (mem_start + mem_size - 1).
+            // A valid single-byte interval [n,n] must work (the old
+            // dist used target_end-1, dropping the last byte).
             if (target_start < mem_start) {
                 target_start = mem_start;
                 warn("CHAOSMem: target_start adjusted to memory start\n");
             }
-            
+            Addr last_byte = mem_start + mem_size - 1;  // inclusive last
             if (target_end == 0 || target_end < target_start) {
-                target_end = mem_start + mem_size - 1;
-                warn("CHAOSMem: target_end set to memory end\n");
+                target_end = last_byte;
+                warn("CHAOSMem: target_end set to memory end (inclusive)\n");
             }
+            if (target_end > last_byte) target_end = last_byte; // clamp
 
             stats = std::make_unique<CHAOSMemStats>(this);
 
@@ -82,14 +88,33 @@ namespace gem5 {
             
             scheduleAttack(first_tick + inter_fault_tick_dist(rng) * tick_to_clock_ratio);
 
-            if ((bit_flip_prob + stuck_at_zero_prob + stuck_at_one_prob) != 1.0){
-                warn("Sum of probabilities is not 1, assuming 0.9 for bitFlipProb, 0.05 for stuckAtZeroProb and 0.05 for stuckAtOneProb.\n");
-                bit_flip_prob = 0.9;
-                stuck_at_zero_prob = 0.05;
+            // G4: normalize the THREE real weights instead of silently
+            // overwriting to 0.9/0.05/0.05 when they don't sum to 1.0.
+            // (The old code clobbered user-specified distributions.)
+            double wsum = bit_flip_prob + stuck_at_zero_prob + stuck_at_one_prob;
+            if (wsum <= 0.0) {
+                warn("CHAOSMem: fault-type weights sum to <=0; defaulting "
+                     "to bit_flip=0.9/stuck_at_zero=0.05/stuck_at_one=0.05\n");
+                bit_flip_prob = 0.9; stuck_at_zero_prob = 0.05;
                 stuck_at_one_prob = 0.05;
+                wsum = 1.0;
+            }
+            if (wsum != 1.0) {
+                bit_flip_prob    /= wsum;
+                stuck_at_zero_prob /= wsum;
+                stuck_at_one_prob  /= wsum;
             }
 
-            std::vector<double> weights = {bit_flip_prob, bit_flip_prob, stuck_at_one_prob};
+            // G4 BUG FIX: the old weights vector was
+            //   {bit_flip_prob, bit_flip_prob, stuck_at_one_prob}
+            // — a DUPLICATE bit_flip and a MISSING stuck_at_zero, so the
+            // discrete_distribution index 1 (which FaultType maps to
+            // StuckAtZero) actually selected bit_flip. This silently broke
+            // the fault-type distribution vs config. Correct order:
+            //   index 0 -> bit_flip, 1 -> stuck_at_zero, 2 -> stuck_at_one
+            std::vector<double> weights = {bit_flip_prob,
+                                            stuck_at_zero_prob,
+                                            stuck_at_one_prob};
             random_fault_distribution = std::discrete_distribution<int>(weights.begin(), weights.end());
 
             scheduleCheckPermanentFault(first_tick + ticks_permament_fault_check);
@@ -151,9 +176,10 @@ namespace gem5 {
     {
         unsigned char mask = 0;
         std::uniform_int_distribution<int> bitDist(0, len-1);
-    
+
         for (int i = 0; i < bits_to_change; i++) {
-            mask |= (1 << bitDist(rng));
+            // G1/G4: unsigned shift (1U <<), no signed-shift UB for bit>=31.
+            mask |= (1U << bitDist(rng));
         }
         return mask;
     }
@@ -166,7 +192,11 @@ namespace gem5 {
             return;
         }
 
-        std::uniform_int_distribution<Addr> dist(target_start, target_end - 1);
+        // G4: [target_start, target_end] BOTH inclusive — the old code used
+        // (target_end - 1), silently dropping the last byte of the range.
+        // With the constructor setting target_end = mem_start + mem_size - 1,
+        // the old dist spanned [start, end-1] = excluded the final byte.
+        std::uniform_int_distribution<Addr> dist(target_start, target_end);
         Addr target_addr = dist(rng);
 
         try {
