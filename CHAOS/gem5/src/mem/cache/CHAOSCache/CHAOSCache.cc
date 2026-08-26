@@ -228,7 +228,12 @@ namespace gem5
             return;  // do not reschedule
         }
 
-        Tick next_injection = curTick() + inter_fault_cycles_dist(rng) * tick_to_clock_ratio;
+        // G6: next-event interval must be >= 1 clock cycle. Clamp the
+        // geometric-sampled distance to >= 1 (it can be 0 at high p, which
+        // made the event re-fire in the same tick infinitely).
+        unsigned dist_cycles = inter_fault_cycles_dist(rng);
+        if (dist_cycles < 1) dist_cycles = 1;
+        Tick next_injection = curTick() + dist_cycles * tick_to_clock_ratio;
         if (next_injection <= last_tick || last_tick == 0) {
             scheduleAttack(next_injection);
         }
