@@ -3,29 +3,24 @@
   "checkpoint_id": "01M0YP29XKBPS4BA9B1S56BYPV",
   "session_id": "679512f6-595b-4bff-884a-0e2097ca58db",
   "strategy": "manual-commit",
-  "created_at": "2026-08-26T12:30:43.941186236Z",
+  "created_at": "2026-08-26T12:39:32.401584721Z",
   "branch": "fix/fi-tool-correctness",
   "checkpoints_count": 1,
   "files_touched": [
-    "tests/p0_gpr_bit_scan.py",
-    "tests/p0_gpr_pilot.py",
-    "tests/p0_l1d_pilot.py",
-    "tests/p0_l1i_pilot.py",
-    "tools/classify.py",
     "tools/runner.py"
   ],
   "agent": "Claude Code",
   "model": "glm-5.2",
   "turn_id": "2754b629a043",
-  "checkpoint_transcript_start": 1349,
-  "transcript_lines_at_start": 1349,
-  "compact_transcript_start": 226,
+  "checkpoint_transcript_start": 1485,
+  "transcript_lines_at_start": 1485,
+  "compact_transcript_start": 245,
   "token_usage": {
-    "input_tokens": 195905,
+    "input_tokens": 8709,
     "cache_creation_tokens": 0,
-    "cache_read_tokens": 3174656,
-    "output_tokens": 15294,
-    "api_call_count": 19
+    "cache_read_tokens": 2631040,
+    "output_tokens": 5783,
+    "api_call_count": 14
   },
   "skill_events_version": 1,
   "skill_events": [
@@ -53,14 +48,14 @@
     }
   ],
   "initial_attribution": {
-    "calculated_at": "2026-08-26T12:30:43.640413489Z",
-    "agent_lines": 336,
-    "agent_removed": 101,
+    "calculated_at": "2026-08-26T12:39:32.11989099Z",
+    "agent_lines": 91,
+    "agent_removed": 6,
     "human_added": 0,
     "human_modified": 0,
     "human_removed": 0,
-    "total_committed": 336,
-    "total_lines_changed": 437,
+    "total_committed": 91,
+    "total_lines_changed": 97,
     "agent_percentage": 100,
     "metric_version": 2
   }
