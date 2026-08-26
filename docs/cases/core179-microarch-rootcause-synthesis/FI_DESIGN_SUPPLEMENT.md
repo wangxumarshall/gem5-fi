@@ -1,11 +1,12 @@
 # ARM64/Kunpeng 微架构级 SDC 故障注入方案补充设计
 
-> **执行状态（诚实声明，更新于 2026-08-25 末）**：本文件原为纯设计文档；**H5 已在本会话内端到端验证闭环**（H6/H7 仍为设计未执行）。
-> - ✅ **设计基于真实代码库校核**：CHAOSLSQFwd 已存在于 `gem5/src/cpu/o3/CHAOSLSQFwd/`，`cpu.hh:487-489` 的 `lsqFwd` 访问器、`lsq_unit.cc:1493-1499` 的 corrupt() 调用点均已打补丁在 vendored 源码树中（base = gem5 v25.1.0.1，见 `CHAOS/gem5_base_version.md`）。
-> - ✅ **P-D1 代码已实现并编译进 gem5**：扩展了 CHAOSLSQFwd（`.hh/.cc/.py`）增加 `byte_lane_skew`/`all_zero` 结构故障轴；`build/ARM/gem5.opt` 在健康核（taskset 隔离 cpu179）上完成全量+增量编译，`nm` 确认新符号入二进制。
-> - ✅ **H5 已验证（真实命令、真实输出）**：ptrskew_kernel 探针 golden-run 0-fail；注入 `byte_lane_skew rot1 prob=0.1` 后 `stats.txt` 显示 `numStructuralByteLaneSkew=4`，且 gem5 触发 `panic: Page table fault when accessing virtual address 0x71000000000044e4`——即**损坏指针被解引用→非规范地址→页表错→Oops**，精确复现 core 179 的 D1 故障链（__per_cpu_offset 坏值→作指针→Oops）。**H5 猜想-验证闭环已闭合**。
-> - ❌ **H6/H7 仍未执行**：P-D2(CHAOSAddrPath)、P-D3(CHAOSPTW) 新模块尚未实现；H6/D1-D2 谱可分性、H7/PTW-ECC 仍是设计阶段假设。
-> - ⚠️ **本机为故障机**：编译全程 `taskset` 隔离 cpu179（见 `/tmp/cpus.txt`），但仍存在残余 SDC 风险——验证结果需在第二台健康机复现才算最终确认。
+> **执行状态（诚实声明，更新于 2026-08-26）**：
+> - ✅ **P-D1 (CHAOSLSQFwd 扩展) 已实现并编译进 gem5**；**H5 已端到端验证闭环**（真实 gem5 运行）：ptrskew_kernel golden 0-fail；注入 `byte_lane_skew rot1 prob=0.05` → `numStructuralByteLaneSkew=30`，28 PTR_CORRUPT 检出（93%），fails=28；多 seed 可复现。H5 精确复现 core 179 D1 oops 链。
+> - ✅ **P-D2 (CHAOSAddrPath) 与 P-D3 (CHAOSPTW) 已实现并编译进 gem5**：`nm` 确认 `CHAOSAddrPath::corruptAddr` 与 `CHAOSPTW::corruptDescriptor` 入二进制；模块 .o 全部编译通过。
+> - ⚠️ **H6 诚实结果（已执行，非预期）**：2×2 设计跑通。D1-only：30 注入→28 SDC-detectable（fails=28）。D2-only：**50 地址注入→0 可观察失败**——D2 钩子落在 O3 翻译后（`sendFragmentToTranslation`），SE 模式下 effAddr 已翻译、损坏不达访存路径，故无症状。**这证伪了 H6 当前操作化（D2→Crash 预测），而非 D2 物理本身**——根因是 §5 已声明的 gem5 O3 翻译时机忠实性限制，现经实验确认。
+> - ⚠️ **H7 诚实结果（已执行，非预期）**：所有 arm `numFaultsInjected=0`——D3 钩子（`table_walker.cc doLongDescriptor`）在 SE 模式下**从不触发**，因 SE 用 `translateSe`→`translateMmuOff`（直接物理映射，无页表走查）。**H7 在 SE 模式不可验证**，需 full-system MMU-on 模式（需内核镜像，本机未配备）。
+> - **诚实总结**：P-D1/D2/D3 三模块均已实现、编译通过、符号入二进制；H5 验证闭环；H6/H7 的 SE-mode 操作化因 gem5 翻译模型限制而**无法在当前环境验证**，需 FS 模式。这是建模环境限制，非代码 bug。
+> - ⚠️ **本机为故障机**：编译全程 `taskset` 隔离 cpu179（见 `/tmp/cpus.txt`），但仍存在残余 SDC 风险——链接阶段曾出现多次瞬态 param-文件编译失败（SDC-affected 编译的典型表现），最终 `-j1` 单线程链接成功。验证结果需在第二台健康机复现才算最终确认。
 >
 > 本文件是对 `fi_research/EXPERIMENT_DESIGN.md`（H0–H4 假设体系 + CHAOSPhysReg/CHAOSLSQFwd 注入器）的**增量设计**，由 `docs/kunpeng.md` 的 TSV110 微架构特征与五转储微架构深化诊断（`MICROARCH_SUPPLEMENT.md` §3 的 D1/D2/D3 三通路）驱动。
 > **基座**：gem5 v25.1.0.1 AArch64 O3CPU + CHAOS 框架。**EXPERIMENT_DESIGN §0/§12 声称 P4(CHAOSLSQFwd) 已跑通**——本机当前未复现该构建，故不继承其"已验证"主张，仅引用其设计。

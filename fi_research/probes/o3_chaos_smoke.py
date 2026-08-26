@@ -57,6 +57,14 @@ ap.add_argument("--lsq-fwd-byte", default="-1", help="byte offset in forwarded b
 # is NOT expressible as a bit flip (MICROARCH_SUPplement §2.2).
 ap.add_argument("--lsq-structural", default="none", help="none|byte_lane_skew|all_zero (P-D1)")
 ap.add_argument("--lsq-skew", default="0", help="byte_lane_skew rotation 1..7 (0=random)")
+# P-D2: address-path (D2) injector — zeroes a byte of the load effAddr
+# presented to the MMU. Models core 179's D2 (0814/0824: arch MSB != MMU MSB).
+ap.add_argument("--addr-prob", default="0.0", help="CHAOSAddrPath per-load addr-corruption prob (0=off)")
+ap.add_argument("--addr-byte", default="7", help="which byte of effAddr to zero (7=MSB,-1=random)")
+# P-D3: PTW readout (D3) injector — bit-flips fetched PTEs. H7 knob: ptwEcc.
+ap.add_argument("--ptw-prob", default="0.0", help="CHAOSPTW per-descriptor-fetch flip prob (0=off)")
+ap.add_argument("--ptw-bits", default="1", help="bits to flip per PTE")
+ap.add_argument("--ptw-ecc", action="store_true", help="model PTW array ECC (H7: corrects single-bit)")
 
 ap.add_argument("--l1d", default="32KiB")
 a = ap.parse_args()
@@ -130,6 +138,37 @@ if float(a.lsq_fwd_prob) > 0.0:
         byteOffset=int(a.lsq_fwd_byte),
         structuralFault=a.lsq_structural,
         skewBytes=int(a.lsq_skew),
+        firstClock=int(a.first_clock),
+        lastClock=0,
+        maxFaults=int(a.max_faults),
+        rngSeed=int(a.seed),
+        writeLog=True,
+    )
+
+# CHAOSAddrPath (D2): address-path corruption — zero a byte of the load's
+# effAddr at the address->MMU boundary (lsq.cc sendFragmentToTranslation).
+# Independent of CHAOSLSQFwd (D1, data path) — this corrupts the address.
+if float(a.addr_prob) > 0.0:
+    system.addrfi = CHAOSAddrPath(
+        cpu=system.cpu,
+        probability=float(a.addr_prob),
+        byteOffset=int(a.addr_byte),
+        firstClock=int(a.first_clock),
+        lastClock=0,
+        maxFaults=int(a.max_faults),
+        rngSeed=int(a.seed),
+        writeLog=True,
+    )
+
+# CHAOSPTW (D3): page-table-walker readout corruption — bit-flips fetched
+# PTEs in the ARM table walker (table_walker.cc doLongDescriptor). H7 knob
+# ptwEcc models whether the PTW array has ECC. Attaches via system.cpu.mmu.
+if float(a.ptw_prob) > 0.0:
+    system.ptwfi = CHAOSPTW(
+        mmu=system.cpu.mmu,
+        probability=float(a.ptw_prob),
+        bitsToChange=int(a.ptw_bits),
+        ptwEcc=bool(a.ptw_ecc),
         firstClock=int(a.first_clock),
         lastClock=0,
         maxFaults=int(a.max_faults),
