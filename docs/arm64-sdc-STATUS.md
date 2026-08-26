@@ -2,98 +2,98 @@
 
 This document records the honest implementation status of the ARM64 SDC
 fault-injection study defined in `docs/arm64-fi-plan-based-on-CHAOS.md`,
-as implemented on branch `arm64-sdc-base` (off `fi`). Every claim below
-corresponds to a real gem5 command whose output was captured and quoted
-in the commit message of the patch that introduced it.
+as implemented on branch `fix/fi-tool-correctness` (off `fi` HEAD
+`70b725c`). Every claim below corresponds to a real gem5 command whose
+output was captured and quoted in the commit message of the patch that
+introduced it.
 
-## What is DONE (verified, committed, pushed)
+## Tool-correctness pass (post source-check report, 2026-08-26)
 
-**Phase 1 P0 targets — all 3 have real pilot results:**
-- **P0 GPR** (`8cbf7b6` + `3551d57`): CHAOSPhysReg arch_frontend on reg_chain.
-  n=10 scan: X2/X3 SDC (`bcd3c78e2ed7de1b`, `3c4da37564e2fbf5`), 2/10=20%.
-  Bit-stratified (X2/X3 × bits 0/31/32/63): **SDC=3, Hang=5, Masked=0** —
-  low-bit flips → SDC (data), high-bit flips → Hang (control-flow).
-- **P0 L1D** (`d72c61e`): CHAOSCache on l1d_reduce (512KiB array reduction).
-  n=10: **10/10 Masked** — honest cache AVF (single transient byte flip
-  mostly masked; §6.2 occupancy caveat). Measurable L1D SDC needs
-  MBU/tag-fault/tighter-O3-window cells (deferred).
-- **P0 L1I** (`924b09b`): CHAOSCache (target=l1i) on l1i_loop (tight loop).
-  n=10: **10/10 Hang, 0 SDC, 0 Crash** — instruction-field faults corrupt
-  control flow (loop never exits), matches §7.2 (Hang/Crash-heavy, not SDC).
+A source-code inspection (`docs/gem5-fi_branch_next_step.md`) found that
+the post-merge `fi` HEAD had regressed on several gates (the parallel-
+session CHAOSPhysReg vec/float series overwrote the G2 write-path mask;
+both register modules were still 32-bit; the NEON path overflowed; the
+classifier mislabeled crashes as SDC; the manifest target/bit were not
+honored; the top-level CHAOSCache/Mem were stale). The following patches
+on `fix/fi-tool-correctness` fix exactly those defects, each verified
+with real gem5 output:
 
-Phase 1 §8.3 golden stability: 5× no-injection reg_chain → 1 unique checksum
-`f247ef3fe6f02cfd` (stable; cell eligible for campaign). All 3 P0 kernels
-(reg_chain, l1d_reduce, l1i_loop) have native==gem5 deterministic goldens.
-
-## What is DONE (gates + runner)
-
-All work is one-patch-per-unit (CLAUDE.md patch discipline), each verified
-with REAL commands before commit (build clean + functional + regression).
-
-| Commit | Unit | Real verification |
+| Commit | Unit (report issue) | Real verification |
 |---|---|---|
-| `95bb6ac` | Patch 0a — clean base | `scons build/ARM/gem5.opt -j16` → "scons: done building targets."; source==binary (CHAOSPhysReg/CHAOSRAT correctly MISSING); reg_chain golden `f247ef3fe6f02cfd` on O3 |
-| `f2a20bf` | Patch 0b — CHAOSPhysReg + o3 hooks (restored from main `6585f7a`) | 3 modes (phys/arch_frontend/arch_commit) work; phys idx 50 → Inactive; arch_frontend reg9 → PhysReg[106] injects; read-trace |
-| `3b8c33c` | G0 — reproducible RNG | 20/20 field-identical replay (seed=20260825 → reg[9] bit 20 every run) |
-| `54f31cd` | G1 — width-aware masks | bit 0/31/32/63 all injectable (64-bit mask, no signed-shift UB); XZR(integer[31]) → Inactive |
-| `e5eecbb` | G2 — permanent stuck-at | PhysRegFile::setReg write-path mask; stuck persists across rename reuse+overwrite (PhysReg[80] reused → `00ff` prefix, mask re-applied) |
-| `ea6b192` | G3 — cache safe interface | unsafe `static_cast<CacheAccessor*>` removed; supported public `Cache::getTags()` accessor |
-| `9870e9f` | G4 — memory correctness | CHAOSMem weights fixed ({bf,bf,so}→{bf,sz,so}); 20-run dist 11bf/9sz/0so≈0.5/0.5/0.0; last byte/single-byte interval reachable |
-| `d44982f` | G5 — single-fault + evidence log | CHAOSMem/CHAOSCache maxFaults added (was uncapped, logged 52M injections in 1 tick); now exactly 1; log has old/new/mask/width/seed/count |
-| `4e8045f` | G6 — ≥1-cycle interval | geometric dist clamped ≥1 (was degenerate same-tick re-fire at p=1.0); distinct ticks now 1000 apart |
-| `e01c9f1` | G7 — no CHAOS-source warnings | `-Wswitch` Random case added; CHAOSReg/Cache/Mem compile warning-clean under -Wall/-Wextra/-Wundef |
-| `a9d4130` | Patch 9 — manifest runner | schemas/manifest.schema.json + manifests/*.yaml + tools/runner.py; end-to-end: classified reg[9] flip as Masked, G5 asserted |
-| `8cbf7b6` | P0 BM-GPR pilot — FIRST REAL SDC | arch_frontend scan X0-X9, n=10: **X2 SDC `bcd3c78e2ed7de1b`, X3 SDC `d43a25d7fcc218b7`**; 2/10=20% pilot (no CI at n=10) |
+| `9f0ad41` | G2 restore write-path stuck mask (#1) | stuck_persist phys PhysReg[80] stuck_at_one 0xff → `00ff0000dee1f5d0` (mask re-applied at reuse @cycle 150000); golden `00000000dee1f5d0`; O3 golden `f247ef3fe6f02cfd` |
+| `8739214` | 64-bit masks, CHAOSReg+CHAOSPhysReg (#2) | `--fault_mask=1<<32`/`1<<63` now log `0x100000000`/`0x8000000000000000` (were 0); zero CHAOS-source warnings |
+| `4602f28` | NEON buffer sized to vecRegBytes() (#3) | `--phys_reg_class=vector` phys inject on reg_chain: NO SIGSEGV (was 192B overflow); log `RegClass: vec, PhysReg[0]` |
+| `e3a39b9` | honest classifier §9.1 (#4) | exit1+empty+1inj → Crash (was SDC); X0/X1 Masked, X2 SDC; manifest reg9 → Masked with reason |
+| `aeaf043` | manifest target/bit/trigger honored (#5a) | physreg manifest idx=3 bit=[20] → `PhysReg[77] (<= ArchReg[3])` Mask `...0010000...` reads=25000 → SDC; idx=3 bit=[32] → SDC (high bit now lands) |
+| `890cca3` | single source-of-truth + gitignore gem5-fs (#5b) | `diff -rq CHAOS/{Cache,Mem,Reg,PhysReg} ↔ vendored` all identical; Makefile clobber-safe (no-op when identical); `git check-ignore gem5-fs/` OK |
 
-Phase 1 §8.3 golden stability: 5× no-injection reg_chain → 1 unique checksum
-`f247ef3fe6f02cfd` (stable; cell eligible for campaign).
+## Honest status of the gates (after the fix pass)
+
+| Gate | Pre-merge (arm64-sdc-base) | Post-merge (fi 70b725c) | After fix pass |
+|---|---|---|---|
+| G0 replayable RNG | done | done | done |
+| G1 64-bit width | done (`54f31cd`) | **LOST** (both modules 32-bit) | **restored** (`8739214`) |
+| G2 permanent stuck-at | done (`e5eecbb`) | **LOST** (write-path mask overwritten) | **restored** (`9f0ad41`) |
+| G3 cache safe accessor | done | done | done |
+| G4 memory correctness | done | done (vendored); top-level stale → **synced** (`890cca3`) | done |
+| G5 single-fault + evidence | done | done (vendored); top-level stale → synced | done |
+| G6 ≥1-cycle interval | done | done | done (broad triggers still deferred) |
+| G7 no CHAOS-source warnings | done | **REGRESSED** (Random -Wswitch in PhysReg/LSQFwd) | CHAOSReg/PhysReg **clean**; CHAOSLSQFwd still has it (out of scope) |
+| Classifier §9.1 | baseline | **broken** (no exit-code check) | **fixed** (`e3a39b9`) |
+| Manifest target/bit | baseline | **ignored** | **honored** (`aeaf043`) |
+| NEON/Vec path | baseline (unsafe) | **overflowed** | **safe** (`4602f28`) |
+
+## Phase 1 P0 — pilot results, HONEST re-status
+
+The pre-fix P0 pilot numbers were collected with the broken classifier
+(no exit-code check, no Hang/Crash split) and the truncated 32-bit mask.
+They are therefore NOT trustworthy as-is and are flagged here:
+
+- **P0 GPR bit-stratified (`3551d57`)** claimed "SDC=3, Hang=5" across
+  X2/X3 × bits 0/31/32/63. But `bit32`/`bit63` masks were silently 0
+  (UInt32 truncation) → effectively NO injection for those cases, so the
+  "high-bit → Hang" conclusion does not hold. Re-run after the fix:
+  X3 bit63 (arch_frontend, 1<<63) → **SDC** (`d9a35c115042d41a`),
+  exit 0, no trap — a high-bit flip propagated as silent data corruption,
+  NOT Hang. The high-bit/low-bit SDC-vs-Hang distinction must be re-stated
+  after a proper formal run; the current data does not support "high-bit
+  → Hang".
+- **P0 L1I (`8beeea1`)** "10/10 Hang": the old classifier counted empty
+  stdout as Hang with no timeout/returncode distinction. Needs re-run
+  with the honest classifier (Hang = timeout with no completion, vs
+  Crash = trap/exit≠0) before the "all Hang" claim can stand.
+- **P0 L1D (`d72c61e`)** "10/10 Masked": less affected (Masked is the
+  no-propagation case either way), but still needs a re-run for the
+  evidence log (single-fault assertion, exit code).
+
+**Reproducible anchors that DO survive (verified post-fix):**
+- reg_chain golden (no inj, O3) = `f247ef3fe6f02cfd`
+- CHAOSPhysReg arch_frontend X3 1-bit-flip (seed 20260825) = `d43a25d7fcc218b7` (SDC)
+- G2 persistence: stuck_at_one 0xff PhysReg[80] → `00ff0000dee1f5d0` (golden `00000000dee1f5d0`)
+- Manifest physreg idx=3 bit=[20] → `PhysReg[77] (<= ArchReg[3])` SDC `88ff2422239b4952`
 
 ## What is the platform / build
 
 - gem5 v25.1.0.1 (commit `62c7bf284864b83f7308f5e14ca9c80812621c29`) vendored
   as plain files under `CHAOS/gem5/`. Built natively on an **aarch64**
-  host (openEuler, gcc 12.3.1 — NO cross-compiler needed; `gcc -static`
-  produces AArch64 ELF directly).
-- gem5.opt: `CHAOS/gem5/build/ARM/gem5.opt` (build with `-j16`; `-j126`
-  OOM-kills on this 29 GB host — see memory gem5-build-j126-oom-29gb).
+  host (openEuler, gcc 12.3.1 — NO cross-compiler needed).
+- **gem5.opt path**: `scons -C CHAOS/gem5 build/ARM/gem5.opt -j16` builds to
+  the **repo-ROOT `build/ARM/gem5.opt`** (~1.1GB) on this host — NOT
+  `CHAOS/gem5/build/ARM/`. Use `G5=$PWD/build/ARM/gem5.opt`. (The
+  `CHAOS/gem5/build/ARM/` path may hold a stale/duplicate binary; do not
+  use it.) `-j126` OOM-kills on this 29GB host — use `-j16`.
 - SE config: `configs/se/arm_chaos.py` uses gem5 v25 stdlib `SimpleBoard`
   + `PrivateL1PrivateL2CacheHierarchy` + `SimpleProcessor(O3, ARM)`.
-  CHAOSReg/CHAOSPhysReg attach to the cpu; CHAOSMem to `memory.mem_ctrl[0].dram`.
-- Workloads: `workloads/directed/{hello,reg_chain,stuck_persist}` (native
-  aarch64 static). reg_chain golden = `f247ef3fe6f02cfd`.
+- Workloads: `workloads/directed/{hello,reg_chain,stuck_persist,
+  l1d_reduce,l1i_loop}` (native aarch64 static). Goldens:
+  reg_chain `f247ef3fe6f02cfd`, l1d_reduce `f44d2b9cd4a173cd`,
+  l1i_loop `bb0b1c4cb661236e`, stuck_persist `00000000dee1f5d0`.
 
-## Honest deferrals (NOT claimed as done)
-
-Per the plan's phased structure, these are follow-up patches, not this phase:
-- G6 broad triggers: pc / committedInst / semantic-event (need deep O3 hooks
-  beyond the firstClock trigger). Done: ≥1-cycle interval + tick/cycle.
-- G7 full sanitizer (ASan/UBSan) build + explicit SimulatorError classifier
-  at the per-run level (the classifier exists in the runner; sanitized gem5
-  rebuild is heavy and deferred). Done: warning-clean CHAOS compilation.
-- L1I/L1D cache functional end-to-end: DONE (patch b3ab369, unblocked). The
-  stdlib SimpleBoard L1D-exposure issue was solved by monkey-patching the
-  hierarchy's `_pre_instantiate` to capture the L1D Cache SimObject (which
-  CacheNode.__init__ setattr's onto the hierarchy as "l1d-cache-0") AFTER
-  the setattr but BEFORE the final m5.instantiate, attaching CHAOSCache via
-  the supported Cache::getTags() accessor. configs/se/arm_chaos_cache.py is
-  a working L1D/L1I/L2 injection config (reuses stdlib SimpleBoard, sidesteps
-  the gem5-v25 release_se proxy error). P0 L1D pilot run on l1d_reduce
-  (patch d72c61e): 10/10 Masked — honest cache-AVF result (single transient
-  byte flip mostly masked; §6.2). Measurable L1D SDC needs MBU/tag-fault/
-  tighter-O3-window cells — deferred formal cells.
-- Formal P0 cells: per-cell n=384 (GPR by ABI role × bit-field [0:11]/
-  [12:47]/[48:63] × bit 31/32/63 boundary), golden 5×, raw/no-protection.
-  Done: the pilot (n=10) proving reachability + real SDC.
-- Phases 2-7: NEON/Vec (needs VecRegContainer path, not RegVal), TLB/SYS,
-  LSQ forwarding (CHAOSLSQFwd exists on origin/docs/core179-microarch-rootcause),
-  L3 128B paired-sector proxy, x86-64 paired control, Kunpeng real-machine
-  RAS calibration. These are separate multi-patch phases.
-
-## Run recipe
+## Run recipe (post-fix)
 
 ```bash
 cd /home/sdc/gem5-fi
-G5=$PWD/CHAOS/gem5/build/ARM/gem5.opt
+G5=$PWD/build/ARM/gem5.opt   # repo-ROOT build dir (NOT CHAOS/gem5/build)
 # golden (no injection)
 $G5 --quiet --outdir=runs/gold configs/se/arm_chaos.py \
     --cmd=workloads/directed/reg_chain --cpu=O3
@@ -103,9 +103,29 @@ $G5 --quiet --outdir=runs/inj configs/se/arm_chaos.py \
     --chaos_phys --phys_mode=arch_frontend --phys_target_arch=3 \
     --probability=1.0 --first_clock=100000 --max_faults=1 \
     --rng_seed=20260825 --fault_type=bit_flip --bits_to_change=1
-# manifest-driven
+# manifest-driven (golden_id resolved automatically)
 python3 tools/runner.py manifests/p1-gpr-regchain-000384.yaml \
-    --golden-checksum f247ef3fe6f02cfd --binary workloads/directed/reg_chain
+    --binary workloads/directed/reg_chain
 ```
+
 NOTE: put gem5 `--outdir` under `runs/` (NOT /tmp — /tmp filled up and
-ENOSPC-killed a G4 test on this 29 GB host).
+ENOSPC-killed a G4 test on this 29GB host).
+
+## Honest deferrals (NOT claimed as done)
+
+- G6 broad triggers (pc / committedInst / semantic-event): only ≥1-cycle
+  interval + tick/cycle done. The manifest runner rejects pc/
+  committedInst/event with a clear error (needs G6 work).
+- G7 full sanitizer (ASan/UBSan) gem5 build: only -Wswitch/-Wunused
+  cleaned at compile time; the sanitized build is deferred.
+- CHAOSReg has no directed-reg knob: a manifest asking for a SPECIFIC
+  gpr can't force it (logged as a TODO; CHAOSPhysReg can, via
+  phys_target_arch). The manifest runner records this honestly.
+- Formal P0 cells (n=384 by ABI role × bit-field × boundary): NOT done.
+  The pilot (n=10) proves reachability + real SDC; formal cells are a
+  follow-up, run with the fixed classifier.
+- Phases 2-7: NEON/Vec (the 64-bit/NEON-overflow fixes make the path
+  SAFE; full 128-bit lane stratification is Phase 2), TLB/SYS (FS mode,
+  needs `gem5-fs/` deps — now gitignored), LSQ forwarding, L3 128B,
+  x86-64 paired control, Kunpeng real-machine RAS calibration. These
+  are separate multi-patch phases.

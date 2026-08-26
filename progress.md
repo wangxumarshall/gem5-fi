@@ -166,8 +166,49 @@ $G5 --quiet --outdir=runs/cache configs/se/arm_chaos_cache.py \
 
 **注意**：gem5 的 `--outdir` 放在 `runs/` 下（**不要放 /tmp** —— /tmp 在这台 29GB/15G-swap 主机上会被跑满，ENOSPC 杀过一个 G4 测试）。
 
+**gem5.opt 路径更正**：本机上 `scons -C CHAOS/gem5 build/ARM/gem5.opt -j16` 实际产物在 **仓库根 `build/ARM/gem5.opt`**（约 1.1GB），不是 `CHAOS/gem5/build/ARM/`（后者可能是陈旧/重复文件）。运行用 `G5=$PWD/build/ARM/gem5.opt`。
+
 ---
 
-## 六、一句话诚实结论
+## 六、工具正确性修复轮（源码检查报告 `docs/gem5-fi_branch_next_step.md` 之后）
+
+一份源码检查报告发现：rebase 后的 `fi` HEAD（`70b725c`）上，并行会话的 CHAOSPhysReg vec/float 系列（6585f7a/3899cc2/51ed47e）在合并中**覆盖**了若干已验证修复，且分类器/manifest/NEON 缓冲区均有影响结果可信度的缺陷。报告的 5 条主张我逐条用真机验证为真（且第 2 条比报告更严重——架构态 CHAOSReg 也仍是 32 位）。随后在 `fix/fi-tool-correctness` 分支上逐个补丁修复，每个都经真跑验证、commit、push：
+
+| commit | 补丁（报告 issue） | 真实验证（实跑输出，非预测） |
+|---|---|---|
+| `9f0ad41` | G2 恢复写路径 stuck 钳位（#1） | stuck_persist phys PhysReg[80] stuck_at_one 0xff → `00ff0000dee1f5d0`（reuse@cycle 150000 掩码重施加）；golden `00000000dee1f5d0`；O3 reg_chain golden `f247ef3fe6f02cfd` |
+| `8739214` | 64 位掩码（CHAOSReg+CHAOSPhysReg，#2） | `--fault_mask=1<<32`/`1<<63` 现在分别记录 `0x100000000`/`0x8000000000000000`（修复前被 UInt32 截断为 0）；CHAOS 源零警告 |
+| `4602f28` | NEON 缓冲区按 vecRegBytes() 定长（#3） | `--phys_reg_class=vector` phys 注入 reg_chain：无 SIGSEGV（修复前 192B 栈溢出）；log `RegClass: vec, PhysReg[0]` |
+| `e3a39b9` | 诚实分类器 §9.1（#4） | exit1+empty+1inj → Crash（修复前误判 SDC）；X0/X1 Masked、X2 SDC；manifest reg9 → Masked（带 reason） |
+| `aeaf043` | manifest 的 target/bit/trigger 真正生效（#5a） | physreg manifest idx=3 bit=[20] → `PhysReg[77] (<= ArchReg[3])` Mask `...0010000...` reads=25000 → SDC；idx=3 bit=[32] → SDC（高位现在真注入） |
+| `890cca3` | 单一正式源码 + gitignore gem5-fs（#5b） | `diff -rq CHAOS/{Cache,Mem,Reg,PhysReg} ↔ vendored` 全同；Makefile clobber-safe（一致时 no-op）；`git check-ignore gem5-fs/` OK |
+
+### 干净重建 + 闸门重验（真机）
+
+- 强制 regen params 干净重建（`rm -rf build/ARM && scons -j16`）：`scons: done building targets.`，exit 0，**CHAOSReg/PhysReg/Cache/Mem 源零警告**（G7；CHAOSLSQFwd 的 `-Wswitch Random` 仍在，不在本轮范围）。`xxd -l4` = `7f 45 4c 46`（有效 ELF aarch64）。
+- **G0 重放一致**：5/5 次同 seed CHAOSReg 注入，`fault_injections.log` sha256 全同 `ff4a0c9fd7768dc1`。
+- **G1 位宽**：bit0/31/32/63 掩码全注入（见上 `8739214`）。
+- **G2 永久**：`00ff0000dee1f5d0` 完整重放（见上）。
+- **G4 内存**：CHAOSMem maxFaults=1 → `faults_injected: 1`（恰好 1 次，G5），证据日志 `old: 0x0, new: 0xde, Mask: 0xde, width_bits: 8, seed: 20260825`。
+- **P0 GPR 重跑**：X2 → `bcd3c78e2ed7de1b`（SDC）、X3 → `d43a25d7fcc218b7`（SDC），与 progress.md 完全一致——可复现。
+- **O3 golden 回归**：reg_chain no-inj → `f247ef3fe6f02cfd`，exit 0，0 SIGSEGV。
+
+### ⚠️ 被本轮修复**作废**的旧结论（诚实声明）
+
+下列旧结果是用**坏掉的工具**采的（32 位截断掩码 + 不查退出码的分类器），**不能作为 ARM64/鲲鹏 SDC 规律**：
+
+1. `3551d57` "按位分层 SDC=3/Hang=5"：bit32/bit63 掩码被 UInt32 截断为 0 → 实际**未注入**，"高位 → Hang"结论**不成立**。修复后重跑：X3 bit63（1<<63）→ `d9a35c115042d41a`，**SDC**（exit 0，无 trap）——高位翻转经数据路径传播为 SDC，而非 Hang。高低位 SDC-vs-Hang 区分须在正式 cell 重做后才能再下结论。
+2. `8beeea1` "L1I 10/10 Hang"：旧分类器把"空 stdout"直接算 Hang，未区分 Hang/Crash/SimError。须用修好的分类器重跑（Hang = 超时未完成；Crash = trap/exit≠0）后才能立 "all Hang" 之说。
+3. `d72c61e` "L1D 10/10 Masked"：受影响较小（Masked 是不传播，与分类器无关），但证据日志/单故障断言须重跑留痕。
+
+**可保留的可复现锚点**（修复后已验证）：reg_chain golden `f247ef3fe6f02cfd`；X3 arch_frontend 1-bit-flip = `d43a25d7fcc218b7`（SDC）；G2 stuck = `00ff0000dee1f5d0`；manifest physreg idx=3 bit=[20] = `88ff2422239b4952`（SDC）。
+
+---
+
+## 七、一句话诚实结论
 
 本次把计划的 **Phase 0（七个闸门）做实、manifest runner 跑通、Phase 1 三个 P0 靶点都产出了真实可复现的 SDC/Hang 证据**（GPR 2/10 SDC、按位分层 SDC=3/Hang=5、L1D 10/10 Masked、L1I 10/10 Hang），全部 19 补丁经实跑验证并已合入 `fi`。**唯一的诚实留白是 rebase 后的干净重建验证被叫停，需补一次确认**；formal cell（n=384）、NEON/TLB/LSQ/L3-128/x86 配对/实机校准这些 Phase 2–7 是明确分阶段的后续工作，已记录在 `docs/arm64-sdc-STATUS.md`，不是本次范围，不能谎称完成。
+
+### 后续轮：工具正确性修复（`fix/fi-tool-correctness`，6 补丁）
+
+源码检查报告 `docs/gem5-fi_branch_next_step.md` 指出 rebase 后的 `fi` HEAD 有 5 处影响结果可信度的回归（G2 写路径 stuck 被覆盖、掩码仍 32 位、NEON 缓冲区溢出、分类器误判、manifest 字段未生效、顶层/内置源码两份不一致）。我在 `fix/fi-tool-correctness` 上逐条修复并真机验证（见上 §六）。**修复作废了 §七旧结论中的 `3551d57`/`8beeea1`/`d72c61e` 三个 pilot 结果**（坏工具采的数据，不能当规律）。可复现锚点（golden、X2/X3 SDC、G2 stuck）在修复后仍然成立。Phase 2–7 与 formal cell 仍未做，不在本轮范围。详细修复后状态见 `docs/arm64-sdc-STATUS.md`。
