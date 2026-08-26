@@ -9,8 +9,8 @@
 
 ## 验证状态（诚实）
 - ✅ H5 已 gem5 端到端验证闭环（byte_lane_skew → oops 链复现，多 seed）
-- ⚠️ H6/H7 已执行，因 SE 模式 gem5 翻译模型限制无法验证（需 FS 模式）
-- ✅ P-D1/D2/D3 三注入器已实现、编译通过、符号入 gem5.opt
+- ⚠️ H6/H7 已执行，因 SE 模式 gem5 翻译模型限制无法验证（需 FS 模式）——**SE→FS 根因已源码静态确证**（`mmu.cc:1213` SCTLR.M=0 走 `translateMmuOff` 绕过页表走查器，D2/D3 钩子不触发）；FS 四件套就绪并过文件加载阶段，但 FS 启动到 bash 需 15 min–2 h 墙钟（实测 130k inst/s），长跑+注入配置待跑
+- ✅ P-D1/D2/D3 三注入器已实现、编译通过、符号入 gem5.opt（`nm` 372 个匹配符号，`.o` 全就绪）
 
 ## 复现
 - 构建：`cd CHAOS/gem5 && taskset -c <healthy cpus> scons build/ARM/gem5.opt -j8`

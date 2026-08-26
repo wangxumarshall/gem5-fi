@@ -8,6 +8,12 @@
 > - **诚实总结**：P-D1/D2/D3 三模块均已实现、编译通过、符号入二进制；H5 验证闭环；H6/H7 的 SE-mode 操作化因 gem5 翻译模型限制而**无法在当前环境验证**，需 FS 模式。这是建模环境限制，非代码 bug。
 > - ⚠️ **本机为故障机**：编译全程 `taskset` 隔离 cpu179（见 `/tmp/cpus.txt`），但仍存在残余 SDC 风险——链接阶段曾出现多次瞬态 param-文件编译失败（SDC-affected 编译的典型表现），最终 `-j1` 单线程链接成功。验证结果需在第二台健康机复现才算最终确认。
 >
+> **FS-mode 验证进展（诚实，更新于 2026-08-27）**：
+> - 🔬 **SE→FS 根因已源码静态确证**（非仅推断）：`src/arch/arm/mmu.cc:1213` 的翻译分派在 `!state.sctlr.m`（MMU 关）时走 `translateMmuOff`→`req->setPaddr(vaddr)`（直接物理映射，SE 模式 SCTLR.M=0），**从不调用页表走查器**，故 D3 钩子 `table_walker.cc:1959 corruptDescriptor`（位于 `doLongDescriptor`）在 SE 下恒 `numFaultsInjected=0`；D2 钩子 `lsq.cc:1146 corruptAddr` 虽在 `translateTiming` 前破坏 vaddr，但 SE 物理内存从 0 起、仅 512 MiB，byte7 清零后地址仍落 `[0,512MiB)` 故不 fault。FS 模式下 SCTLR.M=1（Linux 启用 MMU 后），翻译走真实 TLB→页表走查器→`doLongDescriptor`，**D2/D3 钩子才会被真正触发**。这与 §3 的设计完全一致，从源码侧闭环了 H6/H7 的 SE null 解释。
+> - ✅ **FS 四件套就绪**：`gem5-fs/` 下 `vmlinux`(Linux 5.15.36, ELF64 AArch64, 237 MB)/`ubuntu.img`(2.36 GB)/`boot_emm.arm64`/`armv8_gem5_v1_1cpu.dtb` 经 `readelf`+`stat` 实测有效；`fs_bigLITTLE.py` 用正确路径启动已过文件加载阶段（实测输出：`info: kernel located at /home/sdc/vmcore/gem5-fi/gem5-fs/vmlinux`、`Using bootloader at address 0x10`、`kernel entry physical address at 0x80000000`、`Loading DTB ... at 0x88000000`、`Simulated platform: VExpress_GEM5_V1`）。
+> - ⚠️ **FS 启动尚未跑到 Linux bash（诚实）**：实测仿真速度 `hostInstRate=130225 inst/s`、`hostTickRate=46.6M tick/s`、CPI=0.72（O3 健康），129 秒墙钟仅模拟 16.77M 指令/6ms 虚拟时间。Linux 完整启动到 bash 典型需 1-3 亿指令 → **墙钟 15 min–2 h+**。期间必须 `--listener-mode on`（默认 `auto` 在 stdin 非终端时 `m5.disableAllListeners()` 禁用 3456 端口，导致日志无处可去——曾因此误判 6h 仿真为挂起，实际它在跑）。
+> - 🟡 **当前阻塞（诚实）**：H6/H7 的 FS 验证需先确认 FS 能稳定跑到 Linux 用户态（挂载 rootfs、能跑 ptrskew probe 或至少内核态触发页表走查），这是小时级长跑。下一步是建一个带周期 stats-dump 的 FS+注入配置，量化"FS 下 D2/D3 钩子触发计数"——只要 Linux 早期初始化的页表走查被注入器命中，`numAddrFaults`/PTW 统计即非零，**直接证伪 SE 的 null 结果**，不必等 bash。
+>
 > 本文件是对 `fi_research/EXPERIMENT_DESIGN.md`（H0–H4 假设体系 + CHAOSPhysReg/CHAOSLSQFwd 注入器）的**增量设计**，由 `docs/kunpeng.md` 的 TSV110 微架构特征与五转储微架构深化诊断（`MICROARCH_SUPPLEMENT.md` §3 的 D1/D2/D3 三通路）驱动。
 > **基座**：gem5 v25.1.0.1 AArch64 O3CPU + CHAOS 框架。**EXPERIMENT_DESIGN §0/§12 声称 P4(CHAOSLSQFwd) 已跑通**——本机当前未复现该构建，故不继承其"已验证"主张，仅引用其设计。
 > **补丁纪律**：每个新增注入器/钩子 = 一个 patch（CLAUDE.md "one patch per unit"）。
