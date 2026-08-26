@@ -19,7 +19,7 @@ namespace gem5
           faults_injected_count(0),
           rng_seed(p.rngSeed),
           write_log(p.writeLog),
-          rng(rng_seed != 0 ? rng_seed : rd()),
+          rng(rng_seed != 0 ? rng_seed : [](){ std::random_device r; return r(); }()),
           log_stream(nullptr),
           stats(nullptr)
     {
