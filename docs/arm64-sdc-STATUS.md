@@ -51,20 +51,17 @@ Per the plan's phased structure, these are follow-up patches, not this phase:
 - G7 full sanitizer (ASan/UBSan) build + explicit SimulatorError classifier
   at the per-run level (the classifier exists in the runner; sanitized gem5
   rebuild is heavy and deferred). Done: warning-clean CHAOS compilation.
-- L1I/L1D cache functional end-to-end: the stdlib `SimpleBoard` does not
-  expose its L1D Cache SimObject for pre-instantiate CHAOSCache attachment
-  (the cache SimObjects are created lazily inside `Simulator` and are not
-  reachable from the hierarchy's `_root` CacheNode tree before instantiate).
-  An explicit `ArmSystem()+ArmTimingSimpleCPU` config with classic L1D
-  ALSO fails on gem5 v25: the MMU `release_se` param does not resolve
-  (`Error in unproxying param 'release_se' of system.cpu.mmu`) — the stdlib
-  `SimpleBoard` resolves this implicitly for the CPUs it creates, but that
-  implicit release-wiring is not reproducible in a hand-written explicit
-  config without reverse-engineering the stdlib CPU factory. The G3 supported
-  accessor (`Cache::getTags()`) is correct and compiles; a directed cache
-  test config is blocked on this stdlib/ARM-release interaction and is the
-  first deliverable of a dedicated cache-integration patch. The GPR/mem
-  paths (which use stdlib SimpleBoard directly) are NOT affected and work.
+- L1I/L1D cache functional end-to-end: DONE (patch b3ab369, unblocked). The
+  stdlib SimpleBoard L1D-exposure issue was solved by monkey-patching the
+  hierarchy's `_pre_instantiate` to capture the L1D Cache SimObject (which
+  CacheNode.__init__ setattr's onto the hierarchy as "l1d-cache-0") AFTER
+  the setattr but BEFORE the final m5.instantiate, attaching CHAOSCache via
+  the supported Cache::getTags() accessor. configs/se/arm_chaos_cache.py is
+  a working L1D/L1I/L2 injection config (reuses stdlib SimpleBoard, sidesteps
+  the gem5-v25 release_se proxy error). P0 L1D pilot run on l1d_reduce
+  (patch d72c61e): 10/10 Masked — honest cache-AVF result (single transient
+  byte flip mostly masked; §6.2). Measurable L1D SDC needs MBU/tag-fault/
+  tighter-O3-window cells — deferred formal cells.
 - Formal P0 cells: per-cell n=384 (GPR by ABI role × bit-field [0:11]/
   [12:47]/[48:63] × bit 31/32/63 boundary), golden 5×, raw/no-protection.
   Done: the pilot (n=10) proving reachability + real SDC.
