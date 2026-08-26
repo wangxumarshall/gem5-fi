@@ -1,0 +1,31 @@
+{
+  "cli_version": "0.10.2",
+  "checkpoint_id": "01M0XY2V87H6AESWCGWPHQKZ0J",
+  "strategy": "manual-commit",
+  "branch": "docs/core179-microarch-rootcause",
+  "checkpoints_count": 1,
+  "files_touched": null,
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 1546655,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 33293440,
+    "output_tokens": 171927,
+    "api_call_count": 227,
+    "subagent_tokens": {
+      "input_tokens": 61758,
+      "cache_creation_tokens": 0,
+      "cache_read_tokens": 495616,
+      "output_tokens": 11903,
+      "api_call_count": 14
+    }
+  }
+}
