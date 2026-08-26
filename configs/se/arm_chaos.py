@@ -59,6 +59,11 @@ p.add_argument("--phys_target_idx", type=int, default=-1,
                help="phys reg index (phys mode); -1=random")
 p.add_argument("--phys_target_arch", type=int, default=0,
                help="arch reg idx (arch_frontend/arch_commit modes)")
+p.add_argument("--phys_reg_class", default="integer",
+               choices=["integer","floating_point","vector","both"],
+               help="CHAOSPhysReg target class. 'vector' targets VecRegClass "
+                    "(now safe: buffer sized to actual vec width via "
+                    "vecRegBytes(), fixes the 192B stack overflow).")
 # CHAOSMem (backing-store byte injector; G4 fixed weights/boundary)
 p.add_argument("--chaos_mem", action="store_true",
                help="attach CHAOSMem to the board DRAM")
@@ -110,6 +115,7 @@ if args.chaos_phys:
         injectionMode=args.phys_mode,
         targetPhysRegIdx=args.phys_target_idx,
         targetArchRegIdx=args.phys_target_arch,
+        regTargetClass=args.phys_reg_class,
         probability=args.probability,
         bitsToChange=args.bits_to_change,
         faultMask=args.fault_mask,

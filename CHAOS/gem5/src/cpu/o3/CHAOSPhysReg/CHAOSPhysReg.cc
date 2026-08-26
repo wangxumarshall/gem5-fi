@@ -290,11 +290,17 @@ namespace gem5
             : generateRandomMask(rng, num_bits_to_change, 64);
 
         if (target_class == gem5::VecRegClass) {
-            // Buffer path: read the whole vector, corrupt the low word, write back.
-            uint8_t buf[64];  // SVE max 2048b=256B; 64B head suffices for low-word FI
-            memset(buf, 0, sizeof(buf));
-            cpu->physRegFile().getReg(phys_reg, buf);
-            uint64_t *word0 = reinterpret_cast<uint64_t*>(buf);
+            // Buffer path: read the WHOLE vector, corrupt the low 64-bit word,
+            // write back. The buffer MUST be sized to the actual vector phys
+            // reg byte width (AArch64 VecRegClass = up to 256B for SVE-2048b).
+            // The old fixed `uint8_t buf[64]` overflowed by 192B on getReg
+            // (report issue #3 — a real stack smash). Size it at runtime via
+            // vecRegBytes() so it is correct for any SVE VL, not hardcoded.
+            size_t vbytes = cpu->physRegFile().vecRegBytes();
+            if (vbytes < sizeof(uint64_t)) vbytes = sizeof(uint64_t);  // paranoia
+            std::vector<uint8_t> buf(vbytes, 0);
+            cpu->physRegFile().getReg(phys_reg, buf.data());
+            uint64_t *word0 = reinterpret_cast<uint64_t*>(buf.data());
             switch (chosen) {
               case FaultType::StuckAtZero:
                 *word0 &= ~(uint64_t)mask;
@@ -314,7 +320,7 @@ namespace gem5
                 break;
               default: break;
             }
-            cpu->physRegFile().setReg(phys_reg, buf);
+            cpu->physRegFile().setReg(phys_reg, buf.data());
         } else {
             // Scalar path (int / float / vecelem).
             gem5::RegVal reg_val = cpu->physRegFile().getReg(phys_reg);

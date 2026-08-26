@@ -175,6 +175,12 @@ class PhysRegFile
     PhysRegIdPtr floatPhysRegId(RegIndex idx) { return &floatRegIds[idx]; }
     unsigned numVecPhysRegs() const { return vecRegIds.size(); }
     PhysRegIdPtr vecPhysRegId(RegIndex idx) { return &vecRegIds[idx]; }
+    /** Byte width of one vector physical register (the void* get/setReg
+     *  path copies this many bytes). Used by CHAOSPhysReg to size its
+     *  injection buffer correctly — the AArch64 VecRegClass is up to
+     *  MaxSveVecLenInBytes = 256 (SVE-2048b), so a 64B stack buffer
+     *  would overflow by 192B on getReg (report issue #3). */
+    size_t vecRegBytes() const { return vectorRegFile.regClass.regBytes(); }
 
     /** Read-tracking hook for CHAOSPhysReg closure verification.
      *  Counts reads of the INJECTED VALUE (not the phys slot): once the
