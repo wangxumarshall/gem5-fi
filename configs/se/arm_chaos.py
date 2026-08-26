@@ -143,6 +143,7 @@ if args.chaos_mem:
         addr_start=args.addr_start,
         addr_end=args.addr_end,
         rngSeed=args.rng_seed,
+        maxFaults=args.max_faults,
         writeLog=True,
     )
 

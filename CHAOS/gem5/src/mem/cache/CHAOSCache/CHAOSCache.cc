@@ -27,6 +27,8 @@ namespace gem5
         cycles_permament_fault_check(p.cyclesPermamentFaultCheck),
         write_log(p.writeLog),
         rng_seed(p.rngSeed),
+        max_faults(p.maxFaults),
+        faults_injected_count(0),
         attackEvent([this] { this->injectFault(); }, name()),
         periodicCheck([this] { this->checkPermanent(); }, name() + ".periodicCheck"),
         stats(nullptr)
@@ -216,6 +218,14 @@ namespace gem5
             }
 
             // targetBlk->setCoherenceBits(CacheBlk::DirtyBit);
+        }
+
+        // G5: single-fault enforcement. Count the valid injections that
+        // happened this attack (one per corruption_size byte). If we've
+        // reached max_faults, STOP rescheduling. max_faults==0 = unlimited.
+        faults_injected_count += corruption_size;
+        if (max_faults != 0 && faults_injected_count >= max_faults) {
+            return;  // do not reschedule
         }
 
         Tick next_injection = curTick() + inter_fault_cycles_dist(rng) * tick_to_clock_ratio;

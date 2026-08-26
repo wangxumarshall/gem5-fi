@@ -61,6 +61,8 @@ class CHAOSCache : public SimObject
     std::mt19937 rng;
     std::random_device rd;
     uint64_t rng_seed;  // 0 = random_device (orig, non-reproducible); else fixed
+    uint64_t max_faults;            // G5: 0 = unlimited; else cap
+    uint64_t faults_injected_count; // G5: running count
     OutputStream *log_stream;
     
     static FaultType stringToFaultType(const std::string &s);

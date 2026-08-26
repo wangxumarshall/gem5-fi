@@ -48,6 +48,9 @@ namespace gem5 {
       float bit_flip_prob, stuck_at_zero_prob, stuck_at_one_prob;
       int cycles_permament_fault_check;
       bool write_log;
+      uint64_t rng_seed;
+      uint64_t max_faults;            // G5: 0 = unlimited; else cap
+      uint64_t faults_injected_count; // G5: running count
       Addr target_start, target_end, target_size;
 
       EventFunctionWrapper attackEvent, periodicCheck;
@@ -66,7 +69,6 @@ namespace gem5 {
       
       std::mt19937 rng;
       std::random_device rd;
-      uint64_t rng_seed;  // 0 = random_device (orig, non-reproducible); else fixed
       std::map<Addr, PermanentFault> permanent_faults;
       OutputStream *log_stream;
 

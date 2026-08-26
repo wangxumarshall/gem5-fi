@@ -29,6 +29,8 @@ namespace gem5 {
     cycles_permament_fault_check(p.cyclesPermamentFaultCheck),
     write_log(p.writeLog),
     rng_seed(p.rngSeed),
+    max_faults(p.maxFaults),
+    faults_injected_count(0),
     target_start(p.addr_start),
     target_end(p.addr_end),
     attackEvent([this]{ this->attackMemory(); }, name()),
@@ -208,6 +210,9 @@ namespace gem5 {
 
             memory->access(read_pkt);
 
+            // G5: capture the OLD value (before injection) for the evidence log.
+            uint8_t old_value = data;
+
             unsigned char mask = (fault_mask != 0) ? fault_mask : generateRandomMask(rng, num_bits_to_change, sizeof(data) << 3);
 
             FaultType chosen_fault_type_enum = fault_type_enum;
@@ -242,15 +247,24 @@ namespace gem5 {
 
             memory->access(write_pkt);
             stats->numFaultsInjected++;
+            ++faults_injected_count;   // G5: count this valid injection
 
             delete read_pkt;
             delete write_pkt;
 
             if (write_log){
-                *(log_stream->stream()) << "Tick: " << curTick() 
+                // G5: evidence log — old/new value + width + mask + type +
+                // target identity + trigger (tick) + seed (recorded at ctor,
+                // echoed here for traceability) + faults_injected count.
+                *(log_stream->stream()) << "Tick: " << curTick()
                     << ", target addr: " << target_addr
-                    << ", Mask: " << std::bitset<8>(mask)
+                    << ", old: 0x" << std::hex << (unsigned)old_value
+                    << ", new: 0x" << (unsigned)data
+                    << ", Mask: 0x" << (unsigned)mask
+                    << ", width_bits: 8"
                     << ", Fault Type: " << faultTypeToString(chosen_fault_type_enum)
+                    << ", seed: " << std::dec << rng_seed
+                    << ", faults_injected: " << faults_injected_count
                     << std::dec << std::endl;
             }
 
@@ -262,7 +276,15 @@ namespace gem5 {
             *(log_stream->stream())  << "Error: Unknown exception during fault injection. "
                     << "Target Addr: " << target_addr << std::endl;
         }
-        
+
+        // G5: single-fault enforcement. If we've injected max_faults, STOP
+        // rescheduling — the original CHAOSMem had no cap and re-injected
+        // forever (observed: maxFaults=1 param ignored, 5 injections logged
+        // in one tick). max_faults==0 = unlimited (original behavior).
+        if (max_faults != 0 && faults_injected_count >= max_faults) {
+            return;  // do not reschedule
+        }
+
         Tick next_injection = curTick() + inter_fault_tick_dist(rng) * tick_to_clock_ratio;
 
         if (next_injection <= last_tick || last_tick == 0) {
