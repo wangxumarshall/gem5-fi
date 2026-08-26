@@ -1,0 +1,11 @@
+<task-notification>
+<task-id>byc9055jo</task-id>
+<tool-use-id>call_0d62a5b50aba4c039108e6bc</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi/f9898586-c03f-42d7-8904-6493c822e08d/tasks/byc9055jo.output</output-file>
+<status>completed</status>
+<summary>Background command "Rebuild with scons -C absolute" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+/init
