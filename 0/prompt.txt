@@ -1,0 +1,11 @@
+<task-notification>
+<task-id>b2bo8ba3p</task-id>
+<tool-use-id>call_a04c555fb2754e7a8f5f7faa</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi/f9898586-c03f-42d7-8904-6493c822e08d/tasks/b2bo8ba3p.output</output-file>
+<status>failed</status>
+<summary>Background command "G4 distribution test 30 runs" failed with exit code 1</summary>
+</task-notification>
+
+---
+
+/goal 根据 @docs/arm64-fi-plan-based-on-CHAOS.md ，实现基于CHAOS源码的ARM64架构SDC故障注入方案，严格实现该方案，要求100%实诚，永远不能偷懒，永远不能说谎，必须100%真实。可以参考docs目录下的文档，可以参考 docs/kunpeng.md 了解鲲鹏处理器微架构特征，必要时需要移植到arm64架构上，需要构建arm64架构的初始gem5和chaos版本（需要移植到arm64架构）

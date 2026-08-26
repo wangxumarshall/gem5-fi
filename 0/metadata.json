@@ -1,0 +1,101 @@
+{
+  "cli_version": "0.10.2",
+  "checkpoint_id": "01M0XWWHJEDA17936Z6S6AHAB1",
+  "session_id": "f9898586-c03f-42d7-8904-6493c822e08d",
+  "strategy": "manual-commit",
+  "created_at": "2026-08-26T02:02:52.503870771Z",
+  "branch": "arm64-sdc-base",
+  "checkpoints_count": 1,
+  "save_step_count": 1,
+  "files_touched": [
+    "configs/se/arm_chaos.py"
+  ],
+  "agent": "Claude Code",
+  "model": "GLM-5.2[1m]",
+  "turn_id": "f994db29866d",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 2479639,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 65971968,
+    "output_tokens": 114667,
+    "api_call_count": 457
+  },
+  "skill_events_version": 1,
+  "skill_events": [
+    {
+      "id": "prompt-skill-claude-code-goal-2026-08-25T14:22:21.613713277Z",
+      "event_type": "prompt_invocation",
+      "skill": {
+        "name": "goal"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "prompt_slash_command",
+        "confidence": "explicit"
+      },
+      "turn_id": "ab5bfd265c23",
+      "timestamp": "2026-08-25T14:22:21.613713277Z",
+      "native": {
+        "command": "/goal"
+      },
+      "collapse": {
+        "target": "user_message",
+        "label": "/goal",
+        "default_collapsed": true
+      }
+    },
+    {
+      "id": "prompt-skill-claude-code-goal-2026-08-26T01:28:00.508532561Z",
+      "event_type": "prompt_invocation",
+      "skill": {
+        "name": "goal"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "prompt_slash_command",
+        "confidence": "explicit"
+      },
+      "turn_id": "f994db29866d",
+      "timestamp": "2026-08-26T01:28:00.508532561Z",
+      "native": {
+        "command": "/goal"
+      },
+      "collapse": {
+        "target": "user_message",
+        "label": "/goal",
+        "default_collapsed": true
+      }
+    }
+  ],
+  "initial_attribution": {
+    "calculated_at": "2026-08-26T02:02:52.108542431Z",
+    "agent_lines": 0,
+    "agent_removed": 0,
+    "human_added": 172,
+    "human_modified": 13,
+    "human_removed": 0,
+    "total_committed": 172,
+    "total_lines_changed": 196,
+    "agent_percentage": 0,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 152,
+      "user_lines_removed": 12,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        "CHAOS/gem5/src/mem/CHAOSMem/CHAOSMem.cc": 41,
+        "configs/se/arm_chaos.py": 33,
+        "tests/g4_mem.py": 78
+      },
+      "user_removed_per_file": {
+        "CHAOS/gem5/src/mem/CHAOSMem/CHAOSMem.cc": 11,
+        "configs/se/arm_chaos.py": 1
+      }
+    }
+  ]
+}
