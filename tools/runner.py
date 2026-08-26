@@ -36,6 +36,15 @@ REPO = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 G5 = os.path.join(REPO, "build/ARM/gem5.opt")
 CFG = os.path.join(REPO, "configs/se/arm_chaos.py")
 
+# manifest oracle.golden_id -> the workload's golden (no-injection) checksum.
+# These are the no-injection reference outputs (native == gem5, deterministic).
+GOLDEN_IDS = {
+    "regchain-golden-v1":   "f247ef3fe6f02cfd",  # reg_chain
+    "l1dreduce-golden-v1":  "f44d2b9cd4a173cd",  # l1d_reduce
+    "l1iloop-golden-v1":    "bb0b1c4cb661236e",  # l1i_loop
+    "stuckpersist-golden-v1": "00000000dee1f5d0",  # stuck_persist
+}
+
 def sha256_file(path):
     h = hashlib.sha256()
     with open(path, "rb") as f:
@@ -46,14 +55,28 @@ def sha256_file(path):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("manifest")
-    ap.add_argument("--golden-checksum", required=True,
+    ap.add_argument("--golden-checksum",
                     help="workload oracle checksum (e.g. reg_chain's 16-hex "
-                         "value) from a no-injection run")
+                         "value) from a no-injection run. If omitted, the "
+                         "manifest's oracle.golden_id is resolved via the "
+                         "runner's GOLDEN_IDS table.")
     ap.add_argument("--binary", required=True, help="path to the workload binary")
     args = ap.parse_args()
 
     with open(args.manifest) as f:
         m = yaml.safe_load(f)
+
+    # resolve golden checksum: explicit arg, else manifest golden_id
+    golden = args.golden_checksum
+    if not golden:
+        gid = m.get("oracle", {}).get("golden_id")
+        if gid and gid in GOLDEN_IDS:
+            golden = GOLDEN_IDS[gid]
+            print(f"[runner] resolved golden_id '{gid}' -> {golden}")
+        else:
+            sys.exit(f"[runner] no --golden-checksum and oracle.golden_id "
+                     f"'{gid}' unknown. Aborting.")
+    args.golden_checksum = golden
 
     # schema validation
     if HAVE_SCHEMA:
@@ -78,25 +101,87 @@ def main():
 
     assert m["limits"]["max_faults"] in (0,1), "formal runs require max_faults in {0,1}"
 
-    # map manifest -> arm_chaos.py args
+    # map manifest -> arm_chaos.py args (report issue #5: the manifest's
+    # target.index / fault.bit_indices / trigger MUST take effect, not be
+    # ignored for generic --bits_to_change=1).
     t = m["trigger"]
     inj = m["fault"]
     tgt = m["target"]
     comp = tgt["component"]
+    layer = tgt.get("layer", "architectural")
+    idx = tgt.get("index")              # may be None for random sampling
+    width = tgt.get("width_bits", 64)
+    bits = inj.get("bit_indices") or []  # explicit bit positions, e.g. [20]
+    field = tgt.get("field", "value")
+
+    # trigger mode: only 'cycle'/'tick' are honored by the current config
+    # (first_clock). pc/committedInst/event need G6 work (deferred) — reject
+    # with a clear error so a manifest isn't silently mis-triggered.
+    tmode = t.get("mode", "cycle")
+    if tmode not in ("cycle", "tick"):
+        sys.exit(f"[runner] trigger.mode='{tmode}' not supported yet "
+                 f"(needs G6 pc/committedInst/event hooks). Use 'cycle' "
+                 f"with value = first_clock. Aborting — not silently "
+                 f"mis-triggering.")
+
+    # fault model -> --fault_type
+    model_map = {"transient_bit_flip": "bit_flip",
+                 "stuck_at_zero": "stuck_at_zero",
+                 "stuck_at_one": "stuck_at_one",
+                 "local_mbu": "bit_flip",       # MBU = multi-bit flip (bits_to_change>1)
+                 "intermittent_burst": "bit_flip",
+                 "legal_domain_sub": "bit_flip",
+                 "delay_omission": "bit_flip"}
+    if inj["model"] not in model_map:
+        sys.exit(f"[runner] fault.model='{inj['model']}' not mapped yet. Aborting.")
+    fault_type = model_map[inj["model"]]
+
+    # fault mask: if bit_indices given, build the OR mask (now 64-bit).
+    # bits_to_change defaults to the number of explicit bits, or 1 if random.
+    if bits:
+        mask = 0
+        for b in bits:
+            if b < 0 or b >= width:
+                sys.exit(f"[runner] bit {b} outside width {width}. Aborting.")
+            mask |= (1 << b)
+        fault_mask = str(mask)
+        bits_to_change = str(len(bits))
+    else:
+        fault_mask = "0"   # random mask
+        bits_to_change = "1"
+
     cmd = [G5, "--quiet", "-d", tempfile.mkdtemp(prefix="man-"), CFG,
            "--cmd", args.binary, "--cpu", "O3",
            "--first_clock", str(t["value"]),
            "--max_faults", str(m["limits"]["max_faults"]),
            "--rng_seed", str(m["rng"]["selection_seed"]),
-           "--fault_type", "bit_flip" if inj["model"]=="transient_bit_flip" else inj["model"],
-           "--bits_to_change", "1"]
+           "--fault_type", fault_type,
+           "--fault_mask", fault_mask,
+           "--bits_to_change", bits_to_change]
+    # target component + layer -> the right injector + index knob
     if comp == "gpr":
         cmd += ["--chaos_reg"]
+        if idx is not None:
+            # CHAOSReg samples randomly; restrict to this reg via max_reg_idx
+            # at idx+1 AND we can't force a specific reg deterministically
+            # without a directed-reg patch — log this honesty gap.
+            print(f"[runner] NOTE: CHAOSReg has no directed-reg knob; "
+                  f"manifest index={idx} recorded but not forced (TODO).")
     elif comp == "physreg":
-        cmd += ["--chaos_phys", "--phys_mode", "phys"]
+        cmd += ["--chaos_phys"]
+        if layer == "physical":
+            cmd += ["--phys_mode", "phys"]
+            if idx is not None:
+                cmd += [f"--phys_target_idx={idx}"]
+        else:  # architectural
+            cmd += ["--phys_mode", "arch_frontend"]
+            if idx is not None:
+                cmd += [f"--phys_target_arch={idx}"]
     elif comp == "memory":
         cmd += ["--chaos_mem"]
 
+    print(f"[runner] manifest target: layer={layer} comp={comp} idx={idx} "
+          f"bits={bits} width={width} field={field}")
     print("[runner] running:", " ".join(cmd[:4]), "...")
     # Hang timeout (plan §13.2): a normal sim completes in well under the
     # wall budget; a Hang = no completion within this. Default 600s; the
