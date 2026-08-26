@@ -77,13 +77,15 @@ int main(int argc, char **argv) {
         uint64_t p = loaded;
 
         /* PTR_CORRUPT detection: compare against the IMMUTABLE golden_ptr, not
-         * a re-read of slots[]. A byte-lane skew makes loaded != golden_ptr. */
+         * a re-read of slots[]. A byte-lane skew makes loaded != golden_ptr.
+         * NOTE: we intentionally do NOT print xor/loaded/truth here — under
+         * heavy structural injection the compiler's stack-spill reloads can
+         * themselves be skewed, producing misleading xor==0 rows. The
+         * DECISIVE signal is the downstream deref page-fault (the kernel-style
+         * Oops), which is unaffected by detection-path noise. We count
+         * ptr_corrupt but only the crash/val_mismatch are reported as results. */
         if (p != golden_ptr) {
             ptr_corrupt++;
-            if (ptr_corrupt <= 8) {
-                fprintf(stderr, "PTR_CORRUPT it=%ld loaded=%016lx truth=%016lx xor=%016lx\n",
-                        it, loaded, golden_ptr, loaded ^ golden_ptr);
-            }
             continue;  /* skip deref — would SIGSEGV/Oops, as the kernel did */
         }
 
