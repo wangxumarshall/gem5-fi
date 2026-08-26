@@ -5,7 +5,8 @@
   "branch": "fix/fi-tool-correctness",
   "checkpoints_count": 3,
   "files_touched": [
-    "tools/runner.py"
+    ".gitignore",
+    "CHAOS/Makefile"
   ],
   "sessions": [
     {
@@ -24,11 +25,11 @@
     }
   ],
   "token_usage": {
-    "input_tokens": 1154600,
+    "input_tokens": 1153183,
     "cache_creation_tokens": 0,
-    "cache_read_tokens": 36078976,
-    "output_tokens": 31731,
-    "api_call_count": 106
+    "cache_read_tokens": 35986688,
+    "output_tokens": 30421,
+    "api_call_count": 105
   },
   "combined_attribution": {
     "calculated_at": "2026-08-26T12:07:25.329869233Z",
