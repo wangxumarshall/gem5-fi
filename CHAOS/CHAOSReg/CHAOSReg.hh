@@ -36,7 +36,7 @@ namespace gem5
       
       struct PermanentFault {
         FaultType fault_type;
-        int mask;
+        uint64_t mask;
         bool update;
       };
 
@@ -48,8 +48,9 @@ namespace gem5
       uint64_t faults_injected_count; // running count of injected faults
       uint64_t rng_seed;               // 0 = seed from random_device (orig); else fixed
       uint64_t max_reg_idx;            // 0 = full numRegs()-1; else upper bound (exclusive)
+      uint64_t fault_mask;             // G1: dynamic-width (64-bit) bitmask; 0 = random
+      int fault_mask_width;            // G1: width in bits (64 for X regs)
       FaultType fault_type_enum;
-      std::bitset<32> fault_mask;
       float bit_flip_prob, stuck_at_zero_prob, stuck_at_one_prob;
       Cycles cycles_permament_fault_check;
       TargetClass reg_target_class_enum;
@@ -59,6 +60,11 @@ namespace gem5
       EventFunctionWrapper attackEvent, periodicCheck;
 
       int generateRandomMask(std::mt19937 &gen, int bits_to_change, int len);
+      // G1: width-aware mask. len in bits (e.g. 64 for AArch64 X regs).
+      // Returns a uint64_t with `bits_to_change` distinct bits set in [0,len).
+      // Uses unsigned (1ULL <<) to avoid the signed-shift UB of the old
+      // `int mask; 1 << bit` (which was UB for bit >= 32).
+      uint64_t generateRandomMask64(std::mt19937 &gen, int bits_to_change, int len);
       void processFault(ThreadID tid);
       void scheduleAttackEvent(Cycles delay);
       void unscheduleAttackEvent();

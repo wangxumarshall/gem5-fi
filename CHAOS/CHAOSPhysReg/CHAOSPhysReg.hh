@@ -35,7 +35,7 @@ class CHAOSPhysReg : public SimObject
 
     struct PermanentFault {
         FaultType fault_type;
-        int mask;
+        uint64_t mask;
         bool update;
     };
 
@@ -57,7 +57,7 @@ class CHAOSPhysReg : public SimObject
     float probability;
     int num_bits_to_change;
     FaultType fault_type_enum;
-    std::bitset<32> fault_mask;
+    std::bitset<64> fault_mask;
     float bit_flip_prob, stuck_at_zero_prob, stuck_at_one_prob;
 
     // timing
@@ -87,7 +87,7 @@ class CHAOSPhysReg : public SimObject
     OutputStream *log_stream;
 
     // helpers
-    int generateRandomMask(std::mt19937 &gen, int bits_to_change, int len);
+    uint64_t generateRandomMask(std::mt19937 &gen, int bits_to_change, int len);
     void processFault(ThreadID tid);
     void scheduleAttackEvent(Cycles delay);
     void unscheduleAttackEvent();

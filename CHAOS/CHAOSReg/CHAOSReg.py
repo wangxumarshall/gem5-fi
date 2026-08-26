@@ -15,7 +15,7 @@ class CHAOSReg(SimObject):
     rngSeed = Param.UInt64(0, "Seed for the injection RNG (std::mt19937). 0 = seed from std::random_device (original, NON-reproducible behavior). Nonzero = fixed seed for reproducible injection (register/mask).")
     maxRegIdx = Param.UInt64(0, "Upper bound (exclusive) on the randomly sampled register index within its class. 0 = use full numRegs()-1 (original behavior, which on ARM/aarch64 includes integer[31]=Zero and idx>=32 banked/non-arch slots — a systematic bias). Set to 31 on aarch64 to restrict integer injection to X0-X30 (indices 0..30).")
     faultType = Param.String("random", "Fault type: bit_flip, stuck_at_zero, stuck_at_one")
-    faultMask = Param.UInt32(0, "Bit mask for the fault (optional)")
+    faultMask = Param.UInt64(0, "Bit mask for the fault (64-bit; G1 width-aware)")
     regTargetClass = Param.String("both", "Target register class: integer, floating_point, or both")
     bitFlipProb = Param.Float(0.9, "Probability (between 0 and 1) of injecting a bit flip fault on 'bit_flip' fault type")
     stuckAtZeroProb = Param.Float(0.05, "Probability (between 0 and 1) of injecting a stuck-at-zero fault on 'stuck_at_zero' fault type")

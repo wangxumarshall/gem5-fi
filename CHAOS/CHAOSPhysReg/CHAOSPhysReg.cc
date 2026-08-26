@@ -28,7 +28,7 @@ namespace gem5
           probability(p.probability),
           num_bits_to_change(p.bitsToChange),
           fault_type_enum(stringToFaultType(p.faultType)),
-          fault_mask(std::bitset<32>(p.faultMask)),
+          fault_mask(std::bitset<64>(p.faultMask)),
           bit_flip_prob(0.9),
           stuck_at_zero_prob(0.05),
           stuck_at_one_prob(0.05),
@@ -56,7 +56,7 @@ namespace gem5
             stats = std::make_unique<CHAOSPhysRegStats>(this);
             rng.seed(rng_seed != 0 ? rng_seed : rd());
             if (num_bits_to_change == -1) {
-                std::uniform_int_distribution<int> dist(1, 32);
+                std::uniform_int_distribution<int> dist(1, 64);
                 num_bits_to_change = dist(rng);
             }
             inter_fault_cycles_dist = std::geometric_distribution<unsigned>(probability);
@@ -96,6 +96,7 @@ namespace gem5
             case FaultType::BitFlip: return "bit_flip";
             case FaultType::StuckAtZero: return "stuck_at_zero";
             case FaultType::StuckAtOne: return "stuck_at_one";
+            case FaultType::Random: return "random";  // G7: handle enum (clear -Wswitch)
         }
         return "random";
     }
@@ -140,12 +141,12 @@ namespace gem5
             schedule(periodicCheck, cpu->clockEdge(delay));
     }
 
-    int
+    uint64_t
     CHAOSPhysReg::generateRandomMask(std::mt19937 &gen, int bits_to_change, int len)
     {
-        int mask = 0;
+        uint64_t mask = 0;
         std::uniform_int_distribution<int> bitDist(0, len - 1);
-        while (bits_to_change-- > 0) mask |= (1 << bitDist(gen));
+        while (bits_to_change-- > 0) mask |= (1ULL << bitDist(gen));
         return mask;
     }
 
@@ -284,9 +285,9 @@ namespace gem5
             chosen = static_cast<FaultType>(idx);
         }
 
-        int mask = fault_mask.any()
-            ? fault_mask.to_ulong()
-            : generateRandomMask(rng, num_bits_to_change, 32);
+        uint64_t mask = fault_mask.any()
+            ? fault_mask.to_ullong()
+            : generateRandomMask(rng, num_bits_to_change, 64);
 
         if (target_class == gem5::VecRegClass) {
             // Buffer path: read the whole vector, corrupt the low word, write back.
@@ -323,12 +324,21 @@ namespace gem5
                 stats->numStuckAtZero++;
                 stats->numPermanentFaults++;
                 permanent_faults[{tid, chosen_phys_idx}] = {chosen, mask, true};
+                // G2: arm the write-path stuck mask so the bit is forced on
+                // EVERY subsequent write to this phys slot — the correct
+                // permanent (cell-stuck) model. Survives program re-writes,
+                // rename reuse, and spec/commit. Polarity 0 = stuck_at_zero.
+                cpu->physRegFile().setStuckTarget(target_class, chosen_phys_idx,
+                                                  (uint64_t)mask, 0);
                 break;
               case FaultType::StuckAtOne:
                 reg_val |= mask;
                 stats->numStuckAtOne++;
                 stats->numPermanentFaults++;
                 permanent_faults[{tid, chosen_phys_idx}] = {chosen, mask, true};
+                // G2: write-path stuck mask, polarity 1 = stuck_at_one.
+                cpu->physRegFile().setStuckTarget(target_class, chosen_phys_idx,
+                                                  (uint64_t)mask, 1);
                 break;
               case FaultType::BitFlip:
                 reg_val ^= mask;
@@ -380,7 +390,7 @@ namespace gem5
                        ? " (<= ArchReg[" + std::to_string(chosen_arch_idx) + "])"
                        : ""))
                 << ", FaultType: " << faultTypeToString(chosen)
-                << ", Mask: " << std::bitset<32>(mask)
+                << ", Mask: " << std::bitset<64>(mask)
                 << ", FreeListSize: " << free_list_size_at_inject
                 << std::endl;
         }

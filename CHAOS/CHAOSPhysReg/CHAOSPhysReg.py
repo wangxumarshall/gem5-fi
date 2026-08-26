@@ -53,7 +53,10 @@ class CHAOSPhysReg(SimObject):
     probability = Param.Float(1.0, "Per-interval injection probability "
         "(use 1.0 with maxFaults=1 so the single injection lands at firstClock)")
     bitsToChange = Param.Int(1, "Number of bits to change (used when faultMask=0)")
-    faultMask = Param.UInt32(0, "Bitmask; 0 = randomly generated (bitsToChange bits)")
+    faultMask = Param.UInt64(0, "64-bit bitmask; 0 = randomly generated "
+        "(bitsToChange bits). Covers the full AArch64 64-bit width — the old "
+        "UInt32 silently truncated bit>=32 (1<<32 / 1<<63 became 0), so the "
+        "G1 bit-stratified X2/X3 bit32/bit63 cases were never injected.")
     faultType = Param.String("bit_flip",
         "bit_flip | stuck_at_zero | stuck_at_one | random")
 
