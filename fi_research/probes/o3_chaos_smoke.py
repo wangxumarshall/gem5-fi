@@ -52,6 +52,11 @@ ap.add_argument("--max-tick", default="0", help="0 = no cap; else cap sim (Root.
 ap.add_argument("--lsq-fwd-prob", default="0.0", help="CHAOSLSQFwd per-forward corruption probability (0=off)")
 ap.add_argument("--lsq-fwd-bits", default="1", help="bits to flip on forwarded data")
 ap.add_argument("--lsq-fwd-byte", default="-1", help="byte offset in forwarded buffer (-1=random)")
+# P-D1: structural (whole-word) fault axis for CHAOSLSQFwd. Orthogonal to the
+# per-byte bit-fault above. Models core-179 D1 (byte-lane skew / all-zero) which
+# is NOT expressible as a bit flip (MICROARCH_SUPplement §2.2).
+ap.add_argument("--lsq-structural", default="none", help="none|byte_lane_skew|all_zero (P-D1)")
+ap.add_argument("--lsq-skew", default="0", help="byte_lane_skew rotation 1..7 (0=random)")
 
 ap.add_argument("--l1d", default="32KiB")
 a = ap.parse_args()
@@ -123,6 +128,8 @@ if float(a.lsq_fwd_prob) > 0.0:
         probability=float(a.lsq_fwd_prob),
         bitsToChange=int(a.lsq_fwd_bits),
         byteOffset=int(a.lsq_fwd_byte),
+        structuralFault=a.lsq_structural,
+        skewBytes=int(a.lsq_skew),
         firstClock=int(a.first_clock),
         lastClock=0,
         maxFaults=int(a.max_faults),
