@@ -9,16 +9,5 @@ m5out/
 # logs
 *.log
 
-# local toolchain
-riscv-gnu-toolchain/
-
-# smoke test runs (not part of CHAOS source)
-smoke_test/
-
-# deferred CHAOSPhysReg work (separate follow-up patch)
-.chaosphysreg-stash/
-
-# misc
 .DS_Store
-.workbuddy/
 .claude/

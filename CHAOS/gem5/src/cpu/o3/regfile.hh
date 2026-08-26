@@ -165,12 +165,16 @@ class PhysRegFile
     unsigned totalNumPhysRegs() const { return totalNumRegs; }
 
     /** Accessors for CHAOSPhysReg (physical-register-file fault injector).
-     *  These expose the integer physical register id table and its size so
-     *  a fault injector can target a physical cell by index (the ITC'23 /
-     *  GeFIN abstraction). Direct members are private; these are the only
-     *  public route. */
+     *  These expose the integer/float physical register id tables and their
+     *  sizes so a fault injector can target a physical cell by index (the
+     *  ITC'23 / GeFIN abstraction). Direct members are private; these are
+     *  the only public route. */
     unsigned numIntPhysRegs() const { return intRegIds.size(); }
     PhysRegIdPtr intPhysRegId(RegIndex idx) { return &intRegIds[idx]; }
+    unsigned numFloatPhysRegs() const { return floatRegIds.size(); }
+    PhysRegIdPtr floatPhysRegId(RegIndex idx) { return &floatRegIds[idx]; }
+    unsigned numVecPhysRegs() const { return vecRegIds.size(); }
+    PhysRegIdPtr vecPhysRegId(RegIndex idx) { return &vecRegIds[idx]; }
 
     /** Read-tracking hook for CHAOSPhysReg closure verification.
      *  Counts reads of the INJECTED VALUE (not the phys slot): once the
@@ -180,31 +184,23 @@ class PhysRegFile
      *  times, but those reads are of the NEW value, not the injected one).
      *  reads_before_overwrite = # times the injected value was read.
      *  overwritten = whether the slot was written (value destroyed).
-     *  Hot-path: target is -1 when no injection in flight → short-circuit. */
-    int read_trace_target = -1;       // phys idx being tracked, or -1
+     *  Tracking is type-aware (int and float phys spaces are independently
+     *  numbered from 0), so both the RegClassType and idx must match.
+     *  Hot-path: trace_type == InvalidRegClass when no injection in flight
+     *  → short-circuit. */
+    RegClassType trace_type = InvalidRegClass;  // class being tracked, or Invalid
+    int trace_idx = -1;                          // phys idx within that class
     mutable uint64_t reads_before_overwrite = 0;  // reads of the injected value
     mutable bool trace_overwritten = false;      // set true when target slot is written
-    void setReadTraceTarget(int idx) {
-        read_trace_target = idx; reads_before_overwrite = 0; trace_overwritten = false;
+    void setReadTraceTarget(RegClassType type, int idx) {
+        trace_type = type; trace_idx = idx;
+        reads_before_overwrite = 0; trace_overwritten = false;
     }
-    void clearReadTraceTarget() { read_trace_target = -1; }
+    void clearReadTraceTarget() {
+        trace_type = InvalidRegClass; trace_idx = -1;
+    }
     uint64_t getReadsBeforeOverwrite() const { return reads_before_overwrite; }
     bool isTraceOverwritten() const { return trace_overwritten; }
-
-    /** G2: stuck-at write-path mask (the CORRECT permanent-fault mechanism).
-     *  A stuck cell must force its bit on EVERY write to the phys slot — not
-     *  just once (the old periodic-re-apply in CHAOSPhysReg::checkPermanent did
-     *  not propagate on O3, same root cause as CHAOSReg). This hook lives in
-     *  the write path so it survives program re-writes, rename reuse, and
-     *  speculative commits. stuck_target<0 = no stuck fault in flight. */
-    int stuck_target = -1;          // phys idx with a stuck fault, or -1
-    uint64_t stuck_mask = 0;        // bits affected
-    uint8_t stuck_polarity = 0;    // 0 = stuck_at_zero (force 0), 1 = stuck_at_one (force 1)
-    void setStuckTarget(int idx, uint64_t mask, uint8_t polarity) {
-        stuck_target = idx; stuck_mask = mask; stuck_polarity = polarity;
-    }
-    void clearStuckTarget() { stuck_target = -1; stuck_mask = 0; stuck_polarity = 0; }
-    int getStuckTarget() const { return stuck_target; }
 
     /** Gets a misc register PhysRegIdPtr. */
     PhysRegIdPtr getMiscRegId(RegIndex reg_idx) {
@@ -223,15 +219,19 @@ class PhysRegFile
             val = intRegFile.reg(idx);
             // CHAOSPhysReg read-trace: count reads of the INJECTED VALUE.
             // Stop counting once the slot is written (injected value destroyed).
-            // Hot-path: target<0 when no trace → short-circuit.
-            if (read_trace_target >= 0 && !trace_overwritten
-                && (int)idx == read_trace_target)
+            // Hot-path: trace_type==Invalid when no trace → short-circuit.
+            if (trace_type == IntRegClass && !trace_overwritten
+                && (int)idx == trace_idx)
                 ++reads_before_overwrite;
             DPRINTF(IEW, "RegFile: Access to int register %i, has data %#x\n",
                     idx, val);
             return val;
           case FloatRegClass:
             val = floatRegFile.reg(idx);
+            // CHAOSPhysReg read-trace (float): symmetric to the int branch.
+            if (trace_type == FloatRegClass && !trace_overwritten
+                && (int)idx == trace_idx)
+                ++reads_before_overwrite;
             DPRINTF(IEW, "RegFile: Access to float register %i has data %#x\n",
                     idx, val);
             return val;
@@ -265,6 +265,11 @@ class PhysRegFile
             break;
           case VecRegClass:
             vectorRegFile.get(idx, val);
+            // CHAOSPhysReg read-trace (vector): symmetric to int/float — count
+            // reads of the injected VecReg cell until it is overwritten.
+            if (trace_type == VecRegClass && !trace_overwritten
+                && (int)idx == trace_idx)
+                ++reads_before_overwrite;
             DPRINTF(IEW, "RegFile: Access to vector register %i, has "
                     "data %s\n", idx, vectorRegFile.regClass.valString(val));
             break;
@@ -322,21 +327,16 @@ class PhysRegFile
             // (NOT the CHAOSPhysReg's own injection write — that goes through
             // a different path before setReadTraceTarget; the trace target is
             // set AFTER injection, so this write is a program/rename write.)
-            if (read_trace_target >= 0 && (int)idx == read_trace_target)
+            if (trace_type == IntRegClass && (int)idx == trace_idx)
                 trace_overwritten = true;
-            // G2: stuck-at write-path mask. Force the stuck bits on every
-            // write to this phys slot — the correct permanent-fault model
-            // (a defective cell clamps its bit regardless of what is written).
-            // stuck_target<0 = no stuck fault in flight → short-circuit.
-            if (stuck_target >= 0 && (int)idx == stuck_target) {
-                if (stuck_polarity == 0) val &= ~stuck_mask;  // stuck_at_zero
-                else                      val |=  stuck_mask;  // stuck_at_one
-            }
             intRegFile.reg(idx) = val;
             DPRINTF(IEW, "RegFile: Setting int register %i to %#x\n",
                     idx, val);
             break;
           case FloatRegClass:
+            // CHAOSPhysReg read-trace (float): symmetric overwrite detection.
+            if (trace_type == FloatRegClass && (int)idx == trace_idx)
+                trace_overwritten = true;
             floatRegFile.reg(idx) = val;
             DPRINTF(IEW, "RegFile: Setting float register %i to %#x\n",
                     idx, val);
@@ -370,6 +370,10 @@ class PhysRegFile
             setReg(phys_reg, *(RegVal *)val);
             break;
           case VecRegClass:
+            // CHAOSPhysReg read-trace (vector): a write to the traced cell
+            // destroys the injected value → stop counting reads from here.
+            if (trace_type == VecRegClass && (int)idx == trace_idx)
+                trace_overwritten = true;
             DPRINTF(IEW, "RegFile: Setting vector register %i to %s\n",
                     idx, vectorRegFile.regClass.valString(val));
             vectorRegFile.set(idx, val);

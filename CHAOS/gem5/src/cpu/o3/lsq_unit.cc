@@ -44,6 +44,7 @@
 #include "arch/generic/debugfaults.hh"
 #include "base/str.hh"
 #include "cpu/checker/cpu.hh"
+#include "cpu/o3/CHAOSLSQFwd/CHAOSLSQFwd.hh"
 #include "cpu/o3/dyn_inst.hh"
 #include "cpu/o3/limits.hh"
 #include "cpu/o3/lsq.hh"
@@ -1488,6 +1489,17 @@ LSQUnit::read(LSQRequest *request, ssize_t load_idx)
                     memcpy(load_inst->memData,
                         store_it->data() + shift_amt,
                         request->mainReq()->getSize());
+
+                // CHAOSLSQFwd: optionally corrupt the just-forwarded data,
+                // modeling store-buffer forwarding-path corruption (the
+                // reproduce-method2 v3 mechanism on core 179). Hot-path:
+                // when no injector is attached (lsqFwd==nullptr) or its
+                // probability is 0, corrupt() returns immediately.
+                if (cpu->lsqFwd) {
+                    cpu->lsqFwd->corrupt(load_inst->memData,
+                                         request->mainReq()->getSize(),
+                                         request->mainReq()->getVaddr());
+                }
 
                 DPRINTF(LSQUnit, "Forwarding from store idx %i to load to "
                         "addr %#x\n", store_it._idx,
