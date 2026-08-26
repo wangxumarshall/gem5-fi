@@ -11,3 +11,8 @@ m5out/
 
 .DS_Store
 .claude/
+
+# gem5 full-system support files (gem5-fs/) are large binaries (~2.5 GB) that
+# must NOT be committed — only the README is tracked.
+gem5-fs/*
+!gem5-fs/readme.md
