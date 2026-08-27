@@ -56,6 +56,11 @@ namespace gem5
     CHAOSAddrPath::corruptAddr(Addr *addr, uint64_t seq)
     {
         if (probability <= 0.0f) return false;
+        // Count every call to the hook (every load's effAddr->MMU boundary)
+        // before prob/first-clock gating. Mirrors CHAOSPTW::numHooksCalled:
+        // distinguishes "load happened" from "load happened but prob missed" —
+        // essential to size H6's D2 arm (load density vs PTW walk density).
+        stats->numHooksCalled++;
         Cycles cur = cpu->curCycle();
         if (cur < first_clock) return false;
         if (last_clock != Cycles(0) && cur > last_clock) return false;
@@ -86,6 +91,9 @@ namespace gem5
 
     CHAOSAddrPath::Stats::Stats(statistics::Group *parent)
         : statistics::Group(parent),
+          ADD_STAT(numHooksCalled, statistics::units::Count::get(),
+                   "Times the addr-path hook was called (D2; every load's "
+                   "effAddr->MMU boundary while injector active, before gating)"),
           ADD_STAT(numAddrFaults, statistics::units::Count::get(),
                    "Total address-path faults injected (D2)")
     {}
