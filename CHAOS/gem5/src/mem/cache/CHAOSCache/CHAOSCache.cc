@@ -26,6 +26,8 @@ namespace gem5
         stuck_at_one_prob(p.stuckAtOneProb),
         cycles_permament_fault_check(p.cyclesPermamentFaultCheck),
         write_log(p.writeLog),
+        target_block_addr(p.targetBlockAddr),
+        target_byte_offset(p.targetByteOffset),
         rng_seed(p.rngSeed),
         max_faults(p.maxFaults),
         faults_injected_count(0),
@@ -156,26 +158,60 @@ namespace gem5
         if (validBlocks.empty()) {
             warn("No valid block found\n");
         } else{
-        
-            std::uniform_int_distribution<int> blockDist(0, validBlocks.size() - 1);
-            int randomIdx = blockDist(rng);
-            CacheBlk* targetBlk = validBlocks[randomIdx];
+            // Directed target (report §六.3 'fixed-to'): if target_block_addr
+            // is set, find the VALID block whose regenerated address matches
+            // the block-aligned target. If not resident at injection time,
+            // fall back to random with a log warning (honest: the fault did
+            // not land on the directed block because it wasn't valid).
+            CacheBlk* targetBlk = nullptr;
+            bool directed_block = (target_block_addr != 0);
+            if (directed_block) {
+                Addr blkMask = ~(static_cast<Addr>(blockSize) - 1);
+                Addr wantBlockAddr = target_block_addr & blkMask;
+                for (CacheBlk* blk : validBlocks) {
+                    if (tags->regenerateBlkAddr(blk) == wantBlockAddr) {
+                        targetBlk = blk;
+                        break;
+                    }
+                }
+                if (!targetBlk && write_log) {
+                    *(log_stream->stream()) << "Tick: " << curTick()
+                        << ", Directed target_block_addr=0x" << std::hex
+                        << target_block_addr << std::dec
+                        << " NOT resident (no valid block at that address) — "
+                        << "falling back to random block." << std::endl;
+                }
+            }
+            if (!targetBlk) {
+                std::uniform_int_distribution<int> blockDist(0, validBlocks.size() - 1);
+                int randomIdx = blockDist(rng);
+                targetBlk = validBlocks[randomIdx];
+            }
 
             Addr blockAddr = tags->regenerateBlkAddr(targetBlk);
 
             uint8_t* data = targetBlk->data;
 
-            std::uniform_int_distribution<int> byteDist(0, blockSize - 1);
+            // Directed byte offset (report §六.3 'fixed-to'): if set, pin the
+            // fault to this byte within the block; else random.
+            bool directed_byte = (target_byte_offset >= 0
+                                  && target_byte_offset < (int)blockSize);
 
             FaultType chosen_fault_type_enum = fault_type_enum;
             if (fault_type_enum == FaultType::Random) {
                 int faultIdx = random_fault_distribution(rng);
                 chosen_fault_type_enum = static_cast<FaultType>(faultIdx);
             }
-            
+
             for (int i = 0; i < corruption_size; i++) {
                 unsigned char mask = (fault_mask != 0) ? fault_mask : generateRandomMask(rng, bits_to_change, 8);
-                int byteOffset = byteDist(rng);
+                int byteOffset;
+                if (directed_byte) {
+                    byteOffset = target_byte_offset;
+                } else {
+                    std::uniform_int_distribution<int> byteDist(0, blockSize - 1);
+                    byteOffset = byteDist(rng);
+                }
 
                 if (mask == 0) {
                     warn("Mask is 0.");

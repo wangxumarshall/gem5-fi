@@ -6,6 +6,12 @@ CHAOS/gem5/.git/
 build/
 m5out/
 
+# Full-system-sim dependencies (kernels, disk images, dtb, boot ROM) —
+# ~2.5GB (ubuntu.img alone is ~2.2GB). Must NOT be committed. These are
+# the FS-mode deps used by Phase 3 (TLB/system-register FI); users fetch
+# them separately.
+gem5-fs/
+
 # logs
 *.log
 

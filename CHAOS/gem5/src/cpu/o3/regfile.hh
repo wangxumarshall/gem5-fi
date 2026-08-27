@@ -175,6 +175,12 @@ class PhysRegFile
     PhysRegIdPtr floatPhysRegId(RegIndex idx) { return &floatRegIds[idx]; }
     unsigned numVecPhysRegs() const { return vecRegIds.size(); }
     PhysRegIdPtr vecPhysRegId(RegIndex idx) { return &vecRegIds[idx]; }
+    /** Byte width of one vector physical register (the void* get/setReg
+     *  path copies this many bytes). Used by CHAOSPhysReg to size its
+     *  injection buffer correctly — the AArch64 VecRegClass is up to
+     *  MaxSveVecLenInBytes = 256 (SVE-2048b), so a 64B stack buffer
+     *  would overflow by 192B on getReg (report issue #3). */
+    size_t vecRegBytes() const { return vectorRegFile.regClass.regBytes(); }
 
     /** Read-tracking hook for CHAOSPhysReg closure verification.
      *  Counts reads of the INJECTED VALUE (not the phys slot): once the
@@ -201,6 +207,28 @@ class PhysRegFile
     }
     uint64_t getReadsBeforeOverwrite() const { return reads_before_overwrite; }
     bool isTraceOverwritten() const { return trace_overwritten; }
+
+    /** G2: stuck-at write-path mask (the CORRECT permanent-fault mechanism).
+     *  A stuck cell must force its bit on EVERY write to the phys slot — not
+     *  just once. The old CHAOSPhysReg::checkPermanent periodic re-apply did
+     *  NOT propagate on O3 (it re-sticks at a polled instant, missing
+     *  in-flight writes between polls; same root cause as the CHAOSReg
+     *  commit-vs-frontend artifact). This hook lives in the write path so it
+     *  survives program re-writes, rename reuse, and spec/commit ordering.
+     *  Type-aware (int and float phys spaces are independently numbered),
+     *  mirroring the read-trace pattern above. stuck_type == InvalidRegClass
+     *  means no stuck fault in flight -> short-circuit. */
+    RegClassType stuck_type = InvalidRegClass;
+    int stuck_idx = -1;
+    uint64_t stuck_mask = 0;
+    uint8_t stuck_polarity = 0;    // 0 = stuck_at_zero (force 0), 1 = stuck_at_one
+    void setStuckTarget(RegClassType type, int idx, uint64_t mask, uint8_t pol) {
+        stuck_type = type; stuck_idx = idx; stuck_mask = mask; stuck_polarity = pol;
+    }
+    void clearStuckTarget() {
+        stuck_type = InvalidRegClass; stuck_idx = -1;
+        stuck_mask = 0; stuck_polarity = 0;
+    }
 
     /** Gets a misc register PhysRegIdPtr. */
     PhysRegIdPtr getMiscRegId(RegIndex reg_idx) {
@@ -329,6 +357,13 @@ class PhysRegFile
             // set AFTER injection, so this write is a program/rename write.)
             if (trace_type == IntRegClass && (int)idx == trace_idx)
                 trace_overwritten = true;
+            // G2: stuck-at write-path mask. Force the stuck bits on EVERY
+            // write to this phys slot (the correct permanent/cell-stuck
+            // model — survives program re-writes, rename reuse, spec/commit).
+            if (stuck_type == IntRegClass && (int)idx == stuck_idx) {
+                if (stuck_polarity == 0) val &= ~stuck_mask;  // stuck_at_zero
+                else                      val |=  stuck_mask;  // stuck_at_one
+            }
             intRegFile.reg(idx) = val;
             DPRINTF(IEW, "RegFile: Setting int register %i to %#x\n",
                     idx, val);
@@ -337,6 +372,11 @@ class PhysRegFile
             // CHAOSPhysReg read-trace (float): symmetric overwrite detection.
             if (trace_type == FloatRegClass && (int)idx == trace_idx)
                 trace_overwritten = true;
+            // G2: stuck-at write-path mask (float), symmetric to int.
+            if (stuck_type == FloatRegClass && (int)idx == stuck_idx) {
+                if (stuck_polarity == 0) val &= ~stuck_mask;
+                else                      val |=  stuck_mask;
+            }
             floatRegFile.reg(idx) = val;
             DPRINTF(IEW, "RegFile: Setting float register %i to %#x\n",
                     idx, val);

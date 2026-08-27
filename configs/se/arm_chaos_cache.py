@@ -31,6 +31,15 @@ p.add_argument("--rng_seed", type=lambda x:int(x,0), default=20260825)
 p.add_argument("--fault_type", default="bit_flip")
 p.add_argument("--bits_to_change", type=int, default=1)
 p.add_argument("--probability", type=float, default=1.0)
+# Directed injection (report §六.3 'fixed-to' runs): pin the fault to a
+# specific cache block (by address) and/or byte offset — lands on live
+# data (L1D) or executed instruction bytes (L1I) instead of random.
+p.add_argument("--target_block_addr", type=lambda x:int(x,0), default=0,
+               help="Directed: cache block address to inject (block-aligned "
+                    "lookup among VALID blocks). 0 = random (default).")
+p.add_argument("--target_byte_offset", type=int, default=-1,
+               help="Directed: byte offset within the target block "
+                    "(0..blockSize-1). -1 = random (default).")
 args = p.parse_args()
 
 cm = {"O3":CPUTypes.O3,"Timing":CPUTypes.TIMING,"Atomic":CPUTypes.ATOMIC,"Minor":CPUTypes.MINOR}
@@ -59,7 +68,9 @@ def cap(root):
         target_cache=target, probability=args.probability,
         firstClock=args.first_clock, lastClock=0,
         faultType=args.fault_type, bitsToChange=args.bits_to_change,
-        rngSeed=args.rng_seed, maxFaults=args.max_faults, writeLog=True)
+        rngSeed=args.rng_seed, maxFaults=args.max_faults,
+        targetBlockAddr=args.target_block_addr,
+        targetByteOffset=args.target_byte_offset, writeLog=True)
     attached[0] = True
     print(f"[arm_chaos_cache] CHAOSCache attached to {args.target}-cache-0 "
           f"(supported Cache::getTags() path)")

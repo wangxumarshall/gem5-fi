@@ -22,6 +22,10 @@ Usage: python3 tests/p0_l1i_pilot.py <gem5.opt> <arm_chaos_cache.py> <l1i_loop>
 """
 import os, subprocess, sys, tempfile, re
 
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)),
+                                "..", "tools"))
+from classify import classify_run  # noqa: E402
+
 if len(sys.argv) != 4:
     sys.exit("usage: p0_l1i_pilot.py <gem5.opt> <arm_chaos_cache.py> <l1i_loop>")
 g5, cfg, binary = sys.argv[1], sys.argv[2], sys.argv[3]
@@ -36,22 +40,30 @@ def run(seed):
             "--max_faults=1", f"--rng_seed={seed}", "--fault_type=bit_flip",
             "--bits_to_change=1", "--probability=1.0"],
             capture_output=True, text=True, timeout=HANG_CUTOFF)
-        m = re.findall(r"^[0-9a-fA-F]{16}$", r.stdout, re.MULTILINE)
-        out = m[-1] if m else ""
-        err = r.stderr or ""
-        return out, err
-    except subprocess.TimeoutExpired:
-        return "", ""
+        timed_out = False
+    except subprocess.TimeoutExpired as e:
+        r = subprocess.CompletedProcess([], returncode=-1,
+            stdout=(e.stdout or b"").decode() if e.stdout else "",
+            stderr=(e.stderr or b"").decode() if e.stderr else "")
+        timed_out = True
+    faults = 0
+    p = os.path.join(d, "cache_injections.log")
+    if os.path.exists(p):
+        for line in open(p):
+            if line.strip() and "Error" not in line:
+                faults += 1
+    cls, _ = classify_run(r.stdout or "", r.stderr or "", r.returncode,
+                          faults, GOLDEN, timed_out)
+    return cls
 
 hang=sdc=masked=crash=0
-print(f"{'seed':>10} {'output':<18} {'class'}")
+print(f"{'seed':>10} {'class'}")
 for s in range(20260825, 20260835):
-    out, err = run(s)
-    if out==GOLDEN: cls="Masked"; masked+=1
-    elif out and out!=GOLDEN: cls="SDC"; sdc+=1
-    elif "panic" in err.lower() or "illegal" in err.lower() or "abort" in err.lower():
-        cls="Crash"; crash+=1
-    else: cls="Hang"; hang+=1
-    print(f"{s:>10} {out:<18} {cls}")
+    cls = run(s)
+    if cls=="SDC": sdc+=1
+    elif cls=="Masked": masked+=1
+    elif cls=="Hang": hang+=1
+    elif cls=="Crash": crash+=1
+    print(f"{s:>10} {cls}")
 print(f"\nP0 L1I pilot (n=10): SDC={sdc} Hang={hang} Crash={crash} Masked={masked}")
 print("L1I instruction-bit faults are Hang-heavy (control-flow corruption, plan §7.2).")

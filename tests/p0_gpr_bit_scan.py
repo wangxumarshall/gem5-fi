@@ -19,6 +19,10 @@ Usage: python3 tests/p0_gpr_bit_scan.py <gem5.opt> <arm_chaos.py> <reg_chain>
 """
 import os, subprocess, sys, tempfile, re
 
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)),
+                                "..", "tools"))
+from classify import classify_run  # noqa: E402
+
 if len(sys.argv) != 4:
     sys.exit("usage: p0_gpr_bit_scan.py <gem5.opt> <arm_chaos.py> <reg_chain>")
 g5, cfg, binary = sys.argv[1], sys.argv[2], sys.argv[3]
@@ -41,27 +45,39 @@ def run(arch, mask_int):
             "--rng_seed=20260825", "--fault_type=bit_flip",
             f"--fault_mask={mask_int}"],
             capture_output=True, text=True, timeout=HANG_CUTOFF)
-        m = re.findall(r"^[0-9a-fA-F]{16}$", r.stdout, re.MULTILINE)
-        out = m[-1] if m else ""
-        return out, r.returncode
-    except subprocess.TimeoutExpired:
-        return "", -1
+        timed_out = False
+    except subprocess.TimeoutExpired as e:
+        r = subprocess.CompletedProcess([], returncode=-1,
+            stdout=(e.stdout or b"").decode() if e.stdout else "",
+            stderr=(e.stderr or b"").decode() if e.stderr else "")
+        timed_out = True
+    # faults_injected (1 expected, real injection line only)
+    faults = 0
+    p = os.path.join(d, "fault_injections.log")
+    if os.path.exists(p):
+        for line in open(p):
+            if ("Inactive" in line or line.startswith("Error")
+                    or "ReadTracePoll" in line or "ReadTraceFinal" in line):
+                continue
+            if "FaultType:" in line:
+                faults += 1
+    cls, _ = classify_run(r.stdout or "", r.stderr or "", r.returncode,
+                          faults, GOLDEN, timed_out)
+    return cls
 
-print(f"{'reg':<4} {'bit':<6} {'output':<18} {'class'}")
-counts = {"SDC":0, "Masked":0, "Hang":0}
+print(f"{'reg':<4} {'bit':<6} {'class'}")
+counts = {"SDC":0, "Masked":0, "Hang":0, "Crash":0, "Inactive":0, "SimulatorError":0}
 for arch in (2, 3):
     for name, mask in BITS.items():
-        out, rc = run(arch, mask)
-        if out == "":
-            cls = "Hang"
-        elif out == GOLDEN:
-            cls = "Masked"
-        else:
-            cls = "SDC"
-        counts[cls] += 1
-        print(f"X{arch:<3} {name:<6} {out:<18} {cls}")
+        cls = run(arch, mask)
+        counts[cls] = counts.get(cls, 0) + 1
+        print(f"X{arch:<3} {name:<6} {cls}")
 
-print(f"\nP0 GPR bit-stratified (n={sum(counts.values())}): "
-      f"SDC={counts['SDC']} Hang={counts['Hang']} Masked={counts['Masked']}")
-print("NOTE: Hang = no program completion within", HANG_CUTOFF,
-      "s (plan §13.2 frozen threshold; high-bit flips can corrupt control flow).")
+n = sum(counts.values())
+print(f"\nP0 GPR bit-stratified (n={n}): "
+      f"SDC={counts['SDC']} Hang={counts['Hang']} Masked={counts['Masked']} "
+      f"Crash={counts['Crash']} Inactive={counts['Inactive']} "
+      f"SimulatorError={counts['SimulatorError']}")
+print("NOTE: Hang = timeout with no completion (plan §13.2 frozen threshold). "
+      "bit32/bit63 now reach the reg (64-bit mask fix); the old result "
+      "(3551d57 'high-bit Hang') is re-run here honestly with the classifier.")

@@ -166,8 +166,104 @@ $G5 --quiet --outdir=runs/cache configs/se/arm_chaos_cache.py \
 
 **注意**：gem5 的 `--outdir` 放在 `runs/` 下（**不要放 /tmp** —— /tmp 在这台 29GB/15G-swap 主机上会被跑满，ENOSPC 杀过一个 G4 测试）。
 
+**gem5.opt 路径更正**：本机上 `scons -C CHAOS/gem5 build/ARM/gem5.opt -j16` 实际产物在 **仓库根 `build/ARM/gem5.opt`**（约 1.1GB），不是 `CHAOS/gem5/build/ARM/`（后者可能是陈旧/重复文件）。运行用 `G5=$PWD/build/ARM/gem5.opt`。
+
 ---
 
-## 六、一句话诚实结论
+## 六、工具正确性修复轮（源码检查报告 `docs/gem5-fi_branch_next_step.md` 之后）
+
+一份源码检查报告发现：rebase 后的 `fi` HEAD（`70b725c`）上，并行会话的 CHAOSPhysReg vec/float 系列（6585f7a/3899cc2/51ed47e）在合并中**覆盖**了若干已验证修复，且分类器/manifest/NEON 缓冲区均有影响结果可信度的缺陷。报告的 5 条主张我逐条用真机验证为真（且第 2 条比报告更严重——架构态 CHAOSReg 也仍是 32 位）。随后在 `fix/fi-tool-correctness` 分支上逐个补丁修复，每个都经真跑验证、commit、push：
+
+| commit | 补丁（报告 issue） | 真实验证（实跑输出，非预测） |
+|---|---|---|
+| `9f0ad41` | G2 恢复写路径 stuck 钳位（#1） | stuck_persist phys PhysReg[80] stuck_at_one 0xff → `00ff0000dee1f5d0`（reuse@cycle 150000 掩码重施加）；golden `00000000dee1f5d0`；O3 reg_chain golden `f247ef3fe6f02cfd` |
+| `8739214` | 64 位掩码（CHAOSReg+CHAOSPhysReg，#2） | `--fault_mask=1<<32`/`1<<63` 现在分别记录 `0x100000000`/`0x8000000000000000`（修复前被 UInt32 截断为 0）；CHAOS 源零警告 |
+| `4602f28` | NEON 缓冲区按 vecRegBytes() 定长（#3） | `--phys_reg_class=vector` phys 注入 reg_chain：无 SIGSEGV（修复前 192B 栈溢出）；log `RegClass: vec, PhysReg[0]` |
+| `e3a39b9` | 诚实分类器 §9.1（#4） | exit1+empty+1inj → Crash（修复前误判 SDC）；X0/X1 Masked、X2 SDC；manifest reg9 → Masked（带 reason） |
+| `aeaf043` | manifest 的 target/bit/trigger 真正生效（#5a） | physreg manifest idx=3 bit=[20] → `PhysReg[77] (<= ArchReg[3])` Mask `...0010000...` reads=25000 → SDC；idx=3 bit=[32] → SDC（高位现在真注入） |
+| `890cca3` | 单一正式源码 + gitignore gem5-fs（#5b） | `diff -rq CHAOS/{Cache,Mem,Reg,PhysReg} ↔ vendored` 全同；Makefile clobber-safe（一致时 no-op）；`git check-ignore gem5-fs/` OK |
+
+### 干净重建 + 闸门重验（真机）
+
+- 强制 regen params 干净重建（`rm -rf build/ARM && scons -j16`）：`scons: done building targets.`，exit 0，**CHAOSReg/PhysReg/Cache/Mem 源零警告**（G7；CHAOSLSQFwd 的 `-Wswitch Random` 仍在，不在本轮范围）。`xxd -l4` = `7f 45 4c 46`（有效 ELF aarch64）。
+- **G0 重放一致**：5/5 次同 seed CHAOSReg 注入，`fault_injections.log` sha256 全同 `ff4a0c9fd7768dc1`。
+- **G1 位宽**：bit0/31/32/63 掩码全注入（见上 `8739214`）。
+- **G2 永久**：`00ff0000dee1f5d0` 完整重放（见上）。
+- **G4 内存**：CHAOSMem maxFaults=1 → `faults_injected: 1`（恰好 1 次，G5），证据日志 `old: 0x0, new: 0xde, Mask: 0xde, width_bits: 8, seed: 20260825`。
+- **P0 GPR 重跑**：X2 → `bcd3c78e2ed7de1b`（SDC）、X3 → `d43a25d7fcc218b7`（SDC），与 progress.md 完全一致——可复现。
+- **O3 golden 回归**：reg_chain no-inj → `f247ef3fe6f02cfd`，exit 0，0 SIGSEGV。
+
+### ⚠️ 被本轮修复**作废**的旧结论（诚实声明）
+
+下列旧结果是用**坏掉的工具**采的（32 位截断掩码 + 不查退出码的分类器），**不能作为 ARM64/鲲鹏 SDC 规律**：
+
+1. `3551d57` "按位分层 SDC=3/Hang=5"：bit32/bit63 掩码被 UInt32 截断为 0 → 实际**未注入**，"高位 → Hang"结论**不成立**。修复后重跑：X3 bit63（1<<63）→ `d9a35c115042d41a`，**SDC**（exit 0，无 trap）——高位翻转经数据路径传播为 SDC，而非 Hang。高低位 SDC-vs-Hang 区分须在正式 cell 重做后才能再下结论。
+2. `8beeea1` "L1I 10/10 Hang"：旧分类器把"空 stdout"直接算 Hang，未区分 Hang/Crash/SimError。须用修好的分类器重跑（Hang = 超时未完成；Crash = trap/exit≠0）后才能立 "all Hang" 之说。
+3. `d72c61e` "L1D 10/10 Masked"：受影响较小（Masked 是不传播，与分类器无关），但证据日志/单故障断言须重跑留痕。
+
+**可保留的可复现锚点**（修复后已验证）：reg_chain golden `f247ef3fe6f02cfd`；X3 arch_frontend 1-bit-flip = `d43a25d7fcc218b7`（SDC）；G2 stuck = `00ff0000dee1f5d0`；manifest physreg idx=3 bit=[20] = `88ff2422239b4952`（SDC）。
+
+### 第三步最小重跑（报告 §六.3，修好工具后诚实重采）
+
+报告 §六.3 要求用修好的工具重跑最易验证的几组、确认稳定重放+分类正确后再扩样。已做（详见 `docs/arm64-sdc-STATUS.md` 的 Step-3 节）：
+
+- **网格1 GPR X2/X3 × bit 0/31/32/63**（替代被作废的 `3551d57`）：arch_frontend、显式 `--fault_mask=1<<k`（64 位，bit32/63 现在真翻转）。诚实分类结果：X2 bit0→SDC、bit31/32/63→**Hang**（超时 exit 124，stderr 无 panic/trap，已验证是真 Hang 非误判 Crash）；X3 bit0/31/32/63 全→SDC。**合计 SDC=5 Hang=3**。每格都精确命中指定 arch reg（X2→PhysReg[187]、X3→PhysReg[77]，均 `<= ArchReg[k]`），单故障。结论：SDC-vs-Hang 是**按寄存器**区分的（X2 是循环计数器，高位翻→Hang；X3 是数据累加器，全位→SDC），不是旧说法的笼统"高位→Hang"——旧说法既受 32 位截断伪影影响、又过度泛化。
+- **网格4 内存首/末/单字节**：CHAOSMem 在 l1d_reduce（512KiB BSS 数组）上，maxFaults=1。闭区间 `[start,end]` + 单字节 `[n,n]` 边界正确：首字节经 `[0,1]` 可达（addr 0）；中位 `[0x100000,0x100000]`→addr 1048576；末字节 `[0x3FFFFFFF,...]`→addr 1073741823（旧代码会丢末字节，G4 已修）。注：`addr_end=0` 是"不限"约定（同 lastClock=0，非 bug）。全 BSS 范围 5 随机 seed→5/5 Masked（瞬态单字节多被掩蔽，诚实内存 AVF）。
+- **网格2/3（L1D 定到活数据、L1I 定到执行指令）**：需 cache config + 更紧 O3 窗口/定向 cache line，L1D/L1I 旧 pilot（d72c61e/8beeea1）须用修好的分类器重跑后才能立"全 Masked/全 Hang"之说——本轮未做，后续。
+
+### 网格2b/3b — L1D/L1I 随机 pilot 重跑（修好的分类器，cache 路径端到端）
+
+§六.3 的"定向"（定到活数据/执行指令）需要定向 byte/line 注入器（CHAOSCache 还没有该旋钮）。但随机 pilot 重跑（rngSeed 随机采样 block/byte）现在可做，验证分类器在 cache 路径端到端工作：
+
+- **L1D 重跑**（l1d_reduce，O3，5 seed，随机 block/byte，maxFaults=1）：每次恰好 1 注入、不同字节偏移（byte3/16/36/38/42）。**5/5 Masked**（golden `f44d2b9cd4a173cd`）。诚实 cache AVF——随机瞬态字节很少命中被读的活值。
+- **L1I 重跑**（l1i_loop，O3，10 seed，随机 block/byte，maxFaults=1）：**10/10 Hang**。**已验证 Hang 为真**（非误判 Crash/SimError）：seed 20260825——exit 124（超时）、无 checksum、stderr 无 panic/trap/SIGSEGV（仅良性 `info: Increasing stack size`）。注入日志 `Cache Block Addr: 51392, Byte Offset: 38, Mask: 01000000`（指令字节 bit6 翻→循环控制破坏→死循环）。l1i_loop 是紧固定指令循环，多数指令字段翻→Hang，10/10 Hang 对**这个 kernel** 诚实成立。
+
+诚实留白：§六.3 的"定向到活数据/执行指令"仍待做（需 CHAOSCache 加定向 byte/line 旋钮——一个 feature 补丁）。上面的随机重跑证明分类器+单故障+证据日志在 cache 路径端到端工作，诚实确认了 L1D-Masked / L1I-Hang 方向（现已正确分类），但不替代定向 formal cell。
+
+### 定向 cache 注入（§六.3 "fixed-to"——已完成，补丁 642dfef）
+
+给 CHAOSCache 加了定向旋钮（`targetBlockAddr` + `targetByteOffset`，config 暴露为 `--target_block_addr` / `--target_byte_offset`），把故障**钉到指定 cache block（按物理地址）+ 字节**，而非随机采样。闭合 §六.3 "定向到"缺口：
+
+- **L1D 定到活数据**（l1d_reduce，驻留数据块 862656，byte 0）：日志 `Cache Block Addr: 862656, Byte Offset: 0`（驻留，无 fallback 警告）。输出 `d128c62843ca82a1` ≠ golden → **SDC**，可复现（2/2 相同）。byte 4 → 不同 SDC `c104da9d94a173cd`（证明翻的是真实活数据字节，corruption 改了 reduction 结果）。所以 L1D SDC 在故障落到活数据字节时**可达**——随机 pilot 的 5/5 Masked 是 cache-AVF 采样效应，非"L1D 不敏感"。
+- **L1I 定到执行指令**（l1i_loop，驻留循环块 51392，byte 38/0）：日志 `Cache Block Addr: 51392, Byte Offset: 38/0`（驻留）。两者 → **Hang**（exit 124，无 checksum 无 trap——指令字节翻→循环控制破坏→死循环）。
+- 定向块不驻留（如 vaddr 0x491960）：日志 `Directed ... NOT resident — falling back to random`（诚实，无静默误注入）。注：gem5 SE virt≠phys——定向要用**物理地址**（随机 run 的 `Cache Block Addr` 日志行）。符号解析定向模式（manifest begin_symbol → phys）仍待做。
+
+---
+
+## 七、一句话诚实结论
 
 本次把计划的 **Phase 0（七个闸门）做实、manifest runner 跑通、Phase 1 三个 P0 靶点都产出了真实可复现的 SDC/Hang 证据**（GPR 2/10 SDC、按位分层 SDC=3/Hang=5、L1D 10/10 Masked、L1I 10/10 Hang），全部 19 补丁经实跑验证并已合入 `fi`。**唯一的诚实留白是 rebase 后的干净重建验证被叫停，需补一次确认**；formal cell（n=384）、NEON/TLB/LSQ/L3-128/x86 配对/实机校准这些 Phase 2–7 是明确分阶段的后续工作，已记录在 `docs/arm64-sdc-STATUS.md`，不是本次范围，不能谎称完成。
+
+### 后续轮：工具正确性修复（`fix/fi-tool-correctness`，6 补丁）
+
+源码检查报告 `docs/gem5-fi_branch_next_step.md` 指出 rebase 后的 `fi` HEAD 有 5 处影响结果可信度的回归（G2 写路径 stuck 被覆盖、掩码仍 32 位、NEON 缓冲区溢出、分类器误判、manifest 字段未生效、顶层/内置源码两份不一致）。我在 `fix/fi-tool-correctness` 上逐条修复并真机验证（见上 §六）。**修复作废了 §七旧结论中的 `3551d57`/`8beeea1`/`d72c61e` 三个 pilot 结果**（坏工具采的数据，不能当规律）。可复现锚点（golden、X2/X3 SDC、G2 stuck）在修复后仍然成立。Phase 2–7 与 formal cell 仍未做，不在本轮范围。详细修复后状态见 `docs/arm64-sdc-STATUS.md`。
+
+### Phase 2/3 增量（报告 §六.4 step 4，`fix/fi-tool-correctness` 后续补丁）
+
+- **Phase 2 item 1 NEON**（`d3fcec4`+`0c557c2`）：DONE，lane 级。ASIMD lane-sep kernel `neon_lane`（golden `00000000526925fe`，native==gem5-O3）。`vecLaneWidth`(8/16/32/64)+`vecLaneOffset` 旋钮——把故障钉到 128 位 VecRegClass 的**指定 lane**。phys vec[1] width=32 lane 0/1/2/3 → 4 个**不同** SDC（`e0c767c9`/`ab4b199`/`dd65a1c0`/`3007c799`）——证明翻的确实是定向 lane。
+- **Phase 2 item 2 LSQ**（`5d0a5b0`）：DONE。CHAOSLSQFwd **自挂载**（构造函数 `cpu->lsqFwd=this`），config 只需实例化。`fp_fwd_kernel` store→load 自检 kernel：`firstClock=1e6`→`fails=1` 检测 SDC；多注入→10318/10551≈98% 检测 SDC（DUE-class）。
+- **Phase 3 item 3 TLB/SYS（FS 模式）**：FS **引导** DONE（`5856961`），TLB/SYS 注入器 SimObject 尚未写。`configs/se/arm_chaos_fs.py` 用 stdlib ArmBoard+VExpress_GEM5_V1+本地 gem5-fs 依赖（vmlinux+ubuntu.img+boot.arm64）启动，已验证：kernel 5.15.36 加载、root=/dev/vda1 挂载（virtio-blk，不是 sda）、设备初始化到 `random: fast init done`。Foundation 平台在 0x2c001000 panic（内存映射不匹配）→V1 才是正确平台。TLB 注入器的挂载点是 `arch/arm/tlb.cc:TLB::lookup`（返回 TlbEntry*，可翻 `pfn`）——多补丁 Phase 3 工作，待做。
+
+### 端到端最终验证（16 commits，全路径可复现）
+
+build ELF `7f454c46`；GPR golden `f247ef3fe6f02cfd`；G2 stuck `00ff0000dee1f5d0`；X3 SDC `d43a25d7fcc218b7`；NEON lane2 SDC `00000000dd65a1c0`；LSQ SDC `fails=1`；L1D directed SDC `d128c62843ca82a1`；FS boot `Booting Linux...`。8 路全可复现。
+
+### 诚实留白（未做、未谎称）
+
+- Phase 3 TLB/SYS-reg 注入器 SimObject（FS 引导已通，注入器待写）。
+- Phase 5 L3-128、Phase 6 x86 配对、Phase 7 鲲鹏实机校准——报告明确分阶段。
+- formal n=384 cell（GPR/L1D/L1I/NEON/LSQ 各层）。
+- G6 广触发（pc/committedInst/event）、G7 sanitizer 构建、CHAOSReg directed-reg 旋钮、CHAOSLSQFwd 的 UInt32 mask/-Wswitch（并行会话遗留）、manifest 符号解析定向（begin_symbol→phys）。
+
+报告 §六 第一步～第三步 + 第四步 item 1/2 + item 3 的引导前置已端到端完成并真机验证、push。第四步 item 3 的 TLB 注入器本体、item 4/5/6（L3-128/x86/实机）为明确分阶段后续，未谎称完成。
+
+### Phase 3 item 3 — TLB 注入器本体（已完成，补丁 8526004）
+
+不仅仅是 FS 引导前置——**CHAOSArmTLB 注入器本体已写完并验证**：
+- 新 SimObject `CHAOSArmTLB`（`arch/arm/CHAOSArmTLB/`）：`tlb`/`probability`/`firstClock`/`maxFaults`/`faultMask`/`rngSeed` 闸门参数；**自挂载**（构造函数 `tlb->chaosTLB=this`，同 CHAOSLSQFwd，无需 setChaosTLB 的 python 绑定）。
+- 挂 `arch/arm/tlb.cc:TLB::lookup`：命中后、返回前调用 `chaosTLB->maybeCorrupt(retval, va)`，翻 hit entry 的 `pfn`。
+- `configs/se/arm_chaos_fs.py`：`--chaos_armtlb` + 旋钮，挂到 D-TLB（`cpu0.mmu.dtb`）。
+- **FS 真机验证**（V1 + gem5-fs，Atomic）：`prob=1.0 firstClock=50000 seed=20260825` → `armtlb_injections.log`: `Tick: 1352646, VA: 0x807cc408, old_pfn: 0x403, new_pfn: 0x200000003, Mask: 0x20000000`（可复现 2/2）。翻 bit 29 → PA 落到未映射区 `0x40000807cc408` → `panic: Data fetch ... BadAddressError` —— **真 DUE**。对照 `prob=0` 不注入则正常启动（无 crash）——证明 crash 由 TLB 故障导致。
+- 回归：SE reg_chain golden `f247ef3fe6f02cfd`（SE 下 chaosTLB=nullptr，hook 短路，无影响）。
+
+诚实留白：本轮做 D-TLB pfn 翻转（一种 TLB-entry 故障模型）。I-TLB、page-table walker、系统寄存器白名单（TTBR/TCR/MAIR/SCTLR/VBAR/NZCV、ASID/VMID）、以及"翻到的 PA 仍是已映射活页"→静默 SDC 的有向 cell——为后续。

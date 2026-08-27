@@ -26,6 +26,11 @@ namespace gem5
         stuck_at_one_prob(p.stuckAtOneProb),
         cycles_permament_fault_check(p.cyclesPermamentFaultCheck),
         write_log(p.writeLog),
+        target_block_addr(p.targetBlockAddr),
+        target_byte_offset(p.targetByteOffset),
+        rng_seed(p.rngSeed),
+        max_faults(p.maxFaults),
+        faults_injected_count(0),
         attackEvent([this] { this->injectFault(); }, name()),
         periodicCheck([this] { this->checkPermanent(); }, name() + ".periodicCheck"),
         stats(nullptr)
@@ -47,7 +52,7 @@ namespace gem5
             last_tick = last_clock * tick_to_clock_ratio;
             ticks_permament_fault_check = cycles_permament_fault_check * tick_to_clock_ratio;
 
-            rng.seed(rd());
+            rng.seed(rng_seed != 0 ? rng_seed : rd());
             inter_fault_cycles_dist = std::geometric_distribution<unsigned>(probability);
 
             scheduleAttack(first_tick + inter_fault_cycles_dist(rng) * tick_to_clock_ratio);
@@ -95,6 +100,7 @@ namespace gem5
             case FaultType::BitFlip: return "bit_flip";
             case FaultType::StuckAtZero: return "stuck_at_zero";
             case FaultType::StuckAtOne: return "stuck_at_one";
+            case FaultType::Random: return "random";  // G7: handle enum to clear -Wswitch
         }
         return "random";
     }
@@ -116,11 +122,13 @@ namespace gem5
     BaseTags*
     CHAOSCache::getTags() const
     {
-        struct CacheAccessor : public Cache {
-            BaseTags* getTagsPublic() { return tags; }
-        };
-        
-        return static_cast<CacheAccessor*>(targetCache)->getTagsPublic();
+        // G3 (plan §4): use the supported Cache::getTags() accessor instead
+        // of the unsafe `static_cast<CacheAccessor*>` downcast that poked
+        // the protected BaseCache::tags member via a reinterpret helper
+        // (undefined behavior if targetCache is not exactly a Cache, and
+        // it broke C++ object-layout assumptions). targetCache is a Cache*
+        // per the param, so this is the supported path.
+        return targetCache->getTags();
     }
 
     uint8_t 
@@ -150,26 +158,60 @@ namespace gem5
         if (validBlocks.empty()) {
             warn("No valid block found\n");
         } else{
-        
-            std::uniform_int_distribution<int> blockDist(0, validBlocks.size() - 1);
-            int randomIdx = blockDist(rng);
-            CacheBlk* targetBlk = validBlocks[randomIdx];
+            // Directed target (report §六.3 'fixed-to'): if target_block_addr
+            // is set, find the VALID block whose regenerated address matches
+            // the block-aligned target. If not resident at injection time,
+            // fall back to random with a log warning (honest: the fault did
+            // not land on the directed block because it wasn't valid).
+            CacheBlk* targetBlk = nullptr;
+            bool directed_block = (target_block_addr != 0);
+            if (directed_block) {
+                Addr blkMask = ~(static_cast<Addr>(blockSize) - 1);
+                Addr wantBlockAddr = target_block_addr & blkMask;
+                for (CacheBlk* blk : validBlocks) {
+                    if (tags->regenerateBlkAddr(blk) == wantBlockAddr) {
+                        targetBlk = blk;
+                        break;
+                    }
+                }
+                if (!targetBlk && write_log) {
+                    *(log_stream->stream()) << "Tick: " << curTick()
+                        << ", Directed target_block_addr=0x" << std::hex
+                        << target_block_addr << std::dec
+                        << " NOT resident (no valid block at that address) — "
+                        << "falling back to random block." << std::endl;
+                }
+            }
+            if (!targetBlk) {
+                std::uniform_int_distribution<int> blockDist(0, validBlocks.size() - 1);
+                int randomIdx = blockDist(rng);
+                targetBlk = validBlocks[randomIdx];
+            }
 
             Addr blockAddr = tags->regenerateBlkAddr(targetBlk);
 
             uint8_t* data = targetBlk->data;
 
-            std::uniform_int_distribution<int> byteDist(0, blockSize - 1);
+            // Directed byte offset (report §六.3 'fixed-to'): if set, pin the
+            // fault to this byte within the block; else random.
+            bool directed_byte = (target_byte_offset >= 0
+                                  && target_byte_offset < (int)blockSize);
 
             FaultType chosen_fault_type_enum = fault_type_enum;
             if (fault_type_enum == FaultType::Random) {
                 int faultIdx = random_fault_distribution(rng);
                 chosen_fault_type_enum = static_cast<FaultType>(faultIdx);
             }
-            
+
             for (int i = 0; i < corruption_size; i++) {
                 unsigned char mask = (fault_mask != 0) ? fault_mask : generateRandomMask(rng, bits_to_change, 8);
-                int byteOffset = byteDist(rng);
+                int byteOffset;
+                if (directed_byte) {
+                    byteOffset = target_byte_offset;
+                } else {
+                    std::uniform_int_distribution<int> byteDist(0, blockSize - 1);
+                    byteOffset = byteDist(rng);
+                }
 
                 if (mask == 0) {
                     warn("Mask is 0.");
@@ -215,7 +257,20 @@ namespace gem5
             // targetBlk->setCoherenceBits(CacheBlk::DirtyBit);
         }
 
-        Tick next_injection = curTick() + inter_fault_cycles_dist(rng) * tick_to_clock_ratio;
+        // G5: single-fault enforcement. Count the valid injections that
+        // happened this attack (one per corruption_size byte). If we've
+        // reached max_faults, STOP rescheduling. max_faults==0 = unlimited.
+        faults_injected_count += corruption_size;
+        if (max_faults != 0 && faults_injected_count >= max_faults) {
+            return;  // do not reschedule
+        }
+
+        // G6: next-event interval must be >= 1 clock cycle. Clamp the
+        // geometric-sampled distance to >= 1 (it can be 0 at high p, which
+        // made the event re-fire in the same tick infinitely).
+        unsigned dist_cycles = inter_fault_cycles_dist(rng);
+        if (dist_cycles < 1) dist_cycles = 1;
+        Tick next_injection = curTick() + dist_cycles * tick_to_clock_ratio;
         if (next_injection <= last_tick || last_tick == 0) {
             scheduleAttack(next_injection);
         }
