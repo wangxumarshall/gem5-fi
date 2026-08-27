@@ -1,0 +1,29 @@
+{
+  "cli_version": "0.10.2",
+  "checkpoint_id": "01M11T045MVACCFR0PF92V53GV",
+  "strategy": "manual-commit",
+  "branch": "fi-h6-h7-fs-verify",
+  "checkpoints_count": 3,
+  "files_touched": [
+    "CHAOS/gem5/src/arch/arm/CHAOSPTW/CHAOSPTW.cc",
+    "CHAOS/gem5/src/arch/arm/CHAOSPTW/CHAOSPTW.hh",
+    "CHAOS/gem5/src/arch/arm/CHAOSPTW/CHAOSPTW.py",
+    "fi_research/probes/o3_chaos_fs.py"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 334748,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 7284736,
+    "output_tokens": 10198,
+    "api_call_count": 22
+  }
+}
