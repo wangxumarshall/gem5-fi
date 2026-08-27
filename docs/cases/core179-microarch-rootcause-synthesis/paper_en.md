@@ -8,7 +8,7 @@
 
 ## Abstract
 
-Silent data corruption (SDC) on a single physical core of a production ARM64 server (HiSilicon Kunpeng-920 / TaiShan V110) manifested as recurring kernel panics across five independent boots over twelve days, every event pinned to logical CPU 179. We perform a five-kdump forensic study combining (1) bit-exact register-vs-memory comparison at the crash instant, (2) ARMv8 architectural-invariant reasoning on `FAR_EL1`, and (3) microarchitectural modeling against published TSV110 geometry. We localize the defect to **three specific microarchitectural data paths** (Fig. 1): **D1** — the core-private load data-return path (fill-buffer/replay-merge ≈ L1D readout mux); **D2** — the AGU→MMU address-presentation path; and **D3** — the page-table-walker (PTW) readout path; and we **rule out** the competing physical-register-file (PRF) hypothesis. The decisive new evidence: a load of `__per_cpu_offset[146]` returned a value bit-identical to `__per_cpu_offset[0]` right-rotated by one byte — a structural byte-lane skew uniquely matching the array head among all 192 slots (Hamming distance 0, not expressible as any single-byte bit flip). This shows the conventional **bit-flip** fault model cannot reproduce the defect; a **structural** (byte-lane-skew) fault model is required.
+Silent data corruption (SDC) on a single physical core of a production ARM64 server (HiSilicon Kunpeng-920 / TaiShan V110) manifested as recurring kernel panics across five independent boots over twelve days, every event pinned to logical CPU 179. We perform a five-kdump forensic study combining (1) bit-exact register-vs-memory comparison at the crash instant, (2) ARMv8 architectural-invariant reasoning on `FAR_EL1`, and (3) microarchitectural modeling against published TSV110 geometry. We localize the defect to **three specific microarchitectural data paths** (Fig. 1): **D1** — the core-private load data-return path (fill-buffer/replay-merge ≈ L1D readout mux); **D2** — the AGU→MMU address-presentation path; and **D3** — the page-table-walker (PTW) readout path. The decisive new evidence: a load of `__per_cpu_offset[146]` returned a value bit-identical to `__per_cpu_offset[0]` right-rotated by one byte — a structural byte-lane skew uniquely matching the array head among all 192 slots (Hamming distance 0, not expressible as any single-byte bit flip). This shows the conventional **bit-flip** fault model cannot reproduce the defect; a **structural** (byte-lane-skew) fault model is required.
 
 To close the conjecture-verification loop we extend the CHAOS gem5 fault injector with a *structural* (byte-lane-skew) fault model and reproduce the kernel oops chain end-to-end in simulation (skewed pointer → non-canonical VA → page fault) — **H5, verified**. We further implement address-path (P-D2) and PTW-readout (P-D3) injectors and derive falsifiable hypotheses H6/H7. Initially these returned null results in syscall-emulation (SE) mode; we **statically root-cause the null to the ARM MMU translation model** (`mmu.cc:1213`: SE has `SCTLR.M=0` → `translateMmuOff` → `setPaddr(vaddr)`, identity mapping that bypasses the page-table walker), and we **confirm in full-system (FS) mode that both D2 and D3 hooks fire under MMU-on translation** (D2: address-path injections on canonical kernel VAs made non-canonical; D3: thousands of PTW-descriptor flips producing spurious-translation-fault counts). We additionally discover and fix a C++ member-initialization-order bug (`rng(rng_seed != 0 ? seed : rd())` with `rng` declared before `rd`) that crashed the injectors under the default `seed=0`; this is why prior H6/H7 *SE* runs (which used `seed≠0`) never crashed while FS runs (default seed) did. The **quantitative** H6 spectrum-separability and H7 ECC on/off spurious-rate conclusions are *not yet* established: we measure that early-boot FS has extremely sparse PTW-walk density (17 walks / 259 k instructions, 0.0066%), so the controlled low-probability H7 arms see zero injections in the reachable tick budget; resolving H6/H7 quantitatively requires FS to reach Linux userspace (≈1–2 h wall per arm on the single-CPU simulator), which remains future work. We deliver a DFT query list for the silicon vendor and an honest boundary on what simulation can and cannot adjudicate.
 
@@ -26,13 +26,13 @@ The machine (Yangtze Computing R240K V2, 4-socket × 48-core Kunpeng-920, 768 GB
 
 ### 1.2 Contributions
 
-1. **A three-path microarchitectural decomposition (D1/D2/D3)** of the defect, derived bit-exactly from five vmcores and the published TSV110 cache geometry, localizing the SDC to the load data-return path (D1), the AGU→MMU address path (D2), and the page-table-walker readout path (D3) — with pre-emptive rebuttals of the three strongest reviewer attacks (coincidence, register-dump staleness, legitimate OOO-walk race). The competing **PRF (physical-register-file) hypothesis is ruled out**: PRF corruption cannot account for PTW-path errors (D3) nor for the bit-exact stale-array-head replay with its structured byte-lane skew (D1) — a higher-dimensional error than any register-cell flip.
+1. **A three-path microarchitectural decomposition (D1/D2/D3)** of the defect, derived bit-exactly from five vmcores and the published TSV110 cache geometry, localizing the SDC to the load data-return path (D1), the AGU→MMU address path (D2), and the page-table-walker readout path (D3) — with pre-emptive rebuttals of the three strongest reviewer attacks (coincidence, register-dump staleness, legitimate OOO-walk race).
 2. **A structural fault-injection methodology** — extending CHAOS/gem5 with `byte_lane_skew` / `all_zero` data-path faults, an address-path injector, and a PTW-readout injector — and the **end-to-end reproduction** of the kernel oops chain via the structural (not bit-flip) model (H5 verified).
 3. **Falsifiable hypotheses H6/H7, with the SE-mode null results statically root-caused (not merely asserted) to the ARM MMU translation model, and the corresponding FS-mode confirmation that the hooks fire under MMU-on translation** — an honest account of what simulation has established (hook reachability) versus what it has not yet (quantitative spectrum separability / ECC spurious-rate contrast), and the trigger-density measurements that bound the remaining work.
 
 ### 1.3 Microarchitectural map of the defect
 
-Figure 1 places D1/D2/D3 on the out-of-order memory subsystem. The three anchors (🔥) are the fault-injection hook points of §4; the crossed-out PRF block records the competing hypothesis this study rules out.
+Figure 1 places D1/D2/D3 on the out-of-order memory subsystem. The three anchors (🔥) are the fault-injection hook points of §4. The diagram follows the standard OOO pipeline — front-end, register rename (RAT), issue queue, and execution units — as background orientation; our analysis localizes the defect to the load and address-translation subsystem downstream of those stages.
 
 ```
 =============================================================================================
@@ -46,12 +46,11 @@ Figure 1 places D1/D2/D3 on the out-of-order memory subsystem. The three anchors
                                                                        v
                                                            [Register Rename (RAT)]
                                                                        |
-   +-------------------------------------------------------------------+------------------+
-   | [X  Ruled-out hypothesis: Physical Register File (PRF)]                             |
-   | PRF corruption cannot explain PTW-path errors (D3), nor the D1 bit-exact             |
-   | stale-array-head replay with its structured byte-lane skew — a higher-dimensional    |
-   | error than any register-cell flip.                                                  |
-   +-------------------------------------------------------------------+------------------+
+                                                  +--------------------------------------------+
+                                                  | [Physical Register File (PRF)]             |
+                                                  |  (architectural state backing store;        |
+                                                  |   rename maps arch regs -> phys regs)      |
+                                                  +--------------------------------------------+
                                                                        |
                                                            [Issue Queue / RS]
                                                                        |
@@ -107,7 +106,7 @@ Figure 1 places D1/D2/D3 on the out-of-order memory subsystem. The three anchors
                                       v
                              [ Register Writeback ]
 ```
-**Figure 1.** Out-of-order CPU memory subsystem with the three localized defect anchors (D1/D2/D3 = fault-injection hook points) and the ruled-out PRF hypothesis. The diagram is confined to the load and address-translation subsystem; the front-end and pure-compute engine are shown only for orientation.
+**Figure 1.** Out-of-order CPU memory subsystem with the three localized defect anchors (D1/D2/D3 = fault-injection hook points). The front-end, register rename (RAT), issue queue, and pure-compute engine are shown only as pipeline-stage orientation; the defect is localized to the load and address-translation subsystem downstream of those stages.
 
 The three anchors map to the paper's machinery as follows:
 
