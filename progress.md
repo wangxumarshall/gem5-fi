@@ -267,3 +267,17 @@ build ELF `7f454c46`；GPR golden `f247ef3fe6f02cfd`；G2 stuck `00ff0000dee1f5d
 - 回归：SE reg_chain golden `f247ef3fe6f02cfd`（SE 下 chaosTLB=nullptr，hook 短路，无影响）。
 
 诚实留白：本轮做 D-TLB pfn 翻转（一种 TLB-entry 故障模型）。I-TLB、page-table walker、系统寄存器白名单（TTBR/TCR/MAIR/SCTLR/VBAR/NZCV、ASID/VMID）、以及"翻到的 PA 仍是已映射活页"→静默 SDC 的有向 cell——为后续。
+
+### Phase 3 item 3 (SYS) — CHAOSArmSysReg 系统寄存器注入器（已完成，补丁 997557a）
+
+报告 §六.4 item 3 的"系统寄存器白名单"目标（TTBR/TCR/MAIR/SCTLR/VBAR/NZCV）的 **MRS 读路径损坏器** 已实现并真机验证：
+
+- 新 SimObject `CHAOSArmSysReg`（`arch/arm/CHAOSArmSysReg/` + 顶层同步副本）：闸门参数 `isa`/`probability`/`firstClock`/`lastClock`/`maxFaults`/`faultMask`(UInt64)/`rngSeed`/`targetRegs`(白名单)；**自挂载**（构造函数 `isa->chaosSysReg = this`，同 CHAOSArmTLB/CHAOSLSQFwd，无 python 绑定）。
+- 挂 `arch/arm/isa.cc:readMiscRegNoEffect`（MRS 读取路径）：计算 val + 施加 raz/rao 后、返回前调 `chaosSysReg->maybeCorrupt(idx, name, val)`，在白名单寄存器读时按 mask 翻转值。`chaosSysReg==nullptr` 时短路（SE 无影响）。
+- 白名单：逗号分隔的 **小写** miscRegName（来自 `misc.hh` 的 `miscRegName[]`，如 `sctlr_el1,ttbr0_el1,tcr_el1`），**不是** `MISCREG_*` 枚举名（修复了初版用错前缀导致白名单解析 0 命中的 bug）。
+- `configs/se/arm_chaos_fs.py`：`--chaos_sysreg` + 旋钮，挂 `cpu0.isa[0]`（BaseCPU.isa 是每线程 VectorParam.BaseISA）；hook 触发条件从 `chaos_armtlb` 改为 `chaos_armtlb or chaos_sysreg`（修复了单独开 sysreg 时不附加的 bug）。
+- **FS 真机验证**（V1 + gem5-fs，Atomic）：`--sysreg_target_regs=sctlr_el1 --sysreg_probability=1.0 --sysreg_first_clock=0 --sysreg_max_faults=1 --sysreg_rng_seed=20260825` → `info: SELF-ATTACH to ISA ... (whitelist 1 regs)`；`sysreg_injections.log`: `Tick: 55611, Site: arm_sysreg_read, Reg: sctlr_el1, idx: 518, old: 0x30500800, new: 0x10500800, FaultType: bit_flip, Mask: 0x20000000`（bit 29 翻转）。maxFaults=1 → 恰好 1 次注入。
+- 对照 `--sysreg_probability=0.0` → 0 次注入（无假触发）。
+- 回归：SE reg_chain golden `f247ef3fe6f02cfd`（SE 下 chaosSysReg=nullptr，hook 短路，无影响）。
+
+诚实留白：本轮验证了**注入机制端到端工作**（hook 在真 MRS 读路径触发、值被损坏、maxFaults 生效、prob=0 对照干净）。FS Atomic 慢，300s 跑到 SCTLR 读(tick 55611)但未完成 boot 到 panic/DUE——"SCTLR 损坏→kernel panic/DUE"的完整 DUE 结果需更长/Checkpointed FS run（后续）。白名单目前演示用 sctlr_el1；TTBR/TCR/MAIR/VBAR 的有向 cell + "翻到的值仍合法→静默 SDC"为后续。
