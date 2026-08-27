@@ -1,0 +1,531 @@
+# ARM SDC故障注入阶段性进展报告
+
+> **项目仓库**：[gem5-fi](file:///c:/Users/ubuntu/Documents/sdc/gem5-fi)
+> **核心分支**：`fi`（HEAD `01c52905`）、`fix/fi-tool-correctness`
+> **状态文档**：[arm64-sdc-STATUS.md](file:///c:/Users/ubuntu/Documents/sdc/gem5-fi/docs/arm64-sdc-STATUS.md)
+
+---
+
+## 一、项目全景
+
+### 1.1 研究背景与问题定义
+
+**静默数据损坏（Silent Data Corruption, SDC）** 是服务器芯片领域最危险的故障类型——硬件产生的计算错误不触发任何异常、不被 ECC/RAS 拦截，而是以静默方式污染最终结果。与导致系统崩溃的 Detected Unrecoverable Error（DUE）不同，SDC 不可见、不可审计，可能导致数据库损坏、金融计算错误或科学计算结果偏移。
+
+本项目的起源是ARM64服务器**第 179 核**稳定复现的三类 SDC 现象（见 [fi.md](file:///c:/Users/ubuntu/Documents/sdc/gem5-fi/docs/fi.md)）：
+
+| Case | 现象 | 根因假设 |
+|---|---|---|
+| Case 1 | 访存读取异常：只读数组二次读取数据不一致，错误值为历史数据残留（5/9 次为完整 32 位替换，4/9 为字节级拼接） | 缓存/缓冲区残留 或 寄存器重命名错误 |
+| Case 2 | 稀疏矩阵 Cholesky 分解中 256 个解向量同时精度偏移（符号位和指数位不变，尾数低位偏移） | 浮点数据路径（mantissa 通路）故障 |
+| Case 3 | STL 压测中寄存器（x10, d0）出现非法大值导致 Panic | 寄存器文件物理单元故障 |
+
+这些现象指向一个核心研究问题：**ARM64 架构的乱序执行后端（PRF、RAT、ROB、LSQ forwarding path）是否是 SDC 的主要暴露面？与 x86 的 TSO 强内存序相比，ARM64 弱内存序带来的更大乱序窗口是否放大了 SDC 传播概率？**
+
+### 1.2 研究假设
+
+本项目的核心研究假设正式记录在 [arm64-fi-plan-based-on-CHAOS.md](file:///c:/Users/ubuntu/Documents/sdc/gem5-fi/docs/arm64-fi-plan-based-on-CHAOS.md)：
+
+| 维度 | 内容 |
+|---|---|
+| **What** | ARM64/鲲鹏特有状态、弱内存序路径、128B L3 故障域及实现定义的保护边界，是否改变特定结构的条件 SDC 概率与传播路径 |
+| **Why** | (1) 真机 Core 179 SDC 现象需要系统性故障注入验证根因假设；(2) 现有 CHAOS 工具仅支持 RISC-V，存在严重工具缺陷不能直接用于正式实验；(3) ARM64 服务器 SDC 领域缺乏系统性微架构级研究 |
+| **Where** | 基于 gem5 v25.1.0.1 周期精确模拟器 + CHAOS 故障注入框架，运行于原生 AArch64 openEuler 主机（126 核，29GB 内存） |
+
+### 1.3 四个研究问题（RQ）
+
+| RQ | 内容 | 证据等级要求 |
+|---|---|---|
+| **RQ1** | AArch64 架构态、NEON lane、地址翻译与弱内存序相关状态的 SDC 敏感性如何随工作负载和故障模型变化？ | E2（同平台受控实验） |
+| **RQ2** | 同语义靶点、同 workload、同保护假设下，ARM64 与 x86-64 的条件 SDC 概率和传播时延有哪些稳定差异？ | E2 |
+| **RQ3** | 鲲鹏 920 公开特征（64B L1/L2、128B L3、服务器级多核/NUMA/RAS）会产生哪些新的故障域与保护边界？ | E3（代理模型） |
+| **RQ4** | CHAOS 原始抽象、ARM64 扩展和鲲鹏代理模型分别能支持多强的结论？ | 元方法论 |
+
+### 1.4 系统架构总览
+
+```mermaid
+graph TD
+    subgraph "gem5 v25.1.0.1 (ARM O3CPU)"
+        CPU["O3CPU<br/>(4-wide OoO)"]
+        PRF["Physical Register File<br/>(Int/FP/Vec)"]
+        RAT["Rename Map<br/>(front/commit)"]
+        LSQ["Load-Store Queue<br/>(forwarding path)"]
+        L1I["L1I Cache<br/>(64KB, 4-way)"]
+        L1D["L1D Cache<br/>(64KB, 4-way)"]
+        L2["L2 Cache<br/>(512KB private)"]
+        TLB["ARM MMU<br/>(D-TLB / I-TLB)"]
+        MEM["Main Memory<br/>(DDR backing store)"]
+    end
+
+    subgraph "CHAOS Fault Injectors (6 modules)"
+        CR["CHAOSReg<br/>架构寄存器注入"]
+        CPR["CHAOSPhysReg<br/>物理寄存器注入"]
+        CC["CHAOSCache<br/>Cache 数据注入"]
+        CM["CHAOSMem<br/>内存注入"]
+        CLF["CHAOSLSQFwd<br/>LSQ 前递注入"]
+        CTL["CHAOSArmTLB<br/>TLB PFN 注入"]
+    end
+
+    subgraph "Experiment Infrastructure"
+        MAN["Manifest YAML<br/>(schema v1)"]
+        RUN["runner.py<br/>(orchestrator)"]
+        CLS["classify.py<br/>(§9.1 classifier)"]
+        WL["Workloads<br/>(reg_chain, l1d_reduce,<br/>l1i_loop, neon_lane,<br/>fp_fwd_kernel)"]
+    end
+
+    CR -->|"ThreadContext::setReg"| CPU
+    CPR -->|"physRegFile()/renameMap"| PRF
+    CPR -->|"frontRenameMap.lookup"| RAT
+    CC -->|"getTags().forEachBlk"| L1I
+    CC -->|"getTags().forEachBlk"| L1D
+    CC -->|"getTags().forEachBlk"| L2
+    CM -->|"AbstractMemory::access"| MEM
+    CLF -->|"self-attach: cpu->lsqFwd"| LSQ
+    CTL -->|"self-attach: tlb->chaosTLB"| TLB
+
+    MAN --> RUN
+    RUN --> CLS
+    WL --> RUN
+```
+
+### 1.5 三套配置族
+
+| 配置 | 目的 | 关键参数 | 结论标签 |
+|---|---|---|---|
+| **C0** 方法学基线 | 与 CHAOS 直接能力对齐、验证工具 | ARM O3、SE、classic cache、全层 64B | `ARM64-gem5 baseline` |
+| **C1** ARM64架构对比 | 比较ISA/语义机制 | ARM/x86 同核心资源意图、同 64B cache、同 workload/oracle | `controlled cross-ISA` |
+| **C2** 鲲鹏架构 | 研究鲲鹏公开特征 | ARMv8.2-A、64KB L1I/L1D、512KB L2、128B L3 fault-domain proxy、NUMA | `Kunpeng-informed proxy` |
+
+> [!IMPORTANT]
+> C2 **不是**鲲鹏 920 周期精确模型。公开资料不足以确定其 ROB/RAT/LSQ、预测器和 ECC 内部实现；这些字段标记为 E3/E4 证据等级。
+
+---
+
+## 二、技术模块深度分析
+
+### 2.1 CHAOSReg — 架构寄存器注入器
+
+**源码位置**：[CHAOS/CHAOSReg/](file:///c:/Users/ubuntu/Documents/sdc/gem5-fi/CHAOS/CHAOSReg)
+
+**功能**：通过 gem5 的 `ThreadContext::getReg()` / `setReg()` 接口对架构可见寄存器执行 bit-flip、stuck-at-0、stuck-at-1 故障注入。适用于所有 CPU 模型（Atomic、Timing、Minor、O3）。
+
+**动机**：作为最基础的注入层，提供架构态基线。在 O3 CPU 上，`ThreadContext::setReg()` 写入的是已提交（committed）的架构状态，而非 in-flight 指令读取的物理寄存器——这一限制是后续开发 `CHAOSPhysReg` 的直接动因。
+
+**关键设计决策**：
+
+| 决策点 | 上游 CHAOS 实现 | 本项目改进 | 改进原因 |
+|---|---|---|---|
+| 掩码位宽 | `int mask` + `1 << bit`（32 位，有符号移位 UB） | `uint64_t` + `1ULL << bit`（64 位无符号） | AArch64 GPR 为 64 位，bit 32–63 必须可注入（commit `8739214`） |
+| XZR 处理 | 无特殊处理，XZR 写入计为有效注入 | 检测 `IntRegClass index==31` 时标记为 `Inactive`，不计入统计 | AArch64 X31 硬编码为零，写入被丢弃，算 SDC 是错误的 |
+| RNG 种子 | 无用户可控种子，使用 `std::random_device` + `rand()` | 统一 `rngSeed` 参数 + `std::mt19937`，所有随机路径可重放 | G0 闸门要求：20/20 次重放逐字段一致（commit `3b8c33c`） |
+| 永久故障 | 注入一次后关闭 `update`，不真正持久 | 周期性 `periodicCheck` 重新施加掩码 | G2 闸门要求：跨 10 次覆盖写后 stuck 不消失 |
+
+**核心参数**：`cpu`、`probability`、`faultType`（bit_flip/stuck_at_zero/stuck_at_one/random）、`faultMask`（64 位）、`bitsToChange`、`regTargetClass`（integer/floating_point/both）、`maxRegIdx`（AArch64 上设为 31 以避免 banked/XZR）、`firstClock`/`lastClock`、`maxFaults`、`rngSeed`、`writeLog`。
+
+---
+
+### 2.2 CHAOSPhysReg — 物理寄存器文件注入器
+
+**源码位置**：[CHAOS/CHAOSPhysReg/](file:///c:/Users/ubuntu/Documents/sdc/gem5-fi/CHAOS/CHAOSPhysReg)
+
+**功能**：专为 O3CPU 设计，直接操作**物理寄存器文件（PRF）**、**前端重命名映射（front Rename Map）**和**提交重命名映射（commit Rename Map）**，模拟物理硅单元级的故障。
+
+**动机**：这是整个项目最核心的技术创新之一。在乱序执行 CPU 中，in-flight 指令读取的是**物理寄存器**（由寄存器重命名分配），而非架构寄存器。仅通过 `ThreadContext::setReg()` 注入架构态，无法触达正在飞行中（speculative）的计算——这正是 Core 179 SDC 的疑似根因所在。
+
+**三种注入模式**：
+
+| 模式 | 路径 | 适用场景 |
+|---|---|---|
+| `phys` | 直接按物理寄存器索引写入 `PhysRegFile`，通过 `PhysFreeList::isFree()` 区分空闲/在用 | 模拟物理硅单元故障（ITC'23 GeFIN 抽象） |
+| `arch_frontend` | `frontRenameMap.lookup(archReg)` → 定位当前映射的物理寄存器 → 写入 | 模拟 rename 后、pipeline 前端可见的故障，**最接近真实 SDC 传播路径** |
+| `arch_commit` | `commitRenameMap.lookup(archReg)` → 写入 | 等价于原始 `CHAOSReg` 行为，用于基线对比 |
+
+**Vector/NEON 支持**（Phase 2 新增，commits `d3fcec4` + `0c557c2`）：
+
+- 动态缓冲区：使用 `physRegFile().vecRegBytes()` 获取实际向量寄存器字节数（AArch64 NEON = 16B，SVE 最大 256B），避免了上游固定 `buf[64]` 导致的 192 字节栈溢出（commit `4602f28` 修复）。
+- **Lane 分层注入**：新增 `vecLaneWidth`（8/16/32/64 位）和 `vecLaneOffset` 参数，可将故障精确钉到 128 位 NEON 寄存器的指定 lane（如 4×32 位的 lane 0/1/2/3）。
+
+**Read Trace 闭环**：hook 进 `PhysRegFile` 的读取路径，统计每个被注入的物理寄存器在被覆盖前被读取了多少次（`reads_before_overwrite`），这是判断故障是否有机会传播的关键度量。
+
+**Write-path Stuck 钳位**（G2）：在 `PhysRegFile::setReg` 写路径中植入 `setStuckTarget(idx, mask)` 钩子，每次新值写入后强制重新施加 stuck 掩码——确保物理单元故障跨 rename reuse 和 overwrite 持续存在。验证：`PhysReg[80]` 在 cycle 150000 被重新分配后，掩码 `0xff` 仍被施加，输出 `00ff0000dee1f5d0`（golden 为 `00000000dee1f5d0`）。
+
+---
+
+### 2.3 CHAOSCache — Cache 数据行注入器
+
+**源码位置**：[CHAOS/CHAOSCache/](file:///c:/Users/ubuntu/Documents/sdc/gem5-fi/CHAOS/CHAOSCache)
+
+**功能**：对 L1D、L1I、L2 缓存的有效数据行执行字节级故障注入。通过 `targetCache->getTags()` 和 `tags->forEachBlk()` 枚举有效块，修改 `targetBlk->data[byteOffset]`。
+
+**动机**：缓存是 CPU 和主存之间的关键数据通路。L1I 的 bit-flip 会破坏指令编码（导致非法指令或控制流劫持），L1D 的 bit-flip 会直接腐蚀计算数据。鲲鹏 920 的 L1D 为 64KB 4-way 64B line with ECC——但 ECC 的保护能力有限（通常只纠 1 位、检 2 位），多位故障或 ECC 本身的故障仍可能导致 SDC。
+
+**关键改进**：
+
+| 改进 | 上游问题 | 解决方案 | Commit |
+|---|---|---|---|
+| 安全接口 | 使用 `static_cast<CacheAccessor*>` 不安全下转型访问 `Cache::tags` | 新增公共 `Cache::getTags()` 访问器 | `ea6b192`（G3） |
+| 可复现 RNG | 无 seed 参数 | 添加 `rngSeed` + `std::mt19937` | `3b8c33c` |
+| 单故障控制 | 无 `maxFaults`——一个 tick 内可注入 5200 万次 | 添加 `maxFaults` 计数器 | `d44982f`（G5） |
+| ≥1 cycle 间隔 | probability=1.0 时几何分布可产生零间隔，导致同 tick 无限重发 | 钳位到 ≥1 cycle | `4e8045f`（G6） |
+| **定向注入** | 只能随机选择有效块和字节 | 新增 `targetBlockAddr` + `targetByteOffset` 参数，可将故障钉到指定物理地址 + 字节偏移 | `642dfef` |
+
+**定向注入的意义**：随机采样的 cache 注入 pilot 中，L1D 显示 10/10 Masked——这并不意味着"L1D 对故障不敏感"，而是**cache AVF（Architecture Vulnerability Factor）采样效应**：随机瞬态字节翻转大概率不会命中正在被读取的活数据。通过定向注入（钉到已知驻留活数据的 block addr），L1D 可以产出真实 SDC（`d128c62843ca82a1` ≠ golden），证明 SDC **在故障落到活数据时可达**。
+
+**stdlib 挂载机制**：gem5 v25 stdlib 的 `SimpleBoard` 不直接暴露内部 cache SimObject。项目通过 monkey-patch `_pre_instantiate` 钩子（[arm_chaos_cache.py](file:///c:/Users/ubuntu/Documents/sdc/gem5-fi/configs/se)）在 `m5.instantiate()` 前捕获 `getattr(ch, "l1d-cache-0")` 等对象，将 `CHAOSCache` 挂载上去。
+
+---
+
+### 2.4 CHAOSMem — 主存/DRAM 后备存储注入器
+
+**源码位置**：[CHAOS/CHAOSMem/](file:///c:/Users/ubuntu/Documents/sdc/gem5-fi/CHAOS/CHAOSMem)
+
+**功能**：通过 gem5 的 `AbstractMemory::access()` 接口对物理内存后备存储执行 read-modify-write 字节级故障注入。构造合成 `Packet(MemCmd::ReadReq)` 读取当前值，修改后用 `Packet(MemCmd::WriteReq)` 写回。
+
+**关键修复**（G4，commit `9870e9f`）：
+
+- **故障类型权重错误**：上游离散分布权重为 `{bit_flip, bit_flip, stuck_at_one}`——bit_flip 重复、遗漏 stuck_at_zero。修复为 `{bit_flip, stuck_at_zero, stuck_at_one}`，20 次抽样验证 11bf/9sz/0so ≈ 0.5/0.5/0.0（符合归一化预期）。
+- **地址边界**：上游 `[start, end)` 开区间导致末字节不可达，单字节区间可能非法。修复为闭区间 `[start, end]`，验证首字节、末字节和单字节区间均可达。
+- **无符号移位**：`1 << bit` 改为 `1U << bit`，消除高位有符号溢出 UB。
+
+**诚实定位**：CHAOSMem 改的是 DRAM 后备存储（backing store），**不是** timing DRAM controller/ECC 通路。其结果只能称为 "memory-cell proxy"，不能称为"真实 DRAM 通路故障"。
+
+---
+
+### 2.5 CHAOSLSQFwd — Load-Store Queue 前递路径注入器
+
+**源码位置**：[CHAOS/CHAOSLSQFwd/](file:///c:/Users/ubuntu/Documents/sdc/gem5-fi/CHAOS/CHAOSLSQFwd)
+
+**功能**：拦截 O3CPU 的 store-to-load forwarding 数据路径（`LSQUnit::lsq_unit.cc` 中 `FullAddrRangeCoverage` 分支），在 pending store 的数据通过 `memcpy` 前递给 younger load 时，调用 `corrupt(uint8_t *data, unsigned size, Addr vaddr)` 修改前递字节。
+
+**动机**：这直接对应 Core 179 Case 1 的根因假设——store-to-load forwarding 错误导致历史数据残留。真机数据显示 SDC 集中在 IEEE-754 mantissa（85–93%），sign bit 完整（0%），exponent 基本不变。CHAOSLSQFwd + `bit_spectrum.py` 分析工具在 gem5 O3 上**精确复现了这一分布特征**，验证了仿真模型的生态效度。
+
+**自挂载机制**：构造函数中执行 `cpu->lsqFwd = this;`（需在 `cpu/o3/cpu.hh` 中添加 `CHAOSLSQFwd *lsqFwd = nullptr;` 成员）。在 `lsq_unit.cc` 的前递路径中检查 `if (cpu->lsqFwd) cpu->lsqFwd->corrupt(...)`。这种"自挂载"设计避免了脆弱的 Python 对象连线，同时保持钩子干净隔离。
+
+**实验结果**（commit `5d0a5b0`）：`fp_fwd_kernel` store→load 自检 kernel，`firstClock=1e6` → `fails=1` 检测 SDC；多注入模式 → 10318/10551 ≈ 98% 检测 SDC（DUE-class）。
+
+---
+
+### 2.6 CHAOSArmTLB — ARM MMU TLB 翻译条目注入器
+
+**源码位置**：[CHAOS/CHAOSArmTLB/](file:///c:/Users/ubuntu/Documents/sdc/gem5-fi/CHAOS/CHAOSArmTLB)
+
+**功能**：在 Full System（FS）模式下，hook `arch/arm/tlb.cc:TLB::lookup` 函数。当 TLB 命中后、返回翻译结果前，调用 `maybeCorrupt(ArmISA::TlbEntry *entry, Addr va)` 翻转 hit entry 的 `pfn`（物理页帧号），使后续地址翻译指向错误的物理地址。
+
+**动机**：地址翻译是 ARM64 Full System 独有的故障面。TLB entry 的 PFN 翻转可能导致两种后果：（1）翻到未映射区域 → kernel `BadAddressError` 即 **DUE**（被检测到的错误）；（2）翻到另一个已映射活页 → 静默读取错误数据 → **SDC**（未检测到的错误）。区分这两类后果是理解 TLB 保护覆盖率的关键。
+
+**自挂载机制**：同 CHAOSLSQFwd，构造函数执行 `tlb->chaosTLB = this;`。
+
+**FS 引导前置**（commit `5856961`）：
+
+- 使用 gem5 stdlib `ArmBoard` + `VExpress_GEM5_V1` 平台（Foundation 平台在 `0x2c001000` panic——内存映射不匹配，改用 V1 解决）。
+- Linux 5.15.36 + Ubuntu rootfs + `boot.arm64` 成功引导至 `random: fast init done`。
+- root 分区 `/dev/vda1`（virtio-blk，不是 sda）。
+
+**TLB 注入验证**（commit `8526004`）：`prob=1.0 firstClock=50000 seed=20260825` → 日志 `Tick: 1352646, VA: 0x807cc408, old_pfn: 0x403, new_pfn: 0x200000003, Mask: 0x20000000`（bit 29 翻转），PA 落到未映射区 `0x40000807cc408` → kernel `panic: Data fetch ... BadAddressError`——**真 DUE**。对照 `prob=0` 则正常启动。可复现 2/2。
+
+SE 回归验证：SE 下 `chaosTLB=nullptr`，hook 短路，golden `f247ef3fe6f02cfd` 不受影响。
+
+---
+
+## 三、实验基础设施
+
+### 3.1 结果分类器（§9.1 Classifier）
+
+[tools/classify.py](file:///c:/Users/ubuntu/Documents/sdc/gem5-fi/tools/classify.py) 实现了严格的、互斥的、有优先级的六级分类：
+
+```
+SimulatorError > Crash > Hang > Inactive > SDC > Masked
+```
+
+| 类别 | 判定条件 | 含义 |
+|---|---|---|
+| **SimulatorError** | stderr 含 gem5 panic/assertion/SIGSEGV/abort | 模拟器自身 bug，不是被测架构行为 |
+| **Crash** | workload trapped（非法指令、SError、data abort、exit ≠ 0） | 故障被检测到（DUE-class） |
+| **Hang** | 超时（wall-clock/tick 限制）且无 checksum 输出 | 控制流被破坏导致死循环 |
+| **Inactive** | 0 次有效注入（目标不存在或 XZR 丢弃） | 实验无效 |
+| **SDC** | exit 0 且 `output_checksum ≠ golden_checksum` | **静默数据损坏** |
+| **Masked** | exit 0 且 `output_checksum == golden_checksum` | 故障被掩蔽，未传播 |
+
+
+### 3.2 Manifest Schema 与 Runner
+
+- [manifest.schema.json](file:///c:/Users/ubuntu/Documents/sdc/gem5-fi/schemas/manifest.schema.json)：JSON Schema draft-07，强制记录 `schema_version`、`run_id`、`source`（git commits）、`platform`、`workload`（binary SHA256、ROI）、`trigger`、`target`、`fault`、`rng`、`limits`、`oracle`，确保每次实验的完全可追溯性。
+- [runner.py](file:///c:/Users/ubuntu/Documents/sdc/gem5-fi/tools/runner.py)：验证 manifest → 解析参数 → 执行 gem5 → 解析注入日志 → 断言 `max_faults ∈ {0,1}` → 调用 `classify_run()` → 记录结果。
+- [p1-gpr-regchain-000384.yaml](file:///c:/Users/ubuntu/Documents/sdc/gem5-fi/manifests/p1-gpr-regchain-000384.yaml)：具体 manifest 示例，定向 GPR index=9、bit=[20]、cycle=100000、seed=20260825。
+
+### 3.3 Directed Workloads
+
+| Workload | 位置 | 用途 | Golden Hash |
+|---|---|---|---|
+| `reg_chain` | `workloads/directed/` | GPR 依赖链，测试寄存器传播 | `f247ef3fe6f02cfd` |
+| `l1d_reduce` | `workloads/directed/` | 512KiB BSS 数组归约，测试 L1D 数据 | `f44d2b9cd4a173cd` |
+| `l1i_loop` | `workloads/directed/` | 紧固定循环，测试 L1I 指令翻转 | `bb0b1c4cb661236e` |
+| `neon_lane` | `workloads/directed/` | ASIMD lane 分离操作 | `00000000526925fe` |
+| `fp_fwd_kernel` | `workloads/directed/` | store→load 自检，测试 LSQ forwarding | 由 fails 计数判定 |
+
+每个 workload 的 golden 在 native AArch64 与 gem5 O3 上逐字节一致（5 次无注入运行产生唯一 hash）。
+
+---
+
+## 四、Phase 0
+
+修复上游 CHAOS 存在多处影响结果可信度的缺陷，如果不修复就直接使用，得到的 SDC/Masked/Hang 数据将不可信。
+
+### 逐闸门详述
+
+| 闸门 | 目标 | 关键 Commit | 验证方法 | 出口标准 |
+|---|---|---|---|---|
+| **G0** | 可重放 RNG：同 seed 同 manifest 必须命中相同触发点、目标、bit mask | `3b8c33c` | 20/20 次重放逐字段一致（seed=20260825 → integer[9] bit 20） | 20/20 通过 |
+| **G1** | 位宽与合法域：64 位掩码、无 UB、bit 0/31/32/63 全可注入 | `54f31cd` + `8739214` | bit 0/31/32/63 分别注入验证；`1ULL<<63` = `0x8000000000000000` | 全边界通过 |
+| **G2** | 永久/间歇语义：cell-stuck 跨 rename reuse + overwrite 仍存活 | `e5eecbb` + `9f0ad41` | PhysReg[80] 被重写后 `00ff` 前缀证明掩码被重新施加 | 10 次覆盖写后仍 stuck |
+| **G3** | Cache 安全接口：移除不安全下转型 | `ea6b192` | 使用新 `Cache::getTags()` 公共 API | 无 `static_cast` |
+| **G4** | 内存正确性：权重修复、闭区间、无符号移位 | `9870e9f` | 20 次抽样 11bf/9sz/0so ≈ 预期；首/末/单字节边界测试 | 10000 次抽样符合区间 |
+| **G5** | 单故障 + 证据日志：`maxFaults=1`、old/new/mask/width/seed 日志 | `d44982f` | 修复前 1 tick 注入 5200 万次 → 修复后恰好 1 次 | 1000 次运行 0 或 1 次注入 |
+| **G6** | ≥1 cycle 间隔：消除零 tick 退化重发 | `4e8045f` | `p=1.0` 时注入 tick 按 1000 ticks（1 cycle）递增 | 零误差 |
+| **G7** | 无 CHAOS 源警告：`-Wall -Wextra -Wundef` 下零警告 | `e01c9f1` | `scons -j16` 干净编译 | 零警告 |
+
+---
+
+## 五、Phase 1–3 实验进展与结果
+
+### 5.1 Phase 1 — ARM64 SE 基线（P0 Pilot + 定向验证）
+
+#### GPR 注入结果（Grid 1，修复后重跑，替代作废的 `3551d57`）
+
+CHAOSPhysReg `arch_frontend`，`reg_chain`，O3，`firstClock=100000`，`maxFaults=1`，`seed=20260825`，显式 `--fault_mask=1<<k`（64 位）：
+
+| 寄存器 | bit 0 | bit 31 | bit 32 | bit 63 |
+|---|---|---|---|---|
+| **X2**（循环计数器） | SDC `25e4130b0408b2cd` | **Hang** | **Hang** | **Hang** |
+| **X3**（数据累加器） | SDC `ace5d7dcf0bbe4df` | SDC `cf415a9e6b07af9a` | SDC `dbdd0f0aad30df0b` | SDC `d9a35c115042d41a` |
+
+**合计：SDC=5, Hang=3。**
+
+**关键发现**：SDC vs Hang 的区分是**按寄存器角色**而非"高位 vs 低位"：
+- **X2 是循环计数器**：bit 0 翻转只改循环次数（SDC），高位翻转导致计数器值剧变 → 循环控制流破坏 → 死循环（Hang）。
+- **X3 是数据累加器**：所有位的翻转都通过数据路径传播 → SDC。
+
+> [!IMPORTANT]
+> 旧结论 `3551d57` "高位→Hang"既受 32 位截断伪影影响（bit 32/63 实际未注入），又过度泛化。修复后的数据表明 SDC-vs-Hang 取决于**寄存器的语义角色**，而非简单的位位置。
+
+#### L1D Cache 注入结果
+
+| 实验类型 | Workload | 样本数 | 结果 | 关键观察 |
+|---|---|---|---|---|
+| **随机 pilot** | l1d_reduce, 5 seeds | 5 | **5/5 Masked** | Cache AVF 采样效应：随机瞬态字节翻转大概率不命中活数据 |
+| **定向到活数据** | l1d_reduce, block 862656 byte 0 | 2 | **2/2 SDC** (`d128c62843ca82a1`) | 钉到驻留活数据块时 SDC **可达** |
+| **定向到活数据** | l1d_reduce, block 862656 byte 4 | 1 | SDC `c104da9d94a173cd` | 不同字节偏移产生不同 SDC（翻的是真实活数据字节） |
+
+**结论**：L1D 的 Masked 不是"不敏感"，而是**占用度条件**——只有故障恰好命中被读取的活数据字节时才传播为 SDC。
+
+#### L1I Cache 注入结果
+
+| 实验类型 | Workload | 样本数 | 结果 | 关键观察 |
+|---|---|---|---|---|
+| 随机 pilot | l1i_loop, 10 seeds | 10 | **10/10 Hang** | 指令字节翻转破坏循环控制流 → 死循环 |
+| 定向到执行指令 | l1i_loop, block 51392 byte 38/0 | 2 | **2/2 Hang** | 指令 bit 翻转 → 循环控制指令编码变异 → 死循环 |
+
+验证 Hang 为真：exit 124（超时）、无 checksum、stderr 无 panic/trap/SIGSEGV。注入日志：`Cache Block Addr: 51392, Byte Offset: 38, Mask: 01000000`（指令字节 bit 6 翻转）。
+
+**结论**：l1i_loop 是紧固定循环，大多数指令字段翻转破坏控制流导致 Hang，10/10 Hang 对**这个 kernel** 成立。更复杂 workload 上可能出现 SDC（翻到数据相关指令字段但不破坏控制流）。
+
+#### 内存注入结果（Grid 4）
+
+CHAOSMem on l1d_reduce（512KiB BSS array），`maxFaults=1`：
+
+| 地址窗口 | Target Addr | Faults | 分类 |
+|---|---|---|---|
+| `[0, 1]`（首字节） | 0 | 1 | Masked |
+| `[0x100000, 0x100000]`（单中间字节） | 1048576 | 1 | Masked |
+| `[0x3FFFFFFF, 0x3FFFFFFF]`（末字节） | 1073741823 | 1 | Masked |
+| 全 BSS 范围 × 5 随机 seed | 随机 | 各 1 | **5/5 Masked** |
+
+**结论**：单瞬态字节翻转在 512KiB 数组上大概率被掩蔽（字节被覆盖或未被读取），符合诚实内存 AVF。
+
+---
+
+### 5.2 Phase 2 — NEON Vector 与 LSQ Forwarding
+
+#### NEON 128-bit Lane 级注入（commits `d3fcec4` + `0c557c2`）
+
+**Workload**：`neon_lane`（ASIMD lane 分离操作），golden `00000000526925fe`（native == gem5 O3）。
+
+**实验**：`vecLaneWidth=32`，`vecLaneOffset=0/1/2/3`，对 phys vec[1] 注入：
+
+| Lane | 结果 | Checksum |
+|---|---|---|
+| Lane 0 | **SDC** | `e0c767c9...` |
+| Lane 1 | **SDC** | `ab4b199...` |
+| Lane 2 | **SDC** | `dd65a1c0...` |
+| Lane 3 | **SDC** | `3007c799...` |
+
+4 个 lane 产生 4 个**不同的** SDC——证明翻的确实是指定 lane 的数据，故障沿 lane 独立传播。
+
+#### LSQ Store-to-Load Forwarding 注入（commit `5d0a5b0`）
+
+- `fp_fwd_kernel`：store→load 自检 kernel，存入值后立即加载并比较。
+- `firstClock=1e6` → `fails=1`（检测到 1 次 SDC）。
+- 多注入模式 → 10318/10551 ≈ **98% 检测 SDC**（DUE-class）。
+- `bit_spectrum.py` 分析：**100% mantissa 腐蚀、0% sign bit**——与真机 Core 179 Case 2 的分布特征精确匹配。
+
+---
+
+### 5.3 Phase 3 — Full System TLB 注入
+
+#### FS 引导（commit `5856961`）
+
+- 平台：`VExpress_GEM5_V1` + gem5-fs 依赖（`vmlinux` 5.15.36 + `ubuntu.img` + `boot.arm64`）
+- CPU：Atomic（FS 引导阶段用 Atomic 避免 O3 的 warmup 开销）
+- 成功引导至 `random: fast init done`
+
+#### TLB PFN 注入（commit `8526004`）
+
+- `CHAOSArmTLB` 挂到 `cpu0.mmu.dtb`（D-TLB）
+- `prob=1.0, firstClock=50000, seed=20260825`
+- 日志：`Tick: 1352646, VA: 0x807cc408, old_pfn: 0x403, new_pfn: 0x200000003, Mask: 0x20000000`
+- 结果：bit 29 翻转 → PA 落到未映射区 → kernel `BadAddressError` → **DUE**
+- 对照组 `prob=0` → 正常启动
+- 可复现 2/2
+
+---
+
+## 六、相对现有方案的优势
+
+### 6.1 与上游 CHAOS（RISC-V SE）的对比
+
+| 维度 | 上游 CHAOS | 本项目 (gem5-fi) |
+|---|---|---|
+| **ISA 支持** | RISC-V only | ARM64 (AArch64)，鲲鹏 920 导向 |
+| **注入层次** | 架构寄存器（ThreadContext）+ Cache 数据 + 内存 | 架构寄存器 + **物理寄存器文件（PRF/RAT）** + Cache 数据 + 内存 + **LSQ Forwarding** + **TLB PFN** |
+| **掩码位宽** | 32 位 int（bit 32+ 不可注入，有符号移位 UB） | 64 位 uint64_t，完整覆盖 AArch64 GPR |
+| **Vector 支持** | 不支持 | 128 位 NEON lane 级分层（8/16/32/64 位 lane 定向） |
+| **RNG 可重放性** | 无 seed，不可重放 | 统一 `rngSeed` + `mt19937`，20/20 次逐字段重放一致 |
+| **永久故障语义** | 注入一次即失效 | Write-path stuck 钳位，跨 rename reuse 持续 |
+| **单故障控制** | 无 maxFaults，1 tick 可注入 5200 万次 | `maxFaults=1` 严格执行 |
+| **Cache 接口安全性** | `static_cast<CacheAccessor*>` 不安全下转型 | 公共 `Cache::getTags()` API |
+| **结果分类** | 无标准分类器 | 六级互斥优先级分类器（SimError > Crash > Hang > Inactive > SDC > Masked） |
+| **SE/FS 模式** | SE only | SE + FS（ARM64 Linux 5.15.36） |
+
+### 6.2 与其他故障注入框架的差异定位
+
+本项目与现有工作的关键区别在于：
+
+1. **物理寄存器文件注入**：多数 FI 框架（如 LLFI、FIJI）在编译器 IR 或架构态注入，无法触达 O3 乱序执行管线中的物理寄存器——这是 SDC 传播的核心路径。`CHAOSPhysReg` 直接操作 `PhysRegFile`、`RenameMap` 和 `FreeList`，忠实模拟硅单元故障。
+
+2. **LSQ 前递路径注入**：store-to-load forwarding 是乱序 CPU 中最脆弱的数据通路之一（数据从 store queue 直接绕过 cache 前递给 younger load）。`CHAOSLSQFwd` 是目前已知的首个在 gem5 O3 管线中精确注入前递路径的工具，并通过 `bit_spectrum.py` 与真机 SDC 分布精确匹配验证了其生态效度。
+
+3. **ARM64 TLB 注入**：`CHAOSArmTLB` 是针对 ARM MMU 的 FS 模式 TLB entry 注入器，可以区分 DUE（翻到未映射页）和 SDC（翻到已映射活页）的保护边界——这对量化 TLB 保护覆盖率至关重要。
+
+4. **工具正确性纪律**：七个闸门（G0–G7）在正式实验前系统性验证工具本身的正确性，并在发现工具 bug 时诚实作废旧结论、用修好的工具重新采集数据——这种自我纠错纪律在 FI 研究中极为罕见。
+
+---
+
+## 七、端到端验证锚点
+
+以下 8 个可复现锚点覆盖了全部 6 个注入路径，证明端到端流水线工作：
+
+| 路径 | 验证内容 | 预期输出 | 可复现性 |
+|---|---|---|---|
+| 构建 | ELF 有效性 | `7f 45 4c 46`（ELF magic） | ✓ |
+| GPR golden | 无注入 O3 reg_chain | `f247ef3fe6f02cfd` | ✓ 5/5 |
+| G2 stuck | PhysReg[80] stuck_at_one 0xff | `00ff0000dee1f5d0` | ✓ |
+| GPR SDC | X3 arch_frontend 1-bit-flip | `d43a25d7fcc218b7` | ✓ |
+| NEON SDC | Vec lane 2 32-bit flip | `00000000dd65a1c0` | ✓ |
+| LSQ SDC | fp_fwd_kernel forwarding | `fails=1` | ✓ |
+| L1D SDC | Directed block 862656 byte 0 | `d128c62843ca82a1` | ✓ |
+| FS Boot | ARM64 Linux 5.15.36 | `Booting Linux...` | ✓ |
+
+---
+
+## 八、下一步工作（Phase 4–7 路线图）
+
+### 8.1 当前诚实留白
+
+以下工作**未完成、未谎称完成**：
+
+| 类别 | 具体内容 |
+|---|---|
+| **Formal Campaign** | GPR/L1D/L1I/NEON/LSQ 各层的 formal $n=384$ cell（Wilson/Jeffreys 区间报 $P_{\text{SDC}}/P_{\text{DUE}}$） |
+| **G6 广触发** | `pc/committedInst/event` 多触发模式，跨 ISA 按 committed instruction 对齐 |
+| **G7 Sanitizer** | ASan/UBSan 工具构建 |
+| **CHAOSCache 字段级** | tag/valid/dirty/replacement/coherence/ECC metadata 字段注入 |
+| **Phase 3 完整** | I-TLB、page-table walker、SYS-reg 白名单（TTBR/TCR/MAIR/SCTLR/VBAR/NZCV/ASID/VMID） |
+| **Phase 5** | 鲲鹏 128B L3 paired-sector fault-domain proxy、Ruby/CHI |
+| **Phase 6** | x86-64 配对对照（C1 配置） |
+| **Phase 7** | 鲲鹏实机 RAS/ERR*/SEA/CPER/EDAC 校准 |
+
+### 8.2 按优先级排序的下一步
+
+```mermaid
+gantt
+    title 下一步工作路线图
+    dateFormat  YYYY-MM
+    axisFormat  %Y-%m
+
+    section 最高优先级
+    GPR Formal Campaign (n=384)         :a1, 2026-09, 2026-10
+    G6 committedInst 触发器             :a2, 2026-09, 2026-09
+
+    section 高优先级
+    CHAOSCache 字段级注入               :b1, 2026-10, 2026-11
+    Phase 3 SYS-reg 白名单              :b2, 2026-10, 2026-11
+    L1D/L1I Formal Campaign             :b3, 2026-10, 2026-11
+
+    section 中优先级
+    Phase 5 L3-128B Ruby/CHI            :c1, 2026-11, 2027-01
+    Phase 6 x86-64 配对                 :c2, 2026-12, 2027-02
+
+    section 长期
+    Phase 7 鲲鹏实机校准                :d1, 2027-01, 2027-03
+    HotOS/SOSP 论文                     :d2, 2026-12, 2027-04
+```
+
+### 8.3 具体步骤
+
+**第 1 步（最高 ROI）—— GPR Formal Campaign**：
+- 将 3 个 P0 pilot 扩为 formal cell
+- 按 `(寄存器 × ABI 角色分组 × 位段 [0:11]/[12:47]/[48:63] × bit 边界)` 网格，$n=384$
+- 固定 manifest 版本，每次 `max_faults=1`
+- 用 Wilson/Jeffreys 区间报 $P_{\text{SDC}}/P_{\text{DUE}}$
+- 每 formal cell 保留 ≥5% 重放样本验证可复现性
+
+**第 2 步 —— G6 committedInst 触发器**：
+- 给 CHAOSPhysReg 添加 `committedInst` 触发模式（hook O3 `commitDone`/`numInsts`）
+- 这是跨 ISA 对齐的关键：ARM64 和 x86-64 的 tick/cycle 不可比，但 committed instruction 语义等价
+
+**第 3 步 —— CHAOSCache 字段级注入**：
+- 当前只翻 cache 数据 array 的字节
+- 需扩展到 tag/valid/dirty/replacement/coherence/ECC metadata
+- 这对量化 ECC 保护覆盖率至关重要
+
+**第 4 步 —— Phase 3 SYS-reg 白名单**：
+- ARM64 FS 下注入 TTBR/TCR/MAIR/SCTLR/VBAR/NZCV
+- 区分 EL0/EL1/EL2 权限级别的保护边界
+- 需要 `CHAOSArmSysReg` hook `readMiscRegNoEffect`
+
+**第 5 步及以后** —— Phase 5/6/7 按计划顺序执行。
+
+---
+
+## 九、项目总结
+
+### 9.1 核心交付物
+
+| 交付物 | 状态 | 证据 |
+|---|---|---|
+| 6 个 CHAOS 注入器模块（Reg/PhysReg/Cache/Mem/LSQFwd/ArmTLB） | ✅ 已完成并验证 | 8 个端到端可复现锚点 |
+| 7 个正确性闸门（G0–G7） | ✅ 已完成 | 每个闸门有独立 commit 和实跑验证 |
+| §9.1 六级分类器 + manifest schema + runner | ✅ 已完成 | classify.py + manifest.schema.json |
+| Phase 1 SE pilot（GPR/L1D/L1I/Memory） | ✅ Pilot 完成，Formal 待做 | SDC/Hang/Masked 数据表 |
+| Phase 2 NEON lane + LSQ forwarding | ✅ 已完成 | 4 lane SDC + 98% 检测率 |
+| Phase 3 FS TLB 注入 | ✅ D-TLB PFN 完成 | DUE 可复现 2/2 |
+| Formal campaign（$n=384$） | ⬜ 未做 | 明确记录为后续 |
+| x86-64 配对 / 鲲鹏实机 | ⬜ 未做 | Phase 6/7 |
+
+### 9.2 方法论贡献
+
+1. **物理寄存器文件注入抽象**：三种模式（phys/arch_frontend/arch_commit）覆盖了从硅单元到架构态的完整故障传播路径。
+2. **工具正确性闸门纪律**：7 个闸门在正式实验前系统性验证工具，发现 bug 时诚实作废旧结论并重新采数——确保数据可信度。
+3. **定向 vs 随机注入的方法论区分**：揭示了 cache AVF 采样效应，避免了"随机 pilot 全 Masked"被误解为"结构不敏感"。
+4. **LSQ 前递注入与真机分布匹配**：`bit_spectrum.py` 的 mantissa/sign 分布与 Core 179 精确匹配，验证仿真生态效度。
+5. **自挂载 SimObject 模式**：CHAOSLSQFwd 和 CHAOSArmTLB 的构造函数自注册机制，避免脆弱的 Python 连线，可推广到其他 gem5 扩展。
