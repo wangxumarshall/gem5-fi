@@ -35,6 +35,16 @@
 >
 > **P3b 完成：clearValidBit 模式可靠制造 spurious（诚实，2026-08-27，patch a106c2b）**：新增 `clearValidBit` 参数（bool），启用时对 byte0 做 `data[0] &= ~0x3`（AND 清零 bits[1:0]，非 XOR），强制 descriptor type→0b00（invalid），无论原值 0b01/0b11 都变 invalid。clearValidBit 是 2-bit 清零→不可纠正，绕过 ECC 的 1-bit 纠正逻辑。**实证验证**（200M tick, prob 0.1, seed 42, ECC-off）：`numFaultsInjected=629 numSpuriousFaults=629`（**100% spurious**）`numBenignFlips=0`，ptw log `Orig 0x80600701 → Corrupted 0x80600700, BecameInvalid=1`。对照上轮 XOR mask0x03（629 注入全 benign 0 spurious）。**P3b 解除 H7 spurious 制造的 XOR 阻塞**。构建 scons relink 成功（0 error）。诚实边界：clearValidBit 绕过 ECC（2-bit 不可纠正），故 ECC on/off 都会 spurious——不直接对照 ECC；H7 的 ECC 对照仍需单 bit XOR 模式（上轮已验证 ECC-on 0 注入 vs off 40 注入的纠正效应）。完整 H7 需结合两者：单 bit 翻转 + 只对会变 invalid 的 PTE + ECC on/off。
 >
+> **H7 内核态 spurious 率对照（诚实，2026-08-27，clearValidBit + 单 bit XOR 两模式）**：在 Linux 内核态启动期（57B tick, prob 1e-3, seed 42, 两臂），两模式对照：
+>
+> | 模式 | numHooksCalled | numFaultsInjected | numSpuriousFaults | numBenignFlips |
+> |---|---|---|---|---|
+> | 单 bit XOR (mask0x01, ECC-off) | 37 305 | 40 | **0** | 40 |
+> | 单 bit XOR (mask0x01, ECC-on) | 54 149 | **0** | 0 | 6 |
+> | clearValidBit (2-bit clear, ECC-off) | 37 305 | 40 | **40** | 0 |
+>
+> 诚实结论：(1) **ECC 纠正效应实证**——单 bit XOR 下 ECC-on 把全部 1-bit flip 纠正为 benign（`numFaultsInjected 40→0`），ECC-off 才有 40 注入（但全 benign，因 XOR 不制造 invalid）。(2) **spurious 制造机制实证**——clearValidBit 把 40 注入全转为 spurious（`numSpuriousFaults 0→40`，100%）。两个组件各自验证，但**未在同一实验内结合**（ECC 纠正用单 bit、spurious 用 2-bit clear，两者不可同时成立）。诚实边界：完整 H7 的"ECC-on spurious≈0 vs ECC-off spurious>0"定量对照，需一个"单 bit 翻转 + 只对 0b01 PTE 翻 bit0（条件注入）"的模式——ECC-on 纠正 1-bit 不 fault，ECC-off 不纠正且 PTE 变 invalid→spurious。这是下一步代码工作（P3c：条件注入模式）。当前 H7 已实证 ECC 纠正 + spurious 制造两个独立机制。
+>
 > **FS-mode 钩子触发实证（诚实，更新于 2026-08-27）**：
 > - ✅ **rng-init-order bug 已发现并修复**：三注入器构造函数 `rng(rng_seed != 0 ? rng_seed : rd())` 因头文件成员声明顺序 `rng` 在 `rd` 前，`rng` 先初始化时调用未构造的 `rd()` → UB → `rng_seed=0` 必崩（gdb 回溯 `SIGSEGV at 0x7473696c`('list') in `std::random_device::operator()` 构造期）。修复：用立即调用 lambda 局部构造 `std::random_device`，不依赖成员顺序。`rng_seed!=0` 时用 seed 不触发 `rd()` 故 H5（seed 42）此前能跑通；H6/H7 默认 seed 0 即崩——**这解释了为何此前 H6/H7 SE 仍能跑**（用了非 0 seed）但 FS 测试默认 seed 0 必崩。修复后 `--seed 0` 不再 SIGSEGV。patch bc4feb4。
 > - ✅ **D2 在 FS 下触发实证**：新增 FS 注入配置 `fi_research/probes/o3_chaos_fs.py`（wrapper over `fs_bigLITTLE.build()`，挂 `CHAOSAddrPath`/`CHAOSPTW`/`CHAOSLSQFwd` 到 bigCluster.cpus[0] 及其 mmu）。实测 `--addr-prob 0.5 --seed 42 --max-tick 400M`：`numAddrFaults=20`，`addr_path_injections.log` 真实记录（`Cycle 556 Seq 19 Site load_effAddr Orig 0x120 Corrupted 0x120` 等）。**SE 下 D2=0 可观察失败；FS 下 D2=20 注入触发**。
