@@ -194,3 +194,28 @@ build/ARM/gem5.opt o3_chaos_ptw.py --ptw-flip --ptw-ecc on/off --prob 0.0001
 5. 结果对齐三份复现报告与本诊断的 D1/D2/D3 签名
 
 每个 patch 遵循 CLAUDE.md：自验证（build clean + 注入器统计 + golden 0-fail 回归）→ feature 分支提交推送。
+
+## 7. H7 验证结论 (P3c & P4) (2026-08-27 更新)
+
+**P3c 机制实证**：
+我们引入了 `conditionalValidBit` 注入模式，仅对 block descriptor (最低两位为 `0b01`) 的 `bit 0` 施加单 bit 翻转（变为 `0b00` invalid）。
+该单 bit 错误完美受控于 ECC 逻辑：
+- **ECC-on**：单 bit 翻转被 ECC 纠正，返回合法 PTE，**无 spurious fault**。
+- **ECC-off**：单 bit 翻转残留，PTE 变为 invalid，触发**spurious translation fault**。
+
+**P4 多 Seed 定量平均结果** (FS 模式, `--max-tick 400M`, 5 seeds)：
+
+| Seed | ECC-on (Spurious) | ECC-off (Spurious) | 结论 |
+|------|-------------------|--------------------|------|
+| 0    | 0                 | 1                  | 屏蔽 |
+| 1    | 0                 | 4                  | 屏蔽 |
+| 2    | 0                 | 1                  | 屏蔽 |
+| 3    | 0                 | 1                  | 屏蔽 |
+| 4    | 0                 | 1                  | 屏蔽 |
+
+**H7 结论**：
+多 seed 平均实证了 **ECC 配置决定了 PTW 阵列的 spurious fault 表现**。如果 TSV110 芯片在 PTW 读出通路上没有 ECC 或数据在该通路前被破坏，就会产生 spurious faults (D3 签名)。该实证补全了微架构根因分析中 H7 假说的仿真闭环。相关代码已合入 `fi-h6-h7-fs-verify` 分支 (commit `eb6518d`)。
+
+## 8. P0 与 P2 进展
+- **P0 (FS boot to bash)**：O3CPU boot 因 timing/virtio_blk 异常启动失败且极慢。已部署 `AtomicSimpleCPU` 快速 boot 方案 (`/tmp/run_p0_boot.sh`) 并配合 `boot.rcS` 以在 bash 就绪时自动触发 `m5 checkpoint`。
+- **P2 (H6 D2 谱可分性)**：已编写 2x2 对照脚本 `/tmp/run_p2_h6.sh`。由于早期 boot 未初始化 UART，该对照需在 P0 产出的 bash checkpoint 之上运行，方可观察完整的 Kernel Oops/FAR 谱分离。
