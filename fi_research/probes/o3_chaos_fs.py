@@ -58,6 +58,7 @@ ap.add_argument("--ptw-bits", default="1")
 ap.add_argument("--ptw-byte", default="-1", help="byte in PTE to flip (-1=random); P3: 0 = valid bits area")
 ap.add_argument("--ptw-mask", default="0", help="explicit 8-bit flip mask (0=random bitsToChange); P3: 0x03 = flip valid bits[1:0]")
 ap.add_argument("--ptw-ecc", action="store_true")
+ap.add_argument("--ptw-clear-valid", action="store_true", help="P3b: force-clear PTE bits[1:0]->invalid (reliable spurious manufacturing, bypasses ECC)")
 ap.add_argument("--lsq-fwd-prob", default="0.0")
 ap.add_argument("--lsq-structural", default="none")
 ap.add_argument("--lsq-skew", default="0")
@@ -100,6 +101,7 @@ if float(fi_args.ptw_prob) > 0.0:
         faultMask=int(fi_args.ptw_mask, 0),
         byteOffset=int(fi_args.ptw_byte),
         ptwEcc=bool(fi_args.ptw_ecc),
+        clearValidBit=bool(fi_args.ptw_clear_valid),
         firstClock=int(fi_args.first_clock),
         maxFaults=int(fi_args.max_faults),
         rngSeed=int(fi_args.seed),
