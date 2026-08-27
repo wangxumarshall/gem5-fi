@@ -244,3 +244,28 @@ ENOSPC-killed a G4 test on this 29GB host).
   needs `gem5-fs/` deps — now gitignored), LSQ forwarding, L3 128B,
   x86-64 paired control, Kunpeng real-machine RAS calibration. These
   are separate multi-patch phases.
+
+## Phase 2 progress (§六.4 step 4, incremental)
+
+- **Item 1 — 128-bit NEON** (`d3fcec4`): DONE at the tooling level. The
+  vec-injection path (made safe by patch 4602f28) lands faults on ACTIVE
+  vector phys regs and propagates to SDC, verified on a new ASIMD
+  lane-sep kernel (workloads/directed/neon_lane, golden
+  `00000000526925fe`, native==gem5-O3). phys vec[1]/[3] (Active, ~925
+  reads) → SDC; vec[0]/[2]/[4] → Masked (real AVF / not-read-bit).
+  Honest scope: this is the vec PATH (low-64-bit word flip). Per-lane
+  targeting (a specific 32-bit lane of the 128-bit V reg) is NOT done —
+  needs a vec-lane-offset knob. Formal per-lane cells deferred.
+- **Item 2 — LSQ store->load forwarding**: NOT DONE — BLOCKED by a
+  parallel-session gap. CHAOSLSQFwd exists and is wired into lsq_unit.cc
+  (cpu->lsqFwd->corrupt() on a store->load forward), and has the gate
+  params (rngSeed/maxFaults/firstClock/writeLog). BUT `BaseO3CPU::setLSQFwd`
+  has NO Python binding (cpu.hh declares it, but it isn't wrapped for
+  Python via the SimObject pybind). So a config cannot call
+  `cpu0.setLSQFwd(lsq)` — `AttributeError: object 'ArmO3CPU' has no
+  attribute 'setLSQFwd'` (C++ object not yet constructed / not wrapped).
+  Fixing this needs a pybind `def("setLSQFwd", ...)` in the BaseO3CPU
+  Python wrapper — a deeper gem5-internal patch, NOT in this round.
+  The fp_fwd_kernel.c workload (store->load forward, self-detecting
+  fails) exists and its golden (`iters=500 fails=0`) runs on O3, ready
+  for when the binding lands.
