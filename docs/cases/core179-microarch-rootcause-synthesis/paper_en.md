@@ -46,6 +46,12 @@ Figure 1 places D1/D2/D3 on the out-of-order memory subsystem. The three anchors
                                                                        v
                                                            [Register Rename (RAT)]
                                                                        |
+                                                  +--------------------------------------------+
+                                                  | [Physical Register File (PRF)]             |
+                                                  |  (architectural state backing store;        |
+                                                  |   rename maps arch regs -> phys regs)      |
+                                                  +--------------------------------------------+
+                                                                       |
                                                            [Issue Queue / RS]
                                                                        |
                           +--------------------------------------------+------------------+
