@@ -1,0 +1,43 @@
+{
+  "cli_version": "0.10.2",
+  "checkpoint_id": "01M10SJJF2BSJ6BYNXKPJMWZB0",
+  "session_id": "55248f90-18a5-4711-97bc-6c44a9917246",
+  "strategy": "manual-commit",
+  "created_at": "2026-08-27T05:02:48.77981036Z",
+  "branch": "docs/core179-microarch-rootcause",
+  "checkpoints_count": 1,
+  "save_step_count": 1,
+  "files_touched": [],
+  "agent": "Claude Code",
+  "model": "stealth/ox-alpha[1m]",
+  "turn_id": "7763c3130855",
+  "checkpoint_transcript_start": 165,
+  "transcript_lines_at_start": 165,
+  "compact_transcript_start": 30,
+  "token_usage": {
+    "input_tokens": 68261,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 169088,
+    "output_tokens": 1154,
+    "api_call_count": 8
+  },
+  "session_metrics": {
+    "turn_count": 1
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    },
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    }
+  ]
+}
