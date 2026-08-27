@@ -281,3 +281,19 @@ build ELF `7f454c46`；GPR golden `f247ef3fe6f02cfd`；G2 stuck `00ff0000dee1f5d
 - 回归：SE reg_chain golden `f247ef3fe6f02cfd`（SE 下 chaosSysReg=nullptr，hook 短路，无影响）。
 
 诚实留白：本轮验证了**注入机制端到端工作**（hook 在真 MRS 读路径触发、值被损坏、maxFaults 生效、prob=0 对照干净）。FS Atomic 慢，300s 跑到 SCTLR 读(tick 55611)但未完成 boot 到 panic/DUE——"SCTLR 损坏→kernel panic/DUE"的完整 DUE 结果需更长/Checkpointed FS run（后续）。白名单目前演示用 sctlr_el1；TTBR/TCR/MAIR/VBAR 的有向 cell + "翻到的值仍合法→静默 SDC"为后续。
+
+### 报告第二步复检：干净重建 + G0–G7 全闸门复检（已通过，fix/fi-tool-correctness）
+
+报告 §六.2 要求"对当前最终提交做一次干净构建，然后重新检查 G0–G7"。已做（实证，真跑输出）：
+
+- **干净重建**：`rm -rf build/ARM/params && scons -C CHAOS/gem5 build/ARM/gem5.opt -j16` → `scons: done building targets.`，SCONS_EXIT 0，**CHAOS 源零警告**（G7）。
+- **G0 复检**：3× 相同 seed（20260825）CHAOSReg → 全部 `Register: integer[9], bit_flip, Mask: 0x2000000000000, Width: 64`（逐字段一致；64 位掩码）。
+- **G1 复检**：CHAOSPhysReg `--fault_mask=4294967296`（bit 32）→ log `Mask: 0000000000000000000000000000000100000000000000000000000000000000`（bit 32 完整注入到 PhysReg[252]），证明物理寄存器掩码已 64 位（修复前 bit32 截断为 0）。
+- **G2 复检**：CHAOSPhysReg phys mode stuck_at_one 0xff on PhysReg[80] → 输出 `00ff0000dee1f5d0`（write-path mask 跨 rename reuse 重新施加）。
+- **G3 复检**：CHAOSCache `getTags()` 受支持接口（无 `static_cast<CacheAccessor*>`）。
+- **G4 复检**：CHAOSMem 权重 `{bit_flip_prob, stuck_at_zero_prob, stuck_at_one_prob}`（修复前重复 bit_flip 漏 stuck_at_zero）。
+- **G5 复检**：CHAOSMem `maxFaults=1` → 注入次数 = 1（修复前无上限，5200 万次/tick）。
+- **G6 复检**：CHAOSMem `maxFaults=0` + p=1.0 → distinct ticks 递增 ≥1000（1 cycle，修复前同 tick 爆炸）。
+- **G7 复检**：CHAOSReg/PhysReg/Cache/Mem/ArmTLB/ArmSysReg 源在 -Wall/-Wextra/-Wundef 下零警告。
+
+报告 6 项修复（#1 G2 写钳位、#2 64 位掩码、#3 NEON 缓冲区、#4 分类器、#5 manifest 生效、#6 源码统一）全部落实并实证。
