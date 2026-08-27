@@ -1,0 +1,94 @@
+{
+  "cli_version": "0.10.2",
+  "checkpoint_id": "01M11T045MVACCFR0PF92V53GV",
+  "session_id": "765ca7ed-aa74-4d81-afc4-5481ad466568",
+  "strategy": "manual-commit",
+  "created_at": "2026-08-27T14:29:21.64817918Z",
+  "branch": "fi-h6-h7-fs-verify",
+  "checkpoints_count": 1,
+  "save_step_count": 1,
+  "files_touched": [
+    "CHAOS/gem5/src/arch/arm/CHAOSPTW/CHAOSPTW.cc",
+    "CHAOS/gem5/src/arch/arm/CHAOSPTW/CHAOSPTW.hh",
+    "CHAOS/gem5/src/arch/arm/CHAOSPTW/CHAOSPTW.py",
+    "fi_research/probes/o3_chaos_fs.py"
+  ],
+  "agent": "Claude Code",
+  "model": "nvidia/nemotron-3-ultra-550b-a55b:free[1m]",
+  "turn_id": "b1aa76298cf5",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 56819,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 432,
+    "api_call_count": 2
+  },
+  "skill_events_version": 1,
+  "skill_events": [
+    {
+      "id": "claude-skill-call-b5eba884-aa2a-4607-b259-03952db0cbdd",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "superpowers:using-superpowers"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "b1aa76298cf5",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 16,
+        "end": 17,
+        "entry_ids": [
+          "2f609375-09d6-4867-ad60-66658815f5d1"
+        ],
+        "tool_use_id": "call-b5eba884-aa2a-4607-b259-03952db0cbdd"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "call-b5eba884-aa2a-4607-b259-03952db0cbdd"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: superpowers:using-superpowers",
+        "default_collapsed": true
+      }
+    }
+  ],
+  "session_metrics": {
+    "turn_count": 1
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-08-27T14:29:21.64016678Z",
+    "agent_lines": 0,
+    "agent_removed": 0,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 1,
+    "total_committed": 0,
+    "total_lines_changed": 1,
+    "agent_percentage": 0,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 23,
+      "user_lines_removed": 1,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        "CHAOS/gem5/src/arch/arm/CHAOSPTW/CHAOSPTW.cc": 19,
+        "CHAOS/gem5/src/arch/arm/CHAOSPTW/CHAOSPTW.hh": 1,
+        "CHAOS/gem5/src/arch/arm/CHAOSPTW/CHAOSPTW.py": 1,
+        "fi_research/probes/o3_chaos_fs.py": 2
+      },
+      "user_removed_per_file": {
+        "CHAOS/gem5/src/arch/arm/CHAOSPTW/CHAOSPTW.cc": 1
+      }
+    }
+  ]
+}

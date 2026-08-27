@@ -3,7 +3,7 @@
   "checkpoint_id": "01M11T045MVACCFR0PF92V53GV",
   "strategy": "manual-commit",
   "branch": "fi-h6-h7-fs-verify",
-  "checkpoints_count": 3,
+  "checkpoints_count": 4,
   "files_touched": [
     "CHAOS/gem5/src/arch/arm/CHAOSPTW/CHAOSPTW.cc",
     "CHAOS/gem5/src/arch/arm/CHAOSPTW/CHAOSPTW.hh",
@@ -17,13 +17,20 @@
       "compact_transcript": "/0/transcript.jsonl",
       "content_hash": "/0/content_hash.txt",
       "prompt": "/0/prompt.txt"
+    },
+    {
+      "metadata": "/1/metadata.json",
+      "transcript": "/1/full.jsonl",
+      "compact_transcript": "/1/transcript.jsonl",
+      "content_hash": "/1/content_hash.txt",
+      "prompt": "/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 334748,
+    "input_tokens": 391567,
     "cache_creation_tokens": 0,
     "cache_read_tokens": 7284736,
-    "output_tokens": 10198,
-    "api_call_count": 22
+    "output_tokens": 10630,
+    "api_call_count": 24
   }
 }
