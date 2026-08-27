@@ -3,7 +3,7 @@
   "checkpoint_id": "01M10W0AARFWYHRKWA88E74T6P",
   "strategy": "manual-commit",
   "branch": "docs/core179-microarch-rootcause",
-  "checkpoints_count": 1,
+  "checkpoints_count": 2,
   "files_touched": [
     "docs/cases/core179-microarch-rootcause-synthesis/paper_en.md"
   ],
@@ -14,13 +14,20 @@
       "compact_transcript": "/0/transcript.jsonl",
       "content_hash": "/0/content_hash.txt",
       "prompt": "/0/prompt.txt"
+    },
+    {
+      "metadata": "/1/metadata.json",
+      "transcript": "/1/full.jsonl",
+      "compact_transcript": "/1/transcript.jsonl",
+      "content_hash": "/1/content_hash.txt",
+      "prompt": "/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 5908,
+    "input_tokens": 9246212,
     "cache_creation_tokens": 0,
-    "cache_read_tokens": 680448,
-    "output_tokens": 3302,
-    "api_call_count": 9
+    "cache_read_tokens": 135585536,
+    "output_tokens": 290526,
+    "api_call_count": 591
   }
 }
