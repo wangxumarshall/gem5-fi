@@ -55,6 +55,8 @@ ap.add_argument("--addr-prob", default="0.0")
 ap.add_argument("--addr-byte", default="7")
 ap.add_argument("--ptw-prob", default="0.0")
 ap.add_argument("--ptw-bits", default="1")
+ap.add_argument("--ptw-byte", default="-1", help="byte in PTE to flip (-1=random); P3: 0 = valid bits area")
+ap.add_argument("--ptw-mask", default="0", help="explicit 8-bit flip mask (0=random bitsToChange); P3: 0x03 = flip valid bits[1:0]")
 ap.add_argument("--ptw-ecc", action="store_true")
 ap.add_argument("--lsq-fwd-prob", default="0.0")
 ap.add_argument("--lsq-structural", default="none")
@@ -95,6 +97,8 @@ if float(fi_args.ptw_prob) > 0.0:
         mmu=target_cpu.mmu,
         probability=float(fi_args.ptw_prob),
         bitsToChange=int(fi_args.ptw_bits),
+        faultMask=int(fi_args.ptw_mask, 0),
+        byteOffset=int(fi_args.ptw_byte),
         ptwEcc=bool(fi_args.ptw_ecc),
         firstClock=int(fi_args.first_clock),
         maxFaults=int(fi_args.max_faults),
