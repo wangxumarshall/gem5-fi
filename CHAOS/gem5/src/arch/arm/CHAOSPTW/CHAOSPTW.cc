@@ -18,6 +18,7 @@ namespace gem5
           byte_offset(p.byteOffset),
           ptw_ecc(p.ptwEcc),
           clear_valid_bit(p.clearValidBit),
+          conditional_valid_bit(p.conditionalValidBit),
           first_clock(Cycles(p.firstClock)),
           last_clock(Cycles(p.lastClock)),
           max_faults(p.maxFaults),
@@ -89,6 +90,9 @@ namespace gem5
 
         // H7: ECC corrects single-bit flips; only >=2-bit (uncorrectable) survive.
         // clearValidBit (AND ~0x3) is a 2-bit clear -> uncorrectable, bypasses ECC.
+        // conditionalValidBit is a SINGLE-bit XOR (bit0) -> ECC SHOULD correct it
+        // (ECC-on -> benign/no spurious; ECC-off -> invalid/spurious). So
+        // conditionalValidBit must NOT bypass ECC — only clear_valid_bit does.
         if (!clear_valid_bit && ptw_ecc && num_bits < 2) {
             stats->numBenignFlips++;
             return;
@@ -97,7 +101,21 @@ namespace gem5
         uint64_t orig = 0;
         std::memcpy(&orig, data, size);
 
-        if (clear_valid_bit) {
+        if (conditional_valid_bit) {
+            // P3c: single-bit XOR bit0, ONLY on block descriptors (low2=0b01).
+            // 0b01 ^ 0b01 = 0b00 (invalid) -> spurious. Single-bit so ECC-on
+            // corrects it (no spurious), ECC-off leaves it invalid (spurious).
+            // This is the faithful within-experiment H7 ECC contrast. Non-0b01
+            // descriptors are skipped (no corruption) so we don't perturb tables.
+            if (size >= 1 && (data[0] & 0x3) == 0x1) {
+                data[0] ^= 0x1;
+            } else {
+                // Not a block descriptor — skip injection, count as benign (no
+                // fault manufactured this walk).
+                stats->numBenignFlips++;
+                return;
+            }
+        } else if (clear_valid_bit) {
             // Force-clear descriptor type bits[1:0] (byte 0, low 2 bits) -> 0b00
             // (invalid). This RELIABLY manufactures an invalid PTE regardless of
             // the original descriptor type (0b01 block / 0b11 table -> 0b00),
