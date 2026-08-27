@@ -49,6 +49,18 @@ class CHAOSPhysReg(SimObject):
         "arch modes: selects the rename map). 'vector' targets VecRegClass "
         "(whole SVE/NEON vectors — the actual AArch64 FMA/byte-swap hot path).")
 
+    # --- vec lane stratification (Phase 2 item 1: NEON 128-bit lane FI) ---
+    vecLaneWidth = Param.Int(32,
+        "Vec lane width in BITS (8/16/32/64). The fault mask is applied to "
+        "ONE lane of this width within the target VecRegClass phys reg. "
+        "Default 32 = the 4x32-bit ASIMD lane granularity (kunpeng 920 "
+        "baseline = 128-bit ASIMD, NOT SVE). 64 = 2x64-bit; 16 = 8x16-bit.")
+    vecLaneOffset = Param.Int(-1,
+        "Directed: which lane (0-indexed) to corrupt within the VecRegClass "
+        "phys reg, e.g. lane 0 = the low vecLaneWidth bits. -1 = random "
+        "lane across the vector width (default). Used with regTargetClass="
+        "'vector' to stratify NEON per-lane SDC (plan §7.4 BM-NEON).")
+
     # --- fault model (mirrors CHAOSReg) ---
     probability = Param.Float(1.0, "Per-interval injection probability "
         "(use 1.0 with maxFaults=1 so the single injection lands at firstClock)")

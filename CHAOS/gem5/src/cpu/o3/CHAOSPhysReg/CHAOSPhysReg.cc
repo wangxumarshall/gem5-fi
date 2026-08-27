@@ -25,6 +25,8 @@ namespace gem5
           target_phys_idx(p.targetPhysRegIdx),
           target_arch_idx(p.targetArchRegIdx),
           reg_target_class(stringToRegClassSel(p.regTargetClass)),
+          vec_lane_width(p.vecLaneWidth),
+          vec_lane_offset(p.vecLaneOffset),
           probability(p.probability),
           num_bits_to_change(p.bitsToChange),
           fault_type_enum(stringToFaultType(p.faultType)),
@@ -290,37 +292,66 @@ namespace gem5
             : generateRandomMask(rng, num_bits_to_change, 64);
 
         if (target_class == gem5::VecRegClass) {
-            // Buffer path: read the WHOLE vector, corrupt the low 64-bit word,
-            // write back. The buffer MUST be sized to the actual vector phys
-            // reg byte width (AArch64 VecRegClass = up to 256B for SVE-2048b).
-            // The old fixed `uint8_t buf[64]` overflowed by 192B on getReg
-            // (report issue #3 — a real stack smash). Size it at runtime via
-            // vecRegBytes() so it is correct for any SVE VL, not hardcoded.
+            // Buffer path: read the WHOLE vector, corrupt ONE lane, write back.
+            // The buffer MUST be sized to the actual vector phys reg byte width
+            // (AArch64 VecRegClass = up to 256B for SVE-2048b). The old fixed
+            // `uint8_t buf[64]` overflowed by 192B on getReg (report issue #3).
+            // Phase 2 item 1: NEON lane stratification — the fault is applied
+            // to ONE lane of vec_lane_width bits at lane vec_lane_offset,
+            // instead of always the low 64-bit word. So a per-lane SDC study
+            // (plan §7.4 BM-NEON: 4x32/2x64/8x16 lanes) is possible.
             size_t vbytes = cpu->physRegFile().vecRegBytes();
             if (vbytes < sizeof(uint64_t)) vbytes = sizeof(uint64_t);  // paranoia
             std::vector<uint8_t> buf(vbytes, 0);
             cpu->physRegFile().getReg(phys_reg, buf.data());
-            uint64_t *word0 = reinterpret_cast<uint64_t*>(buf.data());
+            // Resolve the lane: width in bits -> bytes; clamp to vector width.
+            int lw = vec_lane_width;
+            if (lw != 8 && lw != 16 && lw != 32 && lw != 64) lw = 32;  // default
+            int lane_bytes = lw / 8;
+            int max_lanes = (int)(vbytes / lane_bytes);
+            if (max_lanes < 1) max_lanes = 1;
+            int lane = vec_lane_offset;
+            if (lane < 0 || lane >= max_lanes)
+                lane = std::uniform_int_distribution<>(0, max_lanes - 1)(rng);
+            // The fault mask applies within the lane's bit window. Treat the
+            // lane as a lane_bytes-wide little-endian integer; apply the
+            // 64-bit mask truncated/padded to lane_bytes, then read-modify-write
+            // only those bytes. (mask was generated for the scalar path as a
+            // 64-bit value; for a 32-bit lane we use the low 32 bits, etc.)
+            uint8_t *lane_ptr = buf.data() + (size_t)lane * lane_bytes;
+            uint64_t lane_val = 0;
+            for (int b = 0; b < lane_bytes; ++b)
+                lane_val |= ((uint64_t)lane_ptr[b]) << (8 * b);
+            uint64_t lane_mask = (lw < 64) ? (mask & ((1ULL << lw) - 1)) : mask;
             switch (chosen) {
               case FaultType::StuckAtZero:
-                *word0 &= ~(uint64_t)mask;
+                lane_val &= ~lane_mask;
                 stats->numStuckAtZero++;
                 stats->numPermanentFaults++;
                 permanent_faults[{tid, chosen_phys_idx}] = {chosen, mask, true};
                 break;
               case FaultType::StuckAtOne:
-                *word0 |= (uint64_t)mask;
+                lane_val |= lane_mask;
                 stats->numStuckAtOne++;
                 stats->numPermanentFaults++;
                 permanent_faults[{tid, chosen_phys_idx}] = {chosen, mask, true};
                 break;
               case FaultType::BitFlip:
-                *word0 ^= (uint64_t)mask;
+                lane_val ^= lane_mask;
                 stats->numBitFlips++;
                 break;
               default: break;
             }
+            for (int b = 0; b < lane_bytes; ++b)
+                lane_ptr[b] = (uint8_t)((lane_val >> (8 * b)) & 0xff);
             cpu->physRegFile().setReg(phys_reg, buf.data());
+            // log the lane for the evidence trail
+            if (write_log) {
+                *(log_stream->stream())
+                    << "  [vec lane " << lane << "/" << max_lanes
+                    << " width=" << lw << "bits mask=0x" << std::hex
+                    << lane_mask << std::dec << "]" << std::endl;
+            }
         } else {
             // Scalar path (int / float / vecelem).
             gem5::RegVal reg_val = cpu->physRegFile().getReg(phys_reg);

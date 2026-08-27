@@ -53,6 +53,12 @@ class CHAOSPhysReg : public SimObject
     int target_arch_idx;     // arch_frontend / arch_commit modes
     RegClassSel reg_target_class;  // integer / floating_point / both
 
+    // Phase 2 item 1: NEON lane stratification. The vec path corrupts ONE
+    // lane of vec_lane_width bits at lane vec_lane_offset (within the
+    // target VecRegClass phys reg), instead of always word0 (low 64 bits).
+    int vec_lane_width;   // lane width in bits (8/16/32/64), default 32
+    int vec_lane_offset;  // which lane (0-indexed); -1 = random lane
+
     // fault model
     float probability;
     int num_bits_to_change;

@@ -64,6 +64,14 @@ p.add_argument("--phys_reg_class", default="integer",
                help="CHAOSPhysReg target class. 'vector' targets VecRegClass "
                     "(now safe: buffer sized to actual vec width via "
                     "vecRegBytes(), fixes the 192B stack overflow).")
+p.add_argument("--vec_lane_width", type=int, default=32,
+               choices=[8,16,32,64],
+               help="Phase2 NEON: vec lane width in BITS (8/16/32/64). Default "
+                    "32 = the 4x32-bit ASIMD lane granularity. Used with "
+                    "--phys_reg_class=vector to stratify per-lane SDC.")
+p.add_argument("--vec_lane_offset", type=int, default=-1,
+               help="Phase2 NEON: which lane (0-indexed) to corrupt in the "
+                    "VecRegClass phys reg. -1 = random lane (default).")
 # CHAOSMem (backing-store byte injector; G4 fixed weights/boundary)
 p.add_argument("--chaos_mem", action="store_true",
                help="attach CHAOSMem to the board DRAM")
@@ -124,6 +132,8 @@ if args.chaos_phys:
         targetPhysRegIdx=args.phys_target_idx,
         targetArchRegIdx=args.phys_target_arch,
         regTargetClass=args.phys_reg_class,
+        vecLaneWidth=args.vec_lane_width,
+        vecLaneOffset=args.vec_lane_offset,
         probability=args.probability,
         bitsToChange=args.bits_to_change,
         faultMask=args.fault_mask,
