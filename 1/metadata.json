@@ -3,21 +3,21 @@
   "checkpoint_id": "01M0YP29XKBPS4BA9B1S56BYPV",
   "session_id": "679512f6-595b-4bff-884a-0e2097ca58db",
   "strategy": "manual-commit",
-  "created_at": "2026-08-27T03:35:53.974891826Z",
+  "created_at": "2026-08-27T04:19:49.382546231Z",
   "branch": "fix/fi-tool-correctness",
   "checkpoints_count": 1,
-  "save_step_count": 1,
+  "save_step_count": 2,
   "files_touched": [],
   "agent": "Claude Code",
   "model": "glm-5.2",
-  "turn_id": "3d85a050e579",
+  "turn_id": "35b9b42124e9",
   "compact_transcript_start": 0,
   "token_usage": {
-    "input_tokens": 3860201,
+    "input_tokens": 3888905,
     "cache_creation_tokens": 0,
-    "cache_read_tokens": 70570752,
-    "output_tokens": 157963,
-    "api_call_count": 422
+    "cache_read_tokens": 85693696,
+    "output_tokens": 172944,
+    "api_call_count": 471
   },
   "skill_events_version": 1,
   "skill_events": [
@@ -64,9 +64,73 @@
         "label": "/goal",
         "default_collapsed": true
       }
+    },
+    {
+      "id": "prompt-skill-claude-code-goal-2026-08-27T03:46:35.657701156Z",
+      "event_type": "prompt_invocation",
+      "skill": {
+        "name": "goal"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "prompt_slash_command",
+        "confidence": "explicit"
+      },
+      "turn_id": "00d3a48e6552",
+      "timestamp": "2026-08-27T03:46:35.657701156Z",
+      "native": {
+        "command": "/goal"
+      },
+      "collapse": {
+        "target": "user_message",
+        "label": "/goal",
+        "default_collapsed": true
+      }
+    },
+    {
+      "id": "prompt-skill-claude-code-goal-2026-08-27T03:56:39.801461055Z",
+      "event_type": "prompt_invocation",
+      "skill": {
+        "name": "goal"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "prompt_slash_command",
+        "confidence": "explicit"
+      },
+      "turn_id": "35b9b42124e9",
+      "timestamp": "2026-08-27T03:56:39.801461055Z",
+      "native": {
+        "command": "/goal"
+      },
+      "collapse": {
+        "target": "user_message",
+        "label": "/goal",
+        "default_collapsed": true
+      }
     }
   ],
   "session_metrics": {
-    "turn_count": 3
-  }
+    "turn_count": 4
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    },
+    {
+      "checkpoint_number": 3,
+      "user_lines_added": 293,
+      "user_lines_removed": 0,
+      "agent_lines_added": 440848,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        "configs/se/arm_chaos.py": 10,
+        "docs/gem5-fi_branch_next_step.md": 283
+      }
+    }
+  ]
 }
