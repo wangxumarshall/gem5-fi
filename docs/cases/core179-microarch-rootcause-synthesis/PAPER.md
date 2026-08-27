@@ -2,13 +2,15 @@
 
 **Target venue:** ASPLOS / MICRO / HPCA (systems + computer architecture)
 
-> **Honesty preamble.** Every quantitative claim in this paper is reproducible from the artifacts in `docs/cases/core179-microarch-rootcause-synthesis/` and the gem5 tree on branch `docs/core179-microarch-rootcause`. Where a result could not be verified (H6/H7 in SE mode), we say so explicitly rather than omit it. The fault-injection host is the same machine that exhibits the defect (CPU 179); we report the mitigation (CPU isolation during build/run) and the residual risk.
+> **Honesty preamble.** Every quantitative claim in this paper is reproducible from the artifacts in `docs/cases/core179-microarch-rootcause-synthesis/` and the gem5 tree on branch `docs/core179-microarch-rootcause`. Where a result could not be verified we say so explicitly rather than omit it. Where a single-run number depends on runtime entropy (seed 0 → `std::random_device`), we report the magnitude as stable-across-runs and flag the run-to-run variance rather than presenting one deterministic figure. The fault-injection host is the same machine that exhibits the defect (CPU 179); we report the mitigation (CPU isolation during build/run) and the residual risk.
 
 ---
 
 ## Abstract
 
-Silent data corruption (SDC) on a single physical core of a production ARM64 server (HiSilicon Kunpeng-920 / TaiShan V110) manifested as recurring kernel panics across five independent boots over twelve days, every event pinned to logical CPU 179. We perform a five-kdump forensic study combining (1) bit-exact register-vs-memory comparison at the crash instant, (2) ARMv8 architectural-invariant reasoning on `FAR_EL1`, and (3) microarchitectural modeling against published TSV110 geometry. We localize the defect to a **core-private load data-return path** (fill-buffer/replay-merge ≈ L1D readout assembly), with a co-located sibling in the page-table-walker readout path, and we **falsify** the competing physical-register-file hypothesis. The decisive new evidence: a load of `__per_cpu_offset[146]` returned a value bit-identical to `__per_cpu_offset[0]` right-rotated by one byte — a structural byte-lane skew uniquely matching the array head among all 192 slots (Hamming distance 0, not expressible as any single-byte bit flip). To close the conjecture-verification loop we extend the CHAOS gem5 fault injector with a *structural* (byte-lane-skew) fault model and reproduce the kernel oops chain end-to-end in simulation (skewed pointer → non-canonical VA → page fault). Two further injectors (address-path, PTW readout) are implemented and compiled but their hypotheses remain unverifiable in syscall-emulation mode for honest, documented reasons. We derive falsifiable hypotheses H5–H7 and a DFT query list for the silicon vendor.
+Silent data corruption (SDC) on a single physical core of a production ARM64 server (HiSilicon Kunpeng-920 / TaiShan V110) manifested as recurring kernel panics across five independent boots over twelve days, every event pinned to logical CPU 179. We perform a five-kdump forensic study combining (1) bit-exact register-vs-memory comparison at the crash instant, (2) ARMv8 architectural-invariant reasoning on `FAR_EL1`, and (3) microarchitectural modeling against published TSV110 geometry. We localize the defect to a **core-private load data-return path** (fill-buffer/replay-merge ≈ L1D readout assembly), with a co-located sibling in the page-table-walker readout path, and we **falsify** the competing physical-register-file hypothesis. The decisive new evidence: a load of `__per_cpu_offset[146]` returned a value bit-identical to `__per_cpu_offset[0]` right-rotated by one byte — a structural byte-lane skew uniquely matching the array head among all 192 slots (Hamming distance 0, not expressible as any single-byte bit flip).
+
+To close the conjecture-verification loop we extend the CHAOS gem5 fault injector with a *structural* (byte-lane-skew) fault model and reproduce the kernel oops chain end-to-end in simulation (skewed pointer → non-canonical VA → page fault) — **H5, verified**. We further implement address-path (P-D2) and PTW-readout (P-D3) injectors and derive falsifiable hypotheses H6/H7. Initially these returned null results in syscall-emulation (SE) mode; we **statically root-cause the null to the ARM MMU translation model** (`mmu.cc:1213`: SE has `SCTLR.M=0` → `translateMmuOff` → `setPaddr(vaddr)`, identity mapping that bypasses the page-table walker), and we **confirm in full-system (FS) mode that both D2 and D3 hooks fire under MMU-on translation** (D2: address-path injections on canonical kernel VAs made non-canonical; D3: thousands of PTW-descriptor flips producing spurious-translation-fault counts). We additionally discover and fix a C++ member-initialization-order bug (`rng(rng_seed != 0 ? seed : rd())` with `rng` declared before `rd`) that crashed the injectors under the default `seed=0`; this is why prior H6/H7 *SE* runs (which used `seed≠0`) never crashed while FS runs (default seed) did. The **quantitative** H6 spectrum-separability and H7 ECC on/off spurious-rate conclusions are *not yet* established: we measure that early-boot FS has extremely sparse PTW-walk density (17 walks / 259 k instructions, 0.0066%), so the controlled low-probability H7 arms see zero injections in the reachable tick budget; resolving H6/H7 quantitatively requires FS to reach Linux userspace (≈1–2 h wall per arm on the single-CPU simulator), which remains future work. We deliver a DFT query list for the silicon vendor and an honest boundary on what simulation can and cannot adjudicate.
 
 ---
 
@@ -27,7 +29,7 @@ The machine (Yangtze Computing R240K V2, 4-socket × 48-core Kunpeng-920, 768 GB
 1. **A three-path microarchitectural decomposition (D1/D2/D3)** of the defect, derived bit-exactly from five vmcores and the published TSV110 cache geometry, with pre-emptive rebuttals of the three strongest reviewer attacks (coincidence, register-dump staleness, legitimate OOO-walk race).
 2. **Falsification of the PRF-liveness hypothesis** (a competing prior explanation) using evidence the PRF hypothesis cannot account for: PTW-path corruption and bit-exact stale-array-head replay.
 3. **A structural fault-injection methodology** — extending CHAOS/gem5 with `byte_lane_skew` / `all_zero` data-path faults, an address-path injector, and a PTW-readout injector — and the **end-to-end reproduction** of the kernel oops chain via the structural (not bit-flip) model (H5 verified).
-4. **Falsifiable hypotheses H6/H7** and an **honest account** of where verification was blocked by gem5's syscall-emulation translation model, distinguishing modeling limits from physics.
+4. **Falsifiable hypotheses H6/H7, with the SE-mode null results statically root-caused (not merely asserted) to the ARM MMU translation model, and the corresponding FS-mode confirmation that the hooks fire under MMU-on translation** — an honest account of what simulation has established (hook reachability) versus what it has not yet (quantitative spectrum separability / ECC spurious-rate contrast), and the trigger-density measurements that bound the remaining work.
 
 ---
 
@@ -44,6 +46,10 @@ For a synchronous data abort that is a *translation fault* (ESR EC=0x25, FSC ∈
 ### 2.3 The openEuler spurious-fault handler
 
 The kernel's `is_spurious_el1_translation_fault()` re-runs the walk via an `AT S1E1R` instruction; if the retry succeeds the fault is deemed spurious and a `WARN_RATELIMIT` is emitted. This mechanism is what surfaces the 73 non-fatal warnings — each is a hardware walk that failed and, microseconds later, retried successfully.
+
+### 2.4 gem5 SE vs FS translation model (the honest axis of §5)
+
+gem5's AArch64 `MMU::translateTiming` dispatches (`src/arch/arm/mmu.cc`, the `translateComplete`/`translateTiming` path) on `state.sctlr.m`: when the MMU is off (`!state.sctlr.m`) it calls `translateMmuOff`, which does `req->setPaddr(vaddr)` — an identity virtual→physical mapping with **no page-table walk**. Syscall-emulation (SE) mode runs with `SCTLR.M=0`, so every translation takes this path; full-system (FS) mode runs Linux, which sets `SCTLR.M=1` after building its page tables, so translations take the real TLB-lookup→page-table-walker path through `WalkUnit::doLongDescriptor`. This single architectural fact is what makes D2/D3 untestable in SE and testable in FS (§5.3–5.4).
 
 ---
 
@@ -88,7 +94,7 @@ D1, D2, D3 are physically adjacent, co-located on core 179, and stable across bo
 
 ## 4. Fault-Injection Methodology
 
-To close the conjecture-verification loop we extend the CHAOS gem5 framework (base gem5 v25.1.0.1, AArch64 O3CPU) with three injectors, each modeling one of D1/D2/D3.
+To close the conjecture-verification loop we extend the CHAOS gem5 framework (base gem5 v25.1.0.1, AArch64 O3CPU) with three injectors, each modeling one of D1/D2/D3, plus a full-system configuration that exercises the MMU-on translation path.
 
 ### 4.1 P-D1: structural data-path faults (CHAOSLSQFwd extension)
 
@@ -96,15 +102,19 @@ The existing CHAOSLSQFwd corrupts one byte of store-forwarded data via AND/OR/XO
 
 ### 4.2 P-D2: address-path faults (CHAOSAddrPath, new)
 
-A new module hooking `lsq.cc::sendFragmentToTranslation` — the faithful address→MMU boundary — zeroes a byte of the request's `_vaddr` before `translateTiming`. A `Request::setVaddr()` mutator was added. **Faithfulness caveat (declared upfront):** gem5 O3 translates inside `DynInst::initiateAcc`, so in syscall-emulation (SE) mode the hook lands post-translation; the symptom is not produced (§5.3).
+A new module hooking `lsq.cc::sendFragmentToTranslation` — the faithful address→MMU boundary — zeroes a byte of the request's `_vaddr` before `translateTiming`. A `Request::setVaddr()` mutator was added. **The hook is correctly placed at the pre-translation boundary;** what differs between SE and FS is not the hook position but whether translation walks a page table (FS, `SCTLR.M=1`) or short-circuits to identity (SE, `translateMmuOff`) — see §2.4. We add a `numHooksCalled` stat (counting every load's effAddr→MMU boundary call before gating) so that D2's *trigger base* (load density) is measurable independently of how many injections actually fire.
 
 ### 4.3 P-D3: PTW-readout faults (CHAOSPTW, new)
 
-A new module hooking `table_walker.cc::doLongDescriptor` — after the PTE is fetched and byte-swapped, before evaluation — bit-flips the descriptor. A `ptwEcc` knob models whether the PTW array has ECC (H7: single-bit flips are corrected when on). Attached via `mmu.hh::setPtwInj`.
+A new module hooking `table_walker.cc::doLongDescriptor` — after the PTE is fetched and byte-swapped, before evaluation — bit-flips the descriptor. A `ptwEcc` knob models whether the PTW array has ECC (H7: single-bit flips are corrected when on). Attached via `mmu.hh::setPtwInj`. As with D2, a `numHooksCalled` stat counts every descriptor fetch that reached the hook, separating "no walk happened" from "walk happened but probability did not select it" — essential because early-boot FS walk density is very low (§5.4).
 
 ### 4.4 The probe
 
 `ptrskew_kernel.c` emulates the kernel's `__per_cpu_offset[i] → rq` dereference chain in userspace: store-then-reload a pointer slot (so the checked load travels the store-forward path), then dereference. Counts `PTR_CORRUPT` (loaded pointer ≠ golden) and `VAL_MISMATCH`. Golden run (no FI): 0 fails.
+
+### 4.5 The full-system configuration (`o3_chaos_fs.py`)
+
+SE-mode `o3_chaos_smoke.py` (`Root(full_system=False)`) cannot exercise D2/D3 (§2.4). We add `fi_research/probes/o3_chaos_fs.py`, a thin wrapper over gem5's stock `configs/example/arm/fs_bigLITTLE.py::build()` that constructs the real VExpress_GEM5_V1 system (kernel `vmlinux` = Linux 5.15.36 AArch64 ELF64, 237 MB; disk `ubuntu.img`, 2.36 GB; bootloader `boot_emm.arm64`; DTB `armv8_gem5_v1_1cpu.dtb` — all in `gem5-fs/`, `readelf`/`stat`-verified) and attaches the three injectors to `bigCluster.cpus[0]` (an `O3_ARM_v7a_3`, a subclass of `ArmO3CPU`) and its MMU, **before** `m5.instantiate()`. The simulation cap uses `m5.simulate(max_tick)` (the `Root.max_tick` assignment errors in v25.1). Listeners are forced on (`--listener-mode on`); otherwise gem5's default `auto` mode disables the 3456 terminal port when stdin is not a TTY, making boot logs invisible.
 
 ---
 
@@ -126,13 +136,54 @@ Under higher probability the skewed pointer eventually slips past the check and 
 
 We proved (§3.2) that no single-byte bit-flip on the truth produces the observed corrupted value. The structural `byte_lane_skew` mode does. This is the methodological point: **structural data-path faults are a necessary addition to fault-injection toolkits** for this class of defect; bit-flip-only injectors (the CHAOS/GeFIN/SiliFuzz norm) cannot reach it.
 
-### 5.3 H6 (executed; SE-mode root cause precisely identified, honest)
+### 5.3 H6 (D2): SE-mode null statically root-caused; FS-mode hook firing confirmed
 
-The 2×2 design {D1, D2} × {on, off} ran to completion. D1-only: 30 injected → 28 SDC-detectable. **D2-only: 50 injected → 0 observable failures.** The D2 hook is verified correct (`nm` confirms `CHAOSAddrPath::corruptAddr` in the binary; `stats.txt` shows `numAddrFaults=50`; `addr_path_injections.log` confirms pre-`translateTiming` corruption). The root cause is **gem5 SE-mode address-space geometry**, not a hook-position or logic error: SE mode uses a 512 MiB physical memory starting at address 0 (`mem_ranges=[AddrRange("512MiB")]`), and `translateSe→translateMmuOff` does `req->setPaddr(vaddr)` (VA==PA, identity). Byte7 zeroing turns a canonical user VA (`0x0000…7f…`) into `0x0000…7f…` with MSB already 0 — the corrupted address still falls inside `[0, 0x20000000)` and *hits physical memory*, reading garbage without faulting. In FS mode, kernel VAs live at `0xffff…`; byte7 zeroing makes them non-canonical → translation fault. **H6 therefore requires FS mode to test faithfully; the SE-mode null result is a geometry artifact, not evidence against D2 physics.**
+The 2×2 design {D1, D2} × {on, off} ran to completion in SE mode. D1-only: 30 injected → 28 SDC-detectable. **D2-only: 50 injected → 0 observable failures.** The D2 hook is verified correct (`nm` confirms `CHAOSAddrPath::corruptAddr` in the binary; `stats.txt` shows `numAddrFaults=50`; `addr_path_injections.log` confirms pre-`translateTiming` corruption). The SE-mode null is **statically root-caused, not merely inferred**: `mmu.cc:1213` dispatches to `translateMmuOff` when `SCTLR.M=0` (SE), which does `req->setPaddr(vaddr)` (VA==PA identity). SE physical memory is `[0, 512 MiB)` starting at address 0; byte7 zeroing turns a canonical user VA (`0x0000…7f…`) into an address whose MSB was already 0 — still inside `[0, 0x20000000)`, *hitting physical memory and reading garbage without faulting*. In FS, kernel VAs live at `0xffff…`; byte7 zeroing makes them non-canonical → translation fault.
 
-### 5.4 H7 (executed; SE-mode root cause precisely identified, honest)
+**FS-mode confirmation (new).** Under `o3_chaos_fs.py`, the D2 hook fires under MMU-on translation. At `--addr-prob 0.5 --seed 42 --max-tick 400M` we observe `numAddrFaults=20` with a real injection log; a controlled low-probability arm (`--addr-prob 0.001`) produces `numAddrFaults=1` whose log entry is the **on-silicon D2 signature reproduced in simulation**:
 
-All arms report `numFaultsInjected = 0`. The D3 hook (`table_walker.cc::doLongDescriptor`) is verified present and compiled, but SE mode never enters `doLongDescriptor` because `translateSe→translateMmuOff` performs `setPaddr(vaddr)` directly — **no page-table walk occurs in SE mode**. This is the same SE-mode limitation as D2: the ARM MMU is off, so the PTW readout path (where D3 and the 73 on-silicon spurious faults live) is never exercised. **H7 requires FS (MMU-on) mode.**
+```
+Cycle: 151978, Seq: 4237, Site: load_effAddr,
+  Orig: 0xffffffc008b08f30 → Corrupted: 0xffffc008b08f30
+```
+
+A canonical kernel address (`0xffffffc0…`) had its byte7 zeroed to `0xffffc0…` (non-canonical) — exactly the §3.3 signature (architectural MSB ≠ 0 reduced to MSB = 0 at the MMU). **SE mode cannot produce this** (the zeroed address still falls in physical memory and faults nowhere). This establishes that the D2 *mechanism* is exercisable in simulation; the *quantitative* D1-vs-D2 spectrum separability (the falsifiable core of H6) is not yet established and requires multiple seeds and FS progression to a recoverable/contrastable state.
+
+### 5.4 H7 (D3): SE-mode null statically root-caused; FS-mode hook firing confirmed; quantitative contrast bounded by walk density
+
+All SE arms report `numFaultsInjected = 0`. The D3 hook (`table_walker.cc::doLongDescriptor`) is verified present and compiled, but SE mode never enters `doLongDescriptor` because `translateMmuOff` performs `setPaddr(vaddr)` directly — **no page-table walk occurs in SE mode** (§2.4).
+
+**FS-mode confirmation (new).** Under `o3_chaos_fs.py` with `--ptw-prob 0.5 --seed 0 --max-tick 400M`, the D3 hook fires extensively:
+
+| stat | value (one run) |
+|---|---|
+| `numHooksCalled` | 15 809 |
+| `numFaultsInjected` | 7 860 |
+| `numSpuriousFaults` | 7 631 |
+| `numBenignFlips` | 229 |
+
+> **Honest note on run-to-run variance.** Because the default `seed=0` seeds the injector's RNG from `std::random_device` (runtime entropy), these counts vary across runs at the same parameters (a prior run recorded 7 963 / 7 727). The *magnitude* (≈7 800 injected, ≈7 600 spurious, ≈97% of flips yielding an invalid PTE) is stable; the exact figure is not. We do not present a single deterministic number as reproducible.
+
+> **Honest note on injection realism.** The `ptw_injections.log` includes entries on early-boot descriptors such as `DescAddr: 0x200, Orig: 0x0` (a zero/invalid descriptor fetched during initial table setup). These are not "real PTE corruption" of a live mapping; they are the injector operating on whatever the walker fetched. The high-probability run is therefore a *reachability and amplification* demonstration — the large counts reflect a cascade (a flipped PTE triggers a translation fault, the retry re-walks, the walker fetches again and may be flipped again) rather than 7 800 independent real-mapping corruptions.
+
+**The quantitative H7 contrast (ECC on/off spurious rate) is bounded by walk density, which we measure.** We added `numHooksCalled` to both D2 and D3 specifically to make the trigger base explicit. Measured at `prob=1e-9` (injector active, virtually never corrupts, so `numHooksCalled` = true trigger density), seed 42, single-CPU FS:
+
+| tick budget | D2 `numHooksCalled` (loads) | D3 `numHooksCalled` (walks) | `simInsts` |
+|---|---|---|---|
+| 50 M | 23 | 0 | 2 071 |
+| 100 M | 4 464 | 12 | 21 859 |
+| 200 M | 23 089 | 14 | 100 722 |
+| 400 M | 61 081 | 17 | 259 186 |
+
+Two honest consequences:
+
+1. **MMU-on occurs between 50 M and 100 M ticks** (D3 `numHooksCalled` goes 0→12; D2 already nonzero at 50 M because loads exist pre-MMU-on). After MMU-on, kernel-mode TLB hit rate is so high that **walk density is only 17 / 259 186 instructions = 0.0066%**. The D3 high-`prob` counts above are therefore dominated by the *cascade* amplifier, not native walk density.
+
+2. **The controlled low-probability H7 arms see zero injections in the reachable budget.** At `--ptw-prob 0.001` over 200 M ticks (14 walks), the expected hits are ≈0.014 → all three ECC arms (off / on-1bit / on-2bit) report `numFaultsInjected=0`. At `--ptw-prob 0.1` over 200 M ticks, `numFaultsInjected=1`. These sample sizes cannot support an ECC on/off spurious-rate claim. Resolving H7 quantitatively requires FS to reach Linux userspace (many processes, `mmap`/TLB-flush pressure raising walk density), which on the single-CPU simulator at ≈130 k inst/s is ≈1–2 h wall per arm — **future work**.
+
+### 5.5 D2 vs D3 trigger density (a methodological finding)
+
+The density table above is itself a result: the D2 (load-path) trigger base is ≈3 500× denser than the D3 (walk) base (61 081 vs 17 at 400 M). This means H6's D2 arm is *sample-feasible* in the early-boot budget in a way H7's D3 arm is not. It also explains, post hoc, why the on-silicon D3 symptom (73 spurious faults) is rare relative to the D1/D2 load-path symptoms: on silicon too, the walk path is exercised far less often than the load path, so a walk-path defect surfaces as a low-rate spurious-fault stream rather than a high-rate SDC stream — exactly the 73-vs-5/78 split we observe.
 
 ---
 
@@ -148,9 +199,12 @@ All arms report `numFaultsInjected = 0`. The D3 hook (`table_walker.cc::doLongDe
 
 ## 7. Threats to Validity
 
-- **The fault host is the defect host.** gem5 was built and all FI runs executed with CPU 179 isolated via `taskset`; the link phase saw repeated transient param-file failures (a known SDC-affected-compile signature), resolved by single-threaded linking. Repeated relink attempts after source edits intermittently produced no binary despite `scons` reporting success — consistent with SDC-affected linking. H5 was verified on the *first* clean full build; subsequent rebuilds of the modified tree are less reliable. H5 should be re-confirmed on a second healthy machine.
-- **Second healthy machine was not reachable.** Three peer servers were offered (sdc1-01-02 at 123.60.114.33 ports 33455/33457/33458); ICMP ping succeeded (0.2 ms) but **all SSH/TCP ports timed out** (`nc -zv` TIMEOUT, `ssh` Connection timed out) — the ports are firewalled/NAT-filtered. We did not fabricate a second-machine reproduction; H5 stands as single-machine-with-isolation.
-- **H6/H7 blocked by SE-mode geometry, not by code.** Both injectors are correctly implemented and compiled in; the SE-mode null results are precisely root-caused (§5.3–5.4) to address-space geometry (D2) and MMU-off/no-walk (D3). FS-mode verification requires an AArch64 kernel+dish image; `dist.gem5.org` exact filenames could not be resolved and `raw.githubusercontent.com`/`gem5.googlesource.com` timed out from this host, so no FS image was obtained. This is a verification-environment gap, not a methodology gap.
+- **The fault host is the defect host.** gem5 was built and all FI runs executed with CPU 179 isolated via `taskset`; the link phase saw repeated transient param-file failures (a known SDC-affected-compile signature), resolved by single-threaded (`-j1`) and cautious `-j4` linking on healthy cores. Repeated relink attempts after source edits intermittently produced no binary despite `scons` reporting success — consistent with SDC-affected linking. H5 was verified on the *first* clean full build; subsequent rebuilds of the modified tree are less reliable. H5 and the FS-mode confirmations should be re-confirmed on a second healthy machine.
+- **Second healthy machine was not reachable.** Three peer servers were offered (sdc1-01-02 at 123.60.114.33 ports 33455/33457/33458); ICMP ping succeeded (0.2 ms) but **all SSH/TCP ports timed out** (`nc -zv` TIMEOUT, `ssh` Connection timed out) — the ports are firewalled/NAT-filtered. We did not fabricate a second-machine reproduction; results stand as single-machine-with-isolation.
+- **FS image availability (corrected).** An earlier draft stated no AArch64 FS image could be obtained. **This is no longer true:** the `gem5-fs/` directory now contains a verified four-file set — `vmlinux` (Linux 5.15.36, ELF64 AArch64, entry `0xffffffc008000000`), `ubuntu.img` (2.36 GB), `boot_emm.arm64`, and DTBs — all `readelf`/`stat`-confirmed. FS boot proceeds past the file-load stage (gem5 prints `kernel located at …`, `Using bootloader at address 0x10`, `kernel entry physical address at 0x80000000`, `Loading DTB … at 0x88000000`, `Simulated platform: VExpress_GEM5_V1`). Full boot to a Linux shell requires ≈1–2 h wall on the single-CPU simulator (≈130 k inst/s measured, CPI 0.72) and is not completed in this work.
+- **H6/H7 status is exactly bounded, not over- or under-stated.** The SE-mode null results are statically root-caused to the ARM MMU translation model (§2.4, §5.3–5.4), not to injector logic. The FS-mode runs confirm D2 and D3 *hooks fire* under MMU-on translation and reproduce the on-silicon D2 signature (canonical→non-canonical) — this is a real, falsifiable advance. What is **not** claimed: the quantitative H6 spectrum-separability and H7 ECC-on/off spurious-rate conclusions, which require FS progression to userspace and are future work. A reviewer demanding "did you verify H6/H7?" gets an honest "partially: mechanism yes, quantitative contrast no, here is the density measurement that bounds it."
+- **Seed-0 run-to-run variance.** D3 high-probability counts vary across runs (≈7 860 vs 7 963 injected) because `seed=0` uses runtime entropy. We report magnitudes, not deterministic figures. (This in turn exposed and was the trigger for fixing the member-init-order bug below.)
+- **A latent injector bug was found and fixed during FS work.** All three injectors initialized `rng(rng_seed != 0 ? rng_seed : rd())` in the member-init list, but `rng` is declared before `rd` in the header, so C++ initializes `rng` first and calls `rd()` on an unconstructed `std::random_device` → undefined behavior → `SIGSEGV` at `0x7473696c` ("list") inside `std::random_device::operator()` during construction, for any `seed=0`. This is why prior H6/H7 *SE* runs (which used `seed≠0` and thus never called `rd()`) completed, while FS runs (default `seed=0`) crashed on construction. Fixed with an immediately-invoked lambda constructing a local `std::random_device`; verified `--seed=0` no longer crashes and H5 (`seed=42`) regression is unchanged (`numStructuralByteLaneSkew=30, fails=29`).
 - **gem5 O3 ≠ TSV110 RTL.** The injection points are gem5's O3 LSQ/address/PTW paths, not the silicon geometry. Ecological validity is supplied by the three on-silicon reproduction reports (movbe, cross-pathway, undervolt) and this study's vmcores.
 - **D2 evidence is 2/5.** We do not over-claim; D2 is "confirmed-weak," honestly bounded in §3.3.
 - **Single/multiple defect unresolvable in software** (§3.5).
@@ -159,7 +213,7 @@ All arms report `numFaultsInjected = 0`. The D3 hook (`table_walker.cc::doLongDe
 
 ## 8. Data and Code Availability
 
-All vmcore-derived artifacts (`p1_events.csv`, per-cpu arrays, panic blocks), the three injector modules, the probe, the experiment scripts (`run_H6.sh`, `run_H7.sh`), and the full diagnosis reports are on branch `docs/core179-microarch-rootcause`. The vmcores themselves are 180 GB and not redistributable, but every claim cites a reproducible `crash`/`objdump`/`python` command in the supplementary reports.
+All vmcore-derived artifacts (`p1_events.csv`, per-cpu arrays, panic blocks), the three injector modules (`CHAOSLSQFwd`/`CHAOSAddrPath`/`CHAOSPTW`), the probe (`ptrskew_kernel.c`), the SE and FS experiment configurations (`o3_chaos_smoke.py`, `o3_chaos_fs.py`), the experiment scripts (`run_H6.sh`, `run_H7.sh`), and the full diagnosis reports are on branch `docs/core179-microarch-rootcause`. The vmcores themselves are 180 GB and not redistributable, but every claim cites a reproducible `crash`/`objdump`/`python`/`gem5.opt` command in the supplementary reports. The FS support files (`gem5-fs/`, ≈2.5 GB) are `.gitignore`d (only the README is tracked) but are described and path-verified in `gem5-fs/readme.md`.
 
 ---
 
