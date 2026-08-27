@@ -129,6 +129,38 @@ tighter O3 window / directed cache-line target. The L1D/L1I pilots
 "all Masked"/"all Hang" claims can stand — that is a follow-up, not
 this round.
 
+### Grid 2b/3b — L1D/L1I random-pilot RE-RUN with the honest classifier
+
+The §六.3 "fixed-to" directed runs need a directed byte/line injector
+(not yet a CHAOSCache knob). But the RANDOM-pilot re-run (random byte/
+line sampled by rngSeed) is doable now and verifies the classifier works
+on the cache path end-to-end. Done:
+
+- **L1D re-run** (l1d_reduce, O3, 5 seeds, random cache block/byte,
+  maxFaults=1): each run injected exactly 1 fault at a distinct byte
+  offset (byte3/16/36/38/42 across 64B blocks). **5/5 Masked**
+  (golden `f44d2b9cd4a173cd`). Honest cache AVF — a random transient
+  byte rarely hits the live value before overwrite. (Direction matches
+  the old `d72c61e`, now correctly classified + single-fault.)
+- **L1I re-run** (l1i_loop, O3, 10 seeds, random cache block/byte,
+  maxFaults=1): **10/10 Hang**. VERIFIED Hang is real (not a misclassified
+  Crash/SimError): seed 20260825 — exit 124 (timeout), no checksum, NO
+  panic/trap/SIGSEGV in stderr (only benign `info: Increasing stack
+  size`). Injection log: `Cache Block Addr: 51392, Byte Offset: 38,
+  Mask: 01000000` (bit 6 of an instruction byte flipped → loop control
+  corrupted → infinite loop). l1i_loop is a tight fixed-instruction
+  loop, so most instruction-field flips corrupt control flow (Hang) or
+  make illegal encodings (Crash); 10/10 Hang here is honest for THIS
+  kernel. A Crash case (legal-but-wrong → SDC, or illegal → trap) would
+  need a directed flip on a specific instruction field — deferred.
+
+Honest note: the §六.3 "fixed-to-live-data"/"fixed-to-executed-instr"
+directed runs are STILL deferred (need a directed cache byte/line knob
+in CHAOSCache — a feature patch). The random re-runs above prove the
+classifier + single-fault + evidence log work on the cache path, and
+confirm the L1D-Masked / L1I-Hang directions honestly (now classified
+correctly), but do NOT replace directed formal cells.
+
 ## What is the platform / build
 
 - gem5 v25.1.0.1 (commit `62c7bf284864b83f7308f5e14ca9c80812621c29`) vendored

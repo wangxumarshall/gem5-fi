@@ -211,6 +211,15 @@ $G5 --quiet --outdir=runs/cache configs/se/arm_chaos_cache.py \
 - **网格4 内存首/末/单字节**：CHAOSMem 在 l1d_reduce（512KiB BSS 数组）上，maxFaults=1。闭区间 `[start,end]` + 单字节 `[n,n]` 边界正确：首字节经 `[0,1]` 可达（addr 0）；中位 `[0x100000,0x100000]`→addr 1048576；末字节 `[0x3FFFFFFF,...]`→addr 1073741823（旧代码会丢末字节，G4 已修）。注：`addr_end=0` 是"不限"约定（同 lastClock=0，非 bug）。全 BSS 范围 5 随机 seed→5/5 Masked（瞬态单字节多被掩蔽，诚实内存 AVF）。
 - **网格2/3（L1D 定到活数据、L1I 定到执行指令）**：需 cache config + 更紧 O3 窗口/定向 cache line，L1D/L1I 旧 pilot（d72c61e/8beeea1）须用修好的分类器重跑后才能立"全 Masked/全 Hang"之说——本轮未做，后续。
 
+### 网格2b/3b — L1D/L1I 随机 pilot 重跑（修好的分类器，cache 路径端到端）
+
+§六.3 的"定向"（定到活数据/执行指令）需要定向 byte/line 注入器（CHAOSCache 还没有该旋钮）。但随机 pilot 重跑（rngSeed 随机采样 block/byte）现在可做，验证分类器在 cache 路径端到端工作：
+
+- **L1D 重跑**（l1d_reduce，O3，5 seed，随机 block/byte，maxFaults=1）：每次恰好 1 注入、不同字节偏移（byte3/16/36/38/42）。**5/5 Masked**（golden `f44d2b9cd4a173cd`）。诚实 cache AVF——随机瞬态字节很少命中被读的活值。
+- **L1I 重跑**（l1i_loop，O3，10 seed，随机 block/byte，maxFaults=1）：**10/10 Hang**。**已验证 Hang 为真**（非误判 Crash/SimError）：seed 20260825——exit 124（超时）、无 checksum、stderr 无 panic/trap/SIGSEGV（仅良性 `info: Increasing stack size`）。注入日志 `Cache Block Addr: 51392, Byte Offset: 38, Mask: 01000000`（指令字节 bit6 翻→循环控制破坏→死循环）。l1i_loop 是紧固定指令循环，多数指令字段翻→Hang，10/10 Hang 对**这个 kernel** 诚实成立。
+
+诚实留白：§六.3 的"定向到活数据/执行指令"仍待做（需 CHAOSCache 加定向 byte/line 旋钮——一个 feature 补丁）。上面的随机重跑证明分类器+单故障+证据日志在 cache 路径端到端工作，诚实确认了 L1D-Masked / L1I-Hang 方向（现已正确分类），但不替代定向 formal cell。
+
 ---
 
 ## 七、一句话诚实结论
