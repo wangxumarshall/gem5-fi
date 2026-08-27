@@ -203,6 +203,14 @@ $G5 --quiet --outdir=runs/cache configs/se/arm_chaos_cache.py \
 
 **可保留的可复现锚点**（修复后已验证）：reg_chain golden `f247ef3fe6f02cfd`；X3 arch_frontend 1-bit-flip = `d43a25d7fcc218b7`（SDC）；G2 stuck = `00ff0000dee1f5d0`；manifest physreg idx=3 bit=[20] = `88ff2422239b4952`（SDC）。
 
+### 第三步最小重跑（报告 §六.3，修好工具后诚实重采）
+
+报告 §六.3 要求用修好的工具重跑最易验证的几组、确认稳定重放+分类正确后再扩样。已做（详见 `docs/arm64-sdc-STATUS.md` 的 Step-3 节）：
+
+- **网格1 GPR X2/X3 × bit 0/31/32/63**（替代被作废的 `3551d57`）：arch_frontend、显式 `--fault_mask=1<<k`（64 位，bit32/63 现在真翻转）。诚实分类结果：X2 bit0→SDC、bit31/32/63→**Hang**（超时 exit 124，stderr 无 panic/trap，已验证是真 Hang 非误判 Crash）；X3 bit0/31/32/63 全→SDC。**合计 SDC=5 Hang=3**。每格都精确命中指定 arch reg（X2→PhysReg[187]、X3→PhysReg[77]，均 `<= ArchReg[k]`），单故障。结论：SDC-vs-Hang 是**按寄存器**区分的（X2 是循环计数器，高位翻→Hang；X3 是数据累加器，全位→SDC），不是旧说法的笼统"高位→Hang"——旧说法既受 32 位截断伪影影响、又过度泛化。
+- **网格4 内存首/末/单字节**：CHAOSMem 在 l1d_reduce（512KiB BSS 数组）上，maxFaults=1。闭区间 `[start,end]` + 单字节 `[n,n]` 边界正确：首字节经 `[0,1]` 可达（addr 0）；中位 `[0x100000,0x100000]`→addr 1048576；末字节 `[0x3FFFFFFF,...]`→addr 1073741823（旧代码会丢末字节，G4 已修）。注：`addr_end=0` 是"不限"约定（同 lastClock=0，非 bug）。全 BSS 范围 5 随机 seed→5/5 Masked（瞬态单字节多被掩蔽，诚实内存 AVF）。
+- **网格2/3（L1D 定到活数据、L1I 定到执行指令）**：需 cache config + 更紧 O3 窗口/定向 cache line，L1D/L1I 旧 pilot（d72c61e/8beeea1）须用修好的分类器重跑后才能立"全 Masked/全 Hang"之说——本轮未做，后续。
+
 ---
 
 ## 七、一句话诚实结论

@@ -72,6 +72,63 @@ They are therefore NOT trustworthy as-is and are flagged here:
 - G2 persistence: stuck_at_one 0xff PhysReg[80] → `00ff0000dee1f5d0` (golden `00000000dee1f5d0`)
 - Manifest physreg idx=3 bit=[20] → `PhysReg[77] (<= ArchReg[3])` SDC `88ff2422239b4952`
 
+## Step-3 minimal re-runs (report §六.3, post-fix honest re-collection)
+
+The report's §六.3 asks to re-run the easiest-to-verify groups with the
+fixed tooling (64-bit masks + honest classifier + single-fault + evidence
+log), confirm stable replay + correct classification, THEN scale. Done:
+
+### Grid 1 — GPR X2/X3 × bits 0/31/32/63 (replaces invalidated `3551d57`)
+
+CHAOSPhysReg arch_frontend, reg_chain, O3, firstClock=100000, maxFaults=1,
+seed=20260825, explicit `--fault_mask=1<<k` (now 64-bit, so bit32/bit63
+actually flip). Honest §9.1 classification (Hang = timeout, no trap):
+
+| reg | bit0 | bit31 | bit32 | bit63 |
+|---|---|---|---|---|
+| X2 | SDC `25e4130b0408b2cd` | **Hang** (timeout, exit 124, no trap) | **Hang** | **Hang** |
+| X3 | SDC `ace5d7dcf0bbe4df` | SDC `cf415a9e6b07af9a` | SDC `dbdd0f0aad30df0b` | SDC `d9a35c115042d41a` |
+
+**Totals: SDC=5, Hang=3.** Each cell hit the explicit arch reg (X2→
+PhysReg[187], X3→PhysReg[77], both `<= ArchReg[k]`) with exactly 1 fault.
+The three Hangs were VERIFIED to be real timeouts (exit 124 from the
+240s Hang cutoff, NO panic/assert/SIGSEGV/trap in stderr — not a
+misclassified Crash/SimulatorError). This replaces the old `3551d57`
+"SDC=3/Hang=5": the difference is the SDC-vs-Hang split is REGISTER-
+SPECIFIC, not generic "high-bit": **X2 high bits → Hang (control-flow
+corruption: X2 is the loop counter); X3 (data accumulator) all bits →
+SDC.** The old "high-bit→Hang" claim was both artifact (bit32/63 were
+never injected before the 64-bit fix) AND over-generalized (it's X2,
+not all high bits).
+
+### Grid 4 — memory first/last/single-byte (report §六.3 grid 4)
+
+CHAOSMem on l1d_reduce (512KiB BSS array `data[65536]`), Timing, maxFaults=1,
+evidence log asserts exactly 1 fault. Boundary correctness (G4 closed
+interval `[start,end]`, single-byte `[n,n]`):
+
+| window | target addr logged | faults | class |
+|---|---|---|---|
+| `[0,1]` (first byte reachable) | 0 | 1 | Masked |
+| `[0x100000,0x100000]` (single mid byte) | 1048576 | 1 | Masked |
+| `[0x3FFFFFFF,0x3FFFFFFF]` (last byte) | 1073741823 | 1 | Masked |
+
+NOTE: `addr_end=0` is the "unrestricted" convention (NOT a bug — same as
+lastClock=0); to reach the very first byte use a 2-byte window `[0,1]`.
+The last byte IS reachable (old code dropped it; G4 fixed). 5 random seeds
+over the full BSS range: 5/5 Masked — a single transient byte flip on a
+512KiB array is mostly masked (the byte is rarely the one live at read,
+or is overwritten before read) — honest memory AVF, consistent with the
+old `d72c61e` direction but now correctly classified + single-fault.
+
+### Grid 2/3 (L1D fixed-to-live-data, L1I fixed-to-executed-instr) — deferred
+
+These need the cache config (configs/se/arm_chaos_cache.py) with a
+tighter O3 window / directed cache-line target. The L1D/L1I pilots
+(d72c61e/8beeea1) need re-run with the honest classifier before their
+"all Masked"/"all Hang" claims can stand — that is a follow-up, not
+this round.
+
 ## What is the platform / build
 
 - gem5 v25.1.0.1 (commit `62c7bf284864b83f7308f5e14ca9c80812621c29`) vendored
