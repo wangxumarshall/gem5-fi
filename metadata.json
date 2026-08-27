@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.10.2",
+  "checkpoint_id": "01M11DWR0FVKCR9WJEDGC6V7RN",
+  "strategy": "manual-commit",
+  "branch": "fi-h6-h7-fs-verify",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "docs/cases/core179-microarch-rootcause-synthesis/FI_DESIGN_SUPPLEMENT.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 328113,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 2358400,
+    "output_tokens": 4336,
+    "api_call_count": 8
+  }
+}
