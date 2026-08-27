@@ -17,7 +17,7 @@
 
 import argparse
 import m5
-from m5.objects import CHAOSReg, CHAOSPhysReg, CHAOSMem
+from m5.objects import CHAOSReg, CHAOSPhysReg, CHAOSMem, CHAOSLSQFwd
 from gem5.components.boards.simple_board import SimpleBoard
 from gem5.components.cachehierarchies.classic.private_l1_private_l2_cache_hierarchy import (
     PrivateL1PrivateL2CacheHierarchy,
@@ -72,6 +72,14 @@ p.add_argument("--addr_end", type=lambda x: int(x,0), default=0)
 p.add_argument("--bit_flip_prob", type=float, default=0.9)
 p.add_argument("--stuck_at_zero_prob", type=float, default=0.05)
 p.add_argument("--stuck_at_one_prob", type=float, default=0.05)
+# CHAOSLSQFwd (store->load forwarding-path injector; O3 only). It
+# SELF-ATTACHES: its constructor does `cpu->lsqFwd = this` (no python
+# setLSQFwd call needed — that method has no python binding anyway).
+# Just instantiate it with cpu=cpu0; lsq_unit.cc reaches it via cpu->lsqFwd.
+p.add_argument("--chaos_lsqfwd", action="store_true",
+               help="attach CHAOSLSQFwd (O3 store->load forwarding-path FI)")
+p.add_argument("--lsq_byte_offset", type=int, default=-1,
+               help="CHAOSLSQFwd directed byte offset within forwarded data")
 args = p.parse_args()
 
 cache_hierarchy = PrivateL1PrivateL2CacheHierarchy(
@@ -152,6 +160,29 @@ if args.chaos_mem:
         maxFaults=args.max_faults,
         writeLog=True,
     )
+
+if args.chaos_lsqfwd:
+    # Phase 2 §六.4 item 2 (LSQ store->load forwarding): CHAOSLSQFwd is
+    # O3-only and SELF-ATTACHES — its constructor sets `cpu->lsqFwd = this`
+    # (CHAOSLSQFwd.cc:50), so lsq_unit.cc's forward-path call site
+    # (lsq_unit.cc:1498, `if (cpu->lsqFwd) cpu->lsqFwd->corrupt(...)`)
+    # reaches it. No python setLSQFwd call (that method has no python
+    # binding; the self-attach is the intended mechanism). Instantiating
+    # the SimObject as a board child is enough.
+    lsq = CHAOSLSQFwd(
+        cpu=cpu0,
+        probability=args.probability,
+        faultType=args.fault_type,
+        faultMask=str(args.fault_mask),
+        bitsToChange=args.bits_to_change,
+        byteOffset=args.lsq_byte_offset,
+        firstClock=args.first_clock,
+        lastClock=args.last_clock,
+        maxFaults=args.max_faults,
+        rngSeed=args.rng_seed,
+        writeLog=True,
+    )
+    board.chaos_lsqfwd = lsq
 
 if args.maxinsts:
     cpu0.max_insts = args.maxinsts

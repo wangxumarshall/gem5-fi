@@ -256,16 +256,23 @@ ENOSPC-killed a G4 test on this 29GB host).
   Honest scope: this is the vec PATH (low-64-bit word flip). Per-lane
   targeting (a specific 32-bit lane of the 128-bit V reg) is NOT done —
   needs a vec-lane-offset knob. Formal per-lane cells deferred.
-- **Item 2 — LSQ store->load forwarding**: NOT DONE — BLOCKED by a
-  parallel-session gap. CHAOSLSQFwd exists and is wired into lsq_unit.cc
-  (cpu->lsqFwd->corrupt() on a store->load forward), and has the gate
-  params (rngSeed/maxFaults/firstClock/writeLog). BUT `BaseO3CPU::setLSQFwd`
-  has NO Python binding (cpu.hh declares it, but it isn't wrapped for
-  Python via the SimObject pybind). So a config cannot call
-  `cpu0.setLSQFwd(lsq)` — `AttributeError: object 'ArmO3CPU' has no
-  attribute 'setLSQFwd'` (C++ object not yet constructed / not wrapped).
-  Fixing this needs a pybind `def("setLSQFwd", ...)` in the BaseO3CPU
-  Python wrapper — a deeper gem5-internal patch, NOT in this round.
-  The fp_fwd_kernel.c workload (store->load forward, self-detecting
-  fails) exists and its golden (`iters=500 fails=0`) runs on O3, ready
-  for when the binding lands.
+- **Item 2 — LSQ store->load forwarding**: DONE (config wired, SDC
+  verified). CHAOSLSQFwd exists (parallel-session), is wired into
+  lsq_unit.cc (cpu->lsqFwd->corrupt() on a store->load forward), and
+  has the gate params. KEY: it SELF-ATTACHES — its constructor does
+  `cpu->lsqFwd = this` (CHAOSLSQFwd.cc:50), so the config just
+  instantiates `CHAOSLSQFwd(cpu=cpu0)` as a board child (no
+  `setLSQFwd` call — that method has no Python binding, but isn't
+  needed). Wired into configs/se/arm_chaos.py via `--chaos_lsqfwd`.
+  Verified SDC on workloads/directed/fp_fwd_kernel (store->load forward,
+  self-detecting `fails` count), O3:
+    - golden (no inj): iters=500 fails=0 exit 0.
+    - firstClock=1000000 (comparison loop): fails=1 — DETECTED SDC.
+      Log: Site: store->load_forward, Vaddr 0x4983b8, ByteOffset 3, Mask 0x4.
+    - firstClock=10000 (fill phase — flip overwritten by re-write): fails=0 (masked). TIMING matters.
+    - multi-inject (prob=0.01, maxFaults=0): fails=10318 / 10551 injections → ~98% of forwarding-path faults are DETECTED SDC (DUE-class under a self-checking workload).
+  Honest scope: the `fails>0` SDC is DETECTED (the workload self-checks
+  → DUE), not silent. A silent SDC needs a non-self-checking workload +
+  output checksum. CHAOSLSQFwd still has faultMask UInt32 (32-bit, like
+  issue #2) and a -Wswitch Random warning (G7) — parallel-session
+  leftovers, byte-level so not critical. Formal LSQ cells deferred.
