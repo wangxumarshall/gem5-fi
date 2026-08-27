@@ -3,25 +3,23 @@
   "checkpoint_id": "01M0YP29XKBPS4BA9B1S56BYPV",
   "session_id": "679512f6-595b-4bff-884a-0e2097ca58db",
   "strategy": "manual-commit",
-  "created_at": "2026-08-26T13:44:04.058614961Z",
+  "created_at": "2026-08-27T01:20:30.667741434Z",
   "branch": "fix/fi-tool-correctness",
   "checkpoints_count": 1,
-  "files_touched": [
-    "docs/arm64-sdc-STATUS.md",
-    "progress.md"
-  ],
+  "save_step_count": 1,
+  "files_touched": [],
   "agent": "Claude Code",
   "model": "glm-5.2",
-  "turn_id": "2754b629a043",
-  "checkpoint_transcript_start": 1647,
-  "transcript_lines_at_start": 1647,
-  "compact_transcript_start": 272,
+  "turn_id": "aa111be016b3",
+  "checkpoint_transcript_start": 1817,
+  "transcript_lines_at_start": 1817,
+  "compact_transcript_start": 301,
   "token_usage": {
-    "input_tokens": 1034728,
+    "input_tokens": 439642,
     "cache_creation_tokens": 0,
-    "cache_read_tokens": 4747136,
-    "output_tokens": 9765,
-    "api_call_count": 28
+    "cache_read_tokens": 5540608,
+    "output_tokens": 13407,
+    "api_call_count": 27
   },
   "skill_events_version": 1,
   "skill_events": [
@@ -48,16 +46,23 @@
       }
     }
   ],
-  "initial_attribution": {
-    "calculated_at": "2026-08-26T13:44:03.730604863Z",
-    "agent_lines": 139,
-    "agent_removed": 78,
-    "human_added": 0,
-    "human_modified": 0,
-    "human_removed": 0,
-    "total_committed": 139,
-    "total_lines_changed": 217,
-    "agent_percentage": 100,
-    "metric_version": 2
-  }
+  "session_metrics": {
+    "turn_count": 1
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    },
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 162014,
+      "agent_lines_removed": 0
+    }
+  ]
 }

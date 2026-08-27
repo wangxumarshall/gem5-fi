@@ -4,10 +4,7 @@
   "strategy": "manual-commit",
   "branch": "fix/fi-tool-correctness",
   "checkpoints_count": 3,
-  "files_touched": [
-    "docs/arm64-sdc-STATUS.md",
-    "progress.md"
-  ],
+  "files_touched": null,
   "sessions": [
     {
       "metadata": "/0/metadata.json",
@@ -21,15 +18,15 @@
       "transcript": "/1/full.jsonl",
       "compact_transcript": "/1/transcript.jsonl",
       "content_hash": "/1/content_hash.txt",
-      "prompt": ""
+      "prompt": "/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 2180619,
+    "input_tokens": 1585533,
     "cache_creation_tokens": 0,
-    "cache_read_tokens": 38195072,
-    "output_tokens": 35713,
-    "api_call_count": 120
+    "cache_read_tokens": 38988544,
+    "output_tokens": 39355,
+    "api_call_count": 119
   },
   "combined_attribution": {
     "calculated_at": "2026-08-26T12:07:25.329869233Z",
