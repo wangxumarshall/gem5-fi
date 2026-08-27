@@ -100,11 +100,11 @@ To close the conjecture-verification loop we extend the CHAOS gem5 framework (ba
 
 The existing CHAOSLSQFwd corrupts one byte of store-forwarded data via AND/OR/XOR — a bit-flip model. The D1 signature (byte-lane rotation) is **not expressible as a bit flip** (§3.2), so we add a structural axis: `structuralFault ∈ {none, byte_lane_skew, all_zero}` with `skewBytes` (1–7, 0=random). The `byte_lane_skew` mode right-rotates the delivered word by k bytes; `all_zero` delivers an empty-slot word. The hook remains `lsq_unit.cc:1498` (post-forward `memcpy`).
 
-### 4.2 P-D2: address-path faults (CHAOSAddrPath, new)
+### 4.2 P-D2: address-path faults (CHAOSAddrPath)
 
 A new module hooking `lsq.cc::sendFragmentToTranslation` — the faithful address→MMU boundary — zeroes a byte of the request's `_vaddr` before `translateTiming`. A `Request::setVaddr()` mutator was added. **The hook is correctly placed at the pre-translation boundary;** what differs between SE and FS is not the hook position but whether translation walks a page table (FS, `SCTLR.M=1`) or short-circuits to identity (SE, `translateMmuOff`) — see §2.4. We add a `numHooksCalled` stat (counting every load's effAddr→MMU boundary call before gating) so that D2's *trigger base* (load density) is measurable independently of how many injections actually fire.
 
-### 4.3 P-D3: PTW-readout faults (CHAOSPTW, new)
+### 4.3 P-D3: PTW-readout faults (CHAOSPTW)
 
 A new module hooking `table_walker.cc::doLongDescriptor` — after the PTE is fetched and byte-swapped, before evaluation — bit-flips the descriptor. A `ptwEcc` knob models whether the PTW array has ECC (H7: single-bit flips are corrected when on). Attached via `mmu.hh::setPtwInj`. As with D2, a `numHooksCalled` stat counts every descriptor fetch that reached the hook, separating "no walk happened" from "walk happened but probability did not select it" — essential because early-boot FS walk density is very low (§5.4).
 
