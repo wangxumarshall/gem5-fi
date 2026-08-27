@@ -16,6 +16,21 @@
 >
 > **Linux 内核态 walk 密度突破（诚实，2026-08-27，更正"需到 bash"的悲观判断）**：上轮判断"H7 需 FS 到用户态才有足够 walk 密度"。本轮用 `o3_chaos_fs.py --ptw-prob 1e-9`（不破坏，纯密度测量）跑 timing FS 到 57B tick / 7828 万指令（28.7 分钟墙钟，SIGINT dump），实测 `numHooksCalled=54074`——即 **Linux 内核态启动期（未到 bash）walk 密度 = 54074 / 78286260 = 0.069%**，是早期 boot（17/259186=0.0066%）的 **10 倍**。这意味着 H7 的 ECC 对照**不必到 bash**——内核态启动（进程创建/页表 setup/mmap）已有足够 walk 采样基数。用 `--ptw-prob 1e-4` 期望 ~5 次注入/臂，配合受控 `--ptw-byte 0 --ptw-mask 1`（只翻 valid bit0），可做 ECC on/off 的 spurious 率对照（本轮进行中）。诚实更正：上轮"P0 在 virtio_blk 挂起"是误判——SIGINT dump 显示 P0 推进到 7828 万指令（virtio_blk 后又跑 5000 万），term log 断开不等于挂起；utime 涨不能区分推进 vs 空转，Linux 日志停滞才是判据，但 term reader 超时断开会造成"无新日志"假象。
 >
+> **H7 ECC 对照实验结果（诚实，2026-08-27，受控 D3 `--ptw-byte 0 --ptw-mask 1`，57B tick，seed 42，两臂并行）**：
+> - prob=1e-4：ECC-off `numFaultsInjected=4`，ECC-on `numFaultsInjected=0`（全被纠正→numBenignFlips=6）。样本量=4 不足。
+> - prob=1e-3（高样本）：
+>
+>   | stat | ECC-off | ECC-on |
+>   |---|---|---|
+>   | numHooksCalled | 37 305 | 54 149 |
+>   | numFaultsInjected | **40** | **0** |
+>   | numSpuriousFaults | 0 | 0 |
+>   | numBenignFlips | 40 | 60 |
+>
+> - **ECC 纠正效应强实证**：ECC-on 把全部 60 次 1-bit flip 纠正为 benign（`numFaultsInjected=0`），ECC-off 才有 40 个真实注入。**H7 的可证伪点之一（ECC-on 抑制注入）已验证**。
+> - **诚实未达成**：spurious 率对照未建立——两臂 `numSpuriousFaults` 都 0。根因（严格逻辑）：mask 0x01 只翻 bit0，但 ARM PTE 低 2 位是 descriptor type（0b11=table, 0b01=block, 0b00=invalid）；翻 bit0 使 0b11→0b10（仍 valid）、0b01→0b00（invalid）。40 个注入都落在非 0b01 的 PTE → 全 benign。**要制造 spurious 需翻两个 valid 位（mask 0x03，强制 bits[1:0]→0）或翻非 0b01 PTE 的两位**。这是下一步工作（P3 mask 调整）。
+> - **诚实瑕疵**：两臂 `numHooksCalled` 不同（37305 vs 54149）+ simInsts 不同——因 ECC-on 纠正注入改变执行流（注入影响后续页表/walk 路径），非严格同路径对照。这是单 seed + 注入改变流的固有局限，需多 seed 平均缓解。
+>
 > **FS-mode 钩子触发实证（诚实，更新于 2026-08-27）**：
 > - ✅ **rng-init-order bug 已发现并修复**：三注入器构造函数 `rng(rng_seed != 0 ? rng_seed : rd())` 因头文件成员声明顺序 `rng` 在 `rd` 前，`rng` 先初始化时调用未构造的 `rd()` → UB → `rng_seed=0` 必崩（gdb 回溯 `SIGSEGV at 0x7473696c`('list') in `std::random_device::operator()` 构造期）。修复：用立即调用 lambda 局部构造 `std::random_device`，不依赖成员顺序。`rng_seed!=0` 时用 seed 不触发 `rd()` 故 H5（seed 42）此前能跑通；H6/H7 默认 seed 0 即崩——**这解释了为何此前 H6/H7 SE 仍能跑**（用了非 0 seed）但 FS 测试默认 seed 0 必崩。修复后 `--seed 0` 不再 SIGSEGV。patch bc4feb4。
 > - ✅ **D2 在 FS 下触发实证**：新增 FS 注入配置 `fi_research/probes/o3_chaos_fs.py`（wrapper over `fs_bigLITTLE.build()`，挂 `CHAOSAddrPath`/`CHAOSPTW`/`CHAOSLSQFwd` 到 bigCluster.cpus[0] 及其 mmu）。实测 `--addr-prob 0.5 --seed 42 --max-tick 400M`：`numAddrFaults=20`，`addr_path_injections.log` 真实记录（`Cycle 556 Seq 19 Site load_effAddr Orig 0x120 Corrupted 0x120` 等）。**SE 下 D2=0 可观察失败；FS 下 D2=20 注入触发**。
