@@ -3,21 +3,21 @@
   "checkpoint_id": "01M0YP29XKBPS4BA9B1S56BYPV",
   "session_id": "679512f6-595b-4bff-884a-0e2097ca58db",
   "strategy": "manual-commit",
-  "created_at": "2026-08-27T01:53:21.575458976Z",
+  "created_at": "2026-08-27T02:51:07.420921353Z",
   "branch": "fix/fi-tool-correctness",
   "checkpoints_count": 1,
   "save_step_count": 2,
   "files_touched": [],
   "agent": "Claude Code",
   "model": "glm-5.2",
-  "turn_id": "b960285183b4",
+  "turn_id": "3d85a050e579",
   "compact_transcript_start": 0,
   "token_usage": {
-    "input_tokens": 3315531,
+    "input_tokens": 3819349,
     "cache_creation_tokens": 0,
-    "cache_read_tokens": 44361984,
-    "output_tokens": 119652,
-    "api_call_count": 323
+    "cache_read_tokens": 53183872,
+    "output_tokens": 133035,
+    "api_call_count": 360
   },
   "skill_events_version": 1,
   "skill_events": [
@@ -42,10 +42,32 @@
         "label": "/goal",
         "default_collapsed": true
       }
+    },
+    {
+      "id": "prompt-skill-claude-code-goal-2026-08-27T02:11:19.953843625Z",
+      "event_type": "prompt_invocation",
+      "skill": {
+        "name": "goal"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "prompt_slash_command",
+        "confidence": "explicit"
+      },
+      "turn_id": "3d85a050e579",
+      "timestamp": "2026-08-27T02:11:19.953843625Z",
+      "native": {
+        "command": "/goal"
+      },
+      "collapse": {
+        "target": "user_message",
+        "label": "/goal",
+        "default_collapsed": true
+      }
     }
   ],
   "session_metrics": {
-    "turn_count": 2
+    "turn_count": 3
   },
   "prompt_attributions": [
     {
@@ -59,7 +81,7 @@
       "checkpoint_number": 3,
       "user_lines_added": 283,
       "user_lines_removed": 0,
-      "agent_lines_added": 197622,
+      "agent_lines_added": 235893,
       "agent_lines_removed": 0,
       "user_added_per_file": {
         "docs/gem5-fi_branch_next_step.md": 283
