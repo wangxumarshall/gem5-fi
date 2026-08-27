@@ -3,7 +3,7 @@
   "checkpoint_id": "01M0YP29XKBPS4BA9B1S56BYPV",
   "session_id": "679512f6-595b-4bff-884a-0e2097ca58db",
   "strategy": "manual-commit",
-  "created_at": "2026-08-27T06:21:21.028423155Z",
+  "created_at": "2026-08-27T06:22:02.864580074Z",
   "branch": "fix/fi-tool-correctness",
   "checkpoints_count": 1,
   "save_step_count": 1,
@@ -13,11 +13,11 @@
   "turn_id": "35b9b42124e9",
   "compact_transcript_start": 0,
   "token_usage": {
-    "input_tokens": 4385225,
+    "input_tokens": 4385698,
     "cache_creation_tokens": 0,
-    "cache_read_tokens": 139256448,
-    "output_tokens": 215379,
-    "api_call_count": 622
+    "cache_read_tokens": 139646336,
+    "output_tokens": 216169,
+    "api_call_count": 623
   },
   "skill_events_version": 1,
   "skill_events": [
