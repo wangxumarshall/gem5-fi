@@ -21,7 +21,8 @@
 
 import argparse
 import m5
-from m5.objects import ArmDefaultRelease, VExpress_GEM5_Foundation, VExpress_GEM5_V1
+from m5.objects import (ArmDefaultRelease, VExpress_GEM5_Foundation,
+                        VExpress_GEM5_V1, CHAOSArmTLB)
 from gem5.components.boards.arm_board import ArmBoard
 from gem5.components.cachehierarchies.classic.private_l1_private_l2_cache_hierarchy import (
     PrivateL1PrivateL2CacheHierarchy,
@@ -54,6 +55,18 @@ p.add_argument("--platform", default="V1",
                     "the stdlib default (different memory map).")
 p.add_argument("--readfile", default=None,
                help="optional script run via m5 readfile after boot")
+# Phase 3 §六.4 item 3: CHAOSArmTLB TLB-entry injector (FS only).
+p.add_argument("--chaos_armtlb", action="store_true",
+               help="attach CHAOSArmTLB (ARM TLB-entry pfn corruptor)")
+p.add_argument("--tlb_first_clock", type=lambda x:int(x,0), default=100000,
+               help="CHAOSArmTLB first clock cycle eligible for injection")
+p.add_argument("--tlb_probability", type=float, default=0.0,
+               help="CHAOSArmTLB per-lookup injection probability")
+p.add_argument("--tlb_max_faults", type=lambda x:int(x,0), default=1,
+               help="CHAOSArmTLB max faults; 1 for single-fault")
+p.add_argument("--tlb_fault_mask", type=lambda x:int(x,0), default=0,
+               help="CHAOSArmTLB 64-bit pfn mask; 0=random")
+p.add_argument("--tlb_rng_seed", type=lambda x:int(x,0), default=20260825)
 args = p.parse_args()
 
 cpu_map = {"O3": CPUTypes.O3, "TIMING": CPUTypes.TIMING,
@@ -93,6 +106,40 @@ board.set_kernel_disk_workload(
     kernel_args=["root=" + args.root_partition, "rw",
                  "console=ttyAMA0", "earlycon=pl011,0x1c090000"],
 )
+
+# Phase 3 §六.4 item 3: attach CHAOSArmTLB to the CPU's D-TLB (the TLB whose
+# lookups carry data translations — the most SDC-relevant). CHAOSArmTLB is a
+# SimObject that holds a TLB* and self-registers via TLB::setChaosTLB. The
+# stdlib ArmBoard builds the CPU+MMU lazily, so attach in a _pre_instantiate
+# hook (after construction, before m5.instantiate). The D-TLB path under
+# the ArmBoard's cpu0 is cpu0.mmu.dtb (data TLB); i-TLB is cpu0.mmu.itb.
+if args.chaos_armtlb:
+    _tlb_attached = [False]
+    _orig_pi = getattr(cache_hierarchy, "_pre_instantiate", None)
+    def _attach_tlb(root):
+        if _orig_pi:
+            _orig_pi(root)
+        if _tlb_attached[0]:
+            return
+        core0 = processor.get_cores()[0]
+        cpu0 = core0.core
+        dtb = cpu0.mmu.dtb  # the data TLB (ArmISA::TLB)
+        arm_tlb = CHAOSArmTLB(
+            tlb=dtb,
+            probability=args.tlb_probability,
+            firstClock=args.tlb_first_clock,
+            faultType="bit_flip",
+            faultMask=args.tlb_fault_mask,
+            bitsToChange=1,
+            maxFaults=args.tlb_max_faults,
+            rngSeed=args.tlb_rng_seed,
+            writeLog=True,
+        )
+        board.chaos_armtlb = arm_tlb
+        # CHAOSArmTLB SELF-ATTACHES (constructor sets tlb->chaosTLB = this),
+        # same pattern as CHAOSLSQFwd — no setChaosTLB call (no python binding).
+        _tlb_attached[0] = True
+    cache_hierarchy._pre_instantiate = _attach_tlb
 
 # Exit when the kernel reports it has booted (default exit handlers include
 # the KernelBooted handler). This makes the FS run CI-able: boot-to-

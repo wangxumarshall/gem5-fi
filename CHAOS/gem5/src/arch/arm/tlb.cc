@@ -39,6 +39,7 @@
  */
 
 #include "arch/arm/tlb.hh"
+#include "arch/arm/CHAOSArmTLB/CHAOSArmTLB.hh"  // Phase 3: TLB-entry injector (maybeCorrupt)
 
 #include <memory>
 #include <string>
@@ -158,6 +159,13 @@ TLB::lookup(Lookup lookup_data)
         lookup_data.pageSize = page_size;
         if (retval = table.accessEntry(lookup_data); retval)
             break;
+    }
+
+    // Phase 3 §六.4 item 3: CHAOSArmTLB hook. On a TLB HIT, corrupt the
+    // entry's pfn before returning it to the MMU — models a defective TLB
+    // cell (address-translation-path fault). nullptr = no injector.
+    if (retval && chaosTLB) {
+        chaosTLB->maybeCorrupt(retval, lookup_data.va);
     }
 
     DPRINTF(TLBVerbose, "Lookup %#x, asn %#x -> %s vmn 0x%x ss %s "

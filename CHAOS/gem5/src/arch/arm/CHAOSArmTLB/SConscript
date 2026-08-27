@@ -1,0 +1,8 @@
+# -*- mode:python -*-
+# CHAOSArmTLB — ARM TLB-entry fault injector (Phase 3 §六.4 item 3).
+# Discovered automatically by src/SConscript's os.walk.
+
+Import('*')
+
+SimObject('CHAOSArmTLB.py', sim_objects=['CHAOSArmTLB'], enums=[])
+Source('CHAOSArmTLB.cc')

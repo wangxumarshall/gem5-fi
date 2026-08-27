@@ -59,11 +59,18 @@ struct ArmTLBParams;
 
 class ThreadContext;
 
+// Phase 3: CHAOSArmTLB (ARM TLB-entry fault injector) lives in ::gem5 (NOT
+// ArmISA). Declared here in the gem5 scope so the ArmISA::TLB class below
+// can hold a ::gem5::CHAOSArmTLB* (fully qualified) without a nested-scope
+// ambiguity. Full definition via #include in tlb.cc.
+class CHAOSArmTLB;
+
 namespace ArmISA {
 
 class TableWalker;
 class TLB;
 class TLBIOp;
+
 
 class TlbTestInterface
 {
@@ -217,6 +224,13 @@ class TLB : public BaseTLB
     void takeOverFrom(BaseTLB *otlb) override;
 
     void setTableWalker(TableWalker *table_walker, bool functional = false);
+
+    // Phase 3 §六.4 item 3: CHAOSArmTLB TLB-entry injector hook. Set from a
+    // config (the injector SELF-ATTACHES via this setter); TLB::lookup
+    // calls chaosTLB->maybeCorrupt(retval, va) on a hit to corrupt the entry's
+    // pfn before returning. nullptr = no injector (hot-path short-circuit).
+    class ::gem5::CHAOSArmTLB *chaosTLB = nullptr;
+    void setChaosTLB(::gem5::CHAOSArmTLB *p) { chaosTLB = p; }
 
     int getsize() const { return size; }
 
