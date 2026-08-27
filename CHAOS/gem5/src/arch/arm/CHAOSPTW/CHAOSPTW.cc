@@ -23,7 +23,7 @@ namespace gem5
           faults_injected_count(0),
           rng_seed(p.rngSeed),
           write_log(p.writeLog),
-          rng(rng_seed != 0 ? rng_seed : rd()),
+          rng(rng_seed != 0 ? rng_seed : [](){ std::random_device r; return r(); }()),
           log_stream(nullptr),
           stats(nullptr)
     {
@@ -71,6 +71,12 @@ namespace gem5
     CHAOSPTW::corruptDescriptor(uint8_t *data, unsigned size, Addr desc_addr)
     {
         if (probability <= 0.0f) return;
+        // Count every call to the hook once the injector is active, BEFORE any
+        // gating (first_clock/max_faults/prob). This distinguishes "PTW walk
+        // happened (hook called)" from "walk happened but prob did not select
+        // it (numFaultsInjected=0)" — essential to diagnose H7's spurious rate
+        // when PTW walk density is low (early FS, pre-MMU-on has few walks).
+        stats->numHooksCalled++;
         Cycles cur = Cycles(curTick() >> 0);
         if (cur < first_clock) return;
         if (last_clock != Cycles(0) && cur > last_clock) return;
@@ -116,6 +122,9 @@ namespace gem5
 
     CHAOSPTW::Stats::Stats(statistics::Group *parent)
         : statistics::Group(parent),
+          ADD_STAT(numHooksCalled, statistics::units::Count::get(),
+                   "Times the PTW-read hook was called (D3; every descriptor "
+                   "fetch while injector active, before prob/first-clock gating)"),
           ADD_STAT(numFaultsInjected, statistics::units::Count::get(),
                    "Total PTW descriptor faults injected (D3)"),
           ADD_STAT(numSpuriousFaults, statistics::units::Count::get(),

@@ -51,6 +51,7 @@ class CHAOSPTW : public SimObject
     std::random_device rd;
     OutputStream *log_stream;
     struct Stats : public statistics::Group {
+        statistics::Scalar numHooksCalled;
         statistics::Scalar numFaultsInjected;
         statistics::Scalar numSpuriousFaults;
         statistics::Scalar numBenignFlips;

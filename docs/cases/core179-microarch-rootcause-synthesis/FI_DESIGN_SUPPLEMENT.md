@@ -8,6 +8,41 @@
 > - **诚实总结**：P-D1/D2/D3 三模块均已实现、编译通过、符号入二进制；H5 验证闭环；H6/H7 的 SE-mode 操作化因 gem5 翻译模型限制而**无法在当前环境验证**，需 FS 模式。这是建模环境限制，非代码 bug。
 > - ⚠️ **本机为故障机**：编译全程 `taskset` 隔离 cpu179（见 `/tmp/cpus.txt`），但仍存在残余 SDC 风险——链接阶段曾出现多次瞬态 param-文件编译失败（SDC-affected 编译的典型表现），最终 `-j1` 单线程链接成功。验证结果需在第二台健康机复现才算最终确认。
 >
+> **FS-mode 验证进展（诚实，更新于 2026-08-27）**：
+> - 🔬 **SE→FS 根因已源码静态确证**（非仅推断）：`src/arch/arm/mmu.cc:1213` 的翻译分派在 `!state.sctlr.m`（MMU 关）时走 `translateMmuOff`→`req->setPaddr(vaddr)`（直接物理映射，SE 模式 SCTLR.M=0），**从不调用页表走查器**，故 D3 钩子 `table_walker.cc:1959 corruptDescriptor`（位于 `doLongDescriptor`）在 SE 下恒 `numFaultsInjected=0`；D2 钩子 `lsq.cc:1146 corruptAddr` 虽在 `translateTiming` 前破坏 vaddr，但 SE 物理内存从 0 起、仅 512 MiB，byte7 清零后地址仍落 `[0,512MiB)` 故不 fault。FS 模式下 SCTLR.M=1（Linux 启用 MMU 后），翻译走真实 TLB→页表走查器→`doLongDescriptor`，**D2/D3 钩子才会被真正触发**。这与 §3 的设计完全一致，从源码侧闭环了 H6/H7 的 SE null 解释。
+> - ✅ **FS 四件套就绪**：`gem5-fs/` 下 `vmlinux`(Linux 5.15.36, ELF64 AArch64, 237 MB)/`ubuntu.img`(2.36 GB)/`boot_emm.arm64`/`armv8_gem5_v1_1cpu.dtb` 经 `readelf`+`stat` 实测有效；`fs_bigLITTLE.py` 用正确路径启动已过文件加载阶段（实测输出：`info: kernel located at /home/sdc/vmcore/gem5-fi/gem5-fs/vmlinux`、`Using bootloader at address 0x10`、`kernel entry physical address at 0x80000000`、`Loading DTB ... at 0x88000000`、`Simulated platform: VExpress_GEM5_V1`）。
+> - ⚠️ **FS 启动尚未跑到 Linux bash（诚实）**：实测仿真速度 `hostInstRate=130225 inst/s`、`hostTickRate=46.6M tick/s`、CPI=0.72（O3 健康），129 秒墙钟仅模拟 16.77M 指令/6ms 虚拟时间。Linux 完整启动到 bash 典型需 1-3 亿指令 → **墙钟 15 min–2 h+**。期间必须 `--listener-mode on`（默认 `auto` 在 stdin 非终端时 `m5.disableAllListeners()` 禁用 3456 端口，导致日志无处可去——曾因此误判 6h 仿真为挂起，实际它在跑）。
+> - 🟡 **当前阻塞（诚实）**：H6/H7 的 FS 验证需先确认 FS 能稳定跑到 Linux 用户态（挂载 rootfs、能跑 ptrskew probe 或至少内核态触发页表走查），这是小时级长跑。下一步是建一个带周期 stats-dump 的 FS+注入配置，量化"FS 下 D2/D3 钩子触发计数"——只要 Linux 早期初始化的页表走查被注入器命中，`numAddrFaults`/PTW 统计即非零，**直接证伪 SE 的 null 结果**，不必等 bash。
+>
+> **FS-mode 钩子触发实证（诚实，更新于 2026-08-27）**：
+> - ✅ **rng-init-order bug 已发现并修复**：三注入器构造函数 `rng(rng_seed != 0 ? rng_seed : rd())` 因头文件成员声明顺序 `rng` 在 `rd` 前，`rng` 先初始化时调用未构造的 `rd()` → UB → `rng_seed=0` 必崩（gdb 回溯 `SIGSEGV at 0x7473696c`('list') in `std::random_device::operator()` 构造期）。修复：用立即调用 lambda 局部构造 `std::random_device`，不依赖成员顺序。`rng_seed!=0` 时用 seed 不触发 `rd()` 故 H5（seed 42）此前能跑通；H6/H7 默认 seed 0 即崩——**这解释了为何此前 H6/H7 SE 仍能跑**（用了非 0 seed）但 FS 测试默认 seed 0 必崩。修复后 `--seed 0` 不再 SIGSEGV。patch bc4feb4。
+> - ✅ **D2 在 FS 下触发实证**：新增 FS 注入配置 `fi_research/probes/o3_chaos_fs.py`（wrapper over `fs_bigLITTLE.build()`，挂 `CHAOSAddrPath`/`CHAOSPTW`/`CHAOSLSQFwd` 到 bigCluster.cpus[0] 及其 mmu）。实测 `--addr-prob 0.5 --seed 42 --max-tick 400M`：`numAddrFaults=20`，`addr_path_injections.log` 真实记录（`Cycle 556 Seq 19 Site load_effAddr Orig 0x120 Corrupted 0x120` 等）。**SE 下 D2=0 可观察失败；FS 下 D2=20 注入触发**。
+> - ✅ **D3 在 FS 下触发实证（直接证伪 SE null）**：实测 `--ptw-prob 0.5 --seed 0 --max-tick 400M`：`numFaultsInjected=7963`、`numSpuriousFaults=7727`（97% 翻转产生 invalid PTE→spurious translation fault）、`numBenignFlips=236`，`ptw_injections.log` 真实记录（`DescAddr 0x807cc360 Orig 0x80a94003 Corrupted 0x80000080a94003`）。**SE 下 `numFaultsInjected=0`；FS 下 `=7963`**——D3 钩子在 FS 翻译路径下大规模触发，FI_DESIGN_SUPPLEMENT §3 的设计假设得到实证。
+> - ⚠️ **D3 注入粒度需精化（诚实）**：prob=0.5 极端值下，D3 翻转 PTE 后 simulated CPU fetch 非法地址（`warn: Address 0x4000807cc360 is outside of physical memory, stopping fetch`，CPI=50.1，400M tick 仅 3070 指令——卡住）。这指向 D3 注入应造"瞬态可重试"（翻 1 位、低 prob、ECC-on 对照）而非 prob=0.5 永久破坏 fetch。H7 正式实验须用 `--ptw-prob ~1e-4` + `--ptw-ecc on/off` 对照，量化 spurious 率随 ECC 变化（§4.3）。
+> - 🟡 **仍待完成（诚实）**：H6 的 2×2 谱可分性（D1-only vs D2-only vs D1+D2）与 H7 的 ECC on/off 对照，均需 FS 跑到 Linux MMU-on 后、用生产 prob 跑多 arm——小时级长跑，单次 loop 未完成。当前已实证"FS 下 D2/D3 钩子触发非零"，即 SE null 的根因已闭环，但 H6/H7 的**定量谱可分结论**尚未产出。
+>
+> **PTW walk-density 实测（诚实，更新于 2026-08-27，patch 772e504）**：
+> - 新增 `numHooksCalled` 统计（`corruptDescriptor` 入口、所有门控前计数），区分"走查未发生"vs"走查发生但 prob 未命中"。**实测 walk-density 曲线**（prob=1e-9 不破坏、seed 42、单核 FS）：
+>   - 50M tick：`numHooksCalled=0`（MMU 未开，纯 bootloader，simInsts=2071）
+>   - 100M：`=12`（MMU 在 50–100M 间开启）
+>   - 200M：`=14`（simInsts=100722）
+>   - 400M：`=17`（simInsts=259186，walk rate **0.0066%**——TLB 命中主导）
+> - **诚实修正上轮 prob=0.5 的 7963 注入**：那不是真实走查密度，是"坏 PTE 触发翻译错→重查→再次注入"的连锁放大。真实密度仅 17/26万指令。**H7 定量对照需 FS 跑到用户态多进程**（大量 mmap/TLB flush 才够 walk 密度），即 1–2 h 墙钟，单次 loop 无法完成。`numHooksCalled` 把这个限制从推断变成客观数据。
+> - **H7 受控对照的诚实状态**：prob=0.001 三组（ECC off / on 1-bit / on 2-bit）在 200M tick 全 `numFaultsInjected=0`（走查仅 14 次、期望 0.014 命中→必 0）；prob=0.1 同样 200M 拿到 `numFaultsInjected=1 numBenignFlips=1`（不卡住，但样本量=1 不足以下结论）。需高 walk 密度环境（用户态）+ 多 seed 才能产出 ECC on/off 的 spurious 率对照。
+>
+> **D2 vs D3 触发密度对比 + D2 注入实证（诚实，更新于 2026-08-27，patch 0ff3ce5）**：
+> - 给 D2 也加 `numHooksCalled`（load 的 effAddr→MMU 边界调用计数，对称 D3）。**实测 D2 load 密度远高于 D3 walk 密度**（prob=1e-9、seed 42、单核 FS）：
+>
+>   | tick | D2 hooks (loads) | D3 hooks (walks) | simInsts |
+>   |---|---|---|---|
+>   | 50M | 23 | 0 | 2071 |
+>   | 100M | 4464 | 12 | 21859 |
+>   | 200M | 23089 | 14 | 100722 |
+>   | 400M | **61081** | 17 | 259186 |
+>
+>   D2 密度比 D3 高 **~3500×**（每条 load 都触发 D2；绝大多数 load 命中 TLB 不触发 walk）。**H6 的 D2 臂有充足采样基数，不受 D3 的 walk 稀疏限制**——故 H6 的 D2-only 对照比 H7 的 D3 对照在本轮更可行。
+> - **D2 注入实证（FS 下复现 §2.3 签名）**：prob=0.001、400M、seed 42 → `numAddrFaults=1`，addr log 真实记录：`Orig: 0xffffffc008b08f30 → Corrupted: 0xffffc008b08f30`（byte7 清零规范内核地址使其变**非规范**）——这正是 §2.3 D2 签名（arch MSB=ff 但 MMU 看到 byte7=00）在 FS 下的复现；SE 模式做不到（SE 下 byte7 清零后仍落物理内存不 fault）。注入后 `simInsts=3085`（执行流改变，初步可观察效果），但单注入样本量=1，定量 H6 谱可分仍需多 seed + 跑到能恢复/对照的状态。
+>
 > 本文件是对 `fi_research/EXPERIMENT_DESIGN.md`（H0–H4 假设体系 + CHAOSPhysReg/CHAOSLSQFwd 注入器）的**增量设计**，由 `docs/kunpeng.md` 的 TSV110 微架构特征与五转储微架构深化诊断（`MICROARCH_SUPPLEMENT.md` §3 的 D1/D2/D3 三通路）驱动。
 > **基座**：gem5 v25.1.0.1 AArch64 O3CPU + CHAOS 框架。**EXPERIMENT_DESIGN §0/§12 声称 P4(CHAOSLSQFwd) 已跑通**——本机当前未复现该构建，故不继承其"已验证"主张，仅引用其设计。
 > **补丁纪律**：每个新增注入器/钩子 = 一个 patch（CLAUDE.md "one patch per unit"）。

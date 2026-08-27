@@ -9,8 +9,8 @@
 
 ## 验证状态（诚实）
 - ✅ H5 已 gem5 端到端验证闭环（byte_lane_skew → oops 链复现，多 seed）
-- ⚠️ H6/H7 已执行，因 SE 模式 gem5 翻译模型限制无法验证（需 FS 模式）
-- ✅ P-D1/D2/D3 三注入器已实现、编译通过、符号入 gem5.opt
+- ⚠️ H6/H7 的 SE-mode null 根因已源码静态确证（`mmu.cc:1213` SCTLR.M=0→`translateMmuOff` 绕过页表走查器，D2/D3 钩子不触发）；**FS 模式下 D2/D3 钩子触发已实证**（`o3_chaos_fs.py`：D2 `numAddrFaults=20`、D3 `numFaultsInjected=7963 numSpuriousFaults=7727`，直接证伪 SE 的 0）。另发现并修复 rng-init-order bug（`rng_seed=0` 必崩，patch bc4feb4）。**H6/H7 定量谱可分结论仍需 FS 长跑，未完成。**
+- ✅ P-D1/D2/D3 三注入器已实现、编译进 gem5.opt（`nm` 372 个匹配符号，`.o` 全就绪）
 
 ## 复现
 - 构建：`cd CHAOS/gem5 && taskset -c <healthy cpus> scons build/ARM/gem5.opt -j8`
