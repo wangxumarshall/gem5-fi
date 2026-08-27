@@ -155,11 +155,37 @@ on the cache path end-to-end. Done:
   need a directed flip on a specific instruction field — deferred.
 
 Honest note: the §六.3 "fixed-to-live-data"/"fixed-to-executed-instr"
-directed runs are STILL deferred (need a directed cache byte/line knob
-in CHAOSCache — a feature patch). The random re-runs above prove the
-classifier + single-fault + evidence log work on the cache path, and
-confirm the L1D-Masked / L1I-Hang directions honestly (now classified
-correctly), but do NOT replace directed formal cells.
+directed runs are now DONE — see the Directed-cache section below. The
+random re-runs above prove the classifier + single-fault + evidence log
+work on the cache path, and confirm the L1D-Masked / L1I-Hang directions
+honestly (now classified correctly).
+
+### Directed-cache runs (§六.3 'fixed-to' — DONE, patch 642dfef)
+
+Added a CHAOSCache directed knob (`targetBlockAddr` + `targetByteOffset`,
+exposed as `--target_block_addr` / `--target_byte_offset` in
+arm_chaos_cache.py) so a fault can be PINNED to a specific cache block
+(by physical address) and byte, instead of random sampling. This closes
+the §六.3 "fixed-to" gap:
+
+- **L1D fixed-to-live-data** (l1d_reduce, resident data block 862656,
+  byte 0): log `Cache Block Addr: 862656, Byte Offset: 0` (resident — NO
+  fallback warning). Output `d128c62843ca82a1` ≠ golden → **SDC**,
+  REPRODUCIBLE (2/2 identical). Byte 4 → different SDC `c104da9d94a173cd`
+  (proves the flip hit a real live-data byte; corruption changed the
+  reduction). So L1D SDC IS reachable when the fault lands on a live-data
+  byte — the random pilot's 5/5 Masked was the cache-AVF sampling effect,
+  not "L1D is insensitive."
+- **L1I fixed-to-executed-instruction** (l1i_loop, resident loop block
+  51392, byte 38 and byte 0): log `Cache Block Addr: 51392, Byte Offset:
+  38/0` (resident). Both → **Hang** (exit 124, no checksum, no trap —
+  instruction-byte flip corrupts loop control → infinite loop).
+- Directed block NOT resident (e.g. a vaddr like 0x491960): logs
+  `Directed ... NOT resident — falling back to random` (honest, no
+  silent mis-injection). Note: gem5 SE virt≠phys — to target a block,
+  find its PHYSICAL address via a random run's `Cache Block Addr` log
+  line. A symbol-resolving directed mode (manifest begin_symbol → phys)
+  is still deferred.
 
 ## What is the platform / build
 

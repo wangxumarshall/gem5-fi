@@ -220,6 +220,14 @@ $G5 --quiet --outdir=runs/cache configs/se/arm_chaos_cache.py \
 
 诚实留白：§六.3 的"定向到活数据/执行指令"仍待做（需 CHAOSCache 加定向 byte/line 旋钮——一个 feature 补丁）。上面的随机重跑证明分类器+单故障+证据日志在 cache 路径端到端工作，诚实确认了 L1D-Masked / L1I-Hang 方向（现已正确分类），但不替代定向 formal cell。
 
+### 定向 cache 注入（§六.3 "fixed-to"——已完成，补丁 642dfef）
+
+给 CHAOSCache 加了定向旋钮（`targetBlockAddr` + `targetByteOffset`，config 暴露为 `--target_block_addr` / `--target_byte_offset`），把故障**钉到指定 cache block（按物理地址）+ 字节**，而非随机采样。闭合 §六.3 "定向到"缺口：
+
+- **L1D 定到活数据**（l1d_reduce，驻留数据块 862656，byte 0）：日志 `Cache Block Addr: 862656, Byte Offset: 0`（驻留，无 fallback 警告）。输出 `d128c62843ca82a1` ≠ golden → **SDC**，可复现（2/2 相同）。byte 4 → 不同 SDC `c104da9d94a173cd`（证明翻的是真实活数据字节，corruption 改了 reduction 结果）。所以 L1D SDC 在故障落到活数据字节时**可达**——随机 pilot 的 5/5 Masked 是 cache-AVF 采样效应，非"L1D 不敏感"。
+- **L1I 定到执行指令**（l1i_loop，驻留循环块 51392，byte 38/0）：日志 `Cache Block Addr: 51392, Byte Offset: 38/0`（驻留）。两者 → **Hang**（exit 124，无 checksum 无 trap——指令字节翻→循环控制破坏→死循环）。
+- 定向块不驻留（如 vaddr 0x491960）：日志 `Directed ... NOT resident — falling back to random`（诚实，无静默误注入）。注：gem5 SE virt≠phys——定向要用**物理地址**（随机 run 的 `Cache Block Addr` 日志行）。符号解析定向模式（manifest begin_symbol → phys）仍待做。
+
 ---
 
 ## 七、一句话诚实结论
