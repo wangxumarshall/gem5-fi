@@ -21,6 +21,15 @@
 > - ⚠️ **D3 注入粒度需精化（诚实）**：prob=0.5 极端值下，D3 翻转 PTE 后 simulated CPU fetch 非法地址（`warn: Address 0x4000807cc360 is outside of physical memory, stopping fetch`，CPI=50.1，400M tick 仅 3070 指令——卡住）。这指向 D3 注入应造"瞬态可重试"（翻 1 位、低 prob、ECC-on 对照）而非 prob=0.5 永久破坏 fetch。H7 正式实验须用 `--ptw-prob ~1e-4` + `--ptw-ecc on/off` 对照，量化 spurious 率随 ECC 变化（§4.3）。
 > - 🟡 **仍待完成（诚实）**：H6 的 2×2 谱可分性（D1-only vs D2-only vs D1+D2）与 H7 的 ECC on/off 对照，均需 FS 跑到 Linux MMU-on 后、用生产 prob 跑多 arm——小时级长跑，单次 loop 未完成。当前已实证"FS 下 D2/D3 钩子触发非零"，即 SE null 的根因已闭环，但 H6/H7 的**定量谱可分结论**尚未产出。
 >
+> **PTW walk-density 实测（诚实，更新于 2026-08-27，patch 772e504）**：
+> - 新增 `numHooksCalled` 统计（`corruptDescriptor` 入口、所有门控前计数），区分"走查未发生"vs"走查发生但 prob 未命中"。**实测 walk-density 曲线**（prob=1e-9 不破坏、seed 42、单核 FS）：
+>   - 50M tick：`numHooksCalled=0`（MMU 未开，纯 bootloader，simInsts=2071）
+>   - 100M：`=12`（MMU 在 50–100M 间开启）
+>   - 200M：`=14`（simInsts=100722）
+>   - 400M：`=17`（simInsts=259186，walk rate **0.0066%**——TLB 命中主导）
+> - **诚实修正上轮 prob=0.5 的 7963 注入**：那不是真实走查密度，是"坏 PTE 触发翻译错→重查→再次注入"的连锁放大。真实密度仅 17/26万指令。**H7 定量对照需 FS 跑到用户态多进程**（大量 mmap/TLB flush 才够 walk 密度），即 1–2 h 墙钟，单次 loop 无法完成。`numHooksCalled` 把这个限制从推断变成客观数据。
+> - **H7 受控对照的诚实状态**：prob=0.001 三组（ECC off / on 1-bit / on 2-bit）在 200M tick 全 `numFaultsInjected=0`（走查仅 14 次、期望 0.014 命中→必 0）；prob=0.1 同样 200M 拿到 `numFaultsInjected=1 numBenignFlips=1`（不卡住，但样本量=1 不足以下结论）。需高 walk 密度环境（用户态）+ 多 seed 才能产出 ECC on/off 的 spurious 率对照。
+>
 > 本文件是对 `fi_research/EXPERIMENT_DESIGN.md`（H0–H4 假设体系 + CHAOSPhysReg/CHAOSLSQFwd 注入器）的**增量设计**，由 `docs/kunpeng.md` 的 TSV110 微架构特征与五转储微架构深化诊断（`MICROARCH_SUPPLEMENT.md` §3 的 D1/D2/D3 三通路）驱动。
 > **基座**：gem5 v25.1.0.1 AArch64 O3CPU + CHAOS 框架。**EXPERIMENT_DESIGN §0/§12 声称 P4(CHAOSLSQFwd) 已跑通**——本机当前未复现该构建，故不继承其"已验证"主张，仅引用其设计。
 > **补丁纪律**：每个新增注入器/钩子 = 一个 patch（CLAUDE.md "one patch per unit"）。
