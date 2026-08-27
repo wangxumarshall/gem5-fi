@@ -263,15 +263,26 @@ ENOSPC-killed a G4 test on this 29GB host).
   SELF-ATTACHES (constructor `cpu->lsqFwd = this`); config just
   instantiates it. Verified SDC on fp_fwd_kernel: firstClock=1e6 →
   fails=1 detected; multi-inject → 10318/10551 ≈98% detected (DUE-class).
-- **Item 3 — TLB/system registers (FS mode)**: FS-mode BOOTSTRAP DONE
-  (the prerequisite); the TLB/SYS-reg injector SimObject is NOT yet
-  written. `configs/se/arm_chaos_fs.py` boots the gem5-fs/ ARM Ubuntu
-  disk via stdlib ArmBoard + VExpress_GEM5_V1 + boot.arm64 + vmlinux
-  (local resources, no network fetch). Verified it BOOTS: kernel 5.15.36
-  loads (`kernel located at: gem5-fs/vmlinux`, entry 0x80000000, DTB at
-  0x88000000), root=/dev/vda1 mounts (virtio-blk), device init reaches
-  `random: fast init done` (Atomic CPU; full boot to userspace needs
-  more wall time / O3). NOTE: root partition is /dev/vda1 (virtio-blk,
-  NOT /dev/sda1). The 0x2c001000 BadAddress panic on VExpress_GEM5_
-  Foundation is a platform-memory-map mismatch — V1 is the correct
-  platform for the gem5-fs boot.arm64+armv8_gem5_v1 dtb combo.
+- **Item 3 — TLB/system registers (FS mode)**: DONE (the TLB injector).
+  `configs/se/arm_chaos_fs.py` (commit 5856961) boots the gem5-fs/ ARM
+  Ubuntu disk via stdlib ArmBoard + VExpress_GEM5_V1 + boot.arm64 +
+  vmlinux (local resources, no network fetch). Verified it BOOTS: kernel
+  5.15.36 loads, root=/dev/vda1 mounts (virtio-blk, NOT sda), device init
+  reaches `random: fast init done` (Atomic; full userspace needs more
+  wall time / O3). Foundation platform panics at 0x2c001000 (memory-map
+  mismatch) — V1 is correct for the gem5-fs boot.arm64 + armv8_gem5_v1
+  dtb combo.
+  Then commit 8526004 adds the **CHAOSArmTLB** TLB-entry injector: a
+  SimObject under arch/arm/CHAOSArmTLB/ that SELF-ATTACHES (ctor
+  `tlb->chaosTLB = this`) and hooks `TLB::lookup` to corrupt a HIT
+  entry's `pfn` (bit_flip/stuck). Verified in FS: prob=1.0,
+  firstClock=50000, seed 20260825 → armtlb_injections.log
+  `Tick: 1352646, VA: 0x807cc408, old_pfn: 0x403, new_pfn: 0x200000003,
+  Mask: 0x20000000` (reproducible 2/2). The corrupted pfn (bit 29 high)
+  redirects a translation to an unmapped PA → panic `Data fetch ...
+  BadAddressError [40000807cc408...]` — a real DUE. Control (prob=0)
+  boots with no crash → the TLB fault causes the DUE.
+  Honest scope: this is the D-TLB pfn corruptor (one TLB-entry fault
+  model). I-TLB, page-table walker, system-register whitelist
+  (TTBR/TCR/MAIR/SCTLR/VBAR/NZCV, ASID/VMID), and silent SDC (wrong PA
+  still mapped+live) are deferred.
