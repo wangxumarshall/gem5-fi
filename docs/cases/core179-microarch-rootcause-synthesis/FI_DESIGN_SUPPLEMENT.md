@@ -30,6 +30,19 @@
 > - **诚实修正上轮 prob=0.5 的 7963 注入**：那不是真实走查密度，是"坏 PTE 触发翻译错→重查→再次注入"的连锁放大。真实密度仅 17/26万指令。**H7 定量对照需 FS 跑到用户态多进程**（大量 mmap/TLB flush 才够 walk 密度），即 1–2 h 墙钟，单次 loop 无法完成。`numHooksCalled` 把这个限制从推断变成客观数据。
 > - **H7 受控对照的诚实状态**：prob=0.001 三组（ECC off / on 1-bit / on 2-bit）在 200M tick 全 `numFaultsInjected=0`（走查仅 14 次、期望 0.014 命中→必 0）；prob=0.1 同样 200M 拿到 `numFaultsInjected=1 numBenignFlips=1`（不卡住，但样本量=1 不足以下结论）。需高 walk 密度环境（用户态）+ 多 seed 才能产出 ECC on/off 的 spurious 率对照。
 >
+> **D2 vs D3 触发密度对比 + D2 注入实证（诚实，更新于 2026-08-27，patch 0ff3ce5）**：
+> - 给 D2 也加 `numHooksCalled`（load 的 effAddr→MMU 边界调用计数，对称 D3）。**实测 D2 load 密度远高于 D3 walk 密度**（prob=1e-9、seed 42、单核 FS）：
+>
+>   | tick | D2 hooks (loads) | D3 hooks (walks) | simInsts |
+>   |---|---|---|---|
+>   | 50M | 23 | 0 | 2071 |
+>   | 100M | 4464 | 12 | 21859 |
+>   | 200M | 23089 | 14 | 100722 |
+>   | 400M | **61081** | 17 | 259186 |
+>
+>   D2 密度比 D3 高 **~3500×**（每条 load 都触发 D2；绝大多数 load 命中 TLB 不触发 walk）。**H6 的 D2 臂有充足采样基数，不受 D3 的 walk 稀疏限制**——故 H6 的 D2-only 对照比 H7 的 D3 对照在本轮更可行。
+> - **D2 注入实证（FS 下复现 §2.3 签名）**：prob=0.001、400M、seed 42 → `numAddrFaults=1`，addr log 真实记录：`Orig: 0xffffffc008b08f30 → Corrupted: 0xffffc008b08f30`（byte7 清零规范内核地址使其变**非规范**）——这正是 §2.3 D2 签名（arch MSB=ff 但 MMU 看到 byte7=00）在 FS 下的复现；SE 模式做不到（SE 下 byte7 清零后仍落物理内存不 fault）。注入后 `simInsts=3085`（执行流改变，初步可观察效果），但单注入样本量=1，定量 H6 谱可分仍需多 seed + 跑到能恢复/对照的状态。
+>
 > 本文件是对 `fi_research/EXPERIMENT_DESIGN.md`（H0–H4 假设体系 + CHAOSPhysReg/CHAOSLSQFwd 注入器）的**增量设计**，由 `docs/kunpeng.md` 的 TSV110 微架构特征与五转储微架构深化诊断（`MICROARCH_SUPPLEMENT.md` §3 的 D1/D2/D3 三通路）驱动。
 > **基座**：gem5 v25.1.0.1 AArch64 O3CPU + CHAOS 框架。**EXPERIMENT_DESIGN §0/§12 声称 P4(CHAOSLSQFwd) 已跑通**——本机当前未复现该构建，故不继承其"已验证"主张，仅引用其设计。
 > **补丁纪律**：每个新增注入器/钩子 = 一个 patch（CLAUDE.md "one patch per unit"）。
