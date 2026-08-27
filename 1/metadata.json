@@ -1,0 +1,65 @@
+{
+  "cli_version": "0.10.2",
+  "checkpoint_id": "01M10B20ETX716XMEHV6S5M5F3",
+  "session_id": "4ea62401-71d7-47f8-b5f6-f1d3018aa3ed",
+  "strategy": "manual-commit",
+  "created_at": "2026-08-27T00:49:03.31468851Z",
+  "branch": "docs/core179-microarch-rootcause",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "docs/cases/core179-microarch-rootcause-synthesis/FI_DESIGN_SUPPLEMENT.md"
+  ],
+  "agent": "Claude Code",
+  "model": "GLM-5.2[1m]",
+  "turn_id": "940ffd9492c5",
+  "checkpoint_transcript_start": 1067,
+  "transcript_lines_at_start": 1067,
+  "compact_transcript_start": 189,
+  "token_usage": {
+    "input_tokens": 1760,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 357760,
+    "output_tokens": 1101,
+    "api_call_count": 2
+  },
+  "skill_events_version": 1,
+  "skill_events": [
+    {
+      "id": "prompt-skill-claude-code-loop-2026-08-26T10:38:52.3888421Z",
+      "event_type": "prompt_invocation",
+      "skill": {
+        "name": "loop"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "prompt_slash_command",
+        "confidence": "explicit"
+      },
+      "turn_id": "ef829e4221e7",
+      "timestamp": "2026-08-26T10:38:52.3888421Z",
+      "native": {
+        "command": "/loop"
+      },
+      "collapse": {
+        "target": "user_message",
+        "label": "/loop",
+        "default_collapsed": true
+      }
+    }
+  ],
+  "session_metrics": {
+    "turn_count": 1
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-08-27T00:49:03.08998234Z",
+    "agent_lines": 0,
+    "agent_removed": 0,
+    "human_added": 9,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 9,
+    "total_lines_changed": 9,
+    "agent_percentage": 0,
+    "metric_version": 2
+  }
+}
