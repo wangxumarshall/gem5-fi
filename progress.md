@@ -256,3 +256,14 @@ build ELF `7f454c46`；GPR golden `f247ef3fe6f02cfd`；G2 stuck `00ff0000dee1f5d
 - G6 广触发（pc/committedInst/event）、G7 sanitizer 构建、CHAOSReg directed-reg 旋钮、CHAOSLSQFwd 的 UInt32 mask/-Wswitch（并行会话遗留）、manifest 符号解析定向（begin_symbol→phys）。
 
 报告 §六 第一步～第三步 + 第四步 item 1/2 + item 3 的引导前置已端到端完成并真机验证、push。第四步 item 3 的 TLB 注入器本体、item 4/5/6（L3-128/x86/实机）为明确分阶段后续，未谎称完成。
+
+### Phase 3 item 3 — TLB 注入器本体（已完成，补丁 8526004）
+
+不仅仅是 FS 引导前置——**CHAOSArmTLB 注入器本体已写完并验证**：
+- 新 SimObject `CHAOSArmTLB`（`arch/arm/CHAOSArmTLB/`）：`tlb`/`probability`/`firstClock`/`maxFaults`/`faultMask`/`rngSeed` 闸门参数；**自挂载**（构造函数 `tlb->chaosTLB=this`，同 CHAOSLSQFwd，无需 setChaosTLB 的 python 绑定）。
+- 挂 `arch/arm/tlb.cc:TLB::lookup`：命中后、返回前调用 `chaosTLB->maybeCorrupt(retval, va)`，翻 hit entry 的 `pfn`。
+- `configs/se/arm_chaos_fs.py`：`--chaos_armtlb` + 旋钮，挂到 D-TLB（`cpu0.mmu.dtb`）。
+- **FS 真机验证**（V1 + gem5-fs，Atomic）：`prob=1.0 firstClock=50000 seed=20260825` → `armtlb_injections.log`: `Tick: 1352646, VA: 0x807cc408, old_pfn: 0x403, new_pfn: 0x200000003, Mask: 0x20000000`（可复现 2/2）。翻 bit 29 → PA 落到未映射区 `0x40000807cc408` → `panic: Data fetch ... BadAddressError` —— **真 DUE**。对照 `prob=0` 不注入则正常启动（无 crash）——证明 crash 由 TLB 故障导致。
+- 回归：SE reg_chain golden `f247ef3fe6f02cfd`（SE 下 chaosTLB=nullptr，hook 短路，无影响）。
+
+诚实留白：本轮做 D-TLB pfn 翻转（一种 TLB-entry 故障模型）。I-TLB、page-table walker、系统寄存器白名单（TTBR/TCR/MAIR/SCTLR/VBAR/NZCV、ASID/VMID）、以及"翻到的 PA 仍是已映射活页"→静默 SDC 的有向 cell——为后续。
