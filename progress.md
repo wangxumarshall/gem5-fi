@@ -237,3 +237,22 @@ $G5 --quiet --outdir=runs/cache configs/se/arm_chaos_cache.py \
 ### 后续轮：工具正确性修复（`fix/fi-tool-correctness`，6 补丁）
 
 源码检查报告 `docs/gem5-fi_branch_next_step.md` 指出 rebase 后的 `fi` HEAD 有 5 处影响结果可信度的回归（G2 写路径 stuck 被覆盖、掩码仍 32 位、NEON 缓冲区溢出、分类器误判、manifest 字段未生效、顶层/内置源码两份不一致）。我在 `fix/fi-tool-correctness` 上逐条修复并真机验证（见上 §六）。**修复作废了 §七旧结论中的 `3551d57`/`8beeea1`/`d72c61e` 三个 pilot 结果**（坏工具采的数据，不能当规律）。可复现锚点（golden、X2/X3 SDC、G2 stuck）在修复后仍然成立。Phase 2–7 与 formal cell 仍未做，不在本轮范围。详细修复后状态见 `docs/arm64-sdc-STATUS.md`。
+
+### Phase 2/3 增量（报告 §六.4 step 4，`fix/fi-tool-correctness` 后续补丁）
+
+- **Phase 2 item 1 NEON**（`d3fcec4`+`0c557c2`）：DONE，lane 级。ASIMD lane-sep kernel `neon_lane`（golden `00000000526925fe`，native==gem5-O3）。`vecLaneWidth`(8/16/32/64)+`vecLaneOffset` 旋钮——把故障钉到 128 位 VecRegClass 的**指定 lane**。phys vec[1] width=32 lane 0/1/2/3 → 4 个**不同** SDC（`e0c767c9`/`ab4b199`/`dd65a1c0`/`3007c799`）——证明翻的确实是定向 lane。
+- **Phase 2 item 2 LSQ**（`5d0a5b0`）：DONE。CHAOSLSQFwd **自挂载**（构造函数 `cpu->lsqFwd=this`），config 只需实例化。`fp_fwd_kernel` store→load 自检 kernel：`firstClock=1e6`→`fails=1` 检测 SDC；多注入→10318/10551≈98% 检测 SDC（DUE-class）。
+- **Phase 3 item 3 TLB/SYS（FS 模式）**：FS **引导** DONE（`5856961`），TLB/SYS 注入器 SimObject 尚未写。`configs/se/arm_chaos_fs.py` 用 stdlib ArmBoard+VExpress_GEM5_V1+本地 gem5-fs 依赖（vmlinux+ubuntu.img+boot.arm64）启动，已验证：kernel 5.15.36 加载、root=/dev/vda1 挂载（virtio-blk，不是 sda）、设备初始化到 `random: fast init done`。Foundation 平台在 0x2c001000 panic（内存映射不匹配）→V1 才是正确平台。TLB 注入器的挂载点是 `arch/arm/tlb.cc:TLB::lookup`（返回 TlbEntry*，可翻 `pfn`）——多补丁 Phase 3 工作，待做。
+
+### 端到端最终验证（16 commits，全路径可复现）
+
+build ELF `7f454c46`；GPR golden `f247ef3fe6f02cfd`；G2 stuck `00ff0000dee1f5d0`；X3 SDC `d43a25d7fcc218b7`；NEON lane2 SDC `00000000dd65a1c0`；LSQ SDC `fails=1`；L1D directed SDC `d128c62843ca82a1`；FS boot `Booting Linux...`。8 路全可复现。
+
+### 诚实留白（未做、未谎称）
+
+- Phase 3 TLB/SYS-reg 注入器 SimObject（FS 引导已通，注入器待写）。
+- Phase 5 L3-128、Phase 6 x86 配对、Phase 7 鲲鹏实机校准——报告明确分阶段。
+- formal n=384 cell（GPR/L1D/L1I/NEON/LSQ 各层）。
+- G6 广触发（pc/committedInst/event）、G7 sanitizer 构建、CHAOSReg directed-reg 旋钮、CHAOSLSQFwd 的 UInt32 mask/-Wswitch（并行会话遗留）、manifest 符号解析定向（begin_symbol→phys）。
+
+报告 §六 第一步～第三步 + 第四步 item 1/2 + item 3 的引导前置已端到端完成并真机验证、push。第四步 item 3 的 TLB 注入器本体、item 4/5/6（L3-128/x86/实机）为明确分阶段后续，未谎称完成。
