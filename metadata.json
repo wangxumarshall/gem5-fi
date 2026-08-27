@@ -1,0 +1,36 @@
+{
+  "cli_version": "0.10.2",
+  "checkpoint_id": "01M117M93TAJX7285VA8MTES2G",
+  "strategy": "manual-commit",
+  "branch": "fix/fi-tool-correctness",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "CHAOS/CHAOSArmSysReg/CHAOSArmSysReg.cc",
+    "CHAOS/CHAOSArmSysReg/CHAOSArmSysReg.hh",
+    "CHAOS/CHAOSArmSysReg/CHAOSArmSysReg.py",
+    "CHAOS/CHAOSArmSysReg/SConscript",
+    "CHAOS/gem5/src/arch/arm/CHAOSArmSysReg/CHAOSArmSysReg.cc",
+    "CHAOS/gem5/src/arch/arm/CHAOSArmSysReg/CHAOSArmSysReg.hh",
+    "CHAOS/gem5/src/arch/arm/CHAOSArmSysReg/CHAOSArmSysReg.py",
+    "CHAOS/gem5/src/arch/arm/CHAOSArmSysReg/SConscript",
+    "CHAOS/gem5/src/arch/arm/isa.cc",
+    "CHAOS/gem5/src/arch/arm/isa.hh",
+    "configs/se/arm_chaos_fs.py"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 8332216,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 225521536,
+    "output_tokens": 258874,
+    "api_call_count": 938
+  }
+}
