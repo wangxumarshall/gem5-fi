@@ -8,7 +8,7 @@
 
 ## Abstract
 
-Silent data corruption (SDC) on a single physical core of a production ARM64 server (HiSilicon Kunpeng-920 / TaiShan V110) manifested as recurring kernel panics across five independent boots over twelve days, every event pinned to logical CPU 179. We perform a five-kdump forensic study combining (1) bit-exact register-vs-memory comparison at the crash instant, (2) ARMv8 architectural-invariant reasoning on `FAR_EL1`, and (3) microarchitectural modeling against published TSV110 geometry. We localize the defect to a **core-private load data-return path** (fill-buffer/replay-merge ≈ L1D readout assembly), with a co-located sibling in the page-table-walker readout path, and we **falsify** the competing physical-register-file hypothesis. The decisive new evidence: a load of `__per_cpu_offset[146]` returned a value bit-identical to `__per_cpu_offset[0]` right-rotated by one byte — a structural byte-lane skew uniquely matching the array head among all 192 slots (Hamming distance 0, not expressible as any single-byte bit flip).
+Silent data corruption (SDC) on a single physical core of a production ARM64 server (HiSilicon Kunpeng-920 / TaiShan V110) manifested as recurring kernel panics across five independent boots over twelve days, every event pinned to logical CPU 179. We perform a five-kdump forensic study combining (1) bit-exact register-vs-memory comparison at the crash instant, (2) ARMv8 architectural-invariant reasoning on `FAR_EL1`, and (3) microarchitectural modeling against published TSV110 geometry. We localize the defect to **three specific microarchitectural data paths** (Fig. 1): **D1** — the core-private load data-return path (fill-buffer/replay-merge ≈ L1D readout mux); **D2** — the AGU→MMU address-presentation path; and **D3** — the page-table-walker (PTW) readout path; and we **rule out** the competing physical-register-file (PRF) hypothesis. The decisive new evidence: a load of `__per_cpu_offset[146]` returned a value bit-identical to `__per_cpu_offset[0]` right-rotated by one byte — a structural byte-lane skew uniquely matching the array head among all 192 slots (Hamming distance 0, not expressible as any single-byte bit flip). This shows the conventional **bit-flip** fault model cannot reproduce the defect; a **structural** (byte-lane-skew) fault model is required.
 
 To close the conjecture-verification loop we extend the CHAOS gem5 fault injector with a *structural* (byte-lane-skew) fault model and reproduce the kernel oops chain end-to-end in simulation (skewed pointer → non-canonical VA → page fault) — **H5, verified**. We further implement address-path (P-D2) and PTW-readout (P-D3) injectors and derive falsifiable hypotheses H6/H7. Initially these returned null results in syscall-emulation (SE) mode; we **statically root-cause the null to the ARM MMU translation model** (`mmu.cc:1213`: SE has `SCTLR.M=0` → `translateMmuOff` → `setPaddr(vaddr)`, identity mapping that bypasses the page-table walker), and we **confirm in full-system (FS) mode that both D2 and D3 hooks fire under MMU-on translation** (D2: address-path injections on canonical kernel VAs made non-canonical; D3: thousands of PTW-descriptor flips producing spurious-translation-fault counts). We additionally discover and fix a C++ member-initialization-order bug (`rng(rng_seed != 0 ? seed : rd())` with `rng` declared before `rd`) that crashed the injectors under the default `seed=0`; this is why prior H6/H7 *SE* runs (which used `seed≠0`) never crashed while FS runs (default seed) did. The **quantitative** H6 spectrum-separability and H7 ECC on/off spurious-rate conclusions are *not yet* established: we measure that early-boot FS has extremely sparse PTW-walk density (17 walks / 259 k instructions, 0.0066%), so the controlled low-probability H7 arms see zero injections in the reachable tick budget; resolving H6/H7 quantitatively requires FS to reach Linux userspace (≈1–2 h wall per arm on the single-CPU simulator), which remains future work. We deliver a DFT query list for the silicon vendor and an honest boundary on what simulation can and cannot adjudicate.
 
@@ -26,10 +26,94 @@ The machine (Yangtze Computing R240K V2, 4-socket × 48-core Kunpeng-920, 768 GB
 
 ### 1.2 Contributions
 
-1. **A three-path microarchitectural decomposition (D1/D2/D3)** of the defect, derived bit-exactly from five vmcores and the published TSV110 cache geometry, with pre-emptive rebuttals of the three strongest reviewer attacks (coincidence, register-dump staleness, legitimate OOO-walk race).
-2. **Falsification of the PRF-liveness hypothesis** (a competing prior explanation) using evidence the PRF hypothesis cannot account for: PTW-path corruption and bit-exact stale-array-head replay.
-3. **A structural fault-injection methodology** — extending CHAOS/gem5 with `byte_lane_skew` / `all_zero` data-path faults, an address-path injector, and a PTW-readout injector — and the **end-to-end reproduction** of the kernel oops chain via the structural (not bit-flip) model (H5 verified).
-4. **Falsifiable hypotheses H6/H7, with the SE-mode null results statically root-caused (not merely asserted) to the ARM MMU translation model, and the corresponding FS-mode confirmation that the hooks fire under MMU-on translation** — an honest account of what simulation has established (hook reachability) versus what it has not yet (quantitative spectrum separability / ECC spurious-rate contrast), and the trigger-density measurements that bound the remaining work.
+1. **A three-path microarchitectural decomposition (D1/D2/D3)** of the defect, derived bit-exactly from five vmcores and the published TSV110 cache geometry, localizing the SDC to the load data-return path (D1), the AGU→MMU address path (D2), and the page-table-walker readout path (D3) — with pre-emptive rebuttals of the three strongest reviewer attacks (coincidence, register-dump staleness, legitimate OOO-walk race). The competing **PRF (physical-register-file) hypothesis is ruled out**: PRF corruption cannot account for PTW-path errors (D3) nor for the bit-exact stale-array-head replay with its structured byte-lane skew (D1) — a higher-dimensional error than any register-cell flip.
+2. **A structural fault-injection methodology** — extending CHAOS/gem5 with `byte_lane_skew` / `all_zero` data-path faults, an address-path injector, and a PTW-readout injector — and the **end-to-end reproduction** of the kernel oops chain via the structural (not bit-flip) model (H5 verified).
+3. **Falsifiable hypotheses H6/H7, with the SE-mode null results statically root-caused (not merely asserted) to the ARM MMU translation model, and the corresponding FS-mode confirmation that the hooks fire under MMU-on translation** — an honest account of what simulation has established (hook reachability) versus what it has not yet (quantitative spectrum separability / ECC spurious-rate contrast), and the trigger-density measurements that bound the remaining work.
+
+### 1.3 Microarchitectural map of the defect
+
+Figure 1 places D1/D2/D3 on the out-of-order memory subsystem. The three anchors (🔥) are the fault-injection hook points of §4; the crossed-out PRF block records the competing hypothesis this study rules out.
+
+```
+=============================================================================================
+                  [1] FRONT-END
+=============================================================================================
+ [Branch Predictor] ---> [L1 I-Cache] ---> [Decode] ---> (Micro-ops)
+                                                                       |
+=============================================================================================
+                  [2] OoO ENGINE — schedule & execute
+=============================================================================================
+                                                                       v
+                                                           [Register Rename (RAT)]
+                                                                       |
+   +-------------------------------------------------------------------+------------------+
+   | [X  Ruled-out hypothesis: Physical Register File (PRF)]                             |
+   | PRF corruption cannot explain PTW-path errors (D3), nor the D1 bit-exact             |
+   | stale-array-head replay with its structured byte-lane skew — a higher-dimensional    |
+   | error than any register-cell flip.                                                  |
+   +-------------------------------------------------------------------+------------------+
+                                                                       |
+                                                           [Issue Queue / RS]
+                                                                       |
+                          +--------------------------------------------+------------------+
+                          |                                                               |
+                          v                                                               v
+                  [ALU / FPU Units]                                              [AGU]
+                                                                                          |
+                                                            generates Virtual Address (VA)
+=============================================================================================
+                  [3] MEMORY SUBSYSTEM & ADDRESS TRANSLATION  — paper core
+=============================================================================================
+                                                                                          |
+                                      +---------------------------------------------------+
+                                      | [FIRE D2: Address-Path (AGU -> MMU)]
+                                      |   Location: address-presentation latch byte7
+                                      |   Symptom: arch VA MSB != 0 (0xd9...), but FAR_EL1
+                                      |            reports MSB = 0 (0x00...).
+                                      |   gem5 hook: lsq.cc::sendFragmentToTranslation
+                                      v
+                  +---------------------------------------+
+                  |         MMU / L1 D-TLB                | <-----------+
+                  +---------------------------------------+             | returns PA
+                             | (TLB Miss)                               |
+                             v                                          |
+  +----------------------------------------------------+                |
+  | [FIRE D3: PTW Readout Path]                        |                |
+  |   Location: HW page-table walker PTE-fetch return  |                | (TLB Hit:
+  |   Symptom: 73 "spurious translation faults" — HW   |                |  VA -> PA)
+  |   walk fails, kernel retry (AT S1E1R) succeeds.    |                |
+  |   gem5 hook: table_walker.cc::doLongDescriptor      |                |
+  +----------------------------------------------------+                |
+              | fetch PTE              ^ PTE returns                    |
+              v                        |                                v
+    [ L2 / L3 / Main Memory (RAM) ]            +-----------------------------+
+                                                |        L1 Data Cache        |
+                                                +-----------------------------+
+                                                              | miss / data return
+                                                              v
+                                                +-----------------------------+
+                                                |      Fill Buffers (FB)      |
+                                                +-----------------------------+
+                                                              |
+                                      +---------------------------------+
+                                      | [FIRE D1: Load Data-Return Path]
+                                      |   Location: Fill-Buffer Merge / L1D Readout Mux
+                                      |   Symptom: replays stale history data with a
+                                      |   structured byte-lane skew (circular rotation).
+                                      |   gem5 hook: lsq_unit.cc:1498 (post-forward memcpy)
+                                      v
+                                [ Load/Store Queue (LSQ) ]
+                                      | (Store-to-Load Forwarding)
+                                      v
+                             [ Register Writeback ]
+```
+**Figure 1.** Out-of-order CPU memory subsystem with the three localized defect anchors (D1/D2/D3 = fault-injection hook points) and the ruled-out PRF hypothesis. The diagram is confined to the load and address-translation subsystem; the front-end and pure-compute engine are shown only for orientation.
+
+The three anchors map to the paper's machinery as follows:
+
+- **D1 — Load data-return path (fill-buffer / replay-merge).** A load of `__per_cpu_offset[146]` returned `__per_cpu_offset[0]` (array head) right-rotated by one byte. This Hamming-distance-0 byte displacement is **not expressible as any single-bit flip**; reproducing it required the structural `byte_lane_skew` model (§4.1), which end-to-end reproduces the chain skewed-pointer → non-canonical VA → page fault → Kernel Oops (H5, verified; §5.1).
+- **D2 — Address path (AGU → MMU).** The architecture requires `FAR_EL1 == address the MMU received` for translation faults (§2.2). Architectural registers (e.g. `x27`) carry an address with MSB ≠ 0, yet `FAR_EL1` records the faulting address with MSB = 0 — proving the high bits were lost on the way to the MMU (MSB-zeroing). In gem5 SE mode (`SCTLR.M=0`, identity VA==PA) the zeroed address still lands in valid physical memory and faults nowhere (null result); only in FS mode does zeroing a kernel VA (`0xffff…`) yield a non-canonical address (`0xffffc0…`) that actually raises a translation fault (§5.3).
+- **D3 — PTW readout path.** 73 "spurious translation fault" warnings target statically resident memory, excluding concurrent software modification: the HW PTW transiently mis-read a page-table descriptor from L2/L3, the MMU deemed the address unreachable, and the kernel's retry succeeded microseconds later. FS-mode injection in `doLongDescriptor` measures early-boot walk density at only 0.0066% of instructions, explaining why D3 surfaces on silicon as occasional warnings (73) while the D1/D2 load path — exercised far more often — produces the 5 fatal crashes (§5.4–5.5).
 
 ---
 
