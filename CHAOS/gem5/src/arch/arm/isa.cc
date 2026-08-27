@@ -36,6 +36,7 @@
  */
 
 #include "arch/arm/isa.hh"
+#include "arch/arm/CHAOSArmSysReg/CHAOSArmSysReg.hh"  // Phase 3: sys-reg injector
 
 #include "arch/arm/decoder.hh"
 #include "arch/arm/faults.hh"
@@ -447,7 +448,15 @@ ISA::readMiscRegNoEffect(RegIndex idx) const
         DPRINTF(MiscRegs, "Reading MiscReg %s with clear res1 bits: %#x\n",
                 miscRegName[idx], (val & reg.res1()) ^ reg.res1());
     }
-    return (val & ~reg.raz()) | reg.rao(); // enforce raz/rao
+    val = (val & ~reg.raz()) | reg.rao(); // enforce raz/rao
+    // Phase 3 §六.4 item 3: CHAOSArmSysReg hook. On a whitelisted system-
+    // register read, corrupt the returned value (the MRS gets a wrong value).
+    // nullptr = no injector (hot-path short-circuit). `idx` is post-redirect
+    // (raw), which is what the whitelist is matched against.
+    if (chaosSysReg) {
+        chaosSysReg->maybeCorrupt(idx, miscRegName[idx], val);
+    }
+    return val;
 }
 
 

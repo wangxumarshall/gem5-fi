@@ -1,0 +1,8 @@
+# -*- mode:python -*-
+# CHAOSArmSysReg — ARM system-register fault injector (Phase 3 §六.4 item 3).
+# Discovered automatically by src/SConscript's os.walk.
+
+Import('*')
+
+SimObject('CHAOSArmSysReg.py', sim_objects=['CHAOSArmSysReg'], enums=[])
+Source('CHAOSArmSysReg.cc')
