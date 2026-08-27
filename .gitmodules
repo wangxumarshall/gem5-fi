@@ -1,0 +1,3 @@
+[submodule "gem5-fs"]
+	path = gem5-fs
+	url = git@github.com:wangxumarshall/gem5-fs.git
