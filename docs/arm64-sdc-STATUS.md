@@ -247,32 +247,31 @@ ENOSPC-killed a G4 test on this 29GB host).
 
 ## Phase 2 progress (§六.4 step 4, incremental)
 
-- **Item 1 — 128-bit NEON** (`d3fcec4`): DONE at the tooling level. The
-  vec-injection path (made safe by patch 4602f28) lands faults on ACTIVE
-  vector phys regs and propagates to SDC, verified on a new ASIMD
+- **Item 1 — 128-bit NEON** (`d3fcec4` + `0c557c2`): DONE at lane-level.
+  The vec-injection path (made safe by patch 4602f28) lands faults on
+  ACTIVE vector phys regs and propagates to SDC, verified on the ASIMD
   lane-sep kernel (workloads/directed/neon_lane, golden
-  `00000000526925fe`, native==gem5-O3). phys vec[1]/[3] (Active, ~925
-  reads) → SDC; vec[0]/[2]/[4] → Masked (real AVF / not-read-bit).
-  Honest scope: this is the vec PATH (low-64-bit word flip). Per-lane
-  targeting (a specific 32-bit lane of the 128-bit V reg) is NOT done —
-  needs a vec-lane-offset knob. Formal per-lane cells deferred.
-- **Item 2 — LSQ store->load forwarding**: DONE (config wired, SDC
-  verified). CHAOSLSQFwd exists (parallel-session), is wired into
-  lsq_unit.cc (cpu->lsqFwd->corrupt() on a store->load forward), and
-  has the gate params. KEY: it SELF-ATTACHES — its constructor does
-  `cpu->lsqFwd = this` (CHAOSLSQFwd.cc:50), so the config just
-  instantiates `CHAOSLSQFwd(cpu=cpu0)` as a board child (no
-  `setLSQFwd` call — that method has no Python binding, but isn't
-  needed). Wired into configs/se/arm_chaos.py via `--chaos_lsqfwd`.
-  Verified SDC on workloads/directed/fp_fwd_kernel (store->load forward,
-  self-detecting `fails` count), O3:
-    - golden (no inj): iters=500 fails=0 exit 0.
-    - firstClock=1000000 (comparison loop): fails=1 — DETECTED SDC.
-      Log: Site: store->load_forward, Vaddr 0x4983b8, ByteOffset 3, Mask 0x4.
-    - firstClock=10000 (fill phase — flip overwritten by re-write): fails=0 (masked). TIMING matters.
-    - multi-inject (prob=0.01, maxFaults=0): fails=10318 / 10551 injections → ~98% of forwarding-path faults are DETECTED SDC (DUE-class under a self-checking workload).
-  Honest scope: the `fails>0` SDC is DETECTED (the workload self-checks
-  → DUE), not silent. A silent SDC needs a non-self-checking workload +
-  output checksum. CHAOSLSQFwd still has faultMask UInt32 (32-bit, like
-  issue #2) and a -Wswitch Random warning (G7) — parallel-session
-  leftovers, byte-level so not critical. Formal LSQ cells deferred.
+  `00000000526925fe`, native==gem5-O3). Patch 0c557c2 adds per-lane
+  targeting (`vecLaneWidth` 8/16/32/64 + `vecLaneOffset`), so a flip
+  lands on a SPECIFIC 32/16/64/8-bit lane of the 128-bit VecRegClass
+  phys reg (plan §7.4 BM-NEON: 4x32/2x64/8x16). Verified 4 DISTINCT lane
+  SDCs (phys vec[1], width=32, lanes 0/1/2/3 → e0c767c9/ab4b199/
+  dd65a1c0/3007c799) — the flip genuinely lands on the directed lane.
+  Honest scope: formal per-lane cells (n=384 across V0-V31 × lanes × bit
+  boundaries) deferred.
+- **Item 2 — LSQ store->load forwarding** (`5d0a5b0`): DONE. CHAOSLSQFwd
+  SELF-ATTACHES (constructor `cpu->lsqFwd = this`); config just
+  instantiates it. Verified SDC on fp_fwd_kernel: firstClock=1e6 →
+  fails=1 detected; multi-inject → 10318/10551 ≈98% detected (DUE-class).
+- **Item 3 — TLB/system registers (FS mode)**: FS-mode BOOTSTRAP DONE
+  (the prerequisite); the TLB/SYS-reg injector SimObject is NOT yet
+  written. `configs/se/arm_chaos_fs.py` boots the gem5-fs/ ARM Ubuntu
+  disk via stdlib ArmBoard + VExpress_GEM5_V1 + boot.arm64 + vmlinux
+  (local resources, no network fetch). Verified it BOOTS: kernel 5.15.36
+  loads (`kernel located at: gem5-fs/vmlinux`, entry 0x80000000, DTB at
+  0x88000000), root=/dev/vda1 mounts (virtio-blk), device init reaches
+  `random: fast init done` (Atomic CPU; full boot to userspace needs
+  more wall time / O3). NOTE: root partition is /dev/vda1 (virtio-blk,
+  NOT /dev/sda1). The 0x2c001000 BadAddress panic on VExpress_GEM5_
+  Foundation is a platform-memory-map mismatch — V1 is the correct
+  platform for the gem5-fs boot.arm64+armv8_gem5_v1 dtb combo.
