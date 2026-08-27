@@ -65,6 +65,11 @@ struct DummyArmISADeviceParams;
 class Checkpoint;
 class EventManager;
 
+// Phase 3 §六.4 item 3: CHAOSArmSysReg (ARM system-register injector) lives
+// in ::gem5 (NOT ArmISA); forward-declared here so the ISA class below can
+// hold a ::gem5::CHAOSArmSysReg*.
+class CHAOSArmSysReg;
+
 namespace ArmISA
 {
 class SelfDebug;
@@ -165,6 +170,14 @@ class ISA : public BaseISA
     RegVal readMiscReg(RegIndex idx) override;
     void setMiscRegNoEffect(RegIndex idx, RegVal val) override;
     void setMiscReg(RegIndex, RegVal val) override;
+
+    // Phase 3 §六.4 item 3: CHAOSArmSysReg system-register injector hook.
+    // Set by the injector's SELF-ATTACH (its constructor sets isa->chaosSysReg
+    // = this). readMiscRegNoEffect calls chaosSysReg->maybeCorrupt(idx, name,
+    // val) on a whitelisted read to corrupt the returned value. nullptr = no
+    // injector (hot-path short-circuit).
+    class ::gem5::CHAOSArmSysReg *chaosSysReg = nullptr;
+    void setChaosSysReg(::gem5::CHAOSArmSysReg *p) { chaosSysReg = p; }
 
     RegVal readMiscRegReset(RegIndex) const;
     void setMiscRegReset(RegIndex, RegVal val);

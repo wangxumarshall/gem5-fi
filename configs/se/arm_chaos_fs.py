@@ -22,7 +22,7 @@
 import argparse
 import m5
 from m5.objects import (ArmDefaultRelease, VExpress_GEM5_Foundation,
-                        VExpress_GEM5_V1, CHAOSArmTLB)
+                        VExpress_GEM5_V1, CHAOSArmTLB, CHAOSArmSysReg)
 from gem5.components.boards.arm_board import ArmBoard
 from gem5.components.cachehierarchies.classic.private_l1_private_l2_cache_hierarchy import (
     PrivateL1PrivateL2CacheHierarchy,
@@ -67,6 +67,21 @@ p.add_argument("--tlb_max_faults", type=lambda x:int(x,0), default=1,
 p.add_argument("--tlb_fault_mask", type=lambda x:int(x,0), default=0,
                help="CHAOSArmTLB 64-bit pfn mask; 0=random")
 p.add_argument("--tlb_rng_seed", type=lambda x:int(x,0), default=20260825)
+# Phase 3 §六.4 item 3 (SYS): CHAOSArmSysReg system-register injector.
+# Hooks ISA::readMiscRegNoEffect (MRS read path). Whitelist of ARM MiscReg
+# enum NAMES (TTBR/TCR/MAIR/SCTLR/VBAR etc.) — empty = no injection.
+p.add_argument("--chaos_sysreg", action="store_true",
+               help="attach CHAOSArmSysReg (ARM system-register read-path "
+                    "corruptor, FS only)")
+p.add_argument("--sysreg_first_clock", type=lambda x:int(x,0), default=100000)
+p.add_argument("--sysreg_probability", type=float, default=0.0)
+p.add_argument("--sysreg_max_faults", type=lambda x:int(x,0), default=1)
+p.add_argument("--sysreg_fault_mask", type=lambda x:int(x,0), default=0)
+p.add_argument("--sysreg_rng_seed", type=lambda x:int(x,0), default=20260825)
+p.add_argument("--sysreg_target_regs", default="",
+               help="comma-separated ARM miscRegName strings (lowercase, "
+                    "from misc.hh miscRegName[]), e.g. "
+                    "sctlr_el1,ttbr0_el1,tcr_el1,mair_el1,vbar_el1")
 args = p.parse_args()
 
 cpu_map = {"O3": CPUTypes.O3, "TIMING": CPUTypes.TIMING,
@@ -113,7 +128,11 @@ board.set_kernel_disk_workload(
 # stdlib ArmBoard builds the CPU+MMU lazily, so attach in a _pre_instantiate
 # hook (after construction, before m5.instantiate). The D-TLB path under
 # the ArmBoard's cpu0 is cpu0.mmu.dtb (data TLB); i-TLB is cpu0.mmu.itb.
-if args.chaos_armtlb:
+# Attach CHAOS injectors that need the stdlib-built CPU in a _pre_instantiate
+# hook (the ArmBoard builds the CPU+MMU lazily). Either TLB or SYS (or both)
+# trigger the hook. cpu0 = processor.get_cores()[0].core; D-TLB = cpu0.mmu.dtb;
+# ISA = cpu0.isa[0] (BaseCPU.isa is a per-thread VectorParam.BaseISA).
+if args.chaos_armtlb or args.chaos_sysreg:
     _tlb_attached = [False]
     _orig_pi = getattr(cache_hierarchy, "_pre_instantiate", None)
     def _attach_tlb(root):
@@ -139,6 +158,26 @@ if args.chaos_armtlb:
         # CHAOSArmTLB SELF-ATTACHES (constructor sets tlb->chaosTLB = this),
         # same pattern as CHAOSLSQFwd — no setChaosTLB call (no python binding).
         _tlb_attached[0] = True
+
+        # Phase 3 §六.4 item 3 (SYS): CHAOSArmSysReg attaches to the CPU's
+        # ISA (isa vector, per-thread). The injector SELF-ATTACHES in its
+        # constructor (isa->chaosSysReg = this), hooking readMiscRegNoEffect.
+        if args.chaos_sysreg:
+            isa0 = cpu0.isa[0]  # ArmISA instance for thread 0
+            sys_reg = CHAOSArmSysReg(
+                isa=isa0,
+                probability=args.sysreg_probability,
+                firstClock=args.sysreg_first_clock,
+                faultType="bit_flip",
+                faultMask=args.sysreg_fault_mask,
+                bitsToChange=1,
+                targetRegs=args.sysreg_target_regs,
+                maxFaults=args.sysreg_max_faults,
+                rngSeed=args.sysreg_rng_seed,
+                writeLog=True,
+            )
+            board.chaos_sysreg = sys_reg
+            # SELF-ATTACH: constructor set isa0->chaosSysReg = this.
     cache_hierarchy._pre_instantiate = _attach_tlb
 
 # Exit when the kernel reports it has booted (default exit handlers include
