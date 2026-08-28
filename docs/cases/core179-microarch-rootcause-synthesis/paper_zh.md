@@ -134,6 +134,28 @@ Kunpeng-920 集成了 TaiShan V110（TSV110）核心：一款 4 发射的乱序 
 
 gem5 的 AArch64 `MMU::translateTiming` 分派（`src/arch/arm/mmu.cc`，`translateComplete`/`translateTiming` 路径）取决于 `state.sctlr.m`：当 MMU 关闭（`!state.sctlr.m`）时调用 `translateMmuOff`，后者执行 `req->setPaddr(vaddr)`——一种**无页表漫游**的虚拟→物理恒等映射。系统调用模拟（SE）模式以 `SCTLR.M=0` 运行，故每次翻译都走此路径；全系统（FS）模式运行 Linux，后者在构建页表后置 `SCTLR.M=1`，故翻译走真正的 TLB 查找→页表漫游器路径，经 `WalkUnit::doLongDescriptor` 完成。正是这一架构事实使得 D2/D3 在 SE 下不可测试、在 FS 下可测试（§5.3–5.4）。
 
+```
+            MMU::translateTiming(vaddr)
+                        |
+            +-----------+-----------+
+            |  !sctlr.m (SE, MMU 关)  |       sctlr.m==1 (FS, MMU 开)
+            v                          v
+   translateMmuOff              TLB 查找 --未命中-->
+   req->setPaddr(vaddr)              |
+   (VA == PA 恒等)                   v
+   无页表漫游                 WalkUnit::doLongDescriptor
+                             [D3 钩子在此]
+   -> D2 钩子触发                  取 PTE、求值
+      但置零的 VA 仍                [D2 破坏的 vaddr
+      映射到 [0,512MiB)             被漫游；非规范
+      -> 读垃圾，                    -> 翻译错]
+      无 fault
+   -> D3 钩子从不进入
+      （doLongDescriptor 未被调用）
+      -> numFaultsInjected=0
+```
+**图 2.** 使 D2/D3 在 SE 下为空、在 FS 下激活的 SE/FS 翻译分派。同一份钩子代码，不同控制流：SE 短路到恒等（`translateMmuOff`），从不抵达 `doLongDescriptor`；FS 经由它漫游页表。这*不是*注入器 bug——它是 ARM MMU 模型，在 `mmu.cc:1213` 静态确证。
+
 ### 2.5 相关工作与本工作的区分点
 
 我们将本工作置于三支相邻文献之中，在每一支里精确陈述先前工作确立了什么、本文又增加了什么。

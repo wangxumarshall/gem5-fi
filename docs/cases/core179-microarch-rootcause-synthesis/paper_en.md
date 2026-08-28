@@ -134,6 +134,28 @@ The kernel's `is_spurious_el1_translation_fault()` re-runs the walk via an `AT S
 
 gem5's AArch64 `MMU::translateTiming` dispatches (`src/arch/arm/mmu.cc`, the `translateComplete`/`translateTiming` path) on `state.sctlr.m`: when the MMU is off (`!state.sctlr.m`) it calls `translateMmuOff`, which does `req->setPaddr(vaddr)` — an identity virtual→physical mapping with **no page-table walk**. Syscall-emulation (SE) mode runs with `SCTLR.M=0`, so every translation takes this path; full-system (FS) mode runs Linux, which sets `SCTLR.M=1` after building its page tables, so translations take the real TLB-lookup→page-table-walker path through `WalkUnit::doLongDescriptor`. This single architectural fact is what makes D2/D3 untestable in SE and testable in FS (§5.3–5.4).
 
+```
+            MMU::translateTiming(vaddr)
+                        |
+            +-----------+-----------+
+            |  !sctlr.m (SE, MMU off)  |        sctlr.m==1 (FS, MMU on)
+            v                          v
+   translateMmuOff              TLB lookup --miss-->
+   req->setPaddr(vaddr)              |
+   (VA == PA identity)               v
+   NO page-table walk        WalkUnit::doLongDescriptor
+                             [D3 hook lives HERE]
+   -> D2 hook fires              fetch PTE, evaluate
+      but zeroed VA still         [D2 corrupted vaddr
+      maps into [0,512MiB)         walked; non-canonical
+      -> reads garbage,            -> translation fault]
+      NO fault
+   -> D3 hook never entered
+      (doLongDescriptor not called)
+      -> numFaultsInjected=0
+```
+**Figure 2.** The SE/FS translation dispatch that makes D2/D3 null in SE and live in FS. Same hook code, different control flow: SE short-circuits to identity (`translateMmuOff`) and never reaches `doLongDescriptor`; FS walks the page table through it. This is *not* an injector bug — it is the ARM MMU model, statically confirmed at `mmu.cc:1213`.
+
 ### 2.5 Related work and what is distinct here
 
 We position this work against three adjacent literatures; in each we state precisely what prior work established and what this paper adds.
