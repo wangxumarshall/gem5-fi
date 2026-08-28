@@ -257,3 +257,8 @@ build/ARM/gem5.opt o3_chaos_ptw.py --ptw-flip --ptw-ecc on/off --prob 0.0001
 **H7 本机 5-seed 加固（审查发现5回应）**：本机 prob=0.5 5 seeds × 2 臂：ECC-off spurious=2/4/1/1/1（范围 1-4，与前序 commit 3287299 一致），ECC-on spurious=0/0/0/0/0（全 0）。ECC 纠正效应方向 5/5 稳定复现。但保留瑕疵（两臂 numHooksCalled 不对称、prob=0.5 致卡 simInsts~3090），论文 §5.4 已诚实标注。
 
 **审查总体判断**：法证链 D1 实锤（Hamming-0 + 位翻转不可达），D2 削弱为 TBI 依赖未证，D3（H7）方向稳定但样本小；H6 谱可分降级为方向观测；H5/H7 verified 保留。论文经对抗审查后显著更诚实——降级了过度宣称，标注了未决威胁。
+
+**补充实证（2026-08-28，堵审查未尽点）：**
+- **审查发现5（方法）seed=0 方差已量化**：本机 prob=0.5 5 次重复 seed=0：spur=1/1/1/2/1（inj 同）——方差小但非零（4/5 为 1，1/5 为 2），印证论文 §5.4"seed=0 用 runtime 熵，量级稳定但非确定性"。ECC-on 5/5 全 0、ECC-off 5/5 各 1-4 的对照方向 5/5 稳定。
+- **审查发现3（代码）D3 first_clock 门控实测**：`--first-clock 5000000` → inj=1 hooks=15806。`numHooksCalled` 在门控前计数（15806，符合设计），但 inj 只 1 次——印证代码注释标注的时钟 bug：first_clock=5000000 被 D3 当 raw tick 解读（5M tick = 5ms，远小于 400M tick 预算），故门控几乎不抑制。**确认 D3 first_clock 语义错（raw tick 非 cycle），但因 H6/H7 实验均用 first_clock=0，不影响任何已报结论**。修复需给 CHAOSPTW 加 clock-domain accessor（它只有 mmu 指针，`SimObject::ticksToCycles` 在此作用域不可达——已实证 `this->ticksToCycles` 编译失败）。
+- **审查发现1+4（H6 跨模式/D1 FS）部分推翻**：D1-only FS 在 16 B tick + prob=0.5 下 `numHooksCalled=433 numStructuralByteLaneSkew=227 simInsts=387131`（正常推进）——400 M tick 的"D1=0"是 tick 预算伪迹非钩子限制。同 FS 模式 16 B tick：D1→387131 正常 vs D2→3085 中断——体制内对照指向可分性。论文 §5.3 已加 16 B 行。仍保留：simInsts stall 非 guest crash、16 B 单种子。
