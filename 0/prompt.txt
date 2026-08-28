@@ -1,0 +1,1 @@
+下载git@github.com:wangxumarshall/gem5-fi.git，并修改当前代码仓，增加submodule，名为gem5-fi
