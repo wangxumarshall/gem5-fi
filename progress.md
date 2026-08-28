@@ -385,3 +385,15 @@ ARM 三条路径 + golden（真跑输出）：
 - ⬜ 第四步 item 6 鲲鹏实机：需授权实机（plan §11 Phase 7 "只在得到授权的实验机上"），本环境不可得，诚实 deferred
 
 **无谎称完成项**。唯一不可完成的是 item 6（鲲鹏实机 RAS 校准）——这是物理环境依赖，不是工具/代码工作，且 plan 明确要求授权实机。
+
+### 报告 #5 真正完整化（补丁 416a650）— CHAOSReg directed-reg 旋钮
+
+报告 #5 "manifest 中指定的寄存器要真正生效"此前的修复只覆盖了 `bit_indices`（→fault_mask）和 `trigger`（→first_clock），但 **CHAOSReg 的 reg index 仍是随机采样**——runner.py 明确输出 "CHAOSReg has no directed-reg knob; manifest index=9 recorded but not forced (TODO)"。manifest 的 `target.index=9` 只因 seed=20260825 碰巧选到 integer[9] 才"生效"，换 seed 即变——违反定向意图。
+
+修复：CHAOSReg 加 `targetRegIdx` 参数（Int，-1=随机，>=0 强制注入该 arch reg index）。runner.py 把 manifest `target.index` → `--target_reg_idx`（不再 TODO）；并修复 fault-count 解析把 DIRECTED advisory 行误算（faults=2→1）。
+
+实证（真跑）：
+- 不同 seed（1/2/3）+ `--target_reg_idx=9` → 全部注入 `integer[9]`（directed=integer[9], injected=integer[9]）。修复前 seed 决定 reg；现在 manifest index 跨 seed 强制。
+- manifest run：`RESULT: classification=Masked faults_injected=1 exit=0`（此前 faults=2 + "not forced TODO"；现在 faults=1、index 强制、无 TODO）。
+
+报告 #5 现在完整：reg（targetRegIdx）、bit（fault_mask）、trigger（first_clock，非 cycle 拒绝）全部生效。
