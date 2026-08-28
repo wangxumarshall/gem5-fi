@@ -26,7 +26,7 @@
 
 ### 1.2 贡献
 
-1. **缺陷的三路径微架构分解（D1/D2/D3）**，从五份 vmcore 与已公开的 TSV110 缓存几何结构中位级地导出，将 SDC 定位到加载数据返回路径（D1）、AGU→MMU 地址路径（D2）和页表漫游器读出路径（D3）——并对三种最强的审稿人质疑（巧合、寄存器转储陈旧、合法的 OOO 漫游竞争）预先作出反驳。
+1. **缺陷的三路径微架构分解（D1/D2/D3）**，从五份 vmcore 与已公开的 TSV110 缓存几何结构中位级地导出，*假设* SDC 位于加载数据返回路径（D1，**已确立**）、AGU→MMU 地址路径（D2，**未证——见 §3.3**）和页表漫游器读出路径（D3，**证据强**）——并对三种最强的审稿人质疑（巧合、寄存器转储陈旧、合法的 OOO 漫游竞争）预先作出反驳。该分解是*假设层级*，非均匀定位：D1 逐位精确（Hamming-0 旋转 + 位翻转不可达）；D3 有 73 次静态映射上的 spurious 错；D2 的 FAR-MSB 证据可由 FAR[63:60] UNKNOWN + 可能 TBI 解释，故 D2 作为候选而非发现。
 2. **结构化故障注入方法论**——将 CHAOS/gem5 扩展以支持 `byte_lane_skew` / `all_zero` 数据路径故障、地址路径注入器与 PTW 读出注入器——并通过结构化（而非位翻转）模型**端到端复现**内核 oops 链条（H5 已验证）。
 3. **可证伪假设 H6/H7**，其 SE 模式空结果被静态归因（而非仅仅推断）到 ARM MMU 翻译模型，并在 FS 模式下确认钩子在 MMU 开启翻译时触发——诚实地说明仿真已经确立（钩子可达性）与尚未确立（定量谱可分性 / ECC 虚假率对比）的内容，以及界定剩余工作的触发密度测量。
 
@@ -124,7 +124,7 @@ Kunpeng-920 集成了 TaiShan V110（TSV110）核心：一款 4 发射的乱序 
 
 ### 2.2 ARMv8 翻译错误语义
 
-对于作为*翻译错误*（translation fault，ESR EC=0x25，FSC ∈ {0x04–0x07}）的同步数据异常（synchronous data abort），架构要求 `FAR_EL1[63:0]` 等于 MMU 实际翻译的地址。"bits 63:60 are UNKNOWN"（第 63:60 位未知）这一松弛*仅*适用于标签检查错误（tag-check fault，EC=0x0D）与同步外部异常（synchronous external abort），**不**适用于翻译错误。我们在 §3.3 利用此不变量来证明地址路径损坏。
+对于作为*翻译错误*（translation fault，ESR EC=0x25，FSC ∈ {0x04–0x07}）的同步数据异常（synchronous data abort），ARMv8-A ARM（DDI 0487，§D13.2.30 FAR_EL1）规定**有效虚拟地址存于 `FAR_EL1[51:0]`**（VA_SIZE-1:0）；**`FAR_EL1[63:60]` 对翻译错误是 UNKNOWN/RES0**——软件须在使用 FAR 作地址前将其屏蔽。（[63:60] 仅对对齐/访问标志/权限/外部异常/奇偶校验类错误有意义，非翻译错误。）本文先前版本称翻译错误的 `FAR_EL1[63:0]` 必须等于翻译地址；那是**错误**的，此处更正。其后果（§3.3 展开）是：D2 的"架构 MSB ≠ FAR MSB"证据只活在 FAR 保证的 `[55:0]` 范围内；高位 nibble 差异本身不是架构证据。
 
 ### 2.3 openEuler 虚假错误处理程序
 
@@ -195,7 +195,7 @@ ldr  x23, [x27, #288]          ; ← 故障；加载一个 CFS load-average 字�
 
 ### 3.3 地址路径征兆 D2
 
-在两次崩溃（08-14、08-24）中，架构地址的 MSB ≠ 0（`0xd9…`、`0x55…`），而内核打印的 `FAR` 却 MSB = 0（`0x00…`）。由于 ARMv8 要求翻译错误满足 `FAR == 翻译地址`（§2.2），且由于 `untagged_addr()`（从第 55 位符号扩展）在位 55 = 0 时*若 `TCR_EL1.TBI0/TBI1` 关闭*则对这些地址是空操作，故在 TBI 关闭的内核下，该 MSB 差异不是软件掩码伪影。我们以两种方式诚实界定：(1) **TBI 未决**：我们未从转储记录 `TCR_EL1`，故若 TBI 开启，内核的 `untagged_addr()` 本身会清除 top byte，`untagged_addr(arch_addr) == FAR` 将是*预期的*无缺陷行为——这把 D2 从"已确认-弱"削弱为"依赖 TBI、未证"（见 §7 未决威胁）。(2) 即使假定 TBI 关闭，D2 仅在 2/5 次恐慌中清晰可见；在另两次 MSB 非零的情形中，D1 已使损坏值的 MSB = 0，使 D2 不可观测；第五次无 D2。
+在两次崩溃（08-14、08-24）中，架构地址的 MSB ≠ 0（`0xd9…`、`0x55…`），而内核打印的 `FAR` 却 MSB = 0（`0x00…`）。我们必须诚实指出：此 D2 证据**比先前版本声称的弱得多**，三重叠加原因：(1) **`FAR_EL1[63:60]` 对翻译错误是 UNKNOWN/RES0**（§2.2，ARMv8-A ARM DDI 0487 §D13.2.30）——仅 `FAR[51:0]`（依 VA 大小至 [55:0]）架构保证有效。故"架构 MSB ≠ FAR MSB"的观察只活在 FAR 不保证的位内；高位 nibble 差异本身不构成地址通路损坏的架构证据。(2) 实际上 `untagged_addr(arch_addr)` 在 0814 和 0824 中*等于* `FAR`（已验证：`0xd936… → 0x0036…` == FAR；`0x553c… → 0x003c…` == FAR），即低 56 位精确匹配。若 `TCR_EL1.TBI0/TBI1` 开启（我们未从转储记录），内核的 `untagged_addr()` 本身会清除 top byte，使此匹配成为*预期的无缺陷*行为。(3) 即使假定 TBI 关闭，D2 仅在 2/5 次恐慌中清晰可见；在另两次 MSB 非零的情形中，D1 已使损坏值的 MSB = 0，使 D2 不可观测；第五次无 D2。**净结论：D2 从"已确认-弱"降级为"未证——0814/0824 的 FAR-MSB 差异可由 FAR[63:60] UNKNOWN + 可能的 TBI top-byte 剥离完全解释，无需任何硬件地址通路故障。"** 片上 D2 *假设*（AGU→MMU 路径 MSB 清零）仍是候选，但 vmcore 证据不强制它；仿真侧 D2（§5.3）显示*机制*可演练，非硅必然展现。
 
 ### 3.4 PTW 征兆 D3
 
@@ -270,17 +270,19 @@ Cycle: 151978, Seq: 4237, Site: load_effAddr,
 
 **D2-vs-D1 方向性证据（多种子，本机测量；非受控"可分"结论）。** H6 的可证伪核心在于 D1（数据通路）与 D2（地址通路）的谱*可区分*。我们在重建的 `gem5.opt` 上测量如下：
 
-| 臂 | 模式 | 种子 | 注入 | 注入后 `simInsts` | 分类 |
-|---|---|---|---|---|---|
-| 仅 D1（`byte_lane_skew`）| **SE** | 42 | 30 | （执行完毕）| SDC 可检，28/30 = 93% |
-| 仅 D2（`addr byte7`）| **FS** | 1,2,3 | 2,2,4 | 3086, 3436, 3104 | 执行中断，3/3 种子 |
-| 仅 D1（`byte_lane_skew`）| **FS** | 3 | **0** | 259 186（正常）| 未触发（见下）|
-| 基线（无注入）| FS | — | 0 | 259 186 | 正常推进 |
-| D1+D2 共注 | FS | 3 | D2=4, D1=0 | 3104 | 执行中断 |
+| 臂 | 模式 | 种子 | tick | D1 skew | D2 addr | 注入后 `simInsts` | 分类 |
+|---|---|---|---|---|---|---|---|
+| 仅 D1（`byte_lane_skew`）| SE | 42 | — | 30 | — | 完成 | SDC 可检，28/30 = 93% |
+| 仅 D2（`addr byte7`）| FS | 1,2,3 | 400 M | — | 2,2,4 | 3086/3436/3104 | 中断，3/3 |
+| 仅 D1（`byte_lane_skew`）| FS | 3 | 400 M | **0** | — | 259 186 | 钩子未演练（早期 boot）|
+| 仅 D1（`byte_lane_skew`）| FS | 3 | **16 B** | **227** | — | **387 131** | 正常推进，D1 触发 |
+| 仅 D2（`addr byte7`）| FS | 3 | 16 B | — | 23 | 3085 | 中断 |
+| D1+D2 共注 | FS | 3 | 16 B | **0** | 23 | 3085 | 中断（D2 提前中断 D1）|
+| 基线（无注入）| FS | — | 400 M | 0 | 0 | 259 186 | 正常 |
 
-**本表的诚实解读（从"可分已确认"降级）。** 三个保留削弱了"可分"结论，预先声明：(1) **跨模式对照。** D1 的 SDC(93%) 测于 SE 模式（无 MMU、ptrskew_kernel 用户态探针）；D2 的中断测于 FS 模式（MMU 开、内核 boot）。这是不同的翻译体制、工作负载与观测量——非同体制内受控对照。(2) **D1 在 FS 早期 boot 不触发。** 单独的仅 D1 FS 运行（seed 3、`--lsq-fwd-prob 0.05`）产生 `numStructuralByteLaneSkew=0` 且 `simInsts=259186`（正常推进）：D1 钩子在 store→load-forward 路径（`lsq_unit.cc:1498`），FS 早期 boot 的内核执行几乎不做 store→load 转发，故该钩子在此预算内根本未被演练。因此"D1+D2 共注 D1=0"行**不能**解读为"D2 主导"——无论 D2 与否，D1 在此本就不会触发。（CHAOSLSQFwd 无 `numHooksCalled` 统计，故"未触发"vs"触发但 prob 未中"不可区分——我们标注为仪表化缺口。）(3) **`simInsts` 中断 ≠ guest Crash。** D2 的"执行中断"（`simInsts`≈3100 vs 259186）是*仿真器*停顿——注入的非规范 VA derail 了 fetch 时 gem5 停止推进（`outside of physical memory, stopping fetch`）——而非预算内 guest 可见的 `Oops`/`FAR`。同样的 `simInsts`≈3100 中断也出现在 D3 高 prob 注入下（§5.4），故该中断不具 D2 特异性；将其当作"Crash"信号是对仿真器伪迹的过度解读。
+**诚实解读（降级后部分恢复）。** 三个保留：(1) 原 400 M-tick 仅 D1 FS 运行得 `numHooksCalled=0`/`numStructuralByteLaneSkew=0`——store→load-forward 钩子（`lsq_unit.cc:1498`）在*早期 boot* 未演练。更长 16 B-tick + `prob=0.5` 运行**反转此结论**：`numHooksCalled=433`、`numStructuralByteLaneSkew=227`、`simInsts=387131`（正常推进）。故 D1 在 FS 下*确实*触发，只需执行到足够 store→load-forward 事件；400 M 的"0"是 tick 预算伪迹，非钩子限制（新增的 `numHooksCalled` 统计，§7，将其与"prob 未中"区分）。(2) 跨模式顾虑（D1-SE vs D2-FS）被 16 B-tick FS 行**部分缓解**：在同 FS 模式、同 16 B tick 下，仅 D1 正常推进（387131）而仅 D2 中断（3085）——指向可分性的体制内 D1-vs-D2 对照。(3) **`simInsts` 中断 ≠ guest Crash** 仍成立：D2"中断"是 gem5 的 `outside of physical memory, stopping fetch` 仿真器停顿，非 guest 可见 Oops，且同 ~3100 中断在 D3 高 prob 下出现——不具 D2 特异性。16 B-tick D1+D2 共注行（D2=23, D1=0, simInsts=3085）显示 D2 提前中断 D1：仅 D1-FS-16B 得 227 D1 注入，共注的 D1=0 现归因于 D2 在 D1 forward 路径到达前中断执行——*非* D1 无为（原误读，现由 numHooksCalled 纠正）。
 
-**已确立：** D2 FS 注入复现 §3.3 签名（规范→非规范）并在 3/3 种子中*一致地* derail 执行；D1 SE 注入产生 93% SDC 可检损坏。**未确立：** D1-vs-D2 谱*在同一体制内*可分——D1 的 FS 行为未知（早期 boot 不触发），guest 可见的 Crash/SDC 分布需 FS 推进到可恢复状态（O3 的 ≈279 inst/s 下约 25M 指令 ≈ 25h，或 AtomicCPU-checkpoint + switchCPU-切-O3）。故 H6 **方向已观测，非可分性已确认**；一位问"你验证 H6 了吗？"的审稿人会得到"方向上：D2→FS 中断，D1→SE SDC；受控的 FS 内可分性是受 O3 FS 速度限制的未来工作。"
+**已确立：** D2 FS 注入复现 §3.3 签名（规范→非规范），一致 derail 执行（3/3 种子 + 16 B 运行），D1 产 SDC 可检损坏（SE 93%；FS 16B 触发 227 次不中断）。**未确立：** *guest 可见* Crash/SDC 分类（中断是仿真器停顿）+ 匹配 tick 下多种子体制内可分性——16 B 行是单种子。故 H6 **方向已观测且有体制内支持证据，非可分性已确认**；guest 可见谱需 FS 到可恢复状态（O3 的 ≈279 inst/s 下约 25M 指令 ≈ 25h，或 AtomicCPU-checkpoint + switchCPU-切-O3）——未来工作。
 
 
 
