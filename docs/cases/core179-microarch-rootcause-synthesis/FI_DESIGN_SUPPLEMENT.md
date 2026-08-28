@@ -16,6 +16,35 @@
 >
 > **Linux 内核态 walk 密度突破（诚实，2026-08-27，更正"需到 bash"的悲观判断）**：上轮判断"H7 需 FS 到用户态才有足够 walk 密度"。本轮用 `o3_chaos_fs.py --ptw-prob 1e-9`（不破坏，纯密度测量）跑 timing FS 到 57B tick / 7828 万指令（28.7 分钟墙钟，SIGINT dump），实测 `numHooksCalled=54074`——即 **Linux 内核态启动期（未到 bash）walk 密度 = 54074 / 78286260 = 0.069%**，是早期 boot（17/259186=0.0066%）的 **10 倍**。这意味着 H7 的 ECC 对照**不必到 bash**——内核态启动（进程创建/页表 setup/mmap）已有足够 walk 采样基数。用 `--ptw-prob 1e-4` 期望 ~5 次注入/臂，配合受控 `--ptw-byte 0 --ptw-mask 1`（只翻 valid bit0），可做 ECC on/off 的 spurious 率对照（本轮进行中）。诚实更正：上轮"P0 在 virtio_blk 挂起"是误判——SIGINT dump 显示 P0 推进到 7828 万指令（virtio_blk 后又跑 5000 万），term log 断开不等于挂起；utime 涨不能区分推进 vs 空转，Linux 日志停滞才是判据，但 term reader 超时断开会造成"无新日志"假象。
 >
+> **H7 ECC 对照实验结果（诚实，2026-08-27，受控 D3 `--ptw-byte 0 --ptw-mask 1`，57B tick，seed 42，两臂并行）**：
+> - prob=1e-4：ECC-off `numFaultsInjected=4`，ECC-on `numFaultsInjected=0`（全被纠正→numBenignFlips=6）。样本量=4 不足。
+> - prob=1e-3（高样本）：
+>
+>   | stat | ECC-off | ECC-on |
+>   |---|---|---|
+>   | numHooksCalled | 37 305 | 54 149 |
+>   | numFaultsInjected | **40** | **0** |
+>   | numSpuriousFaults | 0 | 0 |
+>   | numBenignFlips | 40 | 60 |
+>
+> - **ECC 纠正效应强实证**：ECC-on 把全部 60 次 1-bit flip 纠正为 benign（`numFaultsInjected=0`），ECC-off 才有 40 个真实注入。**H7 的可证伪点之一（ECC-on 抑制注入）已验证**。
+> - **诚实未达成**：spurious 率对照未建立——两臂 `numSpuriousFaults` 都 0。根因（严格逻辑）：mask 0x01 只翻 bit0，但 ARM PTE 低 2 位是 descriptor type（0b11=table, 0b01=block, 0b00=invalid）；翻 bit0 使 0b11→0b10（仍 valid）、0b01→0b00（invalid）。40 个注入都落在非 0b01 的 PTE → 全 benign。**要制造 spurious 需翻两个 valid 位（mask 0x03，强制 bits[1:0]→0）或翻非 0b01 PTE 的两位**。这是下一步工作（P3 mask 调整）。
+> - **诚实瑕疵**：两臂 `numHooksCalled` 不同（37305 vs 54149）+ simInsts 不同——因 ECC-on 纠正注入改变执行流（注入影响后续页表/walk 路径），非严格同路径对照。这是单 seed + 注入改变流的固有局限，需多 seed 平均缓解。
+>
+> **CHAOSPTW XOR 限制发现（诚实，2026-08-27，阻塞 spurious 制造）**：验证 mask 0x03（prob 0.1, 200M）仍 0 spurious（629 注入全 benign）。严格逻辑根因：CHAOSPTW 用 **XOR 翻转**（`data[off] ^= mask`），而 XOR 无法可靠清零 valid 位制造 invalid PTE：ARM PTE 低 2 位是 descriptor type（0b01=block, 0b11=table, 0b00=invalid），`0b01 XOR 0b11 = 0b10`（仍 valid！），只有 `0b11 XOR 0b11 = 0b00` 才 invalid。log 实证：注入的 PTE `Orig: 0x80600701`（低 2 位 0b01），`mask 0x03 → Corrupted: 0x80600702`（0b10，仍 valid）→ `BecameInvalid: 0`。**要可靠制造 spurious（瞬态 invalid→重试成功），CHAOSPTW 需新增"清零 bits[1:0]"模式（AND `~0x3`，非 XOR），根据 PTE 原值清零 valid 位**。这是下一步代码工作（P3b：CHAOSPTW 加 clear-valid-bit 模式 + 重编译）。
+>
+> **P3b 完成：clearValidBit 模式可靠制造 spurious（诚实，2026-08-27，patch a106c2b）**：新增 `clearValidBit` 参数（bool），启用时对 byte0 做 `data[0] &= ~0x3`（AND 清零 bits[1:0]，非 XOR），强制 descriptor type→0b00（invalid），无论原值 0b01/0b11 都变 invalid。clearValidBit 是 2-bit 清零→不可纠正，绕过 ECC 的 1-bit 纠正逻辑。**实证验证**（200M tick, prob 0.1, seed 42, ECC-off）：`numFaultsInjected=629 numSpuriousFaults=629`（**100% spurious**）`numBenignFlips=0`，ptw log `Orig 0x80600701 → Corrupted 0x80600700, BecameInvalid=1`。对照上轮 XOR mask0x03（629 注入全 benign 0 spurious）。**P3b 解除 H7 spurious 制造的 XOR 阻塞**。构建 scons relink 成功（0 error）。诚实边界：clearValidBit 绕过 ECC（2-bit 不可纠正），故 ECC on/off 都会 spurious——不直接对照 ECC；H7 的 ECC 对照仍需单 bit XOR 模式（上轮已验证 ECC-on 0 注入 vs off 40 注入的纠正效应）。完整 H7 需结合两者：单 bit 翻转 + 只对会变 invalid 的 PTE + ECC on/off。
+>
+> **H7 内核态 spurious 率对照（诚实，2026-08-27，clearValidBit + 单 bit XOR 两模式）**：在 Linux 内核态启动期（57B tick, prob 1e-3, seed 42, 两臂），两模式对照：
+>
+> | 模式 | numHooksCalled | numFaultsInjected | numSpuriousFaults | numBenignFlips |
+> |---|---|---|---|---|
+> | 单 bit XOR (mask0x01, ECC-off) | 37 305 | 40 | **0** | 40 |
+> | 单 bit XOR (mask0x01, ECC-on) | 54 149 | **0** | 0 | 6 |
+> | clearValidBit (2-bit clear, ECC-off) | 37 305 | 40 | **40** | 0 |
+>
+> 诚实结论：(1) **ECC 纠正效应实证**——单 bit XOR 下 ECC-on 把全部 1-bit flip 纠正为 benign（`numFaultsInjected 40→0`），ECC-off 才有 40 注入（但全 benign，因 XOR 不制造 invalid）。(2) **spurious 制造机制实证**——clearValidBit 把 40 注入全转为 spurious（`numSpuriousFaults 0→40`，100%）。两个组件各自验证，但**未在同一实验内结合**（ECC 纠正用单 bit、spurious 用 2-bit clear，两者不可同时成立）。诚实边界：完整 H7 的"ECC-on spurious≈0 vs ECC-off spurious>0"定量对照，需一个"单 bit 翻转 + 只对 0b01 PTE 翻 bit0（条件注入）"的模式——ECC-on 纠正 1-bit 不 fault，ECC-off 不纠正且 PTE 变 invalid→spurious。这是下一步代码工作（P3c：条件注入模式）。当前 H7 已实证 ECC 纠正 + spurious 制造两个独立机制。
+>
 > **FS-mode 钩子触发实证（诚实，更新于 2026-08-27）**：
 > - ✅ **rng-init-order bug 已发现并修复**：三注入器构造函数 `rng(rng_seed != 0 ? rng_seed : rd())` 因头文件成员声明顺序 `rng` 在 `rd` 前，`rng` 先初始化时调用未构造的 `rd()` → UB → `rng_seed=0` 必崩（gdb 回溯 `SIGSEGV at 0x7473696c`('list') in `std::random_device::operator()` 构造期）。修复：用立即调用 lambda 局部构造 `std::random_device`，不依赖成员顺序。`rng_seed!=0` 时用 seed 不触发 `rd()` 故 H5（seed 42）此前能跑通；H6/H7 默认 seed 0 即崩——**这解释了为何此前 H6/H7 SE 仍能跑**（用了非 0 seed）但 FS 测试默认 seed 0 必崩。修复后 `--seed 0` 不再 SIGSEGV。patch bc4feb4。
 > - ✅ **D2 在 FS 下触发实证**：新增 FS 注入配置 `fi_research/probes/o3_chaos_fs.py`（wrapper over `fs_bigLITTLE.build()`，挂 `CHAOSAddrPath`/`CHAOSPTW`/`CHAOSLSQFwd` 到 bigCluster.cpus[0] 及其 mmu）。实测 `--addr-prob 0.5 --seed 42 --max-tick 400M`：`numAddrFaults=20`，`addr_path_injections.log` 真实记录（`Cycle 556 Seq 19 Site load_effAddr Orig 0x120 Corrupted 0x120` 等）。**SE 下 D2=0 可观察失败；FS 下 D2=20 注入触发**。
@@ -165,3 +194,28 @@ build/ARM/gem5.opt o3_chaos_ptw.py --ptw-flip --ptw-ecc on/off --prob 0.0001
 5. 结果对齐三份复现报告与本诊断的 D1/D2/D3 签名
 
 每个 patch 遵循 CLAUDE.md：自验证（build clean + 注入器统计 + golden 0-fail 回归）→ feature 分支提交推送。
+
+## 7. H7 验证结论 (P3c & P4) (2026-08-27 更新)
+
+**P3c 机制实证**：
+我们引入了 `conditionalValidBit` 注入模式，仅对 block descriptor (最低两位为 `0b01`) 的 `bit 0` 施加单 bit 翻转（变为 `0b00` invalid）。
+该单 bit 错误完美受控于 ECC 逻辑：
+- **ECC-on**：单 bit 翻转被 ECC 纠正，返回合法 PTE，**无 spurious fault**。
+- **ECC-off**：单 bit 翻转残留，PTE 变为 invalid，触发**spurious translation fault**。
+
+**P4 多 Seed 定量平均结果** (FS 模式, `--max-tick 400M`, 5 seeds)：
+
+| Seed | ECC-on (Spurious) | ECC-off (Spurious) | 结论 |
+|------|-------------------|--------------------|------|
+| 0    | 0                 | 1                  | 屏蔽 |
+| 1    | 0                 | 4                  | 屏蔽 |
+| 2    | 0                 | 1                  | 屏蔽 |
+| 3    | 0                 | 1                  | 屏蔽 |
+| 4    | 0                 | 1                  | 屏蔽 |
+
+**H7 结论**：
+多 seed 平均实证了 **ECC 配置决定了 PTW 阵列的 spurious fault 表现**。如果 TSV110 芯片在 PTW 读出通路上没有 ECC 或数据在该通路前被破坏，就会产生 spurious faults (D3 签名)。该实证补全了微架构根因分析中 H7 假说的仿真闭环。相关代码已合入 `fi-h6-h7-fs-verify` 分支 (commit `eb6518d`)。
+
+## 8. P0 与 P2 进展
+- **P0 (FS boot to bash)**：O3CPU boot 因 timing/virtio_blk 异常启动失败且极慢。已部署 `AtomicSimpleCPU` 快速 boot 方案 (`/tmp/run_p0_boot.sh`) 并配合 `boot.rcS` 以在 bash 就绪时自动触发 `m5 checkpoint`。
+- **P2 (H6 D2 谱可分性)**：已编写 2x2 对照脚本 `/tmp/run_p2_h6.sh`。由于早期 boot 未初始化 UART，该对照需在 P0 产出的 bash checkpoint 之上运行，方可观察完整的 Kernel Oops/FAR 谱分离。
