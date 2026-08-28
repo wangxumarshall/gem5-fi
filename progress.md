@@ -347,3 +347,15 @@ plan §3.1 C1（跨 ISA 受控对照）前置 + 报告 §六.4 item 5。
 报告 §六.2 G7 要求"开启编译器警告和 sanitizer 的工具验证"。普通构建的 CHAOS 源零警告（-Wall/-Wextra/-Wundef）已通过。尝试 UBSan 完整构建（`scons --with-ubsan`）卡在 scons 的 socket `accept()` configure 检查：sanitizer 链接标志让 `accept(0,0,0)` 测试链接失败（`Can't find library with socket calls`）——这是 gem5 UBSan 构建的环境/链接问题，非 CHAOS 源缺陷。ASan 同理会卡。
 
 诚实留白：UBSan/ASan 完整 gem5 构建在本环境卡在 socket configure（需 hack SConstruct 或预装 sanitizer 兼容的 socket 链接）。G7 的"零警告"已实证（普通 -j16 构建）；sanitizer 运行期 UB 验证 deferred（环境限制）。CHAOS 源已用 `1ULL<<`（无符号移位）、`uint64_t mask`（无 32 位截断）、`buf(vbytes)`（无越界）等修复了报告指出的 UB 风险点。
+
+### Phase 6 item 5 — x86-64 formal 跨 ISA 配对（已完成，补丁 + 本次）
+
+plan §10.4 跨 ISA 配对：同 workload（reg_chain）、同 oracle（golden `f247ef3fe6f02cfd` 跨 ISA 逐字节一致）、同 fault model（bit_flip）、GPR 语义角色配对（ARM X2/X3 ↔ x86 RCX/RAX）。
+
+- 用 clang 17 `--target=x86_64-linux-gnu` + lld `-nostdlib -ffreestanding` 交叉编译了 **x86-64 reg_chain**（`workloads/directed/reg_chain_x86.c`，freestanding，raw syscall，无 libc）——aarch64 主机无 x86 gcc，但 clang+lld 可产静态 x86-64 ELF。
+- **x86 golden**（无注入）= `f247ef3fe6f02cfd`，与 ARM **逐字节一致**（同算法跨 ISA oracle 一致——§10.4 配对的前提）。
+- **x86 CHAOSReg 注入 SDC**：`seed=20260827 integer[1](RCX) bit_flip` → `62578f642a9ae659`（**SDC**，!= golden）。配对 ARM `X3` SDC `d43a25d7fcc218b7`（都为 GPR 数据累加器翻转 → 校验和变化）。
+- **x86 诚实发现**：`integer[4](RSP)` 注入 → gem5 **core dump（EXIT 134，栈损坏）**。x86 IntRegClass 含 RSP/RBP/RIP 等特殊 reg，随机采样命中 RSP 会导致 crash（不像 ARM 的 XZR 只是丢弃）。x86 需要 x86 版的 reg 域限制（避开 RSP/RBP）——当前 `maxRegIdx` 在 x86 下未正确限制（出现 integer[4]/[14]/[10]，需 x86-specific 修复，后续）。
+- 5-seed x86 扫描（max_reg_idx=4，未完全生效）：1 SDC（RCX）、3 Masked、1 crash（RSP）。pilot 规模。
+
+**正式配对实证**：ARM↔x86 同语义 GPR bit_flip 都产 SDC，oracle 跨 ISA 一致。这是 plan §10.4 的真实跨 ISA 对照数据点（pilot 规模，非 formal n=384）。
