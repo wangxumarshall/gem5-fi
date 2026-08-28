@@ -9,8 +9,10 @@ m5out/
 # Full-system-sim dependencies (kernels, disk images, dtb, boot ROM) —
 # ~2.5GB (ubuntu.img alone is ~2.2GB). Must NOT be committed. These are
 # the FS-mode deps used by Phase 3 (TLB/system-register FI); users fetch
-# them separately.
-gem5-fs/
+# them separately. The vendored gem5-fs source tree is now pulled in as
+# a git submodule at ./gem5-fs/ (tracking main). The large binary deps
+# were relocated to .gem5-fs-backup/ and remain untracked.
+.gem5-fs-backup/
 
 # logs
 *.log
