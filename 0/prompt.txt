@@ -1,0 +1,1 @@
+论文 图1中，在“ [寄存器重命名 (RAT)]” 下面增加 “Physical Register File (PRF)” 框图
