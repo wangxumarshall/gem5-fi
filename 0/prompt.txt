@@ -1,0 +1,24 @@
+A session-scoped Stop hook is now active with condition: "完成后续所有工作，包括但不限于如下方案思路，必须诚实的、尊重事实，100%完成预期目标，不能偷懒不能说谎。
+
+1. 针对 H6（最高优先级，本机可做）
+
+  可选方案：将 D2 钩子上移到翻译前。 具体改 CHAOSAddrPath 的钩点从 lsq.cc::sendFragmentToTranslation 移到 DynInst::initiateAcc（src/cpu/o3/dyn_inst.cc:365）——在
+  staticInst->initiateAcc(this,...) 之前破坏 this->effAddr 的 byte7，使 ISA 指令构建 Request 时读到损坏的 VA。这样损坏发生在 MMU 翻译前，能产生症状（非规范 VA →
+  翻译错）。
+  - 工作量：约 1 个补丁（改钩点 + 验证 effAddr 在 initiateAcc 时已有效或在 ISA 层计算前可注入）。
+  - 风险：effAddr 是在 staticInst->initiateAcc 内部从基址+偏移计算的，需确认能否在其计算后、Request 构建前插入——可能需 hook ISA 模板的 initiateAcc，较侵入。退路：用
+  CHAOSPhysReg 损坏基址寄存器（已验证可用的注入器）来间接复现 D2 症状，作为 D2 的代理实验。
+
+2. 针对 H7（需环境）
+
+  可选方案：获取 AArch64 FS 模式镜像。 gem5 标准 ARM FS 配置需 Linux kernel + 磁盘镜像。可从 gem5 官方 configs/example/arm/fs_bigLITTLE.py + 公开 AArch64 kernel（如 5.4/5.10
+  arm64）启动。
+  - 工作量：下载 kernel 镜像（~50MB）+ 根文件系统（~100MB），配置 FS 模式运行 ptrskew_kernel，再注入 P-D3。
+  - 风险：本机是故障机，FS 模式运行更重（更长 SDC 暴露）；需全程 taskset 隔离。
+  
+3. 关于”第二台健康机复现 H5 — 环境约束，不可在本机解决“，我有如下3个服务器，root密码和sdc用户密码都是SDC@2026，详细的ssh登录信息如下:  
+
+"服务器单板编号|服务器单板名称|ip|端口号|用户名"
+  "0101|sdc1-01-02|123.60.114.33|33455|sdc"
+  "0103|sdc1-01-02|123.60.114.33|33457|sdc" 
+  "0201|sdc1-01-02|123.60.114.33|33458|sdc"". Briefly acknowledge the goal, then immediately start (or continue) working toward it — treat the condition itself as your directive and do not pause to ask the user what to do. The hook will block stopping until the condition holds. It auto-clears once the condition is met — do not tell the user to run `/goal clear` after success; that's only for clearing a goal early.
