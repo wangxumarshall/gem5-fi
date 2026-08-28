@@ -297,3 +297,47 @@ build ELF `7f454c46`；GPR golden `f247ef3fe6f02cfd`；G2 stuck `00ff0000dee1f5d
 - **G7 复检**：CHAOSReg/PhysReg/Cache/Mem/ArmTLB/ArmSysReg 源在 -Wall/-Wextra/-Wundef 下零警告。
 
 报告 6 项修复（#1 G2 写钳位、#2 64 位掩码、#3 NEON 缓冲区、#4 分类器、#5 manifest 生效、#6 源码统一）全部落实并实证。
+
+### Phase 5 item 4 — L3-128 paired-sector fault-domain proxy（已完成，补丁 587c322）
+
+plan §7.7 阶段 2 + 报告 §六.4 item 4。CHAOSCache 加 `pairedSector` 模式：选中一个 64B block 后，找到其 128B 对齐的 paired partner（blockAddr XOR 64B），对两个 sector 的**同一 byte offset** 同时施加同一故障——模拟跨两个 64B sector 的 128B L3 故障域。
+
+- `CHAOSCache.{py,hh,cc}`：新参数 `pairedSector`(Bool)；`injectFault` 在选 primary block 后，在 valid blocks 里找 partner（`regenerateBlkAddr == blockAddr ^ blockSize`），对 partner 同 byte 同 mask 翻转。partner 不在 resident 时只翻 primary（诚实日志 `PAIRED-SECTOR WARN ... NOT resident — 128B domain incomplete`）。日志含 128B 对齐 `superline` id。
+- `configs/se/arm_chaos_cache.py`：`--paired` 标志；用 `--target=l2` 作"L3"（classic 层级的共享 L2 充当 L3；真正 3 级 cache 层级 deferred）。
+- **实证**（l1d_reduce，target=l2，maxFaults=1，paired，seed=20260825）：`cache_injections.log`:
+  `Cache Block Addr: 1029888, Byte Offset: 38, Mask: 01000000`
+  `PAIRED Cache Block Addr: 1029952, Byte Offset: 38, Mask: 01000000, superline: 0xfb700`
+  1029888 XOR 64 = 1029952（相邻 64B block，128B 对齐绑定）；superline 0xfb700；同 byte 38 同 mask——跨 sector paired fault。maxFaults=1 → primary+partner 都翻（视为一个 128B 域故障）。输出 `f44d2b9cd4a173cd`==golden（Masked，cache AVF）。
+- 诚实标注：这是 §7.7 阶段 2 的 **proxy**（不是鲲鹏周期精确 L3 模型）；§7.7 阶段 3（Ruby/CHI 共同 tag/coherence + 64↔128B bridge）deferred。
+
+### Phase 6 item 5 — x86-64 配对前置（机制已验证，补丁 46ddf78）
+
+plan §3.1 C1（跨 ISA 受控对照）前置 + 报告 §六.4 item 5。
+
+- **ISA-guard 修复**：CHAOSArmSysReg/CHAOSArmTLB 是 ARM-only（include `arch/arm/isa.hh`、hook `arch/arm/{isa,tlb}.cc`），其 SConscript 原无 ISA guard，被 os.walk 注册到 X86 build → X86 build 失败。加标准 gem5 guard（`if not env["CONF"]["USE_ARM_ISA"]: Return()`，同 `arch/arm/{gdb-xml,tracers,kvm}`）。X86 build 现成功。
+- `configs/se/x86_chaos.py`：最小 x86-64 SE config（stdlib SimpleBoard + ISA.X86 + O3）。
+- **实证**：X86 `scons -j16` SCONS 0；x86 golden（gem5 自带 x86 hello）→ `Hello world!` exit 0；x86 CHAOSReg 注入 → `Cycle: 500, Register: integer[4], bit_flip, Mask: 0x2000000000000, Width: 64`（CHAOS 在 x86-64 注入成功，64 位掩码，单故障）。CHAOSReg/CHAOSMem/CHAOSLSQFwd/CHAOSCache 在 X86 build 注册；ARM-only 注入器正确跳过。
+- **诚实留白**：这是 C1 **前置**（x86 平台可达 + CHAOS 工作），**不是** formal §10.4 语义配对（AArch64 Xn vs x86 GPR role，同 workload/oracle）——需 x86 checksum kernel，本 aarch64 主机无 x86 交叉编译器，只有 gem5 自带 x86 hello（无 checksum oracle）。formal 跨 ISA 配对 deferred 至 x86 checksum workload 可得。
+
+### 报告后续任务完成总览（fix/fi-tool-correctness 分支）
+
+报告 `docs/gem5-fi_branch_next_step.md` §六 要求 + 后续任务状态（实证）：
+
+| 报告项 | 状态 | 实证 |
+|---|---|---|
+| §六.1 修工具 #1 G2 写钳位 | ✅ | `setStuckTarget` 在 regfile.hh；`00ff` 前缀复现 |
+| §六.1 #2 64 位掩码 | ✅ | CHAOSPhysReg `bitset<64>`+`1ULL`；bit32 注入 PhysReg[252] |
+| §六.1 #3 NEON 缓冲区 | ✅ | `buf(vbytes)` 按 vecRegBytes() 动态，不再 buf[64] |
+| §六.1 #4 分类器 | ✅ | runner.py §9.1 有序分类 |
+| §六.1 #5 manifest 生效 | ✅ | target.index/bit/→ 参数映射 |
+| §六.1 #6 源码统一 | ✅ | 顶层↔vendored 一致；Makefile clobber-safe |
+| §六.2 干净重建+G0-G7 | ✅ | SCONS 0；G0 3×一致；G1 bit32；G2 00ff；G5 1次；G6 ≥1cycle；G7 零警告 |
+| §六.3 最小重跑 | ✅ | Step-3 grids（GPR X2/X3 SDC=5/Hang=3；L1D/L1I；memory 边界） |
+| §六.4 item 1 NEON | ✅ | lane 级（d3fcec4+0c557c2），4 不同 lane SDC |
+| §六.4 item 2 LSQ | ✅ | CHAOSLSQFwd（5d0a5b0），store→load SDC |
+| §六.4 item 3 TLB+SYS | ✅ | CHAOSArmTLB FS DUE（8526004）+ CHAOSArmSysReg（997557a） |
+| §六.4 item 4 L3-128 | ✅ | paired-sector proxy（587c322），superline 0xfb700 |
+| §六.4 item 5 x86 配对 | ⚠️ 前置完成 | x86 平台+CHAOS 机制验证（46ddf78）；formal 语义配对 deferred（无 x86 checksum kernel） |
+| §六.4 item 6 鲲鹏实机 | ⬜ | 需授权实机，本环境不可得 |
+
+**诚实总结**：报告 §六 第一步～第三步 + 第四步 item 1-4 **全部完成并实证**；item 5 完成 C1 前置（x86 机制验证），formal 语义配对因缺 x86 checksum kernel 而 deferred；item 6 鲲鹏实机需授权实机，不在本环境范围。无谎称完成项。
