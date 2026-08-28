@@ -236,3 +236,24 @@ build/ARM/gem5.opt o3_chaos_ptw.py --ptw-flip --ptw-ecc on/off --prob 0.0001
 **H6 D2 FS 完整机制实证（本机）**：O3 + `init=/root/gem5_init2.sh` + `--addr-prob 0.001 --max-tick 4B`：`numAddrFaults=1 numHooksCalled=38 simInsts=3085`，注入签名 `Orig 0xffffffc008b08f30 → Corrupted 0xffffc008b08f30`（§3.3 复现），注入后 simInsts=3085（执行流改变/卡，D2 非规范地址致 fetch 非法——与论文 §5.3 量级一致）。**D2 FS 机制+签名+执行流效应本机完整确认。** hostInstRate=279 inst/s（O3 FS 极慢），完整 oops/FAR 谱定量需 O3 到 bash（~25M 指令 / 279 ≈ 25h 长跑）或 AtomicCPU checkpoint + switchCPU 切 O3（待写 switchable 配置）。D2 crash 谱定量是 H6 唯一剩余，受 O3 FS 速度限制。
 
 
+
+## 9. 对抗性审查与修正（2026-08-28，4-agent adversarial review）
+
+完成所有可完成工作后，调用 4 个对抗性审查 agent（法证严谨性 / 实验可证伪性 / 论文诚实度 / 代码构建正确性），尽力找漏洞。三个 agent 独立收敛于同一批问题，审查发现**实证有效**，已据反馈修正论文：
+
+**已采纳修正（论文 §3.2/§3.3/§5.3/§7/Abstract，双语同步）：**
+1. **H6 从"谱可分已确认"降级为"方向已观测、非可分性已确认"**。三诚实保留前置：(a) 跨模式对照（D1 测于 SE、D2 测于 FS——不同翻译体制/工作负载/观测量）；(b) **D1 在 FS 早期 boot 不触发**（单独 D1-only FS run：`numStructuralByteLaneSkew=0 simInsts=259186`——store→load-forward 钩子 `lsq_unit.cc:1498` 在早期 boot 未演练），故"D1+D2 共注 D1=0"不能读作"D2 主导"；(c) D2 "中断"（simInsts≈3100）是仿真器 fetch-stall（`outside of physical memory`）非 guest Crash，且 D3 高 prob 也卡同量级——不具 D2 特异性。
+2. **撤回 D1 的 2⁻⁵⁸ 巧合概率**（循环论证）：fill-buffer 陈旧行回放模型预测头部偏好，"命中头部"是模型一致非巧合排除。承重证据改为 Hamming-0 旋转匹配本身 + 位翻转不可达性。
+3. **D2 `untagged_addr` 依赖 TBI 标注为未决威胁**：`untagged_addr(arch_addr)==FAR` 在 0814/0824 成立，但若 `TCR_EL1.TBI0/TBI1` 开启，此为内核正常 top-byte 剥离（无缺陷）。转储未记录 TCR_EL1，故 D2 从"已确认-弱"降为"依赖 TBI、未证"。解决需 dump TCR_EL1。
+
+**代码修正（待重编译验证后提交）：**
+4. **CHAOSPTW 时钟 bug**：`Cycles(curTick()>>0)`（raw tick 当 cycle，错 1000×）→ `ticksToCycles(curTick())`，使 D3 的 first_clock 门控与 D1/D2 的 `cpu->curCycle()` 语义对齐。
+5. **CHAOSLSQFwd 加 numHooksCalled 统计**：堵仪表化缺口——之前"D1 FS 0 触发"无法区分"未触发"vs"触发但 prob 未中"。现 .hh+.cc 加 numHooksCalled，corrupt() 入口（prob 门控前）计数。
+
+**可复现性修正（run_H6.sh / run_H7.sh）：** 去硬编码 `/home/sdc/vmcore/`（旧机路径）→ 相对 `$REPO` 变量；source `~/gem5-deps/env.sh` 设 `LD_LIBRARY_PATH`（gem5.opt 无 rpath，缺则 libprotobuf/libabsl 找不到）；`/tmp/cpus.txt` 缺失时 fallback `nproc`。
+
+**审查已证伪的质疑（代码 agent 实证）：** D2 钩点正确（`Request::setVaddr` 只写 `_vaddr`，MMU 翻译时重取——simInsts 卡是真 fault 非元数据损坏）；protobuf.pc 删 utf8_range 安全（utf8 符号由 absl_strings 提供，无未解析）。
+
+**H7 本机 5-seed 加固（审查发现5回应）**：本机 prob=0.5 5 seeds × 2 臂：ECC-off spurious=2/4/1/1/1（范围 1-4，与前序 commit 3287299 一致），ECC-on spurious=0/0/0/0/0（全 0）。ECC 纠正效应方向 5/5 稳定复现。但保留瑕疵（两臂 numHooksCalled 不对称、prob=0.5 致卡 simInsts~3090），论文 §5.4 已诚实标注。
+
+**审查总体判断**：法证链 D1 实锤（Hamming-0 + 位翻转不可达），D2 削弱为 TBI 依赖未证，D3（H7）方向稳定但样本小；H6 谱可分降级为方向观测；H5/H7 verified 保留。论文经对抗审查后显著更诚实——降级了过度宣称，标注了未决威胁。
