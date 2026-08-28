@@ -30,4 +30,12 @@ class CHAOSCache(SimObject):
     targetByteOffset = Param.Int(-1, "Directed: pin the fault to this byte "
         "offset within the target block (0..blockSize-1). -1 = random "
         "byte (original).")
+    pairedSector = Param.Bool(False,
+        "Phase 5 §7.7 paired-sector 128B fault-domain proxy: when set, the "
+        "fault is applied to BOTH the target 64B block AND its 128B-aligned "
+        "paired neighbor (blockAddr XOR 64B), at the SAME byte offset — "
+        "modeling a 128B L3 fault domain that spans two 64B sectors. This is "
+        "a PROXY (not a cycle-exact Kunpeng L3 model); the paired partner must "
+        "be VALID+resident to be corrupted (else only the primary is faulted, "
+        "logged honestly). Use on a 64B-line cache designated as 'L3'.")
     writeLog = Param.Bool(True, "Write a log file")
