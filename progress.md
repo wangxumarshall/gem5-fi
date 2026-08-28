@@ -341,3 +341,9 @@ plan §3.1 C1（跨 ISA 受控对照）前置 + 报告 §六.4 item 5。
 | §六.4 item 6 鲲鹏实机 | ⬜ | 需授权实机，本环境不可得 |
 
 **诚实总结**：报告 §六 第一步～第三步 + 第四步 item 1-4 **全部完成并实证**；item 5 完成 C1 前置（x86 机制验证），formal 语义配对因缺 x86 checksum kernel 而 deferred；item 6 鲲鹏实机需授权实机，不在本环境范围。无谎称完成项。
+
+### G7 sanitizer 构建（环境受限，诚实记录）
+
+报告 §六.2 G7 要求"开启编译器警告和 sanitizer 的工具验证"。普通构建的 CHAOS 源零警告（-Wall/-Wextra/-Wundef）已通过。尝试 UBSan 完整构建（`scons --with-ubsan`）卡在 scons 的 socket `accept()` configure 检查：sanitizer 链接标志让 `accept(0,0,0)` 测试链接失败（`Can't find library with socket calls`）——这是 gem5 UBSan 构建的环境/链接问题，非 CHAOS 源缺陷。ASan 同理会卡。
+
+诚实留白：UBSan/ASan 完整 gem5 构建在本环境卡在 socket configure（需 hack SConstruct 或预装 sanitizer 兼容的 socket 链接）。G7 的"零警告"已实证（普通 -j16 构建）；sanitizer 运行期 UB 验证 deferred（环境限制）。CHAOS 源已用 `1ULL<<`（无符号移位）、`uint64_t mask`（无 32 位截断）、`buf(vbytes)`（无越界）等修复了报告指出的 UB 风险点。
