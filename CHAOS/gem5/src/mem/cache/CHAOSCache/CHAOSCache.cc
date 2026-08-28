@@ -28,6 +28,7 @@ namespace gem5
         write_log(p.writeLog),
         target_block_addr(p.targetBlockAddr),
         target_byte_offset(p.targetByteOffset),
+        paired_sector(p.pairedSector),
         rng_seed(p.rngSeed),
         max_faults(p.maxFaults),
         faults_injected_count(0),
@@ -192,6 +193,35 @@ namespace gem5
 
             uint8_t* data = targetBlk->data;
 
+            // §7.7 paired-sector 128B fault-domain proxy: find the 128B-aligned
+            // paired partner block (blockAddr XOR 64B). The fault is applied to
+            // BOTH sectors at the SAME byte offset. The partner must be VALID+
+            // resident (else only the primary is faulted — logged honestly).
+            // This models a 128B L3 fault domain spanning two 64B sectors. It is
+            // a PROXY, not a cycle-exact Kunpeng L3 model (per plan §7.7/§3.1).
+            CacheBlk* partnerBlk = nullptr;
+            uint8_t* partnerData = nullptr;
+            Addr partnerAddr = 0;
+            if (paired_sector) {
+                // The partner is the other 64B sector in the same 128B superline.
+                Addr partnerBlockAddr = blockAddr ^ blockSize;  // toggle bit (log2(64)=6)
+                for (CacheBlk* blk : validBlocks) {
+                    if (tags->regenerateBlkAddr(blk) == partnerBlockAddr) {
+                        partnerBlk = blk;
+                        partnerData = blk->data;
+                        partnerAddr = partnerBlockAddr;
+                        break;
+                    }
+                }
+                if (write_log && !partnerBlk) {
+                    *(log_stream->stream()) << "Tick: " << curTick()
+                        << ", PAIRED-SECTOR WARN: partner block 0x" << std::hex
+                        << partnerBlockAddr << std::dec << " NOT resident — "
+                        << "only primary sector faulted (128B domain incomplete)."
+                        << std::endl;
+                }
+            }
+
             // Directed byte offset (report §六.3 'fixed-to'): if set, pin the
             // fault to this byte within the block; else random.
             bool directed_byte = (target_byte_offset >= 0
@@ -251,6 +281,36 @@ namespace gem5
                         << ", FaultType: " << faultTypeToString(chosen_fault_type_enum)
                         << ", Mask: " << std::bitset<8>(mask)
                         << std::endl;
+                }
+
+                // §7.7 paired-sector: apply the SAME fault to the 128B-aligned
+                // partner block's same byte offset (128B fault-domain proxy).
+                if (paired_sector && partnerBlk) {
+                    switch (chosen_fault_type_enum) {
+                        case FaultType::StuckAtZero:
+                            partnerData[byteOffset] &= ~mask;
+                            permanent_faults[std::make_pair(partnerAddr, byteOffset)] = {chosen_fault_type_enum, mask, true};
+                            break;
+                        case FaultType::StuckAtOne:
+                            partnerData[byteOffset] |= mask;
+                            permanent_faults[std::make_pair(partnerAddr, byteOffset)] = {chosen_fault_type_enum, mask, true};
+                            break;
+                        case FaultType::BitFlip:
+                            partnerData[byteOffset] ^= mask;
+                            break;
+                        default: break;
+                    }
+                    stats->numFaultsInjected++;  // count the paired fault too
+                    if (write_log) {
+                        *(log_stream->stream()) << "Tick: " << curTick()
+                            << ", PAIRED Cache Block Addr: " << partnerAddr
+                            << ", Byte Offset: " << byteOffset
+                            << ", FaultType: " << faultTypeToString(chosen_fault_type_enum)
+                            << ", Mask: " << std::bitset<8>(mask)
+                            << ", superline: 0x" << std::hex
+                            << (blockAddr & ~((Addr)2*blockSize - 1))
+                            << std::dec << std::endl;
+                    }
                 }
             }
 

@@ -162,11 +162,11 @@ def main():
     if comp == "gpr":
         cmd += ["--chaos_reg"]
         if idx is not None:
-            # CHAOSReg samples randomly; restrict to this reg via max_reg_idx
-            # at idx+1 AND we can't force a specific reg deterministically
-            # without a directed-reg patch — log this honesty gap.
-            print(f"[runner] NOTE: CHAOSReg has no directed-reg knob; "
-                  f"manifest index={idx} recorded but not forced (TODO).")
+            # Report #5: manifest target.index MUST take effect. CHAOSReg now
+            # has a targetRegIdx directed knob (patch: G1 directed-reg) — force
+            # the fault onto the manifest's reg index, not RNG luck.
+            cmd += [f"--target_reg_idx={idx}"]
+        # max_reg_idx still bounds random sampling when idx is None (random cell)
     elif comp == "physreg":
         cmd += ["--chaos_phys"]
         if layer == "physical":
@@ -223,6 +223,11 @@ def main():
                         continue
                     # CHAOSPhysReg: exclude ReadTrace* poll lines (not injections)
                     if line.startswith("ReadTracePoll") or line.startswith("ReadTraceFinal"):
+                        continue
+                    # CHAOSReg: exclude the DIRECTED info line (it's an advisory,
+                    # not an injection; the actual injection is the next "Cycle:"
+                    # line with "Register:"/"FaultType:").
+                    if "DIRECTED reg:" in line:
                         continue
                     # count valid injection lines: exclude Inactive/Error
                     if ("Inactive" in line) or line.startswith("Error"):

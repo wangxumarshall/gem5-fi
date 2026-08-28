@@ -44,6 +44,9 @@ p.add_argument("--first_clock", type=lambda x: int(x,0), default=1000)
 p.add_argument("--last_clock", type=lambda x: int(x,0), default=0)
 p.add_argument("--max_faults", type=lambda x: int(x,0), default=1)
 p.add_argument("--max_reg_idx", type=lambda x: int(x,0), default=31)
+p.add_argument("--target_reg_idx", type=int, default=-1,
+               help="directed architectural reg index (manifest target.index); "
+                    "-1 = random sample within [0, max_reg_idx)")
 p.add_argument("--fault_type", default="bit_flip",
                choices=["bit_flip","stuck_at_zero","stuck_at_one","random"])
 p.add_argument("--fault_mask", type=lambda x: int(x,0), default=0)
@@ -117,6 +120,7 @@ if args.chaos_reg:
         maxFaults=args.max_faults,
         rngSeed=args.rng_seed,
         maxRegIdx=args.max_reg_idx,
+        targetRegIdx=args.target_reg_idx,
         faultType=args.fault_type,
         faultMask=args.fault_mask,
         bitsToChange=args.bits_to_change,

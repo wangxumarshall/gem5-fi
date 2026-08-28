@@ -40,6 +40,10 @@ p.add_argument("--target_block_addr", type=lambda x:int(x,0), default=0,
 p.add_argument("--target_byte_offset", type=int, default=-1,
                help="Directed: byte offset within the target block "
                     "(0..blockSize-1). -1 = random (default).")
+p.add_argument("--paired", action="store_true",
+               help="§7.7 128B paired-sector fault-domain proxy: fault both "
+                    "the target 64B block AND its 128B-aligned partner, same "
+                    "byte offset. Use --target=l2 (as 'L3').")
 args = p.parse_args()
 
 cm = {"O3":CPUTypes.O3,"Timing":CPUTypes.TIMING,"Atomic":CPUTypes.ATOMIC,"Minor":CPUTypes.MINOR}
@@ -70,7 +74,9 @@ def cap(root):
         faultType=args.fault_type, bitsToChange=args.bits_to_change,
         rngSeed=args.rng_seed, maxFaults=args.max_faults,
         targetBlockAddr=args.target_block_addr,
-        targetByteOffset=args.target_byte_offset, writeLog=True)
+        targetByteOffset=args.target_byte_offset,
+        pairedSector=args.paired,
+        writeLog=True)
     attached[0] = True
     print(f"[arm_chaos_cache] CHAOSCache attached to {args.target}-cache-0 "
           f"(supported Cache::getTags() path)")

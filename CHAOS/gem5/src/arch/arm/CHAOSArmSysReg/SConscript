@@ -1,8 +1,14 @@
 # -*- mode:python -*-
-# CHAOSArmSysReg — ARM system-register fault injector (Phase 3 §六.4 item 3).
-# Discovered automatically by src/SConscript's os.walk.
+# CHAOSArmSysReg — ARM-only fault injector (Phase 3 §六.4 item 3).
+# ARM-only: hooks arch/arm/{isa.cc,tlb.cc} — must NOT compile under X86/etc
+# (it includes arch/arm/isa.hh). Discovered by src/SConscript's os.walk; the
+# USE_ARM_ISA guard below skips it for non-ARM builds (X86 build would otherwise
+# fail on the arm-ISA include + System.hh dependency ordering).
 
 Import('*')
+
+if not env["CONF"]["USE_ARM_ISA"]:
+    Return()
 
 SimObject('CHAOSArmSysReg.py', sim_objects=['CHAOSArmSysReg'], enums=[])
 Source('CHAOSArmSysReg.cc')

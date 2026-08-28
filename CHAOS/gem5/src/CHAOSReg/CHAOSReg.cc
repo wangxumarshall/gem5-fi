@@ -24,6 +24,7 @@ namespace gem5{
         faults_injected_count(0),
         rng_seed(p.rngSeed),
         max_reg_idx(p.maxRegIdx),
+        target_reg_idx(p.targetRegIdx),
         fault_type_enum(stringToFaultType(p.faultType)),
         fault_mask((uint64_t)p.faultMask),
         fault_mask_width(64),  // G1: AArch64 X regs are 64-bit
@@ -239,7 +240,22 @@ namespace gem5{
         if (max_reg_idx > 0 && max_reg_idx < num_regs)
             upper = max_reg_idx - 1;
 
-        int random_reg = std::uniform_int_distribution<>(0, upper)(rng);
+        // G1/report #5: directed target register. If target_reg_idx >= 0,
+        // force the fault onto that specific architectural reg index (so the
+        // manifest's target.index actually takes effect — the runner no longer
+        // relies on RNG luck to land on the directed reg). -1 = random sample.
+        int random_reg;
+        if (target_reg_idx >= 0 && target_reg_idx < num_regs) {
+            random_reg = target_reg_idx;
+            if (write_log) {
+                *(log_stream->stream()) << "Cycle: " << cpu->curCycle()
+                    << ", CPU: " << cpu->name() << ", Thread: " << tid
+                    << ", DIRECTED reg: " << reg_class->name() << "["
+                    << random_reg << "]" << std::endl;
+            }
+        } else {
+            random_reg = std::uniform_int_distribution<>(0, upper)(rng);
+        }
         gem5::RegId reg_id(*reg_class, random_reg);
         
         try {
