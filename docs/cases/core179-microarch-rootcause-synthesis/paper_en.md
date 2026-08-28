@@ -225,9 +225,13 @@ byte_lane_skew prob=0.05 seed=7:
 
 Under higher probability the skewed pointer eventually slips past the check and is dereferenced, producing gem5's `panic: Page table fault when accessing virtual address 0xf0000000000044573` — the non-canonical address from a byte-rotated pointer. This is the **end-to-end reproduction of core 179's D1 chain**: load returns a byte-skewed value → used as a pointer → non-canonical VA → page fault → Oops. Reproducible across seeds. **H5 is verified.**
 
-### 5.2 Why bit-flip injection is insufficient
+### 5.2 Why bit-flip injection is insufficient: a falsifiable methodological claim
 
-We proved (§3.2) that no single-byte bit-flip on the truth produces the observed corrupted value. The structural `byte_lane_skew` mode does. This is the methodological point: **structural data-path faults are a necessary addition to fault-injection toolkits** for this class of defect; bit-flip-only injectors (the CHAOS/GeFIN/SiliFuzz norm) cannot reach it.
+We proved (§3.2) that no single-byte bit-flip on the truth produces the observed corrupted value (exhaustive 8-byte × 256-mask test on all 192 array slots). The structural `byte_lane_skew` mode does. We elevate this from a case observation to a **falsifiable methodological claim**:
+
+> **For a defect whose signature is a *byte-lane phase displacement* of a stale value (Hamming-0 to a rotated copy of an array-head entry, not expressible as any single- or few-bit flip), a bit-flip fault injector is in principle insufficient to reproduce the signature; a *structural* (byte-re-route) fault model is required.**
+
+This is falsifiable in the Popperian sense: a single demonstration that a bounded bit-flip model reproduces a byte-phase-displaced signature would refute it. We could not find one for core 179 despite exhaustive search. The claim's *scope* is honestly bounded — it applies to the byte-phase-displacement class of signatures, not to all SDC (many SDCs are legitimately single-bit SEUs, where bit-flip is the correct model). But within its scope it is a toolkit-design implication: **structural data-path faults are a necessary addition to fault-injection toolkits for this signature class**; bit-flip-only injectors (the CHAOS/GeFIN/SiliFuzz norm) cannot reach it, and a "clean" bit-flip SDC study that omits structural faults will silently under-cover this defect class. This is the paper's transferable methodological contribution — independent of the specific defect it was derived from.
 
 ### 5.3 H6 (D2): SE-mode null statically root-caused; FS-mode hook firing confirmed
 
