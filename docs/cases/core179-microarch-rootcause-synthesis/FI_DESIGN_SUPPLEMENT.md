@@ -216,6 +216,17 @@ build/ARM/gem5.opt o3_chaos_ptw.py --ptw-flip --ptw-ecc on/off --prob 0.0001
 **H7 结论**：
 多 seed 平均实证了 **ECC 配置决定了 PTW 阵列的 spurious fault 表现**。如果 TSV110 芯片在 PTW 读出通路上没有 ECC 或数据在该通路前被破坏，就会产生 spurious faults (D3 签名)。该实证补全了微架构根因分析中 H7 假说的仿真闭环。相关代码已合入 `fi-h6-h7-fs-verify` 分支 (commit `eb6518d`)。
 
+**2026-08-28 H7 本机独立复现（新机，单 seed，方向确认）**：在新机构建的 `gem5.opt` 上用 `conditionalValidBit --ptw-prob 0.5 --seed 0 --max-tick 400M` 复现 ECC 对照方向：
+- **ECC-off**：`numFaultsInjected=2 numSpuriousFaults=2 numBenign=7921`（翻转残留 → invalid PTE → spurious）。但 `simInsts=3090`（prob=0.5 致注入卡执行流，重查放大 `numHooksCalled=15808`——与上轮"prob=0.5 极端值破坏 PTE 致 stopping fetch"一致）。
+- **ECC-on**：`numFaultsInjected=0 numSpuriousFaults=0 numBenign=7`（ECC 纠正所有单 bit 翻转 → 返回合法 PTE，无 spurious；`simInsts=259186` 正常推进，`numHooksCalled=17` 真实 walk 密度）。
+- **方向确认**：ECC-on 把 spurious 从 2 降到 0，ECC 纠正效应实证有效，与 §7 的 5-seed 表同向。诚实瑕疵（论文 §5.4 已标注）：两臂 `numHooksCalled` 差异大（15808 vs 17）——ECC-off 注入改变执行流，非严格同路径对照；`prob=0.5` 太高致卡，前序会话用更低 prob + 多 seed 拿到不卡的 1–4 spurious 分布。本机单 seed 作方向补充确认，多 seed 分布见 commit `3287299`。
+
 ## 8. P0 与 P2 进展
-- **P0 (FS boot to bash)**：O3CPU boot 因 timing/virtio_blk 异常启动失败且极慢。已部署 `AtomicSimpleCPU` 快速 boot 方案 (`/tmp/run_p0_boot.sh`) 并配合 `boot.rcS` 以在 bash 就绪时自动触发 `m5 checkpoint`。
-- **P2 (H6 D2 谱可分性)**：已编写 2x2 对照脚本 `/tmp/run_p2_h6.sh`。由于早期 boot 未初始化 UART，该对照需在 P0 产出的 bash checkpoint 之上运行，方可观察完整的 Kernel Oops/FAR 谱分离。
+
+**2026-08-28 更新（新机，本机实证）**：P0-bash 路径已用 `AtomicSimpleCPU` 方案实证打通。新机（用户换机，128 核/29GB，非故障机）上重建用户态构建链（`~/gem5-deps`：scons/protoc/protobuf/h5py/pybind11/libpython，无 root；关键坑：`protobuf.pc` 删 `utf8_range` Requires 解锁 scons configure）后，`gem5.opt` 1.1GB 构建成功（0 error，954 CHAOS 符号），H5 回归通过（golden fails=0；`byte_lane_skew prob=0.05 seed=7` → numStructuralByteLaneSkew=30 fails=29 + panic page-fault 路径，与 §5.1 一致）。
+
+**P0 AtomicCPU boot 到 bash（实证）**：`--cpu-type atomic --big-cpus 1 --little-cpus 0`（无注入，纯 `fs_bigLITTLE.py`），Linux 5.15.36 完整启动经 `Booting Linux` → `smp: Brought up 1 node, 1 CPU` → `CPU: All CPU(s) started at EL2` → `devtmpfs: initialized` → `ASID allocator` → PCI → `virtio_blk virtio0 [vda] 2.36GB` → `Serial: 8250/16550` → input devices → `random: fast init done` → `Ubuntu 20.04.4 LTS aarch64-gem5 login: root (automatic login)`。**即原"virtio_blk 挂起"在 AtomicCPU 下不重现——boot 到达 login。** 此前 O3/timing 模式的 virtio_blk 挂起是 CPU 时序模式特定问题，非注入器或镜像问题。待续：`m5 checkpoint` 触发需 guest 内 `m5` 工具（ubuntu.img 未预装，需注入 m5ops binary 或用 SIGINT dump stats 作 fallback）；checkpoint 成熟后即可在其上跑 H6 的 D2-only FS arm（2×2 谱可分的最后未验证臂）。
+
+**P2 (H6 D2 谱可分性) SE 基线（本机复现）**：2×2 SE arm 跑通：baseline fails=0；D1-only `byte_lane_skew prob=0.05 seed=42` → numStructuralByteLaneSkew=30 fails=28（SDC-detectable）；D2-only SE `--addr-prob 0.05 --addr-byte 7` → numAddrFaults=50 numHooksCalled=3361 但 **fails=0**（SE null：byte7 清零后仍落 `[0,512MiB)` 物理内存不 fault，与 §5.3 一致）。D2-only 的 **FS arm**（byte7 清零规范内核地址 → 非规范 → crash 谱）仍需 P0 bash checkpoint 之上运行。
+
+
