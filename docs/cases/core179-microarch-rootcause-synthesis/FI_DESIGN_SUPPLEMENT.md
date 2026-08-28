@@ -229,4 +229,8 @@ build/ARM/gem5.opt o3_chaos_ptw.py --ptw-flip --ptw-ecc on/off --prob 0.0001
 
 **P2 (H6 D2 谱可分性) SE 基线（本机复现）**：2×2 SE arm 跑通：baseline fails=0；D1-only `byte_lane_skew prob=0.05 seed=42` → numStructuralByteLaneSkew=30 fails=28（SDC-detectable）；D2-only SE `--addr-prob 0.05 --addr-byte 7` → numAddrFaults=50 numHooksCalled=3361 但 **fails=0**（SE null：byte7 清零后仍落 `[0,512MiB)` 物理内存不 fault，与 §5.3 一致）。D2-only 的 **FS arm**（byte7 清零规范内核地址 → 非规范 → crash 谱）仍需 P0 bash checkpoint 之上运行。
 
+**H6 D2 FS 触发 + §3.3 签名本机复现（2026-08-28）**：新机构建的 `gem5.opt` 上 `o3_chaos_fs.py --addr-prob 0.5 --addr-byte 7 --seed 42 --max-tick 400M`：`numAddrFaults=20 numHooksCalled=38 simInsts=3085`（与论文 §5.3 量级一致——20 注入 + 执行流改变）。`addr_path_injections.log` 真实记录 §3.3 D2 签名复现：`Cycle: 151978 Seq: 4237 Site: load_effAddr, Orig: 0xffffffc008b08f30 → Corrupted: 0xffffc008b08f30`（规范内核地址 byte7 清零 → 非规范）—— SE 做不到（SE 下 byte7 清零后仍落物理内存不 fault）。**D2 FS 触发实证 + 签名复现本机确认。**
+
+**P0 checkpoint 工程阻塞（诚实）**：为跑 D2-only FS 的 **crash 谱**（注入产 oops/FAR 谱可分），需在 AtomicCPU boot 到 bash 后触发 `m5 checkpoint`，再 `--restore-from` 切 O3 + 挂注入器。构建了 aarch64 `m5_ckpt`（直接调 `m5_checkpoint`+`m5_exit`）与完整 `m5` 工具（util/m5 scons + aarch64-linux-gnu- 软链到 native gcc），注入 ubuntu.img。但 `init=/root/m5_ckpt2` 与 `init=/root/gem5_init.sh`（前序 readfile 机制）均使 AtomicCPU boot **卡在早期**（console 卡在 rcu 初始化，CPU=0% 空转，非 virtio_blk 挂起）——而默认 `init=/sbin/init` boot 到 login 正常。根因待查（疑似 `--kernel-init` 参数触发的早期 boot 路径问题，非 m5 二进制本身）。P0 bash 路径（AtomicCPU → login）已实证打通；checkpoint 触发的 guest init 机制是 D2 crash 谱的最后工程阻塞。
+
 
