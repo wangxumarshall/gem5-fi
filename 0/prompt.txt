@@ -1,0 +1,1 @@
+把ubuntu.img和vmlinux这两个文件加到gitignore中
