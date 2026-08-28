@@ -397,3 +397,16 @@ ARM 三条路径 + golden（真跑输出）：
 - manifest run：`RESULT: classification=Masked faults_injected=1 exit=0`（此前 faults=2 + "not forced TODO"；现在 faults=1、index 强制、无 TODO）。
 
 报告 #5 现在完整：reg（targetRegIdx）、bit（fault_mask）、trigger（first_clock，非 cycle 拒绝）全部生效。
+
+### §六.4 item 5 x86 配对 — directed 同语义修正（补丁，本轮）
+
+之前的 x86 "formal pair" 有两个诚实缺陷：(1) x86_chaos.py 硬编码 `maxRegIdx=15`，没避开 RSP[4]/RBP[5]，导致 RSP 翻转 gem5 core dump；(2) 配对的是 ARM X3 ↔ x86 RCX（RCX 在 x86 是循环计数/常量，不是累加器），语义角色不完全对齐。
+
+修正：x86_chaos.py 加 `--max_reg_idx`(默认4=RAX/RCX/RDX/RBX，避开 RSP/RBP)、`--target_reg_idx`(directed)、`--fault_mask`。用 directed 做真正的同语义配对。
+
+实证（directed，真跑）：
+- x86 **RAX[0]**（累加器，配对 ARM X3）directed，bit 0/1/32/63 → **全 Masked**（`f247ef3fe6f02cfd`）。RAX 在 xorshift 循环里被频繁重写，单 bit 翻转被掩盖。
+- x86 **RCX[1]** directed，seed=20260825 选 bit6（mask 0x40）→ `e7fbd4499785253b`（**SDC**）。
+- ARM X3 directed → `3c4da37564e2fbf5`（SDC）。
+
+诚实跨 ISA 观察（pilot）：同 workload（reg_chain）、同 oracle（golden `f247ef3fe6f02cfd` 跨 ISA 一致），ARM X3 对 GPR 翻转敏感（SDC），x86 RAX 不敏感（Masked）但 RCX 敏感（SDC）——ISA-specific 的 GPR 角色敏感性差异，是 plan §10.4 的真实数据点。max_reg_idx=4 现正确避开 RSP/RBP（不再 core dump）。仍 pilot 规模（非 n=384）。
