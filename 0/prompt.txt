@@ -1,0 +1,7 @@
+A session-scoped Stop hook is now active with condition: "完成后续所有工作，包括但不限于：1. H6 的 2×2 谱可分性（D1-only vs D2-only vs D1+D2）：D2 有充足采样基数（load 密度比 walk 高 ~3500×），但需多 seed + 跑到能恢复/对照状态；D2
+  注入规范地址致执行流改变/卡住。
+  2. H7 的 ECC on/off spurious 率对照：初步对照已做（ECC 纠正有效），但样本量不足，需高 walk 密度 + 多 seed 建立分布形状对照。
+  3. P0-bash 路径：virtio_blk 阶段有间歇挂起（非注入器导致——纯 fs_bigLITTLE.py 也受 boot_emm.arm64 open() 间歇 ENOENT 影响，疑故障机 SDC 影响 fs
+  层）。需换磁盘附加方式/checkpoint/atomic CPU 启动。
+  4. 本机限制：第二台健康机不可达（外部机 SSH/TCP 端口全 TIMEOUT）；首次完整构建的 H5 二进制可用，后续改动二进制可靠性存疑。
+。最后完成docs/cases/core179-microarch-rootcause-synthesis/中的paper，要求符合顶会水平和bestpaper水平". Briefly acknowledge the goal, then immediately start (or continue) working toward it — treat the condition itself as your directive and do not pause to ask the user what to do. The hook will block stopping until the condition holds. It auto-clears once the condition is met — do not tell the user to run `/goal clear` after success; that's only for clearing a goal early.
