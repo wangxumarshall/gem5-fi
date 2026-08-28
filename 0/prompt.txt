@@ -1,0 +1,1 @@
+基于当前完整的全面工作内容和进展，更新 /home/sdc/vmcore/gem5-fi/docs/cases/core179-microarch-rootcause-synthesis/PAPER.md，要求诚实、真实、符合事实，逻辑严密、经得起推敲。 调用撰写的 paper skill。
