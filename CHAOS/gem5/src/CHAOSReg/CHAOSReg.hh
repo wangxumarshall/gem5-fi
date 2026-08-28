@@ -48,6 +48,7 @@ namespace gem5
       uint64_t faults_injected_count; // running count of injected faults
       uint64_t rng_seed;               // 0 = seed from random_device (orig); else fixed
       uint64_t max_reg_idx;            // 0 = full numRegs()-1; else upper bound (exclusive)
+      int target_reg_idx;              // G1/report #5: directed reg index; -1 = random
       uint64_t fault_mask;             // G1: dynamic-width (64-bit) bitmask; 0 = random
       int fault_mask_width;            // G1: width in bits (64 for X regs)
       FaultType fault_type_enum;

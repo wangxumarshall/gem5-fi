@@ -14,6 +14,7 @@ class CHAOSReg(SimObject):
     maxFaults = Param.UInt64(0, "Maximum number of faults to inject; 0 = unlimited (original behavior)")
     rngSeed = Param.UInt64(0, "Seed for the injection RNG (std::mt19937). 0 = seed from std::random_device (original, NON-reproducible behavior). Nonzero = fixed seed for reproducible injection (register/mask).")
     maxRegIdx = Param.UInt64(0, "Upper bound (exclusive) on the randomly sampled register index within its class. 0 = use full numRegs()-1 (original behavior, which on ARM/aarch64 includes integer[31]=Zero and idx>=32 banked/non-arch slots — a systematic bias). Set to 31 on aarch64 to restrict integer injection to X0-X30 (indices 0..30).")
+    targetRegIdx = Param.Int(-1, "G1/report #5: directed architectural reg index (forces the fault onto this specific reg, so the manifest's target.index takes effect). -1 = random sample within [0, maxRegIdx). On aarch64 integer: 0=X0..30=X30.")
     faultType = Param.String("random", "Fault type: bit_flip, stuck_at_zero, stuck_at_one")
     faultMask = Param.UInt64(0, "Bit mask for the fault (64-bit; G1 width-aware)")
     regTargetClass = Param.String("both", "Target register class: integer, floating_point, or both")
