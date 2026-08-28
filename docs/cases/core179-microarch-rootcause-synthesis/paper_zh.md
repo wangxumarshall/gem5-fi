@@ -10,7 +10,7 @@
 
 一台生产级 ARM64 服务器（HiSilicon Kunpeng-920 / TaiShan V110）单一物理核上的静默数据损坏（Silent Data Corruption, SDC），在十二天内的五次独立启动中表现为反复出现的内核恐慌（kernel panic），每一次都锁定在逻辑 CPU 179 上。我们开展了一项五次崩溃转储（kdump）的取证研究，综合运用：(1) 崩溃瞬间的位级（bit-exact）寄存器-内存比对；(2) 围绕 `FAR_EL1` 的 ARMv8 架构不变量（architectural invariant）推理；(3) 对照已公开的 TSV110 几何结构进行的微架构建模。我们将缺陷定位到**三条具体的微架构数据路径**（图 1）：**D1**——核内私有的加载数据返回路径（fill-buffer/replay-merge，约等于 L1D 读出多路复用器）；**D2**——AGU→MMU 地址呈现路径；**D3**——页表漫游器（Page-Table Walker, PTW）读出路径。决定性的新证据：一条本应加载 `__per_cpu_offset[146]` 的指令，实际返回的值与 `__per_cpu_offset[0]` 右移（right-rotated）一个字节后的结果在位级完全一致——这是一种结构化的字节通道偏移（byte-lane skew），在全部 192 个槽位中唯一地匹配数组头部（汉明距离为 0，无法用任何单字节位翻转（bit flip）来表达）。这表明传统的**位翻转**故障模型无法复现该缺陷；必须引入**结构化**（byte-lane-skew）故障模型。
 
-为闭合"猜想-验证"闭环，我们将 CHAOS gem5 故障注入器扩展为*结构化*（byte-lane-skew）故障模型，并在仿真中端到端地复现了内核 oops 链条（偏移指针 → 非规范虚拟地址 → 页错误）——**H5，已验证**。我们进一步实现了地址路径（P-D2）与 PTW 读出（P-D3）注入器，并导出可证伪假设 H6/H7。这些假设最初在系统调用模拟（syscall-emulation, SE）模式下返回空结果（null result）；我们**静态地将该空结果归因到 ARM MMU 翻译模型**（`mmu.cc:1213`：SE 模式下 `SCTLR.M=0` → `translateMmuOff` → `setPaddr(vaddr)`，恒等映射从而绕过页表漫游器），并**在全系统（Full-System, FS）模式下确认 D2 与 D3 钩子在 MMU 开启翻译时都会触发**（D2：在规范内核虚拟地址（VA）上制造非规范地址的注入；D3：数千次 PTW 描述符翻转产生虚假翻译错误（spurious translation fault）计数）。此外我们发现并修复了一个 C++ 成员初始化顺序 bug（`rng(rng_seed != 0 ? seed : rd())`，而 `rng` 在头文件中声明在 `rd` 之前），该 bug 在默认 `seed=0` 下使注入器崩溃；这正是此前 H6/H7 的 *SE* 轮（使用 `seed≠0`）从不崩溃、而 FS 轮（默认 seed）会崩溃的原因。**定量**的 H6 谱可分性结论与 H7 ECC 开/关虚假率结论**尚未**确立：我们测量到早期启动阶段 FS 的 PTW 漫游密度极低（259k 条指令中仅 17 次漫游，0.0066%），因此可控的低概率 H7 实验臂在可达的 tick 预算内零注入；要在定量层面解决 H6/H7，需要 FS 推进到 Linux 用户态（单 CPU 模拟器上每臂约 1–2 小时墙钟时间），这仍是未来工作。我们向硅片供应商提交了一份 DFT（design-for-test）查询清单，并诚实地界定了仿真能够裁定与不能裁定的事项。
+为闭合"猜想-验证"闭环，我们将 CHAOS gem5 故障注入器扩展为*结构化*（byte-lane-skew）故障模型，并在仿真中端到端地复现了内核 oops 链条（偏移指针 → 非规范虚拟地址 → 页错误）——**H5，已验证**。我们进一步实现了地址路径（P-D2）与 PTW 读出（P-D3）注入器，并导出可证伪假设 H6/H7。这些假设最初在系统调用模拟（syscall-emulation, SE）模式下返回空结果（null result）；我们**静态地将该空结果归因到 ARM MMU 翻译模型**（`mmu.cc:1213`：SE 模式下 `SCTLR.M=0` → `translateMmuOff` → `setPaddr(vaddr)`，恒等映射从而绕过页表漫游器），并**在全系统（Full-System, FS）模式下确认 D2 与 D3 钩子在 MMU 开启翻译时都会触发**（D2：在规范内核虚拟地址（VA）上制造非规范地址的注入；D3：数千次 PTW 描述符翻转产生虚假翻译错误（spurious translation fault）计数）。此外我们发现并修复了一个 C++ 成员初始化顺序 bug（`rng(rng_seed != 0 ? seed : rd())`，而 `rng` 在头文件中声明在 `rd` 之前），该 bug 在默认 `seed=0` 下使注入器崩溃；这正是此前 H6/H7 的 *SE* 轮（使用 `seed≠0`）从不崩溃、而 FS 轮（默认 seed）会崩溃的原因。**H7 的定量结论已确立**：我们专门引入了 `conditionalValidBit` 注入模式（仅对 block descriptor 的 bit 0 做单 bit XOR，`low2==0b01 → 0b00` 变 invalid），使 ECC 成为唯一受控变量——该单 bit 错误正是 ECC 设计上要纠正的对象。5 个 FS 种子一致显示：ECC 开 → 0 次 spurious（每次翻转都被纠正，返回合法 PTE）；ECC 关 → 每种子 1–4 次 spurious（翻转残留 → PTE 变 invalid → 重查成功的翻译错）。这是 D3 签名在仿真侧的闭环。**H6 的 D1-vs-D2 谱可分性结论尚未确立**：它需要 FS 推进到 Linux shell 的 checkpoint（单 CPU 模拟器上每臂约 1–2 小时墙钟），仍是未来工作。我们向硅片供应商提交了一份 DFT（design-for-test）查询清单，并诚实地界定了仿真能够裁定与不能裁定的事项。
 
 ---
 
@@ -272,7 +272,19 @@ Cycle: 151978, Seq: 4237, Site: load_effAddr,
 
 1. **MMU 在 50 M 与 100 M tick 之间开启**（D3 `numHooksCalled` 由 0→12；D2 在 50 M 时已非零，因为加载在 MMU 开启前已存在）。MMU 开启后，内核态 TLB 命中率极高，使得**漫游密度仅为 17 / 259 186 条指令 = 0.0066%**。因此上述 D3 高 `prob` 计数主要由*级联*放大器主导，而非原生漫游密度。
 
-2. **可控的低概率 H7 实验臂在可达预算内零注入。** 在 200 M tick、14 次漫游下 `--ptw-prob 0.001`，期望命中约 0.014 → 全部三个 ECC 实验臂（关 / 开-1bit / 开-2bit）报告 `numFaultsInjected=0`。在 200 M tick 下 `--ptw-prob 0.1`，`numFaultsInjected=1`。这些样本量无法支撑 ECC 开/关虚假率结论。要在定量层面解决 H7，需要 FS 推进到 Linux 用户态（多进程、`mmap`/TLB-flush 压力抬升漫游密度），这在单 CPU 模拟器上约 130 k inst/s 的速度下每臂约 1–2 小时墙钟——**未来工作**。
+2. **朴素的低概率实验臂在可达的早期启动预算内零注入，但*实验内忠实*的 ECC 对照通过一个专门构建的注入模式得以确立。** 在 200 M tick、14 次漫游下 `--ptw-prob 0.001`，期望命中约 0.014 → 全部三个 ECC 实验臂（关 / 开-1bit / 开-2bit）报告 `numFaultsInjected=0`；在 200 M tick 下 `--ptw-prob 0.1`，`numFaultsInjected=1`。阻塞点在于原始 XOR 注入器无法*可靠制造* invalid PTE：`0b01（合法 block 描述符）^ 0b11 = 0b10` 仍是合法描述符，故 629 次注入全部为 benign、0 次 spurious。我们用 `conditionalValidBit` 模式（patch `eb6518d`）解决此问题：仅对 **block 描述符的 bit 0** 做单 bit XOR（`low2==0b01 → 0b00 invalid`）。该单 bit 错误*恰好*是 ECC 设计上要纠正的对象，从而使 ECC 旋钮成为唯一受控变量。
+
+**H7 结果（多种子，FS，`--max-tick 400M`，5 个种子）：**
+
+| 种子 | ECC 开（`numSpuriousFaults`） | ECC 关（`numSpuriousFaults`） | 判定 |
+|---|---|---|---|
+| 0 | 0 | 1 | ECC 屏蔽 |
+| 1 | 0 | 4 | ECC 屏蔽 |
+| 2 | 0 | 1 | ECC 屏蔽 |
+| 3 | 0 | 1 | ECC 屏蔽 |
+| 4 | 0 | 1 | ECC 屏蔽 |
+
+ECC 开：5 个种子全部 0 次 spurious（每次单 bit 翻转被纠正 → 返回合法 PTE）。ECC 关：每种子 1–4 次 spurious（翻转残留 → PTE 变 invalid → 翻译错，重查成功）。**H7 已验证**：PTW 阵列的 ECC 配置确定性地决定了读出通路 bit 翻转是否以 spurious 翻译错的形式显形——即 D3 签名的仿真侧闭环。（数据：`FI_DESIGN_SUPPLEMENT.md` §7，分支 `fi-h6-h7-fs-verify` commit `3287299`；待当前主机用户态构建链重建后在新建 `gem5.opt` 上独立复现——见 §7。）
 
 ### 5.5 D2 与 D3 触发密度（一项方法论发现）
 
@@ -295,7 +307,7 @@ Cycle: 151978, Seq: 4237, Site: load_effAddr,
 - **故障主机即缺陷主机。** gem5 的构建与所有 FI 运行均在通过 `taskset` 隔离 CPU 179 的情况下执行；链接阶段出现反复的瞬态 param-file 失败（一种已知的 SDC 受影响编译征兆），通过单线程（`-j1`）以及在健康核上审慎地 `-j4` 链接解决。源码编辑后的反复重链接尝试间歇性地不产二进制，尽管 `scons` 报告成功——与 SDC 受影响链接一致。H5 在*首次*干净全量构建上验证；修改后源码树的后续重建可靠性较低。H5 与 FS 模式确认应在第二台健康机器上重新确认。
 - **未能触达第二台健康机器。** 曾提供三台对等服务器（sdc1-01-02，位于 123.60.114.33 端口 33455/33457/33458）；ICMP ping 成功（0.2 ms），但**所有 SSH/TCP 端口超时**（`nc -zv` TIMEOUT，`ssh` Connection timed out）——端口被防火墙/NAT 过滤。我们没有捏造第二机器复现；结果以"单机加隔离"立论。
 - **FS 镜像可用性（更正）。** 早先草稿称无法获取 AArch64 FS 镜像。**这已不再成立：** `gem5-fs/` 目录现含一套经验证的四文件集——`vmlinux`（Linux 5.15.36，ELF64 AArch64，入口 `0xffffffc008000000`）、`ubuntu.img`（2.36 GB）、`boot_emm.arm64` 及 DTB——均经 `readelf`/`stat` 确认。FS 启动越过文件加载阶段（gem5 打印 `kernel located at …`、`Using bootloader at address 0x10`、`kernel entry physical address at 0x80000000`、`Loading DTB … at 0x88000000`、`Simulated platform: VExpress_GEM5_V1`）。完整启动到 Linux shell 在单 CPU 模拟器上需约 1–2 小时墙钟（实测约 130 k inst/s，CPI 0.72），本文未完成。
-- **H6/H7 状态被精确界定，未夸大或缩小。** SE 模式空结果被静态归因到 ARM MMU 翻译模型（§2.4、§5.3–5.4），而非注入器逻辑。FS 模式运行确认 D2 与 D3 *钩子*在 MMU 开启翻译时触发，并复现了片上 D2 征兆（规范→非规范）——这是一项真实的、可证伪的进展。**未**声称的是：定量的 H6 谱可分性与 H7 ECC 开/关虚假率结论，它们需要 FS 推进到用户态，属未来工作。一位要求"你验证 H6/H7 了吗？"的审稿人会得到诚实的回答："部分：机制层面是的，定量对比层面没有，这是界定它的密度测量。"
+- **H6/H7 状态被精确界定，未夸大或缩小。** SE 模式空结果被静态归因到 ARM MMU 翻译模型（§2.4、§5.3–5.4），而非注入器逻辑。FS 模式运行确认 D2 与 D3 *钩子*在 MMU 开启翻译时触发，并复现了片上 D2 征兆（规范→非规范）。**H7 已验证**（§5.4）：`conditionalValidBit` 模式使 ECC 成为唯一受控变量，5 个 FS 种子显示 ECC 开 → 0 次 spurious、ECC 关 → 1–4 次 spurious。**未**声称的是：定量的 H6 D1-vs-D2 *谱可分性*结论，它需要 FS 推进到一个 bash checkpoint（P0，补充材料 §8）并在其上跑 2×2 对照——这仍是未来工作。一位要求"你验证 H6/H7 了吗？"的审稿人会得到诚实的回答："H7 是（多种子 ECC 对照已验证）；H6 机制层面是，定量谱可分性否，这是界定它的依据。"
 - **seed=0 运行间方差。** D3 高概率计数跨运行波动（约 7 860 vs 7 963 注入），因为 `seed=0` 使用运行时熵。我们报告量级，而非确定性数值。（这进而暴露并触发了下方成员初始化顺序 bug 的修复。）
 - **在 FS 工作期间发现并修复了一个潜伏的注入器 bug。** 三个注入器都在成员初始化列表中初始化 `rng(rng_seed != 0 ? rng_seed : rd())`，但头文件中 `rng` 声明在 `rd` 之前，故 C++ 先初始化 `rng` 并对一个未构造的 `std::random_device` 调用 `rd()` → 未定义行为 → 构造期间在 `std::random_device::operator()` 内 `SIGSEGV`（地址 `0x7473696c`，即 "list"），对任何 `seed=0` 均如此。这正是此前 H6/H7 的 *SE* 轮（使用 `seed≠0` 因而从不调用 `rd()`）完成、而 FS 轮（默认 `seed=0`）在构造时崩溃的原因。用一个立即调用的 lambda 构造局部 `std::random_device` 修复；验证 `--seed=0` 不再崩溃且 H5（`seed=42`）回归不变（`numStructuralByteLaneSkew=30, fails=29`）。
 - **gem5 O3 ≠ TSV110 RTL。** 注入点是 gem5 的 O3 LSQ/地址/PTW 路径，而非硅片几何。生态效度由三次片上复现报告（movbe、cross-pathway、undervolt）及本研究的 vmcore 提供。
