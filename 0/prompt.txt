@@ -1,0 +1,6 @@
+Base directory for this skill: /home/sdc/.claude/skills/grill-me
+
+Call the Skill tool with "grilling".
+
+
+ARGUMENTS: 深度研究 @docs/cases/core179-microarch-rootcause-synthesis/ 及其目录下的论文，深度研究 @docs/cases/vmcore-* 目录下所有的诊断报告 ，完善中英文版的论文的工作，要求补充 @docs/cases/vmcore-* 中详细的案例，使得论文更加丰富、具体，具备顶会的bestpaper水平（你需要研究如何达成的路径）
