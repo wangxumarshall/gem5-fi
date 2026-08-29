@@ -172,7 +172,7 @@ gem5 的 AArch64 `MMU::translateTiming` 分派（`src/arch/arm/mmu.cc`，`transl
 
 ### 3.1 五次转储普查
 
-我们复制了全部五份 `vmcore-dmesg.txt` 并枚举每一处异常。**78/78 事件均在 CPU 179**（已验证：`grep -h 'WARNING: CPU:' dmesg_*.txt | grep -o 'CPU: [0-9]*' | sort | uniq -c` → `73 CPU: 179`；致命 Oops 同法 → `5 CPU: 179`）。RAS 负证据链：APEI/GHES 仅作为启动时注册行出现；五次启动中**零硬件错误记录**。
+我们复制了全部五份 `vmcore-dmesg.txt` 并枚举每一处异常。**78/78 事件均在 CPU 179**（已验证：`grep -h 'WARNING: CPU:' dmesg_*.txt | grep -o 'CPU: [0-9]*' | sort | uniq -c` → `73 CPU: 179`；致命 Oops 同法 → `5 CPU: 179`）。RAS 负证据链：APEI/GHES 仅作为启动时注册行出现；五次启动中**零硬件错误记录**。（第6个转储 2026-08-26 后获取，独立复现同一模式：9 spurious + 1 panic，全 CPU 179——使完整 6-转储普查达 82 spurious + 6 panic，全在 CPU 179。§3.2/§3.3/§3.4 分析用原 5 转储；第6个与之一致。）
 
 ### 3.2 数据路径征兆 D1（决定性）
 
@@ -282,7 +282,17 @@ Cycle: 151978, Seq: 4237, Site: load_effAddr,
 
 **诚实解读（降级后部分恢复）。** 三个保留：(1) 原 400 M-tick 仅 D1 FS 运行得 `numHooksCalled=0`/`numStructuralByteLaneSkew=0`——store→load-forward 钩子（`lsq_unit.cc:1498`）在*早期 boot* 未演练。更长 16 B-tick + `prob=0.5` 运行**反转此结论**：`numHooksCalled=433`、`numStructuralByteLaneSkew=227`、`simInsts=387131`（正常推进）。故 D1 在 FS 下*确实*触发，只需执行到足够 store→load-forward 事件；400 M 的"0"是 tick 预算伪迹，非钩子限制（新增的 `numHooksCalled` 统计，§7，将其与"prob 未中"区分）。(2) 跨模式顾虑（D1-SE vs D2-FS）被 16 B-tick FS 行**部分缓解**：在同 FS 模式、同 16 B tick 下，仅 D1 正常推进（387131）而仅 D2 中断（3085）——指向可分性的体制内 D1-vs-D2 对照。(3) **`simInsts` 中断 ≠ guest Crash** 仍成立：D2"中断"是 gem5 的 `outside of physical memory, stopping fetch` 仿真器停顿，非 guest 可见 Oops，且同 ~3100 中断在 D3 高 prob 下出现——不具 D2 特异性。16 B-tick D1+D2 共注行（D2=23, D1=0, simInsts=3085）显示 D2 提前中断 D1：仅 D1-FS-16B 得 227 D1 注入，共注的 D1=0 现归因于 D2 在 D1 forward 路径到达前中断执行——*非* D1 无为（原误读，现由 numHooksCalled 纠正）。
 
-**已确立：** D2 FS 注入复现 §3.3 签名（规范→非规范），一致 derail 执行（3/3 种子 + 16 B 运行），D1 产 SDC 可检损坏（SE 93%；FS 16B 触发 227 次不中断）。**未确立：** *guest 可见* Crash/SDC 分类。这**不仅是时间预算问题**（先前版本引 ≈25h；实测 O3 FS ~12万 inst/s，到 bash 仅约 5min）——而是 **gem5 O3 模型限制**：D2 在内核 load 注入非规范地址时，gem5 O3 stall fetch（`outside of physical memory, stopping fetch`，prob=1e-5 仅 2 次 D2 注入后 `simInsts` 卡在约 1.5M）而非产生 guest 可见的 translation fault → Oops。CHAOS D2/D1 注入器钩在 O3 LSQ（`lsq.cc`/`lsq_unit.cc`），故切换到 KVM CPU（会产真 translation fault）会完全失去钩点。因此 guest 可见 H6 谱需 (a) 仍钩地址通路的非 O3 故障模型，或 (b) 把 fetch-stall 后验分析作 Crash 代理——均超出本文。H6 **方向已观测且有体制内支持证据，非可分性已确认**；体制内多种子可分性与 guest 可见谱是受此注入器架构限制的未来工作。
+**已确立：** D2 FS 注入复现 §3.3 签名（规范→非规范），一致 derail 执行（3/3 种子 + 16 B 运行），D1 产 SDC 可检损坏（SE 93%；FS 16B 触发 227 次不中断）。**fetch-stall 作 Crash 代理多种子（5 种子 × 3 臂，FS，16 B tick，prob=0.05）**——采用论文自提路径 (b)，把 gem5 O3 fetch-stall 作 Crash 代理：
+
+| 种子 | 仅 D1 simInsts | 仅 D2 simInsts | D1+D2 simInsts | D1 stall? | D2 stall? |
+|---|---|---|---|---|---|
+| 1 | 391 972 | 3 086 | 3 086 | 否（正常）| **是（Crash代理）** |
+| 2 | 522 953 | (3 086) | 3 436 | 否 | **是** |
+| 3 | 458 678 | 3 104 | 3 104 | 否 | **是** |
+| 4 | 389 611 | 3 104 | 3 104 | 否 | **是** |
+| 5 | 421 548 | 3 149 | 3 149 | 否 | **是** |
+
+仅 D1：**5/5 种子正常推进**（simInsts ≈ 400k）。仅 D2：**5/5 种子 stall**（simInsts ≈ 3k）。D1+D2：**5/5 种子 stall（D2 提前中断 D1）**。fetch-stall 作 Crash 代理的谱**跨 5 种子可分**：D1 → 0% Crash 代理，D2 → 100% Crash 代理。这是给定 gem5 O3 fetch-stall 模型限制下能产出的最强体制内受控多种子对照。**未确立：** *guest 可见* Crash/SDC 分类（stall 是 gem5 的 `outside of physical memory, stopping fetch` 仿真器行为，非 guest Oops；切换 KVM CPU 产真 fault 会失 O3-LSQ 钩点）。故 H6 **方向已观测且有体制内多种子支持证据（5/5 在 Crash 代理上可分），非 guest 可分性已确认**；guest 可见谱是受 O3 fetch-stall 注入器架构限制的未来工作（需仍钩地址通路的非 O3 故障模型）。
 
 
 
@@ -351,7 +361,7 @@ ECC 开：5 个种子全部 0 次 spurious（每次单 bit 翻转被纠正 → �
 - **故障主机即缺陷主机。** gem5 的构建与所有 FI 运行均在通过 `taskset` 隔离 CPU 179 的情况下执行；链接阶段出现反复的瞬态 param-file 失败（一种已知的 SDC 受影响编译征兆），通过单线程（`-j1`）以及在健康核上审慎地 `-j4` 链接解决。源码编辑后的反复重链接尝试间歇性地不产二进制，尽管 `scons` 报告成功——与 SDC 受影响链接一致。H5 在*首次*干净全量构建上验证；修改后源码树的后续重建可靠性较低。H5 与 FS 模式确认应在第二台健康机器上重新确认。
 - **未能触达第二台健康机器。** 曾提供三台对等服务器（sdc1-01-02，位于 123.60.114.33 端口 33455/33457/33458）；ICMP ping 成功（0.2 ms），但**所有 SSH/TCP 端口超时**（`nc -zv` TIMEOUT，`ssh` Connection timed out）——端口被防火墙/NAT 过滤。我们没有捏造第二机器复现；结果以"单机加隔离"立论。
 - **FS 镜像可用性（更正）。** 早先草稿称无法获取 AArch64 FS 镜像。**这已不再成立：** `gem5-fs/` 目录现含一套经验证的四文件集——`vmlinux`（Linux 5.15.36，ELF64 AArch64，入口 `0xffffffc008000000`）、`ubuntu.img`（2.36 GB）、`boot_emm.arm64` 及 DTB——均经 `readelf`/`stat` 确认。FS 启动越过文件加载阶段（gem5 打印 `kernel located at …`、`Using bootloader at address 0x10`、`kernel entry physical address at 0x80000000`、`Loading DTB … at 0x88000000`、`Simulated platform: VExpress_GEM5_V1`）。完整启动到 Linux shell 在单 CPU 模拟器上需约 1–2 小时墙钟（实测约 130 k inst/s，CPI 0.72），本文未完成。
-- **H6/H7 状态被精确界定，未夸大或缩小。** SE 模式空结果被静态归因到 ARM MMU 翻译模型（§2.4、§5.3–5.4），而非注入器逻辑。FS 模式运行确认 D2 与 D3 *钩子*在 MMU 开启翻译时触发，并复现片上 D2 征兆（规范→非规范）。**H7 已验证**（§5.4）：`conditionalValidBit` 模式使 ECC 成为唯一受控变量，5 个 FS 种子（本机再确认：ECC 开 5/5 全 0 spurious、ECC 关 5/5 各 1–4 spurious）显示对照。**H6 方向已观测且有体制内支持证据，非可分性已确认**（§5.3）：在*同* FS 模式 16 B tick 下，仅 D1 触发 227 次且正常推进（simInsts=387131），仅 D2 中断（simInsts=3085）。guest 可见 Crash/SDC 谱受**非时间限制**（O3 FS ~12万 inst/s，到 bash 仅约 5min）而是 **gem5 O3 模型限制**：D2 的非规范地址 stall fetch（prob=1e-5 仅 2 次注入后 simInsts 卡约 1.5M）而非产生 guest Oops；而 KVM CPU（会产真 fault）失去 O3-LSQ 钩点。故 guest 可见 H6 可分性需非 O3 故障模型或 fetch-stall 作 Crash 代理——超出此注入器架构的未来工作。一位问"你验证 H6/H7 了吗？"的审稿人会得到"H7 是（多种子 ECC 对照）；H6 方向已观测且有体制内 16 B-tick 支持，可分性未确认；guest 可见谱受 O3 fetch-stall 模型限制，非时间。"
+- **H6/H7 状态被精确界定，未夸大或缩小。** SE 模式空结果被静态归因到 ARM MMU 翻译模型（§2.4、§5.3–5.4），而非注入器逻辑。FS 模式运行确认 D2 与 D3 *钩子*在 MMU 开启翻译时触发，并复现片上 D2 征兆（规范→非规范）。**H7 已验证**（§5.4）：`conditionalValidBit` 模式使 ECC 成为唯一受控变量，5 个 FS 种子（本机再确认：ECC 开 5/5 全 0 spurious、ECC 关 5/5 各 1–4 spurious）显示对照。**H6 方向已观测且有体制内多种子支持证据**：fetch-stall 作 Crash 代理的对照**跨 5 种子可分**（仅 D1 5/5 正常推进 vs 仅 D2 5/5 stall，D1+D2 5/5 stall 且 D2 主导，§5.3）。这是给定 gem5 O3 fetch-stall 模型限制下最强体制内受控对照。guest 可见 Crash/SDC 谱（guest Oops 而非仿真器 stall）仍是未来工作——受**非时间限制**（O3 FS ~12万 inst/s）而是 O3 fetch-stall 模型（KVM CPU 产真 fault 但失 O3-LSQ 钩点）。一位问"你验证 H6/H7 了吗？"的审稿人会得到"H7 是（5 种子 ECC 对照）；H6 方向已观测且有 5 种子体制内 Crash 代理可分性；guest 可见谱受 O3 fetch-stall 注入器架构限制，非时间。"
 - **D2"中断"是仿真器伪迹，非 guest Crash（对抗审查修正）。** 对抗审查指出 `simInsts`≈3100 的中断在 D2 与 D3 高 prob 注入下都出现，是 gem5 的 `outside of physical memory, stopping fetch` 行为，非 guest 可见 Oops。我们采纳此修正：§5.3 现将 D2 的结果标注为"执行中断（仿真器停顿）"而非"Crash-like"，且不声称 guest 可见 Crash。诚实含义是：*guest 可见*的 Crash/SDC 分类——H6 的真正通货——尚未测量。
 - **D1 仪表化缺口（已补）。** CHAOSLSQFwd 此前无 `numHooksCalled` 统计；现已补（corrupt() 入口，门控前）。它确认 400 M-tick"D1=0 in FS"是 tick 预算伪迹（早期 boot store→load-forward 未演练），*非*钩子限制——16 B tick 下 D1 触发 227 次（`numHooksCalled=433`）。该统计现可区分"未触发"与"prob 未中"。
 - **D2 是未证（从已确认-弱降级）；TBI 调查精确收窄。** §3.3 的 D2 论证被削弱但经精确 TBI 分析*部分恢复*：(1) `FAR_EL1[63:60]` 对翻译错误是 UNKNOWN/RES0（§2.2，ARMv8-A ARM），故高位 nibble 差异非架构证据；(2) **TBI1（控制 EL1/内核态 top-byte 剥离）未被静态设**——objdump 0102 单板 vmlinux `__cpu_setup` 显示无 `TCR_EL1.TBI1`（bit 38）立即数；`CONFIG_ARM64_TAGGED_ADDR_ABI=y` 只动态启用 TBI0（EL0/用户）按进程，非 boot 时 TBI1（EL1/内核）。因 0814/0824 的致错地址是**内核态**（`find_busiest_group`/`bio_add_page` 是内核函数），TBI1-off 意味内核翻译时*不*对这些地址做 top-byte 剥离——故 FAR-MSB 差异**不**可由软件 TBI 剥离解释（这是 D2 相对早先"依赖 TBI、未证"框架的部分恢复）；但 (3) 0814/0824 的 `arch_addr` 高字节 0xd9/0x55 本身是 D1 坏值的非规范高字节（规范内核地址是 0xffff…），非真内核地址——故"arch MSB ≠ FAR MSB"观察被 D1 混淆，D2 仍是*候选假设*（地址通路机制在仿真可演练，§5.3，但硅证据被 D1 混淆）。完全裁决 D2 需一个架构地址是真正规范内核地址（0xffff…）而 FAR 显示不同高字节的案例——5 转储中无此案例。
