@@ -1,0 +1,29 @@
+{
+  "cli_version": "0.10.2",
+  "checkpoint_id": "01M1615EC4B4FW2M590C6ZTZYS",
+  "strategy": "manual-commit",
+  "branch": "fi-h6-h7-quantitative-contrast",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "CHAOS/gem5/src/cpu/o3/CHAOSAddrPath/CHAOSAddrPath.cc",
+    "CHAOS/gem5/src/cpu/o3/CHAOSAddrPath/CHAOSAddrPath.hh",
+    "CHAOS/gem5/src/cpu/o3/CHAOSAddrPath/CHAOSAddrPath.py",
+    "fi_research/probes/o3_chaos_fs.py"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 16241,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 19202944,
+    "output_tokens": 9083,
+    "api_call_count": 31
+  }
+}
