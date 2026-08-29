@@ -26,8 +26,14 @@ namespace gem5
           stats(nullptr)
     {
         if (!cpu) {
-            throw std::runtime_error(
-                "CHAOSAddrPath: cpu is not an O3CPU. O3-only (hooks LSQ).");
+            // Non-O3 path (e.g. AtomicCPU): cpu dynamic_cast<o3::CPU*> returns
+            // nullptr. This is now allowed — the MMU non-O3 hook (setAddrInj)
+            // carries the injection. Only warn if no mmu either (then inert).
+            if (!mmu) {
+                warn("CHAOSAddrPath: neither O3 cpu nor mmu attached; injector inert.");
+            } else {
+                inform("CHAOSAddrPath: non-O3 mode (mmu translateTiming hook only).");
+            }
         }
         // non-O3 path: if mmu is provided, register self at the MMU's
         // translateTiming boundary (fires for AtomicCPU/Minor, not just O3).
