@@ -1,0 +1,2 @@
+/goal 如下第1项，第2项记入后续计划写入plan中。：  1. H6 guest-visible oops 谱（O3 fetch-stall 注入器架构限制，需 non-O3 fault model 重构）
+  2. 跨案例迁移（无第二台故障机，6 vmcore 同核）—— 诚实标注为 single-case study
