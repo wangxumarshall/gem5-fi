@@ -48,6 +48,7 @@
 #include "arch/arm/table_walker.hh"
 #include "arch/arm/tlb.hh"
 #include "arch/arm/tlbi_op.hh"
+#include "cpu/o3/CHAOSAddrPath/CHAOSAddrPath.hh"  // D2 non-O3 path (corruptAddr at MMU boundary)
 #include "arch/arm/types.hh"
 #include "debug/MMU.hh"
 #include "mem/packet_access.hh"
@@ -1292,6 +1293,19 @@ MMU::translateTiming(const RequestPtr &req, ThreadContext *tc,
     auto& state = updateMiscReg(tc, tran_type, stage2);
 
     assert(translation);
+
+    // CHAOSAddrPath (D2, non-O3 path): address-path corruption at the MMU
+    // boundary, so it fires for ANY CPU model (O3/Minor/AtomicSimple) that
+    // calls translateTiming — not just O3 LSQ (lsq.cc::sendFragmentToTranslation).
+    // This enables H6 guest-visible-oops experiments on AtomicCPU (which
+    // raises a guest translation fault on a non-canonical VA instead of
+    // stalling fetch like O3). The O3-only lsq.cc hook remains for SE mode.
+    if (addrInj) {
+        Addr va = req->getVaddr();
+        if (addrInj->corruptAddr(&va, 0)) {
+            req->setVaddr(va);
+        }
+    }
 
     translateComplete(req, tc, translation, mode, tran_type,
         stage2, state);

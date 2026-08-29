@@ -61,6 +61,11 @@ class ArmRelease;
 // (mmu.hh is itself inside namespace gem5, so unqualified here).
 class CHAOSPTW;
 
+// Forward declaration of the address-path fault injector (D2, non-O3 path).
+// Defined in src/cpu/o3/CHAOSAddrPath/ but lives in the gem5 namespace;
+// forward-declared to avoid a cross-module include cycle (cpu/o3 -> arch/arm).
+class CHAOSAddrPath;
+
 namespace ArmISA {
 
 class TableWalker;
@@ -89,10 +94,22 @@ class MMU : public BaseMMU
      *  from a config script; nullptr -> walker call site short-circuits. */
     CHAOSPTW *ptwInj = nullptr;
 
+    /** CHAOSAddrPath hook (D2, non-O3 path): address-path injector at the
+     *  MMU translateTiming boundary — so it fires for ANY CPU model (O3,
+     *  Minor, AtomicSimple) that calls translateTiming, not just O3 LSQ.
+     *  This enables H6 guest-visible-oops experiments on AtomicCPU (which
+     *  does not stall fetch like O3, so a non-canonical address raises a
+     *  guest translation fault instead of a simulator stall). */
+    CHAOSAddrPath *addrInj = nullptr;
+
   public:
     /** CHAOSPTW (D3) accessor: set/get the PTW-readout injector. */
     void setPtwInj(CHAOSPTW *p) { ptwInj = p; }
     CHAOSPTW *getPtwInj() const { return ptwInj; }
+
+    /** CHAOSAddrPath (D2, non-O3) accessor: set/get the address-path injector. */
+    void setAddrInj(CHAOSAddrPath *p) { addrInj = p; }
+    CHAOSAddrPath *getAddrInj() const { return addrInj; }
 
     TranslationGenPtr
     translateFunctional(Addr start, Addr size, ThreadContext *tc,

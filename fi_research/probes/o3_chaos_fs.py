@@ -93,6 +93,12 @@ if float(fi_args.addr_prob) > 0.0:
     )
     m5.util.inform("CHAOSAddrPath (D2) attached: prob=%s byte=%s",
                    fi_args.addr_prob, fi_args.addr_byte)
+    # Also attach to the MMU's addrInj (non-O3 path) so D2 fires at the
+    # translateTiming boundary for ANY CPU model (O3/Minor/AtomicSimple),
+    # not just O3 LSQ. This enables H6 guest-visible-oops experiments on
+    # AtomicCPU (which raises a guest fault instead of stalling fetch).
+    target_cpu.mmu.setAddrInj(system.addrfi)
+    m5.util.inform("CHAOSAddrPath (D2) also attached to MMU (non-O3 path)")
 
 if float(fi_args.ptw_prob) > 0.0:
     system.ptwfi = CHAOSPTW(
