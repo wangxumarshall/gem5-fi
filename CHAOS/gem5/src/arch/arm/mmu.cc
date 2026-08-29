@@ -1274,6 +1274,16 @@ MMU::translateFunctional(const RequestPtr &req, ThreadContext *tc, Mode mode,
 {
     auto& state = updateMiscReg(tc, tran_type, stage2);
 
+    // CHAOSAddrPath (D2, non-O3 path): also hook translateFunctional, because
+    // AtomicCPU uses functional translation (not translateTiming). This makes
+    // D2 fire for AtomicCPU FS, enabling H6 guest-visible-oops experiments.
+    if (addrInj) {
+        Addr va = req->getVaddr();
+        if (addrInj->corruptAddr(&va, 0)) {
+            req->setVaddr(va);
+        }
+    }
+
     bool delay = false;
     Fault fault;
     if (FullSystem)
