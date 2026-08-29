@@ -13,6 +13,9 @@ namespace gem5
 {
 
 namespace o3 { class CPU; }
+class CHAOSAddrPath;  // self (for MMU forward-decl symmetry)
+
+namespace ArmISA { class MMU; }
 
 // CHAOSAddrPath — address-path fault injector (D2) for O3CPU.
 //
@@ -37,6 +40,7 @@ class CHAOSAddrPath : public SimObject
     bool corruptAddr(Addr *addr, uint64_t seq);
   private:
     o3::CPU *cpu;
+    ArmISA::MMU *mmu = nullptr;  // for the non-O3 translateTiming hook
     float probability;
     int byte_offset;        // which byte to zero (default 7 = MSB); -1 = random
     Cycles first_clock, last_clock;

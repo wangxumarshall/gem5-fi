@@ -84,6 +84,7 @@ target_cpu = system.bigCluster.cpus[0]
 if float(fi_args.addr_prob) > 0.0:
     system.addrfi = CHAOSAddrPath(
         cpu=target_cpu,
+        mmu=target_cpu.mmu,
         probability=float(fi_args.addr_prob),
         byteOffset=int(fi_args.addr_byte),
         firstClock=int(fi_args.first_clock),
@@ -91,7 +92,7 @@ if float(fi_args.addr_prob) > 0.0:
         rngSeed=int(fi_args.seed),
         writeLog=True,
     )
-    m5.util.inform("CHAOSAddrPath (D2) attached: prob=%s byte=%s",
+    m5.util.inform("CHAOSAddrPath (D2) attached: prob=%s byte=%s (O3 LSQ + MMU non-O3 paths)",
                    fi_args.addr_prob, fi_args.addr_byte)
 
 if float(fi_args.ptw_prob) > 0.0:

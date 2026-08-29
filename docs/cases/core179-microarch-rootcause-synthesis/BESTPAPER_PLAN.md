@@ -120,3 +120,67 @@ DIAGNOSIS_REPORT §3.2 已有 5 案例坏值表：
 - 差距4完全：H7 严格同路径对照（两臂 numHooksCalled 不对称，需 AtomicCPU checkpoint 高 walk 密度环境）
 
 **净结论**：阶段1-5 执行后，论文从"borderline Reject"提升至"weak-accept/accept"（regular paper）。D1 实锤（原vmcore独立复现）+ D2 精确裁决（TBI1不解释,部分恢复）+ D3 跨6转储独立复现 + H6 5-seed Crash-proxy 可分 + H7 5-seed ECC对照 + method3 生态效度交叉确认 + artifact 可分发（gem5.opt.rpath + D1脚本）。距 best paper 仍差 2 架构限制项（guest oops + 跨案例），需新仿真工具或新案例。
+
+## 后续计划（future work，记入 plan，当前资源不可闭合）
+
+### 目标1后续：H6 guest-visible oops 谱（non-O3 fault model 重构）
+
+**当前阻塞**：gem5 O3 在 fetch 非规范地址时 stall（`outside of physical memory, stopping fetch`）而非产 guest 可见 translation fault → oops。AtomicCPU 也 stall（实测 simInsts~3024）。KVM CPU 失 O3-LSQ 钩点。
+
+**根因（本轮探路确认）**：D2/D3 注入在 boot 早期（simInsts~3000）触发时，Linux oops 处理程序尚未就绪（kernel 未启动到 fault handler）→ stall。真正的解法是**让注入在 oops handler 就绪后（bash 阶段）触发**。
+
+**可行路径（已启动实测）**：
+1. **AtomicCPU boot 到 bash + first_clock 延迟注入**：AtomicCPU 到 bash（~631G tick，oops handler 就绪）→ first_clock 设到 bash 后（600G+）→ 注入产 fault → guest oops handler 捕获 → 可见 oops。本轮实测中（/tmp/atomic_d3_fc）。
+2. **D2 钩点重构**：从 O3 专用 `lsq.cc::sendFragmentToTranslation` 移到 `mmu.cc::translateTiming` 入口（所有 CPU 共享），使 D2 在任意 CPU（含 AtomicCPU）触发。
+3. **AtomicCPU 的 fault 投递**：核实 gem5 是否在 oops handler 就绪后正确投递 translation fault 给 guest kernel（产 ESR/FAR + data abort handler）。
+
+**所需新工程**：D2 钩点移到 mmu.cc（代码 patch + 重编译）+ AtomicCPU checkpoint 到 bash + first_clock 延迟注入 + fault 投递验证。
+
+### 目标2后续：跨案例迁移（需第二台故障机）
+
+**当前阻塞**：6 vmcore 全是 0102 单板 CPU179（同缺陷核多次转储，非不同案例）。无第二台故障机。外部 peer 不可达。
+
+**诚实定位**：论文已标注为 single-case forensic case study（§7）。D1 方法依赖 `__per_cpu_offset` write-once 性质，非普适。
+
+**闭合条件**：
+1. 获取第二台故障机（不同缺陷核/SoC）—— 需硬件供应商或新故障案例
+2. 或：公开历史 SDC vmcore（Linux kernel mailing list oops report）用 D1 方法 re-analyze —— 但公开 vmcore 几乎不存在
+3. 或：构造合成第二案例（gem5 注入不同 SDC 签名，验证 D1 方法适用边界）—— §5.2 边界测试已部分做
+
+**当前不可闭合**，诚实标注为 single-case study + scoped methodological claim。
+
+## 目标1进展（non-O3 fault model 重构，2026-08-29）
+
+**已完成（代码重构，commits 9d876ab/bf45b28/4fae47d）**：
+- mmu.hh 加 `CHAOSAddrPath *addrInj` + `setAddrInj/getAddrInj` 访问器
+- mmu.cc `translateTiming` 入口加 D2 钩（所有 CPU 共享的翻译入口）
+- CHAOSAddrPath 加 `mmu` 参数 + 构造内 `mmu->setAddrInj(this)`（仿 CHAOSPTW setPtwInj）
+- CHAOSAddrPath 的 cpu 检查从 throw 改 warn（允许 AtomicCPU non-O3）
+- corruptAddr/writeLog 处理 cpu NULL（用 curTick 回退）
+- o3_chaos_fs.py 传 `mmu=target_cpu.mmu` 给 CHAOSAddrPath
+- **自验证**：编译 0 error + H5 回归通过（numSkew=30 fails=29）+ AtomicCPU 启动不 throw
+
+**关键实证（AtomicCPU + D2 + first_clock=600G, /tmp/h6_guest_oops3）**：
+- **AtomicCPU 跑到 bash 后正常推进，simInsts=365,242,360（3.65 亿）——不 stall**（vs O3 stall 在 ~3000）！这证明 AtomicCPU 模型不 stall，是 non-O3 fault model 的可行基础。
+- 但 **D2 钩未触发**（numHooksCalled=0, numAddrFaults=0）——mmu.addrInj 可能未正确设置，或 translateTiming 钩条件问题。
+
+**剩余调试（D2 钩触发）**：
+- 核实 CHAOSAddrPath 构造内 `mmu->setAddrInj(this)` 是否调到正确 mmu 对象（target_cpu.mmu vs system mmu）
+- 核实 mmu.cc translateTiming 的 `if(addrInj)` 是否被命中（AtomicCPU 是否走 translateTiming 还是 translateFunctional/translateMmuOff）
+- AtomicCPU FS SCTLR.M=1 应走 translateTiming→PTW，但 AtomicCPU 可能用 translateFunctional（非 translateTiming）
+- 修复后重测：D2 注入产 guest fault 而非 stall（AtomicCPU 模型已证不 stall）
+
+**若 D2 钩触发成功**：guest-visible oops 谱可测（AtomicCPU + D2 + first_clock 到 bash 后注入 → guest translation fault → oops）→ 闭合目标1。
+
+## 目标1重大进展（D2 钩触发成功，2026-08-29）
+
+**D2 non-O3 钩触发验证成功**（commit 7c767e5）：
+- D2 钩从 translateTiming/translateFunctional 移到 **translateFs**（FS 翻译共同路径，所有 CPU 遍历）
+- 短测 AtomicCPU + D2 + first_clock=0 + 100M tick：**numHooksCalled=200,490, numAddrFaults=100,165** —— D2 钩在 AtomicCPU **成功触发**（之前 translateTiming/translateFunctional 钩 numHooksCalled=0 因 AtomicCPU 不调它们）
+- inform 确认：`setAddrInj called on mmu=system.bigCluster.cpus.mmu`（钩正确设置）
+
+**关键里程碑**：non-O3 fault model 重构完成 + D2 钩在 AtomicCPU 触发。之前 O3 stall（simInsts~3000）因 D2 钩在 O3 LSQ；现在 translateFs 钩让 AtomicCPU 也能触发 D2。
+
+**guest oops 验证实验（运行中）**：AtomicCPU + D2 + first_clock=600G（bash 后注入）+ max-tick 800G。AtomicCPU boot 到 bash（~631G tick）后 D2 注入，看是否产 guest-visible oops 而非 stall（AtomicCPU 模型已证不 stall——simInsts 3.65 亿到 bash）。
+
+**剩余**：等待实验完成，确认 D2 注入在 bash 后产 guest oops（非 stall）→ 闭合目标1。
