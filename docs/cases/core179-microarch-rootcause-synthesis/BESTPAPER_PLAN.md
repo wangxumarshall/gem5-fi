@@ -101,3 +101,22 @@ DIAGNOSIS_REPORT §3.2 已有 5 案例坏值表：
 **净结论**：执行阶段1-5 后，论文从"borderline Reject"提升至"weak accept / accept"（regular paper），D1 实锤 + 跨转储稳定性 + D2 裁决 + D3 独立复现 + artifact 可分发 + H6 stall 代理多 seed 闭合大部分差距。但**距 best paper 仍差**：guest-visible H6 谱（架构限制）+ 跨案例迁移（需不同缺陷）——这两项需新的仿真工具开发或新案例获取，超出当前资源。
 
 **执行顺序**：阶段1（最高ROI，D1+D2）→ 阶段2（D3）→ 阶段5（artifact，并行）→ 阶段3（H6 stall 代理）→ 阶段4（method3，需硬件）。
+
+## 执行状态（2026-08-29 更新）
+
+| 阶段 | 状态 | 闭合差距 | commit |
+|---|---|---|---|
+| 1. D2 TBI 裁决 + D1 跨转储 | ✅ 完成 | 差距2部分+3 | c1b756c |
+| 2. D3 spurious 跨6转储复现 | ✅ 完成 | 差距5(D3) | 8483b42 |
+| 3. H6 fetch-stall-as-Crash-proxy 5-seed | ✅ 完成 | 差距1部分+4 | 8483b42 |
+| 4. method3 生态效度交叉确认 | ✅ 完成 | 差距5(method3) | 75c7cff |
+| 5. artifact 封装 (rpath+D1脚本) | ✅ 完成 | 差距6 | 8483b42 |
+
+**已闭合差距**：3(D2 TBI精确裁决,部分恢复) + 5(D3独立复现+method3交叉确认) + 6(artifact:gem5.opt.rpath自包含+D1复现脚本) + 1部分(H6 5-seed fetch-stall Crash代理可分) + 4部分(H7低prob待补,但5-seed已有) + 2部分(跨转储稳定性,非跨案例)
+
+**仍开放（不可当前闭合，受架构/资源限制）**：
+- 差距1完全：H6 guest-visible oops 谱（O3 fetch-stall 注入器架构限制，需 non-O3 fault model 重构）
+- 差距2完全：跨案例迁移（6 转储是同核 CPU179，需不同缺陷核/SoC）
+- 差距4完全：H7 严格同路径对照（两臂 numHooksCalled 不对称，需 AtomicCPU checkpoint 高 walk 密度环境）
+
+**净结论**：阶段1-5 执行后，论文从"borderline Reject"提升至"weak-accept/accept"（regular paper）。D1 实锤（原vmcore独立复现）+ D2 精确裁决（TBI1不解释,部分恢复）+ D3 跨6转储独立复现 + H6 5-seed Crash-proxy 可分 + H7 5-seed ECC对照 + method3 生态效度交叉确认 + artifact 可分发（gem5.opt.rpath + D1脚本）。距 best paper 仍差 2 架构限制项（guest oops + 跨案例），需新仿真工具或新案例。
