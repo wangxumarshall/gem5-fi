@@ -172,7 +172,7 @@ We position this work against three adjacent literatures; in each we state preci
 
 ### 3.1 Five-dump census
 
-We copied all five `vmcore-dmesg.txt` files and enumerated every anomaly. **78/78 events are on CPU 179** (verified: `grep -h 'WARNING: CPU:' dmesg_*.txt | grep -o 'CPU: [0-9]*' | sort | uniq -c` → `73 CPU: 179`; fatal Oops same method → `5 CPU: 179`). The RAS negative-evidence chain: APEI/GHES appear only as boot-time registration lines; **zero hardware-error records** across all five boots. (A sixth dump, 2026-08-26, was acquired later and independently reproduces the same pattern: 9 spurious + 1 panic, all CPU 179 — bringing the full 6-dump census to 82 spurious + 6 panics, all on CPU 179. The §3.2/§3.3/§3.4 analysis uses the original 5 dumps; the 6th is consistent with them.)
+We copied all five `vmcore-dmesg.txt` files (the analysis base) and enumerated every anomaly. **78/78 events are on CPU 179** (verified: `grep -h 'WARNING: CPU:' dmesg_*.txt | grep -o 'CPU: [0-9]*' | sort | uniq -c` → `73 CPU: 179`; fatal Oops same method → `5 CPU: 179`). The RAS negative-evidence chain: APEI/GHES appear only as boot-time registration lines; **zero hardware-error records** across all five boots. (A sixth dump, 2026-08-26, was acquired later and is *not* part of the 78-event analysis base; it independently reproduces the same pattern — 9 spurious + 1 panic, all CPU 179 — bringing the full 6-dump census to 82 spurious + 6 panics. The §3.2/§3.3/§3.4 analysis uses the original 5 dumps; the 6th is consistent with them. We cite "78/78" for the analysis-base 5 dumps and "82+6" for the full census; the two are not in conflict.)
 
 ### 3.2 The data-path signature D1 (decisive)
 
@@ -287,7 +287,7 @@ A canonical kernel address (`0xffffffc0…`) had its byte7 zeroed to `0xffffc0�
 | seed | D1-only simInsts | D2-only simInsts | D1+D2 simInsts | D1 stall? | D2 stall? |
 |---|---|---|---|---|---|
 | 1 | 391 972 | 3 086 | 3 086 | no (normal) | **yes (Crash-proxy)** |
-| 2 | 522 953 | (3 086) | 3 436 | no | **yes** |
+| 2 | 522 953 | 3 436 | 3 436 | no | **yes** |
 | 3 | 458 678 | 3 104 | 3 104 | no | **yes** |
 | 4 | 389 611 | 3 104 | 3 104 | no | **yes** |
 | 5 | 421 548 | 3 149 | 3 149 | no | **yes** |
@@ -328,7 +328,7 @@ Two honest consequences:
 
 1. **MMU-on occurs between 50 M and 100 M ticks** (D3 `numHooksCalled` goes 0→12; D2 already nonzero at 50 M because loads exist pre-MMU-on). After MMU-on, kernel-mode TLB hit rate is so high that **walk density is only 17 / 259 186 instructions = 0.0066%**. The D3 high-`prob` counts above are therefore dominated by the *cascade* amplifier, not native walk density.
 
-2. **The naive low-probability arms see zero injections in the reachable early-boot budget, but the *faithful within-experiment* ECC contrast is established via a purpose-built injection mode.** At `--ptw-prob 0.001` over 200 M ticks (14 walks), the expected hits are ≈0.014 → all three ECC arms (off / on-1bit / on-2bit) report `numFaultsInjected=0`; at `--ptw-prob 0.1` over 200 M ticks, `numFaultsInjected=1`. The blocker is that the original XOR injector cannot *reliably manufacture* an invalid PTE: `0b01 (valid block desc) ^ 0b11 = 0b10`, which is still a valid descriptor, so 629 injections were all benign with 0 spurious. We resolved this with the `conditionalValidBit` mode (patch `eb6518d`): a single-bit XOR on **bit 0 restricted to block descriptors only** (`low2==0b01 → 0b00 invalid`). This single-bit error is *exactly* what ECC is designed to correct, so it makes the ECC knob the sole controlled variable.
+2. **The naive low-probability arms see zero injections in the reachable early-boot budget, but the *faithful within-experiment* ECC contrast is established via a purpose-built injection mode.** At `--ptw-prob 0.001` over 200 M ticks (14 walks), the expected hits are ≈0.014 → all three ECC arms (off / on-1bit / on-2bit) report `numFaultsInjected=0`; at `--ptw-prob 0.1` over 200 M ticks, `numFaultsInjected=1`. The blocker is that the original XOR injector cannot *reliably manufacture* an invalid PTE: `0b01 (valid block desc) ^ 0b11 = 0b10`, which is still a valid descriptor, so 629 injections were all benign with 0 spurious. We resolved this with the `conditionalValidBit` mode (patch `eb6518d`): a single-bit XOR on **bit 0 restricted to block descriptors only** (`low2==0b01 → 0b00 invalid`). This single-bit error is *exactly* what ECC is designed to correct, so it makes the ECC knob the intended controlled variable (with the same-path caveat noted after the table).
 
 **H7 result (multi-seed, FS, `--max-tick 400M`, 5 seeds):**
 
@@ -340,7 +340,7 @@ Two honest consequences:
 | 3 | 0 | 1 | ECC masks |
 | 4 | 0 | 1 | ECC masks |
 
-ECC-on: 0 spurious across all 5 seeds (every single-bit flip corrected → valid PTE returned). ECC-off: 1–4 spurious per seed (the flip survives → invalid PTE → translation fault retried successfully on re-walk). **H7 is verified**: the PTW array's ECC configuration deterministically governs whether a readout-path bit flip surfaces as a spurious translation fault — the simulation-side closure of the D3 signature. (Data: `FI_DESIGN_SUPPLEMENT.md` §7, branch `fi-h6-h7-fs-verify` commit `3287299`; to be independently re-confirmed on a rebuilt `gem5.opt` once the user-space build chain is re-established on the current host — see §7.)
+ECC-on: 0 spurious across all 5 seeds (every single-bit flip corrected → valid PTE returned). ECC-off: 1–4 spurious per seed (the flip survives → invalid PTE → translation fault retried successfully on re-walk). **H7 is verified in direction (ECC-on → 0 spurious 5/5, ECC-off → 1–4 spurious 5/5)**, with an honest caveat on internal validity: **the two arms are NOT strictly same-path controlled** — ECC-on corrects the flip so execution continues normally (`simInsts` ≈ 259k), while ECC-off's surviving invalid PTE triggers a retry cascade that changes the execution path (`numHooksCalled` ≈ 15 808 vs ≈ 17 for ECC-on, `simInsts` ≈ 3 090). So the ECC knob is the intended controlled variable, but it *indirectly* alters walk density through the cascade. The 5/5 directional stability (ECC-on always 0, ECC-off always >0) is robust, but a strict same-path contrast would require a post-walk injectionite or a non-cascading fault model — future work. (Data: `FI_DESIGN_SUPPLEMENT.md` §7, branch `fi-h6-h7-fs-verify` commit `3287299`; to be independently re-confirmed on a rebuilt `gem5.opt` once the user-space build chain is re-established on the current host — see §7.)
 
 ### 5.5 D2 vs D3 trigger density (a methodological finding)
 

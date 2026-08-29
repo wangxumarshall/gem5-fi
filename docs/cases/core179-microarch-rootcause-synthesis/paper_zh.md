@@ -172,7 +172,7 @@ gem5 的 AArch64 `MMU::translateTiming` 分派（`src/arch/arm/mmu.cc`，`transl
 
 ### 3.1 五次转储普查
 
-我们复制了全部五份 `vmcore-dmesg.txt` 并枚举每一处异常。**78/78 事件均在 CPU 179**（已验证：`grep -h 'WARNING: CPU:' dmesg_*.txt | grep -o 'CPU: [0-9]*' | sort | uniq -c` → `73 CPU: 179`；致命 Oops 同法 → `5 CPU: 179`）。RAS 负证据链：APEI/GHES 仅作为启动时注册行出现；五次启动中**零硬件错误记录**。（第6个转储 2026-08-26 后获取，独立复现同一模式：9 spurious + 1 panic，全 CPU 179——使完整 6-转储普查达 82 spurious + 6 panic，全在 CPU 179。§3.2/§3.3/§3.4 分析用原 5 转储；第6个与之一致。）
+我们复制了全部五份 `vmcore-dmesg.txt`（分析基础）并枚举每一处异常。**78/78 事件均在 CPU 179**（已验证：`grep -h 'WARNING: CPU:' dmesg_*.txt | grep -o 'CPU: [0-9]*' | sort | uniq -c` → `73 CPU: 179`；致命 Oops 同法 → `5 CPU: 179`）。RAS 负证据链：APEI/GHES 仅作为启动时注册行出现；五次启动中**零硬件错误记录**。（第6个转储 2026-08-26 后获取，*非* 78 事件分析基础的一部分；它独立复现同一模式——9 spurious + 1 panic，全 CPU 179——使完整 6-转储普查达 82 spurious + 6 panic。§3.2/§3.3/§3.4 分析用原 5 转储；第6个与之一致。我们对分析基础 5 转储引"78/78"，对完整普查引"82+6"；二者不矛盾。）
 
 ### 3.2 数据路径征兆 D1（决定性）
 
@@ -287,7 +287,7 @@ Cycle: 151978, Seq: 4237, Site: load_effAddr,
 | 种子 | 仅 D1 simInsts | 仅 D2 simInsts | D1+D2 simInsts | D1 stall? | D2 stall? |
 |---|---|---|---|---|---|
 | 1 | 391 972 | 3 086 | 3 086 | 否（正常）| **是（Crash代理）** |
-| 2 | 522 953 | (3 086) | 3 436 | 否 | **是** |
+| 2 | 522 953 | 3 436 | 3 436 | 否 | **是** |
 | 3 | 458 678 | 3 104 | 3 104 | 否 | **是** |
 | 4 | 389 611 | 3 104 | 3 104 | 否 | **是** |
 | 5 | 421 548 | 3 149 | 3 149 | 否 | **是** |
@@ -326,7 +326,7 @@ Cycle: 151978, Seq: 4237, Site: load_effAddr,
 
 1. **MMU 在 50 M 与 100 M tick 之间开启**（D3 `numHooksCalled` 由 0→12；D2 在 50 M 时已非零，因为加载在 MMU 开启前已存在）。MMU 开启后，内核态 TLB 命中率极高，使得**漫游密度仅为 17 / 259 186 条指令 = 0.0066%**。因此上述 D3 高 `prob` 计数主要由*级联*放大器主导，而非原生漫游密度。
 
-2. **朴素的低概率实验臂在可达的早期启动预算内零注入，但*实验内忠实*的 ECC 对照通过一个专门构建的注入模式得以确立。** 在 200 M tick、14 次漫游下 `--ptw-prob 0.001`，期望命中约 0.014 → 全部三个 ECC 实验臂（关 / 开-1bit / 开-2bit）报告 `numFaultsInjected=0`；在 200 M tick 下 `--ptw-prob 0.1`，`numFaultsInjected=1`。阻塞点在于原始 XOR 注入器无法*可靠制造* invalid PTE：`0b01（合法 block 描述符）^ 0b11 = 0b10` 仍是合法描述符，故 629 次注入全部为 benign、0 次 spurious。我们用 `conditionalValidBit` 模式（patch `eb6518d`）解决此问题：仅对 **block 描述符的 bit 0** 做单 bit XOR（`low2==0b01 → 0b00 invalid`）。该单 bit 错误*恰好*是 ECC 设计上要纠正的对象，从而使 ECC 旋钮成为唯一受控变量。
+2. **朴素的低概率实验臂在可达的早期启动预算内零注入，但*实验内忠实*的 ECC 对照通过一个专门构建的注入模式得以确立。** 在 200 M tick、14 次漫游下 `--ptw-prob 0.001`，期望命中约 0.014 → 全部三个 ECC 实验臂（关 / 开-1bit / 开-2bit）报告 `numFaultsInjected=0`；在 200 M tick 下 `--ptw-prob 0.1`，`numFaultsInjected=1`。阻塞点在于原始 XOR 注入器无法*可靠制造* invalid PTE：`0b01（合法 block 描述符）^ 0b11 = 0b10` 仍是合法描述符，故 629 次注入全部为 benign、0 次 spurious。我们用 `conditionalValidBit` 模式（patch `eb6518d`）解决此问题：仅对 **block 描述符的 bit 0** 做单 bit XOR（`low2==0b01 → 0b00 invalid`）。该单 bit 错误*恰好*是 ECC 设计上要纠正的对象，从而使 ECC 旋钮成为*预期的*受控变量（含表后标注的同路径保留）。
 
 **H7 结果（多种子，FS，`--max-tick 400M`，5 个种子）：**
 
@@ -338,7 +338,7 @@ Cycle: 151978, Seq: 4237, Site: load_effAddr,
 | 3 | 0 | 1 | ECC 屏蔽 |
 | 4 | 0 | 1 | ECC 屏蔽 |
 
-ECC 开：5 个种子全部 0 次 spurious（每次单 bit 翻转被纠正 → 返回合法 PTE）。ECC 关：每种子 1–4 次 spurious（翻转残留 → PTE 变 invalid → 翻译错，重查成功）。**H7 已验证**：PTW 阵列的 ECC 配置确定性地决定了读出通路 bit 翻转是否以 spurious 翻译错的形式显形——即 D3 签名的仿真侧闭环。（数据：`FI_DESIGN_SUPPLEMENT.md` §7，分支 `fi-h6-h7-fs-verify` commit `3287299`；待当前主机用户态构建链重建后在新建 `gem5.opt` 上独立复现——见 §7。）
+ECC 开：5 个种子全部 0 次 spurious（每次单 bit 翻转被纠正 → 返回合法 PTE）。ECC 关：每种子 1–4 次 spurious（翻转残留 → PTE 变 invalid → 翻译错，重查成功）。**H7 在方向上已验证**（ECC 开 5/5 全 0 spurious、ECC 关 5/5 各 1–4 spurious），但有一关于内部效度的诚实保留：**两臂非严格同路径对照**——ECC 开纠正翻转故执行正常推进（`simInsts`≈259k），ECC 关的残留 invalid PTE 触发重查级联改变执行路径（`numHooksCalled`≈15808 vs ECC 开≈17，`simInsts`≈3090）。故 ECC 旋钮是*预期的*受控变量，但它*间接*通过级联改变了走查密度。5/5 的方向稳定性（ECC 开恒 0、ECC 关恒 >0）稳健，但严格同路径对照需后走查注入点或非级联故障模型——未来工作。（数据：`FI_DESIGN_SUPPLEMENT.md` §7，分支 `fi-h6-h7-fs-verify` commit `3287299`；待当前主机用户态构建链重建后在新建 `gem5.opt` 上独立复现——见 §7。）
 
 ### 5.5 D2 与 D3 触发密度（一项方法论发现）
 
