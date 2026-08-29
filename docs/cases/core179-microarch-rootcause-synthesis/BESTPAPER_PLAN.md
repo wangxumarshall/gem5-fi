@@ -1,0 +1,103 @@
+# 达成顶会 best-paper 水准的完备方案（诚实，基于真实资源核实）
+
+> **资源真相核实（2026-08-29）**：0102 单板（172.168.160.42, sdc/SDC@2026）有 6 个 vmcore：0814(11.6G)/0817(仅dmesg,incomplete)/0824(116G)/1522(27.6G)/1558(9.3G)/0826(13.9G)。**6 转储全部 CPU 179（同缺陷核）**，spurious 数 0814=12/0817=26/0824=34/1522=1/1558=0/0826=9（总和≈82，论文 §3.1 称 73+5=78）。
+>
+> **关键诚实定位**：6 转储是**同核同缺陷的多次转储**，非"不同案例"（不同核/不同 SoC）。因此它们支持的是**D1 法证方法的跨转储稳定性**（方法在 5 次独立转储复现），非"跨案例迁移"。这对 agent 差距清单的"案例迁移"诉求是诚实收窄——但跨转储稳定性本身是比单次更强的实锤。
+
+## 对抗审查 agent 的差距清单 + 本方案闭合映射
+
+| agent 差距 | 严重度 | 本方案闭合阶段 | 真实可行性 |
+|---|---|---|---|
+| 1. H6 未确认（guest oops 谱缺，O3 fetch-stall 架构限制）| 致命 | 阶段3（fetch-stall-as-Crash-proxy 多 seed）| 中（需重新定义"Crash 代理"，论文自提路径b）|
+| 2. 单案例无迁移演示 | 致命 | 阶段1（D1 跨5转储稳定性）+ 阶段4 | 部分闭合（同核跨转储，非跨案例；诚实标注）|
+| 3. D2 unproven 削弱三通路 | 严重 | 阶段1（TBI 裁决）| 高（objdump TCR 初始化 + 活系统读 TCR_EL1）|
+| 4. H7 两臂不对称/prob 卡 | 严重 | 阶段3（低 prob 多 seed）| 中（需 AtomicCPU checkpoint 高 walk 密度）|
+| 5. 生态效度 method1/2/3 未独立复核 | 中等 | 阶段4（method3 重跑）| 高（本机/0102 可执行）|
+| 6. vmcore 不可分发 + gem5.opt 无 rpath | 中等 | 阶段5（artifact 封装）| 高（crash 脚本 + golden output）|
+
+## 阶段1（最高 ROI，~2h）：D1 跨5转储稳定性强化 + D2 TBI 裁决
+
+**闭合**：agent 差距2（部分——跨转储稳定性）+ 差距3（D2 裁决）。
+
+### 1a. D1 跨5转储独立复现（强化方法稳定性）
+从 0824/1522/0826 vmcore（0817 仅 dmesg 不可 crash）用 crash 读：
+- `__per_cpu_offset[0]`（数组头部，各转储基址可能不同）
+- 各转储 panic 时的坏值寄存器（x20/x3 等）
+- Python 验证 rol_k 匹配 + Hamming 距离
+
+DIAGNOSIS_REPORT §3.2 已有 5 案例坏值表：
+- 1558 (case5): rol1(slot[0]) — 实锤（已原vmcore复现）
+- 0814 (case1): rol6(slot[1]) — 强推
+- 1522 (case4): 全零交付 — all_zero 型 D1（不同形态！）
+- 0817 (case2): 顶字节00+右移8位 — 强推（vmcore-incomplete 不可复现）
+- 0824 (case3): 指针完全离形（bi_io_vec，非 per_cpu_offset）— 不同通路
+
+**目标**：从 0824/1522/0826 原始 vmcore 独立确认 D1 坏值形态 → 论文 §3.2 加"5转储跨转储稳定性"表，强化"D1 方法在多次独立转储稳定"。
+
+### 1b. D2 TBI 裁决（一次性裁决 D2 命运）
+三条路径（按可行性）：
+1. **objdump vmlinux `__cpu_setup`**（0102 上）：看 TCR_EL1.TBI0/TBI1 初始化逻辑——`CONFIG_ARM64_TAGGED_ADDR_ABI=y` 意味内核**动态**按进程设 TBI0（EL0 用户态），内核态地址（0xffff...）本身不用 TBI0 stripping。
+2. **活系统读 TCR_EL1**（0102 root）：写最小内核模块 `mrs x0, tcr_el1` 或用 `crash` 的 `p cpu_tcr`（若有）。
+3. **源码级判断**：arm64 内核 `arch/arm64/mm/proc.S` `__cpu_setup` 设 TCR_EL1，TBI0/TBI1 由 `CONFIG_ARM64_TAGGED_ADDR_ABI` 控制；内核态翻译（EL1）不受 TBI0（EL0）影响。
+
+**关键洞察**：D2 的 0814/0824 是**内核态地址**（find_busiest_group 内核路径）。TBI0 控制 EL0 用户态 tag-stripping，**内核态地址翻译不走 TBI0**——所以即使 TBI0 开，内核态 0xd9.../0x55... 的 top-byte stripping 与 TBI0 无关。这反而**部分恢复 D2**（TBI0 不解释内核态 FAR-MSB 差异）。但 0814/0824 arch 高字节 0xd9/0x55 非 0xff（非规范内核地址）→ 本是 D1 坏值的高字节 → D2 仍 unproven（arch 本身损坏）。
+
+**裁决预期**：TBI0 开（用户态），但对内核态地址无影响 → D2 的内核态 FAR-MSB 差异不能用 TBI0 解释 → 需重新审视 D2 是"真地址通路损坏"还是"D1 坏值的高字节 artifact"。诚实标注。
+
+## 阶段2（~3h）：D3 spurious 跨6转储分布独立复现
+
+**闭合**：agent 差距5（生态效度——D3 的 spurious 从原vmcore独立确认）。
+
+从 6 转储的 vmcore-dmesg.txt 统计：
+- spurious 翻译错的 FAR 地址分布（72/73 静态映射 + 1 vmalloc）
+- ESR 分布（70× 0x96000044 / 3× 0x96000004）
+- uptime 分布（6 min ~ 146 h）
+- 100% CPU179
+
+论文 §3.1/§3.4 已从前序会话读过，但从原 dmesg 独立复现 + 跨6转储完整分布表 → 强化 D3 强证据。
+
+## 阶段3（~4h，需新工程）：H6 fetch-stall-as-Crash-proxy 多 seed
+
+**闭合**：agent 差距1（H6 未确认——用论文自提路径b）+ 差距4（H7 低 prob）。
+
+### 设计
+1. **重新定义 Crash 代理**：D2 注入非规范地址 → simInsts stall（gem5 O3 fetch-stall）→ 把"stall 发生率"作为 Crash 代理（stall = 执行崩溃，虽非 guest oops）。
+2. **within-FS 多 seed 对照**（同 16B tick）：
+   - D1-only: 正常推进率（simInsts ~387k）
+   - D2-only: stall 率（simInsts ~3k）
+   - D1+D2: D2 主导 stall
+   - 多 seed (5+) 统计 stall 发生率分布
+3. **可分性判定**：D1 arm stall 率 ~0% vs D2 arm stall 率 ~100% → 谱可分（用 stall 代理）。
+4. **诚实标注**：stall 非 guest oops，是"执行崩溃"代理——比无对照强，但非真实 Crash 谱。
+
+### H7 低 prob 多 seed（同时跑）
+- prob=1e-4（不卡）+ 多 seed + 期望值对照（泊松）
+- 或 AtomicCPU checkpoint 高 walk 密度（用户态多 mmap）
+
+## 阶段4（~2h，需0102 健康核）：method3 生态效度重跑
+
+**闭合**：agent 差距5（method3 独立复核）。
+
+在 0102 单板的**健康核**（非179，cpu179 offline 或用其他核）跑 method3：
+- 欠压（-30mV）触发 `__per_cpu_offset[cpu] → garbage` 用户态 SDC
+- 确认用户态 SDC 签名（生态效度独立复核）
+- 需 method3 的欠压协议（docs/reproduce-method3.md）
+
+**诚实限制**：method3 需欠压硬件访问（Vmin screen），可能需 root + 特定工具。若不可行，诚实标注 method3 复核未完成。
+
+## 阶段5（~2h）：artifact 封装
+
+**闭合**：agent 差距6（可复现性）。
+
+1. **D1 crash 脚本 + golden output**：封装 `crash` 命令读 `__per_cpu_offset[0]`/`[146]` + Python 验 rol1 → 供有 vmcore 的第三方独立验证（无需 180GB vmcore，只需脚本+期望输出）。
+2. **gem5.opt 加 rpath 或 docker**：封装 `~/gem5-deps` + gem5.opt + FS 四件套为 docker 镜像（可分发，非 host-specific）。
+3. **run 脚本去 env.sh 依赖**：gem5.opt 编译时加 rpath，或脚本内嵌 LD_LIBRARY_PATH。
+
+## 诚实总判断
+
+- **可闭合**：差距3（D2 TBI 裁决，高）+ 差距2部分（跨转储稳定性）+ 差距5（D3 独立复现 + method3）+ 差距6（artifact）+ 差距1部分（fetch-stall 代理，中）+ 差距4（低 prob，中）
+- **不可闭合**：差距1完全（guest-visible oops 谱受 O3 模型限制，需 non-O3 fault model 重构）+ 差距2完全（跨案例迁移需不同缺陷核/SoC，6 转储是同核）
+
+**净结论**：执行阶段1-5 后，论文从"borderline Reject"提升至"weak accept / accept"（regular paper），D1 实锤 + 跨转储稳定性 + D2 裁决 + D3 独立复现 + artifact 可分发 + H6 stall 代理多 seed 闭合大部分差距。但**距 best paper 仍差**：guest-visible H6 谱（架构限制）+ 跨案例迁移（需不同缺陷）——这两项需新的仿真工具开发或新案例获取，超出当前资源。
+
+**执行顺序**：阶段1（最高ROI，D1+D2）→ 阶段2（D3）→ 阶段5（artifact，并行）→ 阶段3（H6 stall 代理）→ 阶段4（method3，需硬件）。
