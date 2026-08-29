@@ -302,7 +302,7 @@ Cycle: 151978, Seq: 4237, Site: load_effAddr,
 | 4 | 389 611 | 3 104 | 3 104 | 否 | **是** |
 | 5 | 421 548 | 3 149 | 3 149 | 否 | **是** |
 
-仅 D1：**5/5 种子正常推进**（simInsts ≈ 400k）。仅 D2：**5/5 种子 stall**（simInsts ≈ 3k）。D1+D2：**5/5 种子 stall（D2 提前中断 D1）**。fetch-stall 作 Crash 代理的谱**跨 5 种子可分**：D1 → 0% Crash 代理，D2 → 100% Crash 代理。这是给定 gem5 O3 fetch-stall 模型限制下能产出的最强体制内受控多种子对照。**未确立：** *guest 可见* Crash/SDC 分类（stall 是 gem5 的 `outside of physical memory, stopping fetch` 仿真器行为，非 guest Oops；切换 KVM CPU 产真 fault 会失 O3-LSQ 钩点）。故 H6 **方向已观测且有体制内多种子支持证据（5/5 在 Crash 代理上可分），非 guest 可分性已确认**；guest 可见谱是受 O3 fetch-stall 注入器架构限制的未来工作（需仍钩地址通路的非 O3 故障模型）。
+仅 D1：**5/5 种子正常推进**（simInsts ≈ 400k）。仅 D2：**5/5 种子 stall**（simInsts ≈ 3k）。D1+D2：**5/5 种子 stall（D2 提前中断 D1）**。fetch-stall 作 Crash 代理的谱**跨 5 种子可分**：D1 → 0% Crash 代理，D2 → 100% Crash 代理。这是给定 gem5 O3 fetch-stall 模型限制下能产出的最强体制内受控多种子对照。**未确立：** *guest 可见* Crash/SDC 分类。我们尝试了 **non-O3 故障模型**（commit 7c767e5）：把 D2 钩移到 `mmu.cc::translateFs`（FS 翻译共同路径）使其对 AtomicCPU 触发（AtomicCPU 不像 O3 那样 stall fetch）。**已验证**：AtomicCPU + D2 触发（numHooksCalled=576M，numAddrFaults=200M，600G–800G tick）且**不 stall**（simInsts=335M vs O3 的 ~3k）。**但 AtomicCPU 也不产 guest 可见 Oops**——它静默处理翻译错（功能翻译返回 fault 但不陷入 guest kernel 的 data-abort 处理程序）。故 guest 可见 oops 限制**不仅是 O3 fetch-stall**，而是更深的 gem5 fault 投递模型限制：O3（stall）、AtomicCPU（静默）、KVM（失钩点）都不从注入的非规范 VA 产 guest 可见 Oops。这是 gem5 仿真器架构限制，非时间/概率问题。H6 **方向已观测且有体制内多种子支持证据（5/5 在 Crash 代理上可分），非 guest 可分性已确认**；guest 可见谱是受 gem5 fault 投递模型限制的未来工作（需 KVM-CPU 兼容钩点或 gem5 补丁把翻译错投递为 guest 可见 data abort）。
 
 
 

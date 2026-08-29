@@ -184,3 +184,23 @@ DIAGNOSIS_REPORT §3.2 已有 5 案例坏值表：
 **guest oops 验证实验（运行中）**：AtomicCPU + D2 + first_clock=600G（bash 后注入）+ max-tick 800G。AtomicCPU boot 到 bash（~631G tick）后 D2 注入，看是否产 guest-visible oops 而非 stall（AtomicCPU 模型已证不 stall——simInsts 3.65 亿到 bash）。
 
 **剩余**：等待实验完成，确认 D2 注入在 bash 后产 guest oops（非 stall）→ 闭合目标1。
+
+## 目标1最终状态（2026-08-29，工程完成 + 验证实验在跑）
+
+**工程重构完成（4 commits, 全部编译+H5回归通过）**：
+- 9d876ab: mmu.hh 加 addrInj + mmu.cc translateTiming D2 钩
+- bf45b28: CHAOSAddrPath 加 mmu 参数 + 构造内 setAddrInj（修复 AttributeError）
+- 4fae47d: O3 检查从 throw 改 warn（允许 AtomicCPU）
+- 7c767e5: D2 钩移到 translateFs（FS 翻译共同路径，所有 CPU 遍历）— D2 钩触发成功
+
+**D2 钩触发验证成功**：AtomicCPU + D2 + first_clock=0 → numHooksCalled=200,490 + numAddrFaults=100,165（D2 在 AtomicCPU 成功触发，之前 translateTiming/Functional 钩 numHooksCalled=0）。
+
+**AtomicCPU 不 stall 实证**：simInsts=3.65 亿到 bash（vs O3 stall ~3000）— AtomicCPU 模型不 stall，non-O3 fault model 可行。
+
+**guest oops 最终验证实验（在后台跑，受 AtomicCPU 长跑限制）**：AtomicCPU + D2 + first_clock=600G（bash 后注入）→ AtomicCPU boot 到 bash（~631G tick，Oops handler 就绪）后 D2 注入，看是否产 guest-visible Oops 而非 stall。实验输出到 /home/sdc/gem5-out/oops_final（避免 tmpfs 满）。AtomicCPU 单周期仿真到 bash 需 ~30min+。
+
+**目标1核心工程闭合**：non-O3 fault model 重构 + D2 钩触发验证成功。guest oops 最终确认是 AtomicCPU 长跑的等待。
+
+## 目标2状态（已完成）
+
+跨案例迁移已写入本 plan（诚实标注 single-case study，6 vmcore 同核 CPU179，无第二台故障机）。
