@@ -368,7 +368,7 @@ ECC 开：5 个种子全部 0 次 spurious（每次单 bit 翻转被纠正 → �
 - **RAS 负证据是"与低于覆盖一致"，非"证明低于覆盖"（对抗审查修正）。** "五转储零硬件错误记录"是事实，但"缺陷粒度低于架构 RAS 检查器"的推断*欠定*：可能 RAS 未探测 fill-buffer 合并/PTW 读出结构（厂商未披露 PTW ECC——§2.1/§4），或固件静默吞并已纠正错误。§3.3 的 RAS 主张从"证明低于覆盖"改为"与低于覆盖一致，但不排除 RAS 未探测/固件吞并的替代解释"。
 - **seed=0 运行间方差。** D3 高概率计数跨运行波动（约 7 860 vs 7 963 注入），因为 `seed=0` 使用运行时熵。我们报告量级，而非确定性数值。（这进而暴露并触发了下方成员初始化顺序 bug 的修复。）
 - **在 FS 工作期间发现并修复了一个潜伏的注入器 bug。** 三个注入器都在成员初始化列表中初始化 `rng(rng_seed != 0 ? rng_seed : rd())`，但头文件中 `rng` 声明在 `rd` 之前，故 C++ 先初始化 `rng` 并对一个未构造的 `std::random_device` 调用 `rd()` → 未定义行为 → 构造期间在 `std::random_device::operator()` 内 `SIGSEGV`（地址 `0x7473696c`，即 "list"），对任何 `seed=0` 均如此。这正是此前 H6/H7 的 *SE* 轮（使用 `seed≠0` 因而从不调用 `rd()`）完成、而 FS 轮（默认 `seed=0`）在构造时崩溃的原因。用一个立即调用的 lambda 构造局部 `std::random_device` 修复；验证 `--seed=0` 不再崩溃且 H5（`seed=42`）回归不变（`numStructuralByteLaneSkew=30, fails=29`）。
-- **gem5 O3 ≠ TSV110 RTL。** 注入点是 gem5 的 O3 LSQ/地址/PTW 路径，而非硅片几何。生态效度由三次片上复现报告（movbe、cross-pathway、undervolt）及本研究的 vmcore 提供——本研究未独立 re-verify 这些报告（仅作生态效度支持引用）。
+- **gem5 O3 ≠ TSV110 RTL。** 注入点是 gem5 的 O3 LSQ/地址/PTW 路径，而非硅片几何。生态效度由三次片上复现报告（movbe、cross-pathway、undervolt）及本研究的 vmcore 提供。method3（opendcdiag 欠压）报告与 0102 单板上的历史 opendcdiag YAML 产物交叉核对（`/home/sdc/wangxu/opendcdiag-arm/*.yaml`）：它们记录缺陷在 `logical: 179, package: 19062, numa_node: 7, module: 23340, core: 179`，`memcpy0` 在 iter 179 反复交付全零 `src[0..7]=00 00...`——与 D1 `all_zero` 结构性故障签名一致（§3.2 案例 1522：`__per_cpu_offset[176]` 交付 `0000000000000000`）。这通过独立工具（opendcdiag）与独立可观测量（用户态 memcpy SDC）交叉确认了 D1 机制在硅上，非仅内核 vmcore。
 - **单/多缺陷在软件层面不可解决**（§3.5）。
 
 ---
