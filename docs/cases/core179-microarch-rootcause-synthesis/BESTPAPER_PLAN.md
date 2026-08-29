@@ -148,3 +148,26 @@ DIAGNOSIS_REPORT §3.2 已有 5 案例坏值表：
 3. 或：构造合成第二案例（gem5 注入不同 SDC 签名，验证 D1 方法适用边界）—— §5.2 边界测试已部分做
 
 **当前不可闭合**，诚实标注为 single-case study + scoped methodological claim。
+
+## 目标1进展（non-O3 fault model 重构，2026-08-29）
+
+**已完成（代码重构，commits 9d876ab/bf45b28/4fae47d）**：
+- mmu.hh 加 `CHAOSAddrPath *addrInj` + `setAddrInj/getAddrInj` 访问器
+- mmu.cc `translateTiming` 入口加 D2 钩（所有 CPU 共享的翻译入口）
+- CHAOSAddrPath 加 `mmu` 参数 + 构造内 `mmu->setAddrInj(this)`（仿 CHAOSPTW setPtwInj）
+- CHAOSAddrPath 的 cpu 检查从 throw 改 warn（允许 AtomicCPU non-O3）
+- corruptAddr/writeLog 处理 cpu NULL（用 curTick 回退）
+- o3_chaos_fs.py 传 `mmu=target_cpu.mmu` 给 CHAOSAddrPath
+- **自验证**：编译 0 error + H5 回归通过（numSkew=30 fails=29）+ AtomicCPU 启动不 throw
+
+**关键实证（AtomicCPU + D2 + first_clock=600G, /tmp/h6_guest_oops3）**：
+- **AtomicCPU 跑到 bash 后正常推进，simInsts=365,242,360（3.65 亿）——不 stall**（vs O3 stall 在 ~3000）！这证明 AtomicCPU 模型不 stall，是 non-O3 fault model 的可行基础。
+- 但 **D2 钩未触发**（numHooksCalled=0, numAddrFaults=0）——mmu.addrInj 可能未正确设置，或 translateTiming 钩条件问题。
+
+**剩余调试（D2 钩触发）**：
+- 核实 CHAOSAddrPath 构造内 `mmu->setAddrInj(this)` 是否调到正确 mmu 对象（target_cpu.mmu vs system mmu）
+- 核实 mmu.cc translateTiming 的 `if(addrInj)` 是否被命中（AtomicCPU 是否走 translateTiming 还是 translateFunctional/translateMmuOff）
+- AtomicCPU FS SCTLR.M=1 应走 translateTiming→PTW，但 AtomicCPU 可能用 translateFunctional（非 translateTiming）
+- 修复后重测：D2 注入产 guest fault 而非 stall（AtomicCPU 模型已证不 stall）
+
+**若 D2 钩触发成功**：guest-visible oops 谱可测（AtomicCPU + D2 + first_clock 到 bash 后注入 → guest translation fault → oops）→ 闭合目标1。
