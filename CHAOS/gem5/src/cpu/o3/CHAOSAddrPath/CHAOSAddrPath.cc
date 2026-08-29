@@ -41,6 +41,9 @@ namespace gem5
         // fetch on non-canonical VAs; AtomicCPU raises a guest translation fault).
         if (mmu) {
             mmu->setAddrInj(this);
+            inform("CHAOSAddrPath: setAddrInj called on mmu=%s", mmu->name());
+        } else {
+            warn("CHAOSAddrPath: mmu is NULL, non-O3 hook will not fire");
         }
         if (probability > 0.0f) {
             log_stream = simout.create("addr_path_injections.log", false, true);
