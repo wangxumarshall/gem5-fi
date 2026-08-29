@@ -171,3 +171,16 @@ DIAGNOSIS_REPORT §3.2 已有 5 案例坏值表：
 - 修复后重测：D2 注入产 guest fault 而非 stall（AtomicCPU 模型已证不 stall）
 
 **若 D2 钩触发成功**：guest-visible oops 谱可测（AtomicCPU + D2 + first_clock 到 bash 后注入 → guest translation fault → oops）→ 闭合目标1。
+
+## 目标1重大进展（D2 钩触发成功，2026-08-29）
+
+**D2 non-O3 钩触发验证成功**（commit 7c767e5）：
+- D2 钩从 translateTiming/translateFunctional 移到 **translateFs**（FS 翻译共同路径，所有 CPU 遍历）
+- 短测 AtomicCPU + D2 + first_clock=0 + 100M tick：**numHooksCalled=200,490, numAddrFaults=100,165** —— D2 钩在 AtomicCPU **成功触发**（之前 translateTiming/translateFunctional 钩 numHooksCalled=0 因 AtomicCPU 不调它们）
+- inform 确认：`setAddrInj called on mmu=system.bigCluster.cpus.mmu`（钩正确设置）
+
+**关键里程碑**：non-O3 fault model 重构完成 + D2 钩在 AtomicCPU 触发。之前 O3 stall（simInsts~3000）因 D2 钩在 O3 LSQ；现在 translateFs 钩让 AtomicCPU 也能触发 D2。
+
+**guest oops 验证实验（运行中）**：AtomicCPU + D2 + first_clock=600G（bash 后注入）+ max-tick 800G。AtomicCPU boot 到 bash（~631G tick）后 D2 注入，看是否产 guest-visible oops 而非 stall（AtomicCPU 模型已证不 stall——simInsts 3.65 亿到 bash）。
+
+**剩余**：等待实验完成，确认 D2 注入在 bash 后产 guest oops（非 stall）→ 闭合目标1。
