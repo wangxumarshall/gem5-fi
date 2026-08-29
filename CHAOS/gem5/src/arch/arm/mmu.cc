@@ -1153,6 +1153,19 @@ MMU::translateFs(const RequestPtr &req, ThreadContext *tc, Mode mode,
     // No such thing as a functional timing access
     assert(!(timing && functional));
 
+    // CHAOSAddrPath (D2, non-O3 path): hook translateFs — the single FS
+    // translation path ALL cpu models (O3/Minor/AtomicSimple) traverse.
+    // Hooking here (rather than translateTiming/translateFunctional which
+    // AtomicCPU may not call) ensures D2 fires for every FS translation.
+    // Corrupts the raw vaddr BEFORE purifyTaggedAddr, so the corruption
+    // reaches the MMU translation as the address-path D2 signature.
+    if (addrInj) {
+        Addr va = req->getVaddr();
+        if (addrInj->corruptAddr(&va, 0)) {
+            req->setVaddr(va);
+        }
+    }
+
     Addr vaddr_tainted = req->getVaddr();
     Addr vaddr = 0;
     if (state.aarch64) {
@@ -1274,15 +1287,7 @@ MMU::translateFunctional(const RequestPtr &req, ThreadContext *tc, Mode mode,
 {
     auto& state = updateMiscReg(tc, tran_type, stage2);
 
-    // CHAOSAddrPath (D2, non-O3 path): also hook translateFunctional, because
-    // AtomicCPU uses functional translation (not translateTiming). This makes
-    // D2 fire for AtomicCPU FS, enabling H6 guest-visible-oops experiments.
-    if (addrInj) {
-        Addr va = req->getVaddr();
-        if (addrInj->corruptAddr(&va, 0)) {
-            req->setVaddr(va);
-        }
-    }
+    // D2 hook now lives in translateFs (the common FS path), so no hook here.
 
     bool delay = false;
     Fault fault;
@@ -1304,18 +1309,7 @@ MMU::translateTiming(const RequestPtr &req, ThreadContext *tc,
 
     assert(translation);
 
-    // CHAOSAddrPath (D2, non-O3 path): address-path corruption at the MMU
-    // boundary, so it fires for ANY CPU model (O3/Minor/AtomicSimple) that
-    // calls translateTiming — not just O3 LSQ (lsq.cc::sendFragmentToTranslation).
-    // This enables H6 guest-visible-oops experiments on AtomicCPU (which
-    // raises a guest translation fault on a non-canonical VA instead of
-    // stalling fetch like O3). The O3-only lsq.cc hook remains for SE mode.
-    if (addrInj) {
-        Addr va = req->getVaddr();
-        if (addrInj->corruptAddr(&va, 0)) {
-            req->setVaddr(va);
-        }
-    }
+    // D2 hook now lives in translateFs (the common FS path), so no hook here.
 
     translateComplete(req, tc, translation, mode, tran_type,
         stage2, state);
