@@ -1,0 +1,28 @@
+{
+  "cli_version": "0.10.2",
+  "checkpoint_id": "01M15QBDX0A1J9NW0E3C3CK5MQ",
+  "strategy": "manual-commit",
+  "branch": "fi-h6-h7-quantitative-contrast",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "docs/cases/core179-microarch-rootcause-synthesis/paper_en.md",
+    "docs/cases/core179-microarch-rootcause-synthesis/paper_zh.md",
+    "docs/cases/core179-microarch-rootcause-synthesis/reproduce_d1_forensic.sh"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 535719,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 13569792,
+    "output_tokens": 15304,
+    "api_call_count": 26
+  }
+}
