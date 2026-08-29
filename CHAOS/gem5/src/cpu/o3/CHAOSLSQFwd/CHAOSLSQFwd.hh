@@ -82,6 +82,7 @@ class CHAOSLSQFwd : public SimObject
                   int mask);
 
     struct CHAOSLSQFwdStats : public statistics::Group {
+        statistics::Scalar numHooksCalled;              // every store→load-forward call (pre-gating)
         statistics::Scalar numFaultsInjected;
         statistics::Scalar numBitFlips;
         statistics::Scalar numStuckAtZero;

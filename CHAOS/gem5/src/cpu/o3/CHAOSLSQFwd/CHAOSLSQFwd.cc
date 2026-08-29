@@ -190,6 +190,15 @@ namespace gem5
     void
     CHAOSLSQFwd::corrupt(uint8_t *data, unsigned size, Addr vaddr)
     {
+        // numHooksCalled: count EVERY store→load-forward event (i.e. every call
+        // to this hook) BEFORE any gating, mirroring CHAOSPTW/CHAOSAddrPath. This
+        // distinguishes "forward did not happen (hook not called)" from "forward
+        // happened but probability did not select it (numFaultsInjected=0)" —
+        // essential to diagnose why D1 gives numStructuralByteLaneSkew=0 in FS
+        // early-boot (is the store→load-forward path unexercised, or exercised
+        // but not selected?). Prior versions lacked this stat, making D1's FS
+        // behavior unattributable (adversarial-review instrumentation gap).
+        if (stats) stats->numHooksCalled++;
         // Hot-path short-circuit: no injection configured.
         if (probability <= 0.0f) return;
         Cycles cur = cpu->curCycle();
@@ -253,6 +262,10 @@ namespace gem5
 
     CHAOSLSQFwd::CHAOSLSQFwdStats::CHAOSLSQFwdStats(statistics::Group *parent)
         : statistics::Group(parent),
+          ADD_STAT(numHooksCalled, statistics::units::Count::get(),
+                   "Times the store→load-forward hook was called (D1; every "
+                   "forwarding event while injector active, before prob/first-"
+                   "clock gating)"),
           ADD_STAT(numFaultsInjected, statistics::units::Count::get(),
                    "Total forwarded-data faults injected"),
           ADD_STAT(numBitFlips, statistics::units::Count::get(),

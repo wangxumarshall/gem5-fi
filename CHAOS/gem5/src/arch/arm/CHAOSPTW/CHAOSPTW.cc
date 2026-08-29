@@ -79,6 +79,15 @@ namespace gem5
         // it (numFaultsInjected=0)" — essential to diagnose H7's spurious rate
         // when PTW walk density is low (early FS, pre-MMU-on has few walks).
         stats->numHooksCalled++;
+        // NOTE (adversarial-review finding, NOT fixed in code): the clock gating
+        // below uses Cycles(curTick()) — raw ticks cast to Cycles, which on a
+        // 1 GHz clock is ~1000x the true cycle count. This makes first_clock/
+        // last_clock gate ~1000x too early vs D1/D2's cpu->curCycle(). All
+        // H6/H7 experiments in this paper use first_clock=0 (gating inert),
+        // so this does NOT affect any reported result. A proper fix requires
+        // exposing a clock-domain accessor on CHAOSPTW (it has only an mmu
+        // pointer, no cpu; SimObject::ticksToCycles is not accessible here)
+        // — left as a known limitation for any first_clock>0 experiment.
         Cycles cur = Cycles(curTick() >> 0);
         if (cur < first_clock) return;
         if (last_clock != Cycles(0) && cur > last_clock) return;

@@ -216,6 +216,49 @@ build/ARM/gem5.opt o3_chaos_ptw.py --ptw-flip --ptw-ecc on/off --prob 0.0001
 **H7 结论**：
 多 seed 平均实证了 **ECC 配置决定了 PTW 阵列的 spurious fault 表现**。如果 TSV110 芯片在 PTW 读出通路上没有 ECC 或数据在该通路前被破坏，就会产生 spurious faults (D3 签名)。该实证补全了微架构根因分析中 H7 假说的仿真闭环。相关代码已合入 `fi-h6-h7-fs-verify` 分支 (commit `eb6518d`)。
 
+**2026-08-28 H7 本机独立复现（新机，单 seed，方向确认）**：在新机构建的 `gem5.opt` 上用 `conditionalValidBit --ptw-prob 0.5 --seed 0 --max-tick 400M` 复现 ECC 对照方向：
+- **ECC-off**：`numFaultsInjected=2 numSpuriousFaults=2 numBenign=7921`（翻转残留 → invalid PTE → spurious）。但 `simInsts=3090`（prob=0.5 致注入卡执行流，重查放大 `numHooksCalled=15808`——与上轮"prob=0.5 极端值破坏 PTE 致 stopping fetch"一致）。
+- **ECC-on**：`numFaultsInjected=0 numSpuriousFaults=0 numBenign=7`（ECC 纠正所有单 bit 翻转 → 返回合法 PTE，无 spurious；`simInsts=259186` 正常推进，`numHooksCalled=17` 真实 walk 密度）。
+- **方向确认**：ECC-on 把 spurious 从 2 降到 0，ECC 纠正效应实证有效，与 §7 的 5-seed 表同向。诚实瑕疵（论文 §5.4 已标注）：两臂 `numHooksCalled` 差异大（15808 vs 17）——ECC-off 注入改变执行流，非严格同路径对照；`prob=0.5` 太高致卡，前序会话用更低 prob + 多 seed 拿到不卡的 1–4 spurious 分布。本机单 seed 作方向补充确认，多 seed 分布见 commit `3287299`。
+
 ## 8. P0 与 P2 进展
-- **P0 (FS boot to bash)**：O3CPU boot 因 timing/virtio_blk 异常启动失败且极慢。已部署 `AtomicSimpleCPU` 快速 boot 方案 (`/tmp/run_p0_boot.sh`) 并配合 `boot.rcS` 以在 bash 就绪时自动触发 `m5 checkpoint`。
-- **P2 (H6 D2 谱可分性)**：已编写 2x2 对照脚本 `/tmp/run_p2_h6.sh`。由于早期 boot 未初始化 UART，该对照需在 P0 产出的 bash checkpoint 之上运行，方可观察完整的 Kernel Oops/FAR 谱分离。
+
+**2026-08-28 更新（新机，本机实证）**：P0-bash 路径已用 `AtomicSimpleCPU` 方案实证打通。新机（用户换机，128 核/29GB，非故障机）上重建用户态构建链（`~/gem5-deps`：scons/protoc/protobuf/h5py/pybind11/libpython，无 root；关键坑：`protobuf.pc` 删 `utf8_range` Requires 解锁 scons configure）后，`gem5.opt` 1.1GB 构建成功（0 error，954 CHAOS 符号），H5 回归通过（golden fails=0；`byte_lane_skew prob=0.05 seed=7` → numStructuralByteLaneSkew=30 fails=29 + panic page-fault 路径，与 §5.1 一致）。
+
+**P0 AtomicCPU boot 到 bash（实证）**：`--cpu-type atomic --big-cpus 1 --little-cpus 0`（无注入，纯 `fs_bigLITTLE.py`），Linux 5.15.36 完整启动经 `Booting Linux` → `smp: Brought up 1 node, 1 CPU` → `CPU: All CPU(s) started at EL2` → `devtmpfs: initialized` → `ASID allocator` → PCI → `virtio_blk virtio0 [vda] 2.36GB` → `Serial: 8250/16550` → input devices → `random: fast init done` → `Ubuntu 20.04.4 LTS aarch64-gem5 login: root (automatic login)`。**即原"virtio_blk 挂起"在 AtomicCPU 下不重现——boot 到达 login。** 此前 O3/timing 模式的 virtio_blk 挂起是 CPU 时序模式特定问题，非注入器或镜像问题。待续：`m5 checkpoint` 触发需 guest 内 `m5` 工具（ubuntu.img 未预装，需注入 m5ops binary 或用 SIGINT dump stats 作 fallback）；checkpoint 成熟后即可在其上跑 H6 的 D2-only FS arm（2×2 谱可分的最后未验证臂）。
+
+**P2 (H6 D2 谱可分性) SE 基线（本机复现）**：2×2 SE arm 跑通：baseline fails=0；D1-only `byte_lane_skew prob=0.05 seed=42` → numStructuralByteLaneSkew=30 fails=28（SDC-detectable）；D2-only SE `--addr-prob 0.05 --addr-byte 7` → numAddrFaults=50 numHooksCalled=3361 但 **fails=0**（SE null：byte7 清零后仍落 `[0,512MiB)` 物理内存不 fault，与 §5.3 一致）。D2-only 的 **FS arm**（byte7 清零规范内核地址 → 非规范 → crash 谱）仍需 P0 bash checkpoint 之上运行。
+
+**H6 D2 FS 触发 + §3.3 签名本机复现（2026-08-28）**：新机构建的 `gem5.opt` 上 `o3_chaos_fs.py --addr-prob 0.5 --addr-byte 7 --seed 42 --max-tick 400M`：`numAddrFaults=20 numHooksCalled=38 simInsts=3085`（与论文 §5.3 量级一致——20 注入 + 执行流改变）。`addr_path_injections.log` 真实记录 §3.3 D2 签名复现：`Cycle: 151978 Seq: 4237 Site: load_effAddr, Orig: 0xffffffc008b08f30 → Corrupted: 0xffffc008b08f30`（规范内核地址 byte7 清零 → 非规范）—— SE 做不到（SE 下 byte7 清零后仍落物理内存不 fault）。**D2 FS 触发实证 + 签名复现本机确认。**
+
+**P0 checkpoint 打通（2026-08-28，本机实证）**：构建 aarch64 `m5_ckpt`（直接调 `m5_checkpoint`+`m5_exit`）与完整 `m5` 工具（util/m5 scons + `aarch64-linux-gnu-` 软链到 native gcc，因本机 native 即 aarch64），均注入 ubuntu.img。写 `gem5_init2.sh`（用 `/root/m5` 绝对路径调 readfile）作 `--kernel-init`。`AtomicSimpleCPU boot + init=/root/gem5_init2.sh + --bootscript`（含 `m5 checkpoint`）**成功触发 checkpoint**：gem5 日志 `Dropping checkpoint at tick 631560620000 / Checkpoint done.` + 退出，`cpt.*/m5.cpt`（10MB）+ physmem/磁盘 COW 落盘。之前 `init=/root/m5_ckpt2` 卡在早期 boot（间歇性，CPU 0% 空转）——改用完整 m5 + gem5_init2.sh 后稳定。**P0 checkpoint 工程打通。**
+
+**H6 D2 FS 完整机制实证（本机）**：O3 + `init=/root/gem5_init2.sh` + `--addr-prob 0.001 --max-tick 4B`：`numAddrFaults=1 numHooksCalled=38 simInsts=3085`，注入签名 `Orig 0xffffffc008b08f30 → Corrupted 0xffffc008b08f30`（§3.3 复现），注入后 simInsts=3085（执行流改变/卡，D2 非规范地址致 fetch 非法——与论文 §5.3 量级一致）。**D2 FS 机制+签名+执行流效应本机完整确认。** hostInstRate=279 inst/s（O3 FS 极慢），完整 oops/FAR 谱定量需 O3 到 bash（~25M 指令 / 279 ≈ 25h 长跑）或 AtomicCPU checkpoint + switchCPU 切 O3（待写 switchable 配置）。D2 crash 谱定量是 H6 唯一剩余，受 O3 FS 速度限制。
+
+
+
+## 9. 对抗性审查与修正（2026-08-28，4-agent adversarial review）
+
+完成所有可完成工作后，调用 4 个对抗性审查 agent（法证严谨性 / 实验可证伪性 / 论文诚实度 / 代码构建正确性），尽力找漏洞。三个 agent 独立收敛于同一批问题，审查发现**实证有效**，已据反馈修正论文：
+
+**已采纳修正（论文 §3.2/§3.3/§5.3/§7/Abstract，双语同步）：**
+1. **H6 从"谱可分已确认"降级为"方向已观测、非可分性已确认"**。三诚实保留前置：(a) 跨模式对照（D1 测于 SE、D2 测于 FS——不同翻译体制/工作负载/观测量）；(b) **D1 在 FS 早期 boot 不触发**（单独 D1-only FS run：`numStructuralByteLaneSkew=0 simInsts=259186`——store→load-forward 钩子 `lsq_unit.cc:1498` 在早期 boot 未演练），故"D1+D2 共注 D1=0"不能读作"D2 主导"；(c) D2 "中断"（simInsts≈3100）是仿真器 fetch-stall（`outside of physical memory`）非 guest Crash，且 D3 高 prob 也卡同量级——不具 D2 特异性。
+2. **撤回 D1 的 2⁻⁵⁸ 巧合概率**（循环论证）：fill-buffer 陈旧行回放模型预测头部偏好，"命中头部"是模型一致非巧合排除。承重证据改为 Hamming-0 旋转匹配本身 + 位翻转不可达性。
+3. **D2 `untagged_addr` 依赖 TBI 标注为未决威胁**：`untagged_addr(arch_addr)==FAR` 在 0814/0824 成立，但若 `TCR_EL1.TBI0/TBI1` 开启，此为内核正常 top-byte 剥离（无缺陷）。转储未记录 TCR_EL1，故 D2 从"已确认-弱"降为"依赖 TBI、未证"。解决需 dump TCR_EL1。
+
+**代码修正（待重编译验证后提交）：**
+4. **CHAOSPTW 时钟 bug**：`Cycles(curTick()>>0)`（raw tick 当 cycle，错 1000×）→ `ticksToCycles(curTick())`，使 D3 的 first_clock 门控与 D1/D2 的 `cpu->curCycle()` 语义对齐。
+5. **CHAOSLSQFwd 加 numHooksCalled 统计**：堵仪表化缺口——之前"D1 FS 0 触发"无法区分"未触发"vs"触发但 prob 未中"。现 .hh+.cc 加 numHooksCalled，corrupt() 入口（prob 门控前）计数。
+
+**可复现性修正（run_H6.sh / run_H7.sh）：** 去硬编码 `/home/sdc/vmcore/`（旧机路径）→ 相对 `$REPO` 变量；source `~/gem5-deps/env.sh` 设 `LD_LIBRARY_PATH`（gem5.opt 无 rpath，缺则 libprotobuf/libabsl 找不到）；`/tmp/cpus.txt` 缺失时 fallback `nproc`。
+
+**审查已证伪的质疑（代码 agent 实证）：** D2 钩点正确（`Request::setVaddr` 只写 `_vaddr`，MMU 翻译时重取——simInsts 卡是真 fault 非元数据损坏）；protobuf.pc 删 utf8_range 安全（utf8 符号由 absl_strings 提供，无未解析）。
+
+**H7 本机 5-seed 加固（审查发现5回应）**：本机 prob=0.5 5 seeds × 2 臂：ECC-off spurious=2/4/1/1/1（范围 1-4，与前序 commit 3287299 一致），ECC-on spurious=0/0/0/0/0（全 0）。ECC 纠正效应方向 5/5 稳定复现。但保留瑕疵（两臂 numHooksCalled 不对称、prob=0.5 致卡 simInsts~3090），论文 §5.4 已诚实标注。
+
+**审查总体判断**：法证链 D1 实锤（Hamming-0 + 位翻转不可达），D2 削弱为 TBI 依赖未证，D3（H7）方向稳定但样本小；H6 谱可分降级为方向观测；H5/H7 verified 保留。论文经对抗审查后显著更诚实——降级了过度宣称，标注了未决威胁。
+
+**补充实证（2026-08-28，堵审查未尽点）：**
+- **审查发现5（方法）seed=0 方差已量化**：本机 prob=0.5 5 次重复 seed=0：spur=1/1/1/2/1（inj 同）——方差小但非零（4/5 为 1，1/5 为 2），印证论文 §5.4"seed=0 用 runtime 熵，量级稳定但非确定性"。ECC-on 5/5 全 0、ECC-off 5/5 各 1-4 的对照方向 5/5 稳定。
+- **审查发现3（代码）D3 first_clock 门控实测**：`--first-clock 5000000` → inj=1 hooks=15806。`numHooksCalled` 在门控前计数（15806，符合设计），但 inj 只 1 次——印证代码注释标注的时钟 bug：first_clock=5000000 被 D3 当 raw tick 解读（5M tick = 5ms，远小于 400M tick 预算），故门控几乎不抑制。**确认 D3 first_clock 语义错（raw tick 非 cycle），但因 H6/H7 实验均用 first_clock=0，不影响任何已报结论**。修复需给 CHAOSPTW 加 clock-domain accessor（它只有 mmu 指针，`SimObject::ticksToCycles` 在此作用域不可达——已实证 `this->ticksToCycles` 编译失败）。
+- **审查发现1+4（H6 跨模式/D1 FS）部分推翻**：D1-only FS 在 16 B tick + prob=0.5 下 `numHooksCalled=433 numStructuralByteLaneSkew=227 simInsts=387131`（正常推进）——400 M tick 的"D1=0"是 tick 预算伪迹非钩子限制。同 FS 模式 16 B tick：D1→387131 正常 vs D2→3085 中断——体制内对照指向可分性。论文 §5.3 已加 16 B 行。仍保留：simInsts stall 非 guest crash、16 B 单种子。
