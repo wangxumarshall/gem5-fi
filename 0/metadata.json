@@ -1,0 +1,62 @@
+{
+  "cli_version": "0.10.2",
+  "checkpoint_id": "01M16HG75A3GX975AZHRCT27C9",
+  "session_id": "3ba7bc30-7b09-4cfa-949c-ac7fe268dfda",
+  "strategy": "manual-commit",
+  "created_at": "2026-08-29T10:37:03.37851368Z",
+  "branch": "fix/paper-review-v1-honesty-hardening",
+  "checkpoints_count": 1,
+  "save_step_count": 1,
+  "files_touched": [
+    "docs/cases/core179-microarch-rootcause-synthesis/IMPROVEMENT_PLAN_v1.md",
+    "docs/cases/core179-microarch-rootcause-synthesis/REVIEW_v1.md"
+  ],
+  "agent": "Claude Code",
+  "model": "GLM-5.2[1m]",
+  "turn_id": "ee77502da189",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 174749,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 12765184,
+    "output_tokens": 50123,
+    "api_call_count": 93
+  },
+  "skill_events_version": 1,
+  "skill_events": [
+    {
+      "id": "prompt-skill-claude-code-academic-research-skills:academic-paper-reviewer-2026-08-29T10:16:12.37505976Z",
+      "event_type": "prompt_invocation",
+      "skill": {
+        "name": "academic-research-skills:academic-paper-reviewer"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "prompt_slash_command",
+        "confidence": "explicit"
+      },
+      "turn_id": "ee77502da189",
+      "timestamp": "2026-08-29T10:16:12.37505976Z",
+      "native": {
+        "command": "/academic-research-skills:academic-paper-reviewer"
+      },
+      "collapse": {
+        "target": "user_message",
+        "label": "/academic-research-skills:academic-paper-reviewer",
+        "default_collapsed": true
+      }
+    }
+  ],
+  "initial_attribution": {
+    "calculated_at": "2026-08-29T10:37:03.1670949Z",
+    "agent_lines": 261,
+    "agent_removed": 0,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 261,
+    "total_lines_changed": 261,
+    "agent_percentage": 100,
+    "metric_version": 2
+  }
+}
