@@ -1,0 +1,5 @@
+Import('*')
+
+SimObject('CHAOSFreeList.py', sim_objects=['CHAOSFreeList'], enums=[])
+Source('CHAOSFreeList.cc')
+DebugFlag('CHAOSFreeList')

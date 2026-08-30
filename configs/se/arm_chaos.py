@@ -17,7 +17,7 @@
 
 import argparse
 import m5
-from m5.objects import CHAOSReg, CHAOSPhysReg, CHAOSMem, CHAOSLSQFwd, CHAOSAddrPath, CHAOSRenameMap
+from m5.objects import CHAOSReg, CHAOSPhysReg, CHAOSMem, CHAOSLSQFwd, CHAOSAddrPath, CHAOSRenameMap, CHAOSFreeList
 from gem5.components.boards.simple_board import SimpleBoard
 from gem5.components.cachehierarchies.classic.private_l1_private_l2_cache_hierarchy import (
     PrivateL1PrivateL2CacheHierarchy,
@@ -129,6 +129,17 @@ p.add_argument("--rat_fault_mask", type=lambda x: int(x,0), default=0,
                help="CHAOSRenameMap map_bitflip mask (0=random one bit).")
 p.add_argument("--rat_semantic_role", default="",
                help="ABI role label (callee_saved/accum). Metadata.")
+# S1-3 CHAOSFreeList (freelist): method1 live-reg-marked-free residue.
+p.add_argument("--chaos_freelist", action="store_true",
+               help="attach CHAOSFreeList (mark_free/pop_wrong; method1 "
+                    "live-physReg-marked-free residue).")
+p.add_argument("--freelist_mode", default="mark_free",
+               choices=["mark_free","pop_wrong"],
+               help="CHAOSFreeList fault mode.")
+p.add_argument("--freelist_target_phys", type=int, default=-1,
+               help="Target physReg index (-1=scan RAT for a live one).")
+p.add_argument("--freelist_semantic_role", default="",
+               help="ABI role label. Metadata only.")
 args = p.parse_args()
 
 cache_hierarchy = PrivateL1PrivateL2CacheHierarchy(
@@ -278,6 +289,24 @@ if args.chaos_rat:
         semanticRole=args.rat_semantic_role,
     )
     board.chaos_rat = rat
+
+# CHAOSFreeList (S1-3, freelist): method1 live-reg-marked-free residue.
+# Self-driven attackEvent (freelist not a SimObject). O3-only.
+if args.chaos_freelist:
+    fl = CHAOSFreeList(
+        cpu=cpu0,
+        probability=args.probability,
+        mode=args.freelist_mode,
+        targetPhysReg=args.freelist_target_phys,
+        regTargetClass=args.reg_class,
+        firstClock=args.first_clock,
+        lastClock=args.last_clock,
+        maxFaults=args.max_faults,
+        rngSeed=args.rng_seed,
+        writeLog=True,
+        semanticRole=args.freelist_semantic_role,
+    )
+    board.chaos_freelist = fl
 
 if args.maxinsts:
     cpu0.max_insts = args.maxinsts
