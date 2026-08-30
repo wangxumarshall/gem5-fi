@@ -1,0 +1,123 @@
+{
+  "cli_version": "0.10.2",
+  "checkpoint_id": "01M190QRXA1SR56QTWCRK543Q3",
+  "session_id": "48b39a4a-6337-4746-b73b-a188cf672133",
+  "strategy": "manual-commit",
+  "created_at": "2026-08-30T09:41:49.223752613Z",
+  "branch": "fix/fi-tool-correctness",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "configs/se/kp920_proxy.py",
+    "tools/runner.py"
+  ],
+  "agent": "Claude Code",
+  "model": "GLM-5.2[1m]",
+  "turn_id": "0a798e6e6962",
+  "checkpoint_transcript_start": 653,
+  "transcript_lines_at_start": 653,
+  "compact_transcript_start": 119,
+  "token_usage": {
+    "input_tokens": 142179,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 4780032,
+    "output_tokens": 18113,
+    "api_call_count": 38
+  },
+  "skill_events_version": 1,
+  "skill_events": [
+    {
+      "id": "prompt-skill-claude-code-goal-2026-08-30T03:27:17.164766014Z",
+      "event_type": "prompt_invocation",
+      "skill": {
+        "name": "goal"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "prompt_slash_command",
+        "confidence": "explicit"
+      },
+      "turn_id": "9f154d24b6a5",
+      "timestamp": "2026-08-30T03:27:17.164766014Z",
+      "native": {
+        "command": "/goal"
+      },
+      "collapse": {
+        "target": "user_message",
+        "label": "/goal",
+        "default_collapsed": true
+      }
+    },
+    {
+      "id": "prompt-skill-claude-code-goal-2026-08-30T05:49:04.631140789Z",
+      "event_type": "prompt_invocation",
+      "skill": {
+        "name": "goal"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "prompt_slash_command",
+        "confidence": "explicit"
+      },
+      "turn_id": "ff0274ff09ba",
+      "timestamp": "2026-08-30T05:49:04.631140789Z",
+      "native": {
+        "command": "/goal"
+      },
+      "collapse": {
+        "target": "user_message",
+        "label": "/goal",
+        "default_collapsed": true
+      }
+    },
+    {
+      "id": "prompt-skill-claude-code-goal-2026-08-30T09:23:25.2852659Z",
+      "event_type": "prompt_invocation",
+      "skill": {
+        "name": "goal"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "prompt_slash_command",
+        "confidence": "explicit"
+      },
+      "turn_id": "0a798e6e6962",
+      "timestamp": "2026-08-30T09:23:25.2852659Z",
+      "native": {
+        "command": "/goal"
+      },
+      "collapse": {
+        "target": "user_message",
+        "label": "/goal",
+        "default_collapsed": true
+      }
+    }
+  ],
+  "session_metrics": {
+    "turn_count": 1
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-08-30T09:41:49.017623129Z",
+    "agent_lines": 261,
+    "agent_removed": 1,
+    "human_added": 25,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 286,
+    "total_lines_changed": 287,
+    "agent_percentage": 91.28919860627178,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 914,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".plan.md": 92,
+        "docs/KUNPENG920-故障注入方案详细工程设计.md": 822
+      }
+    }
+  ]
+}
