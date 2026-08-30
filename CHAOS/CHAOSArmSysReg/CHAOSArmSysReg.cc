@@ -56,22 +56,17 @@ namespace gem5
     void
     CHAOSArmSysReg::startup()
     {
-        // Convert the first/last Cycles window to Tick at sim-start (the
-        // global tick frequency is fixed by then). first_clock/last_clock are
-        // SIM cycles (global tick domain), not CPU cycles — this is an
-        // approximate advisory window (same limitation as CHAOSArmTLB, since
-        // the ISA is not a ClockedObject and can't reach the CPU clockEdge).
-        // Ticks per cycle = (1e12 ticks/s) / (cycles/s); for the standard
-        // 1 GHz sim clock that's 1000 ticks/cycle.
-        Tick tps = getClockFrequency();  // global ticks per second
-        // 1 cycle = tps / clock_hz ticks; but we don't know the CPU clock_hz
-        // from the ISA. Use the sim convention: treat first_clock as cycles
-        // of the global 1e12-tick domain -> ticks = first_clock * (tps/1e9)
-        // for a 1GHz nominal. To stay domain-agnostic, store cycle count and
-        // compare in ticks via curTick()/ (tps/1e9). Simplest: assume the
-        // standard 1GHz CPU (1000 tick/cycle) — documented approximation.
-        first_tick = first_clock * 1000;  // 1 GHz nominal: 1000 tick/cycle
-        last_tick = (last_clock == Cycles(0)) ? 0 : (last_clock * 1000);
+        // D4 fix: snapshot firstClock/lastClock as SIM TICKS at startup (the
+        // global tick domain is fixed by then). The ISA is not a ClockedObject
+        // and cannot reach curCycle()/clockEdge, so — consistent with the
+        // sibling CHAOSArmTLB (D1 fix) — firstClock/lastClock are interpreted
+        // as SIM TICKS (curTick domain), NOT CPU cycles. This removes the prior
+        // `first_clock * 1000` 1GHz nominal assumption (D4): that assumption
+        // broke on 2-3 GHz CPUs (500/333 tick-per-cycle), shifting the window
+        // by 2-3x. last_clock==0 means unrestricted (consistent across
+        // injectors).
+        first_tick = (Tick)first_clock;
+        last_tick = (last_clock == Cycles(0)) ? (Tick)0 : (Tick)last_clock;
     }
 
     CHAOSArmSysReg::~CHAOSArmSysReg() {}
@@ -156,9 +151,11 @@ namespace gem5
         if (now < first_tick) return false;
         if (last_tick != 0 && now > last_tick) return false;
 
-        // Probability gate: per-read Bernoulli.
+        // Probability gate: per-read Bernoulli. D5: use >= (consistent with
+        // CHAOSLSQFwd and CHAOSArmTLB; was >, letting probDist==probability
+        // slip through — a cross-injector inconsistency).
         std::uniform_real_distribution<float> probDist(0.0f, 1.0f);
-        if (probDist(rng) > probability) return false;
+        if (probDist(rng) >= probability) return false;
 
         FaultType chosen = fault_type_enum;
         if (fault_type_enum == FaultType::Random) {
