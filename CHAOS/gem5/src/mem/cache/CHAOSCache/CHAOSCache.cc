@@ -29,6 +29,7 @@ namespace gem5
         target_block_addr(p.targetBlockAddr),
         target_byte_offset(p.targetByteOffset),
         paired_sector(p.pairedSector),
+        protection_model(p.protectionModel),
         rng_seed(p.rngSeed),
         max_faults(p.maxFaults),
         faults_injected_count(0),
@@ -95,7 +96,7 @@ namespace gem5
         return FaultType::Random;
     }
 
-    const char* 
+    const char*
     CHAOSCache::faultTypeToString(CHAOSCache::FaultType f) {
         switch (f) {
             case FaultType::BitFlip: return "bit_flip";
@@ -104,6 +105,112 @@ namespace gem5
             case FaultType::Random: return "random";  // G7: handle enum to clear -Wswitch
         }
         return "random";
+    }
+
+    // §1.2 protection-aware modeling (N1 TRM Table 9-1 PROXY). Map the
+    // protectionModel string to an outcome-ladder enum. "none" (default) =
+    // raw upper bound = leave the corruption (escape), zero regression.
+    CHAOSCache::ProtectionOutcome
+    CHAOSCache::stringToProtectionModelPub(const std::string &s) {
+        if (s == "sed") return ProtectionOutcome::DetectedContained;  // placeholder; real ladder is in applyProtection by popcount
+        if (s == "secded_poison") return ProtectionOutcome::Latent;
+        if (s == "secded") return ProtectionOutcome::DetectedContained;
+        return ProtectionOutcome::Raw;  // "none" / unknown -> raw
+    }
+
+    const char*
+    CHAOSCache::protectionOutcomeToString(CHAOSCache::ProtectionOutcome o) {
+        switch (o) {
+            case ProtectionOutcome::Raw: return "Raw";
+            case ProtectionOutcome::Corrected: return "Corrected";
+            case ProtectionOutcome::DetectedContained: return "DetectedContained";
+            case ProtectionOutcome::Latent: return "Latent";
+            case ProtectionOutcome::SilentEscape: return "SilentEscape";
+        }
+        return "Raw";
+    }
+
+    // §1.2 post-injection protection handling. Decides the observable outcome
+    // from popcount(mask) (bits this fault flips) + protectionModel, then acts:
+    //   none           -> Raw (leave = escape). Default, zero regression.
+    //   sed            -> 1-bit: invalidate block (Corrected); >=2: SilentEscape.
+    //   secded_poison  -> 1-bit: undo (Corrected); 2-bit: poison-log + leave
+    //                       (Latent; classic cache has no poison bit, E3);
+    //                       >=3: SilentEscape.
+    //   secded         -> 1-bit: undo (Corrected); 2-bit: invalidate block
+    //                       (DetectedContained); >=3: SilentEscape (false-hit).
+    // `blk` may be null for the paired-sector partner path (no invalidate
+    // there — honest: the partner's containment is logged, not enforced).
+    CHAOSCache::ProtectionOutcome
+    CHAOSCache::applyProtection(CacheBlk *blk, int byteOffset,
+                                uint8_t mask, uint8_t orig_byte,
+                                FaultType ft, bool is_paired)
+    {
+        // popcount(mask) = bits this injection flips (§1.2 "1-bit/2-bit/≥3-bit").
+        int bits = __builtin_popcount(mask);
+
+        ProtectionOutcome outcome = ProtectionOutcome::Raw;
+        uint8_t *data = blk ? blk->data : nullptr;
+        // For the paired path we operate on the partner's data (caller sets blk).
+        (void)is_paired;
+
+        if (protection_model == "none") {
+            outcome = ProtectionOutcome::Raw;  // leave = escape (default)
+        } else if (protection_model == "sed") {
+            if (bits == 1) {
+                // 1-bit: invalidate block -> re-fetch clean on next access.
+                if (blk) blk->invalidate();
+                outcome = ProtectionOutcome::Corrected;
+            } else {
+                outcome = ProtectionOutcome::SilentEscape;  // >=2-bit silent
+            }
+        } else if (protection_model == "secded_poison") {
+            if (bits == 1) {
+                // 1-bit: undo the injection (re-apply the mutation = restore).
+                if (data) {
+                    switch (ft) {
+                        case FaultType::BitFlip:  data[byteOffset] ^= mask; break;
+                        case FaultType::StuckAtZero: data[byteOffset] |= mask; break;
+                        case FaultType::StuckAtOne:  data[byteOffset] &= ~mask; break;
+                        default: break;
+                    }
+                }
+                outcome = ProtectionOutcome::Corrected;
+            } else if (bits == 2) {
+                // 2-bit: poison-log + leave (Latent). Classic cache has no
+                // poison bit -> E3 proxy; the corruption propagates if read
+                // (SDC), but we LOG what real-hw SECDED would contain here.
+                outcome = ProtectionOutcome::Latent;
+            } else {
+                outcome = ProtectionOutcome::SilentEscape;  // >=3-bit silent
+            }
+        } else if (protection_model == "secded") {
+            if (bits == 1) {
+                if (data) {  // undo (Corrected)
+                    switch (ft) {
+                        case FaultType::BitFlip:  data[byteOffset] ^= mask; break;
+                        case FaultType::StuckAtZero: data[byteOffset] |= mask; break;
+                        case FaultType::StuckAtOne:  data[byteOffset] &= ~mask; break;
+                        default: break;
+                    }
+                }
+                outcome = ProtectionOutcome::Corrected;
+            } else if (bits == 2) {
+                if (blk) blk->invalidate();  // DetectedContained (recovery)
+                outcome = ProtectionOutcome::DetectedContained;
+            } else {
+                outcome = ProtectionOutcome::SilentEscape;  // false-hit
+            }
+        } else {
+            outcome = ProtectionOutcome::Raw;  // unknown model -> raw
+        }
+
+        if (write_log) {
+            *(log_stream->stream()) << "    protection: model=" << protection_model
+                << " bits=" << bits << " -> " << protectionOutcomeToString(outcome)
+                << std::endl;
+        }
+        return outcome;
     }
 
     void 
@@ -248,7 +355,7 @@ namespace gem5
                     continue;
                 }
 
-                // uint8_t oldValue = data[byteOffset];
+                uint8_t orig_byte = data[byteOffset];  // §1.2: for undo (Corrected)
 
                 switch (chosen_fault_type_enum) {
                     case FaultType::StuckAtZero:
@@ -283,9 +390,17 @@ namespace gem5
                         << std::endl;
                 }
 
+                // §1.2 post-injection protection handling (N1 TRM Table 9-1
+                // PROXY). Acts on the faulted block; may undo the mutation
+                // (Corrected) or invalidate the block (DetectedContained).
+                // Default protection_model="none" = Raw (no-op, zero regression).
+                applyProtection(targetBlk, byteOffset, mask, orig_byte,
+                                 chosen_fault_type_enum, /*is_paired=*/false);
+
                 // §7.7 paired-sector: apply the SAME fault to the 128B-aligned
                 // partner block's same byte offset (128B fault-domain proxy).
                 if (paired_sector && partnerBlk) {
+                    uint8_t orig_partner = partnerData[byteOffset];  // §1.2 undo
                     switch (chosen_fault_type_enum) {
                         case FaultType::StuckAtZero:
                             partnerData[byteOffset] &= ~mask;
@@ -311,6 +426,9 @@ namespace gem5
                             << (blockAddr & ~((Addr)2*blockSize - 1))
                             << std::dec << std::endl;
                     }
+                    // §1.2 protection handling on the paired partner too.
+                    applyProtection(partnerBlk, byteOffset, mask, orig_partner,
+                                     chosen_fault_type_enum, /*is_paired=*/true);
                 }
             }
 

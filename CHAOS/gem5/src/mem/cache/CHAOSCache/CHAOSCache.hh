@@ -63,6 +63,16 @@ class CHAOSCache : public SimObject
     int target_byte_offset;
     bool paired_sector;  // §7.7 128B fault-domain proxy (fault both 64B sectors)
 
+    // §1.2 protection-aware modeling layer (N1 TRM Table 9-1 PROXY).
+    // Post-injection, applyProtection() decides the observable outcome keyed
+    // on popcount(mask): Corrected (undo), DetectedContained (invalidate),
+    // Latent (poison-log, classic cache has no poison bit), SilentEscape
+    // (leave, >=3-bit / sed >=2-bit), Raw (none default = leave). Default
+    // "none" = zero regression vs prior behavior.
+    std::string protection_model;
+    enum class ProtectionOutcome { Raw, Corrected, DetectedContained, Latent, SilentEscape };
+    static ProtectionOutcome stringToProtectionModel(const std::string &s);
+
     EventFunctionWrapper attackEvent, periodicCheck;
     Tick first_tick, last_tick, ticks_permament_fault_check;
     std::map<std::pair<Addr, int>, PermanentFault> permanent_faults;
@@ -78,6 +88,16 @@ class CHAOSCache : public SimObject
     
     static FaultType stringToFaultType(const std::string &s);
     const char* faultTypeToString(CHAOSCache::FaultType f);
+    static ProtectionOutcome stringToProtectionModelPub(const std::string &s);
+    const char* protectionOutcomeToString(CHAOSCache::ProtectionOutcome o);
+    // §1.2 post-injection protection handling. Called right after the byte
+    // mutation (data[byteOffset] ^= mask etc.). `blk` is the faulted block
+    // (for invalidate on sed/secded 2-bit); `byteOffset`+`mask` define the
+    // injection (popcount(mask) = bits flipped). `orig_byte` is the pre-fault
+    // byte (for undo = Corrected). Returns the outcome; logs to fault log.
+    ProtectionOutcome applyProtection(CacheBlk *blk, int byteOffset,
+                                      uint8_t mask, uint8_t orig_byte,
+                                      FaultType ft, bool is_paired = false);
     void scheduleAttack(Tick tick);
     void scheduleCheckPermanentFault(Tick time);
     BaseTags* getTags() const;

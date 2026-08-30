@@ -44,6 +44,15 @@ p.add_argument("--paired", action="store_true",
                help="§7.7 128B paired-sector fault-domain proxy: fault both "
                     "the target 64B block AND its 128B-aligned partner, same "
                     "byte offset. Use --target=l2 (as 'L3').")
+p.add_argument("--protection_model", default="none",
+               choices=["none","sed","secded_poison","secded"],
+               help="§1.2 protection-aware modeling layer (N1 TRM Table 9-1 "
+                    "PROXY). 'none' (default = raw upper bound, leave "
+                    "corruption = escape, zero regression); 'sed' (L1I data: "
+                    "1-bit invalidate=Corrected, >=2 silent); 'secded_poison' "
+                    "(L1D/L2 data: 1-bit undo=Corrected, 2-bit poison-log=Latent "
+                    "E3, >=3 silent); 'secded' (L1D/L2 tag: 1-bit undo, 2-bit "
+                    "invalidate=DetectedContained, >=3 silent).")
 args = p.parse_args()
 
 cm = {"O3":CPUTypes.O3,"Timing":CPUTypes.TIMING,"Atomic":CPUTypes.ATOMIC,"Minor":CPUTypes.MINOR}
@@ -76,6 +85,7 @@ def cap(root):
         targetBlockAddr=args.target_block_addr,
         targetByteOffset=args.target_byte_offset,
         pairedSector=args.paired,
+        protectionModel=args.protection_model,
         writeLog=True)
     attached[0] = True
     print(f"[arm_chaos_cache] CHAOSCache attached to {args.target}-cache-0 "

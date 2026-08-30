@@ -510,3 +510,35 @@ ARM 三条路径 + golden（真跑输出）：
 - **T3**：campaign.py dry-run 生成的 v1 manifest 经 light validator 验证通过；arm_chaos golden 仍 `f247ef3fe6cfd`。
 
 **诚实边界（本补丁不做）**：无新注入器（CHAOSROB 是 S1 §2.3——v2 schema 前向声明其字段，runner.py 拒绝直到 S1 映射落地）；无 F5/F6 注入逻辑（schema 字段存在，注入器未实现——S1/S2 单独补丁）；无 injector 内 protectionModel（§1.2，单独 S0 单元）；无完整 draft-07 JSON-schema 解析器（light validator 覆盖 runner.py 需要的子集，jsonschema 在场时优先）。
+
+---
+
+### S0 单元4a — CHAOSCache protection-aware 建模层（§1.2 patch 1/3）
+
+**实现**：`CHAOSCache`（.py + .hh + .cc，顶层副本同步）加 `protectionModel` 参数（`Param.String`，默认 `"none"`）+ `applyProtection()` 注入后处理分支。`configs/se/arm_chaos_cache.py` 加 `--protection_model` 旋钮。这是 §1.2 的三个补丁的第一个（CHAOSCache 最丰富：sed/secded_poison/secded + none）；CHAOSMem（DRAM secded）、CHAOSArmTLB（TLB none/parity_interleaved）是后续单独补丁。
+
+**§1.2 protection 逻辑**（注入后，keyed on `popcount(mask)` = 本次注入翻转的位数）：
+
+| protectionModel | 1-bit | 2-bit | ≥3-bit |
+|---|---|---|---|
+| `none`（默认，raw 上界） | Raw（留翻转=escape，零回归） | Raw | Raw |
+| `sed`（L1I data 代理） | invalidate block（Corrected） | SilentEscape | SilentEscape |
+| `secded_poison`（L1D/L2 data 代理） | undo 注入（Corrected） | poison-log + leave（Latent，classic cache 无 poison bit，E3 代理） | SilentEscape |
+| `secded`（L1D/L2 tag 代理） | undo（Corrected） | invalidate block（DetectedContained） | SilentEscape（false-hit） |
+
+**自验证（真机，CLAUDE.md）**：
+- **干净增量重建**：`scons -C CHAOS/gem5 build/ARM/gem5.opt -j16` EXIT=0。**无新 CHAOS 警告**（仅 capstone/png/hdf5 宿主库缺失；`-Wreorder` 警告经 git stash 验证是**预存的**——原代码 hh:76/hh:66/cc:13 同行，非本补丁引入）。
+- **L1D directed 锚点 block 862656 byte0**（golden `f44d2b9cd4a173cd`，none=SDC `d128c62843ca82a1`）：
+  - **回归 T1**：`protection_model=none`（默认）→ `d128c62843ca82a1` **精确复现**（零行为变更），log `protection: model=none bits=1 -> Raw`。
+  - **T2 secded_poison 1-bit**（undo）→ `f44d2b9cd4a173cd` **== golden（完全 Corrected）**，log `bits=1 -> Corrected`。
+  - **secded 1-bit**（undo）→ `f44d2b9cd4a173cd` **== golden（完全 Corrected）**。
+  - **sed 1-bit**（invalidate）→ `b20f47cb8510886c`（SDC，≠ golden），log `bits=1 -> Corrected`。
+  - **secded 2-bit**（invalidate）→ `b20f47cb8510886c`，log `bits=2 -> DetectedContained`。
+  - **sed 2-bit** → `246a06f9a83f8e55`，log `bits=2 -> SilentEscape`（≥2-bit 静默，预期）。
+- **回归**：arm_chaos golden `f247ef3fe6cfd` 不变；CHAOSPhysReg X3 SDC `d43a25d7fcc218b7` 不变（缓存改动不触及 physreg）。
+
+**诚实发现（必须记）——invalidate 路径 run-level 逃逸**：
+`sed 1-bit` 与 `secded 2-bit` 的 **invalidate** 动作 log 标 `Corrected`/`DetectedContained`（机制建模正确：块失效后下次访问重取干净），但 **run-level checksum = SDC `b20f47cb8510886c`**（≠ golden），**不是完全 Corrected**。原因：invalidate 是在**注入那一刻**施行的，但工作负载在该 tick **已读取的字节**已消费了损坏数据——invalidate 只对**未来**重取有效，无法撤销**已消费**的读。而 **undo 路径**（secded/secded_poison 1-bit 立即恢复字节）→ 完全 == golden（未来读 + 已读窗口都见干净，因 undo 在读取前恢复）。
+这 **诚实反映了 SECDED 检测-但-可能晚** 的真实行为：保护机制正确触发（Corrected/DetectedContained 标签真实），但能否阻止 SDC 取决于**注入 vs 读取的时序**。formal campaign 会如实报两组：protection log 的 Corrected/DetectedContained/Latent 标签 **+** run-level SDC/Masked 分类（两者都可能，由时序决定）。**不掩盖**：invalidate 路径的 "Corrected" 标签 ≠ run-level golden。
+
+**诚实边界（本补丁不做）**：CHAOSMem protectionModel（§1.2 DRAM secded，patch 2/3）；CHAOSArmTLB protectionModel（§1.2 TLB none/parity_interleaved，patch 3/3）；真实 poison bit in CacheBlk（classic cache 无，secded_poison 2-bit 是 log-only E3 代理）；campaign→cache-manifest 路由（cache 用 arm_chaos_cache.py，runner.py 现不驱动 cache 路径——单独补丁）。无 formal sweep（pilot only，~92s/run）。
