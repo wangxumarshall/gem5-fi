@@ -410,3 +410,64 @@ ARM 三条路径 + golden（真跑输出）：
 - ARM X3 directed → `3c4da37564e2fbf5`（SDC）。
 
 诚实跨 ISA 观察（pilot）：同 workload（reg_chain）、同 oracle（golden `f247ef3fe6f02cfd` 跨 ISA 一致），ARM X3 对 GPR 翻转敏感（SDC），x86 RAX 不敏感（Masked）但 RCX 敏感（SDC）——ISA-specific 的 GPR 角色敏感性差异，是 plan §10.4 的真实数据点。max_reg_idx=4 现正确避开 RSP/RBP（不再 core dump）。仍 pilot 规模（非 n=384）。
+
+---
+
+## 本轮（2026-08-30）方案执行进展：系统完备研究方案落地
+
+基于 `docs/KUNPENG920-SDC研究方案-系统完备版.md`（`11eb9c1`，源码核查+诚信修正+实跑锚点），按 CLAUDE.md 一补丁一单元 + 真机自验证 + 推 `fi-wangxu`（非 main）纪律执行。**全部 24 个 commit 已推送 `fi-wangxu` 远端，0 unpushed，工作树干净。**
+
+### 注入器实现：核查时 7 → 现已 11 个
+
+| commit | 注入器/扩展 | 复现现场 | 真机验证 |
+|---|---|---|---|
+| `7f538c4` | CHAOSPhysReg F3 数据相关触发 + semanticRole | method2 欠压 | MISS 1.3e8 正确跳过 |
+| `ffd041e` | CHAOSAddrPath（P-D2，地址通路） | core179 H6 byte7 | SE 回归+FS 挂载 |
+| `c5c8c96` | CHAOSRenameMap（RAT F5 合法域替换） | method1 历史残留 | f5_substitute+map_bitflip |
+| `379e11c` | CHAOSFreeList（freelist mark_free） | method1 活寄存器误标空闲 | mark_free PhysReg[170] |
+| `8320daf` | CHAOSLSQFwd structuralFault（byte_lane_skew/all_zero） | core179 H5 D1 签名 | rol1 SDC xor 多位散布 |
+| `de48432` | CHAOSPTW（P-D3，页表走查器） | core179 H7 spurious | FS clearValidBit 5 注入 |
+
+**core179 三通路（D1/D2/D3）注入器现已全部入主线**：
+- D1 数据通路 → CHAOSLSQFwd structuralFault（H5）
+- D2 地址通路 → CHAOSAddrPath（H6）
+- D3 PTW 通路 → CHAOSPTW（H7）
+
+### 已知缺陷修复（附录 D，D1-D6 全完成）
+
+| commit | 缺陷 | 验证 |
+|---|---|---|
+| `0ae28fe` | D2: CHAOSLSQFwd 64位掩码 | bit32/63 注入 |
+| `56023c3` | D1+D5+D6: CHAOSArmTLB 时间窗+比较符+NULL warn | FS 三组对照 |
+| `58be899` | D4+D5: CHAOSArmSysReg 1GHz假设+比较符 | SE+挂载 |
+| `4ed645b` | D3: CHAOSMem 永久故障持久性 | reapplies=573157 |
+
+### 基础设施
+
+- `f8aecc7` campaign.py v1 网格驱动器（Wilson CI + artifacts，端到端验证 SDC=1/1）+ runner.py G5 路径修复
+
+### 仿真-现场对照生态效度锚点（全部真机复现，方案 §5.0）
+
+- golden `f247ef3fe6f02cfd` ✅
+- GPR SDC `d43a25d7fcc218b7`（reads_before_overwrite=125000 状态泄漏窗口）✅
+- LSQ 转发 SDC xor=0x04000000（bit30 尾数高位，吻合 method3）✅
+- **method1 历史残留 SDC**：F5 on accum_kernel X9 → fails=1（偷映射传播为 SDC，`09b6424`）✅
+- **core179 D1 撕裂移位**：byte_lane_skew rol1 → xor 多位散布（H5 主线就位）✅
+- **core179 D3 spurious**：CHAOSPTW clearValidBit → 5 注入 BecameInvalid:1（H7 主线就位）✅
+
+### 故障模型覆盖
+
+F1✅ F2✅ F3✅ F4✅ F5✅(RAT/SysReg) F6待写 PCE待写
+
+### 诚实边界（写进每个 commit + 方案 §9.4）
+
+- 现场数据来自单一故障机，未第二台健康机复现（标"单机未确认"）
+- 所有 P_SDC 是 gem5 O3 代理条件概率，非产品 FIT
+- H5/H6/H7 主线就位，FS O3 端到端注入触发待 checkpoint 流水线（D1/D4/AddrPath/SysReg/PTW 同边界）
+- D9（G6 广触发）、D10（G7 sanitizer）deferred
+
+### 仍待推进（方案 §10 剩余）
+
+S1-4 CHAOSROB（P0 乱序最后一块）、S1-5 剩余（stale_line_replay/fwd_source_sub/phaseOffset）、S0-3 protectionModel + 九类分类、kp920_proxy 配置、cholesky_numeric kernel（formal method1）、manifest v2。
+
+每个补丁均经干净构建零 CHAOS 警告 + 真机功能验证（引用真实 gem5 输出）+ 不相关回归三步自验证。
