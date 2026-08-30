@@ -19,3 +19,6 @@ m5out/
 
 .DS_Store
 .claude/
+
+# experiment run outputs (not committed)
+runs/
