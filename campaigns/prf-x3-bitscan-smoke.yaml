@@ -1,0 +1,23 @@
+# PRF X3 bit-scan smoke campaign (plan §5.1, pilot scale).
+# Single-bit flips on X3 (data accumulator, SDC-prone all-bit-positions)
+# across bit {0,31,32,63} — the G1 stratified boundary bits. Proves the
+# campaign driver end-to-end before scaling to formal n=384.
+campaign_id: prf_x3_bitscan_smoke
+workload:
+  binary: workloads/directed/reg_chain
+  golden: f247ef3fe6f02cfd
+  golden_id: regchain-golden-v1
+trigger:
+  mode: cycle
+  value: 100000
+limits:
+  max_faults: 1
+  max_ticks: 0
+injector: physreg
+axes:
+  layer: [arch_frontend]
+  target_arch: [3]                 # X3 data accumulator
+  bit_indices: [[0],[31],[32],[63]]  # G1 boundary bits
+defaults:
+  rng_master_seed: 20260825
+  width_bits: 64

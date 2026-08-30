@@ -31,9 +31,11 @@ except ImportError:
     HAVE_SCHEMA = False
 
 REPO = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
-# NOTE: scons builds gem5.opt to the REPO-ROOT build/ARM on this host
-# (NOT CHAOS/gem5/build/ARM — that path holds a stale/duplicate file).
-G5 = os.path.join(REPO, "build/ARM/gem5.opt")
+# gem5.opt lives at CHAOS/gem5/build/ARM/ (the scons build target). The older
+# note about REPO-ROOT build/ARM was stale — that path is empty on this host.
+# Override with env GEM5_OPT if set (campaign.py does this), else the canonical
+# vendored-build path.
+G5 = os.environ.get("GEM5_OPT") or os.path.join(REPO, "CHAOS/gem5/build/ARM/gem5.opt")
 CFG = os.path.join(REPO, "configs/se/arm_chaos.py")
 
 # manifest oracle.golden_id -> the workload's golden (no-injection) checksum.
