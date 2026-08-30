@@ -29,9 +29,9 @@
 
 **核查方法**：逐注入器实读 `.py/.hh/.cc/SConscript`；在 vendored gem5 源码树 `CHAOS/gem5/src/` 中 grep 确认 hook 接线；`git log --all` 追溯被删除文件的历史；实跑 `gem5.opt` 验证构建与锚点（§5 已验证锚点表）。
 
-#### 0.3.1 当前工作树真实存在的注入器：**核查时 7 个，现已 8 个**（CHAOSAddrPath 已由 S1-5b 实现）
+#### 0.3.1 当前工作树真实存在的注入器：**核查时 7 个，现已 9 个**（+CHAOSAddrPath `ffd041e` + CHAOSRenameMap `c5c8c96`）
 
-> **2026-08-30 核查时**主线工作树有 7 个注入器（下表）。**S1-5b（`ffd041e`）后新增 CHAOSAddrPath**，主线现 8 个。下表保留核查时状态以存史；CHAOSAddrPath 的实现见 §A.2 与 §5.4。
+> **2026-08-30 核查时**主线工作树有 7 个注入器（下表）。**S1-5b（`ffd041e`）新增 CHAOSAddrPath**、**S1-2（`c5c8c96`）新增 CHAOSRenameMap**，主线现 9 个。下表保留核查时状态以存史；新增注入器见 §A.2 与 §5.2/§5.4。
 
 | 注入器 | 目标单元 | Hook 位置（已核实） | 范式 | 真实参数面（已核实） |
 |---|---|---|---|---|
@@ -308,7 +308,7 @@ pilot 每 cell n=100（可达率/工具错误/粗略比例）；formal 每 cell 
 
 ## 第 5 章　逐微架构单元故障注入设计
 
-> 每节固定八段：**A 目标与 hook / B 注入器 / C campaign 网格 / D kernel / E 指标与预期 / F 边界与证据 / G 工作量 / H 验收断言**。单元按优先级 P0→P3 排序。注入器状态以 fi-wangxu 工作树源码为准（**8 个已有含 CHAOSAddrPath + 10 个待实现/扩展**，见附录 A）。
+> 每节固定八段：**A 目标与 hook / B 注入器 / C campaign 网格 / D kernel / E 指标与预期 / F 边界与证据 / G 工作量 / H 验收断言**。单元按优先级 P0→P3 排序。注入器状态以 fi-wangxu 工作树源码为准（**9 个已有含 CHAOSAddrPath/CHAOSRenameMap + 9 个待实现/扩展**，见附录 A）。
 
 ### 5.0 已验证锚点表（本方案撰写期间实跑，真实 gem5 输出）
 
@@ -353,11 +353,11 @@ pilot 每 cell n=100（可达率/工具错误/粗略比例）；formal 每 cell 
 
 **H. 验收断言**：① `reg_chain` golden `f247ef3fe6f02cfd` 20 次重放逐位一致；② `probability=0` 时输出哈希与无注入基线逐位一致（锚点回归）；③ F3 `triggerValuePattern` 命中注入次数与 `fault_injections.log` 严格相等；④ pilot 每 cell n≥100 产生 ≥1 个非 Inactive 结局。
 
-### 5.2 RAT + freelist（P0，待实现 CHAOSRenameMap + CHAOSFreeList）
+### 5.2 RAT + freelist（P0，✅ CHAOSRenameMap 已实现 `c5c8c96`；CHAOSFreeList 待实现）
 
 **A. 目标与 hook**：`frontRenameMap[tid]`（archReg→physReg）、`freeList`、move elimination、flag rename。Hook `rename_map.hh`（`rename()/lookup()/setEntry()`）、`free_list.hh`（`getReg()/addReg()/isFree()`）。
 
-**B. 注入器**：待写 `CHAOSRenameMap` + `CHAOSFreeList`（自挂载）。骨架见附录 G（`map_bitflip`/`f5_substitute`/`f4_field_stuck`；`mark_free`/`pop_wrong`）。
+**B. 注入器**：`CHAOSRenameMap`（✅ 已实现 `c5c8c96`，三模式 `map_bitflip`/`f5_substitute`/`f4_field_stuck` + 合法域校验，自驱动 attackEvent 持 cpu 指针访问 `frontRenameMap()`；已验证 f5_substitute 偷映射 + map_bitflip 翻转 physRegIdx 合法性通过）；`CHAOSFreeList`（待实现，骨架见附录 G `mark_free`/`pop_wrong`）。
 
 **C. campaign**：RAT 模式 {map_bitflip(位域 0..log2(numPhysIntRegs)), f5_substitute, f4_field_stuck} × ABI 角色（重点长存活累加器）；freelist {mark_free, pop_wrong}；flag rename；move elimination。窗口同 §5.1。
 
@@ -844,7 +844,7 @@ DSN / PRDC / ASPLOS / HPCA / MICRO；对标 Veritas(HPCA'25)、PinDrop(HPCA'26)�
 | 阶段 | 内容 | 依赖 | 工作量 | 现状 |
 |---|---|---|---|---|
 | S0 基础设施 | regen params 干净重建（已完成）+ P0 pilot 复现；campaign.py v1（已完成 `f8aecc7`）；kp920_proxy 配置；manifest v2；protectionModel；已知缺陷修复（附录 D 已完成 D1-D6） | 无 | ~10 补丁 | campaign v1/kp920_proxy 待续；manifest v2/protectionModel 待续 |
-| S1 P0 单元 | PRF 扩/F3；RAT/freelist（CHAOSRenameMap/FreeList）；ROB（CHAOSROB）；LSU 转发扩（D2+structuralFault+AddrPath） | S0 | ~20 补丁 | PRF 已有；其余待实现 |
+| S1 P0 单元 | PRF 扩/F3（✅）；RAT（✅ CHAOSRenameMap `c5c8c96`）/freelist（FreeList 待实现）；ROB（CHAOSROB 待实现）；LSU 转发扩（D2 ✅+structuralFault 待补+AddrPath ✅ `ffd041e`） | S0 | ~20 补丁 | PRF/RAT/AddrPath 已有；FreeList/ROB/structuralFault 待实现 |
 | S2 P1 单元 | IQ（CHAOSIQ）；FSU（CHAOSFPU）；TLB/SysReg/PTW + FS checkpoint；L3 pairedSector | S1 | ~18 补丁 | ArmTLB/ArmSysReg 已有基础；IQ/FPU/PTW/AddrPath 待实现 |
 | S3 P2/P3 单元 | L1D 字段级+PCE；L2+victim+size sweep；L1I 语义字段；整数 Exec；BPU；内存控制器 | S1 | ~16 补丁 | 全待实现 |
 | S4 系统级 | CHAOSCHI/CHAOSNoC/CHAOSHCCS（E3/E4，独立子项目） | S2 | ~20 补丁 | 全待实现 |
@@ -864,7 +864,7 @@ DSN / PRDC / ASPLOS / HPCA / MICRO；对标 Veritas(HPCA'25)、PinDrop(HPCA'26)�
 - **S0-2** ~~campaign.py + manifest v2~~ campaign.py v1 ✅ 已实现 `f8aecc7`（manifest v2 待续）。
 - **S0-3** protectionModel 层 + classify 九类扩展（待实现）。
 - **S0-4** 已知缺陷修复（附录 D，D1–D6 已完成 `0ae28fe`/`56023c3`/`58be899`/`4ed645b`）：CHAOSArmTLB 时间窗（D1 ✅）、CHAOSLSQFwd 64 位掩码（D2 ✅）、CHAOSMem 永久重放（D3 ✅）、CHAOSArmSysReg 时间窗（D4 ✅）、概率比较统一（D5 ✅）、NULL 宿主 warn（D6 ✅）、mask==0 早退（D7 Cache/ArmTLB/ArmSysReg/PhysReg 已有）。D9（G6 广触发）、D10（G7 sanitizer）deferred。
-- **S1-1** CHAOSPhysReg F3+semanticRole；**S1-2** CHAOSRenameMap；**S1-3** CHAOSFreeList；**S1-4** CHAOSROB；**S1-5** CHAOSLSQFwd 扩展（D2+structuralFault+stale_line_replay+fwd_source_sub）；**S1-5b** CHAOSAddrPath 实现（侧分支→主线）。
+- **S1-1** CHAOSPhysReg F3+semanticRole（✅ `7f538c4`）；**S1-2** CHAOSRenameMap（✅ `c5c8c96`）；**S1-3** CHAOSFreeList（待实现）；**S1-4** CHAOSROB（待实现）；**S1-5** CHAOSLSQFwd 扩展（D2 ✅+structuralFault 待补+stale_line_replay+fwd_source_sub）；**S1-5b** CHAOSAddrPath（✅ `ffd041e`）。
 - **S2-1** CHAOSIQ；**S2-3** CHAOSFPU；**S2-5a** CHAOSArmSysReg 扩展（F5+D4）；**S2-5b** CHAOSArmTLB F5+targetField；**S2-5c** CHAOSPTW 实现（侧分支→主线）+ H7 formal + FS 流水线。
 - **S3-2** CHAOSL1DForward；**S3-4** CHAOSExec；**S3-5** CHAOSBPU；**S3-6** CHAOSMem 扩展。
 - **S5-2** CHAOSRAS；**S5-3** 逃逸集合分解 + 抗 SDC 机制建议（§8.3）。
@@ -899,7 +899,7 @@ DSN / PRDC / ASPLOS / HPCA / MICRO；对标 Veritas(HPCA'25)、PinDrop(HPCA'26)�
 
 ## 附录 A　注入器与 hook 点总表（源码核对版，2026-08-30）
 
-### A.1 已有注入器（8 个，含 S1-5b 新增 CHAOSAddrPath）
+### A.1 已有注入器（9 个，含 S1-5b CHAOSAddrPath + S1-2 CHAOSRenameMap）
 
 | 注入器 | 目标单元 | Hook 位置（已核实） | 范式 | 优先级 | 真实模式（已核实） |
 |---|---|---|---|---|---|
@@ -911,12 +911,13 @@ DSN / PRDC / ASPLOS / HPCA / MICRO；对标 Veritas(HPCA'25)、PinDrop(HPCA'26)�
 | CHAOSArmTLB | D-TLB pfn | `arch/arm/tlb.cc:164-168`（`tlb->chaosTLB`） | A（自挂载，FS） | P1 | bit_flip/stuck_at_zero/stuck_at_one；**无 targetField/protectionModel/pfn_to_mapped（待扩展）** |
 | CHAOSArmSysReg | ARM 系统寄存器 MRS 读值 | `arch/arm/isa.cc:39,452-457` + `isa.hh:179-180`（`isa->chaosSysReg`） | A（自挂载，FS） | P1 | bit_flip/stuck_at_zero/stuck_at_one/random；`targetRegs` 白名单（miscRegName 解析）；**无 value_to_legal(F5)（待扩展）** |
 | **CHAOSAddrPath** | AGU 地址通路（P-D2） | `lsq.cc sendFragmentToTranslation`（`cpu->addrPath`，`request.hh setVaddr`） | A（自挂载，FS+O3） | P1 | byte7 清零复现 core179 D2；byteOffset 0-7/-1随机；tick 时间窗；rng lambda 修复 |
+| **CHAOSRenameMap** | RAT 重命名表（F5） | `rename_map.hh` setEntry() + `cpu->frontRenameMap()` | B（attackEvent 自驱动） | P0 | map_bitflip/f5_substitute/f4_field_stuck 三模式；合法域校验（numLegalityRejects）；method1 历史残留 |
 
-### A.2 待实现/待扩展注入器（10 个）
+### A.2 待实现/待扩展注入器（9 个）
 
 | 注入器 | 状态 | Hook 位置 | 任务 | 侧分支参照 |
 |---|---|---|---|---|
-| CHAOSRenameMap | 新写 | `rename_map.hh` rename()/setEntry() | S1-2 | — |
+| CHAOSRenameMap | ✅ 已实现 `c5c8c96` | `rename_map.hh` rename()/setEntry() + `cpu->frontRenameMap()` | ~~S1-2~~ done | — |
 | CHAOSFreeList | 新写 | `free_list.hh` getReg()/addReg() | S1-3 | — |
 | CHAOSROB | 新写 | `rob.cc` retireHead()/squash()；`commit.cc` commitHead() | S1-4 | — |
 | CHAOSIQ | 新写 | `inst_queue.cc` wakeDependents()/scheduleReadyInsts() | S2-1 | — |
@@ -1060,7 +1061,7 @@ S0-02-campaign+manifestv2 | depends=[]      | agent | done(v1)| campaign.py v1 �
 S0-03-protectionModel | depends=[S0-02]     | agent | pending | 9 类分类 + protection 参数
 S0-04-已知缺陷修复    | depends=[S0-01]     | agent | done    | D1/D2/D3/D4/D5/D6 已修（0ae28fe/56023c3/58be899/4ed645b）；D7 部分已有；D9/D10 deferred
 S1-01-CHAOSPhysReg扩展| depends=[S0-04]     | agent | done    | F3 triggerValue* + semanticRole（7f538c4，已验证 MISS 1.3e8 跳过）
-S1-02-CHAOSRenameMap  | depends=[S0-04]     | agent | pending | 见 G.1 示例 assert
+S1-02-CHAOSRenameMap  | depends=[S0-04]     | agent | done    | 已实现 c5c8c96（f5_substitute+map_bitflip+f4_field_stuck，三模式验证+合法域校验）
 S1-03-CHAOSFreeList   | depends=[S0-04]     | agent | pending | mark_free/pop_wrong
 S1-04-CHAOSROB        | depends=[S0-04]     | agent | pending | entry_bitflip/exc_suppress/spec_leak
 S1-05-CHAOSLSQFwd扩展 | depends=[S0-04]    | agent | pending | D2 修复 + structuralFault 补齐 + stale_line_replay + fwd_source_sub + phaseOffset
