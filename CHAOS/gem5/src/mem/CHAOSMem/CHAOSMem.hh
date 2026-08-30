@@ -53,6 +53,21 @@ namespace gem5 {
       uint64_t faults_injected_count; // G5: running count
       Addr target_start, target_end, target_size;
 
+      // §1.2 protection-aware modeling layer (N1 TRM Table 9-1 PROXY).
+      // DRAM = 'secded' (Huawei DDR ECC). applyProtection() runs BEFORE the
+      // write-back so an undo (Corrected) restores the original byte. Default
+      // "none" = raw upper bound = leave = escape, zero regression.
+      std::string protection_model;
+      enum class ProtectionOutcome { Raw, Corrected, Latent, SilentEscape };
+      static ProtectionOutcome stringToProtectionModel(const std::string &s);
+      const char* protectionOutcomeToString(CHAOSMem::ProtectionOutcome o);
+      // Post-injection protection: acts on the mutated `data` byte (by ref)
+      // before write-back. 1-bit secded -> undo (restore orig = Corrected);
+      // 2-bit -> poison-log + leave (Latent, no poison bit E3); >=3 -> Silent;
+      // none -> Raw (leave). Returns outcome; logs it.
+      ProtectionOutcome applyProtection(uint8_t &data, uint8_t mask,
+                                        uint8_t orig_byte, FaultType ft);
+
       EventFunctionWrapper attackEvent, periodicCheck;
       Tick first_tick, last_tick, ticks_permament_fault_check;
       

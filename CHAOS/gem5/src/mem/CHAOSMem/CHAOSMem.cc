@@ -33,6 +33,7 @@ namespace gem5 {
     faults_injected_count(0),
     target_start(p.addr_start),
     target_end(p.addr_end),
+    protection_model(p.protectionModel),
     attackEvent([this]{ this->attackMemory(); }, name()),
     periodicCheck([this] { this->checkPermanent(); }, name() + ".periodicCheck"),
     stats(nullptr)
@@ -148,7 +149,7 @@ namespace gem5 {
         return FaultType::Random;
     }
 
-    const char* 
+    const char*
     CHAOSMem::faultTypeToString(CHAOSMem::FaultType f) {
         switch (f) {
             case FaultType::BitFlip: return "bit_flip";
@@ -157,6 +158,68 @@ namespace gem5 {
             case FaultType::Random: return "random";  // G7: handle enum to clear -Wswitch
         }
         return "random";
+    }
+
+    // §1.2 protection-aware (N1 TRM Table 9-1 PROXY, DRAM = secded). Map the
+    // protectionModel string; the real outcome ladder is in applyProtection
+    // keyed on popcount(mask). "none" (default) = raw escape, zero regression.
+    CHAOSMem::ProtectionOutcome
+    CHAOSMem::stringToProtectionModel(const std::string &s) {
+        if (s == "secded") return ProtectionOutcome::Latent;
+        return ProtectionOutcome::Raw;  // "none" / unknown -> raw
+    }
+
+    const char*
+    CHAOSMem::protectionOutcomeToString(CHAOSMem::ProtectionOutcome o) {
+        switch (o) {
+            case ProtectionOutcome::Raw: return "Raw";
+            case ProtectionOutcome::Corrected: return "Corrected";
+            case ProtectionOutcome::Latent: return "Latent";
+            case ProtectionOutcome::SilentEscape: return "SilentEscape";
+        }
+        return "Raw";
+    }
+
+    // §1.2 post-injection protection. DRAM = secded (Huawei DDR ECC). Acts on
+    // the mutated `data` byte BY REFERENCE before write-back, so an undo
+    // restores the original byte (== golden). popcount(mask) = bits flipped.
+    //   none   -> Raw (leave = escape). Default, zero regression.
+    //   secded -> 1-bit: undo the mutation (Corrected); 2-bit: poison-log +
+    //             leave (Latent — AbstractMemory backing store has no poison
+    //             bit, E3 proxy); >=3: SilentEscape.
+    CHAOSMem::ProtectionOutcome
+    CHAOSMem::applyProtection(uint8_t &data, uint8_t mask,
+                              uint8_t orig_byte, FaultType ft)
+    {
+        int bits = __builtin_popcount(mask);
+        ProtectionOutcome outcome = ProtectionOutcome::Raw;
+
+        if (protection_model == "none") {
+            outcome = ProtectionOutcome::Raw;  // leave = escape (default)
+        } else if (protection_model == "secded") {
+            if (bits == 1) {
+                // 1-bit: undo (restore the original byte before write-back).
+                data = orig_byte;
+                outcome = ProtectionOutcome::Corrected;
+            } else if (bits == 2) {
+                // 2-bit: poison-log + leave (Latent). No poison bit in the
+                // backing store -> E3 proxy; the corruption propagates as SDC
+                // if read, but we LOG what real-hw DDR SECDED would contain.
+                outcome = ProtectionOutcome::Latent;
+            } else {
+                outcome = ProtectionOutcome::SilentEscape;  // >=3-bit silent
+            }
+        } else {
+            outcome = ProtectionOutcome::Raw;  // unknown model -> raw
+        }
+        (void)ft;
+
+        if (write_log) {
+            *(log_stream->stream()) << "    protection: model=" << protection_model
+                << " bits=" << bits << " -> " << protectionOutcomeToString(outcome)
+                << std::endl;
+        }
+        return outcome;
     }
 
     void 
@@ -242,6 +305,12 @@ namespace gem5 {
                 default:
                     break;
             }
+
+            // §1.2 protection-aware handling (DRAM = secded, N1 TRM Table 9-1
+            // PROXY). Runs BEFORE write-back so an undo (1-bit Corrected)
+            // restores the original byte -> write stores clean data (== golden).
+            // Default protection_model="none" = Raw (no-op, zero regression).
+            applyProtection(data, mask, old_value, chosen_fault_type_enum);
 
             PacketPtr write_pkt = new Packet(req, MemCmd::WriteReq);
             write_pkt->dataStatic(&data);

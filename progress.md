@@ -542,3 +542,25 @@ ARM 三条路径 + golden（真跑输出）：
 这 **诚实反映了 SECDED 检测-但-可能晚** 的真实行为：保护机制正确触发（Corrected/DetectedContained 标签真实），但能否阻止 SDC 取决于**注入 vs 读取的时序**。formal campaign 会如实报两组：protection log 的 Corrected/DetectedContained/Latent 标签 **+** run-level SDC/Masked 分类（两者都可能，由时序决定）。**不掩盖**：invalidate 路径的 "Corrected" 标签 ≠ run-level golden。
 
 **诚实边界（本补丁不做）**：CHAOSMem protectionModel（§1.2 DRAM secded，patch 2/3）；CHAOSArmTLB protectionModel（§1.2 TLB none/parity_interleaved，patch 3/3）；真实 poison bit in CacheBlk（classic cache 无，secded_poison 2-bit 是 log-only E3 代理）；campaign→cache-manifest 路由（cache 用 arm_chaos_cache.py，runner.py 现不驱动 cache 路径——单独补丁）。无 formal sweep（pilot only，~92s/run）。
+
+---
+
+### S0 单元4b — CHAOSMem protection-aware 建模层（§1.2 patch 2/3）
+
+**实现**：`CHAOSMem`（.py + .hh + .cc，顶层副本同步）加 `protectionModel` 参数（默认 `"none"`）+ `applyProtection()` 注入后处理分支。`configs/se/arm_chaos.py` 加 `--protection_model` 旋钮 + **修复 CHAOSMem 定向 fault_mask 被忽略的 bug**（原 `faultMask="0"` 硬编码→恒随机；改为把 `--fault_mask` 转 8-char 二进制串传入 CHAOSMem 的 `std::stoi(...,2)` 解析）。
+
+**§1.2 DRAM 逻辑**（DRAM = secded，华为 DDR ECC；注入后、write-back 前，keyed on `popcount(mask)`）：
+- `none`（默认）→ Raw（留翻转=escape，零回归）。
+- `secded`：1-bit → undo（恢复 `data = orig_byte`，**write-back 前恢复**→写入存原始字节==golden，Corrected）；2-bit → poison-log + leave（Latent，AbstractMemory 后备存储无 poison bit，E3 代理）；≥3-bit → SilentEscape。
+
+**自验证（真机，CLAUDE.md）**：
+- **干净增量重建**：`scons -j16` EXIT=0，**CHAOSMem 零警告**（G7）。
+- **T1 回归**：CHAOSMem maxFaults=1 `protection_model=none`（默认）→ `f247ef3fe6cfd`（Masked），`faults_injected: 1`（G5），log `protection: model=none bits=6 -> Raw`。
+- **T2 secded 1-bit mask 0x40**（popcount=1）→ `protection: bits=1 -> Corrected`，**字节恢复 `old:0x0 new:0x0`**（undo 在 write-back 前恢复→写入存原始字节→checksum==golden）。
+- **T3 secded 2-bit mask 0x60**（popcount=2）→ `protection: bits=2 -> Latent`，字节留翻转 `old:0x0 new:0x60`（poison-log + leave，传播作 SDC 若被读，E3 代理）。
+- **修复的 bug**：CHAOSMem `--fault_mask` 此前被忽略（`faultMask="0"` 硬编码→恒随机掩码，T1 显示 bits=6 非用户指定）。修后 `--fault_mask 0x40` → `old:0x0 new:0x40 Mask:0x40`，popcount 正确=1。定向 fault_mask 现生效。
+- **回归**：arm_chaos golden `f247ef3fe6cfd` 不变；CHAOSPhysReg X3 SDC `d43a25d7fcc218b7` 不变（内存改动不触及 physreg）。
+
+**诚实发现（对比 CHAOSCache）**：CHAOSMem 的 undo 路径（1-bit Corrected）**完全 == golden**（write-back 前恢复字节→写入干净数据，未来读 + 已读窗口都见干净）。这印证了 CHAOSCache undo 路径同样 == golden，而 invalidate 路径（CHAOSCache sed 1-bit/secded 2-bit）run-level SDC（工作负载已消费字节）。**CHAOSMem 无 invalidate 路径**（DRAM 是后备存储，无块可 invalidate）——undo 是唯一纠正机制，且完全生效。诚实记录：DRAM SECDED 在 write-back 前 undo → 无逃逸（不像 cache 的 invalidate 时序逃逸）。
+
+**诚实边界（本补丁不做）**：CHAOSArmTLB protectionModel（§1.2 patch 3/3，TLB none/parity_interleaved，FS）；真实 poison bit in AbstractMemory（后备存储无，secded 2-bit log-only E3）；campaign→mem-manifest 路由（runner.py 现不驱动 mem 组件的 manifest 路径——单独补丁）。无 formal sweep（pilot only）。

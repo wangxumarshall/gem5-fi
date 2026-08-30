@@ -83,6 +83,14 @@ p.add_argument("--addr_end", type=lambda x: int(x,0), default=0)
 p.add_argument("--bit_flip_prob", type=float, default=0.9)
 p.add_argument("--stuck_at_zero_prob", type=float, default=0.05)
 p.add_argument("--stuck_at_one_prob", type=float, default=0.05)
+p.add_argument("--protection_model", default="none",
+               choices=["none","secded","sed","secded_poison"],
+               help="§1.2 protection-aware modeling layer (CHAOSMem uses "
+                    "'secded' = Huawei DDR ECC; others accepted but treated "
+                    "as raw for DRAM). 'none' (default = raw escape, zero "
+                    "regression); 'secded' (1-bit undo=Corrected, 2-bit "
+                    "poison-log=Latent E3, >=3 silent). Applied before "
+                    "write-back so undo restores the byte.")
 # CHAOSLSQFwd (store->load forwarding-path injector; O3 only). It
 # SELF-ATTACHES: its constructor does `cpu->lsqFwd = this` (no python
 # setLSQFwd call needed — that method has no python binding anyway).
@@ -163,7 +171,11 @@ if args.chaos_mem:
         firstClock=args.first_clock,
         lastClock=0,
         faultType=args.fault_type,
-        faultMask="0",
+        # CHAOSMem parses faultMask as BINARY (std::stoi(..., 2)), so "0" means
+        # random mask. Pass --fault_mask through as an 8-char binary string so
+        # a directed bit (e.g. --fault_mask 0x40 = bit6) is honored (was
+        # hardcoded "0" -> always random; fixed here). Empty/0 -> random.
+        faultMask=(format(args.fault_mask, "08b") if args.fault_mask else "0"),
         tickToClockRatio=1000,
         bitFlipProb=args.bit_flip_prob,
         stuckAtZeroProb=args.stuck_at_zero_prob,
@@ -172,6 +184,7 @@ if args.chaos_mem:
         addr_end=args.addr_end,
         rngSeed=args.rng_seed,
         maxFaults=args.max_faults,
+        protectionModel=args.protection_model,
         writeLog=True,
     )
 
