@@ -36,6 +36,21 @@ p = argparse.ArgumentParser()
 p.add_argument("--cmd", required=True)
 p.add_argument("--cpu", default="O3", choices=list(cpu_map))
 p.add_argument("--maxinsts", type=int, default=0)
+# C2-KP: TaiShan V110 4-wide OoO proxy params (plan §4.1, E3 — NOT cycle-exact).
+# When set, overrides the DerivO3CPU defaults with V110-informed values.
+p.add_argument("--kp920_proxy", action="store_true",
+               help="Apply TaiShan V110 O3 proxy params (E3): 4-wide, ROB=128, "
+                    "PhysIntRegs=160, PhysFloatRegs=192, LQ=48, SQ=42, IQ=66, "
+                    "2.6GHz. NOT cycle-exact (no distributed scheduler / no "
+                    "partition L3 / no bufferless NoC).")
+p.add_argument("--clk_freq", default="2GHz",
+               help="Board clock (kp920_proxy default 2.6GHz).")
+p.add_argument("--rob_entries", type=int, default=128)
+p.add_argument("--phys_int_regs", type=int, default=160)
+p.add_argument("--phys_float_regs", type=int, default=192)
+p.add_argument("--lq_entries", type=int, default=48)
+p.add_argument("--sq_entries", type=int, default=42)
+p.add_argument("--iq_entries", type=int, default=66)
 # CHAOSReg params (architectural-state; honest about limits)
 p.add_argument("--chaos_reg", action="store_true")
 p.add_argument("--probability", type=float, default=1.0)
@@ -160,8 +175,32 @@ processor = SimpleProcessor(cpu_type=cpu_map[args.cpu], num_cores=1, isa=ISA.ARM
 core0 = processor.get_cores()[0]
 cpu0 = core0.core  # the underlying BaseCPU SimObject
 
+# C2-KP: TaiShan V110 4-wide OoO proxy (plan §4.1, E3 — NOT cycle-exact).
+# Override DerivO3CPU defaults with V110-informed values. Honest: gem5 unified
+# IQ ≠ V110 distributed quad-scheduler; classic cache ≠ partition L3 Tag/Data
+# split; no bufferless NoC. Only applied when --kp920_proxy (else defaults).
+if args.kp920_proxy and args.cpu == "O3":
+    cpu0.numROBEntries = args.rob_entries
+    cpu0.numPhysIntRegs = args.phys_int_regs
+    cpu0.numPhysFloatRegs = args.phys_float_regs
+    cpu0.numPhysVecRegs = args.phys_float_regs  # ASIMD 128b, no SVE
+    cpu0.LQEntries = args.lq_entries
+    cpu0.SQEntries = args.sq_entries
+    # NOTE: numIQEntries is NOT a Python-settable O3 param (gem5's unified IQ
+    # size is ROB-derived, unlike V110's distributed quad-scheduler). The
+    # plan §4.1 numIQEntries=66 is a modeling target, not a knob here.
+    # 4-wide front-end (V110 is 4-issue)
+    cpu0.fetchWidth = 4
+    cpu0.decodeWidth = 4
+    cpu0.renameWidth = 4
+    cpu0.issueWidth = 4
+    cpu0.dispatchWidth = 4
+    cpu0.commitWidth = 4
+
+clk = "2.6GHz" if args.kp920_proxy else args.clk_freq
+
 board = SimpleBoard(
-    clk_freq="2GHz",
+    clk_freq=clk,
     processor=processor,
     memory=memory,
     cache_hierarchy=cache_hierarchy,
