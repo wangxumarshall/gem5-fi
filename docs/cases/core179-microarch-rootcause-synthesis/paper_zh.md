@@ -217,7 +217,7 @@ D1、D2、D3 物理相邻，共置于核 179，且跨启动稳定。它们*可�
 
 ### 4.1 P-D1：结构化数据路径故障（CHAOSLSQFwd 扩展）
 
-现有的 CHAOSLSQFwd 通过 AND/OR/XOR 损坏 store 转发数据的一个字节——一种位翻转模型。D1 征兆（字节通道旋转）**无法用位翻转表达**（§3.2），故我们增加一条结构化轴：`structuralFault ∈ {none, byte_lane_skew, all_zero}`，带 `skewBytes`（1–7，0=随机）。`byte_lane_skew` 模式将交付的字右旋 k 个字节；`all_zero` 交付一个空槽字。钩子仍为 `lsq_unit.cc:1498`（转发后 `memcpy`）。*（诚实范围注：第三种模式 `stale_line_replay`——交付最旧 fill-buffer 条目的*内容*以测 D1 模型"陈旧源"半——已设计（FI_DESIGN_SUPPLEMENT §3.1）但**未实现**；"陈旧源"身份由 §3.2 法证验证，非 H5 仿真。故 H5 演练的是 D1 模型的"字节通道旋转"半，非"陈旧条目"半。）*
+现有的 CHAOSLSQFwd 通过 AND/OR/XOR 损坏 store 转发数据的一个字节——一种位翻转模型。D1 征兆（字节通道旋转）**无法用位翻转表达**（§3.2），故我们增加一条结构化轴：`structuralFault ∈ {none, byte_lane_skew, all_zero}`，带 `skewBytes`（1–7，0=随机）。`byte_lane_skew` 模式将交付的字右旋 k 个字节；`all_zero` 交付一个空槽字。钩子仍为 `lsq_unit.cc:1498`（转发后 `memcpy`）。*（诚实范围注：第三种模式 `stale_line_replay`——交付最旧 fill-buffer 条目的*内容*以测 D1 模型"陈旧源"半——在 FI_DESIGN_SUPPLEMENT §3.1 的 `Param.String` 枚举字符串中提及，但源码枚举（`CHAOSLSQFwd.hh:53-57` `StructuralFault`）仅含 `{None, ByteLaneSkew, AllZero}`——`stale_line_replay` **无实现、亦无源码层设计痕迹**（无注释、无 TODO、无枚举项；构建路径 grep 零命中）。故"已设计但未实现"过强；准确表述是"supplement 的 param 字符串中命名过设计意图，但既未进入源码设计、也未实现"。"陈旧源"身份由 §3.2 法证验证，非 H5 仿真。故 H5 演练的是 D1 模型的"字节通道旋转"半，非"陈旧条目"半。）*
 
 ### 4.2 P-D2：地址路径故障（CHAOSAddrPath，新增）
 
