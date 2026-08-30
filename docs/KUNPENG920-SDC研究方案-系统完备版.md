@@ -263,15 +263,15 @@ clk = "2.6GHz"
 
 > 诚实标注：gem5 统一 IQ ≠ V110 分布式四调度器；classic cache 无分区 L3 Tag/Data 分离；无 bufferless NoC。对应单元节标 E3/E4。
 
-### 4.2 protection-aware 建模层（待实现，S0-3）
+### 4.2 protection-aware 建模层（✅ v1 `a6c5b9c`：classify 九类 + CHAOSCache protectionModel 参数面；.cc ECC 后处理待续）
 
 实现为 CHAOSCache / CHAOSMem / CHAOSArmTLB 的新参数 `protectionModel ∈ {none, sed, secded, secded_poison, parity_interleaved}`，注入后按 §2.3 表决定"可观测归宿"。每个 cell 跑两组：`none`（raw 上界）与 `<代理值>`（protection-aware 逃逸），报告两组并画风险反转图。**不换算产品 FIT**（无 raw device rate）。
 
-> 现状：当前主线注入器**无 protectionModel 参数**。九类分类（含 DetectedContained/Latent/Corrected）是此层落地后的扩展目标（§0.3.4）。
+> 现状：classify_run_pa 九类 + CHAOSCache protectionModel 参数面已实现 `a6c5b9c`（Corrected/DetectedContained/Latent 分流已验证）；CHAOSCache .cc ECC 后处理逻辑（注入后按 model 决定归宿打标签）待续，raw 路径（none）完全可用。
 
 ### 4.3 结果分类与分母（沿用 `tools/classify.py`，六级现状）
 
-**六级互斥优先级**（实读 classify.py:80-127，求值顺序）：
+**六级互斥优先级**（classify_run，实读 classify.py:80-127，求值顺序；**九类扩展 classify_run_pa `a6c5b9c`** 在此基础上按 ECC 标签分流 Corrected/DetectedContained/Latent）：
 
 ```
 SimulatorError > Hang > Crash > Inactive > Masked > SDC
@@ -845,7 +845,7 @@ DSN / PRDC / ASPLOS / HPCA / MICRO；对标 Veritas(HPCA'25)、PinDrop(HPCA'26)�
 
 | 阶段 | 内容 | 依赖 | 工作量 | 现状 |
 |---|---|---|---|---|
-| S0 基础设施 | regen params 干净重建（已完成）+ P0 pilot 复现；campaign.py v1（已完成 `f8aecc7`）；kp920_proxy 配置；manifest v2；protectionModel；已知缺陷修复（附录 D 已完成 D1-D6） | 无 | ~10 补丁 | campaign v1/kp920_proxy 待续；manifest v2/protectionModel 待续 |
+| S0 基础设施 | regen params 干净重建（已完成）+ P0 pilot 复现；campaign.py v1（已完成 `f8aecc7`）；kp920_proxy 配置；manifest v2；protectionModel v1 ✅`a6c5b9c`（.cc 后处理待续）；已知缺陷修复（附录 D 已完成 D1-D6） | 无 | ~10 补丁 | campaign v1/kp920_proxy 待续；manifest v2/protectionModel 待续 |
 | S1 P0 单元 | PRF 扩/F3（✅）；RAT（✅ CHAOSRenameMap `c5c8c96`）/freelist（✅ CHAOSFreeList `379e11c`）；ROB（CHAOSROB 待实现）；LSU 转发扩（D2 ✅+structuralFault 待补+AddrPath ✅ `ffd041e`） | S0 | ~20 补丁 | PRF/RAT/AddrPath 已有；FreeList/ROB/structuralFault 待实现 |
 | S2 P1 单元 | IQ（CHAOSIQ）；FSU（CHAOSFPU）；TLB/SysReg/PTW + FS checkpoint；L3 pairedSector | S1 | ~18 补丁 | ArmTLB/ArmSysReg 已有基础；IQ/FPU/PTW/AddrPath 待实现 |
 | S3 P2/P3 单元 | L1D 字段级+PCE；L2+victim+size sweep；L1I 语义字段；整数 Exec；BPU；内存控制器 | S1 | ~16 补丁 | 全待实现 |
@@ -864,7 +864,7 @@ DSN / PRDC / ASPLOS / HPCA / MICRO；对标 Veritas(HPCA'25)、PinDrop(HPCA'26)�
 
 - **S0-1** 干净重建（本轮已完成：恢复源码-二进制一致）。
 - **S0-2** ~~campaign.py + manifest v2~~ campaign.py v1 ✅ 已实现 `f8aecc7`（manifest v2 待续）。
-- **S0-3** protectionModel 层 + classify 九类扩展（待实现）。
+- **S0-3** ~~protectionModel 层 + classify 九类扩展~~ classify 九类 + CHAOSCache protectionModel 参数面 ✅ `a6c5b9c`；.cc ECC 后处理待续。
 - **S0-4** 已知缺陷修复（附录 D，D1–D6 已完成 `0ae28fe`/`56023c3`/`58be899`/`4ed645b`）：CHAOSArmTLB 时间窗（D1 ✅）、CHAOSLSQFwd 64 位掩码（D2 ✅）、CHAOSMem 永久重放（D3 ✅）、CHAOSArmSysReg 时间窗（D4 ✅）、概率比较统一（D5 ✅）、NULL 宿主 warn（D6 ✅）、mask==0 早退（D7 Cache/ArmTLB/ArmSysReg/PhysReg 已有）。D9（G6 广触发）、D10（G7 sanitizer）deferred。
 - **S1-1** CHAOSPhysReg F3+semanticRole（✅ `7f538c4`）；**S1-2** CHAOSRenameMap（✅ `c5c8c96`）；**S1-3** CHAOSFreeList（✅ `379e11c`）；**S1-4** CHAOSROB（待实现）；**S1-5** CHAOSLSQFwd 扩展（D2 ✅+structuralFault 待补+stale_line_replay+fwd_source_sub）；**S1-5b** CHAOSAddrPath（✅ `ffd041e`）。
 - **S2-1** CHAOSIQ；**S2-3** CHAOSFPU；**S2-5a** CHAOSArmSysReg 扩展（F5+D4）；**S2-5b** CHAOSArmTLB F5+targetField；**S2-5c** CHAOSPTW ✅ `de48432`（侧分支→主线，FS clearValidBit 验证）；H7 formal 待续。
@@ -1060,7 +1060,7 @@ assert:
 S0-00-复验卡          | depends=[]          | agent | done    | 附录 A"已有"7项逐项复验通过（本轮已完成）
 S0-01-干净重建        | depends=[]          | agent | done    | 源码-二进制一致，vecLaneWidth 可用（本轮已完成）
 S0-02-campaign+manifestv2 | depends=[]      | agent | done(v1)| campaign.py v1 已实现 f8aecc7（1×1 验证 SDC=1/1）；manifest v2 待续
-S0-03-protectionModel | depends=[S0-02]     | agent | pending | 9 类分类 + protection 参数
+S0-03-protectionModel | depends=[S0-02]     | agent | done(v1)| classify 九类 + CHAOSCache protectionModel 参数面 a6c5b9c；.cc ECC 后处理待续
 S0-04-已知缺陷修复    | depends=[S0-01]     | agent | done    | D1/D2/D3/D4/D5/D6 已修（0ae28fe/56023c3/58be899/4ed645b）；D7 部分已有；D9/D10 deferred
 S1-01-CHAOSPhysReg扩展| depends=[S0-04]     | agent | done    | F3 triggerValue* + semanticRole（7f538c4，已验证 MISS 1.3e8 跳过）
 S1-02-CHAOSRenameMap  | depends=[S0-04]     | agent | done    | 已实现 c5c8c96（f5_substitute+map_bitflip+f4_field_stuck，三模式验证+合法域校验）
