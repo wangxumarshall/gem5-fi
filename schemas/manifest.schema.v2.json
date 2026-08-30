@@ -1,0 +1,86 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "arm-chaos-fi/v2 fault-injection manifest (plan §4.5)",
+  "description": "Per-run manifest v2: extends v1 with full-unit target.component enum, sub_field/semantic_role, F5/F6/PCE/protection_model fault fields, and dynamic_context (post-run instrumentation). One manifest == one deterministic fault (max_faults=1). v1 manifests validate unchanged (back-compat).",
+  "type": "object",
+  "required": ["schema_version","run_id","source","platform","workload","trigger","target","fault","rng","limits"],
+  "properties": {
+    "schema_version": {"type":"string", "enum":["arm-chaos-fi/v1","arm-chaos-fi/v2"]},
+    "campaign_id": {"type":"string"},
+    "run_id": {"type":"string"},
+    "source": {"type":"object","required":["chaos_commit","gem5_commit"],"properties":{
+      "chaos_commit": {"type":"string"},
+      "gem5_commit": {"type":"string"},
+      "patchset_sha256": {"type":"string"}
+    }},
+    "platform": {"type":"object","required":["isa","mode","cpu_model","config_family"],"properties":{
+      "isa": {"type":"string","const":"ARM64"},
+      "mode": {"type":"string","enum":["SE","FS"]},
+      "cpu_model": {"type":"string"},
+      "config_family": {"type":"string","enum":["C0","C1","C2","C2-KP"]},
+      "gem5_opt_path": {"type":"string","description":"optional override of the gem5.opt path"}
+    }},
+    "workload": {"type":"object","required":["binary_sha256"], "properties":{
+      "binary_sha256": {"type":"string"},
+      "input_sha256": {"type":"string"},
+      "roi": {"type":"object","properties":{"begin_symbol":{"type":"string"},"end_symbol":{"type":"string"}}}
+    }},
+    "trigger": {"type":"object","required":["mode","value"],"properties":{
+      "mode": {"type":"string","enum":["tick","cycle","pc","committedInst","event"]},
+      "value": {"type":"integer","minimum":0}
+    }},
+    "target": {"type":"object","required":["layer","component","instance"],"properties":{
+      "layer": {"type":"string","enum":["architectural","physical"]},
+      "component": {"type":"string","enum":[
+        "gpr","physreg","rat","freelist","rob","iq","exec","fsu",
+        "lsq_fwd","l1d_fwd","l1_tlb","l2_tlb","sysreg","ptw",
+        "l1i","l1d","l2","l3","noc","coherence","memctrl","bpu","decode"
+      ]},
+      "instance": {"type":"string"},
+      "index": {"type":"integer"},
+      "sub_field": {"type":"string","description":"pfn/ap/asid (TLB); src_ready/dst_tag (IQ); map_entry/free_bit (RAT/freelist)"},
+      "semantic_role": {"type":"string","description":"ABI role: arg_return/temp/callee_saved/fp_lr/pointer (campaign heatmap stratification)"},
+      "field": {"type":"string"},
+      "width_bits": {"type":"integer"}
+    }},
+    "fault": {"type":"object","required":["model","duration_events","stage"],"properties":{
+      "model": {"type":"string","enum":[
+        "transient_bit_flip","local_mbu","intermittent_burst",
+        "stuck_at_zero","stuck_at_one","stuck_at_random",
+        "legal_domain_sub","delay_omission","post_check_escape"
+      ]},
+      "bit_indices": {"type":"array","items":{"type":"integer"}},
+      "duration_events": {"type":"integer","minimum":1},
+      "stage": {"type":"string","enum":["raw_pre_protection","post_check_escape","metadata_or_checker","no_protection_model"]},
+      "f5_substitute_target": {"type":"integer","description":"F5 legal-domain substitute: target physReg/entry index the fault swaps TO (RAT/freelist/LSQ-fwd-source/TLB-pfn)"},
+      "f6_phase_offset": {"type":"integer","description":"F6 phase offset in cycles (IQ wake / LSQ forward; -2..+2), reproduces method3 timing-phase race"},
+      "trigger_value_pattern": {"type":"integer","description":"F3 data-dependent trigger: inject only when (target_val & trigger_value_mask) == this"},
+      "trigger_value_mask": {"type":"integer","description":"F3 trigger mask (0 = F3 disabled, unconditional)"},
+      "protection_model": {"type":"string","enum":["none","sed","secded","secded_poison","parity_interleaved"],"description":"S0-3 ECC model (§2.3 N1 TRM proxy); drives classify_run_pa nine-class"}
+    }},
+    "rng": {"type":"object","required":["master_seed","selection_seed"],"properties":{
+      "master_seed": {"type":"integer"},
+      "selection_seed": {"type":"integer"}
+    }},
+    "limits": {"type":"object","required":["max_faults"],"properties":{
+      "max_faults": {"type":"integer","minimum":0,"maximum":1},
+      "max_ticks": {"type":"integer"}
+    }},
+    "oracle": {"type":"object","properties":{
+      "kind": {"type":"string","enum":["exact_hash","invariant","allowed_set","fail_count"]},
+      "golden_id": {"type":"string"}
+    }},
+    "dynamic_context": {"type":"object","description":"Post-run instrumentation (read from injector logs/stats, NOT set by user). Captures the run-time state at injection for cross-cell analysis.",
+      "properties":{
+        "mapped_phys_reg": {"type":"integer"},
+        "freelist_size": {"type":"integer"},
+        "reads_before_overwrite": {"type":"integer"},
+        "overwritten_at_cycle": {"type":"integer"},
+        "cache_residency": {"type":"boolean"},
+        "lsq_source_seq": {"type":"integer"},
+        "tlb_asid": {"type":"integer"},
+        "committed_inst_at_inject": {"type":"integer"}
+      }
+    }
+  }
+}
