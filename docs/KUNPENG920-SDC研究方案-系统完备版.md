@@ -39,7 +39,7 @@
 | **CHAOSPhysReg** | O3 物理寄存器堆 int/fp/vector | `regfile.hh` 读/写+setStuckTarget；`cpu.hh:478-489` accessor | B（状态注入） | `injectionMode{phys,arch_frontend,arch_commit}`、`regTargetClass{int,fp,vector,both}`、`vecLaneWidth/Offset`、64位 faultMask、write-path stuck（G2） |
 | **CHAOSCache** | classic cache 数据字节 | 事件驱动 `getTags()`（G3 安全接口） | C（`_pre_instantiate`） | 64位 faultMask、`targetBlockAddr/targetByteOffset` 定向、maxFaults（G5）、≥1cycle 间隔（G6） |
 | **CHAOSMem** | AbstractMemory 后备存储字节 | `AbstractMemory::access` Packet RMW | C | 闭区间 `[start,end]`（G4）、故障类型权重修复、64位 |
-| **CHAOSLSQFwd** | store→load 转发数据 | `lsq_unit.cc:1493-1499`（`cpu->lsqFwd`） | A（自挂载） | ✅ D2 已修 `0ae28fe`（faultMask UInt64 + maskWidth 多字节，bit32/63 可注入）；仅 bit_flip/stuck_at_zero/stuck_at_one；**无 structuralFault/byte_lane_skew/stale_line_replay（已从主线回退，待补齐）** |
+| **CHAOSLSQFwd** | store→load 转发数据 | `lsq_unit.cc:1493-1499`（`cpu->lsqFwd`） | A（自挂载） | ✅ D2 已修 `0ae28fe` + structuralFault 已补齐 `8320daf`（byte_lane_skew/all_zero 复现 core179 D1）；stale_line_replay/fwd_source_sub/phaseOffset 待写 |
 | **CHAOSArmTLB** | ARM D-TLB 命中表项 pfn | `arch/arm/tlb.cc:164-168`（`tlb->chaosTLB`） | A（自挂载，FS） | bit_flip/stuck_at_zero/stuck_at_one；**无 targetField/protectionModel/pfn_to_mapped/value_to_legal（待扩展）** |
 | **CHAOSArmSysReg** | ARM 系统寄存器 MRS 读值 | `arch/arm/isa.cc:39,452-457` + `isa.hh:179-180`（`isa->chaosSysReg`） | A（自挂载，FS） | bit_flip/stuck_at_zero/stuck_at_one/random；`targetRegs` 白名单（按 miscRegName 解析）；**无 value_to_legal(F5)（待扩展）** |
 
@@ -394,7 +394,7 @@ pilot 每 cell n=100（可达率/工具错误/粗略比例）；formal 每 cell 
 **A. 目标与 hook**：store buffer 数据、转发 CAM 匹配、转发源 seqNum、部分重叠拼接、AGU 有效地址、ready/replay、独占监视器。Hook `lsq_unit.cc:1493-1499` 转发数据（已有，已核实）、转发匹配决策点（新增）、AGU 地址生成（FS，待 CHAOSAddrPath）。
 
 **B. 注入器**：
-- `CHAOSLSQFwd`（已有，基础版）**需扩展**：① ~~修 D2~~ ✅ 已修 `0ae28fe`（faultMask UInt64 + maskWidth 多字节，bit32/63 可注入）；② **补回退的 `structuralFault` 模式**（`byte_lane_skew`/`all_zero`，侧分支曾实现 H5 闭环，主线已回退，需补齐——这是复现 core179 D1 签名的关键）；③ `stale_line_replay`（FI_DESIGN_SUPPLEMENT 有设计，代码未实现）；④ F5 `fwd_source_sub`（待写）；⑤ F6 `phaseOffset`（待写，−2..+2）。
+- `CHAOSLSQFwd`（已有，基础版）**需扩展**：① ~~修 D2~~ ✅ 已修 `0ae28fe`（faultMask UInt64 + maskWidth 多字节，bit32/63 可注入）；② ✅ `structuralFault` 模式已补齐 `8320daf`（`byte_lane_skew`/`all_zero`，复现 core179 D1 rol1/空槽签名，已验证）；③ `stale_line_replay`（FI_DESIGN_SUPPLEMENT 有设计，代码未实现）；④ F5 `fwd_source_sub`（待写）；⑤ F6 `phaseOffset`（待写，−2..+2）。
 - `CHAOSAddrPath`（✅ 已实现 `ffd041e`，从侧分支移植 + 主线纪律强化）：hook `lsq.cc sendFragmentToTranslation` 翻译前破坏 vaddr（byte7 清零复现 core179 D2；低位翻转/F5 换址待扩）。**SE 无效（mmu.cc:1213 静态归因），FS O3 有效**（Atomic 不触发，需 checkpoint 后切 O3）。
 - `CHAOSExMon`（待写）：hook 独占监视器 FSM，open↔exclusive 翻转。
 
@@ -404,11 +404,11 @@ pilot 每 cell n=100（可达率/工具错误/粗略比例）；formal 每 cell 
 
 **E. 指标**（与现场对照最密集）：位谱（尾数/符号/popcount vs method3 的 85–93%/0–1/中位 3~28）；相位敏感性曲线（复现塌方）；method3 三必要条件复现（去 store 推进/同 LLC 域/跨 cache line 任一 → 归零）；method1 复现（F5 fwd_source_sub 损坏固定在结果向量首元素）；AGU byte7 的 FAR MSB=0x00 占比。
 
-**F. 边界**：转发 E2；结构化 E2（侧分支 H5 闭环，主线待补齐）；AGU/PTW E2（FS 已证非零，侧分支）；F6 相位 E3（gem5 发射时序 ≠ V110）。
+**F. 边界**：转发 E2；结构化 E2（✅ 主线 `8320daf` 已补齐 + rol1/空槽签名验证）；AGU/PTW E2（FS 已证非零，侧分支）；F6 相位 E3（gem5 发射时序 ≠ V110）。
 
-**G. 工作量**：CHAOSLSQFwd 扩展（D2 修复 + structuralFault 补齐 + stale_line_replay + fwd_source_sub + phaseOffset）约 5 补丁 + CHAOSAddrPath 实现 2 补丁 + CHAOSExMon 2 补丁 + method3 7 类 kernel 约 3 补丁。
+**G. 工作量**：CHAOSLSQFwd 扩展（D2 ✅ + structuralFault ✅ `8320daf` + stale_line_replay 待补 + fwd_source_sub 待写 + phaseOffset 待写） + CHAOSAddrPath 实现 2 补丁 + CHAOSExMon 2 补丁 + method3 7 类 kernel 约 3 补丁。
 
-**H. 验收断言**：① `fp_fwd_kernel` golden 20 次重放一致；② 64 位 mask 高 32 位翻转产生非零高位字节注入计数（D2 修复后）；③ F5 `fwd_source_sub` 仅指向当前转发表源（≥1000 注入 `SimulatorError`=0）；④ method3 三必要条件对照 cell 各 ≥1 非 Inactive；⑤ `byte_lane_skew rot1` 复现 core179 撕裂移位签名（H5，侧分支 93% 检出，主线补齐后复现）；⑥ AGU byte7 清零 FS 下 `numAddrFaults>0` 且 FAR MSB=0x00 占比非空（H6，侧分支已证钩子触发，主线待实现）。
+**H. 验收断言**：① `fp_fwd_kernel` golden 20 次重放一致；② 64 位 mask 高 32 位翻转产生非零高位字节注入计数（D2 修复后）；③ F5 `fwd_source_sub` 仅指向当前转发表源（≥1000 注入 `SimulatorError`=0）；④ method3 三必要条件对照 cell 各 ≥1 非 Inactive；⑤ `byte_lane_skew rot1` 复现 core179 撕裂移位签名（H5，侧分支 93%；主线 `8320daf` 已就位——rol1 SDC xor 多位散布已验证）；⑥ AGU byte7 清零 FS 下 `numAddrFaults>0` 且 FAR MSB=0x00 占比非空（H6，侧分支已证钩子触发，主线待实现）。
 
 ### 5.5 发射队列 IQ（P1，待实现 CHAOSIQ）
 
@@ -542,7 +542,7 @@ pilot 每 cell n=100（可达率/工具错误/粗略比例）；formal 每 cell 
 | H2 | 深窗口（ROB/PRF 容量大）→ 驻留长 → SDC 高，`d(P_SDC)/d(window)>0` | 预登记 |
 | H3 | RAT 错与 PRF 错走同一传播路径（F5 替换 vs 位翻转的 read-trace 一致） | 预登记（待 CHAOSRenameMap） |
 | H4 | 长驻留缓存（大 L2）→ 传播概率升高 | 预登记 |
-| H5 | 字节相位（byte_lane_skew rol1/rol6）复现 core179 D1 撕裂移位签名 | ⚠️ **侧分支闭环**（fi-h6-h7-fs-verify，ptrskew_kernel 30 注入→28 PTR_CORRUPT 93%）；**主线 CHAOSLSQFwd 已回退无 structuralFault，不可复现**，需补齐后主线复现 |
+| H5 | 字节相位（byte_lane_skew rol1/rol6）复现 core179 D1 撕裂移位签名 | ✅ **主线 structuralFault 已补齐 `8320daf`**（byte_lane_skew rol1 SDC xor 多位散布已验证）；侧分支闭环 93%；formal ptrskew_kernel 复现待跑 |
 | H6 | AGU byte7 清零 → 规范内核地址非规范化 → 翻译故障（FS 才有效） | ⚠️ **侧分支**：FS 下钩子触发非零、复现 byte7 清零签名（`0xffffffc008b08f30→0xffffc008b08f30`），但 D2-only 50 注入→0 可观察失败，**定量谱可分未确立**；**主线无 CHAOSAddrPath** |
 | H7 | PTW ECC on → spurious≈0 / off → spurious>0 | ⚠️ **侧分支**：SE 模式 numFaultsInjected=0（mmu.cc:1213 静态归因）；FS 内核态 ECC 纠正（40→0）+ spurious 制造（clearValidBit 40→40）两机制各实证，**未在同一实验结合，完整 ECC on/off spurious 率定量未完成**；**主线无 CHAOSPTW** |
 | H8 | 逃逸集合分解（机理 A–F 归因） | 待 formal |
@@ -929,7 +929,7 @@ DSN / PRDC / ASPLOS / HPCA / MICRO；对标 Veritas(HPCA'25)、PinDrop(HPCA'26)�
 | **CHAOSAddrPath** | ✅ 已实现 `ffd041e`（从侧分支移植+主线纪律） | `lsq.cc` sendFragmentToTranslation 前 | ~~S1-5b~~ done | `origin/fi-h6-h7-fs-verify`（H6，已并入主线） |
 | **CHAOSPTW** | **待实现（侧分支有）** | `arch/arm/table_walker.cc doLongDescriptor` | S2-5c | `origin/fi-h6-h7-fs-verify`（H7） |
 
-另有扩展模式：CHAOSMem `addr_map_sub`/`ecc_logic_fault`、CHAOSCache `targetField` 字段级 + `protectionModel`、CHAOSArmTLB `pfn_to_mapped`/`targetField`/`protectionModel`、CHAOSArmSysReg `value_to_legal`、CHAOSLSQFwd `structuralFault`/`stale_line_replay`/`fwd_source_sub`/`phaseOffset` + D2 修复、CHAOSDecode（低优先级）、CHAOSRAS、CHAOSCHI/CHAOSNoC/CHAOSHCCS（S4）。
+另有扩展模式：CHAOSMem `addr_map_sub`/`ecc_logic_fault`、CHAOSCache `targetField`+`protectionModel`、CHAOSArmTLB `pfn_to_mapped`/`targetField`/`protectionModel`、CHAOSArmSysReg `value_to_legal`、CHAOSLSQFwd ✅`structuralFault`(`8320daf`)/`stale_line_replay`/`fwd_source_sub`/`phaseOffset` + D2 ✅、CHAOSDecode（低优先级）、CHAOSRAS、CHAOSCHI/CHAOSNoC/CHAOSHCCS（S4）。
 
 ### A.3 宿主访问器（零新增所需，已核实）
 
@@ -1064,7 +1064,7 @@ S1-01-CHAOSPhysReg扩展| depends=[S0-04]     | agent | done    | F3 triggerValu
 S1-02-CHAOSRenameMap  | depends=[S0-04]     | agent | done    | 已实现 c5c8c96（f5_substitute+map_bitflip+f4_field_stuck，三模式验证+合法域校验）
 S1-03-CHAOSFreeList   | depends=[S0-04]     | agent | done    | 已实现 379e11c（mark_free/pop_wrong+扫RAT+合法域，验证 PhysReg[170] donor）
 S1-04-CHAOSROB        | depends=[S0-04]     | agent | pending | entry_bitflip/exc_suppress/spec_leak
-S1-05-CHAOSLSQFwd扩展 | depends=[S0-04]    | agent | pending | D2 修复 + structuralFault 补齐 + stale_line_replay + fwd_source_sub + phaseOffset
+S1-05-CHAOSLSQFwd扩展 | depends=[S0-04]    | agent | done(部分)| D2 ✅ + structuralFault ✅ 8320daf（rol1/空槽验证）；stale_line_replay/fwd_source_sub/phaseOffset 待续
 S1-05b-CHAOSAddrPath  | depends=[S0-04]     | agent | done    | 已实现 ffd041e（侧分支移植+主线纪律；FS O3 端到端待 checkpoint）
 S2-05a-CHAOSArmSysReg扩展| depends=[S1-02]  | agent | pending | value_to_legal(F5) + D4 时间窗
 S2-05c-CHAOSPTW       | depends=[S1-05b]   | agent | pending | cherry-pick 侧分支（H7）+ ptwEcc + formal
