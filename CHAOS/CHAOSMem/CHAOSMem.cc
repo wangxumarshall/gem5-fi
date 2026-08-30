@@ -134,7 +134,12 @@ namespace gem5 {
       ADD_STAT(numStuckAtOne, statistics::units::Count::get(),
                "Number of stuck-at-1 faults injected"),
       ADD_STAT(numPermanentFaults, statistics::units::Count::get(),
-               "Total number of permanent faults injected")
+               "Total number of permanent faults injected"),
+      ADD_STAT(numPermanentReapplies, statistics::units::Count::get(),
+               "Permanent-fault re-applies by checkPermanent (D3: >1 proves "
+               "stuck persists across check periods, was 1 before fix)"),
+      ADD_STAT(numPermanentChecks, statistics::units::Count::get(),
+               "checkPermanent invocations (D3)")
     {
     }
 
@@ -301,6 +306,7 @@ namespace gem5 {
 
     void CHAOSMem::checkPermanent()
     {
+        if (stats) stats->numPermanentChecks++;
         for (auto &entry : permanent_faults) {
             if (!entry.second.update)
                 continue;
@@ -331,7 +337,14 @@ namespace gem5 {
                 write_pkt->dataStatic(&data);
 
                 memory->access(write_pkt);
-                entry.second.update = false;
+                if (stats) stats->numPermanentReapplies++;
+                // D3 fix: do NOT set update=false here. The previous code
+                // disabled re-injection after the FIRST checkPermanent pass,
+                // so a stuck-at fault vanished if a later write overwrote the
+                // target byte between checks — violating G2 (stuck persists
+                // across overwrites, same as CHAOSPhysReg's write-path
+                // setStuckTarget). checkPermanent reschedules itself, so
+                // leaving update=true re-applies the mask every period.
 
                 delete read_pkt;
                 delete write_pkt;

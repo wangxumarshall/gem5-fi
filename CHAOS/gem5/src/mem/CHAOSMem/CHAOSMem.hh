@@ -79,7 +79,9 @@ namespace gem5 {
         statistics::Scalar numStuckAtZero;
         statistics::Scalar numStuckAtOne;
         statistics::Scalar numPermanentFaults;
-        
+        statistics::Scalar numPermanentReapplies;  // D3: re-applies per checkPermanent
+        statistics::Scalar numPermanentChecks;    // D3: checkPermanent invocations
+
         CHAOSMemStats(statistics::Group *parent);
       };
 
