@@ -120,7 +120,7 @@
 
 ### 2.1 TaiShan V110 微架构
 
-Kunpeng-920 集成了 TaiShan V110（TSV110）核心：一款 4 发射的乱序 ARMv8.2-A 设计，配备 64 KB 4 路 L1D（256 组，64 B 行，**每周期 2×128 位端口**）、512 KB 私有 L2，以及按每 4 核集群分区的 64 MB 共享 L3。LSU 拥有 2 个 AGU；store-to-load 转发延迟为 6–7 周期（跨 16 B 边界再 +1–2 周期）。*（来源保留：这些微架构参数取自社区维护摘要 `docs/cpu/kunpeng.md`，非厂商 datasheet——HiSilicon 未公开 TSV110 RTL/datasheet。故 MICROARCH_SUPPLEMENT §2.1 的组相联几何裁决（set 87 vs 105，排除 L1D 阵列作为 D1 源）**条件依赖**该几何正确；若厂商披露不同路数/索引位切片，"D1 是 fill-buffer 非 L1D 阵列"的排除须重评。此为条件论证非既定。）* 厂商文档记载 L1/L2 具备 ECC 与"企业级 RAS"，但未披露 ECC 检查器相对于 fill-buffer 合并与输出多路复用器的覆盖阶段——这一空缺我们在 §6 再予讨论。
+Kunpeng-920 集成了 TaiShan V110（TSV110）核心：一款 4 发射的乱序 ARMv8.2-A 设计，配备 64 KB 4 路 L1D（256 组，64 B 行，**每周期 2×128 位端口**）、512 KB 私有 L2，以及按每 4 核集群分区的 64 MB 共享 L3。LSU 拥有 2 个 AGU；store-to-load 转发延迟为 6–7 周期（跨 16 B 边界再 +1–2 周期）。*（来源保留：这些微架构参数取自社区维护摘要 `docs/cpu/kunpeng.md`，非厂商 datasheet——HiSilicon 未公开 TSV110 RTL/datasheet。故 MICROARCH_SUPPLEMENT §2.1 的组相联几何裁决（set 87 vs 105，排除 L1D 阵列作为 D1 源）**条件依赖**该几何正确；若厂商披露不同路数/索引位切片，"D1 是 fill-buffer 非 L1D 阵列"的排除须重评。此为条件论证非既定。）* **关键是：几何裁决只影响 D1 的*物理落点*（fill-buffer vs. L1D 阵列），不触及 §3.2 的承重签名证据——ror1 汉明 0 匹配、30/26-bit XOR 上界、位翻转穷举无命中均独立于缓存几何，无论厂商披露何种路数都成立。故即便几何有误、D1 实位于 L1D 阵列而非 fill-buffer 合并级，D1 签名与"位翻转不可达"亦不受影响；唯有 DFT 目标（§6 #1）的落点会变。* 厂商文档记载 L1/L2 具备 ECC 与"企业级 RAS"，但未披露 ECC 检查器相对于 fill-buffer 合并与输出多路复用器的覆盖阶段——这一空缺我们在 §6 再予讨论。
 
 ### 2.2 ARMv8 翻译错误语义
 
