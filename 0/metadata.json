@@ -1,0 +1,99 @@
+{
+  "cli_version": "0.10.2",
+  "checkpoint_id": "01M19N5RFCGHH0F2KX2DCCCETE",
+  "session_id": "31150d26-73e6-4b08-9f6f-c64cac6d1f3c",
+  "strategy": "manual-commit",
+  "created_at": "2026-08-30T15:39:01.28111015Z",
+  "branch": "fi-wangxu",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "configs/se/arm_chaos.py"
+  ],
+  "agent": "Claude Code",
+  "model": "GLM-5.2[1m]",
+  "turn_id": "5333c9156921",
+  "checkpoint_transcript_start": 3250,
+  "transcript_lines_at_start": 3250,
+  "compact_transcript_start": 562,
+  "token_usage": {
+    "input_tokens": 444402,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 10692224,
+    "output_tokens": 7396,
+    "api_call_count": 25
+  },
+  "skill_events_version": 1,
+  "skill_events": [
+    {
+      "id": "prompt-skill-claude-code-goal-2026-08-30T03:09:15.58006334Z",
+      "event_type": "prompt_invocation",
+      "skill": {
+        "name": "goal"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "prompt_slash_command",
+        "confidence": "explicit"
+      },
+      "turn_id": "155d87c66207",
+      "timestamp": "2026-08-30T03:09:15.58006334Z",
+      "native": {
+        "command": "/goal"
+      },
+      "collapse": {
+        "target": "user_message",
+        "label": "/goal",
+        "default_collapsed": true
+      }
+    },
+    {
+      "id": "prompt-skill-claude-code-goal-2026-08-30T05:50:44.64909965Z",
+      "event_type": "prompt_invocation",
+      "skill": {
+        "name": "goal"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "prompt_slash_command",
+        "confidence": "explicit"
+      },
+      "turn_id": "f5376569a116",
+      "timestamp": "2026-08-30T05:50:44.64909965Z",
+      "native": {
+        "command": "/goal"
+      },
+      "collapse": {
+        "target": "user_message",
+        "label": "/goal",
+        "default_collapsed": true
+      }
+    }
+  ],
+  "session_metrics": {
+    "turn_count": 5
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-08-30T15:39:00.65399107Z",
+    "agent_lines": 40,
+    "agent_removed": 1,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 40,
+    "total_lines_changed": 41,
+    "agent_percentage": 100,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 1070,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        "docs/KUNPENG920-的SDC故障的微架构故障注入和规律研究的详细方案设计和需求开发实现文档.md": 1070
+      }
+    }
+  ]
+}
