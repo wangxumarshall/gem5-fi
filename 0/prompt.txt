@@ -1,0 +1,5 @@
+/academic-research-skills:academic-paper-reviewer 研究项目源码，批判性研究 @docs/cases/core179-microarch-rootcause-synthesis/paper_en.md 和 paper_zh.md，并制定改进方案
+
+---
+
+好
