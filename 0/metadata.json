@@ -1,0 +1,70 @@
+{
+  "cli_version": "0.10.2",
+  "checkpoint_id": "01M181ZM312SVWK7WH052HBWT0",
+  "session_id": "a443fb85-ff42-4e2d-a816-69ceb208dbd3",
+  "strategy": "manual-commit",
+  "created_at": "2026-08-30T00:44:20.71959454Z",
+  "branch": "fix/paper-review-v1-honesty-hardening",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "docs/cases/core179-microarch-rootcause-synthesis/IMPROVEMENT_PLAN_v2.md",
+    "docs/cases/core179-microarch-rootcause-synthesis/REVIEW_v2.md"
+  ],
+  "agent": "Claude Code",
+  "model": "glm-5.2",
+  "turn_id": "a88be58cb52d",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 122102,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 1847552,
+    "output_tokens": 27274,
+    "api_call_count": 21
+  },
+  "skill_events_version": 1,
+  "skill_events": [
+    {
+      "id": "prompt-skill-claude-code-academic-research-skills:academic-paper-reviewer-2026-08-30T00:26:00.42691558Z",
+      "event_type": "prompt_invocation",
+      "skill": {
+        "name": "academic-research-skills:academic-paper-reviewer"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "prompt_slash_command",
+        "confidence": "explicit"
+      },
+      "turn_id": "a88be58cb52d",
+      "timestamp": "2026-08-30T00:26:00.42691558Z",
+      "native": {
+        "command": "/academic-research-skills:academic-paper-reviewer"
+      },
+      "collapse": {
+        "target": "user_message",
+        "label": "/academic-research-skills:academic-paper-reviewer",
+        "default_collapsed": true
+      }
+    }
+  ],
+  "initial_attribution": {
+    "calculated_at": "2026-08-30T00:44:20.58527151Z",
+    "agent_lines": 240,
+    "agent_removed": 0,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 240,
+    "total_lines_changed": 240,
+    "agent_percentage": 100,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    }
+  ]
+}
