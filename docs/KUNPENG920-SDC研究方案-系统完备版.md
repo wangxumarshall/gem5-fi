@@ -240,10 +240,10 @@ SDC 暴露面(unit) ≈ 未受保护状态位数 × (占用率 × 平均驻留�
 | 配置族 | 用途 | 关键参数 | 结论标签 | 现状 |
 |---|---|---|---|---|
 | C0 方法学基线 | 注入器正确性、G0–G7 复检 | `arm_chaos.py` 默认（O3, SE, classic cache, 64B） | "ARM64-gem5 baseline"，E2 | ✅ 已存在并验证 |
-| C2-KP 鲲鹏处理器代理 | 逐单元 SDC 量化 | `kp920_proxy.py` 参数块（见下） | "Kunpeng-informed proxy"，E3 | ❌ 待写（configs/se/kp920_proxy.py 不存在） |
+| C2-KP 鲲鹏处理器代理 | 逐单元 SDC 量化 | `--kp920_proxy` 开关（arm_chaos.py） | "Kunpeng-informed proxy"，E3 | ✅ 已实现 `1564328`（V110 ROB128/PRF160/192/LQ48/SQ42/4-wide/2.6GHz；numIQEntries 非 Python 可设注释） |
 | C1 ARM64 架构 | ARM vs x86 同语义配对 | `x86_chaos.py` 镜像 C2-KP | "controlled cross-ISA"，E2 | ✅ x86_chaos.py 已存在 |
 
-**C2-KP 的 O3 参数**（待写入 `configs/se/kp920_proxy.py` 与 `configs/fs/kp920_proxy_fs.py`）：
+**C2-KP 的 O3 参数**（✅ 已实现 `1564328` 为 arm_chaos.py 的 `--kp920_proxy` 开关；`configs/fs/kp920_proxy_fs.py` 待写）：
 
 ```python
 # TaiShan V110 4-wide OoO 代理（E3，非周期精确）
@@ -845,7 +845,7 @@ DSN / PRDC / ASPLOS / HPCA / MICRO；对标 Veritas(HPCA'25)、PinDrop(HPCA'26)�
 
 | 阶段 | 内容 | 依赖 | 工作量 | 现状 |
 |---|---|---|---|---|
-| S0 基础设施 | regen params 干净重建（已完成）+ P0 pilot 复现；campaign.py v1（已完成 `f8aecc7`）；kp920_proxy 配置；manifest v2；protectionModel v1 ✅`a6c5b9c`（.cc 后处理待续）；已知缺陷修复（附录 D 已完成 D1-D6） | 无 | ~10 补丁 | campaign v1/kp920_proxy 待续；manifest v2/protectionModel 待续 |
+| S0 基础设施 | regen params 干净重建（已完成）+ P0 pilot 复现；campaign.py v1（已完成 `f8aecc7`）；kp920_proxy ✅`1564328`；manifest v2；protectionModel v1 ✅`a6c5b9c`（.cc 后处理待续）；已知缺陷修复（附录 D 已完成 D1-D6） | 无 | ~10 补丁 | campaign v1/kp920_proxy 待续；manifest v2/protectionModel 待续 |
 | S1 P0 单元 | PRF 扩/F3（✅）；RAT（✅ CHAOSRenameMap `c5c8c96`）/freelist（✅ CHAOSFreeList `379e11c`）；ROB（CHAOSROB 待实现）；LSU 转发扩（D2 ✅+structuralFault 待补+AddrPath ✅ `ffd041e`） | S0 | ~20 补丁 | PRF/RAT/AddrPath 已有；FreeList/ROB/structuralFault 待实现 |
 | S2 P1 单元 | IQ（CHAOSIQ）；FSU（CHAOSFPU）；TLB/SysReg/PTW + FS checkpoint；L3 pairedSector | S1 | ~18 补丁 | ArmTLB/ArmSysReg 已有基础；IQ/FPU/PTW/AddrPath 待实现 |
 | S3 P2/P3 单元 | L1D 字段级+PCE；L2+victim+size sweep；L1I 语义字段；整数 Exec；BPU；内存控制器 | S1 | ~16 补丁 | 全待实现 |
