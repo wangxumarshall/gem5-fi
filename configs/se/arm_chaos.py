@@ -17,7 +17,7 @@
 
 import argparse
 import m5
-from m5.objects import CHAOSReg, CHAOSPhysReg, CHAOSMem, CHAOSLSQFwd, CHAOSAddrPath
+from m5.objects import CHAOSReg, CHAOSPhysReg, CHAOSMem, CHAOSLSQFwd, CHAOSAddrPath, CHAOSRenameMap
 from gem5.components.boards.simple_board import SimpleBoard
 from gem5.components.cachehierarchies.classic.private_l1_private_l2_cache_hierarchy import (
     PrivateL1PrivateL2CacheHierarchy,
@@ -116,6 +116,19 @@ p.add_argument("--addrpath_probability", type=float, default=0.0,
 p.add_argument("--addrpath_byte_offset", type=int, default=7,
                help="Which addr byte to zero (7=MSB bits56..63, reproduces "
                     "core179 D2; -1=random 0..7). FS required for fault.")
+# S1-2 CHAOSRenameMap (RAT): method1 history residue F5 substitute.
+p.add_argument("--chaos_rat", action="store_true",
+               help="attach CHAOSRenameMap (RAT F5-substitute / map_bitflip / "
+                    "f4_field_stuck; reproduces method1 history residue).")
+p.add_argument("--rat_mode", default="f5_substitute",
+               choices=["map_bitflip","f5_substitute","f4_field_stuck"],
+               help="CHAOSRenameMap fault mode.")
+p.add_argument("--rat_target_arch", type=int, default=-1,
+               help="Target arch reg index (-1=random; method1=callee_saved).")
+p.add_argument("--rat_fault_mask", type=lambda x: int(x,0), default=0,
+               help="CHAOSRenameMap map_bitflip mask (0=random one bit).")
+p.add_argument("--rat_semantic_role", default="",
+               help="ABI role label (callee_saved/accum). Metadata.")
 args = p.parse_args()
 
 cache_hierarchy = PrivateL1PrivateL2CacheHierarchy(
@@ -244,6 +257,27 @@ if args.chaos_addrpath:
         writeLog=True,
     )
     board.chaos_addrpath = ap
+
+# CHAOSRenameMap (S1-2, RAT): method1 history residue. Holds a cpu pointer
+# (no self-attach — RAT isn't a SimObject; drives faults from attackEvent,
+# same pattern as CHAOSPhysReg). O3-only.
+if args.chaos_rat:
+    rat = CHAOSRenameMap(
+        cpu=cpu0,
+        probability=args.probability,
+        mode=args.rat_mode,
+        targetArchReg=args.rat_target_arch,
+        regTargetClass=args.reg_class,
+        faultMask=args.rat_fault_mask,
+        bitsToChange=args.bits_to_change,
+        firstClock=args.first_clock,
+        lastClock=args.last_clock,
+        maxFaults=args.max_faults,
+        rngSeed=args.rng_seed,
+        writeLog=True,
+        semanticRole=args.rat_semantic_role,
+    )
+    board.chaos_rat = rat
 
 if args.maxinsts:
     cpu0.max_insts = args.maxinsts

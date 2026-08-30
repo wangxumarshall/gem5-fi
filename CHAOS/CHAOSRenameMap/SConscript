@@ -1,0 +1,5 @@
+Import('*')
+
+SimObject('CHAOSRenameMap.py', sim_objects=['CHAOSRenameMap'], enums=[])
+Source('CHAOSRenameMap.cc')
+DebugFlag('CHAOSRenameMap')
