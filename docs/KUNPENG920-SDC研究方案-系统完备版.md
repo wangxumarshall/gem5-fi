@@ -29,9 +29,9 @@
 
 **核查方法**：逐注入器实读 `.py/.hh/.cc/SConscript`；在 vendored gem5 源码树 `CHAOS/gem5/src/` 中 grep 确认 hook 接线；`git log --all` 追溯被删除文件的历史；实跑 `gem5.opt` 验证构建与锚点（§5 已验证锚点表）。
 
-#### 0.3.1 当前工作树真实存在的注入器：**核查时 7 个，现已 10 个**（+CHAOSAddrPath `ffd041e` + CHAOSRenameMap `c5c8c96` + CHAOSFreeList `379e11c`）
+#### 0.3.1 当前工作树真实存在的注入器：**核查时 7 个，现已 11 个**（+CHAOSAddrPath `ffd041e` + CHAOSRenameMap `c5c8c96` + CHAOSFreeList `379e11c` + CHAOSPTW `de48432`）
 
-> **2026-08-30 核查时**主线工作树有 7 个注入器（下表）。**S1-5b（`ffd041e`）新增 CHAOSAddrPath**、**S1-2（`c5c8c96`）新增 CHAOSRenameMap**、**S1-3（`379e11c`）新增 CHAOSFreeList**，主线现 10 个。下表保留核查时状态以存史；新增注入器见 §A.2 与 §5.2/§5.4。
+> **2026-08-30 核查时**主线工作树有 7 个注入器（下表）。**S1-5b（`ffd041e`）新增 CHAOSAddrPath**、**S1-2（`c5c8c96`）新增 CHAOSRenameMap**、**S1-3（`379e11c`）新增 CHAOSFreeList**、**S2-5c（`de48432`）新增 CHAOSPTW**，主线现 11 个。下表保留核查时状态以存史；新增注入器见 §A.2 与 §5.2/§5.4/§5.7。
 
 | 注入器 | 目标单元 | Hook 位置（已核实） | 范式 | 真实参数面（已核实） |
 |---|---|---|---|---|
@@ -50,7 +50,7 @@
 - `git ls-tree fi-wangxu` 与 `git ls-tree origin/fi` 均**不含** CHAOSAddrPath/CHAOSPTW 目录。`grep -rn "CHAOSAddrPath\|CHAOSPTW\|chaosAddr\|chaosPtw" CHAOS/gem5/src/` **零匹配**——vendored gem5 树中也无任何 hook 残留（"cleanly removed"，非孤儿引用）。
 - `git log --all -- CHAOS/CHAOSAddrPath/ CHAOS/CHAOSPTW/` 显示这两个目录的**唯一** commit 是 `201eac6 fi(P-D2/P-D3): implement CHAOSAddrPath + CHAOSPTW`，该 commit 位于**侧分支**（`origin/fi-h6-h7-fs-verify` / `origin/fix/paper-review-v1-honesty-hardening` 等），**从未并入 `fi` 或 `fi-wangxu` 主线**。
 - `git merge-base fi-wangxu origin/fi = 9a4376d`，`fi..fi-wangxu` 仅 1 个 commit，`fi-wangxu..fi` 为空——即 fi-wangxu 是 fi 的直接后继，两者工作树一致地**不含** AddrPath/PTW。
-- **诚实修正**：CHAOSAddrPath（AGU 地址通路，P-D2）与 CHAOSPTW（页表走查器，P-D3）原方案写作时在主线均不存在；本文统一标注为"待实现"。**S1-5b 已完成 `ffd041e`：CHAOSAddrPath 已实现并入主线**（见 §A.2）。CHAOSPTW 仍待实现（S2-5c）。原方案把侧分支能力误标为"主线已有"，本文不继承该误标。
+- **诚实修正**：CHAOSAddrPath（AGU 地址通路，P-D2）与 CHAOSPTW（页表走查器，P-D3）原方案写作时在主线均不存在；本文统一标注为"待实现"。**S1-5b 已完成 `ffd041e`：CHAOSAddrPath 已实现并入主线**；**S2-5c 已完成 `de48432`：CHAOSPTW 已实现并入主线**（见 §A.2）。原方案把侧分支能力误标为"主线已有"，本文不继承该误标。
 
 #### 0.3.3 原方案声称"CHAOSArmSysReg 在任何分支都不存在、待新写"——**失实，已修正**
 
@@ -77,7 +77,7 @@
 
 | # | 原方案声明 | 源码真相 | 本文修正 |
 |---|---|---|---|
-| C1 | "已有 8 个注入器，CHAOSAddrPath/CHAOSPTW 来自 main 并入" | 主线原仅 7 个；AddrPath/PTW 在侧分支未并入。**S1-5b 已实现 CHAOSAddrPath `ffd041e`**，主线现 8 个；PTW 仍待实现 | 标"8 个已有（含 AddrPath）+ PTW 待实现"（§0.3.2, §A.2） |
+| C1 | "已有 8 个注入器，CHAOSAddrPath/CHAOSPTW 来自 main 并入" | 主线原仅 7 个；AddrPath/PTW 在侧分支未并入。**S1-5b 已实现 CHAOSAddrPath `ffd041e`**，主线现 8 个；PTW 仍待实现 | 标"11 个已有（含 AddrPath/PTW）"（§0.3.2, §A.2） |
 | C2 | "CHAOSArmSysReg 任何分支都不存在，待新写" | 已存在并入主线，hook 进 isa.cc:452-457，4 模式 | 标"已实现，待扩展 F5 + 修 D4"（§0.3.3, §5.7） |
 | C3 | "classify 九类" | 实读六级（SimulatorError/Hang/Crash/Inactive/Masked/SDC） | 标"六级现状，九类为 protectionModel 扩展目标"（§0.3.4, §4.3） |
 | C4 | "H5 已闭环（main，30 注入 28 检出 93%）" | H5 闭环在**侧分支**（fi-h6-h7-fs-verify），基于 `structuralFault` 模式；主线 CHAOSLSQFwd 已回退，**无 structuralFault**，H5 在主线**不可复现** | 标"H5 在侧分支闭环；主线需补 structuralFault 后复现"（§6.1, §10） |
@@ -172,7 +172,7 @@ SDC 暴露面(unit) ≈ 未受保护状态位数 × (占用率 × 平均驻留�
 | **P0** | LSU store→load 转发 | 中高 | 无保护；method2 位谱已定量吻合 | ⚠️ CHAOSLSQFwd（基础版，缺 structuralFault） |
 | P1 | 发射队列 IQ | 中高 | 无保护；F5 错源、F6 相位竞态 | ❌ 待实现 CHAOSIQ |
 | P1 | 浮点/向量执行（双 FSU） | 中高 | 无 ECC 概念组合逻辑；method3 位谱指向 | ⚠️ CHAOSPhysReg vector（已覆盖存储层）/❌ CHAOSFPU 数据通路待实现 |
-| P1 | 地址翻译（dTLB/PTW/系统寄存器） | 中高 | L1 TLB 保守取无保护；method3 已定位 | ⚠️ CHAOSArmTLB（基础）/✅ CHAOSAddrPath（已实现 `ffd041e`）/❌ CHAOSPTW 待实现/✅ CHAOSArmSysReg（已实现） |
+| P1 | 地址翻译（dTLB/PTW/系统寄存器） | 中高 | L1 TLB 保守取无保护；method3 已定位 | ⚠️ CHAOSArmTLB（基础）/✅ CHAOSAddrPath（已实现 `ffd041e`）/✅ CHAOSPTW（已实现 `de48432`）/✅ CHAOSArmSysReg（已实现） |
 | P1 | L3（分区）/RAS 逃逸 | 中 | Tag/Data 分离、128B 故障域；RAS 逃逸元分析 | ❌ pairedSector 代理待实现/❌ CHAOSRAS 待实现 |
 | P2 | L1D/L2 数据通路 | 低中 | ECC 后逃逸窗口窄；重点 post-check escape | ⚠️ CHAOSCache（数据字节，缺字段级+PCE） |
 | P3 | BPU | 低 | 预测错误被冲刷；重点"投机流是否泄漏" | ❌ 待实现 CHAOSBPU |
@@ -455,7 +455,7 @@ pilot 每 cell n=100（可达率/工具错误/粗略比例）；formal 每 cell 
 **B. 注入器**：
 - `CHAOSArmTLB`（已有，基础）**需扩展**：`pfn_to_mapped_page`（F5，翻到另一活页→静默 SDC）、`targetField ∈ {pfn,ap,xn,attridx,ng,asid}`、I-TLB 挂载、`protectionModel=none`。
 - `CHAOSArmSysReg`（**已实现**，待扩展）：现有 `bit_flip/stuck_at_zero/stuck_at_one/random` + 白名单（`targetRegs` 按 miscRegName 解析，默认 `sctlr_el1,ttbr0_el1,ttbr1_el1,tcr_el1,mair_el1,vbar_el1`，**不含 contextidr/nzcv，需用户添加或改默认**）；**待补 `value_to_legal`（F5）** + 时间窗修复（D4，1GHz 假设）。FS 模式。
-- `CHAOSPTW`（**待实现**，侧分支有，主线无）：hook `doLongDescriptor`，翻页表描述符；`ptwEcc` 参数（H7 自变量）、`clearValidBit` 模式（侧分支已实证可靠制造 spurious）。
+- `CHAOSPTW`（✅ 已实现 `de48432`，从侧分支移植+主线纪律）：hook `doLongDescriptor`，翻页表描述符；`ptwEcc` 参数（H7 自变量）、`clearValidBit` 模式（FS 下已验证制造 spurious，复现 core179 D3 73 例）。
 
 **C. campaign**（FS，checkpoint 后切 O3/Atomic）：dTLB{pfn→未映射(DUE), pfn→活页(F5,SDC), AP, XN, AttrIndx, nG, ASID}；iTLB；L2 TLB；PTW{单 bit XOR+条件注入, clearValidBit}×{ptwEcc on/off}；系统寄存器{ttbr0/1,tcr,mair,sctlr,vbar,contextidr,nzcv}×{bitflip,value_to_legal}；method2 三根因区分（PRF/AGU/TLB 三种注入的 ESR/PC/x10 形态比对）。
 
@@ -546,7 +546,7 @@ pilot 每 cell n=100（可达率/工具错误/粗略比例）；formal 每 cell 
 | H4 | 长驻留缓存（大 L2）→ 传播概率升高 | 预登记 |
 | H5 | 字节相位（byte_lane_skew rol1/rol6）复现 core179 D1 撕裂移位签名 | ✅ **主线 structuralFault 已补齐 `8320daf`**（byte_lane_skew rol1 SDC xor 多位散布已验证）；侧分支闭环 93%；formal ptrskew_kernel 复现待跑 |
 | H6 | AGU byte7 清零 → 规范内核地址非规范化 → 翻译故障（FS 才有效） | ⚠️ **侧分支**：FS 下钩子触发非零、复现 byte7 清零签名（`0xffffffc008b08f30→0xffffc008b08f30`），但 D2-only 50 注入→0 可观察失败，**定量谱可分未确立**；**主线无 CHAOSAddrPath** |
-| H7 | PTW ECC on → spurious≈0 / off → spurious>0 | ⚠️ **侧分支**：SE 模式 numFaultsInjected=0（mmu.cc:1213 静态归因）；FS 内核态 ECC 纠正（40→0）+ spurious 制造（clearValidBit 40→40）两机制各实证，**未在同一实验结合，完整 ECC on/off spurious 率定量未完成**；**主线无 CHAOSPTW** |
+| H7 | PTW ECC on → spurious≈0 / off → spurious>0 | ✅ **主线 CHAOSPTW 已实现 `de48432`**（FS clearValidBit 已验证制造 spurious，5 注入 BecameInvalid:1，复现 core179 D3）；侧分支两机制各实证；完整 ECC on/off spurious 率定量待 formal |
 | H8 | 逃逸集合分解（机理 A–F 归因） | 待 formal |
 | H9 | 相位敏感性（F6 phaseOffset 的 `P_SDC` 曲线，`|offset|≥1` vs 0 比值 ≥5×） | 待 formal（复现 method3 塌方 100%→10–20%） |
 | H10 | 签名可分性（向量 PRF 存储 vs FSU 数据通路 KS 检验可分） | 待 formal |
@@ -867,7 +867,7 @@ DSN / PRDC / ASPLOS / HPCA / MICRO；对标 Veritas(HPCA'25)、PinDrop(HPCA'26)�
 - **S0-3** protectionModel 层 + classify 九类扩展（待实现）。
 - **S0-4** 已知缺陷修复（附录 D，D1–D6 已完成 `0ae28fe`/`56023c3`/`58be899`/`4ed645b`）：CHAOSArmTLB 时间窗（D1 ✅）、CHAOSLSQFwd 64 位掩码（D2 ✅）、CHAOSMem 永久重放（D3 ✅）、CHAOSArmSysReg 时间窗（D4 ✅）、概率比较统一（D5 ✅）、NULL 宿主 warn（D6 ✅）、mask==0 早退（D7 Cache/ArmTLB/ArmSysReg/PhysReg 已有）。D9（G6 广触发）、D10（G7 sanitizer）deferred。
 - **S1-1** CHAOSPhysReg F3+semanticRole（✅ `7f538c4`）；**S1-2** CHAOSRenameMap（✅ `c5c8c96`）；**S1-3** CHAOSFreeList（✅ `379e11c`）；**S1-4** CHAOSROB（待实现）；**S1-5** CHAOSLSQFwd 扩展（D2 ✅+structuralFault 待补+stale_line_replay+fwd_source_sub）；**S1-5b** CHAOSAddrPath（✅ `ffd041e`）。
-- **S2-1** CHAOSIQ；**S2-3** CHAOSFPU；**S2-5a** CHAOSArmSysReg 扩展（F5+D4）；**S2-5b** CHAOSArmTLB F5+targetField；**S2-5c** CHAOSPTW 实现（侧分支→主线）+ H7 formal + FS 流水线。
+- **S2-1** CHAOSIQ；**S2-3** CHAOSFPU；**S2-5a** CHAOSArmSysReg 扩展（F5+D4）；**S2-5b** CHAOSArmTLB F5+targetField；**S2-5c** CHAOSPTW ✅ `de48432`（侧分支→主线，FS clearValidBit 验证）；H7 formal 待续。
 - **S3-2** CHAOSL1DForward；**S3-4** CHAOSExec；**S3-5** CHAOSBPU；**S3-6** CHAOSMem 扩展。
 - **S5-2** CHAOSRAS；**S5-3** 逃逸集合分解 + 抗 SDC 机制建议（§8.3）。
 - **S6-1** 第二台健康机复现（贯穿，最高诚信要求）。
@@ -901,7 +901,7 @@ DSN / PRDC / ASPLOS / HPCA / MICRO；对标 Veritas(HPCA'25)、PinDrop(HPCA'26)�
 
 ## 附录 A　注入器与 hook 点总表（源码核对版，2026-08-30）
 
-### A.1 已有注入器（10 个，含 S1-5b CHAOSAddrPath + S1-2 CHAOSRenameMap + S1-3 CHAOSFreeList）
+### A.1 已有注入器（11 个，含 CHAOSAddrPath + CHAOSRenameMap + CHAOSFreeList + CHAOSPTW）
 
 | 注入器 | 目标单元 | Hook 位置（已核实） | 范式 | 优先级 | 真实模式（已核实） |
 |---|---|---|---|---|---|
@@ -929,7 +929,7 @@ DSN / PRDC / ASPLOS / HPCA / MICRO；对标 Veritas(HPCA'25)、PinDrop(HPCA'26)�
 | CHAOSBPU | 新写 | `cpu/pred/` lookup()/BTB::update() | S3-5 | — |
 | CHAOSExMon | 新写 | `lsq_unit.cc` 独占监视器 FSM | S3-7 | — |
 | **CHAOSAddrPath** | ✅ 已实现 `ffd041e`（从侧分支移植+主线纪律） | `lsq.cc` sendFragmentToTranslation 前 | ~~S1-5b~~ done | `origin/fi-h6-h7-fs-verify`（H6，已并入主线） |
-| **CHAOSPTW** | **待实现（侧分支有）** | `arch/arm/table_walker.cc doLongDescriptor` | S2-5c | `origin/fi-h6-h7-fs-verify`（H7） |
+| **CHAOSPTW** | ✅ 已实现 `de48432`（从侧分支移植+主线纪律） | `arch/arm/table_walker.cc doLongDescriptor` | ~~S2-5c~~ done | `origin/fi-h6-h7-fs-verify`（H7，已并入主线） |
 
 另有扩展模式：CHAOSMem `addr_map_sub`/`ecc_logic_fault`、CHAOSCache `targetField`+`protectionModel`、CHAOSArmTLB `pfn_to_mapped`/`targetField`/`protectionModel`、CHAOSArmSysReg `value_to_legal`、CHAOSLSQFwd ✅`structuralFault`(`8320daf`)/`stale_line_replay`/`fwd_source_sub`/`phaseOffset` + D2 ✅、CHAOSDecode（低优先级）、CHAOSRAS、CHAOSCHI/CHAOSNoC/CHAOSHCCS（S4）。
 
@@ -1069,7 +1069,7 @@ S1-04-CHAOSROB        | depends=[S0-04]     | agent | pending | entry_bitflip/ex
 S1-05-CHAOSLSQFwd扩展 | depends=[S0-04]    | agent | done(部分)| D2 ✅ + structuralFault ✅ 8320daf（rol1/空槽验证）；stale_line_replay/fwd_source_sub/phaseOffset 待续
 S1-05b-CHAOSAddrPath  | depends=[S0-04]     | agent | done    | 已实现 ffd041e（侧分支移植+主线纪律；FS O3 端到端待 checkpoint）
 S2-05a-CHAOSArmSysReg扩展| depends=[S1-02]  | agent | pending | value_to_legal(F5) + D4 时间窗
-S2-05c-CHAOSPTW       | depends=[S1-05b]   | agent | pending | cherry-pick 侧分支（H7）+ ptwEcc + formal
+S2-05c-CHAOSPTW       | depends=[S1-05b]   | agent | done    | 已实现 de48432（FS clearValidBit 验证制造 spurious；H7 formal 待续）
 ```
 
 ### G.2 待实现 P0/关键注入器 SimObject 骨架（Python 参数面）
