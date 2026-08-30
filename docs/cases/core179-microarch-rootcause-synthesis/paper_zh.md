@@ -2,7 +2,7 @@
 
 **目标会议：** ASPLOS / MICRO / HPCA（系统与计算机体系结构方向）
 
-> **诚实性声明。** 本论文中的每一项定量结论均可由 `docs/cases/core179-microarch-rootcause-synthesis/` 中的产物以及 `docs/core179-microarch-rootcause` 分支上的 gem5 源码树复现。凡尚未验证的结果，我们都明确说明而非略去不提。对于依赖运行时随机熵的单次运行数值（seed 0 → `std::random_device`），我们将其量级表述为"跨运行稳定"，并标注运行间方差，而非给出一个确定性的单一数值。故障注入（fault injection）所用主机即故障机本身（CPU 179）；我们报告了所采取的隔离措施（构建/运行期间隔离 CPU）以及残余风险。
+> **诚实性声明。** 本论文中的每一项定量结论均可由 `docs/cases/core179-microarch-rootcause-synthesis/` 中的产物以及 `fix/paper-review-v1-honesty-hardening` 分支（诚实化分支；历史工作分支为 `docs/core179-microarch-rootcause`）上的 gem5 源码树复现。*范围保留*：算术（XOR/汉明/旋转）可从所引值复现；SE 模式空结果可由 `run_H6.sh`/`run_H7.sh` 复现；vmcore 导出法证可由有 0102 单板者经 `reproduce_d1_forensic.sh` 复验（180 GB vmcore 不可再分发）；但 **FS 模式 5 种子 H6/H7 定量表系有记录的手工 `o3_chaos_fs.py` 运行，非单一随附脚本**（确切范围见 §8）。凡尚未验证的结果，我们都明确说明而非略去不提。对于依赖运行时随机熵的单次运行数值（seed 0 → `std::random_device`），我们将其量级表述为"跨运行稳定"，并标注运行间方差，而非给出一个确定性的单一数值。故障注入（fault injection）所用主机即故障机本身（CPU 179）；我们报告了所采取的隔离措施（构建/运行期间隔离 CPU）以及残余风险。
 
 ---
 
@@ -386,7 +386,7 @@ ECC 开：5 个种子全部 0 次 spurious（每次单 bit 翻转被纠正 → �
 
 ## 8. 数据与代码可用性
 
-所有由 vmcore 导出的产物（`p1_events.csv`、每 CPU 数组、panic 块）、三个注入器模块（`CHAOSLSQFwd`/`CHAOSAddrPath`/`CHAOSPTW`）、探针（`ptrskew_kernel.c`）、SE 与 FS 实验配置（`o3_chaos_smoke.py`、`o3_chaos_fs.py`）、实验脚本（`run_H6.sh`、`run_H7.sh`）以及完整诊断报告均在 `docs/core179-microarch-rootcause` 分支。vmcore 本身共 180 GB 且不可再分发，但每条结论都引用了补充报告中可复现的 `crash`/`objdump`/`python`/`gem5.opt` 命令。FS 支持文件（`gem5-fs/`，约 2.5 GB）被 `.gitignore`（仅 README 被追踪），但在 `gem5-fs/readme.md` 中描述并经路径验证。
+所有由 vmcore 导出的产物（`p1_events.csv`、每 CPU 数组、panic 块）、三个注入器模块（`CHAOSLSQFwd`/`CHAOSAddrPath`/`CHAOSPTW`）、探针（`ptrskew_kernel.c`）、SE 与 FS 实验配置（`o3_chaos_smoke.py`、`o3_chaos_fs.py`）、实验脚本（`run_H6.sh`、`run_H7.sh`）以及完整诊断报告均在分支 `fix/paper-review-v1-honesty-hardening`（累积 REVIEW_v1/v2 修复的诚实化分支；历史工作分支为 `docs/core179-microarch-rootcause`，FS H6/H7 验证代码在 `fi-h6-h7-fs-verify` commit `3287299`）。**可复现范围（诚实）**：`run_H6.sh`/`run_H7.sh` 仅复现 **SE 模式空结果**（§5.3–5.4）——它们跑 SE 配置（`o3_chaos_smoke.py`），其下 D2/D3 钩子从不触发。**FS 模式 5 种子 H6 与 H7 表**（§5.3 第 297–303 行、§5.4 第 345–351 行）系**手工**调 `o3_chaos_fs.py` 跨种子 0–4 × 多臂跑出；**无单脚本自动化 FS harness**（FS 单跑到 bash 约 1–2h 墙钟，5 种子 × 多臂不可一次跑完）。每种子确切 FS 命令行见 `FI_DESIGN_SUPPLEMENT.md` §7；复现 FS 表需在经验证的 `gem5.opt` 构建 + `gem5-fs/` 四件套上跑约 10–20h FS。故诚实性声明"每一定量结论可复现"应读作：算术（XOR/汉明/旋转）可从所引值复现、SE 空结果可由 `run_H6/H7.sh` 复现、vmcore 导出法证可由有 0102 单板者经 `reproduce_d1_forensic.sh` 复验——但 **FS 5 种子定量表无单脚本可复现**，系有记录的手工运行。vmcore 本身共 180 GB 且不可再分发，但每条结论都引用了补充报告中可复现的 `crash`/`objdump`/`python`/`gem5.opt` 命令。FS 支持文件（`gem5-fs/`，约 2.5 GB）被 `.gitignore`（仅 README 被追踪），但在 `gem5-fs/readme.md` 中描述并经路径验证。
 
 ---
 
