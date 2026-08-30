@@ -1,0 +1,5 @@
+/goal 实现 @docs/KUNPENG920-故障注入方案详细工程设计.md
+
+---
+
+/goal 执行计划
