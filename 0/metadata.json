@@ -1,0 +1,68 @@
+{
+  "cli_version": "0.10.2",
+  "checkpoint_id": "01M18A6HHVE47R11T7MGWS76KT",
+  "session_id": "31150d26-73e6-4b08-9f6f-c64cac6d1f3c",
+  "strategy": "manual-commit",
+  "created_at": "2026-08-30T03:07:54.87535773Z",
+  "branch": "fi-wangxu",
+  "checkpoints_count": 1,
+  "save_step_count": 1,
+  "files_touched": [
+    "docs/KUNPENG920-SDC研究方案-系统完备版.md"
+  ],
+  "agent": "Claude Code",
+  "model": "GLM-5.2[1m]",
+  "turn_id": "ba5113acaf61",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 700616,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 9458432,
+    "output_tokens": 63539,
+    "api_call_count": 74,
+    "subagent_tokens": {
+      "input_tokens": 160111,
+      "cache_creation_tokens": 0,
+      "cache_read_tokens": 1240960,
+      "output_tokens": 19359,
+      "api_call_count": 22
+    }
+  },
+  "session_metrics": {
+    "turn_count": 1
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-08-30T03:07:54.70889678Z",
+    "agent_lines": 1200,
+    "agent_removed": 0,
+    "human_added": 3,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 1203,
+    "total_lines_changed": 1203,
+    "agent_percentage": 99.75062344139651,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 1070,
+      "user_lines_removed": 412,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        "docs/KUNPENG920-的SDC故障的微架构故障注入和规律研究的详细方案设计和需求开发实现文档.md": 1070
+      },
+      "user_removed_per_file": {
+        "progress.md": 412
+      }
+    },
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 31444,
+      "agent_lines_removed": 412
+    }
+  ]
+}
