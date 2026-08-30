@@ -107,6 +107,16 @@ p.add_argument("--lsq_mask_width", type=int, default=1,
                help="CHAOSLSQFwd 64-bit mask covers this many consecutive "
                     "bytes (little-endian), [1,8]. 1=legacy single-byte; "
                     "2/4/8=multi-byte for method2 cross-byte spectra (D2 fix).")
+# S1-5 CHAOSLSQFwd structuralFault (P-D1, core 179 D1 signature).
+p.add_argument("--lsq_structural_fault", default="none",
+               choices=["none","byte_lane_skew","all_zero"],
+               help="CHAOSLSQFwd whole-word structural fault (P-D1). "
+                    "byte_lane_skew: right-rotate delivered bytes by "
+                    "--lsq_skew_bytes (core179 D1 rol1/rol6, bit-exact). "
+                    "all_zero: deliver all-zero word (empty-slot signature). "
+                    "Takes precedence over faultType when != none.")
+p.add_argument("--lsq_skew_bytes", type=int, default=0,
+               help="byte_lane_skew right-rotation amount (1..7). 0=random.")
 # CHAOSAddrPath (P-D2): address-path FI. FS-only for observable effect.
 p.add_argument("--chaos_addrpath", action="store_true",
                help="attach CHAOSAddrPath (P-D2 address-path FI; FS required "
@@ -241,6 +251,8 @@ if args.chaos_lsqfwd:
         faultType=args.fault_type,
         faultMask=str(args.fault_mask),
         maskWidth=args.lsq_mask_width,
+        structuralFault=args.lsq_structural_fault,
+        skewBytes=args.lsq_skew_bytes,
         bitsToChange=args.bits_to_change,
         byteOffset=args.lsq_byte_offset,
         firstClock=args.first_clock,

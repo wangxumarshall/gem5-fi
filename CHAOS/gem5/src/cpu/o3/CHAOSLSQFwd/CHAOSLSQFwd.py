@@ -39,6 +39,19 @@ class CHAOSLSQFwd(SimObject):
         "endian), within [1,8]. 1 = legacy single-byte (mask truncated to "
         "8 bits); 2/4/8 = multi-byte corruption for method2's cross-byte "
         "spectra. Clamped to min(maskWidth, fwdSize, 8).")
+    # S1-5: structural (whole-word) faults (P-D1, core 179 D1 signature).
+    # These re-route the entire delivered word — cannot be expressed as a bit
+    # flip (verified bit-exact against crash values), so they are a separate
+    # axis that takes precedence over the per-byte faultType path when set.
+    structuralFault = Param.String("none",
+        "none | byte_lane_skew | all_zero (P-D1 structural fault). "
+        "byte_lane_skew: right-rotate the delivered byte array by skewBytes "
+        "(core 179 D1: 15:58 rol1, 0814 rol6 — bit-exact). "
+        "all_zero: deliver an all-zero word (15:42 empty-slot signature). "
+        "When != none, takes precedence over faultType/faultMask.")
+    skewBytes = Param.Int(0,
+        "For byte_lane_skew: right-rotation amount (1..7). 0 = random 1..7 "
+        "per event. 15:58 crash matched rol1; 0814 matched rol6 — bit-exact.")
     bitsToChange = Param.Int(1, "Bits to change when faultMask=0")
     byteOffset = Param.Int(-1,
         "Which byte of the forwarded buffer to corrupt (-1 = random within "

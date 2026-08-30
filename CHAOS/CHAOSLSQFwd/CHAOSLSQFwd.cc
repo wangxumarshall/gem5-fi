@@ -18,6 +18,8 @@ namespace gem5
           fault_type_enum(stringToFaultType(p.faultType)),
           fault_mask(std::bitset<64>(p.faultMask)),
           mask_width(p.maskWidth),
+          structural_fault_enum(stringToStructuralFault(p.structuralFault)),
+          skew_bytes(p.skewBytes),
           num_bits_to_change(p.bitsToChange),
           byte_offset(p.byteOffset),
           first_clock(Cycles(p.firstClock)),
@@ -73,6 +75,78 @@ namespace gem5
         return "random";
     }
 
+    CHAOSLSQFwd::StructuralFault
+    CHAOSLSQFwd::stringToStructuralFault(const std::string &s) {
+        if (s == "byte_lane_skew") return StructuralFault::ByteLaneSkew;
+        if (s == "all_zero")       return StructuralFault::AllZero;
+        return StructuralFault::None;
+    }
+
+    const char*
+    CHAOSLSQFwd::structuralFaultToString(StructuralFault f) {
+        switch (f) {
+            case StructuralFault::ByteLaneSkew: return "byte_lane_skew";
+            case StructuralFault::AllZero:      return "all_zero";
+            case StructuralFault::None:         return "none";  // G7: clear -Wswitch
+        }
+        return "none";
+    }
+
+    // S1-5 (P-D1): apply a *structural* (whole-word) fault to the delivered
+    // data. Unlike the bit-level FaultType path (multi-byte AND/OR/XOR), these
+    // re-route the entire delivered word:
+    //   ByteLaneSkew: rotate the byte array right by k bytes — models the D1
+    //     signature where core 179 delivered rol_k(stale array-head content)
+    //     (15:58: rol1; 0814: rol6). Bit-exact against crash values
+    //     (MICROARCH_SUPPLEMENT §2.2). A right-rotation by k delivers, for byte
+    //     lane n, the content of lane (n+k) mod size — a fill-buffer byte-lane
+    //     mux selecting the wrong phase.
+    //   AllZero: deliver an all-zero word — models the D1 "empty/invalid slot"
+    //     state (15:42: __per_cpu_offset[176] delivered 0).
+    void
+    CHAOSLSQFwd::applyStructuralFault(uint8_t *data, unsigned size, Addr vaddr)
+    {
+        if (size == 0) return;
+        switch (structural_fault_enum) {
+            case StructuralFault::ByteLaneSkew: {
+                int k = skew_bytes;
+                if (k == 0) {
+                    std::uniform_int_distribution<int> kd(1, 7);
+                    k = kd(rng);
+                }
+                if (k < 1) k = 1;
+                if (k >= (int)size) k = (int)size - 1;
+                // Right-rotate the byte array by k (byte lane n gets data[(n+k)%size]).
+                std::vector<uint8_t> tmp(data, data + size);
+                for (unsigned n = 0; n < size; n++)
+                    data[n] = tmp[(n + k) % size];
+                stats->numStructuralByteLaneSkew++;
+                break;
+            }
+            case StructuralFault::AllZero:
+                std::memset(data, 0, size);
+                stats->numStructuralAllZero++;
+                break;
+            case StructuralFault::None:
+                break;
+        }
+        stats->numFaultsInjected++;
+        ++faults_injected_count;
+        if (write_log) {
+            *(log_stream->stream())
+                << "Cycle: " << cpu->curCycle()
+                << ", CPU: " << cpu->name()
+                << ", Site: store->load_forward"
+                << ", StructuralFault: " << structuralFaultToString(structural_fault_enum)
+                << ", Vaddr: 0x" << std::hex << vaddr << std::dec
+                << ", FwdSize: " << size
+                << std::endl;
+        }
+        DPRINTF(LSQUnit, "CHAOSLSQFwd: structural %s on forwarded data "
+                "(vaddr=%#x size=%u)\n",
+                structuralFaultToString(structural_fault_enum), vaddr, size);
+    }
+
     uint64_t
     CHAOSLSQFwd::generateRandomMask(int bits_to_change)
     {
@@ -121,6 +195,15 @@ namespace gem5
         std::uniform_real_distribution<float> dist(0.0f, 1.0f);
         if (dist(rng) >= probability) return;
         if (size == 0) return;
+
+        // S1-5 (P-D1): structural (whole-word) faults take precedence over
+        // the D2 per-byte bit-fault path when configured. They cannot be
+        // expressed as a bit flip (verified bit-exact vs core 179 crashes),
+        // so they are a separate axis.
+        if (structural_fault_enum != StructuralFault::None) {
+            applyStructuralFault(data, size, vaddr);
+            return;
+        }
 
         // Choose byte to corrupt (low byte of the masked window).
         int off = byte_offset;
@@ -193,7 +276,11 @@ namespace gem5
           ADD_STAT(numStuckAtZero, statistics::units::Count::get(),
                    "Stuck-at-0 faults on forwarded data"),
           ADD_STAT(numStuckAtOne, statistics::units::Count::get(),
-                   "Stuck-at-1 faults on forwarded data")
+                   "Stuck-at-1 faults on forwarded data"),
+          ADD_STAT(numStructuralByteLaneSkew, statistics::units::Count::get(),
+                   "S1-5 P-D1 byte_lane_skew faults (core179 D1 rol signature)"),
+          ADD_STAT(numStructuralAllZero, statistics::units::Count::get(),
+                   "S1-5 P-D1 all_zero faults (core179 D1 empty-slot signature)")
     {}
 
 } // namespace gem5

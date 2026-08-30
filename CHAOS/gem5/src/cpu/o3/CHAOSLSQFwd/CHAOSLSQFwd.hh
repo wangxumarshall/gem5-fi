@@ -47,11 +47,19 @@ class CHAOSLSQFwd : public SimObject
     static FaultType stringToFaultType(const std::string &s);
     const char *faultTypeToString(FaultType f);
 
+    // S1-5: structural (whole-word) faults (P-D1, core 179 D1 signature).
+    enum class StructuralFault { None, ByteLaneSkew, AllZero };
+    static StructuralFault stringToStructuralFault(const std::string &s);
+    const char *structuralFaultToString(StructuralFault f);
+    void applyStructuralFault(uint8_t *data, unsigned size, Addr vaddr);
+
     o3::CPU *cpu;
     float probability;
     FaultType fault_type_enum;
     std::bitset<64> fault_mask;   // D2: was bitset<32>; now full 64-bit
     int mask_width;               // D2: bytes the mask covers (1..8)
+    StructuralFault structural_fault_enum;  // S1-5: P-D1 whole-word fault
+    int skew_bytes;               // S1-5: byte_lane_skew rotation (1..7)
     int num_bits_to_change;
     int byte_offset;       // -1 = random byte within [0,size-1]
     Cycles first_clock, last_clock;
@@ -75,6 +83,8 @@ class CHAOSLSQFwd : public SimObject
         statistics::Scalar numBitFlips;
         statistics::Scalar numStuckAtZero;
         statistics::Scalar numStuckAtOne;
+        statistics::Scalar numStructuralByteLaneSkew;  // S1-5: P-D1 rol
+        statistics::Scalar numStructuralAllZero;       // S1-5: P-D1 empty slot
         CHAOSLSQFwdStats(statistics::Group *parent);
     };
     std::unique_ptr<CHAOSLSQFwdStats> stats;
