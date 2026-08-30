@@ -75,6 +75,18 @@ p.add_argument("--vec_lane_width", type=int, default=32,
 p.add_argument("--vec_lane_offset", type=int, default=-1,
                help="Phase2 NEON: which lane (0-indexed) to corrupt in the "
                     "VecRegClass phys reg. -1 = random lane (default).")
+# S1-1: F3 data-dependent trigger (method2 under-voltage) + semanticRole.
+p.add_argument("--phys_trigger_mask", type=lambda x: int(x,0), default=0,
+               help="CHAOSPhysReg F3 trigger mask (0=F3 disabled/unconditional). "
+                    "When nonzero, inject only if (target_val & mask) == "
+                    "--phys_trigger_pattern. Models method2 under-voltage "
+                    "setup-time violation on a specific bit pattern.")
+p.add_argument("--phys_trigger_pattern", type=lambda x: int(x,0), default=0,
+               help="CHAOSPhysReg F3 trigger pattern: inject only when "
+                    "(target_val & --phys_trigger_mask) == this. hex ok.")
+p.add_argument("--phys_semantic_role", default="",
+               help="ABI role label for campaign heatmap stratification "
+                    "(arg_return/temp/callee_saved/fp_lr/pointer). Metadata only.")
 # CHAOSMem (backing-store byte injector; G4 fixed weights/boundary)
 p.add_argument("--chaos_mem", action="store_true",
                help="attach CHAOSMem to the board DRAM")
@@ -146,6 +158,9 @@ if args.chaos_phys:
         bitsToChange=args.bits_to_change,
         faultMask=args.fault_mask,
         faultType=args.fault_type,
+        triggerValueMask=args.phys_trigger_mask,
+        triggerValuePattern=args.phys_trigger_pattern,
+        semanticRole=args.phys_semantic_role,
         firstClock=args.first_clock,
         lastClock=args.last_clock,
         maxFaults=args.max_faults,

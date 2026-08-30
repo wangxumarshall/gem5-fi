@@ -34,6 +34,9 @@ namespace gem5
           bit_flip_prob(0.9),
           stuck_at_zero_prob(0.05),
           stuck_at_one_prob(0.05),
+          trigger_value_mask(p.triggerValueMask),
+          trigger_value_pattern(p.triggerValuePattern),
+          semantic_role(p.semanticRole),
           first_clock(Cycles(p.firstClock)),
           last_clock(Cycles(p.lastClock)),
           max_faults(p.maxFaults),
@@ -355,6 +358,26 @@ namespace gem5
         } else {
             // Scalar path (int / float / vecelem).
             gem5::RegVal reg_val = cpu->physRegFile().getReg(phys_reg);
+            // F3: data-dependent trigger (method2 under-voltage setup-time
+            // violation). When trigger_value_mask != 0, inject ONLY if the
+            // target's current value matches (val & mask) == pattern. This
+            // models a defect that manifests on a specific bit pattern (e.g.
+            // method2's x10 garbage pointer appeared only under -30mV VDDAVS
+            // on specific __per_cpu_offset values). No match -> skip this
+            // injection attempt entirely (no count, no log).
+            if (trigger_value_mask != 0 &&
+                ((uint64_t)reg_val & trigger_value_mask) != trigger_value_pattern) {
+                if (write_log) {
+                    *(log_stream->stream())
+                        << "Cycle: " << cpu->curCycle()
+                        << ", PhysReg[" << chosen_phys_idx
+                        << "] F3 trigger MISS: val=0x" << std::hex
+                        << (uint64_t)reg_val << " mask=0x" << trigger_value_mask
+                        << " pattern=0x" << trigger_value_pattern << std::dec
+                        << " — injection skipped.\n";
+                }
+                return;  // F3: not triggered, do not inject or count
+            }
             switch (chosen) {
               case FaultType::StuckAtZero:
                 reg_val &= ~mask;
@@ -429,7 +452,16 @@ namespace gem5
                 << ", FaultType: " << faultTypeToString(chosen)
                 << ", Mask: " << std::bitset<64>(mask)
                 << ", FreeListSize: " << free_list_size_at_inject
-                << std::endl;
+                << (!semantic_role.empty()
+                    ? ", SemanticRole: " + semantic_role
+                    : "");
+            if (trigger_value_mask != 0) {
+                *(log_stream->stream())
+                    << ", F3trigger: mask=0x" << std::hex
+                    << trigger_value_mask << " pattern=0x"
+                    << trigger_value_pattern << std::dec;
+            }
+            *(log_stream->stream()) << std::endl;
         }
     }
 

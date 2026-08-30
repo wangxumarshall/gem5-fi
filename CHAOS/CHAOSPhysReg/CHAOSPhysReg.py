@@ -72,6 +72,28 @@ class CHAOSPhysReg(SimObject):
     faultType = Param.String("bit_flip",
         "bit_flip | stuck_at_zero | stuck_at_one | random")
 
+    # --- F3: data-dependent trigger (method2 under-voltage setup-time violation) ---
+    # When triggerValueMask != 0, the fault is ONLY injected if the target
+    # phys reg's CURRENT value matches: (val & triggerValueMask) ==
+    # triggerValuePattern. This models a setup/hold violation that only
+    # manifests on a specific bit pattern (method2's x10 garbage pointer
+    # appeared only under -30mV VDDAVS on specific per_cpu_offset values).
+    # triggerValueMask=0 (default) = F3 disabled, unconditional injection
+    # (legacy behavior, backward compatible).
+    triggerValueMask = Param.UInt64(0,
+        "F3 data-dependent trigger mask. 0 = F3 disabled (unconditional). "
+        "When nonzero, inject only if (target_val & mask) == pattern.")
+    triggerValuePattern = Param.UInt64(0,
+        "F3 trigger pattern: inject only when (target_val & triggerValueMask) "
+        "== this value. Ignored when triggerValueMask=0.")
+
+    # --- semanticRole (ABI role, for formal campaign heatmap stratification §5.1) ---
+    semanticRole = Param.String("",
+        "ABI role label logged in fault_injections.log for campaign heatmap "
+        "stratification (e.g. 'arg_return' X0-X7, 'temp' X9-X15, "
+        "'callee_saved' X19-X28, 'fp_lr' X29/X30, 'pointer' method2 x10). "
+        "Pure metadata — does not affect injection logic. Empty = unlabeled.")
+
     # --- timing (lastClock fixed 0 = unrestricted, per project discipline) ---
     firstClock = Param.UInt64(0, "First clock cycle eligible for injection")
     lastClock = Param.UInt64(0, "Last cycle (0 = unrestricted). DO NOT use as "

@@ -66,6 +66,12 @@ class CHAOSPhysReg : public SimObject
     std::bitset<64> fault_mask;
     float bit_flip_prob, stuck_at_zero_prob, stuck_at_one_prob;
 
+    // F3: data-dependent trigger (method2 under-voltage). When trigger_value_mask
+    // != 0, inject only if (target_val & mask) == pattern. 0 = unconditional.
+    uint64_t trigger_value_mask;
+    uint64_t trigger_value_pattern;
+    std::string semantic_role;  // ABI role label for campaign heatmap (metadata)
+
     // timing
     Cycles first_clock, last_clock;
 
