@@ -289,11 +289,11 @@ SimulatorError > Hang > Crash > Inactive > Masked > SDC
 - `N_valid = N_total − N_inactive − N_simerror`；`P_SDC = N_SDC/N_valid`；`P_DUE = (N_crash+N_hang)/N_valid`；`P_escape = N_SDC/N_valid`（Latent 待 protectionModel 落地后并入）；`Reachability = N_valid/(N_total − N_simerror)`。
 - **read-trace 四分类**（PRF/RAT/ROB 类，CHAOSPhysReg 已有 `reads_before_overwrite`）：`reads_before_overwrite=0` → Benign；`>0` 且输出不变 → Masked；`>0` 且输出变且无异常 → SDC；触发异常 → Crash。用于验证 `P(SDC∣reads>0)` 跨单元一致性（H1）。
 
-### 4.4 campaign driver（待实现，S0-2）
+### 4.4 campaign driver（✅ 已实现 `f8aecc7`，S0-2 v1 完成；manifest v2 待续）
 
-网格驱动器 `tools/campaign.py`（**当前不存在**，待写）：`injector / config / grid（笛卡尔积）/ n_per_cell / seeds(base 20260825 + cell_ordinal×1000 + rep) / protection_model / workload`。流程：展开 cells → 生成不可变 manifest → 调 `runner.py` 并发执行 → 收集六级分类 + read-trace + 位谱 + provenance → 每 cell 算 Wilson 95% CI + ≥5% 重放校验（不一致冻结）→ `artifacts/<campaign>/{heatmap.csv, summary.md}`。
+网格驱动器 `tools/campaign.py`（**已实现**，v1）：`injector / config / grid（笛卡尔积）/ n_per_cell / seeds(base 20260825 + cell_ordinal×1000 + rep) / workload`。流程：展开 cells → 生成不可变 manifest v1 → 调 `runner.py` 执行 → 收集六级分类 → 每 cell 算 Wilson 95% CI（含 0-SDC 的 3/n 上界）→ `artifacts/<campaign>/{cells.csv, summary.md}`（summary 含 §11.3 三条诚实边界）。v1 端到端已验证（1 cell × 1 rep → SDC=1/1 P_SDC=1.000 [0.207,1.000] first=SDC ✓）。
 
-> 现状：`tools/runner.py`（单 manifest 执行 + classify）已存在；`tools/campaign.py`（网格编排）待写；`fi_research/bit_spectrum.py`（位谱分析）已存在但在 fi_research/ 非 tools/。
+> 现状：`tools/runner.py`（单 manifest + classify，G5 路径已修 `f8aecc7`）+ `tools/campaign.py`（网格编排，已实现）均就绪；`fi_research/bit_spectrum.py`（位谱分析）在 fi_research/（campaign v2 待集成 read-trace + 位谱收集）。manifest v2（§4.5）+ protectionModel（§4.2）+ jobs 并行 + maxinsts 优化待续。
 
 ### 4.5 manifest schema（现状 v1，待扩展 v2）
 
@@ -843,7 +843,7 @@ DSN / PRDC / ASPLOS / HPCA / MICRO；对标 Veritas(HPCA'25)、PinDrop(HPCA'26)�
 
 | 阶段 | 内容 | 依赖 | 工作量 | 现状 |
 |---|---|---|---|---|
-| S0 基础设施 | regen params 干净重建（已完成本轮）+ P0 pilot 复现；campaign.py；kp920_proxy 配置；manifest v2；protectionModel；已知缺陷修复（附录 D） | 无 | ~10 补丁 | 重建进行中；campaign/kp920_proxy 待写 |
+| S0 基础设施 | regen params 干净重建（已完成）+ P0 pilot 复现；campaign.py v1（已完成 `f8aecc7`）；kp920_proxy 配置；manifest v2；protectionModel；已知缺陷修复（附录 D 已完成 D1-D6） | 无 | ~10 补丁 | campaign v1/kp920_proxy 待续；manifest v2/protectionModel 待续 |
 | S1 P0 单元 | PRF 扩/F3；RAT/freelist（CHAOSRenameMap/FreeList）；ROB（CHAOSROB）；LSU 转发扩（D2+structuralFault+AddrPath） | S0 | ~20 补丁 | PRF 已有；其余待实现 |
 | S2 P1 单元 | IQ（CHAOSIQ）；FSU（CHAOSFPU）；TLB/SysReg/PTW + FS checkpoint；L3 pairedSector | S1 | ~18 补丁 | ArmTLB/ArmSysReg 已有基础；IQ/FPU/PTW/AddrPath 待实现 |
 | S3 P2/P3 单元 | L1D 字段级+PCE；L2+victim+size sweep；L1I 语义字段；整数 Exec；BPU；内存控制器 | S1 | ~16 补丁 | 全待实现 |
@@ -861,7 +861,7 @@ DSN / PRDC / ASPLOS / HPCA / MICRO；对标 Veritas(HPCA'25)、PinDrop(HPCA'26)�
 ### 10.3 任务清单（精简索引，详见附录 G 任务卡）
 
 - **S0-1** 干净重建（本轮已完成：恢复源码-二进制一致）。
-- **S0-2** campaign.py + manifest v2（待写）。
+- **S0-2** ~~campaign.py + manifest v2~~ campaign.py v1 ✅ 已实现 `f8aecc7`（manifest v2 待续）。
 - **S0-3** protectionModel 层 + classify 九类扩展（待实现）。
 - **S0-4** 已知缺陷修复（附录 D，D1–D6 已完成 `0ae28fe`/`56023c3`/`58be899`/`4ed645b`）：CHAOSArmTLB 时间窗（D1 ✅）、CHAOSLSQFwd 64 位掩码（D2 ✅）、CHAOSMem 永久重放（D3 ✅）、CHAOSArmSysReg 时间窗（D4 ✅）、概率比较统一（D5 ✅）、NULL 宿主 warn（D6 ✅）、mask==0 早退（D7 Cache/ArmTLB/ArmSysReg/PhysReg 已有）。D9（G6 广触发）、D10（G7 sanitizer）deferred。
 - **S1-1** CHAOSPhysReg F3+semanticRole；**S1-2** CHAOSRenameMap；**S1-3** CHAOSFreeList；**S1-4** CHAOSROB；**S1-5** CHAOSLSQFwd 扩展（D2+structuralFault+stale_line_replay+fwd_source_sub）；**S1-5b** CHAOSAddrPath 实现（侧分支→主线）。
@@ -1056,7 +1056,7 @@ assert:
 ```
 S0-00-复验卡          | depends=[]          | agent | done    | 附录 A"已有"7项逐项复验通过（本轮已完成）
 S0-01-干净重建        | depends=[]          | agent | done    | 源码-二进制一致，vecLaneWidth 可用（本轮已完成）
-S0-02-campaign+manifestv2 | depends=[]      | agent | pending | tools/campaign.py + schema v2
+S0-02-campaign+manifestv2 | depends=[]      | agent | done(v1)| campaign.py v1 已实现 f8aecc7（1×1 验证 SDC=1/1）；manifest v2 待续
 S0-03-protectionModel | depends=[S0-02]     | agent | pending | 9 类分类 + protection 参数
 S0-04-已知缺陷修复    | depends=[S0-01]     | agent | done    | D1/D2/D3/D4/D5/D6 已修（0ae28fe/56023c3/58be899/4ed645b）；D7 部分已有；D9/D10 deferred
 S1-01-CHAOSPhysReg扩展| depends=[S0-04]     | agent | done    | F3 triggerValue* + semanticRole（7f538c4，已验证 MISS 1.3e8 跳过）
