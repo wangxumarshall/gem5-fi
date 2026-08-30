@@ -41,6 +41,7 @@
 
 #include "arch/arm/faults.hh"
 #include "arch/arm/mmu.hh"
+#include "arch/arm/CHAOSPTW/CHAOSPTW.hh"  // P-D3: PTW readout FI hook
 #include "arch/arm/mpam.hh"
 #include "arch/arm/pagetable.hh"
 #include "arch/arm/system.hh"
@@ -1949,6 +1950,18 @@ WalkUnit::doLongDescriptor(WalkerState *curr_state)
 
     curr_state->longDesc.data =
         htog(curr_state->longDesc.data, byteOrder(curr_state->tc));
+
+    // CHAOSPTW (P-D3): optionally bit-flip the freshly-fetched, byte-swapped
+    // long descriptor BEFORE it is evaluated. If the flip clears bits[1:0]
+    // (valid bits) the entry becomes "invalid" -> translation fault, modeling
+    // core 179's 73 transient PTW faults. nullptr or probability==0 -> no-op.
+    // FS MODE REQUIRED: SE uses translateMmuOff (never walks the table).
+    if (mmu && mmu->getPtwInj()) {
+        mmu->getPtwInj()->corruptDescriptor(
+            curr_state->longDesc.getRawPtr(),
+            sizeof(curr_state->longDesc.data),
+            curr_state->vaddr_tainted);
+    }
 
     DPRINTF(PageTableWalker, "L%d descriptor for %#llx is %#llx (%s)\n",
             curr_state->longDesc.lookupLevel, curr_state->vaddr_tainted,

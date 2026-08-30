@@ -56,6 +56,11 @@ namespace gem5
 struct ArmMMUParams;
 class ArmRelease;
 
+// Forward declaration of the page-table-walker readout fault injector (D3).
+// CHAOSPTW lives in the gem5 namespace (like CHAOSAddrPath in cpu.hh).
+// Declared at gem5 scope so ArmISA::MMU can reference it unqualified.
+class CHAOSPTW;
+
 namespace ArmISA {
 
 class TableWalker;
@@ -80,7 +85,15 @@ class MMU : public BaseMMU
 
     TableWalker *walker;
 
+    /** CHAOSPTW hook: page-table-walker readout (D3) injector. Set externally
+     *  from a config script; nullptr -> walker call site short-circuits. */
+    CHAOSPTW *ptwInj = nullptr;
+
   public:
+    /** CHAOSPTW (D3) accessor: set/get the PTW-readout injector. */
+    void setPtwInj(CHAOSPTW *p) { ptwInj = p; }
+    CHAOSPTW *getPtwInj() const { return ptwInj; }
+
     TranslationGenPtr
     translateFunctional(Addr start, Addr size, ThreadContext *tc,
             Mode mode, Request::Flags flags) override

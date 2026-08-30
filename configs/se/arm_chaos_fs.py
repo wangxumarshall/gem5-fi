@@ -22,7 +22,7 @@
 import argparse
 import m5
 from m5.objects import (ArmDefaultRelease, VExpress_GEM5_Foundation,
-                        VExpress_GEM5_V1, CHAOSArmTLB, CHAOSArmSysReg, CHAOSAddrPath)
+                        VExpress_GEM5_V1, CHAOSArmTLB, CHAOSArmSysReg, CHAOSAddrPath, CHAOSPTW)
 from gem5.components.boards.arm_board import ArmBoard
 from gem5.components.cachehierarchies.classic.private_l1_private_l2_cache_hierarchy import (
     PrivateL1PrivateL2CacheHierarchy,
@@ -93,6 +93,20 @@ p.add_argument("--addrpath_byte_offset", type=int, default=7,
 p.add_argument("--addrpath_first_clock", type=lambda x:int(x,0), default=100000)
 p.add_argument("--addrpath_max_faults", type=lambda x:int(x,0), default=1)
 p.add_argument("--addrpath_rng_seed", type=lambda x:int(x,0), default=20260825)
+# S2-5c CHAOSPTW (P-D3): PTW readout FI. FS-only (SE never walks the table).
+p.add_argument("--chaos_ptw", action="store_true",
+               help="attach CHAOSPTW (P-D3 PTW-readout FI; FS-only, "
+                    "reproduces core179 D3 spurious translation faults).")
+p.add_argument("--ptw_probability", type=float, default=0.0)
+p.add_argument("--ptw_fault_mask", type=lambda x:int(x,0), default=0)
+p.add_argument("--ptw_byte_offset", type=int, default=-1)
+p.add_argument("--ptw_clear_valid_bit", action="store_true",
+               help="force-clear PTE valid bits (reliably manufactures spurious).")
+p.add_argument("--ptw_ecc", action="store_true",
+               help="model PTW array ECC (H7: ECC-on corrects single-bit).")
+p.add_argument("--ptw_first_clock", type=lambda x:int(x,0), default=100000)
+p.add_argument("--ptw_max_faults", type=lambda x:int(x,0), default=1)
+p.add_argument("--ptw_rng_seed", type=lambda x:int(x,0), default=20260825)
 args = p.parse_args()
 
 cpu_map = {"O3": CPUTypes.O3, "TIMING": CPUTypes.TIMING,
@@ -143,7 +157,7 @@ board.set_kernel_disk_workload(
 # hook (the ArmBoard builds the CPU+MMU lazily). Either TLB or SYS (or both)
 # trigger the hook. cpu0 = processor.get_cores()[0].core; D-TLB = cpu0.mmu.dtb;
 # ISA = cpu0.isa[0] (BaseCPU.isa is a per-thread VectorParam.BaseISA).
-if args.chaos_armtlb or args.chaos_sysreg or args.chaos_addrpath:
+if args.chaos_armtlb or args.chaos_sysreg or args.chaos_addrpath or args.chaos_ptw:
     _tlb_attached = [False]
     _orig_pi = getattr(cache_hierarchy, "_pre_instantiate", None)
     def _attach_tlb(root):
@@ -212,6 +226,27 @@ if args.chaos_armtlb or args.chaos_sysreg or args.chaos_addrpath:
                 board.chaos_addrpath = ap
             except Exception as e:
                 m5.warn("CHAOSAddrPath attach skipped (cpu0 may be Atomic, not O3): %s" % str(e))
+
+        # S2-5c CHAOSPTW (P-D3): attaches to the MMU (whose table-walker to
+        # hook). SELF-ATTACHES (ctor sets mmu->setPtwInj(this)). FS REQUIRED:
+        # SE never walks the table. Uses cpu0.mmu (BaseMMU).
+        if args.chaos_ptw:
+            try:
+                ptw = CHAOSPTW(
+                    mmu=cpu0.mmu,
+                    probability=args.ptw_probability,
+                    faultMask=args.ptw_fault_mask,
+                    byteOffset=args.ptw_byte_offset,
+                    clearValidBit=args.ptw_clear_valid_bit,
+                    ptwEcc=args.ptw_ecc,
+                    firstClock=args.ptw_first_clock,
+                    maxFaults=args.ptw_max_faults,
+                    rngSeed=args.ptw_rng_seed,
+                    writeLog=True,
+                )
+                board.chaos_ptw = ptw
+            except Exception as e:
+                m5.warn("CHAOSPTW attach skipped: %s" % str(e))
     cache_hierarchy._pre_instantiate = _attach_tlb
 
 # Exit when the kernel reports it has booted (default exit handlers include

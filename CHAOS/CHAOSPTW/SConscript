@@ -1,0 +1,5 @@
+Import('*')
+
+SimObject('CHAOSPTW.py', sim_objects=['CHAOSPTW'], enums=[])
+Source('CHAOSPTW.cc')
+DebugFlag('CHAOSPTW')
