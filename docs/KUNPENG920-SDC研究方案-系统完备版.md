@@ -37,7 +37,7 @@
 | **CHAOSPhysReg** | O3 物理寄存器堆 int/fp/vector | `regfile.hh` 读/写+setStuckTarget；`cpu.hh:478-489` accessor | B（状态注入） | `injectionMode{phys,arch_frontend,arch_commit}`、`regTargetClass{int,fp,vector,both}`、`vecLaneWidth/Offset`、64位 faultMask、write-path stuck（G2） |
 | **CHAOSCache** | classic cache 数据字节 | 事件驱动 `getTags()`（G3 安全接口） | C（`_pre_instantiate`） | 64位 faultMask、`targetBlockAddr/targetByteOffset` 定向、maxFaults（G5）、≥1cycle 间隔（G6） |
 | **CHAOSMem** | AbstractMemory 后备存储字节 | `AbstractMemory::access` Packet RMW | C | 闭区间 `[start,end]`（G4）、故障类型权重修复、64位 |
-| **CHAOSLSQFwd** | store→load 转发数据 | `lsq_unit.cc:1493-1499`（`cpu->lsqFwd`） | A（自挂载） | **⚠️ faultMask 为 `std::bitset<32>` 且 `&0xff` 单字节（D2 缺陷未修）**；仅 bit_flip/stuck_at_zero/stuck_at_one；**无 structuralFault/byte_lane_skew/stale_line_replay（已从主线回退）** |
+| **CHAOSLSQFwd** | store→load 转发数据 | `lsq_unit.cc:1493-1499`（`cpu->lsqFwd`） | A（自挂载） | ✅ D2 已修 `0ae28fe`（faultMask UInt64 + maskWidth 多字节，bit32/63 可注入）；仅 bit_flip/stuck_at_zero/stuck_at_one；**无 structuralFault/byte_lane_skew/stale_line_replay（已从主线回退，待补齐）** |
 | **CHAOSArmTLB** | ARM D-TLB 命中表项 pfn | `arch/arm/tlb.cc:164-168`（`tlb->chaosTLB`） | A（自挂载，FS） | bit_flip/stuck_at_zero/stuck_at_one；**无 targetField/protectionModel/pfn_to_mapped/value_to_legal（待扩展）** |
 | **CHAOSArmSysReg** | ARM 系统寄存器 MRS 读值 | `arch/arm/isa.cc:39,452-457` + `isa.hh:179-180`（`isa->chaosSysReg`） | A（自挂载，FS） | bit_flip/stuck_at_zero/stuck_at_one/random；`targetRegs` 白名单（按 miscRegName 解析）；**无 value_to_legal(F5)（待扩展）** |
 
@@ -81,7 +81,7 @@
 | C4 | "H5 已闭环（main，30 注入 28 检出 93%）" | H5 闭环在**侧分支**（fi-h6-h7-fs-verify），基于 `structuralFault` 模式；主线 CHAOSLSQFwd 已回退，**无 structuralFault**，H5 在主线**不可复现** | 标"H5 在侧分支闭环；主线需补 structuralFault 后复现"（§6.1, §10） |
 | C5 | "H6 已闭环（main，numAddrFaults=20）" | H6 在侧分支 FS 下钩子触发非零、复现 byte7 清零签名，但 D2-only 50 注入→0 可观察失败，**定量谱可分未确立** | 标"H6 FS 钩子可达性已证，定量未确立"（§6.1） |
 | C6 | "H7 已闭环（main，5 seed：on 全 0，off 1–4）" | H7 在侧分支 SE 模式 numFaultsInjected=0（mmu.cc:1213 静态归因）；FS 内核态 ECC 纠正 + spurious 制造两机制各实证，**未在同一实验结合，完整 ECC on/off spurious 率定量未完成** | 标"H7 两机制各实证，完整定量对照未完成"（§6.1） |
-| C7 | D2 缺陷"CHAOSLSQFwd 64 位掩码待修" | 确认 `bitset<32>` + `&0xff` 单字节，**未修** | 标"D2 待修（S0-6）"（§A.4, §10） |
+| C7 | D2 缺陷"CHAOSLSQFwd 64 位掩码待修" | 确认 `bitset<32>` + `&0xff` 单字节 | ✅ 已修 `0ae28fe`（UInt64 + maskWidth，bit32/63 注入验证通过） |
 | C8 | "kp920_proxy.py / kp920_proxy_fs.py" | 不存在（符合"待写"诚实声称） | 保持"待写"（§4.1, §10） |
 
 > **诚信自评**：原方案文档的失实集中在"将侧分支（fi-h6-h7-fs-verify 等）已验证的能力误标为主线已有"。这源于双分支分裂（`fi` 与 `main` 分头开发 H5/H6/H7 与 P0–P3）后，文档未严格区分"侧分支已验证"与"主线已并入"。本文以工作树源码为唯一事实源，恢复了诚实基线。原方案的**设计骨架本身是有效的**——F1–F6 故障模型、campaign 网格、openEuler 七步诊断、抗 SDC 设计建议的方向都成立；失实的只是能力状态的标注。本文继承其设计、修正其标注。
@@ -392,7 +392,7 @@ pilot 每 cell n=100（可达率/工具错误/粗略比例）；formal 每 cell 
 **A. 目标与 hook**：store buffer 数据、转发 CAM 匹配、转发源 seqNum、部分重叠拼接、AGU 有效地址、ready/replay、独占监视器。Hook `lsq_unit.cc:1493-1499` 转发数据（已有，已核实）、转发匹配决策点（新增）、AGU 地址生成（FS，待 CHAOSAddrPath）。
 
 **B. 注入器**：
-- `CHAOSLSQFwd`（已有，基础版）**需扩展**：① 修 D2（`faultMask` `bitset<32>`→`UInt64`，`&0xff`→64位，S0-4）；② **补回退的 `structuralFault` 模式**（`byte_lane_skew`/`all_zero`，侧分支曾实现 H5 闭环，主线已回退，需补齐——这是复现 core179 D1 签名的关键）；③ `stale_line_replay`（FI_DESIGN_SUPPLEMENT 有设计，代码未实现）；④ F5 `fwd_source_sub`（待写）；⑤ F6 `phaseOffset`（待写，−2..+2）。
+- `CHAOSLSQFwd`（已有，基础版）**需扩展**：① ~~修 D2~~ ✅ 已修 `0ae28fe`（faultMask UInt64 + maskWidth 多字节，bit32/63 可注入）；② **补回退的 `structuralFault` 模式**（`byte_lane_skew`/`all_zero`，侧分支曾实现 H5 闭环，主线已回退，需补齐——这是复现 core179 D1 签名的关键）；③ `stale_line_replay`（FI_DESIGN_SUPPLEMENT 有设计，代码未实现）；④ F5 `fwd_source_sub`（待写）；⑤ F6 `phaseOffset`（待写，−2..+2）。
 - `CHAOSAddrPath`（**待实现**，侧分支有，主线无）：hook AGU 地址生成，破坏 vaddr（byte7 清零/低位翻转/F5 换址）。**SE 无效（mmu.cc:1213 静态归因），FS 有效**。
 - `CHAOSExMon`（待写）：hook 独占监视器 FSM，open↔exclusive 翻转。
 
@@ -861,7 +861,7 @@ DSN / PRDC / ASPLOS / HPCA / MICRO；对标 Veritas(HPCA'25)、PinDrop(HPCA'26)�
 - **S0-1** 干净重建（本轮已完成：恢复源码-二进制一致）。
 - **S0-2** campaign.py + manifest v2（待写）。
 - **S0-3** protectionModel 层 + classify 九类扩展（待实现）。
-- **S0-4** 已知缺陷修复（附录 D）：CHAOSArmTLB 时间窗（D1）、CHAOSLSQFwd 64 位掩码（D2，**未修**）、CHAOSMem 永久重放（D3）、CHAOSArmSysReg 时间窗（D4，**随扩展一起做**）、拒绝比较统一（D5）、NULL 宿主 warn（D6）、mask==0 早退（D7）。
+- **S0-4** 已知缺陷修复（附录 D，D1–D6 已完成 `0ae28fe`/`56023c3`/`58be899`/`4ed645b`）：CHAOSArmTLB 时间窗（D1 ✅）、CHAOSLSQFwd 64 位掩码（D2 ✅）、CHAOSMem 永久重放（D3 ✅）、CHAOSArmSysReg 时间窗（D4 ✅）、概率比较统一（D5 ✅）、NULL 宿主 warn（D6 ✅）、mask==0 早退（D7 Cache/ArmTLB/ArmSysReg/PhysReg 已有）。D9（G6 广触发）、D10（G7 sanitizer）deferred。
 - **S1-1** CHAOSPhysReg F3+semanticRole；**S1-2** CHAOSRenameMap；**S1-3** CHAOSFreeList；**S1-4** CHAOSROB；**S1-5** CHAOSLSQFwd 扩展（D2+structuralFault+stale_line_replay+fwd_source_sub）；**S1-5b** CHAOSAddrPath 实现（侧分支→主线）。
 - **S2-1** CHAOSIQ；**S2-3** CHAOSFPU；**S2-5a** CHAOSArmSysReg 扩展（F5+D4）；**S2-5b** CHAOSArmTLB F5+targetField；**S2-5c** CHAOSPTW 实现（侧分支→主线）+ H7 formal + FS 流水线。
 - **S3-2** CHAOSL1DForward；**S3-4** CHAOSExec；**S3-5** CHAOSBPU；**S3-6** CHAOSMem 扩展。
@@ -905,7 +905,7 @@ DSN / PRDC / ASPLOS / HPCA / MICRO；对标 Veritas(HPCA'25)、PinDrop(HPCA'26)�
 | CHAOSPhysReg | O3 物理寄存器堆 | `regfile.hh`（读/写 stuck）、`free_list.hh`（isFree）、`cpu.hh:478-489` | B（状态注入） | P0 主力 | phys/arch_frontend/arch_commit；int/fp/vector/both；vecLaneWidth/Offset；64位 mask；G2 write-path stuck |
 | CHAOSCache | cache 数据字节 | 事件驱动遍历（`getTags()`，G3） | C（`_pre_instantiate`） | P2/P1 | 64位 mask；targetBlockAddr/targetByteOffset 定向；maxFaults（G5）；≥1cycle（G6） |
 | CHAOSMem | AbstractMemory 字节 | `AbstractMemory::access` Packet RMW | C | P3 | 闭区间（G4）；权重修复；64位 |
-| CHAOSLSQFwd | store→load 转发数据 | `lsq_unit.cc:1493-1499`（`cpu->lsqFwd`） | A（自挂载） | P0 | ⚠️ `bitset<32>`+`&0xff`（D2 未修）；仅 bit_flip/stuck_at_zero/stuck_at_one；**无 structuralFault（已回退）** |
+| CHAOSLSQFwd | store→load 转发数据 | `lsq_unit.cc:1493-1499`（`cpu->lsqFwd`） | A（自挂载） | P0 | ✅ D2 已修（UInt64 + maskWidth 多字节，bit32/63 可注入）；仅 bit_flip/stuck_at_zero/stuck_at_one；**无 structuralFault（已回退，待补齐）** |
 | CHAOSArmTLB | D-TLB pfn | `arch/arm/tlb.cc:164-168`（`tlb->chaosTLB`） | A（自挂载，FS） | P1 | bit_flip/stuck_at_zero/stuck_at_one；**无 targetField/protectionModel/pfn_to_mapped（待扩展）** |
 | CHAOSArmSysReg | ARM 系统寄存器 MRS 读值 | `arch/arm/isa.cc:39,452-457` + `isa.hh:179-180`（`isa->chaosSysReg`） | A（自挂载，FS） | P1 | bit_flip/stuck_at_zero/stuck_at_one/random；`targetRegs` 白名单（miscRegName 解析）；**无 value_to_legal(F5)（待扩展）** |
 
@@ -970,13 +970,13 @@ DSN / PRDC / ASPLOS / HPCA / MICRO；对标 Veritas(HPCA'25)、PinDrop(HPCA'26)�
 
 | # | 级 | 缺陷 | 位置 | 修复任务 | 现状 |
 |---|---|---|---|---|---|
-| D1 | P0 | CHAOSArmTLB `firstClock/lastClock` 未检查（1GHz 假设） | `CHAOSArmTLB.cc` | S0-4 | 未修 |
-| D2 | P0 | CHAOSLSQFwd `faultMask` UInt32 且 `&0xff` 单字节 | `CHAOSLSQFwd.cc/.hh`（`bitset<32>`，cc:19,125） | S0-4 | **未修**（已核实） |
-| D3 | P0 | CHAOSMem `checkPermanent()` 重放一次后 update=false | `CHAOSMem.cc` | S0-4 | 待核实 |
-| D4 | P0 | CHAOSArmSysReg 时间窗 1GHz 假设 | `CHAOSArmSysReg.cc`（cc:75-90） | S2-5a | 未修（随 F5 扩展一起做） |
-| D5 | P0 | 拒绝比较不统一（`>` vs `>=`） | TLB/SysReg vs LSQFwd | S0-4 | 待核实 |
-| D6 | P0 | CHAOSArmTLB NULL 宿主静默失败 | `CHAOSArmTLB.cc` | S0-4 | 待核实 |
-| D7 | P0 | `mask==0` 不早退 | 多注入器 | S0-4 | 待核实 |
+| D1 | P0 | CHAOSArmTLB `firstClock/lastClock` 未检查 | `CHAOSArmTLB.cc` | S0-4 | ✅ 已修 `56023c3`（startup + curTick 时间窗，三组 FS 对照验证） |
+| D2 | P0 | CHAOSLSQFwd `faultMask` UInt32 且 `&0xff` 单字节 | `CHAOSLSQFwd.cc/.hh`（`bitset<32>`） | S0-4 | ✅ 已修 `0ae28fe`（UInt64 + maskWidth 多字节，bit32/63 注入验证） |
+| D3 | P0 | CHAOSMem `checkPermanent()` 重放一次后 update=false | `CHAOSMem.cc` | S0-4 | ✅ 已修 `4ed645b`（去掉 update=false + 重施加 stat，numPermanentReapplies=573157 验证） |
+| D4 | P0 | CHAOSArmSysReg 时间窗 1GHz 假设 | `CHAOSArmSysReg.cc` | S0-4 | ✅ 已修 `58be899`（startup 用 (Tick)first_clock，消除 *1000；FS 端到端注入待 checkpoint） |
+| D5 | P0 | 概率比较不统一（`>` vs `>=`） | TLB/SysReg vs LSQFwd | S0-4 | ✅ 已修 `56023c3`+`58be899`（统一为 `>=`） |
+| D6 | P0 | CHAOSArmTLB NULL 宿主静默失败 | `CHAOSArmTLB.cc` | S0-4 | ✅ 已修 `56023c3`（NULL tlb 改为 warn） |
+| D7 | P0 | `mask==0` 不早退 | 多注入器 | S0-4 | ⚠️ Cache/ArmTLB/ArmSysReg/PhysReg 已有；Reg/Mem 无显式早退（无害，mask=0 走随机生成或 no-op） |
 | D8 | P1 | CHAOSReg `maxRegIdx=0` 含 Zero/banked 项 | `CHAOSReg.cc` | 使用纪律 | 已有 maxRegIdx=31 约束 |
 | D9 | P1 | G6 PC/committedInst/event 触发未实现 | 全局 | S0-5+后续 | 未实现 |
 | D10 | P1 | G7 ASan/UBSan 构建受阻 | SConstruct | deferred 到 CI | socket configure 阻塞 |
@@ -1055,7 +1055,7 @@ S0-00-复验卡          | depends=[]          | agent | done    | 附录 A"已�
 S0-01-干净重建        | depends=[]          | agent | done    | 源码-二进制一致，vecLaneWidth 可用（本轮已完成）
 S0-02-campaign+manifestv2 | depends=[]      | agent | pending | tools/campaign.py + schema v2
 S0-03-protectionModel | depends=[S0-02]     | agent | pending | 9 类分类 + protection 参数
-S0-04-已知缺陷修复    | depends=[S0-01]     | agent | pending | 附录 D 的 D1/D2/D4/D5/D6/D7 全绿（D2 已核实未修）
+S0-04-已知缺陷修复    | depends=[S0-01]     | agent | done    | D1/D2/D3/D4/D5/D6 已修（0ae28fe/56023c3/58be899/4ed645b）；D7 部分已有；D9/D10 deferred
 S1-01-CHAOSPhysReg扩展| depends=[S0-04]     | agent | pending | F3 triggerValue* + semanticRole
 S1-02-CHAOSRenameMap  | depends=[S0-04]     | agent | pending | 见 G.1 示例 assert
 S1-03-CHAOSFreeList   | depends=[S0-04]     | agent | pending | mark_free/pop_wrong
