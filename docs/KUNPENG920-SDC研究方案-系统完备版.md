@@ -217,7 +217,7 @@ SDC 暴露面(unit) ≈ 未受保护状态位数 × (占用率 × 平均驻留�
 |---|---|---|---|---|
 | F1 | 单比特瞬态 | 某一位翻转一次 | ✅ 已有（Reg/PhysReg/Cache/Mem/LSQFwd/ArmTLB/ArmSysReg） | `faultType=bit_flip` + `faultMask=1<<k` |
 | F2 | 局部多位 | 相邻 2/4/8 位同时翻转 | ✅ 已有 | `bitsToChange>1` 或多位 `faultMask` |
-| F3 | 间歇突发 + 数据相关触发 | 仅当目标当前值匹配某位模式时注入（模拟欠压建立时间违例） | ❌ 全部待实现 | 新增 `triggerValueMask/triggerValuePattern`（CHAOSPhysReg 优先，复现 method2 欠压） |
+| F3 | 间歇突发 + 数据相关触发 | 仅当目标当前值匹配某位模式时注入（模拟欠压建立时间违例） | ✅ CHAOSPhysReg 已实现 `7f538c4` | `triggerValueMask/triggerValuePattern`（CHAOSPhysReg 优先，复现 method2 欠压；已验证 MISS 1.3 亿次正确跳过） |
 | F4 | stuck-at | 某位永久卡 0/1 | ✅ PRF 写路径（`setStuckTarget`，G2 已验证）；其余仅"注入一次" | 补 write-path 钩子到 LSQFwd/Cache |
 | F5 | 合法域替换 | 换成另一个合法值/编号（逻辑决策层故障） | ❌ 全部待实现 | RAT→另一 physReg；freelist 活寄存器误标空闲；LSQ 转发源→另一 store；TLB pfn→另一活页；SysReg `value_to_legal` |
 | F6 | 延迟/遗漏代理（相位） | 唤醒/转发提前或推迟 N 拍 | ❌ 待实现 | IQ 唤醒 phaseOffset；LSQ 转发 phaseOffset |
@@ -328,7 +328,7 @@ pilot 每 cell n=100（可达率/工具错误/粗略比例）；formal 每 cell 
 
 **A. 目标与 hook**：整数/向量/flag 物理寄存器堆。Hook 已核实：`regfile.hh`（读写 + `setStuckTarget` 写路径 stuck，G2）、`free_list.hh`（`isFree` 探活）、`cpu.hh:478-489`（`physRegFile()/frontRenameMap()/physFreeList()` accessor，已核实）。
 
-**B. 注入器**：`CHAOSPhysReg`（已有，已验证锚点）。三种 `injectionMode{phys,arch_frontend,arch_commit}`；`regTargetClass{int,fp,vector,both}`；`vecLaneWidth/Offset`；64位 faultMask；write-path stuck（G2）。**扩展（待实现）**：F3 数据相关触发 `triggerValueMask/Pattern`（`processFault()` 读目标当前值，仅当 `(val & mask)==pattern` 时注入）、`semanticRole` 日志字段、`protectionModel=none` 占位。
+**B. 注入器**：`CHAOSPhysReg`（已有，已验证锚点）。三种 `injectionMode{phys,arch_frontend,arch_commit}`；`regTargetClass{int,fp,vector,both}`；`vecLaneWidth/Offset`；64位 faultMask；write-path stuck（G2）；**F3 数据相关触发 `triggerValueMask/Pattern`（`7f538c4` 已实现，已验证 MISS 1.3 亿次正确跳过）**；**`semanticRole` ABI 角色标签（已实现，已验证日志）**。**待扩展**：`protectionModel=none` 占位。
 
 **C. campaign 网格**（`kp920_proxy.py`，SE，`--chaos_phys`）：
 
@@ -1056,7 +1056,7 @@ S0-01-干净重建        | depends=[]          | agent | done    | 源码-二�
 S0-02-campaign+manifestv2 | depends=[]      | agent | pending | tools/campaign.py + schema v2
 S0-03-protectionModel | depends=[S0-02]     | agent | pending | 9 类分类 + protection 参数
 S0-04-已知缺陷修复    | depends=[S0-01]     | agent | done    | D1/D2/D3/D4/D5/D6 已修（0ae28fe/56023c3/58be899/4ed645b）；D7 部分已有；D9/D10 deferred
-S1-01-CHAOSPhysReg扩展| depends=[S0-04]     | agent | pending | F3 triggerValue* + semanticRole
+S1-01-CHAOSPhysReg扩展| depends=[S0-04]     | agent | done    | F3 triggerValue* + semanticRole（7f538c4，已验证 MISS 1.3e8 跳过）
 S1-02-CHAOSRenameMap  | depends=[S0-04]     | agent | pending | 见 G.1 示例 assert
 S1-03-CHAOSFreeList   | depends=[S0-04]     | agent | pending | mark_free/pop_wrong
 S1-04-CHAOSROB        | depends=[S0-04]     | agent | pending | entry_bitflip/exc_suppress/spec_leak
