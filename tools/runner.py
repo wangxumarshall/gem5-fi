@@ -36,6 +36,15 @@ REPO = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 G5 = os.path.join(REPO, "build/ARM/gem5.opt")
 CFG = os.path.join(REPO, "configs/se/arm_chaos.py")
 
+# Platform config family (design doc §1.1) -> the SE .py harness to run.
+# C0 = arm_chaos.py (baseline). C2 = kp920_proxy.py (Kunpeng V110 proxy, E3).
+# The campaign driver picks this from the campaign/manifest config_family;
+# runner.py defaults to C0 so single-manifest runs are unchanged.
+CONFIG_FAMILY = {
+    "C0": os.path.join(REPO, "configs/se/arm_chaos.py"),
+    "C2": os.path.join(REPO, "configs/se/kp920_proxy.py"),
+}
+
 # manifest oracle.golden_id -> the workload's golden (no-injection) checksum.
 # These are the no-injection reference outputs (native == gem5, deterministic).
 GOLDEN_IDS = {
@@ -55,6 +64,12 @@ def sha256_file(path):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("manifest")
+    ap.add_argument("--config", default="C0", choices=list(CONFIG_FAMILY),
+                    help="platform config family (design doc §1.1): C0 = "
+                         "arm_chaos.py baseline, C2 = kp920_proxy.py (V110 "
+                         "proxy). The campaign driver passes this from the "
+                         "campaign's `config` field; the manifest's "
+                         "platform.config_family overrides if present.")
     ap.add_argument("--golden-checksum",
                     help="workload oracle checksum (e.g. reg_chain's 16-hex "
                          "value) from a no-injection run. If omitted, the "
@@ -65,6 +80,16 @@ def main():
 
     with open(args.manifest) as f:
         m = yaml.safe_load(f)
+
+    # resolve config family: manifest platform.config_family overrides the
+    # --config CLI default (so a C2 manifest runs on kp920_proxy.py without
+    # the caller needing --config C2). Falls back to the --config arg.
+    cfg_family = m.get("platform", {}).get("config_family") or args.config
+    if cfg_family not in CONFIG_FAMILY:
+        sys.exit(f"[runner] unknown config_family '{cfg_family}'. Known: "
+                 f"{list(CONFIG_FAMILY)}. Aborting.")
+    cfg_path = CONFIG_FAMILY[cfg_family]
+    print(f"[runner] config_family: {cfg_family} -> {os.path.basename(cfg_path)}")
 
     # resolve golden checksum: explicit arg, else manifest golden_id
     golden = args.golden_checksum
@@ -150,7 +175,7 @@ def main():
         fault_mask = "0"   # random mask
         bits_to_change = "1"
 
-    cmd = [G5, "--quiet", "-d", tempfile.mkdtemp(prefix="man-"), CFG,
+    cmd = [G5, "--quiet", "-d", tempfile.mkdtemp(prefix="man-"), cfg_path,
            "--cmd", args.binary, "--cpu", "O3",
            "--first_clock", str(t["value"]),
            "--max_faults", str(m["limits"]["max_faults"]),

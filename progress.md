@@ -460,3 +460,28 @@ ARM 三条路径 + golden（真跑输出）：
 - **修复的 bug**：初版 `parse_runner_result` 用 `startswith("RESULT:")`，但 runner.py 打印 `[runner] RESULT:`（带 `[runner] ` 前缀）→ 解析全 None → 误判 SimulatorError。改 `RESULT_PREFIX in line` 后修复，真 results.jsonl 正确显示 `classification=SDC faults_injected=1 exit=0`。
 
 **诚实边界**（本补丁不做）：无新注入器（S1）、无 `kp920_proxy.py`（单独 S0 单元，本驱动现用 C0 baseline 经 runner.py）、无 manifest schema v2（单独 S0 单元，本驱动复用 v1）、无 injector 内 protectionModel 逻辑（§1.2，本驱动把 protection_model 作 grid 轴透传，SE 注入器当前忽略——no-op 轴，诚实）。本机 formal n=384 不跑（pilot only，formal 须健康机 §0.4）。
+
+---
+
+### S0 单元2 — `configs/se/kp920_proxy.py`（C2-KP 鲲鹏 V110 代理配置，§1.1）
+
+**实现**：`configs/se/kp920_proxy.py`（新，~210 行）镜像 `arm_chaos.py` 结构（stdlib SimpleBoard + PrivateL1PrivateL2CacheHierarchy + SimpleProcessor + 5 个 CHAOS 注入器挂载点），加上 TaiShan V110 微架构参数（来自 `docs/kunpeng.md` §3，设计文档 §1.1）：4-wide（fetch=decode=rename=issue=dispatch=commit=4）、numROBEntries=128、numPhysIntRegs=160、numPhysFloatRegs=192、LQEntries=48、SQEntries=42、clk=2.6GHz。缓存几何不变（64KiB L1 / 512KiB L2 — V110 与 C0 baseline 实际一致，C2-KP 的差异点是 O3 微架构参数 + 2.6GHz）。
+
+**CLI sweep 旋钮**（§2.1 H2 窗口扫描）：`--rob/--phys_int/--phys_float/--lq/--sq` 默认 V110 值，campaign 网格可扫 {96,128,160} 等。
+
+**runner.py 路由**（§1.1 config family）：runner.py 加 `--config`（默认 C0）+ 读 manifest `platform.config_family`，映射 C0→arm_chaos.py / C2→kp920_proxy.py。campaign.py manifest 生成已把 `platform.config_family = campaign['config']` 写入，故 `config: C2` 的 campaign 自动路由到 kp920_proxy.py（无需改 campaign.py）。
+
+**自验证（真机，CLAUDE.md）**：
+- `py_compile` 零错。
+- **golden reg_chain on C2-KP**（V110 参数）= `f247ef3fe6cfd` exit 0（无 SIGSEGV）。V110 参数应用确认（`[kp920_proxy] C2-KP V110 O3 params applied: width=4-wide, ROB=128, physInt=160, physFloat=192, LQ=48, SQ=42`）。
+- **CHAOSPhysReg X3 arch_frontend bit_flip on C2-KP**：`Cycle:100000 PhysReg[97](<=ArchReg[3]) Mask:<single-bit>` → `add9e0e2f44a4c3b` **SDC**（≠ golden）。**关键诚实观察**：C2-KP 上 X3 命中 PhysReg[97]（C0 baseline 上是 PhysReg[77]）——V110 参数改变 rename 映射，正是 §2.1 H2 窗口扫描的意义。X3 SDC 在 V110 参数 CPU 上可复现但不同 checksum/不同 PhysReg 映射。
+- **C2 路由端到端**：campaign `config: C2` → manifest `platform.config_family: C2` → runner.py 读 → `config_family: C2 -> kp920_proxy.py` → SDC faults=1 exit=0。
+- **回归**：runner.py on p1 manifest（C0）仍 `classification=Masked faults_injected=1 exit=0`（runner.py 行为零回归）；arm_chaos.py golden 仍 `f247ef3fe6cfd`。
+
+**诚实边界（E3，写进配置 docstring + 此处）**：
+1. gem5 v25 O3 用**统一指令队列**（`instQueues: vector<IQUnit>`），V110 是**分布式四调度器**（每 ~33 项）。无标量 `numIQEntries` 参数可设（IQ 由 IQUnit 子对象构造），doc §1.1 的 numIQEntries≈66 是建模目标非可设旋钮——标 E3。
+2. 无 bufferless NoC / HCCS / 分区 L3 Tag-Data 分离（§14/§16/§17，Ruby/CHI/Garnet，S4 系统级）。
+3. classic cache 无真实 ECC 逻辑（protection-aware 是 §1.2，单独 S0 单元；本配置把 protection_model 作 no-op 轴透传）。
+4. 默认 gem5 ArmO3CPU FUPool（非自定义 IntALU×3 + IntMultDiv×1 + AGU×2 + FSU×2 端口映射）作执行端口代理——自定义 FUPool 是单独更大补丁。
+
+绝对 SDC 率是 E3（代理）；跨 sweep 轴趋势是 E2。FS 配置 `configs/fs/kp920_proxy_fs.py` 需 gem5-fs（2.5GB，已 gitignore），deferred。
