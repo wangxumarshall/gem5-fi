@@ -47,8 +47,9 @@ class CHAOSLSQFwd : public SimObject
     // Structural fault modes (P-D1 extension). Distinct from the bit-level
     // FaultType above: these re-route the *whole* delivered word rather than
     // flipping bits in one byte. Driven by the core-179 microarch diagnosis
-    // (MICROARCH_SUPPLEMENT §2.2): D1 observed load returns of rol_k(stale
-    // array-head content) and all-zero deliveries — neither expressible as a
+    // (MICROARCH_SUPPLEMENT §2.2): D1 observed load returns of ror_k(stale
+    // array-head content; direction degenerate for a 64-bit word: ror1≡rol7,
+    // ror6≡rol2) and all-zero deliveries — neither expressible as a
     // single-byte bit flip (verified: no 8-bit-mask XOR produces a rotation).
     enum class StructuralFault {
         None,            // no structural fault (default; legacy bit-fault path)
