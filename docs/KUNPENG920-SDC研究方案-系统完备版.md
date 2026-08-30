@@ -29,7 +29,9 @@
 
 **核查方法**：逐注入器实读 `.py/.hh/.cc/SConscript`；在 vendored gem5 源码树 `CHAOS/gem5/src/` 中 grep 确认 hook 接线；`git log --all` 追溯被删除文件的历史；实跑 `gem5.opt` 验证构建与锚点（§5 已验证锚点表）。
 
-#### 0.3.1 当前工作树真实存在的注入器：**7 个**（非原方案声称的 8 个）
+#### 0.3.1 当前工作树真实存在的注入器：**核查时 7 个，现已 8 个**（CHAOSAddrPath 已由 S1-5b 实现）
+
+> **2026-08-30 核查时**主线工作树有 7 个注入器（下表）。**S1-5b（`ffd041e`）后新增 CHAOSAddrPath**，主线现 8 个。下表保留核查时状态以存史；CHAOSAddrPath 的实现见 §A.2 与 §5.4。
 
 | 注入器 | 目标单元 | Hook 位置（已核实） | 范式 | 真实参数面（已核实） |
 |---|---|---|---|---|
@@ -48,7 +50,7 @@
 - `git ls-tree fi-wangxu` 与 `git ls-tree origin/fi` 均**不含** CHAOSAddrPath/CHAOSPTW 目录。`grep -rn "CHAOSAddrPath\|CHAOSPTW\|chaosAddr\|chaosPtw" CHAOS/gem5/src/` **零匹配**——vendored gem5 树中也无任何 hook 残留（"cleanly removed"，非孤儿引用）。
 - `git log --all -- CHAOS/CHAOSAddrPath/ CHAOS/CHAOSPTW/` 显示这两个目录的**唯一** commit 是 `201eac6 fi(P-D2/P-D3): implement CHAOSAddrPath + CHAOSPTW`，该 commit 位于**侧分支**（`origin/fi-h6-h7-fs-verify` / `origin/fix/paper-review-v1-honesty-hardening` 等），**从未并入 `fi` 或 `fi-wangxu` 主线**。
 - `git merge-base fi-wangxu origin/fi = 9a4376d`，`fi..fi-wangxu` 仅 1 个 commit，`fi-wangxu..fi` 为空——即 fi-wangxu 是 fi 的直接后继，两者工作树一致地**不含** AddrPath/PTW。
-- **诚实修正**：CHAOSAddrPath（AGU 地址通路，P-D2）与 CHAOSPTW（页表走查器，P-D3）在当前主线**均不存在**，本文统一标注为"**待实现**"（任务 S1-5b / S2-5c，见 §10）。原方案把侧分支能力误标为"主线已有"，本文不继承该误标。
+- **诚实修正**：CHAOSAddrPath（AGU 地址通路，P-D2）与 CHAOSPTW（页表走查器，P-D3）原方案写作时在主线均不存在；本文统一标注为"待实现"。**S1-5b 已完成 `ffd041e`：CHAOSAddrPath 已实现并入主线**（见 §A.2）。CHAOSPTW 仍待实现（S2-5c）。原方案把侧分支能力误标为"主线已有"，本文不继承该误标。
 
 #### 0.3.3 原方案声称"CHAOSArmSysReg 在任何分支都不存在、待新写"——**失实，已修正**
 
@@ -75,7 +77,7 @@
 
 | # | 原方案声明 | 源码真相 | 本文修正 |
 |---|---|---|---|
-| C1 | "已有 8 个注入器，CHAOSAddrPath/CHAOSPTW 来自 main 并入" | 主线工作树仅 7 个；AddrPath/PTW 在侧分支未并入，vendored 树零 hook 残留 | 标"7 个已有 + AddrPath/PTW 待实现"（§0.3.2, §A.2） |
+| C1 | "已有 8 个注入器，CHAOSAddrPath/CHAOSPTW 来自 main 并入" | 主线原仅 7 个；AddrPath/PTW 在侧分支未并入。**S1-5b 已实现 CHAOSAddrPath `ffd041e`**，主线现 8 个；PTW 仍待实现 | 标"8 个已有（含 AddrPath）+ PTW 待实现"（§0.3.2, §A.2） |
 | C2 | "CHAOSArmSysReg 任何分支都不存在，待新写" | 已存在并入主线，hook 进 isa.cc:452-457，4 模式 | 标"已实现，待扩展 F5 + 修 D4"（§0.3.3, §5.7） |
 | C3 | "classify 九类" | 实读六级（SimulatorError/Hang/Crash/Inactive/Masked/SDC） | 标"六级现状，九类为 protectionModel 扩展目标"（§0.3.4, §4.3） |
 | C4 | "H5 已闭环（main，30 注入 28 检出 93%）" | H5 闭环在**侧分支**（fi-h6-h7-fs-verify），基于 `structuralFault` 模式；主线 CHAOSLSQFwd 已回退，**无 structuralFault**，H5 在主线**不可复现** | 标"H5 在侧分支闭环；主线需补 structuralFault 后复现"（§6.1, §10） |
@@ -170,7 +172,7 @@ SDC 暴露面(unit) ≈ 未受保护状态位数 × (占用率 × 平均驻留�
 | **P0** | LSU store→load 转发 | 中高 | 无保护；method2 位谱已定量吻合 | ⚠️ CHAOSLSQFwd（基础版，缺 structuralFault） |
 | P1 | 发射队列 IQ | 中高 | 无保护；F5 错源、F6 相位竞态 | ❌ 待实现 CHAOSIQ |
 | P1 | 浮点/向量执行（双 FSU） | 中高 | 无 ECC 概念组合逻辑；method3 位谱指向 | ⚠️ CHAOSPhysReg vector（已覆盖存储层）/❌ CHAOSFPU 数据通路待实现 |
-| P1 | 地址翻译（dTLB/PTW/系统寄存器） | 中高 | L1 TLB 保守取无保护；method3 已定位 | ⚠️ CHAOSArmTLB（基础）/❌ CHAOSAddrPath/CHAOSPTW 待实现/✅ CHAOSArmSysReg（已实现） |
+| P1 | 地址翻译（dTLB/PTW/系统寄存器） | 中高 | L1 TLB 保守取无保护；method3 已定位 | ⚠️ CHAOSArmTLB（基础）/✅ CHAOSAddrPath（已实现 `ffd041e`）/❌ CHAOSPTW 待实现/✅ CHAOSArmSysReg（已实现） |
 | P1 | L3（分区）/RAS 逃逸 | 中 | Tag/Data 分离、128B 故障域；RAS 逃逸元分析 | ❌ pairedSector 代理待实现/❌ CHAOSRAS 待实现 |
 | P2 | L1D/L2 数据通路 | 低中 | ECC 后逃逸窗口窄；重点 post-check escape | ⚠️ CHAOSCache（数据字节，缺字段级+PCE） |
 | P3 | BPU | 低 | 预测错误被冲刷；重点"投机流是否泄漏" | ❌ 待实现 CHAOSBPU |
@@ -306,7 +308,7 @@ pilot 每 cell n=100（可达率/工具错误/粗略比例）；formal 每 cell 
 
 ## 第 5 章　逐微架构单元故障注入设计
 
-> 每节固定八段：**A 目标与 hook / B 注入器 / C campaign 网格 / D kernel / E 指标与预期 / F 边界与证据 / G 工作量 / H 验收断言**。单元按优先级 P0→P3 排序。注入器状态以 fi-wangxu 工作树源码为准（7 个已有 + 11 个待实现/扩展，见附录 A）。
+> 每节固定八段：**A 目标与 hook / B 注入器 / C campaign 网格 / D kernel / E 指标与预期 / F 边界与证据 / G 工作量 / H 验收断言**。单元按优先级 P0→P3 排序。注入器状态以 fi-wangxu 工作树源码为准（**8 个已有含 CHAOSAddrPath + 10 个待实现/扩展**，见附录 A）。
 
 ### 5.0 已验证锚点表（本方案撰写期间实跑，真实 gem5 输出）
 
@@ -393,7 +395,7 @@ pilot 每 cell n=100（可达率/工具错误/粗略比例）；formal 每 cell 
 
 **B. 注入器**：
 - `CHAOSLSQFwd`（已有，基础版）**需扩展**：① ~~修 D2~~ ✅ 已修 `0ae28fe`（faultMask UInt64 + maskWidth 多字节，bit32/63 可注入）；② **补回退的 `structuralFault` 模式**（`byte_lane_skew`/`all_zero`，侧分支曾实现 H5 闭环，主线已回退，需补齐——这是复现 core179 D1 签名的关键）；③ `stale_line_replay`（FI_DESIGN_SUPPLEMENT 有设计，代码未实现）；④ F5 `fwd_source_sub`（待写）；⑤ F6 `phaseOffset`（待写，−2..+2）。
-- `CHAOSAddrPath`（**待实现**，侧分支有，主线无）：hook AGU 地址生成，破坏 vaddr（byte7 清零/低位翻转/F5 换址）。**SE 无效（mmu.cc:1213 静态归因），FS 有效**。
+- `CHAOSAddrPath`（✅ 已实现 `ffd041e`，从侧分支移植 + 主线纪律强化）：hook `lsq.cc sendFragmentToTranslation` 翻译前破坏 vaddr（byte7 清零复现 core179 D2；低位翻转/F5 换址待扩）。**SE 无效（mmu.cc:1213 静态归因），FS O3 有效**（Atomic 不触发，需 checkpoint 后切 O3）。
 - `CHAOSExMon`（待写）：hook 独占监视器 FSM，open↔exclusive 翻转。
 
 **C. campaign**：转发数据 F1/F2/结构化（SE）；F5 转发源（SE）；F6 相位（SE）；AGU 地址（FS，checkpoint 后切 O3）；独占监视器（SE，LDXR/STXR）；F3 数据相关（SE）。
@@ -897,7 +899,7 @@ DSN / PRDC / ASPLOS / HPCA / MICRO；对标 Veritas(HPCA'25)、PinDrop(HPCA'26)�
 
 ## 附录 A　注入器与 hook 点总表（源码核对版，2026-08-30）
 
-### A.1 已有注入器（7 个，fi-wangxu 工作树实读）
+### A.1 已有注入器（8 个，含 S1-5b 新增 CHAOSAddrPath）
 
 | 注入器 | 目标单元 | Hook 位置（已核实） | 范式 | 优先级 | 真实模式（已核实） |
 |---|---|---|---|---|---|
@@ -908,8 +910,9 @@ DSN / PRDC / ASPLOS / HPCA / MICRO；对标 Veritas(HPCA'25)、PinDrop(HPCA'26)�
 | CHAOSLSQFwd | store→load 转发数据 | `lsq_unit.cc:1493-1499`（`cpu->lsqFwd`） | A（自挂载） | P0 | ✅ D2 已修（UInt64 + maskWidth 多字节，bit32/63 可注入）；仅 bit_flip/stuck_at_zero/stuck_at_one；**无 structuralFault（已回退，待补齐）** |
 | CHAOSArmTLB | D-TLB pfn | `arch/arm/tlb.cc:164-168`（`tlb->chaosTLB`） | A（自挂载，FS） | P1 | bit_flip/stuck_at_zero/stuck_at_one；**无 targetField/protectionModel/pfn_to_mapped（待扩展）** |
 | CHAOSArmSysReg | ARM 系统寄存器 MRS 读值 | `arch/arm/isa.cc:39,452-457` + `isa.hh:179-180`（`isa->chaosSysReg`） | A（自挂载，FS） | P1 | bit_flip/stuck_at_zero/stuck_at_one/random；`targetRegs` 白名单（miscRegName 解析）；**无 value_to_legal(F5)（待扩展）** |
+| **CHAOSAddrPath** | AGU 地址通路（P-D2） | `lsq.cc sendFragmentToTranslation`（`cpu->addrPath`，`request.hh setVaddr`） | A（自挂载，FS+O3） | P1 | byte7 清零复现 core179 D2；byteOffset 0-7/-1随机；tick 时间窗；rng lambda 修复 |
 
-### A.2 待实现/待扩展注入器（11 个）
+### A.2 待实现/待扩展注入器（10 个）
 
 | 注入器 | 状态 | Hook 位置 | 任务 | 侧分支参照 |
 |---|---|---|---|---|
@@ -922,7 +925,7 @@ DSN / PRDC / ASPLOS / HPCA / MICRO；对标 Veritas(HPCA'25)、PinDrop(HPCA'26)�
 | CHAOSL1DForward | 新写（PCE） | `lsq_unit.cc` load 回填（ECC 后） | S3-2 | — |
 | CHAOSBPU | 新写 | `cpu/pred/` lookup()/BTB::update() | S3-5 | — |
 | CHAOSExMon | 新写 | `lsq_unit.cc` 独占监视器 FSM | S3-7 | — |
-| **CHAOSAddrPath** | **待实现（侧分支有）** | `lsq.cc` translateTiming 前 | S1-5b | `origin/fi-h6-h7-fs-verify`（H6） |
+| **CHAOSAddrPath** | ✅ 已实现 `ffd041e`（从侧分支移植+主线纪律） | `lsq.cc` sendFragmentToTranslation 前 | ~~S1-5b~~ done | `origin/fi-h6-h7-fs-verify`（H6，已并入主线） |
 | **CHAOSPTW** | **待实现（侧分支有）** | `arch/arm/table_walker.cc doLongDescriptor` | S2-5c | `origin/fi-h6-h7-fs-verify`（H7） |
 
 另有扩展模式：CHAOSMem `addr_map_sub`/`ecc_logic_fault`、CHAOSCache `targetField` 字段级 + `protectionModel`、CHAOSArmTLB `pfn_to_mapped`/`targetField`/`protectionModel`、CHAOSArmSysReg `value_to_legal`、CHAOSLSQFwd `structuralFault`/`stale_line_replay`/`fwd_source_sub`/`phaseOffset` + D2 修复、CHAOSDecode（低优先级）、CHAOSRAS、CHAOSCHI/CHAOSNoC/CHAOSHCCS（S4）。
@@ -1061,7 +1064,7 @@ S1-02-CHAOSRenameMap  | depends=[S0-04]     | agent | pending | 见 G.1 示例 a
 S1-03-CHAOSFreeList   | depends=[S0-04]     | agent | pending | mark_free/pop_wrong
 S1-04-CHAOSROB        | depends=[S0-04]     | agent | pending | entry_bitflip/exc_suppress/spec_leak
 S1-05-CHAOSLSQFwd扩展 | depends=[S0-04]    | agent | pending | D2 修复 + structuralFault 补齐 + stale_line_replay + fwd_source_sub + phaseOffset
-S1-05b-CHAOSAddrPath  | depends=[S0-04]     | agent | pending | cherry-pick origin/fi-h6-h7-fs-verify（H6）
+S1-05b-CHAOSAddrPath  | depends=[S0-04]     | agent | done    | 已实现 ffd041e（侧分支移植+主线纪律；FS O3 端到端待 checkpoint）
 S2-05a-CHAOSArmSysReg扩展| depends=[S1-02]  | agent | pending | value_to_legal(F5) + D4 时间窗
 S2-05c-CHAOSPTW       | depends=[S1-05b]   | agent | pending | cherry-pick 侧分支（H7）+ ptwEcc + formal
 ```
