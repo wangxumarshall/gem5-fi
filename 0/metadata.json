@@ -1,0 +1,87 @@
+{
+  "cli_version": "0.10.2",
+  "checkpoint_id": "01M19NBGMM39B4FXDJZMVF320W",
+  "session_id": "31150d26-73e6-4b08-9f6f-c64cac6d1f3c",
+  "strategy": "manual-commit",
+  "created_at": "2026-08-30T15:42:09.87016263Z",
+  "branch": "fi-wangxu",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "schemas/manifest.schema.v2.json"
+  ],
+  "agent": "Claude Code",
+  "model": "GLM-5.2[1m]",
+  "turn_id": "5333c9156921",
+  "checkpoint_transcript_start": 3403,
+  "transcript_lines_at_start": 3403,
+  "compact_transcript_start": 589,
+  "token_usage": {
+    "input_tokens": 5649,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 2721152,
+    "output_tokens": 3590,
+    "api_call_count": 6
+  },
+  "skill_events_version": 1,
+  "skill_events": [
+    {
+      "id": "prompt-skill-claude-code-goal-2026-08-30T03:09:15.58006334Z",
+      "event_type": "prompt_invocation",
+      "skill": {
+        "name": "goal"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "prompt_slash_command",
+        "confidence": "explicit"
+      },
+      "turn_id": "155d87c66207",
+      "timestamp": "2026-08-30T03:09:15.58006334Z",
+      "native": {
+        "command": "/goal"
+      },
+      "collapse": {
+        "target": "user_message",
+        "label": "/goal",
+        "default_collapsed": true
+      }
+    },
+    {
+      "id": "prompt-skill-claude-code-goal-2026-08-30T05:50:44.64909965Z",
+      "event_type": "prompt_invocation",
+      "skill": {
+        "name": "goal"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "prompt_slash_command",
+        "confidence": "explicit"
+      },
+      "turn_id": "f5376569a116",
+      "timestamp": "2026-08-30T05:50:44.64909965Z",
+      "native": {
+        "command": "/goal"
+      },
+      "collapse": {
+        "target": "user_message",
+        "label": "/goal",
+        "default_collapsed": true
+      }
+    }
+  ],
+  "session_metrics": {
+    "turn_count": 5
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-08-30T15:42:09.24563613Z",
+    "agent_lines": 86,
+    "agent_removed": 0,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 86,
+    "total_lines_changed": 86,
+    "agent_percentage": 100,
+    "metric_version": 2
+  }
+}
