@@ -39,6 +39,12 @@ class CHAOSArmTLB : public SimObject
     // probability==0 or outside the window, returns immediately.
     void maybeCorrupt(ArmISA::TlbEntry *entry, Addr va);
 
+    // D1 fix: the TLB is not a ClockedObject, so firstClock/lastClock are
+    // interpreted as sim TICKS (curTick domain, NOT CPU cycles — avoids the
+    // 1GHz assumption of D4). startup() snapshots them into first_tick/
+    // last_tick once the global tick domain is fixed.
+    void startup() override;
+
   private:
     enum class FaultType { BitFlip, StuckAtZero, StuckAtOne, Random };
     static FaultType stringToFaultType(const std::string &s);
@@ -50,6 +56,7 @@ class CHAOSArmTLB : public SimObject
     uint64_t fault_mask;
     int num_bits_to_change;
     Cycles first_clock, last_clock;
+    Tick first_tick = 0, last_tick = 0;  // D1: advisory tick window (curTick)
     uint64_t max_faults, faults_injected_count;
     uint64_t rng_seed;
     bool write_log;

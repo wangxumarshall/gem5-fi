@@ -3,6 +3,8 @@
 #include "arch/arm/tlb.hh"
 #include "arch/arm/pagetable.hh"
 #include "base/output.hh"
+#include "base/trace.hh"
+#include "sim/core.hh"  // curTick() + getClockFrequency() (D1 time window)
 
 namespace gem5
 {
@@ -38,8 +40,30 @@ namespace gem5
             // TLB::lookup only reads chaosTLB during translate(), long after
             // SimObject construction. This avoids needing a python binding
             // for setChaosTLB (which has none, like setLSQFwd).
-            if (tlb) tlb->chaosTLB = this;
+            // D6: warn (not silent) if tlb is NULL — a misconfigured run
+            // would otherwise silently inject nothing.
+            if (tlb) {
+                tlb->chaosTLB = this;
+            } else {
+                warn("CHAOSArmTLB: tlb param is NULL — SELF-ATTACH failed; "
+                     "TLB hook will be inactive.\n");
+            }
         }
+    }
+
+    void
+    CHAOSArmTLB::startup()
+    {
+        // D1 fix: snapshot the firstClock/lastClock window as sim ticks at
+        // startup (the global tick domain is fixed by then). The TLB is not
+        // a ClockedObject, so firstClock/lastClock are interpreted as SIM
+        // TICKS (curTick domain) — NOT CPU cycles. This removes the prior
+        // "advisory only, never checked" gap (D1) and the 1GHz * 1000
+        // assumption used by the sibling CHAOSArmSysReg (D4, fixed
+        // separately). last_clock==0 means unrestricted (consistent with
+        // lastClock==0 elsewhere).
+        first_tick = (Tick)first_clock;
+        last_tick = (last_clock == Cycles(0)) ? (Tick)0 : (Tick)last_clock;
     }
 
     CHAOSArmTLB::~CHAOSArmTLB() {}
@@ -75,17 +99,18 @@ namespace gem5
     CHAOSArmTLB::maybeCorrupt(ArmISA::TlbEntry *entry, Addr va)
     {
         if (!entry || probability <= 0.0f) return;
-        // TLB has no direct curCycle(); use curTick() vs the clock domain.
-        // The first/last clock window is checked via curTick (tick-based,
-        // approximate — a TLB SimObject has access to its own clock).
-        // For simplicity we check the fault cap + probability only; the
-        // clock window is advisory (the tlb SimObject's schedule isn't
-        // easily reachable here without more plumbing).
+        // D1 fix: enforce the [first_tick, last_tick] window (curTick domain).
+        // Before this fix the window was "advisory only" and never checked,
+        // so injection fired from sim start. last_tick==0 means unrestricted.
+        Tick now = curTick();
+        if (now < first_tick) return;
+        if (last_tick != 0 && now > last_tick) return;
         if (max_faults != 0 && faults_injected_count >= max_faults) return;
 
-        // Probability gate: per-lookup Bernoulli.
+        // Probability gate: per-lookup Bernoulli. D5: use >= (consistent with
+        // CHAOSLSQFwd; was >, which let probDist==probability slip through).
         std::uniform_real_distribution<float> probDist(0.0f, 1.0f);
-        if (probDist(rng) > probability) return;
+        if (probDist(rng) >= probability) return;
 
         FaultType chosen = fault_type_enum;
         if (fault_type_enum == FaultType::Random) {
