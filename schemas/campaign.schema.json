@@ -1,0 +1,32 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "arm-chaos-fi/v1 fault-injection campaign",
+  "description": "Grid campaign for the ARM64 CHAOS SDC fault-injection tool (plan §1.5). A campaign expands a Cartesian product of grid axes into per-rep single-fault manifests (max_faults=1), runs each via tools/runner.py, collects the 9-class outcome, and summarizes per-cell Wilson 95% CI. One campaign.yaml == one injector across a grid of (target x bit x fault_model x protection_model) cells, each cell run n_per_cell times with deterministic seeds.",
+  "type": "object",
+  "required": ["schema_version","campaign_id","injector","config","grid","n_per_cell","base_seed","workload"],
+  "properties": {
+    "schema_version": {"type":"string","const":"arm-chaos-fi/v1"},
+    "campaign_id": {"type":"string","description":"stable id; used as runs/<campaign_id>/ path"},
+    "injector": {"type":"string","enum":["gpr","physreg","memory","cache","lsqfwd","rat","freelist","rob","iq","fsu","exec","bpu","decode","l1d_fwd","addr_path","exmon","tlb","sysreg","ptw","l3","noc","hccs","memctrl","ras"],
+                  "description":"which CHAOS injector this campaign drives (runner.py maps to the arm_chaos.py flag). Values beyond gpr/physreg/memory/cache/lsqfwd are forward-declared — runner.py will reject with a clear error until their mapping patch lands."},
+    "config": {"type":"string","default":"C0","description":"platform config family: C0 (baseline), C2 (kp920_proxy), C1 (x86 cross-ISA). C0 is the only one wired today; others land in their own S0 patches."},
+    "mode": {"type":"string","enum":["SE","FS"],"default":"SE"},
+    "grid": {"type":"object","description":"Cartesian product of axis->list. Each axis value must be a scalar (int/float/str) or list-of-scalars; lists are expanded. Common axes: target_index, bit, fault_model, protection_model, vec_lane.",
+      "minProperties": 1},
+    "n_per_cell": {"type":"integer","minimum":1,"description":"reps per cell (pilot=100, formal=384, low-SDC=663). This machine takes ~92s/run — formal belongs on the healthy machine (§0.4)."},
+    "base_seed": {"type":"integer","minimum":0,"description":"base RNG seed; rep seed = base_seed + cell_ordinal*1000 + rep (§1.5 deterministic replay)"},
+    "replay_pct": {"type":"number","default":5.0,"description":"% of reps per cell re-run for the §1.5 replay-consistency check; mismatch -> cell frozen in summary"},
+    "workload": {"type":"object","required":["binary","golden_id"],
+      "properties":{
+        "binary": {"type":"string","description":"path to the workload binary (relative to repo root)"},
+        "binary_sha256": {"type":"string","description":"optional sha256 of the binary; runner.py verifies if present"},
+        "golden_id": {"type":"string","description":"manifest oracle golden_id resolved by runner.py GOLDEN_IDS"},
+        "golden_checksum": {"type":"string","description":"explicit 16-hex golden checksum (overrides golden_id)"},
+        "trigger_mode": {"type":"string","enum":["cycle","tick","pc","committedInst","event"],"default":"cycle"},
+        "trigger_value": {"type":"integer","minimum":0,"description":"first_clock value for cycle mode"},
+        "roi": {"type":"object","properties":{"begin_symbol":{"type":"string"},"end_symbol":{"type":"string"}}}
+      }},
+    "limits": {"type":"object","properties":{"max_faults":{"type":"integer","minimum":0,"maximum":1,"default":1}}},
+    "hang_timeout": {"type":"integer","default":600,"description":"per-rep wall-clock timeout (s); exceeded with no checksum -> Hang"}
+  }
+}

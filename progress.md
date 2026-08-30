@@ -410,3 +410,53 @@ ARM 三条路径 + golden（真跑输出）：
 - ARM X3 directed → `3c4da37564e2fbf5`（SDC）。
 
 诚实跨 ISA 观察（pilot）：同 workload（reg_chain）、同 oracle（golden `f247ef3fe6f02cfd` 跨 ISA 一致），ARM X3 对 GPR 翻转敏感（SDC），x86 RAX 不敏感（Masked）但 RCX 敏感（SDC）——ISA-specific 的 GPR 角色敏感性差异，是 plan §10.4 的真实数据点。max_reg_idx=4 现正确避开 RSP/RBP（不再 core dump）。仍 pilot 规模（非 n=384）。
+
+---
+
+### S0-00 基线复验（对照设计文档 §0 强约束#1 实事求是 + 附录C.2 "S0-00 复验卡"）
+
+**背景**：`docs/KUNPENG920-故障注入方案详细工程设计.md` §0 强约束 #1 要求"以 `fi` 分支 HEAD 实际代码为准"，§0.1/§0.2 要求"务必先做验证，确保真的已100%实现"，附录 C.2 规定 S0-00 复验卡是任何后续工作的前置。本机 build/ARM/gem5.opt 相对 HEAD `a86ef56` 已过时（5 commits + 33 stale 源文件），故先干净重建再逐注入器复验。
+
+**干净重建**（G7）：`rm -rf build/ARM/params && scons -C CHAOS/gem5 build/ARM/gem5.opt -j16` → `EXIT=0`，CHAOS 源零警告（仅 capstone/png/hdf5 宿主库缺失警告，与 CHAOS 无关）。gem5.opt 现对齐 HEAD `a86ef56`。
+
+**逐注入器锚点复验**（真机输出，fresh build）：
+
+| 注入器 | 锚点（§0.1 声明） | 复验结果（HEAD a86ef56） | 状态 |
+|---|---|---|---|
+| golden reg_chain | `f247ef3fe6cfd` | `f247ef3fe6cfd` exit 0 | ✅ |
+| G0 replay (CHAOSReg 20/20) | field-identical | 20/20 单哈希 `ff4a0c9fd7768dc1`，`Cycle:100000 Register:integer[9] Mask:0x2000000000000`（64b） | ✅ |
+| CHAOSReg manifest (runner.py E2E) | index=9 bit20 cycle100000 | `faults_injected=1 classification=Masked`（X9 bit20 被 reg_chain 重写掩盖，正确无虚报） | ✅ |
+| CHAOSPhysReg arch_frontend X3 | `d43a25d7fcc218b7` SDC | `d43a25d7fcc218b7`（PhysReg[77]←ArchReg[3] cycle100000） | ✅ |
+| CHAOSPhysReg G2 write-path stuck | `00ff0000dee1f5d0`（跨 rename reuse 存活） | `00ff0000dee1f5d0`（PhysReg[80] stuck_at_one 0xff cycle150000） | ✅ |
+| CHAOSMem maxFaults=1 | exactly 1 fault, Masked | `f247ef3fe6cfd`（Masked），`faults_injected: 1` addr 335405835 | ✅ |
+| CHAOSCache L1D directed | `d128c62843ca82a1` SDC | `d128c62843ca82a1`（block 862656 byte0 `--first_clock 100000`，mask 0x4） | ✅ |
+| CHAOSLSQFwd store→load | `fails=1` SDC | `fails=1`（iter232 i155 xor=0x4000000 尾数位，method2 位谱吻合） | ✅ |
+| CHAOSArmTLB / CHAOSArmSysReg (FS) | FS DUE / sctlr bit29 | 需 gem5-fs（2.5GB，已 gitignore，FS 注入是后续 patch） | FS-deferred |
+
+**关键工程发现（campaign 规划必须用）**：本机（cpu179 故障机）单次 CHAOSReg/PhysReg O3 reg_chain 运行 **~92 秒**（非早期 baseline 的 ~10s 估计——该估计不适用本硬件）。n=384/cell × 多 cell 的 formal campaign 必须用健康机并发，且单 cell 384 rep 串行需 ~10 小时。本机只适合锚点复验与 pilot，**formal 跑批必须第二台健康机**（§3.1 S6 贯穿，§0.4 约束）。
+
+**S0-00 复验结论**：7 个 SE 模式注入器（CHAOSReg/PhysReg/Cache/Mem/LSQFwd）全部在 fresh HEAD build 上锚点精确复现，闸门 G0/G1(64b mask)/G2(write-path)/G5(maxFaults=1)/G7(零警告) 成立，runner.py+classify.py E2E 留痕正确。FS 模式两个注入器（TLB/SysReg）按诚实边界 deferred（需 gem5-fs）。**S0-00 复验卡 done**，后续 S0+ 工作可开工。
+
+---
+
+### S0 单元1 — `tools/campaign.py` 网格驱动器（§1.5，最高优先级前置）
+
+**实现**：`tools/campaign.py`（grid 驱动）+ `tools/wilson.py`（纯 python Wilson 95% CI + §1.4 九类分母）+ `schemas/campaign.schema.json`（campaign.yaml schema，jsonschema draft-07）+ `campaigns/example-prf-pilot.yaml`（可跑示例）。
+
+**设计要点（§1.5）**：
+- grid 笛卡尔积展开 → 每 rep 一份不可变 manifest（写 `runs/<campaign>/<cell>/<run_id>.yaml`），seed 规则 `base + cell_ordinal*1000 + rep`（确定性可重放）。
+- **复用 `tools/runner.py`**（subprocess）——不重新实现 manifest→gem5 映射 / 分类器 / G5 单故障断言。每 rep 解析 runner.py 的 `[runner] RESULT:` 行。
+- 每 cell Wilson 95% CI（P_SDC/P_DUE/Reachability，§1.4）；≥5% 重放一致性检查（§1.5，不一致→冻结该 cell）。
+- 汇总 `artifacts/<campaign>/{heatmap.csv, summary.md}`。
+- 注入器无关：schema enum 前向声明 24 个注入器；runner.py 已映射的（gpr/physreg/memory/cache/lsqfwd）今天即可 campaign，其余待各自 runner.py 映射 patch（单独补丁，不捆绑）。
+
+**自验证（真机，CLAUDE.md）**：
+- `py_compile` 零错。
+- **功能跑批（真）**：`campaigns/example-prf-pilot.yaml --jobs 1 --n_per_cell 2 --replay_pct 0` → 2 cell × 2 rep = 4 runs，538s（~90s/rep，吻合 §0.4 诚实基线）。真 summary.md：
+  - cell X3：P_SDC=**100% [34.2,100.0]**（2/2 SDC，X3 arch_frontend bit_flip 一致损坏 reg_chain）；cell X9：P_SDC=**0% [0,65.8]**（2/2 Masked，X9 bit 被 reg_chain 重写掩盖）。两 cell Reach=100%（无 Inactive/SimulatorError）。
+  - cell0 rep0（seed=20260825）→ SDC `d43a25d7fcc218b7`，**精确复现 §0.1 CHAOSPhysReg 锚点**（driver 的 seed/manifest 接线正确）。
+  - heatmap.csv 两行（arch_frontend,3 → SDC=1.0；arch_frontend,9 → SDC=0.0）。
+- **回归**：`runner.py manifests/p1-gpr-regchain-000384.yaml` 仍 `classification=Masked faults_injected=1 exit=0`（runner.py 行为零变更，零 SIGSEGV）。
+- **修复的 bug**：初版 `parse_runner_result` 用 `startswith("RESULT:")`，但 runner.py 打印 `[runner] RESULT:`（带 `[runner] ` 前缀）→ 解析全 None → 误判 SimulatorError。改 `RESULT_PREFIX in line` 后修复，真 results.jsonl 正确显示 `classification=SDC faults_injected=1 exit=0`。
+
+**诚实边界**（本补丁不做）：无新注入器（S1）、无 `kp920_proxy.py`（单独 S0 单元，本驱动现用 C0 baseline 经 runner.py）、无 manifest schema v2（单独 S0 单元，本驱动复用 v1）、无 injector 内 protectionModel 逻辑（§1.2，本驱动把 protection_model 作 grid 轴透传，SE 注入器当前忽略——no-op 轴，诚实）。本机 formal n=384 不跑（pilot only，formal 须健康机 §0.4）。
