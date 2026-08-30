@@ -1,0 +1,28 @@
+{
+  "cli_version": "0.10.2",
+  "checkpoint_id": "01M184P0C1BP3BM2TBSX2JP0HC",
+  "strategy": "manual-commit",
+  "branch": "fix/paper-review-v1-honesty-hardening",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "CHAOS/gem5/src/cpu/o3/CHAOSLSQFwd/CHAOSLSQFwd.cc",
+    "CHAOS/gem5/src/cpu/o3/CHAOSLSQFwd/CHAOSLSQFwd.hh",
+    "CHAOS/gem5/src/cpu/o3/CHAOSLSQFwd/CHAOSLSQFwd.py"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 10662,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 2918016,
+    "output_tokens": 6050,
+    "api_call_count": 20
+  }
+}
