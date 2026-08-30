@@ -67,6 +67,14 @@ p.add_argument("--tlb_max_faults", type=lambda x:int(x,0), default=1,
 p.add_argument("--tlb_fault_mask", type=lambda x:int(x,0), default=0,
                help="CHAOSArmTLB 64-bit pfn mask; 0=random")
 p.add_argument("--tlb_rng_seed", type=lambda x:int(x,0), default=20260825)
+p.add_argument("--tlb_protection_model", default="none",
+               choices=["none","parity_interleaved"],
+               help="§1.2 protection-aware layer for the TLB injector. 'none' "
+                    "(default = L1 TLB raw escape, zero regression); "
+                    "'parity_interleaved' (L2 TLB/walk-cache proxy: 1-bit "
+                    "detect -> entry pfn restored before MMU use = Corrected "
+                    "(real HW invalidates+re-walks, this restores, E3); >=2-bit "
+                    "silent = SilentEscape).")
 # Phase 3 §六.4 item 3 (SYS): CHAOSArmSysReg system-register injector.
 # Hooks ISA::readMiscRegNoEffect (MRS read path). Whitelist of ARM MiscReg
 # enum NAMES (TTBR/TCR/MAIR/SCTLR/VBAR etc.) — empty = no injection.
@@ -152,6 +160,7 @@ if args.chaos_armtlb or args.chaos_sysreg:
             bitsToChange=1,
             maxFaults=args.tlb_max_faults,
             rngSeed=args.tlb_rng_seed,
+            protectionModel=args.tlb_protection_model,
             writeLog=True,
         )
         board.chaos_armtlb = arm_tlb

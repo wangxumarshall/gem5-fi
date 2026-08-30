@@ -53,11 +53,23 @@ class CHAOSArmTLB : public SimObject
     uint64_t max_faults, faults_injected_count;
     uint64_t rng_seed;
     bool write_log;
+    std::string protection_model;  // §1.2 protection-aware layer
 
     std::mt19937 rng;
     std::random_device rd;
     std::discrete_distribution<int> random_fault_distribution;
     OutputStream *log_stream;
+
+    // §1.2 protection outcome ladder.
+    enum class ProtectionOutcome { Raw, Corrected, SilentEscape };
+    static ProtectionOutcome stringToProtectionModel(const std::string &s);
+    const char *protectionOutcomeToString(ProtectionOutcome o);
+    // Post-injection protection (§1.2). Acts on `entry->pfn` (by ref) after the
+    // bit mutation, BEFORE the entry is returned to the MMU. parity_interleaved
+    // 1-bit -> undo (restore old_pfn = Corrected; re-entrancy-safe vs real-HW
+    // entry-invalidate+re-walk, E3); >=2-bit -> SilentEscape. none -> Raw.
+    ProtectionOutcome applyProtection(ArmISA::TlbEntry *entry, uint64_t mask,
+                                      Addr old_pfn, FaultType ft);
 
     uint64_t generateRandomMask(int bits_to_change);
 

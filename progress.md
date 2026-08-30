@@ -564,3 +564,25 @@ ARM 三条路径 + golden（真跑输出）：
 **诚实发现（对比 CHAOSCache）**：CHAOSMem 的 undo 路径（1-bit Corrected）**完全 == golden**（write-back 前恢复字节→写入干净数据，未来读 + 已读窗口都见干净）。这印证了 CHAOSCache undo 路径同样 == golden，而 invalidate 路径（CHAOSCache sed 1-bit/secded 2-bit）run-level SDC（工作负载已消费字节）。**CHAOSMem 无 invalidate 路径**（DRAM 是后备存储，无块可 invalidate）——undo 是唯一纠正机制，且完全生效。诚实记录：DRAM SECDED 在 write-back 前 undo → 无逃逸（不像 cache 的 invalidate 时序逃逸）。
 
 **诚实边界（本补丁不做）**：CHAOSArmTLB protectionModel（§1.2 patch 3/3，TLB none/parity_interleaved，FS）；真实 poison bit in AbstractMemory（后备存储无，secded 2-bit log-only E3）；campaign→mem-manifest 路由（runner.py 现不驱动 mem 组件的 manifest 路径——单独补丁）。无 formal sweep（pilot only）。
+
+---
+
+### S0 单元4c — CHAOSArmTLB protection-aware 建模层（§1.2 patch 3/3，最终）
+
+**实现**：`CHAOSArmTLB`（.py + .hh + .cc，顶层副本同步）加 `protectionModel` 参数（默认 `"none"`）+ `applyProtection()` 注入后处理分支（`maybeCorrupt` 翻 `entry->pfn` 后、返回 MMU 前调用）。`configs/se/arm_chaos_fs.py` 加 `--tlb_protection_model` 旋钮。**完成 §1.2 三个注入器**（cache/mem/tlb）。
+
+**§1.2 TLB 逻辑**（keyed on `__builtin_popcountll(mask)`，64-bit pfn）：
+- `none`（默认，L1 TLB raw 上界）→ Raw（留翻转=escape，零回归）。
+- `parity_interleaved`（L2 TLB/walk cache 代理）：1-bit → undo（`entry->pfn = old_pfn` 恢复干净 pfn，Corrected/DetectedContained-equivalent）；≥2-bit → SilentEscape。
+
+**关键设计决策——undo 而非 entry-invalidate**：doc §1.2 说 "检出→条目失效重走页表"。真实 L2 TLB parity 硬件会 invalidate 条目强制重走。但 `_flushMva` 是 ArmTLB **private** 方法，6 参数复杂签名（asn/secure/EL/in_host/entry_type），且在 `TLB::lookup` 热路径里调它有**重入风险**（重走页表）。改用 **undo（恢复 old_pfn）**——相同可观测结果（条目干净→无错翻译→Corrected），re-entrancy-safe。E3 差异诚实记录：真实 HW invalidate+re-walk，本代理 restore pfn。
+
+**自验证（真机 FS，CLAUDE.md）**：FS infra 现可用（gem5-fs/vmlinux+ubuntu.img+boot.arm64；arm_chaos_fs.py `--chaos_armtlb`）。
+- **干净增量重建**：`scons -j16` EXIT=0，**CHAOSArmTLB 零警告**（G7）。
+- **T1 回归（FS none）**：`--chaos_armtlb --tlb_probability 1.0 --tlb_first_clock 50000 --tlb_rng_seed 20260825 --cpu Atomic --tlb_protection_model none` → `protection: model=none bits=1 -> Raw`，`Tick:1352646 VA:0x807cc408 old_pfn:0x403 new_pfn:0x20000403 Mask:0x20000000`（翻 bit29）→ PA `0x40000807cc408` 落未映射区 → **`panic: Data fetch BadAddressError` 真 DUE**。**§0.1 FS TLB DUE 锚点精确复现**（零回归）。
+- **T2（FS parity_interleaved）**：同故障 + `--tlb_protection_model parity_interleaved` → `protection: model=parity_interleaved bits=1 -> Corrected`，**`new_pfn:0x403 == old_pfn:0x403`（undo 恢复干净 pfn）** → **无 panic，boot 继续**（Corrected：故障被抑制，无 DUE）。对照 T1：none→panic，parity→无 panic，证明保护层生效。
+- **SE 回归**：arm_chaos golden `f247ef3fe6cfd` 不变；CHAOSPhysReg X3 SDC `d43a25d7fcc218b7` 不变（TLB 改动不触及 SE 注入器；build 链接干净）。
+
+**诚实边界（本补丁不做）**：真实 entry-invalidate/re-walk（用 undo 建模相同可观测结果，re-entrancy-safe，E3）；even/odd parity 交错布局（≥2-bit=silent 代理，完整交错模型需 TRM parity 布局，非 N1 代理）；新 CHAOSPTW（§2.10 cherry-pick，单独 FS 单元）；formal FS sweep（FS Atomic 慢，pilot verify none-DUE vs parity-Corrected 对比；formal FS 需健康机 + checkpoint-to-O3 流水线 §3.2）。
+
+**§1.2 完成总结**：三个注入器（CHAOSCache/CHAOSMem/CHAOSArmTLB）的 protectionModel + §1.2 注入后处理全部落地。三种纠正机制：undo（cache/mem/tlb 都用，cache+mem+tlb 1-bit 完全 ==golden/无 panic）与 invalidate（仅 cache sed 1-bit/secded 2-bit，run-level 时序逃逸 SDC——工作负载已消费字节）。诚实记录两者差异。所有 formal cell 应跑两组（none raw 上界 vs 代理 protection-aware 逃逸率）。

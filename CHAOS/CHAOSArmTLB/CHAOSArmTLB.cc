@@ -20,6 +20,7 @@ namespace gem5
           faults_injected_count(0),
           rng_seed(p.rngSeed),
           write_log(p.writeLog),
+          protection_model(p.protectionModel),
           stats(nullptr)
     {
         if (probability > 0.0f) {
@@ -61,6 +62,67 @@ namespace gem5
             case FaultType::Random: return "random";  // G7: clear -Wswitch
         }
         return "random";
+    }
+
+    // §1.2 protection-aware (N1 TRM Table 9-1 PROXY). L1 TLB = 'none' (raw
+    // escape, default); L2 TLB/walk cache = 'parity_interleaved' (1-bit
+    // detect -> contained). "none" (default) = raw, zero regression.
+    CHAOSArmTLB::ProtectionOutcome
+    CHAOSArmTLB::stringToProtectionModel(const std::string &s) {
+        if (s == "parity_interleaved") return ProtectionOutcome::Corrected;
+        return ProtectionOutcome::Raw;  // "none" / unknown -> raw
+    }
+
+    const char*
+    CHAOSArmTLB::protectionOutcomeToString(CHAOSArmTLB::ProtectionOutcome o) {
+        switch (o) {
+            case ProtectionOutcome::Raw: return "Raw";
+            case ProtectionOutcome::Corrected: return "Corrected";
+            case ProtectionOutcome::SilentEscape: return "SilentEscape";
+        }
+        return "Raw";
+    }
+
+    // §1.2 post-injection protection. Acts on entry->pfn AFTER the bit
+    // mutation, BEFORE the entry is returned to the MMU (so an undo restores
+    // the clean pfn before translation uses it -> no wrong-PA access).
+    //   none                -> Raw (leave = escape). Default, zero regression.
+    //   parity_interleaved  -> 1-bit: undo entry->pfn = old_pfn (Corrected;
+    //                          real L2-TLB parity HW invalidates+re-walks, this
+    //                          restores the pfn to model the same observable
+    //                          outcome re-entrancy-safely from inside the
+    //                          lookup hot-path; E3); >=2-bit: SilentEscape.
+    CHAOSArmTLB::ProtectionOutcome
+    CHAOSArmTLB::applyProtection(ArmISA::TlbEntry *entry, uint64_t mask,
+                                 Addr old_pfn, FaultType ft)
+    {
+        // popcount of the 64-bit mask = bits this fault flips (§1.2 "1-bit/2-bit").
+        int bits = __builtin_popcountll(mask);
+        ProtectionOutcome outcome = ProtectionOutcome::Raw;
+        (void)ft;
+
+        if (protection_model == "none") {
+            outcome = ProtectionOutcome::Raw;  // leave = escape (default)
+        } else if (protection_model == "parity_interleaved") {
+            if (bits == 1 && entry) {
+                // 1-bit: restore the clean pfn before the MMU uses the entry
+                // (Corrected / DetectedContained-equivalent). Re-entrancy-safe:
+                // no _flushMva (private + complex sig + walk re-entry risk).
+                entry->pfn = old_pfn;
+                outcome = ProtectionOutcome::Corrected;
+            } else {
+                outcome = ProtectionOutcome::SilentEscape;  // >=2-bit silent
+            }
+        } else {
+            outcome = ProtectionOutcome::Raw;  // unknown model -> raw
+        }
+
+        if (write_log) {
+            *(log_stream->stream()) << "    protection: model=" << protection_model
+                << " bits=" << bits << " -> " << protectionOutcomeToString(outcome)
+                << std::endl;
+        }
+        return outcome;
     }
 
     uint64_t
@@ -115,6 +177,13 @@ namespace gem5
         }
         stats->numFaultsInjected++;
         ++faults_injected_count;
+
+        // §1.2 post-injection protection (N1 TRM Table 9-1 PROXY). Runs
+        // BEFORE the entry is returned to the MMU — a 1-bit parity_interleaved
+        // detection RESTORES the clean pfn (Corrected) so translation proceeds
+        // without a wrong-PA access. Default protection_model="none" = Raw
+        // (no-op, zero regression — the §0.1 FS TLB DUE anchor reproduces).
+        applyProtection(entry, mask, old_pfn, chosen);
 
         if (write_log) {
             *(log_stream->stream())
