@@ -855,6 +855,19 @@ class Request : public Extensible<Request>
         return _vaddr;
     }
 
+    /** CHAOSAddrPath (P-D2) injector: in-place vaddr mutation at the
+     *  address->MMU boundary (sendFragmentToTranslation, BEFORE translate).
+     *  Unlike setVirt(), this changes ONLY _vaddr — preserving size/flags/
+     *  requestorId/pc/translation state, so the corrupted vaddr is what the
+     *  PTW/MMU actually walks (reproducing core 179's D2: arch MSB d9 -> MMU
+     *  saw 00). Only meaningful pre-translation; calling after translation
+     *  has no effect on the already-resolved paddr. */
+    void
+    setVaddr(Addr vaddr)
+    {
+        _vaddr = vaddr;
+    }
+
     /** Accesssor for the requestor id. */
     RequestorID
     requestorId() const

@@ -22,7 +22,7 @@
 import argparse
 import m5
 from m5.objects import (ArmDefaultRelease, VExpress_GEM5_Foundation,
-                        VExpress_GEM5_V1, CHAOSArmTLB, CHAOSArmSysReg)
+                        VExpress_GEM5_V1, CHAOSArmTLB, CHAOSArmSysReg, CHAOSAddrPath)
 from gem5.components.boards.arm_board import ArmBoard
 from gem5.components.cachehierarchies.classic.private_l1_private_l2_cache_hierarchy import (
     PrivateL1PrivateL2CacheHierarchy,
@@ -82,6 +82,17 @@ p.add_argument("--sysreg_target_regs", default="",
                help="comma-separated ARM miscRegName strings (lowercase, "
                     "from misc.hh miscRegName[]), e.g. "
                     "sctlr_el1,ttbr0_el1,tcr_el1,mair_el1,vbar_el1")
+# S1-5b CHAOSAddrPath (P-D2): address-path FI. FS-only (byte7-zeroed vaddr
+# faults only with MMU-on). Reproduces core 179 D2 signature.
+p.add_argument("--chaos_addrpath", action="store_true",
+               help="attach CHAOSAddrPath (P-D2 address-path FI; FS-only "
+                    "observable, reproduces core179 D2 byte7-zero).")
+p.add_argument("--addrpath_probability", type=float, default=0.0)
+p.add_argument("--addrpath_byte_offset", type=int, default=7,
+               help="Which addr byte to zero (7=MSB; reproduces core179 D2).")
+p.add_argument("--addrpath_first_clock", type=lambda x:int(x,0), default=100000)
+p.add_argument("--addrpath_max_faults", type=lambda x:int(x,0), default=1)
+p.add_argument("--addrpath_rng_seed", type=lambda x:int(x,0), default=20260825)
 args = p.parse_args()
 
 cpu_map = {"O3": CPUTypes.O3, "TIMING": CPUTypes.TIMING,
@@ -132,7 +143,7 @@ board.set_kernel_disk_workload(
 # hook (the ArmBoard builds the CPU+MMU lazily). Either TLB or SYS (or both)
 # trigger the hook. cpu0 = processor.get_cores()[0].core; D-TLB = cpu0.mmu.dtb;
 # ISA = cpu0.isa[0] (BaseCPU.isa is a per-thread VectorParam.BaseISA).
-if args.chaos_armtlb or args.chaos_sysreg:
+if args.chaos_armtlb or args.chaos_sysreg or args.chaos_addrpath:
     _tlb_attached = [False]
     _orig_pi = getattr(cache_hierarchy, "_pre_instantiate", None)
     def _attach_tlb(root):
@@ -178,6 +189,29 @@ if args.chaos_armtlb or args.chaos_sysreg:
             )
             board.chaos_sysreg = sys_reg
             # SELF-ATTACH: constructor set isa0->chaosSysReg = this.
+
+        # S1-5b CHAOSAddrPath (P-D2): attaches to the O3CPU. SELF-ATTACHES
+        # (ctor sets cpu->addrPath = this). FS MODE REQUIRED: byte7-zeroed
+        # vaddr faults only with MMU-on (SCTLR.M=1 after Linux boots). Needs
+        # O3 (CHAOSAddrPath hooks the O3 LSQ sendFragmentToTranslation).
+        if args.chaos_addrpath:
+            # The FS boot uses Atomic by default; CHAOSAddrPath's hook is in
+            # the O3 LSQ, so it only fires when the CPU is switched to O3
+            # (e.g. after checkpoint restore). On Atomic it instantiates but
+            # does not fire (harmless).
+            try:
+                ap = CHAOSAddrPath(
+                    cpu=cpu0,
+                    probability=args.addrpath_probability,
+                    byteOffset=args.addrpath_byte_offset,
+                    firstClock=args.addrpath_first_clock,
+                    maxFaults=args.addrpath_max_faults,
+                    rngSeed=args.addrpath_rng_seed,
+                    writeLog=True,
+                )
+                board.chaos_addrpath = ap
+            except Exception as e:
+                m5.warn("CHAOSAddrPath attach skipped (cpu0 may be Atomic, not O3): %s" % str(e))
     cache_hierarchy._pre_instantiate = _attach_tlb
 
 # Exit when the kernel reports it has booted (default exit handlers include

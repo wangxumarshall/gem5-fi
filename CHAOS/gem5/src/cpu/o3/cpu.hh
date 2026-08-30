@@ -89,6 +89,12 @@ class Process;
 // when no injector is attached → the lsq_unit call site short-circuits.
 class CHAOSLSQFwd;
 
+// Forward declaration of the address-path fault injector (P-D2, defined in
+// src/cpu/o3/CHAOSAddrPath/). Same self-attach pattern: the CPU holds a
+// pointer so lsq.cc sendFragmentToTranslation can reach it. nullptr when no
+// injector is attached → the call site short-circuits.
+class CHAOSAddrPath;
+
 namespace o3
 {
 
@@ -487,6 +493,14 @@ class CPU : public BaseCPU
     class CHAOSLSQFwd *lsqFwd = nullptr;
     void setLSQFwd(CHAOSLSQFwd *p) { lsqFwd = p; }
     CHAOSLSQFwd *getLSQFwd() const { return lsqFwd; }
+
+    /** CHAOSAddrPath hook: address-path (P-D2) injector. Same self-attach
+     *  pattern as lsqFwd — the injector's constructor sets cpu->addrPath =
+     *  this, so lsq.cc sendFragmentToTranslation can reach it via the cpu
+     *  pointer. Nullptr → call site short-circuits. See src/cpu/o3/CHAOSAddrPath/. */
+    class CHAOSAddrPath *addrPath = nullptr;
+    void setAddrPath(CHAOSAddrPath *p) { addrPath = p; }
+    CHAOSAddrPath *getAddrPath() const { return addrPath; }
 
     /** Enum to give each stage a specific index, so when calling
      *  activateStage() or deactivateStage(), they can specify which stage

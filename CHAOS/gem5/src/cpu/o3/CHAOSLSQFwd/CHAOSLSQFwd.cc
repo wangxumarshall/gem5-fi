@@ -68,6 +68,7 @@ namespace gem5
             case FaultType::BitFlip: return "bit_flip";
             case FaultType::StuckAtZero: return "stuck_at_zero";
             case FaultType::StuckAtOne: return "stuck_at_one";
+            case FaultType::Random: return "random";  // G7: clear -Wswitch
         }
         return "random";
     }

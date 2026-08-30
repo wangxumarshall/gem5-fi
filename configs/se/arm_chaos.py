@@ -17,7 +17,7 @@
 
 import argparse
 import m5
-from m5.objects import CHAOSReg, CHAOSPhysReg, CHAOSMem, CHAOSLSQFwd
+from m5.objects import CHAOSReg, CHAOSPhysReg, CHAOSMem, CHAOSLSQFwd, CHAOSAddrPath
 from gem5.components.boards.simple_board import SimpleBoard
 from gem5.components.cachehierarchies.classic.private_l1_private_l2_cache_hierarchy import (
     PrivateL1PrivateL2CacheHierarchy,
@@ -107,6 +107,15 @@ p.add_argument("--lsq_mask_width", type=int, default=1,
                help="CHAOSLSQFwd 64-bit mask covers this many consecutive "
                     "bytes (little-endian), [1,8]. 1=legacy single-byte; "
                     "2/4/8=multi-byte for method2 cross-byte spectra (D2 fix).")
+# CHAOSAddrPath (P-D2): address-path FI. FS-only for observable effect.
+p.add_argument("--chaos_addrpath", action="store_true",
+               help="attach CHAOSAddrPath (P-D2 address-path FI; FS required "
+                    "for observable effect, SE short-circuits).")
+p.add_argument("--addrpath_probability", type=float, default=0.0,
+               help="CHAOSAddrPath per-load probability of zeroing an addr byte.")
+p.add_argument("--addrpath_byte_offset", type=int, default=7,
+               help="Which addr byte to zero (7=MSB bits56..63, reproduces "
+                    "core179 D2; -1=random 0..7). FS required for fault.")
 args = p.parse_args()
 
 cache_hierarchy = PrivateL1PrivateL2CacheHierarchy(
@@ -217,6 +226,24 @@ if args.chaos_lsqfwd:
         writeLog=True,
     )
     board.chaos_lsqfwd = lsq
+
+# CHAOSAddrPath (P-D2): address-path FI. SELF-ATTACHES (ctor sets
+# cpu->addrPath = this). FS MODE REQUIRED for observable effect — SE uses
+# translateMmuOff (identity map, byte7-zeroed vaddr still lands in phys mem,
+# no fault). Here for SE it instantiates (validates the SimObject + hook
+# wiring) but produces no observable corruption; use arm_chaos_fs.py for FS.
+if args.chaos_addrpath:
+    ap = CHAOSAddrPath(
+        cpu=cpu0,
+        probability=args.addrpath_probability,
+        byteOffset=args.addrpath_byte_offset,
+        firstClock=args.first_clock,
+        lastClock=args.last_clock,
+        maxFaults=args.max_faults,
+        rngSeed=args.rng_seed,
+        writeLog=True,
+    )
+    board.chaos_addrpath = ap
 
 if args.maxinsts:
     cpu0.max_insts = args.maxinsts
