@@ -3,6 +3,17 @@
 # {ptwEcc on/off} x measure spurious-fault count (numSpuriousFaults stat)
 # Falsifiable: ECC-on -> spurious~0; ECC-off -> spurious>0
 #
+# HONEST REPRODUCIBILITY NOTE (REVIEW_v1 finding): this script runs the SE-mode
+# config (o3_chaos_smoke.py). In SE mode the D3 hook never fires (translateMmuOff
+# bypasses the page-table walker), so EVERY arm reports numFaultsInjected=0.
+# This script therefore reproduces the SE-mode NULL (§5.4), NOT the FS-mode
+# 5-seed ECC-on/off contrast table in the paper. The FS contrast table was
+# produced by hand-running o3_chaos_fs.py (FS mode) across 5 seeds x 2 arms;
+# there is no automated FS script for it (FS single-boot to bash is 1-2h, 5 seeds
+# x 2 arms is not feasible in one shot). To reproduce the FS table, run
+# o3_chaos_fs.py with --ptw-prob <p> --conditional-valid-bit --ptw-ecc (on/off)
+# across seeds 0..4; see paper §5.4 and FI_DESIGN_SUPPLEMENT §7.
+#
 # Reproducibility note (adversarial-review fix): resolves paths relative to
 # itself and sources ~/gem5-deps/env.sh for LD_LIBRARY_PATH (gem5.opt has no
 # rpath, so libprotobuf/libabsl must be on the link path to run).
