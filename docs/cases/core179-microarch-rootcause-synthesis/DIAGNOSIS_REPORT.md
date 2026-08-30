@@ -61,7 +61,7 @@ ldr  x23, [x27, #288]          ; ← 出错指令；[rq+0x120]=cpu_load(rq) 的 
 |---|---|---|---|---|
 | 4 (15:42) | offset[176] | `ffffda55e61ce000` | `0000000000000000` | **全零交付**（用户态 C3 同型） |
 | 5 (15:58) | offset[146] | `ffffcc879ed92000` | `00ffffcc879da2e0` | **= `offset[0]`(=`ffffcc879da2e000`) 右移 1 字节，逐位精确**【实锤】 |
-| 1 (08-14) | offset[176] | `ffffd937172de000` | `d93715ba0000ffff` | 与 `offset[0]`(=`ffffd93715b7e000`) 循环左移 16 位形状仅差 1 字节【强推】 |
+| 1 (08-14) | offset[176] | `ffffd937172de000` | `d93715ba0000ffff` | 与 `offset[0]`(=`ffffd93715b7e000`) 的 ror6（=循环左移 16 bit）最近匹配，Hamming 距离 **6**（跨 2 字节：byte3 `e0`→`00` 差 3 bit、byte4 `b7`→`ba` 差 3 bit）【强推，非实锤】 |
 | 2 (08-17) | offset[175] | （vmcore-incomplete 无法载入，如实记录） | `00ffffa827b20fe0` | "顶字节 00+整体右移 8 位"形状与案例 5 同族【强推】 |
 | 3 (08-24) | bi_io_vec[70].bv_page | `fffffd012d055b80`（健康 vmemmap 页指针） | `553c521da2e9b99f` | 指针完全离形；且 **pt_regs 中 x3 顶字节=0x55 而 FAR 顶字节=0x00** |
 
