@@ -91,6 +91,10 @@ p.add_argument("--chaos_lsqfwd", action="store_true",
                help="attach CHAOSLSQFwd (O3 store->load forwarding-path FI)")
 p.add_argument("--lsq_byte_offset", type=int, default=-1,
                help="CHAOSLSQFwd directed byte offset within forwarded data")
+p.add_argument("--lsq_mask_width", type=int, default=1,
+               help="CHAOSLSQFwd 64-bit mask covers this many consecutive "
+                    "bytes (little-endian), [1,8]. 1=legacy single-byte; "
+                    "2/4/8=multi-byte for method2 cross-byte spectra (D2 fix).")
 args = p.parse_args()
 
 cache_hierarchy = PrivateL1PrivateL2CacheHierarchy(
@@ -188,6 +192,7 @@ if args.chaos_lsqfwd:
         probability=args.probability,
         faultType=args.fault_type,
         faultMask=str(args.fault_mask),
+        maskWidth=args.lsq_mask_width,
         bitsToChange=args.bits_to_change,
         byteOffset=args.lsq_byte_offset,
         firstClock=args.first_clock,

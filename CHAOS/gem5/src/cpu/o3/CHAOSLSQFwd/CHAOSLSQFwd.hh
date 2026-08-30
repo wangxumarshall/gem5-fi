@@ -34,9 +34,12 @@ class CHAOSLSQFwd : public SimObject
 
     // Called from lsq_unit.cc after the forward memcpy, BEFORE the data is
     // packetized and written back to the load. If the RNG fires, this flips
-    // bits in `data` (one byte selected by byteOffset). Hot-path: when
-    // probability==0 or outside the [firstClock,lastClock] window, returns
-    // immediately with no work.
+    // bits in `data`. D2 fix: the faultMask is now a full 64-bit value applied
+    // across `maskWidth` consecutive bytes (little-endian) starting at
+    // byteOffset, so high bytes (bit 32..63) are reachable — previously the
+    // mask was UInt32 truncated to one byte (&0xff). maskWidth=1 preserves
+    // the legacy single-byte behavior. Hot-path: when probability==0 or
+    // outside the [firstClock,lastClock] window, returns immediately.
     void corrupt(uint8_t *data, unsigned size, Addr vaddr);
 
   private:
@@ -47,7 +50,8 @@ class CHAOSLSQFwd : public SimObject
     o3::CPU *cpu;
     float probability;
     FaultType fault_type_enum;
-    std::bitset<32> fault_mask;
+    std::bitset<64> fault_mask;   // D2: was bitset<32>; now full 64-bit
+    int mask_width;               // D2: bytes the mask covers (1..8)
     int num_bits_to_change;
     int byte_offset;       // -1 = random byte within [0,size-1]
     Cycles first_clock, last_clock;
@@ -60,9 +64,11 @@ class CHAOSLSQFwd : public SimObject
     std::discrete_distribution<int> random_fault_distribution;
     OutputStream *log_stream;
 
-    int generateRandomMask(int bits_to_change);  // 8-bit mask (per byte)
+    // D2: returns a 64-bit mask (was 8-bit). For maskWidth=1 only the low
+    // 8 bits are used (legacy); for maskWidth>1 the mask spans the window.
+    uint64_t generateRandomMask(int bits_to_change);
     void writeLog(const char *type, unsigned size, Addr vaddr, int byte_off,
-                  int mask);
+                  uint64_t mask, int width);
 
     struct CHAOSLSQFwdStats : public statistics::Group {
         statistics::Scalar numFaultsInjected;

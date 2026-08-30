@@ -16,7 +16,8 @@ namespace gem5
           cpu(dynamic_cast<o3::CPU *>(p.cpu)),
           probability(p.probability),
           fault_type_enum(stringToFaultType(p.faultType)),
-          fault_mask(std::bitset<32>(p.faultMask)),
+          fault_mask(std::bitset<64>(p.faultMask)),
+          mask_width(p.maskWidth),
           num_bits_to_change(p.bitsToChange),
           byte_offset(p.byteOffset),
           first_clock(Cycles(p.firstClock)),
@@ -71,19 +72,25 @@ namespace gem5
         return "random";
     }
 
-    int
+    uint64_t
     CHAOSLSQFwd::generateRandomMask(int bits_to_change)
     {
-        // 8-bit mask (applied to one byte of the forwarded buffer)
-        int mask = 0;
-        std::uniform_int_distribution<int> bitDist(0, 7);
-        while (bits_to_change-- > 0) mask |= (1 << bitDist(rng));
+        // D2: 64-bit mask (was 8-bit). For maskWidth=1 the caller truncates
+        // to the low 8 bits (legacy single-byte behavior); for maskWidth>1
+        // the mask spans the whole little-endian window.
+        uint64_t mask = 0;
+        // Bit positions span [0, mask_width*8 - 1] so the random flip can
+        // land in any byte of the window (not just byte 0).
+        int bit_span = mask_width * 8;
+        if (bit_span > 64) bit_span = 64;  // paranoia
+        std::uniform_int_distribution<int> bitDist(0, bit_span - 1);
+        while (bits_to_change-- > 0) mask |= (1ULL << bitDist(rng));
         return mask;
     }
 
     void
     CHAOSLSQFwd::writeLog(const char *type, unsigned size, Addr vaddr,
-                          int byte_off, int mask)
+                          int byte_off, uint64_t mask, int width)
     {
         if (!write_log) return;
         *(log_stream->stream())
@@ -94,7 +101,8 @@ namespace gem5
             << ", Vaddr: 0x" << std::hex << vaddr << std::dec
             << ", FwdSize: " << size
             << ", ByteOffset: " << byte_off
-            << ", Mask: " << std::bitset<8>(mask)
+            << ", MaskWidth: " << width
+            << ", Mask: 0x" << std::hex << mask << std::dec
             << std::endl;
     }
 
@@ -113,7 +121,7 @@ namespace gem5
         if (dist(rng) >= probability) return;
         if (size == 0) return;
 
-        // Choose byte to corrupt.
+        // Choose byte to corrupt (low byte of the masked window).
         int off = byte_offset;
         if (off < 0) {
             std::uniform_int_distribution<int> bdist(0, (int)size - 1);
@@ -121,9 +129,20 @@ namespace gem5
         }
         if (off >= (int)size) off = (int)size - 1;
 
-        int mask = fault_mask.any()
-            ? (int)(fault_mask.to_ulong() & 0xff)
+        // D2: maskWidth consecutive bytes (little-endian) starting at `off`.
+        // Clamp the window to the forwarded buffer so we never run off the
+        // end. maskWidth=1 + mask low 8 bits == legacy single-byte behavior.
+        int width = mask_width;
+        if (width < 1) width = 1;
+        if (width > 8) width = 8;
+        if (off + width > (int)size) width = (int)size - off;
+        if (width < 1) width = 1;  // paranoia
+
+        uint64_t mask = fault_mask.any()
+            ? fault_mask.to_ullong()
             : generateRandomMask(num_bits_to_change);
+        // Truncate the mask to the active window width.
+        uint64_t width_mask = (width >= 8) ? mask : (mask & ((1ULL << (8*width)) - 1));
 
         FaultType chosen = fault_type_enum;
         if (fault_type_enum == FaultType::Random) {
@@ -131,27 +150,37 @@ namespace gem5
             chosen = static_cast<FaultType>(idx);
         }
 
+        // Read the window as a little-endian uint64, apply the mask, write
+        // back only the active bytes (same RMW pattern as CHAOSPhysReg vec).
+        uint64_t win_val = 0;
+        for (int b = 0; b < width; ++b)
+            win_val |= ((uint64_t)data[off + b]) << (8 * b);
+
         switch (chosen) {
             case FaultType::StuckAtZero:
-                data[off] &= ~(uint8_t)mask;
+                win_val &= ~width_mask;
                 stats->numStuckAtZero++;
                 break;
             case FaultType::StuckAtOne:
-                data[off] |= (uint8_t)mask;
+                win_val |= width_mask;
                 stats->numStuckAtOne++;
                 break;
             case FaultType::BitFlip:
-                data[off] ^= (uint8_t)mask;
+                win_val ^= width_mask;
                 stats->numBitFlips++;
                 break;
             default: break;
         }
+
+        for (int b = 0; b < width; ++b)
+            data[off + b] = (uint8_t)((win_val >> (8 * b)) & 0xff);
+
         stats->numFaultsInjected++;
         ++faults_injected_count;
-        writeLog(faultTypeToString(chosen), size, vaddr, off, mask);
-        DPRINTF(LSQUnit, "CHAOSLSQFwd: corrupted forwarded byte %d (vaddr=%#x "
-                "mask=%#x type=%s)\n", off, vaddr, mask,
-                faultTypeToString(chosen));
+        writeLog(faultTypeToString(chosen), size, vaddr, off, width_mask, width);
+        DPRINTF(LSQUnit, "CHAOSLSQFwd: corrupted forwarded bytes [%d+%d) "
+                "(vaddr=%#x mask=%#llx type=%s)\n", off, width, vaddr,
+                (unsigned long long)width_mask, faultTypeToString(chosen));
     }
 
     CHAOSLSQFwd::CHAOSLSQFwdStats::CHAOSLSQFwdStats(statistics::Group *parent)
