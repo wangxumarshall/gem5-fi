@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.10.2",
+  "checkpoint_id": "01M193A7GWM2JEEC6Y5RBZ2VN8",
+  "strategy": "manual-commit",
+  "branch": "fi-wangxu",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "docs/KUNPENG920-SDC研究方案-系统完备版.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 1022,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 436480,
+    "output_tokens": 895,
+    "api_call_count": 1
+  }
+}
