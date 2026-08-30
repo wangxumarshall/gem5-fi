@@ -170,3 +170,111 @@ def _trap_reason(stderr, stdout):
         if mk in text:
             return f"trap:{mk}"
     return ""
+
+
+# ---------------------------------------------------------------------------
+# S0-3: protection-aware nine-class classification (plan §4.3, §6.5).
+#
+# The six-class classify_run() is the raw baseline. The nine-class extension
+# splits Masked/SDC by the ECC outcome the injector reported in its log:
+#   Corrected        : ECC corrected the fault (single-bit) — outcome == golden.
+#                      (was Masked; now distinguished as "the protection worked")
+#   DetectedContained : ECC detected but couldn't correct (2-bit) -> poisoned,
+#                      contained (no propagation to arch output). A DUE that did
+#                      NOT escape. (was Crash/Masked; now "detected+contained")
+#   Latent           : >=3-bit (beyond SECDED) — undetected but the corrupted
+#                      value is NOT yet consumed (overwritten before read).
+#                      (was Masked; now "latent, not yet SDC")
+#   SDC / Masked / Crash / Hang / Inactive / SimulatorError : unchanged.
+#
+# The injector reports the ECC outcome via a log line marker. This module
+# parses it; the six-class path is the fallback when no marker is present
+# (raw / protectionModel=none runs).
+# ---------------------------------------------------------------------------
+
+# Injector log markers (emitted by protection-aware injectors, plan §4.2).
+_PA_MARKERS = {
+    "Corrected":          ("EccCorrected", "Corrected:", "ECC-corrected"),
+    "DetectedContained":  ("Poisoned:", "DetectedContained:", "poisoned"),
+    "Latent":             ("Latent:", ">=3-bit", "beyond-SECDED"),
+}
+
+
+def _parse_pa_outcome(out_text):
+    """Return the protection-aware outcome label from injector log text, or
+    '' if no PA marker (raw run). First match wins (injector reports one)."""
+    if not out_text:
+        return ""
+    for label, markers in _PA_MARKERS.items():
+        if any(m in out_text for m in markers):
+            return label
+    return ""
+
+
+def classify_run_pa(stdout, stderr, returncode, faults_injected,
+                    golden_checksum, timed_out=False):
+    """Protection-aware nine-class classifier (plan §4.3). Same ordered
+    evaluation as classify_run, but splits Masked/SDC by the ECC outcome
+    reported in the injector log. Returns (category, reason). When no PA
+    marker is present, falls back to the six-class labels (raw run)."""
+    out = (stdout or "") + "\n" + (stderr or "")
+    out_checksum = extract_checksum(out)
+    simerr = _is_simerr(stderr)
+
+    if simerr:
+        return ("SimulatorError",
+                "gem5 panic/assert/SIGSEGV (tool failure) — run invalid")
+
+    if timed_out and not out_checksum:
+        return ("Hang", "exceeded Hang timeout, no checksum (control-flow "
+                        "corruption: never completed)")
+
+    crashed = (returncode != 0) or _is_arch_trap(stderr, stdout)
+    pa = _parse_pa_outcome(out)  # ECC outcome from injector log
+
+    # DetectedContained: ECC detected-but-uncorrectable (2-bit poison) that
+    # did not escape — a contained DUE, distinct from Crash (which escaped).
+    if crashed and pa == "DetectedContained":
+        trap = _trap_reason(stderr, stdout)
+        return ("DetectedContained",
+                f"ECC detected+contained (poisoned, no escape) "
+                f"{', ' + trap if trap else ''} — contained DUE")
+
+    if crashed and not out_checksum:
+        trap = _trap_reason(stderr, stdout)
+        return ("Crash",
+                f"workload trapped/crashed (exit={returncode}"
+                f"{', ' + trap if trap else ''}) — DUE")
+
+    if faults_injected == 0:
+        return ("Inactive", "0 valid injections (target absent/invalid)")
+
+    if not out_checksum:
+        return ("SimulatorError",
+                f"no checksum, exit={returncode}, no trap — ambiguous, invalid")
+
+    if out_checksum == golden_checksum:
+        # Split Masked by ECC outcome: Corrected (ECC worked) vs Latent
+        # (>=3-bit undetected but not yet consumed) vs plain Masked (raw).
+        if pa == "Corrected":
+            return ("Corrected",
+                    f"ECC corrected single-bit -> checksum==golden "
+                    f"({out_checksum}) — protection worked")
+        if pa == "Latent":
+            return ("Latent",
+                    f">=3-bit beyond SECDED, undetected but not consumed -> "
+                    f"checksum==golden ({out_checksum}) — latent, not SDC")
+        return ("Masked",
+                f"completed checksum==golden ({out_checksum}) — fault did "
+                f"not propagate")
+
+    # checksum != golden (was SDC). A Latent that got consumed is now SDC.
+    return ("SDC",
+            f"completed checksum {out_checksum} != golden {golden_checksum} "
+            f"— silent data corruption")
+
+
+# Nine-class ordered list (plan §4.3, §6.5) for campaign tallies.
+NINE_CLASSES = ["SimulatorError", "Hang", "Crash", "DetectedContained",
+                "Inactive", "Corrected", "Latent", "Masked", "SDC"]
+

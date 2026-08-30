@@ -38,4 +38,15 @@ class CHAOSCache(SimObject):
         "a PROXY (not a cycle-exact Kunpeng L3 model); the paired partner must "
         "be VALID+resident to be corrupted (else only the primary is faulted, "
         "logged honestly). Use on a 64B-line cache designated as 'L3'.")
+    protectionModel = Param.String("none",
+        "S0-3: protection-aware ECC model (plan §4.2, §2.3 N1 TRM Table 9-1 "
+        "proxy). none = raw (no ECC, escape). sed = single-error-detect "
+        "(1-bit: line invalidate/refetch; >=2-bit: silent SDC). secded = "
+        "single-error-correct double-error-detect (1-bit: Corrected; 2-bit: "
+        "DetectedContained via poison). secded_poison = SECDED + poison "
+        "(2-bit: poison+propagate Latent/DetectedContained; >=3-bit: SDC). "
+        "parity_interleaved = L2 TLB parity (1-bit: re-walk; same-parity "
+        "2-bit: silent). When != none, the injector reports the ECC outcome "
+        "(EccCorrected/Poisoned/Latent) in its log for classify_run_pa's "
+        "nine-class split.")
     writeLog = Param.Bool(True, "Write a log file")
