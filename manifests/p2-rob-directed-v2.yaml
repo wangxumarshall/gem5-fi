@@ -1,0 +1,63 @@
+# v2 sample manifest — demonstrates the §1.6 schema v2 extension fields AND
+# the honest-reject contract: component 'rob' is FORWARD-DECLARED in the v2
+# schema (so this manifest validates) but NOT yet mapped in runner.py (the
+# CHAOSROB injector is S1 §2.3, a separate patch). runner.py must REJECT this
+# with a clear "component 'rob' not mapped yet" error (exit non-zero, no gem5
+# run) — never silently run golden (which would mis-classify as Masked).
+#
+# Until CHAOSROB lands, this manifest is a PROOF of: (a) the v2 schema
+# accepts the new fields; (b) runner.py honestly rejects unmapped components.
+schema_version: arm-chaos-fi/v2
+campaign_id: p2_rob_v2_rejectproof
+run_id: p2-rob-directed-v2-000001
+source:
+  chaos_commit: HEAD
+  gem5_commit: 62c7bf284864b83f7308f5e14ca9c80812621c29
+  patchset_sha256: TBD
+platform:
+  isa: ARM64
+  mode: SE
+  cpu_model: ArmO3CPU
+  config_family: C0
+workload:
+  binary_sha256: 3813ad8b590489604e45b312b20c5a60a2cca19cc5a00cb550061a94e15092e8
+  input_sha256: ""
+  roi: {begin_symbol: roi_begin, end_symbol: roi_end}
+trigger:
+  mode: cycle
+  value: 100000
+target:
+  layer: physical
+  component: rob              # §1.6 v2: forward-declared; not mapped yet
+  instance: cpu0.thread0
+  index: 0
+  field: exc_status           # ROB exception-status bit (§2.3 CHAOSROB mode)
+  width_bits: 64
+  sub_field: exc_status       # §1.6 v2: which ROB field (result|done|exc_status|dest_phys|spec)
+  semantic_role: exception_status  # §1.6 v2: ABI/structural role
+fault:
+  model: legal_domain_sub     # F5-flavored (exc_suppress is a §2.3 mode)
+  bit_indices: []
+  duration_events: 1
+  stage: no_protection_model
+  f5_substitute_target: "clear exc_status bit (exc_suppress mode, §2.3)"
+  f6_phase_offset: 0          # §1.6 v2 (F6): phase offset in slots
+  trigger_value_pattern: "0x0"  # §1.6 v2 (F3): inject only when condition met
+dynamic_context:               # §9.2 v2 provenance (forward-declared; filled post-run)
+  mapped_phys_reg: 0
+  freelist_size: 0
+  reads_before_overwrite: 0
+  overwritten_at_cycle: 0
+  cache_residency: 0
+  lsq_source_seq: 0
+  tlb_asid: 0
+  committed_inst_at_inject: 0
+rng:
+  master_seed: 20260825
+  selection_seed: 20260825
+limits:
+  max_faults: 1
+  max_ticks: 0
+oracle:
+  kind: exact_hash
+  golden_id: regchain-golden-v1

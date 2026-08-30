@@ -485,3 +485,28 @@ ARM 三条路径 + golden（真跑输出）：
 4. 默认 gem5 ArmO3CPU FUPool（非自定义 IntALU×3 + IntMultDiv×1 + AGU×2 + FSU×2 端口映射）作执行端口代理——自定义 FUPool 是单独更大补丁。
 
 绝对 SDC 率是 E3（代理）；跨 sweep 轴趋势是 E2。FS 配置 `configs/fs/kp920_proxy_fs.py` 需 gem5-fs（2.5GB，已 gitignore），deferred。
+
+---
+
+### S0 单元3 — manifest schema v2（§1.6）+ 无依赖验证器 + 诚实拒绝
+
+**实现**：`schemas/manifest.schema.json` 扩展到 v1+v2（向后兼容）；`tools/manifest_validate.py`（纯 stdlib 验证器，jsonschema 缺失时的运行时执行者）；`tools/runner.py` 调用 light validator + 诚实拒绝未映射组件；`manifests/p2-rob-directed-v2.yaml`（v2 示例，证明 schema 接受 v2 + runner 诚实拒绝）。
+
+**schema v2 扩展（§1.6，全为 OPTIONAL 故 v1 manifest 仍验证）**：
+- `schema_version` enum `["arm-chaos-fi/v1","arm-chaos-fi/v2"]`（原 const v1）。
+- `target.component` enum 扩到 21 值：加 `rat, freelist, rob, iq, exec, fsu, lsq_fwd, l1_tlb, l2_tlb, sysreg, ptw, l3, noc, coherence, memctrl`。
+- `target` 加 `sub_field`（pfn/ap/asid for TLB；src_ready/dst_tag for IQ；map_entry/free_bit for RAT）+ `semantic_role`（ABI 角色）。
+- `fault` 加 `f5_substitute_target`（F5 合法域替换）、`f6_phase_offset`（F6 相位偏移）、`trigger_value_pattern`（F3 数据相关触发）。
+- 新 `dynamic_context`（§9.2 provenance）：`mapped_phys_reg, freelist_size, reads_before_overwrite, overwritten_at_cycle, cache_residency, lsq_source_seq, tlb_asid, committed_inst_at_inject`。
+
+**关键设计决策——无依赖验证器**：本机 jsonschema 未装且 pip 离线（403）。runner.py 此前在 jsonschema 缺失时静默 "skipping schema check"——schema 文件形同虚设，违背 §1.6 意图。故 `tools/manifest_validate.py`（纯 stdlib）作运行时执行者：硬编码 enum/required/type 约束（schema 的执行相关子集），runner.py 在 jsonschema 缺失时调用之（jsonschema 在场时优先用之做完整 draft-07）。自测：v1 p1 + v2 p2 都验证通过，故意破损 manifest 被拒（15 错误）。两个源（schema 文件 + validator）的 drift 由自测捕获。
+
+**诚实拒绝（§1.6 契约）**：runner.py 加 `else` 分支——未映射组件（v2 前向声明的 rob/iq/rat/freelist/lsq_fwd/sysreg/ptw/l3 等）→ `sys.exit` 清晰错误（指出对应 CHAOS 注入器 + 章节），**非零退出，不启动 gem5**。否则会 fall through 用无 `--chaos_*` 标志跑 gem5 → golden → 误分类 Masked（静默 mis-run，非真 FI 结局）。l1i/l2 缓存组件单独指出走 arm_chaos_cache.py。
+
+**自验证（真机，CLAUDE.md）**：
+- `py_compile` 零错；validator 自测通过（v1 p1 OK、v2 p2 OK、破损 manifest 拒 15 错）。
+- **T1**：v1 p1 manifest → `manifest schema: OK (light validator)` + `classification=Masked faults_injected=1 exit=0`（不再静默跳过；回归无破坏）。
+- **T2**：v2 p2 `rob` manifest → `manifest schema: OK (light validator)`（v2 schema 接受新字段）+ runner **诚实拒绝** `EXIT=1`，无 gem5 启动（`grep -c 'running:'`=0，reject 在 cmd 构建前），无 outdir 创建。清晰错误指明 rob->CHAOSROB §2.3 等。
+- **T3**：campaign.py dry-run 生成的 v1 manifest 经 light validator 验证通过；arm_chaos golden 仍 `f247ef3fe6cfd`。
+
+**诚实边界（本补丁不做）**：无新注入器（CHAOSROB 是 S1 §2.3——v2 schema 前向声明其字段，runner.py 拒绝直到 S1 映射落地）；无 F5/F6 注入逻辑（schema 字段存在，注入器未实现——S1/S2 单独补丁）；无 injector 内 protectionModel（§1.2，单独 S0 单元）；无完整 draft-07 JSON-schema 解析器（light validator 覆盖 runner.py 需要的子集，jsonschema 在场时优先）。

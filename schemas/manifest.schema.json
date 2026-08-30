@@ -1,11 +1,11 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "arm-chaos-fi/v1 fault-injection manifest",
-  "description": "Per-run manifest for the ARM64 CHAOS SDC fault-injection campaign (plan §5.1). One manifest == exactly one deterministic fault (max_faults=1).",
+  "title": "arm-chaos-fi fault-injection manifest (v1 + v2)",
+  "description": "Per-run manifest for the ARM64 CHAOS SDC fault-injection campaign (plan §5.1, §1.6). One manifest == exactly one deterministic fault (max_faults=1). v2 (§1.6) is ADDITIVE: it widens target.component, adds target.sub_field/semantic_role, fault.f5_substitute_target/f6_phase_offset/trigger_value_pattern, and the dynamic_context provenance block. All v2 fields are OPTIONAL so existing v1 manifests validate unchanged. S1 injectors (rat/freelist/rob/iq/...) are forward-declared in the component enum; runner.py rejects unmapped components with a clear error (§1.6 honest-reject) until their mapping patch lands.",
   "type": "object",
   "required": ["schema_version","run_id","source","platform","workload","trigger","target","fault","rng","limits"],
   "properties": {
-    "schema_version": {"type":"string","const":"arm-chaos-fi/v1"},
+    "schema_version": {"type":"string","enum":["arm-chaos-fi/v1","arm-chaos-fi/v2"]},
     "campaign_id": {"type":"string"},
     "run_id": {"type":"string"},
     "source": {"type":"object","required":["chaos_commit","gem5_commit"],"properties":{
@@ -30,17 +30,32 @@
     }},
     "target": {"type":"object","required":["layer","component","instance"],"properties":{
       "layer": {"type":"string","enum":["architectural","physical"]},
-      "component": {"type":"string","enum":["gpr","l1i","l1d","l2","memory","physreg","rat"]},
+      "component": {"type":"string","enum":["gpr","l1i","l1d","l2","memory","physreg","rat","freelist","rob","iq","exec","fsu","lsq_fwd","l1_tlb","l2_tlb","sysreg","ptw","l3","noc","coherence","memctrl"]},
       "instance": {"type":"string"},
       "index": {"type":"integer"},
       "field": {"type":"string"},
-      "width_bits": {"type":"integer"}
+      "width_bits": {"type":"integer"},
+      "sub_field": {"type":"string","description":"§1.6 v2: structural sub-field, e.g. pfn/ap/asid (TLB), src_ready/dst_tag (IQ), map_entry/free_bit (RAT)"},
+      "semantic_role": {"type":"string","description":"§1.6 v2: ABI role / register semantics (e.g. 'accumulator','pointer','loop-counter')"}
     }},
     "fault": {"type":"object","required":["model","duration_events","stage"],"properties":{
       "model": {"type":"string","enum":["transient_bit_flip","local_mbu","intermittent_burst","stuck_at_zero","stuck_at_one","legal_domain_sub","delay_omission"]},
       "bit_indices": {"type":"array","items":{"type":"integer"}},
       "duration_events": {"type":"integer","minimum":1},
-      "stage": {"type":"string","enum":["raw_pre_protection","post_check_escape","metadata_or_checker","no_protection_model"]}
+      "stage": {"type":"string","enum":["raw_pre_protection","post_check_escape","metadata_or_checker","no_protection_model"]},
+      "f5_substitute_target": {"type":"string","description":"§1.6 v2 (F5 legal-domain substitute): description of the substitution target (e.g. 'another currently-allocated physReg','another legal tag','another mapped active page pfn')"},
+      "f6_phase_offset": {"type":"integer","description":"§1.6 v2 (F6 delay/omission): phase offset in issue/fwd slots (e.g. -2..+2); models method3 timing-race phase shift"},
+      "trigger_value_pattern": {"type":"string","description":"§1.6 v2 (F3 data-dependent trigger): hex pattern; inject only when (target_val & triggerValueMask)==pattern (method2 undervoltage setup-time violation)"}
+    }},
+    "dynamic_context": {"type":"object","description":"§9.2 v2 provenance: post-run observed context at the injection point (filled by the runner/analysis, optional in the manifest as a forward-declared schema).","properties":{
+      "mapped_phys_reg": {"type":"integer"},
+      "freelist_size": {"type":"integer"},
+      "reads_before_overwrite": {"type":"integer"},
+      "overwritten_at_cycle": {"type":"integer"},
+      "cache_residency": {"type":"integer"},
+      "lsq_source_seq": {"type":"integer"},
+      "tlb_asid": {"type":"integer"},
+      "committed_inst_at_inject": {"type":"integer"}
     }},
     "rng": {"type":"object","required":["master_seed","selection_seed"],"properties":{
       "master_seed": {"type":"integer"},

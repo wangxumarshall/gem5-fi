@@ -103,7 +103,11 @@ def main():
                      f"'{gid}' unknown. Aborting.")
     args.golden_checksum = golden
 
-    # schema validation
+    # schema validation. jsonschema (full draft-07) if available; else the
+    # dependency-free light validator (tools/manifest_validate.py) — the v2
+    # §1.6 extension is ENFORCED even on hosts without jsonschema (this host
+    # has pip offline; the light validator is the runtime enforcer, not a
+    # silent skip). Prefer jsonschema when present for full draft-07 coverage.
     if HAVE_SCHEMA:
         sp = os.path.join(REPO, "schemas/manifest.schema.json")
         with open(sp) as sf:
@@ -112,9 +116,14 @@ def main():
             jsonschema.validate(m, schema)
         except jsonschema.ValidationError as e:
             sys.exit(f"manifest schema validation FAILED: {e.message}")
-        print("[runner] manifest schema: OK")
+        print("[runner] manifest schema: OK (jsonschema)")
     else:
-        print("[runner] jsonschema not installed — skipping schema check")
+        from manifest_validate import validate as light_validate
+        ok, errs = light_validate(m)
+        if not ok:
+            sys.exit(f"manifest schema validation FAILED (light validator): "
+                     f"{'; '.join(errs)}")
+        print("[runner] manifest schema: OK (light validator)")
 
     # validate binary hash
     if m["workload"].get("binary_sha256"):
@@ -204,6 +213,28 @@ def main():
                 cmd += [f"--phys_target_arch={idx}"]
     elif comp == "memory":
         cmd += ["--chaos_mem"]
+    else:
+        # §1.6 v2 honest-reject contract: the v2 schema forward-declares S1
+        # components (rob/iq/rat/freelist/lsq_fwd/sysreg/ptw/l3/...), but their
+        # runner.py mapping + CHAOS injector do not exist yet (S1/S2/S4
+        # patches). Without this reject, an unmapped component would fall
+        # through and run gem5 with NO --chaos_* flag -> golden run ->
+        # mis-classified as Masked (a silent mis-run, not a real FI outcome).
+        # Reject clearly so the manifest is never silently mis-triggered.
+        # NOTE: l1i/l2 cache components route through arm_chaos_cache.py (a
+        # separate config), not this arm_chaos.py harness — call that out too.
+        if comp in ("l1i", "l2"):
+            sys.exit(f"[runner] target.component='{comp}' is a cache component "
+                     f"that routes through configs/se/arm_chaos_cache.py, not "
+                     f"this arm_chaos.py harness. Use the cache config / the "
+                     f"CHAOSCache mount. Aborting — not silently mis-running.")
+        sys.exit(f"[runner] target.component='{comp}' is forward-declared in "
+                 f"the v2 schema but NOT mapped in runner.py yet (needs the "
+                 f"corresponding CHAOS injector: rob->CHAOSROB §2.3, "
+                 f"iq->CHAOSIQ §2.5, rat/freelist->CHAOSRenameMap/CHAOSFreeList "
+                 f"§2.2, lsq_fwd->CHAOSLSQFwd F5/F6 §2.4, sysreg/ptw->§2.10, "
+                 f"l3->CHAOSCHI §2.9, etc. — all S1/S2/S4 patches). Aborting "
+                 f"— not silently mis-running an unmapped component.")
 
     print(f"[runner] manifest target: layer={layer} comp={comp} idx={idx} "
           f"bits={bits} width={width} field={field}")
