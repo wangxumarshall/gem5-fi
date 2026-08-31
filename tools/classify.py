@@ -74,6 +74,26 @@ def classify_run(stdout, stderr, returncode, faults_injected,
     out_checksum = extract_checksum(out)
     simerr = _is_simerr(stderr)
 
+    # 0.5 §2.2 RAT/freelist rename-inconsistency carve-out: a rename-map or
+    # freelist fault breaks gem5 O3's internal rename consistency, which gem5
+    # SE-mode reports as a panic/SIGSEGV (returncode<0, simerr markers in
+    # stderr). The design doc §2.2 classifies RAT errors as Crash/DUE — the
+    # rename-inconsistency is the EXPECTED fault outcome, NOT a tool failure.
+    # Distinguish from a true SimulatorError (tool broke with NO injection):
+    # if a fault DID land (faults_injected>=1) and the run died by signal /
+    # panic with no clean program checksum, it's a Crash (rename-inconsistency
+    # DUE). This prevents mis-labeling RAT-injection crashes as tool errors,
+    # which would under-count method1's Crash-dominant outcome. E3 note: real
+    # RTL handles rename-inconsistency via an arch trap; gem5 SE models it as
+    # a simulator invariant (panic), so the gem5-panic IS the DUE manifestation.
+    if (faults_injected and faults_injected >= 1
+            and returncode != 0 and not out_checksum):
+        return ("Crash",
+                f"gem5 panic/abort (exit={returncode}) with a fault landed "
+                f"(faults_injected={faults_injected}) and no program checksum "
+                f"— rename-inconsistency / fault-induced crash (DUE per §2.2), "
+                f"NOT a tool failure (a true SimulatorError has faults_injected==0)")
+
     # 1. SimulatorError: the tool/simulator itself broke. This is NOT a valid
     #    FI outcome — it means the run is invalid (gem5 panic/assert/SIGSEGV).
     if simerr:

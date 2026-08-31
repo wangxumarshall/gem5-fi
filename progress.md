@@ -635,3 +635,18 @@ ARM 三条路径 + golden（真跑输出）：
 - **pilot（单 fault，map_bitflip X 随机，seed 20260825）**：4 控制组均触发 1 注入，但**全部 Masked（checksum==golden，无传播/无 crash）**——对照 cholesky 同 seed Crash。**诚实**：n=1 pilot 无法确立 method1 的 numeric-only vs compute-both ≈4× P_SDC 比值（须 n=384 formal）；但控制组 kernel 已就位、golden 确定性、注入器触发——formal campaign 可直接对比。
 
 **诚实边界**：method1 4× 比值须 n=384 formal（健康机）；mov_heavy（move-elimination，patch 4）；runner.py `rat`/`freelist` 组件映射（patch 5）。
+
+---
+
+### S1 §2.2 patch 5 — runner.py `rat`/`freelist` 组件映射 + classify carve-out
+
+**实现**：`tools/runner.py` 加 `rat`→`--chaos_rename` 与 `freelist`→`--chaos_freelist` 组件映射（fault.model → rename_mode/freelist_mode）；fault-log 解析加 `rename_injections.log`/`freelist_injections.log`；GOLDEN_IDS 加 cholesky + 4 控制组。`tools/classify.py` 加 §2.2 rename-inconsistency carve-out。
+
+**关键诚实发现——gem5 SE rename-inconsistency 表现为 SimulatorError，但实为 Crash/DUE**：gem5 O3 把 rename 一致性当**模拟器内部不变量**，RAT/freelist 故障破坏它 → gem5 panic/abort（SIGABRT，stderr 有 panic/SIGSEGV marker）。旧 classifier 把这判为 SimulatorError（"tool failure"），但 §2.2 把 RAT 错归为 Crash/DUE——**注入诱发的崩溃，非工具自发故障**。修：classify 加 carve-out——`faults_injected≥1 && returncode≠0 && 无 checksum` → **Crash**（注明 rename-inconsistency DUE，非 tool failure）。真 SimulatorError 的特征是 `faults_injected==0`（工具未注入就崩）。
+
+**自验证（真机）**：
+- `manifests/p3-rat-cholesky-001.yaml`（component=rat, model=transient_bit_flip, idx=3）经 runner → `config_family C0`, `schema OK`, `comp=rat idx=3` → `RESULT: classification=Crash faults_injected=1 exit=-6`（rename_injections.log: `arch_reg=int[3] old_phys=116 new_phys=112 faults_injected:1`）。**修复前是 SimulatorError，修复后 Crash——method1 Crash-dominant 不再被 under-count**。
+- freelist manifest 同样 → Crash。
+- **回归**：p1 gpr（faults=1 exit=0）仍 Masked（carve-out 不触发，exit==0）；golden no-inject（faults=0）carve-out 不触发（faults<1）。
+
+**诚实边界**：§2.2 method1 4× 比值须 n=384 formal；mov_heavy（move-elimination，patch 4 待）；campaign→rat/freelist formal 跑批须健康机。E3：gem5 SE 的 rename-inconsistency=panic 是模拟器建模限制（真 RTL 走 arch trap 恢复）；本 carve-out 诚实把 gem5-panic 当 DUE manifestation。

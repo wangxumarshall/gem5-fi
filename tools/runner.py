@@ -52,6 +52,12 @@ GOLDEN_IDS = {
     "l1dreduce-golden-v1":  "f44d2b9cd4a173cd",  # l1d_reduce
     "l1iloop-golden-v1":    "bb0b1c4cb661236e",  # l1i_loop
     "stuckpersist-golden-v1": "00000000dee1f5d0",  # stuck_persist
+    # S1 §2.2 method1 anchor + controls (cross-ISA consistent golden):
+    "cholesky-golden-v1":   "37621bc0a633976f",  # cholesky_numeric
+    "purefma-golden-v1":    "98433fcf09968e6a",  # method1_controls pure_fma
+    "purespmv-golden-v1":   "57b2c160bf2c92ad",  # method1_controls pure_spmv
+    "puregather-golden-v1": "e4481fb960ff6465",  # method1_controls pure_gather
+    "trisolve-golden-v1":   "39d61425aae92434",  # method1_controls tri_solve
 }
 
 def sha256_file(path):
@@ -213,6 +219,31 @@ def main():
                 cmd += [f"--phys_target_arch={idx}"]
     elif comp == "memory":
         cmd += ["--chaos_mem"]
+    elif comp == "rat":
+        # §2.2 CHAOSRenameMap (S1 patch 1). Manifest fault.model maps to the
+        # --rename_mode (map_bitflip / f5_substitute / f4_field_stuck). The
+        # v2 schema's fault.model enum has legal_domain_sub for F5; map it.
+        cmd += ["--chaos_rename"]
+        # fault model -> rename_mode
+        rm = {"transient_bit_flip": "map_bitflip",
+              "local_mbu": "map_bitflip",
+              "legal_domain_sub": "f5_substitute",
+              "stuck_at_zero": "f4_field_stuck",
+              "stuck_at_one": "f4_field_stuck"}.get(inj["model"], "map_bitflip")
+        cmd += ["--rename_mode", rm, "--rename_first_clock", str(t["value"]),
+                "--rename_max_faults", str(m["limits"]["max_faults"]),
+                "--rename_rng_seed", str(m["rng"]["selection_seed"]),
+                "--rename_fault_mask", fault_mask, "--rename_target_arch",
+                str(idx) if idx is not None else "-1"]
+    elif comp == "freelist":
+        # §2.2 CHAOSFreeList (S1 patch 2). mark_free / pop_wrong via fault.model.
+        cmd += ["--chaos_freelist"]
+        fm = {"transient_bit_flip": "mark_free",
+              "local_mbu": "mark_free",
+              "legal_domain_sub": "pop_wrong"}.get(inj["model"], "mark_free")
+        cmd += ["--freelist_mode", fm, "--freelist_first_clock", str(t["value"]),
+                "--freelist_max_faults", str(m["limits"]["max_faults"]),
+                "--freelist_rng_seed", str(m["rng"]["selection_seed"])]
     else:
         # §1.6 v2 honest-reject contract: the v2 schema forward-declares S1
         # components (rob/iq/rat/freelist/lsq_fwd/sysreg/ptw/l3/...), but their
@@ -265,7 +296,7 @@ def main():
         if a == "-d" and i+1 < len(cmd):
             outdir = cmd[i+1]
     faults = 0
-    for logname in ("fault_injections.log","main_mem_injections.log","cache_injections.log"):
+    for logname in ("fault_injections.log","main_mem_injections.log","cache_injections.log","rename_injections.log","freelist_injections.log"):
         p = os.path.join(outdir, logname) if outdir else None
         if p and os.path.exists(p):
             with open(p) as lf:

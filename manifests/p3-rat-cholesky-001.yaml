@@ -1,0 +1,50 @@
+# Sample v2 manifest: CHAOSRenameMap on cholesky_numeric (§2.2 S1).
+# component 'rat' is now MAPPED in runner.py (patch 5); fault.model maps to
+# rename_mode (transient_bit_flip -> map_bitflip, legal_domain_sub ->
+# f5_substitute). max_faults=1, single deterministic fault.
+schema_version: arm-chaos-fi/v2
+campaign_id: p3_rat_cholesky_pilot
+run_id: p3-rat-cholesky-001
+source:
+  chaos_commit: HEAD
+  gem5_commit: 62c7bf284864b83f7308f5e14ca9c80812621c29
+  patchset_sha256: TBD
+platform:
+  isa: ARM64
+  mode: SE
+  cpu_model: ArmO3CPU
+  config_family: C0
+workload:
+  binary_sha256: ""
+  input_sha256: ""
+  roi: {}
+trigger:
+  mode: cycle
+  value: 1000
+target:
+  layer: architectural
+  component: rat              # §2.2 — now mapped in runner.py
+  instance: cpu0.thread0
+  index: 3                   # X3 (method1 long-lived accumulator)
+  field: value
+  width_bits: 64
+  sub_field: map_entry
+  semantic_role: accumulator
+fault:
+  model: transient_bit_flip
+  bit_indices: []
+  duration_events: 1
+  stage: no_protection_model
+  f5_substitute_target: ""
+  f6_phase_offset: 0
+  trigger_value_pattern: ""
+dynamic_context: {}
+rng:
+  master_seed: 20260825
+  selection_seed: 20260825
+limits:
+  max_faults: 1
+  max_ticks: 0
+oracle:
+  kind: exact_hash
+  golden_id: cholesky-golden-v1
