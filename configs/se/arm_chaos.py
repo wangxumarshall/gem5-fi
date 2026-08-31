@@ -34,6 +34,9 @@ cpu_map = {"O3": CPUTypes.O3, "Timing": CPUTypes.TIMING,
 
 p = argparse.ArgumentParser()
 p.add_argument("--cmd", required=True)
+p.add_argument("--args", default="",
+               help="space-separated argv passed to the SE binary (e.g. "
+                    "'pure_fma' for method1_controls). Empty = no args.")
 p.add_argument("--cpu", default="O3", choices=list(cpu_map))
 p.add_argument("--maxinsts", type=int, default=0)
 # CHAOSReg params (architectural-state; honest about limits)
@@ -138,7 +141,10 @@ board = SimpleBoard(
     cache_hierarchy=cache_hierarchy,
 )
 
-board.set_se_binary_workload(binary=FileResource(args.cmd, override=True))
+board.set_se_binary_workload(
+    binary=FileResource(args.cmd, override=True),
+    arguments=args.args.split() if args.args else [],
+)
 
 # CHAOSReg attachment (architectural-state; honest per plan §2.2 — NOT PRF).
 if args.chaos_reg:

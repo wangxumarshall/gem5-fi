@@ -622,3 +622,16 @@ ARM 三条路径 + golden（真跑输出）：
 - **回归**：cholesky golden `37621bc0a633976f` 不变；reg_chain golden `f247ef3fe6cfd` 不变（未挂注入器 `chaosFreeList=nullptr`，getReg 零回归）。
 
 **诚实边界（本补丁不做）**：method1 控制组 kernel（pure_fma/pure_spmv/pure_gather/tri_solve，patch 3）；mov_heavy（patch 4）；runner.py `freelist` 组件映射（patch 5）；formal n=384；多线程 freelist。
+
+---
+
+### S1 §2.2 patch 3 — method1 控制组 kernel（pure_fma/pure_spmv/pure_gather/tri_solve）
+
+**实现**：`workloads/directed/method1_controls.c`（4 个小 kernel，argv 选择）+ `arm_chaos.py` 加 `--args` 透传 SE 二进制 argv（stdlib `set_se_binary_workload(arguments=...)`）。4 个控制组分别缺 method1 的某一要素：pure_fma（无 cdiv/无间接/无跨循环累加器）、pure_spmv（间接但无 cdiv/无累加器）、pure_gather（仅 gather 无 FMA）、tri_solve（除法+间接但无 rank-1 FMA 跨循环累加器/无 malloc-free）。
+
+**自验证（真机）**：
+- 4 kernel native golden == gem5 O3 SE（跨 ISA 一致）：pure_fma `98433fcf09968e6a`、pure_spmv `57b2c160bf2c92ad`、pure_gather `e4481fb960ff6465`、tri_solve `39d61425aae92434`。3/3 重放一致（G0）。
+- `--args` 透传生效（修了"usage"报错——stdlib SE workload 默认无 argv）。
+- **pilot（单 fault，map_bitflip X 随机，seed 20260825）**：4 控制组均触发 1 注入，但**全部 Masked（checksum==golden，无传播/无 crash）**——对照 cholesky 同 seed Crash。**诚实**：n=1 pilot 无法确立 method1 的 numeric-only vs compute-both ≈4× P_SDC 比值（须 n=384 formal）；但控制组 kernel 已就位、golden 确定性、注入器触发——formal campaign 可直接对比。
+
+**诚实边界**：method1 4× 比值须 n=384 formal（健康机）；mov_heavy（move-elimination，patch 4）；runner.py `rat`/`freelist` 组件映射（patch 5）。
