@@ -777,3 +777,19 @@ ARM 三条路径 + golden（真跑输出）：
 - **回归**：reg_chain golden `f247ef3fe6cfd` 不变。
 
 **诚实边界**：§2.7 H.③ "P_SDC ≥ raw cache 注入（上界性质）"须 n=384 formal 对照 CHAOSCache raw；formal n=384（健康机）；runner.py `l1d_fwd` 组件映射。
+
+---
+
+### S1 §2.13 patch 1 — CHAOSBPU 注入器（分支预测 F5）
+
+**实现**：新 SimObject `CHAOS/gem5/src/cpu/o3/CHAOSBPU/{.py,.hh,.cc,SConscript}`（O3-only，self-attach）。hook `BAC::predict`（decoupled 路径，bac.cc:565）+ `BAC::updatePC`（coupled 路径，bac.cc:933）post-`bpu->predict` 调用 `chaosBPU->maybeCorrupt(tid, taken, pc)`。`dir_flip` 翻预测方向；`target_flip` 翻 PC target 一 bit。`BAC` 加 `chaosBPU` 指针 + `setChaosBPU`；`cpu.hh` 加 `BAC &o3BAC()` accessor。
+
+**关键诚实发现**：gem5 O3 默认 **coupled front-end**（decoupledFrontEnd=false），故 `BAC::predict`(decoupled 路径)不被调用——初版只 hook BAC::predict 零触发。加 hook 到 `BAC::updatePC` 的 coupled `bpu->predict` 后才触发。
+
+**自验证（真机）**：
+- 干净重建 `scons -j16` EXIT=0，零警告（G7）。
+- **T1 dir_flip**：`Tick:74000 mode=dir_flip taken=1 pc=0x400670 faults_injected:1` → `d47587240e6f0a83` ==golden（Masked——翻的预测被 squash 恢复路径吸收，§2.13 "squash 后架构态==golden" 合理）。
+- **T2 target_flip**：`Tick:74000 mode=target_flip taken=0 pc=0x400270` → ==golden（Masked，同恢复）。
+- **回归**：reg_chain golden `f247ef3fe6cfd` 不变。
+
+**诚实边界**：联合观测（squash 后架构态是否==golden）需专门监控；BTB/RSB/间接预测器分层未做（仅方向+target F5）；formal n=384；runner.py `bpu` 组件映射。

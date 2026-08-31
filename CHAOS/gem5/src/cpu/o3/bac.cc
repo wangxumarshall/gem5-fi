@@ -577,6 +577,13 @@ BAC::predict(ThreadID tid, const StaticInstPtr &inst, const FetchTargetPtr &ft,
     assert(ft->bpuHistory == nullptr);
     bool taken = bpu->predict(inst, ft->ftNum(), pc, tid, ft->bpuHistory);
 
+    // §2.13 CHAOSBPU: post-predict F5 hook (decoupled path). dir_flip
+    // reverses `taken`; target_flip flips a bit of the predicted PC target.
+    // nullptr = no injection (zero regression).
+    if (chaosBPU) {
+        chaosBPU->maybeCorrupt(tid, taken, pc);
+    }
+
     DPRINTF(Branch, "[tid:%i, ftn:%llu] History added.\n", tid, ft->ftNum());
     return taken;
 }
@@ -924,6 +931,12 @@ BAC::updatePC(const DynInstPtr &inst, PCStateBase &fetch_pc,
             // here.
             predict_taken =
                 bpu->predict(inst->staticInst, inst->seqNum, fetch_pc, tid);
+            // §2.13 CHAOSBPU: coupled-front-end post-predict F5 hook (the
+            // active path when decoupledFrontEnd=false). dir_flip reverses
+            // predict_taken; target_flip flips a bit of fetch_pc.
+            if (chaosBPU) {
+                chaosBPU->maybeCorrupt(tid, predict_taken, fetch_pc);
+            }
         }
 
         DPRINTF(BAC,

@@ -486,6 +486,8 @@ class CPU : public BaseCPU
     ROB &o3ROB() { return rob; }
     /** §2.5 CHAOSIQ accessor (reaches IEW.instQueue). */
     IEW &o3IEW() { return iew; }
+    /** §2.13 CHAOSBPU accessor (reaches BAC.bpu / BAC.chaosBPU). */
+    BAC &o3BAC() { return bac; }
 
     // §2.12 CHAOSExec: raw pointer to the integer-exec fault injector. Set
     // by the injector's startup() (setChaosExec(this)). nullptr = no injection.

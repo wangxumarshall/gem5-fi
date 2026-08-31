@@ -47,6 +47,8 @@
 #include "cpu/pred/bpred_unit.hh"
 #include "cpu/pred/branch_type.hh"
 #include "cpu/timebuf.hh"
+// §2.13 CHAOSBPU: forward decl (raw pointer member below).
+#include "cpu/o3/CHAOSBPU/CHAOSBPU.hh"
 
 namespace gem5
 {
@@ -339,6 +341,16 @@ class BAC
     /** BPredUnit. */
     branch_prediction::BPredUnit *bpu;
 
+    // §2.13 CHAOSBPU: raw pointer to the branch-prediction fault injector.
+    // Set by the injector's startup() (cpu->o3BAC().setChaosBPU(this)).
+    // nullptr = no injection (zero regression).
+    gem5::CHAOSBPU *chaosBPU = nullptr;
+
+  public:
+    /** §2.13 CHAOSBPU accessor. */
+    void setChaosBPU(gem5::CHAOSBPU *p) { chaosBPU = p; }
+
+  private:
     /** Fetch target Queue. */
     FTQ *ftq;
 
