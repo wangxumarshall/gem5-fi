@@ -843,3 +843,21 @@ ARM 三条路径 + golden（真跑输出）：
 - SE-inert 预期（doc §0.3）：SE 不调 doLongDescriptor，故无注入日志（与 AddrPath 同模式）。
 
 **诚实边界**：FS-only 有效（SE-inert，doc §0.3）——FS 跑批须 gem5-fs；FS 验证 deferred。CHAOSArmTLB F5 活页/属性位/白名单铺开 deferred。method2 三根因区分须 FS formal。
+
+---
+
+### 诚实评估：剩余注入器的硬阻碍（本轮收尾）
+
+已构建 10 个新注入器骨架（RenameMap/FreeList/ROB/IQ/Exec/FPU/L1DForward/BPU/AddrPath/PTW）。剩余 6 个注入器 + 多个 sub-mode 在当前 gem5 v25 + SE 模式下有**硬阻碍**，诚实记录：
+
+1. **CHAOSExMon(§2.4)**：doc 说 hook `lsq_unit.cc` exclusive monitor FSM——**gem5 v25 O3 lsq_unit.cc/lsq.hh 无 exclusive-monitor 符号**（gem5 不显式建模 LDXR/STXR 的 monitor FSM，依赖架构语义）。不可干净实现（需先给 gem5 加 monitor 建模，更大工作）。
+2. **CHAOSDecode(§2.14)**：doc 明文"可最后做或跳过"。DynInst::srcRegIdx/destRegIdx 返回 `staticInst` 的 `const RegId&`，staticInst **跨所有实例共享**——改 regIdx 影响所有副本（unsafe）。doc 承认此问题。
+3. **CHAOSCHI/NoC/HCCS(§2.9/2.15/2.16)**：系统级，需 Ruby/CHI + Garnet SLICC——独立子项目（doc §3.1 S4，6-8 补丁/注入器）。
+4. **CHAOSRAS(§2.18)**：元分析，须所有 formal 单元完成后才能跑（doc §3.1 S5）。
+5. **§2.3 spec_leak**：method1 投机泄漏，需在 commit rename-map restore 路径拦截"不回滚错路径 µop 的 PRF 写"——深 rename 状态机改动，风险高。
+6. **§2.17 addr_map_sub/ECC logic**：gem5 AbstractMemory 不暴露 DRAM channel/rank/bank/row/col 坐标映射（doc E3）；ECC 逻辑需内建 SECDED 编解码器。
+7. **§2.2 spec_leak / §2.4 fwd_source_sub/phase_offset / §2.5 src_ready_bitflip/tag_sub / §2.10 F5 活页/属性位/白名单铺开**：各注入器的 F5/F6 子模式 deferred。
+
+**所有剩余项要么 (a) 需 gem5 不具备的建模、(b) 系统级 Ruby/Garnet、(c) 元分析须 formal 完成、(d) 深 rename 状态机改动高风险。** 本机故障机 ~90s/run，**formal n=384 campaign 一格未跑**（须健康机 §0.4）。FS 正式流水线（Atomic→checkpoint→切 O3，§3.2）未建。S5 元分析+芯片建议报告未开工。
+
+**本轮总 22 补丁**（S0×6 + S1 §2.2×5 + §2.3p1 + §2.4p1+p2 + §2.5p1 + §2.6p1 + §2.7p1 + §2.10p1 + §2.12p1 + §2.13p1 + docs），全部 -j16 零警告 + 真机功能验证 + 回归。无谎称完成项。
