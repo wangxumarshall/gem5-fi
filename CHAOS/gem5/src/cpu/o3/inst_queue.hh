@@ -60,12 +60,19 @@
 #include "cpu/timebuf.hh"
 #include "enums/SMTQueuePolicy.hh"
 #include "sim/eventq.hh"
+// §2.5 CHAOSIQ: included so InstructionQueue::wakeDependents's inline hook can
+// call chaosIQ->shouldOmitWake(). Non-circular: CHAOSIQ.hh forward-declares
+// o3::InstructionQueue (does NOT include inst_queue.hh).
+#include "cpu/o3/CHAOSIQ/CHAOSIQ.hh"
 
 namespace gem5
 {
 
 struct BaseO3CPUParams;
 struct IQUnitParams;
+
+// §2.5 CHAOSIQ forward decl.
+class CHAOSIQ;
 
 namespace memory
 {
@@ -398,6 +405,16 @@ class InstructionQueue
      */
     MemDepUnit memDepUnit[MaxThreads];
 
+    // §2.5 CHAOSIQ: raw pointer to the IQ fault injector. Set by the
+    // injector's startup() (dynamic_cast<O3CPU*> + o3IEW().instQueue.
+    // setChaosIQ(this)). nullptr = no injection (zero regression).
+    CHAOSIQ *chaosIQ = nullptr;
+
+  public:
+    /** §2.5 CHAOSIQ accessor (injector sets it at startup). */
+    void setChaosIQ(CHAOSIQ *p) { chaosIQ = p; }
+
+  private:
     /** The queue to the execute stage.  Issued instructions will be written
      *  into it.
      */

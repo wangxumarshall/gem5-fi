@@ -680,3 +680,18 @@ ARM 三条路径 + golden（真跑输出）：
 - **回归**：cholesky golden `37621bc0a633976f` 不变；reg_chain golden `f247ef3fe6cfd` 不变（未挂 chaosROB → retireHead no-op）。
 
 **诚实边界（本补丁不做）**：spec_leak（method1 投机泄漏，§2.3 patch 2，需 squash 路径编辑）；entry_bitflip 的 dest_phys 字段（re-point dest physReg，需 destRegIdx 变更，复杂，单独补丁）；formal n=384；runner.py `rob` 组件映射（后续补丁）；exc_suppress 的有 fault kernel 测试。
+
+---
+
+### S1 §2.5 patch 1 — CHAOSIQ 注入器（wake_omit F6）
+
+**实现**：新 SimObject `CHAOS/gem5/src/cpu/o3/CHAOSIQ/{.py,.hh,.cc,SConscript}`（O3-only，self-attach）。hook `InstructionQueue::wakeDependents`（`inst_queue.cc`）开头调用 `chaosIQ->shouldOmitWake(tid, completed_inst)`——若 RNG fire 则 `return 0`（DROP 整次唤醒广播，依赖者保持 not-ready）。`InstructionQueue` 加 `chaosIQ` 指针 + `setChaosIQ` accessor；`cpu.hh` 加 `IEW &o3IEW()` public accessor（iew protected）；startup `o3cpu->o3IEW().instQueue.setChaosIQ(this)`。
+
+**§2.5 模式**：`wake_omit`（F6：漏一次唤醒广播，复现 method3 时序竞态相位偏移）。`src_ready_bitflip`/`tag_sub`（F5）**deferred**——需依赖图遍历（找 not-ready dependent，标其源 ready / 换 src tag），§2.5 patch 2。
+
+**自验证（真机）**：
+- 干净重建 `scons -j16` EXIT=0，零警告（G7）。
+- **T1 wake_omit**：`Tick:1020500 completed_sn=1388 phase_offset=0 faults_injected:1` → `37621bc0a633976f` ==golden（Masked——漏一次唤醒未传播；下游可能被其它路径再唤醒，或被漏的 dependent 不在关键路径。单 fault pilot 合理）。
+- **回归**：cholesky golden `37621bc0a633976f` 不变；reg_chain golden `f247ef3fe6cfd` 不变（未挂 chaosIQ → wakeDependents no-op）。
+
+**诚实边界**：src_ready_bitflip/tag_sub（F5，§2.5 patch 2，依赖图遍历）；formal n=384；runner.py `iq` 组件映射；§2.5 dep_chain kernel。

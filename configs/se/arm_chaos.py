@@ -17,7 +17,7 @@
 
 import argparse
 import m5
-from m5.objects import CHAOSReg, CHAOSPhysReg, CHAOSMem, CHAOSLSQFwd, CHAOSRenameMap, CHAOSFreeList, CHAOSROB
+from m5.objects import CHAOSReg, CHAOSPhysReg, CHAOSMem, CHAOSLSQFwd, CHAOSRenameMap, CHAOSFreeList, CHAOSROB, CHAOSIQ
 from gem5.components.boards.simple_board import SimpleBoard
 from gem5.components.cachehierarchies.classic.private_l1_private_l2_cache_hierarchy import (
     PrivateL1PrivateL2CacheHierarchy,
@@ -136,6 +136,15 @@ p.add_argument("--rob_distance", type=int, default=0)
 p.add_argument("--rob_first_clock", type=lambda x: int(x,0), default=1000)
 p.add_argument("--rob_max_faults", type=lambda x: int(x,0), default=1)
 p.add_argument("--rob_rng_seed", type=lambda x: int(x,0), default=20260825)
+# §2.5 CHAOSIQ (O3 instruction-queue injector). SELF-ATTACHES at startup()
+# to IEW.instQueue.chaosIQ. wake_omit (F6) mode (§2.5).
+p.add_argument("--chaos_iq", action="store_true",
+               help="attach CHAOSIQ (O3 IQ injector, §2.5)")
+p.add_argument("--iq_mode", default="wake_omit", choices=["wake_omit"])
+p.add_argument("--iq_phase_offset", type=int, default=0)
+p.add_argument("--iq_first_clock", type=lambda x: int(x,0), default=1000)
+p.add_argument("--iq_max_faults", type=lambda x: int(x,0), default=1)
+p.add_argument("--iq_rng_seed", type=lambda x: int(x,0), default=20260825)
 args = p.parse_args()
 
 cache_hierarchy = PrivateL1PrivateL2CacheHierarchy(
@@ -298,6 +307,21 @@ if args.chaos_rob:
         writeLog=True,
     )
     board.chaos_rob = rob
+
+if args.chaos_iq:
+    # §2.5 CHAOSIQ: O3-only. SELF-ATTACHES at startup() to
+    # IEW.instQueue.chaosIQ (wakeDependents calls shouldOmitWake).
+    iq = CHAOSIQ(
+        cpu=cpu0,
+        mode=args.iq_mode,
+        phaseOffset=args.iq_phase_offset,
+        probability=args.probability,
+        firstClock=args.iq_first_clock,
+        maxFaults=args.iq_max_faults,
+        rngSeed=args.iq_rng_seed,
+        writeLog=True,
+    )
+    board.chaos_iq = iq
 
 if args.maxinsts:
     cpu0.max_insts = args.maxinsts

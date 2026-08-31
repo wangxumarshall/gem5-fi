@@ -481,6 +481,8 @@ class CPU : public BaseCPU
     UnifiedFreeList &physFreeList() { return freeList; }
     /** §2.3 CHAOSROB accessor (the injector self-attaches via setChaosROB). */
     ROB &o3ROB() { return rob; }
+    /** §2.5 CHAOSIQ accessor (reaches IEW.instQueue). */
+    IEW &o3IEW() { return iew; }
 
     /** CHAOSLSQFwd hook: store->load forwarding-path injector. Set externally
      *  (from a config script) so lsq_unit.cc can reach it via the cpu pointer
