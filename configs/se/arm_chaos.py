@@ -17,7 +17,7 @@
 
 import argparse
 import m5
-from m5.objects import CHAOSReg, CHAOSPhysReg, CHAOSMem, CHAOSLSQFwd, CHAOSRenameMap, CHAOSFreeList, CHAOSROB, CHAOSIQ, CHAOSExec, CHAOSFPU
+from m5.objects import CHAOSReg, CHAOSPhysReg, CHAOSMem, CHAOSLSQFwd, CHAOSRenameMap, CHAOSFreeList, CHAOSROB, CHAOSIQ, CHAOSExec, CHAOSFPU, CHAOSL1DForward
 from gem5.components.boards.simple_board import SimpleBoard
 from gem5.components.cachehierarchies.classic.private_l1_private_l2_cache_hierarchy import (
     PrivateL1PrivateL2CacheHierarchy,
@@ -170,6 +170,15 @@ p.add_argument("--fpu_first_clock", type=lambda x: int(x,0), default=1000)
 p.add_argument("--fpu_max_faults", type=lambda x: int(x,0), default=1)
 p.add_argument("--fpu_fault_mask", type=lambda x: int(x,0), default=0)
 p.add_argument("--fpu_rng_seed", type=lambda x: int(x,0), default=20260825)
+# §2.7 CHAOSL1DForward (post-check escape injector). SELF-ATTACHES at startup()
+# to cpu.chaosL1DFwd. Hooks LSQUnit::completeDataAccess before writeback;
+# XORs the load response data (post-L1D, post-ECC) — the escape path.
+p.add_argument("--chaos_l1dfwd", action="store_true",
+               help="attach CHAOSL1DForward (O3 post-check-escape, §2.7)")
+p.add_argument("--l1dfwd_first_clock", type=lambda x: int(x,0), default=1000)
+p.add_argument("--l1dfwd_max_faults", type=lambda x: int(x,0), default=1)
+p.add_argument("--l1dfwd_fault_mask", type=lambda x: int(x,0), default=0)
+p.add_argument("--l1dfwd_rng_seed", type=lambda x: int(x,0), default=20260825)
 args = p.parse_args()
 
 cache_hierarchy = PrivateL1PrivateL2CacheHierarchy(
@@ -376,6 +385,20 @@ if args.chaos_fpu:
         writeLog=True,
     )
     board.chaos_fpu = fpu
+
+if args.chaos_l1dfwd:
+    # §2.7 CHAOSL1DForward: O3-only. SELF-ATTACHES at startup() to
+    # cpu.chaosL1DFwd (completeDataAccess calls maybeCorrupt pre-writeback).
+    l1df = CHAOSL1DForward(
+        cpu=cpu0,
+        probability=args.probability,
+        firstClock=args.l1dfwd_first_clock,
+        maxFaults=args.l1dfwd_max_faults,
+        faultMask=args.l1dfwd_fault_mask,
+        rngSeed=args.l1dfwd_rng_seed,
+        writeLog=True,
+    )
+    board.chaos_l1dfwd = l1df
 
 if args.maxinsts:
     cpu0.max_insts = args.maxinsts

@@ -45,6 +45,7 @@
 #include "base/str.hh"
 #include "cpu/checker/cpu.hh"
 #include "cpu/o3/CHAOSLSQFwd/CHAOSLSQFwd.hh"
+#include "cpu/o3/CHAOSL1DForward/CHAOSL1DForward.hh"  // §2.7 post-check escape
 #include "cpu/o3/dyn_inst.hh"
 #include "cpu/o3/limits.hh"
 #include "cpu/o3/lsq.hh"
@@ -174,6 +175,13 @@ LSQUnit::completeDataAccess(PacketPtr pkt)
             if (pkt->htmTransactionFailedInCache()) {
                 request->mainPacket()->setHtmTransactionFailedInCache(
                     pkt->getHtmTransactionFailedInCacheRC() );
+            }
+
+            // §2.7 CHAOSL1DForward: post-check escape — corrupt the load
+            // response data AFTER L1D read (model: ECC checked & passed)
+            // and BEFORE writeback to the register. nullptr = no injection.
+            if (cpu->chaosL1DFwd) {
+                cpu->chaosL1DFwd->maybeCorrupt(request->mainPacket());
             }
 
             writeback(inst, request->mainPacket());

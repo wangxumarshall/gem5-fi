@@ -764,3 +764,16 @@ ARM 三条路径 + golden（真跑输出）：
 - **回归**：reg_chain golden `f247ef3fe6cfd` 不变。
 
 **诚实边界**：fma_intermediate（对齐后规格化前中间结果）、rounding_sub(F5)、fpsr_suppress deferred；位谱分层（sign/exp/mantissa）formal；formal n=384（须健康机，验证 §2.6 FSU P_SDC >> §2.12 整数）；runner.py `fsu` 组件映射；§2.6 kernel（gemm/svd/fma_reduction）。
+
+---
+
+### S1 §2.7 patch 1 — CHAOSL1DForward 注入器（post-check escape）
+
+**实现**：新 SimObject `CHAOS/gem5/src/cpu/o3/CHAOSL1DForward/{.py,.hh,.cc,SConscript}`（O3-only，self-attach）。hook `LSQUnit::completeDataAccess`（`lsq_unit.cc`）在 `writeback(inst, pkt)` **前**调用 `cpu->chaosL1DFwd->maybeCorrupt(request->mainPacket())`。XOR load 响应包数据（post-L1D-read、post-ECC-check、pre-writeback——post-check escape 路径，ECC 挡不住）。`cpu.hh` 加 `chaosL1DFwd` 指针 + `setChaosL1DFwd`。
+
+**自验证（真机）**：
+- 干净重建 `scons -j16` EXIT=0，零警告（G7）。
+- **T1**：`Tick:1011500 addr=0xfb6e8 size=8 mask=0x400 faults_injected:1`（l1d_reduce load-complete XOR）→ `f44d2b9cd4a173cd` ==golden（Masked——bit2 被冗余归约掩盖，单 fault pilot 合理）。
+- **回归**：reg_chain golden `f247ef3fe6cfd` 不变。
+
+**诚实边界**：§2.7 H.③ "P_SDC ≥ raw cache 注入（上界性质）"须 n=384 formal 对照 CHAOSCache raw；formal n=384（健康机）；runner.py `l1d_fwd` 组件映射。

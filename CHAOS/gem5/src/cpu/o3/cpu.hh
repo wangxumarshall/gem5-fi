@@ -90,6 +90,7 @@ class Process;
 class CHAOSLSQFwd;
 class CHAOSExec;  // §2.12 integer execution-unit injector (forward decl)
 class CHAOSFPU;  // §2.6 FP/vector execution-unit injector (forward decl)
+class CHAOSL1DForward;  // §2.7 post-check-escape injector (forward decl)
 
 namespace o3
 {
@@ -493,6 +494,9 @@ class CPU : public BaseCPU
     // §2.6 CHAOSFPU: raw pointer to the FP/vector-exec fault injector.
     CHAOSFPU *chaosFPU = nullptr;
     void setChaosFPU(CHAOSFPU *p) { chaosFPU = p; }
+    // §2.7 CHAOSL1DForward: raw pointer to the post-check-escape injector.
+    CHAOSL1DForward *chaosL1DFwd = nullptr;
+    void setChaosL1DFwd(CHAOSL1DForward *p) { chaosL1DFwd = p; }
 
     /** CHAOSLSQFwd hook: store->load forwarding-path injector. Set externally
      *  (from a config script) so lsq_unit.cc can reach it via the cpu pointer
