@@ -75,27 +75,46 @@ D1、D2 和 D3 构成了微架构内部一个高度耦合的缺陷簇。为了�
 
 ```mermaid
 graph TD
-    subgraph "OoO 执行引擎"
-        PRF[物理寄存器堆 PRF] --> IQ[保留站 RS]
-        IQ --> ALU[ALU 单元]
-        IQ --> AGU[AGU 地址生成单元]
+    %% [1] 前端 (Front-End)
+    subgraph "前端 (Front-End)"
+        BP[分支预测器 BP] --> L1I[L1 指令缓存]
+        L1I --> Fetch[取指单元 Fetch]
+        Fetch --> Decode[译码单元 Decode]
     end
 
-    subgraph "内存子系统与地址翻译"
-        AGU -->|虚拟地址 VA| D2["🔥 D2：地址路径 (Address-Path)<br>注入锚点：送往 MMU 前的字节清零"]
+    %% [2] 乱序执行引擎 (OoO Engine)
+    subgraph "乱序执行引擎 (OoO Engine)"
+        Decode -->|微操作 uOps| Rename[重命名与分发 Rename & Dispatch]
+        Rename --> PRF[物理寄存器堆 PRF]
+        Rename --> IQ[发射队列 / 保留站 IQ/RS]
         
-        D2 --> MMU[MMU / D-TLB]
+        IQ --> ALU[算术逻辑单元 ALU/FPU]
+        IQ --> AGU[地址生成单元 AGU]
         
-        MMU -->|TLB Miss| D3["🔥 D3：PTW 读出路径 (PTW Readout)<br>注入锚点：PTE 返回数据损坏"]
-        D3 -->|抓取 PTE| RAM[(L2/L3 Cache)]
-        RAM -->|数据返回| D3
+        ALU -->|计算结果写回| PRF
+    end
+
+    %% [3] 内存子系统与地址翻译 (Memory Subsystem)
+    subgraph "内存子系统与地址翻译 (Memory Subsystem)"
+        AGU -->|生成虚拟地址 VA| D2["🔥 D2：地址呈现路径 (Address-Path)<br>故障特征：VA高位被硬件截断导致异常"]
         
-        MMU -->|TLB Hit<br>物理地址 PA| L1D[L1 数据缓存]
-        L1D --> FB[Fill Buffer]
+        D2 --> MMU[内存管理单元 MMU / L1 D-TLB]
         
-        FB --> D1["🔥 D1：加载数据返回 (Load Data-Return)<br>注入锚点：数据转发与多路复用器"]
-        D1 --> LSQ[Load/Store 队列]
-        LSQ -->|Store-to-Load 转发 / 写回| PRF
+        MMU -->|TLB Miss| PTW[硬件页表漫游器 PTW]
+        PTW -->|发起物理取址| D3["🔥 D3：PTW 读出路径 (PTW Readout)<br>故障特征：漫游读取瞬态失效引发虚假翻译错误"]
+        
+        D3 -->|抓取 PTE| L2L3[(L2 / L3 缓存与主存)]
+        L2L3 -->|PTE 数据返回| D3
+        D3 -.->|完成页表漫游| MMU
+        
+        MMU -->|TLB Hit<br>返回物理地址 PA| L1D[L1 数据缓存 L1D]
+        L1D -->|缓存行数据返回| FB[填充缓冲区 Fill Buffer]
+        
+        FB --> D1["🔥 D1：加载数据返回网络 (Load Data-Return)<br>故障特征：MUX多路复用器串扰导致字节通道偏移"]
+        
+        D1 --> LSQ[加载/存储队列 LSQ]
+        LSQ -->|Store-to-Load 转发 / 最终数据返回| WB[写回阶段 Writeback]
+        WB -->|更新架构状态| PRF
     end
     
     style D1 fill:#ffebee,stroke:#e53935,stroke-width:2px,color:#b71c1c
@@ -125,7 +144,7 @@ graph TD
 
 ## 5. 实验评估
 
-### 5.1 内核致命崩溃的端到端复现
+### 5.1 内核致命崩溃的端到端复现（D1）
 在启用 `ByteLaneSkew` 的 FS 仿真中，我们运行了模拟 `__per_cpu_offset` 解引用模式的工作负载。注入框架成功促使 `x27` 寄存器加载了偏移后的异常数据（例如 `0xf000000000044573`）。由于该指针在软件层面未受到检查，随后的一条 `ldr` 指令将其作为地址直接发送给 MMU。MMU 在周期精确的模型中立刻抛出了 Translation Fault，异常陷入 EL1 异常向量表，并最终精确复现了生产环境中的 Kernel Panic。这确凿地证明了，唯有结构化故障注入才能将宏观系统崩溃与底层的多路复用器偏移建立因果联系。
 
 ### 5.2 架构不变量的微架构级验证 (D2)
@@ -135,7 +154,7 @@ graph TD
 3. 异常记录：由于被截断后的地址在页表中没有映射，MMU 产生缺页异常，并忠实地将它收到的截断值写入 `FAR_EL1`。
 该仿真结果通过再造微架构时序，为“FAR_EL1 截断是地址呈现路径物理损坏的铁证”提供了确凿的实验支撑。
 
-### 5.3 故障表现差异的微架构定量分析
+### 5.3 故障表现差异的微架构定量分析（D3）
 生产环境数据提出了一个疑问：为什么 D3 表现为 73 次高频非致命警告，而 D2/D1 则是极低频（2-4 次）却致命的崩溃？
 我们在 FS 仿真早期记录了各关键数据通路的微架构激活密度（Trigger Density）：
 
