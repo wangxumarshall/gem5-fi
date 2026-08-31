@@ -479,6 +479,8 @@ class CPU : public BaseCPU
     PerThreadUnifiedRenameMap &frontRenameMap() { return renameMap; }
     PerThreadUnifiedRenameMap &commitRenameMapAccess() { return commitRenameMap; }
     UnifiedFreeList &physFreeList() { return freeList; }
+    /** §2.3 CHAOSROB accessor (the injector self-attaches via setChaosROB). */
+    ROB &o3ROB() { return rob; }
 
     /** CHAOSLSQFwd hook: store->load forwarding-path injector. Set externally
      *  (from a config script) so lsq_unit.cc can reach it via the cpu pointer

@@ -17,7 +17,7 @@
 
 import argparse
 import m5
-from m5.objects import CHAOSReg, CHAOSPhysReg, CHAOSMem, CHAOSLSQFwd, CHAOSRenameMap, CHAOSFreeList
+from m5.objects import CHAOSReg, CHAOSPhysReg, CHAOSMem, CHAOSLSQFwd, CHAOSRenameMap, CHAOSFreeList, CHAOSROB
 from gem5.components.boards.simple_board import SimpleBoard
 from gem5.components.cachehierarchies.classic.private_l1_private_l2_cache_hierarchy import (
     PrivateL1PrivateL2CacheHierarchy,
@@ -124,6 +124,18 @@ p.add_argument("--freelist_mode", default="mark_free",
 p.add_argument("--freelist_first_clock", type=lambda x: int(x,0), default=100000)
 p.add_argument("--freelist_max_faults", type=lambda x: int(x,0), default=1)
 p.add_argument("--freelist_rng_seed", type=lambda x: int(x,0), default=20260825)
+# §2.3 CHAOSROB (O3 ROB fault injector). SELF-ATTACHES at startup() to
+# cpu.rob.chaosROB. entry_bitflip / exc_suppress modes (§2.3).
+p.add_argument("--chaos_rob", action="store_true",
+               help="attach CHAOSROB (O3 ROB injector, §2.3)")
+p.add_argument("--rob_mode", default="entry_bitflip",
+               choices=["entry_bitflip","exc_suppress"])
+p.add_argument("--rob_field", default="exc_status",
+               choices=["result","done","exc_status","dest_phys","spec"])
+p.add_argument("--rob_distance", type=int, default=0)
+p.add_argument("--rob_first_clock", type=lambda x: int(x,0), default=1000)
+p.add_argument("--rob_max_faults", type=lambda x: int(x,0), default=1)
+p.add_argument("--rob_rng_seed", type=lambda x: int(x,0), default=20260825)
 args = p.parse_args()
 
 cache_hierarchy = PrivateL1PrivateL2CacheHierarchy(
@@ -270,6 +282,22 @@ if args.chaos_freelist:
         writeLog=True,
     )
     board.chaos_freelist = fl
+
+if args.chaos_rob:
+    # §2.3 CHAOSROB: O3-only. SELF-ATTACHES at startup() to cpu.rob.chaosROB
+    # (ROB::retireHead calls maybeCorrupt on the head inst pre-clearInROB).
+    rob = CHAOSROB(
+        cpu=cpu0,
+        mode=args.rob_mode,
+        field=args.rob_field,
+        distanceFromHead=args.rob_distance,
+        probability=args.probability,
+        firstClock=args.rob_first_clock,
+        maxFaults=args.rob_max_faults,
+        rngSeed=args.rob_rng_seed,
+        writeLog=True,
+    )
+    board.chaos_rob = rob
 
 if args.maxinsts:
     cpu0.max_insts = args.maxinsts

@@ -660,3 +660,23 @@ ARM 三条路径 + golden（真跑输出）：
 **自验证（真机）**：golden `61e8a946ed50ae1f`，native==gem5 O3 SE，3/3 重放一致（G0）。runner GOLDEN_IDS 加 `movheavy-golden-v1`。
 
 **诚实边界**：move-elimination 在 gem5 O3 的具体实现程度是 E3（gem5 的 SimpleRenameMap 不显式建模 move-elimination 端口）；formal move-elimination cell 须 n=384；§2.2 全 5 patch（injector×2 + kernel×2 + runner 映射）现已落地，RAT/freelist 注入器经 runner 可 campaign。
+
+---
+
+### S1 §2.3 patch 1 — CHAOSROB 注入器（entry_bitflip / exc_suppress）+ branchy_reduce kernel
+
+**实现**：新 SimObject `CHAOS/gem5/src/cpu/o3/CHAOSROB/{.py,.hh,.cc,SConscript}`（O3-only，self-attach）。hook `ROB::retireHead`（`rob.cc`）在 `cpu->removeFrontInst` 前、`clearInROB` 后调用 `chaosROB->maybeCorrupt(tid, head_inst)`。`ROB` 加 `chaosROB` 指针成员 + `getEntryAtDistance(tid,D)` accessor（非 inline，定义在 rob.cc——需 DynInst 完整类型）；`cpu.hh` 加 `ROB &o3ROB()` public accessor（rob 成员 protected）。新 kernel `branchy_reduce.c`（高分支密度 + 依赖链，造投机 squash 流量）。
+
+**§2.3 模式**：
+- `entry_bitflip`：距 head D 处的 ROB 条目字段翻转（field=exc_status/done → toggle `CanCommit` status bit；clear → 指令无法 commit → ROB stall/Hang）。D stratifies time-to-commit。
+- `exc_suppress`：clear head 的 fault（`getFault()=NoFault`）→ pending SError/DUE 被静默吞（DUE→SDC 转化量化）。
+- `spec_leak`（method1 投机状态泄漏）**deferred**——需 squash 路径编辑（不回滚错路径 µop 的 PRF 写），§2.3 patch 2。
+
+**自验证（真机）**：
+- 干净重建 `scons -j16` EXIT=0，零警告（G7）。修了 3 个编译错：`DynInstPtr` 在 `o3` 命名空间（用 `o3::DynInstPtr`）；`rob` protected（加 `o3ROB()` accessor）；`getEntryAtDistance` 按值返回需 DynInst 完整类型（移到 rob.cc 非 inline）。
+- **T1 entry_bitflip**（D=0, exc_status）：`Tick:1025000 field=exc_status D=0 target_sn=1379 faults_injected:1` → **Terminated（EXIT 143, Hang）**——toggle CanCommit off → 指令永不 commit → ROB stall。§2.3 time-to-commit stratification 的真实复现。
+- **T2 exc_suppress**：`Tick:1025000 head_sn=1378 cleared_fault=none faults_injected:1` → `37621bc0a633976f` ==golden（Masked——cholesky 无 pending fault 可清，exc_suppress 在无 fault kernel 上是 no-op；需 fault-inducing kernel 才有意义，诚实记录）。
+- **branchy_reduce golden** `d47587240e6f0a83`（native==gem5，3/3 重放 G0）。
+- **回归**：cholesky golden `37621bc0a633976f` 不变；reg_chain golden `f247ef3fe6cfd` 不变（未挂 chaosROB → retireHead no-op）。
+
+**诚实边界（本补丁不做）**：spec_leak（method1 投机泄漏，§2.3 patch 2，需 squash 路径编辑）；entry_bitflip 的 dest_phys 字段（re-point dest physReg，需 destRegIdx 变更，复杂，单独补丁）；formal n=384；runner.py `rob` 组件映射（后续补丁）；exc_suppress 的有 fault kernel 测试。

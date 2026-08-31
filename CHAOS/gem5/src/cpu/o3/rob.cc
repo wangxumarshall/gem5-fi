@@ -248,6 +248,11 @@ ROB::retireHead(ThreadID tid)
     --numInstsInROB;
     --threadEntries[tid];
 
+    // §2.3 CHAOSROB: pre-retire hook on the head inst (D=0). exc_suppress
+    // clears a pending fault (DUE swallowed); entry_bitflip flips a field.
+    // nullptr = no injection (zero regression).
+    if (chaosROB) chaosROB->maybeCorrupt(tid, head_inst);
+
     head_inst->clearInROB();
     head_inst->setCommitted();
 
@@ -258,6 +263,17 @@ ROB::retireHead(ThreadID tid)
     // retired is the only instruction in the ROB; otherwise the tail
     // iterator will become invalidated.
     cpu->removeFrontInst(head_inst);
+}
+
+// §2.3 CHAOSROB: the entry D slots from the head (D=0 = head).
+DynInstPtr
+ROB::getEntryAtDistance(ThreadID tid, int D)
+{
+    if (D < 0 || instList[tid].empty()) return nullptr;
+    auto it = instList[tid].begin();
+    for (int i = 0; i < D && it != instList[tid].end(); i++) ++it;
+    if (it == instList[tid].end()) return nullptr;
+    return *it;
 }
 
 bool

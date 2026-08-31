@@ -59,6 +59,7 @@ GOLDEN_IDS = {
     "puregather-golden-v1": "e4481fb960ff6465",  # method1_controls pure_gather
     "trisolve-golden-v1":   "39d61425aae92434",  # method1_controls tri_solve
     "movheavy-golden-v1":   "61e8a946ed50ae1f",  # mov_heavy (move-elimination)
+    "branchyreduce-golden-v1": "d47587240e6f0a83",  # branchy_reduce (§2.3)
 }
 
 def sha256_file(path):
