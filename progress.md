@@ -861,3 +861,16 @@ ARM 三条路径 + golden（真跑输出）：
 **所有剩余项要么 (a) 需 gem5 不具备的建模、(b) 系统级 Ruby/Garnet、(c) 元分析须 formal 完成、(d) 深 rename 状态机改动高风险。** 本机故障机 ~90s/run，**formal n=384 campaign 一格未跑**（须健康机 §0.4）。FS 正式流水线（Atomic→checkpoint→切 O3，§3.2）未建。S5 元分析+芯片建议报告未开工。
 
 **本轮总 22 补丁**（S0×6 + S1 §2.2×5 + §2.3p1 + §2.4p1+p2 + §2.5p1 + §2.6p1 + §2.7p1 + §2.10p1 + §2.12p1 + §2.13p1 + docs），全部 -j16 零警告 + 真机功能验证 + 回归。无谎称完成项。
+
+---
+
+### runner.py 组件映射补齐（§1.5 campaign 闭环）+ classify bytes 修复
+
+**实现**：runner.py 加 9 个新组件映射（§2.3 rob / §2.5 iq / §2.4 lsq_fwd / §2.12 exec / §2.6 fsu / §2.7 l1d_fwd / §2.13 bpu / §2.4 addr_path / §2.10 ptw-honest-reject-FS）。fault.model 映射到各注入器 mode（如 transient_bit_flip→entry_bitflip/dir_flip/byte_flip，legal_domain_sub→exc_suppress/pop_wrong/target_flip/all_zero）。classify.py + runner.py TimeoutExpired 修 bytes→str 归一化（subprocess.TimeoutExpired.stdout/stderr 在某些 py 版本下是 bytes 即使 text=True，旧代码 `out = stdout + "\n" + stderr` 抛 TypeError）。
+
+**自验证（真机）**：
+- 回归：p1 gpr → Masked faults=1（不变）；p3 rat → Crash（不变）。
+- **rob manifest E2E**（component=rob, transient_bit_flip）：→ `classification=Hang faults_injected=0 timed_out=True`（entry_bitflip D=0 toggle CanCommit → ROB stall → Hang，与 §2.3 T1 一致；classify bytes 修复后正确判 Hang，非 TypeError 崩溃）。
+- ptw manifest（component=ptw）→ 诚实拒绝（FS-only，SE 不能挂 CHAOSPTW）。
+
+**诚实边界**：rob/iq/exec/fsu/l1d_fwd/bpu/addrpath/lsq_fwd 的 v2 manifest 样本未全写（映射已就位，campaign 可用）；formal n=384 须健康机。

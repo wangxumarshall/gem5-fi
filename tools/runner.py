@@ -246,6 +246,72 @@ def main():
         cmd += ["--freelist_mode", fm, "--freelist_first_clock", str(t["value"]),
                 "--freelist_max_faults", str(m["limits"]["max_faults"]),
                 "--freelist_rng_seed", str(m["rng"]["selection_seed"])]
+    elif comp == "rob":
+        # §2.3 CHAOSROB (S1 patch 1). entry_bitflip/exc_suppress via fault.model.
+        cmd += ["--chaos_rob"]
+        rm = {"transient_bit_flip": "entry_bitflip",
+              "local_mbu": "entry_bitflip",
+              "legal_domain_sub": "exc_suppress"}.get(inj["model"], "entry_bitflip")
+        cmd += ["--rob_mode", rm, "--rob_first_clock", str(t["value"]),
+                "--rob_max_faults", str(m["limits"]["max_faults"]),
+                "--rob_rng_seed", str(m["rng"]["selection_seed"])]
+    elif comp == "iq":
+        # §2.5 CHAOSIQ (S1 patch 1). wake_omit (F6).
+        cmd += ["--chaos_iq", "--iq_mode", "wake_omit",
+                "--iq_first_clock", str(t["value"]),
+                "--iq_max_faults", str(m["limits"]["max_faults"]),
+                "--iq_rng_seed", str(m["rng"]["selection_seed"])]
+    elif comp == "lsq_fwd":
+        # §2.4 CHAOSLSQFwd structured ext. byte_flip / byte_lane_skew / all_zero.
+        cmd += ["--chaos_lsqfwd"]
+        sm = {"transient_bit_flip": "byte_flip",
+              "local_mbu": "byte_lane_skew",
+              "intermittent_burst": "byte_lane_skew",
+              "legal_domain_sub": "all_zero"}.get(inj["model"], "byte_flip")
+        cmd += ["--lsq_struct_mode", sm, "--first_clock", str(t["value"]),
+                "--max_faults", str(m["limits"]["max_faults"]),
+                "--rng_seed", str(m["rng"]["selection_seed"]),
+                "--fault_type", fault_type, "--fault_mask", fault_mask]
+    elif comp == "exec":
+        # §2.12 CHAOSExec (integer execution-unit result XOR).
+        cmd += ["--chaos_exec", "--exec_first_clock", str(t["value"]),
+                "--exec_max_faults", str(m["limits"]["max_faults"]),
+                "--exec_fault_mask", fault_mask,
+                "--exec_rng_seed", str(m["rng"]["selection_seed"])]
+    elif comp == "fsu":
+        # §2.6 CHAOSFPU (FP/vector execution-unit result XOR).
+        cmd += ["--chaos_fpu", "--fpu_first_clock", str(t["value"]),
+                "--fpu_max_faults", str(m["limits"]["max_faults"]),
+                "--fpu_fault_mask", fault_mask,
+                "--fpu_rng_seed", str(m["rng"]["selection_seed"])]
+    elif comp == "l1d_fwd":
+        # §2.7 CHAOSL1DForward (post-check escape).
+        cmd += ["--chaos_l1dfwd", "--l1dfwd_first_clock", str(t["value"]),
+                "--l1dfwd_max_faults", str(m["limits"]["max_faults"]),
+                "--l1dfwd_fault_mask", fault_mask,
+                "--l1dfwd_rng_seed", str(m["rng"]["selection_seed"])]
+    elif comp == "bpu":
+        # §2.13 CHAOSBPU (dir_flip / target_flip F5).
+        cmd += ["--chaos_bpu"]
+        bm = {"transient_bit_flip": "dir_flip",
+              "local_mbu": "target_flip",
+              "legal_domain_sub": "target_flip"}.get(inj["model"], "dir_flip")
+        cmd += ["--bpu_mode", bm, "--bpu_first_clock", str(t["value"]),
+                "--bpu_max_faults", str(m["limits"]["max_faults"]),
+                "--bpu_rng_seed", str(m["rng"]["selection_seed"])]
+    elif comp == "addr_path":
+        # §2.4 CHAOSAddrPath (AGU address-path, SE-inert, FS-only).
+        cmd += ["--chaos_addrpath", "--addrpath_mode", "byte7_zero",
+                "--addrpath_first_clock", str(t["value"]),
+                "--addrpath_max_faults", str(m["limits"]["max_faults"]),
+                "--addrpath_rng_seed", str(m["rng"]["selection_seed"])]
+    elif comp == "ptw":
+        # §2.10 CHAOSPTW (page-table-walker, SE-inert, FS-only).
+        # Honest: arm_chaos.py (SE) can't mount CHAOSPTW — it's an FS-injector
+        # on the ArmTableWalker WalkUnit, not the CPU. Route to FS config.
+        sys.exit(f"[runner] target.component='ptw' is FS-only (hooks the ArmTable"
+                 f"Walker WalkUnit, not the SE CPU). Use arm_chaos_fs.py with "
+                 f"--chaos_ptw (FS mode). Aborting — SE can't mount CHAOSPTW.")
     else:
         # §1.6 v2 honest-reject contract: the v2 schema forward-declares S1
         # components (rob/iq/rat/freelist/lsq_fwd/sysreg/ptw/l3/...), but their
@@ -282,9 +348,14 @@ def main():
                            timeout=HANG_TIMEOUT)
     except subprocess.TimeoutExpired as e:
         timed_out = True
-        # Build a pseudo-result from whatever was captured.
+        # Build a pseudo-result from whatever was captured. e.stdout/stderr may
+        # be bytes even with text=True under some py versions — normalize.
+        def _to_str(x):
+            if isinstance(x, bytes):
+                return x.decode("utf-8", errors="replace")
+            return x or ""
         r = subprocess.CompletedProcess(
-            cmd, returncode=-1, stdout=e.stdout or "", stderr=e.stderr or "")
+            cmd, returncode=-1, stdout=_to_str(e.stdout), stderr=_to_str(e.stderr))
 
     # collect faults_injected from the injection log(s).
     # CHAOSReg log: "Cycle: ..., Register: integer[9], FaultType: bit_flip, ..."

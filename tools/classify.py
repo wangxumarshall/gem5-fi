@@ -70,7 +70,15 @@ def classify_run(stdout, stderr, returncode, faults_injected,
                  golden_checksum, timed_out=False):
     """Classify one run per plan §9.1 (ordered). Returns the category string
     plus a short reason (for the evidence log)."""
-    out = (stdout or "") + "\n" + (stderr or "")
+    # Normalize bytes (subprocess.TimeoutExpired.stdout/stderr may be bytes
+    # even with text=True under some py versions) -> str.
+    def _s(x):
+        if isinstance(x, bytes):
+            return x.decode("utf-8", errors="replace")
+        return x or ""
+    stdout = _s(stdout)
+    stderr = _s(stderr)
+    out = stdout + "\n" + stderr
     out_checksum = extract_checksum(out)
     simerr = _is_simerr(stderr)
 
