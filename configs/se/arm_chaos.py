@@ -17,7 +17,7 @@
 
 import argparse
 import m5
-from m5.objects import CHAOSReg, CHAOSPhysReg, CHAOSMem, CHAOSLSQFwd, CHAOSAddrPath, CHAOSRenameMap, CHAOSFreeList
+from m5.objects import CHAOSReg, CHAOSPhysReg, CHAOSMem, CHAOSLSQFwd, CHAOSAddrPath, CHAOSRenameMap, CHAOSFreeList, CHAOSROB
 from gem5.components.boards.simple_board import SimpleBoard
 from gem5.components.cachehierarchies.classic.private_l1_private_l2_cache_hierarchy import (
     PrivateL1PrivateL2CacheHierarchy,
@@ -164,6 +164,17 @@ p.add_argument("--freelist_mode", default="mark_free",
 p.add_argument("--freelist_target_phys", type=int, default=-1,
                help="Target physReg index (-1=scan RAT for a live one).")
 p.add_argument("--freelist_semantic_role", default="",
+               help="ABI role label. Metadata only.")
+# S1-4 CHAOSROB: exc_suppress (DUE->SDC) / entry_bitflip (seqNum) / spec_leak.
+p.add_argument("--chaos_rob", action="store_true",
+               help="attach CHAOSROB (exc_suppress/entry_bitflip/spec_leak; "
+                    "method1 spec-leak + exception-bit silencing).")
+p.add_argument("--rob_mode", default="entry_bitflip",
+               choices=["entry_bitflip","exc_suppress","spec_leak"],
+               help="CHAOSROB fault mode.")
+p.add_argument("--rob_fault_mask", type=lambda x: int(x,0), default=0,
+               help="CHAOSROB entry_bitflip seqNum mask (0=random bit).")
+p.add_argument("--rob_semantic_role", default="",
                help="ABI role label. Metadata only.")
 args = p.parse_args()
 
@@ -358,6 +369,24 @@ if args.chaos_freelist:
         semanticRole=args.freelist_semantic_role,
     )
     board.chaos_freelist = fl
+
+# CHAOSROB (S1-4): exc_suppress (DUE->SDC) / entry_bitflip (seqNum) /
+# spec_leak (deferred). Self-driven attackEvent (ROB not a SimObject).
+if args.chaos_rob:
+    rob = CHAOSROB(
+        cpu=cpu0,
+        probability=args.probability,
+        mode=args.rob_mode,
+        faultMask=args.rob_fault_mask,
+        bitsToChange=args.bits_to_change,
+        firstClock=args.first_clock,
+        lastClock=args.last_clock,
+        maxFaults=args.max_faults,
+        rngSeed=args.rng_seed,
+        writeLog=True,
+        semanticRole=args.rob_semantic_role,
+    )
+    board.chaos_rob = rob
 
 if args.maxinsts:
     cpu0.max_insts = args.maxinsts

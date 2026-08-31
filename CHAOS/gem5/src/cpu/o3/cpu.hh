@@ -485,6 +485,10 @@ class CPU : public BaseCPU
     PerThreadUnifiedRenameMap &frontRenameMap() { return renameMap; }
     PerThreadUnifiedRenameMap &commitRenameMapAccess() { return commitRenameMap; }
     UnifiedFreeList &physFreeList() { return freeList; }
+    /** CHAOSROB accessor (S1-4): exposes the ROB for an external fault injector
+     *  to reach readHeadInst (exc_suppress / entry_bitflip on the about-to-
+     *  commit DynInst). Same pattern as physRegFile(). */
+    ROB &robAccess() { return rob; }
 
     /** CHAOSLSQFwd hook: store->load forwarding-path injector. Set externally
      *  (from a config script) so lsq_unit.cc can reach it via the cpu pointer
