@@ -48,6 +48,18 @@ p.add_argument("--root-partition", default="/dev/vda1",
 p.add_argument("--cpu", default="TIMING",
                choices=["TIMING", "O3", "Atomic"])
 p.add_argument("--mem-size", default="2GiB")
+# C2-KP FS: TaiShan V110 O3 proxy params (plan §4.1, E3). Applied to the O3
+# CPU (when --cpu=O3, e.g. after checkpoint restore). FS boot uses Atomic by
+# default (kp920 params are no-ops on Atomic, applied harmlessly).
+p.add_argument("--kp920_proxy", action="store_true",
+               help="Apply TaiShan V110 O3 proxy params (E3): ROB=128, "
+                    "PhysIntRegs=160, PhysFloatRegs=192, LQ=48, SQ=42, 4-wide. "
+                    "NOT cycle-exact. Applied to O3 (no-op on Atomic/Timing boot).")
+p.add_argument("--rob_entries", type=int, default=128)
+p.add_argument("--phys_int_regs", type=int, default=160)
+p.add_argument("--phys_float_regs", type=int, default=192)
+p.add_argument("--lq_entries", type=int, default=48)
+p.add_argument("--sq_entries", type=int, default=42)
 p.add_argument("--platform", default="V1",
                choices=["V1", "Foundation"],
                help="VExpress platform. V1 matches the gem5-fs "
@@ -120,8 +132,33 @@ processor = SimpleProcessor(cpu_type=cpu_map[args.cpu], num_cores=1, isa=ISA.ARM
 release = ArmDefaultRelease()
 platform = VExpress_GEM5_V1() if args.platform == "V1" else VExpress_GEM5_Foundation()
 
+# C2-KP FS: V110 O3 proxy params (plan §4.1, E3). Applied to the O3 CPU;
+# no-op on Atomic/Timing (the params are O3-specific, silently ignored).
+# Honest: gem5 unified IQ ≠ V110 distributed quad-scheduler; no partition L3;
+# no bufferless NoC. Used for formal FS campaign after checkpoint→O3 switch.
+if args.kp920_proxy:
+    _cpu0 = processor.get_cores()[0].core
+    try:
+        _cpu0.numROBEntries = args.rob_entries
+        _cpu0.numPhysIntRegs = args.phys_int_regs
+        _cpu0.numPhysFloatRegs = args.phys_float_regs
+        _cpu0.numPhysVecRegs = args.phys_float_regs
+        _cpu0.LQEntries = args.lq_entries
+        _cpu0.SQEntries = args.sq_entries
+        _cpu0.fetchWidth = 4
+        _cpu0.decodeWidth = 4
+        _cpu0.renameWidth = 4
+        _cpu0.issueWidth = 4
+        _cpu0.dispatchWidth = 4
+        _cpu0.commitWidth = 4
+    except AttributeError as e:
+        m5.warn("kp920_proxy: some V110 params not settable on %s: %s" %
+                (args.cpu, str(e)))
+
+clk = "2.6GHz" if args.kp920_proxy else "3GHz"
+
 board = ArmBoard(
-    clk_freq="3GHz",
+    clk_freq=clk,
     processor=processor,
     memory=memory,
     cache_hierarchy=cache_hierarchy,
