@@ -29,6 +29,7 @@ namespace gem5
         target_block_addr(p.targetBlockAddr),
         target_byte_offset(p.targetByteOffset),
         paired_sector(p.pairedSector),
+        protection_model(stringToProtectionModel(p.protectionModel)),
         rng_seed(p.rngSeed),
         max_faults(p.maxFaults),
         faults_injected_count(0),
@@ -83,7 +84,15 @@ namespace gem5
       ADD_STAT(numStuckAtOne, statistics::units::Count::get(),
                "Number of stuck-at-1 faults injected"),
       ADD_STAT(numPermanentFaults, statistics::units::Count::get(),
-               "Total number of permanent faults injected")
+               "Total number of permanent faults injected"),
+      ADD_STAT(numEccCorrected, statistics::units::Count::get(),
+               "S0-3: 1-bit faults corrected by ECC (ProtectionModel reverted)"),
+      ADD_STAT(numDetectedContained, statistics::units::Count::get(),
+               "S0-3: 2-bit faults detected+contained (poison, SECDED)"),
+      ADD_STAT(numLatent, statistics::units::Count::get(),
+               "S0-3: >=2-bit/3-bit beyond SECDED (latent escape)"),
+      ADD_STAT(numRawEscaped, statistics::units::Count::get(),
+               "S0-3: raw escape (protectionModel=none)")
     {
     }
 
@@ -104,6 +113,92 @@ namespace gem5
             case FaultType::Random: return "random";  // G7: handle enum to clear -Wswitch
         }
         return "random";
+    }
+
+    CHAOSCache::ProtectionModel
+    CHAOSCache::stringToProtectionModel(const std::string &s) {
+        if (s == "sed")                 return ProtectionModel::SED;
+        if (s == "secded")              return ProtectionModel::SECDED;
+        if (s == "secded_poison")       return ProtectionModel::SECDEDPoison;
+        if (s == "parity_interleaved")  return ProtectionModel::ParityInterleaved;
+        return ProtectionModel::None;
+    }
+
+    const char*
+    CHAOSCache::protectionModelToString(ProtectionModel m) {
+        switch (m) {
+            case ProtectionModel::None:              return "none";
+            case ProtectionModel::SED:               return "sed";
+            case ProtectionModel::SECDED:             return "secded";
+            case ProtectionModel::SECDEDPoison:       return "secded_poison";
+            case ProtectionModel::ParityInterleaved:  return "parity_interleaved";  // G7
+        }
+        return "none";
+    }
+
+    // S0-3 (plan §4.2, §2.3 N1 TRM proxy): apply the ECC model to the just-
+    // corrupted byte and report the outcome. Called AFTER the fault mask was
+    // applied to *byte (data is now dirty). Decides the observable outcome:
+    //   1-bit (popcount==1):
+    //     SED            -> line invalidate+refetch (corrected) -> REVERT *byte
+    //     SECDED         -> corrected -> REVERT *byte
+    //     secded_poison  -> corrected -> REVERT *byte
+    //     parity_interleaved -> parity detects 1-bit -> REVERT (re-fetch)
+    //   2-bit (popcount==2):
+    //     SED            -> >=2-bit silent (cannot detect) -> escape (Latent)
+    //     SECDED         -> detected+contained (poison) -> leave dirty, mark poison
+    //     secded_poison   -> poison+propagate -> leave dirty, mark poison
+    //     parity_interleaved -> same-parity 2-bit silent -> escape (Latent)
+    //   >=3-bit: all models beyond SECDED -> escape (Latent/SDC)
+    //   None: raw escape.
+    // Returns true if the corruption SURVIVED (data left dirty -> may escape
+    // as SDC/Latent); false if corrected/reverted (data restored -> Masked/
+    // Corrected).
+    bool
+    CHAOSCache::applyProtectionModel(uint8_t *byte, uint8_t orig, uint8_t mask,
+                                     int byteOffset, Addr blockAddr)
+    {
+        if (protection_model == ProtectionModel::None) {
+            stats->numRawEscaped++;
+            if (write_log) {
+                *(log_stream->stream()) << "  ProtectionModel=none: raw escape "
+                    "(mask=" << std::bitset<8>(mask) << ")\n";
+            }
+            return true;  // data left dirty
+        }
+        int bits = __builtin_popcount(mask);
+        bool survived = false;
+        const char *outcome = "";
+        if (bits == 1) {
+            // All ECC models correct a single-bit flip -> REVERT the byte.
+            *byte = orig;
+            stats->numEccCorrected++;
+            outcome = "EccCorrected";
+            survived = false;
+        } else if (bits == 2) {
+            // SED/parity: cannot detect a same-parity 2-bit -> escape.
+            // SECDED/secded_poison: detect+contain (poison) -> leave dirty.
+            if (protection_model == ProtectionModel::SED ||
+                protection_model == ProtectionModel::ParityInterleaved) {
+                stats->numLatent++;
+                outcome = "Latent";  // >=2-bit silent
+                survived = true;
+            } else {  // SECDED, SECDEDPoison
+                stats->numDetectedContained++;
+                outcome = "Poisoned: DetectedContained";  // contained DUE
+                survived = true;  // dirty but contained (poisoned)
+            }
+        } else {  // >=3 bits: beyond SECDED
+            stats->numLatent++;
+            outcome = "Latent";  // >=3-bit, undetected escape
+            survived = true;
+        }
+        if (write_log) {
+            *(log_stream->stream()) << "  ProtectionModel=" << protectionModelToString(protection_model)
+                << " bits=" << bits << " -> " << outcome
+                << " (mask=" << std::bitset<8>(mask) << ")\n";
+        }
+        return survived;
     }
 
     void 
@@ -248,7 +343,9 @@ namespace gem5
                     continue;
                 }
 
-                // uint8_t oldValue = data[byteOffset];
+                // S0-3: save the pre-corruption byte so applyProtectionModel
+                // can REVERT it when ECC corrects (1-bit).
+                uint8_t origByte = data[byteOffset];
 
                 switch (chosen_fault_type_enum) {
                     case FaultType::StuckAtZero:
@@ -270,6 +367,13 @@ namespace gem5
                     default:
                         break;
                 }
+
+                // S0-3: apply the ECC model AFTER the mask. This may REVERT
+                // the byte (ECC corrected) or leave it dirty (escape). The
+                // PA marker (EccCorrected/Poisoned:DetectedContained/Latent)
+                // is written to the log for classify_run_pa nine-class split.
+                applyProtectionModel(&data[byteOffset], origByte, mask,
+                                     byteOffset, blockAddr);
 
                 // uint8_t newValue = data[byteOffset];
                 stats->numFaultsInjected++;

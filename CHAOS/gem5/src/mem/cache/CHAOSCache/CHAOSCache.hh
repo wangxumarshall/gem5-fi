@@ -52,6 +52,20 @@ class CHAOSCache : public SimObject
     int cycles_permament_fault_check;
     bool write_log;
 
+    // S0-3: protection-aware ECC model (plan §4.2, §2.3 N1 TRM Table 9-1
+    // proxy). none = raw (escape); sed/secded/secded_poison/parity_interleaved
+    // = model the ECC outcome post-injection and report a PA marker
+    // (EccCorrected/Poisoned/Latent) for classify_run_pa nine-class split.
+    enum class ProtectionModel { None, SED, SECDED, SECDEDPoison, ParityInterleaved };
+    static ProtectionModel stringToProtectionModel(const std::string &s);
+    const char *protectionModelToString(ProtectionModel m);
+    ProtectionModel protection_model;
+    // Apply the ECC model post-injection: may REVERT the corruption (ECC
+    // corrected) or leave it (escaped). Reports the outcome label + bumps the
+    // matching stat. Returns true if the corruption survived (data left dirty).
+    bool applyProtectionModel(uint8_t *byte, uint8_t orig, uint8_t mask,
+                              int byteOffset, Addr blockAddr);
+
     // Directed-injection target (report §六.3 'fixed-to' runs): when
     // non-default, the injector pins the fault to a SPECIFIC cache block
     // (by its address) and/or byte offset, instead of random sampling.
@@ -92,7 +106,12 @@ class CHAOSCache : public SimObject
       statistics::Scalar numStuckAtZero;
       statistics::Scalar numStuckAtOne;
       statistics::Scalar numPermanentFaults;
-      
+      // S0-3: protection-aware ECC outcome stats (plan §6.5).
+      statistics::Scalar numEccCorrected;          // 1-bit, ECC corrected (reverted)
+      statistics::Scalar numDetectedContained;    // 2-bit, ECC detected+contained (poison)
+      statistics::Scalar numLatent;                // >=3-bit, beyond SECDED (escaped)
+      statistics::Scalar numRawEscaped;            // protectionModel=none, raw escape
+
       CHAOSCacheStats(statistics::Group *parent);
     };
 
