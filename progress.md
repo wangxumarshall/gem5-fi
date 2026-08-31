@@ -471,3 +471,59 @@ F1✅ F2✅ F3✅ F4✅ F5✅(RAT/SysReg) F6待写 PCE待写
 S1-4 CHAOSROB（P0 乱序最后一块）、S1-5 剩余（stale_line_replay/fwd_source_sub/phaseOffset）、S0-3 protectionModel + 九类分类、kp920_proxy 配置、cholesky_numeric kernel（formal method1）、manifest v2。
 
 每个补丁均经干净构建零 CHAOS 警告 + 真机功能验证（引用真实 gem5 输出）+ 不相关回归三步自验证。
+
+---
+
+## 本轮（2026-08-31）延续：7 项任务执行 + 已完成工作复核
+
+按"确保已完成工作得到真实验证"+"完成剩余 7 项"指令执行。全部真机自验证 + 推 fi-wangxu。
+
+### 任务 0：已完成工作复核（13 锚点全部 pass）
+
+重跑当前 gem5.opt 下确认仍 pass：golden f247ef3fe6f02cfd、GPR SDC d43a25d7fcc218b7、method1 F5 accum fails=1、core179 D1 rol1 fails=1、LSQFwd D2 bit63 fails=1、CHAOSMem D3 reapplies=573157、RAT f5_substitute numF5Substitutes=1、FreeList mark_free numMarkFree=1、kp920_proxy V110 参数、structuralFault all_zero fails=1、PTW FS clearValidBit 5 spurious、F3 MISS 1.7e8 跳过、AddrPath SE 回归。**13/13 pass**。
+
+### 任务 6：S0-3 .cc ECC 后处理逻辑 `09e31d6`
+
+CHAOSCache.applyProtectionModel()，注入后按 protectionModel 决定归宿：
+- 1-bit: SED/SECDED/secded_poison/parity 全纠正 → REVERT 数据, EccCorrected
+- 2-bit: SED/parity 不可检 → Latent; SECDED/secded_poison 检出+毒化 → DetectedContained
+- ≥3-bit: 超 SECDED → Latent; none: raw escape
+真机三档对照：none(numRawEscaped=1) / secded 1-bit(numEccCorrected=1, golden) / secded 2-bit(numDetectedContained=1, Poisoned:DetectedContained)。S0-3 完整闭环（参数面+classify 九类+.cc ECC 后处理）。
+
+### 任务 8：kp920_proxy_fs.py `3e1c26b`
+
+arm_chaos_fs.py 加 --kp920_proxy 开关（V110 O3 参数，FS 版用于 checkpoint→O3 后 formal FS campaign）。Atomic 引导 no-op，clk=2.6GHz。FS 端到端验证受 FS 引导时长限制（与 D1/D4/AddrPath/PTW 同边界），SE 版已验证 V110 参数生效。
+
+### 任务 9：cholesky_numeric kernel `2e3368a`
+
+method1 (Cholesky x[0]) 专 kernel：稀疏 Cholesky-like 分解，d0 浮点累加器跨间接寻址子循环存活（method1 现场 d0 跨循环 live 的仿真代理）。两变体 numeric-only/compute-both（method1 现场 1.0%/0.27%，比值∈[2,8]）。N 可调（默认64，现场256）。真机：native==gem5 O3 golden c34d4a1542b7a5b1（确定性跨 native/gem5 一致）。
+
+### 任务 7：runner/campaign v2 字段解析 `e734789`
+
+runner.py 扩展 v2 manifest 解析：component 7→23 单元（+rat/freelist/lsq_fwd/sysreg/ptw 等）；f5_substitute_target→--rat_target_arch、semantic_role→--rat_semantic_role、trigger_value_mask/pattern→F3、protection_model→classify_run_pa 九类。faults 计数日志扩展（+rat/freelist/lsq_fwd/addr/ptb/tlb/sysreg）+ detail 行去重。campaign.py 生成 v2 manifest（semantic_role/sub_field/protection_model/f5/f6/f3 透传）。真机：v2 RAT F5 manifest → faults=1（G5 单故障纪律过）。fail_count oracle 解析待续。
+
+### 任务 4：S1-4 CHAOSROB `7d0756d`
+
+P0 乱序单元最后一块。三模式：
+- entry_bitflip: 翻 ROB 头 DynInst seqNum（已验证 200696→200697, numEntryBitFlips=1）
+- exc_suppress: 清 faulting DynInst fault → DUE 转 SDC（合法性校验已验证：reg_chain 头无 fault → REJECT 3.27e8 次）
+- spec_leak: deferred（需 hook squash）
+cpu.hh 新增 robAccess() public accessor。真机三步全过。
+
+### 任务 5：S1-5 剩余（诚实标注待续）
+
+stale_line_replay/fwd_source_sub/phaseOffset 需深改 lsq_unit.cc 转发选择/数据组装逻辑（store_it 迭代器、memcpy 源、转发时序），复杂度高/风险大。structuralFault（D1 签名）已完成且验证充分。剩余三模式诚实标注待续，不谎称完成。
+
+### 注入器：核查时 7 → 现已 12 个
+
+core179 三通路（D1 LSQFwd structuralFault / D2 AddrPath / D3 PTW）+ method1 状态泄漏（RAT RenameMap / FreeList / ROB）+ PRF PhysReg F3 / ArmTLB / ArmSysReg / Cache ECC / Mem 全部入主线。
+
+### 诚实边界
+
+- S1-5 剩余三模式需深改 lsq_unit 转发逻辑（待续）
+- S1-4 spec_leak 需 hook squash；exc_suppress 清 fault→SDC 需 fault kernel
+- fail_count oracle 解析待续（accum/cholesky 的 fails=N 输出）
+- FS 端到端验证受 FS 引导时长限制（checkpoint 流水线待续）
+- method1 SDC formal 复现需 n=384 campaign（cholesky 计算密集，需减 iters/N 或并行）
+
+每个补丁均经干净构建零 CHAOS 警告 + 真机功能验证（引用真实 gem5 输出）+ 不相关回归三步自验证。
