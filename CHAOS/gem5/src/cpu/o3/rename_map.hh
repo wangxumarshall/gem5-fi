@@ -54,9 +54,17 @@
 #include "cpu/o3/free_list.hh"
 #include "cpu/o3/regfile.hh"
 #include "cpu/reg_class.hh"
+// §2.2 CHAOSRenameMap: included so UnifiedRenameMap::setEntry's inline hook
+// can call chaosRenameMap->maybeCorrupt(). Non-circular: CHAOSRenameMap.hh
+// only forward-declares o3::UnifiedRenameMap (does NOT include rename_map.hh).
+#include "cpu/o3/CHAOSRenameMap/CHAOSRenameMap.hh"
 
 namespace gem5
 {
+
+// §2.2 CHAOSRenameMap forward decl (raw pointer member below; full def
+// included only in rename_map.cc to avoid a circular include).
+class CHAOSRenameMap;
 
 namespace o3
 {
@@ -178,6 +186,18 @@ class UnifiedRenameMap
      */
     PhysRegFile *regFile;
 
+    // §2.2 CHAOSRenameMap: raw pointer to the rename-map fault injector.
+    // Set by the injector's startup() (dynamic_cast<O3CPU*> +
+    // frontRenameMap()[tid].chaosRenameMap = this). nullptr = no injection
+    // (zero regression). Forward-declared above; full def in rename_map.cc.
+    CHAOSRenameMap *chaosRenameMap = nullptr;
+
+  public:
+    /** §2.2 CHAOSRenameMap accessor (injector sets it at startup). */
+    void setChaosRenameMap(CHAOSRenameMap *p) { chaosRenameMap = p; }
+
+  private:
+
   public:
 
     typedef SimpleRenameMap::RenameInfo RenameInfo;
@@ -261,6 +281,16 @@ class UnifiedRenameMap
             // which should always be setting it to what it already is.
             assert(phys_reg == lookup(arch_reg));
             return;
+        }
+
+        // §2.2 CHAOSRenameMap: post-write hook. The injector may RE-MAP
+        // the entry (mutate phys_reg by ref BEFORE the real setEntry stores
+        // it): map_bitflip (1-bit remap to another legal physReg), f5_substitute
+        // (point at a currently-allocated physReg), f4_field_stuck (pin wrong).
+        // nullptr = no injection (zero regression). The injector validates the
+        // substitute target is a legal+allocated physReg (no UB).
+        if (chaosRenameMap) {
+            chaosRenameMap->maybeCorrupt(/*tid=*/0, arch_reg, phys_reg);
         }
 
         return renameMaps[arch_reg.classValue()].setEntry(arch_reg, phys_reg);

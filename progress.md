@@ -586,3 +586,20 @@ ARM 三条路径 + golden（真跑输出）：
 **诚实边界（本补丁不做）**：真实 entry-invalidate/re-walk（用 undo 建模相同可观测结果，re-entrancy-safe，E3）；even/odd parity 交错布局（≥2-bit=silent 代理，完整交错模型需 TRM parity 布局，非 N1 代理）；新 CHAOSPTW（§2.10 cherry-pick，单独 FS 单元）；formal FS sweep（FS Atomic 慢，pilot verify none-DUE vs parity-Corrected 对比；formal FS 需健康机 + checkpoint-to-O3 流水线 §3.2）。
 
 **§1.2 完成总结**：三个注入器（CHAOSCache/CHAOSMem/CHAOSArmTLB）的 protectionModel + §1.2 注入后处理全部落地。三种纠正机制：undo（cache/mem/tlb 都用，cache+mem+tlb 1-bit 完全 ==golden/无 panic）与 invalidate（仅 cache sed 1-bit/secded 2-bit，run-level 时序逃逸 SDC——工作负载已消费字节）。诚实记录两者差异。所有 formal cell 应跑两组（none raw 上界 vs 代理 protection-aware 逃逸率）。
+
+---
+
+### S1 §2.2 patch 1 — CHAOSRenameMap 注入器 + cholesky_numeric kernel（method1 锚点）
+
+**实现**：新 SimObject `CHAOS/gem5/src/cpu/o3/CHAOSRenameMap/{.py,.hh,.cc,SConscript}`（O3-only，self-attach）。hook `UnifiedRenameMap::setEntry`（`rename_map.hh`）在 map 写入后、真正 `SimpleRenameMap::setEntry` 前调用 `chaosRenameMap->maybeCorrupt(tid, arch_reg, phys_reg_ref)`。三模式：`map_bitflip`（XOR physReg 索引一 bit → 指向另一合法 physReg，method1 张冠李戴语义）、`f5_substitute`（指向**当前已分配=not free**的同类 physReg，`isFree` 校验）、`f4_field_stuck`（永久钉一 arch_reg 到错 physReg）。新 kernel `workloads/directed/cholesky_numeric.c`（method1 主 kernel：cdiv 条件分支 + rank-1 FMA + 跨内层循环长存活累加器 + 间接索引 + malloc/free workspace；golden `37621bc0a633976f`，native==gem5，20x 重放一致）。
+
+**自验证（真机，CLAUDE.md）**：
+- **干净增量重建**：`scons -j16` EXIT=0，**CHAOSRenameMap 零警告**（G7）。修了 2 个编译错误：`cpu` 成员须是 `BaseCPU*`（p.cpu 是 BaseCPU*，dynamic_cast 在 startup/maybeCorrupt 内做）；`physRegFile()/physFreeList()` 是 `o3::CPU` 成员非 BaseCPU，故 maybeCorrupt 内 `dynamic_cast<o3::CPU*>` 一次传入 pickAllocatedPhysReg。
+- **cholesky golden**（无注入）= `37621bc0a633976f`，3/3 gem5 O3 重放一致（G0）。
+- **T1 map_bitflip X3**：`Tick:1024500 arch_reg=int[3] old_phys=116 new_phys=112 faults_injected:1` → **core dumped（Crash）**。
+- **T2 map_bitflip 随机**：`Tick:1385500 arch_reg=int[2] old=188 new=189` → Crash。
+- **T3 f5_substitute**：`Tick:1385500 arch_reg=int[2] old=188 new=159`（**159 是经 isFree 校验的已分配 physReg**，非 UB）→ Crash。
+- **§2.2 验收断言③**：map_bitflip / f5_substitute 各 ≥1 非 Inactive 结局（两者均 Crash）——可达性非零。**诚实发现**：RAT 注入在 cholesky 上**Crash 主导**（rename-inconsistency），与 method1 现场 + 早期 CHAOS RAT-A n=200（Crash 61.5%）一致。这是 method1 "RAT 错→rename-inconsistency 主导" 的真实复现，非工具错误。
+- **回归**：cholesky golden `37621bc0a633976f` 不变；arm_chaos reg_chain golden `f247ef3fe6cfd` 不变；CHAOSPhysReg X3 SDC `d43a25d7fcc218b7` 不变（未挂注入器时 `chaosRenameMap=nullptr`，setEntry 零回归）。
+
+**诚实边界（本补丁不做）**：CHAOSFreeList（§2.2 patch 2，mark_free/pop_wrong）；method1 控制组 kernel（pure_fma/pure_spmv/pure_gather/tri_solve，patch 3）；mov_heavy（move-elimination，patch 4）；runner.py `rat` 组件映射（patch 5——schema v2 已前向声明 `rat`，runner 现诚实拒绝，待映射补丁）；formal n=384（本机 ~90s/run，formal 须健康机 §0.4）；多线程 RAT（单线程 SE 范围）；§2.2 numeric-only vs compute-both P_SDC 比值（须控制组 + first_clock 分阶段）。

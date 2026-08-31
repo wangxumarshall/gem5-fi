@@ -17,7 +17,7 @@
 
 import argparse
 import m5
-from m5.objects import CHAOSReg, CHAOSPhysReg, CHAOSMem, CHAOSLSQFwd
+from m5.objects import CHAOSReg, CHAOSPhysReg, CHAOSMem, CHAOSLSQFwd, CHAOSRenameMap
 from gem5.components.boards.simple_board import SimpleBoard
 from gem5.components.cachehierarchies.classic.private_l1_private_l2_cache_hierarchy import (
     PrivateL1PrivateL2CacheHierarchy,
@@ -99,6 +99,19 @@ p.add_argument("--chaos_lsqfwd", action="store_true",
                help="attach CHAOSLSQFwd (O3 store->load forwarding-path FI)")
 p.add_argument("--lsq_byte_offset", type=int, default=-1,
                help="CHAOSLSQFwd directed byte offset within forwarded data")
+# §2.2 CHAOSRenameMap (O3 rename-map fault injector). SELF-ATTACHES at
+# startup() to thread-0 frontRenameMap.chaosRenameMap. map_bitflip /
+# f5_substitute / f4_field_stuck modes (design doc §2.2).
+p.add_argument("--chaos_rename", action="store_true",
+               help="attach CHAOSRenameMap (O3 rename-map injector, §2.2)")
+p.add_argument("--rename_mode", default="map_bitflip",
+               choices=["map_bitflip","f5_substitute","f4_field_stuck"])
+p.add_argument("--rename_target_arch", type=int, default=-1,
+               help="arch reg index whose map entry to corrupt (-1=random 0..30)")
+p.add_argument("--rename_first_clock", type=lambda x: int(x,0), default=100000)
+p.add_argument("--rename_max_faults", type=lambda x: int(x,0), default=1)
+p.add_argument("--rename_fault_mask", type=lambda x: int(x,0), default=0)
+p.add_argument("--rename_rng_seed", type=lambda x: int(x,0), default=20260825)
 args = p.parse_args()
 
 cache_hierarchy = PrivateL1PrivateL2CacheHierarchy(
@@ -210,6 +223,24 @@ if args.chaos_lsqfwd:
         writeLog=True,
     )
     board.chaos_lsqfwd = lsq
+
+if args.chaos_rename:
+    # §2.2 CHAOSRenameMap: O3-only. SELF-ATTACHES at startup() to thread-0
+    # frontRenameMap().chaosRenameMap (the injector dynamic_casts to O3CPU
+    # and sets the pointer; UnifiedRenameMap::setEntry calls maybeCorrupt).
+    # Instantiate as a board child with cpu=cpu0 — no explicit attach call.
+    ren = CHAOSRenameMap(
+        cpu=cpu0,
+        mode=args.rename_mode,
+        targetArchReg=args.rename_target_arch,
+        probability=args.probability,
+        firstClock=args.rename_first_clock,
+        maxFaults=args.rename_max_faults,
+        faultMask=args.rename_fault_mask,
+        rngSeed=args.rename_rng_seed,
+        writeLog=True,
+    )
+    board.chaos_rename = ren
 
 if args.maxinsts:
     cpu0.max_insts = args.maxinsts
