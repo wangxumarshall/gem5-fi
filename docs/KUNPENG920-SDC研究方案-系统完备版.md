@@ -29,9 +29,9 @@
 
 **核查方法**：逐注入器实读 `.py/.hh/.cc/SConscript`；在 vendored gem5 源码树 `CHAOS/gem5/src/` 中 grep 确认 hook 接线；`git log --all` 追溯被删除文件的历史；实跑 `gem5.opt` 验证构建与锚点（§5 已验证锚点表）。
 
-#### 0.3.1 当前工作树真实存在的注入器：**核查时 7 个，现已 11 个**（+CHAOSAddrPath `ffd041e` + CHAOSRenameMap `c5c8c96` + CHAOSFreeList `379e11c` + CHAOSPTW `de48432`）
+#### 0.3.1 当前工作树真实存在的注入器：**核查时 7 个，现已 12 个**（+CHAOSAddrPath `ffd041e` + CHAOSRenameMap `c5c8c96` + CHAOSFreeList `379e11c` + CHAOSPTW `de48432` + CHAOSROB `7d0756d`）
 
-> **2026-08-30 核查时**主线工作树有 7 个注入器（下表）。**S1-5b（`ffd041e`）新增 CHAOSAddrPath**、**S1-2（`c5c8c96`）新增 CHAOSRenameMap**、**S1-3（`379e11c`）新增 CHAOSFreeList**、**S2-5c（`de48432`）新增 CHAOSPTW**，主线现 11 个。下表保留核查时状态以存史；新增注入器见 §A.2 与 §5.2/§5.4/§5.7。
+> **2026-08-30 核查时**主线工作树有 7 个注入器（下表）。**S1-5b（`ffd041e`）新增 CHAOSAddrPath**、**S1-2（`c5c8c96`）新增 CHAOSRenameMap**、**S1-3（`379e11c`）新增 CHAOSFreeList**、**S2-5c（`de48432`）新增 CHAOSPTW**、**S1-4（`7d0756d`）新增 CHAOSROB**，主线现 12 个。下表保留核查时状态以存史；新增注入器见 §A.2 与 §5.2/§5.3/§5.4/§5.7。
 
 | 注入器 | 目标单元 | Hook 位置（已核实） | 范式 | 真实参数面（已核实） |
 |---|---|---|---|---|
@@ -846,7 +846,7 @@ DSN / PRDC / ASPLOS / HPCA / MICRO；对标 Veritas(HPCA'25)、PinDrop(HPCA'26)�
 | 阶段 | 内容 | 依赖 | 工作量 | 现状 |
 |---|---|---|---|---|
 | S0 基础设施 | regen params 干净重建（已完成）+ P0 pilot 复现；campaign.py v1（已完成 `f8aecc7`）；kp920_proxy ✅`1564328`；manifest v2 ✅`105bc0f`；protectionModel v1 ✅`a6c5b9c`（.cc 后处理待续）；已知缺陷修复（附录 D 已完成 D1-D6） | 无 | ~10 补丁 | campaign v1/kp920_proxy 待续；manifest v2/protectionModel 待续 |
-| S1 P0 单元 | PRF 扩/F3（✅）；RAT（✅ CHAOSRenameMap `c5c8c96`）/freelist（✅ CHAOSFreeList `379e11c`）；ROB（CHAOSROB 待实现）；LSU 转发扩（D2 ✅+structuralFault 待补+AddrPath ✅ `ffd041e`） | S0 | ~20 补丁 | PRF/RAT/AddrPath 已有；FreeList/ROB/structuralFault 待实现 |
+| S1 P0 单元 | PRF 扩/F3（✅）；RAT（✅ CHAOSRenameMap `c5c8c96`）/freelist（✅ CHAOSFreeList `379e11c`）；ROB（✅ CHAOSROB `7d0756d`）；LSU 转发扩（D2 ✅+structuralFault 待补+AddrPath ✅ `ffd041e`） | S0 | ~20 补丁 | PRF/RAT/AddrPath 已有；FreeList/ROB/structuralFault 待实现 |
 | S2 P1 单元 | IQ（CHAOSIQ）；FSU（CHAOSFPU）；TLB/SysReg/PTW + FS checkpoint；L3 pairedSector | S1 | ~18 补丁 | ArmTLB/ArmSysReg 已有基础；IQ/FPU/PTW/AddrPath 待实现 |
 | S3 P2/P3 单元 | L1D 字段级+PCE；L2+victim+size sweep；L1I 语义字段；整数 Exec；BPU；内存控制器 | S1 | ~16 补丁 | 全待实现 |
 | S4 系统级 | CHAOSCHI/CHAOSNoC/CHAOSHCCS（E3/E4，独立子项目） | S2 | ~20 补丁 | 全待实现 |
@@ -901,7 +901,7 @@ DSN / PRDC / ASPLOS / HPCA / MICRO；对标 Veritas(HPCA'25)、PinDrop(HPCA'26)�
 
 ## 附录 A　注入器与 hook 点总表（源码核对版，2026-08-30）
 
-### A.1 已有注入器（11 个，含 CHAOSAddrPath + CHAOSRenameMap + CHAOSFreeList + CHAOSPTW）
+### A.1 已有注入器（12 个，含 CHAOSAddrPath/CHAOSRenameMap/CHAOSFreeList/CHAOSPTW/CHAOSROB）
 
 | 注入器 | 目标单元 | Hook 位置（已核实） | 范式 | 优先级 | 真实模式（已核实） |
 |---|---|---|---|---|---|
@@ -914,6 +914,7 @@ DSN / PRDC / ASPLOS / HPCA / MICRO；对标 Veritas(HPCA'25)、PinDrop(HPCA'26)�
 | CHAOSArmSysReg | ARM 系统寄存器 MRS 读值 | `arch/arm/isa.cc:39,452-457` + `isa.hh:179-180`（`isa->chaosSysReg`） | A（自挂载，FS） | P1 | bit_flip/stuck_at_zero/stuck_at_one/random；`targetRegs` 白名单（miscRegName 解析）；**无 value_to_legal(F5)（待扩展）** |
 | **CHAOSAddrPath** | AGU 地址通路（P-D2） | `lsq.cc sendFragmentToTranslation`（`cpu->addrPath`，`request.hh setVaddr`） | A（自挂载，FS+O3） | P1 | byte7 清零复现 core179 D2；byteOffset 0-7/-1随机；tick 时间窗；rng lambda 修复 |
 | **CHAOSRenameMap** | RAT 重命名表（F5） | `rename_map.hh` setEntry() + `cpu->frontRenameMap()` | B（attackEvent 自驱动） | P0 | map_bitflip/f5_substitute/f4_field_stuck 三模式；合法域校验（numLegalityRejects）；method1 历史残留 |
+| **CHAOSROB** | ROB 重排序缓冲 | `rob.hh` readHeadInst() + `cpu->robAccess()`（cpu.hh 新增 accessor） | B（attackEvent 自驱动） | P0 | entry_bitflip（seqNum 翻转，已验证 200696→200697）/ exc_suppress（清 fault DUE→SDC，合法性校验已验证）/ spec_leak（deferred 需 squash hook） |
 
 ### A.2 待实现/待扩展注入器（9 个）
 
@@ -921,7 +922,7 @@ DSN / PRDC / ASPLOS / HPCA / MICRO；对标 Veritas(HPCA'25)、PinDrop(HPCA'26)�
 |---|---|---|---|---|
 | CHAOSRenameMap | ✅ 已实现 `c5c8c96` | `rename_map.hh` rename()/setEntry() + `cpu->frontRenameMap()` | ~~S1-2~~ done | — |
 | CHAOSFreeList | ✅ 已实现 `379e11c` | `free_list.hh` addReg()/isFree() + `cpu->physFreeList()` | ~~S1-3~~ done | — |
-| CHAOSROB | 新写 | `rob.cc` retireHead()/squash()；`commit.cc` commitHead() | S1-4 | — |
+| CHAOSROB | ✅ 已实现 `7d0756d` | `rob.hh` readHeadInst() + `cpu->robAccess()` | ~~S1-4~~ done | entry_bitflip/exc_suppress 已验证；spec_leak deferred |
 | CHAOSIQ | 新写 | `inst_queue.cc` wakeDependents()/scheduleReadyInsts() | S2-1 | — |
 | CHAOSFPU | 新写 | `iew.cc` writeback（Float*） | S2-3 | — |
 | CHAOSExec | 新写 | `iew.cc` writeback（Int*） | S3-4 | — |
@@ -1065,7 +1066,7 @@ S0-04-已知缺陷修复    | depends=[S0-01]     | agent | done    | D1/D2/D3/D
 S1-01-CHAOSPhysReg扩展| depends=[S0-04]     | agent | done    | F3 triggerValue* + semanticRole（7f538c4，已验证 MISS 1.3e8 跳过）
 S1-02-CHAOSRenameMap  | depends=[S0-04]     | agent | done    | 已实现 c5c8c96（f5_substitute+map_bitflip+f4_field_stuck，三模式验证+合法域校验）
 S1-03-CHAOSFreeList   | depends=[S0-04]     | agent | done    | 已实现 379e11c（mark_free/pop_wrong+扫RAT+合法域，验证 PhysReg[170] donor）
-S1-04-CHAOSROB        | depends=[S0-04]     | agent | pending | entry_bitflip/exc_suppress/spec_leak
+S1-04-CHAOSROB        | depends=[S0-04]     | agent | done    | 已实现 7d0756d（entry_bitflip+exc_suppress 验证；spec_leak deferred；fault kernel 待续）
 S1-05-CHAOSLSQFwd扩展 | depends=[S0-04]    | agent | done(部分)| D2 ✅ + structuralFault ✅ 8320daf（rol1/空槽验证）；stale_line_replay/fwd_source_sub/phaseOffset 待续
 S1-05b-CHAOSAddrPath  | depends=[S0-04]     | agent | done    | 已实现 ffd041e（侧分支移植+主线纪律；FS O3 端到端待 checkpoint）
 S2-05a-CHAOSArmSysReg扩展| depends=[S1-02]  | agent | pending | value_to_legal(F5) + D4 时间窗
