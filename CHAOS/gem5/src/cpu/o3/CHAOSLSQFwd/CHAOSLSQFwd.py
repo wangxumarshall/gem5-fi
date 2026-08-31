@@ -52,6 +52,15 @@ class CHAOSLSQFwd(SimObject):
     skewBytes = Param.Int(0,
         "For byte_lane_skew: right-rotation amount (1..7). 0 = random 1..7 "
         "per event. 15:58 crash matched rol1; 0814 matched rol6 — bit-exact.")
+    # S6-1/S6-2: source-substitution faults (forward-source F5 + stale line).
+    # Substitutes the memcpy source with a STALE historical buffer (a
+    # previously-seen store's data) BEFORE the forward memcpy.
+    sourceFault = Param.String("none",
+        "none | fwd_source_sub | stale_line_replay. fwd_source_sub: return a "
+        "stale buffer as the forward source (wrong-store forwarding, F5). "
+        "stale_line_replay: same mechanism, models a stale fill-buffer line. "
+        "When != none, takes precedence over faultType/structuralFault at the "
+        "memcpy-source step (corrupt() still applies after).")
     bitsToChange = Param.Int(1, "Bits to change when faultMask=0")
     byteOffset = Param.Int(-1,
         "Which byte of the forwarded buffer to corrupt (-1 = random within "

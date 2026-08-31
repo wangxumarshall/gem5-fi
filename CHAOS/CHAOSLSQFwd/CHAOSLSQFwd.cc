@@ -19,6 +19,7 @@ namespace gem5
           fault_mask(std::bitset<64>(p.faultMask)),
           mask_width(p.maskWidth),
           structural_fault_enum(stringToStructuralFault(p.structuralFault)),
+          source_fault_enum(stringToSourceFault(p.sourceFault)),
           skew_bytes(p.skewBytes),
           num_bits_to_change(p.bitsToChange),
           byte_offset(p.byteOffset),
@@ -46,6 +47,11 @@ namespace gem5
             stats = std::make_unique<CHAOSLSQFwdStats>(this);
             random_fault_distribution = std::discrete_distribution<int>(
                 {0.9, 0.05, 0.05});  // bit_flip / stuck0 / stuck1
+            // S6-1/S6-2: init history ring buffer as empty.
+            for (int i = 0; i < HIST_CAP; ++i) {
+                hist[i].size = 0; hist[i].vaddr = 0; hist[i].valid = false;
+            }
+            hist_next = 0;
             // Register self with the CPU so lsq_unit.cc can reach this
             // injector via cpu->lsqFwd. cpu is guaranteed constructed first
             // (it was passed as a Param). Safe because lsq_unit only reads
@@ -103,6 +109,86 @@ namespace gem5
     //     mux selecting the wrong phase.
     //   AllZero: deliver an all-zero word — models the D1 "empty/invalid slot"
     //     state (15:42: __per_cpu_offset[176] delivered 0).
+    CHAOSLSQFwd::SourceFault
+    CHAOSLSQFwd::stringToSourceFault(const std::string &s) {
+        if (s == "fwd_source_sub")   return SourceFault::FwdSourceSub;
+        if (s == "stale_line_replay") return SourceFault::StaleLineReplay;
+        return SourceFault::None;
+    }
+
+    const char*
+    CHAOSLSQFwd::sourceFaultToString(SourceFault f) {
+        switch (f) {
+            case SourceFault::FwdSourceSub:   return "fwd_source_sub";
+            case SourceFault::StaleLineReplay: return "stale_line_replay";
+            case SourceFault::None:           return "none";  // G7: clear -Wswitch
+        }
+        return "none";
+    }
+
+    // S6-1/S6-2: pick a (possibly substituted) forward source. Records the
+    // current store's data into the history ring buffer, then — if in
+    // fwd_source_sub / stale_line_replay mode and the RNG fires — returns a
+    // STALE historical buffer (a previously-seen store's data) as the memcpy
+    // source. Models wrong-store forwarding (F5) and stale-line replay.
+    // Hot-path: probability==0 / outside window / no history -> cur_data.
+    uint8_t *
+    CHAOSLSQFwd::pickSource(uint8_t *cur_data, unsigned size, Addr vaddr)
+    {
+        // Always record cur_data into history (for future stale use).
+        if (cur_data && size > 0 && size <= HIST_BYTES) {
+            HistEntry &e = hist[hist_next];
+            memcpy(e.data, cur_data, size);
+            e.size = size; e.vaddr = vaddr; e.valid = true;
+            hist_next = (hist_next + 1) % HIST_CAP;
+        }
+        if (probability <= 0.0f || source_fault_enum == SourceFault::None)
+            return cur_data;
+        Cycles cur = cpu->curCycle();
+        if (cur < first_clock) return cur_data;
+        if (last_clock != Cycles(0) && cur > last_clock) return cur_data;
+        if (max_faults != 0 && faults_injected_count >= max_faults)
+            return cur_data;
+        // Bernoulli gate.
+        std::uniform_real_distribution<float> dist(0.0f, 1.0f);
+        if (dist(rng) >= probability) return cur_data;
+
+        // Find a STALE entry (valid, older than the just-recorded one). If
+        // none yet, return cur_data (no residue possible).
+        // Pick the most-recent valid entry that isn't the current vaddr.
+        HistEntry *stale = nullptr;
+        for (int i = 0; i < HIST_CAP; ++i) {
+            int idx = (hist_next - 1 - i + HIST_CAP) % HIST_CAP;
+            if (hist[idx].valid && hist[idx].size >= size) {
+                stale = &hist[idx];
+                break;
+            }
+        }
+        if (!stale) return cur_data;  // history empty — no substitution
+
+        // Copy the stale data into a stable buffer (the load's memData will
+        // memcpy from this). Use a thread-local-ish static buffer.
+        static thread_local uint8_t sub_buf[HIST_BYTES];
+        memcpy(sub_buf, stale->data, size);
+        stats->numFaultsInjected++;
+        ++faults_injected_count;
+        if (source_fault_enum == SourceFault::FwdSourceSub)
+            stats->numFwdSourceSub++;
+        else
+            stats->numStaleLineReplay++;
+        if (write_log) {
+            *(log_stream->stream())
+                << "Cycle: " << cpu->curCycle()
+                << ", Site: store->load_forward_source"
+                << ", SourceFault: " << sourceFaultToString(source_fault_enum)
+                << ", Vaddr: 0x" << std::hex << vaddr
+                << ", StaleVaddr: 0x" << stale->vaddr << std::dec
+                << ", FwdSize: " << size
+                << std::endl;
+        }
+        return sub_buf;
+    }
+
     void
     CHAOSLSQFwd::applyStructuralFault(uint8_t *data, unsigned size, Addr vaddr)
     {
@@ -280,7 +366,11 @@ namespace gem5
           ADD_STAT(numStructuralByteLaneSkew, statistics::units::Count::get(),
                    "S1-5 P-D1 byte_lane_skew faults (core179 D1 rol signature)"),
           ADD_STAT(numStructuralAllZero, statistics::units::Count::get(),
-                   "S1-5 P-D1 all_zero faults (core179 D1 empty-slot signature)")
+                   "S1-5 P-D1 all_zero faults (core179 D1 empty-slot signature)"),
+          ADD_STAT(numFwdSourceSub, statistics::units::Count::get(),
+                   "S6-1 wrong-source forward (F5 stale source substitution)"),
+          ADD_STAT(numStaleLineReplay, statistics::units::Count::get(),
+                   "S6-2 stale-line replay (stale fill-buffer)")
     {}
 
 } // namespace gem5

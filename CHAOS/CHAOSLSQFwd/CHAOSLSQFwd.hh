@@ -42,6 +42,16 @@ class CHAOSLSQFwd : public SimObject
     // outside the [firstClock,lastClock] window, returns immediately.
     void corrupt(uint8_t *data, unsigned size, Addr vaddr);
 
+    // S6-1/S6-2: pick a (possibly substituted) forward source. Called from
+    // lsq_unit.cc BEFORE the forward memcpy. `cur_data` is the current store's
+    // data pointer (store_it->data() + shift_amt). Returns a pointer to use
+    // as the memcpy source — by default returns cur_data (no substitution);
+    // in fwd_source_sub / stale_line_replay mode returns a STALE/historical
+    // buffer (a previously-seen store's data) to model the wrong-source /
+    // stale-line-replay signature. Records cur_data into the history buffer.
+    // Hot-path: probability==0 or no injector -> returns cur_data.
+    uint8_t *pickSource(uint8_t *cur_data, unsigned size, Addr vaddr);
+
   private:
     enum class FaultType { BitFlip, StuckAtZero, StuckAtOne, Random };
     static FaultType stringToFaultType(const std::string &s);
@@ -52,6 +62,24 @@ class CHAOSLSQFwd : public SimObject
     static StructuralFault stringToStructuralFault(const std::string &s);
     const char *structuralFaultToString(StructuralFault f);
     void applyStructuralFault(uint8_t *data, unsigned size, Addr vaddr);
+
+    // S6-1/S6-2: source-substitution faults (forward-source F5 + stale line).
+    // fwd_source_sub : return a STALE buffer (a previously-seen store's data)
+    //                  as the memcpy source — wrong-store forwarding (F5).
+    // stale_line_replay: same mechanism, models a stale fill-buffer line
+    //                  replayed to a newer load.
+    // None           : return cur_data (no substitution).
+    enum class SourceFault { None, FwdSourceSub, StaleLineReplay };
+    static SourceFault stringToSourceFault(const std::string &s);
+    const char *sourceFaultToString(SourceFault f);
+    SourceFault source_fault_enum = SourceFault::None;
+    // History ring buffer of recently-seen store data (for stale/sub source).
+    // Capped at 8 entries of up to 64 bytes each (cache-line sized forwards).
+    static constexpr int HIST_CAP = 8;
+    static constexpr int HIST_BYTES = 64;
+    struct HistEntry { uint8_t data[HIST_BYTES]; unsigned size; Addr vaddr; bool valid; };
+    HistEntry hist[HIST_CAP];
+    int hist_next = 0;  // ring buffer write cursor
 
     o3::CPU *cpu;
     float probability;
@@ -85,6 +113,8 @@ class CHAOSLSQFwd : public SimObject
         statistics::Scalar numStuckAtOne;
         statistics::Scalar numStructuralByteLaneSkew;  // S1-5: P-D1 rol
         statistics::Scalar numStructuralAllZero;       // S1-5: P-D1 empty slot
+        statistics::Scalar numFwdSourceSub;            // S6-1: wrong-source forward
+        statistics::Scalar numStaleLineReplay;         // S6-2: stale-line replay
         CHAOSLSQFwdStats(statistics::Group *parent);
     };
     std::unique_ptr<CHAOSLSQFwdStats> stats;

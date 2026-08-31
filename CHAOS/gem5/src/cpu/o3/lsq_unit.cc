@@ -1485,10 +1485,24 @@ LSQUnit::read(LSQRequest *request, ssize_t load_idx)
                 if (store_it->isAllZeros())
                     memset(load_inst->memData, 0,
                             request->mainReq()->getSize());
-                else
+                else {
+                    // S6-1/S6-2: CHAOSLSQFwd source substitution. Let the
+                    // injector pick the memcpy source — by default returns
+                    // cur_data (no-op); in fwd_source_sub/stale_line_replay
+                    // mode returns a stale historical buffer (wrong-store
+                    // forwarding / stale-line replay). Hot-path: lsqFwd==
+                    // nullptr or prob==0 -> cur_data.
+                    uint8_t *fwd_src = (uint8_t*)(store_it->data() + shift_amt);
+                    if (cpu->lsqFwd) {
+                        fwd_src = cpu->lsqFwd->pickSource(
+                            (uint8_t*)(store_it->data() + shift_amt),
+                            request->mainReq()->getSize(),
+                            request->mainReq()->getVaddr());
+                    }
                     memcpy(load_inst->memData,
-                        store_it->data() + shift_amt,
+                        fwd_src,
                         request->mainReq()->getSize());
+                }
 
                 // CHAOSLSQFwd: optionally corrupt the just-forwarded data,
                 // modeling store-buffer forwarding-path corruption (the

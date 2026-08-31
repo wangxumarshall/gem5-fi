@@ -132,6 +132,12 @@ p.add_argument("--lsq_structural_fault", default="none",
                     "Takes precedence over faultType when != none.")
 p.add_argument("--lsq_skew_bytes", type=int, default=0,
                help="byte_lane_skew right-rotation amount (1..7). 0=random.")
+# S6-1/S6-2: source-substitution faults (forward-source F5 + stale line).
+p.add_argument("--lsq_source_fault", default="none",
+               choices=["none","fwd_source_sub","stale_line_replay"],
+               help="CHAOSLSQFwd source substitution (BEFORE memcpy). "
+                    "fwd_source_sub: stale buffer as source (wrong-store F5). "
+                    "stale_line_replay: stale fill-buffer line.")
 # CHAOSAddrPath (P-D2): address-path FI. FS-only for observable effect.
 p.add_argument("--chaos_addrpath", action="store_true",
                help="attach CHAOSAddrPath (P-D2 address-path FI; FS required "
@@ -303,6 +309,7 @@ if args.chaos_lsqfwd:
         maskWidth=args.lsq_mask_width,
         structuralFault=args.lsq_structural_fault,
         skewBytes=args.lsq_skew_bytes,
+        sourceFault=args.lsq_source_fault,
         bitsToChange=args.bits_to_change,
         byteOffset=args.lsq_byte_offset,
         firstClock=args.first_clock,
