@@ -58,6 +58,7 @@ GOLDEN_IDS = {
     "purespmv-golden-v1":   "57b2c160bf2c92ad",  # method1_controls pure_spmv
     "puregather-golden-v1": "e4481fb960ff6465",  # method1_controls pure_gather
     "trisolve-golden-v1":   "39d61425aae92434",  # method1_controls tri_solve
+    "movheavy-golden-v1":   "61e8a946ed50ae1f",  # mov_heavy (move-elimination)
 }
 
 def sha256_file(path):

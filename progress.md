@@ -650,3 +650,13 @@ ARM 三条路径 + golden（真跑输出）：
 - **回归**：p1 gpr（faults=1 exit=0）仍 Masked（carve-out 不触发，exit==0）；golden no-inject（faults=0）carve-out 不触发（faults<1）。
 
 **诚实边界**：§2.2 method1 4× 比值须 n=384 formal；mov_heavy（move-elimination，patch 4 待）；campaign→rat/freelist formal 跑批须健康机。E3：gem5 SE 的 rename-inconsistency=panic 是模拟器建模限制（真 RTL 走 arch trap 恢复）；本 carve-out 诚实把 gem5-panic 当 DUE manifestation。
+
+---
+
+### S1 §2.2 patch 4 — mov_heavy kernel（move-elimination cell）
+
+**实现**：`workloads/directed/mov_heavy.c`——MOV-主导的 checksum 链（`b[i] = a[i]` 寄存器拷贝 + 折叠到 acc），volatile 防 DCE。O3 rename 的 move-elimination 路径可能把 `MOV Xd,Xn` 的 dest 映射直接指向 src 的 physReg（无 PRF 写）；CHAOSRenameMap 在该映射上的故障同时影响 src+dest 读（§2.2 move-elimination cell）。
+
+**自验证（真机）**：golden `61e8a946ed50ae1f`，native==gem5 O3 SE，3/3 重放一致（G0）。runner GOLDEN_IDS 加 `movheavy-golden-v1`。
+
+**诚实边界**：move-elimination 在 gem5 O3 的具体实现程度是 E3（gem5 的 SimpleRenameMap 不显式建模 move-elimination 端口）；formal move-elimination cell 须 n=384；§2.2 全 5 patch（injector×2 + kernel×2 + runner 映射）现已落地，RAT/freelist 注入器经 runner 可 campaign。
