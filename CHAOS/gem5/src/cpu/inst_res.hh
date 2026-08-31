@@ -128,6 +128,26 @@ class InstResult
         return true;
     }
 
+    /** §2.6 CHAOSFPU: XOR the blob (FP/vector) result bytes by mask (the
+     *  low 64 bits of mask are applied to the first 8 bytes; longer blobs
+     *  get the first 8 bytes flipped). Returns true if a blob result was
+     *  corrupted; false for scalar/invalid. */
+    bool
+    corruptBlob(uint64_t xor_mask)
+    {
+        if (!valid() || !blob()) return false;
+        size_t sz = _regClass->regBytes();
+        if (sz == 0) return false;
+        // mutate the blob in place: copy out, XOR first 8 bytes, set back.
+        std::unique_ptr<uint8_t[]> buf(new uint8_t[sz]);
+        std::memcpy(buf.get(), getBlob(), sz);
+        uint64_t *p = reinterpret_cast<uint64_t*>(buf.get());
+        size_t n = sz / 8; if (n == 0) n = 1;
+        for (size_t i = 0; i < n; i++) p[i] ^= xor_mask;
+        set(static_cast<const void*>(buf.get()));
+        return true;
+    }
+
     /**
      * Result comparison
      * Two invalid results always differ.

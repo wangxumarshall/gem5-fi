@@ -89,6 +89,7 @@ class Process;
 // when no injector is attached → the lsq_unit call site short-circuits.
 class CHAOSLSQFwd;
 class CHAOSExec;  // §2.12 integer execution-unit injector (forward decl)
+class CHAOSFPU;  // §2.6 FP/vector execution-unit injector (forward decl)
 
 namespace o3
 {
@@ -489,6 +490,9 @@ class CPU : public BaseCPU
     // by the injector's startup() (setChaosExec(this)). nullptr = no injection.
     CHAOSExec *chaosExec = nullptr;
     void setChaosExec(CHAOSExec *p) { chaosExec = p; }
+    // §2.6 CHAOSFPU: raw pointer to the FP/vector-exec fault injector.
+    CHAOSFPU *chaosFPU = nullptr;
+    void setChaosFPU(CHAOSFPU *p) { chaosFPU = p; }
 
     /** CHAOSLSQFwd hook: store->load forwarding-path injector. Set externally
      *  (from a config script) so lsq_unit.cc can reach it via the cpu pointer

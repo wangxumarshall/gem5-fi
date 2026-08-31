@@ -17,7 +17,7 @@
 
 import argparse
 import m5
-from m5.objects import CHAOSReg, CHAOSPhysReg, CHAOSMem, CHAOSLSQFwd, CHAOSRenameMap, CHAOSFreeList, CHAOSROB, CHAOSIQ, CHAOSExec
+from m5.objects import CHAOSReg, CHAOSPhysReg, CHAOSMem, CHAOSLSQFwd, CHAOSRenameMap, CHAOSFreeList, CHAOSROB, CHAOSIQ, CHAOSExec, CHAOSFPU
 from gem5.components.boards.simple_board import SimpleBoard
 from gem5.components.cachehierarchies.classic.private_l1_private_l2_cache_hierarchy import (
     PrivateL1PrivateL2CacheHierarchy,
@@ -161,6 +161,15 @@ p.add_argument("--exec_first_clock", type=lambda x: int(x,0), default=1000)
 p.add_argument("--exec_max_faults", type=lambda x: int(x,0), default=1)
 p.add_argument("--exec_fault_mask", type=lambda x: int(x,0), default=0)
 p.add_argument("--exec_rng_seed", type=lambda x: int(x,0), default=20260825)
+# §2.6 CHAOSFPU (O3 FP/vector execution-unit injector). SELF-ATTACHES at
+# startup() to cpu.chaosFPU. Hooks DynInst::execute() post-execute; filters
+# opClass Float*/SimdFloat*; XORs FP result blob (IEEE754 sign/exp/mantissa).
+p.add_argument("--chaos_fpu", action="store_true",
+               help="attach CHAOSFPU (O3 FP/vector-exec injector, §2.6)")
+p.add_argument("--fpu_first_clock", type=lambda x: int(x,0), default=1000)
+p.add_argument("--fpu_max_faults", type=lambda x: int(x,0), default=1)
+p.add_argument("--fpu_fault_mask", type=lambda x: int(x,0), default=0)
+p.add_argument("--fpu_rng_seed", type=lambda x: int(x,0), default=20260825)
 args = p.parse_args()
 
 cache_hierarchy = PrivateL1PrivateL2CacheHierarchy(
@@ -354,6 +363,19 @@ if args.chaos_exec:
         writeLog=True,
     )
     board.chaos_exec = ex
+
+if args.chaos_fpu:
+    # §2.6 CHAOSFPU: O3-only. SELF-ATTACHES at startup() to cpu.chaosFPU.
+    fpu = CHAOSFPU(
+        cpu=cpu0,
+        probability=args.probability,
+        firstClock=args.fpu_first_clock,
+        maxFaults=args.fpu_max_faults,
+        faultMask=args.fpu_fault_mask,
+        rngSeed=args.fpu_rng_seed,
+        writeLog=True,
+    )
+    board.chaos_fpu = fpu
 
 if args.maxinsts:
     cpu0.max_insts = args.maxinsts

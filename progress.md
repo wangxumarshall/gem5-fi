@@ -749,3 +749,18 @@ ARM 三条路径 + golden（真跑输出）：
 - **回归**：reg_chain golden `f247ef3fe6cfd` 不变（未挂 chaosExec → execute() no-op）。
 
 **诚实边界**：NZCV 标志损坏、IntMult 部分积、位段分层 [0:11]/[12:47]/[48:63] deferred；formal n=384（须健康机，验证 §2.12 整数 P_SDC 显著低于 §10 FSU）；runner.py `exec` 组件映射；§2.12 kernel（MADD 链/SMULH/ADDS→B.cond）。
+
+---
+
+### S1 §2.6 patch 1 — CHAOSFPU 注入器（FP/向量执行单元结果损坏）
+
+**实现**：新 SimObject `CHAOS/gem5/src/cpu/o3/CHAOSFPU/{.py,.hh,.cc,SConscript}`（O3-only，self-attach）。hook `DynInst::execute()`（与 CHAOSExec 同点，`fault==NoFault` 时）调用 `cpu->chaosFPU->maybeCorrupt(this)`。opClass 过滤全 scalar Float*（含 FloatMisc/Cvt/Cmp）+ SIMD Float*。`InstResult::corruptBlob(uint64)` public 方法（XOR blob 字节，inst_res.hh）；`DynInst::corruptFrontResultBlob` + fallback `corruptFrontResult`（AArch64 FP64 存为 scalar RegVal，故两路径都试）；`cpu.hh` 加 `chaosFPU` 指针 + `setChaosFPU`。
+
+**关键诚实发现**：fp_fwd_kernel 实际 FP opClass 是 `FloatMisc`(=10) 非 `FloatAdd`(=4)——A64 `fmadd`/`fadd` 经 microop 分解后 opClass 落在 FloatMisc/FloatCvt。初版 filter 只含 FloatAdd/Mult/MultAcc → 零触发（opClass=1 IntAlu 5.2M 次，FloatMisc 仅 17 次）。扩到全 Float* + SimdFloat* 后触发。FP64 结果存为 scalar RegVal（非 blob）→ corruptBlob 返回 false，fallback corruptFrontResult 才命中。
+
+**自验证（真机）**：
+- 干净重建 `scons -j16` EXIT=0，零警告（G7）。
+- **T1**：`Tick:11184500 opClass=10(FloatMisc) sn=12898 mask=0x400 faults_injected:1` → `fails=0`（Masked——FP 结果 XOR bit10 尾数低位未传播到自检；冗余重算，单 fault pilot 合理）。
+- **回归**：reg_chain golden `f247ef3fe6cfd` 不变。
+
+**诚实边界**：fma_intermediate（对齐后规格化前中间结果）、rounding_sub(F5)、fpsr_suppress deferred；位谱分层（sign/exp/mantissa）formal；formal n=384（须健康机，验证 §2.6 FSU P_SDC >> §2.12 整数）；runner.py `fsu` 组件映射；§2.6 kernel（gemm/svd/fma_reduction）。
