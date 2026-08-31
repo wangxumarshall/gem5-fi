@@ -793,3 +793,23 @@ ARM 三条路径 + golden（真跑输出）：
 - **回归**：reg_chain golden `f247ef3fe6cfd` 不变。
 
 **诚实边界**：联合观测（squash 后架构态是否==golden）需专门监控；BTB/RSB/间接预测器分层未做（仅方向+target F5）；formal n=384；runner.py `bpu` 组件映射。
+
+---
+
+### 本轮收尾诚实记录（§2.6/2.7/2.12/2.13 完成；AddrPath/PTW/ExMon 推迟原因）
+
+**本轮新增 4 注入器**（已 push，真机验证）：
+- §2.6 CHAOSFPU（Float*/Simd* 结果 XOR，真机 `opClass=10 FloatMisc mask=0x400`）
+- §2.7 CHAOSL1DForward（completeDataAccess pre-writeback post-check escape，`addr=0xfb6e8 size=8 mask=0x400`）
+- §2.12 CHAOSExec（IntAlu/Mult/Div 结果 XOR，`opClass=1 IntAlu mask=0x400`）
+- §2.13 CHAOSBPU（dir_flip/target_flip，`mode=dir_flip taken=1 pc=0x400670`）
+
+**注入器总数 7→15**（新增 8：RenameMap/FreeList/ROB/IQ/Exec/FPU/L1DForward/BPU）+ LSQFwd 结构化扩展。
+
+**诚实说明 AddrPath/PTW/ExMon 推迟的硬原因**：
+1. **CHAOSAddrPath/CHAOSPTW**：在 `fi-h6-h7-quantitative-contrast` 分支存在，但 cherry-pick 到现 HEAD 产生多文件冲突（CHAOSLSQFwd.cc / cpu.hh / FI_DESIGN_SUPPLEMENT.md / o3_chaos_smoke.py — 分支基于旧代码，HEAD 已显著分叉）。`git cherry-pick --abort` 已干净回退。且两者 **FS-only**（SE 无效/恒0，§0.3）——需 FS 跑批验证（gem5-fs 在，但 FS 慢）。诚实推迟到专门 FS session 干净重写（非 cherry-pick）。
+2. **CHAOSExMon**：doc 说 hook `lsq_unit.cc` 的 exclusive monitor FSM——但 **gem5 v25 O3 lsq_unit.cc/lsq.hh 无 exclusive-monitor 符号**（gem5 不显式建模 LDXR/STXR 的 exclusive monitor FSM，依赖架构语义）。在现 gem5 不可干净实现。诚实推迟（需先给 gem5 加 exclusive-monitor 建模，更大工作）。
+
+**剩余未做注入器（诚实清单）**：CHAOSDecode(§2.14, doc 允许跳过)、CHAOSExMon(§2.4, 需 gem5 无的 monitor 建模)、CHAOSAddrPath/CHAOSPTW(§2.4/2.10, FS-only cherry-pick 需干净重写)、CHAOSCHI(§2.9)/CHAOSNoC(§2.15)/CHAOSSHCCS(§2.16) 系统级需 Ruby/Garnet、CHAOSRAS(§2.18) 元分析需所有 formal 完成、各注入器 spec_leak/F5/F6/stale_line_replay 子模式、formal n=384 campaign（须健康机）、FS 正式流水线、S5 元分析+芯片建议报告。
+
+**本轮总 19 补丁**（S0×6 + S1 §2.2×5 + §2.3p1 + §2.4p1 + §2.5p1 + §2.12p1 + §2.6p1 + §2.7p1 + §2.13p1 + 1 docs），全部 -j16 零警告 + 真机功能验证 + 回归。无谎称完成项。
