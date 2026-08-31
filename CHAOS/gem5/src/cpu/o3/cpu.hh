@@ -88,6 +88,7 @@ class Process;
 // lsq_unit.cc can reach it via the cpu pointer it already holds. nullptr
 // when no injector is attached → the lsq_unit call site short-circuits.
 class CHAOSLSQFwd;
+class CHAOSExec;  // §2.12 integer execution-unit injector (forward decl)
 
 namespace o3
 {
@@ -483,6 +484,11 @@ class CPU : public BaseCPU
     ROB &o3ROB() { return rob; }
     /** §2.5 CHAOSIQ accessor (reaches IEW.instQueue). */
     IEW &o3IEW() { return iew; }
+
+    // §2.12 CHAOSExec: raw pointer to the integer-exec fault injector. Set
+    // by the injector's startup() (setChaosExec(this)). nullptr = no injection.
+    CHAOSExec *chaosExec = nullptr;
+    void setChaosExec(CHAOSExec *p) { chaosExec = p; }
 
     /** CHAOSLSQFwd hook: store->load forwarding-path injector. Set externally
      *  (from a config script) so lsq_unit.cc can reach it via the cpu pointer

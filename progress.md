@@ -736,3 +736,16 @@ ARM 三条路径 + golden（真跑输出）：
 - S5 元分析 + 芯片设计建议报告（§4 最终交付物）未开工。
 
 **为何无法在单会话完成**：整份方案约 88 补丁 / 19 单元 / 23 注入器。本会话完成 14 补丁（S0×6 + S1×8），每个 C++ 注入器需 3-4 次编译迭代验证（如 CHAOSROB 修 3 个编译错、CHAOSIQ 加 IEW accessor）。剩余约 70+ 补丁（含 12 个新 C++ 注入器 + 各自 kernel + formal campaign 跑批 + FS 流水线 + 元分析），单会话上下文物理上不可达。每补丁均严格按 CLAUDE.md 真机自验证，无谎称完成项。下次会话可从 §2.12 CHAOSExec（DynInst::execute 后 corrupt result，需 DynInst 加 chaosExec 指针）干净续接。
+
+---
+
+### S1 §2.12 patch 1 — CHAOSExec 注入器（整数执行单元结果损坏）
+
+**实现**：新 SimObject `CHAOS/gem5/src/cpu/o3/CHAOSExec/{.py,.hh,.cc,SConscript}`（O3-only，self-attach）。hook `DynInst::execute()`（`dyn_inst.cc`）在 `staticInst->execute()` 后、`fault==NoFault` 时调用 `cpu->chaosExec->maybeCorrupt(this)`。`opClass` 过滤（IntAluOp/IntMultOp/IntDivOp）；XOR 整数结果。`InstResult::corrupt(RegVal)` public 方法（`inst_res.hh`，XOR 标量 RegVal，blob/FP 向量 no-op）；`DynInst::corruptFrontResult(mask)` 原地改 front（`dyn_inst.hh`）；`cpu.hh` 加 `chaosExec` 指针 + `setChaosExec`。
+
+**自验证（真机）**：
+- 干净重建 `scons -j16` EXIT=0，零警告（G7）。修 1 个编译错：`dyn_inst.cc` 调 `maybeCorrupt` 需 CHAOSExec 完整类型（加 include）。
+- **T1**：`Tick:1010500 opClass=1(IntAlu) sn=1345 mask=0x400 faults_injected:1` → `f247ef3fe6cfd` ==golden（Masked——整数结果 XOR 未传播；method1 "整数路径完好" + Veritas "整数加法器 SDC 低" 的合理单 fault pilot 结果）。
+- **回归**：reg_chain golden `f247ef3fe6cfd` 不变（未挂 chaosExec → execute() no-op）。
+
+**诚实边界**：NZCV 标志损坏、IntMult 部分积、位段分层 [0:11]/[12:47]/[48:63] deferred；formal n=384（须健康机，验证 §2.12 整数 P_SDC 显著低于 §10 FSU）；runner.py `exec` 组件映射；§2.12 kernel（MADD 链/SMULH/ADDS→B.cond）。

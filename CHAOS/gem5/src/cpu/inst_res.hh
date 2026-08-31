@@ -116,6 +116,18 @@ class InstResult
         return *this;
     }
 
+    /** §2.12 CHAOSExec: XOR the scalar RegVal value by mask. Returns true if
+     *  the result is a scalar (non-blob) integer value and was corrupted;
+     *  false for blob/FP/vector (no-op — those are §2.6 FSU's scope) or
+     *  invalid results. */
+    bool
+    corrupt(RegVal xor_mask)
+    {
+        if (!valid() || blob()) return false;
+        set(getRegVal() ^ xor_mask);
+        return true;
+    }
+
     /**
      * Result comparison
      * Two invalid results always differ.

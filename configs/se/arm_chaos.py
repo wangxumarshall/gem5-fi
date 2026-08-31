@@ -17,7 +17,7 @@
 
 import argparse
 import m5
-from m5.objects import CHAOSReg, CHAOSPhysReg, CHAOSMem, CHAOSLSQFwd, CHAOSRenameMap, CHAOSFreeList, CHAOSROB, CHAOSIQ
+from m5.objects import CHAOSReg, CHAOSPhysReg, CHAOSMem, CHAOSLSQFwd, CHAOSRenameMap, CHAOSFreeList, CHAOSROB, CHAOSIQ, CHAOSExec
 from gem5.components.boards.simple_board import SimpleBoard
 from gem5.components.cachehierarchies.classic.private_l1_private_l2_cache_hierarchy import (
     PrivateL1PrivateL2CacheHierarchy,
@@ -152,6 +152,15 @@ p.add_argument("--iq_phase_offset", type=int, default=0)
 p.add_argument("--iq_first_clock", type=lambda x: int(x,0), default=1000)
 p.add_argument("--iq_max_faults", type=lambda x: int(x,0), default=1)
 p.add_argument("--iq_rng_seed", type=lambda x: int(x,0), default=20260825)
+# §2.12 CHAOSExec (O3 integer execution-unit injector). SELF-ATTACHES at
+# startup() to cpu.chaosExec. Hooks DynInst::execute() post-staticInst->execute;
+# filters opClass IntAlu/IntMult/IntDiv; XORs integer result.
+p.add_argument("--chaos_exec", action="store_true",
+               help="attach CHAOSExec (O3 integer-exec injector, §2.12)")
+p.add_argument("--exec_first_clock", type=lambda x: int(x,0), default=1000)
+p.add_argument("--exec_max_faults", type=lambda x: int(x,0), default=1)
+p.add_argument("--exec_fault_mask", type=lambda x: int(x,0), default=0)
+p.add_argument("--exec_rng_seed", type=lambda x: int(x,0), default=20260825)
 args = p.parse_args()
 
 cache_hierarchy = PrivateL1PrivateL2CacheHierarchy(
@@ -331,6 +340,20 @@ if args.chaos_iq:
         writeLog=True,
     )
     board.chaos_iq = iq
+
+if args.chaos_exec:
+    # §2.12 CHAOSExec: O3-only. SELF-ATTACHES at startup() to cpu.chaosExec
+    # (DynInst::execute() calls maybeCorrupt post-execute).
+    ex = CHAOSExec(
+        cpu=cpu0,
+        probability=args.probability,
+        firstClock=args.exec_first_clock,
+        maxFaults=args.exec_max_faults,
+        faultMask=args.exec_fault_mask,
+        rngSeed=args.exec_rng_seed,
+        writeLog=True,
+    )
+    board.chaos_exec = ex
 
 if args.maxinsts:
     cpu0.max_insts = args.maxinsts

@@ -43,6 +43,7 @@
 #include <algorithm>
 
 #include "base/intmath.hh"
+#include "cpu/o3/CHAOSExec/CHAOSExec.hh"  // §2.12 full def for maybeCorrupt call
 #include "debug/DynInst.hh"
 #include "debug/IQ.hh"
 #include "debug/O3PipeView.hh"
@@ -355,6 +356,13 @@ DynInst::execute()
     thread->noSquashFromTC = true;
 
     fault = staticInst->execute(this, traceData);
+
+    // §2.12 CHAOSExec: post-execute result corruption. Filters by opClass
+    // (IntAlu/IntMult/IntDiv) inside the injector; XORs the integer result.
+    // cpu->chaosExec nullptr = no injection (zero regression).
+    if (fault == NoFault && cpu && cpu->chaosExec) {
+        cpu->chaosExec->maybeCorrupt(this);
+    }
 
     thread->noSquashFromTC = no_squash_from_TC;
 
