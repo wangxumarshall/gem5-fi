@@ -714,3 +714,25 @@ ARM 三条路径 + golden（真跑输出）：
 - **回归**：reg_chain golden `f247ef3fe6cfd` 不变。
 
 **诚实边界**：stale_line_replay / fwd_source_sub(F5) / phase_offset(F6)（§2.4 patch 2，需更多 lsq_unit hook）；formal n=384；§2.4 method3 7 类定向构造 kernel。
+
+---
+
+### 本次连续多 /goal 会话总结（诚实）
+
+**已 push 14 补丁**（`78b549f`..`085bcdc`，全部 -j16 零警告构建 + 真机功能验证 + 回归）：
+- S0 前置 6 补丁：campaign 驱动 / kp920_proxy / schema v2 / CHAOSCache·Mem·ArmTLB protectionModel（§1.2 完整 3/3）
+- S1 §2.2 完整 5 补丁：CHAOSRenameMap + CHAOSFreeList + cholesky_numeric + method1_controls + mov_heavy + runner rat/freelist 映射 + classify carve-out
+- S1 §2.3 patch 1：CHAOSROB + branchy_reduce
+- S1 §2.5 patch 1：CHAOSIQ（wake_omit F6）
+- S1 §2.4 patch 1：CHAOSLSQFwd 结构化扩展（byte_lane_skew/all_zero + 64-bit mask）
+
+**注入器总数 10**（原 7 + 新 3：RenameMap/FreeList/ROB）+ IQ（第 4 个新 SimObject）+ LSQFwd 扩展。**新 kernel 4**：cholesky_numeric / method1_controls(×4) / mov_heavy / branchy_reduce。
+
+**诚实边界（仍未完成，占整份方案大部分）**：
+- 注入器仍 10/23：未实现 CHAOSExec(§2.12) / CHAOSFPU(§2.6) / CHAOSL1DForward(§2.7) / CHAOSBPU(§2.13) / CHAOSDecode(§2.14) / CHAOSExMon(§2.4) / CHAOSAddrPath(§2.4 cherry-pick) / CHAOSPTW(§2.10 cherry-pick) / CHAOSCHI(§2.9) / CHAOSNoC(§2.15) / CHAOSSHCCS(§2.16) / CHAOSRAS(§2.18)——约 12 个。
+- 各注入器的 spec_leak / F5 / F6 / stale_line_replay 子模式（§2.3 spec_leak、§2.4 fwd_source_sub/phase_offset、§2.5 src_ready_bitflip/tag_sub、§2.10 F5 活页/白名单铺开 deferred）。
+- formal n=384 campaign 一格未跑（本机故障机 ~90s/run，formal 须健康机 §0.4）。
+- FS 正式流水线（Atomic→checkpoint→切 O3，§3.2）未建。
+- S5 元分析 + 芯片设计建议报告（§4 最终交付物）未开工。
+
+**为何无法在单会话完成**：整份方案约 88 补丁 / 19 单元 / 23 注入器。本会话完成 14 补丁（S0×6 + S1×8），每个 C++ 注入器需 3-4 次编译迭代验证（如 CHAOSROB 修 3 个编译错、CHAOSIQ 加 IEW accessor）。剩余约 70+ 补丁（含 12 个新 C++ 注入器 + 各自 kernel + formal campaign 跑批 + FS 流水线 + 元分析），单会话上下文物理上不可达。每补丁均严格按 CLAUDE.md 真机自验证，无谎称完成项。下次会话可从 §2.12 CHAOSExec（DynInst::execute 后 corrupt result，需 DynInst 加 chaosExec 指针）干净续接。
