@@ -164,11 +164,7 @@ def main():
     if comp == "gpr":
         cmd += ["--chaos_reg"]
         if idx is not None:
-            # Report #5: manifest target.index MUST take effect. CHAOSReg now
-            # has a targetRegIdx directed knob (patch: G1 directed-reg) — force
-            # the fault onto the manifest's reg index, not RNG luck.
             cmd += [f"--target_reg_idx={idx}"]
-        # max_reg_idx still bounds random sampling when idx is None (random cell)
     elif comp == "physreg":
         cmd += ["--chaos_phys"]
         if layer == "physical":
@@ -179,8 +175,51 @@ def main():
             cmd += ["--phys_mode", "arch_frontend"]
             if idx is not None:
                 cmd += [f"--phys_target_arch={idx}"]
+        # S0-2 v2: F3 data-dependent trigger (CHAOSPhysReg).
+        tvm = inj.get("trigger_value_mask")
+        if tvm:
+            cmd += [f"--phys_trigger_mask={tvm}",
+                    f"--phys_trigger_pattern={inj.get('trigger_value_pattern',0)}"]
     elif comp == "memory":
         cmd += ["--chaos_mem"]
+    elif comp == "rat":
+        # S0-2 v2: CHAOSRenameMap (method1 history residue F5).
+        cmd += ["--chaos_rat"]
+        # f5_substitute_target maps to targetArchReg; else idx
+        f5t = inj.get("f5_substitute_target")
+        if f5t is not None:
+            cmd += [f"--rat_target_arch={f5t}", "--rat_mode=f5_substitute"]
+        elif idx is not None:
+            cmd += [f"--rat_target_arch={idx}"]
+        if tgt.get("semantic_role"):
+            cmd += [f"--rat_semantic_role={tgt['semantic_role']}"]
+    elif comp == "freelist":
+        # S0-2 v2: CHAOSFreeList (method1 live-reg-marked-free).
+        cmd += ["--chaos_freelist"]
+        if idx is not None:
+            cmd += [f"--freelist_target_phys={idx}"]
+    elif comp == "lsq_fwd":
+        # S0-2 v2: CHAOSLSQFwd. protection_model not applicable here (data path);
+        # f6_phase_offset -> --lsq_phase_offset (when implemented).
+        cmd += ["--chaos_lsqfwd"]
+        if inj.get("f6_phase_offset") is not None:
+            # phaseOffset mode not yet wired in arm_chaos.py; record honestly.
+            print(f"[runner] WARNING: f6_phase_offset={inj['f6_phase_offset']} "
+                  f"not yet wired (phaseOffset mode pending S1-5).")
+    elif comp == "l1d" or comp == "l2" or comp == "l1i":
+        # S0-2 v2: CHAOSCache (needs arm_chaos_cache.py; protection_model applies).
+        # arm_chaos.py doesn't mount CHAOSCache; this needs the cache config.
+        # For now, record the intent honestly (cache runner is a separate path).
+        print(f"[runner] WARNING: component '{comp}' needs arm_chaos_cache.py; "
+              f"current runner only wires arm_chaos.py SE injectors. "
+              f"protection_model={inj.get('protection_model','none')} will be "
+              f"applied when cache path is added.")
+    # FS-only components (sysreg/ptw/l1_tlb/addr-path) need arm_chaos_fs.py;
+    # the SE runner cannot drive them — record honestly.
+    elif comp in ("sysreg", "ptw", "l1_tlb", "l2_tlb"):
+        sys.exit(f"[runner] component '{comp}' requires FS mode (arm_chaos_fs.py); "
+                 f"the SE runner cannot drive it. Use the FS campaign path.")
+    # else: unknown component — let arm_chaos.py reject it.
 
     print(f"[runner] manifest target: layer={layer} comp={comp} idx={idx} "
           f"bits={bits} width={width} field={field}")
@@ -211,7 +250,11 @@ def main():
         if a == "-d" and i+1 < len(cmd):
             outdir = cmd[i+1]
     faults = 0
-    for logname in ("fault_injections.log","main_mem_injections.log","cache_injections.log"):
+    for logname in ("fault_injections.log","main_mem_injections.log",
+                    "cache_injections.log","rat_injections.log",
+                    "freelist_injections.log","lsq_fwd_injections.log",
+                    "addr_path_injections.log","ptw_injections.log",
+                    "armtlb_injections.log","arm_sysreg_injections.log"):
         p = os.path.join(outdir, logname) if outdir else None
         if p and os.path.exists(p):
             with open(p) as lf:
@@ -231,8 +274,27 @@ def main():
                     # line with "Register:"/"FaultType:").
                     if "DIRECTED reg:" in line:
                         continue
-                    # count valid injection lines: exclude Inactive/Error
+                    # count valid injection lines: exclude Inactive/Error/REJECT/MISS
+                    # and the per-mode DETAIL line (printed before writeLog for
+                    # rat/freelist — "f5_substitute: ..."/"mark_free ..."/
+                    # "pop_wrong ..." without "Site:"). Both detail + summary are
+                    # emitted per injection; counting both double-counts. The
+                    # writeLog summary line is the authoritative one-per-fault.
                     if ("Inactive" in line) or line.startswith("Error"):
+                        continue
+                    if "REJECT" in line or "MISS" in line:
+                        continue
+                    # rat/freelist detail lines: start with the mode name + ':'
+                    # (e.g. "Cycle: ... f5_substitute: ArchReg..." / "mark_free:").
+                    # Distinguish from the writeLog summary by absence of "Site:".
+                    # For injectors whose summary HAS "Site:" (rat/freelist/lsq/ptw/
+                    # addr/tlb/sysreg), count only that. For CHAOSCache (no Site:,
+                    # summary has "Cache Block Addr"), count non-detail lines.
+                    if "f5_substitute:" in line and "Site:" not in line:
+                        continue
+                    if "mark_free:" in line and "Site:" not in line:
+                        continue
+                    if "pop_wrong:" in line and "Site:" not in line:
                         continue
                     if line.strip():
                         faults += 1
@@ -243,8 +305,16 @@ def main():
               f"— run invalid")
 
     stdout_text = r.stdout if r.stdout else ""
-    cls, reason = classify_run(stdout_text, r.stderr or "", r.returncode,
-                               faults, args.golden_checksum, timed_out)
+    # S0-2 v2: when fault.protection_model is set (!= none), use the nine-class
+    # classify_run_pa (Corrected/DetectedContained/Latent split); else six-class.
+    pmodel = inj.get("protection_model", "none")
+    if pmodel and pmodel != "none":
+        from classify import classify_run_pa
+        cls, reason = classify_run_pa(stdout_text, r.stderr or "", r.returncode,
+                                      faults, args.golden_checksum, timed_out)
+    else:
+        cls, reason = classify_run(stdout_text, r.stderr or "", r.returncode,
+                                   faults, args.golden_checksum, timed_out)
     print(f"[runner] RESULT: run_id={m['run_id']} classification={cls} "
           f"faults_injected={faults} exit={r.returncode} "
           f"timed_out={timed_out}")

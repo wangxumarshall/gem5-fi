@@ -1,0 +1,47 @@
+# v2 manifest: RAT F5 substitute on accum_kernel X9 + semantic_role (S0-2 v2).
+# Exercises runner.py's v2 field parsing: f5_substitute_target -> --rat_target_arch,
+# semantic_role -> --rat_semantic_role, protection_model -> classify_run_pa.
+schema_version: arm-chaos-fi/v2
+campaign_id: v2_rat_f5_smoke
+run_id: v2-rat-f5-accum-0001
+source:
+  chaos_commit: TBD
+  gem5_commit: TBD
+platform:
+  isa: ARM64
+  mode: SE
+  cpu_model: ArmO3CPU
+  config_family: C2-KP
+workload:
+  binary_sha256: ""
+  input_sha256: ""
+  roi: {begin_symbol: roi_begin, end_symbol: roi_end}
+trigger:
+  mode: cycle
+  value: 100000
+target:
+  layer: physical
+  component: rat
+  instance: cpu0.thread0
+  index: 9
+  sub_field: map_entry
+  semantic_role: accumulator
+  field: value
+  width_bits: 64
+fault:
+  model: legal_domain_sub
+  bit_indices: []
+  duration_events: 1
+  stage: no_protection_model
+  f5_substitute_target: 9
+  trigger_value_mask: 0
+  protection_model: none
+rng:
+  master_seed: 20260825
+  selection_seed: 20260825
+limits:
+  max_faults: 1
+  max_ticks: 0
+oracle:
+  kind: fail_count
+  golden_id: accum-golden-v1

@@ -79,18 +79,20 @@ def expand_cells(camp):
 
 
 def gen_manifest(camp, cell, cell_ordinal, rep, outdir):
-    """Generate a v1 manifest for one (cell, rep). Immutable: seeds derived
-    deterministically from (campaign, cell_ordinal, rep) — G0 replayable."""
+    """Generate a v2 manifest for one (cell, rep). Immutable: seeds derived
+    deterministically from (campaign, cell_ordinal, rep) — G0 replayable.
+    v2 carries protection_model/semantic_role/f5_substitute_target/f3 trigger
+    from cell axes + campaign defaults; v1 fields unchanged (back-compat)."""
     base = camp["defaults"].get("rng_master_seed", 20260825)
     seed = base + cell_ordinal * 1000 + rep  # deterministic, unique per (cell,rep)
     wl = camp["workload"]
     m = {
-        "schema_version": "arm-chaos-fi/v1",
+        "schema_version": "arm-chaos-fi/v2",
         "campaign_id": camp["campaign_id"],
         "run_id": f"{camp['campaign_id']}-c{cell_ordinal:03d}-r{rep}",
         "source": {"chaos_commit": "TBD", "gem5_commit": "TBD"},
         "platform": {"isa": "ARM64", "mode": "SE", "cpu_model": "ArmO3CPU",
-                     "config_family": "C0"},
+                     "config_family": camp.get("config_family", "C0")},
         "workload": {
             "binary_sha256": wl.get("binary_sha256", ""),
             "input_sha256": "",
@@ -100,7 +102,8 @@ def gen_manifest(camp, cell, cell_ordinal, rep, outdir):
         "fault": _build_fault(camp, cell),
         "rng": {"master_seed": base, "selection_seed": seed},
         "limits": dict(camp["limits"]),
-        "oracle": {"kind": "exact_hash", "golden_id": wl.get("golden_id", "")},
+        "oracle": {"kind": wl.get("oracle_kind", "exact_hash"),
+                   "golden_id": wl.get("golden_id", "")},
     }
     path = os.path.join(outdir, f"{m['run_id']}.yaml")
     with open(path, "w") as f:
@@ -123,14 +126,32 @@ def _build_target(camp, cell):
     if "phys_idx" in cell:
         t["index"] = cell["phys_idx"]
         t["layer"] = "physical"
+    # S0-2 v2: carry sub_field + semantic_role from cell axes (campaign heatmap).
+    if "semantic_role" in cell:
+        t["semantic_role"] = cell["semantic_role"]
+    if "sub_field" in cell:
+        t["sub_field"] = cell["sub_field"]
     return t
 
 
 def _build_fault(camp, cell):
     bits = cell.get("bit_indices", [])
     model = cell.get("fault_model", "transient_bit_flip")
+    pmodel = cell.get("protection_model", camp["defaults"].get("protection_model", "none"))
     f = {"model": model, "bit_indices": bits, "duration_events": 1,
-         "stage": "no_protection_model"}
+         "stage": "no_protection_model" if pmodel == "none" else "raw_pre_protection",
+         "protection_model": pmodel}
+    # S0-2 v2: F5 substitute target (RAT/freelist/LSQ-fwd-source) — maps to
+    # the injector's target index (e.g. CHAOSRenameMap targetArchReg).
+    if "f5_substitute_target" in cell:
+        f["f5_substitute_target"] = cell["f5_substitute_target"]
+    # F6 phase offset (LSQ-fwd / IQ wake; reproduces method3 timing-phase).
+    if "f6_phase_offset" in cell:
+        f["f6_phase_offset"] = cell["f6_phase_offset"]
+    # F3 data-dependent trigger (method2 under-voltage).
+    if "trigger_value_mask" in cell:
+        f["trigger_value_mask"] = cell["trigger_value_mask"]
+        f["trigger_value_pattern"] = cell.get("trigger_value_pattern", 0)
     return f
 
 
