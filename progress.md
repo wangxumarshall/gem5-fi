@@ -828,3 +828,18 @@ ARM 三条路径 + golden（真跑输出）：
 - **回归**：reg_chain golden `f247ef3fe6cfd` 不变。
 
 **诚实边界**：FS-only 有效（SE-inert，doc §0.3）——FS 跑批须 gem5-fs；FS 验证 deferred。method3 D2 三根因区分（CHAOSPhysReg/CHAOSAddrPath/CHAOSArmTLB 同一"x10 垃圾指针→翻译故障"）须 FS formal。
+
+---
+
+### S1 §2.10 patch 1 — CHAOSPTW 注入器（页表走查器，FS-only，干净重写）
+
+**实现**：新 SimObject `CHAOS/gem5/src/arch/arm/CHAOSPTW/{.py,.hh,.cc,SConscript}`（ARM-only，USE_ARM_ISA guard）。hook `ArmISA::WalkUnit::doLongDescriptor`（`table_walker.cc`）在取 PTE 后、eval 前调用 `chaosPTW->maybeCorrupt(longDesc.data, lookupLevel, vaddr)`。`single_bit_xor`（翻 PTE 一 bit）+ `clear_valid`（清 valid bit，H7 conditionalValidBit）。`ptwEcc` 旋钮（H7：ECC-on → 翻转被检出→revert→spurious≈0；ECC-off → apply→spurious>0）。`WalkUnit`（ClockedObject）加 `chaosPTW` 指针 + `setChaosPTW`（定义在 table_walker.cc）；table_walker.hh 顶部 forward-decl `class CHAOSPTW`（gem5 顶层命名空间，非 ArmISA）。`walker=Param.ArmWalkUnit` Python 传引用，startup 自附加。
+
+**关键诚实发现（与 doc §0.3 一致）**：WalkUnit 在 `namespace ArmISA`，CHAOSPTW 在 `gem5` 顶层 → forward decl 必须放 ArmISA 命名空间块外；`::gem5::CHAOSPTW` 限定不行（table_walker.hh 不含 CHAOSPTW.hh，循环），用顶层 forward decl。修了 3 个编译错（WalkUnit 命名空间、ArmWalkUnit Param 名、CHAOSPTW 命名空间解析）。**SE 恒不触发**（SE 走 translateMmuOff，doLongDescriptor 不调用，doc §0.3）——FS-only，FS 跑批 deferred。
+
+**自验证（真机）**：
+- 干净重建 `scons -j16` EXIT=0，零警告（G7）。
+- 回归（无 PTW 挂载）：reg_chain golden `f247ef3fe6cfd` 不变（零回归）。
+- SE-inert 预期（doc §0.3）：SE 不调 doLongDescriptor，故无注入日志（与 AddrPath 同模式）。
+
+**诚实边界**：FS-only 有效（SE-inert，doc §0.3）——FS 跑批须 gem5-fs；FS 验证 deferred。CHAOSArmTLB F5 活页/属性位/白名单铺开 deferred。method2 三根因区分须 FS formal。

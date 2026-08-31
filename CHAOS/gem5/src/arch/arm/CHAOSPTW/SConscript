@@ -1,0 +1,13 @@
+# -*- mode:python -*-
+# CHAOSPTW — ARM page-table-walker fault injector (§2.10, FS-only).
+# ARM-only: hooks arch/arm/table_walker.cc::WalkUnit::doLongDescriptor.
+# SE-inert (SE走translateMmuOff, doLongDescriptor never called, doc §0.3).
+Import('*')
+
+if not env["CONF"]["USE_ARM_ISA"]:
+    Return()
+
+SimObject('CHAOSPTW.py', sim_objects=['CHAOSPTW'], enums=[])
+Source('CHAOSPTW.cc')
+
+DebugFlag('CHAOSPTW')
