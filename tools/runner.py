@@ -305,10 +305,32 @@ def main():
               f"— run invalid")
 
     stdout_text = r.stdout if r.stdout else ""
+    # S0-2 v2: protection_model (used by the nine-class path below).
+    pmodel = inj.get("protection_model", "none")
+    # S7-1: fail_count oracle (accum/cholesky print "iters=N fails=M" to stderr,
+    # not a 16-hex checksum). oracle.kind=fail_count -> fails>0 = SDC,
+    # fails==0 = Masked. Falls through to checksum classify for exact_hash.
+    oracle_kind = m.get("oracle", {}).get("kind", "exact_hash")
+    if oracle_kind == "fail_count":
+        from classify import extract_fail_count, _is_simerr
+        if _is_simerr(r.stderr or ""):
+            cls, reason = "SimulatorError", "gem5 panic/assert (tool failure)"
+        elif timed_out and not r.stdout:
+            cls, reason = "Hang", "timeout, no output"
+        elif faults == 0:
+            cls, reason = "Inactive", "0 valid injections"
+        else:
+            fails = extract_fail_count((r.stdout or "") + "\n" + (r.stderr or ""))
+            if fails < 0:
+                # no fails= line but ran — ambiguous; treat as no-mismatch
+                cls, reason = "Masked", "fail_count oracle: no fails= line found"
+            elif fails > 0:
+                cls, reason = "SDC", f"fail_count oracle: fails={fails} > 0"
+            else:
+                cls, reason = "Masked", "fail_count oracle: fails=0 (no mismatch)"
     # S0-2 v2: when fault.protection_model is set (!= none), use the nine-class
     # classify_run_pa (Corrected/DetectedContained/Latent split); else six-class.
-    pmodel = inj.get("protection_model", "none")
-    if pmodel and pmodel != "none":
+    elif pmodel and pmodel != "none":
         from classify import classify_run_pa
         cls, reason = classify_run_pa(stdout_text, r.stderr or "", r.returncode,
                                       faults, args.golden_checksum, timed_out)

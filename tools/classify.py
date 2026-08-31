@@ -59,6 +59,21 @@ def extract_checksum(text):
     return m[-1] if m else ""
 
 
+# fail_count oracle (plan §4.5 oracle.kind=fail_count): some kernels
+# (accum_kernel, cholesky_numeric) print "iters=N fails=M variant=..." to
+# stderr. fails>0 = SDC (a mismatch vs golden recompute). Match the LAST
+# fails= in the combined output.
+_FAILS_RE = re.compile(r"fails\s*=\s*(\d+)")
+
+
+def extract_fail_count(text):
+    """Return the last 'fails=N' count in text, or -1 if none."""
+    if not text:
+        return -1
+    m = _FAILS_RE.findall(text)
+    return int(m[-1]) if m else -1
+
+
 def _is_simerr(stderr):
     if not stderr:
         return False
