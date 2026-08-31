@@ -695,3 +695,22 @@ ARM 三条路径 + golden（真跑输出）：
 - **回归**：cholesky golden `37621bc0a633976f` 不变；reg_chain golden `f247ef3fe6cfd` 不变（未挂 chaosIQ → wakeDependents no-op）。
 
 **诚实边界**：src_ready_bitflip/tag_sub（F5，§2.5 patch 2，依赖图遍历）；formal n=384；runner.py `iq` 组件映射；§2.5 dep_chain kernel。
+
+---
+
+### S1 §2.4 patch 1 — CHAOSLSQFwd 结构化故障扩展（byte_lane_skew / all_zero）+ 64-bit mask
+
+**实现**：扩展现有 `CHAOSLSQFwd`（vendored `.py/.hh/.cc` + 顶层副本同步）。`structMode` 参数（`byte_flip` 默认 / `byte_lane_skew` rol_k / `all_zero`）；`faultMask` UInt32→UInt64 + `bitset<32>→bitset<64>`（§2.4 64-bit 修，bit>=32 不再截断）；`-Wswitch` Random case 补（清 G7 遗留）。`arm_chaos.py` 加 `--lsq_struct_mode`/`--lsq_lane_skew_k`。
+
+**§2.4 模式**（来自 fi-h6-h7 分支，H5 已闭环）：
+- `byte_lane_skew`：rotate 整个 forwarded buffer by k bytes（rol_k）——core179 D1 字节通道相位签名（method2）。
+- `all_zero`：清零整个 8 字节 forwarded buffer。
+- `stale_line_replay`/`fwd_source_sub`(F5)/`phase_offset`(F6)：**deferred**——需陈旧行回放 / 转发决策点 hook / lsq_unit 时序位移，§2.4 patch 2。
+
+**自验证（真机）**：
+- 干净重建 `scons -j16` EXIT=0，零警告（G7，含 -Wswitch Random 补）。
+- **T1 byte_lane_skew rol1**（fp_fwd_kernel, prob=0.05）：`Cycle:1000033 byte_lane_skew Vaddr:0x498438 FwdSize:8 ByteOffset:1` → `fails=1`（**检测 SDC**——转发 double 字节旋转损坏尾数，method2 位谱签名复现）。
+- **T2 all_zero**：`Cycle:1000033 all_zero Vaddr:0x498438 FwdSize:8` → `fails=1`（检测 SDC）。
+- **回归**：reg_chain golden `f247ef3fe6cfd` 不变。
+
+**诚实边界**：stale_line_replay / fwd_source_sub(F5) / phase_offset(F6)（§2.4 patch 2，需更多 lsq_unit hook）；formal n=384；§2.4 method3 7 类定向构造 kernel。

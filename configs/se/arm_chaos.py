@@ -102,6 +102,13 @@ p.add_argument("--chaos_lsqfwd", action="store_true",
                help="attach CHAOSLSQFwd (O3 store->load forwarding-path FI)")
 p.add_argument("--lsq_byte_offset", type=int, default=-1,
                help="CHAOSLSQFwd directed byte offset within forwarded data")
+# §2.4 CHAOSLSQFwd structured fault mode extension (byte_lane_skew/all_zero).
+p.add_argument("--lsq_struct_mode", default="byte_flip",
+               choices=["byte_flip","byte_lane_skew","all_zero"],
+               help="§2.4 structured fault mode (byte_flip=orig | byte_lane_skew "
+                    "(rol_k) | all_zero)")
+p.add_argument("--lsq_lane_skew_k", type=int, default=1,
+               help="§2.4 byte_lane_skew: rotate by k bytes")
 # §2.2 CHAOSRenameMap (O3 rename-map fault injector). SELF-ATTACHES at
 # startup() to thread-0 frontRenameMap.chaosRenameMap. map_bitflip /
 # f5_substitute / f4_field_stuck modes (design doc §2.2).
@@ -252,6 +259,8 @@ if args.chaos_lsqfwd:
         faultMask=str(args.fault_mask),
         bitsToChange=args.bits_to_change,
         byteOffset=args.lsq_byte_offset,
+        structMode=args.lsq_struct_mode,
+        laneSkewK=args.lsq_lane_skew_k,
         firstClock=args.first_clock,
         lastClock=args.last_clock,
         maxFaults=args.max_faults,
