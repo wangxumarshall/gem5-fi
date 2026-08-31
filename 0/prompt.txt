@@ -1,0 +1,4 @@
+确保已完成工作得到真实验证。并完成如下工作：  S1-4 CHAOSROB（P0 乱序最后一块，exc_suppress/spec_leak 需 fault kernel + hook
+  squash）、S1-5 剩余（stale_line_replay/fwd_source_sub/phaseOffset，需改
+  lsq_unit.cc 转发逻辑）、S0-3 .cc ECC 后处理逻辑、runner/campaign 对 v2
+  字段解析、kp920_proxy_fs.py、cholesky_numeric kernel（formal method1）
