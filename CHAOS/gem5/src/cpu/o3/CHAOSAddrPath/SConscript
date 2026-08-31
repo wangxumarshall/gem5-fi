@@ -1,0 +1,7 @@
+# -*- mode:python -*-
+# CHAOSAddrPath — O3 AGU address-path fault injector (§2.4, S1 P0).
+# SE-inert (doc §0.3); FS-only effective. Hooks LSQ::sendFragmentToTranslation.
+Import('*')
+SimObject('CHAOSAddrPath.py', sim_objects=['CHAOSAddrPath'], enums=[])
+Source('CHAOSAddrPath.cc')
+DebugFlag('CHAOSAddrPath')

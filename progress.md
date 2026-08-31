@@ -813,3 +813,18 @@ ARM 三条路径 + golden（真跑输出）：
 **剩余未做注入器（诚实清单）**：CHAOSDecode(§2.14, doc 允许跳过)、CHAOSExMon(§2.4, 需 gem5 无的 monitor 建模)、CHAOSAddrPath/CHAOSPTW(§2.4/2.10, FS-only cherry-pick 需干净重写)、CHAOSCHI(§2.9)/CHAOSNoC(§2.15)/CHAOSSHCCS(§2.16) 系统级需 Ruby/Garnet、CHAOSRAS(§2.18) 元分析需所有 formal 完成、各注入器 spec_leak/F5/F6/stale_line_replay 子模式、formal n=384 campaign（须健康机）、FS 正式流水线、S5 元分析+芯片建议报告。
 
 **本轮总 19 补丁**（S0×6 + S1 §2.2×5 + §2.3p1 + §2.4p1 + §2.5p1 + §2.12p1 + §2.6p1 + §2.7p1 + §2.13p1 + 1 docs），全部 -j16 零警告 + 真机功能验证 + 回归。无谎称完成项。
+
+---
+
+### S1 §2.4 patch 2 — CHAOSAddrPath 注入器（AGU 地址通路，干净重写）
+
+**实现**：新 SimObject `CHAOS/gem5/src/cpu/o3/CHAOSAddrPath/{.py,.hh,.cc,SConscript}`（O3-only，self-attach）。hook `LSQ::LSQRequest::sendFragmentToTranslation`（lsq.cc:1130）在 `translateTiming` 前调用 `_inst->cpu->chaosAddrPath->maybeCorrupt(req)`。`byte7_zero`（清 vaddr byte7，canonical→non-canonical）+ `low_bit_flip`。`mem/request.hh` 加 public `setVaddr(Addr)` mutator（_vaddr 原 private，getVaddr 只读）。`cpu.hh` 加 `chaosAddrPath` 指针 + `setChaosAddrPath`。
+
+**关键诚实发现（与 doc §0.3 一致）**：fi-h6-h7 分支的 cherry-pick 产生多文件冲突（分支基于旧代码）→ 干净重写而非 cherry-pick。**SE 模式 sendFragmentToTranslation 不被调用**（SE 走 `translateMmuOff`→`setPaddr(vaddr)`，§0.3 明文）→ hook 装好但 SE 零触发（与 doc "SE 模式恒 0" 一致，诚实预期）。FS 模式才会触发（须 gem5-fs 跑批）。
+
+**自验证（真机）**：
+- 干净重建 `scons -j16` EXIT=0，零警告（G7，request.hh 全局变更触发大范围重编但无错）。
+- **T1 byte7_zero**（reg_chain, prob=1.0, first_clock=0）：log 空（SE 不经 sendFragmentToTranslation，符合 doc §0.3 SE-inert）→ `f247ef3fe6cfd` ==golden。
+- **回归**：reg_chain golden `f247ef3fe6cfd` 不变。
+
+**诚实边界**：FS-only 有效（SE-inert，doc §0.3）——FS 跑批须 gem5-fs；FS 验证 deferred。method3 D2 三根因区分（CHAOSPhysReg/CHAOSAddrPath/CHAOSArmTLB 同一"x10 垃圾指针→翻译故障"）须 FS formal。

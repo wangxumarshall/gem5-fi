@@ -17,7 +17,7 @@
 
 import argparse
 import m5
-from m5.objects import CHAOSReg, CHAOSPhysReg, CHAOSMem, CHAOSLSQFwd, CHAOSRenameMap, CHAOSFreeList, CHAOSROB, CHAOSIQ, CHAOSExec, CHAOSFPU, CHAOSL1DForward, CHAOSBPU
+from m5.objects import CHAOSReg, CHAOSPhysReg, CHAOSMem, CHAOSLSQFwd, CHAOSRenameMap, CHAOSFreeList, CHAOSROB, CHAOSIQ, CHAOSExec, CHAOSFPU, CHAOSL1DForward, CHAOSBPU, CHAOSAddrPath
 from gem5.components.boards.simple_board import SimpleBoard
 from gem5.components.cachehierarchies.classic.private_l1_private_l2_cache_hierarchy import (
     PrivateL1PrivateL2CacheHierarchy,
@@ -189,6 +189,16 @@ p.add_argument("--bpu_first_clock", type=lambda x: int(x,0), default=1000)
 p.add_argument("--bpu_max_faults", type=lambda x: int(x,0), default=1)
 p.add_argument("--bpu_fault_mask", type=lambda x: int(x,0), default=0)
 p.add_argument("--bpu_rng_seed", type=lambda x: int(x,0), default=20260825)
+# §2.4 CHAOSAddrPath (AGU address-path injector). SELF-ATTACHES at startup()
+# to cpu.chaosAddrPath. Hooks LSQ::sendFragmentToTranslation pre-translateTiming;
+# byte7_zero / low_bit_flip. HONEST: SE-inert (byte7 zero lands in SE range).
+p.add_argument("--chaos_addrpath", action="store_true",
+               help="attach CHAOSAddrPath (O3 AGU address-path, §2.4, SE-inert)")
+p.add_argument("--addrpath_mode", default="byte7_zero",
+               choices=["byte7_zero","low_bit_flip"])
+p.add_argument("--addrpath_first_clock", type=lambda x: int(x,0), default=1000)
+p.add_argument("--addrpath_max_faults", type=lambda x: int(x,0), default=1)
+p.add_argument("--addrpath_rng_seed", type=lambda x: int(x,0), default=20260825)
 args = p.parse_args()
 
 cache_hierarchy = PrivateL1PrivateL2CacheHierarchy(
@@ -424,6 +434,20 @@ if args.chaos_bpu:
         writeLog=True,
     )
     board.chaos_bpu = bpu
+
+if args.chaos_addrpath:
+    # §2.4 CHAOSAddrPath: O3-only. SELF-ATTACHES at startup() to
+    # cpu.chaosAddrPath (sendFragmentToTranslation calls maybeCorrupt).
+    ap = CHAOSAddrPath(
+        cpu=cpu0,
+        mode=args.addrpath_mode,
+        probability=args.probability,
+        firstClock=args.addrpath_first_clock,
+        maxFaults=args.addrpath_max_faults,
+        rngSeed=args.addrpath_rng_seed,
+        writeLog=True,
+    )
+    board.chaos_addrpath = ap
 
 if args.maxinsts:
     cpu0.max_insts = args.maxinsts
