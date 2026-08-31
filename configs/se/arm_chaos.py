@@ -17,7 +17,7 @@
 
 import argparse
 import m5
-from m5.objects import CHAOSReg, CHAOSPhysReg, CHAOSMem, CHAOSLSQFwd, CHAOSRenameMap
+from m5.objects import CHAOSReg, CHAOSPhysReg, CHAOSMem, CHAOSLSQFwd, CHAOSRenameMap, CHAOSFreeList
 from gem5.components.boards.simple_board import SimpleBoard
 from gem5.components.cachehierarchies.classic.private_l1_private_l2_cache_hierarchy import (
     PrivateL1PrivateL2CacheHierarchy,
@@ -112,6 +112,15 @@ p.add_argument("--rename_first_clock", type=lambda x: int(x,0), default=100000)
 p.add_argument("--rename_max_faults", type=lambda x: int(x,0), default=1)
 p.add_argument("--rename_fault_mask", type=lambda x: int(x,0), default=0)
 p.add_argument("--rename_rng_seed", type=lambda x: int(x,0), default=20260825)
+# §2.2 CHAOSFreeList (O3 freelist fault injector). SELF-ATTACHES at startup()
+# to physFreeList().chaosFreeList. mark_free / pop_wrong modes (design doc §2.2).
+p.add_argument("--chaos_freelist", action="store_true",
+               help="attach CHAOSFreeList (O3 freelist injector, §2.2)")
+p.add_argument("--freelist_mode", default="mark_free",
+               choices=["mark_free","pop_wrong"])
+p.add_argument("--freelist_first_clock", type=lambda x: int(x,0), default=100000)
+p.add_argument("--freelist_max_faults", type=lambda x: int(x,0), default=1)
+p.add_argument("--freelist_rng_seed", type=lambda x: int(x,0), default=20260825)
 args = p.parse_args()
 
 cache_hierarchy = PrivateL1PrivateL2CacheHierarchy(
@@ -241,6 +250,20 @@ if args.chaos_rename:
         writeLog=True,
     )
     board.chaos_rename = ren
+
+if args.chaos_freelist:
+    # §2.2 CHAOSFreeList: O3-only. SELF-ATTACHES at startup() to
+    # physFreeList().chaosFreeList (UnifiedFreeList::getReg calls maybeCorrupt).
+    fl = CHAOSFreeList(
+        cpu=cpu0,
+        mode=args.freelist_mode,
+        probability=args.probability,
+        firstClock=args.freelist_first_clock,
+        maxFaults=args.freelist_max_faults,
+        rngSeed=args.freelist_rng_seed,
+        writeLog=True,
+    )
+    board.chaos_freelist = fl
 
 if args.maxinsts:
     cpu0.max_insts = args.maxinsts

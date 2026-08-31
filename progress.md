@@ -603,3 +603,22 @@ ARM 三条路径 + golden（真跑输出）：
 - **回归**：cholesky golden `37621bc0a633976f` 不变；arm_chaos reg_chain golden `f247ef3fe6cfd` 不变；CHAOSPhysReg X3 SDC `d43a25d7fcc218b7` 不变（未挂注入器时 `chaosRenameMap=nullptr`，setEntry 零回归）。
 
 **诚实边界（本补丁不做）**：CHAOSFreeList（§2.2 patch 2，mark_free/pop_wrong）；method1 控制组 kernel（pure_fma/pure_spmv/pure_gather/tri_solve，patch 3）；mov_heavy（move-elimination，patch 4）；runner.py `rat` 组件映射（patch 5——schema v2 已前向声明 `rat`，runner 现诚实拒绝，待映射补丁）；formal n=384（本机 ~90s/run，formal 须健康机 §0.4）；多线程 RAT（单线程 SE 范围）；§2.2 numeric-only vs compute-both P_SDC 比值（须控制组 + first_clock 分阶段）。
+
+---
+
+### S1 §2.2 patch 2 — CHAOSFreeList 注入器（mark_free / pop_wrong）
+
+**实现**：新 SimObject `CHAOS/gem5/src/cpu/o3/CHAOSFreeList/{.py,.hh,.cc,SConscript}`（O3-only，self-attach）。hook **`SimpleFreeList::getReg()`**（`free_list.hh:95`）——非 `UnifiedFreeList::getReg`（关键诚实发现：rename 走 `SimpleRenameMap::rename`→`freeList->getReg()`，`freeList` 是 `&(UnifiedFreeList::freeLists[i])` 直接拿的 `SimpleFreeList*`，**不经过 `UnifiedFreeList::getReg(type)`**，故 hook 必须在 `SimpleFreeList` 层）。`UnifiedFreeList::setChaosFreeList` 在 injector startup 时把指针 + classValue 传播到所有 `freeLists[i]`。
+
+**§2.2 模式**：
+- `mark_free`：post-pop 时把一个**当前已分配（not free）**的同类 physReg RE-ADD 回 freelist → 它被再分发 → 两 arch reg 共享一 physReg → 历史残留（method1 "其它计算数据覆盖 x[0]"）。`pickAllocatedPhysReg` 用 `isFree` 校验，无候选则诚实 no-op。
+- `pop_wrong`：返回另一合法 physReg id（同 class，[0,numPhys)），caller 存为 dest → 错映射。
+
+**自验证（真机）**：
+- 干净重建 `scons -j16` EXIT=0，零警告（G7）。
+- **T1 mark_free**：`Tick:74500 readded_allocated_idx=10 faults_injected:1` → **core dumped（Crash）**（rename-inconsistency，method1 freelist 9/125 Crash 主导的复现）。
+- **T2 pop_wrong**：`Tick:74500 true_front_idx=42 returned_idx=202 faults_injected:1` → `37621bc0a633976f` ==golden（Masked——返回的 physReg 202 未传播/被掩盖）。
+- **§2.2 验收断言③**：mark_free（Crash）+ pop_wrong（Masked）各 ≥1 非 Inactive——可达性非零。
+- **回归**：cholesky golden `37621bc0a633976f` 不变；reg_chain golden `f247ef3fe6cfd` 不变（未挂注入器 `chaosFreeList=nullptr`，getReg 零回归）。
+
+**诚实边界（本补丁不做）**：method1 控制组 kernel（pure_fma/pure_spmv/pure_gather/tri_solve，patch 3）；mov_heavy（patch 4）；runner.py `freelist` 组件映射（patch 5）；formal n=384；多线程 freelist。
