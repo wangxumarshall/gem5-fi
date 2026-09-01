@@ -197,13 +197,6 @@ graph TD
 
 ---
 
-# §6 启示与系统级容错设计（顶会文献支撑优化稿）
-
-> 替换现有 §6（6.1/6.2/6.3）。
-> 文献支撑：Google *Silent Data Corruptions at Scale* (USENIX ATC 2021)；*Cores that don't count* (HotOS 2021)；*SiliFuzz* (MICRO 2022)；*Detecting SDCs in the wild* (OSDI 2022, fleetscanner)；Alibaba *Understanding SDCs in a Large Production CPU Population* (SOSP 2023, Farron)；*Veritas* (HPCA 2025)；Mukherjee *Architectural Vulnerability Factor* (ISCA 2003)；Angione et al. test-escape→SDE 分级 (ITC India 2025)；PEPR 物理感知区域测试。
-> 风格：与论文诚实性声明一致——区分「已由本案例/文献确立」与「建议」；不虚构未做实验。
-
----
 
 ## 6. 启示与系统级容错设计
 
