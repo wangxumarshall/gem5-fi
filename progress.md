@@ -1074,3 +1074,13 @@ ARM 三条路径 + golden（真跑输出）：
 - cell X9（target_index=9）：P_SDC=0%, P_DUE=0%, Reach=100% — 3/3 Masked（X9 不在关键路径，被掩盖）
 
 **关键发现（诚实）**：cholesky_numeric 只跑 ~2s（16×16 矩阵，不是 ~90s——reg_chain 才是 90s）。campaign 跑 6 reps = 12s。formal n=384 在 cholesky 上约 12 分钟（不是 9.6 小时）。**formal 在 cholesky 上完全可跑**。reg_chain 才需健康机。
+
+---
+
+### 第二章 §2.1 C pilot campaign（CHAOSPhysReg reg_chain）
+
+**§2.1 C pilot（2 cells × 5 reps, reg_chain, ~18min）✅**：
+- cell X3（arch_frontend, target=3）：P_SDC=100% [56.6,100], P_DUE=0%, Reach=100% — **5/5 SDC**（X3 数据累加器翻转，符合 §0.1 anchor `d43a25d7fcc218b7`）
+- cell X9（arch_frontend, target=9）：P_SDC=0% [0,43.4], P_DUE=0%, Reach=100% — **5/5 Masked**（X9 被重写掩盖）
+
+**§2.1 H 验收**：X3 SDC 100% 可复现（5/5），golden `f247ef3fe6cfd` 不变（无注入）——符合 §2.1 H 的"X3 SDC 可复现"。
