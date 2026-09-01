@@ -920,3 +920,17 @@ ARM 三条路径 + golden（真跑输出）：
 8. S5 元分析 + 芯片建议报告（§4 最终交付物）未开工。
 
 距整份方案约还差 45%（23 注入器完成 17，但 formal/FS/元分析/建议报告全缺）。每补丁严格真机自验证，无谎称完成项。
+
+---
+
+### S1 §2.7/§2.11 patch — CHAOSCache targetField 字段级故障（valid/dirty/coh）
+
+**实现**：CHAOSCache（vendored + 顶层同步）加 `targetField` Param.String（`data` 默认/`valid`/`dirty`/`coh`）。injectFault 在 byte 变异前分支：`valid`→`targetBlk->invalidate()`（block 失效，下次访问从下级重取）；`dirty`/`coh`→`setCoherenceBits(bit)`（dirty=bit4，coh=bit1；无 public getter 故 set-the-bit 非 toggle，诚实记录）。`tag(F5)` + `repl` deferred（需查另一合法 tag / repl meta）。`arm_chaos_cache.py` 加 `--target_field`。
+
+**自验证（真机）**：
+- 干净重建 `scons -j16` EXIT=0（-Wreorder 是预存，非本补丁引入；coherence protected 改用 public setCoherenceBits）。修 1 个编译错：`unsigned coherence` protected → `setCoherenceBits()` public。
+- **T1 valid**：`Tick:100000000 block 862656 Field: valid (invalidate)` → `b20f47cb8510886c`（SDC——block 失效后从 L2 重取，与 §2.7 sed invalidation 同 checksum）。
+- **T2 dirty**：`Field: dirty (toggle bit 4)` → `f44d2b9cd4a173cd` ==golden（Masked——设脏位未传播到 reduction 结果）。
+- **回归 data（默认）**：`d128c62843ca82a1`（§0.1 SDC 锚点不变，零回归）。
+
+**诚实边界**：`tag(F5 same-set legal tag)` + `repl`（replacement meta）deferred（需查另一合法 tag / repl meta，更多 plumbing）；dirty/coh 是 set-the-bit 非 toggle（无 public getter）；§2.11 L1I 语义字段（opcode/Rn/Rm/Rd/imm/cond 32b A64 映射表）deferred（需内建 A64 字段映射）；formal n=384 须健康机。

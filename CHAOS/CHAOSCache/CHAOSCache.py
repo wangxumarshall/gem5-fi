@@ -30,6 +30,20 @@ class CHAOSCache(SimObject):
     targetByteOffset = Param.Int(-1, "Directed: pin the fault to this byte "
         "offset within the target block (0..blockSize-1). -1 = random "
         "byte (original).")
+    # §2.7/§2.11 field-level fault: which CacheBlk field to corrupt.
+    #   data  (default): corrupt the data byte (orig behavior; byteOffset/mask).
+    #   valid : invalidate the block (§2.7 valid field; sed/secded also use this
+    #           for the Corrected path). Models a 'valid bit flip' -> block
+    #           re-fetched on next access.
+    #   dirty : toggle the dirty bit (§2.7 dirty field; clean block written-
+    #           back spuriously, or dirty block dropped).
+    #   coh   : toggle a coherence bit (§2.7 coh field; shared<->modified flip).
+    # tag(F5 same-set legal tag) + repl(replacement meta) DEFERRED (need
+    # lookup of another legal tag / repl meta, more plumbing).
+    targetField = Param.String("data",
+        "§2.7/§2.11 field-level fault: data (default, byteOffset/mask) | "
+        "valid (invalidate block) | dirty (toggle dirty bit) | coh (toggle "
+        "coherence bit). tag(F5) + repl deferred.")
     pairedSector = Param.Bool(False,
         "Phase 5 §7.7 paired-sector 128B fault-domain proxy: when set, the "
         "fault is applied to BOTH the target 64B block AND its 128B-aligned "

@@ -62,6 +62,8 @@ class CHAOSCache : public SimObject
     Addr target_block_addr;
     int target_byte_offset;
     bool paired_sector;  // §7.7 128B fault-domain proxy (fault both 64B sectors)
+    // §2.7/§2.11 field-level fault: data (default) / valid / dirty / coh.
+    std::string target_field;
 
     // §1.2 protection-aware modeling layer (N1 TRM Table 9-1 PROXY).
     // Post-injection, applyProtection() decides the observable outcome keyed

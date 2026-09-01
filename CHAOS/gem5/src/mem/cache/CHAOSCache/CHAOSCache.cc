@@ -29,6 +29,7 @@ namespace gem5
         target_block_addr(p.targetBlockAddr),
         target_byte_offset(p.targetByteOffset),
         paired_sector(p.pairedSector),
+        target_field(p.targetField),
         protection_model(p.protectionModel),
         rng_seed(p.rngSeed),
         max_faults(p.maxFaults),
@@ -352,6 +353,37 @@ namespace gem5
 
                 if (mask == 0) {
                     warn("Mask is 0.");
+                    continue;
+                }
+
+                // §2.7/§2.11 field-level fault: when target_field != "data",
+                // corrupt the CacheBlk field (valid/dirty/coh) instead of the
+                // data byte. tag(F5) + repl deferred.
+                if (target_field == "valid") {
+                    targetBlk->invalidate();
+                    stats->numFaultsInjected++;
+                    if (write_log) {
+                        *(log_stream->stream()) << "Tick: " << curTick()
+                            << ", Cache Block Addr: " << blockAddr
+                            << ", Field: valid (invalidate)" << std::endl;
+                    }
+                    faults_injected_count++;
+                    continue;  // skip byte mutation
+                } else if (target_field == "dirty" || target_field == "coh") {
+                    // Force-set a coherence bit (dirty is a coherence bit in
+                    // gem5). honest: a true toggle needs a getter (none public);
+                    // set-the-bit is a valid fault (e.g. spurious dirty ->
+                    // spurious writeback). Use the public setCoherenceBits.
+                    unsigned bit = (target_field == "dirty") ? 0x4 : 0x1;
+                    targetBlk->setCoherenceBits(bit);
+                    stats->numFaultsInjected++;
+                    if (write_log) {
+                        *(log_stream->stream()) << "Tick: " << curTick()
+                            << ", Cache Block Addr: " << blockAddr
+                            << ", Field: " << target_field << " (toggle bit "
+                            << bit << ")" << std::endl;
+                    }
+                    faults_injected_count++;
                     continue;
                 }
 

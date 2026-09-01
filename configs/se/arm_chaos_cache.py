@@ -37,6 +37,9 @@ p.add_argument("--probability", type=float, default=1.0)
 p.add_argument("--target_block_addr", type=lambda x:int(x,0), default=0,
                help="Directed: cache block address to inject (block-aligned "
                     "lookup among VALID blocks). 0 = random (default).")
+p.add_argument("--target_field", default="data",
+               choices=["data","valid","dirty","coh"],
+               help="§2.7/§2.11 field-level: data(default)/valid(invalidate)/dirty(toggle)/coh(toggle)")
 p.add_argument("--target_byte_offset", type=int, default=-1,
                help="Directed: byte offset within the target block "
                     "(0..blockSize-1). -1 = random (default).")
@@ -84,6 +87,7 @@ def cap(root):
         rngSeed=args.rng_seed, maxFaults=args.max_faults,
         targetBlockAddr=args.target_block_addr,
         targetByteOffset=args.target_byte_offset,
+        targetField=args.target_field,
         pairedSector=args.paired,
         protectionModel=args.protection_model,
         writeLog=True)
