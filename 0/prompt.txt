@@ -1,0 +1,49 @@
+汇报进展
+
+---
+
+/goal 完成后续计划
+
+---
+
+/goal 完成后续计划
+
+---
+
+/goal 完成后续计划
+
+---
+
+/goal 完成后续计划
+
+---
+
+/goal 完成后续计划
+
+---
+
+/goal 完成后续计划
+
+---
+
+汇报进展
+
+---
+
+/superpowers:writing-plans
+
+---
+
+/superpowers:writing-plans 上面的未完成工作，撰写完整的计划
+
+---
+
+检查 @docs/KUNPENG920-的SDC故障的微架构故障注入和规律研究的详细方案设计和需求开发实现文档.md ，理解源码，看看还有哪些没有实现，并调用writing-plans这个skill，撰写执行计划
+
+---
+
+依次执行当前的两个计划
+
+---
+
+依次执行当前的两个计划，调用executing-plans
