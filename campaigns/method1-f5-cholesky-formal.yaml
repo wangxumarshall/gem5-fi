@@ -1,0 +1,23 @@
+# method1 (Cholesky x[0]) F5 FORMAL (plan §5.2, n=384/cell).
+# Full-scale: run twice (numeric-only + compute-both), then fisher_test.py.
+# Compute budget: cholesky N=64 x10 iters ~100-200s/run; 384x2 = 768 runs;
+# jobs=8 -> ~4-8h. Run when budget is available.
+campaign_id: method1_f5_cholesky_formal
+workload:
+  binary: workloads/directed/cholesky_numeric
+  golden: "0"
+  golden_id: cholesky-golden-v1
+  oracle_kind: fail_count
+trigger: {mode: cycle, value: 50000}
+limits: {max_faults: 1, max_ticks: 0}
+injector: rat
+config_family: C0
+axes:
+  layer: [physical]
+  target_arch: [-1]
+  semantic_role: [fp_accum]
+  fault_model: [legal_domain_sub]
+  f5_substitute_target: [-1]
+defaults:
+  rng_master_seed: 20260825
+  width_bits: 64

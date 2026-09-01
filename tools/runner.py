@@ -197,6 +197,12 @@ def main():
             cmd += [f"--rat_target_arch={idx}"]
         if tgt.get("semantic_role"):
             cmd += [f"--rat_semantic_role={tgt['semantic_role']}"]
+        # method1 formal: cholesky's d0 is an FP accumulator — on AArch64
+        # the FP/SIMD registers live in VecRegClass (there is no separate
+        # FloatRegClass on ARM — regs/vec.hh; FloatRegClass yields
+        # numRegs()==0 and every attempt rejects). Target 'vector'.
+        if tgt.get("semantic_role") == "fp_accum":
+            cmd += ["--rat_reg_class", "vector"]
     elif comp == "freelist":
         # S0-2 v2: CHAOSFreeList (method1 live-reg-marked-free).
         cmd += ["--chaos_freelist"]

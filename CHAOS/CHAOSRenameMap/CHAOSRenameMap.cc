@@ -100,6 +100,7 @@ namespace gem5
     CHAOSRenameMap::attackCheck()
     {
         if (!probability) return;
+        uint64_t before = faults_injected_count;
         for (ThreadID tid = 0; tid < cpu->numThreads; ++tid) {
             gem5::ThreadContext *thread_context = cpu->getContext(tid);
             if (!thread_context || thread_context->status() == ThreadContext::Halted)
@@ -107,7 +108,14 @@ namespace gem5
             processFault(tid);
         }
         if (max_faults == 0 || faults_injected_count < max_faults) {
+            // method1-formal fix: when an attempt was REJECTED (no donor /
+            // legality), geometric(1.0) yields a 0-cycle interval -> poll
+            // every cycle forever (observed: FP-class donor sparsity on
+            // cholesky hung the sim with zero injections). Enforce a
+            // minimum +1-cycle backoff on reject.
             unsigned next = inter_fault_cycles_dist(rng);
+            if (faults_injected_count == before)  // no fault landed this try
+                next = std::max(next, (unsigned)1);
             Cycles next_cycle = cpu->curCycle() + Cycles(next);
             if (last_clock == Cycles(0) || next_cycle <= last_clock)
                 scheduleAttackEvent(Cycles(next));
@@ -131,19 +139,40 @@ namespace gem5
         else if (reg_target_class == RegClassSel::Vector)
             target_class = gem5::VecRegClass;
         const gem5::RegClass *reg_class = reg_classes[target_class];
-        if (!reg_class || reg_class->numRegs() == 0) return;
+        if (!reg_class || reg_class->numRegs() == 0) {
+            stats->numLegalityRejects++; return;
+        }
 
         int arch_idx = target_arch_idx;
         if (arch_idx < 0 || arch_idx >= (int)reg_class->numRegs()) {
-            // random arch reg within class
-            arch_idx = std::uniform_int_distribution<int>(0, (int)reg_class->numRegs() - 1)(rng);
+            // method1-formal fix: random sampling on sparse classes (FP on
+            // numeric kernels) mostly hits unmapped regs (observed 2.3M
+            // rejects, 0 injections). SCAN the class for regs with an
+            // ACTIVE mapping (like CHAOSFreeList's RAT scan) and pick
+            // among those; fall back to random if none active.
+            int n_arch = (int)reg_class->numRegs();
+            std::vector<int> active;
+            active.reserve(n_arch);
+            for (int cand = 0; cand < n_arch; ++cand) {
+                gem5::RegId cr(*reg_class, cand);
+                const gem5::RegId cf = cr.flatten(*isa);
+                if (cpu->frontRenameMap()[tid].lookup(cf)) active.push_back(cand);
+            }
+            if (active.empty()) { stats->numLegalityRejects++; return; }
+            arch_idx = active[std::uniform_int_distribution<int>(
+                0, (int)active.size() - 1)(rng)];
         }
         gem5::RegId arch_reg(*reg_class, arch_idx);
         const gem5::RegId flat = arch_reg.flatten(*isa);
 
         // Read current mapping.
         PhysRegIdPtr old_phys = cpu->frontRenameMap()[tid].lookup(flat);
-        if (!old_phys) return;  // not mapped yet
+        if (!old_phys) {
+            // not mapped yet (e.g. a random FP arch reg with no active
+            // mapping — common on FP-sparse kernels). Count so the
+            // attempt is observable (was a silent return).
+            stats->numLegalityRejects++; return;
+        }
         int old_phys_idx = old_phys->index();
 
         int new_phys_idx = old_phys_idx;

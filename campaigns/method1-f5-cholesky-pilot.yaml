@@ -1,0 +1,28 @@
+# method1 (Cholesky x[0]) F5 formal pilot (plan §5.2, n=20 pilot).
+# CHAOSRenameMap f5_substitute on FP accumulators (d0 cross-loop-live).
+# numeric-only vs compute-both: method1 field ratio 1.0% / 0.27% (4x, [2,8]).
+# pilot n=20/cell (formal n=384 in method1-f5-cholesky-formal.yaml).
+# Run TWICE with --workload-args "10" (numeric) and "10 both" (compute-both).
+campaign_id: method1_f5_cholesky_pilot
+workload:
+  binary: workloads/directed/cholesky_numeric
+  golden: "0"                  # fail_count oracle: golden_fails=0
+  golden_id: cholesky-golden-v1
+  oracle_kind: fail_count      # S7-1: fails>0 -> SDC
+trigger:
+  mode: cycle
+  value: 50000
+limits:
+  max_faults: 1
+  max_ticks: 0
+injector: rat
+config_family: C0
+axes:
+  layer: [physical]
+  target_arch: [-1]              # random arch reg in FP class (d0 among them)
+  semantic_role: [fp_accum]      # -> --reg_class=floating_point (runner v2)
+  fault_model: [legal_domain_sub]
+  f5_substitute_target: [-1]     # random donor
+defaults:
+  rng_master_seed: 20260825
+  width_bits: 64

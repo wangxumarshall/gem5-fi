@@ -164,7 +164,12 @@ p.add_argument("--rat_target_arch", type=int, default=-1,
 p.add_argument("--rat_fault_mask", type=lambda x: int(x,0), default=0,
                help="CHAOSRenameMap map_bitflip mask (0=random one bit).")
 p.add_argument("--rat_semantic_role", default="",
-               help="ABI role label (callee_saved/accum). Metadata.")
+               help="ABI role label (callee_saved/accum/fp_accum). Metadata.")
+p.add_argument("--rat_reg_class", default="integer",
+               choices=["integer","floating_point","vector"],
+               help="CHAOSRenameMap register class. AArch64 FP/SIMD (d0 etc.) "
+                    "lives in VecRegClass -> use 'vector' (ARM has no "
+                    "separate FloatRegClass; regs/vec.hh).")
 # S1-3 CHAOSFreeList (freelist): method1 live-reg-marked-free residue.
 p.add_argument("--chaos_freelist", action="store_true",
                help="attach CHAOSFreeList (mark_free/pop_wrong; method1 "
@@ -384,7 +389,7 @@ if args.chaos_rat:
         probability=args.probability,
         mode=args.rat_mode,
         targetArchReg=args.rat_target_arch,
-        regTargetClass=args.reg_class,
+        regTargetClass=args.rat_reg_class,
         faultMask=args.rat_fault_mask,
         bitsToChange=args.bits_to_change,
         firstClock=args.first_clock,
