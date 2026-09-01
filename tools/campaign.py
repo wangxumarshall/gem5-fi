@@ -155,10 +155,16 @@ def _build_fault(camp, cell):
     return f
 
 
-def run_one(manifest_path, binary, golden, g5, timeout=600):
+def run_one(manifest_path, binary, golden, g5, timeout=600, workload_args=""):
     """Run runner.py once; parse its RESULT line for classification."""
     env = dict(os.environ)
     env["GEM5_OPT"] = g5  # runner.py reads GEM5_OPT for the gem5.opt path
+    # runner.py --binary points to the workload; if workload_args given, the
+    # binary is invoked with those args (runner passes them via the manifest's
+    # workload.args field, appended to the gem5 --cmd). We set an env var the
+    # runner reads to append args.
+    if workload_args:
+        env["CHAOS_WORKLOAD_ARGS"] = workload_args
     cmd = [sys.executable, RUNNER, manifest_path,
            "--binary", binary, "--golden-checksum", golden]
     try:
@@ -199,6 +205,12 @@ def main():
                    help="output dir (default: artifacts/<campaign_id>)")
     ap.add_argument("--max-cells", type=int, default=0,
                    help="cap cells (0=all; useful for smoke test)")
+    ap.add_argument("--workload-args", default="",
+                   help="args to pass to the workload binary (e.g. '100 both 256' "
+                        "for cholesky_numeric). Appended after --cmd in runner. "
+                        "Bypasses arm_chaos.py max_insts bug (use kernel iters param).")
+    ap.add_argument("--hang-timeout", type=int, default=600,
+                   help="per-run wall-clock timeout (s) for Hang classification")
     args = ap.parse_args()
 
     with open(args.campaign_yaml) as f:
@@ -224,18 +236,49 @@ def main():
     CLASSES = ["SimulatorError", "Hang", "Crash", "Inactive", "Masked", "SDC"]
     results = []  # rows for cells.csv
 
+    # S7-2: generate all manifests first, then run in parallel (--jobs).
+    import concurrent.futures as cf
+    all_tasks = []  # (ci, rep, mpath, run_id)
+    for ci, cell in enumerate(cells):
+        for rep in range(args.n_per_cell):
+            mpath, m = gen_manifest(camp, cell, ci, rep, mandir)
+            all_tasks.append((ci, rep, mpath, m["run_id"]))
+    print(f"[campaign] {len(all_tasks)} runs, --jobs={args.jobs}")
+
+    # Run in parallel; collect results keyed by (ci, rep).
+    run_results = {}  # (ci, rep) -> classification dict
+    if args.jobs > 1:
+        with cf.ThreadPoolExecutor(max_workers=args.jobs) as ex:
+            futures = {ex.submit(run_one, mp, args.binary, args.workload_golden,
+                                 args.gem5, args.hang_timeout, args.workload_args):
+                       (ci, rep) for (ci, rep, mp, _) in all_tasks}
+            for fut in cf.as_completed(futures):
+                ci_rep = futures[fut]
+                try:
+                    run_results[ci_rep] = fut.result()
+                except Exception as e:
+                    run_results[ci_rep] = {"classification": "SimulatorError",
+                                            "faults": 0, "stderr": str(e)}
+    else:  # serial
+        for (ci, rep, mp, _) in all_tasks:
+            run_results[(ci, rep)] = run_one(mp, args.binary, args.workload_golden,
+                                              args.gem5, args.hang_timeout,
+                                              args.workload_args)
+
     for ci, cell in enumerate(cells):
         counts = {c: 0 for c in CLASSES}
         first_run = None
         for rep in range(args.n_per_cell):
-            mpath, m = gen_manifest(camp, cell, ci, rep, mandir)
-            r = run_one(mpath, args.binary, args.workload_golden, args.gem5)
+            r = run_results.get((ci, rep), {"classification": "SimulatorError"})
             cls = r["classification"]
             if cls not in counts:
                 counts[cls] = 0
             counts[cls] += 1
             if rep == 0:
-                first_run = m["run_id"], cls, r.get("faults", 0)
+                # find the run_id from all_tasks (ci, rep=0)
+                rid = next((t[3] for t in all_tasks if t[0] == ci and t[1] == 0),
+                           f"{camp['campaign_id']}-c{ci:03d}-r0")
+                first_run = rid, cls, r.get("faults", 0)
         # G0 self-check: replay ceil(replay_frac * n_per_cell) reps, confirm same class
         n_replay = max(1, int(args.replay_frac * args.n_per_cell))
         replays_consistent = True
