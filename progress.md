@@ -1004,3 +1004,13 @@ ARM 三条路径 + golden（真跑输出）：
 - **回归**：reg_chain golden `f247ef3fe6cfd` 不变（无 fault 可 clear → no-op，零回归）。
 
 **诚实边界**：`errrec_bitflip`（ERR* 寄存器字段）+ `poison_lose`（毒化位在 store buffer/PRF 入口丢失）deferred（需 ERR* miscReg 写 hook / poison bit 建模）；元分析脚本 `tools/ras_escape_analysis.py`（须所有 formal 结果）；formal n=384 须健康机。注入器骨架 + exc_suppress 子模式已实现。
+
+---
+
+### S1 §2.15 CHAOSNoC 注入器（Garnet NoC flit hook，已实现，Ruby-only）
+
+**实现**：新 SimObject `CHAOS/gem5/src/mem/ruby/network/garnet/CHAOSNoC/{.py,.hh,.cc,SConscript}`。hook `NetworkLink::wakeup`（NetworkLink.cc:90 `getTopFlit` 后、`linkBuffer.insert` 前）调用 `chaosNoC->maybeCorrupt(t_flit)`。`flit_delay`(F6)：给 `set_src_delay` 加随机延迟（bufferless vs buffered P_SDC 对比）；`route_sub`(F5)/`payload_bitflip` deferred（RouteInfo 突变 / Ruby Message functionalWrite，E3）。`NetworkLink` 加 `chaosNoC` 指针 + `setChaosNoC`。flit 在 `ruby::garnet` 命名空间，前向声明正确。
+
+**自验证**：干净重建 `scons -j16` EXIT=0，零警告（G7）。修 2 个编译错：flit 在 `gem5::ruby::garnet` 命名空间（前向声明 `namespace ruby { namespace garnet { class flit; } }`）；NetworkLink 在 `ruby` 命名空间 → `chaosNoC` 成员需 `::gem5::CHAOSNoC*` 全限定。**SE-inert**：stdlib SE classic-cache 不用 Garnet → NoC 不实例化 → hook 不触发（与 AddrPath 的 SE-inert 同模式，但原因不同——NoC 根本不在 SE 里）。**须 Ruby 配置验证**（configs/se/ruby_chaos.py，deferred）。
+
+**诚实边界**：route_sub(F5 RouteInfo 突变) + payload_bitflip(Ruby Message functionalWrite) deferred；Ruby 配置（切 stdlib→Ruby + Garnet 拓扑）deferred（S4 独立子项目）；formal n=384。

@@ -98,6 +98,12 @@ NetworkLink::wakeup()
                 (mVnets.size() == 0));
         }
         t_flit->set_time(clockEdge(m_latency));
+        // §2.15 CHAOSNoC: corrupt the flit's delay/route/payload BEFORE
+        // it's inserted into the link buffer (the transfer point). nullptr
+        // = no injection (zero regression). Garnet/Ruby-only.
+        if (chaosNoC) {
+            chaosNoC->maybeCorrupt(t_flit);
+        }
         linkBuffer.insert(t_flit);
         link_consumer->scheduleEventAbsolute(clockEdge(m_latency));
         m_link_utilized++;

@@ -41,9 +41,15 @@
 #include "mem/ruby/network/garnet/flitBuffer.hh"
 #include "params/NetworkLink.hh"
 #include "sim/clocked_object.hh"
+// §2.15 CHAOSNoC: included so NetworkLink::wakeup's inline hook can call
+// chaosNoC->maybeCorrupt(). Non-circular: CHAOSNoC.hh forward-declares flit.
+#include "mem/ruby/network/garnet/CHAOSNoC/CHAOSNoC.hh"
 
 namespace gem5
 {
+
+// §2.15 CHAOSNoC forward decl (gem5 top-level namespace, raw pointer below).
+class CHAOSNoC;
 
 namespace ruby
 {
@@ -69,6 +75,12 @@ class NetworkLink : public ClockedObject, public Consumer
     int get_id() const { return m_id; }
     flitBuffer *getBuffer() { return &linkBuffer;}
     virtual void wakeup();
+
+    // §2.15 CHAOSNoC: raw pointer to the NoC fault injector. Set by a Ruby
+    // config script (configs/se/ruby_chaos.py, deferred). nullptr = no
+    // injection (zero regression). wakeup() calls maybeCorrupt(flit).
+    ::gem5::CHAOSNoC *chaosNoC = nullptr;
+    void setChaosNoC(::gem5::CHAOSNoC *p) { chaosNoC = p; }
 
     unsigned int getLinkUtilization() const { return m_link_utilized; }
     const std::vector<unsigned int> & getVcLoad() const { return m_vc_load; }
