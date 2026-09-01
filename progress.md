@@ -588,3 +588,28 @@ core179 三通路（D1/D2/D3）+ method1 状态泄漏（RAT/freelist/ROB）+
 PRF/Cache-ECC/Mem/TLB/SysReg/AddrPath/PTW + LSQFwd 五模式（structuralFault/
 fwd_source_sub/stale_line_replay/phaseOffset/D2-64bit）。
 故障模型：F1-F5 ✅，F6 ✅（phaseOffset），PCE 待写。
+
+---
+
+## 本轮（2026-09-01 续2）S6-5 + S7-5 + S8-1 CHAOSIQ
+
+### S8-1: CHAOSIQ `f7a5d72`（注入器 12→13）
+CHAOSIQ（plan §5.5）：IQ 故障注入器，复现 method3 IQ 维度。attackEvent +
+cpu->robAccess().readHeadInst() 作 IQ 状态代理（IQ 内部 list private）。
+四模式：src_ready_bitflip（已验证 src0 1→0 missed wake）/ tag_sub（F5
+交换 src tag）/ wake_phase+wake_omit（F6 deferred）。
+真机：numSrcReadyBitFlips=1, 日志 'Site: iq_rob_head_proxy Mode:
+src_ready_bitflip SrcIdx: 0 old_ready: 1 new_ready: 0'。
+
+### S8-2/3/4 评估（待续）
+CHAOSFPU/CHAOSExec/CHAOSL1DForward/CHAOSBPU 都需改 iew.cc writeback hook
+（数据通路）或与 CHAOSPhysReg 重叠（FPU/Exec FP/int 寄存器已由 CHAOSPhysReg
+vector/int 覆盖）。真正独立价值的是 writeback result 数据通路翻转——
+需先做 iew.cc writeback hook 基础设施（一批深改），留后续会话集中做。
+
+### 注入器现状：13 个
+core179 三通路（D1/D2/D3）+ method1 状态泄漏（RAT/freelist/ROB）+
+method3 IQ（CHAOSIQ）+ PRF/Cache-ECC/Mem/TLB/SysReg/AddrPath/PTW +
+LSQFwd 五模式（structuralFault/fwd_source_sub/stale_line_replay/
+phaseOffset/D2-64bit）。
+故障模型：F1-F5 ✅，F6 ✅（phaseOffset + IQ src_ready），PCE 待写。
