@@ -17,7 +17,7 @@
 
 import argparse
 import m5
-from m5.objects import CHAOSReg, CHAOSPhysReg, CHAOSMem, CHAOSLSQFwd, CHAOSAddrPath, CHAOSRenameMap, CHAOSFreeList, CHAOSROB, CHAOSIQ, CHAOSExec
+from m5.objects import CHAOSReg, CHAOSPhysReg, CHAOSMem, CHAOSLSQFwd, CHAOSAddrPath, CHAOSRenameMap, CHAOSFreeList, CHAOSROB, CHAOSIQ, CHAOSExec, CHAOSFPU
 from gem5.components.boards.simple_board import SimpleBoard
 from gem5.components.cachehierarchies.classic.private_l1_private_l2_cache_hierarchy import (
     PrivateL1PrivateL2CacheHierarchy,
@@ -200,6 +200,12 @@ p.add_argument("--chaos_exec", action="store_true",
 p.add_argument("--exec_fault_mask", type=lambda x: int(x,0), default=0)
 p.add_argument("--exec_bit_segment", default="all", choices=["all","low","mid","high"])
 p.add_argument("--exec_semantic_role", default="")
+# S8-2 CHAOSFPU: FP writeback result corruption (IEEE754 bit spectrum).
+p.add_argument("--chaos_fpu", action="store_true",
+               help="attach CHAOSFPU (FP writeback result flip; method3 mantissa/sign spectrum).")
+p.add_argument("--fpu_fault_mask", type=lambda x: int(x,0), default=0)
+p.add_argument("--fpu_bit_segment", default="all", choices=["all","sign","exp","mantissa"])
+p.add_argument("--fpu_semantic_role", default="")
 args = p.parse_args()
 
 cache_hierarchy = PrivateL1PrivateL2CacheHierarchy(
@@ -447,6 +453,23 @@ if args.chaos_exec:
         semanticRole=args.exec_semantic_role,
     )
     board.chaos_exec = ex
+
+# CHAOSFPU (S8-2): FP writeback result corruption.
+if args.chaos_fpu:
+    fp = CHAOSFPU(
+        cpu=cpu0,
+        probability=args.probability,
+        faultMask=args.fpu_fault_mask,
+        bitsToChange=args.bits_to_change,
+        bitSegment=args.fpu_bit_segment,
+        firstClock=args.first_clock,
+        lastClock=args.last_clock,
+        maxFaults=args.max_faults,
+        rngSeed=args.rng_seed,
+        writeLog=True,
+        semanticRole=args.fpu_semantic_role,
+    )
+    board.chaos_fpu = fp
 
 if args.maxinsts:
     cpu0.max_insts = args.maxinsts
