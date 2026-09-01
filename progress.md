@@ -975,3 +975,18 @@ ARM 三条路径 + golden（真跑输出）：
 **诚实结论**：ExMon 在 gem5 里不是"hook 一个 FSM"，是"hook cache 层的 packet-cmd 翻转"——侵入性高 + 需 spinlock kernel 验证。本轮诚实未构建（探索了路径，确认 gem5 无 DynInst 层 FSM，需 cache 层 packet hook）。**注入器总数仍 18（CHAOSDecode 已加，ExMon 未加）。**
 
 **剩 5 个诚实状态**：ExMon（gem5 LLSC 隐式 packet 层，需 cache hook + spinlock kernel，本轮探索后未构建）、CHI/NoC/HCCS（S4 系统级）、RAS（元分析依赖 formal）。
+
+---
+
+### S1 §2.4 CHAOSExMon 注入器（独占监视器，已实现+真机验证触发）
+
+**实现**：新 SimObject `CHAOS/gem5/src/arch/arm/CHAOSExMon/{.py,.hh,.cc,SConscript}`（ARM-only）。**关键解决**：gem5 exclusive monitor 不是 lsq FSM，是 **ISA::handleLockedWrite**（`isa.cc:1908 lockedWriteHandler` — 检查 `MISCREG_LOCKFLAG` + `LOCKADDR` → STXR 成功/失败）。hook `ISA::handleLockedWrite(ExecContext*, RequestPtr&, mask)`（`isa.cc:1960`，**lsq_unit.cc:900 调用的重载**——初版只 hook 了 `handleLockedWrite(RequestPtr, mask)` 零触发，修后加此重载才触发）。`stxr_force_success`（本该失败的 STXR→成功，独占监视器逃逸）+ `stxr_force_fail`（本该成功的 STXR→失败）。`ISA` 加 `chaosExMon` 指针 + `setChaosExMon`（同 CHAOSArmSysReg 模式）；self-attach 在 ctor。新 kernel `spinlock_kernel.c`（LDXR/STXR 自旋锁自检）。
+
+**自验证（真机）**：
+- 干净重建 `scons -j16` EXIT=0，零警告（G7）。修 2 个编译错：`BaseISA*`→`ISA*` 需 `dynamic_cast`；`const class RequestPtr&`→`const RequestPtr&`（typedef 非 class）。
+- **spinlock_kernel golden**（无注入）：`0891b007b53c4869`（100 acquires / 0 fails，单核无竞争 STXR 全成功，native==gem5）。
+- **T1 stxr_force_fail**（prob=1.0, maxFaults=1）：`Tick:5715500 mode=stxr_force_fail addr=0x76100 would_succeed=true -> forced=false faults_injected:1` → core dump（STXR 被翻失败→自旋锁死锁，合理的 Hang/Crash 结果；inline asm 的 `cbnz %w1,1b` 重试循环在持续 STXR 失败下不收敛）。
+- **SELF-ATTACH 确认**：`SELF-ATTACH to ISA board.processor.cores.core.isa (mode=stxr_force_fail)`。
+- **回归**：reg_chain golden `f247ef3fe6cfd` 不变；spinlock golden `0891b007b53c4869` 不变（无 chaos_exmon → handleLockedWrite no-op）。
+
+**诚实边界**：`stxr_force_success` 在单核无竞争 kernel 上无可翻转的失败 STXR（单核 STXR 总成功），需多核竞争场景验证；spinlock kernel 的 inline asm 在持续 STXR 失败下死锁（core dump 是合理结果但 kernel 可加 try-count 上限改进）；formal n=384 须健康机。

@@ -69,6 +69,7 @@ class EventManager;
 // in ::gem5 (NOT ArmISA); forward-declared here so the ISA class below can
 // hold a ::gem5::CHAOSArmSysReg*.
 class CHAOSArmSysReg;
+class CHAOSExMon;
 
 namespace ArmISA
 {
@@ -178,6 +179,12 @@ class ISA : public BaseISA
     // injector (hot-path short-circuit).
     class ::gem5::CHAOSArmSysReg *chaosSysReg = nullptr;
     void setChaosSysReg(::gem5::CHAOSArmSysReg *p) { chaosSysReg = p; }
+
+    // §2.4 CHAOSExMon: exclusive-monitor fault injector. handleLockedWrite
+    // (the STXR verdict) calls chaosExMon->maybeCorrupt(req, would_succeed)
+    // to invert the monitor's open↔exclusive state. nullptr = no injection.
+    class ::gem5::CHAOSExMon *chaosExMon = nullptr;
+    void setChaosExMon(::gem5::CHAOSExMon *p) { chaosExMon = p; }
 
     RegVal readMiscRegReset(RegIndex) const;
     void setMiscRegReset(RegIndex, RegVal val);
