@@ -94,6 +94,10 @@ p.add_argument("--protection_model", default="none",
                     "regression); 'secded' (1-bit undo=Corrected, 2-bit "
                     "poison-log=Latent E3, >=3 silent). Applied before "
                     "write-back so undo restores the byte.")
+p.add_argument("--ecc_logic_fault", action="store_true",
+               help="§2.17: corrupt the in-CHAOSMem SECDED syndrome (not the "
+                    "data) -> mis-correction / missed-detection. Models "
+                    "'ECC logic itself unreliable'. Default false = backing-byte injection.")
 # CHAOSLSQFwd (store->load forwarding-path injector; O3 only). It
 # SELF-ATTACHES: its constructor does `cpu->lsqFwd = this` (no python
 # setLSQFwd call needed — that method has no python binding anyway).
@@ -288,6 +292,7 @@ if args.chaos_mem:
         rngSeed=args.rng_seed,
         maxFaults=args.max_faults,
         protectionModel=args.protection_model,
+        eccLogicFault=args.ecc_logic_fault if hasattr(args,'ecc_logic_fault') else False,
         writeLog=True,
     )
 

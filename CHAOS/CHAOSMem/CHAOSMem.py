@@ -32,3 +32,15 @@ class CHAOSMem(SimObject):
         "-> SilentEscape). Runs before the write-back so undo restores the "
         "original byte (== golden). Does NOT convert to product FIT.")
     writeLog = Param.Bool(True, "Write a log file")
+    # §2.17 ECC-logic fault: model the SECDED *check/correct logic itself*
+    # being faulty (not the data). 'none' (default = backing-byte injection,
+    # orig); 'ecc_logic_fault' = build an in-CHAOSMem SECDED codec over an
+    # 8-byte data word + 1-byte ECC syndrome, then inject a fault into the
+    # *syndrome bits* (not the data) -> mis-correction / missed-detection
+    # (a 1-bit data error gets miscorrected to a DIFFERENT value; a 2-bit
+    # error is declared 'no error'). Models §2.17 'ECC logic itself unreliable'.
+    # NOTE: §2.17 addr_map_sub needs DRAM coordinate mapping (E3, NOT here).
+    eccLogicFault = Param.Bool(False,
+        "§2.17: if true, the fault is applied to the in-CHAOSMem SECDED "
+        "syndrome (ECC-logic fault), not the data byte. Models mis-correction "
+        "/ missed-detection. Default false = backing-byte injection (orig).")

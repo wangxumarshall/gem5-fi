@@ -68,6 +68,19 @@ namespace gem5 {
       ProtectionOutcome applyProtection(uint8_t &data, uint8_t mask,
                                         uint8_t orig_byte, FaultType ft);
 
+      // §2.17 ECC-logic fault: if true, the fault corrupts the in-CHAOSMem
+      // SECDED syndrome (not the data) -> mis-correction / missed-detection.
+      bool ecc_logic_fault = false;
+      // §2.17 internal SECDED codec (8-byte data word + 1-byte syndrome).
+      // encode: syndrome = parity(data) (a toy 8-bit Hamming-like code).
+      // decode: recompute syndrome; XOR diff = error position. This is a
+      // SIMPLIFIED SECDED proxy (not a full Hamming matrix) — honest E3.
+      static uint8_t secdedSyndrome(const uint8_t *data8);
+      // §2.17 ecc_logic_fault injection: corrupt the syndrome bit (not data),
+      // then run decode -> may mis-correct (1-bit data err -> wrong value)
+      // or miss (2-bit err -> 'no error'). Returns true if applied.
+      bool applyEccLogicFault(uint8_t *data8, uint8_t xor_mask);
+
       EventFunctionWrapper attackEvent, periodicCheck;
       Tick first_tick, last_tick, ticks_permament_fault_check;
       

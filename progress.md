@@ -874,3 +874,16 @@ ARM 三条路径 + golden（真跑输出）：
 - ptw manifest（component=ptw）→ 诚实拒绝（FS-only，SE 不能挂 CHAOSPTW）。
 
 **诚实边界**：rob/iq/exec/fsu/l1d_fwd/bpu/addrpath/lsq_fwd 的 v2 manifest 样本未全写（映射已就位，campaign 可用）；formal n=384 须健康机。
+
+---
+
+### S1 §2.17 patch 1 — CHAOSMem ecc_logic_fault 模式（ECC 逻辑自身不可靠）
+
+**实现**：CHAOSMem（vendored + 顶层同步）加 `eccLogicFault` Param.Bool + `ecc_logic_fault` 成员 + 内建简化 SECDED 编解码（`secdedSyndrome` = 8 字节 XOR 校验，`applyEccLogicFault` = 翻 syndrome bit 导致误纠）。attackMemory 开头分支：ecc_logic_fault 时读 8 字节、注入 1-bit 数据错、用**损坏的 syndrome** "纠正" → 翻错位（1-bit→2-bit，mis-correction），写回 8 字节。`arm_chaos.py` 加 `--ecc_logic_fault`。
+
+**自验证（真机）**：
+- 干净重建 `scons -j16` EXIT=0，零警告（G7）。修 2 个编译错：`faultMask`→`fault_mask`（成员名）、`stoi(unsigned char)`→直接用 `fault_mask`。
+- **T1**：`Tick:100000000 addr:335405835 mode=ecc_logic_fault (8-byte word, mis-correct)` + `mis-corrected data bit 6 (1-bit err → wrong-bit fix)` → `f247ef3fe6cfd` ==golden（Masked——误纠字节未触及热数据，8B 字未传播到 checksum；单 fault pilot 合理）。
+- **回归**：reg_chain golden `f247ef3fe6cfd` 不变。
+
+**诚实边界**：`addr_map_sub`(F5) 需 DRAM channel/rank/bank/row/col 坐标映射（gem5 AbstractMemory 不暴露，doc E3）——未做。SECDED 是**简化 proxy**（8-byte XOR syndrome，非完整 Hamming(72,64) 矩阵）——E3 诚实。formal n=384 须健康机。
