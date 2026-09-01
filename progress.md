@@ -642,3 +642,23 @@ core179 三通路（D1/D2/D3）+ method1 状态泄漏（RAT/freelist/ROB）+
 method3 IQ（CHAOSIQ）+ method3 FP 位谱（CHAOSFPU）+ 整数阴性对照
 （CHAOSExec）+ PRF/Cache-ECC/Mem/TLB/SysReg/AddrPath/PTW + LSQFwd 五模式。
 故障模型：F1-F5 ✅，F6 ✅（phaseOffset+IQ src_ready），PCE 待写。
+
+---
+
+## 本轮（2026-09-01 续4）S8-4 评估 + 最终状态
+
+### S8-4 CHAOSBPU/CHAOSL1DForward 评估（待续）
+- CHAOSL1DForward (PCE): 与 CHAOSLSQFwd corrupt() + corruptResultRegVal
+  重叠（都是 load 数据翻转）；真正独立 PCE 需 hook lsq completeDataAccess
+  的 packet data（ECC 后）——lsq_unit.cc 深改。
+- CHAOSBPU: BPU branchPred 是 Python param，C++ 侧在 fetch.cc 使用；
+  hook 需深入 fetch.cc/BPU 类 lookup（预测目标 sub F5）+ 联合观测 squash
+  后架构态——复杂度高，且 BPU SDC 暴露面低（预测错误被冲刷，§2.2 P3）。
+
+### 最终状态：15 注入器，53 commit
+注入器：core179 三通路（D1/D2/D3）+ method1 状态泄漏（RAT/freelist/ROB）
++ method3 IQ（CHAOSIQ）+ method3 FP 位谱（CHAOSFPU）+ 整数阴性对照
+（CHAOSExec）+ PRF/Cache-ECC/Mem/TLB/SysReg/AddrPath/PTW + LSQFwd 五模式。
+故障模型：F1-F5 ✅，F6 ✅（phaseOffset+IQ src_ready），PCE 待写。
+formal 基础设施：campaign 并行 + manifest v2 + classify 九类 + fail_count
+oracle + ECC 后处理 + kp920_proxy + 第一批 P_SDC 数据（PRF pilot）。
