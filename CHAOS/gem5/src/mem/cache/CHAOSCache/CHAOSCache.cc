@@ -29,6 +29,7 @@ namespace gem5
         target_block_addr(p.targetBlockAddr),
         target_byte_offset(p.targetByteOffset),
         paired_sector(p.pairedSector),
+        target_field(p.targetField),
         protection_model(stringToProtectionModel(p.protectionModel)),
         rng_seed(p.rngSeed),
         max_faults(p.maxFaults),
@@ -341,6 +342,40 @@ namespace gem5
                 if (mask == 0) {
                     warn("Mask is 0.");
                     continue;
+                }
+
+                // §5.8C L1I semantic-field remap: when targetField is an
+                // A64 encoding field, move the selected bit(s) into the
+                // field's position within the 32-bit instruction word.
+                // The cache stores little-endian bytes; the instruction
+                // word is data[off..off+3]. Field positions (in-word):
+                //   rd=[4:0], rn=[9:5], rm=[20:16], opcode=[28:23]
+                if (target_field != "data") {
+                    byteOffset &= ~3;  // 4B-align to the instruction word
+                    int fsh, fw;
+                    if      (target_field == "rd")     { fsh = 0;  fw = 5; }
+                    else if (target_field == "rn")     { fsh = 5;  fw = 5; }
+                    else if (target_field == "rm")     { fsh = 16; fw = 5; }
+                    else /* opcode */                  { fsh = 23; fw = 6; }
+                    unsigned long long inword = 0;
+                    for (int k = 0; k < fw; ++k)
+                        if (mask & (1u << k)) inword |= (1ULL << (fsh + k));
+                    unsigned char fm[4] = {0,0,0,0};
+                    fm[0] = inword & 0xff; fm[1] = (inword>>8)&0xff;
+                    fm[2] = (inword>>16)&0xff; fm[3] = (inword>>24)&0xff;
+                    for (int b = 0; b < 4; ++b)
+                        if (fm[b]) data[byteOffset + b] ^= fm[b];
+                    stats->numFaultsInjected++;
+                    ++faults_injected_count;
+                    if (write_log) {
+                        *(log_stream->stream())
+                            << "Tick: " << curTick()
+                            << ", Cache Block Addr: " << blockAddr
+                            << ", Field: " << target_field
+                            << ", InwordMask: 0x" << std::hex << inword
+                            << std::dec << std::endl;
+                    }
+                    continue;  // field path done; skip the legacy byte path
                 }
 
                 // S0-3: save the pre-corruption byte so applyProtectionModel

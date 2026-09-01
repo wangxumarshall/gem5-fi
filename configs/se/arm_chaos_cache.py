@@ -44,6 +44,10 @@ p.add_argument("--paired", action="store_true",
                help="§7.7 128B paired-sector fault-domain proxy: fault both "
                     "the target 64B block AND its 128B-aligned partner, same "
                     "byte offset. Use --target=l2 (as 'L3').")
+p.add_argument("--target_field", default="data",
+               choices=["data","rd","rn","rm","opcode"],
+               help="§5.8C L1I semantic field (A64 encoding: rd[4:0] rn[9:5] "
+                    "rm[20:16] opcode[28:23]). data=legacy byte-level.")
 p.add_argument("--protection_model", default="none",
                choices=["none","sed","secded","secded_poison","parity_interleaved"],
                help="S0-3: ECC model (§2.3 N1 TRM proxy). none=raw escape; "
@@ -79,6 +83,7 @@ def cap(root):
         target_cache=target, probability=args.probability,
         firstClock=args.first_clock, lastClock=0,
         faultType=args.fault_type, bitsToChange=args.bits_to_change,
+        targetField=args.target_field,
         rngSeed=args.rng_seed, maxFaults=args.max_faults,
         targetBlockAddr=args.target_block_addr,
         targetByteOffset=args.target_byte_offset,

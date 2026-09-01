@@ -75,7 +75,8 @@ class CHAOSCache : public SimObject
     // target_byte_offset < 0 = random byte (orig).
     Addr target_block_addr;
     int target_byte_offset;
-    bool paired_sector;  // §7.7 128B fault-domain proxy (fault both 64B sectors)
+    bool paired_sector;
+    std::string target_field;  // §5.8C: data(legacy)/rd/rn/rm/opcode  // §7.7 128B fault-domain proxy (fault both 64B sectors)
 
     EventFunctionWrapper attackEvent, periodicCheck;
     Tick first_tick, last_tick, ticks_permament_fault_check;

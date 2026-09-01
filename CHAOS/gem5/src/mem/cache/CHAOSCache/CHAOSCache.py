@@ -49,4 +49,10 @@ class CHAOSCache(SimObject):
         "2-bit: silent). When != none, the injector reports the ECC outcome "
         "(EccCorrected/Poisoned/Latent) in its log for classify_run_pa's "
         "nine-class split.")
+    targetField = Param.String("data",
+        "Injection field: data (legacy byte-level, default) | rd | rn | rm | "
+        "opcode — A64 instruction-encoding fields (L1I semantic-field FI, "
+        "§5.8C). rd=bits[4:0], rn=bits[9:5], rm=bits[20:16], opcode=bits[28:23] "
+        "within the 32-bit instruction word at targetByteOffset (4B-aligned). "
+        "The faultMask/bitsToChange select bits WITHIN the field.")
     writeLog = Param.Bool(True, "Write a log file")
