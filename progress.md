@@ -960,3 +960,18 @@ ARM 三条路径 + golden（真跑输出）：
 3. **CHAOSRAS（§2.18）**：元分析，须所有 formal 完成。无 formal 结果则元分析脚本无输入。
 
 **6 个里完成 1 个（CHAOSDecode），剩 5 个**：ExMon 需 cache 层 hook + spinlock workload（可做但超本轮）；CHI/NoC/HCCS 是 S4 系统级（独立子项目）；RAS 是元分析（依赖 formal）。注入器总数 17→18（+CHAOSDecode）。
+
+---
+
+### CHAOSExMon 尝试（诚实，未完成）
+
+**探索结果**：gem5 的 ARM exclusive monitor 是**隐式 packet-cmd 层**（cache.cc 的 `StoreCondReq/Resp/FailResp` + `SCUpgradeReq/FailReq` + `LockedRMWReadReq`），**无 DynInst 层的 FSM**。STXR 成功/失败由 cache 层的 UpgradeFailResp/StoreCondResp 决定，不在 DynInst 结果里。
+
+**我尝试的路径**：
+1. `DynInst::execute()` 后 corrupt result（CHAOSExec 模式）——不通：STXR 的"成功标志"是 packet-cmd，不在 instResult。
+2. cache.cc 的 StoreCondFailResp → StoreCondResp 翻转——需 hook cache 层 packet cmd，侵入性高（改 cache.cc 响应路径）。
+3. completeDataAccess hook STXR 结果——STXR 是 store 不是 load，不走 completeDataAccess 的 load 写回。
+
+**诚实结论**：ExMon 在 gem5 里不是"hook 一个 FSM"，是"hook cache 层的 packet-cmd 翻转"——侵入性高 + 需 spinlock kernel 验证。本轮诚实未构建（探索了路径，确认 gem5 无 DynInst 层 FSM，需 cache 层 packet hook）。**注入器总数仍 18（CHAOSDecode 已加，ExMon 未加）。**
+
+**剩 5 个诚实状态**：ExMon（gem5 LLSC 隐式 packet 层，需 cache hook + spinlock kernel，本轮探索后未构建）、CHI/NoC/HCCS（S4 系统级）、RAS（元分析依赖 formal）。
