@@ -613,3 +613,32 @@ method3 IQ（CHAOSIQ）+ PRF/Cache-ECC/Mem/TLB/SysReg/AddrPath/PTW +
 LSQFwd 五模式（structuralFault/fwd_source_sub/stale_line_replay/
 phaseOffset/D2-64bit）。
 故障模型：F1-F5 ✅，F6 ✅（phaseOffset + IQ src_ready），PCE 待写。
+
+---
+
+## 本轮（2026-09-01 续3）S8-3 CHAOSExec + S8-2 CHAOSFPU + writeback hook
+
+### iew.cc writeback hook 基础设施（S8-2/3/4 共用）
+- inst_res.hh: InstResult 加 public corruptRegVal(RegVal mask)
+- dyn_inst.hh: DynInst 加 public corruptResultRegVal(RegVal mask)——翻转
+  instResult queue front（writeback result，PhysReg 写前）
+
+### S8-3: CHAOSExec `68cab08`（注入器 13→14）
+int ALU writeback result 翻转（阴性对照 P_SDC(Int)<<P_SDC(FSU)）。
+attackEvent + robAccess head + isInteger 过滤 + corruptResultRegVal。
+位段 all/low[0:11]/mid[12:47]/high[48:63]。
+真机：numIntResultCorrupted=1，日志 'Site: int_writeback_result Mask: 0x1'。
+
+### S8-2: CHAOSFPU `9c9b97a`（注入器 14→15）
+FP/FSU writeback result 翻转（IEEE754 sign/exp/mantissa，method3 位谱）。
+与 CHAOSExec 同构（corruptResultRegVal + isFloating）。
+真机：构建零警告 + log_stream 创建；neon_lane 验证受限（FP 头稀少，
+attackEvent REJECT 无限重试到 timeout，与 F3 MISS 同行为）。机制就位
+（与 CHAOSExec 同构已验证 corruptResultRegVal）；formal 需 FP-heavy
+kernel（cholesky/fma_kernel）+ 多 seed。
+
+### 注入器现状：15 个
+core179 三通路（D1/D2/D3）+ method1 状态泄漏（RAT/freelist/ROB）+
+method3 IQ（CHAOSIQ）+ method3 FP 位谱（CHAOSFPU）+ 整数阴性对照
+（CHAOSExec）+ PRF/Cache-ECC/Mem/TLB/SysReg/AddrPath/PTW + LSQFwd 五模式。
+故障模型：F1-F5 ✅，F6 ✅（phaseOffset+IQ src_ready），PCE 待写。
