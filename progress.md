@@ -1014,3 +1014,21 @@ ARM 三条路径 + golden（真跑输出）：
 **自验证**：干净重建 `scons -j16` EXIT=0，零警告（G7）。修 2 个编译错：flit 在 `gem5::ruby::garnet` 命名空间（前向声明 `namespace ruby { namespace garnet { class flit; } }`）；NetworkLink 在 `ruby` 命名空间 → `chaosNoC` 成员需 `::gem5::CHAOSNoC*` 全限定。**SE-inert**：stdlib SE classic-cache 不用 Garnet → NoC 不实例化 → hook 不触发（与 AddrPath 的 SE-inert 同模式，但原因不同——NoC 根本不在 SE 里）。**须 Ruby 配置验证**（configs/se/ruby_chaos.py，deferred）。
 
 **诚实边界**：route_sub(F5 RouteInfo 突变) + payload_bitflip(Ruby Message functionalWrite) deferred；Ruby 配置（切 stdlib→Ruby + Garnet 拓扑）deferred（S4 独立子项目）；formal n=384。
+
+---
+
+### 六注入器收尾（4/6 完成，诚实）
+
+**完成 4 个**：
+1. CHAOSDecode（§2.14）✅ dest_reg_sub F5 via _flatDestIdx per-inst（解决 staticInst 共享）
+2. CHAOSExMon（§2.4）✅ hook ISA::handleLockedWrite（找到 ISA 层 STXR verdict，非 lsq FSM）
+3. CHAOSRAS（§2.18）✅ exc_suppress at Commit::commitHead fault-check
+4. CHAOSNoC（§2.15）✅ flit_delay F6 hook NetworkLink::wakeup（Ruby/Garnet-only，SE-inert）
+
+**剩 2 个（最深，SLICC 协议级）**：
+5. CHAOSCHI（§2.9）❌ 需 hook Ruby/CHI SLICC 协议（.sm 文件）的目录 + 响应通道。AbstractController 是 SLICC 生成代码的基类，hook 它不够（L3 Tag/Data 字段在生成的状态机里）。需改 CHI .sm 文件重新生成 C++。doc 明列 E3/E4 + ~8 补丁独立子项目。
+6. CHAOSSHCCS（§2.16）❌ CHI 的多 NUMA 扩展，同 SLICC 层。
+
+**注入器总数 7→21**（新增 14：RenameMap/FreeList/ROB/IQ/Exec/FPU/L1DForward/BPU/AddrPath/PTW/Decode/ExMon/RAS/NoC）+ LSQFwd/CHAOSMem/CHAOSCache 字段级扩展。
+
+**6 个里完成 4 个，剩 2 个（CHI/HCCS）是 SLICC 协议级深层系统级工作**——需改 .sm 文件重新生成 C++，是 doc 明列的 S4 独立子项目（~8 补丁/每个）。单会话 + SLICC 重新生成 + 多核 Ruby 配置验证物理上做不完。下次会话从 CHAOSCHI（改 CHI .sm 加目录 hook）继续。
