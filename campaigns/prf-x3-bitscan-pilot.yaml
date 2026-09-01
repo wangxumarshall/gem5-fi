@@ -1,0 +1,25 @@
+# PRF X3 bit-scan pilot campaign (plan §5.1, S7-3 pilot scale).
+# Single-bit flips on X3 (data accumulator, SDC-prone all-bit-positions)
+# across 8 stratified bit positions. Pilot n=16/cell (formal n=384 needs
+# compute budget; this proves the campaign produces real P_SDC + Wilson CI).
+campaign_id: prf_x3_bitscan_pilot
+workload:
+  binary: workloads/directed/reg_chain
+  golden: f247ef3fe6f02cfd
+  golden_id: regchain-golden-v1
+  oracle_kind: exact_hash
+trigger:
+  mode: cycle
+  value: 100000
+limits:
+  max_faults: 1
+  max_ticks: 0
+injector: physreg
+config_family: C0
+axes:
+  layer: [arch_frontend]
+  target_arch: [3]                 # X3 data accumulator
+  bit_indices: [[0],[11],[12],[31],[32],[47],[48],[63]]  # G1 stratified
+defaults:
+  rng_master_seed: 20260825
+  width_bits: 64
