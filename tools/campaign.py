@@ -361,7 +361,12 @@ def main():
     n_per_cell = args.n_per_cell or campaign["n_per_cell"]
     replay_pct = args.replay_pct if args.replay_pct >= 0 else campaign.get("replay_pct", 5.0)
     hang_timeout = campaign.get("hang_timeout", 600)
-    binary = os.path.join(REPO, campaign["workload"]["binary"])
+    # §2.2 fix: pass the binary path as RELATIVE (not absolute) — gem5's
+    # process image layout / readlink emulation behaves differently with
+    # absolute paths (rename injection lands at a different PC → different
+    # classification). The runner.py + arm_chaos.py use --cmd=<path> directly;
+    # a relative path matches the manual-verify behavior (Crash for rename).
+    binary = campaign["workload"]["binary"]
 
     cells = expand_grid(campaign["grid"])
     print(f"[campaign] {len(cells)} cells x {n_per_cell} reps = {len(cells)*n_per_cell} runs")

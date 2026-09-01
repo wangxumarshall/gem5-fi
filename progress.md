@@ -1052,3 +1052,25 @@ ARM 三条路径 + golden（真跑输出）：
 **自验证**：干净重建 `scons -j16` EXIT=0，零警告。SE-inert（Ruby-only）。回归 golden 不变。
 
 **注入器总数 7→22**（新增 15：RenameMap/FreeList/ROB/IQ/Exec/FPU/L1DForward/BPU/AddrPath/PTW/Decode/ExMon/RAS/NoC/CHI(+HCCS as mode)）。**6 个原"硬阻碍"注入器全部完成**（4 个 SE-verified + 2 个 Ruby-only/SE-inert）。
+
+---
+
+### 第二章 §2.2 C/H 验收（pilot campaign 正式跑通）
+
+**修复 campaign binary 路径 bug**：campaign.py 的 `binary = os.path.join(REPO, ...)` 传绝对路径给 runner→gem5，导致 gem5 的 process image layout 在绝对路径下与相对路径不同（rename 注入落不同 PC → 不同分类）。修复：改传相对路径（与手动验证一致）。**这是之前 campaign 一直报 Masked 的根因**。
+
+**§2.2 H.① 验收断言（golden 重放）✅**：
+- cholesky_numeric 5/5 = `37621bc0a633976f`
+- method1_controls 各 3/3 = `98433fcf09968e6a` / `57b2c160bf2c92ad` / `e4481fb960ff6465` / `39d61425aae92434`
+- mov_heavy 3/3 = `61e8a946ed50ae1f`
+
+**§2.2 H.③ 验收断言（pilot 非 Inactive）✅**：
+- map_bitflip → Crash（core dump, rename-inconsistency）
+- f5_substitute → Crash
+- mark_free → Crash
+
+**§2.2 C pilot campaign（2 cells × 3 reps）✅**：
+- cell X3（target_index=3）：P_SDC=0%, P_DUE=66.7% [20.8,93.9], Reach=100% — **2/3 Crash + 1/3 Masked**（RAT 错→rename-inconsistency 主导，method1 机制）
+- cell X9（target_index=9）：P_SDC=0%, P_DUE=0%, Reach=100% — 3/3 Masked（X9 不在关键路径，被掩盖）
+
+**关键发现（诚实）**：cholesky_numeric 只跑 ~2s（16×16 矩阵，不是 ~90s——reg_chain 才是 90s）。campaign 跑 6 reps = 12s。formal n=384 在 cholesky 上约 12 分钟（不是 9.6 小时）。**formal 在 cholesky 上完全可跑**。reg_chain 才需健康机。
