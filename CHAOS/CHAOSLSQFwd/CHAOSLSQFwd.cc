@@ -20,6 +20,7 @@ namespace gem5
           mask_width(p.maskWidth),
           structural_fault_enum(stringToStructuralFault(p.structuralFault)),
           source_fault_enum(stringToSourceFault(p.sourceFault)),
+          phase_offset(p.phaseOffset),
           skew_bytes(p.skewBytes),
           num_bits_to_change(p.bitsToChange),
           byte_offset(p.byteOffset),
@@ -113,6 +114,7 @@ namespace gem5
     CHAOSLSQFwd::stringToSourceFault(const std::string &s) {
         if (s == "fwd_source_sub")   return SourceFault::FwdSourceSub;
         if (s == "stale_line_replay") return SourceFault::StaleLineReplay;
+        if (s == "phase_offset")     return SourceFault::PhaseOffset;
         return SourceFault::None;
     }
 
@@ -121,7 +123,8 @@ namespace gem5
         switch (f) {
             case SourceFault::FwdSourceSub:   return "fwd_source_sub";
             case SourceFault::StaleLineReplay: return "stale_line_replay";
-            case SourceFault::None:           return "none";  // G7: clear -Wswitch
+            case SourceFault::PhaseOffset:   return "phase_offset";  // G7
+            case SourceFault::None:           return "none";
         }
         return "none";
     }
@@ -155,16 +158,21 @@ namespace gem5
 
         // Find a STALE entry (valid, older than the just-recorded one). If
         // none yet, return cur_data (no residue possible).
-        // Pick the most-recent valid entry that isn't the current vaddr.
+        //  - FwdSourceSub/StaleLineReplay: pick the most-recent valid entry.
+        //  - PhaseOffset (F6): pick the entry `phase_offset` steps back
+        //    (modeling a timing-phase race — method3's no-op-ALU 100%->10-20%
+        //    signature; a deeper history slot = a bigger phase misalignment).
         HistEntry *stale = nullptr;
-        for (int i = 0; i < HIST_CAP; ++i) {
+        int start_depth = (source_fault_enum == SourceFault::PhaseOffset)
+                          ? phase_offset : 0;
+        for (int i = start_depth; i < HIST_CAP; ++i) {
             int idx = (hist_next - 1 - i + HIST_CAP) % HIST_CAP;
             if (hist[idx].valid && hist[idx].size >= size) {
                 stale = &hist[idx];
                 break;
             }
         }
-        if (!stale) return cur_data;  // history empty — no substitution
+        if (!stale) return cur_data;  // history too shallow — no substitution
 
         // Copy the stale data into a stable buffer (the load's memData will
         // memcpy from this). Use a thread-local-ish static buffer.
@@ -174,8 +182,10 @@ namespace gem5
         ++faults_injected_count;
         if (source_fault_enum == SourceFault::FwdSourceSub)
             stats->numFwdSourceSub++;
-        else
+        else if (source_fault_enum == SourceFault::StaleLineReplay)
             stats->numStaleLineReplay++;
+        else  // PhaseOffset
+            stats->numPhaseOffset++;
         if (write_log) {
             *(log_stream->stream())
                 << "Cycle: " << cpu->curCycle()
@@ -370,7 +380,9 @@ namespace gem5
           ADD_STAT(numFwdSourceSub, statistics::units::Count::get(),
                    "S6-1 wrong-source forward (F5 stale source substitution)"),
           ADD_STAT(numStaleLineReplay, statistics::units::Count::get(),
-                   "S6-2 stale-line replay (stale fill-buffer)")
+                   "S6-2 stale-line replay (stale fill-buffer)"),
+          ADD_STAT(numPhaseOffset, statistics::units::Count::get(),
+                   "S6-3 F6 phase offset (timing-phase race, method3 signature)")
     {}
 
 } // namespace gem5

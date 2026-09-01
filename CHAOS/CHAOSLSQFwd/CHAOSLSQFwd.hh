@@ -69,10 +69,11 @@ class CHAOSLSQFwd : public SimObject
     // stale_line_replay: same mechanism, models a stale fill-buffer line
     //                  replayed to a newer load.
     // None           : return cur_data (no substitution).
-    enum class SourceFault { None, FwdSourceSub, StaleLineReplay };
+    enum class SourceFault { None, FwdSourceSub, StaleLineReplay, PhaseOffset };
     static SourceFault stringToSourceFault(const std::string &s);
     const char *sourceFaultToString(SourceFault f);
     SourceFault source_fault_enum = SourceFault::None;
+    int phase_offset = 0;  // S6-3: F6 phase offset (history depth N, -2..+2)
     // History ring buffer of recently-seen store data (for stale/sub source).
     // Capped at 8 entries of up to 64 bytes each (cache-line sized forwards).
     static constexpr int HIST_CAP = 8;
@@ -115,6 +116,7 @@ class CHAOSLSQFwd : public SimObject
         statistics::Scalar numStructuralAllZero;       // S1-5: P-D1 empty slot
         statistics::Scalar numFwdSourceSub;            // S6-1: wrong-source forward
         statistics::Scalar numStaleLineReplay;         // S6-2: stale-line replay
+        statistics::Scalar numPhaseOffset;             // S6-3: F6 phase offset
         CHAOSLSQFwdStats(statistics::Group *parent);
     };
     std::unique_ptr<CHAOSLSQFwdStats> stats;

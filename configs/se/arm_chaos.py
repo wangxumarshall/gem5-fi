@@ -134,10 +134,15 @@ p.add_argument("--lsq_skew_bytes", type=int, default=0,
                help="byte_lane_skew right-rotation amount (1..7). 0=random.")
 # S6-1/S6-2: source-substitution faults (forward-source F5 + stale line).
 p.add_argument("--lsq_source_fault", default="none",
-               choices=["none","fwd_source_sub","stale_line_replay"],
+               choices=["none","fwd_source_sub","stale_line_replay","phase_offset"],
                help="CHAOSLSQFwd source substitution (BEFORE memcpy). "
                     "fwd_source_sub: stale buffer as source (wrong-store F5). "
-                    "stale_line_replay: stale fill-buffer line.")
+                    "stale_line_replay: stale fill-buffer line. "
+                    "phase_offset: F6, history N steps back (timing-phase race).")
+p.add_argument("--lsq_phase_offset", type=int, default=1,
+               help="F6 phase offset N (history depth 1..8). Used with "
+                    "source_fault=phase_offset: return history N steps back, "
+                    "modeling method3 timing-phase race (100%->10-20%).")
 # CHAOSAddrPath (P-D2): address-path FI. FS-only for observable effect.
 p.add_argument("--chaos_addrpath", action="store_true",
                help="attach CHAOSAddrPath (P-D2 address-path FI; FS required "
@@ -310,6 +315,7 @@ if args.chaos_lsqfwd:
         structuralFault=args.lsq_structural_fault,
         skewBytes=args.lsq_skew_bytes,
         sourceFault=args.lsq_source_fault,
+        phaseOffset=args.lsq_phase_offset,
         bitsToChange=args.bits_to_change,
         byteOffset=args.lsq_byte_offset,
         firstClock=args.first_clock,
