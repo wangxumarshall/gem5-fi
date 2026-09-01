@@ -95,6 +95,9 @@ p.add_argument("--sysreg_probability", type=float, default=0.0)
 p.add_argument("--sysreg_max_faults", type=lambda x:int(x,0), default=1)
 p.add_argument("--sysreg_fault_mask", type=lambda x:int(x,0), default=0)
 p.add_argument("--sysreg_rng_seed", type=lambda x:int(x,0), default=20260825)
+p.add_argument("--sysreg_fault_type", default="bit_flip",
+               choices=["bit_flip","stuck_at_zero","stuck_at_one","random","value_to_legal"],
+               help="CHAOSArmSysReg fault type (§5.7B: value_to_legal=F5 mask).")
 p.add_argument("--sysreg_target_regs", default="",
                help="comma-separated ARM miscRegName strings (lowercase, "
                     "from misc.hh miscRegName[]), e.g. "
@@ -237,7 +240,7 @@ if args.chaos_armtlb or args.chaos_sysreg or args.chaos_addrpath or args.chaos_p
                 isa=isa0,
                 probability=args.sysreg_probability,
                 firstClock=args.sysreg_first_clock,
-                faultType="bit_flip",
+                faultType=args.sysreg_fault_type,
                 faultMask=args.sysreg_fault_mask,
                 bitsToChange=1,
                 targetRegs=args.sysreg_target_regs,

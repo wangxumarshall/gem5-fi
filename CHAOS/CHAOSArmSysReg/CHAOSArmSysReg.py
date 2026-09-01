@@ -25,6 +25,8 @@ class CHAOSArmSysReg(SimObject):
     firstClock = Param.UInt64(0, "First clock cycle eligible for injection")
     lastClock = Param.UInt64(0, "Last cycle (0 = unrestricted)")
     faultType = Param.String("bit_flip",
+        # (updated doc; the m5 Param system takes the second positional as
+        # the doc string — keep one string, note value_to_legal in help)
         "bit_flip | stuck_at_zero | stuck_at_one | random")
     faultMask = Param.UInt64(0,
         "64-bit mask applied to the sys-reg value (bit positions). 0=random.")

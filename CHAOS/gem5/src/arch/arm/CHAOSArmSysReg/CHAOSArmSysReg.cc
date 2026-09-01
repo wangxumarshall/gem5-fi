@@ -76,6 +76,7 @@ namespace gem5
         if (s == "bit_flip") return FaultType::BitFlip;
         if (s == "stuck_at_zero") return FaultType::StuckAtZero;
         if (s == "stuck_at_one") return FaultType::StuckAtOne;
+        if (s == "value_to_legal") return FaultType::ValueToLegal;
         return FaultType::Random;
     }
 
@@ -86,6 +87,7 @@ namespace gem5
             case FaultType::StuckAtZero: return "stuck_at_zero";
             case FaultType::StuckAtOne: return "stuck_at_one";
             case FaultType::Random: return "random";  // G7: clear -Wswitch
+            case FaultType::ValueToLegal: return "value_to_legal";
         }
         return "random";
     }
@@ -169,6 +171,20 @@ namespace gem5
 
         RegVal old_val = val;
         switch (chosen) {
+            case FaultType::ValueToLegal: {
+                // F5 (§5.7B): AND with a legal-form mask. For TTBR-class
+                // registers (page-table bases), ~0xFFF aligns to a page-
+                // table base FORM — a legal shape but WRONG base (silent
+                // wrong-page-table direction). Others: keep upper half.
+                bool is_ttbr = (reg_name &&
+                    (strstr(reg_name, "ttbr0") || strstr(reg_name, "ttbr1")));
+                RegVal legal_mask = is_ttbr ? ~(RegVal)0xFFF
+                                            : ((RegVal)0xFFFFFFFFULL << 32);
+                RegVal old_val2 = val;
+                val &= legal_mask;
+                if (val == old_val2) return false;  // already legal-form
+                break;
+            }
             case FaultType::StuckAtZero:
                 val &= ~mask;
                 stats->numStuckAtZero++;

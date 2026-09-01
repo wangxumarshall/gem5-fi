@@ -45,7 +45,7 @@ class CHAOSArmSysReg : public SimObject
     void startup() override;  // convert first/last Cycles -> Tick window
 
   private:
-    enum class FaultType { BitFlip, StuckAtZero, StuckAtOne, Random };
+    enum class FaultType { BitFlip, StuckAtZero, StuckAtOne, Random, ValueToLegal };
     static FaultType stringToFaultType(const std::string &s);
     const char *faultTypeToString(FaultType f);
 
