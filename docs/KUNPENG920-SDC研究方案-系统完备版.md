@@ -572,7 +572,7 @@ pilot 每 cell n=100（可达率/工具错误/粗略比例）；formal 每 cell 
 
 ### 6.5 保护交互规律
 
-- ECC 前后对照（protectionModel，待实现）：1-bit→Corrected、2-bit→poison/Latent、≥3-bit→SDC；画风险反转图。
+- ECC 前后对照（protectionModel，✅ `09e31d6`）：1-bit→Corrected、2-bit→poison/DetectedContained、≥3-bit→Latent；风险反转图机制已验证（`S7-5`：raw 2-bit numRawEscaped=1 vs secded 2-bit numDetectedContained=1，方向正确——ECC 把 raw escape 转为 contained DUE）。formal 多 seed 统计待 campaign cache 路径扩展。
 - post-check escape：ECC 校验后数据通路损坏完全不受保护。
 - `CHAOSRAS` 元分析：RAS 逃逸率按逃逸机理 A–F 归因（§8.1）。
 
