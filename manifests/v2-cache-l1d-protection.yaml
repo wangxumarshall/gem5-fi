@@ -1,0 +1,28 @@
+# v2 cache smoke: CHAOSCache l1d + secded protection (S7-5 risk-reversal).
+# block addr 862656 = l1d_reduce's live-data block (verified anchor §5.0).
+schema_version: arm-chaos-fi/v2
+campaign_id: v2_cache_secded_smoke
+run_id: v2-cache-l1d-secded-0001
+source: {chaos_commit: TBD, gem5_commit: TBD}
+platform: {isa: ARM64, mode: SE, cpu_model: ArmO3CPU, config_family: C0}
+workload:
+  binary_sha256: ""
+  input_sha256: ""
+  roi: {begin_symbol: roi_begin, end_symbol: roi_end}
+trigger: {mode: cycle, value: 10000}
+target:
+  layer: physical
+  component: l1d
+  instance: cpu0.l1d
+  index: 0            # byte offset within block
+  field: value
+  width_bits: 64
+fault:
+  model: transient_bit_flip
+  bit_indices: [0]
+  duration_events: 1
+  stage: raw_pre_protection
+  protection_model: secded
+rng: {master_seed: 20260825, selection_seed: 20260825}
+limits: {max_faults: 1, max_ticks: 0}
+oracle: {kind: exact_hash, golden_id: l1dreduce-golden-v1}

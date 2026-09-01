@@ -63,6 +63,10 @@ def main():
                          "manifest's oracle.golden_id is resolved via the "
                          "runner's GOLDEN_IDS table.")
     ap.add_argument("--binary", required=True, help="path to the workload binary")
+    ap.add_argument("--cache-block-addr", type=lambda x: int(x, 0), default=0,
+                    help="directed cache block address (live-data block) for "
+                         "l1d/l2/l1i components. 0 = random block (mostly "
+                         "Masked). Overrides CHAOS_CACHE_BLOCK_ADDR env.")
     args = ap.parse_args()
 
     with open(args.manifest) as f:
@@ -207,13 +211,28 @@ def main():
             print(f"[runner] WARNING: f6_phase_offset={inj['f6_phase_offset']} "
                   f"not yet wired (phaseOffset mode pending S1-5).")
     elif comp == "l1d" or comp == "l2" or comp == "l1i":
-        # S0-2 v2: CHAOSCache (needs arm_chaos_cache.py; protection_model applies).
-        # arm_chaos.py doesn't mount CHAOSCache; this needs the cache config.
-        # For now, record the intent honestly (cache runner is a separate path).
-        print(f"[runner] WARNING: component '{comp}' needs arm_chaos_cache.py; "
-              f"current runner only wires arm_chaos.py SE injectors. "
-              f"protection_model={inj.get('protection_model','none')} will be "
-              f"applied when cache path is added.")
+        # S7-5: CHAOSCache path — route to arm_chaos_cache.py (the cache
+        # config). protection_model applies (classify_run_pa nine-class).
+        # Directed cache injection needs a live-data block addr; pass via
+        # --cache-block-addr (experiment config, not fault semantics).
+        CACHE_CFG = os.path.join(REPO, "configs/se/arm_chaos_cache.py")
+        block_addr = args.cache_block_addr or int(
+            os.environ.get("CHAOS_CACHE_BLOCK_ADDR", "0"), 0)
+        byte_off = idx if idx is not None else -1
+        pmodel = inj.get("protection_model", "none")
+        cmd = [G5, "--quiet", "-d", tempfile.mkdtemp(prefix="man-"), CACHE_CFG,
+               "--cmd", args.binary, "--cpu", "O3",
+               "--target", comp,                      # l1d/l2/l1i 直译
+               "--target_block_addr", str(block_addr),
+               "--target_byte_offset", str(byte_off),
+               "--first_clock", str(t["value"]),
+               "--max_faults", str(m["limits"]["max_faults"]),
+               "--rng_seed", str(m["rng"]["selection_seed"]),
+               "--fault_type", fault_type,
+               "--bits_to_change", bits_to_change,
+               "--protection_model", pmodel]
+        print(f"[runner] cache path: target={comp} block=0x{block_addr:x} "
+              f"byte={byte_off} protection={pmodel}")
     # FS-only components (sysreg/ptw/l1_tlb/addr-path) need arm_chaos_fs.py;
     # the SE runner cannot drive them — record honestly.
     elif comp in ("sysreg", "ptw", "l1_tlb", "l2_tlb"):
@@ -296,6 +315,14 @@ def main():
                         continue
                     if "pop_wrong:" in line and "Site:" not in line:
                         continue
+                    # CHAOSCache log: only the INJECTION line (has
+                    # "Cache Block Addr") counts — the "Directed ... NOT
+                    # resident" fallback warning and the indented
+                    # "ProtectionModel=... EccCorrected" PA marker lines
+                    # are per-injection context, not separate faults.
+                    if logname == "cache_injections.log" and \
+                            "Cache Block Addr" not in line:
+                        continue
                     if line.strip():
                         faults += 1
             break
@@ -305,6 +332,14 @@ def main():
               f"— run invalid")
 
     stdout_text = r.stdout if r.stdout else ""
+    # S7-5: cache path — the PA marker (EccCorrected/Poisoned/Latent) lives
+    # in cache_injections.log, NOT gem5 stdout. Read it and prepend to the
+    # text classify sees, so classify_run_pa's nine-class split works.
+    if comp in ("l1d", "l2", "l1i") and outdir:
+        pa_log = os.path.join(outdir, "cache_injections.log")
+        if os.path.exists(pa_log):
+            with open(pa_log) as f:
+                stdout_text = f.read() + "\n" + stdout_text
     # S0-2 v2: protection_model (used by the nine-class path below).
     pmodel = inj.get("protection_model", "none")
     # S7-1: fail_count oracle (accum/cholesky print "iters=N fails=M" to stderr,
