@@ -29,9 +29,9 @@
 
 **核查方法**：逐注入器实读 `.py/.hh/.cc/SConscript`；在 vendored gem5 源码树 `CHAOS/gem5/src/` 中 grep 确认 hook 接线；`git log --all` 追溯被删除文件的历史；实跑 `gem5.opt` 验证构建与锚点（§5 已验证锚点表）。
 
-#### 0.3.1 当前工作树真实存在的注入器：**核查时 7 个，现已 15 个**（+CHAOSAddrPath `ffd041e` + CHAOSRenameMap `c5c8c96` + CHAOSFreeList `379e11c` + CHAOSPTW `de48432` + CHAOSROB `7d0756d` + CHAOSIQ `f7a5d72` + CHAOSExec `68cab08` + CHAOSFPU `9c9b97a`）
+#### 0.3.1 当前工作树真实存在的注入器：**核查时 7 个，现已 16 个**（+CHAOSAddrPath `ffd041e` + CHAOSRenameMap `c5c8c96` + CHAOSFreeList `379e11c` + CHAOSPTW `de48432` + CHAOSROB `7d0756d` + CHAOSIQ `f7a5d72` + CHAOSExec `68cab08` + CHAOSFPU `9c9b97a`）
 
-> **2026-08-30 核查时**主线工作树有 7 个注入器（下表）。**S1-5b（`ffd041e`）新增 CHAOSAddrPath**、**S1-2（`c5c8c96`）新增 CHAOSRenameMap**、**S1-3（`379e11c`）新增 CHAOSFreeList**、**S2-5c（`de48432`）新增 CHAOSPTW**、**S1-4（`7d0756d`）新增 CHAOSROB**、**S8-1（`f7a5d72`）新增 CHAOSIQ**、**S8-3（`68cab08`）新增 CHAOSExec**、**S8-2（`9c9b97a`）新增 CHAOSFPU**，主线现 15 个。下表保留核查时状态以存史；新增注入器见 §A.2 与 §5.2/§5.3/§5.4/§5.5/§5.6/§5.7。
+> **2026-08-30 核查时**主线工作树有 7 个注入器（下表）。**S1-5b（`ffd041e`）新增 CHAOSAddrPath**、**S1-2（`c5c8c96`）新增 CHAOSRenameMap**、**S1-3（`379e11c`）新增 CHAOSFreeList**、**S2-5c（`de48432`）新增 CHAOSPTW**、**S1-4（`7d0756d`）新增 CHAOSROB**、**S8-1（`f7a5d72`）新增 CHAOSIQ**、**S8-3（`68cab08`）新增 CHAOSExec**、**S8-2（`9c9b97a`）新增 CHAOSFPU**、**S8-4（`1bb18f0`）新增 CHAOSL1DForward (PCE)**，主线现 16 个。下表保留核查时状态以存史；新增注入器见 §A.2 与 §5.2/§5.3/§5.4/§5.5/§5.6/§5.7。
 
 | 注入器 | 目标单元 | Hook 位置（已核实） | 范式 | 真实参数面（已核实） |
 |---|---|---|---|---|
@@ -901,7 +901,7 @@ DSN / PRDC / ASPLOS / HPCA / MICRO；对标 Veritas(HPCA'25)、PinDrop(HPCA'26)�
 
 ## 附录 A　注入器与 hook 点总表（源码核对版，2026-08-30）
 
-### A.1 已有注入器（15 个，含 CHAOSAddrPath/CHAOSRenameMap/CHAOSFreeList/CHAOSPTW/CHAOSROB/CHAOSIQ/CHAOSExec/CHAOSFPU）
+### A.1 已有注入器（16 个，含 CHAOSAddrPath/CHAOSRenameMap/CHAOSFreeList/CHAOSPTW/CHAOSROB/CHAOSIQ/CHAOSExec/CHAOSFPU/CHAOSL1DForward）
 
 | 注入器 | 目标单元 | Hook 位置（已核实） | 范式 | 优先级 | 真实模式（已核实） |
 |---|---|---|---|---|---|
@@ -918,6 +918,7 @@ DSN / PRDC / ASPLOS / HPCA / MICRO；对标 Veritas(HPCA'25)、PinDrop(HPCA'26)�
 | **CHAOSIQ** | 发射队列 | `dyn_inst.hh` readySrcIdx/renamedSrcIdx + `cpu->robAccess()` | B（attackEvent） | P1 | src_ready_bitflip（验证 src0 1→0）/ tag_sub（F5）/ wake_phase+wake_omit（deferred） |
 | **CHAOSExec** | 整数 ALU writeback | `dyn_inst.hh` corruptResultRegVal + `cpu->robAccess()` | B（attackEvent） | P3 | int writeback result 翻转（已验证 numIntResultCorrupted=1）/ 阴性对照 P_SDC(Int)<<P_SDC(FSU) |
 | **CHAOSFPU** | FP/FSU writeback | `dyn_inst.hh` corruptResultRegVal + `cpu->robAccess()` | B（attackEvent） | P1 | FP writeback result 翻转（IEEE754 sign/exp/mantissa，method3 位谱）/ 与 CHAOSExec 同构 |
+| **CHAOSL1DForward** | PCE post-check escape | `dyn_inst.hh` corruptResultRegVal (isLoad) + `cpu->robAccess()` | B（attackEvent） | P2 | load result post-ECC 翻转（PCE，ECC 后数据通路必然出口） |
 
 ### A.2 待实现/待扩展注入器（9 个）
 
