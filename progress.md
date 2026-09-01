@@ -695,3 +695,41 @@ AddrPath/PTW + LSQFwd 五模式。
 故障模型：F1-F6 + PCE 全覆盖。
 formal 基础设施：campaign 并行 + manifest v2 + classify 九类 + fail_count
 oracle + ECC 后处理 + kp920_proxy + 第一批 P_SDC 数据（PRF pilot）。
+
+---
+
+## 后续计划1执行（2026-09-01，docs/superpowers/plans/2026-09-01-remaining-sdc-work.md）
+
+### T1: CHAOSROB spec_leak `5502276`
+hook Rename::doSquash 的 freeingInProgress.push_back 前调 maybeDelayFree——
+跳过 freelist 归还（错误路径 PRF 写保留）。修复：spec_leak 模式不 schedule
+attackEvent（doSquash hook 事件驱动，避免 prob=1.0 无限轮询）。
+验证：branchy_leak numSpecLeak=3（PhysReg 104/105/106 跳过归还）+
+负对照 reg_chain golden + PhysReg 回归不变。
+
+### T2: CHAOSBPU `c606511`（注入器 16→17）
+hook BAC::predict（target_sub F5 fall-through / direction_flip F1）。
+PCStateBase.as<PCStateWithNext>() 向下转。call_ret_heavy native==gem5 golden。
+诚实限制：BAC::predict 只在 decoupled FE 调用（默认 coupled 不经 BAC；
+decoupledFrontEnd=True 与 stdlib board 不兼容——空 stats 实测）。
+hook 就线待 decoupled-compatible 配置。
+
+### T3: runner cache 路径 `428e094`
+l1d/l2/l1i 从 WARNING 升级真执行（arm_chaos_cache.py + --cache-block-addr
++ PA log 并流 + cache log 计数修复）。验证：secded 1-bit
+classification=Corrected 'protection worked'（九类 Corrected 首次在
+runner 真实路径）vs raw Masked 两臂。
+
+### T4: method1 formal `9ae7666` + 三个真实缺陷修复
+工具链：pilot/formal campaign YAML + fisher_test.py（纯 python Fisher）+
+fp_accum→--rat_reg_class=vector。
+缺陷修复（pilot 暴露）：①attackEvent REJECT 无退避（Hang 根因，+1 backoff）
+②静默 return 无计数（2308104 REJECT 诊断出）③AArch64 FP=VecRegClass +
+--reg_class 参数混用（--rat_reg_class 独立）。
+注入机制验证：定向 V0(d0) numF5Substitutes=1 old_phys:44→new_phys:13。
+pilot 诚实结果：两臂 SDC=0/10 first=Masked（Fisher p=1 FAIL-insufficient-n
+正确输出）；formal 需定向 d0 + 更早 first_clock 参数扫描。
+
+### 注入器现状：17 个
+故障模型 F1-F6+PCE 全覆盖。CHAOSROB 三模式齐（entry_bitflip/exc_suppress/
+spec_leak）。runner 支持 exact_hash/fail_count/nine-class(PA) 三分类。

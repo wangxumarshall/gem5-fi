@@ -31,7 +31,7 @@
 
 #### 0.3.1 当前工作树真实存在的注入器：**核查时 7 个，现已 16 个**（+CHAOSAddrPath `ffd041e` + CHAOSRenameMap `c5c8c96` + CHAOSFreeList `379e11c` + CHAOSPTW `de48432` + CHAOSROB `7d0756d` + CHAOSIQ `f7a5d72` + CHAOSExec `68cab08` + CHAOSFPU `9c9b97a`）
 
-> **2026-08-30 核查时**主线工作树有 7 个注入器（下表）。**S1-5b（`ffd041e`）新增 CHAOSAddrPath**、**S1-2（`c5c8c96`）新增 CHAOSRenameMap**、**S1-3（`379e11c`）新增 CHAOSFreeList**、**S2-5c（`de48432`）新增 CHAOSPTW**、**S1-4（`7d0756d`）新增 CHAOSROB**、**S8-1（`f7a5d72`）新增 CHAOSIQ**、**S8-3（`68cab08`）新增 CHAOSExec**、**S8-2（`9c9b97a`）新增 CHAOSFPU**、**S8-4（`1bb18f0`）新增 CHAOSL1DForward (PCE)**，主线现 16 个。下表保留核查时状态以存史；新增注入器见 §A.2 与 §5.2/§5.3/§5.4/§5.5/§5.6/§5.7。
+> **2026-08-30 核查时**主线工作树有 7 个注入器（下表）。**S1-5b（`ffd041e`）新增 CHAOSAddrPath**、**S1-2（`c5c8c96`）新增 CHAOSRenameMap**、**S1-3（`379e11c`）新增 CHAOSFreeList**、**S2-5c（`de48432`）新增 CHAOSPTW**、**S1-4（`7d0756d`）新增 CHAOSROB**、**S8-1（`f7a5d72`）新增 CHAOSIQ**、**S8-3（`68cab08`）新增 CHAOSExec**、**S8-2（`9c9b97a`）新增 CHAOSFPU**、**S8-4（`1bb18f0`）新增 CHAOSL1DForward (PCE)**、**T2（`c606511`）新增 CHAOSBPU**，主线现 17 个。下表保留核查时状态以存史；新增注入器见 §A.2 与 §5.2/§5.3/§5.4/§5.5/§5.6/§5.7。
 
 | 注入器 | 目标单元 | Hook 位置（已核实） | 范式 | 真实参数面（已核实） |
 |---|---|---|---|---|
@@ -291,7 +291,7 @@ SimulatorError > Hang > Crash > Inactive > Masked > SDC
 
 ### 4.4 campaign driver（✅ 已实现 `f8aecc7`，S0-2 v1 完成；manifest v2 待续）
 
-网格驱动器 `tools/campaign.py`（**已实现**，v1）：`injector / config / grid（笛卡尔积）/ n_per_cell / seeds(base 20260825 + cell_ordinal×1000 + rep) / workload`。流程：展开 cells → 生成不可变 manifest v1 → 调 `runner.py` 执行 → 收集六级分类 → 每 cell 算 Wilson 95% CI（含 0-SDC 的 3/n 上界）→ `artifacts/<campaign>/{cells.csv, summary.md}`（summary 含 §11.3 三条诚实边界）。v1 端到端已验证（1 cell × 1 rep → SDC=1/1 P_SDC=1.000 [0.207,1.000] first=SDC ✓）。
+网格驱动器 `tools/campaign.py`（**已实现**，v1）：`injector / config / grid（笛卡尔积）/ n_per_cell / seeds(base 20260825 + cell_ordinal×1000 + rep) / workload`。流程：展开 cells → 生成不可变 manifest v1 → 调 `runner.py` 执行 → 收集六级分类 → 每 cell 算 Wilson 95% CI（含 0-SDC 的 3/n 上界）→ `artifacts/<campaign>/{cells.csv, summary.md}`（summary 含 §11.3 三条诚实边界）。v1 端到端已验证（1 cell × 1 rep → SDC=1/1 P_SDC=1.000 [0.207,1.000] first=SDC ✓）。**S7-5 `428e094`：runner cache 路径真执行**（l1d/l2/l1i→arm_chaos_cache.py + PA log 并流——secded 1-bit Corrected vs raw Masked 两臂验证）。
 
 > 现状：`tools/runner.py`（单 manifest + classify，G5 路径已修 `f8aecc7`）+ `tools/campaign.py`（网格编排，已实现）均就绪；`fi_research/bit_spectrum.py`（位谱分析）在 fi_research/（campaign v2 待集成 read-trace + 位谱收集）。manifest v2（§4.5）+ protectionModel（§4.2）+ jobs 并行 + maxinsts 优化待续。
 
