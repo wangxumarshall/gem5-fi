@@ -27,6 +27,17 @@ class CHAOSArmTLB(SimObject):
         "64-bit mask applied to the pfn (bit positions to flip/force). 0 = "
         "random (bitsToChange bits).")
     bitsToChange = Param.Int(1, "Bits to change when faultMask=0")
+    # §5.7B: field-level injection (targetField) + F5 pfn offset.
+    targetField = Param.String("pfn",
+        "TLB entry field to corrupt: pfn (page frame, default) | ap (access "
+        "permissions) | xn (execute-never) | attridx (memory attributes via "
+        "innerAttrs) | ng (nG via ignoreAsn) | asid (ASN). Field-level "
+        "quantification of the TLB protection boundary.")
+    pfnOffset = Param.UInt64(0,
+        "F5 directed pfn offset: when nonzero, pfn += pfnOffset (a "
+        "legal-domain substitute to ANOTHER page frame — proxy for "
+        "'another live page'; hit mapped -> SDC, unmapped -> DUE). "
+        "0 = legacy random-bit flip on pfn.")
     maxFaults = Param.UInt64(0, "Max faults to inject; 0 = unlimited. Use 1.")
     rngSeed = Param.UInt64(0, "RNG seed (0 = random_device)")
     writeLog = Param.Bool(True, "Write a fault_injections.log file")

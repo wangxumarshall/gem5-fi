@@ -55,6 +55,8 @@ class CHAOSArmTLB : public SimObject
     FaultType fault_type_enum;
     uint64_t fault_mask;
     int num_bits_to_change;
+    std::string target_field;   // pfn/ap/xn/attridx/ng/asid (§5.7B)
+    uint64_t pfn_offset;        // F5 directed pfn substitute (0=legacy bitflip)
     Cycles first_clock, last_clock;
     Tick first_tick = 0, last_tick = 0;  // D1: advisory tick window (curTick)
     uint64_t max_faults, faults_injected_count;

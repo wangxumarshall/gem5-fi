@@ -16,6 +16,8 @@ namespace gem5
           fault_type_enum(stringToFaultType(p.faultType)),
           fault_mask(p.faultMask),
           num_bits_to_change(p.bitsToChange),
+          target_field(p.targetField),
+          pfn_offset(p.pfnOffset),
           first_clock(Cycles(p.firstClock)),
           last_clock(Cycles(p.lastClock)),
           max_faults(p.maxFaults),
@@ -111,6 +113,106 @@ namespace gem5
         // CHAOSLSQFwd; was >, which let probDist==probability slip through).
         std::uniform_real_distribution<float> probDist(0.0f, 1.0f);
         if (probDist(rng) >= probability) return;
+
+        // §5.7B: field-level injection. targetField selects which TlbEntry
+        // field is corrupted (pfn/ap/xn/attridx/ng/asid); pfnOffset (F5)
+        // substitutes the pfn with pfn+offset (another page frame — proxy
+        // for another live page; TLB container enumeration is not public,
+        // honest proxy documented in the param help).
+        if (pfn_offset != 0 && target_field == "pfn") {
+            // F5 directed: pfn -> pfn + offset (legal-domain substitute).
+            Addr old_pfn = entry->pfn;
+            entry->pfn = old_pfn + pfn_offset;
+            stats->numFaultsInjected++;
+            ++faults_injected_count;
+            if (write_log) {
+                *(log_stream->stream())
+                    << "Tick: " << curTick()
+                    << ", Site: arm_tlb_lookup_hit"
+                    << ", Mode: pfn_to_offset (F5)"
+                    << ", VA: 0x" << std::hex << va
+                    << ", old_pfn: 0x" << old_pfn
+                    << ", new_pfn: 0x" << entry->pfn
+                    << ", pfnOffset: 0x" << pfn_offset << std::dec
+                    << std::endl;
+            }
+            return;
+        }
+        if (target_field == "ap") {
+            uint8_t old_ap = entry->ap;
+            std::uniform_int_distribution<int> apd(0, 2);
+            entry->ap ^= (uint8_t)(fault_mask ? (fault_mask & 0xff)
+                                              : (1u << apd(rng)));
+            stats->numFaultsInjected++; ++faults_injected_count;
+            if (write_log) {
+                *(log_stream->stream())
+                    << "Tick: " << curTick() << ", Site: arm_tlb_lookup_hit"
+                    << ", Mode: field_ap"
+                    << ", VA: 0x" << std::hex << va
+                    << ", old: 0x" << (unsigned)old_ap
+                    << ", new: 0x" << (unsigned)entry->ap << std::dec
+                    << std::endl;
+            }
+            return;
+        }
+        if (target_field == "xn") {
+            entry->xn = !entry->xn;
+            stats->numFaultsInjected++; ++faults_injected_count;
+            if (write_log) {
+                *(log_stream->stream())
+                    << "Tick: " << curTick() << ", Site: arm_tlb_lookup_hit"
+                    << ", Mode: field_xn (toggle)"
+                    << ", VA: 0x" << std::hex << va << std::dec
+                    << std::endl;
+            }
+            return;
+        }
+        if (target_field == "attridx") {
+            std::uniform_int_distribution<int> atd(0, 7);
+            entry->innerAttrs ^= (uint8_t)(fault_mask ? (fault_mask & 0xff)
+                                                      : (1u << atd(rng)));
+            stats->numFaultsInjected++; ++faults_injected_count;
+            if (write_log) {
+                *(log_stream->stream())
+                    << "Tick: " << curTick() << ", Site: arm_tlb_lookup_hit"
+                    << ", Mode: field_attridx"
+                    << ", VA: 0x" << std::hex << va << std::dec
+                    << std::endl;
+            }
+            return;
+        }
+        if (target_field == "ng") {
+            // NOTE: the nG/ignoreAsn matching bit lives in the TLB's KeyType
+            // (pagetable.hh:193), NOT a directly-writable TlbEntry member.
+            // Honest substitute: flip vmid (VMID mis-match = cross-VM leak
+            // direction, same isolation-violation class).
+            entry->vmid ^= 1;
+            stats->numFaultsInjected++; ++faults_injected_count;
+            if (write_log) {
+                *(log_stream->stream())
+                    << "Tick: " << curTick() << ", Site: arm_tlb_lookup_hit"
+                    << ", Mode: field_ng (vmid toggle; ignoreAsn is KeyType)"
+                    << ", VA: 0x" << std::hex << va << std::dec
+                    << std::endl;
+            }
+            return;
+        }
+        if (target_field == "asid") {
+            std::uniform_int_distribution<int> asd(0, 15);
+            entry->asid ^= (uint16_t)(fault_mask ? (fault_mask & 0xffff)
+                                                 : (1u << asd(rng)));
+            stats->numFaultsInjected++; ++faults_injected_count;
+            if (write_log) {
+                *(log_stream->stream())
+                    << "Tick: " << curTick() << ", Site: arm_tlb_lookup_hit"
+                    << ", Mode: field_asid"
+                    << ", VA: 0x" << std::hex << va << std::dec
+                    << std::endl;
+            }
+            return;
+        }
+        // target_field == "pfn" && pfn_offset == 0: fall through to the
+        // existing pfn bit-flip/stuck path (legacy behavior unchanged).
 
         FaultType chosen = fault_type_enum;
         if (fault_type_enum == FaultType::Random) {
