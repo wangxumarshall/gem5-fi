@@ -17,7 +17,7 @@
 
 import argparse
 import m5
-from m5.objects import CHAOSReg, CHAOSPhysReg, CHAOSMem, CHAOSLSQFwd, CHAOSRenameMap, CHAOSFreeList, CHAOSROB, CHAOSIQ, CHAOSExec, CHAOSFPU, CHAOSL1DForward, CHAOSBPU, CHAOSAddrPath, CHAOSDecode, CHAOSExMon
+from m5.objects import CHAOSReg, CHAOSPhysReg, CHAOSMem, CHAOSLSQFwd, CHAOSRenameMap, CHAOSFreeList, CHAOSROB, CHAOSIQ, CHAOSExec, CHAOSFPU, CHAOSL1DForward, CHAOSBPU, CHAOSAddrPath, CHAOSDecode, CHAOSExMon, CHAOSRAS
 from gem5.components.boards.simple_board import SimpleBoard
 from gem5.components.cachehierarchies.classic.private_l1_private_l2_cache_hierarchy import (
     PrivateL1PrivateL2CacheHierarchy,
@@ -220,6 +220,13 @@ p.add_argument("--exmon_mode", default="stxr_force_success",
 p.add_argument("--exmon_first_clock", type=lambda x: int(x,0), default=1000)
 p.add_argument("--exmon_max_faults", type=lambda x: int(x,0), default=1)
 p.add_argument("--exmon_rng_seed", type=lambda x: int(x,0), default=20260825)
+# §2.18 CHAOSRAS (O3 RAS-escape injector). SELF-ATTACHES at startup() to
+# cpu.commit.chaosRAS. Hooks Commit::commitHead fault-check; exc_suppress.
+p.add_argument("--chaos_ras", action="store_true",
+               help="attach CHAOSRAS (O3 RAS-escape, §2.18)")
+p.add_argument("--ras_first_clock", type=lambda x: int(x,0), default=1000)
+p.add_argument("--ras_max_faults", type=lambda x: int(x,0), default=1)
+p.add_argument("--ras_rng_seed", type=lambda x: int(x,0), default=20260825)
 args = p.parse_args()
 
 cache_hierarchy = PrivateL1PrivateL2CacheHierarchy(
@@ -498,6 +505,20 @@ if args.chaos_exmon:
         writeLog=True,
     )
     board.chaos_exmon = ex
+
+if args.chaos_ras:
+    # §2.18 CHAOSRAS: O3-only. SELF-ATTACHES at startup() to
+    # cpu.commit.chaosRAS (commitHead calls maybeCorrupt at fault-check).
+    ras = CHAOSRAS(
+        cpu=cpu0,
+        mode="exc_suppress",
+        probability=args.probability,
+        firstClock=args.ras_first_clock,
+        maxFaults=args.ras_max_faults,
+        rngSeed=args.ras_rng_seed,
+        writeLog=True,
+    )
+    board.chaos_ras = ras
 
 if args.maxinsts:
     cpu0.max_insts = args.maxinsts

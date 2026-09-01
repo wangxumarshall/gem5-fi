@@ -990,3 +990,17 @@ ARM 三条路径 + golden（真跑输出）：
 - **回归**：reg_chain golden `f247ef3fe6cfd` 不变；spinlock golden `0891b007b53c4869` 不变（无 chaos_exmon → handleLockedWrite no-op）。
 
 **诚实边界**：`stxr_force_success` 在单核无竞争 kernel 上无可翻转的失败 STXR（单核 STXR 总成功），需多核竞争场景验证；spinlock kernel 的 inline asm 在持续 STXR 失败下死锁（core dump 是合理结果但 kernel 可加 try-count 上限改进）；formal n=384 须健康机。
+
+---
+
+### S1 §2.18 CHAOSRAS 注入器（RAS 逃逸，exc_suppress，已实现+真机验证触发）
+
+**实现**：新 SimObject `CHAOS/gem5/src/cpu/o3/CHAOSRAS/{.py,.hh,.cc,SConscript}`（O3-only）。hook `Commit::commitHead` 在 `Fault inst_fault = head_inst->getFault()`（commit.cc:1161）后调用 `chaosRAS->maybeCorrupt(tid, head_inst.get())`。`exc_suppress`：如果 head 有 fault 且 RNG fire，clear it（`head_inst->getFault() = NoFault`）→ DUE/SError 被静默吞（无 trap，无 RAS 记录）。`Commit` 加 `chaosRAS` 指针 + `setChaosRAS`；`cpu.hh` 加 `Commit &o3Commit()` accessor。新 kernel `exc_trigger.c`（NULL deref → SIGSEGV）。
+
+**自验证（真机）**：
+- 干净重建 `scons -j16` EXIT=0，零警告（G7）。
+- **exc_trigger golden**（无注入）：NULL deref → core dump（SIGSEGV，commit 看到 fault → trap → crash，符合预期）。
+- **T1 exc_suppress**（prob=1.0, maxFaults=1）：`Tick:1380000 mode=exc_suppress head_sn=1350 cleared_fault=yes faults_injected:1` — commit 看到的 fault 被 clear。仍 core dump 因 NULL deref 每次执行产生新 fault（单次注入不够，但**hook 确实清了一个 fault**——验证机制工作）。
+- **回归**：reg_chain golden `f247ef3fe6cfd` 不变（无 fault 可 clear → no-op，零回归）。
+
+**诚实边界**：`errrec_bitflip`（ERR* 寄存器字段）+ `poison_lose`（毒化位在 store buffer/PRF 入口丢失）deferred（需 ERR* miscReg 写 hook / poison bit 建模）；元分析脚本 `tools/ras_escape_analysis.py`（须所有 formal 结果）；formal n=384 须健康机。注入器骨架 + exc_suppress 子模式已实现。

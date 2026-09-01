@@ -1160,6 +1160,15 @@ Commit::commitHead(const DynInstPtr &head_inst, unsigned inst_num)
     // Check if the instruction caused a fault.  If so, trap.
     Fault inst_fault = head_inst->getFault();
 
+    // §2.18 CHAOSRAS: exc_suppress — clear the commit-time fault so the
+    // DUE/SError is silently swallowed (no trap, no RAS record). Quantifies
+    // the 'DUE-to-SDC conversion at commit' (§2.18 exc_suppress). After
+    // clearing, re-read inst_fault. nullptr = no injection (zero regression).
+    if (chaosRAS) {
+        chaosRAS->maybeCorrupt(tid, head_inst.get());
+        inst_fault = head_inst->getFault();  // re-read after possible clearing
+    }
+
     // hardware transactional memory
     // if a fault occurred within a HTM transaction
     // ensure that the transaction aborts

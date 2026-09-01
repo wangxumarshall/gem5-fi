@@ -52,6 +52,10 @@
 #include "cpu/o3/limits.hh"
 #include "cpu/o3/rename_map.hh"
 #include "cpu/o3/rob.hh"
+// §2.18 CHAOSRAS: included so Commit::commitHead's inline hook can call
+// chaosRAS->maybeCorrupt(). Non-circular: CHAOSRAS.hh forward-declares
+// o3::Commit (does NOT include commit.hh).
+#include "cpu/o3/CHAOSRAS/CHAOSRAS.hh"
 #include "cpu/timebuf.hh"
 #include "enums/CommitPolicy.hh"
 #include "sim/probe/probe.hh"
@@ -60,6 +64,9 @@ namespace gem5
 {
 
 struct BaseO3CPUParams;
+
+// §2.18 CHAOSRAS: forward decl (gem5 top-level namespace, not o3).
+class CHAOSRAS;
 
 namespace o3
 {
@@ -346,6 +353,16 @@ class Commit
     /** Pointer to O3CPU. */
     CPU *cpu;
 
+    // §2.18 CHAOSRAS: raw pointer to the RAS-escape injector. Set by the
+    // injector's startup() (cpu->o3Commit().setChaosRAS(this)). nullptr = no
+    // injection (zero regression). Forward-declared above.
+    ::gem5::CHAOSRAS *chaosRAS = nullptr;
+
+  public:
+    /** §2.18 CHAOSRAS accessor. */
+    void setChaosRAS(::gem5::CHAOSRAS *p) { chaosRAS = p; }
+
+  private:
     /** Vector of all of the threads. */
     std::vector<ThreadState *> thread;
 
