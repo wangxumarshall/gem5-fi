@@ -17,7 +17,7 @@
 
 import argparse
 import m5
-from m5.objects import CHAOSReg, CHAOSPhysReg, CHAOSMem, CHAOSLSQFwd, CHAOSAddrPath, CHAOSRenameMap, CHAOSFreeList, CHAOSROB, CHAOSIQ, CHAOSExec, CHAOSFPU
+from m5.objects import CHAOSReg, CHAOSPhysReg, CHAOSMem, CHAOSLSQFwd, CHAOSAddrPath, CHAOSRenameMap, CHAOSFreeList, CHAOSROB, CHAOSIQ, CHAOSExec, CHAOSFPU, CHAOSL1DForward
 from gem5.components.boards.simple_board import SimpleBoard
 from gem5.components.cachehierarchies.classic.private_l1_private_l2_cache_hierarchy import (
     PrivateL1PrivateL2CacheHierarchy,
@@ -206,6 +206,11 @@ p.add_argument("--chaos_fpu", action="store_true",
 p.add_argument("--fpu_fault_mask", type=lambda x: int(x,0), default=0)
 p.add_argument("--fpu_bit_segment", default="all", choices=["all","sign","exp","mantissa"])
 p.add_argument("--fpu_semantic_role", default="")
+# S8-4 CHAOSL1DForward: post-check escape (PCE) load result corruption.
+p.add_argument("--chaos_l1dfwd", action="store_true",
+               help="attach CHAOSL1DForward (PCE; load result post-ECC flip).")
+p.add_argument("--l1dfwd_fault_mask", type=lambda x: int(x,0), default=0)
+p.add_argument("--l1dfwd_semantic_role", default="")
 args = p.parse_args()
 
 cache_hierarchy = PrivateL1PrivateL2CacheHierarchy(
@@ -470,6 +475,22 @@ if args.chaos_fpu:
         semanticRole=args.fpu_semantic_role,
     )
     board.chaos_fpu = fp
+
+# CHAOSL1DForward (S8-4 PCE): load result post-ECC corruption.
+if args.chaos_l1dfwd:
+    l1d = CHAOSL1DForward(
+        cpu=cpu0,
+        probability=args.probability,
+        faultMask=args.l1dfwd_fault_mask,
+        bitsToChange=args.bits_to_change,
+        firstClock=args.first_clock,
+        lastClock=args.last_clock,
+        maxFaults=args.max_faults,
+        rngSeed=args.rng_seed,
+        writeLog=True,
+        semanticRole=args.l1dfwd_semantic_role,
+    )
+    board.chaos_l1dfwd = l1d
 
 if args.maxinsts:
     cpu0.max_insts = args.maxinsts

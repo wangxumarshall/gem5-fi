@@ -1,0 +1,4 @@
+Import('*')
+SimObject('CHAOSL1DForward.py', sim_objects=['CHAOSL1DForward'], enums=[])
+Source('CHAOSL1DForward.cc')
+DebugFlag('CHAOSL1DForward')
