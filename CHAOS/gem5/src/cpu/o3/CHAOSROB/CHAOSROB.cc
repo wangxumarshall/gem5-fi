@@ -48,12 +48,18 @@ namespace gem5
                 panic("CHAOSROB: Could not open log file");
             }
             stats = std::make_unique<CHAOSROBStats>(this);
+            // S6-4 spec_leak: register on Rename so doSquash can reach us.
+            cpu->renameAccess().setChaosRob(this);
         }
     }
 
     void CHAOSROB::startup()
     {
         if (!probability) return;
+        // S6-4: spec_leak is driven by the Rename::doSquash hook (event-
+        // driven), NOT by attackEvent polling — do not schedule the attack
+        // event in that mode (prob=1.0 would otherwise poll every cycle).
+        if (fi_mode == Mode::SpecLeak) return;
         unsigned next_fault_cycle_distance = inter_fault_cycles_dist(rng);
         scheduleAttackEvent(first_clock + Cycles(next_fault_cycle_distance));
     }
@@ -158,17 +164,39 @@ namespace gem5
             ++faults_injected_count;
             writeLog("exc_suppress", tid, seq, seq, seq, true, true);
         } else if (fi_mode == Mode::SpecLeak) {
-            // spec_leak: retain wrong-path μop's PRF write on squash. This
-            // needs a squash hook (lsq_unit/commit squash path) — deferred.
-            stats->numLegalityRejects++;
-            if (write_log) {
-                *(log_stream->stream())
-                    << "Cycle: " << cpu->curCycle()
-                    << " spec_leak: NOT IMPLEMENTED (needs squash hook). "
-                    << "Skipping.\n";
-            }
+            // spec_leak is now driven by Rename::doSquash's maybeDelayFree
+            // hook (constructor registered us on Rename). Nothing to do
+            // here — the attackEvent only services entry_bitflip/exc_suppress.
             return;
         }
+    }
+
+    bool
+    CHAOSROB::maybeDelayFree(const PhysRegIdPtr &reg)
+    {
+        if (fi_mode != Mode::SpecLeak) return false;
+        if (probability <= 0.0f) return false;
+        Cycles cur = cpu->curCycle();
+        if (cur < first_clock) return false;
+        if (last_clock != Cycles(0) && cur > last_clock) return false;
+        if (max_faults != 0 && faults_injected_count >= max_faults) return false;
+        std::uniform_real_distribution<float> dist(0.0f, 1.0f);
+        if (dist(rng) >= probability) return false;
+
+        // Skip the freelist return: the wrong-path dest physReg leaks.
+        stats->numSpecLeak++;
+        stats->numFaultsInjected++;
+        ++faults_injected_count;
+        if (write_log) {
+            *(log_stream->stream())
+                << "Cycle: " << cpu->curCycle()
+                << ", CPU: " << cpu->name()
+                << ", Site: rename_doSquash_freelist_skip"
+                << ", Mode: spec_leak"
+                << ", PhysReg: " << reg->index()
+                << std::endl;
+        }
+        return true;
     }
 
     void

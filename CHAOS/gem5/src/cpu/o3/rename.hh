@@ -59,6 +59,8 @@ namespace gem5
 {
 
 struct BaseO3CPUParams;
+// Forward declaration: CHAOSROB spec_leak hooks doSquash's freelist return.
+class CHAOSROB;
 
 namespace o3
 {
@@ -83,6 +85,14 @@ class Rename
     // using a deque instead of a queue. (Most other stages use a
     // queue)
     typedef std::deque<DynInstPtr> InstQueue;
+
+    /** CHAOSROB spec_leak hook (S6-4): set by the injector's constructor.
+     *  When non-null, doSquash asks maybeDelayFree() before pushing a
+     *  squashed inst's dest physReg into freeingInProgress — returning
+     *  true SKIPS the freelist return (retains the wrong-path PRF write,
+     *  method1's speculative-state-leak signature). */
+    class gem5::CHAOSROB *chaosRob = nullptr;
+    void setChaosRob(gem5::CHAOSROB *p) { chaosRob = p; }
 
   public:
     /** Overall rename status. Used to determine if the CPU can

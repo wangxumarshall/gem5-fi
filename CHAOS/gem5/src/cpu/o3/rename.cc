@@ -46,6 +46,7 @@
 #include "cpu/o3/cpu.hh"
 #include "cpu/o3/dyn_inst.hh"
 #include "cpu/o3/limits.hh"
+#include "cpu/o3/CHAOSROB/CHAOSROB.hh"  // S6-4 spec_leak: maybeDelayFree
 #include "cpu/reg_class.hh"
 #include "debug/Activity.hh"
 #include "debug/Rename.hh"
@@ -959,11 +960,21 @@ Rename::doSquash(const InstSeqNum &squashed_seq_num, ThreadID tid)
             // previous physical register that it was renamed to.
             renameMap[tid]->setEntry(hb_it->archReg, hb_it->prevPhysReg);
 
-            // The phys regs can still be owned by squashing but
-            // executing instructions in IEW at this moment. To avoid
-            // ownership hazard in SMT CPU, we delay the freelist update
-            // until they are indeed squashed in the commit stage.
-            freeingInProgress[tid].push_back(hb_it->newPhysReg);
+            // CHAOSROB spec_leak (S6-4): optionally SKIP the freelist
+            // return — the wrong-path dest physReg is neither referenced
+            // by the RAT nor returned to the free list, leaking the
+            // speculative write (method1's state-leak 4x signature).
+            if (chaosRob && chaosRob->maybeDelayFree(hb_it->newPhysReg)) {
+                DPRINTF(Rename, "[tid:%i] spec_leak: skipped freelist return "
+                        "of phys reg %d (wrong-path write retained).\n",
+                        tid, hb_it->newPhysReg->index());
+            } else {
+                // The phys regs can still be owned by squashing but
+                // executing instructions in IEW at this moment. To avoid
+                // ownership hazard in SMT CPU, we delay the freelist update
+                // until they are indeed squashed in the commit stage.
+                freeingInProgress[tid].push_back(hb_it->newPhysReg);
+            }
         }
 
         // mark the speculative register as ready in the scoreboard as

@@ -8,6 +8,7 @@
 #include "base/output.hh"
 #include "base/statistics.hh"
 #include "base/types.hh"
+#include "cpu/reg_class.hh"  // PhysRegIdPtr (S6-4 spec_leak)
 #include "params/CHAOSROB.hh"
 #include "sim/sim_object.hh"
 #include "sim/eventq.hh"  // Cycles, EventFunctionWrapper
@@ -36,6 +37,13 @@ class CHAOSROB : public SimObject
 
     void startup() override;
 
+    // S6-4 spec_leak: called from Rename::doSquash before returning a
+    // squashed inst's dest physReg to the free list. Returns true to SKIP
+    // the return (retain the wrong-path PRF write — method1's state-leak
+    // signature). Honors probability/window/maxFaults; only active when
+    // fi_mode == SpecLeak.
+    bool maybeDelayFree(const PhysRegIdPtr &reg);
+
   private:
     enum class Mode { EntryBitFlip, ExcSuppress, SpecLeak };
     static Mode stringToMode(const std::string &s);
@@ -62,6 +70,7 @@ class CHAOSROB : public SimObject
     void scheduleAttackEvent(Cycles delay);
     void attackCheck();
     void processFault(ThreadID tid);
+
     void writeLog(const std::string &type, ThreadID tid,
                   uint64_t seq, uint64_t old_seq, uint64_t new_seq,
                   bool had_fault, bool cleared_fault);

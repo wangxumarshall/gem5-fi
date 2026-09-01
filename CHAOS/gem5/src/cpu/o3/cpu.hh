@@ -489,6 +489,10 @@ class CPU : public BaseCPU
      *  to reach readHeadInst (exc_suppress / entry_bitflip on the about-to-
      *  commit DynInst). Same pattern as physRegFile(). */
     ROB &robAccess() { return rob; }
+    /** CHAOSROB spec_leak accessor (S6-4): exposes Rename so the injector
+     *  can hook doSquash's freelist return (skip freeingInProgress push
+     *  = retain wrong-path PRF write). Same pattern as robAccess(). */
+    Rename &renameAccess() { return rename; }
 
     /** CHAOSLSQFwd hook: store->load forwarding-path injector. Set externally
      *  (from a config script) so lsq_unit.cc can reach it via the cpu pointer
