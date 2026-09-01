@@ -17,6 +17,8 @@ namespace gem5
           fault_mask(p.faultMask),
           byte_offset(p.byteOffset),
           ptw_ecc(p.ptwEcc),
+          clear_valid_bit(p.clearValidBit),
+          conditional_valid_bit(p.conditionalValidBit),
           first_clock(Cycles(p.firstClock)),
           last_clock(Cycles(p.lastClock)),
           max_faults(p.maxFaults),
@@ -77,6 +79,15 @@ namespace gem5
         // it (numFaultsInjected=0)" — essential to diagnose H7's spurious rate
         // when PTW walk density is low (early FS, pre-MMU-on has few walks).
         stats->numHooksCalled++;
+        // NOTE (adversarial-review finding, NOT fixed in code): the clock gating
+        // below uses Cycles(curTick()) — raw ticks cast to Cycles, which on a
+        // 1 GHz clock is ~1000x the true cycle count. This makes first_clock/
+        // last_clock gate ~1000x too early vs D1/D2's cpu->curCycle(). All
+        // H6/H7 experiments in this paper use first_clock=0 (gating inert),
+        // so this does NOT affect any reported result. A proper fix requires
+        // exposing a clock-domain accessor on CHAOSPTW (it has only an mmu
+        // pointer, no cpu; SimObject::ticksToCycles is not accessible here)
+        // — left as a known limitation for any first_clock>0 experiment.
         Cycles cur = Cycles(curTick() >> 0);
         if (cur < first_clock) return;
         if (last_clock != Cycles(0) && cur > last_clock) return;
@@ -87,24 +98,51 @@ namespace gem5
         if (size == 0) return;
 
         // H7: ECC corrects single-bit flips; only >=2-bit (uncorrectable) survive.
-        if (ptw_ecc && num_bits < 2) {
+        // clearValidBit (AND ~0x3) is a 2-bit clear -> uncorrectable, bypasses ECC.
+        // conditionalValidBit is a SINGLE-bit XOR (bit0) -> ECC SHOULD correct it
+        // (ECC-on -> benign/no spurious; ECC-off -> invalid/spurious). So
+        // conditionalValidBit must NOT bypass ECC — only clear_valid_bit does.
+        if (!clear_valid_bit && ptw_ecc && num_bits < 2) {
             stats->numBenignFlips++;
             return;
         }
 
-        int off = byte_offset;
-        if (off < 0) {
-            std::uniform_int_distribution<int> bd(0, (int)size - 1);
-            off = bd(rng);
-        }
-        if (off >= (int)size) off = (int)size - 1;
-
-        int mask = fault_mask ? (int)(fault_mask & 0xff)
-                              : generateRandomMask(num_bits);
-
         uint64_t orig = 0;
         std::memcpy(&orig, data, size);
-        data[off] ^= (uint8_t)mask;
+
+        if (conditional_valid_bit) {
+            // P3c: single-bit XOR bit0, ONLY on block descriptors (low2=0b01).
+            // 0b01 ^ 0b01 = 0b00 (invalid) -> spurious. Single-bit so ECC-on
+            // corrects it (no spurious), ECC-off leaves it invalid (spurious).
+            // This is the faithful within-experiment H7 ECC contrast. Non-0b01
+            // descriptors are skipped (no corruption) so we don't perturb tables.
+            if (size >= 1 && (data[0] & 0x3) == 0x1) {
+                data[0] ^= 0x1;
+            } else {
+                // Not a block descriptor — skip injection, count as benign (no
+                // fault manufactured this walk).
+                stats->numBenignFlips++;
+                return;
+            }
+        } else if (clear_valid_bit) {
+            // Force-clear descriptor type bits[1:0] (byte 0, low 2 bits) -> 0b00
+            // (invalid). This RELIABLY manufactures an invalid PTE regardless of
+            // the original descriptor type (0b01 block / 0b11 table -> 0b00),
+            // unlike XOR which only invalidates one type. Models D3's transient
+            // walk-failure (invalid readout -> fault -> retry reads correct value).
+            if (size >= 1) data[0] &= (uint8_t)~0x3;
+        } else {
+            int off = byte_offset;
+            if (off < 0) {
+                std::uniform_int_distribution<int> bd(0, (int)size - 1);
+                off = bd(rng);
+            }
+            if (off >= (int)size) off = (int)size - 1;
+
+            int mask = fault_mask ? (int)(fault_mask & 0xff)
+                                  : generateRandomMask(num_bits);
+            data[off] ^= (uint8_t)mask;
+        }
         uint64_t corr = 0;
         std::memcpy(&corr, data, size);
 
@@ -115,9 +153,9 @@ namespace gem5
         if (became_invalid) stats->numSpuriousFaults++;
         else stats->numBenignFlips++;
         writeLog(desc_addr, orig, corr, became_invalid);
-        DPRINTF(CHAOSPTW, "CHAOSPTW: flipped byte %d mask %#x of desc "
-                "@%#x (%#lx->%#lx) invalid=%d\n", off, mask, desc_addr,
-                orig, corr, became_invalid);
+        DPRINTF(CHAOSPTW, "CHAOSPTW: corrupted desc @%#x (%#lx->%#lx) "
+                "invalid=%d clearValidBit=%d\n", desc_addr, orig, corr,
+                became_invalid, clear_valid_bit ? 1 : 0);
     }
 
     CHAOSPTW::Stats::Stats(statistics::Group *parent)

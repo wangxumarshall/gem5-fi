@@ -7,6 +7,7 @@ class CHAOSAddrPath(SimObject):
     cxx_header = "cpu/o3/CHAOSAddrPath/CHAOSAddrPath.hh"
 
     cpu = Param.BaseCPU(NULL, "Target CPU (must be an O3CPU)")
+    mmu = Param.BaseMMU(NULL, "Target MMU (for the non-O3 translateTiming hook; NULL=O3 LSQ path only)")
     probability = Param.Float(0.0, "Per-load probability of zeroing a byte of the effAddr")
     byteOffset = Param.Int(7, "Which byte of effAddr to zero (7=MSB; -1=random)")
     firstClock = Param.UInt64(0, "First clock cycle eligible")

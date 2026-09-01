@@ -43,6 +43,8 @@ class CHAOSPTW : public SimObject
     unsigned fault_mask;
     int byte_offset;
     bool ptw_ecc;
+    bool clear_valid_bit;
+    bool conditional_valid_bit;
     Cycles first_clock, last_clock;
     uint64_t max_faults, faults_injected_count;
     uint64_t rng_seed;

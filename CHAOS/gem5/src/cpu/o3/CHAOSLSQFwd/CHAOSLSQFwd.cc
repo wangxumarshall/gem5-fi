@@ -110,11 +110,13 @@ namespace gem5
     // Unlike the bit-level FaultType path (one-byte AND/OR/XOR), these re-route
     // the entire delivered word:
     //   ByteLaneSkew: rotate the byte array right by k bytes — models the D1
-    //     signature where core 179 delivered rol_k(stale array-head content)
-    //     (15:58: rol1; 0814: rol6). A right-rotation by k delivers, for byte
-    //     lane n, the content of lane (n+k) mod size — i.e. a fill-buffer
-    //     byte-lane mux selecting the wrong phase. Verified bit-exact against
-    //     the crash values (MICROARCH_SUPPLEMENT §2.2).
+    //     signature where core 179 delivered ror_k(stale array-head content)
+    //     (15:58: ror1, ≡rol7; 0814: ror6, ≡rol2 — the direction is degenerate
+    //     for a 64-bit word, see MICROARCH_SUPPLEMENT §2.2 / paper §3.2). A
+    //     right-rotation by k delivers, for byte lane n, the content of lane
+    //     (n+k) mod size — i.e. a fill-buffer byte-lane mux selecting the wrong
+    //     phase. Verified bit-exact against the crash values
+    //     (MICROARCH_SUPPLEMENT §2.2).
     //   AllZero: deliver an all-zero word — models the D1 "empty/invalid slot"
     //     state (15:42: __per_cpu_offset[176] delivered 0).
     // size is the forwarded size in bytes (typically 8 for a 64-bit GPR load).
@@ -131,7 +133,7 @@ namespace gem5
                 }
                 if (k < 1) k = 1;
                 if (k >= (int)size) k = (int)size - 1;
-                // Right-rotate the byte array by k (byte lane n gets data[n-k]).
+                // Right-rotate the byte array by k (byte lane n gets data[(n+k) mod size]).
                 std::vector<uint8_t> tmp(data, data + size);
                 for (unsigned n = 0; n < size; n++)
                     data[n] = tmp[(n + k) % size];
@@ -190,6 +192,15 @@ namespace gem5
     void
     CHAOSLSQFwd::corrupt(uint8_t *data, unsigned size, Addr vaddr)
     {
+        // numHooksCalled: count EVERY store→load-forward event (i.e. every call
+        // to this hook) BEFORE any gating, mirroring CHAOSPTW/CHAOSAddrPath. This
+        // distinguishes "forward did not happen (hook not called)" from "forward
+        // happened but probability did not select it (numFaultsInjected=0)" —
+        // essential to diagnose why D1 gives numStructuralByteLaneSkew=0 in FS
+        // early-boot (is the store→load-forward path unexercised, or exercised
+        // but not selected?). Prior versions lacked this stat, making D1's FS
+        // behavior unattributable (adversarial-review instrumentation gap).
+        if (stats) stats->numHooksCalled++;
         // Hot-path short-circuit: no injection configured.
         if (probability <= 0.0f) return;
         Cycles cur = cpu->curCycle();
@@ -253,6 +264,10 @@ namespace gem5
 
     CHAOSLSQFwd::CHAOSLSQFwdStats::CHAOSLSQFwdStats(statistics::Group *parent)
         : statistics::Group(parent),
+          ADD_STAT(numHooksCalled, statistics::units::Count::get(),
+                   "Times the store→load-forward hook was called (D1; every "
+                   "forwarding event while injector active, before prob/first-"
+                   "clock gating)"),
           ADD_STAT(numFaultsInjected, statistics::units::Count::get(),
                    "Total forwarded-data faults injected"),
           ADD_STAT(numBitFlips, statistics::units::Count::get(),

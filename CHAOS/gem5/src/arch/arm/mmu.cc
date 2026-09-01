@@ -48,6 +48,7 @@
 #include "arch/arm/table_walker.hh"
 #include "arch/arm/tlb.hh"
 #include "arch/arm/tlbi_op.hh"
+#include "cpu/o3/CHAOSAddrPath/CHAOSAddrPath.hh"  // D2 non-O3 path (corruptAddr at MMU boundary)
 #include "arch/arm/types.hh"
 #include "debug/MMU.hh"
 #include "mem/packet_access.hh"
@@ -1152,6 +1153,19 @@ MMU::translateFs(const RequestPtr &req, ThreadContext *tc, Mode mode,
     // No such thing as a functional timing access
     assert(!(timing && functional));
 
+    // CHAOSAddrPath (D2, non-O3 path): hook translateFs — the single FS
+    // translation path ALL cpu models (O3/Minor/AtomicSimple) traverse.
+    // Hooking here (rather than translateTiming/translateFunctional which
+    // AtomicCPU may not call) ensures D2 fires for every FS translation.
+    // Corrupts the raw vaddr BEFORE purifyTaggedAddr, so the corruption
+    // reaches the MMU translation as the address-path D2 signature.
+    if (addrInj) {
+        Addr va = req->getVaddr();
+        if (addrInj->corruptAddr(&va, 0)) {
+            req->setVaddr(va);
+        }
+    }
+
     Addr vaddr_tainted = req->getVaddr();
     Addr vaddr = 0;
     if (state.aarch64) {
@@ -1273,6 +1287,8 @@ MMU::translateFunctional(const RequestPtr &req, ThreadContext *tc, Mode mode,
 {
     auto& state = updateMiscReg(tc, tran_type, stage2);
 
+    // D2 hook now lives in translateFs (the common FS path), so no hook here.
+
     bool delay = false;
     Fault fault;
     if (FullSystem)
@@ -1292,6 +1308,8 @@ MMU::translateTiming(const RequestPtr &req, ThreadContext *tc,
     auto& state = updateMiscReg(tc, tran_type, stage2);
 
     assert(translation);
+
+    // D2 hook now lives in translateFs (the common FS path), so no hook here.
 
     translateComplete(req, tc, translation, mode, tran_type,
         stage2, state);

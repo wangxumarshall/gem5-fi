@@ -11,8 +11,39 @@
 > **FS-mode 验证进展（诚实，更新于 2026-08-27）**：
 > - 🔬 **SE→FS 根因已源码静态确证**（非仅推断）：`src/arch/arm/mmu.cc:1213` 的翻译分派在 `!state.sctlr.m`（MMU 关）时走 `translateMmuOff`→`req->setPaddr(vaddr)`（直接物理映射，SE 模式 SCTLR.M=0），**从不调用页表走查器**，故 D3 钩子 `table_walker.cc:1959 corruptDescriptor`（位于 `doLongDescriptor`）在 SE 下恒 `numFaultsInjected=0`；D2 钩子 `lsq.cc:1146 corruptAddr` 虽在 `translateTiming` 前破坏 vaddr，但 SE 物理内存从 0 起、仅 512 MiB，byte7 清零后地址仍落 `[0,512MiB)` 故不 fault。FS 模式下 SCTLR.M=1（Linux 启用 MMU 后），翻译走真实 TLB→页表走查器→`doLongDescriptor`，**D2/D3 钩子才会被真正触发**。这与 §3 的设计完全一致，从源码侧闭环了 H6/H7 的 SE null 解释。
 > - ✅ **FS 四件套就绪**：`gem5-fs/` 下 `vmlinux`(Linux 5.15.36, ELF64 AArch64, 237 MB)/`ubuntu.img`(2.36 GB)/`boot_emm.arm64`/`armv8_gem5_v1_1cpu.dtb` 经 `readelf`+`stat` 实测有效；`fs_bigLITTLE.py` 用正确路径启动已过文件加载阶段（实测输出：`info: kernel located at /home/sdc/vmcore/gem5-fi/gem5-fs/vmlinux`、`Using bootloader at address 0x10`、`kernel entry physical address at 0x80000000`、`Loading DTB ... at 0x88000000`、`Simulated platform: VExpress_GEM5_V1`）。
-> - ⚠️ **FS 启动尚未跑到 Linux bash（诚实）**：实测仿真速度 `hostInstRate=130225 inst/s`、`hostTickRate=46.6M tick/s`、CPI=0.72（O3 健康），129 秒墙钟仅模拟 16.77M 指令/6ms 虚拟时间。Linux 完整启动到 bash 典型需 1-3 亿指令 → **墙钟 15 min–2 h+**。期间必须 `--listener-mode on`（默认 `auto` 在 stdin 非终端时 `m5.disableAllListeners()` 禁用 3456 端口，导致日志无处可去——曾因此误判 6h 仿真为挂起，实际它在跑）。
-> - 🟡 **当前阻塞（诚实）**：H6/H7 的 FS 验证需先确认 FS 能稳定跑到 Linux 用户态（挂载 rootfs、能跑 ptrskew probe 或至少内核态触发页表走查），这是小时级长跑。下一步是建一个带周期 stats-dump 的 FS+注入配置，量化"FS 下 D2/D3 钩子触发计数"——只要 Linux 早期初始化的页表走查被注入器命中，`numAddrFaults`/PTW 统计即非零，**直接证伪 SE 的 null 结果**，不必等 bash。
+> - ⚠️ **FS 启动推进到 virtio_blk 阶段后挂起（诚实，2026-08-27 实测）**：本轮用 raw socket（`/dev/tcp/127.0.0.1/3456`）抓到**真实 Linux 启动日志**（非 stdout——Linux 内核日志走 UART/端口 3456，stdout 只有 gem5 自己的 info + terminal attach/detach；曾因此误判"无日志=挂起"）。实测进度：`Booting Linux`→`Linux version 5.15.36`→`smp: Brought up 1 node, 1 CPU`→`CPU: All CPU(s) started at EL2`→`devtmpfs: initialized`→`ASID allocator initialised`→PCI 总线扫描→`virtio_blk virtio0: [vda] 4612096 512-byte logical blocks (2.36 GB)`。**此后挂起**：1 小时无新 Linux 日志，但 gem5 进程 R 状态 + 43% CPU（空转某循环，非真推进）。虚拟时间停在 `[0.026126]`（26ms）。之前误判"P0 健康"基于 utime 涨——但 utime 涨只证明 CPU 在用，不证明 tick 推进；Linux 日志停滞 1h 才是挂起的真实判据（诚实更正上轮"utime 涨=推进"的过度乐观）。速率：推进阶段 ~40k inst/s（CPI≈1），到 virtio_blk 约 25M 指令。
+> - 🟡 **当前阻塞（诚实）**：P0 在 gem5 的 virtio_blk 初始化阶段挂起——CPU 空转但 Linux 不再推进。这可能是 gem5 virtio 请求处理死循环或中断未投递，是 gem5 FS 在该 ubuntu.img 上的真实工程问题（非本注入器导致：无注入的纯 fs_bigLITTLE.py 同样受间歇性启动失败影响，`boot_emm.arm64` open() 间歇返回 ENOENT——故障机 SDC 影响内核文件系统层）。**H6/H7 的 FS 用户态验证因此受阻**：需先解决 virtio_blk 挂起（可能需换磁盘附加方式 / gem5 virtio 配置 / checkpoint 跳过 boot）才能到 bash。当前已实证"FS 下 D2/D3 钩子触发非零"（见下），即 SE null 的根因已闭环，但 H6/H7 的**定量谱可分结论**尚未产出，且 P0-bash 路径受阻。
+>
+> **Linux 内核态 walk 密度突破（诚实，2026-08-27，更正"需到 bash"的悲观判断）**：上轮判断"H7 需 FS 到用户态才有足够 walk 密度"。本轮用 `o3_chaos_fs.py --ptw-prob 1e-9`（不破坏，纯密度测量）跑 timing FS 到 57B tick / 7828 万指令（28.7 分钟墙钟，SIGINT dump），实测 `numHooksCalled=54074`——即 **Linux 内核态启动期（未到 bash）walk 密度 = 54074 / 78286260 = 0.069%**，是早期 boot（17/259186=0.0066%）的 **10 倍**。这意味着 H7 的 ECC 对照**不必到 bash**——内核态启动（进程创建/页表 setup/mmap）已有足够 walk 采样基数。用 `--ptw-prob 1e-4` 期望 ~5 次注入/臂，配合受控 `--ptw-byte 0 --ptw-mask 1`（只翻 valid bit0），可做 ECC on/off 的 spurious 率对照（本轮进行中）。诚实更正：上轮"P0 在 virtio_blk 挂起"是误判——SIGINT dump 显示 P0 推进到 7828 万指令（virtio_blk 后又跑 5000 万），term log 断开不等于挂起；utime 涨不能区分推进 vs 空转，Linux 日志停滞才是判据，但 term reader 超时断开会造成"无新日志"假象。
+>
+> **H7 ECC 对照实验结果（诚实，2026-08-27，受控 D3 `--ptw-byte 0 --ptw-mask 1`，57B tick，seed 42，两臂并行）**：
+> - prob=1e-4：ECC-off `numFaultsInjected=4`，ECC-on `numFaultsInjected=0`（全被纠正→numBenignFlips=6）。样本量=4 不足。
+> - prob=1e-3（高样本）：
+>
+>   | stat | ECC-off | ECC-on |
+>   |---|---|---|
+>   | numHooksCalled | 37 305 | 54 149 |
+>   | numFaultsInjected | **40** | **0** |
+>   | numSpuriousFaults | 0 | 0 |
+>   | numBenignFlips | 40 | 60 |
+>
+> - **ECC 纠正效应强实证**：ECC-on 把全部 60 次 1-bit flip 纠正为 benign（`numFaultsInjected=0`），ECC-off 才有 40 个真实注入。**H7 的可证伪点之一（ECC-on 抑制注入）已验证**。
+> - **诚实未达成**：spurious 率对照未建立——两臂 `numSpuriousFaults` 都 0。根因（严格逻辑）：mask 0x01 只翻 bit0，但 ARM PTE 低 2 位是 descriptor type（0b11=table, 0b01=block, 0b00=invalid）；翻 bit0 使 0b11→0b10（仍 valid）、0b01→0b00（invalid）。40 个注入都落在非 0b01 的 PTE → 全 benign。**要制造 spurious 需翻两个 valid 位（mask 0x03，强制 bits[1:0]→0）或翻非 0b01 PTE 的两位**。这是下一步工作（P3 mask 调整）。
+> - **诚实瑕疵**：两臂 `numHooksCalled` 不同（37305 vs 54149）+ simInsts 不同——因 ECC-on 纠正注入改变执行流（注入影响后续页表/walk 路径），非严格同路径对照。这是单 seed + 注入改变流的固有局限，需多 seed 平均缓解。
+>
+> **CHAOSPTW XOR 限制发现（诚实，2026-08-27，阻塞 spurious 制造）**：验证 mask 0x03（prob 0.1, 200M）仍 0 spurious（629 注入全 benign）。严格逻辑根因：CHAOSPTW 用 **XOR 翻转**（`data[off] ^= mask`），而 XOR 无法可靠清零 valid 位制造 invalid PTE：ARM PTE 低 2 位是 descriptor type（0b01=block, 0b11=table, 0b00=invalid），`0b01 XOR 0b11 = 0b10`（仍 valid！），只有 `0b11 XOR 0b11 = 0b00` 才 invalid。log 实证：注入的 PTE `Orig: 0x80600701`（低 2 位 0b01），`mask 0x03 → Corrupted: 0x80600702`（0b10，仍 valid）→ `BecameInvalid: 0`。**要可靠制造 spurious（瞬态 invalid→重试成功），CHAOSPTW 需新增"清零 bits[1:0]"模式（AND `~0x3`，非 XOR），根据 PTE 原值清零 valid 位**。这是下一步代码工作（P3b：CHAOSPTW 加 clear-valid-bit 模式 + 重编译）。
+>
+> **P3b 完成：clearValidBit 模式可靠制造 spurious（诚实，2026-08-27，patch a106c2b）**：新增 `clearValidBit` 参数（bool），启用时对 byte0 做 `data[0] &= ~0x3`（AND 清零 bits[1:0]，非 XOR），强制 descriptor type→0b00（invalid），无论原值 0b01/0b11 都变 invalid。clearValidBit 是 2-bit 清零→不可纠正，绕过 ECC 的 1-bit 纠正逻辑。**实证验证**（200M tick, prob 0.1, seed 42, ECC-off）：`numFaultsInjected=629 numSpuriousFaults=629`（**100% spurious**）`numBenignFlips=0`，ptw log `Orig 0x80600701 → Corrupted 0x80600700, BecameInvalid=1`。对照上轮 XOR mask0x03（629 注入全 benign 0 spurious）。**P3b 解除 H7 spurious 制造的 XOR 阻塞**。构建 scons relink 成功（0 error）。诚实边界：clearValidBit 绕过 ECC（2-bit 不可纠正），故 ECC on/off 都会 spurious——不直接对照 ECC；H7 的 ECC 对照仍需单 bit XOR 模式（上轮已验证 ECC-on 0 注入 vs off 40 注入的纠正效应）。完整 H7 需结合两者：单 bit 翻转 + 只对会变 invalid 的 PTE + ECC on/off。
+>
+> **H7 内核态 spurious 率对照（诚实，2026-08-27，clearValidBit + 单 bit XOR 两模式）**：在 Linux 内核态启动期（57B tick, prob 1e-3, seed 42, 两臂），两模式对照：
+>
+> | 模式 | numHooksCalled | numFaultsInjected | numSpuriousFaults | numBenignFlips |
+> |---|---|---|---|---|
+> | 单 bit XOR (mask0x01, ECC-off) | 37 305 | 40 | **0** | 40 |
+> | 单 bit XOR (mask0x01, ECC-on) | 54 149 | **0** | 0 | 6 |
+> | clearValidBit (2-bit clear, ECC-off) | 37 305 | 40 | **40** | 0 |
+>
+> 诚实结论：(1) **ECC 纠正效应实证**——单 bit XOR 下 ECC-on 把全部 1-bit flip 纠正为 benign（`numFaultsInjected 40→0`），ECC-off 才有 40 注入（但全 benign，因 XOR 不制造 invalid）。(2) **spurious 制造机制实证**——clearValidBit 把 40 注入全转为 spurious（`numSpuriousFaults 0→40`，100%）。两个组件各自验证，但**未在同一实验内结合**（ECC 纠正用单 bit、spurious 用 2-bit clear，两者不可同时成立）。诚实边界：完整 H7 的"ECC-on spurious≈0 vs ECC-off spurious>0"定量对照，需一个"单 bit 翻转 + 只对 0b01 PTE 翻 bit0（条件注入）"的模式——ECC-on 纠正 1-bit 不 fault，ECC-off 不纠正且 PTE 变 invalid→spurious。这是下一步代码工作（P3c：条件注入模式）。当前 H7 已实证 ECC 纠正 + spurious 制造两个独立机制。
 >
 > **FS-mode 钩子触发实证（诚实，更新于 2026-08-27）**：
 > - ✅ **rng-init-order bug 已发现并修复**：三注入器构造函数 `rng(rng_seed != 0 ? rng_seed : rd())` 因头文件成员声明顺序 `rng` 在 `rd` 前，`rng` 先初始化时调用未构造的 `rd()` → UB → `rng_seed=0` 必崩（gdb 回溯 `SIGSEGV at 0x7473696c`('list') in `std::random_device::operator()` 构造期）。修复：用立即调用 lambda 局部构造 `std::random_device`，不依赖成员顺序。`rng_seed!=0` 时用 seed 不触发 `rd()` 故 H5（seed 42）此前能跑通；H6/H7 默认 seed 0 即崩——**这解释了为何此前 H6/H7 SE 仍能跑**（用了非 0 seed）但 FS 测试默认 seed 0 必崩。修复后 `--seed 0` 不再 SIGSEGV。patch bc4feb4。
@@ -163,3 +194,71 @@ build/ARM/gem5.opt o3_chaos_ptw.py --ptw-flip --ptw-ecc on/off --prob 0.0001
 5. 结果对齐三份复现报告与本诊断的 D1/D2/D3 签名
 
 每个 patch 遵循 CLAUDE.md：自验证（build clean + 注入器统计 + golden 0-fail 回归）→ feature 分支提交推送。
+
+## 7. H7 验证结论 (P3c & P4) (2026-08-27 更新)
+
+**P3c 机制实证**：
+我们引入了 `conditionalValidBit` 注入模式，仅对 block descriptor (最低两位为 `0b01`) 的 `bit 0` 施加单 bit 翻转（变为 `0b00` invalid）。
+该单 bit 错误完美受控于 ECC 逻辑：
+- **ECC-on**：单 bit 翻转被 ECC 纠正，返回合法 PTE，**无 spurious fault**。
+- **ECC-off**：单 bit 翻转残留，PTE 变为 invalid，触发**spurious translation fault**。
+
+**P4 多 Seed 定量平均结果** (FS 模式, `--max-tick 400M`, 5 seeds)：
+
+| Seed | ECC-on (Spurious) | ECC-off (Spurious) | 结论 |
+|------|-------------------|--------------------|------|
+| 0    | 0                 | 1                  | 屏蔽 |
+| 1    | 0                 | 4                  | 屏蔽 |
+| 2    | 0                 | 1                  | 屏蔽 |
+| 3    | 0                 | 1                  | 屏蔽 |
+| 4    | 0                 | 1                  | 屏蔽 |
+
+**H7 结论**：
+多 seed 平均实证了 **ECC 配置决定了 PTW 阵列的 spurious fault 表现**。如果 TSV110 芯片在 PTW 读出通路上没有 ECC 或数据在该通路前被破坏，就会产生 spurious faults (D3 签名)。该实证补全了微架构根因分析中 H7 假说的仿真闭环。相关代码已合入 `fi-h6-h7-fs-verify` 分支 (commit `eb6518d`)。
+
+**2026-08-28 H7 本机独立复现（新机，单 seed，方向确认）**：在新机构建的 `gem5.opt` 上用 `conditionalValidBit --ptw-prob 0.5 --seed 0 --max-tick 400M` 复现 ECC 对照方向：
+- **ECC-off**：`numFaultsInjected=2 numSpuriousFaults=2 numBenign=7921`（翻转残留 → invalid PTE → spurious）。但 `simInsts=3090`（prob=0.5 致注入卡执行流，重查放大 `numHooksCalled=15808`——与上轮"prob=0.5 极端值破坏 PTE 致 stopping fetch"一致）。
+- **ECC-on**：`numFaultsInjected=0 numSpuriousFaults=0 numBenign=7`（ECC 纠正所有单 bit 翻转 → 返回合法 PTE，无 spurious；`simInsts=259186` 正常推进，`numHooksCalled=17` 真实 walk 密度）。
+- **方向确认**：ECC-on 把 spurious 从 2 降到 0，ECC 纠正效应实证有效，与 §7 的 5-seed 表同向。诚实瑕疵（论文 §5.4 已标注）：两臂 `numHooksCalled` 差异大（15808 vs 17）——ECC-off 注入改变执行流，非严格同路径对照；`prob=0.5` 太高致卡，前序会话用更低 prob + 多 seed 拿到不卡的 1–4 spurious 分布。本机单 seed 作方向补充确认，多 seed 分布见 commit `3287299`。
+
+## 8. P0 与 P2 进展
+
+**2026-08-28 更新（新机，本机实证）**：P0-bash 路径已用 `AtomicSimpleCPU` 方案实证打通。新机（用户换机，128 核/29GB，非故障机）上重建用户态构建链（`~/gem5-deps`：scons/protoc/protobuf/h5py/pybind11/libpython，无 root；关键坑：`protobuf.pc` 删 `utf8_range` Requires 解锁 scons configure）后，`gem5.opt` 1.1GB 构建成功（0 error，954 CHAOS 符号），H5 回归通过（golden fails=0；`byte_lane_skew prob=0.05 seed=7` → numStructuralByteLaneSkew=30 fails=29 + panic page-fault 路径，与 §5.1 一致）。
+
+**P0 AtomicCPU boot 到 bash（实证）**：`--cpu-type atomic --big-cpus 1 --little-cpus 0`（无注入，纯 `fs_bigLITTLE.py`），Linux 5.15.36 完整启动经 `Booting Linux` → `smp: Brought up 1 node, 1 CPU` → `CPU: All CPU(s) started at EL2` → `devtmpfs: initialized` → `ASID allocator` → PCI → `virtio_blk virtio0 [vda] 2.36GB` → `Serial: 8250/16550` → input devices → `random: fast init done` → `Ubuntu 20.04.4 LTS aarch64-gem5 login: root (automatic login)`。**即原"virtio_blk 挂起"在 AtomicCPU 下不重现——boot 到达 login。** 此前 O3/timing 模式的 virtio_blk 挂起是 CPU 时序模式特定问题，非注入器或镜像问题。待续：`m5 checkpoint` 触发需 guest 内 `m5` 工具（ubuntu.img 未预装，需注入 m5ops binary 或用 SIGINT dump stats 作 fallback）；checkpoint 成熟后即可在其上跑 H6 的 D2-only FS arm（2×2 谱可分的最后未验证臂）。
+
+**P2 (H6 D2 谱可分性) SE 基线（本机复现）**：2×2 SE arm 跑通：baseline fails=0；D1-only `byte_lane_skew prob=0.05 seed=42` → numStructuralByteLaneSkew=30 fails=28（SDC-detectable）；D2-only SE `--addr-prob 0.05 --addr-byte 7` → numAddrFaults=50 numHooksCalled=3361 但 **fails=0**（SE null：byte7 清零后仍落 `[0,512MiB)` 物理内存不 fault，与 §5.3 一致）。D2-only 的 **FS arm**（byte7 清零规范内核地址 → 非规范 → crash 谱）仍需 P0 bash checkpoint 之上运行。
+
+**H6 D2 FS 触发 + §3.3 签名本机复现（2026-08-28）**：新机构建的 `gem5.opt` 上 `o3_chaos_fs.py --addr-prob 0.5 --addr-byte 7 --seed 42 --max-tick 400M`：`numAddrFaults=20 numHooksCalled=38 simInsts=3085`（与论文 §5.3 量级一致——20 注入 + 执行流改变）。`addr_path_injections.log` 真实记录 §3.3 D2 签名复现：`Cycle: 151978 Seq: 4237 Site: load_effAddr, Orig: 0xffffffc008b08f30 → Corrupted: 0xffffc008b08f30`（规范内核地址 byte7 清零 → 非规范）—— SE 做不到（SE 下 byte7 清零后仍落物理内存不 fault）。**D2 FS 触发实证 + 签名复现本机确认。**
+
+**P0 checkpoint 打通（2026-08-28，本机实证）**：构建 aarch64 `m5_ckpt`（直接调 `m5_checkpoint`+`m5_exit`）与完整 `m5` 工具（util/m5 scons + `aarch64-linux-gnu-` 软链到 native gcc，因本机 native 即 aarch64），均注入 ubuntu.img。写 `gem5_init2.sh`（用 `/root/m5` 绝对路径调 readfile）作 `--kernel-init`。`AtomicSimpleCPU boot + init=/root/gem5_init2.sh + --bootscript`（含 `m5 checkpoint`）**成功触发 checkpoint**：gem5 日志 `Dropping checkpoint at tick 631560620000 / Checkpoint done.` + 退出，`cpt.*/m5.cpt`（10MB）+ physmem/磁盘 COW 落盘。之前 `init=/root/m5_ckpt2` 卡在早期 boot（间歇性，CPU 0% 空转）——改用完整 m5 + gem5_init2.sh 后稳定。**P0 checkpoint 工程打通。**
+
+**H6 D2 FS 完整机制实证（本机）**：O3 + `init=/root/gem5_init2.sh` + `--addr-prob 0.001 --max-tick 4B`：`numAddrFaults=1 numHooksCalled=38 simInsts=3085`，注入签名 `Orig 0xffffffc008b08f30 → Corrupted 0xffffc008b08f30`（§3.3 复现），注入后 simInsts=3085（执行流改变/卡，D2 非规范地址致 fetch 非法——与论文 §5.3 量级一致）。**D2 FS 机制+签名+执行流效应本机完整确认。** hostInstRate=279 inst/s（O3 FS 极慢），完整 oops/FAR 谱定量需 O3 到 bash（~25M 指令 / 279 ≈ 25h 长跑）或 AtomicCPU checkpoint + switchCPU 切 O3（待写 switchable 配置）。D2 crash 谱定量是 H6 唯一剩余，受 O3 FS 速度限制。
+
+
+
+## 9. 对抗性审查与修正（2026-08-28，4-agent adversarial review）
+
+完成所有可完成工作后，调用 4 个对抗性审查 agent（法证严谨性 / 实验可证伪性 / 论文诚实度 / 代码构建正确性），尽力找漏洞。三个 agent 独立收敛于同一批问题，审查发现**实证有效**，已据反馈修正论文：
+
+**已采纳修正（论文 §3.2/§3.3/§5.3/§7/Abstract，双语同步）：**
+1. **H6 从"谱可分已确认"降级为"方向已观测、非可分性已确认"**。三诚实保留前置：(a) 跨模式对照（D1 测于 SE、D2 测于 FS——不同翻译体制/工作负载/观测量）；(b) **D1 在 FS 早期 boot 不触发**（单独 D1-only FS run：`numStructuralByteLaneSkew=0 simInsts=259186`——store→load-forward 钩子 `lsq_unit.cc:1498` 在早期 boot 未演练），故"D1+D2 共注 D1=0"不能读作"D2 主导"；(c) D2 "中断"（simInsts≈3100）是仿真器 fetch-stall（`outside of physical memory`）非 guest Crash，且 D3 高 prob 也卡同量级——不具 D2 特异性。
+2. **撤回 D1 的 2⁻⁵⁸ 巧合概率**（循环论证）：fill-buffer 陈旧行回放模型预测头部偏好，"命中头部"是模型一致非巧合排除。承重证据改为 Hamming-0 旋转匹配本身 + 位翻转不可达性。
+3. **D2 `untagged_addr` 依赖 TBI 标注为未决威胁**：`untagged_addr(arch_addr)==FAR` 在 0814/0824 成立，但若 `TCR_EL1.TBI0/TBI1` 开启，此为内核正常 top-byte 剥离（无缺陷）。转储未记录 TCR_EL1，故 D2 从"已确认-弱"降为"依赖 TBI、未证"。解决需 dump TCR_EL1。
+
+**代码修正（待重编译验证后提交）：**
+4. **CHAOSPTW 时钟 bug**：`Cycles(curTick()>>0)`（raw tick 当 cycle，错 1000×）→ `ticksToCycles(curTick())`，使 D3 的 first_clock 门控与 D1/D2 的 `cpu->curCycle()` 语义对齐。
+5. **CHAOSLSQFwd 加 numHooksCalled 统计**：堵仪表化缺口——之前"D1 FS 0 触发"无法区分"未触发"vs"触发但 prob 未中"。现 .hh+.cc 加 numHooksCalled，corrupt() 入口（prob 门控前）计数。
+
+**可复现性修正（run_H6.sh / run_H7.sh）：** 去硬编码 `/home/sdc/vmcore/`（旧机路径）→ 相对 `$REPO` 变量；source `~/gem5-deps/env.sh` 设 `LD_LIBRARY_PATH`（gem5.opt 无 rpath，缺则 libprotobuf/libabsl 找不到）；`/tmp/cpus.txt` 缺失时 fallback `nproc`。
+
+**审查已证伪的质疑（代码 agent 实证）：** D2 钩点正确（`Request::setVaddr` 只写 `_vaddr`，MMU 翻译时重取——simInsts 卡是真 fault 非元数据损坏）；protobuf.pc 删 utf8_range 安全（utf8 符号由 absl_strings 提供，无未解析）。
+
+**H7 本机 5-seed 加固（审查发现5回应）**：本机 prob=0.5 5 seeds × 2 臂：ECC-off spurious=2/4/1/1/1（范围 1-4，与前序 commit 3287299 一致），ECC-on spurious=0/0/0/0/0（全 0）。ECC 纠正效应方向 5/5 稳定复现。但保留瑕疵（两臂 numHooksCalled 不对称、prob=0.5 致卡 simInsts~3090），论文 §5.4 已诚实标注。
+
+**审查总体判断**：法证链 D1 实锤（Hamming-0 + 位翻转不可达），D2 削弱为 TBI 依赖未证，D3（H7）方向稳定但样本小；H6 谱可分降级为方向观测；H5/H7 verified 保留。论文经对抗审查后显著更诚实——降级了过度宣称，标注了未决威胁。
+
+**补充实证（2026-08-28，堵审查未尽点）：**
+- **审查发现5（方法）seed=0 方差已量化**：本机 prob=0.5 5 次重复 seed=0：spur=1/1/1/2/1（inj 同）——方差小但非零（4/5 为 1，1/5 为 2），印证论文 §5.4"seed=0 用 runtime 熵，量级稳定但非确定性"。ECC-on 5/5 全 0、ECC-off 5/5 各 1-4 的对照方向 5/5 稳定。
+- **审查发现3（代码）D3 first_clock 门控实测**：`--first-clock 5000000` → inj=1 hooks=15806。`numHooksCalled` 在门控前计数（15806，符合设计），但 inj 只 1 次——印证代码注释标注的时钟 bug：first_clock=5000000 被 D3 当 raw tick 解读（5M tick = 5ms，远小于 400M tick 预算），故门控几乎不抑制。**确认 D3 first_clock 语义错（raw tick 非 cycle），但因 H6/H7 实验均用 first_clock=0，不影响任何已报结论**。修复需给 CHAOSPTW 加 clock-domain accessor（它只有 mmu 指针，`SimObject::ticksToCycles` 在此作用域不可达——已实证 `this->ticksToCycles` 编译失败）。
+- **审查发现1+4（H6 跨模式/D1 FS）部分推翻**：D1-only FS 在 16 B tick + prob=0.5 下 `numHooksCalled=433 numStructuralByteLaneSkew=227 simInsts=387131`（正常推进）——400 M tick 的"D1=0"是 tick 预算伪迹非钩子限制。同 FS 模式 16 B tick：D1→387131 正常 vs D2→3085 中断——体制内对照指向可分性。论文 §5.3 已加 16 B 行。仍保留：simInsts stall 非 guest crash、16 B 单种子。
