@@ -43,6 +43,7 @@
 #include "base/trace.hh"
 #include "cpu/inst_seq.hh"
 #include "cpu/o3/dyn_inst.hh"
+#include "cpu/o3/CHAOSBPU/CHAOSBPU.hh"  // S8-4: BPU target-substitution hook
 #include "cpu/o3/ftq.hh"
 #include "cpu/o3/limits.hh"
 #include "debug/Activity.hh"
@@ -576,6 +577,16 @@ BAC::predict(ThreadID tid, const StaticInstPtr &inst, const FetchTargetPtr &ft,
      */
     assert(ft->bpuHistory == nullptr);
     bool taken = bpu->predict(inst, ft->ftNum(), pc, tid, ft->bpuHistory);
+
+    // CHAOSBPU (S8-4): optionally substitute the predicted target (F5)
+    // or flip the direction (F1). Wrong speculative stream should squash
+    // (P(arch==golden after squash) ~= 1 — negative-control surface).
+    // `pc` is a PCStateBase& — downcast to PCStateWithNext (has npc()
+    // getter/setter) via the gem5 as<T>() idiom.
+    if (chaosBpu) {
+        taken = chaosBpu->maybeSubstituteTarget(
+            pc.as<GenericISA::PCStateWithNext>(), taken);
+    }
 
     DPRINTF(Branch, "[tid:%i, ftn:%llu] History added.\n", tid, ft->ftNum());
     return taken;

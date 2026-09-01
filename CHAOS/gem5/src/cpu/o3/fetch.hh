@@ -231,6 +231,10 @@ class Fetch
     /** Sets pointer to branch address calculation stage and FTQ */
     void setBACandFTQPtr(BAC *bac_ptr, FTQ *ftq_ptr);
 
+    /** CHAOSBPU accessor (S8-4): expose the BAC so the injector can
+     *  self-attach via cpu.hh's bacAccess(). bac is otherwise private. */
+    BAC *getBAC() { return bac; }
+
     /** Initialize stage. */
     void startupStage();
 

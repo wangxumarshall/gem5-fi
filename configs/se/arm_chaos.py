@@ -17,7 +17,7 @@
 
 import argparse
 import m5
-from m5.objects import CHAOSReg, CHAOSPhysReg, CHAOSMem, CHAOSLSQFwd, CHAOSAddrPath, CHAOSRenameMap, CHAOSFreeList, CHAOSROB, CHAOSIQ, CHAOSExec, CHAOSFPU, CHAOSL1DForward
+from m5.objects import CHAOSReg, CHAOSPhysReg, CHAOSMem, CHAOSLSQFwd, CHAOSAddrPath, CHAOSRenameMap, CHAOSFreeList, CHAOSROB, CHAOSIQ, CHAOSExec, CHAOSFPU, CHAOSL1DForward, CHAOSBPU
 from gem5.components.boards.simple_board import SimpleBoard
 from gem5.components.cachehierarchies.classic.private_l1_private_l2_cache_hierarchy import (
     PrivateL1PrivateL2CacheHierarchy,
@@ -211,6 +211,13 @@ p.add_argument("--chaos_l1dfwd", action="store_true",
                help="attach CHAOSL1DForward (PCE; load result post-ECC flip).")
 p.add_argument("--l1dfwd_fault_mask", type=lambda x: int(x,0), default=0)
 p.add_argument("--l1dfwd_semantic_role", default="")
+# S8-4 CHAOSBPU: branch-predictor target_sub (F5) / direction_flip (F1).
+p.add_argument("--chaos_bpu", action="store_true",
+               help="attach CHAOSBPU (BAC::predict target sub; negative-control "
+                    "surface — wrong spec stream should squash).")
+p.add_argument("--bpu_mode", default="target_sub",
+               choices=["target_sub","direction_flip"])
+p.add_argument("--bpu_semantic_role", default="")
 args = p.parse_args()
 
 cache_hierarchy = PrivateL1PrivateL2CacheHierarchy(
@@ -491,6 +498,28 @@ if args.chaos_l1dfwd:
         semanticRole=args.l1dfwd_semantic_role,
     )
     board.chaos_l1dfwd = l1d
+
+# CHAOSBPU (S8-4): BAC::predict target substitution. HONEST LIMITATION:
+# BAC::predict is only called in the DECOUPLED front-end mode
+# (decoupledFrontEnd defaults False; the coupled path queries the BPU
+# directly from Fetch). Enabling decoupledFrontEnd on this stdlib board
+# was tested and does NOT boot (empty stats — the v25 experimental
+# decoupled FE is incompatible with SimpleBoard). The hook stays wired
+# for decoupled-compatible configs; wiring it to the Fetch coupled path
+# is future work.
+if args.chaos_bpu:
+    bpu = CHAOSBPU(
+        cpu=cpu0,
+        probability=args.probability,
+        mode=args.bpu_mode,
+        firstClock=args.first_clock,
+        lastClock=args.last_clock,
+        maxFaults=args.max_faults,
+        rngSeed=args.rng_seed,
+        writeLog=True,
+        semanticRole=args.bpu_semantic_role,
+    )
+    board.chaos_bpu = bpu
 
 if args.maxinsts:
     cpu0.max_insts = args.maxinsts

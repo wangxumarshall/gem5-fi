@@ -1,0 +1,4 @@
+Import('*')
+SimObject('CHAOSBPU.py', sim_objects=['CHAOSBPU'], enums=[])
+Source('CHAOSBPU.cc')
+DebugFlag('CHAOSBPU')

@@ -50,6 +50,8 @@
 
 namespace gem5
 {
+// Forward declaration: CHAOSBPU hooks BAC::predict (S8-4).
+class CHAOSBPU;
 
 struct BaseO3CPUParams;
 
@@ -338,6 +340,12 @@ class BAC
 
     /** BPredUnit. */
     branch_prediction::BPredUnit *bpu;
+
+    /** CHAOSBPU hook (S8-4): set by the injector's constructor. When
+     *  non-null, predict() calls maybeSubstituteTarget() after bpu->predict()
+     *  — may replace the predicted target (F5) or flip taken (F1). */
+    class gem5::CHAOSBPU *chaosBpu = nullptr;
+    void setChaosBPU(gem5::CHAOSBPU *p) { chaosBpu = p; }
 
     /** Fetch target Queue. */
     FTQ *ftq;

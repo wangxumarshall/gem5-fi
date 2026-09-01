@@ -493,6 +493,9 @@ class CPU : public BaseCPU
      *  can hook doSquash's freelist return (skip freeingInProgress push
      *  = retain wrong-path PRF write). Same pattern as robAccess(). */
     Rename &renameAccess() { return rename; }
+    /** CHAOSBPU accessor (S8-4): exposes fetch's BAC for injector
+     *  self-attach. Same pattern as renameAccess(). */
+    BAC &bacAccess() { return *(fetch.getBAC()); }
 
     /** CHAOSLSQFwd hook: store->load forwarding-path injector. Set externally
      *  (from a config script) so lsq_unit.cc can reach it via the cpu pointer
