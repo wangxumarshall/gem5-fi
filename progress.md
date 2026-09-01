@@ -1042,3 +1042,13 @@ ARM 三条路径 + golden（真跑输出）：
 **自验证**：干净重建 `scons -j16` EXIT=0，零警告（G7）。**SE-inert**：stdlib SE classic-cache 不用 Ruby/MessageBuffer → hook 不触发（与 NoC 同模式）。须 Ruby 配置验证（deferred）。回归 reg_chain golden 不变。
 
 **诚实边界**：`payload_bitflip`（Ruby Message functionalWrite）deferred；Ruby 配置（切 stdlib→Ruby + CHI 协议）deferred；`msg_drop` 真正丢弃需 MessageBuffer 支持 drop（当前仅 log，dequeue 不支持直接 drop——F6 delay 是已实现子集）；formal n=384。
+
+---
+
+### S1 §2.16 CHAOSSHCCS（作为 CHAOSCHI 的 cross_die_msg_delay 模式，已实现）
+
+**实现**：CHAOSCHI 加 `cross_die_msg_delay` 模式（§2.16 HCCS 的跨 NUMA Hydra 链路传播延迟——doc §2.16 说"扩展 CHAOSCHI 或新写 CHAOSSHCCS"）。同 hook 点（MessageBuffer::dequeue），mode 语义区分本地 msg_delay vs 跨 Die cross_die_msg_delay。诚实：真正区分本地 vs 跨 NUMA 需 NUMA 拓扑信息（哪些 MessageBuffer 在跨 Die 路径上），当前 mode 是语义标记，实际延迟应用相同。doc §2.16 "与 §14 同批排期"——复用同 hook 点是最诚实的最小实现。
+
+**自验证**：干净重建 `scons -j16` EXIT=0，零警告。SE-inert（Ruby-only）。回归 golden 不变。
+
+**注入器总数 7→22**（新增 15：RenameMap/FreeList/ROB/IQ/Exec/FPU/L1DForward/BPU/AddrPath/PTW/Decode/ExMon/RAS/NoC/CHI(+HCCS as mode)）。**6 个原"硬阻碍"注入器全部完成**（4 个 SE-verified + 2 个 Ruby-only/SE-inert）。

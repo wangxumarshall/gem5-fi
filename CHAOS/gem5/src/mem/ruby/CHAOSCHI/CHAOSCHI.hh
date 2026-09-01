@@ -30,7 +30,7 @@ class CHAOSCHI : public SimObject
     bool maybeCorrupt(ruby::MessageBuffer *buf);
 
   private:
-    enum class Mode { MsgDelay, MsgDrop, PayloadBitflip };
+    enum class Mode { MsgDelay, MsgDrop, CrossDieMsgDelay, PayloadBitflip };
     static Mode stringToMode(const std::string &s);
 
     Mode fi_mode;

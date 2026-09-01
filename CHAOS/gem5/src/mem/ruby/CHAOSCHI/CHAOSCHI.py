@@ -18,7 +18,10 @@ class CHAOSCHI(SimObject):
     # NOTE: Ruby-only — stdlib SE classic-cache doesn't use Ruby/CHI.
     # Needs a Ruby config (configs/se/ruby_chaos.py, deferred) to run.
     mode = Param.String("msg_delay",
-        "msg_delay (F6) | msg_drop (F6) | payload_bitflip (deferred)")
+        "msg_delay (F6) | msg_drop (F6) | cross_die_msg_delay (§2.16 HCCS, "
+        "models cross-NUMA Hydra link propagation delay) | payload_bitflip "
+        "(deferred). §2.16 CHAOSSHCCS is the cross-Die extension of §2.9 — "
+        "same MessageBuffer hook, the mode distinguishes local vs cross-NUMA.")
     probability = Param.Float(1.0, "per-dequeue injection probability")
     firstClock = Param.UInt64(0, "first clock cycle eligible for injection")
     lastClock = Param.UInt64(0, "last cycle (0 = unrestricted)")

@@ -32,6 +32,7 @@ namespace gem5
     CHAOSCHI::Mode
     CHAOSCHI::stringToMode(const std::string &s) {
         if (s == "msg_drop") return Mode::MsgDrop;
+        if (s == "cross_die_msg_delay") return Mode::CrossDieMsgDelay;
         if (s == "payload_bitflip") return Mode::PayloadBitflip;
         return Mode::MsgDelay;
     }
@@ -63,7 +64,8 @@ namespace gem5
         //   MessageBuffer::dequeue doesn't support drop directly — the F6
         //   delay is the realized subset here).
         // payload_bitflip: needs Ruby Message functionalWrite (E3, deferred).
-        if (fi_mode == Mode::MsgDelay || fi_mode == Mode::MsgDrop) {
+        if (fi_mode == Mode::MsgDelay || fi_mode == Mode::MsgDrop ||
+            fi_mode == Mode::CrossDieMsgDelay) {
             // peek the front message for logging; the actual delay is applied
             // by re-enqueueing with a later time (the caller MessageBuffer
             // handles this via its delayHead mechanism). Here we log the fault
