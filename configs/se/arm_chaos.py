@@ -17,7 +17,7 @@
 
 import argparse
 import m5
-from m5.objects import CHAOSReg, CHAOSPhysReg, CHAOSMem, CHAOSLSQFwd, CHAOSAddrPath, CHAOSRenameMap, CHAOSFreeList, CHAOSROB, CHAOSIQ
+from m5.objects import CHAOSReg, CHAOSPhysReg, CHAOSMem, CHAOSLSQFwd, CHAOSAddrPath, CHAOSRenameMap, CHAOSFreeList, CHAOSROB, CHAOSIQ, CHAOSExec
 from gem5.components.boards.simple_board import SimpleBoard
 from gem5.components.cachehierarchies.classic.private_l1_private_l2_cache_hierarchy import (
     PrivateL1PrivateL2CacheHierarchy,
@@ -194,6 +194,12 @@ p.add_argument("--iq_mode", default="src_ready_bitflip",
                choices=["src_ready_bitflip","tag_sub","wake_phase","wake_omit"])
 p.add_argument("--iq_target_src", type=int, default=-1)
 p.add_argument("--iq_semantic_role", default="")
+# S8-3 CHAOSExec: int ALU writeback result corruption (negative control).
+p.add_argument("--chaos_exec", action="store_true",
+               help="attach CHAOSExec (int writeback result flip; negative control P_SDC(Int)<<P_SDC(FSU)).")
+p.add_argument("--exec_fault_mask", type=lambda x: int(x,0), default=0)
+p.add_argument("--exec_bit_segment", default="all", choices=["all","low","mid","high"])
+p.add_argument("--exec_semantic_role", default="")
 args = p.parse_args()
 
 cache_hierarchy = PrivateL1PrivateL2CacheHierarchy(
@@ -424,6 +430,23 @@ if args.chaos_iq:
         semanticRole=args.iq_semantic_role,
     )
     board.chaos_iq = iq
+
+# CHAOSExec (S8-3): int writeback result corruption.
+if args.chaos_exec:
+    ex = CHAOSExec(
+        cpu=cpu0,
+        probability=args.probability,
+        faultMask=args.exec_fault_mask,
+        bitsToChange=args.bits_to_change,
+        bitSegment=args.exec_bit_segment,
+        firstClock=args.first_clock,
+        lastClock=args.last_clock,
+        maxFaults=args.max_faults,
+        rngSeed=args.rng_seed,
+        writeLog=True,
+        semanticRole=args.exec_semantic_role,
+    )
+    board.chaos_exec = ex
 
 if args.maxinsts:
     cpu0.max_insts = args.maxinsts

@@ -701,6 +701,21 @@ class DynInst : public ExecContext, public RefCounted
     /** Return the size of the instResult queue. */
     uint8_t resultSize() { return instResult.size(); }
 
+    /** CHAOSFPU/CHAOSExec (S8): corrupt the FRONT result's RegVal by XOR-ing
+     *  a mask. Used by writeback-path injectors to flip a just-produced
+     *  result before it's written back to the PhysReg (the FSU/ALU data
+     *  path, distinct from corrupting the PhysReg cell itself). No-op if
+     *  the result is a blob (vector) or the queue is empty. Returns true
+     *  if the front RegVal was corrupted. */
+    bool
+    corruptResultRegVal(RegVal mask)
+    {
+        if (instResult.empty()) return false;
+        // Use the public corruptRegVal (InstResult::corruptRegVal) — returns
+        // false if the front is a blob (vector), true if RegVal XOR'd.
+        return const_cast<InstResult&>(instResult.front()).corruptRegVal(mask);
+    }
+
     /** Pops a result off the instResult queue.
      * If the result stack is empty, return the default value.
      * */

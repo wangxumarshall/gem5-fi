@@ -107,6 +107,15 @@ class InstResult
         set(val);
     }
 
+    /** CHAOSExec/CHAOSFPU (S8): XOR a mask into the RegVal (writeback
+     *  data-path corruption). Returns true if this is a RegVal (not a blob)
+     *  and the flip was applied. */
+    bool corruptRegVal(RegVal mask) {
+        if (blob()) return false;
+        set(getRegVal() ^ mask);
+        return true;
+    }
+
     InstResult &
     operator=(const InstResult &that)
     {

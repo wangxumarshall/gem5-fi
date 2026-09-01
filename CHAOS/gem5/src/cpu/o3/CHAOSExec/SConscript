@@ -1,0 +1,4 @@
+Import('*')
+SimObject('CHAOSExec.py', sim_objects=['CHAOSExec'], enums=[])
+Source('CHAOSExec.cc')
+DebugFlag('CHAOSExec')
