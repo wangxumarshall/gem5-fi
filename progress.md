@@ -1032,3 +1032,13 @@ ARM 三条路径 + golden（真跑输出）：
 **注入器总数 7→21**（新增 14：RenameMap/FreeList/ROB/IQ/Exec/FPU/L1DForward/BPU/AddrPath/PTW/Decode/ExMon/RAS/NoC）+ LSQFwd/CHAOSMem/CHAOSCache 字段级扩展。
 
 **6 个里完成 4 个，剩 2 个（CHI/HCCS）是 SLICC 协议级深层系统级工作**——需改 .sm 文件重新生成 C++，是 doc 明列的 S4 独立子项目（~8 补丁/每个）。单会话 + SLICC 重新生成 + 多核 Ruby 配置验证物理上做不完。下次会话从 CHAOSCHI（改 CHI .sm 加目录 hook）继续。
+
+---
+
+### S1 §2.9 CHAOSCHI 注入器（Ruby MessageBuffer hook，已实现，Ruby-only）
+
+**实现**：新 SimObject `CHAOS/gem5/src/mem/ruby/CHAOSCHI/{.py,.hh,.cc,SConscript}`。hook `MessageBuffer::dequeue`（MessageBuffer.cc:311 `m_prio_heap.front()` 后）调用 `chaosCHI->maybeCorrupt(this)`。`msg_delay`(F6：消息延迟到达，传播时延破坏) + `msg_drop`(F6：消息丢失，一致性违规) + `payload_bitflip`(deferred，需 Ruby Message functionalWrite E3)。`MessageBuffer` 加 `chaosCHI` 指针 + `setChaosCHI`。**关键解决**：不需改 SLICC .sm 文件——hook C++ `MessageBuffer` 层（所有 CHI 目录/响应消息经此）。
+
+**自验证**：干净重建 `scons -j16` EXIT=0，零警告（G7）。**SE-inert**：stdlib SE classic-cache 不用 Ruby/MessageBuffer → hook 不触发（与 NoC 同模式）。须 Ruby 配置验证（deferred）。回归 reg_chain golden 不变。
+
+**诚实边界**：`payload_bitflip`（Ruby Message functionalWrite）deferred；Ruby 配置（切 stdlib→Ruby + CHI 协议）deferred；`msg_drop` 真正丢弃需 MessageBuffer 支持 drop（当前仅 log，dequeue 不支持直接 drop——F6 delay 是已实现子集）；formal n=384。

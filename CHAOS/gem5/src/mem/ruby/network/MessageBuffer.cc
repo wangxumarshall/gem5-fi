@@ -310,6 +310,13 @@ MessageBuffer::dequeue(Tick current_time, bool decrement_messages)
     // get MsgPtr of the message about to be dequeued
     MsgPtr message = m_prio_heap.front();
 
+    // §2.9 CHAOSCHI: corrupt the CHI directory/response message flow at
+    // dequeue (msg_delay/msg_drop F6). nullptr = no injection (zero
+    // regression). Ruby-only (SE classic-cache doesn't use MessageBuffer).
+    if (chaosCHI) {
+        chaosCHI->maybeCorrupt(this);
+    }
+
     // get the delay cycles
     message->updateDelayedTicks(current_time);
     Tick delay = message->getDelayedTicks();
