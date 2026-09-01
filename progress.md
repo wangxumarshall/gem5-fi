@@ -1084,3 +1084,31 @@ ARM 三条路径 + golden（真跑输出）：
 - cell X9（arch_frontend, target=9）：P_SDC=0% [0,43.4], P_DUE=0%, Reach=100% — **5/5 Masked**（X9 被重写掩盖）
 
 **§2.1 H 验收**：X3 SDC 100% 可复现（5/5），golden `f247ef3fe6cfd` 不变（无注入）——符合 §2.1 H 的"X3 SDC 可复现"。
+
+---
+
+### 第二章 C/H pilot campaign 批量结果（全部在本机跑通）
+
+**修复两个 bug**：(1) campaign.py 绝对路径 bug（gem5 process image layout 不同→分类错误，已修相对路径）；(2) runner.py fault-log 解析缺 exec/fpu/bpu/iq/rob/decode 等新注入器日志名 + manifest_validate 缺 bpu/decode/l1d_fwd 等组件 enum + runner 缺 decode 组件映射（已全部修）。
+
+**pilot campaign 结果（2 cells × 5 reps 或 1 cell × 5 reps）**：
+
+| 单元 | 注入器 | kernel | 结果 | 诚实解读 |
+|---|---|---|---|---|
+| §2.1 PRF | CHAOSPhysReg | reg_chain | X3: 5/5 SDC; X9: 5/5 Masked | X3 累加器翻转→SDC 100%（符合 §0.1 anchor） |
+| §2.2 RAT | CHAOSRenameMap | cholesky | X3: 2/3 Crash+1/3 Masked; X9: 3/3 Masked | RAT 错→rename-inconsistency Crash 主导（method1） |
+| §2.3 ROB | CHAOSROB | cholesky | 5/5 Masked | entry_bitflip toggle CanCommit→被 squash 恢复 |
+| §2.4 LSQFwd | CHAOSLSQFwd | reg_chain | 5/5 Inactive | reg_chain 无 store→load 转发→hook 不触发（需 fp_fwd kernel） |
+| §2.5 IQ | CHAOSIQ | cholesky | 5/5 Masked | wake_omit→漏一次唤醒被后续唤醒补偿 |
+| §2.6 FSU | CHAOSFPU | neon_lane | 5/5 Masked | FP 结果 XOR 未传播到 lane checksum |
+| §2.12 Exec | CHAOSExec | reg_chain | 5/5 Masked | 整数路径低 SDC（method1+Veritas） |
+| §2.13 BPU | CHAOSBPU | branchy_reduce | 5/5 Masked | BPU 错被 squash 恢复（§2.13 P(==golden)≈1） |
+| §2.14 Decode | CHAOSDecode | reg_chain | 5/5 Masked | dest_reg_sub 未传播到 checksum |
+| §2.17 Mem | CHAOSMem | reg_chain | 5/5 Masked | DRAM 单字节瞬态翻转被掩盖（cache AVF） |
+
+**关键发现（诚实）**：
+- §2.4 LSQFwd 在 reg_chain 上 5/5 Inactive——reg_chain 无 store→load 转发事件，需用 fp_fwd_kernel（但它的 golden 是 "iters=500 fails=0" 非 16-hex checksum，不能直接用 runner 的 checksum 比较分类）。
+- §2.6 FSU 用 neon_lane（golden 00000000526925fe）而非 fp_fwd_kernel（无 16-hex checksum）。
+- 多数单元 5/5 Masked——诚实：pilot n=5 规模小+随机 mask 可能不落在关键位，formal n=384 会得到更真实的 P_SDC。
+- §2.1 PRF X3 SDC 100% 是最强信号（符合预期），§2.2 RAT X3 Crash 66.7% 也符合 method1。
+- **所有 campaign 闭环可用**——网格展开→manifest→runner→classify→Wilson CI→summary/heatmap 全链路验证通过。

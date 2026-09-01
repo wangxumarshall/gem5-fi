@@ -41,7 +41,8 @@ COMPONENTS_MAPPED = ("gpr", "physreg", "memory", "l1d", "l1i", "l2")
 # v2 forward-declared (schema accepts; runner.py rejects until S1 mapping lands):
 COMPONENTS_V2_DECLARED = ("rat", "freelist", "rob", "iq", "exec", "fsu",
                           "lsq_fwd", "l1_tlb", "l2_tlb", "sysreg", "ptw",
-                          "l3", "noc", "coherence", "memctrl")
+                          "l3", "noc", "coherence", "memctrl",
+                          "bpu", "addr_path", "decode", "l1d_fwd", "exmon", "ras")
 FAULT_MODELS = ("transient_bit_flip", "local_mbu", "intermittent_burst",
                 "stuck_at_zero", "stuck_at_one", "legal_domain_sub",
                 "delay_omission")

@@ -59,7 +59,8 @@ GOLDEN_IDS = {
     "puregather-golden-v1": "e4481fb960ff6465",  # method1_controls pure_gather
     "trisolve-golden-v1":   "39d61425aae92434",  # method1_controls tri_solve
     "movheavy-golden-v1":   "61e8a946ed50ae1f",  # mov_heavy (move-elimination)
-    "branchyreduce-golden-v1": "d47587240e6f0a83",  # branchy_reduce (§2.3)
+    "branchyreduce-golden-v1": "d47587240e6f0a83",
+    "neon-golden-v1":     "00000000526925fe",  # neon_lane  # branchy_reduce (§2.3)
 }
 
 def sha256_file(path):
@@ -299,6 +300,11 @@ def main():
         cmd += ["--bpu_mode", bm, "--bpu_first_clock", str(t["value"]),
                 "--bpu_max_faults", str(m["limits"]["max_faults"]),
                 "--bpu_rng_seed", str(m["rng"]["selection_seed"])]
+    elif comp == "decode":
+        # §2.14 CHAOSDecode (dest_reg_sub F5, per-inst via _flatDestIdx).
+        cmd += ["--chaos_decode", "--decode_first_clock", str(t["value"]),
+                "--decode_max_faults", str(m["limits"]["max_faults"]),
+                "--decode_rng_seed", str(m["rng"]["selection_seed"])]
     elif comp == "addr_path":
         # §2.4 CHAOSAddrPath (AGU address-path, SE-inert, FS-only).
         cmd += ["--chaos_addrpath", "--addrpath_mode", "byte7_zero",
@@ -369,7 +375,7 @@ def main():
         if a == "-d" and i+1 < len(cmd):
             outdir = cmd[i+1]
     faults = 0
-    for logname in ("fault_injections.log","main_mem_injections.log","cache_injections.log","rename_injections.log","freelist_injections.log"):
+    for logname in ("fault_injections.log","main_mem_injections.log","cache_injections.log","rename_injections.log","freelist_injections.log","rob_injections.log","iq_injections.log","exec_injections.log","fpu_injections.log","l1d_fwd_injections.log","bpu_injections.log","addrpath_injections.log","decode_injections.log","ras_injections.log","exmon_injections.log","ptw_injections.log","noc_injections.log","chi_injections.log"):
         p = os.path.join(outdir, logname) if outdir else None
         if p and os.path.exists(p):
             with open(p) as lf:
