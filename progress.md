@@ -733,3 +733,49 @@ pilot 诚实结果：两臂 SDC=0/10 first=Masked（Fisher p=1 FAIL-insufficient
 ### 注入器现状：17 个
 故障模型 F1-F6+PCE 全覆盖。CHAOSROB 三模式齐（entry_bitflip/exc_suppress/
 spec_leak）。runner 支持 exact_hash/fail_count/nine-class(PA) 三分类。
+
+---
+
+## 后续计划2执行（2026-09-01，docs/superpowers/plans/2026-09-01-sdc-remaining-gaps.md）
+
+### T1: CHAOSArmTLB 字段级+pfnOffset `97b9f03`
+targetField 全集（pfn/ap/xn/attridx/ng/asid）+ F5 pfn+=offset 换页帧。
+执行中诚实修正：TlbEntry 直接成员是 asid（非 KeyType 的 asn）；
+nG/ignoreAsn 在 KeyType 不可写——ng 诚实改 vmid 翻转。
+验证：FS pfnOffset=0x40000 'old_pfn:0x403->new_pfn:0x40403'（DUE 方向）+
+FS field_ap 'old:0x0->new:0x2'。
+
+### T2: SysReg value_to_legal `43da490`
+F5 合法形态掩码（TTBR ~0xFFF 页表对齐形态）。执行中修复：初版补丁错插
+faultTypeToString + stringToFaultType 映射缺失（value_to_legal 落入
+Random 分支——日志 bit_flip 暴露）。config faultType=value_to_legal 确认；
+FS 端到端注入受 boot 时长限制（同 FS 边界，待 T4 流水线）。
+
+### T3: kernel 批次 `51615a2`
+ptr_chase（method2 链表）+ fwd_7case（7类几何×2变体）。执行中修复
+no-op 掩码 bug：初版 nm 对 0xBEEF0000 非恒等（fails=200 暴露）；改 ~0ULL
+恒等掩码——AND 指令仍在热路径（相位效应）值必不变，忠实复现现场
+Probe H。修复后全 14 组合 fails=0 且 noop/非noop checksum 一致。
+
+### T4: FS checkpoint 流水线 `c82e59a`（里程碑）
+boot（890s 至 KernelBooted→Writing checkpoint）→ inject（set_kernel_
+disk_workload(checkpoint=Path) restore + PTW clearValidBit 3x
+BecameInvalid:1 从 Tick 220355816607 restore 点注入）。解锁全部 FS
+注入器的反复 restore 注入。执行中修复：checkpoint 须 Path 非 str；
+CHAOSPTW 无 faultType 参数。诚实边界：v1 Atomic-restore，O3-switch 待续。
+
+### T5: L1I 语义字段 `77cf6d3`
+targetField rd/rn/rm/opcode（A64 编码位段重映射，byteOffset 4B 对齐）。
+验证：l1i_loop opcode 'Field: opcode, InwordMask: 0x2000000'。
+
+### T6: CHAOSMem 扩展 `96bd22b`
+addr_map_sub F5（XOR 页位重定向 0x100000→0x101000）+ secded DRAM-ECC
+（1-bit Corrected 恢复）。执行中修复：挂载缺 bitsToChange（mask 多位
+落入 Latent 分支暴露）。
+
+### 执行总结：两计划 11 任务全部完成
+注入器 17 个；fs_checkpoint 流水线打通（FS 端到端解锁）；kernel 库
++5（branchy_leak/call_ret_heavy/fwd_7case/ptr_chase/fault_kernel）；
+F5 全覆盖（RAT/freelist/LSQ/TLB pfnOffset/SysReg value_to_legal/Mem
+addr_map_sub）；ECC 后处理双载体（Cache+Mem）；执行中发现并修复
+9 个真实缺陷（全部在 commit message 诚实记录）。

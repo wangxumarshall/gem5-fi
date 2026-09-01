@@ -475,7 +475,7 @@ pilot 每 cell n=100（可达率/工具错误/粗略比例）；formal 每 cell 
 
 **B. 注入器**：`CHAOSCache`（已有）**需扩展** `targetField ∈ {data,tag,valid,dirty,repl,coh,victim}` + `protectionModel`；待写 `CHAOSL1DForward`（PCE）；L3 短期用 `pairedSector` 代理（待实现），完整 `CHAOSCHI`（Ruby/CHI）独立排期（S4）。
 
-**C. campaign**：字段 × protection{none,secded_poison} × {随机/定向驻留} × ECC 粒度{1-bit,2-bit,3-bit}；L2 size sweep{256KiB,512KiB,1MiB}；L1I 语义字段{opcode,Rn,Rm,Rd,imm,cond}。
+**C. campaign**：字段 × protection{none,secded_poison} × {随机/定向驻留} × ECC 粒度{1-bit,2-bit,3-bit}；L2 size sweep{256KiB,512KiB,1MiB}；L1I 语义字段——✅ `77cf6d3`（targetField rd[4:0]/rn[9:5]/rm[20:16]/opcode[28:23] 位段重映射，已验证 Field: opcode InwordMask=0x2000000）；imm/cond 因指令而异未提供。
 
 **D. kernel**：`l1d_reduce`（已有，已验证锚点）、`l1i_loop`（已有，已验证锚点）、`ptr_chain_kernel`、`struct_field_kernel`、`crc_state_kernel`。
 
@@ -857,7 +857,7 @@ DSN / PRDC / ASPLOS / HPCA / MICRO；对标 Veritas(HPCA'25)、PinDrop(HPCA'26)�
 ### 10.2 关键工程流水线
 
 - **SE campaign**：`tools/campaign.py campaigns/<unit>.yaml` → 网格 → 每 cell n=384 → 单故障 → 六级分类 + read-trace + 位谱 + provenance → Wilson CI + 5% 重放 → artifacts。
-- **FS campaign**（TLB/PTW/AGU/系统级）：Atomic boot → `m5 checkpoint` → restore 切 O3 → ROI 单故障 → 分类（raw socket 3456 抓 Linux 日志）。
+- **FS campaign**（TLB/PTW/AGU/系统级）：✅ `c82e59a` fs_checkpoint.py v1 端到端打通（boot→save_checkpoint→restore→Atomic 注入：PTW clearValidBit 3x BecameInvalid:1 从 Tick 220355816607 restore 点注入）；O3-switch 待续。
 - **构建命令**（每次源码改动后）：`cd CHAOS/gem5 && source /home/sdc/gem5-deps/env.sh && scons build/ARM/gem5.opt -j16`；运行前 `source /home/sdc/gem5-deps/env.sh` 设 LD_LIBRARY_PATH。
 
 ### 10.3 任务清单（精简索引，详见附录 G 任务卡）
@@ -936,7 +936,7 @@ DSN / PRDC / ASPLOS / HPCA / MICRO；对标 Veritas(HPCA'25)、PinDrop(HPCA'26)�
 | **CHAOSAddrPath** | ✅ 已实现 `ffd041e`（从侧分支移植+主线纪律） | `lsq.cc` sendFragmentToTranslation 前 | ~~S1-5b~~ done | `origin/fi-h6-h7-fs-verify`（H6，已并入主线） |
 | **CHAOSPTW** | ✅ 已实现 `de48432`（从侧分支移植+主线纪律） | `arch/arm/table_walker.cc doLongDescriptor` | ~~S2-5c~~ done | `origin/fi-h6-h7-fs-verify`（H7，已并入主线） |
 
-另有扩展模式：CHAOSMem `addr_map_sub`/`ecc_logic_fault`、CHAOSCache `targetField`+`protectionModel`、CHAOSArmTLB `pfn_to_mapped`/`targetField`/`protectionModel`、CHAOSArmSysReg `value_to_legal`、CHAOSLSQFwd ✅`structuralFault`(`8320daf`)/`stale_line_replay`/`fwd_source_sub`/`phaseOffset` + D2 ✅、CHAOSDecode（低优先级）、CHAOSRAS、CHAOSCHI/CHAOSNoC/CHAOSHCCS（S4）。
+另有扩展模式：CHAOSMem ✅`addr_map_sub`(F5 `96bd22b`)/`ecc_logic_fault`、CHAOSCache `targetField`+`protectionModel`、CHAOSArmTLB `pfn_to_mapped`/`targetField`/`protectionModel`、CHAOSArmSysReg `value_to_legal`、CHAOSLSQFwd ✅`structuralFault`(`8320daf`)/`stale_line_replay`/`fwd_source_sub`/`phaseOffset` + D2 ✅、CHAOSDecode（低优先级）、CHAOSRAS、CHAOSCHI/CHAOSNoC/CHAOSHCCS（S4）。
 
 ### A.3 宿主访问器（零新增所需，已核实）
 
