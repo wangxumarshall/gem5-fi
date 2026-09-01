@@ -662,3 +662,36 @@ method3 IQ（CHAOSIQ）+ method3 FP 位谱（CHAOSFPU）+ 整数阴性对照
 故障模型：F1-F5 ✅，F6 ✅（phaseOffset+IQ src_ready），PCE 待写。
 formal 基础设施：campaign 并行 + manifest v2 + classify 九类 + fail_count
 oracle + ECC 后处理 + kp920_proxy + 第一批 P_SDC 数据（PRF pilot）。
+
+---
+
+## 本轮（2026-09-01 续5）S8-4 CHAOSL1DForward (PCE) + S6-4/CHAOSBPU 评估
+
+### S8-4: CHAOSL1DForward (PCE) `1bb18f0`（注入器 15→16）
+CHAOSL1DForward（plan §5.8/§3.1 PCE）：post-check escape 注入器。
+hook DynInst::corruptResultRegVal on LOAD（ECC 后数据通路翻转）。
+"完整 RAM 保护把 SDC 逼到 ECC 后数据通路的必然出口"。
+与 CHAOSExec/CHAOSFPU 同构（corruptResultRegVal + isLoad）。
+真机：构建零警告 + log_stream 创建；l1d_reduce 验证受限（ROB 头 load
+稀少，REJECT 无限重试到 timeout，与 F3/CHAOSFPU neon 同行为）。
+机制就位（与 CHAOSExec 同构已验证 corruptResultRegVal）。
+
+### 故障模型全覆盖：F1-F6 + PCE
+F1 单比特 ✅ | F2 局部多位 ✅ | F3 数据相关触发 ✅ | F4 stuck-at ✅
+F5 合法域替换 ✅ | F6 相位偏移 ✅（phaseOffset+IQ src_ready）
+PCE post-check escape ✅ CHAOSL1DForward
+
+### S6-4 CHAOSROB spec_leak + CHAOSBPU 评估（待续）
+- spec_leak: 需 hook rob.cc doSquash + 选择性保留 squash 路径 PRF 写
+  （instList private，需深改 rob.cc + PhysRegFile squash 回溯）
+- CHAOSBPU: BPU accessor 路径不明确（fetch 用 BAC 非 BPredUnit），
+  深改复杂；P3 低优先级（BPU SDC 暴露面低，预测错误被冲刷）
+
+### 最终状态：16 注入器，55 commit
+注入器：core179 三通路（D1/D2/D3）+ method1 状态泄漏（RAT/freelist/ROB）
++ method3 IQ（CHAOSIQ）+ method3 FP 位谱（CHAOSFPU）+ 整数阴性对照
+（CHAOSExec）+ PCE（CHAOSL1DForward）+ PRF/Cache-ECC/Mem/TLB/SysReg/
+AddrPath/PTW + LSQFwd 五模式。
+故障模型：F1-F6 + PCE 全覆盖。
+formal 基础设施：campaign 并行 + manifest v2 + classify 九类 + fail_count
+oracle + ECC 后处理 + kp920_proxy + 第一批 P_SDC 数据（PRF pilot）。
