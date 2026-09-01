@@ -2,9 +2,11 @@
 
 ## 摘要
 
-静默数据损坏（Silent Data Corruption, SDC）已成为现代云基础设施中极具破坏性的威胁。这类缺陷通常逃逸了硬件现有的可靠性、可用性与可维护性（RAS）机制，在操作系统层面表现为难以解释的局部崩溃。本文针对生产环境中一台 ARM64 服务器（基于海思鲲鹏 920 微架构）发生的单核 SDC 进行了深入的取证分析。在 12 天内，该服务器在单一逻辑核心（CPU 179）上连续触发了 5 次致命内核崩溃与 73 次虚假异常。通过将内核崩溃转储（kdump）中的微观寄存器状态与 ARMv8 架构不变量进行严格比对，我们成功将该 SDC 根因定位到微架构层面的三条数据路径（加载数据返回、地址呈现、页表漫游读取），并首次在真实场景中揭示了其本质表现为“字节通道偏移（Byte-Lane Skew）”。
+静默数据损坏（Silent Data Corruption, SDC）已成为现代云基础设施中极具破坏性的威胁。这类缺陷通常逃逸了硬件现有的可靠性、可用性与可维护性（RAS）机制，在操作系统层面表现为难以解释的局部崩溃。本文针对生产环境中一台 ARM64 服务器（基于海思鲲鹏 920 / TaiShan V110 微架构）发生的单核 SDC 进行了深入的取证分析。在 12 天内，该服务器在单一逻辑核心（CPU 179）上连续触发了 5 次致命内核崩溃与 73 次虚假翻译异常（全程零条硬件 RAS 记录）。通过将内核崩溃转储（kdump）中的微观寄存器状态与 ARMv8 架构不变量进行严格比对，我们成功将该 SDC 根因定位到微架构层面的三条数据路径——加载数据返回（D1）、地址呈现（D2）、页表漫游读取（D3），并首次在真实场景中揭示了 D1 的本质表现为"字节通道偏移（Byte-Lane Skew）"：其中 15:58 崩溃的坏值逐位精确等于数组头部元素的字节旋转（Hamming 距离 0，位翻转模型不可达），另数例呈现 Hamming 距离 6 的最近旋转或全零交付。
 
-由于传统的单比特翻转（Bit-flip）故障注入模型无法表达这种汉明距离为零的结构性路由错误，我们提出并实现了一种**结构化故障注入框架**，并将其集成至 gem5 全系统模拟器中。实验结果表明，该框架成功在端到端层面复现了引发内核崩溃的多米诺效应，并定量解释了不同数据路径下故障触发率呈指数级差异的根本原因。本文的研究填补了宏观系统崩溃与微观物理缺陷之间的语义鸿沟，不仅证明了全系统仿真在模拟翻译路径故障中的必要性，更为下一代处理器的可测性设计（DFT）与操作系统的弹性容错机制提供了极具可操作性的系统级建议。
+由于传统的单比特翻转（Bit-flip）故障注入模型无法表达这类汉明距离为零的结构性路由错误，我们提出并实现了一种**结构化故障注入框架**，将其集成至 gem5 全系统模拟器（扩展 CHAOS 框架）：在 LSU 的 store-to-load 转发、AGU→MMU 地址呈现、PTW 读出三条通路分别植入 P-D1/P-D2/P-D3 钩子，并设计了一个忠实镜像 `__per_cpu_offset[i] → cpu_rq(i)` 失败链的指针解引用级探针（ptrskew，§4.4）。实验结果表明，该框架在端到端层面复现了引发内核崩溃的多米诺效应（H5 一致性验证：注入 `byte_lane_skew` 后 28/30 触发指针损坏与 panic page-fault，跨 seed 稳定；而单比特翻转模型无法复现），并定量解释了 D1/D2 与 D3 因微架构激活密度相差约 3600 倍而呈现"低频致命 vs 高频非致命"的根本原因。我们进一步论证：针对 MMU 路径（D2/D3）的注入在系统调用模拟（SE）模式下因绕过硬件 MMU 而原理性失效，全系统（FS）仿真具有绝对必要性。
+
+本研究的贡献与边界为：(1) 一套结合 kdump 取证与架构不变量的跨层方法学，将生产崩溃分解为三条可证伪的微架构路径签名；(2) 结构化故障注入概念与原型，弥补比特翻转模型的盲区；(3) 面向软硬协同的容错建议——以 D3 虚假翻译错误为最早期被动遥测探针、对高 AVF 数据通路部署位置锚定校验、并将"指针解引用级 SBST"纳入制造与现场测试的三级防线。我们诚实声明：D1/D2/D3 的单/多缺陷裁决在软件层不可解、须 RTL/DFT 介入；H5 是一致性闭合检查而非独立波普尔式证伪；若干量化结论（PEPR 对混合缺陷的检出率、位置锚定校验的面积/功耗开销）尚未确立，留作未来工作。本文的研究填补了宏观系统崩溃与微观物理缺陷之间的语义鸿沟，为下一代处理器的可测性设计（DFT）与操作系统的弹性容错机制提供了系统级建议。
 
 ---
 
@@ -270,17 +272,45 @@ PEPR 作者明确其方法可应用于支持**现场扫描测试**的系统（�
 
 ## 7. 结论
 
-静默数据损坏（SDC）因其难以预测和诊断的特性，正在成为阻碍计算规模进一步扩展的“阿喀琉斯之踵”。本文以一次真实的生产环境多重内核崩溃事件为研究对象，通过严谨的跨层取证方法，首次在软件崩溃与硬件多路复用器字节通道偏移缺陷之间建立了清晰的因果链。我们证明了现有的单一比特翻转模型存在严重不足，并成功在全系统仿真环境中实施了结构化故障注入以复现该类复杂失效模式。我们的研究强烈呼吁在软硬协同设计中，重新审视地址与数据路由网络中的 RAS 覆盖盲区，并运用基于系统拓扑的容错机制将静默故障扼杀在摇篮中。
+静默数据损坏（SDC）因其难以预测和诊断的特性，正在成为阻碍计算规模进一步扩展的"阿喀琉斯之踵"。本文以一台 ARM64 生产服务器在单一逻辑核心（CPU 179）上连续触发的 5 次致命内核崩溃与 73 次虚假翻译异常为研究对象，通过严谨的跨层取证方法，在软件崩溃与微架构数据通路缺陷之间建立了清晰的因果链。本文的主要贡献可归纳为三点：
+
+1. **跨层取证方法学与三通路分解。** 我们将 kdump 中的微观寄存器状态与 ARMv8 架构不变量（ESR/FAR 语义、`x27 == x1 + x20` 算术恒等式）严格比对，把一个看似随机的单核崩溃分解为三条可证伪的微架构路径签名——加载数据返回（D1，"陈旧行回放 × 字节通道相位错位"，15:58 坏值 Hamming-0、位翻转模型穷举不可达）、地址呈现（D2，MMU 输入 byte7 清零，2/5 例确凿）、页表漫游读出（D3，70/73 走查活跃事件）。全程零硬件 RAS 记录确证该缺陷逃逸了芯片的架构级检测器。
+
+2. **结构化故障注入概念与原型。** 针对比特翻转模型无法表达"零汉明距离结构性错位"的根本缺陷，我们在 gem5 全系统模拟器中实现了 P-D1/P-D2/P-D3 三条通路的结构化注入，并设计了指针解引用级探针 ptrskew（§4.4）忠实镜像 `__per_cpu_offset[i] → cpu_rq(i)` 失败链。H5 一致性验证表明：结构性注入一次即复现崩溃多米诺（28/30 指针损坏 → panic page-fault，跨 seed 稳定），而单比特翻转模型无法复现；定量分析进一步揭示 D1/D2 与 D3 因微架构激活密度相差约 3600 倍而呈现"低频致命 vs 高频非致命"的症状差异。我们同时证明：针对 MMU 路径的注入在 SE 模式下原理性失效（PTW 触发为 0、地址清零不 fault），全系统仿真具有绝对必要性。
+
+3. **面向软硬协同的三级容错防线。** 在系统软件层，建议以 D3 虚假翻译错误为最早期被动遥测探针，将可疑核按物理核粒度热下线；在微架构设计层，建议对高 AVF 数据通路（load-return、address-presentation、PTW-readout）优先部署位置锚定校验（Positional Parity），以"检测即 MCE、立即 fail-fast"取代可能掩盖间歇缺陷的端到端 ECC；在制造测试层，建议将 D1/D2/D3 的 SDC 风险分级映射为出厂结构测试（ATPG + PEPR 物理感知区域穷尽）、现场结构扫描（IFS 类）与现场功能 SBST（指针解引用级 + 欠压/温度控制）的三级防线，并与现有 fleet-scale 主动测试体系（fleetscanner/SiliFuzz/Farron）互补部署。
+
+**诚实边界。** 我们明确声明本研究的不确定域：(i) D1/D2/D3 的单/多缺陷裁决在软件层不可解——它们可能是同一物理缺陷的三种投影，也可能是三个独立并发的缺陷，最终裁决须依赖 RTL/DFT 仿真与微机测试；(ii) H5 是一致性闭合检查而非独立波普尔式证伪——注入器的旋转操作即其复现的 D1 签名同一操作，其科学价值在于反面（位翻转模型不可达），且 `stale_line_replay` 陈旧行回放模式已设计但尚未实现，D1 的"陈旧来源"半由法证支撑、"字节相位"半由仿真支撑，二者尚未在同一注入器内闭合；(iii) 若干量化结论尚未确立，包括 PEPR 对"字节通道相位重路由 + 陈旧重放"混合缺陷的实测检出率、位置锚定校验的面积/功耗开销与对陈旧重放成分的覆盖能力、以及本案例故障机（鲲鹏 TSV110）上三级防线各自的现场成本-收益曲线，这些需厂商 RTL/DFT 与现场实验闭合。
+
+我们的研究强烈呼吁：在软硬协同设计中重新审视地址与数据路由网络中的 RAS 覆盖盲区，并运用基于系统拓扑的容错机制将静默故障扼杀在摇篮中。可观测性必须优先于静默修复——绝不能让故障核心的脆弱特征消失在黑盒之中。
 
 ---
 
 ## 8. 参考文献
+
+**SDC 与 mercurial cores（生态效度与对照）**
 1. H. Dixit et al., "Silent Data Corruptions at Scale," USENIX ATC 2021 (arXiv:2102.11245).
 2. P. Hochschild et al., "Cores that don't count," HotOS 2021.
 3. J. Voisin et al., "SiliFuzz: Fuzzing CPUs by proxy," MICRO 2022.
 4. Google, "Detecting silent data corruptions in the wild," OSDI 2022 (arXiv:2203.08989; fleetscanner).
 5. S. Wang et al., "Understanding Silent Data Corruptions in a Large Production CPU Population," SOSP 2023 (Farron).
 6. D. Chatzopoulos et al., "Veritas – Demystifying Silent Data Corruptions," HPCA 2025.
-7. S. Mukherjee et al., "A Systematic Methodology to Compute the Architectural Vulnerability Factors for a High-Performance Microprocessor," ISCA 2003.
-8. F. Angione, P. Bernardi, A. Sinha, "From Structural Test Escapes to Silent Data Errors: A Preliminary Analysis," ITC India 2025 (DOI 10.1109/ITCIndia66078.2025.11141623).
-9. PEPR (Pseudo-Exhaustive Physically-Aware Region testing), 14 nm industrial test-chip data (30,000+ chips).
+
+**微架构脆弱性与容错设计**
+7. S. Mukherjee et al., "A Systematic Methodology to Compute the Architectural Vulnerability Factors for a High-Performance Microprocessor," ISCA 2003.（AVF，§6.2 设计优先级依据）
+8. ISO 26262:2018, "Road vehicles — Functional safety," International Organization for Standardization, 2018.（§6.2 fail-safe 优于 fail-silent 原则对照）
+
+**制造/结构测试与逃逸分级**
+9. F. Angione, P. Bernardi, A. Sinha, "From Structural Test Escapes to Silent Data Errors: A Preliminary Analysis," ITC India 2025 (DOI 10.1109/ITCIndia66078.2025.11141623).
+10. W. Li, C. Nigh, D. Duvalsaint, S. Mitra, R. D. Blanton, "PEPR: Pseudo-Exhaustive Physically-Aware Region Testing," 2022 IEEE International Test Conference (ITC), pp. 314–323 (DOI 10.1109/ITC50671.2022.00083).（14 nm 工业测试芯片，30,000+ 缺陷芯片 TIC 检测；§6.3 启示 2/4）
+
+**仿真器与故障注入基座**
+11. N. Binkert et al., "The gem5 simulator," ACM SIGARCH Computer Architecture News, vol. 39, no. 2, pp. 1–7, May 2011 (DOI 10.1145/2024716.2024718).（本研究使用 gem5 v25.1.0.1 AArch64 O3CPU）
+12. E. Vinciguerra, E. Russo, G. Ascia, M. Palesi, "CHAOS: Controlled Hardware fAult injectOr System for gem5," arXiv:2602.02119, 2026.（本研究在 CHAOS 基座上扩展 P-D1/P-D2/P-D3 三注入器）
+
+**架构规范与内核软件上下文**
+13. ARM, "ARM Architecture Reference Manual for ARMv8-A architecture profile," document ARM DDI 0487（§2.2 FAR_EL1 翻译错误不变量、§3.4 ESR EC=0x25 ISS[7:6]=S1PTW 位域语义依据）。
+14. W. Deacon, "arm64: mm: Ignore spurious translation faults taken from the kernel," Linux kernel commit `42f91093b043332ad75cea7aeafecda6fe81814c`, 2019.（§3.4 / §6.1 中 D3 的"合法跨核 TLB-invalidation 时序竞争"对照基线，对应 openEuler `is_spurious_el1_translation_fault()` 逻辑）。注：该补丁针对的是跨核推测翻译竞态，本案例 100% 单核集中与之不相容，故 D3 干净承重为 70/73。
+
+**现场扫描测试形态**
+15. Intel, "Intel In-Field Scan (IFS)," Linux kernel `drivers/platform/x86/intel/ifs/` 驱动与文档 `Documentation/admin-guide/ifs.rst`（SAF/ArrayBIST/SBAF 形态；§6.3 启示 4 现场结构扫描对照）。注：IFS 未见独立学术会议论文发表，此处以其内核驱动文档与公开技术材料为可复现引用源。
