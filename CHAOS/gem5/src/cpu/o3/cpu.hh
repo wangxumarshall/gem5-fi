@@ -92,6 +92,7 @@ class CHAOSExec;  // §2.12 integer execution-unit injector (forward decl)
 class CHAOSFPU;  // §2.6 FP/vector execution-unit injector (forward decl)
 class CHAOSL1DForward;  // §2.7 post-check-escape injector (forward decl)
 class CHAOSAddrPath;    // §2.4 AGU address-path injector (forward decl)
+class CHAOSDecode;      // §2.14 decode-unit injector (forward decl)
 
 namespace o3
 {
@@ -503,6 +504,9 @@ class CPU : public BaseCPU
     // §2.4 CHAOSAddrPath: raw pointer to the AGU address-path injector.
     CHAOSAddrPath *chaosAddrPath = nullptr;
     void setChaosAddrPath(CHAOSAddrPath *p) { chaosAddrPath = p; }
+    // §2.14 CHAOSDecode: raw pointer to the decode-unit injector.
+    CHAOSDecode *chaosDecode = nullptr;
+    void setChaosDecode(CHAOSDecode *p) { chaosDecode = p; }
 
     /** CHAOSLSQFwd hook: store->load forwarding-path injector. Set externally
      *  (from a config script) so lsq_unit.cc can reach it via the cpu pointer

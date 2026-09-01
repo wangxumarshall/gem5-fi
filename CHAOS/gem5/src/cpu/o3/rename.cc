@@ -44,6 +44,7 @@
 #include <list>
 
 #include "cpu/o3/cpu.hh"
+#include "cpu/o3/CHAOSDecode/CHAOSDecode.hh"  // §2.14 full def for maybeCorrupt
 #include "cpu/o3/dyn_inst.hh"
 #include "cpu/o3/limits.hh"
 #include "cpu/reg_class.hh"
@@ -1135,6 +1136,17 @@ Rename::renameDestRegs(const DynInstPtr &inst, ThreadID tid)
         rename_result = map->rename(flat_dest_regid);
 
         inst->flattenedDestIdx(dest_idx, flat_dest_regid);
+
+        // §2.14 CHAOSDecode: dest_reg_sub F5 — mutate the per-inst
+        // flat_dest_regid's index to another legal 0-30 reg (safe: the
+        // _flatDestIdx array is per-DynInst, not shared staticInst). The
+        // commit path reads flattenedDestIdx (commit.cc:1264) -> wrong arch
+        // reg gets the result. nullptr = no injection (zero regression).
+        if (cpu->chaosDecode) {
+            cpu->chaosDecode->maybeCorrupt(dest_idx, flat_dest_regid, inst.get());
+            // re-apply if mutated:
+            inst->flattenedDestIdx(dest_idx, flat_dest_regid);
+        }
 
         scoreboard->unsetReg(rename_result.first);
 

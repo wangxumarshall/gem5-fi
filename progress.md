@@ -934,3 +934,16 @@ ARM 三条路径 + golden（真跑输出）：
 - **回归 data（默认）**：`d128c62843ca82a1`（§0.1 SDC 锚点不变，零回归）。
 
 **诚实边界**：`tag(F5 same-set legal tag)` + `repl`（replacement meta）deferred（需查另一合法 tag / repl meta，更多 plumbing）；dirty/coh 是 set-the-bit 非 toggle（无 public getter）；§2.11 L1I 语义字段（opcode/Rn/Rm/Rd/imm/cond 32b A64 映射表）deferred（需内建 A64 字段映射）；formal n=384 须健康机。
+
+---
+
+### S1 §2.14 — CHAOSDecode 注入器（dest_reg_sub F5，解决 staticInst 共享问题）
+
+**实现**：新 SimObject `CHAOS/gem5/src/cpu/o3/CHAOSDecode/{.py,.hh,.cc,SConscript}`（O3-only，self-attach）。**关键解决 staticInst 共享**：hook `rename.cc:1137`（`flattenedDestIdx` 设置后）而非 `decode.cc`——`_flatDestIdx` 是 **per-DynInst 数组**（非共享 staticInst），改它安全。`dest_reg_sub` F5：把 flat_dest_regid 的 index 替换为另一合法 0-30 整数寄存器；commit.cc:1264 读 `flattenedDestIdx` → 结果写到错误 arch reg。`RegId::setIndex(RegIndex)` public mutator 新加（`reg_class.hh`，regIdx 原 protected）。
+
+**自验证（真机）**：
+- 干净重建 `scons -j16` EXIT=0，零警告（G7）。修 3 个编译错：`o3::DynInstPtr`→`o3::DynInst*`（forward-decl 无 DynInstPtr）、namespace 缺 `namespace gem5 {`、include 顺序。
+- **T1 dest_reg_sub**（reg_chain）：`Tick:1009000 dest_idx=0 sn=1342 old_dest_reg=0 new_dest_reg=20 faults_injected:1` → `f247ef3fe6cfd` ==golden（Masked——被改的 dest 未传播到 checksum，单 fault pilot 合理）。
+- **回归**：reg_chain golden `f247ef3fe6cfd` 不变（未挂 chaosDecode → rename no-op）。
+
+**诚实边界**：srcRegIdx/imm/opClass 未做（srcRegIdx 读共享 staticInst，unsafe；imm/opClass 需 StaticInst 克隆，更复杂）。dest_reg_sub 是安全的 per-inst 子集（§2.14 的 F5 dest 路径）。doc §2.14 "可最后做或跳过"——现 dest_reg_sub 子集已实现，诚实记录 src/imm/opClass deferred。

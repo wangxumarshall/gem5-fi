@@ -17,7 +17,7 @@
 
 import argparse
 import m5
-from m5.objects import CHAOSReg, CHAOSPhysReg, CHAOSMem, CHAOSLSQFwd, CHAOSRenameMap, CHAOSFreeList, CHAOSROB, CHAOSIQ, CHAOSExec, CHAOSFPU, CHAOSL1DForward, CHAOSBPU, CHAOSAddrPath
+from m5.objects import CHAOSReg, CHAOSPhysReg, CHAOSMem, CHAOSLSQFwd, CHAOSRenameMap, CHAOSFreeList, CHAOSROB, CHAOSIQ, CHAOSExec, CHAOSFPU, CHAOSL1DForward, CHAOSBPU, CHAOSAddrPath, CHAOSDecode
 from gem5.components.boards.simple_board import SimpleBoard
 from gem5.components.cachehierarchies.classic.private_l1_private_l2_cache_hierarchy import (
     PrivateL1PrivateL2CacheHierarchy,
@@ -203,6 +203,14 @@ p.add_argument("--addrpath_mode", default="byte7_zero",
 p.add_argument("--addrpath_first_clock", type=lambda x: int(x,0), default=1000)
 p.add_argument("--addrpath_max_faults", type=lambda x: int(x,0), default=1)
 p.add_argument("--addrpath_rng_seed", type=lambda x: int(x,0), default=20260825)
+# §2.14 CHAOSDecode (O3 decode-unit injector). SELF-ATTACHES at startup()
+# to cpu.chaosDecode. Hooks rename.cc:1137 post-flattenedDestIdx; dest_reg_sub
+# F5 (per-inst, safe — _flatDestIdx is per-DynInst, not shared staticInst).
+p.add_argument("--chaos_decode", action="store_true",
+               help="attach CHAOSDecode (O3 decode injector, §2.14)")
+p.add_argument("--decode_first_clock", type=lambda x: int(x,0), default=1000)
+p.add_argument("--decode_max_faults", type=lambda x: int(x,0), default=1)
+p.add_argument("--decode_rng_seed", type=lambda x: int(x,0), default=20260825)
 args = p.parse_args()
 
 cache_hierarchy = PrivateL1PrivateL2CacheHierarchy(
@@ -453,6 +461,20 @@ if args.chaos_addrpath:
         writeLog=True,
     )
     board.chaos_addrpath = ap
+
+if args.chaos_decode:
+    # §2.14 CHAOSDecode: O3-only. SELF-ATTACHES at startup() to
+    # cpu.chaosDecode (rename.cc:1137 calls maybeCorrupt post-flatten).
+    dc = CHAOSDecode(
+        cpu=cpu0,
+        mode="dest_reg_sub",
+        probability=args.probability,
+        firstClock=args.decode_first_clock,
+        maxFaults=args.decode_max_faults,
+        rngSeed=args.decode_rng_seed,
+        writeLog=True,
+    )
+    board.chaos_decode = dc
 
 if args.maxinsts:
     cpu0.max_insts = args.maxinsts

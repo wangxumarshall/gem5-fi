@@ -1,0 +1,6 @@
+# -*- mode:python -*-
+# CHAOSDecode — O3 decode-unit fault injector (§2.14, S3 P4).
+Import('*')
+SimObject('CHAOSDecode.py', sim_objects=['CHAOSDecode'], enums=[])
+Source('CHAOSDecode.cc')
+DebugFlag('CHAOSDecode')
