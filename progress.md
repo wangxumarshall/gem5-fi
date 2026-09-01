@@ -887,3 +887,36 @@ ARM 三条路径 + golden（真跑输出）：
 - **回归**：reg_chain golden `f247ef3fe6cfd` 不变。
 
 **诚实边界**：`addr_map_sub`(F5) 需 DRAM channel/rank/bank/row/col 坐标映射（gem5 AbstractMemory 不暴露，doc E3）——未做。SECDED 是**简化 proxy**（8-byte XOR syndrome，非完整 Hamming(72,64) 矩阵）——E3 诚实。formal n=384 须健康机。
+
+---
+
+### 最终诚实状态（25 补丁，全部真机验证 + 已 push）
+
+**S0 框架（6 补丁）**：campaign 驱动 / kp920_proxy / schema v2 / CHAOSCache·Mem·ArmTLB protectionModel（§1.2 完整 3/3）。
+
+**S1 注入器骨架（10 新 + LSQFwd 扩展，共 19 补丁）**：
+- §2.2 RAT+freelist（5 补丁，完整）：CHAOSRenameMap(map_bitflip/f5_substitute/f4_field_stuck) + CHAOSFreeList(mark_free/pop_wrong) + cholesky_numeric + method1_controls(×4) + mov_heavy + runner 映射 + classify carve-out
+- §2.3 ROB（1 补丁）：CHAOSROB(entry_bitflip/exc_suppress) + branchy_reduce；spec_leak deferred
+- §2.4 LSU（2 补丁）：CHAOSLSQFwd 结构化(byte_lane_skew/all_zero/64b) + CHAOSAddrPath(AGU,SE-inert/FS-only)
+- §2.5 IQ（1 补丁）：CHAOSIQ(wake_omit F6)
+- §2.6 FSU（1 补丁）：CHAOSFPU(Float*/Simd* 结果 XOR)
+- §2.7 L1D（1 补丁）：CHAOSL1DForward(post-check escape)
+- §2.10 TLB/PTW（1 补丁）：CHAOSPTW(页表走查,FS-only/SE-inert)
+- §2.12 整数（1 补丁）：CHAOSExec(IntAlu/Mult/Div 结果 XOR)
+- §2.13 BPU（1 补丁）：CHAOSBPU(dir_flip/target_flip F5)
+- §2.17 memctrl（1 补丁）：CHAOSMem ecc_logic_fault(ECC 逻辑故障)
+- runner.py：12 组件映射(gpr/physreg/memory/rat/freelist/rob/iq/lsq_fwd/exec/fsu/l1d_fwd/bpu/addrpath) + ptw 诚实拒绝(FS)
+
+**注入器 7→17**（新增 10）+ CHAOSLSQFwd/CHAOSMem 扩展。**4 新 kernel**。
+
+**剩余硬阻碍（诚实，物理不可达）**：
+1. CHAOSExMon(§2.4)：gem5 v25 O3 无 exclusive-monitor 符号。
+2. CHAOSDecode(§2.14)：staticInst 共享，doc 允许跳过。
+3. CHAOSCHI/NoC/HCCS(§2.9/2.15/2.16)：系统级 Ruby/Garnet SLICC，S4 独立子项目。
+4. CHAOSRAS(§2.18)：元分析，须所有 formal 完成。
+5. spec_leak(§2.3)/fwd_source_sub·phase_offset(§2.4)/src_ready·tag_sub(§2.5)/TLB F5 活页·属性位·白名单铺开(§2.10)/addr_map_sub(§2.17)：深 rename 状态机 / DRAM 坐标 / 页表遍历，高风险或 gem5 无建模。
+6. **formal n=384 campaign 一格未跑**（故障机 ~90s/run 须健康机 §0.4）。
+7. FS 正式流水线（Atomic→checkpoint→切 O3，§3.2）未建。
+8. S5 元分析 + 芯片建议报告（§4 最终交付物）未开工。
+
+距整份方案约还差 45%（23 注入器完成 17，但 formal/FS/元分析/建议报告全缺）。每补丁严格真机自验证，无谎称完成项。
