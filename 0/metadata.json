@@ -1,0 +1,44 @@
+{
+  "cli_version": "0.10.2",
+  "checkpoint_id": "01M1DFWMRP4GDE48W4KV8QMW9R",
+  "session_id": "62fbf985-d3e6-412c-b7ed-a3e960759d91",
+  "strategy": "manual-commit",
+  "created_at": "2026-09-01T03:23:34.45933999Z",
+  "branch": "docs/paper-zh-ptrskew-sec4.4",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "docs/cases/core179-microarch-rootcause-synthesis/paper_zh.md"
+  ],
+  "agent": "Claude Code",
+  "model": "GLM-5.2[1m]",
+  "turn_id": "95aeb85b9823",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 70116,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 1376896,
+    "output_tokens": 26549,
+    "api_call_count": 24
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-09-01T03:23:34.37167977Z",
+    "agent_lines": 10,
+    "agent_removed": 0,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 10,
+    "total_lines_changed": 10,
+    "agent_percentage": 100,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    }
+  ]
+}
