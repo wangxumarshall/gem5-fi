@@ -947,3 +947,16 @@ ARM 三条路径 + golden（真跑输出）：
 - **回归**：reg_chain golden `f247ef3fe6cfd` 不变（未挂 chaosDecode → rename no-op）。
 
 **诚实边界**：srcRegIdx/imm/opClass 未做（srcRegIdx 读共享 staticInst，unsafe；imm/opClass 需 StaticInst 克隆，更复杂）。dest_reg_sub 是安全的 per-inst 子集（§2.14 的 F5 dest 路径）。doc §2.14 "可最后做或跳过"——现 dest_reg_sub 子集已实现，诚实记录 src/imm/opClass deferred。
+
+---
+
+### 六注入器收尾（1/6 完成，诚实）
+
+**CHAOSDecode（§2.14）✅ 完成**：dest_reg_sub F5，解决 staticInst 共享——hook rename.cc:1137 用 per-inst `_flatDestIdx`（非共享 staticInst）。真机 `old_dest_reg=0 new_dest_reg=20`，零回归。srcRegIdx/imm/opClass deferred（共享 unsafe / 需克隆）。
+
+**剩余 5 个诚实阻碍（本轮未完成）**：
+1. **CHAOSExMon（§2.4）**：gem5 的 exclusive monitor 是**隐式的**（Request::LLSC flag + cache LockedRMW/SCUpgrade，**无显式 FSM**）。要实现需 hook cache 层的 LockedRMW 检查或破坏 LLSC flag；且需 LDXR/STXR workload（标准 kernel 无，需 spinlock kernel）。本轮未构建——工作量超单会话 + 无验证 workload。
+2. **CHAOSCHI（§2.9）/ CHAOSNoC（§2.15）/ CHAOSSHCCS（§2.16）**：需切 stdlib→Ruby + SLICC 协议 / Garnet 拓扑 / 多 NUMA。doc 列 S4 独立子项目（6-10 周/每个）。单会话做不完。
+3. **CHAOSRAS（§2.18）**：元分析，须所有 formal 完成。无 formal 结果则元分析脚本无输入。
+
+**6 个里完成 1 个（CHAOSDecode），剩 5 个**：ExMon 需 cache 层 hook + spinlock workload（可做但超本轮）；CHI/NoC/HCCS 是 S4 系统级（独立子项目）；RAS 是元分析（依赖 formal）。注入器总数 17→18（+CHAOSDecode）。
