@@ -561,3 +561,30 @@ fail_count oracle + campaign 并行 + PRF pilot 数据 → method1 formal（chol
 - 所有 P_SDC 是 gem5 O3 代理条件概率非 FIT
 - phaseOffset 用历史深度代理时序错位（gem5 同步转发 ≠ V110 相位竞争）
 - 现场数据单一故障机未第二台复现
+
+---
+
+## 本轮（2026-09-01 续）S6-5 fault kernel + S7-5 风险反转 + S8 评估
+
+### S6-5: fault_kernel `15379e3`
+fault_kernel.c：可重复 data abort kernel（addr 0 = gem5 SE fault；argv[2]=safe = native golden）。native safe 确定性 5345649cc8b3c2dd。gem5 SE fault = GenericPageTableFault panic（非 workload trap）。
+诚实边界：exc_suppress DUE→SDC 需 fault 进 DynInst::fault、commit 前清；gem5 SE page fault 是 translation 阶段 panic（不走 DynInst 生命周期）。exc_suppress 合法性校验已验证（CHAOSROB 无 fault REJECT 3.27e8）；完整 DUE→SDC 待 FS。
+
+### S7-5: raw vs protection-aware 风险反转图 `30ddfba`
+§6.5 保护交互规律核心机制验证（CHAOSCache ECC + l1d_reduce）：
+- raw(none) 2-bit: numRawEscaped=1（escape，数据留脏）
+- secded 2-bit: numDetectedContained=1（ECC 检出+毒化，contained DUE）
+- raw 1-bit: numRawEscaped=1; secded 1-bit: numEccCorrected=1（纠正恢复）
+方向正确：ECC 把 raw escape 转为 DetectedContained（contained，不逃逸）。
+formal 多 seed 统计待 runner 扩展 cache 路径。
+
+### S8-1 CHAOSIQ 评估（待续）
+IQ 内部 list private，wakeDependents 涉及依赖图遍历；CHAOSIQ 需深改
+inst_queue.cc + 构造 dep_chain_kernel。S8 P1/P2 单元（CHAOSIQ/FPU/
+L1DForward/Exec/BPU）是大工作量批次（方案 §10 估 ~16 补丁），留后续会话。
+
+### 当前注入器覆盖（12 个）
+core179 三通路（D1/D2/D3）+ method1 状态泄漏（RAT/freelist/ROB）+
+PRF/Cache-ECC/Mem/TLB/SysReg/AddrPath/PTW + LSQFwd 五模式（structuralFault/
+fwd_source_sub/stale_line_replay/phaseOffset/D2-64bit）。
+故障模型：F1-F5 ✅，F6 ✅（phaseOffset），PCE 待写。
