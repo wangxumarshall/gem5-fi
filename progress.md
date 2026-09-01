@@ -527,3 +527,37 @@ core179 三通路（D1 LSQFwd structuralFault / D2 AddrPath / D3 PTW）+ method1
 - method1 SDC formal 复现需 n=384 campaign（cholesky 计算密集，需减 iters/N 或并行）
 
 每个补丁均经干净构建零 CHAOS 警告 + 真机功能验证（引用真实 gem5 输出）+ 不相关回归三步自验证。
+
+---
+
+## 本轮（2026-09-01）计划执行：S6 LSQ 三模式 + S7 formal 基础设施
+
+按"执行后续实施计划"指令，完成 S6-1/S6-2/S6-3（LSQ 转发源三模式）+ S7-1/S7-2/S7-3（fail_count oracle + campaign 并行 + PRF pilot）。全部真机自验证 + 推 fi-wangxu。
+
+### S7-1: fail_count oracle `413249b`
+classify.py 加 extract_fail_count()；runner.py oracle.kind=fail_count 分支（fails>0→SDC）。解锁 accum/cholesky 的 SDC 分类。验证：accum F5 → SDC（fails=1）。
+
+### S6-1/S6-2: LSQ 转发源 hook + fwd_source_sub/stale_line_replay `d29c51e`
+lsq_unit.cc FullAddrRangeCoverage 分支 memcpy 前 hook pickSource；CHAOSLSQFwd 历史 ring buffer（8×64B）+ SourceFault enum。fwd_source_sub（错源 F5）+ stale_line_replay（陈旧行回放）。验证：fwd_source_sub numFwdSourceSub=3 SDC xor bit30；stale_line_replay numStaleLineReplay=3 fails=1。
+
+### S6-3: phaseOffset (F6 相位偏移) `17367bb`
+phase_offset=N 返回历史 N 步前数据（gem5 同步转发的诚实相位代理）。验证：phase_offset=2 numPhaseOffset=3 SDC xor 多位散布（比 N=0 单 bit 更分散——相位错位签名），StaleVaddr≠当前 vaddr 证相位偏移。**S1-5 三模式全部完成**。
+
+### S7-2: campaign.py 并行 + maxinsts/workload_args `caf1ea5`
+ThreadPoolExecutor --jobs N 真并行 + --workload-args（绕过 max_insts bug）+ --hang-timeout。验证：2cell×2rep jobs=2 并行完成，cells.csv+summary.md 生成。
+
+### S7-3: PRF pilot campaign `78dbe3b`
+prf-x3-bitscan-pilot.yaml: X3 × 8 位段 × n=2/cell。**产出第一批真实 P_SDC 数据**：X3 全位段 SDC=2/2 P_SDC=1.000 [0.342,1.000] first=SDC（与 STATUS.md "X3 所有位 SDC" 一致）。cells.csv 21 字段/cell + summary.md（含诚实边界）+ 16 manifests。formal n=384 需计算预算（reg_chain O3 单 run ~60s × 3072 = 50+ 小时）。
+
+### 注入器状态：12 个（不变，但 CHAOSLSQFwd 三模式补齐）
+
+**S1-5 三模式全部完成**：stale_line_replay/fwd_source_sub/phaseOffset + 之前的 structuralFault（D1）+ D2（64位掩码）。CHAOSLSQFwd 现覆盖 method2（位谱）+ method3（相位）+ core179 D1（撕裂移位）+ 转发源错位 全签名。
+
+### formal 量化闭环就位
+fail_count oracle + campaign 并行 + PRF pilot 数据 → method1 formal（cholesky + n=384 + Fisher）+ raw vs protection-aware 风险反转图的前置全就位。
+
+### 诚实边界
+- pilot n=2 仅为机制证明（CI 宽）；formal n=384 需计算预算
+- 所有 P_SDC 是 gem5 O3 代理条件概率非 FIT
+- phaseOffset 用历史深度代理时序错位（gem5 同步转发 ≠ V110 相位竞争）
+- 现场数据单一故障机未第二台复现
