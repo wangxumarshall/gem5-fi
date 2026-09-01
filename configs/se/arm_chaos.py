@@ -107,6 +107,9 @@ p.add_argument("--chaos_mem", action="store_true",
                help="attach CHAOSMem to the board DRAM")
 p.add_argument("--addr_start", type=lambda x: int(x,0), default=0)
 p.add_argument("--addr_end", type=lambda x: int(x,0), default=0)
+p.add_argument("--mem_addr_mode", default="fixed", choices=["fixed","addr_map_sub"])
+p.add_argument("--mem_addr_xor", type=lambda x: int(x,0), default=0)
+p.add_argument("--mem_protection_model", default="none", choices=["none","secded"])
 p.add_argument("--bit_flip_prob", type=float, default=0.9)
 p.add_argument("--stuck_at_zero_prob", type=float, default=0.05)
 p.add_argument("--stuck_at_one_prob", type=float, default=0.05)
@@ -323,6 +326,7 @@ if args.chaos_mem:
         lastClock=0,
         faultType=args.fault_type,
         faultMask="0",
+        bitsToChange=args.bits_to_change,
         tickToClockRatio=1000,
         bitFlipProb=args.bit_flip_prob,
         stuckAtZeroProb=args.stuck_at_zero_prob,
@@ -330,6 +334,9 @@ if args.chaos_mem:
         addr_start=args.addr_start,
         addr_end=args.addr_end,
         rngSeed=args.rng_seed,
+        addrMode=args.mem_addr_mode,
+        addrXorMask=args.mem_addr_xor,
+        protectionModel=args.mem_protection_model,
         maxFaults=args.max_faults,
         writeLog=True,
     )

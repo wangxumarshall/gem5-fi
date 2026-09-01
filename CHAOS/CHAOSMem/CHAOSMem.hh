@@ -48,6 +48,9 @@ namespace gem5 {
       float bit_flip_prob, stuck_at_zero_prob, stuck_at_one_prob;
       int cycles_permament_fault_check;
       bool write_log;
+      std::string addr_mode;      // fixed | addr_map_sub (F5, §A.2)
+      Addr addr_xor_mask;         // addr_map_sub XOR mask
+      std::string protection_model; // none | secded (§4.2 DRAM ECC)
       uint64_t rng_seed;
       uint64_t max_faults;            // G5: 0 = unlimited; else cap
       uint64_t faults_injected_count; // G5: running count
@@ -81,6 +84,9 @@ namespace gem5 {
         statistics::Scalar numPermanentFaults;
         statistics::Scalar numPermanentReapplies;  // D3: re-applies per checkPermanent
         statistics::Scalar numPermanentChecks;    // D3: checkPermanent invocations
+        statistics::Scalar numEccCorrected;        // §4.2 secded 1-bit corrected
+        statistics::Scalar numDetectedContained;  // §4.2 secded 2-bit contained
+        statistics::Scalar numLatent;              // §4.2 >=3-bit latent escape
 
         CHAOSMemStats(statistics::Group *parent);
       };

@@ -22,4 +22,15 @@ class CHAOSMem(SimObject):
     addr_end = Param.Addr(0, "End address of the memory-mapped range (default: 0, full memory length)")
     rngSeed = Param.UInt64(0, "Seed for the injection RNG (std::mt19937). 0 = seed from std::random_device (original, NON-reproducible behavior). Nonzero = fixed seed for reproducible address/byte/mask selection.")
     maxFaults = Param.UInt64(0, "G5: maximum number of faults to inject; 0 = unlimited (original). Use 1 for single-fault campaigns. Without this the original CHAOSMem keeps re-injecting forever (observed: maxFaults=1 still logged 5 injections in one tick).")
+    addrMode = Param.String("fixed",
+        "fixed (legacy: inject at the sampled target addr) | addr_map_sub "
+        "(F5: redirect the injection to addr ^ addrXorMask — an address-"
+        "map/decoder fault that hits a DIFFERENT legal address)")
+    addrXorMask = Param.Addr(0,
+        "addr_map_sub XOR mask (e.g. 0x1000 flips page bit 12). 0 with "
+        "addrMode=addr_map_sub uses 0x1000 default.")
+    protectionModel = Param.String("none",
+        "DRAM ECC model (§2.3: DRAM=secded proxy): none=raw escape; "
+        "secded: 1-bit corrected (revert), 2-bit detected+contained, "
+        ">=3-bit latent escape. Reports PA markers for classify_run_pa.")
     writeLog = Param.Bool(True, "Write a log file")

@@ -28,6 +28,9 @@ namespace gem5 {
     stuck_at_one_prob(p.stuckAtOneProb),
     cycles_permament_fault_check(p.cyclesPermamentFaultCheck),
     write_log(p.writeLog),
+    addr_mode(p.addrMode),
+    addr_xor_mask(p.addrXorMask ? p.addrXorMask : (Addr)0x1000),
+    protection_model(p.protectionModel),
     rng_seed(p.rngSeed),
     max_faults(p.maxFaults),
     faults_injected_count(0),
@@ -139,7 +142,13 @@ namespace gem5 {
                "Permanent-fault re-applies by checkPermanent (D3: >1 proves "
                "stuck persists across check periods, was 1 before fix)"),
       ADD_STAT(numPermanentChecks, statistics::units::Count::get(),
-               "checkPermanent invocations (D3)")
+               "checkPermanent invocations (D3)"),
+      ADD_STAT(numEccCorrected, statistics::units::Count::get(),
+               "§4.2 secded: 1-bit faults corrected (byte reverted)"),
+      ADD_STAT(numDetectedContained, statistics::units::Count::get(),
+               "§4.2 secded: 2-bit faults detected+contained (poison)"),
+      ADD_STAT(numLatent, statistics::units::Count::get(),
+               "§4.2 secded: >=3-bit latent escapes")
     {
     }
 
@@ -207,6 +216,22 @@ namespace gem5 {
         std::uniform_int_distribution<Addr> dist(target_start, target_end);
         Addr target_addr = dist(rng);
 
+        // §A.2 addr_map_sub (F5): redirect to another legal address.
+        // Insertion point verified: between target_addr assignment (line
+        // 211) and the Request construction — rewrite in place.
+        if (addr_mode == "addr_map_sub") {
+            Addr redirected = target_addr ^ addr_xor_mask;
+            if (write_log) {
+                *(log_stream->stream())
+                    << "Tick: " << curTick()
+                    << ", Site: mem_addr_map_sub (F5)"
+                    << ", OrigAddr: 0x" << std::hex << target_addr
+                    << ", RedirectedAddr: 0x" << redirected << std::dec
+                    << std::endl;
+            }
+            target_addr = redirected;
+        }
+
         try {
             // Attack a single byte
             uint8_t data;
@@ -250,6 +275,40 @@ namespace gem5 {
 
             PacketPtr write_pkt = new Packet(req, MemCmd::WriteReq);
             write_pkt->dataStatic(&data);
+
+            // §4.2 protectionModel (DRAM=secded proxy): post-inject ECC.
+            // 1-bit -> corrected (revert to old_value, skip the write);
+            // 2-bit -> detected+contained (poison: leave dirty, mark);
+            // >=3-bit -> latent escape (leave dirty).
+            if (protection_model == "secded") {
+                int bits = __builtin_popcount((unsigned)mask);
+                if (bits == 1) {
+                    stats->numEccCorrected++;
+                    if (write_log) {
+                        *(log_stream->stream())
+                            << "  ProtectionModel=secded bits=1 -> "
+                            "EccCorrected (byte reverted)" << std::endl;
+                    }
+                    data = old_value;  // revert: ECC corrected
+                    // fall through to write (writes the ORIGINAL back —
+                    // net effect: no corruption), then count as injected.
+                } else if (bits == 2) {
+                    stats->numDetectedContained++;
+                    if (write_log) {
+                        *(log_stream->stream())
+                            << "  ProtectionModel=secded bits=2 -> "
+                            "Poisoned: DetectedContained" << std::endl;
+                    }
+                    // leave dirty (poison propagates)
+                } else {
+                    stats->numLatent++;
+                    if (write_log) {
+                        *(log_stream->stream())
+                            << "  ProtectionModel=secded bits>=3 -> "
+                            "Latent (escape)" << std::endl;
+                    }
+                }
+            }
 
             memory->access(write_pkt);
             stats->numFaultsInjected++;
