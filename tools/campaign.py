@@ -93,13 +93,6 @@ def gen_manifest(camp, cell, cell_ordinal, rep, outdir):
         "source": {"chaos_commit": "TBD", "gem5_commit": "TBD"},
         "platform": {"isa": "ARM64", "mode": "SE", "cpu_model": "ArmO3CPU",
                      "config_family": camp.get("config_family", "C0")},
-        # H2 window sweep (plan §5.1C/§6.1): rob_entries / phys_int_regs /
-        # lq_entries / sq_entries axes pass through to the O3 params.
-    # cell-level window axes (e.g. rob_entries: [96,128,160]) -> platform.window
-    win_keys = ("rob_entries", "phys_int_regs", "lq_entries", "sq_entries")
-    win = {k: cell[k] for k in win_keys if k in cell}
-    if win:
-        m["platform"]["window"] = win
         "workload": {
             "binary_sha256": wl.get("binary_sha256", ""),
             "input_sha256": "",
@@ -112,6 +105,14 @@ def gen_manifest(camp, cell, cell_ordinal, rep, outdir):
         "oracle": {"kind": wl.get("oracle_kind", "exact_hash"),
                    "golden_id": wl.get("golden_id", "")},
     }
+    # H2 window sweep (plan §5.1C/§6.1): cell-level window axes
+    # (e.g. rob_entries: [96,128,160]) -> manifest platform.window
+    # (runner maps them to --rob_entries etc. O3 overrides).
+    win_keys = ("rob_entries", "phys_int_regs", "lq_entries", "sq_entries")
+    win = {k: cell[k] for k in win_keys if k in cell}
+    if win:
+        m["platform"]["window"] = win
+
     path = os.path.join(outdir, f"{m['run_id']}.yaml")
     with open(path, "w") as f:
         yaml.safe_dump(m, f, sort_keys=False, default_flow_style=False)
