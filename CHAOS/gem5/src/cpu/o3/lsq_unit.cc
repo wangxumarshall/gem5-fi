@@ -45,6 +45,7 @@
 #include "base/str.hh"
 #include "cpu/checker/cpu.hh"
 #include "cpu/o3/CHAOSLSQFwd/CHAOSLSQFwd.hh"
+#include "cpu/o3/CHAOSPosParity/CHAOSPosParity.hh"
 #include "cpu/o3/dyn_inst.hh"
 #include "cpu/o3/limits.hh"
 #include "cpu/o3/lsq.hh"
@@ -1490,6 +1491,17 @@ LSQUnit::read(LSQRequest *request, ssize_t load_idx)
                         store_it->data() + shift_amt,
                         request->mainReq()->getSize());
 
+                // CHAOSPosParity: sender-side tagging BEFORE any corruption
+                // (models tagging at the send end of the datapath — the
+                // research plan's snapshot model: tag() snapshots T_i and W
+                // pre-injection; verify() compares them post-injection, so
+                // the two calls model the send/receive end separation). No-op
+                // when no validator is attached.
+                if (cpu->posParity)
+                    cpu->posParity->tag(load_inst->memData,
+                                        request->mainReq()->getSize(),
+                                        request->mainReq()->getVaddr());
+
                 // CHAOSLSQFwd: optionally corrupt the just-forwarded data,
                 // modeling store-buffer forwarding-path corruption (the
                 // reproduce-method2 v3 mechanism on core 179). Hot-path:
@@ -1500,6 +1512,18 @@ LSQUnit::read(LSQRequest *request, ssize_t load_idx)
                                          request->mainReq()->getSize(),
                                          request->mainReq()->getVaddr());
                 }
+
+                // CHAOSPosParity: receiver-side verification AFTER possible
+                // corruption (the receive end of the datapath). Per-lane tags
+                // catch lane permutations (probability 1 — only identity
+                // escapes); the aggregate word backstops bit-flips. "count"
+                // mode only tallies (telemetry); "panic" mode fails fast.
+                // Return value deliberately unused here — the action is
+                // taken inside verify().
+                if (cpu->posParity)
+                    cpu->posParity->verify(load_inst->memData,
+                                           request->mainReq()->getSize(),
+                                           request->mainReq()->getVaddr());
 
                 DPRINTF(LSQUnit, "Forwarding from store idx %i to load to "
                         "addr %#x\n", store_it._idx,

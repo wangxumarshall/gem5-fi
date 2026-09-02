@@ -65,6 +65,14 @@ ap.add_argument("--addr-byte", default="7", help="which byte of effAddr to zero 
 ap.add_argument("--ptw-prob", default="0.0", help="CHAOSPTW per-descriptor-fetch flip prob (0=off)")
 ap.add_argument("--ptw-bits", default="1", help="bits to flip per PTE")
 ap.add_argument("--ptw-ecc", action="store_true", help="model PTW array ECC (H7: corrects single-bit)")
+# CHAOSPosParity: positional-parity validator (paper §6.2 detection prototype).
+# Sender/receiver snapshot model: tag() before CHAOSLSQFwd corrupt(), verify()
+# after — per-lane tags catch lane permutations (detection prob 1, identity
+# the only escape); XOR aggregate word backstops bit-flips (W is permutation-
+# invariant, does NOT detect rotations). Stats: numTagged/numVerified/
+# numMismatches/numMismatchesPanic.
+ap.add_argument("--posparity", action="store_true", help="attach CHAOSPosParity validator (paper §6.2)")
+ap.add_argument("--posparity-action", default="count", help="count | panic (mismatch response)")
 
 ap.add_argument("--l1d", default="32KiB")
 a = ap.parse_args()
@@ -174,6 +182,18 @@ if float(a.ptw_prob) > 0.0:
         maxFaults=int(a.max_faults),
         rngSeed=int(a.seed),
         writeLog=True,
+    )
+
+# CHAOSPosParity: positional-parity validator — the DETECTION counterpart of
+# CHAOSLSQFwd above. Registers itself with the CPU in its constructor
+# (cpu->posParity = this); lsq_unit.cc calls tag() before corrupt() and
+# verify() after on the same forwarded buffer.
+if a.posparity:
+    system.posparity = CHAOSPosParity(
+        cpu=system.cpu,
+        tagWidth=3,
+        action=a.posparity_action,
+        rngSeed=int(a.seed),
     )
 
 
