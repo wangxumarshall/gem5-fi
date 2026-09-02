@@ -60,7 +60,8 @@ GOLDEN_IDS = {
     "trisolve-golden-v1":   "39d61425aae92434",  # method1_controls tri_solve
     "movheavy-golden-v1":   "61e8a946ed50ae1f",  # mov_heavy (move-elimination)
     "branchyreduce-golden-v1": "d47587240e6f0a83",
-    "neon-golden-v1":     "00000000526925fe",  # neon_lane  # branchy_reduce (§2.3)
+    "neon-golden-v1":     "00000000526925fe",
+    "fwdchecksum-golden-v1": "ac70ef3a46fd0825",  # fwd_checksum_kernel  # neon_lane  # branchy_reduce (§2.3)
 }
 
 def sha256_file(path):
@@ -272,6 +273,7 @@ def main():
         cmd += ["--lsq_struct_mode", sm, "--first_clock", str(t["value"]),
                 "--max_faults", str(m["limits"]["max_faults"]),
                 "--rng_seed", str(m["rng"]["selection_seed"]),
+                "--probability", "1.0",
                 "--fault_type", fault_type, "--fault_mask", fault_mask]
     elif comp == "exec":
         # §2.12 CHAOSExec (integer execution-unit result XOR).
