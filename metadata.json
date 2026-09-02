@@ -1,0 +1,36 @@
+{
+  "cli_version": "0.10.2",
+  "checkpoint_id": "01M1HXB4AVG1DSTJ1HBJ2W4TNT",
+  "strategy": "manual-commit",
+  "branch": "research/posparity-core179",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "CHAOS/CHAOSPosParity/CHAOSPosParity.cc",
+    "CHAOS/CHAOSPosParity/CHAOSPosParity.hh",
+    "CHAOS/CHAOSPosParity/CHAOSPosParity.py",
+    "CHAOS/CHAOSPosParity/SConscript",
+    "CHAOS/gem5/src/cpu/o3/CHAOSPosParity/CHAOSPosParity.cc",
+    "CHAOS/gem5/src/cpu/o3/CHAOSPosParity/CHAOSPosParity.hh",
+    "CHAOS/gem5/src/cpu/o3/CHAOSPosParity/CHAOSPosParity.py",
+    "CHAOS/gem5/src/cpu/o3/CHAOSPosParity/SConscript",
+    "CHAOS/gem5/src/cpu/o3/cpu.hh",
+    "CHAOS/gem5/src/cpu/o3/lsq_unit.cc",
+    "fi_research/probes/o3_chaos_smoke.py"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 5498911,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 99425,
+    "api_call_count": 81
+  }
+}
