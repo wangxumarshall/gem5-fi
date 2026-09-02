@@ -4,7 +4,7 @@
 
 ## 摘要
 
-静默数据损坏（SDC）在真实舰队的发生率比传统软错误模型高约三个数量级（Meta ~1/1000 设备、Alibaba 3.61‱、PinDrop 0.035%），但现有注入工具（LLFI/FIJI/原版 CHAOS）停留在架构态与位翻转层，无法触达乱序服务器核的物理寄存器堆（PRF）、重命名表（RAT）、store→load 转发等 SDC 主要暴露面。本文以鲲鹏 920（TaiShan V110）为目标，构建 **gem5-fi 注入平台**：17 个微架构注入器、F1–F6+PCE 七类故障模型（含 F5 合法域替换——六载体全覆盖、F6 相位偏移、PCE post-check escape）、protection-aware 九类分类、FS checkpoint 流水线。在 V110 代理参数（C2-KP）下产出 4 组正式数据集（n=384/cell）：①L1D 风险反转（raw escape vs secded 1-bit 100% Corrected）；②PRF 位段×ABI 角色；③LSQ 转发几何×故障模式矩阵；④method1 状态泄漏的 Fisher 判定。基于 18+ 仿真-现场对照锚点（method1 历史残留 SDC、core179 D1/D2/D3 签名）确立生态效度，并给出抗 SDC 微架构设计建议（抗状态泄漏/抗相位/抗 PCE/抗合法域替换）与 openEuler 诊断反哺接口（位谱指纹库 CLI）。
+静默数据损坏（SDC）在真实舰队的发生率比传统软错误模型高约三个数量级（Meta ~1/1000 设备、Alibaba 3.61‱、PinDrop 0.035%），但现有注入工具（LLFI/FIJI/原版 CHAOS）停留在架构态与位翻转层，无法触达乱序服务器核的物理寄存器堆（PRF）、重命名表（RAT）、store→load 转发等 SDC 主要暴露面。本文以鲲鹏 920（TaiShan V110）为目标，构建 **gem5-fi 注入平台**：17 个微架构注入器、F1–F6+PCE 七类故障模型（含 F5 合法域替换——六载体全覆盖、F6 相位偏移、PCE post-check escape）、protection-aware 九类分类、FS checkpoint 流水线。在 V110 代理参数（C2-KP）下产出 4 组正式数据集：①L1D 风险反转（n=384/cell，raw escape vs secded 1-bit 100% Corrected）；②PRF 位段×ABI 角色（n=96/cell）；③LSQ 转发故障模式矩阵（n=64/cell）；④method1 状态泄漏两臂 Fisher 判定（n=384×2，p=1.19e-71 PASS）。基于 18+ 仿真-现场对照锚点（method1 历史残留 SDC、core179 D1/D2/D3 签名）确立生态效度，并给出抗 SDC 微架构设计建议（抗状态泄漏/抗相位/抗 PCE/抗合法域替换）与 openEuler 诊断反哺接口（位谱指纹库 CLI）。
 
 ## 1. 引言
 
@@ -83,13 +83,17 @@ X3（数据累加器）× 8 位段（bit 0/11/12/31/32/47/48/63）× n=96，C2-K
 
 **X3 全 8 位段 SDC=96/96 P_SDC=1.000 [0.962,1.000]**（合计 768/768 [0.995,1.000]，0 Hang 0 Crash 0 Masked）——数据累加器的任意单 bit 翻转确定性传播为 SDC，正式确认"X3 所有位 SDC"（与 X2 循环计数器高位 Hang 的对照印证寄存器语义角色决定 SDC-vs-Hang 归宿）。
 
-### 4.3 LSQ 转发几何×模式矩阵（表 3——T4 数据）
+### 4.3 LSQ 转发故障模式矩阵（表 3——T4 数据）
 
-3 几何（same/twocand/ldxr）× 5 模式 × n=64（见 tables/t3 与 artifacts/lsq-matrix/）。
+fp_fwd_kernel（asm back-to-back store→load）× 5 故障模式 × n=64（tables/t3-lsq-matrix.md）：**bitflip、structural（byte_lane_skew rol1，core179 D1 撕裂移位）、phase（phase_offset=2，F6 相位）SDC 率均 64/64=1.000**；**fwd_source_sub（F5 错源）与 stale_line_replay 为 Masked 阴性**（64/64，注入确认发生——numFwdSourceSub/numStaleLineReplay 计数=1——但 fp_fwd_kernel 的同址转发使替换源 ring buffer 内为等值数据，fails=0）。相位敏感性：|offset|≥1 即 100% SDC，与 method3 现场塌方机制（一条 no-op ALU 使触发率 100%→10–20%——相位错位破坏数据组装）方向一致。**诚实边界**：原计划的 fwd_7case 7 几何轴被废弃——其 volatile-no-barrier C 模式在 -O2 下不触达 gem5 转发路径（注入日志 0 字节），矩阵降为单几何 × 5 模式。
 
 ### 4.4 method1 状态泄漏 Fisher 判定（表 4——T5 数据）
 
-V0–V7 定向 F5 × n=384 × 2 臂（numeric/compute-both），Fisher exact（见 tables/t4）。
+F5 合法域替换（RAT 偷映射）× 长存活累加器（accum_kernel asm-pinned x9）× n=384 × 2 臂（numeric/compute-both，tables/t4-method1-fisher.txt）：
+
+- **numeric-only：SDC=114/148，P(history_residue)=0.770 [0.696,0.831]**——偷映射读回 donor 值（method1"读回值=其它活变量"签名）；另有 232/384 注入后表现为 SimulatorError（F5 偷映射 → donor 值被用作指针 → SE 模式 page-table panic——method2 x10 垃圾指针形态在 gem5 SE 下的分类边界，如实报告）；
+- **compute-both：SDC=0/266，P=0.000 [0.000,0.011]**——冗余重算（x10 独立累加交叉校验）**完全抑制**状态泄漏 SDC；
+- **Fisher exact（单侧）p=1.189e-71 << 0.05，H-acceptance PASS**：`P(history_residue)>0` 且两臂差异极显著——method1 现场"compute-both 使 SDC 降 4×"的抑制方向正式复现。**诚实边界**：本代理下抑制比为 ∞（compute-both SDC=0），强于现场 [2,8] 区间——代理 kernel 的冗余路径单次注入无法同时命中两份累加，现场比值还包含多缺陷/重复触发因素；cholesky V0-V7 载体阴性（40 冒烟 runs 全 Masked——d0 短存活，偷映射在被读前被 rename 覆盖）一并入库作诚实对照。
 
 ### 4.5 生态效度锚点（表 5）
 
@@ -114,4 +118,4 @@ V0–V7 定向 F5 × n=384 × 2 臂（numeric/compute-both），Fisher exact（�
 
 ## 8. 结论
 
-gem5-fi 平台（17 注入器 + F1–F6+PCE + 九类 PA 分类 + FS checkpoint 流水线）在 V110 代理参数下产出首批 ARM64 服务器核逐微架构单元 SDC 正式数据（风险反转 100% Corrected、PRF 位段、LSQ 几何矩阵、method1 Fisher），以 18+ 仿真-现场锚点确立生态效度，并落地产业工具（指纹库 CLI + openEuler 接口）。代码与数据全部开源可溯源（`artifacts/` 强制入库）。
+gem5-fi 平台（17 注入器 + F1–F6+PCE + 九类 PA 分类 + FS checkpoint 流水线）在 V110 代理参数下产出首批 ARM64 服务器核逐微架构单元 SDC 正式数据（风险反转 100% Corrected、PRF 位段、LSQ 故障模式矩阵、method1 Fisher），以 18+ 仿真-现场锚点确立生态效度，并落地产业工具（指纹库 CLI + openEuler 接口）。代码与数据全部开源可溯源（`artifacts/` 强制入库）。
