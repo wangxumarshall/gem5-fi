@@ -1282,3 +1282,21 @@ ARM 三条路径 + golden（真跑输出）：
 - §1.1 FS `kp920_proxy_fs.py` ❌
 - §2.3 spec_leak / §2.4 fwd_source_sub+phase_offset / §2.5 src_ready_bitflip+tag_sub / §2.10 F5 活页+属性位+白名单铺开 / §2.11 L1I 语义字段 / §2.17 addr_map_sub（子模式级）❌
 - §2.5/2.6 C 网格 pilot 用 C0 而非 doc 指定的 C2-KP（C2 路由已通，pilot 未跑 C2）
+
+---
+
+### S1 P0 formal 首个结果：§2.1 PRF n=384（C2-KP V110，cholesky_numeric）
+
+**关键 bug 修复**：C2 kp920_proxy 2.6GHz 下 cholesky 只跑 82,323 cycles < first_clock=100000 → 注入窗口从未打开 → 首轮 768 reps 全 Inactive（诚实记录为工具配置错误而非实验结果）。修复：trigger_value 50000（82K cycles 内）。验证：X3 注入 FIRES（core dump = X3 SDC/Crash）。
+
+**Formal n=384 × 2 cells × 5% replay（768+77 reps，2666s ≈ 44min）**：
+
+| cell | n | P_SDC [95% CI] | P_DUE [95% CI] | Reach |
+|---|---|---|---|---|
+| X3 (arch_frontend, bit_flip, random bit) | 384 | **3.9% [2.4, 6.3]** | **92.7% [89.7, 94.9]** | 100% [99.0, 100] |
+| X9 (arch_frontend, bit_flip, random bit) | 384 | 0.0% [0.0, 1.0] | 0.0% [0.0, 1.0] | 100% [99.0, 100] |
+
+**诚实解读**：
+- X3 在 cholesky+C2 上 **DUE 主导（92.7%）**——随机 bit 翻转 X3 的值造成程序崩溃（rename-inconsistency/page fault）远多于静默传播（3.9% SDC）。与 C0+reg_chain 的 X3 100% SDC 不同：workload（cholesky vs reg_chain）和 config（C2 V110 vs C0）都影响结局分布。
+- X9 全 Masked（0% SDC/DUE, 100% Reach）——X9 不在 cholesky 关键路径，注入被覆盖。
+- 5% replay 校验通过（frozen=no 两 cell）。

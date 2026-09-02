@@ -59,14 +59,18 @@ namespace gem5
 
     bool
     CHAOSRenameMap::inWindow() {
-        // UnifiedRenameMap has no curCycle(); use curTick vs tick_to_clock
-        // approximation (like CHAOSArmTLB). first_clock/last_clock are CYCLES;
-        // O3 clock domain tick ratio is host-dependent; use a coarse check:
-        // curTick >= first_clock * 1000 (the tickToClockRatio=1000 convention).
+        // Use the CPU's actual clock period for the cycles->ticks conversion
+        // (frequency-correct across configs: C0 2GHz=500t/cyc, C2-KP
+        // 2.6GHz~385t/cyc). The old *1000 assumed 1GHz and silently never
+        // opened the window on faster clocks. first/last_clock are CPU CYCLES.
+        if (!cpu) return false;
+        auto *o3cpu = dynamic_cast<o3::CPU *>(cpu);
+        if (!o3cpu) return false;
         Tick now = curTick();
-        Tick f = first_clock * 1000;
+        Tick period = o3cpu->clockPeriod();
+        Tick f = first_clock * period;
         if (now < f) return false;
-        if (last_clock != 0 && now > last_clock * 1000) return false;
+        if (last_clock != 0 && now > last_clock * period) return false;
         return true;
     }
 
