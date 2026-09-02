@@ -824,3 +824,46 @@ progress 记录；2026-09-02 两计划 checkbox 勾选。
 - SimulatorError 232/384 是 gem5 SE 分类边界（workload 野指针→panic），
   现场对应 DUE（method2 ESR 0x96000004）——FS 模式才能正确分类
 - method1 抑制比 ∞ vs 现场 [2,8]：代理 kernel 差异，方向一致值不可比
+
+---
+
+## 本轮（2026-09-02 续2）三个单元：H1/H2 工具链 + CHAOSExMon（S3-7）
+
+### 单元 1: H1 read-trace 四分类工具链 `615cc383`
+runner 解析 CHAOSPhysReg 的 ReadTracePoll/Final（最后一条 Poll 携带同计数器
+——Final 仅在 halt 后 poll 才输出，8.03M-cycle run 实证缺失）；
+campaign 加 RT_{Benign,Masked,SDC,Crash}、P_SDC_given_reads_gt0、
+reads_median 列。冒烟验证 RT_SDC=2 reads_median=1975000 端到端贯通。
+
+### 单元 2: H2 窗口扫描工具链 `cce66356`
+manifest schema platform.window {rob/phys_int/lq/sq_entries} → runner 透传
+→ arm_chaos 0-sentinel 语义（0=保持默认；显式窗口独立于 kp920_proxy 生效）。
+验证 ROB=96/PhysInt=128 → config.ini numROBEntries=96（默认 192 不变）。
+修复 runner running: 行截断 cmd[:4] 的可观测性缺陷。
+
+### 单元 3: CHAOSExMon 独占监视器注入器（17→18）`4332eb49`
+S3-7（plan §5.4B）。执行中三次 hook 点修正（诚实记录）：
+1. AbstractMemory::lockedAddrList —— no-cache-only 路径，ARM+cache 下 0 调用，回滚
+2. CacheBlk::lockList —— x86 式 cache 级 monitor，ARM 的 O3 LDXR 不经此（0 调用），回滚
+3. **ArmISA MISCREG_LOCKADDR/LOCKFLAG（isa.cc handleLockedRead/lockedWriteHandler）
+   ——ARM local monitor 的真实实现** ✅
+模式：clear_reservation（hook3 SC 架构决策点——LDXR 时清 flag 在 O3
+squash-replay 下不可见，2008/2008 lock_flag=1 实证；持续故障语义）+
+stale_reservation（hook2 失败分支假成功——单线程 SE 不可达，需多核场景，诚实标注）。
+exmon_kernel：SC 成功位敏感验证 kernel（fwd_7case 的 ldxr case 忽略 sc 检不出）。
+验证：p=0.05 限窗 → 107 STXR 清 → sc_ok=1893 sc_fail=107 fails=1；
+G0 2/2 逐行一致；golden 回归不变；prob=0 零注入。
+
+### 执行中发现的真实工具问题
+**scons -C CHAOS/gem5 产物落在仓库根 build/**（canonical 路径
+CHAOS/gem5/build/ARM/gem5.opt 是陈旧二进制）——多次"注入不生效"假象的
+根因。修复纪律：每次构建后 `cp build/ARM/gem5.opt CHAOS/gem5/build/ARM/`。
+
+### H1 首跑作废（诚实记录）`e8915147`
+campaign 运行中 gem5.opt 被 CHAOSExMon 迭代构建多次替换——cell0 前段
+152 SDC 正常、cell1-3 全 384/384 Crash（行为分裂=环境变化）；单 manifest
+复现 c001-r0=SDC 排除代码回归。作废重跑。**教训：campaign 与构建不得并行。**
+
+### 排队中（后台）
+H2 窗口扫描（ROB{96,128,160}×{X3bit0,X2bit63}×n=96）→ H1 read-trace formal
+（X3 bit{0,31,32,63}×n=384）串行执行，完成后入库。
