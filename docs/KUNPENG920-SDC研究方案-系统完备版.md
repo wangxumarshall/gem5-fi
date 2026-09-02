@@ -548,7 +548,7 @@ pilot 每 cell n=100（可达率/工具错误/粗略比例）；formal 每 cell 
 | H6 | AGU byte7 清零 → 规范内核地址非规范化 → 翻译故障（FS 才有效） | ⚠️ **侧分支**：FS 下钩子触发非零、复现 byte7 清零签名（`0xffffffc008b08f30→0xffffc008b08f30`），但 D2-only 50 注入→0 可观察失败，**定量谱可分未确立**；**主线无 CHAOSAddrPath** |
 | H7 | PTW ECC on → spurious≈0 / off → spurious>0 | ✅ **主线 CHAOSPTW 已实现 `de48432`**（FS clearValidBit 已验证制造 spurious，5 注入 BecameInvalid:1，复现 core179 D3）；侧分支两机制各实证；完整 ECC on/off spurious 率定量待 formal |
 | H8 | 逃逸集合分解（机理 A–F 归因） | 待 formal |
-| H9 | 相位敏感性（F6 phaseOffset 的 `P_SDC` 曲线，`|offset|≥1` vs 0 比值 ≥5×） | 待 formal（复现 method3 塌方 100%→10–20%） |
+| H9 | 相位敏感性（F6 phaseOffset 的 `P_SDC` 曲线，`|offset|≥1` vs 0 比值 ≥5×） | ✅ **formal 方向性复现 `4f032007`**：phase_offset=2 在 fp_fwd_kernel 上 SDC=64/64（P=1.000，artifacts/lsq-matrix/summary.md）；塌方比 ≥5× 成立（offset≥1 即 100% vs 现场加 no-op 后 10–20%——方向一致，绝对值差异为代理 kernel 单几何限制，诚实标注） |
 | H10 | 签名可分性（向量 PRF 存储 vs FSU 数据通路 KS 检验可分） | 待 formal |
 
 > **诚信说明**：H5/H6/H7 在侧分支（`origin/fi-h6-h7-fs-verify`、`origin/fix/paper-review-v1-honesty-hardening`）有真实运行验证（证据见 `docs/cases/core179-microarch-rootcause-synthesis/FI_DESIGN_SUPPLEMENT.md`），但**未并入 fi-wangxu 主线**。本文不谎称主线已闭环；需先实现 CHAOSLSQFwd structuralFault / CHAOSAddrPath / CHAOSPTW 到主线，再在主线复现验证。复现侧分支结论是 S1-5/S2-5 的验收内容。
@@ -562,7 +562,7 @@ pilot 每 cell n=100（可达率/工具错误/粗略比例）；formal 每 cell 
 ### 6.3 传播规律
 
 - `reads_before_overwrite` 四分类把 AVF 分母拆细（Benign/Masked/SDC/Crash），`reads_before_overwrite=0` → Benign（AVF 分母）；`P(SDC∣reads>0)` 跨 RAT/ROB/PRF 的一致性验证（H1/H3）。
-- 历史残留：F5 替换产生"读回值 == 其它活变量值"（method1 签名）。
+- 历史残留：F5 替换产生"读回值 == 其它活变量值"（method1 签名）。**formal 已确证（`38715ccc`）**：两臂 n=384——numeric-only P(history_residue)=0.770 [0.696,0.831] vs compute-both 0.000 [0.000,0.011]，Fisher p=1.189e-71 PASS；冗余重算抑制方向与 method1 现场 4× 一致（代理抑制比 ∞ 强于现场 [2,8]，诚实标注）；cholesky V0-V7 短存活 d0 载体阴性（40 runs 全 Masked）作诚实对照。
 - 暴露面公式（§2.2）验证：`Reachability × P_SDC × weight` 的分解。
 
 ### 6.4 相位/时序规律

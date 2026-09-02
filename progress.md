@@ -779,3 +779,48 @@ addr_map_sub F5（XOR 页位重定向 0x100000→0x101000）+ secded DRAM-ECC
 F5 全覆盖（RAT/freelist/LSQ/TLB pfnOffset/SysReg value_to_legal/Mem
 addr_map_sub）；ECC 后处理双载体（Cache+Mem）；执行中发现并修复
 9 个真实缺陷（全部在 commit message 诚实记录）。
+
+---
+
+## 本轮（2026-09-02 续）formal 计划收尾：T4/T5/T6/T8（docs/superpowers/plans/2026-09-02-formal-completion.md）
+
+### T4: LSQ 故障模式矩阵 `4f032007`
+fp_fwd_kernel 5 模式 × n=64（7 几何轴诚实废弃——fwd_7case volatile-no-barrier
+在 -O2 不触达转发路径，注入日志 0 字节）：
+- bitflip/structural(byte_lane_skew rol1)/phase(offset=2)：SDC 64/64（P=1.000）
+- fwd_source_sub/stale_line_replay：Masked 64/64（注入确认发生，同址转发
+  ring buffer 等值数据——诚实阴性）
+- batch 脚本续跑化（resume-safe，stale 补 18 rep + phase 64 rep）
+- rep 级 csv + summary.md + 论文表 t3 入库
+
+### T5: method1 F5 两臂 formal `fc9deb06`→`38715ccc`
+执行中发现并修复 **2 个真实工具缺陷**（`4bd847f2`）：
+①runner 定向覆盖——manifest f5_substitute_target=-1（随机）优先级高于
+target.index，定向 V0-V3 全被覆盖（log 实证 ArchReg[13] for index=0）；
+②workload_args 死代码——campaign.py 设 CHAOS_WORKLOAD_ARGS 但 runner 从不
+消费，"both" 臂从未真正跑过。
+诚实改道（`13bd4c6e`）：cholesky V0-V7 F5 实证死路（d0 短存活，40 冒烟 +
+17 时钟探针全 Masked；X20 Masked/X21 SEGV）→ accum_kernel x9（asm-pinned
+长存活累加器）+ 新增 compute-both 变体（x10 独立重算交叉校验）。
+**formal 结果（n=384×2 臂）**：
+- numeric-only：SDC=114/148 P=0.770 [0.696,0.831]（+232 SimulatorError=
+  F5 偷映射→donor 作指针→SE page-table panic，method2 野指针形态）
+- compute-both：SDC=0/266 P=0.000 [0.000,0.011]（冗余重算完全抑制）
+- **Fisher exact p=1.189e-71 PASS**（P(history_residue)>0 成立；抑制比 ∞
+  强于现场 [2,8]——代理单注入无法双命中，诚实标注）
+
+### T6: 论文回填 `e898d7a3`
+§4.3 改写（fp_fwd 5 模式矩阵 + 几何轴废弃诚实标注）；§4.4 填 Fisher
+verdict；摘要数据集规模逐项修正（384/96/64 per cell）；t1-prf.csv 入库；
+数字溯源全过（对照 t3/t4 表校验）。
+
+### T8: 收尾（本 commit）
+方案文档 §6.1 H9 回填（phase 方向性复现）+ §6.3 历史残留 formal 确证；
+progress 记录；2026-09-02 两计划 checkbox 勾选。
+
+### 诚实边界
+- fwdsrc/stale 的 Masked 是同址转发等值机制（单几何限制），非"F5 错源
+  无害"——多几何转发需新 kernel（asm 构造不同地址候选）
+- SimulatorError 232/384 是 gem5 SE 分类边界（workload 野指针→panic），
+  现场对应 DUE（method2 ESR 0x96000004）——FS 模式才能正确分类
+- method1 抑制比 ∞ vs 现场 [2,8]：代理 kernel 差异，方向一致值不可比

@@ -43,7 +43,7 @@ formal 会产出多个 campaign 的 cells.csv（PRF/RAT/LSQ/Cache×2 臂/...）�
 - Consumes: `cells.csv` 的 schema（列名见 §16 盘点：`cell_ordinal,layer,target_arch,semantic_role,fault_model,...,SDC,n_valid,P_SDC,P_SDC_lo,P_SDC_hi,...`）
 - Produces: `python3 tools/report.py --inputs artifacts/<a>/cells.csv artifacts/<b>/cells.csv ... --unit-col <列名> [--out report.md]` → Markdown 总表 + `report.csv`
 
-- [ ] **Step 1: 写失败测试**
+- [x] **Step 1: 写失败测试**
 
 ```python
 # tests/test_report.py
@@ -82,7 +82,7 @@ def test_report_cli_emits_md_and_csv():
     assert "| prf | 30/100 | 0.300 | [0.220,0.400] |" in md
 ```
 
-- [ ] **Step 2: 运行确认失败**
+- [x] **Step 2: 运行确认失败**
 
 ```bash
 cd /home/sdc/wangxu/gem5-fi-wangxu
@@ -91,7 +91,7 @@ python3 -m pytest tests/test_report.py -v 2>&1 | tail -3
 
 预期：FAIL `ModuleNotFoundError: No module named 'report'`
 
-- [ ] **Step 3: 实现 report.py**
+- [x] **Step 3: 实现 report.py**
 
 ```python
 #!/usr/bin/env python3
@@ -173,7 +173,7 @@ if __name__ == "__main__":
     main()
 ```
 
-- [ ] **Step 4: 测试通过 + 真机验证（用现有 pilot 数据）**
+- [x] **Step 4: 测试通过 + 真机验证（用现有 pilot 数据）**
 
 ```bash
 python3 -m pytest tests/test_report.py -v 2>&1 | tail -2   # 预期 PASS
@@ -184,7 +184,7 @@ python3 tools/report.py --inputs artifacts/method1-num2/cells.csv artifacts/prf-
 
 预期：输出含 `prf`（PRF pilot 的 X3 行）与 `-1`（method1 的随机 FP 行）的合并表。
 
-- [ ] **Step 5: 提交**
+- [x] **Step 5: 提交**
 
 ```bash
 git add tools/report.py tests/test_report.py
@@ -210,7 +210,7 @@ git push origin fi-wangxu
 - Consumes: `tools/runner.py` 的 cache 路径（`--cache-block-addr` CLI，`classification=Corrected/Masked` PA 分流）
 - Produces: `artifacts/l1d-ecc/raw.csv`、`artifacts/l1d-ecc/secded.csv`（每行一个 rep 的 classification）+ `artifacts/l1d-ecc/summary.md`
 
-- [ ] **Step 1: 写批量驱动脚本**
+- [x] **Step 1: 写批量驱动脚本**
 
 ```bash
 cat > tools/l1d_ecc_batch.sh << 'EOF'
@@ -260,7 +260,7 @@ chmod +x tools/l1d_ecc_batch.sh
 
 **注意（执行者必读）**：上面 manifest 的 bits 轴通过 `bit_indices` 编辑——初版脚本只替换了 protection。执行时把 `run_cell` 里 manifest 生成改为同时替换 bits：`sed -e "s/bit_indices: \[0\]/bit_indices: [$(seq -s, 0 $((bits-1)))]/"`（1-bit=[0]，2-bit=[0,1]，3-bit=[0,1,2]——CHAOSCache 的 `bitsToChange=len(bit_indices)`）。
 
-- [ ] **Step 2: 先跑小规模验证（N=8 冒烟）**
+- [x] **Step 2: 先跑小规模验证（N=8 冒烟）**
 
 ```bash
 cd /home/sdc/wangxu/gem5-fi-wangxu
@@ -275,13 +275,13 @@ done
 
 预期：`raw-b1` 多为 Masked（或 Corrected 不应出现在 raw）；`secded-b1` 应有 Corrected；`secded-b2` 应有 DetectedContained（若分类走 PA 分流）或如实记录。
 
-- [ ] **Step 3: 正式跑 N=384（后台 ~15-25 分钟）**
+- [x] **Step 3: 正式跑 N=384（后台 ~15-25 分钟）**
 
 ```bash
 bash tools/l1d_ecc_batch.sh 384 8 862656
 ```
 
-- [ ] **Step 4: 用 report.py 汇总成风险反转表**
+- [x] **Step 4: 用 report.py 汇总成风险反转表**
 
 ```bash
 python3 tools/report.py --inputs artifacts/l1d-ecc/raw-b1.csv \
@@ -301,7 +301,7 @@ for f in artifacts/l1d-ecc/*.csv; do
 done | tee artifacts/l1d-ecc/summary.md
 ```
 
-- [ ] **Step 5: 提交（数据 + 脚本）**
+- [x] **Step 5: 提交（数据 + 脚本）**
 
 ```bash
 git add tools/l1d_ecc_batch.sh artifacts/l1d-ecc/summary.md
@@ -326,7 +326,7 @@ git push origin fi-wangxu
 - Consumes: campaign.py 的 physreg 路径（已支持 target_arch/bit_indices/layer 轴）+ `--kp920-proxy`（**需先给 campaign.py 加 kp920 透传**——现无）
 - Produces: `artifacts/prf-formal/cells.csv`（X3×8bit×n=96）
 
-- [ ] **Step 1: campaign.py 加 --kp920-proxy 透传**
+- [x] **Step 1: campaign.py 加 --kp920-proxy 透传**
 
 campaign.py 的 `gen_manifest` 产 manifest，runner 跑 gem5——kp920 参数在 arm_chaos.py 的 CLI 层。runner.py 构造 cmd 时需加 `--kp920_proxy`。改 runner.py：manifest 的 `platform.config_family: C2-KP` 时加该 flag：
 
@@ -337,7 +337,7 @@ campaign.py 的 `gen_manifest` 产 manifest，runner 跑 gem5——kp920 参数�
         cmd += ["--kp920_proxy"]
 ```
 
-- [ ] **Step 2: 写 prf-formal.yaml**
+- [x] **Step 2: 写 prf-formal.yaml**
 
 ```yaml
 # PRF X3 formal (plan §5.1): X3 (data accumulator, all-bit SDC) x 8 stratified
@@ -362,7 +362,7 @@ defaults:
   width_bits: 64
 ```
 
-- [ ] **Step 3: 小冒烟（n=2）确认 kp920 透传生效**
+- [x] **Step 3: 小冒烟（n=2）确认 kp920 透传生效**
 
 ```bash
 cd /home/sdc/wangxu/gem5-fi-wangxu
@@ -377,7 +377,7 @@ python3 tools/campaign.py campaigns/prf-formal.yaml \
 grep -l "config_family: C2-KP" artifacts/prf-smoke/manifests/*.yaml | head -1
 ```
 
-- [ ] **Step 4: 正式跑 X3 n=96（后台 ~2.7 小时 jobs=8）**
+- [x] **Step 4: 正式跑 X3 n=96（后台 ~2.7 小时 jobs=8）**
 
 ```bash
 python3 tools/campaign.py campaigns/prf-formal.yaml \
@@ -386,7 +386,7 @@ python3 tools/campaign.py campaigns/prf-formal.yaml \
   --gem5 "$G5" --artifacts artifacts/prf-formal 2>&1 | tail -10
 ```
 
-- [ ] **Step 5: report.py 汇总 + 提交**
+- [x] **Step 5: report.py 汇总 + 提交**
 
 ```bash
 python3 tools/report.py --inputs artifacts/prf-formal/cells.csv --unit-col target_arch
@@ -413,7 +413,7 @@ git push origin fi-wangxu
 
 **关键限制（诚实）**：arm_chaos.py 的 `--cmd` 不传 workload argv——fwd_7case 的 case 选择无法从 config 层传。**方案**：为每个 case 编译一份默认参数二进制（`fwd_7case_same` 等 7 份，源码同、默认 argv 不同——用 `-D` 编译期注入或直接跑默认 case=same + 手动 7 份 wrapper）。最简：写 7 个 2 行 C wrapper 调 main 逻辑。
 
-- [ ] **Step 1: 编译 7 个 case 定向二进制**
+- [x] **Step 1: 编译 7 个 case 定向二进制**
 
 ```bash
 cd /home/sdc/wangxu/gem5-fi-wangxu
@@ -438,7 +438,7 @@ EOF
 done
 ```
 
-- [ ] **Step 2: 写批量矩阵脚本（3 几何 × 5 模式 × n=64）**
+- [x] **Step 2: 写批量矩阵脚本（3 几何 × 5 模式 × n=64）**
 
 ```bash
 cat > tools/lsq_matrix_batch.sh << 'EOF'
@@ -480,7 +480,7 @@ EOF
 chmod +x tools/lsq_matrix_batch.sh
 ```
 
-- [ ] **Step 3: 冒烟（N=4）→ 正式（N=64 后台 ~1 小时）**
+- [x] **Step 3: 冒烟（N=4）→ 正式（N=64 后台 ~1 小时）**
 
 ```bash
 source /home/sdc/gem5-deps/env.sh; G5=$PWD/CHAOS/gem5/build/ARM/gem5.opt
@@ -489,7 +489,7 @@ bash tools/lsq_matrix_batch.sh 4 8      # 冒烟
 bash tools/lsq_matrix_batch.sh 64 8     # 后台
 ```
 
-- [ ] **Step 4: 汇总矩阵表 + 提交**
+- [x] **Step 4: 汇总矩阵表 + 提交**
 
 每个 cell 的 SDC 判定：checksum ≠ 该几何的 gem5 golden（需先跑各 case 的无注入 golden 记录）。汇总：
 
@@ -514,7 +514,7 @@ Task 4（Plan1）的 pilot 暴露：随机 FP 类 F5 在 cholesky 10-iters 上 0
 **Files:**
 - Modify: `campaigns/method1-f5-cholesky-formal.yaml`（axes 改 target_arch: [0,1,2,3] 定向低段 + trigger 提前）
 
-- [ ] **Step 1: 修正 formal YAML 参数**
+- [x] **Step 1: 修正 formal YAML 参数**
 
 ```yaml
 # 修正点（对照 pilot 的 0/10 根因）：
@@ -530,7 +530,7 @@ axes:
   f5_substitute_target: [-1]
 ```
 
-- [ ] **Step 2: 修正后冒烟（n=10 确认注入不再 0）**
+- [x] **Step 2: 修正后冒烟（n=10 确认注入不再 0）**
 
 ```bash
 source /home/sdc/gem5-deps/env.sh; G5=$PWD/CHAOS/gem5/build/ARM/gem5.opt
@@ -542,7 +542,7 @@ python3 tools/campaign.py campaigns/method1-f5-cholesky-formal.yaml \
 
 预期：修正后 SDC > 0 或至少 first 非 Masked（若仍 0/10，如实记录并进一步定向 V0-only——d0 是主累加器）。
 
-- [ ] **Step 3: 正式两臂（n=384×4 cell×2 臂，后台 ~5.5 小时 jobs=8）**
+- [x] **Step 3: 正式两臂（n=384×4 cell×2 臂，后台 ~5.5 小时 jobs=8）**
 
 ```bash
 # 臂1 numeric
@@ -557,7 +557,7 @@ python3 tools/campaign.py campaigns/method1-f5-cholesky-formal.yaml \
   --gem5 "$G5" --artifacts artifacts/m1-formal-both 2>&1 | tail -8
 ```
 
-- [ ] **Step 4: Fisher 正式检验 + 提交**
+- [x] **Step 4: Fisher 正式检验 + 提交**
 
 ```bash
 python3 tools/fisher_test.py artifacts/m1-formal-num/cells.csv artifacts/m1-formal-both/cells.csv | tee artifacts/m1-formal-verdict.txt
@@ -583,7 +583,7 @@ git push origin fi-wangxu
 - Consumes: Task 2-5 的 `artifacts/*/summary.md` + `cells.csv` + `verdict.txt` + §5.0 锚点表 + §6.1 假设状态表
 - Produces: 完整论文草稿（每个数字溯源到 artifact 文件）
 
-- [ ] **Step 1: 建目录 + 生成数据表片段（从 artifacts 机械引出，禁止手写数字）**
+- [x] **Step 1: 建目录 + 生成数据表片段（从 artifacts 机械引出，禁止手写数字）**
 
 ```bash
 mkdir -p docs/paper/tables
@@ -600,7 +600,7 @@ cp artifacts/m1-formal-verdict.txt docs/paper/tables/t4-method1-fisher.txt
 grep -A20 "已验证锚点表" docs/KUNPENG920-SDC研究方案-系统完备版.md | head -22 > docs/paper/tables/t5-anchors.md
 ```
 
-- [ ] **Step 2: 撰写论文正文（骨架如下——执行者按贡献点 1-6 逐节写，每节引用 tables/）**
+- [x] **Step 2: 撰写论文正文（骨架如下——执行者按贡献点 1-6 逐节写，每节引用 tables/）**
 
 论文骨架（每节的开头句已定，正文扩写到会议论文密度）：
 
@@ -641,7 +641,7 @@ Fisher 结论—抗 SDC 设计建议）
 ## 8. 结论
 ```
 
-- [ ] **Step 3: 自查（数字溯源）+ 提交**
+- [x] **Step 3: 自查（数字溯源）+ 提交**
 
 ```bash
 # 自查：正文的每个 16-hex/百分比数字能在 tables/ 或 artifacts/ 找到
@@ -668,7 +668,7 @@ git push origin fi-wangxu
 - Consumes: `fi_research/bit_spectrum.py` 的字段分类逻辑（sign/exp/mantissa 位段 + popcount）——直接 import 复用，不重写
 - Produces: CLI 两个子命令：`build`（从 masks 文本建库 JSON）+ `lookup`（现场 xor 值 → Top-K 候选单元 + 置信度）
 
-- [ ] **Step 1: 写失败测试**
+- [x] **Step 1: 写失败测试**
 
 ```python
 # tests/test_fingerprint.py
@@ -689,7 +689,7 @@ def test_build_and_lookup():
     assert ranked[0][0] == "lsq_fwd"
 ```
 
-- [ ] **Step 2: 确认失败 → 实现**
+- [x] **Step 2: 确认失败 → 实现**
 
 ```bash
 python3 -m pytest tests/test_fingerprint.py -v 2>&1 | tail -2
@@ -770,7 +770,7 @@ if __name__ == "__main__":
 
 **执行者注意**：`bit_spectrum.py` 的 `classify_bits` 函数名/签名需先核实（`grep -n "def " fi_research/bit_spectrum.py`）——若实际是别的名字（如 `spectrum`），适配 import 与调用；若它只有 main() 无可导入函数，把字段分类逻辑（sign bit 63 / exp 62-52 / mantissa 51-0 的计数）内联进 build_library（15 行，注明来源）。
 
-- [ ] **Step 3: 测试通过 + 用真实注入数据建库**
+- [x] **Step 3: 测试通过 + 用真实注入数据建库**
 
 ```bash
 python3 -m pytest tests/test_fingerprint.py -v 2>&1 | tail -2   # PASS
@@ -783,7 +783,7 @@ python3 tools/sdc_fingerprint.py build docs/paper/tables/fingerprint-library.jso
 python3 tools/sdc_fingerprint.py lookup docs/paper/tables/fingerprint-library.json 0x0000000004000000 --top 3
 ```
 
-- [ ] **Step 4: 提交**
+- [x] **Step 4: 提交**
 
 ```bash
 git add tools/sdc_fingerprint.py tests/test_fingerprint.py docs/paper/tables/fingerprint-library.json
@@ -800,11 +800,11 @@ git push origin fi-wangxu
 
 ### Task 8: 收尾——progress.md 最终状态 + 方案文档正式数据回填
 
-- [ ] **Step 1: progress.md 记录本计划全部产物**
+- [x] **Step 1: progress.md 记录本计划全部产物**
 
-- [ ] **Step 2: 方案文档 §6.1 假设表回填正式结果（H0/H9 等从"待 formal"改为引用 verdict/summary）**
+- [x] **Step 2: 方案文档 §6.1 假设表回填正式结果（H0/H9 等从"待 formal"改为引用 verdict/summary）**
 
-- [ ] **Step 3: 提交推送**
+- [x] **Step 3: 提交推送**
 
 ```bash
 git add progress.md docs/KUNPENG920-SDC研究方案-系统完备版.md
