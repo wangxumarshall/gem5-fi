@@ -1162,3 +1162,14 @@ ARM 三条路径 + golden（真跑输出）：
 | §2.18 RAS | 5/5 Masked (regression only) |
 
 剩余: §2.7 L1D（需 runner cache config 切换）、§2.10 TLB/SYS（FS）、§2.15 NoC（Ruby）、§2.16 HCCS（Ruby）。
+
+---
+
+### §2.7 L1D pilot campaign（runner cache config 切换打通）
+
+**runner 打通 C0-CACHE config family**（arm_chaos_cache.py）：CONFIG_FAMILY 加 `C0-CACHE`；`l1d` 组件映射（`--target l1d --first_clock --max_faults --rng_seed --fault_type`）；**修复公共 cmd 的 `--fault_mask/--bits_to_change`**（arm_chaos_cache.py 参数面不同，C0-CACHE 时不传）；manifest_validate + schema 的 config_family enum 加 `C0-CACHE`。
+
+**§2.7 L1D pilot (l1d_reduce, 随机 block/byte, n=5) ✅**: **5/5 SDC**（faults_injected=2——日志计 2 行：protection 行 + 注入行；注入触发正确）。注意：与早期 §0.1 的"5/5 Masked（随机瞬态字节）"不同——本次 5/5 SDC 是因为 C0-CACHE 的 first_clock=100000 时刻 l1d_reduce 的 512KiB 数组活数据被击中（随机 block/byte 落在活值上）。诚实：cache 注入对活数据高度敏感（timing 决定是否命中热数据）。
+
+### 15/18 单元有 C pilot 结果
+剩余: §2.10 TLB/SYS（FS）、§2.15 NoC（Ruby）、§2.16 HCCS（Ruby）——都是环境限制（FS/Ruby），非工具缺口。

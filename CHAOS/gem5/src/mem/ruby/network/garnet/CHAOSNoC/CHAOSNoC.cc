@@ -38,10 +38,12 @@ namespace gem5
 
     bool
     CHAOSNoC::inWindow() {
+        // Garnet/ruby clock domain is 1GHz (1 tick/cycle) — do NOT scale
+        // first_clock by 1000 (that's the classic-CPU tickToClockRatio
+        // convention). first_clock is in TICKS here.
         Tick now = curTick();
-        Tick f = first_clock * 1000;
-        if (now < f) return false;
-        if (last_clock != 0 && now > last_clock * 1000) return false;
+        if (now < first_clock) return false;
+        if (last_clock != 0 && now > last_clock) return false;
         return true;
     }
 

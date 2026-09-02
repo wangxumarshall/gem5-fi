@@ -52,6 +52,10 @@ class GarnetNetwork(RubyNetwork):
     garnet_deadlock_threshold = Param.UInt32(
         50000, "network-level deadlock threshold"
     )
+    # §2.15 CHAOSNoC: the Garnet flit injector. The network propagates the
+    # pointer to ALL NetworkLinks at init() (links are C++-internal, created
+    # by Topology.cc createLinks — not visible in the python tree).
+    chaosNoC = Param.CHAOSNoC(NULL, "§2.15 flit fault injector")
 
 
 class GarnetNetworkInterface(ClockedObject):
