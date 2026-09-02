@@ -1,0 +1,8 @@
+{
+  "lsq_fwd": {
+    "sign_exp_share": 0.2879,
+    "mantissa_share": 0.7121,
+    "popcount_median": 16,
+    "n": 6
+  }
+}
