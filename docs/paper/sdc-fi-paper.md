@@ -77,9 +77,11 @@ n=384/cell × 6 cell（1/2/3-bit × raw/secded），l1d_reduce，2304 runs：
 
 **风险反转结论**：secded 将 raw 的 1-bit 逃逸 100% 转为 Corrected——§6.5 保护交互规律的核心正式确证。
 
-### 4.2 PRF 位段×C2-KP（表 1——T3 数据）
+### 4.2 PRF 位段×C2-KP（表 1）
 
-X3（数据累加器）× 8 位段 × n=96，V110 代理参数下（见 tables/t1 与 artifacts/prf-formal/cells.csv）。
+X3（数据累加器）× 8 位段（bit 0/11/12/31/32/47/48/63）× n=96，C2-KP V110 代理参数下（768 runs，tables/t1-prf-bits.md）：
+
+**X3 全 8 位段 SDC=96/96 P_SDC=1.000 [0.962,1.000]**（合计 768/768 [0.995,1.000]，0 Hang 0 Crash 0 Masked）——数据累加器的任意单 bit 翻转确定性传播为 SDC，正式确认"X3 所有位 SDC"（与 X2 循环计数器高位 Hang 的对照印证寄存器语义角色决定 SDC-vs-Hang 归宿）。
 
 ### 4.3 LSQ 转发几何×模式矩阵（表 3——T4 数据）
 

@@ -1,0 +1,20 @@
+# PRF X3 formal (plan §5.1): X3 (data accumulator, all-bit SDC) x 8 stratified
+# bits x n=96/cell under C2-KP (V110 proxy). X2 contrast arm (3 bits, n=128)
+# deferred to full-budget run.
+campaign_id: prf_x3_formal
+workload:
+  binary: workloads/directed/reg_chain
+  golden: f247ef3fe6f02cfd
+  golden_id: regchain-golden-v1
+  oracle_kind: exact_hash
+trigger: {mode: cycle, value: 100000}
+limits: {max_faults: 1, max_ticks: 0}
+injector: physreg
+config_family: C2-KP
+axes:
+  layer: [arch_frontend]
+  target_arch: [3]
+  bit_indices: [[0],[11],[12],[31],[32],[47],[48],[63]]
+defaults:
+  rng_master_seed: 20260825
+  width_bits: 64

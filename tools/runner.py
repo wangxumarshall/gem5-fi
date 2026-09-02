@@ -164,6 +164,9 @@ def main():
            "--fault_type", fault_type,
            "--fault_mask", fault_mask,
            "--bits_to_change", bits_to_change]
+    # C2-KP: apply V110 proxy params when the manifest declares it (T3).
+    if m.get("platform", {}).get("config_family") == "C2-KP":
+        cmd += ["--kp920_proxy"]
     # target component + layer -> the right injector + index knob
     if comp == "gpr":
         cmd += ["--chaos_reg"]

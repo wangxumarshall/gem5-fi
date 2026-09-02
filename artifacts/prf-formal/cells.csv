@@ -1,0 +1,9 @@
+cell_ordinal,layer,target_arch,bit_indices,n_total,n_valid,SDC,Crash,Hang,Inactive,Masked,SimulatorError,P_SDC,P_SDC_lo,P_SDC_hi,P_DUE,P_DUE_lo,P_DUE_hi,P_escape,Reachability,first_run_id,first_run_class
+0,arch_frontend,3,[0],96,96,96,0,0,0,0,0,1.0000,0.9615,1.0000,0.0000,0.0000,0.0312,1.0000,1.0000,prf_x3_formal-c000-r0,SDC
+1,arch_frontend,3,[11],96,96,96,0,0,0,0,0,1.0000,0.9615,1.0000,0.0000,0.0000,0.0312,1.0000,1.0000,prf_x3_formal-c001-r0,SDC
+2,arch_frontend,3,[12],96,96,96,0,0,0,0,0,1.0000,0.9615,1.0000,0.0000,0.0000,0.0312,1.0000,1.0000,prf_x3_formal-c002-r0,SDC
+3,arch_frontend,3,[31],96,96,96,0,0,0,0,0,1.0000,0.9615,1.0000,0.0000,0.0000,0.0312,1.0000,1.0000,prf_x3_formal-c003-r0,SDC
+4,arch_frontend,3,[32],96,96,96,0,0,0,0,0,1.0000,0.9615,1.0000,0.0000,0.0000,0.0312,1.0000,1.0000,prf_x3_formal-c004-r0,SDC
+5,arch_frontend,3,[47],96,96,96,0,0,0,0,0,1.0000,0.9615,1.0000,0.0000,0.0000,0.0312,1.0000,1.0000,prf_x3_formal-c005-r0,SDC
+6,arch_frontend,3,[48],96,96,96,0,0,0,0,0,1.0000,0.9615,1.0000,0.0000,0.0000,0.0312,1.0000,1.0000,prf_x3_formal-c006-r0,SDC
+7,arch_frontend,3,[63],96,96,96,0,0,0,0,0,1.0000,0.9615,1.0000,0.0000,0.0000,0.0312,1.0000,1.0000,prf_x3_formal-c007-r0,SDC
