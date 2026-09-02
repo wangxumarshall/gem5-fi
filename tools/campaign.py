@@ -173,8 +173,10 @@ def run_one(manifest_path, binary, golden, g5, timeout=600, workload_args=""):
         return {"classification": "Hang", "faults": 0, "timed_out": True,
                 "stdout": "", "stderr": "TIMEOUT"}
     out = r.stdout + "\n" + r.stderr
-    # parse "[runner] RESULT: ... classification=X faults=Y exit=Z timed_out=T"
+    # parse "[runner] RESULT: ... classification=X faults=Y exit=Z timed_out=T
+    #         [reads_before_overwrite=R]"
     cls, faults, rc, to = "Unknown", 0, r.returncode, False
+    reads = -1
     for line in out.splitlines():
         if "[runner] RESULT:" in line:
             for tok in line.split():
@@ -185,8 +187,28 @@ def run_one(manifest_path, binary, golden, g5, timeout=600, workload_args=""):
                     except: pass
                 elif tok.startswith("timed_out="):
                     to = tok.split("=", 1)[1] == "True"
+                elif tok.startswith("reads_before_overwrite="):
+                    try: reads = int(tok.split("=", 1)[1])
+                    except: pass
+    # H1 read-trace four-way classification (plan §4.3): reads==0 -> Benign;
+    # reads>0 + output unchanged -> Masked; reads>0 + changed + no trap ->
+    # SDC; trap -> Crash. Derived FROM the oracle classification (the oracle
+    # already decides SDC/Masked/Crash; read-trace splits the exposure by
+    # whether the corrupted value was ever read).
+    if reads >= 0:
+        if reads == 0:
+            rt4 = "Benign"
+        elif cls in ("SDC", "Crash", "Hang", "SimulatorError"):
+            rt4 = cls          # read AND propagated/trapped
+        elif cls in ("Masked", "Latent"):
+            rt4 = "Masked"     # read but output unchanged
+        else:
+            rt4 = cls          # Inactive/Corrected/etc. pass through
+    else:
+        rt4 = ""
     return {"classification": cls, "faults": faults, "exit": rc,
-            "timed_out": to, "stdout": r.stdout, "stderr": r.stderr}
+            "timed_out": to, "reads": reads, "rt4": rt4,
+            "stdout": r.stdout, "stderr": r.stderr}
 
 
 def main():
@@ -267,6 +289,9 @@ def main():
 
     for ci, cell in enumerate(cells):
         counts = {c: 0 for c in CLASSES}
+        # H1 read-trace four-way tallies (plan §4.3): Benign/Masked/SDC/Crash
+        rt4_counts = {"Benign": 0, "Masked": 0, "SDC": 0, "Crash": 0}
+        reads_list = []   # reads_before_overwrite values (for H1 median/tail)
         first_run = None
         for rep in range(args.n_per_cell):
             r = run_results.get((ci, rep), {"classification": "SimulatorError"})
@@ -274,6 +299,12 @@ def main():
             if cls not in counts:
                 counts[cls] = 0
             counts[cls] += 1
+            rt4 = r.get("rt4", "")
+            if rt4 in rt4_counts:
+                rt4_counts[rt4] += 1
+            rd = r.get("reads", -1)
+            if rd >= 0:
+                reads_list.append(rd)
             if rep == 0:
                 # find the run_id from all_tasks (ci, rep=0)
                 rid = next((t[3] for t in all_tasks if t[0] == ci and t[1] == 0),
@@ -303,6 +334,17 @@ def main():
                "P_DUE": f"{p_due:.4f}", "P_DUE_lo": f"{lo_due:.4f}", "P_DUE_hi": f"{hi_due:.4f}",
                "P_escape": f"{n_esc / n_valid:.4f}" if n_valid else "0",
                "Reachability": f"{reach:.4f}",
+               # H1 read-trace four-way (plan §4.3/§6.3): P(SDC|reads>0) is the
+               # cross-unit AVF comparison metric. reads_median over traced runs.
+               "RT_Benign": rt4_counts["Benign"],
+               "RT_Masked": rt4_counts["Masked"],
+               "RT_SDC": rt4_counts["SDC"],
+               "RT_Crash": rt4_counts["Crash"],
+               "P_SDC_given_reads_gt0":
+                   f"{rt4_counts['SDC'] / (rt4_counts['SDC'] + rt4_counts['Crash'] + rt4_counts['Masked']):.4f}"
+                   if (rt4_counts["SDC"] + rt4_counts["Crash"] + rt4_counts["Masked"]) > 0 else "",
+               "reads_median":
+                   f"{sorted(reads_list)[len(reads_list)//2]}" if reads_list else "",
                "first_run_id": first_run[0] if first_run else "",
                "first_run_class": first_run[1] if first_run else ""}
         results.append(row)

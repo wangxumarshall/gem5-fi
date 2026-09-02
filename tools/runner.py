@@ -351,6 +351,22 @@ def main():
         print(f"[runner] G5 VIOLATION: faults_injected={faults} (not in {{0,1}}) "
               f"— run invalid")
 
+    # H1 read-trace (plan §4.3/§6.3): CHAOSPhysReg emits ReadTracePoll/
+    # ReadTraceFinal lines carrying reads_before_overwrite. The Final line
+    # only prints if a poll lands after workload halt — the LAST Poll line
+    # carries the same counters, so parse whichever came last.
+    reads_before_overwrite = -1   # -1 = no read-trace (non-physreg runs)
+    if comp == "physreg" and outdir:
+        rt_log = os.path.join(outdir, "fault_injections.log")
+        if os.path.exists(rt_log):
+            import re as _re
+            with open(rt_log) as lf:
+                for line in lf:
+                    mrt = _re.search(r"ReadTrace(?:Poll|Final):.*?"
+                                     r"reads_before_overwrite=(\d+)", line)
+                    if mrt:
+                        reads_before_overwrite = int(mrt.group(1))
+
     stdout_text = r.stdout if r.stdout else ""
     # S7-5: cache path — the PA marker (EccCorrected/Poisoned/Latent) lives
     # in cache_injections.log, NOT gem5 stdout. Read it and prepend to the
@@ -394,7 +410,9 @@ def main():
                                    faults, args.golden_checksum, timed_out)
     print(f"[runner] RESULT: run_id={m['run_id']} classification={cls} "
           f"faults_injected={faults} exit={r.returncode} "
-          f"timed_out={timed_out}")
+          f"timed_out={timed_out}"
+          + (f" reads_before_overwrite={reads_before_overwrite}"
+             if reads_before_overwrite >= 0 else ""))
     print(f"[runner]   reason: {reason}")
     return 0
 
