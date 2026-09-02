@@ -1197,3 +1197,55 @@ ARM 三条路径 + golden（真跑输出）：
 
 ### 16/18 单元有 C pilot 结果
 剩余: §2.10 TLB/SYS（FS 模式已验证 DUE 3/3 可复现但无 16-hex checksum oracle——kernel boot 不是 checksum workload）、§2.16 HCCS（cross_die 模式共享 CHI 链路，环境已通）。
+
+---
+
+### §2.16 HCCS C pilot 完成（CHAOSCHI cross_die_msg_delay 在 Ruby/CHI 上触发）
+
+**关键理解（gem5 param 生命周期）**：python 侧 `obj.chaosCHI = injector` 赋值存进 python SimObject，**C++ ctor 在 m5.instantiate 时被调**（不只是 Ruby.create_system 时）——所以 create_system 后再设 param 也生效（ctor 读到的是 marshal 后的值）。**getSimObjectResolver 永远不可用**（只在 checkpoint 加载时设置——之前 NoC/CHI 的 resolver fallback 会 assert 崩，已全部删除；param 是正解）。
+
+**MessageBuffer.py 加 `chaosCHI = Param.CHAOSCHI(NULL)`** + C++ ctor 读。test config 在 create_system 后遍历 system.descendants() 给每个 MessageBuffer 设 param（206 个）。
+
+**验证（真机）**：
+- §2.16 HCCS：`[chi-test] CHAOSCHI attached to 206 MessageBuffers via param` + Ruby Tester completed @ 1320011 + **`Tick: 100000, Site: messagebuffer_dequeue, mode=cross_die_msg_delay, faults_injected: 1`** ✅
+- §2.15 NoC（清理后回归）：`Tick: 3000, networklink_wakeup, flit_delay, faults_injected: 1` ✅
+
+### 17/18 单元有 C pilot 结果
+剩余: §2.10 TLB/SYS（FS 模式 DUE 已验证 3/3 可复现——pfn bit29 → panic BadAddressError；无 16-hex checksum oracle 因 kernel boot 不是 checksum workload，分类以 panic 判 DUE）。
+
+---
+
+### §2.10 TLB/SYS C pilot（FS 模式，DUE-by-panic）
+
+**FS pilot 5 reps（seed 20260826-20260830, first_clock=50000, timeout 600s）**：
+- rep2: **DUE: 1**（panic BadAddressError——TLB pfn 翻转 → 翻译故障）
+- rep1/3/4/5: Terminated（600s 超时——FS Atomic 启动慢，TLB 注入触发点在 tick 1.35M 附近，不同 seed 的触发时间方差大）
+
+**结合此前已验证的同 seed 3/3 DUE（seed 20260825, 可复现）**：FS TLB 注入 → pfn bit29 → PA 落未映射区 → panic BadAddressError（真 DUE）**可复现**；但跨 seed 的触发时间方差大（有的超 600s timeout——需要更长 timeout 或 checkpoint 加速）。诚实：FS formal campaign 需 (a) 更长 hang_timeout（>1200s）或 (b) §3.2 的 Atomic-boot→checkpoint→O3 流水线（未建）。
+
+### 第二章 C pilot 总结（18/18 单元全部完成）
+
+| 单元 | 注入器 | kernel | pilot 结果 | 环境限制 |
+|---|---|---|---|---|
+| §2.1 PRF | CHAOSPhysReg | reg_chain | X3 5/5 SDC; X9 5/5 Masked | — |
+| §2.2 RAT | CHAOSRenameMap | cholesky | X3 2/3 Crash; X9 3/3 Masked | — |
+| §2.3 ROB | CHAOSROB | cholesky | 5/5 Masked | — |
+| §2.4 LSU | CHAOSLSQFwd | fwd_checksum | 5/5 Masked | — |
+| §2.4 ExMon | CHAOSExMon | spinlock_checksum | 5/5 Crash | — |
+| §2.4 AGU | CHAOSAddrPath | — | SE-inert | FS-only |
+| §2.5 IQ | CHAOSIQ | cholesky | 5/5 Masked | — |
+| §2.6 FSU | CHAOSFPU | neon_lane | 5/5 Masked | — |
+| §2.7 L1D | CHAOSCache | l1d_reduce | 5/5 SDC | — |
+| §2.9 L3 | CHAOSCHI | Ruby test | cross_die fires (Ruby) | Ruby |
+| §2.10 TLB | CHAOSArmTLB | FS kernel boot | DUE 3/3 同seed; 跨seed 方差大 | FS |
+| §2.10 SYS | CHAOSArmSysReg | FS kernel boot | SCTLR bit29 已验证 | FS |
+| §2.10 PTW | CHAOSPTW | — | SE-inert | FS-only |
+| §2.12 Exec | CHAOSExec | reg_chain | 5/5 Masked | — |
+| §2.13 BPU | CHAOSBPU | branchy_reduce | 5/5 Masked | — |
+| §2.14 Decode | CHAOSDecode | reg_chain | 5/5 Masked | — |
+| §2.15 NoC | CHAOSNoC | Ruby test | flit_delay fires (Ruby) | Ruby |
+| §2.16 HCCS | CHAOSCHI | Ruby test | cross_die fires (Ruby) | Ruby |
+| §2.17 memctrl | CHAOSMem | reg_chain | 5/5 Masked | — |
+| §2.18 RAS | CHAOSRAS | exc_trigger | cleared_fault=yes 已验证 | 需 fault kernel |
+
+**18/18 单元全部有 pilot 结果或已验证触发**。FS 单元（§2.10）同 seed DUE 可复现但跨 seed 方差大（需更长 timeout/checkpoint）；Ruby 单元（§2.9/2.15/2.16）注入正确触发。
