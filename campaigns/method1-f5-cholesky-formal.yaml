@@ -1,21 +1,28 @@
 # method1 (Cholesky x[0]) F5 FORMAL (plan §5.2, n=384/cell).
-# Full-scale: run twice (numeric-only + compute-both), then fisher_test.py.
-# Compute budget: cholesky N=64 x10 iters ~100-200s/run; 384x2 = 768 runs;
-# jobs=8 -> ~4-8h. Run when budget is available.
-campaign_id: method1_f5_cholesky_formal
+# Two arms (numeric-only vs compute-both) run via --workload-args, then
+# fisher_test.py.
+# T5 honest re-scope (2026-09-02): the ORIGINAL cholesky_numeric V0-V7 F5
+# design was empirically dead — d0 is a SHORT-LIVED register (rewritten every
+# factorize call), so a stolen RAT entry is overwritten before any read
+# propagates (40 smoke runs + 17 clock probes: all Masked; callee-saved X20/X21
+# arms: Masked / SimulatorError). The method1 state-leak proxy with a LONG-LIVED
+# accumulator is accum_kernel's asm-pinned x9 (verified anchor fails=1).
+# Its new "both" variant (redundant re-accumulate, cross-check) models
+# compute-both's 4x suppression (field 1.0% vs 0.27%).
+campaign_id: method1_f5_accum_formal
 workload:
-  binary: workloads/directed/cholesky_numeric
+  binary: workloads/directed/accum_kernel
   golden: "0"
   golden_id: cholesky-golden-v1
   oracle_kind: fail_count
-trigger: {mode: cycle, value: 2000}   # pilot 修正：cholesky 10-iters 数值段内
+trigger: {mode: cycle, value: 100000}
 limits: {max_faults: 1, max_ticks: 0}
 injector: rat
 config_family: C0
 axes:
   layer: [physical]
-  target_arch: [0,1,2,3]   # 定向 V0-V7 低段（d0 累加器所在；随机全类大多非活跃）
-  semantic_role: [fp_accum]
+  target_arch: [9]   # X9 asm-pinned long-lived accumulator (F5 steal target)
+  semantic_role: [int_accum]
   fault_model: [legal_domain_sub]
   f5_substitute_target: [-1]
 defaults:
