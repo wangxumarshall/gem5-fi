@@ -78,6 +78,13 @@ p.add_argument("--vec_lane_width", type=int, default=32,
 p.add_argument("--vec_lane_offset", type=int, default=-1,
                help="Phase2 NEON: which lane (0-indexed) to corrupt in the "
                     "VecRegClass phys reg. -1 = random lane (default).")
+# §1.3/§2.1B F3 data-dependent trigger (method2 undervoltage) + semanticRole.
+p.add_argument("--phys_trigger_mask", type=lambda x: int(x,0), default=0,
+               help="F3: inject only when (val & mask) == pattern; 0 = off")
+p.add_argument("--phys_trigger_pattern", type=lambda x: int(x,0), default=0,
+               help="F3: the pattern the masked value must equal")
+p.add_argument("--phys_semantic_role", default="",
+               help="§2.1B: ABI role annotation for campaign stratification")
 # CHAOSMem (backing-store byte injector; G4 fixed weights/boundary)
 p.add_argument("--chaos_mem", action="store_true",
                help="attach CHAOSMem to the board DRAM")
@@ -277,6 +284,9 @@ if args.chaos_phys:
         regTargetClass=args.phys_reg_class,
         vecLaneWidth=args.vec_lane_width,
         vecLaneOffset=args.vec_lane_offset,
+        triggerValueMask=args.phys_trigger_mask,
+        triggerValuePattern=args.phys_trigger_pattern,
+        semanticRole=args.phys_semantic_role,
         probability=args.probability,
         bitsToChange=args.bits_to_change,
         faultMask=args.fault_mask,

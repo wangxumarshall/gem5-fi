@@ -84,4 +84,14 @@ class CHAOSPhysReg(SimObject):
     rngSeed = Param.UInt64(0, "RNG seed (std::mt19937). 0 = random_device "
         "(non-reproducible). Nonzero = fixed for reproducible register/mask.")
 
+    # §1.3/§2.1B F3 data-dependent trigger (method2 undervoltage model):
+    # inject ONLY when (target_reg_current_val & triggerValueMask) ==
+    # triggerValuePattern. mask=0 (default) = unconditional (orig, zero regression).
+    triggerValueMask = Param.UInt64(0,
+        "F3: mask for the data-dependent trigger condition. 0 = off.")
+    triggerValuePattern = Param.UInt64(0,
+        "F3: pattern the masked value must equal for the injection to fire.")
+    # §2.1B: semanticRole log field (ABI role annotation for campaign strat).
+    semanticRole = Param.String("", "§2.1B: ABI role annotation (e.g. "
+        "'accumulator','pointer','loop-counter') — logged with each injection.")
     writeLog = Param.Bool(True, "Write a fault_injections.log file")
