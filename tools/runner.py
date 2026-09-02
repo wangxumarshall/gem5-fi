@@ -278,14 +278,26 @@ def main():
     # manifest may specify limits.max_ticks but we bound on wall time here.
     HANG_TIMEOUT = 600
     timed_out = False
+    # start_new_session + explicit group kill on timeout: gem5.opt spawns
+    # children that outlive a plain kill() of the parent (observed
+    # 2026-09-02: 105 hung gem5 processes accumulated while their runner
+    # parents had already classified Hang and exited; the ThreadPool workers
+    # then block on the zombies and the campaign stalls).
+    import signal as _signal
+    proc = subprocess.Popen(cmd, stdout=subprocess.PIPE,
+                            stderr=subprocess.PIPE, text=True,
+                            start_new_session=True)
     try:
-        r = subprocess.run(cmd, capture_output=True, text=True,
-                           timeout=HANG_TIMEOUT)
-    except subprocess.TimeoutExpired as e:
+        out, err = proc.communicate(timeout=HANG_TIMEOUT)
+        r = subprocess.CompletedProcess(cmd, proc.returncode, out, err)
+    except subprocess.TimeoutExpired:
         timed_out = True
-        # Build a pseudo-result from whatever was captured.
-        r = subprocess.CompletedProcess(
-            cmd, returncode=-1, stdout=e.stdout or "", stderr=e.stderr or "")
+        try:
+            os.killpg(os.getpgid(proc.pid), _signal.SIGKILL)
+        except Exception:
+            pass
+        out, err = proc.communicate()   # reap; captured partial output
+        r = subprocess.CompletedProcess(cmd, -9, out or "", err or "")
 
     # collect faults_injected from the injection log(s).
     # CHAOSReg log: "Cycle: ..., Register: integer[9], FaultType: bit_flip, ..."
