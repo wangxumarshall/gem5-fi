@@ -49,10 +49,17 @@ namespace gem5
 
     bool
     CHAOSFreeList::inWindow() {
+        // Frequency-correct: use the CPU's actual clock period for the
+        // cycles->ticks conversion (C0 2GHz=500t/cyc, C2-KP 2.6GHz~385t/cyc).
+        // The old *1000 assumed 1GHz and never opened the window on C2.
+        if (!cpu) return false;
+        auto *o3cpu = dynamic_cast<o3::CPU *>(cpu);
+        if (!o3cpu) return false;
         Tick now = curTick();
-        Tick f = first_clock * 1000;
+        Tick period = o3cpu->clockPeriod();
+        Tick f = first_clock * period;
         if (now < f) return false;
-        if (last_clock != 0 && now > last_clock * 1000) return false;
+        if (last_clock != 0 && now > last_clock * period) return false;
         return true;
     }
 

@@ -334,6 +334,8 @@ if args.chaos_lsqfwd:
         faultMask=str(args.fault_mask),
         bitsToChange=args.bits_to_change,
         byteOffset=args.lsq_byte_offset,
+        structMode=args.lsq_struct_mode,
+        laneSkewK=args.lsq_lane_skew_k,
         firstClock=args.first_clock,
         lastClock=args.last_clock,
         maxFaults=args.max_faults,

@@ -1300,3 +1300,25 @@ ARM 三条路径 + golden（真跑输出）：
 - X3 在 cholesky+C2 上 **DUE 主导（92.7%）**——随机 bit 翻转 X3 的值造成程序崩溃（rename-inconsistency/page fault）远多于静默传播（3.9% SDC）。与 C0+reg_chain 的 X3 100% SDC 不同：workload（cholesky vs reg_chain）和 config（C2 V110 vs C0）都影响结局分布。
 - X9 全 Masked（0% SDC/DUE, 100% Reach）——X9 不在 cholesky 关键路径，注入被覆盖。
 - 5% replay 校验通过（frozen=no 两 cell）。
+
+---
+
+### S1 formal #2: §2.2 RAT n=384（C2-KP，cholesky）
+
+**关键修复（2 个）**：
+1. **kp920_proxy.py 缺 12 个 S1 注入器挂载**（只有 4 个旧的 Reg/PhysReg/Mem/LSQFwd）——从 arm_chaos.py 同步全部 argparse 块 + mount 块。
+2. **CHAOSRenameMap::inWindow 频率 bug**：旧代码 `first_clock * 1000` 假设 1GHz——C2-KP 2.6GHz（385 t/cyc）下 50000 cycles * 1000 = 50M ticks > 模拟总 31.7M ticks → 窗口永不打开。修复：用 `cpu->clockPeriod()` 做频率无关换算。C0 回归验证仍触发。
+
+**Formal n=384 × 2 cells + 5% replay（768+77 reps，24829s ≈ 6.9 小时——C2 上 rename 注入导致 crash 使部分 rep 变慢）**：
+
+| cell | n | P_SDC [95% CI] | P_DUE [95% CI] | Reach |
+|---|---|---|---|---|
+| X3 (map_bitflip) | 383 | 0.3% [0.0, 1.5] | **95.8% [93.3, 97.4]** | 100% [99, 100] |
+| X9 (map_bitflip) | 384 | 0.0% [0.0, 1.0] | 0.0% | 100% |
+
+**诚实解读**：
+- **X3 RAT map_bitflip 是 DUE 绝对主导（95.8%）**——method1 现场的"RAT 错 → rename-inconsistency 主导" 在 C2-KP formal 规模上精确复现（95.8% vs method1 现场 + 早期 RAT-A n=200 的 61.5%）。P_SDC 仅 0.3%（1/383）——RAT 映射错几乎总是崩溃而非静默传播。
+- X9 全 Masked（不在关键路径）。
+- 5% replay 通过（无 frozen）。
+
+**S1 进度**：§2.1 PRF formal ✅ + §2.2 RAT formal ✅。剩余：§2.3 ROB、§2.4 LSU formal。
