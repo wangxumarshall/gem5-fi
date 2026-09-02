@@ -51,11 +51,15 @@ p.add_argument("--kp920_proxy", action="store_true",
                     "partition L3 / no bufferless NoC).")
 p.add_argument("--clk_freq", default="2GHz",
                help="Board clock (kp920_proxy default 2.6GHz).")
-p.add_argument("--rob_entries", type=int, default=128)
-p.add_argument("--phys_int_regs", type=int, default=160)
+p.add_argument("--rob_entries", type=int, default=0,
+               help="H2 window sweep: O3 ROB entries (0 = leave gem5 default)")
+p.add_argument("--phys_int_regs", type=int, default=0,
+               help="H2 window sweep: physical int regs (0 = leave gem5 default)")
 p.add_argument("--phys_float_regs", type=int, default=192)
-p.add_argument("--lq_entries", type=int, default=48)
-p.add_argument("--sq_entries", type=int, default=42)
+p.add_argument("--lq_entries", type=int, default=0,
+               help="H2 window sweep: LQ entries (0 = leave gem5 default)")
+p.add_argument("--sq_entries", type=int, default=0,
+               help="H2 window sweep: SQ entries (0 = leave gem5 default)")
 p.add_argument("--iq_entries", type=int, default=66)
 # CHAOSReg params (architectural-state; honest about limits)
 p.add_argument("--chaos_reg", action="store_true")
@@ -247,12 +251,12 @@ cpu0 = core0.core  # the underlying BaseCPU SimObject
 # IQ ≠ V110 distributed quad-scheduler; classic cache ≠ partition L3 Tag/Data
 # split; no bufferless NoC. Only applied when --kp920_proxy (else defaults).
 if args.kp920_proxy and args.cpu == "O3":
-    cpu0.numROBEntries = args.rob_entries
-    cpu0.numPhysIntRegs = args.phys_int_regs
+    cpu0.numROBEntries = args.rob_entries or 128
+    cpu0.numPhysIntRegs = args.phys_int_regs or 160
     cpu0.numPhysFloatRegs = args.phys_float_regs
     cpu0.numPhysVecRegs = args.phys_float_regs  # ASIMD 128b, no SVE
-    cpu0.LQEntries = args.lq_entries
-    cpu0.SQEntries = args.sq_entries
+    cpu0.LQEntries = args.lq_entries or 48
+    cpu0.SQEntries = args.sq_entries or 42
     # NOTE: numIQEntries is NOT a Python-settable O3 param (gem5's unified IQ
     # size is ROB-derived, unlike V110's distributed quad-scheduler). The
     # plan §4.1 numIQEntries=66 is a modeling target, not a knob here.
@@ -263,6 +267,20 @@ if args.kp920_proxy and args.cpu == "O3":
     cpu0.issueWidth = 4
     cpu0.dispatchWidth = 4
     cpu0.commitWidth = 4
+
+# H2 window sweep (plan §5.1C): explicit --rob_entries/--phys_int_regs/etc.
+# override the O3 defaults EVEN WITHOUT --kp920_proxy (the sweep isolates one
+# window axis; kp920_proxy bundles all V110 params together). Applied after
+# (and independent of) the kp920 block above.
+if args.cpu == "O3":
+    if args.rob_entries:
+        cpu0.numROBEntries = args.rob_entries
+    if args.phys_int_regs:
+        cpu0.numPhysIntRegs = args.phys_int_regs
+    if args.lq_entries:
+        cpu0.LQEntries = args.lq_entries
+    if args.sq_entries:
+        cpu0.SQEntries = args.sq_entries
 
 clk = "2.6GHz" if args.kp920_proxy else args.clk_freq
 

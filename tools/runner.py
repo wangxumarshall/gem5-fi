@@ -174,6 +174,16 @@ def main():
     # C2-KP: apply V110 proxy params when the manifest declares it (T3).
     if m.get("platform", {}).get("config_family") == "C2-KP":
         cmd += ["--kp920_proxy"]
+    # H2 window sweep (plan §5.1C): explicit O3 window params override the
+    # defaults (arm_chaos.py already exposes --rob_entries/--phys_int_regs/
+    # --lq_entries/--sq_entries as independent knobs).
+    win = m.get("platform", {}).get("window", {})
+    for wk, flag in (("rob_entries", "--rob_entries"),
+                     ("phys_int_regs", "--phys_int_regs"),
+                     ("lq_entries", "--lq_entries"),
+                     ("sq_entries", "--sq_entries")):
+        if wk in win:
+            cmd += [flag, str(win[wk])]
     # target component + layer -> the right injector + index knob
     if comp == "gpr":
         cmd += ["--chaos_reg"]
@@ -262,7 +272,7 @@ def main():
 
     print(f"[runner] manifest target: layer={layer} comp={comp} idx={idx} "
           f"bits={bits} width={width} field={field}")
-    print("[runner] running:", " ".join(cmd[:4]), "...")
+    print("[runner] running:", " ".join(cmd))
     # Hang timeout (plan §13.2): a normal sim completes in well under the
     # wall budget; a Hang = no completion within this. Default 600s; the
     # manifest may specify limits.max_ticks but we bound on wall time here.
