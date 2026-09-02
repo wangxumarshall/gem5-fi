@@ -1,0 +1,27 @@
+{
+  "cli_version": "0.10.2",
+  "checkpoint_id": "01M1GDWWAFDTP3MEHNGF1SM972",
+  "strategy": "manual-commit",
+  "branch": "fi-wangxu",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "campaigns/prf-formal.yaml",
+    "tools/runner.py"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 415076166,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 387927808,
+    "output_tokens": 560078,
+    "api_call_count": 1508
+  }
+}
