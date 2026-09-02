@@ -1112,3 +1112,13 @@ ARM 三条路径 + golden（真跑输出）：
 - 多数单元 5/5 Masked——诚实：pilot n=5 规模小+随机 mask 可能不落在关键位，formal n=384 会得到更真实的 P_SDC。
 - §2.1 PRF X3 SDC 100% 是最强信号（符合预期），§2.2 RAT X3 Crash 66.7% 也符合 method1。
 - **所有 campaign 闭环可用**——网格展开→manifest→runner→classify→Wilson CI→summary/heatmap 全链路验证通过。
+
+---
+
+### 第二章 C/H 续：LSQFwd kernel + bug 修复
+
+**新增 kernel**: `fwd_checksum_kernel.c`（store→load 转发 + 16-hex checksum，golden `ac70ef3a46fd0825`，native==gem5 3/3）。runner.py GOLDEN_IDS 加 `fwdchecksum-golden-v1` + `neon-golden-v1`。
+
+**§2.4 LSQFwd pilot**：5/5 Inactive。诚实诊断：lsq_fwd_injections.log **有 3 行注入日志**（注入确实触发了），但 runner 标 Inactive（faults_injected=0）——根因：CHAOSLSQFwd 的 max_faults=1 不生效（probability=1.0 时每次 forwarding 都注入，max_faults 检查未阻止第 2-3 次）。这是 CHAOSLSQFwd 的 max_faults + probability 交互 bug，需单独修复（非本次 campaign 阻碍——其它 9 个单元的 campaign 已跑通）。
+
+**runner 修复**: lsq_fwd 映射加 `--probability 1.0`（之前没传，默认 0 → Inactive）。log 解析已有 lsq_fwd_injections.log。manifest_validate 加 bpu/decode/l1d_fwd/exmon/ras enum。runner 加 decode 组件映射。

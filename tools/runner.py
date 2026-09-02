@@ -377,7 +377,7 @@ def main():
         if a == "-d" and i+1 < len(cmd):
             outdir = cmd[i+1]
     faults = 0
-    for logname in ("fault_injections.log","main_mem_injections.log","cache_injections.log","rename_injections.log","freelist_injections.log","rob_injections.log","iq_injections.log","exec_injections.log","fpu_injections.log","l1d_fwd_injections.log","bpu_injections.log","addrpath_injections.log","decode_injections.log","ras_injections.log","exmon_injections.log","ptw_injections.log","noc_injections.log","chi_injections.log"):
+    for logname in ("fault_injections.log","main_mem_injections.log","cache_injections.log","rename_injections.log","freelist_injections.log","rob_injections.log","iq_injections.log","exec_injections.log","fpu_injections.log","l1d_fwd_injections.log","bpu_injections.log","addrpath_injections.log","decode_injections.log","ras_injections.log","exmon_injections.log","ptw_injections.log","noc_injections.log","chi_injections.log","lsq_fwd_injections.log"):
         p = os.path.join(outdir, logname) if outdir else None
         if p and os.path.exists(p):
             with open(p) as lf:
