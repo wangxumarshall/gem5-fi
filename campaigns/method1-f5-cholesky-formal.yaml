@@ -8,13 +8,13 @@ workload:
   golden: "0"
   golden_id: cholesky-golden-v1
   oracle_kind: fail_count
-trigger: {mode: cycle, value: 50000}
+trigger: {mode: cycle, value: 2000}   # pilot 修正：cholesky 10-iters 数值段内
 limits: {max_faults: 1, max_ticks: 0}
 injector: rat
 config_family: C0
 axes:
   layer: [physical]
-  target_arch: [-1]
+  target_arch: [0,1,2,3]   # 定向 V0-V7 低段（d0 累加器所在；随机全类大多非活跃）
   semantic_role: [fp_accum]
   fault_model: [legal_domain_sub]
   f5_substitute_target: [-1]
