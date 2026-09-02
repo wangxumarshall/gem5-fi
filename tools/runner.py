@@ -164,6 +164,13 @@ def main():
            "--fault_type", fault_type,
            "--fault_mask", fault_mask,
            "--bits_to_change", bits_to_change]
+    # Workload argv (campaign.py --workload-args sets CHAOS_WORKLOAD_ARGS;
+    # before this fix the env var was set but never consumed — both-arm runs
+    # silently ran the default variant). Passed via arm_chaos.py
+    # --workload_args -> set_se_binary_workload(arguments=...).
+    wl_args = os.environ.get("CHAOS_WORKLOAD_ARGS", "").strip()
+    if wl_args:
+        cmd += ["--workload_args", wl_args]
     # C2-KP: apply V110 proxy params when the manifest declares it (T3).
     if m.get("platform", {}).get("config_family") == "C2-KP":
         cmd += ["--kp920_proxy"]
@@ -192,9 +199,13 @@ def main():
     elif comp == "rat":
         # S0-2 v2: CHAOSRenameMap (method1 history residue F5).
         cmd += ["--chaos_rat"]
-        # f5_substitute_target maps to targetArchReg; else idx
+        # f5_substitute_target maps to targetArchReg; else idx.
+        # -1 means "random" — must NOT override a directed target.index
+        # (m1-smoke2 bug: manifest f5_substitute_target=-1 masked the
+        # directed V0-V3 idx, injecting random arch regs: log showed
+        # ArchReg[13] for a target.index=0 cell).
         f5t = inj.get("f5_substitute_target")
-        if f5t is not None:
+        if f5t is not None and f5t != -1:
             cmd += [f"--rat_target_arch={f5t}", "--rat_mode=f5_substitute"]
         elif idx is not None:
             cmd += [f"--rat_target_arch={idx}"]

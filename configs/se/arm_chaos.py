@@ -16,6 +16,7 @@
 # This baseline CHAOSReg path is reported as architectural-state only.
 
 import argparse
+import shlex
 import m5
 from m5.objects import CHAOSReg, CHAOSPhysReg, CHAOSMem, CHAOSLSQFwd, CHAOSAddrPath, CHAOSRenameMap, CHAOSFreeList, CHAOSROB, CHAOSIQ, CHAOSExec, CHAOSFPU, CHAOSL1DForward, CHAOSBPU
 from gem5.components.boards.simple_board import SimpleBoard
@@ -36,6 +37,11 @@ p = argparse.ArgumentParser()
 p.add_argument("--cmd", required=True)
 p.add_argument("--cpu", default="O3", choices=list(cpu_map))
 p.add_argument("--maxinsts", type=int, default=0)
+# Workload argv (space-separated; parsed with shlex). Passed through
+# set_se_binary_workload(arguments=...) — needed for kernels with variants
+# (e.g. cholesky_numeric "<iters> both", accum_kernel "<iters> both").
+p.add_argument("--workload_args", default="",
+               help="space-separated argv for the SE workload binary")
 # C2-KP: TaiShan V110 4-wide OoO proxy params (plan §4.1, E3 — NOT cycle-exact).
 # When set, overrides the DerivO3CPU defaults with V110-informed values.
 p.add_argument("--kp920_proxy", action="store_true",
@@ -267,7 +273,10 @@ board = SimpleBoard(
     cache_hierarchy=cache_hierarchy,
 )
 
-board.set_se_binary_workload(binary=FileResource(args.cmd, override=True))
+board.set_se_binary_workload(
+    binary=FileResource(args.cmd, override=True),
+    arguments=shlex.split(args.workload_args) if args.workload_args else [],
+)
 
 # CHAOSReg attachment (architectural-state; honest per plan §2.2 — NOT PRF).
 if args.chaos_reg:
