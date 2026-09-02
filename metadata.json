@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.10.2",
+  "checkpoint_id": "01M1G37ZGC13RE0YS1J3EX18EH",
+  "strategy": "manual-commit",
+  "branch": "fi-wangxu",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "tools/l1d_ecc_batch.sh"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 366143218,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 387927808,
+    "output_tokens": 548809,
+    "api_call_count": 1452
+  }
+}
