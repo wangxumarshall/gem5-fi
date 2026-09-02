@@ -18,7 +18,7 @@
 import argparse
 import shlex
 import m5
-from m5.objects import CHAOSReg, CHAOSPhysReg, CHAOSMem, CHAOSLSQFwd, CHAOSAddrPath, CHAOSRenameMap, CHAOSFreeList, CHAOSROB, CHAOSIQ, CHAOSExec, CHAOSFPU, CHAOSL1DForward, CHAOSBPU
+from m5.objects import CHAOSReg, CHAOSPhysReg, CHAOSMem, CHAOSExMon, CHAOSLSQFwd, CHAOSAddrPath, CHAOSRenameMap, CHAOSFreeList, CHAOSROB, CHAOSIQ, CHAOSExec, CHAOSFPU, CHAOSL1DForward, CHAOSBPU
 from gem5.components.boards.simple_board import SimpleBoard
 from gem5.components.cachehierarchies.classic.private_l1_private_l2_cache_hierarchy import (
     PrivateL1PrivateL2CacheHierarchy,
@@ -113,6 +113,11 @@ p.add_argument("--phys_semantic_role", default="",
                help="ABI role label for campaign heatmap stratification "
                     "(arg_return/temp/callee_saved/fp_lr/pointer). Metadata only.")
 # CHAOSMem (backing-store byte injector; G4 fixed weights/boundary)
+p.add_argument("--chaos_exmon", action="store_true",
+               help="S3-7: exclusive-monitor (LL/SC reservation) injector "
+                    "on the DRAM AbstractMemory's lockedAddrList")
+p.add_argument("--exmon_mode", default="stale_reservation",
+               choices=["clear_reservation", "stale_reservation"])
 p.add_argument("--chaos_mem", action="store_true",
                help="attach CHAOSMem to the board DRAM")
 p.add_argument("--addr_start", type=lambda x: int(x,0), default=0)
@@ -365,6 +370,20 @@ if args.chaos_mem:
         addrXorMask=args.mem_addr_xor,
         protectionModel=args.mem_protection_model,
         maxFaults=args.max_faults,
+        writeLog=True,
+    )
+
+if args.chaos_exmon:
+    # S3-7 (plan §5.4B): exclusive-monitor injector. Attaches via the
+    # namespace-level chaos_exmon_g pointer; CacheBlk's inline LLSC methods
+    # (trackLoadLocked/checkWrite) call it. LDXR/STXR kernel: fwd_7case_ldxr.
+    board.chaos_exmon = CHAOSExMon(
+        probability=args.probability,
+        mode=args.exmon_mode,
+        firstClock=args.first_clock,
+        lastClock=0,
+        maxFaults=args.max_faults,
+        rngSeed=args.rng_seed,
         writeLog=True,
     )
 

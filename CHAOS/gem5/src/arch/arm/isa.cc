@@ -36,6 +36,13 @@
  */
 
 #include "arch/arm/isa.hh"
+
+// S3-7 (plan §5.4B): CHAOSExMon exclusive-monitor injector (the ARM local
+// monitor is MISCREG_LOCKADDR/LOCKFLAG in ArmISA — NOT CacheBlk::lockList
+// or AbstractMemory::lockedAddrList, which the no-ISA-monitor paths use).
+// Namespace-level pointer: the lockedWriteHandler template has no object
+// context. Set by CHAOSExMon's ctor, cleared in its dtor.
+#include "mem/CHAOSExMon/CHAOSExMon.hh"
 #include "arch/arm/CHAOSArmSysReg/CHAOSArmSysReg.hh"  // Phase 3: sys-reg injector
 
 #include "arch/arm/decoder.hh"
@@ -1873,6 +1880,7 @@ ISA::handleLockedRead(const RequestPtr &req)
     tc->setMiscReg(MISCREG_LOCKFLAG, true);
     DPRINTF(LLSC, "%s: Placing address %#x in monitor\n",
             tc->getCpuPtr()->name(), req->getPaddr());
+
 }
 
 void
@@ -1882,6 +1890,7 @@ ISA::handleLockedRead(ExecContext *xc, const RequestPtr &req)
     xc->setMiscReg(MISCREG_LOCKFLAG, true);
     DPRINTF(LLSC, "%s: Placing address %#x in monitor\n",
             xc->tcBase()->getCpuPtr()->name(), req->getPaddr());
+
 }
 
 void
@@ -1918,6 +1927,14 @@ lockedWriteHandler(ThreadContext *tc, XC *xc, const RequestPtr &req,
     bool lock_flag = xc->readMiscReg(MISCREG_LOCKFLAG);
     Addr lock_addr = xc->readMiscReg(MISCREG_LOCKADDR) & cacheBlockMask;
     if (!lock_flag || (req->getPaddr() & cacheBlockMask) != lock_addr) {
+        // S3-7 CHAOSExMon hook 2 (plan §5.4B): stale_reservation lets this
+        // store-conditional succeed WITHOUT a valid reservation (SC
+        // false-success — lost-update SDC: two writers both believe they
+        // won). nullptr = off.
+        if (chaos_exmon_g &&
+                chaos_exmon_g->maybeStaleReservation(req->getPaddr())) {
+            return true;
+        }
         // Lock flag not set or addr mismatch in CPU;
         // don't even bother sending to memory system
         req->setExtraData(0);
@@ -1938,6 +1955,18 @@ lockedWriteHandler(ThreadContext *tc, XC *xc, const RequestPtr &req,
         }
 
         // store conditional failed already, so don't issue it to mem
+        return false;
+    }
+    // S3-7 CHAOSExMon hook 3: clear_reservation makes THIS store-conditional
+    // fail despite a valid reservation (the monitor lost it — chronic SC
+    // failure). Injected at the architectural decision point, so it is
+    // robust to O3's squash-replay of speculative misc-reg writes (a
+    // flag-clear at LDXR time was empirically invisible: the replayed LDXR
+    // re-establishes the flag before the STXR checks it).
+    if (chaos_exmon_g &&
+            chaos_exmon_g->maybeClearReservationSC(req->getPaddr())) {
+        req->setExtraData(0);
+        xc->setMiscReg(MISCREG_LOCKFLAG, false);
         return false;
     }
     return true;
