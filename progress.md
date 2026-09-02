@@ -1173,3 +1173,27 @@ ARM 三条路径 + golden（真跑输出）：
 
 ### 15/18 单元有 C pilot 结果
 剩余: §2.10 TLB/SYS（FS）、§2.15 NoC（Ruby）、§2.16 HCCS（Ruby）——都是环境限制（FS/Ruby），非工具缺口。
+
+---
+
+### §2.15 NoC C pilot 完成（Ruby/Garnet 全链路打通 + 注入触发验证）
+
+**Ruby/Garnet 环境打通（关键工程）**：
+1. `build/ARM` symlink 到 `CHAOS/gem5/build/ARM`（scons 输出在 repo root 但 ruby configs 需从 gem5 根跑相对导入）。
+2. **PROTOCOL=CHI + RUBY=True**（buildEnv 确认）——gem5 自带 CHI 协议已编译。
+3. `configs/ruby_noc_chaos_test.py`：基于 ruby_random_test 结构（RubyTester + CHI + Garnet Crossbar），加 `--chaos_noc` 等 NoC 参数。解决：argparse 冲突（Options.addNoISAOptions）、System 参数（cpu=tester）、port wiring（cpuInstDataPort 等）、Root() 创建。
+
+**CHAOSNoC 挂载链路（C++ 侧传播）**：
+- GarnetNetwork.py 加 `chaosNoC = Param.CHAOSNoC(NULL)` 参数。
+- GarnetNetwork C++ ctor 存 m_chaosNoC；**init() 在 createLinks 后**：若 param 为空（python post-create_system 赋值不更新 C++ ctor 已读的 param），用 **SimObjectResolver 按 `system.noc_injector` 名字解析**，然后 `setChaosNoCAll` 传播到**所有 m_networklinks**（NetworkLink 是 C++ Topology.cc 创建的，python 树不可见——这是 Garnet 与其它注入器的关键区别）。
+- **inWindow tick 修复**：Garnet/ruby clk 1GHz（1 tick/cycle），first_clock 不能乘 1000（那是 classic-CPU tickToClockRatio=1000 的约定）。
+
+**验证（真机）**：
+- Ruby Tester completed @ 1353011 ticks（500 loads，CHI+Garnet Crossbar）。
+- `flits_injected: 1734`（stats）——流量真实。
+- **CHAOSNoC 触发**：`Tick: 3000, Site: networklink_wakeup, mode=flit_delay, flit_id=0, faults_injected: 1`——注入正确落在 flit 传输点。
+
+**§2.16 HCCS**：CHAOSCHI 的 cross_die_msg_delay 模式共享 MessageBuffer hook（Ruby 消息流），同链路已通（Ruby/CHI 环境 + MessageBuffer 在 ruby 系统中实例化）。
+
+### 16/18 单元有 C pilot 结果
+剩余: §2.10 TLB/SYS（FS 模式已验证 DUE 3/3 可复现但无 16-hex checksum oracle——kernel boot 不是 checksum workload）、§2.16 HCCS（cross_die 模式共享 CHI 链路，环境已通）。

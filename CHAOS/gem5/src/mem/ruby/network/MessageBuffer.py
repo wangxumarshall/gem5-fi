@@ -55,6 +55,9 @@ class MessageBuffer(SimObject):
     cxx_header = "mem/ruby/network/MessageBuffer.hh"
 
     ordered = Param.Bool(False, "Whether the buffer is ordered")
+    # §2.9/§2.16 CHAOSCHI: the CHI directory/response message injector.
+    # dequeue() calls maybeCorrupt (msg_delay/msg_drop/cross_die F6).
+    chaosCHI = Param.CHAOSCHI(NULL, "§2.9 CHI directory message injector")
     buffer_size = Param.Unsigned(
         0,
         "Maximum number of entries to buffer \

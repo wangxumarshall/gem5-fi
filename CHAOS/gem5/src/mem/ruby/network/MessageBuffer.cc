@@ -66,6 +66,9 @@ MessageBuffer::MessageBuffer(const Params &p)
     m_randomization(p.randomization),
     m_allow_zero_latency(p.allow_zero_latency),
     m_routing_priority(p.routing_priority),
+    // §2.9/§2.16 CHAOSCHI: the CHI directory/message injector (from the
+    // python param). dequeue() calls maybeCorrupt.
+    chaosCHI(p.chaosCHI),
     ADD_STAT(m_not_avail_count, statistics::units::Count::get(),
              "Number of times this buffer did not have N slots available"),
     ADD_STAT(m_msg_count, statistics::units::Count::get(),
@@ -311,8 +314,10 @@ MessageBuffer::dequeue(Tick current_time, bool decrement_messages)
     MsgPtr message = m_prio_heap.front();
 
     // §2.9 CHAOSCHI: corrupt the CHI directory/response message flow at
-    // dequeue (msg_delay/msg_drop F6). nullptr = no injection (zero
-    // regression). Ruby-only (SE classic-cache doesn't use MessageBuffer).
+    // dequeue (msg_delay/msg_drop F6). The injector is attached via the
+    // python param (ctor) OR resolved by name post-hoc (the param assignment
+    // after create_system doesn't update the already-read C++ param — same
+    // issue as GarnetNetwork/CHAOSNoC). nullptr / not found = no injection.
     if (chaosCHI) {
         chaosCHI->maybeCorrupt(this);
     }
