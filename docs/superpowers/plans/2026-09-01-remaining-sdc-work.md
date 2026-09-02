@@ -47,7 +47,7 @@ method1 "投机流状态泄漏"的 ROB 维度：squash 时错误路径 μop 的 
 
 用方案 A。hook 数据流：`rename.cc doSquash` → `if (chaosRob && chaosRob->maybeDelayFree(hb_it->newPhysReg)) { /* skip push_back */ }`。rename 的 chaosRob 成员由 CHAOSROB 构造函数设置：`cpu->renameAccess().setChaosRob(this)`。
 
-- [ ] **Step 1: cpu.hh 加 renameAccess accessor**
+- [x] **Step 1: cpu.hh 加 renameAccess accessor**
 
 在 `CHAOS/gem5/src/cpu/o3/cpu.hh` 的 `robAccess()` 后（line ~490，`ROB &robAccess() { return rob; }` 之后）加：
 
@@ -58,7 +58,7 @@ method1 "投机流状态泄漏"的 ROB 维度：squash 时错误路径 μop 的 
     Rename &renameAccess() { return rename; }
 ```
 
-- [ ] **Step 2: rename.hh 加 chaosRob 成员**
+- [x] **Step 2: rename.hh 加 chaosRob 成员**
 
 在 `CHAOS/gem5/src/cpu/o3/rename.hh` 的 `class Rename` public 区（line 87 `public:` 后）加前向声明与成员。文件顶部（line 76 `namespace gem5 {` 后）加：
 
@@ -79,7 +79,7 @@ class CHAOSROB;
     void setChaosRob(CHAOSROB *p) { chaosRob = p; }
 ```
 
-- [ ] **Step 3: rename.cc doSquash 加 hook**
+- [x] **Step 3: rename.cc doSquash 加 hook**
 
 在 `CHAOS/gem5/src/cpu/o3/rename.cc` 的 doSquash 函数中，找到这一段（"The phys regs can still be owned by squashing"注释块）：
 
@@ -123,7 +123,7 @@ class CHAOSROB;
         }
 ```
 
-- [ ] **Step 4: CHAOSROB.hh 加 maybeDelayFree 声明 + spec_leak 成员**
+- [x] **Step 4: CHAOSROB.hh 加 maybeDelayFree 声明 + spec_leak 成员**
 
 在 `CHAOS/CHAOSROB/CHAOSROB.hh` 的 `processFault` 声明后加：
 
@@ -144,7 +144,7 @@ class CHAOSROB;
 
 实际 `PhysRegIdPtr` 定义在 `src/cpu/reg_class.hh`（`using PhysRegIdPtr = RefCountingPtr<PhysRegId>;`）。保险起见 include `"cpu/o3/free_list.hh"` 不行（它 include 不到）——直接 include `"cpu/reg_class.hh"` 并确认编译。
 
-- [ ] **Step 5: CHAOSROB.cc 实现 maybeDelayFree + 构造函数挂载**
+- [x] **Step 5: CHAOSROB.cc 实现 maybeDelayFree + 构造函数挂载**
 
 在 `CHAOS/CHAOSROB/CHAOSROB.cc` 中：
 
@@ -198,7 +198,7 @@ class CHAOSROB;
         }
 ```
 
-- [ ] **Step 6: 同步 + 构建**
+- [x] **Step 6: 同步 + 构建**
 
 ```bash
 cd /home/sdc/wangxu/gem5-fi-wangxu
@@ -211,7 +211,7 @@ scons build/ARM/gem5.opt -j16 2>&1 | grep -iE "error|done building" | tail -5
 
 预期：`scons: done building targets.` 零 error。若 `PhysRegIdPtr` 编译错，把 CHAOSROB.hh 的 include 换成 `#include "cpu/o3/dyn_inst.hh"`（它传递引入）。
 
-- [ ] **Step 7: 真机验证 1——回归（prob=0 不破坏 golden）**
+- [x] **Step 7: 真机验证 1——回归（prob=0 不破坏 golden）**
 
 ```bash
 cd /home/sdc/wangxu/gem5-fi-wangxu
@@ -225,7 +225,7 @@ timeout 150 "$G5" --quiet --outdir=runs/t1_reg configs/se/arm_chaos.py \
 
 预期：`f247ef3fe6f02cfd`（golden 不变，prob=0 时 maybeDelayFree 恒 false）。
 
-- [ ] **Step 8: 真机验证 2——spec_leak 触发（branchy kernel 制造 squash）**
+- [x] **Step 8: 真机验证 2——spec_leak 触发（branchy kernel 制造 squash）**
 
 reg_chain 无分支不产生 squash——需要 branchy kernel。用已有的 `workloads/directed/l1i_loop`（紧循环有分支回跳，会产生 squash 吗？不会——正确预测不 squash）。**需要一个 mispredict-heavy kernel**。先写一个：
 
@@ -292,7 +292,7 @@ grep -iE "numSpecLeak" runs/t1_sleak/stats.txt 2>/dev/null | head -1
 
 预期：`rob_injections.log` 出现 `Site: rename_doSquash_freelist_skip, Mode: spec_leak` 行且 `numSpecLeak>=1`。checksum 可能等于 golden（单次泄漏未传播——概率性）或不等（SDC）。**机制验证标准：日志 + numSpecLeak>=1，输出分类另记。**
 
-- [ ] **Step 9: 不相关回归（CHAOSPhysReg 不受影响）**
+- [x] **Step 9: 不相关回归（CHAOSPhysReg 不受影响）**
 
 ```bash
 timeout 180 "$G5" --quiet --outdir=runs/t1_phyreg configs/se/arm_chaos.py \
@@ -304,7 +304,7 @@ timeout 180 "$G5" --quiet --outdir=runs/t1_phyreg configs/se/arm_chaos.py \
 
 预期：`d43a25d7fcc218b7`（GPR SDC 锚点不变）。
 
-- [ ] **Step 10: 提交**
+- [x] **Step 10: 提交**
 
 ```bash
 cd /home/sdc/wangxu/gem5-fi-wangxu
@@ -362,7 +362,7 @@ git push origin fi-wangxu
 - Consumes: `BAC::predict` 的 `PCStateBase &pc`（hook 改写其 npc）；`bpu->predict` 返回的 taken
 - Produces: `CHAOSBPU` SimObject（`target_sub` 模式：把预测目标替换为 fall-through pc()+4）；`BAC::chaosBpu` 成员
 
-- [ ] **Step 1: 写 CHAOSBPU.py**
+- [x] **Step 1: 写 CHAOSBPU.py**
 
 ```bash
 mkdir -p CHAOS/CHAOSBPU
@@ -402,7 +402,7 @@ DebugFlag('CHAOSBPU')
 EOF
 ```
 
-- [ ] **Step 2: 写 CHAOSBPU.hh**
+- [x] **Step 2: 写 CHAOSBPU.hh**
 
 ```bash
 cat > CHAOS/CHAOSBPU/CHAOSBPU.hh << 'EOF'
@@ -472,7 +472,7 @@ class CHAOSBPU : public SimObject
 EOF
 ```
 
-- [ ] **Step 3: 写 CHAOSBPU.cc**
+- [x] **Step 3: 写 CHAOSBPU.cc**
 
 ```bash
 cat > CHAOS/CHAOSBPU/CHAOSBPU.cc << 'EOF'
@@ -579,7 +579,7 @@ namespace gem5
 EOF
 ```
 
-- [ ] **Step 4: bac.hh 加 chaosBpu 成员**
+- [x] **Step 4: bac.hh 加 chaosBpu 成员**
 
 在 `CHAOS/gem5/src/cpu/o3/bac.hh` 的 `class BAC` 内（`bpu` 成员附近，line ~340 `branch_prediction::BPredUnit *bpu;` 后）加：
 
@@ -625,7 +625,7 @@ CHAOSBPU.cc 构造函数（probability>0 块内）加挂载：
             cpu->bacAccess().setChaosBPU(this);
 ```
 
-- [ ] **Step 5: bac.cc predict 加 hook**
+- [x] **Step 5: bac.cc predict 加 hook**
 
 在 `CHAOS/gem5/src/cpu/o3/bac.cc` 的 BAC::predict（line 565）中，`bool taken = bpu->predict(...)` 之后、`return taken` 之前加：
 
@@ -645,7 +645,7 @@ CHAOSBPU.cc 构造函数（probability>0 块内）加挂载：
 
 并在 bac.cc 顶部 include 区加：`#include "cpu/o3/CHAOSBPU/CHAOSBPU.hh"`
 
-- [ ] **Step 6: arm_chaos.py 加挂载**
+- [x] **Step 6: arm_chaos.py 加挂载**
 
 ```bash
 cd /home/sdc/wangxu/gem5-fi-wangxu
@@ -690,7 +690,7 @@ print("patched")
 PYEOF
 ```
 
-- [ ] **Step 7: 写 call_ret_heavy kernel（RAS/BTB 压力）**
+- [x] **Step 7: 写 call_ret_heavy kernel（RAS/BTB 压力）**
 
 ```bash
 cat > workloads/directed/call_ret_heavy.c << 'EOF'
@@ -727,7 +727,7 @@ workloads/directed/call_ret_heavy   # native golden ×2 确认确定性
 workloads/directed/call_ret_heavy
 ```
 
-- [ ] **Step 8: 同步 + 构建**
+- [x] **Step 8: 同步 + 构建**
 
 ```bash
 mkdir -p CHAOS/gem5/src/cpu/o3/CHAOSBPU
@@ -738,7 +738,7 @@ scons build/ARM/gem5.opt -j16 2>&1 | grep -iE "error|done building" | tail -5
 
 预期：`scons: done building targets.`。`pc.npc()` setter 已核实存在（`arch/generic/pcstate.hh:275` `void npc(Addr val) { _npc = val; }`）。
 
-- [ ] **Step 9: 真机验证**
+- [x] **Step 9: 真机验证**
 
 ```bash
 cd /home/sdc/wangxu/gem5-fi-wangxu
@@ -766,7 +766,7 @@ grep -E "target_sub" runs/t2_sub/bpu_injections.log | head -2
 
 预期：9c 输出 == 9b golden（**squash 后架构态恢复 = BPU 阴性对照断言成立**），且 `numTargetSub>=1`、日志有 `Site: bac_predict_target`。若输出≠golden，如实记录（可能 hang/crash——错误目标跳到非法区）并分析。
 
-- [ ] **Step 10: 不相关回归 + 提交**
+- [x] **Step 10: 不相关回归 + 提交**
 
 ```bash
 timeout 180 "$G5" --quiet --outdir=runs/t2_phy configs/se/arm_chaos.py \
@@ -822,7 +822,7 @@ git push origin fi-wangxu
 
 **诚实设计**：runner cache 路径支持 `--cache-block-addr` 透传（runner CLI 参数），manifest 不改（块地址是实验配置不是 fault 语义）。
 
-- [ ] **Step 1: 改 runner.py cache 分支**
+- [x] **Step 1: 改 runner.py cache 分支**
 
 把 `tools/runner.py` 中（line 208-215 的 elif 分支）：
 
@@ -872,7 +872,7 @@ git push origin fi-wangxu
 
 同时 faults 计数段需确认 cache log 名：现有列表已含 `"cache_injections.log"`（S0-2 v2 已加），无需改。
 
-- [ ] **Step 2: runner 加 --cache-block-addr CLI 参数**
+- [x] **Step 2: runner 加 --cache-block-addr CLI 参数**
 
 在 runner.py 的 argparse 区（`--golden-checksum` 附近）加：
 
@@ -885,7 +885,7 @@ git push origin fi-wangxu
 
 并把 Step 1 的 `os.environ.get(...)` 改为 `args.cache_block_addr or os.environ.get("CHAOS_CACHE_BLOCK_ADDR", "0")`。
 
-- [ ] **Step 3: 写 smoke manifest**
+- [x] **Step 3: 写 smoke manifest**
 
 ```bash
 cat > manifests/v2-cache-l1d-protection.yaml << 'EOF'
@@ -920,7 +920,7 @@ oracle: {kind: exact_hash, golden_id: l1dreduce-golden-v1}
 EOF
 ```
 
-- [ ] **Step 4: 真机验证**
+- [x] **Step 4: 真机验证**
 
 ```bash
 cd /home/sdc/wangxu/gem5-fi-wangxu
@@ -949,7 +949,7 @@ GEM5_OPT="$G5" timeout 200 python3 tools/runner.py manifests/v2-cache-l1d-protec
                 stdout_text = f.read() + "\n" + stdout_text
 ```
 
-- [ ] **Step 5: raw(none) 对照验证（风险反转方向）**
+- [x] **Step 5: raw(none) 对照验证（风险反转方向）**
 
 ```bash
 sed 's/protection_model: secded/protection_model: none/' manifests/v2-cache-l1d-protection.yaml > /tmp/v2-cache-none.yaml
@@ -960,7 +960,7 @@ GEM5_OPT="$G5" timeout 200 python3 tools/runner.py /tmp/v2-cache-none.yaml \
 # 与 secded 的 Corrected 形成风险反转对照
 ```
 
-- [ ] **Step 6: 提交**
+- [x] **Step 6: 提交**
 
 ```bash
 git add tools/runner.py manifests/v2-cache-l1d-protection.yaml
@@ -1000,7 +1000,7 @@ git push origin fi-wangxu
 
 **关键配置点**：cholesky 的 F5 靶是**浮点累加器 d0**——CHAOSRenameMap 需 `regTargetClass=floating_point`。campaign 的 manifest v2 生成路径（`_build_target`）不透传 reg_class——**需在 runner.py 的 rat 分支加 `--reg_class` 透传**（manifest `target.sub_field` 或新增约定：rat 组件默认 integer，`sub_field: map_entry_fp` 约定 FP）。简化：manifest `target.semantic_role: fp_accum` 时 runner 加 `--reg_class=floating_point`。
 
-- [ ] **Step 1: runner.py rat 分支加 FP 类透传**
+- [x] **Step 1: runner.py rat 分支加 FP 类透传**
 
 在 `tools/runner.py` 的 `elif comp == "rat":` 分支（S0-2 v2 加的）里，现有：
 
@@ -1018,7 +1018,7 @@ git push origin fi-wangxu
             cmd += ["--reg_class", "floating_point"]
 ```
 
-- [ ] **Step 2: 写 pilot campaign YAML**
+- [x] **Step 2: 写 pilot campaign YAML**
 
 ```bash
 cat > campaigns/method1-f5-cholesky-pilot.yaml << 'EOF'
@@ -1056,7 +1056,7 @@ EOF
 
 **问题**：campaign.py 的 axes 是笛卡尔积，一次只跑一组；numeric vs both 是 workload 参数不是 cell 轴。**方案**：跑两次 campaign（`--workload-args "10"` 与 `"10 both"`），artifacts 分目录，fisher_test.py 合并两份 cells.csv。
 
-- [ ] **Step 3: 写 formal campaign YAML（n=384，待预算）**
+- [x] **Step 3: 写 formal campaign YAML（n=384，待预算）**
 
 ```bash
 cat > campaigns/method1-f5-cholesky-formal.yaml << 'EOF'
@@ -1086,7 +1086,7 @@ defaults:
 EOF
 ```
 
-- [ ] **Step 4: 写 fisher_test.py**
+- [x] **Step 4: 写 fisher_test.py**
 
 ```bash
 cat > tools/fisher_test.py << 'EOF'
@@ -1168,7 +1168,7 @@ EOF
 chmod +x tools/fisher_test.py
 ```
 
-- [ ] **Step 5: 跑 pilot（两臂各 n=20，jobs=6）**
+- [x] **Step 5: 跑 pilot（两臂各 n=20，jobs=6）**
 
 ```bash
 cd /home/sdc/wangxu/gem5-fi-wangxu
@@ -1184,7 +1184,7 @@ timeout 590 python3 tools/campaign.py campaigns/method1-f5-cholesky-pilot.yaml \
 
 注意：单次 bash 调用 590s 可能不够 20 runs（20×150s/6 ≈ 500s，勉强）。若超时，改 `run_in_background` 跑并在下个 Step 收割。**执行者注意：这步很可能是长任务，直接用后台方式跑。**
 
-- [ ] **Step 6: 跑臂2（compute-both）**
+- [x] **Step 6: 跑臂2（compute-both）**
 
 ```bash
 timeout 590 python3 tools/campaign.py campaigns/method1-f5-cholesky-pilot.yaml \
@@ -1194,7 +1194,7 @@ timeout 590 python3 tools/campaign.py campaigns/method1-f5-cholesky-pilot.yaml \
     --gem5 "$G5" --artifacts artifacts/method1-both 2>&1 | tail -4
 ```
 
-- [ ] **Step 7: Fisher 检验 + 记录**
+- [x] **Step 7: Fisher 检验 + 记录**
 
 ```bash
 python3 tools/fisher_test.py artifacts/method1-num/cells.csv artifacts/method1-both/cells.csv
@@ -1202,7 +1202,7 @@ python3 tools/fisher_test.py artifacts/method1-num/cells.csv artifacts/method1-b
 
 预期：p 值与 ratio 按实际输出记录。pilot n=20 大概率 p>0.05（n 不足）——**如实记录**并注明"formal n=384 见 method1-f5-cholesky-formal.yaml"。
 
-- [ ] **Step 8: 提交**
+- [x] **Step 8: 提交**
 
 ```bash
 git add campaigns/method1-f5-cholesky-pilot.yaml \
@@ -1232,7 +1232,7 @@ git push origin fi-wangxu
 
 ### Task 5: 文档收尾（方案文档 + progress.md 最终状态）
 
-- [ ] **Step 1: 更新方案文档**
+- [x] **Step 1: 更新方案文档**
 
 ```bash
 cd /home/sdc/wangxu/gem5-fi-wangxu
@@ -1252,7 +1252,7 @@ EOF
 
 （执行者按 Task 1-4 的实际完成内容逐项更新 §0.3.1 注入器数、§A.1 表加行、§5.2/5.9 B 段、§10.3、AGENT_TASKS——模式与前几轮 doc commit 完全一致。）
 
-- [ ] **Step 2: 更新 progress.md**
+- [x] **Step 2: 更新 progress.md**
 
 ```bash
 cat >> progress.md << 'EOF'
@@ -1275,7 +1275,7 @@ cat >> progress.md << 'EOF'
 EOF
 ```
 
-- [ ] **Step 3: 提交**
+- [x] **Step 3: 提交**
 
 ```bash
 git add docs/KUNPENG920-SDC研究方案-系统完备版.md progress.md

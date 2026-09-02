@@ -45,7 +45,7 @@
 - Consumes: 现有 `maybeCorrupt(TlbEntry*, Addr)` hook（tlb.cc:164-168 调用点不变）
 - Produces: `targetField ∈ {pfn,ap,xn,attridx,ng,asid}` 字段级注入；`pfnOffset`（F5 定向页帧偏移，默认 0=旧随机位翻转行为）
 
-- [ ] **Step 1: CHAOSArmTLB.py 加参数**
+- [x] **Step 1: CHAOSArmTLB.py 加参数**
 
 在 `CHAOS/CHAOSArmTLB/CHAOSArmTLB.py` 的 `bitsToChange` 参数后加：
 
@@ -63,7 +63,7 @@
         "0 = legacy random-bit flip on pfn.")
 ```
 
-- [ ] **Step 2: CHAOSArmTLB.hh 加成员**
+- [x] **Step 2: CHAOSArmTLB.hh 加成员**
 
 在 `CHAOS/CHAOSArmTLB/CHAOSArmTLB.hh` 的 `int num_bits_to_change;` 后加：
 
@@ -72,7 +72,7 @@
     uint64_t pfn_offset;        // F5 directed pfn substitute (0=legacy bitflip)
 ```
 
-- [ ] **Step 3: CHAOSArmTLB.cc 扩展 maybeCorrupt**
+- [x] **Step 3: CHAOSArmTLB.cc 扩展 maybeCorrupt**
 
 构造函数初始化列表（`num_bits_to_change(p.bitsToChange),` 后）加：
 
@@ -179,7 +179,7 @@
 
 注意：`mask` 变量在现有代码里是 `uint64_t mask = fault_mask ? fault_mask : generateRandomMask(num_bits_to_change);`——上面引用前确认它已计算（现有代码在分支后算 mask，执行时把 mask 计算提到这些分支之前，或各分支内自行生成——**采用后者：各分支内联生成，不动现有 mask 计算**。上面代码已按各分支内联写）。
 
-- [ ] **Step 4: arm_chaos_fs.py 加开关**
+- [x] **Step 4: arm_chaos_fs.py 加开关**
 
 在 `configs/se/arm_chaos_fs.py` 的 `--tlb_rng_seed` 参数后加：
 
@@ -198,7 +198,7 @@ CHAOSArmTLB 挂载处（`arm_tlb = CHAOSArmTLB(...)`）加两行：
             pfnOffset=args.tlb_pfn_offset,
 ```
 
-- [ ] **Step 5: 同步构建 + 真机验证**
+- [x] **Step 5: 同步构建 + 真机验证**
 
 ```bash
 cd /home/sdc/wangxu/gem5-fi-wangxu
@@ -248,7 +248,7 @@ grep -E "field_ap" runs/u1_ap/armtlb_injections.log 2>/dev/null | head -2
 # 预期 'Mode: field_ap, old: 0x.., new: 0x..' 行
 ```
 
-- [ ] **Step 6: 提交**
+- [x] **Step 6: 提交**
 
 ```bash
 cd /home/sdc/wangxu/gem5-fi-wangxu
@@ -288,7 +288,7 @@ git push origin fi-wangxu
 **Interfaces:**
 - Produces: `faultType` 增 `value_to_legal` 选项；行为 = 读值 AND 合法形态掩码（TTBR 类：`~0xFFF` 页表对齐 + 高位保留；通用：保留高 32 位清低 32 位——诚实标注为"合法值域形态替换"）
 
-- [ ] **Step 1: .py faultType 加选项**
+- [x] **Step 1: .py faultType 加选项**
 
 `CHAOS/CHAOSArmSysReg/CHAOSArmSysReg.py` 的 faultType 参数改为：
 
@@ -300,7 +300,7 @@ git push origin fi-wangxu
         "silent wrong-page-table direction)")
 ```
 
-- [ ] **Step 2: .hh/.cc 实现 value_to_legal**
+- [x] **Step 2: .hh/.cc 实现 value_to_legal**
 
 `.hh` 的 FaultType enum 加 `ValueToLegal`；`stringToFaultType` 加映射；`faultTypeToString` 加 case（G7）。
 
@@ -326,7 +326,7 @@ git push origin fi-wangxu
 
 注意 `#include <cstring>`（strstr）加到 .cc 顶部。`stats->numFaultsInjected++` 等公共计数在 switch 后已有，无需重复。
 
-- [ ] **Step 3: arm_chaos_fs.py 透传**
+- [x] **Step 3: arm_chaos_fs.py 透传**
 
 `--sysreg_fault_type` 不可用时（现有 config 硬编码 `faultType="bit_flip"`）——改挂载处：
 
@@ -337,7 +337,7 @@ p.add_argument("--sysreg_fault_type", default="bit_flip",
 
 挂载处 `faultType="bit_flip"` 改 `faultType=args.sysreg_fault_type`。
 
-- [ ] **Step 4: 构建 + FS 验证**
+- [x] **Step 4: 构建 + FS 验证**
 
 ```bash
 cd /home/sdc/wangxu/gem5-fi-wangxu
@@ -364,7 +364,7 @@ grep -E "value_to_legal|Reg: ttbr" runs/u2_v2l/arm_sysreg_injections.log 2>/dev/
 
 预期：日志出现 `Reg: ttbr0_el1 ... new: 0x...000`（低位被清成页表对齐形态——引用实际输出）。若 `old == new`（读值本已对齐）则 no-return——换 first_clock 或 max_faults=5 重试。
 
-- [ ] **Step 5: 提交**
+- [x] **Step 5: 提交**
 
 ```bash
 git add CHAOS/CHAOSArmSysReg/ CHAOS/gem5/src/arch/arm/CHAOSArmSysReg/ configs/se/arm_chaos_fs.py
@@ -397,7 +397,7 @@ git push origin fi-wangxu
 **Interfaces:**
 - Produces: `fwd_7case <iters> <case: same|partial|alias4k|twocand|replay|dmb|ldxr> [noop]`；`ptr_chase <iters>`。均输出 16-hex checksum（stdout）+ iters/fails（stderr）
 
-- [ ] **Step 1: 写 fwd_7case.c**
+- [x] **Step 1: 写 fwd_7case.c**
 
 ```bash
 cat > workloads/directed/fwd_7case.c << 'EOF'
@@ -532,7 +532,7 @@ done
 
 **注意**：`alias4k` 与 `replay` case 的确定性需重点检查——若 NONDET，修 kernel（alias case 必须让 golden 路径读自己的页；replay case 的依赖读必须读不被写的槽位）。执行者跑上面循环后只提交全 OK 的版本；NONDET 的 case 修到 OK（改 expect 逻辑而非删 case）。
 
-- [ ] **Step 2: 写 ptr_chase.c（method2 链表遍历）**
+- [x] **Step 2: 写 ptr_chase.c（method2 链表遍历）**
 
 ```bash
 cat > workloads/directed/ptr_chase.c << 'EOF'
@@ -585,7 +585,7 @@ workloads/directed/ptr_chase 100   # 2x 确定性
 workloads/directed/ptr_chase 100
 ```
 
-- [ ] **Step 3: gem5 golden 验证（两 kernel × 代表 case）**
+- [x] **Step 3: gem5 golden 验证（两 kernel × 代表 case）**
 
 ```bash
 G5=$PWD/CHAOS/gem5/build/ARM/gem5.opt
@@ -600,7 +600,7 @@ timeout 200 "$G5" --quiet --outdir=runs/u3_same configs/se/arm_chaos.py \
 
 注意：arm_chaos.py 的 `--cmd` 不传 workload 参数（argv）。fwd_7case 的 iters 默认 2000、case 默认 same——golden 即默认路径。**若需跑非默认 case，用 `--workload-args`（campaign.py 有）或直接给 kernel 写死编译期默认**。为简化验证：golden 用默认（same, no-noop）；其余 case 的 gem5 端到端配对留给 formal（kernel 的 native 确定性已保证）。
 
-- [ ] **Step 4: 提交**
+- [x] **Step 4: 提交**
 
 ```bash
 git add workloads/directed/fwd_7case workloads/directed/fwd_7case.c \
@@ -638,7 +638,7 @@ git push origin fi-wangxu
 
 **关键设计——为什么两阶段而非一体**：checkpoint 必须在 Linux 用户态稳定点（boot 完成后）取，取 checkpoint 需 drain（分钟级）；注入阶段从 checkpoint 反复 restore（每个 seed 一次，秒级恢复）——这正是"checkpoint 策略必需"的原因（方案 §5.7F）。脚本模式：`--phase=boot` 跑到 `m5 checkpoint` 后退出；`--phase=inject --ckpt=<dir>` restore + 切 O3 + 挂注入器。
 
-- [ ] **Step 1: 写 fs_checkpoint.py（boot 阶段）**
+- [x] **Step 1: 写 fs_checkpoint.py（boot 阶段）**
 
 ```bash
 cat > configs/se/fs_checkpoint.py << 'EOF'
@@ -758,11 +758,11 @@ EOF
 
 **诚实的第一步缩减**：完整的 boot→checkpoint→**switch-to-O3**→inject 流水线里，CPU switch 在 stdlib board 上不干净。**本任务第一步交付 Atomic-restore + 注入器**（TLB/SysReg/PTW 的 hook 都在 Atomic 可触发的路径——此前 PTW 的 FS 验证就在 Atomic 下做过 5 注入；AddrPath 是 O3-only 保持 deferred）。O3-switch 作为第二步（若 stdlib 不支持则记为 gem5 限制）。
 
-- [ ] **Step 2: inject 阶段挂注入器（复用 arm_chaos_fs.py 的 _pre_instantiate 模式）**
+- [x] **Step 2: inject 阶段挂注入器（复用 arm_chaos_fs.py 的 _pre_instantiate 模式）**
 
 把 arm_chaos_fs.py 的 `_attach_tlb` hook 块（`cache_hierarchy._pre_instantiate = _attach_tlb` 模式）复制进 fs_checkpoint.py 的 inject 分支，参数化 `args.injector`——四个注入器各一个 if 块（照抄 arm_chaos_fs.py 现有挂载代码，改参数来源为 args）。执行者从 arm_chaos_fs.py 逐块复制（TLB 块/SysReg 块/AddrPath 块/PTW 块），**不新写逻辑**。
 
-- [ ] **Step 3: 真机验证——boot 阶段（长任务，后台）**
+- [x] **Step 3: 真机验证——boot 阶段（长任务，后台）**
 
 ```bash
 G5=$PWD/CHAOS/gem5/build/ARM/gem5.opt
@@ -777,7 +777,7 @@ ls cpts/base/ 2>/dev/null | head -4
 
 预期：`cpts/base/` 出现 checkpoint 文件（m5.cpt 等）。**这是长任务（Atomic boot ~4-8 分钟）——后台执行。** 若 boot 未到 KernelBooted 就超时，如实记录（boot 时长是已知 FS 边界，方案 §5.7F 已注明），checkpoint 时点前移（用 `--readfile` 挂早期 checkpoint 脚本）作为迭代。
 
-- [ ] **Step 4: 真机验证——inject 阶段（PTW 注入，从 checkpoint restore）**
+- [x] **Step 4: 真机验证——inject 阶段（PTW 注入，从 checkpoint restore）**
 
 ```bash
 timeout 400 "$G5" --quiet --outdir=runs/u4_inj configs/se/fs_checkpoint.py \
@@ -791,7 +791,7 @@ grep -E "ptw_descriptor" runs/u4_inj/ptw_injections.log 2>/dev/null | head -2
 
 预期：restore 成功（比冷 boot 快得多）+ `ptw_injections.log` 有注入行（first-clock=1000 因为 restore 后 tick 从 checkpoint 继续——时窗要按 restore 后的 tick 域调）。**若 restore 失败（磁盘/设备序列化不兼容），如实记录 gem5 FS checkpoint 的兼容性限制**——这是方案 §10.2 该流水线的第一次真实验证，结果两个方向都有价值。
 
-- [ ] **Step 5: 提交**
+- [x] **Step 5: 提交**
 
 ```bash
 git add configs/se/fs_checkpoint.py
@@ -834,7 +834,7 @@ git push origin fi-wangxu
 **Interfaces:**
 - Produces: `targetField`（data=旧字节级行为；rd/rn/rm/opcode=指令编码字段位段——自动把 mask 映射到 32-bit 指令字内的对应位）
 
-- [ ] **Step 1: .py 加参数**
+- [x] **Step 1: .py 加参数**
 
 `CHAOS/CHAOSCache/CHAOSCache.py` 的 `targetByteOffset` 后加：
 
@@ -847,7 +847,7 @@ git push origin fi-wangxu
         "The faultMask/bitsToChange select bits WITHIN the field.")
 ```
 
-- [ ] **Step 2: .hh/.cc 实现（把 mask 移位到字段内）**
+- [x] **Step 2: .hh/.cc 实现（把 mask 移位到字段内）**
 
 .hh 加成员 `std::string target_field;`；.cc 构造函数初始化。注入循环里（现有 `data[byteOffset] ^= mask` 字节操作前）加字段重映射：
 
@@ -901,7 +901,7 @@ git push origin fi-wangxu
 
 插入位置：现有 `switch (chosen_fault_type_enum)` 字节操作**之前**（field 路径自成一体后 continue）。注意 `byteOffset` 需 4 对齐（config 侧验证：`if targetField != data: byte_offset &= ~3`——在 .cc 里做）。
 
-- [ ] **Step 3: arm_chaos_cache.py 加 --target_field + 验证**
+- [x] **Step 3: arm_chaos_cache.py 加 --target_field + 验证**
 
 ```bash
 python3 - << 'PYEOF'
@@ -940,7 +940,7 @@ grep -E "Field: opcode" runs/u5_op/cache_injections.log 2>/dev/null | head -2
 
 预期：日志出现 `Field: opcode, InwordMask: 0x...`（指令字内 [28:23] 位置）。结果归宿（Hang/Crash——指令突变）如实记录。
 
-- [ ] **Step 4: 提交**
+- [x] **Step 4: 提交**
 
 ```bash
 git add CHAOS/CHAOSCache/ CHAOS/gem5/src/mem/cache/CHAOSCache/ configs/se/arm_chaos_cache.py
@@ -973,7 +973,7 @@ git push origin fi-wangxu
 **Interfaces:**
 - Produces: `addrMode ∈ {fixed(默认), addr_map_sub}`（F5：注入地址换成另一合法地址段——模拟地址译码错）；`protectionModel`（none/secded——DRAM ECC 语义，复用 CHAOSCache 的 ECC 后处理模式：1-bit 纠正恢复数据、2-bit poison、≥3-bit 逃逸）
 
-- [ ] **Step 1: .py 加参数**
+- [x] **Step 1: .py 加参数**
 
 ```python
     addrMode = Param.String("fixed",
@@ -989,7 +989,7 @@ git push origin fi-wangxu
         ">=3-bit latent escape. Reports PA markers for classify_run_pa.")
 ```
 
-- [ ] **Step 2: .cc 实现**
+- [x] **Step 2: .cc 实现**
 
 .hh 加成员 `std::string addr_mode; Addr addr_xor_mask; std::string protection_model;`；构造函数初始化（addrXorMask==0 且 addrMode==addr_map_sub 时默认 0x1000）。
 
@@ -1039,7 +1039,7 @@ ECC 后处理（RMW 写回前，复用 CHAOSCache 的分支语义）：
 
 .hh stats 加 `numEccCorrected/numDetectedContained/numLatent` 三字段 + .cc 构造（照 CHAOSCache 模式）。**注意 CHAOSMem 的 RMW 变量名与 CHAOSCache 不同——执行时先读 CHAOSMem.cc 的注入函数找到"读原值→改→写回"的准确变量（data 变量、写回语句），在上面代码块里替换。**
 
-- [ ] **Step 3: 透传 + 构建 + 验证**
+- [x] **Step 3: 透传 + 构建 + 验证**
 
 ```bash
 python3 - << 'PYEOF'
@@ -1087,7 +1087,7 @@ grep -iE "numEccCorrected" runs/u6_ecc/stats.txt | head -1
 
 预期：sub 日志 `Site: mem_addr_map_sub (F5), OrigAddr->RedirectedAddr`；secded 1-bit `numEccCorrected=1` + 输出 golden。
 
-- [ ] **Step 4: 提交**
+- [x] **Step 4: 提交**
 
 ```bash
 git add CHAOS/CHAOSMem/ CHAOS/gem5/src/mem/CHAOSMem/ configs/se/arm_chaos.py
@@ -1107,13 +1107,13 @@ git push origin fi-wangxu
 
 ### Task 7: 文档收尾（方案文档全项核对 + progress.md）
 
-- [ ] **Step 1: 方案文档逐项更新**
+- [x] **Step 1: 方案文档逐项更新**
 
 对照本计划 Task 1-6 完成项 + 第一份计划的 Task 1-5，更新 `docs/KUNPENG920-SDC研究方案-系统完备版.md`：§0.3.1 注入器数（16→17 含 CHAOSBPU）、§5.7B（TLB 字段级/SysReg F5 标 done）、§5.8C（L1I 语义字段标 done）、§5.1D/§5.4D（kernel 标 done）、§10.2（FS checkpoint 流水线标 v1 done/Atomic、O3-switch 待）、§A.2（Mem 扩展标 done）、AGENT_TASKS 全行状态。模式与前几轮 doc commit 一致（python 批量 replace）。
 
-- [ ] **Step 2: progress.md 追加本轮**
+- [x] **Step 2: progress.md 追加本轮**
 
-- [ ] **Step 3: 提交推送**
+- [x] **Step 3: 提交推送**
 
 ```bash
 git add docs/KUNPENG920-SDC研究方案-系统完备版.md progress.md
