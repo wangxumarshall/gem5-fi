@@ -43,6 +43,8 @@ CFG = os.path.join(REPO, "configs/se/arm_chaos.py")
 CONFIG_FAMILY = {
     "C0": os.path.join(REPO, "configs/se/arm_chaos.py"),
     "C2": os.path.join(REPO, "configs/se/kp920_proxy.py"),
+    # §2.7 cache injector harness (CHAOSCache mounts via _pre_instantiate)
+    "C0-CACHE": os.path.join(REPO, "configs/se/arm_chaos_cache.py"),
 }
 
 # manifest oracle.golden_id -> the workload's golden (no-injection) checksum.
@@ -201,9 +203,12 @@ def main():
            "--first_clock", str(t["value"]),
            "--max_faults", str(m["limits"]["max_faults"]),
            "--rng_seed", str(m["rng"]["selection_seed"]),
-           "--fault_type", fault_type,
-           "--fault_mask", fault_mask,
-           "--bits_to_change", bits_to_change]
+           "--fault_type", fault_type]
+    # §2.7: arm_chaos_cache.py has NO --fault_mask/--bits_to_change args
+    # (different param surface than arm_chaos.py). Only pass them on the
+    # arm_chaos.py-family configs.
+    if cfg_family != "C0-CACHE":
+        cmd += ["--fault_mask", fault_mask, "--bits_to_change", bits_to_change]
     # target component + layer -> the right injector + index knob
     if comp == "gpr":
         cmd += ["--chaos_reg"]
@@ -309,6 +314,18 @@ def main():
         cmd += ["--chaos_decode", "--decode_first_clock", str(t["value"]),
                 "--decode_max_faults", str(m["limits"]["max_faults"]),
                 "--decode_rng_seed", str(m["rng"]["selection_seed"])]
+    elif comp == "l1d":
+        # §2.7 CHAOSCache (L1D field-level: data/valid/dirty/coh). Routes
+        # through arm_chaos_cache.py (C0-CACHE family) — the CHAOSCache
+        # mounts via _pre_instantiate, not via arm_chaos.py's cpu-attached
+        # injectors. The manifest must use config_family C0-CACHE.
+        if cfg_family != "C0-CACHE":
+            sys.exit("[runner] component 'l1d' requires platform.config_family="
+                     "'C0-CACHE' (arm_chaos_cache.py). Aborting.")
+        cmd += ["--target", "l1d", "--first_clock", str(t["value"]),
+                "--max_faults", str(m["limits"]["max_faults"]),
+                "--rng_seed", str(m["rng"]["selection_seed"]),
+                "--fault_type", fault_type]
     elif comp == "exmon":
         # §2.4 CHAOSExMon (exclusive monitor, stxr_force_success/fail).
         cmd += ["--chaos_exmon", "--exmon_mode", "stxr_force_fail",

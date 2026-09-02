@@ -17,7 +17,7 @@
       "isa": {"type":"string","const":"ARM64"},
       "mode": {"type":"string","enum":["SE","FS"]},
       "cpu_model": {"type":"string"},
-      "config_family": {"type":"string","enum":["C0","C1","C2"]}
+      "config_family": {"type":"string","enum":["C0","C1","C2","C0-CACHE"]}
     }},
     "workload": {"type":"object","required":["binary_sha256"], "properties":{
       "binary_sha256": {"type":"string"},

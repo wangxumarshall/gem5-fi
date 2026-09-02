@@ -1130,3 +1130,35 @@ ARM 三条路径 + golden（真跑输出）：
 **根因**：runner.py 的 fault-log 解析列表**缺 `lsq_fwd_injections.log`**（有 `l1d_fwd_injections` 但没有 `lsq_fwd_injections`）→ runner 找不到日志→标 Inactive faults_injected=0。修复：加 `lsq_fwd_injections.log` 到列表。
 
 **§2.4 LSQFwd pilot（fwd_checksum_kernel, n=5）✅**：5/5 Masked faults_injected=1——注入触发正确解析，转发数据 XOR 未传播到 checksum（pilot n=5 + 随机 mask 不落关键位）。formal n=384 会更真实。
+
+---
+
+### §2.4 ExMon + §2.18 RAS pilot campaign
+
+**新增 kernel**: `spinlock_checksum.c`（LDXR/STXR + 16-hex checksum, golden `0891b007b53c4869`）、`ras_checksum_kernel.c`（golden `bcf20e1df7bb0535`）。
+
+**runner.py 新增组件映射**: `exmon`→`--chaos_exmon stxr_force_fail`、`ras`→`--chaos_ras exc_suppress`。GOLDEN_IDS 加 `spinlockchecksum-golden-v1` + `raschecksum-golden-v1`。
+
+**§2.4 ExMon pilot (spinlock_checksum, n=5) ✅**: 5/5 **Crash**（stxr_force_fail → STXR 被强制失败 → 死锁 → core dump exit=-6, faults_injected=1）——注入器在 campaign 中正确触发并分类。
+
+**§2.18 RAS pilot (ras_checksum_kernel via memory injector, n=5) ✅**: 5/5 Masked（CHAOSRAS exc_suppress 需 fault kernel，ras_checksum 无 fault → 诚实：只验证了"无注入→golden 回归"，exc_suppress 效果需 exc_trigger kernel 但它 core dump 无 checksum）。
+
+**LSQFwd bug 修复**: runner.py 的 fault-log 列表缺 `lsq_fwd_injections.log`（只有 `l1d_fwd_injections`）→ 修复后 5/5 Masked faults_injected=1。
+
+### 14/18 单元有 C pilot 结果
+| 单元 | 结果 |
+|---|---|
+| §2.1 PRF | X3 100% SDC; X9 100% Masked |
+| §2.2 RAT | X3 66.7% Crash; X9 100% Masked |
+| §2.3 ROB | 5/5 Masked |
+| §2.4 LSQFwd | 5/5 Masked (fix: lsq_fwd log) |
+| §2.4 ExMon | 5/5 Crash (stxr_force_fail) |
+| §2.5 IQ | 5/5 Masked |
+| §2.6 FSU | 5/5 Masked |
+| §2.12 Exec | 5/5 Masked |
+| §2.13 BPU | 5/5 Masked |
+| §2.14 Decode | 5/5 Masked |
+| §2.17 Mem | 5/5 Masked |
+| §2.18 RAS | 5/5 Masked (regression only) |
+
+剩余: §2.7 L1D（需 runner cache config 切换）、§2.10 TLB/SYS（FS）、§2.15 NoC（Ruby）、§2.16 HCCS（Ruby）。
