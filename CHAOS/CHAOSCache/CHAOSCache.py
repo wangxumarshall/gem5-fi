@@ -52,6 +52,8 @@ class CHAOSCache(SimObject):
         "a PROXY (not a cycle-exact Kunpeng L3 model); the paired partner must "
         "be VALID+resident to be corrupted (else only the primary is faulted, "
         "logged honestly). Use on a 64B-line cache designated as 'L3'.")
+    l1iSemanticField = Param.String("none",
+        "§2.11 L1I A64 field stratification: none/opcode/rn/rm/rd/imm12/cond")
     protectionModel = Param.String("none",
         "§1.2 protection-aware modeling layer (N1 TRM Table 9-1 PROXY). "
         "Post-injection, the injector applies protection logic keyed on "

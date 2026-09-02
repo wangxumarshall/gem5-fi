@@ -33,16 +33,17 @@ REPO = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 SCHEMA_VERSIONS = ("arm-chaos-fi/v1", "arm-chaos-fi/v2")
 ISA = ("ARM64",)
 MODES = ("SE", "FS")
-CONFIG_FAMILIES = ("C0", "C1", "C2", "C0-CACHE")
+CONFIG_FAMILIES = ("C0", "C1", "C2", "C0-CACHE", "C0-FS", "C2-FS")
 TRIGGER_MODES = ("tick", "cycle", "pc", "committedInst", "event")
 LAYERS = ("architectural", "physical")
 # components runner.py MAPS today (gpr/physreg/memory/cache->l1d/lsqfwd->physreg):
-COMPONENTS_MAPPED = ("gpr", "physreg", "memory", "l1d", "l1i", "l2")
+COMPONENTS_MAPPED = ("gpr", "physreg", "memory", "l1d", "l1i", "l2",
+                          "rat", "freelist", "rob", "iq", "exec", "fsu",
+                          "lsq_fwd", "bpu", "addr_path", "decode", "l1d_fwd",
+                          "exmon", "ras")
 # v2 forward-declared (schema accepts; runner.py rejects until S1 mapping lands):
-COMPONENTS_V2_DECLARED = ("rat", "freelist", "rob", "iq", "exec", "fsu",
-                          "lsq_fwd", "l1_tlb", "l2_tlb", "sysreg", "ptw",
-                          "l3", "noc", "coherence", "memctrl",
-                          "bpu", "addr_path", "decode", "l1d_fwd", "exmon", "ras")
+COMPONENTS_V2_DECLARED = ("l1_tlb", "l2_tlb", "sysreg", "ptw",
+                          "l3", "noc", "coherence", "memctrl")
 FAULT_MODELS = ("transient_bit_flip", "local_mbu", "intermittent_burst",
                 "stuck_at_zero", "stuck_at_one", "legal_domain_sub",
                 "delay_omission")

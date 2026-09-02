@@ -43,6 +43,9 @@ p.add_argument("--target_field", default="data",
 p.add_argument("--target_byte_offset", type=int, default=-1,
                help="Directed: byte offset within the target block "
                     "(0..blockSize-1). -1 = random (default).")
+p.add_argument("--l1i_semantic_field", default="none",
+               choices=["none","opcode","rn","rm","rd","imm12","cond"],
+               help="§2.11 L1I A64 field stratification")
 p.add_argument("--paired", action="store_true",
                help="§7.7 128B paired-sector fault-domain proxy: fault both "
                     "the target 64B block AND its 128B-aligned partner, same "
@@ -90,6 +93,7 @@ def cap(root):
         targetField=args.target_field,
         pairedSector=args.paired,
         protectionModel=args.protection_model,
+        l1iSemanticField=args.l1i_semantic_field,
         writeLog=True)
     attached[0] = True
     print(f"[arm_chaos_cache] CHAOSCache attached to {args.target}-cache-0 "

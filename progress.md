@@ -1249,3 +1249,36 @@ ARM 三条路径 + golden（真跑输出）：
 | §2.18 RAS | CHAOSRAS | exc_trigger | cleared_fault=yes 已验证 | 需 fault kernel |
 
 **18/18 单元全部有 pilot 结果或已验证触发**。FS 单元（§2.10）同 seed DUE 可复现但跨 seed 方差大（需更长 timeout/checkpoint）；Ruby 单元（§2.9/2.15/2.16）注入正确触发。
+
+---
+
+### 设计文档核对（§1-§2）发现的缺口与修复
+
+**逐节核对结果**：
+- §1.1 C0/C1/C2(SE) ✅；FS kp920_proxy_fs.py ❌（未落，doc 要求）
+- §1.2 三注入器 protectionModel ✅
+- §1.3 F1/F2/F4 ✅；**F3 数据相关触发 ❌→✅ 已补**（CHAOSPhysReg triggerValueMask/Pattern）
+- §1.4 classify 九类+carve-out ✅；P_escape 公式 ✅
+- §1.5 campaign 驱动（schema/seeds/Wilson/5%重放/heatmap+summary）✅
+- §1.6 schema v2（组件 enum/sub_field/semantic_role/f5/f6/dynamic_context）✅
+
+**本补丁修复的缺口**：
+1. **§1.3+§2.1B F3 数据相关触发**：CHAOSPhysReg 加 `triggerValueMask/triggerValuePattern`（注入前读目标寄存器当前值，仅当 `(val & mask) == pattern` 才注入）。真机三态验证：mask=0 → X3 SDC anchor 复现（零回归）；hit（mask=1 pattern=1 命中 0x9e3779b97f4a7c15 奇数）→ 注入+落日志；miss（pattern=0xdead）→ 反复 miss 不注入。
+2. **§2.1B semanticRole**：CHAOSPhysReg 加 `semanticRole` 参数+注入日志字段（`semanticRole: accumulator` 已验证落日志）。
+3. **§2.1B protectionModel 占位**：本单元恒 none（doc 明说"占位对齐"——已有全局 protection_model grid 轴透传，视为满足；未加冗余参数）。
+
+**§2.2 H 验收断言补齐**：
+- H.① cholesky golden **20/20**（5+15）一致 ✅（此前只有 5x）
+- H.② f5_substitute 20 次单故障（不同 seed）：**0 次 SimulatorError**（工具错误）——13 次正常结束或 Crash 分类、7 次 Page-table-fault panic（注入导致的 DUE 表现，classify carve-off 归 Crash 非 SimulatorError）。合法域校验生效 ✅
+- H.③ 已验证（map_bitflip/f5_substitute/mark_free 各 ≥1 非 Inactive）
+
+**仍未修的缺口（诚实记录）**：
+- §2.1B kernel `ptr_chase_kernel` ❌（§2.1/§2.4 D 都要）
+- §2.4 D method3 七类定向构造 kernel ❌
+- §2.5 D `dep_chain_kernel` ❌
+- §2.6 D `gemm_float/double` + `svd_iterative` + `fma_reduction` ❌
+- §2.7 D `struct_field` + `crc_state` ❌
+- §2.12 D MADD 链/SMULH/ADDS→B.cond ❌
+- §1.1 FS `kp920_proxy_fs.py` ❌
+- §2.3 spec_leak / §2.4 fwd_source_sub+phase_offset / §2.5 src_ready_bitflip+tag_sub / §2.10 F5 活页+属性位+白名单铺开 / §2.11 L1I 语义字段 / §2.17 addr_map_sub（子模式级）❌
+- §2.5/2.6 C 网格 pilot 用 C0 而非 doc 指定的 C2-KP（C2 路由已通，pilot 未跑 C2）

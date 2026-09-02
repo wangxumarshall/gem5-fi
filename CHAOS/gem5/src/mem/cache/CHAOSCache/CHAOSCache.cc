@@ -30,6 +30,7 @@ namespace gem5
         target_byte_offset(p.targetByteOffset),
         paired_sector(p.pairedSector),
         target_field(p.targetField),
+        l1i_semantic_field(p.l1iSemanticField),
         protection_model(p.protectionModel),
         rng_seed(p.rngSeed),
         max_faults(p.maxFaults),
@@ -385,6 +386,27 @@ namespace gem5
                     }
                     faults_injected_count++;
                     continue;
+                }
+
+                // §2.11 L1I semantic-field stratification
+                if (!l1i_semantic_field.empty() && l1i_semantic_field != "none") {
+                    int lo=-1, hi=-1;
+                    if (l1i_semantic_field == "opcode") { lo=25; hi=31; }
+                    else if (l1i_semantic_field == "rn") { lo=5; hi=9; }
+                    else if (l1i_semantic_field == "rm") { lo=16; hi=20; }
+                    else if (l1i_semantic_field == "rd") { lo=0; hi=4; }
+                    else if (l1i_semantic_field == "imm12") { lo=10; hi=21; }
+                    else if (l1i_semantic_field == "cond") { lo=0; hi=3; }
+                    if (lo >= 0) {
+                        int bit = lo + (int)(rng() % (unsigned)(hi - lo + 1));
+                        byteOffset = (bit / 8);
+                        mask = (1 << (bit % 8));
+                        if (write_log) {
+                            *(log_stream->stream()) << "    §2.11 l1i_field=" << l1i_semantic_field
+                                << " bit=" << bit << " byteOffset=" << byteOffset
+                                << " mask=0x" << std::hex << (int)mask << std::dec << std::endl;
+                        }
+                    }
                 }
 
                 uint8_t orig_byte = data[byteOffset];  // §1.2: for undo (Corrected)

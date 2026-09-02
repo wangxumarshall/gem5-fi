@@ -45,6 +45,10 @@ CONFIG_FAMILY = {
     "C2": os.path.join(REPO, "configs/se/kp920_proxy.py"),
     # §2.7 cache injector harness (CHAOSCache mounts via _pre_instantiate)
     "C0-CACHE": os.path.join(REPO, "configs/se/arm_chaos_cache.py"),
+    # §2.10 FS harness (CHAOSArmTLB/CHAOSArmSysReg; needs gem5-fs deps)
+    "C0-FS": os.path.join(REPO, "configs/se/arm_chaos_fs.py"),
+    # §1.1 FS V110 proxy (delegates to arm_chaos_fs; V110 params TODO)
+    "C2-FS": os.path.join(REPO, "configs/fs/kp920_proxy_fs.py"),
 }
 
 # manifest oracle.golden_id -> the workload's golden (no-injection) checksum.
@@ -65,7 +69,14 @@ GOLDEN_IDS = {
     "neon-golden-v1":     "00000000526925fe",
     "fwdchecksum-golden-v1": "ac70ef3a46fd0825",
     "raschecksum-golden-v1": "bcf20e1df7bb0535",
-    "spinlockchecksum-golden-v1": "0891b007b53c4869",  # spinlock_checksum  # ras_checksum_kernel  # fwd_checksum_kernel  # neon_lane  # branchy_reduce (§2.3)
+    "spinlockchecksum-golden-v1": "0891b007b53c4869",
+    "maddchain-golden-v1": "9e8050e1503c34ab",
+    "crcstate-golden-v1": "d27806e62c9d3869",
+    "structfield-golden-v1": "afebbd4c86e8cfdf",
+    "svditerative-golden-v1": "4afb95b5b32f3820",
+    "gemmfloat-golden-v1": "d74f24ae79deb7d2",
+    "depchain-golden-v1": "030f101df841bf6e",
+    "ptrchase-golden-v1": "af63bd4c8601b7df",  # spinlock_checksum  # ras_checksum_kernel  # fwd_checksum_kernel  # neon_lane  # branchy_reduce (§2.3)
 }
 
 def sha256_file(path):
@@ -326,6 +337,26 @@ def main():
                 "--max_faults", str(m["limits"]["max_faults"]),
                 "--rng_seed", str(m["rng"]["selection_seed"]),
                 "--fault_type", fault_type]
+    elif comp == "l1_tlb":
+        # §2.10 CHAOSArmTLB (D-TLB pfn, FS-only). Requires config_family
+        # C0-FS (arm_chaos_fs.py + gem5-fs kernel/disk/bootloader).
+        if cfg_family != "C0-FS":
+            sys.exit("[runner] component 'l1_tlb' requires platform."
+                     "config_family='C0-FS' (arm_chaos_fs.py, needs gem5-fs "
+                     "kernel/disk/bootloader). Aborting.")
+        cmd += ["--chaos_armtlb", "--tlb_probability", "1.0",
+                "--tlb_first_clock", str(t["value"]),
+                "--tlb_max_faults", str(m["limits"]["max_faults"]),
+                "--tlb_rng_seed", str(m["rng"]["selection_seed"])]
+    elif comp == "sysreg":
+        # §2.10 CHAOSArmSysReg (MRS read-path, FS-only).
+        if cfg_family != "C0-FS":
+            sys.exit("[runner] component 'sysreg' requires platform."
+                     "config_family='C0-FS'. Aborting.")
+        cmd += ["--chaos_sysreg", "--sysreg_probability", "1.0",
+                "--sysreg_first_clock", str(t["value"]),
+                "--sysreg_max_faults", str(m["limits"]["max_faults"]),
+                "--sysreg_rng_seed", str(m["rng"]["selection_seed"])]
     elif comp == "exmon":
         # §2.4 CHAOSExMon (exclusive monitor, stxr_force_success/fail).
         cmd += ["--chaos_exmon", "--exmon_mode", "stxr_force_fail",
