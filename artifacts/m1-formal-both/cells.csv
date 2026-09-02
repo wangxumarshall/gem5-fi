@@ -1,0 +1,2 @@
+cell_ordinal,layer,target_arch,semantic_role,fault_model,f5_substitute_target,n_total,n_valid,SDC,Crash,Hang,Inactive,Masked,SimulatorError,P_SDC,P_SDC_lo,P_SDC_hi,P_DUE,P_DUE_lo,P_DUE_hi,P_escape,Reachability,first_run_id,first_run_class
+0,physical,9,int_accum,legal_domain_sub,-1,384,266,0,0,53,0,213,118,0.0000,0.0000,0.0113,0.1992,0.1557,0.2514,0.0000,1.0000,method1_f5_accum_formal-c000-r0,Masked

@@ -1,0 +1,7 @@
+numeric-only : SDC=114/148
+compute-both : SDC=0/266
+  P_residue numeric=0.7703 [0.6962,0.8307]
+  P_residue both   =0.0000 [0.0000,0.0113]
+  numeric/compute ratio = inf  (field [2,8])
+  Fisher exact (1-sided) p = 1.189e-71  (acceptance p<0.05)
+  H-acceptance P(history_residue)>0 Fisher p<0.05: PASS
