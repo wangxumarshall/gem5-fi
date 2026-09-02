@@ -1122,3 +1122,11 @@ ARM 三条路径 + golden（真跑输出）：
 **§2.4 LSQFwd pilot**：5/5 Inactive。诚实诊断：lsq_fwd_injections.log **有 3 行注入日志**（注入确实触发了），但 runner 标 Inactive（faults_injected=0）——根因：CHAOSLSQFwd 的 max_faults=1 不生效（probability=1.0 时每次 forwarding 都注入，max_faults 检查未阻止第 2-3 次）。这是 CHAOSLSQFwd 的 max_faults + probability 交互 bug，需单独修复（非本次 campaign 阻碍——其它 9 个单元的 campaign 已跑通）。
 
 **runner 修复**: lsq_fwd 映射加 `--probability 1.0`（之前没传，默认 0 → Inactive）。log 解析已有 lsq_fwd_injections.log。manifest_validate 加 bpu/decode/l1d_fwd/exmon/ras enum。runner 加 decode 组件映射。
+
+---
+
+### §2.4 LSQFwd C pilot 修复完成
+
+**根因**：runner.py 的 fault-log 解析列表**缺 `lsq_fwd_injections.log`**（有 `l1d_fwd_injections` 但没有 `lsq_fwd_injections`）→ runner 找不到日志→标 Inactive faults_injected=0。修复：加 `lsq_fwd_injections.log` 到列表。
+
+**§2.4 LSQFwd pilot（fwd_checksum_kernel, n=5）✅**：5/5 Masked faults_injected=1——注入触发正确解析，转发数据 XOR 未传播到 checksum（pilot n=5 + 随机 mask 不落关键位）。formal n=384 会更真实。

@@ -61,7 +61,9 @@ GOLDEN_IDS = {
     "movheavy-golden-v1":   "61e8a946ed50ae1f",  # mov_heavy (move-elimination)
     "branchyreduce-golden-v1": "d47587240e6f0a83",
     "neon-golden-v1":     "00000000526925fe",
-    "fwdchecksum-golden-v1": "ac70ef3a46fd0825",  # fwd_checksum_kernel  # neon_lane  # branchy_reduce (§2.3)
+    "fwdchecksum-golden-v1": "ac70ef3a46fd0825",
+    "raschecksum-golden-v1": "bcf20e1df7bb0535",
+    "spinlockchecksum-golden-v1": "0891b007b53c4869",  # spinlock_checksum  # ras_checksum_kernel  # fwd_checksum_kernel  # neon_lane  # branchy_reduce (§2.3)
 }
 
 def sha256_file(path):
@@ -307,6 +309,19 @@ def main():
         cmd += ["--chaos_decode", "--decode_first_clock", str(t["value"]),
                 "--decode_max_faults", str(m["limits"]["max_faults"]),
                 "--decode_rng_seed", str(m["rng"]["selection_seed"])]
+    elif comp == "exmon":
+        # §2.4 CHAOSExMon (exclusive monitor, stxr_force_success/fail).
+        cmd += ["--chaos_exmon", "--exmon_mode", "stxr_force_fail",
+                "--exmon_first_clock", str(t["value"]),
+                "--exmon_max_faults", str(m["limits"]["max_faults"]),
+                "--exmon_rng_seed", str(m["rng"]["selection_seed"]),
+                "--probability", "1.0"]
+    elif comp == "ras":
+        # §2.18 CHAOSRAS (exc_suppress at commit fault-check).
+        cmd += ["--chaos_ras", "--ras_first_clock", str(t["value"]),
+                "--ras_max_faults", str(m["limits"]["max_faults"]),
+                "--ras_rng_seed", str(m["rng"]["selection_seed"]),
+                "--probability", "1.0"]
     elif comp == "addr_path":
         # §2.4 CHAOSAddrPath (AGU address-path, SE-inert, FS-only).
         cmd += ["--chaos_addrpath", "--addrpath_mode", "byte7_zero",
