@@ -15,19 +15,25 @@ S1 四个 P0 单元 + S2/S3 六个 SE 单元 formal 已完成（单 cell × n=38
 
 ## Phase 1 — 工具正确性 + 在手结果落盘（本分支主题，最高优先）
 
-**Status: pending**
+**Status: complete（2026-09-03）**
 
-1. **提交未提交的 formal 结果**（bpu_formal / decode_formal / ras_formal / iq_formal_cholesky / exec_formal_cholesky / mem_formal_cholesky 的 campaigns + artifacts + progress.md + escape_decomposition.md）。mem_formal 单独标注 all-Inactive 无效。
-   - 注意 `git add` 只加清单内文件（并行 session 纪律：never `git add -A`）。
-2. **修 CHAOSMem 频率 bug**（`CHAOS/gem5/src/mem/CHAOSMem/CHAOSMem.cc:85`）：`first_tick = first_clock * tick_to_clock_ratio`，tickToClockRatio 硬编码 1000（假设 1GHz）。C2-KP 2.6GHz（385 t/cyc）下 50000 cycles → 50M ticks > cholesky 总 31.7M ticks → 窗口永不打开 → 384 全 Inactive。修法与 8bff9d1 一致：用 `mem->clockPeriod()` 做频率无关换算（或让 runner 传 ratio=385）。补丁 1 个。
-   - 自验证：C2 上 mem formal 单 rep `faults_injected=1`；C0 回归（G4 锚点：maxFaults=1 恰好 1 次、首/中/末/单字节边界）。
-3. **重跑 mem_formal_cholesky** n=384（修复后）。
+1. ✅ 6 个 formal 提交（d4c9e8b）：bpu/decode/ras/iq 全 Masked 384/384；mem 标注无效。
+2. ✅ CHAOSMem 频率 bug 修复（b7433dd）：ratio 由时钟频率按 gem5 舍入规则计算（C2→385，C0→500）。真机验证 Tick 精确等于 first_clock×ratio。
+3. ✅ mem_formal 重跑（d88dcc7）：**VALID，384/384 Masked，P_SDC=0% [0,1.0]**——DRAM 后备字节被 L1/L2 缓存掩盖（与 L1D 97.7% SDC 对照鲜明）。附带修复 campaign.py --jobs>1 pickle bug（_PoolRep 模块级类；此前所有 formal 都是串行跑的，掩盖了此 bug）。
 
-**验收**：`git status` 干净（除有意保留项）；mem formal n_valid>0；reg_chain golden `f247ef3fe6f02cfd` 回归通过。
+**验收**：✅ mem formal n_valid=384>0；✅ reg_chain golden f247ef3fe6f02cfd 回归通过。
 
 ## Phase 2 — protection-aware 第二组（§1.2 核心缺口，改结论级别的补强）
 
-**Status: pending**
+**Status: complete（2026-09-03）**
+
+1. ✅ **protection_model 全链路打通**（19d8a4b）：campaign→manifest→runner→config（l1d/cache + memory 路由），pilot 实证 ladder 生效。
+2. ✅ **L1D secded_poison formal**（19d8a4b）：384/384 Masked，P_SDC=0% [0,1]——与 raw 97.7% 形成风险反转（对 F1 单 bit）。
+3. ✅ **l1dfwd post-check escape formal**（7387649 采样修复 + 7d40912 重跑）：**P_SDC=90.9% [87.6,93.4]**——§2.7 H.③ 验证通过。
+4. ⏸ mem+secded 对照（Phase 2.3）：deferred——DRAM 后备字节全 Masked（上游缓存掩盖），protection 对照暂不改变结论，排 Phase 3 网格深化后再评估。
+
+**L1D 三层定论（§4.1 逃逸分解 L1D 部分完成）**：raw 97.7% / +SECDED 0% / post-check 90.9%。
+**附带发现**：CHAOSL1DForward 单故障采样偏差 bug（第一 eligible 恒为同一 squashed load）——所有 hook-on-event 注入器需逐一审计（Phase 3 首项）。
 
 设计文档 §1.2 明确"每个 cell 跑两组"，目前 L1D 唯一高 SDC 单元（97.7%）只跑了 `none`。没有 protection 对照，§4.1 的逃逸分解与 §4.2 排序就没有"风险反转"维度。
 
@@ -107,4 +113,4 @@ Phase 7 (系统级)           ← 后置
 
 ## Next Step
 
-Phase 1.1：提交 6 个未提交的 formal 结果（campaigns + artifacts + progress.md + escape_decomposition.md，按清单 git add，绝不用 -A）。
+Phase 3.0：审计所有 hook-on-event 注入器的采样偏差（lsqfwd/exmon/bpu/ras/decode 等 max_faults=1 是否总命中同一动态事件）——CHAOSL1DForward 的教训（7387649）可能同样影响 lsqfwd formal 的"100% DUE"结论。逐个检查 maybeCorrupt 是否在窗口打开后总是命中第一个 eligible 事件，是则加 events_to_skip。

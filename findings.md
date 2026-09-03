@@ -79,3 +79,16 @@
 **修复方向**（Phase 2.2 待办）：注入器需要"随机跳过前 N 个 eligible 事件"（poisson/rand-int 偏移，由 rng_seed 驱动），使单故障在 eligible 事件流上均匀采样。同类风险：所有 "hook-on-event + max_faults=1" 的注入器（l1dfwd/lsqfwd/exmon/bpu 等）都有此陷阱——lsqfwd formal 100% DUE 可能部分受益于同样偏差（它的第一个 eligible 转发点可能总是致命的），需要复核。
 
 **诚实结论**：l1dfwd_formal_reduce 的 384/384 Masked **无效**（不测 post-check escape），已作废。修复注入器采样后重跑。
+
+## Phase 2 最终证据（2026-09-03 夜）
+
+**L1D 三层定论（§4.1 逃逸分解的 L1D 部分，n=384 各组，replay 通过）**：
+| 通路 | P_SDC [95% CI] | 逃逸机理归类 |
+|---|---|---|
+| raw（cache 数据字节） | 97.7% [95.6, 98.8] | A（无保护基线） |
+| + SECDED（secded_poison） | 0.0% [0.0, 1.0] | F1 单 bit 全被纠正 |
+| post-check escape（load 回填） | **90.9% [87.6, 93.4]** | **D（ECC 校验后盲区）** |
+
+→ "给 L1D 数据加 SECDED"对 F1 有效（97.7→0），但 ECC 后通路（fill→PRF）是 90.9% 的逃逸盲区——保护投资应同时考虑 check-after-path。这是 §4.2 排序表的直接证据行。
+
+**采样偏差 bug 族（新发现，影响面待查）**：hook-on-event + max_faults=1 的注入器若"总是第一个 eligible 事件"，确定性流下全部 reps 命中同一动态事件。CHAOSL1DForward 已修（events_to_skip, geometric p=0.1）；lsqfwd（formal 100% DUE）、exmon（pilot 5/5 DUE）、bpu/ras/decode（全 Masked）的结果都需用"不同 seed 注入 addr/tick 是否分散"来复核——分散 = 无此偏差；恒定 = 有。
