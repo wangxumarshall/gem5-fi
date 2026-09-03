@@ -1564,3 +1564,11 @@ Phase 2.2（l1dfwd post-check escape formal）已启动。
 **验证链（r0009 复盘）**：runner 重放 manifest → faults=1 ✅；手动命令复现（`--fpu_rng_seed` 而非 `--rng_seed`——generic 参数不喂 FPU 注入器的手工坑）→ Tick 974979775 ≠ 旧固定 974889685 ✅ 分散生效。RAS 24 Inactive / FPU 317 Inactive 全部 faults=0（skip 超过事件流，诚实记 Inactive 不入 N_valid）。
 
 **Phase 3.0 完成**。采样偏差 bug 族（8 个注入器）全部修复：l1dfwd（7387649）、lsqfwd（9779097）、bpu/ras/decode/exec/fpu/iq（32629f7）。
+
+### Phase 3 网格深化 #1: FPU gemm_float formal — 单元级结论确认
+
+**过程（两次诚实修正）**：
+1. 首次 gemm formal 384/384 Inactive——gemm_float 全程仅 57K cycles，trigger=50000 (38.5M ticks) > 总 22M ticks，窗口没开（5d84b5f 同类 trigger-timing 错误）。修正 trigger=20000。
+2. 重跑：**n_valid=384, 384/384 faults=1, 全 Masked：P_SDC=0.0% [0.0,1.0], Reach=100%, frozen=no**（205s + replay）。
+
+**FPU 最终结论（合并 neon_lane Reach=17% 的一致方向）**：FSU 数据通路单 bit XOR 在 FP 密集 workload（gemm_float，稠密 eligible 流 + 分散注入点）上 384/384 全 Masked——**单元级确认**：FP 结果单比特错误不传播到 gemm checksum（n=384 上界 1%）。注意 §2.6 的 F5 子模式（fma_intermediate/rounding_sub/fpsr_suppress）仍 deferred——"全 Masked"限定于 F1 单 bit XOR。
