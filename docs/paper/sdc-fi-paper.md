@@ -83,6 +83,8 @@ X3（数据累加器）× 8 位段（bit 0/11/12/31/32/47/48/63）× n=96，C2-K
 
 **X3 全 8 位段 SDC=96/96 P_SDC=1.000 [0.962,1.000]**（合计 768/768 [0.995,1.000]，0 Hang 0 Crash 0 Masked）——数据累加器的任意单 bit 翻转确定性传播为 SDC，正式确认"X3 所有位 SDC"（与 X2 循环计数器高位 Hang 的对照印证寄存器语义角色决定 SDC-vs-Hang 归宿）。
 
+**read-trace n=384 复测**（4 代表位段 × 384）：SDC=1536/1536 P=1.000 [0.990,1.000]（CI 更紧）；reads_before_overwrite 中位数 **1,975,000**——X3 的注入值在被覆写前被读约 200 万次（状态泄漏窗口实测），P(SDC|reads>0)=1.000，四分类无 Benign/Masked（累加器全程活跃）。**窗口扫描**（ROB{96,128,160}×n=96）：X3 全位段与 X2bit0 保持 SDC=96/96、X2bit63 保持 Hang=96/96——P_SDC 处于饱和区，d(P_SDC)/d(ROB) 不可分辨（诚实边界：窗口敏感性需未饱和 cell 测出）。
+
 ### 4.3 LSQ 转发故障模式矩阵（表 3——T4 数据）
 
 fp_fwd_kernel（asm back-to-back store→load）× 5 故障模式 × n=64（tables/t3-lsq-matrix.md）：**bitflip、structural（byte_lane_skew rol1，core179 D1 撕裂移位）、phase（phase_offset=2，F6 相位）SDC 率均 64/64=1.000**；**fwd_source_sub（F5 错源）与 stale_line_replay 为 Masked 阴性**（64/64，注入确认发生——numFwdSourceSub/numStaleLineReplay 计数=1——但 fp_fwd_kernel 的同址转发使替换源 ring buffer 内为等值数据，fails=0）。相位敏感性：|offset|≥1 即 100% SDC，与 method3 现场塌方机制（一条 no-op ALU 使触发率 100%→10–20%——相位错位破坏数据组装）方向一致。**诚实边界**：原计划的 fwd_7case 7 几何轴被废弃——其 volatile-no-barrier C 模式在 -O2 下不触达 gem5 转发路径（注入日志 0 字节），矩阵降为单几何 × 5 模式。
