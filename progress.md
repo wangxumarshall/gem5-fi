@@ -1545,3 +1545,22 @@ Phase 2.2（l1dfwd post-check escape formal）已启动。
 - 重建 -j16 零 CHAOS 警告 ✅
 
 6 个 formal（bpu/decode/ras/iq/exec/fpu）的"全 Masked"结论作废待重跑。
+
+### Phase 3.0 完成: 6 注入器 formal 重跑（events_to_skip 后）— 3 个结论修正 + 3 个确认
+
+| 单元 | workload | 旧（偏差）结论 | 新（分散采样）结论 | n_valid |
+|---|---|---|---|---|
+| §2.13 BPU dir_flip | branchy_reduce | 全 Masked | **全 Masked（确认，单元级）** P_SDC=0 [0,1] | 384 |
+| §2.14 Decode dest_reg_sub | cholesky | 全 Masked | **修正：Masked 75.7% + DUE 24.1% + SDC 0.3%** | 382 |
+| §2.18 RAS exc_suppress | cholesky | 全 Masked | Masked 100%（n=357；24 Inactive=事件流枯竭） | 357 |
+| §2.5 IQ wake_omit | cholesky | 全 Masked | **全 Masked（确认，单元级）** | 384 |
+| §2.12 Exec IntAlu XOR | cholesky | 全 Masked | **全 Masked（确认，单元级）** | 384 |
+| §2.6 FPU Float/Simd XOR | neon_lane | 全 Masked | Masked 100% 但 **Reach=17%**（317/384 Inactive——geometric(0.1) 均值 9 超过 neon_lane 的微小 eligible 流） | 67 |
+
+**关键修正**：§2.14 Decode 的 "全 Masked" 是采样伪影——随机选取的 dest_reg_sub 替换有 **24.1% DUE**（90/382 Crash + 2 Hang）+ 0.3% SDC。与 §2.2 RAT（95.8% DUE）方向一致但程度轻得多：decode 只改一条 μop 的目的寄存器（错误可被后续覆盖），RAT 改映射表（错误持续到下次写）。
+
+**FPU Reach=17% 的诚实处理**：67 个 active reps 全 Masked（P_SDC 上界 5.4%），但样本量不足以下单元级结论——需 (a) 用 FP 密集 workload（gemm_float）或 (b) 更早 trigger 扩大 eligible 流后重跑。列入 Phase 3 网格深化。
+
+**验证链（r0009 复盘）**：runner 重放 manifest → faults=1 ✅；手动命令复现（`--fpu_rng_seed` 而非 `--rng_seed`——generic 参数不喂 FPU 注入器的手工坑）→ Tick 974979775 ≠ 旧固定 974889685 ✅ 分散生效。RAS 24 Inactive / FPU 317 Inactive 全部 faults=0（skip 超过事件流，诚实记 Inactive 不入 N_valid）。
+
+**Phase 3.0 完成**。采样偏差 bug 族（8 个注入器）全部修复：l1dfwd（7387649）、lsqfwd（9779097）、bpu/ras/decode/exec/fpu/iq（32629f7）。
