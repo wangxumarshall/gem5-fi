@@ -1,0 +1,113 @@
+{
+  "cli_version": "0.10.2",
+  "checkpoint_id": "01M1KCNEP1MPD0TJHM23N9MV3G",
+  "session_id": "bb18f39f-5c41-4985-a435-26120c7e1484",
+  "strategy": "manual-commit",
+  "created_at": "2026-09-03T10:22:40.993027524Z",
+  "branch": "fix/fi-tool-correctness",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "campaigns/§2.7-l1d-formal-secded.yaml",
+    "campaigns/§2.7-l1dfwd-formal.yaml",
+    "configs/se/kp920_proxy.py",
+    "tools/campaign.py",
+    "tools/runner.py"
+  ],
+  "agent": "Claude Code",
+  "model": "GLM-5.3[1m]",
+  "turn_id": "0bb4358dd1b6",
+  "checkpoint_transcript_start": 822,
+  "transcript_lines_at_start": 822,
+  "compact_transcript_start": 135,
+  "token_usage": {
+    "input_tokens": 12689667,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 8441,
+    "api_call_count": 46
+  },
+  "skill_events_version": 1,
+  "skill_events": [
+    {
+      "id": "prompt-skill-claude-code-planning-with-files-2026-09-03T07:44:26.263791342Z",
+      "event_type": "prompt_invocation",
+      "skill": {
+        "name": "planning-with-files"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "prompt_slash_command",
+        "confidence": "explicit"
+      },
+      "turn_id": "12bf5382bf01",
+      "timestamp": "2026-09-03T07:44:26.263791342Z",
+      "native": {
+        "command": "/planning-with-files"
+      },
+      "collapse": {
+        "target": "user_message",
+        "label": "/planning-with-files",
+        "default_collapsed": true
+      }
+    },
+    {
+      "id": "prompt-skill-claude-code-planning-with-files-2026-09-03T07:48:50.462503195Z",
+      "event_type": "prompt_invocation",
+      "skill": {
+        "name": "planning-with-files"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "prompt_slash_command",
+        "confidence": "explicit"
+      },
+      "turn_id": "2da7a85c3180",
+      "timestamp": "2026-09-03T07:48:50.462503195Z",
+      "native": {
+        "command": "/planning-with-files"
+      },
+      "collapse": {
+        "target": "user_message",
+        "label": "/planning-with-files",
+        "default_collapsed": true
+      }
+    },
+    {
+      "id": "prompt-skill-claude-code-goal-2026-09-03T08:42:37.670597255Z",
+      "event_type": "prompt_invocation",
+      "skill": {
+        "name": "goal"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "prompt_slash_command",
+        "confidence": "explicit"
+      },
+      "turn_id": "0bb4358dd1b6",
+      "timestamp": "2026-09-03T08:42:37.670597255Z",
+      "native": {
+        "command": "/goal"
+      },
+      "collapse": {
+        "target": "user_message",
+        "label": "/goal",
+        "default_collapsed": true
+      }
+    }
+  ],
+  "session_metrics": {
+    "turn_count": 1
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-09-03T10:22:40.782489153Z",
+    "agent_lines": 79,
+    "agent_removed": 2,
+    "human_added": 48,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 127,
+    "total_lines_changed": 129,
+    "agent_percentage": 62.7906976744186,
+    "metric_version": 2
+  }
+}

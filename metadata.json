@@ -1,0 +1,30 @@
+{
+  "cli_version": "0.10.2",
+  "checkpoint_id": "01M1KCNEP1MPD0TJHM23N9MV3G",
+  "strategy": "manual-commit",
+  "branch": "fix/fi-tool-correctness",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "campaigns/§2.7-l1d-formal-secded.yaml",
+    "campaigns/§2.7-l1dfwd-formal.yaml",
+    "configs/se/kp920_proxy.py",
+    "tools/campaign.py",
+    "tools/runner.py"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 12689667,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 8441,
+    "api_call_count": 46
+  }
+}
