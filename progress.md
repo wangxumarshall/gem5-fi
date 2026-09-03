@@ -1374,3 +1374,46 @@ ARM 三条路径 + golden（真跑输出）：
 - **关键发现**：L1D 随机块/字节注入在 l1d_reduce 上几乎总是 SDC（97.7%）——与早期"5/5 Masked（随机瞬态字节）"结论相反！原因是 trigger 时序：first_clock=100000 时 l1d_reduce 的 512KiB 数组活数据驻留中，随机 block/byte 几乎必中活值。cache AVF 高度 timing-sensitive（pilot 与 formal 的 trigger 不同结论——诚实记录）。
 
 **S2/S3 已完成 formal**：IQ ✅ + L1D ✅。FPU（neon_lane ~29s/run × 384 ≈ 3.1h）后台跑中。Exec formal 排队。
+
+---
+
+### S2/S3 formal 补完：§2.6 FPU + §2.12 Exec n=384
+
+**§2.6 FPU formal（neon_lane, C2-KP, 384 reps, ~3.4h——neon_lane 每 run 29s）**：
+- Float*/Simd* 结果 XOR: P_SDC=0.0% [0,1.0], P_DUE=0%, Reach=100% — **384/384 全 Masked**（FP 结果单 bit 翻转未传播到 lane checksum——n=384 置信）
+
+**§2.12 Exec formal（cholesky, C2-KP, 384 reps, ~15min）**：
+- IntAlu/Mult/Div 结果 XOR: P_SDC=0.0% [0,1.0], P_DUE=0%, Reach=100% — **384/384 全 Masked**（整数路径低 SDC——method1 "整数路径完好" + Veritas "整数加法器 SDC 低几个数量级" 在 formal 规模确认）
+
+**S2/S3 已完成 formal 汇总**：
+
+| 单元 | workload | P_SDC | P_DUE | 结局 |
+|---|---|---|---|---|
+| §2.5 IQ wake_omit | cholesky | 0% | 0% | 全 Masked |
+| §2.6 FPU | neon_lane | 0% | 0% | 全 Masked |
+| §2.7 L1D random | l1d_reduce | **97.7%** [95.6,98.8] | 0% | SDC 主导 |
+| §2.12 Exec | cholesky | 0% | 0% | 全 Masked |
+
+**诚实观察**：S2/S3 的 SE 单元（IQ/FPU/Exec）全部 0% SDC——**整数/FP 执行单元与 IQ 的随机单 bit 翻转在两个 workload 上都不传播**（n=384 置信上界 1.0%）。唯一高 SDC 的 SE 单元是 L1D cache（97.7%）——因为 cache 注入直接命中活数据。与 S1 的 PRF/RAT（DUE 主导 92-96%）形成对比：**乱序后端结构错误→崩溃，存储结构错误→SDC，执行/IQ 结构错误→被掩盖**。
+
+---
+
+## Session 2026-09-03（下午）：编写下一步计划（/planning-with-files）
+
+依据 `docs/KUNPENG920-故障注入方案详细工程设计.md` × HEAD af64ef7 现状，产出三份规划文件：
+
+- **task_plan.md**（新建）：7 阶段工作计划。Phase 1 工具正确性+结果落盘（6 个未提交 formal + CHAOSMem 频率 bug）→ Phase 2 protection-aware 对照组 → Phase 3 网格深化 → Phase 4 F5/F6 机理子模式 → Phase 5 FS 管线 → Phase 6 元分析+健康机复现 → Phase 7 系统级（后置）。
+- **findings.md**（新建）：现状证据审计——10 个已提交 + 5 个未提交 formal 结果表、8 项 bug/缺口清单（含新发现的 CHAOSMem tickToClockRatio=1000 硬编码导致 mem_formal 384 全 Inactive）、结构性格局总结。
+- **.plan.md**：旧的 §2.12 CHAOSExec 单补丁计划（已完成并提交 af64ef7，被新计划取代）。
+
+### 本轮调查关键发现（细节见 findings.md）
+
+1. **mem_formal_cholesky 无效**：384/384 Inactive（n_valid=0）。根因定位：`CHAOSMem.cc:85` `first_tick = first_clock * tick_to_clock_ratio`，config 传 `tickToClockRatio=1000`（1GHz 假设），C2-KP 2.6GHz 下 50000 cycles → 50M ticks > cholesky 总 31.7M ticks，窗口永不打开。与 8bff9d1 修过的 10 个注入器 inWindow bug 同类，CHAOSMem 漏网。
+2. **bpu/decode/ras/iq/exec formal 已跑完但未提交**（384/384 faults=1，全 Masked）——campaigns yaml + artifacts 都在工作区。
+3. **F5/F6 子模式全部 deferred**（源码注释逐一确认）：ROB spec_leak、IQ src_ready_bitflip/tag_sub、LSQFwd fwd_source_sub/phaseOffset、ArmTLB pfn_to_mapped_page、CHAOSMem addr_map_sub。
+4. **kp920_proxy_fs.py 是 stub**（"V110 params TODO"）。
+5. 工作区有 7c854bb/7582e8c pilot 的 ruby 测试配置未提交；`build_ARM_link` 是符号链接不应提交。
+
+### 下一步（Phase 1.1）
+
+提交 6 个未提交 formal 结果（清单式 git add，不用 -A），然后修 CHAOSMem 频率 bug 并重跑 mem formal。

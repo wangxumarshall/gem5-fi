@@ -6,11 +6,14 @@
 | decode_regchain_pilot<br>phys_mode=arch_frontend target_index=0 fault_model=transient_bit_flip | none | 0.0% [0.0,43.5] | 0.0% [0.0,43.5] | 100.0% | A (RAS-out-of-scope: decode latch) |
 | example-prf-pilot<br>phys_mode=arch_frontend target_index=3 fault_model=transient_bit_flip | none | 100.0% [34.2,100.0] | 0.0% [0.0,65.8] | 100.0% | ? (unit not in map) |
 | example-prf-pilot<br>phys_mode=arch_frontend target_index=9 fault_model=transient_bit_flip | none | 0.0% [0.0,65.8] | 0.0% [0.0,65.8] | 100.0% | ? (unit not in map) |
+| exec_formal_cholesky<br>phys_mode=arch_frontend target_index=0 fault_model=transient_bit_flip | none | 0.0% [0.0,1.0] | 0.0% [0.0,1.0] | 100.0% | A (RAS-out-of-scope: int-ALU unprotected) |
 | exec_regchain_pilot<br>phys_mode=arch_frontend target_index=0 fault_model=transient_bit_flip | none | 0.0% [0.0,43.5] | 0.0% [0.0,43.5] | 100.0% | A (RAS-out-of-scope: int-ALU unprotected) |
 | exmon_spinlock_pilot<br>phys_mode=arch_frontend target_index=0 fault_model=transient_bit_flip | none | 0.0% [0.0,43.5] | 100.0% [56.5,100.0] | 100.0% | A (RAS-out-of-scope: exclusive monitor state) |
+| fpu_formal_neon<br>phys_mode=arch_frontend target_index=0 fault_model=transient_bit_flip | none | 0.0% [0.0,1.0] | 0.0% [0.0,1.0] | 100.0% | ? (unit not in map) |
 | fpu_neon_pilot<br>phys_mode=arch_frontend target_index=0 fault_model=transient_bit_flip | none | 0.0% [0.0,43.5] | 0.0% [0.0,43.5] | 100.0% | ? (unit not in map) |
 | iq_cholesky_pilot<br>phys_mode=arch_frontend target_index=0 fault_model=transient_bit_flip | none | 0.0% [0.0,43.5] | 0.0% [0.0,43.5] | 100.0% | A (RAS-out-of-scope: IQ unprotected) |
 | iq_formal_cholesky<br>phys_mode=arch_frontend target_index=0 fault_model=transient_bit_flip | none | 0.0% [0.0,1.0] | 0.0% [0.0,1.0] | 100.0% | A (RAS-out-of-scope: IQ unprotected) |
+| l1d_formal_reduce<br>phys_mode=arch_frontend target_index=0 fault_model=transient_bit_flip | none | 97.7% [95.6,98.8] | 0.0% [0.0,1.0] | 100.0% | D (post-check escape via CHAOSL1DForward; cache raw vs secded_poison) |
 | l1d_reduce_pilot<br>phys_mode=arch_frontend target_index=0 fault_model=transient_bit_flip | none | 100.0% [56.5,100.0] | 0.0% [0.0,43.5] | 100.0% | D (post-check escape via CHAOSL1DForward; cache raw vs secded_poison) |
 | lsqfwd_formal_fwd<br>phys_mode=arch_frontend target_index=0 fault_model=transient_bit_flip | none | 0.0% [0.0,1.0] | 100.0% [99.0,100.0] | 100.0% | ? (unit not in map) |
 | lsqfwd_fwd_pilot<br>phys_mode=arch_frontend target_index=0 fault_model=transient_bit_flip | none | 0.0% [0.0,43.5] | 0.0% [0.0,43.5] | 100.0% | ? (unit not in map) |
