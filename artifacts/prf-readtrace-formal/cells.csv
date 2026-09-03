@@ -1,0 +1,5 @@
+cell_ordinal,layer,target_arch,bit_indices,n_total,n_valid,SDC,Crash,Hang,Inactive,Masked,SimulatorError,P_SDC,P_SDC_lo,P_SDC_hi,P_DUE,P_DUE_lo,P_DUE_hi,P_escape,Reachability,RT_Benign,RT_Masked,RT_SDC,RT_Crash,P_SDC_given_reads_gt0,reads_median,first_run_id,first_run_class
+0,arch_frontend,3,[0],384,384,384,0,0,0,0,0,1.0000,0.9901,1.0000,0.0000,0.0000,0.0078,1.0000,1.0000,0,0,384,0,1.0000,1975000,prf_x3_readtrace_formal-c000-r0,SDC
+1,arch_frontend,3,[31],384,384,384,0,0,0,0,0,1.0000,0.9901,1.0000,0.0000,0.0000,0.0078,1.0000,1.0000,0,0,384,0,1.0000,1975000,prf_x3_readtrace_formal-c001-r0,SDC
+2,arch_frontend,3,[32],384,384,384,0,0,0,0,0,1.0000,0.9901,1.0000,0.0000,0.0000,0.0078,1.0000,1.0000,0,0,384,0,1.0000,1975000,prf_x3_readtrace_formal-c002-r0,SDC
+3,arch_frontend,3,[63],384,384,384,0,0,0,0,0,1.0000,0.9901,1.0000,0.0000,0.0000,0.0078,1.0000,1.0000,0,0,384,0,1.0000,1975000,prf_x3_readtrace_formal-c003-r0,SDC
