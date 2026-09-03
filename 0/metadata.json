@@ -1,0 +1,73 @@
+{
+  "cli_version": "0.10.2",
+  "checkpoint_id": "01M1KVDN1S1WSXQPTJK9F78Q7F",
+  "session_id": "9759e700-8d7f-4ed3-a614-e20ea6ece92c",
+  "strategy": "manual-commit",
+  "created_at": "2026-09-03T14:42:49.69551438Z",
+  "branch": "research/posparity-core179",
+  "checkpoints_count": 1,
+  "save_step_count": 1,
+  "files_touched": [
+    "docs/superpowers/plans/2026-09-02-positional-parity-research.md"
+  ],
+  "agent": "Claude Code",
+  "model": "GLM-5.3[1m]",
+  "turn_id": "f0bb7dc99586",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 11485715,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 133633,
+    "api_call_count": 124
+  },
+  "skill_events_version": 1,
+  "skill_events": [
+    {
+      "id": "claude-skill-call_8007712f4e094f2f88a47a38",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "superpowers:subagent-driven-development"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "f0bb7dc99586",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 276,
+        "end": 277,
+        "entry_ids": [
+          "8bb1294d-ecfe-4078-a3be-70e5110635b9"
+        ],
+        "tool_use_id": "call_8007712f4e094f2f88a47a38"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "call_8007712f4e094f2f88a47a38"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: superpowers:subagent-driven-development",
+        "default_collapsed": true
+      }
+    }
+  ],
+  "session_metrics": {
+    "turn_count": 1
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-09-03T14:42:49.536013433Z",
+    "agent_lines": 816,
+    "agent_removed": 0,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 816,
+    "total_lines_changed": 816,
+    "agent_percentage": 100,
+    "metric_version": 2
+  }
+}
