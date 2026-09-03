@@ -867,3 +867,33 @@ campaign 运行中 gem5.opt 被 CHAOSExMon 迭代构建多次替换——cell0 �
 ### 排队中（后台）
 H2 窗口扫描（ROB{96,128,160}×{X3bit0,X2bit63}×n=96）→ H1 read-trace formal
 （X3 bit{0,31,32,63}×n=384）串行执行，完成后入库。
+
+---
+
+## 本轮（2026-09-02/03 续3）H1/H2 formal 完成 + 三个进程管理缺陷修复
+
+### H1 formal: PRF X3 read-trace 四分类 `278d9380`
+X3 bit{0,31,32,63} × n=384：全 SDC=384/384 P=1.000 [0.990,1.000]；
+RT_SDC=384/384（reads>0 且传播）；reads_before_overwrite 中位 1,975,000
+（X3 累加器的注入值被读 ~200 万次——状态泄漏窗口实测）。
+P(SDC|reads>0)=1.000。跨单元一致性（RAT/ROB）需 read-trace API 扩展。
+
+### H2 formal: 窗口扫描（天花板效应）`befc7db0`
+ROB{96,128,160} × {X3 bit0/63, X2 bit0}：8 cell 全 SDC=96/96；
+X2bit63：3 cell 全 Hang=96/96。d(P_SDC)/d(window)=0——P_SDC 在饱和区，
+窗口梯度不可分辨（诚实标注：需未饱和 cell 重测）。
+
+### 执行中发现并修复的三个真实进程管理缺陷（两次 campaign 作废的根因）
+1. `4bd3d6c5` runner：subprocess.run(timeout) 只杀直接子进程，gem5
+   孙进程孤儿化（m1 formal 后 92 个孤儿，566min CPU）
+2. `89ff2297` campaign：外层 timeout 同样孤儿化（H2 期间 105+ 孤儿）
+3. `ccd5b741` v2 时序修复：campaign killpg 不传播到 runner 的
+   start_new_session 孙组——runner 改读 CHAOS_HANG_TIMEOUT
+   （campaign-60s），runner 总是先杀 gem5 组，campaign 外层
+   （hang_timeout+120s）只兜底 runner 卡死
+验证：X2bit63 hang-camp → Hang 判定 + 组杀无残留；H2 的 288 个 Hang
+run 全部正确收割。
+
+### H1 首跑作废教训（已入 memory）
+campaign 运行中 gem5.opt 被构建替换 → cell 内行为分裂（152 SDC + 232
+Crash）→ 数据作废。纪律：campaign 与构建绝不并行。

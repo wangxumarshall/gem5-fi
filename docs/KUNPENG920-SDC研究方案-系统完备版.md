@@ -540,7 +540,7 @@ pilot 每 cell n=100（可达率/工具错误/粗略比例）；formal 每 cell 
 | 假设 | 内容 | 真实状态（核查后） |
 |---|---|---|
 | H0 | 保护范围外结构（PRF/RAT/ROB/IQ/store buffer/L1 TLB）raw 即 escape | 预登记，待 formal（protectionModel 未实现） |
-| H1 | read-trace `reads_before_overwrite` 决定 AVF：`P(SDC∣reads>0)` 跨单元一致 | 预登记（CHAOSPhysReg 有 read-trace） |
+| H1 | read-trace `reads_before_overwrite` 决定 AVF：`P(SDC∣reads>0)` 跨单元一致 | ◐ **PRF 侧 formal 完成 `278d9380`**：X3 4 位段 × n=384 全 SDC，P(SDC∣reads>0)=1.000，reads 中位 1,975,000（状态泄漏窗口实测）；跨单元一致性验证需 RAT/ROB read-trace API（后续扩展） |
 | H2 | 深窗口（ROB/PRF 容量大）→ 驻留长 → SDC 高，`d(P_SDC)/d(window)>0` | ⚠️ **formal 判定：本域内不成立（天花板效应）`befc7db0`**：ROB{96,128,160}×{X3 bit0/63,X2 bit0}×n=96 全 SDC=96/96（P=1.000 饱和），X2bit63 全 Hang；窗口梯度无法在饱和 cell 分辨——需低概率/多 bit 未饱和 cell 重测（留后续，诚实标注） |
 | H3 | RAT 错与 PRF 错走同一传播路径（F5 替换 vs 位翻转的 read-trace 一致） | 预登记（待 CHAOSRenameMap） |
 | H4 | 长驻留缓存（大 L2）→ 传播概率升高 | 预登记 |
