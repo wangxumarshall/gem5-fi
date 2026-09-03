@@ -6,11 +6,13 @@
 3. **MICROARCH_SUPPLEMENT.md** — 微架构深化（结合 TSV110 几何、D1/D2/D3 三通路、审稿人压力测试）
 4. **FI_DESIGN_SUPPLEMENT.md** — 故障注入方案设计（H5–H7、P-D1/D2/D3、诚实执行状态）
 5. **PAPER.md** — 顶会论文草稿（ASPLOS/MICRO/HPCA 级，全文）
+6. **POSITIONAL_PARITY_RESEARCH.md** — 位置锚定校验前沿探索（三启示论证 + CHAOSPosParity 原型 + 理论开销）
 
 ## 验证状态（诚实）
 - ✅ H5 已 gem5 端到端验证闭环（byte_lane_skew → oops 链复现，多 seed）
 - ⚠️ H6/H7 的 SE-mode null 根因已源码静态确证（`mmu.cc:1213` SCTLR.M=0→`translateMmuOff` 绕过页表走查器，D2/D3 钩子不触发）；**FS 模式下 D2/D3 钩子触发已实证**（`o3_chaos_fs.py`：D2 `numAddrFaults=20`、D3 `numFaultsInjected=7963 numSpuriousFaults=7727`，直接证伪 SE 的 0）。另发现并修复 rng-init-order bug（`rng_seed=0` 必崩，patch bc4feb4）。**H6/H7 定量谱可分结论仍需 FS 长跑，未完成。**
 - ✅ P-D1/D2/D3 三注入器已实现、编译进 gem5.opt（`nm` 372 个匹配符号，`.o` 全就绪）
+- ✅ CHAOSPosParity 原型：golden 零假阳性；bit_flip 1064/1064、all_zero 695/695、D1 指针链 367/367（100%）、skew 总体 434/452=96.0%；panic 模式 fail-fast 实证（run_posparity.sh，显式非零 seed）
 
 ## 复现
 - 构建：`cd CHAOS/gem5 && taskset -c <healthy cpus> scons build/ARM/gem5.opt -j8`
