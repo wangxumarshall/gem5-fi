@@ -38,6 +38,12 @@ class CHAOSL1DForward : public SimObject
     uint64_t faults_injected_count = 0;
     uint64_t rng_seed;
     bool write_log;
+    // Sampling-bias fix (findings.md Phase 2.2): number of eligible load
+    // events to skip before the first injection — geometric(p=0.1) sampled
+    // from the seed, so maxFaults=1 lands on a seed-dependent load instead
+    // of always the first eligible one (which is the same squashed
+    // wrong-path load every rep on a deterministic stream).
+    uint64_t events_to_skip = 0;
 
     std::mt19937 rng;
     std::random_device rd;

@@ -23,6 +23,12 @@ namespace gem5
             if (!log_stream || !log_stream->stream())
                 panic("CHAOSL1DForward: Could not open log file");
             rng.seed(rng_seed != 0 ? rng_seed : rd());
+            // Sampling-bias fix: skip a geometrically-distributed number of
+            // eligible load events before the first injection (mean ~10), so
+            // the single fault (maxFaults=1) lands on a seed-dependent load
+            // instead of always the first eligible one.
+            std::geometric_distribution<uint64_t> skip_dist(0.1);
+            events_to_skip = skip_dist(rng);
         }
     }
 
@@ -48,8 +54,23 @@ namespace gem5
     CHAOSL1DForward::maybeCorrupt(PacketPtr pkt)
     {
         if (!cpu || probability <= 0.0f) return false;
+        // Sampling-bias fix (findings.md Phase 2.2): the OLD code corrupted
+        // the FIRST eligible load after the window opened. With a
+        // deterministic instruction stream, that is the SAME dynamic
+        // instruction every rep (observed: addr=0x769a0, tick=97358415
+        // across ALL seeds — a squashed wrong-path load whose corruption is
+        // discarded), so a 384-rep formal measured one squashed load, not
+        // the post-check-escape distribution. Skip a geometric(p=0.1)
+        // number of eligible events before injecting so the single fault
+        // lands on a seed-dependent random eligible load.
         if (max_faults != 0 && faults_injected_count >= max_faults) return false;
         if (!inWindow()) return false;
+        if (pkt && pkt->hasData() && !pkt->isWrite()) {
+            if (events_to_skip > 0) {
+                --events_to_skip;
+                return false;
+            }
+        }
         if (!pkt || !pkt->hasData()) return false;
 
         std::uniform_real_distribution<float> pd(0.0f, 1.0f);

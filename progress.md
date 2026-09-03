@@ -1469,3 +1469,24 @@ ARM 三条路径 + golden（真跑输出）：
 **诚实边界**：本 cell 的 fault_model=transient_bit_flip 每次只翻 1 bit → 只测到 ladder 的 Corrected 档。2-bit（Latent/poison）与 ≥3-bit（SilentEscape/SDC）档需要 local_mbu（相邻多位）模型——设计文档 §2.7 C 的 ECC 粒度轴 {1,2,3-bit}，排在 Phase 3 网格深化。**结论限定**：对 F1 单比特故障，L1D SECDED 保护把 97.7% 的 SDC 逃逸降到 0%（n=384 置信上界 1%）。
 
 Phase 2.2（l1dfwd post-check escape formal）已启动。
+
+### Phase 2.2: CHAOSL1DForward 采样偏差 bug 修复（§2.7 H.③ formal 作废重跑）
+
+**Bug（本分支主题核心）**：单故障采样 = "窗口打开后第一个过概率门的 eligible load"。确定性指令流下这是**同一个动态指令**（实证：跨 seed/first_clock 恒为 addr=0x769a0, tick=97358415 的被 squash 的 wrong-path load）→ 384 reps 全部注入同一条被丢弃的 load → 全 Masked。l1dfwd_formal_reduce 结果**作废**。
+
+**排查实证链**：① 定向 0xFF / 0xFFFFFFFFFFFFFFFF mask，checksum 仍 golden → 疑 hook 无效；② max_faults=0 无限注入 → **65541 次**（每 load 必达此 site），程序 Aborted → hook 完全有效；③ 定位首个 eligible 恒同一 squashed load。
+
+**修复**：CHAOSL1DForward 加 `events_to_skip`（构造时 geometric(p=0.1) 由 rng_seed 采样），maybeCorrupt 跳过前 N 个 eligible load 事件再注入 → 单故障在 eligible 事件流上种子均匀采样。附带发现：`--rng_seed`（generic）不映射到 `--l1dfwd_rng_seed`（手工测试坑）；runner.py 是传对的（每 rep 独立 seed）。
+
+**修复验证（真实输出，l1dfwd_fault_mask=0xFF, first_clock=100000, 5 seeds）**：
+| seed | 注入 addr | checksum | 结局 |
+|---|---|---|---|
+| 7 | 0x769b0 | a5d552c4af17adf5 | **SDC** |
+| 8 | 0x769a0 | f44d2b9cd4a173cd (=golden) | Masked |
+| 9 | 0x76a00 | 703e3c866852ab2c | **SDC** |
+| 10 | 0x769b8 | 8e0066917f3a361f | **SDC** |
+| 11 | 0x769a0 | f44d2b9cd4a173cd (=golden) | Masked |
+
+→ 注入点随 seed 分散，SDC/Masked 混合出现 —— post-check escape 通路正式可用。重建 gem5.opt 零新警告；reg_chain golden 回归通过（见 T3）。
+
+**同类风险记录（findings.md）**：所有 "hook-on-event + max_faults=1" 注入器（lsqfwd/exmon/bpu/ras 等）可能有同样偏差——lsqfwd formal 100% DUE 需复核（它的 100% 可能部分是采样伪影）。Phase 3/4 逐个审计。

@@ -50,3 +50,32 @@
 - golden 注册表在 runner.py:59 附近（l1iloop-golden-v1 等）。
 - kernels 已建全：branchy_reduce、cholesky_numeric、crc_state、dep_chain、gemm_float、madd_chain、method1_controls、mov_heavy、ptr_chase、spinlock_checksum、struct_field、svd_iterative 等（b93d718 补齐 7 个）。
 - 13 个 cpu/o3 注入器目录 + CHAOSMem/CHAOSCache/CHAOSCHI/CHAOSNoC/CHAOSPTW/CHAOSArmTLB/CHAOSArmSysReg 都在源码树。
+
+## Phase 1/2 结果补记（2026-09-03 晚）
+
+- **Phase 1 完成**：6 formal 提交（d4c9e8b）；CHAOSMem ratio 修复（b7433dd，C2→385/C0→500，真机验证 Tick=first_clock×ratio 精确）；mem formal 有效重跑（d88dcc7）：384/384 Masked——DRAM 后备字节被 L1/L2 掩盖（工作集驻留缓存，后备字节不被读回）。
+- **campaign.py --jobs>1 从未工作过**（_do_rep 闭包不可 pickle）——此前所有 formal 都是串行。修为模块级 _PoolRep 类（d88dcc7）。
+- **protection_model 全链路打通**（19d8a4b）：campaign→manifest(fault.protection_model)→runner(--protection_model)→config(CHAOSCache/CHAOSMem)。pilot 实证 ladder 生效（`bits=1 -> Corrected`）。
+- **L1D 风险反转首证**：raw 97.7% SDC vs secded_poison 0%（n=384 各）。限定：transient_bit_flip 只测 Corrected 档；2/3-bit 档需 local_mbu（Phase 3）。
+- **进行中**：§2.7 H.③ l1dfwd post-check escape formal（n=384 后台）。
+
+### 方法论教训（新增）
+
+1. trigger 时序是 cache 类注入的**第一敏感变量**（pilot 5/5 Masked vs formal 97.7% SDC，L1D）；mem 类同理（后备字节是否被读回）。
+2. 存储层级的**掩蔽梯度**：L1D 数据错 → SDC 主导；DRAM 后备错 → 全 Masked（上游缓存挡住）。这本身是 §4.1 逃逸分解的一维。
+3. protection-aware 对照必须**匹配 fault 模型的位计数**：F1 单 bit 只测 Corrected 档。ECC 粒度轴 {1,2,3-bit} 要用 local_mbu 才能测 Latent/SilentEscape 档。
+
+## Phase 2.2 调查：l1dfwd formal 384/384 Masked 是采样伪影（INSTRUMENTATION BUG）
+
+**现象**：§2.7 H.③ l1dfwd post-check formal n=384 全 Masked（与"post-check ≥ raw 97.7%"的预期相反）。
+
+**排查过程（全部真实实验）**：
+1. 定向 mask=0xFF / 0xFFFFFFFFFFFFFFFF，checksum 仍 golden → 疑 hook 无效。
+2. `max_faults=0`（无限）+ prob=1.0：**65541 次注入**（每个 load 都到达此 site），程序 Aborted（exit 134，大规模损坏）→ **hook 完全有效，数据确实流入架构态**。
+3. 关键证据：max_faults=1 时每次 run 的唯一注入都是 **addr=0x769a0, tick=97358415**（跨 seed/跨 first_clock 恒定）——注入器在窗口打开后总是命中**同一个动态 load**，而这个 load 是被 squash 的（错误路径），损坏被丢弃 → 全 Masked。
+
+**根因**：CHAOSL1DForward 的单故障采样语义 = "第一个过概率门的 eligible load"，而 l1d_reduce 的指令流确定性使第一个 eligible load 恒为同一条（squashed）指令。这不是 protection 语义，是**采样偏差**。
+
+**修复方向**（Phase 2.2 待办）：注入器需要"随机跳过前 N 个 eligible 事件"（poisson/rand-int 偏移，由 rng_seed 驱动），使单故障在 eligible 事件流上均匀采样。同类风险：所有 "hook-on-event + max_faults=1" 的注入器（l1dfwd/lsqfwd/exmon/bpu 等）都有此陷阱——lsqfwd formal 100% DUE 可能部分受益于同样偏差（它的第一个 eligible 转发点可能总是致命的），需要复核。
+
+**诚实结论**：l1dfwd_formal_reduce 的 384/384 Masked **无效**（不测 post-check escape），已作废。修复注入器采样后重跑。
