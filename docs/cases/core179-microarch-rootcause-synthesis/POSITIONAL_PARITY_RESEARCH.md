@@ -4,7 +4,8 @@
 > 【实锤】（本仓库命令可复现）/【强推】（多源文献收敛）/【假设】（待 RTL/厂商验证）。
 
 ## 0. 执行摘要
-（Task 7 填充）
+
+三条启示的总裁决（一句话版）：**启示一（fail-fast 优先）**——D3 前兆信号免费且单核聚集，消费机制的每一块零件（遥测、下线、mcelog 先例）都已存在，缺的只是策略层，可行性最强；**启示二（位置锚定校验）**——数学上已证明 ECC 对锁步换位原理性盲视、纯 XOR 聚合对置换不变（本报告核心理论发现：位置锚定的数学本质是打破置换对称性，必须用非交换混合），gem5 原型对 D1 指针链 367/367、位翻转 1064/1064、全零 695/695 全检出、golden 零误报，总体 96.0%（18 次逃逸全部为低熵 loader 字，机理已知且有变体可压）；**启示三（PEPR 三级防线）**——出厂层对纯 TIC 类 100% 检出已有 30k 芯片实证，但对 D1 的"组合+状态"混合类检出率未确立（最大空洞），软件侧 SBST 指针探针已在本仓库实现验证。开销量级：主行 16/64=25% 位开销、~1–2k 等效门、10–15 FO4、面积约为 DMR 的 1/5–1/10（后三项为解析量级估算，未做 RTL 综合）。诚实限定：原型为快照模型，对对抗数据是概率性检测（逃逸超平面存在），确定性的 100% 检出需锁步标签设计（硅侧未来工作）；仿真代理 simTicks 逐位相同只证明零时序扰动建模，不承担硅侧周期开销主张。
 
 ## 1. 启示一：可观测性必须优先于静默修复（fail-fast / 显性化）
 
@@ -12,27 +13,27 @@
 
 ### 1.1 合理性：D3 前兆信号是免费的，只是无人消费
 
-本案例的实证链【实锤，paper_zh.md §3.1/§3.4，可由 `grep -h 'WARNING: CPU:' dmesg_*.txt | grep -o 'CPU: [0-9]*' | sort | uniq -c` 在原始日志上复现（DIAGNOSIS_REPORT.md §2）】：12 天窗口内 78 次内核异常事件（73 次 `WARN_RATELIMIT` 级虚假翻译错误 + 5 次致命 Oops）100% 聚集于 CPU 179，其余 191 核零事件；APEI/GHES/BERT 全程零条硬件错误记录——缺陷完全逃逸 RAS 监控。关键在于时间结构：首个 D3 事件（虚假翻译错误告警）早于该开机周期的首个致命崩溃出现。以 08-14 开机周期为例【实锤，vmcore-diagnosis-report-127.0.0.1-2026-08-14-190704.md §2】：第 1 次 spurious 告警出现在 uptime ~29.0 h，致命 Oops 在 ~31.7 h——前兆提前约 2.6 小时；DIAGNOSIS_REPORT.md §6 明确记载 73 次告警"全部先于/伴随致命崩溃"。这些信号由 openEuler 内核 `is_spurious_el1_translation_fault()`（`arch/arm64/mm/fault.c`）通过 `AT S1E1R` 软件重试产生：重试成功即判 spurious 放行并 `WARN_RATELIMIT`——**内核已经付出了产生信号的全部成本，却没有任何消费者把它转化为核隔离动作**。若内核在首个 D3 信号出现时即将"单核聚集的 spurious 翻译错误"转化为核下线动作，则 5 次致命崩溃在原理上全部可避免：首个致命崩溃（08-14 19:07，uptime ~31.7 h）之前同开机已积累 12 次前兆（首次于 ~29.0 h），下线动作本可在此之前执行；而一旦该核被下线并标记，后续四个开机周期（08-17/08-24/08-25×2）的崩溃根本不会发生【强推：因果方向由"前兆早于崩溃 + 同核聚集 + 隔离即阻断"三点支撑，但"隔离可完全避免"未在本机上实验执行，属推断】。
+本案例的实证链【实锤，paper_zh.md §3.1/§3.4，可由 `grep -h 'WARNING: CPU:' dmesg_*.txt | grep -o 'CPU: [0-9]*' | sort | uniq -c` 在原始日志上复现（DIAGNOSIS_REPORT.md §2）】：12 天窗口内 78 次内核异常事件（73 次 `WARN_RATELIMIT` 级虚假翻译错误 + 5 次致命 Oops）100% 聚集于 CPU 179，其余 191 核零事件；APEI/GHES/BERT 全程零条硬件错误记录——缺陷完全逃逸 RAS 监控。关键在于时间结构：首个 D3 事件（虚假翻译错误告警）早于该开机周期的首个致命崩溃出现。以 08-14 开机周期为例【实锤，vmcore-diagnosis-report-127.0.0.1-2026-08-14-190704.md §2】：第 1 次 spurious 告警出现在 uptime ~29.0 h，致命 Oops 在 ~31.7 h——前兆提前约 2.6 小时；DIAGNOSIS_REPORT.md §6 明确记载 73 次告警"全部先于/伴随致命崩溃"。这些信号由 openEuler 内核 `is_spurious_el1_translation_fault()`（`arch/arm64/mm/fault.c`）通过 `AT S1E1R` 软件重试产生：重试成功即判 spurious 放行并 `WARN_RATELIMIT`——**内核已经付出了产生信号的全部成本，却没有任何消费者把它转化为核隔离动作**。若内核在首个 D3 信号出现时即将"单核聚集的 spurious 翻译错误"转化为核下线动作，则 5 次致命崩溃在原理上全部可避免：首个致命崩溃（08-14 19:07，uptime ~31.7 h）之前同开机已积累 12 次前兆（首次于 ~29.0 h），下线动作本可在此之前执行；而一旦该核被下线并标记，后续四个开机周期（08-17/08-24/08-25×2）的崩溃根本不会发生【强推：因果方向由"前兆早于崩溃 + 同核聚集 + 隔离即阻断"三点支撑，但"隔离可完全避免"未在本机上实验执行，属推断】。**口径协调注**：本节遵循计划指定的 paper_zh.md 73/5/78 数据集（前五个转储、12 天窗口）；后续的 08-26 第六次转储把总数更新为 88 事件 = 82 警告 + 6 致命（仍 100% CPU179，且 ERRIDR/ERX 架构化错误节点扫描亦全程静默）——更新后的数字只会强化（不改变）本节论证的方向与结构【实锤，vmcore-diagnosis-report-127.0.0.1-2026-08-26-103727.md §1/§7】。
 
 文献收敛恰好构成互补而非矛盾：Meta（Dixit et al., arXiv:2102.11245）与 Google（Hochschild et al., HotOS'21）报告的 mercurial cores/SDC 的共同特征是"出厂测试通过、部署后间歇发作、无架构级 RAS 告警"——即**无前兆**【强推，Dixit et al., "Silent Data Corruptions at Scale", arXiv:2102.11245, 2021（Meta；paper_zh.md 引注作 ATC'21，venue 归属未能核实，见参考文献注）；Hochschild et al., "Cores that don't count", HotOS 2021, DOI 10.1145/3458336.3465297（DBLP 确认）】。HotOS'21 明确观测到"每数千台机器出现若干 mercurial cores"（a few mercurial cores per several thousand machines）量级的缺陷率。正因 fleet 级普遍缺陷是"无前兆"的，**有前兆的缺陷子类（本案例 D3 类）是稀缺的免费信号源**，其被动遥测的边际成本为零——信号已在日志里，缺的只是消费策略。这与 10x-escapes 论文（Mitra et al., arXiv:2508.01786）的系统健康与取证（system health and forensics）论点收敛：Google 报告 49% 的缺陷机器由"系统健康与取证"信号（kernel crash、hang、异常进程崩溃等）事后检出，且其 CCKC（Core-Concentrated Kernel Crashes）启发式——"单物理核上 ≥80% 的内核崩溃、≥5 次崩溃、30 天窗口内 ≥3 个不同栈顶符号"——与本案例"5 次崩溃全在 CPU 179、跨越互不相关子系统"的特征完全同构【强推，arXiv:2508.01786 Observation 5/Table 4 与 §3.2.3】。
 
 ### 1.2 必要性：静默修复掩盖缺陷，RAS 兜底不可行
 
-反证法【强推】：设系统依赖静默修复（如 ECC 单比特纠正）消化间歇缺陷。被纠正的错误不产生任何架构可见信号，缺陷核因此继续留存于 fleet；同一物理缺陷在高 AVF 通路上的后续触发（本案例 D1：加载返回数据被字节通道偏移污染）没有任何 ECC 纠正机会——因为汉明距离为零的结构性错位对端到端 ECC 不可见（paper_zh.md §6.2），且本案例五次致命崩溃的数据通路本就未被 ECC 覆盖【实锤，paper_zh.md §2.1/§3.1：RAS 零记录即含"未被覆盖"与"未被检查"两种可能，二者对系统软件同样意味着零信号】。结局是：缺陷核从"可观测的软信号阶段"（D3）沉默滑入"不可观测的硬失效阶段"（D1/D2 致命崩溃），期间它还在静默处理业务数据——被撕裂而未致死的加载值（如本案例 73 次告警中被 extable 吞掉的那类窗口）存在污染业务数据的风险面【实锤，vmcore-diagnosis-report-127.0.0.1-2026-08-14-190704.md §7："不排除业务数据已被静默破坏的风险面"】。
+反证法【强推】：设系统依赖静默修复（如 ECC 单比特纠正）消化间歇缺陷。被纠正的错误不产生任何架构可见信号，缺陷核因此继续留存于 fleet；同一物理缺陷在高 AVF 通路上的后续触发（本案例 D1：加载返回数据被字节通道偏移污染）没有任何 ECC 纠正机会——因为汉明距离为零的结构性错位对端到端 ECC 不可见（paper_zh.md §6.2），且本案例五次致命崩溃的数据通路要么未被 ECC 覆盖、要么已覆盖但未被检查（RAS 零记录无法区分这两种情形——该析取本身是【实锤，paper_zh.md §2.1/§3.1 取证边界】，但无论哪一支成立，对系统软件同样意味着零信号，论证不受影响）。结局是：缺陷核从"可观测的软信号阶段"（D3）沉默滑入"不可观测的硬失效阶段"（D1/D2 致命崩溃），期间它还在静默处理业务数据——被撕裂而未致死的加载值（如本案例 73 次告警中被 extable 吞掉的那类窗口）存在污染业务数据的风险面【实锤，vmcore-diagnosis-report-127.0.0.1-2026-08-14-190704.md §9："不排除业务数据已被静默破坏的风险面"】。
 
-工业数据使"依赖 RAS 兜底"进一步不可行【强推，Mitra et al., arXiv:2508.01786】：Google 估计测试逃逸造成约 0.5%（5,000 DPM）的芯片被换，而工业目标为 100–500 DPM——**实际逃逸率超出工业目标至少一个数量级（10×）**；其中导致 SDC 的逃逸芯片约 1,000 DPM。该论文 Observation 5 显示多数缺陷机器是部署后才检出的（其中 system health and forensics 途径 49%、在线/离线测试 29%、用户级检测 10%），且其引言明确指出大规模分布式系统常假设的 fail-stop 故障模型（硬件错误立即以崩溃/挂起显性化）"已不成立"。结论：既然逃逸缺陷系统性存在且不 fail-stop，系统软件层就必须自己把沉默信号显性化——这正是 fail-fast 的必要性所在。ISO 26262 的功能安全哲学从另一端收敛同一原则：其 safe state 定义为"失效情形下不带不合理风险的运行模式"（operating mode, in case of a failure, of an item without an unreasonable level of risk, ISO 26262-1:2018 定义 3.131），即故障反应的目标是进入受控的显性状态而非维持表面正常【强推，ISO 26262-1:2018；转引自 Stolte et al., IEEE TIV 2022, DOI 10.1109/TIV.2021.3129933】。fail-silent（停止输出、静默吞错）在功能安全术语中只被视为子组件级的一种可能反应，绝不是整机级的容许稳态。
+工业数据使"依赖 RAS 兜底"进一步不可行【强推，Mitra et al., arXiv:2508.01786】：Google 估计测试逃逸造成约 0.5%（5,000 DPM）的芯片被换，而工业目标为 100–500 DPM——**实际逃逸率超出工业目标至少一个数量级（10×）**；其中导致 SDC 的逃逸芯片约 1,000 DPM。该论文 Observation 5 显示多数缺陷机器是部署后才检出的（其中 system health and forensics 途径 49%、在线/离线测试 29%、用户级检测 10%），且其引言明确指出大规模分布式系统常假设的 fail-stop 故障模型（硬件错误立即以崩溃/挂起显性化）"已不成立"。结论：既然逃逸缺陷系统性存在且不 fail-stop，系统软件层就必须自己把沉默信号显性化——这正是 fail-fast 的必要性所在。ISO 26262 的功能安全哲学从另一端收敛同一原则：其 safe state 定义为"失效情形下不带不合理风险的运行模式"（operating mode, in case of a failure, of an item without an unreasonable level of risk, ISO 26262-1:2018 定义 3.131），即故障反应的目标是进入受控的显性状态而非维持表面正常【强推，ISO 26262-1:2018；转引自 Stolte et al., IEEE TIV 2022, DOI 10.1109/TIV.2021.3129933】。fail-silent（停止输出、静默吞错）在功能安全术语中只被视为子组件级的一种可能反应，绝不是整机级的容许稳态【强推，Stolte et al. 对 fail-safe/fail-silent/fail-degraded 的术语辨析，arXiv:2106.11042 §II】。
 
 ### 1.3 可行性：分层成本清单——改动小、机制已有、边界清晰
 
-**(a) D3 遥测消费：纯软件、近零边际成本**【实锤，挂接点已在生产内核存在】。信号产生端已就绪：openEuler `is_spurious_el1_translation_fault()` 的重试路径 + `WARN_RATELIMIT` 打印（paper_zh.md §6.1）。需要的增量只是一个用户态或内核态消费器：按 CPU 聚合"spurious 翻译错误"计数、与核间基线对比、超阈值即触发隔离动作。本仓库文档已给出可直接落地的命令级方案【实锤，vmcore-diagnosis-report §9：`echo 0 > /sys/devices/system/cpu/cpu179/online`，或内核参数 `maxcpus`/`isolcpus`】。
+**(a) D3 遥测消费：纯软件、近零边际成本**【实锤，挂接点已在生产内核存在】。信号产生端已就绪：openEuler `is_spurious_el1_translation_fault()` 的重试路径 + `WARN_RATELIMIT` 打印（paper_zh.md §6.1）。需要的增量只是一个用户态或内核态消费器：按 CPU 聚合"spurious 翻译错误"计数、与核间基线对比、超阈值即触发隔离动作。本仓库文档已给出可直接落地的命令级方案【实锤，vmcore-diagnosis-report §10：`echo 0 > /sys/devices/system/cpu/cpu179/online`，或内核参数 `maxcpus`/`isolcpus`】。
 
-**(b) 核下线：机制现成，粒度问题如实标注**【实锤（机制）+【假设】（粒度）】。CPU 热下线经 sysfs `cpu/N/online` 是 Linux 成熟机制；mcelog 生态甚至已有先例——cache 错误触发器（`cache-error-trigger`）默认在"CPU 报告过量已纠正 cache 错误"时下线受影响核（"The default trigger offlines the affected CPU cores, unless it is the last core running"，mcelog.org/triggers.html）【强推】。未决问题：(i) 本案例机器 SMT 状态未在 vmcore 中显式记录【实锤，paper_zh.md §6.1 边界】，若为 SMT 配置须按物理核粒度下线兄弟线程；(ii) 阈值如何定标（见 §1.4）。主动测试路线的成本对照【强推，paper_zh.md §6.1 所引 fleetscanner 数据（arXiv:2203.08989 原文核实）】：fleetscanner 对已知缺陷家族 93% 覆盖、23% 独有覆盖，但它是侵入式带外测试（需维护窗口、测试时间累计约 4 billion fleet seconds）；被动 D3 遥测全时在线、零算力开销，二者互补而非互替。
+**(b) 核下线：机制现成，粒度问题如实标注**【实锤（机制）+【假设】（粒度）】。CPU 热下线经 sysfs `cpu/N/online` 是 Linux 成熟机制；mcelog 生态甚至已有先例——cache 错误触发器（`cache-error-trigger`）默认在"CPU 报告过量已纠正 cache 错误"时下线受影响核（"The default trigger offlines the affected CPU cores, unless it is the last core running"，mcelog.org/triggers.html）【强推】。未决问题：(i) 本案例机器 SMT 状态未在 vmcore 中显式记录【实锤，paper_zh.md §6.1 边界】，若为 SMT 配置须按物理核粒度下线兄弟线程；(ii) 阈值如何定标（见 §1.4）。主动测试路线的成本对照【强推，paper_zh.md §6.1 所引 fleetscanner 数据（arXiv:2203.08989 原文核实）】：fleetscanner 对已知缺陷家族 93% 覆盖、23% 独有覆盖，但它是侵入式带外测试（需维护窗口、测试时间累计约 4 billion fleet seconds）；被动 D3 遥测全时在线、近零算力开销（消费器自身是日志聚合，量级远低于带外测试），二者互补而非互替。
 
 **(c) 局限：被动遥测对纯 D1 类无效——这正是启示二/三的入口**【实锤（本案例事实）+强推（外推）】。D1 类缺陷（加载数据静默损坏、无任何异常前兆）不产生架构可见信号：本案例 5 次致命崩溃的 D1 触发时刻没有任何可消费的 D1 前兆（可用的前兆全部是 D3 类翻译错误告警）。被动遥测只能覆盖"有前兆子类"；无前兆子类需要微架构检测（启示二：位置锚定校验）与制造/现场测试（启示三：PEPR/SBST）补位。此边界不是本论证的缺陷，而是三启示分层的逻辑起点。
 
 ### 1.4 反方与边界：误报、可用性与未量化项
 
-**反方一：fail-fast 的误报代价**。spurious 翻译错误存在良性来源：主线内核曾处理"另一 CPU 刚建立映射时乱序页表漫游竞态"（Will Deacon 补丁所针对的合法竞态类）与同核 TLB 失效时序窗口【强推，MICROARCH_SUPPLEMENT.md §D3 答辩引主线 commit 42f91093b043】。若不加过滤直接下线，竞态高发环境（频繁 fork/mmap 的负载）可能把健康核误杀，造成可用性损失——Linux MCE 子系统自身的演化即为此权衡的先例：`mce=tolerancelevel` 提供 0（总是 panic）到 3（从不 panic，仅测试用）的频谱、默认 1【强推，内核文档 x86_64 boot-options】，工业界从未选择"最激进即最优"。本案例用三重过滤排除良性来源【实锤，paper_zh.md §3.4：(1) 72/73 目标为静态长生命周期映射，不满足竞态前提；(2) 100% 单核聚集，与跨 CPU 随机分布的竞态模型不相容；(3) 软件重试成功】。但**通用化部署时该过滤器的假阳性/假阴性率未量化**【假设：需在多机型、多负载基线上采集 spurious 告警的背景发生率并回溯标注，方可定标阈值——本仓库单案例无法提供此统计】。可借镜的定性证据：Google CCKC 启发式经目标测试复核后 70% 以上被诉核确为 SDC 核、不足 10% 为假阳性起诉（其余"存疑"）【强推，arXiv:2508.01786 §3.2.3】——说明"多信号聚合 + 事后测试确认"的两段式能把误报压到工程可接受水平，其代价是需要主动测试基础设施配合（与启示三闭环）。
+**反方一：fail-fast 的误报代价**。spurious 翻译错误存在良性来源：主线内核曾处理"另一 CPU 刚建立映射时乱序页表漫游竞态"（Will Deacon 补丁所针对的合法竞态类）与同核 TLB 失效时序窗口【强推，MICROARCH_SUPPLEMENT.md §D3 答辩引主线 commit 42f91093b043】。若不加过滤直接下线，竞态高发环境（频繁 fork/mmap 的负载）可能把健康核误杀，造成可用性损失——Linux MCE 子系统自身的演化即为此权衡的先例：`mce=tolerancelevel` 提供 0（总是 panic）到 3（从不 panic，仅测试用）的频谱、默认 1【强推，内核文档 x86_64 boot-options】，工业界从未选择"最激进即最优"。本案例用三重过滤排除良性来源【实锤，MICROARCH_SUPPLEMENT.md §D3 答辩（72/73 FAR 数据的原始出处）：(1) 72/73 目标为静态长生命周期映射，不满足竞态前提；(2) 100% 单核聚集，与跨 CPU 随机分布的竞态模型不相容；(3) 软件重试成功】。但**通用化部署时该过滤器的假阳性/假阴性率未量化**【假设：需在多机型、多负载基线上采集 spurious 告警的背景发生率并回溯标注，方可定标阈值——本仓库单案例无法提供此统计】。可借镜的定性证据：Google CCKC 启发式经目标测试复核后 70% 以上被诉核确为 SDC 核、不足 10% 为假阳性起诉（其余"存疑"）【强推，arXiv:2508.01786 §3.2.3】——说明"多信号聚合 + 事后测试确认"的两段式能把误报压到工程可接受水平，其代价是需要主动测试基础设施配合（与启示三闭环）。
 
 **反方二：下线的吞吐代价与容量侵蚀**。每下线一核即损失 1/192 的机器算力；若误报率不可控，fleet 级累积下线会侵蚀容量。同时 mcelog 的"最后一个运行核不下线"保留条款表明：下线策略必须与最小可用性约束绑定【强推，mcelog.org/triggers.html】。本案例中该代价的量级【实锤（比例）】：单核占 192 核之 0.52%，且诊断证据链（RMA 依据）完整，属"高置信下单点隔离"，非容量性损失。
 
@@ -95,7 +96,7 @@ W(σd) = ⊕_i (data[σ(i)] ⊕ (L_i ≪ 5)) = (⊕_i data[σ(i)]) ⊕ (⊕_i (L
 
 **反方二：锁步/DMR 替代论——为什么不直接双份通路？** DMR 可检测任意错误（包括位置错位），代价是**整条通路面积翻倍 + 64 位比较器**（数千门量级），且比较器本身在关键路径上；位置标签是 ~100-150 门 + 每 64 位载荷 24-32 位标签寄存器（量级估算【假设】），**面积差约两个数量级**。10x-escapes 论文对冗余路线的工业裁决可直接引用：DMR/TMR"对商品级计算硬件带来大的能耗、执行时间与面积开销"（"Such approaches incur large energy, execution time, and area overheads for commodity compute hardware"），故超大规模数据中心不采用，逃逸缺陷由此成为无人设防的空档【强推，arXiv:2508.01786 原文摘录】。位置标签的定位是"针对单一结构化故障类的轻量定向检测"，与 DMR 的"通用任意错误检测"不在同一成本档位——按 §2.2 的 AVF 分级，只有最高价值通路才值得后者。
 
-**反方三：单案例外推质疑——"真实缺陷真的普遍是字节旋转吗？"** 本案例的取证事实是硬的【实锤】：§3.2 的穷举证伪证明坏值不可由目标槽位任何单字节 bit-flip 产生（1536 个槽位×旋转候选中唯一命中头部槽位，随机命中概率 ~2⁻⁵⁸），这是**取证事实**而非推测。但由此推出"设计规则应普遍引入位置锚定校验"，统计基础确实薄弱——**单案例（n=1 台机器、单一微架构）无法估计字节通道错位类缺陷在缺陷总体中的占比**，本报告如实标注【强推】。工业验证路径的抓手是 10x-escapes 论文的第三叉论点："需要**新的检测实验**以理解新检测技术的有效性，且这些实验必须克服既往工业测试实验的缺陷与陷阱"（原文 "New test experiments to deeply understand the effectiveness of new techniques for detecting defective chips. These new test experiments must overcome the drawbacks and pitfalls of previous industrial test experiments and case studies"）——位置锚定校验的检测有效性（对真实缺陷种群、而非对合成故障模型）正需要这类实验来定标；在此之前，其部署论证停留在"数学合理性 + 单案例必要性 + 先例可行性"，不足以作为无条件的通用设计规则。产业侧的旁证：Intel IFS（In-Field Scan）的公开定位明确承认存在"**parity 或 ECC 检查抓不到的问题**"（kernel 文档原文 "a hardware feature to run circuit level tests on a CPU core to detect problems that are not caught by parity or ECC checks"），其 SAF/ArrayBIST/SBAF 三级现场测试形态（https://docs.kernel.org/arch/x86/ifs.html，SAF <200 ms/核、ArrayBIST <5 ms）证明工业界已为"逃逸 RAS 的缺陷"建立现场结构测试基础设施——这是"问题真实存在"的产业证认；但 IFS 的测试内容与内部结构细节 NDA-gated，公开资料无法核实其对字节通道错位类的覆盖，如实标注不可得【强推，docs.kernel.org 原文摘录 + Intel 支持页 https://www.intel.com/content/www/us/en/support/articles/000098402/processors/intel-xeon-processors.html】。
+**反方三：单案例外推质疑——"真实缺陷真的普遍是字节旋转吗？"** 本案例的取证事实是硬的【实锤】：§3.2 的穷举证伪证明坏值不可由目标槽位任何单字节 bit-flip 产生（8 字节 × 256 掩码穷举零命中，源值到坏值的 XOR 距离 popcount-30——任何 k<30 的位翻转模型不可达；1536 个候选中唯一命中头部槽位），这是**取证事实**而非推测（MICROARCH_SUPPLEMENT.md §2.2 已撤回早先的 2⁻⁵⁸ 随机命中概率表述，本节按修正后版本引用，不使用该数字）。但由此推出"设计规则应普遍引入位置锚定校验"，统计基础确实薄弱——**单案例（n=1 台机器、单一微架构）无法估计字节通道错位类缺陷在缺陷总体中的占比**，本报告如实标注【强推】。工业验证路径的抓手是 10x-escapes 论文的第三叉论点："需要**新的检测实验**以理解新检测技术的有效性，且这些实验必须克服既往工业测试实验的缺陷与陷阱"（原文 "New test experiments to deeply understand the effectiveness of new techniques for detecting defective chips. These new test experiments must overcome the drawbacks and pitfalls of previous industrial test experiments and case studies"）——位置锚定校验的检测有效性（对真实缺陷种群、而非对合成故障模型）正需要这类实验来定标；在此之前，其部署论证停留在"数学合理性 + 单案例必要性 + 先例可行性"，不足以作为无条件的通用设计规则。产业侧的旁证：Intel IFS（In-Field Scan）的公开定位明确承认存在"**parity 或 ECC 检查抓不到的问题**"（kernel 文档原文 "a hardware feature to run circuit level tests on a CPU core to detect problems that are not caught by parity or ECC checks"），其 SAF/ArrayBIST/SBAF 三级现场测试形态（https://docs.kernel.org/arch/x86/ifs.html，SAF <200 ms/核、ArrayBIST <5 ms）证明工业界已为"逃逸 RAS 的缺陷"建立现场结构测试基础设施——这是"问题真实存在"的产业证认；但 IFS 的测试内容与内部结构细节 NDA-gated，公开资料无法核实其对字节通道错位类的覆盖，如实标注不可得【强推，docs.kernel.org 原文摘录 + Intel 支持页 https://www.intel.com/content/www/us/en/support/articles/000098402/processors/intel-xeon-processors.html】。
 
 **(iii) 边界：陈旧行重放成分不在覆盖范围**【实锤，与论文 §6.2 边界声明一致】。D1 包含两个独立成分：(1) 字节通道错位（位置错误）；(2) 陈旧行重放（来源错误——fill-buffer 最旧条目被回放给跨 set 的另一 load，paper_zh.md §3.2 取证）。位置标签只检测成分 (1)；对成分 (2)——**数据值本身正确但来源错误**——需要**来源/起源标签**（如 fill-buffer 槽位 ID 校验：发出端把槽位号编入校验、接收端核对本次 load 命中的槽位与数据来源一致）。本报告的原型（§4）不覆盖成分 (2)，stale-line-replay 注入器在 FI_DESIGN_SUPPLEMENT 中有设计但未实现（paper_zh.md §4.4 诚实边界）——两处边界声明一致，非本节新增让步。
 
@@ -113,7 +114,7 @@ W(σd) = ⊕_i (data[σ(i)] ⊕ (L_i ≪ 5)) = (⊕_i data[σ(i)]) ⊕ (⊕_i (L
 
 **(ii) PEPR 侧的互补证明：独立工业数据与本案取证收敛**【实锤（文献数字）+ 强推（互证推断）】。PEPR（Pseudo-Exhaustive Physically-Aware Region testing，Li, Nigh, Duvalsaint, Mitra, Blanton，ITC 2022，DOI 10.1109/ITC50671.2022.00083，IEEE Xplore 9983894——CMU Blanton 组与 Stanford Mitra/Intel Nigh 合作；本 Task 已下载 PDF 全文核对全部数字）给出与本案例穷举零命中**同构**的工业结论：
 
-- **现有模型对 TIC 缺陷仅偶然检测**：在 14 nm 测试芯片 32,723 条 tester 响应（来自 30,000+ 故障芯片）上，按"全部嫌疑位点均须对齐"的严格评价（Table V）：stuck-at 仅匹配 **4.8%**、cell-aware **8.2%**、gate-exhaustive **83.4%**，PEPR **100%**；宽松评价（Table IV，至少一个嫌疑位点对齐）为 18.7% / 30.9% / 91.6% / 100%。摘要措辞：现有故障模型与测试指标"对 TIC 缺陷最多 92% 是**碰巧**（fortuitously）检出的"。
+- **现有模型对 TIC 缺陷仅偶然检测**：在 14 nm 测试芯片 32,723 条 tester 响应（来自 30,000+ 故障芯片）上，按"全部嫌疑位点均须对齐"的严格评价（Table V）：stuck-at 仅匹配 **4.8%**、cell-aware **8.2%**、gate-exhaustive **83.4%**，PEPR **100%**；宽松评价（Table IV，至少一个嫌疑位点对齐）为 18.7% / 30.9% / 91.6% / 100%。摘要措辞：现有故障模型与测试指标"对 TIC 缺陷最多 92% 是**碰巧**（fortuitously）检出的"。**诚实注记**：paper_zh.md §6.3 原表述为"≤95%"，本节用 PDF 原文核实的 92% 上界；两数字同向同义（"绝大部分为偶然检出"），92% 为可溯源的原文值。
 - **10x-escapes 论文的独立引述收敛同一量级**：Google/Mitra 侧的综述（arXiv:2508.01786 §3.2.1）引 Nigh et al. 2024："对 TIC 缺陷，**超过 90% 的故障芯片检出无法由相应测试指标所施加的 0/1 值解释**"——即今日扫描测试对 TIC 类缺陷的检出大部分是 serendipity，与 PEPR 原文 92% 上界互相印证。
 - **互证结构**：PEPR 说"现有模型对结构化（TIC）缺陷仅偶然检测"；本案例在**单芯片取证尺度**上给出了同一命题的一个微观实例——8 字节 × 256 掩码的位翻转穷举对 D1 坏值零命中，即 stuck-at 类模型对 D1 字节旋转成分的"检测概率"在该取证样本上恰为 0（不是低，是不可达）。**两侧数据尺度不同（30k 芯片 vs 单机取证）但方向完全一致**：结构化缺陷类落在位级模型的表达空间之外【强推】。PEPR 的应对是"不再建模具体缺陷行为，转而对物理划分出的子电路做穷尽输入枚举"——穷尽测试的检测保证不依赖缺陷模型，这正是"缺维"问题的模型无关解法。
 
@@ -121,7 +122,7 @@ W(σd) = ⊕_i (data[σ(i)] ⊕ (L_i ≪ 5)) = (⊕_i data[σ(i)]) ⊕ (⊕_i (L
 
 ### 3.2 必要性：源头治理与"系统级诊断 → 缺陷理解 → 测试改进"闭环
 
-**(i) 若制造侧缺位，部署侧就成为唯一防线——而部署侧检出有结构性上界**【强推】。反证：设制造测试不覆盖结构化故障类（§3.1 已证现状如此），则缺陷芯片进入 fleet，防线只剩启示一（被动遥测 + 主动 SBST）与启示二（位置锚定校验）。但：(a) 被动遥测仅覆盖"有前兆子类"（§1.3(c) 边界：D1 类纯数据损坏无架构可见信号）；(b) 设计侧检测（位置标签）有检出延迟（缺陷须在运行中被触发才检出）且部署增量只作用于**新设计**——存量 fleet 无法追溯加装；(c) Google 的检出途径分布（Table 4：预部署测试 12%、在线/离线测试 29%、system health and forensics 49%、用户级 10%，且"逐行成本与工程投入显著递增"）实证了"部署侧兜底"的代价结构：**88% 的缺陷机器在部署后才被检出**，其中约半数靠事后取证信号而非任何主动测试【实锤，arXiv:2508.01786 Table 4/Observation 5 原文数字】。制造侧的确定性检出是源头治理——一颗缺陷芯片在 ATE 上拦截的成本，比它在 fleet 中经历"崩溃 → CCKC 起诉 → 下线 → RMA"全链路的成本低至少一个数量级【强推：方向由 Table 4 的成本递增陈述支撑，具体倍数未量化，见 §3.4 反方二】。
+**(i) 若制造侧缺位，部署侧就成为唯一防线——而部署侧检出有结构性上界**【强推】。反证：设制造测试不覆盖结构化故障类（§3.1 已证现状如此），则缺陷芯片进入 fleet，防线只剩启示一（被动遥测 + 主动 SBST）与启示二（位置锚定校验）。但：(a) 被动遥测仅覆盖"有前兆子类"（§1.3(c) 边界：D1 类纯数据损坏无架构可见信号）；(b) 设计侧检测（位置标签）有检出延迟（缺陷须在运行中被触发才检出）且部署增量只作用于**新设计**——存量 fleet 无法追溯加装；(c) Google 的检出途径分布（Table 4：预部署测试 12%、在线/离线测试 29%、system health and forensics 49%、用户级 10%，且"逐行成本与工程投入显著递增"）实证了"部署侧兜底"的代价结构：**88% 的缺陷机器在部署后才被检出**，其中约半数靠事后取证信号而非任何主动测试【实锤，arXiv:2508.01786 Table 4/Observation 5 原文数字】。制造侧的确定性检出是源头治理——一颗缺陷芯片在 ATE 上拦截的成本，显著低于它在 fleet 中经历"崩溃 → CCKC 起诉 → 下线 → RMA"全链路的成本【强推：方向由 Table 4 的成本递增陈述支撑，具体倍数未量化（"至少一个数量级"不可从现有数据证出），见 §3.4 反方二】。
 
 **(ii) 10x-escapes 的闭环论证：诊断 → 理解 → 测试改进是唯一已实证的逃逸收缩机制**【实锤（文献）+ 强推（映射）】。该论文三叉论点的第一叉即"从系统级错误行为直接快速诊断缺陷芯片"，其依据是 Observation 4 的残酷现状：退回厂商的故障芯片中 **NTF 36%**、ELF 29%、**test gap fixed 仅 18%**、test gap（已知但无法开发出测试）10%、运输损坏 7%——**唯一实际改善了测试内容的通道（test gap fixed）只占 18%**，其余 82% 的退片没有产出任何测试改进。原文明确"换件不深究从商业角度更实际"（economics of managing and triaging is prohibitive）。映射到本案例：CPU 179 的 D1/D3 签名（字节旋转 + 单核聚集 + RAS 零记录）恰是"系统级错误行为 → 微架构定位"的可用诊断输入——若这类签名能进入厂商的测试反馈环（对应 PEPR 的参数调优反馈环：47 例失配芯片 10 分钟级调查即完成体素参数更新），逃逸类才能被系统性收缩。**本案例对该闭环的贡献是提供"缺陷的架构级签名"，而非仅又一次换件**【强推】。
 
@@ -154,20 +155,67 @@ W(σd) = ⊕_i (data[σ(i)] ⊕ (L_i ≪ 5)) = (⊕_i data[σ(i)]) ⊕ (⊕_i (L
 **边界总结**：(i) PEPR 全部核心数字（4.8/8.2/83.4/100%、523,863 向量、体素参数、时序扩展为未竟方向）已对 PDF 原文逐项核对【实锤】；(ii) **D1 混合类的出厂检出率未确立**——这是三级防线论证的最大空洞，任何"PEPR 可拦 D1"的表述都须拆成"旋转半（TIC，强推）/ 回放半（假设）"【实锤（文献边界）】；(iii) Intel IFS 测试内容 NDA-gated，其对字节通道错位类的覆盖不可核实（§2.3 反方三已声明，此处沿用）；(iv) SiliFuzz/fleetscanner 语料中 load-use-as-pointer 链的缺失是**方向性判断**（基于两家自述的语料构造与缺陷模式清单），非量化占比结论【强推】；(v) 三级防线的现场成本-收益曲线在本案例故障机（鲲鹏 TSV110，非 x86、无 IFS 对应物）上完全未验证【假设】——IFS 形态只是"工业界已为逃逸缺陷建立现场结构测试基础设施"的存在性证明，其数字用于量级参照而非可直接移植的方案。
 
 ## 4. 位置锚定校验原型（CHAOSPosParity）
-### 4.1 设计
-### 4.2 实验方法
-### 4.3 结果
-（Task 4-5 填充）
+
+### 4.1 设计：双加权非交换聚合的快照校验器
+
+原型是 gem5 SimObject `CHAOSPosParity`（`CHAOS/gem5/src/cpu/o3/CHAOSPosParity/`，构建于 O3 LSU 的 store→load 转发路径 `lsq_unit.cc` 的 `FullAddrRangeCoverage` 分支），与既有注入器 `CHAOSLSQFwd` 构成**同一挂钩点上的闭环实验回路**：注入器是"故障侧"（P-D1，FI_DESIGN_SUPPLEMENT §3.1），校验器是"检测侧"（本节）——`tag()` 在注入器 `corrupt()` 之前对转发数据做发送端快照，`verify()` 在 `corrupt()` 之后重算并比对，模拟"总线发送端打标签、接收端校验"的硅侧时序。`posParity==nullptr` 时两处调用点短路，不挂校验器时零侵入（§4.3 金标臂与无关回归臂实证）。
+
+**实现的检查**：双加权 mod-256 聚合
+
+```
+w1_i = 2i+1（1,3,5,7,9,11,13,15）    W1 = (Σ_i w1_i·(data[i]+1)) mod 256
+w2_i = (2i+1)^0x5A                    W2 = (Σ_i w2_i·(data[i]+1)) mod 256
+```
+
+两权重向量均两两不同且为奇数：奇权重使单比特翻转下 w·2^b ≢ 0 (mod 256) 恒成立（位翻转确定性检出定理）；"+1" 项使常数数据产生位置相关的非零和（全零/全同字节数据不会平凡碰撞）。**非交换性是承重的**：聚合用按通道加权的加法（通道次序不可交换），而非 XOR 折叠——这正是 §2.1(iii) XOR 置换不变性定理的直接应用。
+
+**诚实披露——设计史本身就是理论发现的实证**：第一轮实现采用"每通道标签快照"（T_i = L_i ⊕ popcount1(data[i])，接收端以本地位置常量重算比对），评审在仿真器内证伪：**L_i 在 tag/verify 两侧都出现并相消**，检查退化为普通逐字节奇偶比较，均匀奇偶数据（0x0102040810204080）下旋转逃逸率 100%（实测：注入 1 次 skew、numMismatches=0）。根因正是 §2.1(iii)：**纯 XOR 混合的任何按位标签构造都继承对置换的协变性，位置常量在代数上相消——天真的"位置标签快照"数学上等价于奇偶校验**。位置锚定必须用非交换混合才成立。该缺陷被对抗数据回归探针 `unipar_probe.c`（fi_research/probes/，volatile 化 + -O0 构建 + 运行时门 numTagged ≥ iters，fail-closed）永久守护——此探针本身也有一段诚实历史：其 -O2 构建的循环体曾被编译器完全消除（反汇编实证 main 零内存指令），当时的"检出"证据是空洞的；修复后以运行时门承重（§4.2）。快照模型与锁步设计的边界：快照模型（sender 固定快照、receiver 重算）对旋转是概率性检出（逃逸率见 §4.3 理论列）；**确定性检出（恒等置换为唯一逃逸）只属于标签随数据同走的锁步设计**（8!=40,320 穷举验证，§2.1(ii)）——硅侧未来工作，本原型的 `tagWidth` 参数为该设计预留接口。
+
+**统计接口**（全部落盘 stats.txt）：`numTagged`/`numVerified`（双端计数）、`numMismatches`（检出）、`numMismatchesPanic`（fail-fast 升级）；`action="count"` 只计数（遥测模式），`"panic"` 在首个失配即 abort（§6.1 fail-fast 哲学的机械实证）。**覆盖上限**：受检窗口封顶 SNAPSHOT_MAX=16 字节，更宽转发（SIMD）只查前 16 通道（文档化的覆盖限制，非正确性限制）。**未覆盖**（诚实边界，与 §2.3(iii) 一致）：陈旧行重放（值正确但来源错误）需要来源/起源标签（fill-buffer 槽位 ID），本原型不做——`stale_line_replay` 注入器在 FI_DESIGN_SUPPLEMENT 有设计未实现。
+
+### 4.2 实验方法：2×3×2 矩阵 + 5 seed + 对抗数据臂 + panic 单点
+
+实验脚本 `fi_research/probes/run_posparity.sh`，探针为 ptrskew（load-use-as-pointer 链，core-179 D1 真实形态，2000 iters，注入概率 0.15）与 unipar（对抗数据 0x0102040810204080，volatile buf[4] 循环 store+reload，5000 iters，概率 0.20，`--first-clock 53000` 跳过启动相让风暴打在循环本体）。矩阵：故障 {golden, byte_lane_skew(k 随机), all_zero, bit_flip(3b)} × 校验器 {off, on} + panic 单点 + unipar（k=1 与 k=4 双臂，k=4 为理论最弱情形 2^-5），5 seeds（42/1/2/3/4，全部显式非零——CHAOSLSQFwd 的 seed=0 从 std::random_device 取种，不可复现，这是第一轮的教训之一）。可复现命令（真实运行过的代表形式）：
+
+```bash
+# 每臂每 seed（run_posparity.sh 内部循环；--max-faults 0 = 无限注入）
+taskset -c 0-31 ./build/ARM/gem5.opt -d /tmp/posparity/s42_skew_on \
+  ../../fi_research/probes/o3_chaos_smoke.py \
+  --binary /tmp/ptrskew_rebuilt --iters 2000 --first-clock 2000 --seed 42 \
+  --lsq-fwd-prob 0.15 --max-faults 0 --lsq-structural byte_lane_skew --posparity
+```
+
+两个方法学要点：(a) **自适应封顶重试**——无限注入风暴下客户机几乎总在首个致命 skew 处页表错误崩溃，gem5 abort 不 dump stats；脚本利用模拟器确定性（同 seed 同注入序列，已由 debug 重跑逐事件核对证实）封顶 T−500000 重跑取崩溃前 stats；(b) **seed-4 skew+ON 臂补程至 175M ticks**——原 60M 窗口只覆盖 loader 启动相，175M 全程才捕获探针主循环的 D1 指针链本体（452 注入）。unipar 臂的对抗数据回归门：注入运行前先跑金标，要求 numTagged ≥ iters（volatile+(-O0) 循环每迭代 ~6 次前递，金标实测 30015/5000 iters）；空洞的 -O2 构建给出 numTagged≈29 ≪ iters，被门拒绝（fail-closed，已用新旧两份二进制双向验证）。
+
+### 4.3 结果：检出矩阵（全部数字引自 /tmp/posparity/results.md 的 stats.txt 原文）
+
+| 臂 | 检出/注入 | 检出率 | 理论预期（均匀随机数据） | 判定 |
+|---|---|---|---|---|
+| golden + ON（误报率） | 0/10145（5×2029 前递）+ 0/30015（unipar 金标） | **0%** | 0 | 一致 |
+| bit_flip(3b) + ON | 1064/1064（385+338+2+338+1） | **100.00%** | 100%（奇权定理，0 逃逸；32,768 例穷举） | **精确一致**——每 seed numMismatches == numBitFlips 严格相等 |
+| all_zero + ON | 695/695（362+1+329+1+2） | **100.00%** | 1−2^-13（逃逸 iff 原 (W1,W2)=(0x40,0xC0)） | 一致（n=695 未命中逃逸点） |
+| skew(k 随机) + ON | 434/452（seed 4 @175M 全程） | **96.0%** | ≈1−2^-10 每事件（随机数据） | 偏差全部可归因（见下） |
+| ——其中 **D1 指针链本体** | **367/367** | **100.0%** | 高熵指针不在逃逸类 | 逐事件位级证实 |
+| unipar 对抗字（buf 注入，主口径） | 43/43（k=1: 39=7+7+9+8+8；k=4: 4=0+0+0+2+2） | **100%** | 该字不在 17/40319 逃逸超平面集 | 一致（对抗零逃逸实证） |
+| unipar 对抗值全前递（包容口径） | 166/166（k=1: 149；k=4: 17，含 x 栈槽） | **100%** | 同上 | 一致 |
+| panic 模式 | 首失配即 abort | — | fail-fast | 实证（tick 9412000，vaddr=0x496690） |
+| skew + OFF（现状对照） | 4/5 seed 客户机页表错误崩溃；1/5（seed 4）静默存活 ptr_corrupt=308/fails=308（452 注入无告警） | — | SDC 静默逃逸 | 实证对照组 |
+
+**D1 指针链 367/367 的位级取证**（--debug-flags=LSQUnit 同 seed 确定性重跑，46 万行日志逐事件核对）：367 个检出事件的快照聚合全部 = (59,97) = agg(golden_ptr=0x4b1c30=&targets[146]，golden 指针溢出槽 [sp,#104]=0x7ffffefca8，load PC 0x4005fc)，且观测到的 7 个 (W1,W2) 失配对**恰为 {agg(ror_k(golden_ptr)) : k=1..7} 全集**——被转发的确实是 D1 指针本体，其每一个旋转都被捕获；golden_ptr（高熵堆指针）穷举核验不逃逸任何旋转。
+
+**18 次逃逸的机理归因**（不隐藏、不重掷）：全部为低熵字——17 次 loader 启动相 _dlfo 映射数组字（brk 堆 vaddr 0x497fc0..0x49bde0）+ 1 次退出相 printf 缓冲字（0x7ffffef9b0）。类级归因为实锤（注入/检出 vaddr 差分 + 检出事件的快照聚合解码出 0x400000/0x48c3c8/2 等 loader 字）；**具体逃逸字值为强推断**（逃逸字未逐字落盘日志）：0x400000 类单非零字节字在偶 k 下可证逃逸 ror_2/4/6，NULL 字段逃逸全部 k。定量：单非零字节低熵字 ~0.95%/(字,k) 对逃逸——约为均匀随机数据（MC 0.46–0.50%）的两倍，集中于偶 k/ror_4（穷举 14,280 个 (位置,值,k) 对：136 个双聚合逃逸，ror_4 占 56）。**结论的正确表述**：双加权聚合的逃逸率是数据熵的函数——对高熵指针型数据（D1 链真实形态）实测 100%（367/367），对低熵常量 ~1% 量级且存在整字逃逸点（如 0x8000 逃逸全部旋转、循环计数器 1021 逃逸 ror_4——后者在 unipar mf1 臂 5 个 seed 各逃逸 1 次，与 intact=1021/5000 精确吻合）。对**知权重的对抗数据**为概率性检测（17/40319 非恒等排列存在逃逸超平面），非确定性——确定性只属锁步设计。
+
+**与论文 §6.2 建议的对应关系**：被原型支撑的主张——(a) 旋转可检出（D1 链 100% 实测 + 全部 7 个旋转位级证实）；(b) fail-fast 可实现（panic 模式首失配 abort）；(c) 位翻转兜底确定性成立（1064/1064）；(d) 零误报（10145+30015 次金标前递）。未被支撑的主张——(e) 陈旧行重放检测（需来源标签，未实现）；(f) 真实 RTL 开销（§5 全部为解析量级估算）；(g) 硅验证（无）；(h) 对抗数据确定性（快照模型原理上做不到，见 §4.1 边界）。
 
 ## 5. 理论开销分析
 
-本节对位置锚定校验做**解析开销推导**（位、组合逻辑、时序、面积、能耗五个维度），并与 SEC-DED、DMR 及自身设计变体对比。分析对象是**§4 已实现的检查**（双加权 mod-256 聚合，`CHAOSPosParity.{hh,cc}`）：W1/W2 = (Σ_i w_i·(data[i]+1)) mod 256，w1_i = 2i+1，w2_i = (2i+1)^0x5A，**每 64 位载荷 16 检查位 = 25% 位开销**。规格级的"每通道标签 + 聚合字"组合设计（§2.1(ii)）与纯 W 单聚合变体作为对比行列出并明确标注层级（见 §5.6 变体表）。
+本节对位置锚定校验做**解析开销推导**（位、组合逻辑、时序、面积、能耗五个维度），并与 SEC-DED、DMR 及自身设计变体对比。分析对象是**§4 已实现的检查**（双加权 mod-256 聚合，`CHAOSPosParity.{hh,cc}`）：W1/W2 = (Σ_i w_i·(data[i]+1)) mod 256，w1_i = 2i+1，w2_i = (2i+1)^0x5A，**每 64 位载荷 16 检查位 = 25% 位开销**。规格级的"每通道标签 + 聚合字"组合设计（§2.1(ii)）与纯 W 单聚合变体作为对比行列出并明确标注层级（见 §5.6 变体表）。理论根基回指：主行为何必须是**非交换**混合——纯 XOR 聚合对任意通道置换不变（对字节旋转零检出，§2.1(iii) 置换不变性定理），非交换性不是实现偏好而是位置锚定的数学前提，§5.6 的全部逃逸率分析都建立在这一定理划定的设计空间之上。
 
 **证据等级声明（本节总则）**：数学推导与穷举/蒙特卡洛验证为【实锤】（验证脚本与逐数字输出记录于 Task 6 工作笔记，逃逸概率经 (Z/256)² 子群精确枚举 + 2×10⁶ 试验 MC + 16384 例穷举三重交叉）；所有门数/深度/面积/能耗数字为**解析量级估算**【强推】（未做 RTL 综合）；DMR/SEC-DED 对照数字为文献量级【强推】。仿真侧开销代理（§5.7）为真实运行【实锤】，但其**建模边界必须先行声明**：gem5 不建模校验器的周期成本——`tag()/verify()` 是事件驱动的功能调用，不是流水线级——仿真只能测量模拟器自身的簿记开销，硅侧时序主张完全依赖本节解析推导，不依赖仿真。
 
 ### 5.1 检出语义回顾（开销分析的收益侧，数字来自 §4/Task 5 已验证矩阵）
 
-开销数字脱离检出语义无意义，先锁定收益侧【实锤，Task 5 矩阵 + Task 4 修复轮数值验证】：golden 0 误报（10145 次前递，5 seeds）；单比特翻转 1064/1064 = 100%（奇权定理确定性成立）；all_zero 695/695 = 100%（理论逃逸 2^-13，n=695 未命中逃逸点）；通道偏移总体 434/452 = 96.0%（seed 4 @175M ticks 全程），其中 **D1 指针链本体 367/367 = 100%**（367 个检出事件的快照聚合全部 = agg(golden_ptr)，观测到的 7 个失配对恰为 {agg(ror_k(golden_ptr)) : k=1..7}）；18 次逃逸全部为低熵 loader 字（0x400000 类单非零字节常量、NULL 字段），集中于偶 k/ror_4；对抗数据（知权重者构造 0x0102040810204080）43/43 tier-1、166/166 tier-2 全检出，但逃逸超平面在数学上存在（17/40319 非恒等排列）——对对抗数据是概率性而非确定性检测。理论逃逸率（均匀随机数据，精确值）：ror_奇数k = 2^-12、ror_2/6 = 2^-10、ror_4 = 2^-5。
+开销数字脱离检出语义无意义，先锁定收益侧【实锤，Task 5 矩阵 + Task 4 修复轮数值验证】：golden 0 误报（10145 次前递，5 seeds）；单比特翻转 1064/1064 = 100%（奇权定理确定性成立）；all_zero 695/695 = 100%（理论逃逸 2^-13，n=695 未命中逃逸点）；通道偏移总体 434/452 = 96.0%（seed 4 @175M ticks 全程），其中 **D1 指针链本体 367/367 = 100%**（367 个检出事件的快照聚合全部 = agg(golden_ptr)，观测到的 7 个失配对恰为 {agg(ror_k(golden_ptr)) : k=1..7}）；18 次逃逸全部为低熵 loader 字，集中于偶 k/ror_4——**类级归因（低熵 loader 启动字）为实锤**（注入/检出 vaddr 差分 + 检出事件快照聚合解码），**具体字值（0x400000 类单非零字节常量、NULL 字段）为强推断**（逃逸字未逐字落盘；0x400000 在偶 k 下可证逃逸、NULL 逃逸全部 k，与类级画像吻合）；对抗数据（知权重者构造 0x0102040810204080）43/43 tier-1、166/166 tier-2 全检出，但逃逸超平面在数学上存在（17/40319 非恒等排列）——对对抗数据是概率性而非确定性检测。理论逃逸率（均匀随机数据，精确值）：ror_奇数k = 2^-12、ror_2/6 = 2^-10、ror_4 = 2^-5。
 
 ### 5.2 冗余位开销
 
@@ -181,7 +229,7 @@ W(σd) = ⊕_i (data[σ(i)] ⊕ (L_i ≪ 5)) = (⊕_i data[σ(i)]) ⊕ (⊕_i (L
 
 **(a) 通道乘法（常数乘 ≈ 移位加）**。W1 的权重 1,3,5,7,9,11,13,15 为 4 位内奇常数，popcount 分别为 1,2,2,3,2,3,3,4——w·(d+1) = Σ_{b∈bits(w)} (d+1)≪b，每通道 1–4 个 8–11 位部分积，共 **20 个字节宽部分积**进入 W1 树。W2 的权重 0x5B,0x59,0x5F,0x5D,0x53,0x51,0x57,0x55 popcount 为 5,4,6,5,4,3,5,4（共 36 个部分积，直接实现）；但注意 w2_i − w1_i mod 256 ∈ {90,86,74,70}（仅 4 个不同常数，popcount 3–4），故有恒等式 **W2 = W1 + Σ_i diff_i·(d_i+1)**——第二棵树只需 diff 乘法（~28 个部分积）加一次 8 位加法。"+1" 项与常数 c_i 以硬连线初始进位/固定位注入，不占独立加法器。
 
-**(b) 压缩树与最终加法**。每聚合 ≈ 一棵 20–28 项字节宽部分积的 Dadda/Wallace 树（3:2 CSA 压缩，20 项 → 2 项约 5 级 CSA）+ 一个 ~13 位最终进位传播加法器（CPA，Kogge-Stone 类 log₂13 ≈ 4 级）。每 CSA 位 ≈ 5 等效门（2 XOR2 + 2 AND2 + 1 OR2），每级 ~13 位 ⇒ 每级 ~65 门，5 级 CSA ≈ 325 门 + CPA ~150–200 门 ⇒ **每聚合 ~0.5k 等效门，双聚合共 ~1–2k 等效门**（含 W2 的 diff 复用）。深度：5 级 CSA（每级 ≈ 1.5 FO4）+ 4 级 CPA ≈ **10–15 FO4**。
+**(b) 压缩树与最终加法**。每聚合 ≈ 一棵 20–28 项字节宽部分积的 Dadda/Wallace 树（3:2 CSA 压缩；纯 3:2 压缩 20 项 → 2 项需 **6–7 级 CSA**——若假设每通道的 1–4 个部分积先经局部预压缩再进树，则约 5 级）+ 一个 ~13 位最终进位传播加法器（CPA，Kogge-Stone 类 log₂13 ≈ 4 级）。每 CSA 位 ≈ 5 等效门（2 XOR2 + 2 AND2 + 1 OR2），每级 ~13 位 ⇒ 每级 ~65 门，6–7 级 CSA ≈ 390–455 门 + CPA ~150–200 门 ⇒ **每聚合 ~0.5k 等效门，双聚合共 ~1–2k 等效门**（含 W2 的 diff 复用；独立门数估计 1.4–1.8k 亦闭合此区间）。深度：6–7 级 CSA（每级 ≈ 1.5 FO4）+ 4 级 CPA ≈ **10–15 FO4**（5 级假设与 6–7 级假设都落在此 headline 区间内，对该区间稳健）。
 
 **(c) 与被保护通路的对照**。该检查并行的对象是 64 位 load-return 的字节通道多路复用/对齐网络：一个 64:1 位选择 ≈ 6 级 2:1 mux（每级 1–2 FO4）≈ 6–12 FO4，网络整体数千等效门。**结论（量级）**：检查逻辑的深度与它并行验证的 mux 网络同量级（10–15 vs 6–12 FO4），面积小一个量级（1–2k vs 数千–万门）——若在 mux 网络的同一流水级并行计算并在下一级比较，**不增设关键路径**；若必须同拍出结果，则 +1 级流水或接受 ~1.5 倍该级延迟。此为解析判断，未做时序收敛验证【假设】。
 
@@ -254,7 +302,103 @@ sim_ticks、指令数、周期数**逐位相同**——这是构造性的：gem5
 位置锚定校验（实现形态）的成本结构：**25% 位、~1–2k 门、10–15 FO4 深、<5–10% 事件能耗**（后三项为量级估算【强推/假设】），换取对该通路上位翻转的确定性检出（1064/1064）、对 D1 指针链旋转的实测 100%（367/367）、对低熵字的 96.0% 总体检出（逃逸集中于 ror_4，机理已知且可用 mod-251+通用第二向量变体压到全域 2^-15.94，或锁步标签变体升为确定性）。对照：SEC-DED 同位宽档（12.5%）但对锁步换位原理性盲视且校验点在故障点上游；DMR 检出全能但面积/能耗约 5–10 倍。**开销-收益的净裁决属 §6 总结论**（含"25% 位开销是否值得"的反方处理），本节只提供解析依据。
 
 ## 6. 综合结论：三启示的合理性/必要性/可行性总裁决
-（Task 7 填充）
+
+### 6.1 裁决表
+
+| 启示 | 合理性 | 必要性 | 可行性 | 关键证据 |
+|---|---|---|---|---|
+| 1. fail-fast 优先（可观测性优先于静默修复） | 【实锤】（73 前兆 + 5 致命全 CPU179、2.6h 提前量，命令级可复现） | 【强推】（10x 逃逸率超工业目标一个数量级 + fail-stop 假设破产，文献收敛） | 【实锤】（遥测/下线/mcelog 触发器先例全现存，纯软件消费器） | §1.1 前兆免费且无人消费；§1.3 分层成本清单 |
+| 2. 位置锚定校验（高 AVF 通路显式位置编码） | 【实锤】（ECC 盲视命题数学证明 + XOR 置换不变性定理，均数值验证） | 【强推】（AVF 判据推断 fill-buffer 高危 + 本案例 4/5 崩溃同走 load-use-as-pointer 链【实锤】；单案例外推统计基础薄弱，如实标注） | 分层：检出语义【实锤】（原型 367/367 D1 链、1064/1064 位翻转、0 误报）；硅侧开销【强推】（25% 位为算术事实；~1–2k 门/10–15 FO4 为解析量级，未综合）；对抗确定性【假设】（需锁步标签，未实现） | §2.1 数学核心；§4.3 检出矩阵；§5.8 成本结构 |
+| 3. PEPR 三级防线（物理感知区域穷尽 + 现场扫描 + 现场功能） | 【强推】（位级模型缺维论证 + PEPR 4.8%/8.2% vs 100% 的工业互证） | 【强推】（88% 缺陷机器部署后才检出 + 唯一改善通道仅 18%，闭环必须从源头收紧） | 分层：纯 TIC 类【实锤】（PEPR 30k 芯片 100% 对齐）；D1 混合类（含状态半）【假设】（时序/序列扩展无公开硅片数据）；SBST 软件侧【实锤】（ptrskew 探针本仓库 93% PTR_CORRUPT 实测） | §3.1 互证结构；§3.3(ii) 诚实边界；§3.3(iii) 原型 |
+
+读法说明：可行性列内部分层的行（启示二/三），其分层正是本报告最重要的诚实结构——"数学上成立、原型上验证、硅侧未综合、对抗面未闭合"与"纯组合类已实证、状态类无数据"不是论证缺陷，而是部署决策必须直面的真实证据状态。
+
+### 6.2 反方综述（三启示最强反对意见与回应汇总）
+
+**启示一的最强反方：误报代价与阈值未定标**。良性 spurious 翻译错误来源（乱序页表漫游竞态、TLB 失效窗口）真实存在；通用化部署时过滤器的假阳性/假阴性率未量化（本仓库单案例无法提供该统计），误杀健康核在竞态高发负载下可造成容量侵蚀。回应：(a) 本案例三重过滤（72/73 静态映射、100% 单核、重试成功）已排除良性类；(b) Google CCKC 两段式（多信号聚合 + 事后测试确认）实证 70%+ 确证、<10% 假阳性——误报可压到工程可接受水平，代价是需要主动测试基础设施配合（与启示三闭环）；(c) mce=tolerancelevel 0–3 频谱（默认 1）证明工业界对此类权衡已有成熟调参先例。残余让步：通用阈值定标仍是未完成工作【假设】。
+
+**启示二的最强反方：单案例外推 + 25% 位开销是否值得**。(a) "真实缺陷普遍是字节旋转吗"——n=1 台机器、单一微架构，无法估计该缺陷类在总体中的占比；本案例的取证事实（位翻转穷举零命中、popcount-30）是硬的，但由它推出通用设计规则统计基础薄弱。回应：部署论证的完整形态是"数学合理性（已证）+ 单案例必要性（已有）+ 先例可行性（PCI/DDR4/T10/UCIe 四级谱系）"，且 10x-escapes 论文明确指出这类检测有效性的定标需要新工业实验——在获得该数据前，本报告不主张无条件通用设计规则，只主张"高 AVF 单点的定向防御"。(b) 开销——25% 位开销作用于一条通路已与 L1D ECC 相当，DMR 检测能力更强。回应：§5.6 变体表给出完整成本-检出谱系（12.5% 单 W 到 50% 组合设计；mod-251+通用第二向量 16 位即达全域 2^-15.94），位置锚定的定位是"针对单一结构化故障类的轻量定向检测"，与 DMR 的通用全能检测不在同一成本档位（1/5–1/10 面积）——按 AVF 分级，只有最高价值通路才值得后者。(c) 快照模型对对抗数据概率性（逃逸超平面存在）、对低熵字 ~1% 逃逸。回应：如实标注为原理性边界而非实现缺陷；确定性升级路径存在（锁步标签设计，8! 穷举唯一逃逸恒等置换），是硅侧未来工作而非数学不可能。
+
+**启示三的最强反方：向量爆炸与制造经济学**。(a) 穷尽对宽通路不可行（PEPR 向量数为 stuck-at 的 ~2,976 倍，ATPG 9,568.7h vs 0.5h）。回应：体素划分把子电路输入压到个位数是前提操作而非附赠优化，且 10x-escapes 的裁决是把 PEPR 类方法放在现场而非产线（现场经济学允许长测试）。(b) 新缺陷类纳入制造筛查的边际收益-成本模型未量化（需厂商 ATE 单价、DPM 分账、RMA 流程成本，本仓库不可得）。回应：本报告只论证"该权衡应当被重新计算"（ITC India'25 的分级方法学正是输入），不断言重算结果必然支持纳入——这是论证的诚实边界。(c) D1 混合类（陈旧回放半）的出厂检出率完全无数据。回应：无解于当前文献，是三级防线论证的最大空洞，已如实标注【假设】；三级防线的分工逻辑（扫描类构造不出队列状态，必须功能路径补位）正是对该空洞的结构性补偿——出厂层拦不住的部分，由现场 SBST（已实证 93%）与启示二的运行时检测（已实证 367/367）接住。
+
+### 6.3 全文自检（论文级抽查命令，本计划执行期间全部真实运行过）
+
+以下 7 条命令覆盖三个证据等级的抽查代表（内部取证 / 原型矩阵 / 开销代理），每条都在 Task 1–6 期间真实执行并留有落盘输出：
+
+**(1) §1 本案例核心数字（73 前兆 / 5 致命 / 100% CPU179）**——dmesg 原始日志直查（DIAGNOSIS_REPORT.md §2 给出的复现命令）：
+
+```bash
+grep -h 'WARNING: CPU:' dmesg_*.txt | grep -o 'CPU: [0-9]*' | sort | uniq -c
+```
+
+**(2) §4.3 golden 零误报 + 挂钩活跃（真实运行输出：fails=0，numTagged=2029，numMismatches=0）**：
+
+```bash
+taskset -c 0-31 ./build/ARM/gem5.opt -d /tmp/posparity/s42_golden_on \
+  ../../fi_research/probes/o3_chaos_smoke.py --binary /tmp/ptrskew_rebuilt \
+  --iters 2000 --no-fi --first-clock 2000 --seed 42 --posparity
+```
+
+**(3) §4.3 D1 链 367/367 与 434/452（seed 4 @175M，真实 stats：numStructuralByteLaneSkew=452、numMismatches=434）**：
+
+```bash
+taskset -c 0-31 ./build/ARM/gem5.opt -d /tmp/posparity/s4_skew_on_175m \
+  ../../fi_research/probes/o3_chaos_smoke.py --binary /tmp/ptrskew_rebuilt \
+  --iters 2000 --first-clock 2000 --seed 4 --lsq-fwd-prob 0.15 --max-faults 0 \
+  --lsq-structural byte_lane_skew --max-tick 175000000 --posparity
+```
+
+**(4) §4.3 D1 链位级取证（367 个快照聚合 = agg(golden_ptr)、7 个失配对 = 全部旋转；--debug-flags=LSQUnit 同 seed 确定性重跑）**：
+
+```bash
+grep -c 'MISMATCH at vaddr=0x7ffffefca8' /tmp/posparity_dbg_s4_175/lsqdbg.txt   # → 367
+```
+
+**(5) §4.3 unipar 对抗值包容口径 166/166（快照聚合 (45,15)=agg(0x0102040810204080) 逐事件识别）**：
+
+```bash
+for d in /tmp/posparity_dbg_ufc1 /tmp/posparity_dbg_ufc1s{1,2,3,4} \
+         /tmp/posparity_dbg_ufc4 /tmp/posparity_dbg_ufc4s{1,2,3,4}; do
+  grep -c 'snapshot 45, W2: [0-9]* vs snapshot 15' $d/lsqdbg.txt; done   # → 149 + 17
+```
+
+**(6) §4.1 位翻转确定性检出（32,768 例穷举 = 16,384 基例 × 双聚合，0 逃逸）**——按 .hh 设计的复现脚本（w1_i=2i+1、w2_i=(2i+1)^0x5A、W=Σw_i·(d_i+1) mod 256）：
+
+```bash
+python3 -c "
+esc=0
+w1=[2*i+1 for i in range(8)]; w2=[(2*i+1)^0x5A for i in range(8)]
+B=lambda w,v:(sum(w[i]*(v[i]+1) for i in range(8)))&0xFF
+for base in range(256):
+    for lane in range(8):
+        for bit in range(8):
+            d0=[0]*8; d0[lane]=base
+            d1=[0]*8; d1[lane]=base^(1<<bit)
+            if (B(w1,d0)==B(w1,d1)) and (B(w2,d0)==B(w2,d1)): esc+=1
+print('cases:', 256*8*8, 'escapes:', esc)"   # → cases: 16384 escapes: 0
+```
+
+**(7) §5.7 仿真侧开销代理（两臂 simTicks 逐位相同 = 70013000，numTagged=20029，numMismatches=0）**：
+
+```bash
+for arm in off on; do
+  extra=""; [ $arm = on ] && extra="--posparity"
+  taskset -c 0-31 ./build/ARM/gem5.opt -d /tmp/ovh_$arm \
+    ../../fi_research/probes/o3_chaos_smoke.py \
+    --binary /tmp/ptrskew_rebuilt --iters 20000 --no-fi --first-clock 2000 --seed 42 $extra
+done
+```
+
+**对账声明**：§4.3 表格的每个数字都与 /tmp/posparity/results.md 的 stats.txt 原文逐一对账（golden 5×2029；bit_flip 385+338+2+338+1=1064；all_zero 362+1+329+1+2=695；skew 434/452=96.0%；unipar buf 43=39+4、包容 166=149+17——命令 (5) 的原始求和 29+36+25+25+34=149 与 2+2+1+7+5=17 已在本计划期间真实复核）。无 TBD/TODO/待补残留；参考文献 35 条编号连续、跨节复引显式回指、无重复条目。
+
+### 6.4 下一步清单
+
+1. **来源/起源标签扩展（stale replay 检测）**：fill-buffer 槽位 ID 编入校验、接收端核对来源一致性——覆盖 D1 的陈旧行重放成分（§2.3(iii) 边界）；原型侧为 CHAOSPosParity 增加 slot-id 维度，注入侧需配套 `stale_line_replay` 注入器（FI_DESIGN_SUPPLEMENT §3.1 有设计未实现）。
+2. **stale_line_replay 注入器实现**：`CHAOSLSQFwd` 的 `structuralFault` 第三枚举值（取 fill-buffer/LQ 最旧项内容覆盖 data），使 §4 矩阵补上"值正确但来源错误"臂。
+3. **FS 模式长跑**：本矩阵为 SE 模式用户态探针；内核态 D3 类（PTW 读出误读）与真实负载混合场景需 FS 模式验证（ptrskew 已有 FS 版本，H5 93% 为其数据）。
+4. **厂商 RTL 评估项清单**（全部【假设】级，需 NDA/合作）：25% 位开销在目标工艺的综合面积/时序收敛；锁步标签布线（标签随数据走 mux）的时序代价；tag RAM 端口数与流水级分配；mod-251+通用第二权重向量变体的条件减法代价（~+20–30% 门数）。
+5. **第三权重/素数模变体评估**：Z/256 加 W3=rot3(w1)（24 位，k 奇 2^-16 但 ror_4 仍 2^-9）vs mod-251+通用第二向量（16 位，全域 2^-15.94）——若 16 位预算固定，后者检出语义最优；权衡是丢失 Z/256 截断即取模的硬件免费性（§5.6 变体表）。
+6. **（跨启示）spurious 告警通用阈值定标**：多机型多负载基线采集背景发生率并回溯标注——启示一从"本案例实证"升级为"可部署策略"的前提（§1.4 反方一的未竟项）。
 
 ## 参考文献
 
@@ -265,10 +409,10 @@ sim_ticks、指令数、周期数**逐位相同**——这是构造性的：gem5
 3. H. D. Dixit, L. Boyle, G. Vunnam, S. Pendharkar, M. Beadon, S. Sankar, "Detecting silent data corruptions in the wild"（fleetscanner/Ripple，Meta）. arXiv:2203.08989, 2022. https://arxiv.org/abs/2203.08989 （93% 已知家族覆盖 / 23% 独有覆盖 / ~4 billion fleet seconds 均自 PDF 原文摘录。**诚实注记**：paper_zh.md §6.1/§8 引注为 OSDI'22，本 Task 于 2026-09-02 核实：DBLP 检索 "Detecting silent data corruptions in the wild" 仅返回 CoRR abs/2203.08989，未见 OSDI'22 收录记录；文中图件命名含 "SELSE2022" 迹象但正文未标注 venue，此处按 arXiv 预印本引用。）
 4. S. Mitra, S. Banerjee, M. Dixon, M. Fuller, R. Govindaraju, P. Hochschild, E. X. Liu, B. Parthasarathy, P. Ranganathan, "Silent Data Corruption by 10x Test Escapes Threatens Reliable Computing," arXiv:2508.01786, 2025. https://arxiv.org/abs/2508.01786 （Google；第一作者 Mitra 主要隶属 Stanford。5,000 DPM vs 工业目标 100–500 DPM、SDC 芯片 ~1,000 DPM、Table 4 检出途径分布 49%/29%/10%、CCKC ≥80%/≥5 次/≥3 栈顶与 70%+ 确证/<10% 假阳性——均自 PDF 原文摘录核实。）
 5. ISO 26262-1:2018, Road vehicles — Functional safety — Part 1: Vocabulary, 定义 3.131 "safe state". https://www.iso.org/obp/ui/#iso:std:iso:26262:-1:ed-2:v1:en （"operating mode, in case of a failure, of an item without an unreasonable level of risk"；转引佐证：T. Stolte, S. Ackermann, R. Graubohm, B. Maurer, "A taxonomy to unify fault tolerance regimes for automotive systems," IEEE Trans. Intelligent Vehicles 7(2):251–262, 2022, DOI 10.1109/TIV.2021.3129933, https://arxiv.org/abs/2106.11042 —— 该文 §II 引用并统一了 ISO 26262/ISO SOTIF 的 safe state 定义，同时给出 fail-safe 与 fail-silent 的术语辨析。）
-6. mcelog triggers 与 cache-error-trigger 文档（CPU 下线先例："The default trigger offlines the affected CPU cores, unless it is the last core running"）. http://www.mcelog.org/triggers.html ；配置阈值见 https://mcelog.org/config.html （ce-error-threshold = 10/24h 等 leaky-bucket 阈值机制。）
+6. mcelog triggers 文档（CPU 下线先例："The default trigger offlines the affected CPU cores, unless it is the last core running"）. http://www.mcelog.org/triggers.html ；配置阈值机制（ce-error-threshold = 10/24h 等 leaky-bucket）另见 mcelog config 文档. https://mcelog.org/config.html （两页各自独立核实：triggers 页承载下线先例引文，config 页承载阈值机制——正文 §1.3(b) 只引 triggers 页的下线先例。）
 7. Linux 内核文档，x86_64 boot options，`mce=tolerancelevel` 0–3 级 fail-fast/可用性频谱（默认 1）. https://www.infradead.org/~mchehab/kernel_docs/x86/x86_64/boot-options.html （docs.kernel.org admin-guide 的镜像页；tolerant 0=always panic、3=never panic。）
 8. Linux 内核 RAS 概念文档（Availability/Reliability 定义与"检测→纠正→预警"框架）. https://docs.kernel.org/admin-guide/RAS/main.html
-9. 本仓库内部证据（【实锤】级，命令级复现路径见 DIAGNOSIS_REPORT.md §7）：docs/cases/core179-microarch-rootcause-synthesis/paper_zh.md（§3.1/§3.4/§6.1）；DIAGNOSIS_REPORT.md（§2 时间线与复现命令、§3.1 Class A、§6 处置建议）；vmcore-diagnosis-report-127.0.0.1-2026-08-14-190704.md（§2 29.0h 前兆/31.7h 崩溃/2.6h 提前量、§5 前兆证据链、§7 风险面、§9 下线命令）；MICROARCH_SUPPLEMENT.md（§D3 三重过滤与竞态反驳）。
+9. 本仓库内部证据（【实锤】级，命令级复现路径见 DIAGNOSIS_REPORT.md §7）：docs/cases/core179-microarch-rootcause-synthesis/paper_zh.md（§3.1/§3.4/§6.1）；DIAGNOSIS_REPORT.md（§2 时间线与复现命令、§3.1 Class A、§6 处置建议）；vmcore-diagnosis-report-127.0.0.1-2026-08-14-190704.md（§2 29.0h 前兆/31.7h 崩溃/2.6h 提前量、§5 前兆证据链、§9 风险面、§10 下线命令）；MICROARCH_SUPPLEMENT.md（§D3 三重过滤与竞态反驳）。
 
 **本节（§2，Task 2）引用**：
 
@@ -306,4 +450,8 @@ sim_ticks、指令数、周期数**逐位相同**——这是构造性的：gem5
 
 **诚实声明（§5 证据等级）**：§5.3–§5.5 的全部门数（~1–2k 等效门）、深度（10–15 FO4）、面积比（1/5–1/10）、能耗比（<5–10%）为解析量级估算【强推/假设】，未做 RTL 综合、时序收敛或功耗仿真；§5.2 的位开销（16/64=25% 等）为算术事实【实锤】；§5.6 的逃逸概率为数学推导 + 数值验证【实锤】；§5.7 为真实 gem5 运行【实锤】且其建模边界（gem5 不建模校验器周期成本）已在节首与节内两处声明。
 
-（各 Task 随写随补，Task 8 统一去重）
+（各 Task 随写随补；Task 7 收束时已做跨节核对：同一文献的多节复引均以"另见 §N 参考文献 [k]"显式回指（arXiv:2508.01786 见 [4]/[20]/[23]/[34]，arXiv:2203.08989 见 [3]/[25]，DOI 10.1109/ITCIndia66078.2025.11141623 见 [21]/[26]），编号连续无空洞，无同文献双条目。）
+
+**§4/§6（Task 7）引用**：
+
+35. 本仓库内部证据（【实锤】级）：`fi_research/probes/run_posparity.sh`（矩阵实验主脚本：自适应封顶重试、unipar 运行时门 numTagged≥iters fail-closed）；`fi_research/probes/unipar_probe.c`（对抗数据回归探针，volatile+(-O0) 双防御）；原始数据与逐臂逐 seed stats 抽取 `/tmp/posparity/results.md`（仓库外工件；关键数字已在本报告 §4.3 表格化，可由脚本 + 显式非零 seed 重跑复现，debug 取证目录 /tmp/posparity_dbg_{s4,s4_175,ufc1*,ufc4*}/lsqdbg.txt 的注入/失配 vaddr 与快照聚合逐事件可 grep 复核）；Task 4/5 修复轮历史（-O2 空洞证据、targets[j] 逃逸归因错误、19/19 算术错误）均已在 §4.1/§4.3 如实披露而非隐藏——修复历史本身是"对抗数据回归门必须 fail-closed"的方法学证据。
