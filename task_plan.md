@@ -113,4 +113,4 @@ Phase 7 (系统级)           ← 后置
 
 ## Next Step
 
-Phase 3.0：审计所有 hook-on-event 注入器的采样偏差（lsqfwd/exmon/bpu/ras/decode 等 max_faults=1 是否总命中同一动态事件）——CHAOSL1DForward 的教训（7387649）可能同样影响 lsqfwd formal 的"100% DUE"结论。逐个检查 maybeCorrupt 是否在窗口打开后总是命中第一个 eligible 事件，是则加 events_to_skip。
+Phase 3.0 剩余：给 CHAOSBPU / CHAOSRAS / CHAOSDecode / CHAOSExec / CHAOSFPU / CHAOSIQ 六个注入器加 events_to_skip（geometric p=0.1，同一补丁模式，~6 个小补丁），重建后重跑各自 formal（bpu/decode/ras/iq/exec/fpu 的"全 Masked"结论在采样偏差下未定）。已修+已重跑：lsqfwd（79f32b1）、l1dfwd（7d40912）。不受影响（注入点天然分散）：PRF/RAT/ROB/L1D/mem。

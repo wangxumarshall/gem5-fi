@@ -106,3 +106,21 @@
 2. runner.py/classify.py：exit=2 → SimulatorError（不是 Crash）。
 3. lsqfwd formal 重跑。
 4. 复查**所有**已提交 formal 的 exit 码分布——凡是 exit=2 占比高的结果都要重审。
+
+## Phase 3.0 采样偏差审计结论（2026-09-03 深夜，最终）
+
+**受污染的已提交 formal（first-eligible-event 采样偏差，每 rep 命中同一动态事件）**：
+| injector | 证据（跨 run 同 tick） | 已提交结论 | 状态 |
+|---|---|---|---|
+| CHAOSLSQFwd | cycle 恒 1304（修复前） | "100% DUE" | **已修+重跑**（79f32b1: 4.7%/27.6%） |
+| CHAOSL1DForward | tick 恒 97358415 | "384/384 Masked" | **已修+重跑**（7d40912: 90.9% SDC） |
+| CHAOSBPU | tick 恒 19250000 | "全 Masked" | **待修重跑** |
+| CHAOSRAS | tick 恒 21529200 | "全 Masked" | **待修重跑** |
+| CHAOSDecode | tick 恒 19251540 | "全 Masked" | **待修重跑** |
+| CHAOSExec | tick 恒 19250385 | "全 Masked" | **待修重跑** |
+| CHAOSFPU | tick 恒 974889685 | "全 Masked" | **待修重跑** |
+| CHAOSIQ | （log 未采样到，推定同） | "全 Masked" | **待修重跑** |
+
+**影响评估（诚实）**：这些单元的"全 Masked"结论**尚未证伪**——同一事件 384 次都 Masked 说明该事件不敏感，但不能推广到整个事件流。修复（events_to_skip）后重跑才能给出单元级结论。优先级：exec/fpu/bpu/decode/ras/iq 各加 events_to_skip（同一补丁模式，~6 个小补丁）。
+
+**已验证不受影响**：PRF/RAT/ROB formal（注入点由 target_index 定向或 RNG 选寄存器，天然分散）；L1D/mem（随机 block/byte 地址天然分散）。
