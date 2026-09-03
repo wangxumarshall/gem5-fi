@@ -1,0 +1,5 @@
+/planning-with-files  请阅读docs/KUNPENG920-故障注入方案详细工程设计.md，并结合现有进展详细编写下一步计划
+
+---
+
+/planning-with-files  请阅读docs/KUNPENG920-故障注入方案详细工程设计.md和现有代码，从而结合现有进展详细编写下一步计划
