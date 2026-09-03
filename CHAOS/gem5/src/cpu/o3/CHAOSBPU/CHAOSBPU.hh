@@ -41,6 +41,12 @@ class CHAOSBPU : public SimObject
     uint64_t faults_injected_count = 0;
     uint64_t rng_seed;
     bool write_log;
+    // Sampling-bias fix (findings.md Phase 2.2/3.0, same as CHAOSL1DForward
+    // 7387649): skip a geometric(p=0.1) number of eligible events before
+    // the first injection, so maxFaults=1 lands on a seed-dependent event
+    // instead of always the first eligible one (same dynamic instruction
+    // every rep on a deterministic stream).
+    uint64_t events_to_skip = 0;
 
     std::mt19937 rng;
     std::random_device rd;

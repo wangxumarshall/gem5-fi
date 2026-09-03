@@ -25,6 +25,11 @@ namespace gem5
             if (!log_stream || !log_stream->stream())
                 panic("CHAOSBPU: Could not open log file");
             rng.seed(rng_seed != 0 ? rng_seed : rd());
+        // Sampling-bias fix (findings.md Phase 2.2/3.0): skip a
+        // geometric(p=0.1) number of eligible events before the first
+        // injection so maxFaults=1 lands on a seed-dependent event.
+        std::geometric_distribution<uint64_t> skip_dist(0.1);
+        events_to_skip = skip_dist(rng);
         }
     }
 
@@ -63,6 +68,15 @@ namespace gem5
         if (pd(rng) > probability) return false;
 
         if (fi_mode == Mode::DirFlip) {
+        // Sampling-bias fix (findings.md Phase 3.0): skip the first N
+        // eligible events (N ~ geometric(0.1) from the seed) so the
+        // single fault lands on a seed-dependent event.
+        if (events_to_skip > 0) {
+            --events_to_skip;
+            return false;
+        }
+
+
             // §2.13 F5 direction: reverse taken/not-taken.
             taken = !taken;
         } else if (fi_mode == Mode::TargetFlip) {

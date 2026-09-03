@@ -1533,3 +1533,15 @@ Phase 2.2（l1dfwd post-check escape formal）已启动。
 | §2.2 RAT X3 | cholesky | 0.3% | 95.8% | Crash |
 | §2.3 ROB D=0 | cholesky | 0% | 0% | Masked |
 | §2.4 LSQFwd | fwd_checksum | **4.7% [3.0,7.3]** | **27.6% [23.3,32.3]** | **Masked（修正）** |
+
+### Phase 3.0 批量修复：6 注入器 events_to_skip（BPU/RAS/Decode/Exec/FPU/IQ）
+
+**同构批量补丁**（8bff9d1 批量修 10 注入器 inWindow 的先例）：6 个 hook-on-event 注入器各加 `events_to_skip`（ctor 里 geometric(p=0.1) 采样）+ maybeCorrupt 在 **eligible 过滤之后**（opClass/int-class/pending-fault 检查后）插入 skip 检查——保证 skip 只消耗真正可注入的事件，不被无关事件虚耗。
+
+**真机验证（全部真实输出）**：
+- BPU（branchy_reduce, 3 seeds）：注入 tick 分散 416185 / 413490 / 418110 ✅
+- Exec（cholesky, 3 seeds）：注入 sn 分散 69005 / 69002 / 69010 ✅
+- golden 回归：reg_chain f247ef3fe6f02cfd ✅
+- 重建 -j16 零 CHAOS 警告 ✅
+
+6 个 formal（bpu/decode/ras/iq/exec/fpu）的"全 Masked"结论作废待重跑。
