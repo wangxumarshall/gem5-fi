@@ -113,4 +113,6 @@ Phase 7 (系统级)           ← 后置
 
 ## Next Step
 
-Phase 3.0 剩余：给 CHAOSBPU / CHAOSRAS / CHAOSDecode / CHAOSExec / CHAOSFPU / CHAOSIQ 六个注入器加 events_to_skip（geometric p=0.1，同一补丁模式，~6 个小补丁），重建后重跑各自 formal（bpu/decode/ras/iq/exec/fpu 的"全 Masked"结论在采样偏差下未定）。已修+已重跑：lsqfwd（79f32b1）、l1dfwd（7d40912）。不受影响（注入点天然分散）：PRF/RAT/ROB/L1D/mem。
+Phase 3.0 ✅ 完成（32629f7 + c7cc34b）。下一步 Phase 3 网格深化，最优先两件：
+1. **FPU 重跑换 workload**：neon_lane 的 FP eligible 流太小（Reach=17%）——用 gemm_float_kernel（FP 密集）重跑 §2.6 formal，恢复 n_valid≥384 量级。
+2. **PRF 位段网格（§2.1 C）**：bit {0,11,31,32,47,63} × 寄存器 {X3,X9,X0-X7 参数类,X19-X28} × fault_model {F1, F2 相邻2位, F3 数据相关, F4 stuck}——先 pilot n=100 筛可达率再 formal。

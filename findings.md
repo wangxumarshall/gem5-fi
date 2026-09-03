@@ -124,3 +124,24 @@
 **影响评估（诚实）**：这些单元的"全 Masked"结论**尚未证伪**——同一事件 384 次都 Masked 说明该事件不敏感，但不能推广到整个事件流。修复（events_to_skip）后重跑才能给出单元级结论。优先级：exec/fpu/bpu/decode/ras/iq 各加 events_to_skip（同一补丁模式，~6 个小补丁）。
 
 **已验证不受影响**：PRF/RAT/ROB formal（注入点由 target_index 定向或 RNG 选寄存器，天然分散）；L1D/mem（随机 block/byte 地址天然分散）。
+
+## Phase 3.0 结案（2026-09-04）
+
+**采样偏差 bug 族全关**（8 注入器全修）：l1dfwd 7387649、lsqfwd 9779097、bpu/ras/decode/exec/fpu/iq 32629f7。
+
+**修正后的 SE 单元格局（n=384 或接近，全部 replay 通过）**：
+| 单元 | P_SDC | P_DUE | 主导 | 状态 |
+|---|---|---|---|---|
+| L1D raw | 97.7% | 0 | SDC | 有效 |
+| L1D post-check (l1dfwd) | 90.9% | 0 | SDC | 有效（修复后） |
+| L1D+SECDED | 0% | 0 | Masked | 有效 |
+| PRF X3 | 3.9% | 92.7% | Crash | 有效（天然分散） |
+| RAT X3 | 0.3% | 95.8% | Crash | 有效（天然分散） |
+| Decode dest_reg_sub | 0.3% | **24.1%** | Masked 75.7% | **修正**（旧全 Masked 是伪影） |
+| LSQFwd byte_flip | 4.7% | 27.6% | Masked 67.7% | **修正**（旧 100% DUE 是 argparse 伪影） |
+| ROB D=0 / BPU / IQ / Exec | 0% | 0% | Masked | **确认**（单元级有效） |
+| RAS exc_suppress | 0% | 0% | Masked | n=357（24 Inactive） |
+| FPU | 0%（上界5.4%） | 0% | Masked | **Reach=17%**——需换 gemm_float 重跑 |
+| mem (DRAM 后备) | 0% | 0% | Masked | 有效（被 L1/L2 掩盖） |
+
+**方法学新知**：geometric(p=0.1) 的 skip 对**小 eligible 流**会枯竭（FPU 317/384 Inactive）。选择 skip 分布要匹配事件流规模；对极小流（<20 事件），单故障采样本身弱——应换 workload 或更早 trigger。**手工测试坑**：注入器的 seed 参数是 `--<inj>_rng_seed`，generic `--rng_seed` 不喂它——手工复现必须按 runner 的 cmd 构造。
