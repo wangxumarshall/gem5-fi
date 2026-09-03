@@ -41,6 +41,10 @@
 
 #include "cpu/o3/inst_queue.hh"
 
+// S8-1b (plan §5.5): CHAOSIQ wake_omit/wake_phase hook (wake-dependents
+// corruption — the dependent is re-queued rather than woken).
+#include "cpu/o3/CHAOSIQ/CHAOSIQ.hh"
+
 #include <limits>
 #include <vector>
 
@@ -1075,6 +1079,22 @@ InstructionQueue::wakeDependents(const DynInstPtr &completed_inst)
 {
     int dependents = 0;
 
+    // S8-1b CHAOSIQ: deliver wakeups deferred by a previous call
+    // (wake_phase one-cycle delay approximation). The deferred entry is
+    // REMOVED from the dep graph here — leaving it queued would trip the
+    // drain-time "not empty" panic.
+    if (cpu->chaosIQ) {
+        for (auto &[deferred, reg_idx] : cpu->chaosIQ->takePendingWakeups()) {
+            if (!deferred->isSquashed()) {
+                dependGraph.remove(reg_idx, deferred);
+                deferred->markSrcRegReady();
+                addIfReady(deferred);
+            } else {
+                dependGraph.remove(reg_idx, deferred);
+            }
+        }
+    }
+
     // The instruction queue here takes care of both floating and int ops
     if (completed_inst->isFloating()) {
         iqIOStats.fpInstQueueWakeupAccesses++;
@@ -1140,11 +1160,35 @@ InstructionQueue::wakeDependents(const DynInstPtr &completed_inst)
 
         //Go through the dependency chain, marking the registers as
         //ready within the waiting instructions.
+        // S8-1b: a CHAOSIQ-requeued dependent keeps a chain entry alive —
+        // skip the drain assert/clearInst below for this register.
+        bool requeued = false;
         DynInstPtr dep_inst = dependGraph.pop(dest_reg->flatIndex());
 
         while (dep_inst) {
             DPRINTF(IQ, "Waking up a dependent instruction, [sn:%llu] "
                     "PC %s.\n", dep_inst->seqNum, dep_inst->pcState());
+
+            // S8-1b CHAOSIQ F6 hook: wake_omit (skip this wakeup) /
+            // wake_phase (defer to the next wakeDependents call).
+            // The skipped dependent is RE-QUEUED onto the dep graph
+            // (pop the NEXT entry first, then re-insert the skipped
+            // one — pop-then-push would return the same node forever).
+            if (cpu->chaosIQ) {
+                CHAOSIQ::HookAction act =
+                    cpu->chaosIQ->hookWakeDependents(dep_inst, dest_reg);
+                if (act != CHAOSIQ::HookAction::None) {
+                    DynInstPtr skipped = dep_inst;
+                    dep_inst = dependGraph.pop(dest_reg->flatIndex());
+                    dependGraph.insert(dest_reg->flatIndex(), skipped);
+                    if (act == CHAOSIQ::HookAction::Defer)
+                        cpu->chaosIQ->recordDeferred(
+                            skipped, dest_reg->flatIndex());
+                    requeued = true;
+                    ++dependents;
+                    continue;
+                }
+            }
 
             // Might want to give more information to the instruction
             // so that it knows which of its source registers is
@@ -1161,8 +1205,12 @@ InstructionQueue::wakeDependents(const DynInstPtr &completed_inst)
 
         // Reset the head node now that all of its dependents have
         // been woken up.
-        assert(dependGraph.empty(dest_reg->flatIndex()));
-        dependGraph.clearInst(dest_reg->flatIndex());
+        // S8-1b: skip when a dependent was requeued (its entry must
+        // survive for the next producer completion to re-pop).
+        if (!requeued) {
+            assert(dependGraph.empty(dest_reg->flatIndex()));
+            dependGraph.clearInst(dest_reg->flatIndex());
+        }
 
         // Mark the scoreboard as having that register ready.
         regScoreboard[dest_reg->flatIndex()] = true;

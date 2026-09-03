@@ -88,6 +88,7 @@ class Process;
 // lsq_unit.cc can reach it via the cpu pointer it already holds. nullptr
 // when no injector is attached → the lsq_unit call site short-circuits.
 class CHAOSLSQFwd;
+class CHAOSIQ;
 
 // Forward declaration of the address-path fault injector (P-D2, defined in
 // src/cpu/o3/CHAOSAddrPath/). Same self-attach pattern: the CPU holds a
@@ -496,6 +497,13 @@ class CPU : public BaseCPU
     /** CHAOSBPU accessor (S8-4): exposes fetch's BAC for injector
      *  self-attach. Same pattern as renameAccess(). */
     BAC &bacAccess() { return *(fetch.getBAC()); }
+
+    /** CHAOSIQ wake-hook (S8-1 wake_omit/wake_phase F6): issue-queue
+     *  wake-dependents injector. Self-attach (ctor sets it);
+     *  inst_queue.cc's wakeDependents checks it per dependent. Nullptr
+     *  when no injector / non-wake mode. Same pattern as lsqFwd. */
+    class CHAOSIQ *chaosIQ = nullptr;
+    void setChaosIQ(CHAOSIQ *p) { chaosIQ = p; }
 
     /** CHAOSLSQFwd hook: store->load forwarding-path injector. Set externally
      *  (from a config script) so lsq_unit.cc can reach it via the cpu pointer

@@ -48,11 +48,19 @@ namespace gem5
             }
             stats = std::make_unique<CHAOSIQStats>(this);
         }
+        // S8-1b: wake_omit/wake_phase are EVENT-DRIVEN (hook
+        // InstructionQueue::wakeDependents via cpu->chaosIQ) — do NOT
+        // schedule the attackEvent poller for these modes.
+        if (fi_mode == Mode::WakeOmit || fi_mode == Mode::WakePhase) {
+            cpu->setChaosIQ(this);
+        }
     }
 
     void CHAOSIQ::startup()
     {
         if (!probability) return;
+        if (fi_mode == Mode::WakeOmit || fi_mode == Mode::WakePhase)
+            return;   // event-driven hook; no attackEvent polling
         unsigned next_fault_cycle_distance = inter_fault_cycles_dist(rng);
         scheduleAttackEvent(first_clock + Cycles(next_fault_cycle_distance));
     }
@@ -156,14 +164,71 @@ namespace gem5
             ++faults_injected_count;
             writeLog("tag_sub", tid, src_idx, false, false, 0);
         } else {
-            // WakePhase / WakeOmit: deferred (need IQ timing hook).
+            // WakePhase / WakeOmit are event-driven (hookWakeDependents);
+            // this polling path is never reached for them (startup skips
+            // attackEvent). Kept for defensive honesty.
             stats->numLegalityRejects++;
-            if (write_log) {
-                *(log_stream->stream())
-                    << "Cycle: " << cpu->curCycle()
-                    << " wake_phase/wake_omit: NOT IMPLEMENTED (needs IQ timing hook)\n";
-            }
         }
+    }
+
+    // ---- S8-1b: event-driven wake hook (wake_omit / wake_phase) ----
+
+    CHAOSIQ::HookAction
+    CHAOSIQ::hookWakeDependents(const o3::DynInstPtr &dep_inst,
+                                const PhysRegIdPtr &dest_reg)
+    {
+        if (fi_mode != Mode::WakeOmit && fi_mode != Mode::WakePhase)
+            return HookAction::None;
+        if (!probability)
+            return HookAction::None;
+        // Time window (curCycle — same convention as the other modes).
+        if (cpu->curCycle() < first_clock)
+            return HookAction::None;
+        if (last_clock != Cycles(0) && cpu->curCycle() > last_clock)
+            return HookAction::None;
+        // Probability gate (geometric inter-arrival approximated as
+        // per-dependent Bernoulli — same rng).
+        if (probability < 1.0f) {
+            std::uniform_real_distribution<float> dist(0.0f, 1.0f);
+            if (dist(rng) >= probability)
+                return HookAction::None;
+        }
+        // G5 note: a physically stuck wake path is persistent, but a
+        // SINGLE omitted/deferred wakeup is already architecturally
+        // observable (the dependent misses this producer's completion).
+        // max_faults caps the injections like the other modes.
+        if (max_faults != 0 && faults_injected_count >= max_faults)
+            return HookAction::None;
+        ++faults_injected_count;
+        stats->numFaultsInjected++;
+        if (write_log && log_stream) {
+            *(log_stream->stream())
+                << "Cycle: " << cpu->curCycle()
+                << ", Site: iq_wake_dependents"
+                << ", Mode: " << modeToString(fi_mode)
+                << ", DepInst sn: " << dep_inst->seqNum
+                << ", DestReg: " << dest_reg->index()
+                << " (" << dest_reg->className() << ")"
+                << ", Action: " << (fi_mode == Mode::WakeOmit ? "omit" : "defer")
+                << ", Count: " << faults_injected_count
+                << "\n";
+        }
+        return fi_mode == Mode::WakeOmit ? HookAction::Omit
+                                          : HookAction::Defer;
+    }
+
+    void
+    CHAOSIQ::recordDeferred(const o3::DynInstPtr &inst, RegIndex reg_idx)
+    {
+        pending_wakeups.emplace_back(inst, reg_idx);
+    }
+
+    std::vector<std::pair<o3::DynInstPtr, RegIndex>>
+    CHAOSIQ::takePendingWakeups()
+    {
+        std::vector<std::pair<o3::DynInstPtr, RegIndex>> out;
+        out.swap(pending_wakeups);
+        return out;
     }
 
     void
