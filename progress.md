@@ -1490,3 +1490,19 @@ Phase 2.2（l1dfwd post-check escape formal）已启动。
 → 注入点随 seed 分散，SDC/Masked 混合出现 —— post-check escape 通路正式可用。重建 gem5.opt 零新警告；reg_chain golden 回归通过（见 T3）。
 
 **同类风险记录（findings.md）**：所有 "hook-on-event + max_faults=1" 注入器（lsqfwd/exmon/bpu/ras 等）可能有同样偏差——lsqfwd formal 100% DUE 需复核（它的 100% 可能部分是采样伪影）。Phase 3/4 逐个审计。
+
+### Phase 2.2 结果: l1dfwd post-check escape formal（修复后重跑）— §2.7 H.③ 验证通过
+
+**§2.7 L1DForward post-check escape（l1d_reduce, C2, 384 reps + 5% replay, 690s, frozen=no）**：
+- **P_SDC = 90.9% [87.6, 93.4]**，P_DUE = 0%，Reach = 100%（349 SDC / 35 Masked）
+
+**§2.7 H.③ 验收断言**：post-check `P_SDC` ≥ raw 注入 —— **通过**：
+| 通路 | P_SDC |
+|---|---|
+| L1D raw（cache 数据字节，none） | 97.7% [95.6, 98.8] |
+| L1D post-check escape（load 回填路径） | **90.9% [87.6, 93.4]** |
+| L1D + SECDED（数据字节被纠正） | 0.0% [0.0, 1.0] |
+
+**三层结论（§4.1 逃逸分解的 L1D 部分）**：ECC 对"已读出数据"几乎完美（97.7→0）；但 ECC 校验**之后**的通路损坏依然 90.9% 逃逸——post-check escape 是 SECDED 盲区，符合设计文档 §1.2 的 D 类逃逸机理。~9% Masked 来自被 squash 的 wrong-path load（注入点随机化后自然出现，与 5-seed 手工验证一致）。
+
+**Phase 2 完成度**：2.1 L1D secded 对照 ✅ + 2.2 l1dfwd post-check ✅ + mem secded 组（Phase 2.3，待跑——CHAOSMem 的 DRAM 后备全 Masked，protection 对照优先级降低，排 Phase 3）。
