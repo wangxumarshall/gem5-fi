@@ -1429,3 +1429,16 @@ ARM 三条路径 + golden（真跑输出）：
 2. T2 (C0 arm_chaos, reg_chain, first_clock=20000)：`[arm_chaos] CHAOSMem tickToClockRatio=500`；`Tick: 10000000 ... faults_injected: 1` —— **10000000 = 20000×500 精确**。注意：C0 旧值 1000 也是错的（窗口在 2× 请求周期处打开），只是碰巧能开；现在精确。
 3. T3 (C0, 无注入 golden 回归)：reg_chain checksum = **f247ef3fe6f02cfd** ✅ 与 golden 一致，exit=0，无注入日志。
 
+
+### Phase 1.3: mem_formal_cholesky 重跑 n=384（修复后）— VALID
+
+**工具修复（附带）**：campaign.py `--jobs>1` 从未工作过——`_do_rep` 是 main() 局部闭包，ProcessPoolExecutor pickle 失败（`Can't pickle local object 'main.<locals>._do_rep'`，第二层 `log_bad` 同样）。修为模块级 `_PoolRep` 类（携带 binary/hang_timeout/keep_manifests/bad_log_path）+ 模块级 `_log_bad` 工厂。这是第一次用 --jobs 4 跑 formal（此前 formal 全是 --jobs 1 串行，掩盖了此 bug——诚实记录：本机以前所有 formal 是串行跑的，结果不受影响）。
+
+**修复后 mem_formal_cholesky（C2-KP, cholesky, 384 reps + 5% replay, --jobs 4, 241s）**：
+- **n_valid=384, n_inactive=0**（修复前 384 Inactive）——campaign 现在有效
+- 384/384 faults_injected=1，全 **Masked**：P_SDC=0.0% [0.0,1.0], P_DUE=0.0%, Reach=100% [99.0,100.0]
+- replay 一致（frozen=no）
+
+**诚实解读**：DRAM 后备存储随机单字节注入在 cholesky 上全 Masked——与 L1D（97.7% SDC）形成鲜明对比。原因：first_clock=50000（=tick 19.25M）时 cholesky 的工作集已在 L1/L2 中，DRAM 后备字节被改后不被读回（write-back 或已缓存值胜出）。这符合存储层级直觉：越远离核心的存储错误越容易被上游缓存屏蔽。**注意**：这是单 cell（random addr/byte）结论；DRAM SDC 的真实暴露面需要 (a) 更晚的 trigger（工作集回写后读回）或 (b) addr_map_sub F5（绕过 cache tag）——Phase 4.6 / 网格深化时补。
+
+**Phase 1 完成**：① 6 formal 提交（d4c9e8b）② CHAOSMem 修复（b7433dd）③ mem formal 有效重跑（本次）。campaign.py --jobs 修复待提交。

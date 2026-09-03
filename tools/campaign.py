@@ -215,6 +215,37 @@ def parse_runner_result(stdout):
     return res
 
 
+class _PoolRep:
+    """Picklable ProcessPoolExecutor worker: carries the run context and
+    calls the module-level run_one_rep on the manifest inside each work
+    item (ord_i, cell, rep, mpath, outdir). A plain closure local to
+    main() is NOT picklable and crashes --jobs>1 — including the old local
+    log_bad; we carry bad_log_path and use the module-level _log_bad."""
+
+    def __init__(self, binary, hang_timeout, keep_manifests, bad_log_path):
+        self.binary = binary
+        self.hang_timeout = hang_timeout
+        self.keep_manifests = keep_manifests
+        self.bad_log_path = bad_log_path
+
+    def __call__(self, item):
+        ord_i, cell, rep, mpath, outdir = item
+        res = run_one_rep(mpath, self.binary, self.hang_timeout,
+                          self.keep_manifests,
+                          _log_bad(self.bad_log_path))
+        return (mpath, res)
+
+
+def _log_bad(bad_log_path):
+    """Module-level bad-run logger factory (picklable context: just the
+    path). Same behavior as the old main()-local closure."""
+    def log_bad(stderr, stdout, manifest_path):
+        with open(bad_log_path, "a") as f:
+            f.write(f"=== {manifest_path} ===\n--- stderr ---\n"
+                    f"{stderr[-500:]}\n--- stdout ---\n{stdout[-500:]}\n\n")
+    return log_bad
+
+
 def run_one_rep(manifest_path, binary, hang_timeout, keep_manifests, log_bad):
     """Shell out to tools/runner.py for one manifest. Returns a result dict
     (classification etc.) for the results.jsonl line."""
@@ -409,10 +440,11 @@ def main():
     for (ord_i, cell, rep, mpath, outdir) in work:
         cell_of[mpath] = ord_i
 
-    def _do_rep(item):
-        ord_i, cell, rep, mpath, outdir = item
-        res = run_one_rep(mpath, binary, hang_timeout, args.keep_manifests, log_bad)
-        return (mpath, res)
+    # The pool worker must be picklable: a closure local to main() fails with
+    # "Can't pickle local object 'main.<locals>._do_rep'". The module-level
+    # _PoolRep class below carries the run context; the item is the plain
+    # (ord_i, cell, rep, mpath, outdir) tuple.
+    _do_rep = _PoolRep(binary, hang_timeout, args.keep_manifests, bad_log_path)
 
     if args.jobs <= 1:
         for item in work:
