@@ -1,0 +1,38 @@
+{
+  "cli_version": "0.10.2",
+  "checkpoint_id": "01M1KQP0S63BM9RNT8EJ73TSZD",
+  "strategy": "manual-commit",
+  "branch": "fix/fi-tool-correctness",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "artifacts/bpu_formal/heatmap.csv",
+    "artifacts/bpu_formal/summary.md",
+    "artifacts/decode_formal/heatmap.csv",
+    "artifacts/decode_formal/summary.md",
+    "artifacts/exec_formal_cholesky/heatmap.csv",
+    "artifacts/exec_formal_cholesky/summary.md",
+    "artifacts/fpu_formal_neon/heatmap.csv",
+    "artifacts/fpu_formal_neon/summary.md",
+    "artifacts/iq_formal_cholesky/heatmap.csv",
+    "artifacts/iq_formal_cholesky/summary.md",
+    "artifacts/ras_formal_cholesky/heatmap.csv",
+    "artifacts/ras_formal_cholesky/summary.md",
+    "progress.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 7817358,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 8120,
+    "api_call_count": 32
+  }
+}
