@@ -77,8 +77,19 @@ SEEDS="42 1 2 3 4"
 mkdir -p $OUT
 
 # Rebuild both probes with the host (aarch64-native) gcc.
+# unipar is built -O0 AND with volatile buf (defense in depth): at -O2 with a
+# non-volatile buf, GCC load/store elimination deleted the probe loop body
+# entirely (verified by disassembly — main had zero memory instructions), so
+# the adversarial word never traveled the forwarding path and the arm-7 cells
+# only measured loader/glibc startup forwards (review Critical 1).
 taskset -c 0-31 gcc -static -O2 -o $PROBE  $HERE/ptrskew_kernel.c || echo "[warn] ptrskew rebuild failed, using existing $PROBE"
-taskset -c 0-31 gcc -static -O2 -o $UPROBE $HERE/unipar_probe.c   || echo "[warn] unipar rebuild failed, using existing $UPROBE"
+taskset -c 0-31 gcc -static -O0 -o $UPROBE $HERE/unipar_probe.c   || echo "[warn] unipar rebuild failed, using existing $UPROBE"
+# Defense-in-depth gate: refuse to run arm 7 with a probe whose loop body was
+# optimized away (no store+reload in main => all "detections" would be vacuous).
+if ! objdump -d $UPROBE | awk '/<main>:/,/^$/' | grep -qE '\b(st|ld)[rp]?\b'; then
+  echo "[FATAL] $UPROBE main has no store/load instructions — probe loop optimized away; aborting." >&2
+  exit 1
+fi
 
 # statsgrep DIR PATTERN — one line of "name value" pairs from stats.txt.
 sg() { grep -E "$2" $1/stats.txt 2>/dev/null | tr -s ' ' | sed 's/ system\.system\.//' | tr '\n' ';' ; }
