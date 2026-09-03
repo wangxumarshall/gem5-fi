@@ -1322,3 +1322,28 @@ ARM 三条路径 + golden（真跑输出）：
 - 5% replay 通过（无 frozen）。
 
 **S1 进度**：§2.1 PRF formal ✅ + §2.2 RAT formal ✅。剩余：§2.3 ROB、§2.4 LSU formal。
+
+---
+
+### S1 formal #3+#4: §2.3 ROB + §2.4 LSU n=384（C2-KP）
+
+**批量修复 inWindow 频率 bug**：ROB/IQ/Exec/FPU/L1DFwd/BPU/AddrPath/Decode/FreeList/RAS 共 10 个注入器的 `inWindow()` 都用 `first_clock * 1000`（假设 1GHz）——C2-KP 2.6GHz 下窗口永不打开。统一改用 `cpu->clockPeriod()` 频率无关换算。kp920_proxy.py 补 LSQFwd 的 structMode/laneSkewK 传参。
+
+**§2.3 ROB formal（cholesky, 384 reps, 1132s）**：
+- entry_bitflip D=0 exc_status: P_SDC=0.0% [0,1.0], P_DUE=0.0%, Reach=100% — **全 Masked**（toggle CanCommit 被 squash 恢复路径掩盖——与 pilot 一致）
+
+**§2.4 LSU formal（fwd_checksum, 384 reps, 324s）**：
+- byte_flip: P_SDC=0.0% [0,1.0], **P_DUE=100% [99,100]**, Reach=100% — **全 DUE**（随机单 bit 翻转发数据在 fwd_checksum 上全部造成程序错误退出——与 C0 上 5/5 Masked 不同！C2 V110 窗口下转发数据错误更致命）
+
+**S1 四个 P0 单元 formal 全部完成**：
+
+| 单元 | workload | P_SDC | P_DUE | 主导结局 |
+|---|---|---|---|---|
+| §2.1 PRF X3 | cholesky | 3.9% [2.4,6.3] | 92.7% [89.7,94.9] | Crash |
+| §2.1 PRF X9 | cholesky | 0% | 0% | Masked |
+| §2.2 RAT X3 | cholesky | 0.3% [0,1.5] | 95.8% [93.3,97.4] | Crash |
+| §2.2 RAT X9 | cholesky | 0% | 0% | Masked |
+| §2.3 ROB D=0 | cholesky | 0% | 0% | Masked |
+| §2.4 LSQFwd | fwd_checksum | 0% | **100% [99,100]** | DUE |
+
+**诚实总结**：C2-KP V110 上，X3 的 PRF/RAT 错误都 DUE 主导（92.7%/95.8%），LSQFwd 转发错误 100% DUE，ROB entry_bitflip 全 Masked。P_SDC 普遍很低（0-3.9%）——cholesky/fwd_checksum 上错误传播以崩溃为主。
