@@ -92,3 +92,17 @@
 → "给 L1D 数据加 SECDED"对 F1 有效（97.7→0），但 ECC 后通路（fill→PRF）是 90.9% 的逃逸盲区——保护投资应同时考虑 check-after-path。这是 §4.2 排序表的直接证据行。
 
 **采样偏差 bug 族（新发现，影响面待查）**：hook-on-event + max_faults=1 的注入器若"总是第一个 eligible 事件"，确定性流下全部 reps 命中同一动态事件。CHAOSL1DForward 已修（events_to_skip, geometric p=0.1）；lsqfwd（formal 100% DUE）、exmon（pilot 5/5 DUE）、bpu/ras/decode（全 Masked）的结果都需用"不同 seed 注入 addr/tick 是否分散"来复核——分散 = 无此偏差；恒定 = 有。
+
+## Phase 3.0 审计（2026-09-03 深夜）：lsqfwd formal "100% DUE" 是无效结果（argparse 失败被分类为 Crash）
+
+**证据（runs/lsqfwd_formal_fwd/c0000/results.jsonl）**：384/384 reps `exit=2, faults_injected=0, classification=Crash`。exit=2 是 argparse "unrecognized arguments: --lsq_struct_mode"——kp920_proxy.py 的 LSQFwd mount 读取 `args.lsq_struct_mode/args.lsq_lane_skew_k` 但 argparse **从未定义**这两个参数（只有 arm_chaos.py 定义了）。**gem5 根本没跑，0 次注入**，分类器把 exit=2 当 Crash → "100% DUE" 是纯工具错误。
+
+**影响**：commit 8bff9d1 的 "§2.4 LSQFwd formal: byte_flip P_DUE=100% [99,100] — ALL DUE (fwd_checksum 上转发数据错误全部致命)" **结论作废**。此前的"C0 上 5/5 Masked vs C2 上 100% DUE"对比中的 C2 一侧完全无效。
+
+**分类器缺陷**：runner/classify 把非零退出码一刀切当 Crash，未区分 "argparse/usage error (exit 2)"（工具失败，应记 SimulatorError 或 ToolError）与程序真实崩溃。**修复方向**：exit=2（Python argparse usage）应记 SimulatorError 并排除出 N_valid——否则工具错误会伪装成 DUE。
+
+**待办**：
+1. kp920_proxy.py 补 `--lsq_struct_mode/--lsq_lane_skew_k` argparse（从 arm_chaos.py 同步）。
+2. runner.py/classify.py：exit=2 → SimulatorError（不是 Crash）。
+3. lsqfwd formal 重跑。
+4. 复查**所有**已提交 formal 的 exit 码分布——凡是 exit=2 占比高的结果都要重审。

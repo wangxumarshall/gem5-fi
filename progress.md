@@ -1506,3 +1506,14 @@ Phase 2.2（l1dfwd post-check escape formal）已启动。
 **三层结论（§4.1 逃逸分解的 L1D 部分）**：ECC 对"已读出数据"几乎完美（97.7→0）；但 ECC 校验**之后**的通路损坏依然 90.9% 逃逸——post-check escape 是 SECDED 盲区，符合设计文档 §1.2 的 D 类逃逸机理。~9% Masked 来自被 squash 的 wrong-path load（注入点随机化后自然出现，与 5-seed 手工验证一致）。
 
 **Phase 2 完成度**：2.1 L1D secded 对照 ✅ + 2.2 l1dfwd post-check ✅ + mem secded 组（Phase 2.3，待跑——CHAOSMem 的 DRAM 后备全 Masked，protection 对照优先级降低，排 Phase 3）。
+
+### Phase 3.0: lsqfwd formal "100% DUE" 作废 + 三处修复（argparse / classifier / 采样）
+
+**审计发现（results.jsonl 证据）**：lsqfwd_formal_fwd 384/384 reps 全部 `exit=2, faults_injected=0`——kp920_proxy.py 缺 `--lsq_struct_mode/--lsq_lane_skew_k` argparse，gem5 根本没跑，分类器把 exit=2 当 Crash → 8bff9d1 的 "§2.4 LSQFwd 100% DUE" **完全无效**。全量审计其它 formal：exit 码分布正常（0 或真实崩溃），**仅 lsqfwd 受污染**。
+
+**三处修复**：
+1. kp920_proxy.py 补 `--lsq_struct_mode`（choices: byte_flip/byte_lane_skew/stale_line_replay/all_zero）+ `--lsq_lane_skew_k` argparse。
+2. classify.py：exit==2 且无注入 → **SimulatorError**（"config-script argparse/usage error"），不再伪装 Crash。测试：T1 exit2→SimulatorError ✅ T2 fault-landed crash→Crash 语义不变 ✅ T3 clean→Masked ✅。
+3. CHAOSLSQFwd 同样加 events_to_skip（geometric p=0.1）采样修复——lsqfwd 与 l1dfwd 同为 hook-on-event 注入器。
+
+**真机验证**：seed 7/8/9 的 lsqfwd 注入 cycle 分散（1425/1304/7009）✅；golden 回归 f247ef3fe6f02cfd ✅；重建零警告 ✅。lsqfwd formal 重跑启动。

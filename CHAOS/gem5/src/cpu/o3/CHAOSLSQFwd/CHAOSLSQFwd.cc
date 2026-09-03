@@ -42,6 +42,14 @@ namespace gem5
             if (!log_stream || !log_stream->stream()) {
                 panic("CHAOSLSQFwd: Could not open log file");
             }
+            // Sampling-bias fix (findings.md Phase 2.2, same as
+            // CHAOSL1DForward): skip a geometric(p=0.1) number of eligible
+            // forwarding events before the first injection, so the single
+            // fault (maxFaults=1) lands on a seed-dependent event instead
+            // of always the first eligible one (same dynamic store->load
+            // pair every rep on a deterministic stream).
+            std::geometric_distribution<uint64_t> skip_dist(0.1);
+            events_to_skip = skip_dist(rng);
             stats = std::make_unique<CHAOSLSQFwdStats>(this);
             random_fault_distribution = std::discrete_distribution<int>(
                 {0.9, 0.05, 0.05});  // bit_flip / stuck0 / stuck1
@@ -118,6 +126,14 @@ namespace gem5
         if (cur < first_clock) return;
         if (last_clock != Cycles(0) && cur > last_clock) return;
         if (max_faults != 0 && faults_injected_count >= max_faults) return;
+
+        // Sampling-bias fix (findings.md Phase 2.2): skip the first N
+        // eligible forwarding events (N ~ geometric(0.1) from the seed) so
+        // the single fault lands on a seed-dependent event.
+        if (events_to_skip > 0) {
+            --events_to_skip;
+            return;
+        }
 
         // Bernoulli: does this forwarding event get corrupted?
         std::uniform_real_distribution<float> dist(0.0f, 1.0f);

@@ -113,6 +113,15 @@ p.add_argument("--stuck_at_zero_prob", type=float, default=0.05)
 p.add_argument("--stuck_at_one_prob", type=float, default=0.05)
 p.add_argument("--chaos_lsqfwd", action="store_true")
 p.add_argument("--lsq_byte_offset", type=int, default=-1)
+# §2.4 structured fault modes (synced from arm_chaos.py — these were MISSING
+# here while the mount below read them, so any runner.py invocation passing
+# --lsq_struct_mode crashed with argparse exit 2: the entire lsqfwd formal
+# (384/384 reps) recorded exit=2 / faults_injected=0 and was mis-classified
+# as Crash => the committed "§2.4 LSQFwd 100% DUE" result is INVALID).
+p.add_argument("--lsq_struct_mode", default="byte_flip",
+               choices=["byte_flip", "byte_lane_skew", "stale_line_replay",
+                        "all_zero"])
+p.add_argument("--lsq_lane_skew_k", type=int, default=1)
 # §2.2 CHAOSRenameMap (O3 rename-map fault injector). SELF-ATTACHES at
 # startup() to thread-0 frontRenameMap.chaosRenameMap. map_bitflip /
 # f5_substitute / f4_field_stuck modes (design doc §2.2).
