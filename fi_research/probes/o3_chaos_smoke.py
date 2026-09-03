@@ -67,10 +67,14 @@ ap.add_argument("--ptw-bits", default="1", help="bits to flip per PTE")
 ap.add_argument("--ptw-ecc", action="store_true", help="model PTW array ECC (H7: corrects single-bit)")
 # CHAOSPosParity: positional-parity validator (paper §6.2 detection prototype).
 # Sender/receiver snapshot model: tag() before CHAOSLSQFwd corrupt(), verify()
-# after — per-lane tags catch lane permutations (detection prob 1, identity
-# the only escape); XOR aggregate word backstops bit-flips (W is permutation-
-# invariant, does NOT detect rotations). Stats: numTagged/numVerified/
-# numMismatches/numMismatchesPanic.
+# after — dual non-commutative weighted mod-256 aggregates W1/W2 (pure-XOR
+# mixing cancels under permutation, §2.1(iii)): single bit-flips detected
+# deterministically (odd weights); lane permutations detected probabilisti-
+# cally (random-data escape 2^-12..2^-5 by rotation; adversarial escapes
+# exist — see CHAOSPosParity.hh). NOTE: injection runs are only reproducible
+# with an EXPLICIT NONZERO --seed (seed 0 seeds CHAOSLSQFwd from
+# std::random_device). Stats: numTagged/numVerified/numMismatches/
+# numMismatchesPanic.
 ap.add_argument("--posparity", action="store_true", help="attach CHAOSPosParity validator (paper §6.2)")
 ap.add_argument("--posparity-action", default="count", help="count | panic (mismatch response)")
 
