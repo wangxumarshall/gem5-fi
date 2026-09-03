@@ -1347,3 +1347,17 @@ ARM 三条路径 + golden（真跑输出）：
 | §2.4 LSQFwd | fwd_checksum | 0% | **100% [99,100]** | DUE |
 
 **诚实总结**：C2-KP V110 上，X3 的 PRF/RAT 错误都 DUE 主导（92.7%/95.8%），LSQFwd 转发错误 100% DUE，ROB entry_bitflip 全 Masked。P_SDC 普遍很低（0-3.9%）——cholesky/fwd_checksum 上错误传播以崩溃为主。
+
+---
+
+### S5 元分析首个产出：tools/ras_escape_analysis.py（§4.1/§4.2/§2.18）
+
+**实现**：`tools/ras_escape_analysis.py`——读全部 `artifacts/*/heatmap.csv`（26 cells / 21 campaigns），按 §4.1 的 A-F 逃逸机理归因每个 unit 的 SDC 贡献，产出：
+- `artifacts/meta/escape_decomposition.md`：§4.1 逃逸集合分解表（unit × protection × P_SDC/P_DUE/Reach × 逃逸机理）
+- §4.2 保护投资回报排序表（P_SDC × Reach 排序，HIGH/MED/LOW 优先级）
+
+**当前 priority 表（由已有 formal/pilot 数据自动生成）**：
+- HIGH: physreg (PRF, contribution 100% 来自 reg_chain pilot) / l1d (cache raw)
+- LOW: rat (0.26%) / bpu / decode / exec / iq / ras / rob (0%)
+
+**诚实注记**：priority 表混合了 pilot（n=5，CI 宽）与 formal（n=384）数据——formal PRF cholesky 的 3.9% 与 pilot reg_chain 的 100% 贡献不同 workload。§4.1 公式的 weight(unit)（未受保护位数 × 占用率 × 驻留）尚未实现（需 gem5 stats 的 occupancy 采集——deferred）。
