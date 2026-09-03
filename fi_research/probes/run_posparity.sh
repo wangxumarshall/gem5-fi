@@ -36,7 +36,8 @@
 #                               numStructuralAllZero.
 #   arm 5 bit_flip+validator  : numMismatches == numBitFlips EXACTLY (the only
 #                               hard-100% arm; odd-weight theorem, exhaustively
-#                               verified 1,284,032 cases).
+#                               verified 32,768 cases = 16,384 base cases x
+#                               both aggregates).
 #   arm 6 panic mode          : gem5 panic "CHAOSPosParity: positional-parity
 #                               mismatch" -> fail-fast, RC=134, no stats.txt.
 #   arm 7 unipar adversarial  : uniform-parity word 0x0102040810204080 (the

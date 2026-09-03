@@ -44,8 +44,9 @@ namespace o3 { class CPU; }
 // Detection semantics (honest figures, exact via subgroup enumeration over
 // (Z/256)^2 and confirmed by 2x10^6-trial Monte Carlo; NOT overstated):
 //
-//   * SINGLE-BIT FLIPS: 0 escapes in 1,284,032 exhaustive tests (256 base
-//     bytes x 8 lanes x 8 bits x both aggregates). Deterministic: flipping
+//   * SINGLE-BIT FLIPS: 0 escapes in 32,768 exhaustive tests (16,384 base
+//     cases = 256 base bytes x 8 lanes x 8 bit positions, each checked
+//     against BOTH aggregates). Deterministic: flipping
 //     bit b of byte i changes W1 by w1_i * 2^b mod 256 != 0 (odd weight),
 //     and likewise W2. Caught by BOTH aggregates with probability 1.
 //
@@ -97,10 +98,10 @@ namespace o3 { class CPU; }
 //
 // NOT covered (honest boundary, mirrors paper §6.2 / §2.3(iii)): stale-line
 // replay where the *value* is correct but the *source* is wrong — needs a
-// source/origin tag (fill-buffer slot ID), future work. Also: the snapshot
-// array is capped at 16 bytes; wider forwards (SIMD) are only partially
-// covered (a documented coverage limit, not a correctness limit — the first
-// 16 lanes are checked).
+// source/origin tag (fill-buffer slot ID), future work. Also: the checked
+// window is capped at SNAPSHOT_MAX=16 bytes; wider forwards (SIMD) are only
+// partially covered (a documented coverage limit, not a correctness limit —
+// the first 16 lanes are checked).
 class CHAOSPosParity : public SimObject
 {
   public:
