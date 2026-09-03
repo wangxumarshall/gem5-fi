@@ -93,6 +93,11 @@ class CHAOSLSQFwd;
 // (defined in src/cpu/o3/CHAOSAddrPath/). Same accessor pattern as lsqFwd.
 class CHAOSAddrPath;
 
+// Forward declaration of the positional-parity validator
+// (defined in src/cpu/o3/CHAOSPosParity/). Same accessor pattern as lsqFwd;
+// the DETECTION counterpart of CHAOSLSQFwd's injection.
+class CHAOSPosParity;
+
 namespace o3
 {
 
@@ -498,6 +503,15 @@ class CPU : public BaseCPU
     class CHAOSAddrPath *addrPath = nullptr;
     void setAddrPath(CHAOSAddrPath *p) { addrPath = p; }
     CHAOSAddrPath *getAddrPath() const { return addrPath; }
+
+    /** CHAOSPosParity hook: positional-parity validator for the forwarding
+     *  path (the DETECTION counterpart of lsqFwd's injection; paper §6.2).
+     *  Same accessor pattern as lsqFwd. Nullptr when not attached →
+     *  the lsq_unit.cc call sites short-circuit. See
+     *  src/cpu/o3/CHAOSPosParity/. */
+    class CHAOSPosParity *posParity = nullptr;
+    void setPosParity(CHAOSPosParity *p) { posParity = p; }
+    CHAOSPosParity *getPosParity() const { return posParity; }
 
     /** Enum to give each stage a specific index, so when calling
      *  activateStage() or deactivateStage(), they can specify which stage

@@ -1,0 +1,11 @@
+# -*- mode:python -*-
+# CHAOSPosParity — positional-parity validator (O3 only).
+# Discovered automatically by src/SConscript's os.walk.
+
+Import('*')
+
+SimObject('CHAOSPosParity.py', sim_objects=['CHAOSPosParity'], enums=[])
+
+Source('CHAOSPosParity.cc')
+
+DebugFlag('CHAOSPosParity')

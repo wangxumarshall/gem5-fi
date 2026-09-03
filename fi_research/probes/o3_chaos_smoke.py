@@ -48,7 +48,7 @@ ap.add_argument("--max-faults", default="1")
 ap.add_argument("--probability", default="1.0", help="per-interval injection probability (use <1 with maxFaults>1 to spread injections in time)")
 ap.add_argument("--seed", default="0")
 ap.add_argument("--no-fi", action="store_true", help="disable injection (golden run)")
-ap.add_argument("--max-tick", default="0", help="0 = no cap; else cap sim (Root.max_tick)")
+ap.add_argument("--max-tick", default="0", help="0 = no cap; else cap sim (passed to m5.simulate())")
 ap.add_argument("--lsq-fwd-prob", default="0.0", help="CHAOSLSQFwd per-forward corruption probability (0=off)")
 ap.add_argument("--lsq-fwd-bits", default="1", help="bits to flip on forwarded data")
 ap.add_argument("--lsq-fwd-byte", default="-1", help="byte offset in forwarded buffer (-1=random)")
@@ -65,6 +65,18 @@ ap.add_argument("--addr-byte", default="7", help="which byte of effAddr to zero 
 ap.add_argument("--ptw-prob", default="0.0", help="CHAOSPTW per-descriptor-fetch flip prob (0=off)")
 ap.add_argument("--ptw-bits", default="1", help="bits to flip per PTE")
 ap.add_argument("--ptw-ecc", action="store_true", help="model PTW array ECC (H7: corrects single-bit)")
+# CHAOSPosParity: positional-parity validator (paper §6.2 detection prototype).
+# Sender/receiver snapshot model: tag() before CHAOSLSQFwd corrupt(), verify()
+# after — dual non-commutative weighted mod-256 aggregates W1/W2 (pure-XOR
+# mixing cancels under permutation, §2.1(iii)): single bit-flips detected
+# deterministically (odd weights); lane permutations detected probabilisti-
+# cally (random-data escape 2^-12..2^-5 by rotation; adversarial escapes
+# exist — see CHAOSPosParity.hh). NOTE: injection runs are only reproducible
+# with an EXPLICIT NONZERO --seed (seed 0 seeds CHAOSLSQFwd from
+# std::random_device). Stats: numTagged/numVerified/numMismatches/
+# numMismatchesPanic.
+ap.add_argument("--posparity", action="store_true", help="attach CHAOSPosParity validator (paper §6.2)")
+ap.add_argument("--posparity-action", default="count", help="count | panic (mismatch response)")
 
 ap.add_argument("--l1d", default="32KiB")
 a = ap.parse_args()
@@ -176,12 +188,28 @@ if float(a.ptw_prob) > 0.0:
         writeLog=True,
     )
 
+# CHAOSPosParity: positional-parity validator — the DETECTION counterpart of
+# CHAOSLSQFwd above. Registers itself with the CPU in its constructor
+# (cpu->posParity = this); lsq_unit.cc calls tag() before corrupt() and
+# verify() after on the same forwarded buffer.
+if a.posparity:
+    system.posparity = CHAOSPosParity(
+        cpu=system.cpu,
+        tagWidth=3,
+        action=a.posparity_action,
+        rngSeed=int(a.seed),
+    )
+
 
 root = Root(full_system=False, system=system)
-if int(a.max_tick) > 0:
-    root.max_tick = int(a.max_tick)
 m5.instantiate()
 print(f"[smoke] binary={a.binary} iters={a.iters} mode={a.mode} phys_idx={a.phys_idx} "
       f"bits={a.bits} fault={a.fault} fi={'OFF' if a.no_fi else 'ON'}")
-exit_event = m5.simulate()
+# Cap via m5.simulate(max_tick) — Root has no max_tick param in this gem5
+# (o3_chaos_fs.py hit the same AttributeError; fixed there the same way).
+# The cap returns from simulate() cleanly (cause=max_ticks reached) so stats
+# ARE dumped — essential for count-mode runs whose guest aborts at exit time
+# under heavy injection (corrupted libc exit path -> SEGV before stat dump).
+max_tick = int(a.max_tick)
+exit_event = m5.simulate(max_tick) if max_tick > 0 else m5.simulate()
 print(f"[smoke] Exiting @ tick {m5.curTick()} cause={exit_event.getCause()}")
