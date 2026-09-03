@@ -276,7 +276,11 @@ def main():
     # Hang timeout (plan §13.2): a normal sim completes in well under the
     # wall budget; a Hang = no completion within this. Default 600s; the
     # manifest may specify limits.max_ticks but we bound on wall time here.
-    HANG_TIMEOUT = 600
+    # Campaign passes its --hang-timeout minus a 60s margin via
+    # CHAOS_HANG_TIMEOUT, so the RUNNER (which owns the gem5 process group)
+    # always reaps gem5 first; the campaign's outer timeout (margin + 120s)
+    # only ever fires if the runner itself is wedged.
+    HANG_TIMEOUT = int(os.environ.get("CHAOS_HANG_TIMEOUT", "600"))
     timed_out = False
     # start_new_session + explicit group kill on timeout: gem5.opt spawns
     # children that outlive a plain kill() of the parent (observed

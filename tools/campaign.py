@@ -173,6 +173,11 @@ def run_one(manifest_path, binary, golden, g5, timeout=600, workload_args=""):
     # runner reads to append args.
     if workload_args:
         env["CHAOS_WORKLOAD_ARGS"] = workload_args
+    # The runner owns the gem5 process group and reaps it on ITS timeout
+    # (start_new_session + killpg). Give the runner a 60s head start over
+    # the campaign's outer timeout (which only fires if the runner wedges);
+    # the campaign's timeout = hang_timeout + 120s margin.
+    env["CHAOS_HANG_TIMEOUT"] = str(max(60, timeout - 60))
     cmd = [sys.executable, RUNNER, manifest_path,
            "--binary", binary, "--golden-checksum", golden]
     # start_new_session + group kill: the runner (and its gem5 child) run in
@@ -296,7 +301,7 @@ def main():
     if args.jobs > 1:
         with cf.ThreadPoolExecutor(max_workers=args.jobs) as ex:
             futures = {ex.submit(run_one, mp, args.binary, args.workload_golden,
-                                 args.gem5, args.hang_timeout, args.workload_args):
+                                 args.gem5, args.hang_timeout + 120, args.workload_args):
                        (ci, rep) for (ci, rep, mp, _) in all_tasks}
             for fut in cf.as_completed(futures):
                 ci_rep = futures[fut]
@@ -308,7 +313,7 @@ def main():
     else:  # serial
         for (ci, rep, mp, _) in all_tasks:
             run_results[(ci, rep)] = run_one(mp, args.binary, args.workload_golden,
-                                              args.gem5, args.hang_timeout,
+                                              args.gem5, args.hang_timeout + 120,
                                               args.workload_args)
 
     for ci, cell in enumerate(cells):
