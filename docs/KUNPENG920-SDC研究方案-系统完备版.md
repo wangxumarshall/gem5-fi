@@ -541,7 +541,7 @@ pilot 每 cell n=100（可达率/工具错误/粗略比例）；formal 每 cell 
 |---|---|---|
 | H0 | 保护范围外结构（PRF/RAT/ROB/IQ/store buffer/L1 TLB）raw 即 escape | 预登记，待 formal（protectionModel 未实现） |
 | H1 | read-trace `reads_before_overwrite` 决定 AVF：`P(SDC∣reads>0)` 跨单元一致 | 预登记（CHAOSPhysReg 有 read-trace） |
-| H2 | 深窗口（ROB/PRF 容量大）→ 驻留长 → SDC 高，`d(P_SDC)/d(window)>0` | 预登记 |
+| H2 | 深窗口（ROB/PRF 容量大）→ 驻留长 → SDC 高，`d(P_SDC)/d(window)>0` | ⚠️ **formal 判定：本域内不成立（天花板效应）`befc7db0`**：ROB{96,128,160}×{X3 bit0/63,X2 bit0}×n=96 全 SDC=96/96（P=1.000 饱和），X2bit63 全 Hang；窗口梯度无法在饱和 cell 分辨——需低概率/多 bit 未饱和 cell 重测（留后续，诚实标注） |
 | H3 | RAT 错与 PRF 错走同一传播路径（F5 替换 vs 位翻转的 read-trace 一致） | 预登记（待 CHAOSRenameMap） |
 | H4 | 长驻留缓存（大 L2）→ 传播概率升高 | 预登记 |
 | H5 | 字节相位（byte_lane_skew rol1/rol6）复现 core179 D1 撕裂移位签名 | ✅ **主线 structuralFault 已补齐 `8320daf`**（byte_lane_skew rol1 SDC xor 多位散布已验证）；侧分支闭环 93%；formal ptrskew_kernel 复现待跑 |
