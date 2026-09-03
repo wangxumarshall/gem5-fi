@@ -1517,3 +1517,19 @@ Phase 2.2（l1dfwd post-check escape formal）已启动。
 3. CHAOSLSQFwd 同样加 events_to_skip（geometric p=0.1）采样修复——lsqfwd 与 l1dfwd 同为 hook-on-event 注入器。
 
 **真机验证**：seed 7/8/9 的 lsqfwd 注入 cycle 分散（1425/1304/7009）✅；golden 回归 f247ef3fe6f02cfd ✅；重建零警告 ✅。lsqfwd formal 重跑启动。
+
+### Phase 3.0 结果: lsqfwd formal 重跑（修复后）— 真实分布取代伪 "100% DUE"
+
+**§2.4 LSQFwd formal（fwd_checksum, C2, 384 reps + 5% replay, 278s, frozen=no, n_valid=381）**：
+- **P_SDC = 4.7% [3.0, 7.3]，P_DUE = 27.6% [23.3, 32.3]**（Masked 258 / Crash 105 / SDC 18 / SimulatorError 3）
+- 3 个 SimulatorError：exit=0 但 gem5 panic 且 faults=1——rename-inconsistency 类边缘 case（classify 的 simerr 标记触发），诚实排除出 N_valid。
+
+**修正记录（对照 8bff9d1 的错误结论）**：LSQFwd 转发数据 byte_flip 在 C2/fwd_checksum 上是 **Masked 主导（67.7%）+ DUE 27.6% + SDC 4.7%**，不是 "100% DUE"。旧结论的两个来源：① argparse 失败伪装 Crash（本次修复）；② 采样偏差（总是第一个 eligible 转发——偏巧在 fwd_checksum 上第一个转发点是关键的）。与 C0 pilot "5/5 Masked" 的方向一致但更细致。
+
+**S1 四个 P0 单元 formal 全部修正后汇总**：
+| 单元 | workload | P_SDC | P_DUE | 主导 |
+|---|---|---|---|---|
+| §2.1 PRF X3 | cholesky | 3.9% | 92.7% | Crash |
+| §2.2 RAT X3 | cholesky | 0.3% | 95.8% | Crash |
+| §2.3 ROB D=0 | cholesky | 0% | 0% | Masked |
+| §2.4 LSQFwd | fwd_checksum | **4.7% [3.0,7.3]** | **27.6% [23.3,32.3]** | **Masked（修正）** |
