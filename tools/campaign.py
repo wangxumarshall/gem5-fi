@@ -175,11 +175,27 @@ def run_one(manifest_path, binary, golden, g5, timeout=600, workload_args=""):
         env["CHAOS_WORKLOAD_ARGS"] = workload_args
     cmd = [sys.executable, RUNNER, manifest_path,
            "--binary", binary, "--golden-checksum", golden]
+    # start_new_session + group kill: the runner (and its gem5 child) run in
+    # their own process group. On campaign-level timeout we must kill the
+    # WHOLE group — a plain subprocess.run(timeout) kill only reaps the
+    # runner, orphaning the gem5 grandchild (observed 2026-09-03: 200+
+    # zombie gem5 processes at 100% CPU from X2-bit63 Hang cells; the
+    # runner's own 600s killpg never fires because the campaign's 300s
+    # timeout kills the runner first).
+    import signal as _signal
+    proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                            text=True, env=env, start_new_session=True)
     try:
-        r = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout, env=env)
+        out, err = proc.communicate(timeout=timeout)
+        r = subprocess.CompletedProcess(cmd, proc.returncode, out, err)
     except subprocess.TimeoutExpired:
+        try:
+            os.killpg(os.getpgid(proc.pid), _signal.SIGKILL)
+        except Exception:
+            pass
+        out, err = proc.communicate()
         return {"classification": "Hang", "faults": 0, "timed_out": True,
-                "stdout": "", "stderr": "TIMEOUT"}
+                "stdout": out or "", "stderr": (err or "") + "\nTIMEOUT"}
     out = r.stdout + "\n" + r.stderr
     # parse "[runner] RESULT: ... classification=X faults=Y exit=Z timed_out=T
     #         [reads_before_overwrite=R]"
