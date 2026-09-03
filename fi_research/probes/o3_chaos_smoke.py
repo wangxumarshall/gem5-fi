@@ -202,10 +202,14 @@ if a.posparity:
 
 
 root = Root(full_system=False, system=system)
-if int(a.max_tick) > 0:
-    root.max_tick = int(a.max_tick)
 m5.instantiate()
 print(f"[smoke] binary={a.binary} iters={a.iters} mode={a.mode} phys_idx={a.phys_idx} "
       f"bits={a.bits} fault={a.fault} fi={'OFF' if a.no_fi else 'ON'}")
-exit_event = m5.simulate()
+# Cap via m5.simulate(max_tick) — Root has no max_tick param in this gem5
+# (o3_chaos_fs.py hit the same AttributeError; fixed there the same way).
+# The cap returns from simulate() cleanly (cause=max_ticks reached) so stats
+# ARE dumped — essential for count-mode runs whose guest aborts at exit time
+# under heavy injection (corrupted libc exit path -> SEGV before stat dump).
+max_tick = int(a.max_tick)
+exit_event = m5.simulate(max_tick) if max_tick > 0 else m5.simulate()
 print(f"[smoke] Exiting @ tick {m5.curTick()} cause={exit_event.getCause()}")
