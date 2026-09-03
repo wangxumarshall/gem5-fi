@@ -1,0 +1,94 @@
+{
+  "cli_version": "0.10.2",
+  "checkpoint_id": "01M1KEHVNN2818M8P5063ME08V",
+  "session_id": "bb18f39f-5c41-4985-a435-26120c7e1484",
+  "strategy": "manual-commit",
+  "created_at": "2026-09-03T10:55:39.652437836Z",
+  "branch": "fix/fi-tool-correctness",
+  "checkpoints_count": 1,
+  "save_step_count": 1,
+  "files_touched": [],
+  "agent": "Claude Code",
+  "model": "GLM-5.3[1m]",
+  "turn_id": "0bb4358dd1b6",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 54709667,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 70945,
+    "api_call_count": 237
+  },
+  "skill_events_version": 1,
+  "skill_events": [
+    {
+      "id": "prompt-skill-claude-code-planning-with-files-2026-09-03T07:44:26.263791342Z",
+      "event_type": "prompt_invocation",
+      "skill": {
+        "name": "planning-with-files"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "prompt_slash_command",
+        "confidence": "explicit"
+      },
+      "turn_id": "12bf5382bf01",
+      "timestamp": "2026-09-03T07:44:26.263791342Z",
+      "native": {
+        "command": "/planning-with-files"
+      },
+      "collapse": {
+        "target": "user_message",
+        "label": "/planning-with-files",
+        "default_collapsed": true
+      }
+    },
+    {
+      "id": "prompt-skill-claude-code-planning-with-files-2026-09-03T07:48:50.462503195Z",
+      "event_type": "prompt_invocation",
+      "skill": {
+        "name": "planning-with-files"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "prompt_slash_command",
+        "confidence": "explicit"
+      },
+      "turn_id": "2da7a85c3180",
+      "timestamp": "2026-09-03T07:48:50.462503195Z",
+      "native": {
+        "command": "/planning-with-files"
+      },
+      "collapse": {
+        "target": "user_message",
+        "label": "/planning-with-files",
+        "default_collapsed": true
+      }
+    },
+    {
+      "id": "prompt-skill-claude-code-goal-2026-09-03T08:42:37.670597255Z",
+      "event_type": "prompt_invocation",
+      "skill": {
+        "name": "goal"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "prompt_slash_command",
+        "confidence": "explicit"
+      },
+      "turn_id": "0bb4358dd1b6",
+      "timestamp": "2026-09-03T08:42:37.670597255Z",
+      "native": {
+        "command": "/goal"
+      },
+      "collapse": {
+        "target": "user_message",
+        "label": "/goal",
+        "default_collapsed": true
+      }
+    }
+  ],
+  "session_metrics": {
+    "turn_count": 1
+  }
+}
