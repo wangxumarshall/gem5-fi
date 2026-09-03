@@ -240,7 +240,11 @@ def main():
             if idx is not None:
                 cmd += [f"--phys_target_arch={idx}"]
     elif comp == "memory":
-        cmd += ["--chaos_mem"]
+        # §1.2 protection-aware: CHAOSMem's protectionModel (DRAM = 'secded'
+        # per Huawei DDR ECC proxy). arm_chaos.py/kp920_proxy.py accept
+        # --protection_model; default "none" = raw escape (regression-safe).
+        cmd += ["--chaos_mem", "--protection_model",
+                inj.get("protection_model", "none")]
     elif comp == "rat":
         # §2.2 CHAOSRenameMap (S1 patch 1). Manifest fault.model maps to the
         # --rename_mode (map_bitflip / f5_substitute / f4_field_stuck). The
@@ -336,7 +340,12 @@ def main():
         cmd += ["--target", "l1d", "--first_clock", str(t["value"]),
                 "--max_faults", str(m["limits"]["max_faults"]),
                 "--rng_seed", str(m["rng"]["selection_seed"]),
-                "--fault_type", fault_type]
+                "--fault_type", fault_type,
+                # §1.2 protection-aware: CHAOSCache's protectionModel (none |
+                # sed | secded | secded_poison). Manifest carries it via
+                # fault.protection_model (campaign.py Phase 2.1); default
+                # "none" preserves the raw-sensitivity cell semantics.
+                "--protection_model", inj.get("protection_model", "none")]
     elif comp == "l1_tlb":
         # §2.10 CHAOSArmTLB (D-TLB pfn, FS-only). Requires config_family
         # C0-FS (arm_chaos_fs.py + gem5-fs kernel/disk/bootloader).

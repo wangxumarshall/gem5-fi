@@ -1442,3 +1442,30 @@ ARM 三条路径 + golden（真跑输出）：
 **诚实解读**：DRAM 后备存储随机单字节注入在 cholesky 上全 Masked——与 L1D（97.7% SDC）形成鲜明对比。原因：first_clock=50000（=tick 19.25M）时 cholesky 的工作集已在 L1/L2 中，DRAM 后备字节被改后不被读回（write-back 或已缓存值胜出）。这符合存储层级直觉：越远离核心的存储错误越容易被上游缓存屏蔽。**注意**：这是单 cell（random addr/byte）结论；DRAM SDC 的真实暴露面需要 (a) 更晚的 trigger（工作集回写后读回）或 (b) addr_map_sub F5（绕过 cache tag）——Phase 4.6 / 网格深化时补。
 
 **Phase 1 完成**：① 6 formal 提交（d4c9e8b）② CHAOSMem 修复（b7433dd）③ mem formal 有效重跑（本次）。campaign.py --jobs 修复待提交。
+
+### Phase 2.1: protection_model 全链路打通 + L1D secded_poison formal 启动
+
+**发现并修复 plumbing 缺口**：campaign.yaml 的 `protection_model` 轴从未流到 gem5——campaign.py 不写进 manifest、runner.py 不传 `--protection_model`、kp920_proxy.py 无此 argparse。修复三处：
+1. campaign.py `manifest_for_cell`：`fault.protection_model`（默认 "none"）写入 manifest。
+2. runner.py：l1d 路由（arm_chaos_cache.py）+ memory 路由（arm_chaos.py/kp920_proxy.py）都传 `--protection_model`（默认 none 保持 raw 语义，回归安全）。
+3. kp920_proxy.py：补 `--protection_model` argparse + CHAOSMem 挂载 `protectionModel=`（arm_chaos.py 原本就有）。
+
+**Pilot n=3 验证（真实输出）**：manifest 含 `protection_model: secded_poison`；gem5 注入日志含 `protection: model=secded_poison bits=1 -> Corrected`；3/3 Masked（1-bit undo 恢复 golden）——**protection ladder 真实生效**，不是纸面参数。
+
+**启动 §2.7 L1D secded_poison formal**（`campaigns/§2.7-l1d-formal-secded.yaml`，n=384 + 5% replay，--jobs 4 后台）——对照 none 组的 P_SDC=97.7%（风险反转证据，§4.1/§4.2）。
+
+### Phase 2.1 结果: L1D secded_poison formal n=384 — 风险反转首证
+
+**§2.7 L1D protection-aware 组（secded_poison, l1d_reduce, C0-CACHE, 384 reps + 5% replay, 690s, frozen=no）**：
+- **384/384 Masked：P_SDC=0.0% [0.0,1.0], P_DUE=0.0%, Reach=100%**
+- 注入日志确认 protection ladder 生效：`protection: model=secded_poison bits=1 -> Corrected`（每次注入 1-bit → undo 恢复 golden）
+
+**风险反转（§4.2 的核心证据形态）**：
+| 组 | P_SDC | 结论 |
+|---|---|---|
+| L1D raw（none，88dbf98） | **97.7%** [95.6,98.8] | 单 bit 翻转几乎必传播 |
+| L1D secded_poison（本次） | **0.0%** [0.0,1.0] | SECDED 全拦 |
+
+**诚实边界**：本 cell 的 fault_model=transient_bit_flip 每次只翻 1 bit → 只测到 ladder 的 Corrected 档。2-bit（Latent/poison）与 ≥3-bit（SilentEscape/SDC）档需要 local_mbu（相邻多位）模型——设计文档 §2.7 C 的 ECC 粒度轴 {1,2,3-bit}，排在 Phase 3 网格深化。**结论限定**：对 F1 单比特故障，L1D SECDED 保护把 97.7% 的 SDC 逃逸降到 0%（n=384 置信上界 1%）。
+
+Phase 2.2（l1dfwd post-check escape formal）已启动。

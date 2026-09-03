@@ -157,6 +157,15 @@ def manifest_for_cell(campaign, cell, cell_ordinal, rep, outdir):
             "bit_indices": [cell["bit"]] if "bit" in cell else [],
             "duration_events": 1,
             "stage": campaign.get("fault_stage", "no_protection_model"),
+            # §1.2 protection-aware modeling: the cell's protection_model axis
+            # (none | sed | secded | secded_poison | parity_interleaved) flows
+            # into the manifest so runner.py can pass --protection_model to the
+            # configs that support it (arm_chaos_cache.py CHAOSCache,
+            # arm_chaos.py CHAOSMem). The v1 schema has no fault.protection
+            # field — use the top-level `protection` extension (light validator
+            # ignores unknown top-level keys; jsonschema draft-07 with
+            # additionalProperties default also allows it).
+            "protection_model": cell.get("protection_model", "none"),
         },
         "rng": {"master_seed": seed, "selection_seed": seed},
         "limits": {"max_faults": limits.get("max_faults", 1), "max_ticks": 0},

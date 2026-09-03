@@ -1,0 +1,27 @@
+schema_version: arm-chaos-fi/v1
+campaign_id: l1d_formal_reduce_secded
+injector: cache
+config: C0-CACHE
+mode: SE
+grid:
+  phys_mode: [arch_frontend]
+  target_index: [0]
+  bit: []
+  fault_model: [transient_bit_flip]
+  # §1.2 protection-aware second arm: L1D data = secded_poison (N1 TRM
+  # Table 9-1 proxy). 1-bit -> UNDO (Corrected-like); 2-bit -> poison + leave
+  # (Latent); >=3-bit -> silent (SDC). Contrast with the 'none' arm's
+  # P_SDC=97.7% [95.6,98.8] (l1d_formal_reduce, 88dbf98) -> risk-inversion
+  # evidence for §4.1/§4.2.
+  protection_model: [secded_poison]
+n_per_cell: 384
+base_seed: 20260825
+replay_pct: 5.0
+workload:
+  binary: workloads/directed/l1d_reduce
+  golden_id: l1dreduce-golden-v1
+  trigger_mode: cycle
+  trigger_value: 100000
+limits:
+  max_faults: 1
+hang_timeout: 300

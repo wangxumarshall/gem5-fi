@@ -1,0 +1,26 @@
+schema_version: arm-chaos-fi/v1
+campaign_id: l1dfwd_formal_reduce
+injector: l1d_fwd
+config: C2
+mode: SE
+grid:
+  phys_mode: [arch_frontend]
+  target_index: [0]
+  bit: []
+  fault_model: [transient_bit_flip]
+  # §2.7 H.③: post-check escape — the load's data is corrupted AFTER it has
+  # been read out of the L1D (ECC check passed), on the fill path into the
+  # PRF. ECC cannot see this path at all. Validation: P_SDC >= raw L1D
+  # injection's 97.7% (post-check upper-bound property).
+  protection_model: [none]
+n_per_cell: 384
+base_seed: 20260825
+replay_pct: 5.0
+workload:
+  binary: workloads/directed/l1d_reduce
+  golden_id: l1dreduce-golden-v1
+  trigger_mode: cycle
+  trigger_value: 100000
+limits:
+  max_faults: 1
+hang_timeout: 300
