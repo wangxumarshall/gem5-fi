@@ -1,0 +1,21 @@
+# H1 hypothesis formal (plan §6.1/§4.3): read-trace four-way classification
+# on PRF X3 (data accumulator) — 4 representative bits (low/mid/boundary/high)
+# x n=384. Produces RT_{Benign,Masked,SDC,Crash} + P(SDC|reads>0) per cell.
+# reg_chain O3 ~105s/run -> 1536 runs / 8 jobs ≈ 5.6h.
+campaign_id: prf_x3_readtrace_formal
+workload:
+  binary: workloads/directed/reg_chain
+  golden: f247ef3fe6f02cfd
+  golden_id: regchain-golden-v1
+  oracle_kind: exact_hash
+trigger: {mode: cycle, value: 100000}
+limits: {max_faults: 1, max_ticks: 0}
+injector: physreg
+config_family: C0
+axes:
+  layer: [arch_frontend]
+  target_arch: [3]
+  bit_indices: [[0],[31],[32],[63]]
+defaults:
+  rng_master_seed: 20260825
+  width_bits: 64

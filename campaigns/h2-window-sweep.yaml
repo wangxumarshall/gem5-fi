@@ -1,0 +1,26 @@
+# H2 hypothesis (plan §6.1): deeper O3 window (ROB entries) -> longer
+# residency -> higher SDC, d(P_SDC)/d(window) > 0.
+# X3 bit0 (known P_SDC=1.000 saturated — ceiling reference) + X2 bit63
+# (loop counter, Hang-mixed — resolution arm) x ROB {96,128,160} x n=96.
+# Honest note: X3's saturated P_SDC cannot show a window gradient (ceiling);
+# X2 bit63 is the discriminating arm. phys_int_regs axis deferred (X3
+# arch_frontend mode maps via rename — freelist depth coupling is a
+# separate experiment).
+campaign_id: h2_window_sweep
+workload:
+  binary: workloads/directed/reg_chain
+  golden: f247ef3fe6f02cfd
+  golden_id: regchain-golden-v1
+  oracle_kind: exact_hash
+trigger: {mode: cycle, value: 100000}
+limits: {max_faults: 1, max_ticks: 0}
+injector: physreg
+config_family: C0
+axes:
+  layer: [arch_frontend]
+  target_arch: [3, 2]
+  bit_indices: [[0],[63]]
+  rob_entries: [96, 128, 160]
+defaults:
+  rng_master_seed: 20260825
+  width_bits: 64
