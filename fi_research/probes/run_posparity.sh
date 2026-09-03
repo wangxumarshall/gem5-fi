@@ -84,12 +84,28 @@ mkdir -p $OUT
 # only measured loader/glibc startup forwards (review Critical 1).
 taskset -c 0-31 gcc -static -O2 -o $PROBE  $HERE/ptrskew_kernel.c || echo "[warn] ptrskew rebuild failed, using existing $PROBE"
 taskset -c 0-31 gcc -static -O0 -o $UPROBE $HERE/unipar_probe.c   || echo "[warn] unipar rebuild failed, using existing $UPROBE"
-# Defense-in-depth gate: refuse to run arm 7 with a probe whose loop body was
-# optimized away (no store+reload in main => all "detections" would be vacuous).
-if ! objdump -d $UPROBE | awk '/<main>:/,/^$/' | grep -qE '\b(st|ld)[rp]?\b'; then
-  echo "[FATAL] $UPROBE main has no store/load instructions — probe loop optimized away; aborting." >&2
+# Defense-in-depth gate #1 (STATIC, pair check — fix round 2): main must
+# contain a store->load pair indexed through a base+index register
+# (str xN,[xM,xK(,lsl #3)] AND the corresponding ldr) — the buf[i&3] loop.
+# The fix-round-1 regex '\b(st|ld)[rp]?\b' was BROKEN: it matched stp/ldp
+# (frame prologue) and the argv ldr, so the old -O2 binary PASSED that gate
+# (reviewer-verified: GATE-PASSES on the pre-fix source built at -O2). The
+# pair check below FAILS that binary (0 matches); but see gate #2 — the
+# RUNTIME gate is the load-bearing one.
+if ! objdump -d $UPROBE | awk '/<main>:/,/^$/' \
+     | grep -qE 'str\s+x[0-9]+,\s*\[x[0-9]+,\s*x[0-9]+(\s*,\s*lsl\s*#3)?\]' \
+  || ! objdump -d $UPROBE | awk '/<main>:/,/^$/' \
+     | grep -qE 'ldr\s+x[0-9]+,\s*\[x[0-9]+,\s*x[0-9]+(\s*,\s*lsl\s*#3)?\]'; then
+  echo "[FATAL] $UPROBE main has no register-indexed store+reload pair — probe loop optimized away; aborting." >&2
   exit 1
 fi
+# Defense-in-depth gate #2 (RUNTIME — the load-bearing gate, fix round 2):
+# after the golden unipar run, require numTagged >= iters. The volatile+(-O0)
+# loop forwards ~6 events/iteration (golden measured numTagged=30015 for 5000
+# iters), so numTagged >= iters is a sound lower bound that the loop body
+# actually executes on the forwarding path. The vacuous -O2 build produced
+# numTagged=29 for a "5000-iteration loop" — 29 < 5000, exactly the failure
+# this gate catches. Checked in arm 7 below (unipar_golden_gate cell).
 
 # statsgrep DIR PATTERN — one line of "name value" pairs from stats.txt.
 sg() { grep -E "$2" $1/stats.txt 2>/dev/null | tr -s ' ' | sed 's/ system\.system\.//' | tr '\n' ';' ; }
@@ -164,7 +180,15 @@ run() {
 }
 
 BASE_ARGS="--binary $PROBE --iters $ITERS --no-fi --first-clock 2000 --max-faults 0"
-UBASE_ARGS="--binary $UPROBE --iters $UITERS --no-fi --first-clock 2000 --max-faults 0"
+# unipar arm-7 protocol (fix round 2, matches the corrected cells ufc_*/ufx_*):
+#   --first-clock 53000 — skip the loader/startup phase so the injection storm
+#   hits the probe loop itself. The ORIGINAL protocol (60M cap default +
+# --first-clock 2000, as UBASE_ARGS had before this fix) produced
+# loader-phase-only events (all injections in glibc/loader startup forwards)
+# and is SUPERSEDED for arm 7; it remains correct for the ptrskew arms above
+# (their probe loop runs within the 60M window).
+UBASE_ARGS="--binary $UPROBE --iters $UITERS --no-fi --first-clock 53000 --max-faults 0"
+UPROB_UNIPAR=0.20               # unipar per-forward injection probability
 
 echo "=== PosParity detection matrix (validator: dual weighted mod-256 aggregates) ==="
 echo "=== probe=ptrskew (load-use-as-pointer, core-179 D1 chain) unless noted   ==="
@@ -194,19 +218,31 @@ run panic_skew $BASE_ARGS --seed 42 \
     --posparity --posparity-action panic
 
 echo "[7] unipar adversarial-data arm (0x0102040810204080, Critical-1 guard):"
+# RUNTIME gate (the load-bearing one, fix round 2): golden run must forward at
+# least UITERS events (loop live on the forwarding path). A vacuous build
+# (loop optimized away) forwards only loader/glibc startup traffic (~29 events
+# for 5000 iters) and FAILS here.
+echo "--- unipar golden gate (no injection; numTagged must be >= $UITERS) ---"
+run unipar_golden_gate --nocap $UBASE_ARGS --seed 42 --posparity
+GATE_TAGGED=$(grep -m1 -oE 'numTagged\s+[0-9]+' $OUT/unipar_golden_gate/stats.txt 2>/dev/null | grep -oE '[0-9]+')
+if [ "${GATE_TAGGED:-0}" -lt "$UITERS" ]; then
+  echo "[FATAL] RUNTIME GATE FAILED: golden unipar numTagged=${GATE_TAGGED:-none} < iters=$UITERS — probe loop is NOT on the forwarding path (optimized away?); aborting arm 7." >&2
+  exit 1
+fi
+echo "  [gate] PASSED: numTagged=$GATE_TAGGED >= iters=$UITERS"
 for SEED in $SEEDS; do
   echo "--- unipar seed $SEED, k=1 (prob 0.20 unlimited) ---"
   run u${SEED}_k1 $UBASE_ARGS --seed $SEED \
-      --lsq-fwd-prob 0.20 --lsq-structural byte_lane_skew --lsq-skew 1 --posparity
+      --lsq-fwd-prob $UPROB_UNIPAR --lsq-structural byte_lane_skew --lsq-skew 1 --posparity
   echo "--- unipar seed $SEED, k=4 (prob 0.20 unlimited; weakest case) ---"
   run u${SEED}_k4 $UBASE_ARGS --seed $SEED \
-      --lsq-fwd-prob 0.20 --lsq-structural byte_lane_skew --lsq-skew 4 --posparity
+      --lsq-fwd-prob $UPROB_UNIPAR --lsq-structural byte_lane_skew --lsq-skew 4 --posparity
   echo "--- unipar seed $SEED, k=1 (max-faults 1: single skew, guest survives) ---"
-  run u${SEED}_k1_mf1 $UBASE_ARGS --max-faults 1 --seed $SEED \
-      --lsq-fwd-prob 0.05 --lsq-structural byte_lane_skew --lsq-skew 1 --posparity
+  run u${SEED}_k1_mf1 $UBASE_ARGS --first-clock 54000 --max-faults 1 --seed $SEED \
+      --lsq-fwd-prob 1.0 --lsq-structural byte_lane_skew --lsq-skew 1 --posparity
   echo "--- unipar seed $SEED, k=4 (max-faults 1) ---"
-  run u${SEED}_k4_mf1 $UBASE_ARGS --max-faults 1 --seed $SEED \
-      --lsq-fwd-prob 0.05 --lsq-structural byte_lane_skew --lsq-skew 4 --posparity
+  run u${SEED}_k4_mf1 $UBASE_ARGS --first-clock 54000 --max-faults 1 --seed $SEED \
+      --lsq-fwd-prob 1.0 --lsq-structural byte_lane_skew --lsq-skew 4 --posparity
 done
 
 echo "=== done; per-run artifacts under $OUT/<tag>{,.out} ==="
