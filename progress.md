@@ -1361,3 +1361,16 @@ ARM 三条路径 + golden（真跑输出）：
 - LOW: rat (0.26%) / bpu / decode / exec / iq / ras / rob (0%)
 
 **诚实注记**：priority 表混合了 pilot（n=5，CI 宽）与 formal（n=384）数据——formal PRF cholesky 的 3.9% 与 pilot reg_chain 的 100% 贡献不同 workload。§4.1 公式的 weight(unit)（未受保护位数 × 占用率 × 驻留）尚未实现（需 gem5 stats 的 occupancy 采集——deferred）。
+
+---
+
+### S2/S3 formal: §2.5 IQ + §2.7 L1D n=384
+
+**§2.5 IQ formal（cholesky, C2-KP, 384 reps, ~14min）**：
+- wake_omit: P_SDC=0.0% [0,1.0], P_DUE=0.0%, Reach=100% — **全 Masked**（漏一次唤醒被后续唤醒补偿——384 reps 置信）
+
+**§2.7 L1D formal（l1d_reduce, C0-CACHE, 384 reps, ~40min）**：
+- random block/byte, first_clock=100000: **P_SDC=97.7% [95.6, 98.8]**, P_DUE=0%, Reach=100% — 375/384 SDC
+- **关键发现**：L1D 随机块/字节注入在 l1d_reduce 上几乎总是 SDC（97.7%）——与早期"5/5 Masked（随机瞬态字节）"结论相反！原因是 trigger 时序：first_clock=100000 时 l1d_reduce 的 512KiB 数组活数据驻留中，随机 block/byte 几乎必中活值。cache AVF 高度 timing-sensitive（pilot 与 formal 的 trigger 不同结论——诚实记录）。
+
+**S2/S3 已完成 formal**：IQ ✅ + L1D ✅。FPU（neon_lane ~29s/run × 384 ≈ 3.1h）后台跑中。Exec formal 排队。
