@@ -308,6 +308,22 @@ if args.chaos_phys:
 
 if args.chaos_mem:
     dram = memory.mem_ctrl[0].dram
+    # Frequency-correct cycles->ticks ratio (same fix as the 10-injector
+    # inWindow batch fix): firstClock is in CPU cycles, but the old
+    # hardcoded tickToClockRatio=1000 assumed 1GHz. On C2-KP 2.6GHz the
+    # period is 385 ticks, so 50000 cycles * 1000 = 50M ticks > cholesky's
+    # total 31.7M ticks -> the window NEVER opened -> mem_formal was 384/384
+    # Inactive (n_valid=0, invalid campaign). Compute the ratio from the
+    # V110 clock exactly as gem5 does (Tick=1ps, Decimal ROUND_HALF_UP —
+    # m5/ticks.py:80): 2.6GHz -> 385 t/cyc. (Can't read
+    # clk_domain.clock.getValue() here: the global frequency isn't fixed
+    # until m5.instantiate().)
+    import decimal
+    _freq = float(V110["clk"].replace("GHz", "")) * 1e9
+    _ratio = int(decimal.Decimal((1.0 / _freq) * 1e12)
+                 .to_integral_value(decimal.ROUND_HALF_UP))
+    print(f"[kp920_proxy] CHAOSMem tickToClockRatio={_ratio} "
+          f"(CPU clock {V110['clk']}, was hardcoded 1000)")
     board.chaos_mem = CHAOSMem(
         mem=dram,
         probability=args.probability,
@@ -315,7 +331,7 @@ if args.chaos_mem:
         lastClock=0,
         faultType=args.fault_type,
         faultMask="0",
-        tickToClockRatio=1000,
+        tickToClockRatio=_ratio,
         bitFlipProb=args.bit_flip_prob,
         stuckAtZeroProb=args.stuck_at_zero_prob,
         stuckAtOneProb=args.stuck_at_one_prob,

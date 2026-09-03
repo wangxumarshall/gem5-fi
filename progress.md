@@ -1417,3 +1417,15 @@ ARM 三条路径 + golden（真跑输出）：
 ### 下一步（Phase 1.1）
 
 提交 6 个未提交 formal 结果（清单式 git add，不用 -A），然后修 CHAOSMem 频率 bug 并重跑 mem formal。
+
+### Phase 1.2: CHAOSMem tickToClockRatio 频率 bug 修复（task_plan Phase 1）
+
+**Bug**：`configs/se/{arm_chaos,kp920_proxy}.py` 挂 CHAOSMem 时 `tickToClockRatio=1000` 硬编码（假设 1GHz）。C2-KP 2.6GHz（385 t/cyc）下 first_clock=50000 → 50M ticks > cholesky 总 31.7M ticks → 窗口永不打开 → mem_formal 384/384 Inactive（n_valid=0，无效 campaign，已在上个 commit 诚实标注）。与 8bff9d1 修的 10 个注入器 inWindow bug 同类，CHAOSMem 漏网（它没有 CPU 指针，走 config 传参路径）。
+
+**修复**：两个 config 都改为从 board 时钟频率计算 ratio，用与 gem5 `m5/ticks.py:80` 完全一致的舍入（`decimal.Decimal(...).to_integral_value(ROUND_HALF_UP)`，Tick=1ps）：C2 2.6GHz → 385，C0 2GHz → 500。不能在 build 时读 `clk_domain.clock.getValue()`（全局频率要到 m5.instantiate 才 fix——第一次尝试真实失败，AttributeError，已改用频率字符串计算）。
+
+**真机自验证（100% 真实输出）**：
+1. T1 (C2 kp920_proxy, cholesky, first_clock=50000, prob=1.0, maxFaults=1, seed=20260825)：`[kp920_proxy] CHAOSMem tickToClockRatio=385`；`main_mem_injections.log`: `Tick: 19250000, target addr: 335405835, old: 0x0, new: 0xde, ... faults_injected: 1` —— **19250000 = 50000×385 精确**，恰 1 次注入（G5），exit=0。
+2. T2 (C0 arm_chaos, reg_chain, first_clock=20000)：`[arm_chaos] CHAOSMem tickToClockRatio=500`；`Tick: 10000000 ... faults_injected: 1` —— **10000000 = 20000×500 精确**。注意：C0 旧值 1000 也是错的（窗口在 2× 请求周期处打开），只是碰巧能开；现在精确。
+3. T3 (C0, 无注入 golden 回归)：reg_chain checksum = **f247ef3fe6f02cfd** ✅ 与 golden 一致，exit=0，无注入日志。
+

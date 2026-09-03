@@ -306,6 +306,18 @@ if args.chaos_mem:
     # are available). This is backing-store byte injection only — NOT a
     # timing DRAM/controller/ECC path (per plan §2.2).
     dram = memory.mem_ctrl[0].dram
+    # Frequency-correct cycles->ticks ratio (same fix as kp920_proxy.py):
+    # firstClock is in CPU cycles; the old hardcoded tickToClockRatio=1000
+    # assumed 1GHz. C0 is 2GHz -> period 500 ticks, so the old value opened
+    # the window at 2x the requested cycle count. Compute from the board
+    # clock exactly as gem5 rounds it (Tick=1ps, Decimal ROUND_HALF_UP —
+    # m5/ticks.py:80). (clk_domain.clock.getValue() can't be used here: the
+    # global frequency isn't fixed until m5.instantiate().)
+    import decimal
+    _ratio = int(decimal.Decimal((1.0 / 2e9) * 1e12)
+                 .to_integral_value(decimal.ROUND_HALF_UP))
+    print(f"[arm_chaos] CHAOSMem tickToClockRatio={_ratio} "
+          f"(board 2GHz, was hardcoded 1000)")
     board.chaos_mem = CHAOSMem(
         mem=dram,
         probability=args.probability,
@@ -317,7 +329,7 @@ if args.chaos_mem:
         # a directed bit (e.g. --fault_mask 0x40 = bit6) is honored (was
         # hardcoded "0" -> always random; fixed here). Empty/0 -> random.
         faultMask=(format(args.fault_mask, "08b") if args.fault_mask else "0"),
-        tickToClockRatio=1000,
+        tickToClockRatio=_ratio,
         bitFlipProb=args.bit_flip_prob,
         stuckAtZeroProb=args.stuck_at_zero_prob,
         stuckAtOneProb=args.stuck_at_one_prob,
