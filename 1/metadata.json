@@ -1,0 +1,50 @@
+{
+  "cli_version": "0.10.2",
+  "checkpoint_id": "01M1P2C75KVNW7JKAMJ7BDTE08",
+  "session_id": "98483bee-50d0-49c7-937a-6538ae6e330e",
+  "strategy": "manual-commit",
+  "created_at": "2026-09-04T11:20:48.92193021Z",
+  "branch": "docs/vmcore-case-reports-7dumps",
+  "checkpoints_count": 7,
+  "save_step_count": 1,
+  "files_touched": [],
+  "agent": "Claude Code",
+  "model": "glm-5.3",
+  "turn_id": "1a61e88cbc18",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 18615056,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 63065,
+    "api_call_count": 178
+  },
+  "skill_events_version": 1,
+  "skill_events": [
+    {
+      "id": "prompt-skill-claude-code-goal-2026-09-04T08:38:24.77005943Z",
+      "event_type": "prompt_invocation",
+      "skill": {
+        "name": "goal"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "prompt_slash_command",
+        "confidence": "explicit"
+      },
+      "turn_id": "59e5e66f7782",
+      "timestamp": "2026-09-04T08:38:24.77005943Z",
+      "native": {
+        "command": "/goal"
+      },
+      "collapse": {
+        "target": "user_message",
+        "label": "/goal",
+        "default_collapsed": true
+      }
+    }
+  ],
+  "session_metrics": {
+    "turn_count": 13
+  }
+}

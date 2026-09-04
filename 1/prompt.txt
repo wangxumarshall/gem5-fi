@@ -1,0 +1,204 @@
+<task-notification>
+<task-id>a5987d29a41fead2e</task-id>
+<tool-use-id>call_5fcae5285d844831b3a93e16</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-wangxu-vmcore0102-gem5-fi/82315408-2f10-4805-a9a3-d64b44abd67a/tasks/a5987d29a41fead2e.output</output-file>
+<status>completed</status>
+<summary>Agent "第9次转储09-04-09:15案诊断报告" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>全部完成。最终报告如下。
+
+---
+
+## 第 9 次致命转储（2026-09-04-09:15:42，10.6G）深度诊断报告 — 完成报告
+
+### 报告路径
+`/home/sdc/wangxu/vmcore0102/gem5-fi/docs/cases/vmcore-diagnosis-report-127.0.0.1-2026-09-04-091542/`
+- 主报告：`vmcore-diagnosis-report-127.0.0.1-2026-09-04-091542.md`（342 行，§1~§10 + 附录 + 5 个 crash 会话 + dmesg 法证 + algebra.py/algebra_out.txt）
+- 证据附件：`dmesg_forensics.txt`（238 行）、`crash_session.log`（主会话）+ `crash_session2/3/4/6.log`（补充会话）、`forensics_cmds*.txt` ×5、`algebra.py` → `algebra_out.txt`
+
+### 七要素自验证（全部命中）
+`grep 【时间线】【逻辑链条】【故障根因】【故障现象】【业务现象】【诊断定位过程】【启示】` → **7/7 OK**；章节结构 §1~§10 + 附录齐全（12 个 `##`）；引用抽查 17 处（dmesg 行 2672/2580/2629 原文、crash `rd -64 ffffcfd3a848561d` 首字、`px __per_cpu_offset[151]`、vtop VALID、rq 自指针、Workqueue 行、汉明距离、KASLR 五路咬合、负载 83.41 等）逐条与原始日志比对一致；报告与 algebra_out.txt 关键数值（x27/FAR/off151/真值地址/撕裂值/KASLR 滑移）逐位一致。
+
+### Commit
+`d225984861e2fdd859c7280df6579ff606d3f5bd`（14 文件，5328 行插入），已 push 到 `docs/vmcore-case-reports-7dumps`（4cb1074..d225984），无 Co-Authored-By 尾注。
+
+### 关键发现
+
+**1. x20 实测值与形态判定：撕裂移位族第 6 相位（非新子族）【实锤】**
+- x20 = `0x2cd80e2000ffffb0`（应为 `__per_cpu_offset[151] = 0xffffb02cd939c000`，全数组 192 项 0x22000 等差完好）
+- 字节流非对齐窗口匹配（第 7 案方法）：x20 的 8 字节 LE 序列在全 192 槽字节流**唯一命中"槽 9 起点 + 5 字节"**（基址 +77 字节，跨槽 9/10 边界）；crash 直读 `rd -64 ffffcfd3a848561d` 返回首字与 x20 **逐位相等**
+- 双重等价性（本案独有发现）：该窗口同时精确等于 `ROL3B(off[10])`（槽 10 自身 3 字节循环左移）——全 192 槽 × 1~7 字节 ROL/ROR 扫描唯一命中 slot 10 ROL3B。"窗口错相位"与"单槽旋转"两种既往描述首次数值同一（因相邻槽共享高 3 字节 ffffb0）
+- **计划预设的"随机位翻转新子族"分支被证伪**：FAR 大值形态经算术解剖归一——FAR 高 16 位 `2cd7` = 撕裂值高 16 位 `2cd8` + 模板高 16 位 `ffff`（ffff+2cd8=12cd7，进位舍弃），是撕裂值高位的忠实投影，非独立故障
+
+**2. 真值对照与反事实（全部闭合）**：KASLR 五路咬合 `0x4fd326520000`；`x27 = x1+x20` 与 `FAR = x27+0x120` 全 64 位逐位相等；x27_true(151)=`0xffff8000814256c0` == rq(151) 自指针 nohz_csd.info，vtop VALID（PA=6037ffeda6c0）；x27_true(179)==rq(179) 自指针，vtop VALID；rq(179).curr == bt 崩溃任务指针；汉明距离 34~38 位级与既往撕裂案同量级。
+
+**3. 业务现象（§5）**：受害者 kworker/u392:0 是 **unbound 工作池 392 的 0 号线程**（无 CPU 亲和性，被调度到 179 即成受害者）；崩溃时 `Workqueue: 0x0 (events_unbound)`——无活跃 work 项，正在 `worker_thread→schedule` 尝试睡眠，idle 负载平衡内圈踩中缺陷装载；整机 2218 任务（load 83.41）瞬间宕机。任务亲和性策略对此类缺陷无保护作用。
+
+**4. 前兆谱第三形态**：2 次 WARNING（0.72h rcu_sched——与致命崩溃同一 load_balance idle 平衡路径；3.85h ps 读 /proc）后 **10.67h 零信号**突发致命——"稀疏前兆+超长静默"，与第 7/8 案密集末簇、第 11 案零前兆并列，WARNING 频度与剩余寿命无相关。
+
+### 与计划预期的偏差
+计划 Task 4 预设三分支（撕裂新相位/随机翻转新子族/零塌缩）。实测走"撕裂新相位"分支（+5 字节跨槽 ≡ ROL3B），新子族分支被字节流唯一命中 + crash 直读逐位相等**证伪**——报告 §8 已如实记录此证伪过程及"形态新奇 ≠ 机制新奇"的方法论启示（这正是"真值对照前不预设归类"纪律的价值）。§9 按计划完成"单一故障机制多形态表征"讨论（可变相位窗口模型、相位谱 1/2/3/5B+ROL16、FAR 形态多样性归一）与 paper_zh.md §6 三启示印证（单次事件标记 &gt; 密度触发；零信息损失循环移位对位级校验完全失明；PEPR 相位体素应覆盖全 1~7 字节相位空间）。</result>
+<usage><subagent_tokens>12957</subagent_tokens><tool_uses>149</tool_uses><duration_ms>4180060</duration_ms></usage>
+</task-notification>
+
+---
+
+总结12次 sdc生成的vmcore的根因，cpu微架构层面的根因是什么？需要有严格的证据
+
+---
+
+/goal 深度研究12次 sdc生成的vmcore，当前只是发现在3个数据通路上的微架构级别的问题，要求你作为芯片工程师和linux内核工程师，从这些vmcore和案例中，挖掘其他的导致sdc的微架构特征，因为我担心这3个数据通道上的sdc问题是个案，不具备完备性，要求你能够基于这些数据，进行cpu所有微架构单元的完备的规律或敏感性研究，要求是从真实的数据中挖掘出来的。
+
+---
+
+<task-notification>
+<task-id>ac3c59943212650e9</task-id>
+<tool-use-id>call_3d88ec5733fb411b8fa082da</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-wangxu-vmcore0102-gem5-fi/82315408-2f10-4805-a9a3-d64b44abd67a/tasks/ac3c59943212650e9.output</output-file>
+<status>completed</status>
+<summary>Agent "Task 8 十二案横向综合报告" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>Task 8 完成。综合报告已提交并推送。
+
+## 交付物
+
+**综合报告**：`/home/sdc/wangxu/vmcore0102/gem5-fi/docs/cases/CPU179_TWELVE_BOOT_CENSUS.md`（297 行，独立综合文件）
+**复算脚本**：`docs/cases/vmcore-diagnosis-report-127.0.0.1-2026-09-04-123331/census_algebra.py` + `census_algebra_out.txt`（全部代数机器复算）
+**Commit**：`745c929`，已推送 `origin/docs/vmcore-case-reports-7dumps`（无 Co-Authored-By 尾注）
+**计划勾选**：`.planning/.../task_plan.md` Phase 3 全部 complete
+
+## 十二案总表关键统计
+
+- **12/12 次 panic 执行核 = CPU179**；135 次 WARNING + 12 次 Oops = 147 起事件 100% 单核收敛，其余 191 核约 22 天零事件
+- **同指令 `find_busiest_group+0x140` 命中 11/12**（异例：第 3 次 08-24 `bio_add_page+0xf0`，同为索引型装载腐化）
+- **子族谱**：零塌缩族 5 案（第 4/6/10/11/12 次，含第 11 次 L2/pmd=0 变体）vs 撕裂移位族 6 案（第 1/2/5/7/8/9 次）+ 异例路径 1 案；相位谱 1/2/3/5 字节 + ROL16 全部机器复验通过
+- **迭代号 i≠179：10/11 案**（176/175/176/146/60/12/151/149/97/53；i=179 仅第 6 次一案）——比任务提示的“五例”更完整，08-14 的 i=176 核实为报告 §3.1 确定值
+- **WARNING 谱 0~35**（合计 135），与剩余寿命无相关：35 次前兆活 89.5h vs 0 次前兆活 0.4h；末次前兆→panic 间隔 3.1s~10.67h~∞ 跨 4 个数量级
+- **存活 0.12h~149.3h**（1285 倍），中位 19.9h；**x9−x1≡0xfffffffffe5d1798 不变式 7 案复核成立**（第 12 次案三案发现，本综合扩展验证）；x21−x1=0x3f65f0 达 9 案
+- **处置状态**：截至第 12 次（09-04 12:33）CPU179 仍带病在线——各案 command line 均无 isolcpus/offline 参数，12 次发作后未 offline 未 RMA
+
+## 编制过程中发现的跨案矛盾/不一致（已如实写入报告 §6.3）
+
+1. **08-14 报告行 59 “x27+0x288” 是十六进制笔误**：反汇编 `#288` 是十进制（=0x120，与 Code 字段 f9409377 及其余 11 案一致）；机器复算 `x27+288(dec)` 低 48 位与 FAR 逐位吻合，高 16 位一字节差是已记录的“FAR 上报路径独立损坏”次级签名。不改写旧报告，仅在综合中注明。
+2. **存活排名口径不一**：第 8 次报告 §1 自称“第三位/第二位”两处矛盾；第 7 次称 110.03h“十二案最长”在撰写时点成立，终谱最长实为第 3 次 149.29h。综合以终谱为准。
+3. **“首次 i≠179”表述口径**：第 11 次报告称 i=97 是“十一案首次”，实为“首次在单案内直接证明”；按时间序列第 1 次起 i 已≠179。两种口径都成立，引用需区分。
+4. **08-24 报告曾把第 1 次 ROL16 误判为“随机损坏”**，后被 15:42 报告 E3 复核纠正——与第 9 次“随机翻转分支被证伪”构成同型方法论案例，均佐证“真值对照前不预设归类”纪律的价值。</result>
+<usage><subagent_tokens>15919</subagent_tokens><tool_uses>71</tool_uses><duration_ms>3140684</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>aa744cec0ca55aa73</task-id>
+<tool-use-id>call_476de7edcfea45cfa7d4babc</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-wangxu-vmcore0102-gem5-fi/82315408-2f10-4805-a9a3-d64b44abd67a/tasks/aa744cec0ca55aa73.output</output-file>
+<status>completed</status>
+<summary>Agent "挖掘存储/写通路与LSQ敏感性" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>报告已写入 `/home/sdc/wangxu/vmcore0102/gem5-fi/docs/cases/core179-microarch-rootcause-synthesis/analysis/STORE_PATH_SENSITIVITY.md`（326 行，未提交）。所有附录命令均已实际运行验证。
+
+## 关键结论摘要
+
+**1. WnR 判定（决定性，推翻任务背景的前提）**
+- x19=ESR 经三重独立验证成立：`__do_kernel_fault` 反汇编证明 x19=ESR、x21=FAR（callee-saved 幸存于 printk）；x22=EC=0x25 全 135 块闭环；受害指令反汇编与 WnR 语义 135/135 零矛盾。
+- **127/135（94.1%）spurious 是写访问（WnR=1）**，仅 8 起是读。任务背景“spurious 落在 memcpy 目的缓冲区附近”的真正含义：**它们本来就是写目的缓冲区的 store 出错**，不是读。
+
+**2. 写通路受累判定：受累【实锤】，但仅限地址/翻译级**
+- 127 起写侧受害指令全部是 `__memcpy+0x80 = strb w8,[x0,x14]`（vmlinux 实反汇编，字节存储，len≤7 微拷贝尾路径）。
+- 微局部性签名：同一路径前一条 `strb w6,[x0]`（同页、早几微秒）成功，第二条 store 瞬态 L0 翻译故障——逐访问瞬态，非页缺失。
+- 机制归属：与 D3 同族的**读写公共翻译通路（PTW/MMU 接口）瞬态失败**；FAR 代数 135/135 闭合（FAR=x21、FAR=x24+0xa）证明 **AGU 算术从未算错**。
+
+**3. 写数据通路（store 值级 SDC）：低敏或免疫【强推】**
+- 21 天全速写流量（jbd2/writeback 全程运行）下：0 起写值腐化、0 起写侧致命（12/12 fatal 全为 64-bit ldr，WnR=0，本次逐案复核确认）。
+- 诚实边界：写数据腐化天然静默（无异常载体），“免疫”不能证死，只能判“21 天零观测”。
+
+**4. /proc/interrupts 选择效应**：非内容特殊，而是 irqbalance（10 s 周期，时间戳差 10.0 s 实证）在 192 列中断表上产生的**微小 store 密度最高**（vsnprintf+0x374 `bl __memcpy` 实证）× 进程驻留 CPU179 的调度惯性。
+
+**5. 对三通路完备性的贡献**：D3 从读侧个案升级为**读写公共通路**；D1/D2 保持读侧值级腐化特异性；AGU 算术被排除出候选集。写侧值级通路保留为“无现场证据的第四候选”。
+
+**证据强度**：写通路翻译级受累【实锤】/ 写数据通路低敏【强推】/ AGU 未命中【实锤】/ x17-x13 ASCII 含义为告警文本自身残留（证伪了“故障数据内容”解读，135/135 满足 x12+x13==FAR 十六进制文本）。</result>
+<usage><subagent_tokens>1141</subagent_tokens><tool_uses>133</tool_uses><duration_ms>2136115</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>ae262a2dcb6c985ab</task-id>
+<tool-use-id>call_b895a85c28734a81b6859e2b</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-wangxu-vmcore0102-gem5-fi/82315408-2f10-4805-a9a3-d64b44abd67a/tasks/ae262a2dcb6c985ab.output</output-file>
+<status>completed</status>
+<summary>Agent "挖掘时序/频率/负载敏感性" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>报告已完成写入 `/home/sdc/wangxu/vmcore0102/gem5-fi/docs/cases/core179-microarch-rootcause-synthesis/analysis/TIMING_SENSITIVITY.md`（353 行，未 commit）。
+
+## 最终返回：三大核心产出
+
+### 1. 窗口模型关键参数（12 案 147 事件 / 504.4h 全本机数据）
+
+| 参数 | 值 |
+|---|---|
+| 独立发作回合率 | **5.2 回合/天**（135 WARNING 按 &lt;1s 聚成 109 回合，平均间隔 4.6h） |
+| 窗口时长 | 短窗 **0.5~43ms**（簇中位 10.6ms，簇内最小间隔 0.253ms）；跨拍长窗（列车）最长 **53.3s/16 事件** |
+| 窗口内命中率 | 列车内对 10s 拍 **70%~300%**（窗口开着时每拍必中乃至一拍多中） |
+| 窗口外命中率 | **严格 0**（全部 147 事件落在占墙钟仅 **0.06%** 的列车里） |
+| 致命转换 | 每开机必以 panic 收场（12/12），不确定的只是时刻（存活谱 0.12h~149.3h，跨 1285×） |
+| 子族分裂 | 零塌缩（x20=0）存活中位 **1.41h** vs 撕裂/错行中位 **66.54h**（MW 精确 p=0.053，速死型 vs 长熬型） |
+
+### 2. 负载相关性结论：**无有效正相关，方向可能相反**
+
+- 存活×load@crash：rho=+0.60（n=6，不显著）；W 率×load：rho=+0.37（无效）
+- 硬反例三连：**load 15.67 的 24 分钟新机零前兆速死（C11）**；66.5h 存活案崩溃宿主是 idle 线程 swapper/179（C02）；崩溃 kworker 的 Workqueue 字段为 `0x0`——正要睡觉没活干（C09）
+- **12/12 致命全部位于 newidle_balance/idle 软中断路径**（CPU 正要进入空闲的转换沿），而 idle 进入沿正是 DVFS 降频降压最陡的瞬间——与 −30mV 欠压实验（同机同核分钟级必崩）方向互证：**边际条件在电压/频率低裕量端，不在高负载端**
+- WARNING 时刻表由 irqbalance/pmdalinux 的 10s 轮询栅格决定（87%/94% 间隔落格 ±0.15s，含 343,330s 超长静默也精确落格）；负载形态（sftp 管道写高频睡眠唤醒循环）比负载强度更接近“点火器”
+
+### 3. 最反直觉的发现
+
+**窗口开着时，连“报告故障的代码”都会再次踩中故障**：C08 WARNING 块的 x12–x17 寄存器解码出 ASCII `ffff604017b3d164tion fault at virtual address ff`——上一条 spurious 消息自己的 vsnprintf/memcpy 在格式化途中再次落进开着的窗口，形成自指式连发。加上 15/15 簇全部落在同一 4KB 页（簇=一次顺序读遍历中同页多偏移连续腐化），这把“窗口”从单次毛刺坐实为**毫秒级持续物理状态**——期间页表完好（每次重试都成功，故内核判 spurious），只有装载返回值在持续出错。
+
+附带的关键工程事实：**WARNING 监听敏感度上限 83%（2/12 案零前兆给出硬下界），且精确率仅 6~7%（60s 窗）**——末前兆→panic 跨 3.1s~75102s 四个半数量级，WARNING 是“病灶在场确诊书”而非“崩溃倒计时”，命中即应安排下线，不能等加密。另：第 8 案（09-03）既往“远端不可达、中段 33 事件未提供”的缺口已在本机磁盘闭合（4202 行完整文件），既往摘录数字全部复核一致。</result>
+<usage><subagent_tokens>0</subagent_tokens><tool_uses>133</tool_uses><duration_ms>2504710</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>ae263b0073e5df812</task-id>
+<tool-use-id>call_f8eae363cffc4c37aeee04fe</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-wangxu-vmcore0102-gem5-fi/82315408-2f10-4805-a9a3-d64b44abd67a/tasks/ae263b0073e5df812.output</output-file>
+<status>completed</status>
+<summary>Agent "挖掘RF/EXU/分支/缓存层级敏感性" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>报告已写入 `/home/sdc/wangxu/vmcore0102/gem5-fi/docs/cases/core179-microarch-rootcause-synthesis/analysis/UNIT_COVERAGE_MATRIX.md`（324 行，未 commit）。全部数字为本次对 12 份 vmcore-dmesg.txt 的独立重算（python3 模 2⁶⁴），内存真值引自已归档 crash 会话。
+
+## 覆盖矩阵摘要（单元 × 证据）
+
+| 单元 | 正证据（受累） | 负证据（免疫） | 无证据 | 置信级 |
+|---|---|---|---|---|
+| **寄存器堆 RF/PRF** | 无 | **12/12 案恰好 1 个寄存器坏且=装载目标寄存器**（x20×11 + x3×1），其余 ~30 个与指令语义自洽（KASLR 锚/迭代号/帧链 11/11 闭合）；135 起 WARNING 块零寄存器异常 | 阵列位单元直接应力（软件不可达） | 免疫【实锤】；病灶在上游装载返回通路【强推】 |
+| **执行单元 EXU/ALU** | 无 | **12/12 加法对腐化输入逐位算术精确**（x27=x1+x20 含进位闭合；垃圾进、精确和出）；spurious 侧 FAR 代数 135/135+127/127 闭合 | 乘/除/FSU（致命链不含） | 加法器免疫【实锤】（被行使过的免疫） |
+| **分支预测/控制流** | 无 | **12/12 pc 全落合法函数**（fbG+0x140×11、bio+0xf0×1），lr-pc 互洽，12 条栈全为进程身份的语义正确路径，零野 pc；坏值 12/12 从未流入 pc 通路 | 预测器内部状态（软件不可观测） | 控制流结果层面免疫【实锤】 |
+| **L1D** | **装载返回/fill 合并级受累**：5 验证案坏值=同数组内近期访问行的错相位字节流，源-目标 5/5 跨 set → 排除 way/列选通；相位谱 1/2/3/5B | 阵列本体：way 几何排除、ECC 零 CE、rasnode 960 读数零异常、l1d_disable 四反例 | fill-buffer vs 返回 mux 的精确分判（需 DFT） | 通路受累【实锤】；阵列无正面证据【实锤：负】 |
+| **L2/L3/LLC** | 无 | **147/147 事件 100% 单核**（191 核共享 L3 21 天零事件）；5 案内存真值完好+反事实 vtop 全 VALID；错误源 5/5 局限在同一 1.5KB 数组（无远端数据）；内核 6.6 对 HIP08 零 erratum 声明 | — | 作为病灶被排除【强推】 |
+| **TLB（dTLB/L2 TLB）** | 无（条目/翻译功能层面） | **135/135 spurious 重译（AT S1E1R）成功**——排除假命中；12/12 FSC 均为坏地址的确定性几何投影（L0=非规范 PGD 即拒 7 案 / L2+L3=init 解映射诚实走表 5 案），零“翻译成功但访问错页”；零跨开机 FAR 复用 | TLB 查找时序瞬态（与 D3 软件不可分辩） | 翻译功能免疫【实锤】；spurious 归因 D3【强推】 |
+| **PTW 读出通路** | 受累（D3 干净承重主体 70/73+静态映射论证） | 走查控制逻辑正常（三方走表一致） | — | 读出数据通路受累【实锤】 |
+| **AGU→MMU 地址通路** | 受累（弱）：byte7 清零 2/12 例确凿 | — | D1/D2 谱可分性 | 【实锤-弱】 |
+
+## 最强的新发现
+
+1. **RF“单点穿透”的完整量化（本次新做）**：12/12 案的坏寄存器精确等于出错装载的目的寄存器（x20×11、x3×1），同周期内其余 30 个架构寄存器（含 4 个持内核指针的 x1/x9/x21/x24）零异常——若故障在 RF 阵列，PRF 重命名下损坏不可能 12/12 锁定装载目标；这把故障位置从“RF 或读出口”收窄到“RF 写口上游的装载返回总线/合并级”。且 135 起 WARNING（D3 发作）时刻寄存器堆完全干净——21 天零 RF 自发性损坏。
+
+2. **ALU 免疫是“被行使过的免疫”（非未覆盖）**：加法器在每次故障会话中对深度腐化的 x20（汉明重量 30+ 的撕裂值/全零/非规范大值）产出了含进位传播的**数学上精确的和**——`ffffcfd3a80896c0 + 2cd80e2000ffffb0 = 2cd7ddf3a9089670`。147/147 事件的地址全部可从寄存器代数精确推导。
+
+3. **错误源无“最陈旧槽位”偏好（对早期模型的关键修正）**：5 个 crash 验证案的源槽呈 {0,1,9,10}（头部）与 {123,125,126}（尾部）双聚类——其中 08-31（i=60，源 125）与 09-03（i=12，源 123）的源槽**在本轮遍历中尚未被访问**，只能来自上一轮 newidle_balance 的 fill-buffer/LQ 残留。这排除“固定命中最旧 fill-buffer 条目”的纯头部偏好模型，支持**相位可变的合并选路错位**，并把 5/5 源-目标跨 set 的组相联裁决扩展到全部验证案。
+
+4. **TLB 的系统性排除（首次系统化）**：135/135 重译成功排除假命中；12 案 FSC 谱（L0×7 / L3×4 / L2×1）全部是坏地址落点的确定性投影（撕裂族→非规范→PGD 拒；零塌缩族→init 解映射域→pte/pmd=0），零 TLB 假命中形态；零跨开机 FAR 复用、零 set/way 聚类。
+
+5. **L2/L3 的五重负证据闭环**：单核私有性 + 内存真值完好 + 反事实地址 VALID + 错误源局限同数组 + 内核零 erratum 声明/零 ECC 事件/rasnode 960 读数零异常。
+
+**对三通路完备性的贡献**：三条受累通路（D1/D2/D3）恰好是 L1D→RF、AGU→MMU、PTW→TLB 三条数据搬运线，而全部计算单元、存储阵列本体、控制结构免疫——故障空间被压缩到“数据搬运管线的选路/合并/相位”一层，DFT 向量可据此收敛（单/多缺陷裁决仍须 RTL/DFT，软件边界不变）。</result>
+<usage><subagent_tokens>0</subagent_tokens><tool_uses>91</tool_uses><duration_ms>2836635</duration_ms></usage>
+</task-notification>
+
+---
+
+完成研究后，git push到远程
