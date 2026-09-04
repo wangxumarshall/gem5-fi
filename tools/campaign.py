@@ -34,7 +34,7 @@ campaigns belong on a healthy 2nd machine. This driver is machine-agnostic; the
 results it produces on cpu179 are PILOT-only and must be replicated before any
 formal claim (§3.1 S6).
 """
-import sys, os, json, argparse, tempfile, subprocess, itertools, time
+import sys, os, json, argparse, tempfile, subprocess, itertools, time, signal
 
 REPO = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 sys.path.insert(0, os.path.dirname(os.path.realpath(__file__)))
@@ -277,15 +277,37 @@ def _log_bad(bad_log_path):
 
 def run_one_rep(manifest_path, binary, hang_timeout, keep_manifests, log_bad):
     """Shell out to tools/runner.py for one manifest. Returns a result dict
-    (classification etc.) for the results.jsonl line."""
+    (classification etc.) for the results.jsonl line.
+
+    The runner is started in its own process group (start_new_session) so a
+    campaign-level timeout kills the WHOLE tree — runner.py AND its gem5
+    child. Plain subprocess.run(timeout=...) only kills runner.py; the gem5
+    grandchild survives as an orphan (PPID=1) and burns a core per hang
+    (found 2026-09-04: 80+ leaked gem5 procs after IQ hang runs).
+    """
     cmd = [sys.executable, RUNNER, manifest_path, "--binary", binary]
     try:
-        r = subprocess.run(cmd, capture_output=True, text=True,
-                           timeout=hang_timeout + 30)
-    except subprocess.TimeoutExpired as e:
+        p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                             text=True, start_new_session=True)
+        try:
+            out, err = p.communicate(timeout=hang_timeout + 30)
+            r = subprocess.CompletedProcess(cmd, p.returncode, stdout=out, stderr=err)
+        except subprocess.TimeoutExpired:
+            # kill the WHOLE process group (runner + its gem5 child);
+            # plain kill would orphan the gem5 grandchild (PPID=1)
+            try:
+                os.killpg(os.getpgid(p.pid), signal.SIGKILL)
+            except Exception:
+                p.kill()
+            p.wait()
+            res = {"classification": "Hang", "faults_injected": None,
+                   "exit": -1, "timed_out": True,
+                   "reason": f"runner.py exceeded {hang_timeout+30}s wall budget"}
+            return res
+    except Exception as e:
         res = {"classification": "Hang", "faults_injected": None,
                "exit": -1, "timed_out": True,
-               "reason": f"runner.py exceeded {hang_timeout+30}s wall budget"}
+               "reason": f"spawn failure: {e}"}
         return res
     out = r.stdout or ""
     parsed = parse_runner_result(out)
