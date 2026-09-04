@@ -3,7 +3,7 @@
   "checkpoint_id": "01M1NCY5QBZJZ0DP360P567WJK",
   "strategy": "manual-commit",
   "branch": "research/posparity-paper",
-  "checkpoints_count": 1,
+  "checkpoints_count": 3,
   "files_touched": [
     "docs/cpu/kunpeng920-device-measurements.md"
   ],
@@ -14,13 +14,27 @@
       "compact_transcript": "/0/transcript.jsonl",
       "content_hash": "/0/content_hash.txt",
       "prompt": "/0/prompt.txt"
+    },
+    {
+      "metadata": "/1/metadata.json",
+      "transcript": "/1/full.jsonl",
+      "compact_transcript": "/1/transcript.jsonl",
+      "content_hash": "/1/content_hash.txt",
+      "prompt": "/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 4796651,
+    "input_tokens": 28191492,
     "cache_creation_tokens": 0,
     "cache_read_tokens": 0,
-    "output_tokens": 36444,
-    "api_call_count": 69
+    "output_tokens": 217329,
+    "api_call_count": 247,
+    "subagent_tokens": {
+      "input_tokens": 165845343,
+      "cache_creation_tokens": 0,
+      "cache_read_tokens": 0,
+      "output_tokens": 2306840,
+      "api_call_count": 2091
+    }
   }
 }

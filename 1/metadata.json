@@ -1,0 +1,158 @@
+{
+  "cli_version": "0.10.2",
+  "checkpoint_id": "01M1NCY5QBZJZ0DP360P567WJK",
+  "session_id": "9759e700-8d7f-4ed3-a614-e20ea6ece92c",
+  "strategy": "manual-commit",
+  "created_at": "2026-09-04T05:05:58.181544491Z",
+  "branch": "research/posparity-paper",
+  "checkpoints_count": 2,
+  "save_step_count": 3,
+  "files_touched": [
+    "docs/cpu/kunpeng920-device-measurements.md"
+  ],
+  "agent": "Claude Code",
+  "model": "GLM-5.3[1m]",
+  "turn_id": "f0bb7dc99586",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 23394841,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 180885,
+    "api_call_count": 178,
+    "subagent_tokens": {
+      "input_tokens": 165845343,
+      "cache_creation_tokens": 0,
+      "cache_read_tokens": 0,
+      "output_tokens": 2306840,
+      "api_call_count": 2091
+    }
+  },
+  "skill_events_version": 1,
+  "skill_events": [
+    {
+      "id": "claude-skill-call_8007712f4e094f2f88a47a38",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "superpowers:subagent-driven-development"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "f0bb7dc99586",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 276,
+        "end": 277,
+        "entry_ids": [
+          "8bb1294d-ecfe-4078-a3be-70e5110635b9"
+        ],
+        "tool_use_id": "call_8007712f4e094f2f88a47a38"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "call_8007712f4e094f2f88a47a38"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: superpowers:subagent-driven-development",
+        "default_collapsed": true
+      }
+    },
+    {
+      "id": "claude-skill-call_27d635ca14ca484e879005df",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "superpowers:writing-plans"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "f0bb7dc99586",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 720,
+        "end": 721,
+        "entry_ids": [
+          "52257271-de1c-4771-8176-38ded0cbd3a5"
+        ],
+        "tool_use_id": "call_27d635ca14ca484e879005df"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "call_27d635ca14ca484e879005df"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: superpowers:writing-plans",
+        "default_collapsed": true
+      }
+    },
+    {
+      "id": "claude-skill-call_ed923455ad0f4c3e93dc4285",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "superpowers:subagent-driven-development"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "f0bb7dc99586",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 786,
+        "end": 787,
+        "entry_ids": [
+          "efc66380-5dac-43f2-8b34-c50f6c3f591b"
+        ],
+        "tool_use_id": "call_ed923455ad0f4c3e93dc4285"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "call_ed923455ad0f4c3e93dc4285"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: superpowers:subagent-driven-development",
+        "default_collapsed": true
+      }
+    }
+  ],
+  "session_metrics": {
+    "turn_count": 3
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-09-04T05:05:57.805647437Z",
+    "agent_lines": 324,
+    "agent_removed": 0,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 324,
+    "total_lines_changed": 324,
+    "agent_percentage": 100,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    },
+    {
+      "checkpoint_number": 3,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    }
+  ]
+}
