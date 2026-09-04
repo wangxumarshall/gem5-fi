@@ -1849,3 +1849,9 @@ IQ F5/F6 完整闭环（9db60d6 实现 + 4aee770 madd formal + 9991185 cholesky 
 **§2.17 formal（fwd_checksum_kernel, C2, n=384 + 5% replay, 129s, 0 frozen）**：**384/384 Masked，P_SDC=0% [0,1.0]**。
 
 **定论——DRAM 层故障形态无关律**：raw 字节翻转（d88dcc7）与 F5 错位写（本 formal）**同为 100% Masked**——工作集驻留 L1/L2 的 SE workload 上，DRAM 后备存储层的任何扰动（无论形态）都不可达。§2.17 的"地址映射错误预期高且极静默"（设计文档 E 项）**在缓存驻留 workload 上不成立**——需要工作集远超缓存（STREAM 类大数组）的 workload 才能暴露。这是 §4.1 逃逸分解的"存储层级掩蔽梯度"定论的第三数据点：L1D 命中数据（97.7% SDC）> L1/L2 掩盖的 DRAM 后备（0% SDC，bit 翻转与错位写皆然）。
+
+### Phase 4 收口（6/6 模式，c4db0d6）
+
+4.4 TLB pfn_to_mapped_page + 4.5 SysReg value_to_legal（e22b775）：两个 FS-only F5 静默通路实现完成（活页 pfn 替换 / 跨白名单值替换），SE 回归零影响；FS 触发验证 boot 中（cpu179 上 FS boot 30-60 分钟——正是 Phase 5 checkpoint 管线要解决的问题），FS formal 归 Phase 5。4.6 addr_map_sub（7d21c07 + ec97153）：384/384 Masked，**DRAM 层故障形态无关律**。
+
+**Phase 4 全表见 findings.md**。三大横断规律：① 合法域内错误是 SDC 核心形态（fwd_source_sub 37.6% 唯一高 SDC）；② 单元×形态×workload 三维决定结局；③ 代理边界诚实化（wake_phase≠method3 相位；DRAM 错位写需 STREAM 类 workload）。F5/F6 新增 7 模式全部落地，SE 侧 formal 定论齐备。
