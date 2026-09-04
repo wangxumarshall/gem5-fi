@@ -143,6 +143,8 @@ CHAOSArmSysReg 也有 `*1000`（startup()，FS-only，SE formal 不受影响，�
 | L1D+SECDED | 0% | 0 | Masked | 有效 |
 | PRF X3 | 3.9% | 92.7% | Crash | 有效（天然分散） |
 | RAT X3 | 0.3% | 95.8% | Crash | 有效（天然分散） |
+| RAT f5_substitute | 0% | 59.7% | Crash+自愈40% | 有效（§2.2 E 对照） |
+| FreeList mark_free | 0% | 72-77% | Crash | 有效（X3/X9 目标无关） |
 | Decode dest_reg_sub | 0.3% | **24.1%** | Masked 75.7% | **修正**（旧全 Masked 是伪影） |
 | LSQFwd byte_flip | 4.7% | 27.6% | Masked 67.7% | **修正**（旧 100% DUE 是 argparse 伪影） |
 | ROB D=0 entry_bitflip | 0% | 0% | Masked | **重跑有效确认**（真挂 CHAOSROB，384/384） |

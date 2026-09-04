@@ -52,7 +52,7 @@ S1 四个 P0 单元 + S2/S3 六个 SE 单元 formal 已完成（单 cell × n=38
 
 1. ✅ **PRF 位段 × ABI 角色网格**（45b2b85 + 1210fa6 + 57a75ac）：X3 位段边界 bit1/bit2 精确定位（无过渡带）；三种寄存器画像（索引/计数类 X2/X3/X5 低位 SDC 窗+高位 DUE、指针类高位 DUE、路径外全 Masked）；3.9% random-bit SDC ≈ 2/64 定量互洽。**剩余子项**：F4 stuck / F3 数据相关模式、第二 workload 交叉验证（reg_chain）。
 2. ✅ **PRF 窗口扫描（H2）**（b11d751 + 77e752d + 工具 7ccc801）：ROB {96,128,160} × PhysInt {128,160,192}——**ROB=160 整行掩蔽、PhysInt 零效应、trigger 无关（假说证伪）**；X3 bit0 SDC 对 ROB 深度呈阈值响应（≤128→100%，160→0%），机理 open。
-3. ✅ **RAT（§2.2）f5_substitute formal**（99750c9）：X3 0% SDC / 59.7% DUE vs map_bitflip 95.8%——"历史残留→SDC"不支持；合法域错→40% 自愈，非法错→必崩。**剩余子项**：freelist mark_free formal。
+3. ✅ **RAT（§2.2）f5_substitute formal**（99750c9）+ **FreeList mark_free formal**（6ff09bd）：§2.2 rename 子系统三注入点全部落定（map_bitflip 95.8% / f5_substitute 59.7%+40% 自愈 / mark_free 72-77% 目标无关），全 DUE 主导 0% SDC——"历史残留→SDC"三点全否。**ROB/IQ 修正重跑完成**（7025ca9）：ROB 确认全 Masked；IQ 大反转为 Hang 75.3%（旧结论双重伪影）。
 4. ⏩ **多 workload 对照**：ExMon formal ✅（ac1e131，100% DUE 单元级确认 + 修复第 9 个漏网注入器 7108428）。**剩余**：cholesky 上的全 Masked（IQ/Exec/FPU/Decode/BPU/RAS）在第二 workload（reg_chain）上复检。
 
 **验收**：每单元 ≥2 轴 × ≥3 level 或有书面理由跳过；全 Masked 单元在第二 workload 上置信上界仍 <1% 才写进结论。
