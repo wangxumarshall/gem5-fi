@@ -145,7 +145,8 @@ CHAOSArmSysReg 也有 `*1000`（startup()，FS-only，SE formal 不受影响，�
 | RAT X3 | 0.3% | 95.8% | Crash | 有效（天然分散） |
 | Decode dest_reg_sub | 0.3% | **24.1%** | Masked 75.7% | **修正**（旧全 Masked 是伪影） |
 | LSQFwd byte_flip | 4.7% | 27.6% | Masked 67.7% | **修正**（旧 100% DUE 是 argparse 伪影） |
-| ROB D=0 / BPU / IQ / Exec | 0% | 0% | Masked | **确认**（单元级有效） |
+| ROB D=0 / IQ | — | — | — | **作废**（comp_map bug：实际注入的是 RAT map_bitflip X0，8e01219 修复，重跑中） |
+| BPU / Exec | 0% | 0% | Masked | **确认**（单元级有效，路由核实无恙） |
 | RAS exc_suppress | 0% | 0% | Masked | n=357（24 Inactive） |
 | **ExMon stxr_force_fail** | 0% | **100%** | **DUE** | **有效（修复后分散采样）**——STXR 语义破坏全致命 |
 | FPU | 0%（上界5.4%） | 0% | Masked | gemm_float 重跑后 Reach=100% 全 Masked，单元级确认 |
@@ -165,6 +166,18 @@ CHAOSArmSysReg 也有 `*1000`（startup()，FS-only，SE formal 不受影响，�
 - **定量解释 random-bit formal**：3.9% SDC ≈ 2/64=3.1%（bit0-1 占随机位比例）——观测与理论吻合，两个独立实验互洽。
 - **PRF 位段规律（§2.1 E 细化）**：累加器类寄存器呈"低位窄 SDC 窗 + 高位全 DUE"结构，边界由 workload 数值域决定。指针类寄存器（method2 的 x10）预期边界更低甚至全 DUE——待 ABI-class pilot 验证。
 - X9 全 bit Masked（非关键路径，位段无关）。
+
+## Phase 3 工具正确性: comp_map 静默改道 bug（2026-09-04，8e01219 修复）
+
+**发现经过**：启动 freelist formal 时发现 gem5 进程带 `--chaos_rename --rename_mode map_bitflip`——campaign.py 的 comp_map 仍带着 `'freelist/rob/iq' → 'rat'` 占位映射（runner 只有 rat 分支的时代写的），而 runner 早已有了真正的 freelist/rob/iq 分支。**这三个注入器的 campaign 全部被静默改道到 RAT 注入器**。
+
+**证据（真机）**：重放 iq_formal manifest → `comp=rat` → gem5 只挂 CHAOSRenameMap，iq_injections.log 从未存在（Phase 3.0 审计里"IQ log 未采样到"的真因）。rob/iq/freelist 三个 formal 的 faults=1 全来自 rename_injections.log。bpu/decode/ras/exmon 的 manifest component 核实正确（1:1 映射，未受影响）。
+
+**作废结论**：
+- "§2.3 ROB D=0 entry_bitflip 全 Masked"（8bff9d1, d4c9e8b）——实为 RAT map_bitflip X0
+- "§2.5 IQ wake_omit 全 Masked"（d4c9e8b + Phase 3.0 重跑 c7cc34b）——同上；Phase 3.0 对"IQ"的 events_to_skip 重跑实际重跑的也是 RAT
+
+**教训（第三方审计视角）**："faults_injected=1 + 有分类结果"不足以证明注入器正确——必须核对 faults 的**来源日志**与期望注入器一致。comp_map 这类旁路映射表是 silent mis-routing 的温床；新增 runner 分支后必须同步清理占位映射。
 
 ## Phase 3 网格深化 #5: RAT F5 legal_domain_sub formal（2026-09-04）
 

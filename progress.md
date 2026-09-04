@@ -1699,3 +1699,15 @@ exmon_formal_spinlock（n=384 + 5% replay）随后启动。诚实注记：CHAOSA
 - 循环计数/索引类（X2/X3/X5）→ 低位 SDC 窗 + 高位 DUE（边界 bit1/2，由数值域决定）
 - 指针类高位 → DUE（method2 "x10 垃圾指针→翻译故障"的方向性印证）
 - 语义角色和 AVF 一样重要——"保护哪 N 个寄存器"的排序需要按角色分层
+
+### Phase 3 工具正确性（重大）: comp_map 静默改道——rob/iq formal 作废（8e01219）
+
+**发现**：启动 freelist formal 时从 gem5 进程命令行发现 `--rename_mode map_bitflip`——comp_map 仍带 `'freelist/rob/iq'→'rat'` 占位映射，三个注入器的 campaign 全被静默改道到 RAT。重放 iq_formal manifest 证实 `comp=rat`、iq_injections.log 从未存在（Phase 3.0 审计"IQ log 未采样到"的真因）。bpu/decode/ras/exmon 核实无恙。
+
+**作废**："§2.3 ROB D=0 全 Masked"与"§2.5 IQ wake_omit 全 Masked"（含 Phase 3.0 的 IQ 重跑）——实为 RAT map_bitflip X0。已从 findings.md SE 单元表中移除，待重跑。
+
+**修复验证**：freelist dry-run manifest 现为 component=freelist，单 rep 重放 comp=freelist faults=1（来自 freelist_injections.log）。
+
+**教训**："faults=1 + 有分类"不证明注入器正确——必须核对 faults 来源日志。旁路映射表是 silent mis-routing 温床。
+
+**重跑队列**：rob + iq + freelist 三个 formal（修好后依次跑）。
