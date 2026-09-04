@@ -93,6 +93,12 @@
 
 **采样偏差 bug 族（新发现，影响面待查）**：hook-on-event + max_faults=1 的注入器若"总是第一个 eligible 事件"，确定性流下全部 reps 命中同一动态事件。CHAOSL1DForward 已修（events_to_skip, geometric p=0.1）；lsqfwd（formal 100% DUE）、exmon（pilot 5/5 DUE）、bpu/ras/decode（全 Masked）的结果都需用"不同 seed 注入 addr/tick 是否分散"来复核——分散 = 无此偏差；恒定 = 有。
 
+## Phase 3.0 补漏（2026-09-04）：CHAOSExMon 是第 9 个漏网注入器
+
+ExMon formal 前置审计发现它同时带两类 bug（不在 32629f7 的 6 注入器清单里）：① runner 恒传 `--probability 1.0` + maxFaults=1 → 恒命中第一个 would-succeed STXR（pilot 5/5 Crash 疑为伪影）；② `inWindow()` 硬编码 `*1000`（C0 2GHz/C2 2.6GHz 均错位）。已修（7108428）：events_to_skip（geometric 0.1，模式方向 eligible 过滤后消耗）+ cpu Param clockPeriod 修窗口。验证：3 seeds 注入 Tick 分散（12561395/11370975/12817420）、golden f247ef3fe6f02cfd、重建零警告。**待 exmon formal n=384 出数后，pilot "5/5 DUE" 结论作废与否以 formal 为准**。
+
+CHAOSArmSysReg 也有 `*1000`（startup()，FS-only，SE formal 不受影响，已文档标注）——留 Phase 5 FS 管线一并修。
+
 ## Phase 3.0 审计（2026-09-03 深夜）：lsqfwd formal "100% DUE" 是无效结果（argparse 失败被分类为 Crash）
 
 **证据（runs/lsqfwd_formal_fwd/c0000/results.jsonl）**：384/384 reps `exit=2, faults_injected=0, classification=Crash`。exit=2 是 argparse "unrecognized arguments: --lsq_struct_mode"——kp920_proxy.py 的 LSQFwd mount 读取 `args.lsq_struct_mode/args.lsq_lane_skew_k` 但 argparse **从未定义**这两个参数（只有 arm_chaos.py 定义了）。**gem5 根本没跑，0 次注入**，分类器把 exit=2 当 Crash → "100% DUE" 是纯工具错误。
@@ -171,3 +177,16 @@
 - **"历史残留→SDC"假设不支持**：合法域替换 0% SDC（n=377 上界 1%）——张冠李戴的映射不产生静默数据损坏，错误值要么崩（59.7%）、要么被掩盖（40%）。
 - **新的结构规律**：合法但错误的映射有 ~40% Masked（错误映射的 physReg 被后续写覆盖/值未消费 → 自愈），非法越界索引 95.8% 必崩。**RAT 错误的可掩盖性由"替换值是否在合法域"决定**——这本身是保护设计素材：域校验（range check）能把 DUE 转成可控崩溃，但拦不住掩盖类。
 - 与 PRF 位段规律同构：合法域内的错（PRF 低位 / RAT 合法 tag）→ 静默或自愈；域外错（PRF 高位 / RAT 越界 tag）→ 必崩。**"合法域内错误"是 SDC 与 Masked 的分界概念，跨单元成立**。
+
+## Phase 3 网格深化 #6: H2 窗口扫描（2026-09-04）
+
+**§2.1 H2 pilot（cholesky, C2, X3 bit0, ROB × PhysInt 网格, n=30/cell）**：
+
+| PhysInt \ ROB | 96 | 128 (V110) | 160 |
+|---|---|---|---|
+| 128/160/192 | 100% SDC | 100% SDC | **全 Masked（0% SDC / 0% DUE, faults=1）** |
+
+- **ROB=160 整行掩蔽**：更深 ROB 下 X3 bit0 翻转在 trigger=50K 处完全被掩盖（30/30 一致，replay 无 frozen，注入确实发生）。
+- **PhysInt 轴零效应**：cholesky 寄存器压力未到 PhysInt 瓶颈；掩蔽/传播由 ROB 深度单独决定。
+- **机理假说**：ROB 深度改变 trigger 时点的寄存器活跃年龄分布（更深 ROB → X3 在 50K cycles 处落在未消费死区）——与 ABI-class 网格 X1 的窗口内未触达同族：**trigger 时点 × 窗口深度的交互决定 AVF，不是 ROB 深度单独决定 SDC**。待 trigger 扫描 {20K,50K,80K} 验证。
+- 方法学：结论从"V110 单点 formal"升级为"窗口网格"时，**trigger 固定而微架构变化**会引入活跃度混杂——H2 类实验必须配 trigger 扫描才能下因果结论。

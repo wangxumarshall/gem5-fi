@@ -1,0 +1,27 @@
+schema_version: arm-chaos-fi/v1
+campaign_id: prf_h2_window_pilot
+injector: physreg
+config: C2
+mode: SE
+grid:
+  phys_mode: [arch_frontend]
+  # H2 window sweep (§2.1 H2): X3 fixed (the SDC/DUE reference cell, bit0)
+  # across the O3 window grid. rob x phys_int are MICROARCH AXES -> routed
+  # to platform.config_params by campaign.py (7ccc801), not fault fields.
+  target_index: [3]
+  bit: [0]
+  rob: [96, 128, 160]
+  phys_int: [128, 160, 192]
+  fault_model: [transient_bit_flip]
+  protection_model: [none]
+n_per_cell: 30
+base_seed: 20260825
+replay_pct: 5.0
+workload:
+  binary: workloads/directed/cholesky_numeric
+  golden_id: cholesky-golden-v1
+  trigger_mode: cycle
+  trigger_value: 50000
+limits:
+  max_faults: 1
+hang_timeout: 300

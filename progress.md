@@ -1602,6 +1602,49 @@ X9 全 Masked 确认（不在关键路径，位段无关）。
 **结论**：X3 在 cholesky 上的 SDC/DUE 边界精确位于 **bit1/bit2**，无过渡带（两格都是 100% 干脆翻转）。X3 是小整数累加器：bit0-1 翻转产生的数值偏移仍落在合法域（→ 静默传播）；bit2+ 翻转的偏移使它变成越界索引/坏指针（→ 崩溃）。这解释 random-bit formal 的 3.9% SDC ≈ 2/64（bit0-1 占随机位比例 3.1%，观测 3.9% 吻合）。
 **PRF 位段规律（§2.1 E 预测的细化）**：累加器类寄存器有"低位窄 SDC 窗 + 高位全 DUE"结构，且边界由 workload 的数值域决定（cholesky 的 X3 是循环计数/小偏移类）。
 
+### Phase 3 网格深化 #6: PRF H2 窗口扫描 pilot（§2.1 H2）— ROB=160 整行掩蔽发现
+
+**§2.1 H2 pilot（cholesky, C2, X3 bit0 固定, ROB {96,128,160} × PhysInt {128,160,192} × n=30 + 5% replay, 270 reps, 184s, 0 frozen）**：
+
+| PhysInt \ ROB | 96 | 128 (V110) | 160 |
+|---|---|---|---|
+| 128 | **100% SDC** | **100% SDC** | **0% SDC / 0% DUE（全 Masked）** |
+| 160 | 100% SDC | 100% SDC | 全 Masked |
+| 192 | 100% SDC | 100% SDC | 全 Masked |
+
+- **发现（出乎 §2.1 H2 预期）**：ROB=160 整行（3/3 PhysInt level）X3 bit0 翻转**完全被掩盖**（30/30 Masked, faults=1——注入确实发生）；ROB {96,128} 全网格 100% SDC，与主 formal（V110 点）一致。
+- **PhysInt 轴在本 workload 上零效应**（列内 3 level 全同）——cholesky 的寄存器压力没到 PhysInt 瓶颈，掩蔽/传播只由 ROB 深度决定。
+- **机理假说（待验证）**：ROB=160 下 trigger=50000 cycles 时 X3 的活跃窗口错位——更深 ROB 改变了 50K cycles 时刻 X3 所在 in-flight 指令的年龄分布，bit0 翻转落在"值未被消费"的死区。这与 ABI-class 网格里 X1 的 n_valid=0（窗口内未触达）同一现象族：**trigger 时点 × 微架构窗口的交互决定 AVF**。
+- c0004（V110 精确点）30/30 SDC 复现主 formal ✅；c0006 30/30 Masked 注入确实发生（faults=1）✅；replay 0 frozen ✅。
+
+**待办**：(a) ROB=160 的 trigger 扫描（{20K,50K,80K}）验证"活跃窗口错位"假说；(b) 若假说成立，H2 结论要写成"ROB 深度改变 trigger 时刻的寄存器活跃度"而非"ROB 深度本身改变 SDC 率"。
+
+### Phase 3 工具: config_params 透传链路（H2 窗口扫描前置，7ccc801）
+
+**问题**：H2 窗口扫描（§2.1 H2：ROB {96,128,160} × PhysInt {128,160,192} 固定 X3）需要 per-cell 微架构参数覆盖，但 manifest 只带 `platform.config_family`——一个 campaign 的所有 run 锁死同一 C2 配置。
+
+**链路（additive，旧 manifest 不变）**：
+- campaign.py：grid 里名为 rob/phys_int/phys_float/lq/sq 的轴是**微架构旋钮不是故障轴**——从 cell 提取进 `platform.config_params`，不会泄漏进 fault.bit_indices。
+- runner.py：`platform.config_params` 白名单校验（rob/phys_int/phys_float/lq/sq，仅 C2）后追加为 gem5 cmd 的 `--<key> <v>`。typo 在 runner 处大声失败（lsqfwd argparse 教训，79f32b1）。
+
+**真机验证**：T1 dry-run 3×3=9 cells，c0000 `{rob:96,phys_int:128}`、c0008 `{rob:160,phys_int:192}`，fault 字段干净；T2 runner 端到端跑通（`config_params: {'rob': 96, 'phys_int': 128}` → SDC faults=1）；T3 gem5 可见性（`--rob 96 --phys_int 128` → banner "ROB=96, physInt=128"），默认 C2 不变（ROB=128/physInt=160），cholesky 无注入 checksum 37621bc0a633976f 两种配置一致。
+
+H2 pilot（9 cells × n=30 + 5% replay）已启动。
+
+### Phase 3.0 补漏: CHAOSExMon 采样偏差 + 频率 bug 修复（第 9 个漏网注入器）
+
+**ExMon formal 前置审计发现**：CHAOSExMon 不在 Phase 3.0 修复的 8 注入器清单里，且同时带两类 bug：① runner 传 `--probability 1.0` + maxFaults=1 → 单故障恒命中第一个 would-succeed STXR（spinlock pilot 5/5 Crash 可能是单一确定性事件的伪影）；② `inWindow()` 硬编码 `*1000`（1GHz 假设；C0 2GHz 窗口开在 2 倍周期处，C2 2.6GHz 错位 2.6 倍）。
+
+**修复（7108428，同 Phase 3.0 模式）**：geometric(p=0.1) events_to_skip（在模式方向 eligible 过滤之后消耗——force_fail 只消耗 would-succeed STXR）+ 新 cpu Param 走 clockPeriod()（NULL 回退 1GHz 近似）。kp920_proxy.py / arm_chaos.py 挂载处传 cpu=cpu0。
+
+**真机验证**：
+- T1 tick 分散（C2 spinlock_checksum, 3 seeds）：注入 Tick 12561395 / 11370975 / 12817420 ✅（此前恒定）
+- T2 无注入对照：--probability 0，exit 0，无注入日志 ✅
+- T3 golden 回归：reg_chain f247ef3fe6f02cfd ✅
+- 重建 -j16 零 CHAOSExMon 警告 ✅
+
+exmon_formal_spinlock（n=384 + 5% replay）随后启动。诚实注记：CHAOSArmSysReg 也有 `*1000` 近似（startup() 里）——但它是 FS-only 注入器，SE formal 不受影响，且已文档标注；留待 Phase 5 FS 管线时一并修。
+
 ### Phase 3 网格深化 #5: RAT f5_substitute formal（§2.2 E）— method1 主对照实验
 
 **§2.2 formal（cholesky, C2, {X3,X9} × legal_domain_sub (F5) × n=384 + 5% replay, 768 reps, 1256s, 0 frozen）**：

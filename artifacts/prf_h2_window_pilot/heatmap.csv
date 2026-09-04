@@ -1,0 +1,10 @@
+phys_mode,target_index,bit,rob,phys_int,fault_model,protection_model,n_total,n_valid,n_inactive,n_simerror,P_SDC,P_SDC_lo,P_SDC_hi,P_DUE,P_DUE_lo,P_DUE_hi,Reach,Reach_lo,Reach_hi,frozen
+arch_frontend,3,0,96,128,transient_bit_flip,none,30,30,0,0,1.0000,0.8865,1.0000,0.0000,0.0000,0.1135,1.0000,0.8865,1.0000,0
+arch_frontend,3,0,96,160,transient_bit_flip,none,30,30,0,0,1.0000,0.8865,1.0000,0.0000,0.0000,0.1135,1.0000,0.8865,1.0000,0
+arch_frontend,3,0,96,192,transient_bit_flip,none,30,30,0,0,1.0000,0.8865,1.0000,0.0000,0.0000,0.1135,1.0000,0.8865,1.0000,0
+arch_frontend,3,0,128,128,transient_bit_flip,none,30,30,0,0,1.0000,0.8865,1.0000,0.0000,0.0000,0.1135,1.0000,0.8865,1.0000,0
+arch_frontend,3,0,128,160,transient_bit_flip,none,30,30,0,0,1.0000,0.8865,1.0000,0.0000,0.0000,0.1135,1.0000,0.8865,1.0000,0
+arch_frontend,3,0,128,192,transient_bit_flip,none,30,30,0,0,1.0000,0.8865,1.0000,0.0000,0.0000,0.1135,1.0000,0.8865,1.0000,0
+arch_frontend,3,0,160,128,transient_bit_flip,none,30,30,0,0,0.0000,0.0000,0.1135,0.0000,0.0000,0.1135,1.0000,0.8865,1.0000,0
+arch_frontend,3,0,160,160,transient_bit_flip,none,30,30,0,0,0.0000,0.0000,0.1135,0.0000,0.0000,0.1135,1.0000,0.8865,1.0000,0
+arch_frontend,3,0,160,192,transient_bit_flip,none,30,30,0,0,0.0000,0.0000,0.1135,0.0000,0.0000,0.1135,1.0000,0.8865,1.0000,0
