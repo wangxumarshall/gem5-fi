@@ -262,6 +262,11 @@ def main():
         # --protection_model; default "none" = raw escape (regression-safe).
         cmd += ["--chaos_mem", "--protection_model",
                 inj.get("protection_model", "none")]
+        # §2.17 addr_map_sub (F5, Phase 4.6): manifest fault.model
+        # stuck_at_one -> displaced-write mode (the displaced 8B write is
+        # effectively a 'stuck' wrong-location copy).
+        if inj["model"] == "stuck_at_one":
+            cmd += ["--addr_map_sub"]
     elif comp == "rat":
         # §2.2 CHAOSRenameMap (S1 patch 1). Manifest fault.model maps to the
         # --rename_mode (map_bitflip / f5_substitute / f4_field_stuck). The

@@ -340,6 +340,7 @@ if args.chaos_mem:
         rngSeed=args.rng_seed,
         maxFaults=args.max_faults,
         protectionModel=args.protection_model,
+        addrMapSub=args.addr_map_sub,
         eccLogicFault=args.ecc_logic_fault if hasattr(args,'ecc_logic_fault') else False,
         writeLog=True,
     )

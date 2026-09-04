@@ -71,6 +71,15 @@ namespace gem5 {
       // §2.17 ECC-logic fault: if true, the fault corrupts the in-CHAOSMem
       // SECDED syndrome (not the data) -> mis-correction / missed-detection.
       bool ecc_logic_fault = false;
+      // §2.17 addr_map_sub (F5, Phase 4.6): the PA->DRAM-coordinate mapping
+      // is wrong — the WRITE lands at a different legal DRAM address
+      // (mis-positioned hit, bypassing all cache tags). attackMemory reads
+      // 8 bytes at the target addr and writes them at ANOTHER legal address
+      // in the same memory (a displaced write: consumers of the ORIGIN
+      // address read stale bytes, consumers of the WRONG address read the
+      // displaced data). E3 proxy: no real channel/rank/bank geometry —
+      // the 'legal coordinate' is simply another address in range.
+      bool addr_map_sub = false;
       // §2.17 internal SECDED codec (8-byte data word + 1-byte syndrome).
       // encode: syndrome = parity(data) (a toy 8-bit Hamming-like code).
       // decode: recompute syndrome; XOR diff = error position. This is a

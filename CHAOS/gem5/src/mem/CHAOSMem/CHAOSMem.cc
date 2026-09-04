@@ -35,6 +35,7 @@ namespace gem5 {
     target_end(p.addr_end),
     protection_model(p.protectionModel),
     ecc_logic_fault(p.eccLogicFault),
+    addr_map_sub(p.addrMapSub),
     attackEvent([this]{ this->attackMemory(); }, name()),
     periodicCheck([this] { this->checkPermanent(); }, name() + ".periodicCheck"),
     stats(nullptr)
@@ -304,6 +305,55 @@ namespace gem5 {
         // the old dist spanned [start, end-1] = excluded the final byte.
         std::uniform_int_distribution<Addr> dist(target_start, target_end);
         Addr target_addr = dist(rng);
+
+        // §2.17 addr_map_sub (F5, Phase 4.6): displaced WRITE — the PA->DRAM
+        // mapping error sends this write to a WRONG (but legal) address:
+        // read 8 bytes at target, write them at another legal address.
+        // Consumers of the ORIGIN address later read stale bytes; consumers
+        // of the WRONG address read displaced data. Bypasses all cache tags
+        // (direct backing-store access). E3 proxy: no channel/rank/bank
+        // geometry — 'legal coordinate' = another address in [start,end].
+        if (addr_map_sub) {
+            try {
+                // pick a wrong address at least 64B away (different cache
+                // line, so the displaced write isn't instantly coherent)
+                Addr wrong_addr;
+                do {
+                    wrong_addr = dist(rng);
+                } while (target_addr / 64 == wrong_addr / 64);
+                uint8_t data8[8];
+                RequestPtr rreq = std::make_shared<Request>(
+                    target_addr, 8, 0, 0);
+                PacketPtr rp = new Packet(rreq, MemCmd::ReadReq);
+                rp->dataStatic(data8);
+                memory->access(rp);
+                RequestPtr wreq = std::make_shared<Request>(
+                    wrong_addr, 8, 0, 0);
+                PacketPtr wp = new Packet(wreq, MemCmd::WriteReq);
+                wp->dataStatic(data8);
+                memory->access(wp);
+                ++faults_injected_count;
+                if (write_log) {
+                    *(log_stream->stream()) << "Tick: " << curTick()
+                        << ", origin addr: " << target_addr
+                        << ", wrong addr: " << wrong_addr
+                        << ", mode=addr_map_sub (displaced 8B write)"
+                        << ", faults_injected: " << faults_injected_count
+                        << std::endl;
+                }
+                delete rp; delete wp;
+            } catch (const std::exception &e) {
+                if (write_log)
+                    *(log_stream->stream()) << "Error: addr_map_sub "
+                                            << e.what() << std::endl;
+            }
+            if (max_faults != 0 && faults_injected_count >= max_faults) return;
+            unsigned dist_cycles = inter_fault_tick_dist(rng);
+            if (dist_cycles < 1) dist_cycles = 1;
+            Tick next = curTick() + dist_cycles * tick_to_clock_ratio;
+            if (next <= last_tick * tick_to_clock_ratio || last_tick == 0) scheduleAttack(next);
+            return;
+        }
 
         // §2.17 ecc_logic_fault: corrupt the in-CHAOSMem SECDED syndrome (not
         // the data byte) -> mis-correction / missed-detection. Uses an 8-byte

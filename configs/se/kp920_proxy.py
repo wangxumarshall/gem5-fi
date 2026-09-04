@@ -101,6 +101,8 @@ p.add_argument("--phys_reg_class", default="integer",
 p.add_argument("--vec_lane_width", type=int, default=32, choices=[8, 16, 32, 64])
 p.add_argument("--vec_lane_offset", type=int, default=-1)
 p.add_argument("--chaos_mem", action="store_true")
+p.add_argument("--addr_map_sub", action="store_true",
+               help="§2.17 F5: CHAOSMem displaced write (addr map substitution)")
 # §1.2 protection-aware modeling (CHAOSMem's protectionModel; DRAM = secded
 # per Huawei DDR ECC proxy). Same surface as arm_chaos.py — runner.py passes
 # it on the memory route.
@@ -356,6 +358,7 @@ if args.chaos_mem:
         rngSeed=args.rng_seed,
         maxFaults=args.max_faults,
         protectionModel=args.protection_model,
+        addrMapSub=args.addr_map_sub,
         writeLog=True,
     )
 
