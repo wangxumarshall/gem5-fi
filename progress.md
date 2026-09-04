@@ -1837,3 +1837,7 @@ branchy_reduce 上 X19 的 squash 回滚事件流为空（callee-saved 类不频
 **cholesky F6 curve（{1,2,4,8} × n=96 + 5% replay, 384 reps, 151s, 0 frozen）**：DUE 5.2% / 3.1% / 8.3% / 5.2%（Masked 主导，CI 全重叠——无单调趋势），P_SDC 全 0。
 
 **F6 相位敏感性双 workload 定论**：madd_chain 100% DUE 平顶 + cholesky ~5% DUE 平顶——**两个极端 workload 都不呈现 method3 现场的相位敏感性**。结论：gem5 O3 的 wake_phase 代理（唤醒广播延迟）不捕获 method3 的相位竞态机理（那是 LSU 转发通路的相位，不是调度唤醒的相位）。诚实标注 E3 代理边界：method3 相位签名需要 LSQFwd 侧的转发相位偏移（forward-decision 时序）复现，IQ 侧的调度相位不是同一机理。**IQ 单元最终图谱（三模式 × 两 workload）：0% SDC everywhere——唤醒类故障无静默数据损坏通路**。
+
+### Phase 4.3 收口
+
+IQ F5/F6 完整闭环（9db60d6 实现 + 4aee770 madd formal + 9991185 cholesky 曲线 + f012389 findings/task_plan）。**IQ 单元三模式图谱定格：0% SDC everywhere**。Phase 4 前三优先级（spec_leak / fwd_source_sub / IQ F5+F6）全部完成，剩 4.4 TLB（FS 前置）、4.5 SysReg、4.6 Mem addr_map_sub。
