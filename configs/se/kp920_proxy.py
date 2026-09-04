@@ -527,6 +527,7 @@ if args.chaos_exmon:
     # (ISA::handleLockedWrite calls maybeCorrupt on the STXR verdict).
     ex = CHAOSExMon(
         isa=cpu0.isa[0],
+        cpu=cpu0,
         mode=args.exmon_mode,
         probability=args.probability,
         firstClock=args.exmon_first_clock,

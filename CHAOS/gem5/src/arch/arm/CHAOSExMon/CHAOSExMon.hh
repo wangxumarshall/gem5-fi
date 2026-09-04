@@ -8,7 +8,7 @@
 #include "sim/sim_object.hh"
 #include "base/output.hh"
 #include "base/types.hh"
-#include "cpu/base.hh"  // BaseISA forward via params
+#include "cpu/base.hh"  // BaseCPU (clockPeriod via ClockedObject), BaseISA forward
 
 namespace gem5
 {
@@ -35,6 +35,7 @@ class CHAOSExMon : public SimObject
     // isa (raw; SELF-ATTACH: ctor sets isa->chaosExMon = this, same pattern
     // as CHAOSArmSysReg). handleLockedWrite reaches us via isa->chaosExMon.
     ArmISA::ISA *isa = nullptr;
+    BaseCPU *cpu = nullptr;  // for clockPeriod-correct inWindow (may be NULL)
     Mode fi_mode;
     double probability;
     uint64_t first_clock, last_clock;
@@ -42,6 +43,10 @@ class CHAOSExMon : public SimObject
     uint64_t faults_injected_count = 0;
     uint64_t rng_seed;
     bool write_log;
+    // Sampling-bias fix (findings.md Phase 2.2/3.0): number of eligible
+    // STXR events to skip before the first injection, drawn geometric(0.1)
+    // from the seed, so maxFaults=1 lands on a seed-dependent event.
+    uint64_t events_to_skip = 0;
 
     std::mt19937 rng;
     std::random_device rd;
