@@ -59,11 +59,21 @@ CAMPAIGN_UNIT = {
     "l1d_reduce": "l1d", "l1d_formal": "l1d",
     "exec_formal": "exec", "exec_regchain": "exec",
     "iq_formal": "iq", "iq_cholesky": "iq",
+    "iq_f5": "iq", "iq_f6": "iq", "iq_f5f6": "iq",
     "rob_formal": "rob", "rob_cholesky": "rob",
     "rat_formal": "rat", "rat_cholesky": "rat",
-    "ras_regchain": "ras",
-    "bpu_branchy": "bpu",
-    "decode_regchain": "decode",
+    "rat_f5": "rat",
+    "freelist_formal": "freelist",
+    "specleak": "rat",          # §2.3 spec_leak lives in the rename rollback path
+    "fwdsrc": "lsq_fwd",        # §2.4 fwd_source_sub (F5 wrong-source forward)
+    "addrmap": "memory",        # §2.17 addr_map_sub (F5 displaced write)
+    "exmon_formal": "exmon",
+    "prf_h2": "physreg", "prf_bitseg": "physreg", "prf_abiclass": "physreg",
+    "ras_regchain": "ras", "ras_formal": "ras",
+    "bpu_branchy": "bpu", "bpu_formal": "bpu",
+    "decode_regchain": "decode", "decode_formal": "decode",
+    "l1dfwd": "l1d_fwd",
+    "fpu_formal_gemm": "fsu",
 }
 
 def unit_of(campaign):
@@ -96,12 +106,9 @@ def main():
         p_sdc = f"{float(r['P_SDC'])*100:.1f}% [{float(r['P_SDC_lo'])*100:.1f},{float(r['P_SDC_hi'])*100:.1f}]"
         p_due = f"{float(r['P_DUE'])*100:.1f}% [{float(r['P_DUE_lo'])*100:.1f},{float(r['P_DUE_hi'])*100:.1f}]"
         reach = f"{float(r['Reach'])*100:.1f}%"
-        # identify the unit from the campaign name
-        unit = ""
-        for key in ESCAPE_MECHANISM:
-            # match campaign name OR known campaign-name -> unit aliases
-            if key in r["_campaign"]:
-                unit = key; break
+        # identify the unit from the campaign name (aliases first, then
+        # direct key match — unit_of() centralizes this)
+        unit = unit_of(r["_campaign"])
         mech = ESCAPE_MECHANISM.get(unit, "? (unit not in map)")
         prot = r.get("protection_model", "none")
         cell_desc = " ".join(f"{k}={v}" for k, v in r.items()
@@ -117,11 +124,7 @@ def main():
               "|---|---|---|---|---|---|"]
     unit_best = {}
     for r in rows:
-        unit = ""
-        for key in ESCAPE_MECHANISM:
-            # match campaign name OR known campaign-name -> unit aliases
-            if key in r["_campaign"]:
-                unit = key; break
+        unit = unit_of(r["_campaign"])
         if not unit:
             continue
         contrib = float(r["P_SDC"]) * float(r["Reach"])
