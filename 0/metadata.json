@@ -1,0 +1,123 @@
+{
+  "cli_version": "0.10.2",
+  "checkpoint_id": "01M1N6G9JFD9XG2NM9P2V9T9ZH",
+  "session_id": "05e117a6-5fb8-42b2-a82d-9de99f1485ab",
+  "strategy": "manual-commit",
+  "created_at": "2026-09-04T03:19:04.894524805Z",
+  "branch": "fix/fi-tool-correctness",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "CHAOS/gem5/src/arch/arm/CHAOSExMon/CHAOSExMon.cc",
+    "CHAOS/gem5/src/arch/arm/CHAOSExMon/CHAOSExMon.hh",
+    "CHAOS/gem5/src/arch/arm/CHAOSExMon/CHAOSExMon.py",
+    "configs/se/arm_chaos.py",
+    "configs/se/kp920_proxy.py"
+  ],
+  "agent": "Claude Code",
+  "model": "glm-5.3",
+  "turn_id": "fad6c298e0af",
+  "checkpoint_transcript_start": 134,
+  "transcript_lines_at_start": 134,
+  "compact_transcript_start": 19,
+  "token_usage": {
+    "input_tokens": 3419263,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 12743,
+    "api_call_count": 44
+  },
+  "skill_events_version": 1,
+  "skill_events": [
+    {
+      "id": "prompt-skill-claude-code-goal-2026-09-04T02:42:19.385074275Z",
+      "event_type": "prompt_invocation",
+      "skill": {
+        "name": "goal"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "prompt_slash_command",
+        "confidence": "explicit"
+      },
+      "turn_id": "f8c54866c7fb",
+      "timestamp": "2026-09-04T02:42:19.385074275Z",
+      "native": {
+        "command": "/goal"
+      },
+      "collapse": {
+        "target": "user_message",
+        "label": "/goal",
+        "default_collapsed": true
+      }
+    }
+  ],
+  "initial_attribution": {
+    "calculated_at": "2026-09-04T03:19:04.789711389Z",
+    "agent_lines": 39,
+    "agent_removed": 3,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 39,
+    "total_lines_changed": 42,
+    "agent_percentage": 100,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 531,
+      "user_lines_removed": 4,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".plan.md": 61,
+        "CHAOS/gem5/configs/ruby/CHAOSNoC_test.py": 14,
+        "CHAOS/gem5/configs/ruby_chi_test.py": 29,
+        "CHAOS/gem5/configs/ruby_noctest_launcher.py": 16,
+        "artifacts/bpu_branchy_pilot/heatmap.csv": 2,
+        "artifacts/bpu_branchy_pilot/summary.md": 19,
+        "artifacts/decode_regchain_pilot/heatmap.csv": 2,
+        "artifacts/decode_regchain_pilot/summary.md": 19,
+        "artifacts/exec_regchain_pilot/heatmap.csv": 2,
+        "artifacts/exec_regchain_pilot/summary.md": 19,
+        "artifacts/exmon_spinlock_pilot/heatmap.csv": 2,
+        "artifacts/exmon_spinlock_pilot/summary.md": 19,
+        "artifacts/fpu_neon_pilot/heatmap.csv": 2,
+        "artifacts/fpu_neon_pilot/summary.md": 19,
+        "artifacts/iq_cholesky_pilot/heatmap.csv": 2,
+        "artifacts/iq_cholesky_pilot/summary.md": 19,
+        "artifacts/l1d_formal_reduce/heatmap.csv": 2,
+        "artifacts/l1d_formal_reduce/summary.md": 19,
+        "artifacts/l1d_reduce_pilot/heatmap.csv": 2,
+        "artifacts/l1d_reduce_pilot/summary.md": 19,
+        "artifacts/lsqfwd_fwd_pilot/heatmap.csv": 2,
+        "artifacts/lsqfwd_fwd_pilot/summary.md": 19,
+        "artifacts/lsqfwd_regchain_pilot/heatmap.csv": 2,
+        "artifacts/lsqfwd_regchain_pilot/summary.md": 19,
+        "artifacts/mem_regchain_pilot/heatmap.csv": 2,
+        "artifacts/mem_regchain_pilot/summary.md": 19,
+        "artifacts/pilot_physreg_x3/heatmap.csv": 2,
+        "artifacts/pilot_physreg_x3/summary.md": 19,
+        "artifacts/prf_formal_cholesky/heatmap.csv": 3,
+        "artifacts/prf_formal_cholesky/summary.md": 20,
+        "artifacts/prf_regchain_pilot/heatmap.csv": 3,
+        "artifacts/prf_regchain_pilot/summary.md": 20,
+        "artifacts/ras_regchain_pilot/heatmap.csv": 2,
+        "artifacts/ras_regchain_pilot/summary.md": 19,
+        "artifacts/rat_cholesky_pilot/heatmap.csv": 3,
+        "artifacts/rat_cholesky_pilot/summary.md": 20,
+        "artifacts/rat_formal_cholesky/heatmap.csv": 3,
+        "artifacts/rat_formal_cholesky/summary.md": 20,
+        "artifacts/rob_cholesky_pilot/heatmap.csv": 2,
+        "artifacts/rob_cholesky_pilot/summary.md": 19,
+        "artifacts/rob_formal_cholesky/heatmap.csv": 2,
+        "artifacts/rob_formal_cholesky/summary.md": 19,
+        "task_plan.md": 4
+      },
+      "user_removed_per_file": {
+        "task_plan.md": 4
+      }
+    }
+  ]
+}
