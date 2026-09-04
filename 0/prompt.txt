@@ -1,0 +1,5 @@
+/goal 严格按照task_plan.md中的计划执行。要求及时更新findings.md、progress.md。
+
+---
+
+/goal 严格按照task_plan.md中的计划执行。要求及时更新findings.md、progress.md。
