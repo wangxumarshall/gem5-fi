@@ -207,3 +207,18 @@ CHAOSArmSysReg 也有 `*1000`（startup()，FS-only，SE formal 不受影响，�
 - **PhysInt 轴零效应**：cholesky 寄存器压力未到 PhysInt 瓶颈；掩蔽/传播由 ROB 深度单独决定。
 - **机理假说**：~~ROB 深度改变 trigger 时点的寄存器活跃年龄分布~~ **已证伪**——trigger 扫描 {20K, 50K, 80K}（覆盖 cholesky 全程）× ROB=160 × PhysInt {128,160,192} 全部 100% Masked（各 30/30，Reach=100%，faults=1，0 frozen）。掩蔽不是注入时点伪影，是 **ROB 深度本身的稳定阈值效应**（≤128 → 100% SDC；160 → 0%），对 PhysInt 与 trigger 均不敏感。机理 open（候选：深 ROB 下关键路径调度变化使错误被重算覆盖/落在 squash 边界；需 readtrace 级分析）。
 - 方法学：结论从"V110 单点 formal"升级为"窗口网格"时，**trigger 固定而微架构变化**会引入活跃度混杂——H2 类实验必须配 trigger 扫描才能下因果结论（本次扫描做了，假说被诚实证伪）。
+
+## Phase 4.1: spec_leak（method1 投机泄漏）定论（2026-09-04）
+
+**模式实现**（1ca0346）：机理 = `Rename::doSquash` 抑制一次 HB 回滚（跳过 setEntry 恢复 + freeingInProgress push），错误路径 µop 的目的寄存器保持映射——其 wrong-path 值泄漏进正确路径。采样偏差修复内置（geometric 0.1）。
+
+**formal 结果（branchy_reduce, C2, n=384/cell）**：
+| cell | 结局 | 解读 |
+|---|---|---|
+| X3 | 100% Masked, Reach=100% | 泄漏值被正确路径重写覆盖 |
+| X9 | 100% Masked, Reach=88.5%（44 Inactive） | 同上 |
+| X19（callee-saved） | 384/384 Inactive（回滚流不可达） | 长活类不频繁重定义 → squash 流里没有 X19 |
+
+**核心发现——"可达性 × 存活性"互斥**：短命寄存器（X3/X9）回滚可达但泄漏值被重写；长活寄存器（X19）泄漏可存活但回滚流不可达。SE 基准 workload 上单次回滚抑制 **100% Masked（n=384 上界 1%）**。method1 的"投机泄漏→SDC"通路需要 wrong-path 写 X19 类的 workload（mispredict 密集调用流）或 FS 场景——SE 侧定格为阴性。
+
+**rename 子系统最终格局（§2.2/§2.3 四注入点）**：map_bitflip 95.8% DUE / f5_substitute 59.7% DUE + 40% 自愈 / mark_free 72-77% DUE / spec_leak 100% Masked——**全部 0% SDC**。"历史残留→SDC"机理在 SE 基准 workload 族上不成立（需要更精确的触发条件对齐）。
