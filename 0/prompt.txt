@@ -1,0 +1,2 @@
+/planning-with-files:planning-with-files 作为国际顶级的cpu核架构师和cpu工程师，以及linux专家，深度研究当前这个设备，研究cpu核的所有微架构核cpu核的基本信息，并在docs/cpu目 
+  录下撰写研究成果的md文档 。全部的cpu信息
