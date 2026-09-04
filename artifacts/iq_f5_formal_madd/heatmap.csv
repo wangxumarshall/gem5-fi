@@ -1,0 +1,2 @@
+target_index,fault_model,protection_model,n_total,n_valid,n_inactive,n_simerror,P_SDC,P_SDC_lo,P_SDC_hi,P_DUE,P_DUE_lo,P_DUE_hi,Reach,Reach_lo,Reach_hi,frozen
+0,legal_domain_sub,none,384,384,0,0,0.0000,0.0000,0.0099,1.0000,0.9901,1.0000,1.0000,0.9901,1.0000,0

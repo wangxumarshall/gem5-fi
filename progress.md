@@ -1809,3 +1809,25 @@ branchy_reduce 上 X19 的 squash 回滚事件流为空（callee-saved 类不频
 | **fwd_source_sub（错源，本 formal）** | **37.6% [32.8,42.6]** | **57.4% [52.4,62.3]** | **DUE+SDC 双高，0 Masked** |
 
 **核心发现**：**同一单元（LSQ 转发路径）上，故障的"形态"比"位置"更决定 SDC 率**——单 bit 翻转 4.7% SDC vs 整字错源 37.6% SDC（8 倍）。错源转发把 load 喂给完全错误的值：checksum 消费者看到"合法但错误"的数据（合法域内错误→SDC 主升，符合 PRF/RAT 网格的"合法域内错误"规律）。**§4.2 保护排序直接素材：LSQ 转发路径的错源检测（forward-source age/ID 校验）比 ECC 更针对此通路**。
+
+### Phase 4.3: IQ F5 src_ready_bitflip + F6 wake_phase 实现 + formal — madd_chain 全 DUE，相位不敏感
+
+**实现（9db60d6）**：CHAOSIQ 超越 wake_omit 的两个 deferred 模式：
+- **F5 src_ready_bitflip（错源唤醒）**：一次 wakeDependents 事件中，额外从**另一个寄存器的依赖链**弹出一个 not-ready 依赖者并标记就绪——它立即发射并读到 stale physreg。依赖图手术在 InstructionQueue::wakeDependents 内完成（它拥有 dependGraph/addIfReady/scoreboard，CHAOSIQ 纯门控不暴露内部）。victim 资格：未 squash 且 readyRegs < numSrcRegs；64-probe 采样；不合格 victim 原样放回（LIFO 链序保持）。
+- **F6 wake_phase（相位塌方）**：一次唤醒广播延迟 phaseOffset 拍（DelayedWakeEvent AutoDelete，CPU 时钟调度）——method3 "加 no-op → 触发率塌方" 签名。仅延迟（advance = 过去唤醒 = no-op，E3 代理限制文档化）。
+- shouldOmitWake 模式门控（仅 WakeOmit）——既有 wake_omit campaign 零回归。
+
+**验证**：T1 触发+分散（completed_sn 69132/69116）；两模式 cholesky 上 Masked（宽裕调度吸收单次错乱）；T2 golden f247ef3fe6f02cfd；T3 wake_omit 旧行为不变（注入 1 次后 Hang，75.3% formal 行为）。提交前真机跑抓出两处接线滑笔（phaseOffset kwarg 重复 + --iq_phase_offset argparse 重复）。
+
+**pilot（madd_chain, n=5）**：F5/F6 双双 5/5 Crash——依赖链密集 workload 上唤醒错乱致命。
+
+**§2.5 formal（madd_chain, C2, n=384 + 5% replay, 62s, 0 frozen）**：
+
+| 模式 | P_SDC | P_DUE | 结局 |
+|---|---|---|---|
+| F5 src_ready_bitflip | 0% [0,1.0] | **100% [99.0,100.0]** | 全 Crash |
+| F6 wake_phase offset=1/2/4/8（n=96/cell） | 0% [0,3.8] | **100% [96.2,100.0]** ×4 | 全 Crash，**相位平顶** |
+
+**核心发现**：
+1. **IQ 唤醒类故障在依赖密集 workload 上 100% DUE、0 SDC、相位不敏感**（offset 1→8 无过渡带——与 method3 现场的"相位敏感"相反，因为 madd_chain 的依赖链无旁路，任何唤醒错乱都直接崩溃而非静默错序）。method3 的相位敏感性需要**有旁路调度的 workload**（cholesky 类）——cholesky T1 已显示 Masked 方向。**IQ 三模式图谱：wake_omit（Hang 75.3%）/ src_ready_bitflip（Crash 100%）/ wake_phase（Crash 100%，平顶）——全是"不可用"结局，无 SDC 通路**（IQ 错乱不产生静默数据损坏，只产生死锁或崩溃）。
+2. workload 敏感性轴确认：cholesky（宽裕）Masked vs madd_chain（依赖密）100% DUE——**唤醒错乱的结局由 workload 的依赖密度决定**。

@@ -1,0 +1,25 @@
+schema_version: arm-chaos-fi/v1
+campaign_id: iq_f5f6_pilot
+injector: iq
+config: C2
+mode: SE
+grid:
+  # §2.5 Phase 4.3 pilot: F5 wrong-source wakeup + F6 phase-delay curve.
+  # fault.model legal_domain_sub -> src_ready_bitflip;
+  # intermittent_burst -> wake_phase with bit_indices[0] = offset cycles.
+  # madd_chain = dependency-dense (deep dependence chains, wake-sensitive).
+  target_index: [0]
+  bit: []
+  fault_model: [legal_domain_sub, intermittent_burst]
+  protection_model: [none]
+n_per_cell: 5
+base_seed: 20260825
+replay_pct: 0
+workload:
+  binary: workloads/directed/madd_chain
+  golden_id: maddchain-golden-v1
+  trigger_mode: cycle
+  trigger_value: 20000
+limits:
+  max_faults: 1
+hang_timeout: 300

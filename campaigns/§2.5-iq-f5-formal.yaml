@@ -1,0 +1,23 @@
+schema_version: arm-chaos-fi/v1
+campaign_id: iq_f5_formal_madd
+injector: iq
+config: C2
+mode: SE
+grid:
+  # §2.5 F5 src_ready_bitflip formal (Phase 4.3): madd_chain (dep-dense,
+  # pilot 5/5 Crash) + cholesky (slack, masked at T1).
+  target_index: [0]
+  bit: []
+  fault_model: [legal_domain_sub]
+  protection_model: [none]
+n_per_cell: 384
+base_seed: 20260825
+replay_pct: 5.0
+workload:
+  binary: workloads/directed/madd_chain
+  golden_id: maddchain-golden-v1
+  trigger_mode: cycle
+  trigger_value: 20000
+limits:
+  max_faults: 1
+hang_timeout: 300
