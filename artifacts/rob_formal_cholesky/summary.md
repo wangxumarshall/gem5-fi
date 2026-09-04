@@ -1,7 +1,7 @@
-# Campaign `iq_formal_cholesky` — summary
+# Campaign `rob_formal_cholesky` — summary
 
-- injector: `iq`  config: `C2`  mode: `SE`
-- cells: 1  reps done: 384  wall: 16904s
+- injector: `rob`  config: `C2`  mode: `SE`
+- cells: 1  reps done: 384  wall: 241s
 - workload: `workloads/directed/cholesky_numeric`  golden_id: `cholesky-golden-v1`
 - base_seed: 20260825  (rep seed = base + cell_ordinal*1000 + rep)
 
@@ -9,7 +9,7 @@
 
 | cell | n | n_valid | P_SDC [CI] | P_DUE [CI] | Reach [CI] | frozen |
 |---|---|---|---|---|---|---|
-| phys_mode=arch_frontend target_index=0 fault_model=transient_bit_flip protection_model=none | 384 | 384 | 0.0% [0.0,1.0] | 75.3% [70.7,79.3] | 100.0% [99.0,100.0] | no |
+| phys_mode=arch_frontend target_index=0 fault_model=transient_bit_flip protection_model=none | 384 | 384 | 0.0% [0.0,1.0] | 0.0% [0.0,1.0] | 100.0% [99.0,100.0] | no |
 
 ## Honesty notes
 

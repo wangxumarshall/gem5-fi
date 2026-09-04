@@ -1735,3 +1735,17 @@ PRF X3 的跨 workload 复现有特殊意义：cholesky 上 X3 是低频消费�
 **真机验证**：T1 冒烟 2 reps（都是真 Hang）：2/2 正确分类 Hang，campaign 结束后 0 个 gem5 残留（修复前每个 hang 漏一个）。正常路径 CompletedProcess 字段兼容。
 
 **早期信号（记录在案）**：修正路由 + 分散采样后的 IQ wake_omit 前 2 reps 全 Hang——旧"全 Masked"是 comp_map 改道 + 首事件偏差的双重伪影。IQ 的真实画像可能是 Hang 主导（唤醒丢失→依赖死锁）。
+
+### Phase 3 网格深化 #8: IQ formal 修正重跑（comp_map+采样修复后）— 结论大反转：Hang 主导 75.3%
+
+**§2.5 IQ formal（cholesky, C2, wake_omit, n=384 + 5% replay, 修正路由+分散采样, ~4h, 0 frozen）**：
+
+| 指标 | 旧（双重伪影） | 新（修正后） |
+|---|---|---|
+| P_Hang | 0% | **75.3% [70.7,79.3]**（289/384） |
+| P_Masked | 100% | 24.7%（95/384） |
+| P_SDC | 0% | 0% [0,1.0] |
+
+- **旧"IQ wake_omit 全 Masked"彻底作废**（双重伪影：comp_map 改道成 RAT map_bitflip + 首事件采样偏差）。真实画像：**wake_omit 丢唤醒信号→依赖指令永不 ready→流水线死锁→Hang 主导**（O3 无 watchdog，表现为无限挂起而非崩溃）——与 wake_omit 语义完全自洽。
+- §4.1 逃逸分解更新：IQ wake_omit → Hang 75.3%（C 类：不可用、watchdog 可检测）。IQ 的 F5 子模式（src_ready_bitflip / tag_sub——错源唤醒而非丢唤醒）才是潜在 SDC 通路，Phase 4 待做。
+- 方法学：Hang 类结局在旧工具下会以"泄漏孤儿进程 + 永不推进"伪装——killpg 修复（7abc72e）是本结果可信的前提。

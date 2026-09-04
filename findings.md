@@ -145,7 +145,8 @@ CHAOSArmSysReg 也有 `*1000`（startup()，FS-only，SE formal 不受影响，�
 | RAT X3 | 0.3% | 95.8% | Crash | 有效（天然分散） |
 | Decode dest_reg_sub | 0.3% | **24.1%** | Masked 75.7% | **修正**（旧全 Masked 是伪影） |
 | LSQFwd byte_flip | 4.7% | 27.6% | Masked 67.7% | **修正**（旧 100% DUE 是 argparse 伪影） |
-| ROB D=0 / IQ | — | — | — | **作废**（comp_map bug：实际注入的是 RAT map_bitflip X0，8e01219 修复，重跑中） |
+| ROB D=0 entry_bitflip | 0% | 0% | Masked | **重跑有效确认**（真挂 CHAOSROB，384/384） |
+| IQ wake_omit | 0% | 0%（Hang 75.3%） | **Hang 主导** | **大反转**（修正路由后 289/384 Hang——丢唤醒→死锁；旧"全 Masked"是双重伪影） |
 | BPU / Exec | 0% | 0% | Masked | **确认**（单元级有效，路由核实无恙） |
 | RAS exc_suppress | 0% | 0% | Masked | n=357（24 Inactive） |
 | **ExMon stxr_force_fail** | 0% | **100%** | **DUE** | **有效（修复后分散采样）**——STXR 语义破坏全致命 |
