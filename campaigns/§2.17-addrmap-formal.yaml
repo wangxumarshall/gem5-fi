@@ -1,0 +1,25 @@
+schema_version: arm-chaos-fi/v1
+campaign_id: addrmap_formal_fwd
+injector: memory
+config: C2
+mode: SE
+grid:
+  # §2.17 addr_map_sub formal (Phase 4.6): F5 displaced write.
+  # fault.model stuck_at_one -> runner maps to --addr_map_sub.
+  # fwd_checksum_kernel = store->load write-back-verify workload (the
+  # §2.17 D spec: 写后立即读回验证 — most likely to expose displaced writes).
+  target_index: [0]
+  bit: []
+  fault_model: [stuck_at_one]
+  protection_model: [none]
+n_per_cell: 384
+base_seed: 20260825
+replay_pct: 5.0
+workload:
+  binary: workloads/directed/fwd_checksum_kernel
+  golden_id: fwdchecksum-golden-v1
+  trigger_mode: cycle
+  trigger_value: 1000
+limits:
+  max_faults: 1
+hang_timeout: 300

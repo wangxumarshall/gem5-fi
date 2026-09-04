@@ -1841,3 +1841,11 @@ branchy_reduce 上 X19 的 squash 回滚事件流为空（callee-saved 类不频
 ### Phase 4.3 收口
 
 IQ F5/F6 完整闭环（9db60d6 实现 + 4aee770 madd formal + 9991185 cholesky 曲线 + f012389 findings/task_plan）。**IQ 单元三模式图谱定格：0% SDC everywhere**。Phase 4 前三优先级（spec_leak / fwd_source_sub / IQ F5+F6）全部完成，剩 4.4 TLB（FS 前置）、4.5 SysReg、4.6 Mem addr_map_sub。
+
+### Phase 4.6: CHAOSMem addr_map_sub（F5 错位写）实现 + formal — DRAM 层全形态不可达
+
+**实现（7d21c07）**：attackMemory 新 addr_map_sub 分支——错位写（displaced write）：读 target 地址 8 字节，写到**另一个合法地址**（至少隔一个 cache line，避免瞬间一致性覆盖）。绕过所有 cache tag（直接后备存储访问）。E3 诚实标注：无 channel/rank/bank 几何，"合法坐标"= 同一内存范围内的另一地址。验证时抓出 ctor 初始化 replace 静默未生效 bug（缩进不匹配——首次构建的 addr_map_sub 恒 false，T1 的 bit_flip log 行暴露）。
+
+**§2.17 formal（fwd_checksum_kernel, C2, n=384 + 5% replay, 129s, 0 frozen）**：**384/384 Masked，P_SDC=0% [0,1.0]**。
+
+**定论——DRAM 层故障形态无关律**：raw 字节翻转（d88dcc7）与 F5 错位写（本 formal）**同为 100% Masked**——工作集驻留 L1/L2 的 SE workload 上，DRAM 后备存储层的任何扰动（无论形态）都不可达。§2.17 的"地址映射错误预期高且极静默"（设计文档 E 项）**在缓存驻留 workload 上不成立**——需要工作集远超缓存（STREAM 类大数组）的 workload 才能暴露。这是 §4.1 逃逸分解的"存储层级掩蔽梯度"定论的第三数据点：L1D 命中数据（97.7% SDC）> L1/L2 掩盖的 DRAM 后备（0% SDC，bit 翻转与错位写皆然）。
