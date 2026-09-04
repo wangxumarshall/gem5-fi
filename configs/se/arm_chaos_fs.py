@@ -265,13 +265,22 @@ if args.restore_checkpoint:
         # the tick file lives next to the checkpoint dir (m5out/cpt.<tick>
         # has no tick file inside; the sibling '<tick>.tick' under m5out
         # holds it — gem5 writes 'm5out/cpt.<tick>' plus a '<tick>.tick')
-        tick_file = ckpt.parent / (ckpt.name.replace("cpt.", "") + ".tick")
-        if not tick_file.exists():
-            # fallback: any .tick file in the checkpoint's parent
-            cands = sorted(ckpt.parent.glob("*.tick"))
-            tick_file = cands[-1] if cands else None
-        if tick_file and tick_file.exists():
-            ckpt_tick = int(open(tick_file).read().strip())
+        # The tick is embedded in the checkpoint dir name (cpt.<tick>);
+        # the .tick file variant is only written by some gem5 versions.
+        ckpt_tick = None
+        if ckpt.name.startswith("cpt."):
+            try:
+                ckpt_tick = int(ckpt.name[4:])
+            except ValueError:
+                pass
+        if ckpt_tick is None:
+            tick_file = ckpt.parent / (ckpt.name.replace("cpt.", "") + ".tick")
+            if not tick_file.exists():
+                cands = sorted(ckpt.parent.glob("*.tick"))
+                tick_file = cands[-1] if cands else None
+            ckpt_tick = int(open(tick_file).read().strip()) if (
+                tick_file and tick_file.exists()) else None
+        if ckpt_tick is not None:
             print(f"[arm_chaos_fs] checkpoint tick: {ckpt_tick} "
                   f"(injector windows rebased relative to it)")
             # Rebase: firstClock stays a cycle count but the injectors'

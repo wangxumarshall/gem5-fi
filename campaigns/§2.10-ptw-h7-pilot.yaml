@@ -1,0 +1,27 @@
+schema_version: arm-chaos-fi/v1
+campaign_id: ptw_h7_pilot
+injector: ptw
+config: C0-FS
+mode: FS
+grid:
+  # §2.10 H7 (Phase 5.3): PTW PTE fault with ECC on/off contrast.
+  # fault.model transient_bit_flip -> single_bit_xor; stuck_at_zero ->
+  # clear_valid (H7 conditionalValidBit). protection_model none -> ECC
+  # OFF (spurious>0); secded -> ECC ON (spurious~0) — the H7 two arms.
+  target_index: [0]
+  bit: []
+  fault_model: [transient_bit_flip]
+  protection_model: [none, secded]
+n_per_cell: 5
+base_seed: 20260825
+replay_pct: 0
+workload:
+  # FS: the workload is the kernel itself (boot). PTW walk density during
+  # kernel boot is 0.069% (design doc §2.10 F) — enough for sampling.
+  binary: workloads/directed/cholesky_numeric
+  golden_id: cholesky-golden-v1
+  trigger_mode: cycle
+  trigger_value: 500000
+limits:
+  max_faults: 1
+hang_timeout: 1800

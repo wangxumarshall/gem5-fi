@@ -1876,3 +1876,14 @@ FS run（kernel 5.15.36 ubuntu, Atomic, gem5-fs deps）：`armtlb_injections.log
 CHAOSPTW 已 cherry-pick（c42270d）但**从未在任何 config 挂载**（runner 直接 reject ptw 组件）。本补丁：arm_chaos_fs.py `--chaos_ptw` 挂 D-side walk unit（`cpu0.mmu.walker.walk_units[1]`），knobs 全套（mode/first_clock/max_faults/fault_mask/rng_seed/**ptw_ecc H7 开关**）；runner ptw 组件改路由到 C0-FS（clear_valid(H7) ← stuck_at_zero；ptw_ecc 跟随 protection_model——'none'→ECC OFF，其余→ECC ON，H7 双臂对照）。
 
 **Phase 5 进度**：5.1 V110 FS ✅（291a431）、5.2 checkpoint 管线 ✅（291a431，端到端验证排队——Atomic boot 跑批中）、5.3 PTW 挂载 ✅（1bd05b3，H7 pilot 排队）。剩余：H7 pilot（ECC on/off × 5-seed）、TLB F5 活页 formal、method2 三根因实验（均等 checkpoint）。
+
+### Phase 5.2 验证: checkpoint 管线端到端跑通 ✅（fsckot→restore→注入全链真机验证）
+
+**三步全链真机验证（kp920_proxy_fs, Atomic, root=/dev/vda1）**：
+1. **Boot + checkpoint**：`--readfile boot_ckpt.rcS` → boot 到 userspace 后 `m5 checkpoint` 真实执行 → **cpt.237933688473** 落盘（pmem/cow 全套），run 干净退出。
+2. **Restore + 注入**：`--restore-checkpoint cpt.237933688473 --chaos_armtlb --tlb_fault_type pfn_to_mapped_page --tlb_first_clock 1000` → 注入 **Tick 237933689805**（= checkpoint tick 237933688473 + 1332 ticks——从恢复点立即注入，窗口语义正确）→ **TLB F5 活页替换在 restore 后触发**（old_pfn 0x82f6b → new_pfn 0x0）。
+3. **首次尝试的 panic 诊断**：root=/dev/sda2 错误（磁盘是 virtio_blk → vda，应为 /dev/vda1）——dmesg dump 揪出 "Cannot open root device sda2"。修正后一次通过。
+
+**修复**：--ckpt-first-clock 的 tick 解析——.tick 文件不存在于该 gem5 版本，tick 嵌在 checkpoint 目录名（cpt.\<tick\>）；改为目录名优先解析（真机验证 parsed tick: 237933688473 ✅）。
+
+**意义**：fs formal 的 wall-time 瓶颈解除——一次性 boot（~30min）+ 每 rep 快速 restore 注入（~4min）。TLB F5 活页 cell（"最危险路径的量化"）与 H7 PTW pilot 的 formal 跑批从此可行。下一步：把 restore 路径接进 runner/campaign（FS campaign 化），跑 TLB F5 和 PTW H7 pilot。
