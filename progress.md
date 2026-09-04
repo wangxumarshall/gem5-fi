@@ -1794,3 +1794,18 @@ PRF X3 的跨 workload 复现有特殊意义：cholesky 上 X3 是低频消费�
 ### Phase 4.1b 结果: spec_leak X19（callee-saved 长活类）— 384/384 Inactive，事件流不可达
 
 branchy_reduce 上 X19 的 squash 回滚事件流为空（callee-saved 类不频繁重定义 → HB 回滚循环里没有 X19 条目）→ 384/384 Inactive（faults=0，诚实记录）。**两难暴露**：短命寄存器（X3/X9）可达但泄漏被重写覆盖；长活寄存器（X19）泄漏可能存活但 squash 事件流里不可达。**"泄漏值存活 × 回滚可达"在 SE 基准 workload 上互斥**——method1 的投机泄漏 SDC 通路需要在 wrong-path 上写 X19 类寄存器的 workload（如含 mispredict 密集的函数调用流）。这留给 method1 专用 workload（fi_research 侧）或 FS 场景；SE 侧 spec_leak 的结论定格为：**单次回滚抑制在可达寄存器上 100% Masked（n=384 上界 1%）**。
+
+### Phase 4.2: LSQFwd fwd_source_sub（method1 错源转发）实现 + formal — P_SDC=37.6%，F5/F6 批次首个高 SDC 机理
+
+**实现（05db0e2）**：hook 转发判定点（lsq_unit.cc FullAddrRangeCoverage memcpy 前）——注入器可把 load 数据改为从**另一个更老的 SQ 条目**拷贝（错源转发，method1 张冠李戴的 LSQ 版）。无 older 条目时 declined（不消耗 skip）。验证中发现并修复**双注入 bug**（旧 corrupt() hook 在 fwd_source_sub 模式下仍然触发——unlimited-faults 诊断暴露，修复后 corrupt() 在该模式 no-op）。
+
+**真机验证**：T1 触发+分散（3 seeds 3 个不同 site/size）；T2 无注入干净；T3 golden f247ef3fe6f02cfd + byte_flip 旧行为不变。
+
+**§2.4 fwd_source_sub formal（fwd_checksum_kernel, C2, n=384 + 5% replay, 274s, 0 frozen）**：
+
+| 模式 | P_SDC | P_DUE | 主导 |
+|---|---|---|---|
+| byte_flip（位翻转，79f32b1） | 4.7% [3.0,7.3] | 27.6% | Masked 67.7% |
+| **fwd_source_sub（错源，本 formal）** | **37.6% [32.8,42.6]** | **57.4% [52.4,62.3]** | **DUE+SDC 双高，0 Masked** |
+
+**核心发现**：**同一单元（LSQ 转发路径）上，故障的"形态"比"位置"更决定 SDC 率**——单 bit 翻转 4.7% SDC vs 整字错源 37.6% SDC（8 倍）。错源转发把 load 喂给完全错误的值：checksum 消费者看到"合法但错误"的数据（合法域内错误→SDC 主升，符合 PRF/RAT 网格的"合法域内错误"规律）。**§4.2 保护排序直接素材：LSQ 转发路径的错源检测（forward-source age/ID 校验）比 ECC 更针对此通路**。
