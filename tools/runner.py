@@ -433,12 +433,23 @@ def main():
                 "--addrpath_max_faults", str(m["limits"]["max_faults"]),
                 "--addrpath_rng_seed", str(m["rng"]["selection_seed"])]
     elif comp == "ptw":
-        # §2.10 CHAOSPTW (page-table-walker, SE-inert, FS-only).
-        # Honest: arm_chaos.py (SE) can't mount CHAOSPTW — it's an FS-injector
-        # on the ArmTableWalker WalkUnit, not the CPU. Route to FS config.
-        sys.exit(f"[runner] target.component='ptw' is FS-only (hooks the ArmTable"
-                 f"Walker WalkUnit, not the SE CPU). Use arm_chaos_fs.py with "
-                 f"--chaos_ptw (FS mode). Aborting — SE can't mount CHAOSPTW.")
+        # §2.10 CHAOSPTW (page-table-walker, FS-only). Phase 5.3: arm_chaos_fs.py
+        # now mounts CHAOSPTW (--chaos_ptw + the ptw_* knobs). Requires
+        # config_family C0-FS. clear_valid (H7) maps from stuck_at_zero;
+        # single_bit_xor (default) from transient_bit_flip. ptw_ecc follows the
+        # manifest's protection_model: 'none' -> ECC OFF (spurious>0), anything
+        # else -> ECC ON (the H7 ECC-on arm).
+        if cfg_family != "C0-FS":
+            sys.exit("[runner] component 'ptw' requires platform."
+                     "config_family='C0-FS' (arm_chaos_fs.py with --chaos_ptw). "
+                     "Aborting.")
+        pm = {"stuck_at_zero": "clear_valid"}.get(inj["model"], "single_bit_xor")
+        ecc_on = str(inj.get("protection_model", "secded") != "none").lower()
+        cmd += ["--chaos_ptw", "--ptw_mode", pm,
+                "--ptw_first_clock", str(t["value"]),
+                "--ptw_max_faults", str(m["limits"]["max_faults"]),
+                "--ptw_rng_seed", str(m["rng"]["selection_seed"]),
+                "--ptw_ecc", ecc_on]
     else:
         # §1.6 v2 honest-reject contract: the v2 schema forward-declares S1
         # components (rob/iq/rat/freelist/lsq_fwd/sysreg/ptw/l3/...), but their
