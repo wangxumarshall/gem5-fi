@@ -109,6 +109,13 @@ def manifest_for_cell(campaign, cell, cell_ordinal, rep, outdir):
     seed = base + cell_ordinal * 1000 + rep
     run_id = f"{campaign['campaign_id']}-c{cell_ordinal:04d}-r{rep:04d}"
 
+    # H2 microarch axes (rob/phys_int/phys_float/lq/sq) live in the grid
+    # alongside fault axes but are config knobs, not fault fields. Pull them
+    # out of the cell so they flow to platform.config_params only.
+    MICROARCH_AXES = ("rob", "phys_int", "phys_float", "lq", "sq")
+    config_params = {k: cell[k] for k in MICROARCH_AXES if k in cell}
+    cell = {k: v for k, v in cell.items() if k not in MICROARCH_AXES}
+
     # target component <-> injector (schema enum is wider than what runner.py
     # maps today; runner.py will reject unmapped ones with a clear error).
     comp_map = {
@@ -135,6 +142,10 @@ def manifest_for_cell(campaign, cell, cell_ordinal, rep, outdir):
             "cpu_model": campaign.get("cpu_model", "ArmO3CPU"),
             "config_family": campaign.get("config", "C0"),
         },
+        # H2 window sweep: grid axes named rob/phys_int/phys_float/lq/sq are
+        # MICROARCH KNOBS, not fault axes — collected into
+        # platform.config_params (runner whitelists + passes to the C2
+        # config). Added only when non-empty so old manifests are unchanged.
         "workload": {
             "binary_sha256": wl.get("binary_sha256", ""),
             "input_sha256": "",
@@ -175,6 +186,11 @@ def manifest_for_cell(campaign, cell, cell_ordinal, rep, outdir):
     for k in list(manifest["target"]):
         if manifest["target"][k] is None:
             del manifest["target"][k]
+
+    # H2 microarch knobs -> platform.config_params (additive; skipped when
+    # the campaign has no microarch grid axes)
+    if config_params:
+        manifest["platform"]["config_params"] = config_params
 
     os.makedirs(outdir, exist_ok=True)
     path = os.path.join(outdir, f"{run_id}.yaml")

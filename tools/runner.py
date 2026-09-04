@@ -116,6 +116,23 @@ def main():
     cfg_path = CONFIG_FAMILY[cfg_family]
     print(f"[runner] config_family: {cfg_family} -> {os.path.basename(cfg_path)}")
 
+    # platform.config_params (optional dict): microarch knob overrides passed
+    # through to the config script (Phase 3 H2 window sweep — ROB/PhysInt
+    # sizing). Whitelist-checked: only keys the target config's argparse
+    # actually defines, so a typo fails loudly at the runner, not silently
+    # inside gem5 (the lsqfwd argparse lesson, 79f32b1).
+    cfg_params = m.get("platform", {}).get("config_params") or {}
+    if cfg_params:
+        supported = {"rob", "phys_int", "phys_float", "lq", "sq"}  # kp920_proxy.py knobs
+        unsupported = set(cfg_params) - supported
+        if unsupported:
+            sys.exit(f"[runner] platform.config_params keys {sorted(unsupported)} "
+                     f"not in supported set {sorted(supported)} for family "
+                     f"{cfg_family}. Aborting.")
+        if cfg_family != "C2":
+            sys.exit(f"[runner] platform.config_params is C2-only (kp920_proxy "
+                     f"microarch knobs); config_family={cfg_family}. Aborting.")
+
     # resolve golden checksum: explicit arg, else manifest golden_id
     golden = args.golden_checksum
     if not golden:
@@ -417,6 +434,11 @@ def main():
 
     print(f"[runner] manifest target: layer={layer} comp={comp} idx={idx} "
           f"bits={bits} width={width} field={field}")
+    # platform.config_params -> config-script microarch knobs (H2 sweep)
+    if cfg_params:
+        for k, v in cfg_params.items():
+            cmd += [f"--{k}", str(v)]
+        print(f"[runner] config_params: {cfg_params}")
     print("[runner] running:", " ".join(cmd[:4]), "...")
     # Hang timeout (plan §13.2): a normal sim completes in well under the
     # wall budget; a Hang = no completion within this. Default 600s; the
