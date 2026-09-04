@@ -1,0 +1,36 @@
+{
+  "cli_version": "0.10.2",
+  "checkpoint_id": "01M1NKH11PFM73TM8JBX3HXETZ",
+  "strategy": "manual-commit",
+  "branch": "docs/vmcore-case-reports-7dumps",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "docs/cases/vmcore-diagnosis-report-127.0.0.1-2026-08-31-004732/algebra.py",
+    "docs/cases/vmcore-diagnosis-report-127.0.0.1-2026-08-31-004732/algebra_out.txt",
+    "docs/cases/vmcore-diagnosis-report-127.0.0.1-2026-08-31-004732/crash_session.log",
+    "docs/cases/vmcore-diagnosis-report-127.0.0.1-2026-08-31-004732/crash_session2.log",
+    "docs/cases/vmcore-diagnosis-report-127.0.0.1-2026-08-31-004732/crash_session3.log",
+    "docs/cases/vmcore-diagnosis-report-127.0.0.1-2026-08-31-004732/crash_session4.log",
+    "docs/cases/vmcore-diagnosis-report-127.0.0.1-2026-08-31-004732/crash_session5.log",
+    "docs/cases/vmcore-diagnosis-report-127.0.0.1-2026-08-31-004732/crash_session_supplements.log",
+    "docs/cases/vmcore-diagnosis-report-127.0.0.1-2026-08-31-004732/dmesg_forensics.txt",
+    "docs/cases/vmcore-diagnosis-report-127.0.0.1-2026-08-31-004732/forensics_cmds.txt",
+    "docs/cases/vmcore-diagnosis-report-127.0.0.1-2026-08-31-004732/vmcore-diagnosis-report-127.0.0.1-2026-08-31-004732.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 0,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 0,
+    "api_call_count": 0
+  }
+}
