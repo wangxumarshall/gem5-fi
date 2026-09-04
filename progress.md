@@ -1723,3 +1723,15 @@ cholesky formal 的结论在第二 workload（reg_chain）上的 pilot 级复检
 | LSQFwd / mem | 4.7% SDC / 全 Masked | pilot 已跑（见 artifacts） | 方向待 formal |
 
 PRF X3 的跨 workload 复现有特殊意义：cholesky 上 X3 是低频消费的小累加器（92.7% DUE），reg_chain 上是每拍消费的链式累加器（100% SDC）——**同一寄存器的 SDC/DUE 结构由 workload 消费模式决定**，与 ABI-class 网格的"语义角色"规律互洽。pilot 级 n=5 只定方向，formal 级复检排后续批。
+
+### Phase 3 工具正确性: campaign hang 超时杀进程组——gem5 孤儿泄漏修复（7abc72e）
+
+**症状（真实）**：IQ formal 的 hang run 后 80+ gem5 进程 PPID=1 堆积（load 64）；此前 RAT f5 的 hang 也泄漏过 60+。
+
+**根因**：campaign.run_one_rep 用 `subprocess.run(timeout=)` 杀 runner.py 只杀直接子进程，gem5 孙进程成孤儿。与 comp_map 修复叠加暴露：修正路由后的 IQ 产生真实 hang（wake_omit 分散注入点死锁 IQ），连环 timeout 触发泄漏。
+
+**修复**：`Popen(start_new_session=True)` + 超时 `os.killpg(SIGKILL)` 杀整组（本机 Python 的 TimeoutExpired 无 .pid，改从 Popen 句柄取 pgid）。
+
+**真机验证**：T1 冒烟 2 reps（都是真 Hang）：2/2 正确分类 Hang，campaign 结束后 0 个 gem5 残留（修复前每个 hang 漏一个）。正常路径 CompletedProcess 字段兼容。
+
+**早期信号（记录在案）**：修正路由 + 分散采样后的 IQ wake_omit 前 2 reps 全 Hang——旧"全 Masked"是 comp_map 改道 + 首事件偏差的双重伪影。IQ 的真实画像可能是 Hang 主导（唤醒丢失→依赖死锁）。
