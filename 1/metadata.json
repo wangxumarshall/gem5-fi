@@ -1,0 +1,46 @@
+{
+  "cli_version": "0.10.2",
+  "checkpoint_id": "01M1NKH11PFM73TM8JBX3HXETZ",
+  "session_id": "98483bee-50d0-49c7-937a-6538ae6e330e",
+  "strategy": "manual-commit",
+  "created_at": "2026-09-04T07:01:03.198227Z",
+  "branch": "docs/vmcore-case-reports-7dumps",
+  "checkpoints_count": 2,
+  "files_touched": [],
+  "agent": "Claude Code",
+  "model": "glm-5.3",
+  "turn_id": "1d2ef474ba5c",
+  "checkpoint_transcript_start": 264,
+  "transcript_lines_at_start": 264,
+  "compact_transcript_start": 62,
+  "token_usage": {
+    "input_tokens": 1079783,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 6143,
+    "api_call_count": 14
+  },
+  "session_metrics": {
+    "turn_count": 4
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 971,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".planning/.active_plan": 1,
+        ".planning/2026-09-04-vmcore-case-diagnosis-reports/findings.md": 86,
+        ".planning/2026-09-04-vmcore-case-diagnosis-reports/progress.md": 50,
+        ".planning/2026-09-04-vmcore-case-diagnosis-reports/task_plan.md": 44,
+        "docs/cases/vmcore-diagnosis-report-127.0.0.1-2026-08-31-004732/algebra.py": 169,
+        "docs/cases/vmcore-diagnosis-report-127.0.0.1-2026-08-31-004732/algebra_out.txt": 82,
+        "docs/cases/vmcore-diagnosis-report-127.0.0.1-2026-08-31-004732/dmesg_forensics.txt": 185,
+        "docs/cases/vmcore-diagnosis-report-127.0.0.1-2026-08-31-004732/forensics_cmds.txt": 26,
+        "docs/cases/vmcore-diagnosis-report-127.0.0.1-2026-08-31-004732/vmcore-diagnosis-report-127.0.0.1-2026-08-31-004732.md": 328
+      }
+    }
+  ]
+}
