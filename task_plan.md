@@ -113,8 +113,9 @@ Phase 7 (系统级)           ← 后置
 
 ## Next Step
 
-Phase 3 进行中（#1–#7 已提交：FPU gemm_float、PRF 位段×3、RAT f5、H2 窗口×2、ExMon；外加 2 个工具补丁 config_params 透传 + ExMon 双 bug 修复）。下一步按优先级：
-1. **freelist mark_free formal**（§2.2 剩余子项，Phase 3.3 收尾）：runner 已映射（transient_bit_flip→mark_free），cholesky C2 n=384。
-2. **多 workload 复检**（Phase 3.4）：IQ/Exec/Decode/BPU/RAS 在 reg_chain 上复跑（排除单 workload 伪 Masked）——exec_regchain/decode_regchain/ras_regchain pilot 已在 artifacts，检查状态后升级 formal。
-3. **PRF F4 stuck / F3 数据相关模式**（Phase 3.1 剩余）：fault_model 轴扩展。
-4. Phase 3 收口后转 Phase 4（F5/F6 机理子模式，ROB spec_leak 优先）。
+Phase 3 进行中（#1–#7 网格 + 3 工具补丁已提交）。**今日新增两个重大工具修复**：comp_map 静默改道（8e01219——rob/iq formal 作废重跑中）+ campaign hang 孤儿进程泄漏（7abc72e）。当前后台队列：IQ formal 重跑（修正路由+分散采样，早期信号 Hang 主导）→ freelist mark_free formal。队列完成后：
+1. 提交 IQ/freelist formal 结果（与旧"全 Masked"对照，预期结论修正级别）。
+2. **rob formal 已完成**（真挂 CHAOSROB，384/384 Masked 有效确认）——随队列一起提交。
+3. Phase 3.4 多 workload formal 级复检（reg_chain pilots 已提交 13f4d41，方向一致）。
+4. PRF F4 stuck / F3 fault_model 轴扩展。
+5. Phase 3 收口后转 Phase 4（F5/F6 机理子模式，ROB spec_leak 优先）。
