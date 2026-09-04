@@ -1070,18 +1070,44 @@ InstructionQueue::commit(const InstSeqNum &inst, ThreadID tid)
     }
 }
 
+// §2.5 CHAOSIQ F6: out-of-line because InstructionQueue is incomplete in
+// the header at the point of the DelayedWakeEvent definition.
+o3::DelayedWakeEvent::DelayedWakeEvent(InstructionQueue *_iq,
+                                       const DynInstPtr &_inst)
+    : Event(Default_Pri, AutoDelete), iq(_iq), inst(_inst)
+{}
+void
+o3::DelayedWakeEvent::process() { iq->wakeDependents(inst); }
+
 int
 InstructionQueue::wakeDependents(const DynInstPtr &completed_inst)
 {
     int dependents = 0;
 
-    // §2.5 CHAOSIQ: pre-wake hook. If shouldOmitWake fires, DROP the wakeup
-    // broadcast entirely (one missed wake — dependents stay not-ready).
-    // Models method3 timing-race phase shift / dropped-wake fault.
-    // nullptr = no injection (zero regression).
-    if (chaosIQ && chaosIQ->shouldOmitWake(completed_inst->threadNumber,
-                                           completed_inst)) {
-        return 0;
+    // §2.5 CHAOSIQ pre-wake hooks. nullptr / no-fire = zero regression.
+    //  - wake_omit (F6): DROP the broadcast (dependents stay not-ready).
+    //  - wake_phase (F6): SKIP now; re-issue after |phase_offset| cycles
+    //    via a DelayedWakeEvent (method3 phase collapse).
+    //  - src_ready_bitflip (F5): proceed with THIS wake normally, but also
+    //    wake ONE not-ready dependent from a different chain early — it
+    //    issues and reads a stale physreg (wrong-source wakeup, method3).
+    bool wrong_source = false;
+    if (chaosIQ) {
+        if (chaosIQ->shouldOmitWake(completed_inst->threadNumber,
+                                    completed_inst)) {
+            return 0;
+        }
+        if (chaosIQ->shouldDelayWake(completed_inst->threadNumber,
+                                     completed_inst)) {
+            // IQ is not a ClockedObject; derive the period from the CPU the
+            // completed inst belongs to (BaseCPU::clockPeriod via Clocked).
+            int delay = chaosIQ->phaseOffset();
+            cpu->schedule(new DelayedWakeEvent(this, completed_inst),
+                          curTick() + delay * cpu->clockPeriod());
+            return 0;
+        }
+        wrong_source = chaosIQ->shouldWrongSourceWake(
+            completed_inst->threadNumber, completed_inst);
     }
 
     // The instruction queue here takes care of both floating and int ops
@@ -1162,6 +1188,36 @@ InstructionQueue::wakeDependents(const DynInstPtr &completed_inst)
             dep_inst->markSrcRegReady();
 
             addIfReady(dep_inst);
+
+            // §2.5 F5 src_ready_bitflip (Phase 4.3): once this event (ONE
+            // dependent) is injected, additionally pop ONE not-ready
+            // dependent from a DIFFERENT reg's chain and mark it ready —
+            // it issues immediately and reads a stale physreg value
+            // (method3 wrong-source wakeup). Single-shot.
+            if (wrong_source) {
+                wrong_source = false;
+                // probe space = the scoreboard size (same indexing as the
+                // dependency graph's flat index domain)
+                const RegIndex n_regs = (RegIndex)regScoreboard.size();
+                for (int probe = 0; probe < 64 && n_regs > 0; probe++) {
+                    RegIndex fi = (RegIndex)(random() % n_regs);
+                    if (dependGraph.empty(fi)) continue;
+                    DynInstPtr victim = dependGraph.pop(fi);
+                    // eligible = still has unready sources (a fully-ready
+                    // inst would issue anyway; squashed ones are dead)
+                    if (victim && !victim->isSquashed() &&
+                        victim->readyRegs < victim->numSrcRegs()) {
+                        victim->markSrcRegReady();
+                        addIfReady(victim);
+                        DPRINTF(IQ, "CHAOSIQ F5: wrong-source early wake "
+                                "[sn:%llu] from chain %u\n",
+                                victim->seqNum, (unsigned)fi);
+                        break;
+                    }
+                    // not eligible — put it back (LIFO chain per reg)
+                    if (victim) dependGraph.insert(fi, victim);
+                }
+            }
 
             dep_inst = dependGraph.pop(dest_reg->flatIndex());
 

@@ -160,8 +160,10 @@ p.add_argument("--rob_rng_seed", type=lambda x: int(x,0), default=20260825)
 # to IEW.instQueue.chaosIQ. wake_omit (F6) mode (§2.5).
 p.add_argument("--chaos_iq", action="store_true",
                help="attach CHAOSIQ (O3 IQ injector, §2.5)")
-p.add_argument("--iq_mode", default="wake_omit", choices=["wake_omit"])
-p.add_argument("--iq_phase_offset", type=int, default=0)
+p.add_argument("--iq_mode", default="wake_omit",
+               choices=["wake_omit", "src_ready_bitflip", "wake_phase"])
+p.add_argument("--iq_phase_offset", type=int, default=1,
+               help="F6 wake_phase: delay cycles (positive only)")
 p.add_argument("--iq_first_clock", type=lambda x: int(x,0), default=1000)
 p.add_argument("--iq_max_faults", type=lambda x: int(x,0), default=1)
 p.add_argument("--iq_rng_seed", type=lambda x: int(x,0), default=20260825)

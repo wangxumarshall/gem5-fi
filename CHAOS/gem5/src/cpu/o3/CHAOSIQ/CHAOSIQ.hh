@@ -30,7 +30,28 @@ class CHAOSIQ : public SimObject
     // wakeup broadcast — one dropped wake). Otherwise false (normal wake).
     bool shouldOmitWake(ThreadID tid, const o3::DynInstPtr &completed_inst);
 
+    // §2.5 F5 src_ready_bitflip (Phase 4.3, method3 wrong-source wakeup):
+    // GATE only — the dependency-graph surgery (pop a not-ready dependent
+    // from a different reg's chain, markSrcRegReady, addIfReady) lives in
+    // InstructionQueue::wakeDependents, which owns dependGraph/addIfReady/
+    // scoreboard (no internals exposed). Returns true = inject this event.
+    bool shouldWrongSourceWake(ThreadID tid,
+                               const o3::DynInstPtr &completed_inst);
+
+    // §2.5 F6 wake_phase (Phase 4.3, method3 phase collapse): GATE only —
+    // the caller skips this broadcast now and re-issues it after
+    // |phase_offset| cycles via its own scheduled event. Delay only
+    // (advance = wake in the past = no-op; documented E3 proxy limit).
+    bool shouldDelayWake(ThreadID tid, const o3::DynInstPtr &completed_inst);
+
+    // F6: the configured delay in cycles (InstructionQueue reads it when
+    // scheduling the DelayedWakeEvent).
+    int phaseOffset() const { return phase_offset; }
+
   private:
+    enum class Mode { WakeOmit, SrcReadyBitflip, WakePhase };
+    static Mode stringToMode(const std::string &s);
+    Mode fi_mode;
     BaseCPU *cpu;
     double probability;
     uint64_t first_clock, last_clock;

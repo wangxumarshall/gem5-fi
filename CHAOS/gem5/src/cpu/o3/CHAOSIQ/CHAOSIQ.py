@@ -12,11 +12,15 @@ class CHAOSIQ(SimObject):
     #   wake_omit (F6): on wakeDependents, DROP one wakeup broadcast — the
     #                   completed instruction's dependents stay not-ready (one
     #                   missed wake). Models method3 timing-race phase shift.
-    #   src_ready_bitflip / tag_sub (F5): mark a not-ready µop's source ready
-    #                   (or swap src tag to another in-flight µop's legal tag)
-    #                   — needs dependency-graph traversal; DEFERRED (§2.5
-    #                   patch 2).
-    mode = Param.String("wake_omit", "wake_omit (src_ready_bitflip/tag_sub deferred)")
+    #   src_ready_bitflip (F5, Phase 4.3): on one wakeDependents event, ALSO
+    #                   wake one not-ready dependent from a DIFFERENT chain —
+    #                   it issues immediately and reads a stale physreg
+    #                   (wrong-source wakeup, method3).
+    #   wake_phase (F6, Phase 4.3): delay one wakeup broadcast by
+    #                   phaseOffset cycles (DelayedWakeEvent; advance not
+    #                   modeled — E3 proxy limit).
+    mode = Param.String("wake_omit",
+        "wake_omit | src_ready_bitflip | wake_phase")
     phaseOffset = Param.Int(0, "F6 wake_phase: cycles to advance(-)/delay(+) — proxy")
     probability = Param.Float(1.0, "per-wakeDependents injection probability")
     firstClock = Param.UInt64(0, "first clock cycle eligible for injection")

@@ -301,9 +301,17 @@ def main():
                 "--rob_max_faults", str(m["limits"]["max_faults"]),
                 "--rob_rng_seed", str(m["rng"]["selection_seed"])]
     elif comp == "iq":
-        # §2.5 CHAOSIQ (S1 patch 1). wake_omit (F6).
-        cmd += ["--chaos_iq", "--iq_mode", "wake_omit",
-                "--iq_first_clock", str(t["value"]),
+        # §2.5 CHAOSIQ. wake_omit (F6, default) / src_ready_bitflip (F5,
+        # wrong-source wakeup — legal_domain_sub) / wake_phase (F6 phase
+        # delay — intermittent_burst; bit_indices[0] = offset in cycles).
+        cmd += ["--chaos_iq"]
+        im = {"legal_domain_sub": "src_ready_bitflip",
+              "intermittent_burst": "wake_phase"}.get(inj["model"], "wake_omit")
+        cmd += ["--iq_mode", im]
+        if im == "wake_phase":
+            offset = bits[0] if bits else 1
+            cmd += ["--iq_phase_offset", str(offset)]
+        cmd += ["--iq_first_clock", str(t["value"]),
                 "--iq_max_faults", str(m["limits"]["max_faults"]),
                 "--iq_rng_seed", str(m["rng"]["selection_seed"])]
     elif comp == "lsq_fwd":
