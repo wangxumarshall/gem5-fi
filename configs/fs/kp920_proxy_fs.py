@@ -39,8 +39,6 @@ def _apply_v110(root):
     # and the restore run is the one that matters here).
     core0 = processor.get_cores()[0]
     cpu0 = core0.core
-    if cpu0.get_archetype() if hasattr(cpu0, "get_archetype") else None:
-        pass  # archetype probing not portable; just try/except below
     try:
         cpu0.fetchWidth = V110_FS["fetch_width"]
         cpu0.decodeWidth = V110_FS["decode_width"]
