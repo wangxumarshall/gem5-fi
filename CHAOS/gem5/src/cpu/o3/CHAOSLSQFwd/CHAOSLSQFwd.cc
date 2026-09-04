@@ -87,6 +87,7 @@ namespace gem5
     CHAOSLSQFwd::stringToStructMode(const std::string &s) {
         if (s == "byte_lane_skew") return StructMode::ByteLaneSkew;
         if (s == "all_zero") return StructMode::AllZero;
+        if (s == "fwd_source_sub") return StructMode::FwdSourceSub;
         return StructMode::ByteFlip;  // default / unknown
     }
 
@@ -122,6 +123,12 @@ namespace gem5
     {
         // Hot-path short-circuit: no injection configured.
         if (probability <= 0.0f) return;
+        // fwd_source_sub injects at the DECISION point (maybeSubstituteSource,
+        // called before the memcpy); this post-forward corrupt hook must NOT
+        // also fire in that mode (double-injection bug found in Phase 4.2
+        // verification: an unlimited-faults run showed bit_flip lines while
+        // in fwd_source_sub mode — the old hook was still active).
+        if (struct_mode == StructMode::FwdSourceSub) return;
         Cycles cur = cpu->curCycle();
         if (cur < first_clock) return;
         if (last_clock != Cycles(0) && cur > last_clock) return;
@@ -208,6 +215,57 @@ namespace gem5
         DPRINTF(LSQUnit, "CHAOSLSQFwd: corrupted forwarded byte %d (vaddr=%#x "
                 "mask=%#x type=%s)\n", off, vaddr, mask,
                 faultTypeToString(chosen));
+    }
+
+    bool
+    CHAOSLSQFwd::maybeSubstituteSource(uint8_t *load_data,
+                                       const uint8_t *true_src,
+                                       unsigned copy_size,
+                                       const uint8_t *alt_src,
+                                       unsigned alt_size, Addr vaddr)
+    {
+        // §2.4 fwd_source_sub (F5): wrong-source store->load forwarding.
+        // Only active in FwdSourceSub mode; other modes return false and the
+        // caller does its normal memcpy (zero regression).
+        if (struct_mode != StructMode::FwdSourceSub) return false;
+        if (probability <= 0.0f) return false;
+        if (!load_data || !true_src || !alt_src) return false;
+        if (copy_size == 0 || alt_size == 0) return false;
+
+        Cycles cur = cpu->curCycle();
+        if (cur < first_clock) return false;
+        if (last_clock != Cycles(0) && cur > last_clock) return false;
+        if (max_faults != 0 && faults_injected_count >= max_faults) return false;
+
+        // sampling-bias fix: consume skip only on eligible wrong-source
+        // opportunities (an older SQ entry exists with data)
+        if (events_to_skip > 0) { --events_to_skip; return false; }
+
+        std::uniform_real_distribution<float> dist(0.0f, 1.0f);
+        if (dist(rng) >= probability) return false;
+
+        // Copy the WRONG store's data into the load buffer. If the wrong
+        // source is smaller than the load, copy what it has (the tail keeps
+        // whatever the caller's buffer held — the mismatch IS the fault).
+        unsigned n = copy_size < alt_size ? copy_size : alt_size;
+        memcpy(load_data, alt_src, n);
+        stats->numFaultsInjected++;
+        ++faults_injected_count;
+        if (write_log) {
+            *(log_stream->stream())
+                << "Cycle: " << cpu->curCycle()
+                << ", Site: store->load_forward_decision"
+                << ", FaultType: fwd_source_sub"
+                << ", Vaddr: 0x" << std::hex << vaddr << std::dec
+                << ", TrueSrcSize: " << copy_size
+                << ", AltSrcSize: " << alt_size
+                << ", Copied: " << n
+                << ", faults_injected: " << faults_injected_count
+                << std::endl;
+        }
+        DPRINTF(LSQUnit, "CHAOSLSQFwd: fwd_source_sub wrong-source forward "
+                "(vaddr=%#x true=%uB alt=%uB)\n", vaddr, copy_size, alt_size);
+        return true;
     }
 
     CHAOSLSQFwd::CHAOSLSQFwdStats::CHAOSLSQFwdStats(statistics::Group *parent)

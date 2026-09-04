@@ -120,7 +120,7 @@ p.add_argument("--lsq_byte_offset", type=int, default=-1)
 # as Crash => the committed "§2.4 LSQFwd 100% DUE" result is INVALID).
 p.add_argument("--lsq_struct_mode", default="byte_flip",
                choices=["byte_flip", "byte_lane_skew", "stale_line_replay",
-                        "all_zero"])
+                        "all_zero", "fwd_source_sub"])
 p.add_argument("--lsq_lane_skew_k", type=int, default=1)
 # §2.2 CHAOSRenameMap (O3 rename-map fault injector). SELF-ATTACHES at
 # startup() to thread-0 frontRenameMap.chaosRenameMap. map_bitflip /

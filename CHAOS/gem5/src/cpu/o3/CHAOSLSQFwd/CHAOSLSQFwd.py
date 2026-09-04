@@ -40,7 +40,9 @@ class CHAOSLSQFwd(SimObject):
     structMode = Param.String("byte_flip",
         "byte_flip (default, orig) | byte_lane_skew (rol_k rotate the whole "
         "forwarded buffer by laneSkewK bytes — core179 D1 byte-lane phase "
-        "signature) | all_zero (zero the whole 8-byte buffer)")
+        "signature) | all_zero (zero the whole 8-byte buffer) | "
+        "fwd_source_sub (F5 Phase 4.2: forward from the WRONG older SQ "
+        "entry — method1 wrong-source store->load forwarding)")
     laneSkewK = Param.Int(1, "§2.4 byte_lane_skew: rotate by k bytes (default 1)")
 
     firstClock = Param.UInt64(0, "First clock cycle eligible for injection")

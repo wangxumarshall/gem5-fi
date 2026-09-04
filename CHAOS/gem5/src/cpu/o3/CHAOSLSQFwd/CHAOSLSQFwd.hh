@@ -39,6 +39,19 @@ class CHAOSLSQFwd : public SimObject
     // immediately with no work.
     void corrupt(uint8_t *data, unsigned size, Addr vaddr);
 
+    // §2.4 fwd_source_sub (F5, Phase 4.2 — method1 wrong-source forwarding):
+    // called from lsq_unit.cc at the forwarding DECISION point, after a
+    // store entry is selected as the forward source (FullAddrRangeCoverage)
+    // and BEFORE the memcpy. If the RNG fires, the load's data is copied
+    // from a DIFFERENT (older) SQ entry instead — the load receives the
+    // wrong store's data (wrong-source forward, 张冠李戴). Parameters are
+    // raw pointers/sizes so lsq_unit.cc doesn't need CHAOS types. Returns
+    // true if the substitution happened (the caller skips its own memcpy).
+    bool maybeSubstituteSource(uint8_t *load_data,
+                               const uint8_t *true_src, unsigned copy_size,
+                               const uint8_t *alt_src, unsigned alt_size,
+                               Addr vaddr);
+
   private:
     enum class FaultType { BitFlip, StuckAtZero, StuckAtOne, Random };
     static FaultType stringToFaultType(const std::string &s);
@@ -50,9 +63,11 @@ class CHAOSLSQFwd : public SimObject
     //                     reproduces core179 D1 byte-lane phase signature (method2)
     //   all_zero        : zero the whole forwarded buffer (8 bytes)
     //   stale_line_replay: (deferred — needs older-line replay plumbing)
-    //   fwd_source_sub (F5): (deferred — needs forward-decision-point hook)
+    //   fwd_source_sub (F5): DONE (Phase 4.2) — wrong-source forward from an
+    //                     older SQ entry (maybeSubstituteSource hook in
+    //                     lsq_unit.cc's forward-decision point)
     //   phase_offset (F6): (deferred — needs timing shift in lsq_unit.cc)
-    enum class StructMode { ByteFlip, ByteLaneSkew, AllZero };
+    enum class StructMode { ByteFlip, ByteLaneSkew, AllZero, FwdSourceSub };
     static StructMode stringToStructMode(const std::string &s);
 
     o3::CPU *cpu;

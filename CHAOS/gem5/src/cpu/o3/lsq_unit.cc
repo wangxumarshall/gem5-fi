@@ -1493,10 +1493,40 @@ LSQUnit::read(LSQRequest *request, ssize_t load_idx)
                 if (store_it->isAllZeros())
                     memset(load_inst->memData, 0,
                             request->mainReq()->getSize());
-                else
-                    memcpy(load_inst->memData,
-                        store_it->data() + shift_amt,
-                        request->mainReq()->getSize());
+                else {
+                    // §2.4 fwd_source_sub (F5, Phase 4.2 — method1
+                    // wrong-source forwarding): give the injector a chance
+                    // to copy from an OLDER SQ entry instead of the true
+                    // source. Scan further down (older) the SQ for the first
+                    // entry with data; if none exists the injector gets
+                    // alt_src=nullptr and declines (no eligible event).
+                    bool substituted = false;
+                    if (cpu->lsqFwd) {
+                        const SQEntry *alt = nullptr;
+                        auto alt_it = store_it;
+                        while (alt_it != storeWBIt) {
+                            alt_it--;
+                            if (alt_it->size() != 0 && !alt_it->isAllZeros()
+                                && alt_it->data()) {
+                                alt = &(*alt_it);
+                                break;
+                            }
+                        }
+                        if (alt) {
+                            substituted = cpu->lsqFwd->maybeSubstituteSource(
+                                load_inst->memData,
+                                (const uint8_t *)(store_it->data()) + shift_amt,
+                                request->mainReq()->getSize(),
+                                (const uint8_t *)(alt->data()),
+                                alt->size(),
+                                request->mainReq()->getVaddr());
+                        }
+                    }
+                    if (!substituted)
+                        memcpy(load_inst->memData,
+                            store_it->data() + shift_amt,
+                            request->mainReq()->getSize());
+                }
 
                 // CHAOSLSQFwd: optionally corrupt the just-forwarded data,
                 // modeling store-buffer forwarding-path corruption (the
