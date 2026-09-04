@@ -1,0 +1,185 @@
+# ============================================================ 
+# dmesg 全量法证 — 127.0.0.1-2026-08-31-00:47:32（第 7 次致命转储）
+# 执行日: 2026-09-04  命令与真实输出逐条对应
+# ============================================================ 
+
+$ D=/home/sdc/wangxu/vmcore0102/127.0.0.1-2026-08-31-00:47:32/vmcore-dmesg.txt
+
+## [1] 开机指纹
+$ grep -nE "Linux version|Command line|Memory:" $D | head -5
+2:[    0.000000] Linux version 6.6.0-145.3.23.154.oe2403sp3.aarch64 (root@node-48snw.compass-ci.net) (gcc_old (GCC) 12.3.1 (openEuler 12.3.1-110.oe2403sp3), GNU ld (GNU Binutils) 2.41) #1 SMP Mon Jul 27 19:00:34 CST 2026
+408:[    0.000000] Memory: 791048816K/805102592K available (15360K kernel code, 5418K rwdata, 10648K rodata, 5824K init, 27554K bss, 14053776K reserved, 0K cma-reserved)
+
+## [2] WARNING 总数（预期 13）
+$ grep -n "WARNING: CPU:" $D | wc -l
+13
+
+## [3] WARNING per-CPU 分布（预期仅 CPU179）
+$ grep -oE "WARNING: CPU: [0-9]+" $D | sort | uniq -c
+     13 WARNING: CPU: 179
+
+## [4] 全部 13 次 WARNING 的行号/时间戳/PID
+$ grep -n "WARNING: CPU: 179" $D
+2590:[10520.595473] WARNING: CPU: 179 PID: 14074 at arch/arm64/mm/fault.c:494 __do_kernel_fault+0x130/0x1b8
+2635:[11620.539676] WARNING: CPU: 179 PID: 14074 at arch/arm64/mm/fault.c:494 __do_kernel_fault+0x130/0x1b8
+2680:[11775.035246] WARNING: CPU: 179 PID: 9678 at arch/arm64/mm/fault.c:494 __do_kernel_fault+0x130/0x1b8
+2725:[12975.056061] WARNING: CPU: 179 PID: 9678 at arch/arm64/mm/fault.c:494 __do_kernel_fault+0x130/0x1b8
+2770:[13390.527745] WARNING: CPU: 179 PID: 14074 at arch/arm64/mm/fault.c:494 __do_kernel_fault+0x130/0x1b8
+2837:[282138.527773] WARNING: CPU: 179 PID: 14074 at arch/arm64/mm/fault.c:494 __do_kernel_fault+0x130/0x1b8
+2882:[345159.035158] WARNING: CPU: 179 PID: 9678 at arch/arm64/mm/fault.c:494 __do_kernel_fault+0x130/0x1b8
+2927:[362639.034506] WARNING: CPU: 179 PID: 9678 at arch/arm64/mm/fault.c:494 __do_kernel_fault+0x130/0x1b8
+2972:[363149.069284] WARNING: CPU: 179 PID: 9678 at arch/arm64/mm/fault.c:494 __do_kernel_fault+0x130/0x1b8
+3017:[363388.500484] WARNING: CPU: 179 PID: 14074 at arch/arm64/mm/fault.c:494 __do_kernel_fault+0x130/0x1b8
+3062:[396119.593942] WARNING: CPU: 179 PID: 14074 at arch/arm64/mm/fault.c:494 __do_kernel_fault+0x130/0x1b8
+3107:[396119.598087] WARNING: CPU: 179 PID: 14074 at arch/arm64/mm/fault.c:494 __do_kernel_fault+0x130/0x1b8
+3152:[396119.621192] WARNING: CPU: 179 PID: 14074 at arch/arm64/mm/fault.c:494 __do_kernel_fault+0x130/0x1b8
+
+## [5] WARNING 进程名分布
+$ grep -A3 "WARNING: CPU: 179" $D | grep -oE "Comm: [a-zA-Z0-9_-]+" | sort | uniq -c
+      5 Comm: irqbalance
+      8 Comm: pmdalinux
+
+## [6] 全部 spurious fault FAR 地址
+$ grep -n "Ignoring spurious" $D
+2589:[10520.595465] Ignoring spurious kernel translation fault at virtual address ffff60400826514e
+2634:[11620.539668] Ignoring spurious kernel translation fault at virtual address ffff604005a392ae
+2679:[11775.035236] Ignoring spurious kernel translation fault at virtual address ffff6040076271f3
+2724:[12975.056052] Ignoring spurious kernel translation fault at virtual address ffff20200adbc2f0
+2769:[13390.527737] Ignoring spurious kernel translation fault at virtual address ffff604088acb4d4
+2836:[282138.527764] Ignoring spurious kernel translation fault at virtual address ffff60415e428327
+2881:[345159.035148] Ignoring spurious kernel translation fault at virtual address ffff202016b2d4b3
+2926:[362639.034498] Ignoring spurious kernel translation fault at virtual address ffff202018a253b6
+2971:[363149.069276] Ignoring spurious kernel translation fault at virtual address ffff604349d14101
+3016:[363388.500475] Ignoring spurious kernel translation fault at virtual address ffff604349d10726
+3061:[396119.593933] Ignoring spurious kernel translation fault at virtual address ffff604349d163ab
+3106:[396119.598083] Ignoring spurious kernel translation fault at virtual address ffff604349d16466
+3151:[396119.621188] Ignoring spurious kernel translation fault at virtual address ffff604349d1649d
+
+## [7] 完整崩溃块（行 3195 起，寄存器 x0~x30 全量）
+$ awk 'NR>=3195 && NR<=3243' $D
+[396122.719381] Unable to handle kernel paging request at virtual address 0000c1a9443c9305
+[396122.728134] Mem abort info:
+[396122.731717]   ESR = 0x0000000096000004
+[396122.736255]   EC = 0x25: DABT (current EL), IL = 32 bits
+[396122.742360]   SET = 0, FnV = 0
+[396122.746201]   EA = 0, S1PTW = 0
+[396122.750128]   FSC = 0x04: level 0 translation fault
+[396122.755795] Data abort info:
+[396122.759459]   ISV = 0, ISS = 0x00000004, ISS2 = 0x00000000
+[396122.765735]   CM = 0, WnR = 0, TnD = 0, TagAccess = 0
+[396122.771574]   GCS = 0, Overlay = 0, DirtyBit = 0, Xs = 0
+[396122.777675] user pgtable: 4k pages, 48-bit VAs, pgdp=0000204003e1c000
+[396122.784907] [0000c1a9443c9305] pgd=0000000000000000, p4d=0000000000000000
+[396122.792491] Internal error: Oops: 0000000096000004 [#1] SMP
+[396122.798855] Modules linked in: tcp_diag inet_diag binfmt_misc nft_fib_inet nft_fib_ipv4 nft_fib_ipv6 nft_fib nft_reject_inet nf_reject_ipv4 nf_reject_ipv6 nft_reject nft_ct nft_chain_nat nf_nat nf_conntrack nf_defrag_ipv6 nf_defrag_ipv4 rfkill ip_set nf_tables libcrc32c rpcrdma sunrpc rdma_ucm ib_srpt ib_isert iscsi_target_mod target_core_mod ib_iser rdma_cm iw_cm ib_cm libiscsi scsi_transport_iscsi vfat fat hns_roce_hw_v2 ipmi_ssif ib_uverbs ib_core acpi_ipmi ses ipmi_si enclosure ipmi_devintf ipmi_msghandler hisi_uncore_l3c_pmu hisi_uncore_hha_pmu hisi_uncore_ddrc_pmu sg hisi_uncore_pmu ip6_tables ip_tables fuse nfnetlink ext4 mbcache jbd2 sd_mod t10_pi hibmc_drm crc64_rocksoft_generic drm_vram_helper drm_ttm_helper crc64_rocksoft crc64 ttm motorcomm crct10dif_ce ghash_ce sha2_ce drm_display_helper sha256_arm64 sha1_ce hisi_sas_v3_hw hclge sbsa_gwdt drm_kms_helper hisi_sas_main libsas ahci libahci scsi_transport_sas drm hns3 libata nfit hnae3 megaraid_sas host_edma_drv i2c_designware_platform libnvdimm
+[396122.798975]  i2c_designware_core hisi_trng_v2 dm_mirror dm_region_hash dm_log dm_multipath dm_mod aes_neon_bs aes_neon_blk aes_ce_blk aes_ce_cipher [last unloaded: l1d_disable(OE)]
+[396122.905717] CPU: 179 PID: 16 Comm: rcu_sched Kdump: loaded Tainted: G        W  OE       6.6.0-145.3.23.154.oe2403sp3.aarch64 #1
+[396122.918077] Hardware name: Yangtze Computing R240K V2/BC82AMQA, BIOS 7.48 06/15/2026
+[396122.926613] pstate: 204000c9 (nzCv daIF +PAN -UAO -TCO -DIT -SSBS BTYPE=--)
+[396122.934368] pc : find_busiest_group+0x140/0xb60
+[396122.939698] lr : find_busiest_group+0x11c/0xb60
+[396122.945017] sp : ffff8000821ab830
+[396122.949119] x29: ffff8000821ab9b0 x28: ffff8000821ab860 x27: a000c1a9443c91e5
+[396122.957048] x26: ffff604003e270c0 x25: 000000000000003c x24: ffffc1a986255000
+[396122.964975] x23: 0000000000000400 x22: ffff604003e27120 x21: ffffc1a98624fcb0
+[396122.972903] x20: a000ffffbe56fb25 x19: ffff8000821aba40 x18: 0000000000000000
+[396122.980833] x17: 0000000000000000 x16: 0000000000000000 x15: 0000000000000000
+[396122.988761] x14: 0000000000000004 x13: ffffc1a986281988 x12: 0000000000000000
+[396122.996691] x11: 00000000000000aa x10: ffff8000817c9430 x9 : ffffc1a98442ae58
+[396123.004620] x8 : ffff8000821ab8b8 x7 : 0000000000000000 x6 : 000000000000003c
+[396123.012549] x5 : f000000000000000 x4 : 0000000000000000 x3 : 000000000000003c
+[396123.020475] x2 : 0000000000009063 x1 : ffffc1a985e596c0 x0 : 000000000000003c
+[396123.028404] Call trace:
+[396123.032417]  find_busiest_group+0x140/0xb60
+[396123.037974]  load_balance+0x108/0x6c0
+[396123.042968]  newidle_balance+0x198/0x510
+[396123.048214]  pick_next_task_fair+0x110/0x718
+[396123.053801]  pick_next_task+0x60/0x398
+[396123.058856]  __schedule+0x1b4/0x8a0
+[396123.063637]  schedule+0x58/0x130
+[396123.068154]  schedule_timeout+0x1b0/0x2f0
+[396123.073447]  rcu_gp_fqs_loop+0x11c/0x358
+[396123.078653]  rcu_gp_kthread+0x124/0x178
+[396123.083770]  kthread+0xec/0x100
+[396123.088196]  ret_from_fork+0x10/0x20
+[396123.093055] Code: f9400782 f879d814 2a1903e0 8b14003b (f9409377) 
+[396123.100434] SMP: stopping secondary CPUs
+[396123.110117] Starting crashdump kernel...
+[396123.115345] Bye!
+
+## [8] RAS 负证据（ERRIDR/ERX/EDAC/BERT/GHES/mce/ras）
+$ grep -nE "ERRIDR|ERX|EDAC|BERT|GHES|mce|ras" $D | head -12
+12:[    0.000000] ACPI: BERT 0x000000002F61FF98 000030 (v01 HISI   HIP08    00000000 HISI 20151124)
+121:[    0.000000] crashkernel low memory reserved: 0x58000000 - 0x60000000 (128 MB)
+122:[    0.000000] crashkernel reserved: 0x000060575fe00000 - 0x000060579fe00000 (1024 MB)
+387:[    0.000000] Kernel command line: BOOT_IMAGE=/vmlinuz-6.6.0-145.3.23.154.oe2403sp3.aarch64 root=/dev/mapper/openeuler-root ro rd.lvm.lv=openeuler/root rd.lvm.lv=openeuler/swap cgroup_disable=files apparmor=0 crashkernel=1024M,high smmu.bypassdev=0x1000:0x17 smmu.bypassdev=0x1000:0x15 arm64.nopauth nospectre_bhb rhgb quiet console=tty0
+1307:[    0.562229] GHES: APEI firmware first mode is enabled by APEI bit and WHEA _OSC.
+1857:[    0.865813] EDAC MC: Ver: 3.0.0
+1945:[    1.102469] pstore: Using crash dump compression: deflate
+2176:[    1.501206] EDAC MC0: Giving out device to module ghes_edac.c controller ghes_edac: DEV ghes (INTERRUPT)
+2406:[    4.803280] megaraid_sas 0000:02:00.0: firmware crash dump	: no
+3242:[396123.110117] Starting crashdump kernel...
+
+## [9] 时间线端点
+$ grep -E "^\[" $D | head -1
+[    0.000000] Booting Linux on physical CPU 0x0000080000 [0x481fd010]
+$ tail -3 $D
+[396123.100434] SMP: stopping secondary CPUs
+[396123.110117] Starting crashdump kernel...
+[396123.115345] Bye!
+
+## [10] WARNING 块样本（首例完整，含寄存器，供 ESR=0x96000044 WnR=1 形态引用）
+$ sed -n '2588,2611p' $D
+[10520.595451] ------------[ cut here ]------------
+[10520.595465] Ignoring spurious kernel translation fault at virtual address ffff60400826514e
+[10520.595473] WARNING: CPU: 179 PID: 14074 at arch/arm64/mm/fault.c:494 __do_kernel_fault+0x130/0x1b8
+[10520.595488] Modules linked in: binfmt_misc nft_fib_inet nft_fib_ipv4 nft_fib_ipv6 nft_fib nft_reject_inet nf_reject_ipv4 nf_reject_ipv6 nft_reject nft_ct nft_chain_nat nf_nat nf_conntrack nf_defrag_ipv6 nf_defrag_ipv4 rfkill ip_set nf_tables libcrc32c rpcrdma sunrpc rdma_ucm ib_srpt ib_isert iscsi_target_mod target_core_mod ib_iser rdma_cm iw_cm ib_cm libiscsi scsi_transport_iscsi vfat fat hns_roce_hw_v2 ipmi_ssif ib_uverbs ib_core acpi_ipmi ses ipmi_si enclosure ipmi_devintf ipmi_msghandler hisi_uncore_l3c_pmu hisi_uncore_hha_pmu hisi_uncore_ddrc_pmu sg hisi_uncore_pmu ip6_tables ip_tables fuse nfnetlink ext4 mbcache jbd2 sd_mod t10_pi hibmc_drm crc64_rocksoft_generic drm_vram_helper drm_ttm_helper crc64_rocksoft crc64 ttm motorcomm crct10dif_ce ghash_ce sha2_ce drm_display_helper sha256_arm64 sha1_ce hisi_sas_v3_hw hclge sbsa_gwdt drm_kms_helper hisi_sas_main libsas ahci libahci scsi_transport_sas drm hns3 libata nfit hnae3 megaraid_sas host_edma_drv i2c_designware_platform libnvdimm i2c_designware_core hisi_trng_v2
+[10520.595609]  dm_mirror dm_region_hash dm_log dm_multipath dm_mod aes_neon_bs aes_neon_blk aes_ce_blk aes_ce_cipher
+[10520.595625] CPU: 179 PID: 14074 Comm: pmdalinux Kdump: loaded Not tainted 6.6.0-145.3.23.154.oe2403sp3.aarch64 #1
+[10520.595629] Hardware name: Yangtze Computing R240K V2/BC82AMQA, BIOS 7.48 06/15/2026
+[10520.595632] pstate: 60400009 (nZCv daif +PAN -UAO -TCO -DIT -SSBS BTYPE=--)
+[10520.595635] pc : __do_kernel_fault+0x130/0x1b8
+[10520.595639] lr : __do_kernel_fault+0x130/0x1b8
+[10520.595642] sp : ffff8001debcb880
+[10520.595643] x29: ffff8001debcb880 x28: ffff004015df6900 x27: 00000000ffffffd8
+[10520.595648] x26: ffff8001debcbbd0 x25: 0000000000000ebc x24: ffff604008265144
+[10520.595652] x23: 0000000080400009 x22: 0000000000000025 x21: ffff60400826514e
+[10520.595656] x20: ffff8001debcb950 x19: 0000000096000044 x18: ffffffffffffffff
+[10520.595660] x17: 6666207373657264 x16: 6461206c61757472 x15: 697620746120746c
+[10520.595664] x14: 756166206e6f6974 x13: 6534313536323830 x12: 3034303666666666
+[10520.595667] x11: 00000000fffeffff x10: ffff60575f8d1b40 x9 : ffffc1a98447c520
+[10520.595671] x8 : 000000000017ffe8 x7 : c0000000fffeffff x6 : 000000000057ffa8
+[10520.595675] x5 : ffff8000817c9d88 x4 : ffff8001debcb6e0 x3 : ffffbe56fb984000
+[10520.595679] x2 : 0000000000000000 x1 : 0000000000000000 x0 : ffff004015df6900
+[10520.595683] Call trace:
+[10520.595686]  __do_kernel_fault+0x130/0x1b8
+[10520.595689]  do_bad_area+0x70/0x88
+
+## [11] 最后一次 WARNING 到 panic 的间隔
+last WARNING 396119.621192 -> panic 396122.719381 = 3.098 s（Python3 计算）
+WARNING11->12: 0.0041s; 12->13: 0.0231s; W10->W11: 32731.1s (9.1h)
+boot->first WARNING: 10520.6s = 2.92h; uptime at panic: 396122.7s = 110.03h
+
+## [12] l1d_disable 三次试验（44745~84007s，均无效后卸载）
+$ grep -nE "L1D DISABLED|L1D RE-ENABLED" $D
+2822:[44747.160062] L1D DISABLED on cpu 179 (SCTLR_EL1=0x3464d999)
+2823:[44749.307236] L1D RE-ENABLED on cpu 179 (SCTLR_EL1=0x3464d99d)
+2828:[82326.094061] L1D DISABLED on cpu 179 (SCTLR_EL1=0x3464d999)
+2829:[82626.203447] L1D RE-ENABLED on cpu 179 (SCTLR_EL1=0x3464d99d)
+2832:[83107.995519] L1D DISABLED on cpu 179 (SCTLR_EL1=0x3464d999)
+2833:[84007.236415] L1D RE-ENABLED on cpu 179 (SCTLR_EL1=0x3464d99d)
+
+## [13] silifuzz_orches 运行记录（5 条 memfd 消息）
+$ grep -c "silifuzz_orches" $D
+5
+
+## [14] 静默窗统计（awk 全量核验）
+80.7~10520s 消息数: 0（开机正常态结束→首症之间）
+363389~396119s 消息数: 0（末次 WARNING 簇前静默 ~9.1h）
+
+## [15] WARNING 时间戳全列（Python3 间隔计算）
+ts = [10520.6, 11620.5, 11775.0, 12975.1, 13390.5, 282138.5, 345159.0, 362639.0, 363149.1, 363388.5, 396119.594, 396119.598, 396119.621]
+W1->W2: 1100s; W2->W3: 155s; W3->W4: 1200s; W4->W5: 415s
+W5->W6: 268748s (74.7h 静默); W6->W7: 63021s (17.5h); W7->W8: 17480s (4.9h)
+W8->W9: 510s; W9->W10: 239s; W10->W11: 32731s (9.1h)
+W11->W12: 0.0041s; W12->W13: 0.0231s; W13->panic: 3.098s

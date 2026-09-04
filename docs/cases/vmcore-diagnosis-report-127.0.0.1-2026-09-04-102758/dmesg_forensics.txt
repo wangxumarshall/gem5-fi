@@ -1,0 +1,121 @@
+# dmesg 全量法证 — 127.0.0.1-2026-09-04-10:27:58（第 10 次致命转储）
+# 源文件: /home/sdc/wangxu/vmcore0102/127.0.0.1-2026-09-04-10:27:58/vmcore-dmesg.txt (2731 行)
+# 取证时间: 2026-09-04, 全部命令真实执行于本机 (taskset 隔离与 CPU179 无关的常规 grep/awk)
+
+===== ① 开机指纹 =====
+$ grep -nE "Linux version|Command line|Memory:" $D | head -5
+2:[    0.000000] Linux version 6.6.0-145.3.23.154.oe2403sp3.aarch64 (root@node-48snw.compass-ci.net) (gcc_old (GCC) 12.3.1 (openEuler 12.3.1-110.oe2403sp3), GNU ld (GNU Binutils) 2.41) #1 SMP Mon Jul 27 19:00:34 CST 2026
+408:[    0.000000] Memory: 791048808K/805102592K available (15360K kernel code, 5418K rwdata, 10648K rodata, 5824K init, 27554K bss, 14053784K reserved, 0K cma-reserved)
+
+$ grep -m2 "Booting Linux" $D
+[    0.000000] Booting Linux on physical CPU 0x0000080000 [0x481fd010]
+
+===== ② WARNING 统计 =====
+$ grep -c "WARNING: CPU:" $D
+2
+
+$ grep -oE "WARNING: CPU: [0-9]+" $D | sort | uniq -c
+      2 WARNING: CPU: 179
+
+$ grep "WARNING: CPU: 179" $D | awk -F'[][]' '{print $2}' | sort -n | uniq -c   # 时间戳聚类
+      1  2099.552090
+      1  2117.796143
+
+$ grep "Ignoring spurious" $D
+[ 2099.552081] Ignoring spurious kernel translation fault at virtual address ffff604003e54458
+[ 2117.796132] Ignoring spurious kernel translation fault at virtual address ffff604003e61280
+
+===== ③ 完整崩溃块 =====
+$ awk '/Unable to handle/{f=1} f{print; c++} c>110{exit}' $D
+[ 3951.160261] Unable to handle kernel paging request at virtual address ffffd99f13ae97e0
+[ 3951.169008] Mem abort info:
+[ 3951.172588]   ESR = 0x0000000096000007
+[ 3951.177126]   EC = 0x25: DABT (current EL), IL = 32 bits
+[ 3951.183228]   SET = 0, FnV = 0
+[ 3951.187067]   EA = 0, S1PTW = 0
+[ 3951.190993]   FSC = 0x07: level 3 translation fault
+[ 3951.196659] Data abort info:
+[ 3951.200325]   ISV = 0, ISS = 0x00000007, ISS2 = 0x00000000
+[ 3951.206601]   CM = 0, WnR = 0, TnD = 0, TagAccess = 0
+[ 3951.212442]   GCS = 0, Overlay = 0, DirtyBit = 0, Xs = 0
+[ 3951.218544] swapper pgtable: 4k pages, 48-bit VAs, pgdp=000040448bb14000
+[ 3951.226036] [ffffd99f13ae97e0] pgd=10006057fffff403, p4d=10006057fffff403, pud=10006057ffffe403, pmd=10006057ffffa403, pte=0000000000000000
+[ 3951.239362] Internal error: Oops: 0000000096000007 [#1] SMP
+[ 3951.245726] Modules linked in: binfmt_misc nft_fib_inet nft_fib_ipv4 nft_fib_ipv6 nft_fib nft_reject_inet nf_reject_ipv4 nf_reject_ipv6 nft_reject nft_ct nft_chain_nat nf_nat nf_conntrack nf_defrag_ipv6 nf_defrag_ipv4 ip_set rfkill nf_tables libcrc32c vfat fat rpcrdma sunrpc rdma_ucm ib_srpt ib_isert iscsi_target_mod target_core_mod ib_iser rdma_cm iw_cm ib_cm libiscsi scsi_transport_iscsi ipmi_ssif hns_roce_hw_v2 ib_uverbs ib_core acpi_ipmi ses hisi_uncore_hha_pmu hisi_uncore_ddrc_pmu enclosure ipmi_si ipmi_devintf hisi_uncore_l3c_pmu ipmi_msghandler hisi_uncore_pmu sg ip6_tables ip_tables fuse nfnetlink ext4 mbcache jbd2 sd_mod t10_pi crc64_rocksoft_generic crc64_rocksoft crc64 hibmc_drm drm_vram_helper drm_ttm_helper motorcomm crct10dif_ce ghash_ce sha2_ce ttm drm_display_helper sha256_arm64 sha1_ce hclge hisi_sas_v3_hw drm_kms_helper hisi_sas_main libsas sbsa_gwdt ahci libahci scsi_transport_sas drm hns3 libata nfit hnae3 megaraid_sas host_edma_drv i2c_designware_platform libnvdimm i2c_designware_core hisi_trng_v2
+[ 3951.245829]  dm_mirror dm_region_hash dm_log dm_multipath dm_mod aes_neon_bs aes_neon_blk aes_ce_blk aes_ce_cipher
+[ 3951.348040] CPU: 179 PID: 293168 Comm: sftp-server Kdump: loaded Tainted: G        W           6.6.0-145.3.23.154.oe2403sp3.aarch64 #1
+[ 3951.360925] Hardware name: Yangtze Computing R240K V2/BC82AMQA, BIOS 7.48 06/15/2026
+[ 3951.369460] pstate: 204000c9 (nzCv daIF +PAN -UAO -TCO -DIT -SSBS BTYPE=--)
+[ 3951.377213] pc : find_busiest_group+0x140/0xb60
+[ 3951.382539] lr : find_busiest_group+0x11c/0xb60
+[ 3951.387857] sp : ffff8001e54ab740
+[ 3951.391956] x29: ffff8001e54ab8c0 x28: ffff8001e54ab770 x27: ffffd99f13ae96c0
+[ 3951.399884] x26: ffff604003e611e0 x25: 0000000000000095 x24: ffffd99f13ee5000
+[ 3951.407810] x23: 0000000000000401 x22: ffff604003e618a0 x21: ffffd99f13edfcb0
+[ 3951.415738] x20: 0000000000000000 x19: ffff8001e54ab950 x18: 0000000000000000
+[ 3951.423666] x17: 0000000000000000 x16: 0000000000000000 x15: 0000ffffa24a0010
+[ 3951.431593] x14: 507362023e7c0170 x13: 3600507338023e7c x12: 000000000001f78f
+[ 3951.439521] x11: 0000000000000079 x10: 0000000000000025 x9 : ffffd99f120bae58
+[ 3951.447449] x8 : ffff8001e54ab7c8 x7 : 0000000000000000 x6 : 0000000000000095
+[ 3951.455376] x5 : ffffffffffe00000 x4 : 0000000000000002 x3 : 0000000000000015
+[ 3951.463303] x2 : 0000000000019850 x1 : ffffd99f13ae96c0 x0 : 0000000000000095
+[ 3951.471231] Call trace:
+[ 3951.475113]  find_busiest_group+0x140/0xb60
+[ 3951.480648]  load_balance+0x108/0x6c0
+[ 3951.485624]  newidle_balance+0x198/0x510
+[ 3951.490847]  pick_next_task_fair+0x110/0x718
+[ 3951.496413]  pick_next_task+0x60/0x398
+[ 3951.501443]  __schedule+0x1b4/0x8a0
+[ 3951.506203]  schedule+0x58/0x130
+[ 3951.510706]  pipe_write+0x1ec/0x558
+[ 3951.515477]  new_sync_write+0x140/0x158
+[ 3951.520598]  vfs_write+0x21c/0x2b0
+[ 3951.525269]  ksys_write+0xf4/0x118
+[ 3951.529937]  __arm64_sys_write+0x24/0x38
+[ 3951.535121]  invoke_syscall+0x50/0x128
+[ 3951.540127]  el0_svc_common.constprop.0+0xc8/0xf0
+[ 3951.546087]  do_el0_svc+0x48/0x78
+[ 3951.550657]  el0_slow_syscall+0x44/0x1b8
+[ 3951.555834]  el0t_64_sync_handler+0x100/0x130
+[ 3951.561433]  el0t_64_sync+0x188/0x190
+[ 3951.566320] Code: f9400782 f879d814 2a1903e0 8b14003b (f9409377) 
+[ 3951.573641] SMP: stopping secondary CPUs
+[ 3951.583179] Starting crashdump kernel...
+[ 3951.588358] Bye!
+
+===== ④ RAS 负证据 =====
+$ grep -nE "ERRIDR|ERX|EDAC|BERT|GHES|mce|ras|Hardware error|ECC" $D | head -12
+12:[    0.000000] ACPI: BERT 0x000000002F61FF98 000030 (v01 HISI   HIP08    00000000 HISI 20151124)
+121:[    0.000000] crashkernel low memory reserved: 0x58000000 - 0x60000000 (128 MB)
+122:[    0.000000] crashkernel reserved: 0x000060575fe00000 - 0x000060579fe00000 (1024 MB)
+387:[    0.000000] Kernel command line: BOOT_IMAGE=/vmlinuz-6.6.0-145.3.23.154.oe2403sp3.aarch64 root=/dev/mapper/openeuler-root ro rd.lvm.lv=openeuler/root rd.lvm.lv=openeuler/swap cgroup_disable=files apparmor=0 crashkernel=1024M,high smmu.bypassdev=0x1000:0x17 smmu.bypassdev=0x1000:0x15 arm64.nopauth nospectre_bhb rhgb quiet console=tty0
+1307:[    0.571009] GHES: APEI firmware first mode is enabled by APEI bit and WHEA _OSC.
+1857:[    0.873835] EDAC MC: Ver: 3.0.0
+1945:[    1.110460] pstore: Using crash dump compression: deflate
+2176:[    1.518513] EDAC MC0: Giving out device to module ghes_edac.c controller ghes_edac: DEV ghes (INTERRUPT)
+2281:[    1.800424] systemd[1]: systemd v255-59.oe2403sp3 running in system mode (+PAM +AUDIT +SELINUX -APPARMOR +IMA -SMACK +SECCOMP +GCRYPT +GNUTLS -OPENSSL +ACL +BLKID -CURL -ELFUTILS -FIDO2 +IDN2 -IDN -IPTC +KMOD +LIBCRYPTSETUP +LIBFDISK +PCRE2 -PWQUALITY +P11KIT -QRENCODE -TPM2 +BZIP2 +LZ4 +XZ +ZLIB -ZSTD -BPF_FRAMEWORK +XKBCOMMON +UTMP +SYSVINIT default-hierarchy=legacy)
+2386:[    3.720040] megaraid_sas 0000:02:00.0: firmware crash dump	: no
+2485:[   23.168209] systemd[1]: systemd v255-59.oe2403sp3 running in system mode (+PAM +AUDIT +SELINUX -APPARMOR +IMA -SMACK +SECCOMP +GCRYPT +GNUTLS -OPENSSL +ACL +BLKID -CURL -ELFUTILS -FIDO2 +IDN2 -IDN -IPTC +KMOD +LIBCRYPTSETUP +LIBFDISK +PCRE2 -PWQUALITY +P11KIT -QRENCODE -TPM2 +BZIP2 +LZ4 +XZ +ZLIB -ZSTD -BPF_FRAMEWORK +XKBCOMMON +UTMP +SYSVINIT default-hierarchy=legacy)
+2730:[ 3951.583179] Starting crashdump kernel...
+
+===== ⑤ 静默窗核验 =====
+$ awk '$0 ~ /^\[/ {ts=$1; gsub(/[\[\]]/,"",ts); if (ts+0>94.50 && ts+0<2099.5) c++} END{print c+0}' $D   # 94.49s~2099s
+0
+$ awk '$0 ~ /^\[/ {ts=$1; gsub(/[\[\]]/,"",ts); if (ts+0>2117.9 && ts+0<3951.1) c++} END{print c+0}' $D   # 2118s~3951s
+0
+
+===== ⑥ 时间线端点 =====
+$ grep -E "^\[" $D | head -1
+[    0.000000] Booting Linux on physical CPU 0x0000080000 [0x481fd010]
+$ tail -3 $D
+[ 3951.573641] SMP: stopping secondary CPUs
+[ 3951.583179] Starting crashdump kernel...
+[ 3951.588358] Bye!
+
+===== ⑦ 业务网络/存储就绪时点 =====
+$ grep -nE "link up|mounted filesystem|RPC: Registered rdma transport" $D | head -6
+2469:[   21.456356] EXT4-fs (dm-0): mounted filesystem 5e325dae-65ad-4ca6-acbf-21d72e320f52 ro with ordered data mode. Quota mode: none.
+2586:[   29.789973] RPC: Registered rdma transport module.
+2588:[   30.001034] EXT4-fs (sda2): mounted filesystem 292ec8fe-34a2-4c4f-8e20-f4df4bb942a4 r/w with ordered data mode. Quota mode: none.
+2589:[   30.146190] EXT4-fs (dm-2): mounted filesystem f1b67c43-81fe-41a8-ae7b-db025a550c2c r/w with ordered data mode. Quota mode: none.
+2591:[   42.049318] hns3 0000:bd:00.0 enp189s0f0: link up
