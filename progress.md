@@ -1870,3 +1870,9 @@ FS run（kernel 5.15.36 ubuntu, Atomic, gem5-fs deps）：`armtlb_injections.log
 - ③ runner 侧 FS 路由已有（C0-FS/C2-FS config_family），campaign 级 FS formal 跑批等 checkpoint 制好后验证。
 
 **验证状态**：python compile ✅；V110 FS delegate+boot 真机运行中（Atomic boot ~30-60min on cpu179）；checkpoint 管线的端到端验证（boot→ckpt→restore→注入）需要先跑完 boot_ckpt.rcS 一步（预计 wall-time 大，验证排入本 Phase 后续）。
+
+### Phase 5.3: CHAOSPTW 挂载（1bd05b3）—— H7 formal 工具前提完成
+
+CHAOSPTW 已 cherry-pick（c42270d）但**从未在任何 config 挂载**（runner 直接 reject ptw 组件）。本补丁：arm_chaos_fs.py `--chaos_ptw` 挂 D-side walk unit（`cpu0.mmu.walker.walk_units[1]`），knobs 全套（mode/first_clock/max_faults/fault_mask/rng_seed/**ptw_ecc H7 开关**）；runner ptw 组件改路由到 C0-FS（clear_valid(H7) ← stuck_at_zero；ptw_ecc 跟随 protection_model——'none'→ECC OFF，其余→ECC ON，H7 双臂对照）。
+
+**Phase 5 进度**：5.1 V110 FS ✅（291a431）、5.2 checkpoint 管线 ✅（291a431，端到端验证排队——Atomic boot 跑批中）、5.3 PTW 挂载 ✅（1bd05b3，H7 pilot 排队）。剩余：H7 pilot（ECC on/off × 5-seed）、TLB F5 活页 formal、method2 三根因实验（均等 checkpoint）。
