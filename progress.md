@@ -1572,3 +1572,18 @@ Phase 2.2（l1dfwd post-check escape formal）已启动。
 2. 重跑：**n_valid=384, 384/384 faults=1, 全 Masked：P_SDC=0.0% [0.0,1.0], Reach=100%, frozen=no**（205s + replay）。
 
 **FPU 最终结论（合并 neon_lane Reach=17% 的一致方向）**：FSU 数据通路单 bit XOR 在 FP 密集 workload（gemm_float，稠密 eligible 流 + 分散注入点）上 384/384 全 Masked——**单元级确认**：FP 结果单比特错误不传播到 gemm checksum（n=384 上界 1%）。注意 §2.6 的 F5 子模式（fma_intermediate/rounding_sub/fpsr_suppress）仍 deferred——"全 Masked"限定于 F1 单 bit XOR。
+
+### Phase 3 网格深化 #2: PRF 位段网格 pilot（§2.1 C）— X3 bit0/bit11 边界发现
+
+**§2.1 PRF bit-segment pilot（cholesky, C2, 12 cells = {X3,X9} × bit {0,11,31,32,47,63} × n=100 + 5% replay，1200 reps，1094s，0 frozen，0 replay-mismatch）**：
+
+| reg | bit | P_SDC | P_DUE | 结局 |
+|---|---|---|---|---|
+| X3 | **0** | **100% [96,100]** | 0% | **SDC** |
+| X3 | 11/31/32/47/63 | 0% | **100% [96,100]** | DUE |
+| X9 | 全部 | 0% | 0% | Masked |
+
+**关键发现（位段边界）**：X3 在 cholesky 上存在清晰的 **bit0（SDC）/ bit11+（DUE）分界**——低位翻转静默传播到 checksum，高位翻转必崩溃（垃圾指针/大数值越界）。这比 random-bit formal（X3 整体 3.9% SDC / 92.7% DUE，5d84b5f）细了一个维度：3.9% ≈ 低位占随机 bit 的比例。与设计文档 §2.1 E 的预期规律吻合（"循环计数器类低位 SDC、高位 Hang"的变体：X3 是累加器类，低位 SDC、高位 Crash）。
+X9 全 Masked 确认（不在关键路径，位段无关）。
+
+**下一步（§2.1 C 规格）**：X3 bit1-bit10 扫描定位精确边界（二分）；X0-X7 参数类寄存器 × 低位；F4 stuck / F3 数据相关模式。

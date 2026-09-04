@@ -1,0 +1,24 @@
+schema_version: arm-chaos-fi/v1
+campaign_id: prf_bitseg_pilot
+injector: physreg
+config: C2
+mode: SE
+grid:
+  phys_mode: [arch_frontend]
+  # §2.1 C bit-segment axis: cover [0:11] (low) / [12:47] (mid) / [48:63]
+  # (high) + 31/32/63 boundaries.
+  target_index: [3, 9]
+  bit: [0, 11, 31, 32, 47, 63]
+  fault_model: [transient_bit_flip]
+  protection_model: [none]
+n_per_cell: 100
+base_seed: 20260825
+replay_pct: 5.0
+workload:
+  binary: workloads/directed/cholesky_numeric
+  golden_id: cholesky-golden-v1
+  trigger_mode: cycle
+  trigger_value: 50000
+limits:
+  max_faults: 1
+hang_timeout: 300
