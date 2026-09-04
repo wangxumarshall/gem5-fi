@@ -1602,6 +1602,14 @@ X9 全 Masked 确认（不在关键路径，位段无关）。
 **结论**：X3 在 cholesky 上的 SDC/DUE 边界精确位于 **bit1/bit2**，无过渡带（两格都是 100% 干脆翻转）。X3 是小整数累加器：bit0-1 翻转产生的数值偏移仍落在合法域（→ 静默传播）；bit2+ 翻转的偏移使它变成越界索引/坏指针（→ 崩溃）。这解释 random-bit formal 的 3.9% SDC ≈ 2/64（bit0-1 占随机位比例 3.1%，观测 3.9% 吻合）。
 **PRF 位段规律（§2.1 E 预测的细化）**：累加器类寄存器有"低位窄 SDC 窗 + 高位全 DUE"结构，且边界由 workload 的数值域决定（cholesky 的 X3 是循环计数/小偏移类）。
 
+### Phase 3 网格深化 #7: ExMon formal（§2.4）— 100% DUE 单元级确认
+
+**§2.4 formal（spinlock_checksum, C2, stxr_force_fail, n=384 + 5% replay, 1481s, 0 frozen）**：**P_DUE=100% [99.0,100.0], P_SDC=0% [0,1.0], Reach=100%**。
+
+- 修复后（7108428）的分散采样下 384/384 全 Crash——pilot 5/5 DUE **不是**采样伪影，升级为单元级结论：**STXR 强制失败（exclusive monitor 语义破坏）对 spinlock_checksum 全致命，与注入点无关**（每个 would-succeed STXR 被翻转都让自旋锁协议死锁/崩溃）。
+- 与 ROB/IQ/Exec 等的"全 Masked"形成对照：ExMon 是控制流-存储一致性结构，其错误无掩盖通路。§4.1 逃逸分解补一行：ExMon → 100% DUE（B 类：立即检测）。
+- 诚实注记：stxr_force_success 方向（本该失败的 STXR 强制成功）未跑——那是隔离破坏→静默数据竞争→潜在 SDC 的方向，排 Phase 4 F5/F6 模式批（与 §2.18 exc_suppress 同类的"DUE→SDC 转换"实验）。
+
 ### Phase 3 网格深化 #6: PRF H2 窗口扫描 pilot（§2.1 H2）— ROB=160 整行掩蔽发现
 
 **§2.1 H2 pilot（cholesky, C2, X3 bit0 固定, ROB {96,128,160} × PhysInt {128,160,192} × n=30 + 5% replay, 270 reps, 184s, 0 frozen）**：

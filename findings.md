@@ -147,7 +147,8 @@ CHAOSArmSysReg 也有 `*1000`（startup()，FS-only，SE formal 不受影响，�
 | LSQFwd byte_flip | 4.7% | 27.6% | Masked 67.7% | **修正**（旧 100% DUE 是 argparse 伪影） |
 | ROB D=0 / BPU / IQ / Exec | 0% | 0% | Masked | **确认**（单元级有效） |
 | RAS exc_suppress | 0% | 0% | Masked | n=357（24 Inactive） |
-| FPU | 0%（上界5.4%） | 0% | Masked | **Reach=17%**——需换 gemm_float 重跑 |
+| **ExMon stxr_force_fail** | 0% | **100%** | **DUE** | **有效（修复后分散采样）**——STXR 语义破坏全致命 |
+| FPU | 0%（上界5.4%） | 0% | Masked | gemm_float 重跑后 Reach=100% 全 Masked，单元级确认 |
 | mem (DRAM 后备) | 0% | 0% | Masked | 有效（被 L1/L2 掩盖） |
 
 **方法学新知**：geometric(p=0.1) 的 skip 对**小 eligible 流**会枯竭（FPU 317/384 Inactive）。选择 skip 分布要匹配事件流规模；对极小流（<20 事件），单故障采样本身弱——应换 workload 或更早 trigger。**手工测试坑**：注入器的 seed 参数是 `--<inj>_rng_seed`，generic `--rng_seed` 不喂它——手工复现必须按 runner 的 cmd 构造。
