@@ -103,6 +103,8 @@ F5 合法域替换（RAT 偷映射）× 长存活累加器（accum_kernel asm-pi
 
 ## 5. 抗 SDC 微架构设计建议（机制级，非 DFT）
 
+逃逸集合分解基础（tables/t6-escape-decomp.md）：现有 formal 数据全部归入机理 A（RAS 范围外结构 raw escape，3282 事件 100%）——这正是"乱序后端无保护结构是最大暴露面"的实验确证；B–F 机理暂无 formal 数据（如实标注）。
+
 1. **抗状态泄漏**（method1）：PRF 活性回收双校验（freelist 归还前强制校验不在活 RAT 映射——本平台 spec_leak numSpecLeak=3 证明该路径可被单点跳过）；squash 时错误路径 μop 的 PRF 写显式回溯；
 2. **抗相位竞争**（method3）：store→load 转发决策与数据组装分离到不同流水级（一条 no-op ALU 使触发率 100%→10–20% 证明相位敏感）；AGU→MMU 地址呈现加 byte-lane parity（D2 签名 2/5 例确凿）；
 3. **抗 PCE**：ECC 校验通过后到 PhysReg 写回之间的数据段加 parity 或与 ECC 联动（完整 RAM 保护把 SDC 逼到此必然出口）；
@@ -110,7 +112,7 @@ F5 合法域替换（RAT 偷映射）× 长存活累加器（accum_kernel asm-pi
 
 ## 6. openEuler 诊断反哺接口
 
-七步法（Top-N 筛选→重启检测→RAS 静默验证→核心浓度→异常加权→维修历史→FA 确认）+ P1–P11/N1–N10 规则 + 置信度四级（方案 §7）；位谱指纹库 CLI（`tools/sdc_fingerprint.py` build/lookup——现场 xor → Top-K 候选单元，lsq_fwd 指纹 mantissa_share=0.7121/popcount_median=16 与 method3 现场签名方向一致）。
+七步法（Top-N 筛选→重启检测→RAS 静默验证→核心浓度→异常加权→维修历史→FA 确认）+ P1–P11/N1–N10 规则 + 置信度四级（方案 §7）；位谱指纹库 CLI（`tools/sdc_fingerprint.py` build/lookup——现场 xor → Top-K 候选单元，lsq_fwd 指纹 mantissa_share=0.7121/popcount_median=16 与 method3 现场签名方向一致）；留一法验证（tables/t7-loo-validation.md，`tools/loo_validate.py`）：76 事件 Top-3 命中率 100%（≥60% 验收线 VALID），Top-1 34.2%（随机单 bit 多落 mantissa 区，区分度有限——诚实呈现）。
 
 ## 7. 有效性威胁
 

@@ -547,7 +547,7 @@ pilot 每 cell n=100（可达率/工具错误/粗略比例）；formal 每 cell 
 | H5 | 字节相位（byte_lane_skew rol1/rol6）复现 core179 D1 撕裂移位签名 | ✅ **主线 structuralFault 已补齐 `8320daf`**（byte_lane_skew rol1 SDC xor 多位散布已验证）；侧分支闭环 93%；formal ptrskew_kernel 复现待跑 |
 | H6 | AGU byte7 清零 → 规范内核地址非规范化 → 翻译故障（FS 才有效） | ⚠️ **侧分支**：FS 下钩子触发非零、复现 byte7 清零签名（`0xffffffc008b08f30→0xffffc008b08f30`），但 D2-only 50 注入→0 可观察失败，**定量谱可分未确立**；**主线无 CHAOSAddrPath** |
 | H7 | PTW ECC on → spurious≈0 / off → spurious>0 | ✅ **主线 CHAOSPTW 已实现 `de48432`**（FS clearValidBit 已验证制造 spurious，5 注入 BecameInvalid:1，复现 core179 D3）；侧分支两机制各实证；完整 ECC on/off spurious 率定量待 formal |
-| H8 | 逃逸集合分解（机理 A–F 归因） | 待 formal |
+| H8 | 逃逸集合分解（机理 A–F 归因） | ◐ **工具落地 `b64764a1`（tools/escape_decomp.py + t6 表）**：现有 formal 数据全归 A 机理（RAS 范围外 raw escape，3282 事件 100%——readtrace 1536 + prf 768 + m1-rat 114 + h2 864）；B/C/D/E/F 无数据如实标 no data（CHAOSL1DForward/CHAOSRAS 未跑 formal） |
 | H9 | 相位敏感性（F6 phaseOffset 的 `P_SDC` 曲线，`|offset|≥1` vs 0 比值 ≥5×） | ✅ **formal 方向性复现 `4f032007`**：phase_offset=2 在 fp_fwd_kernel 上 SDC=64/64（P=1.000，artifacts/lsq-matrix/summary.md）；塌方比 ≥5× 成立（offset≥1 即 100% vs 现场加 no-op 后 10–20%——方向一致，绝对值差异为代理 kernel 单几何限制，诚实标注） |
 | H10 | 签名可分性（向量 PRF 存储 vs FSU 数据通路 KS 检验可分） | 待 formal |
 
@@ -727,7 +727,7 @@ journalctl -k | grep -E "CPU[ :]+[0-9]+" | awk '{...聚合 per-core count...}'
 
 ### 7.7 注入实验 → 诊断反哺（注入平台 ↔ 诊断接口）
 
-1. **位谱指纹库 → 日志签名匹配**：第 5/6 章每个单元的 SDC 位谱（sign/exp/mantissa/popcount）建成指纹库，供"现场看到某位谱 → 反推候选单元"（留一法验证，见 §8.3）。
+1. **位谱指纹库 → 日志签名匹配**：第 5/6 章每个单元的 SDC 位谱（sign/exp/mantissa/popcount）建成指纹库，供"现场看到某位谱 → 反推候选单元"（留一法验证**已落地 `f39d4c2a`（tools/loo_validate.py + t7 表）：真实 lsq 64 xor + 合成 prf 12 xor = 76 事件，Top-3 命中 100% ≥ 60% 验收线 → VALID；Top-1 34.2% 如实呈现（lsq 随机单 bit 多落 mantissa 区）**。多单元真实库扩充需 per-run xor 收集，后续）。
 2. **单元 P_SDC → 类型加权**：formal 得到的逐单元 P_SDC/P_DUE 回填 §7.3 权重的先验，使权重矩阵有实验依据而非纯论文引用。
 3. **method1/2/3 签名 → 规则库**：core179 的零塌缩/撕裂移位子族、ESR `0x96000044` 重复 WARN 等具体签名沉淀为规则，扩充 `sdc-diagnosis/skills/.../case_knowledge`。
 
@@ -915,7 +915,7 @@ DSN / PRDC / ASPLOS / HPCA / MICRO；对标 Veritas(HPCA'25)、PinDrop(HPCA'26)�
 | **CHAOSAddrPath** | AGU 地址通路（P-D2） | `lsq.cc sendFragmentToTranslation`（`cpu->addrPath`，`request.hh setVaddr`） | A（自挂载，FS+O3） | P1 | byte7 清零复现 core179 D2；byteOffset 0-7/-1随机；tick 时间窗；rng lambda 修复 |
 | **CHAOSRenameMap** | RAT 重命名表（F5） | `rename_map.hh` setEntry() + `cpu->frontRenameMap()` | B（attackEvent 自驱动） | P0 | map_bitflip/f5_substitute/f4_field_stuck 三模式；合法域校验（numLegalityRejects）；method1 历史残留 |
 | **CHAOSROB** | ROB 重排序缓冲 | `rob.hh` readHeadInst() + `cpu->robAccess()` | B（attackEvent 自驱动） | P0 | entry_bitflip（seqNum 翻转 200696→200697）/ exc_suppress（清 fault，合法性校验）/ spec_leak（deferred） |
-| **CHAOSIQ** | 发射队列 | `dyn_inst.hh` readySrcIdx/renamedSrcIdx + `cpu->robAccess()` | B（attackEvent） | P1 | src_ready_bitflip（验证 src0 1→0）/ tag_sub（F5）/ wake_phase+wake_omit（deferred） |
+| **CHAOSIQ** | 发射队列 | `dyn_inst.hh` readySrcIdx/renamedSrcIdx + `cpu->robAccess()`；wake 模式 hook `inst_queue.cc wakeDependents` | B（attackEvent）+ 事件驱动 hook | P1 | src_ready_bitflip（验证 src0 1→0）/ tag_sub（F5）/ wake_phase+wake_omit（**已实现 `8850fa66`**：omit→Hang 断链、phase→一拍延迟补发） |
 | **CHAOSExec** | 整数 ALU writeback | `dyn_inst.hh` corruptResultRegVal + `cpu->robAccess()` | B（attackEvent） | P3 | int writeback result 翻转（已验证 numIntResultCorrupted=1）/ 阴性对照 P_SDC(Int)<<P_SDC(FSU) |
 | **CHAOSFPU** | FP/FSU writeback | `dyn_inst.hh` corruptResultRegVal + `cpu->robAccess()` | B（attackEvent） | P1 | FP writeback result 翻转（IEEE754 sign/exp/mantissa，method3 位谱）/ 与 CHAOSExec 同构 |
 | **CHAOSL1DForward** | PCE post-check escape | `dyn_inst.hh` corruptResultRegVal (isLoad) + `cpu->robAccess()` | B（attackEvent） | P2 | load result post-ECC 翻转（PCE，ECC 后数据通路必然出口） |
@@ -927,7 +927,7 @@ DSN / PRDC / ASPLOS / HPCA / MICRO；对标 Veritas(HPCA'25)、PinDrop(HPCA'26)�
 | CHAOSRenameMap | ✅ 已实现 `c5c8c96` | `rename_map.hh` rename()/setEntry() + `cpu->frontRenameMap()` | ~~S1-2~~ done | — |
 | CHAOSFreeList | ✅ 已实现 `379e11c` | `free_list.hh` addReg()/isFree() + `cpu->physFreeList()` | ~~S1-3~~ done | — |
 | CHAOSROB | ✅ 已实现 `7d0756d` | `rob.hh` readHeadInst() + `cpu->robAccess()` | ~~S1-4~~ done | entry_bitflip/exc_suppress 已验证；spec_leak deferred |
-| CHAOSIQ | ✅ 已实现 `f7a5d72` | `dyn_inst.hh` readySrcIdx/renamedSrcIdx + `cpu->robAccess()` | ~~S8-1~~ done | src_ready_bitflip/tag_sub 已验证；wake_phase/wake_omit deferred |
+| CHAOSIQ | ✅ 已实现 `f7a5d72`；wake 两模式补齐 `8850fa66` | `dyn_inst.hh` + wakeDependents hook（cpu->chaosIQ self-attach） | S8-1 done | 四模式全实现：src_ready_bitflip/tag_sub 已验证；wake_omit→Hang（漏唤醒断依赖链，对照 prob=0 确凿）；wake_phase→一拍延迟（defer 补发，dep_chain fails=0） |
 | CHAOSFPU | 新写 | `iew.cc` writeback（Float*） | S2-3 | — |
 | CHAOSExec | 新写 | `iew.cc` writeback（Int*） | S3-4 | — |
 | CHAOSL1DForward | 新写（PCE） | `lsq_unit.cc` load 回填（ECC 后） | S3-2 | — |

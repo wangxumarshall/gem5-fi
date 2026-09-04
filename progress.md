@@ -897,3 +897,37 @@ run 全部正确收割。
 ### H1 首跑作废教训（已入 memory）
 campaign 运行中 gem5.opt 被构建替换 → cell 内行为分裂（152 SDC + 232
 Crash）→ 数据作废。纪律：campaign 与构建绝不并行。
+
+---
+
+## 本轮（2026-09-04）IQ F6 补齐 + 逃逸分解 + LOO 验证（计划 2026-09-04-iq-f6-escape-loo.md）
+
+### Task 1: CHAOSIQ wake_omit/wake_phase 事件驱动实现 `8850fa66`
+S8-1b（方案 §5.5 deferred 两模式补齐）。hook
+InstructionQueue::wakeDependents 依赖者循环（cpu->chaosIQ self-attach，
+同 lsqFwd 范式；src_ready_bitflip/tag_sub 的 attackEvent 轮询不变）。
+执行中修复两个真实缺陷（实证）：①重入队后 drain assert 崩（Assertion
+dependGraph.empty）→ requeued 标志跳过 empty/clearInst；②defer 补发
+未清链条目 → 退出 panic not-empty → 补发时 dependGraph.remove
+（pending 存 (inst, flatIndex) 对）。
+dep_chain kernel（asm 钉 x9→x10 依赖链，native 确定性 2/2）。
+真机验证（500 iters 循环段 fc=42000）：wake_omit p=1.0 → EXIT=124
+Hang（漏唤醒断依赖链；对照 prob=0 同参数 fails=0——Hang 由注入引起
+确凿）；wake_phase p=1.0 → 注入 1 次（defer sn 27470）补发后 run 完成
+fails=0（一拍延迟不破坏架构正确性——时序故障语义）。
+注入器 18 个，IQ 四模式全实现（S8-1 验收②③达成）。
+
+### Task 2: 逃逸集合分解工具 `b64764a1`
+S5-2（方案 §8.1 机理 A–F 归因）。classify_escape_mechanism +
+decompose（l1d per-rep + campaign cells.csv 聚合）+ t6 表。
+真机：A 机理 3282 事件 100%（readtrace 1536 + prf-formal 768 +
+m1-rat 114 + h2-prf 864——全部 RAS 范围外 raw escape）；B–F no data
+如实标注。pytest 6 用例。
+
+### Task 3: 指纹库留一法验证 `f39d4c2a`
+S5-3（方案 §8.3 Top-3 ≥60% 验收线）。loo_cross_validate 复用
+sdc_fingerprint（不重写字段分类）。真机 LOO（真实 lsq 64 xor +
+合成 prf 12 xor = 76 事件）：Top-1 34.2%（lsq 随机单 bit 多落
+mantissa 区，区分度有限——诚实呈现）、Top-3 100% → VALID。
+pytest 4 用例（初版测试数据的 prf masks 误用 bit31 落 mantissa 区
+——IEEE754 double 的 mantissa 是 51-0，sign/exp 是 63/62-52，已修）。
