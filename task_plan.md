@@ -46,14 +46,14 @@ S1 四个 P0 单元 + S2/S3 六个 SE 单元 formal 已完成（单 cell × n=38
 
 ## Phase 3 — 网格深化：单 cell → 最小有意义网格（§2.1/2.2 C 规格）
 
-**Status: pending**
+**Status: in_progress（2026-09-04，7 个网格已提交）**
 
 当前 formal 几乎全是 `target_index=0` + `transient_bit_flip` 单 cell。按设计文档，最优先的三根轴：
 
-1. **PRF（§2.1）位段 × ABI 角色网格**：bit {0,11,31,32,47,63} × 寄存器 {X3(已做), X0-X7 参数类, X19-X28 callee-saved, X29/X30} × fault_model {bit_flip, F2 相邻2位, F4 stuck, F3 数据相关(已实现 triggerValuePattern)}。先 pilot n=100 筛可达率，再对非零 cell formal n=384。
-2. **PRF 窗口扫描（H2）**：ROB {96,128,160} × PhysInt {128,160,192} 固定 X3 bit_flip —— kp920_proxy.py 参数化即可。
-3. **RAT（§2.2）f5_substitute + freelist mark_free formal**：method1 "历史残留" 主对照实验（§2.2 E 的 P(history_residue) 指标）。f5_substitute 模式已在 CHAOSRenameMap 实现。
-4. **多 workload 对照**：cholesky 上的全 Masked（IQ/Exec/FPU/Decode/BPU/RAS）需要在第二 workload（reg_chain / dep_chain / branchy_reduce）上复检 —— 排除"单 workload 伪 Masked"。ExMon formal（spinlock_checksum，pilot 5/5 DUE）也在此批。
+1. ✅ **PRF 位段 × ABI 角色网格**（45b2b85 + 1210fa6 + 57a75ac）：X3 位段边界 bit1/bit2 精确定位（无过渡带）；三种寄存器画像（索引/计数类 X2/X3/X5 低位 SDC 窗+高位 DUE、指针类高位 DUE、路径外全 Masked）；3.9% random-bit SDC ≈ 2/64 定量互洽。**剩余子项**：F4 stuck / F3 数据相关模式、第二 workload 交叉验证（reg_chain）。
+2. ✅ **PRF 窗口扫描（H2）**（b11d751 + 77e752d + 工具 7ccc801）：ROB {96,128,160} × PhysInt {128,160,192}——**ROB=160 整行掩蔽、PhysInt 零效应、trigger 无关（假说证伪）**；X3 bit0 SDC 对 ROB 深度呈阈值响应（≤128→100%，160→0%），机理 open。
+3. ✅ **RAT（§2.2）f5_substitute formal**（99750c9）：X3 0% SDC / 59.7% DUE vs map_bitflip 95.8%——"历史残留→SDC"不支持；合法域错→40% 自愈，非法错→必崩。**剩余子项**：freelist mark_free formal。
+4. ⏩ **多 workload 对照**：ExMon formal ✅（ac1e131，100% DUE 单元级确认 + 修复第 9 个漏网注入器 7108428）。**剩余**：cholesky 上的全 Masked（IQ/Exec/FPU/Decode/BPU/RAS）在第二 workload（reg_chain）上复检。
 
 **验收**：每单元 ≥2 轴 × ≥3 level 或有书面理由跳过；全 Masked 单元在第二 workload 上置信上界仍 <1% 才写进结论。
 
@@ -113,6 +113,8 @@ Phase 7 (系统级)           ← 后置
 
 ## Next Step
 
-Phase 3.0 ✅ 完成（32629f7 + c7cc34b）。下一步 Phase 3 网格深化，最优先两件：
-1. **FPU 重跑换 workload**：neon_lane 的 FP eligible 流太小（Reach=17%）——用 gemm_float_kernel（FP 密集）重跑 §2.6 formal，恢复 n_valid≥384 量级。
-2. **PRF 位段网格（§2.1 C）**：bit {0,11,31,32,47,63} × 寄存器 {X3,X9,X0-X7 参数类,X19-X28} × fault_model {F1, F2 相邻2位, F3 数据相关, F4 stuck}——先 pilot n=100 筛可达率再 formal。
+Phase 3 进行中（#1–#7 已提交：FPU gemm_float、PRF 位段×3、RAT f5、H2 窗口×2、ExMon；外加 2 个工具补丁 config_params 透传 + ExMon 双 bug 修复）。下一步按优先级：
+1. **freelist mark_free formal**（§2.2 剩余子项，Phase 3.3 收尾）：runner 已映射（transient_bit_flip→mark_free），cholesky C2 n=384。
+2. **多 workload 复检**（Phase 3.4）：IQ/Exec/Decode/BPU/RAS 在 reg_chain 上复跑（排除单 workload 伪 Masked）——exec_regchain/decode_regchain/ras_regchain pilot 已在 artifacts，检查状态后升级 formal。
+3. **PRF F4 stuck / F3 数据相关模式**（Phase 3.1 剩余）：fault_model 轴扩展。
+4. Phase 3 收口后转 Phase 4（F5/F6 机理子模式，ROB spec_leak 优先）。
