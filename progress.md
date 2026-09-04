@@ -1602,6 +1602,22 @@ X9 全 Masked 确认（不在关键路径，位段无关）。
 **结论**：X3 在 cholesky 上的 SDC/DUE 边界精确位于 **bit1/bit2**，无过渡带（两格都是 100% 干脆翻转）。X3 是小整数累加器：bit0-1 翻转产生的数值偏移仍落在合法域（→ 静默传播）；bit2+ 翻转的偏移使它变成越界索引/坏指针（→ 崩溃）。这解释 random-bit formal 的 3.9% SDC ≈ 2/64（bit0-1 占随机位比例 3.1%，观测 3.9% 吻合）。
 **PRF 位段规律（§2.1 E 预测的细化）**：累加器类寄存器有"低位窄 SDC 窗 + 高位全 DUE"结构，且边界由 workload 的数值域决定（cholesky 的 X3 是循环计数/小偏移类）。
 
+### Phase 3 网格深化 #5: RAT f5_substitute formal（§2.2 E）— method1 主对照实验
+
+**§2.2 formal（cholesky, C2, {X3,X9} × legal_domain_sub (F5) × n=384 + 5% replay, 768 reps, 1256s, 0 frozen）**：
+
+| cell | n_valid | P_SDC [CI] | P_DUE [CI] | Reach |
+|---|---|---|---|---|
+| X3 legal_domain_sub | 377 | 0.0% [0.0,1.0] | **59.7% [54.7,64.5]** | 100% |
+| X9 legal_domain_sub | 384 | 0.0% [0.0,1.0] | 0.5% [0.1,1.9] | 100% |
+
+（c0000 构成：217 Crash + 8 Hang + 152 Masked + 7 SimulatorError 诚实排除；c0001：382 Masked + 2 Crash。）
+
+**method1 对照结论（§2.2 E 的核心问题："合法但错误的映射（张冠李戴/历史残留）是否比非法越界索引产生更多 SDC？"）**：
+- **否**。合法域替换（指向另一个在分配的 physReg）在 X3 上 **0% SDC**（n=377 上界 1%）——"历史残留值恰好语义兼容"的 SDC 通路在这个 workload 上不存在。
+- 但 DUE 结构差异显著：legal_domain_sub 59.7% DUE vs map_bitflip 95.8% DUE（9659974）——**非法越界索引几乎必崩（freelist 校验/断言），合法但错误的映射有 40% 概率被掩盖**（错误映射指向的 physReg 若恰好被后续写覆盖/值未被消费，错误自愈）。RAT 错误的"可掩盖性"取决于替换值是否落在合法域。
+- X9 全 Masked 方向与 map_bitflip X9 一致（非关键路径）。
+
 ### Phase 3 网格深化 #4: PRF ABI-class 网格（§2.1 C）— 三种寄存器画像
 
 **§2.1 ABI-class pilot（cholesky, C2, {X0-X7,X19,X29,X30} × bit {0,2,31} × n=50 + 5% replay，1500 reps，1016s，0 frozen，0 mismatch）**：

@@ -1,0 +1,27 @@
+schema_version: arm-chaos-fi/v1
+campaign_id: rat_f5_formal_cholesky
+injector: rat
+config: C2
+mode: SE
+grid:
+  phys_mode: [arch_frontend]
+  # method1 main contrast experiment (§2.2 E): F5 legal-domain substitution —
+  # point an arch reg's map entry at another CURRENTLY-ALLOCATED physReg
+  # ('张冠李戴' / wrong-reg mapping). Compare with map_bitflip's 95.8% DUE
+  # (9659974): does a LEGAL-but-wrong mapping produce more SDC (history
+  # residue) than an ILLEGAL out-of-range index?
+  target_index: [3, 9]
+  bit: []
+  fault_model: [legal_domain_sub]
+  protection_model: [none]
+n_per_cell: 384
+base_seed: 20260825
+replay_pct: 5.0
+workload:
+  binary: workloads/directed/cholesky_numeric
+  golden_id: cholesky-golden-v1
+  trigger_mode: cycle
+  trigger_value: 50000
+limits:
+  max_faults: 1
+hang_timeout: 300
