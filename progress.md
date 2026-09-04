@@ -1762,3 +1762,16 @@ PRF X3 的跨 workload 复现有特殊意义：cholesky 上 X3 是低频消费�
 - **mark_free（把在分配的 physReg 重新塞回 free list→双重分配）→ DUE 主导且与 target_index 无关**（72% vs 77%，mark_free 的目标由 RNG 选而非 target_index——X3/X9 两 cell 结果一致正是佐证）。与 RAT map_bitflip（95.8% DUE）同族但掩盖率更高（~25% Masked：被重分配的寄存器若在消费前又被改写则自愈）。
 - **§2.2 三件套全部落定**：RAT map_bitflip 95.8% DUE / RAT f5_substitute 59.7% DUE + 40% 自愈 / FreeList mark_free 72-77% DUE——rename 子系统错误全部 DUE 主导、0% SDC，"历史残留→SDC"在三个注入点上都不成立。
 - 本 formal 也是 comp_map 修复（8e01219）的第一个全新受益者（此前从未真正跑过 CHAOSFreeList）。
+
+### Phase 4.1: ROB spec_leak 模式实现（method1 投机泄漏，1ca0346）+ pilot
+
+**Phase 4 开工**（F5/F6 机理子模式，优先级 1/6）。CHAOSROB.cc:140 的 deferred 注释指出 spec_leak "needs the squash path edit"——实际机理在 `Rename::doSquash` 的 HB 回滚循环：squash 时 history buffer 把每个 arch reg 恢复到 prevPhysReg。**抑制一次回滚** = 错误路径 µop 的目的寄存器保持映射 = 其错误路径值泄漏进正确路径（method1 投机状态泄漏签名）。
+
+**实现（一补丁一模式，1ca0346）**：
+- CHAOSRenameMap 新 SpecLeak 模式 + `maybeSuppressRollback(tid, arch, new_phys, prev_phys)`：仅 SpecLeak 模式激活（其余模式零回归）；int class only/XZR skip/events_to_skip geometric(0.1) 采样偏差修复**第一天就内置**（Phase 3.0 纪律）。
+- `Rename::doSquash`：suppress 时同时跳过 setEntry 恢复和 freeingInProgress push——资源记账一致（泄漏的 physReg 由该 arch reg 的下一个 committer 回收）。
+- rename_map.hh 加 public getter；configs `--rename_mode spec_leak`；runner 映射 manifest `intermittent_burst`（回滚机制间歇失效）→ spec_leak。
+
+**真机验证**：T1 触发（Tick 22316525, X3, kept 105/suppressed 77, checksum 仍 golden——本次泄漏被掩盖）；T2 分散（3 seeds Tick 22316525/20443115/23439955, kept 105/149/58）；T3 golden f247ef3fe6f02cfd + 旧 map_bitflip 行为不变（注入 1 次后崩溃，92.7% DUE 一致）；重建零警告。
+
+**pilot（branchy_reduce, C2, X3, n=5）**：5/5 faults=1 全 Masked，0 SimulatorError（触发+合法域验收 ✅）。branchy 上 X3 泄漏被掩盖——formal（X3+X9, n=384/each）跑批中。
