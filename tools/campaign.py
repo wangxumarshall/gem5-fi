@@ -118,11 +118,15 @@ def manifest_for_cell(campaign, cell, cell_ordinal, rep, outdir):
 
     # target component <-> injector (schema enum is wider than what runner.py
     # maps today; runner.py will reject unmapped ones with a clear error).
+    # History note: freelist/rob/iq were once mapped to "rat" as a
+    # forward-declaration placeholder from when runner.py only knew rat —
+    # that silently re-routed those campaigns' manifests to the RAT
+    # injector (rob/iq formals were invalid; found 2026-09-04, fixed here).
     comp_map = {
         "gpr": "gpr", "physreg": "physreg", "memory": "memory",
         "cache": "l1d", "lsqfwd": "physreg",  # cache->l1d; lsqfwd uses physreg
-        # forward-declared; runner.py rejects until mapping lands:
-        "rat": "rat", "freelist": "rat", "rob": "rat", "iq": "rat",
+        # runner.py maps these components directly (freelist/rob/iq branches):
+        "rat": "rat", "freelist": "freelist", "rob": "rob", "iq": "iq",
     }
     comp = comp_map.get(inj, inj)
     layer = "physical" if (inj == "physreg" and cell.get("phys_mode") == "phys") else "architectural"
