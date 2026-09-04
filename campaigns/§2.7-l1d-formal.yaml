@@ -1,0 +1,22 @@
+schema_version: arm-chaos-fi/v1
+campaign_id: l1d_formal_reduce
+injector: cache
+config: C0-CACHE
+mode: SE
+grid:
+  phys_mode: [arch_frontend]
+  target_index: [0]
+  bit: []
+  fault_model: [transient_bit_flip]
+  protection_model: [none]
+n_per_cell: 384
+base_seed: 20260825
+replay_pct: 5.0
+workload:
+  binary: workloads/directed/l1d_reduce
+  golden_id: l1dreduce-golden-v1
+  trigger_mode: cycle
+  trigger_value: 100000
+limits:
+  max_faults: 1
+hang_timeout: 300

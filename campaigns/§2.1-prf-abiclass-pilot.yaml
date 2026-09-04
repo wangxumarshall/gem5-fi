@@ -1,0 +1,24 @@
+schema_version: arm-chaos-fi/v1
+campaign_id: prf_abiclass_pilot
+injector: physreg
+config: C2
+mode: SE
+grid:
+  phys_mode: [arch_frontend]
+  # ABI-role sweep: X0-X7 parameter/result-class + X19/X29/X30 (callee-saved,
+  # FP, LR) at bit0/bit2/bit31 — does the bit-boundary law differ by role?
+  target_index: [0, 1, 2, 4, 5, 6, 7, 19, 29, 30]
+  bit: [0, 2, 31]
+  fault_model: [transient_bit_flip]
+  protection_model: [none]
+n_per_cell: 50
+base_seed: 20260825
+replay_pct: 5.0
+workload:
+  binary: workloads/directed/cholesky_numeric
+  golden_id: cholesky-golden-v1
+  trigger_mode: cycle
+  trigger_value: 50000
+limits:
+  max_faults: 1
+hang_timeout: 300

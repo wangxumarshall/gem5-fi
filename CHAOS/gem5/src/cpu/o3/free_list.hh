@@ -52,9 +52,16 @@
 #include "cpu/o3/comm.hh"
 #include "cpu/o3/regfile.hh"
 #include "debug/FreeList.hh"
+// §2.2 CHAOSFreeList: included so UnifiedFreeList::getReg's inline hook can
+// call chaosFreeList->maybeCorrupt(). Non-circular: CHAOSFreeList.hh only
+// forward-declares o3::UnifiedFreeList (does NOT include free_list.hh).
+#include "cpu/o3/CHAOSFreeList/CHAOSFreeList.hh"
 
 namespace gem5
 {
+
+// §2.2 CHAOSFreeList forward decl (raw pointer member below).
+class CHAOSFreeList;
 
 namespace o3
 {
@@ -76,6 +83,11 @@ class SimpleFreeList
     std::queue<PhysRegIdPtr> freeRegs;
 
   public:
+    // §2.2 CHAOSFreeList: set by UnifiedFreeList at injector startup so the
+    // getReg() hook knows the class + reaches the injector. Defaults safe
+    // (chaosFreeList=nullptr = no injection; classValue=0 = IntRegClass).
+    int classValue = 0;
+    CHAOSFreeList *chaosFreeList = nullptr;
 
     SimpleFreeList() {};
 
@@ -97,6 +109,14 @@ class SimpleFreeList
         assert(!freeRegs.empty());
         PhysRegIdPtr free_reg = freeRegs.front();
         freeRegs.pop();
+        // §2.2 CHAOSFreeList: post-pop hook. NOTE: rename calls
+        // SimpleFreeList::getReg() directly (rename_map.cc:91 via
+        // freeList = &(UnifiedFreeList::freeLists[i])), NOT
+        // UnifiedFreeList::getReg(type) — so the hook MUST be here. The
+        // chaosFreeList ptr + class value are set by UnifiedFreeList's
+        // setChaosFreeList() at injector startup (propagated to all
+        // per-class SimpleFreeLists). nullptr = no injection (zero regression).
+        if (chaosFreeList) chaosFreeList->maybeCorrupt(classValue, free_reg);
         return free_reg;
     }
 
@@ -156,6 +176,26 @@ class UnifiedFreeList
      */
     PhysRegFile *regFile;
 
+    // §2.2 CHAOSFreeList: raw pointer to the freelist fault injector. Set by
+    // the injector's startup() (dynamic_cast<O3CPU*> + physFreeList().
+    // setChaosFreeList(this)). nullptr = no injection (zero regression).
+    CHAOSFreeList *chaosFreeList = nullptr;
+
+  public:
+    /** §2.2 CHAOSFreeList accessor (injector sets it at startup). Propagates
+     *  the pointer + class value to each per-class SimpleFreeList so the
+     *  getReg() hook (which rename calls DIRECTLY via SimpleFreeList::getReg,
+     *  not UnifiedFreeList::getReg) can reach the injector. */
+    void setChaosFreeList(CHAOSFreeList *p) {
+        chaosFreeList = p;
+        for (int i = 0; i < (int)(sizeof(freeLists)/sizeof(freeLists[0])); i++) {
+            freeLists[i].chaosFreeList = p;
+            freeLists[i].classValue = i;
+        }
+    }
+
+  private:
+
     /*
      * We give UnifiedRenameMap internal access so it can get at the
      * internal per-class free lists and associate those with its
@@ -178,7 +218,15 @@ class UnifiedFreeList
     std::string name() const { return _name; };
 
     /** Gets a free register of type type. */
-    PhysRegIdPtr getReg(RegClassType type) { return freeLists[type].getReg(); }
+    PhysRegIdPtr getReg(RegClassType type) {
+        PhysRegIdPtr r = freeLists[type].getReg();
+        // §2.2 CHAOSFreeList: post-pop hook. pop_wrong mutates `r` (return a
+        // different legal physReg); mark_free re-adds an allocated physReg to
+        // the free list (history residue). nullptr = no injection (zero
+        // regression).
+        if (chaosFreeList) chaosFreeList->maybeCorrupt((int)type, r);
+        return r;
+    }
 
     /** Adds a register back to the free list. */
     template<class InputIt>

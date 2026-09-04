@@ -1,0 +1,22 @@
+schema_version: arm-chaos-fi/v1
+campaign_id: rat_cholesky_pilot
+injector: rat
+config: C0
+mode: SE
+grid:
+  phys_mode: [arch_frontend]
+  target_index: [3, 9]
+  bit: []
+  fault_model: [transient_bit_flip]
+  protection_model: [none]
+n_per_cell: 5
+base_seed: 20260825
+replay_pct: 0
+workload:
+  binary: workloads/directed/cholesky_numeric
+  golden_id: cholesky-golden-v1
+  trigger_mode: cycle
+  trigger_value: 1000
+limits:
+  max_faults: 1
+hang_timeout: 300

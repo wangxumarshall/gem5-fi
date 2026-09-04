@@ -51,12 +51,19 @@
 #include "cpu/o3/dyn_inst_ptr.hh"
 #include "cpu/o3/limits.hh"
 #include "cpu/reg_class.hh"
+// §2.3 CHAOSROB: included so ROB::retireHead's inline hook can call
+// chaosROB->maybeCorrupt(). Non-circular: CHAOSROB.hh forward-declares
+// o3::ROB (does NOT include rob.hh).
+#include "cpu/o3/CHAOSROB/CHAOSROB.hh"
 #include "enums/SMTQueuePolicy.hh"
 
 namespace gem5
 {
 
 struct BaseO3CPUParams;
+
+// §2.3 CHAOSROB forward decl (raw pointer member below).
+class CHAOSROB;
 
 namespace o3
 {
@@ -288,6 +295,20 @@ class ROB
     /** ROB List of Instructions */
     std::list<DynInstPtr> instList[MaxThreads];
 
+    // §2.3 CHAOSROB: raw pointer to the ROB fault injector. Set by the
+    // injector's startup() (dynamic_cast<O3CPU*> + rob.setChaosROB(this)).
+    // nullptr = no injection (zero regression).
+    CHAOSROB *chaosROB = nullptr;
+
+  public:
+    /** §2.3 CHAOSROB accessor (injector sets it at startup). */
+    void setChaosROB(CHAOSROB *p) { chaosROB = p; }
+    /** §2.3 CHAOSROB: the entry D slots from the head (D=0 = head). nullptr
+     *  if ROB empty / D out of range. Defined in rob.cc (returns by value —
+     *  needs DynInst complete, which rob.cc has via dyn_inst.hh). */
+    DynInstPtr getEntryAtDistance(ThreadID tid, int D);
+
+  private:
     /** Number of instructions that can be squashed in a single cycle.
      * A negative number means all instructions are squashed instantly
      * within on cycle

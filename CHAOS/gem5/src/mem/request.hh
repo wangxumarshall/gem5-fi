@@ -855,6 +855,17 @@ class Request : public Extensible<Request>
         return _vaddr;
     }
 
+    /** §2.4 CHAOSAddrPath: mutator for the virtual address, so the AGU
+     *  address-path fault injector can corrupt the vaddr byte7 (canonical
+     *  -> non-canonical kernel address) BEFORE translateTiming. The
+     *  request's _vaddr is rewritten; VALID_VADDR stays set (the fault IS a
+     *  vaddr corruption, the request is still translation-eligible). */
+    void
+    setVaddr(Addr new_vaddr)
+    {
+        _vaddr = new_vaddr;
+    }
+
     /** Accesssor for the requestor id. */
     RequestorID
     requestorId() const

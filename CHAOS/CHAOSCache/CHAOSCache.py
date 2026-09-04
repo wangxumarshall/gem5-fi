@@ -30,6 +30,20 @@ class CHAOSCache(SimObject):
     targetByteOffset = Param.Int(-1, "Directed: pin the fault to this byte "
         "offset within the target block (0..blockSize-1). -1 = random "
         "byte (original).")
+    # §2.7/§2.11 field-level fault: which CacheBlk field to corrupt.
+    #   data  (default): corrupt the data byte (orig behavior; byteOffset/mask).
+    #   valid : invalidate the block (§2.7 valid field; sed/secded also use this
+    #           for the Corrected path). Models a 'valid bit flip' -> block
+    #           re-fetched on next access.
+    #   dirty : toggle the dirty bit (§2.7 dirty field; clean block written-
+    #           back spuriously, or dirty block dropped).
+    #   coh   : toggle a coherence bit (§2.7 coh field; shared<->modified flip).
+    # tag(F5 same-set legal tag) + repl(replacement meta) DEFERRED (need
+    # lookup of another legal tag / repl meta, more plumbing).
+    targetField = Param.String("data",
+        "§2.7/§2.11 field-level fault: data (default, byteOffset/mask) | "
+        "valid (invalidate block) | dirty (toggle dirty bit) | coh (toggle "
+        "coherence bit). tag(F5) + repl deferred.")
     pairedSector = Param.Bool(False,
         "Phase 5 §7.7 paired-sector 128B fault-domain proxy: when set, the "
         "fault is applied to BOTH the target 64B block AND its 128B-aligned "
@@ -38,4 +52,20 @@ class CHAOSCache(SimObject):
         "a PROXY (not a cycle-exact Kunpeng L3 model); the paired partner must "
         "be VALID+resident to be corrupted (else only the primary is faulted, "
         "logged honestly). Use on a 64B-line cache designated as 'L3'.")
+    l1iSemanticField = Param.String("none",
+        "§2.11 L1I A64 field stratification: none/opcode/rn/rm/rd/imm12/cond")
+    protectionModel = Param.String("none",
+        "§1.2 protection-aware modeling layer (N1 TRM Table 9-1 PROXY). "
+        "Post-injection, the injector applies protection logic keyed on "
+        "popcount(mask) (bits this fault flips) to decide the observable "
+        "outcome. 'none' (default = raw upper bound, leave corruption = "
+        "escape, zero regression vs prior behavior); 'sed' (L1I data proxy: "
+        "1-bit -> invalidate block = Corrected, >=2-bit -> silent = escape); "
+        "'secded_poison' (L1D/L2 data proxy: 1-bit -> undo injection = "
+        "Corrected, 2-bit -> poison-log + leave = Latent (classic cache has "
+        "no poison bit, E3 proxy), >=3-bit -> silent); 'secded' (L1D/L2 tag "
+        "proxy: 1-bit -> undo = Corrected, 2-bit -> invalidate block = "
+        "DetectedContained, >=3-bit -> silent false-hit). Each cell should "
+        "run 'none' (raw sensitivity) vs the proxy value "
+        "(protection-aware escape rate). Does NOT convert to product FIT.")
     writeLog = Param.Bool(True, "Write a log file")

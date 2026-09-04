@@ -1,0 +1,6 @@
+# -*- mode:python -*-
+# CHAOSCHI — Ruby/CHI L3 directory fault injector (§2.9, S4 system-level).
+Import('*')
+SimObject('CHAOSCHI.py', sim_objects=['CHAOSCHI'], enums=[])
+Source('CHAOSCHI.cc')
+DebugFlag('CHAOSCHI')

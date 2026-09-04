@@ -39,6 +39,8 @@
 #include "mem/ruby/network/fault_model/FaultModel.hh"
 #include "mem/ruby/network/garnet/CommonTypes.hh"
 #include "params/GarnetNetwork.hh"
+// §2.15 CHAOSNoC: forward decl (gem5 top-level namespace).
+namespace gem5 { class CHAOSNoC; }
 
 namespace gem5
 {
@@ -214,6 +216,18 @@ class GarnetNetwork : public Network
     std::vector<CreditLink *> m_creditlinks; // All credit links in the network
     std::vector<NetworkInterface *> m_nis;   // All NI's in Network
     int m_next_packet_id; // static vairable for packet id allocation
+
+    // §2.15 CHAOSNoC: the flit injector (from the python param; propagated
+    // to all NetworkLinks at init()). Null = no injection.
+    ::gem5::CHAOSNoC *m_chaosNoC = nullptr;
+
+  public:
+    /** §2.15 CHAOSNoC: propagate the injector pointer to ALL NetworkLinks
+     *  (the links are created in C++ Topology.cc, not visible in the python
+     *  object tree — so the injector is attached via the GarnetNetwork). */
+    void setChaosNoCAll(::gem5::CHAOSNoC *p);
+    /** §2.15: the stored injector (from the python param). */
+    ::gem5::CHAOSNoC *getChaosNoC() const { return m_chaosNoC; }
 };
 
 inline std::ostream&

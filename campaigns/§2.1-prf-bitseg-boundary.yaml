@@ -1,0 +1,24 @@
+schema_version: arm-chaos-fi/v1
+campaign_id: prf_bitseg_boundary
+injector: physreg
+config: C2
+mode: SE
+grid:
+  phys_mode: [arch_frontend]
+  # Boundary scan: X3 bit0=100% SDC, bit11=100% DUE (prf_bitseg_pilot,
+  # 45b2b85) — locate the exact transition with bits 1-10.
+  target_index: [3]
+  bit: [1, 2, 3, 5, 7, 9, 10]
+  fault_model: [transient_bit_flip]
+  protection_model: [none]
+n_per_cell: 100
+base_seed: 20260825
+replay_pct: 5.0
+workload:
+  binary: workloads/directed/cholesky_numeric
+  golden_id: cholesky-golden-v1
+  trigger_mode: cycle
+  trigger_value: 50000
+limits:
+  max_faults: 1
+hang_timeout: 300

@@ -36,6 +36,21 @@ REPO = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 G5 = os.path.join(REPO, "build/ARM/gem5.opt")
 CFG = os.path.join(REPO, "configs/se/arm_chaos.py")
 
+# Platform config family (design doc §1.1) -> the SE .py harness to run.
+# C0 = arm_chaos.py (baseline). C2 = kp920_proxy.py (Kunpeng V110 proxy, E3).
+# The campaign driver picks this from the campaign/manifest config_family;
+# runner.py defaults to C0 so single-manifest runs are unchanged.
+CONFIG_FAMILY = {
+    "C0": os.path.join(REPO, "configs/se/arm_chaos.py"),
+    "C2": os.path.join(REPO, "configs/se/kp920_proxy.py"),
+    # §2.7 cache injector harness (CHAOSCache mounts via _pre_instantiate)
+    "C0-CACHE": os.path.join(REPO, "configs/se/arm_chaos_cache.py"),
+    # §2.10 FS harness (CHAOSArmTLB/CHAOSArmSysReg; needs gem5-fs deps)
+    "C0-FS": os.path.join(REPO, "configs/se/arm_chaos_fs.py"),
+    # §1.1 FS V110 proxy (delegates to arm_chaos_fs; V110 params TODO)
+    "C2-FS": os.path.join(REPO, "configs/fs/kp920_proxy_fs.py"),
+}
+
 # manifest oracle.golden_id -> the workload's golden (no-injection) checksum.
 # These are the no-injection reference outputs (native == gem5, deterministic).
 GOLDEN_IDS = {
@@ -43,6 +58,25 @@ GOLDEN_IDS = {
     "l1dreduce-golden-v1":  "f44d2b9cd4a173cd",  # l1d_reduce
     "l1iloop-golden-v1":    "bb0b1c4cb661236e",  # l1i_loop
     "stuckpersist-golden-v1": "00000000dee1f5d0",  # stuck_persist
+    # S1 §2.2 method1 anchor + controls (cross-ISA consistent golden):
+    "cholesky-golden-v1":   "37621bc0a633976f",  # cholesky_numeric
+    "purefma-golden-v1":    "98433fcf09968e6a",  # method1_controls pure_fma
+    "purespmv-golden-v1":   "57b2c160bf2c92ad",  # method1_controls pure_spmv
+    "puregather-golden-v1": "e4481fb960ff6465",  # method1_controls pure_gather
+    "trisolve-golden-v1":   "39d61425aae92434",  # method1_controls tri_solve
+    "movheavy-golden-v1":   "61e8a946ed50ae1f",  # mov_heavy (move-elimination)
+    "branchyreduce-golden-v1": "d47587240e6f0a83",
+    "neon-golden-v1":     "00000000526925fe",
+    "fwdchecksum-golden-v1": "ac70ef3a46fd0825",
+    "raschecksum-golden-v1": "bcf20e1df7bb0535",
+    "spinlockchecksum-golden-v1": "0891b007b53c4869",
+    "maddchain-golden-v1": "9e8050e1503c34ab",
+    "crcstate-golden-v1": "d27806e62c9d3869",
+    "structfield-golden-v1": "afebbd4c86e8cfdf",
+    "svditerative-golden-v1": "4afb95b5b32f3820",
+    "gemmfloat-golden-v1": "d74f24ae79deb7d2",
+    "depchain-golden-v1": "030f101df841bf6e",
+    "ptrchase-golden-v1": "af63bd4c8601b7df",  # spinlock_checksum  # ras_checksum_kernel  # fwd_checksum_kernel  # neon_lane  # branchy_reduce (§2.3)
 }
 
 def sha256_file(path):
@@ -55,6 +89,12 @@ def sha256_file(path):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("manifest")
+    ap.add_argument("--config", default="C0", choices=list(CONFIG_FAMILY),
+                    help="platform config family (design doc §1.1): C0 = "
+                         "arm_chaos.py baseline, C2 = kp920_proxy.py (V110 "
+                         "proxy). The campaign driver passes this from the "
+                         "campaign's `config` field; the manifest's "
+                         "platform.config_family overrides if present.")
     ap.add_argument("--golden-checksum",
                     help="workload oracle checksum (e.g. reg_chain's 16-hex "
                          "value) from a no-injection run. If omitted, the "
@@ -65,6 +105,16 @@ def main():
 
     with open(args.manifest) as f:
         m = yaml.safe_load(f)
+
+    # resolve config family: manifest platform.config_family overrides the
+    # --config CLI default (so a C2 manifest runs on kp920_proxy.py without
+    # the caller needing --config C2). Falls back to the --config arg.
+    cfg_family = m.get("platform", {}).get("config_family") or args.config
+    if cfg_family not in CONFIG_FAMILY:
+        sys.exit(f"[runner] unknown config_family '{cfg_family}'. Known: "
+                 f"{list(CONFIG_FAMILY)}. Aborting.")
+    cfg_path = CONFIG_FAMILY[cfg_family]
+    print(f"[runner] config_family: {cfg_family} -> {os.path.basename(cfg_path)}")
 
     # resolve golden checksum: explicit arg, else manifest golden_id
     golden = args.golden_checksum
@@ -78,7 +128,11 @@ def main():
                      f"'{gid}' unknown. Aborting.")
     args.golden_checksum = golden
 
-    # schema validation
+    # schema validation. jsonschema (full draft-07) if available; else the
+    # dependency-free light validator (tools/manifest_validate.py) — the v2
+    # §1.6 extension is ENFORCED even on hosts without jsonschema (this host
+    # has pip offline; the light validator is the runtime enforcer, not a
+    # silent skip). Prefer jsonschema when present for full draft-07 coverage.
     if HAVE_SCHEMA:
         sp = os.path.join(REPO, "schemas/manifest.schema.json")
         with open(sp) as sf:
@@ -87,9 +141,14 @@ def main():
             jsonschema.validate(m, schema)
         except jsonschema.ValidationError as e:
             sys.exit(f"manifest schema validation FAILED: {e.message}")
-        print("[runner] manifest schema: OK")
+        print("[runner] manifest schema: OK (jsonschema)")
     else:
-        print("[runner] jsonschema not installed — skipping schema check")
+        from manifest_validate import validate as light_validate
+        ok, errs = light_validate(m)
+        if not ok:
+            sys.exit(f"manifest schema validation FAILED (light validator): "
+                     f"{'; '.join(errs)}")
+        print("[runner] manifest schema: OK (light validator)")
 
     # validate binary hash
     if m["workload"].get("binary_sha256"):
@@ -150,14 +209,17 @@ def main():
         fault_mask = "0"   # random mask
         bits_to_change = "1"
 
-    cmd = [G5, "--quiet", "-d", tempfile.mkdtemp(prefix="man-"), CFG,
+    cmd = [G5, "--quiet", "-d", tempfile.mkdtemp(prefix="man-"), cfg_path,
            "--cmd", args.binary, "--cpu", "O3",
            "--first_clock", str(t["value"]),
            "--max_faults", str(m["limits"]["max_faults"]),
            "--rng_seed", str(m["rng"]["selection_seed"]),
-           "--fault_type", fault_type,
-           "--fault_mask", fault_mask,
-           "--bits_to_change", bits_to_change]
+           "--fault_type", fault_type]
+    # §2.7: arm_chaos_cache.py has NO --fault_mask/--bits_to_change args
+    # (different param surface than arm_chaos.py). Only pass them on the
+    # arm_chaos.py-family configs.
+    if cfg_family != "C0-CACHE":
+        cmd += ["--fault_mask", fault_mask, "--bits_to_change", bits_to_change]
     # target component + layer -> the right injector + index knob
     if comp == "gpr":
         cmd += ["--chaos_reg"]
@@ -178,7 +240,180 @@ def main():
             if idx is not None:
                 cmd += [f"--phys_target_arch={idx}"]
     elif comp == "memory":
-        cmd += ["--chaos_mem"]
+        # §1.2 protection-aware: CHAOSMem's protectionModel (DRAM = 'secded'
+        # per Huawei DDR ECC proxy). arm_chaos.py/kp920_proxy.py accept
+        # --protection_model; default "none" = raw escape (regression-safe).
+        cmd += ["--chaos_mem", "--protection_model",
+                inj.get("protection_model", "none")]
+    elif comp == "rat":
+        # §2.2 CHAOSRenameMap (S1 patch 1). Manifest fault.model maps to the
+        # --rename_mode (map_bitflip / f5_substitute / f4_field_stuck). The
+        # v2 schema's fault.model enum has legal_domain_sub for F5; map it.
+        cmd += ["--chaos_rename"]
+        # fault model -> rename_mode
+        rm = {"transient_bit_flip": "map_bitflip",
+              "local_mbu": "map_bitflip",
+              "legal_domain_sub": "f5_substitute",
+              "stuck_at_zero": "f4_field_stuck",
+              "stuck_at_one": "f4_field_stuck"}.get(inj["model"], "map_bitflip")
+        cmd += ["--rename_mode", rm, "--rename_first_clock", str(t["value"]),
+                "--rename_max_faults", str(m["limits"]["max_faults"]),
+                "--rename_rng_seed", str(m["rng"]["selection_seed"]),
+                "--rename_fault_mask", fault_mask, "--rename_target_arch",
+                str(idx) if idx is not None else "-1"]
+    elif comp == "freelist":
+        # §2.2 CHAOSFreeList (S1 patch 2). mark_free / pop_wrong via fault.model.
+        cmd += ["--chaos_freelist"]
+        fm = {"transient_bit_flip": "mark_free",
+              "local_mbu": "mark_free",
+              "legal_domain_sub": "pop_wrong"}.get(inj["model"], "mark_free")
+        cmd += ["--freelist_mode", fm, "--freelist_first_clock", str(t["value"]),
+                "--freelist_max_faults", str(m["limits"]["max_faults"]),
+                "--freelist_rng_seed", str(m["rng"]["selection_seed"])]
+    elif comp == "rob":
+        # §2.3 CHAOSROB (S1 patch 1). entry_bitflip/exc_suppress via fault.model.
+        cmd += ["--chaos_rob"]
+        rm = {"transient_bit_flip": "entry_bitflip",
+              "local_mbu": "entry_bitflip",
+              "legal_domain_sub": "exc_suppress"}.get(inj["model"], "entry_bitflip")
+        cmd += ["--rob_mode", rm, "--rob_first_clock", str(t["value"]),
+                "--rob_max_faults", str(m["limits"]["max_faults"]),
+                "--rob_rng_seed", str(m["rng"]["selection_seed"])]
+    elif comp == "iq":
+        # §2.5 CHAOSIQ (S1 patch 1). wake_omit (F6).
+        cmd += ["--chaos_iq", "--iq_mode", "wake_omit",
+                "--iq_first_clock", str(t["value"]),
+                "--iq_max_faults", str(m["limits"]["max_faults"]),
+                "--iq_rng_seed", str(m["rng"]["selection_seed"])]
+    elif comp == "lsq_fwd":
+        # §2.4 CHAOSLSQFwd structured ext. byte_flip / byte_lane_skew / all_zero.
+        cmd += ["--chaos_lsqfwd"]
+        sm = {"transient_bit_flip": "byte_flip",
+              "local_mbu": "byte_lane_skew",
+              "intermittent_burst": "byte_lane_skew",
+              "legal_domain_sub": "all_zero"}.get(inj["model"], "byte_flip")
+        cmd += ["--lsq_struct_mode", sm, "--first_clock", str(t["value"]),
+                "--max_faults", str(m["limits"]["max_faults"]),
+                "--rng_seed", str(m["rng"]["selection_seed"]),
+                "--probability", "1.0",
+                "--fault_type", fault_type, "--fault_mask", fault_mask]
+    elif comp == "exec":
+        # §2.12 CHAOSExec (integer execution-unit result XOR).
+        cmd += ["--chaos_exec", "--exec_first_clock", str(t["value"]),
+                "--exec_max_faults", str(m["limits"]["max_faults"]),
+                "--exec_fault_mask", fault_mask,
+                "--exec_rng_seed", str(m["rng"]["selection_seed"])]
+    elif comp == "fsu":
+        # §2.6 CHAOSFPU (FP/vector execution-unit result XOR).
+        cmd += ["--chaos_fpu", "--fpu_first_clock", str(t["value"]),
+                "--fpu_max_faults", str(m["limits"]["max_faults"]),
+                "--fpu_fault_mask", fault_mask,
+                "--fpu_rng_seed", str(m["rng"]["selection_seed"])]
+    elif comp == "l1d_fwd":
+        # §2.7 CHAOSL1DForward (post-check escape).
+        cmd += ["--chaos_l1dfwd", "--l1dfwd_first_clock", str(t["value"]),
+                "--l1dfwd_max_faults", str(m["limits"]["max_faults"]),
+                "--l1dfwd_fault_mask", fault_mask,
+                "--l1dfwd_rng_seed", str(m["rng"]["selection_seed"])]
+    elif comp == "bpu":
+        # §2.13 CHAOSBPU (dir_flip / target_flip F5).
+        cmd += ["--chaos_bpu"]
+        bm = {"transient_bit_flip": "dir_flip",
+              "local_mbu": "target_flip",
+              "legal_domain_sub": "target_flip"}.get(inj["model"], "dir_flip")
+        cmd += ["--bpu_mode", bm, "--bpu_first_clock", str(t["value"]),
+                "--bpu_max_faults", str(m["limits"]["max_faults"]),
+                "--bpu_rng_seed", str(m["rng"]["selection_seed"])]
+    elif comp == "decode":
+        # §2.14 CHAOSDecode (dest_reg_sub F5, per-inst via _flatDestIdx).
+        cmd += ["--chaos_decode", "--decode_first_clock", str(t["value"]),
+                "--decode_max_faults", str(m["limits"]["max_faults"]),
+                "--decode_rng_seed", str(m["rng"]["selection_seed"])]
+    elif comp == "l1d":
+        # §2.7 CHAOSCache (L1D field-level: data/valid/dirty/coh). Routes
+        # through arm_chaos_cache.py (C0-CACHE family) — the CHAOSCache
+        # mounts via _pre_instantiate, not via arm_chaos.py's cpu-attached
+        # injectors. The manifest must use config_family C0-CACHE.
+        if cfg_family != "C0-CACHE":
+            sys.exit("[runner] component 'l1d' requires platform.config_family="
+                     "'C0-CACHE' (arm_chaos_cache.py). Aborting.")
+        cmd += ["--target", "l1d", "--first_clock", str(t["value"]),
+                "--max_faults", str(m["limits"]["max_faults"]),
+                "--rng_seed", str(m["rng"]["selection_seed"]),
+                "--fault_type", fault_type,
+                # §1.2 protection-aware: CHAOSCache's protectionModel (none |
+                # sed | secded | secded_poison). Manifest carries it via
+                # fault.protection_model (campaign.py Phase 2.1); default
+                # "none" preserves the raw-sensitivity cell semantics.
+                "--protection_model", inj.get("protection_model", "none")]
+    elif comp == "l1_tlb":
+        # §2.10 CHAOSArmTLB (D-TLB pfn, FS-only). Requires config_family
+        # C0-FS (arm_chaos_fs.py + gem5-fs kernel/disk/bootloader).
+        if cfg_family != "C0-FS":
+            sys.exit("[runner] component 'l1_tlb' requires platform."
+                     "config_family='C0-FS' (arm_chaos_fs.py, needs gem5-fs "
+                     "kernel/disk/bootloader). Aborting.")
+        cmd += ["--chaos_armtlb", "--tlb_probability", "1.0",
+                "--tlb_first_clock", str(t["value"]),
+                "--tlb_max_faults", str(m["limits"]["max_faults"]),
+                "--tlb_rng_seed", str(m["rng"]["selection_seed"])]
+    elif comp == "sysreg":
+        # §2.10 CHAOSArmSysReg (MRS read-path, FS-only).
+        if cfg_family != "C0-FS":
+            sys.exit("[runner] component 'sysreg' requires platform."
+                     "config_family='C0-FS'. Aborting.")
+        cmd += ["--chaos_sysreg", "--sysreg_probability", "1.0",
+                "--sysreg_first_clock", str(t["value"]),
+                "--sysreg_max_faults", str(m["limits"]["max_faults"]),
+                "--sysreg_rng_seed", str(m["rng"]["selection_seed"])]
+    elif comp == "exmon":
+        # §2.4 CHAOSExMon (exclusive monitor, stxr_force_success/fail).
+        cmd += ["--chaos_exmon", "--exmon_mode", "stxr_force_fail",
+                "--exmon_first_clock", str(t["value"]),
+                "--exmon_max_faults", str(m["limits"]["max_faults"]),
+                "--exmon_rng_seed", str(m["rng"]["selection_seed"]),
+                "--probability", "1.0"]
+    elif comp == "ras":
+        # §2.18 CHAOSRAS (exc_suppress at commit fault-check).
+        cmd += ["--chaos_ras", "--ras_first_clock", str(t["value"]),
+                "--ras_max_faults", str(m["limits"]["max_faults"]),
+                "--ras_rng_seed", str(m["rng"]["selection_seed"]),
+                "--probability", "1.0"]
+    elif comp == "addr_path":
+        # §2.4 CHAOSAddrPath (AGU address-path, SE-inert, FS-only).
+        cmd += ["--chaos_addrpath", "--addrpath_mode", "byte7_zero",
+                "--addrpath_first_clock", str(t["value"]),
+                "--addrpath_max_faults", str(m["limits"]["max_faults"]),
+                "--addrpath_rng_seed", str(m["rng"]["selection_seed"])]
+    elif comp == "ptw":
+        # §2.10 CHAOSPTW (page-table-walker, SE-inert, FS-only).
+        # Honest: arm_chaos.py (SE) can't mount CHAOSPTW — it's an FS-injector
+        # on the ArmTableWalker WalkUnit, not the CPU. Route to FS config.
+        sys.exit(f"[runner] target.component='ptw' is FS-only (hooks the ArmTable"
+                 f"Walker WalkUnit, not the SE CPU). Use arm_chaos_fs.py with "
+                 f"--chaos_ptw (FS mode). Aborting — SE can't mount CHAOSPTW.")
+    else:
+        # §1.6 v2 honest-reject contract: the v2 schema forward-declares S1
+        # components (rob/iq/rat/freelist/lsq_fwd/sysreg/ptw/l3/...), but their
+        # runner.py mapping + CHAOS injector do not exist yet (S1/S2/S4
+        # patches). Without this reject, an unmapped component would fall
+        # through and run gem5 with NO --chaos_* flag -> golden run ->
+        # mis-classified as Masked (a silent mis-run, not a real FI outcome).
+        # Reject clearly so the manifest is never silently mis-triggered.
+        # NOTE: l1i/l2 cache components route through arm_chaos_cache.py (a
+        # separate config), not this arm_chaos.py harness — call that out too.
+        if comp in ("l1i", "l2"):
+            sys.exit(f"[runner] target.component='{comp}' is a cache component "
+                     f"that routes through configs/se/arm_chaos_cache.py, not "
+                     f"this arm_chaos.py harness. Use the cache config / the "
+                     f"CHAOSCache mount. Aborting — not silently mis-running.")
+        sys.exit(f"[runner] target.component='{comp}' is forward-declared in "
+                 f"the v2 schema but NOT mapped in runner.py yet (needs the "
+                 f"corresponding CHAOS injector: rob->CHAOSROB §2.3, "
+                 f"iq->CHAOSIQ §2.5, rat/freelist->CHAOSRenameMap/CHAOSFreeList "
+                 f"§2.2, lsq_fwd->CHAOSLSQFwd F5/F6 §2.4, sysreg/ptw->§2.10, "
+                 f"l3->CHAOSCHI §2.9, etc. — all S1/S2/S4 patches). Aborting "
+                 f"— not silently mis-running an unmapped component.")
 
     print(f"[runner] manifest target: layer={layer} comp={comp} idx={idx} "
           f"bits={bits} width={width} field={field}")
@@ -193,9 +428,14 @@ def main():
                            timeout=HANG_TIMEOUT)
     except subprocess.TimeoutExpired as e:
         timed_out = True
-        # Build a pseudo-result from whatever was captured.
+        # Build a pseudo-result from whatever was captured. e.stdout/stderr may
+        # be bytes even with text=True under some py versions — normalize.
+        def _to_str(x):
+            if isinstance(x, bytes):
+                return x.decode("utf-8", errors="replace")
+            return x or ""
         r = subprocess.CompletedProcess(
-            cmd, returncode=-1, stdout=e.stdout or "", stderr=e.stderr or "")
+            cmd, returncode=-1, stdout=_to_str(e.stdout), stderr=_to_str(e.stderr))
 
     # collect faults_injected from the injection log(s).
     # CHAOSReg log: "Cycle: ..., Register: integer[9], FaultType: bit_flip, ..."
@@ -209,7 +449,7 @@ def main():
         if a == "-d" and i+1 < len(cmd):
             outdir = cmd[i+1]
     faults = 0
-    for logname in ("fault_injections.log","main_mem_injections.log","cache_injections.log"):
+    for logname in ("fault_injections.log","main_mem_injections.log","cache_injections.log","rename_injections.log","freelist_injections.log","rob_injections.log","iq_injections.log","exec_injections.log","fpu_injections.log","l1d_fwd_injections.log","bpu_injections.log","addrpath_injections.log","decode_injections.log","ras_injections.log","exmon_injections.log","ptw_injections.log","noc_injections.log","chi_injections.log","lsq_fwd_injections.log"):
         p = os.path.join(outdir, logname) if outdir else None
         if p and os.path.exists(p):
             with open(p) as lf:

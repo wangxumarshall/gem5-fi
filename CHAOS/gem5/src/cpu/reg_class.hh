@@ -150,6 +150,11 @@ class RegId
     /** @{ */
     constexpr RegIndex index() const { return regIdx; }
 
+    /** §2.14 CHAOSDecode: mutator for the reg index (dest_reg_sub F5).
+     *  Per-inst (the caller passes a by-ref RegId from _flatDestIdx, which
+     *  is per-DynInst, not the shared staticInst). */
+    inline void setIndex(RegIndex i) { regIdx = i; }
+
     /** Class accessor */
     constexpr const RegClass &regClass() const { return *_regClass; }
     inline constexpr RegClassType classValue() const;

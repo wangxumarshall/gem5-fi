@@ -40,6 +40,7 @@
  */
 
 #include "cpu/o3/lsq.hh"
+#include "cpu/o3/CHAOSAddrPath/CHAOSAddrPath.hh"  // §2.4 full def for maybeCorrupt
 
 #include <algorithm>
 #include <list>
@@ -1130,6 +1131,13 @@ void
 LSQ::LSQRequest::sendFragmentToTranslation(int i)
 {
     numInTranslationFragments++;
+    // §2.4 CHAOSAddrPath: corrupt the request vaddr BEFORE translateTiming
+    // (AGU address-path fault). HONEST: SE-inert (byte7 zero lands in SE
+    // 512MiB range, no fault); FS-only effective. nullptr = no injection.
+    if (_inst && _inst->cpu && _inst->cpu->chaosAddrPath) {
+        RequestPtr r = req(i);
+        _inst->cpu->chaosAddrPath->maybeCorrupt(r);
+    }
     _port.getMMUPtr()->translateTiming(req(i), _inst->thread->getTC(),
             this, isLoad() ? BaseMMU::Read : BaseMMU::Write);
 }

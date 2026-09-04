@@ -37,6 +37,7 @@
 
 #include "arch/arm/isa.hh"
 #include "arch/arm/CHAOSArmSysReg/CHAOSArmSysReg.hh"  // Phase 3: sys-reg injector
+#include "arch/arm/CHAOSExMon/CHAOSExMon.hh"  // §2.4 exclusive-monitor injector
 
 #include "arch/arm/decoder.hh"
 #include "arch/arm/faults.hh"
@@ -1946,14 +1947,26 @@ lockedWriteHandler(ThreadContext *tc, XC *xc, const RequestPtr &req,
 bool
 ISA::handleLockedWrite(const RequestPtr &req, Addr cacheBlockMask)
 {
-    return lockedWriteHandler(tc, tc, req, cacheBlockMask);
+    bool result = lockedWriteHandler(tc, tc, req, cacheBlockMask);
+    // §2.4 CHAOSExMon: invert the STXR verdict (force success/fail). nullptr
+    // = no injection (zero regression).
+    if (chaosExMon) {
+        result = chaosExMon->maybeCorrupt(req, result);
+    }
+    return result;
 }
 
 bool
 ISA::handleLockedWrite(ExecContext *xc, const RequestPtr &req,
         Addr cacheBlockMask)
 {
-    return lockedWriteHandler(xc->tcBase(), xc, req, cacheBlockMask);
+    bool result = lockedWriteHandler(xc->tcBase(), xc, req, cacheBlockMask);
+    // §2.4 CHAOSExMon: invert the STXR verdict (this is the overload called
+    // from lsq_unit.cc:900 for store conditionals).
+    if (chaosExMon) {
+        result = chaosExMon->maybeCorrupt(req, result);
+    }
+    return result;
 }
 
 void

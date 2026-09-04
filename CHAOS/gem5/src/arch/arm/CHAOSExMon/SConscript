@@ -1,0 +1,12 @@
+# -*- mode:python -*-
+# CHAOSExMon — ARM exclusive-monitor fault injector (§2.4, S1 P0).
+# ARM-only: hooks arch/arm/isa.cc::ISA::handleLockedWrite (STXR verdict).
+Import('*')
+
+if not env["CONF"]["USE_ARM_ISA"]:
+    Return()
+
+SimObject('CHAOSExMon.py', sim_objects=['CHAOSExMon'], enums=[])
+Source('CHAOSExMon.cc')
+
+DebugFlag('CHAOSExMon')

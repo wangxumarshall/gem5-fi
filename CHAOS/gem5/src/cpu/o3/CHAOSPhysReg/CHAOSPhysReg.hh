@@ -72,9 +72,11 @@ class CHAOSPhysReg : public SimObject
     // campaign control
     uint64_t max_faults;
     uint64_t faults_injected_count;
-    uint64_t rng_seed;
-
-    bool write_log;
+    uint64_t rng_seed;    bool write_log;
+    // §1.3/§2.1B F3 data-dependent trigger + semanticRole.
+    uint64_t trigger_value_mask = 0;
+    uint64_t trigger_value_pattern = 0;
+    std::string semantic_role;
 
     EventFunctionWrapper attackEvent, periodicCheck;
     EventFunctionWrapper readTraceEvent;  // polls read_count after inject

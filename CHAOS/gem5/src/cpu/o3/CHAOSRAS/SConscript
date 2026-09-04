@@ -1,0 +1,6 @@
+# -*- mode:python -*-
+# CHAOSRAS — O3 RAS-escape fault injector (§2.18, S5 meta-analysis + injector).
+Import('*')
+SimObject('CHAOSRAS.py', sim_objects=['CHAOSRAS'], enums=[])
+Source('CHAOSRAS.cc')
+DebugFlag('CHAOSRAS')

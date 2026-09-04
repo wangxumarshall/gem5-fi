@@ -19,3 +19,8 @@ m5out/
 
 .DS_Store
 .claude/
+
+# campaign per-rep temp manifests/outdirs (large, regenerable; provenance
+# snapshots live in artifacts/). Keep artifacts/ tracked as verification evidence.
+runs/
+__pycache__/

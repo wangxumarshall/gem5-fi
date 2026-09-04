@@ -1,0 +1,10 @@
+# -*- mode:python -*-
+# CHAOSIQ — O3 instruction-queue fault injector (§2.5, S1 P1).
+# Discovered by os.walk. O3-only: hooks cpu/o3/inst_queue.cc::wakeDependents.
+
+Import('*')
+
+SimObject('CHAOSIQ.py', sim_objects=['CHAOSIQ'], enums=[])
+Source('CHAOSIQ.cc')
+
+DebugFlag('CHAOSIQ')

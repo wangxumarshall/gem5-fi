@@ -62,6 +62,11 @@ struct ArmWalkUnitParams;
 
 class ThreadContext;
 
+// §2.10 CHAOSPTW: forward decl in top-level gem5 namespace (the injector
+// class is gem5::CHAOSPTW, not ArmISA::). Used as a raw pointer member of
+// ArmISA::WalkUnit below.
+class CHAOSPTW;
+
 namespace ArmISA {
 class WalkUnit;
 class Translation;
@@ -1181,6 +1186,15 @@ class WalkUnit : public ClockedObject
     using L1Descriptor = TableWalker::L1Descriptor;
     using L2Descriptor = TableWalker::L2Descriptor;
     using LongDescriptor = TableWalker::LongDescriptor;
+
+    // §2.10 CHAOSPTW: raw pointer to the page-table-walker fault injector.
+    // Set by the injector's startup() (Python config passes walker=this).
+    // nullptr = no injection (zero regression). FS-only (SE走translateMmuOff,
+    // doLongDescriptor never called in SE — doc §0.3). CHAOSPTW is in the
+    // top-level gem5 namespace (forward-declared above table_walker.hh's
+    // ArmISA block).
+    CHAOSPTW *chaosPTW = nullptr;
+    void setChaosPTW(CHAOSPTW *p);
 
     /** This translation class is used to trigger the data fetch once a timing
         translation returns the translated physical address */

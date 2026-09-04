@@ -27,15 +27,21 @@ class CHAOSLSQFwd(SimObject):
 
     faultType = Param.String("bit_flip",
         "bit_flip | stuck_at_zero | stuck_at_one | random")
-    faultMask = Param.UInt32(0,
-        "Per-byte bitmask applied to the forwarded data (0 = random, "
-        "bitsToChange bits). The mask is applied to ONE byte of the "
-        "forwarded buffer selected by byteOffset (-1 = random byte).")
+    faultMask = Param.UInt64(0,
+        "§2.4: 64-bit (was UInt32 — truncated bit>=32). Per-byte bitmask "
+        "applied to the forwarded data (0 = random, bitsToChange bits). "
+        "Applied to ONE byte selected by byteOffset (-1 = random byte).")
     bitsToChange = Param.Int(1, "Bits to change when faultMask=0")
     byteOffset = Param.Int(-1,
         "Which byte of the forwarded buffer to corrupt (-1 = random within "
         "[0, size-1]). method2's mantissa concentration comes from corrupting "
         "the low bytes of IEEE754 data.")
+    # §2.4 structured fault mode (from fi-h6-h7 branch, H5 closed):
+    structMode = Param.String("byte_flip",
+        "byte_flip (default, orig) | byte_lane_skew (rol_k rotate the whole "
+        "forwarded buffer by laneSkewK bytes — core179 D1 byte-lane phase "
+        "signature) | all_zero (zero the whole 8-byte buffer)")
+    laneSkewK = Param.Int(1, "§2.4 byte_lane_skew: rotate by k bytes (default 1)")
 
     firstClock = Param.UInt64(0, "First clock cycle eligible for injection")
     lastClock = Param.UInt64(0, "Last cycle (0 = unrestricted)")

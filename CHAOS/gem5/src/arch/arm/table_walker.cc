@@ -35,6 +35,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "arch/arm/table_walker.hh"
+#include "arch/arm/CHAOSPTW/CHAOSPTW.hh"  // §2.10 full def for maybeCorrupt
 
 #include <cassert>
 #include <memory>
@@ -635,6 +636,13 @@ WalkUnit::WalkUnit(const Params &p)
                            &doL2LongDescEvent, &doL3LongDescEvent},
       test(nullptr)
 {}
+
+// §2.10 CHAOSPTW: accessor defined here (WalkUnit full type visible).
+void
+WalkUnit::setChaosPTW(::gem5::CHAOSPTW *p)
+{
+    chaosPTW = p;
+}
 
 WalkUnit::~WalkUnit()
 {
@@ -1949,6 +1957,16 @@ WalkUnit::doLongDescriptor(WalkerState *curr_state)
 
     curr_state->longDesc.data =
         htog(curr_state->longDesc.data, byteOrder(curr_state->tc));
+
+    // §2.10 CHAOSPTW: bit-flip the fetched PTE pre-eval (the longDesc.data
+    // is the just-fetched page-table descriptor). HONEST: FS-only — SE走
+    // translateMmuOff (doLongDescriptor never called in SE, doc §0.3).
+    // nullptr = no injection (zero regression).
+    if (chaosPTW) {
+        chaosPTW->maybeCorrupt(curr_state->longDesc.data,
+                               curr_state->longDesc.lookupLevel,
+                               curr_state->vaddr_tainted);
+    }
 
     DPRINTF(PageTableWalker, "L%d descriptor for %#llx is %#llx (%s)\n",
             curr_state->longDesc.lookupLevel, curr_state->vaddr_tainted,

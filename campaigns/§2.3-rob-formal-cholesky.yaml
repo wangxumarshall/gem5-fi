@@ -1,0 +1,22 @@
+schema_version: arm-chaos-fi/v1
+campaign_id: rob_formal_cholesky
+injector: rob
+config: C2
+mode: SE
+grid:
+  phys_mode: [arch_frontend]
+  target_index: [0]
+  bit: []
+  fault_model: [transient_bit_flip]
+  protection_model: [none]
+n_per_cell: 384
+base_seed: 20260825
+replay_pct: 5.0
+workload:
+  binary: workloads/directed/cholesky_numeric
+  golden_id: cholesky-golden-v1
+  trigger_mode: cycle
+  trigger_value: 50000
+limits:
+  max_faults: 1
+hang_timeout: 300

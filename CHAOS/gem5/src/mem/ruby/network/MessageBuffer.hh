@@ -64,9 +64,16 @@
 #include "mem/ruby/slicc_interface/Message.hh"
 #include "params/MessageBuffer.hh"
 #include "sim/sim_object.hh"
+// §2.9 CHAOSCHI: included so MessageBuffer::dequeue's inline hook can call
+// chaosCHI->maybeCorrupt(). Non-circular: CHAOSCHI.hh forward-declares
+// ruby::MessageBuffer.
+#include "mem/ruby/CHAOSCHI/CHAOSCHI.hh"
 
 namespace gem5
 {
+
+// §2.9 CHAOSCHI forward decl (gem5 top-level, raw pointer member below).
+class CHAOSCHI;
 
 namespace ruby
 {
@@ -76,6 +83,12 @@ class MessageBuffer : public SimObject
   public:
     typedef MessageBufferParams Params;
     MessageBuffer(const Params &p);
+
+    // §2.9 CHAOSCHI: raw pointer to the CHI directory injector. Set by a
+    // Ruby config script. nullptr = no injection. dequeue() calls
+    // maybeCorrupt(this).
+    ::gem5::CHAOSCHI *chaosCHI = nullptr;
+    void setChaosCHI(::gem5::CHAOSCHI *p) { chaosCHI = p; }
 
     void reanalyzeMessages(Addr addr, Tick current_time);
     void reanalyzeAllMessages(Tick current_time);

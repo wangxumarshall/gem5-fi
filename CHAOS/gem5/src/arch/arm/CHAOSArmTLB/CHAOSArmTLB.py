@@ -29,4 +29,14 @@ class CHAOSArmTLB(SimObject):
     bitsToChange = Param.Int(1, "Bits to change when faultMask=0")
     maxFaults = Param.UInt64(0, "Max faults to inject; 0 = unlimited. Use 1.")
     rngSeed = Param.UInt64(0, "RNG seed (0 = random_device)")
+    protectionModel = Param.String("none",
+        "§1.2 protection-aware modeling layer (N1 TRM Table 9-1 PROXY). "
+        "L1 iTLB/dTLB = 'none' (TRM flop, no protection = raw escape, "
+        "default, zero regression); L2 TLB / walk cache = 'parity_interleaved' "
+        "(1-bit even/odd-independent: detect -> entry restored (undo, "
+        "Corrected/DetectedContained-equivalent; real HW invalidates+re-walks, "
+        "this restores the pfn before MMU use to model the same observable "
+        "outcome re-entrancy-safely, E3); same-parity 2-bit / >=3-bit -> "
+        "SilentEscape. Keyed on popcount(mask) (64-bit pfn). Does NOT "
+        "convert to product FIT.")
     writeLog = Param.Bool(True, "Write a fault_injections.log file")

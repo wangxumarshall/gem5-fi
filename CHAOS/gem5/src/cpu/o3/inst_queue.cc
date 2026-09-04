@@ -1075,6 +1075,15 @@ InstructionQueue::wakeDependents(const DynInstPtr &completed_inst)
 {
     int dependents = 0;
 
+    // §2.5 CHAOSIQ: pre-wake hook. If shouldOmitWake fires, DROP the wakeup
+    // broadcast entirely (one missed wake — dependents stay not-ready).
+    // Models method3 timing-race phase shift / dropped-wake fault.
+    // nullptr = no injection (zero regression).
+    if (chaosIQ && chaosIQ->shouldOmitWake(completed_inst->threadNumber,
+                                           completed_inst)) {
+        return 0;
+    }
+
     // The instruction queue here takes care of both floating and int ops
     if (completed_inst->isFloating()) {
         iqIOStats.fpInstQueueWakeupAccesses++;

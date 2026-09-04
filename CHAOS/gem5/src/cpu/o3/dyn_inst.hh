@@ -715,6 +715,27 @@ class DynInst : public ExecContext, public RefCounted
         return dflt;
     }
 
+    /** §2.12 CHAOSExec: XOR the FRONT InstResult's scalar value by mask
+     *  (in-place, no pop). Returns true if a scalar integer result was
+     *  corrupted; false for blob/FP/vector or empty queue. */
+    bool
+    corruptFrontResult(RegVal xor_mask)
+    {
+        if (instResult.empty()) return false;
+        InstResult &front = const_cast<InstResult&>(instResult.front());
+        return front.corrupt(xor_mask);
+    }
+
+    /** §2.6 CHAOSFPU: XOR the FRONT InstResult's blob (FP/vector) bytes by
+     *  mask (in-place, no pop). Returns true if a blob result was corrupted. */
+    bool
+    corruptFrontResultBlob(uint64_t xor_mask)
+    {
+        if (instResult.empty()) return false;
+        InstResult &front = const_cast<InstResult&>(instResult.front());
+        return front.corruptBlob(xor_mask);
+    }
+
     /** Pushes a result onto the instResult queue. */
     /** @{ */
     template<typename T>

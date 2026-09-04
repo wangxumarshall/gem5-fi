@@ -38,8 +38,10 @@ namespace gem5
           last_clock(Cycles(p.lastClock)),
           max_faults(p.maxFaults),
           faults_injected_count(0),
-          rng_seed(p.rngSeed),
-          write_log(p.writeLog),
+          rng_seed(p.rngSeed),    write_log(p.writeLog),
+    trigger_value_mask(p.triggerValueMask),
+    trigger_value_pattern(p.triggerValuePattern),
+    semantic_role(p.semanticRole),
           attackEvent([this] { this->attackCheck(); }, name()),
           periodicCheck([this] { this->checkPermanent(); }, name() + ".periodicCheck"),
           readTraceEvent([this] { this->readTraceCheck(); }, name() + ".readTrace"),
@@ -355,6 +357,30 @@ namespace gem5
         } else {
             // Scalar path (int / float / vecelem).
             gem5::RegVal reg_val = cpu->physRegFile().getReg(phys_reg);
+
+            // §1.3/§2.1B F3 data-dependent trigger (method2 undervoltage):
+            // inject ONLY when (val & triggerValueMask) == triggerValuePattern.
+            // mask=0 (default) = unconditional (original behavior, zero regression).
+            if (trigger_value_mask != 0) {
+                if ((reg_val & trigger_value_mask) != trigger_value_pattern) {
+                    if (write_log) {
+                        *(log_stream->stream())
+                            << "  [F3 trigger miss: val=0x" << std::hex
+                            << reg_val << " & mask=0x" << trigger_value_mask
+                            << " != pattern=0x" << trigger_value_pattern
+                            << std::dec << " — no injection]" << std::endl;
+                    }
+                    return;  // data-dependent condition not met — skip
+                }
+                if (write_log) {
+                    *(log_stream->stream())
+                        << "  [F3 trigger HIT: val=0x" << std::hex << reg_val
+                        << " matches (mask=0x" << trigger_value_mask
+                        << ", pattern=0x" << trigger_value_pattern
+                        << std::dec << ")]" << std::endl;
+                }
+            }
+
             switch (chosen) {
               case FaultType::StuckAtZero:
                 reg_val &= ~mask;
@@ -426,7 +452,8 @@ namespace gem5
                     : (chosen_arch_idx >= 0
                        ? " (<= ArchReg[" + std::to_string(chosen_arch_idx) + "])"
                        : ""))
-                << ", FaultType: " << faultTypeToString(chosen)
+                << ", semanticRole: " << (semantic_role.empty() ? "-" : semantic_role)
+                    << ", FaultType: " << faultTypeToString(chosen)
                 << ", Mask: " << std::bitset<64>(mask)
                 << ", FreeListSize: " << free_list_size_at_inject
                 << std::endl;

@@ -1,0 +1,2 @@
+phys_mode,target_index,fault_model,protection_model,n_total,n_valid,n_inactive,n_simerror,P_SDC,P_SDC_lo,P_SDC_hi,P_DUE,P_DUE_lo,P_DUE_hi,Reach,Reach_lo,Reach_hi,frozen
+arch_frontend,0,transient_bit_flip,none,384,381,0,3,0.0472,0.0301,0.0734,0.2756,0.2331,0.3225,1.0000,0.9900,1.0000,0

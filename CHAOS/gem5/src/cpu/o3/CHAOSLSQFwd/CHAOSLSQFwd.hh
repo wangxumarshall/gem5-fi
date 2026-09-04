@@ -44,16 +44,36 @@ class CHAOSLSQFwd : public SimObject
     static FaultType stringToFaultType(const std::string &s);
     const char *faultTypeToString(FaultType f);
 
+    // §2.4 structured fault mode (from fi-h6-h7 branch, H5 closed):
+    //   byte_flip       (default): single/multi-byte XOR/OR/AND on one byte (orig)
+    //   byte_lane_skew  : rotate the whole forwarded data by k bytes (rol_k) —
+    //                     reproduces core179 D1 byte-lane phase signature (method2)
+    //   all_zero        : zero the whole forwarded buffer (8 bytes)
+    //   stale_line_replay: (deferred — needs older-line replay plumbing)
+    //   fwd_source_sub (F5): (deferred — needs forward-decision-point hook)
+    //   phase_offset (F6): (deferred — needs timing shift in lsq_unit.cc)
+    enum class StructMode { ByteFlip, ByteLaneSkew, AllZero };
+    static StructMode stringToStructMode(const std::string &s);
+
     o3::CPU *cpu;
     float probability;
     FaultType fault_type_enum;
-    std::bitset<32> fault_mask;
+    StructMode struct_mode;
+    std::bitset<64> fault_mask;   // §2.4: 64-bit (was 32 — truncated bit>=32)
     int num_bits_to_change;
     int byte_offset;       // -1 = random byte within [0,size-1]
+    int lane_skew_k;       // §2.4 byte_lane_skew: rotate by k bytes (default 1)
     Cycles first_clock, last_clock;
     uint64_t max_faults, faults_injected_count;
     uint64_t rng_seed;
     bool write_log;
+    // Sampling-bias fix (same as CHAOSL1DForward, findings.md Phase 2.2):
+    // number of eligible forwarding events to skip before the first
+    // injection — geometric(p=0.1) from the seed, so maxFaults=1 lands on a
+    // seed-dependent forwarding event instead of always the first eligible
+    // one (which is the same dynamic store->load pair every rep on a
+    // deterministic stream).
+    uint64_t events_to_skip = 0;
 
     std::mt19937 rng;
     std::random_device rd;

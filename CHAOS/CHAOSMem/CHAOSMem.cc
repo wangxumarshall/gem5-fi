@@ -33,6 +33,8 @@ namespace gem5 {
     faults_injected_count(0),
     target_start(p.addr_start),
     target_end(p.addr_end),
+    protection_model(p.protectionModel),
+    ecc_logic_fault(p.eccLogicFault),
     attackEvent([this]{ this->attackMemory(); }, name()),
     periodicCheck([this] { this->checkPermanent(); }, name() + ".periodicCheck"),
     stats(nullptr)
@@ -148,7 +150,7 @@ namespace gem5 {
         return FaultType::Random;
     }
 
-    const char* 
+    const char*
     CHAOSMem::faultTypeToString(CHAOSMem::FaultType f) {
         switch (f) {
             case FaultType::BitFlip: return "bit_flip";
@@ -159,6 +161,68 @@ namespace gem5 {
         return "random";
     }
 
+    // §1.2 protection-aware (N1 TRM Table 9-1 PROXY, DRAM = secded). Map the
+    // protectionModel string; the real outcome ladder is in applyProtection
+    // keyed on popcount(mask). "none" (default) = raw escape, zero regression.
+    CHAOSMem::ProtectionOutcome
+    CHAOSMem::stringToProtectionModel(const std::string &s) {
+        if (s == "secded") return ProtectionOutcome::Latent;
+        return ProtectionOutcome::Raw;  // "none" / unknown -> raw
+    }
+
+    const char*
+    CHAOSMem::protectionOutcomeToString(CHAOSMem::ProtectionOutcome o) {
+        switch (o) {
+            case ProtectionOutcome::Raw: return "Raw";
+            case ProtectionOutcome::Corrected: return "Corrected";
+            case ProtectionOutcome::Latent: return "Latent";
+            case ProtectionOutcome::SilentEscape: return "SilentEscape";
+        }
+        return "Raw";
+    }
+
+    // §1.2 post-injection protection. DRAM = secded (Huawei DDR ECC). Acts on
+    // the mutated `data` byte BY REFERENCE before write-back, so an undo
+    // restores the original byte (== golden). popcount(mask) = bits flipped.
+    //   none   -> Raw (leave = escape). Default, zero regression.
+    //   secded -> 1-bit: undo the mutation (Corrected); 2-bit: poison-log +
+    //             leave (Latent — AbstractMemory backing store has no poison
+    //             bit, E3 proxy); >=3: SilentEscape.
+    CHAOSMem::ProtectionOutcome
+    CHAOSMem::applyProtection(uint8_t &data, uint8_t mask,
+                              uint8_t orig_byte, FaultType ft)
+    {
+        int bits = __builtin_popcount(mask);
+        ProtectionOutcome outcome = ProtectionOutcome::Raw;
+
+        if (protection_model == "none") {
+            outcome = ProtectionOutcome::Raw;  // leave = escape (default)
+        } else if (protection_model == "secded") {
+            if (bits == 1) {
+                // 1-bit: undo (restore the original byte before write-back).
+                data = orig_byte;
+                outcome = ProtectionOutcome::Corrected;
+            } else if (bits == 2) {
+                // 2-bit: poison-log + leave (Latent). No poison bit in the
+                // backing store -> E3 proxy; the corruption propagates as SDC
+                // if read, but we LOG what real-hw DDR SECDED would contain.
+                outcome = ProtectionOutcome::Latent;
+            } else {
+                outcome = ProtectionOutcome::SilentEscape;  // >=3-bit silent
+            }
+        } else {
+            outcome = ProtectionOutcome::Raw;  // unknown model -> raw
+        }
+        (void)ft;
+
+        if (write_log) {
+            *(log_stream->stream()) << "    protection: model=" << protection_model
+                << " bits=" << bits << " -> " << protectionOutcomeToString(outcome)
+                << std::endl;
+        }
+        return outcome;
+    }
+
     void 
     CHAOSMem::scheduleAttack(Tick time) {
         if (!attackEvent.scheduled()) {
@@ -166,12 +230,51 @@ namespace gem5 {
         }
     }
 
-    void 
+    void
     CHAOSMem::scheduleCheckPermanentFault(Tick time)
     {
         if (!periodicCheck.scheduled()) {
             schedule(periodicCheck, time);
         }
+    }
+
+    // §2.17 internal SECDED codec — a SIMPLIFIED 8-bit syndrome proxy over an
+    // 8-byte data word (NOT a full Hamming(72,64) matrix). honest E3: this
+    // models the SECDED *check/correct logic* being faulty, not cycle-exact
+    // DRAM ECC. syndrome = XOR of all data bytes (1-byte parity-like check).
+    uint8_t
+    CHAOSMem::secdedSyndrome(const uint8_t *data8)
+    {
+        uint8_t s = 0;
+        for (int i = 0; i < 8; i++) s ^= data8[i];
+        return s;
+    }
+
+    // §2.17 ecc_logic_fault: corrupt the syndrome bit (not the data), then run
+    // decode (recompute syndrome vs the stored — but here we model the FAULTY
+    // logic by XOR-ing the recomputed syndrome with xor_mask, simulating a
+    // miscorrection: the 'corrected' value flips the wrong bit -> a 1-bit data
+    // error becomes a 2-bit error after the faulty 'correction'). Returns true.
+    bool
+    CHAOSMem::applyEccLogicFault(uint8_t *data8, uint8_t xor_mask)
+    {
+        if (!data8) return false;
+        // Faulty SECDED: the syndrome (ECC logic) bit is flipped. A 1-bit data
+        // error would be 'corrected' using the WRONG syndrome -> flips a
+        // DIFFERENT bit (mis-correction: 1-bit -> 2-bit, undetectable as 2-bit
+        // if the faulty syndrome happens to also be valid for a 2-bit pattern).
+        // Model: flip a data bit guided by the faulty syndrome (xor_mask picks
+        // which data bit the faulty logic 'thinks' is wrong).
+        if (xor_mask == 0) return false;
+        // pick the lowest set bit of xor_mask as the mis-corrected position
+        int pos = __builtin_ctz(xor_mask) % 64;
+        data8[pos / 8] ^= (1 << (pos % 8));  // mis-correct: flip a data bit
+        if (write_log) {
+            *(log_stream->stream()) << "    protection: §2.17 ecc_logic_fault "
+                << "mis-corrected data bit " << pos
+                << " (syndrome logic faulty -> 1-bit err -> wrong-bit fix)\n";
+        }
+        return true;
     }
 
     unsigned char 
@@ -201,6 +304,47 @@ namespace gem5 {
         // the old dist spanned [start, end-1] = excluded the final byte.
         std::uniform_int_distribution<Addr> dist(target_start, target_end);
         Addr target_addr = dist(rng);
+
+        // §2.17 ecc_logic_fault: corrupt the in-CHAOSMem SECDED syndrome (not
+        // the data byte) -> mis-correction / missed-detection. Uses an 8-byte
+        // data word; the fault is applied to the (recomputed) syndrome bit,
+        // causing the SECDED logic to mis-correct a 1-bit data error to a
+        // different bit. Honest E3: simplified syndrome, not full Hamming.
+        if (ecc_logic_fault) {
+            try {
+                uint8_t data8[8];
+                RequestPtr req8 = std::make_shared<Request>(target_addr, 8, 0, 0);
+                PacketPtr rp = new Packet(req8, MemCmd::ReadReq);
+                rp->dataStatic(data8);
+                memory->access(rp);
+                uint8_t synd = secdedSyndrome(data8);
+                uint8_t xor_mask = (fault_mask != 0) ? fault_mask : (1 << (rng() % 8));
+                // inject a 1-bit data error, then run the FAULTY SECDED
+                // (syndrome corrupted by xor_mask) -> mis-correct.
+                data8[rng() % 8] ^= (1 << (rng() % 8));  // 1-bit data error
+                applyEccLogicFault(data8, xor_mask ^ synd);  // faulty syndrome
+                PacketPtr wp = new Packet(req8, MemCmd::WriteReq);
+                wp->dataStatic(data8);
+                memory->access(wp);
+                ++faults_injected_count;
+                if (write_log) {
+                    *(log_stream->stream()) << "Tick: " << curTick()
+                        << ", target addr: " << target_addr
+                        << ", mode=ecc_logic_fault (8-byte word, mis-correct)"
+                        << ", faults_injected: " << faults_injected_count
+                        << std::endl;
+                }
+                delete rp; delete wp;
+            } catch (const std::exception &e) {
+                if (write_log) *(log_stream->stream()) << "Error: ecc_logic " << e.what() << std::endl;
+            }
+            if (max_faults != 0 && faults_injected_count >= max_faults) return;
+            unsigned dist_cycles = inter_fault_tick_dist(rng);
+            if (dist_cycles < 1) dist_cycles = 1;
+            Tick next = curTick() + dist_cycles * tick_to_clock_ratio;
+            if (next <= last_tick * tick_to_clock_ratio || last_tick == 0) scheduleAttack(next);
+            return;
+        }
 
         try {
             // Attack a single byte
@@ -242,6 +386,12 @@ namespace gem5 {
                 default:
                     break;
             }
+
+            // §1.2 protection-aware handling (DRAM = secded, N1 TRM Table 9-1
+            // PROXY). Runs BEFORE write-back so an undo (1-bit Corrected)
+            // restores the original byte -> write stores clean data (== golden).
+            // Default protection_model="none" = Raw (no-op, zero regression).
+            applyProtection(data, mask, old_value, chosen_fault_type_enum);
 
             PacketPtr write_pkt = new Packet(req, MemCmd::WriteReq);
             write_pkt->dataStatic(&data);

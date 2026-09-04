@@ -16,9 +16,11 @@ namespace gem5
           cpu(dynamic_cast<o3::CPU *>(p.cpu)),
           probability(p.probability),
           fault_type_enum(stringToFaultType(p.faultType)),
-          fault_mask(std::bitset<32>(p.faultMask)),
+          struct_mode(stringToStructMode(p.structMode)),
+          fault_mask(std::bitset<64>(p.faultMask)),
           num_bits_to_change(p.bitsToChange),
           byte_offset(p.byteOffset),
+          lane_skew_k(p.laneSkewK),
           first_clock(Cycles(p.firstClock)),
           last_clock(Cycles(p.lastClock)),
           max_faults(p.maxFaults),
@@ -67,8 +69,17 @@ namespace gem5
             case FaultType::BitFlip: return "bit_flip";
             case FaultType::StuckAtZero: return "stuck_at_zero";
             case FaultType::StuckAtOne: return "stuck_at_one";
+            case FaultType::Random: return "random";  // §2.4: clear -Wswitch
         }
         return "random";
+    }
+
+    // §2.4 structured fault mode (fi-h6-h7 branch, H5 closed).
+    CHAOSLSQFwd::StructMode
+    CHAOSLSQFwd::stringToStructMode(const std::string &s) {
+        if (s == "byte_lane_skew") return StructMode::ByteLaneSkew;
+        if (s == "all_zero") return StructMode::AllZero;
+        return StructMode::ByteFlip;  // default / unknown
     }
 
     int
@@ -112,6 +123,35 @@ namespace gem5
         std::uniform_real_distribution<float> dist(0.0f, 1.0f);
         if (dist(rng) >= probability) return;
         if (size == 0) return;
+
+        // §2.4 structured fault modes (fi-h6-h7 branch, H5 closed):
+        if (struct_mode == StructMode::ByteLaneSkew) {
+            // Rotate the whole forwarded buffer by k bytes (rol_k) —
+            // core179 D1 byte-lane phase signature (method2).
+            int k = lane_skew_k % (int)size;
+            if (k < 0) k += (int)size;
+            if (k != 0) {
+                uint8_t tmp[16];
+                for (unsigned i = 0; i < size; i++) tmp[i] = data[i];
+                for (unsigned i = 0; i < size; i++)
+                    data[i] = tmp[(i + k) % size];
+            }
+            stats->numFaultsInjected++;
+            ++faults_injected_count;
+            writeLog("byte_lane_skew", size, vaddr, lane_skew_k, 0);
+            DPRINTF(LSQUnit, "CHAOSLSQFwd: byte_lane_skew rol %d (vaddr=%#x)\n",
+                    lane_skew_k, vaddr);
+            return;
+        }
+        if (struct_mode == StructMode::AllZero) {
+            for (unsigned i = 0; i < size; i++) data[i] = 0;
+            stats->numFaultsInjected++;
+            ++faults_injected_count;
+            writeLog("all_zero", size, vaddr, 0, 0);
+            DPRINTF(LSQUnit, "CHAOSLSQFwd: all_zero (vaddr=%#x size=%u)\n",
+                    vaddr, size);
+            return;
+        }
 
         // Choose byte to corrupt.
         int off = byte_offset;

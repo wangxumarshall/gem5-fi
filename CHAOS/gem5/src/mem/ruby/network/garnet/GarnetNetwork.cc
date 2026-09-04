@@ -30,6 +30,7 @@
 
 
 #include "mem/ruby/network/garnet/GarnetNetwork.hh"
+#include "mem/ruby/network/garnet/CHAOSNoC/CHAOSNoC.hh"  // §2.15 full def
 
 #include <cassert>
 
@@ -71,6 +72,10 @@ GarnetNetwork::GarnetNetwork(const Params &p)
     m_buffers_per_ctrl_vc = p.buffers_per_ctrl_vc;
     m_routing_algorithm = p.routing_algorithm;
     m_next_packet_id = 0;
+
+    // §2.15 CHAOSNoC: store the injector pointer (propagated to all
+    // NetworkLinks at init(), after createLinks creates them).
+    m_chaosNoC = p.chaosNoC;
 
     m_enable_fault_model = p.enable_fault_model;
     if (m_enable_fault_model)
@@ -120,6 +125,28 @@ GarnetNetwork::init()
     // parent network constructor
     assert(m_topology_ptr != NULL);
     m_topology_ptr->createLinks(this);
+
+    // §2.15 CHAOSNoC: links are now created (createLinks above); propagate
+    // the injector to ALL NetworkLinks. The param may have been set on the
+    // python side AFTER construction (system.ruby.network.chaosNoC = noc
+    // post-create_system) — resolve by name via the SimObjectResolver
+    // (single-instance assumption; null / not found = no injection).
+    if (!m_chaosNoC) {
+        auto* resolver = SimObject::getSimObjectResolver();
+        inform("CHAOSNoC init: resolver=%p, m_chaosNoC=%p\n", (void*)resolver, (void*)m_chaosNoC);
+        if (resolver) {
+            auto* so = resolver->resolveSimObject("system.noc_injector");
+            inform("CHAOSNoC init: resolved system.noc_injector -> %p\n", (void*)so);
+            if (so) {
+                m_chaosNoC = dynamic_cast<CHAOSNoC*>(so);
+                inform("CHAOSNoC init: dynamic_cast -> %p\n", (void*)m_chaosNoC);
+            }
+        }
+    }
+    if (m_chaosNoC) {
+        inform("CHAOSNoC init: propagating to %zu links\n", m_networklinks.size());
+        setChaosNoCAll(m_chaosNoC);
+    }
 
     // Initialize topology specific parameters
     if (getNumRows() > 0) {
@@ -660,6 +687,18 @@ GarnetNetwork::functionalWrite(Packet *pkt)
     }
 
     return num_functional_writes;
+}
+
+// §2.15 CHAOSNoC: propagate the injector pointer to ALL NetworkLinks (the
+// links are created in C++ Topology.cc via createLinks, NOT visible in the
+// python object tree — so the injector is attached via the GarnetNetwork
+// after init). No-op per-link when the pointer is null (zero regression).
+void
+GarnetNetwork::setChaosNoCAll(::gem5::CHAOSNoC *p)
+{
+    for (unsigned int i = 0; i < m_networklinks.size(); ++i) {
+        m_networklinks[i]->setChaosNoC(p);
+    }
 }
 
 } // namespace garnet

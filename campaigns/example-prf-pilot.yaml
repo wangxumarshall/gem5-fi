@@ -1,0 +1,32 @@
+# Example campaign: CHAOSPhysReg arch_frontend, pilot scale.
+# (design doc `docs/KUNPENG920-故障注入方案详细工程设计.md` §1.5, §2.1)
+#
+# Cell 0 (target_index=3, X3) rep 0 uses seed = base_seed + 0*1000 + 0 =
+# 20260825, which reproduces the §0.1 CHAOSPhysReg SDC anchor
+# `d43a25d7fcc218b7` exactly — so this campaign doubles as a self-test that
+# the driver wires seeds/manifests correctly.
+#
+# NOTE: this fault machine (cpu179) takes ~92s/run. Keep n_per_cell tiny here
+# for pilot/self-test; formal n=384 belongs on a healthy 2nd machine (§0.4).
+schema_version: arm-chaos-fi/v1
+campaign_id: example-prf-pilot
+injector: physreg
+config: C0
+mode: SE
+grid:
+  phys_mode: [arch_frontend]
+  target_index: [3, 9]       # X3 (SDC anchor), X9 (Masked anchor)
+  bit: []                    # empty = random mask (matches the X3 anchor config)
+  fault_model: [transient_bit_flip]
+  protection_model: [none]   # no-op axis for SE physreg until §1.2 lands
+n_per_cell: 3
+base_seed: 20260825
+replay_pct: 5.0
+workload:
+  binary: workloads/directed/reg_chain
+  golden_id: regchain-golden-v1
+  trigger_mode: cycle
+  trigger_value: 100000
+limits:
+  max_faults: 1
+hang_timeout: 300
