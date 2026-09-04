@@ -1855,3 +1855,7 @@ IQ F5/F6 完整闭环（9db60d6 实现 + 4aee770 madd formal + 9991185 cholesky 
 4.4 TLB pfn_to_mapped_page + 4.5 SysReg value_to_legal（e22b775）：两个 FS-only F5 静默通路实现完成（活页 pfn 替换 / 跨白名单值替换），SE 回归零影响；FS 触发验证 boot 中（cpu179 上 FS boot 30-60 分钟——正是 Phase 5 checkpoint 管线要解决的问题），FS formal 归 Phase 5。4.6 addr_map_sub（7d21c07 + ec97153）：384/384 Masked，**DRAM 层故障形态无关律**。
 
 **Phase 4 全表见 findings.md**。三大横断规律：① 合法域内错误是 SDC 核心形态（fwd_source_sub 37.6% 唯一高 SDC）；② 单元×形态×workload 三维决定结局；③ 代理边界诚实化（wake_phase≠method3 相位；DRAM 错位写需 STREAM 类 workload）。F5/F6 新增 7 模式全部落地，SE 侧 formal 定论齐备。
+
+### Phase 4.4 FS 触发验证（补录）: TLB pfn_to_mapped_page 真机 FS boot 中触发 ✅
+
+FS run（kernel 5.15.36 ubuntu, Atomic, gem5-fs deps）：`armtlb_injections.log` 首行 = `Tick: 1352646, Site: arm_tlb_lookup_hit, VA: 0x807cc408, old_pfn: 0x403, new_pfn: 0x0, FaultType: pfn_to_mapped_page, candidates: 63`——**合法域替换语义在真实内核 boot 中生效**（从 63 个同 TLB 活页候选中选替换目标；对照 bit_flip 锚点翻到未映射区 → BadAddressError panic DUE，本模式落在活页上）。FS formal（P_SDC 量化）按计划归 Phase 5 checkpoint 管线（cpu179 单次 FS boot 30-60 分钟，n=384 不可行——checkpoint 复用是前提）。
