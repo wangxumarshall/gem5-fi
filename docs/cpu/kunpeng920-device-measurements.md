@@ -139,9 +139,9 @@ cpuidle driver = **none**（无 ACPI LPI 暴露，空闲走 PSCI cpu_off + menu 
 
 | 层级 | 容量 | 共享域 | Line Size | 组织/策略（sysfs 报告） |
 |---|---|---|---|---|
-| L1d | 64 KB / 核 | 单核私有 | 64 B | — |
-| L1i | 64 KB / 核 | 单核私有 | 64 B | VIPT（内核探测实证） |
-| L2 | 512 KB / 核 | 单核私有 | 64 B | Unified |
+| L1d | 64 KB / 核 | 单核私有 | 64 B | **256 sets × 4 ways**；ReadWriteAllocate / WriteBack |
+| L1i | 64 KB / 核 | 单核私有 | 64 B | **256 sets × 4 ways**；ReadAllocate / WriteBack；VIPT（内核探测实证） |
+| L2 | 512 KB / 核 | 单核私有 | 64 B | **1024 sets × 8 ways**；Unified；ReadWriteAllocate / WriteBack |
 | **L3 (LLC)** | **32 MB / SCCL** | **32 核（= NUMA 节点）** | **128 B** | Unified；2048 sets；ReadWriteAllocate / WriteBack；`ways_of_associativity=15`（与 32768K/128B/2048=128 ways 不自洽，系 HiSilicon L3C 报告口径，如实记录） |
 
 关键实测结论：
@@ -289,7 +289,116 @@ PMU 硬件计数需 root/CAP_PERFMON。
 
 ---
 
-## 附录 A：数据采集命令清单
+## 11. 第二轮补充实测（2026-09-04 下午）
+
+### 11.1 Cluster（CCL）直接实证
+
+`topology/cluster_cpus_list`（上轮遗漏的 sysfs 条目）直接给出 4 核 cluster 边界：
+
+```
+cpu0-3   → cluster 0-3   （cluster_id=138, package=36）
+cpu120,121 → cluster 120-121（package=8442）
+cpu124-127 → cluster 124-127（package=8442）
+```
+
+- 离线 CPU 122/123 的 topology 目录为空（无 sysfs 信息）——按编号连续性推断属于 120-127 的
+  cluster（**推断，非实测**）。
+- `CONFIG_SCHED_MC=y`（内核 config 实证）——调度器在 MC 层（=cluster）做负载均衡。
+- L1i 为 **ReadAllocate**、L1d 为 ReadWriteAllocate（sysfs 实证，I 侧无写分配——VIPT I-cache 常规设计）。
+
+### 11.2 内核 config 关键项（`/boot/config-$(uname -r)` 实测）
+
+```
+CONFIG_ARM64_PAGE_SHIFT=12        # 4KB 基本页
+CONFIG_ARM64_VA_BITS_48=y         # 48-bit VA / 4 级页表
+CONFIG_NR_CPUS=4096               # 内核支持上限（远超本机 128）
+CONFIG_HZ_250=y                   # 250Hz 调度 tick
+CONFIG_NUMA=y                     # NUMA + 默认开启自动均衡
+CONFIG_NUMA_BALANCING_DEFAULT_ENABLED=y
+CONFIG_NUMA_AWARE_SPINLOCKS=y     # 自旋锁 NUMA 感知
+CONFIG_SCHED_MC=y                 # MC 调度域（cluster 层）
+CONFIG_ARM64_RAS_EXTN=y           # ARMv8 RAS 扩展
+CONFIG_CPPC_CPUFREQ_SYSFS_INTERFACE=y
+CONFIG_CPU_FREQ_DEFAULT_GOV_PERFORMANCE=y
+```
+
+注：`/proc/sys/kernel/sched_domain/cpu0/` 为空（domain 目录未暴露，如实记录），MC 域结构由
+`cluster_cpus_list` + `SCHED_MC=y` 间接实证。
+
+### 11.3 PCIe / SoC 外设全景（lspci 实测，46 设备）
+
+HIP08 的 IO Die 功能以 socket 为单位成对出现（74/75/76/78/79/7a/7b/7c/7d 段与 b4–ba 段各一份）：
+
+| 器件 | 数量/位置 | 功能 |
+|---|---|---|
+| HiSilicon PCIe Root Port **Gen4** (rev 21) | 7（00:00–00:12 段） | PCIe 4.0 根端口（业界首发 Gen4 的实证） |
+| **ZIP Engine** ×2 (75:00.0, b5:00.0) | Processing accelerators | 硬件压缩/解压（ZLIB/GZIP） |
+| **SEC Engine** ×2 (76:00.0, b6:00.0) | 加密设备 | 对称加密加速 |
+| **HPRE Engine** ×2 (79:00.0, b9:00.0) | 加密设备 | RSA/ECC 非对称加速 |
+| **RDE Engine** ×2 (78:01.0, b8:01.0) | RAID 控制器 | RAID 加速 |
+| SAS 3.0 HBA ×4、AHCI SATA ×2 | 74:02/04, b4:02/04 | 存储 HBA |
+| **HNS GE/10GE/25GE RDMA NIC** ×4 function (7d:00.0-3) | 网络控制器 | RoCE v2 网卡（每 PF 一个 function） |
+| Broadcom/LSI MegaRAID SAS3508 (01:00.0) | 外插卡 | Tri-Mode RAID |
+| Hi171x iBMC + iBMA 虚拟网卡 (05/06:00.0) | 管理芯片 | BMC/VGA/带外管理 |
+| USB 1.1/2.0/3.0 控制器 | 各×2（每 socket 一份） | USB |
+
+### 11.4 热与冷却（实测）
+
+- `thermal_zone0 = acpitz 51.3 °C`、`thermal_zone1 = acpitz 47.7 °C`（推测对应两 socket，固件 ACPI 热区）。
+- `cooling_device ×128`，全部为 `Processor` 类型，`max_state=3 / cur_state=0`——每核一个软件冷却
+  设备（3 级降频档位），当前未触发。
+
+### 11.5 多线程聚合带宽（pthread 并行，补上轮"单线程"缺口）
+
+每线程独立数组读改写扫描（`-march=armv8.2-a+lse`，cntvct 计时）：
+
+| 线程数 | 16MB 总WS（node1 CPU） | 16MB（node3 CPU） | 64MB（node1 CPU） |
+|---|---|---|---|
+| 1 | 5.6 GB/s | 5.2 | 5.1 |
+| 2 | 11.3 | 10.5 | 9.1 |
+| 4 | 22.6 | 21.9 | 13.9 |
+| 8 | 45.2 | 43.9 | 15.1 |
+| 16 | 89.2 | 86.9 | 16.5 |
+| 32 | **171.2** | 161.4 | 26.6 |
+
+解读：
+- 16MB 总 WS（每线程 512KB = 恰好 L2 容量，存在 L2 容量复合效应）下**线性扩展**，32 线程 171 GB/s
+  ——SCCL 内 L3/NoC 聚合带宽充裕。
+- 64MB（超 L3，直落 DRAM）32 线程仅 26.6 GB/s——**DRAM 侧瓶颈**。本机内存全在 node1，
+  node0/2/3 的 CPU 全部跨 Die 访问；且读改写使实际 DRAM 流量 ×2（读+写）。
+  与公开资料"8 通道 DDR4-2933 ≈ 187 GB/S 峰值"对照：本配置（4 DDRC × 单节点内存）实测有效
+  RMW 带宽约为峰值的 14%——受限于 RMW 模式 + 跨 Die + 共享机器，非纯读带宽。
+
+### 11.6 核间一致性延迟 ping-pong（单 cache line，sense-reversal，stlr/ldar）
+
+| 核对 | 往返延迟 | 拓扑关系 |
+|---|---|---|
+| cpu0 ↔ cpu1 | **88.1 ns** | 同 cluster (CCL) |
+| cpu32 ↔ cpu33 | 88.3 ns | 同 cluster（node1） |
+| cpu0 ↔ cpu4 | **263.6 ns** | 同 SCCL 跨 cluster |
+| cpu32 ↔ cpu36 | 244.7 ns | 同 SCCL 跨 cluster |
+| cpu0 ↔ cpu32 | **416.4 ns** | 跨 SCCL 同 socket |
+| cpu0 ↔ cpu96 | **1032.7 ns** | 跨 socket |
+
+一致性层级逐级放大约 3×/1.6×/2.5×；**跨 socket 一致性往返约 1.03 µs = 同 cluster 的 11.7×**。
+多线程同步原语（锁、RCU、无锁队列）的核间局部性在本机是第一性能杠杆；对故障注入研究，
+跨 Die/跨 socket 的一致性传播延迟差异本身就是可注入的时序面。
+
+### 11.7 无争用原子操作：LSE vs LL/SC（实测，10M 次循环）
+
+```
+LL/SC (ldxr/stxr)：6.16 ns/op（~16 cyc @2.6GHz，跨核/跨日重复采样稳定 6.16–6.17）
+LSE  (ldadd)    ：10–45 ns/op（多次采样 44.9/38.4/34.4/20.1/10.0，共享机器干扰波动大）
+```
+
+- 编译实证：默认 gcc 汇编 `ldadd` 被拒（"selected processor does not support"），必须
+  `-march=armv8.2-a+lse`——即本机工具链默认代码路径不发射 LSE。
+- **无争用场景下 LL/SC 反而更快且稳定**；LSE 的价值在有争用场景（硬件保证前进性，无 livelock）。
+  波动源于共享机器背景负载，结论保守表述为"无争用延迟量级：LL/SC ~6 ns，LSE ~10–45 ns"。
+  与公开资料"TSV110 LSE 微架构加速"对照，本测试的依赖链写法（ldadd 结果回写同地址）可能
+  无法体现其优化路径——如实记录该疑点，不做定论。
+
+---
 
 ```bash
 lscpu                                   # 概览/漏洞
@@ -313,12 +422,23 @@ cat /sys/devices/system/edac/mc/mc0/*   # ghes_edac DIMM/CE/UE
 cat /sys/firmware/acpi/tables/          # EINJ/HEST/BERT/ERST/SDEI/MPAM/PPTT…
 getconf PAGESIZE; cat /sys/kernel/mm/transparent_hugepage/enabled
 cat /proc/interrupts                    # GICv3/arch_timer/KVM 行
+cat /sys/devices/system/cpu/cpu*/topology/cluster_cpus_list   # cluster(CCL) 边界
+grep -E 'CONFIG_(ARM64|NUMA|SCHED_MC|HZ)' /boot/config-$(uname -r)
+lspci                                   # PCIe/加速器/网卡全景
+cat /sys/class/thermal/thermal_zone*/{type,temp}
+cat /sys/class/thermal/cooling_device*/{type,max_state,cur_state}
 ```
 
 ## 附录 B：微基准方法学
 
 - **延迟**：循环置换指针链，步长取最近素数（≥n/2）破坏预取器与组预测；`mrs cntvct_el0` 计时
   （100 MHz）；warmup 2 轮 + 2 次测量取最小；工作集 4KB–16MB 对数+细粒度扫点。
-- **带宽**：`a[i]+=1` 读改写扫描，20 轮 × 3 次取最大；单线程 C 程序（taskset 仅限定亲和性，
+- **带宽（第一轮）**：`a[i]+=1` 读改写扫描，20 轮 × 3 次取最大；单线程 C 程序（taskset 仅限定亲和性，
   不产生并行）——多核聚合带宽未测量（perf 受限），已如实标注。
-- 源码：`/tmp/cpubench/{lat5.c,bw.c}`（gcc -O2）。
+- **带宽（第二轮 §11.5）**：pthread 每线程独立数组，30 轮，volatile sink 防优化消除；
+  `-march=armv8.2-a+lse`；1/2/4/8/16/32 线程扫描。
+- **ping-pong（§11.6）**：单 cache line 上两个 64b 计数器的 sense-reversal 握手，`stlr`（release
+  store）/`ldar`（acquire load）交替；10 万次往返取平均。
+- **原子（§11.7）**：同地址依赖链 1000 万次；LSE 用 `ldadd`，LL/SC 用 `ldxr/stxr/cbnz` 重试循环；
+  编译需 `-march=armv8.2-a+lse`（默认工具链不发射 LSE）。
+- 源码：`/tmp/cpubench/{lat5.c,bw.c,bench2.c}`（gcc -O2）。
