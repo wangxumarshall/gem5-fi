@@ -1,0 +1,148 @@
+{
+  "cli_version": "0.10.2",
+  "checkpoint_id": "01M1P2AXF1F6NF0H1S2PEY9NFQ",
+  "session_id": "98483bee-50d0-49c7-937a-6538ae6e330e",
+  "strategy": "manual-commit",
+  "created_at": "2026-09-04T11:20:06.04194574Z",
+  "branch": "docs/vmcore-case-reports-7dumps",
+  "checkpoints_count": 7,
+  "save_step_count": 4,
+  "files_touched": [
+    "docs/cases/core179-microarch-rootcause-synthesis/analysis/STORE_PATH_SENSITIVITY.md",
+    "docs/cases/core179-microarch-rootcause-synthesis/analysis/TIMING_SENSITIVITY.md",
+    "docs/cases/core179-microarch-rootcause-synthesis/analysis/UNIT_COVERAGE_MATRIX.md"
+  ],
+  "agent": "Claude Code",
+  "model": "glm-5.3",
+  "turn_id": "1a61e88cbc18",
+  "checkpoint_transcript_start": 385,
+  "transcript_lines_at_start": 385,
+  "compact_transcript_start": 86,
+  "token_usage": {
+    "input_tokens": 13795838,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 34457,
+    "api_call_count": 102,
+    "subagent_tokens": {
+      "input_tokens": 57317650,
+      "cache_creation_tokens": 0,
+      "cache_read_tokens": 0,
+      "output_tokens": 323581,
+      "api_call_count": 477
+    }
+  },
+  "skill_events_version": 1,
+  "skill_events": [
+    {
+      "id": "prompt-skill-claude-code-goal-2026-09-04T08:38:24.77005943Z",
+      "event_type": "prompt_invocation",
+      "skill": {
+        "name": "goal"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "prompt_slash_command",
+        "confidence": "explicit"
+      },
+      "turn_id": "59e5e66f7782",
+      "timestamp": "2026-09-04T08:38:24.77005943Z",
+      "native": {
+        "command": "/goal"
+      },
+      "collapse": {
+        "target": "user_message",
+        "label": "/goal",
+        "default_collapsed": true
+      }
+    }
+  ],
+  "session_metrics": {
+    "turn_count": 13
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-09-04T11:20:05.19593463Z",
+    "agent_lines": 0,
+    "agent_removed": 0,
+    "human_added": 1003,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 1003,
+    "total_lines_changed": 1003,
+    "agent_percentage": 0,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 192,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".planning/.active_plan": 1,
+        ".planning/2026-09-04-vmcore-case-diagnosis-reports/findings.md": 86,
+        ".planning/2026-09-04-vmcore-case-diagnosis-reports/progress.md": 61,
+        ".planning/2026-09-04-vmcore-case-diagnosis-reports/task_plan.md": 44
+      }
+    },
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 587,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".planning/.active_plan": 1,
+        ".planning/2026-09-04-vmcore-case-diagnosis-reports/findings.md": 86,
+        ".planning/2026-09-04-vmcore-case-diagnosis-reports/findings_newmining.md": 55,
+        ".planning/2026-09-04-vmcore-case-diagnosis-reports/progress.md": 75,
+        ".planning/2026-09-04-vmcore-case-diagnosis-reports/task_plan.md": 44,
+        "docs/cases/core179-microarch-rootcause-synthesis/analysis/STORE_PATH_SENSITIVITY.md": 326
+      }
+    },
+    {
+      "checkpoint_number": 3,
+      "user_lines_added": 621,
+      "user_lines_removed": 0,
+      "agent_lines_added": 326,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".planning/.active_plan": 1,
+        ".planning/2026-09-04-vmcore-case-diagnosis-reports/findings.md": 86,
+        ".planning/2026-09-04-vmcore-case-diagnosis-reports/findings_newmining.md": 55,
+        ".planning/2026-09-04-vmcore-case-diagnosis-reports/progress.md": 82,
+        ".planning/2026-09-04-vmcore-case-diagnosis-reports/task_plan.md": 44,
+        "docs/cases/core179-microarch-rootcause-synthesis/analysis/TIMING_SENSITIVITY.md": 353
+      }
+    },
+    {
+      "checkpoint_number": 4,
+      "user_lines_added": 599,
+      "user_lines_removed": 0,
+      "agent_lines_added": 679,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".planning/.active_plan": 1,
+        ".planning/2026-09-04-vmcore-case-diagnosis-reports/findings.md": 86,
+        ".planning/2026-09-04-vmcore-case-diagnosis-reports/findings_newmining.md": 55,
+        ".planning/2026-09-04-vmcore-case-diagnosis-reports/progress.md": 89,
+        ".planning/2026-09-04-vmcore-case-diagnosis-reports/task_plan.md": 44,
+        "docs/cases/core179-microarch-rootcause-synthesis/analysis/UNIT_COVERAGE_MATRIX.md": 324
+      }
+    },
+    {
+      "checkpoint_number": 5,
+      "user_lines_added": 241,
+      "user_lines_removed": 0,
+      "agent_lines_added": 1047,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".planning/.active_plan": 1,
+        ".planning/2026-09-04-vmcore-case-diagnosis-reports/findings.md": 86,
+        ".planning/2026-09-04-vmcore-case-diagnosis-reports/findings_newmining.md": 55,
+        ".planning/2026-09-04-vmcore-case-diagnosis-reports/progress.md": 99
+      }
+    }
+  ]
+}
