@@ -1,0 +1,199 @@
+########## dmesg forensics for 127.0.0.1-2026-09-03-18:25:12 (第 8 次致命转储) ##########
+== fingerprint ==
+2:[    0.000000] Linux version 6.6.0-145.3.23.154.oe2403sp3.aarch64 (root@node-48snw.compass-ci.net) (gcc_old (GCC) 12.3.1 (openEuler 12.3.1-110.oe2403sp3), GNU ld (GNU Binutils) 2.41) #1 SMP Mon Jul 27 19:00:34 CST 2026
+408:[    0.000000] Memory: 791048808K/805102592K available (15360K kernel code, 5418K rwdata, 10648K rodata, 5824K init, 27554K bss, 14053784K reserved, 0K cma-reserved)
+== WARNING total ==
+35
+== per-CPU distribution ==
+     35 WARNING: CPU: 179
+== WARNING timestamp clustering (uniq -c on timestamps) ==
+71822.056524 x1
+142792.045531 x1
+142792.047134 x1
+142792.047387 x1
+142792.051267 x1
+142792.056110 x1
+142802.041184 x1
+142802.042971 x1
+142802.048720 x1
+142812.052220 x1
+142812.059244 x1
+142822.040263 x1
+142822.040795 x1
+142832.040565 x1
+142835.314727 x1
+142835.335959 x1
+142845.336632 x1
+146862.038941 x1
+146862.041345 x1
+146862.060022 x1
+146862.074645 x1
+146862.082363 x1
+146872.051406 x1
+146872.067966 x1
+146872.069151 x1
+146882.051132 x1
+146882.057984 x1
+146902.061615 x1
+146902.076315 x1
+146912.077318 x1
+159162.040691 x1
+159162.065884 x1
+159172.064790 x1
+322215.057951 x1
+322225.050804 x1
+== WARNING PID/comm distribution ==
+
+== WARNING PID/comm census (block-internal CPU line) ==
+
+== all WARNING ESR (x19 in WARNING blocks) ==
+     35 x19: 0000000096000044
+
+== WARNING spurious FAR census (35 values, grouped by page region) ==
+      1 ffff60401344
+     16 ffff604017b3
+     13 ffff6040195f
+      1 ffff60406137
+      1 ffff6040629f
+      3 ffff604083c4
+
+== WARNING call path census (irqbalance vs pmdalinux) ==
+-- irqbalance path (first WARNING block, 71822):
+-- pmdalinux path (142835):
+[142835.314925] Call trace:
+
+== silence window verifications (all awk full-scan) ==
+90.0~71822.0 (W1 前静默):
+0
+71822.1~142792.0 (W1→簇B 前静默):
+0
+142846.0~146862.0 (簇B→簇C):
+0
+146913.0~159162.0 (簇C→簇D):
+0
+159173.0~322215.0 (簇D→末簇):
+0
+322225.2~322246.0 (末簇→panic):
+0
+
+== RAS negative evidence ==
+121:[    0.000000] crashkernel low memory reserved: 0x58000000 - 0x60000000 (128 MB)
+122:[    0.000000] crashkernel reserved: 0x000060575fe00000 - 0x000060579fe00000 (1024 MB)
+387:[    0.000000] Kernel command line: BOOT_IMAGE=/vmlinuz-6.6.0-145.3.23.154.oe2403sp3.aarch64 root=/dev/mapper/openeuler-root ro rd.lvm.lv=openeuler/root rd.lvm.lv=openeuler/swap cgroup_disable=files apparmor=0 crashkernel=1024M,high smmu.bypassdev=0x1000:0x17 smmu.bypassdev=0x1000:0x15 arm64.nopauth nospectre_bhb rhgb quiet console=tty0
+1857:[    0.867665] EDAC MC: Ver: 3.0.0
+1945:[    1.105296] pstore: Using crash dump compression: deflate
+2406:[    3.691119] megaraid_sas 0000:02:00.0: firmware crash dump	: no
+4201:[322246.599318] Starting crashdump kernel...
+12:[    0.000000] ACPI: BERT 0x000000002F61FF98 000030 (v01 HISI   HIP08    00000000 HISI 20151124)
+1307:[    0.568570] GHES: APEI firmware first mode is enabled by APEI bit and WHEA _OSC.
+2175:[    1.503673] ghes_edac: This system has 32 DIMM sockets.
+2176:[    1.504123] EDAC MC0: Giving out device to module ghes_edac.c controller ghes_edac: DEV ghes (INTERRUPT)
+
+== panic block (full, line 4155-4202) ==
+[322246.221818] Unable to handle kernel paging request at virtual address 00ffc99ebbaad120
+[322246.230565] Mem abort info:
+[322246.234146]   ESR = 0x0000000096000004
+[322246.238684]   EC = 0x25: DABT (current EL), IL = 32 bits
+[322246.244788]   SET = 0, FnV = 0
+[322246.248630]   EA = 0, S1PTW = 0
+[322246.252557]   FSC = 0x04: level 0 translation fault
+[322246.258223] Data abort info:
+[322246.261889]   ISV = 0, ISS = 0x00000004, ISS2 = 0x00000000
+[322246.268165]   CM = 0, WnR = 0, TnD = 0, TagAccess = 0
+[322246.274006]   GCS = 0, Overlay = 0, DirtyBit = 0, Xs = 0
+[322246.280107] [00ffc99ebbaad120] address between user and kernel address ranges
+[322246.288036] Internal error: Oops: 0000000096000004 [#1] SMP
+[322246.294402] Modules linked in: binfmt_misc nft_fib_inet nft_fib_ipv4 nft_fib_ipv6 nft_fib nft_reject_inet nf_reject_ipv4 nf_reject_ipv6 nft_reject nft_ct nft_chain_nat nf_nat nf_conntrack nf_defrag_ipv6 nf_defrag_ipv4 rfkill ip_set nf_tables libcrc32c vfat fat rpcrdma sunrpc rdma_ucm ib_srpt ib_isert iscsi_target_mod target_core_mod ib_iser rdma_cm iw_cm ib_cm libiscsi scsi_transport_iscsi ipmi_ssif hns_roce_hw_v2 ib_uverbs acpi_ipmi ib_core ses enclosure ipmi_si hisi_uncore_hha_pmu hisi_uncore_l3c_pmu hisi_uncore_ddrc_pmu ipmi_devintf ipmi_msghandler hisi_uncore_pmu sg ip6_tables ip_tables fuse nfnetlink ext4 mbcache jbd2 sd_mod t10_pi crc64_rocksoft_generic crc64_rocksoft crc64 crct10dif_ce hisi_sas_v3_hw hisi_sas_main ghash_ce libsas ahci libahci scsi_transport_sas hibmc_drm drm_vram_helper motorcomm sha2_ce drm_ttm_helper sha256_arm64 ttm sha1_ce drm_display_helper hclge sbsa_gwdt drm_kms_helper drm hns3 libata nfit hnae3 megaraid_sas host_edma_drv i2c_designware_platform libnvdimm i2c_designware_core hisi_trng_v2
+[322246.294513]  dm_mirror dm_region_hash dm_log dm_multipath dm_mod aes_neon_bs aes_neon_blk aes_ce_blk aes_ce_cipher
+[322246.396732] CPU: 179 PID: 16 Comm: rcu_sched Kdump: loaded Tainted: G        W           6.6.0-145.3.23.154.oe2403sp3.aarch64 #1
+[322246.409094] Hardware name: Yangtze Computing R240K V2/BC82AMQA, BIOS 7.48 06/15/2026
+[322246.417632] pstate: 204000c9 (nzCv daIF +PAN -UAO -TCO -DIT -SSBS BTYPE=--)
+[322246.425388] pc : find_busiest_group+0x140/0xb60
+[322246.430717] lr : find_busiest_group+0x11c/0xb60
+[322246.436037] sp : ffff8000821ab830
+[322246.440140] x29: ffff8000821ab9b0 x28: ffff8000821ab940 x27: 00ffc99ebbaad000
+[322246.448071] x26: ffff604003e9e3c0 x25: 000000000000000c x24: ffffc9e8a40d5000
+[322246.456003] x23: 0000000000000400 x22: ffff604003e9e3c0 x21: ffffc9e8a40cfcb0
+[322246.463933] x20: 00ffffb617dd3940 x19: ffff8000821aba40 x18: 0000000000000000
+[322246.471861] x17: 0000000000000000 x16: 0000000000000000 x15: 0000ffffa465a588
+[322246.479789] x14: 0000000000000000 x13: 0000000000000000 x12: 0000000000000000
+[322246.487716] x11: 0000000000000060 x10: 0000000000000120 x9 : ffffc9e8a22aae58
+[322246.495644] x8 : ffff8000821ab998 x7 : 0000000000000000 x6 : 000000000000000c
+[322246.503572] x5 : fffffffffffff000 x4 : 0000000000000000 x3 : 000000000000000c
+[322246.511500] x2 : 0000000000003000 x1 : ffffc9e8a3cd96c0 x0 : 000000000000000c
+[322246.519428] Call trace:
+[322246.522660]  find_busiest_group+0x140/0xb60
+[322246.527633]  load_balance+0x108/0x6c0
+[322246.532739]  newidle_balance+0x198/0x510
+[322246.537992]  pick_next_task_fair+0x110/0x718
+[322246.543551]  pick_next_task+0x60/0x398
+[322246.548573]  __schedule+0x1b4/0x8a0
+[322246.553327]  schedule+0x58/0x130
+[322246.557804]  schedule_timeout+0x1b0/0x2f0
+[322246.563046]  rcu_gp_fqs_loop+0x11c/0x358
+[322246.568205]  rcu_gp_kthread+0x124/0x178
+[322246.573274]  kthread+0xec/0x100
+[322246.577645]  ret_from_fork+0x10/0x20
+[322246.582455] Code: f9400782 f879d814 2a1903e0 8b14003b (f9409377) 
+[322246.589791] SMP: stopping secondary CPUs
+[322246.599318] Starting crashdump kernel...
+[322246.604600] Bye!
+
+== corrected WARNING PID/comm census ==
+      3 PID: 10282 Comm: pmdalinux
+      1 PID: 16 Comm: rcu_sched
+     32 PID: 9736 Comm: irqbalance
+
+== irqbalance WARNING call trace (71822, lines 2581-2598, filtered) ==
+
+== pmdalinux WARNING call trace (142835, filtered) ==
+[142835.314925] Call trace:
+
+== irqbalance W1 (71822.056) call trace ==
+[71822.056732] Call trace:
+[71822.056734]  __do_kernel_fault+0x130/0x1b8
+[71822.056738]  do_bad_area+0x70/0x88
+[71822.056741]  do_translation_fault+0x40/0x80
+[71822.056748]  do_mem_abort+0x4c/0xa8
+[71822.056751]  el1_abort+0x5c/0x150
+[71822.056757]  el1h_64_sync_handler+0xd8/0xe8
+[71822.056761]  el1h_64_sync+0x78/0x80
+[71822.056764]  __memcpy+0x80/0x240
+[71822.056772]  seq_printf+0xc4/0xe8
+[71822.056781]  show_interrupts+0x1d4/0x498
+[71822.056786]  seq_read_iter+0x168/0x478
+[71822.056789]  proc_reg_read_iter+0x68/0xe8
+[71822.056795]  new_sync_read+0xac/0x148
+[71822.056799]  vfs_read+0x194/0x1e8
+[71822.056802]  ksys_read+0x78/0x118
+[71822.056805]  __arm64_sys_read+0x24/0x38
+[71822.056807]  invoke_syscall+0x50/0x128
+
+== pmdalinux W15 (142835.314) call trace ==
+[142835.314925] Call trace:
+[142835.314928]  __do_kernel_fault+0x130/0x1b8
+[142835.314932]  do_bad_area+0x70/0x88
+[142835.314935]  do_translation_fault+0x40/0x80
+[142835.314940]  do_mem_abort+0x4c/0xa8
+[142835.314943]  el1_abort+0x5c/0x150
+[142835.314950]  el1h_64_sync_handler+0xd8/0xe8
+[142835.314954]  el1h_64_sync+0x78/0x80
+[142835.314957]  __memcpy+0x80/0x240
+[142835.314964]  seq_printf+0xc4/0xe8
+[142835.314972]  show_interrupts+0x1d4/0x498
+[142835.314977]  seq_read_iter+0x168/0x478
+[142835.314980]  proc_reg_read_iter+0x68/0xe8
+[142835.314985]  new_sync_read+0xac/0x148
+[142835.314989]  vfs_read+0x194/0x1e8
+[142835.314992]  ksys_read+0x78/0x118
+[142835.314994]  __arm64_sys_read+0x24/0x38
+[142835.314996]  invoke_syscall+0x50/0x128
+
+== 簇爆发节律统计（Python 复算，见报告 §3）==
+W1(71822.06s=19.95h) → 簇B(142792.05s=39.66h) 间隔 19.71h
+簇B: 142792.045~142792.056 共 5 连发，簇内跨度 0.0106s（毫秒级）
+簇B 延伸段: 142802/142812/142822/142832/142835/142845——10s 整数倍节律 (9.996/10.011/9.988/10.001/3.274/10.022)
+簇C: 146862.039~146912.077 共 13 次，前 5 连发跨度 0.0434s，其后 10s/20s 节律
+簇D: 159162.041~159172.065 共 3 次，跨度 10.024s
+簇D→末簇: 45.29h 静默
+末簇: 322215.058 / 322225.051（间隔 9.993s）→ panic 322246.222（末次 W 后 21.171s）
