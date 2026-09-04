@@ -61,6 +61,7 @@ S1 四个 P0 单元 + S2/S3 六个 SE 单元 formal 已完成（单 cell × n=38
 
 **Status: in_progress（2026-09-04，4.1 完成）**
 
+3. ✅ **IQ src_ready_bitflip / wake_phase**（9db60d6 + 4aee770 + 9991185）：**三模式图谱全 0% SDC**（wake_omit Hang 75.3% / src_ready_bitflip 100% DUE / wake_phase 100% DUE 平顶）；结局由依赖密度决定（madd_chain 100% vs cholesky ~5%）；**wake_phase 代理不捕获 method3 相位签名**（E3 边界：method3 相位在 LSU 转发时序，不在调度唤醒相位）。
 2. ✅ **LSQFwd fwd_source_sub**（05db0e2 + 10a811f）：**P_SDC=37.6% [32.8,42.6] vs byte_flip 4.7%——故障形态 > 故障位置（8 倍 SDC）**，0% Masked；错源=合法域内整字错误。phaseOffset（相位敏感性曲线）仍 deferred。
 1. ✅ **ROB spec_leak**（1ca0346 + ccb6eda + 9e549af）：机理落地在 Rename::doSquash 回滚抑制（CHAOSROB.cc:140 的 deferred 注释指向的 squash 路径）。pilot + formal（branchy X3/X9 n=384 each）：**单次回滚抑制全 Masked——泄漏值被正确路径重写覆盖**（X3/X9 短命循环变量无消费者）。下一 cell：X19 callee-saved 长活类（method1 原始目标），跑批中。rename 子系统四注入点全 0% SDC。
 

@@ -234,3 +234,21 @@ CHAOSArmSysReg 也有 `*1000`（startup()，FS-only，SE formal 不受影响，�
 错源转发喂给消费者"合法但完全错误"的值——与 PRF/RAT 网格的"合法域内错误→SDC"规律跨单元互洽。**§4.2 保护排序直接素材**：转发源 age/ID 校验比 ECC 更针对此通路。实现时发现并修复双注入 bug（旧 corrupt hook 在新模式下仍触发——验证期间 unlimited-faults 诊断暴露）。
 
 **Phase 4 进度**：4.1 spec_leak ✅（全 Masked+可达性/存活互斥）、4.2 fwd_source_sub ✅（37.6% SDC）。剩余：LSQFwd phaseOffset（相位敏感性曲线）、IQ src_ready/tag_sub、TLB pfn_to_mapped_page、SysReg value_to_legal、CHAOSMem addr_map_sub。
+
+## Phase 4.3: IQ F5/F6 定论（2026-09-04）
+
+**IQ 三模式图谱（madd_chain + cholesky 双 workload，n=384 或 96×4，全部 0 frozen）**：
+
+| 模式 | workload | P_SDC | P_DUE | 结局 |
+|---|---|---|---|---|
+| wake_omit（F6 丢唤醒） | cholesky | 0% | 0%（Hang 75.3%） | 死锁 |
+| src_ready_bitflip（F5 错源唤醒） | madd_chain | 0% | **100% [99,100]** | 全 Crash |
+| wake_phase（F6 相位延迟） | madd_chain | 0% | 100%（offset 1-8 平顶） | 全 Crash |
+| wake_phase | cholesky | 0% | 3-8%（平顶，CI 重叠） | Masked 主导 |
+
+**三条定论**：
+1. **IQ 唤醒类故障无 SDC 通路**（三模式 × 两 workload 全 0% SDC）——唤醒错乱只产生不可用（死锁/崩溃），不产生静默数据损坏。
+2. **结局由 workload 依赖密度决定**：cholesky（调度宽裕）Masked vs madd_chain（依赖链无旁路）100% DUE。
+3. **wake_phase 代理不捕获 method3 相位签名**（E3 诚实边界）：两个极端 workload 都无单调相位趋势。method3 的相位竞态在 LSU 转发通路的时序，不在调度唤醒相位——复现它需要 LSQFwd 侧的转发相位偏移。设计文档 §2.5 E 的"相位敏感性曲线"预期在本代理上不成立，根因是代理位置错位。
+
+**Phase 4 进度**：4.1 spec_leak ✅、4.2 fwd_source_sub ✅（37.6% SDC）、4.3 IQ F5/F6 ✅。剩余：TLB pfn_to_mapped_page+targetField（4.4，FS 前置）、SysReg value_to_legal（4.5）、CHAOSMem addr_map_sub（4.6）。
