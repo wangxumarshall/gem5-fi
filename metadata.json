@@ -1,0 +1,33 @@
+{
+  "cli_version": "0.10.2",
+  "checkpoint_id": "01M1NQFRH5DAAPZP97BQQAKWZA",
+  "strategy": "manual-commit",
+  "branch": "docs/vmcore-case-reports-7dumps",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "docs/cases/vmcore-diagnosis-report-127.0.0.1-2026-09-04-091542/forensics_cmds.txt"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 4321961,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 28187,
+    "api_call_count": 74,
+    "subagent_tokens": {
+      "input_tokens": 22219582,
+      "cache_creation_tokens": 0,
+      "cache_read_tokens": 0,
+      "output_tokens": 196220,
+      "api_call_count": 327
+    }
+  }
+}

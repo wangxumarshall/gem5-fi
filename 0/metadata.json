@@ -1,0 +1,63 @@
+{
+  "cli_version": "0.10.2",
+  "checkpoint_id": "01M1NQFRH5DAAPZP97BQQAKWZA",
+  "session_id": "98483bee-50d0-49c7-937a-6538ae6e330e",
+  "strategy": "manual-commit",
+  "created_at": "2026-09-04T08:10:14.88455967Z",
+  "branch": "docs/vmcore-case-reports-7dumps",
+  "checkpoints_count": 2,
+  "save_step_count": 2,
+  "files_touched": [
+    "docs/cases/vmcore-diagnosis-report-127.0.0.1-2026-09-04-091542/forensics_cmds.txt"
+  ],
+  "agent": "Claude Code",
+  "model": "glm-5.3",
+  "turn_id": "6c860559e456",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 4321961,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 28187,
+    "api_call_count": 74,
+    "subagent_tokens": {
+      "input_tokens": 22219582,
+      "cache_creation_tokens": 0,
+      "cache_read_tokens": 0,
+      "output_tokens": 196220,
+      "api_call_count": 327
+    }
+  },
+  "session_metrics": {
+    "turn_count": 6
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-09-04T08:10:14.79199075Z",
+    "agent_lines": 0,
+    "agent_removed": 0,
+    "human_added": 5328,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 5328,
+    "total_lines_changed": 5328,
+    "agent_percentage": 0,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 447,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".planning/.active_plan": 1,
+        ".planning/2026-09-04-vmcore-case-diagnosis-reports/findings.md": 86,
+        ".planning/2026-09-04-vmcore-case-diagnosis-reports/progress.md": 54,
+        ".planning/2026-09-04-vmcore-case-diagnosis-reports/task_plan.md": 44,
+        "docs/cases/vmcore-diagnosis-report-127.0.0.1-2026-09-04-091542/dmesg_forensics.txt": 238,
+        "docs/cases/vmcore-diagnosis-report-127.0.0.1-2026-09-04-091542/forensics_cmds.txt": 24
+      }
+    }
+  ]
+}

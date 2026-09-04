@@ -1,0 +1,116 @@
+<task-notification>
+<task-id>a0486c2fcb2820ffb</task-id>
+<tool-use-id>call_b4fec4a8425345f381f36e16</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-wangxu-vmcore0102-gem5-fi/98483bee-50d0-49c7-937a-6538ae6e330e/tasks/a0486c2fcb2820ffb.output</output-file>
+<status>completed</status>
+<summary>Agent "第11次转储09-04-11:00案诊断报告" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>第 11 次转储深度诊断报告已完成并推送。
+
+## 交付摘要
+
+**报告路径**：`/home/sdc/wangxu/vmcore0102/gem5-fi/docs/cases/vmcore-diagnosis-report-127.0.0.1-2026-09-04-110000/vmcore-diagnosis-report-127.0.0.1-2026-09-04-110000.md`（317 行，报告头表 + §1~§10 + 附录命令索引，严格遵循计划模板）
+
+**产物清单**（8 个文件全部入库）：主报告、`dmesg_forensics.txt`、`forensics_cmds.txt` + `crash_session.log`（46.9G 主取证）、`forensics_cmds_0826_vtop_ref.txt` + `crash_session_0826_vtop_ref.log`（L2/L3 对照）、`algebra.py` + `algebra_out.txt`
+
+**七要素自验证**：全部命中（时间线/逻辑链条/故障根因/故障现象/业务现象/诊断定位过程/启示，grep 逐一 OK）
+
+**Commit**：`7583184`（报告+附件）+ `a9f282e`（两个 crash 日志——`*.log` 被 .gitignore 误伤，`git add -f` 补录），均已推送至 `origin/docs/vmcore-case-reports-7dumps`
+
+## 关键发现
+
+1. **x20=0 真值对照【实锤】**：`__per_cpu_offset[97] = 0xffffa89017090000`（非零），全数组 192 项保持 `0x22000` 等差完好；rq(179) 亦健全（`curr = 0xffff402007f26900` 恰为崩溃任务 sftp-server 自身）。内存好、寄存器坏。
+2. **计划外新发现——迭代号 i=97（x25=0x61）≠ 执行核 179**：十一案首次出现迭代号与崩溃核不一致，单案内直接否证“槽位特异性”假说——腐化绑定执行核（CPU179 的装载指令），不绑定被读槽位。这使反事实验证按指令语义改用 [97]（同时保留计划要求的 [179] 交叉验证，两条通路均闭合）。
+3. **L2 变体页表几何论证【实锤】**：对本案与 08-26 案 vmcore 分别执行 vtop 并排走查——两案 PGD/PUD 表项值**逐位相同**（`10006057fffff403`/`10006057ffffe403`），模板同在 `.data..percpu`（距 `__per_cpu_start` 偏移 `0x176c0` 两案逐位相同），唯一差别是本案该 2MB 块 PMD 已清零、08-26 案 PMD 尚存而 PTE=0——即同一 free_initmem 解映射域在不同 KASLR 相位下的页表拆除投影，**非新故障通路**。
+4. **反事实验证【实锤】**：`x27_true(97) = 0xffff800080cf96c0` 与 rq(97) 内嵌自指针 `nohz_csd.info` 逐位一致，实例健全（load_avg=1044）；`x27_true(179) = 0xffff8000817dd6c0` 与 rq(179) 自指针逐位一致。若实收真值则不崩。
+5. **零前兆确认**：91.3s~1456.2s 之间 0 条内核消息、0 次 WARNING（awk 全量核验）；§9 就此展开“被动 WARNING 遥测的覆盖边界”讨论，引用 paper_zh.md §6.1 边界声明与主动 SBST 补充建议。
+
+## 与计划预期的一致性
+
+计划期事实全部复核成立（0 WARNING、FSC=L2/pmd=0、x20=0、x27==x1、FAR=x27+0x120、Not tainted、uptime 1456.2s=00:24:16）。两处偏差均为增补而非矛盾：反事实主通路按指令语义用 [97]（计划模板写 [179]）；§10 引用 12:33 案时修正为“mi-scavenger，前有 HeapHelper WARNING”（实测该转储含两条 Oops 记录，第一条为 HeapHelper）。</result>
+<usage><subagent_tokens>11610</subagent_tokens><tool_uses>104</tool_uses><duration_ms>1766307</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>ac4ff3aa3665ec5c8</task-id>
+<tool-use-id>call_a3f37245f0074ec096cad51d</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-wangxu-vmcore0102-gem5-fi/98483bee-50d0-49c7-937a-6538ae6e330e/tasks/ac4ff3aa3665ec5c8.output</output-file>
+<status>completed</status>
+<summary>Agent "第10次转储09-04-10:27案诊断报告" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>报告完成并已提交推送。最终交付如下。
+
+## 报告路径
+`/home/sdc/wangxu/vmcore0102/gem5-fi/docs/cases/vmcore-diagnosis-report-127.0.0.1-2026-09-04-102758/`
+- 主报告：`vmcore-diagnosis-report-127.0.0.1-2026-09-04-102758.md`（349 行）
+- 附件：`dmesg_forensics.txt`、`forensics_cmds.txt`、`crash_session.log`（2575 行完整会话）、`algebra.py`、`algebra_out.txt`
+
+## 七要素自验证
+时间线/逻辑链条/故障根因/故障现象/业务现象/诊断定位过程/启示 —— `grep 【…】` 七项全部 OK；章节结构 §1~§10 + 附录齐全；引用抽查 11 处（dmesg 行 2594/2677/2730、px 真值、rd 槽位、curr 指针、vtop PTE、Code 字段、寄存器行、sys 摘要）逐条与原始日志一致；代数 `algebra.py` 断言全过（八路 KASLR 咬合、192 槽等差、双反事实闭合）。
+
+## Commit
+`687b625d7c7727f450d03f87a4e84002847086ab`，已推送 `origin/docs/vmcore-case-reports-7dumps`（crash_session.log 因 .gitignore `*.log` 误伤以 `-f` 补录，与第 11 次案先例一致；无 Co-Authored-By 尾注）。
+
+## 关键发现（实测值）
+- **零塌缩闭合【实锤】**：x20=**0**（实测）、x27==x1==`ffffd99f13ae96c0`（== crash `sym runqueues` 逐位）、FAR==x27+0x120==`ffffd99f13ae97e0`，三式逐位成立；指令字 `f9409377` 解码 imm12×8=0x120 交叉验证。
+- **真值对照**：`__per_cpu_offset[149] = 0xffffa6616d8f8000`（非零）、`[179] = 0xffffa6616dcf4000`，全数组 192 项 `0x22000` 完美等差 → 内存好、寄存器坏实锤。
+- **迭代号 149（x25=x6=x0=0x95）≠ 执行核 179**：继第 11 次案（i=97）后连续第二例，槽位特异性假说再被否证。
+- **反事实**：`x27_true(149) = 0xffff8000813e16c0` == `p runqueues:149` 的 `nohz_csd.info` 自指针（逐位）；`x27_true(179) = 0xffff8000817dd6c0` == rq(179) 自指针且 `vtop` VALID（PTE `e86057ffe02f03`）；rq(179).`curr` == bt 的 panic task `0xffff00400845bf00`。若装载交付真值将读到 `load_avg=0`（CPU149 空载）继续执行。
+- **页表形态**：FSC=L3/pte=0（PMD 在）——零塌缩族经典形态；与第 11 次案 L2/pmd=0 并排（两案 PGD/PUD 表项值 `10006057fffff403`/`10006057ffffe403` 逐位相同）确证为同一 free_initmem 解映射域的 KASLR 相位差异，非新通路。
+
+## 与计划预期的偏差
+**完全一致**（零塌缩族、x20=0、x27==x1、FAR=x27+0x120 均实测证实）。两点计划未预判的增量：(1) 迭代号 149（计划只预设零塌缩形态，未预设 i 值；本案与第 11 次案构成连续两例 i≠179）；(2) §9 跨案联动按任务要求展开了当日 sftp-server 双杀的负载相依性讨论（本案 load 137 vs 11:00 案 load 15.7，pipe_write→idle 平衡高频点火），并引用 paper_zh.md §6.1/§6.2/§6.3 三启示（本案 31 分钟前兆窗口是 fail-fast 的正向样本，与第 11 次案零前兆互补成对）。</result>
+<usage><subagent_tokens>0</subagent_tokens><tool_uses>53</tool_uses><duration_ms>561307</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>ae8d7c402a38e770f</task-id>
+<tool-use-id>call_fc94dddb7b96475887fdc1dc</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-wangxu-vmcore0102-gem5-fi/98483bee-50d0-49c7-937a-6538ae6e330e/tasks/ae8d7c402a38e770f.output</output-file>
+<status>killed</status>
+<summary>Agent "第7次转储08-31案诊断报告" was stopped by user</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>现在撰写主报告。</result>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>ae8d7c402a38e770f</task-id>
+<output-file>/tmp/claude-1000/-home-sdc-wangxu-vmcore0102-gem5-fi/98483bee-50d0-49c7-937a-6538ae6e330e/tasks/ae8d7c402a38e770f.output</output-file>
+<status>failed</status>
+<summary>Background agent "第7次转储08-31案诊断报告" was running when the previous Claude Code process exited and did not complete. Its in-process state was lost. Check its worktree/output for partial work before assuming the task landed.</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>afe812a379bb51c2d</task-id>
+<tool-use-id>call_5dfe3191b6ac423d9762d1e4</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-wangxu-vmcore0102-gem5-fi/82315408-2f10-4805-a9a3-d64b44abd67a/tasks/afe812a379bb51c2d.output</output-file>
+<status>completed</status>
+<summary>Agent "第8次转储09-03案诊断报告" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>任务完成。第 8 次致命转储诊断报告已完成 crash 动态取证闭环并提交推送。
+
+## 最终报告
+
+**报告路径**：`/home/sdc/wangxu/vmcore0102/gem5-fi/docs/cases/vmcore-diagnosis-report-127.0.0.1-2026-09-03-182512/vmcore-diagnosis-report-127.0.0.1-2026-09-03-182512.md`（11 个文件全部入库：主报告 + dmesg_forensics.txt + forensics_cmds×3 + crash_session×3 + crash_session_supplements.log + algebra.py + algebra_out.txt）
+
+**commit hash**：`4cb10741d7d346516c08cba82ce6f075a04dd5b3`，已推送 `origin/docs/vmcore-case-reports-7dumps`（无 Co-Authored-By 尾注）
+
+**七要素自验证**：全部 7 项 grep 命中（时间线/逻辑链条/故障根因/故障现象/业务现象/诊断定位过程/启示各【锚词】齐备）。引用抽查 8 处全部与日志原文一致（x20/off[12] 真值/非对齐直读行/nohz_csd.info/curr/vtop PA/dmesg Code/0x120 偏移）；algebra.py 重跑与 algebra_out.txt diff 为空（确定性一致），报告关键数值与代数输出逐位一致。
+
+**关键发现**：
+1. **x20 撕裂相位【实锤】**：x20=`0x00ffffb617dd3940` 在 192 槽 `__per_cpu_offset`（基址 `ffffc9e8a40d55d0`，192 项 0x22000 等差完好）LE 字节流中**唯一命中槽 123 起点 +1 字节**（基址+985），crash 直读 `rd -64 ffffc9e8a40d59a9` 返回 `00ffffb617dd3940` 逐位相等——撕裂移位族**相位谱第 5 个数据点**（1 字节相位、跨 123/124 槽边界；谱系：08-14 ROL16 → 08-25-15:58 槽0+1B → 08-31 槽125+2B → 本案槽123+1B）。迭代号 x25=12（又一个非 179 迭代号，腐化绑定执行核再确认）。
+2. **簇爆发时间线【实锤】**：35 次 WARNING（历案最多，全 CPU179，irqbalance×32/pmdalinux×3）呈四簇脉冲：19.95h 首症孤发 → 39.66h 簇 B（**10.6ms 内 5 连发** + 其后 10 秒整数栅格延伸共 16 次）→ 40.79h 簇 C（43.4ms 内 5 连发 + 10s/20s 栅格共 13 次）→ 44.21h 簇 D（3 次）→ **45.29h 长静默** → 89.50h 末簇（2 次）→ **21.17s 后 panic**。10 秒栅格与 irqbalance 轮询周期吻合——窗口期内“每次踩中”、窗口外零事件，双峰发作率结构。
+3. **反事实验证【实锤】**：x27_true(12)=`ffff8000801af6c0` == rq(12) 内嵌自指针 nohz_csd.info（vtop VALID, PA=37ffe2e6c0，load_avg=1023 健全）；x27_true(179)=`ffff8000817dd6c0` == rq(179) 自指针（vtop VALID, PA=6057ffe026c0，curr 恰为崩溃任务 ffff0020250d3f00）——双通路闭合。
+4. **代数闭合**：x27=x1+x20、FAR=x27+0x120 完整 64 位逐位吻合（本案 00ff 高位直通打印，与 08-31 案低 48 位打印形态不同，如实记录）；KASLR 五路咬合滑移 `0x49e822170000`。
+
+**与计划预期对比**：完全一致，无偏差。计划预期“撕裂移位族 + 复用第 7 案字节流非对齐窗口匹配法 + 簇爆发时间线 + 电压/频率相依性讨论”全部按预期兑现；唯一计划外发现是 WARNING 簇的 **10 秒整数倍栅格节律**（簇间事件全部落在 10s 栅格上，与 irqbalance 轮询周期吻合），这一节律已写入 §3/§8/§9，强化了“边际条件窗口”假说的论证（窗口内每次踩中、窗口外零事件）。计划中“数组损坏则停止 escalate”分支未触发——数组完好，闭环正常完成。</result>
+<usage><subagent_tokens>0</subagent_tokens><tool_uses>75</tool_uses><duration_ms>2081360</duration_ms></usage>
+</task-notification>
