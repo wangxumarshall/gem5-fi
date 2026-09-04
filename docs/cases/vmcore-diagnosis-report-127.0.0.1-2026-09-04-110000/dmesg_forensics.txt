@@ -1,0 +1,94 @@
+=== dmesg forensics for 127.0.0.1-2026-09-04-11:00:00 ===
+--- cmd: grep -nE 'Linux version|Command line|Memory:' | head -5 ---
+2:[    0.000000] Linux version 6.6.0-145.3.23.154.oe2403sp3.aarch64 (root@node-48snw.compass-ci.net) (gcc_old (GCC) 12.3.1 (openEuler 12.3.1-110.oe2403sp3), GNU ld (GNU Binutils) 2.41) #1 SMP Mon Jul 27 19:00:34 CST 2026
+408:[    0.000000] Memory: 791048812K/805102592K available (15360K kernel code, 5418K rwdata, 10648K rodata, 5824K init, 27554K bss, 14053780K reserved, 0K cma-reserved)
+--- cmd: wc -l (dmesg lines) ---
+2634 /home/sdc/wangxu/vmcore0102/127.0.0.1-2026-09-04-11:00:00/vmcore-dmesg.txt
+--- cmd: grep -c 'WARNING: CPU:' ---
+0
+0 matches
+--- cmd: grep -oE 'WARNING: CPU: [0-9]+' | sort | uniq -c ---
+--- cmd: grep -nE 'Ignoring spurious|Unable to handle' ---
+2580:[ 1456.227941] Unable to handle kernel paging request at virtual address ffffd77069c697e0
+--- cmd: crash block (full Oops, 110 lines from 'Unable to handle') ---
+[ 1456.227941] Unable to handle kernel paging request at virtual address ffffd77069c697e0
+[ 1456.236591] Mem abort info:
+[ 1456.240085]   ESR = 0x0000000096000006
+[ 1456.244536]   EC = 0x25: DABT (current EL), IL = 32 bits
+[ 1456.250551]   SET = 0, FnV = 0
+[ 1456.254305]   EA = 0, S1PTW = 0
+[ 1456.258147]   FSC = 0x06: level 2 translation fault
+[ 1456.263729] Data abort info:
+[ 1456.267308]   ISV = 0, ISS = 0x00000006, ISS2 = 0x00000000
+[ 1456.273497]   CM = 0, WnR = 0, TnD = 0, TagAccess = 0
+[ 1456.279249]   GCS = 0, Overlay = 0, DirtyBit = 0, Xs = 0
+[ 1456.285262] swapper pgtable: 4k pages, 48-bit VAs, pgdp=00004021dc494000
+[ 1456.292667] [ffffd77069c697e0] pgd=10006057fffff403, p4d=10006057fffff403, pud=10006057ffffe403, pmd=0000000000000000
+[ 1456.303983] Internal error: Oops: 0000000096000006 [#1] SMP
+[ 1456.310259] Modules linked in: binfmt_misc nft_fib_inet nft_fib_ipv4 nft_fib_ipv6 nft_fib nft_reject_inet nf_reject_ipv4 nf_reject_ipv6 nft_reject nft_ct nft_chain_nat nf_nat nf_conntrack nf_defrag_ipv6 nf_defrag_ipv4 rfkill ip_set nf_tables libcrc32c vfat fat rpcrdma sunrpc rdma_ucm ib_srpt ib_isert iscsi_target_mod target_core_mod ib_iser rdma_cm iw_cm ib_cm libiscsi scsi_transport_iscsi ipmi_ssif hns_roce_hw_v2 acpi_ipmi ib_uverbs ipmi_si ib_core ipmi_devintf ses enclosure sg ipmi_msghandler hisi_uncore_hha_pmu hisi_uncore_ddrc_pmu hisi_uncore_l3c_pmu hisi_uncore_pmu ip6_tables ip_tables fuse nfnetlink ext4 mbcache jbd2 hibmc_drm sd_mod drm_vram_helper t10_pi drm_ttm_helper crc64_rocksoft_generic ttm crc64_rocksoft drm_display_helper crc64 motorcomm crct10dif_ce ghash_ce sha2_ce sha256_arm64 sha1_ce hisi_sas_v3_hw hclge drm_kms_helper hisi_sas_main sbsa_gwdt libsas ahci libahci scsi_transport_sas drm hns3 libata nfit hnae3 megaraid_sas host_edma_drv i2c_designware_platform libnvdimm i2c_designware_core hisi_trng_v2
+[ 1456.310370]  dm_mirror dm_region_hash dm_log dm_multipath dm_mod aes_neon_bs aes_neon_blk aes_ce_blk aes_ce_cipher
+[ 1456.412409] CPU: 179 PID: 56263 Comm: sftp-server Kdump: loaded Not tainted 6.6.0-145.3.23.154.oe2403sp3.aarch64 #1
+[ 1456.423559] Hardware name: Yangtze Computing R240K V2/BC82AMQA, BIOS 7.48 06/15/2026
+[ 1456.432007] pstate: 204000c9 (nzCv daIF +PAN -UAO -TCO -DIT -SSBS BTYPE=--)
+[ 1456.439674] pc : find_busiest_group+0x140/0xb60
+[ 1456.444916] lr : find_busiest_group+0x11c/0xb60
+[ 1456.450149] sp : ffff8000e6f6b740
+[ 1456.454163] x29: ffff8000e6f6b8c0 x28: ffff8000e6f6b770 x27: ffffd77069c696c0
+[ 1456.462008] x26: ffff604003ed3900 x25: 0000000000000061 x24: ffffd7706a065000
+[ 1456.469852] x23: 0000000000000564 x22: ffff604003ed3a80 x21: ffffd7706a05fcb0
+[ 1456.477694] x20: 0000000000000000 x19: ffff8000e6f6b950 x18: 0000000000000000
+[ 1456.485535] x17: 0000000000000000 x16: 0000000000000000 x15: 0000aaaad3871150
+[ 1456.493378] x14: 0000000000000000 x13: 0000000000000000 x12: 0000000000035bb2
+[ 1456.501220] x11: 00000000000000c2 x10: 0000000000000097 x9 : ffffd7706823ae58
+[ 1456.509061] x8 : ffff8000e6f6b7c8 x7 : 0000000000000000 x6 : 0000000000000061
+[ 1456.516903] x5 : fffffffe00000000 x4 : 0000000000000001 x3 : 0000000000000021
+[ 1456.524744] x2 : 0000000000012740 x1 : ffffd77069c696c0 x0 : 0000000000000061
+[ 1456.532585] Call trace:
+[ 1456.535731]  find_busiest_group+0x140/0xb60
+[ 1456.540616]  load_balance+0x108/0x6c0
+[ 1456.545605]  newidle_balance+0x198/0x510
+[ 1456.550759]  pick_next_task_fair+0x110/0x718
+[ 1456.556227]  pick_next_task+0x60/0x398
+[ 1456.561166]  __schedule+0x1b4/0x8a0
+[ 1456.565839]  schedule+0x58/0x130
+[ 1456.570230]  pipe_write+0x1ec/0x558
+[ 1456.574874]  new_sync_write+0x140/0x158
+[ 1456.579861]  vfs_write+0x21c/0x2b0
+[ 1456.584413]  ksys_write+0xf4/0x118
+[ 1456.588958]  __arm64_sys_write+0x24/0x38
+[ 1456.594025]  invoke_syscall+0x50/0x128
+[ 1456.598919]  el0_svc_common.constprop.0+0xc8/0xf0
+[ 1456.604767]  do_el0_svc+0x48/0x78
+[ 1456.609222]  el0_slow_syscall+0x44/0x1b8
+[ 1456.614288]  el0t_64_sync_handler+0x100/0x130
+[ 1456.619786]  el0t_64_sync+0x188/0x190
+[ 1456.624584] Code: f9400782 f879d814 2a1903e0 8b14003b (f9409377) 
+[ 1456.631808] SMP: stopping secondary CPUs
+[ 1456.641244] Starting crashdump kernel...
+[ 1456.646340] Bye!
+--- cmd: RAS negative evidence ---
+12:[    0.000000] ACPI: BERT 0x000000002F61FF98 000030 (v01 HISI   HIP08    00000000 HISI 20151124)
+121:[    0.000000] crashkernel low memory reserved: 0x58000000 - 0x60000000 (128 MB)
+122:[    0.000000] crashkernel reserved: 0x000060575fe00000 - 0x000060579fe00000 (1024 MB)
+387:[    0.000000] Kernel command line: BOOT_IMAGE=/vmlinuz-6.6.0-145.3.23.154.oe2403sp3.aarch64 root=/dev/mapper/openeuler-root ro rd.lvm.lv=openeuler/root rd.lvm.lv=openeuler/swap cgroup_disable=files apparmor=0 crashkernel=1024M,high smmu.bypassdev=0x1000:0x17 smmu.bypassdev=0x1000:0x15 arm64.nopauth nospectre_bhb rhgb quiet console=tty0
+1307:[    0.569007] GHES: APEI firmware first mode is enabled by APEI bit and WHEA _OSC.
+1857:[    0.872889] EDAC MC: Ver: 3.0.0
+1945:[    1.111667] pstore: Using crash dump compression: deflate
+2175:[    1.505157] EDAC MC0: Giving out device to module ghes_edac.c controller ghes_edac: DEV ghes (INTERRUPT)
+2405:[    4.686717] megaraid_sas 0000:02:00.0: firmware crash dump	: no
+2633:[ 1456.641244] Starting crashdump kernel...
+--- cmd: first timestamped line + last 5 lines ---
+[    0.000000] Booting Linux on physical CPU 0x0000080000 [0x481fd010]
+[ 1456.619786]  el0t_64_sync+0x188/0x190
+[ 1456.624584] Code: f9400782 f879d814 2a1903e0 8b14003b (f9409377) 
+[ 1456.631808] SMP: stopping secondary CPUs
+[ 1456.641244] Starting crashdump kernel...
+[ 1456.646340] Bye!
+--- cmd: Not tainted / taint check ---
+2596:[ 1456.412409] CPU: 179 PID: 56263 Comm: sftp-server Kdump: loaded Not tainted 6.6.0-145.3.23.154.oe2403sp3.aarch64 #1
+--- cmd: panic CPU line ---
+321:[    0.000000] NUMA: PERCPU: auto allocator failed (-22), falling back to page size
+1265:[    0.352131] CPU: All CPU(s) started at EL2
+2596:[ 1456.412409] CPU: 179 PID: 56263 Comm: sftp-server Kdump: loaded Not tainted 6.6.0-145.3.23.154.oe2403sp3.aarch64 #1
+2599:[ 1456.439674] pc : find_busiest_group+0x140/0xb60
+2600:[ 1456.444916] lr : find_busiest_group+0x11c/0xb60
