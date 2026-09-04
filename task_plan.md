@@ -61,6 +61,7 @@ S1 四个 P0 单元 + S2/S3 六个 SE 单元 formal 已完成（单 cell × n=38
 
 **Status: in_progress（2026-09-04，4.1 完成）**
 
+2. ✅ **LSQFwd fwd_source_sub**（05db0e2 + 10a811f）：**P_SDC=37.6% [32.8,42.6] vs byte_flip 4.7%——故障形态 > 故障位置（8 倍 SDC）**，0% Masked；错源=合法域内整字错误。phaseOffset（相位敏感性曲线）仍 deferred。
 1. ✅ **ROB spec_leak**（1ca0346 + ccb6eda + 9e549af）：机理落地在 Rename::doSquash 回滚抑制（CHAOSROB.cc:140 的 deferred 注释指向的 squash 路径）。pilot + formal（branchy X3/X9 n=384 each）：**单次回滚抑制全 Masked——泄漏值被正确路径重写覆盖**（X3/X9 短命循环变量无消费者）。下一 cell：X19 callee-saved 长活类（method1 原始目标），跑批中。rename 子系统四注入点全 0% SDC。
 
 | 优先 | 模式 | 位置 | 对照案例 |

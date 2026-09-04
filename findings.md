@@ -222,3 +222,15 @@ CHAOSArmSysReg 也有 `*1000`（startup()，FS-only，SE formal 不受影响，�
 **核心发现——"可达性 × 存活性"互斥**：短命寄存器（X3/X9）回滚可达但泄漏值被重写；长活寄存器（X19）泄漏可存活但回滚流不可达。SE 基准 workload 上单次回滚抑制 **100% Masked（n=384 上界 1%）**。method1 的"投机泄漏→SDC"通路需要 wrong-path 写 X19 类的 workload（mispredict 密集调用流）或 FS 场景——SE 侧定格为阴性。
 
 **rename 子系统最终格局（§2.2/§2.3 四注入点）**：map_bitflip 95.8% DUE / f5_substitute 59.7% DUE + 40% 自愈 / mark_free 72-77% DUE / spec_leak 100% Masked——**全部 0% SDC**。"历史残留→SDC"机理在 SE 基准 workload 族上不成立（需要更精确的触发条件对齐）。
+
+## Phase 4.2: fwd_source_sub 定论（2026-09-04）
+
+**fwd_source_sub formal（fwd_checksum_kernel, C2, n=384）**：**P_SDC=37.6% [32.8,42.6] / P_DUE=57.4% / 0% Masked**——F5/F6 批次首个高 SDC 机理模式。
+
+**核心规律——故障形态 > 故障位置**：同一 LSQ 转发路径、同一 workload 上：
+- byte_flip（单 bit）：4.7% SDC / 67.7% Masked
+- fwd_source_sub（错源整字）：**37.6% SDC / 0% Masked**（8 倍）
+
+错源转发喂给消费者"合法但完全错误"的值——与 PRF/RAT 网格的"合法域内错误→SDC"规律跨单元互洽。**§4.2 保护排序直接素材**：转发源 age/ID 校验比 ECC 更针对此通路。实现时发现并修复双注入 bug（旧 corrupt hook 在新模式下仍触发——验证期间 unlimited-faults 诊断暴露）。
+
+**Phase 4 进度**：4.1 spec_leak ✅（全 Masked+可达性/存活互斥）、4.2 fwd_source_sub ✅（37.6% SDC）。剩余：LSQFwd phaseOffset（相位敏感性曲线）、IQ src_ready/tag_sub、TLB pfn_to_mapped_page、SysReg value_to_legal、CHAOSMem addr_map_sub。
