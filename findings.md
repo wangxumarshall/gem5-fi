@@ -145,3 +145,16 @@
 | mem (DRAM 后备) | 0% | 0% | Masked | 有效（被 L1/L2 掩盖） |
 
 **方法学新知**：geometric(p=0.1) 的 skip 对**小 eligible 流**会枯竭（FPU 317/384 Inactive）。选择 skip 分布要匹配事件流规模；对极小流（<20 事件），单故障采样本身弱——应换 workload 或更早 trigger。**手工测试坑**：注入器的 seed 参数是 `--<inj>_rng_seed`，generic `--rng_seed` 不喂它——手工复现必须按 runner 的 cmd 构造。
+
+## Phase 3 网格深化：PRF 位段规律（2026-09-04，pilot 规模）
+
+**X3 位段边界（cholesky, n=100/cell，边界扫描 1210fa6 + pilot 45b2b85）**：
+| bit | 0 | 1 | 2 | 3-10 | 11-63 |
+|---|---|---|---|---|---|
+| P_SDC | 100% | 100% | 0% | 0% | 0% |
+| P_DUE | 0% | 0% | 100% | 100% | 100% |
+
+- **边界精确定位 bit1/bit2，无过渡带**。X3 是小整数累加器：bit0-1 偏移仍在合法域（静默传播）；bit2+ 偏移越界（崩溃）。
+- **定量解释 random-bit formal**：3.9% SDC ≈ 2/64=3.1%（bit0-1 占随机位比例）——观测与理论吻合，两个独立实验互洽。
+- **PRF 位段规律（§2.1 E 细化）**：累加器类寄存器呈"低位窄 SDC 窗 + 高位全 DUE"结构，边界由 workload 数值域决定。指针类寄存器（method2 的 x10）预期边界更低甚至全 DUE——待 ABI-class pilot 验证。
+- X9 全 bit Masked（非关键路径，位段无关）。
