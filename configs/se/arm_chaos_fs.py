@@ -55,6 +55,19 @@ p.add_argument("--platform", default="V1",
                     "the stdlib default (different memory map).")
 p.add_argument("--readfile", default=None,
                help="optional script run via m5 readfile after boot")
+# §3.2 FS checkpoint pipeline (Phase 5.2): restore from a checkpoint taken
+# by boot_ckpt.rcS (Atomic boot -> m5 checkpoint -> m5 exit). The restore
+# run may use a DIFFERENT cpu type (e.g. O3) — gem5's checkpoint restore
+# switches the CPU and drains. Injectors mount fresh on the restore run;
+# their firstClock is interpreted RELATIVE to the checkpoint tick when
+# --ckpt_first_clock is given (see the rebase below).
+p.add_argument("--restore-checkpoint", default=None,
+               help="path to a checkpoint directory (e.g. m5out/cpt.12345); "
+                    "restores from it instead of a fresh boot")
+p.add_argument("--ckpt-first-clock", action="store_true", default=False,
+               help="rebase --tlb_first_clock/--sysreg_first_clock to be "
+                    "RELATIVE to the checkpoint tick (read from the ckpt's "
+                    "m5out/tick file)")
 # Phase 3 §六.4 item 3: CHAOSArmTLB TLB-entry injector (FS only).
 p.add_argument("--chaos_armtlb", action="store_true",
                help="attach CHAOSArmTLB (ARM TLB-entry pfn corruptor)")
@@ -198,6 +211,46 @@ if args.chaos_armtlb or args.chaos_sysreg:
             board.chaos_sysreg = sys_reg
             # SELF-ATTACH: constructor set isa0->chaosSysReg = this.
     cache_hierarchy._pre_instantiate = _attach_tlb
+
+# §3.2 FS checkpoint pipeline (Phase 5.2): restore mode. Setting
+# board._checkpoint makes the Simulator restore from that directory instead
+# of a fresh boot (m5._create_cpp_objects(ckpt_dir=...)); the CPU type of
+# THIS run replaces the checkpointed one (Atomic boot -> O3 ROI is the
+# canonical pipeline). --ckpt-first-clock rebases the injector windows to be
+# relative to the checkpoint tick: firstClock is in CPU cycles, and the
+# checkpoint's tick is read from <ckpt>/../*.tick via m5's Utility.
+if args.restore_checkpoint:
+    import pathlib
+    ckpt = pathlib.Path(args.restore_checkpoint)
+    if not ckpt.exists():
+        raise FileNotFoundError(f"--restore-checkpoint: {ckpt} not found")
+    board._checkpoint = ckpt
+    print(f"[arm_chaos_fs] restoring from checkpoint: {ckpt}")
+    if args.ckpt_first_clock:
+        # the tick file lives next to the checkpoint dir (m5out/cpt.<tick>
+        # has no tick file inside; the sibling '<tick>.tick' under m5out
+        # holds it — gem5 writes 'm5out/cpt.<tick>' plus a '<tick>.tick')
+        tick_file = ckpt.parent / (ckpt.name.replace("cpt.", "") + ".tick")
+        if not tick_file.exists():
+            # fallback: any .tick file in the checkpoint's parent
+            cands = sorted(ckpt.parent.glob("*.tick"))
+            tick_file = cands[-1] if cands else None
+        if tick_file and tick_file.exists():
+            ckpt_tick = int(open(tick_file).read().strip())
+            print(f"[arm_chaos_fs] checkpoint tick: {ckpt_tick} "
+                  f"(injector windows rebased relative to it)")
+            # Rebase: firstClock stays a cycle count but the injectors'
+            # inWindow compares curTick() against first_clock*period —
+            # so we add the checkpoint's cycle equivalent. The board clock
+            # is 3GHz (333 ps period -> ~333 ticks/cycle at 1ps ticks).
+            period_ticks = 333  # 3GHz board clock, ps-resolution ticks
+            rebased = args.tlb_first_clock + (ckpt_tick // period_ticks)
+            print(f"[arm_chaos_fs] tlb_first_clock: {args.tlb_first_clock} "
+                  f"-> {rebased}")
+            args.tlb_first_clock = rebased
+        else:
+            print("[arm_chaos_fs] WARN: no .tick file found; "
+                  "first_clock NOT rebased (absolute cycles)")
 
 # Exit when the kernel reports it has booted (default exit handlers include
 # the KernelBooted handler). This makes the FS run CI-able: boot-to-

@@ -1859,3 +1859,14 @@ IQ F5/F6 完整闭环（9db60d6 实现 + 4aee770 madd formal + 9991185 cholesky 
 ### Phase 4.4 FS 触发验证（补录）: TLB pfn_to_mapped_page 真机 FS boot 中触发 ✅
 
 FS run（kernel 5.15.36 ubuntu, Atomic, gem5-fs deps）：`armtlb_injections.log` 首行 = `Tick: 1352646, Site: arm_tlb_lookup_hit, VA: 0x807cc408, old_pfn: 0x403, new_pfn: 0x0, FaultType: pfn_to_mapped_page, candidates: 63`——**合法域替换语义在真实内核 boot 中生效**（从 63 个同 TLB 活页候选中选替换目标；对照 bit_flip 锚点翻到未映射区 → BadAddressError panic DUE，本模式落在活页上）。FS formal（P_SDC 量化）按计划归 Phase 5 checkpoint 管线（cpu179 单次 FS boot 30-60 分钟，n=384 不可行——checkpoint 复用是前提）。
+
+### Phase 5.1/5.2: kp920_proxy_fs V110 参数落地 + FS checkpoint 管线
+
+**Phase 5.1（kp920_proxy_fs.py）**：TODO stub → 完整实现。delegate 到 arm_chaos_fs.py 后 monkey-patch `cache_hierarchy._pre_instantiate`（与 TLB/SysReg 挂载同链式模式），对 O3 CPU 应用 V110 参数（width=4/ROB=128/physInt=160/physFloat=192/LQ=48/SQ=42，与 SE 版 kp920_proxy.py 同源 dict）。非 O3 CPU（Atomic/TIMING boot pass）try/except 诚实跳过（打印 skipped 原因）。
+
+**Phase 5.2（checkpoint 管线，§3.2 三步）**：
+- ① `configs/fs/boot_ckpt.rcS`：m5 readfile 脚本——boot 到 userspace 后 `m5 checkpoint` + `m5 exit`。
+- ② `arm_chaos_fs.py` 加 `--restore-checkpoint`（设 `board._checkpoint` → Simulator 的 m5._create_cpp_objects(ckpt_dir=...) 自动 restore；restore run 可换 CPU 类型——Atomic boot → O3 ROI 是 canonical 管线）+ `--ckpt-first-clock`（读 checkpoint 的 .tick 文件，把注入窗口 firstClock 重定为相对 checkpoint tick 的周期数）。
+- ③ runner 侧 FS 路由已有（C0-FS/C2-FS config_family），campaign 级 FS formal 跑批等 checkpoint 制好后验证。
+
+**验证状态**：python compile ✅；V110 FS delegate+boot 真机运行中（Atomic boot ~30-60min on cpu179）；checkpoint 管线的端到端验证（boot→ckpt→restore→注入）需要先跑完 boot_ckpt.rcS 一步（预计 wall-time 大，验证排入本 Phase 后续）。
