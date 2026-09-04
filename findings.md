@@ -252,3 +252,21 @@ CHAOSArmSysReg 也有 `*1000`（startup()，FS-only，SE formal 不受影响，�
 3. **wake_phase 代理不捕获 method3 相位签名**（E3 诚实边界）：两个极端 workload 都无单调相位趋势。method3 的相位竞态在 LSU 转发通路的时序，不在调度唤醒相位——复现它需要 LSQFwd 侧的转发相位偏移。设计文档 §2.5 E 的"相位敏感性曲线"预期在本代理上不成立，根因是代理位置错位。
 
 **Phase 4 进度**：4.1 spec_leak ✅、4.2 fwd_source_sub ✅（37.6% SDC）、4.3 IQ F5/F6 ✅。剩余：TLB pfn_to_mapped_page+targetField（4.4，FS 前置）、SysReg value_to_legal（4.5）、CHAOSMem addr_map_sub（4.6）。
+
+## Phase 4 完整收口（2026-09-04，6/6 模式）
+
+| # | 模式 | 实现 | formal 结果 | 定论 |
+|---|---|---|---|---|
+| 4.1 | ROB spec_leak | 1ca0346 | branchy X3/X9 全 Masked, X19 不可达 | 可达性×存活互斥；rename 四注入点 0% SDC |
+| 4.2 | LSQFwd fwd_source_sub | 05db0e2 | **P_SDC=37.6%** [32.8,42.6], 0 Masked | **故障形态>故障位置（8 倍 SDC）** |
+| 4.3 | IQ src_ready_bitflip + wake_phase | 9db60d6 | madd 100% DUE 双模式，相位平顶 | IQ 唤醒类 0% SDC；wake_phase 代理不捕获 method3 相位（E3 边界） |
+| 4.4 | TLB pfn_to_mapped_page | e22b775 | 实现+SE 回归 ✅；FS formal 排 Phase 5 | 静默错页通路（活页 pfn 替换） |
+| 4.5 | SysReg value_to_legal | e22b775 | 实现+SE 回归 ✅；FS formal 排 Phase 5 | 静默配置错误通路（跨白名单值替换） |
+| 4.6 | Mem addr_map_sub | 7d21c07 | 384/384 Masked | **DRAM 层故障形态无关律**（bit 翻转与错位写同为 0% SDC） |
+
+**Phase 4 三大横断规律**：
+1. **合法域内错误是 SDC 的核心形态**——fwd_source_sub（37.6%）是唯一高 SDC 模式，错值全程合法；域外错（RAT 越界/PRF 高位）必崩或自愈。
+2. **单元×形态×workload 三维决定结局**——同单元不同形态差 8 倍（LSQFwd）；同形态不同 workload 差 20 倍（F5 madd 100% DUE vs cholesky Masked）。
+3. **代理边界诚实化**——wake_phase 不捕获 method3 相位签名（相位在 LSU 转发时序非调度唤醒）；DRAM 层错位写在缓存驻留 workload 上不可达（需 STREAM 类暴露）。
+
+**F5/F6 已实现模式总账**：spec_leak / fwd_source_sub / src_ready_bitflip / wake_phase / pfn_to_mapped_page / value_to_legal / addr_map_sub —— 7 个新模式 + 既有 wake_omit/map_bitflip 等，SE 侧全部有 formal 定论，FS 侧（TLB/SysReg）待 Phase 5 checkpoint 管线。
