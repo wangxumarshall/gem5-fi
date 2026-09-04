@@ -1831,3 +1831,9 @@ branchy_reduce 上 X19 的 squash 回滚事件流为空（callee-saved 类不频
 **核心发现**：
 1. **IQ 唤醒类故障在依赖密集 workload 上 100% DUE、0 SDC、相位不敏感**（offset 1→8 无过渡带——与 method3 现场的"相位敏感"相反，因为 madd_chain 的依赖链无旁路，任何唤醒错乱都直接崩溃而非静默错序）。method3 的相位敏感性需要**有旁路调度的 workload**（cholesky 类）——cholesky T1 已显示 Masked 方向。**IQ 三模式图谱：wake_omit（Hang 75.3%）/ src_ready_bitflip（Crash 100%）/ wake_phase（Crash 100%，平顶）——全是"不可用"结局，无 SDC 通路**（IQ 错乱不产生静默数据损坏，只产生死锁或崩溃）。
 2. workload 敏感性轴确认：cholesky（宽裕）Masked vs madd_chain（依赖密）100% DUE——**唤醒错乱的结局由 workload 的依赖密度决定**。
+
+### Phase 4.3b: F6 相位曲线 cholesky 对照 — Masked 主导、无单调相位趋势
+
+**cholesky F6 curve（{1,2,4,8} × n=96 + 5% replay, 384 reps, 151s, 0 frozen）**：DUE 5.2% / 3.1% / 8.3% / 5.2%（Masked 主导，CI 全重叠——无单调趋势），P_SDC 全 0。
+
+**F6 相位敏感性双 workload 定论**：madd_chain 100% DUE 平顶 + cholesky ~5% DUE 平顶——**两个极端 workload 都不呈现 method3 现场的相位敏感性**。结论：gem5 O3 的 wake_phase 代理（唤醒广播延迟）不捕获 method3 的相位竞态机理（那是 LSU 转发通路的相位，不是调度唤醒的相位）。诚实标注 E3 代理边界：method3 相位签名需要 LSQFwd 侧的转发相位偏移（forward-decision 时序）复现，IQ 侧的调度相位不是同一机理。**IQ 单元最终图谱（三模式 × 两 workload）：0% SDC everywhere——唤醒类故障无静默数据损坏通路**。
