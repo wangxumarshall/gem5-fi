@@ -1,0 +1,31 @@
+schema_version: arm-chaos-fi/v1
+campaign_id: prf_h2_trigger_scan
+injector: physreg
+config: C2
+mode: SE
+grid:
+  phys_mode: [arch_frontend]
+  # H2 follow-up: trigger sweep at ROB=160 (the fully-Masked row) to test
+  # the liveness-confound hypothesis — does the mask depend on WHERE in the
+  # run the flip lands, not on ROB depth itself?
+  # NOTE: trigger_value is a workload-level key, not a grid axis; this scan
+  # uses trigger_mode/trigger_value variants via separate cells is NOT
+  # supported — instead this campaign pins trigger=20000 and ROB=160.
+  # See sibling campaign for 80000.
+  target_index: [3]
+  bit: [0]
+  rob: [160]
+  phys_int: [128, 160, 192]
+  fault_model: [transient_bit_flip]
+  protection_model: [none]
+n_per_cell: 30
+base_seed: 20260825
+replay_pct: 5.0
+workload:
+  binary: workloads/directed/cholesky_numeric
+  golden_id: cholesky-golden-v1
+  trigger_mode: cycle
+  trigger_value: 20000
+limits:
+  max_faults: 1
+hang_timeout: 300

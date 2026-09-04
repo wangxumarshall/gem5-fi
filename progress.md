@@ -1602,6 +1602,20 @@ X9 全 Masked 确认（不在关键路径，位段无关）。
 **结论**：X3 在 cholesky 上的 SDC/DUE 边界精确位于 **bit1/bit2**，无过渡带（两格都是 100% 干脆翻转）。X3 是小整数累加器：bit0-1 翻转产生的数值偏移仍落在合法域（→ 静默传播）；bit2+ 翻转的偏移使它变成越界索引/坏指针（→ 崩溃）。这解释 random-bit formal 的 3.9% SDC ≈ 2/64（bit0-1 占随机位比例 3.1%，观测 3.9% 吻合）。
 **PRF 位段规律（§2.1 E 预测的细化）**：累加器类寄存器有"低位窄 SDC 窗 + 高位全 DUE"结构，且边界由 workload 的数值域决定（cholesky 的 X3 是循环计数/小偏移类）。
 
+### Phase 3 网格深化 #6b: H2 trigger 扫描 — ROB=160 掩蔽是 trigger 无关的（假说证伪）
+
+**ROB=160 × PhysInt {128,160,192} × trigger {20000, 50000, 80000} × n=30（20K/80K 各 90 reps + 50K 来自 H2 pilot；全部 0 frozen, Reach=100%, faults=1）**：
+
+| trigger \ PhysInt | 128 | 160 | 192 |
+|---|---|---|---|
+| 20000 | 全 Masked | 全 Masked | 全 Masked |
+| 50000 | 全 Masked | 全 Masked | 全 Masked |
+| 80000 | 全 Masked | 全 Masked | 全 Masked |
+
+- **"trigger 活跃窗口错位"假说被证伪**：三个 trigger 时点（覆盖 cholesky 全程 20K–80K cycles，总长约 82K）上 ROB=160 都 100% 掩蔽 X3 bit0。这不是注入时点落进死区的伪影——**ROB 深度本身改变了 X3 值的传播/覆盖动态**。
+- 剩余候选机理（未验证）：ROB=160 下 cholesky 的关键路径调度变化使 X3 的消费者读到正确重算值（错误被覆盖）或 flip 落在 squash 边界。深挖需 readtrace 级分析（Phase 6 工具）。
+- **H2 修订结论**：X3 bit0 的 SDC 率对 ROB 深度有阈值响应（≤128 → 100% SDC；160 → 0%），对 PhysInt 和 trigger 都不敏感——"窗口深度单独决定掩蔽"成立，但机理未知。§4.1 引用时标注机理 open。
+
 ### Phase 3 网格深化 #7: ExMon formal（§2.4）— 100% DUE 单元级确认
 
 **§2.4 formal（spinlock_checksum, C2, stxr_force_fail, n=384 + 5% replay, 1481s, 0 frozen）**：**P_DUE=100% [99.0,100.0], P_SDC=0% [0,1.0], Reach=100%**。

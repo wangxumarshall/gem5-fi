@@ -189,5 +189,5 @@ CHAOSArmSysReg 也有 `*1000`（startup()，FS-only，SE formal 不受影响，�
 
 - **ROB=160 整行掩蔽**：更深 ROB 下 X3 bit0 翻转在 trigger=50K 处完全被掩盖（30/30 一致，replay 无 frozen，注入确实发生）。
 - **PhysInt 轴零效应**：cholesky 寄存器压力未到 PhysInt 瓶颈；掩蔽/传播由 ROB 深度单独决定。
-- **机理假说**：ROB 深度改变 trigger 时点的寄存器活跃年龄分布（更深 ROB → X3 在 50K cycles 处落在未消费死区）——与 ABI-class 网格 X1 的窗口内未触达同族：**trigger 时点 × 窗口深度的交互决定 AVF，不是 ROB 深度单独决定 SDC**。待 trigger 扫描 {20K,50K,80K} 验证。
-- 方法学：结论从"V110 单点 formal"升级为"窗口网格"时，**trigger 固定而微架构变化**会引入活跃度混杂——H2 类实验必须配 trigger 扫描才能下因果结论。
+- **机理假说**：~~ROB 深度改变 trigger 时点的寄存器活跃年龄分布~~ **已证伪**——trigger 扫描 {20K, 50K, 80K}（覆盖 cholesky 全程）× ROB=160 × PhysInt {128,160,192} 全部 100% Masked（各 30/30，Reach=100%，faults=1，0 frozen）。掩蔽不是注入时点伪影，是 **ROB 深度本身的稳定阈值效应**（≤128 → 100% SDC；160 → 0%），对 PhysInt 与 trigger 均不敏感。机理 open（候选：深 ROB 下关键路径调度变化使错误被重算覆盖/落在 squash 边界；需 readtrace 级分析）。
+- 方法学：结论从"V110 单点 formal"升级为"窗口网格"时，**trigger 固定而微架构变化**会引入活跃度混杂——H2 类实验必须配 trigger 扫描才能下因果结论（本次扫描做了，假说被诚实证伪）。
