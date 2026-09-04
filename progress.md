@@ -1775,3 +1775,18 @@ PRF X3 的跨 workload 复现有特殊意义：cholesky 上 X3 是低频消费�
 **真机验证**：T1 触发（Tick 22316525, X3, kept 105/suppressed 77, checksum 仍 golden——本次泄漏被掩盖）；T2 分散（3 seeds Tick 22316525/20443115/23439955, kept 105/149/58）；T3 golden f247ef3fe6f02cfd + 旧 map_bitflip 行为不变（注入 1 次后崩溃，92.7% DUE 一致）；重建零警告。
 
 **pilot（branchy_reduce, C2, X3, n=5）**：5/5 faults=1 全 Masked，0 SimulatorError（触发+合法域验收 ✅）。branchy 上 X3 泄漏被掩盖——formal（X3+X9, n=384/each）跑批中。
+
+### Phase 4.1 结果: spec_leak formal（branchy）— 单次回滚抑制全 Masked，泄漏值被正确路径重写覆盖
+
+**§2.3 spec_leak formal（branchy_reduce, C2, {X3,X9} × n=384 + 5% replay, 768 reps, 375s, 0 frozen）**：
+
+| cell | n_valid | P_SDC | P_DUE | Reach | 构成 |
+|---|---|---|---|---|---|
+| X3 | 384 | 0.0% [0.0,1.0] | 0.0% | 100% | 384 Masked |
+| X9 | 340 | 0.0% [0.0,1.1] | 0.0% | 88.5% | 340 Masked + 44 Inactive |
+
+**解读（方法学上重要的阴性结果）**：单次 squash 回滚抑制在 branchy 上**不产生任何 SDC/DUE**——错误路径泄漏的寄存器值在正确路径恢复执行后被重写覆盖（branchy 的循环结构使 X3/X9 在正确路径上很快被重新定义，泄漏值没有消费者）。
+
+**对照 method1 现场假设**："投机泄漏→SDC" 需要**泄漏值恰好被正确路径消费**——即错误路径写发生在正确路径读之前、且正确路径不重写该寄存器。这对应**长活寄存器**（long-lived accumulator，method1 的 X19-X28 callee-saved 类）而非 X3 这类短命循环变量。**下一 cell**：X19-X28（callee-saved 长活类）上的 spec_leak——泄漏值存活窗口跨 squash 边界才可能被消费。
+
+**与 RAT 三模式的格局对照**：rename 子系统四个注入点全部 0% SDC（map_bitflip 95.8% DUE / f5_substitute 59.7% DUE+40% 自愈 / mark_free 72-77% DUE / spec_leak 100% Masked）——**§2.2/§2.3 的 rename 错误在这个 workload 族上没有 SDC 通路**，method1 的"历史残留"机理需要更精确的触发条件（长活寄存器 + 消费窗口对齐）。
