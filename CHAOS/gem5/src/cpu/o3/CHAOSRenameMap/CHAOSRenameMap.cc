@@ -32,6 +32,10 @@ namespace gem5
             if (!log_stream || !log_stream->stream())
                 panic("CHAOSRenameMap: Could not open log file");
             rng.seed(rng_seed != 0 ? rng_seed : rd());
+            // spec_leak sampling-bias fix: skip a geometric(0.1) number of
+            // eligible squash-rollbacks before the first suppressed one.
+            std::geometric_distribution<uint64_t> skip_dist(0.1);
+            events_to_skip = skip_dist(rng);
         }
         // SELF-ATTACH happens in startup() (the rename map is constructed
         // before the CPU hierarchy is fully wired; dynamic_cast there).
@@ -44,6 +48,7 @@ namespace gem5
         if (s == "map_bitflip") return Mode::MapBitflip;
         if (s == "f5_substitute") return Mode::F5Substitute;
         if (s == "f4_field_stuck") return Mode::F4FieldStuck;
+        if (s == "spec_leak") return Mode::SpecLeak;
         return Mode::MapBitflip;
     }
 
@@ -53,6 +58,7 @@ namespace gem5
             case Mode::MapBitflip: return "map_bitflip";
             case Mode::F5Substitute: return "f5_substitute";
             case Mode::F4FieldStuck: return "f4_field_stuck";
+            case Mode::SpecLeak: return "spec_leak";
         }
         return "map_bitflip";
     }
@@ -211,6 +217,49 @@ namespace gem5
     }
 
     // CHAOSRenameMap needs the cpu pointer set after construction. Override
+    bool
+    CHAOSRenameMap::maybeSuppressRollback(ThreadID tid, const RegId &arch_reg,
+                                          PhysRegIdPtr new_phys,
+                                          PhysRegIdPtr prev_phys)
+    {
+        // §2.3 spec_leak: suppress ONE history-buffer rollback during squash.
+        // Only active in SpecLeak mode (other modes never touch this path —
+        // zero regression for all existing campaigns).
+        if (fi_mode != Mode::SpecLeak) return false;
+        if (!cpu || probability <= 0.0f) return false;
+        if (max_faults != 0 && faults_injected_count >= max_faults) return false;
+        if (!inWindow()) return false;
+        if (new_phys == prev_phys) return false;  // non-renamed (misc/XZR): skip
+
+        // int class only (same discipline as maybeCorrupt)
+        if (arch_reg.classValue() != IntRegClass) return false;
+        int arch_idx = arch_reg.index();
+        if (arch_idx > 30) return false;  // XZR / banked
+
+        // directed target or random within 0..30
+        int target = target_arch_reg;
+        if (target < 0) target = (int)(rng() % 31);
+        if (arch_idx != target) return false;
+
+        // sampling-bias fix (Phase 3.0 family): skip a geometric(0.1) number
+        // of ELIGIBLE rollbacks so maxFaults=1 lands on a seed-dependent event
+        std::uniform_real_distribution<float> pd(0.0f, 1.0f);
+        if (events_to_skip > 0) { --events_to_skip; return false; }
+        if (pd(rng) > probability) return false;
+
+        faults_injected_count++;
+        if (write_log) {
+            *(log_stream->stream()) << "Tick: " << curTick()
+                << ", Site: rename_doSquash, mode=spec_leak, tid=" << (int)tid
+                << ", arch_reg=X" << arch_idx
+                << ", kept_new_phys_idx=" << (new_phys ? new_phys->index() : -1)
+                << ", suppressed_prev_phys_idx=" << (prev_phys ? prev_phys->index() : -1)
+                << ", faults_injected: " << faults_injected_count
+                << std::endl;
+        }
+        return true;
+    }
+
     // startup() to dynamic_cast and self-attach (the rename map is constructed
     // before the CPU SimObject hierarchy is fully wired, so do it at startup).
     void

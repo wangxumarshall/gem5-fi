@@ -19,8 +19,12 @@ class CHAOSRenameMap(SimObject):
     #   f4_field_stuck: pin ONE map entry to a wrong physReg permanently
     #                  (every setEntry on that arch_reg re-applies the wrong
     #                  target) — §2.2 f4_field_stuck.
+    # spec_leak (§2.3 Phase 4.1, method1 speculative-state leak): suppress
+    # ONE history-buffer rollback in Rename::doSquash — the wrong-path µop's
+    # dest reg stays mapped, its wrong-path value leaks into the correct
+    # path (the rollback-suppression, not a value flip).
     mode = Param.String("map_bitflip",
-        "map_bitflip | f5_substitute | f4_field_stuck")
+        "map_bitflip | f5_substitute | f4_field_stuck | spec_leak")
 
     targetArchReg = Param.Int(-1,
         "which architectural reg's map entry to corrupt (-1 = random within "

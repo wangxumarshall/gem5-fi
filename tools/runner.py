@@ -268,8 +268,12 @@ def main():
         # v2 schema's fault.model enum has legal_domain_sub for F5; map it.
         cmd += ["--chaos_rename"]
         # fault model -> rename_mode
+        # intermittent_burst -> spec_leak (§2.3 Phase 4.1, method1 speculative
+        # leak): one squash-rollback suppression — the wrong-path µop's dest
+        # stays mapped, its value leaks into the correct path.
         rm = {"transient_bit_flip": "map_bitflip",
               "local_mbu": "map_bitflip",
+              "intermittent_burst": "spec_leak",
               "legal_domain_sub": "f5_substitute",
               "stuck_at_zero": "f4_field_stuck",
               "stuck_at_one": "f4_field_stuck"}.get(inj["model"], "map_bitflip")

@@ -195,6 +195,9 @@ class UnifiedRenameMap
   public:
     /** §2.2 CHAOSRenameMap accessor (injector sets it at startup). */
     void setChaosRenameMap(CHAOSRenameMap *p) { chaosRenameMap = p; }
+    /** §2.3 spec_leak: Rename::doSquash reaches the injector through the
+     *  map it already holds. nullptr = no injector (zero regression). */
+    CHAOSRenameMap *getChaosRenameMap() const { return chaosRenameMap; }
 
   private:
 

@@ -956,15 +956,30 @@ Rename::doSquash(const InstSeqNum &squashed_seq_num, ThreadID tid)
         // waste of time to update the rename table, we definitely
         // don't want to put these on the free list.
         if (hb_it->newPhysReg != hb_it->prevPhysReg) {
-            // Tell the rename map to set the architected register to the
-            // previous physical register that it was renamed to.
-            renameMap[tid]->setEntry(hb_it->archReg, hb_it->prevPhysReg);
+            // §2.3 spec_leak (Phase 4.1): the injector may SUPPRESS this one
+            // rollback — the wrong-path µop's dest stays mapped (its value
+            // leaks into the correct path). Skip BOTH the setEntry restore
+            // and the freeingInProgress push (the leaked physReg stays owned
+            // by the arch reg until its next committer frees it — resource
+            // accounting stays consistent). nullptr / non-spec_leak mode =
+            // zero regression.
+            bool suppress = false;
+            auto *chaos_rm = renameMap[tid]->getChaosRenameMap();
+            if (chaos_rm) {
+                suppress = chaos_rm->maybeSuppressRollback(
+                    tid, hb_it->archReg, hb_it->newPhysReg, hb_it->prevPhysReg);
+            }
+            if (!suppress) {
+                // Tell the rename map to set the architected register to the
+                // previous physical register that it was renamed to.
+                renameMap[tid]->setEntry(hb_it->archReg, hb_it->prevPhysReg);
 
-            // The phys regs can still be owned by squashing but
-            // executing instructions in IEW at this moment. To avoid
-            // ownership hazard in SMT CPU, we delay the freelist update
-            // until they are indeed squashed in the commit stage.
-            freeingInProgress[tid].push_back(hb_it->newPhysReg);
+                // The phys regs can still be owned by squashing but
+                // executing instructions in IEW at this moment. To avoid
+                // ownership hazard in SMT CPU, we delay the freelist update
+                // until they are indeed squashed in the commit stage.
+                freeingInProgress[tid].push_back(hb_it->newPhysReg);
+            }
         }
 
         // mark the speculative register as ready in the scoreboard as

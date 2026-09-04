@@ -126,7 +126,7 @@ p.add_argument("--lsq_lane_skew_k", type=int, default=1,
 p.add_argument("--chaos_rename", action="store_true",
                help="attach CHAOSRenameMap (O3 rename-map injector, §2.2)")
 p.add_argument("--rename_mode", default="map_bitflip",
-               choices=["map_bitflip","f5_substitute","f4_field_stuck"])
+               choices=["map_bitflip","f5_substitute","f4_field_stuck","spec_leak"])
 p.add_argument("--rename_target_arch", type=int, default=-1,
                help="arch reg index whose map entry to corrupt (-1=random 0..30)")
 p.add_argument("--rename_first_clock", type=lambda x: int(x,0), default=100000)

@@ -48,8 +48,20 @@ class CHAOSRenameMap : public SimObject
     bool maybeCorrupt(ThreadID tid, const RegId &arch_reg,
                       PhysRegIdPtr &phys_reg);
 
+    // §2.3 spec_leak (method1 speculative-state leak, Phase 4.1): called from
+    // Rename::doSquash BEFORE the history-buffer rollback undoes a mapping.
+    // Return true = SUPPRESS this one rollback: skip both the
+    // renameMap->setEntry(archReg, prevPhysReg) restore AND the
+    // freeingInProgress push of newPhysReg. The wrong-path µop's destination
+    // register stays mapped+architecturally visible — its (wrong-path) value
+    // leaks into the post-squeeze correct path. Resource accounting stays
+    // consistent: the leaked physReg is owned by the arch reg until the next
+    // committer of that arch reg frees it (same lifetime as any mapping).
+    bool maybeSuppressRollback(ThreadID tid, const RegId &arch_reg,
+                               PhysRegIdPtr new_phys, PhysRegIdPtr prev_phys);
+
   private:
-    enum class Mode { MapBitflip, F5Substitute, F4FieldStuck };
+    enum class Mode { MapBitflip, F5Substitute, F4FieldStuck, SpecLeak };
     static Mode stringToMode(const std::string &s);
     const char *modeToString(Mode m);
 
@@ -74,6 +86,10 @@ class CHAOSRenameMap : public SimObject
     std::mt19937 rng;
     std::random_device rd;
     OutputStream *log_stream = nullptr;
+
+    // spec_leak sampling-bias fix (Phase 3.0 family): geometric(0.1) count
+    // of eligible rollbacks to skip before the first suppressed one.
+    uint64_t events_to_skip = 0;
 
     bool inWindow();
     // f5_substitute: pick a currently-allocated (not-free) physReg of the same
