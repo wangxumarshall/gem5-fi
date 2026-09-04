@@ -1,0 +1,2583 @@
+
+crash 8.0.4-17.oe2403sp4
+Copyright (C) 2002-2022  Red Hat, Inc.
+Copyright (C) 2004, 2005, 2006, 2010  IBM Corporation
+Copyright (C) 1999-2006  Hewlett-Packard Co
+Copyright (C) 2005, 2006, 2011, 2012  Fujitsu Limited
+Copyright (C) 2006, 2007  VA Linux Systems Japan K.K.
+Copyright (C) 2005, 2011, 2020-2022  NEC Corporation
+Copyright (C) 1999, 2002, 2007  Silicon Graphics, Inc.
+Copyright (C) 1999, 2000, 2001, 2002  Mission Critical Linux, Inc.
+Copyright (C) 2015, 2021  VMware, Inc.
+This program is free software, covered by the GNU General Public License,
+and you are welcome to change it and/or distribute copies of it under
+certain conditions.  Enter "help copying" to see the conditions.
+This program has absolutely no warranty.  Enter "help warranty" for details.
+ 
+NOTE: stdin: not a tty
+
+GNU gdb (GDB) 10.2
+Copyright (C) 2021 Free Software Foundation, Inc.
+License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>
+This is free software: you are free to change and redistribute it.
+There is NO WARRANTY, to the extent permitted by law.
+Type "show copying" and "show warranty" for details.
+This GDB was configured as "aarch64-unknown-linux-gnu".
+Type "show configuration" for configuration details.
+Find the GDB manual and other documentation resources online at:
+    <http://www.gnu.org/software/gdb/documentation/>.
+
+For help, type "help".
+Type "apropos word" to search for commands related to "word"...
+
+crash: seek error: kernel virtual address: ffff800080000058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080022058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080044058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080066058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080088058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000800aa058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000800cc058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000800ee058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080110058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080132058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080154058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080176058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080198058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000801ba058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000801dc058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000801fe058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080220058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080242058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080264058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080286058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000802a8058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000802ca058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000802ec058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff80008030e058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080330058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080352058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080374058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080396058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000803b8058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000803da058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000803fc058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff80008041e058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080440058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080462058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080484058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000804a6058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000804c8058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000804ea058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff80008050c058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff80008052e058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080550058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080572058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080594058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000805b6058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000805d8058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000805fa058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff80008061c058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff80008063e058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080660058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080682058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000806a4058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000806c6058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000806e8058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff80008070a058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff80008072c058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff80008074e058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080770058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080792058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000807b4058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000807d6058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000807f8058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff80008081a058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff80008083c058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff80008085e058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080880058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000808a2058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000808c4058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000808e6058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080908058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff80008092a058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff80008094c058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff80008096e058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080990058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000809b2058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000809d4058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000809f6058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080a18058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080a3a058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080a5c058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080a7e058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080aa0058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080ac2058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080ae4058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080b06058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080b28058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080b4a058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080b6c058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080b8e058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080bb0058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080bd2058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080bf4058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080c16058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080c38058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080c5a058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080c7c058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080c9e058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080cc0058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080ce2058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080d04058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080d26058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080d48058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080d6a058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080d8c058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080dae058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080dd0058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080df2058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080e14058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080e36058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080e58058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080e7a058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080e9c058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080ebe058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080ee0058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080f02058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080f24058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080f46058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080f68058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080f8a058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080fac058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080fce058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080ff0058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800081012058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800081034058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800081056058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800081078058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff80008109a058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000810bc058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000810de058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800081100058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800081122058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800081144058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800081166058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800081188058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000811aa058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000811cc058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000811ee058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800081210058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800081232058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800081254058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800081276058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800081298058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000812ba058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000812dc058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000812fe058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800081320058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800081342058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800081364058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800081386058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000813a8058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000813ca058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000813ec058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff80008140e058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800081430058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800081452058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800081474058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800081496058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000814b8058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000814da058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000814fc058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff80008151e058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800081540058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800081562058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800081584058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000815a6058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000815c8058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000815ea058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff80008160c058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff80008162e058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800081650058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800081672058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800081694058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000816b6058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000816d8058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000816fa058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff80008171c058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff80008173e058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800081760058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800081782058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000817a4058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000817c6058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000817e8058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff80008180a058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff80008182c058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff80008184e058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800081870058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800081892058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000818b4058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000818d6058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000818f8058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff80008191a058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff80008193c058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff80008195e058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080001600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080023600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080045600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080067600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080089600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000800ab600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000800cd600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000800ef600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080111600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080133600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080155600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080177600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080199600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000801bb600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000801dd600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000801ff600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080221600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080243600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080265600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080287600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000802a9600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000802cb600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000802ed600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff80008030f600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080331600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080353600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080375600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080397600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000803b9600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000803db600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000803fd600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff80008041f600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080441600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080463600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080485600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000804a7600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000804c9600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000804eb600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff80008050d600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff80008052f600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080551600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080573600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080595600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000805b7600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000805d9600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000805fb600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff80008061d600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff80008063f600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080661600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080683600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000806a5600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000806c7600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000806e9600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff80008070b600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff80008072d600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff80008074f600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080771600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080793600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000807b5600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000807d7600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000807f9600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff80008081b600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff80008083d600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff80008085f600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080881600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000808a3600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000808c5600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000808e7600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080909600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff80008092b600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff80008094d600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff80008096f600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080991600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000809b3600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000809d5600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000809f7600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080a19600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080a3b600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080a5d600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080a7f600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080aa1600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080ac3600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080ae5600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080b07600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080b29600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080b4b600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080b6d600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080b8f600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080bb1600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080bd3600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080bf5600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080c17600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080c39600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080c5b600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080c7d600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080c9f600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080cc1600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080ce3600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080d05600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080d27600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080d49600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080d6b600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080d8d600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080daf600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080dd1600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080df3600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080e15600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080e37600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080e59600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080e7b600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080e9d600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080ebf600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080ee1600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080f03600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080f25600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080f47600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080f69600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080f8b600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080fad600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080fcf600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080ff1600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800081013600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800081035600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800081057600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800081079600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff80008109b600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000810bd600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000810df600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800081101600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800081123600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800081145600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800081167600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800081189600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000811ab600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000811cd600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000811ef600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800081211600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800081233600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800081255600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800081277600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800081299600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000812bb600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000812dd600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000812ff600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800081321600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800081343600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800081365600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800081387600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000813a9600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000813cb600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000813ed600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff80008140f600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800081431600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800081453600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800081475600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800081497600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000814b9600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000814db600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000814fd600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff80008151f600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800081541600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800081563600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800081585600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000815a7600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000815c9600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000815eb600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff80008160d600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff80008162f600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800081651600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800081673600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800081695600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000816b7600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000816d9600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000816fb600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff80008171d600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff80008173f600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800081761600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800081783600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000817a5600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000817c7600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000817e9600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff80008180b600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff80008182d600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff80008184f600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800081871600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800081893600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000818b5600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000818d7600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000818f9600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff80008191b600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff80008193d600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff80008195f600  type: "SDEI stack pointer"
+please wait... (gathering kmem slab cache data)                                                please wait... (gathering module symbol data)                                              please wait... (gathering task table data)                                           please wait... (determining panic task)                                              KERNEL: /usr/lib/debug/usr/lib/modules/6.6.0-145.3.23.154.oe2403sp3.aarch64/vmlinux
+    DUMPFILE: /home/sdc/wangxu/vmcore0102/127.0.0.1-2026-09-04-11:00:00/vmcore  [PARTIAL DUMP]
+        CPUS: 192
+        DATE: Fri Sep  4 10:59:16 CST 2026
+      UPTIME: 00:24:16
+LOAD AVERAGE: 15.67, 3.46, 1.25
+       TASKS: 2225
+    NODENAME: localhost0102
+     RELEASE: 6.6.0-145.3.23.154.oe2403sp3.aarch64
+     VERSION: #1 SMP Mon Jul 27 19:00:34 CST 2026
+     MACHINE: aarch64  (unknown Mhz)
+      MEMORY: 767.8 GB
+       PANIC: "Unable to handle kernel paging request at virtual address ffffd77069c697e0"
+         PID: 56263
+     COMMAND: "sftp-server"
+        TASK: ffff402007f26900  [THREAD_INFO: ffff402007f26900]
+         CPU: 179
+       STATE: TASK_WAKING (PANIC)
+
+crash> sys
+      KERNEL: /usr/lib/debug/usr/lib/modules/6.6.0-145.3.23.154.oe2403sp3.aarch64/vmlinux
+    DUMPFILE: /home/sdc/wangxu/vmcore0102/127.0.0.1-2026-09-04-11:00:00/vmcore  [PARTIAL DUMP]
+        CPUS: 192
+        DATE: Fri Sep  4 10:59:16 CST 2026
+      UPTIME: 00:24:16
+LOAD AVERAGE: 15.67, 3.46, 1.25
+       TASKS: 2225
+    NODENAME: localhost0102
+     RELEASE: 6.6.0-145.3.23.154.oe2403sp3.aarch64
+     VERSION: #1 SMP Mon Jul 27 19:00:34 CST 2026
+     MACHINE: aarch64  (unknown Mhz)
+      MEMORY: 767.8 GB
+       PANIC: "Unable to handle kernel paging request at virtual address ffffd77069c697e0"
+crash> bt
+PID: 56263    TASK: ffff402007f26900  CPU: 179  COMMAND: "sftp-server"
+ #0 [ffff8000e6f6b250] machine_kexec at ffffd7706813ce6c
+ #1 [ffff8000e6f6b3e0] __crash_kexec at ffffd7706830df14
+ #2 [ffff8000e6f6b410] crash_kexec at ffffd7706830e08c
+ #3 [ffff8000e6f6b480] die at ffffd77068122aa4
+ #4 [ffff8000e6f6b4e0] die_kernel_fault at ffffd770681444bc
+ #5 [ffff8000e6f6b520] __do_kernel_fault at ffffd77068144800
+ #6 [ffff8000e6f6b550] do_bad_area at ffffd770681448a4
+ #7 [ffff8000e6f6b570] do_translation_fault at ffffd77068ff99ac
+ #8 [ffff8000e6f6b580] do_mem_abort at ffffd770681445d0
+ #9 [ffff8000e6f6b5b0] el1_abort at ffffd77068fe2af0
+#10 [ffff8000e6f6b5e0] el1h_64_sync_handler at ffffd77068fe555c
+#11 [ffff8000e6f6b720] el1h_64_sync at ffffd77068111b04
+#12 [ffff8000e6f6b8c0] find_busiest_group at ffffd7706823ae44
+#13 [ffff8000e6f6b9c0] load_balance at ffffd7706823b96c
+#14 [ffff8000e6f6ba40] newidle_balance at ffffd7706823c0bc
+#15 [ffff8000e6f6baa0] pick_next_task_fair at ffffd7706823c64c
+#16 [ffff8000e6f6bb10] pick_next_task at ffffd7706821498c
+#17 [ffff8000e6f6bb90] __schedule at ffffd77068fed0a8
+#18 [ffff8000e6f6bbe0] schedule at ffffd77068fed7ec
+#19 [ffff8000e6f6bc50] pipe_write at ffffd770685eb768
+#20 [ffff8000e6f6bd30] new_sync_write at ffffd770685dafec
+#21 [ffff8000e6f6bd70] vfs_write at ffffd770685de200
+#22 [ffff8000e6f6bdc0] ksys_write at ffffd770685de5c0
+#23 [ffff8000e6f6bdf0] __arm64_sys_write at ffffd770685de608
+#24 [ffff8000e6f6be00] invoke_syscall at ffffd7706812c89c
+#25 [ffff8000e6f6be30] el0_svc_common.constprop.0 at ffffd7706812ca3c
+#26 [ffff8000e6f6be60] do_el0_svc at ffffd7706812cb24
+#27 [ffff8000e6f6be80] el0_svc at ffffd77068fe56e0
+#28 [ffff8000e6f6bea0] el0t_64_sync_handler at ffffd77068fe5cd4
+#29 [ffff8000e6f6bfe0] el0t_64_sync at ffffd77068111e34
+     PC: 0000ffff94b4e5a8   LR: 0000aaaac817b778   SP: 0000ffffd8d69310
+    X29: 0000ffffd8d69310  X28: 00000000ffffffff  X27: 0000ffffd8d693b8
+    X26: 0000000000000637  X25: 0000000000000019  X24: 0000ffffd8d693e8
+    X23: 000000000003fc0d  X22: 0000aaaac81b00b8  X21: 0000aaaac81b0000
+    X20: 0000aaaac818a000  X19: 0000000000000001  X18: 0000000000000005
+    X17: 0000ffff94b4e580  X16: 0000aaaac81afce0  X15: 3136350200258c22
+    X14: 3832362af32e0898  X13: 00fc030000208c49  X12: 0a00000000000000
+    X11: 3131303838283d79  X10: 000000115d332e2e   X9: 305b7475706e6920
+     X8: 0000000000000040   X7: 000000040000000e   X6: 9502000519000000
+     X5: 0000aaaaf1247ba3   X4: 0000ffffd8d69405   X3: 0000000000000001
+     X2: 000000000003fc0d   X1: 0000ffff94790010   X0: 0000000000000001
+    ORIG_X0: 0000000000000001  SYSCALLNO: 40  PSTATE: 20001000
+crash> sym find_busiest_group
+ffffd7706823ad08 (t) find_busiest_group /usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 13011
+crash> sym runqueues
+ffffd77069c696c0 (D) runqueues
+crash> sym nr_cpu_ids
+ffffd7706a05fcb0 (D) nr_cpu_ids
+crash> sym __per_cpu_offset
+ffffd7706a0655d0 (D) __per_cpu_offset
+crash> px &__per_cpu_offset
+$1 = (unsigned long (*)[4096]) 0xffffd7706a0655d0 <__per_cpu_offset>
+crash> px &__per_cpu_offset[97]
+$2 = (unsigned long *) 0xffffd7706a0658d8 <__per_cpu_offset+776>
+crash> px &__per_cpu_offset[179]
+$3 = (unsigned long *) 0xffffd7706a065b68 <__per_cpu_offset+1432>
+crash> px __per_cpu_offset[97]
+$4 = 0xffffa89017090000
+crash> px __per_cpu_offset[179]
+$5 = 0xffffa89017b74000
+crash> px __per_cpu_offset[0]
+$6 = 0xffffa890163ae000
+crash> px __per_cpu_offset[1]
+$7 = 0xffffa890163d0000
+crash> rd -64 __per_cpu_offset 192
+ffffd7706a0655d0:  ffffa890163ae000 ffffa890163d0000   ..:.......=.....
+ffffd7706a0655e0:  ffffa890163f2000 ffffa89016414000   . ?......@A.....
+ffffd7706a0655f0:  ffffa89016436000 ffffa89016458000   .`C.......E.....
+ffffd7706a065600:  ffffa8901647a000 ffffa8901649c000   ..G.......I.....
+ffffd7706a065610:  ffffa890164be000 ffffa890164e0000   ..K.......N.....
+ffffd7706a065620:  ffffa89016502000 ffffa89016524000   . P......@R.....
+ffffd7706a065630:  ffffa89016546000 ffffa89016568000   .`T.......V.....
+ffffd7706a065640:  ffffa8901658a000 ffffa890165ac000   ..X.......Z.....
+ffffd7706a065650:  ffffa890165ce000 ffffa890165f0000   ..\......._.....
+ffffd7706a065660:  ffffa89016612000 ffffa89016634000   . a......@c.....
+ffffd7706a065670:  ffffa89016656000 ffffa89016678000   .`e.......g.....
+ffffd7706a065680:  ffffa8901669a000 ffffa890166bc000   ..i.......k.....
+ffffd7706a065690:  ffffa890166de000 ffffa89016700000   ..m.......p.....
+ffffd7706a0656a0:  ffffa89016722000 ffffa89016744000   . r......@t.....
+ffffd7706a0656b0:  ffffa89016766000 ffffa89016788000   .`v.......x.....
+ffffd7706a0656c0:  ffffa890167aa000 ffffa890167cc000   ..z.......|.....
+ffffd7706a0656d0:  ffffa890167ee000 ffffa89016810000   ..~.............
+ffffd7706a0656e0:  ffffa89016832000 ffffa89016854000   . .......@......
+ffffd7706a0656f0:  ffffa89016876000 ffffa89016898000   .`..............
+ffffd7706a065700:  ffffa890168ba000 ffffa890168dc000   ................
+ffffd7706a065710:  ffffa890168fe000 ffffa89016920000   ................
+ffffd7706a065720:  ffffa89016942000 ffffa89016964000   . .......@......
+ffffd7706a065730:  ffffa89016986000 ffffa890169a8000   .`..............
+ffffd7706a065740:  ffffa890169ca000 ffffa890169ec000   ................
+ffffd7706a065750:  ffffa89016a0e000 ffffa89016a30000   ................
+ffffd7706a065760:  ffffa89016a52000 ffffa89016a74000   . .......@......
+ffffd7706a065770:  ffffa89016a96000 ffffa89016ab8000   .`..............
+ffffd7706a065780:  ffffa89016ada000 ffffa89016afc000   ................
+ffffd7706a065790:  ffffa89016b1e000 ffffa89016b40000   ................
+ffffd7706a0657a0:  ffffa89016b62000 ffffa89016b84000   . .......@......
+ffffd7706a0657b0:  ffffa89016ba6000 ffffa89016bc8000   .`..............
+ffffd7706a0657c0:  ffffa89016bea000 ffffa89016c0c000   ................
+ffffd7706a0657d0:  ffffa89016c2e000 ffffa89016c50000   ................
+ffffd7706a0657e0:  ffffa89016c72000 ffffa89016c94000   . .......@......
+ffffd7706a0657f0:  ffffa89016cb6000 ffffa89016cd8000   .`..............
+ffffd7706a065800:  ffffa89016cfa000 ffffa89016d1c000   ................
+ffffd7706a065810:  ffffa89016d3e000 ffffa89016d60000   ................
+ffffd7706a065820:  ffffa89016d82000 ffffa89016da4000   . .......@......
+ffffd7706a065830:  ffffa89016dc6000 ffffa89016de8000   .`..............
+ffffd7706a065840:  ffffa89016e0a000 ffffa89016e2c000   ................
+ffffd7706a065850:  ffffa89016e4e000 ffffa89016e70000   ................
+ffffd7706a065860:  ffffa89016e92000 ffffa89016eb4000   . .......@......
+ffffd7706a065870:  ffffa89016ed6000 ffffa89016ef8000   .`..............
+ffffd7706a065880:  ffffa89016f1a000 ffffa89016f3c000   ................
+ffffd7706a065890:  ffffa89016f5e000 ffffa89016f80000   ................
+ffffd7706a0658a0:  ffffa89016fa2000 ffffa89016fc4000   . .......@......
+ffffd7706a0658b0:  ffffa89016fe6000 ffffa89017008000   .`..............
+ffffd7706a0658c0:  ffffa8901702a000 ffffa8901704c000   ................
+ffffd7706a0658d0:  ffffa8901706e000 ffffa89017090000   ................
+ffffd7706a0658e0:  ffffa890170b2000 ffffa890170d4000   . .......@......
+ffffd7706a0658f0:  ffffa890170f6000 ffffa89017118000   .`..............
+ffffd7706a065900:  ffffa8901713a000 ffffa8901715c000   ................
+ffffd7706a065910:  ffffa8901717e000 ffffa890171a0000   ................
+ffffd7706a065920:  ffffa890171c2000 ffffa890171e4000   . .......@......
+ffffd7706a065930:  ffffa89017206000 ffffa89017228000   .` .......".....
+ffffd7706a065940:  ffffa8901724a000 ffffa8901726c000   ..$.......&.....
+ffffd7706a065950:  ffffa8901728e000 ffffa890172b0000   ..(.......+.....
+ffffd7706a065960:  ffffa890172d2000 ffffa890172f4000   . -......@/.....
+ffffd7706a065970:  ffffa89017316000 ffffa89017338000   .`1.......3.....
+ffffd7706a065980:  ffffa8901735a000 ffffa8901737c000   ..5.......7.....
+ffffd7706a065990:  ffffa8901739e000 ffffa890173c0000   ..9.......<.....
+ffffd7706a0659a0:  ffffa890173e2000 ffffa89017404000   . >......@@.....
+ffffd7706a0659b0:  ffffa89017426000 ffffa89017448000   .`B.......D.....
+ffffd7706a0659c0:  ffffa8901746a000 ffffa8901748c000   ..F.......H.....
+ffffd7706a0659d0:  ffffa890174ae000 ffffa890174d0000   ..J.......M.....
+ffffd7706a0659e0:  ffffa890174f2000 ffffa89017514000   . O......@Q.....
+ffffd7706a0659f0:  ffffa89017536000 ffffa89017558000   .`S.......U.....
+ffffd7706a065a00:  ffffa8901757a000 ffffa8901759c000   ..W.......Y.....
+ffffd7706a065a10:  ffffa890175be000 ffffa890175e0000   ..[.......^.....
+ffffd7706a065a20:  ffffa89017602000 ffffa89017624000   . `......@b.....
+ffffd7706a065a30:  ffffa89017646000 ffffa89017668000   .`d.......f.....
+ffffd7706a065a40:  ffffa8901768a000 ffffa890176ac000   ..h.......j.....
+ffffd7706a065a50:  ffffa890176ce000 ffffa890176f0000   ..l.......o.....
+ffffd7706a065a60:  ffffa89017712000 ffffa89017734000   . q......@s.....
+ffffd7706a065a70:  ffffa89017756000 ffffa89017778000   .`u.......w.....
+ffffd7706a065a80:  ffffa8901779a000 ffffa890177bc000   ..y.......{.....
+ffffd7706a065a90:  ffffa890177de000 ffffa89017800000   ..}.............
+ffffd7706a065aa0:  ffffa89017822000 ffffa89017844000   . .......@......
+ffffd7706a065ab0:  ffffa89017866000 ffffa89017888000   .`..............
+ffffd7706a065ac0:  ffffa890178aa000 ffffa890178cc000   ................
+ffffd7706a065ad0:  ffffa890178ee000 ffffa89017910000   ................
+ffffd7706a065ae0:  ffffa89017932000 ffffa89017954000   . .......@......
+ffffd7706a065af0:  ffffa89017976000 ffffa89017998000   .`..............
+ffffd7706a065b00:  ffffa890179ba000 ffffa890179dc000   ................
+ffffd7706a065b10:  ffffa890179fe000 ffffa89017a20000   ................
+ffffd7706a065b20:  ffffa89017a42000 ffffa89017a64000   . .......@......
+ffffd7706a065b30:  ffffa89017a86000 ffffa89017aa8000   .`..............
+ffffd7706a065b40:  ffffa89017aca000 ffffa89017aec000   ................
+ffffd7706a065b50:  ffffa89017b0e000 ffffa89017b30000   ................
+ffffd7706a065b60:  ffffa89017b52000 ffffa89017b74000   . .......@......
+ffffd7706a065b70:  ffffa89017b96000 ffffa89017bb8000   .`..............
+ffffd7706a065b80:  ffffa89017bda000 ffffa89017bfc000   ................
+ffffd7706a065b90:  ffffa89017c1e000 ffffa89017c40000   ................
+ffffd7706a065ba0:  ffffa89017c62000 ffffa89017c84000   . .......@......
+ffffd7706a065bb0:  ffffa89017ca6000 ffffa89017cc8000   .`..............
+ffffd7706a065bc0:  ffffa89017cea000 ffffa89017d0c000   ................
+crash> px &nr_cpu_ids
+$8 = (unsigned int *) 0xffffd7706a05fcb0 <nr_cpu_ids>
+crash> px nr_cpu_ids
+nr_cpu_ids = $9 = 0xc0
+crash> px &rq
+p: gdb request failed: p &rq
+crash> vtop ffffd77069c696c0
+VIRTUAL           PHYSICAL        
+ffffd77069c696c0  4021dc6696c0    
+
+PAGE DIRECTORY: ffffd77069a94000
+   PGD: ffffd77069a94d70 => 10006057fffff403
+   PUD: ffff6057fffffe08 => 10006057ffffe403
+   PMD: ffff6057ffffea70 => 0
+
+      PAGE         PHYSICAL      MAPPING       INDEX CNT FLAGS
+fffffc0000000000          0                0        0  1 1ffffe00004000 reserved
+crash> vtop ffffd77069c697e0
+VIRTUAL           PHYSICAL        
+ffffd77069c697e0  4021dc6697e0    
+
+PAGE DIRECTORY: ffffd77069a94000
+   PGD: ffffd77069a94d70 => 10006057fffff403
+   PUD: ffff6057fffffe08 => 10006057ffffe403
+   PMD: ffff6057ffffea70 => 0
+
+fffffc0000000000          0                0        0  1 1ffffe00004000 reserved
+crash> rd -32 ffffd77069c696c0
+rd: page excluded: kernel virtual address: ffffd77069c696c0  type: "32-bit KVADDR"
+crash> p (struct rq *)&runqueues
+$10 = (struct rq *) 0xffffd77069c696c0 <runqueues>
+crash> p runqueues:97
+per_cpu(runqueues, 97) = $11 = {
+  __lock = {
+    raw_lock = {
+      {
+        val = {
+          counter = 0
+        },
+        {
+          locked = 0 '\000',
+          pending = 0 '\000'
+        },
+        {
+          locked_pending = 0,
+          tail = 0
+        }
+      }
+    }
+  },
+  nr_running = 1,
+  nr_numa_running = 0,
+  nr_preferred_running = 0,
+  numa_migrate_on = 0,
+  last_blocked_load_update_tick = 4295256290,
+  has_blocked_load = 1,
+  nohz_csd = {
+    node = {
+      llist = {
+        next = 0x0
+      },
+      {
+        u_flags = 0,
+        a_flags = {
+          counter = 0
+        }
+      },
+      src = 0,
+      dst = 0
+    },
+    func = 0xffffd77068214f80 <nohz_csd_func>,
+    info = 0xffff800080cf96c0
+  },
+  nohz_tick_stopped = 0,
+  nohz_flags = {
+    counter = 0
+  },
+  ttwu_pending = 0,
+  nr_switches = 505742,
+  cfs = {
+    load = {
+      weight = 1048576,
+      inv_weight = 0
+    },
+    nr_running = 1,
+    h_nr_running = 1,
+    idle_nr_running = 0,
+    idle_h_nr_running = 0,
+    {
+      sum_w_vruntime = 0,
+      kabi_hidden_722 = {
+        avg_vruntime = 0
+      },
+      {<No data fields>}
+    },
+    {
+      sum_weight = 0,
+      kabi_hidden_723 = {
+        avg_load = 0
+      },
+      {<No data fields>}
+    },
+    exec_clock = 0,
+    {
+      zero_vruntime = 26725320682,
+      kabi_hidden_726 = {
+        min_vruntime = 26725320682
+      },
+      {<No data fields>}
+    },
+    tasks_timeline = {
+      rb_root = {
+        rb_node = 0x0
+      },
+      rb_leftmost = 0x0
+    },
+    curr = 0xffff40200d7269c0,
+    next = 0x0,
+    nr_spread_over = 0,
+    avg = {
+      last_update_time = 1456023663616,
+      load_sum = 49205588,
+      runnable_sum = 49205553,
+      util_sum = 48230155,
+      period_contrib = 381,
+      load_avg = 1044,
+      runnable_avg = 1044,
+      util_avg = 1024,
+      util_est = {
+        enqueued = 512,
+        ewma = 0
+      }
+    },
+    removed = {
+      lock = {
+        raw_lock = {
+          {
+            val = {
+              counter = 0
+            },
+            {
+              locked = 0 '\000',
+              pending = 0 '\000'
+            },
+            {
+              locked_pending = 0,
+              tail = 0
+            }
+          }
+        }
+      },
+      nr = 0,
+      load_avg = 0,
+      util_avg = 0,
+      runnable_avg = 0
+    },
+    tg_load_avg_contrib = 0,
+    propagate = 1,
+    prop_runnable_sum = 3992101,
+    h_load = 1046,
+    last_h_load_update = 4295256446,
+    h_load_next = 0x0,
+    rq = 0xffff800080cf96c0,
+    on_list = 1,
+    leaf_cfs_rq_list = {
+      next = 0xffff800080cfa0b0,
+      prev = 0xffff800080cfa0b0
+    },
+    tg = 0xffffd7706a6220c0 <root_task_group>,
+    idle = 0,
+    runtime_enabled = 0,
+    runtime_remaining = 0,
+    throttled_pelt_idle = 0,
+    throttled_clock = 0,
+    throttled_clock_pelt = 0,
+    throttled_clock_pelt_time = 0,
+    throttled_clock_self = 0,
+    throttled_clock_self_time = 0,
+    throttled = 0,
+    throttle_count = 0,
+    throttled_list = {
+      next = 0xffff800080cf98e0,
+      prev = 0xffff800080cf98e0
+    },
+    throttled_csd_list = {
+      next = 0xffff800080cf98f0,
+      prev = 0xffff800080cf98f0
+    },
+    qos_throttled_list = {
+      next = 0xffff800080cf9900,
+      prev = 0xffff800080cf9900
+    },
+    {
+      qos_idle_h_nr_running = 0,
+      qos_idle_h_nr_running_padding = 0
+    },
+    {
+      soft_quota_enable = 0,
+      kabi_hidden_833 = {
+        kabi_reserved1 = 0
+      },
+      {<No data fields>}
+    },
+    {
+      sum_soft_runtime = 0,
+      kabi_hidden_834 = {
+        kabi_reserved2 = 0
+      },
+      {<No data fields>}
+    },
+    {
+      soft_quota_throttled_list = {
+        next = 0xffff800080cf9928,
+        prev = 0xffff800080cf9928
+      },
+      kabi_hidden_835 = {
+        kabi_reserved3 = 18446603338382285096,
+        kabi_reserved4 = 18446603338382285096
+      },
+      {<No data fields>}
+    },
+    kabi_reserved5 = 0,
+    kabi_reserved6 = 0,
+    kabi_reserved7 = 0,
+    kabi_reserved8 = 0
+  },
+  rt = {
+    active = {
+      bitmap = {0, 68719476736},
+      queue = {{
+          next = 0xffff800080cf9990,
+          prev = 0xffff800080cf9990
+        }, {
+          next = 0xffff800080cf99a0,
+          prev = 0xffff800080cf99a0
+        }, {
+          next = 0xffff800080cf99b0,
+          prev = 0xffff800080cf99b0
+        }, {
+          next = 0xffff800080cf99c0,
+          prev = 0xffff800080cf99c0
+        }, {
+          next = 0xffff800080cf99d0,
+          prev = 0xffff800080cf99d0
+        }, {
+          next = 0xffff800080cf99e0,
+          prev = 0xffff800080cf99e0
+        }, {
+          next = 0xffff800080cf99f0,
+          prev = 0xffff800080cf99f0
+        }, {
+          next = 0xffff800080cf9a00,
+          prev = 0xffff800080cf9a00
+        }, {
+          next = 0xffff800080cf9a10,
+          prev = 0xffff800080cf9a10
+        }, {
+          next = 0xffff800080cf9a20,
+          prev = 0xffff800080cf9a20
+        }, {
+          next = 0xffff800080cf9a30,
+          prev = 0xffff800080cf9a30
+        }, {
+          next = 0xffff800080cf9a40,
+          prev = 0xffff800080cf9a40
+        }, {
+          next = 0xffff800080cf9a50,
+          prev = 0xffff800080cf9a50
+        }, {
+          next = 0xffff800080cf9a60,
+          prev = 0xffff800080cf9a60
+        }, {
+          next = 0xffff800080cf9a70,
+          prev = 0xffff800080cf9a70
+        }, {
+          next = 0xffff800080cf9a80,
+          prev = 0xffff800080cf9a80
+        }, {
+          next = 0xffff800080cf9a90,
+          prev = 0xffff800080cf9a90
+        }, {
+          next = 0xffff800080cf9aa0,
+          prev = 0xffff800080cf9aa0
+        }, {
+          next = 0xffff800080cf9ab0,
+          prev = 0xffff800080cf9ab0
+        }, {
+          next = 0xffff800080cf9ac0,
+          prev = 0xffff800080cf9ac0
+        }, {
+          next = 0xffff800080cf9ad0,
+          prev = 0xffff800080cf9ad0
+        }, {
+          next = 0xffff800080cf9ae0,
+          prev = 0xffff800080cf9ae0
+        }, {
+          next = 0xffff800080cf9af0,
+          prev = 0xffff800080cf9af0
+        }, {
+          next = 0xffff800080cf9b00,
+          prev = 0xffff800080cf9b00
+        }, {
+          next = 0xffff800080cf9b10,
+          prev = 0xffff800080cf9b10
+        }, {
+          next = 0xffff800080cf9b20,
+          prev = 0xffff800080cf9b20
+        }, {
+          next = 0xffff800080cf9b30,
+          prev = 0xffff800080cf9b30
+        }, {
+          next = 0xffff800080cf9b40,
+          prev = 0xffff800080cf9b40
+        }, {
+          next = 0xffff800080cf9b50,
+          prev = 0xffff800080cf9b50
+        }, {
+          next = 0xffff800080cf9b60,
+          prev = 0xffff800080cf9b60
+        }, {
+          next = 0xffff800080cf9b70,
+          prev = 0xffff800080cf9b70
+        }, {
+          next = 0xffff800080cf9b80,
+          prev = 0xffff800080cf9b80
+        }, {
+          next = 0xffff800080cf9b90,
+          prev = 0xffff800080cf9b90
+        }, {
+          next = 0xffff800080cf9ba0,
+          prev = 0xffff800080cf9ba0
+        }, {
+          next = 0xffff800080cf9bb0,
+          prev = 0xffff800080cf9bb0
+        }, {
+          next = 0xffff800080cf9bc0,
+          prev = 0xffff800080cf9bc0
+        }, {
+          next = 0xffff800080cf9bd0,
+          prev = 0xffff800080cf9bd0
+        }, {
+          next = 0xffff800080cf9be0,
+          prev = 0xffff800080cf9be0
+        }, {
+          next = 0xffff800080cf9bf0,
+          prev = 0xffff800080cf9bf0
+        }, {
+          next = 0xffff800080cf9c00,
+          prev = 0xffff800080cf9c00
+        }, {
+          next = 0xffff800080cf9c10,
+          prev = 0xffff800080cf9c10
+        }, {
+          next = 0xffff800080cf9c20,
+          prev = 0xffff800080cf9c20
+        }, {
+          next = 0xffff800080cf9c30,
+          prev = 0xffff800080cf9c30
+        }, {
+          next = 0xffff800080cf9c40,
+          prev = 0xffff800080cf9c40
+        }, {
+          next = 0xffff800080cf9c50,
+          prev = 0xffff800080cf9c50
+        }, {
+          next = 0xffff800080cf9c60,
+          prev = 0xffff800080cf9c60
+        }, {
+          next = 0xffff800080cf9c70,
+          prev = 0xffff800080cf9c70
+        }, {
+          next = 0xffff800080cf9c80,
+          prev = 0xffff800080cf9c80
+        }, {
+          next = 0xffff800080cf9c90,
+          prev = 0xffff800080cf9c90
+        }, {
+          next = 0xffff800080cf9ca0,
+          prev = 0xffff800080cf9ca0
+        }, {
+          next = 0xffff800080cf9cb0,
+          prev = 0xffff800080cf9cb0
+        }, {
+          next = 0xffff800080cf9cc0,
+          prev = 0xffff800080cf9cc0
+        }, {
+          next = 0xffff800080cf9cd0,
+          prev = 0xffff800080cf9cd0
+        }, {
+          next = 0xffff800080cf9ce0,
+          prev = 0xffff800080cf9ce0
+        }, {
+          next = 0xffff800080cf9cf0,
+          prev = 0xffff800080cf9cf0
+        }, {
+          next = 0xffff800080cf9d00,
+          prev = 0xffff800080cf9d00
+        }, {
+          next = 0xffff800080cf9d10,
+          prev = 0xffff800080cf9d10
+        }, {
+          next = 0xffff800080cf9d20,
+          prev = 0xffff800080cf9d20
+        }, {
+          next = 0xffff800080cf9d30,
+          prev = 0xffff800080cf9d30
+        }, {
+          next = 0xffff800080cf9d40,
+          prev = 0xffff800080cf9d40
+        }, {
+          next = 0xffff800080cf9d50,
+          prev = 0xffff800080cf9d50
+        }, {
+          next = 0xffff800080cf9d60,
+          prev = 0xffff800080cf9d60
+        }, {
+          next = 0xffff800080cf9d70,
+          prev = 0xffff800080cf9d70
+        }, {
+          next = 0xffff800080cf9d80,
+          prev = 0xffff800080cf9d80
+        }, {
+          next = 0xffff800080cf9d90,
+          prev = 0xffff800080cf9d90
+        }, {
+          next = 0xffff800080cf9da0,
+          prev = 0xffff800080cf9da0
+        }, {
+          next = 0xffff800080cf9db0,
+          prev = 0xffff800080cf9db0
+        }, {
+          next = 0xffff800080cf9dc0,
+          prev = 0xffff800080cf9dc0
+        }, {
+          next = 0xffff800080cf9dd0,
+          prev = 0xffff800080cf9dd0
+        }, {
+          next = 0xffff800080cf9de0,
+          prev = 0xffff800080cf9de0
+        }, {
+          next = 0xffff800080cf9df0,
+          prev = 0xffff800080cf9df0
+        }, {
+          next = 0xffff800080cf9e00,
+          prev = 0xffff800080cf9e00
+        }, {
+          next = 0xffff800080cf9e10,
+          prev = 0xffff800080cf9e10
+        }, {
+          next = 0xffff800080cf9e20,
+          prev = 0xffff800080cf9e20
+        }, {
+          next = 0xffff800080cf9e30,
+          prev = 0xffff800080cf9e30
+        }, {
+          next = 0xffff800080cf9e40,
+          prev = 0xffff800080cf9e40
+        }, {
+          next = 0xffff800080cf9e50,
+          prev = 0xffff800080cf9e50
+        }, {
+          next = 0xffff800080cf9e60,
+          prev = 0xffff800080cf9e60
+        }, {
+          next = 0xffff800080cf9e70,
+          prev = 0xffff800080cf9e70
+        }, {
+          next = 0xffff800080cf9e80,
+          prev = 0xffff800080cf9e80
+        }, {
+          next = 0xffff800080cf9e90,
+          prev = 0xffff800080cf9e90
+        }, {
+          next = 0xffff800080cf9ea0,
+          prev = 0xffff800080cf9ea0
+        }, {
+          next = 0xffff800080cf9eb0,
+          prev = 0xffff800080cf9eb0
+        }, {
+          next = 0xffff800080cf9ec0,
+          prev = 0xffff800080cf9ec0
+        }, {
+          next = 0xffff800080cf9ed0,
+          prev = 0xffff800080cf9ed0
+        }, {
+          next = 0xffff800080cf9ee0,
+          prev = 0xffff800080cf9ee0
+        }, {
+          next = 0xffff800080cf9ef0,
+          prev = 0xffff800080cf9ef0
+        }, {
+          next = 0xffff800080cf9f00,
+          prev = 0xffff800080cf9f00
+        }, {
+          next = 0xffff800080cf9f10,
+          prev = 0xffff800080cf9f10
+        }, {
+          next = 0xffff800080cf9f20,
+          prev = 0xffff800080cf9f20
+        }, {
+          next = 0xffff800080cf9f30,
+          prev = 0xffff800080cf9f30
+        }, {
+          next = 0xffff800080cf9f40,
+          prev = 0xffff800080cf9f40
+        }, {
+          next = 0xffff800080cf9f50,
+          prev = 0xffff800080cf9f50
+        }, {
+          next = 0xffff800080cf9f60,
+          prev = 0xffff800080cf9f60
+        }, {
+          next = 0xffff800080cf9f70,
+          prev = 0xffff800080cf9f70
+        }, {
+          next = 0xffff800080cf9f80,
+          prev = 0xffff800080cf9f80
+        }, {
+          next = 0xffff800080cf9f90,
+          prev = 0xffff800080cf9f90
+        }, {
+          next = 0xffff800080cf9fa0,
+          prev = 0xffff800080cf9fa0
+        }, {
+          next = 0xffff800080cf9fb0,
+          prev = 0xffff800080cf9fb0
+        }, {
+          next = 0xffff800080cf9fc0,
+          prev = 0xffff800080cf9fc0
+        }}
+    },
+    rt_nr_running = 0,
+    rr_nr_running = 0,
+    highest_prio = {
+      curr = 99,
+      next = 99
+    },
+    rt_nr_migratory = 0,
+    rt_nr_total = 0,
+    overloaded = 0,
+    pushable_tasks = {
+      node_list = {
+        next = 0xffff800080cf9ff0,
+        prev = 0xffff800080cf9ff0
+      }
+    },
+    rt_queued = 0,
+    rt_throttled = 0,
+    rt_time = 0,
+    rt_runtime = 950000000,
+    rt_runtime_lock = {
+      raw_lock = {
+        {
+          val = {
+            counter = 0
+          },
+          {
+            locked = 0 '\000',
+            pending = 0 '\000'
+          },
+          {
+            locked_pending = 0,
+            tail = 0
+          }
+        }
+      }
+    },
+    rt_nr_boosted = 0,
+    rq = 0xffff800080cf96c0,
+    tg = 0xffffd7706a6220c0 <root_task_group>,
+    kabi_reserved1 = 0,
+    kabi_reserved2 = 0
+  },
+  dl = {
+    root = {
+      rb_root = {
+        rb_node = 0x0
+      },
+      rb_leftmost = 0x0
+    },
+    dl_nr_running = 0,
+    earliest_dl = {
+      curr = 0,
+      next = 0
+    },
+    dl_nr_migratory = 0,
+    overloaded = 0,
+    pushable_dl_tasks_root = {
+      rb_root = {
+        rb_node = 0x0
+      },
+      rb_leftmost = 0x0
+    },
+    running_bw = 0,
+    this_bw = 0,
+    extra_bw = 996147,
+    max_bw = 996147,
+    bw_ratio = 269
+  },
+  cfs_overload_cpus = 0xffff402004045000,
+  leaf_cfs_rq_list = {
+    next = 0xffff800080cf9880,
+    prev = 0xffff800080cf9880
+  },
+  tmp_alone_branch = 0xffff800080cfa0b0,
+  nr_uninterruptible = 36,
+  curr = 0xffff40200d726900,
+  idle = 0xffff4020003c9500,
+  stop = 0xffff4020003f3f00,
+  next_balance = 4295256469,
+  prev_mm = 0x0,
+  clock_update_flags = 4,
+  clock = 1456634701060,
+  clock_task = 1456023663730,
+  clock_pelt = 1456023663730,
+  lost_idle_time = 0,
+  clock_pelt_idle = 1455370778340,
+  clock_idle = 1455981219280,
+  nr_iowait = {
+    counter = 0
+  },
+  last_seen_need_resched_ns = 0,
+  ticks_without_resched = 0,
+  membarrier_state = 0,
+  rd = 0xffff002026190000,
+  sd = 0xffff40200402c400,
+  cpu_capacity = 1024,
+  cpu_capacity_orig = 1024,
+  balance_callback = 0x0,
+  nohz_idle_balance = 0 '\000',
+  idle_balance = 0 '\000',
+  misfit_task_load = 0,
+  active_balance = 0,
+  push_cpu = 0,
+  active_balance_work = {
+    list = {
+      next = 0x0,
+      prev = 0x0
+    },
+    fn = 0x0,
+    caller = 0,
+    arg = 0x0,
+    done = 0x0,
+    kabi_reserved1 = 0,
+    kabi_reserved2 = 0
+  },
+  cpu = 97,
+  online = 1,
+  cfs_tasks = {
+    next = 0xffff40200d7269f8,
+    prev = 0xffff40200d7269f8
+  },
+  cfs_offline_tasks = {
+    next = 0xffff800080cfa218,
+    prev = 0xffff800080cfa218
+  },
+  avg_rt = {
+    last_update_time = 1455396208640,
+    load_sum = 0,
+    runnable_sum = 0,
+    util_sum = 0,
+    period_contrib = 1008,
+    load_avg = 0,
+    runnable_avg = 0,
+    util_avg = 0,
+    util_est = {
+      enqueued = 0,
+      ewma = 0
+    }
+  },
+  avg_dl = {
+    last_update_time = 1455396208640,
+    load_sum = 0,
+    runnable_sum = 0,
+    util_sum = 0,
+    period_contrib = 1008,
+    load_avg = 0,
+    runnable_avg = 0,
+    util_avg = 0,
+    util_est = {
+      enqueued = 0,
+      ewma = 0
+    }
+  },
+  avg_irq = {
+    last_update_time = 1456630816768,
+    load_sum = 25,
+    runnable_sum = 29840,
+    util_sum = 29840,
+    period_contrib = 408,
+    load_avg = 0,
+    runnable_avg = 0,
+    util_avg = 0,
+    util_est = {
+      enqueued = 0,
+      ewma = 0
+    }
+  },
+  avg_thermal = {
+    last_update_time = 1456023663616,
+    load_sum = 0,
+    runnable_sum = 0,
+    util_sum = 0,
+    period_contrib = 381,
+    load_avg = 0,
+    runnable_avg = 0,
+    util_avg = 0,
+    util_est = {
+      enqueued = 0,
+      ewma = 0
+    }
+  },
+  idle_stamp = 0,
+  avg_idle = 1000000,
+  wake_stamp = 4295256283,
+  wake_avg_idle = 500000,
+  max_idle_balance_cost = 500000,
+  hotplug_wait = {
+    task = 0x0
+  },
+  prev_irq_time = 611037330,
+  prev_steal_time = 0,
+  prev_steal_time_rq = 0,
+  calc_load_update = 4295257588,
+  calc_load_active = 37,
+  hrtick_csd = {
+    node = {
+      llist = {
+        next = 0x0
+      },
+      {
+        u_flags = 0,
+        a_flags = {
+          counter = 0
+        }
+      },
+      src = 0,
+      dst = 0
+    },
+    func = 0xffffd77068217d58 <__hrtick_start>,
+    info = 0xffff800080cf96c0
+  },
+  hrtick_timer = {
+    node = {
+      node = {
+        __rb_parent_color = 18446603338382287808,
+        rb_right = 0x0,
+        rb_left = 0x0
+      },
+      expires = 0
+    },
+    _softexpires = 0,
+    function = 0xffffd77068218f30 <hrtick>,
+    base = 0xffff800080006d40,
+    state = 0 '\000',
+    is_rel = 0 '\000',
+    is_soft = 0 '\000',
+    is_hard = 1 '\001',
+    kabi_reserved1 = 0,
+    kabi_reserved2 = 0
+  },
+  hrtick_time = 0,
+  rq_sched_info = {
+    pcount = 253365,
+    run_delay = 183946790,
+    last_arrival = 0,
+    last_queued = 0,
+    kabi_reserved1 = 0,
+    kabi_reserved2 = 0
+  },
+  rq_cpu_time = 27159936170,
+  yld_count = 0,
+  sched_count = 0,
+  sched_goidle = 0,
+  ttwu_count = 0,
+  ttwu_local = 0,
+  found_idle_cpu_capacity = 0,
+  found_idle_cpu = 0,
+  found_idle_cpu_easy = 0,
+  nofound_idle_cpu = 0,
+  find_time = 0,
+  steal = 0,
+  steal_fail = 0,
+  idle_state = 0x0,
+  nr_pinned = 0,
+  push_busy = 0,
+  push_work = {
+    list = {
+      next = 0x0,
+      prev = 0x0
+    },
+    fn = 0x0,
+    caller = 0,
+    arg = 0x0,
+    done = 0x0,
+    kabi_reserved1 = 0,
+    kabi_reserved2 = 0
+  },
+  scratch_mask = {{
+      bits = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
+    }},
+  cfsb_csd = {
+    node = {
+      llist = {
+        next = 0x0
+      },
+      {
+        u_flags = 0,
+        a_flags = {
+          counter = 0
+        }
+      },
+      src = 0,
+      dst = 0
+    },
+    func = 0xffffd77068237288 <__cfsb_csd_unthrottle>,
+    info = 0xffff800080cf96c0
+  },
+  cfsb_csd_list = {
+    next = 0xffff800080cfa700,
+    prev = 0xffff800080cfa700
+  },
+  kabi_reserved1 = 0,
+  kabi_reserved2 = 0,
+  kabi_reserved3 = 0,
+  kabi_reserved4 = 0,
+  kabi_reserved5 = 0,
+  kabi_reserved6 = 0,
+  kabi_reserved7 = 0,
+  kabi_reserved8 = 0,
+  scx = {
+    local_dsq = {
+      lock = {
+        raw_lock = {
+          {
+            val = {
+              counter = 0
+            },
+            {
+              locked = 0 '\000',
+              pending = 0 '\000'
+            },
+            {
+              locked_pending = 0,
+              tail = 0
+            }
+          }
+        }
+      },
+      list = {
+        next = 0xffff800080cfa758,
+        prev = 0xffff800080cfa758
+      },
+      priq = {
+        rb_node = 0x0
+      },
+      nr = 0,
+      seq = 0,
+      id = 9223372036854775810,
+      hash_node = {
+        next = 0x0
+      },
+      free_node = {
+        next = 0x0
+      },
+      rcu = {
+        next = 0x0,
+        func = 0x0
+      }
+    },
+    runnable_list = {
+      next = 0xffff800080cfa7a0,
+      prev = 0xffff800080cfa7a0
+    },
+    ddsp_deferred_locals = {
+      next = 0xffff800080cfa7b0,
+      prev = 0xffff800080cfa7b0
+    },
+    ops_qseq = 0,
+    extra_enq_flags = 0,
+    nr_running = 0,
+    cpuperf_target = 0,
+    cpu_released = false,
+    flags = 1,
+    clock = 0,
+    cpus_to_kick = {{
+        bits = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
+      }},
+    cpus_to_kick_if_idle = {{
+        bits = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
+      }},
+    cpus_to_preempt = {{
+        bits = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
+      }},
+    cpus_to_wait = {{
+        bits = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
+      }},
+    cpus_to_sync = {{
+        bits = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
+      }},
+    kick_sync_pending = false,
+    pnt_seq = 0,
+    deferred_bal_cb = {
+      next = 0x0,
+      func = 0x0
+    },
+    kick_sync_bal_cb = {
+      next = 0x0,
+      func = 0x0
+    },
+    deferred_irq_work = {
+      node = {
+        llist = {
+          next = 0x0
+        },
+        {
+          u_flags = 0,
+          a_flags = {
+            counter = 0
+          }
+        },
+        src = 0,
+        dst = 0
+      },
+      func = 0xffffd7706824efb8 <deferred_irq_workfn>,
+      irqwait = {
+        task = 0x0
+      },
+      kabi_reserved1 = 0,
+      kabi_reserved2 = 0,
+      kabi_reserved3 = 0,
+      kabi_reserved4 = 0
+    },
+    kick_cpus_irq_work = {
+      node = {
+        llist = {
+          next = 0x0
+        },
+        {
+          u_flags = 0,
+          a_flags = {
+            counter = 0
+          }
+        },
+        src = 0,
+        dst = 0
+      },
+      func = 0xffffd77068242998 <kick_cpus_irq_workfn>,
+      irqwait = {
+        task = 0x0
+      },
+      kabi_reserved1 = 0,
+      kabi_reserved2 = 0,
+      kabi_reserved3 = 0,
+      kabi_reserved4 = 0
+    },
+    bypass_dsq = {
+      lock = {
+        raw_lock = {
+          {
+            val = {
+              counter = 0
+            },
+            {
+              locked = 0 '\000',
+              pending = 0 '\000'
+            },
+            {
+              locked_pending = 0,
+              tail = 0
+            }
+          }
+        }
+      },
+      list = {
+        next = 0xffff800080cfb2a0,
+        prev = 0xffff800080cfb2a0
+      },
+      priq = {
+        rb_node = 0x0
+      },
+      nr = 0,
+      seq = 0,
+      id = 9223372036854775811,
+      hash_node = {
+        next = 0x0
+      },
+      free_node = {
+        next = 0x0
+      },
+      rcu = {
+        next = 0x0,
+        func = 0x0
+      }
+    }
+  }
+}
+crash> p runqueues:179
+per_cpu(runqueues, 179) = $12 = {
+  __lock = {
+    raw_lock = {
+      {
+        val = {
+          counter = 0
+        },
+        {
+          locked = 0 '\000',
+          pending = 0 '\000'
+        },
+        {
+          locked_pending = 0,
+          tail = 0
+        }
+      }
+    }
+  },
+  nr_running = 0,
+  nr_numa_running = 0,
+  nr_preferred_running = 0,
+  numa_migrate_on = 0,
+  last_blocked_load_update_tick = 4295256345,
+  has_blocked_load = 1,
+  nohz_csd = {
+    node = {
+      llist = {
+        next = 0x0
+      },
+      {
+        u_flags = 0,
+        a_flags = {
+          counter = 0
+        }
+      },
+      src = 0,
+      dst = 0
+    },
+    func = 0xffffd77068214f80 <nohz_csd_func>,
+    info = 0xffff8000817dd6c0
+  },
+  nohz_tick_stopped = 0,
+  nohz_flags = {
+    counter = 0
+  },
+  ttwu_pending = 1,
+  nr_switches = 60653,
+  cfs = {
+    load = {
+      weight = 0,
+      inv_weight = 0
+    },
+    nr_running = 0,
+    h_nr_running = 0,
+    idle_nr_running = 0,
+    idle_h_nr_running = 0,
+    {
+      sum_w_vruntime = 0,
+      kabi_hidden_722 = {
+        avg_vruntime = 0
+      },
+      {<No data fields>}
+    },
+    {
+      sum_weight = 0,
+      kabi_hidden_723 = {
+        avg_load = 0
+      },
+      {<No data fields>}
+    },
+    exec_clock = 0,
+    {
+      zero_vruntime = 3045208639,
+      kabi_hidden_726 = {
+        min_vruntime = 3045208639
+      },
+      {<No data fields>}
+    },
+    tasks_timeline = {
+      rb_root = {
+        rb_node = 0x0
+      },
+      rb_leftmost = 0x0
+    },
+    curr = 0xffff402007f269c0,
+    next = 0x0,
+    nr_spread_over = 0,
+    avg = {
+      last_update_time = 1456110375936,
+      load_sum = 92967833,
+      runnable_sum = 94513777,
+      util_sum = 21621583,
+      period_contrib = 69,
+      load_avg = 1987,
+      runnable_avg = 2020,
+      util_avg = 461,
+      util_est = {
+        enqueued = 0,
+        ewma = 0
+      }
+    },
+    removed = {
+      lock = {
+        raw_lock = {
+          {
+            val = {
+              counter = 0
+            },
+            {
+              locked = 0 '\000',
+              pending = 0 '\000'
+            },
+            {
+              locked_pending = 0,
+              tail = 0
+            }
+          }
+        }
+      },
+      nr = 1,
+      load_avg = 804,
+      util_avg = 171,
+      runnable_avg = 805
+    },
+    tg_load_avg_contrib = 0,
+    propagate = 1,
+    prop_runnable_sum = 24520414,
+    h_load = 2110,
+    last_h_load_update = 4295256344,
+    h_load_next = 0x0,
+    rq = 0xffff8000817dd6c0,
+    on_list = 1,
+    leaf_cfs_rq_list = {
+      next = 0xffff8000817de0b0,
+      prev = 0xffff8000817de0b0
+    },
+    tg = 0xffffd7706a6220c0 <root_task_group>,
+    idle = 0,
+    runtime_enabled = 0,
+    runtime_remaining = 0,
+    throttled_pelt_idle = 0,
+    throttled_clock = 0,
+    throttled_clock_pelt = 0,
+    throttled_clock_pelt_time = 0,
+    throttled_clock_self = 0,
+    throttled_clock_self_time = 0,
+    throttled = 0,
+    throttle_count = 0,
+    throttled_list = {
+      next = 0xffff8000817dd8e0,
+      prev = 0xffff8000817dd8e0
+    },
+    throttled_csd_list = {
+      next = 0xffff8000817dd8f0,
+      prev = 0xffff8000817dd8f0
+    },
+    qos_throttled_list = {
+      next = 0xffff8000817dd900,
+      prev = 0xffff8000817dd900
+    },
+    {
+      qos_idle_h_nr_running = 0,
+      qos_idle_h_nr_running_padding = 0
+    },
+    {
+      soft_quota_enable = 0,
+      kabi_hidden_833 = {
+        kabi_reserved1 = 0
+      },
+      {<No data fields>}
+    },
+    {
+      sum_soft_runtime = 0,
+      kabi_hidden_834 = {
+        kabi_reserved2 = 0
+      },
+      {<No data fields>}
+    },
+    {
+      soft_quota_throttled_list = {
+        next = 0xffff8000817dd928,
+        prev = 0xffff8000817dd928
+      },
+      kabi_hidden_835 = {
+        kabi_reserved3 = 18446603338393704744,
+        kabi_reserved4 = 18446603338393704744
+      },
+      {<No data fields>}
+    },
+    kabi_reserved5 = 0,
+    kabi_reserved6 = 0,
+    kabi_reserved7 = 0,
+    kabi_reserved8 = 0
+  },
+  rt = {
+    active = {
+      bitmap = {0, 68719476736},
+      queue = {{
+          next = 0xffff8000817dd990,
+          prev = 0xffff8000817dd990
+        }, {
+          next = 0xffff8000817dd9a0,
+          prev = 0xffff8000817dd9a0
+        }, {
+          next = 0xffff8000817dd9b0,
+          prev = 0xffff8000817dd9b0
+        }, {
+          next = 0xffff8000817dd9c0,
+          prev = 0xffff8000817dd9c0
+        }, {
+          next = 0xffff8000817dd9d0,
+          prev = 0xffff8000817dd9d0
+        }, {
+          next = 0xffff8000817dd9e0,
+          prev = 0xffff8000817dd9e0
+        }, {
+          next = 0xffff8000817dd9f0,
+          prev = 0xffff8000817dd9f0
+        }, {
+          next = 0xffff8000817dda00,
+          prev = 0xffff8000817dda00
+        }, {
+          next = 0xffff8000817dda10,
+          prev = 0xffff8000817dda10
+        }, {
+          next = 0xffff8000817dda20,
+          prev = 0xffff8000817dda20
+        }, {
+          next = 0xffff8000817dda30,
+          prev = 0xffff8000817dda30
+        }, {
+          next = 0xffff8000817dda40,
+          prev = 0xffff8000817dda40
+        }, {
+          next = 0xffff8000817dda50,
+          prev = 0xffff8000817dda50
+        }, {
+          next = 0xffff8000817dda60,
+          prev = 0xffff8000817dda60
+        }, {
+          next = 0xffff8000817dda70,
+          prev = 0xffff8000817dda70
+        }, {
+          next = 0xffff8000817dda80,
+          prev = 0xffff8000817dda80
+        }, {
+          next = 0xffff8000817dda90,
+          prev = 0xffff8000817dda90
+        }, {
+          next = 0xffff8000817ddaa0,
+          prev = 0xffff8000817ddaa0
+        }, {
+          next = 0xffff8000817ddab0,
+          prev = 0xffff8000817ddab0
+        }, {
+          next = 0xffff8000817ddac0,
+          prev = 0xffff8000817ddac0
+        }, {
+          next = 0xffff8000817ddad0,
+          prev = 0xffff8000817ddad0
+        }, {
+          next = 0xffff8000817ddae0,
+          prev = 0xffff8000817ddae0
+        }, {
+          next = 0xffff8000817ddaf0,
+          prev = 0xffff8000817ddaf0
+        }, {
+          next = 0xffff8000817ddb00,
+          prev = 0xffff8000817ddb00
+        }, {
+          next = 0xffff8000817ddb10,
+          prev = 0xffff8000817ddb10
+        }, {
+          next = 0xffff8000817ddb20,
+          prev = 0xffff8000817ddb20
+        }, {
+          next = 0xffff8000817ddb30,
+          prev = 0xffff8000817ddb30
+        }, {
+          next = 0xffff8000817ddb40,
+          prev = 0xffff8000817ddb40
+        }, {
+          next = 0xffff8000817ddb50,
+          prev = 0xffff8000817ddb50
+        }, {
+          next = 0xffff8000817ddb60,
+          prev = 0xffff8000817ddb60
+        }, {
+          next = 0xffff8000817ddb70,
+          prev = 0xffff8000817ddb70
+        }, {
+          next = 0xffff8000817ddb80,
+          prev = 0xffff8000817ddb80
+        }, {
+          next = 0xffff8000817ddb90,
+          prev = 0xffff8000817ddb90
+        }, {
+          next = 0xffff8000817ddba0,
+          prev = 0xffff8000817ddba0
+        }, {
+          next = 0xffff8000817ddbb0,
+          prev = 0xffff8000817ddbb0
+        }, {
+          next = 0xffff8000817ddbc0,
+          prev = 0xffff8000817ddbc0
+        }, {
+          next = 0xffff8000817ddbd0,
+          prev = 0xffff8000817ddbd0
+        }, {
+          next = 0xffff8000817ddbe0,
+          prev = 0xffff8000817ddbe0
+        }, {
+          next = 0xffff8000817ddbf0,
+          prev = 0xffff8000817ddbf0
+        }, {
+          next = 0xffff8000817ddc00,
+          prev = 0xffff8000817ddc00
+        }, {
+          next = 0xffff8000817ddc10,
+          prev = 0xffff8000817ddc10
+        }, {
+          next = 0xffff8000817ddc20,
+          prev = 0xffff8000817ddc20
+        }, {
+          next = 0xffff8000817ddc30,
+          prev = 0xffff8000817ddc30
+        }, {
+          next = 0xffff8000817ddc40,
+          prev = 0xffff8000817ddc40
+        }, {
+          next = 0xffff8000817ddc50,
+          prev = 0xffff8000817ddc50
+        }, {
+          next = 0xffff8000817ddc60,
+          prev = 0xffff8000817ddc60
+        }, {
+          next = 0xffff8000817ddc70,
+          prev = 0xffff8000817ddc70
+        }, {
+          next = 0xffff8000817ddc80,
+          prev = 0xffff8000817ddc80
+        }, {
+          next = 0xffff8000817ddc90,
+          prev = 0xffff8000817ddc90
+        }, {
+          next = 0xffff8000817ddca0,
+          prev = 0xffff8000817ddca0
+        }, {
+          next = 0xffff8000817ddcb0,
+          prev = 0xffff8000817ddcb0
+        }, {
+          next = 0xffff8000817ddcc0,
+          prev = 0xffff8000817ddcc0
+        }, {
+          next = 0xffff8000817ddcd0,
+          prev = 0xffff8000817ddcd0
+        }, {
+          next = 0xffff8000817ddce0,
+          prev = 0xffff8000817ddce0
+        }, {
+          next = 0xffff8000817ddcf0,
+          prev = 0xffff8000817ddcf0
+        }, {
+          next = 0xffff8000817ddd00,
+          prev = 0xffff8000817ddd00
+        }, {
+          next = 0xffff8000817ddd10,
+          prev = 0xffff8000817ddd10
+        }, {
+          next = 0xffff8000817ddd20,
+          prev = 0xffff8000817ddd20
+        }, {
+          next = 0xffff8000817ddd30,
+          prev = 0xffff8000817ddd30
+        }, {
+          next = 0xffff8000817ddd40,
+          prev = 0xffff8000817ddd40
+        }, {
+          next = 0xffff8000817ddd50,
+          prev = 0xffff8000817ddd50
+        }, {
+          next = 0xffff8000817ddd60,
+          prev = 0xffff8000817ddd60
+        }, {
+          next = 0xffff8000817ddd70,
+          prev = 0xffff8000817ddd70
+        }, {
+          next = 0xffff8000817ddd80,
+          prev = 0xffff8000817ddd80
+        }, {
+          next = 0xffff8000817ddd90,
+          prev = 0xffff8000817ddd90
+        }, {
+          next = 0xffff8000817ddda0,
+          prev = 0xffff8000817ddda0
+        }, {
+          next = 0xffff8000817dddb0,
+          prev = 0xffff8000817dddb0
+        }, {
+          next = 0xffff8000817dddc0,
+          prev = 0xffff8000817dddc0
+        }, {
+          next = 0xffff8000817dddd0,
+          prev = 0xffff8000817dddd0
+        }, {
+          next = 0xffff8000817ddde0,
+          prev = 0xffff8000817ddde0
+        }, {
+          next = 0xffff8000817dddf0,
+          prev = 0xffff8000817dddf0
+        }, {
+          next = 0xffff8000817dde00,
+          prev = 0xffff8000817dde00
+        }, {
+          next = 0xffff8000817dde10,
+          prev = 0xffff8000817dde10
+        }, {
+          next = 0xffff8000817dde20,
+          prev = 0xffff8000817dde20
+        }, {
+          next = 0xffff8000817dde30,
+          prev = 0xffff8000817dde30
+        }, {
+          next = 0xffff8000817dde40,
+          prev = 0xffff8000817dde40
+        }, {
+          next = 0xffff8000817dde50,
+          prev = 0xffff8000817dde50
+        }, {
+          next = 0xffff8000817dde60,
+          prev = 0xffff8000817dde60
+        }, {
+          next = 0xffff8000817dde70,
+          prev = 0xffff8000817dde70
+        }, {
+          next = 0xffff8000817dde80,
+          prev = 0xffff8000817dde80
+        }, {
+          next = 0xffff8000817dde90,
+          prev = 0xffff8000817dde90
+        }, {
+          next = 0xffff8000817ddea0,
+          prev = 0xffff8000817ddea0
+        }, {
+          next = 0xffff8000817ddeb0,
+          prev = 0xffff8000817ddeb0
+        }, {
+          next = 0xffff8000817ddec0,
+          prev = 0xffff8000817ddec0
+        }, {
+          next = 0xffff8000817dded0,
+          prev = 0xffff8000817dded0
+        }, {
+          next = 0xffff8000817ddee0,
+          prev = 0xffff8000817ddee0
+        }, {
+          next = 0xffff8000817ddef0,
+          prev = 0xffff8000817ddef0
+        }, {
+          next = 0xffff8000817ddf00,
+          prev = 0xffff8000817ddf00
+        }, {
+          next = 0xffff8000817ddf10,
+          prev = 0xffff8000817ddf10
+        }, {
+          next = 0xffff8000817ddf20,
+          prev = 0xffff8000817ddf20
+        }, {
+          next = 0xffff8000817ddf30,
+          prev = 0xffff8000817ddf30
+        }, {
+          next = 0xffff8000817ddf40,
+          prev = 0xffff8000817ddf40
+        }, {
+          next = 0xffff8000817ddf50,
+          prev = 0xffff8000817ddf50
+        }, {
+          next = 0xffff8000817ddf60,
+          prev = 0xffff8000817ddf60
+        }, {
+          next = 0xffff8000817ddf70,
+          prev = 0xffff8000817ddf70
+        }, {
+          next = 0xffff8000817ddf80,
+          prev = 0xffff8000817ddf80
+        }, {
+          next = 0xffff8000817ddf90,
+          prev = 0xffff8000817ddf90
+        }, {
+          next = 0xffff8000817ddfa0,
+          prev = 0xffff8000817ddfa0
+        }, {
+          next = 0xffff8000817ddfb0,
+          prev = 0xffff8000817ddfb0
+        }, {
+          next = 0xffff8000817ddfc0,
+          prev = 0xffff8000817ddfc0
+        }}
+    },
+    rt_nr_running = 0,
+    rr_nr_running = 0,
+    highest_prio = {
+      curr = 99,
+      next = 99
+    },
+    rt_nr_migratory = 0,
+    rt_nr_total = 0,
+    overloaded = 0,
+    pushable_tasks = {
+      node_list = {
+        next = 0xffff8000817ddff0,
+        prev = 0xffff8000817ddff0
+      }
+    },
+    rt_queued = 0,
+    rt_throttled = 0,
+    rt_time = 0,
+    rt_runtime = 950000000,
+    rt_runtime_lock = {
+      raw_lock = {
+        {
+          val = {
+            counter = 0
+          },
+          {
+            locked = 0 '\000',
+            pending = 0 '\000'
+          },
+          {
+            locked_pending = 0,
+            tail = 0
+          }
+        }
+      }
+    },
+    rt_nr_boosted = 0,
+    rq = 0xffff8000817dd6c0,
+    tg = 0xffffd7706a6220c0 <root_task_group>,
+    kabi_reserved1 = 0,
+    kabi_reserved2 = 0
+  },
+  dl = {
+    root = {
+      rb_root = {
+        rb_node = 0x0
+      },
+      rb_leftmost = 0x0
+    },
+    dl_nr_running = 0,
+    earliest_dl = {
+      curr = 0,
+      next = 0
+    },
+    dl_nr_migratory = 0,
+    overloaded = 0,
+    pushable_dl_tasks_root = {
+      rb_root = {
+        rb_node = 0x0
+      },
+      rb_leftmost = 0x0
+    },
+    running_bw = 0,
+    this_bw = 0,
+    extra_bw = 996147,
+    max_bw = 996147,
+    bw_ratio = 269
+  },
+  cfs_overload_cpus = 0xffff60400441a800,
+  leaf_cfs_rq_list = {
+    next = 0xffff8000817dd880,
+    prev = 0xffff8000817dd880
+  },
+  tmp_alone_branch = 0xffff8000817de0b0,
+  nr_uninterruptible = 4294967291,
+  curr = 0xffff402007f26900,
+  idle = 0xffff6040032e0000,
+  stop = 0xffff604003bb3f00,
+  next_balance = 4295256347,
+  prev_mm = 0x0,
+  clock_update_flags = 4,
+  clock = 1456227900840,
+  clock_task = 1456110376280,
+  clock_pelt = 1456110376280,
+  lost_idle_time = 0,
+  clock_pelt_idle = 1456109230370,
+  clock_idle = 1456226729550,
+  nr_iowait = {
+    counter = 0
+  },
+  last_seen_need_resched_ns = 0,
+  ticks_without_resched = 0,
+  membarrier_state = 0,
+  rd = 0xffff002026190000,
+  sd = 0xffff604004407000,
+  cpu_capacity = 1020,
+  cpu_capacity_orig = 1024,
+  balance_callback = 0x0,
+  nohz_idle_balance = 0 '\000',
+  idle_balance = 1 '\001',
+  misfit_task_load = 0,
+  active_balance = 0,
+  push_cpu = 0,
+  active_balance_work = {
+    list = {
+      next = 0x0,
+      prev = 0x0
+    },
+    fn = 0x0,
+    caller = 0,
+    arg = 0x0,
+    done = 0x0,
+    kabi_reserved1 = 0,
+    kabi_reserved2 = 0
+  },
+  cpu = 179,
+  online = 1,
+  cfs_tasks = {
+    next = 0xffff8000817de208,
+    prev = 0xffff8000817de208
+  },
+  cfs_offline_tasks = {
+    next = 0xffff8000817de218,
+    prev = 0xffff8000817de218
+  },
+  avg_rt = {
+    last_update_time = 1456110375936,
+    load_sum = 0,
+    runnable_sum = 0,
+    util_sum = 0,
+    period_contrib = 69,
+    load_avg = 0,
+    runnable_avg = 0,
+    util_avg = 0,
+    util_est = {
+      enqueued = 0,
+      ewma = 0
+    }
+  },
+  avg_dl = {
+    last_update_time = 1456110375936,
+    load_sum = 0,
+    runnable_sum = 0,
+    util_sum = 0,
+    period_contrib = 69,
+    load_avg = 0,
+    runnable_avg = 0,
+    util_avg = 0,
+    util_est = {
+      enqueued = 0,
+      ewma = 0
+    }
+  },
+  avg_irq = {
+    last_update_time = 1456227900416,
+    load_sum = 194,
+    runnable_sum = 215366,
+    util_sum = 215366,
+    period_contrib = 151,
+    load_avg = 0,
+    runnable_avg = 4,
+    util_avg = 4,
+    util_est = {
+      enqueued = 0,
+      ewma = 0
+    }
+  },
+  avg_thermal = {
+    last_update_time = 1456110375936,
+    load_sum = 0,
+    runnable_sum = 0,
+    util_sum = 0,
+    period_contrib = 69,
+    load_avg = 0,
+    runnable_avg = 0,
+    util_avg = 0,
+    util_est = {
+      enqueued = 0,
+      ewma = 0
+    }
+  },
+  idle_stamp = 1456227900290,
+  avg_idle = 788435,
+  wake_stamp = 4295256345,
+  wake_avg_idle = 394217,
+  max_idle_balance_cost = 500000,
+  hotplug_wait = {
+    task = 0x0
+  },
+  prev_irq_time = 117524560,
+  prev_steal_time = 0,
+  prev_steal_time_rq = 0,
+  calc_load_update = 4295257588,
+  calc_load_active = -5,
+  hrtick_csd = {
+    node = {
+      llist = {
+        next = 0x0
+      },
+      {
+        u_flags = 0,
+        a_flags = {
+          counter = 0
+        }
+      },
+      src = 0,
+      dst = 0
+    },
+    func = 0xffffd77068217d58 <__hrtick_start>,
+    info = 0xffff8000817dd6c0
+  },
+  hrtick_timer = {
+    node = {
+      node = {
+        __rb_parent_color = 18446603338393707456,
+        rb_right = 0x0,
+        rb_left = 0x0
+      },
+      expires = 0
+    },
+    _softexpires = 0,
+    function = 0xffffd77068218f30 <hrtick>,
+    base = 0xffff800080006d40,
+    state = 0 '\000',
+    is_rel = 0 '\000',
+    is_soft = 0 '\000',
+    is_hard = 1 '\001',
+    kabi_reserved1 = 0,
+    kabi_reserved2 = 0
+  },
+  hrtick_time = 0,
+  rq_sched_info = {
+    pcount = 32505,
+    run_delay = 883082610,
+    last_arrival = 0,
+    last_queued = 0,
+    kabi_reserved1 = 0,
+    kabi_reserved2 = 0
+  },
+  rq_cpu_time = 3399435850,
+  yld_count = 0,
+  sched_count = 0,
+  sched_goidle = 0,
+  ttwu_count = 0,
+  ttwu_local = 0,
+  found_idle_cpu_capacity = 0,
+  found_idle_cpu = 0,
+  found_idle_cpu_easy = 0,
+  nofound_idle_cpu = 0,
+  find_time = 0,
+  steal = 0,
+  steal_fail = 0,
+  idle_state = 0x0,
+  nr_pinned = 0,
+  push_busy = 0,
+  push_work = {
+    list = {
+      next = 0x0,
+      prev = 0x0
+    },
+    fn = 0x0,
+    caller = 0,
+    arg = 0x0,
+    done = 0x0,
+    kabi_reserved1 = 0,
+    kabi_reserved2 = 0
+  },
+  scratch_mask = {{
+      bits = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
+    }},
+  cfsb_csd = {
+    node = {
+      llist = {
+        next = 0x0
+      },
+      {
+        u_flags = 0,
+        a_flags = {
+          counter = 0
+        }
+      },
+      src = 0,
+      dst = 0
+    },
+    func = 0xffffd77068237288 <__cfsb_csd_unthrottle>,
+    info = 0xffff8000817dd6c0
+  },
+  cfsb_csd_list = {
+    next = 0xffff8000817de700,
+    prev = 0xffff8000817de700
+  },
+  kabi_reserved1 = 0,
+  kabi_reserved2 = 0,
+  kabi_reserved3 = 0,
+  kabi_reserved4 = 0,
+  kabi_reserved5 = 0,
+  kabi_reserved6 = 0,
+  kabi_reserved7 = 0,
+  kabi_reserved8 = 0,
+  scx = {
+    local_dsq = {
+      lock = {
+        raw_lock = {
+          {
+            val = {
+              counter = 0
+            },
+            {
+              locked = 0 '\000',
+              pending = 0 '\000'
+            },
+            {
+              locked_pending = 0,
+              tail = 0
+            }
+          }
+        }
+      },
+      list = {
+        next = 0xffff8000817de758,
+        prev = 0xffff8000817de758
+      },
+      priq = {
+        rb_node = 0x0
+      },
+      nr = 0,
+      seq = 0,
+      id = 9223372036854775810,
+      hash_node = {
+        next = 0x0
+      },
+      free_node = {
+        next = 0x0
+      },
+      rcu = {
+        next = 0x0,
+        func = 0x0
+      }
+    },
+    runnable_list = {
+      next = 0xffff8000817de7a0,
+      prev = 0xffff8000817de7a0
+    },
+    ddsp_deferred_locals = {
+      next = 0xffff8000817de7b0,
+      prev = 0xffff8000817de7b0
+    },
+    ops_qseq = 0,
+    extra_enq_flags = 0,
+    nr_running = 0,
+    cpuperf_target = 0,
+    cpu_released = false,
+    flags = 1,
+    clock = 0,
+    cpus_to_kick = {{
+        bits = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
+      }},
+    cpus_to_kick_if_idle = {{
+        bits = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
+      }},
+    cpus_to_preempt = {{
+        bits = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
+      }},
+    cpus_to_wait = {{
+        bits = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
+      }},
+    cpus_to_sync = {{
+        bits = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
+      }},
+    kick_sync_pending = false,
+    pnt_seq = 0,
+    deferred_bal_cb = {
+      next = 0x0,
+      func = 0x0
+    },
+    kick_sync_bal_cb = {
+      next = 0x0,
+      func = 0x0
+    },
+    deferred_irq_work = {
+      node = {
+        llist = {
+          next = 0x0
+        },
+        {
+          u_flags = 0,
+          a_flags = {
+            counter = 0
+          }
+        },
+        src = 0,
+        dst = 0
+      },
+      func = 0xffffd7706824efb8 <deferred_irq_workfn>,
+      irqwait = {
+        task = 0x0
+      },
+      kabi_reserved1 = 0,
+      kabi_reserved2 = 0,
+      kabi_reserved3 = 0,
+      kabi_reserved4 = 0
+    },
+    kick_cpus_irq_work = {
+      node = {
+        llist = {
+          next = 0x0
+        },
+        {
+          u_flags = 0,
+          a_flags = {
+            counter = 0
+          }
+        },
+        src = 0,
+        dst = 0
+      },
+      func = 0xffffd77068242998 <kick_cpus_irq_workfn>,
+      irqwait = {
+        task = 0x0
+      },
+      kabi_reserved1 = 0,
+      kabi_reserved2 = 0,
+      kabi_reserved3 = 0,
+      kabi_reserved4 = 0
+    },
+    bypass_dsq = {
+      lock = {
+        raw_lock = {
+          {
+            val = {
+              counter = 0
+            },
+            {
+              locked = 0 '\000',
+              pending = 0 '\000'
+            },
+            {
+              locked_pending = 0,
+              tail = 0
+            }
+          }
+        }
+      },
+      list = {
+        next = 0xffff8000817df2a0,
+        prev = 0xffff8000817df2a0
+      },
+      priq = {
+        rb_node = 0x0
+      },
+      nr = 0,
+      seq = 0,
+      id = 9223372036854775811,
+      hash_node = {
+        next = 0x0
+      },
+      free_node = {
+        next = 0x0
+      },
+      rcu = {
+        next = 0x0,
+        func = 0x0
+      }
+    }
+  }
+}
+crash> p ((struct rq *)&runqueues)->cpu
+p: page excluded: kernel virtual address: ffffd77069c6a200  type: "gdb_readmem callback"
+p: gdb request failed: p ((struct rq *)&runqueues)->cpu
+crash> px &__per_cpu_offset[96]
+$13 = (unsigned long *) 0xffffd7706a0658d0 <__per_cpu_offset+768>
+crash> px &__per_cpu_offset[98]
+$14 = (unsigned long *) 0xffffd7706a0658e0 <__per_cpu_offset+784>
+crash> quit
