@@ -1,0 +1,29 @@
+{
+  "cli_version": "0.10.2",
+  "checkpoint_id": "01M1PEMJP1FGK061YPS41MG5KF",
+  "strategy": "manual-commit",
+  "branch": "fix/fi-tool-correctness",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "artifacts/iq_f6_phase_curve_cholesky/heatmap.csv",
+    "artifacts/iq_f6_phase_curve_cholesky/summary.md",
+    "campaigns/§2.5-iq-f6-curve-chol.yaml",
+    "progress.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 1303120,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 1185,
+    "api_call_count": 5
+  }
+}
