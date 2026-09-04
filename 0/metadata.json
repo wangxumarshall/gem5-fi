@@ -1,0 +1,212 @@
+{
+  "cli_version": "0.10.2",
+  "checkpoint_id": "01M1MYZZTA8V4MRHRFXQBVF1FZ",
+  "session_id": "bb18f39f-5c41-4985-a435-26120c7e1484",
+  "strategy": "manual-commit",
+  "created_at": "2026-09-04T01:02:16.828341126Z",
+  "branch": "fix/fi-tool-correctness",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "artifacts/prf_bitseg_pilot/heatmap.csv",
+    "artifacts/prf_bitseg_pilot/summary.md",
+    "campaigns/§2.1-prf-bitseg-pilot.yaml",
+    "progress.md"
+  ],
+  "agent": "Claude Code",
+  "model": "GLM-5.3[1m]",
+  "turn_id": "b7a3c1e37800",
+  "checkpoint_transcript_start": 2221,
+  "transcript_lines_at_start": 2221,
+  "compact_transcript_start": 350,
+  "token_usage": {
+    "input_tokens": 24949411,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 7421,
+    "api_call_count": 80
+  },
+  "skill_events_version": 1,
+  "skill_events": [
+    {
+      "id": "prompt-skill-claude-code-planning-with-files-2026-09-03T07:44:26.263791342Z",
+      "event_type": "prompt_invocation",
+      "skill": {
+        "name": "planning-with-files"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "prompt_slash_command",
+        "confidence": "explicit"
+      },
+      "turn_id": "12bf5382bf01",
+      "timestamp": "2026-09-03T07:44:26.263791342Z",
+      "native": {
+        "command": "/planning-with-files"
+      },
+      "collapse": {
+        "target": "user_message",
+        "label": "/planning-with-files",
+        "default_collapsed": true
+      }
+    },
+    {
+      "id": "prompt-skill-claude-code-planning-with-files-2026-09-03T07:48:50.462503195Z",
+      "event_type": "prompt_invocation",
+      "skill": {
+        "name": "planning-with-files"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "prompt_slash_command",
+        "confidence": "explicit"
+      },
+      "turn_id": "2da7a85c3180",
+      "timestamp": "2026-09-03T07:48:50.462503195Z",
+      "native": {
+        "command": "/planning-with-files"
+      },
+      "collapse": {
+        "target": "user_message",
+        "label": "/planning-with-files",
+        "default_collapsed": true
+      }
+    },
+    {
+      "id": "prompt-skill-claude-code-goal-2026-09-03T08:42:37.670597255Z",
+      "event_type": "prompt_invocation",
+      "skill": {
+        "name": "goal"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "prompt_slash_command",
+        "confidence": "explicit"
+      },
+      "turn_id": "0bb4358dd1b6",
+      "timestamp": "2026-09-03T08:42:37.670597255Z",
+      "native": {
+        "command": "/goal"
+      },
+      "collapse": {
+        "target": "user_message",
+        "label": "/goal",
+        "default_collapsed": true
+      }
+    },
+    {
+      "id": "prompt-skill-claude-code-goal-2026-09-03T11:46:52.474425826Z",
+      "event_type": "prompt_invocation",
+      "skill": {
+        "name": "goal"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "prompt_slash_command",
+        "confidence": "explicit"
+      },
+      "turn_id": "37132c8135a9",
+      "timestamp": "2026-09-03T11:46:52.474425826Z",
+      "native": {
+        "command": "/goal"
+      },
+      "collapse": {
+        "target": "user_message",
+        "label": "/goal",
+        "default_collapsed": true
+      }
+    },
+    {
+      "id": "prompt-skill-claude-code-goal-2026-09-04T00:59:50.873524317Z",
+      "event_type": "prompt_invocation",
+      "skill": {
+        "name": "goal"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "prompt_slash_command",
+        "confidence": "explicit"
+      },
+      "turn_id": "b7a3c1e37800",
+      "timestamp": "2026-09-04T00:59:50.873524317Z",
+      "native": {
+        "command": "/goal"
+      },
+      "collapse": {
+        "target": "user_message",
+        "label": "/goal",
+        "default_collapsed": true
+      }
+    }
+  ],
+  "session_metrics": {
+    "turn_count": 2
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-09-04T01:02:16.388814657Z",
+    "agent_lines": 15,
+    "agent_removed": 0,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 15,
+    "total_lines_changed": 15,
+    "agent_percentage": 100,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 594,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".plan.md": 61,
+        "CHAOS/gem5/configs/ruby/CHAOSNoC_test.py": 14,
+        "CHAOS/gem5/configs/ruby_chi_test.py": 29,
+        "CHAOS/gem5/configs/ruby_noctest_launcher.py": 16,
+        "artifacts/bpu_branchy_pilot/heatmap.csv": 2,
+        "artifacts/bpu_branchy_pilot/summary.md": 19,
+        "artifacts/decode_regchain_pilot/heatmap.csv": 2,
+        "artifacts/decode_regchain_pilot/summary.md": 19,
+        "artifacts/exec_regchain_pilot/heatmap.csv": 2,
+        "artifacts/exec_regchain_pilot/summary.md": 19,
+        "artifacts/exmon_spinlock_pilot/heatmap.csv": 2,
+        "artifacts/exmon_spinlock_pilot/summary.md": 19,
+        "artifacts/fpu_neon_pilot/heatmap.csv": 2,
+        "artifacts/fpu_neon_pilot/summary.md": 19,
+        "artifacts/iq_cholesky_pilot/heatmap.csv": 2,
+        "artifacts/iq_cholesky_pilot/summary.md": 19,
+        "artifacts/l1d_formal_reduce/heatmap.csv": 2,
+        "artifacts/l1d_formal_reduce/summary.md": 19,
+        "artifacts/l1d_reduce_pilot/heatmap.csv": 2,
+        "artifacts/l1d_reduce_pilot/summary.md": 19,
+        "artifacts/lsqfwd_fwd_pilot/heatmap.csv": 2,
+        "artifacts/lsqfwd_fwd_pilot/summary.md": 19,
+        "artifacts/lsqfwd_regchain_pilot/heatmap.csv": 2,
+        "artifacts/lsqfwd_regchain_pilot/summary.md": 19,
+        "artifacts/mem_regchain_pilot/heatmap.csv": 2,
+        "artifacts/mem_regchain_pilot/summary.md": 19,
+        "artifacts/pilot_physreg_x3/heatmap.csv": 2,
+        "artifacts/pilot_physreg_x3/summary.md": 19,
+        "artifacts/prf_bitseg_pilot/heatmap.csv": 13,
+        "artifacts/prf_bitseg_pilot/summary.md": 30,
+        "artifacts/prf_formal_cholesky/heatmap.csv": 3,
+        "artifacts/prf_formal_cholesky/summary.md": 20,
+        "artifacts/prf_regchain_pilot/heatmap.csv": 3,
+        "artifacts/prf_regchain_pilot/summary.md": 20,
+        "artifacts/ras_regchain_pilot/heatmap.csv": 2,
+        "artifacts/ras_regchain_pilot/summary.md": 19,
+        "artifacts/rat_cholesky_pilot/heatmap.csv": 3,
+        "artifacts/rat_cholesky_pilot/summary.md": 20,
+        "artifacts/rat_formal_cholesky/heatmap.csv": 3,
+        "artifacts/rat_formal_cholesky/summary.md": 20,
+        "artifacts/rob_cholesky_pilot/heatmap.csv": 2,
+        "artifacts/rob_cholesky_pilot/summary.md": 19,
+        "artifacts/rob_formal_cholesky/heatmap.csv": 2,
+        "artifacts/rob_formal_cholesky/summary.md": 19,
+        "campaigns/§2.1-prf-bitseg-pilot.yaml": 24
+      }
+    }
+  ]
+}
