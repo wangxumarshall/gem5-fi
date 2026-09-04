@@ -1790,3 +1790,7 @@ PRF X3 的跨 workload 复现有特殊意义：cholesky 上 X3 是低频消费�
 **对照 method1 现场假设**："投机泄漏→SDC" 需要**泄漏值恰好被正确路径消费**——即错误路径写发生在正确路径读之前、且正确路径不重写该寄存器。这对应**长活寄存器**（long-lived accumulator，method1 的 X19-X28 callee-saved 类）而非 X3 这类短命循环变量。**下一 cell**：X19-X28（callee-saved 长活类）上的 spec_leak——泄漏值存活窗口跨 squash 边界才可能被消费。
 
 **与 RAT 三模式的格局对照**：rename 子系统四个注入点全部 0% SDC（map_bitflip 95.8% DUE / f5_substitute 59.7% DUE+40% 自愈 / mark_free 72-77% DUE / spec_leak 100% Masked）——**§2.2/§2.3 的 rename 错误在这个 workload 族上没有 SDC 通路**，method1 的"历史残留"机理需要更精确的触发条件（长活寄存器 + 消费窗口对齐）。
+
+### Phase 4.1b 结果: spec_leak X19（callee-saved 长活类）— 384/384 Inactive，事件流不可达
+
+branchy_reduce 上 X19 的 squash 回滚事件流为空（callee-saved 类不频繁重定义 → HB 回滚循环里没有 X19 条目）→ 384/384 Inactive（faults=0，诚实记录）。**两难暴露**：短命寄存器（X3/X9）可达但泄漏被重写覆盖；长活寄存器（X19）泄漏可能存活但 squash 事件流里不可达。**"泄漏值存活 × 回滚可达"在 SE 基准 workload 上互斥**——method1 的投机泄漏 SDC 通路需要在 wrong-path 上写 X19 类寄存器的 workload（如含 mispredict 密集的函数调用流）。这留给 method1 专用 workload（fi_research 侧）或 FS 场景；SE 侧 spec_leak 的结论定格为：**单次回滚抑制在可达寄存器上 100% Masked（n=384 上界 1%）**。
