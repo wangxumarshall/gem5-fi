@@ -388,7 +388,13 @@ def main():
             sys.exit("[runner] component 'l1_tlb' requires platform."
                      "config_family='C0-FS' (arm_chaos_fs.py, needs gem5-fs "
                      "kernel/disk/bootloader). Aborting.")
+        # §2.10 F5 (Phase 4.4): legal_domain_sub -> pfn_to_mapped_page
+        # (substitute with another mapped entry's pfn — silent wrong-page
+        # access; the method2 silent-SDC pathway). Default bit_flip.
+        tf = {"legal_domain_sub": "pfn_to_mapped_page"}.get(
+            inj["model"], "bit_flip")
         cmd += ["--chaos_armtlb", "--tlb_probability", "1.0",
+                "--tlb_fault_type", tf,
                 "--tlb_first_clock", str(t["value"]),
                 "--tlb_max_faults", str(m["limits"]["max_faults"]),
                 "--tlb_rng_seed", str(m["rng"]["selection_seed"])]
@@ -397,7 +403,13 @@ def main():
         if cfg_family != "C0-FS":
             sys.exit("[runner] component 'sysreg' requires platform."
                      "config_family='C0-FS'. Aborting.")
+        # §2.10 F5 (Phase 4.5): legal_domain_sub -> value_to_legal
+        # (substitute the MRS-read value with another whitelisted sysreg's
+        # current value — silent misconfiguration). Default bit_flip.
+        sf = {"legal_domain_sub": "value_to_legal"}.get(
+            inj["model"], "bit_flip")
         cmd += ["--chaos_sysreg", "--sysreg_probability", "1.0",
+                "--sysreg_fault_type", sf,
                 "--sysreg_first_clock", str(t["value"]),
                 "--sysreg_max_faults", str(m["limits"]["max_faults"]),
                 "--sysreg_rng_seed", str(m["rng"]["selection_seed"])]

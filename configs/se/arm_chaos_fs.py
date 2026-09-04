@@ -62,6 +62,11 @@ p.add_argument("--tlb_first_clock", type=lambda x:int(x,0), default=100000,
                help="CHAOSArmTLB first clock cycle eligible for injection")
 p.add_argument("--tlb_probability", type=float, default=0.0,
                help="CHAOSArmTLB per-lookup injection probability")
+p.add_argument("--tlb_fault_type", default="bit_flip",
+               choices=["bit_flip", "stuck_at_zero", "stuck_at_one",
+                        "random", "pfn_to_mapped_page"],
+               help="CHAOSArmTLB fault type; pfn_to_mapped_page = §2.10 F5 "
+                    "(substitute with another mapped entry's pfn)")
 p.add_argument("--tlb_max_faults", type=lambda x:int(x,0), default=1,
                help="CHAOSArmTLB max faults; 1 for single-fault")
 p.add_argument("--tlb_fault_mask", type=lambda x:int(x,0), default=0,
@@ -82,6 +87,11 @@ p.add_argument("--chaos_sysreg", action="store_true",
                help="attach CHAOSArmSysReg (ARM system-register read-path "
                     "corruptor, FS only)")
 p.add_argument("--sysreg_first_clock", type=lambda x:int(x,0), default=100000)
+p.add_argument("--sysreg_fault_type", default="bit_flip",
+               choices=["bit_flip", "stuck_at_zero", "stuck_at_one",
+                        "random", "value_to_legal"],
+               help="CHAOSArmSysReg fault type; value_to_legal = §2.10 F5 "
+                    "(substitute with another whitelisted sysreg's value)")
 p.add_argument("--sysreg_probability", type=float, default=0.0)
 p.add_argument("--sysreg_max_faults", type=lambda x:int(x,0), default=1)
 p.add_argument("--sysreg_fault_mask", type=lambda x:int(x,0), default=0)
@@ -155,7 +165,7 @@ if args.chaos_armtlb or args.chaos_sysreg:
             tlb=dtb,
             probability=args.tlb_probability,
             firstClock=args.tlb_first_clock,
-            faultType="bit_flip",
+            faultType=args.tlb_fault_type,
             faultMask=args.tlb_fault_mask,
             bitsToChange=1,
             maxFaults=args.tlb_max_faults,
@@ -177,7 +187,7 @@ if args.chaos_armtlb or args.chaos_sysreg:
                 isa=isa0,
                 probability=args.sysreg_probability,
                 firstClock=args.sysreg_first_clock,
-                faultType="bit_flip",
+                faultType=args.sysreg_fault_type,
                 faultMask=args.sysreg_fault_mask,
                 bitsToChange=1,
                 targetRegs=args.sysreg_target_regs,

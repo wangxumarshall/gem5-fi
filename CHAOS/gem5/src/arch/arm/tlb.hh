@@ -201,6 +201,11 @@ class TLB : public BaseTLB
   public:
     using Params = ArmTLBParams;
     using Lookup = TlbEntry::KeyType;
+
+    // §2.10 CHAOSArmTLB F5 (Phase 4.4): expose the entry table for
+    // iteration (the injector picks another MAPPED entry's pfn as the
+    // legal-domain substitute target). Read-only use only.
+    const Table &entryTable() const { return table; }
     using LookupLevel = enums::ArmLookupLevel;
 
     TLB(const Params &p);

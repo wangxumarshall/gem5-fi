@@ -21,8 +21,14 @@ class CHAOSArmTLB(SimObject):
         "Per-lookup probability of corrupting a TLB hit's pfn (0..1).")
     firstClock = Param.UInt64(0, "First clock cycle eligible for injection")
     lastClock = Param.UInt64(0, "Last cycle (0 = unrestricted)")
+    # pfn_to_mapped_page (F5, Phase 4.4, FS-only): instead of an XOR into
+    # (likely unmapped) space, substitute the hit entry's pfn with the pfn
+    # of ANOTHER MAPPED entry in the same TLB (legal-domain substitution ->
+    # silent wrong-page access, the method2 silent-SDC pathway). The other
+    # four modes are bit-level on the hit entry's pfn.
     faultType = Param.String("bit_flip",
-        "bit_flip | stuck_at_zero | stuck_at_one | random")
+        "bit_flip | stuck_at_zero | stuck_at_one | random | "
+        "pfn_to_mapped_page")
     faultMask = Param.UInt64(0,
         "64-bit mask applied to the pfn (bit positions to flip/force). 0 = "
         "random (bitsToChange bits).")

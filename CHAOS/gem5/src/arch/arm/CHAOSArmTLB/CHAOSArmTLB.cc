@@ -50,6 +50,7 @@ namespace gem5
         if (s == "bit_flip") return FaultType::BitFlip;
         if (s == "stuck_at_zero") return FaultType::StuckAtZero;
         if (s == "stuck_at_one") return FaultType::StuckAtOne;
+        if (s == "pfn_to_mapped_page") return FaultType::PfnToMappedPage;
         return FaultType::Random;
     }
 
@@ -59,6 +60,7 @@ namespace gem5
             case FaultType::BitFlip: return "bit_flip";
             case FaultType::StuckAtZero: return "stuck_at_zero";
             case FaultType::StuckAtOne: return "stuck_at_one";
+            case FaultType::PfnToMappedPage: return "pfn_to_mapped_page";
             case FaultType::Random: return "random";  // G7: clear -Wswitch
         }
         return "random";
@@ -153,6 +155,39 @@ namespace gem5
         if (fault_type_enum == FaultType::Random) {
             int idx = random_fault_distribution(rng);
             chosen = static_cast<FaultType>(idx);
+        }
+
+        // §2.10 F5 pfn_to_mapped_page (Phase 4.4): substitute the hit
+        // entry's pfn with the pfn of ANOTHER mapped entry in the same TLB
+        // (legal-domain substitution — the wrong-PA access lands on a LIVE
+        // page, so no BadAddressError; silent wrong-data read instead).
+        // FS-only by construction (the hook fires under the MMU).
+        if (chosen == FaultType::PfnToMappedPage) {
+            if (!tlb) return;
+            // collect candidate pfns from the other entries
+            std::vector<Addr> candidates;
+            const auto &tbl = tlb->entryTable();
+            for (auto it = tbl.begin(); it != tbl.end(); ++it) {
+                if (&(*it) != entry && it->pfn != entry->pfn)
+                    candidates.push_back(it->pfn);
+            }
+            if (candidates.empty()) return;  // no legal substitute (honest no-op)
+            Addr old_pfn = entry->pfn;
+            entry->pfn = candidates[rng() % candidates.size()];
+            stats->numFaultsInjected++;
+            ++faults_injected_count;
+            if (write_log) {
+                *(log_stream->stream())
+                    << "Tick: " << curTick()
+                    << ", Site: arm_tlb_lookup_hit"
+                    << ", VA: 0x" << std::hex << va
+                    << ", old_pfn: 0x" << old_pfn
+                    << ", new_pfn: 0x" << entry->pfn
+                    << ", FaultType: pfn_to_mapped_page"
+                    << ", candidates: " << std::dec << candidates.size()
+                    << std::endl;
+            }
+            return;
         }
 
         uint64_t mask = fault_mask ? fault_mask : generateRandomMask(

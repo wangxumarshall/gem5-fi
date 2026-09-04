@@ -40,7 +40,11 @@ class CHAOSArmTLB : public SimObject
     void maybeCorrupt(ArmISA::TlbEntry *entry, Addr va);
 
   private:
-    enum class FaultType { BitFlip, StuckAtZero, StuckAtOne, Random };
+    // PfnToMappedPage = §2.10 F5 (Phase 4.4, FS-only): substitute the hit
+    // entry's pfn with another MAPPED entry's pfn (legal domain -> silent
+    // wrong-page access, method2's silent-SDC pathway).
+    enum class FaultType { BitFlip, StuckAtZero, StuckAtOne, Random,
+                           PfnToMappedPage };
     static FaultType stringToFaultType(const std::string &s);
     const char *faultTypeToString(FaultType f);
 

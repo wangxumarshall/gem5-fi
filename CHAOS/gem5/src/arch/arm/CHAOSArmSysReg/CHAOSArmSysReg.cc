@@ -81,6 +81,7 @@ namespace gem5
         if (s == "bit_flip") return FaultType::BitFlip;
         if (s == "stuck_at_zero") return FaultType::StuckAtZero;
         if (s == "stuck_at_one") return FaultType::StuckAtOne;
+        if (s == "value_to_legal") return FaultType::ValueToLegal;
         return FaultType::Random;
     }
 
@@ -90,6 +91,7 @@ namespace gem5
             case FaultType::BitFlip: return "bit_flip";
             case FaultType::StuckAtZero: return "stuck_at_zero";
             case FaultType::StuckAtOne: return "stuck_at_one";
+            case FaultType::ValueToLegal: return "value_to_legal";
             case FaultType::Random: return "random";  // G7: clear -Wswitch
         }
         return "random";
@@ -164,6 +166,38 @@ namespace gem5
         if (fault_type_enum == FaultType::Random) {
             int i = random_fault_distribution(rng);
             chosen = static_cast<FaultType>(i);
+        }
+
+        // §2.10 F5 value_to_legal (Phase 4.5): substitute with the CURRENT
+        // value of ANOTHER whitelisted sysreg (legal in-use configuration ->
+        // silent misconfiguration instead of an illegal-value fault). Needs
+        // >= 2 whitelist entries; single-entry whitelist declines honestly.
+        if (chosen == FaultType::ValueToLegal) {
+            if (whitelist.size() < 2) return false;
+            uint32_t other = idx;
+            for (int t = 0; t < 16 && other == idx; ++t) {
+                auto it = whitelist.begin();
+                std::advance(it, rng() % whitelist.size());
+                other = *it;
+            }
+            if (other == idx) return false;
+            RegVal old_val = val;
+            val = isa->readMiscRegNoEffect(other);
+            stats->numFaultsInjected++;
+            ++faults_injected_count;
+            if (write_log) {
+                *(log_stream->stream())
+                    << "Tick: " << curTick()
+                    << ", Site: arm_sysreg_read"
+                    << ", Reg: " << (reg_name ? reg_name : "(?)")
+                    << ", idx: " << idx
+                    << ", old: 0x" << std::hex << old_val
+                    << ", new: 0x" << val
+                    << ", FaultType: value_to_legal"
+                    << ", source_reg_idx: " << std::dec << other
+                    << std::endl;
+            }
+            return true;
         }
 
         uint64_t mask = fault_mask ? fault_mask : generateRandomMask(

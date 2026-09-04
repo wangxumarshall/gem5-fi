@@ -45,7 +45,11 @@ class CHAOSArmSysReg : public SimObject
     void startup() override;  // convert first/last Cycles -> Tick window
 
   private:
-    enum class FaultType { BitFlip, StuckAtZero, StuckAtOne, Random };
+    // ValueToLegal = §2.10 F5 (Phase 4.5, FS-only): substitute the MRS-read
+    // value with the CURRENT VALUE of another whitelisted sysreg (a legal,
+    // in-use configuration value -> silent misconfiguration, not a fault).
+    enum class FaultType { BitFlip, StuckAtZero, StuckAtOne, Random,
+                           ValueToLegal };
     static FaultType stringToFaultType(const std::string &s);
     const char *faultTypeToString(FaultType f);
 
