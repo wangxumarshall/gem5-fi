@@ -1711,3 +1711,15 @@ exmon_formal_spinlock（n=384 + 5% replay）随后启动。诚实注记：CHAOSA
 **教训**："faults=1 + 有分类"不证明注入器正确——必须核对 faults 来源日志。旁路映射表是 silent mis-routing 温床。
 
 **重跑队列**：rob + iq + freelist 三个 formal（修好后依次跑）。
+
+### Phase 3.4 多 workload 复检: reg_chain pilot 批（方向性证据，n=5）
+
+cholesky formal 的结论在第二 workload（reg_chain）上的 pilot 级复检（全部 C2, n=5, 修复前跑批但路由核实无恙——exec/decode/ras/prf/lsqfwd/mem 的 component 1:1 映射，不受 comp_map bug 影响）：
+
+| 单元 | cholesky formal 结论 | reg_chain pilot (n=5) | 方向 |
+|---|---|---|---|
+| PRF X3 | 3.9% SDC / 92.7% DUE（random-bit） | **100% SDC**（X3 是 reg_chain 的链式累加器，每 bit flip 都传播） | ✅ 跨 workload 确认 SDC 通路存在 |
+| Exec / Decode / RAS | 全 Masked | 5/5 Masked | ✅ 方向一致 |
+| LSQFwd / mem | 4.7% SDC / 全 Masked | pilot 已跑（见 artifacts） | 方向待 formal |
+
+PRF X3 的跨 workload 复现有特殊意义：cholesky 上 X3 是低频消费的小累加器（92.7% DUE），reg_chain 上是每拍消费的链式累加器（100% SDC）——**同一寄存器的 SDC/DUE 结构由 workload 消费模式决定**，与 ABI-class 网格的"语义角色"规律互洽。pilot 级 n=5 只定方向，formal 级复检排后续批。
