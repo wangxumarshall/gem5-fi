@@ -1,0 +1,3 @@
+target_index,fault_model,protection_model,n_total,n_valid,n_inactive,n_simerror,P_SDC,P_SDC_lo,P_SDC_hi,P_DUE,P_DUE_lo,P_DUE_hi,Reach,Reach_lo,Reach_hi,frozen
+3,transient_bit_flip,none,384,372,0,12,0.0000,0.0000,0.0102,0.7204,0.6727,0.7636,1.0000,0.9898,1.0000,0
+9,transient_bit_flip,none,384,376,0,8,0.0000,0.0000,0.0101,0.7686,0.7234,0.8084,1.0000,0.9899,1.0000,0

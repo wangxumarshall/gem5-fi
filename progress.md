@@ -1749,3 +1749,16 @@ PRF X3 的跨 workload 复现有特殊意义：cholesky 上 X3 是低频消费�
 - **旧"IQ wake_omit 全 Masked"彻底作废**（双重伪影：comp_map 改道成 RAT map_bitflip + 首事件采样偏差）。真实画像：**wake_omit 丢唤醒信号→依赖指令永不 ready→流水线死锁→Hang 主导**（O3 无 watchdog，表现为无限挂起而非崩溃）——与 wake_omit 语义完全自洽。
 - §4.1 逃逸分解更新：IQ wake_omit → Hang 75.3%（C 类：不可用、watchdog 可检测）。IQ 的 F5 子模式（src_ready_bitflip / tag_sub——错源唤醒而非丢唤醒）才是潜在 SDC 通路，Phase 4 待做。
 - 方法学：Hang 类结局在旧工具下会以"泄漏孤儿进程 + 永不推进"伪装——killpg 修复（7abc72e）是本结果可信的前提。
+
+### Phase 3 网格深化 #9: FreeList mark_free formal（§2.2 收官）— 72-77% DUE，目标无关
+
+**§2.2 CHAOSFreeList formal（cholesky, C2, mark_free, {X3,X9} × n=384 + 5% replay, 768 reps, 1519s, 0 frozen）**：
+
+| cell | n_valid | P_SDC | P_DUE | 构成 |
+|---|---|---|---|---|
+| X3 | 372 | 0% [0,1.0] | **72.0% [67.3,76.4]** | 262 Crash + 104 Masked + 6 Hang（12 SimErr 排除） |
+| X9 | 376 | 0% [0,1.0] | **76.9% [72.3,80.8]** | 274 Crash + 87 Masked + 15 Hang（8 SimErr 排除） |
+
+- **mark_free（把在分配的 physReg 重新塞回 free list→双重分配）→ DUE 主导且与 target_index 无关**（72% vs 77%，mark_free 的目标由 RNG 选而非 target_index——X3/X9 两 cell 结果一致正是佐证）。与 RAT map_bitflip（95.8% DUE）同族但掩盖率更高（~25% Masked：被重分配的寄存器若在消费前又被改写则自愈）。
+- **§2.2 三件套全部落定**：RAT map_bitflip 95.8% DUE / RAT f5_substitute 59.7% DUE + 40% 自愈 / FreeList mark_free 72-77% DUE——rename 子系统错误全部 DUE 主导、0% SDC，"历史残留→SDC"在三个注入点上都不成立。
+- 本 formal 也是 comp_map 修复（8e01219）的第一个全新受益者（此前从未真正跑过 CHAOSFreeList）。
