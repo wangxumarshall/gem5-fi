@@ -581,6 +581,15 @@ def main():
                     # line with "Register:"/"FaultType:").
                     if "DIRECTED reg:" in line:
                         continue
+                    # CHAOSCache protection-outcome line ("    protection:
+                    # model=... -> Raw/Corrected/..."): an annotation of the
+                    # injection ABOVE it, not a second injection. Counting it
+                    # double-reported every cache injection as faults=2 (found
+                    # via the L2 pilot; the L1D formal's 384 reps all carry
+                    # faults=2 — classification unaffected (classify uses
+                    # faults>=1 boolean) but the G5 evidence value was wrong.
+                    if line.lstrip().startswith("protection:"):
+                        continue
                     # count valid injection lines: exclude Inactive/Error
                     if ("Inactive" in line) or line.startswith("Error"):
                         continue

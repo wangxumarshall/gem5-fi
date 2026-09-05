@@ -1934,3 +1934,11 @@ CHAOSPTW 已 cherry-pick（c42270d）但**从未在任何 config 挂载**（runn
 3. **TLB 臂**（既有，Phase 4.4/5.4）：pfn_to_mapped_page 活页替换已验证。
 
 **三臂对照实验设计就绪**：同签名（x10 垃圾指针/翻译故障）分别从 PRF 读出 / AGU 地址生成 / TLB 翻译注入，比对 ESR/故障 PC/x10 值形态（设计文档 §2.10 E）。正式 pilot 需要内核侧活跃使用 x10 的 workload（find_busiest_group 链表遍历类）或 userspace 定向 kernel + ESR 抓取——当前稳态 checkpoint 上三臂都会被内核吸收（同 TLB F5/H7/SysReg 稳态格局）。
+
+### Phase 3 收尾: runner l1i/l2 路由 + protection 行双计数修复（16973a1 + 本修复）
+
+**18 单元清单的最后两个 SE 缺口开工**：runner 把 l1i/l2 从 reject 路径接入 cache 分支（--target comp），L1I 语义字段是 **A64 指令编码字段**（opcode/rn/rm/rd/imm12/cond——config 的真实 choices，不是想象中的 tag/data；第一次映射 tag 死在 argparse exit=2，pilot 的 SimulatorError 按设计抓住了它——lsqfwd 教训的机制化）。
+
+**protection 行双计数 bug（L2 pilot faults=2 暴露）**：CHAOSCache 的 log 在每条注入行后跟一条 `protection: model=... -> Raw` 注释行，runner 的行计数把它数成第二个注入 → **L1D formal 384/384 reps 全部 faults=2（应为 1）**。影响评估（诚实）：**分类不受影响**（classify 只用 faults≥1 布尔语义——97.7% SDC 结论有效），受污染的是 G5 evidence 值（记 2 实 1）与断言打印。修复：行计数排除 `protection:` 前缀行；2-rep 冒烟验证 faults=1 ✅。
+
+**跑批中**：L1I formal（opcode/rn 两语义臂 × n=384，~6.3h）、L2 formal（raw × n=384，~10min）。完成后 SE 侧 15 单元 formal 全齐。
