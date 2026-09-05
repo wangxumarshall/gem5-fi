@@ -270,3 +270,18 @@ CHAOSArmSysReg 也有 `*1000`（startup()，FS-only，SE formal 不受影响，�
 3. **代理边界诚实化**——wake_phase 不捕获 method3 相位签名（相位在 LSU 转发时序非调度唤醒）；DRAM 层错位写在缓存驻留 workload 上不可达（需 STREAM 类暴露）。
 
 **F5/F6 已实现模式总账**：spec_leak / fwd_source_sub / src_ready_bitflip / wake_phase / pfn_to_mapped_page / value_to_legal / addr_map_sub —— 7 个新模式 + 既有 wake_omit/map_bitflip 等，SE 侧全部有 formal 定论，FS 侧（TLB/SysReg）待 Phase 5 checkpoint 管线。
+
+## Phase 3 收尾: 存储层级掩蔽梯度完整化（2026-09-06）
+
+**§2.8 L2 formal（n=384）**：384/384 Masked。存储层级四点梯度定型：
+
+| 层级 | P_SDC |
+|---|---|
+| L1D 命中数据 | 97.7% [95.6,98.8] |
+| L1D post-check（ECC 后） | 90.9% [87.6,93.4] |
+| L2 后备 | 0% [0,1.0] |
+| DRAM 后备 | 0% [0,1.0] |
+
+**L1D→L2 悬崖（97.7%→0%）是工作集驻留效应**：SDC 风险集中在直接供给消费者的最后一层 cache。§4.2 排序推论：ECC 预算应集中在 L1D；L2/DRAM ECC 对此 workload 族是沉没冗余。
+
+**工具正确性（本段补丁）**：① runner l1i/l2 路由（L1I 语义字段 = A64 指令编码字段 opcode/rn/...，非 tag/data——argparse exit=2 首次尝试暴露）；② **CHAOSCache protection 注释行双计数**（L1D formal 384 reps 全部 faults=2 实为 1——分类不受影响（faults≥1 布尔语义，97.7% 结论有效），G5 evidence 值修正）。
