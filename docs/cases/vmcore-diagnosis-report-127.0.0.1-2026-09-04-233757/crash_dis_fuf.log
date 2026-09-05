@@ -1,0 +1,1202 @@
+
+crash 8.0.4-17.oe2403sp4
+Copyright (C) 2002-2022  Red Hat, Inc.
+Copyright (C) 2004, 2005, 2006, 2010  IBM Corporation
+Copyright (C) 1999-2006  Hewlett-Packard Co
+Copyright (C) 2005, 2006, 2011, 2012  Fujitsu Limited
+Copyright (C) 2006, 2007  VA Linux Systems Japan K.K.
+Copyright (C) 2005, 2011, 2020-2022  NEC Corporation
+Copyright (C) 1999, 2002, 2007  Silicon Graphics, Inc.
+Copyright (C) 1999, 2000, 2001, 2002  Mission Critical Linux, Inc.
+Copyright (C) 2015, 2021  VMware, Inc.
+This program is free software, covered by the GNU General Public License,
+and you are welcome to change it and/or distribute copies of it under
+certain conditions.  Enter "help copying" to see the conditions.
+This program has absolutely no warranty.  Enter "help warranty" for details.
+ 
+NOTE: stdin: not a tty
+
+GNU gdb (GDB) 10.2
+Copyright (C) 2021 Free Software Foundation, Inc.
+License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>
+This is free software: you are free to change and redistribute it.
+There is NO WARRANTY, to the extent permitted by law.
+Type "show copying" and "show warranty" for details.
+This GDB was configured as "aarch64-unknown-linux-gnu".
+Type "show configuration" for configuration details.
+Find the GDB manual and other documentation resources online at:
+    <http://www.gnu.org/software/gdb/documentation/>.
+
+For help, type "help".
+Type "apropos word" to search for commands related to "word"...
+
+crash: seek error: kernel virtual address: ffff800080000058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080022058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080044058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080066058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080088058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000800aa058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000800cc058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000800ee058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080110058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080132058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080154058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080176058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080198058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000801ba058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000801dc058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000801fe058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080220058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080242058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080264058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080286058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000802a8058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000802ca058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000802ec058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff80008030e058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080330058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080352058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080374058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080396058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000803b8058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000803da058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000803fc058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff80008041e058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080440058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080462058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080484058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000804a6058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000804c8058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000804ea058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff80008050c058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff80008052e058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080550058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080572058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080594058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000805b6058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000805d8058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000805fa058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff80008061c058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff80008063e058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080660058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080682058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000806a4058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000806c6058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000806e8058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff80008070a058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff80008072c058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff80008074e058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080770058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080792058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000807b4058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000807d6058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000807f8058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff80008081a058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff80008083c058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff80008085e058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080880058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000808a2058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000808c4058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000808e6058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080908058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff80008092a058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff80008094c058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff80008096e058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080990058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000809b2058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000809d4058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000809f6058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080a18058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080a3a058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080a5c058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080a7e058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080aa0058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080ac2058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080ae4058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080b06058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080b28058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080b4a058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080b6c058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080b8e058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080bb0058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080bd2058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080bf4058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080c16058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080c38058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080c5a058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080c7c058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080c9e058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080cc0058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080ce2058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080d04058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080d26058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080d48058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080d6a058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080d8c058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080dae058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080dd0058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080df2058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080e14058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080e36058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080e58058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080e7a058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080e9c058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080ebe058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080ee0058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080f02058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080f24058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080f46058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080f68058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080f8a058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080fac058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080fce058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080ff0058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800081012058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800081034058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800081056058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800081078058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff80008109a058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000810bc058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000810de058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800081100058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800081122058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800081144058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800081166058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800081188058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000811aa058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000811cc058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000811ee058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800081210058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800081232058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800081254058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800081276058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800081298058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000812ba058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000812dc058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000812fe058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800081320058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800081342058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800081364058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800081386058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000813a8058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000813ca058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000813ec058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff80008140e058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800081430058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800081452058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800081474058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800081496058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000814b8058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000814da058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000814fc058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff80008151e058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800081540058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800081562058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800081584058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000815a6058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000815c8058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000815ea058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff80008160c058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff80008162e058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800081650058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800081672058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800081694058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000816b6058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000816d8058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000816fa058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff80008171c058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff80008173e058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800081760058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800081782058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000817a4058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000817c6058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000817e8058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff80008180a058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff80008182c058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff80008184e058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800081870058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800081892058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000818b4058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000818d6058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000818f8058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff80008191a058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff80008193c058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff80008195e058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080001600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080023600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080045600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080067600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080089600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000800ab600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000800cd600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000800ef600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080111600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080133600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080155600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080177600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080199600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000801bb600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000801dd600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000801ff600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080221600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080243600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080265600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080287600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000802a9600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000802cb600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000802ed600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff80008030f600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080331600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080353600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080375600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080397600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000803b9600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000803db600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000803fd600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff80008041f600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080441600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080463600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080485600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000804a7600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000804c9600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000804eb600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff80008050d600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff80008052f600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080551600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080573600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080595600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000805b7600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000805d9600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000805fb600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff80008061d600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff80008063f600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080661600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080683600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000806a5600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000806c7600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000806e9600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff80008070b600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff80008072d600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff80008074f600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080771600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080793600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000807b5600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000807d7600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000807f9600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff80008081b600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff80008083d600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff80008085f600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080881600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000808a3600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000808c5600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000808e7600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080909600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff80008092b600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff80008094d600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff80008096f600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080991600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000809b3600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000809d5600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000809f7600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080a19600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080a3b600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080a5d600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080a7f600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080aa1600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080ac3600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080ae5600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080b07600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080b29600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080b4b600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080b6d600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080b8f600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080bb1600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080bd3600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080bf5600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080c17600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080c39600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080c5b600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080c7d600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080c9f600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080cc1600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080ce3600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080d05600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080d27600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080d49600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080d6b600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080d8d600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080daf600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080dd1600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080df3600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080e15600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080e37600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080e59600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080e7b600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080e9d600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080ebf600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080ee1600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080f03600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080f25600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080f47600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080f69600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080f8b600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080fad600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080fcf600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080ff1600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800081013600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800081035600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800081057600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800081079600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff80008109b600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000810bd600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000810df600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800081101600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800081123600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800081145600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800081167600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800081189600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000811ab600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000811cd600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000811ef600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800081211600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800081233600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800081255600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800081277600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800081299600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000812bb600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000812dd600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000812ff600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800081321600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800081343600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800081365600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800081387600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000813a9600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000813cb600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000813ed600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff80008140f600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800081431600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800081453600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800081475600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800081497600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000814b9600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000814db600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000814fd600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff80008151f600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800081541600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800081563600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800081585600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000815a7600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000815c9600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000815eb600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff80008160d600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff80008162f600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800081651600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800081673600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800081695600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000816b7600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000816d9600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000816fb600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff80008171d600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff80008173f600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800081761600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800081783600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000817a5600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000817c7600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000817e9600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff80008180b600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff80008182d600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff80008184f600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800081871600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800081893600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000818b5600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000818d7600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000818f9600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff80008191b600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff80008193d600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff80008195f600  type: "SDEI stack pointer"
+please wait... (gathering kmem slab cache data)                                                please wait... (gathering module symbol data)                                              please wait... (gathering task table data)                                           please wait... (determining panic task)                                              KERNEL: /tmp/vmlinux-0102
+    DUMPFILE: /home/sdc/wangxu/vmcore0102/127.0.0.1-2026-09-04-23:37:57/vmcore  [PARTIAL DUMP]
+        CPUS: 192
+        DATE: Fri Sep  4 23:37:14 CST 2026
+      UPTIME: 00:47:19
+LOAD AVERAGE: 176.68, 79.26, 30.45
+       TASKS: 2185
+    NODENAME: localhost0102
+     RELEASE: 6.6.0-145.3.23.154.oe2403sp3.aarch64
+     VERSION: #1 SMP Mon Jul 27 19:00:34 CST 2026
+     MACHINE: aarch64  (unknown Mhz)
+      MEMORY: 767.8 GB
+       PANIC: "Unable to handle kernel NULL pointer dereference at virtual address 0000000000000008"
+         PID: 89347
+     COMMAND: "systemd-coredum"
+        TASK: ffff604013658000  [THREAD_INFO: ffff604013658000]
+         CPU: 179
+       STATE: TASK_RUNNING (PANIC)
+
+crash> dis -l free_unref_folios
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 2748
+0xffffa7cc00016c08 <free_unref_folios>:	mov	x9, x30
+0xffffa7cc00016c0c <free_unref_folios+4>:	nop
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 2755
+0xffffa7cc00016c10 <free_unref_folios+8>:	paciasp
+0xffffa7cc00016c14 <free_unref_folios+12>:	stp	x29, x30, [sp, #-128]!
+0xffffa7cc00016c18 <free_unref_folios+16>:	mov	x29, sp
+0xffffa7cc00016c1c <free_unref_folios+20>:	stp	x19, x20, [sp, #16]
+0xffffa7cc00016c20 <free_unref_folios+24>:	mov	x20, x0
+0xffffa7cc00016c24 <free_unref_folios+28>:	ldrb	w0, [x0]
+0xffffa7cc00016c28 <free_unref_folios+32>:	cbz	w0, 0xffffa7cc00016f38 <free_unref_folios+816>
+0xffffa7cc00016c2c <free_unref_folios+36>:	stp	x25, x26, [sp, #64]
+0xffffa7cc00016c30 <free_unref_folios+40>:	adrp	x25, 0xffffa7cc00fd1000 <cpucap_ptrs+856>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/trace/events/kmem.h: 139
+0xffffa7cc00016c34 <free_unref_folios+44>:	adrp	x26, 0xffffa7cc01742000 <.data..percpu>
+0xffffa7cc00016c38 <free_unref_folios+48>:	add	x25, x25, #0x1b0
+0xffffa7cc00016c3c <free_unref_folios+52>:	add	x26, x26, #0x8
+0xffffa7cc00016c40 <free_unref_folios+56>:	mov	x0, x26
+0xffffa7cc00016c44 <free_unref_folios+60>:	stp	x21, x22, [sp, #32]
+0xffffa7cc00016c48 <free_unref_folios+64>:	stp	x23, x24, [sp, #48]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 2755
+0xffffa7cc00016c4c <free_unref_folios+68>:	mov	w24, #0x0                   	// #0
+0xffffa7cc00016c50 <free_unref_folios+72>:	stp	x27, x28, [sp, #80]
+0xffffa7cc00016c54 <free_unref_folios+76>:	mov	w27, #0x0                   	// #0
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/trace/events/kmem.h: 139
+0xffffa7cc00016c58 <free_unref_folios+80>:	str	x0, [sp, #96]
+0xffffa7cc00016c5c <free_unref_folios+84>:	nop
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 2756
+0xffffa7cc00016c60 <free_unref_folios+88>:	add	x0, x20, w27, sxtw #3
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/mm.h: 1123
+0xffffa7cc00016c64 <free_unref_folios+92>:	mov	w21, #0x0                   	// #0
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/mm.h: 1958
+0xffffa7cc00016c68 <free_unref_folios+96>:	ldr	x22, [x25]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 2756
+0xffffa7cc00016c6c <free_unref_folios+100>:	ldr	x19, [x0, #8]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/asm-generic/bitops/generic-non-atomic.h: 128
+0xffffa7cc00016c70 <free_unref_folios+104>:	ldr	x0, [x19]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/mm.h: 1122
+0xffffa7cc00016c74 <free_unref_folios+108>:	tbz	w0, #6, 0xffffa7cc00016c7c <free_unref_folios+116>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/mm.h: 1124
+0xffffa7cc00016c78 <free_unref_folios+112>:	ldrb	w21, [x19, #64]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./arch/arm64/include/asm/jump_label.h: 22
+0xffffa7cc00016c7c <free_unref_folios+116>:	nop
+0xffffa7cc00016c80 <free_unref_folios+120>:	nop
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./arch/arm64/include/asm/jump_label.h: 31
+0xffffa7cc00016c84 <free_unref_folios+124>:	mov	w26, #0x0                   	// #0
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/asm-generic/bitops/generic-non-atomic.h: 128
+0xffffa7cc00016c88 <free_unref_folios+128>:	ldr	x0, [x19]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/page-flags.h: 303
+0xffffa7cc00016c8c <free_unref_folios+132>:	mov	w28, #0x1                   	// #1
+0xffffa7cc00016c90 <free_unref_folios+136>:	tbnz	w0, #6, 0xffffa7cc00016c9c <free_unref_folios+148>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/page-flags.h: 304
+0xffffa7cc00016c94 <free_unref_folios+140>:	ldr	x6, [x19, #8]
+0xffffa7cc00016c98 <free_unref_folios+144>:	and	w28, w6, w28
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/page-flags.h: 259
+0xffffa7cc00016c9c <free_unref_folios+148>:	ldr	x3, [x19, #8]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/page-flags.h: 261
+0xffffa7cc00016ca0 <free_unref_folios+152>:	tbnz	w3, #0, 0xffffa7cc000172fc <free_unref_folios+1780>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./arch/arm64/include/asm/jump_label.h: 22
+0xffffa7cc00016ca4 <free_unref_folios+156>:	nop
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/mm.h: 1958
+0xffffa7cc00016ca8 <free_unref_folios+160>:	mov	x3, x19
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./arch/arm64/include/asm/jump_label.h: 22
+0xffffa7cc00016cac <free_unref_folios+164>:	nop
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/asm-generic/bitops/generic-non-atomic.h: 128
+0xffffa7cc00016cb0 <free_unref_folios+168>:	ldr	x0, [x3]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1096
+0xffffa7cc00016cb4 <free_unref_folios+172>:	tbnz	w0, #21, 0xffffa7cc00017094 <free_unref_folios+1164>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/asm-generic/bitops/generic-non-atomic.h: 128
+0xffffa7cc00016cb8 <free_unref_folios+176>:	ldr	x0, [x19]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1104
+0xffffa7cc00016cbc <free_unref_folios+180>:	tbnz	w0, #22, 0xffffa7cc00016fa0 <free_unref_folios+920>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1122
+0xffffa7cc00016cc0 <free_unref_folios+184>:	cbnz	w21, 0xffffa7cc00016fa4 <free_unref_folios+924>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1079
+0xffffa7cc00016cc4 <free_unref_folios+188>:	mov	w28, #0x0                   	// #0
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/page-flags.h: 696
+0xffffa7cc00016cc8 <free_unref_folios+192>:	ldr	x0, [x19, #24]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1139
+0xffffa7cc00016ccc <free_unref_folios+196>:	tst	x0, #0x3
+0xffffa7cc00016cd0 <free_unref_folios+200>:	b.eq	0xffffa7cc00016d28 <free_unref_folios+288>  // b.none
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/page-flags.h: 259
+0xffffa7cc00016cd4 <free_unref_folios+204>:	ldr	x1, [x19, #8]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/page-flags.h: 261
+0xffffa7cc00016cd8 <free_unref_folios+208>:	tbnz	w1, #0, 0xffffa7cc00016f88 <free_unref_folios+896>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./arch/arm64/include/asm/jump_label.h: 22
+0xffffa7cc00016cdc <free_unref_folios+212>:	nop
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/page-flags.h: 701
+0xffffa7cc00016ce0 <free_unref_folios+216>:	tbz	w0, #0, 0xffffa7cc00016d24 <free_unref_folios+284>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/huge_mm.h: 153
+0xffffa7cc00016ce4 <free_unref_folios+220>:	sub	w0, w21, #0x1
+0xffffa7cc00016ce8 <free_unref_folios+224>:	cmp	w0, #0x8
+0xffffa7cc00016cec <free_unref_folios+228>:	b.hi	0xffffa7cc00016d24 <free_unref_folios+284>  // b.pmore
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/huge_mm.h: 156
+0xffffa7cc00016cf0 <free_unref_folios+232>:	mov	x1, #0x70                  	// #112
+0xffffa7cc00016cf4 <free_unref_folios+236>:	mov	w0, #0x78                  	// #120
+0xffffa7cc00016cf8 <free_unref_folios+240>:	adrp	x3, 0xffffa7cc01756000 <swp_type_slots+1256>
+0xffffa7cc00016cfc <free_unref_folios+244>:	add	x3, x3, #0x440
+0xffffa7cc00016d00 <free_unref_folios+248>:	umaddl	x0, w21, w0, x1
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./arch/arm64/include/asm/percpu.h: 127
+0xffffa7cc00016d04 <free_unref_folios+252>:	mov	x2, #0xffffffffffffffff    	// #-1
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./arch/arm64/include/asm/percpu.h: 40
+0xffffa7cc00016d08 <free_unref_folios+256>:	mrs	x1, tpidr_el2
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/huge_mm.h: 156
+0xffffa7cc00016d0c <free_unref_folios+260>:	add	x0, x0, x3
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./arch/arm64/include/asm/percpu.h: 127
+0xffffa7cc00016d10 <free_unref_folios+264>:	add	x0, x0, x1
+0xffffa7cc00016d14 <free_unref_folios+268>:	stadd	x2, [x0]
+0xffffa7cc00016d18 <free_unref_folios+272>:	nop
+0xffffa7cc00016d1c <free_unref_folios+276>:	nop
+0xffffa7cc00016d20 <free_unref_folios+280>:	nop
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1142
+0xffffa7cc00016d24 <free_unref_folios+284>:	str	xzr, [x19, #24]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./arch/arm64/include/asm/jump_label.h: 39
+0xffffa7cc00016d28 <free_unref_folios+288>:	b	0xffffa7cc00016d44 <free_unref_folios+316>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/page-flags.h: 259
+0xffffa7cc00016d2c <free_unref_folios+292>:	ldr	x0, [x19, #8]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/page-flags.h: 261
+0xffffa7cc00016d30 <free_unref_folios+296>:	tbnz	w0, #0, 0xffffa7cc00017304 <free_unref_folios+1788>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./arch/arm64/include/asm/jump_label.h: 22
+0xffffa7cc00016d34 <free_unref_folios+300>:	nop
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/mm.h: 1958
+0xffffa7cc00016d38 <free_unref_folios+304>:	mov	x0, x19
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/memcontrol.h: 671
+0xffffa7cc00016d3c <free_unref_folios+308>:	ldr	x0, [x0, #56]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1144
+0xffffa7cc00016d40 <free_unref_folios+312>:	tbnz	w0, #1, 0xffffa7cc00016f90 <free_unref_folios+904>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./arch/arm64/include/asm/jump_label.h: 22
+0xffffa7cc00016d44 <free_unref_folios+316>:	nop
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1154
+0xffffa7cc00016d48 <free_unref_folios+320>:	ldr	x0, [x19]
+0xffffa7cc00016d4c <free_unref_folios+324>:	mov	x1, #0xfffffffe00000000    	// #-8589934592
+0xffffa7cc00016d50 <free_unref_folios+328>:	movk	x1, #0xc40, lsl #16
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1155
+0xffffa7cc00016d54 <free_unref_folios+332>:	str	xzr, [x19, #40]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1154
+0xffffa7cc00016d58 <free_unref_folios+336>:	and	x0, x0, x1
+0xffffa7cc00016d5c <free_unref_folios+340>:	orr	x0, x0, #0x1ffffe00000000
+0xffffa7cc00016d60 <free_unref_folios+344>:	str	x0, [x19]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1183
+0xffffa7cc00016d64 <free_unref_folios+348>:	cbnz	w26, 0xffffa7cc00017170 <free_unref_folios+1384>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 576
+0xffffa7cc00016d68 <free_unref_folios+352>:	cmp	w21, #0x9
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 578
+0xffffa7cc00016d6c <free_unref_folios+356>:	mov	w0, w21
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 576
+0xffffa7cc00016d70 <free_unref_folios+360>:	ccmp	w21, #0x3, #0x0, ne  // ne = any
+0xffffa7cc00016d74 <free_unref_folios+364>:	b.ls	0xffffa7cc0001702c <free_unref_folios+1060>  // b.plast
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 578
+0xffffa7cc00016d78 <free_unref_folios+368>:	adrp	x1, 0xffffa7cc01b51000 <huge_shmem_orders_within_size>
+0xffffa7cc00016d7c <free_unref_folios+372>:	ldr	x1, [x1, #752]
+0xffffa7cc00016d80 <free_unref_folios+376>:	cmp	x1, x0
+0xffffa7cc00016d84 <free_unref_folios+380>:	b.eq	0xffffa7cc0001702c <free_unref_folios+1060>  // b.none
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/mm.h: 1695
+0xffffa7cc00016d88 <free_unref_folios+384>:	ldr	x0, [x19]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/mmzone.h: 1153
+0xffffa7cc00016d8c <free_unref_folios+388>:	adrp	x23, 0xffffa7cc01b54000 <userfaultfd_ctx_cachep>
+0xffffa7cc00016d90 <free_unref_folios+392>:	add	x23, x23, #0xdd0
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/mm.h: 1958
+0xffffa7cc00016d94 <free_unref_folios+396>:	asr	x2, x22, #12
+0xffffa7cc00016d98 <free_unref_folios+400>:	mov	x1, #0xfffffc0000000000    	// #-4398046511104
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 2778
+0xffffa7cc00016d9c <free_unref_folios+404>:	mov	w3, w21
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/mm.h: 1916
+0xffffa7cc00016da0 <free_unref_folios+408>:	ubfx	x7, x0, #53, #3
+0xffffa7cc00016da4 <free_unref_folios+412>:	lsr	x6, x0, #56
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/mm.h: 1958
+0xffffa7cc00016da8 <free_unref_folios+416>:	sub	x2, x1, x2, lsl #6
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 2778
+0xffffa7cc00016dac <free_unref_folios+420>:	mov	w4, #0x0                   	// #0
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/mm.h: 1916
+0xffffa7cc00016db0 <free_unref_folios+424>:	lsl	x0, x7, #3
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/mm.h: 1958
+0xffffa7cc00016db4 <free_unref_folios+428>:	sub	x2, x19, x2
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/mm.h: 1916
+0xffffa7cc00016db8 <free_unref_folios+432>:	sub	x0, x0, x7
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 2778
+0xffffa7cc00016dbc <free_unref_folios+436>:	mov	x1, x19
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/mm.h: 1916
+0xffffa7cc00016dc0 <free_unref_folios+440>:	ldr	x6, [x23, x6, lsl #3]
+0xffffa7cc00016dc4 <free_unref_folios+444>:	lsl	x0, x0, #2
+0xffffa7cc00016dc8 <free_unref_folios+448>:	sub	x0, x0, x7
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 2778
+0xffffa7cc00016dcc <free_unref_folios+452>:	asr	x2, x2, #6
+0xffffa7cc00016dd0 <free_unref_folios+456>:	add	x0, x6, x0, lsl #6
+0xffffa7cc00016dd4 <free_unref_folios+460>:	bl	0xffffa7cc00010fe0 <free_one_page>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 2755
+0xffffa7cc00016dd8 <free_unref_folios+464>:	ldrb	w0, [x20]
+0xffffa7cc00016ddc <free_unref_folios+468>:	add	w27, w27, #0x1
+0xffffa7cc00016de0 <free_unref_folios+472>:	cmp	w0, w27
+0xffffa7cc00016de4 <free_unref_folios+476>:	b.gt	0xffffa7cc00016c60 <free_unref_folios+88>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 2787
+0xffffa7cc00016de8 <free_unref_folios+480>:	and	w24, w24, #0xff
+0xffffa7cc00016dec <free_unref_folios+484>:	strb	w24, [x20]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 2789
+0xffffa7cc00016df0 <free_unref_folios+488>:	cbz	w24, 0xffffa7cc000173c0 <free_unref_folios+1976>
+0xffffa7cc00016df4 <free_unref_folios+492>:	adrp	x23, 0xffffa7cc01b54000 <userfaultfd_ctx_cachep>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/asm-generic/bitops/generic-non-atomic.h: 128
+0xffffa7cc00016df8 <free_unref_folios+496>:	adrp	x28, 0xffffa7cc01b4e000 <join_entries+13376>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/trace/events/kmem.h: 161
+0xffffa7cc00016dfc <free_unref_folios+500>:	adrp	x27, 0xffffa7cc01742000 <.data..percpu>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/asm-generic/bitops/generic-non-atomic.h: 128
+0xffffa7cc00016e00 <free_unref_folios+504>:	add	x0, x28, #0xe98
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/trace/events/kmem.h: 161
+0xffffa7cc00016e04 <free_unref_folios+508>:	add	x27, x27, #0x8
+0xffffa7cc00016e08 <free_unref_folios+512>:	add	x23, x23, #0xdd0
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 2789
+0xffffa7cc00016e0c <free_unref_folios+516>:	mov	w21, #0x0                   	// #0
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 2751
+0xffffa7cc00016e10 <free_unref_folios+520>:	mov	x24, #0x0                   	// #0
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 2750
+0xffffa7cc00016e14 <free_unref_folios+524>:	mov	x22, #0x0                   	// #0
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/asm-generic/bitops/generic-non-atomic.h: 128
+0xffffa7cc00016e18 <free_unref_folios+528>:	str	x0, [sp, #120]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/trace/events/kmem.h: 161
+0xffffa7cc00016e1c <free_unref_folios+532>:	mov	x0, x27
+0xffffa7cc00016e20 <free_unref_folios+536>:	str	x0, [sp, #112]
+0xffffa7cc00016e24 <free_unref_folios+540>:	nop
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 2790
+0xffffa7cc00016e28 <free_unref_folios+544>:	add	x0, x20, w21, sxtw #3
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/mm.h: 1958
+0xffffa7cc00016e2c <free_unref_folios+548>:	mov	x4, #0xfffffc0000000000    	// #-4398046511104
+0xffffa7cc00016e30 <free_unref_folios+552>:	ldr	x1, [x25]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 412
+0xffffa7cc00016e34 <free_unref_folios+556>:	mov	x2, #0x7                   	// #7
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 2790
+0xffffa7cc00016e38 <free_unref_folios+560>:	ldr	x28, [x0, #8]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/mm.h: 1695
+0xffffa7cc00016e3c <free_unref_folios+564>:	asr	x1, x1, #12
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 412
+0xffffa7cc00016e40 <free_unref_folios+568>:	mov	x0, x28
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/mm.h: 1695
+0xffffa7cc00016e44 <free_unref_folios+572>:	ldr	x3, [x28]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/mm.h: 1958
+0xffffa7cc00016e48 <free_unref_folios+576>:	sub	x1, x4, x1, lsl #6
+0xffffa7cc00016e4c <free_unref_folios+580>:	sub	x1, x28, x1
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 2793
+0xffffa7cc00016e50 <free_unref_folios+584>:	ldr	x4, [x28, #40]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/mm.h: 1916
+0xffffa7cc00016e54 <free_unref_folios+588>:	ubfx	x26, x3, #53, #3
+0xffffa7cc00016e58 <free_unref_folios+592>:	lsr	x3, x3, #56
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/mm.h: 1958
+0xffffa7cc00016e5c <free_unref_folios+596>:	asr	x1, x1, #6
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/mm.h: 1916
+0xffffa7cc00016e60 <free_unref_folios+600>:	lsl	x19, x26, #3
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 2793
+0xffffa7cc00016e64 <free_unref_folios+604>:	stp	x1, x4, [sp, #96]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/mm.h: 1916
+0xffffa7cc00016e68 <free_unref_folios+608>:	sub	x19, x19, x26
+0xffffa7cc00016e6c <free_unref_folios+612>:	ldr	x27, [x23, x3, lsl #3]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/mmzone.h: 1153
+0xffffa7cc00016e70 <free_unref_folios+616>:	lsl	x19, x19, #2
+0xffffa7cc00016e74 <free_unref_folios+620>:	sub	x19, x19, x26
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 2796
+0xffffa7cc00016e78 <free_unref_folios+624>:	str	xzr, [x28, #40]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/mm.h: 1916
+0xffffa7cc00016e7c <free_unref_folios+628>:	add	x19, x27, x19, lsl #6
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 412
+0xffffa7cc00016e80 <free_unref_folios+632>:	bl	0xffffa7cc000108b0 <get_pfnblock_flags_mask>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 2800
+0xffffa7cc00016e84 <free_unref_folios+636>:	ldr	x1, [sp, #96]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 412
+0xffffa7cc00016e88 <free_unref_folios+640>:	mov	w3, w0
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 2800
+0xffffa7cc00016e8c <free_unref_folios+644>:	cmp	x24, x19
+0xffffa7cc00016e90 <free_unref_folios+648>:	b.eq	0xffffa7cc000172c8 <free_unref_folios+1728>  // b.none
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 2802
+0xffffa7cc00016e94 <free_unref_folios+652>:	cbz	x22, 0xffffa7cc00016ea0 <free_unref_folios+664>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./arch/arm64/include/asm/qspinlock.h: 22
+0xffffa7cc00016e98 <free_unref_folios+656>:	stlrb	wzr, [x22]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 2806
+0xffffa7cc00016e9c <free_unref_folios+660>:	mov	x24, #0x0                   	// #0
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 2813
+0xffffa7cc00016ea0 <free_unref_folios+664>:	cmp	w0, #0x5
+0xffffa7cc00016ea4 <free_unref_folios+668>:	b.eq	0xffffa7cc000172dc <free_unref_folios+1748>  // b.none
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 2824
+0xffffa7cc00016ea8 <free_unref_folios+672>:	lsl	x2, x26, #3
+0xffffa7cc00016eac <free_unref_folios+676>:	sub	x2, x2, x26
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./arch/arm64/include/asm/percpu.h: 40
+0xffffa7cc00016eb0 <free_unref_folios+680>:	mrs	x6, tpidr_el2
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 2824
+0xffffa7cc00016eb4 <free_unref_folios+684>:	lsl	x2, x2, #2
+0xffffa7cc00016eb8 <free_unref_folios+688>:	sub	x2, x2, x26
+0xffffa7cc00016ebc <free_unref_folios+692>:	add	x2, x27, x2, lsl #6
+0xffffa7cc00016ec0 <free_unref_folios+696>:	ldr	x2, [x2, #112]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./arch/arm64/include/asm/percpu.h: 46
+0xffffa7cc00016ec4 <free_unref_folios+700>:	add	x4, x2, x6
+0xffffa7cc00016ec8 <free_unref_folios+704>:	mov	x22, x4
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/atomic/atomic-arch-fallback.h: 444
+0xffffa7cc00016ecc <free_unref_folios+708>:	ldr	w2, [x2, x6]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/asm-generic/qspinlock.h: 94
+0xffffa7cc00016ed0 <free_unref_folios+712>:	cbnz	w2, 0xffffa7cc000172c4 <free_unref_folios+1724>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./arch/arm64/include/asm/alternative-macros.h: 232
+0xffffa7cc00016ed4 <free_unref_folios+716>:	nop
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./arch/arm64/include/asm/atomic_lse.h: 271
+0xffffa7cc00016ed8 <free_unref_folios+720>:	mov	w2, #0x0                   	// #0
+0xffffa7cc00016edc <free_unref_folios+724>:	mov	w6, #0x1                   	// #1
+0xffffa7cc00016ee0 <free_unref_folios+728>:	casa	w2, w6, [x4]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/spinlock.h: 198
+0xffffa7cc00016ee4 <free_unref_folios+732>:	cbnz	w2, 0xffffa7cc000172c4 <free_unref_folios+1724>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 2825
+0xffffa7cc00016ee8 <free_unref_folios+736>:	cbz	x4, 0xffffa7cc000172dc <free_unref_folios+1748>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 2838
+0xffffa7cc00016eec <free_unref_folios+740>:	cmp	w0, #0x3
+0xffffa7cc00016ef0 <free_unref_folios+744>:	csinc	w3, w3, wzr, lt  // lt = tstop
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./arch/arm64/include/asm/jump_label.h: 22
+0xffffa7cc00016ef4 <free_unref_folios+748>:	nop
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 2842
+0xffffa7cc00016ef8 <free_unref_folios+752>:	ldr	w4, [sp, #104]
+0xffffa7cc00016efc <free_unref_folios+756>:	mov	x24, x19
+0xffffa7cc00016f00 <free_unref_folios+760>:	mov	x2, x28
+0xffffa7cc00016f04 <free_unref_folios+764>:	mov	x1, x22
+0xffffa7cc00016f08 <free_unref_folios+768>:	mov	x0, x19
+0xffffa7cc00016f0c <free_unref_folios+772>:	bl	0xffffa7cc000122b0 <free_unref_page_commit>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 2789
+0xffffa7cc00016f10 <free_unref_folios+776>:	ldrb	w0, [x20]
+0xffffa7cc00016f14 <free_unref_folios+780>:	add	w21, w21, #0x1
+0xffffa7cc00016f18 <free_unref_folios+784>:	cmp	w0, w21
+0xffffa7cc00016f1c <free_unref_folios+788>:	b.gt	0xffffa7cc00016e28 <free_unref_folios+544>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 2846
+0xffffa7cc00016f20 <free_unref_folios+792>:	cbz	x22, 0xffffa7cc000173c0 <free_unref_folios+1976>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./arch/arm64/include/asm/qspinlock.h: 22
+0xffffa7cc00016f24 <free_unref_folios+796>:	stlrb	wzr, [x22]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 2847
+0xffffa7cc00016f28 <free_unref_folios+800>:	ldp	x21, x22, [sp, #32]
+0xffffa7cc00016f2c <free_unref_folios+804>:	ldp	x23, x24, [sp, #48]
+0xffffa7cc00016f30 <free_unref_folios+808>:	ldp	x25, x26, [sp, #64]
+0xffffa7cc00016f34 <free_unref_folios+812>:	ldp	x27, x28, [sp, #80]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/pagevec.h: 48
+0xffffa7cc00016f38 <free_unref_folios+816>:	strb	wzr, [x20]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 2851
+0xffffa7cc00016f3c <free_unref_folios+820>:	ldp	x19, x20, [sp, #16]
+0xffffa7cc00016f40 <free_unref_folios+824>:	ldp	x29, x30, [sp], #128
+0xffffa7cc00016f44 <free_unref_folios+828>:	autiasp
+0xffffa7cc00016f48 <free_unref_folios+832>:	ret
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/page-flags.h: 259
+0xffffa7cc00016f4c <free_unref_folios+836>:	ldr	x0, [x19, #8]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/page-flags.h: 261
+0xffffa7cc00016f50 <free_unref_folios+840>:	tbnz	w0, #0, 0xffffa7cc000173e4 <free_unref_folios+2012>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./arch/arm64/include/asm/jump_label.h: 22
+0xffffa7cc00016f54 <free_unref_folios+844>:	nop
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/mm.h: 1958
+0xffffa7cc00016f58 <free_unref_folios+848>:	mov	x0, x19
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/asm-generic/bitops/generic-non-atomic.h: 128
+0xffffa7cc00016f5c <free_unref_folios+852>:	ldr	x0, [x0]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 2760
+0xffffa7cc00016f60 <free_unref_folios+856>:	tbz	w0, #25, 0xffffa7cc00016c80 <free_unref_folios+120>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 2761
+0xffffa7cc00016f64 <free_unref_folios+860>:	mov	x0, x19
+0xffffa7cc00016f68 <free_unref_folios+864>:	bl	0xffffa7cc000c3970 <dynamic_pool_free_page>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 2762
+0xffffa7cc00016f6c <free_unref_folios+868>:	b	0xffffa7cc00016dd8 <free_unref_folios+464>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/page-flags.h: 231
+0xffffa7cc00016f70 <free_unref_folios+872>:	tst	x19, #0xfff
+0xffffa7cc00016f74 <free_unref_folios+876>:	b.ne	0xffffa7cc00016ce0 <free_unref_folios+216>  // b.any
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/asm-generic/bitops/generic-non-atomic.h: 128
+0xffffa7cc00016f78 <free_unref_folios+880>:	ldr	x1, [x19]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/page-flags.h: 231
+0xffffa7cc00016f7c <free_unref_folios+884>:	tbz	w1, #6, 0xffffa7cc00016ce0 <free_unref_folios+216>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/page-flags.h: 238
+0xffffa7cc00016f80 <free_unref_folios+888>:	ldr	x1, [x19, #72]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/page-flags.h: 240
+0xffffa7cc00016f84 <free_unref_folios+892>:	tbz	w1, #0, 0xffffa7cc00016ce0 <free_unref_folios+216>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/page-flags.h: 241
+0xffffa7cc00016f88 <free_unref_folios+896>:	ldur	x0, [x1, #23]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/page-flags.h: 263
+0xffffa7cc00016f8c <free_unref_folios+900>:	b	0xffffa7cc00016ce0 <free_unref_folios+216>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1145
+0xffffa7cc00016f90 <free_unref_folios+904>:	mov	w1, w21
+0xffffa7cc00016f94 <free_unref_folios+908>:	mov	x0, x19
+0xffffa7cc00016f98 <free_unref_folios+912>:	bl	0xffffa7cc00094f58 <__memcg_kmem_uncharge_page>
+0xffffa7cc00016f9c <free_unref_folios+916>:	b	0xffffa7cc00016d44 <free_unref_folios+316>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1104
+0xffffa7cc00016fa0 <free_unref_folios+920>:	cbz	w21, 0xffffa7cc00017348 <free_unref_folios+1856>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1125
+0xffffa7cc00016fa4 <free_unref_folios+924>:	and	w3, w28, #0x1
+0xffffa7cc00016fa8 <free_unref_folios+928>:	cbnz	w28, 0xffffa7cc0001730c <free_unref_folios+1796>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1127
+0xffffa7cc00016fac <free_unref_folios+932>:	mov	w2, #0x1                   	// #1
+0xffffa7cc00016fb0 <free_unref_folios+936>:	lsl	w2, w2, w21
+0xffffa7cc00016fb4 <free_unref_folios+940>:	cmp	w2, #0x1
+0xffffa7cc00016fb8 <free_unref_folios+944>:	b.le	0xffffa7cc00016cc4 <free_unref_folios+188>
+0xffffa7cc00016fbc <free_unref_folios+948>:	sub	w2, w2, #0x2
+0xffffa7cc00016fc0 <free_unref_folios+952>:	add	x0, x19, #0x80
+0xffffa7cc00016fc4 <free_unref_folios+956>:	mov	w1, #0x40                  	// #64
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1136
+0xffffa7cc00016fc8 <free_unref_folios+960>:	mov	x6, #0xfffffffe00000000    	// #-8589934592
+0xffffa7cc00016fcc <free_unref_folios+964>:	add	x23, x19, #0x40
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1127
+0xffffa7cc00016fd0 <free_unref_folios+968>:	mov	w28, #0x0                   	// #0
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1128
+0xffffa7cc00016fd4 <free_unref_folios+972>:	umaddl	x2, w2, w1, x0
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1136
+0xffffa7cc00016fd8 <free_unref_folios+976>:	movk	x6, #0xc40, lsl #16
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1128
+0xffffa7cc00016fdc <free_unref_folios+980>:	cbnz	w3, 0xffffa7cc00017000 <free_unref_folios+1016>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./arch/arm64/include/asm/jump_label.h: 22
+0xffffa7cc00016fe0 <free_unref_folios+984>:	nop
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 913
+0xffffa7cc00016fe4 <free_unref_folios+988>:	ldr	x0, [x23]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1136
+0xffffa7cc00016fe8 <free_unref_folios+992>:	and	x0, x0, x6
+0xffffa7cc00016fec <free_unref_folios+996>:	str	x0, [x23]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1127
+0xffffa7cc00016ff0 <free_unref_folios+1000>:	add	x23, x23, #0x40
+0xffffa7cc00016ff4 <free_unref_folios+1004>:	cmp	x23, x2
+0xffffa7cc00016ff8 <free_unref_folios+1008>:	b.eq	0xffffa7cc00016cc8 <free_unref_folios+192>  // b.none
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1128
+0xffffa7cc00016ffc <free_unref_folios+1012>:	cbz	w3, 0xffffa7cc00016fe0 <free_unref_folios+984>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1129
+0xffffa7cc00017000 <free_unref_folios+1016>:	mov	x1, x23
+0xffffa7cc00017004 <free_unref_folios+1020>:	mov	x0, x19
+0xffffa7cc00017008 <free_unref_folios+1024>:	str	x2, [sp, #104]
+0xffffa7cc0001700c <free_unref_folios+1028>:	str	w3, [sp, #112]
+0xffffa7cc00017010 <free_unref_folios+1032>:	bl	0xffffa7cc0000efd0 <free_tail_page_prepare>
+0xffffa7cc00017014 <free_unref_folios+1036>:	mov	x6, #0xfffffffe00000000    	// #-8589934592
+0xffffa7cc00017018 <free_unref_folios+1040>:	ldr	w3, [sp, #112]
+0xffffa7cc0001701c <free_unref_folios+1044>:	ldr	x2, [sp, #104]
+0xffffa7cc00017020 <free_unref_folios+1048>:	add	w28, w28, w0
+0xffffa7cc00017024 <free_unref_folios+1052>:	movk	x6, #0xc40, lsl #16
+0xffffa7cc00017028 <free_unref_folios+1056>:	b	0xffffa7cc00016fe0 <free_unref_folios+984>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 2782
+0xffffa7cc0001702c <free_unref_folios+1060>:	str	x0, [x19, #40]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 2783
+0xffffa7cc00017030 <free_unref_folios+1064>:	cmp	w27, w24
+0xffffa7cc00017034 <free_unref_folios+1068>:	b.eq	0xffffa7cc00017040 <free_unref_folios+1080>  // b.none
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 2784
+0xffffa7cc00017038 <free_unref_folios+1072>:	add	x0, x20, w24, sxtw #3
+0xffffa7cc0001703c <free_unref_folios+1076>:	str	x19, [x0, #8]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 2785
+0xffffa7cc00017040 <free_unref_folios+1080>:	add	w24, w24, #0x1
+0xffffa7cc00017044 <free_unref_folios+1084>:	b	0xffffa7cc00016dd8 <free_unref_folios+464>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./arch/arm64/include/asm/jump_label.h: 33
+0xffffa7cc00017048 <free_unref_folios+1088>:	mov	w26, #0x1                   	// #1
+0xffffa7cc0001704c <free_unref_folios+1092>:	b	0xffffa7cc00016c88 <free_unref_folios+128>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./arch/arm64/include/asm/percpu.h: 40
+0xffffa7cc00017050 <free_unref_folios+1096>:	ldr	x1, [sp, #96]
+0xffffa7cc00017054 <free_unref_folios+1100>:	mrs	x0, tpidr_el2
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./arch/arm64/include/asm/percpu.h: 46
+0xffffa7cc00017058 <free_unref_folios+1104>:	ldr	w1, [x1, x0]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/asm-generic/bitops/generic-non-atomic.h: 128
+0xffffa7cc0001705c <free_unref_folios+1108>:	adrp	x0, 0xffffa7cc01b4e000 <join_entries+13376>
+0xffffa7cc00017060 <free_unref_folios+1112>:	add	x0, x0, #0xe98
+0xffffa7cc00017064 <free_unref_folios+1116>:	lsr	w2, w1, #6
+0xffffa7cc00017068 <free_unref_folios+1120>:	ldr	x0, [x0, x2, lsl #3]
+0xffffa7cc0001706c <free_unref_folios+1124>:	lsr	x0, x0, x1
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/trace/events/kmem.h: 139
+0xffffa7cc00017070 <free_unref_folios+1128>:	tbz	w0, #0, 0xffffa7cc00016cb0 <free_unref_folios+168>
+0xffffa7cc00017074 <free_unref_folios+1132>:	str	x3, [sp, #104]
+0xffffa7cc00017078 <free_unref_folios+1136>:	mov	x0, #0x0                   	// #0
+0xffffa7cc0001707c <free_unref_folios+1140>:	mov	w2, w21
+0xffffa7cc00017080 <free_unref_folios+1144>:	mov	x1, x19
+0xffffa7cc00017084 <free_unref_folios+1148>:	bl	0xffffa7cbfffb6a88 <__traceiter_mm_page_free>
+0xffffa7cc00017088 <free_unref_folios+1152>:	ldr	x3, [sp, #104]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/asm-generic/bitops/generic-non-atomic.h: 128
+0xffffa7cc0001708c <free_unref_folios+1156>:	ldr	x0, [x3]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1096
+0xffffa7cc00017090 <free_unref_folios+1160>:	tbz	w0, #21, 0xffffa7cc00016cb8 <free_unref_folios+176>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/asm-generic/bitops/generic-non-atomic.h: 128
+0xffffa7cc00017094 <free_unref_folios+1164>:	ldr	x0, [x3]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/mm.h: 2119
+0xffffa7cc00017098 <free_unref_folios+1168>:	tbz	w0, #6, 0xffffa7cc00017374 <free_unref_folios+1900>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/mm.h: 2122
+0xffffa7cc0001709c <free_unref_folios+1172>:	ldr	w0, [x3, #100]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/vmstat.h: 81
+0xffffa7cc000170a0 <free_unref_folios+1176>:	str	x0, [sp, #104]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1100
+0xffffa7cc000170a4 <free_unref_folios+1180>:	neg	x2, x0
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/asm-generic/bitops/generic-non-atomic.h: 42
+0xffffa7cc000170a8 <free_unref_folios+1184>:	ldr	x0, [x3]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/mm.h: 1916
+0xffffa7cc000170ac <free_unref_folios+1188>:	adrp	x23, 0xffffa7cc01b54000 <userfaultfd_ctx_cachep>
+0xffffa7cc000170b0 <free_unref_folios+1192>:	add	x23, x23, #0xdd0
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/vmstat.h: 458
+0xffffa7cc000170b4 <free_unref_folios+1196>:	mov	w1, #0x7                   	// #7
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/asm-generic/bitops/generic-non-atomic.h: 42
+0xffffa7cc000170b8 <free_unref_folios+1200>:	and	x0, x0, #0xffffffffffdfffff
+0xffffa7cc000170bc <free_unref_folios+1204>:	str	x0, [x3]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/mmzone.h: 1153
+0xffffa7cc000170c0 <free_unref_folios+1208>:	ubfx	x7, x0, #53, #3
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/mm.h: 1916
+0xffffa7cc000170c4 <free_unref_folios+1212>:	lsr	x3, x0, #56
+0xffffa7cc000170c8 <free_unref_folios+1216>:	lsl	x0, x7, #3
+0xffffa7cc000170cc <free_unref_folios+1220>:	sub	x0, x0, x7
+0xffffa7cc000170d0 <free_unref_folios+1224>:	ldr	x3, [x23, x3, lsl #3]
+0xffffa7cc000170d4 <free_unref_folios+1228>:	lsl	x0, x0, #2
+0xffffa7cc000170d8 <free_unref_folios+1232>:	sub	x0, x0, x7
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/vmstat.h: 458
+0xffffa7cc000170dc <free_unref_folios+1236>:	add	x0, x3, x0, lsl #6
+0xffffa7cc000170e0 <free_unref_folios+1240>:	bl	0xffffa7cbfffa9510 <mod_zone_page_state>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/vmstat.h: 81
+0xffffa7cc000170e4 <free_unref_folios+1244>:	adrp	x0, 0xffffa7cc01755000 <cpu_fbatches+736>
+0xffffa7cc000170e8 <free_unref_folios+1248>:	add	x0, x0, #0x5c0
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./arch/arm64/include/asm/percpu.h: 40
+0xffffa7cc000170ec <free_unref_folios+1252>:	mrs	x1, tpidr_el2
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./arch/arm64/include/asm/percpu.h: 127
+0xffffa7cc000170f0 <free_unref_folios+1256>:	add	x0, x0, x1
+0xffffa7cc000170f4 <free_unref_folios+1260>:	ldr	x1, [sp, #104]
+0xffffa7cc000170f8 <free_unref_folios+1264>:	stadd	x1, [x0]
+0xffffa7cc000170fc <free_unref_folios+1268>:	nop
+0xffffa7cc00017100 <free_unref_folios+1272>:	nop
+0xffffa7cc00017104 <free_unref_folios+1276>:	nop
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/vmstat.h: 81
+0xffffa7cc00017108 <free_unref_folios+1280>:	b	0xffffa7cc00016cb8 <free_unref_folios+176>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/atomic/atomic-arch-fallback.h: 444
+0xffffa7cc0001710c <free_unref_folios+1284>:	ldr	w0, [x19, #48]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 910
+0xffffa7cc00017110 <free_unref_folios+1288>:	cmn	w0, #0x1
+0xffffa7cc00017114 <free_unref_folios+1292>:	b.ne	0xffffa7cc000173ac <free_unref_folios+1956>  // b.any
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/atomic/atomic-arch-fallback.h: 444
+0xffffa7cc00017118 <free_unref_folios+1296>:	ldr	x0, [x19]
+0xffffa7cc0001711c <free_unref_folios+1300>:	mov	x3, #0xc923                	// #51491
+0xffffa7cc00017120 <free_unref_folios+1304>:	movk	x3, #0xc031, lsl #16
+0xffffa7cc00017124 <free_unref_folios+1308>:	ldr	w2, [x19, #52]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 913
+0xffffa7cc00017128 <free_unref_folios+1312>:	movk	x3, #0x1, lsl #32
+0xffffa7cc0001712c <free_unref_folios+1316>:	and	x0, x0, x3
+0xffffa7cc00017130 <free_unref_folios+1320>:	ldr	x1, [x19, #24]
+0xffffa7cc00017134 <free_unref_folios+1324>:	sxtw	x2, w2
+0xffffa7cc00017138 <free_unref_folios+1328>:	ldr	x3, [x19, #56]
+0xffffa7cc0001713c <free_unref_folios+1332>:	orr	x1, x1, x2
+0xffffa7cc00017140 <free_unref_folios+1336>:	orr	x0, x0, x3
+0xffffa7cc00017144 <free_unref_folios+1340>:	orr	x0, x0, x1
+0xffffa7cc00017148 <free_unref_folios+1344>:	cbnz	x0, 0xffffa7cc000173ac <free_unref_folios+1956>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1149
+0xffffa7cc0001714c <free_unref_folios+1348>:	cbnz	w28, 0xffffa7cc00016dd8 <free_unref_folios+464>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1154
+0xffffa7cc00017150 <free_unref_folios+1352>:	ldr	x0, [x19]
+0xffffa7cc00017154 <free_unref_folios+1356>:	mov	x1, #0xfffffffe00000000    	// #-8589934592
+0xffffa7cc00017158 <free_unref_folios+1360>:	movk	x1, #0xc40, lsl #16
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1155
+0xffffa7cc0001715c <free_unref_folios+1364>:	str	xzr, [x19, #40]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1154
+0xffffa7cc00017160 <free_unref_folios+1368>:	and	x0, x0, x1
+0xffffa7cc00017164 <free_unref_folios+1372>:	orr	x0, x0, #0x1ffffe00000000
+0xffffa7cc00017168 <free_unref_folios+1376>:	str	x0, [x19]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1183
+0xffffa7cc0001716c <free_unref_folios+1380>:	cbz	w26, 0xffffa7cc00016d68 <free_unref_folios+352>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1166
+0xffffa7cc00017170 <free_unref_folios+1384>:	mov	w23, #0x1                   	// #1
+0xffffa7cc00017174 <free_unref_folios+1388>:	lsl	w23, w23, w21
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1071
+0xffffa7cc00017178 <free_unref_folios+1392>:	cmp	w23, #0x0
+0xffffa7cc0001717c <free_unref_folios+1396>:	b.le	0xffffa7cc00016d68 <free_unref_folios+352>
+0xffffa7cc00017180 <free_unref_folios+1400>:	mov	x1, #0x40000000000         	// #4398046511104
+0xffffa7cc00017184 <free_unref_folios+1404>:	add	x28, x19, x1
+0xffffa7cc00017188 <free_unref_folios+1408>:	mov	w0, #0x40                  	// #64
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/mm.h: 2342
+0xffffa7cc0001718c <free_unref_folios+1412>:	mov	x26, #0xffff000000000000    	// #-281474976710656
+0xffffa7cc00017190 <free_unref_folios+1416>:	smaddl	x23, w23, w0, x28
+0xffffa7cc00017194 <free_unref_folios+1420>:	nop
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/highmem.h: 248
+0xffffa7cc00017198 <free_unref_folios+1424>:	lsr	x0, x28, #6
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1071
+0xffffa7cc0001719c <free_unref_folios+1428>:	add	x28, x28, #0x40
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/highmem.h: 248
+0xffffa7cc000171a0 <free_unref_folios+1432>:	add	x0, x26, x0, lsl #12
+0xffffa7cc000171a4 <free_unref_folios+1436>:	bl	0xffffa7cc00a8ac68 <__pi_clear_page>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1071
+0xffffa7cc000171a8 <free_unref_folios+1440>:	cmp	x28, x23
+0xffffa7cc000171ac <free_unref_folios+1444>:	b.ne	0xffffa7cc00017198 <free_unref_folios+1424>  // b.any
+0xffffa7cc000171b0 <free_unref_folios+1448>:	b	0xffffa7cc00016d68 <free_unref_folios+352>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/page-flags.h: 231
+0xffffa7cc000171b4 <free_unref_folios+1452>:	mov	x3, x19
+0xffffa7cc000171b8 <free_unref_folios+1456>:	tst	x19, #0xfff
+0xffffa7cc000171bc <free_unref_folios+1460>:	b.ne	0xffffa7cc00016cac <free_unref_folios+164>  // b.any
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/asm-generic/bitops/generic-non-atomic.h: 128
+0xffffa7cc000171c0 <free_unref_folios+1464>:	ldr	x0, [x19]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/page-flags.h: 231
+0xffffa7cc000171c4 <free_unref_folios+1468>:	tbz	w0, #6, 0xffffa7cc00016cac <free_unref_folios+164>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/page-flags.h: 238
+0xffffa7cc000171c8 <free_unref_folios+1472>:	ldr	x0, [x19, #72]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/page-flags.h: 240
+0xffffa7cc000171cc <free_unref_folios+1476>:	sub	x3, x0, #0x1
+0xffffa7cc000171d0 <free_unref_folios+1480>:	tst	x0, #0x1
+0xffffa7cc000171d4 <free_unref_folios+1484>:	csel	x3, x3, x19, ne  // ne = any
+0xffffa7cc000171d8 <free_unref_folios+1488>:	b	0xffffa7cc00016cac <free_unref_folios+164>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./arch/arm64/include/asm/percpu.h: 40
+0xffffa7cc000171dc <free_unref_folios+1492>:	ldp	x1, x2, [sp, #112]
+0xffffa7cc000171e0 <free_unref_folios+1496>:	mrs	x0, tpidr_el2
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./arch/arm64/include/asm/percpu.h: 46
+0xffffa7cc000171e4 <free_unref_folios+1500>:	ldr	w1, [x1, x0]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/asm-generic/bitops/generic-non-atomic.h: 128
+0xffffa7cc000171e8 <free_unref_folios+1504>:	lsr	w0, w1, #6
+0xffffa7cc000171ec <free_unref_folios+1508>:	ldr	x0, [x2, x0, lsl #3]
+0xffffa7cc000171f0 <free_unref_folios+1512>:	lsr	x0, x0, x1
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/trace/events/kmem.h: 161
+0xffffa7cc000171f4 <free_unref_folios+1516>:	tbz	w0, #0, 0xffffa7cc00016ef8 <free_unref_folios+752>
+0xffffa7cc000171f8 <free_unref_folios+1520>:	str	w3, [sp, #96]
+0xffffa7cc000171fc <free_unref_folios+1524>:	mov	x0, #0x0                   	// #0
+0xffffa7cc00017200 <free_unref_folios+1528>:	mov	x1, x28
+0xffffa7cc00017204 <free_unref_folios+1532>:	bl	0xffffa7cbfffb6b18 <__traceiter_mm_page_free_batched>
+0xffffa7cc00017208 <free_unref_folios+1536>:	ldr	w3, [sp, #96]
+0xffffa7cc0001720c <free_unref_folios+1540>:	b	0xffffa7cc00016ef8 <free_unref_folios+752>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/page-flags.h: 231
+0xffffa7cc00017210 <free_unref_folios+1544>:	mov	x0, x19
+0xffffa7cc00017214 <free_unref_folios+1548>:	tst	x19, #0xfff
+0xffffa7cc00017218 <free_unref_folios+1552>:	b.ne	0xffffa7cc00016d3c <free_unref_folios+308>  // b.any
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/asm-generic/bitops/generic-non-atomic.h: 128
+0xffffa7cc0001721c <free_unref_folios+1556>:	ldr	x1, [x19]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/page-flags.h: 231
+0xffffa7cc00017220 <free_unref_folios+1560>:	tbz	w1, #6, 0xffffa7cc00016d3c <free_unref_folios+308>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/page-flags.h: 238
+0xffffa7cc00017224 <free_unref_folios+1564>:	ldr	x1, [x19, #72]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/page-flags.h: 240
+0xffffa7cc00017228 <free_unref_folios+1568>:	sub	x0, x1, #0x1
+0xffffa7cc0001722c <free_unref_folios+1572>:	tst	x1, #0x1
+0xffffa7cc00017230 <free_unref_folios+1576>:	csel	x0, x0, x19, ne  // ne = any
+0xffffa7cc00017234 <free_unref_folios+1580>:	b	0xffffa7cc00016d3c <free_unref_folios+308>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/atomic/atomic-arch-fallback.h: 444
+0xffffa7cc00017238 <free_unref_folios+1584>:	mov	x1, #0xc923                	// #51491
+0xffffa7cc0001723c <free_unref_folios+1588>:	ldr	w0, [x23, #48]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 913
+0xffffa7cc00017240 <free_unref_folios+1592>:	movk	x1, #0xc031, lsl #16
+0xffffa7cc00017244 <free_unref_folios+1596>:	movk	x1, #0x1, lsl #32
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 910
+0xffffa7cc00017248 <free_unref_folios+1600>:	cmn	w0, #0x1
+0xffffa7cc0001724c <free_unref_folios+1604>:	b.ne	0xffffa7cc00017278 <free_unref_folios+1648>  // b.any
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 913
+0xffffa7cc00017250 <free_unref_folios+1608>:	ldr	x0, [x23]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/atomic/atomic-arch-fallback.h: 444
+0xffffa7cc00017254 <free_unref_folios+1612>:	ldr	w8, [x23, #52]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 913
+0xffffa7cc00017258 <free_unref_folios+1616>:	ldr	x7, [x23, #24]
+0xffffa7cc0001725c <free_unref_folios+1620>:	and	x1, x0, x1
+0xffffa7cc00017260 <free_unref_folios+1624>:	ldr	x9, [x23, #56]
+0xffffa7cc00017264 <free_unref_folios+1628>:	sxtw	x8, w8
+0xffffa7cc00017268 <free_unref_folios+1632>:	orr	x7, x7, x8
+0xffffa7cc0001726c <free_unref_folios+1636>:	orr	x1, x1, x9
+0xffffa7cc00017270 <free_unref_folios+1640>:	orr	x1, x1, x7
+0xffffa7cc00017274 <free_unref_folios+1644>:	cbz	x1, 0xffffa7cc00016fe8 <free_unref_folios+992>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 959
+0xffffa7cc00017278 <free_unref_folios+1648>:	mov	x0, x23
+0xffffa7cc0001727c <free_unref_folios+1652>:	str	x2, [sp, #104]
+0xffffa7cc00017280 <free_unref_folios+1656>:	str	w3, [sp, #112]
+0xffffa7cc00017284 <free_unref_folios+1660>:	bl	0xffffa7cc00010518 <free_page_is_bad_report>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1132
+0xffffa7cc00017288 <free_unref_folios+1664>:	mov	x6, #0xfffffffe00000000    	// #-8589934592
+0xffffa7cc0001728c <free_unref_folios+1668>:	ldr	w3, [sp, #112]
+0xffffa7cc00017290 <free_unref_folios+1672>:	ldr	x2, [sp, #104]
+0xffffa7cc00017294 <free_unref_folios+1676>:	add	w28, w28, #0x1
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1133
+0xffffa7cc00017298 <free_unref_folios+1680>:	movk	x6, #0xc40, lsl #16
+0xffffa7cc0001729c <free_unref_folios+1684>:	b	0xffffa7cc00016ff0 <free_unref_folios+1000>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./arch/arm64/include/asm/atomic_ll_sc.h: 284
+0xffffa7cc000172a0 <free_unref_folios+1688>:	mov	x6, #0x0                   	// #0
+0xffffa7cc000172a4 <free_unref_folios+1692>:	mov	w7, #0x1                   	// #1
+0xffffa7cc000172a8 <free_unref_folios+1696>:	prfm	pstl1strm, [x4]
+0xffffa7cc000172ac <free_unref_folios+1700>:	ldaxr	w2, [x4]
+0xffffa7cc000172b0 <free_unref_folios+1704>:	eor	w8, w2, w6
+0xffffa7cc000172b4 <free_unref_folios+1708>:	cbnz	w8, 0xffffa7cc000172c0 <free_unref_folios+1720>
+0xffffa7cc000172b8 <free_unref_folios+1712>:	stxr	w8, w7, [x4]
+0xffffa7cc000172bc <free_unref_folios+1716>:	cbnz	w8, 0xffffa7cc000172ac <free_unref_folios+1700>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/spinlock.h: 198
+0xffffa7cc000172c0 <free_unref_folios+1720>:	cbz	w2, 0xffffa7cc00016ee8 <free_unref_folios+736>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 2825
+0xffffa7cc000172c4 <free_unref_folios+1724>:	b	0xffffa7cc000172dc <free_unref_folios+1748>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 2800
+0xffffa7cc000172c8 <free_unref_folios+1728>:	cmp	w0, #0x5
+0xffffa7cc000172cc <free_unref_folios+1732>:	b.ne	0xffffa7cc00016eec <free_unref_folios+740>  // b.any
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 2802
+0xffffa7cc000172d0 <free_unref_folios+1736>:	cbz	x22, 0xffffa7cc000172dc <free_unref_folios+1748>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./arch/arm64/include/asm/qspinlock.h: 22
+0xffffa7cc000172d4 <free_unref_folios+1740>:	stlrb	wzr, [x22]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 2813
+0xffffa7cc000172d8 <free_unref_folios+1744>:	mov	x24, #0x0                   	// #0
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 2827
+0xffffa7cc000172dc <free_unref_folios+1748>:	ldr	w3, [sp, #104]
+0xffffa7cc000172e0 <free_unref_folios+1752>:	mov	x2, x1
+0xffffa7cc000172e4 <free_unref_folios+1756>:	mov	x0, x19
+0xffffa7cc000172e8 <free_unref_folios+1760>:	mov	x1, x28
+0xffffa7cc000172ec <free_unref_folios+1764>:	mov	w4, #0x0                   	// #0
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 2829
+0xffffa7cc000172f0 <free_unref_folios+1768>:	mov	x22, #0x0                   	// #0
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 2827
+0xffffa7cc000172f4 <free_unref_folios+1772>:	bl	0xffffa7cc00010fe0 <free_one_page>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 2829
+0xffffa7cc000172f8 <free_unref_folios+1776>:	b	0xffffa7cc00016f10 <free_unref_folios+776>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/page-flags.h: 262
+0xffffa7cc000172fc <free_unref_folios+1780>:	sub	x3, x3, #0x1
+0xffffa7cc00017300 <free_unref_folios+1784>:	b	0xffffa7cc00016cac <free_unref_folios+164>
+0xffffa7cc00017304 <free_unref_folios+1788>:	sub	x0, x0, #0x1
+0xffffa7cc00017308 <free_unref_folios+1792>:	b	0xffffa7cc00016d3c <free_unref_folios+308>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1126
+0xffffa7cc0001730c <free_unref_folios+1796>:	ldr	x0, [x19, #64]
+0xffffa7cc00017310 <free_unref_folios+1800>:	mov	x1, #0xfffffffffffff900    	// #-1792
+0xffffa7cc00017314 <free_unref_folios+1804>:	and	x0, x0, x1
+0xffffa7cc00017318 <free_unref_folios+1808>:	str	x0, [x19, #64]
+0xffffa7cc0001731c <free_unref_folios+1812>:	b	0xffffa7cc00016fac <free_unref_folios+932>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/page-flags.h: 231
+0xffffa7cc00017320 <free_unref_folios+1816>:	mov	x0, x19
+0xffffa7cc00017324 <free_unref_folios+1820>:	tst	x19, #0xfff
+0xffffa7cc00017328 <free_unref_folios+1824>:	b.ne	0xffffa7cc00016f5c <free_unref_folios+852>  // b.any
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/asm-generic/bitops/generic-non-atomic.h: 128
+0xffffa7cc0001732c <free_unref_folios+1828>:	ldr	x1, [x19]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/page-flags.h: 231
+0xffffa7cc00017330 <free_unref_folios+1832>:	tbz	w1, #6, 0xffffa7cc00016f5c <free_unref_folios+852>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/page-flags.h: 238
+0xffffa7cc00017334 <free_unref_folios+1836>:	ldr	x1, [x19, #72]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/page-flags.h: 240
+0xffffa7cc00017338 <free_unref_folios+1840>:	sub	x0, x1, #0x1
+0xffffa7cc0001733c <free_unref_folios+1844>:	tst	x1, #0x1
+0xffffa7cc00017340 <free_unref_folios+1848>:	csel	x0, x0, x19, ne  // ne = any
+0xffffa7cc00017344 <free_unref_folios+1852>:	b	0xffffa7cc00016f5c <free_unref_folios+852>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./arch/arm64/include/asm/jump_label.h: 39
+0xffffa7cc00017348 <free_unref_folios+1856>:	b	0xffffa7cc00016dd8 <free_unref_folios+464>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/page-flags.h: 259
+0xffffa7cc0001734c <free_unref_folios+1860>:	ldr	x0, [x19, #8]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/page-flags.h: 261
+0xffffa7cc00017350 <free_unref_folios+1864>:	tbnz	w0, #0, 0xffffa7cc000173ec <free_unref_folios+2020>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./arch/arm64/include/asm/jump_label.h: 22
+0xffffa7cc00017354 <free_unref_folios+1868>:	nop
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/mm.h: 1958
+0xffffa7cc00017358 <free_unref_folios+1872>:	mov	x0, x19
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/memcontrol.h: 671
+0xffffa7cc0001735c <free_unref_folios+1876>:	ldr	x0, [x0, #56]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1109
+0xffffa7cc00017360 <free_unref_folios+1880>:	tbz	w0, #1, 0xffffa7cc00016dd8 <free_unref_folios+464>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1110
+0xffffa7cc00017364 <free_unref_folios+1884>:	mov	x0, x19
+0xffffa7cc00017368 <free_unref_folios+1888>:	mov	w1, #0x0                   	// #0
+0xffffa7cc0001736c <free_unref_folios+1892>:	bl	0xffffa7cc00094f58 <__memcg_kmem_uncharge_page>
+0xffffa7cc00017370 <free_unref_folios+1896>:	b	0xffffa7cc00016dd8 <free_unref_folios+464>
+0xffffa7cc00017374 <free_unref_folios+1900>:	mov	x0, #0x1                   	// #1
+0xffffa7cc00017378 <free_unref_folios+1904>:	mov	x2, #0xffffffffffffffff    	// #-1
+0xffffa7cc0001737c <free_unref_folios+1908>:	str	x0, [sp, #104]
+0xffffa7cc00017380 <free_unref_folios+1912>:	b	0xffffa7cc000170a8 <free_unref_folios+1184>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/page-flags.h: 231
+0xffffa7cc00017384 <free_unref_folios+1916>:	mov	x0, x19
+0xffffa7cc00017388 <free_unref_folios+1920>:	tst	x19, #0xfff
+0xffffa7cc0001738c <free_unref_folios+1924>:	b.ne	0xffffa7cc0001735c <free_unref_folios+1876>  // b.any
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/asm-generic/bitops/generic-non-atomic.h: 128
+0xffffa7cc00017390 <free_unref_folios+1928>:	ldr	x1, [x19]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/page-flags.h: 231
+0xffffa7cc00017394 <free_unref_folios+1932>:	tbz	w1, #6, 0xffffa7cc0001735c <free_unref_folios+1876>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/page-flags.h: 238
+0xffffa7cc00017398 <free_unref_folios+1936>:	ldr	x1, [x19, #72]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/page-flags.h: 240
+0xffffa7cc0001739c <free_unref_folios+1940>:	sub	x0, x1, #0x1
+0xffffa7cc000173a0 <free_unref_folios+1944>:	tst	x1, #0x1
+0xffffa7cc000173a4 <free_unref_folios+1948>:	csel	x0, x0, x19, ne  // ne = any
+0xffffa7cc000173a8 <free_unref_folios+1952>:	b	0xffffa7cc0001735c <free_unref_folios+1876>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 959
+0xffffa7cc000173ac <free_unref_folios+1956>:	add	w28, w28, #0x1
+0xffffa7cc000173b0 <free_unref_folios+1960>:	mov	x0, x19
+0xffffa7cc000173b4 <free_unref_folios+1964>:	bl	0xffffa7cc00010518 <free_page_is_bad_report>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1149
+0xffffa7cc000173b8 <free_unref_folios+1968>:	cbz	w28, 0xffffa7cc00017150 <free_unref_folios+1352>
+0xffffa7cc000173bc <free_unref_folios+1972>:	b	0xffffa7cc00016dd8 <free_unref_folios+464>
+0xffffa7cc000173c0 <free_unref_folios+1976>:	ldp	x21, x22, [sp, #32]
+0xffffa7cc000173c4 <free_unref_folios+1980>:	ldp	x23, x24, [sp, #48]
+0xffffa7cc000173c8 <free_unref_folios+1984>:	ldp	x25, x26, [sp, #64]
+0xffffa7cc000173cc <free_unref_folios+1988>:	ldp	x27, x28, [sp, #80]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/pagevec.h: 48
+0xffffa7cc000173d0 <free_unref_folios+1992>:	strb	wzr, [x20]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 2851
+0xffffa7cc000173d4 <free_unref_folios+1996>:	ldp	x19, x20, [sp, #16]
+0xffffa7cc000173d8 <free_unref_folios+2000>:	ldp	x29, x30, [sp], #128
+0xffffa7cc000173dc <free_unref_folios+2004>:	autiasp
+0xffffa7cc000173e0 <free_unref_folios+2008>:	ret
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/page-flags.h: 262
+0xffffa7cc000173e4 <free_unref_folios+2012>:	sub	x0, x0, #0x1
+0xffffa7cc000173e8 <free_unref_folios+2016>:	b	0xffffa7cc00016f5c <free_unref_folios+852>
+0xffffa7cc000173ec <free_unref_folios+2020>:	sub	x0, x0, #0x1
+0xffffa7cc000173f0 <free_unref_folios+2024>:	b	0xffffa7cc0001735c <free_unref_folios+1876>
+crash> quit
