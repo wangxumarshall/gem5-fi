@@ -23,7 +23,7 @@ import argparse
 import m5
 from m5.objects import (ArmDefaultRelease, VExpress_GEM5_Foundation,
                         VExpress_GEM5_V1, CHAOSArmTLB, CHAOSArmSysReg,
-                        CHAOSPTW)
+                        CHAOSPTW, CHAOSPhysReg, CHAOSAddrPath)
 from gem5.components.boards.arm_board import ArmBoard
 from gem5.components.cachehierarchies.classic.private_l1_private_l2_cache_hierarchy import (
     PrivateL1PrivateL2CacheHierarchy,
@@ -124,6 +124,30 @@ p.add_argument("--ptw_rng_seed", type=lambda x:int(x,0), default=20260825)
 p.add_argument("--ptw_ecc", type=lambda x: (str(x).lower() in ("1","true","on")),
                default=True,
                help="H7: ECC on (spurious~0) / off (spurious>0)")
+# §2.10 C method2 three-root-cause arm 1 (Phase 5.6): CHAOSPhysReg on the
+# O3 restore (PRF read-out corruption — the method2 'x10 garbage pointer'
+# root cause candidate). Requires --cpu=O3 (PRF exists only on O3).
+p.add_argument("--chaos_phys", action="store_true",
+               help="attach CHAOSPhysReg (O3 only; method2 PRF arm)")
+p.add_argument("--phys_mode", default="arch_frontend",
+               choices=["phys", "arch_frontend"],
+               help="PRF injection mode (arch_frontend targets an arch reg)")
+p.add_argument("--phys_target_arch", type=int, default=10,
+               help="arch reg index (method2 x10 default)")
+p.add_argument("--phys_first_clock", type=lambda x:int(x,0), default=100000)
+p.add_argument("--phys_max_faults", type=lambda x:int(x,0), default=1)
+p.add_argument("--phys_rng_seed", type=lambda x:int(x,0), default=20260825)
+# §2.10 C method2 arm 2 (Phase 5.6): CHAOSAddrPath — AGU vaddr corruption
+# (byte7_zero: canonical -> non-canonical, the 'garbage pointer' translation
+# fault on the ADDRESS path instead of the register). O3-only.
+p.add_argument("--chaos_addrpath", action="store_true",
+               help="attach CHAOSAddrPath (O3 only; method2 AGU arm)")
+p.add_argument("--addrpath_mode", default="byte7_zero",
+               choices=["byte7_zero", "low_bit_flip", "sub_inflight_addr"],
+               help="AGU address-path fault mode")
+p.add_argument("--addrpath_first_clock", type=lambda x:int(x,0), default=100000)
+p.add_argument("--addrpath_max_faults", type=lambda x:int(x,0), default=1)
+p.add_argument("--addrpath_rng_seed", type=lambda x:int(x,0), default=20260825)
 p.add_argument("--sysreg_target_regs", default="",
                help="comma-separated ARM miscRegName strings (lowercase, "
                     "from misc.hh miscRegName[]), e.g. "
@@ -178,7 +202,7 @@ board.set_kernel_disk_workload(
 # hook (the ArmBoard builds the CPU+MMU lazily). Either TLB or SYS (or both)
 # trigger the hook. cpu0 = processor.get_cores()[0].core; D-TLB = cpu0.mmu.dtb;
 # ISA = cpu0.isa[0] (BaseCPU.isa is a per-thread VectorParam.BaseISA).
-if args.chaos_armtlb or args.chaos_sysreg or args.chaos_ptw:
+if args.chaos_armtlb or args.chaos_sysreg or args.chaos_ptw or args.chaos_phys or args.chaos_addrpath:
     _tlb_attached = [False]
     _orig_pi = getattr(cache_hierarchy, "_pre_instantiate", None)
     def _attach_tlb(root):
@@ -225,6 +249,48 @@ if args.chaos_armtlb or args.chaos_sysreg or args.chaos_ptw:
             )
             board.chaos_ptw = ptw
             # CHAOSPTW SELF-ATTACHES (ctor sets walker->chaosPTW = this).
+
+        # §2.10 C method2 arm 1 (Phase 5.6): CHAOSPhysReg — PRF read-out
+        # corruption on the O3 restore (the 'x10 garbage pointer' root
+        # cause candidate). Needs an O3 CPU (physRegFile); decline honestly
+        # otherwise (the Atomic boot pass has no PRF).
+        if args.chaos_phys:
+            if args.cpu == "O3":
+                chaos_p = CHAOSPhysReg(
+                    cpu=cpu0,
+                    injectionMode=args.phys_mode,
+                    targetArchRegIdx=args.phys_target_arch,
+                    probability=1.0,
+                    bitsToChange=1,
+                    faultMask=0,
+                    faultType="bit_flip",
+                    firstClock=args.phys_first_clock,
+                    maxFaults=args.phys_max_faults,
+                    rngSeed=args.phys_rng_seed,
+                    writeLog=True,
+                )
+                board.chaos_phys = chaos_p
+            else:
+                print("[arm_chaos_fs] CHAOSPhysReg skipped: needs --cpu=O3 "
+                      "(no PRF on " + args.cpu + ")")
+
+        # §2.10 C method2 arm 2 (Phase 5.6): CHAOSAddrPath — AGU address-path
+        # corruption (byte7_zero -> non-canonical vaddr -> translation fault
+        # on the ADDRESS path; the method2 root-cause candidate #2).
+        if args.chaos_addrpath:
+            if args.cpu == "O3":
+                ap = CHAOSAddrPath(
+                    cpu=cpu0,
+                    mode=args.addrpath_mode,
+                    probability=1.0,
+                    firstClock=args.addrpath_first_clock,
+                    maxFaults=args.addrpath_max_faults,
+                    rngSeed=args.addrpath_rng_seed,
+                    writeLog=True,
+                )
+                board.chaos_addrpath = ap
+            else:
+                print("[arm_chaos_fs] CHAOSAddrPath skipped: needs --cpu=O3")
 
         # Phase 3 §六.4 item 3 (SYS): CHAOSArmSysReg attaches to the CPU's
         # ISA (isa vector, per-thread). The injector SELF-ATTACHES in its
@@ -292,6 +358,21 @@ if args.restore_checkpoint:
             print(f"[arm_chaos_fs] tlb_first_clock: {args.tlb_first_clock} "
                   f"-> {rebased}")
             args.tlb_first_clock = rebased
+            # §2.10 C method2 arm 1 (Phase 5.6): CHAOSPhysReg schedules its
+            # attack event at CONSTRUCTION time to cpu->clockEdge(first_clock)
+            # — an un-rebased first_clock lands in the past on a restore run
+            # and trips doSimLoop's `curTick() <` assertion (found in the
+            # method2 pilot: abort at tick == checkpoint tick). Rebase it too.
+            if getattr(args, "phys_first_clock", None) is not None:
+                prebased = args.phys_first_clock + (ckpt_tick // period_ticks)
+                print(f"[arm_chaos_fs] phys_first_clock: "
+                      f"{args.phys_first_clock} -> {prebased}")
+                args.phys_first_clock = prebased
+            if getattr(args, "addrpath_first_clock", None) is not None:
+                arebased = args.addrpath_first_clock + (ckpt_tick // period_ticks)
+                print(f"[arm_chaos_fs] addrpath_first_clock: "
+                      f"{args.addrpath_first_clock} -> {arebased}")
+                args.addrpath_first_clock = arebased
         else:
             print("[arm_chaos_fs] WARN: no .tick file found; "
                   "first_clock NOT rebased (absolute cycles)")

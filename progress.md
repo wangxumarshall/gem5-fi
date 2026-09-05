@@ -1923,3 +1923,14 @@ CHAOSPTW 已 cherry-pick（c42270d）但**从未在任何 config 挂载**（runn
 **§2.10 SysReg F5 pilot（value_to_legal vs bit_flip × n=5，checkpoint restore，白名单 sctlr/ttbr0/tcr/mair/vbar/contextidr/nzcv）**：修复后 10/10 faults=1 全 **Masked**——内核稳态下 MRS 读值的跨白名单替换与位翻转都被吸收（restore 后稳态 MRS 读稀疏，替换值多数落在非关键读上；与 TLB F5/PTW H7 稳态结论同族）。runner sysreg 分支补了 §2.10 C 白名单透传（此前 sysreg_target_regs 恒空 → 注入器无白名单不可用）。
 
 **Phase 5 FS 三注入器（TLB/PTW/SysReg）pilot 全部触发验证 ✅**。稳态全 Masked 的共同格局提示：FS 侧的 SDC 量化需要**注入后活跃使用受影响路径**的 workload（method2 三根因实验正是如此设计）——这是 Phase 5 剩余的核心实验。
+
+### Phase 5.6: method2 三根因区分实验 — 三臂工具链全通（O3 checkpoint restore + PRF/AddrPath 挂载）
+
+**O3 checkpoint restore 验证**：Atomic boot checkpoint → `--cpu=O3` restore + V110 参数，内核健康推进 631M ticks 零 panic（O3 在 cpu179 上比 Atomic 慢 ~10 倍，1800s 超时是预期内——正式跑批需更大 timeout 或更早注入）。
+
+**三臂挂载/触发（§2.10 C method2 三根因，全部真机验证）**：
+1. **PRF 臂**（CHAOSPhysReg arch_frontend X10）：`Cycle: 714516581, PhysReg[10]`（rebase 后 checkpoint+1000 cycles 精确触发）；readtrace `reads_before_overwrite=1`；内核存活。修复 1 个 bug：**CHAOSPhysReg 构造期 schedule 到 clockEdge(first_clock)——未 rebase 的 first_clock 在 restore 上落在过去 → doSimLoop `curTick() <` 断言 abort**（--ckpt-first-clock 的 rebase 现已覆盖 phys）。
+2. **AddrPath 臂**（CHAOSAddrPath byte7_zero，本段新挂载）：`old_vaddr=0xffffffc009483f60 → new_vaddr=0xffffc009483f60`——canonical → 非内核规范地址，method2 "垃圾指针→翻译故障"的地址路径签名。
+3. **TLB 臂**（既有，Phase 4.4/5.4）：pfn_to_mapped_page 活页替换已验证。
+
+**三臂对照实验设计就绪**：同签名（x10 垃圾指针/翻译故障）分别从 PRF 读出 / AGU 地址生成 / TLB 翻译注入，比对 ESR/故障 PC/x10 值形态（设计文档 §2.10 E）。正式 pilot 需要内核侧活跃使用 x10 的 workload（find_busiest_group 链表遍历类）或 userspace 定向 kernel + ESR 抓取——当前稳态 checkpoint 上三臂都会被内核吸收（同 TLB F5/H7/SysReg 稳态格局）。
