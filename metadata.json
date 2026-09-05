@@ -1,0 +1,45 @@
+{
+  "cli_version": "0.10.2",
+  "checkpoint_id": "01M1RXKR0DP5RXH2383D8631XF",
+  "strategy": "manual-commit",
+  "branch": "research/vmcore-cases-5newdumps-0940batch",
+  "checkpoints_count": 1,
+  "files_touched": [
+    ".planning/2026-09-05-vmcore-cases-5newdumps/progress.md",
+    ".planning/2026-09-05-vmcore-cases-5newdumps/task_plan.md",
+    "docs/cases/vmcore-diagnosis-report-127.0.0.1-2026-09-04-215328/algebra.py",
+    "docs/cases/vmcore-diagnosis-report-127.0.0.1-2026-09-04-215328/algebra_out.txt",
+    "docs/cases/vmcore-diagnosis-report-127.0.0.1-2026-09-04-215328/dmesg_forensics.txt",
+    "docs/cases/vmcore-diagnosis-report-127.0.0.1-2026-09-04-215328/vmcore-diagnosis-report-127.0.0.1-2026-09-04-215328.md",
+    "docs/cases/vmcore-diagnosis-report-127.0.0.1-2026-09-04-220949/algebra.py",
+    "docs/cases/vmcore-diagnosis-report-127.0.0.1-2026-09-04-220949/algebra_out.txt",
+    "docs/cases/vmcore-diagnosis-report-127.0.0.1-2026-09-04-220949/dmesg_forensics.txt",
+    "docs/cases/vmcore-diagnosis-report-127.0.0.1-2026-09-04-220949/vmcore-diagnosis-report-127.0.0.1-2026-09-04-220949.md",
+    "docs/cases/vmcore-diagnosis-report-127.0.0.1-2026-09-04-222727/algebra.py",
+    "docs/cases/vmcore-diagnosis-report-127.0.0.1-2026-09-04-222727/algebra_out.txt",
+    "docs/cases/vmcore-diagnosis-report-127.0.0.1-2026-09-04-222727/dmesg_forensics.txt",
+    "docs/cases/vmcore-diagnosis-report-127.0.0.1-2026-09-04-223938/algebra.py",
+    "docs/cases/vmcore-diagnosis-report-127.0.0.1-2026-09-04-223938/algebra_out.txt",
+    "docs/cases/vmcore-diagnosis-report-127.0.0.1-2026-09-04-223938/dmesg_forensics.txt",
+    "docs/cases/vmcore-diagnosis-report-127.0.0.1-2026-09-04-223938/vmcore-diagnosis-report-127.0.0.1-2026-09-04-223938.md",
+    "docs/cases/vmcore-diagnosis-report-127.0.0.1-2026-09-04-233757/algebra.py",
+    "docs/cases/vmcore-diagnosis-report-127.0.0.1-2026-09-04-233757/algebra_out.txt",
+    "docs/cases/vmcore-diagnosis-report-127.0.0.1-2026-09-04-233757/dmesg_forensics.txt"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 1011904,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 12506,
+    "api_call_count": 26
+  }
+}
