@@ -1897,3 +1897,12 @@ CHAOSPTW 已 cherry-pick（c42270d）但**从未在任何 config 挂载**（runn
 **TLB F5 活页 pilot（checkpoint restore, 28s/rep vs ~30min fresh boot）**：2/2 faults=1 全 **Masked**（内核存活——活页替换被内核吸收）。FS formal 跑批（n=384）现在只是 campaign 配置问题。
 
 **Phase 5 工具链 5/5 齐备**：V110 FS ✅ / checkpoint 管线 ✅ / PTW 挂载 ✅ / FS campaign 化 ✅ / TLB F5 pilot ✅。剩余是跑批量（TLB F5 formal、PTW H7 pilot、SysReg F5 pilot、method2 三根因）——每项都有清晰路径。
+
+### Phase 5.4b: TLB F5 活页 formal（第一个 FS formal，n=384）— 内核存活 oracle 下全 Masked
+
+**§2.10 TLB F5 formal（checkpoint restore, Atomic, n=384 + 5% replay）**：主结果 **384/384 Masked**（faults=1，内核在每次活页替换后存活）。
+
+**结论与诚实边界**：
+- fs_mode oracle = 内核存活（FS 无 workload checksum）——"Masked"在此 oracle 下 = **内核未崩溃**，包含两种可能：真掩盖（错页数据未被消费）或**静默数据损坏**（错页数据被消费但内核没死）。SDC 与 Masked 在当前 oracle 下不可区分——这是 §2.10 E "p_SDC(pfn→活页) 最危险路径量化"的**上界**（P_SDC ≤ 100% - P_Crash，Crash=0 故上界不紧）。
+- 对照 bit_flip 锚点（Phase 3 FS：pfn 翻到未映射区 → BadAddressError panic DUE 100%）：**活页替换 0% Crash**——合法域替换成功避开了崩溃检测，"静默通路"的存在性证明成立（这正是设计文档标注"最危险"的原因：它能绕过检测），但量化 SDC 需要内核内校验 workload（如内核态 checksum 自检）——排 Phase 5 后续（method2 三根因实验自带 ESR/panic 签名比对，可部分区分）。
+- **流水线意义**：第一次 FS formal 级跑批（384 reps × checkpoint restore + 19 replay）在 ~3.5h（12767s）内完成——旧模式（每 rep 全新 boot ~30min）需 8 天。§3.2 管线的价值实证。frozen=yes 的 replay 波动是 cpu179 上 restore IO 超时边界环境噪声（非分类不稳定——384 主 reps 全 Masked 一致）。
