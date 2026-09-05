@@ -1,0 +1,1 @@
+/goal 调用planning-with-files 和superSuperpowers等skill , 研究上级目录中的vmcore，不能看现有的文档，微架构级别研究sdc故障根因，提出芯片设计与实现的启示。每个案例都独立研究，用不同的subagent，生成报告存储到：/home/sdc/wangxu/vmcore0102/gem5-fi/docs/cases 目录中，类似“vmcore-diagnosis-report-127.0.0.1-2026-09-04-123331”中的格式。
