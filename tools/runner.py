@@ -101,6 +101,22 @@ def main():
                          "manifest's oracle.golden_id is resolved via the "
                          "runner's GOLDEN_IDS table.")
     ap.add_argument("--binary", required=True, help="path to the workload binary")
+    # §3.2 FS checkpoint pipeline (Phase 5.4): FS deps + checkpoint restore.
+    # The checkpoint is made ONCE by boot_ckpt.rcS (kp920_proxy_fs --cpu
+    # Atomic --readfile ...); every rep then restores from it (fast path).
+    ap.add_argument("--kernel", default="gem5-fs/vmlinux",
+                    help="FS kernel path (C0-FS/C2-FS families)")
+    ap.add_argument("--disk", default="gem5-fs/ubuntu.img",
+                    help="FS disk image path")
+    ap.add_argument("--bootloader", default="gem5-fs/boot.arm64",
+                    help="FS bootloader path")
+    ap.add_argument("--root-partition", default="/dev/vda1",
+                    help="root partition in the disk (virtio_blk -> vda)")
+    ap.add_argument("--fs-cpu", default="Atomic", choices=["Atomic", "O3", "TIMING"],
+                    help="CPU type for the FS run (the checkpoint pipeline "
+                         "boots Atomic; restore may switch)")
+    ap.add_argument("--restore-checkpoint", default=None,
+                    help="checkpoint dir to restore from (Phase 5.2 pipeline)")
     args = ap.parse_args()
 
     with open(args.manifest) as f:
@@ -226,16 +242,31 @@ def main():
         fault_mask = "0"   # random mask
         bits_to_change = "1"
 
-    cmd = [G5, "--quiet", "-d", tempfile.mkdtemp(prefix="man-"), cfg_path,
-           "--cmd", args.binary, "--cpu", "O3",
-           "--first_clock", str(t["value"]),
-           "--max_faults", str(m["limits"]["max_faults"]),
-           "--rng_seed", str(m["rng"]["selection_seed"]),
-           "--fault_type", fault_type]
+    # FS families (C0-FS / C2-FS) have a completely different arg surface
+    # (kernel/disk/bootloader, no --cmd/--first_clock; injector knobs carry
+    # the window). Checkpoint pipeline (Phase 5.2/5.4): every rep restores
+    # from the one-time boot_ckpt checkpoint (fast path ~4min vs ~30min boot).
+    if cfg_family in ("C0-FS", "C2-FS"):
+        cmd = [G5, "--quiet", "-d", tempfile.mkdtemp(prefix="man-"), cfg_path,
+               "--kernel", args.kernel, "--disk", args.disk,
+               "--bootloader", args.bootloader,
+               "--root-partition", args.root_partition,
+               "--cpu", args.fs_cpu]
+        if args.restore_checkpoint:
+            cmd += ["--restore-checkpoint", args.restore_checkpoint,
+                    "--ckpt-first-clock"]
+    else:
+        cmd = [G5, "--quiet", "-d", tempfile.mkdtemp(prefix="man-"), cfg_path,
+               "--cmd", args.binary, "--cpu", "O3",
+               "--first_clock", str(t["value"]),
+               "--max_faults", str(m["limits"]["max_faults"]),
+               "--rng_seed", str(m["rng"]["selection_seed"]),
+               "--fault_type", fault_type]
     # §2.7: arm_chaos_cache.py has NO --fault_mask/--bits_to_change args
-    # (different param surface than arm_chaos.py). Only pass them on the
+    # (different param surface than arm_chaos.py), and neither do the FS
+    # configs (arm_chaos_fs.py — SE-only knobs). Pass them only on the SE
     # arm_chaos.py-family configs.
-    if cfg_family != "C0-CACHE":
+    if cfg_family not in ("C0-CACHE", "C0-FS", "C2-FS"):
         cmd += ["--fault_mask", fault_mask, "--bits_to_change", bits_to_change]
     # target component + layer -> the right injector + index knob
     if comp == "gpr":
@@ -512,7 +543,7 @@ def main():
         if a == "-d" and i+1 < len(cmd):
             outdir = cmd[i+1]
     faults = 0
-    for logname in ("fault_injections.log","main_mem_injections.log","cache_injections.log","rename_injections.log","freelist_injections.log","rob_injections.log","iq_injections.log","exec_injections.log","fpu_injections.log","l1d_fwd_injections.log","bpu_injections.log","addrpath_injections.log","decode_injections.log","ras_injections.log","exmon_injections.log","ptw_injections.log","noc_injections.log","chi_injections.log","lsq_fwd_injections.log"):
+    for logname in ("fault_injections.log","main_mem_injections.log","cache_injections.log","rename_injections.log","freelist_injections.log","rob_injections.log","iq_injections.log","exec_injections.log","fpu_injections.log","l1d_fwd_injections.log","bpu_injections.log","addrpath_injections.log","decode_injections.log","ras_injections.log","exmon_injections.log","ptw_injections.log","noc_injections.log","chi_injections.log","lsq_fwd_injections.log","armtlb_injections.log","sysreg_injections.log"):
         p = os.path.join(outdir, logname) if outdir else None
         if p and os.path.exists(p):
             with open(p) as lf:
@@ -545,7 +576,8 @@ def main():
 
     stdout_text = r.stdout if r.stdout else ""
     cls, reason = classify_run(stdout_text, r.stderr or "", r.returncode,
-                               faults, args.golden_checksum, timed_out)
+                               faults, args.golden_checksum, timed_out,
+                               fs_mode=(cfg_family in ("C0-FS", "C2-FS")))
     print(f"[runner] RESULT: run_id={m['run_id']} classification={cls} "
           f"faults_injected={faults} exit={r.returncode} "
           f"timed_out={timed_out}")

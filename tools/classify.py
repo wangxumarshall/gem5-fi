@@ -67,9 +67,15 @@ def _is_simerr(stderr):
 
 
 def classify_run(stdout, stderr, returncode, faults_injected,
-                 golden_checksum, timed_out=False):
+                 golden_checksum, timed_out=False, fs_mode=False):
     """Classify one run per plan §9.1 (ordered). Returns the category string
-    plus a short reason (for the evidence log)."""
+    plus a short reason (for the evidence log).
+
+    fs_mode (§3.2 Phase 5.4): the FS pipeline has NO workload checksum — the
+    oracle is kernel survival. Ordered rules: kernel-panic/Oops markers ->
+    Crash (DUE); gem5 panic/assert -> SimulatorError (tool); timeout ->
+    Hang; clean exit with faults>=1 -> Masked (kernel absorbed the fault);
+    clean exit with faults==0 -> Inactive."""
     # Normalize bytes (subprocess.TimeoutExpired.stdout/stderr may be bytes
     # even with text=True under some py versions) -> str.
     def _s(x):
@@ -93,6 +99,26 @@ def classify_run(stdout, stderr, returncode, faults_injected,
         return ("SimulatorError",
                 "config-script argparse/usage error (exit=2, simulation "
                 "never ran, faults_injected=0) — tool failure, run invalid")
+
+    # §3.2 FS pipeline classification (Phase 5.4): no SE checksum exists;
+    # the oracle is kernel survival. gem5's own panic/assert is still a
+    # tool error (simerr); the KERNEL's panic/Oops is the fault outcome.
+    if fs_mode:
+        kernel_died = ("Kernel panic" in out or "Kernel Oops" in out or
+                       "internal error" in out.lower() and "Oops" in out)
+        if simerr:
+            return ("SimulatorError",
+                    "gem5 panic/assert/SIGSEGV (tool failure) — run invalid")
+        if kernel_died:
+            return ("Crash",
+                    "kernel panic/Oops under the fault (DUE per §3.2)")
+        if timed_out:
+            return ("Hang",
+                    "FS run exceeded timeout — kernel wedged under the fault")
+        if faults_injected >= 1:
+            return ("Masked",
+                    "kernel survived the injected fault (clean exit)")
+        return ("Inactive", "no injection landed (window/target absent)")
 
     # 0.5 §2.2 RAT/freelist rename-inconsistency carve-out: a rename-map or
     # freelist fault breaks gem5 O3's internal rename consistency, which gem5

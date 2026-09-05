@@ -251,17 +251,23 @@ class _PoolRep:
     main() is NOT picklable and crashes --jobs>1 — including the old local
     log_bad; we carry bad_log_path and use the module-level _log_bad."""
 
-    def __init__(self, binary, hang_timeout, keep_manifests, bad_log_path):
+    def __init__(self, binary, hang_timeout, keep_manifests, bad_log_path,
+                 fs_extra=None):
         self.binary = binary
         self.hang_timeout = hang_timeout
         self.keep_manifests = keep_manifests
         self.bad_log_path = bad_log_path
+        # §3.2 FS pipeline (Phase 5.4): extra runner flags for FS campaigns
+        # (restore-checkpoint/kernel/disk/bootloader/fs-cpu), from the
+        # campaign yaml's `fs:` block. None for SE campaigns (no-op).
+        self.fs_extra = fs_extra or []
 
     def __call__(self, item):
         ord_i, cell, rep, mpath, outdir = item
         res = run_one_rep(mpath, self.binary, self.hang_timeout,
                           self.keep_manifests,
-                          _log_bad(self.bad_log_path))
+                          _log_bad(self.bad_log_path),
+                          fs_extra=self.fs_extra)
         return (mpath, res)
 
 
@@ -275,7 +281,8 @@ def _log_bad(bad_log_path):
     return log_bad
 
 
-def run_one_rep(manifest_path, binary, hang_timeout, keep_manifests, log_bad):
+def run_one_rep(manifest_path, binary, hang_timeout, keep_manifests, log_bad,
+                fs_extra=None):
     """Shell out to tools/runner.py for one manifest. Returns a result dict
     (classification etc.) for the results.jsonl line.
 
@@ -286,6 +293,10 @@ def run_one_rep(manifest_path, binary, hang_timeout, keep_manifests, log_bad):
     (found 2026-09-04: 80+ leaked gem5 procs after IQ hang runs).
     """
     cmd = [sys.executable, RUNNER, manifest_path, "--binary", binary]
+    # §3.2 FS pipeline (Phase 5.4): forward FS runner flags (restore-
+    # checkpoint etc.) — no-op for SE campaigns (fs_extra=[]).
+    if fs_extra:
+        cmd += list(fs_extra)
     try:
         p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                              text=True, start_new_session=True)
@@ -495,7 +506,27 @@ def main():
     # "Can't pickle local object 'main.<locals>._do_rep'". The module-level
     # _PoolRep class below carries the run context; the item is the plain
     # (ord_i, cell, rep, mpath, outdir) tuple.
-    _do_rep = _PoolRep(binary, hang_timeout, args.keep_manifests, bad_log_path)
+    # §3.2 FS pipeline (Phase 5.4): the campaign yaml's `fs:` block carries
+    # the runner's FS flags. Recognized keys -> runner CLI flags:
+    #   restore_checkpoint -> --restore-checkpoint (REQUIRED for FS campaigns
+    #   that don't want a fresh boot per rep; the one-time boot_ckpt dir)
+    #   kernel/disk/bootloader/root_partition/fs_cpu -> the same-named runner
+    #   flags (defaults live in runner.py).
+    fs_cfg = campaign.get("fs", {}) or {}
+    fs_extra = []
+    if fs_cfg.get("restore_checkpoint"):
+        fs_extra += ["--restore-checkpoint", str(fs_cfg["restore_checkpoint"])]
+    for key, flag in (("kernel", "--kernel"), ("disk", "--disk"),
+                      ("bootloader", "--bootloader"),
+                      ("root_partition", "--root-partition"),
+                      ("fs_cpu", "--fs-cpu")):
+        if fs_cfg.get(key) is not None:
+            fs_extra += [flag, str(fs_cfg[key])]
+    if fs_extra:
+        print(f"[campaign] FS pipeline flags: {fs_extra}")
+
+    _do_rep = _PoolRep(binary, hang_timeout, args.keep_manifests, bad_log_path,
+                       fs_extra=fs_extra)
 
     if args.jobs <= 1:
         for item in work:

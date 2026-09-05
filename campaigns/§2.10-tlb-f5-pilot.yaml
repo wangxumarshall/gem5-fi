@@ -1,0 +1,28 @@
+schema_version: arm-chaos-fi/v1
+campaign_id: tlbf5_pilot
+injector: l1_tlb
+config: C0-FS
+mode: FS
+grid:
+  # §2.10 TLB F5 live-page cell pilot (Phase 5.4): pfn_to_mapped_page via
+  # the checkpoint pipeline. fault.model legal_domain_sub -> pfn_to_mapped_page.
+  target_index: [0]
+  bit: []
+  fault_model: [legal_domain_sub]
+  protection_model: [none]
+n_per_cell: 2
+base_seed: 20260825
+replay_pct: 0
+workload:
+  # FS: the workload is the kernel itself (checkpoint restore + continue).
+  binary: workloads/directed/cholesky_numeric
+  golden_id: cholesky-golden-v1
+  trigger_mode: cycle
+  trigger_value: 1000
+limits:
+  max_faults: 1
+hang_timeout: 900
+fs:
+  restore_checkpoint: /tmp/fsckpt/cpt.237933688473
+  fs_cpu: Atomic
+  root_partition: /dev/vda1
