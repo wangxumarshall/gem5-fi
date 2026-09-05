@@ -1,0 +1,187 @@
+
+crash 8.0.4-17.oe2403sp4
+Copyright (C) 2002-2022  Red Hat, Inc.
+Copyright (C) 2004, 2005, 2006, 2010  IBM Corporation
+Copyright (C) 1999-2006  Hewlett-Packard Co
+Copyright (C) 2005, 2006, 2011, 2012  Fujitsu Limited
+Copyright (C) 2006, 2007  VA Linux Systems Japan K.K.
+Copyright (C) 2005, 2011, 2020-2022  NEC Corporation
+Copyright (C) 1999, 2002, 2007  Silicon Graphics, Inc.
+Copyright (C) 1999, 2000, 2001, 2002  Mission Critical Linux, Inc.
+Copyright (C) 2015, 2021  VMware, Inc.
+This program is free software, covered by the GNU General Public License,
+and you are welcome to change it and/or distribute copies of it under
+certain conditions.  Enter "help copying" to see the conditions.
+This program has absolutely no warranty.  Enter "help warranty" for details.
+ 
+NOTE: stdin: not a tty
+
+GNU gdb (GDB) 10.2
+Copyright (C) 2021 Free Software Foundation, Inc.
+License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>
+This is free software: you are free to change and redistribute it.
+There is NO WARRANTY, to the extent permitted by law.
+Type "show copying" and "show warranty" for details.
+This GDB was configured as "aarch64-unknown-linux-gnu".
+Type "show configuration" for configuration details.
+Find the GDB manual and other documentation resources online at:
+    <http://www.gnu.org/software/gdb/documentation/>.
+
+For help, type "help".
+Type "apropos word" to search for commands related to "word"...
+
+    DUMPFILE: /home/sdc/wangxu/vmcore0102/127.0.0.1-2026-09-04-21:53:28/vmcore  [PARTIAL DUMP]
+        CPUS: 192
+        DATE: Fri Sep  4 21:52:44 CST 2026
+      UPTIME: 09:14:32
+LOAD AVERAGE: 42.73, 9.68, 3.24
+       TASKS: 2212
+    NODENAME: localhost0102
+     RELEASE: 6.6.0-145.3.23.154.oe2403sp3.aarch64
+     VERSION: #1 SMP Mon Jul 27 19:00:34 CST 2026
+     MACHINE: aarch64  (unknown Mhz)
+      MEMORY: 767.8 GB
+       PANIC: "Unable to handle kernel paging request at virtual address 73b8474cc98297a5"
+         PID: 581185
+     COMMAND: "mi-scavenger"
+        TASK: ffff60201da03f00  [THREAD_INFO: ffff60201da03f00]
+         CPU: 179
+       STATE: TASK_INTERRUPTIBLE (PANIC)
+
+crash> bt -t 581185
+PID: 581185   TASK: ffff60201da03f00  CPU: 179  COMMAND: "mi-scavenger"
+              START: machine_kexec at ffffba8cc6cfce70
+  [ffff8000cb18b248] machine_kexec at ffffba8cc6cfce70
+  [ffff8000cb18b258] __crash_kexec at ffffba8cc6ecdf18
+  [ffff8000cb18b2d0] find_busiest_group at ffffba8cc6dfae58
+  [ffff8000cb18b378] find_busiest_group at ffffba8cc6dfae24
+  [ffff8000cb18b388] find_busiest_group at ffffba8cc6dfae48
+  [ffff8000cb18b3a0] find_busiest_group at ffffba8cc6dfb10c
+  [ffff8000cb18b3c0] find_busiest_group at ffffba8cc6dfae48
+  [ffff8000cb18b3e8] crash_kexec at ffffba8cc6ece090
+  [ffff8000cb18b418] die at ffffba8cc6ce2aa8
+  [ffff8000cb18b428] find_busiest_group at ffffba8cc6dfae4c
+  [ffff8000cb18b488] die_kernel_fault at ffffba8cc6d044c0
+  [ffff8000cb18b4e8] __do_kernel_fault at ffffba8cc6d04804
+  [ffff8000cb18b528] do_bad_area at ffffba8cc6d048a8
+  [ffff8000cb18b558] do_translation_fault at ffffba8cc7bb99b0
+  [ffff8000cb18b578] do_mem_abort at ffffba8cc6d045d4
+  [ffff8000cb18b588] el1_abort at ffffba8cc7ba2af4
+  [ffff8000cb18b5a8] find_busiest_group at ffffba8cc6dfae48
+  [ffff8000cb18b5b8] el1h_64_sync_handler at ffffba8cc7ba5560
+  [ffff8000cb18b5e8] el1h_64_sync at ffffba8cc6cd1b08
+  [ffff8000cb18b638] find_busiest_group at ffffba8cc6dfae58
+  [ffff8000cb18b6e0] find_busiest_group at ffffba8cc6dfae24
+  [ffff8000cb18b6f0] find_busiest_group at ffffba8cc6dfae48
+  [ffff8000cb18b708] find_busiest_group at ffffba8cc6dfb10c
+  [ffff8000cb18b728] find_busiest_group at ffffba8cc6dfae48
+  [ffff8000cb18b8c8] load_balance at ffffba8cc6dfb970
+  [ffff8000cb18b9c8] newidle_balance at ffffba8cc6dfc0c0
+  [ffff8000cb18ba48] pick_next_task_fair at ffffba8cc6dfc650
+  [ffff8000cb18baa8] pick_next_task at ffffba8cc6dd4990
+  [ffff8000cb18bb08] deactivate_task at ffffba8cc6dda198
+  [ffff8000cb18bb18] __schedule at ffffba8cc7bad0ac
+  [ffff8000cb18bb40] schedule at ffffba8cc7bad7f0
+  [ffff8000cb18bb98] schedule at ffffba8cc7bad7f0
+  [ffff8000cb18bbe8] futex_wait_queue at ffffba8cc6ec69a0
+  [ffff8000cb18bc08] futex_wait at ffffba8cc6ec6e18
+  [ffff8000cb18bc68] hrtimer_wakeup at ffffba8cc6ea65d0
+  [ffff8000cb18bd18] do_futex at ffffba8cc6ec2c3c
+  [ffff8000cb18bd68] __arm64_sys_futex at ffffba8cc6ec2e40
+  [ffff8000cb18bd78] __arm64_sys_futex at ffffba8cc6ec2d70
+  [ffff8000cb18bdb8] invoke_syscall at ffffba8cc6cec8a0
+  [ffff8000cb18be08] el0_svc_common.constprop.0 at ffffba8cc6ceca40
+  [ffff8000cb18be28] fpsimd_restore_current_state at ffffba8cc6cd9698
+  [ffff8000cb18be38] do_el0_svc at ffffba8cc6cecb28
+  [ffff8000cb18be68] el0_svc at ffffba8cc7ba56e4
+  [ffff8000cb18be88] el0t_64_sync_handler at ffffba8cc7ba5cd8
+  [ffff8000cb18be98] el0t_64_irq_handler at ffffba8cc7ba5f38
+  [ffff8000cb18bea8] el0t_64_sync at ffffba8cc6cd1e38
+crash> rd ffff80008013ae38 8
+ffff80008013ae38:  0000000000000000 0000000000000000   ................
+ffff80008013ae48:  0000000000000000 0000000000000000   ................
+ffff80008013ae58:  0000000000000000 0000000000000000   ................
+ffff80008013ae68:  0000000000000000 0000000000000000   ................
+crash> rd ffffba8cc6dfae38 8
+ffffba8cc6dfae38:  f879d814f9400782 8b14003b2a1903e0   ..@...y....*;...
+ffffba8cc6dfae48:  8b170042f9409377 97fff427f9000782   w.@.B.......'...
+ffffba8cc6dfae58:  8b0000a5a9418b85 b9402f80f9000f85   ..A........../@.
+ffffba8cc6dfae68:  8b050042f9409765 b9409762f9001382   e.@.B.......b.@.
+crash> dis -l ffffba8cc6dfae10 16
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/find.h: 101
+0xffffba8cc6dfae10 <find_busiest_group+264>:	ldr	x0, [sp]
+0xffffba8cc6dfae14 <find_busiest_group+268>:	sxtw	x3, w3
+0xffffba8cc6dfae18 <find_busiest_group+272>:	ldr	x1, [x19, #56]
+0xffffba8cc6dfae1c <find_busiest_group+276>:	ldr	w2, [x21]
+0xffffba8cc6dfae20 <find_busiest_group+280>:	bl	0xffffba8cc74059d0 <_find_next_and_bit>
+0xffffba8cc6dfae24 <find_busiest_group+284>:	mov	x25, x0
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12049
+0xffffba8cc6dfae28 <find_busiest_group+288>:	ldr	w1, [x21]
+0xffffba8cc6dfae2c <find_busiest_group+292>:	cmp	w1, w0
+0xffffba8cc6dfae30 <find_busiest_group+296>:	b.ls	0xffffba8cc6dfafe8 <find_busiest_group+736>  // b.plast
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12050
+0xffffba8cc6dfae34 <find_busiest_group+300>:	ldp	x0, x1, [sp, #8]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12053
+0xffffba8cc6dfae38 <find_busiest_group+304>:	ldr	x2, [x28, #8]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12050
+0xffffba8cc6dfae3c <find_busiest_group+308>:	ldr	x20, [x0, w25, sxtw #3]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12054
+0xffffba8cc6dfae40 <find_busiest_group+312>:	mov	w0, w25
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12050
+0xffffba8cc6dfae44 <find_busiest_group+316>:	add	x27, x1, x20
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 5024
+0xffffba8cc6dfae48 <find_busiest_group+320>:	ldr	x23, [x27, #288]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12053
+0xffffba8cc6dfae4c <find_busiest_group+324>:	add	x2, x2, x23
+crash> p (struct sched_domain_shared*)0
+$1 = (struct sched_domain_shared *) 0x0
+crash> rd ffff8000cb18b8c0 64
+ffff8000cb18b8c0:  ffff8000cb18b9c0 ffffba8cc6dfb970   ........p.......
+ffff8000cb18b8d0:  ffff8000817dd6c0 ffff6040043a3200   ..}......2:.@`..
+ffff8000cb18b8e0:  ffff8000cb18b9a8 00000000000000b3   ................
+ffff8000cb18b8f0:  0000000000000002 ffffba8cc88296c0   ................
+ffff8000cb18b900:  ffffba8cc8c1fb10 ffff6040043a3200   .........2:.@`..
+ffff8000cb18b910:  00000001007dc72d 0000000000000000   -.}.............
+ffff8000cb18b920:  ffff6040043a3200 ffff800000000002   .2:.@`..........
+ffff8000cb18b930:  ffff6040043a0000 000000b300000001   ..:.@`..........
+ffff8000cb18b940:  ffff8000817c9430 ffff8000cb18ba34   0.|.....4.......
+ffff8000cb18b950:  ffff6040043a3200 0000000000000000   .2:.@`..........
+ffff8000cb18b960:  000000b300000000 ffff8000817dd6c0   ..........}.....
+ffff8000cb18b970:  ffff604003e586f0 0000000200000000   ....@`..........
+ffff8000cb18b980:  0000000000000000 ffff8000817c9430   ........0.|.....
+ffff8000cb18b990:  0000000000000000 0000000000000020   ........ .......
+ffff8000cb18b9a0:  0000000000000002 ffff8000cb18b9a8   ................
+ffff8000cb18b9b0:  ffff8000cb18b9a8 041c9fe8cda39500   ................
+ffff8000cb18b9c0:  ffff8000cb18ba40 ffffba8cc6dfc0c0   @...............
+ffff8000cb18b9d0:  ffff8000817dd6c0 ffff8000cb18bb60   ..}.....`.......
+ffff8000cb18b9e0:  00000000000000b3 ffffba8cc8c17000   .........p......
+ffff8000cb18b9f0:  00001e42bc583744 000000000000190a   D7X.B...........
+ffff8000cb18ba00:  ffffba8cc8c1fb10 ffff6040043a3200   .........2:.@`..
+ffff8000cb18ba10:  00000001007dc72d 0000000000000000   -.}.............
+ffff8000cb18ba20:  0000000100000001 ffffba8cc8814d98   .........M......
+ffff8000cb18ba30:  0000000100000001 041c9fe8cda39500   ................
+ffff8000cb18ba40:  ffff8000cb18baa0 ffffba8cc6dfc650   ........P.......
+ffff8000cb18ba50:  ffff8000817dd6c0 0000000000000000   ..}.............
+ffff8000cb18ba60:  0000000000000000 ffff60201da03f00   .........?.. `..
+ffff8000cb18ba70:  ffffba8cc8815228 ffff8000cb18bb60   (R......`.......
+ffff8000cb18ba80:  ffff8000817dd740 00000000000000b3   @.}.............
+ffff8000cb18ba90:  ffff8000cb18bd90 ffff60201da03f00   .........?.. `..
+ffff8000cb18baa0:  ffff8000cb18bb10 ffffba8cc6dd4990   .........I......
+ffff8000cb18bab0:  ffffba8cc80987d8 ffff60201da03f00   .........?.. `..
+crash> rd ffff8000cb18b9c0 32
+ffff8000cb18b9c0:  ffff8000cb18ba40 ffffba8cc6dfc0c0   @...............
+ffff8000cb18b9d0:  ffff8000817dd6c0 ffff8000cb18bb60   ..}.....`.......
+ffff8000cb18b9e0:  00000000000000b3 ffffba8cc8c17000   .........p......
+ffff8000cb18b9f0:  00001e42bc583744 000000000000190a   D7X.B...........
+ffff8000cb18ba00:  ffffba8cc8c1fb10 ffff6040043a3200   .........2:.@`..
+ffff8000cb18ba10:  00000001007dc72d 0000000000000000   -.}.............
+ffff8000cb18ba20:  0000000100000001 ffffba8cc8814d98   .........M......
+ffff8000cb18ba30:  0000000100000001 041c9fe8cda39500   ................
+ffff8000cb18ba40:  ffff8000cb18baa0 ffffba8cc6dfc650   ........P.......
+ffff8000cb18ba50:  ffff8000817dd6c0 0000000000000000   ..}.............
+ffff8000cb18ba60:  0000000000000000 ffff60201da03f00   .........?.. `..
+ffff8000cb18ba70:  ffffba8cc8815228 ffff8000cb18bb60   (R......`.......
+ffff8000cb18ba80:  ffff8000817dd740 00000000000000b3   @.}.............
+ffff8000cb18ba90:  ffff8000cb18bd90 ffff60201da03f00   .........?.. `..
+ffff8000cb18baa0:  ffff8000cb18bb10 ffffba8cc6dd4990   .........I......
+ffff8000cb18bab0:  ffffba8cc80987d8 ffff60201da03f00   .........?.. `..

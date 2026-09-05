@@ -1,0 +1,127 @@
+
+crash 8.0.4-17.oe2403sp4
+Copyright (C) 2002-2022  Red Hat, Inc.
+Copyright (C) 2004, 2005, 2006, 2010  IBM Corporation
+Copyright (C) 1999-2006  Hewlett-Packard Co
+Copyright (C) 2005, 2006, 2011, 2012  Fujitsu Limited
+Copyright (C) 2006, 2007  VA Linux Systems Japan K.K.
+Copyright (C) 2005, 2011, 2020-2022  NEC Corporation
+Copyright (C) 1999, 2002, 2007  Silicon Graphics, Inc.
+Copyright (C) 1999, 2000, 2001, 2002  Mission Critical Linux, Inc.
+Copyright (C) 2015, 2021  VMware, Inc.
+This program is free software, covered by the GNU General Public License,
+and you are welcome to change it and/or distribute copies of it under
+certain conditions.  Enter "help copying" to see the conditions.
+This program has absolutely no warranty.  Enter "help warranty" for details.
+ 
+NOTE: stdin: not a tty
+
+GNU gdb (GDB) 10.2
+Copyright (C) 2021 Free Software Foundation, Inc.
+License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>
+This is free software: you are free to change and redistribute it.
+There is NO WARRANTY, to the extent permitted by law.
+Type "show copying" and "show warranty" for details.
+This GDB was configured as "aarch64-unknown-linux-gnu".
+Type "show configuration" for configuration details.
+Find the GDB manual and other documentation resources online at:
+    <http://www.gnu.org/software/gdb/documentation/>.
+
+For help, type "help".
+Type "apropos word" to search for commands related to "word"...
+
+    DUMPFILE: /home/sdc/wangxu/vmcore0102/127.0.0.1-2026-09-04-21:53:28/vmcore  [PARTIAL DUMP]
+        CPUS: 192
+        DATE: Fri Sep  4 21:52:44 CST 2026
+      UPTIME: 09:14:32
+LOAD AVERAGE: 42.73, 9.68, 3.24
+       TASKS: 2212
+    NODENAME: localhost0102
+     RELEASE: 6.6.0-145.3.23.154.oe2403sp3.aarch64
+     VERSION: #1 SMP Mon Jul 27 19:00:34 CST 2026
+     MACHINE: aarch64  (unknown Mhz)
+      MEMORY: 767.8 GB
+       PANIC: "Unable to handle kernel paging request at virtual address 73b8474cc98297a5"
+         PID: 581185
+     COMMAND: "mi-scavenger"
+        TASK: ffff60201da03f00  [THREAD_INFO: ffff60201da03f00]
+         CPU: 179
+       STATE: TASK_INTERRUPTIBLE (PANIC)
+
+crash> rd ffff6040043a3280 8
+ffff6040043a3280:  0000000000000000 0000000000000000   ................
+ffff6040043a3290:  0000000000000000 0000000000000000   ................
+ffff6040043a32a0:  0000000000000000 0000000000000000   ................
+ffff6040043a32b0:  0000000000000000 0000000000000000   ................
+crash> rd ffff6040043a0048 8
+ffff6040043a0048:  00000001007dc710 00000000000000c0   ..}.............
+ffff6040043a0058:  000000000004094b 00000001007dc6e4   K.........}.....
+ffff6040043a0068:  0000000000000000 0000000000000000   ................
+ffff6040043a0078:  0000000000000000 0000000000000000   ................
+crash> p ((struct sched_domain *)0xffff6040043a3200)->level
+$1 = 6
+crash> p ((struct sched_domain *)0xffff6040043a3200)->span
+$2 = 0xffff6040043a3328
+crash> p ((struct sched_domain *)0xffff6040043a3200)->groups
+$3 = (struct sched_group *) 0xffff604003e5fea0
+crash> p ((struct sched_group *)0xffff604003e5fea0)->cpumask
+$4 = 0xffff604003e5fed8
+crash> rd ffff604003e5fea0 10
+ffff604003e5fea0:  ffff604003e5f300 0000003000000001   ....@`......0...
+ffff604003e5feb0:  0000000000000030 ffff604003e586c0   0...........@`..
+ffff604003e5fec0:  0000641700000000 0000000000000000   .....d..........
+ffff604003e5fed0:  0000000000000000 0000000000000000   ................
+ffff604003e5fee0:  0000000000000000 ffffffffffff0000   ................
+crash> struct sched_domain
+struct sched_domain {
+    struct sched_domain *parent;
+    struct sched_domain *child;
+    struct sched_group *groups;
+    unsigned long min_interval;
+    unsigned long max_interval;
+    unsigned int busy_factor;
+    unsigned int imbalance_pct;
+    unsigned int cache_nice_tries;
+    unsigned int imb_numa_nr;
+    int nohz_idle;
+    int flags;
+    int level;
+    unsigned long last_balance;
+    unsigned int balance_interval;
+    unsigned int nr_balance_failed;
+    u64 max_newidle_lb_cost;
+    unsigned long last_decay_max_lb_cost;
+    u64 avg_scan_cost;
+    unsigned int lb_count[3];
+    unsigned int lb_failed[3];
+    unsigned int lb_balanced[3];
+    unsigned int lb_imbalance[3];
+    unsigned int lb_gained[3];
+    unsigned int lb_hot_gained[3];
+    unsigned int lb_nobusyg[3];
+    unsigned int lb_nobusyq[3];
+    unsigned int alb_count;
+    unsigned int alb_failed;
+    unsigned int alb_pushed;
+    unsigned int sbe_count;
+    unsigned int sbe_balanced;
+    unsigned int sbe_pushed;
+    unsigned int sbf_count;
+    unsigned int sbf_balanced;
+    unsigned int sbf_pushed;
+    unsigned int ttwu_wake_remote;
+    unsigned int ttwu_move_affine;
+    unsigned int ttwu_move_balance;
+    char *name;
+    union {
+        void *private;
+        struct callback_head rcu;
+    };
+    struct sched_domain_shared *shared;
+    unsigned int span_weight;
+    unsigned int newidle_call : 10;
+    unsigned int newidle_success : 11;
+    unsigned int newidle_ratio : 11;
+    unsigned long span[];
+}
+SIZE: 296

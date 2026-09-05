@@ -1,0 +1,1519 @@
+
+crash 8.0.4-17.oe2403sp4
+Copyright (C) 2002-2022  Red Hat, Inc.
+Copyright (C) 2004, 2005, 2006, 2010  IBM Corporation
+Copyright (C) 1999-2006  Hewlett-Packard Co
+Copyright (C) 2005, 2006, 2011, 2012  Fujitsu Limited
+Copyright (C) 2006, 2007  VA Linux Systems Japan K.K.
+Copyright (C) 2005, 2011, 2020-2022  NEC Corporation
+Copyright (C) 1999, 2002, 2007  Silicon Graphics, Inc.
+Copyright (C) 1999, 2000, 2001, 2002  Mission Critical Linux, Inc.
+Copyright (C) 2015, 2021  VMware, Inc.
+This program is free software, covered by the GNU General Public License,
+and you are welcome to change it and/or distribute copies of it under
+certain conditions.  Enter "help copying" to see the conditions.
+This program has absolutely no warranty.  Enter "help warranty" for details.
+ 
+NOTE: stdin: not a tty
+
+GNU gdb (GDB) 10.2
+Copyright (C) 2021 Free Software Foundation, Inc.
+License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>
+This is free software: you are free to change and redistribute it.
+There is NO WARRANTY, to the extent permitted by law.
+Type "show copying" and "show warranty" for details.
+This GDB was configured as "aarch64-unknown-linux-gnu".
+Type "show configuration" for configuration details.
+Find the GDB manual and other documentation resources online at:
+    <http://www.gnu.org/software/gdb/documentation/>.
+
+For help, type "help".
+Type "apropos word" to search for commands related to "word"...
+
+crash: seek error: kernel virtual address: ffff800080000058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080022058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080044058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080066058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080088058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000800aa058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000800cc058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000800ee058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080110058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080132058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080154058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080176058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080198058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000801ba058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000801dc058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000801fe058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080220058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080242058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080264058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080286058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000802a8058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000802ca058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000802ec058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff80008030e058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080330058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080352058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080374058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080396058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000803b8058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000803da058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000803fc058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff80008041e058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080440058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080462058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080484058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000804a6058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000804c8058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000804ea058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff80008050c058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff80008052e058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080550058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080572058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080594058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000805b6058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000805d8058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000805fa058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff80008061c058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff80008063e058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080660058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080682058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000806a4058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000806c6058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000806e8058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff80008070a058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff80008072c058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff80008074e058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080770058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080792058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000807b4058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000807d6058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000807f8058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff80008081a058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff80008083c058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff80008085e058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080880058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000808a2058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000808c4058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000808e6058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080908058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff80008092a058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff80008094c058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff80008096e058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080990058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000809b2058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000809d4058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000809f6058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080a18058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080a3a058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080a5c058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080a7e058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080aa0058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080ac2058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080ae4058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080b06058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080b28058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080b4a058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080b6c058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080b8e058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080bb0058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080bd2058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080bf4058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080c16058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080c38058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080c5a058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080c7c058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080c9e058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080cc0058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080ce2058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080d04058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080d26058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080d48058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080d6a058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080d8c058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080dae058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080dd0058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080df2058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080e14058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080e36058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080e58058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080e7a058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080e9c058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080ebe058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080ee0058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080f02058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080f24058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080f46058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080f68058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080f8a058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080fac058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080fce058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080ff0058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800081012058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800081034058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800081056058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800081078058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff80008109a058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000810bc058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000810de058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800081100058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800081122058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800081144058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800081166058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800081188058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000811aa058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000811cc058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000811ee058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800081210058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800081232058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800081254058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800081276058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800081298058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000812ba058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000812dc058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000812fe058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800081320058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800081342058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800081364058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800081386058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000813a8058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000813ca058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000813ec058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff80008140e058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800081430058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800081452058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800081474058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800081496058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000814b8058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000814da058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000814fc058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff80008151e058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800081540058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800081562058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800081584058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000815a6058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000815c8058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000815ea058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff80008160c058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff80008162e058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800081650058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800081672058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800081694058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000816b6058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000816d8058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000816fa058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff80008171c058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff80008173e058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800081760058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800081782058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000817a4058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000817c6058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000817e8058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff80008180a058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff80008182c058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff80008184e058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800081870058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800081892058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000818b4058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000818d6058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff8000818f8058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff80008191a058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff80008193c058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff80008195e058  type: "IRQ stack pointer"
+crash: seek error: kernel virtual address: ffff800080001600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080023600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080045600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080067600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080089600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000800ab600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000800cd600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000800ef600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080111600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080133600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080155600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080177600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080199600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000801bb600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000801dd600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000801ff600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080221600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080243600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080265600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080287600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000802a9600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000802cb600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000802ed600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff80008030f600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080331600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080353600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080375600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080397600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000803b9600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000803db600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000803fd600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff80008041f600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080441600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080463600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080485600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000804a7600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000804c9600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000804eb600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff80008050d600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff80008052f600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080551600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080573600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080595600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000805b7600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000805d9600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000805fb600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff80008061d600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff80008063f600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080661600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080683600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000806a5600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000806c7600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000806e9600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff80008070b600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff80008072d600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff80008074f600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080771600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080793600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000807b5600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000807d7600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000807f9600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff80008081b600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff80008083d600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff80008085f600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080881600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000808a3600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000808c5600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000808e7600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080909600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff80008092b600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff80008094d600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff80008096f600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080991600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000809b3600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000809d5600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000809f7600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080a19600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080a3b600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080a5d600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080a7f600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080aa1600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080ac3600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080ae5600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080b07600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080b29600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080b4b600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080b6d600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080b8f600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080bb1600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080bd3600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080bf5600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080c17600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080c39600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080c5b600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080c7d600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080c9f600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080cc1600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080ce3600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080d05600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080d27600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080d49600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080d6b600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080d8d600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080daf600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080dd1600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080df3600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080e15600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080e37600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080e59600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080e7b600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080e9d600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080ebf600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080ee1600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080f03600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080f25600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080f47600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080f69600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080f8b600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080fad600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080fcf600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800080ff1600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800081013600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800081035600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800081057600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800081079600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff80008109b600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000810bd600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000810df600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800081101600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800081123600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800081145600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800081167600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800081189600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000811ab600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000811cd600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000811ef600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800081211600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800081233600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800081255600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800081277600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800081299600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000812bb600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000812dd600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000812ff600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800081321600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800081343600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800081365600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800081387600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000813a9600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000813cb600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000813ed600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff80008140f600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800081431600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800081453600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800081475600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800081497600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000814b9600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000814db600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000814fd600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff80008151f600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800081541600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800081563600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800081585600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000815a7600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000815c9600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000815eb600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff80008160d600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff80008162f600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800081651600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800081673600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800081695600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000816b7600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000816d9600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000816fb600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff80008171d600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff80008173f600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800081761600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800081783600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000817a5600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000817c7600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000817e9600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff80008180b600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff80008182d600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff80008184f600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800081871600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff800081893600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000818b5600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000818d7600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff8000818f9600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff80008191b600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff80008193d600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff80008195f600  type: "SDEI stack pointer"
+please wait... (gathering kmem slab cache data)                                                please wait... (gathering module symbol data)                                              please wait... (gathering task table data)                                           please wait... (determining panic task)                                              KERNEL: /tmp/vmlinux-0102  [TAINTED]
+    DUMPFILE: /home/sdc/wangxu/vmcore0102/127.0.0.1-2026-09-04-21:53:28/vmcore  [PARTIAL DUMP]
+        CPUS: 192
+        DATE: Fri Sep  4 21:52:44 CST 2026
+      UPTIME: 09:14:32
+LOAD AVERAGE: 42.73, 9.68, 3.24
+       TASKS: 2212
+    NODENAME: localhost0102
+     RELEASE: 6.6.0-145.3.23.154.oe2403sp3.aarch64
+     VERSION: #1 SMP Mon Jul 27 19:00:34 CST 2026
+     MACHINE: aarch64  (unknown Mhz)
+      MEMORY: 767.8 GB
+       PANIC: "Unable to handle kernel paging request at virtual address 73b8474cc98297a5"
+         PID: 581185
+     COMMAND: "mi-scavenger"
+        TASK: ffff60201da03f00  [THREAD_INFO: ffff60201da03f00]
+         CPU: 179
+       STATE: TASK_INTERRUPTIBLE (PANIC)
+
+crash> sys
+      KERNEL: /tmp/vmlinux-0102  [TAINTED]
+    DUMPFILE: /home/sdc/wangxu/vmcore0102/127.0.0.1-2026-09-04-21:53:28/vmcore  [PARTIAL DUMP]
+        CPUS: 192
+        DATE: Fri Sep  4 21:52:44 CST 2026
+      UPTIME: 09:14:32
+LOAD AVERAGE: 42.73, 9.68, 3.24
+       TASKS: 2212
+    NODENAME: localhost0102
+     RELEASE: 6.6.0-145.3.23.154.oe2403sp3.aarch64
+     VERSION: #1 SMP Mon Jul 27 19:00:34 CST 2026
+     MACHINE: aarch64  (unknown Mhz)
+      MEMORY: 767.8 GB
+       PANIC: "Unable to handle kernel paging request at virtual address 73b8474cc98297a5"
+crash> bt
+PID: 581185   TASK: ffff60201da03f00  CPU: 179  COMMAND: "mi-scavenger"
+ #0 [ffff8000cb18b250] machine_kexec at ffffba8cc6cfce6c
+ #1 [ffff8000cb18b3e0] __crash_kexec at ffffba8cc6ecdf14
+ #2 [ffff8000cb18b410] crash_kexec at ffffba8cc6ece08c
+ #3 [ffff8000cb18b480] die at ffffba8cc6ce2aa4
+ #4 [ffff8000cb18b4e0] die_kernel_fault at ffffba8cc6d044bc
+ #5 [ffff8000cb18b520] __do_kernel_fault at ffffba8cc6d04800
+ #6 [ffff8000cb18b550] do_bad_area at ffffba8cc6d048a4
+ #7 [ffff8000cb18b570] do_translation_fault at ffffba8cc7bb99ac
+ #8 [ffff8000cb18b580] do_mem_abort at ffffba8cc6d045d0
+ #9 [ffff8000cb18b5b0] el1_abort at ffffba8cc7ba2af0
+#10 [ffff8000cb18b5e0] el1h_64_sync_handler at ffffba8cc7ba555c
+#11 [ffff8000cb18b720] el1h_64_sync at ffffba8cc6cd1b04
+#12 [ffff8000cb18b8c0] find_busiest_group at ffffba8cc6dfae44
+#13 [ffff8000cb18b9c0] load_balance at ffffba8cc6dfb96c
+#14 [ffff8000cb18ba40] newidle_balance at ffffba8cc6dfc0bc
+#15 [ffff8000cb18baa0] pick_next_task_fair at ffffba8cc6dfc64c
+#16 [ffff8000cb18bb10] pick_next_task at ffffba8cc6dd498c
+#17 [ffff8000cb18bb90] __schedule at ffffba8cc7bad0a8
+#18 [ffff8000cb18bbe0] schedule at ffffba8cc7bad7ec
+#19 [ffff8000cb18bc00] futex_wait_queue at ffffba8cc6ec699c
+#20 [ffff8000cb18bd10] futex_wait at ffffba8cc6ec6e14
+#21 [ffff8000cb18bd70] do_futex at ffffba8cc6ec2c38
+#22 [ffff8000cb18bdb0] __arm64_sys_futex at ffffba8cc6ec2d6c
+#23 [ffff8000cb18be00] invoke_syscall at ffffba8cc6cec89c
+#24 [ffff8000cb18be30] el0_svc_common.constprop.0 at ffffba8cc6ceca3c
+#25 [ffff8000cb18be60] do_el0_svc at ffffba8cc6cecb24
+#26 [ffff8000cb18be80] el0_svc at ffffba8cc7ba56e0
+#27 [ffff8000cb18bea0] el0t_64_sync_handler at ffffba8cc7ba5cd4
+#28 [ffff8000cb18bfe0] el0t_64_sync at ffffba8cc6cd1e34
+     PC: 0000ffffb7135aa8   LR: 0000000002cc4368   SP: 0000ffffb6b07e20
+    X29: 0000ffffb6b07e30  X28: 00000000050f5000  X27: 00000000050f5c90
+    X26: 00000000050f7060  X25: 0000000001fbb089  X24: 0000000000000000
+    X23: 000000000036ee80  X22: 0000000000000064  X21: 00000000050f5ce8
+    X20: 20c49ba5e353f7cf  X19: 00000000050f5c98  X18: 0000000000000fff
+    X17: 0000ffffb7135a80  X16: 00000000050316b8  X15: 0000000000000000
+    X14: 0000000000000000  X13: 0000fffe00010000  X12: 0000000000000002
+    X11: 00000309ec70273e  X10: 00000000000f4240   X9: 000000000000001e
+     X8: 0000000000000062   X7: 0000000000c45236   X6: 0000000000c45236
+     X5: 0000000000000000   X4: 0000000000000000   X3: 0000ffffb6b07e20
+     X2: 0000000000000000   X1: 0000000000000080   X0: 00000000050f5c98
+    ORIG_X0: 00000000050f5c98  SYSCALLNO: 62  PSTATE: 60001000
+crash> set 179
+    PID: 179
+COMMAND: "cpuhp/33"
+   TASK: ffff004003342a00  [THREAD_INFO: ffff004003342a00]
+    CPU: 33
+  STATE: TASK_INTERRUPTIBLE 
+crash> task
+PID: 179      TASK: ffff004003342a00  CPU: 33   COMMAND: "cpuhp/33"
+struct task_struct {
+  thread_info = {
+    flags = 8,
+    {
+      preempt_count = 4294967296,
+      preempt = {
+        count = 0,
+        need_resched = 1
+      }
+    },
+    mpam_partid_pmg = 0,
+    cpu = 33,
+    kabi_reserved1 = 0,
+    kabi_reserved2 = 0
+  },
+  __state = 1,
+  stack = 0xffff800083d98000,
+  usage = {
+    refs = {
+      counter = 2
+    }
+  },
+  flags = 69238848,
+  ptrace = 0,
+  on_cpu = 0,
+  wake_entry = {
+    llist = {
+      next = 0x0
+    },
+    {
+      u_flags = 48,
+      a_flags = {
+        counter = 48
+      }
+    },
+    src = 0,
+    dst = 0
+  },
+  wakee_flips = 68,
+  wakee_flip_decay_ts = 4294899079,
+  last_wakee = 0xffff20401ba46900,
+  recent_used_cpu = 0,
+  wake_cpu = 33,
+  on_rq = 0,
+  prio = 120,
+  static_prio = 120,
+  normal_prio = 120,
+  rt_priority = 0,
+  se = {
+    load = {
+      weight = 1048576,
+      inv_weight = 4194304
+    },
+    run_node = {
+      __rb_parent_color = 1,
+      rb_right = 0x0,
+      rb_left = 0x0
+    },
+    deadline = 858864367,
+    min_vruntime = 856064367,
+    group_node = {
+      next = 0xffff004003342af8,
+      prev = 0xffff004003342af8
+    },
+    on_rq = 0,
+    rel_deadline = 0 '\000',
+    custom_slice = 0 '\000',
+    exec_start = 27895205250,
+    sum_exec_runtime = 530570,
+    prev_sum_exec_runtime = 527970,
+    vruntime = 856066967,
+    {
+      vlag = 0,
+      vprot = 0
+    },
+    slice = 2800000,
+    nr_migrations = 1,
+    depth = 0,
+    parent = 0x0,
+    cfs_rq = 0xffff800080479740,
+    my_q = 0x0,
+    runnable_weight = 0,
+    avg = {
+      last_update_time = 27895204864,
+      load_sum = 54,
+      runnable_sum = 64806,
+      util_sum = 49331,
+      period_contrib = 963,
+      load_avg = 1,
+      runnable_avg = 1,
+      util_avg = 0,
+      util_est = {
+        enqueued = 8,
+        ewma = 8
+      }
+    },
+    {
+      min_slice = 2800000,
+      kabi_hidden_634 = {
+        kabi_reserved1 = 2800000
+      },
+      {<No data fields>}
+    },
+    kabi_reserved2 = 0,
+    kabi_reserved3 = 0,
+    kabi_reserved4 = 0
+  },
+  rt = {
+    run_list = {
+      next = 0xffff004003342c00,
+      prev = 0xffff004003342c00
+    },
+    timeout = 0,
+    watchdog_stamp = 0,
+    time_slice = 25,
+    on_rq = 0,
+    on_list = 0,
+    back = 0x0,
+    parent = 0x0,
+    rt_rq = 0xffff800080479980,
+    my_q = 0x0,
+    kabi_reserved1 = 0,
+    kabi_reserved2 = 0
+  },
+  dl = {
+    rb_node = {
+      __rb_parent_color = 18446462873664498776,
+      rb_right = 0x0,
+      rb_left = 0x0
+    },
+    dl_runtime = 0,
+    dl_deadline = 0,
+    dl_period = 0,
+    dl_bw = 0,
+    dl_density = 0,
+    runtime = 0,
+    deadline = 0,
+    flags = 0,
+    dl_throttled = 0,
+    dl_yielded = 0,
+    dl_non_contending = 0,
+    dl_overrun = 0,
+    dl_timer = {
+      node = {
+        node = {
+          __rb_parent_color = 18446462873664498864,
+          rb_right = 0x0,
+          rb_left = 0x0
+        },
+        expires = 0
+      },
+      _softexpires = 0,
+      function = 0xffffba8cc6e130a8 <dl_task_timer>,
+      base = 0xffff800080006d40,
+      state = 0 '\000',
+      is_rel = 0 '\000',
+      is_soft = 0 '\000',
+      is_hard = 1 '\001',
+      kabi_reserved1 = 0,
+      kabi_reserved2 = 0
+    },
+    inactive_timer = {
+      node = {
+        node = {
+          __rb_parent_color = 18446462873664498944,
+          rb_right = 0x0,
+          rb_left = 0x0
+        },
+        expires = 0
+      },
+      _softexpires = 0,
+      function = 0xffffba8cc6e04eb8 <inactive_task_timer>,
+      base = 0xffff800080006d40,
+      state = 0 '\000',
+      is_rel = 0 '\000',
+      is_soft = 0 '\000',
+      is_hard = 1 '\001',
+      kabi_reserved1 = 0,
+      kabi_reserved2 = 0
+    },
+    pi_se = 0xffff004003342c58
+  },
+  sched_class = 0xffffba8cc80987d8 <fair_sched_class>,
+  sched_task_group = 0xffffba8cc91e20c0 <root_task_group>,
+  stats = {
+    wait_start = 0,
+    wait_max = 0,
+    wait_count = 0,
+    wait_sum = 0,
+    iowait_count = 0,
+    iowait_sum = 0,
+    sleep_start = 0,
+    sleep_max = 0,
+    sum_sleep_runtime = 0,
+    block_start = 0,
+    block_max = 0,
+    sum_block_runtime = 0,
+    {
+      exec_max = 0,
+      kabi_hidden_538 = {
+        exec_max = 0
+      },
+      {<No data fields>}
+    },
+    slice_max = 0,
+    nr_migrations_cold = 0,
+    nr_failed_migrations_affine = 0,
+    nr_failed_migrations_running = 0,
+    nr_failed_migrations_hot = 0,
+    nr_forced_migrations = 0,
+    nr_wakeups = 0,
+    nr_wakeups_sync = 0,
+    nr_wakeups_migrate = 0,
+    nr_wakeups_local = 0,
+    nr_wakeups_remote = 0,
+    nr_wakeups_affine = 0,
+    nr_wakeups_affine_attempts = 0,
+    nr_wakeups_passive = 0,
+    nr_wakeups_idle = 0,
+    nr_wakeups_preferred_cpus = 0,
+    nr_wakeups_force_preferred_cpus = 0,
+    nr_qos_smt_send_ipi = 0,
+    nr_qos_smt_expelled = 0,
+    kabi_reserved1 = 0,
+    kabi_reserved2 = 0,
+    kabi_reserved3 = 0,
+    kabi_reserved4 = 0,
+    kabi_reserved5 = 0,
+    kabi_reserved6 = 0,
+    kabi_reserved7 = 0,
+    kabi_reserved8 = 0
+  },
+  preempt_notifiers = {
+    first = 0x0
+  },
+  btrace_seq = 0,
+  policy = 0,
+  nr_cpus_allowed = 1,
+  cpus_ptr = 0xffff004003342ee8,
+  user_cpus_ptr = 0x0,
+  cpus_mask = {
+    bits = {8589934592, 0, 0, 18446744073709551615, 18446744073709551615, 18446744073709551615, 18446744073709551615, 18446744073709551615, 18446744073709551615, 18446744073709551615, 18446744073709551615, 18446744073709551615, 18446744073709551615, 18446744073709551615, 18446744073709551615, 18446744073709551615, 18446744073709551615, 18446744073709551615, 18446744073709551615, 18446744073709551615, 18446744073709551615, 18446744073709551615, 18446744073709551615, 18446744073709551615, 18446744073709551615, 18446744073709551615, 18446744073709551615, 18446744073709551615, 18446744073709551615, 18446744073709551615, 18446744073709551615, 18446744073709551615, 18446744073709551615, 18446744073709551615, 18446744073709551615, 18446744073709551615, 18446744073709551615, 18446744073709551615, 18446744073709551615, 18446744073709551615, 18446744073709551615, 18446744073709551615, 18446744073709551615, 18446744073709551615, 18446744073709551615, 18446744073709551615, 18446744073709551615, 18446744073709551615, 18446744073709551615, 18446744073709551615, 18446744073709551615, 18446744073709551615, 18446744073709551615, 18446744073709551615, 18446744073709551615, 18446744073709551615, 18446744073709551615, 18446744073709551615, 18446744073709551615, 18446744073709551615, 18446744073709551615, 18446744073709551615, 18446744073709551615, 18446744073709551615}
+  },
+  migration_pending = 0x0,
+  migration_disabled = 0,
+  migration_flags = 0,
+  trc_reader_nesting = 0,
+  trc_ipi_to_cpu = 0,
+  trc_reader_special = {
+    b = {
+      blocked = 0 '\000',
+      need_qs = 0 '\000',
+      exp_hint = 0 '\000',
+      need_mb = 0 '\000'
+    },
+    s = 0
+  },
+  trc_holdout_list = {
+    next = 0xffff004003343100,
+    prev = 0xffff004003343100
+  },
+  trc_blkd_node = {
+    next = 0xffff004003343110,
+    prev = 0xffff004003343110
+  },
+  trc_blkd_cpu = 0,
+  sched_info = {
+    pcount = 111,
+    run_delay = 6812250,
+    last_arrival = 27912287410,
+    last_queued = 0,
+    kabi_reserved1 = 0,
+    kabi_reserved2 = 0
+  },
+  tasks = {
+    next = 0xffff004003341c58,
+    prev = 0xffff004003344658
+  },
+  pushable_tasks = {
+    prio = 140,
+    prio_list = {
+      next = 0xffff004003343170,
+      prev = 0xffff004003343170
+    },
+    node_list = {
+      next = 0xffff004003343180,
+      prev = 0xffff004003343180
+    }
+  },
+  pushable_dl_tasks = {
+    __rb_parent_color = 18446462873664500112,
+    rb_right = 0x0,
+    rb_left = 0x0
+  },
+  mm = 0x0,
+  active_mm = 0x0,
+  exit_state = 0,
+  exit_code = 0,
+  exit_signal = 17,
+  pdeath_signal = 0,
+  jobctl = 0,
+  personality = 0,
+  sched_reset_on_fork = 0,
+  sched_contributes_to_load = 0,
+  sched_migrated = 0,
+  sched_remote_wakeup = 0,
+  in_execve = 0,
+  in_iowait = 0,
+  in_user_fault = 0,
+  in_lru_fault = 0,
+  no_cgroup_migration = 0,
+  frozen = 0,
+  use_memdelay = 0,
+  in_memstall = 0,
+  in_eventfd = 0,
+  in_thrashing = 0,
+  user_dumpable = 0,
+  atomic_flags = 0,
+  restart_block = {
+    arch_data = 0,
+    fn = 0xffffba8cc6da5a18 <do_no_restart_syscall>,
+    {
+      futex = {
+        uaddr = 0x0,
+        val = 0,
+        flags = 0,
+        bitset = 0,
+        time = 0,
+        uaddr2 = 0x0
+      },
+      nanosleep = {
+        clockid = 0,
+        type = TT_NONE,
+        {
+          rmtp = 0x0,
+          compat_rmtp = 0x0
+        },
+        expires = 0
+      },
+      poll = {
+        ufds = 0x0,
+        nfds = 0,
+        has_timeout = 0,
+        tv_sec = 0,
+        tv_nsec = 0
+      }
+    }
+  },
+  pid = 179,
+  tgid = 179,
+  stack_canary = 6744808402807510784,
+  real_parent = 0xffff2040032aaa00,
+  parent = 0xffff2040032aaa00,
+  children = {
+    next = 0xffff004003343240,
+    prev = 0xffff004003343240
+  },
+  sibling = {
+    next = 0xffff004003341d50,
+    prev = 0xffff004003344750
+  },
+  group_leader = 0xffff004003342a00,
+  ptraced = {
+    next = 0xffff004003343268,
+    prev = 0xffff004003343268
+  },
+  ptrace_entry = {
+    next = 0xffff004003343278,
+    prev = 0xffff004003343278
+  },
+  thread_pid = 0xffff002025100b80,
+  pid_links = {{
+      next = 0x0,
+      pprev = 0xffff002025100b90
+    }, {
+      next = 0x0,
+      pprev = 0xffff002025100b98
+    }, {
+      next = 0xffff0040033447b0,
+      pprev = 0xffff004003341db0
+    }, {
+      next = 0xffff0040033447c0,
+      pprev = 0xffff004003341dc0
+    }},
+  thread_group = {
+    next = 0xffff0040033432d0,
+    prev = 0xffff0040033432d0
+  },
+  thread_node = {
+    next = 0xffff002025e517d0,
+    prev = 0xffff002025e517d0
+  },
+  vfork_done = 0xffff004003224440,
+  set_child_tid = 0x0,
+  clear_child_tid = 0x0,
+  worker_private = 0xffff004003224400,
+  utime = 0,
+  stime = 0,
+  gtime = 0,
+  prev_cputime = {
+    utime = 0,
+    stime = 0,
+    lock = {
+      raw_lock = {
+        {
+          val = {
+            counter = 0
+          },
+          {
+            locked = 0 '\000',
+            pending = 0 '\000'
+          },
+          {
+            locked_pending = 0,
+            tail = 0
+          }
+        }
+      }
+    }
+  },
+  vtime = {
+    seqcount = {
+      sequence = 0
+    },
+    starttime = 0,
+    state = VTIME_INACTIVE,
+    cpu = 0,
+    utime = 0,
+    stime = 0,
+    gtime = 0
+  },
+  tick_dep_mask = {
+    counter = 0
+  },
+  nvcsw = 111,
+  nivcsw = 0,
+  start_time = 84000000,
+  start_boottime = 84000000,
+  min_flt = 0,
+  maj_flt = 0,
+  posix_cputimers = {
+    bases = {{
+        nextevt = 18446744073709551615,
+        tqhead = {
+          rb_root = {
+            rb_root = {
+              rb_node = 0x0
+            },
+            rb_leftmost = 0x0
+          }
+        }
+      }, {
+        nextevt = 18446744073709551615,
+        tqhead = {
+          rb_root = {
+            rb_root = {
+              rb_node = 0x0
+            },
+            rb_leftmost = 0x0
+          }
+        }
+      }, {
+        nextevt = 18446744073709551615,
+        tqhead = {
+          rb_root = {
+            rb_root = {
+              rb_node = 0x0
+            },
+            rb_leftmost = 0x0
+          }
+        }
+      }},
+    timers_active = 0,
+    expiry_active = 0
+  },
+  posix_cputimers_work = {
+    work = {
+      next = 0x0,
+      func = 0xffffba8cc6eb5f40 <posix_cpu_timers_work>
+    },
+    mutex = {
+      owner = {
+        counter = 0
+      },
+      wait_lock = {
+        raw_lock = {
+          {
+            val = {
+              counter = 0
+            },
+            {
+              locked = 0 '\000',
+              pending = 0 '\000'
+            },
+            {
+              locked_pending = 0,
+              tail = 0
+            }
+          }
+        }
+      },
+      osq = {
+        tail = {
+          counter = 0
+        }
+      },
+      wait_list = {
+        next = 0xffff004003343418,
+        prev = 0xffff004003343418
+      }
+    },
+    scheduled = 0
+  },
+  ptracer_cred = 0x0,
+  real_cred = 0xffff002021ecbf00,
+  cred = 0xffff002021ecbf00,
+  cached_requested_key = 0x0,
+  comm = "cpuhp/33\000\000\000\000\000\000\000",
+  nameidata = 0x0,
+  sysvsem = {
+    undo_list = 0x0
+  },
+  sysvshm = {
+    shm_clist = {
+      next = 0xffff004003343470,
+      prev = 0xffff004003343470
+    }
+  },
+  last_switch_count = 0,
+  last_switch_time = 0,
+  fs = 0xffffba8cc905f428 <init_fs>,
+  files = 0xffffba8cc9057f00 <init_files>,
+  io_uring = 0x0,
+  nsproxy = 0xffffba8cc8c51fe8 <init_nsproxy>,
+  signal = 0xffff002025e517c0,
+  sighand = 0xffff002025d86300,
+  blocked = {
+    sig = {0}
+  },
+  real_blocked = {
+    sig = {0}
+  },
+  saved_sigmask = {
+    sig = {0}
+  },
+  pending = {
+    list = {
+      next = 0xffff0040033434d8,
+      prev = 0xffff0040033434d8
+    },
+    signal = {
+      sig = {0}
+    }
+  },
+  sas_ss_sp = 0,
+  sas_ss_size = 0,
+  sas_ss_flags = 2,
+  task_works = 0x0,
+  audit_context = 0x0,
+  loginuid = {
+    val = 4294967295
+  },
+  sessionid = 4294967295,
+  seccomp = {
+    mode = 0,
+    filter_count = {
+      counter = 0
+    },
+    filter = 0x0
+  },
+  syscall_dispatch = {<No data fields>},
+  parent_exec_id = 0,
+  self_exec_id = 0,
+  alloc_lock = {
+    {
+      rlock = {
+        raw_lock = {
+          {
+            val = {
+              counter = 0
+            },
+            {
+              locked = 0 '\000',
+              pending = 0 '\000'
+            },
+            {
+              locked_pending = 0,
+              tail = 0
+            }
+          }
+        }
+      }
+    }
+  },
+  pi_lock = {
+    raw_lock = {
+      {
+        val = {
+          counter = 0
+        },
+        {
+          locked = 0 '\000',
+          pending = 0 '\000'
+        },
+        {
+          locked_pending = 0,
+          tail = 0
+        }
+      }
+    }
+  },
+  wake_q = {
+    next = 0x0
+  },
+  pi_waiters = {
+    rb_root = {
+      rb_node = 0x0
+    },
+    rb_leftmost = 0x0
+  },
+  pi_top_task = 0x0,
+  pi_blocked_on = 0x0,
+  journal_info = 0x0,
+  bio_list = 0x0,
+  plug = 0x0,
+  reclaim_state = 0x0,
+  io_context = 0x0,
+  capture_control = 0x0,
+  ptrace_message = 0,
+  last_siginfo = 0x0,
+  ioac = {
+    rchar = 0,
+    wchar = 0,
+    syscr = 0,
+    syscw = 0,
+    read_bytes = 0,
+    write_bytes = 0,
+    cancelled_write_bytes = 0
+  },
+  psi_flags = 0,
+  acct_rss_mem1 = 0,
+  acct_vm_mem1 = 0,
+  acct_timexpd = 0,
+  mems_allowed = {
+    bits = {255, 0, 0, 0}
+  },
+  mems_allowed_seq = {
+    seqcount = {
+      sequence = 0
+    }
+  },
+  cpuset_mem_spread_rotor = -1,
+  cpuset_slab_spread_rotor = -1,
+  cgroups = 0xffffba8cc9014960 <init_css_set>,
+  cg_list = {
+    next = 0xffff004003342140,
+    prev = 0xffff004003344b40
+  },
+  robust_list = 0x0,
+  compat_robust_list = 0x0,
+  pi_state_list = {
+    next = 0xffff004003343660,
+    prev = 0xffff004003343660
+  },
+  pi_state_cache = 0x0,
+  futex_exit_mutex = {
+    owner = {
+      counter = 0
+    },
+    wait_lock = {
+      raw_lock = {
+        {
+          val = {
+            counter = 0
+          },
+          {
+            locked = 0 '\000',
+            pending = 0 '\000'
+          },
+          {
+            locked_pending = 0,
+            tail = 0
+          }
+        }
+      }
+    },
+    osq = {
+      tail = {
+        counter = 0
+      }
+    },
+    wait_list = {
+      next = 0xffff004003343688,
+      prev = 0xffff004003343688
+    }
+  },
+  futex_state = 0,
+  perf_event_ctxp = 0x0,
+  perf_event_mutex = {
+    owner = {
+      counter = 0
+    },
+    wait_lock = {
+      raw_lock = {
+        {
+          val = {
+            counter = 0
+          },
+          {
+            locked = 0 '\000',
+            pending = 0 '\000'
+          },
+          {
+            locked_pending = 0,
+            tail = 0
+          }
+        }
+      }
+    },
+    osq = {
+      tail = {
+        counter = 0
+      }
+    },
+    wait_list = {
+      next = 0xffff0040033436b8,
+      prev = 0xffff0040033436b8
+    }
+  },
+  perf_event_list = {
+    next = 0xffff0040033436c8,
+    prev = 0xffff0040033436c8
+  },
+  mempolicy = 0x0,
+  il_prev = 5,
+  il_weight = 0 '\000',
+  pref_node_fork = 1,
+  numa_scan_seq = 0,
+  numa_scan_period = 1000,
+  numa_scan_period_max = 0,
+  numa_preferred_nid = -1,
+  numa_migrate_retry = 0,
+  node_stamp = 0,
+  last_task_numa_placement = 0,
+  last_sum_exec_runtime = 0,
+  numa_work = {
+    next = 0xffff004003343718,
+    func = 0xffffba8cc6dea260 <task_numa_work>
+  },
+  numa_group = 0x0,
+  numa_faults = 0x0,
+  total_numa_faults = 0,
+  numa_faults_locality = {0, 0, 0},
+  numa_pages_migrated = 0,
+  rseq = 0x0,
+  rseq_len = 0,
+  rseq_sig = 0,
+  rseq_event_mask = 5,
+  kabi_reserved_mm_cid = 0,
+  kabi_reserved_last_mm_cid = 0,
+  kabi_reserved_migrate_from_cpu = 0,
+  kabi_reserved_mm_cid_active = 0,
+  kabi_reserved_cid_work = {
+    next = 0x0,
+    func = 0x0
+  },
+  tlb_ubc = {
+    arch = {<No data fields>},
+    flush_required = false,
+    writable = false
+  },
+  splice_pipe = 0x0,
+  task_frag = {
+    page = 0x0,
+    offset = 0,
+    size = 0
+  },
+  delays = 0x0,
+  nr_dirtied = 0,
+  nr_dirtied_pause = 32,
+  dirty_paused_when = 0,
+  timer_slack_ns = 50000,
+  default_timer_slack_ns = 50000,
+  curr_ret_stack = -1,
+  curr_ret_depth = -1,
+  ret_stack = 0x0,
+  ftrace_timestamp = 0,
+  trace_overrun = {
+    counter = 0
+  },
+  tracing_graph_pause = {
+    counter = 0
+  },
+  trace_recursion = 0,
+  memcg_in_oom = 0x0,
+  memcg_oom_gfp_mask = 0,
+  memcg_oom_order = 0,
+  memcg_nr_pages_over_high = 0,
+  active_memcg = 0x0,
+  objcg = 0x1,
+  throttle_disk = 0x0,
+  utask = 0x0,
+  sequential_io = 0,
+  sequential_io_avg = 0,
+  kmap_ctrl = {<No data fields>},
+  rcu = {
+    next = 0x0,
+    func = 0x0
+  },
+  rcu_users = {
+    refs = {
+      counter = 2
+    }
+  },
+  pagefault_disabled = 0,
+  oom_reaper_list = 0x0,
+  oom_reaper_timer = {
+    entry = {
+      next = 0x0,
+      pprev = 0x0
+    },
+    expires = 0,
+    function = 0x0,
+    flags = 0,
+    kabi_reserved1 = 0,
+    kabi_reserved2 = 0
+  },
+  stack_vm_area = 0xffff004003361e80,
+  stack_refcount = {
+    refs = {
+      counter = 1
+    }
+  },
+  patch_state = -1,
+  security = 0x0,
+  bpf_storage = 0x0,
+  bpf_ctx = 0x0,
+  kretprobe_instances = {
+    first = 0x0
+  },
+  tag = 0,
+  prefer_cpus = 0xffff002025e4dc00,
+  select_cpus = 0xffff004003342ee8,
+  memstall_type = 0,
+  grid_qos = 0x0,
+  {
+    xinfo = 0x0,
+    kabi_hidden_1639 = {
+      kabi_reserved1 = 0
+    },
+    {<No data fields>}
+  },
+  kabi_reserved2 = 0,
+  {
+    {
+      kabi_reserved_int = 0,
+      saved_state = 0
+    },
+    kabi_hidden_1646 = {
+      kabi_reserved3 = 0
+    },
+    {<No data fields>}
+  },
+  kabi_reserved4 = 0,
+  kabi_reserved5 = 0,
+  kabi_reserved6 = 0,
+  kabi_reserved7 = 0,
+  kabi_reserved8 = 0,
+  kabi_reserved9 = 0,
+  kabi_reserved10 = 0,
+  kabi_reserved11 = 0,
+  kabi_reserved12 = 0,
+  kabi_reserved13 = 0,
+  kabi_reserved14 = 0,
+  kabi_reserved15 = 0,
+  kabi_reserved16 = 0,
+  task_struct_size_resvd = 0,
+  _resvd = 0xffff004000182c40,
+  thread = {
+    cpu_context = {
+      x19 = 18446462873663913728,
+      x20 = 18446462873664498176,
+      x21 = 18446462873663913728,
+      x22 = 18446667712554934280,
+      x23 = 18446667712541939696,
+      x24 = 0,
+      x25 = 1,
+      x26 = 18446462873664500600,
+      x27 = 0,
+      x28 = 0,
+      fp = 18446603338433281392,
+      sp = 18446603338433281392,
+      pc = 18446667712541937056
+    },
+    uw = {
+      tp_value = 0,
+      tp2_value = 0,
+      fpsimd_state = {
+        vregs = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+        fpsr = 0,
+        fpcr = 0,
+        __reserved = {0, 0}
+      }
+    },
+    fp_type = FP_STATE_FPSIMD,
+    fpsimd_cpu = 4096,
+    sve_state = 0x0,
+    sme_state = 0x0,
+    vl = {0, 0},
+    vl_onexec = {0, 0},
+    fault_address = 0,
+    fault_code = 0,
+    debug = {
+      suspended_step = 0,
+      bps_disabled = 0,
+      wps_disabled = 0,
+      hbp_break = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0},
+      hbp_watch = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}
+    },
+    keys_user = {
+      apia = {
+        lo = 0,
+        hi = 0
+      },
+      apib = {
+        lo = 0,
+        hi = 0
+      },
+      apda = {
+        lo = 0,
+        hi = 0
+      },
+      apdb = {
+        lo = 0,
+        hi = 0
+      },
+      apga = {
+        lo = 0,
+        hi = 0
+      }
+    },
+    keys_kernel = {
+      apia = {
+        lo = 0,
+        hi = 0
+      }
+    },
+    sctlr_user = 0,
+    svcr = 0,
+    tpidr2_el0 = 0,
+    kabi_reserved1 = 0,
+    kabi_reserved2 = 0,
+    kabi_reserved3 = 0,
+    kabi_reserved4 = 0,
+    kabi_reserved5 = 0,
+    kabi_reserved6 = 0,
+    kabi_reserved7 = 0,
+    kabi_reserved8 = 0
+  },
+  scx = {
+    dsq = 0x0,
+    dsq_list = {
+      node = {
+        next = 0xffff004003343e28,
+        prev = 0xffff004003343e28
+      },
+      flags = 0,
+      priv = 0
+    },
+    dsq_priq = {
+      __rb_parent_color = 18446462873664503360,
+      rb_right = 0x0,
+      rb_left = 0x0
+    },
+    dsq_seq = 0,
+    dsq_flags = 0,
+    flags = 0,
+    weight = 0,
+    sticky_cpu = -1,
+    holding_cpu = -1,
+    kf_mask = 0,
+    kf_tasks = {0x0, 0x0},
+    ops_state = {
+      counter = 0
+    },
+    runnable_node = {
+      next = 0xffff004003343e90,
+      prev = 0xffff004003343e90
+    },
+    runnable_at = 4294892317,
+    ddsp_dsq_id = 9223372036854775808,
+    ddsp_enq_flags = 0,
+    slice = 20000000,
+    dsq_vtime = 0,
+    disallow = false,
+    cgrp_moving_from = 0x0,
+    tasks_node = {
+      next = 0xffff0040033429d8,
+      prev = 0xffff0040033453d8
+    }
+  }
+}
+
+struct thread_info {
+  flags = 8,
+  {
+    preempt_count = 4294967296,
+    preempt = {
+      count = 0,
+      need_resched = 1
+    }
+  },
+  mpam_partid_pmg = 0,
+  cpu = 33,
+  kabi_reserved1 = 0,
+  kabi_reserved2 = 0
+}
+
+crash> 

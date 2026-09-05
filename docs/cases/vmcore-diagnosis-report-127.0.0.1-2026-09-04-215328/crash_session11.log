@@ -1,0 +1,90 @@
+
+crash 8.0.4-17.oe2403sp4
+Copyright (C) 2002-2022  Red Hat, Inc.
+Copyright (C) 2004, 2005, 2006, 2010  IBM Corporation
+Copyright (C) 1999-2006  Hewlett-Packard Co
+Copyright (C) 2005, 2006, 2011, 2012  Fujitsu Limited
+Copyright (C) 2006, 2007  VA Linux Systems Japan K.K.
+Copyright (C) 2005, 2011, 2020-2022  NEC Corporation
+Copyright (C) 1999, 2002, 2007  Silicon Graphics, Inc.
+Copyright (C) 1999, 2000, 2001, 2002  Mission Critical Linux, Inc.
+Copyright (C) 2015, 2021  VMware, Inc.
+This program is free software, covered by the GNU General Public License,
+and you are welcome to change it and/or distribute copies of it under
+certain conditions.  Enter "help copying" to see the conditions.
+This program has absolutely no warranty.  Enter "help warranty" for details.
+ 
+NOTE: stdin: not a tty
+
+GNU gdb (GDB) 10.2
+Copyright (C) 2021 Free Software Foundation, Inc.
+License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>
+This is free software: you are free to change and redistribute it.
+There is NO WARRANTY, to the extent permitted by law.
+Type "show copying" and "show warranty" for details.
+This GDB was configured as "aarch64-unknown-linux-gnu".
+Type "show configuration" for configuration details.
+Find the GDB manual and other documentation resources online at:
+    <http://www.gnu.org/software/gdb/documentation/>.
+
+For help, type "help".
+Type "apropos word" to search for commands related to "word"...
+
+    DUMPFILE: /home/sdc/wangxu/vmcore0102/127.0.0.1-2026-09-04-21:53:28/vmcore  [PARTIAL DUMP]
+        CPUS: 192
+        DATE: Fri Sep  4 21:52:44 CST 2026
+      UPTIME: 09:14:32
+LOAD AVERAGE: 42.73, 9.68, 3.24
+       TASKS: 2212
+    NODENAME: localhost0102
+     RELEASE: 6.6.0-145.3.23.154.oe2403sp3.aarch64
+     VERSION: #1 SMP Mon Jul 27 19:00:34 CST 2026
+     MACHINE: aarch64  (unknown Mhz)
+      MEMORY: 767.8 GB
+       PANIC: "Unable to handle kernel paging request at virtual address 73b8474cc98297a5"
+         PID: 581185
+     COMMAND: "mi-scavenger"
+        TASK: ffff60201da03f00  [THREAD_INFO: ffff60201da03f00]
+         CPU: 179
+       STATE: TASK_INTERRUPTIBLE (PANIC)
+
+crash> search -t ffff604004a9a000 32
+crash> rd ffff604004a9a300 32
+ffff604004a9a300:  ab2500002ad60200 2b0000002cd60200   ...*..%....,...+
+ffff604004a9a310:  ac2500002ed60200 2c00000030d60200   ......%....0...,
+ffff604004a9a320:  ad07000032d60200 2d00000034d60200   ...2.......4...-
+ffff604004a9a330:  2e00000036d60200 3000000038d60200   ...6.......8...0
+ffff604004a9a340:  310000003ad60200 320000003cd60200   ...:...1...<...2
+ffff604004a9a350:  330000003ed60200 34eb050040d60200   ...>...3...@...4
+ffff604004a9a360:  3500000042d60200 3600000044d60200   ...B...5...D...6
+ffff604004a9a370:  3700000046d60200 b825000048d60200   ...F...7...H..%.
+ffff604004a9a380:  380000004ad60200 b92500004cd60200   ...J...8...L..%.
+ffff604004a9a390:  ba2500004ed60200 3a00000050d60200   ...N..%....P...:
+ffff604004a9a3a0:  3b00000052d60200 3c00000054d60200   ...R...;...T...<
+ffff604004a9a3b0:  3d00000056d60200 3e00000058d60200   ...V...=...X...>
+ffff604004a9a3c0:  bf0700005ad60200 3f0000005cd60200   ...Z.......\...?
+ffff604004a9a3d0:  c00700005ed60200 4000000060d60200   ...^.......`...@
+ffff604004a9a3e0:  c125000062d60200 4100000064d60200   ...b..%....d...A
+ffff604004a9a3f0:  c225000066d60200 4200000068d60200   ...f..%....h...B
+crash> kmem ffff604004a9b000
+CACHE             OBJSIZE  ALLOCATED     TOTAL  SLABS  SSIZE  NAME
+ffff002020805040     4096       2940      4920    615    32k  kmalloc-4k
+  SLAB              MEMORY            NODE  TOTAL  ALLOCATED  FREE
+  fffffd810012a600  ffff604004a98000     7      8          6     2
+  FREE / [ALLOCATED]
+  [ffff604004a9b000]
+
+      PAGE         PHYSICAL      MAPPING       INDEX CNT FLAGS
+fffffd810012a6c0 604004a9b000 dead000000000400        0  0 75ffffe00000000
+crash> kmem ffff604004a98000
+CACHE             OBJSIZE  ALLOCATED     TOTAL  SLABS  SSIZE  NAME
+ffff002020805040     4096       2940      4920    615    32k  kmalloc-4k
+  SLAB              MEMORY            NODE  TOTAL  ALLOCATED  FREE
+  fffffd810012a600  ffff604004a98000     7      8          6     2
+  FREE / [ALLOCATED]
+  [ffff604004a98000]
+
+      PAGE         PHYSICAL      MAPPING       INDEX CNT FLAGS
+fffffd810012a600 604004a98000 dead000000000001 ffff604004a9e000  1 75ffffe00000840 head,slab
+crash> p (struct seq_file *)0
+$1 = (struct seq_file *) 0x0
