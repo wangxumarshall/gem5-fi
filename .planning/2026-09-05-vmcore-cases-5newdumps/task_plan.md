@@ -58,8 +58,8 @@
   - 案17: dmesg L2610 `x3 : 0000000000000000` ✓（与 mem_section 真值非零矛盾即实锤）
 - [x] 跨案共性：5 案全部落在 CPU179/Node7（案14 致命在 CPU180 但 CPU179 同指针同偏移受扰），与既有 12 案共同构成 17 案同核谱系；新批次新增两类实锤——读出≠内存直接证据（案13/17）与写路径持久损坏（案14）
 
-### Phase 4: 提交 `in_progress`
-- [ ] feature 分支 + commit + push（不推 main）
+### Phase 4: 提交 `complete`
+- [x] feature 分支 research/vmcore-cases-5newdumps-0940batch + commit 541875b0 + push（22 文件，10240 行插入）
 
 ## Decisions Made
 
