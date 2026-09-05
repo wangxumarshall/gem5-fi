@@ -285,3 +285,13 @@ CHAOSArmSysReg 也有 `*1000`（startup()，FS-only，SE formal 不受影响，�
 **L1D→L2 悬崖（97.7%→0%）是工作集驻留效应**：SDC 风险集中在直接供给消费者的最后一层 cache。§4.2 排序推论：ECC 预算应集中在 L1D；L2/DRAM ECC 对此 workload 族是沉没冗余。
 
 **工具正确性（本段补丁）**：① runner l1i/l2 路由（L1I 语义字段 = A64 指令编码字段 opcode/rn/...，非 tag/data——argparse exit=2 首次尝试暴露）；② **CHAOSCache protection 注释行双计数**（L1D formal 384 reps 全部 faults=2 实为 1——分类不受影响（faults≥1 布尔语义，97.7% 结论有效），G5 evidence 值修正）。
+
+## SE 侧 15/15 单元 formal 收官 + 取指/取数通路定论（2026-09-06）
+
+**§2.11 L1I formal（n=384 ×2 语义臂）**：opcode/rn 臂 P_SDC 均 0%，P_DUE 0.8%/0.3%——**取指通路自掩蔽**（错误指令被 squash/非法崩溃，静默面 ~0）。
+
+**SE 侧完整格局（15/15 单元 formal 齐备）**：
+- **SDC 集中带**：L1D 命中 97.7% > post-check 90.9% > LSQFwd 错源 37.6% > PRF 低位 3.9%——**数据通路与转发通路**是全部静默风险
+- **DUE 集中带**：rename 子系统（RAT 95.8 / mark_free 72-77 / f5 59.7）+ ExMon 100% + IQ（madd 100）
+- **零风险带**（本 workload 族）：取指（L1I 0%）、L2/DRAM 后备（0%）、执行/IQ 唤醒/BPU/RAS/Decode 主部、Mem addr_map_sub
+- **取指 vs 取数悬崖（L1I 0% vs L1D 97.7%）是 §4.2 最大的单条排序证据**：ECC 预算全部给取数+转发通路

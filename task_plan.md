@@ -46,7 +46,7 @@ S1 四个 P0 单元 + S2/S3 六个 SE 单元 formal 已完成（单 cell × n=38
 
 ## Phase 3 — 网格深化：单 cell → 最小有意义网格（§2.1/2.2 C 规格）
 
-**Status: in_progress（2026-09-04，7 个网格已提交）**
+**Status: complete（2026-09-06，SE 侧 15/15 单元 formal 全齐）**
 
 当前 formal 几乎全是 `target_index=0` + `transient_bit_flip` 单 cell。按设计文档，最优先的三根轴：
 
