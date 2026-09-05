@@ -1,0 +1,228 @@
+
+crash 8.0.4-17.oe2403sp4
+Copyright (C) 2002-2022  Red Hat, Inc.
+Copyright (C) 2004, 2005, 2006, 2010  IBM Corporation
+Copyright (C) 1999-2006  Hewlett-Packard Co
+Copyright (C) 2005, 2006, 2011, 2012  Fujitsu Limited
+Copyright (C) 2006, 2007  VA Linux Systems Japan K.K.
+Copyright (C) 2005, 2011, 2020-2022  NEC Corporation
+Copyright (C) 1999, 2002, 2007  Silicon Graphics, Inc.
+Copyright (C) 1999, 2000, 2001, 2002  Mission Critical Linux, Inc.
+Copyright (C) 2015, 2021  VMware, Inc.
+This program is free software, covered by the GNU General Public License,
+and you are welcome to change it and/or distribute copies of it under
+certain conditions.  Enter "help copying" to see the conditions.
+This program has absolutely no warranty.  Enter "help warranty" for details.
+ 
+NOTE: stdin: not a tty
+
+GNU gdb (GDB) 10.2
+Copyright (C) 2021 Free Software Foundation, Inc.
+License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>
+This is free software: you are free to change and redistribute it.
+There is NO WARRANTY, to the extent permitted by law.
+Type "show copying" and "show warranty" for details.
+This GDB was configured as "aarch64-unknown-linux-gnu".
+Type "show configuration" for configuration details.
+Find the GDB manual and other documentation resources online at:
+    <http://www.gnu.org/software/gdb/documentation/>.
+
+For help, type "help".
+Type "apropos word" to search for commands related to "word"...
+
+please wait... (gathering kmem slab cache data)                                                please wait... (gathering module symbol data)                                              please wait... (gathering task table data)                                           please wait... (determining panic task)                                              KERNEL: /tmp/vmlinux-0102  [TAINTED]
+    DUMPFILE: /home/sdc/wangxu/vmcore0102/127.0.0.1-2026-09-04-22:09:49/vmcore  [PARTIAL DUMP]
+        CPUS: 192
+        DATE: Fri Sep  4 22:08:20 CST 2026
+      UPTIME: 00:06:37
+LOAD AVERAGE: 128.20, 49.41, 18.26
+       TASKS: 2193
+    NODENAME: localhost0102
+     RELEASE: 6.6.0-145.3.23.154.oe2403sp3.aarch64
+     VERSION: #1 SMP Mon Jul 27 19:00:34 CST 2026
+     MACHINE: aarch64  (unknown Mhz)
+      MEMORY: 767.8 GB
+       PANIC: "Unable to handle kernel paging request at virtual address ffffb75e3dfa97e0"
+         PID: 73729
+     COMMAND: "rs:main Q:Reg"
+        TASK: ffff00202e2f3f00  [THREAD_INFO: ffff00202e2f3f00]
+         CPU: 179
+       STATE: TASK_WAKING (PANIC)
+
+crash> dis -l vprintk_emit
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/printk/printk.c: 2319
+0xffffb75e3c5cc378 <vprintk_emit>:	mov	x9, x30
+0xffffb75e3c5cc37c <vprintk_emit+4>:	nop
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/printk/printk.c: 2324
+0xffffb75e3c5cc380 <vprintk_emit+8>:	paciasp
+0xffffb75e3c5cc384 <vprintk_emit+12>:	stp	x29, x30, [sp, #-128]!
+0xffffb75e3c5cc388 <vprintk_emit+16>:	mov	x29, sp
+0xffffb75e3c5cc38c <vprintk_emit+20>:	stp	x19, x20, [sp, #16]
+0xffffb75e3c5cc390 <vprintk_emit+24>:	adrp	x20, 0xffffb75e3e39f000 <__cpu_online_mask+360>
+0xffffb75e3c5cc394 <vprintk_emit+28>:	add	x20, x20, #0xb50
+0xffffb75e3c5cc398 <vprintk_emit+32>:	ldr	w5, [x20, #16]
+0xffffb75e3c5cc39c <vprintk_emit+36>:	cbnz	w5, 0xffffb75e3c5cc55c <vprintk_emit+484>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/printk/printk.c: 2327
+0xffffb75e3c5cc3a0 <vprintk_emit+40>:	stp	x21, x22, [sp, #32]
+0xffffb75e3c5cc3a4 <vprintk_emit+44>:	mov	w21, w1
+0xffffb75e3c5cc3a8 <vprintk_emit+48>:	mov	x22, x4
+0xffffb75e3c5cc3ac <vprintk_emit+52>:	stp	x23, x24, [sp, #48]
+0xffffb75e3c5cc3b0 <vprintk_emit+56>:	mov	w23, w0
+0xffffb75e3c5cc3b4 <vprintk_emit+60>:	mov	x24, x2
+0xffffb75e3c5cc3b8 <vprintk_emit+64>:	stp	x25, x26, [sp, #64]
+0xffffb75e3c5cc3bc <vprintk_emit+68>:	mov	x25, x3
+0xffffb75e3c5cc3c0 <vprintk_emit+72>:	ldr	w0, [x20, #12]
+0xffffb75e3c5cc3c4 <vprintk_emit+76>:	cbnz	w0, 0xffffb75e3c5cc538 <vprintk_emit+448>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/printk/printk.c: 2330
+0xffffb75e3c5cc3c8 <vprintk_emit+80>:	stp	x27, x28, [sp, #80]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/printk/printk.c: 2321
+0xffffb75e3c5cc3cc <vprintk_emit+84>:	mov	w27, #0x0                   	// #0
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/printk/printk.c: 2330
+0xffffb75e3c5cc3d0 <vprintk_emit+88>:	cmn	w21, #0x2
+0xffffb75e3c5cc3d4 <vprintk_emit+92>:	b.ne	0xffffb75e3c5cc3e0 <vprintk_emit+104>  // b.any
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/printk/printk.c: 2332
+0xffffb75e3c5cc3d8 <vprintk_emit+96>:	mov	w27, #0x1                   	// #1
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/printk/printk.c: 2331
+0xffffb75e3c5cc3dc <vprintk_emit+100>:	mov	w21, #0xffffffff            	// #-1
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/printk/printk.c: 1288
+0xffffb75e3c5cc3e0 <vprintk_emit+104>:	adrp	x1, 0xffffb75e3e975000 <resume_file+152>
+0xffffb75e3c5cc3e4 <vprintk_emit+108>:	add	x1, x1, #0x218
+0xffffb75e3c5cc3e8 <vprintk_emit+112>:	ldr	w0, [x1, #72]
+0xffffb75e3c5cc3ec <vprintk_emit+116>:	cbz	w0, 0xffffb75e3c5cc458 <vprintk_emit+224>
+0xffffb75e3c5cc3f0 <vprintk_emit+120>:	adrp	x2, 0xffffb75e3e39e000 <join_entries+13376>
+0xffffb75e3c5cc3f4 <vprintk_emit+124>:	ldr	w2, [x2, #3008]
+0xffffb75e3c5cc3f8 <vprintk_emit+128>:	cmp	w2, #0x2
+0xffffb75e3c5cc3fc <vprintk_emit+132>:	b.hi	0xffffb75e3c5cc458 <vprintk_emit+224>  // b.pmore
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/printk/printk.c: 1257
+0xffffb75e3c5cc400 <vprintk_emit+136>:	adrp	x2, 0xffffb75e3e3df000 <files+1944>
+0xffffb75e3c5cc404 <vprintk_emit+140>:	ldr	w2, [x2, #3016]
+0xffffb75e3c5cc408 <vprintk_emit+144>:	cmp	w21, w2
+0xffffb75e3c5cc40c <vprintk_emit+148>:	b.ge	0xffffb75e3c5cc524 <vprintk_emit+428>  // b.tcont
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/printk/printk.c: 1293
+0xffffb75e3c5cc410 <vprintk_emit+152>:	ldr	x1, [x1, #64]
+0xffffb75e3c5cc414 <vprintk_emit+156>:	sxtw	x19, w0
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/printk/printk.c: 1295
+0xffffb75e3c5cc418 <vprintk_emit+160>:	adrp	x26, 0xffffb75e3e397000 <bit_wait_table+2688>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/printk/printk.c: 1293
+0xffffb75e3c5cc41c <vprintk_emit+164>:	mul	x19, x19, x1
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/jiffies.h: 522
+0xffffb75e3c5cc420 <vprintk_emit+168>:	bl	0xffffb75e3c61f958 <__msecs_to_jiffies>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/printk/printk.c: 1295
+0xffffb75e3c5cc424 <vprintk_emit+172>:	ldr	x1, [x26, #3520]
+0xffffb75e3c5cc428 <vprintk_emit+176>:	add	x28, x0, x1
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/printk/printk.c: 1296
+0xffffb75e3c5cc42c <vprintk_emit+180>:	cbz	x19, 0xffffb75e3c5cc458 <vprintk_emit+224>
+0xffffb75e3c5cc430 <vprintk_emit+184>:	add	x26, x26, #0xdc0
+0xffffb75e3c5cc434 <vprintk_emit+188>:	b	0xffffb75e3c5cc444 <vprintk_emit+204>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/nmi.h: 149
+0xffffb75e3c5cc438 <vprintk_emit+192>:	bl	0xffffb75e3c69a158 <arch_touch_nmi_watchdog>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/nmi.h: 151
+0xffffb75e3c5cc43c <vprintk_emit+196>:	bl	0xffffb75e3c69a7f8 <touch_softlockup_watchdog>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/printk/printk.c: 1296
+0xffffb75e3c5cc440 <vprintk_emit+200>:	cbz	x19, 0xffffb75e3c5cc458 <vprintk_emit+224>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/printk/printk.c: 1297
+0xffffb75e3c5cc444 <vprintk_emit+204>:	sub	x19, x19, #0x1
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./arch/arm64/include/asm/vdso/processor.h: 12
+0xffffb75e3c5cc448 <vprintk_emit+208>:	yield
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/nmi.h: 149
+0xffffb75e3c5cc44c <vprintk_emit+212>:	ldr	x0, [x26]
+0xffffb75e3c5cc450 <vprintk_emit+216>:	cmp	x28, x0
+0xffffb75e3c5cc454 <vprintk_emit+220>:	b.pl	0xffffb75e3c5cc438 <vprintk_emit+192>  // b.nfrst
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/printk/printk.c: 2095
+0xffffb75e3c5cc458 <vprintk_emit+224>:	ldr	w19, [x20, #20]
+0xffffb75e3c5cc45c <vprintk_emit+228>:	cbnz	w19, 0xffffb75e3c5cc4c8 <vprintk_emit+336>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/printk/printk.c: 2337
+0xffffb75e3c5cc460 <vprintk_emit+232>:	ldp	x8, x9, [x22]
+0xffffb75e3c5cc464 <vprintk_emit+236>:	mov	x3, x25
+0xffffb75e3c5cc468 <vprintk_emit+240>:	ldp	x6, x7, [x22, #16]
+0xffffb75e3c5cc46c <vprintk_emit+244>:	mov	x2, x24
+0xffffb75e3c5cc470 <vprintk_emit+248>:	mov	w1, w21
+0xffffb75e3c5cc474 <vprintk_emit+252>:	mov	w0, w23
+0xffffb75e3c5cc478 <vprintk_emit+256>:	add	x4, sp, #0x60
+0xffffb75e3c5cc47c <vprintk_emit+260>:	stp	x8, x9, [sp, #96]
+0xffffb75e3c5cc480 <vprintk_emit+264>:	stp	x6, x7, [sp, #112]
+0xffffb75e3c5cc484 <vprintk_emit+268>:	bl	0xffffb75e3c5cbec0 <vprintk_store>
+0xffffb75e3c5cc488 <vprintk_emit+272>:	mov	w19, w0
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/printk/printk.c: 2340
+0xffffb75e3c5cc48c <vprintk_emit+276>:	cbz	w27, 0xffffb75e3c5cc504 <vprintk_emit+396>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/printk/printk.c: 508
+0xffffb75e3c5cc490 <vprintk_emit+280>:	adrp	x0, 0xffffb75e3d821000 <cpucap_ptrs+856>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/printk/printk.c: 3922
+0xffffb75e3c5cc494 <vprintk_emit+284>:	ldrb	w0, [x0, #872]
+0xffffb75e3c5cc498 <vprintk_emit+288>:	tbz	w0, #0, 0xffffb75e3c5cc4a4 <vprintk_emit+300>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/printk/printk.c: 3972
+0xffffb75e3c5cc49c <vprintk_emit+292>:	mov	w0, #0x3                   	// #3
+0xffffb75e3c5cc4a0 <vprintk_emit+296>:	bl	0xffffb75e3c5c96a8 <__wake_up_klogd>
+0xffffb75e3c5cc4a4 <vprintk_emit+300>:	ldp	x21, x22, [sp, #32]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/printk/printk.c: 2366
+0xffffb75e3c5cc4a8 <vprintk_emit+304>:	mov	w0, w19
+0xffffb75e3c5cc4ac <vprintk_emit+308>:	ldp	x19, x20, [sp, #16]
+0xffffb75e3c5cc4b0 <vprintk_emit+312>:	ldp	x23, x24, [sp, #48]
+0xffffb75e3c5cc4b4 <vprintk_emit+316>:	ldp	x25, x26, [sp, #64]
+0xffffb75e3c5cc4b8 <vprintk_emit+320>:	ldp	x27, x28, [sp, #80]
+0xffffb75e3c5cc4bc <vprintk_emit+324>:	ldp	x29, x30, [sp], #128
+0xffffb75e3c5cc4c0 <vprintk_emit+328>:	autiasp
+0xffffb75e3c5cc4c4 <vprintk_emit+332>:	ret
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/printk/printk.c: 2099
+0xffffb75e3c5cc4c8 <vprintk_emit+336>:	mov	x0, #0x8958                	// #35160
+0xffffb75e3c5cc4cc <vprintk_emit+340>:	movk	x0, #0x41, lsl #16
+0xffffb75e3c5cc4d0 <vprintk_emit+344>:	bl	0xffffb75e3d2db780 <__const_udelay>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/nmi.h: 149
+0xffffb75e3c5cc4d4 <vprintk_emit+348>:	bl	0xffffb75e3c69a158 <arch_touch_nmi_watchdog>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/nmi.h: 151
+0xffffb75e3c5cc4d8 <vprintk_emit+352>:	bl	0xffffb75e3c69a7f8 <touch_softlockup_watchdog>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/printk/printk.c: 2098
+0xffffb75e3c5cc4dc <vprintk_emit+356>:	subs	w19, w19, #0x1
+0xffffb75e3c5cc4e0 <vprintk_emit+360>:	b.eq	0xffffb75e3c5cc460 <vprintk_emit+232>  // b.none
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/printk/printk.c: 2099
+0xffffb75e3c5cc4e4 <vprintk_emit+364>:	mov	x0, #0x8958                	// #35160
+0xffffb75e3c5cc4e8 <vprintk_emit+368>:	movk	x0, #0x41, lsl #16
+0xffffb75e3c5cc4ec <vprintk_emit+372>:	bl	0xffffb75e3d2db780 <__const_udelay>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/nmi.h: 149
+0xffffb75e3c5cc4f0 <vprintk_emit+376>:	bl	0xffffb75e3c69a158 <arch_touch_nmi_watchdog>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/nmi.h: 151
+0xffffb75e3c5cc4f4 <vprintk_emit+380>:	bl	0xffffb75e3c69a7f8 <touch_softlockup_watchdog>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/printk/printk.c: 2098
+0xffffb75e3c5cc4f8 <vprintk_emit+384>:	subs	w19, w19, #0x1
+0xffffb75e3c5cc4fc <vprintk_emit+388>:	b.ne	0xffffb75e3c5cc4c8 <vprintk_emit+336>  // b.any
+0xffffb75e3c5cc500 <vprintk_emit+392>:	b	0xffffb75e3c5cc460 <vprintk_emit+232>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/printk/printk.c: 2355
+0xffffb75e3c5cc504 <vprintk_emit+396>:	bl	0xffffb75e3c5caab8 <console_trylock_spinning>
+0xffffb75e3c5cc508 <vprintk_emit+400>:	cbnz	w0, 0xffffb75e3c5cc530 <vprintk_emit+440>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/printk/printk.c: 508
+0xffffb75e3c5cc50c <vprintk_emit+404>:	adrp	x0, 0xffffb75e3d821000 <cpucap_ptrs+856>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/printk/printk.c: 3922
+0xffffb75e3c5cc510 <vprintk_emit+408>:	ldrb	w0, [x0, #872]
+0xffffb75e3c5cc514 <vprintk_emit+412>:	tbz	w0, #0, 0xffffb75e3c5cc4a4 <vprintk_emit+300>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/printk/printk.c: 3955
+0xffffb75e3c5cc518 <vprintk_emit+416>:	mov	w0, #0x1                   	// #1
+0xffffb75e3c5cc51c <vprintk_emit+420>:	bl	0xffffb75e3c5c96a8 <__wake_up_klogd>
+0xffffb75e3c5cc520 <vprintk_emit+424>:	b	0xffffb75e3c5cc4a4 <vprintk_emit+300>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/printk/printk.c: 1257
+0xffffb75e3c5cc524 <vprintk_emit+428>:	ldrb	w2, [x20, #4]
+0xffffb75e3c5cc528 <vprintk_emit+432>:	tbz	w2, #0, 0xffffb75e3c5cc458 <vprintk_emit+224>
+0xffffb75e3c5cc52c <vprintk_emit+436>:	b	0xffffb75e3c5cc410 <vprintk_emit+152>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/printk/printk.c: 2356
+0xffffb75e3c5cc530 <vprintk_emit+440>:	bl	0xffffb75e3c5ca908 <console_unlock>
+0xffffb75e3c5cc534 <vprintk_emit+444>:	b	0xffffb75e3c5cc50c <vprintk_emit+404>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/atomic/atomic-arch-fallback.h: 444
+0xffffb75e3c5cc538 <vprintk_emit+448>:	adrp	x0, 0xffffb75e3e3c6000 <event_exit__unshare+32>
+0xffffb75e3c5cc53c <vprintk_emit+452>:	ldr	w0, [x0, #3560]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/printk/printk.c: 2673
+0xffffb75e3c5cc540 <vprintk_emit+456>:	cmn	w0, #0x1
+0xffffb75e3c5cc544 <vprintk_emit+460>:	b.eq	0xffffb75e3c5cc3c8 <vprintk_emit+80>  // b.none
+0xffffb75e3c5cc548 <vprintk_emit+464>:	bl	0xffffb75e3c5c9ab0 <other_cpu_in_panic>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/printk/printk.c: 2327
+0xffffb75e3c5cc54c <vprintk_emit+468>:	tbz	w0, #0, 0xffffb75e3c5cc3c8 <vprintk_emit+80>
+0xffffb75e3c5cc550 <vprintk_emit+472>:	ldp	x21, x22, [sp, #32]
+0xffffb75e3c5cc554 <vprintk_emit+476>:	ldp	x23, x24, [sp, #48]
+0xffffb75e3c5cc558 <vprintk_emit+480>:	ldp	x25, x26, [sp, #64]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/printk/printk.c: 2325
+0xffffb75e3c5cc55c <vprintk_emit+484>:	mov	w19, #0x0                   	// #0
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/printk/printk.c: 2366
+0xffffb75e3c5cc560 <vprintk_emit+488>:	mov	w0, w19
+0xffffb75e3c5cc564 <vprintk_emit+492>:	ldp	x19, x20, [sp, #16]
+0xffffb75e3c5cc568 <vprintk_emit+496>:	ldp	x29, x30, [sp], #128
+0xffffb75e3c5cc56c <vprintk_emit+500>:	autiasp
+0xffffb75e3c5cc570 <vprintk_emit+504>:	ret
+crash> quit

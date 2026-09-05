@@ -1,0 +1,582 @@
+
+crash 8.0.4-17.oe2403sp4
+Copyright (C) 2002-2022  Red Hat, Inc.
+Copyright (C) 2004, 2005, 2006, 2010  IBM Corporation
+Copyright (C) 1999-2006  Hewlett-Packard Co
+Copyright (C) 2005, 2006, 2011, 2012  Fujitsu Limited
+Copyright (C) 2006, 2007  VA Linux Systems Japan K.K.
+Copyright (C) 2005, 2011, 2020-2022  NEC Corporation
+Copyright (C) 1999, 2002, 2007  Silicon Graphics, Inc.
+Copyright (C) 1999, 2000, 2001, 2002  Mission Critical Linux, Inc.
+Copyright (C) 2015, 2021  VMware, Inc.
+This program is free software, covered by the GNU General Public License,
+and you are welcome to change it and/or distribute copies of it under
+certain conditions.  Enter "help copying" to see the conditions.
+This program has absolutely no warranty.  Enter "help warranty" for details.
+ 
+NOTE: stdin: not a tty
+
+GNU gdb (GDB) 10.2
+Copyright (C) 2021 Free Software Foundation, Inc.
+License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>
+This is free software: you are free to change and redistribute it.
+There is NO WARRANTY, to the extent permitted by law.
+Type "show copying" and "show warranty" for details.
+This GDB was configured as "aarch64-unknown-linux-gnu".
+Type "show configuration" for configuration details.
+Find the GDB manual and other documentation resources online at:
+    <http://www.gnu.org/software/gdb/documentation/>.
+
+For help, type "help".
+Type "apropos word" to search for commands related to "word"...
+
+please wait... (gathering kmem slab cache data)                                                please wait... (gathering module symbol data)                                              please wait... (gathering task table data)                                           please wait... (determining panic task)                                              KERNEL: /tmp/vmlinux-0102  [TAINTED]
+    DUMPFILE: /home/sdc/wangxu/vmcore0102/127.0.0.1-2026-09-04-22:09:49/vmcore  [PARTIAL DUMP]
+        CPUS: 192
+        DATE: Fri Sep  4 22:08:20 CST 2026
+      UPTIME: 00:06:37
+LOAD AVERAGE: 128.20, 49.41, 18.26
+       TASKS: 2193
+    NODENAME: localhost0102
+     RELEASE: 6.6.0-145.3.23.154.oe2403sp3.aarch64
+     VERSION: #1 SMP Mon Jul 27 19:00:34 CST 2026
+     MACHINE: aarch64  (unknown Mhz)
+      MEMORY: 767.8 GB
+       PANIC: "Unable to handle kernel paging request at virtual address ffffb75e3dfa97e0"
+         PID: 73729
+     COMMAND: "rs:main Q:Reg"
+        TASK: ffff00202e2f3f00  [THREAD_INFO: ffff00202e2f3f00]
+         CPU: 179
+       STATE: TASK_WAKING (PANIC)
+
+crash> rd -64 ffff6057fffbe860 40
+ffff6057fffbe860:  0000000000000000 0000000000000000   ................
+ffff6057fffbe870:  0000000000000000 0000000000000000   ................
+ffff6057fffbe880:  fffffd8101bbd4c8 0000000000007844   ........Dx......
+ffff6057fffbe890:  000000000000d7ff 00000000000137ba   .........7......
+ffff6057fffbe8a0:  0000000000000000 0000000000000000   ................
+ffff6057fffbe8b0:  0000000000000000 0000000000000000   ................
+ffff6057fffbe8c0:  0000000000000000 0000000000000000   ................
+ffff6057fffbe8d0:  0000000000000000 0000000000000000   ................
+ffff6057fffbe8e0:  0000000000000007 ffff6057fffbdb00   ............W`..
+ffff6057fffbe8f0:  ffffb75e3dfb0980 ffffb75e3dfb0940   ...=^...@..=^...
+ffff6057fffbe900:  0001f29800000502 000000000000003f   ........?.......
+ffff6057fffbe910:  0000000604000000 000000000175f29b   ..........u.....
+ffff6057fffbe920:  0000000001800000 0000000001800000   ................
+ffff6057fffbe930:  0000000001800000 0000000000000000   ................
+ffff6057fffbe940:  ffffb75e3d7387a8 0000000000000000   ..s=^...........
+ffff6057fffbe950:  0000000000000000 0000000000000001   ................
+ffff6057fffbe960:  0000000000000000 0000000000000000   ................
+ffff6057fffbe970:  0000000000000000 0000000000000000   ................
+ffff6057fffbe980:  fffffd810045b708 fffffd8100422d48   ..E.....H-B.....
+ffff6057fffbe990:  ffff6057fffbe990 fffffd8101333948   ....W`..H93.....
+crash> rd -64 ffff6057fffbe960 40
+ffff6057fffbe960:  0000000000000000 0000000000000000   ................
+ffff6057fffbe970:  0000000000000000 0000000000000000   ................
+ffff6057fffbe980:  fffffd810045b708 fffffd8100422d48   ..E.....H-B.....
+ffff6057fffbe990:  ffff6057fffbe990 fffffd8101333948   ....W`..H93.....
+ffff6057fffbe9a0:  fffffd81002c6fc8 fffffd81000dbf88   .o,.............
+ffff6057fffbe9b0:  ffff6057fffbe9b0 ffff6057fffbe9b0   ....W`......W`..
+ffff6057fffbe9c0:  ffff6057fffbe9c0 ffff6057fffbe9c0   ....W`......W`..
+ffff6057fffbe9d0:  ffff6057fffbe9d0 ffff6057fffbe9d0   ....W`......W`..
+ffff6057fffbe9e0:  00000000000117a0 fffffd810048ff88   ..........H.....
+ffff6057fffbe9f0:  fffffd81004b3c88 fffffd8102076a08   .<K......j......
+ffff6057fffbea00:  fffffd8102076a08 fffffd81002c0988   .j........,.....
+ffff6057fffbea10:  fffffd81002c0988 ffff6057fffbea18   ..,.........W`..
+ffff6057fffbea20:  ffff6057fffbea18 ffff6057fffbea28   ....W`..(...W`..
+ffff6057fffbea30:  ffff6057fffbea28 ffff6057fffbea38   (...W`..8...W`..
+ffff6057fffbea40:  ffff6057fffbea38 000000000000069f   8...W`..........
+ffff6057fffbea50:  fffffd810043c408 fffffd8100437508   ..C......uC.....
+ffff6057fffbea60:  fffffd8101df6f08 fffffd8101df6f08   .o.......o......
+ffff6057fffbea70:  ffff6057fffbea70 ffff6057fffbea70   p...W`..p...W`..
+ffff6057fffbea80:  ffff6057fffbea80 ffff6057fffbea80   ....W`......W`..
+ffff6057fffbea90:  ffff6057fffbea90 ffff6057fffbea90   ....W`......W`..
+crash> rd -64 fffffd8101333948 8
+fffffd8101333948:  ffff6057fffbe990 fffffd8100c25588   ....W`...U......
+fffffd8101333958:  0000000000000000 0000000ffffa0607   ................
+fffffd8101333968:  0000000000000000 00000000ffffff7f   ................
+fffffd8101333978:  0000000000000000 075ffffe00000038   ........8....._.
+crash> rd -64 fffffd810045b708 8
+fffffd810045b708:  fffffd81001f92c8 ffff6057fffbe980   ............W`..
+fffffd810045b718:  0000000000000000 0000000000000000   ................
+fffffd810045b728:  0000000000000000 00000000ffffff7f   ................
+fffffd810045b738:  0000000000000000 075ffffe00008120   ........ ....._.
+crash> rd -64 fffffd8100422d48 8
+fffffd8100422d48:  ffff6057fffbe980 fffffd81003acb08   ....W`....:.....
+fffffd8100422d58:  0000000000000000 ffff6040108b5a00   .........Z..@`..
+fffffd8100422d68:  0000000000000000 00000000ffffff7f   ................
+fffffd8100422d78:  0000000000000000 075ffffe00000000   .............._.
+crash> rd -64 fffffd8100c25588 8
+fffffd8100c25588:  fffffd8101333948 fffffd8100c1c488   H93.............
+fffffd8100c25598:  0000000000000000 0000000022ab6543   ........Ce."....
+fffffd8100c255a8:  0000000000000000 00000000ffffff7f   ................
+fffffd8100c255b8:  0000000000000000 075ffffe00000028   ........(....._.
+crash> rd -64 ffff6057fffbe9a0 8
+ffff6057fffbe9a0:  fffffd81002c6fc8 fffffd81000dbf88   .o,.............
+ffff6057fffbe9b0:  ffff6057fffbe9b0 ffff6057fffbe9b0   ....W`......W`..
+ffff6057fffbe9c0:  ffff6057fffbe9c0 ffff6057fffbe9c0   ....W`......W`..
+ffff6057fffbe9d0:  ffff6057fffbe9d0 ffff6057fffbe9d0   ....W`......W`..
+crash> rd -64 ffff8001dfc63740 8
+ffff8001dfc63740:  ffff604003e5e4b8 ffffb75e3e3a55d0   ....@`...U:>^...
+ffff8001dfc63750:  ffffb75e3dfa96c0 0000000000000000   ...=^...........
+ffff8001dfc63760:  0000000100000000 ffffb75e3dfa96c0   ...........=^...
+ffff8001dfc63770:  0000000000000000 00000000000003ff   ................
+crash> rd -64 ffff8001dfc5b6c0 16
+ffff8001dfc5b6c0:  ffff605700000001 ffff800100000881   ....W`..........
+ffff8001dfc5b6d0:  0000000000000000 0000000000000001   ................
+ffff8001dfc5b6e0:  0000000000000000 0000000000000000   ................
+ffff8001dfc5b6f0:  ffff6057fffbe990 0000000000000000   ....W`..........
+ffff8001dfc5b700:  ffff604011d797b0 423ed39d4338bb00   ....@`....8C..>B
+ffff8001dfc5b710:  ffff8001dfc5b770 ffffb75e3c8657e8   p........W.<^...
+ffff8001dfc5b720:  ffff6057fffbe880 ffff800081806990   ....W`...i......
+ffff8001dfc5b730:  0000000000000001 ffff8000818069b0   .........i......
+crash> px __per_cpu_offset[168]
+$1 = 0xffffc8a2436be000
+crash> px __per_cpu_offset[169]
+$2 = 0xffffc8a2436e0000
+crash> px __per_cpu_offset[174]
+$3 = 0xffffc8a24378a000
+crash> px __per_cpu_offset[179]
+$4 = 0xffffc8a243834000
+crash> px __per_cpu_offset[180]
+$5 = 0xffffc8a243856000
+crash> px __per_cpu_offset[50]
+$6 = 0xffffc8a242712000
+crash> px __per_cpu_offset[55]
+$7 = 0xffffc8a2427bc000
+crash> px &runqueues
+$8 = (struct rq *) 0xffffb75e3dfa96c0 <runqueues>
+crash> px &node_data
+$9 = (pg_data_t *(*)[256]) 0xffffb75e3e3a4dd0 <node_data>
+crash> px &__per_cpu_offset
+$10 = (unsigned long (*)[4096]) 0xffffb75e3e3a55d0 <__per_cpu_offset>
+crash> vtop ffff6057fffbe990
+VIRTUAL           PHYSICAL        
+ffff6057fffbe990  6057fffbe990    
+
+PAGE DIRECTORY: ffffb75e3ddd4000
+   PGD: ffffb75e3ddd4600 => 18006057fffe1403
+   PUD: ffff6057fffe1af8 => e86057c0000f05
+  PAGE: 6057c0000000  (1GB)
+
+     PTE          PHYSICAL    FLAGS
+e86057c0000f05  6057c0000000  (VALID|SHARED|AF|NG|PXN|UXN|DIRTY)
+
+      PAGE         PHYSICAL      MAPPING       INDEX CNT FLAGS
+fffffd815fffef80 6057fffbe000                0        0  1 75ffffe00004000 reserved
+crash> vtop fffffd8101333948
+VIRTUAL           PHYSICAL        
+fffffd8101333948  6057a1133948    
+
+PAGE DIRECTORY: ffffb75e3ddd4000
+   PGD: ffffb75e3ddd4fd8 => 10006037fffe2403
+   PUD: ffff6037fffe2020 => 10006057fff9f403
+   PMD: ffff6057fff9f048 => 686057a1000f01
+  PAGE: 6057a1000000  (2MB)
+
+     PTE          PHYSICAL    FLAGS
+686057a1000f01  6057a1000000  (VALID|SHARED|AF|NG|PXN|UXN)
+
+fffffd815e844cc0 6057a1133000                0        0  1 75ffffe00004000 reserved
+crash> vtop ffffb75e3dfa96c0
+VIRTUAL           PHYSICAL        
+ffffb75e3dfa96c0  5341fa96c0      
+
+PAGE DIRECTORY: ffffb75e3ddd4000
+   PGD: ffffb75e3ddd4b70 => 10006057fffff403
+   PUD: ffff6057fffffbc0 => 10006057ffffe403
+   PMD: ffff6057ffffef78 => 10006057ffffa403
+   PTE: ffff6057ffffad48 => 0
+
+fffffc0000000000          0                0        0  1 1ffffe00004000 reserved
+crash> vtop ffffb75e3c5cc520
+VIRTUAL           PHYSICAL        
+ffffb75e3c5cc520  53405cc520      
+
+PAGE DIRECTORY: ffffb75e3ddd4000
+   PGD: ffffb75e3ddd4b70 => 10006057fffff403
+   PUD: ffff6057fffffbc0 => 10006057ffffe403
+   PMD: ffff6057ffffef10 => 10006057ffffd403
+   PTE: ffff6057ffffde60 => d00053405ccf83
+  PAGE: 53405cc000  
+
+     PTE         PHYSICAL   FLAGS
+d00053405ccf83  53405cc000  (VALID|RDONLY|SHARED|AF|NG|UXN|DIRTY)
+
+fffffc014d017300 53405cc000                0        0  1 15ffffe00004000 reserved
+crash> rd -64 ffffb75e3e3a55d0 176
+ffffb75e3e3a55d0:  ffffc8a24206e000 ffffc8a242090000   ...B.......B....
+ffffb75e3e3a55e0:  ffffc8a2420b2000 ffffc8a2420d4000   . .B.....@.B....
+ffffb75e3e3a55f0:  ffffc8a2420f6000 ffffc8a242118000   .`.B.......B....
+ffffb75e3e3a5600:  ffffc8a24213a000 ffffc8a24215c000   ...B.......B....
+ffffb75e3e3a5610:  ffffc8a24217e000 ffffc8a2421a0000   ...B.......B....
+ffffb75e3e3a5620:  ffffc8a2421c2000 ffffc8a2421e4000   . .B.....@.B....
+ffffb75e3e3a5630:  ffffc8a242206000 ffffc8a242228000   .` B......"B....
+ffffb75e3e3a5640:  ffffc8a24224a000 ffffc8a24226c000   ..$B......&B....
+ffffb75e3e3a5650:  ffffc8a24228e000 ffffc8a2422b0000   ..(B......+B....
+ffffb75e3e3a5660:  ffffc8a2422d2000 ffffc8a2422f4000   . -B.....@/B....
+ffffb75e3e3a5670:  ffffc8a242316000 ffffc8a242338000   .`1B......3B....
+ffffb75e3e3a5680:  ffffc8a24235a000 ffffc8a24237c000   ..5B......7B....
+ffffb75e3e3a5690:  ffffc8a24239e000 ffffc8a2423c0000   ..9B......<B....
+ffffb75e3e3a56a0:  ffffc8a2423e2000 ffffc8a242404000   . >B.....@@B....
+ffffb75e3e3a56b0:  ffffc8a242426000 ffffc8a242448000   .`BB......DB....
+ffffb75e3e3a56c0:  ffffc8a24246a000 ffffc8a24248c000   ..FB......HB....
+ffffb75e3e3a56d0:  ffffc8a2424ae000 ffffc8a2424d0000   ..JB......MB....
+ffffb75e3e3a56e0:  ffffc8a2424f2000 ffffc8a242514000   . OB.....@QB....
+ffffb75e3e3a56f0:  ffffc8a242536000 ffffc8a242558000   .`SB......UB....
+ffffb75e3e3a5700:  ffffc8a24257a000 ffffc8a24259c000   ..WB......YB....
+ffffb75e3e3a5710:  ffffc8a2425be000 ffffc8a2425e0000   ..[B......^B....
+ffffb75e3e3a5720:  ffffc8a242602000 ffffc8a242624000   . `B.....@bB....
+ffffb75e3e3a5730:  ffffc8a242646000 ffffc8a242668000   .`dB......fB....
+ffffb75e3e3a5740:  ffffc8a24268a000 ffffc8a2426ac000   ..hB......jB....
+ffffb75e3e3a5750:  ffffc8a2426ce000 ffffc8a2426f0000   ..lB......oB....
+ffffb75e3e3a5760:  ffffc8a242712000 ffffc8a242734000   . qB.....@sB....
+ffffb75e3e3a5770:  ffffc8a242756000 ffffc8a242778000   .`uB......wB....
+ffffb75e3e3a5780:  ffffc8a24279a000 ffffc8a2427bc000   ..yB......{B....
+ffffb75e3e3a5790:  ffffc8a2427de000 ffffc8a242800000   ..}B.......B....
+ffffb75e3e3a57a0:  ffffc8a242822000 ffffc8a242844000   . .B.....@.B....
+ffffb75e3e3a57b0:  ffffc8a242866000 ffffc8a242888000   .`.B.......B....
+ffffb75e3e3a57c0:  ffffc8a2428aa000 ffffc8a2428cc000   ...B.......B....
+ffffb75e3e3a57d0:  ffffc8a2428ee000 ffffc8a242910000   ...B.......B....
+ffffb75e3e3a57e0:  ffffc8a242932000 ffffc8a242954000   . .B.....@.B....
+ffffb75e3e3a57f0:  ffffc8a242976000 ffffc8a242998000   .`.B.......B....
+ffffb75e3e3a5800:  ffffc8a2429ba000 ffffc8a2429dc000   ...B.......B....
+ffffb75e3e3a5810:  ffffc8a2429fe000 ffffc8a242a20000   ...B.......B....
+ffffb75e3e3a5820:  ffffc8a242a42000 ffffc8a242a64000   . .B.....@.B....
+ffffb75e3e3a5830:  ffffc8a242a86000 ffffc8a242aa8000   .`.B.......B....
+ffffb75e3e3a5840:  ffffc8a242aca000 ffffc8a242aec000   ...B.......B....
+ffffb75e3e3a5850:  ffffc8a242b0e000 ffffc8a242b30000   ...B.......B....
+ffffb75e3e3a5860:  ffffc8a242b52000 ffffc8a242b74000   . .B.....@.B....
+ffffb75e3e3a5870:  ffffc8a242b96000 ffffc8a242bb8000   .`.B.......B....
+ffffb75e3e3a5880:  ffffc8a242bda000 ffffc8a242bfc000   ...B.......B....
+ffffb75e3e3a5890:  ffffc8a242c1e000 ffffc8a242c40000   ...B.......B....
+ffffb75e3e3a58a0:  ffffc8a242c62000 ffffc8a242c84000   . .B.....@.B....
+ffffb75e3e3a58b0:  ffffc8a242ca6000 ffffc8a242cc8000   .`.B.......B....
+ffffb75e3e3a58c0:  ffffc8a242cea000 ffffc8a242d0c000   ...B.......B....
+ffffb75e3e3a58d0:  ffffc8a242d2e000 ffffc8a242d50000   ...B.......B....
+ffffb75e3e3a58e0:  ffffc8a242d72000 ffffc8a242d94000   . .B.....@.B....
+ffffb75e3e3a58f0:  ffffc8a242db6000 ffffc8a242dd8000   .`.B.......B....
+ffffb75e3e3a5900:  ffffc8a242dfa000 ffffc8a242e1c000   ...B.......B....
+ffffb75e3e3a5910:  ffffc8a242e3e000 ffffc8a242e60000   ...B.......B....
+ffffb75e3e3a5920:  ffffc8a242e82000 ffffc8a242ea4000   . .B.....@.B....
+ffffb75e3e3a5930:  ffffc8a242ec6000 ffffc8a242ee8000   .`.B.......B....
+ffffb75e3e3a5940:  ffffc8a242f0a000 ffffc8a242f2c000   ...B.......B....
+ffffb75e3e3a5950:  ffffc8a242f4e000 ffffc8a242f70000   ...B.......B....
+ffffb75e3e3a5960:  ffffc8a242f92000 ffffc8a242fb4000   . .B.....@.B....
+ffffb75e3e3a5970:  ffffc8a242fd6000 ffffc8a242ff8000   .`.B.......B....
+ffffb75e3e3a5980:  ffffc8a24301a000 ffffc8a24303c000   ...C.......C....
+ffffb75e3e3a5990:  ffffc8a24305e000 ffffc8a243080000   ...C.......C....
+ffffb75e3e3a59a0:  ffffc8a2430a2000 ffffc8a2430c4000   . .C.....@.C....
+ffffb75e3e3a59b0:  ffffc8a2430e6000 ffffc8a243108000   .`.C.......C....
+ffffb75e3e3a59c0:  ffffc8a24312a000 ffffc8a24314c000   ...C.......C....
+ffffb75e3e3a59d0:  ffffc8a24316e000 ffffc8a243190000   ...C.......C....
+ffffb75e3e3a59e0:  ffffc8a2431b2000 ffffc8a2431d4000   . .C.....@.C....
+ffffb75e3e3a59f0:  ffffc8a2431f6000 ffffc8a243218000   .`.C......!C....
+ffffb75e3e3a5a00:  ffffc8a24323a000 ffffc8a24325c000   ..#C......%C....
+ffffb75e3e3a5a10:  ffffc8a24327e000 ffffc8a2432a0000   ..'C......*C....
+ffffb75e3e3a5a20:  ffffc8a2432c2000 ffffc8a2432e4000   . ,C.....@.C....
+ffffb75e3e3a5a30:  ffffc8a243306000 ffffc8a243328000   .`0C......2C....
+ffffb75e3e3a5a40:  ffffc8a24334a000 ffffc8a24336c000   ..4C......6C....
+ffffb75e3e3a5a50:  ffffc8a24338e000 ffffc8a2433b0000   ..8C......;C....
+ffffb75e3e3a5a60:  ffffc8a2433d2000 ffffc8a2433f4000   . =C.....@?C....
+ffffb75e3e3a5a70:  ffffc8a243416000 ffffc8a243438000   .`AC......CC....
+ffffb75e3e3a5a80:  ffffc8a24345a000 ffffc8a24347c000   ..EC......GC....
+ffffb75e3e3a5a90:  ffffc8a24349e000 ffffc8a2434c0000   ..IC......LC....
+ffffb75e3e3a5aa0:  ffffc8a2434e2000 ffffc8a243504000   . NC.....@PC....
+ffffb75e3e3a5ab0:  ffffc8a243526000 ffffc8a243548000   .`RC......TC....
+ffffb75e3e3a5ac0:  ffffc8a24356a000 ffffc8a24358c000   ..VC......XC....
+ffffb75e3e3a5ad0:  ffffc8a2435ae000 ffffc8a2435d0000   ..ZC......]C....
+ffffb75e3e3a5ae0:  ffffc8a2435f2000 ffffc8a243614000   . _C.....@aC....
+ffffb75e3e3a5af0:  ffffc8a243636000 ffffc8a243658000   .`cC......eC....
+ffffb75e3e3a5b00:  ffffc8a24367a000 ffffc8a24369c000   ..gC......iC....
+ffffb75e3e3a5b10:  ffffc8a2436be000 ffffc8a2436e0000   ..kC......nC....
+ffffb75e3e3a5b20:  ffffc8a243702000 ffffc8a243724000   . pC.....@rC....
+ffffb75e3e3a5b30:  ffffc8a243746000 ffffc8a243768000   .`tC......vC....
+ffffb75e3e3a5b40:  ffffc8a24378a000 ffffc8a2437ac000   ..xC......zC....
+crash> sym ffffb75e3c5cc520
+ffffb75e3c5cc520 (T) vprintk_emit+424 /usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/printk/printk.c: 3955
+crash> sym ffffb75e3e39fcb0
+ffffb75e3e39fcb0 (D) nr_cpu_ids
+crash> sym ffffb75e3e3a5000
+ffffb75e3e3a5000 (D) node_data+560
+crash> sym ffffb75e3d77ce50
+ffffb75e3d77ce50 (D) kallsyms_seqs_of_names+880624
+crash> struct per_cpu_pages -o
+struct per_cpu_pages {
+    [0] spinlock_t lock;
+    [4] int count;
+    [8] int high;
+   [12] int high_min;
+   [16] int high_max;
+   [20] int batch;
+   [24] u8 flags;
+   [25] u8 alloc_factor;
+   [26] u8 expire;
+   [28] short free_count;
+   [32] struct list_head lists[17];
+}
+SIZE: 320
+crash> struct rq -o
+struct rq {
+     [0] raw_spinlock_t __lock;
+     [4] unsigned int nr_running;
+     [8] unsigned int nr_numa_running;
+    [12] unsigned int nr_preferred_running;
+    [16] unsigned int numa_migrate_on;
+    [24] unsigned long last_blocked_load_update_tick;
+    [32] unsigned int has_blocked_load;
+    [64] call_single_data_t nohz_csd;
+    [96] unsigned int nohz_tick_stopped;
+   [100] atomic_t nohz_flags;
+   [104] unsigned int ttwu_pending;
+   [112] u64 nr_switches;
+   [128] struct cfs_rq cfs;
+   [704] struct rt_rq rt;
+  [2432] struct dl_rq dl;
+  [2536] struct sparsemask *cfs_overload_cpus;
+  [2544] struct list_head leaf_cfs_rq_list;
+  [2560] struct list_head *tmp_alone_branch;
+  [2568] unsigned int nr_uninterruptible;
+  [2576] struct task_struct *curr;
+  [2584] struct task_struct *idle;
+  [2592] struct task_struct *stop;
+  [2600] unsigned long next_balance;
+  [2608] struct mm_struct *prev_mm;
+  [2616] unsigned int clock_update_flags;
+  [2624] u64 clock;
+  [2688] u64 clock_task;
+  [2696] u64 clock_pelt;
+  [2704] unsigned long lost_idle_time;
+  [2712] u64 clock_pelt_idle;
+  [2720] u64 clock_idle;
+  [2728] atomic_t nr_iowait;
+  [2736] u64 last_seen_need_resched_ns;
+  [2744] int ticks_without_resched;
+  [2748] int membarrier_state;
+  [2752] struct root_domain *rd;
+  [2760] struct sched_domain *sd;
+  [2768] unsigned long cpu_capacity;
+  [2776] unsigned long cpu_capacity_orig;
+  [2784] struct balance_callback *balance_callback;
+  [2792] unsigned char nohz_idle_balance;
+  [2793] unsigned char idle_balance;
+  [2800] unsigned long misfit_task_load;
+  [2808] int active_balance;
+  [2812] int push_cpu;
+  [2816] struct cpu_stop_work active_balance_work;
+  [2880] int cpu;
+  [2884] int online;
+  [2888] struct list_head cfs_tasks;
+  [2904] struct list_head cfs_offline_tasks;
+  [2944] struct sched_avg avg_rt;
+  [3008] struct sched_avg avg_dl;
+  [3072] struct sched_avg avg_irq;
+  [3136] struct sched_avg avg_thermal;
+  [3200] u64 idle_stamp;
+  [3208] u64 avg_idle;
+  [3216] unsigned long wake_stamp;
+  [3224] u64 wake_avg_idle;
+  [3232] u64 max_idle_balance_cost;
+  [3240] struct rcuwait hotplug_wait;
+  [3248] u64 prev_irq_time;
+  [3256] u64 prev_steal_time;
+  [3264] u64 prev_steal_time_rq;
+  [3272] unsigned long calc_load_update;
+  [3280] long calc_load_active;
+  [3296] call_single_data_t hrtick_csd;
+  [3328] struct hrtimer hrtick_timer;
+  [3408] ktime_t hrtick_time;
+  [3416] struct sched_info rq_sched_info;
+  [3464] unsigned long long rq_cpu_time;
+  [3472] unsigned int yld_count;
+  [3476] unsigned int sched_count;
+  [3480] unsigned int sched_goidle;
+  [3484] unsigned int ttwu_count;
+  [3488] unsigned int ttwu_local;
+  [3492] unsigned int found_idle_cpu_capacity;
+  [3496] unsigned int found_idle_cpu;
+  [3500] unsigned int found_idle_cpu_easy;
+  [3504] unsigned int nofound_idle_cpu;
+  [3512] unsigned long find_time;
+  [3520] unsigned int steal;
+  [3524] unsigned int steal_fail;
+  [3528] struct cpuidle_state *idle_state;
+  [3536] unsigned int nr_pinned;
+  [3540] unsigned int push_busy;
+  [3544] struct cpu_stop_work push_work;
+  [3608] cpumask_var_t scratch_mask;
+  [4128] call_single_data_t cfsb_csd;
+  [4160] struct list_head cfsb_csd_list;
+  [4176] u64 kabi_reserved1;
+  [4184] u64 kabi_reserved2;
+  [4192] u64 kabi_reserved3;
+  [4200] u64 kabi_reserved4;
+  [4208] u64 kabi_reserved5;
+  [4216] u64 kabi_reserved6;
+  [4224] u64 kabi_reserved7;
+  [4232] u64 kabi_reserved8;
+  [4240] struct scx_rq scx;
+}
+SIZE: 7232
+crash> struct cfs_rq -o
+struct cfs_rq {
+    [0] struct load_weight load;
+   [16] unsigned int nr_running;
+   [20] unsigned int h_nr_running;
+   [24] unsigned int idle_nr_running;
+   [28] unsigned int idle_h_nr_running;
+        union {
+   [32]     s64 sum_w_vruntime;
+            struct {
+                s64 avg_vruntime;
+   [32]     } kabi_hidden_722;
+            union {
+                <no data fields>
+            };
+        };
+        union {
+   [40]     u64 sum_weight;
+            struct {
+                u64 avg_load;
+   [40]     } kabi_hidden_723;
+            union {
+                <no data fields>
+            };
+        };
+   [48] u64 exec_clock;
+        union {
+   [56]     u64 zero_vruntime;
+            struct {
+                u64 min_vruntime;
+   [56]     } kabi_hidden_726;
+            union {
+                <no data fields>
+            };
+        };
+   [64] struct rb_root_cached tasks_timeline;
+   [80] struct sched_entity *curr;
+   [88] struct sched_entity *next;
+   [96] unsigned int nr_spread_over;
+  [128] struct sched_avg avg;
+        struct {
+            raw_spinlock_t lock;
+            int nr;
+            unsigned long load_avg;
+            unsigned long util_avg;
+            unsigned long runnable_avg;
+  [192] } removed;
+  [256] unsigned long tg_load_avg_contrib;
+  [264] long propagate;
+  [272] long prop_runnable_sum;
+  [280] unsigned long h_load;
+  [288] u64 last_h_load_update;
+  [296] struct sched_entity *h_load_next;
+  [304] struct rq *rq;
+  [312] int on_list;
+  [320] struct list_head leaf_cfs_rq_list;
+  [336] struct task_group *tg;
+  [344] int idle;
+  [348] int runtime_enabled;
+  [352] s64 runtime_remaining;
+  [360] u64 throttled_pelt_idle;
+  [368] u64 throttled_clock;
+  [376] u64 throttled_clock_pelt;
+  [384] u64 throttled_clock_pelt_time;
+  [392] u64 throttled_clock_self;
+  [400] u64 throttled_clock_self_time;
+  [408] int throttled;
+  [412] int throttle_count;
+  [416] struct list_head throttled_list;
+  [432] struct list_head throttled_csd_list;
+  [448] struct list_head qos_throttled_list;
+        union {
+  [464]     unsigned int qos_idle_h_nr_running;
+  [464]     unsigned long qos_idle_h_nr_running_padding;
+        };
+        union {
+  [472]     u64 soft_quota_enable;
+            struct {
+                u64 kabi_reserved1;
+  [472]     } kabi_hidden_833;
+            union {
+                <no data fields>
+            };
+        };
+        union {
+  [480]     u64 sum_soft_runtime;
+            struct {
+                u64 kabi_reserved2;
+  [480]     } kabi_hidden_834;
+            union {
+                <no data fields>
+            };
+        };
+        union {
+  [488]     struct list_head soft_quota_throttled_list;
+            struct {
+                u64 kabi_reserved3;
+                u64 kabi_reserved4;
+  [488]     } kabi_hidden_835;
+            union {
+                <no data fields>
+            };
+        };
+  [504] u64 kabi_reserved5;
+  [512] u64 kabi_reserved6;
+  [520] u64 kabi_reserved7;
+  [528] u64 kabi_reserved8;
+}
+SIZE: 576
+crash> struct page -o
+struct page {
+   [0] unsigned long flags;
+       union {
+           struct {
+               union {
+   [8]             struct list_head lru;
+                   struct {
+   [8]                 void *__filler;
+  [16]                 unsigned int mlock_count;
+                   };
+   [8]             struct list_head buddy_list;
+   [8]             struct list_head pcp_list;
+               };
+  [24]         struct address_space *mapping;
+               union {
+  [32]             unsigned long index;
+  [32]             unsigned long share;
+               };
+  [40]         unsigned long private;
+           };
+           struct {
+   [8]         unsigned long pp_magic;
+  [16]         struct page_pool *pp;
+  [24]         unsigned long _pp_mapping_pad;
+  [32]         unsigned long dma_addr;
+               union {
+  [40]             unsigned long dma_addr_upper;
+  [40]             atomic_long_t pp_frag_count;
+               };
+           };
+           struct {
+   [8]         unsigned long compound_head;
+           };
+           struct {
+   [8]         struct dev_pagemap *pgmap;
+  [16]         void *zone_device_data;
+           };
+   [8]     struct callback_head callback_head;
+       };
+       union {
+  [48]     atomic_t _mapcount;
+  [48]     unsigned int page_type;
+       };
+  [52] atomic_t _refcount;
+  [56] unsigned long memcg_data;
+}
+SIZE: 64
+crash> p ((struct pglist_data *)node_data[0])->node_zones[2].name
+$11 = 0xffffb75e3d7387a8 "Normal"
+crash> p ((struct pglist_data *)node_data[0])->node_zones[2].per_cpu_pageset
+$12 = (struct per_cpu_pages *) 0xffffb75e3dfaff00
+crash> quit

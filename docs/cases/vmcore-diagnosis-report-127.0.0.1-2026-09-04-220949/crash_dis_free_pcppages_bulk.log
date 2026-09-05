@@ -1,0 +1,706 @@
+
+crash 8.0.4-17.oe2403sp4
+Copyright (C) 2002-2022  Red Hat, Inc.
+Copyright (C) 2004, 2005, 2006, 2010  IBM Corporation
+Copyright (C) 1999-2006  Hewlett-Packard Co
+Copyright (C) 2005, 2006, 2011, 2012  Fujitsu Limited
+Copyright (C) 2006, 2007  VA Linux Systems Japan K.K.
+Copyright (C) 2005, 2011, 2020-2022  NEC Corporation
+Copyright (C) 1999, 2002, 2007  Silicon Graphics, Inc.
+Copyright (C) 1999, 2000, 2001, 2002  Mission Critical Linux, Inc.
+Copyright (C) 2015, 2021  VMware, Inc.
+This program is free software, covered by the GNU General Public License,
+and you are welcome to change it and/or distribute copies of it under
+certain conditions.  Enter "help copying" to see the conditions.
+This program has absolutely no warranty.  Enter "help warranty" for details.
+ 
+NOTE: stdin: not a tty
+
+GNU gdb (GDB) 10.2
+Copyright (C) 2021 Free Software Foundation, Inc.
+License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>
+This is free software: you are free to change and redistribute it.
+There is NO WARRANTY, to the extent permitted by law.
+Type "show copying" and "show warranty" for details.
+This GDB was configured as "aarch64-unknown-linux-gnu".
+Type "show configuration" for configuration details.
+Find the GDB manual and other documentation resources online at:
+    <http://www.gnu.org/software/gdb/documentation/>.
+
+For help, type "help".
+Type "apropos word" to search for commands related to "word"...
+
+please wait... (gathering kmem slab cache data)                                                please wait... (gathering module symbol data)                                              please wait... (gathering task table data)                                           please wait... (determining panic task)                                              KERNEL: /tmp/vmlinux-0102  [TAINTED]
+    DUMPFILE: /home/sdc/wangxu/vmcore0102/127.0.0.1-2026-09-04-22:09:49/vmcore  [PARTIAL DUMP]
+        CPUS: 192
+        DATE: Fri Sep  4 22:08:20 CST 2026
+      UPTIME: 00:06:37
+LOAD AVERAGE: 128.20, 49.41, 18.26
+       TASKS: 2193
+    NODENAME: localhost0102
+     RELEASE: 6.6.0-145.3.23.154.oe2403sp3.aarch64
+     VERSION: #1 SMP Mon Jul 27 19:00:34 CST 2026
+     MACHINE: aarch64  (unknown Mhz)
+      MEMORY: 767.8 GB
+       PANIC: "Unable to handle kernel paging request at virtual address ffffb75e3dfa97e0"
+         PID: 73729
+     COMMAND: "rs:main Q:Reg"
+        TASK: ffff00202e2f3f00  [THREAD_INFO: ffff00202e2f3f00]
+         CPU: 179
+       STATE: TASK_WAKING (PANIC)
+
+crash> dis -l free_pcppages_bulk
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1206
+0xffffb75e3c861770 <free_pcppages_bulk>:	mov	x9, x30
+0xffffb75e3c861774 <free_pcppages_bulk+4>:	nop
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1215
+0xffffb75e3c861778 <free_pcppages_bulk+8>:	paciasp
+0xffffb75e3c86177c <free_pcppages_bulk+12>:	stp	x29, x30, [sp, #-192]!
+0xffffb75e3c861780 <free_pcppages_bulk+16>:	mov	x29, sp
+0xffffb75e3c861784 <free_pcppages_bulk+20>:	stp	x19, x20, [sp, #16]
+0xffffb75e3c861788 <free_pcppages_bulk+24>:	stp	x21, x22, [sp, #32]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1218
+0xffffb75e3c86178c <free_pcppages_bulk+28>:	sub	w22, w3, #0x1
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1206
+0xffffb75e3c861790 <free_pcppages_bulk+32>:	stp	x23, x24, [sp, #48]
+0xffffb75e3c861794 <free_pcppages_bulk+36>:	mov	x24, x2
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1215
+0xffffb75e3c861798 <free_pcppages_bulk+40>:	stp	x27, x28, [sp, #80]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1206
+0xffffb75e3c86179c <free_pcppages_bulk+44>:	mov	x27, x0
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1215
+0xffffb75e3c8617a0 <free_pcppages_bulk+48>:	ldr	w20, [x2, #4]
+0xffffb75e3c8617a4 <free_pcppages_bulk+52>:	cmp	w20, w1
+0xffffb75e3c8617a8 <free_pcppages_bulk+56>:	csel	w20, w20, w1, le
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./arch/arm64/include/asm/alternative-macros.h: 250
+0xffffb75e3c8617ac <free_pcppages_bulk+60>:	nop
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./arch/arm64/include/asm/irqflags.h: 99
+0xffffb75e3c8617b0 <free_pcppages_bulk+64>:	mrs	x19, daif
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./arch/arm64/include/asm/irqflags.h: 72
+0xffffb75e3c8617b4 <free_pcppages_bulk+68>:	msr	daifset, #0x3
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/spinlock.h: 187
+0xffffb75e3c8617b8 <free_pcppages_bulk+72>:	add	x0, x27, #0x580
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./arch/arm64/include/asm/alternative-macros.h: 232
+0xffffb75e3c8617bc <free_pcppages_bulk+76>:	nop
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./arch/arm64/include/asm/atomic_lse.h: 271
+0xffffb75e3c8617c0 <free_pcppages_bulk+80>:	mov	w1, #0x0                   	// #0
+0xffffb75e3c8617c4 <free_pcppages_bulk+84>:	mov	w2, #0x1                   	// #1
+0xffffb75e3c8617c8 <free_pcppages_bulk+88>:	casa	w1, w2, [x0]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/atomic/atomic-arch-fallback.h: 2155
+0xffffb75e3c8617cc <free_pcppages_bulk+92>:	cbnz	w1, 0xffffb75e3c861e24 <free_pcppages_bulk+1716>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1222
+0xffffb75e3c8617d0 <free_pcppages_bulk+96>:	cmp	w20, #0x0
+0xffffb75e3c8617d4 <free_pcppages_bulk+100>:	b.le	0xffffb75e3c861cc0 <free_pcppages_bulk+1360>
+0xffffb75e3c8617d8 <free_pcppages_bulk+104>:	stp	x25, x26, [sp, #64]
+0xffffb75e3c8617dc <free_pcppages_bulk+108>:	adrp	x26, 0xffffb75e3d821000 <cpucap_ptrs+856>
+0xffffb75e3c8617e0 <free_pcppages_bulk+112>:	add	x0, x26, #0x1b0
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/trace/events/kmem.h: 246
+0xffffb75e3c8617e4 <free_pcppages_bulk+116>:	mov	w25, w22
+0xffffb75e3c8617e8 <free_pcppages_bulk+120>:	mov	x28, x24
+0xffffb75e3c8617ec <free_pcppages_bulk+124>:	mov	x22, x27
+0xffffb75e3c8617f0 <free_pcppages_bulk+128>:	str	x0, [sp, #152]
+0xffffb75e3c8617f4 <free_pcppages_bulk+132>:	adrp	x0, 0xffffb75e3df92000 <.data..percpu>
+0xffffb75e3c8617f8 <free_pcppages_bulk+136>:	add	x0, x0, #0x8
+0xffffb75e3c8617fc <free_pcppages_bulk+140>:	str	x0, [sp, #160]
+0xffffb75e3c861800 <free_pcppages_bulk+144>:	b	0xffffb75e3c861824 <free_pcppages_bulk+180>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1230
+0xffffb75e3c861804 <free_pcppages_bulk+148>:	sxtw	x5, w25
+0xffffb75e3c861808 <free_pcppages_bulk+152>:	add	x6, x5, #0x2
+0xffffb75e3c86180c <free_pcppages_bulk+156>:	add	x5, x28, x5, lsl #4
+0xffffb75e3c861810 <free_pcppages_bulk+160>:	lsl	x6, x6, #4
+0xffffb75e3c861814 <free_pcppages_bulk+164>:	add	x6, x28, x6
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/list.h: 373
+0xffffb75e3c861818 <free_pcppages_bulk+168>:	ldr	x0, [x5, #32]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1231
+0xffffb75e3c86181c <free_pcppages_bulk+172>:	cmp	x0, x6
+0xffffb75e3c861820 <free_pcppages_bulk+176>:	b.ne	0xffffb75e3c861850 <free_pcppages_bulk+224>  // b.any
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1228
+0xffffb75e3c861824 <free_pcppages_bulk+180>:	add	w25, w25, #0x1
+0xffffb75e3c861828 <free_pcppages_bulk+184>:	cmp	w25, #0x10
+0xffffb75e3c86182c <free_pcppages_bulk+188>:	b.le	0xffffb75e3c861804 <free_pcppages_bulk+148>
+0xffffb75e3c861830 <free_pcppages_bulk+192>:	mov	x5, #0x0                   	// #0
+0xffffb75e3c861834 <free_pcppages_bulk+196>:	mov	x6, #0x20                  	// #32
+0xffffb75e3c861838 <free_pcppages_bulk+200>:	add	x5, x28, x5, lsl #4
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1230
+0xffffb75e3c86183c <free_pcppages_bulk+204>:	add	x6, x28, x6
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1229
+0xffffb75e3c861840 <free_pcppages_bulk+208>:	mov	w25, #0x0                   	// #0
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/list.h: 373
+0xffffb75e3c861844 <free_pcppages_bulk+212>:	ldr	x0, [x5, #32]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1231
+0xffffb75e3c861848 <free_pcppages_bulk+216>:	cmp	x0, x6
+0xffffb75e3c86184c <free_pcppages_bulk+220>:	b.eq	0xffffb75e3c861824 <free_pcppages_bulk+180>  // b.none
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 562
+0xffffb75e3c861850 <free_pcppages_bulk+224>:	cmp	w25, #0xe
+0xffffb75e3c861854 <free_pcppages_bulk+228>:	b.hi	0xffffb75e3c861db0 <free_pcppages_bulk+1600>  // b.pmore
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 559
+0xffffb75e3c861858 <free_pcppages_bulk+232>:	mov	w10, #0xaaab                	// #43691
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1234
+0xffffb75e3c86185c <free_pcppages_bulk+236>:	mov	w26, #0x1                   	// #1
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 559
+0xffffb75e3c861860 <free_pcppages_bulk+240>:	movk	w10, #0xaaaa, lsl #16
+0xffffb75e3c861864 <free_pcppages_bulk+244>:	umull	x10, w25, w10
+0xffffb75e3c861868 <free_pcppages_bulk+248>:	lsr	x10, x10, #33
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1234
+0xffffb75e3c86186c <free_pcppages_bulk+252>:	lsl	w26, w26, w10
+0xffffb75e3c861870 <free_pcppages_bulk+256>:	mov	w0, #0x68                  	// #104
+0xffffb75e3c861874 <free_pcppages_bulk+260>:	str	x5, [sp, #96]
+0xffffb75e3c861878 <free_pcppages_bulk+264>:	str	w26, [sp, #108]
+0xffffb75e3c86187c <free_pcppages_bulk+268>:	umaddl	x0, w10, w0, x22
+0xffffb75e3c861880 <free_pcppages_bulk+272>:	str	x19, [sp, #168]
+0xffffb75e3c861884 <free_pcppages_bulk+276>:	stp	x0, x6, [sp, #136]
+0xffffb75e3c861888 <free_pcppages_bulk+280>:	stp	w10, w25, [sp, #184]
+0xffffb75e3c86188c <free_pcppages_bulk+284>:	nop
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1239
+0xffffb75e3c861890 <free_pcppages_bulk+288>:	ldr	x0, [sp, #152]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 412
+0xffffb75e3c861894 <free_pcppages_bulk+292>:	mov	x2, #0x7                   	// #7
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1239
+0xffffb75e3c861898 <free_pcppages_bulk+296>:	ldr	x1, [sp, #96]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1240
+0xffffb75e3c86189c <free_pcppages_bulk+300>:	ldr	x4, [x0]
+0xffffb75e3c8618a0 <free_pcppages_bulk+304>:	mov	x0, #0xfffffc0000000000    	// #-4398046511104
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1239
+0xffffb75e3c8618a4 <free_pcppages_bulk+308>:	ldr	x24, [x1, #40]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1240
+0xffffb75e3c8618a8 <free_pcppages_bulk+312>:	asr	x4, x4, #12
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1239
+0xffffb75e3c8618ac <free_pcppages_bulk+316>:	sub	x19, x24, #0x8
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1240
+0xffffb75e3c8618b0 <free_pcppages_bulk+320>:	sub	x4, x0, x4, lsl #6
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 412
+0xffffb75e3c8618b4 <free_pcppages_bulk+324>:	mov	x0, x19
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1240
+0xffffb75e3c8618b8 <free_pcppages_bulk+328>:	sub	x4, x19, x4
+0xffffb75e3c8618bc <free_pcppages_bulk+332>:	asr	x26, x4, #6
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 412
+0xffffb75e3c8618c0 <free_pcppages_bulk+336>:	mov	x1, x26
+0xffffb75e3c8618c4 <free_pcppages_bulk+340>:	bl	0xffffb75e3c8608b0 <get_pfnblock_flags_mask>
+0xffffb75e3c8618c8 <free_pcppages_bulk+344>:	mov	x21, x0
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/list.h: 124
+0xffffb75e3c8618cc <free_pcppages_bulk+348>:	mov	x0, x24
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 412
+0xffffb75e3c8618d0 <free_pcppages_bulk+352>:	mov	w23, w21
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/list.h: 124
+0xffffb75e3c8618d4 <free_pcppages_bulk+356>:	bl	0xffffb75e3cba1b78 <__list_del_entry_valid_or_report>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/list.h: 125
+0xffffb75e3c8618d8 <free_pcppages_bulk+360>:	tbz	w0, #0, 0xffffb75e3c8618e8 <free_pcppages_bulk+376>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/list.h: 218
+0xffffb75e3c8618dc <free_pcppages_bulk+364>:	ldp	x1, x0, [x24]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/list.h: 195
+0xffffb75e3c8618e0 <free_pcppages_bulk+368>:	str	x0, [x1, #8]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/list.h: 196
+0xffffb75e3c8618e4 <free_pcppages_bulk+372>:	str	x1, [x0]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/list.h: 230
+0xffffb75e3c8618e8 <free_pcppages_bulk+376>:	mov	x0, #0x100                 	// #256
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1245
+0xffffb75e3c8618ec <free_pcppages_bulk+380>:	ldr	w2, [sp, #108]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/list.h: 230
+0xffffb75e3c8618f0 <free_pcppages_bulk+384>:	movk	x0, #0xdead, lsl #48
+0xffffb75e3c8618f4 <free_pcppages_bulk+388>:	str	x0, [x24]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/list.h: 231
+0xffffb75e3c8618f8 <free_pcppages_bulk+392>:	add	x0, x0, #0x22
+0xffffb75e3c8618fc <free_pcppages_bulk+396>:	str	x0, [x24, #8]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1245
+0xffffb75e3c861900 <free_pcppages_bulk+400>:	mrs	x1, sp_el0
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1246
+0xffffb75e3c861904 <free_pcppages_bulk+404>:	ldr	w0, [x28, #4]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1245
+0xffffb75e3c861908 <free_pcppages_bulk+408>:	sub	w20, w20, w2
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1246
+0xffffb75e3c86190c <free_pcppages_bulk+412>:	sub	w0, w0, w2
+0xffffb75e3c861910 <free_pcppages_bulk+416>:	str	w0, [x28, #4]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./arch/arm64/include/asm/current.h: 21
+0xffffb75e3c861914 <free_pcppages_bulk+420>:	ldr	x25, [x1, #2968]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 619
+0xffffb75e3c861918 <free_pcppages_bulk+424>:	cbnz	x25, 0xffffb75e3c861d5c <free_pcppages_bulk+1516>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 671
+0xffffb75e3c86191c <free_pcppages_bulk+428>:	cmp	w21, #0x5
+0xffffb75e3c861920 <free_pcppages_bulk+432>:	b.eq	0xffffb75e3c861958 <free_pcppages_bulk+488>  // b.none
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 674
+0xffffb75e3c861924 <free_pcppages_bulk+436>:	ldrsw	x24, [sp, #108]
+0xffffb75e3c861928 <free_pcppages_bulk+440>:	mov	x0, x22
+0xffffb75e3c86192c <free_pcppages_bulk+444>:	mov	w1, #0x0                   	// #0
+0xffffb75e3c861930 <free_pcppages_bulk+448>:	mov	x2, x24
+0xffffb75e3c861934 <free_pcppages_bulk+452>:	bl	0xffffb75e3c7f9d40 <__mod_zone_page_state>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 676
+0xffffb75e3c861938 <free_pcppages_bulk+456>:	cmp	w21, #0x4
+0xffffb75e3c86193c <free_pcppages_bulk+460>:	b.eq	0xffffb75e3c861d80 <free_pcppages_bulk+1552>  // b.none
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 678
+0xffffb75e3c861940 <free_pcppages_bulk+464>:	cmp	w21, #0x3
+0xffffb75e3c861944 <free_pcppages_bulk+468>:	b.ne	0xffffb75e3c861958 <free_pcppages_bulk+488>  // b.any
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 679
+0xffffb75e3c861948 <free_pcppages_bulk+472>:	ldr	x0, [x22, #1536]
+0xffffb75e3c86194c <free_pcppages_bulk+476>:	add	x2, x24, x0
+0xffffb75e3c861950 <free_pcppages_bulk+480>:	str	x2, [x22, #1536]
+0xffffb75e3c861954 <free_pcppages_bulk+484>:	nop
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 834
+0xffffb75e3c861958 <free_pcppages_bulk+488>:	ldr	x10, [sp, #136]
+0xffffb75e3c86195c <free_pcppages_bulk+492>:	mov	x27, x19
+0xffffb75e3c861960 <free_pcppages_bulk+496>:	ldr	w24, [sp, #184]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 629
+0xffffb75e3c861964 <free_pcppages_bulk+500>:	cbz	x25, 0xffffb75e3c861980 <free_pcppages_bulk+528>
+0xffffb75e3c861968 <free_pcppages_bulk+504>:	ldr	x0, [x25]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 633
+0xffffb75e3c86196c <free_pcppages_bulk+508>:	sub	w1, w21, #0x4
+0xffffb75e3c861970 <free_pcppages_bulk+512>:	cmp	w1, #0x1
+0xffffb75e3c861974 <free_pcppages_bulk+516>:	ldr	w1, [x0, #256]
+0xffffb75e3c861978 <free_pcppages_bulk+520>:	ccmp	w1, w24, #0x0, hi  // hi = pmore
+0xffffb75e3c86197c <free_pcppages_bulk+524>:	b.eq	0xffffb75e3c861cec <free_pcppages_bulk+1404>  // b.none
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/internal.h: 586
+0xffffb75e3c861980 <free_pcppages_bulk+528>:	mov	w5, #0x1                   	// #1
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/internal.h: 548
+0xffffb75e3c861984 <free_pcppages_bulk+532>:	mov	w1, #0xf0000000            	// #-268435456
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/internal.h: 586
+0xffffb75e3c861988 <free_pcppages_bulk+536>:	lsl	w5, w5, w24
+0xffffb75e3c86198c <free_pcppages_bulk+540>:	sxtw	x5, w5
+0xffffb75e3c861990 <free_pcppages_bulk+544>:	eor	x5, x5, x26
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/internal.h: 609
+0xffffb75e3c861994 <free_pcppages_bulk+548>:	sub	x3, x5, x26
+0xffffb75e3c861998 <free_pcppages_bulk+552>:	add	x3, x27, x3, lsl #6
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/page-flags.h: 995
+0xffffb75e3c86199c <free_pcppages_bulk+556>:	ldr	w0, [x3, #48]
+0xffffb75e3c8619a0 <free_pcppages_bulk+560>:	and	w0, w0, #0xffffff80
+0xffffb75e3c8619a4 <free_pcppages_bulk+564>:	and	w0, w0, #0xf00000ff
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/internal.h: 548
+0xffffb75e3c8619a8 <free_pcppages_bulk+568>:	cmp	w0, w1
+0xffffb75e3c8619ac <free_pcppages_bulk+572>:	b.ne	0xffffb75e3c861a78 <free_pcppages_bulk+776>  // b.any
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/internal.h: 516
+0xffffb75e3c8619b0 <free_pcppages_bulk+576>:	ldr	x0, [x3, #40]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/internal.h: 551
+0xffffb75e3c8619b4 <free_pcppages_bulk+580>:	cmp	w24, w0
+0xffffb75e3c8619b8 <free_pcppages_bulk+584>:	b.ne	0xffffb75e3c861a78 <free_pcppages_bulk+776>  // b.any
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/mm.h: 1685
+0xffffb75e3c8619bc <free_pcppages_bulk+588>:	ldr	x4, [x3]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 843
+0xffffb75e3c8619c0 <free_pcppages_bulk+592>:	cmp	x3, #0x0
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/mm.h: 1685
+0xffffb75e3c8619c4 <free_pcppages_bulk+596>:	ldr	x0, [x27]
+0xffffb75e3c8619c8 <free_pcppages_bulk+600>:	lsr	x1, x4, #53
+0xffffb75e3c8619cc <free_pcppages_bulk+604>:	lsr	x0, x0, #53
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 843
+0xffffb75e3c8619d0 <free_pcppages_bulk+608>:	ccmp	w0, w1, #0x0, ne  // ne = any
+0xffffb75e3c8619d4 <free_pcppages_bulk+612>:	b.ne	0xffffb75e3c861a78 <free_pcppages_bulk+776>  // b.any
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 846
+0xffffb75e3c8619d8 <free_pcppages_bulk+616>:	cmp	w24, #0x9
+0xffffb75e3c8619dc <free_pcppages_bulk+620>:	b.eq	0xffffb75e3c861ba8 <free_pcppages_bulk+1080>  // b.none
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 412
+0xffffb75e3c8619e0 <free_pcppages_bulk+624>:	mov	w1, w23
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./arch/arm64/include/asm/jump_label.h: 22
+0xffffb75e3c8619e4 <free_pcppages_bulk+628>:	nop
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/list.h: 124
+0xffffb75e3c8619e8 <free_pcppages_bulk+632>:	add	x0, x3, #0x8
+0xffffb75e3c8619ec <free_pcppages_bulk+636>:	str	x3, [sp, #112]
+0xffffb75e3c8619f0 <free_pcppages_bulk+640>:	str	w1, [sp, #120]
+0xffffb75e3c8619f4 <free_pcppages_bulk+644>:	str	x10, [sp, #128]
+0xffffb75e3c8619f8 <free_pcppages_bulk+648>:	str	x5, [sp, #176]
+0xffffb75e3c8619fc <free_pcppages_bulk+652>:	bl	0xffffb75e3cba1b78 <__list_del_entry_valid_or_report>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/list.h: 125
+0xffffb75e3c861a00 <free_pcppages_bulk+656>:	ldr	x3, [sp, #112]
+0xffffb75e3c861a04 <free_pcppages_bulk+660>:	ldr	x10, [sp, #128]
+0xffffb75e3c861a08 <free_pcppages_bulk+664>:	ldr	x5, [sp, #176]
+0xffffb75e3c861a0c <free_pcppages_bulk+668>:	ldr	w1, [sp, #120]
+0xffffb75e3c861a10 <free_pcppages_bulk+672>:	tbz	w0, #0, 0xffffb75e3c861a20 <free_pcppages_bulk+688>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/list.h: 218
+0xffffb75e3c861a14 <free_pcppages_bulk+676>:	ldp	x2, x0, [x3, #8]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/list.h: 195
+0xffffb75e3c861a18 <free_pcppages_bulk+680>:	str	x0, [x2, #8]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/list.h: 196
+0xffffb75e3c861a1c <free_pcppages_bulk+684>:	str	x2, [x0]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/list.h: 230
+0xffffb75e3c861a20 <free_pcppages_bulk+688>:	ldr	w0, [x3, #48]
+0xffffb75e3c861a24 <free_pcppages_bulk+692>:	mov	x4, #0x100                 	// #256
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/list.h: 231
+0xffffb75e3c861a28 <free_pcppages_bulk+696>:	mov	x2, #0x122                 	// #290
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/list.h: 230
+0xffffb75e3c861a2c <free_pcppages_bulk+700>:	movk	x4, #0xdead, lsl #48
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/page-flags.h: 995
+0xffffb75e3c861a30 <free_pcppages_bulk+704>:	orr	w0, w0, #0x80
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/list.h: 231
+0xffffb75e3c861a34 <free_pcppages_bulk+708>:	movk	x2, #0xdead, lsl #48
+0xffffb75e3c861a38 <free_pcppages_bulk+712>:	stp	x4, x2, [x3, #8]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/page-flags.h: 995
+0xffffb75e3c861a3c <free_pcppages_bulk+716>:	str	xzr, [x3, #40]
+0xffffb75e3c861a40 <free_pcppages_bulk+720>:	str	w0, [x3, #48]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 736
+0xffffb75e3c861a44 <free_pcppages_bulk+724>:	ldr	x0, [x10, #352]
+0xffffb75e3c861a48 <free_pcppages_bulk+728>:	sub	x0, x0, #0x1
+0xffffb75e3c861a4c <free_pcppages_bulk+732>:	str	x0, [x10, #352]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 870
+0xffffb75e3c861a50 <free_pcppages_bulk+736>:	cmp	w1, w23
+0xffffb75e3c861a54 <free_pcppages_bulk+740>:	b.ne	0xffffb75e3c861dbc <free_pcppages_bulk+1612>  // b.any
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 879
+0xffffb75e3c861a58 <free_pcppages_bulk+744>:	and	x0, x5, x26
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 880
+0xffffb75e3c861a5c <free_pcppages_bulk+748>:	add	w24, w24, #0x1
+0xffffb75e3c861a60 <free_pcppages_bulk+752>:	sub	x26, x0, x26
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 834
+0xffffb75e3c861a64 <free_pcppages_bulk+756>:	add	x10, x10, #0x68
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 880
+0xffffb75e3c861a68 <free_pcppages_bulk+760>:	add	x27, x27, x26, lsl #6
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 834
+0xffffb75e3c861a6c <free_pcppages_bulk+764>:	mov	x26, x0
+0xffffb75e3c861a70 <free_pcppages_bulk+768>:	cmp	w24, #0xa
+0xffffb75e3c861a74 <free_pcppages_bulk+772>:	b.ne	0xffffb75e3c861964 <free_pcppages_bulk+500>  // b.any
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/mm_types.h: 566
+0xffffb75e3c861a78 <free_pcppages_bulk+776>:	ldr	w0, [x27, #48]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 610
+0xffffb75e3c861a7c <free_pcppages_bulk+780>:	mov	w23, w24
+0xffffb75e3c861a80 <free_pcppages_bulk+784>:	str	x23, [x27, #40]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/page-flags.h: 995
+0xffffb75e3c861a84 <free_pcppages_bulk+788>:	and	w0, w0, #0xffffff7f
+0xffffb75e3c861a88 <free_pcppages_bulk+792>:	str	w0, [x27, #48]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./arch/arm64/include/asm/jump_label.h: 22
+0xffffb75e3c861a8c <free_pcppages_bulk+796>:	nop
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 768
+0xffffb75e3c861a90 <free_pcppages_bulk+800>:	cmp	w24, #0x8
+0xffffb75e3c861a94 <free_pcppages_bulk+804>:	b.hi	0xffffb75e3c861c18 <free_pcppages_bulk+1192>  // b.pmore
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 771
+0xffffb75e3c861a98 <free_pcppages_bulk+808>:	add	w8, w24, #0x1
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/internal.h: 586
+0xffffb75e3c861a9c <free_pcppages_bulk+812>:	mov	w0, #0x1                   	// #1
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 771
+0xffffb75e3c861aa0 <free_pcppages_bulk+816>:	and	x5, x5, x26
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 772
+0xffffb75e3c861aa4 <free_pcppages_bulk+820>:	mov	w9, #0xf0000000            	// #-268435456
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/internal.h: 586
+0xffffb75e3c861aa8 <free_pcppages_bulk+824>:	lsl	w0, w0, w8
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 772
+0xffffb75e3c861aac <free_pcppages_bulk+828>:	sub	x4, x5, x26
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/internal.h: 586
+0xffffb75e3c861ab0 <free_pcppages_bulk+832>:	sxtw	x0, w0
+0xffffb75e3c861ab4 <free_pcppages_bulk+836>:	eor	x0, x0, x5
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 772
+0xffffb75e3c861ab8 <free_pcppages_bulk+840>:	add	x4, x27, x4, lsl #6
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/internal.h: 609
+0xffffb75e3c861abc <free_pcppages_bulk+844>:	sub	x0, x0, x5
+0xffffb75e3c861ac0 <free_pcppages_bulk+848>:	lsl	x0, x0, #6
+0xffffb75e3c861ac4 <free_pcppages_bulk+852>:	add	x2, x4, x0
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/page-flags.h: 995
+0xffffb75e3c861ac8 <free_pcppages_bulk+856>:	ldr	w1, [x2, #48]
+0xffffb75e3c861acc <free_pcppages_bulk+860>:	and	w1, w1, #0xffffff80
+0xffffb75e3c861ad0 <free_pcppages_bulk+864>:	and	w1, w1, #0xf00000ff
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/internal.h: 548
+0xffffb75e3c861ad4 <free_pcppages_bulk+868>:	cmp	w1, w9
+0xffffb75e3c861ad8 <free_pcppages_bulk+872>:	b.ne	0xffffb75e3c861c18 <free_pcppages_bulk+1192>  // b.any
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/internal.h: 516
+0xffffb75e3c861adc <free_pcppages_bulk+876>:	ldr	x1, [x2, #40]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/internal.h: 551
+0xffffb75e3c861ae0 <free_pcppages_bulk+880>:	cmp	w8, w1
+0xffffb75e3c861ae4 <free_pcppages_bulk+884>:	b.ne	0xffffb75e3c861c18 <free_pcppages_bulk+1192>  // b.any
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/mm.h: 1685
+0xffffb75e3c861ae8 <free_pcppages_bulk+888>:	ldr	x0, [x4, x0]
+0xffffb75e3c861aec <free_pcppages_bulk+892>:	ldr	x1, [x4]
+0xffffb75e3c861af0 <free_pcppages_bulk+896>:	lsr	x0, x0, #53
+0xffffb75e3c861af4 <free_pcppages_bulk+900>:	lsr	x1, x1, #53
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/internal.h: 558
+0xffffb75e3c861af8 <free_pcppages_bulk+904>:	cmp	w1, w0
+0xffffb75e3c861afc <free_pcppages_bulk+908>:	b.ne	0xffffb75e3c861c18 <free_pcppages_bulk+1192>  // b.any
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 694
+0xffffb75e3c861b00 <free_pcppages_bulk+912>:	cbz	x2, 0xffffb75e3c861c18 <free_pcppages_bulk+1192>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 695
+0xffffb75e3c861b04 <free_pcppages_bulk+916>:	add	x4, x23, x23, lsl #1
+0xffffb75e3c861b08 <free_pcppages_bulk+920>:	mov	x1, #0x100                 	// #256
+0xffffb75e3c861b0c <free_pcppages_bulk+924>:	add	x1, x1, w21, sxtw #4
+0xffffb75e3c861b10 <free_pcppages_bulk+928>:	mov	w2, #0x68                  	// #104
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/list.h: 183
+0xffffb75e3c861b14 <free_pcppages_bulk+932>:	add	x4, x23, x4, lsl #2
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 695
+0xffffb75e3c861b18 <free_pcppages_bulk+936>:	add	x5, x27, #0x8
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/list.h: 88
+0xffffb75e3c861b1c <free_pcppages_bulk+940>:	mov	x0, x5
+0xffffb75e3c861b20 <free_pcppages_bulk+944>:	str	x5, [sp, #128]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/list.h: 183
+0xffffb75e3c861b24 <free_pcppages_bulk+948>:	lsl	x4, x4, #3
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 695
+0xffffb75e3c861b28 <free_pcppages_bulk+952>:	umaddl	x2, w24, w2, x1
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/list.h: 183
+0xffffb75e3c861b2c <free_pcppages_bulk+956>:	add	x4, x4, w21, sxtw #4
+0xffffb75e3c861b30 <free_pcppages_bulk+960>:	add	x4, x22, x4
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 695
+0xffffb75e3c861b34 <free_pcppages_bulk+964>:	add	x2, x22, x2
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/list.h: 183
+0xffffb75e3c861b38 <free_pcppages_bulk+968>:	stp	x4, x2, [sp, #112]
+0xffffb75e3c861b3c <free_pcppages_bulk+972>:	ldr	x25, [x4, #264]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/list.h: 88
+0xffffb75e3c861b40 <free_pcppages_bulk+976>:	mov	x1, x25
+0xffffb75e3c861b44 <free_pcppages_bulk+980>:	bl	0xffffb75e3cba1a98 <__list_add_valid_or_report>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/list.h: 89
+0xffffb75e3c861b48 <free_pcppages_bulk+984>:	ldp	x4, x2, [sp, #112]
+0xffffb75e3c861b4c <free_pcppages_bulk+988>:	ldr	x5, [sp, #128]
+0xffffb75e3c861b50 <free_pcppages_bulk+992>:	tbz	w0, #0, 0xffffb75e3c861b60 <free_pcppages_bulk+1008>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/list.h: 153
+0xffffb75e3c861b54 <free_pcppages_bulk+996>:	str	x5, [x4, #264]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/list.h: 154
+0xffffb75e3c861b58 <free_pcppages_bulk+1000>:	stp	x2, x25, [x27, #8]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/list.h: 156
+0xffffb75e3c861b5c <free_pcppages_bulk+1004>:	str	x5, [x25]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 698
+0xffffb75e3c861b60 <free_pcppages_bulk+1008>:	add	x0, x23, x23, lsl #1
+0xffffb75e3c861b64 <free_pcppages_bulk+1012>:	add	x0, x23, x0, lsl #2
+0xffffb75e3c861b68 <free_pcppages_bulk+1016>:	add	x0, x22, x0, lsl #3
+0xffffb75e3c861b6c <free_pcppages_bulk+1020>:	ldr	x1, [x0, #352]
+0xffffb75e3c861b70 <free_pcppages_bulk+1024>:	add	x1, x1, #0x1
+0xffffb75e3c861b74 <free_pcppages_bulk+1028>:	str	x1, [x0, #352]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./arch/arm64/include/asm/jump_label.h: 22
+0xffffb75e3c861b78 <free_pcppages_bulk+1032>:	nop
+0xffffb75e3c861b7c <free_pcppages_bulk+1036>:	nop
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1250
+0xffffb75e3c861b80 <free_pcppages_bulk+1040>:	cmp	w20, #0x0
+0xffffb75e3c861b84 <free_pcppages_bulk+1044>:	b.le	0xffffb75e3c861cb4 <free_pcppages_bulk+1348>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/list.h: 373
+0xffffb75e3c861b88 <free_pcppages_bulk+1048>:	ldr	x0, [sp, #96]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1250
+0xffffb75e3c861b8c <free_pcppages_bulk+1052>:	ldr	x1, [sp, #144]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/list.h: 373
+0xffffb75e3c861b90 <free_pcppages_bulk+1056>:	ldr	x0, [x0, #32]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1250
+0xffffb75e3c861b94 <free_pcppages_bulk+1060>:	cmp	x0, x1
+0xffffb75e3c861b98 <free_pcppages_bulk+1064>:	b.ne	0xffffb75e3c861890 <free_pcppages_bulk+288>  // b.any
+0xffffb75e3c861b9c <free_pcppages_bulk+1068>:	ldr	x19, [sp, #168]
+0xffffb75e3c861ba0 <free_pcppages_bulk+1072>:	ldr	w25, [sp, #188]
+0xffffb75e3c861ba4 <free_pcppages_bulk+1076>:	b	0xffffb75e3c861824 <free_pcppages_bulk+180>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 412
+0xffffb75e3c861ba8 <free_pcppages_bulk+1080>:	mov	x1, x5
+0xffffb75e3c861bac <free_pcppages_bulk+1084>:	mov	x0, x3
+0xffffb75e3c861bb0 <free_pcppages_bulk+1088>:	mov	x2, #0x7                   	// #7
+0xffffb75e3c861bb4 <free_pcppages_bulk+1092>:	stp	x3, x5, [sp, #112]
+0xffffb75e3c861bb8 <free_pcppages_bulk+1096>:	str	x4, [sp, #128]
+0xffffb75e3c861bbc <free_pcppages_bulk+1100>:	str	x10, [sp, #176]
+0xffffb75e3c861bc0 <free_pcppages_bulk+1104>:	bl	0xffffb75e3c8608b0 <get_pfnblock_flags_mask>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 855
+0xffffb75e3c861bc4 <free_pcppages_bulk+1108>:	ldp	x3, x5, [sp, #112]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 412
+0xffffb75e3c861bc8 <free_pcppages_bulk+1112>:	mov	w1, w0
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 855
+0xffffb75e3c861bcc <free_pcppages_bulk+1116>:	ldr	x4, [sp, #128]
+0xffffb75e3c861bd0 <free_pcppages_bulk+1120>:	cmp	w0, w23
+0xffffb75e3c861bd4 <free_pcppages_bulk+1124>:	ldr	x10, [sp, #176]
+0xffffb75e3c861bd8 <free_pcppages_bulk+1128>:	b.eq	0xffffb75e3c8619e0 <free_pcppages_bulk+624>  // b.none
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 856
+0xffffb75e3c861bdc <free_pcppages_bulk+1132>:	cmp	w23, #0x2
+0xffffb75e3c861be0 <free_pcppages_bulk+1136>:	ccmp	w0, #0x2, #0x0, le
+0xffffb75e3c861be4 <free_pcppages_bulk+1140>:	b.le	0xffffb75e3c8619e4 <free_pcppages_bulk+628>
+0xffffb75e3c861be8 <free_pcppages_bulk+1144>:	b	0xffffb75e3c861a78 <free_pcppages_bulk+776>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_reporting.h: 40
+0xffffb75e3c861bec <free_pcppages_bulk+1148>:	adrp	x0, 0xffffb75e3e7ce000 <damon_sysfs_context_operations_attr+8>
+0xffffb75e3c861bf0 <free_pcppages_bulk+1152>:	ldr	w0, [x0, #2928]
+0xffffb75e3c861bf4 <free_pcppages_bulk+1156>:	cmp	w0, w24
+0xffffb75e3c861bf8 <free_pcppages_bulk+1160>:	b.hi	0xffffb75e3c861b7c <free_pcppages_bulk+1036>  // b.pmore
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_reporting.h: 44
+0xffffb75e3c861bfc <free_pcppages_bulk+1164>:	bl	0xffffb75e3c90ba58 <__page_reporting_notify>
+0xffffb75e3c861c00 <free_pcppages_bulk+1168>:	b	0xffffb75e3c861b7c <free_pcppages_bulk+1036>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/shuffle.h: 32
+0xffffb75e3c861c04 <free_pcppages_bulk+1172>:	cmp	w24, #0xa
+0xffffb75e3c861c08 <free_pcppages_bulk+1176>:	b.ne	0xffffb75e3c861a90 <free_pcppages_bulk+800>  // b.any
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 891
+0xffffb75e3c861c0c <free_pcppages_bulk+1180>:	bl	0xffffb75e3c86e488 <shuffle_pick_tail>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 694
+0xffffb75e3c861c10 <free_pcppages_bulk+1184>:	tbnz	w0, #0, 0xffffb75e3c861b04 <free_pcppages_bulk+916>
+0xffffb75e3c861c14 <free_pcppages_bulk+1188>:	nop
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 697
+0xffffb75e3c861c18 <free_pcppages_bulk+1192>:	add	x2, x23, x23, lsl #1
+0xffffb75e3c861c1c <free_pcppages_bulk+1196>:	mov	x1, #0x100                 	// #256
+0xffffb75e3c861c20 <free_pcppages_bulk+1200>:	add	x1, x1, w21, sxtw #4
+0xffffb75e3c861c24 <free_pcppages_bulk+1204>:	mov	w4, #0x68                  	// #104
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/list.h: 169
+0xffffb75e3c861c28 <free_pcppages_bulk+1208>:	add	x2, x23, x2, lsl #2
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 697
+0xffffb75e3c861c2c <free_pcppages_bulk+1212>:	add	x5, x27, #0x8
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/list.h: 88
+0xffffb75e3c861c30 <free_pcppages_bulk+1216>:	mov	x0, x5
+0xffffb75e3c861c34 <free_pcppages_bulk+1220>:	str	x5, [sp, #128]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/list.h: 169
+0xffffb75e3c861c38 <free_pcppages_bulk+1224>:	lsl	x2, x2, #3
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 697
+0xffffb75e3c861c3c <free_pcppages_bulk+1228>:	umaddl	x25, w24, w4, x1
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/list.h: 169
+0xffffb75e3c861c40 <free_pcppages_bulk+1232>:	add	x2, x2, w21, sxtw #4
+0xffffb75e3c861c44 <free_pcppages_bulk+1236>:	add	x2, x22, x2
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 697
+0xffffb75e3c861c48 <free_pcppages_bulk+1240>:	add	x1, x22, x25
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/list.h: 169
+0xffffb75e3c861c4c <free_pcppages_bulk+1244>:	ldr	x2, [x2, #256]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/list.h: 88
+0xffffb75e3c861c50 <free_pcppages_bulk+1248>:	stp	x2, x1, [sp, #112]
+0xffffb75e3c861c54 <free_pcppages_bulk+1252>:	bl	0xffffb75e3cba1a98 <__list_add_valid_or_report>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/list.h: 89
+0xffffb75e3c861c58 <free_pcppages_bulk+1256>:	tbz	w0, #0, 0xffffb75e3c861b60 <free_pcppages_bulk+1008>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/list.h: 153
+0xffffb75e3c861c5c <free_pcppages_bulk+1260>:	ldp	x2, x1, [sp, #112]
+0xffffb75e3c861c60 <free_pcppages_bulk+1264>:	ldr	x5, [sp, #128]
+0xffffb75e3c861c64 <free_pcppages_bulk+1268>:	str	x5, [x2, #8]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/list.h: 154
+0xffffb75e3c861c68 <free_pcppages_bulk+1272>:	stp	x2, x1, [x27, #8]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/list.h: 156
+0xffffb75e3c861c6c <free_pcppages_bulk+1276>:	str	x5, [x22, x25]
+0xffffb75e3c861c70 <free_pcppages_bulk+1280>:	b	0xffffb75e3c861b60 <free_pcppages_bulk+1008>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./arch/arm64/include/asm/percpu.h: 40
+0xffffb75e3c861c74 <free_pcppages_bulk+1284>:	ldr	x1, [sp, #160]
+0xffffb75e3c861c78 <free_pcppages_bulk+1288>:	mrs	x0, tpidr_el2
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./arch/arm64/include/asm/percpu.h: 46
+0xffffb75e3c861c7c <free_pcppages_bulk+1292>:	ldr	w1, [x1, x0]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/asm-generic/bitops/generic-non-atomic.h: 128
+0xffffb75e3c861c80 <free_pcppages_bulk+1296>:	adrp	x0, 0xffffb75e3e39e000 <join_entries+13376>
+0xffffb75e3c861c84 <free_pcppages_bulk+1300>:	add	x0, x0, #0xe98
+0xffffb75e3c861c88 <free_pcppages_bulk+1304>:	lsr	w2, w1, #6
+0xffffb75e3c861c8c <free_pcppages_bulk+1308>:	ldr	x0, [x0, x2, lsl #3]
+0xffffb75e3c861c90 <free_pcppages_bulk+1312>:	lsr	x0, x0, x1
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/trace/events/kmem.h: 246
+0xffffb75e3c861c94 <free_pcppages_bulk+1316>:	tbz	w0, #0, 0xffffb75e3c861b80 <free_pcppages_bulk+1040>
+0xffffb75e3c861c98 <free_pcppages_bulk+1320>:	ldr	w2, [sp, #184]
+0xffffb75e3c861c9c <free_pcppages_bulk+1324>:	mov	w3, w21
+0xffffb75e3c861ca0 <free_pcppages_bulk+1328>:	mov	x1, x19
+0xffffb75e3c861ca4 <free_pcppages_bulk+1332>:	mov	x0, #0x0                   	// #0
+0xffffb75e3c861ca8 <free_pcppages_bulk+1336>:	bl	0xffffb75e3c806cd8 <__traceiter_mm_page_pcpu_drain>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1250
+0xffffb75e3c861cac <free_pcppages_bulk+1340>:	cmp	w20, #0x0
+0xffffb75e3c861cb0 <free_pcppages_bulk+1344>:	b.gt	0xffffb75e3c861b88 <free_pcppages_bulk+1048>
+0xffffb75e3c861cb4 <free_pcppages_bulk+1348>:	ldp	x25, x26, [sp, #64]
+0xffffb75e3c861cb8 <free_pcppages_bulk+1352>:	mov	x27, x22
+0xffffb75e3c861cbc <free_pcppages_bulk+1356>:	ldr	x19, [sp, #168]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./arch/arm64/include/asm/qspinlock.h: 22
+0xffffb75e3c861cc0 <free_pcppages_bulk+1360>:	add	x0, x27, #0x580
+0xffffb75e3c861cc4 <free_pcppages_bulk+1364>:	stlrb	wzr, [x0]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./arch/arm64/include/asm/alternative-macros.h: 250
+0xffffb75e3c861cc8 <free_pcppages_bulk+1368>:	nop
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./arch/arm64/include/asm/irqflags.h: 192
+0xffffb75e3c861ccc <free_pcppages_bulk+1372>:	msr	daif, x19
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/spinlock.h: 406
+0xffffb75e3c861cd0 <free_pcppages_bulk+1376>:	ldp	x19, x20, [sp, #16]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1254
+0xffffb75e3c861cd4 <free_pcppages_bulk+1380>:	ldp	x21, x22, [sp, #32]
+0xffffb75e3c861cd8 <free_pcppages_bulk+1384>:	ldp	x23, x24, [sp, #48]
+0xffffb75e3c861cdc <free_pcppages_bulk+1388>:	ldp	x27, x28, [sp, #80]
+0xffffb75e3c861ce0 <free_pcppages_bulk+1392>:	ldp	x29, x30, [sp], #192
+0xffffb75e3c861ce4 <free_pcppages_bulk+1396>:	autiasp
+0xffffb75e3c861ce8 <free_pcppages_bulk+1400>:	ret
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 644
+0xffffb75e3c861cec <free_pcppages_bulk+1404>:	cmp	w24, #0x8
+0xffffb75e3c861cf0 <free_pcppages_bulk+1408>:	ccmp	w23, #0x1, #0x0, ls  // ls = plast
+0xffffb75e3c861cf4 <free_pcppages_bulk+1412>:	b.ne	0xffffb75e3c861d24 <free_pcppages_bulk+1460>  // b.any
+0xffffb75e3c861cf8 <free_pcppages_bulk+1416>:	ldr	w0, [x0, #260]
+0xffffb75e3c861cfc <free_pcppages_bulk+1420>:	cmp	w0, #0x1
+0xffffb75e3c861d00 <free_pcppages_bulk+1424>:	b.ne	0xffffb75e3c861980 <free_pcppages_bulk+528>  // b.any
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 648
+0xffffb75e3c861d04 <free_pcppages_bulk+1428>:	lsl	w0, w0, w24
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 838
+0xffffb75e3c861d08 <free_pcppages_bulk+1432>:	neg	w2, w0
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 648
+0xffffb75e3c861d0c <free_pcppages_bulk+1436>:	str	x27, [x25, #8]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 674
+0xffffb75e3c861d10 <free_pcppages_bulk+1440>:	mov	x0, x22
+0xffffb75e3c861d14 <free_pcppages_bulk+1444>:	sxtw	x2, w2
+0xffffb75e3c861d18 <free_pcppages_bulk+1448>:	mov	w1, #0x0                   	// #0
+0xffffb75e3c861d1c <free_pcppages_bulk+1452>:	bl	0xffffb75e3c7f9d40 <__mod_zone_page_state>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 678
+0xffffb75e3c861d20 <free_pcppages_bulk+1456>:	b	0xffffb75e3c861b7c <free_pcppages_bulk+1036>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 648
+0xffffb75e3c861d24 <free_pcppages_bulk+1460>:	mov	w23, #0xffffffff            	// #-1
+0xffffb75e3c861d28 <free_pcppages_bulk+1464>:	str	x27, [x25, #8]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 674
+0xffffb75e3c861d2c <free_pcppages_bulk+1468>:	lsl	w23, w23, w24
+0xffffb75e3c861d30 <free_pcppages_bulk+1472>:	mov	x0, x22
+0xffffb75e3c861d34 <free_pcppages_bulk+1476>:	sxtw	x23, w23
+0xffffb75e3c861d38 <free_pcppages_bulk+1480>:	mov	w1, #0x0                   	// #0
+0xffffb75e3c861d3c <free_pcppages_bulk+1484>:	mov	x2, x23
+0xffffb75e3c861d40 <free_pcppages_bulk+1488>:	bl	0xffffb75e3c7f9d40 <__mod_zone_page_state>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 678
+0xffffb75e3c861d44 <free_pcppages_bulk+1492>:	cmp	w21, #0x3
+0xffffb75e3c861d48 <free_pcppages_bulk+1496>:	b.ne	0xffffb75e3c861b7c <free_pcppages_bulk+1036>  // b.any
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 679
+0xffffb75e3c861d4c <free_pcppages_bulk+1500>:	ldr	x0, [x22, #1536]
+0xffffb75e3c861d50 <free_pcppages_bulk+1504>:	add	x23, x23, x0
+0xffffb75e3c861d54 <free_pcppages_bulk+1508>:	str	x23, [x22, #1536]
+0xffffb75e3c861d58 <free_pcppages_bulk+1512>:	b	0xffffb75e3c861b7c <free_pcppages_bulk+1036>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./arch/arm64/include/asm/current.h: 21
+0xffffb75e3c861d5c <free_pcppages_bulk+1516>:	ldr	w0, [x1, #68]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 619
+0xffffb75e3c861d60 <free_pcppages_bulk+1520>:	tbnz	w0, #21, 0xffffb75e3c861d94 <free_pcppages_bulk+1572>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 621
+0xffffb75e3c861d64 <free_pcppages_bulk+1524>:	ldr	x0, [x25, #8]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 620
+0xffffb75e3c861d68 <free_pcppages_bulk+1528>:	cbnz	x0, 0xffffb75e3c861d94 <free_pcppages_bulk+1572>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 622
+0xffffb75e3c861d6c <free_pcppages_bulk+1532>:	ldr	x0, [x25]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 621
+0xffffb75e3c861d70 <free_pcppages_bulk+1536>:	ldr	x0, [x0, #224]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 622
+0xffffb75e3c861d74 <free_pcppages_bulk+1540>:	cmp	x22, x0
+0xffffb75e3c861d78 <free_pcppages_bulk+1544>:	csel	x25, x25, xzr, eq  // eq = none
+0xffffb75e3c861d7c <free_pcppages_bulk+1548>:	b	0xffffb75e3c86191c <free_pcppages_bulk+428>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 677
+0xffffb75e3c861d80 <free_pcppages_bulk+1552>:	mov	x2, x24
+0xffffb75e3c861d84 <free_pcppages_bulk+1556>:	mov	x0, x22
+0xffffb75e3c861d88 <free_pcppages_bulk+1560>:	mov	w1, #0xa                   	// #10
+0xffffb75e3c861d8c <free_pcppages_bulk+1564>:	bl	0xffffb75e3c7f9d40 <__mod_zone_page_state>
+0xffffb75e3c861d90 <free_pcppages_bulk+1568>:	b	0xffffb75e3c861958 <free_pcppages_bulk+488>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 622
+0xffffb75e3c861d94 <free_pcppages_bulk+1572>:	mov	x25, #0x0                   	// #0
+0xffffb75e3c861d98 <free_pcppages_bulk+1576>:	b	0xffffb75e3c86191c <free_pcppages_bulk+428>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/asm-generic/bitops/generic-non-atomic.h: 128
+0xffffb75e3c861d9c <free_pcppages_bulk+1580>:	ldr	x0, [x3]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_reporting.h: 20
+0xffffb75e3c861da0 <free_pcppages_bulk+1584>:	tbz	w0, #3, 0xffffb75e3c8619e8 <free_pcppages_bulk+632>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/asm-generic/bitops/generic-non-atomic.h: 42
+0xffffb75e3c861da4 <free_pcppages_bulk+1588>:	and	x4, x4, #0xfffffffffffffff7
+0xffffb75e3c861da8 <free_pcppages_bulk+1592>:	str	x4, [x3]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/page-flags.h: 638
+0xffffb75e3c861dac <free_pcppages_bulk+1596>:	b	0xffffb75e3c8619e8 <free_pcppages_bulk+632>
+0xffffb75e3c861db0 <free_pcppages_bulk+1600>:	mov	w26, #0x200                 	// #512
+0xffffb75e3c861db4 <free_pcppages_bulk+1604>:	mov	w10, #0x9                   	// #9
+0xffffb75e3c861db8 <free_pcppages_bulk+1608>:	b	0xffffb75e3c861870 <free_pcppages_bulk+256>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 876
+0xffffb75e3c861dbc <free_pcppages_bulk+1612>:	mov	x0, x3
+0xffffb75e3c861dc0 <free_pcppages_bulk+1616>:	mov	w2, w23
+0xffffb75e3c861dc4 <free_pcppages_bulk+1620>:	mov	w1, w24
+0xffffb75e3c861dc8 <free_pcppages_bulk+1624>:	stp	x10, x5, [sp, #112]
+0xffffb75e3c861dcc <free_pcppages_bulk+1628>:	bl	0xffffb75e3c8609e0 <change_pageblock_range>
+0xffffb75e3c861dd0 <free_pcppages_bulk+1632>:	ldp	x10, x5, [sp, #112]
+0xffffb75e3c861dd4 <free_pcppages_bulk+1636>:	b	0xffffb75e3c861a58 <free_pcppages_bulk+744>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./arch/arm64/include/asm/irqflags.h: 199
+0xffffb75e3c861dd8 <free_pcppages_bulk+1640>:	msr	s3_0_c4_c6_0, x19
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./arch/arm64/include/asm/irqflags.h: 200
+0xffffb75e3c861ddc <free_pcppages_bulk+1644>:	dsb	sy
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/spinlock.h: 406
+0xffffb75e3c861de0 <free_pcppages_bulk+1648>:	ldp	x19, x20, [sp, #16]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1254
+0xffffb75e3c861de4 <free_pcppages_bulk+1652>:	ldp	x21, x22, [sp, #32]
+0xffffb75e3c861de8 <free_pcppages_bulk+1656>:	ldp	x23, x24, [sp, #48]
+0xffffb75e3c861dec <free_pcppages_bulk+1660>:	ldp	x27, x28, [sp, #80]
+0xffffb75e3c861df0 <free_pcppages_bulk+1664>:	ldp	x29, x30, [sp], #192
+0xffffb75e3c861df4 <free_pcppages_bulk+1668>:	autiasp
+0xffffb75e3c861df8 <free_pcppages_bulk+1672>:	ret
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./arch/arm64/include/asm/atomic_ll_sc.h: 284
+0xffffb75e3c861dfc <free_pcppages_bulk+1676>:	add	x5, x27, #0x580
+0xffffb75e3c861e00 <free_pcppages_bulk+1680>:	mov	x2, #0x0                   	// #0
+0xffffb75e3c861e04 <free_pcppages_bulk+1684>:	mov	w3, #0x1                   	// #1
+0xffffb75e3c861e08 <free_pcppages_bulk+1688>:	prfm	pstl1strm, [x5]
+0xffffb75e3c861e0c <free_pcppages_bulk+1692>:	ldaxr	w1, [x5]
+0xffffb75e3c861e10 <free_pcppages_bulk+1696>:	eor	w4, w1, w2
+0xffffb75e3c861e14 <free_pcppages_bulk+1700>:	cbnz	w4, 0xffffb75e3c861e20 <free_pcppages_bulk+1712>
+0xffffb75e3c861e18 <free_pcppages_bulk+1704>:	stxr	w4, w3, [x5]
+0xffffb75e3c861e1c <free_pcppages_bulk+1708>:	cbnz	w4, 0xffffb75e3c861e0c <free_pcppages_bulk+1692>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/atomic/atomic-arch-fallback.h: 2155
+0xffffb75e3c861e20 <free_pcppages_bulk+1712>:	cbz	w1, 0xffffb75e3c8617d0 <free_pcppages_bulk+96>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./arch/arm64/include/asm/qspinlock.h: 27
+0xffffb75e3c861e24 <free_pcppages_bulk+1716>:	adrp	x2, 0xffffb75e3e3df000 <files+1944>
+0xffffb75e3c861e28 <free_pcppages_bulk+1720>:	ldr	x2, [x2, #1056]
+0xffffb75e3c861e2c <free_pcppages_bulk+1724>:	blr	x2
+0xffffb75e3c861e30 <free_pcppages_bulk+1728>:	b	0xffffb75e3c8617d0 <free_pcppages_bulk+96>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./arch/arm64/include/asm/irqflags.h: 104
+0xffffb75e3c861e34 <free_pcppages_bulk+1732>:	mrs	x19, s3_0_c4_c6_0
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./arch/arm64/include/asm/irqflags.h: 174
+0xffffb75e3c861e38 <free_pcppages_bulk+1736>:	cmp	x19, #0xe0
+0xffffb75e3c861e3c <free_pcppages_bulk+1740>:	b.ne	0xffffb75e3c8617b8 <free_pcppages_bulk+72>  // b.any
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./arch/arm64/include/asm/jump_label.h: 22
+0xffffb75e3c861e40 <free_pcppages_bulk+1744>:	nop
+0xffffb75e3c861e44 <free_pcppages_bulk+1748>:	mov	x0, #0x60                  	// #96
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./arch/arm64/include/asm/irqflags.h: 84
+0xffffb75e3c861e48 <free_pcppages_bulk+1752>:	msr	s3_0_c4_c6_0, x0
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./arch/arm64/include/asm/irqflags.h: 85
+0xffffb75e3c861e4c <free_pcppages_bulk+1756>:	b	0xffffb75e3c8617b8 <free_pcppages_bulk+72>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./arch/arm64/include/asm/jump_label.h: 22
+0xffffb75e3c861e50 <free_pcppages_bulk+1760>:	mov	x0, #0xa0                  	// #160
+0xffffb75e3c861e54 <free_pcppages_bulk+1764>:	b	0xffffb75e3c861e48 <free_pcppages_bulk+1752>
+crash> quit

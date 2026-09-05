@@ -1,0 +1,1383 @@
+
+crash 8.0.4-17.oe2403sp4
+Copyright (C) 2002-2022  Red Hat, Inc.
+Copyright (C) 2004, 2005, 2006, 2010  IBM Corporation
+Copyright (C) 1999-2006  Hewlett-Packard Co
+Copyright (C) 2005, 2006, 2011, 2012  Fujitsu Limited
+Copyright (C) 2006, 2007  VA Linux Systems Japan K.K.
+Copyright (C) 2005, 2011, 2020-2022  NEC Corporation
+Copyright (C) 1999, 2002, 2007  Silicon Graphics, Inc.
+Copyright (C) 1999, 2000, 2001, 2002  Mission Critical Linux, Inc.
+Copyright (C) 2015, 2021  VMware, Inc.
+This program is free software, covered by the GNU General Public License,
+and you are welcome to change it and/or distribute copies of it under
+certain conditions.  Enter "help copying" to see the conditions.
+This program has absolutely no warranty.  Enter "help warranty" for details.
+ 
+NOTE: stdin: not a tty
+
+GNU gdb (GDB) 10.2
+Copyright (C) 2021 Free Software Foundation, Inc.
+License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>
+This is free software: you are free to change and redistribute it.
+There is NO WARRANTY, to the extent permitted by law.
+Type "show copying" and "show warranty" for details.
+This GDB was configured as "aarch64-unknown-linux-gnu".
+Type "show configuration" for configuration details.
+Find the GDB manual and other documentation resources online at:
+    <http://www.gnu.org/software/gdb/documentation/>.
+
+For help, type "help".
+Type "apropos word" to search for commands related to "word"...
+
+please wait... (gathering kmem slab cache data)                                                please wait... (gathering module symbol data)                                              please wait... (gathering task table data)                                           please wait... (determining panic task)                                              KERNEL: /tmp/vmlinux-0102  [TAINTED]
+    DUMPFILE: /home/sdc/wangxu/vmcore0102/127.0.0.1-2026-09-04-22:09:49/vmcore  [PARTIAL DUMP]
+        CPUS: 192
+        DATE: Fri Sep  4 22:08:20 CST 2026
+      UPTIME: 00:06:37
+LOAD AVERAGE: 128.20, 49.41, 18.26
+       TASKS: 2193
+    NODENAME: localhost0102
+     RELEASE: 6.6.0-145.3.23.154.oe2403sp3.aarch64
+     VERSION: #1 SMP Mon Jul 27 19:00:34 CST 2026
+     MACHINE: aarch64  (unknown Mhz)
+      MEMORY: 767.8 GB
+       PANIC: "Unable to handle kernel paging request at virtual address ffffb75e3dfa97e0"
+         PID: 73729
+     COMMAND: "rs:main Q:Reg"
+        TASK: ffff00202e2f3f00  [THREAD_INFO: ffff00202e2f3f00]
+         CPU: 179
+       STATE: TASK_WAKING (PANIC)
+
+crash> dis -l rmqueue_bulk
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 2351
+0xffffb75e3c864690 <rmqueue_bulk>:	mov	x9, x30
+0xffffb75e3c864694 <rmqueue_bulk+4>:	nop
+0xffffb75e3c864698 <rmqueue_bulk+8>:	paciasp
+0xffffb75e3c86469c <rmqueue_bulk+12>:	sub	sp, sp, #0x110
+0xffffb75e3c8646a0 <rmqueue_bulk+16>:	mrs	x7, sp_el0
+0xffffb75e3c8646a4 <rmqueue_bulk+20>:	mov	x9, x2
+0xffffb75e3c8646a8 <rmqueue_bulk+24>:	mov	w6, w5
+0xffffb75e3c8646ac <rmqueue_bulk+28>:	stp	x29, x30, [sp, #176]
+0xffffb75e3c8646b0 <rmqueue_bulk+32>:	add	x29, sp, #0xb0
+0xffffb75e3c8646b4 <rmqueue_bulk+36>:	str	x3, [sp, #64]
+0xffffb75e3c8646b8 <rmqueue_bulk+40>:	stp	x19, x20, [sp, #192]
+0xffffb75e3c8646bc <rmqueue_bulk+44>:	mov	x19, x0
+0xffffb75e3c8646c0 <rmqueue_bulk+48>:	stp	x21, x22, [sp, #208]
+0xffffb75e3c8646c4 <rmqueue_bulk+52>:	mov	w21, w1
+0xffffb75e3c8646c8 <rmqueue_bulk+56>:	mov	w22, w4
+0xffffb75e3c8646cc <rmqueue_bulk+60>:	stp	x25, x26, [sp, #240]
+0xffffb75e3c8646d0 <rmqueue_bulk+64>:	ldr	x0, [x7, #2088]
+0xffffb75e3c8646d4 <rmqueue_bulk+68>:	str	x0, [sp, #168]
+0xffffb75e3c8646d8 <rmqueue_bulk+72>:	mov	x0, #0x0                   	// #0
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./arch/arm64/include/asm/alternative-macros.h: 250
+0xffffb75e3c8646dc <rmqueue_bulk+76>:	nop
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./arch/arm64/include/asm/irqflags.h: 99
+0xffffb75e3c8646e0 <rmqueue_bulk+80>:	mrs	x20, daif
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./arch/arm64/include/asm/irqflags.h: 72
+0xffffb75e3c8646e4 <rmqueue_bulk+84>:	msr	daifset, #0x3
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/spinlock.h: 187
+0xffffb75e3c8646e8 <rmqueue_bulk+88>:	add	x0, x19, #0x580
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./arch/arm64/include/asm/alternative-macros.h: 232
+0xffffb75e3c8646ec <rmqueue_bulk+92>:	nop
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./arch/arm64/include/asm/atomic_lse.h: 271
+0xffffb75e3c8646f0 <rmqueue_bulk+96>:	mov	w1, #0x0                   	// #0
+0xffffb75e3c8646f4 <rmqueue_bulk+100>:	mov	w2, #0x1                   	// #1
+0xffffb75e3c8646f8 <rmqueue_bulk+104>:	casa	w1, w2, [x0]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/atomic/atomic-arch-fallback.h: 2155
+0xffffb75e3c8646fc <rmqueue_bulk+108>:	cbnz	w1, 0xffffb75e3c86546c <rmqueue_bulk+3548>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 2357
+0xffffb75e3c864700 <rmqueue_bulk+112>:	mov	w26, #0x0                   	// #0
+0xffffb75e3c864704 <rmqueue_bulk+116>:	cbz	x9, 0xffffb75e3c8649e8 <rmqueue_bulk+856>
+0xffffb75e3c864708 <rmqueue_bulk+120>:	mov	w2, #0x68                  	// #104
+0xffffb75e3c86470c <rmqueue_bulk+124>:	sxtw	x1, w22
+0xffffb75e3c864710 <rmqueue_bulk+128>:	sbfiz	x11, x22, #4, #32
+0xffffb75e3c864714 <rmqueue_bulk+132>:	str	x1, [sp, #120]
+0xffffb75e3c864718 <rmqueue_bulk+136>:	umull	x1, w21, w2
+0xffffb75e3c86471c <rmqueue_bulk+140>:	add	x0, x11, #0x100
+0xffffb75e3c864720 <rmqueue_bulk+144>:	smull	x2, w21, w2
+0xffffb75e3c864724 <rmqueue_bulk+148>:	mov	w3, w21
+0xffffb75e3c864728 <rmqueue_bulk+152>:	str	x2, [sp, #128]
+0xffffb75e3c86472c <rmqueue_bulk+156>:	and	w2, w6, #0x80
+0xffffb75e3c864730 <rmqueue_bulk+160>:	add	x0, x0, x1
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/list.h: 231
+0xffffb75e3c864734 <rmqueue_bulk+164>:	str	w21, [sp, #8]
+0xffffb75e3c864738 <rmqueue_bulk+168>:	mov	x21, x19
+0xffffb75e3c86473c <rmqueue_bulk+172>:	str	w2, [sp, #60]
+0xffffb75e3c864740 <rmqueue_bulk+176>:	add	x2, x1, #0x140
+0xffffb75e3c864744 <rmqueue_bulk+180>:	str	x20, [sp, #136]
+0xffffb75e3c864748 <rmqueue_bulk+184>:	mov	w20, w6
+0xffffb75e3c86474c <rmqueue_bulk+188>:	add	x0, x19, x0
+0xffffb75e3c864750 <rmqueue_bulk+192>:	add	x1, x19, x2
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 2290
+0xffffb75e3c864754 <rmqueue_bulk+196>:	mov	w26, #0x0                   	// #0
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/list.h: 231
+0xffffb75e3c864758 <rmqueue_bulk+200>:	str	x11, [sp, #48]
+0xffffb75e3c86475c <rmqueue_bulk+204>:	str	x9, [sp, #72]
+0xffffb75e3c864760 <rmqueue_bulk+208>:	str	x1, [sp, #80]
+0xffffb75e3c864764 <rmqueue_bulk+212>:	str	x0, [sp, #144]
+0xffffb75e3c864768 <rmqueue_bulk+216>:	str	x3, [sp, #152]
+0xffffb75e3c86476c <rmqueue_bulk+220>:	stp	x23, x24, [sp, #224]
+0xffffb75e3c864770 <rmqueue_bulk+224>:	stp	x27, x28, [sp, #256]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 2290
+0xffffb75e3c864774 <rmqueue_bulk+228>:	mov	w28, #0x0                   	// #0
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/list.h: 231
+0xffffb75e3c864778 <rmqueue_bulk+232>:	str	w28, [sp, #24]
+0xffffb75e3c86477c <rmqueue_bulk+236>:	nop
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 2290
+0xffffb75e3c864780 <rmqueue_bulk+240>:	ldr	w0, [sp, #60]
+0xffffb75e3c864784 <rmqueue_bulk+244>:	cbz	w0, 0xffffb75e3c864a30 <rmqueue_bulk+928>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/atomic/atomic-arch-fallback.h: 2556
+0xffffb75e3c864788 <rmqueue_bulk+248>:	ldr	x0, [x21, #1648]
+0xffffb75e3c86478c <rmqueue_bulk+252>:	ldr	x1, [x21, #1568]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/vmstat.h: 234
+0xffffb75e3c864790 <rmqueue_bulk+256>:	cmp	x0, #0x0
+0xffffb75e3c864794 <rmqueue_bulk+260>:	csel	x0, x0, xzr, ge  // ge = tcont
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/vmstat.h: 231
+0xffffb75e3c864798 <rmqueue_bulk+264>:	cmp	x1, #0x0
+0xffffb75e3c86479c <rmqueue_bulk+268>:	csel	x1, x1, xzr, ge  // ge = tcont
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 2290
+0xffffb75e3c8647a0 <rmqueue_bulk+272>:	cmp	x0, x1, lsr #1
+0xffffb75e3c8647a4 <rmqueue_bulk+276>:	b.ls	0xffffb75e3c864d94 <rmqueue_bulk+1796>  // b.plast
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1627
+0xffffb75e3c8647a8 <rmqueue_bulk+280>:	ldr	w0, [sp, #8]
+0xffffb75e3c8647ac <rmqueue_bulk+284>:	ldr	x2, [sp, #80]
+0xffffb75e3c8647b0 <rmqueue_bulk+288>:	mov	w27, w0
+0xffffb75e3c8647b4 <rmqueue_bulk+292>:	cmp	w0, #0xa
+0xffffb75e3c8647b8 <rmqueue_bulk+296>:	b.hi	0xffffb75e3c865520 <rmqueue_bulk+3728>  // b.pmore
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 749
+0xffffb75e3c8647bc <rmqueue_bulk+300>:	mov	w19, w27
+0xffffb75e3c8647c0 <rmqueue_bulk+304>:	add	x0, x19, w27, uxtw #1
+0xffffb75e3c8647c4 <rmqueue_bulk+308>:	add	x0, x19, x0, lsl #2
+0xffffb75e3c8647c8 <rmqueue_bulk+312>:	add	x0, x21, x0, lsl #3
+0xffffb75e3c8647cc <rmqueue_bulk+316>:	ldr	x24, [x0, #320]
+0xffffb75e3c8647d0 <rmqueue_bulk+320>:	cmp	x24, x2
+0xffffb75e3c8647d4 <rmqueue_bulk+324>:	b.eq	0xffffb75e3c865298 <rmqueue_bulk+3080>  // b.none
+0xffffb75e3c8647d8 <rmqueue_bulk+328>:	sub	x3, x24, #0x8
+0xffffb75e3c8647dc <rmqueue_bulk+332>:	mov	x6, x3
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1630
+0xffffb75e3c8647e0 <rmqueue_bulk+336>:	cbz	x3, 0xffffb75e3c865298 <rmqueue_bulk+3080>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1633
+0xffffb75e3c8647e4 <rmqueue_bulk+340>:	mov	w9, #0x1                   	// #1
+0xffffb75e3c8647e8 <rmqueue_bulk+344>:	mov	w28, w27
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1439
+0xffffb75e3c8647ec <rmqueue_bulk+348>:	lsl	w25, w9, w27
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./arch/arm64/include/asm/jump_label.h: 22
+0xffffb75e3c8647f0 <rmqueue_bulk+352>:	nop
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 733
+0xffffb75e3c8647f4 <rmqueue_bulk+356>:	mov	x0, x24
+0xffffb75e3c8647f8 <rmqueue_bulk+360>:	mov	x23, x24
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/list.h: 124
+0xffffb75e3c8647fc <rmqueue_bulk+364>:	str	x6, [sp, #16]
+0xffffb75e3c864800 <rmqueue_bulk+368>:	str	x3, [sp, #32]
+0xffffb75e3c864804 <rmqueue_bulk+372>:	bl	0xffffb75e3cba1b78 <__list_del_entry_valid_or_report>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/list.h: 125
+0xffffb75e3c864808 <rmqueue_bulk+376>:	ldr	x6, [sp, #16]
+0xffffb75e3c86480c <rmqueue_bulk+380>:	ldr	x3, [sp, #32]
+0xffffb75e3c864810 <rmqueue_bulk+384>:	tbz	w0, #0, 0xffffb75e3c864820 <rmqueue_bulk+400>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/list.h: 218
+0xffffb75e3c864814 <rmqueue_bulk+388>:	ldp	x2, x0, [x24]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/list.h: 195
+0xffffb75e3c864818 <rmqueue_bulk+392>:	str	x0, [x2, #8]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/list.h: 196
+0xffffb75e3c86481c <rmqueue_bulk+396>:	str	x2, [x0]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/list.h: 230
+0xffffb75e3c864820 <rmqueue_bulk+400>:	add	x0, x19, x19, lsl #1
+0xffffb75e3c864824 <rmqueue_bulk+404>:	mov	x1, #0x100                 	// #256
+0xffffb75e3c864828 <rmqueue_bulk+408>:	movk	x1, #0xdead, lsl #48
+0xffffb75e3c86482c <rmqueue_bulk+412>:	str	x1, [x24]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/list.h: 231
+0xffffb75e3c864830 <rmqueue_bulk+416>:	add	x1, x1, #0x22
+0xffffb75e3c864834 <rmqueue_bulk+420>:	str	x1, [x24, #8]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/page-flags.h: 995
+0xffffb75e3c864838 <rmqueue_bulk+424>:	add	x0, x19, x0, lsl #2
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/mm_types.h: 566
+0xffffb75e3c86483c <rmqueue_bulk+428>:	str	xzr, [x3, #40]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/page-flags.h: 995
+0xffffb75e3c864840 <rmqueue_bulk+432>:	ldr	w1, [x3, #48]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 736
+0xffffb75e3c864844 <rmqueue_bulk+436>:	add	x0, x21, x0, lsl #3
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/page-flags.h: 995
+0xffffb75e3c864848 <rmqueue_bulk+440>:	orr	w1, w1, #0x80
+0xffffb75e3c86484c <rmqueue_bulk+444>:	str	w1, [x3, #48]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 736
+0xffffb75e3c864850 <rmqueue_bulk+448>:	ldr	x1, [x0, #352]
+0xffffb75e3c864854 <rmqueue_bulk+452>:	sub	x1, x1, #0x1
+0xffffb75e3c864858 <rmqueue_bulk+456>:	str	x1, [x0, #352]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1413
+0xffffb75e3c86485c <rmqueue_bulk+460>:	ldr	w0, [sp, #8]
+0xffffb75e3c864860 <rmqueue_bulk+464>:	cmp	w27, w0
+0xffffb75e3c864864 <rmqueue_bulk+468>:	b.le	0xffffb75e3c864944 <rmqueue_bulk+692>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1411
+0xffffb75e3c864868 <rmqueue_bulk+472>:	mov	w19, #0x0                   	// #0
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 697
+0xffffb75e3c86486c <rmqueue_bulk+476>:	stp	x6, x23, [sp, #32]
+0xffffb75e3c864870 <rmqueue_bulk+480>:	mov	x23, x21
+0xffffb75e3c864874 <rmqueue_bulk+484>:	mov	w21, w28
+0xffffb75e3c864878 <rmqueue_bulk+488>:	str	w22, [sp, #96]
+0xffffb75e3c86487c <rmqueue_bulk+492>:	mov	w22, w25
+0xffffb75e3c864880 <rmqueue_bulk+496>:	str	w20, [sp, #104]
+0xffffb75e3c864884 <rmqueue_bulk+500>:	mov	w20, w19
+0xffffb75e3c864888 <rmqueue_bulk+504>:	str	x3, [sp, #16]
+0xffffb75e3c86488c <rmqueue_bulk+508>:	stp	w25, w26, [sp, #88]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1414
+0xffffb75e3c864890 <rmqueue_bulk+512>:	sub	w24, w21, #0x1
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 697
+0xffffb75e3c864894 <rmqueue_bulk+516>:	mov	w0, #0x68                  	// #104
+0xffffb75e3c864898 <rmqueue_bulk+520>:	mov	x1, #0x140                 	// #320
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1415
+0xffffb75e3c86489c <rmqueue_bulk+524>:	lsr	w22, w22, #1
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/list.h: 169
+0xffffb75e3c8648a0 <rmqueue_bulk+528>:	add	x2, x24, w24, uxtw #1
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1414
+0xffffb75e3c8648a4 <rmqueue_bulk+532>:	mov	x21, x24
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1424
+0xffffb75e3c8648a8 <rmqueue_bulk+536>:	umaddl	x25, w24, w0, x1
+0xffffb75e3c8648ac <rmqueue_bulk+540>:	ubfiz	x27, x22, #6, #31
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/list.h: 169
+0xffffb75e3c8648b0 <rmqueue_bulk+544>:	add	x2, x24, x2, lsl #2
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1424
+0xffffb75e3c8648b4 <rmqueue_bulk+548>:	ldr	x0, [sp, #16]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/list.h: 169
+0xffffb75e3c8648b8 <rmqueue_bulk+552>:	add	x2, x23, x2, lsl #3
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 697
+0xffffb75e3c8648bc <rmqueue_bulk+556>:	add	x28, x23, x25
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1424
+0xffffb75e3c8648c0 <rmqueue_bulk+560>:	add	x27, x0, x27
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 697
+0xffffb75e3c8648c4 <rmqueue_bulk+564>:	mov	x1, x28
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/list.h: 169
+0xffffb75e3c8648c8 <rmqueue_bulk+568>:	ldr	x19, [x2, #320]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 697
+0xffffb75e3c8648cc <rmqueue_bulk+572>:	add	x26, x27, #0x8
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/list.h: 88
+0xffffb75e3c8648d0 <rmqueue_bulk+576>:	mov	x0, x26
+0xffffb75e3c8648d4 <rmqueue_bulk+580>:	mov	x2, x19
+0xffffb75e3c8648d8 <rmqueue_bulk+584>:	bl	0xffffb75e3cba1a98 <__list_add_valid_or_report>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/list.h: 89
+0xffffb75e3c8648dc <rmqueue_bulk+588>:	tbz	w0, #0, 0xffffb75e3c8648ec <rmqueue_bulk+604>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/list.h: 153
+0xffffb75e3c8648e0 <rmqueue_bulk+592>:	str	x26, [x19, #8]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/list.h: 154
+0xffffb75e3c8648e4 <rmqueue_bulk+596>:	stp	x19, x28, [x27, #8]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/list.h: 156
+0xffffb75e3c8648e8 <rmqueue_bulk+600>:	str	x26, [x23, x25]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 698
+0xffffb75e3c8648ec <rmqueue_bulk+604>:	add	x0, x24, x24, lsl #1
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1429
+0xffffb75e3c8648f0 <rmqueue_bulk+608>:	add	w20, w20, w22
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 698
+0xffffb75e3c8648f4 <rmqueue_bulk+612>:	add	x0, x24, x0, lsl #2
+0xffffb75e3c8648f8 <rmqueue_bulk+616>:	add	x0, x23, x0, lsl #3
+0xffffb75e3c8648fc <rmqueue_bulk+620>:	ldr	x1, [x0, #352]
+0xffffb75e3c864900 <rmqueue_bulk+624>:	add	x1, x1, #0x1
+0xffffb75e3c864904 <rmqueue_bulk+628>:	str	x1, [x0, #352]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/mm_types.h: 566
+0xffffb75e3c864908 <rmqueue_bulk+632>:	str	x24, [x27, #40]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/page-flags.h: 995
+0xffffb75e3c86490c <rmqueue_bulk+636>:	ldr	w0, [x27, #48]
+0xffffb75e3c864910 <rmqueue_bulk+640>:	and	w0, w0, #0xffffff7f
+0xffffb75e3c864914 <rmqueue_bulk+644>:	str	w0, [x27, #48]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1413
+0xffffb75e3c864918 <rmqueue_bulk+648>:	ldr	w0, [sp, #8]
+0xffffb75e3c86491c <rmqueue_bulk+652>:	cmp	w21, w0
+0xffffb75e3c864920 <rmqueue_bulk+656>:	b.gt	0xffffb75e3c864890 <rmqueue_bulk+512>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1442
+0xffffb75e3c864924 <rmqueue_bulk+660>:	ldp	w25, w26, [sp, #88]
+0xffffb75e3c864928 <rmqueue_bulk+664>:	mov	x21, x23
+0xffffb75e3c86492c <rmqueue_bulk+668>:	ldp	x6, x23, [sp, #32]
+0xffffb75e3c864930 <rmqueue_bulk+672>:	mov	w19, w20
+0xffffb75e3c864934 <rmqueue_bulk+676>:	ldr	x3, [sp, #16]
+0xffffb75e3c864938 <rmqueue_bulk+680>:	sub	w25, w25, w19
+0xffffb75e3c86493c <rmqueue_bulk+684>:	ldr	w22, [sp, #96]
+0xffffb75e3c864940 <rmqueue_bulk+688>:	ldr	w20, [sp, #104]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 674
+0xffffb75e3c864944 <rmqueue_bulk+692>:	neg	w9, w25
+0xffffb75e3c864948 <rmqueue_bulk+696>:	mov	x0, x21
+0xffffb75e3c86494c <rmqueue_bulk+700>:	mov	w1, #0x0                   	// #0
+0xffffb75e3c864950 <rmqueue_bulk+704>:	str	x6, [sp, #16]
+0xffffb75e3c864954 <rmqueue_bulk+708>:	sxtw	x24, w9
+0xffffb75e3c864958 <rmqueue_bulk+712>:	str	x3, [sp, #32]
+0xffffb75e3c86495c <rmqueue_bulk+716>:	mov	x2, x24
+0xffffb75e3c864960 <rmqueue_bulk+720>:	bl	0xffffb75e3c7f9d40 <__mod_zone_page_state>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 677
+0xffffb75e3c864964 <rmqueue_bulk+724>:	mov	x0, x21
+0xffffb75e3c864968 <rmqueue_bulk+728>:	mov	x2, x24
+0xffffb75e3c86496c <rmqueue_bulk+732>:	mov	w1, #0xa                   	// #10
+0xffffb75e3c864970 <rmqueue_bulk+736>:	bl	0xffffb75e3c7f9d40 <__mod_zone_page_state>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 576
+0xffffb75e3c864974 <rmqueue_bulk+740>:	ldr	w0, [sp, #8]
+0xffffb75e3c864978 <rmqueue_bulk+744>:	ldr	x6, [sp, #16]
+0xffffb75e3c86497c <rmqueue_bulk+748>:	cmp	w0, #0x3
+0xffffb75e3c864980 <rmqueue_bulk+752>:	ldr	x3, [sp, #32]
+0xffffb75e3c864984 <rmqueue_bulk+756>:	ccmp	w0, #0x9, #0x4, hi  // hi = pmore
+0xffffb75e3c864988 <rmqueue_bulk+760>:	b.eq	0xffffb75e3c864994 <rmqueue_bulk+772>  // b.none
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 578
+0xffffb75e3c86498c <rmqueue_bulk+764>:	adrp	x0, 0xffffb75e3e3a1000 <huge_shmem_orders_within_size>
+0xffffb75e3c864990 <rmqueue_bulk+768>:	ldr	x0, [x0, #752]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./arch/arm64/include/asm/jump_label.h: 22
+0xffffb75e3c864994 <rmqueue_bulk+772>:	nop
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/list.h: 183
+0xffffb75e3c864998 <rmqueue_bulk+776>:	ldr	x19, [sp, #64]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/list.h: 88
+0xffffb75e3c86499c <rmqueue_bulk+780>:	mov	x0, x23
+0xffffb75e3c8649a0 <rmqueue_bulk+784>:	str	x6, [sp, #16]
+0xffffb75e3c8649a4 <rmqueue_bulk+788>:	mov	x2, x19
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/list.h: 183
+0xffffb75e3c8649a8 <rmqueue_bulk+792>:	ldr	x24, [x19, #8]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/list.h: 88
+0xffffb75e3c8649ac <rmqueue_bulk+796>:	mov	x1, x24
+0xffffb75e3c8649b0 <rmqueue_bulk+800>:	bl	0xffffb75e3cba1a98 <__list_add_valid_or_report>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/list.h: 89
+0xffffb75e3c8649b4 <rmqueue_bulk+804>:	tbz	w0, #0, 0xffffb75e3c8649c8 <rmqueue_bulk+824>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/list.h: 153
+0xffffb75e3c8649b8 <rmqueue_bulk+808>:	ldr	x6, [sp, #16]
+0xffffb75e3c8649bc <rmqueue_bulk+812>:	str	x23, [x19, #8]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/list.h: 154
+0xffffb75e3c8649c0 <rmqueue_bulk+816>:	stp	x19, x24, [x6, #8]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/list.h: 156
+0xffffb75e3c8649c4 <rmqueue_bulk+820>:	str	x23, [x24]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 2357
+0xffffb75e3c8649c8 <rmqueue_bulk+824>:	ldr	x0, [sp, #72]
+0xffffb75e3c8649cc <rmqueue_bulk+828>:	add	w26, w26, #0x1
+0xffffb75e3c8649d0 <rmqueue_bulk+832>:	cmp	x0, w26, sxtw
+0xffffb75e3c8649d4 <rmqueue_bulk+836>:	b.hi	0xffffb75e3c864780 <rmqueue_bulk+240>  // b.pmore
+0xffffb75e3c8649d8 <rmqueue_bulk+840>:	ldp	x23, x24, [sp, #224]
+0xffffb75e3c8649dc <rmqueue_bulk+844>:	mov	x19, x21
+0xffffb75e3c8649e0 <rmqueue_bulk+848>:	ldp	x27, x28, [sp, #256]
+0xffffb75e3c8649e4 <rmqueue_bulk+852>:	ldr	x20, [sp, #136]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./arch/arm64/include/asm/qspinlock.h: 22
+0xffffb75e3c8649e8 <rmqueue_bulk+856>:	add	x0, x19, #0x580
+0xffffb75e3c8649ec <rmqueue_bulk+860>:	stlrb	wzr, [x0]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./arch/arm64/include/asm/alternative-macros.h: 250
+0xffffb75e3c8649f0 <rmqueue_bulk+864>:	nop
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./arch/arm64/include/asm/irqflags.h: 192
+0xffffb75e3c8649f4 <rmqueue_bulk+868>:	msr	daif, x20
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 2377
+0xffffb75e3c8649f8 <rmqueue_bulk+872>:	mrs	x0, sp_el0
+0xffffb75e3c8649fc <rmqueue_bulk+876>:	ldr	x2, [sp, #168]
+0xffffb75e3c864a00 <rmqueue_bulk+880>:	ldr	x1, [x0, #2088]
+0xffffb75e3c864a04 <rmqueue_bulk+884>:	subs	x2, x2, x1
+0xffffb75e3c864a08 <rmqueue_bulk+888>:	mov	x1, #0x0                   	// #0
+0xffffb75e3c864a0c <rmqueue_bulk+892>:	b.ne	0xffffb75e3c86555c <rmqueue_bulk+3788>  // b.any
+0xffffb75e3c864a10 <rmqueue_bulk+896>:	ldp	x29, x30, [sp, #176]
+0xffffb75e3c864a14 <rmqueue_bulk+900>:	mov	w0, w26
+0xffffb75e3c864a18 <rmqueue_bulk+904>:	ldp	x19, x20, [sp, #192]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 2378
+0xffffb75e3c864a1c <rmqueue_bulk+908>:	ldp	x21, x22, [sp, #208]
+0xffffb75e3c864a20 <rmqueue_bulk+912>:	ldp	x25, x26, [sp, #240]
+0xffffb75e3c864a24 <rmqueue_bulk+916>:	add	sp, sp, #0x110
+0xffffb75e3c864a28 <rmqueue_bulk+920>:	autiasp
+0xffffb75e3c864a2c <rmqueue_bulk+924>:	ret
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 2308
+0xffffb75e3c864a30 <rmqueue_bulk+928>:	ldr	w0, [sp, #24]
+0xffffb75e3c864a34 <rmqueue_bulk+932>:	cmp	w0, #0x3
+0xffffb75e3c864a38 <rmqueue_bulk+936>:	b.eq	0xffffb75e3c864afc <rmqueue_bulk+1132>  // b.none
+0xffffb75e3c864a3c <rmqueue_bulk+940>:	cbz	w0, 0xffffb75e3c864dc8 <rmqueue_bulk+1848>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 2204
+0xffffb75e3c864a40 <rmqueue_bulk+944>:	ldr	w0, [sp, #8]
+0xffffb75e3c864a44 <rmqueue_bulk+948>:	cmp	w0, #0x8
+0xffffb75e3c864a48 <rmqueue_bulk+952>:	b.hi	0xffffb75e3c864db8 <rmqueue_bulk+1832>  // b.pmore
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 2205
+0xffffb75e3c864a4c <rmqueue_bulk+956>:	ldr	w0, [sp, #8]
+0xffffb75e3c864a50 <rmqueue_bulk+960>:	tst	x20, #0x100
+0xffffb75e3c864a54 <rmqueue_bulk+964>:	mov	w23, #0x9                   	// #9
+0xffffb75e3c864a58 <rmqueue_bulk+968>:	csel	w23, w0, w23, eq  // eq = none
+0xffffb75e3c864a5c <rmqueue_bulk+972>:	ldr	w25, [sp, #8]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 2212
+0xffffb75e3c864a60 <rmqueue_bulk+976>:	mov	w28, #0xa                   	// #10
+0xffffb75e3c864a64 <rmqueue_bulk+980>:	mov	w24, #0x68                  	// #104
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 2214
+0xffffb75e3c864a68 <rmqueue_bulk+984>:	smull	x27, w28, w24
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 2215
+0xffffb75e3c864a6c <rmqueue_bulk+988>:	add	x4, sp, #0xa7
+0xffffb75e3c864a70 <rmqueue_bulk+992>:	mov	w2, w22
+0xffffb75e3c864a74 <rmqueue_bulk+996>:	mov	w1, w28
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 2214
+0xffffb75e3c864a78 <rmqueue_bulk+1000>:	add	x0, x27, #0x100
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 2215
+0xffffb75e3c864a7c <rmqueue_bulk+1004>:	mov	w3, #0x0                   	// #0
+0xffffb75e3c864a80 <rmqueue_bulk+1008>:	add	x0, x21, x0
+0xffffb75e3c864a84 <rmqueue_bulk+1012>:	bl	0xffffb75e3c864600 <find_suitable_fallback>
+0xffffb75e3c864a88 <rmqueue_bulk+1016>:	mov	w19, w0
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 2217
+0xffffb75e3c864a8c <rmqueue_bulk+1020>:	cmn	w0, #0x1
+0xffffb75e3c864a90 <rmqueue_bulk+1024>:	b.eq	0xffffb75e3c864af0 <rmqueue_bulk+1120>  // b.none
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 2220
+0xffffb75e3c864a94 <rmqueue_bulk+1028>:	ldrb	w0, [sp, #167]
+0xffffb75e3c864a98 <rmqueue_bulk+1032>:	tbz	w0, #0, 0xffffb75e3c864afc <rmqueue_bulk+1132>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 749
+0xffffb75e3c864a9c <rmqueue_bulk+1036>:	sxtw	x0, w28
+0xffffb75e3c864aa0 <rmqueue_bulk+1040>:	add	x27, x27, w19, sxtw #4
+0xffffb75e3c864aa4 <rmqueue_bulk+1044>:	add	x1, x0, w28, sxtw #1
+0xffffb75e3c864aa8 <rmqueue_bulk+1048>:	add	x27, x27, #0x100
+0xffffb75e3c864aac <rmqueue_bulk+1052>:	add	x27, x21, x27
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 2224
+0xffffb75e3c864ab0 <rmqueue_bulk+1056>:	mov	w6, w20
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 749
+0xffffb75e3c864ab4 <rmqueue_bulk+1060>:	add	x1, x0, x1, lsl #2
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 2224
+0xffffb75e3c864ab8 <rmqueue_bulk+1064>:	mov	w5, w19
+0xffffb75e3c864abc <rmqueue_bulk+1068>:	mov	w4, w22
+0xffffb75e3c864ac0 <rmqueue_bulk+1072>:	mov	w3, w25
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 749
+0xffffb75e3c864ac4 <rmqueue_bulk+1076>:	lsl	x1, x1, #3
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 2224
+0xffffb75e3c864ac8 <rmqueue_bulk+1080>:	mov	w2, w28
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 749
+0xffffb75e3c864acc <rmqueue_bulk+1084>:	add	x1, x1, w19, sxtw #4
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 2224
+0xffffb75e3c864ad0 <rmqueue_bulk+1088>:	mov	x0, x21
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 749
+0xffffb75e3c864ad4 <rmqueue_bulk+1092>:	add	x1, x21, x1
+0xffffb75e3c864ad8 <rmqueue_bulk+1096>:	ldr	x1, [x1, #256]
+0xffffb75e3c864adc <rmqueue_bulk+1100>:	cmp	x1, x27
+0xffffb75e3c864ae0 <rmqueue_bulk+1104>:	sub	x1, x1, #0x8
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 2224
+0xffffb75e3c864ae4 <rmqueue_bulk+1108>:	csel	x1, x1, xzr, ne  // ne = any
+0xffffb75e3c864ae8 <rmqueue_bulk+1112>:	bl	0xffffb75e3c862888 <try_to_claim_block>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 2227
+0xffffb75e3c864aec <rmqueue_bulk+1116>:	cbnz	x0, 0xffffb75e3c865284 <rmqueue_bulk+3060>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 2213
+0xffffb75e3c864af0 <rmqueue_bulk+1120>:	sub	w28, w28, #0x1
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 2212
+0xffffb75e3c864af4 <rmqueue_bulk+1124>:	cmp	w28, w23
+0xffffb75e3c864af8 <rmqueue_bulk+1128>:	b.ge	0xffffb75e3c864a68 <rmqueue_bulk+984>  // b.tcont
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 2332
+0xffffb75e3c864afc <rmqueue_bulk+1132>:	tbnz	w20, #8, 0xffffb75e3c8649d8 <rmqueue_bulk+840>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 2250
+0xffffb75e3c864b00 <rmqueue_bulk+1136>:	ldr	w0, [sp, #8]
+0xffffb75e3c864b04 <rmqueue_bulk+1140>:	cmp	w0, #0xa
+0xffffb75e3c864b08 <rmqueue_bulk+1144>:	b.gt	0xffffb75e3c8649d8 <rmqueue_bulk+840>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 749
+0xffffb75e3c864b0c <rmqueue_bulk+1148>:	ldr	x24, [sp, #128]
+0xffffb75e3c864b10 <rmqueue_bulk+1152>:	add	x23, x21, #0x100
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 2333
+0xffffb75e3c864b14 <rmqueue_bulk+1156>:	ldr	w19, [sp, #8]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 2252
+0xffffb75e3c864b18 <rmqueue_bulk+1160>:	add	x4, sp, #0xa7
+0xffffb75e3c864b1c <rmqueue_bulk+1164>:	mov	w2, w22
+0xffffb75e3c864b20 <rmqueue_bulk+1168>:	mov	w1, w19
+0xffffb75e3c864b24 <rmqueue_bulk+1172>:	add	x0, x23, x24
+0xffffb75e3c864b28 <rmqueue_bulk+1176>:	mov	w3, #0x0                   	// #0
+0xffffb75e3c864b2c <rmqueue_bulk+1180>:	bl	0xffffb75e3c864600 <find_suitable_fallback>
+0xffffb75e3c864b30 <rmqueue_bulk+1184>:	mov	w5, w0
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 2254
+0xffffb75e3c864b34 <rmqueue_bulk+1188>:	cmn	w0, #0x1
+0xffffb75e3c864b38 <rmqueue_bulk+1192>:	b.eq	0xffffb75e3c8654a8 <rmqueue_bulk+3608>  // b.none
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 749
+0xffffb75e3c864b3c <rmqueue_bulk+1196>:	sxtw	x3, w19
+0xffffb75e3c864b40 <rmqueue_bulk+1200>:	sbfiz	x4, x0, #4, #32
+0xffffb75e3c864b44 <rmqueue_bulk+1204>:	add	x2, x3, w19, sxtw #1
+0xffffb75e3c864b48 <rmqueue_bulk+1208>:	add	x0, x24, #0x100
+0xffffb75e3c864b4c <rmqueue_bulk+1212>:	add	x0, x0, x4
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1439
+0xffffb75e3c864b50 <rmqueue_bulk+1216>:	mov	w10, #0x1                   	// #1
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 749
+0xffffb75e3c864b54 <rmqueue_bulk+1220>:	add	x2, x3, x2, lsl #2
+0xffffb75e3c864b58 <rmqueue_bulk+1224>:	add	x0, x21, x0
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1439
+0xffffb75e3c864b5c <rmqueue_bulk+1228>:	lsl	w10, w10, w19
+0xffffb75e3c864b60 <rmqueue_bulk+1232>:	sxtw	x24, w5
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 749
+0xffffb75e3c864b64 <rmqueue_bulk+1236>:	add	x2, x4, x2, lsl #3
+0xffffb75e3c864b68 <rmqueue_bulk+1240>:	add	x2, x21, x2
+0xffffb75e3c864b6c <rmqueue_bulk+1244>:	ldr	x7, [x2, #256]
+0xffffb75e3c864b70 <rmqueue_bulk+1248>:	cmp	x7, x0
+0xffffb75e3c864b74 <rmqueue_bulk+1252>:	sub	x7, x7, #0x8
+0xffffb75e3c864b78 <rmqueue_bulk+1256>:	csel	x6, x7, xzr, ne  // ne = any
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./arch/arm64/include/asm/jump_label.h: 22
+0xffffb75e3c864b7c <rmqueue_bulk+1260>:	nop
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 733
+0xffffb75e3c864b80 <rmqueue_bulk+1264>:	add	x23, x6, #0x8
+0xffffb75e3c864b84 <rmqueue_bulk+1268>:	stp	x6, x4, [sp, #16]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/list.h: 124
+0xffffb75e3c864b88 <rmqueue_bulk+1272>:	mov	x0, x23
+0xffffb75e3c864b8c <rmqueue_bulk+1276>:	str	w5, [sp, #32]
+0xffffb75e3c864b90 <rmqueue_bulk+1280>:	str	w10, [sp, #40]
+0xffffb75e3c864b94 <rmqueue_bulk+1284>:	bl	0xffffb75e3cba1b78 <__list_del_entry_valid_or_report>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/list.h: 125
+0xffffb75e3c864b98 <rmqueue_bulk+1288>:	ldp	x6, x4, [sp, #16]
+0xffffb75e3c864b9c <rmqueue_bulk+1292>:	ldr	w5, [sp, #32]
+0xffffb75e3c864ba0 <rmqueue_bulk+1296>:	ldr	w10, [sp, #40]
+0xffffb75e3c864ba4 <rmqueue_bulk+1300>:	tbz	w0, #0, 0xffffb75e3c864bb4 <rmqueue_bulk+1316>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/list.h: 218
+0xffffb75e3c864ba8 <rmqueue_bulk+1304>:	ldp	x2, x0, [x6, #8]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/list.h: 195
+0xffffb75e3c864bac <rmqueue_bulk+1308>:	str	x0, [x2, #8]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/list.h: 196
+0xffffb75e3c864bb0 <rmqueue_bulk+1312>:	str	x2, [x0]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/list.h: 230
+0xffffb75e3c864bb4 <rmqueue_bulk+1316>:	mov	x0, #0x100                 	// #256
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 736
+0xffffb75e3c864bb8 <rmqueue_bulk+1320>:	mov	w2, w19
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/list.h: 230
+0xffffb75e3c864bbc <rmqueue_bulk+1324>:	movk	x0, #0xdead, lsl #48
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/list.h: 231
+0xffffb75e3c864bc0 <rmqueue_bulk+1328>:	mov	x1, #0x122                 	// #290
+0xffffb75e3c864bc4 <rmqueue_bulk+1332>:	movk	x1, #0xdead, lsl #48
+0xffffb75e3c864bc8 <rmqueue_bulk+1336>:	stp	x0, x1, [x6, #8]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/page-flags.h: 995
+0xffffb75e3c864bcc <rmqueue_bulk+1340>:	add	x0, x2, w19, uxtw #1
+0xffffb75e3c864bd0 <rmqueue_bulk+1344>:	ldr	w3, [x6, #48]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 736
+0xffffb75e3c864bd4 <rmqueue_bulk+1348>:	add	x0, x2, x0, lsl #2
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/mm_types.h: 566
+0xffffb75e3c864bd8 <rmqueue_bulk+1352>:	str	xzr, [x6, #40]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/page-flags.h: 995
+0xffffb75e3c864bdc <rmqueue_bulk+1356>:	orr	w2, w3, #0x80
+0xffffb75e3c864be0 <rmqueue_bulk+1360>:	str	w2, [x6, #48]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 736
+0xffffb75e3c864be4 <rmqueue_bulk+1364>:	add	x0, x21, x0, lsl #3
+0xffffb75e3c864be8 <rmqueue_bulk+1368>:	ldr	x2, [x0, #352]
+0xffffb75e3c864bec <rmqueue_bulk+1372>:	sub	x2, x2, #0x1
+0xffffb75e3c864bf0 <rmqueue_bulk+1376>:	str	x2, [x0, #352]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1413
+0xffffb75e3c864bf4 <rmqueue_bulk+1380>:	ldr	w0, [sp, #8]
+0xffffb75e3c864bf8 <rmqueue_bulk+1384>:	cmp	w19, w0
+0xffffb75e3c864bfc <rmqueue_bulk+1388>:	b.le	0xffffb75e3c864cf4 <rmqueue_bulk+1636>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1411
+0xffffb75e3c864c00 <rmqueue_bulk+1392>:	mov	w27, #0x0                   	// #0
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 697
+0xffffb75e3c864c04 <rmqueue_bulk+1396>:	str	x23, [sp, #96]
+0xffffb75e3c864c08 <rmqueue_bulk+1400>:	mov	w23, w27
+0xffffb75e3c864c0c <rmqueue_bulk+1404>:	stp	w10, w26, [sp, #104]
+0xffffb75e3c864c10 <rmqueue_bulk+1408>:	mov	x26, x21
+0xffffb75e3c864c14 <rmqueue_bulk+1412>:	mov	w21, w19
+0xffffb75e3c864c18 <rmqueue_bulk+1416>:	stp	w22, w20, [sp, #112]
+0xffffb75e3c864c1c <rmqueue_bulk+1420>:	mov	w22, w10
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/list.h: 169
+0xffffb75e3c864c20 <rmqueue_bulk+1424>:	lsl	x0, x24, #4
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 697
+0xffffb75e3c864c24 <rmqueue_bulk+1428>:	mov	x25, #0x100                 	// #256
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/list.h: 169
+0xffffb75e3c864c28 <rmqueue_bulk+1432>:	stp	x6, x0, [sp, #24]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 697
+0xffffb75e3c864c2c <rmqueue_bulk+1436>:	str	x4, [sp, #40]
+0xffffb75e3c864c30 <rmqueue_bulk+1440>:	stp	w19, w5, [sp, #88]
+0xffffb75e3c864c34 <rmqueue_bulk+1444>:	nop
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1414
+0xffffb75e3c864c38 <rmqueue_bulk+1448>:	sub	w19, w21, #0x1
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 697
+0xffffb75e3c864c3c <rmqueue_bulk+1452>:	mov	w0, #0x68                  	// #104
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1415
+0xffffb75e3c864c40 <rmqueue_bulk+1456>:	lsr	w22, w22, #1
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1414
+0xffffb75e3c864c44 <rmqueue_bulk+1460>:	mov	x21, x19
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1424
+0xffffb75e3c864c48 <rmqueue_bulk+1464>:	add	x2, x19, w19, uxtw #1
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 697
+0xffffb75e3c864c4c <rmqueue_bulk+1468>:	umaddl	x6, w19, w0, x25
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1424
+0xffffb75e3c864c50 <rmqueue_bulk+1472>:	ubfiz	x3, x22, #6, #31
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/list.h: 169
+0xffffb75e3c864c54 <rmqueue_bulk+1476>:	ldp	x0, x1, [sp, #24]
+0xffffb75e3c864c58 <rmqueue_bulk+1480>:	add	x2, x19, x2, lsl #2
+0xffffb75e3c864c5c <rmqueue_bulk+1484>:	add	x2, x1, x2, lsl #3
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1424
+0xffffb75e3c864c60 <rmqueue_bulk+1488>:	add	x27, x0, x3
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 697
+0xffffb75e3c864c64 <rmqueue_bulk+1492>:	add	x2, x26, x2
+0xffffb75e3c864c68 <rmqueue_bulk+1496>:	add	x24, x27, #0x8
+0xffffb75e3c864c6c <rmqueue_bulk+1500>:	ldr	x0, [sp, #40]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/list.h: 169
+0xffffb75e3c864c70 <rmqueue_bulk+1504>:	ldr	x2, [x2, #256]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 697
+0xffffb75e3c864c74 <rmqueue_bulk+1508>:	add	x20, x6, x0
+0xffffb75e3c864c78 <rmqueue_bulk+1512>:	add	x28, x26, x20
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/list.h: 88
+0xffffb75e3c864c7c <rmqueue_bulk+1516>:	mov	x0, x24
+0xffffb75e3c864c80 <rmqueue_bulk+1520>:	mov	x1, x28
+0xffffb75e3c864c84 <rmqueue_bulk+1524>:	str	x2, [sp, #16]
+0xffffb75e3c864c88 <rmqueue_bulk+1528>:	bl	0xffffb75e3cba1a98 <__list_add_valid_or_report>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/list.h: 89
+0xffffb75e3c864c8c <rmqueue_bulk+1532>:	tbz	w0, #0, 0xffffb75e3c864ca0 <rmqueue_bulk+1552>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/list.h: 153
+0xffffb75e3c864c90 <rmqueue_bulk+1536>:	ldr	x2, [sp, #16]
+0xffffb75e3c864c94 <rmqueue_bulk+1540>:	str	x24, [x2, #8]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/list.h: 154
+0xffffb75e3c864c98 <rmqueue_bulk+1544>:	stp	x2, x28, [x27, #8]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/list.h: 156
+0xffffb75e3c864c9c <rmqueue_bulk+1548>:	str	x24, [x26, x20]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 698
+0xffffb75e3c864ca0 <rmqueue_bulk+1552>:	add	x0, x19, x19, lsl #1
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1429
+0xffffb75e3c864ca4 <rmqueue_bulk+1556>:	add	w23, w23, w22
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 698
+0xffffb75e3c864ca8 <rmqueue_bulk+1560>:	add	x0, x19, x0, lsl #2
+0xffffb75e3c864cac <rmqueue_bulk+1564>:	add	x0, x26, x0, lsl #3
+0xffffb75e3c864cb0 <rmqueue_bulk+1568>:	ldr	x1, [x0, #352]
+0xffffb75e3c864cb4 <rmqueue_bulk+1572>:	add	x1, x1, #0x1
+0xffffb75e3c864cb8 <rmqueue_bulk+1576>:	str	x1, [x0, #352]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/mm_types.h: 566
+0xffffb75e3c864cbc <rmqueue_bulk+1580>:	str	x19, [x27, #40]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/page-flags.h: 995
+0xffffb75e3c864cc0 <rmqueue_bulk+1584>:	ldr	w0, [x27, #48]
+0xffffb75e3c864cc4 <rmqueue_bulk+1588>:	and	w0, w0, #0xffffff7f
+0xffffb75e3c864cc8 <rmqueue_bulk+1592>:	str	w0, [x27, #48]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1413
+0xffffb75e3c864ccc <rmqueue_bulk+1596>:	ldr	w0, [sp, #8]
+0xffffb75e3c864cd0 <rmqueue_bulk+1600>:	cmp	w21, w0
+0xffffb75e3c864cd4 <rmqueue_bulk+1604>:	b.ne	0xffffb75e3c864c38 <rmqueue_bulk+1448>  // b.any
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1442
+0xffffb75e3c864cd8 <rmqueue_bulk+1608>:	mov	x21, x26
+0xffffb75e3c864cdc <rmqueue_bulk+1612>:	ldp	w10, w26, [sp, #104]
+0xffffb75e3c864ce0 <rmqueue_bulk+1616>:	ldr	x6, [sp, #24]
+0xffffb75e3c864ce4 <rmqueue_bulk+1620>:	sub	w10, w10, w23
+0xffffb75e3c864ce8 <rmqueue_bulk+1624>:	ldr	x23, [sp, #96]
+0xffffb75e3c864cec <rmqueue_bulk+1628>:	ldp	w19, w5, [sp, #88]
+0xffffb75e3c864cf0 <rmqueue_bulk+1632>:	ldp	w22, w20, [sp, #112]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 671
+0xffffb75e3c864cf4 <rmqueue_bulk+1636>:	cmp	w5, #0x5
+0xffffb75e3c864cf8 <rmqueue_bulk+1640>:	b.eq	0xffffb75e3c864d34 <rmqueue_bulk+1700>  // b.none
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1443
+0xffffb75e3c864cfc <rmqueue_bulk+1644>:	neg	w10, w10
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 674
+0xffffb75e3c864d00 <rmqueue_bulk+1648>:	mov	x0, x21
+0xffffb75e3c864d04 <rmqueue_bulk+1652>:	mov	w1, #0x0                   	// #0
+0xffffb75e3c864d08 <rmqueue_bulk+1656>:	str	w5, [sp, #16]
+0xffffb75e3c864d0c <rmqueue_bulk+1660>:	sxtw	x24, w10
+0xffffb75e3c864d10 <rmqueue_bulk+1664>:	str	x6, [sp, #24]
+0xffffb75e3c864d14 <rmqueue_bulk+1668>:	mov	x2, x24
+0xffffb75e3c864d18 <rmqueue_bulk+1672>:	bl	0xffffb75e3c7f9d40 <__mod_zone_page_state>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 676
+0xffffb75e3c864d1c <rmqueue_bulk+1676>:	ldr	w5, [sp, #16]
+0xffffb75e3c864d20 <rmqueue_bulk+1680>:	ldr	x6, [sp, #24]
+0xffffb75e3c864d24 <rmqueue_bulk+1684>:	cmp	w5, #0x4
+0xffffb75e3c864d28 <rmqueue_bulk+1688>:	b.eq	0xffffb75e3c8654fc <rmqueue_bulk+3692>  // b.none
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 678
+0xffffb75e3c864d2c <rmqueue_bulk+1692>:	cmp	w5, #0x3
+0xffffb75e3c864d30 <rmqueue_bulk+1696>:	b.eq	0xffffb75e3c865380 <rmqueue_bulk+3312>  // b.none
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./arch/arm64/include/asm/jump_label.h: 22
+0xffffb75e3c864d34 <rmqueue_bulk+1700>:	nop
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 2334
+0xffffb75e3c864d38 <rmqueue_bulk+1704>:	cbz	x6, 0xffffb75e3c8649d8 <rmqueue_bulk+840>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 2335
+0xffffb75e3c864d3c <rmqueue_bulk+1708>:	mov	w0, #0x3                   	// #3
+0xffffb75e3c864d40 <rmqueue_bulk+1712>:	str	w0, [sp, #24]
+0xffffb75e3c864d44 <rmqueue_bulk+1716>:	b	0xffffb75e3c864998 <rmqueue_bulk+776>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/trace/events/kmem.h: 269
+0xffffb75e3c864d48 <rmqueue_bulk+1720>:	adrp	x0, 0xffffb75e3df92000 <.data..percpu>
+0xffffb75e3c864d4c <rmqueue_bulk+1724>:	add	x0, x0, #0x8
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./arch/arm64/include/asm/percpu.h: 40
+0xffffb75e3c864d50 <rmqueue_bulk+1728>:	mrs	x2, tpidr_el2
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./arch/arm64/include/asm/percpu.h: 46
+0xffffb75e3c864d54 <rmqueue_bulk+1732>:	ldr	w2, [x0, x2]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/asm-generic/bitops/generic-non-atomic.h: 128
+0xffffb75e3c864d58 <rmqueue_bulk+1736>:	adrp	x1, 0xffffb75e3e39e000 <join_entries+13376>
+0xffffb75e3c864d5c <rmqueue_bulk+1740>:	add	x0, x1, #0xe98
+0xffffb75e3c864d60 <rmqueue_bulk+1744>:	lsr	w1, w2, #6
+0xffffb75e3c864d64 <rmqueue_bulk+1748>:	ldr	x0, [x0, x1, lsl #3]
+0xffffb75e3c864d68 <rmqueue_bulk+1752>:	lsr	x0, x0, x2
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/trace/events/kmem.h: 269
+0xffffb75e3c864d6c <rmqueue_bulk+1756>:	tbz	w0, #0, 0xffffb75e3c864d38 <rmqueue_bulk+1704>
+0xffffb75e3c864d70 <rmqueue_bulk+1760>:	ldr	w2, [sp, #8]
+0xffffb75e3c864d74 <rmqueue_bulk+1764>:	mov	w3, w19
+0xffffb75e3c864d78 <rmqueue_bulk+1768>:	mov	w4, w22
+0xffffb75e3c864d7c <rmqueue_bulk+1772>:	mov	x1, x6
+0xffffb75e3c864d80 <rmqueue_bulk+1776>:	mov	x0, #0x0                   	// #0
+0xffffb75e3c864d84 <rmqueue_bulk+1780>:	str	x6, [sp, #16]
+0xffffb75e3c864d88 <rmqueue_bulk+1784>:	bl	0xffffb75e3c806d68 <__traceiter_mm_page_alloc_extfrag>
+0xffffb75e3c864d8c <rmqueue_bulk+1788>:	ldr	x6, [sp, #16]
+0xffffb75e3c864d90 <rmqueue_bulk+1792>:	b	0xffffb75e3c864d38 <rmqueue_bulk+1704>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 2308
+0xffffb75e3c864d94 <rmqueue_bulk+1796>:	ldr	w0, [sp, #24]
+0xffffb75e3c864d98 <rmqueue_bulk+1800>:	cmp	w0, #0x1
+0xffffb75e3c864d9c <rmqueue_bulk+1804>:	b.eq	0xffffb75e3c865024 <rmqueue_bulk+2452>  // b.none
+0xffffb75e3c864da0 <rmqueue_bulk+1808>:	cbz	w0, 0xffffb75e3c864dc8 <rmqueue_bulk+1848>
+0xffffb75e3c864da4 <rmqueue_bulk+1812>:	cmp	w0, #0x2
+0xffffb75e3c864da8 <rmqueue_bulk+1816>:	b.ne	0xffffb75e3c864afc <rmqueue_bulk+1132>  // b.any
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 2204
+0xffffb75e3c864dac <rmqueue_bulk+1820>:	ldr	w0, [sp, #8]
+0xffffb75e3c864db0 <rmqueue_bulk+1824>:	cmp	w0, #0x8
+0xffffb75e3c864db4 <rmqueue_bulk+1828>:	b.ls	0xffffb75e3c864a4c <rmqueue_bulk+956>  // b.plast
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 2212
+0xffffb75e3c864db8 <rmqueue_bulk+1832>:	ldr	w23, [sp, #8]
+0xffffb75e3c864dbc <rmqueue_bulk+1836>:	cmp	w23, #0xa
+0xffffb75e3c864dc0 <rmqueue_bulk+1840>:	b.le	0xffffb75e3c864a5c <rmqueue_bulk+972>
+0xffffb75e3c864dc4 <rmqueue_bulk+1844>:	b	0xffffb75e3c8649d8 <rmqueue_bulk+840>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1627
+0xffffb75e3c864dc8 <rmqueue_bulk+1848>:	ldr	w0, [sp, #8]
+0xffffb75e3c864dcc <rmqueue_bulk+1852>:	ldr	x1, [sp, #144]
+0xffffb75e3c864dd0 <rmqueue_bulk+1856>:	mov	w27, w0
+0xffffb75e3c864dd4 <rmqueue_bulk+1860>:	cmp	w0, #0xa
+0xffffb75e3c864dd8 <rmqueue_bulk+1864>:	b.hi	0xffffb75e3c864db8 <rmqueue_bulk+1832>  // b.pmore
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 749
+0xffffb75e3c864ddc <rmqueue_bulk+1868>:	ldr	x0, [sp, #120]
+0xffffb75e3c864de0 <rmqueue_bulk+1872>:	lsl	x2, x0, #4
+0xffffb75e3c864de4 <rmqueue_bulk+1876>:	mov	w28, w27
+0xffffb75e3c864de8 <rmqueue_bulk+1880>:	add	x0, x28, w27, uxtw #1
+0xffffb75e3c864dec <rmqueue_bulk+1884>:	add	x0, x28, x0, lsl #2
+0xffffb75e3c864df0 <rmqueue_bulk+1888>:	add	x0, x2, x0, lsl #3
+0xffffb75e3c864df4 <rmqueue_bulk+1892>:	add	x0, x21, x0
+0xffffb75e3c864df8 <rmqueue_bulk+1896>:	ldr	x24, [x0, #256]
+0xffffb75e3c864dfc <rmqueue_bulk+1900>:	cmp	x24, x1
+0xffffb75e3c864e00 <rmqueue_bulk+1904>:	b.eq	0xffffb75e3c8654bc <rmqueue_bulk+3628>  // b.none
+0xffffb75e3c864e04 <rmqueue_bulk+1908>:	sub	x3, x24, #0x8
+0xffffb75e3c864e08 <rmqueue_bulk+1912>:	mov	x6, x3
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1630
+0xffffb75e3c864e0c <rmqueue_bulk+1916>:	cbz	x3, 0xffffb75e3c8654bc <rmqueue_bulk+3628>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1633
+0xffffb75e3c864e10 <rmqueue_bulk+1920>:	mov	w9, #0x1                   	// #1
+0xffffb75e3c864e14 <rmqueue_bulk+1924>:	mov	w19, w27
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1439
+0xffffb75e3c864e18 <rmqueue_bulk+1928>:	lsl	w9, w9, w27
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./arch/arm64/include/asm/jump_label.h: 22
+0xffffb75e3c864e1c <rmqueue_bulk+1932>:	nop
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 733
+0xffffb75e3c864e20 <rmqueue_bulk+1936>:	mov	x0, x24
+0xffffb75e3c864e24 <rmqueue_bulk+1940>:	mov	x23, x24
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/list.h: 124
+0xffffb75e3c864e28 <rmqueue_bulk+1944>:	str	x6, [sp, #16]
+0xffffb75e3c864e2c <rmqueue_bulk+1948>:	str	w9, [sp, #24]
+0xffffb75e3c864e30 <rmqueue_bulk+1952>:	str	x3, [sp, #32]
+0xffffb75e3c864e34 <rmqueue_bulk+1956>:	bl	0xffffb75e3cba1b78 <__list_del_entry_valid_or_report>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/list.h: 125
+0xffffb75e3c864e38 <rmqueue_bulk+1960>:	ldr	x6, [sp, #16]
+0xffffb75e3c864e3c <rmqueue_bulk+1964>:	ldr	x3, [sp, #32]
+0xffffb75e3c864e40 <rmqueue_bulk+1968>:	ldr	w9, [sp, #24]
+0xffffb75e3c864e44 <rmqueue_bulk+1972>:	tbz	w0, #0, 0xffffb75e3c864e54 <rmqueue_bulk+1988>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/list.h: 218
+0xffffb75e3c864e48 <rmqueue_bulk+1976>:	ldp	x1, x0, [x24]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/list.h: 195
+0xffffb75e3c864e4c <rmqueue_bulk+1980>:	str	x0, [x1, #8]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/list.h: 196
+0xffffb75e3c864e50 <rmqueue_bulk+1984>:	str	x1, [x0]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/list.h: 230
+0xffffb75e3c864e54 <rmqueue_bulk+1988>:	add	x0, x28, x28, lsl #1
+0xffffb75e3c864e58 <rmqueue_bulk+1992>:	mov	x1, #0x100                 	// #256
+0xffffb75e3c864e5c <rmqueue_bulk+1996>:	movk	x1, #0xdead, lsl #48
+0xffffb75e3c864e60 <rmqueue_bulk+2000>:	str	x1, [x24]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/list.h: 231
+0xffffb75e3c864e64 <rmqueue_bulk+2004>:	add	x1, x1, #0x22
+0xffffb75e3c864e68 <rmqueue_bulk+2008>:	str	x1, [x24, #8]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/page-flags.h: 995
+0xffffb75e3c864e6c <rmqueue_bulk+2012>:	add	x0, x28, x0, lsl #2
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/mm_types.h: 566
+0xffffb75e3c864e70 <rmqueue_bulk+2016>:	str	xzr, [x3, #40]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/page-flags.h: 995
+0xffffb75e3c864e74 <rmqueue_bulk+2020>:	ldr	w1, [x3, #48]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 736
+0xffffb75e3c864e78 <rmqueue_bulk+2024>:	add	x0, x21, x0, lsl #3
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/page-flags.h: 995
+0xffffb75e3c864e7c <rmqueue_bulk+2028>:	orr	w1, w1, #0x80
+0xffffb75e3c864e80 <rmqueue_bulk+2032>:	str	w1, [x3, #48]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 736
+0xffffb75e3c864e84 <rmqueue_bulk+2036>:	ldr	x1, [x0, #352]
+0xffffb75e3c864e88 <rmqueue_bulk+2040>:	sub	x1, x1, #0x1
+0xffffb75e3c864e8c <rmqueue_bulk+2044>:	str	x1, [x0, #352]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1413
+0xffffb75e3c864e90 <rmqueue_bulk+2048>:	ldr	w0, [sp, #8]
+0xffffb75e3c864e94 <rmqueue_bulk+2052>:	cmp	w27, w0
+0xffffb75e3c864e98 <rmqueue_bulk+2056>:	b.le	0xffffb75e3c864f90 <rmqueue_bulk+2304>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/list.h: 169
+0xffffb75e3c864e9c <rmqueue_bulk+2060>:	ldr	x0, [sp, #120]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1411
+0xffffb75e3c864ea0 <rmqueue_bulk+2064>:	mov	w24, #0x0                   	// #0
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 697
+0xffffb75e3c864ea4 <rmqueue_bulk+2068>:	stp	x6, x23, [sp, #32]
+0xffffb75e3c864ea8 <rmqueue_bulk+2072>:	mov	x23, x21
+0xffffb75e3c864eac <rmqueue_bulk+2076>:	mov	w21, w9
+0xffffb75e3c864eb0 <rmqueue_bulk+2080>:	str	w22, [sp, #96]
+0xffffb75e3c864eb4 <rmqueue_bulk+2084>:	mov	w22, w24
+0xffffb75e3c864eb8 <rmqueue_bulk+2088>:	str	w20, [sp, #104]
+0xffffb75e3c864ebc <rmqueue_bulk+2092>:	mov	w20, w19
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/list.h: 169
+0xffffb75e3c864ec0 <rmqueue_bulk+2096>:	lsl	x0, x0, #4
+0xffffb75e3c864ec4 <rmqueue_bulk+2100>:	stp	x3, x0, [sp, #16]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 697
+0xffffb75e3c864ec8 <rmqueue_bulk+2104>:	stp	w9, w26, [sp, #88]
+0xffffb75e3c864ecc <rmqueue_bulk+2108>:	nop
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1414
+0xffffb75e3c864ed0 <rmqueue_bulk+2112>:	sub	w26, w20, #0x1
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 697
+0xffffb75e3c864ed4 <rmqueue_bulk+2116>:	mov	w0, #0x68                  	// #104
+0xffffb75e3c864ed8 <rmqueue_bulk+2120>:	mov	x1, #0x100                 	// #256
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1415
+0xffffb75e3c864edc <rmqueue_bulk+2124>:	lsr	w21, w21, #1
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/list.h: 169
+0xffffb75e3c864ee0 <rmqueue_bulk+2128>:	add	x2, x26, w26, uxtw #1
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1414
+0xffffb75e3c864ee4 <rmqueue_bulk+2132>:	mov	x20, x26
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1424
+0xffffb75e3c864ee8 <rmqueue_bulk+2136>:	umaddl	x6, w26, w0, x1
+0xffffb75e3c864eec <rmqueue_bulk+2140>:	ubfiz	x3, x21, #6, #31
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/list.h: 169
+0xffffb75e3c864ef0 <rmqueue_bulk+2144>:	ldp	x0, x1, [sp, #16]
+0xffffb75e3c864ef4 <rmqueue_bulk+2148>:	add	x2, x26, x2, lsl #2
+0xffffb75e3c864ef8 <rmqueue_bulk+2152>:	add	x2, x1, x2, lsl #3
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1424
+0xffffb75e3c864efc <rmqueue_bulk+2156>:	add	x24, x0, x3
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 697
+0xffffb75e3c864f00 <rmqueue_bulk+2160>:	add	x2, x23, x2
+0xffffb75e3c864f04 <rmqueue_bulk+2164>:	add	x28, x24, #0x8
+0xffffb75e3c864f08 <rmqueue_bulk+2168>:	ldr	x0, [sp, #48]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/list.h: 169
+0xffffb75e3c864f0c <rmqueue_bulk+2172>:	ldr	x27, [x2, #256]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 697
+0xffffb75e3c864f10 <rmqueue_bulk+2176>:	add	x25, x6, x0
+0xffffb75e3c864f14 <rmqueue_bulk+2180>:	add	x19, x23, x25
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/list.h: 88
+0xffffb75e3c864f18 <rmqueue_bulk+2184>:	mov	x0, x28
+0xffffb75e3c864f1c <rmqueue_bulk+2188>:	mov	x2, x27
+0xffffb75e3c864f20 <rmqueue_bulk+2192>:	mov	x1, x19
+0xffffb75e3c864f24 <rmqueue_bulk+2196>:	bl	0xffffb75e3cba1a98 <__list_add_valid_or_report>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/list.h: 89
+0xffffb75e3c864f28 <rmqueue_bulk+2200>:	tbz	w0, #0, 0xffffb75e3c864f38 <rmqueue_bulk+2216>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/list.h: 153
+0xffffb75e3c864f2c <rmqueue_bulk+2204>:	str	x28, [x27, #8]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/list.h: 154
+0xffffb75e3c864f30 <rmqueue_bulk+2208>:	stp	x27, x19, [x24, #8]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/list.h: 156
+0xffffb75e3c864f34 <rmqueue_bulk+2212>:	str	x28, [x23, x25]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 698
+0xffffb75e3c864f38 <rmqueue_bulk+2216>:	add	x0, x26, x26, lsl #1
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1429
+0xffffb75e3c864f3c <rmqueue_bulk+2220>:	add	w22, w22, w21
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 698
+0xffffb75e3c864f40 <rmqueue_bulk+2224>:	add	x0, x26, x0, lsl #2
+0xffffb75e3c864f44 <rmqueue_bulk+2228>:	add	x0, x23, x0, lsl #3
+0xffffb75e3c864f48 <rmqueue_bulk+2232>:	ldr	x1, [x0, #352]
+0xffffb75e3c864f4c <rmqueue_bulk+2236>:	add	x1, x1, #0x1
+0xffffb75e3c864f50 <rmqueue_bulk+2240>:	str	x1, [x0, #352]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/mm_types.h: 566
+0xffffb75e3c864f54 <rmqueue_bulk+2244>:	str	x26, [x24, #40]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/page-flags.h: 995
+0xffffb75e3c864f58 <rmqueue_bulk+2248>:	ldr	w0, [x24, #48]
+0xffffb75e3c864f5c <rmqueue_bulk+2252>:	and	w0, w0, #0xffffff7f
+0xffffb75e3c864f60 <rmqueue_bulk+2256>:	str	w0, [x24, #48]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1413
+0xffffb75e3c864f64 <rmqueue_bulk+2260>:	ldr	w0, [sp, #8]
+0xffffb75e3c864f68 <rmqueue_bulk+2264>:	cmp	w20, w0
+0xffffb75e3c864f6c <rmqueue_bulk+2268>:	b.gt	0xffffb75e3c864ed0 <rmqueue_bulk+2112>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1442
+0xffffb75e3c864f70 <rmqueue_bulk+2272>:	ldp	w9, w26, [sp, #88]
+0xffffb75e3c864f74 <rmqueue_bulk+2276>:	mov	x21, x23
+0xffffb75e3c864f78 <rmqueue_bulk+2280>:	ldp	x6, x23, [sp, #32]
+0xffffb75e3c864f7c <rmqueue_bulk+2284>:	mov	w24, w22
+0xffffb75e3c864f80 <rmqueue_bulk+2288>:	ldr	x3, [sp, #16]
+0xffffb75e3c864f84 <rmqueue_bulk+2292>:	sub	w9, w9, w24
+0xffffb75e3c864f88 <rmqueue_bulk+2296>:	ldr	w22, [sp, #96]
+0xffffb75e3c864f8c <rmqueue_bulk+2300>:	ldr	w20, [sp, #104]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 671
+0xffffb75e3c864f90 <rmqueue_bulk+2304>:	ldr	w1, [sp, #8]
+0xffffb75e3c864f94 <rmqueue_bulk+2308>:	cmp	w1, #0x3
+0xffffb75e3c864f98 <rmqueue_bulk+2312>:	cset	w0, ls  // ls = plast
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 576
+0xffffb75e3c864f9c <rmqueue_bulk+2316>:	cmp	w1, #0x9
+0xffffb75e3c864fa0 <rmqueue_bulk+2320>:	cset	w1, eq  // eq = none
+0xffffb75e3c864fa4 <rmqueue_bulk+2324>:	orr	w27, w0, w1
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 671
+0xffffb75e3c864fa8 <rmqueue_bulk+2328>:	cmp	w22, #0x5
+0xffffb75e3c864fac <rmqueue_bulk+2332>:	b.eq	0xffffb75e3c8652dc <rmqueue_bulk+3148>  // b.none
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1443
+0xffffb75e3c864fb0 <rmqueue_bulk+2336>:	neg	w9, w9
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 674
+0xffffb75e3c864fb4 <rmqueue_bulk+2340>:	mov	x0, x21
+0xffffb75e3c864fb8 <rmqueue_bulk+2344>:	mov	w1, #0x0                   	// #0
+0xffffb75e3c864fbc <rmqueue_bulk+2348>:	stp	x6, x3, [sp, #16]
+0xffffb75e3c864fc0 <rmqueue_bulk+2352>:	sxtw	x24, w9
+0xffffb75e3c864fc4 <rmqueue_bulk+2356>:	mov	x2, x24
+0xffffb75e3c864fc8 <rmqueue_bulk+2360>:	bl	0xffffb75e3c7f9d40 <__mod_zone_page_state>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 676
+0xffffb75e3c864fcc <rmqueue_bulk+2364>:	ldp	x6, x3, [sp, #16]
+0xffffb75e3c864fd0 <rmqueue_bulk+2368>:	cmp	w22, #0x4
+0xffffb75e3c864fd4 <rmqueue_bulk+2372>:	b.eq	0xffffb75e3c865538 <rmqueue_bulk+3752>  // b.none
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 678
+0xffffb75e3c864fd8 <rmqueue_bulk+2376>:	cmp	w22, #0x3
+0xffffb75e3c864fdc <rmqueue_bulk+2380>:	b.eq	0xffffb75e3c8652d0 <rmqueue_bulk+3136>  // b.none
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 576
+0xffffb75e3c864fe0 <rmqueue_bulk+2384>:	cbnz	w27, 0xffffb75e3c8653e8 <rmqueue_bulk+3416>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 578
+0xffffb75e3c864fe4 <rmqueue_bulk+2388>:	adrp	x0, 0xffffb75e3e3a1000 <huge_shmem_orders_within_size>
+0xffffb75e3c864fe8 <rmqueue_bulk+2392>:	ldr	x1, [sp, #152]
+0xffffb75e3c864fec <rmqueue_bulk+2396>:	ldr	x0, [x0, #752]
+0xffffb75e3c864ff0 <rmqueue_bulk+2400>:	cmp	x0, x1
+0xffffb75e3c864ff4 <rmqueue_bulk+2404>:	b.eq	0xffffb75e3c8653e8 <rmqueue_bulk+3416>  // b.none
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1635
+0xffffb75e3c864ff8 <rmqueue_bulk+2408>:	mov	w4, #0x0                   	// #0
+0xffffb75e3c864ffc <rmqueue_bulk+2412>:	nop
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./arch/arm64/include/asm/jump_label.h: 22
+0xffffb75e3c865000 <rmqueue_bulk+2416>:	nop
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 2327
+0xffffb75e3c865004 <rmqueue_bulk+2420>:	str	wzr, [sp, #24]
+0xffffb75e3c865008 <rmqueue_bulk+2424>:	b	0xffffb75e3c864998 <rmqueue_bulk+776>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/asm-generic/bitops/generic-non-atomic.h: 128
+0xffffb75e3c86500c <rmqueue_bulk+2428>:	ldr	x0, [x6]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_reporting.h: 20
+0xffffb75e3c865010 <rmqueue_bulk+2432>:	tbz	w0, #3, 0xffffb75e3c864b80 <rmqueue_bulk+1264>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/asm-generic/bitops/generic-non-atomic.h: 42
+0xffffb75e3c865014 <rmqueue_bulk+2436>:	ldr	x0, [x6]
+0xffffb75e3c865018 <rmqueue_bulk+2440>:	and	x0, x0, #0xfffffffffffffff7
+0xffffb75e3c86501c <rmqueue_bulk+2444>:	str	x0, [x6]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/page-flags.h: 638
+0xffffb75e3c865020 <rmqueue_bulk+2448>:	b	0xffffb75e3c864b80 <rmqueue_bulk+1264>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1627
+0xffffb75e3c865024 <rmqueue_bulk+2452>:	ldr	w0, [sp, #8]
+0xffffb75e3c865028 <rmqueue_bulk+2456>:	cmp	w0, #0xa
+0xffffb75e3c86502c <rmqueue_bulk+2460>:	b.hi	0xffffb75e3c864db8 <rmqueue_bulk+1832>  // b.pmore
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 2315
+0xffffb75e3c865030 <rmqueue_bulk+2464>:	ldr	x2, [sp, #80]
+0xffffb75e3c865034 <rmqueue_bulk+2468>:	ldr	w27, [sp, #8]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 749
+0xffffb75e3c865038 <rmqueue_bulk+2472>:	mov	w19, w27
+0xffffb75e3c86503c <rmqueue_bulk+2476>:	add	x0, x19, w27, uxtw #1
+0xffffb75e3c865040 <rmqueue_bulk+2480>:	add	x0, x19, x0, lsl #2
+0xffffb75e3c865044 <rmqueue_bulk+2484>:	add	x0, x21, x0, lsl #3
+0xffffb75e3c865048 <rmqueue_bulk+2488>:	ldr	x24, [x0, #320]
+0xffffb75e3c86504c <rmqueue_bulk+2492>:	cmp	x24, x2
+0xffffb75e3c865050 <rmqueue_bulk+2496>:	b.eq	0xffffb75e3c8654e8 <rmqueue_bulk+3672>  // b.none
+0xffffb75e3c865054 <rmqueue_bulk+2500>:	sub	x5, x24, #0x8
+0xffffb75e3c865058 <rmqueue_bulk+2504>:	mov	x6, x5
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1630
+0xffffb75e3c86505c <rmqueue_bulk+2508>:	cbz	x5, 0xffffb75e3c8654e8 <rmqueue_bulk+3672>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1633
+0xffffb75e3c865060 <rmqueue_bulk+2512>:	mov	w28, #0x1                   	// #1
+0xffffb75e3c865064 <rmqueue_bulk+2516>:	mov	w3, w27
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1439
+0xffffb75e3c865068 <rmqueue_bulk+2520>:	lsl	w28, w28, w27
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./arch/arm64/include/asm/jump_label.h: 22
+0xffffb75e3c86506c <rmqueue_bulk+2524>:	nop
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 733
+0xffffb75e3c865070 <rmqueue_bulk+2528>:	mov	x0, x24
+0xffffb75e3c865074 <rmqueue_bulk+2532>:	mov	x23, x24
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/list.h: 124
+0xffffb75e3c865078 <rmqueue_bulk+2536>:	str	w3, [sp, #16]
+0xffffb75e3c86507c <rmqueue_bulk+2540>:	stp	x6, x5, [sp, #24]
+0xffffb75e3c865080 <rmqueue_bulk+2544>:	bl	0xffffb75e3cba1b78 <__list_del_entry_valid_or_report>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/list.h: 125
+0xffffb75e3c865084 <rmqueue_bulk+2548>:	ldr	w3, [sp, #16]
+0xffffb75e3c865088 <rmqueue_bulk+2552>:	ldp	x6, x5, [sp, #24]
+0xffffb75e3c86508c <rmqueue_bulk+2556>:	tbz	w0, #0, 0xffffb75e3c86509c <rmqueue_bulk+2572>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/list.h: 218
+0xffffb75e3c865090 <rmqueue_bulk+2560>:	ldp	x2, x0, [x24]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/list.h: 195
+0xffffb75e3c865094 <rmqueue_bulk+2564>:	str	x0, [x2, #8]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/list.h: 196
+0xffffb75e3c865098 <rmqueue_bulk+2568>:	str	x2, [x0]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/list.h: 230
+0xffffb75e3c86509c <rmqueue_bulk+2572>:	add	x0, x19, x19, lsl #1
+0xffffb75e3c8650a0 <rmqueue_bulk+2576>:	mov	x2, #0x100                 	// #256
+0xffffb75e3c8650a4 <rmqueue_bulk+2580>:	movk	x2, #0xdead, lsl #48
+0xffffb75e3c8650a8 <rmqueue_bulk+2584>:	str	x2, [x24]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/list.h: 231
+0xffffb75e3c8650ac <rmqueue_bulk+2588>:	add	x2, x2, #0x22
+0xffffb75e3c8650b0 <rmqueue_bulk+2592>:	str	x2, [x24, #8]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/page-flags.h: 995
+0xffffb75e3c8650b4 <rmqueue_bulk+2596>:	add	x0, x19, x0, lsl #2
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/mm_types.h: 566
+0xffffb75e3c8650b8 <rmqueue_bulk+2600>:	str	xzr, [x5, #40]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/page-flags.h: 995
+0xffffb75e3c8650bc <rmqueue_bulk+2604>:	ldr	w1, [x5, #48]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 736
+0xffffb75e3c8650c0 <rmqueue_bulk+2608>:	add	x0, x21, x0, lsl #3
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/page-flags.h: 995
+0xffffb75e3c8650c4 <rmqueue_bulk+2612>:	orr	w1, w1, #0x80
+0xffffb75e3c8650c8 <rmqueue_bulk+2616>:	str	w1, [x5, #48]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 736
+0xffffb75e3c8650cc <rmqueue_bulk+2620>:	ldr	x1, [x0, #352]
+0xffffb75e3c8650d0 <rmqueue_bulk+2624>:	sub	x1, x1, #0x1
+0xffffb75e3c8650d4 <rmqueue_bulk+2628>:	str	x1, [x0, #352]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1413
+0xffffb75e3c8650d8 <rmqueue_bulk+2632>:	ldr	w0, [sp, #8]
+0xffffb75e3c8650dc <rmqueue_bulk+2636>:	cmp	w27, w0
+0xffffb75e3c8650e0 <rmqueue_bulk+2640>:	b.le	0xffffb75e3c8651c8 <rmqueue_bulk+2872>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 697
+0xffffb75e3c8650e4 <rmqueue_bulk+2644>:	mov	x0, x21
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1411
+0xffffb75e3c8650e8 <rmqueue_bulk+2648>:	mov	w24, #0x0                   	// #0
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 697
+0xffffb75e3c8650ec <rmqueue_bulk+2652>:	mov	w21, w24
+0xffffb75e3c8650f0 <rmqueue_bulk+2656>:	mov	x24, x0
+0xffffb75e3c8650f4 <rmqueue_bulk+2660>:	str	x23, [sp, #32]
+0xffffb75e3c8650f8 <rmqueue_bulk+2664>:	mov	w23, w28
+0xffffb75e3c8650fc <rmqueue_bulk+2668>:	stp	w26, w22, [sp, #88]
+0xffffb75e3c865100 <rmqueue_bulk+2672>:	mov	w22, w3
+0xffffb75e3c865104 <rmqueue_bulk+2676>:	stp	x5, x6, [sp, #16]
+0xffffb75e3c865108 <rmqueue_bulk+2680>:	str	w28, [sp, #40]
+0xffffb75e3c86510c <rmqueue_bulk+2684>:	str	w20, [sp, #96]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1414
+0xffffb75e3c865110 <rmqueue_bulk+2688>:	sub	w25, w22, #0x1
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 697
+0xffffb75e3c865114 <rmqueue_bulk+2692>:	mov	w0, #0x68                  	// #104
+0xffffb75e3c865118 <rmqueue_bulk+2696>:	mov	x1, #0x140                 	// #320
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1415
+0xffffb75e3c86511c <rmqueue_bulk+2700>:	lsr	w23, w23, #1
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/list.h: 169
+0xffffb75e3c865120 <rmqueue_bulk+2704>:	add	x2, x25, w25, uxtw #1
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1414
+0xffffb75e3c865124 <rmqueue_bulk+2708>:	mov	x22, x25
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1424
+0xffffb75e3c865128 <rmqueue_bulk+2712>:	umaddl	x26, w25, w0, x1
+0xffffb75e3c86512c <rmqueue_bulk+2716>:	ubfiz	x19, x23, #6, #31
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/list.h: 169
+0xffffb75e3c865130 <rmqueue_bulk+2720>:	add	x2, x25, x2, lsl #2
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1424
+0xffffb75e3c865134 <rmqueue_bulk+2724>:	ldr	x0, [sp, #16]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/list.h: 169
+0xffffb75e3c865138 <rmqueue_bulk+2728>:	add	x2, x24, x2, lsl #3
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 697
+0xffffb75e3c86513c <rmqueue_bulk+2732>:	add	x27, x24, x26
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1424
+0xffffb75e3c865140 <rmqueue_bulk+2736>:	add	x19, x0, x19
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 697
+0xffffb75e3c865144 <rmqueue_bulk+2740>:	mov	x1, x27
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/list.h: 169
+0xffffb75e3c865148 <rmqueue_bulk+2744>:	ldr	x20, [x2, #320]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 697
+0xffffb75e3c86514c <rmqueue_bulk+2748>:	add	x28, x19, #0x8
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/list.h: 88
+0xffffb75e3c865150 <rmqueue_bulk+2752>:	mov	x0, x28
+0xffffb75e3c865154 <rmqueue_bulk+2756>:	mov	x2, x20
+0xffffb75e3c865158 <rmqueue_bulk+2760>:	bl	0xffffb75e3cba1a98 <__list_add_valid_or_report>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/list.h: 89
+0xffffb75e3c86515c <rmqueue_bulk+2764>:	tbz	w0, #0, 0xffffb75e3c86516c <rmqueue_bulk+2780>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/list.h: 153
+0xffffb75e3c865160 <rmqueue_bulk+2768>:	str	x28, [x20, #8]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/list.h: 154
+0xffffb75e3c865164 <rmqueue_bulk+2772>:	stp	x20, x27, [x19, #8]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/list.h: 156
+0xffffb75e3c865168 <rmqueue_bulk+2776>:	str	x28, [x24, x26]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 698
+0xffffb75e3c86516c <rmqueue_bulk+2780>:	add	x0, x25, x25, lsl #1
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1429
+0xffffb75e3c865170 <rmqueue_bulk+2784>:	add	w21, w21, w23
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 698
+0xffffb75e3c865174 <rmqueue_bulk+2788>:	add	x0, x25, x0, lsl #2
+0xffffb75e3c865178 <rmqueue_bulk+2792>:	add	x0, x24, x0, lsl #3
+0xffffb75e3c86517c <rmqueue_bulk+2796>:	ldr	x1, [x0, #352]
+0xffffb75e3c865180 <rmqueue_bulk+2800>:	add	x1, x1, #0x1
+0xffffb75e3c865184 <rmqueue_bulk+2804>:	str	x1, [x0, #352]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/mm_types.h: 566
+0xffffb75e3c865188 <rmqueue_bulk+2808>:	str	x25, [x19, #40]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/page-flags.h: 995
+0xffffb75e3c86518c <rmqueue_bulk+2812>:	ldr	w0, [x19, #48]
+0xffffb75e3c865190 <rmqueue_bulk+2816>:	and	w0, w0, #0xffffff7f
+0xffffb75e3c865194 <rmqueue_bulk+2820>:	str	w0, [x19, #48]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1413
+0xffffb75e3c865198 <rmqueue_bulk+2824>:	ldr	w0, [sp, #8]
+0xffffb75e3c86519c <rmqueue_bulk+2828>:	cmp	w22, w0
+0xffffb75e3c8651a0 <rmqueue_bulk+2832>:	b.gt	0xffffb75e3c865110 <rmqueue_bulk+2688>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1442
+0xffffb75e3c8651a4 <rmqueue_bulk+2836>:	ldp	x5, x6, [sp, #16]
+0xffffb75e3c8651a8 <rmqueue_bulk+2840>:	mov	x0, x24
+0xffffb75e3c8651ac <rmqueue_bulk+2844>:	ldr	w28, [sp, #40]
+0xffffb75e3c8651b0 <rmqueue_bulk+2848>:	mov	w24, w21
+0xffffb75e3c8651b4 <rmqueue_bulk+2852>:	ldr	x23, [sp, #32]
+0xffffb75e3c8651b8 <rmqueue_bulk+2856>:	mov	x21, x0
+0xffffb75e3c8651bc <rmqueue_bulk+2860>:	ldp	w26, w22, [sp, #88]
+0xffffb75e3c8651c0 <rmqueue_bulk+2864>:	sub	w28, w28, w24
+0xffffb75e3c8651c4 <rmqueue_bulk+2868>:	ldr	w20, [sp, #96]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 674
+0xffffb75e3c8651c8 <rmqueue_bulk+2872>:	neg	w24, w28
+0xffffb75e3c8651cc <rmqueue_bulk+2876>:	mov	x0, x21
+0xffffb75e3c8651d0 <rmqueue_bulk+2880>:	mov	w1, #0x0                   	// #0
+0xffffb75e3c8651d4 <rmqueue_bulk+2884>:	stp	x6, x5, [sp, #16]
+0xffffb75e3c8651d8 <rmqueue_bulk+2888>:	sxtw	x24, w24
+0xffffb75e3c8651dc <rmqueue_bulk+2892>:	mov	x2, x24
+0xffffb75e3c8651e0 <rmqueue_bulk+2896>:	bl	0xffffb75e3c7f9d40 <__mod_zone_page_state>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 677
+0xffffb75e3c8651e4 <rmqueue_bulk+2900>:	mov	x0, x21
+0xffffb75e3c8651e8 <rmqueue_bulk+2904>:	mov	x2, x24
+0xffffb75e3c8651ec <rmqueue_bulk+2908>:	mov	w1, #0xa                   	// #10
+0xffffb75e3c8651f0 <rmqueue_bulk+2912>:	bl	0xffffb75e3c7f9d40 <__mod_zone_page_state>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 576
+0xffffb75e3c8651f4 <rmqueue_bulk+2916>:	ldr	w0, [sp, #8]
+0xffffb75e3c8651f8 <rmqueue_bulk+2920>:	ldp	x6, x5, [sp, #16]
+0xffffb75e3c8651fc <rmqueue_bulk+2924>:	cmp	w0, #0x9
+0xffffb75e3c865200 <rmqueue_bulk+2928>:	ccmp	w0, #0x3, #0x0, ne  // ne = any
+0xffffb75e3c865204 <rmqueue_bulk+2932>:	b.ls	0xffffb75e3c865210 <rmqueue_bulk+2944>  // b.plast
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 578
+0xffffb75e3c865208 <rmqueue_bulk+2936>:	adrp	x0, 0xffffb75e3e3a1000 <huge_shmem_orders_within_size>
+0xffffb75e3c86520c <rmqueue_bulk+2940>:	ldr	x0, [x0, #752]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./arch/arm64/include/asm/jump_label.h: 22
+0xffffb75e3c865210 <rmqueue_bulk+2944>:	nop
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 2327
+0xffffb75e3c865214 <rmqueue_bulk+2948>:	mov	w0, #0x1                   	// #1
+0xffffb75e3c865218 <rmqueue_bulk+2952>:	str	w0, [sp, #24]
+0xffffb75e3c86521c <rmqueue_bulk+2956>:	b	0xffffb75e3c864998 <rmqueue_bulk+776>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/trace/events/kmem.h: 238
+0xffffb75e3c865220 <rmqueue_bulk+2960>:	adrp	x0, 0xffffb75e3df92000 <.data..percpu>
+0xffffb75e3c865224 <rmqueue_bulk+2964>:	add	x0, x0, #0x8
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./arch/arm64/include/asm/percpu.h: 40
+0xffffb75e3c865228 <rmqueue_bulk+2968>:	mrs	x2, tpidr_el2
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./arch/arm64/include/asm/percpu.h: 46
+0xffffb75e3c86522c <rmqueue_bulk+2972>:	ldr	w2, [x0, x2]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/asm-generic/bitops/generic-non-atomic.h: 128
+0xffffb75e3c865230 <rmqueue_bulk+2976>:	adrp	x1, 0xffffb75e3e39e000 <join_entries+13376>
+0xffffb75e3c865234 <rmqueue_bulk+2980>:	add	x0, x1, #0xe98
+0xffffb75e3c865238 <rmqueue_bulk+2984>:	lsr	w1, w2, #6
+0xffffb75e3c86523c <rmqueue_bulk+2988>:	ldr	x0, [x0, x1, lsl #3]
+0xffffb75e3c865240 <rmqueue_bulk+2992>:	lsr	x0, x0, x2
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/trace/events/kmem.h: 238
+0xffffb75e3c865244 <rmqueue_bulk+2996>:	tbz	w0, #0, 0xffffb75e3c864998 <rmqueue_bulk+776>
+0xffffb75e3c865248 <rmqueue_bulk+3000>:	str	x6, [sp, #16]
+0xffffb75e3c86524c <rmqueue_bulk+3004>:	ldr	w2, [sp, #8]
+0xffffb75e3c865250 <rmqueue_bulk+3008>:	mov	x1, x3
+0xffffb75e3c865254 <rmqueue_bulk+3012>:	mov	w4, #0x0                   	// #0
+0xffffb75e3c865258 <rmqueue_bulk+3016>:	mov	w3, #0x4                   	// #4
+0xffffb75e3c86525c <rmqueue_bulk+3020>:	mov	x0, #0x0                   	// #0
+0xffffb75e3c865260 <rmqueue_bulk+3024>:	bl	0xffffb75e3c806c38 <__traceiter_mm_page_alloc_zone_locked>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 2294
+0xffffb75e3c865264 <rmqueue_bulk+3028>:	ldr	x6, [sp, #16]
+0xffffb75e3c865268 <rmqueue_bulk+3032>:	b	0xffffb75e3c864998 <rmqueue_bulk+776>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/asm-generic/bitops/generic-non-atomic.h: 128
+0xffffb75e3c86526c <rmqueue_bulk+3036>:	ldur	x0, [x24, #-8]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_reporting.h: 20
+0xffffb75e3c865270 <rmqueue_bulk+3040>:	tbz	w0, #3, 0xffffb75e3c8647f4 <rmqueue_bulk+356>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/asm-generic/bitops/generic-non-atomic.h: 42
+0xffffb75e3c865274 <rmqueue_bulk+3044>:	ldur	x0, [x24, #-8]
+0xffffb75e3c865278 <rmqueue_bulk+3048>:	and	x0, x0, #0xfffffffffffffff7
+0xffffb75e3c86527c <rmqueue_bulk+3052>:	stur	x0, [x24, #-8]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/page-flags.h: 638
+0xffffb75e3c865280 <rmqueue_bulk+3056>:	b	0xffffb75e3c8647f4 <rmqueue_bulk+356>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./arch/arm64/include/asm/jump_label.h: 22
+0xffffb75e3c865284 <rmqueue_bulk+3060>:	mov	x6, x0
+0xffffb75e3c865288 <rmqueue_bulk+3064>:	nop
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 2360
+0xffffb75e3c86528c <rmqueue_bulk+3068>:	add	x23, x6, #0x8
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 2327
+0xffffb75e3c865290 <rmqueue_bulk+3072>:	str	wzr, [sp, #24]
+0xffffb75e3c865294 <rmqueue_bulk+3076>:	b	0xffffb75e3c864998 <rmqueue_bulk+776>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1627
+0xffffb75e3c865298 <rmqueue_bulk+3080>:	add	w27, w27, #0x1
+0xffffb75e3c86529c <rmqueue_bulk+3084>:	add	x2, x2, #0x68
+0xffffb75e3c8652a0 <rmqueue_bulk+3088>:	cmp	w27, #0xb
+0xffffb75e3c8652a4 <rmqueue_bulk+3092>:	b.ne	0xffffb75e3c8647bc <rmqueue_bulk+300>  // b.any
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 2308
+0xffffb75e3c8652a8 <rmqueue_bulk+3096>:	ldr	w0, [sp, #24]
+0xffffb75e3c8652ac <rmqueue_bulk+3100>:	cmp	w0, #0x3
+0xffffb75e3c8652b0 <rmqueue_bulk+3104>:	b.eq	0xffffb75e3c865554 <rmqueue_bulk+3780>  // b.none
+0xffffb75e3c8652b4 <rmqueue_bulk+3108>:	cmp	w0, #0x1
+0xffffb75e3c8652b8 <rmqueue_bulk+3112>:	b.eq	0xffffb75e3c865030 <rmqueue_bulk+2464>  // b.none
+0xffffb75e3c8652bc <rmqueue_bulk+3116>:	cmp	w0, #0x2
+0xffffb75e3c8652c0 <rmqueue_bulk+3120>:	b.eq	0xffffb75e3c864a40 <rmqueue_bulk+944>  // b.none
+0xffffb75e3c8652c4 <rmqueue_bulk+3124>:	ldr	x1, [sp, #144]
+0xffffb75e3c8652c8 <rmqueue_bulk+3128>:	ldr	w27, [sp, #8]
+0xffffb75e3c8652cc <rmqueue_bulk+3132>:	b	0xffffb75e3c864ddc <rmqueue_bulk+1868>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 679
+0xffffb75e3c8652d0 <rmqueue_bulk+3136>:	ldr	x0, [x21, #1536]
+0xffffb75e3c8652d4 <rmqueue_bulk+3140>:	add	x24, x24, x0
+0xffffb75e3c8652d8 <rmqueue_bulk+3144>:	str	x24, [x21, #1536]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 576
+0xffffb75e3c8652dc <rmqueue_bulk+3148>:	cbnz	w27, 0xffffb75e3c864ff8 <rmqueue_bulk+2408>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 578
+0xffffb75e3c8652e0 <rmqueue_bulk+3152>:	adrp	x0, 0xffffb75e3e3a1000 <huge_shmem_orders_within_size>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1635
+0xffffb75e3c8652e4 <rmqueue_bulk+3156>:	mov	w4, #0x0                   	// #0
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 578
+0xffffb75e3c8652e8 <rmqueue_bulk+3160>:	ldr	x0, [x0, #752]
+0xffffb75e3c8652ec <rmqueue_bulk+3164>:	b	0xffffb75e3c865000 <rmqueue_bulk+2416>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/asm-generic/bitops/generic-non-atomic.h: 128
+0xffffb75e3c8652f0 <rmqueue_bulk+3168>:	ldur	x0, [x24, #-8]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_reporting.h: 20
+0xffffb75e3c8652f4 <rmqueue_bulk+3172>:	tbz	w0, #3, 0xffffb75e3c864e20 <rmqueue_bulk+1936>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/asm-generic/bitops/generic-non-atomic.h: 42
+0xffffb75e3c8652f8 <rmqueue_bulk+3176>:	ldur	x0, [x24, #-8]
+0xffffb75e3c8652fc <rmqueue_bulk+3180>:	and	x0, x0, #0xfffffffffffffff7
+0xffffb75e3c865300 <rmqueue_bulk+3184>:	stur	x0, [x24, #-8]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/page-flags.h: 638
+0xffffb75e3c865304 <rmqueue_bulk+3188>:	b	0xffffb75e3c864e20 <rmqueue_bulk+1936>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./arch/arm64/include/asm/irqflags.h: 199
+0xffffb75e3c865308 <rmqueue_bulk+3192>:	msr	s3_0_c4_c6_0, x20
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./arch/arm64/include/asm/irqflags.h: 200
+0xffffb75e3c86530c <rmqueue_bulk+3196>:	dsb	sy
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./arch/arm64/include/asm/irqflags.h: 201
+0xffffb75e3c865310 <rmqueue_bulk+3200>:	b	0xffffb75e3c8649f8 <rmqueue_bulk+872>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/asm-generic/bitops/generic-non-atomic.h: 128
+0xffffb75e3c865314 <rmqueue_bulk+3204>:	ldur	x0, [x24, #-8]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_reporting.h: 20
+0xffffb75e3c865318 <rmqueue_bulk+3208>:	tbz	w0, #3, 0xffffb75e3c865070 <rmqueue_bulk+2528>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/asm-generic/bitops/generic-non-atomic.h: 42
+0xffffb75e3c86531c <rmqueue_bulk+3212>:	ldur	x0, [x24, #-8]
+0xffffb75e3c865320 <rmqueue_bulk+3216>:	and	x0, x0, #0xfffffffffffffff7
+0xffffb75e3c865324 <rmqueue_bulk+3220>:	stur	x0, [x24, #-8]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/page-flags.h: 638
+0xffffb75e3c865328 <rmqueue_bulk+3224>:	b	0xffffb75e3c865070 <rmqueue_bulk+2528>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/trace/events/kmem.h: 238
+0xffffb75e3c86532c <rmqueue_bulk+3228>:	adrp	x0, 0xffffb75e3df92000 <.data..percpu>
+0xffffb75e3c865330 <rmqueue_bulk+3232>:	add	x0, x0, #0x8
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./arch/arm64/include/asm/percpu.h: 40
+0xffffb75e3c865334 <rmqueue_bulk+3236>:	mrs	x2, tpidr_el2
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./arch/arm64/include/asm/percpu.h: 46
+0xffffb75e3c865338 <rmqueue_bulk+3240>:	ldr	w2, [x0, x2]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/asm-generic/bitops/generic-non-atomic.h: 128
+0xffffb75e3c86533c <rmqueue_bulk+3244>:	adrp	x1, 0xffffb75e3e39e000 <join_entries+13376>
+0xffffb75e3c865340 <rmqueue_bulk+3248>:	add	x0, x1, #0xe98
+0xffffb75e3c865344 <rmqueue_bulk+3252>:	lsr	w1, w2, #6
+0xffffb75e3c865348 <rmqueue_bulk+3256>:	ldr	x0, [x0, x1, lsl #3]
+0xffffb75e3c86534c <rmqueue_bulk+3260>:	lsr	x0, x0, x2
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/trace/events/kmem.h: 238
+0xffffb75e3c865350 <rmqueue_bulk+3264>:	tbz	w0, #0, 0xffffb75e3c865214 <rmqueue_bulk+2948>
+0xffffb75e3c865354 <rmqueue_bulk+3268>:	str	x6, [sp, #16]
+0xffffb75e3c865358 <rmqueue_bulk+3272>:	ldr	w2, [sp, #8]
+0xffffb75e3c86535c <rmqueue_bulk+3276>:	mov	x1, x5
+0xffffb75e3c865360 <rmqueue_bulk+3280>:	mov	w4, #0x0                   	// #0
+0xffffb75e3c865364 <rmqueue_bulk+3284>:	mov	w3, #0x4                   	// #4
+0xffffb75e3c865368 <rmqueue_bulk+3288>:	mov	x0, #0x0                   	// #0
+0xffffb75e3c86536c <rmqueue_bulk+3292>:	bl	0xffffb75e3c806c38 <__traceiter_mm_page_alloc_zone_locked>
+0xffffb75e3c865370 <rmqueue_bulk+3296>:	ldr	x6, [sp, #16]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 2317
+0xffffb75e3c865374 <rmqueue_bulk+3300>:	mov	w0, #0x1                   	// #1
+0xffffb75e3c865378 <rmqueue_bulk+3304>:	str	w0, [sp, #24]
+0xffffb75e3c86537c <rmqueue_bulk+3308>:	b	0xffffb75e3c864998 <rmqueue_bulk+776>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 679
+0xffffb75e3c865380 <rmqueue_bulk+3312>:	ldr	x0, [x21, #1536]
+0xffffb75e3c865384 <rmqueue_bulk+3316>:	add	x24, x24, x0
+0xffffb75e3c865388 <rmqueue_bulk+3320>:	str	x24, [x21, #1536]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./arch/arm64/include/asm/jump_label.h: 22
+0xffffb75e3c86538c <rmqueue_bulk+3324>:	nop
+0xffffb75e3c865390 <rmqueue_bulk+3328>:	b	0xffffb75e3c864d38 <rmqueue_bulk+1704>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/trace/events/kmem.h: 269
+0xffffb75e3c865394 <rmqueue_bulk+3332>:	adrp	x0, 0xffffb75e3df92000 <.data..percpu>
+0xffffb75e3c865398 <rmqueue_bulk+3336>:	add	x0, x0, #0x8
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./arch/arm64/include/asm/percpu.h: 40
+0xffffb75e3c86539c <rmqueue_bulk+3340>:	mrs	x2, tpidr_el2
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./arch/arm64/include/asm/percpu.h: 46
+0xffffb75e3c8653a0 <rmqueue_bulk+3344>:	ldr	w2, [x0, x2]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/asm-generic/bitops/generic-non-atomic.h: 128
+0xffffb75e3c8653a4 <rmqueue_bulk+3348>:	adrp	x1, 0xffffb75e3e39e000 <join_entries+13376>
+0xffffb75e3c8653a8 <rmqueue_bulk+3352>:	add	x0, x1, #0xe98
+0xffffb75e3c8653ac <rmqueue_bulk+3356>:	lsr	w1, w2, #6
+0xffffb75e3c8653b0 <rmqueue_bulk+3360>:	ldr	x0, [x0, x1, lsl #3]
+0xffffb75e3c8653b4 <rmqueue_bulk+3364>:	lsr	x0, x0, x2
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/trace/events/kmem.h: 269
+0xffffb75e3c8653b8 <rmqueue_bulk+3368>:	tbz	w0, #0, 0xffffb75e3c86528c <rmqueue_bulk+3068>
+0xffffb75e3c8653bc <rmqueue_bulk+3372>:	ldr	w2, [sp, #8]
+0xffffb75e3c8653c0 <rmqueue_bulk+3376>:	mov	w5, w19
+0xffffb75e3c8653c4 <rmqueue_bulk+3380>:	mov	w3, w28
+0xffffb75e3c8653c8 <rmqueue_bulk+3384>:	mov	w4, w22
+0xffffb75e3c8653cc <rmqueue_bulk+3388>:	mov	x1, x6
+0xffffb75e3c8653d0 <rmqueue_bulk+3392>:	mov	x0, #0x0                   	// #0
+0xffffb75e3c8653d4 <rmqueue_bulk+3396>:	str	x6, [sp, #16]
+0xffffb75e3c8653d8 <rmqueue_bulk+3400>:	bl	0xffffb75e3c806d68 <__traceiter_mm_page_alloc_extfrag>
+0xffffb75e3c8653dc <rmqueue_bulk+3404>:	ldr	x6, [sp, #16]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 2360
+0xffffb75e3c8653e0 <rmqueue_bulk+3408>:	add	x23, x6, #0x8
+0xffffb75e3c8653e4 <rmqueue_bulk+3412>:	b	0xffffb75e3c865290 <rmqueue_bulk+3072>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1635
+0xffffb75e3c8653e8 <rmqueue_bulk+3416>:	cmp	w22, #0x2
+0xffffb75e3c8653ec <rmqueue_bulk+3420>:	cset	w4, le
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./arch/arm64/include/asm/jump_label.h: 22
+0xffffb75e3c8653f0 <rmqueue_bulk+3424>:	nop
+0xffffb75e3c8653f4 <rmqueue_bulk+3428>:	b	0xffffb75e3c865004 <rmqueue_bulk+2420>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/trace/events/kmem.h: 238
+0xffffb75e3c8653f8 <rmqueue_bulk+3432>:	adrp	x0, 0xffffb75e3df92000 <.data..percpu>
+0xffffb75e3c8653fc <rmqueue_bulk+3436>:	add	x0, x0, #0x8
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./arch/arm64/include/asm/percpu.h: 40
+0xffffb75e3c865400 <rmqueue_bulk+3440>:	mrs	x2, tpidr_el2
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./arch/arm64/include/asm/percpu.h: 46
+0xffffb75e3c865404 <rmqueue_bulk+3444>:	ldr	w2, [x0, x2]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/asm-generic/bitops/generic-non-atomic.h: 128
+0xffffb75e3c865408 <rmqueue_bulk+3448>:	adrp	x1, 0xffffb75e3e39e000 <join_entries+13376>
+0xffffb75e3c86540c <rmqueue_bulk+3452>:	add	x0, x1, #0xe98
+0xffffb75e3c865410 <rmqueue_bulk+3456>:	lsr	w1, w2, #6
+0xffffb75e3c865414 <rmqueue_bulk+3460>:	ldr	x0, [x0, x1, lsl #3]
+0xffffb75e3c865418 <rmqueue_bulk+3464>:	lsr	x0, x0, x2
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/trace/events/kmem.h: 238
+0xffffb75e3c86541c <rmqueue_bulk+3468>:	tbz	w0, #0, 0xffffb75e3c865004 <rmqueue_bulk+2420>
+0xffffb75e3c865420 <rmqueue_bulk+3472>:	str	x6, [sp, #16]
+0xffffb75e3c865424 <rmqueue_bulk+3476>:	ldr	w2, [sp, #8]
+0xffffb75e3c865428 <rmqueue_bulk+3480>:	mov	x1, x3
+0xffffb75e3c86542c <rmqueue_bulk+3484>:	mov	x0, #0x0                   	// #0
+0xffffb75e3c865430 <rmqueue_bulk+3488>:	mov	w3, w22
+0xffffb75e3c865434 <rmqueue_bulk+3492>:	bl	0xffffb75e3c806c38 <__traceiter_mm_page_alloc_zone_locked>
+0xffffb75e3c865438 <rmqueue_bulk+3496>:	ldr	x6, [sp, #16]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 2311
+0xffffb75e3c86543c <rmqueue_bulk+3500>:	str	wzr, [sp, #24]
+0xffffb75e3c865440 <rmqueue_bulk+3504>:	b	0xffffb75e3c864998 <rmqueue_bulk+776>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./arch/arm64/include/asm/atomic_ll_sc.h: 284
+0xffffb75e3c865444 <rmqueue_bulk+3508>:	add	x5, x19, #0x580
+0xffffb75e3c865448 <rmqueue_bulk+3512>:	mov	x2, #0x0                   	// #0
+0xffffb75e3c86544c <rmqueue_bulk+3516>:	mov	w3, #0x1                   	// #1
+0xffffb75e3c865450 <rmqueue_bulk+3520>:	prfm	pstl1strm, [x5]
+0xffffb75e3c865454 <rmqueue_bulk+3524>:	ldaxr	w1, [x5]
+0xffffb75e3c865458 <rmqueue_bulk+3528>:	eor	w4, w1, w2
+0xffffb75e3c86545c <rmqueue_bulk+3532>:	cbnz	w4, 0xffffb75e3c865468 <rmqueue_bulk+3544>
+0xffffb75e3c865460 <rmqueue_bulk+3536>:	stxr	w4, w3, [x5]
+0xffffb75e3c865464 <rmqueue_bulk+3540>:	cbnz	w4, 0xffffb75e3c865454 <rmqueue_bulk+3524>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/atomic/atomic-arch-fallback.h: 2155
+0xffffb75e3c865468 <rmqueue_bulk+3544>:	cbz	w1, 0xffffb75e3c864700 <rmqueue_bulk+112>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./arch/arm64/include/asm/qspinlock.h: 27
+0xffffb75e3c86546c <rmqueue_bulk+3548>:	adrp	x2, 0xffffb75e3e3df000 <files+1944>
+0xffffb75e3c865470 <rmqueue_bulk+3552>:	str	x9, [sp, #8]
+0xffffb75e3c865474 <rmqueue_bulk+3556>:	str	w6, [sp, #16]
+0xffffb75e3c865478 <rmqueue_bulk+3560>:	ldr	x2, [x2, #1056]
+0xffffb75e3c86547c <rmqueue_bulk+3564>:	blr	x2
+0xffffb75e3c865480 <rmqueue_bulk+3568>:	ldr	w6, [sp, #16]
+0xffffb75e3c865484 <rmqueue_bulk+3572>:	ldr	x9, [sp, #8]
+0xffffb75e3c865488 <rmqueue_bulk+3576>:	b	0xffffb75e3c864700 <rmqueue_bulk+112>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./arch/arm64/include/asm/irqflags.h: 104
+0xffffb75e3c86548c <rmqueue_bulk+3580>:	mrs	x20, s3_0_c4_c6_0
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./arch/arm64/include/asm/irqflags.h: 174
+0xffffb75e3c865490 <rmqueue_bulk+3584>:	cmp	x20, #0xe0
+0xffffb75e3c865494 <rmqueue_bulk+3588>:	b.ne	0xffffb75e3c8646e8 <rmqueue_bulk+88>  // b.any
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./arch/arm64/include/asm/jump_label.h: 22
+0xffffb75e3c865498 <rmqueue_bulk+3592>:	nop
+0xffffb75e3c86549c <rmqueue_bulk+3596>:	mov	x0, #0x60                  	// #96
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./arch/arm64/include/asm/irqflags.h: 84
+0xffffb75e3c8654a0 <rmqueue_bulk+3600>:	msr	s3_0_c4_c6_0, x0
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./arch/arm64/include/asm/irqflags.h: 85
+0xffffb75e3c8654a4 <rmqueue_bulk+3604>:	b	0xffffb75e3c8646e8 <rmqueue_bulk+88>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 2250
+0xffffb75e3c8654a8 <rmqueue_bulk+3608>:	add	w19, w19, #0x1
+0xffffb75e3c8654ac <rmqueue_bulk+3612>:	add	x24, x24, #0x68
+0xffffb75e3c8654b0 <rmqueue_bulk+3616>:	cmp	w19, #0xb
+0xffffb75e3c8654b4 <rmqueue_bulk+3620>:	b.ne	0xffffb75e3c864b18 <rmqueue_bulk+1160>  // b.any
+0xffffb75e3c8654b8 <rmqueue_bulk+3624>:	b	0xffffb75e3c8649d8 <rmqueue_bulk+840>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1627
+0xffffb75e3c8654bc <rmqueue_bulk+3628>:	add	w27, w27, #0x1
+0xffffb75e3c8654c0 <rmqueue_bulk+3632>:	add	x1, x1, #0x68
+0xffffb75e3c8654c4 <rmqueue_bulk+3636>:	cmp	w27, #0xb
+0xffffb75e3c8654c8 <rmqueue_bulk+3640>:	b.ne	0xffffb75e3c864de4 <rmqueue_bulk+1876>  // b.any
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 2315
+0xffffb75e3c8654cc <rmqueue_bulk+3644>:	ldr	w0, [sp, #60]
+0xffffb75e3c8654d0 <rmqueue_bulk+3648>:	cbnz	w0, 0xffffb75e3c865030 <rmqueue_bulk+2464>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 2204
+0xffffb75e3c8654d4 <rmqueue_bulk+3652>:	ldr	w0, [sp, #8]
+0xffffb75e3c8654d8 <rmqueue_bulk+3656>:	mov	w23, w0
+0xffffb75e3c8654dc <rmqueue_bulk+3660>:	cmp	w0, #0x8
+0xffffb75e3c8654e0 <rmqueue_bulk+3664>:	b.ls	0xffffb75e3c864a4c <rmqueue_bulk+956>  // b.plast
+0xffffb75e3c8654e4 <rmqueue_bulk+3668>:	b	0xffffb75e3c864a5c <rmqueue_bulk+972>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 1627
+0xffffb75e3c8654e8 <rmqueue_bulk+3672>:	add	w27, w27, #0x1
+0xffffb75e3c8654ec <rmqueue_bulk+3676>:	add	x2, x2, #0x68
+0xffffb75e3c8654f0 <rmqueue_bulk+3680>:	cmp	w27, #0xb
+0xffffb75e3c8654f4 <rmqueue_bulk+3684>:	b.ne	0xffffb75e3c865038 <rmqueue_bulk+2472>  // b.any
+0xffffb75e3c8654f8 <rmqueue_bulk+3688>:	b	0xffffb75e3c864a40 <rmqueue_bulk+944>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 677
+0xffffb75e3c8654fc <rmqueue_bulk+3692>:	mov	x2, x24
+0xffffb75e3c865500 <rmqueue_bulk+3696>:	mov	x0, x21
+0xffffb75e3c865504 <rmqueue_bulk+3700>:	mov	w1, #0xa                   	// #10
+0xffffb75e3c865508 <rmqueue_bulk+3704>:	str	w5, [sp, #16]
+0xffffb75e3c86550c <rmqueue_bulk+3708>:	bl	0xffffb75e3c7f9d40 <__mod_zone_page_state>
+0xffffb75e3c865510 <rmqueue_bulk+3712>:	ldr	w5, [sp, #16]
+0xffffb75e3c865514 <rmqueue_bulk+3716>:	ldr	x6, [sp, #24]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./arch/arm64/include/asm/jump_label.h: 22
+0xffffb75e3c865518 <rmqueue_bulk+3720>:	nop
+0xffffb75e3c86551c <rmqueue_bulk+3724>:	b	0xffffb75e3c864d38 <rmqueue_bulk+1704>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 2308
+0xffffb75e3c865520 <rmqueue_bulk+3728>:	ldr	w0, [sp, #24]
+0xffffb75e3c865524 <rmqueue_bulk+3732>:	cmp	w0, #0x3
+0xffffb75e3c865528 <rmqueue_bulk+3736>:	b.ne	0xffffb75e3c864db8 <rmqueue_bulk+1832>  // b.any
+0xffffb75e3c86552c <rmqueue_bulk+3740>:	b	0xffffb75e3c864afc <rmqueue_bulk+1132>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./arch/arm64/include/asm/jump_label.h: 22
+0xffffb75e3c865530 <rmqueue_bulk+3744>:	mov	x0, #0xa0                  	// #160
+0xffffb75e3c865534 <rmqueue_bulk+3748>:	b	0xffffb75e3c8654a0 <rmqueue_bulk+3600>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 677
+0xffffb75e3c865538 <rmqueue_bulk+3752>:	mov	x2, x24
+0xffffb75e3c86553c <rmqueue_bulk+3756>:	mov	x0, x21
+0xffffb75e3c865540 <rmqueue_bulk+3760>:	mov	w1, #0xa                   	// #10
+0xffffb75e3c865544 <rmqueue_bulk+3764>:	bl	0xffffb75e3c7f9d40 <__mod_zone_page_state>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 576
+0xffffb75e3c865548 <rmqueue_bulk+3768>:	ldp	x6, x3, [sp, #16]
+0xffffb75e3c86554c <rmqueue_bulk+3772>:	cbz	w27, 0xffffb75e3c8652e0 <rmqueue_bulk+3152>
+0xffffb75e3c865550 <rmqueue_bulk+3776>:	b	0xffffb75e3c864ff8 <rmqueue_bulk+2408>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 2332
+0xffffb75e3c865554 <rmqueue_bulk+3780>:	tbz	w20, #8, 0xffffb75e3c864b0c <rmqueue_bulk+1148>
+0xffffb75e3c865558 <rmqueue_bulk+3784>:	b	0xffffb75e3c8649d8 <rmqueue_bulk+840>
+0xffffb75e3c86555c <rmqueue_bulk+3788>:	stp	x23, x24, [sp, #224]
+0xffffb75e3c865560 <rmqueue_bulk+3792>:	stp	x27, x28, [sp, #256]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/mm/page_alloc.c: 2378
+0xffffb75e3c865564 <rmqueue_bulk+3796>:	bl	0xffffb75e3d326da0 <__stack_chk_fail>
+crash> quit
