@@ -1,0 +1,29 @@
+schema_version: arm-chaos-fi/v1
+campaign_id: ptw_h7_pilot_fs
+injector: ptw
+config: C0-FS
+mode: FS
+grid:
+  # §2.10 H7 pilot (Phase 5.3/5.4): PTW PTE fault, ECC on/off contrast.
+  # transient_bit_flip -> single_bit_xor; protection_model none -> ECC OFF
+  # (spurious>0 expected), secded -> ECC ON (spurious~0 expected).
+  # clear_valid (H7 conditionalValidBit) arm: stuck_at_zero.
+  target_index: [0]
+  bit: []
+  fault_model: [transient_bit_flip, stuck_at_zero]
+  protection_model: [none, secded]
+n_per_cell: 3
+base_seed: 20260825
+replay_pct: 0
+workload:
+  binary: workloads/directed/cholesky_numeric
+  golden_id: cholesky-golden-v1
+  trigger_mode: cycle
+  trigger_value: 1000
+limits:
+  max_faults: 1
+hang_timeout: 1500
+fs:
+  restore_checkpoint: /tmp/fsckpt/cpt.237933688473
+  fs_cpu: Atomic
+  root_partition: /dev/vda1

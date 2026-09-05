@@ -1906,3 +1906,12 @@ CHAOSPTW 已 cherry-pick（c42270d）但**从未在任何 config 挂载**（runn
 - fs_mode oracle = 内核存活（FS 无 workload checksum）——"Masked"在此 oracle 下 = **内核未崩溃**，包含两种可能：真掩盖（错页数据未被消费）或**静默数据损坏**（错页数据被消费但内核没死）。SDC 与 Masked 在当前 oracle 下不可区分——这是 §2.10 E "p_SDC(pfn→活页) 最危险路径量化"的**上界**（P_SDC ≤ 100% - P_Crash，Crash=0 故上界不紧）。
 - 对照 bit_flip 锚点（Phase 3 FS：pfn 翻到未映射区 → BadAddressError panic DUE 100%）：**活页替换 0% Crash**——合法域替换成功避开了崩溃检测，"静默通路"的存在性证明成立（这正是设计文档标注"最危险"的原因：它能绕过检测），但量化 SDC 需要内核内校验 workload（如内核态 checksum 自检）——排 Phase 5 后续（method2 三根因实验自带 ESR/panic 签名比对，可部分区分）。
 - **流水线意义**：第一次 FS formal 级跑批（384 reps × checkpoint restore + 19 replay）在 ~3.5h（12767s）内完成——旧模式（每 rep 全新 boot ~30min）需 8 天。§3.2 管线的价值实证。frozen=yes 的 replay 波动是 cpu179 上 restore IO 超时边界环境噪声（非分类不稳定——384 主 reps 全 Masked 一致）。
+
+### Phase 5.3b: PTW H7 pilot（checkpoint restore 稳态）— 4 cells × 3 全触发全 Masked
+
+**§2.10 H7 pilot（PTW PTE {single_bit_xor, clear_valid(H7)} × ECC {off, on} × n=3，checkpoint restore 稳态）**：12/12 faults=1 全部触发、**全 Masked**（内核存活）。
+
+**诚实解读**：
+- **触发链验证 ✅**：CHAOSPTW 挂载 + runner ptw 路由 + fs_mode 分类 + ECC 双臂（protection_model none/secded → --ptw_ecc off/on）全链工作。frozen=yes 同为 replay 超时边界噪声。
+- **H7 原始预期不适用于稳态**：分支数据的 "ECC-on spurious≈0 / off >0" 来自 **boot 期**（walk 密度 0.069%，页表频繁建立）——restore 后的稳态内核 walk 稀疏且注入的 PTE 错误大概率落在未被再次消费的描述符上（错完就过）。H7 双臂对照要回到 **boot 期注入**（不做 restore，fresh boot + early first_clock）才有原始语义——那回到了每 rep ~30min 的 wall-time，留给后续（或 boot 期 checkpoint 更早的 cpt）。
+- 与 TLB F5 formal 的 Masked 同因：fs_mode oracle 下"内核存活"包含静默损坏——PTW 层的 spurious（假错误报告）在稳态下无消费者。
