@@ -1887,3 +1887,13 @@ CHAOSPTW 已 cherry-pick（c42270d）但**从未在任何 config 挂载**（runn
 **修复**：--ckpt-first-clock 的 tick 解析——.tick 文件不存在于该 gem5 版本，tick 嵌在 checkpoint 目录名（cpt.\<tick\>）；改为目录名优先解析（真机验证 parsed tick: 237933688473 ✅）。
 
 **意义**：fs formal 的 wall-time 瓶颈解除——一次性 boot（~30min）+ 每 rep 快速 restore 注入（~4min）。TLB F5 活页 cell（"最危险路径的量化"）与 H7 PTW pilot 的 formal 跑批从此可行。下一步：把 restore 路径接进 runner/campaign（FS campaign 化），跑 TLB F5 和 PTW H7 pilot。
+
+### Phase 5.4: FS campaign 化完成 + TLB F5 活页 pilot（b802606）— 全链闭环
+
+**工具链最后一环**：campaign 无法跑 FS 组件——本补丁补齐全链：campaign yaml 的 `fs:` 块（restore_checkpoint/kernel/disk/bootloader/root_partition/fs_cpu）→ _PoolRep（可 pickle）→ runner FS 分支（FS 专属 cmd 构造 + restore-checkpoint + --ckpt-first-clock）→ classify 的 **fs_mode 分支**（FS 无 SE checksum，oracle = 内核存活：kernel panic/Oops→Crash(DUE)；gem5 panic→SimulatorError；timeout→Hang；干净退出+faults≥1→Masked；faults=0→Inactive）。
+
+**pilot 暴露并修复 3 个 bug**（真机跑批逐个暴露）：① armtlb/sysreg_injections.log 不在 runner fault 统计清单 → TLB 注入被数成 0（Inactive 伪影）；② FS run 无 checksum → classify 落入"ambiguous tool state"（SimulatorError 伪影，replay 还在 SimulatorError↔Crash 之间摇摆——内核 boot 输出的 'panic' 字样 vs marker 误匹配）；③ FS replay 需要更大 hang_timeout（restore IO 在满载故障机上偶超 900s）——campaign 配置项。
+
+**TLB F5 活页 pilot（checkpoint restore, 28s/rep vs ~30min fresh boot）**：2/2 faults=1 全 **Masked**（内核存活——活页替换被内核吸收）。FS formal 跑批（n=384）现在只是 campaign 配置问题。
+
+**Phase 5 工具链 5/5 齐备**：V110 FS ✅ / checkpoint 管线 ✅ / PTW 挂载 ✅ / FS campaign 化 ✅ / TLB F5 pilot ✅。剩余是跑批量（TLB F5 formal、PTW H7 pilot、SysReg F5 pilot、method2 三根因）——每项都有清晰路径。

@@ -83,8 +83,8 @@ S1 四个 P0 单元 + S2/S3 六个 SE 单元 formal 已完成（单 cell × n=38
 1. ✅ **kp920_proxy_fs V110 参数落地**（291a431）：_pre_instantiate 链式 patch 应用 V110 O3 参数（与 SE 版同源）；非 O3 boot pass 诚实跳过。
 2. ✅ **checkpoint 流水线端到端验证**（291a431 + 85ee4bf）：boot_ckpt.rcS → **cpt.237933688473** → restore（+1332 ticks 注入窗口语义正确）→ TLB F5 活页注入触发。wall-time 瓶颈解除（一次 boot ~30min + 每 rep ~4min）。root=/dev/vda1（virtio_blk）。
 3. ✅ **CHAOSPTW 挂载**（1bd05b3）：--chaos_ptw + H7 ptw_ecc 旋钮；runner ptw→C0-FS 路由。H7 pilot yaml 就绪。
-4. ⏩ **TLB F5 活页 cell formal**：注入器+checkpoint 就绪，待 runner/campaign 的 FS restore 路径接入。
-5. ⏩ method2 三根因区分实验：FS-only，排 checkpoint 后。
+4. ✅ **FS campaign 化**（b802606）：campaign `fs:` 块 → runner FS 分支 → classify fs_mode（内核存活 oracle）全链闭环；TLB F5 pilot 2/2 Masked（28s/rep restore 快速路径）。修复 3 个 pilot 暴露的工具 bug（fault 统计清单缺 armtlb/sysreg、FS 无 checksum 的分类伪影、replay 超时配置）。
+5. ⏩ **跑批量**：TLB F5 formal（n=384）、PTW H7 pilot（ECC on/off × seed）、SysReg F5 pilot、method2 三根因——工具链 5/5 齐备，全是 campaign 配置。
 
 1. `configs/fs/kp920_proxy_fs.py` 现在是 TODO stub（只 print + delegate）——落 V110 参数（`_pre_instantiate` 同 SE 版）。
 2. **Atomic→`m5 checkpoint`→O3 restore 流水线**（§3.2）：boot.rcS 已有思路；解决 FS formal 不可重复跑的 wall-time 问题（fb34343 的 4/5 超时根因）。
