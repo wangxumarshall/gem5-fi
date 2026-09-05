@@ -1942,3 +1942,17 @@ CHAOSPTW 已 cherry-pick（c42270d）但**从未在任何 config 挂载**（runn
 **protection 行双计数 bug（L2 pilot faults=2 暴露）**：CHAOSCache 的 log 在每条注入行后跟一条 `protection: model=... -> Raw` 注释行，runner 的行计数把它数成第二个注入 → **L1D formal 384/384 reps 全部 faults=2（应为 1）**。影响评估（诚实）：**分类不受影响**（classify 只用 faults≥1 布尔语义——97.7% SDC 结论有效），受污染的是 G5 evidence 值（记 2 实 1）与断言打印。修复：行计数排除 `protection:` 前缀行；2-rep 冒烟验证 faults=1 ✅。
 
 **跑批中**：L1I formal（opcode/rn 两语义臂 × n=384，~6.3h）、L2 formal（raw × n=384，~10min）。完成后 SE 侧 15 单元 formal 全齐。
+
+### Phase 3 收尾: L2 formal（§2.8）— 存储层级掩蔽梯度第 4 数据点
+
+**§2.8 L2 formal（l1d_reduce, C0-CACHE, raw bit_flip, n=384 + 5% replay, 724s, 0 frozen）**：**384/384 Masked，P_SDC=0% [0,1.0]，faults=1（计数修复后）**。
+
+**存储层级掩蔽梯度完整化（§4.1 核心结构）**：
+| 层级 | P_SDC | 机理 |
+|---|---|---|
+| L1D 命中数据 | 97.7% | 消费者直接读错值 |
+| L1D post-check（ECC 后通路） | 90.9% | ECC 校验后盲区 |
+| L2 后备 | **0%**（本 formal） | l1d_reduce 工作集大部分 L1D 驻留；L2 扰动只影响 miss 流量，且脏行回写覆盖 |
+| DRAM 后备 | 0% | L1/L2 全程掩盖 |
+
+L1D→L2 的悬崖式下降（97.7%→0%）不是"L2 更安全"而是**工作集驻留模式决定**：cache 层级的 SDC 风险集中在**直接供给消费者的最后一层**。§4.2 保护排序的直接证据：ECC 预算应集中在 L1D（最后一层），L2/DRAM 的 ECC 是沉没冗余（对此 workload 族）。
