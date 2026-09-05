@@ -1915,3 +1915,11 @@ CHAOSPTW 已 cherry-pick（c42270d）但**从未在任何 config 挂载**（runn
 - **触发链验证 ✅**：CHAOSPTW 挂载 + runner ptw 路由 + fs_mode 分类 + ECC 双臂（protection_model none/secded → --ptw_ecc off/on）全链工作。frozen=yes 同为 replay 超时边界噪声。
 - **H7 原始预期不适用于稳态**：分支数据的 "ECC-on spurious≈0 / off >0" 来自 **boot 期**（walk 密度 0.069%，页表频繁建立）——restore 后的稳态内核 walk 稀疏且注入的 PTE 错误大概率落在未被再次消费的描述符上（错完就过）。H7 双臂对照要回到 **boot 期注入**（不做 restore，fresh boot + early first_clock）才有原始语义——那回到了每 rep ~30min 的 wall-time，留给后续（或 boot 期 checkpoint 更早的 cpt）。
 - 与 TLB F5 formal 的 Masked 同因：fs_mode oracle 下"内核存活"包含静默损坏——PTW 层的 spurious（假错误报告）在稳态下无消费者。
+
+### Phase 5.5: SysReg F5 pilot + value_to_legal 重入递归修复
+
+**Bug（pilot 5/5 SIGSEGV 暴露）**：value_to_legal 分支调 `isa->readMiscRegNoEffect(other)` 取替换值——该调用**重入** readMiscRegNoEffect 的注入 hook（isa.cc:457）→ ValueToLegal 分支再次通过全部门（faults 上限在第一次调用时才 ++，重入时未达）→ 无限递归 → 栈溢出 SIGSEGV。**修复**：maybeCorrupt 入口加 `in_injection` 重入门卫（重入直接 return false），读取前后 set/clear。
+
+**§2.10 SysReg F5 pilot（value_to_legal vs bit_flip × n=5，checkpoint restore，白名单 sctlr/ttbr0/tcr/mair/vbar/contextidr/nzcv）**：修复后 10/10 faults=1 全 **Masked**——内核稳态下 MRS 读值的跨白名单替换与位翻转都被吸收（restore 后稳态 MRS 读稀疏，替换值多数落在非关键读上；与 TLB F5/PTW H7 稳态结论同族）。runner sysreg 分支补了 §2.10 C 白名单透传（此前 sysreg_target_regs 恒空 → 注入器无白名单不可用）。
+
+**Phase 5 FS 三注入器（TLB/PTW/SysReg）pilot 全部触发验证 ✅**。稳态全 Masked 的共同格局提示：FS 侧的 SDC 量化需要**注入后活跃使用受影响路径**的 workload（method2 三根因实验正是如此设计）——这是 Phase 5 剩余的核心实验。

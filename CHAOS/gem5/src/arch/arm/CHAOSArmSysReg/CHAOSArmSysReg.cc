@@ -144,6 +144,9 @@ namespace gem5
                                  RegVal &val)
     {
         if (probability <= 0.0f || whitelist.empty()) return false;
+        // re-entrancy guard: value_to_legal's readMiscRegNoEffect(other)
+        // re-enters this hook — decline (no second injection, no recursion)
+        if (in_injection) return false;
         if (whitelist.find(idx) == whitelist.end()) return false;  // not whitelisted
         if (max_faults != 0 && faults_injected_count >= max_faults) return false;
 
@@ -174,6 +177,7 @@ namespace gem5
         // >= 2 whitelist entries; single-entry whitelist declines honestly.
         if (chosen == FaultType::ValueToLegal) {
             if (whitelist.size() < 2) return false;
+            in_injection = true;   // guard: the read below re-enters us
             uint32_t other = idx;
             for (int t = 0; t < 16 && other == idx; ++t) {
                 auto it = whitelist.begin();
@@ -183,6 +187,7 @@ namespace gem5
             if (other == idx) return false;
             RegVal old_val = val;
             val = isa->readMiscRegNoEffect(other);
+            in_injection = false;
             stats->numFaultsInjected++;
             ++faults_injected_count;
             if (write_log) {

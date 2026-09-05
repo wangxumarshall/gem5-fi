@@ -1,0 +1,29 @@
+schema_version: arm-chaos-fi/v1
+campaign_id: sysreg_f5_pilot
+injector: sysreg
+config: C0-FS
+mode: FS
+grid:
+  # §2.10 SysReg F5 pilot (Phase 5.5): value_to_legal (cross-whitelist
+  # substitution — silent misconfiguration) vs bit_flip (illegal-value
+  # contrast arm), via checkpoint restore. Runner passes the §2.10 C
+  # whitelist (sctlr/ttbr0/tcr/mair/vbar/contextidr/nzcv).
+  target_index: [0]
+  bit: []
+  fault_model: [legal_domain_sub, transient_bit_flip]
+  protection_model: [none]
+n_per_cell: 5
+base_seed: 20260825
+replay_pct: 0
+workload:
+  binary: workloads/directed/cholesky_numeric
+  golden_id: cholesky-golden-v1
+  trigger_mode: cycle
+  trigger_value: 1000
+limits:
+  max_faults: 1
+hang_timeout: 1500
+fs:
+  restore_checkpoint: /tmp/fsckpt/cpt.237933688473
+  fs_cpu: Atomic
+  root_partition: /dev/vda1

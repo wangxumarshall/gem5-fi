@@ -439,8 +439,14 @@ def main():
         # current value — silent misconfiguration). Default bit_flip.
         sf = {"legal_domain_sub": "value_to_legal"}.get(
             inj["model"], "bit_flip")
+        # §2.10 whitelist (design doc): the §2.10 C spec set. value_to_legal
+        # needs >=2 entries (cross-reg substitution); bit_flip runs on the
+        # same whitelist for the contrast arm.
+        wl = ("sctlr_el1,ttbr0_el1,tcr_el1,mair_el1,vbar_el1,"
+              "contextidr_el1,nzcv")
         cmd += ["--chaos_sysreg", "--sysreg_probability", "1.0",
                 "--sysreg_fault_type", sf,
+                "--sysreg_target_regs", wl,
                 "--sysreg_first_clock", str(t["value"]),
                 "--sysreg_max_faults", str(m["limits"]["max_faults"]),
                 "--sysreg_rng_seed", str(m["rng"]["selection_seed"])]
