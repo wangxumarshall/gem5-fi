@@ -1,0 +1,25 @@
+schema_version: arm-chaos-fi/v1
+campaign_id: l1i_formal_loop
+injector: l1i
+config: C0-CACHE
+mode: SE
+grid:
+  # §2.11 L1I formal (Phase 3 closure): the fetch-path cache counterpart of
+  # the L1D three-layer conclusion. fault.model stuck_at_zero -> tag field
+  # (miss/alias arm), stuck_at_one -> data field (wrong-instruction arm) —
+  # the two semantic arms of the L1I spec. l1i_loop = fetch-dense workload.
+  target_index: [0]
+  bit: []
+  fault_model: [stuck_at_zero, stuck_at_one]  # zero->opcode arm, one->rn arm
+  protection_model: [none]
+n_per_cell: 384
+base_seed: 20260825
+replay_pct: 5.0
+workload:
+  binary: workloads/directed/l1i_loop
+  golden_id: l1iloop-golden-v1
+  trigger_mode: cycle
+  trigger_value: 20000
+limits:
+  max_faults: 1
+hang_timeout: 300

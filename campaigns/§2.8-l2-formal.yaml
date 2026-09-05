@@ -1,0 +1,25 @@
+schema_version: arm-chaos-fi/v1
+campaign_id: l2_formal_reduce
+injector: l2
+config: C0-CACHE
+mode: SE
+grid:
+  # §2.8 L2 formal (Phase 3 closure): the shared-L2 counterpart of the
+  # L1D conclusion. l1d_reduce = the workload that gave L1D its 97.7%
+  # (working set spans L1D 64KiB -> L2 traffic real). Raw arm only;
+  # protection arms follow if SDC materializes.
+  target_index: [0]
+  bit: []
+  fault_model: [transient_bit_flip]
+  protection_model: [none]
+n_per_cell: 384
+base_seed: 20260825
+replay_pct: 5.0
+workload:
+  binary: workloads/directed/l1d_reduce
+  golden_id: l1dreduce-golden-v1
+  trigger_mode: cycle
+  trigger_value: 20000
+limits:
+  max_faults: 1
+hang_timeout: 300

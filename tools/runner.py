@@ -395,15 +395,19 @@ def main():
         cmd += ["--chaos_decode", "--decode_first_clock", str(t["value"]),
                 "--decode_max_faults", str(m["limits"]["max_faults"]),
                 "--decode_rng_seed", str(m["rng"]["selection_seed"])]
-    elif comp == "l1d":
-        # §2.7 CHAOSCache (L1D field-level: data/valid/dirty/coh). Routes
-        # through arm_chaos_cache.py (C0-CACHE family) — the CHAOSCache
+    elif comp in ("l1d", "l1i", "l2"):
+        # §2.7/§2.8/§2.11 CHAOSCache (field-level: data/valid/dirty/coh).
+        # Routes through arm_chaos_cache.py (C0-CACHE family) — the CHAOSCache
         # mounts via _pre_instantiate, not via arm_chaos.py's cpu-attached
-        # injectors. The manifest must use config_family C0-CACHE.
+        # injectors. l1i additionally carries --l1i_semantic_field (§2.11:
+        # the tag-vs-data semantic distinction; fault.model stuck_at_zero ->
+        # tag field, stuck_at_one -> data field as the two semantic arms).
+        # The manifest must use config_family C0-CACHE.
         if cfg_family != "C0-CACHE":
-            sys.exit("[runner] component 'l1d' requires platform.config_family="
-                     "'C0-CACHE' (arm_chaos_cache.py). Aborting.")
-        cmd += ["--target", "l1d", "--first_clock", str(t["value"]),
+            sys.exit(f"[runner] component '{comp}' requires platform."
+                     f"config_family='C0-CACHE' (arm_chaos_cache.py). "
+                     f"Aborting.")
+        cmd += ["--target", comp, "--first_clock", str(t["value"]),
                 "--max_faults", str(m["limits"]["max_faults"]),
                 "--rng_seed", str(m["rng"]["selection_seed"]),
                 "--fault_type", fault_type,
@@ -412,6 +416,14 @@ def main():
                 # fault.protection_model (campaign.py Phase 2.1); default
                 # "none" preserves the raw-sensitivity cell semantics.
                 "--protection_model", inj.get("protection_model", "none")]
+        # §2.11 L1I A64 field stratification (Phase 3 closure): the
+        # semantic axis is the INSTRUCTION-ENCODING field corrupted in the
+        # fetched bytes — opcode (wrong-opcode arm) vs rn (wrong-register
+        # arm). fault.model stuck_at_zero -> opcode, stuck_at_one -> rn.
+        if comp == "l1i":
+            sf = {"stuck_at_zero": "opcode",
+                  "stuck_at_one": "rn"}.get(inj["model"], "none")
+            cmd += ["--l1i_semantic_field", sf]
     elif comp == "l1_tlb":
         # §2.10 CHAOSArmTLB (D-TLB pfn, FS-only). Requires config_family
         # C0-FS (arm_chaos_fs.py + gem5-fs kernel/disk/bootloader).
