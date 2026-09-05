@@ -84,7 +84,7 @@ S1 四个 P0 单元 + S2/S3 六个 SE 单元 formal 已完成（单 cell × n=38
 2. ✅ **checkpoint 流水线端到端验证**（291a431 + 85ee4bf）：boot_ckpt.rcS → **cpt.237933688473** → restore（+1332 ticks 注入窗口语义正确）→ TLB F5 活页注入触发。wall-time 瓶颈解除（一次 boot ~30min + 每 rep ~4min）。root=/dev/vda1（virtio_blk）。
 3. ✅ **CHAOSPTW 挂载**（1bd05b3）：--chaos_ptw + H7 ptw_ecc 旋钮；runner ptw→C0-FS 路由。H7 pilot yaml 就绪。
 4. ✅ **FS campaign 化**（b802606）：campaign `fs:` 块 → runner FS 分支 → classify fs_mode（内核存活 oracle）全链闭环；TLB F5 pilot 2/2 Masked（28s/rep restore 快速路径）。修复 3 个 pilot 暴露的工具 bug（fault 统计清单缺 armtlb/sysreg、FS 无 checksum 的分类伪影、replay 超时配置）。
-5. ✅ **TLB F5 活页 formal**（9285a15）：第一个 FS formal（n=384 checkpoint restore，3.5h vs 旧模式 8 天）——384/384 Masked（0% Crash，活页替换绕过崩溃检测=静默通路存在性证明；SDC/Masked 在 fs_mode oracle 下不可区分，量化需内核校验 workload）。✅ **PTW H7 pilot**（43819cd）：12/12 触发全 Masked——触发链验证 ✅，但 H7 双臂对照需 **boot 期注入**（原始预期来自 boot walk 密度；稳态 walk 稀疏无消费者）。剩余：SysReg F5 pilot、method2 三根因、boot 期 checkpoint（更早 cpt）。
+5. ✅ **TLB F5 活页 formal**（9285a15）：第一个 FS formal（n=384 checkpoint restore，3.5h vs 旧模式 8 天）——384/384 Masked（0% Crash，活页替换绕过崩溃检测=静默通路存在性证明；SDC/Masked 在 fs_mode oracle 下不可区分，量化需内核校验 workload）。✅ **PTW H7 pilot**（43819cd）：12/12 触发全 Masked——触发链验证 ✅，但 H7 双臂对照需 **boot 期注入**（原始预期来自 boot walk 密度；稳态 walk 稀疏无消费者）。✅ **SysReg F5 pilot**（ba27677）：value_to_legal 重入递归 SIGSEGV 修复（pilot 5/5 暴露——F5 分支的 readMiscRegNoEffect(other) 重入注入 hook）；修复后 10/10 触发全 Masked；runner 补 sysreg 白名单透传（§2.10 C 规格）。**FS 三注入器（TLB/PTW/SysReg）触发链全部验证 ✅**；稳态全 Masked 共同格局 → SDC 量化需活跃消费 workload。剩余：method2 三根因（核心实验）、boot 期 checkpoint（H7 双臂）。
 
 1. `configs/fs/kp920_proxy_fs.py` 现在是 TODO stub（只 print + delegate）——落 V110 参数（`_pre_instantiate` 同 SE 版）。
 2. **Atomic→`m5 checkpoint`→O3 restore 流水线**（§3.2）：boot.rcS 已有思路；解决 FS formal 不可重复跑的 wall-time 问题（fb34343 的 4/5 超时根因）。
