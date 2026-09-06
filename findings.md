@@ -319,3 +319,15 @@ CHAOSArmSysReg 也有 `*1000`（startup()，FS-only，SE formal 不受影响，�
 **核心答案（§2.10 E 匹配度）**：method2 现场"x10 垃圾指针→翻译故障"签名由 **AGU 地址生成路径**复现（确定性 3/3，路径正中 find_busiest_group 家族）——**不是** PRF 读出（单次翻转被内核吸收 + userspace 有 forwarding 掩蔽）也**不是** TLB 翻译（活页替换静默不崩）。三根因区分实验的芯片侧结论：**保护投资应指向 AGU 地址生成的合法性校验**（地址规范位检查），而非 PRF/TLB。
 
 **工具修复**：① phys 随机 active-only（稳态 FS 窗口 170/200 空闲）；② **gem5 上游 exit_event 翻译表 bug**（'Kernel oops in guest' 不被翻译 → NotImplementedError）+ FS config 的 KERNEL_OOPS handler——Oops 类故障结局从此可 campaign 化分类（Crash/DUE）。
+
+## Phase 5.6 收官: method2 AGU 臂 100% DUE 定量 + H7 方向性验证（2026-09-08）
+
+**AGU 臂 formal（n=384）**：**P_DUE=100.0% [99.0,100.0]，零 SDC 零 Masked**——byte7_zero 规范位破坏在内核上下文确定性致命（kfree 类 Oops，调度器路径）。**三根因定量闭环**：
+
+| 臂 | P_DUE | 静默面 | 保护答案 |
+|---|---|---|---|
+| AGU 地址路径 | **100%** | 0 | 规范位检查（必检出） |
+| PRF 读出 | 0（存活） | SE 侧被 forwarding 掩蔽 | 无需（紧循环自掩蔽） |
+| TLB 翻译 | 0（存活） | 活页静默替换（Phase 5.4） | 页表一致性校验 |
+
+**H7 boot 期 pilot 方向性**：ECC-on 2/2 boot 完整完成 vs ECC-off 2/2 挂起——与原 H7 预期方向一致，formal 待健康机。

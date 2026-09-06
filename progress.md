@@ -2058,3 +2058,9 @@ L1D→L2 的悬崖式下降（97.7%→0%）不是"L2 更安全"而是**工作集
 `--early-checkpoint <ticks>`（arm_chaos_fs.py）：`simulator.run(max_ticks)` 到点 → `save_checkpoint()` 退出。真机验证：**cpt.100000000** 落盘（simTicks 精确 100M = boot 早期 walk 密集期，pmem/cow 完整）。修复 1 个 API 误用（Simulator 无 get_outdir——改 m5.options.outdir）。
 
 **H7 双臂 boot 期 pilot 启动**（restore from cpt.100000000 + PTW clear_valid + ECC {off,on} × 3 seeds，boot 继续期注入）——这是 H7 设计原语义的正确相位（此前稳态 pilot 全 Masked 的根因是相位错位）。同时 method2 AGU 臂 formal（n=384）后台推进中。
+
+### Phase 5.6 收官: method2 AGU 臂 formal（P_DUE=100%）+ H7 boot 期双臂 pilot
+
+**§2.10 method2 AGU 臂 formal（n=384, checkpoint restore + 调度域遍历 + O3, 单故障）**：**384/384 Kernel Oops——P_DUE=100.0% [99.0,100.0]，零 SDC 零 Masked**。byte7_zero 地址破坏（canonical→非规范）在内核上下文**确定性致命**：每次都走 kfree 类 NULL/garbage deref Oops（调度器任务释放路径）。**§4.2 含义：AGU 地址生成路径在此 workload 族无静默模式——规范位违例必被检出（以崩溃形式）**；保护 = AGU 输出的地址规范位检查（廉价、确定性检测）。method2 三根因的定量闭环完成：**AGU 100% DUE / PRF 存活（forwarding+吸收）/ TLB 静默（活页）——三种结局三臂互异**。
+
+**H7 boot 期双臂 pilot（cpt.100000000 + PTW clear_valid @ +50K, 2 seeds/臂, 1200s 观察窗）**：ECC-off 臂 2/2 超时无 Oops（注入发生但 boot 继续被 PTE 错误拖慢/挂起）；ECC-on 臂 2/2 **rc=0 boot 完整完成**（ECC 纠正 PTE 错误）。方向性读数（pilot 级诚实）：与 fi-h6-h7 分支原始 H7 预期一致（ECC-on spurious≈0）——formal 级验证需更长窗口或健康机。**注意**：boot 继续在 cpu179 上 20-70 分钟（Atomic 后半程慢）——正式 H7 formal 建议在健康机跑或用更早的 checkpoint 缩短剩余 boot。
