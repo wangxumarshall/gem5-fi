@@ -1,0 +1,239 @@
+[0.000000] Booting Linux on physical CPU 0x0000000000 [0x410fd070]
+[0.000000] Linux version 5.15.36 (kaustavg@citra) (aarch64-linux-gnu-gcc (Ubuntu 9.4.0-1ubuntu1~20.04.1) 9.4.0, GNU ld (GNU Binutils for Ubuntu) 2.34) #1 SMP PREEMPT Thu Apr 28 13:51:08 PDT 2022
+[0.000000] Machine model: V2P-CA15
+[0.000000] earlycon: pl11 at MMIO 0x000000001c090000 (options '')
+[0.000000] printk: bootconsole [pl11] enabled
+[0.000000] Zone ranges:
+[0.000000]   DMA      [mem 0x0000000080000000-0x00000000ffffffff]
+[0.000000]   DMA32    empty
+[0.000000]   Normal   empty
+[0.000000] Movable zone start for each node
+[0.000000] Early memory node ranges
+[0.000000]   node   0: [mem 0x0000000080000000-0x00000000ffffffff]
+[0.000000] Initmem setup node 0 [mem 0x0000000080000000-0x00000000ffffffff]
+[0.000000] cma: Reserved 16 MiB at 0x00000000fc800000
+[0.000000] percpu: Embedded 19 pages/cpu s37144 r8192 d32488 u77824
+[0.000000] pcpu-alloc: s37144 r8192 d32488 u77824 alloc=19*4096
+[0.000000] pcpu-alloc: [0] 0 
+[0.000000] Detected PIPT I-cache on CPU0
+[0.000000] CPU features: detected: Address authentication (architected algorithm)
+[0.000000] CPU features: detected: Spectre-v2
+[0.000000] CPU features: detected: Spectre-v4
+[0.000000] CPU features: detected: Spectre-BHB
+[0.000000] CPU features: detected: ARM erratum 834220
+[0.000000] CPU features: detected: ARM erratum 832075
+[0.000000] CPU features: detected: ARM errata 1165522, 1319367, or 1530923
+[0.000000] alternatives: patching kernel code
+[0.000000] Built 1 zonelists, mobility grouping on.  Total pages: 516096
+[0.000000] Kernel command line: root=/dev/vda1 rw console=ttyAMA0 earlycon=pl011,0x1c090000
+[0.000000] Dentry cache hash table entries: 262144 (order: 9, 2097152 bytes, linear)
+[0.000000] Inode-cache hash table entries: 131072 (order: 8, 1048576 bytes, linear)
+[0.000000] mem auto-init: stack:off, heap alloc:off, heap free:off
+[0.000000] Memory: 2027708K/2097152K available (8000K kernel code, 566K rwdata, 2760K rodata, 1280K init, 207K bss, 53060K reserved, 16384K cma-reserved)
+[0.000000] SLUB: HWalign=64, Order=0-3, MinObjects=0, CPUs=1, Nodes=1
+[0.000000] rcu: Preemptible hierarchical RCU implementation.
+[0.000000] rcu: 	RCU restricting CPUs from NR_CPUS=256 to nr_cpu_ids=1.
+[0.000000] 	Trampoline variant of Tasks RCU enabled.
+[0.000000] rcu: RCU calculated value of scheduler-enlistment delay is 25 jiffies.
+[0.000000] rcu: Adjusting geometry for rcu_fanout_leaf=16, nr_cpu_ids=1
+[0.000000] NR_IRQS: 64, nr_irqs: 64, preallocated irqs: 0
+[0.000000] Root IRQ handler: gic_handle_irq
+[0.000000] random: get_random_bytes called from start_kernel+0x470/0x648 with crng_init=0
+[0.000000] arch_timer: Unable to find a suitable frame in timer @ 0x000000002a810000
+[0.000000] Failed to initialize '/timer@2a810000': -22
+[0.000000] Console: colour dummy device 80x25
+[0.000000] sched_clock: 64 bits at 250 Hz, resolution 4000000ns, wraps every 9007199254000000ns
+[0.000000] Calibrating delay loop (skipped), value calculated using timer frequency.. 50.33 BogoMIPS (lpj=100663)
+[0.000000] pid_max: default: 32768 minimum: 301
+[0.000000] Mount-cache hash table entries: 4096 (order: 3, 32768 bytes, linear)
+[0.000000] Mountpoint-cache hash table entries: 4096 (order: 3, 32768 bytes, linear)
+[0.000000] rcu: Hierarchical SRCU implementation.
+[0.000000] smp: Bringing up secondary CPUs ...
+[0.000000] smp: Brought up 1 node, 1 CPU
+[0.000000] SMP: Total of 1 processors activated.
+[0.000000] CPU features: detected: 32-bit EL0 Support
+[0.000000] CPU features: detected: 32-bit EL1 Support
+[0.000000] CPU features: detected: Data cache clean to the PoU not required for I/D coherence
+[0.000000] CPU features: detected: CRC32 instructions
+[0.000000] CPU features: detected: Generic authentication (architected algorithm)
+[0.000000] CPU features: detected: LSE atomic instructions
+[0.000000] CPU features: detected: Privileged Access Never
+[0.000000] CPU features: detected: TLB range maintenance instructions
+[0.000000] CPU features: detected: Scalable Vector Extension
+[0.000000] SVE: maximum available vector length 16 bytes per vector
+[0.000000] SVE: default vector length 16 bytes per vector
+[0.000000] CPU: All CPU(s) started at EL2
+[0.040000] devtmpfs: initialized
+[0.040000] clocksource: jiffies: mask: 0xffffffff max_cycles: 0xffffffff, max_idle_ns: 7645041785100000 ns
+[0.040000] futex hash table entries: 256 (order: 2, 16384 bytes, linear)
+[0.040000] NET: Registered PF_NETLINK/PF_ROUTE protocol family
+[0.040000] DMA: preallocated 256 KiB GFP_KERNEL pool for atomic allocations
+[0.040000] DMA: preallocated 256 KiB GFP_KERNEL|GFP_DMA pool for atomic allocations
+[0.040000] DMA: preallocated 256 KiB GFP_KERNEL|GFP_DMA32 pool for atomic allocations
+[0.040000] cpuidle: using governor menu
+[0.040000] hw-breakpoint: found 16 breakpoint and 16 watchpoint registers.
+[0.040000] ASID allocator initialised with 256 entries
+[0.040000] Serial: AMBA PL011 UART driver
+[0.040000] OF: amba_device_add() failed (-2) for /watchdog@2a490000
+[0.040000] OF: amba_device_add() failed (-2) for /watchdog@2b060000
+[0.040000] OF: amba_device_add() failed (-2) for /kmi@1c060000
+[0.040000] OF: amba_device_add() failed (-2) for /kmi@1c070000
+[0.040000] OF: /watchdog@1c0f0000: could not find phandle 17
+[0.040000] OF: amba_device_add() failed (-2) for /watchdog@1c0f0000
+[0.040000] OF: /rtc@1c170000: could not find phandle 16
+[0.040000] OF: amba_device_add() failed (-2) for /rtc@1c170000
+[0.080000] HugeTLB registered 1.00 GiB page size, pre-allocated 0 pages
+[0.080000] HugeTLB registered 32.0 MiB page size, pre-allocated 0 pages
+[0.080000] HugeTLB registered 2.00 MiB page size, pre-allocated 0 pages
+[0.080000] HugeTLB registered 64.0 KiB page size, pre-allocated 0 pages
+[0.080000] vgaarb: loaded
+[0.080000] SCSI subsystem initialized
+[0.080000] libata version 3.00 loaded.
+[0.080000] usbcore: registered new interface driver usbfs
+[0.080000] usbcore: registered new interface driver hub
+[0.080000] usbcore: registered new device driver usb
+[0.080000] pps_core: LinuxPPS API ver. 1 registered
+[0.080000] pps_core: Software ver. 5.3.6 - Copyright 2005-2007 Rodolfo Giometti <giometti@linux.it>
+[0.080000] PTP clock support registered
+[0.080000] NET: Registered PF_INET protocol family
+[0.080000] IP idents hash table entries: 32768 (order: 6, 262144 bytes, linear)
+[0.080000] tcp_listen_portaddr_hash hash table entries: 1024 (order: 2, 16384 bytes, linear)
+[0.080000] TCP established hash table entries: 16384 (order: 5, 131072 bytes, linear)
+[0.080000] TCP bind hash table entries: 16384 (order: 6, 262144 bytes, linear)
+[0.080000] TCP: Hash tables configured (established 16384 bind 16384)
+[0.080000] UDP hash table entries: 1024 (order: 3, 32768 bytes, linear)
+[0.080000] UDP-Lite hash table entries: 1024 (order: 3, 32768 bytes, linear)
+[0.080000] NET: Registered PF_UNIX/PF_LOCAL protocol family
+[0.080000] RPC: Registered named UNIX socket transport module.
+[0.080000] RPC: Registered udp transport module.
+[0.080000] RPC: Registered tcp transport module.
+[0.080000] RPC: Registered tcp NFSv4.1 backchannel transport module.
+[0.080000] PCI: CLS 0 bytes, default 64
+[0.080000] kvm [1]: Guests without required CPU erratum workarounds can deadlock system!
+Only trusted guests should be used on this system.
+[0.080000] kvm [1]: IPA Size Limit: 40 bits
+[0.080000] kvm [1]: kvm_arch_timer: uninitialized timecounter
+[0.080000] workingset: timestamp_bits=62 max_order=19 bucket_order=0
+[0.120000] fuse: init (API version 7.34)
+[0.120000] io scheduler mq-deadline registered
+[0.120000] io scheduler kyber registered
+[0.120000] atomic64_test: passed
+[0.120000] pci-host-generic 30000000.pci: host bridge /pci ranges:
+[0.120000] pci-host-generic 30000000.pci:   No bus range found for /pci, using [bus 00-ff]
+[0.120000] pci-host-generic 30000000.pci: Parsing ranges property...
+[0.120000] pci-host-generic 30000000.pci:       IO 0x002f000000..0x002f00ffff -> 0x0000000000
+[0.120000] pci-host-generic 30000000.pci:      MEM 0x0040000000..0x007fffffff -> 0x0000000000
+[0.120000] pci-host-generic 30000000.pci: ECAM at [mem 0x30000000-0x3fffffff] for [bus 00-ff]
+[0.120000] pci-host-generic 30000000.pci: PCI host bridge to bus 0000:00
+[0.120000] pci_bus 0000:00: root bus resource [bus 00-ff]
+[0.120000] pci_bus 0000:00: root bus resource [io  0x0000-0xffff]
+[0.120000] pci_bus 0000:00: root bus resource [mem 0x40000000-0x7fffffff] (bus address [0x00000000-0x3fffffff])
+[0.120000] pci_bus 0000:00: scanning bus
+[0.120000] pci 0000:00:01.0: [1af4:1000] type 00 class 0xff0000
+[0.120000] pci 0000:00:01.0: reg 0x10: [io  0x0000-0x001f]
+[0.120000] pci 0000:00:01.0: reg 0x30: [mem 0x40000000-0x400007ff pref]
+[0.120000] pci_bus 0000:00: fixups for bus
+[0.120000] pci_bus 0000:00: bus scan returning with max=00
+[0.120000] pci 0000:00:01.0: BAR 6: assigned [mem 0x40000000-0x400007ff pref]
+[0.120000] pci 0000:00:01.0: BAR 0: assigned [io  0x1000-0x101f]
+[0.120000] virtio-pci 0000:00:01.0: assign IRQ: got 31
+[0.120000] virtio-pci 0000:00:01.0: enabling device (0000 -> 0001)
+[0.120000] virtio-pci 0000:00:01.0: virtio_pci: leaving for legacy driver
+[0.120000] virtio-pci 0000:00:01.0: enabling bus mastering
+[0.120000] Serial: 8250/16550 driver, 4 ports, IRQ sharing disabled
+[0.120000] virtio_blk virtio0: [vda] 4612096 512-byte logical blocks (2.36 GB/2.20 GiB)
+[0.120000]  vda: vda1 vda15
+[0.120000] basic-mmio-gpio: Failed to locate of_node [id: -2]
+[0.160000] basic-mmio-gpio: Failed to locate of_node [id: -2]
+[0.160000] basic-mmio-gpio: Failed to locate of_node [id: -2]
+[0.960000] e1000: Intel(R) PRO/1000 Network Driver
+[0.960000] e1000: Copyright (c) 1999-2006 Intel Corporation.
+[0.960000] e1000e: Intel(R) PRO/1000 Network Driver
+[0.960000] e1000e: Copyright(c) 1999 - 2015 Intel Corporation.
+[0.960000] igb: Intel(R) Gigabit Ethernet Network Driver
+[0.960000] igb: Copyright (c) 2007-2014 Intel Corporation.
+[0.960000] ixgbe: Intel(R) 10 Gigabit PCI Express Network Driver
+[0.960000] ixgbe: Copyright (c) 1999-2016 Intel Corporation.
+[0.960000] ixgbevf: Intel(R) 10 Gigabit PCI Express Virtual Function Network Driver
+[0.960000] ixgbevf: Copyright (c) 2009 - 2018 Intel Corporation.
+[0.960000] i40e: Intel(R) Ethernet Connection XL710 Network Driver
+[0.960000] i40e: Copyright (c) 2013 - 2019 Intel Corporation.
+[0.960000] ixgb: Intel(R) PRO/10GbE Network Driver
+[0.960000] ixgb: Copyright (c) 1999-2008 Intel Corporation.
+[0.960000] iavf: Intel(R) Ethernet Adaptive Virtual Function Network Driver
+[0.960000] Copyright (c) 2013 - 2018 Intel Corporation.
+[0.960000] usbcore: registered new interface driver usb-storage
+[0.960000] mousedev: PS/2 mouse device common for all mice
+[0.960000] IR NEC protocol handler initialized
+[0.960000] IR RC5(x/sz) protocol handler initialized
+[0.960000] IR RC6 protocol handler initialized
+[0.960000] IR JVC protocol handler initialized
+[0.960000] IR Sony protocol handler initialized
+[0.960000] IR SANYO protocol handler initialized
+[0.960000] IR Sharp protocol handler initialized
+[0.960000] IR MCE Keyboard/mouse protocol handler initialized
+[0.960000] IR XMP protocol handler initialized
+[0.960000] usbcore: registered new interface driver usbhid
+[0.960000] usbhid: USB HID core driver
+[0.960000] NET: Registered PF_PACKET protocol family
+[0.960000] registered taskstats version 1
+[0.960000] 1c090000.uart: ttyAMA0 at MMIO 0x1c090000 (irq = 21, base_baud = 0) is a PL011 rev3
+[0.960000] printk: console [ttyAMA0] enabled
+[0.960000] printk: bootconsole [pl11] disabled
+[0.960000] 1c0a0000.uart: ttyAMA1 at MMIO 0x1c0a0000 (irq = 22, base_baud = 0) is a PL011 rev3
+[0.960000] 1c0b0000.uart: ttyAMA2 at MMIO 0x1c0b0000 (irq = 23, base_baud = 0) is a PL011 rev3
+[0.960000] 1c0c0000.uart: ttyAMA3 at MMIO 0x1c0c0000 (irq = 24, base_baud = 0) is a PL011 rev3
+[1.000000] random: fast init done
+[1.280000] EXT4-fs (vda1): recovery complete
+[1.280000] EXT4-fs (vda1): mounted filesystem with ordered data mode. Opts: (null). Quota mode: disabled.
+[1.280000] VFS: Mounted root (ext4 filesystem) on device 254:1.
+[1.280000] devtmpfs: mounted
+[1.280000] Freeing unused kernel memory: 1280K
+[1.280000] Run /sbin/init as init process
+[1.280000]   with arguments:
+[1.280000]     /sbin/init
+[1.280000]   with environment:
+[1.280000]     HOME=/
+[1.280000]     TERM=linux
+[2.160000] Unable to handle kernel paging request at virtual address 00ffffc008d03be0
+[2.160000] Mem abort info:
+[2.160000]   ESR = 0x96000044
+[2.160000]   EC = 0x25: DABT (current EL), IL = 32 bits
+[2.160000]   SET = 0, FnV = 0
+[2.160000]   EA = 0, S1PTW = 0
+[2.160000]   FSC = 0x04: level 0 translation fault
+[2.160000] Data abort info:
+[2.160000]   ISV = 0, ISS = 0x00000044
+[2.160000]   CM = 0, WnR = 1
+[2.160000] [00ffffc008d03be0] address between user and kernel address ranges
+[2.160000] Internal error: Oops: 96000044 [#1] PREEMPT SMP
+[2.160000] Modules linked in:
+[2.160000] CPU: 0 PID: 10 Comm: ksoftirqd/0 Not tainted 5.15.36 #1
+[2.160000] Hardware name: V2P-CA15 (DT)
+[2.160000] pstate: 80400005 (Nzcv daif +PAN -UAO -TCO -DIT -SSBS BTYPE=--)
+[2.160000] pc : kfree+0x4/0x260
+[2.160000] lr : release_user_cpus_ptr+0x1c/0x28
+[2.160000] sp : ffffffc008d03c30
+[2.160000] x29: ffffffc008d03c30 x28: ffffffc0080de1fc x27: 000000000000000a
+[2.160000] x26: ffffff8001080000 x25: ffffff8001080000 x24: ffffffc008d03d20
+[2.160000] x23: ffffffc008c09e40 x22: ffffff807fbd6bf0 x21: 000000000000000a
+[2.160000] x20: ffffff8001845400 x19: ffffff80011bdb00 x18: 0000000000000000
+[2.160000] x17: ffffffc0770d0000 x16: ffffffc008004000 x15: 000002872dcdc28b
+[2.160000] x14: 00000000000003f9 x13: 00000000000003f9 x12: 0000000000000000
+[2.160000] x11: 0000000000000026 x10: 0000000000000000 x9 : 0000000000000000
+[2.160000] x8 : ffffff807fbd5fc0 x7 : 0000000080080005 x6 : 0000000000000032
+[2.160000] x5 : ffffffc00806bf94 x4 : fffffffe00061120 x3 : 0000000080080005
+[2.160000] x2 : ffffff80011bdb00 x1 : ffffff80011bdb00 x0 : 0000000000000000
+[2.160000] Call trace:
+[2.160000]  kfree+0x4/0x260
+[2.160000]  free_task+0x18/0x80
+[2.160000]  __put_task_struct+0xd8/0x150
+[2.160000]  delayed_put_task_struct+0x48/0xa0
+[2.160000]  rcu_core+0x2dc/0x5a0
+[2.160000]  rcu_core_si+0x10/0x20
+[2.160000]  _stext+0x168/0x2d0
+[2.160000]  run_ksoftirqd+0x58/0x70
+[2.160000]  smpboot_thread_fn+0x1ec/0x220
+[2.160000]  kthread+0x138/0x150
+[2.160000]  ret_from_fork+0x10/0x20
+[2.160000] Code: a9008b83 17ffffe8 d503201f d503233f (a9bb7bfd) 

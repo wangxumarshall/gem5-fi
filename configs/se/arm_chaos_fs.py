@@ -25,6 +25,7 @@ from m5.objects import (ArmDefaultRelease, VExpress_GEM5_Foundation,
                         VExpress_GEM5_V1, CHAOSArmTLB, CHAOSArmSysReg,
                         CHAOSPTW, CHAOSPhysReg, CHAOSAddrPath)
 from gem5.components.boards.arm_board import ArmBoard
+from gem5.simulate.exit_event import ExitEvent
 from gem5.components.cachehierarchies.classic.private_l1_private_l2_cache_hierarchy import (
     PrivateL1PrivateL2CacheHierarchy,
 )
@@ -380,5 +381,20 @@ if args.restore_checkpoint:
 # Exit when the kernel reports it has booted (default exit handlers include
 # the KernelBooted handler). This makes the FS run CI-able: boot-to-
 # userspace-success = exit 0.
-simulator = Simulator(board=board, full_system=True)
+# §2.10 method2 (Phase 5.6): the default Simulator has NO behavior for the
+# KERNEL_OOPS exit event — a fault-induced kernel Oops crashed the whole
+# Python stack with NotImplementedError (found in the three-arm pilot:
+# AddrPath byte7_zero -> kfree NULL deref Oops 3/3). Register a handler:
+# record the oops (stdout already carries the dmesg dump) and EXIT the sim —
+# the runner's fs_mode classify maps 'Kernel Oops' -> Crash (DUE), which is
+# the correct FI outcome for this event.
+def _kernel_oops_exit():
+    print("[arm_chaos_fs] KERNEL OOPS under fault — exiting (classify: "
+          "Crash/DUE per fs_mode)")
+    return True  # exit the simulation loop
+
+simulator = Simulator(
+    board=board, full_system=True,
+    on_exit_event={ExitEvent.KERNEL_OOPS: _kernel_oops_exit},
+)
 simulator.run()

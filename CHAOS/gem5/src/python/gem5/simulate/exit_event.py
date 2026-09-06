@@ -110,6 +110,16 @@ class ExitEvent(Enum):
             return ExitEvent.KERNEL_PANIC
         elif exit_string == "Kernel oops in simulated system.":
             return ExitEvent.KERNEL_OOPS
+        # CHAOS fix (Phase 5.6): the C++ side (kern/linux/events.cc) emits
+        # 'Kernel panic/oops in guest' while this table only matches the
+        # '... in simulated system' variants — a fault-induced kernel
+        # Oops crashed the Python stack with NotImplementedError instead of
+        # reaching the registered KERNEL_OOPS handler (found via the
+        # method2 AddrPath arm: byte7_zero -> kfree NULL deref Oops 3/3).
+        elif exit_string == "Kernel panic in guest":
+            return ExitEvent.KERNEL_PANIC
+        elif exit_string == "Kernel oops in guest":
+            return ExitEvent.KERNEL_OOPS
         elif exit_string.endswith("will terminate the simulation.\n"):
             # This is for the traffic generator exit event
             return ExitEvent.EXIT

@@ -2035,3 +2035,16 @@ L1D→L2 的悬崖式下降（97.7%→0%）不是"L2 更安全"而是**工作集
 **修复**：active-only 重采样（最多 32 次找 allocated 槽；全 miss 则诚实 return——不消耗 fault，attackCheck 末尾的重排继续，注入器不停摆）。**真机验证**：同 seed 重跑 → `PhysReg[2] (Active, held by in-flight inst)` ✅，FS oracle 下内核存活（Masked）。
 
 **意义**：method2 三臂的 FS 跑批路径全部打通（active-only phys 注入 + O3 restore + m2 rcS workload）。三臂 pilot（PRF/AddrPath/TLB 各 n=5）就绪待跑。
+
+### Phase 5.6 三臂 pilot 结果: method2 签名对照成立——AGU 地址路径是匹配现场签名的根因
+
+**三臂（checkpoint restore + m2 rcS + O3, seeds 26-28）**：
+| 臂 | 注入证据 | 结局 |
+|---|---|---|
+| PRF（active-only phys） | PhysReg[2] Active（seed-28 命中 ArchReg[3] 映射） | 3/3 存活（Masked） |
+| **AGU（byte7_zero）** | canonical→0xffffc008d03be0 非规范 | **3/3 KERNEL OOPS（Crash/DUE）** |
+| TLB（活页） | Phase 4.4 锚点 | 存活（静默错页） |
+
+**AddrPath Oops 签名（3/3 一致）**：`kfree+0x4 ← release_user_cpus_ptr ← free_task ← RCU`——**内核调度器任务释放路径**（find_busiest_group 家族），x0=0 NULL deref。**method2 现场的"x10 垃圾指针→翻译故障"签名由 AGU 地址路径根因复现**——三根因区分实验的核心答案：现场签名指向地址生成路径错误，而非 PRF 读出或 TLB 翻译（两者单次注入均被内核吸收）。
+
+**工具修复 2 个（pilot 暴露）**：① phys 随机 active-only（稳态 FS 窗口 170/200 空闲——原 uniform 采样烧掉唯一注入在空闲槽）；② **gem5 上游 exit_event 翻译表 bug**（C++ 发 'Kernel oops in guest'，翻译表只认 '... in simulated system'——Oops 类 run 全崩成 NotImplementedError）+ FS config 注册 KERNEL_OOPS handler（退出→classify fs_mode 的 Crash/DUE）。修复后 Oops run exit=0 可 campaign 化。
