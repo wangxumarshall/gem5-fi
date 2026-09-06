@@ -2048,3 +2048,7 @@ L1D→L2 的悬崖式下降（97.7%→0%）不是"L2 更安全"而是**工作集
 **AddrPath Oops 签名（3/3 一致）**：`kfree+0x4 ← release_user_cpus_ptr ← free_task ← RCU`——**内核调度器任务释放路径**（find_busiest_group 家族），x0=0 NULL deref。**method2 现场的"x10 垃圾指针→翻译故障"签名由 AGU 地址路径根因复现**——三根因区分实验的核心答案：现场签名指向地址生成路径错误，而非 PRF 读出或 TLB 翻译（两者单次注入均被内核吸收）。
 
 **工具修复 2 个（pilot 暴露）**：① phys 随机 active-only（稳态 FS 窗口 170/200 空闲——原 uniform 采样烧掉唯一注入在空闲槽）；② **gem5 上游 exit_event 翻译表 bug**（C++ 发 'Kernel oops in guest'，翻译表只认 '... in simulated system'——Oops 类 run 全崩成 NotImplementedError）+ FS config 注册 KERNEL_OOPS handler（退出→classify fs_mode 的 Crash/DUE）。修复后 Oops run exit=0 可 campaign 化。
+
+### Phase 5.6 后续: method2 AGU 臂 formal n=384 启动
+
+三臂 pilot 定论后，核心量化数据是 **AGU 臂的 Oops 率 formal**（n=384 seeds、checkpoint restore、单故障、KERNEL_OOPS handler 分类）。串行跑批启动（cpu179 上 ~1-3 天）——PRF/TLB 臂 formal 在 AGU 臂完成后排程（两臂 pilot 已示全存活方向，优先级低于 AGU）。
