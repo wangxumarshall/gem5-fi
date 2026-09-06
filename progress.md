@@ -2002,3 +2002,7 @@ L1D→L2 的悬崖式下降（97.7%→0%）不是"L2 更安全"而是**工作集
 **ptr_chase_long**（新 kernel，2048 节点 × 4096 轮，25M cycles）：指针寄存器全程活跃（find_busiest_group 类连续遍历语义），checksum 逐轮折叠——任何存活错误指针扰动输出。golden ptrchaselong-golden-v1=af63bd4c8601b7df（与短版巧合相同，独立 id 保 provenance）。X10 三位段 pilot（n=100/cell）跑批中。
 
 **FS m2 rcS**：盘内无 ptr_chase 二进制且无 root 改盘——m2_ptrchase.rcS 用纯 shell 调度域遍历（2000 轮 /proc/schedstat 读——find_busiest_group 类内核链表路径）作为三臂注入的活跃消费者。方法学诚实注记：shell 侧消费的是**内核态指针路径**，非 userspace x10——三臂签名比对仍成立（PRF 臂命中 shell 进程的 x10，AGU/TLB 臂命中内核遍历路径）。
+
+### Phase 5.6 方法学教训: "method2 x10" 在 userspace 不存在——指针寄存器要从反汇编找
+
+**ptr_chase_long X10 三位段（bit 0/31/63）n=100 全 Masked 的真因**：objdump 反汇编显示 -O2 下**链表指针在 x0**（内层循环 `ldp x0, x3, [x0]`），x10 全程未被使用（ReadTracePoll 证实 PhysReg[51] reads=0）。**method2 现场的 x10 是内核态调度域遍历的编译结果**——userspace kernel 的寄存器分配完全由编译器决定，"指定 x10"没有意义。campaign 已改指 x0 重跑（pilot 进行中）。**教训**：定向寄存器注入前必须先反汇编确认目标寄存器真实持有目标值（Directed 注入的 workload 适配步骤），否则跑出来的"全 Masked"是空寄存器伪影。
