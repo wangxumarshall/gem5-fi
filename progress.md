@@ -1994,3 +1994,11 @@ L1D→L2 的悬崖式下降（97.7%→0%）不是"L2 更安全"而是**工作集
 ### Phase 6.4: 最终报告骨架（docs/final-report-skeleton.md）
 
 §4.2 三类交付物成文：① DFT 向量表（4 条向量含健康/次品签名对；FP 路径诚实标注"不推荐"——0% 灵敏度）；② 保护投资排序表（L1D 数据 ECC 有效 → post-check 通路 ECC 盲区需通路级 parity → 错源转发需 age/ID 校验 → 取指/L2/DRAM 无需投入）+ 三条横断定律；③ 位谱指纹库现状（PRF 位段三画像 + rol1/rol6 已有，method3 部分待 FS 跑批）；④ 电压/相位敏感性（wake_phase 平顶 + E3 边界注明真相位需 LSQFwd 侧）。§4.3 诚实边界 6 条（代理模型/单机/workload 覆盖/FS oracle/统计口径/工具正确性史）。未完成项表 6 条全部列明阻塞原因。
+
+### Phase 5.6 续: method2 workload 侧准备（ptr_chase_long + FS m2 rcS）
+
+**ptr_chase 短版 masking 根因**：ptr_chase_kernel 单层 256 节点遍历仅 54K cycles，X10 三位段（bit 0/31/63）n=100 全 Masked——指针消费太快，单注入落不到活跃窗口（trigger-timing 家族的 workload 侧变体）。
+
+**ptr_chase_long**（新 kernel，2048 节点 × 4096 轮，25M cycles）：指针寄存器全程活跃（find_busiest_group 类连续遍历语义），checksum 逐轮折叠——任何存活错误指针扰动输出。golden ptrchaselong-golden-v1=af63bd4c8601b7df（与短版巧合相同，独立 id 保 provenance）。X10 三位段 pilot（n=100/cell）跑批中。
+
+**FS m2 rcS**：盘内无 ptr_chase 二进制且无 root 改盘——m2_ptrchase.rcS 用纯 shell 调度域遍历（2000 轮 /proc/schedstat 读——find_busiest_group 类内核链表路径）作为三臂注入的活跃消费者。方法学诚实注记：shell 侧消费的是**内核态指针路径**，非 userspace x10——三臂签名比对仍成立（PRF 臂命中 shell 进程的 x10，AGU/TLB 臂命中内核遍历路径）。

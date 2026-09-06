@@ -76,7 +76,11 @@ GOLDEN_IDS = {
     "svditerative-golden-v1": "4afb95b5b32f3820",
     "gemmfloat-golden-v1": "d74f24ae79deb7d2",
     "depchain-golden-v1": "030f101df841bf6e",
-    "ptrchase-golden-v1": "af63bd4c8601b7df",  # spinlock_checksum  # ras_checksum_kernel  # fwd_checksum_kernel  # neon_lane  # branchy_reduce (§2.3)
+    "ptrchase-golden-v1": "af63bd4c8601b7df",
+    # ptr_chase_long (2048-node x 4096 rounds, long-lived pointer) — the
+    # checksum coincides with ptr_chase_kernel's but the workloads differ;
+    # separate id keeps provenance honest.
+    "ptrchaselong-golden-v1": "af63bd4c8601b7df",  # spinlock_checksum  # ras_checksum_kernel  # fwd_checksum_kernel  # neon_lane  # branchy_reduce (§2.3)
 }
 
 def sha256_file(path):
