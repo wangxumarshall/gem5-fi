@@ -295,3 +295,13 @@ CHAOSArmSysReg 也有 `*1000`（startup()，FS-only，SE formal 不受影响，�
 - **DUE 集中带**：rename 子系统（RAT 95.8 / mark_free 72-77 / f5 59.7）+ ExMon 100% + IQ（madd 100）
 - **零风险带**（本 workload 族）：取指（L1I 0%）、L2/DRAM 后备（0%）、执行/IQ 唤醒/BPU/RAS/Decode 主部、Mem addr_map_sub
 - **取指 vs 取数悬崖（L1I 0% vs L1D 97.7%）是 §4.2 最大的单条排序证据**：ECC 预算全部给取数+转发通路
+
+## Phase 5.6: forwarding 掩蔽定律（2026-09-07）
+
+**PRF 位翻转的架构可见性由"生产者-消费者距离"决定**（ptr_chase_long 三组 n=100 证据）：
+- **消费即生产（背靠背 forwarding 距离）**：PRF 位翻转**架构不可见**——O3 forwarding 直接传递生产者结果，物理位翻转无读者（readtrace reads=0 是旁证）。chase 紧循环 100/100 Masked（arch 定向 x0/x10 + phys 随机三种方式一致）。
+- **跨迭代长距离依赖**：翻转可存活——cholesky X3 的 3.9% SDC。
+
+**§4.2 修订**：physreg 的 MED 优先级进一步弱化——其 SDC 面只存在于特定依赖距离谱的 workload（forwarding 密集型天然自掩蔽）。**PRF 保护价值 = f(workload 依赖距离谱)**。
+
+**method2 PRF 臂定论**：SE 侧"不可达（forwarding 掩蔽）"；现场 x10 垃圾指针是内核态指针使用模式——对照实验必须在 FS 内核态跑（m2_ptrchase.rcS）。
