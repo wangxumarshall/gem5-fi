@@ -1,0 +1,116 @@
+
+crash 8.0.4-17.oe2403sp4
+Copyright (C) 2002-2022  Red Hat, Inc.
+Copyright (C) 2004, 2005, 2006, 2010  IBM Corporation
+Copyright (C) 1999-2006  Hewlett-Packard Co
+Copyright (C) 2005, 2006, 2011, 2012  Fujitsu Limited
+Copyright (C) 2006, 2007  VA Linux Systems Japan K.K.
+Copyright (C) 2005, 2011, 2020-2022  NEC Corporation
+Copyright (C) 1999, 2002, 2007  Silicon Graphics, Inc.
+Copyright (C) 1999, 2000, 2001, 2002  Mission Critical Linux, Inc.
+Copyright (C) 2015, 2021  VMware, Inc.
+This program is free software, covered by the GNU General Public License,
+and you are welcome to change it and/or distribute copies of it under
+certain conditions.  Enter "help copying" to see the conditions.
+This program has absolutely no warranty.  Enter "help warranty" for details.
+ 
+NOTE: stdin: not a tty
+
+GNU gdb (GDB) 10.2
+Copyright (C) 2021 Free Software Foundation, Inc.
+License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>
+This is free software: you are free to change and redistribute it.
+There is NO WARRANTY, to the extent permitted by law.
+Type "show copying" and "show warranty" for details.
+This GDB was configured as "aarch64-unknown-linux-gnu".
+Type "show configuration" for configuration details.
+Find the GDB manual and other documentation resources online at:
+    <http://www.gnu.org/software/gdb/documentation/>.
+
+For help, type "help".
+Type "apropos word" to search for commands related to "word"...
+
+    DUMPFILE: /home/sdc/wangxu/vmcore0102/127.0.0.1-2026-09-04-21:53:28/vmcore  [PARTIAL DUMP]
+        CPUS: 192
+        DATE: Fri Sep  4 21:52:44 CST 2026
+      UPTIME: 09:14:32
+LOAD AVERAGE: 42.73, 9.68, 3.24
+       TASKS: 2212
+    NODENAME: localhost0102
+     RELEASE: 6.6.0-145.3.23.154.oe2403sp3.aarch64
+     VERSION: #1 SMP Mon Jul 27 19:00:34 CST 2026
+     MACHINE: aarch64  (unknown Mhz)
+      MEMORY: 767.8 GB
+       PANIC: "Unable to handle kernel paging request at virtual address 73b8474cc98297a5"
+         PID: 581185
+     COMMAND: "mi-scavenger"
+        TASK: ffff60201da03f00  [THREAD_INFO: ffff60201da03f00]
+         CPU: 179
+       STATE: TASK_INTERRUPTIBLE (PANIC)
+
+crash> dis -l ffffba8cc6d04804 12
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/arch/arm64/mm/fault.c: 507
+0xffffba8cc6d04804 <__do_kernel_fault+388>:	adrp	x22, 0xffffba8cc7f7c000
+0xffffba8cc6d04808 <__do_kernel_fault+392>:	add	x22, x22, #0x30
+0xffffba8cc6d0480c <__do_kernel_fault+396>:	b	0xffffba8cc6d04710 <__do_kernel_fault+144>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/arch/arm64/mm/fault.c: 518
+0xffffba8cc6d04810 <__do_kernel_fault+400>:	mov	x1, x19
+0xffffba8cc6d04814 <__do_kernel_fault+404>:	mov	x0, x21
+0xffffba8cc6d04818 <__do_kernel_fault+408>:	bl	0xffffba8cc6d03d78 <vmemmap_handle_page_fault>
+0xffffba8cc6d0481c <__do_kernel_fault+412>:	tbz	w0, #0, 0xffffba8cc6d04708 <__do_kernel_fault+136>
+0xffffba8cc6d04820 <__do_kernel_fault+416>:	b	0xffffba8cc6d04720 <__do_kernel_fault+160>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/arch/arm64/mm/fault.c: 286
+0xffffba8cc6d04824 <__do_kernel_fault+420>:	and	x0, x19, #0x3c
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/arch/arm64/mm/fault.c: 288
+0xffffba8cc6d04828 <__do_kernel_fault+424>:	b	0xffffba8cc6d046f8 <__do_kernel_fault+120>
+0xffffba8cc6d0482c <__do_kernel_fault+428>:	nop
+0xffffba8cc6d04830 <__do_kernel_fault+432>:	.inst	0xc7c0dff8 ; undefined
+crash> dis -l ffffba8cc6d046c0 24
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/arch/arm64/mm/fault.c: 493
+0xffffba8cc6d046c0 <__do_kernel_fault+64>:	mov	x1, x19
+0xffffba8cc6d046c4 <__do_kernel_fault+68>:	mov	x0, x21
+0xffffba8cc6d046c8 <__do_kernel_fault+72>:	bl	0xffffba8cc7bb93d8 <is_spurious_el1_translation_fault.constprop.0>
+0xffffba8cc6d046cc <__do_kernel_fault+76>:	tbnz	w0, #0, 0xffffba8cc6d04758 <__do_kernel_fault+216>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/arch/arm64/mm/fault.c: 386
+0xffffba8cc6d046d0 <__do_kernel_fault+80>:	and	x0, x19, #0x3f
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/arch/arm64/mm/fault.c: 388
+0xffffba8cc6d046d4 <__do_kernel_fault+84>:	cmp	x22, #0x25
+0xffffba8cc6d046d8 <__do_kernel_fault+88>:	b.ne	0xffffba8cc6d04824 <__do_kernel_fault+420>  // b.any
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/arch/arm64/mm/fault.c: 391
+0xffffba8cc6d046dc <__do_kernel_fault+92>:	cmp	x0, #0x11
+0xffffba8cc6d046e0 <__do_kernel_fault+96>:	b.eq	0xffffba8cc6d047c4 <__do_kernel_fault+324>  // b.none
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/arch/arm64/mm/fault.c: 286
+0xffffba8cc6d046e4 <__do_kernel_fault+100>:	and	x0, x19, #0x3c
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/arch/arm64/mm/fault.c: 291
+0xffffba8cc6d046e8 <__do_kernel_fault+104>:	cmp	x0, #0xc
+0xffffba8cc6d046ec <__do_kernel_fault+108>:	b.eq	0xffffba8cc6d047e0 <__do_kernel_fault+352>  // b.none
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./arch/arm64/include/asm/current.h: 19
+0xffffba8cc6d046f0 <__do_kernel_fault+112>:	mrs	x1, sp_el0
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/asm-generic/bitops/generic-non-atomic.h: 128
+0xffffba8cc6d046f4 <__do_kernel_fault+116>:	ldr	x1, [x1]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/arch/arm64/mm/fault.c: 512
+0xffffba8cc6d046f8 <__do_kernel_fault+120>:	cmp	x21, #0xfff
+0xffffba8cc6d046fc <__do_kernel_fault+124>:	b.ls	0xffffba8cc6d047b8 <__do_kernel_fault+312>  // b.plast
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/arch/arm64/mm/fault.c: 515
+0xffffba8cc6d04700 <__do_kernel_fault+128>:	cmp	x0, #0x4
+0xffffba8cc6d04704 <__do_kernel_fault+132>:	b.eq	0xffffba8cc6d04810 <__do_kernel_fault+400>  // b.none
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/arch/arm64/mm/fault.c: 522
+0xffffba8cc6d04708 <__do_kernel_fault+136>:	adrp	x22, 0xffffba8cc7f7c000
+0xffffba8cc6d0470c <__do_kernel_fault+140>:	add	x22, x22, #0x20
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/arch/arm64/mm/fault.c: 525
+0xffffba8cc6d04710 <__do_kernel_fault+144>:	mov	x1, x22
+0xffffba8cc6d04714 <__do_kernel_fault+148>:	mov	x0, x20
+0xffffba8cc6d04718 <__do_kernel_fault+152>:	bl	0xffffba8cc6cf8f40 <efi_runtime_fixup_exception>
+0xffffba8cc6d0471c <__do_kernel_fault+156>:	tbz	w0, #0, 0xffffba8cc6d047f0 <__do_kernel_fault+368>
+crash> sym ffffba8cc6d04800
+ffffba8cc6d04800 (t) __do_kernel_fault+384 /usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/arch/arm64/mm/fault.c: 528
+crash> p ((struct rq *)0xffff8000814036c0)->cpu
+$1 = 150
+crash> rd 0xffff8000814036c0 8
+ffff8000814036c0:  0000000100000000 0000000000000000   ................
+ffff8000814036d0:  0000000000000000 00000001007dc713   ..........}.....
+ffff8000814036e0:  0000000000000001 0000000000000000   ................
+ffff8000814036f0:  0000000000000000 0000000000000000   ................
+crash> rd 0xffff8000814037e0 4
+ffff8000814037e0:  0000000000000400 0000000000000400   ................
+ffff8000814037f0:  0000000000000400 0000000000000200   ................

@@ -1,0 +1,165 @@
+
+crash 8.0.4-17.oe2403sp4
+Copyright (C) 2002-2022  Red Hat, Inc.
+Copyright (C) 2004, 2005, 2006, 2010  IBM Corporation
+Copyright (C) 1999-2006  Hewlett-Packard Co
+Copyright (C) 2005, 2006, 2011, 2012  Fujitsu Limited
+Copyright (C) 2006, 2007  VA Linux Systems Japan K.K.
+Copyright (C) 2005, 2011, 2020-2022  NEC Corporation
+Copyright (C) 1999, 2002, 2007  Silicon Graphics, Inc.
+Copyright (C) 1999, 2000, 2001, 2002  Mission Critical Linux, Inc.
+Copyright (C) 2015, 2021  VMware, Inc.
+This program is free software, covered by the GNU General Public License,
+and you are welcome to change it and/or distribute copies of it under
+certain conditions.  Enter "help copying" to see the conditions.
+This program has absolutely no warranty.  Enter "help warranty" for details.
+ 
+NOTE: stdin: not a tty
+
+GNU gdb (GDB) 10.2
+Copyright (C) 2021 Free Software Foundation, Inc.
+License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>
+This is free software: you are free to change and redistribute it.
+There is NO WARRANTY, to the extent permitted by law.
+Type "show copying" and "show warranty" for details.
+This GDB was configured as "aarch64-unknown-linux-gnu".
+Type "show configuration" for configuration details.
+Find the GDB manual and other documentation resources online at:
+    <http://www.gnu.org/software/gdb/documentation/>.
+
+For help, type "help".
+Type "apropos word" to search for commands related to "word"...
+
+    DUMPFILE: /home/sdc/wangxu/vmcore0102/127.0.0.1-2026-09-04-21:53:28/vmcore  [PARTIAL DUMP]
+        CPUS: 192
+        DATE: Fri Sep  4 21:52:44 CST 2026
+      UPTIME: 09:14:32
+LOAD AVERAGE: 42.73, 9.68, 3.24
+       TASKS: 2212
+    NODENAME: localhost0102
+     RELEASE: 6.6.0-145.3.23.154.oe2403sp3.aarch64
+     VERSION: #1 SMP Mon Jul 27 19:00:34 CST 2026
+     MACHINE: aarch64  (unknown Mhz)
+      MEMORY: 767.8 GB
+       PANIC: "Unable to handle kernel paging request at virtual address 73b8474cc98297a5"
+         PID: 581185
+     COMMAND: "mi-scavenger"
+        TASK: ffff60201da03f00  [THREAD_INFO: ffff60201da03f00]
+         CPU: 179
+       STATE: TASK_INTERRUPTIBLE (PANIC)
+
+crash> rd ffff604004a9b3a0 8
+ffff604004a9b3a0:  0000000000000000 0000000000000000   ................
+ffff604004a9b3b0:  0000000000000000 0000000000000000   ................
+ffff604004a9b3c0:  0000000000000000 0000000000000000   ................
+ffff604004a9b3d0:  0000000000000000 0000000000000000   ................
+crash> rd ffff604004a9a320 8
+ffff604004a9a320:  ad07000032d60200 2d00000034d60200   ...2.......4...-
+ffff604004a9a330:  2e00000036d60200 3000000038d60200   ...6.......8...0
+ffff604004a9a340:  310000003ad60200 320000003cd60200   ...:...1...<...2
+ffff604004a9a350:  330000003ed60200 34eb050040d60200   ...>...3...@...4
+crash> rd ffff604004a9d510 8
+ffff604004a9d510:  0000000000000000 0000000000000000   ................
+ffff604004a9d520:  0000000000000000 0000000000000000   ................
+ffff604004a9d530:  0000000000000000 0000000000000000   ................
+ffff604004a9d540:  0000000000000000 0000000000000000   ................
+crash> rd ffff604019cad660 8
+ffff604019cad660:  0000000000000000 0000000000000000   ................
+ffff604019cad670:  0000000000000000 0000000000000000   ................
+ffff604019cad680:  0000000000000000 0000000000000000   ................
+ffff604019cad690:  0000000000000000 0000000000000000   ................
+crash> rd ffff604019caf520 8
+ffff604019caf520:  ffff604019caf520 ffff604019caf520    ...@`.. ...@`..
+ffff604019caf530:  0000000000000000 0000000000000000   ................
+ffff604019caf540:  0000000000000000 0000000000000000   ................
+ffff604019caf550:  0000000000000000 0000000000000000   ................
+crash> rd ffff604020894430 8
+ffff604020894430:  ffff604020894428 ffff604020894438   (D. @`..8D. @`..
+ffff604020894440:  ffff604020894438 ffff604020894448   8D. @`..HD. @`..
+ffff604020894450:  ffff604020894448 ffff604020894458   HD. @`..XD. @`..
+ffff604020894460:  ffff604020894458 ffff604020894468   XD. @`..hD. @`..
+crash> rd ffff604020894330 8
+ffff604020894330:  0000000000000000 0000000000000000   ................
+ffff604020894340:  0000000000000000 0000000000000000   ................
+ffff604020894350:  0000000000000000 0000000000000000   ................
+ffff604020894360:  0000000000000000 0000000000000000   ................
+crash> rd ffff60401b721730 8
+ffff60401b721730:  6d70000f6e70000f 6b70000f6c70000f   ..pn..pm..pl..pk
+ffff60401b721740:  6970000f6a70000f 6770000f6870000f   ..pj..pi..ph..pg
+ffff60401b721750:  6570000f6670000f 6370000f6470000f   ..pf..pe..pd..pc
+ffff60401b721760:  6170000f6270000f 5f70000f6070000f   ..pb..pa..p`..p_
+crash> rd ffff60401b7244c0 8
+ffff60401b7244c0:  d05e000007000000 d35e000008000000   ......^.......^.
+ffff60401b7244d0:  d65e000009000000 d95e00000a000000   ......^.......^.
+ffff60401b7244e0:  dc5e00000b000000 df5e00000c000000   ......^.......^.
+ffff60401b7244f0:  e25e00000d000000 e55e00000e000000   ......^.......^.
+crash> rd ffff60401b724040 8
+ffff60401b724040:  ffffffff01000000 0e04000fa75d0000   ..........].....
+ffff60401b724050:  0100000001000000 aa5d0000ffffffff   ..............].
+ffff60401b724060:  010000000d04000f ffffffff01000000   ................
+ffff60401b724070:  0c04000fad5d0000 0100000001000000   ..].............
+crash> rd ffff604021842780 8
+ffff604021842780:  f401000000000000 000000000c000003   ................
+ffff604021842790:  0c000003f4010000 f401000000000000   ................
+ffff6040218427a0:  000000000c000003 0c000003f4010000   ................
+ffff6040218427b0:  f401000000000000 000000000c000003   ................
+crash> rd ffff60400618c610 8
+ffff60400618c610:  2020202020333436 2020343336332020   643       3634  
+ffff60400618c620:  3536332020202020 2020202020202034        3654       
+ffff60400618c630:  2020202032353133 2031333931202020   3152       1931 
+ffff60400618c640:  3634202020202020 2020202020203637         4676      
+crash> rd ffff6040065183e0 8
+ffff6040065183e0:  2020202020203336 2020203431383220   63       2814   
+ffff6040065183f0:  3633383220202020 3220202020202020       2836       2
+ffff604006518400:  2020202020333139 2020353333332020   913       3335  
+ffff604006518410:  3430332020202020 2020202020202035        3045       
+crash> kmem ffff604004a9b3a0
+CACHE             OBJSIZE  ALLOCATED     TOTAL  SLABS  SSIZE  NAME
+ffff002020805040     4096       2940      4920    615    32k  kmalloc-4k
+  SLAB              MEMORY            NODE  TOTAL  ALLOCATED  FREE
+  fffffd810012a600  ffff604004a98000     7      8          6     2
+  FREE / [ALLOCATED]
+  [ffff604004a9b000]
+
+      PAGE         PHYSICAL      MAPPING       INDEX CNT FLAGS
+fffffd810012a6c0 604004a9b000 dead000000000400        0  0 75ffffe00000000
+crash> kmem ffff604004a9a327
+CACHE             OBJSIZE  ALLOCATED     TOTAL  SLABS  SSIZE  NAME
+ffff002020805040     4096       2940      4920    615    32k  kmalloc-4k
+  SLAB              MEMORY            NODE  TOTAL  ALLOCATED  FREE
+  fffffd810012a600  ffff604004a98000     7      8          6     2
+  FREE / [ALLOCATED]
+   ffff604004a9a000  
+
+      PAGE         PHYSICAL      MAPPING       INDEX CNT FLAGS
+fffffd810012a680 604004a9a000 fffffd810012a690        0  0 75ffffe00000000
+crash> kmem ffff6040065183ed
+CACHE             OBJSIZE  ALLOCATED     TOTAL  SLABS  SSIZE  NAME
+ffff002020805040     4096       2940      4920    615    32k  kmalloc-4k
+  SLAB              MEMORY            NODE  TOTAL  ALLOCATED  FREE
+  fffffd8100194600  ffff604006518000     7      8          0     8
+  FREE / [ALLOCATED]
+   ffff604006518000  (cpu 186 cache)
+
+      PAGE         PHYSICAL      MAPPING       INDEX CNT FLAGS
+fffffd8100194600 604006518000                0 ffff604006518000  1 75ffffe00000840 head,slab
+crash> kmem ffff604021842788
+CACHE             OBJSIZE  ALLOCATED     TOTAL  SLABS  SSIZE  NAME
+ffff002020804c80      512       7057     21568    337    32k  kmalloc-512
+  SLAB              MEMORY            NODE  TOTAL  ALLOCATED  FREE
+  fffffd8100861000  ffff604021840000     7     64          0    64
+  FREE / [ALLOCATED]
+   ffff604021842600  
+
+      PAGE         PHYSICAL      MAPPING       INDEX CNT FLAGS
+fffffd8100861080 604021842000 fffffd8100861090        0  0 75ffffe00000000
+crash> kmem ffff604019cad66b
+CACHE             OBJSIZE  ALLOCATED     TOTAL  SLABS  SSIZE  NAME
+ffff002020805040     4096       2940      4920    615    32k  kmalloc-4k
+  SLAB              MEMORY            NODE  TOTAL  ALLOCATED  FREE
+  fffffd8100672a00  ffff604019ca8000     7      8          6     2
+  FREE / [ALLOCATED]
+  [ffff604019cad000]
+
+      PAGE         PHYSICAL      MAPPING       INDEX CNT FLAGS
+fffffd8100672b40 604019cad000 dead000000000400 ffff604019cad300  0 75ffffe00000000

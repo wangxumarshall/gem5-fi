@@ -1,0 +1,134 @@
+
+crash 8.0.4-17.oe2403sp4
+Copyright (C) 2002-2022  Red Hat, Inc.
+Copyright (C) 2004, 2005, 2006, 2010  IBM Corporation
+Copyright (C) 1999-2006  Hewlett-Packard Co
+Copyright (C) 2005, 2006, 2011, 2012  Fujitsu Limited
+Copyright (C) 2006, 2007  VA Linux Systems Japan K.K.
+Copyright (C) 2005, 2011, 2020-2022  NEC Corporation
+Copyright (C) 1999, 2002, 2007  Silicon Graphics, Inc.
+Copyright (C) 1999, 2000, 2001, 2002  Mission Critical Linux, Inc.
+Copyright (C) 2015, 2021  VMware, Inc.
+This program is free software, covered by the GNU General Public License,
+and you are welcome to change it and/or distribute copies of it under
+certain conditions.  Enter "help copying" to see the conditions.
+This program has absolutely no warranty.  Enter "help warranty" for details.
+ 
+NOTE: stdin: not a tty
+
+GNU gdb (GDB) 10.2
+Copyright (C) 2021 Free Software Foundation, Inc.
+License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>
+This is free software: you are free to change and redistribute it.
+There is NO WARRANTY, to the extent permitted by law.
+Type "show copying" and "show warranty" for details.
+This GDB was configured as "aarch64-unknown-linux-gnu".
+Type "show configuration" for configuration details.
+Find the GDB manual and other documentation resources online at:
+    <http://www.gnu.org/software/gdb/documentation/>.
+
+For help, type "help".
+Type "apropos word" to search for commands related to "word"...
+
+crash: page excluded: kernel virtual address: ffffab7f5d24f840  type: "kernel_config_data"
+WARNING: cannot read kernel_config_data
+crash: page excluded: kernel virtual address: ffffab7f5e26f098  type: "possible"
+WARNING: cannot read cpu_possible_map
+crash: page excluded: kernel virtual address: ffffab7f5e26f4a0  type: "present"
+WARNING: cannot read cpu_present_map
+crash: page excluded: kernel virtual address: ffffab7f5e26ee98  type: "online"
+WARNING: cannot read cpu_online_map
+crash: page excluded: kernel virtual address: ffffab7f5e26f6a8  type: "active"
+WARNING: cannot read cpu_active_map
+crash: page excluded: kernel virtual address: ffffab7f5f9682e8  type: "shadow_timekeeper xtime_sec"
+crash: page excluded: kernel virtual address: ffffab7f5e74c728  type: "init_uts_ns"
+crash: /tmp/vmlinux-0102 and /home/sdc/wangxu/vmcore0102/127.0.0.1-2026-09-04-22:27:27/vmcore-incomplete do not match!
+
+Usage:
+
+  crash [OPTION]... NAMELIST MEMORY-IMAGE[@ADDRESS]	(dumpfile form)
+  crash [OPTION]... [NAMELIST]             		(live system form)
+
+Enter "crash -h" for details.
+
+crash 8.0.4-17.oe2403sp4
+Copyright (C) 2002-2022  Red Hat, Inc.
+Copyright (C) 2004, 2005, 2006, 2010  IBM Corporation
+Copyright (C) 1999-2006  Hewlett-Packard Co
+Copyright (C) 2005, 2006, 2011, 2012  Fujitsu Limited
+Copyright (C) 2006, 2007  VA Linux Systems Japan K.K.
+Copyright (C) 2005, 2011, 2020-2022  NEC Corporation
+Copyright (C) 1999, 2002, 2007  Silicon Graphics, Inc.
+Copyright (C) 1999, 2000, 2001, 2002  Mission Critical Linux, Inc.
+Copyright (C) 2015, 2021  VMware, Inc.
+This program is free software, covered by the GNU General Public License,
+and you are welcome to change it and/or distribute copies of it under
+certain conditions.  Enter "help copying" to see the conditions.
+This program has absolutely no warranty.  Enter "help warranty" for details.
+ 
+NOTE: stdin: not a tty
+
+GNU gdb (GDB) 10.2
+Copyright (C) 2021 Free Software Foundation, Inc.
+License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>
+This is free software: you are free to change and redistribute it.
+There is NO WARRANTY, to the extent permitted by law.
+Type "show copying" and "show warranty" for details.
+This GDB was configured as "aarch64-unknown-linux-gnu".
+Type "show configuration" for configuration details.
+Find the GDB manual and other documentation resources online at:
+    <http://www.gnu.org/software/gdb/documentation/>.
+
+For help, type "help".
+Type "apropos word" to search for commands related to "word"...
+
+WARNING: could not find MAGIC_START!
+WARNING: cannot read linux_banner string
+crash: /tmp/vmlinux-0102 and /home/sdc/wangxu/vmcore0102/127.0.0.1-2026-09-04-22:27:27/vmcore-incomplete do not match!
+
+Usage:
+
+  crash [OPTION]... NAMELIST MEMORY-IMAGE[@ADDRESS]	(dumpfile form)
+  crash [OPTION]... [NAMELIST]             		(live system form)
+
+Enter "crash -h" for details.
+
+# =====================================================================================
+# SESSION 3 (2026-09-05): Forcing reads from vmcore-incomplete using a LIVE-PHYS method
+# is not possible; but the kdump sub-header DOES carry the crash CPU/registers context.
+# makedumpfile header has fixed offsets; extracted manually below from od output.
+# Attempt: makedumpfile -d 0 (rebuild)? Tool availability check:
+
+# =====================================================================================
+# SESSION 4 (2026-09-05): MANUAL kdump-format forensics on vmcore-incomplete (crash refuses load)
+# 
+# 4.1 Header parse (python3, see algebra.py):
+#   - diskdump header v6, uts nodename=localhost0102, release 6.6.0-145.3.23.154.oe2403sp3.aarch64
+#   - dump timestamp (header @0x194): 1788532003 = 2026-09-04 22:26:43 (matches dump dir name 22:27:27)
+#   - sub-header: dump_level=31, offset=0x14580
+#   - vmcoreinfo note @0x14568..0x15290 (len 0xd10): KERNELOFFSET=0x2b7edc310000,
+#     SYMBOL(_stext)=0xffffab7f5c320000, CRASHTIME=1788532003
+#   - 192 x NT_PRSTATUS notes @0x1068..0x14568 (one per CPU, 0x188 bytes each)
+#   - ELF PT_NOTE region is INTACT in the incomplete dump (it is written first)
+#
+# 4.2 CRASH CPU REGISTERS RECOVERED from note #179 (index 179 = crash CPU):
+#   pr_reg base offset 120 in note desc; all 35 regs recovered and MATCH the dmesg Oops dump
+#   one-to-one (x27=0x00ffab53df0abe80, x20=0x00ffffd4812327c0, x1=0xffffab7f5de796c0,
+#   pc=0xffffab7f5c44ae48, pstate=0x204000c9). This independently CONFIRMS the dmesg register
+#   block is authentic (two independent capture paths: printk vs ELF note).
+#   (The other 191 notes hold idle-loop userspace-pt regs of secondary CPUs - normal for kdump
+#   secondary-CPU offline via IPI; only the crash CPU (179) note carries kernel-mode regs.)
+#
+# 4.3 Page data area: LZO-compressed pages (core_collector 'makedumpfile -l --message-level 1 -d 31')
+#   - 24-byte page-descriptor index at file 0x181800008 (1,996,032 entries; hole marker 
+#     off=0x187ef3110 size=0x1000 flag=0; data blobs flag=2=LZO)
+#   - kdump died mid-write: last descriptor ends exactly at EOF 0x1f3765978
+#   - kernel .data/.bss pages (where __per_cpu_offset lives) are in the NOT-YET-WRITTEN region
+#     => memory truth comparison of __per_cpu_offset[97] is IMPOSSIBLE (forensic boundary)
+#
+# 4.4 crash load attempts (2 sessions above) both FAILED:
+#   "WARNING: could not find MAGIC_START!" / "cannot read linux_banner" /
+#   "do not match!" -- because kdump never wrote the kernel banner/first pages.
+#   => vmcore-incomplete is NOT loadable by crash; only headers+notes+partial LZO pages exist.
+#   This failure is itself forensic evidence: dump aborted ~84s after panic (22:26:43 CRASHTIME
+#   -> last write, vs dir timestamp 22:27:27).

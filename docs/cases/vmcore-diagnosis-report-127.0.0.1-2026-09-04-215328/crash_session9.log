@@ -1,0 +1,243 @@
+
+crash 8.0.4-17.oe2403sp4
+Copyright (C) 2002-2022  Red Hat, Inc.
+Copyright (C) 2004, 2005, 2006, 2010  IBM Corporation
+Copyright (C) 1999-2006  Hewlett-Packard Co
+Copyright (C) 2005, 2006, 2011, 2012  Fujitsu Limited
+Copyright (C) 2006, 2007  VA Linux Systems Japan K.K.
+Copyright (C) 2005, 2011, 2020-2022  NEC Corporation
+Copyright (C) 1999, 2002, 2007  Silicon Graphics, Inc.
+Copyright (C) 1999, 2000, 2001, 2002  Mission Critical Linux, Inc.
+Copyright (C) 2015, 2021  VMware, Inc.
+This program is free software, covered by the GNU General Public License,
+and you are welcome to change it and/or distribute copies of it under
+certain conditions.  Enter "help copying" to see the conditions.
+This program has absolutely no warranty.  Enter "help warranty" for details.
+ 
+NOTE: stdin: not a tty
+
+GNU gdb (GDB) 10.2
+Copyright (C) 2021 Free Software Foundation, Inc.
+License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>
+This is free software: you are free to change and redistribute it.
+There is NO WARRANTY, to the extent permitted by law.
+Type "show copying" and "show warranty" for details.
+This GDB was configured as "aarch64-unknown-linux-gnu".
+Type "show configuration" for configuration details.
+Find the GDB manual and other documentation resources online at:
+    <http://www.gnu.org/software/gdb/documentation/>.
+
+For help, type "help".
+Type "apropos word" to search for commands related to "word"...
+
+    DUMPFILE: /home/sdc/wangxu/vmcore0102/127.0.0.1-2026-09-04-21:53:28/vmcore  [PARTIAL DUMP]
+        CPUS: 192
+        DATE: Fri Sep  4 21:52:44 CST 2026
+      UPTIME: 09:14:32
+LOAD AVERAGE: 42.73, 9.68, 3.24
+       TASKS: 2212
+    NODENAME: localhost0102
+     RELEASE: 6.6.0-145.3.23.154.oe2403sp3.aarch64
+     VERSION: #1 SMP Mon Jul 27 19:00:34 CST 2026
+     MACHINE: aarch64  (unknown Mhz)
+      MEMORY: 767.8 GB
+       PANIC: "Unable to handle kernel paging request at virtual address 73b8474cc98297a5"
+         PID: 581185
+     COMMAND: "mi-scavenger"
+        TASK: ffff60201da03f00  [THREAD_INFO: ffff60201da03f00]
+         CPU: 179
+       STATE: TASK_INTERRUPTIBLE (PANIC)
+
+crash> vtop ffff604004a9b3a0
+VIRTUAL           PHYSICAL        
+ffff604004a9b3a0  604004a9b3a0    
+
+PAGE DIRECTORY: ffffba8cc8654000
+   PGD: ffffba8cc8654600 => 18006057fffe3403
+   PUD: ffff6057fffe3800 => e8604000000f05
+  PAGE: 604000000000  (1GB)
+
+     PTE          PHYSICAL    FLAGS
+e8604000000f05  604000000000  (VALID|SHARED|AF|NG|PXN|UXN|DIRTY)
+
+      PAGE         PHYSICAL      MAPPING       INDEX CNT FLAGS
+fffffd810012a6c0 604004a9b000 dead000000000400        0  0 75ffffe00000000
+crash> vtop ffff604004a9a327
+VIRTUAL           PHYSICAL        
+ffff604004a9a327  604004a9a327    
+
+PAGE DIRECTORY: ffffba8cc8654000
+   PGD: ffffba8cc8654600 => 18006057fffe3403
+   PUD: ffff6057fffe3800 => e8604000000f05
+  PAGE: 604000000000  (1GB)
+
+     PTE          PHYSICAL    FLAGS
+e8604000000f05  604000000000  (VALID|SHARED|AF|NG|PXN|UXN|DIRTY)
+
+fffffd810012a680 604004a9a000 fffffd810012a690        0  0 75ffffe00000000
+crash> vtop ffff604004a9d516
+VIRTUAL           PHYSICAL        
+ffff604004a9d516  604004a9d516    
+
+PAGE DIRECTORY: ffffba8cc8654000
+   PGD: ffffba8cc8654600 => 18006057fffe3403
+   PUD: ffff6057fffe3800 => e8604000000f05
+  PAGE: 604000000000  (1GB)
+
+     PTE          PHYSICAL    FLAGS
+e8604000000f05  604000000000  (VALID|SHARED|AF|NG|PXN|UXN|DIRTY)
+
+fffffd810012a740 604004a9d000 dead000000000400        0  0 75ffffe00000000
+crash> vtop ffff60400618c61e
+VIRTUAL           PHYSICAL        
+ffff60400618c61e  60400618c61e    
+
+PAGE DIRECTORY: ffffba8cc8654000
+   PGD: ffffba8cc8654600 => 18006057fffe3403
+   PUD: ffff6057fffe3800 => e8604000000f05
+  PAGE: 604000000000  (1GB)
+
+     PTE          PHYSICAL    FLAGS
+e8604000000f05  604000000000  (VALID|SHARED|AF|NG|PXN|UXN|DIRTY)
+
+fffffd8100186300 60400618c000 dead000000000400        0  0 75ffffe00000000
+crash> vtop ffff6040065183ed
+VIRTUAL           PHYSICAL        
+ffff6040065183ed  6040065183ed    
+
+PAGE DIRECTORY: ffffba8cc8654000
+   PGD: ffffba8cc8654600 => 18006057fffe3403
+   PUD: ffff6057fffe3800 => e8604000000f05
+  PAGE: 604000000000  (1GB)
+
+     PTE          PHYSICAL    FLAGS
+e8604000000f05  604000000000  (VALID|SHARED|AF|NG|PXN|UXN|DIRTY)
+
+fffffd8100194600 604006518000                0 ffff604006518000  1 75ffffe00000840 head,slab
+crash> vtop ffff604021842788
+VIRTUAL           PHYSICAL        
+ffff604021842788  604021842788    
+
+PAGE DIRECTORY: ffffba8cc8654000
+   PGD: ffffba8cc8654600 => 18006057fffe3403
+   PUD: ffff6057fffe3800 => e8604000000f05
+  PAGE: 604000000000  (1GB)
+
+     PTE          PHYSICAL    FLAGS
+e8604000000f05  604000000000  (VALID|SHARED|AF|NG|PXN|UXN|DIRTY)
+
+fffffd8100861080 604021842000 fffffd8100861090        0  0 75ffffe00000000
+crash> vtop ffffba8cc8c25a80
+VIRTUAL           PHYSICAL        
+ffffba8cc8c25a80  310dc25a80      
+
+PAGE DIRECTORY: ffffba8cc8654000
+   PGD: ffffba8cc8654ba8 => 10006057fffff403
+   PUD: ffff6057fffff198 => 10006057ffffe403
+   PMD: ffff6057ffffe230 => 10006057ffffa403
+   PTE: ffff6057ffffa128 => f800310dc25f03
+  PAGE: 310dc25000  
+
+     PTE         PHYSICAL   FLAGS
+f800310dc25f03  310dc25000  (VALID|SHARED|AF|NG|PXN|UXN|DIRTY)
+
+fffffc00c4370940 310dc25000                0        0  1 5ffffe00004000 reserved
+crash> vtop ffff8000817dd6c0
+VIRTUAL           PHYSICAL        
+ffff8000817dd6c0  6057ffe036c0    
+
+PAGE DIRECTORY: ffffba8cc8654000
+   PGD: ffffba8cc8654800 => 100060575fc60403
+   PUD: ffff60575fc60010 => 100060575fc5f403
+   PMD: ffff60575fc5f058 => 100060575fc53403
+   PTE: ffff60575fc53ee8 => e86057ffe03f03
+  PAGE: 6057ffe03000  
+
+     PTE          PHYSICAL    FLAGS
+e86057ffe03f03  6057ffe03000  (VALID|SHARED|AF|NG|PXN|UXN|DIRTY)
+
+fffffd815fff80c0 6057ffe03000                0        0  1 75ffffe00004000 reserved
+crash> vtop ffffba8cc8c25000
+VIRTUAL           PHYSICAL        
+ffffba8cc8c25000  310dc25000      
+
+PAGE DIRECTORY: ffffba8cc8654000
+   PGD: ffffba8cc8654ba8 => 10006057fffff403
+   PUD: ffff6057fffff198 => 10006057ffffe403
+   PMD: ffff6057ffffe230 => 10006057ffffa403
+   PTE: ffff6057ffffa128 => f800310dc25f03
+  PAGE: 310dc25000  
+
+     PTE         PHYSICAL   FLAGS
+f800310dc25f03  310dc25000  (VALID|SHARED|AF|NG|PXN|UXN|DIRTY)
+
+fffffc00c4370940 310dc25000                0        0  1 5ffffe00004000 reserved
+crash> vtop ffffba8cc8c1fcb0
+VIRTUAL           PHYSICAL        
+ffffba8cc8c1fcb0  310dc1fcb0      
+
+PAGE DIRECTORY: ffffba8cc8654000
+   PGD: ffffba8cc8654ba8 => 10006057fffff403
+   PUD: ffff6057fffff198 => 10006057ffffe403
+   PMD: ffff6057ffffe230 => 10006057ffffa403
+   PTE: ffff6057ffffa0f8 => f800310dc1ff03
+  PAGE: 310dc1f000  
+
+     PTE         PHYSICAL   FLAGS
+f800310dc1ff03  310dc1f000  (VALID|SHARED|AF|NG|PXN|UXN|DIRTY)
+
+fffffc00c43707c0 310dc1f000                0        0  1 5ffffe00004000 reserved
+crash> vtop ffff6040043a3200
+VIRTUAL           PHYSICAL        
+ffff6040043a3200  6040043a3200    
+
+PAGE DIRECTORY: ffffba8cc8654000
+   PGD: ffffba8cc8654600 => 18006057fffe3403
+   PUD: ffff6057fffe3800 => e8604000000f05
+  PAGE: 604000000000  (1GB)
+
+     PTE          PHYSICAL    FLAGS
+e8604000000f05  604000000000  (VALID|SHARED|AF|NG|PXN|UXN|DIRTY)
+
+fffffd810010e8c0 6040043a3000 dead000000000400        0  0 75ffffe00000000
+crash> vtop ffff604003e5fea0
+VIRTUAL           PHYSICAL        
+ffff604003e5fea0  604003e5fea0    
+
+PAGE DIRECTORY: ffffba8cc8654000
+   PGD: ffffba8cc8654600 => 18006057fffe3403
+   PUD: ffff6057fffe3800 => e8604000000f05
+  PAGE: 604000000000  (1GB)
+
+     PTE          PHYSICAL    FLAGS
+e8604000000f05  604000000000  (VALID|SHARED|AF|NG|PXN|UXN|DIRTY)
+
+fffffd81000f97c0 604003e5f000 dead000000000122        0  1 75ffffe00000800 slab
+crash> vtop ffffba8cc8c17000
+VIRTUAL           PHYSICAL        
+ffffba8cc8c17000  310dc17000      
+
+PAGE DIRECTORY: ffffba8cc8654000
+   PGD: ffffba8cc8654ba8 => 10006057fffff403
+   PUD: ffff6057fffff198 => 10006057ffffe403
+   PMD: ffff6057ffffe230 => 10006057ffffa403
+   PTE: ffff6057ffffa0b8 => f800310dc17f03
+  PAGE: 310dc17000  
+
+     PTE         PHYSICAL   FLAGS
+f800310dc17f03  310dc17000  (VALID|SHARED|AF|NG|PXN|UXN|DIRTY)
+
+fffffc00c43705c0 310dc17000                0        0  1 5ffffe00004000 reserved
+crash> rd ffff604004a9b396 2
+ffff604004a9b396:  0000000000000000 0000000000000000   ................
+crash> rd ffff604004a9b380 8
+ffff604004a9b380:  0000000000000000 0000000000000000   ................
+ffff604004a9b390:  0000000000000000 0000000000000000   ................
+ffff604004a9b3a0:  0000000000000000 0000000000000000   ................
+ffff604004a9b3b0:  0000000000000000 0000000000000000   ................
+crash> rd ffff604004a9b3a0 2
+ffff604004a9b3a0:  0000000000000000 0000000000000000   ................
+crash> rd ffff604004a9a327 2
+ffff604004a9a327:  00000034d60200ad 00000036d602002d   ....4...-...6...
+crash> rd ffff604004a9d516 2
+ffff604004a9d516:  0000000000000000 0000000000000000   ................
