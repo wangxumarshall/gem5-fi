@@ -2027,3 +2027,11 @@ L1D→L2 的悬崖式下降（97.7%→0%）不是"L2 更安全"而是**工作集
 **§4.1/§4.2 意义**：**PRF 保护（ECC/parity）的价值是 workload 依赖的**——紧循环链式数据流（forwarding 密集）的 PRF 位错误天然自掩蔽，不需要保护；跨迭代长距离数据依赖的 PRF 错误才有 SDC 面。保护排序中 physreg 的 MED 优先级进一步弱化（其 3.9% SDC 只存在于特定依赖距离谱的 workload）。
 
 **method2 三根因启示**：PRF 臂在 userspace 紧循环 workload 上注入不动（forwarding 掩蔽 + 实例寿命）；method2 现场的"x10 垃圾指针"是**内核态**代码（非 forwarding 距离的指针使用模式）——PRF 臂的对照实验必须回到 FS 内核态（m2_ptrchase.rcS 的调度域遍历路径）才有意义。SE 侧 method2 的 PRF 臂结论定格为"不可达（forwarding 掩蔽）"。
+
+### Phase 5.6: phys 随机采样 active-only 修复 + FS PRF 臂真机验证
+
+**Bug（method2 FS PRF 臂首轮暴露）**：phys 随机模式在 O3 restore 稳态下 FreeListSize=170/200（窗口稀疏填充）——uniform 全域采样大概率选中空闲槽 = 有效 no-op 却消耗唯一注入（log: "PhysReg[245] (Inactive/free slot)"）。200K 窗口推迟不解决（FreeListSize 恒 170——**稳态内核 shell 的 ILP 填不满窗口**，是并发度问题非时点问题）。
+
+**修复**：active-only 重采样（最多 32 次找 allocated 槽；全 miss 则诚实 return——不消耗 fault，attackCheck 末尾的重排继续，注入器不停摆）。**真机验证**：同 seed 重跑 → `PhysReg[2] (Active, held by in-flight inst)` ✅，FS oracle 下内核存活（Masked）。
+
+**意义**：method2 三臂的 FS 跑批路径全部打通（active-only phys 注入 + O3 restore + m2 rcS workload）。三臂 pilot（PRF/AddrPath/TLB 各 n=5）就绪待跑。

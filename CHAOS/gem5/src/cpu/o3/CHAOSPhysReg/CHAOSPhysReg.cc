@@ -196,9 +196,37 @@ namespace gem5
             else
                 n = (int)cpu->physRegFile().numIntPhysRegs();
             if (n <= 0) return;
-            chosen_phys_idx = (target_phys_idx >= 0)
-                ? target_phys_idx
-                : std::uniform_int_distribution<>(0, n - 1)(rng);
+            // phys random: ACTIVE-ONLY sampling (Phase 5.6 fix). The naive
+            // uniform pick over ALL slots wastes the single fault on a free
+            // slot when the O3 window is sparsely filled (steady-state FS:
+            // FreeListSize 170/200 — the first method2 PRF-arm runs injected
+            // an Inactive slot = effective no-op). Re-sample up to K times
+            // for an allocated (non-free) slot; if all K miss (window
+            // truly empty), reschedule instead of burning the fault.
+            if (target_phys_idx >= 0) {
+                chosen_phys_idx = target_phys_idx;
+            } else {
+                const int K_ACTIVE_RETRY = 32;
+                chosen_phys_idx = -1;
+                for (int t = 0; t < K_ACTIVE_RETRY; t++) {
+                    int cand = std::uniform_int_distribution<>(0, n - 1)(rng);
+                    PhysRegIdPtr cand_reg =
+                        (target_class == gem5::FloatRegClass)
+                            ? cpu->physRegFile().floatPhysRegId(cand)
+                            : (target_class == gem5::VecRegClass)
+                                  ? cpu->physRegFile().vecPhysRegId(cand)
+                                  : cpu->physRegFile().intPhysRegId(cand);
+                    if (!cpu->physFreeList().isFree(target_class, cand_reg)) {
+                        chosen_phys_idx = cand;
+                        break;
+                    }
+                }
+                if (chosen_phys_idx < 0) {
+                    // window empty (all K samples free): honest skip —
+                    // reschedule, do NOT consume the fault
+                    return;  // caller's periodic event reschedules
+                }
+            }
             if (chosen_phys_idx >= n) return;
             if (target_class == gem5::FloatRegClass)
                 phys_reg = cpu->physRegFile().floatPhysRegId(chosen_phys_idx);
