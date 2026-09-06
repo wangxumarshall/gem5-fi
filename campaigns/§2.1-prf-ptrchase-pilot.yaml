@@ -10,7 +10,7 @@ grid:
   # (garbage pointer -> translation fault); low bits -> aliased pointer ->
   # SDC or Hang.
   phys_mode: [arch_frontend]
-  target_index: [10]
+  target_index: [0]
   bit: [0, 31, 63]
   fault_model: [transient_bit_flip]
   protection_model: [none]

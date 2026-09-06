@@ -2006,3 +2006,9 @@ L1D→L2 的悬崖式下降（97.7%→0%）不是"L2 更安全"而是**工作集
 ### Phase 5.6 方法学教训: "method2 x10" 在 userspace 不存在——指针寄存器要从反汇编找
 
 **ptr_chase_long X10 三位段（bit 0/31/63）n=100 全 Masked 的真因**：objdump 反汇编显示 -O2 下**链表指针在 x0**（内层循环 `ldp x0, x3, [x0]`），x10 全程未被使用（ReadTracePoll 证实 PhysReg[51] reads=0）。**method2 现场的 x10 是内核态调度域遍历的编译结果**——userspace kernel 的寄存器分配完全由编译器决定，"指定 x10"没有意义。campaign 已改指 x0 重跑（pilot 进行中）。**教训**：定向寄存器注入前必须先反汇编确认目标寄存器真实持有目标值（Directed 注入的 workload 适配步骤），否则跑出来的"全 Masked"是空寄存器伪影。
+
+### Phase 5.6 机理发现: arch_frontend 定向注入在"每指令重写"寄存器上的根本局限
+
+**ptr_chase_long x0（真指针）三位段 n=100 仍全 Masked 的根因**（readtrace 证据）：注入的 PhysReg[25] reads_before_overwrite=0、100K 周期内被 overwrite——**chase 循环的 `ldp x0, x3, [x0]` 每条指令重写 x0**，O3 rename 下 x0 的物理实例寿命只有一条指令。arch_frontend 定向注入命中的是该 arch reg 在注入时刻的当前映射，但那个实例大概率在下一条 ldp 就被覆盖，翻转无消费者。**这不是 workload 不可达，是"定向注入 × 高重写率寄存器"的采样错配**。
+
+**对策**：phys 模式随机采样（随机活物理寄存器翻转）——必然命中当时真正 live 的指针/计数器/校验和寄存器。ptr_chase_long phys pilot（n=100）跑批中。**方法学定则**：高重写率寄存器（链表追逐/紧密循环累加器）必须用 phys-random 而非 arch-directed 注入；arch-directed 只适合低重写率长活寄存器（X19-X28 callee-saved、稀疏写变量）。
