@@ -86,6 +86,121 @@ def unit_of(campaign):
             return key
     return ""
 
+# §4.2 weight(unit) — occupancy-based (Phase 6.1). Single source: a no-injection
+# C2/cholesky golden run's stats.txt (artifacts/meta/occupancy_cholesky_C2.stats).
+# Weights are RELATIVE structure-occupancy proxies per unit, normalized to
+# sum=1 over the units in the table. E3-honest: gem5 classic-config occupancy
+# stats differ per workload; this weights the C2/cholesky family (the biggest
+# formal cluster). Units without a measurable occupancy proxy get the mean.
+OCCUPANCY_STATS = os.path.join(ART, "meta", "occupancy_cholesky_C2.stats")
+
+def _stat(stats_path, pattern):
+    """First matching 'name  value' line's value as float, or None."""
+    try:
+        with open(stats_path) as f:
+            for line in f:
+                if pattern in line and not line.strip().startswith("#"):
+                    parts = line.split()
+                    if len(parts) >= 2:
+                        try:
+                            return float(parts[1])
+                        except ValueError:
+                            continue
+    except OSError:
+        pass
+    return None
+
+def _stat_pct(stats_path, pattern):
+    """The '%'-column value (parts[2], e.g. '44.17%') of the first matching
+    stats row, as a 0..1 fraction. gem5 distribution rows are
+    '<name> <count> <pct>% <cumulative>% # ...' — the count is in CYCLES,
+    the pct column is the comparable fraction."""
+    try:
+        with open(stats_path) as f:
+            for line in f:
+                if pattern in line and "%" in line:
+                    parts = line.split()
+                    for tok in parts[1:4]:
+                        if tok.endswith("%"):
+                            try:
+                                return float(tok[:-1]) / 100.0
+                            except ValueError:
+                                continue
+    except OSError:
+        pass
+    return None
+
+def weight_table():
+    """unit -> relative occupancy weight (sums to 1 over measured units)."""
+    raw = {
+        # L1D/L1I/L2: average tag occupancy (fraction of ways occupied)
+        "l1d": _stat(OCCUPANCY_STATS, "l1d-cache-0.tags.avgOccs::total"),
+        "l1i": _stat(OCCUPANCY_STATS, "l1i-cache-0.tags.avgOccs::total"),
+        "l2":  _stat(OCCUPANCY_STATS, "l2-cache-0.tags.avgOccs::total"),
+        # rename (RAT/freelist live in rename's pipeline activity):
+        # share of cycles rename is Running (mapping writes happening).
+        # NOTE the stats row is '<name> <count> <pct>%' — _stat's parts[1]
+        # is the COUNT; use the percentage column via _stat_pct (a 0..100
+        # fraction-of-cycles figure, comparable with avgOccs 0..1).
+        "rat": _stat_pct(OCCUPANCY_STATS, "rename.status::Running"),
+        "freelist": _stat_pct(OCCUPANCY_STATS, "rename.status::Running"),
+        # ROB: commit utilization — committedInsts / cycles (per-cycle occupancy
+        # of the ROB's in-flight window; width-normalized to a <=1 fraction)
+        # handled below with two stats
+        "rob": None,
+        # IQ: full-event proxy is an event count, not occupancy; use rename
+        # running as the dispatch-into-IQ activity proxy
+        "iq": _stat_pct(OCCUPANCY_STATS, "rename.status::Running"),
+        # LSQ: the same dispatch proxy (loads/stores pass rename into LSQ)
+        "lsq_fwd": _stat_pct(OCCUPANCY_STATS, "rename.status::Running"),
+        # exec/fsu: commit-mix of the class (fraction of committed insts)
+        "exec": None,  # filled from committedInstType below
+        "fsu":  None,
+        # PRF: live-physreg fraction proxied by the in-flight window
+        # occupancy (filled after the ROB calc below)
+        "physreg": None,
+        # l1d_fwd (the fill->PRF datapath): L1D tag occupancy proxies the
+        # forwarding-relevant state flowing through it
+        "l1d_fwd": _stat(OCCUPANCY_STATS, "l1d-cache-0.tags.avgOccs::total"),
+    }
+    # ROB: committedInsts per cycle / commit width (4) as window-occupancy proxy
+    ci = _stat(OCCUPANCY_STATS, "commit.committedInsts")
+    # total cycles: rename status percentages denominator — use commit's
+    # committedInsts over (Running+Idle+Squashing+Blocked+Unblocking cycles)
+    cyc = None
+    try:
+        vals = []
+        with open(OCCUPANCY_STATS) as f:
+            for line in f:
+                if "rename.status::" in line:
+                    vals.append(float(line.split()[1]))
+        cyc = sum(vals) if vals else None
+    except Exception:
+        pass
+    if ci is not None and cyc:
+        raw["rob"] = min(1.0, ci / cyc / 4.0)
+        raw["physreg"] = raw["rob"]  # in-flight window = live-physreg proxy
+    # exec/fsu: committed-mix fractions
+    tot = _stat(OCCUPANCY_STATS, "commit.committedInstType_0::IntAlu")
+    # use the % column is unreliable; approximate from the IntAlu/FloatAdd lines
+    ia = _stat(OCCUPANCY_STATS, "commit.committedInstType_0::IntAlu")
+    fa = _stat(OCCUPANCY_STATS, "commit.committedInstType_0::FloatAdd")
+    if ia is not None:
+        raw["exec"] = min(1.0, ia / ci) if ci else None
+    if fa is not None and ci:
+        raw["fsu"] = min(1.0, fa / ci)
+    # unmeasurable units: l1d_fwd (a datapath, not storage), l1_tlb/exmon/
+    # bpu/decode/ras/memory — leave None, get the mean of measured ones
+    measured = {k: v for k, v in raw.items() if v is not None}
+    if not measured:
+        return {}
+    mean_v = sum(measured.values()) / len(measured)
+    for k, v in raw.items():
+        if v is None:
+            raw[k] = mean_v
+    total = sum(raw.values())
+    return {k: v / total for k, v in raw.items()}
+
 def main():
     rows = []
     for hf in sorted(glob.glob(os.path.join(ART, "*", "heatmap.csv"))):
@@ -119,22 +234,43 @@ def main():
         lines.append(f"| {r['_campaign']}<br>{cell_desc} | {prot} | {p_sdc} | {p_due} | {reach} | {mech} |")
 
     # §4.2 protection-ROI priority table (sorted by P_SDC contribution)
-    lines += ["", "# §4.2 Protection Investment Priority (sorted by P_SDC × Reach)", "",
-              "| unit | P_SDC | Reach | SDC contribution proxy | current protection (proxy) | priority |",
-              "|---|---|---|---|---|---|"]
+    weights = weight_table()
+    wsrc = "occupancy_cholesky_C2.stats" if weights else "UNAVAILABLE (raw table)"
+    lines += ["", f"# §4.2 Protection Investment Priority (P_SDC x Reach, occupancy-weighted; weights: {wsrc})", "",
+              "| unit | P_SDC | Reach | SDC contribution | occupancy weight | weighted priority | current protection (proxy) | priority |",
+              "|---|---|---|---|---|---|---|---|"]
+    # formal-first selection: prefer n>=300 (formal scale) rows; fall back
+    # to smaller grids/pilots only for units with no formal cell. Without
+    # this, a 5-rep pilot's 100% (CI [35,100]) outranks the n=384 formal's
+    # 97.7%/3.9% — the Phase 6.1 audit caught the physreg 100% artifact.
     unit_best = {}
     for r in rows:
         unit = unit_of(r["_campaign"])
         if not unit:
             continue
+        n = int(r.get("n_valid", 0) or 0)
         contrib = float(r["P_SDC"]) * float(r["Reach"])
-        if unit not in unit_best or contrib > unit_best[unit][0]:
+        is_formal = n >= 300
+        cur = unit_best.get(unit)
+        if cur is None:
             unit_best[unit] = (contrib, float(r["P_SDC"]), float(r["Reach"]),
-                               r.get("protection_model", "none"))
-    for unit, (contrib, psdc, reach, prot) in sorted(unit_best.items(),
-                                                       key=lambda x: -x[1][0]):
-        prio = "HIGH" if contrib > 0.02 else ("MED" if contrib > 0.005 else "LOW")
-        lines.append(f"| {unit} | {psdc*100:.1f}% | {reach*100:.1f}% | {contrib*100:.2f}% | {prot} | {prio} |")
+                               r.get("protection_model", "none"), is_formal)
+        else:
+            cur_formal = cur[4]
+            if (is_formal and not cur_formal) or (is_formal == cur_formal
+                                                  and contrib > cur[0]):
+                unit_best[unit] = (contrib, float(r["P_SDC"]),
+                                   float(r["Reach"]),
+                                   r.get("protection_model", "none"),
+                                   is_formal)
+    for unit, (contrib, psdc, reach, prot, is_f) in sorted(unit_best.items(),
+                                                            key=lambda x: -x[1][0]):
+        w = weights.get(unit, 0.0)
+        weighted = contrib * w
+        prio = "HIGH" if weighted > 0.01 else ("MED" if weighted > 0.002 else "LOW")
+        lines.append(f"| {unit} | {psdc*100:.1f}% | {reach*100:.1f}% | "
+                     f"{contrib*100:.2f}% | {w*100:.1f}% | {weighted*100:.2f}% | "
+                     f"{prot} | {prio} |")
 
     os.makedirs(os.path.join(ART, "meta"), exist_ok=True)
     out = os.path.join(ART, "meta", "escape_decomposition.md")

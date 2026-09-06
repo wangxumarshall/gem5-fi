@@ -36,6 +36,9 @@
 | l1d_formal_reduce_secded<br>phys_mode=arch_frontend target_index=0 fault_model=transient_bit_flip | secded_poison | 0.0% [0.0,1.0] | 0.0% [0.0,1.0] | 100.0% | D (post-check escape via CHAOSL1DForward; cache raw vs secded_poison) |
 | l1d_reduce_pilot<br>phys_mode=arch_frontend target_index=0 fault_model=transient_bit_flip | none | 100.0% [56.5,100.0] | 0.0% [0.0,43.5] | 100.0% | D (post-check escape via CHAOSL1DForward; cache raw vs secded_poison) |
 | l1dfwd_formal_reduce<br>phys_mode=arch_frontend target_index=0 fault_model=transient_bit_flip | none | 90.9% [87.6,93.4] | 0.0% [0.0,1.0] | 100.0% | D (post-check escape: ECC-check-later datapath) |
+| l1i_formal_loop<br>target_index=0 fault_model=stuck_at_zero | none | 0.0% [0.0,1.0] | 0.8% [0.3,2.3] | 100.0% | ? (unit not in map) |
+| l1i_formal_loop<br>target_index=0 fault_model=stuck_at_one | none | 0.0% [0.0,1.0] | 0.3% [0.1,1.5] | 100.0% | ? (unit not in map) |
+| l2_formal_reduce<br>target_index=0 fault_model=transient_bit_flip | none | 0.0% [0.0,1.0] | 0.0% [0.0,1.0] | 100.0% | ? (unit not in map) |
 | lsqfwd_formal_fwd<br>phys_mode=arch_frontend target_index=0 fault_model=transient_bit_flip | none | 4.7% [3.0,7.3] | 27.6% [23.3,32.2] | 100.0% | A (RAS-out-of-scope: store-buffer path) |
 | lsqfwd_fwd_pilot<br>phys_mode=arch_frontend target_index=0 fault_model=transient_bit_flip | none | 0.0% [0.0,43.5] | 0.0% [0.0,43.5] | 100.0% | A (RAS-out-of-scope: store-buffer path) |
 | lsqfwd_regchain_pilot<br>phys_mode=arch_frontend target_index=0 fault_model=transient_bit_flip | none | 0.0% [0.0,0.0] | 0.0% [0.0,0.0] | 0.0% | A (RAS-out-of-scope: store-buffer path) |
@@ -110,6 +113,10 @@
 | prf_h2_window_pilot<br>phys_mode=arch_frontend target_index=3 bit=0 rob=160 phys_int=192 fault_model=transient_bit_flip | none | 0.0% [0.0,11.3] | 0.0% [0.0,11.3] | 100.0% | A (RAS-out-of-scope: PRF unprotected, raw=escape) |
 | prf_regchain_pilot<br>phys_mode=arch_frontend target_index=3 fault_model=transient_bit_flip | none | 100.0% [56.5,100.0] | 0.0% [0.0,43.5] | 100.0% | A (RAS-out-of-scope: PRF unprotected, raw=escape) |
 | prf_regchain_pilot<br>phys_mode=arch_frontend target_index=9 fault_model=transient_bit_flip | none | 0.0% [0.0,43.5] | 0.0% [0.0,43.5] | 100.0% | A (RAS-out-of-scope: PRF unprotected, raw=escape) |
+| ptw_h7_pilot_fs<br>target_index=0 fault_model=transient_bit_flip | none | 0.0% [0.0,56.1] | 0.0% [0.0,56.1] | 100.0% | ? (unit not in map) |
+| ptw_h7_pilot_fs<br>target_index=0 fault_model=transient_bit_flip | secded | 0.0% [0.0,56.1] | 0.0% [0.0,56.1] | 100.0% | ? (unit not in map) |
+| ptw_h7_pilot_fs<br>target_index=0 fault_model=stuck_at_zero | none | 0.0% [0.0,56.1] | 0.0% [0.0,56.1] | 100.0% | ? (unit not in map) |
+| ptw_h7_pilot_fs<br>target_index=0 fault_model=stuck_at_zero | secded | 0.0% [0.0,56.1] | 0.0% [0.0,56.1] | 100.0% | ? (unit not in map) |
 | ras_formal_cholesky<br>phys_mode=arch_frontend target_index=0 fault_model=transient_bit_flip | none | 0.0% [0.0,1.1] | 0.0% [0.0,1.1] | 93.7% | F (RAS mechanism escape: exc_suppress swallows DUE) |
 | ras_regchain_pilot<br>phys_mode=arch_frontend target_index=0 fault_model=transient_bit_flip | none | 0.0% [0.0,43.5] | 0.0% [0.0,43.5] | 100.0% | F (RAS mechanism escape: exc_suppress swallows DUE) |
 | rat_cholesky_pilot<br>phys_mode=arch_frontend target_index=3 fault_model=transient_bit_flip | none | 0.0% [0.0,56.1] | 66.7% [20.8,93.8] | 100.0% | A (RAS-out-of-scope: RAT unprotected, raw=escape) |
@@ -124,23 +131,27 @@
 | specleak_formal_branchy<br>target_index=3 fault_model=intermittent_burst | none | 0.0% [0.0,1.0] | 0.0% [0.0,1.0] | 100.0% | A (RAS-out-of-scope: RAT unprotected, raw=escape) |
 | specleak_formal_branchy<br>target_index=9 fault_model=intermittent_burst | none | 0.0% [0.0,1.1] | 0.0% [0.0,1.1] | 88.5% | A (RAS-out-of-scope: RAT unprotected, raw=escape) |
 | specleak_formal_x19<br>target_index=19 fault_model=intermittent_burst | none | 0.0% [0.0,0.0] | 0.0% [0.0,0.0] | 0.0% | A (RAS-out-of-scope: RAT unprotected, raw=escape) |
+| sysreg_f5_pilot<br>target_index=0 fault_model=legal_domain_sub | none | 0.0% [0.0,43.5] | 0.0% [0.0,43.5] | 100.0% | ? (unit not in map) |
+| sysreg_f5_pilot<br>target_index=0 fault_model=transient_bit_flip | none | 0.0% [0.0,43.5] | 0.0% [0.0,43.5] | 100.0% | ? (unit not in map) |
+| tlbf5_formal_fs<br>target_index=0 fault_model=legal_domain_sub | none | 0.0% [0.0,1.0] | 0.0% [0.0,1.0] | 100.0% | ? (unit not in map) |
+| tlbf5_pilot<br>target_index=0 fault_model=legal_domain_sub | none | 0.0% [0.0,65.8] | 0.0% [0.0,65.8] | 100.0% | ? (unit not in map) |
 
-# §4.2 Protection Investment Priority (sorted by P_SDC × Reach)
+# §4.2 Protection Investment Priority (P_SDC x Reach, occupancy-weighted; weights: occupancy_cholesky_C2.stats)
 
-| unit | P_SDC | Reach | SDC contribution proxy | current protection (proxy) | priority |
-|---|---|---|---|---|---|
-| physreg | 100.0% | 100.0% | 100.00% | none | HIGH |
-| l1d | 100.0% | 100.0% | 100.00% | none | HIGH |
-| l1d_fwd | 90.9% | 100.0% | 90.89% | none | HIGH |
-| lsq_fwd | 37.6% | 100.0% | 37.57% | none | HIGH |
-| decode | 0.3% | 100.0% | 0.26% | none | LOW |
-| rat | 0.3% | 100.0% | 0.26% | none | LOW |
-| memory | 0.0% | 100.0% | 0.00% | none | LOW |
-| bpu | 0.0% | 100.0% | 0.00% | none | LOW |
-| exec | 0.0% | 100.0% | 0.00% | none | LOW |
-| exmon | 0.0% | 100.0% | 0.00% | none | LOW |
-| fsu | 0.0% | 100.0% | 0.00% | none | LOW |
-| freelist | 0.0% | 100.0% | 0.00% | none | LOW |
-| iq | 0.0% | 100.0% | 0.00% | none | LOW |
-| ras | 0.0% | 93.7% | 0.00% | none | LOW |
-| rob | 0.0% | 100.0% | 0.00% | none | LOW |
+| unit | P_SDC | Reach | SDC contribution | occupancy weight | weighted priority | current protection (proxy) | priority |
+|---|---|---|---|---|---|---|---|
+| l1d | 97.7% | 100.0% | 97.66% | 5.6% | 5.46% | none | HIGH |
+| l1d_fwd | 90.9% | 100.0% | 90.89% | 5.6% | 5.09% | none | HIGH |
+| lsq_fwd | 37.6% | 100.0% | 37.57% | 11.9% | 4.45% | none | HIGH |
+| physreg | 3.9% | 100.0% | 3.91% | 8.3% | 0.33% | none | MED |
+| decode | 0.3% | 100.0% | 0.26% | 0.0% | 0.00% | none | LOW |
+| rat | 0.3% | 100.0% | 0.26% | 11.9% | 0.03% | none | LOW |
+| memory | 0.0% | 100.0% | 0.00% | 0.0% | 0.00% | none | LOW |
+| bpu | 0.0% | 100.0% | 0.00% | 0.0% | 0.00% | none | LOW |
+| exec | 0.0% | 100.0% | 0.00% | 8.3% | 0.00% | none | LOW |
+| exmon | 0.0% | 100.0% | 0.00% | 0.0% | 0.00% | none | LOW |
+| fsu | 0.0% | 100.0% | 0.00% | 8.3% | 0.00% | none | LOW |
+| freelist | 0.0% | 100.0% | 0.00% | 11.9% | 0.00% | none | LOW |
+| iq | 0.0% | 100.0% | 0.00% | 11.9% | 0.00% | none | LOW |
+| ras | 0.0% | 93.7% | 0.00% | 0.0% | 0.00% | none | LOW |
+| rob | 0.0% | 100.0% | 0.00% | 8.3% | 0.00% | none | LOW |

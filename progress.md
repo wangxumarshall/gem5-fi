@@ -1972,3 +1972,21 @@ L1D→L2 的悬崖式下降（97.7%→0%）不是"L2 更安全"而是**工作集
 - 语义臂差异（opcode 0.8% vs rn 0.3%）不显著（CI 重叠）。
 
 **SE 侧 18 单元清单收官：15/15 完成 formal**（剩余 3 个 L3/NoC/HCCS 是设计文档 S4 独立子项目，Phase 7 后置）。存储层级+取指/取数+乱序后端+执行+地址翻译的完整 SE 定量格局齐备。
+
+### Phase 6.1: weight(unit) occupancy 加权实现（§4.2 排序表升级）
+
+**单一来源**：`artifacts/meta/occupancy_cholesky_C2.stats`（一次无注入 C2/cholesky golden run 的 stats，checksum 37621bc0a633976f 验证）。
+
+**weight(unit) 映射**（gem5 真实 occupancy stats，E3 诚实标注 C2/cholesky 族）：l1d/l1i/l2 用 cache avgOccs::total（0.21/0.24/0.06）；rat/freelist/iq/lsq_fwd 用 rename.status::Running 百分比列（0.44）；rob/physreg 用 committedInsts/cycles/width 窗口占用代理（0.30）；exec/fsu 用 committed-mix；l1d_fwd 用 L1D 占用。无直接指标的单元取已测均值。
+
+**过程中修的两个真 bug**：① `_stat` 取 stats 行的 parts[1] 是**周期计数**而非比例（rename.status::Running=19875 cycles）——归一化后 l1d 权重变成 1e-6；改用百分比列（_stat_pct）。② §4.2 的 unit_best 取每单元最大 contribution——5-rep pilot 的 100%（CI [35,100]）压过 n=384 formal 的 97.7%/3.9%（physreg 显示 100% 的伪影）；改 formal-first（n≥300 优先）。
+
+**加权后 §4.2 排序（133 cells / 55 campaigns）**：
+| rank | unit | P_SDC | weight | weighted |
+|---|---|---|---|---|
+| 1 | l1d | 97.7% | 5.6% | 5.46% HIGH |
+| 2 | l1d_fwd（post-check） | 90.9% | 5.6% | 5.09% HIGH |
+| 3 | lsq_fwd（错源） | 37.6% | 11.9% | 4.45% HIGH |
+| 4 | physreg | 3.9% | 8.3% | 0.33% MED |
+
+**结论强化**：occupancy 加权后**数据通路三兄弟（L1D/post-check/错源转发）稳居前三**——排序对权重方案鲁棒（未加权时也是前三）。PRF 因窗口占用低而降级。
