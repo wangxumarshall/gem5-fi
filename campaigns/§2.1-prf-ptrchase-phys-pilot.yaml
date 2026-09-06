@@ -1,0 +1,29 @@
+schema_version: arm-chaos-fi/v1
+campaign_id: prf_ptrchase_phys_pilot
+injector: physreg
+config: C2
+mode: SE
+grid:
+  # §2.1 D method2 direction, PHYS-random variant: arch_frontend directed
+  # injection can't hit the chase pointer — X0 is rewritten every ldp (its
+  # physical instance lives ONE instruction), so the injected (soon-dead)
+  # physReg instance is overwritten before any read consumes the flip
+  # (readtrace: reads_before_overwrite=0). phys mode samples a RANDOM
+  # live physReg — hitting whichever register (pointer/counter/checksum)
+  # is actually live at the injection tick.
+  phys_mode: [phys]
+  target_index: [0]
+  bit: []
+  fault_model: [transient_bit_flip]
+  protection_model: [none]
+n_per_cell: 100
+base_seed: 20260825
+replay_pct: 5.0
+workload:
+  binary: workloads/directed/ptr_chase_long
+  golden_id: ptrchaselong-golden-v1
+  trigger_mode: cycle
+  trigger_value: 100000
+limits:
+  max_faults: 1
+hang_timeout: 300

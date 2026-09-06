@@ -2012,3 +2012,18 @@ L1D→L2 的悬崖式下降（97.7%→0%）不是"L2 更安全"而是**工作集
 **ptr_chase_long x0（真指针）三位段 n=100 仍全 Masked 的根因**（readtrace 证据）：注入的 PhysReg[25] reads_before_overwrite=0、100K 周期内被 overwrite——**chase 循环的 `ldp x0, x3, [x0]` 每条指令重写 x0**，O3 rename 下 x0 的物理实例寿命只有一条指令。arch_frontend 定向注入命中的是该 arch reg 在注入时刻的当前映射，但那个实例大概率在下一条 ldp 就被覆盖，翻转无消费者。**这不是 workload 不可达，是"定向注入 × 高重写率寄存器"的采样错配**。
 
 **对策**：phys 模式随机采样（随机活物理寄存器翻转）——必然命中当时真正 live 的指针/计数器/校验和寄存器。ptr_chase_long phys pilot（n=100）跑批中。**方法学定则**：高重写率寄存器（链表追逐/紧密循环累加器）必须用 phys-random 而非 arch-directed 注入；arch-directed 只适合低重写率长活寄存器（X19-X28 callee-saved、稀疏写变量）。
+
+### Phase 5.6 定论: 链表追逐 workload 的 PRF 单 bit 翻转全 Masked——forwarding 路径使 PRF 位翻转架构不可见
+
+**三组证据（ptr_chase_long, C2, n=100 each）**：
+| 注入方式 | 目标 | 结果 |
+|---|---|---|
+| arch_frontend 定向 | x10（method2 现场寄存器） | 100/100 Masked（反汇编证实 x10 未用——空寄存器伪影） |
+| arch_frontend 定向 | x0（反汇编证实的真指针） | 100/100 Masked（readtrace: 实例寿命一条指令，翻转无消费者） |
+| phys 随机 | Active 物理寄存器 | 100/100 Masked（注入确认命中 held 寄存器，行为级仍全掩盖） |
+
+**机理定论（与 cholesky X3 的 3.9% SDC 对照）**：chase 循环 `ldp x0, x3, [x0]` 的 x0 **消费即生产**（背靠背 ldp）——O3 forwarding 路径让消费者直接拿生产者的结果，**PRF 物理位翻转对这条数据流架构不可见**（readtrace 的 reads=0 正是 forwarding 绕过 PhysRegFile::getReg 的旁证——Phase 3 记忆中的 forwarding-bypass 发现）。cholesky 的 X3 消费者距离生产者远（跨多条指令/迭代，非 forwarding 距离），翻转可存活 → 3.9% SDC。
+
+**§4.1/§4.2 意义**：**PRF 保护（ECC/parity）的价值是 workload 依赖的**——紧循环链式数据流（forwarding 密集）的 PRF 位错误天然自掩蔽，不需要保护；跨迭代长距离数据依赖的 PRF 错误才有 SDC 面。保护排序中 physreg 的 MED 优先级进一步弱化（其 3.9% SDC 只存在于特定依赖距离谱的 workload）。
+
+**method2 三根因启示**：PRF 臂在 userspace 紧循环 workload 上注入不动（forwarding 掩蔽 + 实例寿命）；method2 现场的"x10 垃圾指针"是**内核态**代码（非 forwarding 距离的指针使用模式）——PRF 臂的对照实验必须回到 FS 内核态（m2_ptrchase.rcS 的调度域遍历路径）才有意义。SE 侧 method2 的 PRF 臂结论定格为"不可达（forwarding 掩蔽）"。
