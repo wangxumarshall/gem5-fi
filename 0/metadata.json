@@ -1,0 +1,109 @@
+{
+  "cli_version": "0.10.2",
+  "checkpoint_id": "01M1TYJ2TCZVDATV4T1PX9FXS7",
+  "session_id": "d8227b3e-7e49-40c1-8afa-db82e502b6a6",
+  "strategy": "manual-commit",
+  "created_at": "2026-09-06T08:50:03.94695616Z",
+  "branch": "research/vmcore-cases-5newdumps-0940batch",
+  "checkpoints_count": 9,
+  "save_step_count": 3,
+  "files_touched": [],
+  "agent": "Claude Code",
+  "model": "GLM-5.3[1m]",
+  "turn_id": "c9387d4982bd",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 6062823,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 57204,
+    "api_call_count": 80,
+    "subagent_tokens": {
+      "input_tokens": 18415793,
+      "cache_creation_tokens": 0,
+      "cache_read_tokens": 0,
+      "output_tokens": 122271,
+      "api_call_count": 214
+    }
+  },
+  "skill_events_version": 1,
+  "skill_events": [
+    {
+      "id": "prompt-skill-claude-code-goal-2026-09-05T13:06:02.46094413Z",
+      "event_type": "prompt_invocation",
+      "skill": {
+        "name": "goal"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "prompt_slash_command",
+        "confidence": "explicit"
+      },
+      "turn_id": "beea1aebe9fd",
+      "timestamp": "2026-09-05T13:06:02.46094413Z",
+      "native": {
+        "command": "/goal"
+      },
+      "collapse": {
+        "target": "user_message",
+        "label": "/goal",
+        "default_collapsed": true
+      }
+    },
+    {
+      "id": "prompt-skill-claude-code-goal-2026-09-06T08:47:02.29694691Z",
+      "event_type": "prompt_invocation",
+      "skill": {
+        "name": "goal"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "prompt_slash_command",
+        "confidence": "explicit"
+      },
+      "turn_id": "c9387d4982bd",
+      "timestamp": "2026-09-06T08:47:02.29694691Z",
+      "native": {
+        "command": "/goal"
+      },
+      "collapse": {
+        "target": "user_message",
+        "label": "/goal",
+        "default_collapsed": true
+      }
+    }
+  ],
+  "session_metrics": {
+    "turn_count": 9
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    },
+    {
+      "checkpoint_number": 3,
+      "user_lines_added": 895,
+      "user_lines_removed": 0,
+      "agent_lines_added": 840,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        "docs/cases-2/vmcore-diagnosis-report-127.0.0.1-2026-08-14-190704/algebra.py": 93,
+        "docs/cases-2/vmcore-diagnosis-report-127.0.0.1-2026-08-14-190704/algebra_out.txt": 57,
+        "docs/cases-2/vmcore-diagnosis-report-127.0.0.1-2026-08-17-134708/algebra.py": 173,
+        "docs/cases-2/vmcore-diagnosis-report-127.0.0.1-2026-08-17-134708/algebra_out.txt": 97,
+        "docs/cases-2/vmcore-diagnosis-report-127.0.0.1-2026-08-17-134708/dmesg_forensics.txt": 475
+      }
+    },
+    {
+      "checkpoint_number": 4,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 662,
+      "agent_lines_removed": 0
+    }
+  ]
+}
