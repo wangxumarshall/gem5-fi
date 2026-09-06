@@ -2052,3 +2052,9 @@ L1D→L2 的悬崖式下降（97.7%→0%）不是"L2 更安全"而是**工作集
 ### Phase 5.6 后续: method2 AGU 臂 formal n=384 启动
 
 三臂 pilot 定论后，核心量化数据是 **AGU 臂的 Oops 率 formal**（n=384 seeds、checkpoint restore、单故障、KERNEL_OOPS handler 分类）。串行跑批启动（cpu179 上 ~1-3 天）——PRF/TLB 臂 formal 在 AGU 臂完成后排程（两臂 pilot 已示全存活方向，优先级低于 AGU）。
+
+### Phase 5.3c: boot 期 checkpoint（H7 前提）落地 ✅
+
+`--early-checkpoint <ticks>`（arm_chaos_fs.py）：`simulator.run(max_ticks)` 到点 → `save_checkpoint()` 退出。真机验证：**cpt.100000000** 落盘（simTicks 精确 100M = boot 早期 walk 密集期，pmem/cow 完整）。修复 1 个 API 误用（Simulator 无 get_outdir——改 m5.options.outdir）。
+
+**H7 双臂 boot 期 pilot 启动**（restore from cpt.100000000 + PTW clear_valid + ECC {off,on} × 3 seeds，boot 继续期注入）——这是 H7 设计原语义的正确相位（此前稳态 pilot 全 Masked 的根因是相位错位）。同时 method2 AGU 臂 formal（n=384）后台推进中。

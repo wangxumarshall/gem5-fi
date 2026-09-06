@@ -66,6 +66,14 @@ p.add_argument("--readfile", default=None,
 p.add_argument("--restore-checkpoint", default=None,
                help="path to a checkpoint directory (e.g. m5out/cpt.12345); "
                     "restores from it instead of a fresh boot")
+# §2.10 H7 (Phase 5.3 follow-up): BOOT-PHASE checkpoint — the H7 ECC-on/off
+# contrast's design expectation comes from boot-time page-table-walk density
+# (0.069%), which the steady-state checkpoint misses. Run to <ticks>, save a
+# checkpoint mid-boot, and exit. Restore runs then inject during the
+# walk-dense boot continuation.
+p.add_argument("--early-checkpoint", type=lambda x:int(x,0), default=0,
+               help="run to this tick, save a checkpoint, and exit (boot-"
+                    "phase checkpoint for the H7 contrast; 0 = off)")
 p.add_argument("--ckpt-first-clock", action="store_true", default=False,
                help="rebase --tlb_first_clock/--sysreg_first_clock to be "
                     "RELATIVE to the checkpoint tick (read from the ckpt's "
@@ -397,4 +405,14 @@ simulator = Simulator(
     board=board, full_system=True,
     on_exit_event={ExitEvent.KERNEL_OOPS: _kernel_oops_exit},
 )
-simulator.run()
+if args.early_checkpoint:
+    # §2.10 H7 boot-phase checkpoint: run only up to <ticks> mid-boot, save,
+    # exit. The board clock is 3GHz (333 ticks/cycle) — e.g. 100M ticks
+    # = ~300K cycles, deep inside the boot walk-dense phase.
+    import m5 as _m5
+    simulator.run(max_ticks=args.early_checkpoint)
+    ckpt_dir = _m5.options.outdir + f"/cpt.{args.early_checkpoint}"
+    simulator.save_checkpoint(ckpt_dir)
+    print(f"[arm_chaos_fs] early boot checkpoint saved: {ckpt_dir}")
+else:
+    simulator.run()
