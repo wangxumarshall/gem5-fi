@@ -305,3 +305,17 @@ CHAOSArmSysReg 也有 `*1000`（startup()，FS-only，SE formal 不受影响，�
 **§4.2 修订**：physreg 的 MED 优先级进一步弱化——其 SDC 面只存在于特定依赖距离谱的 workload（forwarding 密集型天然自掩蔽）。**PRF 保护价值 = f(workload 依赖距离谱)**。
 
 **method2 PRF 臂定论**：SE 侧"不可达（forwarding 掩蔽）"；现场 x10 垃圾指针是内核态指针使用模式——对照实验必须在 FS 内核态跑（m2_ptrchase.rcS）。
+
+## Phase 5.6 定论: method2 三根因——现场签名指向 AGU 地址路径（2026-09-07）
+
+**三臂 FS pilot（checkpoint restore + 调度域遍历 workload + O3, seeds×3）**：
+
+| 臂 | 结局 | 签名 |
+|---|---|---|
+| PRF（active-only phys 活寄存器翻转） | 3/3 存活 | 无签名（被吸收） |
+| **AGU（byte7_zero 非规范地址）** | **3/3 Kernel Oops** | kfree+0x4 ← release_user_cpus_ptr ← free_task ← RCU（**调度器任务释放路径**），x0=0 NULL deref |
+| TLB（活页替换） | 存活 | 静默错页（Phase 5.4 formal） |
+
+**核心答案（§2.10 E 匹配度）**：method2 现场"x10 垃圾指针→翻译故障"签名由 **AGU 地址生成路径**复现（确定性 3/3，路径正中 find_busiest_group 家族）——**不是** PRF 读出（单次翻转被内核吸收 + userspace 有 forwarding 掩蔽）也**不是** TLB 翻译（活页替换静默不崩）。三根因区分实验的芯片侧结论：**保护投资应指向 AGU 地址生成的合法性校验**（地址规范位检查），而非 PRF/TLB。
+
+**工具修复**：① phys 随机 active-only（稳态 FS 窗口 170/200 空闲）；② **gem5 上游 exit_event 翻译表 bug**（'Kernel oops in guest' 不被翻译 → NotImplementedError）+ FS config 的 KERNEL_OOPS handler——Oops 类故障结局从此可 campaign 化分类（Crash/DUE）。
