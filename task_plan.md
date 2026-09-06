@@ -95,7 +95,7 @@ S1 四个 P0 单元 + S2/S3 六个 SE 单元 formal 已完成（单 cell × n=38
 
 ## Phase 6 — S5 元分析强化 + 健康机复现（贯穿）
 
-**Status: pending**
+**Status: in_progress（2026-09-06，6.1/6.2/6.4 完成）**
 
 1. `tools/ras_escape_analysis.py` 实现 weight(unit)（gem5 stats occupancy 采集）——目前 priority 表混合 pilot/formal 数据且无权重。
 2. 修正 escape_decomposition.md 的 "? (unit not in map)" 行（fpu/lsqfwd 等映射缺失）。
