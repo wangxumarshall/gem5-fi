@@ -1,0 +1,63 @@
+/goal /executing-plans执行 task_plan.md 的 Phase 8–12,从 Phase 8.1 开始。
+
+
+
+在这台 Linux 服务器上做:numactl -H 确认拓扑,用不含 cpu179 的 NUMA 节点跑
+
+build 和 campaign。
+
+
+
+要求:严格按计划,不能偷改范围;每补丁真机构建 + 跑通 + reg_chain golden 回归才提交;
+
+每个 Phase 完成后按 skill 纪律更新 progress.md 和 Next Step;全力以赴;
+
+只贴真机跑出来的真实输出,不预测不编造;"0% SDC"只有满足该 Phase 的验收门才写进结论。
+
+
+
+从 Phase 8.1 开始。
+
+---
+
+/goal /executing-plans执行 task_plan.md 的 Phase 8–12,从 Phase 8.1 开始。
+
+
+
+在这台 Linux 服务器上做:numactl -H 确认拓扑,用不含 cpu179 的 NUMA 节点跑
+
+build 和 campaign。
+
+
+
+要求:严格按计划,不能偷改范围;每补丁真机构建 + 跑通 + reg_chain golden 回归才提交;
+
+每个 Phase 完成后按 skill 纪律更新 progress.md 和 Next Step;全力以赴;
+
+只贴真机跑出来的真实输出,不预测不编造;"0% SDC"只有满足该 Phase 的验收门才写进结论。
+
+
+
+从 Phase 8.1 开始。
+
+---
+
+/goal /executing-plans执行 task_plan.md 的 Phase 8–12,从 Phase 8.1 开始。
+
+
+
+在这台 Linux 服务器上做:numactl -H 确认拓扑,用不含 cpu179 的 NUMA 节点跑
+
+build 和 campaign。
+
+
+
+要求:严格按计划,不能偷改范围;每补丁真机构建 + 跑通 + reg_chain golden 回归才提交;
+
+每个 Phase 完成后按 skill 纪律更新 progress.md 和 Next Step;全力以赴;
+
+只贴真机跑出来的真实输出,不预测不编造;"0% SDC"只有满足该 Phase 的验收门才写进结论。
+
+
+
+从 Phase 8.1 开始。
