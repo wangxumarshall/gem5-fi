@@ -45,6 +45,16 @@ class CHAOSFPU : public SimObject
     // instead of always the first eligible one (same dynamic instruction
     // every rep on a deterministic stream).
     uint64_t events_to_skip = 0;
+    // v1.1 Phase 8.2 uniform sampling (design doc §1.7 rule 4): the
+    // geometric(p=0.1) skip has mean 10 / P(skip<=30)~=96% — the single
+    // fault lands in the FIRST ~30 eligible events for nearly every rep.
+    // The driver (campaign.py) dry-runs countOnlyMode to learn N_eligible,
+    // then passes a FIXED uniform skip (chaosPickSkip(seed, N_eligible),
+    // chaos_event_sample.hh) via eventsToSkip. Sentinel
+    // UINT64_MAX (= param default -1) keeps the legacy geometric draw.
+    bool fixed_skip_mode = false;
+    bool count_only = false;         // consume + count, never corrupt
+    uint64_t eligible_count = 0;     // CHAOS_ELIGIBLE_COUNT=<n> at teardown
 
     std::mt19937 rng;
     std::random_device rd;

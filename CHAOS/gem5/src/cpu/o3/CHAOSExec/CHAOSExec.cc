@@ -5,6 +5,7 @@
 #include "cpu/op_class.hh"       // IntAluOp/IntMultOp/IntDivOp
 #include "cpu/inst_res.hh"       // InstResult::corrupt
 #include "debug/CHAOSExec.hh"
+#include "sim/sim_exit.hh"
 #include "params/CHAOSExec.hh"
 
 namespace gem5
@@ -26,15 +27,29 @@ namespace gem5
             if (!log_stream || !log_stream->stream())
                 panic("CHAOSExec: Could not open log file");
             rng.seed(rng_seed != 0 ? rng_seed : rd());
-        // Sampling-bias fix (findings.md Phase 2.2/3.0): skip a
-        // geometric(p=0.1) number of eligible events before the first
-        // injection so maxFaults=1 lands on a seed-dependent event.
-        std::geometric_distribution<uint64_t> skip_dist(0.1);
-        events_to_skip = skip_dist(rng);
+            // v1.1 Phase 8.2: fixed uniform skip (driver-provided,
+            // chaos_event_sample.hh) overrides the legacy geometric(0.1)
+            // draw; UINT64_MAX sentinel keeps legacy behavior.
+            if (p.eventsToSkip != ~0ULL) {
+                fixed_skip_mode = true;
+                events_to_skip = p.eventsToSkip;
+            } else {
+                std::geometric_distribution<uint64_t> skip_dist(0.1);
+                events_to_skip = skip_dist(rng);
+            }
+            count_only = p.countOnly;
         }
     }
 
-    CHAOSExec::~CHAOSExec() {}
+    CHAOSExec::~CHAOSExec()
+    {
+        // v1.1 Phase 8.2 countOnlyMode: the driver's dry-run learns
+        // N_eligible from this line (campaign.py parses the log).
+        if (count_only && log_stream && log_stream->stream()) {
+            *(log_stream->stream()) << "CHAOS_ELIGIBLE_COUNT=" << eligible_count
+                << std::endl;
+        }
+    }
 
     bool
     CHAOSExec::inWindow() {
@@ -63,9 +78,21 @@ namespace gem5
         OpClass oc = dyn_inst->opClass();
         if (oc != IntAluOp && oc != IntMultOp && oc != IntDivOp) return false;
 
+        // v1.1 Phase 8.2 countOnlyMode: count only CORRUPTIBLE eligible
+        // events; never corrupt (same stream the fixed-skip indexes).
+        if (count_only) {
+            if (dyn_inst->hasCorruptibleResult()) ++eligible_count;
+            return false;
+        }
+        // v1.1 Phase 8.2 fixed-skip: consume skip only on corruptible
+        // events (same stream as countOnly). Legacy geometric keeps the
+        // old consume-on-eligible behavior.
+        if (fixed_skip_mode && !dyn_inst->hasCorruptibleResult())
+            return false;
         // Sampling-bias fix (findings.md Phase 3.0): skip the first N
-        // eligible events (N ~ geometric(0.1) from the seed) so the
-        // single fault lands on a seed-dependent event.
+        // eligible events (N ~ geometric(0.1) from the seed, or the FIXED
+        // uniform skip from chaos_event_sample.hh) so the single fault
+        // lands on a seed-dependent event.
         if (events_to_skip > 0) {
             --events_to_skip;
             return false;
@@ -107,7 +134,17 @@ namespace gem5
             warn("CHAOSExec: cpu is not an O3CPU; injector disabled.\n");
             return;
         }
-        o3cpu->setChaosExec(this);
+                o3cpu->setChaosExec(this);
+        // v1.1 Phase 8.2: print CHAOS_ELIGIBLE_COUNT at sim exit (the
+        // destructor may not run before gem5's exit path tears everything
+        // down; the exit callback always fires).
+        if (count_only) {
+            registerExitCallback([this]() {
+                if (log_stream && log_stream->stream())
+                    *(log_stream->stream()) << "CHAOS_ELIGIBLE_COUNT="
+                        << eligible_count << std::endl;
+            });
+        }
     }
 
 } // namespace gem5

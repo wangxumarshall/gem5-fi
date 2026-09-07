@@ -120,6 +120,14 @@ p.add_argument("--lsq_struct_mode", default="byte_flip",
                     "(rol_k) | all_zero)")
 p.add_argument("--lsq_lane_skew_k", type=int, default=1,
                help="§2.4 byte_lane_skew: rotate by k bytes")
+# v1.1 Phase 8.2 uniform sampling: fixed skip + count-only for CHAOSLSQFwd
+# (its window knobs reuse --first_clock/--last_clock/--max_faults/--rng_seed).
+p.add_argument("--lsq_events_to_skip", type=lambda x: int(x,0), default=-1,
+               help="v1.1 Phase 8.2: FIXED eligible-event skip (uniform "
+                    "sampling). Default -1 = legacy geometric(0.1).")
+p.add_argument("--lsq_count_only", action="store_true",
+               help="v1.1 Phase 8.2 countOnlyMode: count eligible events "
+                    "(CHAOS_ELIGIBLE_COUNT in log), never corrupt.")
 # §2.2 CHAOSRenameMap (O3 rename-map fault injector). SELF-ATTACHES at
 # startup() to thread-0 frontRenameMap.chaosRenameMap. map_bitflip /
 # f5_substitute / f4_field_stuck modes (design doc §2.2).
@@ -165,6 +173,14 @@ p.add_argument("--iq_phase_offset", type=int, default=1,
 p.add_argument("--iq_first_clock", type=lambda x: int(x,0), default=1000)
 p.add_argument("--iq_max_faults", type=lambda x: int(x,0), default=1)
 p.add_argument("--iq_rng_seed", type=lambda x: int(x,0), default=20260825)
+# v1.1 Phase 8.2 uniform sampling: --iq_events_to_skip (fixed skip from the
+# driver's chaosPickSkip; -1 = legacy geometric draw) + --iq_count_only.
+p.add_argument("--iq_events_to_skip", type=lambda x: int(x,0), default=-1,
+               help="v1.1 Phase 8.2: FIXED eligible-event skip (uniform "
+                    "sampling). Default -1 = legacy geometric(0.1).")
+p.add_argument("--iq_count_only", action="store_true",
+               help="v1.1 Phase 8.2 countOnlyMode: count eligible events "
+                    "(CHAOS_ELIGIBLE_COUNT in log), never corrupt.")
 # §2.12 CHAOSExec (O3 integer execution-unit injector). SELF-ATTACHES at
 # startup() to cpu.chaosExec. Hooks DynInst::execute() post-staticInst->execute;
 # filters opClass IntAlu/IntMult/IntDiv; XORs integer result.
@@ -174,6 +190,13 @@ p.add_argument("--exec_first_clock", type=lambda x: int(x,0), default=1000)
 p.add_argument("--exec_max_faults", type=lambda x: int(x,0), default=1)
 p.add_argument("--exec_fault_mask", type=lambda x: int(x,0), default=0)
 p.add_argument("--exec_rng_seed", type=lambda x: int(x,0), default=20260825)
+# v1.1 Phase 8.2 uniform sampling (same contract as --iq_events_to_skip).
+p.add_argument("--exec_events_to_skip", type=lambda x: int(x,0), default=-1,
+               help="v1.1 Phase 8.2: FIXED eligible-event skip (uniform "
+                    "sampling). Default -1 = legacy geometric(0.1).")
+p.add_argument("--exec_count_only", action="store_true",
+               help="v1.1 Phase 8.2 countOnlyMode: count eligible events "
+                    "(CHAOS_ELIGIBLE_COUNT in log), never corrupt.")
 # §2.6 CHAOSFPU (O3 FP/vector execution-unit injector). SELF-ATTACHES at
 # startup() to cpu.chaosFPU. Hooks DynInst::execute() post-execute; filters
 # opClass Float*/SimdFloat*; XORs FP result blob (IEEE754 sign/exp/mantissa).
@@ -183,6 +206,13 @@ p.add_argument("--fpu_first_clock", type=lambda x: int(x,0), default=1000)
 p.add_argument("--fpu_max_faults", type=lambda x: int(x,0), default=1)
 p.add_argument("--fpu_fault_mask", type=lambda x: int(x,0), default=0)
 p.add_argument("--fpu_rng_seed", type=lambda x: int(x,0), default=20260825)
+# v1.1 Phase 8.2 uniform sampling (same contract as --iq_events_to_skip).
+p.add_argument("--fpu_events_to_skip", type=lambda x: int(x,0), default=-1,
+               help="v1.1 Phase 8.2: FIXED eligible-event skip (uniform "
+                    "sampling). Default -1 = legacy geometric(0.1).")
+p.add_argument("--fpu_count_only", action="store_true",
+               help="v1.1 Phase 8.2 countOnlyMode: count eligible events "
+                    "(CHAOS_ELIGIBLE_COUNT in log), never corrupt.")
 # §2.7 CHAOSL1DForward (post-check escape injector). SELF-ATTACHES at startup()
 # to cpu.chaosL1DFwd. Hooks LSQUnit::completeDataAccess before writeback;
 # XORs the load response data (post-L1D, post-ECC) — the escape path.
@@ -192,6 +222,13 @@ p.add_argument("--l1dfwd_first_clock", type=lambda x: int(x,0), default=1000)
 p.add_argument("--l1dfwd_max_faults", type=lambda x: int(x,0), default=1)
 p.add_argument("--l1dfwd_fault_mask", type=lambda x: int(x,0), default=0)
 p.add_argument("--l1dfwd_rng_seed", type=lambda x: int(x,0), default=20260825)
+# v1.1 Phase 8.2 uniform sampling (same contract as --iq_events_to_skip).
+p.add_argument("--l1dfwd_events_to_skip", type=lambda x: int(x,0), default=-1,
+               help="v1.1 Phase 8.2: FIXED eligible-event skip (uniform "
+                    "sampling). Default -1 = legacy geometric(0.1).")
+p.add_argument("--l1dfwd_count_only", action="store_true",
+               help="v1.1 Phase 8.2 countOnlyMode: count eligible events "
+                    "(CHAOS_ELIGIBLE_COUNT in log), never corrupt.")
 # §2.13 CHAOSBPU (O3 branch-prediction injector). SELF-ATTACHES at startup()
 # to cpu.o3BAC().chaosBPU. Hooks BAC::predict post-bpu->predict; F5 flips
 # direction (dir_flip) or PC target bit (target_flip).
@@ -366,6 +403,9 @@ if args.chaos_lsqfwd:
         lastClock=args.last_clock,
         maxFaults=args.max_faults,
         rngSeed=args.rng_seed,
+        eventsToSkip=(0xFFFFFFFFFFFFFFFF if args.lsq_events_to_skip < 0
+                      else args.lsq_events_to_skip),
+        countOnly=args.lsq_count_only,
         writeLog=True,
     )
     board.chaos_lsqfwd = lsq
@@ -429,6 +469,9 @@ if args.chaos_iq:
         firstClock=args.iq_first_clock,
         maxFaults=args.iq_max_faults,
         rngSeed=args.iq_rng_seed,
+        eventsToSkip=(0xFFFFFFFFFFFFFFFF if args.iq_events_to_skip < 0
+                      else args.iq_events_to_skip),
+        countOnly=args.iq_count_only,
         writeLog=True,
     )
     board.chaos_iq = iq
@@ -443,6 +486,9 @@ if args.chaos_exec:
         maxFaults=args.exec_max_faults,
         faultMask=args.exec_fault_mask,
         rngSeed=args.exec_rng_seed,
+        eventsToSkip=(0xFFFFFFFFFFFFFFFF if args.exec_events_to_skip < 0
+                      else args.exec_events_to_skip),
+        countOnly=args.exec_count_only,
         writeLog=True,
     )
     board.chaos_exec = ex
@@ -456,6 +502,9 @@ if args.chaos_fpu:
         maxFaults=args.fpu_max_faults,
         faultMask=args.fpu_fault_mask,
         rngSeed=args.fpu_rng_seed,
+        eventsToSkip=(0xFFFFFFFFFFFFFFFF if args.fpu_events_to_skip < 0
+                      else args.fpu_events_to_skip),
+        countOnly=args.fpu_count_only,
         writeLog=True,
     )
     board.chaos_fpu = fpu
@@ -470,6 +519,9 @@ if args.chaos_l1dfwd:
         maxFaults=args.l1dfwd_max_faults,
         faultMask=args.l1dfwd_fault_mask,
         rngSeed=args.l1dfwd_rng_seed,
+        eventsToSkip=(0xFFFFFFFFFFFFFFFF if args.l1dfwd_events_to_skip < 0
+                      else args.l1dfwd_events_to_skip),
+        countOnly=args.l1dfwd_count_only,
         writeLog=True,
     )
     board.chaos_l1dfwd = l1df

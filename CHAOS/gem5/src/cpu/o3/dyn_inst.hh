@@ -726,6 +726,21 @@ class DynInst : public ExecContext, public RefCounted
         return front.corrupt(xor_mask);
     }
 
+    /** v1.1 Phase 8.2: NON-MUTATING check — would corruptFrontResult /
+     *  corruptFrontResultBlob succeed on the front result? Used by the
+     *  injectors' countOnlyMode so the counted eligible stream is the SAME
+     *  stream the corruption path can actually land on (an opClass-eligible
+     *  event with an empty InstResult consumes a skip but can never take
+     *  the fault — counting it would skew the uniform draw). InstResult's
+     *  valid() is private; resultSize()>0 is the public proxy (both
+     *  corruptFrontResult* early-return on an empty queue, and an
+     *  emplaced result always carries a reg class). */
+    bool
+    hasCorruptibleResult() const
+    {
+        return !instResult.empty();
+    }
+
     /** §2.6 CHAOSFPU: XOR the FRONT InstResult's blob (FP/vector) bytes by
      *  mask (in-place, no pop). Returns true if a blob result was corrupted. */
     bool

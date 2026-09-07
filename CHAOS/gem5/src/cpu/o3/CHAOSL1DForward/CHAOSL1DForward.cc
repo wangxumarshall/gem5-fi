@@ -2,6 +2,7 @@
 
 #include "cpu/o3/cpu.hh"          // o3::CPU
 #include "debug/CHAOSL1DForward.hh"
+#include "sim/sim_exit.hh"
 #include "params/CHAOSL1DForward.hh"
 
 namespace gem5
@@ -23,16 +24,28 @@ namespace gem5
             if (!log_stream || !log_stream->stream())
                 panic("CHAOSL1DForward: Could not open log file");
             rng.seed(rng_seed != 0 ? rng_seed : rd());
-            // Sampling-bias fix: skip a geometrically-distributed number of
-            // eligible load events before the first injection (mean ~10), so
-            // the single fault (maxFaults=1) lands on a seed-dependent load
-            // instead of always the first eligible one.
-            std::geometric_distribution<uint64_t> skip_dist(0.1);
-            events_to_skip = skip_dist(rng);
+            // v1.1 Phase 8.2: fixed uniform skip (driver-provided,
+            // chaos_event_sample.hh) overrides the legacy geometric(0.1)
+            // draw; UINT64_MAX sentinel keeps legacy behavior.
+            if (p.eventsToSkip != ~0ULL)
+                events_to_skip = p.eventsToSkip;
+            else {
+                std::geometric_distribution<uint64_t> skip_dist(0.1);
+                events_to_skip = skip_dist(rng);
+            }
+            count_only = p.countOnly;
         }
     }
 
-    CHAOSL1DForward::~CHAOSL1DForward() {}
+    CHAOSL1DForward::~CHAOSL1DForward()
+    {
+        // v1.1 Phase 8.2 countOnlyMode: the driver's dry-run learns
+        // N_eligible from this line (campaign.py parses the log).
+        if (count_only && log_stream && log_stream->stream()) {
+            *(log_stream->stream()) << "CHAOS_ELIGIBLE_COUNT=" << eligible_count
+                << std::endl;
+        }
+    }
 
     bool
     CHAOSL1DForward::inWindow() {
@@ -66,6 +79,9 @@ namespace gem5
         if (max_faults != 0 && faults_injected_count >= max_faults) return false;
         if (!inWindow()) return false;
         if (pkt && pkt->hasData() && !pkt->isWrite()) {
+            // v1.1 Phase 8.2 countOnlyMode: count eligible loads, never
+            // corrupt.
+            if (count_only) { ++eligible_count; return false; }
             if (events_to_skip > 0) {
                 --events_to_skip;
                 return false;
@@ -108,7 +124,17 @@ namespace gem5
             warn("CHAOSL1DForward: cpu is not an O3CPU; injector disabled.\n");
             return;
         }
-        o3cpu->setChaosL1DFwd(this);
+                o3cpu->setChaosL1DFwd(this);
+        // v1.1 Phase 8.2: print CHAOS_ELIGIBLE_COUNT at sim exit (the
+        // destructor may not run before gem5's exit path tears everything
+        // down; the exit callback always fires).
+        if (count_only) {
+            registerExitCallback([this]() {
+                if (log_stream && log_stream->stream())
+                    *(log_stream->stream()) << "CHAOS_ELIGIBLE_COUNT="
+                        << eligible_count << std::endl;
+            });
+        }
     }
 
 } // namespace gem5

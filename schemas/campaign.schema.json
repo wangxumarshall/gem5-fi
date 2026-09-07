@@ -150,6 +150,11 @@
           "minimum": 0,
           "default": 0,
           "description": "v1.1 Phase 8.1: ULP tolerance for oracle_kind=fp_ulp (ULP <= tol -> Masked)"
+        },
+        "uniform_sampling": {
+          "type": "boolean",
+          "default": false,
+          "description": "v1.1 Phase 8.2: uniform event sampling. When true, each cell gets one countOnly dry-run (CHAOS_ELIGIBLE_COUNT) and per-rep manifests carry sampling.events_to_skip = chaosPickSkip(seed, N_eligible) — uniform over the ROI's eligible events. Default false = legacy geometric(0.1)."
         }
       }
     },

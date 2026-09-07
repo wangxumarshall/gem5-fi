@@ -284,6 +284,19 @@ def main():
                  f"with value = first_clock. Aborting — not silently "
                  f"mis-triggering.")
 
+    # v1.1 Phase 8.2 uniform event sampling: the manifest's optional
+    # `sampling` block carries the driver-computed fixed skip (from
+    # chaosPickSkip(seed, N_eligible) — cpu/o3/chaos_event_sample.hh) and
+    # the countOnly dry-run flag. Absent block = legacy geometric(0.1)
+    # in-injector draw (every existing campaign unchanged).
+    sampling = m.get("sampling", {}) or {}
+    s_skip = sampling.get("events_to_skip")
+    s_count = sampling.get("count_only", False)
+    if s_skip is not None and (not isinstance(s_skip, int)
+                               or isinstance(s_skip, bool) or s_skip < 0):
+        sys.exit(f"[runner] sampling.events_to_skip='{s_skip}' must be a "
+                 f"non-negative integer. Aborting.")
+
     # fault model -> --fault_type
     model_map = {"transient_bit_flip": "bit_flip",
                  "stuck_at_zero": "stuck_at_zero",
@@ -418,6 +431,11 @@ def main():
         cmd += ["--iq_first_clock", str(t["value"]),
                 "--iq_max_faults", str(m["limits"]["max_faults"]),
                 "--iq_rng_seed", str(m["rng"]["selection_seed"])]
+        # v1.1 Phase 8.2: fixed uniform skip / countOnly dry-run.
+        if s_skip is not None:
+            cmd += ["--iq_events_to_skip", str(s_skip)]
+        if s_count:
+            cmd += ["--iq_count_only"]
     elif comp == "lsq_fwd":
         # §2.4 CHAOSLSQFwd structured ext. byte_flip / byte_lane_skew / all_zero.
         cmd += ["--chaos_lsqfwd"]
@@ -438,24 +456,44 @@ def main():
                 "--rng_seed", str(m["rng"]["selection_seed"]),
                 "--probability", "1.0",
                 "--fault_type", fault_type, "--fault_mask", fault_mask]
+        # v1.1 Phase 8.2: fixed uniform skip / countOnly dry-run.
+        if s_skip is not None:
+            cmd += ["--lsq_events_to_skip", str(s_skip)]
+        if s_count:
+            cmd += ["--lsq_count_only"]
     elif comp == "exec":
         # §2.12 CHAOSExec (integer execution-unit result XOR).
         cmd += ["--chaos_exec", "--exec_first_clock", str(t["value"]),
                 "--exec_max_faults", str(m["limits"]["max_faults"]),
                 "--exec_fault_mask", fault_mask,
                 "--exec_rng_seed", str(m["rng"]["selection_seed"])]
+        # v1.1 Phase 8.2: fixed uniform skip / countOnly dry-run.
+        if s_skip is not None:
+            cmd += ["--exec_events_to_skip", str(s_skip)]
+        if s_count:
+            cmd += ["--exec_count_only"]
     elif comp == "fsu":
         # §2.6 CHAOSFPU (FP/vector execution-unit result XOR).
         cmd += ["--chaos_fpu", "--fpu_first_clock", str(t["value"]),
                 "--fpu_max_faults", str(m["limits"]["max_faults"]),
                 "--fpu_fault_mask", fault_mask,
                 "--fpu_rng_seed", str(m["rng"]["selection_seed"])]
+        # v1.1 Phase 8.2: fixed uniform skip / countOnly dry-run.
+        if s_skip is not None:
+            cmd += ["--fpu_events_to_skip", str(s_skip)]
+        if s_count:
+            cmd += ["--fpu_count_only"]
     elif comp == "l1d_fwd":
         # §2.7 CHAOSL1DForward (post-check escape).
         cmd += ["--chaos_l1dfwd", "--l1dfwd_first_clock", str(t["value"]),
                 "--l1dfwd_max_faults", str(m["limits"]["max_faults"]),
                 "--l1dfwd_fault_mask", fault_mask,
                 "--l1dfwd_rng_seed", str(m["rng"]["selection_seed"])]
+        # v1.1 Phase 8.2: fixed uniform skip / countOnly dry-run.
+        if s_skip is not None:
+            cmd += ["--l1dfwd_events_to_skip", str(s_skip)]
+        if s_count:
+            cmd += ["--l1dfwd_count_only"]
     elif comp == "bpu":
         # §2.13 CHAOSBPU (dir_flip / target_flip F5).
         cmd += ["--chaos_bpu"]

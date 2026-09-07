@@ -66,6 +66,10 @@ class CHAOSIQ : public SimObject
     // instead of always the first eligible one (same dynamic instruction
     // every rep on a deterministic stream).
     uint64_t events_to_skip = 0;
+    // v1.1 Phase 8.2 uniform sampling (chaos_event_sample.hh): FIXED skip
+    // from the driver overrides the legacy geometric(0.1) draw.
+    bool count_only = false;         // consume + count, never corrupt
+    uint64_t eligible_count = 0;     // CHAOS_ELIGIBLE_COUNT=<n> at teardown
 
     std::mt19937 rng;
     std::random_device rd;

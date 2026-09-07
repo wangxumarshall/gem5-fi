@@ -95,6 +95,77 @@ def cell_id_str(cell_idx, cell):
 
 # ---------------------------------------------------------------- manifest write
 
+# v1.1 Phase 8.2: uniform event sampling (design doc §1.7 rule 4). The
+# legacy geometric(p=0.1) skip concentrates the single fault in the first
+# ~30 eligible events (mean 10, P(<=30)~=96%). The two-step replacement:
+#   1. countOnly dry-run: run the cell's manifest with sampling.count_only
+#      once; the injector consumes eligible events WITHOUT corrupting and
+#      prints CHAOS_ELIGIBLE_COUNT=<n> in its log at teardown.
+#   2. the per-rep manifest carries sampling.events_to_skip =
+#      chaos_pick_skip(seed, N_eligible) — a seed-derived UNIFORM draw over
+#      [0, N) (same LCG as the C++ helper chaos_event_sample.hh so the
+#      driver and the injector agree bit-for-bit).
+def chaos_pick_skip(seed, n_eligible):
+    """Python twin of gem5::chaosPickSkip (cpu/o3/chaos_event_sample.hh):
+    one LCG round of the seed, modulo n_eligible."""
+    if n_eligible <= 0:
+        return 0
+    x = (seed ^ 0x9E3779B97F4A7C15) & 0xFFFFFFFFFFFFFFFF
+    x = (x * 6364136223846793005 + 1442695040888963407) & 0xFFFFFFFFFFFFFFFF
+    return x % n_eligible
+
+
+# injector component -> (runner resultdir log name with CHAOS_ELIGIBLE_COUNT)
+_ELIGIBLE_LOG = {
+    "fsu": "fpu_injections.log", "exec": "exec_injections.log",
+    "l1d_fwd": "l1d_fwd_injections.log", "iq": "iq_injections.log",
+    "lsq_fwd": "lsq_fwd_injections.log",
+}
+
+
+def count_eligible_events(campaign, cell, cell_ordinal, outdir, binary,
+                          hang_timeout):
+    """v1.1 Phase 8.2 step 1: one countOnly dry-run of the cell's manifest.
+    Returns N_eligible (int) or None when the injector has no countOnly
+    support (component not in _ELIGIBLE_LOG) — None = legacy geometric
+    sampling stays in effect for that campaign."""
+    inj = campaign["injector"]
+    comp_map = {"gpr": "gpr", "physreg": "physreg", "memory": "memory",
+                "cache": "l1d", "lsqfwd": "physreg",
+                "rat": "rat", "freelist": "freelist", "rob": "rob", "iq": "iq"}
+    comp = comp_map.get(inj, inj)
+    if comp not in _ELIGIBLE_LOG:
+        return None
+    # build the count manifest (rep 0 seed; the count is deterministic in
+    # the workload+trigger, independent of the rep seed)
+    mpath, man = manifest_for_cell(campaign, dict(cell), cell_ordinal, 0,
+                                   outdir)
+    man["sampling"] = {"count_only": True}
+    with open(mpath, "w") as f:
+        yaml.safe_dump(man, f, sort_keys=False, default_flow_style=False)
+    # run it through runner.py (single rep, no replay)
+    cmd = [sys.executable, RUNNER, mpath, "--binary", binary]
+    try:
+        import subprocess as _sp
+        r = _sp.run(cmd, capture_output=True, text=True,
+                    timeout=hang_timeout + 30)
+    except Exception:
+        return None
+    # the injector's log lands in runner's tempfile -d dir; runner prints
+    # the command with it. Simpler: find the newest man-* dir's log.
+    import tempfile as _tf, glob as _glob, re as _re
+    cands = sorted(_glob.glob(os.path.join(_tf.gettempdir(), "man-*")),
+                   key=os.path.getmtime, reverse=True)
+    for d in cands[:3]:
+        lp = os.path.join(d, _ELIGIBLE_LOG[comp])
+        if os.path.exists(lp):
+            for line in open(lp):
+                mm = _re.search(r"CHAOS_ELIGIBLE_COUNT=(\d+)", line)
+                if mm:
+                    return int(mm.group(1))
+    return None
+
+
 def manifest_for_cell(campaign, cell, cell_ordinal, rep, outdir):
     """Build an arm-chaos-fi/v1 manifest (reuses the EXISTING v1 schema that
     runner.py validates) for one (cell, rep), write it to outdir, return path.
@@ -501,11 +572,38 @@ def main():
 
     # build the full rep work-list first (so ProcessPoolExecutor can batch),
     # preserving cell ordering for deterministic cell_ordinal.
+    # v1.1 Phase 8.2: when the campaign yaml sets workload.uniform_sampling
+    # (true), each cell gets ONE countOnly dry-run first; the per-rep
+    # manifests then carry sampling.events_to_skip = chaos_pick_skip(seed,
+    # N_eligible) — uniform over the ROI's eligible events (design doc §1.7
+    # rule 4). Absent/false = legacy geometric(0.1) sampling, unchanged.
+    use_uniform = bool(campaign["workload"].get("uniform_sampling", False))
     work = []  # (cell_ordinal, cell, rep, manifest_path, outdir)
     for ord_i, cell in enumerate(cells):
         outdir = os.path.join(runs_dir, f"c{ord_i:04d}")
+        n_eligible = None
+        if use_uniform:
+            n_eligible = count_eligible_events(campaign, cell, ord_i,
+                                               outdir, binary, hang_timeout)
+            if n_eligible is None:
+                print(f"[campaign] cell {ord_i}: countOnly unsupported or "
+                      f"dry-run failed — falling back to legacy geometric "
+                      f"sampling for this cell")
+            elif n_eligible == 0:
+                print(f"[campaign] cell {ord_i}: N_eligible=0 (window "
+                      f"empty) — every rep will be Inactive; skip=0")
+            else:
+                print(f"[campaign] cell {ord_i}: N_eligible={n_eligible} "
+                      f"(countOnly dry-run)")
         for rep in range(n_per_cell):
-            mpath, _ = manifest_for_cell(campaign, cell, ord_i, rep, outdir)
+            mpath, man = manifest_for_cell(campaign, cell, ord_i, rep, outdir)
+            if use_uniform and n_eligible is not None:
+                seed = man["rng"]["selection_seed"]
+                man["sampling"] = {
+                    "events_to_skip": chaos_pick_skip(seed, n_eligible)}
+                with open(mpath, "w") as f:
+                    yaml.safe_dump(man, f, sort_keys=False,
+                                   default_flow_style=False)
             work.append((ord_i, cell, rep, mpath, outdir))
 
     if args.dry:

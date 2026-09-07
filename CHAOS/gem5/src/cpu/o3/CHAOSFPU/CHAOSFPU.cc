@@ -4,7 +4,9 @@
 #include "cpu/o3/dyn_inst.hh"     // DynInst, opClass, isFloating
 #include "cpu/op_class.hh"       // FloatAddOp/FloatMultOp/FloatMultAccOp/SimdFloat*
 #include "cpu/inst_res.hh"       // InstResult::corruptBlob
+#include "cpu/o3/chaos_event_sample.hh"  // v1.1 Phase 8.2 uniform sampling
 #include "debug/CHAOSFPU.hh"
+#include "sim/sim_exit.hh"
 #include "params/CHAOSFPU.hh"
 
 namespace gem5
@@ -26,15 +28,33 @@ namespace gem5
             if (!log_stream || !log_stream->stream())
                 panic("CHAOSFPU: Could not open log file");
             rng.seed(rng_seed != 0 ? rng_seed : rd());
-        // Sampling-bias fix (findings.md Phase 2.2/3.0): skip a
-        // geometric(p=0.1) number of eligible events before the first
-        // injection so maxFaults=1 lands on a seed-dependent event.
-        std::geometric_distribution<uint64_t> skip_dist(0.1);
-        events_to_skip = skip_dist(rng);
+        // v1.1 Phase 8.2: a FIXED skip (from the driver's uniform
+        // chaosPickSkip) overrides the legacy geometric draw. Sentinel
+        // UINT64_MAX (param default) keeps the old behavior so every
+        // existing campaign/manifest replays unchanged.
+        if (p.eventsToSkip != ~0ULL) {
+            fixed_skip_mode = true;
+            events_to_skip = p.eventsToSkip;
+        } else {
+            // Sampling-bias fix (findings.md Phase 2.2/3.0): skip a
+            // geometric(p=0.1) number of eligible events before the first
+            // injection so maxFaults=1 lands on a seed-dependent event.
+            std::geometric_distribution<uint64_t> skip_dist(0.1);
+            events_to_skip = skip_dist(rng);
+        }
+        count_only = p.countOnly;
         }
     }
 
-    CHAOSFPU::~CHAOSFPU() {}
+    CHAOSFPU::~CHAOSFPU()
+    {
+        // v1.1 Phase 8.2 countOnlyMode: the driver's dry-run learns
+        // N_eligible from this line (campaign.py parses the log).
+        if (count_only && log_stream && log_stream->stream()) {
+            *(log_stream->stream()) << "CHAOS_ELIGIBLE_COUNT=" << eligible_count
+                << std::endl;
+        }
+    }
 
     bool
     CHAOSFPU::inWindow() {
@@ -66,10 +86,26 @@ namespace gem5
     CHAOSFPU::maybeCorrupt(o3::DynInst *dyn_inst)
     {
         if (!cpu || probability <= 0.0f) return false;
-        if (max_faults != 0 && faults_injected_count >= max_faults) return false;
+        if (!count_only && max_faults != 0 && faults_injected_count >= max_faults)
+            return false;
         if (!inWindow()) return false;
         OpClass oc = dyn_inst->opClass();
         if (!isFpOpClass(oc)) return false;
+
+        // v1.1 Phase 8.2 countOnlyMode: count only CORRUPTIBLE eligible
+        // events (an empty/invalid InstResult can never take the fault);
+        // never corrupt. This makes the counted stream identical to the
+        // stream the fixed-skip draw indexes into.
+        if (count_only) {
+            if (dyn_inst->hasCorruptibleResult()) ++eligible_count;
+            return false;
+        }
+
+        // v1.1 Phase 8.2 fixed-skip mode: consume the skip ONLY on
+        // corruptible events so skip indexes the same stream countOnly
+        // counted. Legacy geometric mode keeps the old consume-on-eligible
+        // behavior (byte-identical replays for existing campaigns).
+        if (fixed_skip_mode && !dyn_inst->hasCorruptibleResult()) return false;
 
         // Sampling-bias fix (findings.md Phase 3.0): skip the first N
         // eligible events (N ~ geometric(0.1) from the seed) so the
@@ -109,7 +145,17 @@ namespace gem5
             warn("CHAOSFPU: cpu is not an O3CPU; injector disabled.\n");
             return;
         }
-        o3cpu->setChaosFPU(this);
+                o3cpu->setChaosFPU(this);
+        // v1.1 Phase 8.2: print CHAOS_ELIGIBLE_COUNT at sim exit (the
+        // destructor may not run before gem5's exit path tears everything
+        // down; the exit callback always fires).
+        if (count_only) {
+            registerExitCallback([this]() {
+                if (log_stream && log_stream->stream())
+                    *(log_stream->stream()) << "CHAOS_ELIGIBLE_COUNT="
+                        << eligible_count << std::endl;
+            });
+        }
     }
 
 } // namespace gem5
