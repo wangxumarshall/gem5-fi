@@ -349,3 +349,13 @@ CHAOSArmSysReg 也有 `*1000`（startup()，FS-only，SE formal 不受影响，�
 ## Phase 3.4 收口: 跨 workload 复检验收达成（2026-09-08，524dc60）
 
 exec（IntAlu XOR）/ bpu（dir_flip）在 reg_chain 上 formal 384/384 全 Masked——cholesky/branchy 的"全 Masked"在正交 workload 上 <1% 上界成立，**验收规则（全 Masked 结论需第二 workload <1% 上界）满足**。跨 workload 复检全景：PRF X3 反转（workload 敏感）、Exec/BPU 一致 Masked（formal 级）、RAS/Decode pilot 方向一致。零风险带结论正式写定。
+
+## Phase 4.7: LSQFwd 转发相位偏移定论——转发路径无容忍带（2026-09-08，0c9fa1e）
+
+**相位敏感性曲线（offset {1,2,4,8} × n=96）**：全部 P_DUE=100% [96.2,100.0]、P_SDC=0%——**转发写回延迟确定性致命且相位平顶（无容忍带）**。
+
+**method3 相位的完整解读**：现场"加 no-op → 触发率塌方"是**触发率**对相位的敏感（竞争窗口开合）；本代理（真转发路径 hook）测的是**后果**对相位的敏感——后果无容忍带。两者互补：转发时序是硬约束，保护应为转发路径时序校验（延迟>阈值即报错）。
+
+**workload 内相位分化**：链表建立期转发延迟 Masked（数据被覆盖）vs 校验链转发延迟 100% DUE（数据被立即消费）——**转发的消费者身份决定延迟致命性**。
+
+**Phase 4 全模式收官**：七个 F5/F6 机理模式（spec_leak / fwd_source_sub / src_ready_bitflip / wake_phase / pfn_to_mapped_page / value_to_legal / addr_map_sub + phase_offset）全部实现并有 formal 级数据。

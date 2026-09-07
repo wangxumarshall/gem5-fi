@@ -68,7 +68,7 @@ S1 四个 P0 单元 + S2/S3 六个 SE 单元 formal 已完成（单 cell × n=38
 | 优先 | 模式 | 位置 | 对照案例 |
 |---|---|---|---|
 | 1 | **ROB spec_leak**（squash 不回滚错误路径写） | `CHAOSROB.cc:140` deferred 注释处 | method1 投机泄漏 |
-| 2 | **LSQFwd fwd_source_sub + phaseOffset** | `CHAOSLSQFwd.py` param surface（未加） | method1 错源 / method3 相位塌方 |
+| 2 | ✅ **LSQFwd fwd_source_sub + phaseOffset**（05db0e2 + cb31fef + 0c9fa1e） | method1 错源 37.6% SDC / method3 相位平顶 100% DUE（无容忍带） |
 | 3 | **IQ src_ready_bitflip / tag_sub** | `CHAOSIQ.py:19` deferred | method3 错源唤醒 |
 | 4 | **ArmTLB pfn_to_mapped_page + targetField {ap,xn,attridx,ng,asid}** | `CHAOSArmTLB.py` param surface | method2 静默 SDC 通路 |
 | 5 | **SysReg value_to_legal（F5）** | `CHAOSArmSysReg` | §2.10 |
