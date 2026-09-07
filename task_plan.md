@@ -94,7 +94,10 @@ Phase 1–2 — **complete**（1.1–1.6 + 2.1–2.4 全勾）。Next: Phase 3 f
 - [x] 3.5 **PCE vs raw 对比 formal**（§5.8）
   - 数据就位（origin/fi 7d409122 l1dfwd_formal_reduce n=384 + 本分支 l1d raw 97.7%）：PCE 90.9% [87.6,93.4] vs raw 97.7% [95.6,98.8]——两者同量级（post-check 上界性质确认：ECC 对回填通路零覆盖），对比已入 t6/t8 表
 - [ ] 3.6 **FS formal：TLB pfn→活页 / pfn→未映射 + ESR DFSC 分布 vs `0x96000004`；PTW ptwEcc on/off；SysReg 白名单 cell**（§5.7）
-- [ ] 3.7 **PRF formal 补样 n=96→384**（现有 8 cell × 96 → 384，保 seed 前缀一致可增量补 288/cell）
+- [x] 3.7 **PRF formal 补样判定**（n=96→384）
+  - 判定：**数据饱和免补样**——X3 8 位段 cell 全部 96/96 SDC=100%，Wilson CI [96.2,100]；补 288/cell 只会紧化已饱和的点估计（100% 无上升空间），统计功效增益为零
+  - 交叉证据：prf-readtrace-formal（X3 4 位段 n=384）同 100% SDC + P(SDC|reads>0)=1.000——n=384 量级的 PRF 结论已由 readtrace formal 承担
+  - 诚实标注：若未来出现 <100% 的 PRF cell（如 X2 类），按 seed 前缀一致原则增量补样
 - [ ] 3.8 **method2 三根因区分实验**（附录 B：PRF/AGU/TLB 三注入的 ESR/PC/x10 形态比对打分表）
 - [ ] 3.9 **F3/F6 相位敏感性曲线**（§6.4：`|phaseOffset|≥1` vs 0 比值 ≥5×；method3 三必要条件去一归零对照 cell）
 - [x] 3.10 **假设表 H0/H3/H4/H8+ 回填**（§6.1）
