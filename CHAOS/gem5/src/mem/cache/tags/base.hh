@@ -67,6 +67,14 @@ namespace gem5
 class System;
 class ReplaceableEntry;
 
+namespace replacement_policy
+{
+class Base;
+}
+
+class CHAOSCache;
+
+
 /**
  * A common base class of Cache tagstore objects.
  */
@@ -168,6 +176,33 @@ class BaseTags : public ClockedObject
      * Destructor.
      */
     virtual ~BaseTags() {}
+
+    /**
+     * @name CHAOS fault-injection support
+     * Minimal supported accessor exposing the replacement policy for the
+     * CHAOSCache fault injector (§5.8B repl-field injection: poison a
+     * block's replacement data so the RP sees it as the next probable
+     * victim). Same G3 pattern as Cache::getTags(): injectors must use a
+     * supported narrow interface, not a downcast. Tags types that do not
+     * keep an RP (FALRU) return nullptr — callers must handle that.
+     */
+    ///@{
+    virtual replacement_policy::Base* getReplacementPolicy() const
+    { return nullptr; }
+    ///@}
+
+    /**
+     * CHAOS fault-injection support (§5.8B tag false-hit): the pointer to
+     * the CHAOSCache injector registered against this tag store, if any.
+     * findBlock() consults it to divert a lookup that would match the
+     * corrupted (victim) way to the alias way instead — the false-hit
+     * semantics of a tag-array fault, WITHOUT rewriting the stored tag
+     * (which would break snoop-filter eviction tracking).
+     */
+    ///@{
+    CHAOSCache* chaosCache = nullptr;
+    void setChaosCache(CHAOSCache *c) { chaosCache = c; }
+    ///@}
 
     /**
      * Initialize blocks. Must be overriden by every subclass that uses

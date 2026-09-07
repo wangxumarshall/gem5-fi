@@ -45,9 +45,14 @@ p.add_argument("--paired", action="store_true",
                     "the target 64B block AND its 128B-aligned partner, same "
                     "byte offset. Use --target=l2 (as 'L3').")
 p.add_argument("--target_field", default="data",
-               choices=["data","rd","rn","rm","opcode"],
+               choices=["data","rd","rn","rm","opcode",
+                        "tag","tag_to_legal","valid","dirty","repl","coh"],
                help="§5.8C L1I semantic field (A64 encoding: rd[4:0] rn[9:5] "
-                    "rm[20:16] opcode[28:23]). data=legacy byte-level.")
+                    "rm[20:16] opcode[28:23]). data=legacy byte-level. "
+                    "§5.8B metadata fields: tag (bit_flip false-hit), "
+                    "tag_to_legal (F5 same-set substitution), valid (clear), "
+                    "dirty (flip, silent store loss), repl (RP poisoning), "
+                    "coh (permission-bit clear).")
 p.add_argument("--protection_model", default="none",
                choices=["none","sed","secded","secded_poison","parity_interleaved"],
                help="S0-3: ECC model (§2.3 N1 TRM proxy). none=raw escape; "

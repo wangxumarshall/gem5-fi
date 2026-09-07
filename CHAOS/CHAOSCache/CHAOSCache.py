@@ -54,5 +54,18 @@ class CHAOSCache(SimObject):
         "opcode — A64 instruction-encoding fields (L1I semantic-field FI, "
         "§5.8C). rd=bits[4:0], rn=bits[9:5], rm=bits[20:16], opcode=bits[28:23] "
         "within the 32-bit instruction word at targetByteOffset (4B-aligned). "
-        "The faultMask/bitsToChange select bits WITHIN the field.")
+        "The faultMask/bitsToChange select bits WITHIN the field. "
+        "| tag — §5.8B: bit_flip corrupts the block's tag (false-hit / "
+        "aliasing: the block answers lookups for the WRONG address); "
+        "tag_to_legal (F5) rewrites the tag to that of ANOTHER valid block "
+        "in the SAME set (legal-domain substitution, 'read another line of "
+        "the same set'). | valid — clear the valid bit (block contents no "
+        "longer answer; the line is refetched — models a tag-SED 1-bit "
+        "invalidate outcome). | dirty — set/clear the dirty bit (a modified "
+        "line written back as clean LOSES the store: silent data loss; a "
+        "clean line marked dirty forces a spurious writeback). | repl — "
+        "poison the block's replacement data so the RP picks a hot line as "
+        "victim (premature eviction of live data). | coh — flip a coherence "
+        "permission bit (Writable/Readable: a hit may be denied or a write "
+        "assert — loud vs silent contrast).")
     writeLog = Param.Bool(True, "Write a log file")

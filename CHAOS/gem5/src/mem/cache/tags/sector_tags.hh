@@ -117,6 +117,14 @@ class SectorTags : public BaseTags
     } sectorStats;
 
   public:
+
+    /**
+     * CHAOS fault-injection support (§5.8B repl-field injection):
+     * expose the replacement policy via the supported narrow accessor.
+     */
+    replacement_policy::Base* getReplacementPolicy() const override
+    { return replacementPolicy; }
+
     /** Convenience typedef. */
      typedef SectorTagsParams Params;
 

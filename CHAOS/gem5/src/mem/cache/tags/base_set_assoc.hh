@@ -92,6 +92,16 @@ class BaseSetAssoc : public BaseTags
      typedef BaseSetAssocParams Params;
 
     /**
+     * CHAOS fault-injection support (§5.8B repl-field injection):
+     * expose the replacement policy via the supported narrow accessor
+     * (BaseTags::getReplacementPolicy). Same G3 pattern as
+     * Cache::getTags().
+     */
+    replacement_policy::Base* getReplacementPolicy() const override
+    { return replacementPolicy; }
+
+
+    /**
      * Construct and initialize this tag store.
      */
     BaseSetAssoc(const Params &p);

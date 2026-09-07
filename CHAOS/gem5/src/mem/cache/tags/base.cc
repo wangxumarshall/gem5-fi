@@ -45,6 +45,8 @@
 
 #include "mem/cache/tags/base.hh"
 
+#include "mem/cache/CHAOSCache/CHAOSCache.hh"
+
 #include <cassert>
 
 #include "base/types.hh"
@@ -89,6 +91,18 @@ BaseTags::findBlock(const CacheBlk::KeyType &key) const
     for (const auto& location : entries) {
         CacheBlk* blk = static_cast<CacheBlk*>(location);
         if (blk->match(key)) {
+            // CHAOS §5.8B tag false-hit diversion: if this block is the
+            // corrupted VICTIM way of a registered alias, serve the lookup
+            // from the ALIAS way's block instead (wrong data, real tag
+            // store untouched -> evictions stay protocol-consistent).
+            // Hot path: no injector -> identical to upstream.
+            if (chaosCache && blk->isValid()) {
+                CacheBlk* div = chaosCache->chaosDivertFindBlock(
+                    blk, entries, key);
+                if (div) {
+                    return div;
+                }
+            }
             return blk;
         }
     }

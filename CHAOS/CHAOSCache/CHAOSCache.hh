@@ -26,6 +26,40 @@ class CHAOSCache : public SimObject
     CHAOSCache(const CHAOSCacheParams& params);
     virtual ~CHAOSCache() {}
 
+    // §5.8B tag-array fault, FALSE-HIT formulation (v2, learned from the
+    // first verification round): directly rewriting the stored tag via
+    // setTag made the block evict under an address the snoop filter never
+    // tracked (WritebackDirty/CleanEvict of an untracked line panics in
+    // snoop_filter.cc:144 — a SimulatorError, not a valid DUE outcome).
+    // The FAULT MODEL the plan §2.3 actually specifies is "tag >=3-bit:
+    // silent false-hit": a lookup for address A is answered by the block
+    // of ANOTHER address B of the same set. We therefore model the fault
+    // AT LOOKUP TIME: the injector registers a false-hit alias (victim
+    // way -> alias way, one set), and BaseTags::findBlock() diverts a
+    // lookup that matched the victim block to the alias block instead.
+    // The tag STORE stays untouched, so evictions/writebacks remain
+    // protocol-consistent (the line evicts under its REAL address); only
+    // the data SUPPLY is wrong — exactly the SDC-relevant semantics.
+    //
+    // Called from BaseTags::findBlock() when a lookup matched a block.
+    // blk is the block that matched; entries are the set's possible
+    // entries (for locating the alias way). Returns the block to SERVE
+    // instead (the alias block), or nullptr to keep the original match.
+    // Hot path: no alias registered -> nullptr (one predictable branch).
+    CacheBlk* chaosDivertFindBlock(CacheBlk *blk,
+        const std::vector<ReplaceableEntry*> &entries,
+        const CacheBlk::KeyType &key) const;
+
+  private:
+    // False-hit alias state: {set, victim way, alias way}. A single alias
+    // is registered per injection (single-fault discipline, G5). The
+    // victim is the block whose tag is considered corrupted; the alias is
+    // the block whose DATA gets served to lookups that match the victim.
+    unsigned tag_alias_set = 0;
+    unsigned victim_way = 0;
+    unsigned alias_way = 0;
+    bool tag_alias_valid = false;
+
   private:
     enum class FaultType {
       BitFlip,
@@ -76,7 +110,20 @@ class CHAOSCache : public SimObject
     Addr target_block_addr;
     int target_byte_offset;
     bool paired_sector;
-    std::string target_field;  // §5.8C: data(legacy)/rd/rn/rm/opcode  // §7.7 128B fault-domain proxy (fault both 64B sectors)
+    // §5.8C: data(legacy)/rd/rn/rm/opcode (L1I semantic fields);
+    // §5.8B: tag/tag_to_legal/valid/dirty/repl/coh (metadata fields).
+    // §7.7 128B fault-domain proxy (fault both 64B sectors)
+    std::string target_field;
+
+    // §5.8B metadata-field injection: apply the fault to the target
+    // block's METADATA (tag/valid/dirty/repl/coh) instead of its data
+    // bytes. Returns true if a metadata fault was applied (the caller
+    // then skips the legacy byte path entirely).
+    bool injectMetadataFault(CacheBlk *blk, BaseTags *tags, Addr blockAddr);
+    // §5.8B tag false-hit: pick the WAY of another VALID block in the
+    // SAME set as blk (the alias whose data gets served). Returns the
+    // way index, or -1 if no other valid block exists in the set.
+    int pickSameSetAliasWay(CacheBlk *blk);
 
     EventFunctionWrapper attackEvent, periodicCheck;
     Tick first_tick, last_tick, ticks_permament_fault_check;
@@ -112,6 +159,14 @@ class CHAOSCache : public SimObject
       statistics::Scalar numDetectedContained;    // 2-bit, ECC detected+contained (poison)
       statistics::Scalar numLatent;                // >=3-bit, beyond SECDED (escaped)
       statistics::Scalar numRawEscaped;            // protectionModel=none, raw escape
+      // §5.8B metadata-field stats (per-field counters; a metadata fault
+      // is counted BOTH in numFaultsInjected and its per-field counter).
+      statistics::Scalar numTagFaults;             // tag bit_flip (false-hit)
+      statistics::Scalar numTagToLegalFaults;      // tag F5 same-set substitution
+      statistics::Scalar numValidFaults;           // valid-bit clear (refetch)
+      statistics::Scalar numDirtyFaults;           // dirty-bit flip (silent loss)
+      statistics::Scalar numReplFaults;            // replacement-data poisoning
+      statistics::Scalar numCohFaults;             // coherence permission flip
 
       CHAOSCacheStats(statistics::Group *parent);
     };
