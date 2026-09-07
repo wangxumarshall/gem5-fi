@@ -96,9 +96,9 @@ Phase 1–2 — **complete**（1.1–1.6 + 2.1–2.4 全勾）。Next: Phase 3 f
 
 **Status: pending**
 
-- [ ] 4.1 **ESR_ELx EC/FSC 解码器**（§7.3：`tools/diag/esr_decode.py`）
-  - EC 0x00/0x20/0x21/0x24/0x25/0x26/0x2F/0x3C → 异常类型 → 相关性权重（★1–5）
-  - 验证：`ESR 0x96000044` → DABT/WnR=1/FSC=L0 翻译故障；pytest 用例
+- [x] 4.1 **ESR_ELx EC/FSC 解码器**（§7.3：`tools/diag/esr_decode.py`）
+  - 验证实证：`ESR 0x96000044` → `EC 0x25 Data Abort from current EL, WnR=1 (write), FSC=0x04 Translation fault level 0`，SDC 权重 ★★★★（精确匹配计划验收）；`0x96000004` → WnR=0 同族；日志文本提取（ESR=0x... 大小写不敏感）
+  - pytest 7/7 通过（tests/test_esr_decode.py）：core179 写/读签名、指令 abort、SError 5★（RAS 记录依赖 note）、Undef/BRK、文本提取、CLI JSON
 - [ ] 4.2 **openEuler 日志解析器**（§7.2：`tools/diag/logparse.py`）
   - journalctl -k / dmesg / /var/log/messages 三形态；提取 EC/FSC、CPU 号、pc/lr/backtrace、重启记录（last reboot/--list-boots）、EDAC ce/ue、SEL
   - 验证：core179 案例日志（docs/cases/ 下 6 份 vmcore 诊断报告）解析出 100% CPU179 收敛 + 5/6 同指令；pytest

@@ -193,6 +193,11 @@ namespace gem5
         if (s == "low")  return BitSeg::Low;   // [0:11]
         if (s == "mid")  return BitSeg::Mid;   // [12:47]
         if (s == "high") return BitSeg::High;  // [48:63]
+        // §5.6D IEEE754 semantic segments (double layout: sign 63, exp
+        // 62-52, mantissa 51-0) — the config's --fpu_bit_segment choices.
+        if (s == "sign")    return BitSeg::Sign;     // [63]
+        if (s == "exp")     return BitSeg::Exp;      // [62:52]
+        if (s == "mantissa") return BitSeg::Mantissa; // [51:0]
         return BitSeg::All;
     }
 
@@ -232,6 +237,10 @@ namespace gem5
             case BitSeg::Low:  lo=0;  hi=11; break;
             case BitSeg::Mid:  lo=12; hi=47; break;
             case BitSeg::High: lo=48; hi=63; break;
+            // §5.6D IEEE754 double segments (bit_spectrum.py-compatible)
+            case BitSeg::Sign:    lo=63; hi=63; break;
+            case BitSeg::Exp:     lo=52; hi=62; break;
+            case BitSeg::Mantissa: lo=0; hi=51; break;
             default:           lo=0;  hi=63; break;
         }
         std::uniform_int_distribution<int> bd(lo, hi);

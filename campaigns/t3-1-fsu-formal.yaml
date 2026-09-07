@@ -1,0 +1,20 @@
+# T3-1 FSU formal (plan §5.6: 位段×算子×精度, n=384/cell 关键 cell).
+# CHAOSFPU v3 source-read hook (the reliable FSU corruption point — PRF
+# cell injection is defeated by operand forwarding on back-to-back chains).
+# Grid: IEEE754 bit segment (sign/exp/mantissa/all) × precision workload
+# (gemm_float FP32 vs gemm_double FP64 vs fma_reduction vs svd_iterative).
+# Workload is chosen per-run via --binary; this YAML defines the seg axis.
+campaign_id: t3_1_fsu_formal
+workload:
+  golden_id: gemmdouble-golden-v1   # default; override per-binary via --workload-golden
+trigger: {mode: cycle, value: 5000}
+limits: {max_faults: 1, max_ticks: 0}
+injector: fpu
+config_family: C0
+axes:
+  bit_segment: [sign, exp, mantissa, all]
+  fault_model: [transient_bit_flip]
+  semantic_role: [fp_accum]
+defaults:
+  rng_master_seed: 20260825
+  width_bits: 64

@@ -163,7 +163,8 @@ def _build_fault(camp, cell):
     return f
 
 
-def run_one(manifest_path, binary, golden, g5, timeout=600, workload_args=""):
+def run_one(manifest_path, binary, golden, g5, timeout=600, workload_args="",
+            probability=1.0):
     """Run runner.py once; parse its RESULT line for classification."""
     env = dict(os.environ)
     env["GEM5_OPT"] = g5  # runner.py reads GEM5_OPT for the gem5.opt path
@@ -179,7 +180,8 @@ def run_one(manifest_path, binary, golden, g5, timeout=600, workload_args=""):
     # the campaign's timeout = hang_timeout + 120s margin.
     env["CHAOS_HANG_TIMEOUT"] = str(max(60, timeout - 60))
     cmd = [sys.executable, RUNNER, manifest_path,
-           "--binary", binary, "--golden-checksum", golden]
+           "--binary", binary, "--golden-checksum", golden,
+           "--probability", str(probability)]
     # start_new_session + group kill: the runner (and its gem5 child) run in
     # their own process group. On campaign-level timeout we must kill the
     # WHOLE group — a plain subprocess.run(timeout) kill only reaps the
@@ -262,6 +264,9 @@ def main():
                         "Bypasses arm_chaos.py max_insts bug (use kernel iters param).")
     ap.add_argument("--hang-timeout", type=int, default=600,
                    help="per-run wall-clock timeout (s) for Hang classification")
+    ap.add_argument("--probability", type=float, default=1.0,
+                   help="per-event injection probability for hook-driven "
+                        "injectors (small = random-site sampling)")
     args = ap.parse_args()
 
     with open(args.campaign_yaml) as f:
@@ -301,7 +306,8 @@ def main():
     if args.jobs > 1:
         with cf.ThreadPoolExecutor(max_workers=args.jobs) as ex:
             futures = {ex.submit(run_one, mp, args.binary, args.workload_golden,
-                                 args.gem5, args.hang_timeout + 120, args.workload_args):
+                                 args.gem5, args.hang_timeout + 120, args.workload_args,
+                                 args.probability):
                        (ci, rep) for (ci, rep, mp, _) in all_tasks}
             for fut in cf.as_completed(futures):
                 ci_rep = futures[fut]
@@ -314,7 +320,7 @@ def main():
         for (ci, rep, mp, _) in all_tasks:
             run_results[(ci, rep)] = run_one(mp, args.binary, args.workload_golden,
                                               args.gem5, args.hang_timeout + 120,
-                                              args.workload_args)
+                                              args.workload_args, args.probability)
 
     for ci, cell in enumerate(cells):
         counts = {c: 0 for c in CLASSES}

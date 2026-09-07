@@ -74,6 +74,12 @@ def main():
                          "manifest's oracle.golden_id is resolved via the "
                          "runner's GOLDEN_IDS table.")
     ap.add_argument("--binary", required=True, help="path to the workload binary")
+    ap.add_argument("--probability", type=float, default=1.0,
+                    help="per-event injection probability for hook-driven "
+                         "injectors (e.g. CHAOSFPU v3 source-read hook; 1.0 "
+                         "= first eligible event injects — for random-site "
+                         "sampling use a small value so the RNG picks the "
+                         "site).")
     ap.add_argument("--cache-block-addr", type=lambda x: int(x, 0), default=0,
                     help="directed cache block address (live-data block) for "
                          "l1d/l2/l1i components. 0 = random block (mostly "
@@ -243,6 +249,16 @@ def main():
         cmd += ["--chaos_freelist"]
         if idx is not None:
             cmd += [f"--freelist_target_phys={idx}"]
+    elif comp == "fpu":
+        # §5.6D: CHAOSFPU (v3 source-read hook — the reliable FSU corruption
+        # point; v1 head sampling pops results, v2 misses vec blobs).
+        # probability < 1.0 = random-site sampling (the hook Bernoulli-draws
+        # per FP source read, so a small p spreads the injection site).
+        cmd += ["--chaos_fpu", f"--probability={args.probability}"]
+        seg = inj.get("bit_segment", "all")
+        cmd += [f"--fpu_bit_segment={seg}"]
+        if tgt.get("semantic_role"):
+            cmd += [f"--fpu_semantic_role={tgt['semantic_role']}"]
     elif comp == "rob":
         # §5.3: CHAOSROB (exc_suppress DUE->SDC / entry_bitflip seqNum /
         # spec_leak). fault.model maps to --rob_mode when it names a mode
@@ -337,7 +353,7 @@ def main():
     faults = 0
     for logname in ("fault_injections.log","main_mem_injections.log",
                     "cache_injections.log","rat_injections.log",
-                    "rob_injections.log",
+                    "rob_injections.log","fpu_injections.log",
                     "freelist_injections.log","lsq_fwd_injections.log",
                     "addr_path_injections.log","ptw_injections.log",
                     "armtlb_injections.log","arm_sysreg_injections.log"):

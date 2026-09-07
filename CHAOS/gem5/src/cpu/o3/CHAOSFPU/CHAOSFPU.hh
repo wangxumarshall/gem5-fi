@@ -60,7 +60,7 @@ class CHAOSFPU : public SimObject
                        uint64_t mask);
 
   private:
-    enum class BitSeg { All, Low, Mid, High };
+    enum class BitSeg { All, Low, Mid, High, Sign, Exp, Mantissa };
     static BitSeg stringToBitSeg(const std::string &s);
 
     o3::CPU *cpu;
