@@ -60,6 +60,10 @@ class CHAOSFPU : public SimObject
     std::string bitseg;
     // mode 2 — fma_intermediate weighted proxy (E3).
     bool fma_weighted = false;
+    // mode 3 — recurring_result_stuck: same fixed mask every event.
+    bool recurring_stuck = false;
+    uint64_t recurring_mask = 0;      // drawn once on the first event
+    bool recurring_mask_drawn = false;
 
     std::mt19937 rng;
     std::random_device rd;

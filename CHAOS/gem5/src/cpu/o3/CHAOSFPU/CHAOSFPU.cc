@@ -23,7 +23,8 @@ namespace gem5
           rng_seed(p.rngSeed),
           write_log(p.writeLog),
           bitseg(p.bitseg),
-          fma_weighted(p.fmaWeighted)
+          fma_weighted(p.fmaWeighted),
+          recurring_stuck(p.recurringStuck)
     {
         if (probability > 0.0f) {
             log_stream = simout.create("fpu_injections.log", false, true);
@@ -156,7 +157,17 @@ namespace gem5
         // bitseg isolates the field experimentally (the campaign stratifies
         // over the six segments).
         RegVal mask;
-        if (fault_mask) {
+        if (recurring_stuck) {
+            // v1.1 Phase 9 mode 3 — the SAME fixed mask every event: the
+            // directed --fault_mask if given, else drawn once from the
+            // uniform pick and reused for the whole run.
+            if (!recurring_mask_drawn) {
+                recurring_mask = fault_mask ? fault_mask
+                                            : (1ULL << (rng() % 64));
+                recurring_mask_drawn = true;
+            }
+            mask = recurring_mask;
+        } else if (fault_mask) {
             mask = fault_mask;
         } else if (fma_weighted) {
             // v1.1 Phase 9 mode 2 — fma_intermediate (E3 behavioral
@@ -220,6 +231,7 @@ namespace gem5
                 << ", sn=" << dyn_inst->seqNum
                 << (bitseg.empty() ? std::string() : ", bitseg=" + bitseg)
                 << (fma_weighted ? ", mode=fma_intermediate" : "")
+                << (recurring_stuck ? ", mode=recurring_result_stuck" : "")
                 << ", mask=0x" << std::hex << mask << std::dec
                 << ", faults_injected: " << faults_injected_count
                 << std::endl;

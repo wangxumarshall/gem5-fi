@@ -48,4 +48,13 @@ class CHAOSFPU(SimObject):
     fmaWeighted = Param.Bool(False, "fma_intermediate mode: weighted "
                                     "field draw (mant 85% / exp 10% / "
                                     "sign 5%) on the final result")
+    # v1.1 Phase 9 patch 1a mode 3 — recurring_result_stuck: the SAME
+    # fixed mask is applied to EVERY opClass-eligible FSU result (modeling
+    # a stuck multiplier partial-product bit — the literature's dominant
+    # execution-unit SDC source). The mask is drawn once (first eligible
+    # event) and reused. Runs with maxFaults=0 (unlimited; the Phase 8.4
+    # runner contract enforces the pairing). Skip consumption is disabled
+    # in this mode (every event is hit).
+    recurringStuck = Param.Bool(False, "recurring_result_stuck mode: same "
+                                       "fixed mask on every eligible result")
     writeLog = Param.Bool(True, "Write a fault_injections.log file")

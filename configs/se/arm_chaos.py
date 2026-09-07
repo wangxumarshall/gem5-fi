@@ -232,6 +232,11 @@ p.add_argument("--fpu_fma_weighted", action="store_true",
                help="v1.1 Phase 9: fma_intermediate proxy — draw the flip "
                     "bit from method3's matched weighted field distribution "
                     "(mant 85% / exp 10% / sign 5%).")
+# v1.1 Phase 9 mode 3 — recurring_result_stuck (pair with --max_faults 0).
+p.add_argument("--fpu_recurring_stuck", action="store_true",
+               help="v1.1 Phase 9: recurring_result_stuck — the SAME fixed "
+                    "mask on every eligible FSU result (stuck multiplier "
+                    "bit). Use with --max_faults 0.")
 # §2.7 CHAOSL1DForward (post-check escape injector). SELF-ATTACHES at startup()
 # to cpu.chaosL1DFwd. Hooks LSQUnit::completeDataAccess before writeback;
 # XORs the load response data (post-L1D, post-ECC) — the escape path.
@@ -532,6 +537,7 @@ if args.chaos_fpu:
         countOnly=args.fpu_count_only,
         bitseg=args.fpu_bitseg,
         fmaWeighted=args.fpu_fma_weighted,
+        recurringStuck=args.fpu_recurring_stuck,
         writeLog=True,
     )
     board.chaos_fpu = fpu
