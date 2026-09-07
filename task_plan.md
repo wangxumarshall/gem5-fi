@@ -129,8 +129,8 @@ Phase 1–2 — **complete**（1.1–1.6 + 2.1–2.4 全勾）。Next: Phase 3 f
   - 诚实边界（与 CHAOSROB exc_suppress 同边界，progress.md 既有记录）：gem5 SE 下 page fault 在 translation 阶段 panic（不走 DynInst commit 生命周期），完整 DUE→SDC 转化需 FS 模式；本提交交付机制 + 逃逸记录缺失实证
   - 新增 numRasRecordMisses/numSkippedNoFault 统计；arm_chaos.py --chaos_ras 透传
   - 回归：reg_chain golden `f247ef3fe6f02cfd` 不变；构建零错误
-- [ ] 5.3 **逃逸分解 B–F 数据补齐**（§8.1：PCE formal → D 机理；ecc_logic_fault → E；毒化传播丢失 → F）
-  - 更新 t6 表：B–F 有数据或如实标注不可达原因
+- [x] 5.3 **逃逸分解 B–F 数据补齐**（§8.1）
+  - t6 表更新：B=secded-b2 n=384 静默（SED 2-bit 不可检，六类标签口径说明）；C=secded-b3 n=384 静默；D=PCE formal 90.9% [87.6,93.4]（既有 n=384 数据回填）；E=ecc_logic_fault 机制对照实证（T5-1，Corrected vs Missed 同 seed 对照）；F=no formal data 诚实标注（需 secded_poison×local_mbu，deferred 带解锁条件）
 - [ ] 5.4 **§8.2 保护优先级排序表（formal 数据驱动版）**
   - 用 3.1–3.7 的 P_SDC/P_DUE + §8.1 分解产出排序表；逐结构标代理保护与建议
 - [ ] 5.5 **§8.3 DFT 向量打包**
