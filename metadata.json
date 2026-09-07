@@ -1,0 +1,35 @@
+{
+  "cli_version": "0.10.2",
+  "checkpoint_id": "01M1XC2H64Z9VCNY42H3RW8EE5",
+  "strategy": "manual-commit",
+  "branch": "fi-wangxu",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "CHAOS/CHAOSCache/CHAOSCache.cc",
+    "CHAOS/CHAOSCache/CHAOSCache.hh",
+    "CHAOS/CHAOSCache/CHAOSCache.py",
+    "CHAOS/gem5/src/mem/cache/CHAOSCache/CHAOSCache.cc",
+    "CHAOS/gem5/src/mem/cache/CHAOSCache/CHAOSCache.hh",
+    "CHAOS/gem5/src/mem/cache/CHAOSCache/CHAOSCache.py",
+    "CHAOS/gem5/src/mem/cache/base.cc",
+    "CHAOS/gem5/src/mem/cache/base.hh",
+    "configs/se/arm_chaos_cache.py",
+    "task_plan.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 1309171,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 11579,
+    "api_call_count": 37
+  }
+}
