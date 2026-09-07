@@ -2083,3 +2083,20 @@ method2 三根因的定量闭环补最后两臂（AGU 臂已完成 100% DUE）�
 **§2.12 exec + §2.13 bpu 在第二 workload（reg_chain）上的 formal（n=384 each + 5% replay, ~3h each, 0 frozen）**：双双 **384/384 全 Masked，P_SDC=0% [0,1.0], P_DUE=0%, Reach=100%**。
 
 **Phase 3.4 验收达成**：cholesky/branchy 上的"全 Masked"（Exec XOR / BPU dir_flip）在正交 workload 上置信上界 <1%——task_plan 的验收标准（"全 Masked 单元在第二 workload 上置信上界仍 <1% 才写进结论"）满足，exec/bpu 的零风险带结论正式写定。至此跨 workload 复检覆盖：PRF X3（反转—workload 敏感）、Exec/BPU（一致 Masked）、RAS/Decode（pilot 方向一致）。
+
+### Phase 4.7: LSQFwd 转发相位偏移（真 method3 相位代理）实现 + 相位敏感性曲线
+
+**实现（cb31fef）**：PhaseOffset 模式 hook **转发 WritebackEvent 调度点**（lsq_unit.cc "1 cycle forwarding latency" 处）——注入时该次转发的写回延迟 N 个 CPU 周期（offset 经 --lsq_lane_skew_k，runner 由 bit 轴透传，manifest delay_omission→phase_offset）。corrupt() 在该模式 no-op（故障即时机，无数据突变）；其它模式 Cycles(0) 零回归。真机验证：T1 触发分散（vaddr 两 seed 不同 + DelayCycles 记录）、T3 golden f247ef3fe6f02cfd + byte_flip 旧行为不变。
+
+**转发路径相位敏感性曲线（fwd_checksum_kernel, C2, offset {1,2,4,8} × n=96 + 5% replay, 全 0 frozen）**：
+
+| offset | P_SDC | P_DUE |
+|---|---|---|
+| 1 | 0% [0,3.8] | **100% [96.2,100.0]** |
+| 2 | 0% | 100% |
+| 4 | 0% | 100% |
+| 8 | 0% | 100% |
+
+**结论**：
+1. **转发写回延迟在转发密集 workload 上确定性致命且相位平顶**（1-8 周期无塌方）——消费者的读窗口与写回落点错位即崩溃，无"容忍带"。method3 现场的"加 no-op → 触发率塌方"是**触发率**对相位的敏感（竞争窗口开合），本代理测的是**后果**对相位的敏感——两者互补：后果无容忍带说明转发时序是硬约束，保护应为转发路径的时序校验（延迟>阈值即报错）。
+2. **相位分化数据**：早期注入（链表建立期转发，T1 手工）Masked vs 校验链转发（formal 分散采样）100% DUE——**转发的消费者身份决定延迟的致命性**（建立期数据被后续覆盖，校验链数据被立即消费）。这是 workload 内相位敏感性的直接证据。
