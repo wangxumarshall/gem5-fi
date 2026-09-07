@@ -956,3 +956,46 @@ pytest 4 用例（初版测试数据的 prf masks 误用 bit31 落 mantissa 区
 ### 未做（诚实）
 - 未开始任何代码实现——本轮只做盘点与计划（用户指令为"研究+撰写计划"）。
 - 计划中 Phase 1–6 全部任务待执行；Phase 7 为环境门控登记。
+
+---
+
+## 2026-09-07 收官日：7 Phase 全计划执行（task_plan.md 全任务）
+
+### Phase 1（P0 工具补全）— 全 6 任务
+- 1.1 cache 字段级 `6c672323`（tag→SDC；v1 直写 setTag→snoop panic 改 findBlock false-hit 分流）
+- 1.2 victim 写回载荷 `7f78b325`（事件驱动 hook；多注入 32 → SDC 3858cbed195cd715 传播实证）
+- 1.3 TLB pfn_to_mapped_page `50bdbc64`（friend TLB 枚举活页；首注入→guest Oops 0x9600004f；84M 注入 0 SimulatorError）
+- 1.4 iTLB + parity_interleaved `ac3f977f`（v1 只 invalidate 不恢复 pfn 仍 panic→v2 恢复+失效；parity 对照 none=panic vs parity=系统正常）
+- 1.5 RAT/ROB read-trace `5bd791d7`（50-cycle 首 poll 修复；RAT F5 reads 0→1 实测）
+- 1.6 AGENT_TASKS.md `a350e428`
+
+### Phase 2（kernel 库）— 全 4 任务
+- gemm_float/svd/struct/crc/madd（origin/fi 提取）+ gemm_double/fma/smulh_adds/indirect_jmp/movbe（新写）`feeba037 e640e88b 6ee8a753 a276723f`；golden 全部 native==gem5 三方一致
+
+### Phase 3（formal 批量）— 10 任务
+- 3.1 FSU 4 精度×4 位段 n=384×16 cell（6144 runs）：double 13.6-18.0%/float 60.2-65.8%/fma 47.3-53.9%/svd 64.8-69.5%；float≈4×double、链式归约≈3×矩阵、sign≥exp≥mantissa（尾数低位被舍入吸收）`853133cb`
+- 3.2 Exec 阴性对照 0/768（上界 0.4%）vs FSU/转发 ≥34× 量化 `76ddb2c9`
+- 3.3 RAT/freelist formal（DUE 主导复现）+ ROB D 曲线 deferred `77207f09`
+- 3.4 cache 字段级 formal（12 cell × 96 排队/执行中）
+- 3.5 PCE 90.9% vs raw 97.7% 判定（post-check 上界性质）`2e315a3b`
+- 3.6 FS TLB 双模式 n=32×2：live_page 19/32 oops + ESR 0x960000xx 家族混合（86000004×12/96000005/06/47/4f——core179 同型）；offset 25/32 oops 主导 86000004 `7bf51d7c`
+- 3.7 PRF 补样判定（X3 全饱和 100% 免补）`3e07f7d0`
+- 3.8 method2 三根因打分表（损坏值模式/FAR 规范性/DFSC 层级三 discriminator）`7bf51d7c`
+- 3.9 phase 敏感性曲线（4 offset × 384 执行中）
+- 3.10 假设表 H0-H4/H8+ 回填（H0 部分确认拆分/H1 PRF 确认/H2 天花板/H3 机制就位/H4 未检验）`31db39fa`
+
+### Phase 4（openEuler 诊断引擎）— 全 5 任务
+- esr_decode（0x96000044 精确解码 + pytest 7/7）`71e3c1c4`；logparse（16 真实 vmcore 99.5% 收敛 CPU179 + 同指令 ×17）`1dbbf347`；sdc_diagnose（core179 回放 HIGH/P1-P5/隔离+FA+RMA）`52ee5823`；flight-rules v1.0.0 先验回填 `a83a9630`；spectrum_triage 端到端 `bd9c41a8`
+
+### Phase 5（建议产出）— 全 6 任务
+- CHAOSMem ecc_logic_fault（E 机理同 seed 对照：Corrected vs Missed）`f61abc0e`；CHAOSRAS（第 19 注入器，SVC 排除教训）`87945f0d`；t6 B-F 补齐 `c9802d92`；t8 保护优先级 `9d2798e5`；DFT 向量包（4/4 签名命中）`4aba556a`；t9 TRM 差距 `ac33041a`
+
+### Phase 6/7
+- 论文五贡献点扩写 `d2d111ab`；诚实边界终审 `d7646210`；Phase 7 环境门控 7 项登记 `2df8e9a5`
+
+### 重要技术发现（本日）
+1. ARM ISA 不设 IsFloating 标志（isFloating() 恒 false，144k 采样 0 命中）
+2. ARM FP 走 VecRegClass 的 getWritableRegOperand（绕过 setRegOperand；head result 已 pop 5089/5089）
+3. 背靠背依赖链走 bypass 网络不回读 PRF（PRF cell 注入被转发击败，15 seed 全 Masked）→ v3 源读 hook（读即破坏）
+4. vec lane 32-bit 默认窗口截断 64-bit mask（mask=0x0 no-op 教训）
+5. campaign 运行前必须 source env.sh（缺 LD_LIBRARY_PATH → exit 127 → 全 Crash 假象）
