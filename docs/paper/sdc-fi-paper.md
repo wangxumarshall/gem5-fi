@@ -34,7 +34,9 @@ Meta ~1/1000 设备（Hardware Sentinel, ASPLOS'25）；Google mercurial cores�
 
 ## 3. 方法：gem5-fi 注入平台
 
-### 3.1 十七个注入器
+### 3.1 十九个注入器
+
+（2026-09-07 收官状态：Phase 1 补全 cache 元数据/victim 写回、TLB 活页替换与 parity、RAT/ROB read-trace；Phase 5 补 CHAOSRAS 逃逸元分析与 ECC 逻辑故障模式。）
 
 | 组 | 注入器 | 单元 | 模式 |
 |---|---|---|---|
@@ -49,9 +51,11 @@ Meta ~1/1000 设备（Hardware Sentinel, ASPLOS'25）；Google mercurial cores�
 | | CHAOSLSQFwd（五模式） | 转发 | bitflip（64 位）、fwd_source_sub、stale_line_replay、phaseOffset |
 | 对照/基础 | CHAOSExec（阴性对照）| ALU | int result 位段 |
 | | CHAOSPhysReg | PRF | phys/arch_frontend/arch_commit + F3 triggerValue + NEON lane |
-| | CHAOSCache | L1D/L1I/L2 | 字节级 + targetField（rd/rn/rm/opcode 指令编码位段）+ protectionModel ECC |
-| | CHAOSMem | DRAM | addr_map_sub（F5）+ secded ECC |
-| | CHAOSArmTLB | D-TLB | pfn/ap/xn/attridx/ng/asid 字段级 + pfnOffset（F5） |
+| | CHAOSCache | L1D/L1I/L2 | 字节级 + targetField（rd/rn/rm/opcode 指令编码 + tag/valid/dirty/repl/coh 元数据 §5.8B）+ victim 写回载荷破坏（§5.8A）+ protectionModel ECC |
+| | CHAOSMem | DRAM | addr_map_sub（F5）+ secded ECC + ecc_logic_fault（§5.11 E 机理——ECC 逻辑自身故障 1-bit 漏检） |
+| 逃逸元分析 | CHAOSRAS | commit 路径 RAS 记录 | ERR* 记录抑制（S5-2——DUE 变无记录 SDC；完整转化 FS-only 诚实边界） |
+| read-trace | CHAOSRenameMap/CHAOSROB | RAT/ROB | 注入后目标 physReg 消费者计数（H3 跨单元一致性前提 §4.3） |
+| | CHAOSArmTLB | D-TLB/i-TLB | pfn/ap/xn/attridx/ng/asid 字段级 + pfnOffset（F5）+ pfn_to_mapped_page（F5 活页替换，最危险静默 SDC 路径）+ parity_interleaved（§2.3 L2 TLB 代理） |
 | | CHAOSArmSysReg | 系统寄存器 | bitflip/stuck + value_to_legal（F5） |
 | | CHAOSL1DForward | PCE | load result post-ECC 翻转 |
 | | CHAOSBPU | BPU | target_sub/direction_flip（hook BAC::predict） |
@@ -101,14 +105,40 @@ F5 合法域替换（RAT 偷映射）× 长存活累加器（accum_kernel asm-pi
 
 18+ 锚点全 pass（tables/t5）——含 golden f247ef3fe6f02cfd、GPR SDC d43a25d7fcc218b7（reads=125000 状态泄漏窗口）、method1 F5 fails=1、core179 D1 rol1 xor 多位散布、D3 PTW BecameInvalid、spec_leak numSpecLeak=3（PhysReg 104/105/106 跳过归还）、Mem addr_map_sub 0x100000→0x101000、TLB pfnOffset 0x403→0x40403 等。
 
+### 4.6 FSU 位段×精度 formal（表 6——t3-1 新数据）
+
+CHAOSFPU v3 源读 hook（背靠背依赖链走 bypass 网络，PRF cell 注入被转发击败——15 seed 全 Masked 的机理发现；读即破坏传播保证）下 n=384/cell：
+
+| workload | sign | exp | mantissa | all |
+|---|---|---|---|---|
+| gemm_double | 18.0% | 17.2% | 13.6% | 15.9% |
+| gemm_float | 65.8% | 61.5% | 62.7% | （重跑中） |
+| fma_reduction | 53.9% | 52.3% | 47.3% | 52.9% |
+| svd_iterative | — | — | — | 69.5% |
+
+规律：链式归约（fma 47–54%）比矩阵累加（gemm 13–18%）传播率高 ~3×（每次 fma 将误差乘操作数量级放大）；float 比 double 高 ~4×（FP32 尾数 23-bit 更窄，同等位翻转占比更大）；位段间差异有限（尾数低位误差被累加舍入吸收）。
+
+### 4.7 保护优先级排序（表 7——t8 数据驱动版）
+
+风险 = Reach×P_SDC 降序：L1D load 回填通路 90.9%（D 机理盲区，TRM 代理表无此行——最大覆盖差距）> L1D 阵列 raw 97.7%（secded 实测风险反转 97.7→0）> store→load wrong-source 37.6% > FSU 通路 13.6–18.0% > LSQ 转发 4.7% > PRF ~10% > DRAM B/C 静默 > DUE 主导组（IQ/ROB/RAT/freelist 0% SDC，免 SDC 代理保护）。
+
+### 4.8 逃逸分解 B–F 补齐（表 8——t6 更新）
+
+B（SED 2-bit 静默）384/384、C（≥3-bit 超 SECDED）384/384、D（post-check）90.9%、E（ECC 逻辑故障）同 seed 对照实证（secded=Corrected 0x0→0x0 vs ecc_logic_fault=Missed 0x0→0x80）、F（毒化传播）no data 诚实标注。
+
+### 4.9 openEuler 诊断引擎（表 9——维度③ 落地）
+
+三件套（tools/diag/）：ESR_ELx EC/FSC 解码器（pytest 7/7；core179 签名 0x96000044 → DABT/WnR=1/FSC=L0 精确匹配）+ 日志解析器（16 份真实 vmcore-dmesg：signature 子集 216/217=99.5% 收敛 CPU179、find_busiest_group+0x140 ×17 跨案复发）+ 七步法/P-N 规则/置信度引擎（core179 六案回放 → HIGH 置信度 P1-P5 全命中，处置=立即隔离+FA+RMA 精确复现 §7.8 结论；伪造均匀分布 → N1 正确排除）。指纹库↔诊断引擎集成 CLI（spectrum_triage.py）：现场位谱 → Top-K 候选单元（含 P_SDC 先验+签名检查建议）→ 日志侧裁决全链路。
+
 ## 5. 抗 SDC 微架构设计建议（机制级，非 DFT）
 
-逃逸集合分解基础（tables/t6-escape-decomp.md）：现有 formal 数据全部归入机理 A（RAS 范围外结构 raw escape，3282 事件 100%）——这正是"乱序后端无保护结构是最大暴露面"的实验确证；B–F 机理暂无 formal 数据（如实标注）。
+逃逸集合分解（tables/t6-escape-decomp.md，2026-09-07 B–F 补齐版）：A 机理 3282 事件（乱序后端 raw escape 确证）；B/C 机理 384+384 全静默（SED 家族边界）；D 机理 90.9%（PCE formal）；E 机理对照实证（ecc_logic_fault 1-bit 漏检）；F 机理 no data（deferred）。
 
 1. **抗状态泄漏**（method1）：PRF 活性回收双校验（freelist 归还前强制校验不在活 RAT 映射——本平台 spec_leak numSpecLeak=3 证明该路径可被单点跳过）；squash 时错误路径 μop 的 PRF 写显式回溯；
 2. **抗相位竞争**（method3）：store→load 转发决策与数据组装分离到不同流水级（一条 no-op ALU 使触发率 100%→10–20% 证明相位敏感）；AGU→MMU 地址呈现加 byte-lane parity（D2 签名 2/5 例确凿）；
 3. **抗 PCE**：ECC 校验通过后到 PhysReg 写回之间的数据段加 parity 或与 ECC 联动（完整 RAM 保护把 SDC 逼到此必然出口）；
-4. **抗合法域替换**：RAT physRegIdx、freelist free-bit、LSQ 转发源、TLB pfn 等编号/指针字段加 parity 或 range-check（本平台 F5 六载体的"合法域校验"反向证明硬件更应校验）。
+4. **抗合法域替换**：RAT physRegIdx、freelist free-bit、LSQ 转发源、TLB pfn 等编号/指针字段加 parity 或 range-check（本平台 F5 六载体的"合法域校验"反向证明硬件更应校验）；
+5. **TRM 代理表差距**（tables/t9-trm-gap-analysis.md）：N1 Table 9-1 的最大盲区是覆盖范围而非保护强度——load 回填通路与 store→load 转发无对应行；ECC 逻辑自身是横向单点故障（BIST 建议）；5 项 E4（V110 RTL 推断）全部进待校准清单不进正文。
 
 ## 6. openEuler 诊断反哺接口
 
@@ -122,4 +152,4 @@ F5 合法域替换（RAT 偷映射）× 长存活累加器（accum_kernel asm-pi
 
 ## 8. 结论
 
-gem5-fi 平台（17 注入器 + F1–F6+PCE + 九类 PA 分类 + FS checkpoint 流水线）在 V110 代理参数下产出首批 ARM64 服务器核逐微架构单元 SDC 正式数据（风险反转 100% Corrected、PRF 位段、LSQ 故障模式矩阵、method1 Fisher），以 18+ 仿真-现场锚点确立生态效度，并落地产业工具（指纹库 CLI + openEuler 接口）。代码与数据全部开源可溯源（`artifacts/` 强制入库）。
+gem5-fi 平台（19 注入器 + F1–F6+PCE + 九类 PA 分类 + FS checkpoint 流水线 + RAT/ROB read-trace）在 V110 代理参数下产出首批 ARM64 服务器核逐微架构单元 SDC 正式数据：① 逐单元量化（L1D 风险反转 100% Corrected、PRF 位段、LSQ 矩阵、method1 Fisher、FSU 位段×精度新数据）；② 逃逸机理分解 A–F（B/C/D/E 补齐，F 诚实 deferred）；③ protection-aware 保护优先级排序（t8 数据驱动版 + TRM 代理差距分析 t9）；④ 生态效度 18+ 仿真-现场锚点 + openEuler 诊断引擎三件套（ESR 解码/日志解析/七步法置信度——core179 六案回放 HIGH 置信度精确复现）+ 指纹库 CLI 端到端集成；⑤ read-trace 四分类（RAT/ROB 消费者计数，H3 跨单元一致性）。产业工具链（诊断引擎 + 指纹库 + DFT 向量包 dft/）全部开源可溯源（`artifacts/` 强制入库）。

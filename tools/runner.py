@@ -249,6 +249,15 @@ def main():
         cmd += ["--chaos_freelist"]
         if idx is not None:
             cmd += [f"--freelist_target_phys={idx}"]
+    elif comp == "exec":
+        # §5.10D negative control: CHAOSExec (integer writeback path).
+        # P_SDC(Int) here vs P_SDC(FSU/forward) in t3-1 quantifies the
+        # method1 'integer path intact' contrast.
+        cmd += ["--chaos_exec"]
+        seg = inj.get("bit_segment", "all")
+        cmd += [f"--exec_bit_segment={seg}"]
+        if tgt.get("semantic_role"):
+            cmd += [f"--exec_semantic_role={tgt['semantic_role']}"]
     elif comp == "fpu":
         # §5.6D: CHAOSFPU (v3 source-read hook — the reliable FSU corruption
         # point; v1 head sampling pops results, v2 misses vec blobs).
@@ -354,6 +363,7 @@ def main():
     for logname in ("fault_injections.log","main_mem_injections.log",
                     "cache_injections.log","rat_injections.log",
                     "rob_injections.log","fpu_injections.log",
+                    "exec_injections.log",
                     "freelist_injections.log","lsq_fwd_injections.log",
                     "addr_path_injections.log","ptw_injections.log",
                     "armtlb_injections.log","arm_sysreg_injections.log"):

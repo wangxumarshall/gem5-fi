@@ -1,0 +1,19 @@
+# T3-2 Exec negative-control formal (plan §5.10: P_SDC(Int) << P_SDC(FSU/forward)).
+# Integer-only kernels (madd_chain / smulh_adds) under CHAOSExec — the
+# method1 'integer path intact' negative control, quantified at n=384.
+# Contrast arm: the FSU numbers are in t3-1-fsu-formal-* (13.6%-53.9%
+# depending on workload); this campaign establishes the INT side.
+campaign_id: t3_2_exec_negative
+workload:
+  golden_id: smulhadds-golden-v1
+trigger: {mode: cycle, value: 5000}
+limits: {max_faults: 1, max_ticks: 0}
+injector: exec
+config_family: C0
+axes:
+  bit_segment: [all]
+  fault_model: [transient_bit_flip]
+  semantic_role: [int_accum]
+defaults:
+  rng_master_seed: 20260825
+  width_bits: 64

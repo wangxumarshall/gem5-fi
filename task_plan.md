@@ -147,8 +147,9 @@ Phase 1–2 — **complete**（1.1–1.6 + 2.1–2.4 全勾）。Next: Phase 3 f
 
 **Status: pending**
 
-- [ ] 6.1 **论文扩写至五贡献点全覆盖**（§9.1：逐单元量化/F5+F6 模型/protection-aware 规范/生态效度范式/read-trace 四分类）
-  - 回填 Phase 3–5 全部新表；数字溯源逐项过
+- [x] 6.1 **论文扩写至五贡献点全覆盖**（§9.1）
+  - 新增 §4.6 FSU 位段×精度（gemm_double 13.6-18.0% / fma 47.3-53.9% 3× 放大 / float 4× 于 double 规律）；§4.7 保护优先级（t8）；§4.8 逃逸 B-F 补齐（t6）；§4.9 openEuler 诊断引擎三件套（core179 回放 HIGH）；§5.5 TRM 差距（t9）；结论五贡献点重写（19 注入器 + 诊断引擎 + DFT 包 + read-trace）
+  - 数字溯源：全部表格指向 artifacts/ 或 docs/paper/tables/ 可溯源文件
 - [ ] 6.2 **诚实边界终审**（§11.3：每 summary 三条边界 + E1–E4 标注 + 不换算 FIT + 单机未确认标注 + 阴性对照如实）
 - [ ] 6.3 **方案文档假设表/回填终态 + progress.md 记录 + AGENT_TASKS.md 全勾**
 
