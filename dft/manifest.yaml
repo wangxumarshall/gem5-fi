@@ -1,0 +1,66 @@
+# DFT 向量打包 — method1/2/3 定向 kernel + 健康/次品签名对照（§8.3）
+#
+> 用途：产线/现场 DFT 筛查。每个向量 = 触发条件（注入器配置）+
+> 定向 kernel + 健康（golden）/次品（注入）签名对照。运行脚本
+> run_all.sh 逐向量执行并比对签名；预期输出全部来自本仓库真机
+> 实跑（docs/paper/tables/t5-anchors.md + progress.md 记录）。
+
+vectors:
+  # --- method1: RAT 历史残留（F5 偷映射 → 长存活累加器 SDC）---
+  - id: m1-rat-history-residue
+    injector: CHAOSRenameMap f5_substitute
+    kernel: workloads/directed/accum_kernel
+    args: "--chaos_rat --rat_mode=f5_substitute --rat_target_arch=9
+           --probability=1.0 --first_clock=100000 --max_faults=1
+           --rng_seed=20260825"
+    healthy_signature: "iters=500 fails=0"
+    defect_signature: "iters=500 fails=1"
+    log_marker: "ArchReg[9]->PhysReg[199] (stolen from donor arch 13, was PhysReg[62])"
+
+  # --- method2: core179 D2 地址通路（AGU byte7 清零 → 非规范地址翻译故障）---
+  - id: m2-addrpath-byte7
+    injector: CHAOSAddrPath
+    kernel: FS 任意（需 MMU-on）
+    args: "--chaos_addrpath --addrpath_byte_offset=7
+           --first_clock=100000 --max_faults=1"
+    healthy_signature: "numAddrFaults=0"
+    defect_signature: "numAddrFaults=20（5 seed 实测，progress.md H6）"
+    log_marker: "byte7-zeroed vaddr fault（FS only）"
+
+  # --- method3: LSQ 转发位翻转（FP 尾数位谱）---
+  - id: m3-lsqfwd-bitflip
+    injector: CHAOSLSQFwd bit_flip
+    kernel: workloads/directed/fp_fwd_kernel
+    args: "--chaos_lsqfwd --probability=1.0 --first_clock=1000000
+           --max_faults=1 --rng_seed=20260825 --fault_type=bit_flip"
+    healthy_signature: "iters=500 fails=0"
+    defect_signature: "SDC@it=232 i=58 golden=3ffad444e2800000 actual=3ffad444e6800000 xor=0000000004000000；iters=500 fails=1"
+    log_marker: "XOR bit30 = double 尾数高位（现场 method3 尾数 85-93%/符号 0-1 位谱方向一致）"
+
+  # --- core179 D1 撕裂移位（byte_lane_skew rol1 — H5 已闭环 93% 检出）---
+  - id: d1-byte-lane-skew-rol1
+    injector: CHAOSLSQFwd byte_lane_skew
+    kernel: workloads/directed/fp_fwd_kernel
+    args: "--chaos_lsqfwd --lsq_structural_fault=byte_lane_skew
+           --lsq_skew_bytes=1 --first_clock=1000000 --max_faults=1"
+    healthy_signature: "golden 3ffad444e2800000"
+    defect_signature: "actual=003ffad444e28000（golden 右旋 1 字节），xor=3fc52e90a6628000 多位散布"
+    log_marker: "撕裂移位子族（现场 35/36 汉明重量方向一致，30 注入 28 检出 93%）"
+
+  # --- E 机理: ECC 逻辑自身故障（1-bit 漏检）---
+  - id: e-ecc-logic-fault
+    injector: CHAOSMem ecc_logic_fault
+    kernel: workloads/directed/l1d_reduce
+    args: "--chaos_mem --mem_protection_model=ecc_logic_fault
+           --first_clock=5000 --max_faults=1 --rng_seed=1"
+    healthy_signature: "secded: EccCorrected (byte reverted), old 0x0 -> new 0x0"
+    defect_signature: "EccLogicFault: Missed (1-bit error NOT corrected — the corrector logic is dead; escapes), old 0x0 -> new 0x80"
+    log_marker: "同 seed 同注入对照（T5-1 实测）"
+
+run_prelude: |
+  source /home/sdc/gem5-deps/env.sh
+  G5=CHAOS/gem5/build/ARM/gem5.opt
+
+honesty: |
+  全部签名为 gem5 代理（SE 除 m2 需 FS），非硅片 ATE 向量；
+  单机未复现（S6 deferred）；m1/m3/d1 锚点已真机复现（t5-anchors.md）。

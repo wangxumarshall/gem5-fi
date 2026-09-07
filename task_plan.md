@@ -134,8 +134,9 @@ Phase 1–2 — **complete**（1.1–1.6 + 2.1–2.4 全勾）。Next: Phase 3 f
 - [x] 5.4 **§8.2 保护优先级排序表（formal 数据驱动版）**
   - t8-protection-priority.md 入库：8 结构降序（L1D 回填 90.9% > L1D 阵列 97.7%（secded 风险反转 97.7→0）> wrong-source 37.6% > FSU 13.6-18.0% > LSQ 4.7% > PRF > DRAM B/C > DUE 主导组），全部 n=384 CI 标注
   - 四条投资结论：数据通路三件套稳居前三（occupancy 加权稳健）；DUE 主导结构免 SDC 代理保护；SECDED 边界（B/C 静默 + E 自身故障需 BIST）；FP 窄校验可能足够
-- [ ] 5.5 **§8.3 DFT 向量打包**
-  - method1/2/3 定向 kernel + 触发条件 + 健康/次品签名对照 → `dft/` 目录（manifest + 运行脚本 + 预期签名）
+- [x] 5.5 **§8.3 DFT 向量打包**
+  - dft/{manifest.yaml, run_all.sh} 入库：5 向量（m1 RAT 历史残留 / m2 AddrPath byte7（FS 诚实 skip）/ m3 LSQ 位翻转尾数谱 / d1 撕裂移位 rol1 / e ECC 逻辑故障），各带健康/次品签名 + log_marker
+  - 端到端批跑实证：baseline golden `f247ef3fe6f02cfd` 一致；m1 `iters=500 fails=1`、m3 `fails=1`、d1 `fails=1`、e 机制 log `EccLogicFault: Missed`——4/4 向量跑出次品签名，0 fail
 - [ ] 5.6 **§8.4 N1 TRM Table 9-1 差距分析文档**（E4 项进"待校准清单"不进正文）
 
 ## Phase 6 — 论文与收尾（§9）
