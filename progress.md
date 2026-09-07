@@ -931,3 +931,28 @@ sdc_fingerprint（不重写字段分类）。真机 LOO（真实 lsq 64 xor +
 mantissa 区，区分度有限——诚实呈现）、Top-3 100% → VALID。
 pytest 4 用例（初版测试数据的 prf masks 误用 bit31 落 mantissa 区
 ——IEEE754 double 的 mantissa 是 51-0，sign/exp 是 63/62-52，已修）。
+
+---
+
+## 本轮（2026-09-07）方案全覆盖差距盘点 + 收尾计划撰写
+
+指令：研究《KUNPENG920SDC故障的微架构故障注入和规律研究的详细方案设计和需求开发实现文档.md》（1069 行），撰写实现计划，确保 100% 覆盖无遗漏。
+
+### 做了什么
+1. 全文通读方案（第 0–11 章 + 附录 A–G）。
+2. 对照 `fi-wangxu` HEAD（`ebae0eb3`）逐项核对实际源码/artifacts/tools：
+   - 18 个注入器目录 + vendored 副本齐全（`CHAOS/gem5/src` 18 处核对）
+   - formal artifacts 现状：prf-formal(n=96×8)/lsq-matrix(n=64×5)/m1-formal(384×2, Fisher PASS)/l1d-ecc(384×6)/prf-readtrace(384×4)/h2-window(96×12)
+   - 工具链：campaign/runner/classify/escape_decomp/sdc_fingerprint/loo_validate/fisher_test
+   - 论文初稿 125 行 + t1–t7 表
+3. 差距结论（详见 `findings.md`）：
+   - 工具缺口：CHAOSCache tag/valid/dirty/repl/coh/victim 字段级、CHAOSArmTLB pfn_to_mapped_page/iTLB/protectionModel、RAT/ROB read-trace、CHAOSRAS、CHAOSMem ecc_logic_fault、BPU decoupled 兼容
+   - kernel 缺口：gemm/svd/fma_reduction/MADD/SMULH/indirect_jmp/struct_field/crc_state/movbe 正式入库
+   - formal 缺口：FSU/Exec/RAT/ROB/Cache字段级/FS-TLB-PTW/PCE/PRF补样384/method2三根因/相位曲线
+   - **第 7 章 openEuler 诊断引擎整体缺失**（sdc-diagnosis 项目本机不存在，需自建）；第 8 章 B–F 机理数据/DFT 打包/差距分析缺失
+   - 环境门控：S4 系统级/S6 健康机/S7 实机/D10 sanitizer/ExMon 多核/Decode（方案明示可跳过）
+4. 撰写计划 `task_plan.md`（7 Phase / 33 任务）+ 本计划镜像入库 `docs/superpowers/plans/2026-09-07-kunpeng920-sdc-complete-coverage.md`（CLAUDE.md plan-driven 纪律）。
+
+### 未做（诚实）
+- 未开始任何代码实现——本轮只做盘点与计划（用户指令为"研究+撰写计划"）。
+- 计划中 Phase 1–6 全部任务待执行；Phase 7 为环境门控登记。
