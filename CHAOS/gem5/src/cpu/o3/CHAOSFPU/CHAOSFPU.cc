@@ -22,7 +22,8 @@ namespace gem5
           max_faults(p.maxFaults),
           rng_seed(p.rngSeed),
           write_log(p.writeLog),
-          bitseg(p.bitseg)
+          bitseg(p.bitseg),
+          fma_weighted(p.fmaWeighted)
     {
         if (probability > 0.0f) {
             log_stream = simout.create("fpu_injections.log", false, true);
@@ -157,6 +158,19 @@ namespace gem5
         RegVal mask;
         if (fault_mask) {
             mask = fault_mask;
+        } else if (fma_weighted) {
+            // v1.1 Phase 9 mode 2 — fma_intermediate (E3 behavioral
+            // proxy, plan fallback (b)): draw the field from method3's
+            // matched distribution (mant 85% / exp 10% / sign 5%), then
+            // the bit uniformly within the field. Implemented as the
+            // mant_* / exp_* / sign bitseg ranges.
+            int lo, hi;
+            unsigned field = (unsigned)(rng() % 100);
+            if (field < 85)      { lo = 0;  hi = 51; }  // mantissa (52 bits)
+            else if (field < 95) { lo = 52; hi = 62; }  // exponent (11 bits)
+            else                 { lo = 63; hi = 63; }  // sign
+            int bit = lo + (int)(rng() % (unsigned)(hi - lo + 1));
+            mask = (1ULL << bit);
         } else if (!bitseg.empty()) {
             int lo = -1, hi = -1;
             if      (bitseg == "sign")    { lo = 63; hi = 63; }
@@ -205,6 +219,7 @@ namespace gem5
                 << ", Site: dyn_inst_execute, opClass=" << (int)oc
                 << ", sn=" << dyn_inst->seqNum
                 << (bitseg.empty() ? std::string() : ", bitseg=" + bitseg)
+                << (fma_weighted ? ", mode=fma_intermediate" : "")
                 << ", mask=0x" << std::hex << mask << std::dec
                 << ", faults_injected: " << faults_injected_count
                 << std::endl;

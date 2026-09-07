@@ -58,6 +58,8 @@ class CHAOSFPU : public SimObject
 
     // v1.1 Phase 9 patch 1a mode 1 — bitseg field (empty = uniform).
     std::string bitseg;
+    // mode 2 — fma_intermediate weighted proxy (E3).
+    bool fma_weighted = false;
 
     std::mt19937 rng;
     std::random_device rd;

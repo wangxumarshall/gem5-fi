@@ -227,6 +227,11 @@ p.add_argument("--fpu_bitseg", default="",
                         "mant_lo"],
                help="v1.1 Phase 9: flip bits ONLY within this IEEE754 "
                     "field (empty = uniform whole-register pick).")
+# v1.1 Phase 9 mode 2 — fma_intermediate (E3 behavioral proxy).
+p.add_argument("--fpu_fma_weighted", action="store_true",
+               help="v1.1 Phase 9: fma_intermediate proxy — draw the flip "
+                    "bit from method3's matched weighted field distribution "
+                    "(mant 85% / exp 10% / sign 5%).")
 # §2.7 CHAOSL1DForward (post-check escape injector). SELF-ATTACHES at startup()
 # to cpu.chaosL1DFwd. Hooks LSQUnit::completeDataAccess before writeback;
 # XORs the load response data (post-L1D, post-ECC) — the escape path.
@@ -526,6 +531,7 @@ if args.chaos_fpu:
                       else args.fpu_events_to_skip),
         countOnly=args.fpu_count_only,
         bitseg=args.fpu_bitseg,
+        fmaWeighted=args.fpu_fma_weighted,
         writeLog=True,
     )
     board.chaos_fpu = fpu

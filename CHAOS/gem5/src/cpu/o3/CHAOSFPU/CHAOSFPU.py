@@ -36,4 +36,16 @@ class CHAOSFPU(SimObject):
     # '' (default) = legacy uniform whole-register pick.
     bitseg = Param.String("", "FP bit segment: sign | exp_hi | exp_lo | "
                               "mant_hi | mant_mid | mant_lo ('' = uniform)")
+    # v1.1 Phase 9 patch 1a mode 2 — fma_intermediate (E3 BEHAVIORAL
+    # PROXY, not a microarchitectural replay): gem5's ARM FP is a pure
+    # functional model (arch/arm/fplib.cc fplibMulAdd) with no real
+    # alignment-shift/partial-product/normalization hardware, so the
+    # pre-rounding FMA intermediate cannot be reached. Plan fallback (b):
+    # draw the flip bit from a method3-matched weighted field
+    # distribution on the FINAL result — mant 85% / exp 10% / sign 5%,
+    # with the mantissa draw uniform over its 52 bits. The doc records
+    # this as an E3 behavioral proxy.
+    fmaWeighted = Param.Bool(False, "fma_intermediate mode: weighted "
+                                    "field draw (mant 85% / exp 10% / "
+                                    "sign 5%) on the final result")
     writeLog = Param.Bool(True, "Write a fault_injections.log file")
