@@ -345,3 +345,7 @@ CHAOSArmSysReg 也有 `*1000`（startup()，FS-only，SE formal 不受影响，�
 **活跃度依赖定律**：TLB 活页替换的结局在两个内核 regime 间**完全反转**——稳态（shell 空闲）384/384 Masked（Phase 5.4）vs 内核活跃（调度遍历）384/384 Oops（本 formal）。**错页错误的危险度 = 错误页是否被活跃消费**。Phase 5.4 的静默通路量化是 regime 受限的——§2.10 E"最危险路径"的最坏情形 bound 应取内核活跃 regime 的数字。
 
 **fs oracle 诚实边界**：存活 run 的静默 SDC 份额在内核存活 oracle 下不可区分（PRF 的 91.7% 存活中含静默损坏可能）。
+
+## Phase 3.4 收口: 跨 workload 复检验收达成（2026-09-08，524dc60）
+
+exec（IntAlu XOR）/ bpu（dir_flip）在 reg_chain 上 formal 384/384 全 Masked——cholesky/branchy 的"全 Masked"在正交 workload 上 <1% 上界成立，**验收规则（全 Masked 结论需第二 workload <1% 上界）满足**。跨 workload 复检全景：PRF X3 反转（workload 敏感）、Exec/BPU 一致 Masked（formal 级）、RAS/Decode pilot 方向一致。零风险带结论正式写定。
