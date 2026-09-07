@@ -8,13 +8,13 @@
 > 详细差距依据见 `findings.md`（2026-09-07 盘点）。
 
 ## Current Phase
-Phase 1（P0-工具补全）— Next Step: Task 1.6 AGENT_TASKS.md 登记簿（附录 G.1）
+Phase 1（P0-工具补全）— **complete**（1.1–1.6 全勾）。Next: Phase 2 kernel 库（Task 2.1 gemm_float/gemm_double）
 
 ---
 
 ## Phase 1 — P0 工具/注入器缺口补全（方案 §5.7/§5.8/§4.3）
 
-**Status: in_progress**
+**Status: complete**
 
 - [x] 1.1 **CHAOSCache tag/valid/dirty/repl/coh 字段级注入**（§5.8B）— `6c672323`
   - 验证实证：tag→SDC `bd34ebf3da704050`；valid/dirty/repl/coh→Masked（诚实）；G0 2/2 sha256 一致；回归 `f247ef3fe6f02cfd`；构建零警告
@@ -39,11 +39,12 @@ Phase 1（P0-工具补全）— Next Step: Task 1.6 AGENT_TASKS.md 登记簿（�
   - runner：rat/rob 日志的 ReadTrace 正则解析（reads_before_overwrite 列）+ comp=="rob" 路由（--chaos_rob/--rob_mode）+ rob_injections.log 计数
   - 回归：PRF/regfile 零触碰（git diff --stat 实证）；reg_chain golden `f247ef3fe6f02cfd` 不变；构建零错误
   - 执行中发现：100k-cycle 首次 poll 在短 workload（dep_chain ~13k cycles）永不 fire——改 50-cycle 首 poll + 5000-cycle cadence；ROB head 常为 store/branch（无 dest）——declined 诚实登记
-- [ ] 1.6 **AGENT_TASKS.md 登记簿建立**（附录 G.1）
-  - 按方案 G.1 单行格式登记全部任务（含已完成 18 注入器 + 本计划任务 + deferred 项）
-  - 验证：文件入库，格式与方案一致；每完成一任务更新状态
+- [x] 1.6 **AGENT_TASKS.md 登记簿建立**（附录 G.1）
+  - 验证：AGENT_TASKS.md 入库，单行格式 `<id> | depends | owner | status | assert_hint` 与方案 G.1 一致；登记 18 注入器（全 done）+ S0 基础 3 项 + 本计划 Phase 1–7 任务 + 7 项 deferred（含原因与解锁条件）；此后每完成任务同步更新
 
 ## Phase 2 — kernel 库补全（方案 §5 各 D 段）
+
+**Status: in_progress**
 
 **Status: pending**
 
