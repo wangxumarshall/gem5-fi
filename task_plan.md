@@ -131,8 +131,9 @@ Phase 1–2 — **complete**（1.1–1.6 + 2.1–2.4 全勾）。Next: Phase 3 f
   - 回归：reg_chain golden `f247ef3fe6f02cfd` 不变；构建零错误
 - [x] 5.3 **逃逸分解 B–F 数据补齐**（§8.1）
   - t6 表更新：B=secded-b2 n=384 静默（SED 2-bit 不可检，六类标签口径说明）；C=secded-b3 n=384 静默；D=PCE formal 90.9% [87.6,93.4]（既有 n=384 数据回填）；E=ecc_logic_fault 机制对照实证（T5-1，Corrected vs Missed 同 seed 对照）；F=no formal data 诚实标注（需 secded_poison×local_mbu，deferred 带解锁条件）
-- [ ] 5.4 **§8.2 保护优先级排序表（formal 数据驱动版）**
-  - 用 3.1–3.7 的 P_SDC/P_DUE + §8.1 分解产出排序表；逐结构标代理保护与建议
+- [x] 5.4 **§8.2 保护优先级排序表（formal 数据驱动版）**
+  - t8-protection-priority.md 入库：8 结构降序（L1D 回填 90.9% > L1D 阵列 97.7%（secded 风险反转 97.7→0）> wrong-source 37.6% > FSU 13.6-18.0% > LSQ 4.7% > PRF > DRAM B/C > DUE 主导组），全部 n=384 CI 标注
+  - 四条投资结论：数据通路三件套稳居前三（occupancy 加权稳健）；DUE 主导结构免 SDC 代理保护；SECDED 边界（B/C 静默 + E 自身故障需 BIST）；FP 窄校验可能足够
 - [ ] 5.5 **§8.3 DFT 向量打包**
   - method1/2/3 定向 kernel + 触发条件 + 健康/次品签名对照 → `dft/` 目录（manifest + 运行脚本 + 预期签名）
 - [ ] 5.6 **§8.4 N1 TRM Table 9-1 差距分析文档**（E4 项进"待校准清单"不进正文）
