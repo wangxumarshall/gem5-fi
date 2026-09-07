@@ -1,0 +1,248 @@
+https://github.com/wangxumarshall/gem5-fi/blob/main/docs/cases/core179-microarch-rootcause-synthesis/paper2026_zh.md 这篇
+
+---
+
+/humanizer:humanizer 重构 docs/cases/core179-microarch-rootcause-synthesis/paper2026_zh.md
+
+---
+
+git push
+
+---
+
+/humanizer:humanizer 重构你生成的报告、docs/cases 目录下的md格式文件。
+
+---
+
+<task-notification>
+<task-id>a5c84de6c011610cf</task-id>
+<tool-use-id>call_864ac5bf89e540a38280b8cd</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-wangxu-vmcore0102-gem5-fi/67a982a4-965d-49ed-bc5a-1e54b48d97e1/tasks/a5c84de6c011610cf.output</output-file>
+<status>completed</status>
+<summary>Agent "Humanize 报告批次 1（8 份）" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>全部 8 份文件改写完成并通过全部硬约束核查。最终汇报：
+
+## 核查结果总览
+
+| # | 文件 | token 核对 | 删除破折号(正文) | 加粗 `**` 标记数(原→现) | 主要改动 |
+|---|---|---|---|---|---|
+| 1 | vmcore-...-2026-08-14-190704.md | **pass**(359/359, 多重集哈希相等) | 12 | 70→28 | 拆“并非存在于内存中,而是…”等 not-X-but-Y；删标题下与节间 2 条分割线；置信度标签保留加粗 |
+| 2 | vmcore-...-2026-08-17-134708.md | **pass**(1026/1026) | 32 | 162→70 | 副标题行首"——"删除；"不是‘业务进程踩坏了’,而是…”改直陈；删约 8 条分割线 |
+| 3 | vmcore-...-2026-08-24-180307.md | **pass**(1096/1096) | 43(另 1 处代码块注释内按规则保留原样) | 270→74 | “这不是软件写坏了内存,而是…”“即——**内存内容是好的**”等全部改直陈；"5.1.2"一节的“不是A而是B”证据链改为正向陈述 |
+| 4 | vmcore-...-2026-08-25-154224.md | **pass**(634/634) | 17(代码块内 5 处保留) | 148→82 | "——读路径瞬时损坏”改逗号；"——本案关键消歧”删除；两层结构说明去装饰性加粗 |
+| 5 | vmcore-...-2026-08-25-155809.md | **pass**(848/848) | 34(代码块内 1 处保留) | 186→98 | "这不是软件缺陷”改“软件可以排除”；"**这是已诊断各案中最长的一次存活**"类戏剧强调降为平实；§13 各假设裁决的“——❌ 否证”改冒号 |
+| 6 | PLAN.md | **pass**(54/54) | 1 | 2→2(语义性保留) | 原文本已是简洁计划清单，仅改"不因前案预设结论——本次若…"、“必须被正面排除而非默认排除”两处及全角标点 |
+| 7 | vmcore-...-2026-08-26-103727.md | **pass**(526/526) | 15 | 121→61 | "证据极限而非调查缺失”改正向表述；"‘检测不到’…而非‘没有硬件故障’”保留实质对比但改为自然句式 |
+| 8 | vmcore-...-2026-08-31-004732.md | **pass**(1183/1183) | 53(代码块内 1 处保留) | 226→66 | "撕裂值不是损坏的数据,而是错位的数据”保留(真实技术区分)但去加粗；"数据源没错、相位错了”保留；删约 10 条分割线与大量装饰性加粗 |
+
+## 过程说明
+
+- **一处自纠**：第 2 份(08-17)首次写入时我凭记忆重建 Oops 代码块，导致 x15 十六进制值一位之差和一行 call trace 时间戳错误。token 多重集核对立即暴露 3 处差异(计数相同但内容不同，证明逐 token 比对而非只数总数是必要的)，已逐字节恢复为 git 原文，复验哈希一致。
+- **硬约束最终状态**：8 份文件数字/inline code/0x 值多重集与 `git HEAD` 原文完全相等(哈希比对)；正文(代码块外)零"——"残留；独立水平分割线全部删除(表格分隔行不受影响)；加粗总量下降 45%–75%,仅保留置信度标签【实锤】【强推】【假设】、少量关键判定与元数据表头。
+- **事实纪律**：所有数字、命令输出、寄存器值、dmesg 行号、结论强度分级原样保留；代码块、表格数据、URL、路径未动。</result>
+<usage><subagent_tokens>3968</subagent_tokens><tool_uses>50</tool_uses><duration_ms>2346102</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a2f0d112f9fd5d136</task-id>
+<output-file>/tmp/claude-1000/-home-sdc-wangxu-vmcore0102-gem5-fi/67a982a4-965d-49ed-bc5a-1e54b48d97e1/tasks/a2f0d112f9fd5d136.output</output-file>
+<status>failed</status>
+<summary>Background agent "Humanize 报告批次 2（8 份）" was running when the previous Claude Code process exited and did not complete. Its in-process state was lost. Check its worktree/output for partial work before assuming the task landed.</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a986747a3bec1c927</task-id>
+<output-file>/tmp/claude-1000/-home-sdc-wangxu-vmcore0102-gem5-fi/67a982a4-965d-49ed-bc5a-1e54b48d97e1/tasks/a986747a3bec1c927.output</output-file>
+<status>failed</status>
+<summary>Background agent "Humanize synthesis 批次 A" was running when the previous Claude Code process exited and did not complete. Its in-process state was lost. Check its worktree/output for partial work before assuming the task landed.</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>ad925ae0c4b0fd844</task-id>
+<output-file>/tmp/claude-1000/-home-sdc-wangxu-vmcore0102-gem5-fi/67a982a4-965d-49ed-bc5a-1e54b48d97e1/tasks/ad925ae0c4b0fd844.output</output-file>
+<status>failed</status>
+<summary>Background agent "Humanize synthesis 批次 B" was running when the previous Claude Code process exited and did not complete. Its in-process state was lost. Check its worktree/output for partial work before assuming the task landed.</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>aae494cbd0acbef19</task-id>
+<output-file>/tmp/claude-1000/-home-sdc-wangxu-vmcore0102-gem5-fi/67a982a4-965d-49ed-bc5a-1e54b48d97e1/tasks/aae494cbd0acbef19.output</output-file>
+<status>failed</status>
+<summary>Background agent "Humanize 其余 7 份" was running when the previous Claude Code process exited and did not complete. Its in-process state was lost. Check its worktree/output for partial work before assuming the task landed.</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a702af1224fb6dd21</task-id>
+<output-file>/tmp/claude-1000/-home-sdc-wangxu-vmcore0102-gem5-fi/67a982a4-965d-49ed-bc5a-1e54b48d97e1/tasks/a702af1224fb6dd21.output</output-file>
+<status>failed</status>
+<summary>Background agent "Humanize analysis 残余 7 份" was running when the previous Claude Code process exited and did not complete. Its in-process state was lost. Check its worktree/output for partial work before assuming the task landed.</summary>
+</task-notification>
+
+---
+
+/humanizer:humanizer 重构你生成的报告、docs/cases 目录下的md格式文件。
+
+---
+
+<task-notification>
+<task-id>a380af7bbc1e8eb10</task-id>
+<tool-use-id>call_5a08cc713f7f4306b32e2754</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-wangxu-vmcore0102-gem5-fi/2c60901a-a4c6-46cb-b179-2153cd7e6bbe/tasks/a380af7bbc1e8eb10.output</output-file>
+<status>completed</status>
+<summary>Agent "Humanize 批次 R4（synthesis 12 份）" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>全部 12 份处理完毕，最终核验全部通过。汇总报告如下。
+
+## 完成报告（12/12）
+
+核对方法：改写前后各运行 `grep -a -o '\`[^\`]*\`\|0x[0-9a-fA-F]*\|[0-9]\+\.\?[0-9]*' &lt;file&gt; | sort | uniq -c | sort | md5sum`，12 份 md5 全部与基线一致（数字、十六进制、命令、代码 span 零变动）；`grep -n '——'` 逐份确认为零残留；PLAN.md 复选框 26 处 `- [x]` + 1 处 `- [ ]` 原样保留。
+
+| # | 文件 | md5 | 删破折号 | 删加粗 | 主要改动 |
+|---|---|---|---|---|---|
+| 1 | DIAGNOSIS_REPORT.md | pass | 0 | 0 | unchanged：前轮已改写完毕，本轮扫描零破折号/零加粗/零分割线/零 AI 高频词，几处“而非”属排除性论证的合理用法，无需再动 |
+| 2 | MICROARCH_SUPPLEMENT.md | pass | 0 | 0 | unchanged：同上，前轮改写已覆盖全部痕迹 |
+| 3 | FI_DESIGN_SUPPLEMENT.md | pass | 0（另有 4 处单破折号" — "文件列表连接符改冒号） | 35 | 状态声明区 30 余处加粗标签（执行状态/FS-mode 验证进展等）全部去除；1 处“这意味着”改“因此” |
+| 4 | FULL_UNIT_SDC_SENSITIVITY.md | pass | 41 | 86 | 破折号全部改为冒号/逗号/句号；§2 矩阵与 §6 表格内加粗清零；9 条独立 `---` 分割线删除；标题副题改冒号连接 |
+| 5 | 硬件质询建议书.md | pass | 1（标题） | 50 | 正文与质询项/测试向量节的加粗引导词（问题/证据/期望答复等）全部去除，仅保留 3 处表格关键判定加缩（规则允许）；8 条分割线删除 |
+| 6 | readme.md | pass | 0（7 处单破折号"—"列表分隔符改冒号） | 8 | 索引条目加粗与分隔破折号去除，验证状态段的强调加粗去除 |
+| 7 | PLAN.md | pass | 2 | 5 | Goal/Architecture/Tech Stack 标签加粗去除；Step 1.2/5.2 两处破折号改逗号；复选框结构未动 |
+| 8 | BESTPAPER_PLAN.md | pass | 15 | 58 | 全部破折号改写（含阶段闭合说明、D2 TBI 洞察段）；"关键里程碑"改"关键节点"；加粗标签全清 |
+| 9 | IMPROVEMENT_PLAN_v1.md | pass | 7 | 11 | 修订项标签加粗去除；破折号改逗号/分号；表格内强调加粗去除 |
+| 10 | IMPROVEMENT_PLAN_v2.md | pass | 5 | 4 | 同 v1：原则句破折号改逗号、源码断言行与 Patch 项破折号改写、加粗标签去除 |
+| 11 | REVIEW_v1.md | pass | 47（40 行） | 72 | 五席评审的全部破折号（证伪链说明、编辑仲裁、DA 反论段）逐处改为冒号/逗号/分号；MAJOR/CRITICAL 判定行加粗与席位置卡加粗全清；6 条分割线删除 |
+| 12 | REVIEW_v2.md | pass | 23（21 行） | 72 | 同 v1 口径：修复项引导词、编辑共识/分歧、DA 裁决段的加粗全清；破折号全改写；分割线删除 |
+
+### 事实纪律执行情况
+- 12 份的命令、路径、十六进制值、寄存器名、表格数据、代码块逐字节未动（md5 全部一致为证）。
+- 未增删任何事实：置信分级（【实锤】【强推】【假设】）、数字结论、案例引用、审稿判定（Major Revision/validated）原样保留。
+- 加粗保留例外：硬件质询建议书.md 中 3 处表格关键判定（15:58 案例逐位精确判定、2 处 D2 清晰可见判定），符合“表格关键判定的加粗可少量保留”规则。
+- 文体适配：质询书保持庄重（仅去装饰不改语气）；计划类文档的任务编号与表格结构未动；评审报告的 MAJOR/CRITICAL 标签体系未动。</result>
+<usage><subagent_tokens>0</subagent_tokens><tool_uses>77</tool_uses><duration_ms>1517103</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a04d85327441235ab</task-id>
+<tool-use-id>call_29d6dd15c6e3486ebf2fe1b7</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-wangxu-vmcore0102-gem5-fi/2c60901a-a4c6-46cb-b179-2153cd7e6bbe/tasks/a04d85327441235ab.output</output-file>
+<status>completed</status>
+<summary>Agent "Humanize 批次 R2（8 份）" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>全部 8 份处理完毕。最终核验汇总：
+
+## 每份结果
+
+| # | 文件 | md5 核对 | 破折号"——"删除 | 加粗 `**` 对数变化 | 主要改动 |
+|---|------|---------|--------------|------------------|---------|
+| 1 | vmcore-diagnosis-report-...-222727.md | **PASS** (9d7769f0) | 26→0 | 154→96 | 破折号全部改为冒号/逗号/句号；"而非"仅保留事实区分处（如"而非开机即存在的静态损坏"）；删 2 条分割线；正文句中强调加粗去除，保留置信度标签与结构标签 |
+| 2 | vmcore-diagnosis-report-...-233757.md | **PASS** (b69acd5d) | 45→0 | 153→93 | 同上；§6.3 八个排除小标题"？——排除"改"？排除"；执行摘要"不是内存被写坏，而是 load 读错"改为直陈 |
+| 3 | CORE179_SDC_ROOTCAUSE_REPORT.md | **PASS** (887af1ed) | 18→1（残留 1 处在 bash 代码块注释内，合规） | 614→160 | 删 6 条分割线；★装饰、"关键洞察/真正的触发因子/这才是真正原因"等伪深刻用语平实化；句中加粗大规模去除，表格关键判定（全 179/0 失败）保留 |
+| 4 | CORE179_VAR_FAULT_INJECTION_EXPERIMENT.md | **PASS** (0d7f4f72) | 16→0 | 104→20 | "故意不…而是"改直陈；"不是A、不是B、更不是C"三连否定收敛；48.69% 措辞声明保留但去戏剧化；删 6 条分割线 |
+| 5 | reproduce-method1.md | **PASS** (86fce393) | 6→0（字节级替换） | 34→0 | 非 UTF-8 截断字节与 NEL 行终止符原样保留；29 条 80 字符分隔线删除；所有命令/输出字节未动 |
+| 6 | reproduce-method2.md | **PASS** (345dc0aa) | 1 处 prose"——"+5 处单"—"连接符→0 | 0→0（原文无加粗） | 12 条分隔线删除；"— 欠压导致的"等连接改逗号/冒号；表格占位符"—"（14 处）保留 |
+| 7 | reproduce-method3.md | **PASS** (88d76f6e) | 101 处 spaced" — "连接符→0（19 处表格占位符 + 2 处代码注释保留） | 390→52 | 删 10 条分割线；"NOT instruction-specific"等强调句改平实；列表项破折号改逗号；中途误删一个"v3"被 md5 校验捕获并恢复 |
+| 8 | CPU179_TWELVE_BOOT_CENSUS.md | **PASS** (e5ae38e7) | 0（接手时已无） | 70→54 | 补漏：正文数据强调加粗（179/1285 倍/不变式清单等）去除；保留头部元数据、表格"已验证/不可验证"判定、WARNING 计数谱加粗；表格占位符与代码注释内"—"确认保留 |
+
+## 硬约束核验
+- 8/8 份 `grep -a -o ... | sort | uniq -c | sort | md5sum` 前后一致（改写前基线均先行采集）。
+- 残留破折号逐个确认：仅存于代码块注释（ROOTCAUSE 1 处、method3 2 处）与表格数据占位符（method1/method2/method3/method8），符合规则。
+- method1.md 仍为 Non-ISO extended-ASCII（NEL + 截断汉字），`file` 输出与改写前一致；其 grep 全程使用 `-a`。
+- 过程中一次事故被校验拦截：method3 改写时误将"This v3 confirms"中的 v3 丢失，md5 立即失配，定位后恢复原文措辞（"This v3 campaign confirms"），hash 回到基线。
+
+无文件返回 unchanged；第 8 份接手时正文已基本干净，仅做加粗补漏（70→54 对）。</result>
+<usage><subagent_tokens>278</subagent_tokens><tool_uses>125</tool_uses><duration_ms>4150485</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a0b73cb8d08fb776c</task-id>
+<tool-use-id>call_d1bf8891a88c4273a848aa01</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-wangxu-vmcore0102-gem5-fi/2c60901a-a4c6-46cb-b179-2153cd7e6bbe/tasks/a0b73cb8d08fb776c.output</output-file>
+<status>completed</status>
+<summary>Agent "Humanize 批次 R1（8 份）" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>8 份报告全部改写完成并通过硬约束校验。每份一行汇总：
+
+| # | 文件 | md5 核对 | 删除"——" | 删除加粗（处） | 主要改动 |
+|---|---|---|---|---|---|
+| 1 | …2026-09-03-182512.md | pass（5407ae33…） | 60 → 0 | 242 → 4 | 全面去除破折号连接与装饰性加粗，"不是X而是Y"改直陈，删节间分割线，时间线表格内破折号注记改为句读，实锤标签与全部 CPU 179 等关键判定加粗按规则保留 |
+| 2 | …2026-09-04-091542.md | pass（398b392a…） | 58 → 0 | 230 → 4 | 同上策略；副标题破折号删除，"FAR 形态是…投影"等总结句并入前文，"撕裂值不是损坏的数据，而是错位的数据"等排比收尾改写为平实陈述 |
+| 3 | …2026-09-04-102758.md | pass（93ed5f76…） | 45 → 1 | 174 → 6 | 残留 1 处"——"为 P4 对照表数据单元格占位符（第 11 次案 PTE 走表止步于 PMD），符合规则保留；其余同上 |
+| 4 | …2026-09-04-110000.md | pass（53c78acd…） | 38 → 0 | 158 → 2 | 零前兆案报告；"本案是它的边界案例"等戏剧化表述平实化，"唯一安全的策略是立即 offline，而不是等第一次告警"改为直陈句式 |
+| 5 | …2026-09-04-123331.md | pass（f4d3adb9…） | 34 → 0 | 196 → 2 | 12 次发作案；dmesg-only 取证报告；"12 次发作后该核仍在线，是本案最刺眼的运维事实"等修辞句改写，表格加粗批量去除（三案不变式对照表 10 处） |
+| 6 | …2026-09-04-215328.md | pass（94d57797…） | 24 → 0 | 142 → 4 | 微架构级 SDC 案；"本案最深的微架构证据"等强调句改写，置信度结论直陈化，ASCII 框图/代码块逐字节保留 |
+| 7 | …2026-09-04-220949.md | pass（7246954d…） | 35 → 0 | 222 → 2 | 写路径 SDC 案；"这是本报告的法证边界""打印本身即证明…这一点无可回避"等收尾句并入前文，两次 load 矛盾的推理链叙述顺序梳理但事实与数值零改动 |
+| 8 | …2026-09-04-223938.md | pass（06341e63…） | 26 → 0 | 102 → 2 | 独立盲测案；"核特异性是数学事实，不是印象"等对仗句改平实，反事实表格数据单元格加粗清除（保留"事实"行标签加粗） |
+
+补充说明：
+- 全部 8 份文件 `grep -a` md5（inline code / 0x 值 / 数字指纹）改写前后完全一致，零事实改动。
+- 残留加粗均为规则允许项：结论单元格整段加粗（各 1 处）、"全部 N 次位于 CPU179"类表格关键判定（文件 1/2）、"逐位相同"表格判定（文件 3）、"FATAL Oops"时间线事件（文件 6）、"事实"行标签（文件 8）。
+- 文件 3 残留的 1 处"——"为表格数据占位符（第 11 次案 PTE 列空值），按规则保留。
+- 独立成行 `---` 分割线全部删除；YAML frontmatter（无）与代码块、命令输出、十六进制值、寄存器名均未触碰。</result>
+<usage><subagent_tokens>16898</subagent_tokens><tool_uses>37</tool_uses><duration_ms>5038427</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a3c8c76aa20ea620a</task-id>
+<tool-use-id>call_c2f56c8e5c8d412794ab1cd4</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-wangxu-vmcore0102-gem5-fi/2c60901a-a4c6-46cb-b179-2153cd7e6bbe/tasks/a3c8c76aa20ea620a.output</output-file>
+<status>completed</status>
+<summary>Agent "Humanize 批次 R5（analysis 8 份）" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>全部 8 份文档改写完成并验证通过。最终报告：
+
+## 逐文件结果
+
+| 文件 | md5 核对 | 删除破折号 | 删除加粗 | 主要改动 |
+|---|---|---|---|---|
+| CROSS_CASE_STATISTICS.md | pass (b83f05a1) | 38（剩 2 处在代码块内） | 198 对（476→80 标记） | 全文破折号改冒号/分号/句号；段落级全句加粗（总计/结论/跨案观察等）拆除；8.2/8.3 节"不是X而是Y"句式直陈化（如"不是数据位翻转，而是数据通路交付错误源字节"改为"数据通路交付了错误源/错误相位的字节，而非数据位翻转"保留事实对比）；事件链与时间线表内的装饰加粗清零；12 条水平分割线删除 |
+| MICROARCH_EVIDENCE.md | pass (483ebb10) | 101（清零） | 172 对（350→6 标记，保留 3 行表格关键判定） | 标题及 H1/H2/H3 小节标题破折号改冒号；A–K 各节论证句"X——Y"结构全部改为独立陈述；J 节来源索引 20 处"路径 —— 描述"改"路径：描述"；D5 节"铁证"降为"证据"（冷静化）；blockquote 加粗标签去除 |
+| TIMING_SENSITIVITY.md | pass (e59226) | 29（清零） | 125 对（250→0） | 报告头三行加粗标签去除；"簇的三个结构定律"改为"结构规律"且加粗去除；§2.6 窗口模型参数表与 §4.2 五条结论全拆加粗；"最直白的读法"改"最直观的读法"；负载表"空工作！"感叹号去除 |
+| STORE_PATH_SENSITIVITY.md | pass (0d639e6f) | 15（剩 3 处在反汇编代码块内） | 70 对（140→0） | 标题及 2.4 小节标题破折号改冒号；三条【实锤】结论句拆除包裹式加粗、破折号改冒号；"一句话总结"改为"总结"；§5 七条边界逐条去加粗去破折号 |
+| UNIT_COVERAGE_MATRIX.md | pass (4346b68f) | 41（剩 2 处在代码块内） | 98 对（196→0） | 标题破折号改冒号；§2 各小节 run-in 加粗标题（a/b/c 判定句）拆除；§3 覆盖矩阵表行名加粗与单元格内破折号全清；"控制流的免疫不是巧合——是…"改为直接因果陈述；ALU"垃圾进垃圾出"段拆掉三处加粗 |
+| DECISIVE_EXPERIMENTS.md | pass (04ce8baa) | 3（清零） | 6 对（12→0） | 统一结论第 3/4 条与附录两处破折号改逗号；末节两处强调加粗去除 |
+| paper/outline.md | pass (336625bf) | 0 | 1 对 | 仅"标题（拟）"标签去加粗；大纲结构、编号、表格、关键数字锚全部原样保留 |
+| paper/REVIEW.md | pass (a3b09b89) | 1（清零） | 1 对 | 表格内"相位塌方——多源独立收敛"破折号改逗号；"修订记录"标签去加粗 |
+
+## 核验汇总
+
+- **md5 校验**：8/8 pass，改写前后 `grep | sort | uniq -c | sort | md5sum` 完全一致（代码/命令/十六进制/数值 token 零变动）。
+- **代码块完整性**：8 份文件的 fenced code block 内容与原文逐字节相同（diff 为空）。
+- **残留破折号核查**：全文残留 7 处"——"及 1 处"—"全部位于代码块内（寄存器原始记录、反汇编注释、python 脚本输出），属规则允许的保留项；表格数据单元格中的"—"占位符未动。
+- **分割线**：43 条独立成行的 `---` 全部删除（YAML frontmatter 无涉及）。
+- **加粗总量**：从 1424 个标记（712 对）降至 86 个标记（43 对），保留项为置信度标签【实锤】所在行的表格关键判定（如 MICROARCH 的 structural/phase/D13 三行、CROSS_CASE 的"CPU 179"判定）。
+- **未改动事实**：所有数值、案例编号、引用路径、寄存器名、日期、结论强度分级、命令输出原样保留；仅"铁证"→"证据"、"定律"→"规律"等个别浮夸用词做了平实化（不涉及结论强度）。</result>
+<usage><subagent_tokens>7896</subagent_tokens><tool_uses>92</tool_uses><duration_ms>6414756</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a312d0264ee7b4fe1</task-id>
+<tool-use-id>call_30bcbdfcd13e4bc6894e75dd</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-wangxu-vmcore0102-gem5-fi/2c60901a-a4c6-46cb-b179-2153cd7e6bbe/tasks/a312d0264ee7b4fe1.output</output-file>
+<status>completed</status>
+<summary>Agent "Humanize 批次 R3（论文 8 份）" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>API Error: Request rejected (429) · Budget has been exceeded! Key=00473197 (sk-...NDag) Current cost: 501.6371945300003, Max budget: 500.0</result>
+<usage><subagent_tokens>739</subagent_tokens><tool_uses>337</tool_uses><duration_ms>6838906</duration_ms></usage>
+</task-notification>
+
+---
+
+/humanizer:humanizer 重构你生成的报告、docs/cases 目录下的md格式文件。
