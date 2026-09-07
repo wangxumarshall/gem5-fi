@@ -237,6 +237,20 @@ p.add_argument("--fpu_recurring_stuck", action="store_true",
                help="v1.1 Phase 9: recurring_result_stuck — the SAME fixed "
                     "mask on every eligible FSU result (stuck multiplier "
                     "bit). Use with --max_faults 0.")
+# v1.1 Phase 9 modes 4-6.
+p.add_argument("--fpu_rounding_sub", action="store_true",
+               help="v1.1 Phase 9 mode 4: rounding_sub — one-ULP nudge to "
+                    "the opposite rounding neighbor (E3 proxy for flipped "
+                    "FPCR RMODE).")
+p.add_argument("--fpu_f3_dependent", action="store_true",
+               help="v1.1 Phase 9 mode 5: f3_data_dependent — corrupt only "
+                    "when the result exponent is within --fpu_exp_range.")
+p.add_argument("--fpu_exp_range", default="-1,-1",
+               help="mode 5 exponent window 'lo,hi' (biased exponent, "
+                    "inclusive; -1,-1 = unrestricted).")
+p.add_argument("--fpu_fpsr_suppress", action="store_true",
+               help="v1.1 Phase 9 mode 6: fpsr_suppress — clear FP "
+                    "exception flags (E3 placeholder, logged count).")
 # §2.7 CHAOSL1DForward (post-check escape injector). SELF-ATTACHES at startup()
 # to cpu.chaosL1DFwd. Hooks LSQUnit::completeDataAccess before writeback;
 # XORs the load response data (post-L1D, post-ECC) — the escape path.
@@ -538,6 +552,11 @@ if args.chaos_fpu:
         bitseg=args.fpu_bitseg,
         fmaWeighted=args.fpu_fma_weighted,
         recurringStuck=args.fpu_recurring_stuck,
+        roundingSub=args.fpu_rounding_sub,
+        f3Dependent=args.fpu_f3_dependent,
+        expLo=int(args.fpu_exp_range.split(",")[0]),
+        expHi=int(args.fpu_exp_range.split(",")[1]),
+        fpsrSuppress=args.fpu_fpsr_suppress,
         writeLog=True,
     )
     board.chaos_fpu = fpu

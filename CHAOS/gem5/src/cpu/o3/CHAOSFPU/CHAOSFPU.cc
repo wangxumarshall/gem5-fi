@@ -1,5 +1,9 @@
 #include "cpu/o3/CHAOSFPU/CHAOSFPU.hh"
 
+#include <cmath>
+#include <cstring>
+#include <limits>
+
 #include "cpu/o3/cpu.hh"          // o3::CPU
 #include "cpu/o3/dyn_inst.hh"     // DynInst, opClass, isFloating
 #include "cpu/op_class.hh"       // FloatAddOp/FloatMultOp/FloatMultAccOp/SimdFloat*
@@ -24,7 +28,12 @@ namespace gem5
           write_log(p.writeLog),
           bitseg(p.bitseg),
           fma_weighted(p.fmaWeighted),
-          recurring_stuck(p.recurringStuck)
+          recurring_stuck(p.recurringStuck),
+          rounding_sub(p.roundingSub),
+          f3_dependent(p.f3Dependent),
+          exp_lo(p.expLo),
+          exp_hi(p.expHi),
+          fpsr_suppress(p.fpsrSuppress)
     {
         if (probability > 0.0f) {
             log_stream = simout.create("fpu_injections.log", false, true);
@@ -156,6 +165,54 @@ namespace gem5
         // the time — method3's field shows 85-93% AFTER workload filtering;
         // bitseg isolates the field experimentally (the campaign stratifies
         // over the six segments).
+        // v1.1 Phase 9 mode 6 — fpsr_suppress (E3 placeholder): the arch
+        // FPSR is only observable via an MRS read, which SE kernels never
+        // take — count the suppressed-flag events honestly and corrupt
+        // nothing. (A real arm would need an MRS-consuming kernel.)
+        if (fpsr_suppress) {
+            ++suppressed_count;
+            return false;
+        }
+
+        // v1.1 Phase 9 mode 4 — rounding_sub: one-ULP nudge to the
+        // OPPOSITE neighbor of the rounded result (E3 proxy for a flipped
+        // FPCR RMODE changing one rounding decision). Applies to the first
+        // FP/vector dest.
+        if (rounding_sub) {
+            bool okr = false;
+            auto *o3cpur = dynamic_cast<o3::CPU *>(cpu);
+            if (o3cpur) {
+              for (int i = 0; i < dyn_inst->numDestRegs() && !okr; i++) {
+                PhysRegIdPtr dest = dyn_inst->renamedDestIdx(i);
+                if (!dest || dest->is(InvalidRegClass)) continue;
+                if (dest->classValue() != VecRegClass) continue;
+                void *vp = o3cpur->getWritableReg(dest,
+                                                  dyn_inst->threadNumber);
+                if (!vp) continue;
+                uint64_t bits; std::memcpy(&bits, vp, 8);
+                double d; std::memcpy(&d, vp, 8);
+                if (!std::isfinite(d)) continue;
+                double other = (bits & 1)
+                    ? std::nextafter(d, -std::numeric_limits<double>::infinity())
+                    : std::nextafter(d,  std::numeric_limits<double>::infinity());
+                uint64_t obits; std::memcpy(&obits, &other, 8);
+                std::memcpy(vp, &obits, 8);
+                okr = true;
+              }
+            }
+            if (okr) {
+                faults_injected_count++;
+                if (write_log) {
+                    *(log_stream->stream()) << "Tick: " << curTick()
+                        << ", Site: dyn_inst_execute, opClass=" << (int)oc
+                        << ", sn=" << dyn_inst->seqNum
+                        << ", mode=rounding_sub, faults_injected: "
+                        << faults_injected_count << std::endl;
+                }
+            }
+            return okr;
+        }
+
         RegVal mask;
         if (recurring_stuck) {
             // v1.1 Phase 9 mode 3 — the SAME fixed mask every event: the
@@ -199,6 +256,27 @@ namespace gem5
         }
         bool ok = false;
         auto *o3cpu = dynamic_cast<o3::CPU *>(cpu);
+        // v1.1 Phase 9 mode 5 — f3_data_dependent gate: corrupt only when
+        // the first FP/vector dest's biased exponent is inside
+        // [exp_lo, exp_hi] (the --fpu_operand_range proxy; the trigger
+        // VALUE pattern needs the operands, which are gone post-execute —
+        // the result exponent is the honest post-hoc proxy).
+        if (f3_dependent && (exp_lo >= 0 || exp_hi >= 0)) {
+            int dexp = -1;
+            for (int i = 0; i < dyn_inst->numDestRegs() && dexp < 0; i++) {
+                PhysRegIdPtr dest = dyn_inst->renamedDestIdx(i);
+                if (!dest || dest->is(InvalidRegClass)) continue;
+                if (dest->classValue() != VecRegClass) continue;
+                void *vp = o3cpu->getWritableReg(dest,
+                                                 dyn_inst->threadNumber);
+                if (!vp) continue;
+                uint64_t bits; std::memcpy(&bits, vp, 8);
+                dexp = (int)((bits >> 52) & 0x7ff);
+            }
+            if (dexp < 0) return false;
+            if (exp_lo >= 0 && dexp < exp_lo) return false;
+            if (exp_hi >= 0 && dexp > exp_hi) return false;
+        }
         for (int i = 0; i < dyn_inst->numDestRegs() && !ok; i++) {
             PhysRegIdPtr dest = dyn_inst->renamedDestIdx(i);
             if (!dest || dest->is(InvalidRegClass)) continue;

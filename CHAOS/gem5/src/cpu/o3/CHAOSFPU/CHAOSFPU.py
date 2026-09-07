@@ -57,4 +57,23 @@ class CHAOSFPU(SimObject):
     # in this mode (every event is hit).
     recurringStuck = Param.Bool(False, "recurring_result_stuck mode: same "
                                        "fixed mask on every eligible result")
+    # v1.1 Phase 9 patch 1a mode 4 — rounding_sub (F5, E3 proxy): re-round
+    # the injected double one ULP toward the OPPOSITE of the current
+    # rounding direction (nearest -> the value's other neighbor). Models a
+    # flipped RMODE field in FPCR changing one rounding decision.
+    roundingSub = Param.Bool(False, "rounding_sub mode: nudge the result "
+                                    "one ULP to the opposite neighbor")
+    # mode 5 — f3_data_dependent: corrupt ONLY when the result double's
+    # biased exponent falls in [expLo, expHi] (the --fpu_operand_range
+    # proxy; -1..-1 = unrestricted).
+    f3Dependent = Param.Bool(False, "f3_data_dependent mode: corrupt only "
+                                    "when the result exponent is in range")
+    expLo = Param.Int(-1, "f3 operand-range lower bound (biased exp, incl.)")
+    expHi = Param.Int(-1, "f3 operand-range upper bound (biased exp, incl.)")
+    # mode 6 — fpsr_suppress (E3 placeholder): consume eligible events and
+    # clear the accumulated exception-state model; the arch FPSR is only
+    # observable via an MRS read, which SE kernels never take — logged
+    # honestly as a count of suppressed-flag events.
+    fpsrSuppress = Param.Bool(False, "fpsr_suppress mode: clear FP "
+                                     "exception flags (logged count)")
     writeLog = Param.Bool(True, "Write a fault_injections.log file")

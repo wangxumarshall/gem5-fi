@@ -64,6 +64,14 @@ class CHAOSFPU : public SimObject
     bool recurring_stuck = false;
     uint64_t recurring_mask = 0;      // drawn once on the first event
     bool recurring_mask_drawn = false;
+    // mode 4 — rounding_sub: one-ULP opposite-neighbor nudge.
+    bool rounding_sub = false;
+    // mode 5 — f3_data_dependent: exponent-window gate.
+    bool f3_dependent = false;
+    int exp_lo = -1, exp_hi = -1;
+    // mode 6 — fpsr_suppress: logged count of cleared-flag events.
+    bool fpsr_suppress = false;
+    uint64_t suppressed_count = 0;
 
     std::mt19937 rng;
     std::random_device rd;
