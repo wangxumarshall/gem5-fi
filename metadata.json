@@ -1,0 +1,30 @@
+{
+  "cli_version": "0.10.2",
+  "checkpoint_id": "01M1YB3ZJJJ55WPTFJ32A2QMJT",
+  "strategy": "manual-commit",
+  "branch": "fix/fi-tool-correctness",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "artifacts/pwf_v11_rob_specleak_pilot/heatmap.csv",
+    "artifacts/pwf_v11_rob_specleak_pilot/summary.md",
+    "campaigns/pwf-v11-rob-specleak-pilot.yaml",
+    "progress.md",
+    "task_plan.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 478309,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 1480,
+    "api_call_count": 1
+  }
+}
