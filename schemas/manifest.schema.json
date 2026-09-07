@@ -245,6 +245,44 @@
         "trigger_value_pattern": {
           "type": "string",
           "description": "§1.6 v2 (F3 data-dependent trigger): hex pattern; inject only when (target_val & triggerValueMask)==pattern (method2 undervoltage setup-time violation)"
+        },
+        "fpu_mode": {
+          "type": "object",
+          "description": "v1.1 Phase 9: CHAOSFPU mode selection (task_plan 1a). Exactly one mode flag per manifest.",
+          "properties": {
+            "bitseg": {
+              "type": "string",
+              "enum": [
+                "sign",
+                "exp_hi",
+                "exp_lo",
+                "mant_hi",
+                "mant_mid",
+                "mant_lo"
+              ]
+            },
+            "fma_weighted": {
+              "type": "boolean"
+            },
+            "recurring_stuck": {
+              "type": "boolean"
+            },
+            "rounding_sub": {
+              "type": "boolean"
+            },
+            "f3_dependent": {
+              "type": "boolean"
+            },
+            "exp_lo": {
+              "type": "integer"
+            },
+            "exp_hi": {
+              "type": "integer"
+            },
+            "fpsr_suppress": {
+              "type": "boolean"
+            }
+          }
         }
       }
     },

@@ -1,0 +1,20 @@
+schema_version: arm-chaos-fi/v1
+campaign_id: pwf_v11_fpu_modes_pilot
+injector: fsu
+config: C0
+mode: SE
+grid:
+  fpu_bitseg: [sign, exp_hi, exp_lo, mant_hi, mant_mid, mant_lo]
+  fault_model: [transient_bit_flip]
+n_per_cell: 100
+base_seed: 20260907
+replay_pct: 5.0
+workload:
+  binary: workloads/directed/elemwise_fma_kernel
+  golden_id: elemwisefma-golden-v1
+  oracle_kind: array_hash
+  trigger_mode: cycle
+  trigger_value: 5000
+limits:
+  max_faults: 1
+hang_timeout: 300

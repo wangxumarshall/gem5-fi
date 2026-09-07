@@ -507,6 +507,25 @@ def main():
             cmd += ["--fpu_events_to_skip", str(s_skip)]
         if s_count:
             cmd += ["--fpu_count_only"]
+        # v1.1 Phase 9 (task_plan 1c): fault.fpu_mode sub-object routes the
+        # six CHAOSFPU modes (bitseg / fma_intermediate / recurring /
+        # rounding_sub / f3 / fpsr) from the manifest.
+        fm_mode = inj.get("fpu_mode") or {}
+        if fm_mode.get("bitseg"):
+            cmd += ["--fpu_bitseg", str(fm_mode["bitseg"])]
+        if fm_mode.get("fma_weighted"):
+            cmd += ["--fpu_fma_weighted"]
+        if fm_mode.get("recurring_stuck"):
+            cmd += ["--fpu_recurring_stuck"]
+        if fm_mode.get("rounding_sub"):
+            cmd += ["--fpu_rounding_sub"]
+        if fm_mode.get("f3_dependent"):
+            cmd += ["--fpu_f3_dependent"]
+        if fm_mode.get("exp_lo") is not None and fm_mode.get("exp_hi") is not None:
+            cmd += ["--fpu_exp_range",
+                    f"{fm_mode['exp_lo']},{fm_mode['exp_hi']}"]
+        if fm_mode.get("fpsr_suppress"):
+            cmd += ["--fpu_fpsr_suppress"]
     elif comp == "l1d_fwd":
         # §2.7 CHAOSL1DForward (post-check escape).
         cmd += ["--chaos_l1dfwd", "--l1dfwd_first_clock", str(t["value"]),

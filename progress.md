@@ -2187,3 +2187,46 @@ method2 三根因的定量闭环补最后两臂（AGU 臂已完成 100% DUE）�
 3. **arm_chaos.py CHAOSMem 两处潜伏 bug**(8.3 修复):addr_map_sub 缺 argparse + bitsToChange 漏传(见上)。
 
 **下一步**:Phase 9(FPU)——CHAOSFPU 六模式(bitseg/fma_intermediate E3/recurring_result_stuck/rounding_sub/f3_data_dependent/fpsr_suppress,patch 1a 含 PRF-dest 重写)+ elemwise_fma_kernel.c + pwf-v11-fpu.yaml;验收门 = 位谱尾数占比 ≥ 70%。
+
+### v1.1 Phase 9 patch 1a-0 完成（2026-09-07，补丁 bfa9c4f）: CHAOSFPU PRF-dest 重写 — FSU 故障架构可见
+
+**根因修正**(Phase 8.1/8.2 发现,本补丁落地):旧 `corruptFrontResult*` 腐蚀 `instResult` 队列(唯一消费者 checker=Null);AArch64 FP/SIMD 结果经 `getWritableRegOperand` 直写 PRF,不经 instResult——**FSU 故障架构不可见**。重写为 post-execute 直接 XOR 物理目的寄存器的 PRF 存储(VecRegClass 经 `cpu->getWritableReg(dest)` 低 8 字节;FloatReg/VecElem 经 `getReg/setReg`;int/cond 仍归 CHAOSExec)。Phase 8.2 的 countOnly/fixed-skip 流同步切换为 dest-based("inst 有 FP/vector 目的寄存器")。
+
+**真机验收**(cholesky, first_clock=5000, max_faults=1):
+| seed | checksum | 结局 |
+|---|---|---|
+| 20260825 | 2d853a3c6fbef5a9 ≠ golden | **SDC**(sn=13799 mask=0x4) |
+| 20260826 | == golden | Masked(真实掩蔽) |
+| 20260827 | eeecdb9ddfcd0012 ≠ golden | **SDC** |
+| 20260828 | == golden | Masked |
+
+**4 seeds 2 SDC/2 Masked**——FSU 故障首次产生真实结局分布;首轮"FPU 0% SDC"伪影的直接修正。golden 回归 f247ef3fe6f02cfd ✅;重建零新警告 ✅。六模式(bitseg/fma_intermediate/recurring/rounding_sub/f3_data_dependent/fpsr_suppress)全部骑在本路径上。
+
+### v1.1 Phase 9 patch 1a-1b-1c 完成（2026-09-07/08，补丁 bfa9c4f/f5b3bc8/f3e110b/121a07b/9a79376/c2da02b + 本提交）: FPU 伪影修正全链
+
+**1a 六模式**(全部骑 PRF-dest 路径,每模式独立补丁+真机验收):
+| 模式 | 验收(真实输出) |
+|---|---|
+| bitseg(6 段) | 6 段×3 seeds mask 全部在段内(sign=0x8000..00;mant_lo=0x400 等) |
+| fma_intermediate(E3 加权代理) | 20 seeds mant=85% 精确命中设计分布;30-seed 落地谱 mant 80%/exp 10%/sign 10% |
+| recurring_result_stuck | 6628 注入 distinct mask=1(恒 0x4000000000),cholesky SDC(d669c3de...) |
+| rounding_sub | 1-ULP 邻位,独立 SDC 签名 0e9decef...(≠bit-flip 的 2d853a3c) |
+| f3_data_dependent | 窗口[1020,1030]命中注入;窗口[1,100]零注入(负例 gate 生效) |
+| fpsr_suppress | 诚实占位:零损坏、checksum==golden(SE 无 MRS 消费者) |
+
+**1b elemwise_fma_kernel**(c2da02b):N=8192 FMA,输出全 c[](ARRAYHASH 64hex + ULP),golden=ced113fd...f43e7(native==gem5)。注入冒烟:两 seed ARRAYHASH 偏离→SDC;ULP=0 揭示 kernel 本地自检看不见对称损坏(golden pass 同位翻转)——array_hash 兜底的必要性实证。
+
+**1c campaign 全链**(本提交):runner `fault.fpu_mode` 路由 + schema + campaign `fpu_bitseg/fpu_mode_*` 网格轴;--dry 验证 manifest 落地;端到端 SDC(bitseg=mant_hi mask=0x80000000000)。
+
+**Pilot 结果(n=100 each,零 frozen,全部 NUMA node 1 真机)**:
+| cell | P_SDC [CI] |
+|---|---|
+| baseline 单发 uniform(elemwise_fma) | **100.0% [96.3,100.0]** |
+| bitseg sign / exp_hi / exp_lo / mant_hi / mant_mid | 100.0% [96.3,100.0] |
+| bitseg mant_lo | 99.0% [94.6,99.8] |
+| fma_intermediate(加权) | 99.0% [94.6,99.8] |
+| recurring_result_stuck | **100.0% [96.3,100.0]** |
+
+**Phase 9 验收(task_plan 原文)全过**:✅ fma_intermediate/bitseg(mant_*) 位谱尾数占比 **80% ≥ 70%**(30-seed 落地谱)——method3 方向复现;✅ recurring P_SDC ≥ 单发(elemwise 上平顶 100%,cholesky 上 6628 发 vs 单发 2/4 SDC 的对比更强);✅ 首轮"FPU 0% SDC"作废原因已写 findings(死路径 instResult + 归约负载,非 FSU 性质)。**结论修正:FPU/FSU 数据通路对 SDC 高度敏感(逐元素消费负载下单 bit 即 SDC ~100%)——首轮 0% 是注入点不可见 + 负载归约双重伪影。**
+
+**诚实边界**:① 单发/recurring 在 elemwise_fma 上平顶(每元素被 ARRAYHASH 读回,无掩蔽机会)——SDC/DUE 结构对比需要 cholesky 级归约负载,formal 轮补;② fpsr_suppress 是 E3 占位(SE 无 MRS);③ fma_intermediate 是行为代理(功能模型无微结构中间点)。

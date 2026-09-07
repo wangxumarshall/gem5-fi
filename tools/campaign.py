@@ -280,6 +280,22 @@ def manifest_for_cell(campaign, cell, cell_ordinal, rep, outdir):
                    **({"tol": wl["oracle_tol"]}
                       if wl.get("oracle_tol") is not None else {})},
     }
+    # v1.1 Phase 9 (task_plan 1c): grid axes named fpu_bitseg / fpu_mode_*
+    # flow into fault.fpu_mode (runner routes them to the CHAOSFPU CLI
+    # flags). Applied after the dict literal closes.
+    _fpu_mode = {}
+    if cell.get("fpu_bitseg"):
+        _fpu_mode["bitseg"] = cell["fpu_bitseg"]
+    for _flag in ("fma_weighted", "recurring_stuck", "rounding_sub",
+                  "f3_dependent", "fpsr_suppress"):
+        if cell.get(f"fpu_mode_{_flag}"):
+            _fpu_mode[_flag] = True
+    if (cell.get("fpu_mode_exp_lo") is not None
+            and cell.get("fpu_mode_exp_hi") is not None):
+        _fpu_mode["exp_lo"] = cell["fpu_mode_exp_lo"]
+        _fpu_mode["exp_hi"] = cell["fpu_mode_exp_hi"]
+    if _fpu_mode:
+        manifest["fault"]["fpu_mode"] = _fpu_mode
     # clean None values the v1 schema doesn't want
     for k in list(manifest["target"]):
         if manifest["target"][k] is None:
