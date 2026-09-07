@@ -61,8 +61,12 @@ Phase 1（P0-工具补全）— **complete**（1.1–1.6 全勾）。Next: Phase
   - 注入 SDC 实证：svd seed=3 `fc71f4c5671acc34` / seed=4 `4710112277c05327`；fma seed=1 `1a41808b34338752` / seed=2 `0ef2f0ffa6fd19a0`（均 ≠ golden，CHAOSFPU v3 源读 hook）
   - golden IDs 入 runner（svditerative/fmareduction-golden-v1）
   - 回归：reg_chain `f247ef3fe6f02cfd` 不变
-- [ ] 2.3 **整数对照 kernel：MADD 链 / SMULH / ADDS→B.cond**（§5.10D）
-  - 验证：golden 一致；CHAOSExec 位段注入非零计数
+- [x] 2.3 **整数对照 kernel：MADD 链 / SMULH / ADDS→B.cond**（§5.10D）
+  - madd_chain：origin/fi 提取（golden `9e8050e1503c34ab` 三方一致）
+  - smulh_adds：新写（内联 asm 保证 SMULH 链 + ADDS→B.vs→双路径累加形态；golden `58e7676693d02056` native==gem5）
+  - CHAOSExec 位段注入非零计数实证：low/mid/high 三段各 1 注入（Mask 0x1/0x1000/0x1000000000000，`Site: int_writeback_result`）
+  - golden IDs 入 runner（maddchain/smulhadds-golden-v1）
+  - 回归：reg_chain `f247ef3fe6f02cfd` 不变
 - [ ] 2.4 **indirect_jmp / struct_field / crc_state + movbe 正式入库**（§5.9/§5.8/§5.2D）
   - movbe_kernel.c 在 fi_research/probes 已有，入 workloads/directed 并编译验证
   - 验证：各 golden 一致

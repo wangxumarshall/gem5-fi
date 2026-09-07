@@ -50,6 +50,8 @@ GOLDEN_IDS = {
     "gemmdouble-golden-v1":  "6295f007a890b108",  # gemm_double_kernel
     "svditerative-golden-v1": "4afb95b5b32f3820",  # svd_iterative_kernel
     "fmareduction-golden-v1": "0efaf0ffa70ab1a0",  # fma_reduction_kernel
+    "maddchain-golden-v1":   "9e8050e1503c34ab",  # madd_chain_kernel
+    "smulhadds-golden-v1":   "58e7676693d02056",  # smulh_adds_kernel
 }
 
 def sha256_file(path):
