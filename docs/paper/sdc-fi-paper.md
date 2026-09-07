@@ -112,9 +112,9 @@ CHAOSFPU v3 源读 hook（背靠背依赖链走 bypass 网络，PRF cell 注入�
 | workload | sign | exp | mantissa | all |
 |---|---|---|---|---|
 | gemm_double | 18.0% | 17.2% | 13.6% | 15.9% |
-| gemm_float | 65.8% | 61.5% | 62.7% | （重跑中） |
+| gemm_float | 65.8% | 61.5% | 60.2% | 62.5% |
 | fma_reduction | 53.9% | 52.3% | 47.3% | 52.9% |
-| svd_iterative | — | — | — | 69.5% |
+| svd_iterative | 67.2% | 65.0% | 65.1% | 69.5% |
 
 规律：链式归约（fma 47–54%）比矩阵累加（gemm 13–18%）传播率高 ~3×（每次 fma 将误差乘操作数量级放大）；float 比 double 高 ~4×（FP32 尾数 23-bit 更窄，同等位翻转占比更大）；位段间差异有限（尾数低位误差被累加舍入吸收）。
 

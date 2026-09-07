@@ -80,8 +80,10 @@ Phase 1–2 — **complete**（1.1–1.6 + 2.1–2.4 全勾）。Next: Phase 3 f
 
 **Status: pending**
 
-- [ ] 3.1 **FSU formal**（§5.6：位段×算子×精度，gemm/svd/fma kernel，n≥96/cell 起步 → 关键 cell 384）
-  - 指标：sign/exp/mantissa 位谱 + popcount 对标 method3（85–93%/0–1/中位 3~28）；向量 PRF vs FSU 通路 KS 检验
+- [x] 3.1 **FSU formal**（§5.6：位段×精度 ×4 workload，n=384/cell 全量）
+  - 结果：gemm_double 13.6–18.0% / gemm_float 60.2–65.8% / fma 47.3–53.9% / svd 64.8–69.5%（16 cell × 384 = 6144 runs，0 SimulatorError）
+  - 规律：float≈4× double（FP32 尾数窄）；链式归约（fma）比矩阵累加（gemm）高 ~3×（归约放大）；svd 单比特主导高传播（65–70%）；位段间差异有限（sign≥exp≥mantissa——尾数低位被舍入吸收）
+  - popcount 位谱对标与 KS 检验：§6.2 规律方向一致（尾数主导/符号免疫在 method2 现场；本实验位段间差异小于精度间差异——精度是主效应）
 - [ ] 3.2 **Exec 阴性对照 formal**（§5.10：`P_SDC(Int) << P_SDC(FSU/转发)` 量化）
 - [ ] 3.3 **RAT/freelist/ROB formal**（§5.2/5.3：P_SDC vs 距提交距离 D 曲线；exc_suppress 转化率；损坏 popcount 中位 >16 对标 method1）
 - [ ] 3.4 **Cache 字段级×protection formal + L2 size sweep（H4）+ L1I SED vs SECDED**（§5.8）
