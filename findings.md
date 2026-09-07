@@ -331,3 +331,17 @@ CHAOSArmSysReg 也有 `*1000`（startup()，FS-only，SE formal 不受影响，�
 | TLB 翻译 | 0（存活） | 活页静默替换（Phase 5.4） | 页表一致性校验 |
 
 **H7 boot 期 pilot 方向性**：ECC-on 2/2 boot 完整完成 vs ECC-off 2/2 挂起——与原 H7 预期方向一致，formal 待健康机。
+
+## method2 三根因定量闭环 + 活跃度依赖定律（2026-09-08，10de4e9）
+
+**三臂最终表（内核活跃 regime，n=384 each，checkpoint restore + 调度域遍历 + O3）**：
+
+| 臂 | P_DUE | 签名 | 保护答案 |
+|---|---|---|---|
+| AGU byte7_zero | **100.0%** | kfree NULL deref（调度器路径）= 现场签名 | 规范位检查（必检出） |
+| TLB 活页替换 | **100.0%** | 错页 Oops | 活跃 regime 下必致命 |
+| PRF 单翻转 | **6.5% [4.4,9.5]** | 无主导签名（吸收为主） | forwarding+内核吸收自掩蔽 |
+
+**活跃度依赖定律**：TLB 活页替换的结局在两个内核 regime 间**完全反转**——稳态（shell 空闲）384/384 Masked（Phase 5.4）vs 内核活跃（调度遍历）384/384 Oops（本 formal）。**错页错误的危险度 = 错误页是否被活跃消费**。Phase 5.4 的静默通路量化是 regime 受限的——§2.10 E"最危险路径"的最坏情形 bound 应取内核活跃 regime 的数字。
+
+**fs oracle 诚实边界**：存活 run 的静默 SDC 份额在内核存活 oracle 下不可区分（PRF 的 91.7% 存活中含静默损坏可能）。
