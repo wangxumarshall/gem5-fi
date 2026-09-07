@@ -84,7 +84,9 @@ Phase 1–2 — **complete**（1.1–1.6 + 2.1–2.4 全勾）。Next: Phase 3 f
   - 结果：gemm_double 13.6–18.0% / gemm_float 60.2–65.8% / fma 47.3–53.9% / svd 64.8–69.5%（16 cell × 384 = 6144 runs，0 SimulatorError）
   - 规律：float≈4× double（FP32 尾数窄）；链式归约（fma）比矩阵累加（gemm）高 ~3×（归约放大）；svd 单比特主导高传播（65–70%）；位段间差异有限（sign≥exp≥mantissa——尾数低位被舍入吸收）
   - popcount 位谱对标与 KS 检验：§6.2 规律方向一致（尾数主导/符号免疫在 method2 现场；本实验位段间差异小于精度间差异——精度是主效应）
-- [ ] 3.2 **Exec 阴性对照 formal**（§5.10：`P_SDC(Int) << P_SDC(FSU/转发)` 量化）
+- [x] 3.2 **Exec 阴性对照 formal**（§5.10）
+  - 双 kernel n=384 各：smulh_adds 0/384 SDC（全 Masked，上界 0.8%）、madd_chain 0/384（同）——合计 0/768，Int 上界 0.4%
+  - 对照量化：P_SDC(Int) ≤0.4% vs P_SDC(FSU) 13.6–69.5%（4 精度）vs P_SDC(转发) 37.6–90.9%——**比值 ≥34×，`P_SDC(Int) << P_SDC(FSU/转发)` 在 formal 规模确认**（method1 '整数路径完好' + Veritas 结论复现）
 - [x] 3.3 **RAT/freelist/ROB formal**（§5.2/5.3）
   - RAT F5 formal（n=384，origin/fi 数据）：X3 59.7% DUE / X9 0.5% DUE，SDC 0%（上界 1%）——坏映射以 rename-inconsistency 崩溃暴露，method1 现场'RAT 错→DUE 主导'复现
   - freelist formal：72.0%/76.9% DUE，SDC 0%——同结论
