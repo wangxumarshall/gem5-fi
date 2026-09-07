@@ -110,6 +110,13 @@ class TlbTestInterface
 
 class TLB : public BaseTLB
 {
+    // §5.7B pfn_to_mapped_page: the injector enumerates the TLB's valid
+    // entries (the `table` AssociativeCache is protected) to substitute the
+    // hit entry's pfn with ANOTHER live page's pfn. Same trust level as the
+    // existing chaosTLB hook (the injector is sim-infrastructure, not guest
+    // code); friend keeps the container private to everyone else.
+    friend class ::gem5::CHAOSArmTLB;
+
   protected:
     class Table : public AssociativeCache<TlbEntry>
     {

@@ -64,6 +64,10 @@ p.add_argument("--seed", type=lambda x: int(x, 0), default=20260825)
 p.add_argument("--fault-type", default="bit_flip")
 p.add_argument("--tlb-target-field", default="pfn")
 p.add_argument("--tlb-pfn-offset", type=lambda x: int(x, 0), default=0)
+p.add_argument("--tlb-pfn-select-mode", default="bit_flip",
+               choices=["bit_flip", "mapped_page"],
+               help="§5.7B: mapped_page = pfn_to_mapped_page (substitute "
+                    "with another LIVE TLB entry's pfn — silent-SDC path)")
 p.add_argument("--sysreg-target-regs", default="ttbr0_el1,ttbr1_el1")
 p.add_argument("--ptw-clear-valid-bit", action="store_true")
 args = p.parse_args()
@@ -114,6 +118,7 @@ if args.phase == "inject" and args.injector != "none":
                 maxFaults=args.max_faults, rngSeed=args.seed,
                 targetField=args.tlb_target_field,
                 pfnOffset=args.tlb_pfn_offset,
+                pfnSelectMode=args.tlb_pfn_select_mode,
                 writeLog=True)
         elif args.injector == "sysreg":
             isa0 = cpu0.isa[0]

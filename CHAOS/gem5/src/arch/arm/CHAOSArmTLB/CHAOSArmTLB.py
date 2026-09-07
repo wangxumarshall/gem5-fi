@@ -38,6 +38,12 @@ class CHAOSArmTLB(SimObject):
         "legal-domain substitute to ANOTHER page frame — proxy for "
         "'another live page'; hit mapped -> SDC, unmapped -> DUE). "
         "0 = legacy random-bit flip on pfn.")
+    pfnSelectMode = Param.String("bit_flip",
+        "pfn fault-selection mode (§5.7B): bit_flip = legacy random mask; "
+        "mapped_page = pfn_to_mapped_page — substitute the hit entry's pfn "
+        "with the pfn of ANOTHER valid entry in the same TLB (a live "
+        "mapped page; the most dangerous silent-SDC path: no DUE guard can "
+        "fire). Takes precedence over pfnOffset.")
     maxFaults = Param.UInt64(0, "Max faults to inject; 0 = unlimited. Use 1.")
     rngSeed = Param.UInt64(0, "RNG seed (0 = random_device)")
     writeLog = Param.Bool(True, "Write a fault_injections.log file")

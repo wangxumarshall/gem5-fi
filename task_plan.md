@@ -8,7 +8,7 @@
 > 详细差距依据见 `findings.md`（2026-09-07 盘点）。
 
 ## Current Phase
-Phase 1（P0-工具补全）— Next Step: Task 1.3 CHAOSArmTLB pfn_to_mapped_page（§5.7B）
+Phase 1（P0-工具补全）— Next Step: Task 1.4 CHAOSArmTLB iTLB 挂载 + protectionModel
 
 ---
 
@@ -23,9 +23,11 @@ Phase 1（P0-工具补全）— Next Step: Task 1.3 CHAOSArmTLB pfn_to_mapped_pa
   - 验证实证：注入日志 `Tick: 20034000 ... Field: victim (writeback-path) ... OldByte: 0x0, NewByte: 0x40` + `numVictimFaults 1`；多注入（32 faults）→ checksum `3858cbed195cd715` ≠ golden → SDC（传播机制实证）；单次注入 Masked（首个写回是 BSS 零页死数据——victim 语义的诚实结果）
   - 回归：l1d_reduce golden `f44d2b9cd4a173cd` 不变；reg_chain `f247ef3fe6f02cfd` 不变；构建零新警告（`-Wreorder` 为 HEAD 预存，stash 对照实证）
   - 执行中发现：victim 为纯事件驱动字段，不能走 attackEvent 采样（会空转消耗 maxFaults 预算导致 0 真注入）——构造时跳过 scheduleAttack，writebackBlk hook 内做概率抽取
-- [ ] 1.3 **CHAOSArmTLB `pfn_to_mapped_page`（F5→活页静默 SDC，最危险路径）**（§5.7B）
-  - 从当前 TLB 命中集合中选**另一活页** pfn 替换（合法域校验防 SimulatorError）
-  - 验证：FS checkpoint 流水线跑通 ≥1 注入，日志含 old_pfn/new_pfn 且 new_pfn ∈ 活页集合；≥1000 注入合法域校验 0 SimulatorError（SE 下用单测路径）
+- [x] 1.3 **CHAOSArmTLB `pfn_to_mapped_page`（F5→活页静默 SDC，最危险路径）**（§5.7B）
+  - 验证实证：FS checkpoint inject ≥1 注入，日志 `Mode: pfn_to_mapped_page (F5 live-page), VA: 0xffffff807fbd3038, old_pfn: 0xffbd3, new_pfn: 0x80c80, donor_size: 0xfff`（new_pfn 来自同 TLB 活条目枚举，同页大小 donor）；首注入直接触发 guest `Internal error: Oops: 9600004f`（ESR DABT L0 WnR=1，core179 同形态）→ gem5 正常 Kernel-oops exit，非 SimulatorError
+  - 合法域压力验证：probability=1.0/unlimited → 84,681,246 次注入 0 panic 0 SimulatorError（远超 ≥1000 要求）
+  - 回归：reg_chain golden `f247ef3fe6f02cfd` 不变；构建零错误零新警告
+  - 实现：TLB 加 `friend class CHAOSArmTLB`（枚举 protected `table` AssociativeCache）；donor 候选 = 同 TLB 其余 valid 且同 pageSize 条目；无候选时诚实 decline（不误落回 bit_flip）
 - [ ] 1.4 **CHAOSArmTLB iTLB 挂载 + protectionModel 参数**（§5.7B）
   - `arm_chaos_fs.py` 支持 `--chaos_armtlb_itlb`（挂 `cpu0.mmu.itb`）；`protectionModel ∈ {none,parity_interleaved}`（§2.3：L1 TLB none / L2 TLB parity）
   - 验证：FS iTLB 注入日志 ≥1；parity_interleaved 1-bit → 条目失效重走（行为可见）

@@ -84,6 +84,11 @@ p.add_argument("--tlb_target_field", default="pfn",
                help="CHAOSArmTLB field-level target (§5.7B).")
 p.add_argument("--tlb_pfn_offset", type=lambda x:int(x,0), default=0,
                help="F5 directed pfn offset (pfn+=offset, another page frame).")
+p.add_argument("--tlb_pfn_select_mode", default="bit_flip",
+               choices=["bit_flip","mapped_page"],
+               help="§5.7B mapped_page = pfn_to_mapped_page: substitute the "
+                    "hit entry's pfn with another LIVE TLB entry's pfn "
+                    "(silent-SDC path, no DUE guard).")
 # Phase 3 §六.4 item 3 (SYS): CHAOSArmSysReg system-register injector.
 # Hooks ISA::readMiscRegNoEffect (MRS read path). Whitelist of ARM MiscReg
 # enum NAMES (TTBR/TCR/MAIR/SCTLR/VBAR etc.) — empty = no injection.
@@ -224,6 +229,7 @@ if args.chaos_armtlb or args.chaos_sysreg or args.chaos_addrpath or args.chaos_p
             rngSeed=args.tlb_rng_seed,
             targetField=args.tlb_target_field,
             pfnOffset=args.tlb_pfn_offset,
+            pfnSelectMode=args.tlb_pfn_select_mode,
             writeLog=True,
         )
         board.chaos_armtlb = arm_tlb

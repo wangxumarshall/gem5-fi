@@ -57,6 +57,11 @@ class CHAOSArmTLB : public SimObject
     int num_bits_to_change;
     std::string target_field;   // pfn/ap/xn/attridx/ng/asid (§5.7B)
     uint64_t pfn_offset;        // F5 directed pfn substitute (0=legacy bitflip)
+    // §5.7B pfn_to_mapped_page: "mapped_page" substitutes the hit entry's
+    // pfn with the pfn of ANOTHER VALID entry in the same TLB (a live
+    // mapped page — the most dangerous silent-SDC path: the substituted
+    // translation always resolves to mapped memory, so no DUE guard fires).
+    std::string pfn_select_mode;  // bit_flip (legacy) | mapped_page
     Cycles first_clock, last_clock;
     Tick first_tick = 0, last_tick = 0;  // D1: advisory tick window (curTick)
     uint64_t max_faults, faults_injected_count;
@@ -69,6 +74,13 @@ class CHAOSArmTLB : public SimObject
     OutputStream *log_stream;
 
     uint64_t generateRandomMask(int bits_to_change);
+
+    // §5.7B pfn_to_mapped_page: collect the pfns of all OTHER valid
+    // entries in the target TLB (excluding `self`). Returns false if no
+    // candidate exists (single-entry TLB — the caller then declines the
+    // injection, an honest Inactive).
+    bool pickMappedPagePfn(const ArmISA::TlbEntry *self, Addr &out_pfn,
+                           Addr &out_size);
 
     struct CHAOSArmTLBStats : public statistics::Group {
         statistics::Scalar numFaultsInjected;

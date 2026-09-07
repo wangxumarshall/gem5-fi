@@ -18,6 +18,7 @@ namespace gem5
           num_bits_to_change(p.bitsToChange),
           target_field(p.targetField),
           pfn_offset(p.pfnOffset),
+          pfn_select_mode(p.pfnSelectMode),
           first_clock(Cycles(p.firstClock)),
           last_clock(Cycles(p.lastClock)),
           max_faults(p.maxFaults),
@@ -97,6 +98,41 @@ namespace gem5
         return mask;
     }
 
+    // §5.7B pfn_to_mapped_page: enumerate the target TLB's valid entries
+    // (TLB::table is an AssociativeCache with public begin()/end(); the
+    // injector is a friend of TLB) and collect the pfns of all OTHER valid
+    // entries. The substituted pfn is BY CONSTRUCTION a live mapped page
+    // (it is currently installed in the TLB), so the corrupted translation
+    // never hits an unmapped frame — no DUE guard fires, the wrong page is
+    // read/written silently. This is the most dangerous F5 path: silent
+    // SDC with probability ~1 conditional on the fault firing.
+    bool
+    CHAOSArmTLB::pickMappedPagePfn(const ArmISA::TlbEntry *self,
+                                   Addr &out_pfn, Addr &out_size)
+    {
+        if (!tlb) return false;
+        std::vector<Addr> cand_pfn, cand_size;
+        // TLB::table (protected, friend access) — AssociativeCache<TlbEntry>
+        // exposes begin()/end() over its entry vector.
+        for (const auto &e : tlb->table) {
+            if (!e.isValid()) continue;
+            if (&e == self) continue;
+            // Same page size as the victim entry keeps the replacement
+            // geometrically consistent (the MMU uses the entry's own size
+            // for the mask; a size-matched donor avoids sign-extension /
+            // mask artifacts that are NOT the fault under study).
+            if (e.size != self->size) continue;
+            cand_pfn.push_back(e.pfn);
+            cand_size.push_back(e.size);
+        }
+        if (cand_pfn.empty()) return false;
+        std::uniform_int_distribution<size_t> pick(0, cand_pfn.size() - 1);
+        size_t i = pick(rng);
+        out_pfn = cand_pfn[i];
+        out_size = cand_size[i];
+        return true;
+    }
+
     void
     CHAOSArmTLB::maybeCorrupt(ArmISA::TlbEntry *entry, Addr va)
     {
@@ -119,6 +155,36 @@ namespace gem5
         // substitutes the pfn with pfn+offset (another page frame — proxy
         // for another live page; TLB container enumeration is not public,
         // honest proxy documented in the param help).
+        // §5.7B pfn_to_mapped_page: substitute the pfn with ANOTHER live
+        // page's pfn (enumerated from the TLB's valid entries — always a
+        // mapped frame, so no DUE guard can fire; the wrong page is
+        // accessed silently). Takes precedence over pfn_offset (an
+        // explicit live-page request is more specific than a blind offset).
+        if (pfn_select_mode == "mapped_page" && target_field == "pfn") {
+            Addr donor_pfn, donor_size;
+            if (!pickMappedPagePfn(entry, donor_pfn, donor_size)) {
+                // No other valid entry (single-page working set) — decline
+                // honestly: do NOT fall through to a random bit-flip (that
+                // would silently mislabel the run's fault model).
+                return;
+            }
+            Addr old_pfn = entry->pfn;
+            entry->pfn = donor_pfn;
+            stats->numFaultsInjected++;
+            ++faults_injected_count;
+            if (write_log) {
+                *(log_stream->stream())
+                    << "Tick: " << curTick()
+                    << ", Site: arm_tlb_lookup_hit"
+                    << ", Mode: pfn_to_mapped_page (F5 live-page)"
+                    << ", VA: 0x" << std::hex << va
+                    << ", old_pfn: 0x" << old_pfn
+                    << ", new_pfn: 0x" << entry->pfn
+                    << ", donor_size: 0x" << donor_size << std::dec
+                    << std::endl;
+            }
+            return;
+        }
         if (pfn_offset != 0 && target_field == "pfn") {
             // F5 directed: pfn -> pfn + offset (legal-domain substitute).
             Addr old_pfn = entry->pfn;
