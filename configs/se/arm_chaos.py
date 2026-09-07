@@ -90,6 +90,14 @@ p.add_argument("--chaos_mem", action="store_true",
                help="attach CHAOSMem to the board DRAM")
 p.add_argument("--addr_start", type=lambda x: int(x,0), default=0)
 p.add_argument("--addr_end", type=lambda x: int(x,0), default=0)
+# §2.17 addr_map_sub (F5, Phase 4.6): displaced-write mode. Present in
+# kp920_proxy.py since Phase 4.6 but the arm_chaos.py argparse flag was
+# missed — every --chaos_mem run on C0 died with AttributeError
+# 'Namespace' object has no attribute 'addr_map_sub' (found during the
+# v1.1 Phase 8.3 acceptance run).
+p.add_argument("--addr_map_sub", action="store_true",
+               help="§2.17 F5: displace the corrupted write to a wrong "
+                    "(adjacent) address instead of corrupting in place")
 p.add_argument("--bit_flip_prob", type=float, default=0.9)
 p.add_argument("--stuck_at_zero_prob", type=float, default=0.05)
 p.add_argument("--stuck_at_one_prob", type=float, default=0.05)
@@ -372,6 +380,12 @@ if args.chaos_mem:
         bitFlipProb=args.bit_flip_prob,
         stuckAtZeroProb=args.stuck_at_zero_prob,
         stuckAtOneProb=args.stuck_at_one_prob,
+        # v1.1 Phase 8.3: --bits_to_change was NEVER passed to CHAOSMem here
+        # (only kp920_proxy.py had it) — the SimObject default (-1) drew a
+        # random 1..8 bits per rep, so --bits_to_change was silently ignored
+        # on C0 and the ECC ladder was unreachable. Found during the Phase
+        # 8.3 acceptance run (bits=1/2/3 all produced Mask 0xfe = 7 bits).
+        bitsToChange=args.bits_to_change,
         addr_start=args.addr_start,
         addr_end=args.addr_end,
         rngSeed=args.rng_seed,

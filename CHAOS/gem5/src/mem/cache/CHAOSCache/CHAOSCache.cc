@@ -243,12 +243,22 @@ namespace gem5
 
     uint8_t 
     CHAOSCache::generateRandomMask(std::mt19937 &rng, int bits_to_change, unsigned size) {
-        uint8_t mask = 0;
-        std::uniform_int_distribution<int> bit_dist(0, size - 1);
-        for (int i = 0; i < bits_to_change; i++) {
-            mask |= (1ULL << bit_dist(rng));
-        }
-        return mask;
+        // v1.1 Phase 8.3 (design doc §1.2 multi-bit ECC ladder): when
+        // faultMask==0 (caller wants a generated mask), bits_to_change bits
+        // are now ADJACENT (a contiguous n-bit burst starting at a random
+        // position), not independent random positions. Independent random
+        // picks made popcount(mask)==bits_to_change improbable (overlapping
+        // picks collapse the burst), so applyProtection()'s 2-bit (poison/
+        // Latent) and >=3-bit (SilentEscape) branches never fired
+        // deterministically — the L1D secded_poison formal only exercised
+        // 1-bit Corrected. A contiguous burst matches the physical MBU
+        // model (adjacent-cell upset, e.g. a single particle strike) and
+        // popcount == bits_to_change exactly.
+        if (bits_to_change <= 0) return 0;
+        if ((unsigned)bits_to_change >= size) return (uint8_t)((1ULL << size) - 1);
+        std::uniform_int_distribution<int> start_dist(0, size - bits_to_change);
+        int start = start_dist(rng);
+        return (uint8_t)(((1ULL << bits_to_change) - 1) << start);
     }
 
     void

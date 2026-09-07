@@ -281,14 +281,18 @@ namespace gem5 {
     unsigned char 
     CHAOSMem::generateRandomMask(std::mt19937 &rng, int bits_to_change, int len)
     {
-        unsigned char mask = 0;
-        std::uniform_int_distribution<int> bitDist(0, len-1);
-
-        for (int i = 0; i < bits_to_change; i++) {
-            // G1/G4: unsigned shift (1U <<), no signed-shift UB for bit>=31.
-            mask |= (1U << bitDist(rng));
-        }
-        return mask;
+        // v1.1 Phase 8.3 (design doc §1.2 multi-bit ECC ladder): generated
+        // masks are now ADJACENT (contiguous n-bit burst at a random start),
+        // matching the physical MBU model (adjacent-cell upset). Independent
+        // random picks made popcount(mask)==bits_to_change improbable, so
+        // applyProtection()'s 2-bit (Latent) and >=3-bit (SilentEscape)
+        // branches never fired deterministically. popcount == bits_to_change
+        // exactly now. G1/G4: unsigned shifts only.
+        if (bits_to_change <= 0) return 0;
+        if (bits_to_change >= len) return (unsigned char)((1U << len) - 1);
+        std::uniform_int_distribution<int> startDist(0, len - bits_to_change);
+        int start = startDist(rng);
+        return (unsigned char)(((1U << bits_to_change) - 1) << start);
     }
 
     void 
