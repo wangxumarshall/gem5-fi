@@ -147,6 +147,8 @@ namespace gem5 {
                "§4.2 secded: 1-bit faults corrected (byte reverted)"),
       ADD_STAT(numDetectedContained, statistics::units::Count::get(),
                "§4.2 secded: 2-bit faults detected+contained (poison)"),
+      ADD_STAT(numEccLogicMissed, statistics::units::Count::get(),
+               "§5.11 E mechanism: 1-bit errors MISSED by the faulty ECC corrector (escape)"),
       ADD_STAT(numLatent, statistics::units::Count::get(),
                "§4.2 secded: >=3-bit latent escapes")
     {
@@ -280,9 +282,25 @@ namespace gem5 {
             // 1-bit -> corrected (revert to old_value, skip the write);
             // 2-bit -> detected+contained (poison: leave dirty, mark);
             // >=3-bit -> latent escape (leave dirty).
-            if (protection_model == "secded") {
+            // §5.11 E mechanism (ecc_logic_fault): the ECC LOGIC ITSELF is
+            // faulty — a 1-bit error that SECDED would correct is MISSED
+            // (the corrector output path is dead), so it propagates as if
+            // unprotected. Models mechanism E of the §8.1 escape
+            // decomposition: the protection mechanism failing is worse
+            // than no protection (false confidence).
+            if (protection_model == "secded" || protection_model == "ecc_logic_fault") {
                 int bits = __builtin_popcount((unsigned)mask);
-                if (bits == 1) {
+                if (protection_model == "ecc_logic_fault" && bits == 1) {
+                    stats->numEccLogicMissed++;
+                    if (write_log) {
+                        *(log_stream->stream())
+                            << "  ProtectionModel=ecc_logic_fault bits=1 -> "
+                            "EccLogicFault: Missed (1-bit error NOT corrected "
+                            "— the corrector logic is dead; escapes)"
+                            << std::endl;
+                    }
+                    // NO revert: the 1-bit error escapes (mechanism E).
+                } else if (bits == 1) {
                     stats->numEccCorrected++;
                     if (write_log) {
                         *(log_stream->stream())
@@ -304,8 +322,8 @@ namespace gem5 {
                     stats->numLatent++;
                     if (write_log) {
                         *(log_stream->stream())
-                            << "  ProtectionModel=secded bits>=3 -> "
-                            "Latent (escape)" << std::endl;
+                            << "  ProtectionModel=" << protection_model
+                            << " bits>=3 -> Latent (escape)" << std::endl;
                     }
                 }
             }

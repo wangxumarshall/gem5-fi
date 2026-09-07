@@ -114,8 +114,12 @@ Phase 1–2 — **complete**（1.1–1.6 + 2.1–2.4 全勾）。Next: Phase 3 f
 
 **Status: pending**
 
-- [ ] 5.1 **CHAOSMem `ecc_logic_fault`（E 机理：ECC 逻辑自身故障）**（§5.11）
-  - 验证：注入后 1-bit 错误不被 Corrected（漏检）→ Latent/SDC；≥1 非 Inactive
+- [x] 5.1 **CHAOSMem `ecc_logic_fault`（E 机理：ECC 逻辑自身故障）**（§5.11）
+  - 验证实证（同 seed 同注入对照）：
+    - `secded`（正常 ECC）：`EccCorrected (byte reverted)`，old 0x0 → new **0x0**（1-bit 被纠正恢复）
+    - `ecc_logic_fault`：`EccLogicFault: Missed (1-bit error NOT corrected — the corrector logic is dead; escapes)`，old 0x0 → new **0x80**（同一 1-bit 错误漏检逃逸——E 机理直接对照实证）
+  - numEccLogicMissed 统计 + `--mem_protection_model` choices 扩展；镜像同步
+  - 回归：reg_chain golden `f247ef3fe6f02cfd` 不变；构建零错误
 - [x] 5.2 **CHAOSRAS 注入器**（S5-2：hook commit-head 异常提交 + ERR* 记录抑制）
   - 注入实证：fault_kernel → `Cycle: 6080, Site: commit_head_ras_record, Mode: ras_escape (ERR* record suppressed), Seq: 3134, SuppressedFault: Generic page table fault`（RAS 记录缺失事件日志化——逃逸可观测）；SVC/系统调用类 fault 排除（SE syscall 机制非 RAS ERR* 语义，v1 全撞 SVC 的教训）
   - 诚实边界（与 CHAOSROB exc_suppress 同边界，progress.md 既有记录）：gem5 SE 下 page fault 在 translation 阶段 panic（不走 DynInst commit 生命周期），完整 DUE→SDC 转化需 FS 模式；本提交交付机制 + 逃逸记录缺失实证

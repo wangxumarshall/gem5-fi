@@ -32,5 +32,8 @@ class CHAOSMem(SimObject):
     protectionModel = Param.String("none",
         "DRAM ECC model (§2.3: DRAM=secded proxy): none=raw escape; "
         "secded: 1-bit corrected (revert), 2-bit detected+contained, "
-        ">=3-bit latent escape. Reports PA markers for classify_run_pa.")
+        ">=3-bit latent escape. Reports PA markers for classify_run_pa. "
+        "ecc_logic_fault (§5.11 E): the ECC LOGIC itself is faulty — 1-bit "
+        "errors that SECDED would correct are MISSED and escape (mechanism "
+        "E of the §8.1 escape decomposition).")
     writeLog = Param.Bool(True, "Write a log file")

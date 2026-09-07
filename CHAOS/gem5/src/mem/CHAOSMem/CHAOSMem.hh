@@ -87,6 +87,7 @@ namespace gem5 {
         statistics::Scalar numEccCorrected;        // §4.2 secded 1-bit corrected
         statistics::Scalar numDetectedContained;  // §4.2 secded 2-bit contained
         statistics::Scalar numLatent;              // §4.2 >=3-bit latent escape
+        statistics::Scalar numEccLogicMissed;      // §5.11 E: 1-bit error NOT corrected (corrector dead)
 
         CHAOSMemStats(statistics::Group *parent);
       };
