@@ -116,8 +116,11 @@ Phase 1–2 — **complete**（1.1–1.6 + 2.1–2.4 全勾）。Next: Phase 3 f
 
 - [ ] 5.1 **CHAOSMem `ecc_logic_fault`（E 机理：ECC 逻辑自身故障）**（§5.11）
   - 验证：注入后 1-bit 错误不被 Corrected（漏检）→ Latent/SDC；≥1 非 Inactive
-- [ ] 5.2 **CHAOSRAS 注入器**（S5-2：hook `commit.cc` 异常提交 + ERR* 写路径；模式 = 抑制 ERRID/Disr 记录写入）
-  - 验证：注入后 SDC 事件 RAS 记录缺失（模拟 RAS 逃逸）；回归 golden 不变
+- [x] 5.2 **CHAOSRAS 注入器**（S5-2：hook commit-head 异常提交 + ERR* 记录抑制）
+  - 注入实证：fault_kernel → `Cycle: 6080, Site: commit_head_ras_record, Mode: ras_escape (ERR* record suppressed), Seq: 3134, SuppressedFault: Generic page table fault`（RAS 记录缺失事件日志化——逃逸可观测）；SVC/系统调用类 fault 排除（SE syscall 机制非 RAS ERR* 语义，v1 全撞 SVC 的教训）
+  - 诚实边界（与 CHAOSROB exc_suppress 同边界，progress.md 既有记录）：gem5 SE 下 page fault 在 translation 阶段 panic（不走 DynInst commit 生命周期），完整 DUE→SDC 转化需 FS 模式；本提交交付机制 + 逃逸记录缺失实证
+  - 新增 numRasRecordMisses/numSkippedNoFault 统计；arm_chaos.py --chaos_ras 透传
+  - 回归：reg_chain golden `f247ef3fe6f02cfd` 不变；构建零错误
 - [ ] 5.3 **逃逸分解 B–F 数据补齐**（§8.1：PCE formal → D 机理；ecc_logic_fault → E；毒化传播丢失 → F）
   - 更新 t6 表：B–F 有数据或如实标注不可达原因
 - [ ] 5.4 **§8.2 保护优先级排序表（formal 数据驱动版）**

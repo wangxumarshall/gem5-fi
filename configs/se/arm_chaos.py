@@ -18,7 +18,7 @@
 import argparse
 import shlex
 import m5
-from m5.objects import CHAOSReg, CHAOSPhysReg, CHAOSMem, CHAOSExMon, CHAOSLSQFwd, CHAOSAddrPath, CHAOSRenameMap, CHAOSFreeList, CHAOSROB, CHAOSIQ, CHAOSExec, CHAOSFPU, CHAOSL1DForward, CHAOSBPU
+from m5.objects import CHAOSReg, CHAOSPhysReg, CHAOSMem, CHAOSExMon, CHAOSLSQFwd, CHAOSAddrPath, CHAOSRenameMap, CHAOSFreeList, CHAOSROB, CHAOSIQ, CHAOSExec, CHAOSFPU, CHAOSL1DForward, CHAOSBPU, CHAOSRAS
 from gem5.components.boards.simple_board import SimpleBoard
 from gem5.components.cachehierarchies.classic.private_l1_private_l2_cache_hierarchy import (
     PrivateL1PrivateL2CacheHierarchy,
@@ -209,6 +209,19 @@ p.add_argument("--rob_mode", default="entry_bitflip",
 p.add_argument("--rob_fault_mask", type=lambda x: int(x,0), default=0,
                help="CHAOSROB entry_bitflip seqNum mask (0=random bit).")
 p.add_argument("--rob_semantic_role", default="",
+               help="ABI role label. Metadata only.")
+# T5-2 CHAOSRAS: RAS-mechanism-escape (S5-2) — commit-path ERR* record
+# suppression. A faulting head's exception is silently committed: the DUE
+# that hardware should report becomes an unreported SDC (§8.1 mechanism).
+p.add_argument("--chaos_ras", action="store_true",
+               help="attach CHAOSRAS (RAS escape: suppress the ERR* record "
+                    "of a faulting instruction -> unreported SDC).")
+p.add_argument("--ras_probability", type=float, default=1.0,
+               help="CHAOSRAS per-poll suppression probability.")
+p.add_argument("--ras_max_faults", type=lambda x: int(x,0), default=1,
+               help="CHAOSRAS max suppressions (1 = single-fault).")
+p.add_argument("--ras_rng_seed", type=lambda x: int(x,0), default=20260825)
+p.add_argument("--ras_semantic_role", default="",
                help="ABI role label. Metadata only.")
 # S8-1 CHAOSIQ: src_ready_bitflip / tag_sub (F5) / wake_phase (F6 deferred).
 p.add_argument("--chaos_iq", action="store_true",
@@ -489,6 +502,22 @@ if args.chaos_rob:
         semanticRole=args.rob_semantic_role,
     )
     board.chaos_rob = rob
+
+# CHAOSRAS (T5-2, §5.11/S5-2): RAS-mechanism escape — the commit-path
+# ERR* record suppression injector. Self-driven attackEvent (same pattern
+# as CHAOSROB). O3-only.
+if args.chaos_ras:
+    ras = CHAOSRAS(
+        cpu=cpu0,
+        probability=args.ras_probability,
+        firstClock=args.first_clock,
+        lastClock=args.last_clock,
+        maxFaults=args.ras_max_faults,
+        rngSeed=args.ras_rng_seed,
+        writeLog=True,
+        semanticRole=args.ras_semantic_role,
+    )
+    board.chaos_ras = ras
 
 # CHAOSIQ (S8-1): src_ready_bitflip / tag_sub. Self-driven attackEvent.
 if args.chaos_iq:
