@@ -83,6 +83,20 @@ GOLDEN_IDS = {
     "ptrchaselong-golden-v1": "af63bd4c8601b7df",  # spinlock_checksum  # ras_checksum_kernel  # fwd_checksum_kernel  # neon_lane  # branchy_reduce (§2.3)
 }
 
+# v1.1 Phase 8.1: golden ARRAY registry — for workloads whose oracle is
+# array_hash / per_element_diff / fp_ulp (design doc §1.7). The kernel
+# computes the reference itself (per-element diff / ULP against its own
+# golden copy) or the golden ARRAYHASH is recorded here. Keys are distinct
+# from GOLDEN_IDS (which carry 16-hex FINAL checksums); a non-exact_hash
+# manifest resolves its golden through THIS table (or --golden-array).
+GOLDEN_ARRAYS = {
+    # populated as the v1.1 per-element kernels land (Phase 9-11):
+    # "elemwisefma-golden-v1": "<64-hex ARRAYHASH>",
+    # v1.1 Phase 8.1 acceptance carrier (temp smoke kernel, /tmp): the
+    # gem5-verified no-injection ARRAYHASH (native == gem5, deterministic).
+    "oraclesmoke-golden-v1": "3d7ac29a722e5f64b891c26d91c093c7e797a2af304a0506c6c4c69fd50c1739",
+}
+
 def sha256_file(path):
     h = hashlib.sha256()
     with open(path, "rb") as f:
@@ -104,6 +118,15 @@ def main():
                          "value) from a no-injection run. If omitted, the "
                          "manifest's oracle.golden_id is resolved via the "
                          "runner's GOLDEN_IDS table.")
+    # v1.1 Phase 8.1: explicit override for non-exact_hash oracles
+    # (array_hash golden ARRAYHASH; per_element_diff/fp_ulp ignore it — the
+    # kernel diffs against its own golden copy — but the flag exists so a
+    # golden reference can always be pinned on the command line).
+    ap.add_argument("--golden-array",
+                    help="golden value for non-exact_hash oracles (e.g. the "
+                         "64-hex ARRAYHASH from a no-injection run). "
+                         "Overrides the GOLDEN_ARRAYS registry lookup of "
+                         "oracle.golden_id for array_hash manifests.")
     ap.add_argument("--binary", required=True, help="path to the workload binary")
     # §3.2 FS checkpoint pipeline (Phase 5.4): FS deps + checkpoint restore.
     # The checkpoint is made ONCE by boot_ckpt.rcS (kp920_proxy_fs --cpu
@@ -153,16 +176,57 @@ def main():
             sys.exit(f"[runner] platform.config_params is C2-only (kp920_proxy "
                      f"microarch knobs); config_family={cfg_family}. Aborting.")
 
-    # resolve golden checksum: explicit arg, else manifest golden_id
+    # resolve oracle kind + tolerance (v1.1 Phase 8.1): the manifest's
+    # oracle.kind selects the comparison; workload.oracle_kind is the
+    # campaign-side spelling (campaign.py writes it under workload because
+    # the campaign schema's oracle block is the runner's manifest oracle).
+    # Default exact_hash = the legacy behavior, byte for byte.
+    oracle_kind = (m.get("oracle", {}).get("kind")
+                   or m.get("workload", {}).get("oracle_kind")
+                   or "exact_hash")
+    if oracle_kind not in ("exact_hash", "array_hash", "per_element_diff",
+                           "fp_ulp"):
+        sys.exit(f"[runner] oracle.kind='{oracle_kind}' not supported. "
+                 f"Known: exact_hash, array_hash, per_element_diff, fp_ulp. "
+                 f"Aborting.")
+    oracle_tol = (m.get("oracle", {}).get("tol")
+                  or m.get("workload", {}).get("oracle_tol") or 0)
+    try:
+        oracle_tol = int(oracle_tol)
+    except (TypeError, ValueError):
+        sys.exit(f"[runner] oracle.tol='{oracle_tol}' is not an integer. "
+                 f"Aborting.")
+    if oracle_kind != "exact_hash":
+        print(f"[runner] oracle: kind={oracle_kind} tol={oracle_tol}")
+
+    # resolve golden checksum: explicit arg, else manifest golden_id.
+    # Non-exact_hash oracles resolve through GOLDEN_ARRAYS (or the
+    # --golden-array override); per_element_diff/fp_ulp kernels compute the
+    # reference themselves so the golden value is unused (empty string).
     golden = args.golden_checksum
     if not golden:
         gid = m.get("oracle", {}).get("golden_id")
-        if gid and gid in GOLDEN_IDS:
-            golden = GOLDEN_IDS[gid]
-            print(f"[runner] resolved golden_id '{gid}' -> {golden}")
+        if oracle_kind == "array_hash":
+            golden = args.golden_array
+            if not golden:
+                if gid and gid in GOLDEN_ARRAYS:
+                    golden = GOLDEN_ARRAYS[gid]
+                    print(f"[runner] resolved golden_id '{gid}' (array) -> "
+                          f"{golden}")
+                else:
+                    sys.exit(f"[runner] oracle.kind=array_hash but no "
+                             f"--golden-array and oracle.golden_id '{gid}' "
+                             f"not in GOLDEN_ARRAYS. Aborting.")
+        elif oracle_kind in ("per_element_diff", "fp_ulp"):
+            # kernel-side reference: the ELEMDIFF/ULP line is self-verdict
+            golden = ""
         else:
-            sys.exit(f"[runner] no --golden-checksum and oracle.golden_id "
-                     f"'{gid}' unknown. Aborting.")
+            if gid and gid in GOLDEN_IDS:
+                golden = GOLDEN_IDS[gid]
+                print(f"[runner] resolved golden_id '{gid}' -> {golden}")
+            else:
+                sys.exit(f"[runner] no --golden-checksum and oracle.golden_id "
+                         f"'{gid}' unknown. Aborting.")
     args.golden_checksum = golden
 
     # schema validation. jsonschema (full draft-07) if available; else the
@@ -363,6 +427,12 @@ def main():
               "delay_omission": "phase_offset",
               "stuck_at_zero": "fwd_source_sub",
               "legal_domain_sub": "all_zero"}.get(inj["model"], "byte_flip")
+        # phase_offset: the manifest bit_indices[0] is the offset in
+        # cycles (passed to --lsq_lane_skew_k), mirroring the IQ
+        # wake_phase convention.
+        if sm == "phase_offset":
+            offset = bits[0] if bits else 1
+            cmd += ["--lsq_lane_skew_k", str(offset)]
         cmd += ["--lsq_struct_mode", sm, "--first_clock", str(t["value"]),
                 "--max_faults", str(m["limits"]["max_faults"]),
                 "--rng_seed", str(m["rng"]["selection_seed"]),
@@ -609,10 +679,12 @@ def main():
     stdout_text = r.stdout if r.stdout else ""
     cls, reason = classify_run(stdout_text, r.stderr or "", r.returncode,
                                faults, args.golden_checksum, timed_out,
-                               fs_mode=(cfg_family in ("C0-FS", "C2-FS")))
+                               fs_mode=(cfg_family in ("C0-FS", "C2-FS")),
+                               oracle_kind=oracle_kind,
+                               oracle_tol=oracle_tol)
     print(f"[runner] RESULT: run_id={m['run_id']} classification={cls} "
           f"faults_injected={faults} exit={r.returncode} "
-          f"timed_out={timed_out}")
+          f"timed_out={timed_out} oracle={oracle_kind}")
     print(f"[runner]   reason: {reason}")
     return 0
 

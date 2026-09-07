@@ -154,6 +154,15 @@ def manifest_for_cell(campaign, cell, cell_ordinal, rep, outdir):
             "binary_sha256": wl.get("binary_sha256", ""),
             "input_sha256": "",
             "roi": wl.get("roi", {}),
+            # v1.1 Phase 8.1 (design doc §1.7): non-hash oracles for the
+            # per-element kernels. Omitted when the campaign sets none, so
+            # legacy exact_hash manifests are byte-identical to before.
+            # runner.py reads workload.oracle_kind/workload.oracle_tol (the
+            # manifest oracle block mirrors kind for schema visibility).
+            **({"oracle_kind": wl["oracle_kind"]}
+               if wl.get("oracle_kind") else {}),
+            **({"oracle_tol": wl["oracle_tol"]}
+               if wl.get("oracle_tol") is not None else {}),
         },
         "trigger": {
             "mode": wl.get("trigger_mode", "cycle"),
@@ -184,7 +193,15 @@ def manifest_for_cell(campaign, cell, cell_ordinal, rep, outdir):
         },
         "rng": {"master_seed": seed, "selection_seed": seed},
         "limits": {"max_faults": limits.get("max_faults", 1), "max_ticks": 0},
-        "oracle": {"kind": "exact_hash", "golden_id": wl.get("golden_id", "")},
+        # v1.1 Phase 8.1: oracle.kind mirrors the campaign's workload
+        # .oracle_kind (default exact_hash = legacy). tol rides along for
+        # fp_ulp. Kept in the manifest oracle block (schema-visible) AND in
+        # workload (runner reads both, workload spelling wins if both set —
+        # they are written from the same source here so they agree).
+        "oracle": {"kind": wl.get("oracle_kind", "exact_hash"),
+                   "golden_id": wl.get("golden_id", ""),
+                   **({"tol": wl["oracle_tol"]}
+                      if wl.get("oracle_tol") is not None else {})},
     }
     # clean None values the v1 schema doesn't want
     for k in list(manifest["target"]):

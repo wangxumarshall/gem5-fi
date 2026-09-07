@@ -316,11 +316,19 @@
           "enum": [
             "exact_hash",
             "invariant",
-            "allowed_set"
+            "allowed_set",
+            "array_hash",
+            "per_element_diff",
+            "fp_ulp"
           ]
         },
         "golden_id": {
           "type": "string"
+        },
+        "tol": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "v1.1 Phase 8.1: ULP tolerance for kind=fp_ulp (ULP <= tol -> Masked)"
         }
       }
     }

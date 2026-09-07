@@ -49,7 +49,8 @@ FAULT_MODELS = ("transient_bit_flip", "local_mbu", "intermittent_burst",
                 "delay_omission")
 FAULT_STAGES = ("raw_pre_protection", "post_check_escape",
                 "metadata_or_checker", "no_protection_model")
-ORACLE_KINDS = ("exact_hash", "invariant", "allowed_set")
+ORACLE_KINDS = ("exact_hash", "invariant", "allowed_set",
+                "array_hash", "per_element_diff", "fp_ulp")
 
 REQUIRED_TOP = ("schema_version", "run_id", "source", "platform", "workload",
                 "trigger", "target", "fault", "rng", "limits")
