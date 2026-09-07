@@ -1,0 +1,20 @@
+# T3-9 F6 phase-sensitivity curve (plan §6.4: |phaseOffset|>=1 vs 0 ratio >=5x).
+# LSQ forwarding phase_offset mode: return the history entry N steps back.
+# Cells: offset in {1,2,4,8} (offset 0 = normal forwarding = the healthy
+# golden, no fault). n=384/cell on fp_fwd_kernel (method3 anchor workload).
+campaign_id: t3_9_phase_curve
+workload:
+  binary: workloads/directed/fp_fwd_kernel
+  golden: "0"
+  golden_id: fwdchecksum-golden-v1
+  oracle_kind: fail_count
+trigger: {mode: cycle, value: 1000000}
+limits: {max_faults: 1, max_ticks: 0}
+injector: lsq_fwd
+config_family: C0
+axes:
+  f6_phase_offset: [1, 2, 4, 8]
+  fault_model: [intermittent_burst]
+defaults:
+  rng_master_seed: 20260825
+  width_bits: 64

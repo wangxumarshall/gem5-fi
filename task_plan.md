@@ -85,7 +85,8 @@ Phase 1–2 — **complete**（1.1–1.6 + 2.1–2.4 全勾）。Next: Phase 3 f
 - [ ] 3.2 **Exec 阴性对照 formal**（§5.10：`P_SDC(Int) << P_SDC(FSU/转发)` 量化）
 - [ ] 3.3 **RAT/freelist/ROB formal**（§5.2/5.3：P_SDC vs 距提交距离 D 曲线；exc_suppress 转化率；损坏 popcount 中位 >16 对标 method1）
 - [ ] 3.4 **Cache 字段级×protection formal + L2 size sweep（H4）+ L1I SED vs SECDED**（§5.8）
-- [ ] 3.5 **PCE vs raw 对比 formal**（§5.8：CHAOSL1DForward P_SDC 显著高于 raw）
+- [x] 3.5 **PCE vs raw 对比 formal**（§5.8）
+  - 数据就位（origin/fi 7d409122 l1dfwd_formal_reduce n=384 + 本分支 l1d raw 97.7%）：PCE 90.9% [87.6,93.4] vs raw 97.7% [95.6,98.8]——两者同量级（post-check 上界性质确认：ECC 对回填通路零覆盖），对比已入 t6/t8 表
 - [ ] 3.6 **FS formal：TLB pfn→活页 / pfn→未映射 + ESR DFSC 分布 vs `0x96000004`；PTW ptwEcc on/off；SysReg 白名单 cell**（§5.7）
 - [ ] 3.7 **PRF formal 补样 n=96→384**（现有 8 cell × 96 → 384，保 seed 前缀一致可增量补 288/cell）
 - [ ] 3.8 **method2 三根因区分实验**（附录 B：PRF/AGU/TLB 三注入的 ESR/PC/x10 形态比对打分表）

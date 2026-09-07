@@ -278,13 +278,14 @@ def main():
         if tgt.get("semantic_role"):
             cmd += [f"--rob_semantic_role={tgt['semantic_role']}"]
     elif comp == "lsq_fwd":
-        # S0-2 v2: CHAOSLSQFwd. protection_model not applicable here (data path);
-        # f6_phase_offset -> --lsq_phase_offset (when implemented).
+        # S0-2 v2: CHAOSLSQFwd. protection_model not applicable here (data path).
         cmd += ["--chaos_lsqfwd"]
+        # F6 phaseOffset (§6.4 phase-sensitivity curve): wired via
+        # arm_chaos.py --lsq_source_fault=phase_offset --lsq_phase_offset=N
+        # (the old "not yet wired" note was stale — the params exist).
         if inj.get("f6_phase_offset") is not None:
-            # phaseOffset mode not yet wired in arm_chaos.py; record honestly.
-            print(f"[runner] WARNING: f6_phase_offset={inj['f6_phase_offset']} "
-                  f"not yet wired (phaseOffset mode pending S1-5).")
+            cmd += ["--lsq_source_fault=phase_offset",
+                    f"--lsq_phase_offset={inj['f6_phase_offset']}"]
     elif comp == "l1d" or comp == "l2" or comp == "l1i":
         # S7-5: CHAOSCache path — route to arm_chaos_cache.py (the cache
         # config). protection_model applies (classify_run_pa nine-class).
