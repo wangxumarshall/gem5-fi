@@ -90,7 +90,8 @@ Phase 1–2 — **complete**（1.1–1.6 + 2.1–2.4 全勾）。Next: Phase 3 f
 - [ ] 3.7 **PRF formal 补样 n=96→384**（现有 8 cell × 96 → 384，保 seed 前缀一致可增量补 288/cell）
 - [ ] 3.8 **method2 三根因区分实验**（附录 B：PRF/AGU/TLB 三注入的 ESR/PC/x10 形态比对打分表）
 - [ ] 3.9 **F3/F6 相位敏感性曲线**（§6.4：`|phaseOffset|≥1` vs 0 比值 ≥5×；method3 三必要条件去一归零对照 cell）
-- [ ] 3.10 **假设表 H0/H3/H4/H8+ 回填**（§6.1，与 3.1–3.9 数据联动更新方案文档）
+- [x] 3.10 **假设表 H0/H3/H4/H8+ 回填**（§6.1）
+  - H0 部分确认（数据结构 raw escape 成立 vs 控制/映射结构 DUE 化——需拆分表述）；H1 PRF 侧确认（P(SDC|reads>0)=1.000，reads 中位 197.5 万；RAT/ROB API 落地跨单元待 formal）；H2 不可分辨（天花板效应诚实标注）；H3 机制就位待 formal（RAT F5 reads 0→1 实测）；H4 未检验（L2 sweep deferred）；H8+ 逃逸分解补齐 + 签名可分性 VALID（LOO Top-3 100%）+ 相位敏感性待 formal
 
 ## Phase 4 — 第 7 章 openEuler 诊断引擎（维度③，整体新建）
 

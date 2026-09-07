@@ -450,15 +450,15 @@ pilot 每 cell n=100（可达率/工具错误/粗略比例）；formal 每 cell 
 
 | 假设 | 内容 | 状态 |
 |---|---|---|
-| H0 | 保护范围外结构（PRF/RAT/ROB/IQ/store buffer/L1 TLB）raw 即 escape | 预登记，待 formal |
-| H1 | read-trace `reads_before_overwrite` 决定 AVF：`P(SDC∣reads>0)` 跨单元一致 | 预登记 |
-| H2 | 深窗口（ROB/PRF 容量大）→ 驻留长 → SDC 高，`d(P_SDC)/d(window)>0` | 预登记 |
-| H3 | RAT 错与 PRF 错走同一传播路径（F5 替换 vs 位翻转的 read-trace 一致） | 预登记 |
-| H4 | 长驻留缓存（大 L2）→ 传播概率升高 | 预登记 |
+| H0 | 保护范围外结构（PRF/RAT/ROB/IQ/store buffer/L1 TLB）raw 即 escape | **部分确认**（PRF raw 100% SDC/L1 TLB pfn 活页替换→guest Oops 确认；但 IQ/ROB/RAT/freelist DUE 主导 72–100%、SDC≈0——"raw 即 escape"需拆分为数据结构（成立）与控制/映射结构（DUE 化），escape_decomposition 实测） |
+| H1 | read-trace `reads_before_overwrite` 决定 AVF：`P(SDC∣reads>0)` 跨单元一致 | **PRF 侧确认**（X3 四位段 P(SDC\|reads>0)=1.000，reads 中位 197.5 万；RAT/ROB read-trace API 已落地 5bd791d7——RAT F5 实测 reads 0→1 传播，跨单元一致性数据待 formal） |
+| H2 | 深窗口（ROB/PRF 容量大）→ 驻留长 → SDC 高，`d(P_SDC)/d(window)>0` | **不可分辨**（ROB{96,128,160}×n=96 全 SDC 饱和，梯度=0——天花板效应；需未饱和 cell 重测，诚实标注 befc7db0） |
+| H3 | RAT 错与 PRF 错走同一传播路径（F5 替换 vs 位翻转的 read-trace 一致） | **机制就位待 formal**（read-trace API 双单元落地：RAT F5 PhysReg 消费者计数实测 0→1；一致性 n=384 对照待跑） |
+| H4 | 长驻留缓存（大 L2）→ 传播概率升高 | **未检验**（L2 size sweep {256K,512K,1M} 未跑——l2_formal_reduce 全 Masked 0%（工作集驻留 L1），deferred） |
 | H5 | 字节相位（byte_lane_skew rol1/rol6）复现 core179 D1 签名 | **已闭环**（main，30 注入 28 检出 93%） |
 | H6 | AGU byte7 清零 → 规范内核地址非规范化 → 翻译故障（FS 才有效） | **已闭环**（main，`numAddrFaults=20`） |
 | H7 | PTW ECC on → spurious≈0 / off → spurious>0 | **已闭环**（main，5 seed：on 全 0，off 1–4） |
-| H8+ | 新假设登记（本文起）：逃逸集合分解、相位敏感性、签名可分性 | 待 formal |
+| H8+ | 新假设登记（本文起）：逃逸集合分解、相位敏感性、签名可分性 | **逃逸分解已补齐**（B/C 384×2 静默、D 90.9%、E 机制对照实证、F deferred——t6 表）；**签名可分性已验证**（指纹库 LOO Top-3 100%≥60% 线 VALID，t7）；相位敏感性曲线（F6 offset 1/2/4/8 vs 0 ≥5× 比值）待 formal |
 
 ### 6.2 位谱规律
 
