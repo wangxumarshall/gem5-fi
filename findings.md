@@ -382,3 +382,7 @@ exec（IntAlu XOR）/ bpu（dir_flip）在 reg_chain 上 formal 384/384 全 Mask
 - L2/DRAM：低 SDC 结论**只在工作集超 L2/LLC 的 stencil/stream 上、定向到活数据跑过才成立**；cholesky/l1d_reduce 上的 0% 标"负载伪影，不写进结论"。
 
 **执行/机器策略**：build + campaign 只在 Linux 服务器（openEuler 192 核 HIP08）；本 Windows 机仅写代码/提交/push。cpu179 是唯一坏核（socket 3 / NUMA node 7），`numactl` 钉集 A=NUMA0（主跑）/ 集 B=NUMA1（复现）——"复现" = 关键 cell 集 B 重跑，分类一致 + P_SDC 点估落入集 A 95% CI（取代"需第二台健康机"阻塞项）。残余风险：cpu179 缺陷若污染 socket 间共享 L3 / 内存控制器 / 一致性目录，A/B 均可能受影响（写进诚实边界）。
+
+### Phase 10 2c 诚实边界:ARM64 SE 无"可恢复真异常"kernel 载体
+
+计划要求 exc_suppress 补真异常 kernel(divzero_loop/unaligned_ldp)。真机验证发现:**AArch64 的整数除零是架构定义的静默语义(udiv x/0 = 0,不 trap)**——native 运行 divzero_loop_kernel exit=0、无 SIGFPE(与 x86 语义不同,计划的假设基于 x86)。非对齐 LDP 在 AArch64 SCTLR.A=0(默认)下同样不产生异常。gem5 SE 模式下可产生的 arch trap(非法指令等)是**不可恢复的**——没有"pending fault 被 exc_suppress 清除后继续执行"的载体。**结论:exc_suppress 的 DUE→SDC 转化实验在 ARM64 SE 无 kernel 载体;该模式在真异常存在性上依赖 FS 模式(内核异常处理)或 x86 语义。357/357 Masked(cholesky 无 pending fault)+ 本发现 = exc_suppress 在 ARM SE 的实验面已诚实穷尽。**
