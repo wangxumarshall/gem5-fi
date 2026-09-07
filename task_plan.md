@@ -107,8 +107,9 @@ Phase 1–2 — **complete**（1.1–1.6 + 2.1–2.4 全勾）。Next: Phase 3 f
   - 验证：core179 六案回放 → 高置信度（P1+P5 命中、N3 未命中）；伪造均匀分布日志 → N1 排除；pytest
 - [ ] 4.4 **§7.7 反哺：单元 P_SDC → 权重先验回填**
   - 用 artifacts/ formal 数据回填 §7.3 权重表的实验依据列；规则版本化（rules/flight-rules.md + version bump）
-- [ ] 4.5 **指纹库 ↔ 诊断引擎 CLI 集成**（现场位谱 → Top-K 候选单元 → 关联诊断规则）
-  - 验证：t7 LOO 数据走通端到端 CLI
+- [x] 4.5 **指纹库 ↔ 诊断引擎 CLI 集成**（`tools/diag/spectrum_triage.py`）
+  - 验证实证（端到端）：lsq masks（t7 LOO 同源 64 xor）→ `XOR 0x1ff (mantissa=9 popcount=9) -> lsq_fwd sim=0.712 P_SDC先验=0.50 ★★★★ + 签名检查建议`；综合排序 lsq_fwd 45.574；联动日志侧 `sdc_diagnose: HIGH / P1-P5 / 立即隔离+FA+RMA`——现场位谱→候选单元→诊断规则→日志侧裁决全链路走通
+  - UNIT_DIAGNOSTICS 表：unit → P_SDC 先验（formal campaigns）+ §7.3 星级 + 特征日志签名（§7.7 反哺物）
 
 ## Phase 5 — 第 8 章建议产出 + CHAOSRAS（维度④）
 
