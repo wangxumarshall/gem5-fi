@@ -2077,3 +2077,9 @@ method2 三根因的定量闭环补最后两臂（AGU 臂已完成 100% DUE）�
 **活跃度依赖定律**：活页替换的危险度由**内核活跃度**决定——稳态（shell 空闲）错页无消费者（0% Crash），内核活跃（调度遍历）错页必被消费（100% 致命）。Phase 5.4 的"静默通路存在性证明"成立但其量化受 regime 限制——最坏情形 bound 需内核活跃 regime。
 
 **method2 三根因最终表（内核活跃 regime）**：AGU 100% DUE（kfree NULL deref 签名=现场）/ TLB 100% DUE（错页 Oops）/ PRF 6.5% DUE（吸收为主）。现场签名匹配 AGU 臂。
+
+### Phase 3.4 完成收口: exec/bpu 跨 workload formal（reg_chain）— 全 Masked 单元级确认
+
+**§2.12 exec + §2.13 bpu 在第二 workload（reg_chain）上的 formal（n=384 each + 5% replay, ~3h each, 0 frozen）**：双双 **384/384 全 Masked，P_SDC=0% [0,1.0], P_DUE=0%, Reach=100%**。
+
+**Phase 3.4 验收达成**：cholesky/branchy 上的"全 Masked"（Exec XOR / BPU dir_flip）在正交 workload 上置信上界 <1%——task_plan 的验收标准（"全 Masked 单元在第二 workload 上置信上界仍 <1% 才写进结论"）满足，exec/bpu 的零风险带结论正式写定。至此跨 workload 复检覆盖：PRF X3（反转—workload 敏感）、Exec/BPU（一致 Masked）、RAS/Decode（pilot 方向一致）。

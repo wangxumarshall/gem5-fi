@@ -1,0 +1,23 @@
+schema_version: arm-chaos-fi/v1
+campaign_id: exec_formal_regchain
+injector: exec
+config: C2
+mode: SE
+grid:
+  # §2.12 cross-workload formal recheck (Phase 3.4): the cholesky "all
+  # Masked" must hold on a second workload before entering conclusions.
+  target_index: [0]
+  bit: []
+  fault_model: [transient_bit_flip]
+  protection_model: [none]
+n_per_cell: 384
+base_seed: 20260825
+replay_pct: 5.0
+workload:
+  binary: workloads/directed/reg_chain
+  golden_id: regchain-golden-v1
+  trigger_mode: cycle
+  trigger_value: 20000
+limits:
+  max_faults: 1
+hang_timeout: 300
