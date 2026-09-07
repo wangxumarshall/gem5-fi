@@ -2064,3 +2064,7 @@ L1D→L2 的悬崖式下降（97.7%→0%）不是"L2 更安全"而是**工作集
 **§2.10 method2 AGU 臂 formal（n=384, checkpoint restore + 调度域遍历 + O3, 单故障）**：**384/384 Kernel Oops——P_DUE=100.0% [99.0,100.0]，零 SDC 零 Masked**。byte7_zero 地址破坏（canonical→非规范）在内核上下文**确定性致命**：每次都走 kfree 类 NULL/garbage deref Oops（调度器任务释放路径）。**§4.2 含义：AGU 地址生成路径在此 workload 族无静默模式——规范位违例必被检出（以崩溃形式）**；保护 = AGU 输出的地址规范位检查（廉价、确定性检测）。method2 三根因的定量闭环完成：**AGU 100% DUE / PRF 存活（forwarding+吸收）/ TLB 静默（活页）——三种结局三臂互异**。
 
 **H7 boot 期双臂 pilot（cpt.100000000 + PTW clear_valid @ +50K, 2 seeds/臂, 1200s 观察窗）**：ECC-off 臂 2/2 超时无 Oops（注入发生但 boot 继续被 PTE 错误拖慢/挂起）；ECC-on 臂 2/2 **rc=0 boot 完整完成**（ECC 纠正 PTE 错误）。方向性读数（pilot 级诚实）：与 fi-h6-h7 分支原始 H7 预期一致（ECC-on spurious≈0）——formal 级验证需更长窗口或健康机。**注意**：boot 继续在 cpu179 上 20-70 分钟（Atomic 后半程慢）——正式 H7 formal 建议在健康机跑或用更早的 checkpoint 缩短剩余 boot。
+
+### Phase 5.6 收尾: method2 PRF/TLB 臂 formal n=384×2 启动
+
+method2 三根因的定量闭环补最后两臂（AGU 臂已完成 100% DUE）：PRF（active-only phys）与 TLB（活页替换）各 n=384 seeds，checkpoint restore + 调度域遍历 workload + O3，4 路并行跑批（~22h）。预期方向（pilot n=3 已示）：两臂以内核存活为主——formal 给出精确的 crash/survive 分割与可信区间。verdict 记录于 /tmp/m2_prtlb_formal_results.txt。
