@@ -1,6 +1,6 @@
 # 论文大纲与证据映射（Phase 2 产出）
 
-**标题（拟）**：《一条指令的八次死亡：鲲鹏 920 单核装载返回通路间歇性静默数据损坏的微架构级根因诊断》
+标题（拟）：《一条指令的八次死亡：鲲鹏 920 单核装载返回通路间歇性静默数据损坏的微架构级根因诊断》
 英文题（拟）：Eight Crashes, One Instruction: A Microarchitecture-Level Root-Cause Diagnosis of Intermittent Silent Data Corruption in the Load-Return Path of a Kunpeng 920 Core
 
 ## 叙事主线（福尔摩斯结构）

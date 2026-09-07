@@ -1,13 +1,13 @@
-# 五转储交叉根因计划 — Core 179 芯片故障微架构级定位
+# 五转储交叉根因计划：Core 179 芯片故障微架构级定位
 
-> **For agentic workers:** 本计划由 superpowers:writing-plans 生成，用 superpowers:executing-plans 逐阶段内联执行。
+> For agentic workers: 本计划由 superpowers:writing-plans 生成，用 superpowers:executing-plans 逐阶段内联执行。
 > 步骤用 checkbox (`- [ ]`) 跟踪。
 
-**Goal:** 以 `/home/sdc/vmcore/` 下全部 5 个 kdump 转储为第一手证据，独立复验并裁决 Core 179 硬件故障的微架构级根因，产出专业诊断报告。
+Goal: 以 `/home/sdc/vmcore/` 下全部 5 个 kdump 转储为第一手证据，独立复验并裁决 Core 179 硬件故障的微架构级根因，产出专业诊断报告。
 
-**Architecture:** 三层取证：(1) 全部转储的 dmesg 全量法证（事件谱、per-CPU 分布、时间线）；(2) crash 动态取证（寄存器、页表逐级走查、内存真值对照）；(3) 与 docs/cases 用户态 SDC 签名做跨域综合，对既往两个竞争假说（PRF 活性误判 vs LSU 数据返回通路）做鉴别实验并收敛到最深处。
+Architecture: 三层取证：(1) 全部转储的 dmesg 全量法证（事件谱、per-CPU 分布、时间线）；(2) crash 动态取证（寄存器、页表逐级走查、内存真值对照）；(3) 与 docs/cases 用户态 SDC 签名做跨域综合，对既往两个竞争假说（PRF 活性误判 vs LSU 数据返回通路）做鉴别实验并收敛到最深处。
 
-**Tech Stack:** crash 8.0.4 + 内核 debuginfo（6.6.0-145.3.23.154.oe2403sp3.aarch64 已装）、objdump/addr2line、sudo（转储文件 root 属主）、Kunpeng-920/HIP08 宿主机。
+Tech Stack: crash 8.0.4 + 内核 debuginfo（6.6.0-145.3.23.154.oe2403sp3.aarch64 已装）、objdump/addr2line、sudo（转储文件 root 属主）、Kunpeng-920/HIP08 宿主机。
 
 ## Global Constraints
 
@@ -38,7 +38,7 @@
 
 ### P1 五转储 dmesg 全量法证
 - [x] Step 1.1 提取每次 panic 的完整块（Oops 前 80 行至 Kernel panic 结束）：CPU 号、PID/comm、PC/LR/SP、ESR、FAR、完整 Call trace。落盘 `p1_panic_<ts>.txt`。
-- [x] Step 1.2 全量提取所有非致命异常告警块（`__do_kernel_fault` 系列）：时间戳、CPU、comm、FAR、Call trace 首行，建立事件总表 `p1_events.csv`。统计 per-CPU 分布——验证"51+ 事件全在 CPU179"【实锤/改判】。
+- [x] Step 1.2 全量提取所有非致命异常告警块（`__do_kernel_fault` 系列）：时间戳、CPU、comm、FAR、Call trace 首行，建立事件总表 `p1_events.csv`。统计 per-CPU 分布，验证"51+ 事件全在 CPU179"【实锤/改判】。
 - [x] Step 1.3 ESR/FSC 分类统计：全部事件的 EC、DFSC（翻译错级别 L0–L3 / 权限错 / AF 错）、WnR 位分布。
 - [x] Step 1.4 RAS/EDAC/BERT/HEST/GHES 负证据链扫描：grep 全部 dmesg 的 `mce|GHES|APEI|BERT|hardware error|EDAC` 计数，确认零架构化上报。
 - [x] Step 1.5 时间线重建：各次开机的 uptime→墙钟映射，确认 5 次崩溃是否同一开机内复发（15:42→15:58 相隔 16 分钟）。
@@ -66,7 +66,7 @@
 
 ### P5 微架构级裁决（核心增量）
 - [x] Step 5.1 汇总五转储的坏值样本（内核侧），与 docs/cases 用户态三案例签名（历史值回放/尾数漂移/非法寄存器）比对：坏值的比特结构是"旧数据回放"还是"计算污染"。
-- [x] Step 5.2 PTW 案例深挖：翻译错案例中 post-mortem PTE 真值 vs 硬件当时读到的 0 —— 判定走页器读出损坏是否也在故障族内（区分 PRF 类假说不可解释 PTW 案例）。
+- [x] Step 5.2 PTW 案例深挖：翻译错案例中 post-mortem PTE 真值 vs 硬件当时读到的 0，判定走页器读出损坏是否也在故障族内（区分 PRF 类假说不可解释 PTW 案例）。
 - [x] Step 5.3 单元鉴别矩阵更新：用内核侧新证据给 U1(L1D 阵列选路)/U4(fill-buffer/LQ 陈旧回放)/流程A(PRF 活性误判) 计票，明确支持/反对证据各是什么。
 - [x] Step 5.4 收敛推理链重写：C1–C11 约束表基础上加入内核侧 K 系列约束，输出最终微架构根因陈述（单元、故障类型、触发条件、为何静默、为何单核）。
 

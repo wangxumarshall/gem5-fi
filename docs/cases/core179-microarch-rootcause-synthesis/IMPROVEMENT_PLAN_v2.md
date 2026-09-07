@@ -1,6 +1,6 @@
 # 改进方案 v2（基于 REVIEW_v2.md + 源码/ARM ARM/Python 独立验证）
 
-**原则**：CLAUDE.md 补丁纪律——一单元一补丁、自验证、feature 分支（已 `fix/paper-review-v1-honesty-hardening`）、不推 main。所有修订须有真实命令/源码/手册支撑，不杜撰。
+原则：CLAUDE.md 补丁纪律，一单元一补丁、自验证、feature 分支（已 `fix/paper-review-v1-honesty-hardening`）、不推 main。所有修订须有真实命令/源码/手册支撑，不杜撰。
 
 ## 本轮独立验证（本会话，非声称）
 
@@ -11,7 +11,7 @@
 | D1 0814 slot 索引 | 对照 DIAGNOSIS + 复算 | DIAGNOSIS:64 称 0814 匹配 `offset[0]=0xffffd93715b7e000`；`ror6(slot0)=0xd93715b7e000ffff` Hamming=6 ✓；paper §3.2 误写 slot[1] ✗ |
 | D1 0814 tie | Python 复算 | `ror6(slot0)` ≡ `rol2(slot0)`（6+2=8 字节=整字）=0xd93715b7e000ffff，Hamming=6；论文只命名 ror6 ✗ |
 | ESR bit6 位域 | ARM ARM DDI 0487 解析 | EC=0x25 ISS bit6=S1PTW 低位（非"Overlay"）；70/73 `0x96000044`→S1PTW=1（walk 中，对 D3 预期）；3/73 `0x96000004`→S1PTW=0（无 walk，异质） |
-| 源码 9 项断言 | grep CHAOS/gem5/src | D1 lsq_unit.cc:1498、D2 lsq.cc:1146、D3 table_walker.cc:1959、mmu.cc:1226-1227、conditionalValidBit CHAOSPTW.cc:113-120、ECC 早退 105-108、rng lambda 三处、faults.cc:1086-1087 FAR 不屏蔽、byte_lane_skew 右旋、setPtwInj mmu.hh:107——全部 MATCH ✓ |
+| 源码 9 项断言 | grep CHAOS/gem5/src | D1 lsq_unit.cc:1498、D2 lsq.cc:1146、D3 table_walker.cc:1959、mmu.cc:1226-1227、conditionalValidBit CHAOSPTW.cc:113-120、ECC 早退 105-108、rng lambda 三处、faults.cc:1086-1087 FAR 不屏蔽、byte_lane_skew 右旋、setPtwInj mmu.hh:107，全部 MATCH ✓ |
 | stale_line_replay | grep 构建路径 | 未实现（源码无命中）✓ 确认 DA-F14 |
 | 分支名 | git branch | `docs/core179-microarch-rootcause` 本地不存在（仅远程 `-droped` 已删变体）；§5.4 用 `fi-h6-h7-fs-verify` |
 | kunpeng.md 路径 | ls | 实际在 `docs/cpu/kunpeng.md`，Supplement 误引 `docs/kunpeng.md` |
@@ -23,26 +23,26 @@
 - 加 tie 披露："ror6 ≡ rol2 for a 64-bit word（6+2=8 字节=整字旋转）；故 0814 旋转在 (rol2, ror6) 歧义下识别，幅度非唯一确定"
 - §6 #1（paper_en:363）"ror6 at Hamming-6 (08-14, nearest rotation)" → "a 2-or-6 byte rotation (rol2≡ror6 ambiguity) at Hamming-6 (08-14, nearest)"
 - "15b7→15ba differs by 1 bit" 解析更正：`ror6(slot[0])=0xd93715b7e000ffff` vs x20=`0xd93715ba0000ffff`，6 bit 跨 2 字节（`15b7e000`→`15ba0000`）
-- **自验证**：Python 复算嵌入注释
+- 自验证：Python 复算嵌入注释
 
 ### Patch G3（CRITICAL-标签，诚实标签）：30-bit 标签修复 + 真值距离 26 双报
 - 摘要、§3.2、§5.2：把 "the truth `slot[0]`" / "XOR-distance from the truth" 改为 "the stale-replay source `slot[0]`（the value the load actually returned, per the stale-replay model）"
-- **保留 30**（stale-source 模型正确上界）；**加披露**："真值 `__per_cpu_offset[146]` 到观测值 x20 的 XOR 距离为 26 bit（slot[146]=0xffffcc879ed92000）"
+- 保留 30（stale-source 模型正确上界）；加披露："真值 `__per_cpu_offset[146]` 到观测值 x20 的 XOR 距离为 26 bit（slot[146]=0xffffcc879ed92000）"
 - 明示：30 上界依 stale-replay 前提（故障作用于 load 实际返回的 slot[0]）；若故障作用于真值 slot[146]，上界为 26
-- **自验证**：Python 复算嵌入注释
+- 自验证：Python 复算嵌入注释
 
 ### Patch G4（MAJOR，措辞降级）：H5 "falsifiable/verified"→consistency-check + stale_line_replay 未实现标注
 - §5.2：删 "falsifiable in the Popperian sense"；改 "consistency/closure check（结构模型闭合猜想-验证回路，复现因果链，非独立 Popperian 检验）"
-- H5 各处"verified" → "consistency-checked / mechanically reproduced（一致性检查，非独立验证——注入器旋转操作即其复现的 D1 签名同一操作）"
+- H5 各处"verified" → "consistency-checked / mechanically reproduced（一致性检查，非独立验证：注入器旋转操作即其复现的 D1 签名同一操作）"
 - §4.1 加注：`stale_line_replay` 模式已设计（FI_DESIGN_SUPPLEMENT §3.1）但未实现；D1 模型"stale source"半由 §3.2 法证验证，非 H5 仿真
-- §5.2 表 byte_lane_skew 28/30=93%、bit_flip 29/30=97%、all_zero 29/30=97%——"same detection rate (97%)" 改分别标注
+- §5.2 表 byte_lane_skew 28/30=93%、bit_flip 29/30=97%、all_zero 29/30=97%，"same detection rate (97%)" 改分别标注
 
 ### Patch G5（MAJOR，措辞降级）：H7 "robust/5-5 stability"→no-perturbation 对照
 - §5.4、§7、摘要：删 "robust" / "5/5 directional stability...is robust"
 - 改：ECC-on 臂是 no-perturbation 对照（flip 发生前被 gate），非 ECC-correction 演示；5-seed ECC-off 臂示 1–4 spurious/seed；对照仅立注入器自洽，不立 ECC 在硅上纠正 landed flip
 
 ### Patch G6（MAJOR，架构精确化）：ESR S1PTW 纠正 + 3/73 异质披露
-- paper_en/zh §3.4：加 ESR 形态——70/73 `0x96000044`（S1PTW=1，walk 中，对 D3 预期）/ 3/73 `0x96000004`（S1PTW=0，无 walk，异质，可能 TLB 竞态/条目损坏）；S1PTW=1 对 D3 是预期非异常
+- paper_en/zh §3.4：加 ESR 形态：70/73 `0x96000044`（S1PTW=1，walk 中，对 D3 预期）/ 3/73 `0x96000004`（S1PTW=0，无 walk，异质，可能 TLB 竞态/条目损坏）；S1PTW=1 对 D3 是预期非异常
 - DIAGNOSIS_REPORT §3.1:44 / §9.5:138："bit6=Overlay 位...应 RES0" → "bit6=S1PTW（stage-1 page-table walk 标志）低位；walk 中取的 translation fault 应 S1PTW=1"
 
 ### Patch G7（MAJOR，逻辑更正）：TBI1 "partial recovery"→不适用（地址本身已损坏）
