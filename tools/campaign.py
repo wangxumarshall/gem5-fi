@@ -263,7 +263,13 @@ def manifest_for_cell(campaign, cell, cell_ordinal, rep, outdir):
             "protection_model": cell.get("protection_model", "none"),
         },
         "rng": {"master_seed": seed, "selection_seed": seed},
-        "limits": {"max_faults": limits.get("max_faults", 1), "max_ticks": 0},
+        # v1.1 Phase 8.4 (task_plan 0d): the recurring_result_stuck model
+        # needs max_faults=0 (the permanent fault recurs on every eligible
+        # event). Emit 0 for that model so runner.py's pairing check passes;
+        # every other model keeps the single-fault contract (default 1).
+        "limits": {"max_faults": (0 if cell.get("fault_model") == "recurring_result_stuck"
+                                  else limits.get("max_faults", 1)),
+                   "max_ticks": 0},
         # v1.1 Phase 8.1: oracle.kind mirrors the campaign's workload
         # .oracle_kind (default exact_hash = legacy). tol rides along for
         # fp_ulp. Kept in the manifest oracle block (schema-visible) AND in

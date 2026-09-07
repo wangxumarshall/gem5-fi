@@ -211,7 +211,8 @@
             "stuck_at_zero",
             "stuck_at_one",
             "legal_domain_sub",
-            "delay_omission"
+            "delay_omission",
+            "recurring_result_stuck"
           ]
         },
         "bit_indices": {

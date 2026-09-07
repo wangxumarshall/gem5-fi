@@ -259,7 +259,21 @@ def main():
             sys.exit(f"[runner] binary sha256 MISMATCH: {actual} != {expected}")
         print(f"[runner] binary sha256: OK ({actual[:12]}...)")
 
-    assert m["limits"]["max_faults"] in (0,1), "formal runs require max_faults in {0,1}"
+    # G5 single-fault contract. v1.1 Phase 8.4 (task_plan 0d): the
+    # recurring_result_stuck model is EXEMPT — it is a PERMANENT fault
+    # (every opClass-eligible FSU result gets the same fixed mask, modeling
+    # a stuck multiplier partial-product bit) and runs with max_faults=0
+    # (unlimited). Everything else still requires max_faults in {0,1}.
+    _recurring = (m["fault"]["model"] == "recurring_result_stuck")
+    if _recurring:
+        if m["limits"]["max_faults"] != 0:
+            sys.exit("[runner] fault.model=recurring_result_stuck requires "
+                     "limits.max_faults==0 (the fault recurs on every "
+                     "eligible event). Aborting.")
+        print("[runner] recurring_result_stuck: single-fault contract "
+              "relaxed (max_faults=0, recurring permanent fault)")
+    else:
+        assert m["limits"]["max_faults"] in (0,1), "formal runs require max_faults in {0,1}"
 
     # map manifest -> arm_chaos.py args (report issue #5: the manifest's
     # target.index / fault.bit_indices / trigger MUST take effect, not be
@@ -304,7 +318,14 @@ def main():
                  "local_mbu": "bit_flip",       # MBU = multi-bit flip (bits_to_change>1)
                  "intermittent_burst": "bit_flip",
                  "legal_domain_sub": "bit_flip",
-                 "delay_omission": "bit_flip"}
+                 "delay_omission": "bit_flip",
+                 # v1.1 Phase 8.4: recurring permanent fault — same fixed
+                 # mask on EVERY eligible event (max_faults=0 = unlimited;
+                 # the dedicated CHAOSFPU recurring MODE lands in Phase 9
+                 # patch 1a; until then the unlimited-fault bit_flip path
+                 # carries the contract, with the recurring pairing check
+                 # above enforcing max_faults==0).
+                 "recurring_result_stuck": "bit_flip"}
     if inj["model"] not in model_map:
         sys.exit(f"[runner] fault.model='{inj['model']}' not mapped yet. Aborting.")
     fault_type = model_map[inj["model"]]
@@ -709,10 +730,15 @@ def main():
                     if line.strip():
                         faults += 1
             break
-    # G5 assertion: exactly 0 or 1 valid injection
-    if faults not in (0,1):
+    # G5 assertion: exactly 0 or 1 valid injection — EXCEPT the v1.1
+    # Phase 8.4 recurring_result_stuck model, whose permanent fault
+    # legitimately corrupts every eligible event (N>1 by design).
+    if faults not in (0,1) and not _recurring:
         print(f"[runner] G5 VIOLATION: faults_injected={faults} (not in {{0,1}}) "
               f"— run invalid")
+    if _recurring:
+        print(f"[runner] recurring model: faults_injected={faults} "
+              f"(N>1 expected for the permanent recurring fault)")
 
     stdout_text = r.stdout if r.stdout else ""
     cls, reason = classify_run(stdout_text, r.stderr or "", r.returncode,

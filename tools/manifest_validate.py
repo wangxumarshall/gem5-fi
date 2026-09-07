@@ -46,7 +46,11 @@ COMPONENTS_V2_DECLARED = ("l1_tlb", "l2_tlb", "sysreg", "ptw",
                           "l3", "noc", "coherence", "memctrl")
 FAULT_MODELS = ("transient_bit_flip", "local_mbu", "intermittent_burst",
                 "stuck_at_zero", "stuck_at_one", "legal_domain_sub",
-                "delay_omission")
+                "delay_omission",
+                # v1.1 Phase 8.4: recurring permanent fault (every eligible
+                # event gets the same fixed mask; requires max_faults=0 —
+                # runner.py enforces the pairing)
+                "recurring_result_stuck")
 FAULT_STAGES = ("raw_pre_protection", "post_check_escape",
                 "metadata_or_checker", "no_protection_model")
 ORACLE_KINDS = ("exact_hash", "invariant", "allowed_set",
