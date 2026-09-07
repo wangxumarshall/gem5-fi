@@ -41,14 +41,153 @@ namespace gem5
             if (!log_stream || !log_stream->stream())
                 panic("CHAOSFPU: Could not open log file");
             stats = std::make_unique<Stats>(this);
+            // v2 writeback-path hook: self-attach on the CPU so
+            // DynInst::setRegOperand can reach us (same pattern as
+            // lsqFwd/addrPath).
+            cpu->setChaosFPUHook(this);
         }
     }
 
     void CHAOSFPU::startup() {
         if (!probability) return;
+        // v1 ROB-head sampling only as a fallback; the primary v2 hook is
+        // event-driven from setRegOperand (no attackEvent needed when the
+        // writeback hook is armed). Keep the event for the legacy path so
+        // old manifests (events_to_skip semantics) still behave, but it
+        // will usually be redundant.
         scheduleAttackEvent(first_clock + Cycles(inter_fault_cycles_dist(rng)));
     }
     CHAOSFPU::~CHAOSFPU() {}
+
+    // §5.6 v2 writeback-path hook: corrupt the FP result BEFORE it reaches
+    // the PhysReg + result queue. This is the true FSU data-path point.
+    void
+    CHAOSFPU::maybeCorruptWriteback(const PhysRegIdPtr &reg, RegVal &val)
+    {
+        // FP filter: scalar FP (FloatRegClass) or SIMD FP (VecRegClass).
+        const RegClassType cls = reg->classValue();
+        if (cls != FloatRegClass && cls != VecRegClass) return;
+        // Time window ([firstClock, lastClock] CPU-cycle domain, same as
+        // the v1 attackEvent).
+        Cycles cur = cpu->curCycle();
+        if (cur < first_clock) return;
+        if (last_clock != Cycles(0) && cur > last_clock) return;
+        // G5 fault cap.
+        if (max_faults != 0 && faults_injected_count >= max_faults) return;
+        // Per-write Bernoulli draw.
+        std::uniform_real_distribution<float> d(0.0f, 1.0f);
+        if (d(rng) >= probability) return;
+
+        uint64_t mask = genMask();
+        if (mask == 0) return;
+        RegVal old = val;
+        val ^= mask;
+        stats->numFpResultCorrupted++;
+        stats->numFaultsInjected++;
+        ++faults_injected_count;
+        logCorruption("fp_writeback_result (v2 setRegOperand hook)",
+                      reg, cls, old, val, mask);
+    }
+
+    // Blob overload: same gates; XOR the mask into the first 8 bytes of
+    // the blob in place (vector lanes are little-endian packed).
+    void
+    CHAOSFPU::maybeCorruptWritebackBlob(const PhysRegIdPtr &reg,
+                                        const void *val)
+    {
+        const RegClassType cls = reg->classValue();
+        if (cls != FloatRegClass && cls != VecRegClass) return;
+        Cycles cur = cpu->curCycle();
+        if (cur < first_clock) return;
+        if (last_clock != Cycles(0) && cur > last_clock) return;
+        if (max_faults != 0 && faults_injected_count >= max_faults) return;
+        std::uniform_real_distribution<float> d(0.0f, 1.0f);
+        if (d(rng) >= probability) return;
+
+        uint64_t mask = genMask();
+        if (mask == 0) return;
+        uint8_t *bytes = const_cast<uint8_t*>(
+            static_cast<const uint8_t*>(val));
+        uint64_t old; __builtin_memcpy(&old, bytes, 8);
+        uint64_t neu = old ^ mask;
+        __builtin_memcpy(bytes, &neu, 8);
+        stats->numFpResultCorrupted++;
+        stats->numFaultsInjected++;
+        ++faults_injected_count;
+        logCorruption("fp_writeback_result (v2 setRegOperand blob hook)",
+                      reg, cls, old, neu, mask);
+    }
+
+    // §5.6 source-read hook (scalar RegVal overload).
+    void
+    CHAOSFPU::maybeCorruptRead(const PhysRegIdPtr &reg, RegVal &val)
+    {
+        const RegClassType cls = reg->classValue();
+        if (cls != FloatRegClass && cls != VecRegClass) return;
+        Cycles cur = cpu->curCycle();
+        if (cur < first_clock) return;
+        if (last_clock != Cycles(0) && cur > last_clock) return;
+        if (max_faults != 0 && faults_injected_count >= max_faults) return;
+        std::uniform_real_distribution<float> d(0.0f, 1.0f);
+        if (d(rng) >= probability) return;
+
+        uint64_t mask = genMask();
+        if (mask == 0) return;
+        RegVal old = val;
+        val ^= mask;
+        stats->numFpResultCorrupted++;
+        stats->numFaultsInjected++;
+        ++faults_injected_count;
+        logCorruption("fp_source_read (v3 getRegOperand hook)", reg, cls,
+                      old, val, mask);
+    }
+
+    // §5.6 source-read hook (blob overload — vector FP sources).
+    void
+    CHAOSFPU::maybeCorruptReadBlob(const PhysRegIdPtr &reg, void *val)
+    {
+        const RegClassType cls = reg->classValue();
+        if (cls != FloatRegClass && cls != VecRegClass) return;
+        Cycles cur = cpu->curCycle();
+        if (cur < first_clock) return;
+        if (last_clock != Cycles(0) && cur > last_clock) return;
+        if (max_faults != 0 && faults_injected_count >= max_faults) return;
+        std::uniform_real_distribution<float> d(0.0f, 1.0f);
+        if (d(rng) >= probability) return;
+
+        uint64_t mask = genMask();
+        if (mask == 0) return;
+        uint8_t *bytes = static_cast<uint8_t*>(val);
+        uint64_t old; __builtin_memcpy(&old, bytes, 8);
+        uint64_t neu = old ^ mask;
+        __builtin_memcpy(bytes, &neu, 8);
+        stats->numFpResultCorrupted++;
+        stats->numFaultsInjected++;
+        ++faults_injected_count;
+        logCorruption("fp_source_read (v3 getRegOperand blob hook)", reg,
+                      cls, old, neu, mask);
+    }
+
+    // shared corruption logger for the v2/v3 hooks
+    void
+    CHAOSFPU::logCorruption(const char *site, const PhysRegIdPtr &reg,
+                            RegClassType cls, uint64_t old, uint64_t neu,
+                            uint64_t mask)
+    {
+        if (!write_log) return;
+        *(log_stream->stream())
+            << "Cycle: " << cpu->curCycle()
+            << ", CPU: " << cpu->name()
+            << ", Site: " << site
+            << ", PhysReg[" << reg->index() << "]"
+            << ", Class: " << (cls == FloatRegClass ? "fp" : "vec")
+            << ", Old: 0x" << std::hex << old
+            << ", New: 0x" << std::hex << neu
+            << ", Mask: 0x" << mask << std::dec
+            << (!semantic_role.empty()
+                ? ", SemanticRole: " + semantic_role : "")
+            << std::endl;
+    }
 
     CHAOSFPU::BitSeg CHAOSFPU::stringToBitSeg(const std::string &s) {
         if (s == "low")  return BitSeg::Low;   // [0:11]
@@ -64,13 +203,22 @@ namespace gem5
 
     void CHAOSFPU::attackCheck() {
         if (!probability) return;
+        uint64_t before = faults_injected_count;
         for (ThreadID tid = 0; tid < cpu->numThreads; ++tid) {
             gem5::ThreadContext *tc = cpu->getContext(tid);
             if (!tc || tc->status() == ThreadContext::Halted) continue;
             processFault(tid);
         }
         if (max_faults == 0 || faults_injected_count < max_faults) {
+            // method1-formal fix (same as CHAOSRenameMap): when an attempt
+            // was SKIPPED (head not a FP inst — e.g. the loop's loads/
+            // stores), geometric(1.0) yields a 0-cycle interval -> poll
+            // every cycle forever (observed: gemm_kernel + probability=1.0
+            // hung the sim with zero injections, only numSkippedNonFp
+            // growing). Enforce a minimum +1-cycle backoff on skip.
             unsigned next = inter_fault_cycles_dist(rng);
+            if (faults_injected_count == before)  // no fault landed this try
+                next = std::max(next, (unsigned)1);
             Cycles nc = cpu->curCycle() + Cycles(next);
             if (last_clock == Cycles(0) || nc <= last_clock)
                 scheduleAttackEvent(Cycles(next));
@@ -97,8 +245,22 @@ namespace gem5
         const o3::DynInstPtr &head = cpu->robAccess().readHeadInst(tid);
         if (!head) { stats->numSkippedNonFp++; return; }
 
-        // Negative control: only integer instructions (method1 'int path intact')
-        if (!head->isFloating()) {
+        // FP detection via DEST REGISTER CLASS, not isFloating(): the ARM
+        // ISA never sets the IsFloating static-inst flag (only x86/riscv/
+        // sparc operands.isa do) — observed on gemm_kernel: 144k head
+        // samples, 0 hits, because isFloating() is ALWAYS false on ARM.
+        // A scalar FP inst writes FloatRegClass; SIMD FP (FMLA/FMUL v*)
+        // writes VecRegClass. Both are the FSU data path.
+        bool is_fp = false;
+        for (size_t i = 0; i < head->numDestRegs(); ++i) {
+            PhysRegIdPtr dest = head->renamedDestIdx(i);
+            if (!dest) continue;
+            const RegClassType cls = dest->classValue();
+            if (cls == FloatRegClass || cls == VecRegClass) {
+                is_fp = true; break;
+            }
+        }
+        if (!is_fp) {
             stats->numSkippedNonFp++;
             return;
         }
@@ -108,7 +270,7 @@ namespace gem5
         if (mask == 0) return;
         // Corrupt the front instResult (writeback data path) via DynInst method.
         bool ok = head->corruptResultRegVal(mask);
-        if (!ok) { stats->numSkippedNonFp++; return; }
+        if (!ok) { stats->numResultPopped++; return; }  // FP but result already popped (writeback done)
         stats->numFpResultCorrupted++;
         stats->numFaultsInjected++;
         ++faults_injected_count;
@@ -134,6 +296,8 @@ namespace gem5
           ADD_STAT(numFpResultCorrupted, statistics::units::Count::get(),
                    "Integer writeback results corrupted (data-path)"),
           ADD_STAT(numSkippedNonFp, statistics::units::Count::get(),
-                   "Skipped (ROB empty / non-int / no result / faulting)")
+                   "Skipped (ROB empty / non-int / no result / faulting)"),
+          ADD_STAT(numResultPopped, statistics::units::Count::get(),
+                   "FP head reached but instResult already popped (writeback done — too late to corrupt)")
     {}
 } // namespace gem5

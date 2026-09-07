@@ -96,6 +96,11 @@ class CHAOSIQ;
 // injector is attached → the call site short-circuits.
 class CHAOSAddrPath;
 
+// Forward declaration of the FSU writeback-path fault injector (§5.6,
+// defined in src/cpu/o3/CHAOSFPU/). Self-attach pattern: DynInst::
+// setRegOperand reaches it via cpu->chaosFPUHook. nullptr → short-circuit.
+class CHAOSFPU;
+
 namespace o3
 {
 
@@ -520,6 +525,17 @@ class CPU : public BaseCPU
     class CHAOSAddrPath *addrPath = nullptr;
     void setAddrPath(CHAOSAddrPath *p) { addrPath = p; }
     CHAOSAddrPath *getAddrPath() const { return addrPath; }
+
+    /** CHAOSFPU writeback-path hook (§5.6 FSU data path): the injector
+     *  self-attaches here; DynInst::setRegOperand calls
+     *  chaosFPUHook->maybeCorruptWriteback(reg, val) BEFORE the value is
+     *  written to the PhysReg — the true FSU result corruption point (the
+     *  old ROB-head corruptResultRegVal was too late: by the time an inst
+     *  reaches the ROB head its result has been popped, observed 0/5089
+     *  hits on gemm_double). Nullptr → short-circuit. CHAOSFPU lives in
+     *  ::gem5 (NOT o3), so fully qualify. */
+    class ::gem5::CHAOSFPU *chaosFPUHook = nullptr;
+    void setChaosFPUHook(::gem5::CHAOSFPU *p) { chaosFPUHook = p; }
 
     /** Enum to give each stage a specific index, so when calling
      *  activateStage() or deactivateStage(), they can specify which stage

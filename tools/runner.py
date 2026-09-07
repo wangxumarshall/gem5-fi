@@ -45,6 +45,9 @@ GOLDEN_IDS = {
     "l1dreduce-golden-v1":  "f44d2b9cd4a173cd",  # l1d_reduce
     "l1iloop-golden-v1":    "bb0b1c4cb661236e",  # l1i_loop
     "stuckpersist-golden-v1": "00000000dee1f5d0",  # stuck_persist
+    # Phase 2 (plan §5.6D): GEMM float/double anchors (native==gem5 verified).
+    "gemmfloat-golden-v1":   "d74f24ae79deb7d2",  # gemm_float_kernel
+    "gemmdouble-golden-v1":  "6295f007a890b108",  # gemm_double_kernel
 }
 
 def sha256_file(path):

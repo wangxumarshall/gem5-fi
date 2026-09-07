@@ -48,9 +48,13 @@ Phase 1（P0-工具补全）— **complete**（1.1–1.6 全勾）。Next: Phase
 
 **Status: pending**
 
-- [ ] 2.1 **gemm_float / gemm_double**（§5.6D，GEMM popcount 中位 12/28 锚点）
-  - 累乘累加矩阵核，native golden 确定；目标：double 位翻转 popcount 分布与 method3 中位 28 可比
-  - 验证：native==gem5 golden 一致；F1 注入产出 SDC 且 bit_spectrum.py 可算 popcount
+- [x] 2.1 **gemm_float / gemm_double**（§5.6D，GEMM popcount 中位 12/28 锚点）
+  - gemm_float：origin/fi 提取（golden `d74f24ae79deb7d2` 三方一致：binary/native/gem5）
+  - gemm_double：新写（N=32 确定性整数操作数、-fno-tree-vectorize 保标量 FPU 链；golden `6295f007a890b108` native==gem5 逐位一致）
+  - F1 注入 SDC 实证：CHAOSFPU v3 源读 hook，seed=6 → checksum `0078f84e140e50b5` ≠ golden → SDC；注入 Old `0x412b774e00000000` New `0x412b774e00080000`（mantissa 单比特），bit_spectrum.py 输出 mantissa 100%/popcount median=1 正常
+  - golden IDs 入 runner（gemmfloat/gemmdouble-golden-v1）
+  - 回归：reg_chain `f247ef3fe6f02cfd` + gemm_float `d74f24ae79deb7d2` 不变；构建零错误
+  - 执行中发现（重要，三连修）：① ARM ISA 不设 IsFloating 标志→CHAOSFPU isFloating() 恒 false（144k 采样 0 命中）→改 dest/src reg class 判定（Float+Vec）；② ROB-head corruptResultRegVal 对 vec 路径完全失效（FP 走 getWritableRegOperand 绕过 setRegOperand；head 的 result 已 pop 5089/5089）→v2 setRegOperand writeback hook（RegVal+blob 双 overload）；③ 背靠背依赖链（fmadd d0→fmadd d0）走 bypass 网络从不回读 PRF，PRF cell 注入被转发击败（15 seed 全 Masked）→v3 getRegOperand 源读 hook（读即破坏，传播保证）；附：CHAOSFPU.hh include guard 与 CHAOSExec 冲突（复制未改）→修复；FPU attackCheck skip 无 backoff（probability=1.0 → 0 间隔死循环）→+1-cycle backoff
 - [ ] 2.2 **svd_iterative + fma_reduction_kernel**（§5.6D）
   - svd 单比特中位 1–3 锚点；fma 归约放大系数
   - 验证：golden 一致 + 注入 SDC 可分类

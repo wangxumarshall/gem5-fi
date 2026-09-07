@@ -1,5 +1,5 @@
-#ifndef __CPU_O3_CHAOS_EXEC_HH__
-#define __CPU_O3_CHAOS_EXEC_HH__
+#ifndef __CPU_O3_CHAOS_FPU_HH__
+#define __CPU_O3_CHAOS_FPU_HH__
 
 #include <random>
 #include <memory>
@@ -7,6 +7,7 @@
 #include "base/output.hh"
 #include "base/statistics.hh"
 #include "base/types.hh"
+#include "cpu/reg_class.hh"  // PhysRegIdPtr, RegClassType (v2 writeback hook)
 #include "params/CHAOSFPU.hh"
 #include "sim/sim_object.hh"
 #include "sim/eventq.hh"
@@ -14,18 +15,50 @@
 namespace gem5
 {
 namespace o3 { class CPU; }
+class PhysRegId;
 
-// CHAOSFPU — integer ALU writeback-path injector (plan §5.6, S8-2).
-// Negative control: P_SDC(Int) << P_SDC(FSU/forward). Reaches the ROB-head
-// DynInst via cpu->robAccess() (same as CHAOSROB/CHAOSIQ), filters isFloating,
-// and XORs a mask into the front instResult (DynInst::corruptResultRegVal)
-// before PhysReg writeback.
+// CHAOSFPU — FSU writeback-path injector (plan §5.6, S8-2).
+// Primary hook (v2): maybeCorruptWriteback — called from
+// DynInst::setRegOperand BEFORE the value reaches the PhysReg + result
+// queue (the true FSU result corruption point). The injector self-attaches
+// via cpu->setChaosFPUHook in its constructor. Filters FP-class dests
+// (FloatRegClass scalar FP / VecRegClass SIMD FP).
+// Legacy hook (v1, kept for compat): the ROB-head attackEvent sampling
+// (corruptResultRegVal) — reaches the head DynInst via cpu->robAccess();
+// on gemm_double this hit "result already popped" 5089/5089 times, so the
+// writeback hook is the reliable path.
 class CHAOSFPU : public SimObject
 {
   public:
     CHAOSFPU(const CHAOSFPUParams &p);
     ~CHAOSFPU();
     void startup() override;
+
+    // §5.6 writeback-path hook (v2): called from DynInst::setRegOperand
+    // with the dest physReg and the ABOUT-TO-BE-WRITTEN value. Applies the
+    // fault IN PLACE (val ^= mask) when: dest is FP-class (Float/Vec),
+    // inside [firstClock, lastClock], under maxFaults, and the per-write
+    // Bernoulli draw fires. Hot path: one pointer check at the call site.
+    void maybeCorruptWriteback(const PhysRegIdPtr &reg, RegVal &val);
+
+    // Blob overload (const void* setRegOperand — vector/FP results written
+    // as byte blobs). XORs the mask into the first 8 bytes in place.
+    void maybeCorruptWritebackBlob(const PhysRegIdPtr &reg, const void *val);
+
+    // §5.6 source-read hooks: an FP SOURCE operand is corrupted at the
+    // moment the consumer reads it. This is the reliable corruption point
+    // for back-to-back dependency chains (fmadd d0 -> fmadd d0): the value
+    // flows through the bypass network and the PRF cell is never re-read,
+    // so cell injection (CHAOSPhysReg) is defeated by forwarding — but the
+    // read hook sees EVERY consumption. Same gates as the writeback hook.
+    void maybeCorruptRead(const PhysRegIdPtr &reg, RegVal &val);
+    void maybeCorruptReadBlob(const PhysRegIdPtr &reg, void *val);
+
+    // shared corruption logger for the v2/v3 hooks
+    void logCorruption(const char *site, const PhysRegIdPtr &reg,
+                       RegClassType cls, uint64_t old, uint64_t neu,
+                       uint64_t mask);
+
   private:
     enum class BitSeg { All, Low, Mid, High };
     static BitSeg stringToBitSeg(const std::string &s);
@@ -54,6 +87,7 @@ class CHAOSFPU : public SimObject
         statistics::Scalar numFaultsInjected;
         statistics::Scalar numFpResultCorrupted;
         statistics::Scalar numSkippedNonFp;
+        statistics::Scalar numResultPopped;  // FP head but instResult already popped (writeback done)
         Stats(statistics::Group *parent);
     };
     std::unique_ptr<Stats> stats;

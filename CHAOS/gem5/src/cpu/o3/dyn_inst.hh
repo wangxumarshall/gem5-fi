@@ -58,6 +58,7 @@
 #include "cpu/o3/cpu.hh"
 #include "cpu/o3/dyn_inst_ptr.hh"
 #include "cpu/o3/lsq_unit.hh"
+#include "cpu/o3/CHAOSFPU/CHAOSFPU.hh"  // §5.6 v2 FSU writeback hook (setRegOperand)
 #include "cpu/op_class.hh"
 #include "cpu/reg_class.hh"
 #include "cpu/static_inst.hh"
@@ -1179,7 +1180,16 @@ class DynInst : public ExecContext, public RefCounted
         const PhysRegIdPtr reg = renamedSrcIdx(idx);
         if (reg->is(InvalidRegClass))
             return 0;
-        return cpu->getReg(reg, threadNumber);
+        RegVal val = cpu->getReg(reg, threadNumber);
+        // §5.6 CHAOSFPU source-read hook: an FP source read on the FSU
+        // consumption path. The injector filters FP classes + gates; a hit
+        // corrupts the value the inst actually consumes (this is the ONLY
+        // reliable corruption point for back-to-back dependency chains —
+        // PRF cell injection is defeated by operand forwarding).
+        if (cpu->chaosFPUHook) {
+            cpu->chaosFPUHook->maybeCorruptRead(reg, val);
+        }
+        return val;
     }
 
     void
@@ -1189,6 +1199,10 @@ class DynInst : public ExecContext, public RefCounted
         if (reg->is(InvalidRegClass))
             return;
         cpu->getReg(reg, val, threadNumber);
+        // §5.6 CHAOSFPU source-read hook (blob overload, vector FP).
+        if (cpu->chaosFPUHook) {
+            cpu->chaosFPUHook->maybeCorruptReadBlob(reg, val);
+        }
     }
 
     void *
@@ -1206,6 +1220,13 @@ class DynInst : public ExecContext, public RefCounted
         const PhysRegIdPtr reg = renamedDestIdx(idx);
         if (reg->is(InvalidRegClass))
             return;
+        // §5.6 CHAOSFPU writeback-path hook: corrupt the value BEFORE it
+        // reaches the PhysReg + result queue (the FSU data path). Only
+        // fires for FP-class dests (the injector filters); nullptr when no
+        // injector attached → short-circuit on the hot path.
+        if (cpu->chaosFPUHook) {
+            cpu->chaosFPUHook->maybeCorruptWriteback(reg, val);
+        }
         cpu->setReg(reg, val, threadNumber);
         setResult(reg->regClass(), val);
     }
@@ -1216,6 +1237,12 @@ class DynInst : public ExecContext, public RefCounted
         const PhysRegIdPtr reg = renamedDestIdx(idx);
         if (reg->is(InvalidRegClass))
             return;
+        // §5.6 CHAOSFPU writeback-path hook (blob overload — vector/FP
+        // results written as byte blobs go through HERE, not the RegVal
+        // overload; symmetric hook so SIMD FP is covered too).
+        if (cpu->chaosFPUHook) {
+            cpu->chaosFPUHook->maybeCorruptWritebackBlob(reg, val);
+        }
         cpu->setReg(reg, val, threadNumber);
         setResult(reg->regClass(), val);
     }
