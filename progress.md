@@ -2100,3 +2100,90 @@ method2 三根因的定量闭环补最后两臂（AGU 臂已完成 100% DUE）�
 **结论**：
 1. **转发写回延迟在转发密集 workload 上确定性致命且相位平顶**（1-8 周期无塌方）——消费者的读窗口与写回落点错位即崩溃，无"容忍带"。method3 现场的"加 no-op → 触发率塌方"是**触发率**对相位的敏感（竞争窗口开合），本代理测的是**后果**对相位的敏感——两者互补：后果无容忍带说明转发时序是硬约束，保护应为转发路径的时序校验（延迟>阈值即报错）。
 2. **相位分化数据**：早期注入（链表建立期转发，T1 手工）Masked vs 校验链转发（formal 分散采样）100% DUE——**转发的消费者身份决定延迟的致命性**（建立期数据被后续覆盖，校验链数据被立即消费）。这是 workload 内相位敏感性的直接证据。
+
+### 规划更新（2026-09-07）: v1.1 补救轮并入 task_plan.md（Phase 8–12）
+
+首轮 formal 结构性格局里 **FPU / 整数执行 Exec / L2 / DRAM 全 0% SDC + ROB spec_leak 阴性**——四处与现场 method1/method3 + 文献直接冲突。根因排查（工程设计文档已升级 v1.1：§1.3 故障模型必跑矩阵 + §1.7 负载/oracle 纪律 + §2.3/2.6/2.8/2.17）确认是**故障模型 + 负载错配**的伪影，非单元性质：
+
+- **FPU**：均匀翻结果一位（按位宽比例命中 sign/exp/mant，复现不出 method3 的 85–93% 尾数谱）+ gemm/neon_lane 归约 kernel。`svd_iterative` kernel 已有但从未用于 FPU。
+- **ROB spec_leak**：实验失败——X3 泄漏值被正确路径覆盖；X19 384/384 Inactive（回滚事件流里没有它）。是 method1 核心假设。
+- **L2/DRAM**：负载伪影——cholesky/l1d_reduce 工作集在 L1，被注入的 L2/DRAM 字节从不回读。§2.8/§2.17 要求的大工作集 kernel + 定向注入未执行。
+
+**本次动作（仅规划，未执行代码——执行环境是 Linux 服务器，gem5 不在 Windows 构建）**：
+- `plans/task_plan.md` 加 **Phase 8–12**（保留已完成 Phase 1–7）：
+  - **Phase 8 基础设施**：非 hash oracle（array_hash / per_element_diff / fp_ulp）+ `events_to_skip` 均匀采样 helper（`chaos_event_sample.hh`）+ CHAOSCache/CHAOSMem `local_mbu` 多位档 + `recurring_result_stuck` 单故障契约松绑。
+  - **Phase 9 FPU**：CHAOSFPU 六模式（bitseg / fma_intermediate E3 / recurring_result_stuck / rounding_sub / f3_data_dependent / fpsr_suppress）+ `elemwise_fma_kernel.c` + `pwf-v11-fpu.yaml`；验收门 = 位谱尾数占比 ≥ 70%。
+  - **Phase 10 ROB spec_leak**：`spec_leak_probe_kernel.c`（X10 泄漏窗口）+ `commit.cc` `squashAfter()` 定向 hook（`spec_leak_arch_reg`）+ exc_suppress 真异常 kernel（divzero_loop / unaligned_ldp）。
+  - **Phase 11 L2/DRAM**：`stencil_5pt_kernel.c`（2× L2）/ `stream_triad_kernel.c`（4× LLC）+ 定向注入（targetBlockAddr / addr_start-end）+ `pwf-v11-l2.yaml` / `pwf-v11-dram.yaml`。
+  - **Phase 12**：集 B（NUMA node 1）复现 + report §7/§4.2/§13/§14 已修正标注。
+- 更新「执行顺序与理由」框图（Phase 1–4 标 ✅ / 5–6 in_progress / 8–12 新增）+ 补丁纪律（v1.1 遵 `gem5-fi/CLAUDE.md`，numactl 钉 NUMA 0 build/run）。
+- 更新 `## Next Step`：下一步 = Phase 8.1 非 hash oracle（`classify.py` `oracle_kind` + `runner.py` `GOLDEN_ARRAYS`），解锁 Phase 9–11 逐元素 kernel。
+- 机器策略：cpu179 是唯一坏核（socket 3 / NUMA 7），`numactl` 集 A=NUMA0（主跑）/ 集 B=NUMA1（复现），取代原「需第二台健康机」阻塞项。
+- 深度策略：每 kernel/模式先 n=100 pilot → 有信号或 method1/2/3 直接对照才扩 formal n=384 + 5% 重放 + Wilson CI。
+
+### v1.1 Phase 8.1 完成（2026-09-07，Linux 服务器 gem5-fi/，补丁 89832f6）: 非 hash oracle 全链路
+
+**机器适配（本机实测 `numactl -H`）**：本 Linux 服务器 126 核（0–127，缺 122/123）、4 NUMA 节点、内存**只挂 node 1**（30 GB；node 0/2/3 size=0）。计划里的 `--cpunodebind=0 --membind=0` 在本机不可行（node 0 无内存）——适配为 **`numactl --cpunodebind=1 --membind=1`**（CPU+内存同 node 1，本机唯一有内存的节点；本机无 cpu179——计划所述故障机是另一台 192 核机，本机即健康机）。复现集 B 用 node 2/3 CPU + node 1 内存。
+
+**实现（6 文件，纯 Python/schema，无 gem5 重建）**：
+- `tools/classify.py`：`classify_run()` 增 `oracle_kind`/`oracle_tol`。`array_hash`（比对 kernel 打印的 `ARRAYHASH=<64hex>`）/ `per_element_diff`（`ELEMDIFF n=<count> first=<idx> maxulp=<n>`，count>0→SDC，first/maxulp 进 reason）/ `fp_ulp`（`ULP=<max_ulp_error>`，>tol→SDC、<=tol→Masked——舍入级差异不算损坏）。§9.1 有序类别（SimulatorError/Hang/Crash/Inactive）先于 oracle；只有最终 Masked-vs-SDC 分裂是 oracle 相关。`exact_hash` 默认字节级不变。
+- `tools/runner.py`：`GOLDEN_ARRAYS` 注册表（与 `GOLDEN_IDS` 并列）+ `--golden-array` CLI；manifest `oracle.kind`/`oracle.tol`（或 `workload.oracle_kind`/`oracle_tol`）→ `classify_run`；RESULT 行带 `oracle=<kind>`。
+- `tools/campaign.py`：`manifest_for_cell()` 写 `workload.oracle_kind`/`oracle_tol` 并镜像进 manifest oracle 块（campaign 未设置时 manifest 与旧版逐字节一致）。
+- schemas：manifest oracle.kind enum += 3 种 + `oracle.tol`；campaign workload += `oracle_kind`/`oracle_tol`；light validator ORACLE_KINDS 同步。`SELFTEST OK`。
+
+**真机验证（100% 真实输出，NUMA node 1）**：
+1. T1 classify 单元测试：24 检查全过（三种 extractor、match/mismatch/缺行、tol 两侧、有序类别优先、exact_hash legacy 含 reg_chain golden 无注入→Inactive）。初版烟雾 kernel 印了 16-hex 被抓出——按规格修为 4-lane FNV 64-hex。
+2. T2 烟雾 kernel（elemwise 风格 FMA 载体）：native == gem5 无注入输出（`ARRAYHASH=3d7ac29a...c1739, ELEMDIFF n=0, ULP=0`）。runner array_hash manifest → **Masked** faults_injected=1（GOLDEN_ARRAYS 解析成功）。
+3. T2c 真注入 SDC：l1d_fwd first_clock=210000 seed=7（注入 Tick 105001500 addr=0x7e4a8 mask=0x40000000000000，重放两次一致）→ `ELEMDIFF n=1 first=3425 maxulp=18014398509481984`。per_element_diff → **SDC**（reason 带 first/maxulp）；fp_ulp tol=4 → **SDC**；fp_ulp tol=18014398509481985 → **Masked**（tol 两侧验证）。
+4. T3 campaign 链：campaign yaml `oracle_kind: fp_ulp oracle_tol: 4` → manifest 双拼写 → runner → SDC，summary `P_SDC=100.0% [20.7,100.0]` n=1。
+5. reg_chain golden 回归：**f247ef3fe6f02cfd**，exit=0，无注入日志（exact_hash 路径不变）。
+
+**附带发现（写入 commit note，Phase 9 patch 1a 必须处理）**：CHAOSFPU/CHAOSExec 的 `corruptFrontResult*` 腐蚀的是 `DynInst::instResult` 队列——其**唯一消费者是 checker CPU**（所有配置 `checker=Null`）；AArch64 FP/SIMD 结果经 `getWritableRegOperand`（直接 PRF 指针）落 PRF，整数结果经 `setRegOperand→cpu->setReg→regFile`。**FPU 注入器需在 Phase 9 重写为 PRF-dest 路径**才能让 FSU 故障架构可见（本次烟雾测试用 l1d_fwd 的 packet-XOR 路径，是真实路径）。这解释了首轮 FPU formal 全 Masked 的深层根因（比 v1.1 计划诊断的"故障模型+负载错配"更深一层：**注入点本身架构不可见**）。
+
+**Phase 8.1 验收（task_plan 原文）全过**：✅ per_element_diff 报出 first/maxulp；✅ fp_ulp 在 tol 两侧分别判 Masked/SDC；✅ array_hash 无注入回归 == golden；✅ reg_chain exact_hash 路径不变。
+
+### v1.1 Phase 8.2 完成（2026-09-07，Linux 服务器，补丁 1d2abce）: events_to_skip 均匀采样
+
+**问题**（§1.7 rule 4）：所有 hook-on-event 注入器的 `events_to_skip ~ geometric(p=0.1)`（均值 10，P(≤30)≈96%）——maxFaults=1 的单故障几乎每 rep 都落在 ROI **前 ~30 个** eligible 事件里,测的不是 eligible 分布,是它的头部。
+
+**实现**（22 文件,+580/-43）：
+- 新 `CHAOS/gem5/src/cpu/o3/chaos_event_sample.hh`（header-only,免 SConscript）:`chaosPickSkip(seed, n) = LCG(seed^黄金比) % n` 均匀抽取。
+- `countOnly` 模式：注入器消费 eligible 事件不损坏,`registerExitCallback` 打印 `CHAOS_ELIGIBLE_COUNT=<n>`（**真机抓出的坑**：析构函数在 gem5 退出路径上不执行,首批测试 log 全空——改 exit 回调后通过）。
+- 五注入器接线（FPU/Exec/L1DForward/LSQFwd/IQ;计划的"ROB"其 spec_leak 采样在 CHAOSRenameMap、消费 squash 流,不同事件族,不在本项范围）:`eventsToSkip` 参数（UINT64_MAX 哨兵=legacy geometric,**旧 campaign 字节级重放不变**）+ `countOnly` + config CLI + runner `sampling.{events_to_skip,count_only}` 路由 + campaign `workload.uniform_sampling`（每 cell 一次 countOnly dry-run → 每 rep `chaos_pick_skip`,C++ helper 的 Python 孪生）+ 双 schema。
+- **验证中发现并修复的语义错位**：skip 必须索引"损坏真正能落上的流"。cholesky 上 6637 个 opClass-eligible FSU 事件里只有 **32 个**带可腐蚀 InstResult（空结果消费 skip 但永远接不住故障）。加 `DynInst::hasCorruptibleResult()`（非变异 `!instResult.empty()`）;FPU/Exec 的 countOnly 只数、fixed-skip 只消费**可腐蚀**事件（legacy geometric 模式保持旧的 consume-on-eligible,保字节级重放）。**这同时定量坐实了 Phase 8.1 的发现：cholesky 上 99.5% 的"FSU 注入"落在死结果上**——FPU 注入器重写（Phase 9 patch 1a 改 PRF-dest 路径）的必要性又添一证。
+
+**真机验证（100% 真实输出,NUMA node 1）**：
+1. countOnly：cholesky fsu `CHAOS_ELIGIBLE_COUNT=32`;烟雾 kernel 40966。
+2. **5-seed 分散验收**（cholesky,fixed skip 4/5/11/18/23）:注入 sn=**13051/13142/74271/90962/96782**,tick 10.8M–25.6M——五条不同动态指令、均匀散布（旧几何头聚集的对照:同 cell 多 seed 恒同一条）。
+3. **legacy 路径不变**：l1dfwd seed 7 重放 byte-identical（Tick 105001500 addr=0x7e4a8 mask=0x40000000000000）;FPU seed 1/2/3 的 mask 与改前全同（0x40000000000000/0x100/0x8）——RNG 流未扰动。（FPU sn/tick 相对改前记录偏 ~46 cycles:烟雾 kernel 二进制在两轮间改过 ARRAYHASH 16→64 hex、代码布局移位所致,非注入器行为变化;l1dfwd 在同一二进制上 byte-identical 可证。）
+4. campaign 端到端（`uniform_sampling: true`,n=5）:`cell 0: N_eligible=32 (countOnly dry-run)`,per-rep manifest 带 events_to_skip 4/5/11/18/23,5/5 faults_injected=1 且重放 sn 各异。legacy campaign（不设 uniform_sampling）manifest 无 sampling 块;两种 manifest 过 light validator 5/5。
+5. reg_chain golden 回归 **f247ef3fe6f02cfd** exit=0。
+6. 重建零新警告（仅 CHAOSArmSysReg ba27677 预存 tps 未用警告,本补丁未触碰）。
+
+**提交前修复**：campaign.py main() 用了未定义的 `wl`（首跑 NameError）→ `campaign['workload']`。
+
+**Phase 8.2 验收（task_plan 原文）全过**：✅ 同一 cell 换 5 seed 注入的动态事件（sn/tick）分散;✅ reg_chain golden 回归。
+
+### v1.1 Phase 8.3 + 8.4 完成（2026-09-07，补丁 878db03 + c6d09e6）
+
+**Phase 8.3（相邻多位掩码,ECC 阶梯可达）**：CHAOSCache/CHAOSMem 的 `generateRandomMask` 从"独立随机位"(重叠坍缩,popcount==bits_to_change 概率低,2-bit/≥3-bit 阶梯从未确定性触发)改为**相邻 n-bit 连发**(随机起点,物理 MBU 模型)。真机验收:Cache `secded_poison` bits=2 → `Mask: 01100000` + `bits=2 -> Latent`;bits=3 → `Mask: 01110000` + `bits=3 -> SilentEscape`;Mem `secded` bits=1/2/3 → Corrected/Latent/SilentEscape(Mask 0x40/0x60/0x70)。**附带修出两个潜伏 config bug**(真机验收直接暴露):① arm_chaos.py 用了未定义的 `args.addr_map_sub`(Phase 4.6 只加给了 kp920_proxy)——C0 上所有 `--chaos_mem` 运行 AttributeError 崩溃;② arm_chaos.py 的 CHAOSMem 实例化漏传 `bitsToChange`(默认 -1 → 每 rep 随机抽 1..8 位,`--bits_to_change` 在 C0 上被静默忽略,bits=1/2/3 全打出 Mask 0xfe=7 位)。golden 回归 f247ef3fe6f02cfd ✅。
+
+**Phase 8.4（recurring_result_stuck 单故障契约松绑,G5）**：runner.py 仅对该模型要求并放行 `max_faults==0`(配对强制,错配即 Aborting);G5 violations 日志对该模型换诚实注记"N>1 expected";campaign.py 对 recurring cell 自动发 `max_faults: 0`;schema enum + light validator 放开。真机验收:recurring cell(fsu, cholesky, n=3)3/3 跑通,per-rep faults_injected=**26/27/29**(N>1),九类结局 + summary 正常;负例 recurring+max_faults=1 拒绝 ✅、transient+max_faults=2 被 validator 拒绝 ✅、transient 正常路径不受扰 ✅;golden 回归 f247ef3fe6f02cfd ✅。
+
+### Phase 8 全部完成（2026-09-07）——0a–0d 四项验收全过
+
+| 项 | 内容 | 补丁 | 验收(全部真机输出) |
+|---|---|---|---|
+| 0a | 非 hash oracle(array_hash/per_element_diff/fp_ulp) | 89832f6 | ELEMDIFF n=1 first=3425 maxulp=1.8e16;fp_ulp tol 两侧;array_hash==golden;exact_hash 不变 |
+| 0b | events_to_skip 均匀采样 + countOnly | 1d2abce | CHAOS_ELIGIBLE_COUNT=32;5-seed sn 五条不同指令均匀散布;legacy byte-identical |
+| 0c | local_mbu 相邻多位档 | 878db03 | bits=2→Latent / bits=3→SilentEscape(Cache+Mem 双侧) |
+| 0d | recurring 契约松绑 | c6d09e6 | N=26-29 损坏 + 九类结局;配对负例拒绝 |
+
+**Phase 8 总验收**:✅ 0a–0d 全过;✅ reg_chain golden `f247ef3fe6f02cfd` 回归(每补丁各验一次,exit 0,零 SIGSEGV)。
+
+**Phase 8 期间的三项附带发现(均为真机抓出,记入 findings)**:
+1. **CHAOSFPU/CHAOSExec 注入点架构不可见**(8.1 发现):`corruptFrontResult*` 腐蚀 `instResult` 队列,唯一消费者是 checker(所有配置 checker=Null);FP/SIMD 结果走 `getWritableRegOperand` 直达 PRF,整数走 `setRegOperand→regFile`。**Phase 9 patch 1a 必须重写为 PRF-dest 路径**。
+2. **cholesky 上 6637 个 FSU-eligible 事件只有 32 个可腐蚀**(8.2 定量)——首轮 FPU formal "99.5% 注入落在死结果"的直接定量证据。
+3. **arm_chaos.py CHAOSMem 两处潜伏 bug**(8.3 修复):addr_map_sub 缺 argparse + bitsToChange 漏传(见上)。
+
+**下一步**:Phase 9(FPU)——CHAOSFPU 六模式(bitseg/fma_intermediate E3/recurring_result_stuck/rounding_sub/f3_data_dependent/fpsr_suppress,patch 1a 含 PRF-dest 重写)+ elemwise_fma_kernel.c + pwf-v11-fpu.yaml;验收门 = 位谱尾数占比 ≥ 70%。

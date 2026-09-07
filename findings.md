@@ -359,3 +359,26 @@ exec（IntAlu XOR）/ bpu（dir_flip）在 reg_chain 上 formal 384/384 全 Mask
 **workload 内相位分化**：链表建立期转发延迟 Masked（数据被覆盖）vs 校验链转发延迟 100% DUE（数据被立即消费）——**转发的消费者身份决定延迟致命性**。
 
 **Phase 4 全模式收官**：七个 F5/F6 机理模式（spec_leak / fwd_source_sub / src_ready_bitflip / wake_phase / pfn_to_mapped_page / value_to_legal / addr_map_sub + phase_offset）全部实现并有 formal 级数据。
+
+## v1.1 补救轮立项依据（2026-09-07）：首轮四处 0%/阴性是"故障模型 + 负载错配"伪影
+
+首轮 formal（每单元 1 cell × n=384）的结构性格局里，**FPU / 整数执行 Exec / L2 / DRAM 全 0% SDC + ROB spec_leak 阴性**——与现场 method1/method3 + 文献直接冲突。工程设计文档升级 v1.1（§1.3 故障模型必跑矩阵、§1.7 负载与 oracle 纪律、§2.3/2.6/2.8/2.17 逐单元修订）后立 v1.1 补救轮（`KUNPENG920-v1.1补救轮执行计划.md`，已并入 `task_plan.md` Phase 8–12）。
+
+| 单元 | 首轮结论 | 存疑原因（根因 = 伪影，非单元性质） |
+|---|---|---|
+| **FPU** | 0% SDC | 与 method3（第 179 核现场失效**就是** FP 尾数 SDC，85–93% 尾数）+ Veritas 冲突。均匀翻结果一位（按位宽比例命中 sign/exp/mantissa，复现不出谱）+ gemm/neon_lane **归约** kernel。`svd_iterative` kernel 已有但**从未用于 FPU**。 |
+| **ROB spec_leak** | 阴性 | **实验失败**：X3 泄漏值被正确路径覆盖；X19 384/384 Inactive（回滚事件流里没有它）。而这是 method1 的核心假设。 |
+| **L2 / DRAM** | 0% SDC | **负载伪影**：cholesky/l1d_reduce 工作集在 L1，被注入的 L2/DRAM 字节从不回读。§2.8/§2.17 本就要求大工作集 kernel + 定向注入，没执行。 |
+
+**能激发这些 SDC 的故障模型本就在工程设计文档里**，只是没执行：F3 数据相关、F4 `recurring_result_stuck` 反复损坏、`fma_intermediate` 数据通路掩码、合法域替换（`rounding_sub` / `value_to_legal` 类）。
+
+**预期两种产出都有价值**：
+1. 在 `recurring` / `fma_intermediate` / 合法域模式下出现**非零 SDC** → 修正结构性结论（首轮 0% 作废）。
+2. 在这些更强模型下**仍然 0%** → 此时"该单元对 SDC 钝"才站得住（而非负载伪影）。**注意**：只有单发 F1 全 Masked **不构成**"单元对 SDC 钝"的结论——必须 recurring / f3 / 大工作集定向也全 Masked 才能写。
+
+**方法论闸门（写进 Phase 9–11 验收断言）**：
+- FPU：`fma_intermediate` / `bitseg(mant_*)` 位谱尾数占比 **≥ 70%** 才算复现 method3 方向；仍均匀分布 → 注入点/kernel 不对。
+- ROB spec_leak：阴性结论**只在 `spec_leak_probe.c` 上 Reachability > 90% 时成立**（证明注入落在泄漏窗口内）；否则记"实验未到位"。
+- L2/DRAM：低 SDC 结论**只在工作集超 L2/LLC 的 stencil/stream 上、定向到活数据跑过才成立**；cholesky/l1d_reduce 上的 0% 标"负载伪影，不写进结论"。
+
+**执行/机器策略**：build + campaign 只在 Linux 服务器（openEuler 192 核 HIP08）；本 Windows 机仅写代码/提交/push。cpu179 是唯一坏核（socket 3 / NUMA node 7），`numactl` 钉集 A=NUMA0（主跑）/ 集 B=NUMA1（复现）——"复现" = 关键 cell 集 B 重跑，分类一致 + P_SDC 点估落入集 A 95% CI（取代"需第二台健康机"阻塞项）。残余风险：cpu179 缺陷若污染 socket 间共享 L3 / 内存控制器 / 一致性目录，A/B 均可能受影响（写进诚实边界）。

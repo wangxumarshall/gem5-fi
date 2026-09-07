@@ -1,6 +1,7 @@
-# 下一步计划：鲲鹏920 SDC 故障注入 — S2/S3 收尾 → 网格深化 → F5/F6 → FS
+# 下一步计划：鲲鹏920 SDC 故障注入 — S2/S3 收尾 → 网格深化 → F5/F6 → FS → v1.1 补救轮
 
 > 依据 `docs/KUNPENG920-故障注入方案详细工程设计.md`（§3.1 阶段表）× 仓库实际进展（HEAD af64ef7 + 未提交 formal 结果）编写。
+> **v1.1 补救轮（Phase 8–12）** 依据工程设计文档 v1.1（§1.3 故障模型必跑矩阵 + §1.7 负载/oracle 纪律 + §2.3/2.6/2.8/2.17）× `KUNPENG920-v1.1补救轮执行计划.md`；落地仓库 `gem5-fi/`（分支 `fix/fi-tool-correctness`，真 HEAD `4bf8d0d` = 238 commits）。
 > 本计划是**工作计划**；证据审计结论见 `findings.md`。
 
 ## Goal
@@ -108,25 +109,134 @@ CHAOSCHI/CHAOSNoC pilot 已能触发（7c854bb/7582e8c，未提交的 ruby test 
 
 ---
 
+# ═══ v1.1 补救轮（Phase 8–12）——首轮 formal 伪影修正 ═══
+
+> **背景**：首轮 formal（每单元 1 cell × n=384）的结构性格局里，**FPU / 整数执行 Exec / L2 / DRAM 全 0% SDC + ROB spec_leak 阴性**——这四处与现场 method1/method3 + 文献直接冲突。根因排查确认是**故障模型 + 负载错配**（伪影），不是单元性质：
+> | 单元 | 首轮结论 | 存疑原因 |
+> |---|---|---|
+> | FPU | 0% SDC | 与 method3（第 179 核现场失效就是 FP 尾数 SDC，85–93% 尾数）+ Veritas 冲突。均匀翻结果一位 + gemm/neon_lane 归约 kernel；`svd_iterative` kernel 已有但从未用于 FPU。 |
+> | ROB spec_leak | 阴性 | 实验失败：X3 泄漏值被正确路径覆盖；X19 384/384 Inactive（回滚流里没有它）。这是 method1 核心假设。 |
+> | L2 / DRAM | 0% SDC | 负载伪影：cholesky/l1d_reduce 工作集在 L1，被注入的 L2/DRAM 字节从不回读。§2.8/§2.17 要求的大工作集 kernel + 定向注入未执行。 |
+>
+> 能激发这些 SDC 的故障模型（F3 数据相关、F4 `recurring` 反复损坏、`fma_intermediate` 数据通路、合法域替换）**本就在工程设计文档里**，只是没执行。文档已升级 v1.1。**本轮 = 执行 v1.1 的补充，产出 FPU / ROB spec_leak / L2 / DRAM 的可信修正数。** 预期两种产出都有价值：更强模型下出现非零 SDC（修正结构性结论），或**仍然** 0%（此时"该单元对 SDC 钝"才站得住，而非负载伪影）。
+>
+> **⚠ 执行环境**：build（`scons -C CHAOS/gem5 build/ARM/gem5.opt -j16`）+ campaign 跑批只能在 **Linux 服务器**（openEuler，192 核 HIP08，含 cpu179）。本 Windows 机器仅用于**写代码 + 提交 + push**；每补丁 build/run 自验证在 Linux 上完成，遵 `gem5-fi/CLAUDE.md` 纪律。
+> **机器策略**（cpu179 是唯一坏核，同机 ~190 健康核）：`numactl --cpunodebind=0 --membind=0`（集 A，NUMA 0 / socket 0，主跑）/ `--cpunodebind=1 --membind=1`（集 B，NUMA 1 / socket 1，复现）——都远离 cpu179（socket 3 / NUMA 7）。**"复现" = 关键 cell 在集 B 重跑，结局分类一致 + P_SDC 点估落入集 A 的 95% CI**（取代原"需第二台健康机"阻塞项）。残余风险（写进诚实边界）：若 cpu179 缺陷污染 socket 间共享 L3 / 内存控制器 / 一致性目录，A/B 均可能受影响。
+> **深度策略**：每新 kernel / 模式先 **n=100 pilot**（看 Reachability + 量级 + 有无非零 SDC）→ 只对"有信号"或 method1/2/3 直接对照的 cell 扩 **formal n=384**（+ 5% 重放 + Wilson CI）。cpu179 wall-time：cholesky ~2s/run（formal 可行），reg_chain ~90s/run（pilot 即可）。
+
+## Phase 8 — v1.1/P0：基础设施（解锁 Phase 9–11，先做）
+
+**Status: complete（2026-09-07，0a–0d 四补丁：89832f6 / 1d2abce / 878db03 / c6d09e6）**
+
+1. ✅ **非 hash oracle**（89832f6）：classify oracle_kind(array_hash/per_element_diff/fp_ulp) + GOLDEN_ARRAYS + campaign/schema 全链。真机验收：ELEMDIFF n=1 first=3425 maxulp=1.8e16;fp_ulp tol 两侧判 Masked/SDC;array_hash 无注入==golden;exact_hash 路径不变。
+2. ✅ **events_to_skip 均匀采样**（1d2abce）：chaos_event_sample.hh + countOnly(CHAOS_ELIGIBLE_COUNT) + 五注入器 + campaign dry-run。真机验收：cholesky N_eligible=32,5-seed 注入 sn=13051/13142/74271/90962/96782 均匀分散;legacy geometric byte-identical。
+3. ✅ **local_mbu 相邻多位档**（878db03）：generateRandomMask 相邻 n-bit 连发。真机验收：Cache/Mem 双侧 bits=1/2/3 → Corrected/Latent/SilentEscape。附带修出 arm_chaos.py 两个潜伏 bug（addr_map_sub 缺 argparse;CHAOSMem 漏传 bitsToChange——C0 上 --bits_to_change 被静默忽略）。
+4. ✅ **recurring 契约松绑**（c6d09e6）：runner 配对强制（该模型要求 max_faults==0）+ campaign 自动发 0 + schema 放开。真机验收：n=3 recurring cell 3/3 跑通、per-rep N=26-29 损坏、九类结局;负例配对错配/validator 拒绝。
+
+**Phase 8 整体验收**：✅ 0a–0d 全过;✅ reg_chain golden f247ef3fe6f02cfd 回归（每补丁各验一次）。
+
+**Phase 8 附带发现（写进 findings，Phase 9 必须处理）**：CHAOSFPU/CHAOSExec 的 corruptFrontResult* 腐蚀 instResult 队列（唯一消费者 checker=Null）——FP/SIMD 结果走 getWritableRegOperand 直达 PRF、整数走 setRegOperand→regFile,**注入点架构不可见**;cholesky 上 6637 个 eligible 事件仅 32 个可腐蚀。**Phase 9 patch 1a 必须重写为 PRF-dest 路径**（比 v1.1 计划诊断的"模型+负载错配"更深一层的根因）。
+
+1. **非 hash oracle**（0a + 载体 0f）：`tools/classify.py` `classify_run()` 加 `oracle_kind` 参数——`array_hash`（kernel 打印 `ARRAYHASH=<64hex>`，比对该行）/ `per_element_diff`（打印 `ELEMDIFF n=<count> first=<idx> maxulp=<n>`，`count>0`→SDC，first/maxulp 带进 reason）/ `fp_ulp`（打印 `ULP=<max_ulp_error>`，`>tol`→SDC，`<=tol`→Masked 即使 bit 不精确一致）。`tools/runner.py` manifest `oracle.kind`/`oracle.tol` → `classify_run`；加 `GOLDEN_ARRAYS` 注册表（`golden_id → artifacts/golden/<id>.bin`，与 `GOLDEN_IDS` 并列，`--golden-array` CLI 覆盖）。`tools/campaign.py` `manifest_for_cell()` 写 `workload.oracle_kind`/`oracle_tol`；`schemas/manifest.schema.json` v2 `oracle.kind` enum 增补。**验收**：临时 elemwise 风格烟雾 kernel + 手工注入，`per_element_diff` 报出 first/maxulp，`fp_ulp` 在 tol 两侧分别判 Masked/SDC，`array_hash` 无注入回归 == golden；`reg_chain` exact_hash 路径不变。**补丁 1–2**。
+2. **`events_to_skip` 均匀采样**（0b + 载体 0e，§1.7 rule 4）：现状几何分布 p=0.1（均值 10，前置偏斜——长 ROI 下注入点集中在前 ~30 个 eligible 事件）。新写 `CHAOS/gem5/src/cpu/o3/chaos_event_sample.hh`：`pickSkip(seed, nEligible) = rng(seed) % nEligible` + `countOnlyMode`（消费 eligible 事件、打印 `CHAOS_ELIGIBLE_COUNT=<n>`、不损坏）。注入器加 `--count_only` 模式；`campaign.py` 先对每个 (kernel, trigger) dry-run 计数 ROI 内 eligible 数 `N_eligible` → `skip = uniform(0, N_eligible-1)`（seed 派生，可重放）。`CHAOSFPU / CHAOSExec / CHAOSL1DForward / CHAOSLSQFwd / CHAOSIQ / CHAOSROB` 六注入器采样切到 helper（config 传入固定 `events_to_skip`，不再各自几何分布）。**验收**：同一 cell 换 5 seed，注入的动态事件（tick / seqNum）分散（不再恒为同一条）；`reg_chain` golden 回归。**补丁 2–3**。
+3. **CHAOSCache / CHAOSMem `local_mbu` 多位档**（0c，为 L2/DRAM 的 ECC 阶梯）：`faultMask=0` 时按 `bitsToChange` 生成**相邻**多位掩码（当前是随机位）；`applyProtection()` 的 2-bit（poison/Latent）与 ≥3-bit（SilentEscape）分支走通（首轮只走了 1-bit Corrected）。**验收**：`protection_model=secded_poison` + `bits_to_change=2` → log `bits=2 -> Latent`；`bits_to_change=3` → `SilentEscape`。**补丁 1**。
+4. **`recurring_result_stuck` 单故障契约松绑**（0d，G5）：`recurring_result_stuck` 用 `maxFaults=0`（每次命中都损坏），违反 `runner.py` 的 `faults_injected ∈ {0,1}` 断言。`runner.py` **仅当** `fault.model == recurring_result_stuck` 时允许 `max_faults==0`；`campaign.py` 对该模型 cell 发 `limits.max_faults=0`；`schemas/*` 相应放开；**不要**把 recurring cell 混进单故障 campaign 的 CI（Wilson CI 仍按 rep 算）。**验收**：一个 recurring cell 跑通、日志 N>1 次损坏、产出有效九类结局 + Wilson CI；`transient_bit_flip` cell 仍断言 `∈{0,1}`。**补丁 2**。
+
+**Phase 8 整体验收**：0a–0d 四项验收全过 + `reg_chain` golden `f247ef3fe6f02cfd` 回归（exit 0，零 SIGSEGV）。**机器**：任意健康核。
+
+## Phase 9 — v1.1/P1：FPU（最高优先，直接与 method3 冲突）
+
+**Status: pending**（Phase 8 就绪;patch 1a 增补：PRF-dest 路径重写——Phase 8.1/8.2 发现 instResult 队列架构不可见）
+
+1. **CHAOSFPU 新模式**（1a，`src/cpu/o3/CHAOSFPU/CHAOSFPU.{py,hh,cc}`，5–6 补丁，每模式 1）：
+   - `bitseg`：`--fpu_bitseg ∈ {sign, exp_hi, exp_lo, mant_hi, mant_mid, mant_lo}`——只翻该位段内的位（非均匀翻整个结果）。
+   - `fma_intermediate`：新增 hook——FSU 对齐后、规格化前的中间结果施加掩码。**gem5 ARM FP 是纯功能模型（`arch/arm/fplib.cc` 的 `fplibMulAdd`），无真实对齐移位/部分积/规格化微结构** → 标 **E3（行为代理，非微结构复现）**。fallback 两选一：(a) 扩展内部精度算 `t=a*b`，对 `t` 按尾数加权的 `bitseg` 掩码，再 `t+c` 舍入；(b) 在**最终结果**上按 method3 匹配的 `mant_lo` 加权分布抽位翻。验收仍是"尾数占比 ≥ 70%"，文档写清是行为代理。
+   - `recurring_result_stuck`：`maxFaults=0`——每次命中 `opClass` 过滤的 FSU 结果都施加同一固定掩码（建模乘法器某位部分积卡死；文献指出这才是执行单元 SDC 主导来源）。
+   - `rounding_sub`（F5）：换舍入方向。
+   - `f3_data_dependent`：复用 `CHAOSPhysReg` 的 `triggerValueMask/Pattern` 模式——仅当操作数落在 `--fpu_operand_range` 时损坏结果。
+   - `fpsr_suppress`：清浮点异常标志。
+2. **新 kernel `elemwise_fma_kernel.c`**（1b，`workloads/directed/`，1 补丁）：`for i: c[i] = a[i]*b[i] + d[i]`，**输出整个 `c[]` 数组**（不折叠成标量），打印 `ARRAYHASH=` + `ULP=`（对 golden 数组）。`--n` 可调。静态 AArch64，无 libc。
+3. **campaign `campaigns/pwf-v11-fpu.yaml`**（1c，C2-KP，`--chaos_fpu`，1 补丁）：轴 = mode {`bitseg`(6 位段), `fma_intermediate`, `recurring_result_stuck`, `rounding_sub`, `fpsr_suppress`, `f3_data_dependent`} × 算子（`opClass` 过滤 FADD/FMUL/FMADD/reduction/shuffle）× 精度 {FP32,FP64} × 注入层 {向量 PRF 存储 `--chaos_phys --phys_reg_class=vector` / FSU 数据通路 `--chaos_fpu`}。kernel = `elemwise_fma`（主）+ `svd_iterative`（method3 SVD 对照，**已存在**）+ `gemm_float`（归约对照，非唯一）。oracle：`elemwise_fma` 用 `fp_ulp`（+ `array_hash` 兜底）；`svd_iterative` 用现有 checksum + `fp_ulp`。**pilot n=100 → formal n=384**：`fma_intermediate`/`bitseg(mant_*)` on `elemwise_fma`+`svd_iterative`，`recurring_result_stuck` on `elemwise_fma`。
+4. **验收断言**：
+   - `fma_intermediate` 或 `bitseg(mant_*)` 在 `elemwise_fma`/`svd_iterative` 上的**位谱**（`tools/bit_spectrum.py` 已有）——尾数占比 **≥ 70%** 才算"复现了 method3 方向"；仍是均匀分布 → 注入点或 kernel 还不对，回 1a 修。
+   - `recurring_result_stuck` 的 `P_SDC` 显著高于单发 F1；**若 recurring 也全 Masked，才可以写"FSU 数据通路对 SDC 钝"**；只有单发 F1 全 Masked 不构成该结论。
+   - 首轮"FPU 0% SDC"在 `plans/microarch-fault-injection-report.md` §7 逐条标注作废原因。
+
+**补丁数**：≈ 8。**机器**：健康核（cholesky 级 wall-time）。
+
+## Phase 10 — v1.1/P2：ROB spec_leak（method1 核心假设，把"实验失败"变成真结果）
+
+**Status: pending**（依赖 Phase 8 的 `per_element_diff` oracle）
+
+1. **新 kernel `spec_leak_probe_kernel.c`**（2a，`workloads/directed/`）：`data[]` 随机 → 难预测分支（`data[i] & 1`）→ 大量 squash；只在"跳"路径写目标架构寄存器（约束成 X10）；`t` 每轮重定义、定义后 1–2 条指令内被 `consume(t)` 读回（泄漏窗口 1–2 条指令）；`wrong_path_value` 与 `right_path_value` 差一个大常数（泄漏一眼可辨）；输出整个 `out[]`，`per_element_diff` oracle。用内联汇编或 `register ... asm("x10")` 把 `t` 钉到 X10。
+2. **CHAOSROB `spec_leak` 改为定向**（2b，`src/cpu/o3/CHAOSROB/CHAOSROB.{py,hh,cc}` + gem5 新 hook，2–3 补丁）：新增 hook 到 `cpu/o3/commit.cc` 的 `Commit::squashAfter()`（或 `Rename::doSquash` / `RenameMap` restore 路径）。`spec_leak` 不再"随机挑一个错误路径 μop 不回滚"，而是**定位"错误路径上写目标架构寄存器 `--spec_leak_arch_reg`（默认 X10=10）的那条 μop"，只对它跳过 rename-map restore**（保留其 PRF 写）。参数 `spec_leak_arch_reg`（Int，默认 10）。
+3. **`exc_suppress` 补真异常 kernel**（2c）：`divzero_loop_kernel.c`（整数除零循环）、`unaligned_ldp_kernel.c`（非对齐 `LDP`）——`exc_suppress` 首轮在 cholesky 上是 no-op（357/357 Masked/Inactive），因为没有 pending 异常可清。
+4. **campaign `campaigns/pwf-v11-rob-specleak.yaml`**（2d，C2，`--chaos_rob --rob_mode spec_leak`，1 补丁）：轴 = `spec_leak_arch_reg {X10, X9, X3}` × 分支密度 {`spec_leak_probe` 天然高} × 窗口 ROB {96,128,160}。oracle `per_element_diff`——统计"`out[i] == consume(wrong_path_value(i))` 但分支实际走了 right 路径"的比例 = 投机泄漏 SDC 率。另跑 `exc_suppress` on `divzero_loop`/`unaligned_ldp`（`P(DUE→SDC 转化率)`）。**pilot n=100 → formal n=384**（`spec_leak` on `spec_leak_probe` X10，`exc_suppress` on `divzero_loop`）。
+5. **验收断言**：`spec_leak` 的**阴性结论只在 `spec_leak_probe.c` 上 Reachability > 90% 时才成立**（证明注入确实落在泄漏窗口里）；否则记"实验未到位"，不是"泄漏不产生 SDC"。`plans/microarch-fault-injection-report.md` §4.2 更新：区分"spec_leak 阴性（实验到位）"vs 首轮"实验未到位"。
+
+**补丁数**：≈ 6–7。**机器**：健康核。
+
+## Phase 11 — v1.1/P3：L2 + DRAM（负载伪影，机械修）
+
+**Status: pending**（依赖 Phase 8 的 `array_hash` oracle + `local_mbu` 多位档）
+
+1. **新 kernel**（3a，`workloads/directed/`，2 补丁）：
+   - `stencil_5pt_kernel.c`：5 点 stencil，`--n` 让工作集 ≈ 2× L1（强制大量 L2 命中）/ ≈ 2× L2（强制 L2 miss + victim 流量）；逐元素输出 `array_hash`。
+   - `stream_triad_kernel.c`：STREAM triad `a[i]=b[i]+q*c[i]`，工作集 ≥ 4× LLC（数组装不进缓存，每次访问真打 DRAM）；逐元素输出 `array_hash`。
+2. **定向注入**（3b）：L2 用 `--target_block_addr` 定到 stencil 正在扫的行（不用随机块；CHAOSCache 现有 `targetBlockAddr`）。DRAM 用 `--addr_start/--addr_end` 跟随 stream_triad 扫描进度（缩到当前正在读的区间；CHAOSMem 现有 `addr_start/addr_end`）。
+3. **campaign**（3c，2 config + CHAOSCache tag F5 + victim 2–3 补丁）：
+   - **L2** `campaigns/pwf-v11-l2.yaml`（C0-CACHE，`configs/se/arm_chaos_cache.py --target=l2`）：{L2 data(定向), L2 tag(F5 同 set 合法对齐 tag——CHAOSCache 加 `targetField=tag` + 找同 set 合法对齐 tag), L2 victim(hook `mem/cache/base.cc` writeback 路径), TQ 地址(F5)} × `L2 size sweep {256/512/1024 KiB}`（`kp920_proxy` 已参数化）× protection {none, secded}。kernel = `stencil_5pt`（工作集 2× L2）。
+   - **DRAM** `campaigns/pwf-v11-dram.yaml`（C2/C0，`--chaos_mem`）：{backing_byte(定向), addr_map_sub(F5, 已有), ecc_logic_fault(已有, 补 formal)} × protection {none, secded} × F2 {1,2,3-bit}。kernel = `stream_triad`（工作集 4× LLC）+ 写后立即读回 kernel。
+   - **pilot n=100 → formal n=384**（L2 data 定向 on stencil；DRAM backing_byte 定向 on stream_triad；DRAM ecc_logic_fault）。
+4. **验收断言**：**"L2/DRAM SDC 低"的结论只在工作集超 L2/LLC 的 stencil/stream 上、定向到活数据跑过才成立**；cholesky/l1d_reduce 上的 0% 明确标"负载伪影，不写进结论"（更新 report §13/§14）。L2 victim（无保护）的 `P_SDC` 预期 > L2 data。DRAM `addr_map_sub`（绕过 cache tag）在 stream_triad 上预期出现非零 SDC（对比 fwd_checksum 上的全 Masked）。
+
+**补丁数**：≈ 6–7。**机器**：健康核（stream_triad 大工作集 → 单 run 可能到 10–30s，pilot 优先）。
+
+## Phase 12 — v1.1 复现 + 报告收尾（贯穿 Phase 8–11）
+
+**Status: pending**
+
+1. **复现（集 B / NUMA node 1）**：每个进 report 的**非零 SDC 数**、以及本轮触及的对照数（L2 data 定向、DRAM addr_map_sub、FPU recurring、ROB spec_leak）在 NUMA node 1 上重跑同 manifest，结局分类一致 + P_SDC 点估计落在集 A 的 95% CI 内 → 标 "reproduced (same host, disjoint NUMA)"。不一致 → 冻结该 cell，查是 cpu179 污染共享 L3/内存控制器，还是工具非确定性。
+2. **报告收尾**：更新 `plans/microarch-fault-injection-report.md`（FPU §7 / ROB §4.2 / L2 §13 / DRAM §14 的"已修正"标注 + 位谱数据）；更新 `tools/ras_escape_analysis.py` 的逃逸分解（fpu/exec 等目前是 "? unit not in map"）。
+
+**v1.1 本轮不做（Phase 4–8，按结果再决定）**：整数执行 Exec（同 FPU 修法：CHAOSExec 加 `bitseg`+`recurring`+`f3` + `elemwise_int.c`）；IQ（`stale_plausible.c` + CHAOSIQ `tag_sub` F5 + `f3`）；PRF pilot 网格扩 formal + F3/F4 轴 + 单独排查 **ROB=160 整行掩蔽**（读 `rob.cc` / `numROBEntries=160` 与 IQ/LSQ 深度、`squashWidth` 相互作用）；BPU 返回栈/间接预测器 F5 + L1I imm/Rm/Rd/cond 字段 + sed vs secded 2-bit protection 对照；H7（PTW ECC on/off）FS formal（boot 期注入，用 `numactl` 钉健康核多核并行）。
+
+---
+
 ## 执行顺序与理由
 
 ```
-Phase 1 (工具正确性+落盘)  ← 本分支主题，1-2 天
-Phase 2 (protection 对照)  ← 改变结论级别，L1D 97.7% 没有对照组是当前最大科学缺口
-Phase 3 (网格深化)         ← 与 Phase 2 可交错（campaign 跑批时写 Phase 4 代码）
-Phase 4 (F5/F6 模式)       ← method1/2/3 对照的实质内容
-Phase 5 (FS 管线)          ← 依赖 Phase 4.4 (TLB F5)
-Phase 6 (元分析+复现)      ← 贯穿，每完成一个 Phase 更新一次
+Phase 1 (工具正确性+落盘)  ← 本分支主题，1-2 天                              ✅ complete
+Phase 2 (protection 对照)  ← 改变结论级别，L1D 97.7% 没有对照组是当前最大科学缺口  ✅ complete
+Phase 3 (网格深化)         ← 与 Phase 2 可交错（campaign 跑批时写 Phase 4 代码）    ✅ complete
+Phase 4 (F5/F6 模式)       ← method1/2/3 对照的实质内容                          ✅ complete
+Phase 5 (FS 管线)          ← 依赖 Phase 4.4 (TLB F5)                            in_progress（工具链就绪，method2 三根因闭环）
+Phase 6 (元分析+复现)      ← 贯穿，每完成一个 Phase 更新一次                       in_progress
 Phase 7 (系统级)           ← 后置
+
+--- v1.1 补救轮（首轮伪影修正，Linux 服务器 gem5-fi/，numactl 集 A=NUMA0 / 集 B=NUMA1）---
+Phase 8  (基础设施)        ← 解锁 9–11：非 hash oracle + 均匀采样 helper + 多位 ECC 档 + recurring 契约松绑
+Phase 9  (FPU)             ← 最高优先，直接与 method3 尾数 SDC（85–93%）冲突；fma_intermediate + recurring + bitseg(mant_*)
+Phase 10 (ROB spec_leak)   ← method1 核心假设，定向 kernel（X10 泄漏窗口）+ commit.cc squashAfter 定向 hook
+Phase 11 (L2/DRAM)         ← 大工作集 kernel（stencil_5pt / stream_triad）+ 定向注入，机械修负载伪影
+Phase 12 (复现+报告收尾)   ← 贯穿，集 B（NUMA1）复现 + report §7/§4.2/§13/§14 已修正标注
 ```
 
-补丁纪律：沿用 CLAUDE.md（一补丁一单元、真机自验证 100%、自动 push 到 fix/fi-tool-correctness、禁 Co-Authored-By 尾注）。campaign 跑批用后台 + 健康机（如有）。
+补丁纪律：沿用 CLAUDE.md（一补丁一单元、真机自验证 100%、自动 push 到 fix/fi-tool-correctness）。**v1.1 补救轮（Phase 8–12）遵 `gem5-fi/CLAUDE.md`**：每补丁 `numactl --cpunodebind=0 --membind=0 -- scons ... -j16`（零新增警告）→ 真机跑受影响行为贴真实输出 → `reg_chain` golden `f247ef3fe6f02cfd` 回归 → commit + push；commit 尾注 `Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>`。campaign 跑批用后台；pilot n=100 先看 Reachability + 方向，formal n=384 + 5% 重放（不一致冻结）+ Wilson 95% CI。
 
 ## Next Step
 
-Phase 3 进行中（#1–#7 网格 + 3 工具补丁已提交）。**今日新增两个重大工具修复**：comp_map 静默改道（8e01219——rob/iq formal 作废重跑中）+ campaign hang 孤儿进程泄漏（7abc72e）。当前后台队列：IQ formal 重跑（修正路由+分散采样，早期信号 Hang 主导）→ freelist mark_free formal。队列完成后：
-1. 提交 IQ/freelist formal 结果（与旧"全 Masked"对照，预期结论修正级别）。
-2. **rob formal 已完成**（真挂 CHAOSROB，384/384 Masked 有效确认）——随队列一起提交。
-3. Phase 3.4 多 workload formal 级复检（reg_chain pilots 已提交 13f4d41，方向一致）。
-4. PRF F4 stuck / F3 fault_model 轴扩展。
-5. Phase 3 收口后转 Phase 4（F5/F6 机理子模式，ROB spec_leak 优先）。
+**Phase 1–4 已收官**；**Phase 5–6 in_progress**（剩 H7 formal）；**v1.1 Phase 8 已完成**（0a–0d 四补丁 89832f6/1d2abce/878db03/c6d09e6，全部真机验收 + golden 回归；三项附带发现见 Phase 8 小节——最重要的是 **CHAOSFPU/Exec 注入点架构不可见，Phase 9 patch 1a 必须重写 PRF-dest 路径**）。
+
+下一步（**Linux 服务器** `gem5-fi/`，分支 `fix/fi-tool-correctness`，`numactl --cpunodebind=1 --membind=1`——本机内存只在 node 1）：
+
+1. **Phase 9 — FPU（最高优先，直接与 method3 冲突）**：
+   - **patch 1a（前置，Phase 8.1/8.2 新发现）**：CHAOSFPU 重写注入点为 PRF-dest 路径（hook 改 `getWritableRegOperand` 返回的 VecRegContainer / `setRegOperand→cpu->setReg` 整数路径），使 FSU 故障架构可见——这是首轮 FPU 0% SDC 的深层根因，不修则六模式全部无效。
+   - 六模式：`bitseg`（sign/exp_hi/exp_lo/mant_hi/mant_mid/mant_lo）/ `fma_intermediate`（E3 行为代理）/ `recurring_result_stuck`（Phase 8.4 契约已就绪）/ `rounding_sub` / `f3_data_dependent` / `fpsr_suppress`。
+   - `elemwise_fma_kernel.c`（输出整个 c[]，ARRAYHASH= + ULP=）+ `pwf-v11-fpu.yaml`（C2-KP，oracle fp_ulp + array_hash 兜底；uniform_sampling: true）。
+   - **验收门**：`fma_intermediate`/`bitseg(mant_*)` 位谱尾数占比 **≥ 70%**;`recurring_result_stuck` 的 P_SDC 显著高于单发 F1（若 recurring 也全 Masked 才可写"FSU 数据通路对 SDC 钝"）。
+2. **Phase 10 — ROB spec_leak**：`spec_leak_probe_kernel.c`（X10 泄漏窗口 1–2 条指令）+ commit.cc squashAfter 定向 hook（`spec_leak_arch_reg`）+ exc_suppress 真异常 kernel。
+3. **Phase 11 — L2/DRAM**：`stencil_5pt`（2× L2）/ `stream_triad`（4× LLC）+ 定向注入（targetBlockAddr / addr_start-end）。
+4. **Phase 12**：集 B（NUMA node 2/3 CPU + node 1 内存——本机 node 0 无内存）复现 + report §7/§4.2/§13/§14 标注。
+
+（并行可继续：Phase 5 H7 formal。）
