@@ -92,12 +92,27 @@ namespace gem5
         OpClass oc = dyn_inst->opClass();
         if (!isFpOpClass(oc)) return false;
 
+        // v1.1 Phase 9 patch 1a-0: with the PRF-dest rewrite the corruptible
+        // stream is 'inst has an FP/vector destination register' — checkable
+        // directly from the dest-reg list (no InstResult involved).
+        bool has_fp_dest = false;
+        for (int i = 0; i < dyn_inst->numDestRegs(); i++) {
+            PhysRegIdPtr d = dyn_inst->renamedDestIdx(i);
+            if (d && !d->is(InvalidRegClass) &&
+                (d->classValue() == VecRegClass ||
+                 d->classValue() == FloatRegClass ||
+                 d->classValue() == VecElemClass)) {
+                has_fp_dest = true;
+                break;
+            }
+        }
+
         // v1.1 Phase 8.2 countOnlyMode: count only CORRUPTIBLE eligible
-        // events (an empty/invalid InstResult can never take the fault);
-        // never corrupt. This makes the counted stream identical to the
-        // stream the fixed-skip draw indexes into.
+        // events (no FP/vector dest = can never take the fault); never
+        // corrupt. The counted stream is identical to the stream the
+        // fixed-skip draw indexes into.
         if (count_only) {
-            if (dyn_inst->hasCorruptibleResult()) ++eligible_count;
+            if (has_fp_dest) ++eligible_count;
             return false;
         }
 
@@ -105,7 +120,7 @@ namespace gem5
         // corruptible events so skip indexes the same stream countOnly
         // counted. Legacy geometric mode keeps the old consume-on-eligible
         // behavior (byte-identical replays for existing campaigns).
-        if (fixed_skip_mode && !dyn_inst->hasCorruptibleResult()) return false;
+        if (fixed_skip_mode && !has_fp_dest) return false;
 
         // Sampling-bias fix (findings.md Phase 3.0): skip the first N
         // eligible events (N ~ geometric(0.1) from the seed) so the
@@ -118,13 +133,46 @@ namespace gem5
         std::uniform_real_distribution<float> pd(0.0f, 1.0f);
         if (pd(rng) > probability) return false;
 
-        // Corrupt the FP result: try blob path first (vector/FP stored as
-        // blob), then scalar RegVal path (FP64 may be stored as a uint64
-        // scalar — AArch64 FP registers are regBytes()=8, scalar).
+        // v1.1 Phase 9 patch 1a-0 — PRF-DEST REWRITE. The old path XORed
+        // the DynInst::instResult queue, whose ONLY consumer is the checker
+        // CPU (checker=Null in every CHAOS config) — FP/SIMD results reach
+        // the PRF via getWritableRegOperand (a direct PRF pointer used
+        // DURING staticInst->execute()) and never touch instResult, so the
+        // fault was architecturally INVISIBLE (Phase 8.1/8.2 root-cause:
+        // 6637 opClass-eligible events on cholesky, only 32 with any
+        // InstResult, zero effect on the checksum).
+        // Now: XOR the physical destination register's PRF storage directly,
+        // post-execute (the value is already written there). VecRegClass
+        // (all AArch64 FP/SIMD registers) via the writable PRF pointer;
+        // scalar classes via getReg/setReg.
         RegVal mask = fault_mask ? fault_mask : (1ULL << (rng() % 64));
-        bool ok = dyn_inst->corruptFrontResultBlob((uint64_t)mask);
-        if (!ok) ok = dyn_inst->corruptFrontResult(mask);  // scalar path
-        if (!ok) return false;  // no recorded result (RecordResult flag off)
+        bool ok = false;
+        auto *o3cpu = dynamic_cast<o3::CPU *>(cpu);
+        for (int i = 0; i < dyn_inst->numDestRegs() && !ok; i++) {
+            PhysRegIdPtr dest = dyn_inst->renamedDestIdx(i);
+            if (!dest || dest->is(InvalidRegClass)) continue;
+            switch (dest->classValue()) {
+              case VecRegClass: {
+                // XOR the low 8 bytes of the vector register's PRF blob.
+                void *vp = o3cpu->getWritableReg(dest, dyn_inst->threadNumber);
+                if (!vp) break;
+                uint64_t *q = reinterpret_cast<uint64_t*>(vp);
+                *q ^= (uint64_t)mask;
+                ok = true;
+                break;
+              }
+              case FloatRegClass:
+              case VecElemClass: {
+                RegVal v = o3cpu->getReg(dest, dyn_inst->threadNumber);
+                o3cpu->setReg(dest, v ^ mask, dyn_inst->threadNumber);
+                ok = true;
+                break;
+              }
+              default:
+                break;  // int/cond/misc dests are CHAOSExec's scope
+            }
+        }
+        if (!ok) return false;  // no FP/vector dest register on this inst
         faults_injected_count++;
         if (write_log) {
             *(log_stream->stream()) << "Tick: " << curTick()
