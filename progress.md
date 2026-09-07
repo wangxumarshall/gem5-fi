@@ -2230,3 +2230,17 @@ method2 三根因的定量闭环补最后两臂（AGU 臂已完成 100% DUE）�
 **Phase 9 验收(task_plan 原文)全过**:✅ fma_intermediate/bitseg(mant_*) 位谱尾数占比 **80% ≥ 70%**(30-seed 落地谱)——method3 方向复现;✅ recurring P_SDC ≥ 单发(elemwise 上平顶 100%,cholesky 上 6628 发 vs 单发 2/4 SDC 的对比更强);✅ 首轮"FPU 0% SDC"作废原因已写 findings(死路径 instResult + 归约负载,非 FSU 性质)。**结论修正:FPU/FSU 数据通路对 SDC 高度敏感(逐元素消费负载下单 bit 即 SDC ~100%)——首轮 0% 是注入点不可见 + 负载归约双重伪影。**
 
 **诚实边界**:① 单发/recurring 在 elemwise_fma 上平顶(每元素被 ARRAYHASH 读回,无掩蔽机会)——SDC/DUE 结构对比需要 cholesky 级归约负载,formal 轮补;② fpsr_suppress 是 E3 占位(SE 无 MRS);③ fma_intermediate 是行为代理(功能模型无微结构中间点)。
+
+### v1.1 Phase 10 完成（2026-09-08，补丁 870d7a0/a09289b/1c21ab7 + specleak pilot）: ROB spec_leak 伪影修正 — method1 泄漏真机复现
+
+**2a spec_leak_probe_kernel**(870d7a0):LCG 硬币分支 + X10 钉死(register asm)+ wrong-path 写差 0x5A5A.. 常数 + ELEMDIFF 自检泄漏。native==gem5 clean(n=0)。
+
+**2b 定向触发验证**(a09289b)——**两次 kernel 设计迭代被真机 Rename trace 诊断**:
+- v1: right path 也定义 X10 → 正确路径定义覆盖泄漏值(泄漏架构不可达,n=0 但 suppress 在打)。
+- v2: 循环内 baseline 重置 → 下一迭代擦除。
+- v3: baseline 移出循环,**循环内唯一 X10 writer 是 wrong-path**,right path 只消费——disasm 验证。
+- **触发窗口**:fc=5000 落在 libc 启动 squash(被抑制的 X10 回滚是 libc 写者,PC 0x444584);循环 squash 需要 fc=25000——trace 定位。
+
+**核心结果**:X10 定向 spec_leak,20 seeds → **3 泄漏(15%),每次 ELEMDIFF n=1**(一个元素带 0x5A5A.. 泄漏签名)。campaign pilot(n=100,per_element_diff oracle):**P_SDC=14.0% [8.4,22.5],Reach=93.0% [86.3,96.6]>90% 验收门,零 frozen**。**首轮"ROB spec_leak 阴性"修正为阳性:泄漏真实存在,窗口几何决定转化率(~14-15%/抑制事件)。** 阴性对照:X9/X3 定向臂全 n=0(kernel 只钉 X10)——**泄漏可见性=被抑制写有无正确路径消费者**(与 Phase 4 LSQFwd 消费者身份定律同构)。
+
+**2c 诚实边界**(1c21ab7):divzero_loop_kernel 真机验证 **AArch64 整数除零是架构静默语义**(udiv x/0=0,无 SIGFPE;非对齐 LDP 在 SCTLR.A=0 同样不 trap)——计划的 DUE→SDC 转化探针假设基于 x86。**ARM64 SE 无"可恢复真异常"载体**(gem5 SE 的 arch trap 均不可恢复),exc_suppress 该维度的实验面在 ARM SE 诚实穷尽(357/357 Masked + 本发现),入 findings。

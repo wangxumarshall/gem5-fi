@@ -173,7 +173,12 @@ CHAOSCHI/CHAOSNoC pilot 已能触发（7c854bb/7582e8c，未提交的 ruby test 
 
 ## Phase 10 — v1.1/P2：ROB spec_leak（method1 核心假设，把"实验失败"变成真结果）
 
-**Status: pending**（依赖 Phase 8 的 `per_element_diff` oracle）
+**Status: complete（2026-09-08，2a/2b/2c + pilot 全过验收门）**
+
+1. ✅ **2a spec_leak_probe_kernel**（870d7a0）：X10 泄漏窗口探针(v3 设计,经两次真机 trace 诊断迭代——泄漏值须无正确路径写者覆盖)。native==gem5 clean。
+2. ✅ **2b 定向触发**（a09289b）：X10 spec_leak fc=25000,20 seeds 3 泄漏(15%);campaign pilot n=100:**P_SDC=14.0% [8.4,22.5],Reach=93%>90% 验收门,零 frozen**。首轮阴性修正为阳性:泄漏真实,窗口几何定转化率。X9/X3 阴性对照:泄漏可见性=消费者身份定律。
+3. ✅ **2c 诚实边界**（1c21ab7）：AArch64 整数除零=架构静默(udiv x/0=0);ARM64 SE 无可恢复真异常载体,exc_suppress DUE→SDC 实验面在 ARM SE 诚实穷尽。
+4. ⏳ formal 轮(n=384 × X10/X9/X3 × ROB 深度)排深度策略。
 
 1. **新 kernel `spec_leak_probe_kernel.c`**（2a，`workloads/directed/`）：`data[]` 随机 → 难预测分支（`data[i] & 1`）→ 大量 squash；只在"跳"路径写目标架构寄存器（约束成 X10）；`t` 每轮重定义、定义后 1–2 条指令内被 `consume(t)` 读回（泄漏窗口 1–2 条指令）；`wrong_path_value` 与 `right_path_value` 差一个大常数（泄漏一眼可辨）；输出整个 `out[]`，`per_element_diff` oracle。用内联汇编或 `register ... asm("x10")` 把 `t` 钉到 X10。
 2. **CHAOSROB `spec_leak` 改为定向**（2b，`src/cpu/o3/CHAOSROB/CHAOSROB.{py,hh,cc}` + gem5 新 hook，2–3 补丁）：新增 hook 到 `cpu/o3/commit.cc` 的 `Commit::squashAfter()`（或 `Rename::doSquash` / `RenameMap` restore 路径）。`spec_leak` 不再"随机挑一个错误路径 μop 不回滚"，而是**定位"错误路径上写目标架构寄存器 `--spec_leak_arch_reg`（默认 X10=10）的那条 μop"，只对它跳过 rename-map restore**（保留其 PRF 写）。参数 `spec_leak_arch_reg`（Int，默认 10）。
