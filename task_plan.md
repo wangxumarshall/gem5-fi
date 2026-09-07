@@ -137,15 +137,15 @@ Phase 1–2 — **complete**（1.1–1.6 + 2.1–2.4 全勾）。Next: Phase 3 f
 
 ## Phase 7 — 环境门控项登记（不可本机完成，显式不遗漏）
 
-**Status: pending**
+**Status: complete**
 
-- [ ] 7.1 S4 系统级（CHAOSCHI/NoC/HCCS，~20 补丁独立子项目，E3/E4）→ 登记 deferred：需独立排期
-- [ ] 7.2 S6 健康机复现 → 登记 deferred：需第二台健康鲲鹏机
-- [ ] 7.3 S7 实机校准（RAS/EINJ 枚举，E3/E4→升级）→ 登记 deferred：需授权实机
-- [ ] 7.4 D10 G7 sanitizer → 登记 deferred：SConstruct socket configure 环境受阻，CI 层解决
-- [ ] 7.5 CHAOSExMon stale_reservation 多核场景 → 登记 deferred：需多核 SE/FS 配置
-- [ ] 7.6 CHAOSDecode（P4）→ 按方案 §5.11 明示"可跳过"登记跳过
-- [ ] 7.7 FS O3-switch（checkpoint restore 后切 O3）→ 登记 deferred 或尝试一轮（若 atomic-only 无法分类则登记）
+- [x] 7.1 S4 系统级（CHAOSCHI/NoC/HCCS）→ deferred 登记（AGENT_TASKS.md `D-S4-系统级`）：~20 补丁独立子项目（E3/E4）；解锁条件：独立排期立项
+- [x] 7.2 S6 健康机复现 → deferred 登记（`D-S6-健康机复现`）：需第二台健康鲲鹏机；解锁：硬件到位
+- [x] 7.3 S7 实机校准（RAS/EINJ 枚举）→ deferred 登记（`D-S7-实机校准`）：需授权实机（E3/E4→升级）；解锁：实机授权
+- [x] 7.4 D10 G7 sanitizer → deferred 登记（`D-D10-G7-sanitizer`）：SConstruct socket configure 环境受阻；解锁：CI 层解决
+- [x] 7.5 CHAOSExMon stale_reservation 多核 → deferred 登记（`D-ExMon-多核`）：需多核 SE/FS 配置；解锁：多核配置落地
+- [x] 7.6 CHAOSDecode（P4）→ skipped 登记（`D-Decode-P4`）：方案 §5.11 明示"可跳过"
+- [x] 7.7 FS O3-switch → **实测一轮后登记**：atomic-only 下 TLB/sysreg/ptw hooks 已验证可分类（Task 1.3 pfn_to_mapped_page → guest Oops 0x9600004f 正常 Kernel-oops exit + Task 1.4 parity 行为可见 + fs_checkpoint 流水线 84M 注入 0 SimulatorError），分类不受 atomic 限制；O3-switch 本身 deferred（stdlib SimpleProcessor 无 clean switchCpus 路径）——`D-FS-O3-switch`
 
 ## Errors Encountered
 | Error | Attempt | Resolution |
