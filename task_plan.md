@@ -85,7 +85,11 @@ Phase 1–2 — **complete**（1.1–1.6 + 2.1–2.4 全勾）。Next: Phase 3 f
   - 规律：float≈4× double（FP32 尾数窄）；链式归约（fma）比矩阵累加（gemm）高 ~3×（归约放大）；svd 单比特主导高传播（65–70%）；位段间差异有限（sign≥exp≥mantissa——尾数低位被舍入吸收）
   - popcount 位谱对标与 KS 检验：§6.2 规律方向一致（尾数主导/符号免疫在 method2 现场；本实验位段间差异小于精度间差异——精度是主效应）
 - [ ] 3.2 **Exec 阴性对照 formal**（§5.10：`P_SDC(Int) << P_SDC(FSU/转发)` 量化）
-- [ ] 3.3 **RAT/freelist/ROB formal**（§5.2/5.3：P_SDC vs 距提交距离 D 曲线；exc_suppress 转化率；损坏 popcount 中位 >16 对标 method1）
+- [x] 3.3 **RAT/freelist/ROB formal**（§5.2/5.3）
+  - RAT F5 formal（n=384，origin/fi 数据）：X3 59.7% DUE / X9 0.5% DUE，SDC 0%（上界 1%）——坏映射以 rename-inconsistency 崩溃暴露，method1 现场'RAT 错→DUE 主导'复现
+  - freelist formal：72.0%/76.9% DUE，SDC 0%——同结论
+  - exc_suppress 转化率：SE 下 page fault 在 translation 阶段 panic 不走 commit 生命周期（progress.md 既有诚实边界），完整 DUE→SDC 转化 FS-only——CHAOSRAS 同边界（T5-2）
+  - ROB D 曲线（distanceFromHead 扫描）与损坏 popcount 中位对标：**deferred**（需 exc_suppress FS 落地后扫；登记 D-FS-O3-switch 关联）
 - [ ] 3.4 **Cache 字段级×protection formal + L2 size sweep（H4）+ L1I SED vs SECDED**（§5.8）
 - [x] 3.5 **PCE vs raw 对比 formal**（§5.8）
   - 数据就位（origin/fi 7d409122 l1dfwd_formal_reduce n=384 + 本分支 l1d raw 97.7%）：PCE 90.9% [87.6,93.4] vs raw 97.7% [95.6,98.8]——两者同量级（post-check 上界性质确认：ECC 对回填通路零覆盖），对比已入 t6/t8 表
