@@ -8,7 +8,7 @@
 > 详细差距依据见 `findings.md`（2026-09-07 盘点）。
 
 ## Current Phase
-Phase 1（P0-工具补全）— Next Step: Task 1.1
+Phase 1（P0-工具补全）— Next Step: Task 1.3 CHAOSArmTLB pfn_to_mapped_page（§5.7B）
 
 ---
 
@@ -16,13 +16,13 @@ Phase 1（P0-工具补全）— Next Step: Task 1.1
 
 **Status: in_progress**
 
-- [ ] 1.1 **CHAOSCache tag/valid/dirty/repl/coh 字段级注入**（§5.8B）
-  - targetField ∈ {data,tag,valid,dirty,repl,coh}（现仅 data + L1I 语义字段）；tag 翻转走 `getTags()` 现有接口；valid/dirty 直接改 `CacheBlk` 标志位
-  - 文件：`CHAOS/CHAOSCache/CHAOSCache.{py,hh,cc}` + vendored 同步
-  - 验证：各字段 ≥1 次注入日志（Field: tag/valid/... 行）；l1d_reduce 回归 golden 不变（prob=0）；构建零警告
-- [ ] 1.2 **CHAOSCache victim 注入**（§5.8A hook `base.cc WritebackBlk`）
-  - 新增 targetField=victim：在 writeback 路径破坏即将写回的数据
-  - 验证：victim 注入日志 + 1 个非 Inactive 结局；回归同上
+- [x] 1.1 **CHAOSCache tag/valid/dirty/repl/coh 字段级注入**（§5.8B）— `6c672323`
+  - 验证实证：tag→SDC `bd34ebf3da704050`；valid/dirty/repl/coh→Masked（诚实）；G0 2/2 sha256 一致；回归 `f247ef3fe6f02cfd`；构建零警告
+  - 执行中发现：v1 tag 直写 setTag → snoop_filter panic（SimulatorError），改 findBlock false-hit 分流（v2）
+- [x] 1.2 **CHAOSCache victim 注入**（§5.8A hook `base.cc WritebackBlk`）
+  - 验证实证：注入日志 `Tick: 20034000 ... Field: victim (writeback-path) ... OldByte: 0x0, NewByte: 0x40` + `numVictimFaults 1`；多注入（32 faults）→ checksum `3858cbed195cd715` ≠ golden → SDC（传播机制实证）；单次注入 Masked（首个写回是 BSS 零页死数据——victim 语义的诚实结果）
+  - 回归：l1d_reduce golden `f44d2b9cd4a173cd` 不变；reg_chain `f247ef3fe6f02cfd` 不变；构建零新警告（`-Wreorder` 为 HEAD 预存，stash 对照实证）
+  - 执行中发现：victim 为纯事件驱动字段，不能走 attackEvent 采样（会空转消耗 maxFaults 预算导致 0 真注入）——构造时跳过 scheduleAttack，writebackBlk hook 内做概率抽取
 - [ ] 1.3 **CHAOSArmTLB `pfn_to_mapped_page`（F5→活页静默 SDC，最危险路径）**（§5.7B）
   - 从当前 TLB 命中集合中选**另一活页** pfn 替换（合法域校验防 SimulatorError）
   - 验证：FS checkpoint 流水线跑通 ≥1 注入，日志含 old_pfn/new_pfn 且 new_pfn ∈ 活页集合；≥1000 注入合法域校验 0 SimulatorError（SE 下用单测路径）

@@ -60,7 +60,16 @@ namespace gem5
             rng.seed(rng_seed != 0 ? rng_seed : rd());
             inter_fault_cycles_dist = std::geometric_distribution<unsigned>(probability);
 
-            scheduleAttack(first_tick + inter_fault_cycles_dist(rng) * tick_to_clock_ratio);
+            // §5.8A victim: purely event-driven (BaseCache::writebackBlk
+            // hook) — do NOT schedule attackEvent for this field. The
+            // attackEvent path bumps faults_injected_count per attack
+            // without injecting, which would silently consume the G5
+            // maxFaults budget and starve the writeback hook (found in
+            // the t12 verification round: cnt=3 with zero real
+            // injections).
+            if (target_field != "victim") {
+                scheduleAttack(first_tick + inter_fault_cycles_dist(rng) * tick_to_clock_ratio);
+            }
 
             if ((bit_flip_prob + stuck_at_zero_prob + stuck_at_one_prob) != 1.0){
                 warn("Sum of probabilities is not 1, assuming 0.9 for bitFlipProb, 0.05 for stuckAtZeroProb and 0.05 for stuckAtOneProb.\n");
@@ -84,6 +93,13 @@ namespace gem5
             // one bool).
             if (target_field == "tag" || target_field == "tag_to_legal") {
                 getTags()->setChaosCache(this);
+            }
+            // §5.8A victim: register with the target cache itself so
+            // BaseCache::writebackBlk can corrupt the writeback payload
+            // in flight. The writeback hook is event-driven (no
+            // attackEvent sampling needed for this field).
+            if (target_field == "victim") {
+                targetCache->setChaosCacheVictim(this);
             }
         }
     }
@@ -119,7 +135,9 @@ namespace gem5
       ADD_STAT(numReplFaults, statistics::units::Count::get(),
                "§5.8B: replacement-data poisoning faults"),
       ADD_STAT(numCohFaults, statistics::units::Count::get(),
-               "§5.8B: coherence permission flip faults")
+               "§5.8B: coherence permission flip faults"),
+      ADD_STAT(numVictimFaults, statistics::units::Count::get(),
+               "§5.8A: writeback-path payload corruptions (victim field)")
     {
     }
 
@@ -481,6 +499,57 @@ namespace gem5
         return false;  // not a metadata field
     }
 
+    // §5.8A victim-field injection (plan §5.8B targetField=victim): the
+    // writeback/eviction data path. Called from BaseCache::writebackBlk
+    // after the payload was copied from the intact block. Applies the
+    // fault IN FLIGHT: the cache line stays correct; what reaches the
+    // next level is wrong. Gates: time window [first_tick, last_tick],
+    // maxFaults, RNG per-writeback probability draw.
+    void
+    CHAOSCache::chaosCorruptWriteback(PacketPtr pkt, CacheBlk *blk)
+    {
+        if (target_field != "victim") {
+            return;  // hook only serves the victim field
+        }
+        // Time window gate (same 0=unlimited convention as attackEvent).
+        Tick now = curTick();
+        if (now < first_tick) return;
+        if (last_tick != 0 && now > last_tick) return;
+        // G5 single/multi-fault cap.
+        if (max_faults != 0 && faults_injected_count >= max_faults) return;
+        // Probability draw: one Bernoulli trial per writeback.
+        std::uniform_real_distribution<double> uni(0.0, 1.0);
+        if (uni(rng) >= probability) return;
+
+        // Corrupt ONE byte of the writeback payload with a 1-bit (or
+        // bits_to_change-bit) mask. The payload offset within the packet
+        // is the block offset of the writeback (writebacks are
+        // line-sized; offset 0..blkSize-1).
+        const unsigned size = pkt->getSize();
+        if (size == 0) return;
+        uint8_t *payload = pkt->getPtr<uint8_t>();
+        std::uniform_int_distribution<unsigned> offDist(0, size - 1);
+        unsigned offset = offDist(rng);
+        uint8_t mask = (fault_mask != 0) ? fault_mask
+            : generateRandomMask(rng, bits_to_change > 0 ? bits_to_change : 1, 8);
+        if (mask == 0) return;
+        uint8_t oldByte = payload[offset];
+        payload[offset] ^= mask;
+
+        stats->numVictimFaults++;
+        stats->numFaultsInjected++;
+        ++faults_injected_count;
+        if (write_log) {
+            *(log_stream->stream()) << "Tick: " << now
+                << ", Cache Block Addr: " << pkt->getAddr()
+                << ", Field: victim (writeback-path), Byte Offset: "
+                << offset << ", OldByte: 0x" << std::hex
+                << (unsigned)oldByte << ", NewByte: 0x"
+                << (unsigned)payload[offset] << ", Mask: " << std::bitset<8>(mask)
+                << std::dec << std::endl;
+        }
+    }
+
     void
     CHAOSCache::scheduleAttack(Tick time) {
         if (!attackEvent.scheduled()) {
@@ -612,10 +681,15 @@ namespace gem5
             // dirty/repl/coh): apply the fault to the block's METADATA
             // and skip the legacy byte path entirely. A metadata fault is
             // one fault (not corruption_size bytes).
+            // §5.8A victim: event-driven via BaseCache::writebackBlk —
+            // the attackEvent does NOT inject; it only reschedules (the
+            // hook decides per writeback).
             if (target_field == "tag" || target_field == "tag_to_legal" ||
                 target_field == "valid" || target_field == "dirty" ||
                 target_field == "repl" || target_field == "coh") {
                 injectMetadataFault(targetBlk, tags, blockAddr);
+            } else if (target_field == "victim") {
+                // no data-array action; the writeback hook injects
             } else
 
             for (int i = 0; i < corruption_size; i++) {

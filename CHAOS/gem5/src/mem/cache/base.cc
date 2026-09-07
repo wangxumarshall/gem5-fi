@@ -45,6 +45,8 @@
 
 #include "mem/cache/base.hh"
 
+#include "mem/cache/CHAOSCache/CHAOSCache.hh"
+
 #include "base/compiler.hh"
 #include "base/logging.hh"
 #include "debug/Cache.hh"
@@ -1792,6 +1794,15 @@ BaseCache::writebackBlk(CacheBlk *blk)
 
     pkt->allocate();
     pkt->setDataFromBlock(blk->data, blkSize);
+
+    // CHAOS §5.8A victim-field injection: corrupt the writeback payload
+    // AFTER the data was copied from the (intact) block — models a fault
+    // in the writeback/eviction data path (the line in the cache is
+    // fine; what goes DOWN is wrong). Hot path: no injector -> identical
+    // to upstream.
+    if (chaosCacheVictim) {
+        chaosCacheVictim->chaosCorruptWriteback(pkt, blk);
+    }
 
     // When a block is compressed, it must first be decompressed before being
     // sent for writeback.

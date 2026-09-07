@@ -50,6 +50,16 @@ class CHAOSCache : public SimObject
         const std::vector<ReplaceableEntry*> &entries,
         const CacheBlk::KeyType &key) const;
 
+    // §5.8A victim-field injection: called from BaseCache::writebackBlk
+    // AFTER pkt->setDataFromBlock copied the block's (intact) data —
+    // corrupts the writeback payload IN FLIGHT. Models a fault in the
+    // eviction/writeback data path: the cache line is fine, the data
+    // that goes DOWN to the next level is wrong (a victim-path fault
+    // invisible to data-array or tag injectors). Respects the
+    // probability/firstClock/lastClock/maxFaults gates; logs old/new
+    // bytes + the block address to cache_injections.log.
+    void chaosCorruptWriteback(PacketPtr pkt, CacheBlk *blk);
+
   private:
     // False-hit alias state: {set, victim way, alias way}. A single alias
     // is registered per injection (single-fault discipline, G5). The
@@ -167,6 +177,7 @@ class CHAOSCache : public SimObject
       statistics::Scalar numDirtyFaults;           // dirty-bit flip (silent loss)
       statistics::Scalar numReplFaults;            // replacement-data poisoning
       statistics::Scalar numCohFaults;             // coherence permission flip
+      statistics::Scalar numVictimFaults;          // writeback-path payload corruption
 
       CHAOSCacheStats(statistics::Group *parent);
     };

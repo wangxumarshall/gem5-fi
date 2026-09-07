@@ -103,6 +103,17 @@ struct BaseCacheParams;
 class BaseCache : public ClockedObject
 {
   protected:
+    // CHAOS §5.8A victim-path injector (see base.cc writebackBlk). A
+    // pointer to avoid a header cycle; the injector registers itself in
+    // its constructor via the public setter below (G3 narrow-accessor
+    // pattern, same as Cache::getTags). Hot path checks one pointer.
+    class CHAOSCache *chaosCacheVictim = nullptr;
+
+  public:
+    /** CHAOS fault-injection support (§5.8A victim field). */
+    void setChaosCacheVictim(class CHAOSCache *c) { chaosCacheVictim = c; }
+
+  protected:
     /**
      * Indexes to enumerate the MSHR queues.
      */

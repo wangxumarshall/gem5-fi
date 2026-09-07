@@ -67,5 +67,10 @@ class CHAOSCache(SimObject):
         "poison the block's replacement data so the RP picks a hot line as "
         "victim (premature eviction of live data). | coh — flip a coherence "
         "permission bit (Writable/Readable: a hit may be denied or a write "
-        "assert — loud vs silent contrast).")
+        "assert — loud vs silent contrast). "
+        "| victim — §5.8A: corrupt the writeback payload IN FLIGHT after it "
+        "was copied from the intact block (eviction data-path fault: the "
+        "cache line is fine, the data that goes DOWN is wrong; event-driven "
+        "via the BaseCache::writebackBlk hook, gates probability/firstClock/"
+        "lastClock/maxFaults).")
     writeLog = Param.Bool(True, "Write a log file")
