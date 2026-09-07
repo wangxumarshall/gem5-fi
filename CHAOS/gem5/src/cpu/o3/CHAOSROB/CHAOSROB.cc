@@ -35,6 +35,7 @@ namespace gem5
           inter_fault_cycles_dist(probability),
           log_stream(nullptr),
           attackEvent([this] { this->attackCheck(); }, name()),
+          readTraceEvent([this] { this->readTraceCheck(); }, name() + ".readTrace"),
           stats(nullptr)
     {
         if (!cpu) {
@@ -141,6 +142,7 @@ namespace gem5
             ++faults_injected_count;
             writeLog("entry_bitflip", tid, old_seq, old_seq, head->seqNum,
                      had_fault, false);
+            armReadTrace(head);
         } else if (fi_mode == Mode::ExcSuppress) {
             // Clear the head DynInst's fault if it has one (DUE -> SDC: the
             // trap that should signal a loud error is silenced). getFault()&
@@ -163,11 +165,99 @@ namespace gem5
             stats->numFaultsInjected++;
             ++faults_injected_count;
             writeLog("exc_suppress", tid, seq, seq, seq, true, true);
+            armReadTrace(head);
         } else if (fi_mode == Mode::SpecLeak) {
             // spec_leak is now driven by Rename::doSquash's maybeDelayFree
             // hook (constructor registered us on Rename). Nothing to do
             // here — the attackEvent only services entry_bitflip/exc_suppress.
             return;
+        }
+    }
+
+    // §4.3/§6.3 H3 read-trace: arm the physRegFile read counter on the
+    // corrupted head DynInst's FIRST renamed dest physReg (if any). The
+    // counter answers "how many times was the corrupted entry's result
+    // consumed downstream" — the cross-unit consistency evidence (H3):
+    // an exc_suppress/entry_bitflip fault with reads>0 actually entered
+    // the data path; reads==0 means the corruption was fully masked.
+    void
+    CHAOSROB::armReadTrace(const o3::DynInstPtr &inst)
+    {
+        if (!inst) return;
+        // First renameable dest (CC/misc dests may not be renameable; walk
+        // until a renameable one with a valid physReg). The ROB head is
+        // often a store/branch with NO renameable dest — then the trace
+        // honestly declines (logged), because the corrupted entry has no
+        // PRF slot to count reads on.
+        for (size_t i = 0; i < inst->numDestRegs(); ++i) {
+            PhysRegIdPtr dest = inst->renamedDestIdx(i);
+            if (!dest) continue;
+            const RegClassType cls = dest->classValue();
+            if (cls != IntRegClass && cls != FloatRegClass) continue;
+            traced_phys_idx = dest->index();
+            cpu->physRegFile().setReadTraceTarget(cls, traced_phys_idx);
+            if (!readTraceEvent.scheduled()) {
+                // First poll VERY soon (50 cycles): a corrupted seqNum
+                // often aborts the sim within a few hundred cycles of the
+                // injection (observed: inject @cycle 5000, abort @cycle
+                // ~5096) — a 1000-cycle first poll would never fire
+                // before the abort. Subsequent polls use the 100k cadence.
+                schedule(readTraceEvent, cpu->clockEdge(Cycles(50)));
+            }
+            if (write_log) {
+                *(log_stream->stream())
+                    << "ReadTraceArm: ROB-corrupted head dest PhysReg["
+                    << traced_phys_idx << "] (class " << (int)cls << ")"
+                    << std::endl;
+            }
+            return;
+        }
+        if (write_log) {
+            *(log_stream->stream())
+                << "ReadTraceArm: declined (ROB head seq has no renameable "
+                "int/float dest — nothing to count reads on)"
+                << std::endl;
+        }
+    }
+
+    void
+    CHAOSROB::readTraceCheck()
+    {
+        // Poll the physRegFile read counter for the corrupted entry's dest
+        // physReg (same polling pattern as CHAOSPhysReg: every 100k cycles
+        // until all threads halt, then a ReadTraceFinal line).
+        bool any_active = false;
+        for (ThreadID tid = 0; tid < cpu->numThreads; ++tid) {
+            gem5::ThreadContext *thread_context = cpu->getContext(tid);
+            if (thread_context && thread_context->status() != ThreadContext::Halted) {
+                any_active = true; break;
+            }
+        }
+        if (write_log) {
+            *(log_stream->stream())
+                << "ReadTracePoll: cycle " << cpu->curCycle()
+                << " ROB-corrupted dest PhysReg[" << traced_phys_idx
+                << "] reads_before_overwrite="
+                << cpu->physRegFile().getReadsBeforeOverwrite()
+                << std::endl;
+        }
+        if (any_active) {
+            // SE workloads are SHORT (dep_chain ~13k cycles): a 100k
+            // cadence gives ONE poll then the sim ends (Final never
+            // fires, last count unseen). 5000 cycles keeps a handful of
+            // polls on short kernels and still ~zero overhead.
+            schedule(readTraceEvent, cpu->clockEdge(Cycles(5000)));
+        } else {
+            if (write_log) {
+                *(log_stream->stream())
+                    << "ReadTraceFinal: ROB-corrupted dest PhysReg["
+                    << traced_phys_idx << "] reads_before_overwrite="
+                    << cpu->physRegFile().getReadsBeforeOverwrite()
+                    << " (workload halted)"
+                    << std::endl;
+            }
+            cpu->physRegFile().clearReadTraceTarget();
+            traced_phys_idx = -1;
         }
     }
 

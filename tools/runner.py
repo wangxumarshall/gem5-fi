@@ -232,6 +232,15 @@ def main():
         cmd += ["--chaos_freelist"]
         if idx is not None:
             cmd += [f"--freelist_target_phys={idx}"]
+    elif comp == "rob":
+        # §5.3: CHAOSROB (exc_suppress DUE->SDC / entry_bitflip seqNum /
+        # spec_leak). fault.model maps to --rob_mode when it names a mode
+        # explicitly; default entry_bitflip.
+        cmd += ["--chaos_rob"]
+        rob_mode = inj.get("rob_mode", "entry_bitflip")
+        cmd += [f"--rob_mode={rob_mode}"]
+        if tgt.get("semantic_role"):
+            cmd += [f"--rob_semantic_role={tgt['semantic_role']}"]
     elif comp == "lsq_fwd":
         # S0-2 v2: CHAOSLSQFwd. protection_model not applicable here (data path);
         # f6_phase_offset -> --lsq_phase_offset (when implemented).
@@ -317,6 +326,7 @@ def main():
     faults = 0
     for logname in ("fault_injections.log","main_mem_injections.log",
                     "cache_injections.log","rat_injections.log",
+                    "rob_injections.log",
                     "freelist_injections.log","lsq_fwd_injections.log",
                     "addr_path_injections.log","ptw_injections.log",
                     "armtlb_injections.log","arm_sysreg_injections.log"):
@@ -381,12 +391,20 @@ def main():
     # ReadTraceFinal lines carrying reads_before_overwrite. The Final line
     # only prints if a poll lands after workload halt — the LAST Poll line
     # carries the same counters, so parse whichever came last.
+    # §4.3 H3: CHAOSRenameMap/CHAOSROB now emit the same lines (consumers
+    # of the corrupted mapping / corrupted entry's dest) — parse rat/rob
+    # logs with the identical regex.
     reads_before_overwrite = -1   # -1 = no read-trace (non-physreg runs)
-    if comp == "physreg" and outdir:
-        rt_log = os.path.join(outdir, "fault_injections.log")
-        if os.path.exists(rt_log):
+    if comp in ("physreg", "rat", "rob") and outdir:
+        rt_log = {
+            "physreg": "fault_injections.log",
+            "rat": "rat_injections.log",
+            "rob": "rob_injections.log",
+        }[comp]
+        rt_path = os.path.join(outdir, rt_log)
+        if os.path.exists(rt_path):
             import re as _re
-            with open(rt_log) as lf:
+            with open(rt_path) as lf:
                 for line in lf:
                     mrt = _re.search(r"ReadTrace(?:Poll|Final):.*?"
                                      r"reads_before_overwrite=(\d+)", line)

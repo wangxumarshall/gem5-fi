@@ -9,6 +9,7 @@
 #include "base/statistics.hh"
 #include "base/types.hh"
 #include "cpu/reg_class.hh"  // PhysRegIdPtr (S6-4 spec_leak)
+#include "cpu/o3/dyn_inst_ptr.hh"  // DynInstPtr (§4.3 read-trace arming)
 #include "params/CHAOSROB.hh"
 #include "sim/sim_object.hh"
 #include "sim/eventq.hh"  // Cycles, EventFunctionWrapper
@@ -67,9 +68,18 @@ class CHAOSROB : public SimObject
     OutputStream *log_stream;
 
     EventFunctionWrapper attackEvent;
+    // §4.3/§6.3 H3 read-trace: after entry_bitflip/exc_suppress, poll the
+    // physRegFile read counter for the head DynInst's dest physReg (the
+    // consumer count of the corrupted-entry value).
+    EventFunctionWrapper readTraceEvent;
     void scheduleAttackEvent(Cycles delay);
     void attackCheck();
     void processFault(ThreadID tid);
+    void readTraceCheck();
+    void armReadTrace(const o3::DynInstPtr &inst);
+
+    // read-trace state (mirrors CHAOSPhysReg's pattern)
+    int traced_phys_idx = -1;
 
     void writeLog(const std::string &type, ThreadID tid,
                   uint64_t seq, uint64_t old_seq, uint64_t new_seq,

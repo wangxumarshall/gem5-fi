@@ -37,6 +37,7 @@ namespace gem5
           log_stream(nullptr),
           attackEvent([this] { this->attackCheck(); }, name()),
           periodicCheck([this] { this->checkPermanent(); }, name() + ".periodicCheck"),
+          readTraceEvent([this] { this->readTraceCheck(); }, name() + ".readTrace"),
           stats(nullptr)
     {
         if (!cpu) {
@@ -302,6 +303,71 @@ namespace gem5
         ++faults_injected_count;
         writeLog(modeToString(fi_mode), tid, arch_idx, old_phys_idx,
                  new_phys_idx, mask);
+
+        // §4.3/§6.3 H3 read-trace: arm the physRegFile read counter on the
+        // CORRUPTED mapping's target physReg. The counter answers "how many
+        // times was the wrong mapping consumed" — the cross-unit
+        // consistency evidence (a RAT fault with reads==0 was fully masked
+        // at the mapping layer; reads>0 propagated into the data path).
+        // Reuses the CHAOSPhysReg read-trace infrastructure verbatim
+        // (setReadTraceTarget + ReadTracePoll/Final polling).
+        if (new_phys_idx != old_phys_idx) {
+            traced_phys_idx = new_phys_idx;
+            traced_class = target_class;
+            overwrite_recorded = false;
+            cpu->physRegFile().setReadTraceTarget(target_class,
+                                                  new_phys_idx);
+            if (!readTraceEvent.scheduled()) {
+                // First poll VERY soon (50 cycles): SE workloads are SHORT
+                // (dep_chain = ~13k cycles total) and a RAT fault may abort
+                // the sim within a few hundred cycles of the injection —
+                // the CHAOSPhysReg 100k-cycle first poll would never fire
+                // before halt/abort. Subsequent polls use the 100k cadence.
+                schedule(readTraceEvent, cpu->clockEdge(Cycles(50)));
+            }
+        }
+    }
+
+    void
+    CHAOSRenameMap::readTraceCheck()
+    {
+        // Poll the physRegFile read counter for the corrupted mapping's
+        // target physReg (same polling pattern as CHAOSPhysReg: every 100k
+        // cycles until all threads halt, then a ReadTraceFinal line).
+        bool any_active = false;
+        for (ThreadID tid = 0; tid < cpu->numThreads; ++tid) {
+            gem5::ThreadContext *thread_context = cpu->getContext(tid);
+            if (thread_context && thread_context->status() != ThreadContext::Halted) {
+                any_active = true; break;
+            }
+        }
+        if (write_log) {
+            *(log_stream->stream())
+                << "ReadTracePoll: cycle " << cpu->curCycle()
+                << " RAT-corrupted PhysReg[" << traced_phys_idx
+                << "] reads_before_overwrite="
+                << cpu->physRegFile().getReadsBeforeOverwrite()
+                << " (consumers of the wrong mapping)"
+                << std::endl;
+        }
+        if (any_active) {
+            // SE workloads are SHORT (dep_chain ~13k cycles): a 100k
+            // cadence gives ONE poll then the sim ends (Final never
+            // fires, last count unseen). 5000 cycles keeps a handful of
+            // polls on short kernels and still ~zero overhead.
+            schedule(readTraceEvent, cpu->clockEdge(Cycles(5000)));
+        } else {
+            if (write_log) {
+                *(log_stream->stream())
+                    << "ReadTraceFinal: RAT-corrupted PhysReg["
+                    << traced_phys_idx << "] reads_before_overwrite="
+                    << cpu->physRegFile().getReadsBeforeOverwrite()
+                    << " (workload halted)"
+                    << std::endl;
+            }
+            cpu->physRegFile().clearReadTraceTarget();
+            traced_phys_idx = -1;
+        }
     }
 
     void

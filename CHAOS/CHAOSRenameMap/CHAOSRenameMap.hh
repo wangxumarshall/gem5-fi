@@ -67,12 +67,22 @@ class CHAOSRenameMap : public SimObject
 
     EventFunctionWrapper attackEvent;
     EventFunctionWrapper periodicCheck;  // for f4_field_stuck persistence
+    // §4.3/§6.3 H3 read-trace: after injection, poll the physRegFile's
+    // read counter for the CORRUPTED mapping's target physReg (the
+    // consumer count of the fault — cross-unit consistency evidence).
+    EventFunctionWrapper readTraceEvent;
 
     void scheduleAttackEvent(Cycles delay);
     void attackCheck();
     void processFault(ThreadID tid);
+    void readTraceCheck();
     void writeLog(const std::string &type, ThreadID tid, int arch_idx,
                   int old_phys, int new_phys, uint64_t mask);
+
+    // read-trace state (mirrors CHAOSPhysReg's pattern)
+    int traced_phys_idx = -1;
+    bool overwrite_recorded = false;
+    gem5::RegClassType traced_class = gem5::InvalidRegClass;
 
     // f4_field_stuck: {tid, arch_idx} -> stuck physRegIdx (persisted)
     struct StuckMapping { int arch_idx; int phys_idx; };

@@ -8,7 +8,7 @@
 > 详细差距依据见 `findings.md`（2026-09-07 盘点）。
 
 ## Current Phase
-Phase 1（P0-工具补全）— Next Step: Task 1.5 RAT/ROB read-trace API（§4.3/§6.3）
+Phase 1（P0-工具补全）— Next Step: Task 1.6 AGENT_TASKS.md 登记簿（附录 G.1）
 
 ---
 
@@ -33,9 +33,12 @@ Phase 1（P0-工具补全）— Next Step: Task 1.5 RAT/ROB read-trace API（§4
   - 验证实证（parity）：同 seed 同注入对照——none → guest 访问坏地址 `0x280b0a6c0` panic（Crash）；parity_interleaved → 日志 `bits=1 -> DetectedInvalidated (pfn restored + entry invalidated; next access rewalks)` ×2，系统继续正常运行（保护生效）
   - 回归：reg_chain golden `f247ef3fe6f02cfd` 不变；构建零错误零新警告
   - 执行中发现：v1 只 invalidate 不恢复 pfn——当前 lookup 已持有坏翻译仍会 panic；v2 改为恢复原 pfn + invalidate（当前访问走正确翻译，下次 miss 重走），protection 日志改 endl 强制 flush（panic 前 buffer 丢失）
-- [ ] 1.5 **RAT/ROB read-trace API（H3 跨单元一致性前提）**（§4.3/§6.3）
-  - CHAOSRenameMap/CHAOSROB 注入后对目标 physReg 的后续读计数（复用 CHAOSPhysReg 的 ReadTracePoll 范式）
-  - 验证：RAT F5 注入后 ReadTrace 行出现且 reads>0；runner 解析 RT_* 列；PRF read-trace 回归不变
+- [x] 1.5 **RAT/ROB read-trace API（H3 跨单元一致性前提）**（§4.3/§6.3）
+  - 验证实证（RAT）：dep_chain f5_substitute seed=11 → `ReadTracePoll: cycle 1050 RAT-corrupted PhysReg[27] reads_before_overwrite=0` → `cycle 6050 ... =1` → 稳定 1（坏映射消费者计数 0→1，H3 证据）；run 正常完成 golden 一致（Masked）
+  - 验证实证（ROB）：entry_bitflip fc=5000 → `ReadTraceArm: ROB-corrupted head dest PhysReg[78]` + `ReadTracePoll: cycle 5050 ... =0`；head 无 renameable dest 时诚实 `ReadTraceArm: declined`
+  - runner：rat/rob 日志的 ReadTrace 正则解析（reads_before_overwrite 列）+ comp=="rob" 路由（--chaos_rob/--rob_mode）+ rob_injections.log 计数
+  - 回归：PRF/regfile 零触碰（git diff --stat 实证）；reg_chain golden `f247ef3fe6f02cfd` 不变；构建零错误
+  - 执行中发现：100k-cycle 首次 poll 在短 workload（dep_chain ~13k cycles）永不 fire——改 50-cycle 首 poll + 5000-cycle cadence；ROB head 常为 store/branch（无 dest）——declined 诚实登记
 - [ ] 1.6 **AGENT_TASKS.md 登记簿建立**（附录 G.1）
   - 按方案 G.1 单行格式登记全部任务（含已完成 18 注入器 + 本计划任务 + deferred 项）
   - 验证：文件入库，格式与方案一致；每完成一任务更新状态
