@@ -1,0 +1,71 @@
+{
+  "cli_version": "0.10.2",
+  "checkpoint_id": "01M1WTX351QRPG9A04MYHNH72X",
+  "session_id": "84be9240-c5dd-4e4c-823d-db5cfe3be231",
+  "strategy": "manual-commit",
+  "created_at": "2026-09-07T02:24:40.51715358Z",
+  "branch": "fi-wangxu",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "docs/superpowers/plans/2026-09-07-kunpeng920-sdc-complete-coverage.md",
+    "findings.md",
+    "task_plan.md"
+  ],
+  "agent": "Claude Code",
+  "model": "GLM-5.3[1m]",
+  "turn_id": "5fe330548d90",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 3063737,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 43276,
+    "api_call_count": 36
+  },
+  "skill_events_version": 1,
+  "skill_events": [
+    {
+      "id": "prompt-skill-claude-code-planning-with-files-2026-09-07T01:53:13.98050606Z",
+      "event_type": "prompt_invocation",
+      "skill": {
+        "name": "planning-with-files"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "prompt_slash_command",
+        "confidence": "explicit"
+      },
+      "turn_id": "5fe330548d90",
+      "timestamp": "2026-09-07T01:53:13.98050606Z",
+      "native": {
+        "command": "/planning-with-files"
+      },
+      "collapse": {
+        "target": "user_message",
+        "label": "/planning-with-files",
+        "default_collapsed": true
+      }
+    }
+  ],
+  "initial_attribution": {
+    "calculated_at": "2026-09-07T02:24:40.41346691Z",
+    "agent_lines": 313,
+    "agent_removed": 0,
+    "human_added": 25,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 338,
+    "total_lines_changed": 338,
+    "agent_percentage": 92.60355029585799,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    }
+  ]
+}
