@@ -55,9 +55,12 @@ Phase 1（P0-工具补全）— **complete**（1.1–1.6 全勾）。Next: Phase
   - golden IDs 入 runner（gemmfloat/gemmdouble-golden-v1）
   - 回归：reg_chain `f247ef3fe6f02cfd` + gemm_float `d74f24ae79deb7d2` 不变；构建零错误
   - 执行中发现（重要，三连修）：① ARM ISA 不设 IsFloating 标志→CHAOSFPU isFloating() 恒 false（144k 采样 0 命中）→改 dest/src reg class 判定（Float+Vec）；② ROB-head corruptResultRegVal 对 vec 路径完全失效（FP 走 getWritableRegOperand 绕过 setRegOperand；head 的 result 已 pop 5089/5089）→v2 setRegOperand writeback hook（RegVal+blob 双 overload）；③ 背靠背依赖链（fmadd d0→fmadd d0）走 bypass 网络从不回读 PRF，PRF cell 注入被转发击败（15 seed 全 Masked）→v3 getRegOperand 源读 hook（读即破坏，传播保证）；附：CHAOSFPU.hh include guard 与 CHAOSExec 冲突（复制未改）→修复；FPU attackCheck skip 无 backoff（probability=1.0 → 0 间隔死循环）→+1-cycle backoff
-- [ ] 2.2 **svd_iterative + fma_reduction_kernel**（§5.6D）
-  - svd 单比特中位 1–3 锚点；fma 归约放大系数
-  - 验证：golden 一致 + 注入 SDC 可分类
+- [x] 2.2 **svd_iterative + fma_reduction_kernel**（§5.6D）
+  - svd：origin/fi 提取（Jacobi 迭代；golden `4afb95b5b32f3820` 三方一致）
+  - fma_reduction：新写（N=4096 精确可表示操作数链式 fma 归约，-fno-tree-vectorize 标量 FMADD；golden `0efaf0ffa70ab1a0` native==gem5）
+  - 注入 SDC 实证：svd seed=3 `fc71f4c5671acc34` / seed=4 `4710112277c05327`；fma seed=1 `1a41808b34338752` / seed=2 `0ef2f0ffa6fd19a0`（均 ≠ golden，CHAOSFPU v3 源读 hook）
+  - golden IDs 入 runner（svditerative/fmareduction-golden-v1）
+  - 回归：reg_chain `f247ef3fe6f02cfd` 不变
 - [ ] 2.3 **整数对照 kernel：MADD 链 / SMULH / ADDS→B.cond**（§5.10D）
   - 验证：golden 一致；CHAOSExec 位段注入非零计数
 - [ ] 2.4 **indirect_jmp / struct_field / crc_state + movbe 正式入库**（§5.9/§5.8/§5.2D）

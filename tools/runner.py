@@ -48,6 +48,8 @@ GOLDEN_IDS = {
     # Phase 2 (plan §5.6D): GEMM float/double anchors (native==gem5 verified).
     "gemmfloat-golden-v1":   "d74f24ae79deb7d2",  # gemm_float_kernel
     "gemmdouble-golden-v1":  "6295f007a890b108",  # gemm_double_kernel
+    "svditerative-golden-v1": "4afb95b5b32f3820",  # svd_iterative_kernel
+    "fmareduction-golden-v1": "0efaf0ffa70ab1a0",  # fma_reduction_kernel
 }
 
 def sha256_file(path):
