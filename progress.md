@@ -2068,3 +2068,12 @@ L1D→L2 的悬崖式下降（97.7%→0%）不是"L2 更安全"而是**工作集
 ### Phase 5.6 收尾: method2 PRF/TLB 臂 formal n=384×2 启动
 
 method2 三根因的定量闭环补最后两臂（AGU 臂已完成 100% DUE）：PRF（active-only phys）与 TLB（活页替换）各 n=384 seeds，checkpoint restore + 调度域遍历 workload + O3，4 路并行跑批（~22h）。预期方向（pilot n=3 已示）：两臂以内核存活为主——formal 给出精确的 crash/survive 分割与可信区间。verdict 记录于 /tmp/m2_prtlb_formal_results.txt。
+
+### Phase 5.6 最终收官: method2 PRF/TLB 臂 formal — 活跃度依赖定律（TLB 臂稳态/活跃反转）
+
+**PRF 臂（n=384，active-only phys）**：Oops 25 = **P_DUE 6.5% [4.4,9.5]**，存活 91.7%（forwarding 掩蔽 + 内核吸收，与 SE 侧定律互洽）。
+**TLB 臂（n=384，活页替换）**：Oops 384 = **P_DUE 100.0% [99.0,100.0]**——与稳态 formal（Phase 5.4：384/384 Masked）**完全反转**。
+
+**活跃度依赖定律**：活页替换的危险度由**内核活跃度**决定——稳态（shell 空闲）错页无消费者（0% Crash），内核活跃（调度遍历）错页必被消费（100% 致命）。Phase 5.4 的"静默通路存在性证明"成立但其量化受 regime 限制——最坏情形 bound 需内核活跃 regime。
+
+**method2 三根因最终表（内核活跃 regime）**：AGU 100% DUE（kfree NULL deref 签名=现场）/ TLB 100% DUE（错页 Oops）/ PRF 6.5% DUE（吸收为主）。现场签名匹配 AGU 臂。
