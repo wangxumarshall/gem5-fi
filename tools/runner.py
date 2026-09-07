@@ -101,6 +101,9 @@ GOLDEN_ARRAYS = {
     # v1.1 Phase 10 (patch 2a): spec_leak_probe N=4096 — the no-leak golden
     # (leak would shift ARRAYHASH and light ELEMDIFF n>0).
     "specleakprobe-golden-v1": "7cd81e9377b50593d3256d67f01d59d4a9fba940894b0929920406933d3232cf",
+    # v1.1 Phase 11 (patch 3a): working-set-aware L2/DRAM probes.
+    "stencil5pt-golden-v1": "6216d7bd62318f00",      # stencil W=160
+    "streamtriad-golden-v1": "0a3e17d4e5740000",     # triad N=262144 (6MB)
 }
 
 def sha256_file(path):
