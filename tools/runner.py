@@ -95,6 +95,9 @@ GOLDEN_ARRAYS = {
     # v1.1 Phase 8.1 acceptance carrier (temp smoke kernel, /tmp): the
     # gem5-verified no-injection ARRAYHASH (native == gem5, deterministic).
     "oraclesmoke-golden-v1": "3d7ac29a722e5f64b891c26d91c093c7e797a2af304a0506c6c4c69fd50c1739",
+    # v1.1 Phase 9 (patch 1b): elemwise_fma N=8192, gem5-verified no-injection
+    # ARRAYHASH (native == gem5, deterministic).
+    "elemwisefma-golden-v1": "ced113fdd122842d91a79059d75e2a24f55f78de0e043ff761239d5d989f43e7",
 }
 
 def sha256_file(path):
