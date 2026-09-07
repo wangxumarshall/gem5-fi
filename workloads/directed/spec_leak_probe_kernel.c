@@ -56,18 +56,29 @@ int main(void){
         data[i]=s;
     }
 
+    /* v2 leak-window design (the v1 defined t on the right path too, so
+     * the right-path definition OVERWROTE the leaked value before the
+     * consumer could see it — the leak was architecturally unreachable;
+     * real-machine n=0 with the suppression firing proved that). v2: the
+     * right path does NOT redefine X10 — it consumes X10 directly. On a
+     * clean run the consumed value is the loop-carried baseline (b, set
+     * before the branch and re-set after the consumer — never on the
+     * wrong path). When the suppression leaks the wrong-path X10 write,
+     * the consumer reads the LEAKED value instead. */
+    uint64_t b = 0x1111111111111111ULL;           /* baseline on x10 */
+    register uint64_t t asm("x10") = b;            /* set x10 ONCE, outside
+                                                      the loop — no in-loop
+                                                      right-path writer can
+                                                      erase a leak */
     for(int i=0;i<N;i++){
-        /* Pin the leaking value to X10 (register asm) so the injector's
-         * spec_leak_arch_reg=10 targets exactly this definition site. */
-        register uint64_t t asm("x10");
         if (data[i] & 1) {
-            /* RIGHT path: define t, consume within 1-2 instructions. */
-            t = (uint64_t)i * 0x10001ULL + 7;      /* right_path_value */
-            asm volatile("" : "+r"(t));            /* keep t live on x10 */
-            out[i] = t ^ (data[i] >> 8);           /* consume(t) */
+            /* RIGHT path: consume t (x10) IMMEDIATELY — no redefinition
+             * between the branch and the consumer. */
+            asm volatile("" : "+r"(t));            /* keep t on x10 */
+            out[i] = t ^ (data[i] >> 8);           /* consume(x10) */
         } else {
-            /* WRONG path (executed on the sibling mispredict): write the
-             * SAME arch reg with a one-look-different constant. */
+            /* WRONG path (executed speculatively on the sibling branch's
+             * mispredict): REDEFINE x10 with the one-look constant. */
             register uint64_t w asm("x10");
             w = (uint64_t)i * 0x10001ULL + 7
                 + 0x5A5A5A5A5A5A5A5AULL;           /* wrong_path_value */
@@ -98,10 +109,10 @@ int main(void){
     uint64_t n_leak=0, first=0;
     for(int i=0;i<N;i++){
         if (!(data[i]&1)) continue;            /* only right-path slots */
-        uint64_t right = (uint64_t)i*0x10001ULL + 7;
-        uint64_t wrong = right + 0x5A5A5A5A5A5A5A5AULL;
-        uint64_t got = out[i] ^ (data[i] >> 8);
-        if (got == wrong && got != right) {    /* the wrong VALUE leaked */
+        uint64_t got = out[i] ^ (data[i] >> 8);   /* the consumed x10 value */
+        uint64_t wrong = (uint64_t)i*0x10001ULL + 7
+                         + 0x5A5A5A5A5A5A5A5AULL;
+        if (got == wrong) {                    /* the WRONG value leaked */
             if(!n_leak) first=i;
             n_leak++;
         }
