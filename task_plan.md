@@ -8,7 +8,7 @@
 > 详细差距依据见 `findings.md`（2026-09-07 盘点）。
 
 ## Current Phase
-Phase 1（P0-工具补全）— **complete**（1.1–1.6 全勾）。Next: Phase 2 kernel 库（Task 2.1 gemm_float/gemm_double）
+Phase 1–2 — **complete**（1.1–1.6 + 2.1–2.4 全勾）。Next: Phase 3 formal 批量补齐（Task 3.1 FSU formal）
 
 ---
 
@@ -44,6 +44,8 @@ Phase 1（P0-工具补全）— **complete**（1.1–1.6 全勾）。Next: Phase
 
 ## Phase 2 — kernel 库补全（方案 §5 各 D 段）
 
+**Status: complete**
+
 **Status: in_progress**
 
 **Status: pending**
@@ -67,9 +69,12 @@ Phase 1（P0-工具补全）— **complete**（1.1–1.6 全勾）。Next: Phase
   - CHAOSExec 位段注入非零计数实证：low/mid/high 三段各 1 注入（Mask 0x1/0x1000/0x1000000000000，`Site: int_writeback_result`）
   - golden IDs 入 runner（maddchain/smulhadds-golden-v1）
   - 回归：reg_chain `f247ef3fe6f02cfd` 不变
-- [ ] 2.4 **indirect_jmp / struct_field / crc_state + movbe 正式入库**（§5.9/§5.8/§5.2D）
-  - movbe_kernel.c 在 fi_research/probes 已有，入 workloads/directed 并编译验证
-  - 验证：各 golden 一致
+- [x] 2.4 **indirect_jmp / struct_field / crc_state + movbe 正式入库**（§5.9/§5.8/§5.2D）
+  - struct_field/crc_state：origin/fi 提取（golden `afebbd4c86e8cfdf`/`d27806e62c9d3869` 三方一致）
+  - indirect_jmp：新写（函数表 BLR 间接分支链，objdump 确认 165 个 blr 位点；golden `3c791622c2f18a00` native==gem5）
+  - movbe：fi_research/probes 正式入库（golden `iters=200 fails=0` native==gem5，fail_count oracle 模式）
+  - golden IDs 入 runner（structfield/crcstate/indirectjmp-golden-v1 + movbe-failcount-v1）
+  - 回归：reg_chain `f247ef3fe6f02cfd` 不变
 
 ## Phase 3 — formal campaign 批量补齐（方案 §4.6 n=384 标准）
 

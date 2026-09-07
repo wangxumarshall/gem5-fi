@@ -52,6 +52,10 @@ GOLDEN_IDS = {
     "fmareduction-golden-v1": "0efaf0ffa70ab1a0",  # fma_reduction_kernel
     "maddchain-golden-v1":   "9e8050e1503c34ab",  # madd_chain_kernel
     "smulhadds-golden-v1":   "58e7676693d02056",  # smulh_adds_kernel
+    "structfield-golden-v1": "afebbd4c86e8cfdf",  # struct_field_kernel
+    "crcstate-golden-v1":    "d27806e62c9d3869",  # crc_state_kernel
+    "indirectjmp-golden-v1": "3c791622c2f18a00",  # indirect_jmp_kernel
+    "movbe-failcount-v1":    "iters=200 fails=0",  # movbe_kernel (fail_count oracle)
 }
 
 def sha256_file(path):
