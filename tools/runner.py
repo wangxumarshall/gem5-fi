@@ -98,6 +98,9 @@ GOLDEN_ARRAYS = {
     # v1.1 Phase 9 (patch 1b): elemwise_fma N=8192, gem5-verified no-injection
     # ARRAYHASH (native == gem5, deterministic).
     "elemwisefma-golden-v1": "ced113fdd122842d91a79059d75e2a24f55f78de0e043ff761239d5d989f43e7",
+    # v1.1 Phase 10 (patch 2a): spec_leak_probe N=4096 — the no-leak golden
+    # (leak would shift ARRAYHASH and light ELEMDIFF n>0).
+    "specleakprobe-golden-v1": "e4c9f5ce6142bc9f290d90d0823f58d0e9c0e0be5e110abd601afe6736f3a1ef",
 }
 
 def sha256_file(path):
