@@ -1,0 +1,18 @@
+# T3-4 Cache metadata-field x protection formal (plan §5.8B).
+# CHAOSCache targetField sweep (tag/valid/dirty/repl/coh/victim) under
+# none + secded, on l1d_reduce (live-data anchor), n=384/cell.
+campaign_id: t3_4_cache_field
+workload:
+  binary: workloads/directed/l1d_reduce
+  golden: f44d2b9cd4a173cd
+  golden_id: l1dreduce-golden-v1
+trigger: {mode: cycle, value: 10000}
+limits: {max_faults: 1, max_ticks: 0}
+injector: l1d
+config_family: C0-CACHE
+axes:
+  sub_field: [tag, valid, dirty, repl, coh, victim]
+  protection_model: [none, secded]
+defaults:
+  rng_master_seed: 20260825
+  width_bits: 64

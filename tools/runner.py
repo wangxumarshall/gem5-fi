@@ -307,8 +307,14 @@ def main():
                "--fault_type", fault_type,
                "--bits_to_change", bits_to_change,
                "--protection_model", pmodel]
+        # §5.8B/T3-4: metadata-field injection (tag/valid/dirty/repl/coh)
+        # + §5.8A victim (writeback payload) — via --target_field.
+        tfield = tgt.get("sub_field") or inj.get("target_field")
+        if tfield:
+            cmd += ["--target_field", tfield]
         print(f"[runner] cache path: target={comp} block=0x{block_addr:x} "
-              f"byte={byte_off} protection={pmodel}")
+              f"byte={byte_off} protection={pmodel}"
+              + (f" field={tfield}" if tfield else ""))
     # FS-only components (sysreg/ptw/l1_tlb/addr-path) need arm_chaos_fs.py;
     # the SE runner cannot drive them — record honestly.
     elif comp in ("sysreg", "ptw", "l1_tlb", "l2_tlb"):
