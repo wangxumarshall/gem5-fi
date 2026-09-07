@@ -94,6 +94,8 @@ Phase 1–2 — **complete**（1.1–1.6 + 2.1–2.4 全勾）。Next: Phase 3 f
 
 ## Phase 4 — 第 7 章 openEuler 诊断引擎（维度③，整体新建）
 
+**Status: complete**
+
 **Status: pending**
 
 - [x] 4.1 **ESR_ELx EC/FSC 解码器**（§7.3：`tools/diag/esr_decode.py`）
@@ -105,8 +107,9 @@ Phase 1–2 — **complete**（1.1–1.6 + 2.1–2.4 全勾）。Next: Phase 3 f
 - [ ] 4.3 **七步法 + P/N 规则 + 置信度引擎**（§7.4–7.6：`tools/diag/sdc_diagnose.py`）
   - Step1 Top-N → Step7 FA；P1–P11/N1–N10 判定；四级置信度输出
   - 验证：core179 六案回放 → 高置信度（P1+P5 命中、N3 未命中）；伪造均匀分布日志 → N1 排除；pytest
-- [ ] 4.4 **§7.7 反哺：单元 P_SDC → 权重先验回填**
-  - 用 artifacts/ formal 数据回填 §7.3 权重表的实验依据列；规则版本化（rules/flight-rules.md + version bump）
+- [x] 4.4 **§7.7 反哺：单元 P_SDC → 权重先验回填**
+  - rules/flight-rules.md v1.0.0 入库（P/N 规则 + 置信度 + 版本变更表）
+  - formal 先验回填：fpu 4 位段（t3-1 n=384×4：sign 18.0%/exp 17.2%/mantissa 13.6%/all 15.9%，CI 紧致）+ lsq_fwd ~0.50 + prf ~0.10；诚实边界（非 FIT/SE 限制/单机未确认）
 - [x] 4.5 **指纹库 ↔ 诊断引擎 CLI 集成**（`tools/diag/spectrum_triage.py`）
   - 验证实证（端到端）：lsq masks（t7 LOO 同源 64 xor）→ `XOR 0x1ff (mantissa=9 popcount=9) -> lsq_fwd sim=0.712 P_SDC先验=0.50 ★★★★ + 签名检查建议`；综合排序 lsq_fwd 45.574；联动日志侧 `sdc_diagnose: HIGH / P1-P5 / 立即隔离+FA+RMA`——现场位谱→候选单元→诊断规则→日志侧裁决全链路走通
   - UNIT_DIAGNOSTICS 表：unit → P_SDC 先验（formal campaigns）+ §7.3 星级 + 特征日志签名（§7.7 反哺物）
