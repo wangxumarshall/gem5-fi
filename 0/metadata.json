@@ -1,0 +1,97 @@
+{
+  "cli_version": "0.10.2",
+  "checkpoint_id": "01M1X4AS8MFW2JFV869MB5826W",
+  "session_id": "84be9240-c5dd-4e4c-823d-db5cfe3be231",
+  "strategy": "manual-commit",
+  "created_at": "2026-09-07T05:09:27.64034606Z",
+  "branch": "fi-wangxu",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "CHAOS/CHAOSCache/CHAOSCache.cc",
+    "CHAOS/CHAOSCache/CHAOSCache.hh",
+    "CHAOS/CHAOSCache/CHAOSCache.py",
+    "configs/se/arm_chaos_cache.py"
+  ],
+  "agent": "Claude Code",
+  "model": "glm-5.3",
+  "turn_id": "f833cddd6291",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 35263454,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 96782,
+    "api_call_count": 246
+  },
+  "skill_events_version": 1,
+  "skill_events": [
+    {
+      "id": "prompt-skill-claude-code-goal-2026-09-07T04:51:27.84999068Z",
+      "event_type": "prompt_invocation",
+      "skill": {
+        "name": "goal"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "prompt_slash_command",
+        "confidence": "explicit"
+      },
+      "turn_id": "f833cddd6291",
+      "timestamp": "2026-09-07T04:51:27.84999068Z",
+      "native": {
+        "command": "/goal"
+      },
+      "collapse": {
+        "target": "user_message",
+        "label": "/goal",
+        "default_collapsed": true
+      }
+    }
+  ],
+  "initial_attribution": {
+    "calculated_at": "2026-09-07T05:09:27.39971346Z",
+    "agent_lines": 27,
+    "agent_removed": 0,
+    "human_added": 64,
+    "human_modified": 12,
+    "human_removed": 0,
+    "total_committed": 103,
+    "total_lines_changed": 108,
+    "agent_percentage": 25,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 697,
+      "user_lines_removed": 13,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        "CHAOS/CHAOSCache/CHAOSCache.cc": 252,
+        "CHAOS/CHAOSCache/CHAOSCache.hh": 57,
+        "CHAOS/CHAOSCache/CHAOSCache.py": 14,
+        "CHAOS/gem5/src/mem/cache/CHAOSCache/CHAOSCache.cc": 251,
+        "CHAOS/gem5/src/mem/cache/CHAOSCache/CHAOSCache.hh": 23,
+        "CHAOS/gem5/src/mem/cache/CHAOSCache/CHAOSCache.py": 14,
+        "CHAOS/gem5/src/mem/cache/tags/base.cc": 12,
+        "CHAOS/gem5/src/mem/cache/tags/base.hh": 35,
+        "CHAOS/gem5/src/mem/cache/tags/base_set_assoc.hh": 10,
+        "CHAOS/gem5/src/mem/cache/tags/sector_tags.hh": 8,
+        "CHAOS/gem5/src/mem/cache/tags/tagged_entry.hh": 13,
+        "configs/se/arm_chaos_cache.py": 7,
+        "task_plan.md": 1
+      },
+      "user_removed_per_file": {
+        "CHAOS/CHAOSCache/CHAOSCache.cc": 3,
+        "CHAOS/CHAOSCache/CHAOSCache.hh": 1,
+        "CHAOS/CHAOSCache/CHAOSCache.py": 1,
+        "CHAOS/gem5/src/mem/cache/CHAOSCache/CHAOSCache.cc": 3,
+        "CHAOS/gem5/src/mem/cache/CHAOSCache/CHAOSCache.hh": 1,
+        "CHAOS/gem5/src/mem/cache/CHAOSCache/CHAOSCache.py": 1,
+        "configs/se/arm_chaos_cache.py": 2,
+        "task_plan.md": 1
+      }
+    }
+  ]
+}
