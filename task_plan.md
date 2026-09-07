@@ -146,7 +146,14 @@ CHAOSCHI/CHAOSNoC pilot 已能触发（7c854bb/7582e8c，未提交的 ruby test 
 
 ## Phase 9 — v1.1/P1：FPU（最高优先，直接与 method3 冲突）
 
-**Status: pending**（Phase 8 就绪;patch 1a 增补：PRF-dest 路径重写——Phase 8.1/8.2 发现 instResult 队列架构不可见）
+**Status: complete（2026-09-08，pilot 轮全过验收门；formal 轮待跑）**
+
+1. ✅ **patch 1a-0 PRF-dest 重写**（bfa9c4f）：instResult 死路径 → PRF-dest（VecRegClass 经 getWritableReg;Float/VecElem 经 getReg/setReg）。真机：4 seeds 2 SDC/2 Masked——FSU 故障首次产生真实结局分布。cholesky 6637 eligible/32 可腐蚀的死路径定量在案。
+2. ✅ **六模式**（f5b3bc8/f3e110b/121a07b/9a79376）：bitseg 六段(验收:6 段×3 seeds mask 全在段内)/fma_intermediate E3(20-seed 设计分布 85% 精确命中)/recurring(6628 发 distinct mask=1,SDC)/rounding_sub(1-ULP 独立 SDC 签名)/f3(窗口正反例)/fpsr(诚实占位)。
+3. ✅ **elemwise_fma_kernel**（c2da02b）：全数组输出 ARRAYHASH+ULP;golden ced113fd...;array_hash 兜底必要性实证(kernel 本地 ULP 看不见对称损坏)。
+4. ✅ **campaign 全链 + pilots**（dedb669）：runner fault.fpu_mode + schema + campaign 轴;5 组 pilot n=100 零 frozen——baseline/六段 bitseg/fma_weighted/recurring 全 ~100% SDC。
+5. ✅ **验收门**：fma_intermediate 位谱尾数占比 **80% (24/30) ≥ 70%**——method3 方向复现;recurring ≥ 单发(cholesky 6628 发 vs 2/4);首轮"FPU 0% SDC"作废原因入 findings。
+6. ⏳ **formal 轮**（深度策略）：cholesky 级归约负载上的 SDC/DUE 结构对比(elemwise 平顶无结构差异)+ svd_iterative/gemm_float 交叉 + n=384。
 
 1. **CHAOSFPU 新模式**（1a，`src/cpu/o3/CHAOSFPU/CHAOSFPU.{py,hh,cc}`，5–6 补丁，每模式 1）：
    - `bitseg`：`--fpu_bitseg ∈ {sign, exp_hi, exp_lo, mant_hi, mant_mid, mant_lo}`——只翻该位段内的位（非均匀翻整个结果）。
