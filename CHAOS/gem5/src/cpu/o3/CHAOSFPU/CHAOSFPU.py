@@ -30,4 +30,10 @@ class CHAOSFPU(SimObject):
     countOnly = Param.Bool(False,
         "v1.1 Phase 8.2 countOnlyMode: consume eligible events and print "
         "CHAOS_ELIGIBLE_COUNT=<n> at teardown, never corrupt.")
+    # v1.1 Phase 9 patch 1a mode 1 — bitseg: flip bits ONLY within the
+    # chosen IEEE754 field of the FP result (instead of a uniform whole-
+    # register bit). Matches method3's mantissa-concentrated signature.
+    # '' (default) = legacy uniform whole-register pick.
+    bitseg = Param.String("", "FP bit segment: sign | exp_hi | exp_lo | "
+                              "mant_hi | mant_mid | mant_lo ('' = uniform)")
     writeLog = Param.Bool(True, "Write a fault_injections.log file")

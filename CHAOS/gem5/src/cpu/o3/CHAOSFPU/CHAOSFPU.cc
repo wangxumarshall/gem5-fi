@@ -21,7 +21,8 @@ namespace gem5
           fault_mask(p.faultMask),
           max_faults(p.maxFaults),
           rng_seed(p.rngSeed),
-          write_log(p.writeLog)
+          write_log(p.writeLog),
+          bitseg(p.bitseg)
     {
         if (probability > 0.0f) {
             log_stream = simout.create("fpu_injections.log", false, true);
@@ -145,7 +146,32 @@ namespace gem5
         // post-execute (the value is already written there). VecRegClass
         // (all AArch64 FP/SIMD registers) via the writable PRF pointer;
         // scalar classes via getReg/setReg.
-        RegVal mask = fault_mask ? fault_mask : (1ULL << (rng() % 64));
+        // v1.1 Phase 9 patch 1a mode 1 — bitseg: pick the flip bit ONLY
+        // inside the requested IEEE754 double field. Field map (FP64):
+        //   sign=bit63 | exp=62..52 (exp_hi=62..58, exp_lo=57..52) |
+        //   mant=51..0 (mant_hi=51..35, mant_mid=34..18, mant_lo=17..0)
+        // A uniform whole-register pick hits the 52-bit mantissa 81% of
+        // the time — method3's field shows 85-93% AFTER workload filtering;
+        // bitseg isolates the field experimentally (the campaign stratifies
+        // over the six segments).
+        RegVal mask;
+        if (fault_mask) {
+            mask = fault_mask;
+        } else if (!bitseg.empty()) {
+            int lo = -1, hi = -1;
+            if      (bitseg == "sign")    { lo = 63; hi = 63; }
+            else if (bitseg == "exp_hi")  { lo = 58; hi = 62; }
+            else if (bitseg == "exp_lo")  { lo = 52; hi = 57; }
+            else if (bitseg == "mant_hi") { lo = 35; hi = 51; }
+            else if (bitseg == "mant_mid"){ lo = 18; hi = 34; }
+            else if (bitseg == "mant_lo") { lo = 0;  hi = 17; }
+            if (lo < 0)
+                panic("CHAOSFPU: unknown bitseg '%s'\n", bitseg.c_str());
+            int bit = lo + (int)(rng() % (unsigned)(hi - lo + 1));
+            mask = (1ULL << bit);
+        } else {
+            mask = (1ULL << (rng() % 64));
+        }
         bool ok = false;
         auto *o3cpu = dynamic_cast<o3::CPU *>(cpu);
         for (int i = 0; i < dyn_inst->numDestRegs() && !ok; i++) {
@@ -178,6 +204,7 @@ namespace gem5
             *(log_stream->stream()) << "Tick: " << curTick()
                 << ", Site: dyn_inst_execute, opClass=" << (int)oc
                 << ", sn=" << dyn_inst->seqNum
+                << (bitseg.empty() ? std::string() : ", bitseg=" + bitseg)
                 << ", mask=0x" << std::hex << mask << std::dec
                 << ", faults_injected: " << faults_injected_count
                 << std::endl;

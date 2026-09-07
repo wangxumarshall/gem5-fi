@@ -221,6 +221,12 @@ p.add_argument("--fpu_events_to_skip", type=lambda x: int(x,0), default=-1,
 p.add_argument("--fpu_count_only", action="store_true",
                help="v1.1 Phase 8.2 countOnlyMode: count eligible events "
                     "(CHAOS_ELIGIBLE_COUNT in log), never corrupt.")
+# v1.1 Phase 9 patch 1a mode 1 — bitseg field stratification.
+p.add_argument("--fpu_bitseg", default="",
+               choices=["", "sign", "exp_hi", "exp_lo", "mant_hi", "mant_mid",
+                        "mant_lo"],
+               help="v1.1 Phase 9: flip bits ONLY within this IEEE754 "
+                    "field (empty = uniform whole-register pick).")
 # §2.7 CHAOSL1DForward (post-check escape injector). SELF-ATTACHES at startup()
 # to cpu.chaosL1DFwd. Hooks LSQUnit::completeDataAccess before writeback;
 # XORs the load response data (post-L1D, post-ECC) — the escape path.
@@ -519,6 +525,7 @@ if args.chaos_fpu:
         eventsToSkip=(0xFFFFFFFFFFFFFFFF if args.fpu_events_to_skip < 0
                       else args.fpu_events_to_skip),
         countOnly=args.fpu_count_only,
+        bitseg=args.fpu_bitseg,
         writeLog=True,
     )
     board.chaos_fpu = fpu

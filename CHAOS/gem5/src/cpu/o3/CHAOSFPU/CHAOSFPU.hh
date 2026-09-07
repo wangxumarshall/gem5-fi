@@ -56,6 +56,9 @@ class CHAOSFPU : public SimObject
     bool count_only = false;         // consume + count, never corrupt
     uint64_t eligible_count = 0;     // CHAOS_ELIGIBLE_COUNT=<n> at teardown
 
+    // v1.1 Phase 9 patch 1a mode 1 — bitseg field (empty = uniform).
+    std::string bitseg;
+
     std::mt19937 rng;
     std::random_device rd;
     OutputStream *log_stream = nullptr;
