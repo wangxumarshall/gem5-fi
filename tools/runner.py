@@ -360,6 +360,7 @@ def main():
         sm = {"transient_bit_flip": "byte_flip",
               "local_mbu": "byte_lane_skew",
               "intermittent_burst": "byte_lane_skew",
+              "delay_omission": "phase_offset",
               "stuck_at_zero": "fwd_source_sub",
               "legal_domain_sub": "all_zero"}.get(inj["model"], "byte_flip")
         cmd += ["--lsq_struct_mode", sm, "--first_clock", str(t["value"]),

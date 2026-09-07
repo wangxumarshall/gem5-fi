@@ -52,6 +52,13 @@ class CHAOSLSQFwd : public SimObject
                                const uint8_t *alt_src, unsigned alt_size,
                                Addr vaddr);
 
+    // §2.4 F6 phase_offset (Phase 4.7, method3 forward-path phase): called
+    // at the forward WritebackEvent schedule site (lsq_unit.cc:~1596).
+    // If the RNG fires, returns the DELAY in CPU cycles to apply to this
+    // forward's writeback (0 = no injection — the caller schedules at
+    // curTick() as usual). Only active in PhaseOffset mode.
+    Cycles maybeDelayForward(Addr vaddr, unsigned size);
+
   private:
     enum class FaultType { BitFlip, StuckAtZero, StuckAtOne, Random };
     static FaultType stringToFaultType(const std::string &s);
@@ -66,8 +73,13 @@ class CHAOSLSQFwd : public SimObject
     //   fwd_source_sub (F5): DONE (Phase 4.2) — wrong-source forward from an
     //                     older SQ entry (maybeSubstituteSource hook in
     //                     lsq_unit.cc's forward-decision point)
-    //   phase_offset (F6): (deferred — needs timing shift in lsq_unit.cc)
-    enum class StructMode { ByteFlip, ByteLaneSkew, AllZero, FwdSourceSub };
+    //   phase_offset (F6, Phase 4.7 — DONE): delay this forward's
+    //     WritebackEvent by phaseOffset CPU cycles (the REAL method3
+    //     forward-path phase proxy, unlike IQ's wake_phase which the
+    //     E3 boundary analysis showed captures scheduler phase, not
+    //     forward-path phase).
+    enum class StructMode { ByteFlip, ByteLaneSkew, AllZero, FwdSourceSub,
+                            PhaseOffset };
     static StructMode stringToStructMode(const std::string &s);
 
     o3::CPU *cpu;

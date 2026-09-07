@@ -1593,7 +1593,20 @@ LSQUnit::read(LSQRequest *request, ssize_t load_idx)
                 // We'll say this has a 1 cycle load-store forwarding latency
                 // for now.
                 // @todo: Need to make this a parameter.
-                cpu->schedule(wb, curTick());
+                // §2.4 F6 phase_offset (Phase 4.7 — the REAL method3
+                // forward-path phase proxy): the injector may delay this
+                // forward's writeback by N CPU cycles (a forward-timing
+                // race — the consumer's read window vs the writeback's
+                // landing). Nullptr / no-fire / other modes = Cycles(0),
+                // identical to the original curTick() schedule.
+                Cycles fwd_delay(0);
+                if (cpu->lsqFwd) {
+                    fwd_delay = cpu->lsqFwd->maybeDelayForward(
+                        request->mainReq()->getVaddr(),
+                        request->mainReq()->getSize());
+                }
+                cpu->schedule(wb, curTick() +
+                              fwd_delay * cpu->clockPeriod());
 
                 // Don't need to do anything special for split loads.
                 ++stats.forwLoads;

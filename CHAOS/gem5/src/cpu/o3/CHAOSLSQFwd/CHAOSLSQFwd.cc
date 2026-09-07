@@ -88,6 +88,7 @@ namespace gem5
         if (s == "byte_lane_skew") return StructMode::ByteLaneSkew;
         if (s == "all_zero") return StructMode::AllZero;
         if (s == "fwd_source_sub") return StructMode::FwdSourceSub;
+        if (s == "phase_offset") return StructMode::PhaseOffset;
         return StructMode::ByteFlip;  // default / unknown
     }
 
@@ -128,7 +129,10 @@ namespace gem5
         // also fire in that mode (double-injection bug found in Phase 4.2
         // verification: an unlimited-faults run showed bit_flip lines while
         // in fwd_source_sub mode — the old hook was still active).
+        // phase_offset likewise acts at the WRITEBACK-SCHEDULE point
+        // (maybeDelayForward) — no data mutation there either.
         if (struct_mode == StructMode::FwdSourceSub) return;
+        if (struct_mode == StructMode::PhaseOffset) return;
         Cycles cur = cpu->curCycle();
         if (cur < first_clock) return;
         if (last_clock != Cycles(0) && cur > last_clock) return;
@@ -266,6 +270,52 @@ namespace gem5
         DPRINTF(LSQUnit, "CHAOSLSQFwd: fwd_source_sub wrong-source forward "
                 "(vaddr=%#x true=%uB alt=%uB)\n", vaddr, copy_size, alt_size);
         return true;
+    }
+
+    Cycles
+    CHAOSLSQFwd::maybeDelayForward(Addr vaddr, unsigned size)
+    {
+        // §2.4 F6 phase_offset (Phase 4.7, the REAL method3 forward-path
+        // phase proxy): delay ONE forward's WritebackEvent by phaseOffset
+        // CPU cycles. The method3 field signature ('add a no-op ALU ->
+        // trigger rate collapses') is a forward-path timing race — the
+        // load's writeback landing LATER than the dependent instruction's
+        // read window (or vice versa) changes what the consumer sees.
+        // Only active in PhaseOffset mode; other modes return Cycles(0)
+        // (zero regression — the caller schedules at curTick() as usual).
+        if (struct_mode != StructMode::PhaseOffset) return Cycles(0);
+        if (probability <= 0.0f) return Cycles(0);
+        if (max_faults != 0 && faults_injected_count >= max_faults)
+            return Cycles(0);
+
+        Cycles cur = cpu->curCycle();
+        if (cur < first_clock) return Cycles(0);
+        if (last_clock != Cycles(0) && cur > last_clock) return Cycles(0);
+
+        // sampling-bias fix: skip budget consumed on eligible forwards
+        if (events_to_skip > 0) { --events_to_skip; return Cycles(0); }
+
+        std::uniform_real_distribution<float> dist(0.0f, 1.0f);
+        if (dist(rng) >= probability) return Cycles(0);
+
+        faults_injected_count++;
+        stats->numFaultsInjected++;
+        if (write_log) {
+            *(log_stream->stream())
+                << "Cycle: " << cpu->curCycle()
+                << ", Site: store->load_forward_wb_schedule"
+                << ", FaultType: phase_offset"
+                << ", Vaddr: 0x" << std::hex << vaddr << std::dec
+                << ", FwdSize: " << size
+                << ", DelayCycles: +" << lane_skew_k
+                << ", faults_injected: " << faults_injected_count
+                << std::endl;
+        }
+        DPRINTF(LSQUnit, "CHAOSLSQFwd: phase_offset delay +%d cycles "
+                "(vaddr=%#x)\n", lane_skew_k, vaddr);
+        // reuse lane_skew_k as the offset knob (the --lsq_lane_skew_k CLI
+        // arg; documented here as the phase offset in cycles)
+        return Cycles(lane_skew_k > 0 ? lane_skew_k : 1);
     }
 
     CHAOSLSQFwd::CHAOSLSQFwdStats::CHAOSLSQFwdStats(statistics::Group *parent)
