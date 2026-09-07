@@ -89,6 +89,16 @@ p.add_argument("--tlb_pfn_select_mode", default="bit_flip",
                help="§5.7B mapped_page = pfn_to_mapped_page: substitute the "
                     "hit entry's pfn with another LIVE TLB entry's pfn "
                     "(silent-SDC path, no DUE guard).")
+p.add_argument("--chaos_armtlb_itlb", action="store_true",
+               help="attach a SECOND CHAOSArmTLB to cpu0.mmu.itb (the "
+                    "instruction TLB) in addition to the dTLB one — §5.7B "
+                    "i-side coverage. Writes itlb_injections.log.")
+p.add_argument("--tlb_protection_model", default="none",
+               choices=["none","parity_interleaved"],
+               help="§2.3 N1 TRM proxy: none = L1 TLB (raw escape); "
+                    "parity_interleaved = L2 TLB parity (1-bit detected -> "
+                    "entry invalidated + rewalk; >=2-bit same-parity "
+                    "escapes silently).")
 # Phase 3 §六.4 item 3 (SYS): CHAOSArmSysReg system-register injector.
 # Hooks ISA::readMiscRegNoEffect (MRS read path). Whitelist of ARM MiscReg
 # enum NAMES (TTBR/TCR/MAIR/SCTLR/VBAR etc.) — empty = no injection.
@@ -207,7 +217,7 @@ board.set_kernel_disk_workload(
 # hook (the ArmBoard builds the CPU+MMU lazily). Either TLB or SYS (or both)
 # trigger the hook. cpu0 = processor.get_cores()[0].core; D-TLB = cpu0.mmu.dtb;
 # ISA = cpu0.isa[0] (BaseCPU.isa is a per-thread VectorParam.BaseISA).
-if args.chaos_armtlb or args.chaos_sysreg or args.chaos_addrpath or args.chaos_ptw:
+if args.chaos_armtlb or args.chaos_sysreg or args.chaos_addrpath or args.chaos_ptw or args.chaos_armtlb_itlb:
     _tlb_attached = [False]
     _orig_pi = getattr(cache_hierarchy, "_pre_instantiate", None)
     def _attach_tlb(root):
@@ -218,23 +228,48 @@ if args.chaos_armtlb or args.chaos_sysreg or args.chaos_addrpath or args.chaos_p
         core0 = processor.get_cores()[0]
         cpu0 = core0.core
         dtb = cpu0.mmu.dtb  # the data TLB (ArmISA::TLB)
-        arm_tlb = CHAOSArmTLB(
-            tlb=dtb,
-            probability=args.tlb_probability,
-            firstClock=args.tlb_first_clock,
-            faultType="bit_flip",
-            faultMask=args.tlb_fault_mask,
-            bitsToChange=1,
-            maxFaults=args.tlb_max_faults,
-            rngSeed=args.tlb_rng_seed,
-            targetField=args.tlb_target_field,
-            pfnOffset=args.tlb_pfn_offset,
-            pfnSelectMode=args.tlb_pfn_select_mode,
-            writeLog=True,
-        )
-        board.chaos_armtlb = arm_tlb
-        # CHAOSArmTLB SELF-ATTACHES (constructor sets tlb->chaosTLB = this),
-        # same pattern as CHAOSLSQFwd — no setChaosTLB call (no python binding).
+        if args.chaos_armtlb:
+            arm_tlb = CHAOSArmTLB(
+                tlb=dtb,
+                probability=args.tlb_probability,
+                firstClock=args.tlb_first_clock,
+                faultType="bit_flip",
+                faultMask=args.tlb_fault_mask,
+                bitsToChange=1,
+                maxFaults=args.tlb_max_faults,
+                rngSeed=args.tlb_rng_seed,
+                targetField=args.tlb_target_field,
+                pfnOffset=args.tlb_pfn_offset,
+                pfnSelectMode=args.tlb_pfn_select_mode,
+                protectionModel=args.tlb_protection_model,
+                logName="armtlb_injections.log",
+                writeLog=True,
+            )
+            board.chaos_armtlb = arm_tlb
+            # CHAOSArmTLB SELF-ATTACHES (constructor sets tlb->chaosTLB = this),
+            # same pattern as CHAOSLSQFwd — no setChaosTLB call (no python binding).
+        # §5.7B i-side coverage: a SECOND injector on cpu0.mmu.itb (the
+        # instruction TLB). Independent log (itlb_injections.log) so the two
+        # instances' lines never interleave in one file.
+        if args.chaos_armtlb_itlb:
+            itb = cpu0.mmu.itb
+            arm_tlb_i = CHAOSArmTLB(
+                tlb=itb,
+                probability=args.tlb_probability,
+                firstClock=args.tlb_first_clock,
+                faultType="bit_flip",
+                faultMask=args.tlb_fault_mask,
+                bitsToChange=1,
+                maxFaults=args.tlb_max_faults,
+                rngSeed=args.tlb_rng_seed,
+                targetField=args.tlb_target_field,
+                pfnOffset=args.tlb_pfn_offset,
+                pfnSelectMode=args.tlb_pfn_select_mode,
+                protectionModel=args.tlb_protection_model,
+                logName="itlb_injections.log",
+                writeLog=True,
+            )
+            board.chaos_armtlb_itlb = arm_tlb_i
         _tlb_attached[0] = True
 
         # Phase 3 §六.4 item 3 (SYS): CHAOSArmSysReg attaches to the CPU's

@@ -62,6 +62,12 @@ class CHAOSArmTLB : public SimObject
     // mapped page — the most dangerous silent-SDC path: the substituted
     // translation always resolves to mapped memory, so no DUE guard fires).
     std::string pfn_select_mode;  // bit_flip (legacy) | mapped_page
+    // §2.3 N1 TRM proxy: none (L1 — raw escape) | parity_interleaved
+    // (L2 — 1-bit detected: entry invalidated + rewalk; same-parity >=2-bit
+    // silent escape). Applied POST-injection on the pfn bit count.
+    enum class ProtectionModel { None, ParityInterleaved };
+    ProtectionModel protection_model;
+    std::string log_name;
     Cycles first_clock, last_clock;
     Tick first_tick = 0, last_tick = 0;  // D1: advisory tick window (curTick)
     uint64_t max_faults, faults_injected_count;
@@ -82,11 +88,20 @@ class CHAOSArmTLB : public SimObject
     bool pickMappedPagePfn(const ArmISA::TlbEntry *self, Addr &out_pfn,
                            Addr &out_size);
 
+    // §2.3: apply the parity_interleaved model post-injection (see .cc).
+    // Returns true if the corrupted pfn survived (escape), false if the
+    // entry was invalidated (parity detected, refetch).
+    bool applyProtectionModel(ArmISA::TlbEntry *entry,
+                              Addr old_pfn, Addr new_pfn);
+
     struct CHAOSArmTLBStats : public statistics::Group {
         statistics::Scalar numFaultsInjected;
         statistics::Scalar numBitFlips;
         statistics::Scalar numStuckAtZero;
         statistics::Scalar numStuckAtOne;
+        // §2.3 protection outcomes (parity_interleaved model).
+        statistics::Scalar numParityDetectedInvalidated;  // 1-bit: refetch
+        statistics::Scalar numParitySilentEscape;         // >=2-bit: escape
         CHAOSArmTLBStats(statistics::Group *parent);
     };
     std::unique_ptr<CHAOSArmTLBStats> stats;

@@ -8,7 +8,7 @@
 > 详细差距依据见 `findings.md`（2026-09-07 盘点）。
 
 ## Current Phase
-Phase 1（P0-工具补全）— Next Step: Task 1.4 CHAOSArmTLB iTLB 挂载 + protectionModel
+Phase 1（P0-工具补全）— Next Step: Task 1.5 RAT/ROB read-trace API（§4.3/§6.3）
 
 ---
 
@@ -28,9 +28,11 @@ Phase 1（P0-工具补全）— Next Step: Task 1.4 CHAOSArmTLB iTLB 挂载 + pr
   - 合法域压力验证：probability=1.0/unlimited → 84,681,246 次注入 0 panic 0 SimulatorError（远超 ≥1000 要求）
   - 回归：reg_chain golden `f247ef3fe6f02cfd` 不变；构建零错误零新警告
   - 实现：TLB 加 `friend class CHAOSArmTLB`（枚举 protected `table` AssociativeCache）；donor 候选 = 同 TLB 其余 valid 且同 pageSize 条目；无候选时诚实 decline（不误落回 bit_flip）
-- [ ] 1.4 **CHAOSArmTLB iTLB 挂载 + protectionModel 参数**（§5.7B）
-  - `arm_chaos_fs.py` 支持 `--chaos_armtlb_itlb`（挂 `cpu0.mmu.itb`）；`protectionModel ∈ {none,parity_interleaved}`（§2.3：L1 TLB none / L2 TLB parity）
-  - 验证：FS iTLB 注入日志 ≥1；parity_interleaved 1-bit → 条目失效重走（行为可见）
+- [x] 1.4 **CHAOSArmTLB iTLB 挂载 + protectionModel 参数**（§5.7B）
+  - 验证实证（iTLB）：fs_checkpoint --tlb-itlb 注入日志 `VA: 0xffffffc0080ed974`（kernel text）pfn bit33 翻转 → 取指 BadAddress panic（Crash 结局，i-side 行为可见）
+  - 验证实证（parity）：同 seed 同注入对照——none → guest 访问坏地址 `0x280b0a6c0` panic（Crash）；parity_interleaved → 日志 `bits=1 -> DetectedInvalidated (pfn restored + entry invalidated; next access rewalks)` ×2，系统继续正常运行（保护生效）
+  - 回归：reg_chain golden `f247ef3fe6f02cfd` 不变；构建零错误零新警告
+  - 执行中发现：v1 只 invalidate 不恢复 pfn——当前 lookup 已持有坏翻译仍会 panic；v2 改为恢复原 pfn + invalidate（当前访问走正确翻译，下次 miss 重走），protection 日志改 endl 强制 flush（panic 前 buffer 丢失）
 - [ ] 1.5 **RAT/ROB read-trace API（H3 跨单元一致性前提）**（§4.3/§6.3）
   - CHAOSRenameMap/CHAOSROB 注入后对目标 physReg 的后续读计数（复用 CHAOSPhysReg 的 ReadTracePoll 范式）
   - 验证：RAT F5 注入后 ReadTrace 行出现且 reads>0；runner 解析 RT_* 列；PRF read-trace 回归不变

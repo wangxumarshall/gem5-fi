@@ -19,6 +19,10 @@ namespace gem5
           target_field(p.targetField),
           pfn_offset(p.pfnOffset),
           pfn_select_mode(p.pfnSelectMode),
+          protection_model(p.protectionModel == "parity_interleaved"
+                           ? ProtectionModel::ParityInterleaved
+                           : ProtectionModel::None),
+          log_name(p.logName),
           first_clock(Cycles(p.firstClock)),
           last_clock(Cycles(p.lastClock)),
           max_faults(p.maxFaults),
@@ -28,7 +32,7 @@ namespace gem5
           stats(nullptr)
     {
         if (probability > 0.0f) {
-            log_stream = simout.create("armtlb_injections.log", false, true);
+            log_stream = simout.create(log_name, false, true);
             if (!log_stream || !log_stream->stream()) {
                 panic("CHAOSArmTLB: Could not open log file");
             }
@@ -96,6 +100,52 @@ namespace gem5
         std::uniform_int_distribution<int> bitDist(0, 63);
         while (bits_to_change-- > 0) mask |= (1ULL << bitDist(rng));
         return mask;
+    }
+
+    // §2.3 N1 TRM proxy — apply the protection model AFTER a pfn fault was
+    // written into the entry. parity_interleaved (L2 TLB style):
+    //   1-bit pfn delta -> parity DETECTS -> the entry is INVALIDATED (the
+    //     next access misses and rewalks — a benign refetch; the fault never
+    //     reaches a translation => NOT an SDC; behavior visible via refills).
+    //   >=2-bit delta with even parity sum -> parity misses -> silent escape.
+    //     (An odd-parity 2-bit delta WOULD be detected by real parity, but
+    //     modeling exact interleaved-parity geometry is beyond the proxy;
+    //     we conservatively treat >=2-bit as same-parity escape — same
+    //     convention as CHAOSCache's ParityInterleaved.)
+    // none (L1 TLB): no protection — every fault escapes (raw).
+    // Returns true if the corrupted pfn SURVIVED (escape), false if the
+    // entry was invalidated (detected).
+    bool
+    CHAOSArmTLB::applyProtectionModel(ArmISA::TlbEntry *entry,
+                                      Addr old_pfn, Addr new_pfn)
+    {
+        if (protection_model != ProtectionModel::ParityInterleaved) {
+            return true;  // none: raw escape
+        }
+        int bits = __builtin_popcountll(old_pfn ^ new_pfn);
+        if (bits == 1) {
+            // Parity detected the 1-bit error: RESTORE the correct pfn (the
+            // in-flight translation must not use the corrupt one) and
+            // invalidate the entry (the next access misses and rewalks —
+            // a benign refetch; the fault never becomes an SDC).
+            stats->numParityDetectedInvalidated++;
+            if (write_log) {
+                *(log_stream->stream())
+                    << "  ProtectionModel=parity_interleaved bits=1"
+                    << " -> DetectedInvalidated (pfn restored + entry "
+                    << "invalidated; next access rewalks)" << std::endl;
+            }
+            entry->pfn = old_pfn;
+            entry->invalidate();
+            return false;
+        }
+        stats->numParitySilentEscape++;
+        if (write_log) {
+            *(log_stream->stream())
+                << "  ProtectionModel=parity_interleaved bits=" << bits
+                << " -> SilentEscape (same-parity >=2-bit)" << std::endl;
+        }
+        return true;
     }
 
     // §5.7B pfn_to_mapped_page: enumerate the target TLB's valid entries
@@ -183,6 +233,7 @@ namespace gem5
                     << ", donor_size: 0x" << donor_size << std::dec
                     << std::endl;
             }
+            applyProtectionModel(entry, old_pfn, entry->pfn);
             return;
         }
         if (pfn_offset != 0 && target_field == "pfn") {
@@ -202,6 +253,7 @@ namespace gem5
                     << ", pfnOffset: 0x" << pfn_offset << std::dec
                     << std::endl;
             }
+            applyProtectionModel(entry, old_pfn, entry->pfn);
             return;
         }
         if (target_field == "ap") {
@@ -320,6 +372,7 @@ namespace gem5
                 << ", Mask: 0x" << mask << std::dec
                 << std::endl;
         }
+        applyProtectionModel(entry, old_pfn, entry->pfn);
     }
 
     CHAOSArmTLB::CHAOSArmTLBStats::CHAOSArmTLBStats(statistics::Group *parent)
@@ -331,7 +384,13 @@ namespace gem5
           ADD_STAT(numStuckAtZero, statistics::units::Count::get(),
                    "TLB pfn stuck-at-zero faults"),
           ADD_STAT(numStuckAtOne, statistics::units::Count::get(),
-                   "TLB pfn stuck-at-one faults")
+                   "TLB pfn stuck-at-one faults"),
+          ADD_STAT(numParityDetectedInvalidated, statistics::units::Count::get(),
+                   "§2.3 parity_interleaved: 1-bit faults detected, entry "
+                   "invalidated (refetch — NOT an SDC)"),
+          ADD_STAT(numParitySilentEscape, statistics::units::Count::get(),
+                   "§2.3 parity_interleaved: >=2-bit same-parity faults "
+                   "silently escaped")
     {}
 
 } // namespace gem5

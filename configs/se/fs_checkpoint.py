@@ -68,6 +68,14 @@ p.add_argument("--tlb-pfn-select-mode", default="bit_flip",
                choices=["bit_flip", "mapped_page"],
                help="§5.7B: mapped_page = pfn_to_mapped_page (substitute "
                     "with another LIVE TLB entry's pfn — silent-SDC path)")
+p.add_argument("--tlb-itlb", action="store_true",
+               help="inject into the instruction TLB (cpu0.mmu.itb) instead "
+                    "of the data TLB (§5.7B i-side coverage); writes "
+                    "itlb_injections.log")
+p.add_argument("--tlb-protection-model", default="none",
+               choices=["none", "parity_interleaved"],
+               help="§2.3: none = L1 (raw); parity_interleaved = L2 parity "
+                    "(1-bit detected -> invalidated+rewalk; >=2-bit escape)")
 p.add_argument("--sysreg-target-regs", default="ttbr0_el1,ttbr1_el1")
 p.add_argument("--ptw-clear-valid-bit", action="store_true")
 args = p.parse_args()
@@ -110,15 +118,18 @@ if args.phase == "inject" and args.injector != "none":
             return
         cpu0 = processor.get_cores()[0].core
         if args.injector == "armtlb":
-            dtb = cpu0.mmu.dtb
+            target_tlb = cpu0.mmu.itb if args.tlb_itlb else cpu0.mmu.dtb
             board.chaos_armtlb = CHAOSArmTLB(
-                tlb=dtb, probability=args.probability,
+                tlb=target_tlb, probability=args.probability,
                 firstClock=args.first_clock,
                 faultType=args.fault_type,
                 maxFaults=args.max_faults, rngSeed=args.seed,
                 targetField=args.tlb_target_field,
                 pfnOffset=args.tlb_pfn_offset,
                 pfnSelectMode=args.tlb_pfn_select_mode,
+                protectionModel=args.tlb_protection_model,
+                logName=("itlb_injections.log" if args.tlb_itlb
+                         else "armtlb_injections.log"),
                 writeLog=True)
         elif args.injector == "sysreg":
             isa0 = cpu0.isa[0]

@@ -46,4 +46,18 @@ class CHAOSArmTLB(SimObject):
         "fire). Takes precedence over pfnOffset.")
     maxFaults = Param.UInt64(0, "Max faults to inject; 0 = unlimited. Use 1.")
     rngSeed = Param.UInt64(0, "RNG seed (0 = random_device)")
+    # §2.3 N1 TRM proxy: L1 TLB has NO parity; L2 TLB has interleaved parity
+    # (1-bit -> entry invalidated + rewalk; same-parity >=2-bit -> silent
+    # escape). Modeled POST-injection: a 1-bit pfn fault under
+    # parity_interleaved is DETECTED -> the entry is invalidated (the next
+    # access rewalks — a benign refetch, behavior visible in refills),
+    # NOT an SDC. >=2-bit (even parity delta) escapes silently.
+    protectionModel = Param.String("none",
+        "TLB protection model (§2.3): none = raw (L1, no parity — every "
+        "fault escapes); parity_interleaved = L2-style parity: 1-bit "
+        "pfn faults are detected, the entry is invalidated (refetch), "
+        ">=2-bit same-parity faults escape silently.")
+    logName = Param.String("armtlb_injections.log",
+        "Injection log file name (distinguishes dTLB vs iTLB instances "
+        "writing into the same outdir).")
     writeLog = Param.Bool(True, "Write a fault_injections.log file")
