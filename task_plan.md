@@ -116,6 +116,8 @@ Phase 1–2 — **complete**（1.1–1.6 + 2.1–2.4 全勾）。Next: Phase 3 f
 
 ## Phase 5 — 第 8 章建议产出 + CHAOSRAS（维度④）
 
+**Status: complete**
+
 **Status: pending**
 
 - [x] 5.1 **CHAOSMem `ecc_logic_fault`（E 机理：ECC 逻辑自身故障）**（§5.11）
@@ -137,7 +139,9 @@ Phase 1–2 — **complete**（1.1–1.6 + 2.1–2.4 全勾）。Next: Phase 3 f
 - [x] 5.5 **§8.3 DFT 向量打包**
   - dft/{manifest.yaml, run_all.sh} 入库：5 向量（m1 RAT 历史残留 / m2 AddrPath byte7（FS 诚实 skip）/ m3 LSQ 位翻转尾数谱 / d1 撕裂移位 rol1 / e ECC 逻辑故障），各带健康/次品签名 + log_marker
   - 端到端批跑实证：baseline golden `f247ef3fe6f02cfd` 一致；m1 `iters=500 fails=1`、m3 `fails=1`、d1 `fails=1`、e 机制 log `EccLogicFault: Missed`——4/4 向量跑出次品签名，0 fail
-- [ ] 5.6 **§8.4 N1 TRM Table 9-1 差距分析文档**（E4 项进"待校准清单"不进正文）
+- [x] 5.6 **§8.4 N1 TRM Table 9-1 差距分析文档**（t9-trm-gap-analysis.md）
+  - 11 结构逐行对比：最大差距 = TRM 表覆盖范围盲区（load 回填 90.9% / wrong-source 37.6% 无对应行）；none 组代理判断正确（DUE 主导确认）；ECC 家族共同差距（B/C 静默 + E 机理 → BIST 横向建议）
+  - 5 项 E4（V110 RTL 推断）全部进待校准清单不进正文（RAS/EINJ 实机 deferred 关联）
 
 ## Phase 6 — 论文与收尾（§9）
 
