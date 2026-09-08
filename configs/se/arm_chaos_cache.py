@@ -37,6 +37,10 @@ p.add_argument("--probability", type=float, default=1.0)
 p.add_argument("--target_block_addr", type=lambda x:int(x,0), default=0,
                help="Directed: cache block address to inject (block-aligned "
                     "lookup among VALID blocks). 0 = random (default).")
+p.add_argument("--victim_fault", action="store_true",
+               help="v1.2 Phase 14: victim/writeback-path fault — corrupt "
+                    "the in-flight writeback payload (cache array stays "
+                    "clean).")
 p.add_argument("--target_field", default="data",
                choices=["data","valid","dirty","coh","tag"],
                help="§2.7/§2.11/§v1.2-14 field-level: data(default)/valid(invalidate)/dirty(toggle)/coh(toggle)/tag(F5 legal alias — v1.2 Phase 14)")
@@ -98,6 +102,7 @@ def cap(root):
         targetBlockAddr=args.target_block_addr,
         targetByteOffset=args.target_byte_offset,
         targetField=args.target_field,
+        victimFault=args.victim_fault,
         pairedSector=args.paired,
         protectionModel=args.protection_model,
         l1iSemanticField=args.l1i_semantic_field,

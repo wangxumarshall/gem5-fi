@@ -30,6 +30,7 @@ namespace gem5
         target_byte_offset(p.targetByteOffset),
         paired_sector(p.pairedSector),
         target_field(p.targetField),
+        victim_fault(p.victimFault),
         l1i_semantic_field(p.l1iSemanticField),
         protection_model(p.protectionModel),
         rng_seed(p.rngSeed),
@@ -39,6 +40,11 @@ namespace gem5
         periodicCheck([this] { this->checkPermanent(); }, name() + ".periodicCheck"),
         stats(nullptr)
     {
+        // v1.2 Phase 14: register the victim hook with BaseCache so
+        // writebackBlk can consult us (victim-path faults).
+        if (victim_fault) {
+            BaseCache::chaosVictimHook = this;
+        }
         if (probability != 0.0) {
             log_stream = simout.create("cache_injections.log", false, true);
             if (!log_stream || !log_stream->stream()) {
@@ -604,4 +610,36 @@ namespace gem5
             }
         }
     }
+    // v1.2 Phase 14 (plan item 2): victim/writeback-path fault. Called by
+    // BaseCache::writebackBlk after setDataFromBlock — the corruption lives
+    // only in the in-flight writeback payload (the cache array stays
+    // clean, so a re-read of the block gets the GOOD data: the fault
+    // surfaces only if the next level's copy is later read back).
+    bool
+    CHAOSCache::maybeCorruptVictim(PacketPtr pkt)
+    {
+        if (!victim_fault) return false;
+        if (max_faults != 0 && faults_injected_count >= max_faults) return false;
+        if (!pkt || !pkt->hasData()) return false;
+        uint8_t *data = pkt->getPtr<uint8_t>();
+        unsigned sz = pkt->getSize();
+        if (sz == 0) return false;
+        // adjacent multi-bit mask (the Phase 8.3 generator) on a random byte
+        std::uniform_int_distribution<int> byteDist(0, sz - 1);
+        int off = byteDist(rng);
+        uint8_t mask = generateRandomMask(rng, bits_to_change, 8);
+        if (mask == 0) mask = 0x80;
+        data[off] ^= mask;
+        faults_injected_count++;
+        if (write_log) {
+            *(log_stream->stream()) << "Tick: " << curTick()
+                << ", Site: writebackBlk (victim path), pkt_addr=0x" << std::hex
+                << pkt->getAddr() << std::dec << ", byte_off=" << off
+                << ", Mask: " << std::bitset<8>(mask)
+                << ", faults_injected: " << faults_injected_count
+                << std::endl;
+        }
+        return true;
+    }
+
 } // namespace gem5

@@ -26,6 +26,12 @@ class CHAOSCache : public SimObject
     CHAOSCache(const CHAOSCacheParams& params);
     virtual ~CHAOSCache() {}
 
+    /** v1.2 Phase 14 (plan item 2): victim/writeback-path fault. Called by
+     *  BaseCache::writebackBlk AFTER the packet data is set — XORs a byte
+     * of the IN-FLIGHT writeback payload (the cache array stays clean).
+     *  Returns true if corrupted. Nullptr-safe. */
+    bool maybeCorruptVictim(PacketPtr pkt);
+
   private:
     enum class FaultType {
       BitFlip,
@@ -88,6 +94,8 @@ class CHAOSCache : public SimObject
     uint64_t max_faults;            // G5: 0 = unlimited; else cap
     uint64_t faults_injected_count; // G5: running count
     OutputStream *log_stream;
+    // v1.2 Phase 14 (plan item 2): victim/writeback-path fault mode.
+    bool victim_fault = false;
     
     static FaultType stringToFaultType(const std::string &s);
     const char* faultTypeToString(CHAOSCache::FaultType f);
