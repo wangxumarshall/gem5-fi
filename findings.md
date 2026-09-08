@@ -423,3 +423,21 @@ exec（IntAlu XOR）/ bpu（dir_flip）在 reg_chain 上 formal 384/384 全 Mask
 | DRAM backing_byte 定向(stream_triad, 窗口[4MB,5MB]) | 384 | **85.4% [81.5,88.6]** | 100% [99,100] | no |
 
 pilot 点估计 87.0% 落在 formal CI [81.5,88.6] 内,一致性确认。DRAM 层 15% 的缓存胜出掩蔽稳定。
+
+### v1.1 formal 补跑轮收官(2026-09-08):DRAM addr_map_sub 对照 + spec_leak × ROB 深度梯度
+
+**DRAM addr_map_sub on stream_triad(F5 错位写,定向窗口,n=100)**:
+| cell | n | P_SDC [Wilson 95%] | Reach |
+|---|---|---|---|
+| stuck_at_one(addr_map_sub) 窗口[4MB,5MB] | 100 | **88.0% [80.2,93.0]** | 100% |
+
+**计划预言验证**:"DRAM addr_map_sub 在 stream_triad 上预期出现非零 SDC(对比 fwd_checksum 上的全 Masked)"——实测 88.0%,与 backing_byte 定向(85.4% formal)同量级。错位写在纯流式负载上同样高逃逸;fwd_checksum 上的全 Masked 确认为负载伪影。
+
+**spec_leak × ROB 深度(C2,rob∈{96,128,160},X10,n=128 each)**:
+| rob | P_SDC | P_DUE | Reach |
+|---|---|---|---|
+| 96 | 8.1% [4.4,14.2] | 11.3% [6.8,18.1] | 96.9% |
+| 128 | 9.8% [5.7,16.4] | 13.1% [8.2,20.2] | 95.3% |
+| 160 | 5.6% [2.7,11.0] | **19.0% [13.1,26.8]** | 98.4% |
+
+**新机理发现:ROB 深度与 spec_leak 结局的 trade-off**——DUE(rename-inconsistency)随 rob 深度单调上升(11.3→13.1→19.0%),SDC 略降。机理:更深 ROB = 泄漏 physReg 的所有权窗口更长 → freelist/重命名一致性更容易破坏 → 崩溃(DUE)先于泄漏值消费发生。**C2(rob 默认 128)与 C0 的差异也解释了 formal X10 16.5%(C0) vs ~10%(C2)的平台差。** 首轮"ROB=160 整行掩蔽"之谜(Phase 3 H2)在此获得部分机理线索:深度窗口改变结局结构,不只是掩蔽。
