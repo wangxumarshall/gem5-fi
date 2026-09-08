@@ -1,0 +1,21 @@
+@docs/reproduce-method*.md 这三个方式都在同一硬件上复现SDC，一个是浮点运算单元sdc，两个是load-store；结合 @docs/cases/core179-microarch-rootcause-synthesis/paper2026_zh.md 的诊断，有理由认为部分处理器后端（如浮点运算单元）的sdc的根因可能在处理器微架构更前置的逻辑单元（如存储转发数据通路（Store-to-Load Forwarding, STLF）、寄存器重命名表、物理寄存器堆（PRF）与旁路交叉矩阵（Bypass Crossbar）、乱序控制逻辑与指针管理等）。
+
+---
+
+@docs/cases/core179-diagnostics-with-opendcdiag/reproduce-method*.md 这三个方式都在同一硬件上复现SDC，一个是浮点运算单元sdc，两个是load-store；结合 @docs/cases/core179-microarch-rootcause-synthesis/paper2026_zh.md 的诊断，有理由认为部分处理器后端（如浮点运算单元）的sdc的根因可能在处理器微架构更前置的逻辑单元（如存储转发数据通路（Store-to-Load Forwarding, STLF）、寄存器重命名表、物理寄存器堆（PRF）与旁路交叉矩阵（Bypass Crossbar）、乱序控制逻辑与指针管理等）。
+
+---
+
+@docs/cases/core179-diagnostics-with-opendcdiag/reproduce-method*.md 这三个方式都在同一硬件上复现SDC，一个是浮点运算单元sdc，两个是load-store；结合 @docs/cases/core179-microarch-rootcause-synthesis/paper2026_zh.md 的诊断，有理由认为部分处理器后端（如浮点运算单元）的sdc的根因可能在处理器微架构更前置的逻辑单元（如存储转发数据通路（Store-to-Load Forwarding, STLF）、寄存器重命名表、物理寄存器堆（PRF）与旁路交叉矩阵（Bypass Crossbar）、乱序控制逻辑与指针管理等）。
+
+---
+
+将该案例整理为一个完整的案例，用于学术论文研究，要求讲清楚案例来龙去脉、推理逻辑严密、结论准确（推导出非浮点单元，给出候选的逻辑单元及证据和待验证的方法思路），最后调用 /humanizer:humanizer 去除ai味，输出到“/docs/papers/xu/hot-case.md”
+
+---
+
+研究docs/cases和docs/cases-2中md文档，也是同一块硬件的core179核sdc，然后 将该案例整理为一个完整的案例，用于学术论文研究，要求讲清楚案例来龙去脉、推理逻辑严密、结论准确（推导出非浮点单元，给出候选的逻辑单元及证据和待验证的方法思路），最后调用 /humanizer:humanizer 去除ai味，输出到“/docs/papers/xu/hot-case.md”
+
+---
+
+/humanizer:humanizer “/docs/papers/xu/hot-case.md”
