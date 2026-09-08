@@ -386,3 +386,14 @@ exec（IntAlu XOR）/ bpu（dir_flip）在 reg_chain 上 formal 384/384 全 Mask
 ### Phase 10 2c 诚实边界:ARM64 SE 无"可恢复真异常"kernel 载体
 
 计划要求 exc_suppress 补真异常 kernel(divzero_loop/unaligned_ldp)。真机验证发现:**AArch64 的整数除零是架构定义的静默语义(udiv x/0 = 0,不 trap)**——native 运行 divzero_loop_kernel exit=0、无 SIGFPE(与 x86 语义不同,计划的假设基于 x86)。非对齐 LDP 在 AArch64 SCTLR.A=0(默认)下同样不产生异常。gem5 SE 模式下可产生的 arch trap(非法指令等)是**不可恢复的**——没有"pending fault 被 exc_suppress 清除后继续执行"的载体。**结论:exc_suppress 的 DUE→SDC 转化实验在 ARM64 SE 无 kernel 载体;该模式在真异常存在性上依赖 FS 模式(内核异常处理)或 x86 语义。357/357 Masked(cholesky 无 pending fault)+ 本发现 = exc_suppress 在 ARM SE 的实验面已诚实穷尽。**
+
+### v1.1 Phase 9 formal 轮(补):FPU bitseg(mant) on svd_iterative — method3 尾数谱跨 workload formal 级确认(2026-09-08)
+
+诚实审计发现 svd_iterative 对照(Formal 级)在 pilot 轮被漏跑,本轮补齐(与 elemwise_fma pilot 同参:--chaos_fpu,fc=5000,max_faults=1,bitseg 定向尾数段):
+
+| cell | n | P_SDC [Wilson 95%] | P_DUE | Reach | frozen |
+|---|---|---|---|---|---|
+| fpu_bitseg=mant_hi | 384 | **92.4% [89.4,94.7]** | 0% | 100% [99,100] | no |
+| fpu_bitseg=mant_lo | 384 | **83.1% [79.0,86.5]** | 0% | 100% [99,100] | no |
+
+**结论**:① method3 尾数谱在第二个 workload(svd_iterative,SVD 迭代归约型 FP)formal 级确认——尾数段单 bit 翻转 83-92% SDC;② **mant_hi(92.4%)> mant_lo(83.1%)的位段梯度真实存在**(高位尾数翻转逃逸更多,与 IEEE754 数值敏感度一致);③ 与 elemwise_fma 的平顶 100% 对照:归约型负载的 Masked 份额(8-17%)来自部分元素被后续迭代覆盖/吸收——负载消费模式决定 SDC 结构。首轮"FPU 0% SDC"作废结论再次加固。
