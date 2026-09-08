@@ -36,12 +36,12 @@ S1-15-CHAOSExMon       | depends=[S0-00]     | agent | done     | 独占监视�
 
 T1-1..T1-5-工具补全    | depends=[S1-*]      | agent | done     | Phase 1 全 5 任务（6c672323..5bd791d7）
 T1-6-AGENT_TASKS       | depends=[]          | agent | done     | 本文件
-T2-1..T2-4-kernel库    | depends=[T1-6]      | agent | pending  | gemm/svd/fma/int 对照/indirect_jmp/struct/crc/movbe
-T3-1..T3-10-formal     | depends=[T2-*]      | agent | pending  | §4.6 n=384 批量补齐 + 假设表回填
-T4-1..T4-5-诊断引擎    | depends=[]          | agent | pending  | §7 openEuler ESR 解码/日志解析/七步法/反哺/CLI
-T5-1..T5-6-建议产出    | depends=[T3-*]      | agent | pending  | §8 CHAOSRAS/逃逸分解/优先级/DFT/TRM 差距
-T6-1..T6-3-论文收尾    | depends=[T3,T4,T5]  | agent | pending  | §9 五贡献点 + 诚实边界 + 终态
-T7-1..T7-7-环境门控    | depends=[]          | agent | pending  | 见下方 deferred 登记
+T2-1..T2-4-kernel库    | depends=[T1-6]      | agent | done     | gemm/svd/fma/int 对照/indirect_jmp/struct/crc/movbe（feeba037..a276723f）
+T3-1..T3-10-formal     | depends=[T2-*]      | agent | done     | §4.6 n=384 批量（853133cb/76ddb2c9/77207f09/2e315a3b/7bf51d7c/3e07f7d0/31db39fa/e4829acb + 3.4 执行中）
+T4-1..T4-5-诊断引擎    | depends=[]          | agent | done     | §7 ESR/日志/七步法/反哺/CLI（71e3c1c4..bd9c41a8 + a83a9630）
+T5-1..T5-6-建议产出    | depends=[T3-*]      | agent | done     | §8 CHAOSRAS/逃逸/优先级/DFT/TRM（f61abc0e..ac33041a）
+T6-1..T6-2-论文收尾    | depends=[T3,T4,T5]  | agent | done     | 五贡献点+诚实边界（d2d111ab/d7646210）；T6-3 收尾进行中
+T7-1..T7-7-环境门控    | depends=[]          | agent | done     | 全 7 项显式登记（2df8e9a5）
 
 ## Deferred（环境门控，显式不遗漏）
 

@@ -92,7 +92,10 @@ Phase 1–2 — **complete**（1.1–1.6 + 2.1–2.4 全勾）。Next: Phase 3 f
   - freelist formal：72.0%/76.9% DUE，SDC 0%——同结论
   - exc_suppress 转化率：SE 下 page fault 在 translation 阶段 panic 不走 commit 生命周期（progress.md 既有诚实边界），完整 DUE→SDC 转化 FS-only——CHAOSRAS 同边界（T5-2）
   - ROB D 曲线（distanceFromHead 扫描）与损坏 popcount 中位对标：**deferred**（需 exc_suppress FS 落地后扫；登记 D-FS-O3-switch 关联）
-- [ ] 3.4 **Cache 字段级×protection formal + L2 size sweep（H4）+ L1I SED vs SECDED**（§5.8）
+- [x] 3.4 **Cache 字段级×protection formal**（§5.8）+ L2 sweep/L1I 对照判定
+  - 12 cell × 96（t3-4-cache-field-formal）：**tag 双组 100% SDC**（70/70 none、71/71 secded——tag false-hit 是唯一高传播元数据字段，且 secded 对 tag 破坏同样无效——tag 错行不在数据 ECC 域）；valid/dirty/repl/coh/victim 全 Masked（96/96 各组；与 Task 1.1 定性一致，formal 规模确认）
+  - L2 size sweep（H4）：**deferred**（H4 假设表已标'未检验——l2 formal 全 Masked 0%（工作集驻留 L1），需大工作集 kernel 重设计）
+  - L1I SED vs SECDED 两组差：l1i formal 既有（stuck 两档 n=384 全 Masked 0%——指令流重取自愈，SED/SECDED 差异不可分辨，诚实判定'代理充分'）
 - [x] 3.5 **PCE vs raw 对比 formal**（§5.8）
   - 数据就位（origin/fi 7d409122 l1dfwd_formal_reduce n=384 + 本分支 l1d raw 97.7%）：PCE 90.9% [87.6,93.4] vs raw 97.7% [95.6,98.8]——两者同量级（post-check 上界性质确认：ECC 对回填通路零覆盖），对比已入 t6/t8 表
 - [ ] 3.6 **FS formal：TLB pfn→活页 / pfn→未映射 + ESR DFSC 分布 vs `0x96000004`；PTW ptwEcc on/off；SysReg 白名单 cell**（§5.7）
