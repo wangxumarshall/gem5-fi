@@ -593,6 +593,9 @@ def main():
         # working-set-aware kernels).
         if inj.get("target_block_addr") is not None:
             cmd += ["--target_block_addr", str(inj["target_block_addr"])]
+        # v1.1 Phase 11 (open item): L2 capacity sweep axis.
+        if inj.get("l2_size"):
+            cmd += ["--l2_size", str(inj["l2_size"])]
         # §2.11 L1I A64 field stratification (Phase 3 closure): the
         # semantic axis is the INSTRUCTION-ENCODING field corrupted in the
         # fetched bytes — opcode (wrong-opcode arm) vs rn (wrong-register

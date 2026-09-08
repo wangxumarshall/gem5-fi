@@ -304,9 +304,11 @@ def manifest_for_cell(campaign, cell, cell_ordinal, rep, outdir):
         _aw["end"] = cell["mem_addr_end"]
     if _aw:
         manifest["fault"]["addr_window"] = _aw
-    # v1.1 Phase 11: directed cache-block axis.
+    # v1.1 Phase 11: directed cache-block axis + L2 capacity axis.
     if cell.get("target_block_addr") is not None:
         manifest["fault"]["target_block_addr"] = cell["target_block_addr"]
+    if cell.get("l2_size"):
+        manifest["fault"]["l2_size"] = cell["l2_size"]
     # clean None values the v1 schema doesn't want
     for k in list(manifest["target"]):
         if manifest["target"][k] is None:

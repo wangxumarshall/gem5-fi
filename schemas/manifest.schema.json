@@ -302,6 +302,15 @@
           "type": "integer",
           "minimum": 0,
           "description": "v1.1 Phase 11: directed cache-block address for the l1d/l2 components."
+        },
+        "l2_size": {
+          "type": "string",
+          "enum": [
+            "256KiB",
+            "512KiB",
+            "1MiB"
+          ],
+          "description": "v1.1 Phase 11: L2 capacity sweep (cache components)."
         }
       }
     },

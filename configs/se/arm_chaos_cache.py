@@ -59,10 +59,17 @@ p.add_argument("--protection_model", default="none",
                     "(L1D/L2 data: 1-bit undo=Corrected, 2-bit poison-log=Latent "
                     "E3, >=3 silent); 'secded' (L1D/L2 tag: 1-bit undo, 2-bit "
                     "invalidate=DetectedContained, >=3 silent).")
+# v1.1 Phase 11 open item (L2 size sweep, plan 3c): parameterized L2 size
+# {256KiB, 512KiB, 1MiB} for the stencil working-set-vs-L2-capacity axis.
+p.add_argument("--l2_size", default="512KiB",
+               choices=["256KiB", "512KiB", "1MiB"],
+               help="v1.1 Phase 11: L2 capacity sweep (stencil working set "
+                    "400KB — 256KiB forces spill, 512KiB resident, 1MiB "
+                    "over-provisioned).")
 args = p.parse_args()
 
 cm = {"O3":CPUTypes.O3,"Timing":CPUTypes.TIMING,"Atomic":CPUTypes.ATOMIC,"Minor":CPUTypes.MINOR}
-ch = _Base(l1d_size="64KiB", l1i_size="64KiB", l2_size="512KiB")
+ch = _Base(l1d_size="64KiB", l1i_size="64KiB", l2_size=args.l2_size)
 mem = SingleChannelDDR3_1600("1GiB")
 proc = SimpleProcessor(cpu_type=cm[args.cpu], num_cores=1, isa=ISA.ARM)
 board = SimpleBoard(clk_freq="2GHz", processor=proc, memory=mem, cache_hierarchy=ch)
