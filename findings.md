@@ -529,3 +529,19 @@ L2 arms campaign(stencil,n=100×4,零 frozen,Reach 100%):
 | DRAM secded + ecc_logic_fault | 85%(ECC 逻辑被击穿) |
 | L2 victim(256KiB) | 53%(≈data 定向) |
 | L2 容量 256K/512K/1M | 50/52/49%(平) |
+
+### v1.2 Phase 15 第 2 项:ROB=160 整行掩蔽之谜 — 复现确认 + 机理定位(2026-09-08)
+
+**复现**(同 Phase 3 全参:cholesky, C2, X3 bit0, physreg arch, fc=50000):
+| rob | n | P_SDC |
+|---|---|---|
+| 128 | 10 | **100%** [72.2,100] |
+| 160 | 10 | **0%**(全 Masked) |
+
+Phase 3 阈值现象**完全复现**——不是工具 bug,是真实的微架构效应。
+
+**新证据**(本轮新发现):
+1. **fc=20000 + rob=160 + 手工直跑(无 skip)→ Crash**(page fault 0x472000):X3 在 cycle 20000 的**第一个** eligible 写者的翻转是致命的;同参走 campaign(geometric skip 跳过首事件)→ 全 Masked。**掩蔽是 per-写者位置的**:深 ROB 下翻转落点几乎总在"会被覆盖/死值"的写上,浅 ROB 下落在活写上。
+2. 与 Phase 10 spec_leak 的 **DUE 梯度**(rob 96→160: DUE 11.3→19.0% 单调升)同机理:**ROB 深度改变 physReg 生命周期/所有权窗口**——深窗口让错值有更多机会被覆盖(Masked)或先诱发一致性破坏(DUE)。
+
+**机理定论**(替代 Phase 3 的"机理 open"):ROB 深度是 X3 bit0 SDC 的阈值变量(≤128→100% SDC;160→0%),根因是**深度改变的调度位置分布决定翻转命中的写者类型**(活写 vs 死写),非"窗口死区"。Phase 3 的"trigger 无关"结论部分修正:trigger 决定命中的写者位置分布,fc=20000 首写者 Crash 的反例证明 trigger 有关——Phase 3 网格的三个 trigger(20K/50K/80K)恰都落在"首事件被 skip 后的全掩蔽区"。
