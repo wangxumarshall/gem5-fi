@@ -296,6 +296,15 @@ def manifest_for_cell(campaign, cell, cell_ordinal, rep, outdir):
         _fpu_mode["exp_hi"] = cell["fpu_mode_exp_hi"]
     if _fpu_mode:
         manifest["fault"]["fpu_mode"] = _fpu_mode
+    # v1.2 Phase 13: Exec mode axes.
+    _exec_mode = {}
+    if cell.get("exec_bitseg"):
+        _exec_mode["bitseg"] = cell["exec_bitseg"]
+    for _flag in ("recurring_stuck", "f3_dependent"):
+        if cell.get(f"exec_mode_{_flag}"):
+            _exec_mode[_flag] = True
+    if _exec_mode:
+        manifest["fault"]["exec_mode"] = _exec_mode
     # v1.1 Phase 11 (task_plan 3b): directed DRAM window axes.
     _aw = {}
     if cell.get("mem_addr_start") is not None:

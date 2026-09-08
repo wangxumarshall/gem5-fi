@@ -514,6 +514,18 @@ def main():
             cmd += ["--exec_events_to_skip", str(s_skip)]
         if s_count:
             cmd += ["--exec_count_only"]
+        # v1.2 Phase 13: fault.exec_mode sub-object routes the CHAOSExec
+        # modes (bitseg / recurring_stuck / f3_dependent + val range).
+        em_mode = inj.get("exec_mode") or {}
+        if em_mode.get("bitseg"):
+            cmd += ["--exec_bitseg", str(em_mode["bitseg"])]
+        if em_mode.get("recurring_stuck"):
+            cmd += ["--exec_recurring_stuck"]
+        if em_mode.get("f3_dependent"):
+            cmd += ["--exec_f3_dependent"]
+        if em_mode.get("val_lo") is not None and em_mode.get("val_hi") is not None:
+            cmd += ["--exec_val_range",
+                    f"{em_mode['val_lo']},{em_mode['val_hi']}"]
     elif comp == "fsu":
         # §2.6 CHAOSFPU (FP/vector execution-unit result XOR).
         cmd += ["--chaos_fpu", "--fpu_first_clock", str(t["value"]),

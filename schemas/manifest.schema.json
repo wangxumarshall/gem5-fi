@@ -311,6 +311,38 @@
             "1MiB"
           ],
           "description": "v1.1 Phase 11: L2 capacity sweep (cache components)."
+        },
+        "exec_mode": {
+          "type": "object",
+          "description": "v1.2 Phase 13: CHAOSExec mode selection.",
+          "properties": {
+            "bitseg": {
+              "type": "string",
+              "enum": [
+                "byte0",
+                "byte1",
+                "byte2",
+                "byte3",
+                "byte4",
+                "byte5",
+                "byte6",
+                "byte7",
+                "nibble"
+              ]
+            },
+            "recurring_stuck": {
+              "type": "boolean"
+            },
+            "f3_dependent": {
+              "type": "boolean"
+            },
+            "val_lo": {
+              "type": "integer"
+            },
+            "val_hi": {
+              "type": "integer"
+            }
+          }
         }
       }
     },

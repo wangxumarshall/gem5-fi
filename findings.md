@@ -453,3 +453,18 @@ pilot 点估计 87.0% 落在 formal CI [81.5,88.6] 内,一致性确认。DRAM �
 | 1MiB(超配) | 49.2% [40.7,57.8] |
 
 **结论**:**L2 容量 0.5–2× 变化下定向单块注入的 SDC 率平**(CI 高度重叠)——机理:定向注入块的命运由注入时刻它与 L1 副本/重取的关系决定,而非 L2 总容量(容量影响逐出模式,但注入块要么还在要么已逐出,二值)。容量轴对"定向块"不敏感;对随机块/全数组扫描才可能敏感(排 Phase 14 若需)。
+
+### v1.2 Phase 13 Exec 侧完成(2026-09-08,e4684e9/4449933 + 本提交): 首轮"Exec 全 Masked"作废 — INT 数据通路 SDC/DUE 双高
+
+**PRF-dest 重写**(e4684e9,同 FPU 根因):整数结果走 `setRegOperand→cpu->setReg→regFile`,旧 instResult 队列是死路径。模式对齐:bitseg(byte0-7/nibble)/recurring/f3(值域 gate)。真机可见性:reg_chain 4 seeds → 1 Crash(注入值变非法地址 0x7ffffffcc0 → page fault)+ 3 Masked(XOR 链自愈)。
+
+**elemwise_int_kernel**(4449933):c[i]=(a[i]*b[i])^((a[i]+b[i])>>3),全数组 ARRAYHASH+ELEMDIFF。fixed-skip 验证:skip=100k(compute pass)→ SDC(be7df038≠ee7df038);geometric 总落 init 段(INT 事件密集,死值复本)→ 真 Masked——**campaign 必须 uniform_sampling**。
+
+**Campaign pilot(n=100×3 cells,uniform_sampling,零 frozen)**:
+| cell | workload | P_SDC [Wilson 95%] | P_DUE | 结论 |
+|---|---|---|---|---|
+| 单发 transient | elemwise_int | **68.0% [58.3,76.3]** | 20.0% | 首轮"Exec 全 Masked"作废——INT 通路逐元素 68% SDC |
+| recurring_result_stuck | elemwise_int | 0% | **100% [96.3,100]** | 同掩码打所有 INT 结果→必撞非法指针→全崩 |
+| 单发 transient | cholesky(归约) | 10.1% [5.6,17.6] | **52.5%** | 归约负载下 DUE 主导(错值→非法指针) |
+
+**新定律:INT vs FP 数据通路的结局结构差**——FPU recurring 100% SDC(错浮点数仍是合法值)vs Exec recurring 100% DUE(错整数常变非法指针/控制流);elemwise 上 INT 单发 68% SDC + 20% DUE vs FP 单发 ~100% SDC。**整数通路是 SDC+DUE 双高风险,浮点通路是纯 SDC 风险**——保护策略不同(INT 需指针校验/奇偶,FP 需数值 ECC)。
