@@ -39,10 +39,13 @@ Usage:
 """
 import re
 
-# Workload checksum = a standalone 16-hex line on its own (the kernels print
-# FINAL=<16-hex> to stdout/stderr). Match the last such line in the combined
-# output. Empty string if the program never printed one (Hang/Crash).
-_CHECKSUM_RE = re.compile(r"^[0-9a-fA-F]{16}$", re.MULTILINE)
+# Workload checksum = a 16-hex value, either a standalone line (reg_chain
+# style) or FINAL=<16-hex> prefixed (the v1.1 Phase 10/11 kernels:
+# spec_leak_probe / stencil_5pt / stream_triad print "FINAL=<hex>"; found
+# when the stream_triad DRAM pilot classified a REAL SDC run as
+# SimulatorError 'no program checksum' — the regex never matched the
+# prefixed form). Match the LAST occurrence in the combined output.
+_CHECKSUM_RE = re.compile(r"^(?:FINAL=)?([0-9a-fA-F]{16})$", re.MULTILINE)
 
 # gem5-side fatal markers (SimulatorError). These appear in stderr when gem5
 # itself panics/asserts/segs fault — distinct from the workload trapping.
@@ -52,7 +55,8 @@ _SIMERR_MARKERS = ("panic", "Assertion", "SIGSEGV", "abort",
 
 
 def extract_checksum(text):
-    """Return the last 16-hex standalone line in text, or '' if none."""
+    """Return the last 16-hex value (standalone or FINAL=-prefixed line),
+    or '' if none."""
     if not text:
         return ""
     m = _CHECKSUM_RE.findall(text)

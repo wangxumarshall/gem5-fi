@@ -81,6 +81,10 @@ GOLDEN_IDS = {
     # checksum coincides with ptr_chase_kernel's but the workloads differ;
     # separate id keeps provenance honest.
     "ptrchaselong-golden-v1": "af63bd4c8601b7df",  # spinlock_checksum  # ras_checksum_kernel  # fwd_checksum_kernel  # neon_lane  # branchy_reduce (§2.3)
+    # v1.1 Phase 11 (patch 3a): working-set-aware L2/DRAM probes (both
+    # print a 16-hex FINAL= line -> exact_hash).
+    "stencil5pt-golden-v1": "6216d7bd62318f00",      # stencil W=160
+    "streamtriad-golden-v1": "0a3e17d4e5740000",     # triad N=262144 (6MB)
 }
 
 # v1.1 Phase 8.1: golden ARRAY registry — for workloads whose oracle is
@@ -101,9 +105,6 @@ GOLDEN_ARRAYS = {
     # v1.1 Phase 10 (patch 2a): spec_leak_probe N=4096 — the no-leak golden
     # (leak would shift ARRAYHASH and light ELEMDIFF n>0).
     "specleakprobe-golden-v1": "7cd81e9377b50593d3256d67f01d59d4a9fba940894b0929920406933d3232cf",
-    # v1.1 Phase 11 (patch 3a): working-set-aware L2/DRAM probes.
-    "stencil5pt-golden-v1": "6216d7bd62318f00",      # stencil W=160
-    "streamtriad-golden-v1": "0a3e17d4e5740000",     # triad N=262144 (6MB)
 }
 
 def sha256_file(path):
@@ -404,6 +405,15 @@ def main():
         # --protection_model; default "none" = raw escape (regression-safe).
         cmd += ["--chaos_mem", "--protection_model",
                 inj.get("protection_model", "none")]
+        # v1.1 Phase 11 (task_plan 3b): fault.addr_window {start, end} ->
+        # the directed physical DRAM window (streaming workloads put their
+        # arrays far from the image; the default whole-memory draw hits
+        # never-touched frames — the first-round DRAM 'all Masked' artifact).
+        aw = inj.get("addr_window") or {}
+        if aw.get("start") is not None:
+            cmd += ["--addr_start", str(aw["start"])]
+        if aw.get("end") is not None:
+            cmd += ["--addr_end", str(aw["end"])]
         # §2.17 addr_map_sub (F5, Phase 4.6): manifest fault.model
         # stuck_at_one -> displaced-write mode (the displaced 8B write is
         # effectively a 'stuck' wrong-location copy).
@@ -578,6 +588,11 @@ def main():
                 # fault.protection_model (campaign.py Phase 2.1); default
                 # "none" preserves the raw-sensitivity cell semantics.
                 "--protection_model", inj.get("protection_model", "none")]
+        # v1.1 Phase 11 (task_plan 3b): fault.target_block_addr pins the
+        # fault to one cache block (directed L2/L1D injection on the
+        # working-set-aware kernels).
+        if inj.get("target_block_addr") is not None:
+            cmd += ["--target_block_addr", str(inj["target_block_addr"])]
         # §2.11 L1I A64 field stratification (Phase 3 closure): the
         # semantic axis is the INSTRUCTION-ENCODING field corrupted in the
         # fetched bytes — opcode (wrong-opcode arm) vs rn (wrong-register

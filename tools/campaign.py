@@ -296,6 +296,17 @@ def manifest_for_cell(campaign, cell, cell_ordinal, rep, outdir):
         _fpu_mode["exp_hi"] = cell["fpu_mode_exp_hi"]
     if _fpu_mode:
         manifest["fault"]["fpu_mode"] = _fpu_mode
+    # v1.1 Phase 11 (task_plan 3b): directed DRAM window axes.
+    _aw = {}
+    if cell.get("mem_addr_start") is not None:
+        _aw["start"] = cell["mem_addr_start"]
+    if cell.get("mem_addr_end") is not None:
+        _aw["end"] = cell["mem_addr_end"]
+    if _aw:
+        manifest["fault"]["addr_window"] = _aw
+    # v1.1 Phase 11: directed cache-block axis.
+    if cell.get("target_block_addr") is not None:
+        manifest["fault"]["target_block_addr"] = cell["target_block_addr"]
     # clean None values the v1 schema doesn't want
     for k in list(manifest["target"]):
         if manifest["target"][k] is None:

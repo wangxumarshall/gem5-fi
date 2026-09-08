@@ -283,6 +283,25 @@
               "type": "boolean"
             }
           }
+        },
+        "addr_window": {
+          "type": "object",
+          "description": "v1.1 Phase 11: directed physical DRAM byte window for the memory component.",
+          "properties": {
+            "start": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "end": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        },
+        "target_block_addr": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "v1.1 Phase 11: directed cache-block address for the l1d/l2 components."
         }
       }
     },
