@@ -105,6 +105,8 @@ GOLDEN_ARRAYS = {
     # v1.1 Phase 10 (patch 2a): spec_leak_probe N=4096 — the no-leak golden
     # (leak would shift ARRAYHASH and light ELEMDIFF n>0).
     "specleakprobe-golden-v1": "7cd81e9377b50593d3256d67f01d59d4a9fba940894b0929920406933d3232cf",
+    # v1.2 Phase 13 (patch 3): elemwise_int N=8192 (ARRAYHASH oracle).
+    "elemwiseint-golden-v1": "ee7df0384b5599c3f1a3c68c5d92637b4cd4bea1b93e866afaed6fbdbcc83b50",
 }
 
 def sha256_file(path):
