@@ -190,7 +190,12 @@ CHAOSCHI/CHAOSNoC pilot 已能触发（7c854bb/7582e8c，未提交的 ruby test 
 
 ## Phase 11 — v1.1/P3：L2 + DRAM（负载伪影，机械修）
 
-**Status: pending**（依赖 Phase 8 的 `array_hash` oracle + `local_mbu` 多位档）
+**Status: complete（2026-09-08，3a/3b/3c + 双 pilot 全过）**
+
+1. ✅ **3a kernels**（54eda38）：stencil_5pt(W=160,400KB,L2 贴身)+ stream_triad(6MB=12×L2 纯 DRAM 流),全数组回读 hash,native==gem5。
+2. ✅ **3b 定向链**（9bdcf90）：`fault.addr_window`/`target_block_addr` 全链路;物理窗口真机标定(SE 数组帧 ≤4MB,>4MB 零页——默认全内存抽注命中未触达帧是首轮 DRAM 全 Masked 的根因之一)。
+3. ✅ **3c pilots**：**DRAM P_SDC=87.0% [79.0,92.2] / L2 P_SDC=49.0% [39.4,58.7]**,n=100,Reach 100%,零 frozen。首轮"L2/DRAM 全 Masked"修正为**层级掩蔽梯度**(L2 的 51% Mask=L1 副本/重取;DRAM 的 13%=缓存胜出)。附带修 2 个真 bug:classify checksum regex 不认 `FINAL=` 前缀(真 SDC 被判 SimulatorError);stencil/stream golden 注册表错位(GOLDEN_ARRAYS→GOLDEN_IDS)。
+4. ⏳ formal 轮(n=384 × 层级 × protection 档)排深度策略。
 
 1. **新 kernel**（3a，`workloads/directed/`，2 补丁）：
    - `stencil_5pt_kernel.c`：5 点 stencil，`--n` 让工作集 ≈ 2× L1（强制大量 L2 命中）/ ≈ 2× L2（强制 L2 miss + victim 流量）；逐元素输出 `array_hash`。
