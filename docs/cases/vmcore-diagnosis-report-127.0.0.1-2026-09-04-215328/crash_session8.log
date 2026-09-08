@@ -1,0 +1,89 @@
+
+crash 8.0.4-17.oe2403sp4
+Copyright (C) 2002-2022  Red Hat, Inc.
+Copyright (C) 2004, 2005, 2006, 2010  IBM Corporation
+Copyright (C) 1999-2006  Hewlett-Packard Co
+Copyright (C) 2005, 2006, 2011, 2012  Fujitsu Limited
+Copyright (C) 2006, 2007  VA Linux Systems Japan K.K.
+Copyright (C) 2005, 2011, 2020-2022  NEC Corporation
+Copyright (C) 1999, 2002, 2007  Silicon Graphics, Inc.
+Copyright (C) 1999, 2000, 2001, 2002  Mission Critical Linux, Inc.
+Copyright (C) 2015, 2021  VMware, Inc.
+This program is free software, covered by the GNU General Public License,
+and you are welcome to change it and/or distribute copies of it under
+certain conditions.  Enter "help copying" to see the conditions.
+This program has absolutely no warranty.  Enter "help warranty" for details.
+ 
+NOTE: stdin: not a tty
+
+GNU gdb (GDB) 10.2
+Copyright (C) 2021 Free Software Foundation, Inc.
+License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>
+This is free software: you are free to change and redistribute it.
+There is NO WARRANTY, to the extent permitted by law.
+Type "show copying" and "show warranty" for details.
+This GDB was configured as "aarch64-unknown-linux-gnu".
+Type "show configuration" for configuration details.
+Find the GDB manual and other documentation resources online at:
+    <http://www.gnu.org/software/gdb/documentation/>.
+
+For help, type "help".
+Type "apropos word" to search for commands related to "word"...
+
+    DUMPFILE: /home/sdc/wangxu/vmcore0102/127.0.0.1-2026-09-04-21:53:28/vmcore  [PARTIAL DUMP]
+        CPUS: 192
+        DATE: Fri Sep  4 21:52:44 CST 2026
+      UPTIME: 09:14:32
+LOAD AVERAGE: 42.73, 9.68, 3.24
+       TASKS: 2212
+    NODENAME: localhost0102
+     RELEASE: 6.6.0-145.3.23.154.oe2403sp3.aarch64
+     VERSION: #1 SMP Mon Jul 27 19:00:34 CST 2026
+     MACHINE: aarch64  (unknown Mhz)
+      MEMORY: 767.8 GB
+       PANIC: "Unable to handle kernel paging request at virtual address 73b8474cc98297a5"
+         PID: 581185
+     COMMAND: "mi-scavenger"
+        TASK: ffff60201da03f00  [THREAD_INFO: ffff60201da03f00]
+         CPU: 179
+       STATE: TASK_INTERRUPTIBLE (PANIC)
+
+crash> p __per_cpu_offset[150]
+$1 = 18446679699544186880
+crash> p __per_cpu_offset[151]
+$2 = 18446679699544326144
+crash> rd ffffc573b8bda000 4
+rd: invalid kernel virtual address: ffffc573b8bda000  type: "64-bit KVADDR"
+crash> rd ffffc573b8bfc000 4
+rd: invalid kernel virtual address: ffffc573b8bfc000  type: "64-bit KVADDR"
+crash> rd ffffc573b8c1e000 4
+rd: invalid kernel virtual address: ffffc573b8c1e000  type: "64-bit KVADDR"
+crash> rd ffffc573b8c40000 4
+rd: invalid kernel virtual address: ffffc573b8c40000  type: "64-bit KVADDR"
+crash> sym ffffc573b8bda000
+sym: invalid address: ffffc573b8bda000
+crash> rd ffffba8cc8c1fcb0 8
+ffffba8cc8c1fcb0:  00510000000000c0 0000080108000018   ......Q.........
+ffffba8cc8c1fcc0:  0000000000000000 ffff404003fb9a40   ........@...@@..
+ffffba8cc8c1fcd0:  ffff002021ec0f00 0000000000000000   ...! ...........
+ffffba8cc8c1fce0:  000000000000000a 0000000000000078   ........x.......
+crash> rd ffffba8cc8c20000 16
+ffffba8cc8c20000:  0000000000000000 0000000000000000   ................
+ffffba8cc8c20010:  0000000000000000 0000000000000000   ................
+ffffba8cc8c20020:  0000000000000000 0000000000000000   ................
+ffffba8cc8c20030:  0000000000000000 0000000000000000   ................
+ffffba8cc8c20040:  0000000000000000 0000000000000000   ................
+ffffba8cc8c20050:  0000000000000000 0000000000000000   ................
+ffffba8cc8c20060:  0000000000000000 0000000000000000   ................
+ffffba8cc8c20070:  0000000000000000 0000000000000000   ................
+crash> p &node_data
+$3 = (pg_data_t *(*)[256]) 0xffffba8cc8c24dd0 <node_data>
+crash> p node_data[6]
+$4 = (pg_data_t *) 0xffff6037ffff0b00
+crash> rd ffff6040043a0000 8
+ffff6040043a0000:  0000000000000000 ffff6040043a3200   .........2:.@`..
+ffff6040043a0010:  ffff604003e5f180 00000000000000c0   ....@`..........
+ffff6040043a0020:  0000000000000180 0000007500000010   ............u...
+ffff6040043a0030:  0000000c00000002 0000640100000000   .............d..
+crash> p &__per_cpu_offset
+$5 = (unsigned long (*)[4096]) 0xffffba8cc8c255d0 <__per_cpu_offset>

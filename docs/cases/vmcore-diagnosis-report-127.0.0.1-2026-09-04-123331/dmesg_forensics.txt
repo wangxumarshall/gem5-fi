@@ -1,0 +1,244 @@
+=== dmesg forensics for 127.0.0.1-2026-09-04-12:33:31 (第 12 次致命转储, vmcore-incomplete) ===
+取证时间: 2026-09-04 14:05:58 ; 取证人: 诊断会话(Task 7) ; 源文件: /home/sdc/wangxu/vmcore0102/127.0.0.1-2026-09-04-12:33:31/vmcore-dmesg.txt (2681 行)
+
+--- cmd: wc -l (dmesg lines) ---
+2681 /home/sdc/wangxu/vmcore0102/127.0.0.1-2026-09-04-12:33:31/vmcore-dmesg.txt
+
+--- cmd: grep -nE 'Linux version|Command line|Memory:' /home/sdc/wangxu/vmcore0102/127.0.0.1-2026-09-04-12:33:31/vmcore-dmesg.txt | head -5 ---
+2:[    0.000000] Linux version 6.6.0-145.3.23.154.oe2403sp3.aarch64 (root@node-48snw.compass-ci.net) (gcc_old (GCC) 12.3.1 (openEuler 12.3.1-110.oe2403sp3), GNU ld (GNU Binutils) 2.41) #1 SMP Mon Jul 27 19:00:34 CST 2026
+408:[    0.000000] Memory: 791048808K/805102592K available (15360K kernel code, 5418K rwdata, 10648K rodata, 5824K init, 27554K bss, 14053784K reserved, 0K cma-reserved)
+
+--- cmd: grep -n 'Kernel command line' /home/sdc/wangxu/vmcore0102/127.0.0.1-2026-09-04-12:33:31/vmcore-dmesg.txt | head -2 ---
+387:[    0.000000] Kernel command line: BOOT_IMAGE=/vmlinuz-6.6.0-145.3.23.154.oe2403sp3.aarch64 root=/dev/mapper/openeuler-root ro rd.lvm.lv=openeuler/root rd.lvm.lv=openeuler/swap cgroup_disable=files apparmor=0 crashkernel=1024M,high smmu.bypassdev=0x1000:0x17 smmu.bypassdev=0x1000:0x15 arm64.nopauth nospectre_bhb rhgb quiet console=tty0
+2537:[   24.022112] systemd[1]: Starting Generate network units from Kernel command line...
+
+--- cmd: grep -c 'WARNING: CPU:' /home/sdc/wangxu/vmcore0102/127.0.0.1-2026-09-04-12:33:31/vmcore-dmesg.txt (WARNING 总数, 预期 1) ---
+1
+
+--- cmd: grep -oE 'WARNING: CPU: [0-9]+' /home/sdc/wangxu/vmcore0102/127.0.0.1-2026-09-04-12:33:31/vmcore-dmesg.txt | sort | uniq -c (per-CPU 分布, 预期仅 179) ---
+      1 WARNING: CPU: 179
+
+--- cmd: grep -oE 'CPU: [0-9]+' /home/sdc/wangxu/vmcore0102/127.0.0.1-2026-09-04-12:33:31/vmcore-dmesg.txt | sort | uniq -c (全部异常事件宿主 CPU) ---
+      3 CPU: 179
+
+--- cmd: 完整崩溃块 awk '/Unable to handle/{f=1} f{print; c++} c>90{exit}' /home/sdc/wangxu/vmcore0102/127.0.0.1-2026-09-04-12:33:31/vmcore-dmesg.txt ---
+[ 5060.516765] Unable to handle kernel paging request at virtual address ffffc8a996d397e0
+[ 5060.525427] Mem abort info:
+[ 5060.528919]   ESR = 0x0000000096000007
+[ 5060.533368]   EC = 0x25: DABT (current EL), IL = 32 bits
+[ 5060.539384]   SET = 0, FnV = 0
+[ 5060.543139]   EA = 0, S1PTW = 0
+[ 5060.546980]   FSC = 0x07: level 3 translation fault
+[ 5060.552559] Data abort info:
+[ 5060.556136]   ISV = 0, ISS = 0x00000007, ISS2 = 0x00000000
+[ 5060.562321]   CM = 0, WnR = 0, TnD = 0, TagAccess = 0
+[ 5060.568073]   GCS = 0, Overlay = 0, DirtyBit = 0, Xs = 0
+[ 5060.574087] swapper pgtable: 4k pages, 48-bit VAs, pgdp=00002054b0164000
+[ 5060.581491] [ffffc8a996d397e0] pgd=10006057fffff403, p4d=10006057fffff403, pud=10006057ffffe403, pmd=10006057ffffa403, pte=0000000000000000
+[ 5060.594731] Internal error: Oops: 0000000096000007 [#1] SMP
+[ 5060.601006] Modules linked in: binfmt_misc nft_fib_inet nft_fib_ipv4 nft_fib_ipv6 nft_fib nft_reject_inet nf_reject_ipv4 nf_reject_ipv6 nft_reject nft_ct nft_chain_nat nf_nat nf_conntrack nf_defrag_ipv6 nf_defrag_ipv4 rfkill ip_set nf_tables libcrc32c rpcrdma sunrpc rdma_ucm ib_srpt ib_isert iscsi_target_mod target_core_mod ib_iser rdma_cm iw_cm ib_cm libiscsi scsi_transport_iscsi vfat fat hns_roce_hw_v2 ib_uverbs ipmi_ssif ib_core acpi_ipmi ses ipmi_si ipmi_devintf enclosure hisi_uncore_hha_pmu hisi_uncore_ddrc_pmu hisi_uncore_l3c_pmu ipmi_msghandler hisi_uncore_pmu sg ip6_tables ip_tables fuse nfnetlink ext4 mbcache jbd2 sd_mod t10_pi crc64_rocksoft_generic crc64_rocksoft crc64 motorcomm hisi_sas_v3_hw hisi_sas_main libsas hibmc_drm crct10dif_ce drm_vram_helper ghash_ce drm_ttm_helper sha2_ce ttm sha256_arm64 sha1_ce hclge drm_display_helper drm_kms_helper sbsa_gwdt ahci libahci scsi_transport_sas drm hns3 libata nfit hnae3 megaraid_sas host_edma_drv i2c_designware_platform libnvdimm i2c_designware_core hisi_trng_v2
+[ 5060.601119]  dm_mirror dm_region_hash dm_log dm_multipath dm_mod aes_neon_bs aes_neon_blk aes_ce_blk aes_ce_cipher
+[ 5060.703166] CPU: 179 PID: 55114 Comm: mi-scavenger Kdump: loaded Tainted: G        W           6.6.0-145.3.23.154.oe2403sp3.aarch64 #1
+[ 5060.715965] Hardware name: Yangtze Computing R240K V2/BC82AMQA, BIOS 7.48 06/15/2026
+[ 5060.724415] pstate: 204000c9 (nzCv daIF +PAN -UAO -TCO -DIT -SSBS BTYPE=--)
+[ 5060.732081] pc : find_busiest_group+0x140/0xb60
+[ 5060.737321] lr : find_busiest_group+0x11c/0xb60
+[ 5060.742552] sp : ffff8001e4bcb740
+[ 5060.746566] x29: ffff8001e4bcb8c0 x28: ffff8001e4bcb770 x27: ffffc8a996d396c0
+[ 5060.754408] x26: ffff604003e63c60 x25: 0000000000000035 x24: ffffc8a997135000
+[ 5060.762250] x23: 0000000000000400 x22: ffff604003e635a0 x21: ffffc8a99712fcb0
+[ 5060.770093] x20: 0000000000000000 x19: ffff8001e4bcb950 x18: 0000000000000000
+[ 5060.777933] x17: 0000000000000000 x16: 0000000000000000 x15: 0000ffff98317e20
+[ 5060.785773] x14: 0000000000000000 x13: 0000000000000000 x12: 0000000000000000
+[ 5060.793614] x11: 0000000000000000 x10: 0000000000000000 x9 : ffffc8a99530ae58
+[ 5060.801455] x8 : ffff8001e4bcb7c8 x7 : 0000000000000000 x6 : 0000000000000035
+[ 5060.809297] x5 : ffe0000000000000 x4 : 0000000000000000 x3 : 0000000000000035
+[ 5060.817139] x2 : 0000000000007445 x1 : ffffc8a996d396c0 x0 : 0000000000000035
+[ 5060.824979] Call trace:
+[ 5060.828778]  find_busiest_group+0x140/0xb60
+[ 5060.834207]  load_balance+0x108/0x6c0
+[ 5060.839083]  newidle_balance+0x198/0x510
+[ 5060.844204]  pick_next_task_fair+0x110/0x718
+[ 5060.849668]  pick_next_task+0x60/0x398
+[ 5060.854597]  __schedule+0x1b4/0x8a0
+[ 5060.859253]  schedule+0x58/0x130
+[ 5060.863642]  futex_wait_queue+0x78/0xb0
+[ 5060.868640]  futex_wait+0xe8/0x1d0
+[ 5060.873197]  do_futex+0xec/0x1a0
+[ 5060.877578]  __arm64_sys_futex+0x80/0x198
+[ 5060.882743]  invoke_syscall+0x50/0x128
+[ 5060.887643]  el0_svc_common.constprop.0+0xc8/0xf0
+[ 5060.893498]  do_el0_svc+0x48/0x78
+[ 5060.897959]  el0_slow_syscall+0x44/0x1b8
+[ 5060.903028]  el0t_64_sync_handler+0x100/0x130
+[ 5060.908532]  el0t_64_sync+0x188/0x190
+[ 5060.913327] Code: f9400782 f879d814 2a1903e0 8b14003b (f9409377) 
+[ 5060.920551] SMP: stopping secondary CPUs
+[ 5060.930115] Starting crashdump kernel...
+[ 5060.935234] Bye!
+
+--- cmd: grep -nE 'ERRIDR|ERX|EDAC|BERT|GHES|mce|ras' /home/sdc/wangxu/vmcore0102/127.0.0.1-2026-09-04-12:33:31/vmcore-dmesg.txt | head (RAS 负证据) ---
+12:[    0.000000] ACPI: BERT 0x000000002F61FF98 000030 (v01 HISI   HIP08    00000000 HISI 20151124)
+121:[    0.000000] crashkernel low memory reserved: 0x58000000 - 0x60000000 (128 MB)
+122:[    0.000000] crashkernel reserved: 0x000060575fe00000 - 0x000060579fe00000 (1024 MB)
+387:[    0.000000] Kernel command line: BOOT_IMAGE=/vmlinuz-6.6.0-145.3.23.154.oe2403sp3.aarch64 root=/dev/mapper/openeuler-root ro rd.lvm.lv=openeuler/root rd.lvm.lv=openeuler/swap cgroup_disable=files apparmor=0 crashkernel=1024M,high smmu.bypassdev=0x1000:0x17 smmu.bypassdev=0x1000:0x15 arm64.nopauth nospectre_bhb rhgb quiet console=tty0
+1308:[    0.564415] GHES: APEI firmware first mode is enabled by APEI bit and WHEA _OSC.
+1858:[    0.868893] EDAC MC: Ver: 3.0.0
+1946:[    1.105028] pstore: Using crash dump compression: deflate
+2177:[    1.501491] EDAC MC0: Giving out device to module ghes_edac.c controller ghes_edac: DEV ghes (INTERRUPT)
+2411:[    4.638675] megaraid_sas 0000:02:00.0: firmware crash dump	: no
+2680:[ 5060.930115] Starting crashdump kernel...
+
+--- cmd: grep -n 'Ignoring spurious' /home/sdc/wangxu/vmcore0102/127.0.0.1-2026-09-04-12:33:31/vmcore-dmesg.txt (spurious 前兆) ---
+2582:[ 5022.426725] Ignoring spurious kernel translation fault at virtual address ffff604003e63c98
+
+--- cmd: WARNING 完整块 (sed -n '2581,2641p') ---
+[ 5022.426712] ------------[ cut here ]------------
+[ 5022.426725] Ignoring spurious kernel translation fault at virtual address ffff604003e63c98
+[ 5022.426734] WARNING: CPU: 179 PID: 61156 at arch/arm64/mm/fault.c:494 __do_kernel_fault+0x130/0x1b8
+[ 5022.426751] Modules linked in: binfmt_misc nft_fib_inet nft_fib_ipv4 nft_fib_ipv6 nft_fib nft_reject_inet nf_reject_ipv4 nf_reject_ipv6 nft_reject nft_ct nft_chain_nat nf_nat nf_conntrack nf_defrag_ipv6 nf_defrag_ipv4 rfkill ip_set nf_tables libcrc32c rpcrdma sunrpc rdma_ucm ib_srpt ib_isert iscsi_target_mod target_core_mod ib_iser rdma_cm iw_cm ib_cm libiscsi scsi_transport_iscsi vfat fat hns_roce_hw_v2 ib_uverbs ipmi_ssif ib_core acpi_ipmi ses ipmi_si ipmi_devintf enclosure hisi_uncore_hha_pmu hisi_uncore_ddrc_pmu hisi_uncore_l3c_pmu ipmi_msghandler hisi_uncore_pmu sg ip6_tables ip_tables fuse nfnetlink ext4 mbcache jbd2 sd_mod t10_pi crc64_rocksoft_generic crc64_rocksoft crc64 motorcomm hisi_sas_v3_hw hisi_sas_main libsas hibmc_drm crct10dif_ce drm_vram_helper ghash_ce drm_ttm_helper sha2_ce ttm sha256_arm64 sha1_ce hclge drm_display_helper drm_kms_helper sbsa_gwdt ahci libahci scsi_transport_sas drm hns3 libata nfit hnae3 megaraid_sas host_edma_drv i2c_designware_platform libnvdimm i2c_designware_core hisi_trng_v2
+[ 5022.426869]  dm_mirror dm_region_hash dm_log dm_multipath dm_mod aes_neon_bs aes_neon_blk aes_ce_blk aes_ce_cipher
+[ 5022.426885] CPU: 179 PID: 61156 Comm: HeapHelper Kdump: loaded Not tainted 6.6.0-145.3.23.154.oe2403sp3.aarch64 #1
+[ 5022.426889] Hardware name: Yangtze Computing R240K V2/BC82AMQA, BIOS 7.48 06/15/2026
+[ 5022.426892] pstate: 604000c9 (nZCv daIF +PAN -UAO -TCO -DIT -SSBS BTYPE=--)
+[ 5022.426895] pc : __do_kernel_fault+0x130/0x1b8
+[ 5022.426898] lr : __do_kernel_fault+0x130/0x1b8
+[ 5022.426901] sp : ffff8001e3023520
+[ 5022.426902] x29: ffff8001e3023520 x28: ffff00400bc3aa00 x27: ffff8000800c16c0
+[ 5022.426906] x26: ffff604003e63c60 x25: 0000000000000005 x24: ffffc8a997135000
+[ 5022.426910] x23: 00000000204000c9 x22: 0000000000000025 x21: ffff604003e63c98
+[ 5022.426914] x20: ffff8001e30235f0 x19: 0000000096000004 x18: ffffffffffffffff
+[ 5022.426918] x17: 6666207373657264 x16: 6461206c61757472 x15: 697620746120746c
+[ 5022.426922] x14: 756166206e6f6974 x13: 3839633336653330 x12: 3034303666666666
+[ 5022.426926] x11: 00000000fffeffff x10: ffff60575f8cfb40 x9 : ffffc8a99535c520
+[ 5022.426930] x8 : 000000000017ffe8 x7 : c0000000fffeffff x6 : 000000000057ffa8
+[ 5022.426934] x5 : ffff8000817c9d88 x4 : ffff8001e3023380 x3 : ffffb756eaaa4000
+[ 5022.426938] x2 : 0000000000000000 x1 : 0000000000000000 x0 : ffff00400bc3aa00
+[ 5022.426943] Call trace:
+[ 5022.426945]  __do_kernel_fault+0x130/0x1b8
+[ 5022.426949]  do_bad_area+0x70/0x88
+[ 5022.426952]  do_translation_fault+0x40/0x80
+[ 5022.426958]  do_mem_abort+0x4c/0xa8
+[ 5022.426961]  el1_abort+0x5c/0x150
+[ 5022.426966]  el1h_64_sync_handler+0xd8/0xe8
+[ 5022.426969]  el1h_64_sync+0x78/0x80
+[ 5022.426973]  _find_next_and_bit+0x18/0x80
+[ 5022.426982]  load_balance+0x108/0x6c0
+[ 5022.426989]  newidle_balance+0x198/0x510
+[ 5022.426991]  pick_next_task_fair+0x110/0x718
+[ 5022.426993]  pick_next_task+0x60/0x398
+[ 5022.427000]  __schedule+0x1b4/0x8a0
+[ 5022.427006]  schedule+0x58/0x130
+[ 5022.427008]  futex_wait_queue+0x78/0xb0
+[ 5022.427016]  futex_wait+0xe8/0x1d0
+[ 5022.427019]  do_futex+0xec/0x1a0
+[ 5022.427021]  __arm64_sys_futex+0x80/0x198
+[ 5022.427024]  invoke_syscall+0x50/0x128
+[ 5022.427028]  el0_svc_common.constprop.0+0xc8/0xf0
+[ 5022.427030]  do_el0_svc+0x48/0x78
+[ 5022.427032]  el0_slow_syscall+0x44/0x1b8
+[ 5022.427035]  el0t_64_sync_handler+0x100/0x130
+[ 5022.427039]  el0t_64_sync+0x188/0x190
+[ 5022.427041] ---[ end trace 0000000000000000 ]---
+[ 5060.516765] Unable to handle kernel paging request at virtual address ffffc8a996d397e0
+[ 5060.525427] Mem abort info:
+[ 5060.528919]   ESR = 0x0000000096000007
+[ 5060.533368]   EC = 0x25: DABT (current EL), IL = 32 bits
+[ 5060.539384]   SET = 0, FnV = 0
+[ 5060.543139]   EA = 0, S1PTW = 0
+[ 5060.546980]   FSC = 0x07: level 3 translation fault
+[ 5060.552559] Data abort info:
+[ 5060.556136]   ISV = 0, ISS = 0x00000007, ISS2 = 0x00000000
+[ 5060.562321]   CM = 0, WnR = 0, TnD = 0, TagAccess = 0
+[ 5060.568073]   GCS = 0, Overlay = 0, DirtyBit = 0, Xs = 0
+[ 5060.574087] swapper pgtable: 4k pages, 48-bit VAs, pgdp=00002054b0164000
+[ 5060.581491] [ffffc8a996d397e0] pgd=10006057fffff403, p4d=10006057fffff403, pud=10006057ffffe403, pmd=10006057ffffa403, pte=0000000000000000
+[ 5060.594731] Internal error: Oops: 0000000096000007 [#1] SMP
+
+--- cmd: 时间线端点 head -1 / tail -3 ---
+[    0.000000] Booting Linux on physical CPU 0x0000080000 [0x481fd010]
+[ 5060.920551] SMP: stopping secondary CPUs
+[ 5060.930115] Starting crashdump kernel...
+[ 5060.935234] Bye!
+
+--- cmd: grep -n 'KASLR' /home/sdc/wangxu/vmcore0102/127.0.0.1-2026-09-04-12:33:31/vmcore-dmesg.txt | head -2 ---
+3:[    0.000000] KASLR enabled
+384:[    0.000000] CPU features: kernel page table isolation forced ON by KASLR
+
+--- cmd: grep -cE 'Unable to handle' /home/sdc/wangxu/vmcore0102/127.0.0.1-2026-09-04-12:33:31/vmcore-dmesg.txt (致命 Oops 计数) ---
+1
+
+--- cmd: grep -n 'cut here' /home/sdc/wangxu/vmcore0102/127.0.0.1-2026-09-04-12:33:31/vmcore-dmesg.txt (WARNING 分隔符) ---
+2581:[ 5022.426712] ------------[ cut here ]------------
+
+=== crash 加载尝试（vmcore-incomplete, 预期拒载/数据不全, 如实记录）===
+cmd: taskset -c 0-31 timeout 1800 crash /usr/lib/debug/usr/lib/modules/6.6.0-145.3.23.154.oe2403sp3.aarch64/vmlinux /home/sdc/wangxu/vmcore0102/127.0.0.1-2026-09-04-12:33:31/vmcore-incomplete -i /dev/stdin  (批命令: sys / quit)
+退出码: 1（未到达 crash> 提示符即中止）
+输出统计: 共 417 行, 其中 'crash: seek error' 384 行（IRQ/SDEI stack pointer 等内核虚拟地址定位失败）
+末行错误: crash: page excluded: kernel virtual address: ffff6057fffaeb00  type: "memory section root table"
+
+--- 输出头 8 行（crash 版本 8.0.4-17.oe2403sp4）---
+
+crash 8.0.4-17.oe2403sp4
+Copyright (C) 2002-2022  Red Hat, Inc.
+Copyright (C) 2004, 2005, 2006, 2010  IBM Corporation
+Copyright (C) 1999-2006  Hewlett-Packard Co
+Copyright (C) 2005, 2006, 2011, 2012  Fujitsu Limited
+Copyright (C) 2006, 2007  VA Linux Systems Japan K.K.
+Copyright (C) 2005, 2011, 2020-2022  NEC Corporation
+
+--- 输出尾 5 行 ---
+crash: seek error: kernel virtual address: ffff8000818f9600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff80008191b600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff80008193d600  type: "SDEI stack pointer"
+crash: seek error: kernel virtual address: ffff80008195f600  type: "SDEI stack pointer"
+crash: page excluded: kernel virtual address: ffff6057fffaeb00  type: "memory section root table"
+
+结论: crash 无法从该 incomplete 转储建立会话（kdump 未完成, 关键内核数据页缺失）, 内存真值对照、vtop 页表走查、p runqueues:179 实例验证等动态取证全部不可执行——本案法证边界为 dmesg-only。
+
+=== 补充法证：跨案不变式与页表走查对照 ===
+--- 08-26 案页表走查行（对照组）---
+[66685.686877] [ffffa29301d797e0] pgd=10006057fffff403, p4d=10006057fffff403, pud=10006057ffffe403, pmd=10006057ffffa403, pte=0000000000000000
+--- 本案页表走查行 ---
+[ 5060.581491] [ffffc8a996d397e0] pgd=10006057fffff403, p4d=10006057fffff403, pud=10006057ffffe403, pmd=10006057ffffa403, pte=0000000000000000
+
+--- 本案 WARNING 块寄存器（5022s, HeapHelper, CPU179）---
+[ 5022.426902] x29: ffff8001e3023520 x28: ffff00400bc3aa00 x27: ffff8000800c16c0
+[ 5022.426906] x26: ffff604003e63c60 x25: 0000000000000005 x24: ffffc8a997135000
+[ 5022.426910] x23: 00000000204000c9 x22: 0000000000000025 x21: ffff604003e63c98
+[ 5022.426914] x20: ffff8001e30235f0 x19: 0000000096000004 x18: ffffffffffffffff
+[ 5022.426918] x17: 6666207373657264 x16: 6461206c61757472 x15: 697620746120746c
+
+--- 本案与 08-26 案同为 mi-scavenger/futex 路径的 Call trace 对照 ---
+本案 (5060.828778~):
+[ 5060.801455] x8 : ffff8001e4bcb7c8 x7 : 0000000000000000 x6 : 0000000000000035
+[ 5060.809297] x5 : ffe0000000000000 x4 : 0000000000000000 x3 : 0000000000000035
+[ 5060.817139] x2 : 0000000000007445 x1 : ffffc8a996d396c0 x0 : 0000000000000035
+[ 5060.824979] Call trace:
+[ 5060.828778]  find_busiest_group+0x140/0xb60
+[ 5060.834207]  load_balance+0x108/0x6c0
+[ 5060.839083]  newidle_balance+0x198/0x510
+[ 5060.844204]  pick_next_task_fair+0x110/0x718
+[ 5060.849668]  pick_next_task+0x60/0x398
+[ 5060.854597]  __schedule+0x1b4/0x8a0
+[ 5060.859253]  schedule+0x58/0x130
+[ 5060.863642]  futex_wait_queue+0x78/0xb0
+[ 5060.868640]  futex_wait+0xe8/0x1d0
+[ 5060.873197]  do_futex+0xec/0x1a0
+[ 5060.877578]  __arm64_sys_futex+0x80/0x198
+[ 5060.882743]  invoke_syscall+0x50/0x128
+[ 5060.887643]  el0_svc_common.constprop.0+0xc8/0xf0
+[ 5060.893498]  do_el0_svc+0x48/0x78
+[ 5060.897959]  el0_slow_syscall+0x44/0x1b8
+[ 5060.903028]  el0t_64_sync_handler+0x100/0x130
+[ 5060.908532]  el0t_64_sync+0x188/0x190
+
+--- CPU179 offline 状态：command line 无 isolcpus/offline 参数，dmesg 无 offline 记录 → CPU179 本开机仍在线 ---
+0
+
+=== 补充法证：KASLR 相对距离不变式（三案对照，Python3 模 2^64）===
+x9 − x1 ≡ 0xfffffffffe5d1798 (mod 2^64) 三开机一致（08-26 / 09-04-11:00 / 09-04-12:33）
+- x9 = find_busiest_group+0x150 运行期地址（.text 锚），x1 = runqueues percpu 模板地址
+- 三次开机 KASLR 随机化后该相对距离保持恒定 → 链接期固定布局，寄存器语义解释（x1=模板、x9=pc 附近锚）三案互证
+- 同族不变式：x21−x1 = 0x3f65f0（nr_cpu_ids ↔ runqueues）、x24−x21 = 0x5350（__per_cpu_offset 数组基址页内偏移）三案一致
+计算详见 algebra.py / algebra_out.txt

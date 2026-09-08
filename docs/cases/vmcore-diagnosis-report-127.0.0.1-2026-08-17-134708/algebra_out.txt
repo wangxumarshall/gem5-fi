@@ -1,0 +1,46 @@
+== 寄存器代数闭合（第 2 次转储 2026-08-17-13:47:08）==
+
+[1] x27 = x1 + x20 (mod 2^64)
+    x1  = 0xffffd7d8cdf196c0   (&runqueues 模板)
+    x20 = 0x00ffffa827b20fe0   (实收，应为 __per_cpu_offset[175])
+    x1 + x20 = 0x00ffd780f5a3a6a0
+    寄存器 x27 = 0x00ffd780f5a3a6a0
+    逐位相等: True
+
+[2] FAR = x27 + 0x120 (mod 2^64)
+    x27 + 0x120 = 0x00ffd780f5a3a7c0
+    硬件 FAR    = 0x00ffd780f5a3a7c0
+    逐位相等: True
+
+[3] x20 撕裂形态分析
+    x20 = 0x00ffffa827b20fe0
+    高 4 位字节: 00ffffa8  （真值应为 ffffxxxx 形态）
+    x20 >> 8  = 0x0000ffffa827b20f
+    (x20 << 8) & M = 0xffffa827b20fe000   ← 若真值 = x20 左移 8 位（即 x20 = 真值 ≫ 8）
+    注：candidate_true = 0xffffa827b20fe000 形态为 ffffa8a27b20fe00
+    非规范检查：x20 高 16 位 = 0x00ff ≠ 0xffff → 非规范内核指针
+
+[4] FAR 高位形态
+    FAR = 0x00ffd780f5a3a7c0  高 16 位 = 0x00ff（非规范：'between user and kernel address ranges'）
+    x27 = 0x00ffd780f5a3a6a0  高 16 位 = 0x00ff
+    FAR 与 x27 仅低 63 位内差 0x120，高 16 位同源（同为撕裂结果）
+
+[5] 跨开机不变式
+    x23 = 0x0000000000000400 （≡0x400，前次成功迭代 load_avg 残留，既往 5 案一致）
+    x22 == x26: True （0xffff604003e9ec00，sched_group slab 指针成对，既往一致）
+    x21 = 0xffffd7d8ce30fcb0 （nr_cpu_ids）
+    x24 = 0xffffd7d8ce315000
+    x21 - x24 = 0xffffffffffffacb0 （既往恒为 -0x5350）
+
+[6] 反事实形态推演（不可数值验证，标注边界）
+    x1 高 16 位 = 0xffff
+    若 T 为规范 0xffff.... 值，x1+T 高位进位 → ffff8000 型规范地址（同 08-26 案）
+    本案 vmcore-incomplete，无法 vtop 验证 —— 反事实止于形态层【边界声明】
+
+== 补充：x20 字节级撕裂形态 ==
+    x20 字节序列（大端 B0..B7）: 00 ff ff a8 27 b2 0f e0
+    高 2 字节 = 00 ff （规范内核指针应为 ff ff）
+    15:58 案 x20 字节序列:      00 ff ff cc 87 9d a2 e0
+    两案高 2 字节完全一致（00 ff）: True
+    反推 T = x20 << 8 = 0xffffa827b20fe000，高 16 位 = 0xffff → 规范 ffff 形态
+    被撕裂移出的低 8 位不可恢复（信息丢失）→ 只能形态归类，无法数值对照真值

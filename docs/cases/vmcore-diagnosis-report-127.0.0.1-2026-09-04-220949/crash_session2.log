@@ -1,0 +1,1514 @@
+
+crash 8.0.4-17.oe2403sp4
+Copyright (C) 2002-2022  Red Hat, Inc.
+Copyright (C) 2004, 2005, 2006, 2010  IBM Corporation
+Copyright (C) 1999-2006  Hewlett-Packard Co
+Copyright (C) 2005, 2006, 2011, 2012  Fujitsu Limited
+Copyright (C) 2006, 2007  VA Linux Systems Japan K.K.
+Copyright (C) 2005, 2011, 2020-2022  NEC Corporation
+Copyright (C) 1999, 2002, 2007  Silicon Graphics, Inc.
+Copyright (C) 1999, 2000, 2001, 2002  Mission Critical Linux, Inc.
+Copyright (C) 2015, 2021  VMware, Inc.
+This program is free software, covered by the GNU General Public License,
+and you are welcome to change it and/or distribute copies of it under
+certain conditions.  Enter "help copying" to see the conditions.
+This program has absolutely no warranty.  Enter "help warranty" for details.
+ 
+NOTE: stdin: not a tty
+
+GNU gdb (GDB) 10.2
+Copyright (C) 2021 Free Software Foundation, Inc.
+License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>
+This is free software: you are free to change and redistribute it.
+There is NO WARRANTY, to the extent permitted by law.
+Type "show copying" and "show warranty" for details.
+This GDB was configured as "aarch64-unknown-linux-gnu".
+Type "show configuration" for configuration details.
+Find the GDB manual and other documentation resources online at:
+    <http://www.gnu.org/software/gdb/documentation/>.
+
+For help, type "help".
+Type "apropos word" to search for commands related to "word"...
+
+please wait... (gathering kmem slab cache data)                                                please wait... (gathering module symbol data)                                              please wait... (gathering task table data)                                           please wait... (determining panic task)                                              KERNEL: /tmp/vmlinux-0102  [TAINTED]
+    DUMPFILE: /home/sdc/wangxu/vmcore0102/127.0.0.1-2026-09-04-22:09:49/vmcore  [PARTIAL DUMP]
+        CPUS: 192
+        DATE: Fri Sep  4 22:08:20 CST 2026
+      UPTIME: 00:06:37
+LOAD AVERAGE: 128.20, 49.41, 18.26
+       TASKS: 2193
+    NODENAME: localhost0102
+     RELEASE: 6.6.0-145.3.23.154.oe2403sp3.aarch64
+     VERSION: #1 SMP Mon Jul 27 19:00:34 CST 2026
+     MACHINE: aarch64  (unknown Mhz)
+      MEMORY: 767.8 GB
+       PANIC: "Unable to handle kernel paging request at virtual address ffffb75e3dfa97e0"
+         PID: 73729
+     COMMAND: "rs:main Q:Reg"
+        TASK: ffff00202e2f3f00  [THREAD_INFO: ffff00202e2f3f00]
+         CPU: 179
+       STATE: TASK_WAKING (PANIC)
+
+crash> sys
+      KERNEL: /tmp/vmlinux-0102  [TAINTED]
+    DUMPFILE: /home/sdc/wangxu/vmcore0102/127.0.0.1-2026-09-04-22:09:49/vmcore  [PARTIAL DUMP]
+        CPUS: 192
+        DATE: Fri Sep  4 22:08:20 CST 2026
+      UPTIME: 00:06:37
+LOAD AVERAGE: 128.20, 49.41, 18.26
+       TASKS: 2193
+    NODENAME: localhost0102
+     RELEASE: 6.6.0-145.3.23.154.oe2403sp3.aarch64
+     VERSION: #1 SMP Mon Jul 27 19:00:34 CST 2026
+     MACHINE: aarch64  (unknown Mhz)
+      MEMORY: 767.8 GB
+       PANIC: "Unable to handle kernel paging request at virtual address ffffb75e3dfa97e0"
+crash> bt
+PID: 73729    TASK: ffff00202e2f3f00  CPU: 179  COMMAND: "rs:main Q:Reg"
+ #0 [ffff8001dfc63250] machine_kexec at ffffb75e3c47ce6c
+ #1 [ffff8001dfc633e0] __crash_kexec at ffffb75e3c64df14
+ #2 [ffff8001dfc63410] crash_kexec at ffffb75e3c64e08c
+ #3 [ffff8001dfc63480] die at ffffb75e3c462aa4
+ #4 [ffff8001dfc634e0] die_kernel_fault at ffffb75e3c4844bc
+ #5 [ffff8001dfc63520] __do_kernel_fault at ffffb75e3c484800
+ #6 [ffff8001dfc63550] do_bad_area at ffffb75e3c4848a4
+ #7 [ffff8001dfc63570] do_translation_fault at ffffb75e3d3399ac
+ #8 [ffff8001dfc63580] do_mem_abort at ffffb75e3c4845d0
+ #9 [ffff8001dfc635b0] el1_abort at ffffb75e3d322af0
+#10 [ffff8001dfc635e0] el1h_64_sync_handler at ffffb75e3d32555c
+#11 [ffff8001dfc63720] el1h_64_sync at ffffb75e3c451b04
+#12 [ffff8001dfc638c0] find_busiest_group at ffffb75e3c57ae44
+#13 [ffff8001dfc639c0] load_balance at ffffb75e3c57b96c
+#14 [ffff8001dfc63a40] newidle_balance at ffffb75e3c57c0bc
+#15 [ffff8001dfc63aa0] pick_next_task_fair at ffffb75e3c57c64c
+#16 [ffff8001dfc63b10] pick_next_task at ffffb75e3c55498c
+#17 [ffff8001dfc63b90] __schedule at ffffb75e3d32d0a8
+#18 [ffff8001dfc63be0] schedule at ffffb75e3d32d7ec
+#19 [ffff8001dfc63c00] futex_wait_queue at ffffb75e3c64699c
+#20 [ffff8001dfc63d10] futex_wait at ffffb75e3c646e14
+#21 [ffff8001dfc63d70] do_futex at ffffb75e3c642c38
+#22 [ffff8001dfc63db0] __arm64_sys_futex at ffffb75e3c642d6c
+#23 [ffff8001dfc63e00] invoke_syscall at ffffb75e3c46c89c
+#24 [ffff8001dfc63e30] el0_svc_common.constprop.0 at ffffb75e3c46ca3c
+#25 [ffff8001dfc63e60] do_el0_svc at ffffb75e3c46cb24
+#26 [ffff8001dfc63e80] el0_svc at ffffb75e3d3256e0
+#27 [ffff8001dfc63ea0] el0t_64_sync_handler at ffffb75e3d325cd4
+#28 [ffff8001dfc63fe0] el0t_64_sync at ffffb75e3c451e34
+     PC: 0000ffffa8a5c788   LR: 0000ffffa8a5c764   SP: 0000ffff9ef822b0
+    X29: 0000ffff9ef822b0  X28: 0000000000019d64  X27: 0000aaaac8a2e920
+    X26: 000000000000ceb0  X25: 0000000000000000  X24: 0000000000000000
+    X23: 000000000000ceb2  X22: 0000000000000000  X21: 0000aaaac8a2e938
+    X20: 000000000000ceb0  X19: 0000000000000189  X18: 0000000000000005
+    X17: 0000ffffa8a5ed04  X16: 0000aaaac266f700  X15: 3431332e36383320
+    X14: 205b203a6c656e72  X13: 0000000000008070  X12: 78302b74726f7065
+    X11: 0000000000008200  X10: 0000ffff9ef82100   X9: 0000000000000000
+     X8: 0000000000000062   X7: 0000000000000000   X6: 0000000000000001
+     X5: 00000000ffffffff   X4: 0000000000000000   X3: 0000000000000000
+     X2: 000000000000ceb0   X1: 0000000000000189   X0: 0000aaaac8a2e938
+    ORIG_X0: 0000aaaac8a2e938  SYSCALLNO: 62  PSTATE: 80001000
+crash> bt -c 168
+PID: 75369    TASK: ffff60400c071500  CPU: 168  COMMAND: "arm0102_fma_f64"
+bt: invalid kernel virtual address: 1  type: "IRQ stack contents"
+bt: read of IRQ stack at 1 failed
+bt: invalid kernel virtual address: 1  type: "IRQ stack contents"
+bt: read of IRQ stack at 1 failed
+     PC: 0000ffffafcb9404   LR: 0000aaaad47ed1fc   SP: 0000ffffa7ffe850
+    X29: 0000ffffa7ffe850  X28: 0000ffffa7fff140  X27: 0000000000800000
+    X26: 0000ffffafdc0000  X25: 0000ffffa7800000  X24: 0000000000000009
+    X23: 0000ffffafc9f590  X22: 0000000000000ea2  X21: 0000ffffa8014d00
+    X20: 0000ffffa8010cc0  X19: 0000ffffa8000b70  X18: 000000000000000c
+    X17: 0000ffffafcb92c0  X16: 0000aaaad4960858  X15: 051eb851eb851eb8
+    X14: 0000000003fe1e7f  X13: 0000000000000006  X12: 00000000ff879fc6
+    X11: 0000000ca56782f4  X10: 00ffffffffffffff   X9: 0015f9dc64000000
+     X8: 0000ffffa8010c80   X7: 0000ffffa8018d00   X6: 0000000000000000
+     X5: c3fa196c152b986a   X4: c404f9a997737f15   X3: c404f9a997737f15
+     X2: 00000000000015a0   X1: 0000ffffa800f690   X0: 0000ffffa8017710
+    ORIG_X0: 0000000000000000  SYSCALLNO: ffffffff  PSTATE: 60001000
+ #0 [user space]
+crash> bt -c 169
+PID: 75370    TASK: ffff60400c073f00  CPU: 169  COMMAND: "arm0102_fma_f64"
+bt: invalid kernel virtual address: 41d4c55  type: "IRQ stack contents"
+bt: read of IRQ stack at 41d4c55 failed
+bt: invalid kernel virtual address: 4cd3529  type: "IRQ stack contents"
+bt: read of IRQ stack at 4cd3529 failed
+     PC: 0000aaaad47ed16c   LR: 0000aaaad47ed1fc   SP: 0000ffffa77fc850
+    X29: 0000ffffa77fc850  X28: 0000ffffa77fd140  X27: 0000000000800000
+    X26: 0000ffffafdc0000  X25: 0000ffffa6ffe000  X24: 0000000000000009
+    X23: 0000ffffafc9f590  X22: 00000000000015e9  X21: 0000ffff88004940
+    X20: 0000ffff88000900  X19: 0000ffffa8000b70  X18: 000000000000000c
+    X17: 0000ffffafcb92c0  X16: 0000aaaad4960858  X15: 051eb851eb851eb8
+    X14: 00000000000011a0  X13: 0000000000001170  X12: 0000ffffa77fd140
+    X11: 0000000ca55b4df4  X10: 00ffffffffffffff   X9: 00157fca64000000
+     X8: 0000ffffa8010c80   X7: 0000ffff88008940   X6: c3b9d5f0ba7815c9
+     X5: c3b9d5f0ba7815c9   X4: c91578baf0d5b9c3   X3: c91578baf0d5b9c3
+     X2: 0000ffff880011d0   X1: 000000000000008d   X0: 00000000000008d0
+    ORIG_X0: 0000ffff88000000  SYSCALLNO: ffffffff  PSTATE: 60001000
+ #0 [user space]
+crash> bt -c 180
+PID: 73728    TASK: ffff604011be2a00  CPU: 180  COMMAND: "in:imjournal"
+bt: invalid kernel virtual address: 1  type: "IRQ stack contents"
+bt: read of IRQ stack at 1 failed
+bt: invalid kernel virtual address: 1  type: "IRQ stack contents"
+bt: read of IRQ stack at 1 failed
+ #0 [ffff8001dfc5b710] rmqueue_bulk at ffffb75e3c8649f4
+ #1 [ffff8001dfc5b770] rmqueue_pcplist at ffffb75e3c8657e4
+ #2 [ffff8001dfc5b920] get_page_from_freelist at ffffb75e3c868940
+ #3 [ffff8001dfc5baa0] __alloc_pages at ffffb75e3c869dfc
+ #4 [ffff8001dfc5bb20] __alloc_pages_mpol at ffffb75e3c89f63c
+ #5 [ffff8001dfc5bb70] vma_alloc_folio at ffffb75e3c89fa14
+ #6 [ffff8001dfc5bba0] vma_alloc_zeroed_movable_folio at ffffb75e3c484b44
+ #7 [ffff8001dfc5bbb0] alloc_anon_folio at ffffb75e3c82ed84
+ #8 [ffff8001dfc5bc10] do_anonymous_page at ffffb75e3c82f0e0
+ #9 [ffff8001dfc5bc80] handle_pte_fault at ffffb75e3c82f720
+#10 [ffff8001dfc5bd30] __handle_mm_fault at ffffb75e3c82f87c
+#11 [ffff8001dfc5bd80] handle_mm_fault at ffffb75e3c82fc38
+#12 [ffff8001dfc5bdd0] do_page_fault at ffffb75e3d339610
+#13 [ffff8001dfc5be30] do_translation_fault at ffffb75e3d3399c0
+#14 [ffff8001dfc5be40] do_mem_abort at ffffb75e3c4845d0
+#15 [ffff8001dfc5be70] el0_da at ffffb75e3d323140
+#16 [ffff8001dfc5bea0] el0t_64_sync_handler at ffffb75e3d325c8c
+#17 [ffff8001dfc5bfe0] el0t_64_sync at ffffb75e3c451e34
+     PC: 0000ffffa8a6e86c   LR: 0000ffffa8a6fe70   SP: 0000ffffa5088500
+    X29: 0000ffffa5088500  X28: 0000000000000110  X27: 00000000000001a8
+    X26: 0000ffffa5089780  X25: 000000000000000f  X24: 0000ffffa0000090
+    X23: 0000000000000011  X22: 0000ffffa8b86000  X21: 0000ffffa0000030
+    X20: 0000000000000100  X19: 0000000000000110  X18: 0000000000000005
+    X17: 0000ffffa8a6fd90  X16: 0000ffffa8cdff00  X15: 3a34327820303131
+    X14: 0000000000000000  X13: 0036666264663761  X12: 6234306230663737
+    X11: 3839326434373036  X10: 6161666161393161   X9: 3666626466376162
+     X8: 0000000000000130   X7: 0000000000000000   X6: 0000ffffa0256f60
+     X5: 0000000000000000   X4: 0000ffffa0257070   X3: 000000000009c580
+     X2: 0000ffffa02f35f0   X1: 0000ffffa0000090   X0: 00000000000000b4
+    ORIG_X0: 0000000000000008  SYSCALLNO: ffffffff  PSTATE: 80001000
+crash> bt -c 50
+PID: 1052     TASK: ffff202004111500  CPU: 50   COMMAND: "kworker/50:1"
+bt: invalid kernel virtual address: 200  type: "IRQ stack contents"
+bt: read of IRQ stack at 200 failed
+bt: invalid kernel virtual address: 143  type: "IRQ stack contents"
+bt: read of IRQ stack at 143 failed
+ #0 [ffff8000a2a2bb50] free_pcppages_bulk at ffffb75e3c861ccc
+ #1 [ffff8000a2a2bc10] drain_zone_pages at ffffb75e3c8659f8
+ #2 [ffff8000a2a2bd30] refresh_cpu_vm_stats at ffffb75e3c7fa468
+ #3 [ffff8000a2a2bd90] vmstat_update at ffffb75e3c7fb0a0
+ #4 [ffff8000a2a2bdd0] process_one_work at ffffb75e3c537d88
+ #5 [ffff8000a2a2be20] worker_thread at ffffb75e3c5381d4
+ #6 [ffff8000a2a2be70] kthread at ffffb75e3c543fd8
+crash> bt -c 55
+PID: 75232    TASK: ffff2020181c1500  CPU: 55   COMMAND: "arm0102_fma_f64"
+bt: invalid kernel virtual address: 41d4b43  type: "IRQ stack contents"
+bt: read of IRQ stack at 41d4b43 failed
+bt: invalid kernel virtual address: 4cd5d61  type: "IRQ stack contents"
+bt: read of IRQ stack at 4cd5d61 failed
+     PC: 0000aaaad47ed178   LR: 0000aaaad47ed1fc   SP: 0000ffffa47f0850
+    X29: 0000ffffa47f0850  X28: 0000ffffa47f1140  X27: 0000000000800000
+    X26: 0000ffffafdc0000  X25: 0000ffffa3ff2000  X24: 0000000000000009
+    X23: 0000ffffafc9f590  X22: 00000000000010d0  X21: 0000ffff7c004940
+    X20: 0000ffff7c000900  X19: 0000ffffa8000b70  X18: 000000000000000c
+    X17: 0000ffffafcb92c0  X16: 0000aaaad4960858  X15: 051eb851eb851eb8
+    X14: 00000000000011a0  X13: 0000000000001170  X12: 0000ffffa47f1140
+    X11: 0000000ca56782f4  X10: 00ffffffffffffff   X9: 0015f9dc64000000
+     X8: 0000ffffa8010c80   X7: 0000ffff7c008940   X6: c3b9d5f0ba7815c9
+     X5: c3b9d5f0ba7815c9   X4: c91578baf0d5b9c3   X3: c91578baf0d5b9c3
+     X2: 0000ffff7c001240   X1: 0000000000000095   X0: 0000000000000940
+    ORIG_X0: 0000ffff7c000000  SYSCALLNO: ffffffff  PSTATE: 80001000
+ #0 [user space]
+crash> bt 69259
+PID: 69259    TASK: ffff404005d6e900  CPU: 191  COMMAND: "systemd-journal"
+bt: invalid kernel virtual address: fffc7c6ec0a8  type: "IRQ stack contents"
+bt: read of IRQ stack at fffc7c6ec0a8 failed
+bt: invalid kernel virtual address: fffc7c4546ae  type: "IRQ stack contents"
+bt: read of IRQ stack at fffc7c4546ae failed
+ #0 [ffff8001df56b4e0] rmqueue_bulk at ffffb75e3c8649f4
+ #1 [ffff8001df56b540] rmqueue_pcplist at ffffb75e3c8657e4
+ #2 [ffff8001df56b6f0] get_page_from_freelist at ffffb75e3c868940
+ #3 [ffff8001df56b870] __alloc_pages at ffffb75e3c869dfc
+ #4 [ffff8001df56b8f0] __alloc_pages_mpol at ffffb75e3c89f63c
+ #5 [ffff8001df56b930] alloc_pages at ffffb75e3c89f7a0
+ #6 [ffff8001df56b960] folio_alloc at ffffb75e3c89f7fc
+ #7 [ffff8001df56b9a0] filemap_alloc_folio at ffffb75e3c7b9784
+ #8 [ffff8001df56b9d0] page_cache_ra_order at ffffb75e3c7cea5c
+ #9 [ffff8001df56ba60] ondemand_readahead at ffffb75e3c7cee4c
+#10 [ffff8001df56bab0] page_cache_async_ra at ffffb75e3c7cf0a4
+#11 [ffff8001df56bb40] do_async_mmap_readahead at ffffb75e3c7bc00c
+#12 [ffff8001df56bb90] filemap_fault at ffffb75e3c7c0c8c
+#13 [ffff8001df56bbf0] __do_fault at ffffb75e3c828da8
+#14 [ffff8001df56bc20] do_shared_fault at ffffb75e3c82b324
+#15 [ffff8001df56bc50] do_fault at ffffb75e3c82b504
+#16 [ffff8001df56bc80] handle_pte_fault at ffffb75e3c82f658
+#17 [ffff8001df56bd30] __handle_mm_fault at ffffb75e3c82f87c
+#18 [ffff8001df56bd80] handle_mm_fault at ffffb75e3c82fc38
+#19 [ffff8001df56bdd0] do_page_fault at ffffb75e3d339610
+#20 [ffff8001df56be30] do_translation_fault at ffffb75e3d3399c0
+#21 [ffff8001df56be40] do_mem_abort at ffffb75e3c4845d0
+#22 [ffff8001df56be70] el0_da at ffffb75e3d323140
+#23 [ffff8001df56bea0] el0t_64_sync_handler at ffffb75e3d325c8c
+#24 [ffff8001df56bfe0] el0t_64_sync at ffffb75e3c451e34
+     PC: 0000ffff9c279a68   LR: 0000ffff9c62bfd8   SP: 0000fffff3ba4dc0
+    X29: 0000fffff3ba4e10  X28: 0000000000000000  X27: 0000fffff3ba4e90
+    X26: 0000fffff3ba4de0  X25: 2133b4ecd88e37f7  X24: 0000aaaaee63570b
+    X23: 0000fffff3ba4f90  X22: 0000fffff3ba4f88  X21: 0000aaaaee6356f0
+    X20: 0000000000000025  X19: 0000aaaaee632b70  X18: 0000fffff3ba7a88
+    X17: 0000ffff9c2799c0  X16: 0000ffff9c76af88  X15: 056754dd55ce4a2a
+    X14: 0000000000000000  X13: 3638313833313739  X12: 333d504d41545345
+    X11: 4d49545f43494e4f  X10: 544f4e4f4d5f4543   X9: 313739333d504d41
+     X8: 5453454d49545f43   X7: 494e4f544f4e4f4d   X6: 5f454352554f535f
+     X5: 0000ffff98100035   X4: 0000aaaaee635715   X3: 0000ffff98100010
+     X2: 0000000000000025   X1: 0000aaaaee6356f0   X0: 0000ffff98100010
+    ORIG_X0: ffffffffffffff9c  SYSCALLNO: ffffffff  PSTATE: 80001000
+crash> bt 75192
+PID: 75192    TASK: ffff602014895400  CPU: 185  COMMAND: "control"
+ #0 [ffff8001e2493b40] __switch_to at ffffb75e3d32cd9c
+ #1 [ffff8001e2493b90] __schedule at ffffb75e3d32d288
+ #2 [ffff8001e2493be0] schedule at ffffb75e3d32d7ec
+ #3 [ffff8001e2493c00] futex_wait_queue at ffffb75e3c64699c
+ #4 [ffff8001e2493d10] futex_wait at ffffb75e3c646e14
+ #5 [ffff8001e2493d70] do_futex at ffffb75e3c642c38
+ #6 [ffff8001e2493db0] __arm64_sys_futex at ffffb75e3c642d6c
+ #7 [ffff8001e2493e00] invoke_syscall at ffffb75e3c46c89c
+ #8 [ffff8001e2493e30] el0_svc_common.constprop.0 at ffffb75e3c46ca3c
+ #9 [ffff8001e2493e60] do_el0_svc at ffffb75e3c46cb24
+#10 [ffff8001e2493e80] el0_svc at ffffb75e3d3256e0
+#11 [ffff8001e2493ea0] el0t_64_sync_handler at ffffb75e3d325cd4
+#12 [ffff8001e2493fe0] el0t_64_sync at ffffb75e3c451e34
+     PC: 0000ffffafc9c788   LR: 0000ffffafc9c764   SP: 0000ffffd42a88a0
+    X29: 0000ffffd42a88a0  X28: 0000aaaae8234138  X27: 0000000000000000
+    X26: 000000000000004b  X25: 0000ffffd42a88e8  X24: 0000ffffa7fff210
+    X23: 0000ffffd42a8960  X22: 0000000000000000  X21: 0000ffffa7fff210
+    X20: 0000000000012669  X19: 0000000000000109  X18: 000000000000000c
+    X17: 0000ffffafca0ec0  X16: 0000aaaad49601d0  X15: 051eb851eb851eb8
+    X14: 00000000000011a0  X13: 0000000000001170  X12: 0000ffff9cfd3140
+    X11: 0000ffffafc9f590  X10: 0000ffffd42a87a0   X9: 0000000000000000
+     X8: 0000000000000062   X7: 0000ffff9cfd3880   X6: 0000000000000001
+     X5: 00000000ffffffff   X4: 0000000000000000   X3: 0000000000000000
+     X2: 0000000000012669   X1: 0000000000000109   X0: 0000ffffa7fff210
+    ORIG_X0: 0000ffffa7fff210  SYSCALLNO: 62  PSTATE: 80001000
+crash> dis -l find_busiest_group
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 13011
+0xffffb75e3c57ad08 <find_busiest_group>:	mov	x9, x30
+0xffffb75e3c57ad0c <find_busiest_group+4>:	nop
+0xffffb75e3c57ad10 <find_busiest_group+8>:	paciasp
+0xffffb75e3c57ad14 <find_busiest_group+12>:	sub	sp, sp, #0x1e0
+0xffffb75e3c57ad18 <find_busiest_group+16>:	mrs	x1, sp_el0
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 11625
+0xffffb75e3c57ad1c <find_busiest_group+20>:	mov	x2, #0xf0                  	// #240
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 13011
+0xffffb75e3c57ad20 <find_busiest_group+24>:	stp	x29, x30, [sp, #384]
+0xffffb75e3c57ad24 <find_busiest_group+28>:	add	x29, sp, #0x180
+0xffffb75e3c57ad28 <find_busiest_group+32>:	stp	x19, x20, [sp, #400]
+0xffffb75e3c57ad2c <find_busiest_group+36>:	mov	x19, x0
+0xffffb75e3c57ad30 <find_busiest_group+40>:	add	x0, x1, #0x828
+0xffffb75e3c57ad34 <find_busiest_group+44>:	stp	x21, x22, [sp, #416]
+0xffffb75e3c57ad38 <find_busiest_group+48>:	adrp	x21, 0xffffb75e3e39f000 <__cpu_online_mask+360>
+0xffffb75e3c57ad3c <find_busiest_group+52>:	add	x21, x21, #0xcb0
+0xffffb75e3c57ad40 <find_busiest_group+56>:	stp	x23, x24, [sp, #432]
+0xffffb75e3c57ad44 <find_busiest_group+60>:	stp	x25, x26, [sp, #448]
+0xffffb75e3c57ad48 <find_busiest_group+64>:	stp	x27, x28, [sp, #464]
+0xffffb75e3c57ad4c <find_busiest_group+68>:	ldr	x1, [x0]
+0xffffb75e3c57ad50 <find_busiest_group+72>:	str	x1, [sp, #376]
+0xffffb75e3c57ad54 <find_busiest_group+76>:	mov	x1, #0x0                   	// #0
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 11625
+0xffffb75e3c57ad58 <find_busiest_group+80>:	add	x0, sp, #0x88
+0xffffb75e3c57ad5c <find_busiest_group+84>:	bl	0xffffb75e3d2dde80 <__memset>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12734
+0xffffb75e3c57ad60 <find_busiest_group+88>:	str	xzr, [sp, #24]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12731
+0xffffb75e3c57ad64 <find_busiest_group+92>:	ldr	x0, [x19]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 11625
+0xffffb75e3c57ad68 <find_busiest_group+96>:	mov	w1, #0xffffffff            	// #-1
+0xffffb75e3c57ad6c <find_busiest_group+100>:	str	w1, [sp, #232]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12731
+0xffffb75e3c57ad70 <find_busiest_group+104>:	adrp	x1, 0xffffb75e3dfa9000 <cpu_worker_pools>
+0xffffb75e3c57ad74 <find_busiest_group+108>:	add	x1, x1, #0x6c0
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12735
+0xffffb75e3c57ad78 <find_busiest_group+112>:	str	wzr, [sp, #32]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12731
+0xffffb75e3c57ad7c <find_busiest_group+116>:	ldr	x22, [x0, #16]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12735
+0xffffb75e3c57ad80 <find_busiest_group+120>:	str	x1, [sp, #40]
+0xffffb75e3c57ad84 <find_busiest_group+124>:	str	x1, [sp, #16]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12741
+0xffffb75e3c57ad88 <find_busiest_group+128>:	ldr	w1, [x19, #20]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/cpumask.h: 622
+0xffffb75e3c57ad8c <find_busiest_group+132>:	add	x2, x22, #0x38
+0xffffb75e3c57ad90 <find_busiest_group+136>:	mov	x3, x2
+0xffffb75e3c57ad94 <find_busiest_group+140>:	str	x3, [sp]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/asm-generic/bitops/generic-non-atomic.h: 128
+0xffffb75e3c57ad98 <find_busiest_group+144>:	add	x28, sp, #0x30
+0xffffb75e3c57ad9c <find_busiest_group+148>:	lsr	w2, w1, #6
+0xffffb75e3c57ada0 <find_busiest_group+152>:	ldr	x2, [x3, x2, lsl #3]
+0xffffb75e3c57ada4 <find_busiest_group+156>:	lsr	x2, x2, x1
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12742
+0xffffb75e3c57ada8 <find_busiest_group+160>:	and	w3, w2, #0x1
+0xffffb75e3c57adac <find_busiest_group+164>:	str	w3, [sp, #36]
+0xffffb75e3c57adb0 <find_busiest_group+168>:	tbz	w2, #0, 0xffffb75e3c57ade8 <find_busiest_group+224>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12743
+0xffffb75e3c57adb4 <find_busiest_group+172>:	ldr	w2, [x19, #44]
+0xffffb75e3c57adb8 <find_busiest_group+176>:	str	x22, [sp, #144]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12746
+0xffffb75e3c57adbc <find_busiest_group+180>:	cmp	w2, #0x2
+0xffffb75e3c57adc0 <find_busiest_group+184>:	b.ne	0xffffb75e3c57addc <find_busiest_group+212>  // b.any
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12747
+0xffffb75e3c57adc4 <find_busiest_group+188>:	ldr	x2, [x22, #24]
+0xffffb75e3c57adc8 <find_busiest_group+192>:	adrp	x3, 0xffffb75e3e397000 <bit_wait_table+2688>
+0xffffb75e3c57adcc <find_busiest_group+196>:	ldr	x3, [x3, #3520]
+0xffffb75e3c57add0 <find_busiest_group+200>:	ldr	x2, [x2, #32]
+0xffffb75e3c57add4 <find_busiest_group+204>:	cmp	x3, x2
+0xffffb75e3c57add8 <find_busiest_group+208>:	b.mi	0xffffb75e3c57ade0 <find_busiest_group+216>  // b.first
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12748
+0xffffb75e3c57addc <find_busiest_group+212>:	bl	0xffffb75e3c57aaf8 <update_group_capacity>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12744
+0xffffb75e3c57ade0 <find_busiest_group+216>:	add	x28, sp, #0x110
+0xffffb75e3c57ade4 <find_busiest_group+220>:	nop
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12045
+0xffffb75e3c57ade8 <find_busiest_group+224>:	mov	x0, x28
+0xffffb75e3c57adec <find_busiest_group+228>:	mov	x2, #0x58                  	// #88
+0xffffb75e3c57adf0 <find_busiest_group+232>:	mov	w1, #0x0                   	// #0
+0xffffb75e3c57adf4 <find_busiest_group+236>:	bl	0xffffb75e3d2dde80 <__memset>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12047
+0xffffb75e3c57adf8 <find_busiest_group+240>:	ldr	x26, [sp, #144]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12049
+0xffffb75e3c57adfc <find_busiest_group+244>:	adrp	x24, 0xffffb75e3e3a5000 <node_data+560>
+0xffffb75e3c57ae00 <find_busiest_group+248>:	mov	w3, #0x0                   	// #0
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12050
+0xffffb75e3c57ae04 <find_busiest_group+252>:	add	x0, x24, #0x5d0
+0xffffb75e3c57ae08 <find_busiest_group+256>:	str	x0, [sp, #8]
+0xffffb75e3c57ae0c <find_busiest_group+260>:	nop
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/linux/find.h: 101
+0xffffb75e3c57ae10 <find_busiest_group+264>:	ldr	x0, [sp]
+0xffffb75e3c57ae14 <find_busiest_group+268>:	sxtw	x3, w3
+0xffffb75e3c57ae18 <find_busiest_group+272>:	ldr	x1, [x19, #56]
+0xffffb75e3c57ae1c <find_busiest_group+276>:	ldr	w2, [x21]
+0xffffb75e3c57ae20 <find_busiest_group+280>:	bl	0xffffb75e3cb859d0 <_find_next_and_bit>
+0xffffb75e3c57ae24 <find_busiest_group+284>:	mov	x25, x0
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12049
+0xffffb75e3c57ae28 <find_busiest_group+288>:	ldr	w1, [x21]
+0xffffb75e3c57ae2c <find_busiest_group+292>:	cmp	w1, w0
+0xffffb75e3c57ae30 <find_busiest_group+296>:	b.ls	0xffffb75e3c57afe8 <find_busiest_group+736>  // b.plast
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12050
+0xffffb75e3c57ae34 <find_busiest_group+300>:	ldp	x0, x1, [sp, #8]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12053
+0xffffb75e3c57ae38 <find_busiest_group+304>:	ldr	x2, [x28, #8]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12050
+0xffffb75e3c57ae3c <find_busiest_group+308>:	ldr	x20, [x0, w25, sxtw #3]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12054
+0xffffb75e3c57ae40 <find_busiest_group+312>:	mov	w0, w25
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12050
+0xffffb75e3c57ae44 <find_busiest_group+316>:	add	x27, x1, x20
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 5024
+0xffffb75e3c57ae48 <find_busiest_group+320>:	ldr	x23, [x27, #288]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12053
+0xffffb75e3c57ae4c <find_busiest_group+324>:	add	x2, x2, x23
+0xffffb75e3c57ae50 <find_busiest_group+328>:	str	x2, [x28, #8]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12054
+0xffffb75e3c57ae54 <find_busiest_group+332>:	bl	0xffffb75e3c577ef0 <cpu_util_cfs>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12055
+0xffffb75e3c57ae58 <find_busiest_group+336>:	ldp	x5, x2, [x28, #24]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12054
+0xffffb75e3c57ae5c <find_busiest_group+340>:	add	x5, x5, x0
+0xffffb75e3c57ae60 <find_busiest_group+344>:	str	x5, [x28, #24]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 5019
+0xffffb75e3c57ae64 <find_busiest_group+348>:	ldr	w0, [x28, #44]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12055
+0xffffb75e3c57ae68 <find_busiest_group+352>:	ldr	x5, [x27, #296]
+0xffffb75e3c57ae6c <find_busiest_group+356>:	add	x2, x2, x5
+0xffffb75e3c57ae70 <find_busiest_group+360>:	str	x2, [x28, #32]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12056
+0xffffb75e3c57ae74 <find_busiest_group+364>:	ldr	w2, [x27, #148]
+0xffffb75e3c57ae78 <find_busiest_group+368>:	add	w0, w0, w2
+0xffffb75e3c57ae7c <find_busiest_group+372>:	str	w0, [x28, #44]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./arch/arm64/include/asm/jump_label.h: 39
+0xffffb75e3c57ae80 <find_busiest_group+376>:	b	0xffffb75e3c57ae88 <find_busiest_group+384>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./arch/arm64/include/asm/jump_label.h: 22
+0xffffb75e3c57ae84 <find_busiest_group+380>:	nop
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12062
+0xffffb75e3c57ae88 <find_busiest_group+384>:	ldr	w2, [x27, #4]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12063
+0xffffb75e3c57ae8c <find_busiest_group+388>:	ldr	w0, [x28, #40]
+0xffffb75e3c57ae90 <find_busiest_group+392>:	add	w0, w0, w2
+0xffffb75e3c57ae94 <find_busiest_group+396>:	str	w0, [x28, #40]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12065
+0xffffb75e3c57ae98 <find_busiest_group+400>:	cmp	w2, #0x1
+0xffffb75e3c57ae9c <find_busiest_group+404>:	b.le	0xffffb75e3c57af58 <find_busiest_group+592>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12072
+0xffffb75e3c57aea0 <find_busiest_group+408>:	ldr	w5, [x27, #8]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12066
+0xffffb75e3c57aea4 <find_busiest_group+412>:	mov	w0, #0x1                   	// #1
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12072
+0xffffb75e3c57aea8 <find_busiest_group+416>:	ldr	w2, [x28, #80]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12066
+0xffffb75e3c57aeac <find_busiest_group+420>:	str	w0, [sp, #32]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12072
+0xffffb75e3c57aeb0 <find_busiest_group+424>:	add	w2, w2, w5
+0xffffb75e3c57aeb4 <find_busiest_group+428>:	str	w2, [x28, #80]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12073
+0xffffb75e3c57aeb8 <find_busiest_group+432>:	ldr	w0, [x28, #84]
+0xffffb75e3c57aebc <find_busiest_group+436>:	ldr	w2, [x27, #12]
+0xffffb75e3c57aec0 <find_busiest_group+440>:	add	w0, w0, w2
+0xffffb75e3c57aec4 <find_busiest_group+444>:	str	w0, [x28, #84]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12084
+0xffffb75e3c57aec8 <find_busiest_group+448>:	cmp	x22, x26
+0xffffb75e3c57aecc <find_busiest_group+452>:	b.eq	0xffffb75e3c57aef8 <find_busiest_group+496>  // b.none
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12087
+0xffffb75e3c57aed0 <find_busiest_group+456>:	ldr	x0, [x19]
+0xffffb75e3c57aed4 <find_busiest_group+460>:	ldr	w2, [x0, #60]
+0xffffb75e3c57aed8 <find_busiest_group+464>:	tbz	w2, #5, 0xffffb75e3c57af98 <find_busiest_group+656>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12089
+0xffffb75e3c57aedc <find_busiest_group+468>:	ldr	x2, [x28, #72]
+0xffffb75e3c57aee0 <find_busiest_group+472>:	ldr	x0, [x27, #2800]
+0xffffb75e3c57aee4 <find_busiest_group+476>:	cmp	x2, x0
+0xffffb75e3c57aee8 <find_busiest_group+480>:	b.cs	0xffffb75e3c57aef8 <find_busiest_group+496>  // b.hs, b.nlast
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12090
+0xffffb75e3c57aeec <find_busiest_group+484>:	mov	w1, #0x1                   	// #1
+0xffffb75e3c57aef0 <find_busiest_group+488>:	str	w1, [sp, #32]
+0xffffb75e3c57aef4 <find_busiest_group+492>:	str	x0, [x28, #72]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12049
+0xffffb75e3c57aef8 <find_busiest_group+496>:	add	w3, w25, #0x1
+0xffffb75e3c57aefc <find_busiest_group+500>:	b	0xffffb75e3c57ae10 <find_busiest_group+264>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./include/asm-generic/bitops/generic-non-atomic.h: 128
+0xffffb75e3c57af00 <find_busiest_group+504>:	lsr	w2, w25, #6
+0xffffb75e3c57af04 <find_busiest_group+508>:	adrp	x0, 0xffffb75e3e962000 <ucounts_lock>
+0xffffb75e3c57af08 <find_busiest_group+512>:	add	x0, x0, #0x9e8
+0xffffb75e3c57af0c <find_busiest_group+516>:	ldr	x0, [x0, x2, lsl #3]
+0xffffb75e3c57af10 <find_busiest_group+520>:	lsr	x0, x0, x25
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12022
+0xffffb75e3c57af14 <find_busiest_group+524>:	tbnz	w0, #0, 0xffffb75e3c57ae88 <find_busiest_group+384>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12023
+0xffffb75e3c57af18 <find_busiest_group+528>:	mov	w0, w25
+0xffffb75e3c57af1c <find_busiest_group+532>:	bl	0xffffb75e3c577ef0 <cpu_util_cfs>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/sched.h: 3405
+0xffffb75e3c57af20 <find_busiest_group+536>:	ldr	x2, [sp, #40]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12023
+0xffffb75e3c57af24 <find_busiest_group+540>:	ldr	x5, [sp, #360]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/sched.h: 3405
+0xffffb75e3c57af28 <find_busiest_group+544>:	add	x20, x20, x2
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12024
+0xffffb75e3c57af2c <find_busiest_group+548>:	ldr	x2, [sp, #368]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12023
+0xffffb75e3c57af30 <find_busiest_group+552>:	add	x5, x5, x0
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12024
+0xffffb75e3c57af34 <find_busiest_group+556>:	ldr	x0, [x20, #2776]
+0xffffb75e3c57af38 <find_busiest_group+560>:	add	x2, x2, x0
+0xffffb75e3c57af3c <find_busiest_group+564>:	stp	x5, x2, [sp, #360]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12062
+0xffffb75e3c57af40 <find_busiest_group+568>:	ldr	w2, [x27, #4]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12063
+0xffffb75e3c57af44 <find_busiest_group+572>:	ldr	w0, [x28, #40]
+0xffffb75e3c57af48 <find_busiest_group+576>:	add	w0, w0, w2
+0xffffb75e3c57af4c <find_busiest_group+580>:	str	w0, [x28, #40]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12065
+0xffffb75e3c57af50 <find_busiest_group+584>:	cmp	w2, #0x1
+0xffffb75e3c57af54 <find_busiest_group+588>:	b.gt	0xffffb75e3c57aea0 <find_busiest_group+408>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12072
+0xffffb75e3c57af58 <find_busiest_group+592>:	ldp	w5, w0, [x28, #80]
+0xffffb75e3c57af5c <find_busiest_group+596>:	ldr	w6, [x27, #8]
+0xffffb75e3c57af60 <find_busiest_group+600>:	add	w5, w5, w6
+0xffffb75e3c57af64 <find_busiest_group+604>:	str	w5, [x28, #80]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12073
+0xffffb75e3c57af68 <find_busiest_group+608>:	ldr	w5, [x27, #12]
+0xffffb75e3c57af6c <find_busiest_group+612>:	add	w0, w0, w5
+0xffffb75e3c57af70 <find_busiest_group+616>:	str	w0, [x28, #84]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12078
+0xffffb75e3c57af74 <find_busiest_group+620>:	cbnz	w2, 0xffffb75e3c57aec8 <find_busiest_group+448>
+0xffffb75e3c57af78 <find_busiest_group+624>:	mov	w0, w25
+0xffffb75e3c57af7c <find_busiest_group+628>:	bl	0xffffb75e3c59d3b8 <idle_cpu>
+0xffffb75e3c57af80 <find_busiest_group+632>:	cbz	w0, 0xffffb75e3c57aec8 <find_busiest_group+448>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12079
+0xffffb75e3c57af84 <find_busiest_group+636>:	ldr	w0, [x28, #48]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12049
+0xffffb75e3c57af88 <find_busiest_group+640>:	add	w3, w25, #0x1
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12079
+0xffffb75e3c57af8c <find_busiest_group+644>:	add	w0, w0, #0x1
+0xffffb75e3c57af90 <find_busiest_group+648>:	str	w0, [x28, #48]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12049
+0xffffb75e3c57af94 <find_busiest_group+652>:	b	0xffffb75e3c57ae10 <find_busiest_group+264>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12093
+0xffffb75e3c57af98 <find_busiest_group+656>:	ldr	w2, [x19, #44]
+0xffffb75e3c57af9c <find_busiest_group+660>:	cmp	w2, #0x1
+0xffffb75e3c57afa0 <find_busiest_group+664>:	b.eq	0xffffb75e3c57aef8 <find_busiest_group+496>  // b.none
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12010
+0xffffb75e3c57afa4 <find_busiest_group+668>:	ldr	w2, [x27, #148]
+0xffffb75e3c57afa8 <find_busiest_group+672>:	cmp	w2, #0x1
+0xffffb75e3c57afac <find_busiest_group+676>:	b.ne	0xffffb75e3c57aef8 <find_busiest_group+496>  // b.any
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 11748
+0xffffb75e3c57afb0 <find_busiest_group+680>:	ldr	x2, [x27, #2776]
+0xffffb75e3c57afb4 <find_busiest_group+684>:	ldr	x5, [x27, #2768]
+0xffffb75e3c57afb8 <find_busiest_group+688>:	ldr	w0, [x0, #44]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 11749
+0xffffb75e3c57afbc <find_busiest_group+692>:	add	x1, x2, x2, lsl #1
+0xffffb75e3c57afc0 <find_busiest_group+696>:	add	x1, x2, x1, lsl #3
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 11748
+0xffffb75e3c57afc4 <find_busiest_group+700>:	mul	x0, x0, x5
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12093
+0xffffb75e3c57afc8 <find_busiest_group+704>:	cmp	x0, x1, lsl #2
+0xffffb75e3c57afcc <find_busiest_group+708>:	b.cs	0xffffb75e3c57aef8 <find_busiest_group+496>  // b.hs, b.nlast
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12096
+0xffffb75e3c57afd0 <find_busiest_group+712>:	ldr	x0, [x28, #72]
+0xffffb75e3c57afd4 <find_busiest_group+716>:	cmp	x0, x23
+0xffffb75e3c57afd8 <find_busiest_group+720>:	b.cs	0xffffb75e3c57aef8 <find_busiest_group+496>  // b.hs, b.nlast
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12097
+0xffffb75e3c57afdc <find_busiest_group+724>:	add	w3, w25, #0x1
+0xffffb75e3c57afe0 <find_busiest_group+728>:	str	x23, [x28, #72]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12049
+0xffffb75e3c57afe4 <find_busiest_group+732>:	b	0xffffb75e3c57ae10 <find_busiest_group+264>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12101
+0xffffb75e3c57afe8 <find_busiest_group+736>:	ldr	x1, [x22, #24]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12106
+0xffffb75e3c57afec <find_busiest_group+740>:	ldr	x0, [x19]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12101
+0xffffb75e3c57aff0 <find_busiest_group+744>:	ldr	x1, [x1, #8]
+0xffffb75e3c57aff4 <find_busiest_group+748>:	str	x1, [x28, #16]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12103
+0xffffb75e3c57aff8 <find_busiest_group+752>:	mov	x8, x0
+0xffffb75e3c57affc <find_busiest_group+756>:	ldr	w1, [x22, #12]
+0xffffb75e3c57b000 <find_busiest_group+760>:	str	w1, [x28, #52]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12106
+0xffffb75e3c57b004 <find_busiest_group+764>:	cmp	x22, x26
+0xffffb75e3c57b008 <find_busiest_group+768>:	b.eq	0xffffb75e3c57b040 <find_busiest_group+824>  // b.none
+0xffffb75e3c57b00c <find_busiest_group+772>:	ldr	w3, [x0, #60]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12107
+0xffffb75e3c57b010 <find_busiest_group+776>:	ldr	w2, [x19, #44]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12106
+0xffffb75e3c57b014 <find_busiest_group+780>:	tbz	w3, #11, 0xffffb75e3c57b370 <find_busiest_group+1640>
+0xffffb75e3c57b018 <find_busiest_group+784>:	cmp	w2, #0x1
+0xffffb75e3c57b01c <find_busiest_group+788>:	b.eq	0xffffb75e3c57b040 <find_busiest_group+824>  // b.none
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12107
+0xffffb75e3c57b020 <find_busiest_group+792>:	ldr	w2, [x28, #44]
+0xffffb75e3c57b024 <find_busiest_group+796>:	cbnz	w2, 0xffffb75e3c57b438 <find_busiest_group+1840>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 11961
+0xffffb75e3c57b028 <find_busiest_group+800>:	ldr	w2, [x22, #36]
+0xffffb75e3c57b02c <find_busiest_group+804>:	tbz	w2, #7, 0xffffb75e3c57b3c0 <find_busiest_group+1720>
+0xffffb75e3c57b030 <find_busiest_group+808>:	mov	w2, w1
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 11838
+0xffffb75e3c57b034 <find_busiest_group+812>:	mov	w1, w2
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12116
+0xffffb75e3c57b038 <find_busiest_group+816>:	mov	x8, x0
+0xffffb75e3c57b03c <find_busiest_group+820>:	nop
+0xffffb75e3c57b040 <find_busiest_group+824>:	ldr	w9, [x28, #40]
+0xffffb75e3c57b044 <find_busiest_group+828>:	ldr	w7, [x0, #44]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 11838
+0xffffb75e3c57b048 <find_busiest_group+832>:	cmp	w9, w1
+0xffffb75e3c57b04c <find_busiest_group+836>:	b.ls	0xffffb75e3c57b084 <find_busiest_group+892>  // b.plast
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 11841
+0xffffb75e3c57b050 <find_busiest_group+840>:	ldp	x2, x3, [x28, #16]
+0xffffb75e3c57b054 <find_busiest_group+844>:	mov	w6, w7
+0xffffb75e3c57b058 <find_busiest_group+848>:	add	x5, x2, x2, lsl #1
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 11842
+0xffffb75e3c57b05c <find_busiest_group+852>:	mul	x3, x6, x3
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 11841
+0xffffb75e3c57b060 <find_busiest_group+856>:	add	x5, x2, x5, lsl #3
+0xffffb75e3c57b064 <find_busiest_group+860>:	cmp	x3, x5, lsl #2
+0xffffb75e3c57b068 <find_busiest_group+864>:	b.hi	0xffffb75e3c57b3a4 <find_busiest_group+1692>  // b.pmore
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 11845
+0xffffb75e3c57b06c <find_busiest_group+868>:	ldr	x5, [x28, #32]
+0xffffb75e3c57b070 <find_busiest_group+872>:	mul	x6, x2, x6
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 11846
+0xffffb75e3c57b074 <find_busiest_group+876>:	add	x3, x5, x5, lsl #1
+0xffffb75e3c57b078 <find_busiest_group+880>:	add	x3, x5, x3, lsl #3
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 11845
+0xffffb75e3c57b07c <find_busiest_group+884>:	cmp	x6, x3, lsl #2
+0xffffb75e3c57b080 <find_busiest_group+888>:	b.cc	0xffffb75e3c57b3a4 <find_busiest_group+1692>  // b.lo, b.ul, b.last
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 11795
+0xffffb75e3c57b084 <find_busiest_group+892>:	ldr	x2, [x22, #24]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 11860
+0xffffb75e3c57b088 <find_busiest_group+896>:	ldr	w2, [x2, #40]
+0xffffb75e3c57b08c <find_busiest_group+900>:	cbnz	w2, 0xffffb75e3c57b40c <find_busiest_group+1796>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 11863
+0xffffb75e3c57b090 <find_busiest_group+904>:	ldr	w2, [x28, #60]
+0xffffb75e3c57b094 <find_busiest_group+908>:	cbnz	w2, 0xffffb75e3c57b420 <find_busiest_group+1816>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 11866
+0xffffb75e3c57b098 <find_busiest_group+912>:	ldr	w2, [x28, #64]
+0xffffb75e3c57b09c <find_busiest_group+916>:	cbnz	w2, 0xffffb75e3c57b42c <find_busiest_group+1828>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 11869
+0xffffb75e3c57b0a0 <find_busiest_group+920>:	ldr	x2, [x28, #72]
+0xffffb75e3c57b0a4 <find_busiest_group+924>:	cbnz	x2, 0xffffb75e3c57b4ac <find_busiest_group+1956>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 11813
+0xffffb75e3c57b0a8 <find_busiest_group+928>:	cmp	w9, w1
+0xffffb75e3c57b0ac <find_busiest_group+932>:	b.cc	0xffffb75e3c57b418 <find_busiest_group+1808>  // b.lo, b.ul, b.last
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 11816
+0xffffb75e3c57b0b0 <find_busiest_group+936>:	ldr	x2, [x28, #32]
+0xffffb75e3c57b0b4 <find_busiest_group+940>:	mov	w7, w7
+0xffffb75e3c57b0b8 <find_busiest_group+944>:	ldr	x3, [x28, #16]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 11817
+0xffffb75e3c57b0bc <find_busiest_group+948>:	add	x1, x2, x2, lsl #1
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 11816
+0xffffb75e3c57b0c0 <find_busiest_group+952>:	mul	x5, x3, x7
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 11817
+0xffffb75e3c57b0c4 <find_busiest_group+956>:	add	x1, x2, x1, lsl #3
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 11816
+0xffffb75e3c57b0c8 <find_busiest_group+960>:	cmp	x5, x1, lsl #2
+0xffffb75e3c57b0cc <find_busiest_group+964>:	b.cc	0xffffb75e3c57b0e8 <find_busiest_group+992>  // b.lo, b.ul, b.last
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 11820
+0xffffb75e3c57b0d0 <find_busiest_group+968>:	ldr	x2, [x28, #24]
+0xffffb75e3c57b0d4 <find_busiest_group+972>:	add	x1, x3, x3, lsl #1
+0xffffb75e3c57b0d8 <find_busiest_group+976>:	add	x1, x3, x1, lsl #3
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 11821
+0xffffb75e3c57b0dc <find_busiest_group+980>:	mul	x7, x7, x2
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 11820
+0xffffb75e3c57b0e0 <find_busiest_group+984>:	cmp	x7, x1, lsl #2
+0xffffb75e3c57b0e4 <find_busiest_group+988>:	b.cc	0xffffb75e3c57b418 <find_busiest_group+1808>  // b.lo, b.ul, b.last
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12116
+0xffffb75e3c57b0e8 <find_busiest_group+992>:	mov	w1, #0x1                   	// #1
+0xffffb75e3c57b0ec <find_busiest_group+996>:	str	w1, [x28, #56]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12753
+0xffffb75e3c57b0f0 <find_busiest_group+1000>:	ldr	w1, [sp, #36]
+0xffffb75e3c57b0f4 <find_busiest_group+1004>:	cbnz	w1, 0xffffb75e3c57b118 <find_busiest_group+1040>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12757
+0xffffb75e3c57b0f8 <find_busiest_group+1008>:	mov	x3, x28
+0xffffb75e3c57b0fc <find_busiest_group+1012>:	mov	x2, x22
+0xffffb75e3c57b100 <find_busiest_group+1016>:	add	x1, sp, #0x88
+0xffffb75e3c57b104 <find_busiest_group+1020>:	mov	x0, x19
+0xffffb75e3c57b108 <find_busiest_group+1024>:	bl	0xffffb75e3c56d2b8 <update_sd_pick_busiest>
+0xffffb75e3c57b10c <find_busiest_group+1028>:	tbnz	w0, #0, 0xffffb75e3c57b3cc <find_busiest_group+1732>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12769
+0xffffb75e3c57b110 <find_busiest_group+1032>:	ldr	x0, [x19]
+0xffffb75e3c57b114 <find_busiest_group+1036>:	mov	x8, x0
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12764
+0xffffb75e3c57b118 <find_busiest_group+1040>:	ldp	x2, x1, [sp, #152]
+0xffffb75e3c57b11c <find_busiest_group+1044>:	ldr	x3, [x28, #8]
+0xffffb75e3c57b120 <find_busiest_group+1048>:	add	x2, x2, x3
+0xffffb75e3c57b124 <find_busiest_group+1052>:	str	x2, [sp, #152]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12765
+0xffffb75e3c57b128 <find_busiest_group+1056>:	ldr	x3, [sp, #24]
+0xffffb75e3c57b12c <find_busiest_group+1060>:	ldr	x2, [x28, #16]
+0xffffb75e3c57b130 <find_busiest_group+1064>:	add	x1, x1, x2
+0xffffb75e3c57b134 <find_busiest_group+1068>:	str	x1, [sp, #160]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12767
+0xffffb75e3c57b138 <find_busiest_group+1072>:	ldr	x2, [x28, #24]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12768
+0xffffb75e3c57b13c <find_busiest_group+1076>:	ldr	x22, [x22]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12767
+0xffffb75e3c57b140 <find_busiest_group+1080>:	add	x2, x3, x2
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12769
+0xffffb75e3c57b144 <find_busiest_group+1084>:	ldr	x1, [x0, #16]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12767
+0xffffb75e3c57b148 <find_busiest_group+1088>:	str	x2, [sp, #24]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12769
+0xffffb75e3c57b14c <find_busiest_group+1092>:	cmp	x22, x1
+0xffffb75e3c57b150 <find_busiest_group+1096>:	b.ne	0xffffb75e3c57ad88 <find_busiest_group+128>  // b.any
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12776
+0xffffb75e3c57b154 <find_busiest_group+1100>:	ldr	x1, [sp, #136]
+0xffffb75e3c57b158 <find_busiest_group+1104>:	cbz	x1, 0xffffb75e3c57b168 <find_busiest_group+1120>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12777
+0xffffb75e3c57b15c <find_busiest_group+1108>:	ldr	w1, [x1, #36]
+0xffffb75e3c57b160 <find_busiest_group+1112>:	ubfx	x1, x1, #12, #1
+0xffffb75e3c57b164 <find_busiest_group+1116>:	str	w1, [sp, #176]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12780
+0xffffb75e3c57b168 <find_busiest_group+1120>:	ldr	w1, [x0, #60]
+0xffffb75e3c57b16c <find_busiest_group+1124>:	tbz	w1, #14, 0xffffb75e3c57b198 <find_busiest_group+1168>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12284
+0xffffb75e3c57b170 <find_busiest_group+1128>:	ldr	w2, [sp, #228]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12285
+0xffffb75e3c57b174 <find_busiest_group+1132>:	mov	w1, #0x0                   	// #0
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12284
+0xffffb75e3c57b178 <find_busiest_group+1136>:	ldr	w3, [sp, #264]
+0xffffb75e3c57b17c <find_busiest_group+1140>:	cmp	w2, w3
+0xffffb75e3c57b180 <find_busiest_group+1144>:	b.hi	0xffffb75e3c57b194 <find_busiest_group+1164>  // b.pmore
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12286
+0xffffb75e3c57b184 <find_busiest_group+1148>:	ldr	w1, [sp, #268]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12288
+0xffffb75e3c57b188 <find_busiest_group+1152>:	cmp	w2, w1
+0xffffb75e3c57b18c <find_busiest_group+1156>:	cset	w1, ls  // ls = plast
+0xffffb75e3c57b190 <find_busiest_group+1160>:	add	w1, w1, #0x1
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12781
+0xffffb75e3c57b194 <find_busiest_group+1164>:	str	w1, [x19, #80]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12783
+0xffffb75e3c57b198 <find_busiest_group+1168>:	ldr	x0, [x0]
+0xffffb75e3c57b19c <find_busiest_group+1172>:	cbz	x0, 0xffffb75e3c57b4b8 <find_busiest_group+1968>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./arch/arm64/include/asm/jump_label.h: 22
+0xffffb75e3c57b1a0 <find_busiest_group+1176>:	nop
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12666
+0xffffb75e3c57b1a4 <find_busiest_group+1180>:	ldr	w0, [x19, #44]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12669
+0xffffb75e3c57b1a8 <find_busiest_group+1184>:	ldr	w1, [x19, #20]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12666
+0xffffb75e3c57b1ac <find_busiest_group+1188>:	cmp	w0, #0x2
+0xffffb75e3c57b1b0 <find_busiest_group+1192>:	b.eq	0xffffb75e3c57b24c <find_busiest_group+1348>  // b.none
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12669
+0xffffb75e3c57b1b4 <find_busiest_group+1196>:	adrp	x3, 0xffffb75e3e3a5000 <node_data+560>
+0xffffb75e3c57b1b8 <find_busiest_group+1200>:	add	x3, x3, #0x5d0
+0xffffb75e3c57b1bc <find_busiest_group+1204>:	adrp	x0, 0xffffb75e3df95000 <select_rq_mask+472>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12670
+0xffffb75e3c57b1c0 <find_busiest_group+1208>:	ldr	w2, [x8, #288]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12669
+0xffffb75e3c57b1c4 <find_busiest_group+1212>:	add	x0, x0, #0xad0
+0xffffb75e3c57b1c8 <find_busiest_group+1216>:	ldr	x3, [x3, w1, sxtw #3]
+0xffffb75e3c57b1cc <find_busiest_group+1220>:	ldr	w0, [x0, x3]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12670
+0xffffb75e3c57b1d0 <find_busiest_group+1224>:	cmp	w2, w0
+0xffffb75e3c57b1d4 <find_busiest_group+1228>:	b.ne	0xffffb75e3c57b24c <find_busiest_group+1348>  // b.any
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12673
+0xffffb75e3c57b1d8 <find_busiest_group+1232>:	adrp	x0, 0xffffb75e3df95000 <select_rq_mask+472>
+0xffffb75e3c57b1dc <find_busiest_group+1236>:	add	x0, x0, #0xad8
+0xffffb75e3c57b1e0 <find_busiest_group+1240>:	ldr	x4, [x3, x0]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12674
+0xffffb75e3c57b1e4 <find_busiest_group+1244>:	cbz	x4, 0xffffb75e3c57b24c <find_busiest_group+1348>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12711
+0xffffb75e3c57b1e8 <find_busiest_group+1248>:	ldr	x9, [sp, #24]
+0xffffb75e3c57b1ec <find_busiest_group+1252>:	mov	w0, w2
+0xffffb75e3c57b1f0 <find_busiest_group+1256>:	ldrsw	x7, [x8, #44]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12712
+0xffffb75e3c57b1f4 <find_busiest_group+1260>:	mov	x6, #0x594b                	// #22859
+0xffffb75e3c57b1f8 <find_busiest_group+1264>:	movk	x6, #0x3886, lsl #16
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12713
+0xffffb75e3c57b1fc <find_busiest_group+1268>:	mov	x3, #0x400                 	// #1024
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12707
+0xffffb75e3c57b200 <find_busiest_group+1272>:	udiv	x0, x9, x0
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12712
+0xffffb75e3c57b204 <find_busiest_group+1276>:	movk	x6, #0xc5d6, lsl #32
+0xffffb75e3c57b208 <find_busiest_group+1280>:	movk	x6, #0x346d, lsl #48
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12717
+0xffffb75e3c57b20c <find_busiest_group+1284>:	sxtw	x2, w2
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12719
+0xffffb75e3c57b210 <find_busiest_group+1288>:	ldr	w5, [x4, #12]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12711
+0xffffb75e3c57b214 <find_busiest_group+1292>:	mul	x0, x0, x7
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12713
+0xffffb75e3c57b218 <find_busiest_group+1296>:	mul	x0, x0, x0
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12712
+0xffffb75e3c57b21c <find_busiest_group+1300>:	umulh	x0, x0, x6
+0xffffb75e3c57b220 <find_busiest_group+1304>:	lsr	x0, x0, #21
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12713
+0xffffb75e3c57b224 <find_busiest_group+1308>:	cmp	x0, x3
+0xffffb75e3c57b228 <find_busiest_group+1312>:	csel	x0, x0, x3, le
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12714
+0xffffb75e3c57b22c <find_busiest_group+1316>:	sub	x3, x3, x0
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12717
+0xffffb75e3c57b230 <find_busiest_group+1320>:	mul	x0, x2, x3
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12719
+0xffffb75e3c57b234 <find_busiest_group+1324>:	lsr	x0, x0, #10
+0xffffb75e3c57b238 <find_busiest_group+1328>:	cmp	w0, w5
+0xffffb75e3c57b23c <find_busiest_group+1332>:	b.eq	0xffffb75e3c57b24c <find_busiest_group+1348>  // b.none
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12720
+0xffffb75e3c57b240 <find_busiest_group+1336>:	str	w0, [x4, #12]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12796
+0xffffb75e3c57b244 <find_busiest_group+1340>:	ldr	x8, [x19]
+0xffffb75e3c57b248 <find_busiest_group+1344>:	ldr	w1, [x19, #20]
+0xffffb75e3c57b24c <find_busiest_group+1348>:	ldp	x3, x2, [sp, #360]
+0xffffb75e3c57b250 <find_busiest_group+1352>:	mov	x0, x8
+0xffffb75e3c57b254 <find_busiest_group+1356>:	bl	0xffffb75e3c5a0830 <update_sd_ld_qos_stats>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 13024
+0xffffb75e3c57b258 <find_busiest_group+1360>:	ldr	x3, [sp, #136]
+0xffffb75e3c57b25c <find_busiest_group+1364>:	cbz	x3, 0xffffb75e3c57b608 <find_busiest_group+2304>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 13030
+0xffffb75e3c57b260 <find_busiest_group+1368>:	ldr	w2, [sp, #240]
+0xffffb75e3c57b264 <find_busiest_group+1372>:	cmp	w2, #0x2
+0xffffb75e3c57b268 <find_busiest_group+1376>:	b.eq	0xffffb75e3c57b614 <find_busiest_group+2316>  // b.none
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 13041
+0xffffb75e3c57b26c <find_busiest_group+1380>:	cmp	w2, #0x4
+0xffffb75e3c57b270 <find_busiest_group+1384>:	b.eq	0xffffb75e3c57b6b0 <find_busiest_group+2472>  // b.none
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 13049
+0xffffb75e3c57b274 <find_busiest_group+1388>:	cmp	w2, #0x5
+0xffffb75e3c57b278 <find_busiest_group+1392>:	b.eq	0xffffb75e3c57b544 <find_busiest_group+2108>  // b.none
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 13057
+0xffffb75e3c57b27c <find_busiest_group+1396>:	ldr	w4, [sp, #328]
+0xffffb75e3c57b280 <find_busiest_group+1400>:	cmp	w2, w4
+0xffffb75e3c57b284 <find_busiest_group+1404>:	b.cc	0xffffb75e3c57b608 <find_busiest_group+2304>  // b.lo, b.ul, b.last
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 13064
+0xffffb75e3c57b288 <find_busiest_group+1408>:	cmp	w4, #0x6
+0xffffb75e3c57b28c <find_busiest_group+1412>:	b.eq	0xffffb75e3c57b6c8 <find_busiest_group+2496>  // b.none
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 13096
+0xffffb75e3c57b290 <find_busiest_group+1416>:	ldr	w0, [sp, #176]
+0xffffb75e3c57b294 <find_busiest_group+1420>:	cmp	w0, #0x0
+0xffffb75e3c57b298 <find_busiest_group+1424>:	ccmp	w4, #0x0, #0x0, ne  // ne = any
+0xffffb75e3c57b29c <find_busiest_group+1428>:	b.eq	0xffffb75e3c57b4dc <find_busiest_group+2004>  // b.none
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 13100
+0xffffb75e3c57b2a0 <find_busiest_group+1432>:	cmp	w2, #0x6
+0xffffb75e3c57b2a4 <find_busiest_group+1436>:	b.eq	0xffffb75e3c57b720 <find_busiest_group+2584>  // b.none
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 13101
+0xffffb75e3c57b2a8 <find_busiest_group+1440>:	ldr	w0, [x19, #44]
+0xffffb75e3c57b2ac <find_busiest_group+1444>:	cmp	w0, #0x1
+0xffffb75e3c57b2b0 <find_busiest_group+1448>:	b.eq	0xffffb75e3c57b608 <find_busiest_group+2304>  // b.none
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 13110
+0xffffb75e3c57b2b4 <find_busiest_group+1452>:	cmp	w2, #0x3
+0xffffb75e3c57b2b8 <find_busiest_group+1456>:	b.eq	0xffffb75e3c57b76c <find_busiest_group+2660>  // b.none
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 13116
+0xffffb75e3c57b2bc <find_busiest_group+1460>:	ldr	w0, [sp, #236]
+0xffffb75e3c57b2c0 <find_busiest_group+1464>:	cmp	w0, #0x1
+0xffffb75e3c57b2c4 <find_busiest_group+1468>:	b.ls	0xffffb75e3c57b7c0 <find_busiest_group+2744>  // b.plast
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 13117
+0xffffb75e3c57b2c8 <find_busiest_group+1472>:	ldr	w0, [sp, #232]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 13116
+0xffffb75e3c57b2cc <find_busiest_group+1476>:	ldr	w1, [sp, #320]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 13117
+0xffffb75e3c57b2d0 <find_busiest_group+1480>:	add	w0, w0, #0x1
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 13116
+0xffffb75e3c57b2d4 <find_busiest_group+1484>:	cmp	w1, w0
+0xffffb75e3c57b2d8 <find_busiest_group+1488>:	b.ls	0xffffb75e3c57b608 <find_busiest_group+2304>  // b.plast
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 13130
+0xffffb75e3c57b2dc <find_busiest_group+1492>:	ldr	w0, [sp, #228]
+0xffffb75e3c57b2e0 <find_busiest_group+1496>:	cmp	w0, #0x1
+0xffffb75e3c57b2e4 <find_busiest_group+1500>:	b.eq	0xffffb75e3c57b608 <find_busiest_group+2304>  // b.none
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12840
+0xffffb75e3c57b2e8 <find_busiest_group+1504>:	cmp	w2, #0x3
+0xffffb75e3c57b2ec <find_busiest_group+1508>:	b.eq	0xffffb75e3c57b544 <find_busiest_group+2108>  // b.none
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12863
+0xffffb75e3c57b2f0 <find_busiest_group+1512>:	cbz	w4, 0xffffb75e3c57b594 <find_busiest_group+2188>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 13069
+0xffffb75e3c57b2f4 <find_busiest_group+1516>:	ldr	x1, [sp, #184]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12931
+0xffffb75e3c57b2f8 <find_busiest_group+1520>:	ldr	x5, [sp, #288]
+0xffffb75e3c57b2fc <find_busiest_group+1524>:	cmp	w4, #0x5
+0xffffb75e3c57b300 <find_busiest_group+1528>:	b.hi	0xffffb75e3c57b7d4 <find_busiest_group+2764>  // b.pmore
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12937
+0xffffb75e3c57b304 <find_busiest_group+1532>:	ldr	x0, [sp, #280]
+0xffffb75e3c57b308 <find_busiest_group+1536>:	lsl	x0, x0, #10
+0xffffb75e3c57b30c <find_busiest_group+1540>:	udiv	x0, x0, x5
+0xffffb75e3c57b310 <find_busiest_group+1544>:	str	x0, [sp, #272]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12944
+0xffffb75e3c57b314 <find_busiest_group+1548>:	cmp	x0, x1
+0xffffb75e3c57b318 <find_busiest_group+1552>:	b.cs	0xffffb75e3c57b608 <find_busiest_group+2304>  // b.hs, b.nlast
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12949
+0xffffb75e3c57b31c <find_busiest_group+1556>:	ldp	x2, x4, [sp, #152]
+0xffffb75e3c57b320 <find_busiest_group+1560>:	lsl	x2, x2, #10
+0xffffb75e3c57b324 <find_busiest_group+1564>:	udiv	x2, x2, x4
+0xffffb75e3c57b328 <find_busiest_group+1568>:	str	x2, [sp, #168]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12956
+0xffffb75e3c57b32c <find_busiest_group+1572>:	cmp	x0, x2
+0xffffb75e3c57b330 <find_busiest_group+1576>:	b.cs	0xffffb75e3c57b608 <find_busiest_group+2304>  // b.hs, b.nlast
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12971
+0xffffb75e3c57b334 <find_busiest_group+1580>:	ldr	x4, [sp, #200]
+0xffffb75e3c57b338 <find_busiest_group+1584>:	sub	x1, x1, x2
+0xffffb75e3c57b33c <find_busiest_group+1588>:	sub	x0, x2, x0
+0xffffb75e3c57b340 <find_busiest_group+1592>:	str	wzr, [x19, #84]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12972
+0xffffb75e3c57b344 <find_busiest_group+1596>:	mul	x1, x1, x4
+0xffffb75e3c57b348 <find_busiest_group+1600>:	mul	x0, x0, x5
+0xffffb75e3c57b34c <find_busiest_group+1604>:	cmp	x1, x0
+0xffffb75e3c57b350 <find_busiest_group+1608>:	csel	x1, x1, x0, ls  // ls = plast
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12975
+0xffffb75e3c57b354 <find_busiest_group+1612>:	lsr	x1, x1, #10
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12972
+0xffffb75e3c57b358 <find_busiest_group+1616>:	str	x1, [x19, #48]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 13141
+0xffffb75e3c57b35c <find_busiest_group+1620>:	cbnz	x1, 0xffffb75e3c57b554 <find_busiest_group+2124>
+0xffffb75e3c57b360 <find_busiest_group+1624>:	mov	x3, #0x0                   	// #0
+0xffffb75e3c57b364 <find_busiest_group+1628>:	b	0xffffb75e3c57b554 <find_busiest_group+2124>
+0xffffb75e3c57b368 <find_busiest_group+1632>:	ldr	x0, [x19]
+0xffffb75e3c57b36c <find_busiest_group+1636>:	ldr	w2, [x19, #44]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 11952
+0xffffb75e3c57b370 <find_busiest_group+1640>:	cmp	w2, #0x1
+0xffffb75e3c57b374 <find_busiest_group+1644>:	b.eq	0xffffb75e3c57b3c0 <find_busiest_group+1720>  // b.none
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 11961
+0xffffb75e3c57b378 <find_busiest_group+1648>:	ldr	w1, [x22, #36]
+0xffffb75e3c57b37c <find_busiest_group+1652>:	tbz	w1, #7, 0xffffb75e3c57b3c0 <find_busiest_group+1720>
+0xffffb75e3c57b380 <find_busiest_group+1656>:	ldr	w2, [x28, #52]
+0xffffb75e3c57b384 <find_busiest_group+1660>:	ldr	w1, [x28, #44]
+0xffffb75e3c57b388 <find_busiest_group+1664>:	cmp	w1, #0x1
+0xffffb75e3c57b38c <find_busiest_group+1668>:	b.ls	0xffffb75e3c57b034 <find_busiest_group+812>  // b.plast
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12114
+0xffffb75e3c57b390 <find_busiest_group+1672>:	mov	w1, w2
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12116
+0xffffb75e3c57b394 <find_busiest_group+1676>:	mov	x8, x0
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12114
+0xffffb75e3c57b398 <find_busiest_group+1680>:	mov	w2, #0x1                   	// #1
+0xffffb75e3c57b39c <find_busiest_group+1684>:	str	w2, [x28, #64]
+0xffffb75e3c57b3a0 <find_busiest_group+1688>:	b	0xffffb75e3c57b040 <find_busiest_group+824>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12120
+0xffffb75e3c57b3a4 <find_busiest_group+1692>:	ldr	x1, [x28, #8]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12116
+0xffffb75e3c57b3a8 <find_busiest_group+1696>:	mov	w3, #0x6                   	// #6
+0xffffb75e3c57b3ac <find_busiest_group+1700>:	str	w3, [x28, #56]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12120
+0xffffb75e3c57b3b0 <find_busiest_group+1704>:	lsl	x1, x1, #10
+0xffffb75e3c57b3b4 <find_busiest_group+1708>:	udiv	x1, x1, x2
+0xffffb75e3c57b3b8 <find_busiest_group+1712>:	str	x1, [x28]
+0xffffb75e3c57b3bc <find_busiest_group+1716>:	b	0xffffb75e3c57b0f0 <find_busiest_group+1000>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 11838
+0xffffb75e3c57b3c0 <find_busiest_group+1720>:	ldr	w1, [x28, #52]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12116
+0xffffb75e3c57b3c4 <find_busiest_group+1724>:	mov	x8, x0
+0xffffb75e3c57b3c8 <find_busiest_group+1728>:	b	0xffffb75e3c57b040 <find_busiest_group+824>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12758
+0xffffb75e3c57b3cc <find_busiest_group+1732>:	str	x22, [sp, #136]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12759
+0xffffb75e3c57b3d0 <find_busiest_group+1736>:	ldr	x0, [x19]
+0xffffb75e3c57b3d4 <find_busiest_group+1740>:	ldp	x2, x3, [x28]
+0xffffb75e3c57b3d8 <find_busiest_group+1744>:	stp	x2, x3, [sp, #184]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12769
+0xffffb75e3c57b3dc <find_busiest_group+1748>:	mov	x8, x0
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12759
+0xffffb75e3c57b3e0 <find_busiest_group+1752>:	ldp	x2, x3, [x28, #16]
+0xffffb75e3c57b3e4 <find_busiest_group+1756>:	stp	x2, x3, [sp, #200]
+0xffffb75e3c57b3e8 <find_busiest_group+1760>:	ldp	x2, x3, [x28, #32]
+0xffffb75e3c57b3ec <find_busiest_group+1764>:	stp	x2, x3, [sp, #216]
+0xffffb75e3c57b3f0 <find_busiest_group+1768>:	ldp	x2, x3, [x28, #48]
+0xffffb75e3c57b3f4 <find_busiest_group+1772>:	stp	x2, x3, [sp, #232]
+0xffffb75e3c57b3f8 <find_busiest_group+1776>:	ldp	x2, x3, [x28, #64]
+0xffffb75e3c57b3fc <find_busiest_group+1780>:	stp	x2, x3, [sp, #248]
+0xffffb75e3c57b400 <find_busiest_group+1784>:	ldr	x2, [x28, #80]
+0xffffb75e3c57b404 <find_busiest_group+1788>:	str	x2, [sp, #264]
+0xffffb75e3c57b408 <find_busiest_group+1792>:	b	0xffffb75e3c57b118 <find_busiest_group+1040>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12116
+0xffffb75e3c57b40c <find_busiest_group+1796>:	mov	w1, #0x5                   	// #5
+0xffffb75e3c57b410 <find_busiest_group+1800>:	str	w1, [x28, #56]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12119
+0xffffb75e3c57b414 <find_busiest_group+1804>:	b	0xffffb75e3c57b0f0 <find_busiest_group+1000>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12116
+0xffffb75e3c57b418 <find_busiest_group+1808>:	str	wzr, [x28, #56]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12119
+0xffffb75e3c57b41c <find_busiest_group+1812>:	b	0xffffb75e3c57b0f0 <find_busiest_group+1000>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12116
+0xffffb75e3c57b420 <find_busiest_group+1816>:	mov	w1, #0x4                   	// #4
+0xffffb75e3c57b424 <find_busiest_group+1820>:	str	w1, [x28, #56]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12119
+0xffffb75e3c57b428 <find_busiest_group+1824>:	b	0xffffb75e3c57b0f0 <find_busiest_group+1000>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12116
+0xffffb75e3c57b42c <find_busiest_group+1828>:	mov	w1, #0x3                   	// #3
+0xffffb75e3c57b430 <find_busiest_group+1832>:	str	w1, [x28, #56]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12119
+0xffffb75e3c57b434 <find_busiest_group+1836>:	b	0xffffb75e3c57b0f0 <find_busiest_group+1000>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 11923
+0xffffb75e3c57b438 <find_busiest_group+1840>:	ldr	w1, [x19, #20]
+0xffffb75e3c57b43c <find_busiest_group+1844>:	bl	0xffffb75e3c5660f0 <sched_use_asym_prio>
+0xffffb75e3c57b440 <find_busiest_group+1848>:	tbz	w0, #0, 0xffffb75e3c57b368 <find_busiest_group+1632>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 11930
+0xffffb75e3c57b444 <find_busiest_group+1852>:	ldr	w0, [x22, #36]
+0xffffb75e3c57b448 <find_busiest_group+1856>:	tbz	w0, #7, 0xffffb75e3c57b478 <find_busiest_group+1904>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 11931
+0xffffb75e3c57b44c <find_busiest_group+1860>:	ldp	w0, w1, [x28, #48]
+0xffffb75e3c57b450 <find_busiest_group+1864>:	sub	w0, w1, w0
+0xffffb75e3c57b454 <find_busiest_group+1868>:	mov	w2, w1
+0xffffb75e3c57b458 <find_busiest_group+1872>:	cmp	w0, #0x1
+0xffffb75e3c57b45c <find_busiest_group+1876>:	b.eq	0xffffb75e3c57b478 <find_busiest_group+1904>  // b.none
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 11952
+0xffffb75e3c57b460 <find_busiest_group+1880>:	ldr	w0, [x19, #44]
+0xffffb75e3c57b464 <find_busiest_group+1884>:	cmp	w0, #0x1
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12116
+0xffffb75e3c57b468 <find_busiest_group+1888>:	ldr	x0, [x19]
+0xffffb75e3c57b46c <find_busiest_group+1892>:	mov	x8, x0
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 11952
+0xffffb75e3c57b470 <find_busiest_group+1896>:	b.ne	0xffffb75e3c57b384 <find_busiest_group+1660>  // b.any
+0xffffb75e3c57b474 <find_busiest_group+1900>:	b	0xffffb75e3c57b040 <find_busiest_group+824>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 11935
+0xffffb75e3c57b478 <find_busiest_group+1904>:	ldr	w0, [x19, #20]
+0xffffb75e3c57b47c <find_busiest_group+1908>:	ldr	w20, [x22, #32]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/sched.h: 1052
+0xffffb75e3c57b480 <find_busiest_group+1912>:	bl	0xffffb75e3c56d2a0 <arch_asym_cpu_priority>
+0xffffb75e3c57b484 <find_busiest_group+1916>:	mov	w23, w0
+0xffffb75e3c57b488 <find_busiest_group+1920>:	mov	w0, w20
+0xffffb75e3c57b48c <find_busiest_group+1924>:	bl	0xffffb75e3c56d2a0 <arch_asym_cpu_priority>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12107
+0xffffb75e3c57b490 <find_busiest_group+1928>:	cmp	w23, w0
+0xffffb75e3c57b494 <find_busiest_group+1932>:	ldr	x0, [x19]
+0xffffb75e3c57b498 <find_busiest_group+1936>:	b.le	0xffffb75e3c57b4d4 <find_busiest_group+1996>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12109
+0xffffb75e3c57b49c <find_busiest_group+1940>:	mov	w1, #0x1                   	// #1
+0xffffb75e3c57b4a0 <find_busiest_group+1944>:	ldr	w2, [x19, #44]
+0xffffb75e3c57b4a4 <find_busiest_group+1948>:	str	w1, [x28, #60]
+0xffffb75e3c57b4a8 <find_busiest_group+1952>:	b	0xffffb75e3c57b370 <find_busiest_group+1640>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12116
+0xffffb75e3c57b4ac <find_busiest_group+1956>:	mov	w1, #0x2                   	// #2
+0xffffb75e3c57b4b0 <find_busiest_group+1960>:	str	w1, [x28, #56]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12119
+0xffffb75e3c57b4b4 <find_busiest_group+1964>:	b	0xffffb75e3c57b0f0 <find_busiest_group+1000>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12785
+0xffffb75e3c57b4b8 <find_busiest_group+1968>:	ldr	x0, [x19, #24]
+0xffffb75e3c57b4bc <find_busiest_group+1972>:	ldr	w1, [sp, #32]
+0xffffb75e3c57b4c0 <find_busiest_group+1976>:	ldr	x0, [x0, #2752]
+0xffffb75e3c57b4c4 <find_busiest_group+1980>:	str	w1, [x0, #1048]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 7609
+0xffffb75e3c57b4c8 <find_busiest_group+1984>:	ldr	x8, [x19]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/./arch/arm64/include/asm/jump_label.h: 22
+0xffffb75e3c57b4cc <find_busiest_group+1988>:	nop
+0xffffb75e3c57b4d0 <find_busiest_group+1992>:	b	0xffffb75e3c57b1a4 <find_busiest_group+1180>
+0xffffb75e3c57b4d4 <find_busiest_group+1996>:	ldr	w2, [x19, #44]
+0xffffb75e3c57b4d8 <find_busiest_group+2000>:	b	0xffffb75e3c57b370 <find_busiest_group+1640>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 11976
+0xffffb75e3c57b4dc <find_busiest_group+2004>:	ldr	w0, [x19, #44]
+0xffffb75e3c57b4e0 <find_busiest_group+2008>:	cmp	w0, #0x1
+0xffffb75e3c57b4e4 <find_busiest_group+2012>:	b.eq	0xffffb75e3c57b800 <find_busiest_group+2808>  // b.none
+0xffffb75e3c57b4e8 <find_busiest_group+2016>:	ldr	w0, [sp, #224]
+0xffffb75e3c57b4ec <find_busiest_group+2020>:	cbz	w0, 0xffffb75e3c57b7b0 <find_busiest_group+2728>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 11979
+0xffffb75e3c57b4f0 <find_busiest_group+2024>:	ldr	x1, [sp, #144]
+0xffffb75e3c57b4f4 <find_busiest_group+2028>:	ldr	w5, [x3, #16]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 11980
+0xffffb75e3c57b4f8 <find_busiest_group+2032>:	ldr	w6, [sp, #312]
+0xffffb75e3c57b4fc <find_busiest_group+2036>:	ldr	w7, [x1, #16]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 11982
+0xffffb75e3c57b500 <find_busiest_group+2040>:	cmp	w5, w7
+0xffffb75e3c57b504 <find_busiest_group+2044>:	b.eq	0xffffb75e3c57b7e0 <find_busiest_group+2776>  // b.none
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 11989
+0xffffb75e3c57b508 <find_busiest_group+2048>:	mul	w1, w0, w7
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 11996
+0xffffb75e3c57b50c <find_busiest_group+2052>:	sxtw	x9, w5
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 11990
+0xffffb75e3c57b510 <find_busiest_group+2056>:	mul	w8, w5, w6
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 11993
+0xffffb75e3c57b514 <find_busiest_group+2060>:	add	w5, w5, w7
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 11992
+0xffffb75e3c57b518 <find_busiest_group+2064>:	add	x7, x9, w7, sxtw
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 11990
+0xffffb75e3c57b51c <find_busiest_group+2068>:	cmp	x8, x1
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 11993
+0xffffb75e3c57b520 <find_busiest_group+2072>:	sxtw	x5, w5
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 11990
+0xffffb75e3c57b524 <find_busiest_group+2076>:	csel	x8, x8, x1, le
+0xffffb75e3c57b528 <find_busiest_group+2080>:	sub	x1, x1, x8
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 11992
+0xffffb75e3c57b52c <find_busiest_group+2084>:	add	x1, x7, x1, lsl #1
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 11993
+0xffffb75e3c57b530 <find_busiest_group+2088>:	sdiv	x1, x1, x5
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 11996
+0xffffb75e3c57b534 <find_busiest_group+2092>:	cmp	x1, #0x1
+0xffffb75e3c57b538 <find_busiest_group+2096>:	b.le	0xffffb75e3c57b7a4 <find_busiest_group+2716>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12840
+0xffffb75e3c57b53c <find_busiest_group+2100>:	cmp	w2, #0x3
+0xffffb75e3c57b540 <find_busiest_group+2104>:	b.ne	0xffffb75e3c57b594 <find_busiest_group+2188>  // b.any
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12856
+0xffffb75e3c57b544 <find_busiest_group+2108>:	mov	w0, #0x2                   	// #2
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12855
+0xffffb75e3c57b548 <find_busiest_group+2112>:	mov	x1, #0x1                   	// #1
+0xffffb75e3c57b54c <find_busiest_group+2116>:	str	x1, [x19, #48]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 13141
+0xffffb75e3c57b550 <find_busiest_group+2120>:	str	w0, [x19, #84]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 13146
+0xffffb75e3c57b554 <find_busiest_group+2124>:	mrs	x0, sp_el0
+0xffffb75e3c57b558 <find_busiest_group+2128>:	ldr	x2, [sp, #376]
+0xffffb75e3c57b55c <find_busiest_group+2132>:	ldr	x1, [x0, #2088]
+0xffffb75e3c57b560 <find_busiest_group+2136>:	subs	x2, x2, x1
+0xffffb75e3c57b564 <find_busiest_group+2140>:	mov	x1, #0x0                   	// #0
+0xffffb75e3c57b568 <find_busiest_group+2144>:	b.ne	0xffffb75e3c57b85c <find_busiest_group+2900>  // b.any
+0xffffb75e3c57b56c <find_busiest_group+2148>:	ldp	x29, x30, [sp, #384]
+0xffffb75e3c57b570 <find_busiest_group+2152>:	mov	x0, x3
+0xffffb75e3c57b574 <find_busiest_group+2156>:	ldp	x19, x20, [sp, #400]
+0xffffb75e3c57b578 <find_busiest_group+2160>:	ldp	x21, x22, [sp, #416]
+0xffffb75e3c57b57c <find_busiest_group+2164>:	ldp	x23, x24, [sp, #432]
+0xffffb75e3c57b580 <find_busiest_group+2168>:	ldp	x25, x26, [sp, #448]
+0xffffb75e3c57b584 <find_busiest_group+2172>:	ldp	x27, x28, [sp, #464]
+0xffffb75e3c57b588 <find_busiest_group+2176>:	add	sp, sp, #0x1e0
+0xffffb75e3c57b58c <find_busiest_group+2180>:	autiasp
+0xffffb75e3c57b590 <find_busiest_group+2184>:	ret
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12864
+0xffffb75e3c57b594 <find_busiest_group+2188>:	ldr	x0, [x19]
+0xffffb75e3c57b598 <find_busiest_group+2192>:	mov	x5, x0
+0xffffb75e3c57b59c <find_busiest_group+2196>:	cmp	w2, #0x1
+0xffffb75e3c57b5a0 <find_busiest_group+2200>:	b.hi	0xffffb75e3c57b728 <find_busiest_group+2592>  // b.pmore
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12893
+0xffffb75e3c57b5a4 <find_busiest_group+2204>:	ldr	w1, [sp, #236]
+0xffffb75e3c57b5a8 <find_busiest_group+2208>:	cmp	w1, #0x1
+0xffffb75e3c57b5ac <find_busiest_group+2212>:	b.eq	0xffffb75e3c57b634 <find_busiest_group+2348>  // b.none
+0xffffb75e3c57b5b0 <find_busiest_group+2216>:	ldr	w0, [sp, #176]
+0xffffb75e3c57b5b4 <find_busiest_group+2220>:	cbnz	w0, 0xffffb75e3c57b634 <find_busiest_group+2348>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12906
+0xffffb75e3c57b5b8 <find_busiest_group+2224>:	ldr	w2, [sp, #324]
+0xffffb75e3c57b5bc <find_busiest_group+2228>:	mov	w4, #0x2                   	// #2
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12907
+0xffffb75e3c57b5c0 <find_busiest_group+2232>:	ldr	w0, [sp, #232]
+0xffffb75e3c57b5c4 <find_busiest_group+2236>:	ldr	w6, [sp, #320]
+0xffffb75e3c57b5c8 <find_busiest_group+2240>:	add	w0, w0, w2
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12906
+0xffffb75e3c57b5cc <find_busiest_group+2244>:	str	w4, [x19, #84]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12907
+0xffffb75e3c57b5d0 <find_busiest_group+2248>:	add	w1, w1, w6
+0xffffb75e3c57b5d4 <find_busiest_group+2252>:	sub	w2, w1, w0
+0xffffb75e3c57b5d8 <find_busiest_group+2256>:	str	x2, [x19, #48]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12914
+0xffffb75e3c57b5dc <find_busiest_group+2260>:	asr	x1, x2, #1
+0xffffb75e3c57b5e0 <find_busiest_group+2264>:	ldr	w0, [x5, #60]
+0xffffb75e3c57b5e4 <find_busiest_group+2268>:	tbz	w0, #14, 0xffffb75e3c57b358 <find_busiest_group+1616>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12915
+0xffffb75e3c57b5e8 <find_busiest_group+2272>:	ldr	w0, [x5, #52]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 1722
+0xffffb75e3c57b5ec <find_busiest_group+2276>:	mov	w1, w2
+0xffffb75e3c57b5f0 <find_busiest_group+2280>:	ldr	w4, [sp, #224]
+0xffffb75e3c57b5f4 <find_busiest_group+2284>:	cmp	w4, w0
+0xffffb75e3c57b5f8 <find_busiest_group+2288>:	b.gt	0xffffb75e3c57b838 <find_busiest_group+2864>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 1729
+0xffffb75e3c57b5fc <find_busiest_group+2292>:	sbfx	x1, x1, #1, #31
+0xffffb75e3c57b600 <find_busiest_group+2296>:	cmp	w2, w0
+0xffffb75e3c57b604 <find_busiest_group+2300>:	b.gt	0xffffb75e3c57b358 <find_busiest_group+1616>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 13144
+0xffffb75e3c57b608 <find_busiest_group+2304>:	str	xzr, [x19, #48]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 13145
+0xffffb75e3c57b60c <find_busiest_group+2308>:	mov	x3, #0x0                   	// #0
+0xffffb75e3c57b610 <find_busiest_group+2312>:	b	0xffffb75e3c57b554 <find_busiest_group+2124>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12815
+0xffffb75e3c57b614 <find_busiest_group+2316>:	ldr	x0, [x19]
+0xffffb75e3c57b618 <find_busiest_group+2320>:	ldr	w0, [x0, #60]
+0xffffb75e3c57b61c <find_busiest_group+2324>:	tbnz	w0, #5, 0xffffb75e3c57b764 <find_busiest_group+2652>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12824
+0xffffb75e3c57b620 <find_busiest_group+2328>:	ldr	x1, [sp, #256]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12825
+0xffffb75e3c57b624 <find_busiest_group+2332>:	str	x1, [x19, #48]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12824
+0xffffb75e3c57b628 <find_busiest_group+2336>:	str	wzr, [x19, #84]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 13141
+0xffffb75e3c57b62c <find_busiest_group+2340>:	cbnz	x1, 0xffffb75e3c57b554 <find_busiest_group+2124>
+0xffffb75e3c57b630 <find_busiest_group+2344>:	b	0xffffb75e3c57b360 <find_busiest_group+1624>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12898
+0xffffb75e3c57b634 <find_busiest_group+2348>:	ldr	w0, [x19, #44]
+0xffffb75e3c57b638 <find_busiest_group+2352>:	mov	w1, #0x2                   	// #2
+0xffffb75e3c57b63c <find_busiest_group+2356>:	str	w1, [x19, #84]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 11976
+0xffffb75e3c57b640 <find_busiest_group+2360>:	mov	x2, #0x0                   	// #0
+0xffffb75e3c57b644 <find_busiest_group+2364>:	cmp	w0, #0x1
+0xffffb75e3c57b648 <find_busiest_group+2368>:	b.eq	0xffffb75e3c57b5d8 <find_busiest_group+2256>  // b.none
+0xffffb75e3c57b64c <find_busiest_group+2372>:	ldr	w4, [sp, #224]
+0xffffb75e3c57b650 <find_busiest_group+2376>:	cbz	w4, 0xffffb75e3c57b5d8 <find_busiest_group+2256>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 11979
+0xffffb75e3c57b654 <find_busiest_group+2380>:	ldr	x1, [sp, #144]
+0xffffb75e3c57b658 <find_busiest_group+2384>:	ldr	w0, [x3, #16]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 11980
+0xffffb75e3c57b65c <find_busiest_group+2388>:	ldr	w2, [sp, #312]
+0xffffb75e3c57b660 <find_busiest_group+2392>:	ldr	w6, [x1, #16]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 11982
+0xffffb75e3c57b664 <find_busiest_group+2396>:	cmp	w0, w6
+0xffffb75e3c57b668 <find_busiest_group+2400>:	b.eq	0xffffb75e3c57b844 <find_busiest_group+2876>  // b.none
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 11989
+0xffffb75e3c57b66c <find_busiest_group+2404>:	mul	w1, w4, w6
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 11993
+0xffffb75e3c57b670 <find_busiest_group+2408>:	sxtw	x8, w0
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 11990
+0xffffb75e3c57b674 <find_busiest_group+2412>:	mul	w7, w0, w2
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 11993
+0xffffb75e3c57b678 <find_busiest_group+2416>:	add	w0, w0, w6
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 11992
+0xffffb75e3c57b67c <find_busiest_group+2420>:	add	x6, x8, w6, sxtw
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 11998
+0xffffb75e3c57b680 <find_busiest_group+2424>:	mov	x8, #0x2                   	// #2
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 11990
+0xffffb75e3c57b684 <find_busiest_group+2428>:	cmp	x7, x1
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 11993
+0xffffb75e3c57b688 <find_busiest_group+2432>:	sxtw	x0, w0
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 11990
+0xffffb75e3c57b68c <find_busiest_group+2436>:	csel	x7, x7, x1, le
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 11996
+0xffffb75e3c57b690 <find_busiest_group+2440>:	cmp	w2, #0x0
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 11990
+0xffffb75e3c57b694 <find_busiest_group+2444>:	sub	x2, x1, x7
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 11996
+0xffffb75e3c57b698 <find_busiest_group+2448>:	ccmp	w4, #0x1, #0x4, eq  // eq = none
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 11992
+0xffffb75e3c57b69c <find_busiest_group+2452>:	add	x2, x6, x2, lsl #1
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 11993
+0xffffb75e3c57b6a0 <find_busiest_group+2456>:	sdiv	x2, x2, x0
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 11996
+0xffffb75e3c57b6a4 <find_busiest_group+2460>:	ccmp	x2, #0x1, #0x0, ne  // ne = any
+0xffffb75e3c57b6a8 <find_busiest_group+2464>:	csel	x2, x2, x8, gt
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 11998
+0xffffb75e3c57b6ac <find_busiest_group+2468>:	b	0xffffb75e3c57b5d8 <find_busiest_group+2256>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12835
+0xffffb75e3c57b6b0 <find_busiest_group+2472>:	ldr	w1, [sp, #228]
+0xffffb75e3c57b6b4 <find_busiest_group+2476>:	mov	w0, #0x2                   	// #2
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12836
+0xffffb75e3c57b6b8 <find_busiest_group+2480>:	str	x1, [x19, #48]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12835
+0xffffb75e3c57b6bc <find_busiest_group+2484>:	str	w0, [x19, #84]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 13141
+0xffffb75e3c57b6c0 <find_busiest_group+2488>:	cbnz	x1, 0xffffb75e3c57b554 <find_busiest_group+2124>
+0xffffb75e3c57b6c4 <find_busiest_group+2492>:	b	0xffffb75e3c57b360 <find_busiest_group+1624>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 13069
+0xffffb75e3c57b6c8 <find_busiest_group+2496>:	ldr	x1, [sp, #184]
+0xffffb75e3c57b6cc <find_busiest_group+2500>:	ldr	x0, [sp, #272]
+0xffffb75e3c57b6d0 <find_busiest_group+2504>:	cmp	x0, x1
+0xffffb75e3c57b6d4 <find_busiest_group+2508>:	b.cs	0xffffb75e3c57b608 <find_busiest_group+2304>  // b.hs, b.nlast
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 13073
+0xffffb75e3c57b6d8 <find_busiest_group+2512>:	ldp	x5, x6, [sp, #152]
+0xffffb75e3c57b6dc <find_busiest_group+2516>:	lsl	x5, x5, #10
+0xffffb75e3c57b6e0 <find_busiest_group+2520>:	udiv	x5, x5, x6
+0xffffb75e3c57b6e4 <find_busiest_group+2524>:	str	x5, [sp, #168]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 13080
+0xffffb75e3c57b6e8 <find_busiest_group+2528>:	cmp	x0, x5
+0xffffb75e3c57b6ec <find_busiest_group+2532>:	b.cs	0xffffb75e3c57b608 <find_busiest_group+2304>  // b.hs, b.nlast
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 13087
+0xffffb75e3c57b6f0 <find_busiest_group+2536>:	ldr	x5, [x19]
+0xffffb75e3c57b6f4 <find_busiest_group+2540>:	add	x6, x1, x1, lsl #1
+0xffffb75e3c57b6f8 <find_busiest_group+2544>:	add	x6, x1, x6, lsl #3
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 13088
+0xffffb75e3c57b6fc <find_busiest_group+2548>:	ldr	w5, [x5, #44]
+0xffffb75e3c57b700 <find_busiest_group+2552>:	mul	x5, x5, x0
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 13087
+0xffffb75e3c57b704 <find_busiest_group+2556>:	cmp	x5, x6, lsl #2
+0xffffb75e3c57b708 <find_busiest_group+2560>:	b.cs	0xffffb75e3c57b608 <find_busiest_group+2304>  // b.hs, b.nlast
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 13100
+0xffffb75e3c57b70c <find_busiest_group+2564>:	cmp	w2, #0x6
+0xffffb75e3c57b710 <find_busiest_group+2568>:	b.ne	0xffffb75e3c57b2a8 <find_busiest_group+1440>  // b.any
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12931
+0xffffb75e3c57b714 <find_busiest_group+2572>:	ldr	x2, [sp, #168]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12938
+0xffffb75e3c57b718 <find_busiest_group+2576>:	ldr	x5, [sp, #288]
+0xffffb75e3c57b71c <find_busiest_group+2580>:	b	0xffffb75e3c57b334 <find_busiest_group+1580>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12863
+0xffffb75e3c57b720 <find_busiest_group+2584>:	cbnz	w4, 0xffffb75e3c57b2f4 <find_busiest_group+1516>
+0xffffb75e3c57b724 <find_busiest_group+2588>:	ldr	x0, [x19]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12865
+0xffffb75e3c57b728 <find_busiest_group+2592>:	mov	x5, x0
+0xffffb75e3c57b72c <find_busiest_group+2596>:	ldr	w0, [x0, #60]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12864
+0xffffb75e3c57b730 <find_busiest_group+2600>:	tbnz	w0, #9, 0xffffb75e3c57b5a4 <find_busiest_group+2204>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12874
+0xffffb75e3c57b734 <find_busiest_group+2604>:	ldp	x1, x0, [sp, #288]
+0xffffb75e3c57b738 <find_busiest_group+2608>:	mov	w2, #0x1                   	// #1
+0xffffb75e3c57b73c <find_busiest_group+2612>:	str	w2, [x19, #84]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12885
+0xffffb75e3c57b740 <find_busiest_group+2616>:	ldr	w2, [x19, #44]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12875
+0xffffb75e3c57b744 <find_busiest_group+2620>:	cmp	x1, x0
+0xffffb75e3c57b748 <find_busiest_group+2624>:	csel	x1, x1, x0, cs  // cs = hs, nlast
+0xffffb75e3c57b74c <find_busiest_group+2628>:	subs	x1, x1, x0
+0xffffb75e3c57b750 <find_busiest_group+2632>:	str	x1, [x19, #48]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12885
+0xffffb75e3c57b754 <find_busiest_group+2636>:	ccmp	w2, #0x1, #0x4, eq  // eq = none
+0xffffb75e3c57b758 <find_busiest_group+2640>:	b.ne	0xffffb75e3c57b544 <find_busiest_group+2108>  // b.any
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 13141
+0xffffb75e3c57b75c <find_busiest_group+2644>:	cbnz	x1, 0xffffb75e3c57b554 <find_busiest_group+2124>
+0xffffb75e3c57b760 <find_busiest_group+2648>:	b	0xffffb75e3c57b360 <find_busiest_group+1624>
+0xffffb75e3c57b764 <find_busiest_group+2652>:	mov	w0, #0x3                   	// #3
+0xffffb75e3c57b768 <find_busiest_group+2656>:	b	0xffffb75e3c57b548 <find_busiest_group+2112>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 13111
+0xffffb75e3c57b76c <find_busiest_group+2660>:	ldr	x0, [sp, #144]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 11942
+0xffffb75e3c57b770 <find_busiest_group+2664>:	cbz	x0, 0xffffb75e3c57b784 <find_busiest_group+2684>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 11945
+0xffffb75e3c57b774 <find_busiest_group+2668>:	ldr	w0, [x0, #36]
+0xffffb75e3c57b778 <find_busiest_group+2672>:	ldr	w1, [x3, #36]
+0xffffb75e3c57b77c <find_busiest_group+2676>:	eor	w0, w0, w1
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 13110
+0xffffb75e3c57b780 <find_busiest_group+2680>:	tbnz	w0, #7, 0xffffb75e3c57b544 <find_busiest_group+2108>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 13116
+0xffffb75e3c57b784 <find_busiest_group+2684>:	ldr	w0, [sp, #236]
+0xffffb75e3c57b788 <find_busiest_group+2688>:	cmp	w0, #0x1
+0xffffb75e3c57b78c <find_busiest_group+2692>:	b.hi	0xffffb75e3c57b2c8 <find_busiest_group+1472>  // b.pmore
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 13130
+0xffffb75e3c57b790 <find_busiest_group+2696>:	ldr	w0, [sp, #228]
+0xffffb75e3c57b794 <find_busiest_group+2700>:	cmp	w0, #0x1
+0xffffb75e3c57b798 <find_busiest_group+2704>:	b.ne	0xffffb75e3c57b544 <find_busiest_group+2108>  // b.any
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 13144
+0xffffb75e3c57b79c <find_busiest_group+2708>:	str	xzr, [x19, #48]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 13145
+0xffffb75e3c57b7a0 <find_busiest_group+2712>:	b	0xffffb75e3c57b60c <find_busiest_group+2308>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 11996
+0xffffb75e3c57b7a4 <find_busiest_group+2716>:	cmp	w6, #0x0
+0xffffb75e3c57b7a8 <find_busiest_group+2720>:	ccmp	w0, #0x1, #0x4, eq  // eq = none
+0xffffb75e3c57b7ac <find_busiest_group+2724>:	b.ne	0xffffb75e3c57b53c <find_busiest_group+2100>  // b.any
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 13100
+0xffffb75e3c57b7b0 <find_busiest_group+2728>:	cmp	w2, #0x6
+0xffffb75e3c57b7b4 <find_busiest_group+2732>:	b.ne	0xffffb75e3c57b2b4 <find_busiest_group+1452>  // b.any
+0xffffb75e3c57b7b8 <find_busiest_group+2736>:	ldr	x0, [x19]
+0xffffb75e3c57b7bc <find_busiest_group+2740>:	b	0xffffb75e3c57b728 <find_busiest_group+2592>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 13130
+0xffffb75e3c57b7c0 <find_busiest_group+2744>:	ldr	w0, [sp, #228]
+0xffffb75e3c57b7c4 <find_busiest_group+2748>:	cmp	w0, #0x1
+0xffffb75e3c57b7c8 <find_busiest_group+2752>:	b.ne	0xffffb75e3c57b2f0 <find_busiest_group+1512>  // b.any
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 13144
+0xffffb75e3c57b7cc <find_busiest_group+2756>:	str	xzr, [x19, #48]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 13145
+0xffffb75e3c57b7d0 <find_busiest_group+2760>:	b	0xffffb75e3c57b60c <find_busiest_group+2308>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12972
+0xffffb75e3c57b7d4 <find_busiest_group+2764>:	ldr	x2, [sp, #168]
+0xffffb75e3c57b7d8 <find_busiest_group+2768>:	ldr	x0, [sp, #272]
+0xffffb75e3c57b7dc <find_busiest_group+2772>:	b	0xffffb75e3c57b334 <find_busiest_group+1580>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 11983
+0xffffb75e3c57b7e0 <find_busiest_group+2776>:	mov	w0, w0
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 11985
+0xffffb75e3c57b7e4 <find_busiest_group+2780>:	mov	w6, w6
+0xffffb75e3c57b7e8 <find_busiest_group+2784>:	cmp	x6, x0
+0xffffb75e3c57b7ec <find_busiest_group+2788>:	csel	x6, x6, x0, le
+0xffffb75e3c57b7f0 <find_busiest_group+2792>:	sub	x0, x0, x6
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 13096
+0xffffb75e3c57b7f4 <find_busiest_group+2796>:	cmp	x0, #0x1
+0xffffb75e3c57b7f8 <find_busiest_group+2800>:	b.gt	0xffffb75e3c57b53c <find_busiest_group+2100>
+0xffffb75e3c57b7fc <find_busiest_group+2804>:	b	0xffffb75e3c57b7b0 <find_busiest_group+2728>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 13100
+0xffffb75e3c57b800 <find_busiest_group+2808>:	cmp	w2, #0x6
+0xffffb75e3c57b804 <find_busiest_group+2812>:	b.ne	0xffffb75e3c57b608 <find_busiest_group+2304>  // b.any
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12865
+0xffffb75e3c57b808 <find_busiest_group+2816>:	ldr	x5, [x19]
+0xffffb75e3c57b80c <find_busiest_group+2820>:	ldr	w0, [x5, #60]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12864
+0xffffb75e3c57b810 <find_busiest_group+2824>:	tbnz	w0, #9, 0xffffb75e3c57b5a4 <find_busiest_group+2204>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12874
+0xffffb75e3c57b814 <find_busiest_group+2828>:	ldp	x1, x0, [sp, #288]
+0xffffb75e3c57b818 <find_busiest_group+2832>:	mov	w2, #0x1                   	// #1
+0xffffb75e3c57b81c <find_busiest_group+2836>:	str	w2, [x19, #84]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 13141
+0xffffb75e3c57b820 <find_busiest_group+2840>:	cmp	x1, x0
+0xffffb75e3c57b824 <find_busiest_group+2844>:	csel	x1, x1, x0, cs  // cs = hs, nlast
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12875
+0xffffb75e3c57b828 <find_busiest_group+2848>:	sub	x1, x1, x0
+0xffffb75e3c57b82c <find_busiest_group+2852>:	str	x1, [x19, #48]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 13141
+0xffffb75e3c57b830 <find_busiest_group+2856>:	cbnz	x1, 0xffffb75e3c57b554 <find_busiest_group+2124>
+0xffffb75e3c57b834 <find_busiest_group+2860>:	b	0xffffb75e3c57b360 <find_busiest_group+1624>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 1723
+0xffffb75e3c57b838 <find_busiest_group+2864>:	sbfx	x1, x2, #1, #31
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 12972
+0xffffb75e3c57b83c <find_busiest_group+2868>:	str	x1, [x19, #48]
+0xffffb75e3c57b840 <find_busiest_group+2872>:	b	0xffffb75e3c57b35c <find_busiest_group+1620>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 11983
+0xffffb75e3c57b844 <find_busiest_group+2876>:	mov	w4, w4
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 11984
+0xffffb75e3c57b848 <find_busiest_group+2880>:	mov	w2, w2
+0xffffb75e3c57b84c <find_busiest_group+2884>:	cmp	x2, x4
+0xffffb75e3c57b850 <find_busiest_group+2888>:	csel	x2, x2, x4, le
+0xffffb75e3c57b854 <find_busiest_group+2892>:	sub	x2, x4, x2
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 11985
+0xffffb75e3c57b858 <find_busiest_group+2896>:	b	0xffffb75e3c57b5d8 <find_busiest_group+2256>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/kernel/sched/fair.c: 13146
+0xffffb75e3c57b85c <find_busiest_group+2900>:	bl	0xffffb75e3d326da0 <__stack_chk_fail>
+crash> dis -l __list_add_valid_or_report
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/lib/list_debug.c: 25
+0xffffb75e3cba1a98 <__list_add_valid_or_report>:	paciasp
+0xffffb75e3cba1a9c <__list_add_valid_or_report+4>:	stp	x29, x30, [sp, #-16]!
+0xffffb75e3cba1aa0 <__list_add_valid_or_report+8>:	mov	x29, sp
+0xffffb75e3cba1aa4 <__list_add_valid_or_report+12>:	cbz	x1, 0xffffb75e3cba1ae4 <__list_add_valid_or_report+76>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/lib/list_debug.c: 27
+0xffffb75e3cba1aa8 <__list_add_valid_or_report+16>:	mov	x4, x2
+0xffffb75e3cba1aac <__list_add_valid_or_report+20>:	cbz	x2, 0xffffb75e3cba1afc <__list_add_valid_or_report+100>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/lib/list_debug.c: 29
+0xffffb75e3cba1ab0 <__list_add_valid_or_report+24>:	ldr	x2, [x2, #8]
+0xffffb75e3cba1ab4 <__list_add_valid_or_report+28>:	cmp	x2, x1
+0xffffb75e3cba1ab8 <__list_add_valid_or_report+32>:	b.ne	0xffffb75e3cba1b14 <__list_add_valid_or_report+124>  // b.any
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/lib/list_debug.c: 32
+0xffffb75e3cba1abc <__list_add_valid_or_report+36>:	ldr	x1, [x2]
+0xffffb75e3cba1ac0 <__list_add_valid_or_report+40>:	cmp	x1, x4
+0xffffb75e3cba1ac4 <__list_add_valid_or_report+44>:	b.ne	0xffffb75e3cba1b30 <__list_add_valid_or_report+152>  // b.any
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/lib/list_debug.c: 35
+0xffffb75e3cba1ac8 <__list_add_valid_or_report+48>:	cmp	x2, x0
+0xffffb75e3cba1acc <__list_add_valid_or_report+52>:	ccmp	x1, x0, #0x4, ne  // ne = any
+0xffffb75e3cba1ad0 <__list_add_valid_or_report+56>:	b.eq	0xffffb75e3cba1b54 <__list_add_valid_or_report+188>  // b.none
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/lib/list_debug.c: 40
+0xffffb75e3cba1ad4 <__list_add_valid_or_report+60>:	mov	w0, #0x1                   	// #1
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/lib/list_debug.c: 41
+0xffffb75e3cba1ad8 <__list_add_valid_or_report+64>:	ldp	x29, x30, [sp], #16
+0xffffb75e3cba1adc <__list_add_valid_or_report+68>:	autiasp
+0xffffb75e3cba1ae0 <__list_add_valid_or_report+72>:	ret
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/lib/list_debug.c: 25
+0xffffb75e3cba1ae4 <__list_add_valid_or_report+76>:	adrp	x0, 0xffffb75e3d77c000
+0xffffb75e3cba1ae8 <__list_add_valid_or_report+80>:	add	x0, x0, #0xe00
+0xffffb75e3cba1aec <__list_add_valid_or_report+84>:	bl	0xffffb75e3c50bef8 <__warn_printk>
+0xffffb75e3cba1af0 <__list_add_valid_or_report+88>:	brk	#0x800
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/lib/list_debug.c: 38
+0xffffb75e3cba1af4 <__list_add_valid_or_report+92>:	mov	w0, #0x0                   	// #0
+0xffffb75e3cba1af8 <__list_add_valid_or_report+96>:	b	0xffffb75e3cba1ad8 <__list_add_valid_or_report+64>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/lib/list_debug.c: 27
+0xffffb75e3cba1afc <__list_add_valid_or_report+100>:	adrp	x0, 0xffffb75e3d77c000
+0xffffb75e3cba1b00 <__list_add_valid_or_report+104>:	add	x0, x0, #0xe28
+0xffffb75e3cba1b04 <__list_add_valid_or_report+108>:	bl	0xffffb75e3c50bef8 <__warn_printk>
+0xffffb75e3cba1b08 <__list_add_valid_or_report+112>:	brk	#0x800
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/lib/list_debug.c: 38
+0xffffb75e3cba1b0c <__list_add_valid_or_report+116>:	mov	w0, #0x0                   	// #0
+0xffffb75e3cba1b10 <__list_add_valid_or_report+120>:	b	0xffffb75e3cba1ad8 <__list_add_valid_or_report+64>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/lib/list_debug.c: 29
+0xffffb75e3cba1b14 <__list_add_valid_or_report+124>:	mov	x3, x4
+0xffffb75e3cba1b18 <__list_add_valid_or_report+128>:	adrp	x0, 0xffffb75e3d77c000
+0xffffb75e3cba1b1c <__list_add_valid_or_report+132>:	add	x0, x0, #0xe50
+0xffffb75e3cba1b20 <__list_add_valid_or_report+136>:	bl	0xffffb75e3c50bef8 <__warn_printk>
+0xffffb75e3cba1b24 <__list_add_valid_or_report+140>:	brk	#0x800
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/lib/list_debug.c: 38
+0xffffb75e3cba1b28 <__list_add_valid_or_report+144>:	mov	w0, #0x0                   	// #0
+0xffffb75e3cba1b2c <__list_add_valid_or_report+148>:	b	0xffffb75e3cba1ad8 <__list_add_valid_or_report+64>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/lib/list_debug.c: 32
+0xffffb75e3cba1b30 <__list_add_valid_or_report+152>:	mov	x3, x2
+0xffffb75e3cba1b34 <__list_add_valid_or_report+156>:	adrp	x0, 0xffffb75e3d77c000
+0xffffb75e3cba1b38 <__list_add_valid_or_report+160>:	mov	x2, x1
+0xffffb75e3cba1b3c <__list_add_valid_or_report+164>:	add	x0, x0, #0xea0
+0xffffb75e3cba1b40 <__list_add_valid_or_report+168>:	mov	x1, x4
+0xffffb75e3cba1b44 <__list_add_valid_or_report+172>:	bl	0xffffb75e3c50bef8 <__warn_printk>
+0xffffb75e3cba1b48 <__list_add_valid_or_report+176>:	brk	#0x800
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/lib/list_debug.c: 38
+0xffffb75e3cba1b4c <__list_add_valid_or_report+180>:	mov	w0, #0x0                   	// #0
+0xffffb75e3cba1b50 <__list_add_valid_or_report+184>:	b	0xffffb75e3cba1ad8 <__list_add_valid_or_report+64>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/lib/list_debug.c: 35
+0xffffb75e3cba1b54 <__list_add_valid_or_report+188>:	mov	x3, x1
+0xffffb75e3cba1b58 <__list_add_valid_or_report+192>:	mov	x1, x0
+0xffffb75e3cba1b5c <__list_add_valid_or_report+196>:	adrp	x0, 0xffffb75e3d77c000
+0xffffb75e3cba1b60 <__list_add_valid_or_report+200>:	add	x0, x0, #0xef0
+0xffffb75e3cba1b64 <__list_add_valid_or_report+204>:	bl	0xffffb75e3c50bef8 <__warn_printk>
+0xffffb75e3cba1b68 <__list_add_valid_or_report+208>:	brk	#0x800
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/lib/list_debug.c: 38
+0xffffb75e3cba1b6c <__list_add_valid_or_report+212>:	mov	w0, #0x0                   	// #0
+0xffffb75e3cba1b70 <__list_add_valid_or_report+216>:	b	0xffffb75e3cba1ad8 <__list_add_valid_or_report+64>
+crash> dis -l __list_del_entry_valid_or_report
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/lib/list_debug.c: 49
+0xffffb75e3cba1b78 <__list_del_entry_valid_or_report>:	paciasp
+0xffffb75e3cba1b7c <__list_del_entry_valid_or_report+4>:	stp	x29, x30, [sp, #-16]!
+0xffffb75e3cba1b80 <__list_del_entry_valid_or_report+8>:	mov	x1, x0
+0xffffb75e3cba1b84 <__list_del_entry_valid_or_report+12>:	mov	x29, sp
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/lib/list_debug.c: 50
+0xffffb75e3cba1b88 <__list_del_entry_valid_or_report+16>:	ldr	x0, [x0]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/lib/list_debug.c: 49
+0xffffb75e3cba1b8c <__list_del_entry_valid_or_report+20>:	ldr	x2, [x1, #8]
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/lib/list_debug.c: 52
+0xffffb75e3cba1b90 <__list_del_entry_valid_or_report+24>:	cbz	x0, 0xffffb75e3cba1be0 <__list_del_entry_valid_or_report+104>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/lib/list_debug.c: 54
+0xffffb75e3cba1b94 <__list_del_entry_valid_or_report+28>:	cbz	x2, 0xffffb75e3cba1bf8 <__list_del_entry_valid_or_report+128>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/lib/list_debug.c: 56
+0xffffb75e3cba1b98 <__list_del_entry_valid_or_report+32>:	mov	x3, #0x100                 	// #256
+0xffffb75e3cba1b9c <__list_del_entry_valid_or_report+36>:	movk	x3, #0xdead, lsl #48
+0xffffb75e3cba1ba0 <__list_del_entry_valid_or_report+40>:	cmp	x0, x3
+0xffffb75e3cba1ba4 <__list_del_entry_valid_or_report+44>:	b.eq	0xffffb75e3cba1c10 <__list_del_entry_valid_or_report+152>  // b.none
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/lib/list_debug.c: 59
+0xffffb75e3cba1ba8 <__list_del_entry_valid_or_report+48>:	mov	x3, #0x122                 	// #290
+0xffffb75e3cba1bac <__list_del_entry_valid_or_report+52>:	movk	x3, #0xdead, lsl #48
+0xffffb75e3cba1bb0 <__list_del_entry_valid_or_report+56>:	cmp	x2, x3
+0xffffb75e3cba1bb4 <__list_del_entry_valid_or_report+60>:	b.eq	0xffffb75e3cba1c2c <__list_del_entry_valid_or_report+180>  // b.none
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/lib/list_debug.c: 62
+0xffffb75e3cba1bb8 <__list_del_entry_valid_or_report+64>:	ldr	x4, [x2]
+0xffffb75e3cba1bbc <__list_del_entry_valid_or_report+68>:	cmp	x4, x1
+0xffffb75e3cba1bc0 <__list_del_entry_valid_or_report+72>:	b.ne	0xffffb75e3cba1c44 <__list_del_entry_valid_or_report+204>  // b.any
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/lib/list_debug.c: 65
+0xffffb75e3cba1bc4 <__list_del_entry_valid_or_report+76>:	ldr	x2, [x0, #8]
+0xffffb75e3cba1bc8 <__list_del_entry_valid_or_report+80>:	cmp	x2, x4
+0xffffb75e3cba1bcc <__list_del_entry_valid_or_report+84>:	b.ne	0xffffb75e3cba1c64 <__list_del_entry_valid_or_report+236>  // b.any
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/lib/list_debug.c: 70
+0xffffb75e3cba1bd0 <__list_del_entry_valid_or_report+88>:	mov	w0, #0x1                   	// #1
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/lib/list_debug.c: 71
+0xffffb75e3cba1bd4 <__list_del_entry_valid_or_report+92>:	ldp	x29, x30, [sp], #16
+0xffffb75e3cba1bd8 <__list_del_entry_valid_or_report+96>:	autiasp
+0xffffb75e3cba1bdc <__list_del_entry_valid_or_report+100>:	ret
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/lib/list_debug.c: 52
+0xffffb75e3cba1be0 <__list_del_entry_valid_or_report+104>:	adrp	x0, 0xffffb75e3d77c000
+0xffffb75e3cba1be4 <__list_del_entry_valid_or_report+108>:	add	x0, x0, #0xf28
+0xffffb75e3cba1be8 <__list_del_entry_valid_or_report+112>:	bl	0xffffb75e3c50bef8 <__warn_printk>
+0xffffb75e3cba1bec <__list_del_entry_valid_or_report+116>:	brk	#0x800
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/lib/list_debug.c: 68
+0xffffb75e3cba1bf0 <__list_del_entry_valid_or_report+120>:	mov	w0, #0x0                   	// #0
+0xffffb75e3cba1bf4 <__list_del_entry_valid_or_report+124>:	b	0xffffb75e3cba1bd4 <__list_del_entry_valid_or_report+92>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/lib/list_debug.c: 54
+0xffffb75e3cba1bf8 <__list_del_entry_valid_or_report+128>:	adrp	x0, 0xffffb75e3d77c000
+0xffffb75e3cba1bfc <__list_del_entry_valid_or_report+132>:	add	x0, x0, #0xf50
+0xffffb75e3cba1c00 <__list_del_entry_valid_or_report+136>:	bl	0xffffb75e3c50bef8 <__warn_printk>
+0xffffb75e3cba1c04 <__list_del_entry_valid_or_report+140>:	brk	#0x800
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/lib/list_debug.c: 68
+0xffffb75e3cba1c08 <__list_del_entry_valid_or_report+144>:	mov	w0, #0x0                   	// #0
+0xffffb75e3cba1c0c <__list_del_entry_valid_or_report+148>:	b	0xffffb75e3cba1bd4 <__list_del_entry_valid_or_report+92>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/lib/list_debug.c: 56
+0xffffb75e3cba1c10 <__list_del_entry_valid_or_report+152>:	mov	x2, x0
+0xffffb75e3cba1c14 <__list_del_entry_valid_or_report+156>:	adrp	x0, 0xffffb75e3d77c000
+0xffffb75e3cba1c18 <__list_del_entry_valid_or_report+160>:	add	x0, x0, #0xf78
+0xffffb75e3cba1c1c <__list_del_entry_valid_or_report+164>:	bl	0xffffb75e3c50bef8 <__warn_printk>
+0xffffb75e3cba1c20 <__list_del_entry_valid_or_report+168>:	brk	#0x800
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/lib/list_debug.c: 68
+0xffffb75e3cba1c24 <__list_del_entry_valid_or_report+172>:	mov	w0, #0x0                   	// #0
+0xffffb75e3cba1c28 <__list_del_entry_valid_or_report+176>:	b	0xffffb75e3cba1bd4 <__list_del_entry_valid_or_report+92>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/lib/list_debug.c: 59
+0xffffb75e3cba1c2c <__list_del_entry_valid_or_report+180>:	adrp	x0, 0xffffb75e3d77c000
+0xffffb75e3cba1c30 <__list_del_entry_valid_or_report+184>:	add	x0, x0, #0xfb0
+0xffffb75e3cba1c34 <__list_del_entry_valid_or_report+188>:	bl	0xffffb75e3c50bef8 <__warn_printk>
+0xffffb75e3cba1c38 <__list_del_entry_valid_or_report+192>:	brk	#0x800
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/lib/list_debug.c: 68
+0xffffb75e3cba1c3c <__list_del_entry_valid_or_report+196>:	mov	w0, #0x0                   	// #0
+0xffffb75e3cba1c40 <__list_del_entry_valid_or_report+200>:	b	0xffffb75e3cba1bd4 <__list_del_entry_valid_or_report+92>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/lib/list_debug.c: 62
+0xffffb75e3cba1c44 <__list_del_entry_valid_or_report+204>:	mov	x3, x2
+0xffffb75e3cba1c48 <__list_del_entry_valid_or_report+208>:	adrp	x0, 0xffffb75e3d77c000
+0xffffb75e3cba1c4c <__list_del_entry_valid_or_report+212>:	mov	x2, x4
+0xffffb75e3cba1c50 <__list_del_entry_valid_or_report+216>:	add	x0, x0, #0xfe8
+0xffffb75e3cba1c54 <__list_del_entry_valid_or_report+220>:	bl	0xffffb75e3c50bef8 <__warn_printk>
+0xffffb75e3cba1c58 <__list_del_entry_valid_or_report+224>:	brk	#0x800
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/lib/list_debug.c: 68
+0xffffb75e3cba1c5c <__list_del_entry_valid_or_report+228>:	mov	w0, #0x0                   	// #0
+0xffffb75e3cba1c60 <__list_del_entry_valid_or_report+232>:	b	0xffffb75e3cba1bd4 <__list_del_entry_valid_or_report+92>
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/lib/list_debug.c: 65
+0xffffb75e3cba1c64 <__list_del_entry_valid_or_report+236>:	mov	x3, x0
+0xffffb75e3cba1c68 <__list_del_entry_valid_or_report+240>:	mov	x1, x4
+0xffffb75e3cba1c6c <__list_del_entry_valid_or_report+244>:	adrp	x0, 0xffffb75e3d77d000
+0xffffb75e3cba1c70 <__list_del_entry_valid_or_report+248>:	add	x0, x0, #0x30
+0xffffb75e3cba1c74 <__list_del_entry_valid_or_report+252>:	bl	0xffffb75e3c50bef8 <__warn_printk>
+0xffffb75e3cba1c78 <__list_del_entry_valid_or_report+256>:	brk	#0x800
+/usr/src/debug/kernel-6.6.0-145.3.23.154.oe2403sp3.aarch64/linux-6.6.0-145.3.23.154.oe2403sp3.aarch64/lib/list_debug.c: 68
+0xffffb75e3cba1c7c <__list_del_entry_valid_or_report+260>:	mov	w0, #0x0                   	// #0
+0xffffb75e3cba1c80 <__list_del_entry_valid_or_report+264>:	b	0xffffb75e3cba1bd4 <__list_del_entry_valid_or_report+92>
+crash> quit

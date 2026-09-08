@@ -1,0 +1,92 @@
+
+crash 8.0.4-17.oe2403sp4
+Copyright (C) 2002-2022  Red Hat, Inc.
+Copyright (C) 2004, 2005, 2006, 2010  IBM Corporation
+Copyright (C) 1999-2006  Hewlett-Packard Co
+Copyright (C) 2005, 2006, 2011, 2012  Fujitsu Limited
+Copyright (C) 2006, 2007  VA Linux Systems Japan K.K.
+Copyright (C) 2005, 2011, 2020-2022  NEC Corporation
+Copyright (C) 1999, 2002, 2007  Silicon Graphics, Inc.
+Copyright (C) 1999, 2000, 2001, 2002  Mission Critical Linux, Inc.
+Copyright (C) 2015, 2021  VMware, Inc.
+This program is free software, covered by the GNU General Public License,
+and you are welcome to change it and/or distribute copies of it under
+certain conditions.  Enter "help copying" to see the conditions.
+This program has absolutely no warranty.  Enter "help warranty" for details.
+ 
+NOTE: stdin: not a tty
+
+GNU gdb (GDB) 10.2
+Copyright (C) 2021 Free Software Foundation, Inc.
+License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>
+This is free software: you are free to change and redistribute it.
+There is NO WARRANTY, to the extent permitted by law.
+Type "show copying" and "show warranty" for details.
+This GDB was configured as "aarch64-unknown-linux-gnu".
+Type "show configuration" for configuration details.
+Find the GDB manual and other documentation resources online at:
+    <http://www.gnu.org/software/gdb/documentation/>.
+
+For help, type "help".
+Type "apropos word" to search for commands related to "word"...
+
+    DUMPFILE: /home/sdc/wangxu/vmcore0102/127.0.0.1-2026-09-04-21:53:28/vmcore  [PARTIAL DUMP]
+        CPUS: 192
+        DATE: Fri Sep  4 21:52:44 CST 2026
+      UPTIME: 09:14:32
+LOAD AVERAGE: 42.73, 9.68, 3.24
+       TASKS: 2212
+    NODENAME: localhost0102
+     RELEASE: 6.6.0-145.3.23.154.oe2403sp3.aarch64
+     VERSION: #1 SMP Mon Jul 27 19:00:34 CST 2026
+     MACHINE: aarch64  (unknown Mhz)
+      MEMORY: 767.8 GB
+       PANIC: "Unable to handle kernel paging request at virtual address 73b8474cc98297a5"
+         PID: 581185
+     COMMAND: "mi-scavenger"
+        TASK: ffff60201da03f00  [THREAD_INFO: ffff60201da03f00]
+         CPU: 179
+       STATE: TASK_INTERRUPTIBLE (PANIC)
+
+crash> rd ffffba8cc8c25a80 4
+ffffba8cc8c25a80:  ffffc573b8bda000 ffffc573b8bfc000   ....s.......s...
+ffffba8cc8c25a90:  ffffc573b8c1e000 ffffc573b8c40000   ....s.......s...
+crash> rd ffffba8cc8c25a00 16
+ffffba8cc8c25a00:  ffffc573b89ba000 ffffc573b89dc000   ....s.......s...
+ffffba8cc8c25a10:  ffffc573b89fe000 ffffc573b8a20000   ....s.......s...
+ffffba8cc8c25a20:  ffffc573b8a42000 ffffc573b8a64000   . ..s....@..s...
+ffffba8cc8c25a30:  ffffc573b8a86000 ffffc573b8aa8000   .`..s.......s...
+ffffba8cc8c25a40:  ffffc573b8aca000 ffffc573b8aec000   ....s.......s...
+ffffba8cc8c25a50:  ffffc573b8b0e000 ffffc573b8b30000   ....s.......s...
+ffffba8cc8c25a60:  ffffc573b8b52000 ffffc573b8b74000   . ..s....@..s...
+ffffba8cc8c25a70:  ffffc573b8b96000 ffffc573b8bb8000   .`..s.......s...
+crash> rd ffffba8cc8c25000 8
+ffffba8cc8c25000:  0000000000000000 0000000000000000   ................
+ffffba8cc8c25010:  0000000000000000 0000000000000000   ................
+ffffba8cc8c25020:  0000000000000000 0000000000000000   ................
+ffffba8cc8c25030:  0000000000000000 0000000000000000   ................
+crash> rd ffffba8cc8c255d0 8
+ffffba8cc8c255d0:  ffffc573b77ee000 ffffc573b7810000   ..~.s.......s...
+ffffba8cc8c255e0:  ffffc573b7832000 ffffc573b7854000   . ..s....@..s...
+ffffba8cc8c255f0:  ffffc573b7876000 ffffc573b7898000   .`..s.......s...
+ffffba8cc8c25600:  ffffc573b78ba000 ffffc573b78dc000   ....s.......s...
+crash> sym ffffba8cc8c255d0
+ffffba8cc8c255d0 (D) __per_cpu_offset
+crash> sym ffffba8cc8c25a80
+ffffba8cc8c25a80 (D) __per_cpu_offset+1200
+crash> sym ffffba8cc8c25000
+ffffba8cc8c25000 (D) node_data+560
+crash> sym ffff8000817dd6c0
+sym: invalid address: ffff8000817dd6c0
+crash> whatis ffffba8cc8c255d0
+whatis: cannot resolve: ffffba8cc8c255d0
+Usage:
+  whatis [[-o] [struct | union | typedef | symbol]] | 
+         [[-r [size|range]] [-m member]]
+Enter "help whatis" for details.
+crash> p (struct rq *)0xffff8000817dd6c0
+$1 = (struct rq *) 0xffff8000817dd6c0
+crash> p ((struct rq *)0xffff8000817dd6c0)->cpu
+$2 = 179
+crash> p ((struct rq *)0xffff8000817dd6c0)->nr_running
+$3 = 0

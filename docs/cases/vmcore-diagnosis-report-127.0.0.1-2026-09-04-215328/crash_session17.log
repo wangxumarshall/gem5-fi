@@ -1,0 +1,66 @@
+
+crash 8.0.4-17.oe2403sp4
+Copyright (C) 2002-2022  Red Hat, Inc.
+Copyright (C) 2004, 2005, 2006, 2010  IBM Corporation
+Copyright (C) 1999-2006  Hewlett-Packard Co
+Copyright (C) 2005, 2006, 2011, 2012  Fujitsu Limited
+Copyright (C) 2006, 2007  VA Linux Systems Japan K.K.
+Copyright (C) 2005, 2011, 2020-2022  NEC Corporation
+Copyright (C) 1999, 2002, 2007  Silicon Graphics, Inc.
+Copyright (C) 1999, 2000, 2001, 2002  Mission Critical Linux, Inc.
+Copyright (C) 2015, 2021  VMware, Inc.
+This program is free software, covered by the GNU General Public License,
+and you are welcome to change it and/or distribute copies of it under
+certain conditions.  Enter "help copying" to see the conditions.
+This program has absolutely no warranty.  Enter "help warranty" for details.
+ 
+NOTE: stdin: not a tty
+
+GNU gdb (GDB) 10.2
+Copyright (C) 2021 Free Software Foundation, Inc.
+License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>
+This is free software: you are free to change and redistribute it.
+There is NO WARRANTY, to the extent permitted by law.
+Type "show copying" and "show warranty" for details.
+This GDB was configured as "aarch64-unknown-linux-gnu".
+Type "show configuration" for configuration details.
+Find the GDB manual and other documentation resources online at:
+    <http://www.gnu.org/software/gdb/documentation/>.
+
+For help, type "help".
+Type "apropos word" to search for commands related to "word"...
+
+    DUMPFILE: /home/sdc/wangxu/vmcore0102/127.0.0.1-2026-09-04-21:53:28/vmcore  [PARTIAL DUMP]
+        CPUS: 192
+        DATE: Fri Sep  4 21:52:44 CST 2026
+      UPTIME: 09:14:32
+LOAD AVERAGE: 42.73, 9.68, 3.24
+       TASKS: 2212
+    NODENAME: localhost0102
+     RELEASE: 6.6.0-145.3.23.154.oe2403sp3.aarch64
+     VERSION: #1 SMP Mon Jul 27 19:00:34 CST 2026
+     MACHINE: aarch64  (unknown Mhz)
+      MEMORY: 767.8 GB
+       PANIC: "Unable to handle kernel paging request at virtual address 73b8474cc98297a5"
+         PID: 581185
+     COMMAND: "mi-scavenger"
+        TASK: ffff60201da03f00  [THREAD_INFO: ffff60201da03f00]
+         CPU: 179
+       STATE: TASK_INTERRUPTIBLE (PANIC)
+
+crash> rd ffffba8cc8c25a78 2
+ffffba8cc8c25a78:  ffffc573b8bb8000 ffffc573b8bda000   ....s.......s...
+crash> rd ffffba8cc8c25a88 2
+ffffba8cc8c25a88:  ffffc573b8bfc000 ffffc573b8c1e000   ....s.......s...
+crash> p __per_cpu_offset[149]
+$1 = 18446679699544047616
+crash> p __per_cpu_offset[151]
+$2 = 18446679699544326144
+crash> p __per_cpu_offset[152]
+$3 = 18446679699544465408
+crash> rd ffff8000cb18b910 2
+ffff8000cb18b910:  00000001007dc72d 0000000000000000   -.}.............
+crash> rd ffff8000cb18b918 2
+ffff8000cb18b918:  0000000000000000 ffff6040043a3200   .........2:.@`..
+crash> rd ffff8000cb18b920 2
+ffff8000cb18b920:  ffff6040043a3200 ffff800000000002   .2:.@`..........

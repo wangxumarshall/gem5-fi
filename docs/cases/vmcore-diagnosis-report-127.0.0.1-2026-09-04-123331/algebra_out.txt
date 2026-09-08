@@ -1,0 +1,36 @@
+== 核心闭合验证（零塌缩族判据）==
+x1                 = ffffc8a996d396c0   (runqueues percpu 模板地址, 崩溃块)
+x20                = 0000000000000000   (应为 __per_cpu_offset[53], 实收 0)
+x27 (崩溃块)       = ffffc8a996d396c0
+x27 = (x1+x20)%2^64= ffffc8a996d396c0   逐位一致: True
+x27 == x1 (塌缩)   : True
+FAR (崩溃块)       = ffffc8a996d397e0
+FAR = (x27+0x120)  = ffffc8a996d397e0   逐位一致: True
+
+== 跨开机不变式（与 08-26 / 09-04-11:00 案对照）==
+08-26      : x21-x1=0x3f65f0  x24-x21=0x5350  x9低16位=0xae58  x25(i)=0xb3=179
+09-04-11:00: x21-x1=0x3f65f0  x24-x21=0x5350  x9低16位=0xae58  x25(i)=0x61=97
+09-04-12:33: x21-x1=0x3f65f0  x24-x21=0x5350  x9低16位=0xae58  x25(i)=0x35=53
+三案 x9-x1 (mod 2^64) 全部 = 0xfffffffffe5d1798
+
+== 迭代 CPU 号与调用路径语义 ==
+x25 = x0 = x6 = 0x35 = 53 —— update_sg_lb_stats 迭代至组内第 53 号 CPU（三寄存器互证）
+x23 = 0x400 —— 前一次成功迭代的 load_avg 残留（跨案不变式）
+
+== WARNING(5022s) 与致命 Oops(5060s) 的关系 ==
+WARNING FAR  = ffff604003e63c98 (= WARNING x26 + 0x38)
+WARNING x26  = ffff604003e63c60  (sched_group 指针)
+致命块 x26   = ffff604003e63c60  —— 与 WARNING x26 逐位相同: True
+致命块 x22   = ffff604003e635a0  (同族 sched_group, x26-x22 = 0x6c0)
+WARNING ESR(x19) = 0x96000004 → FSC=0x04 L0；致命 ESR = 0x96000007 → FSC=0x07 L3
+WARNING→panic 间隔 = 38.090040 s ≈ 38.1 s
+
+== 时间线 ==
+开机首行: [    0.000000] Booting Linux on physical CPU 0x0000080000 [0x481fd010]
+panic 尾行: [ 5060.935234] Bye!  (Starting crashdump kernel... 之后)
+panic 时刻 uptime = 5060.516765 s = 1.406 h (~1.4h)
+WARNING 时刻 uptime = 5022.426712 s = 1.395 h
+
+== 结论 ==
+x27 == x1 且 FAR == x27+0x120 逐位精确成立 → x20 实收 0 → 零塌缩族形态闭合。
+无内存真值对照（vmcore-incomplete, crash 拒载）→ 归类置信度：【强推】而非【实锤】。

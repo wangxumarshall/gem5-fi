@@ -1,0 +1,131 @@
+
+crash 8.0.4-17.oe2403sp4
+Copyright (C) 2002-2022  Red Hat, Inc.
+Copyright (C) 2004, 2005, 2006, 2010  IBM Corporation
+Copyright (C) 1999-2006  Hewlett-Packard Co
+Copyright (C) 2005, 2006, 2011, 2012  Fujitsu Limited
+Copyright (C) 2006, 2007  VA Linux Systems Japan K.K.
+Copyright (C) 2005, 2011, 2020-2022  NEC Corporation
+Copyright (C) 1999, 2002, 2007  Silicon Graphics, Inc.
+Copyright (C) 1999, 2000, 2001, 2002  Mission Critical Linux, Inc.
+Copyright (C) 2015, 2021  VMware, Inc.
+This program is free software, covered by the GNU General Public License,
+and you are welcome to change it and/or distribute copies of it under
+certain conditions.  Enter "help copying" to see the conditions.
+This program has absolutely no warranty.  Enter "help warranty" for details.
+ 
+NOTE: stdin: not a tty
+
+GNU gdb (GDB) 10.2
+Copyright (C) 2021 Free Software Foundation, Inc.
+License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>
+This is free software: you are free to change and redistribute it.
+There is NO WARRANTY, to the extent permitted by law.
+Type "show copying" and "show warranty" for details.
+This GDB was configured as "aarch64-unknown-linux-gnu".
+Type "show configuration" for configuration details.
+Find the GDB manual and other documentation resources online at:
+    <http://www.gnu.org/software/gdb/documentation/>.
+
+For help, type "help".
+Type "apropos word" to search for commands related to "word"...
+
+    DUMPFILE: /home/sdc/wangxu/vmcore0102/127.0.0.1-2026-09-04-21:53:28/vmcore  [PARTIAL DUMP]
+        CPUS: 192
+        DATE: Fri Sep  4 21:52:44 CST 2026
+      UPTIME: 09:14:32
+LOAD AVERAGE: 42.73, 9.68, 3.24
+       TASKS: 2212
+    NODENAME: localhost0102
+     RELEASE: 6.6.0-145.3.23.154.oe2403sp3.aarch64
+     VERSION: #1 SMP Mon Jul 27 19:00:34 CST 2026
+     MACHINE: aarch64  (unknown Mhz)
+      MEMORY: 767.8 GB
+       PANIC: "Unable to handle kernel paging request at virtual address 73b8474cc98297a5"
+         PID: 581185
+     COMMAND: "mi-scavenger"
+        TASK: ffff60201da03f00  [THREAD_INFO: ffff60201da03f00]
+         CPU: 179
+       STATE: TASK_INTERRUPTIBLE (PANIC)
+
+crash> set 10301
+    PID: 10301
+COMMAND: "pmdalinux"
+   TASK: ffff60201a9ad400  [THREAD_INFO: ffff60201a9ad400]
+    CPU: 179
+  STATE: TASK_INTERRUPTIBLE 
+crash> bt
+PID: 10301    TASK: ffff60201a9ad400  CPU: 179  COMMAND: "pmdalinux"
+ #0 [ffff8000cb903b20] __switch_to at ffffba8cc7bacd9c
+ #1 [ffff8000cb903b70] __schedule at ffffba8cc7bad288
+ #2 [ffff8000cb903bc0] schedule at ffffba8cc7bad7ec
+ #3 [ffff8000cb903c50] pipe_read at ffffba8cc71abe34
+ #4 [ffff8000cb903d30] new_sync_read at ffffba8cc719ae94
+ #5 [ffff8000cb903d70] vfs_read at ffffba8cc719d9a8
+ #6 [ffff8000cb903dc0] ksys_read at ffffba8cc719e470
+ #7 [ffff8000cb903df0] __arm64_sys_read at ffffba8cc719e4b8
+ #8 [ffff8000cb903e00] invoke_syscall at ffffba8cc6cec89c
+ #9 [ffff8000cb903e30] el0_svc_common.constprop.0 at ffffba8cc6ceca3c
+#10 [ffff8000cb903e60] do_el0_svc at ffffba8cc6cecb24
+#11 [ffff8000cb903e80] el0_svc at ffffba8cc7ba56e0
+#12 [ffff8000cb903ea0] el0t_64_sync_handler at ffffba8cc7ba5cd4
+#13 [ffff8000cb903fe0] el0t_64_sync at ffffba8cc6cd1e34
+     PC: 0000ffffa6b1da48   LR: 0000ffffa6c1c4a4   SP: 0000fffffcd9c5a0
+    X29: 0000fffffcd9c5a0  X28: 0000000000000000  X27: 00000000000f423f
+    X26: 0000000000000001  X25: 0000000000000000  X24: 0000000000000000
+    X23: 0000ffffa6cc2608  X22: 0000000000000000  X21: 0000000000000000
+    X20: 0000aaab073419a0  X19: 0000000000000000  X18: 0000000000000005
+    X17: 0000ffffa6b1da20  X16: 0000ffffa6cbefa0  X15: 0000000000000018
+    X14: ffffffffffffffff  X13: 0000000000000000  X12: 0000000000000008
+    X11: 0000aaab05ca5010  X10: 0000aaab0738d038   X9: 0000000000000000
+     X8: 000000000000003f   X7: 0000000000000001   X6: 0000000000000000
+     X5: 0000ffffa6cc2710   X4: 0000000000000000   X3: 0000000000000001
+     X2: 000000000000000c   X1: 0000aaab073419a0   X0: 0000000000000000
+    ORIG_X0: 0000000000000000  SYSCALLNO: 3f  PSTATE: 60001000
+crash> rd ffff8000cb903800 24
+ffff8000cb903800:  ffff6057fffc0880 ffff6057fffc0880   ....W`......W`..
+ffff8000cb903810:  ffff8000cb903aa0 0000000000000000   .:..............
+ffff8000cb903820:  ffff8000cb903990 ffffba8cc70e825c   .9......\.......
+ffff8000cb903830:  0000000000000000 0000000000000801   ................
+ffff8000cb903840:  ffff6057fffc0880 ffff6057fffc0880   ....W`......W`..
+ffff8000cb903850:  ffff8000cb903aa0 0000000000000000   .:..............
+ffff8000cb903860:  ffff6057fffc0880 0000000000000001   ....W`..........
+ffff8000cb903870:  fffffd810060c800 fffffd81007ab480   ..`.......z.....
+ffff8000cb903880:  0000000000000000 0000000000000000   ................
+ffff8000cb903890:  0000000000000000 ffff604005bc0000   ............@`..
+ffff8000cb9038a0:  0000000000000700 ffff602009ffbf00   ............ `..
+ffff8000cb9038b0:  00000000cb903910 000000b300452cc0   .9.......,E.....
+crash> set 9742
+    PID: 9742
+COMMAND: "irqbalance"
+   TASK: ffff004010893f00  [THREAD_INFO: ffff004010893f00]
+    CPU: 179
+  STATE: TASK_INTERRUPTIBLE 
+crash> bt
+PID: 9742     TASK: ffff004010893f00  CPU: 179  COMMAND: "irqbalance"
+ #0 [ffff800105253790] __switch_to at ffffba8cc7bacd9c
+ #1 [ffff8001052537e0] __schedule at ffffba8cc7bad288
+ #2 [ffff800105253830] schedule at ffffba8cc7bad7ec
+ #3 [ffff8001052538b0] schedule_hrtimeout_range_clock at ffffba8cc7bb5ef8
+ #4 [ffff8001052538e0] schedule_hrtimeout_range at ffffba8cc7bb5f88
+ #5 [ffff800105253930] do_poll.constprop.0 at ffffba8cc71be16c
+ #6 [ffff800105253d20] do_sys_poll at ffffba8cc71be428
+ #7 [ffff800105253db0] __arm64_sys_ppoll at ffffba8cc71be714
+ #8 [ffff800105253e00] invoke_syscall at ffffba8cc6cec89c
+ #9 [ffff800105253e30] el0_svc_common.constprop.0 at ffffba8cc6ceca3c
+#10 [ffff800105253e60] do_el0_svc at ffffba8cc6cecb24
+#11 [ffff800105253e80] el0_svc at ffffba8cc7ba56e0
+#12 [ffff800105253ea0] el0t_64_sync_handler at ffffba8cc7ba5cd4
+#13 [ffff800105253fe0] el0t_64_sync at ffffba8cc6cd1e34
+     PC: 0000ffffb66dd420   LR: 0000ffffb66dd400   SP: 0000ffffc9534230
+    X29: 0000ffffc9534250  X28: 0000aaaad39b0c20  X27: 0000aaaad39b0094
+    X26: 0000aaaad39b0c84  X25: 0000ffffb699d8b0  X24: 0000000000000001
+    X23: 00000000000007cd  X22: 000000007fffffff  X21: 0000ffffc9534230
+    X20: 0000aaaafd6f26f0  X19: 0000000000000002  X18: 0000000000000005
+    X17: 0000ffffb66dd320  X16: 0000ffffb6a8f948  X15: 0000ffffc9532ed0
+    X14: 0000000000000020  X13: 0000000000001610  X12: 0000000000000001
+    X11: 0000aaaafd6f26f8  X10: 0000aaaafd68f7e0   X9: 0000000000000008
+     X8: 0000000000000049   X7: 0000000000000006   X6: 0000000000000001
+     X5: 0000000000000000   X4: 0000000000000000   X3: 0000000000000000
+     X2: 0000ffffc9534230   X1: 0000000000000002   X0: 0000aaaafd6f26f0
+    ORIG_X0: 0000aaaafd6f26f0  SYSCALLNO: 49  PSTATE: 80001000
