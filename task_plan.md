@@ -278,7 +278,11 @@ CHAOSCHI/CHAOSNoC pilot 已能触发（7c854bb/7582e8c，未提交的 ruby test 
 
 ## Phase 15 — spec_leak 扩样 + ROB=160 掩蔽根因 + PRF 网格补 formal
 
-**Status: pending**
+**Status: complete（2026-09-08）**
+
+1. ✅ **spec_leak X10 双平台 formal**（62c3fd3）：C0 **14.9% [11.7,18.9]** SDC vs C2 **5.9% [3.9,8.8] SDC + 11.3% DUE**(n=384×2,零 frozen)——平台调度决定泄漏结局形态(保守偏 SDC/激进偏 DUE),与 Phase 10 ROB 梯度同构。
+2. ✅ **ROB=160 掩蔽根因**（5de18d5）：同参复现确认(rob=128 100% vs 160 0%);**机理定论**=深 ROB 的调度位置分布让翻转落在死写上(手工直跑 fc=20000 首写者 Crash 的反例证明 per-写者位置决定性);Phase 3"trigger 无关"部分修正(三 trigger 恰都落在 post-skip 全掩蔽区)。
+3. ✅ **PRF X3 bit0 formal**（本提交）：rob=96/128 双档 **100% [99,100]** SDC(n=384×2)——阈值带定界 (128,160],V110 默认在全 SDC 侧。F3/F4 轴排深度策略。
 
 1. **spec_leak X10 formal 扩到 n=384**（当前 n=128 / n_valid 121）：C0 + C2 双平台，把 16.5% [11.0,24.2] 的 CI 收窄。
 2. **ROB=160 整行掩蔽根因排查**：Phase 10 已发现"ROB 深度 96→128→160 → DUE 单调升 11.3→13.1→19.0%"梯度机理（深 ROB 拉长泄漏 physReg 所有权窗口 → rename 一致性先破坏）。用 readtrace 级分析确认 Phase 3 遗留之谜：ROB=160 下 X3 bit0 翻转是否落在 squash 边界 / 被关键路径重算覆盖。读 `rob.cc` `numROBEntries` × `squashWidth` × IQ/LSQ 深度交互。
