@@ -1,0 +1,29 @@
+{
+  "cli_version": "0.10.2",
+  "checkpoint_id": "01M1ZE40P3E1K723YWA7AGKGKW",
+  "strategy": "manual-commit",
+  "branch": "fix/fi-tool-correctness",
+  "checkpoints_count": 3,
+  "files_touched": [
+    "artifacts/pwf_v11_fpu_svd_formal/heatmap.csv",
+    "artifacts/pwf_v11_fpu_svd_formal/summary.md",
+    "campaigns/pwf-v11-fpu-svd-formal.yaml",
+    "findings.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 4756905,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 9750,
+    "api_call_count": 14
+  }
+}
