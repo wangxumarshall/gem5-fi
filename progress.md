@@ -2244,3 +2244,16 @@ method2 三根因的定量闭环补最后两臂（AGU 臂已完成 100% DUE）�
 **核心结果**:X10 定向 spec_leak,20 seeds → **3 泄漏(15%),每次 ELEMDIFF n=1**(一个元素带 0x5A5A.. 泄漏签名)。campaign pilot(n=100,per_element_diff oracle):**P_SDC=14.0% [8.4,22.5],Reach=93.0% [86.3,96.6]>90% 验收门,零 frozen**。**首轮"ROB spec_leak 阴性"修正为阳性:泄漏真实存在,窗口几何决定转化率(~14-15%/抑制事件)。** 阴性对照:X9/X3 定向臂全 n=0(kernel 只钉 X10)——**泄漏可见性=被抑制写有无正确路径消费者**(与 Phase 4 LSQFwd 消费者身份定律同构)。
 
 **2c 诚实边界**(1c21ab7):divzero_loop_kernel 真机验证 **AArch64 整数除零是架构静默语义**(udiv x/0=0,无 SIGFPE;非对齐 LDP 在 SCTLR.A=0 同样不 trap)——计划的 DUE→SDC 转化探针假设基于 x86。**ARM64 SE 无"可恢复真异常"载体**(gem5 SE 的 arch trap 均不可恢复),exc_suppress 该维度的实验面在 ARM SE 诚实穷尽(357/357 Masked + 本发现),入 findings。
+
+### v1.1 Phase 11 完成（2026-09-08，补丁 54eda38 + 9bdcf90）: L2/DRAM 负载伪影修正 — 层级掩蔽梯度实测
+
+**3a kernels**(54eda38):stencil_5pt(W=160,400KB≈6×L1/贴 L2;输出全网格回读 hash)+ stream_triad(N=262144,6MB=12×L2 纯 DRAM 流)。native==gem5,golden 注册(stencil5pt 6216d7bd62318f00 / streamtriad 0a3e17d4e5740000)。
+
+**3b/3c 定向注入链 + 双 pilot**(9bdcf90):
+- runner `fault.addr_window`(memory)→`--addr_start/--addr_end`;`fault.target_block_addr`(l1d/l2)→`--target_block_addr`;campaign 轴 + schema。
+- **物理窗口真机标定**:SE 进程数组物理帧在 ≤4MB 区(探测 8 个候选地址,>4MB 全是零页);默认全内存抽注命中未触达帧——首轮 DRAM "全 Masked" 的直接根因之一。
+- **修出 2 个真 bug**:① classify checksum regex 只匹配裸 hex 行,v1.1 kernel 的 `FINAL=<hex>` 前缀格式全被抽空 → 真 SDC 被判 SimulatorError 'no checksum'(spy 追踪:stdout 明明有 FINAL=,extract 返回 '')——regex 扩为 `^(FINAL=)?hex16$`;② stencil/stream golden 误注册在 GOLDEN_ARRAYS,应为 GOLDEN_IDS(exact_hash)。
+- **DRAM pilot**(stream_triad,窗口[4MB,5MB]活帧,fc=3M,n=100):**P_SDC=87.0% [79.0,92.2],Reach 100%,零 frozen**。
+- **L2 pilot**(stencil,定向 grid_b 活块,fc=80000,n=100):**P_SDC=49.0% [39.4,58.7],Reach 100%,零 frozen**。
+
+**结论修正**:首轮"L2/DRAM 全 Masked"是**负载+方向伪影**(工作集在 L1/L2 内 + 未定向到活帧)。工作集超 LLC + 定向活帧后:DRAM 87% SDC、L2 49% SDC——**层级掩蔽梯度真实可测**(L2 的 51% Mask 来自 L1 副本/重取;DRAM 的 13% 来自缓存胜出),与 §1.2 protection-aware 的 none 档语义闭环。golden 回归 f247ef3fe6f02cfd ✅。
