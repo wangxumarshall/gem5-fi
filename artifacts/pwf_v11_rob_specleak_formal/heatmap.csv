@@ -1,0 +1,4 @@
+fault_model,target_index,n_total,n_valid,n_inactive,n_simerror,P_SDC,P_SDC_lo,P_SDC_hi,P_DUE,P_DUE_lo,P_DUE_hi,Reach,Reach_lo,Reach_hi,frozen
+intermittent_burst,10,128,121,7,0,0.1653,0.1096,0.2416,0.0000,0.0000,0.0308,0.9453,0.8914,0.9733,0
+intermittent_burst,9,128,0,128,0,0.0000,0.0000,0.0000,0.0000,0.0000,0.0000,0.0000,0.0000,0.0291,0
+intermittent_burst,3,128,128,0,0,0.0000,0.0000,0.0291,0.0000,0.0000,0.0291,1.0000,0.9709,1.0000,0
