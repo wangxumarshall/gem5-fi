@@ -1,0 +1,1 @@
+理解 @docs/cpu/cpu-sdc.md，批判性分析 @docs/paper/xu/v0.md，提出改进建议，避免v0.md出现错误和不合理的地方
