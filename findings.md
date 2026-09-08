@@ -513,3 +513,19 @@ L2 arms campaign(stencil,n=100×4,零 frozen,Reach 100%):
 | backing_byte × secded + **ecc_logic_fault(错纠)** | **85.0% [76.7,90.7]** |
 
 **DRAM 数据面保护三臂闭环**:ECC 把 87% 降到 0%,但 **ECC 校验逻辑自身的一位故障(错纠:1-bit 错被"纠正"到错的位)几乎完全恢复原始风险(85%)**——保护收益 100% 依赖 ECC 逻辑自身的正确性。§4.2 保护投资表新行:**ECC 逻辑自检(syndrome 全零校验/双通道校验)是数据面 ECC 的必要配套**。至此 Phase 14 的保护反转图完整:数据面 ECC 可防但需逻辑自检;合法域通路(tag 别名/错源转发/错位写)ECC 天生不防。
+
+### v1.2 Phase 14 victim 臂收官(2026-09-08,6bbd8cd + 本提交): victim/writeback 路径 53% — 与 data 定向无显著差
+
+**victim 路径注入**(BaseCache::writebackBlk hook,回写包在途数据翻转,cache 阵列保持干净;L2=256KiB 强制真实逐出):stencil,n=100,零 frozen,Reach 100%——**P_SDC=53.0% [43.3,62.5]**。
+
+对照 L2 data 定向(47.0% [37.5,56.7]):victim 略高(53 vs 47)但 **CI 重叠,无显著差**——诚实解读:强制逐出(256KiB vs 400KB 工作集)下几乎每个回写字节随后都被读回,两种注入点的暴露面几乎等价;victim 的理论优势(阵列干净、只有传输中数据损坏)在此负载几何下不构成显著差异。计划预期"victim > data"方向成立但不显著。
+
+**Phase 14 全景**(存储层级臂补全 + protection 对照,7 commits 476db18..本提交):
+| 臂 | P_SDC |
+|---|---|
+| L2 data × secded | 0%(ECC 全纠) |
+| L2 tag F5 别名 × secded | 47%(**ECC 盲区**) |
+| DRAM data × secded | 0% |
+| DRAM secded + ecc_logic_fault | 85%(ECC 逻辑被击穿) |
+| L2 victim(256KiB) | 53%(≈data 定向) |
+| L2 容量 256K/512K/1M | 50/52/49%(平) |

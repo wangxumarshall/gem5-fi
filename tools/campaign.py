@@ -319,6 +319,9 @@ def manifest_for_cell(campaign, cell, cell_ordinal, rep, outdir):
     # v1.2 Phase 14: cache field-level arm (data/valid/dirty/coh/tag).
     if cell.get("target_field"):
         manifest["fault"]["target_field"] = cell["target_field"]
+    # v1.2 Phase 14 (item 2): victim-path fault axis.
+    if cell.get("victim_fault"):
+        manifest["fault"]["victim_fault"] = True
     # v1.2 Phase 14: DRAM ECC-logic-fault arm (§2.17).
     if cell.get("ecc_logic_fault"):
         manifest["fault"]["ecc_logic_fault"] = True

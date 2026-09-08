@@ -618,6 +618,9 @@ def main():
         # data/valid/dirty/coh/tag — tag = the F5 legal alias).
         if inj.get("target_field"):
             cmd += ["--target_field", str(inj["target_field"])]
+        # v1.2 Phase 14 (item 2): victim/writeback-path fault.
+        if inj.get("victim_fault"):
+            cmd += ["--victim_fault"]
         # v1.1 Phase 11 (open item): L2 capacity sweep axis.
         if inj.get("l2_size"):
             cmd += ["--l2_size", str(inj["l2_size"])]
