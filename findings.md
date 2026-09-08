@@ -481,3 +481,16 @@ pilot 点估计 87.0% 落在 formal CI [81.5,88.6] 内,一致性确认。DRAM �
 | wake_omit(F6 丢唤醒) | 0.0% [0,3.7] | **58.0% [48.2,67.2]** | 丢唤醒→双链重试风暴→**Hang/DUE 主导**(手动验证:单 run 410+ 分钟 CPU 活锁) |
 
 **结论(验收断言按计划规则落笔)**:IQ 唤醒类故障在逐元素 kernel + 三模式全测后仍全 SDC-钝(0% [0,3.7]×3)——但**不是无害**:wake_omit 58% DUE。**IQ 单元的风险形态是可用性(Hang),不是数据完整性(SDC)**——首轮"全 Masked"部分成立(数据面)但漏掉了 DUE 面(负载无重试压力时全 Masked,stale_plausible 的双链重试才暴露 Hang)。tag_sub 语义由 src_ready_bitflip 承担(唤醒另一条合法 in-flight 链的依赖者),已覆盖。
+
+### v1.2 Phase 14 L2 2×2 arms(field × protection,2026-09-08,476db18 + 本提交): protection 反转图 — 数据面 ECC 可防,tag 合法别名 ECC 不防
+
+L2 arms campaign(stencil,n=100×4,零 frozen,Reach 100%):
+
+| target_field | protection | P_SDC [Wilson 95%] |
+|---|---|---|
+| data(定向块) | none | 47.0% [37.5,56.7] |
+| data | secded | **0.0% [0,3.7]**(SECDED 全纠) |
+| tag(F5 合法别名) | none | 38.9% [29.8,49.0] |
+| tag(F5 合法别名) | secded | **47.0% [37.5,56.7]**(ECC 无效) |
+
+**核心结论**:L2 的 protection 反转图呈**非对称结构**——①数据阵列单 bit 错:SECDED 从 47% 降到 0%(有效);②**tag 合法别名:SECDED 完全无效(39%→47%,不降反在 CI 内)**——合法 tag 替换不产生位错(syndrome=0),任何 ECC 都检不出"值是错的但位是对的"。**tag 面 F5 是 ECC 盲区,需要 tag 比较重放/别名检测(如物理索引+别名检查、双 tag 比较),不是 ECC**。这是首轮 protection 对照(L1D sed/secded_poison)在 L2 层的补全,也是 §4.2 保护投资表的新行:**L2 tag 通路是与数据阵列并列的高风险面,但保护手段根本不同**。

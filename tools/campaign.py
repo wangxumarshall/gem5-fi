@@ -316,6 +316,9 @@ def manifest_for_cell(campaign, cell, cell_ordinal, rep, outdir):
     # v1.1 Phase 11: directed cache-block axis + L2 capacity axis.
     if cell.get("target_block_addr") is not None:
         manifest["fault"]["target_block_addr"] = cell["target_block_addr"]
+    # v1.2 Phase 14: cache field-level arm (data/valid/dirty/coh/tag).
+    if cell.get("target_field"):
+        manifest["fault"]["target_field"] = cell["target_field"]
     if cell.get("l2_size"):
         manifest["fault"]["l2_size"] = cell["l2_size"]
     # clean None values the v1 schema doesn't want

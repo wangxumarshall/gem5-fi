@@ -609,6 +609,10 @@ def main():
         # working-set-aware kernels).
         if inj.get("target_block_addr") is not None:
             cmd += ["--target_block_addr", str(inj["target_block_addr"])]
+        # v1.2 Phase 14: fault.target_field (l1d/l2 field-level arm:
+        # data/valid/dirty/coh/tag — tag = the F5 legal alias).
+        if inj.get("target_field"):
+            cmd += ["--target_field", str(inj["target_field"])]
         # v1.1 Phase 11 (open item): L2 capacity sweep axis.
         if inj.get("l2_size"):
             cmd += ["--l2_size", str(inj["l2_size"])]
