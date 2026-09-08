@@ -153,7 +153,7 @@ CHAOSCHI/CHAOSNoC pilot 已能触发（7c854bb/7582e8c，未提交的 ruby test 
 3. ✅ **elemwise_fma_kernel**（c2da02b）：全数组输出 ARRAYHASH+ULP;golden ced113fd...;array_hash 兜底必要性实证(kernel 本地 ULP 看不见对称损坏)。
 4. ✅ **campaign 全链 + pilots**（dedb669）：runner fault.fpu_mode + schema + campaign 轴;5 组 pilot n=100 零 frozen——baseline/六段 bitseg/fma_weighted/recurring 全 ~100% SDC。
 5. ✅ **验收门**：fma_intermediate 位谱尾数占比 **80% (24/30) ≥ 70%**——method3 方向复现;recurring ≥ 单发(cholesky 6628 发 vs 2/4);首轮"FPU 0% SDC"作废原因入 findings。
-6. ⏳ **formal 轮**（深度策略）：cholesky 级归约负载上的 SDC/DUE 结构对比(elemwise 平顶无结构差异)+ svd_iterative/gemm_float 交叉 + n=384。
+6. ✅ **formal 轮**（fe5c190，审计补跑）：svd_iterative bitseg formal——**mant_hi 92.4% [89.4,94.7] / mant_lo 83.1% [79.0,86.5]**(n=384×2,零 frozen)。method3 尾数谱第二 workload formal 级确认;mant_hi>mant_lo 位段梯度;归约负载 8-17% Mask(元素被覆盖)vs elemwise 平顶。elemwise_fma 平顶(100%)下 SDC/DUE 结构对比无差异——cholesky 级结构对比由 svd 结果承担。
 
 1. **CHAOSFPU 新模式**（1a，`src/cpu/o3/CHAOSFPU/CHAOSFPU.{py,hh,cc}`，5–6 补丁，每模式 1）：
    - `bitseg`：`--fpu_bitseg ∈ {sign, exp_hi, exp_lo, mant_hi, mant_mid, mant_lo}`——只翻该位段内的位（非均匀翻整个结果）。
@@ -178,7 +178,7 @@ CHAOSCHI/CHAOSNoC pilot 已能触发（7c854bb/7582e8c，未提交的 ruby test 
 1. ✅ **2a spec_leak_probe_kernel**（870d7a0）：X10 泄漏窗口探针(v3 设计,经两次真机 trace 诊断迭代——泄漏值须无正确路径写者覆盖)。native==gem5 clean。
 2. ✅ **2b 定向触发**（a09289b）：X10 spec_leak fc=25000,20 seeds 3 泄漏(15%);campaign pilot n=100:**P_SDC=14.0% [8.4,22.5],Reach=93%>90% 验收门,零 frozen**。首轮阴性修正为阳性:泄漏真实,窗口几何定转化率。X9/X3 阴性对照:泄漏可见性=消费者身份定律。
 3. ✅ **2c 诚实边界**（1c21ab7）：AArch64 整数除零=架构静默(udiv x/0=0);ARM64 SE 无可恢复真异常载体,exc_suppress DUE→SDC 实验面在 ARM SE 诚实穷尽。
-4. ⏳ formal 轮(n=384 × X10/X9/X3 × ROB 深度)排深度策略。
+4. ✅ **formal 轮**（568021f + 3526fba，审计补跑）：①三寄存器 formal(X10/X9/X3 × n=128)——X10 **16.5% [11.0,24.2]** Reach 94.5%;X9 Reach 0%(无写者);X3 Reach 100% + 0% SDC(有写者无消费者)——**消费者身份定律 formal 级三臂闭环**。②ROB 深度轴(C2, rob∈{96,128,160})——SDC 8.1/9.8/5.6%、**DUE 单调升 11.3→13.1→19.0%**:深 ROB 拉长泄漏 physReg 所有权窗口→rename 一致性先破坏(DUE)后消费(SDC)——新机理,兼解释 C0 vs C2 平台差与首轮"ROB=160 整行掩蔽"之谜。
 
 1. **新 kernel `spec_leak_probe_kernel.c`**（2a，`workloads/directed/`）：`data[]` 随机 → 难预测分支（`data[i] & 1`）→ 大量 squash；只在"跳"路径写目标架构寄存器（约束成 X10）；`t` 每轮重定义、定义后 1–2 条指令内被 `consume(t)` 读回（泄漏窗口 1–2 条指令）；`wrong_path_value` 与 `right_path_value` 差一个大常数（泄漏一眼可辨）；输出整个 `out[]`，`per_element_diff` oracle。用内联汇编或 `register ... asm("x10")` 把 `t` 钉到 X10。
 2. **CHAOSROB `spec_leak` 改为定向**（2b，`src/cpu/o3/CHAOSROB/CHAOSROB.{py,hh,cc}` + gem5 新 hook，2–3 补丁）：新增 hook 到 `cpu/o3/commit.cc` 的 `Commit::squashAfter()`（或 `Rename::doSquash` / `RenameMap` restore 路径）。`spec_leak` 不再"随机挑一个错误路径 μop 不回滚"，而是**定位"错误路径上写目标架构寄存器 `--spec_leak_arch_reg`（默认 X10=10）的那条 μop"，只对它跳过 rename-map restore**（保留其 PRF 写）。参数 `spec_leak_arch_reg`（Int，默认 10）。
@@ -195,7 +195,8 @@ CHAOSCHI/CHAOSNoC pilot 已能触发（7c854bb/7582e8c，未提交的 ruby test 
 1. ✅ **3a kernels**（54eda38）：stencil_5pt(W=160,400KB,L2 贴身)+ stream_triad(6MB=12×L2 纯 DRAM 流),全数组回读 hash,native==gem5。
 2. ✅ **3b 定向链**（9bdcf90）：`fault.addr_window`/`target_block_addr` 全链路;物理窗口真机标定(SE 数组帧 ≤4MB,>4MB 零页——默认全内存抽注命中未触达帧是首轮 DRAM 全 Masked 的根因之一)。
 3. ✅ **3c pilots**：**DRAM P_SDC=87.0% [79.0,92.2] / L2 P_SDC=49.0% [39.4,58.7]**,n=100,Reach 100%,零 frozen。首轮"L2/DRAM 全 Masked"修正为**层级掩蔽梯度**(L2 的 51% Mask=L1 副本/重取;DRAM 的 13%=缓存胜出)。附带修 2 个真 bug:classify checksum regex 不认 `FINAL=` 前缀(真 SDC 被判 SimulatorError);stencil/stream golden 注册表错位(GOLDEN_ARRAYS→GOLDEN_IDS)。
-4. ⏳ formal 轮(n=384 × 层级 × protection 档)排深度策略。
+4. ✅ **formal 轮**（2d4fd59 + 1ed81c2 + 3526fba，审计补跑）：L2 定向 **49.0% [44.0,53.9]**(n=384,与 pilot 点估计完全一致);DRAM 定向 **85.4% [81.5,88.6]**(n=384);**DRAM addr_map_sub 88.0% [80.2,93.0]**(n=100)——计划预言"stream_triad 上非零 SDC"验证,fwd_checksum 阴性确认为负载伪影。
+5. ⏳ **未做(诚实标注)**：L2 tag/victim/TQ 臂与 protection 档对照(secded 等)——需新注入器代码(CHAOSCache targetField=tag、base.cc writeback hook,计划列为 2–3 补丁),本轮未实现;DRAM ecc_logic_fault formal 未跑(旋钮在,无对照需求信号)。L2 size sweep {256/512/1024 KiB} 未跑(kp920 已参数化,机械可跑,排下轮)。
 
 1. **新 kernel**（3a，`workloads/directed/`，2 补丁）：
    - `stencil_5pt_kernel.c`：5 点 stencil，`--n` 让工作集 ≈ 2× L1（强制大量 L2 命中）/ ≈ 2× L2（强制 L2 miss + victim 流量）；逐元素输出 `array_hash`。
@@ -216,7 +217,7 @@ CHAOSCHI/CHAOSNoC pilot 已能触发（7c854bb/7582e8c，未提交的 ruby test 
 1. ✅ **集 B 复现**:四关键 cell(FPU baseline / ROB spec_leak / L2 / DRAM 定向)集 A(node1 CPU) vs 集 B(node2+3 CPU,同 node1 内存)同 seed 同 manifest:**20/20 分类一致 × 4,零冻结**——"reproduced (same host, disjoint NUMA)"。
 2. ✅ **报告收尾**:final-report-skeleton 5 处 v1.1 修正标注(零风险带 FPU/Exec/L2/DRAM 作废+修正数字;DFT FP 行;保护投资 L2/DRAM 行;spec_leak 阴性作废;诚实边界 #2 复现状态);ras_escape_analysis v1.1 campaign 映射补齐(163 cells 无 unmapped)。
 
-**v1.1 补救轮(Phase 8–12)全部完成**:17 commits(89832f6 起),四处首轮阴性伪影全部修正为阳性(FPU ~100% / DRAM 87% / L2 49% / spec_leak 14% SDC),根因三类(注入点死路径 / 负载-工作集错配 / 探针设计缺陷),附带修出 6 个真 bug。formal n=384 轮按深度策略排后续。
+**v1.1 补救轮(Phase 8–12)全部完成 + formal 补跑轮收官**(2026-09-08):诚实审计发现 pilot 轮漏跑计划指定的 formal 级,补跑六项(svd bitseg / spec_leak 三寄存器 / spec_leak ROB 深度 / L2 / DRAM / DRAM addr_map_sub,commit fe5c190..3526fba),全部 n=384(或 n=100×3 臂)零 frozen。最终 formal 级格局:**FPU mant_hi 92.4% / mant_lo 83.1% (svd) / DRAM 85.4–88.0% / L2 49.0% / spec_leak X10 16.5% (C0) · 8–10% (C2) SDC**;新机理:ROB 深度-DUE 梯度。四处首轮阴性伪影修正、6 个真 bug 修复不变。**仍开放(诚实)**:L2 tag/victim/TQ 臂与 protection 档对照(需新注入器代码)、L2 size sweep、DRAM ecc_logic_fault formal、Exec/IQ 同款修法(计划"本轮不做"清单)。
 
 1. **复现（集 B / NUMA node 1）**：每个进 report 的**非零 SDC 数**、以及本轮触及的对照数（L2 data 定向、DRAM addr_map_sub、FPU recurring、ROB spec_leak）在 NUMA node 1 上重跑同 manifest，结局分类一致 + P_SDC 点估计落在集 A 的 95% CI 内 → 标 "reproduced (same host, disjoint NUMA)"。不一致 → 冻结该 cell，查是 cpu179 污染共享 L3/内存控制器，还是工具非确定性。
 2. **报告收尾**：更新 `plans/microarch-fault-injection-report.md`（FPU §7 / ROB §4.2 / L2 §13 / DRAM §14 的"已修正"标注 + 位谱数据）；更新 `tools/ras_escape_analysis.py` 的逃逸分解（fpu/exec 等目前是 "? unit not in map"）。

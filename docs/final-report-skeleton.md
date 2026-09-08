@@ -13,7 +13,8 @@
   - **零风险带**（本 workload 族，上界 ~1%）：取指（L1I opcode/rn 臂 0%）、IQ 唤醒/BPU/RAS/Decode 主部、Mem addr_map_sub
   - ⚠️ **v1.1 修正（2026-09-08）**：本带中的 **FPU/整数执行（0%）与 L2/DRAM 后备（0%）已作废**——首轮数字是工具/负载伪影，非单元性质：
     - FPU/Exec：注入点落在 `instResult` 队列（唯一消费者是未启用的 checker；FP/SIMD 走 `getWritableRegOperand` 直写 PRF）→ 注入架构不可见。PRF-dest 重写后，elemwise_fma 逐元素负载上 **FPU 单发 P_SDC=100% [96.3,100]**（n=100），fma_intermediate 位谱尾数占比 80%（≥70% 验收门，method3 方向复现），recurring 100%。
-    - L2/DRAM：负载工作集驻留 L1/L2 + 注入未定向到活帧 → 后备字节从不回读。大工作集（stencil 400KB / stream 6MB=12×L2）+ 定向窗口后：**L2 49.0% [39.4,58.7] / DRAM 87.0% [79.0,92.2]**（n=100）——层级掩蔽梯度（L1 副本/缓存胜出掩蔽 13–51%）。
+    - L2/DRAM：负载工作集驻留 L1/L2 + 注入未定向到活帧 → 后备字节从不回读。大工作集（stencil 400KB / stream 6MB=12×L2）+ 定向窗口后：**L2 49.0% [44.0,53.9] / DRAM 85.4% [81.5,88.6]**（formal n=384）——层级掩蔽梯度（L1 副本/缓存胜出掩蔽 15–51%）；DRAM addr_map_sub（F5 错位写）**88.0% [80.2,93.0]**——计划预言的 stream_triad 非零 SDC 验证。
+  - **v1.1 formal 级格局**（formal 补跑轮 fe5c190..3526fba）：FPU mant_hi **92.4%** / mant_lo **83.1%**（svd_iterative，n=384×2，尾数位段梯度）；spec_leak X10 **16.5%**（C0）/ 8–10%（C2），**ROB 深度-DUE 梯度**（rob 96→160：DUE 11.3→19.0% 单调升，深 ROB 拉长泄漏 physReg 所有权窗口→rename 一致性先破坏）——兼释 C0/C2 平台差与首轮"ROB=160 整行掩蔽"之谜。
 - **保护投资排序**（occupancy 加权，§4.2 表）：l1d 5.46% > l1d_fwd 5.09% > lsq_fwd 4.45%（HIGH 三兄弟）>> physreg 0.33%（MED）。排序对加权方案鲁棒（未加权同序）。
 
 ## 2. §4.2 三类交付物

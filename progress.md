@@ -2280,3 +2280,30 @@ method2 三根因的定量闭环补最后两臂（AGU 臂已完成 100% DUE）�
 **ras_escape_analysis.py**:v1.1 十三个 campaign 的单元映射补齐(fsu/rat/l2/memory)+ l2 机理行;重跑 163 cells/78 campaigns 无 "unit not in map"。
 
 **v1.1 补救轮总结(Phase 8–12,17 commits 89832f6..本提交)**:四处首轮伪影(FPU 0% SDC / Exec 0% / L2-DRAM 0% / ROB spec_leak 阴性)全部修正为阳性,根因三类:① 注入点架构不可见(instResult 死路径)② 负载-工作集错配(归约 kernel + 缓存驻留)③ 探针设计缺陷(泄漏值无消费者)。修正后格局:**FPU ~100% / DRAM 87% / L2 49% / spec_leak 14% SDC**——数据通路与存储层是 SDC 主战场,与现场 method1/2/3 证据一致。附带修出 6 个真 bug(2 config 潜伏 bug、checksum FINAL= regex、golden 注册表错位、campaign wl 未定义、countOnly 析构不执行)。
+
+### v1.1 诚实审计 + formal 补跑轮（2026-09-08，fe5c190 / 568021f 起）
+
+**审计结论**：对照 task_plan 计划原文(非 Status 行)逐条核对,pilot 轮有实质缺口——计划写明 "pilot n=100 → formal n=384" 的 cell 其 formal 未跑:Phase 9 的 svd_iterative 对照(完全漏)、Phase 10 的 spec_leak formal + X9/X3 n=100 臂(只做了 3-seed 手工)、Phase 11 的 L2/DRAM formal + DRAM addr_map_sub 对照(计划明确预言"stream_triad 上预期非零 SDC"却没跑)。**不能诚实地说 Phase 8-12 "全部执行完成"——formal 补跑开始。**
+
+**formal 补跑结果(逐项入 findings,commit 逐项提交)**:
+1. ✅ **Phase 9 svd formal**(fe5c190):bitseg mant_hi **92.4% [89.4,94.7]** / mant_lo **83.1% [79.0,86.5]**(n=384×2,零 frozen)——method3 尾数谱第二 workload formal 级确认;mant_hi>mant_lo 位段梯度;归约负载的 8-17% Mask(元素被后续迭代覆盖)vs elemwise 平顶的对照。
+2. ✅ **Phase 10 spec_leak formal**(568021f):X10 **16.5% [11.0,24.2]** Reach 94.5%;X9 Reach 0%(无写者阴性);X3 Reach 100% + 0% SDC(有写者无消费者阴性)——**消费者身份定律 formal 级三臂闭环**。
+3. ⏳ Phase 11 L2 formal 跑批中;DRAM formal + addr_map_sub 对照排队。
+
+### v1.1 formal 补跑轮收官（2026-09-08，fe5c190..3526fba 共 6 commits）
+
+审计缺口的 formal 级全部补齐,全部真机、零 frozen:
+
+| 项 | n | P_SDC [Wilson 95%] | commit |
+|---|---|---|---|
+| FPU bitseg mant_hi on svd | 384 | **92.4% [89.4,94.7]** | fe5c190 |
+| FPU bitseg mant_lo on svd | 384 | **83.1% [79.0,86.5]** | fe5c190 |
+| spec_leak X10 (C0) | 128 | **16.5% [11.0,24.2]** Reach 94.5% | 568021f |
+| spec_leak X9 / X3 (对照臂) | 128×2 | Reach 0% / 0% SDC(消费者定律闭环) | 568021f |
+| spec_leak rob 96/128/160 (C2) | 128×3 | 8.1/9.8/5.6% + **DUE 11.3→13.1→19.0% 梯度** | 3526fba |
+| L2 定向 (stencil) | 384 | **49.0% [44.0,53.9]** | 2d4fd59 |
+| DRAM 定向 (stream_triad) | 384 | **85.4% [81.5,88.6]** | 1ed81c2 |
+| DRAM addr_map_sub (stream_triad) | 100 | **88.0% [80.2,93.0]**(计划预言验证) | 3526fba |
+
+**新机理**:ROB 深度与 spec_leak 的 DUE-SDC trade-off(深 ROB→泄漏 physReg 所有权窗口长→rename 一致性先破坏);兼解释 C0/C2 平台差与首轮"ROB=160 整行掩蔽"之谜。
+**仍开放(诚实入 task_plan)**:L2 tag/victim/TQ 臂(需新注入器代码)、L2 size sweep、DRAM ecc_logic_fault formal、Exec/IQ 同款修法。
