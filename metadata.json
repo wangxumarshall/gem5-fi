@@ -1,0 +1,38 @@
+{
+  "cli_version": "0.10.2",
+  "checkpoint_id": "01M1ZB554X7DY5H4E6EBHPWW4H",
+  "strategy": "manual-commit",
+  "branch": "fix/fi-tool-correctness",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "artifacts/meta/escape_decomposition.md",
+    "artifacts/p12_setB_dram/heatmap.csv",
+    "artifacts/p12_setB_dram/summary.md",
+    "artifacts/p12_setB_fpu/heatmap.csv",
+    "artifacts/p12_setB_fpu/summary.md",
+    "artifacts/p12_setB_l2/heatmap.csv",
+    "artifacts/p12_setB_l2/summary.md",
+    "artifacts/p12_setB_specleak/heatmap.csv",
+    "artifacts/p12_setB_specleak/summary.md",
+    "docs/final-report-skeleton.md",
+    "progress.md",
+    "task_plan.md",
+    "tools/ras_escape_analysis.py"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 5011368,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 5040,
+    "api_call_count": 14
+  }
+}
