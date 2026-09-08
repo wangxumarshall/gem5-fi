@@ -38,8 +38,8 @@ p.add_argument("--target_block_addr", type=lambda x:int(x,0), default=0,
                help="Directed: cache block address to inject (block-aligned "
                     "lookup among VALID blocks). 0 = random (default).")
 p.add_argument("--target_field", default="data",
-               choices=["data","valid","dirty","coh"],
-               help="§2.7/§2.11 field-level: data(default)/valid(invalidate)/dirty(toggle)/coh(toggle)")
+               choices=["data","valid","dirty","coh","tag"],
+               help="§2.7/§2.11/§v1.2-14 field-level: data(default)/valid(invalidate)/dirty(toggle)/coh(toggle)/tag(F5 legal alias — v1.2 Phase 14)")
 p.add_argument("--target_byte_offset", type=int, default=-1,
                help="Directed: byte offset within the target block "
                     "(0..blockSize-1). -1 = random (default).")

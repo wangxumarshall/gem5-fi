@@ -370,6 +370,50 @@ namespace gem5
                 // §2.7/§2.11 field-level fault: when target_field != "data",
                 // corrupt the CacheBlk field (valid/dirty/coh) instead of the
                 // data byte. tag(F5) + repl deferred.
+                // v1.2 Phase 14 (plan 14 item 1): L2 tag F5 — replace the
+                // block's tag with ANOTHER VALID BLOCK's tag from the same
+                // cache (a legal, aligned, in-cache alias — modeling a tag
+                // SRAM soft error that hits a legal value, NOT a random bit
+                // flip). The block now aliases: a lookup for the OTHER
+                // address hits THIS block's data -> silent wrong-data
+                // (method2-style).
+                if (target_field == "tag") {
+                    if (validBlocks.size() < 2) {
+                        if (write_log) {
+                            *(log_stream->stream()) << "Tick: " << curTick()
+                                << ", Cache Block Addr: " << blockAddr
+                                << ", Field: tag — NO partner block (need >=2 valid)"
+                                << std::endl;
+                        }
+                        faults_injected_count++;
+                        continue;
+                    }
+                    // pick a partner != targetBlk
+                    CacheBlk *partner = nullptr;
+                    for (auto *b : validBlocks) {
+                        if (b != targetBlk) { partner = b; break; }
+                    }
+                    if (!partner) continue;
+                    auto old_tag = targetBlk->getTag();
+                    // re-tag via invalidate + insert (TaggedEntry::insert
+                    // asserts !isValid() — setValid on a valid block aborts;
+                    // found on the real machine as a gem5 assertion failure
+                    // at the injection tick). The block now answers to the
+                    // partner's address.
+                    bool was_secure = targetBlk->isSecure();
+                    targetBlk->invalidate();
+                    targetBlk->insert({partner->getTag(), was_secure});
+                    stats->numFaultsInjected++;
+                    faults_injected_count++;
+                    if (write_log) {
+                        *(log_stream->stream()) << "Tick: " << curTick()
+                            << ", Cache Block Addr: " << blockAddr
+                            << ", Field: tag (F5 alias), old_tag=0x" << std::hex
+                            << old_tag << " -> new_tag=0x" << partner->getTag()
+                            << std::dec << std::endl;
+                    }
+                    continue;
+                }
                 if (target_field == "valid") {
                     targetBlk->invalidate();
                     stats->numFaultsInjected++;
