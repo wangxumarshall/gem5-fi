@@ -107,6 +107,8 @@ GOLDEN_ARRAYS = {
     "specleakprobe-golden-v1": "7cd81e9377b50593d3256d67f01d59d4a9fba940894b0929920406933d3232cf",
     # v1.2 Phase 13 (patch 3): elemwise_int N=8192 (ARRAYHASH oracle).
     "elemwiseint-golden-v1": "ee7df0384b5599c3f1a3c68c5d92637b4cd4bea1b93e866afaed6fbdbcc83b50",
+    # v1.2 Phase 13 (patch 4): stale_plausible N=4096 (F6 stale-value probe).
+    "staleplausible-golden-v1": "d882ffba81e935f2df1fa7bc46bb4d759627b39a1d932081129bb6403a074cd0",
 }
 
 def sha256_file(path):
