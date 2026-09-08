@@ -1,0 +1,29 @@
+{
+  "cli_version": "0.10.2",
+  "checkpoint_id": "01M1ZEFZP8NKD3GMF6DG35Q9MF",
+  "strategy": "manual-commit",
+  "branch": "fix/fi-tool-correctness",
+  "checkpoints_count": 3,
+  "files_touched": [
+    "artifacts/pwf_v11_l2_formal/heatmap.csv",
+    "artifacts/pwf_v11_l2_formal/summary.md",
+    "campaigns/pwf-v11-l2-formal.yaml",
+    "findings.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 1410974,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 1198,
+    "api_call_count": 4
+  }
+}
