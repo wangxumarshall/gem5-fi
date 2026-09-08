@@ -494,3 +494,12 @@ L2 arms campaign(stencil,n=100×4,零 frozen,Reach 100%):
 | tag(F5 合法别名) | secded | **47.0% [37.5,56.7]**(ECC 无效) |
 
 **核心结论**:L2 的 protection 反转图呈**非对称结构**——①数据阵列单 bit 错:SECDED 从 47% 降到 0%(有效);②**tag 合法别名:SECDED 完全无效(39%→47%,不降反在 CI 内)**——合法 tag 替换不产生位错(syndrome=0),任何 ECC 都检不出"值是错的但位是对的"。**tag 面 F5 是 ECC 盲区,需要 tag 比较重放/别名检测(如物理索引+别名检查、双 tag 比较),不是 ECC**。这是首轮 protection 对照(L1D sed/secded_poison)在 L2 层的补全,也是 §4.2 保护投资表的新行:**L2 tag 通路是与数据阵列并列的高风险面,但保护手段根本不同**。
+
+### v1.2 Phase 14 DRAM protection 对照(2026-09-08): none 87% → secded 0% — DRAM 数据面 ECC 全纠
+
+| cell(stream_triad 定向,n=100) | P_SDC [Wilson 95%] |
+|---|---|
+| backing_byte × none | 87.0% [79.0,92.2] |
+| backing_byte × secded | **0.0% [0,3.7]** |
+
+与 L2 data 面(47%→0)同构:**存储层的数据面单 bit 错是 ECC-可防的**;ECC 盲区集中在**合法域替换**(L2 tag 别名 39→47%、LSQ fwd_source_sub 37.6%、DRAM addr_map_sub 88%——合法值零 syndrome)。保护投资图景:数据阵列→ECC;合法域通路(tag/转发源/地址映射)→别名检测/age 校验/重放比较。
