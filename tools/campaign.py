@@ -322,6 +322,9 @@ def manifest_for_cell(campaign, cell, cell_ordinal, rep, outdir):
     # v1.2 Phase 14 (item 2): victim-path fault axis.
     if cell.get("victim_fault"):
         manifest["fault"]["victim_fault"] = True
+    # v1.2 Phase 16 (item 3): L1I instruction-encoding field axis.
+    if cell.get("l1i_field"):
+        manifest["fault"]["l1i_field"] = cell["l1i_field"]
     # v1.2 Phase 14: DRAM ECC-logic-fault arm (§2.17).
     if cell.get("ecc_logic_fault"):
         manifest["fault"]["ecc_logic_fault"] = True

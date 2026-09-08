@@ -631,6 +631,10 @@ def main():
         if comp == "l1i":
             sf = {"stuck_at_zero": "opcode",
                   "stuck_at_one": "rn"}.get(inj["model"], "none")
+            # v1.2 Phase 16 (item 3): direct field override (imm/rm/rd/cond
+            # arms beyond the opcode/rn model mapping).
+            if inj.get("l1i_field"):
+                sf = str(inj["l1i_field"])
             cmd += ["--l1i_semantic_field", sf]
     elif comp == "l1_tlb":
         # §2.10 CHAOSArmTLB (D-TLB pfn, FS-only). Requires config_family
