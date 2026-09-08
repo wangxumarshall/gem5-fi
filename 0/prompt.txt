@@ -1,0 +1,1 @@
+调用paper skill，撰写研究成果报告v1.md，最后调用humanizer:humanizer优化报告v2.md；然后结合 @docs/final-paper.md 中的思路，调用paper skill撰写最终稿论文v3.md
