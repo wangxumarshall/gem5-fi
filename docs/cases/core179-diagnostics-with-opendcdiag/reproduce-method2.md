@@ -1,4 +1,5 @@
 SDC1-01-02 故障复现与根因诊断（偏压+STL） | 项目 | 内容 | |------|------| | 案例编号 | 1003-SDC案例-【计算SDC】调压运行stl导致OS panic | | 设备型号 | Yangtze Computing R240K V2（BC82AMQA / BCB2AMQA） | | 设备SN | 50A6886522221659 | | 主机名 | STODC-P-POD13-C3K-YANGTZE-R240KV2-122-ITC42 | | BMC版本 | 见 dump_info/SpLogDump/version.json | | BIOS版本 | 7.48（06/15/2026） | | 内核版本 | 5.10.0-136.12.0.86.h1339.eulerosv2r12.aarch64（EulerOS V2R12，aarch64） | | CPU | ARM Kunpeng 920，多路（CPU0~CPU4插槽，180+逻辑核） | | 故障时间 | 2026-07-31 12:08:25（首次复位） | | 复现性 | 可复现（同日复现≥3次，相同调用栈） | | Dump来源 | R240KV2_71006932A034_20260731-1301/dump_info（13:01:56采集） |
+--------------------------------------------------------------------------------
 零、复现方法
 步骤1：四路CPU的VDDAVS电压拉偏30mv（从0.88V到0.85V，Vmin=0.73，Vmax=0.99）
 步骤1-1：ssh登录BMC控制台，执行maint_debug_cli，进入debug模式
@@ -7,12 +8,15 @@ SDC1-01-02 故障复现与根因诊断（偏压+STL） | 项目 | 内容 | |----
 CPU1：VDDAVS电压拉偏
 CPU1 电压值读取 i2cwrite 7 2 0xe0 0x00 0x01 i2cwrite 7 2 0xc0 0x00 0x00 i2cread 7 2 0xc0 0x21
 CPU1电压拉偏30mv i2cwrite 7 2 0xe0 0x00 0x01 i2cwrite 7 2 0xc0 0x00 0x00 i2cwrite 7 2 0xc0 0x21 0x7D 0x00
+--------------------------------------------------------------------------------
 CPU2：VDDAVS电压拉偏
 CPU2 电压值读取 i2cwrite 7 2 0xe0 0x00 0x01 i2cwrite 7 2 0xd4 0x00 0x00 i2cread 7 2 0xd4 0x21
 CPU2电压拉偏30mv i2cwrite 7 2 0xe0 0x00 0x01 i2cwrite 7 2 0xd4 0x00 0x00 i2cwrite 7 2 0xd4 0X21 0x7D 0X00
+--------------------------------------------------------------------------------
 CPU3：VDDAVS电压拉偏
 CPU3 电压值读取 i2cwrite 7 2 0xe0 0x00 0x02 i2cwrite 7 2 0xc0 0x00 0x00 i2cread 7 2 0xc0 0x21
 CPU3电压拉偏30mv i2cwrite 7 2 0xe0 0x00 0x02 i2cwrite 7 2 0xc0 0x00 0x00 i2cwrite 7 2 0xc0 0X21 0x7D 0X00
+--------------------------------------------------------------------------------
 CPU4：VDDAVS电压拉偏
 CPU4 电压值读取 i2cwrite 7 2 0xe0 0x00 0x02 i2cwrite 7 2 0xd4 0x00 0x00 i2cread 7 2 0xd4 0x21
 CPU4电压拉偏30mv i2cwrite 7 2 0xe0 0x00 0x02 i2cwrite 7 2 0xd4 0x00 0x00 i2cwrite 7 2 0xd4 0X21 0x7D 0X00
@@ -20,10 +24,12 @@ CPU4电压拉偏30mv i2cwrite 7 2 0xe0 0x00 0x02 i2cwrite 7 2 0xd4 0x00 0x00 i2c
 步骤2-1：执行./kunpeng-stl-kp920 -L 10 -r all。 或其他高负载用例
 步骤2-2：收集系统日志，包括panic、电压、温度等。
 登录BMC首页，点击“一键收集”下载全量日志。
+--------------------------------------------------------------------------------
 一、问题现象
 用户于 2026-07-31 在主机 OS 上执行鲲鹏 STL 压测命令：
 ./kunpeng-stl-kp920 -L 9999 -r all
 压测期间系统发生复位（自动重启），且复位后再次运行相同压测可稳定复现复位。Dump 采集时间为 13:01:56，距离首次复位约 53 分钟。
+--------------------------------------------------------------------------------
 二、关键证据链（按时间轴）
 1. 调压操作（11:53 – 11:55）
 operate_log 显示 Administrator（90.255.95.108）经 CLI 登录后，在 11:53:51–11:55:43 期间通过 I2C 持续写 VRD 寄存器（busid 7，addr 0xE0 / 0xC0 / 0xD4），写入值含 0x21 0x7D 0x00 等，为 CPU VRD（MP2975）电压调整操作：
@@ -125,7 +131,7 @@ find_busiest_group+0x1b8
 0x9600004
 —
 —
-结论： 多次崩溃调用栈一致（find_busiest_group → load_balance），故障寄存器每次都不同但均为非法内核地址，属典型 CPU 计算结果被静默损坏（SDC） 表现：同一指令组合不可能产生随机损坏指针，可判定为硬件在欠压下产生错误数据，排除软件 bug。
+结论： 多次崩溃调用栈一致（find_busiest_group → load_balance），故障寄存器每次都不同但均为非法内核地址，属典型 CPU 计算结果被静默损坏（SDC） 表现——非软件 bug（同一指令组合不可能产生随机损坏指针），而是硬件在欠压下产生错误数据。
 4. kdump 转储过程中 OOM（12:06:58 – 12:08:25）
 OSDump/img2_20260731120827.jpeg（12:08:27 截屏）显示 crashdump 内核中 makedumpfile 触发 OOM：
 Fri Jul 31 12:06:57 CST 2026: kdump: saving vbox.img.gz complete
@@ -145,6 +151,7 @@ LogDump/app_debug_log_all.2（extracted）：
 6. 复位后重启流程（12:09 – 12:11）
 operate_log / maintenance_log 显示 12:09:03 起设置看门狗（BIOS/POST → OS Load），系统进入 BIOS POST：
 重启后 CPU2 VDDAVS 欠压告警仍在（12:08:54、12:09:24），说明 欠压状态在复位后未消除（VRD 寄存器保持调压后的值）。
+--------------------------------------------------------------------------------
 三、根本原因（Root Cause）
 直接原因
 CPU2 VDDAVS（自适应电压调节核心电压）在调压后下探至 0.810 V，达到欠压阈值，触发 CPU 内核数据通路的静默数据损坏（SDC）。 损坏的指针被 CFS 调度器 find_busiest_group 解引用，引发 ARM64 Data Abort（ESR=0x9600004，Level-0 翻译错误）→ 内核 Oops → Kernel panic → kdump → 系统复位。
@@ -180,14 +187,17 @@ kdump 流程异常 + CPU 持续欠压 → 系统复位 (restart cause=0, 0x2C000
         │
         ▼
 BIOS POST → OS 重启 → VRD 寄存器保持调压值 → 欠压告警再现 → 再次压测再次 panic
+--------------------------------------------------------------------------------
 四、次要问题
 kdump 转储 OOM：crashkernel=512M 在 192+ 核、大内存机器上偏小，makedumpfile 写 ext4 时页缓存耗尽导致 OOM，未能生成完整 vmcore。本次 vmcore 转储失败，仅靠串口/kbox 保留了 Oops 文本。
 风扇类型识别异常：复位前后 cooling_app 持续报 fantype_identify: fan type identify state = 3 与 fan status error，但与复位无直接因果（属独立告警，需另行确认风扇模块）。
 BMC Set global enables failed（12:11:16）：复位后 BMC 重新启用全局中断失败，通常为瞬态，建议观察后续是否复现。
+--------------------------------------------------------------------------------
 五、定级与影响
-故障类别：计算 SDC（Silent Data Corruption），欠压导致的 CPU 数据损坏。
+故障类别：计算 SDC（Silent Data Corruption）— 欠压导致的 CPU 数据损坏。
 影响面：系统不可用（复位重启），且 kdump 无法成功转储，故障现场丢失。多次复现，持续影响业务。
 SDC 危害：若损坏未触发 panic 而是被业务数据写回，将造成静默数据错误，风险高于本次复位场景。
+--------------------------------------------------------------------------------
 六、处置建议
 紧急处置
 恢复 CPU2 VDDAVS 电压至默认值：通过 BMC 维护界面或 ipmitool 将 VRD（MP2975）寄存器还原为出厂配置（CPU2 VDDAVS 标称约 0.84–0.85 V，不低于 lcr 0.730 V，但需保证不触欠压告警 0.810 V）。
@@ -202,6 +212,7 @@ SDC 危害：若损坏未触发 panic 而是被业务数据写回，将造成静
 长期改进
 压测工具增加电压门限前置检查：kunpeng-stl-kp920 启动前读取 BMC 电压传感器，若 VDDAVS 接近欠压阈值则告警退出，避免在欠压工况下直接满载。
 SDC 检测机制：在 OS 侧引入 ARM RAS + 内存 ECC 巡检 + 关键指针校验，对计算结果做交叉校验（如 STL 运算结果自检），将"静默"损坏显性化。
+--------------------------------------------------------------------------------
 七、附录：关键日志路径
 证据
 路径
@@ -229,6 +240,7 @@ kbox 黑盒
 dump_info/LogDump/kbox_info / kbox_info.1
 CPLD/复位寄存器
 dump_info/Register/cpld_reg_info
+--------------------------------------------------------------------------------
 八、诊断结论 & 详细源码级定位分析
 本次 2026-07-31 12:08:25 系统复位为计算 SDC 类故障： 用户对 CPU2 VRD（MP2975）执行带外调压后，CPU2 VDDAVS 核心电压下探至 0.810 V（欠压阈值），在运行 ./kunpeng-stl-kp920 -L 9999 -r all 满载压测时，欠压导致 CPU 数据通路产生静默损坏（损坏指针被 find_busiest_group 解引用），触发 ARM64 Data Abort（ESR 0x9600004）→ Kernel panic → kdump 转储 OOM → 系统复位（原因码 0x2C00000F / Unknown）。复位后 VRD 调压值未还原，欠压告警持续，再次运行压测可稳定复现同一调用栈 panic。根因为调压操作导致 CPU 欠压引发 SDC，非软件缺陷。
 1. 完整寄存器转储对比（4次 find_busiest_group 崩溃）
@@ -303,7 +315,7 @@ x10 = cpu_rq(cpu) + 0x80（struct rq内部偏移，指向cfs_rq子结构）
 (f9405155)
 ldr x21, [x10, #0xa0]
 ← 崩溃点：读取 rq->cfs_rq 内偏移0xa0的字段
-3. 算术链验证：x10的精确来源
+3. 算术链验证 — x10的精确来源
 以Crash#1为例，验证x10的计算链：
 x1  = ffffac7020e0b2c0    ← &runqueues（per-CPU runqueue基址，有效内核地址 0xffff...）
 x9  = 0ffed42000ffff6e    ← __per_cpu_offset[144]（已损坏！正常应为 0x0000_0000_XXXX_XXXX）
@@ -313,7 +325,7 @@ x25 = x1 + x9
 x10 = x25 + 0x80
     = 0ffe809021e0b22e + 80
     = 0ffe809021e0b2ae    ← 崩溃时的x10值（验证通过 ✓）
-关键发现：x1 (&runqueues) 始终是合法内核地址（0xffff_...），而x9 (__per_cpu_offset[cpu]) 每次都是不同的垃圾值，这就是损坏源。
+关键发现：x1 (&runqueues) 始终是合法内核地址（0xffff_...），而x9 (__per_cpu_offset[cpu]) 每次都是不同的垃圾值 — 这就是损坏源。
 Crash#2/Crash#3 同样验证通过：
 Crash#2: ffffa4817414b2c0 + a24000ffff5cd22b = a23fa581737184eb → +0x80 = a23fa5817371856b ✓
 Crash#3: ffffd20f652ab2c0 + 00ffff74043a96e0 = 00ffd183696549a0 → +0x80 = 00ffd18369654a20 ✓
@@ -327,7 +339,7 @@ find_busiest_group()                         ← pc + 0x1b8, 函数大小0xb00
                       = &per_cpu(runqueues, i)
                       = (struct rq *)(&runqueues + __per_cpu_offset[i])
                                                     ^^^^^^^^^^^^^^^^^^^^
-                                                    x9（此处被SDC损坏）
+                                                    x9 — 此处被SDC损坏
 4.2 源码级对应（kernel/sched/fair.c + kernel/sched/sched.h）
 cpu_rq(i) 宏展开（kernel/sched/sched.h）：
 // kernel/sched/sched.h
@@ -433,7 +445,7 @@ a24000ffff5cd22b
 71
 高位00ff（应为0x0000），含ffff模式
 正常值应为：0x0000_0000_00XX_XXXX（每CPU per-cpu区域偏移量，典型值在几十KB到几MB范围，远小于4GB）。
-三次崩溃中x9的高32位本应为0，但实际为 0ffe/a240/00ff，每次不同，是典型的随机SDC损坏。
+三次崩溃中x9的高32位本应为0，但实际为 0ffe/a240/00ff — 每次不同，是典型的随机SDC损坏。
 5.2 损坏发生位置判定
 x9 = __per_cpu_offset[cpu] 的损坏可能发生在以下三个位置之一：
 可能性1：内存中的 __per_cpu_offset[] 数组条目已被先前SDC写入损坏
