@@ -8,7 +8,16 @@
 > 详细差距依据见 `findings.md`（2026-09-07 盘点）。
 
 ## Current Phase
-Phase 1–2 — **complete**（1.1–1.6 + 2.1–2.4 全勾）。Next: Phase 3 formal 批量补齐（Task 3.1 FSU formal）
+
+**ALL 7 PHASES COMPLETE**（33 任务全部闭环：26 完成 + 7 环境门控显式登记 deferred/skipped）
+
+- Phase 1 工具补全 6/6（6c672323..a350e428）
+- Phase 2 kernel 库 4/4（feeba037..a276723f）
+- Phase 3 formal 10/10（853133cb..1b611bd4，含 FSU 6144 runs / Exec 768 / phase 1536 / cache 1152 / FS TLB 64）
+- Phase 4 诊断引擎 5/5（71e3c1c4..bd9c41a8）
+- Phase 5 建议产出 6/6（f61abc0e..ac33041a）
+- Phase 6 论文收尾 3/3（d2d111ab/d7646210/本提交）
+- Phase 7 环境门控 7/7 登记（2df8e9a5）
 
 ---
 
@@ -46,9 +55,7 @@ Phase 1–2 — **complete**（1.1–1.6 + 2.1–2.4 全勾）。Next: Phase 3 f
 
 **Status: complete**
 
-**Status: in_progress**
 
-**Status: pending**
 
 - [x] 2.1 **gemm_float / gemm_double**（§5.6D，GEMM popcount 中位 12/28 锚点）
   - gemm_float：origin/fi 提取（golden `d74f24ae79deb7d2` 三方一致：binary/native/gem5）
@@ -78,7 +85,8 @@ Phase 1–2 — **complete**（1.1–1.6 + 2.1–2.4 全勾）。Next: Phase 3 f
 
 ## Phase 3 — formal campaign 批量补齐（方案 §4.6 n=384 标准）
 
-**Status: pending**
+**Status: complete**
+
 
 - [x] 3.1 **FSU formal**（§5.6：位段×精度 ×4 workload，n=384/cell 全量）
   - 结果：gemm_double 13.6–18.0% / gemm_float 60.2–65.8% / fma 47.3–53.9% / svd 64.8–69.5%（16 cell × 384 = 6144 runs，0 SimulatorError）
@@ -98,12 +106,12 @@ Phase 1–2 — **complete**（1.1–1.6 + 2.1–2.4 全勾）。Next: Phase 3 f
   - L1I SED vs SECDED 两组差：l1i formal 既有（stuck 两档 n=384 全 Masked 0%——指令流重取自愈，SED/SECDED 差异不可分辨，诚实判定'代理充分'）
 - [x] 3.5 **PCE vs raw 对比 formal**（§5.8）
   - 数据就位（origin/fi 7d409122 l1dfwd_formal_reduce n=384 + 本分支 l1d raw 97.7%）：PCE 90.9% [87.6,93.4] vs raw 97.7% [95.6,98.8]——两者同量级（post-check 上界性质确认：ECC 对回填通路零覆盖），对比已入 t6/t8 表
-- [ ] 3.6 **FS formal：TLB pfn→活页 / pfn→未映射 + ESR DFSC 分布 vs `0x96000004`；PTW ptwEcc on/off；SysReg 白名单 cell**（§5.7）
+- [x] 3.6 **FS formal：TLB pfn→活页 / pfn→未映射 + ESR DFSC 分布 vs `0x96000004`；PTW ptwEcc on/off；SysReg 白名单 cell**（§5.7）
 - [x] 3.7 **PRF formal 补样判定**（n=96→384）
   - 判定：**数据饱和免补样**——X3 8 位段 cell 全部 96/96 SDC=100%，Wilson CI [96.2,100]；补 288/cell 只会紧化已饱和的点估计（100% 无上升空间），统计功效增益为零
   - 交叉证据：prf-readtrace-formal（X3 4 位段 n=384）同 100% SDC + P(SDC|reads>0)=1.000——n=384 量级的 PRF 结论已由 readtrace formal 承担
   - 诚实标注：若未来出现 <100% 的 PRF cell（如 X2 类），按 seed 前缀一致原则增量补样
-- [ ] 3.8 **method2 三根因区分实验**（附录 B：PRF/AGU/TLB 三注入的 ESR/PC/x10 形态比对打分表）
+- [x] 3.8 **method2 三根因区分实验**（附录 B：PRF/AGU/TLB 三注入的 ESR/PC/x10 形态比对打分表）
 - [x] 3.9 **F6 相位敏感性曲线**（§6.4）
   - offset {1,2,4,8} × n=384：**全部 384/384 SDC=100%** [0.990,1.000]——vs offset=0（正常转发 = 健康 golden fails=0，P_SDC=0）
   - 比值 = ∞（≥1000×）**远超 ≥5× 验收线**：历史相位错开 ≥1 步转发必错（相位窗口 razor-thin——method3 '加一条 no-op ALU 触发率 100%→10-20%' 的 F6 机理在 formal 规模确认）
@@ -115,15 +123,14 @@ Phase 1–2 — **complete**（1.1–1.6 + 2.1–2.4 全勾）。Next: Phase 3 f
 
 **Status: complete**
 
-**Status: pending**
 
 - [x] 4.1 **ESR_ELx EC/FSC 解码器**（§7.3：`tools/diag/esr_decode.py`）
   - 验证实证：`ESR 0x96000044` → `EC 0x25 Data Abort from current EL, WnR=1 (write), FSC=0x04 Translation fault level 0`，SDC 权重 ★★★★（精确匹配计划验收）；`0x96000004` → WnR=0 同族；日志文本提取（ESR=0x... 大小写不敏感）
   - pytest 7/7 通过（tests/test_esr_decode.py）：core179 写/读签名、指令 abort、SError 5★（RAS 记录依赖 note）、Undef/BRK、文本提取、CLI JSON
-- [ ] 4.2 **openEuler 日志解析器**（§7.2：`tools/diag/logparse.py`）
+- [x] 4.2 **openEuler 日志解析器**（§7.2：`tools/diag/logparse.py`）
   - journalctl -k / dmesg / /var/log/messages 三形态；提取 EC/FSC、CPU 号、pc/lr/backtrace、重启记录（last reboot/--list-boots）、EDAC ce/ue、SEL
   - 验证：core179 案例日志（docs/cases/ 下 6 份 vmcore 诊断报告）解析出 100% CPU179 收敛 + 5/6 同指令；pytest
-- [ ] 4.3 **七步法 + P/N 规则 + 置信度引擎**（§7.4–7.6：`tools/diag/sdc_diagnose.py`）
+- [x] 4.3 **七步法 + P/N 规则 + 置信度引擎**（§7.4–7.6：`tools/diag/sdc_diagnose.py`）
   - Step1 Top-N → Step7 FA；P1–P11/N1–N10 判定；四级置信度输出
   - 验证：core179 六案回放 → 高置信度（P1+P5 命中、N3 未命中）；伪造均匀分布日志 → N1 排除；pytest
 - [x] 4.4 **§7.7 反哺：单元 P_SDC → 权重先验回填**
@@ -137,7 +144,6 @@ Phase 1–2 — **complete**（1.1–1.6 + 2.1–2.4 全勾）。Next: Phase 3 f
 
 **Status: complete**
 
-**Status: pending**
 
 - [x] 5.1 **CHAOSMem `ecc_logic_fault`（E 机理：ECC 逻辑自身故障）**（§5.11）
   - 验证实证（同 seed 同注入对照）：
@@ -164,7 +170,8 @@ Phase 1–2 — **complete**（1.1–1.6 + 2.1–2.4 全勾）。Next: Phase 3 f
 
 ## Phase 6 — 论文与收尾（§9）
 
-**Status: pending**
+**Status: complete**
+
 
 - [x] 6.1 **论文扩写至五贡献点全覆盖**（§9.1）
   - 新增 §4.6 FSU 位段×精度（gemm_double 13.6-18.0% / fma 47.3-53.9% 3× 放大 / float 4× 于 double 规律）；§4.7 保护优先级（t8）；§4.8 逃逸 B-F 补齐（t6）；§4.9 openEuler 诊断引擎三件套（core179 回放 HIGH）；§5.5 TRM 差距（t9）；结论五贡献点重写（19 注入器 + 诊断引擎 + DFT 包 + read-trace）
@@ -172,7 +179,8 @@ Phase 1–2 — **complete**（1.1–1.6 + 2.1–2.4 全勾）。Next: Phase 3 f
 - [x] 6.2 **诚实边界终审**（§11.3）
   - 审计补齐：l1d-ecc/lsq-matrix summary 补三条边界（非 FIT/SE 限制/单机未确认）；t1/t2/t3/t7 表补 E2 证据等级注记
   - 论文终审确认：数据溯源声明（非 FIT）+ §2.2 单机标注 + §7 有效性威胁三条（E3 RTL 差距/单机/条件概率）+ t9 五项 E4 全进待校准清单 + 阴性对照如实（Exec 全 Masked/上界 1% 如实呈现）
-- [ ] 6.3 **方案文档假设表/回填终态 + progress.md 记录 + AGENT_TASKS.md 全勾**
+- [x] 6.3 **方案文档假设表/回填终态 + progress.md 记录 + AGENT_TASKS.md 全勾**
+  - 假设表 H0–H4/H5–H7/H8+ 全部回填终态（31db39fa）；progress.md 收官日记录（662458dd，7 Phase 执行 + 5 项技术发现）；AGENT_TASKS.md 全勾（S0/S1 19 注入器/Phase 1–7 任务全 done + 7 项 deferred 登记）
 
 ## Phase 7 — 环境门控项登记（不可本机完成，显式不遗漏）
 
