@@ -211,7 +211,12 @@ CHAOSCHI/CHAOSNoC pilot 已能触发（7c854bb/7582e8c，未提交的 ruby test 
 
 ## Phase 12 — v1.1 复现 + 报告收尾（贯穿 Phase 8–11）
 
-**Status: pending**
+**Status: complete（2026-09-08）**
+
+1. ✅ **集 B 复现**:四关键 cell(FPU baseline / ROB spec_leak / L2 / DRAM 定向)集 A(node1 CPU) vs 集 B(node2+3 CPU,同 node1 内存)同 seed 同 manifest:**20/20 分类一致 × 4,零冻结**——"reproduced (same host, disjoint NUMA)"。
+2. ✅ **报告收尾**:final-report-skeleton 5 处 v1.1 修正标注(零风险带 FPU/Exec/L2/DRAM 作废+修正数字;DFT FP 行;保护投资 L2/DRAM 行;spec_leak 阴性作废;诚实边界 #2 复现状态);ras_escape_analysis v1.1 campaign 映射补齐(163 cells 无 unmapped)。
+
+**v1.1 补救轮(Phase 8–12)全部完成**:17 commits(89832f6 起),四处首轮阴性伪影全部修正为阳性(FPU ~100% / DRAM 87% / L2 49% / spec_leak 14% SDC),根因三类(注入点死路径 / 负载-工作集错配 / 探针设计缺陷),附带修出 6 个真 bug。formal n=384 轮按深度策略排后续。
 
 1. **复现（集 B / NUMA node 1）**：每个进 report 的**非零 SDC 数**、以及本轮触及的对照数（L2 data 定向、DRAM addr_map_sub、FPU recurring、ROB spec_leak）在 NUMA node 1 上重跑同 manifest，结局分类一致 + P_SDC 点估计落在集 A 的 95% CI 内 → 标 "reproduced (same host, disjoint NUMA)"。不一致 → 冻结该 cell，查是 cpu179 污染共享 L3/内存控制器，还是工具非确定性。
 2. **报告收尾**：更新 `plans/microarch-fault-injection-report.md`（FPU §7 / ROB §4.2 / L2 §13 / DRAM §14 的"已修正"标注 + 位谱数据）；更新 `tools/ras_escape_analysis.py` 的逃逸分解（fpu/exec 等目前是 "? unit not in map"）。

@@ -5,11 +5,13 @@
 | addrmap_formal_fwd<br>target_index=0 fault_model=stuck_at_one | none | 0.0% [0.0,1.0] | 0.0% [0.0,1.0] | 100.0% | E (DRAM backing store; secded via CHAOSMem protectionModel) |
 | bpu_branchy_pilot<br>phys_mode=arch_frontend target_index=0 fault_model=transient_bit_flip | none | 0.0% [0.0,43.5] | 0.0% [0.0,43.5] | 100.0% | A (RAS-out-of-scope: predictor state, squash-recovers) |
 | bpu_formal<br>phys_mode=arch_frontend target_index=0 fault_model=transient_bit_flip | none | 0.0% [0.0,1.0] | 0.0% [0.0,1.0] | 100.0% | A (RAS-out-of-scope: predictor state, squash-recovers) |
+| bpu_formal_regchain<br>target_index=0 fault_model=transient_bit_flip | none | 0.0% [0.0,1.0] | 0.0% [0.0,1.0] | 100.0% | A (RAS-out-of-scope: predictor state, squash-recovers) |
 | decode_formal<br>phys_mode=arch_frontend target_index=0 fault_model=transient_bit_flip | none | 0.3% [0.1,1.5] | 24.1% [20.1,28.6] | 100.0% | A (RAS-out-of-scope: decode latch) |
 | decode_regchain_pilot<br>phys_mode=arch_frontend target_index=0 fault_model=transient_bit_flip | none | 0.0% [0.0,43.5] | 0.0% [0.0,43.5] | 100.0% | A (RAS-out-of-scope: decode latch) |
 | example-prf-pilot<br>phys_mode=arch_frontend target_index=3 fault_model=transient_bit_flip | none | 100.0% [34.2,100.0] | 0.0% [0.0,65.8] | 100.0% | A (RAS-out-of-scope: PRF unprotected, raw=escape) |
 | example-prf-pilot<br>phys_mode=arch_frontend target_index=9 fault_model=transient_bit_flip | none | 0.0% [0.0,65.8] | 0.0% [0.0,65.8] | 100.0% | A (RAS-out-of-scope: PRF unprotected, raw=escape) |
 | exec_formal_cholesky<br>phys_mode=arch_frontend target_index=0 fault_model=transient_bit_flip | none | 0.0% [0.0,1.0] | 0.0% [0.0,1.0] | 100.0% | A (RAS-out-of-scope: int-ALU unprotected) |
+| exec_formal_regchain<br>target_index=0 fault_model=transient_bit_flip | none | 0.0% [0.0,1.0] | 0.0% [0.0,1.0] | 100.0% | A (RAS-out-of-scope: int-ALU unprotected) |
 | exec_regchain_pilot<br>phys_mode=arch_frontend target_index=0 fault_model=transient_bit_flip | none | 0.0% [0.0,43.5] | 0.0% [0.0,43.5] | 100.0% | A (RAS-out-of-scope: int-ALU unprotected) |
 | exmon_formal_spinlock<br>phys_mode=arch_frontend target_index=0 fault_model=transient_bit_flip | none | 0.0% [0.0,1.0] | 100.0% [99.0,100.0] | 100.0% | A (RAS-out-of-scope: exclusive monitor state) |
 | exmon_spinlock_pilot<br>phys_mode=arch_frontend target_index=0 fault_model=transient_bit_flip | none | 0.0% [0.0,43.5] | 100.0% [56.5,100.0] | 100.0% | A (RAS-out-of-scope: exclusive monitor state) |
@@ -18,6 +20,10 @@
 | fpu_neon_pilot<br>phys_mode=arch_frontend target_index=0 fault_model=transient_bit_flip | none | 0.0% [0.0,43.5] | 0.0% [0.0,43.5] | 100.0% | A (RAS-out-of-scope: FSU unprotected) |
 | freelist_formal_cholesky<br>target_index=3 fault_model=transient_bit_flip | none | 0.0% [0.0,1.0] | 72.0% [67.3,76.4] | 100.0% | A (RAS-out-of-scope: freelist unprotected) |
 | freelist_formal_cholesky<br>target_index=9 fault_model=transient_bit_flip | none | 0.0% [0.0,1.0] | 76.9% [72.3,80.8] | 100.0% | A (RAS-out-of-scope: freelist unprotected) |
+| fwdphase_curve_1<br>target_index=0 bit=1 fault_model=delay_omission | none | 0.0% [0.0,3.9] | 100.0% [96.2,100.0] | 100.0% | ? (unit not in map) |
+| fwdphase_curve_2<br>target_index=0 bit=2 fault_model=delay_omission | none | 0.0% [0.0,3.9] | 100.0% [96.2,100.0] | 100.0% | ? (unit not in map) |
+| fwdphase_curve_4<br>target_index=0 bit=4 fault_model=delay_omission | none | 0.0% [0.0,3.9] | 100.0% [96.2,100.0] | 100.0% | ? (unit not in map) |
+| fwdphase_curve_8<br>target_index=0 bit=8 fault_model=delay_omission | none | 0.0% [0.0,3.9] | 100.0% [96.2,100.0] | 100.0% | ? (unit not in map) |
 | fwdsrc_formal_fwd<br>target_index=0 fault_model=stuck_at_zero | none | 37.6% [32.8,42.5] | 57.4% [52.4,62.3] | 100.0% | A (RAS-out-of-scope: store-buffer path) |
 | iq_cholesky_pilot<br>phys_mode=arch_frontend target_index=0 fault_model=transient_bit_flip | none | 0.0% [0.0,43.5] | 0.0% [0.0,43.5] | 100.0% | A (RAS-out-of-scope: IQ unprotected) |
 | iq_f5_formal_madd<br>target_index=0 fault_model=legal_domain_sub | none | 0.0% [0.0,1.0] | 100.0% [99.0,100.0] | 100.0% | A (RAS-out-of-scope: IQ unprotected) |
@@ -44,6 +50,14 @@
 | lsqfwd_regchain_pilot<br>phys_mode=arch_frontend target_index=0 fault_model=transient_bit_flip | none | 0.0% [0.0,0.0] | 0.0% [0.0,0.0] | 0.0% | A (RAS-out-of-scope: store-buffer path) |
 | mem_formal_cholesky<br>phys_mode=arch_frontend target_index=0 fault_model=transient_bit_flip | none | 0.0% [0.0,1.0] | 0.0% [0.0,1.0] | 100.0% | E (DRAM backing store; secded via CHAOSMem protectionModel) |
 | mem_regchain_pilot<br>phys_mode=arch_frontend target_index=0 fault_model=transient_bit_flip | none | 0.0% [0.0,43.5] | 0.0% [0.0,43.5] | 100.0% | E (DRAM backing store; secded via CHAOSMem protectionModel) |
+| p12_setB_dram<br>fault_model=transient_bit_flip mem_addr_start=4194304 mem_addr_end=5242880 | none | 85.0% [64.0,94.8] | 0.0% [0.0,16.1] | 100.0% | E (DRAM backing store; secded via CHAOSMem protectionModel) |
+| p12_setB_fpu<br>fault_model=transient_bit_flip | none | 100.0% [83.9,100.0] | 0.0% [0.0,16.1] | 100.0% | A (RAS-out-of-scope: FSU unprotected) |
+| p12_setB_l2<br>fault_model=transient_bit_flip target_block_addr=4325376 | none | 50.0% [29.9,70.1] | 0.0% [0.0,16.1] | 100.0% | ? (unit not in map) |
+| p12_setB_specleak<br>fault_model=intermittent_burst target_index=10 | none | 5.6% [1.0,25.8] | 0.0% [0.0,17.6] | 90.0% | A (RAS-out-of-scope: RAT unprotected, raw=escape) |
+| p81_campaign_smoke<br>fault_model=transient_bit_flip | none | 100.0% [20.6,100.0] | 0.0% [0.0,79.3] | 100.0% | ? (unit not in map) |
+| p82_legacy_smoke<br>fault_model=transient_bit_flip | none | 0.0% [0.0,43.5] | 0.0% [0.0,43.5] | 100.0% | ? (unit not in map) |
+| p82_uniform_smoke<br>fault_model=transient_bit_flip | none | 0.0% [0.0,43.5] | 0.0% [0.0,43.5] | 100.0% | ? (unit not in map) |
+| p84_recurring_smoke<br>fault_model=recurring_result_stuck | none | 0.0% [0.0,56.1] | 0.0% [0.0,56.1] | 100.0% | ? (unit not in map) |
 | pilot_physreg_x3<br>phys_mode=arch_frontend target_index=3 fault_model=transient_bit_flip | none | 100.0% [43.9,100.0] | 0.0% [0.0,56.1] | 100.0% | A (RAS-out-of-scope: PRF unprotected, raw=escape) |
 | prf_abiclass_pilot<br>phys_mode=arch_frontend target_index=0 bit=0 fault_model=transient_bit_flip | none | 0.0% [0.0,7.1] | 0.0% [0.0,7.1] | 100.0% | A (RAS-out-of-scope: PRF unprotected, raw=escape) |
 | prf_abiclass_pilot<br>phys_mode=arch_frontend target_index=0 bit=2 fault_model=transient_bit_flip | none | 0.0% [0.0,7.1] | 0.0% [0.0,7.1] | 100.0% | A (RAS-out-of-scope: PRF unprotected, raw=escape) |
@@ -111,12 +125,28 @@
 | prf_h2_window_pilot<br>phys_mode=arch_frontend target_index=3 bit=0 rob=160 phys_int=128 fault_model=transient_bit_flip | none | 0.0% [0.0,11.3] | 0.0% [0.0,11.3] | 100.0% | A (RAS-out-of-scope: PRF unprotected, raw=escape) |
 | prf_h2_window_pilot<br>phys_mode=arch_frontend target_index=3 bit=0 rob=160 phys_int=160 fault_model=transient_bit_flip | none | 0.0% [0.0,11.3] | 0.0% [0.0,11.3] | 100.0% | A (RAS-out-of-scope: PRF unprotected, raw=escape) |
 | prf_h2_window_pilot<br>phys_mode=arch_frontend target_index=3 bit=0 rob=160 phys_int=192 fault_model=transient_bit_flip | none | 0.0% [0.0,11.3] | 0.0% [0.0,11.3] | 100.0% | A (RAS-out-of-scope: PRF unprotected, raw=escape) |
+| prf_ptrchase_phys_pilot<br>phys_mode=phys target_index=0 fault_model=transient_bit_flip | none | 0.0% [0.0,3.7] | 0.0% [0.0,3.7] | 100.0% | ? (unit not in map) |
+| prf_ptrchase_pilot<br>phys_mode=arch_frontend target_index=0 bit=0 fault_model=transient_bit_flip | none | 0.0% [0.0,3.7] | 0.0% [0.0,3.7] | 100.0% | ? (unit not in map) |
+| prf_ptrchase_pilot<br>phys_mode=arch_frontend target_index=0 bit=31 fault_model=transient_bit_flip | none | 0.0% [0.0,3.7] | 0.0% [0.0,3.7] | 100.0% | ? (unit not in map) |
+| prf_ptrchase_pilot<br>phys_mode=arch_frontend target_index=0 bit=63 fault_model=transient_bit_flip | none | 0.0% [0.0,3.7] | 0.0% [0.0,3.7] | 100.0% | ? (unit not in map) |
 | prf_regchain_pilot<br>phys_mode=arch_frontend target_index=3 fault_model=transient_bit_flip | none | 100.0% [56.5,100.0] | 0.0% [0.0,43.5] | 100.0% | A (RAS-out-of-scope: PRF unprotected, raw=escape) |
 | prf_regchain_pilot<br>phys_mode=arch_frontend target_index=9 fault_model=transient_bit_flip | none | 0.0% [0.0,43.5] | 0.0% [0.0,43.5] | 100.0% | A (RAS-out-of-scope: PRF unprotected, raw=escape) |
 | ptw_h7_pilot_fs<br>target_index=0 fault_model=transient_bit_flip | none | 0.0% [0.0,56.1] | 0.0% [0.0,56.1] | 100.0% | ? (unit not in map) |
 | ptw_h7_pilot_fs<br>target_index=0 fault_model=transient_bit_flip | secded | 0.0% [0.0,56.1] | 0.0% [0.0,56.1] | 100.0% | ? (unit not in map) |
 | ptw_h7_pilot_fs<br>target_index=0 fault_model=stuck_at_zero | none | 0.0% [0.0,56.1] | 0.0% [0.0,56.1] | 100.0% | ? (unit not in map) |
 | ptw_h7_pilot_fs<br>target_index=0 fault_model=stuck_at_zero | secded | 0.0% [0.0,56.1] | 0.0% [0.0,56.1] | 100.0% | ? (unit not in map) |
+| pwf_v11_dram_pilot<br>fault_model=transient_bit_flip mem_addr_start=4194304 mem_addr_end=5242880 | none | 87.0% [79.0,92.2] | 0.0% [0.0,3.7] | 100.0% | E (DRAM backing store; secded via CHAOSMem protectionModel) |
+| pwf_v11_fpu_fmaw_rec_pilot<br>fpu_mode_fma_weighted=True fault_model=transient_bit_flip | none | 99.0% [94.5,99.8] | 0.0% [0.0,3.7] | 100.0% | A (RAS-out-of-scope: FSU unprotected) |
+| pwf_v11_fpu_modes_pilot<br>fpu_bitseg=sign fault_model=transient_bit_flip | none | 100.0% [96.3,100.0] | 0.0% [0.0,3.7] | 100.0% | A (RAS-out-of-scope: FSU unprotected) |
+| pwf_v11_fpu_modes_pilot<br>fpu_bitseg=exp_hi fault_model=transient_bit_flip | none | 100.0% [96.3,100.0] | 0.0% [0.0,3.7] | 100.0% | A (RAS-out-of-scope: FSU unprotected) |
+| pwf_v11_fpu_modes_pilot<br>fpu_bitseg=exp_lo fault_model=transient_bit_flip | none | 100.0% [96.3,100.0] | 0.0% [0.0,3.7] | 100.0% | A (RAS-out-of-scope: FSU unprotected) |
+| pwf_v11_fpu_modes_pilot<br>fpu_bitseg=mant_hi fault_model=transient_bit_flip | none | 100.0% [96.3,100.0] | 0.0% [0.0,3.7] | 100.0% | A (RAS-out-of-scope: FSU unprotected) |
+| pwf_v11_fpu_modes_pilot<br>fpu_bitseg=mant_mid fault_model=transient_bit_flip | none | 100.0% [96.3,100.0] | 0.0% [0.0,3.7] | 100.0% | A (RAS-out-of-scope: FSU unprotected) |
+| pwf_v11_fpu_modes_pilot<br>fpu_bitseg=mant_lo fault_model=transient_bit_flip | none | 99.0% [94.5,99.8] | 0.0% [0.0,3.7] | 100.0% | A (RAS-out-of-scope: FSU unprotected) |
+| pwf_v11_fpu_pilot<br>fault_model=transient_bit_flip | none | 100.0% [96.3,100.0] | 0.0% [0.0,3.7] | 100.0% | A (RAS-out-of-scope: FSU unprotected) |
+| pwf_v11_fpu_recurring_pilot<br>fpu_mode_recurring_stuck=True fault_model=recurring_result_stuck | none | 100.0% [96.3,100.0] | 0.0% [0.0,3.7] | 100.0% | A (RAS-out-of-scope: FSU unprotected) |
+| pwf_v11_l2_pilot<br>fault_model=transient_bit_flip target_block_addr=4325376 | none | 49.0% [39.4,58.7] | 0.0% [0.0,3.7] | 100.0% | ? (unit not in map) |
+| pwf_v11_rob_specleak_pilot<br>fault_model=intermittent_burst target_index=10 | none | 14.0% [8.3,22.5] | 0.0% [0.0,4.0] | 93.0% | A (RAS-out-of-scope: RAT unprotected, raw=escape) |
 | ras_formal_cholesky<br>phys_mode=arch_frontend target_index=0 fault_model=transient_bit_flip | none | 0.0% [0.0,1.1] | 0.0% [0.0,1.1] | 93.7% | F (RAS mechanism escape: exc_suppress swallows DUE) |
 | ras_regchain_pilot<br>phys_mode=arch_frontend target_index=0 fault_model=transient_bit_flip | none | 0.0% [0.0,43.5] | 0.0% [0.0,43.5] | 100.0% | F (RAS mechanism escape: exc_suppress swallows DUE) |
 | rat_cholesky_pilot<br>phys_mode=arch_frontend target_index=3 fault_model=transient_bit_flip | none | 0.0% [0.0,56.1] | 66.7% [20.8,93.8] | 100.0% | A (RAS-out-of-scope: RAT unprotected, raw=escape) |
@@ -142,6 +172,7 @@
 |---|---|---|---|---|---|---|---|
 | l1d | 97.7% | 100.0% | 97.66% | 5.6% | 5.46% | none | HIGH |
 | l1d_fwd | 90.9% | 100.0% | 90.89% | 5.6% | 5.09% | none | HIGH |
+| l2 | 50.0% | 100.0% | 50.00% | 1.5% | 0.75% | none | MED |
 | lsq_fwd | 37.6% | 100.0% | 37.57% | 11.9% | 4.45% | none | HIGH |
 | physreg | 3.9% | 100.0% | 3.91% | 8.3% | 0.33% | none | MED |
 | decode | 0.3% | 100.0% | 0.26% | 0.0% | 0.00% | none | LOW |

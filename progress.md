@@ -2257,3 +2257,26 @@ method2 三根因的定量闭环补最后两臂（AGU 臂已完成 100% DUE）�
 - **L2 pilot**(stencil,定向 grid_b 活块,fc=80000,n=100):**P_SDC=49.0% [39.4,58.7],Reach 100%,零 frozen**。
 
 **结论修正**:首轮"L2/DRAM 全 Masked"是**负载+方向伪影**(工作集在 L1/L2 内 + 未定向到活帧)。工作集超 LLC + 定向活帧后:DRAM 87% SDC、L2 49% SDC——**层级掩蔽梯度真实可测**(L2 的 51% Mask 来自 L1 副本/重取;DRAM 的 13% 来自缓存胜出),与 §1.2 protection-aware 的 none 档语义闭环。golden 回归 f247ef3fe6f02cfd ✅。
+
+### v1.1 Phase 12 完成（2026-09-08）: 集 B 复现 + 报告收尾 —— v1.1 补救轮（Phase 8–12）全部收官
+
+**集 B 复现**(集 A = node1 CPU / 集 B = node2+3 CPU(64-121,124-127),同 node1 内存,同 seed 同 manifest):
+| cell | 集 A 点估计 | 集 B 同 manifest 分类一致性 |
+|---|---|---|
+| FPU baseline(elemwise_fma) | 100.0% [96.3,100] | **20/20**(集 B 点估计 100% [83.9,100]) |
+| ROB spec_leak X10 | 14.0% [8.4,22.5] | **20/20**(n=20 子集点估计 5.6%——抽样差,逐 manifest 分类零分歧) |
+| L2 定向(stencil) | 49.0% [39.4,58.7] | **20/20** |
+| DRAM 定向(stream_triad) | 87.0% [79.0,92.2] | **20/20** |
+
+四组全部 "reproduced (same host, disjoint NUMA)",零冻结 cell——确定性仿真在同 seed 下跨 NUMA 集 bit 级一致,首轮"cpu179 污染"担忧在本轮不成立。
+
+**报告收尾**(docs/final-report-skeleton.md,5 处 v1.1 修正标注):
+1. 零风险带:FPU/Exec 0% 与 L2/DRAM 0% **作废**(注入点死路径 + 负载驻留缓存两层伪影;修正后 FPU ~100% SDC、L2 49%/DRAM 87%)。
+2. DFT 向量表 FP 行:0% 灵敏度→**高灵敏**(PRF-dest 重写后单 bit 即 SDC)。
+3. 保护投资表 L2/DRAM 行:沉没冗余→**流式 workload 必须覆盖**。
+4. ROB spec_leak 阴性作废(14.0% SDC,Reach 93% 过验收门)。
+5. 诚实边界 #2:单机 cpu179 → v1.1 全部健康机产出 + 四 cell 不相交 NUMA 复现。
+
+**ras_escape_analysis.py**:v1.1 十三个 campaign 的单元映射补齐(fsu/rat/l2/memory)+ l2 机理行;重跑 163 cells/78 campaigns 无 "unit not in map"。
+
+**v1.1 补救轮总结(Phase 8–12,17 commits 89832f6..本提交)**:四处首轮伪影(FPU 0% SDC / Exec 0% / L2-DRAM 0% / ROB spec_leak 阴性)全部修正为阳性,根因三类:① 注入点架构不可见(instResult 死路径)② 负载-工作集错配(归约 kernel + 缓存驻留)③ 探针设计缺陷(泄漏值无消费者)。修正后格局:**FPU ~100% / DRAM 87% / L2 49% / spec_leak 14% SDC**——数据通路与存储层是 SDC 主战场,与现场 method1/2/3 证据一致。附带修出 6 个真 bug(2 config 潜伏 bug、checksum FINAL= regex、golden 注册表错位、campaign wl 未定义、countOnly 析构不执行)。

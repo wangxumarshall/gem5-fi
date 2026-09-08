@@ -10,7 +10,10 @@
 - **核心定量格局**（三带结构，全部 n=384）：
   - **SDC 带**：L1D 命中数据 97.7% [95.6,98.8] > L1D post-check（ECC 后通路）90.9% [87.6,93.4] > LSQ 错源转发 37.6% [32.8,42.6] > PRF 低位 3.9% [2.4,6.3]
   - **DUE 带**：ExMon 100% > RAT map_bitflip 95.8% > FreeList mark_free 72–77% > RAT f5 59.7% > Decode 24.1% > LSQFwd byte_flip 27.6%
-  - **零风险带**（本 workload 族，上界 ~1%）：取指（L1I opcode/rn 臂 0%）、L2/DRAM 后备（0%）、执行/IQ 唤醒/BPU/RAS/Decode 主部、Mem addr_map_sub
+  - **零风险带**（本 workload 族，上界 ~1%）：取指（L1I opcode/rn 臂 0%）、IQ 唤醒/BPU/RAS/Decode 主部、Mem addr_map_sub
+  - ⚠️ **v1.1 修正（2026-09-08）**：本带中的 **FPU/整数执行（0%）与 L2/DRAM 后备（0%）已作废**——首轮数字是工具/负载伪影，非单元性质：
+    - FPU/Exec：注入点落在 `instResult` 队列（唯一消费者是未启用的 checker；FP/SIMD 走 `getWritableRegOperand` 直写 PRF）→ 注入架构不可见。PRF-dest 重写后，elemwise_fma 逐元素负载上 **FPU 单发 P_SDC=100% [96.3,100]**（n=100），fma_intermediate 位谱尾数占比 80%（≥70% 验收门，method3 方向复现），recurring 100%。
+    - L2/DRAM：负载工作集驻留 L1/L2 + 注入未定向到活帧 → 后备字节从不回读。大工作集（stencil 400KB / stream 6MB=12×L2）+ 定向窗口后：**L2 49.0% [39.4,58.7] / DRAM 87.0% [79.0,92.2]**（n=100）——层级掩蔽梯度（L1 副本/缓存胜出掩蔽 13–51%）。
 - **保护投资排序**（occupancy 加权，§4.2 表）：l1d 5.46% > l1d_fwd 5.09% > lsq_fwd 4.45%（HIGH 三兄弟）>> physreg 0.33%（MED）。排序对加权方案鲁棒（未加权同序）。
 
 ## 2. §4.2 三类交付物
@@ -22,9 +25,11 @@
 | 数据通路筛选 | l1d_reduce | 工作集驻留 L1D + load 密集 | checksum = f44d2b9cd4a173cd | 任意单字节错（97.7% 概率 checksum 不符） |
 | 转发路径筛选 | fwd_checksum_kernel | store→load 转发密集 | ac70ef3a46fd0825 | 错源数据（37.6% SDC；位谱=整字替换非位翻转） |
 | rename 一致性 | cholesky | O3 满窗口 | 37621bc0a633976f | rename-inconsistency panic（RAT 族 60–96% DUE） |
-| FP 路径回归 | gemm_float | FP 稠密 | golden | 单 bit XOR 全 Masked——**不推荐**做筛选向量（0% 灵敏度） |
+| FP 路径回归 | gemm_float | FP 稠密 | golden | ~~单 bit XOR 全 Masked——不推荐~~ **v1.1 修正：作废**。0% 是死注入路径伪影（见零风险带注）。PRF-dest 重写后 elemwise_fma 单 bit 即 ~100% SDC——FP 路径是**高灵敏**筛选向量 |
 
 method1 已证明 libc-only MRU 可作量产筛选；上述向量的"预期 vs 签名"列直接供产线使用。
+
+> ⚠️ **v1.1 修正（2026-09-08）——ROB/RAT spec_leak 阴性作废**：首轮"X3 泄漏被覆盖/X19 384/384 Inactive"是探针设计伪影（泄漏值无正确路径消费者）。v1.1 的 X10 泄漏窗口探针（定向 spec_leak，fc=25000）实测 **P_SDC=14.0% [8.4,22.5]，Reach 93%（n=100，验收门 90% 已过）**——method1 投机泄漏真实存在，窗口几何（mispredict-into-the-writer）决定每次抑制 ~14-15% 转化；泄漏可见性由消费者身份决定（X9/X3 定向臂全阴性为对照）。
 
 ### 2.2 保护投资排序（若只能给 N 个结构加保护）
 
@@ -35,7 +40,7 @@ method1 已证明 libc-only MRU 可作量产筛选；上述向量的"预期 vs �
 | 3 | **LSQ 转发源选择** | 37.6% | A（错源=合法域整字错） | 转发源 age/ID 校验 > ECC（形态定律：整字错源比位翻转危险 8 倍） |
 | 4 | PRF | 3.9%（低位窗） | A | 低位段（bit0-1）parity 可覆盖 SDC 窗；高位错必崩（DUE 可检） |
 | — | 取指通路（L1I） | 0% | 自掩蔽 | **无需数据级 ECC**（错误指令 squash/非法崩溃） |
-| — | L2/DRAM 后备 | 0% | 掩蔽梯度 | 对缓存驻留 workload 是沉没冗余 |
+| — | L2/DRAM 后备 | ~~0%~~ **v1.1 修正：定向活帧 + 大工作集下 DRAM 87% / L2 49%** | 掩蔽梯度（真实存在但首轮未测出） | 对缓存驻留 workload 冗余；对流式 workload（工作集 > LLC）**必须**覆盖 |
 
 **三条横断定律**（跨单元）：
 1. **合法域内错误是 SDC 核心形态**——错值全程合法（错源整字/活页 pfn/低位偏移）才静默传播；域外错必崩或自愈。
@@ -54,7 +59,7 @@ method1 已证明 libc-only MRU 可作量产筛选；上述向量的"预期 vs �
 ## 3. §4.3 诚实边界（报告必须随附）
 
 1. **代理模型**：gem5 v25.1 O3 是 V110 的行为代理（E3）——绝对值不可直接外推，趋势与相对排序是结论等级。C2 参数 = "Kunpeng-informed proxy"。
-2. **单机执行**：全部 formal 在 cpu179（已知故障机）上跑；**第二台健康机复现（S6）未做**——所有数字的可信度等级以此为条件。
+2. **单机执行**：首轮 formal 在 cpu179（已知故障机）；**v1.1 补救轮全部结果在健康 Linux 服务器（126 核，无 cpu179）上产出**，且四个关键 cell（FPU baseline / ROB spec_leak / L2 定向 / DRAM 定向）在**不相交 NUMA 集**（集 A=node1 CPU / 集 B=node2+3 CPU，同 node1 内存）上同 seed 复现：**20/20 同 manifest 同结局分类，四组零分歧**——标 "reproduced (same host, disjoint NUMA)"。
 3. **workload 覆盖**：SE 侧 6 个定向 kernel 族；FS 侧为内核 boot 稳态（无 userspace 定向）。SDC 带结论对 workload 族敏感（X3 跨 workload 反转已证明）。
 4. **FS oracle 限制**：fs_mode 分类 oracle = 内核存活——SDC 与 Masked 不可区分（TLB F5 活页 384/384 "Masked" 实为"0% Crash + 静默面未知"）。
 5. **统计口径**：所有 P 为"该故障模型下单次注入的条件概率"，非产品 FIT；CI 为 Wilson 95%。

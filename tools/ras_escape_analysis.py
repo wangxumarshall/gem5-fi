@@ -55,6 +55,14 @@ CAMPAIGN_UNIT = {
     "lsqfwd_formal": "lsq_fwd", "lsqfwd_fwd": "lsq_fwd", "lsqfwd_regchain": "lsq_fwd",
     "exmon_spinlock": "exmon",
     "fpu_neon": "fsu", "fpu_formal": "fsu",
+    # v1.1 Phase 9-12 campaigns (the corrected-artifact round).
+    "pwf_v11_fpu_pilot": "fsu", "pwf_v11_fpu_modes_pilot": "fsu",
+    "pwf_v11_fpu_fmaw_rec_pilot": "fsu", "pwf_v11_fpu_recurring_pilot": "fsu",
+    "p12_setB_fpu": "fsu",
+    "pwf_v11_rob_specleak_pilot": "rat",   # spec_leak lives in CHAOSRenameMap
+    "p12_setB_specleak": "rat",
+    "pwf_v11_l2_pilot": "l2", "p12_setB_l2": "l2",
+    "pwf_v11_dram_pilot": "memory", "p12_setB_dram": "memory",
     "mem_regchain": "memory", "mem_formal": "memory",
     "l1d_reduce": "l1d", "l1d_formal": "l1d",
     "exec_formal": "exec", "exec_regchain": "exec",
