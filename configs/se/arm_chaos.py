@@ -205,6 +205,20 @@ p.add_argument("--exec_events_to_skip", type=lambda x: int(x,0), default=-1,
 p.add_argument("--exec_count_only", action="store_true",
                help="v1.1 Phase 8.2 countOnlyMode: count eligible events "
                     "(CHAOS_ELIGIBLE_COUNT in log), never corrupt.")
+# v1.2 Phase 13 — CHAOSExec mode alignment (PRF-dest rewrite + modes).
+p.add_argument("--exec_bitseg", default="",
+               choices=["", "byte0", "byte1", "byte2", "byte3", "byte4",
+                        "byte5", "byte6", "byte7", "nibble"],
+               help="v1.2 Phase 13: flip bits ONLY within this byte/nibble "
+                    "of the INT result (empty = uniform).")
+p.add_argument("--exec_recurring_stuck", action="store_true",
+               help="v1.2 Phase 13: same fixed mask on every eligible INT "
+                    "result. Use with --max_faults 0.")
+p.add_argument("--exec_f3_dependent", action="store_true",
+               help="v1.2 Phase 13: corrupt only when the result value is "
+                    "within --exec_val_range.")
+p.add_argument("--exec_val_range", default="0,0",
+               help="mode f3 result-value window 'lo,hi' (0,0 = off).")
 # §2.6 CHAOSFPU (O3 FP/vector execution-unit injector). SELF-ATTACHES at
 # startup() to cpu.chaosFPU. Hooks DynInst::execute() post-execute; filters
 # opClass Float*/SimdFloat*; XORs FP result blob (IEEE754 sign/exp/mantissa).
@@ -533,6 +547,11 @@ if args.chaos_exec:
         eventsToSkip=(0xFFFFFFFFFFFFFFFF if args.exec_events_to_skip < 0
                       else args.exec_events_to_skip),
         countOnly=args.exec_count_only,
+        bitseg=args.exec_bitseg,
+        recurringStuck=args.exec_recurring_stuck,
+        f3Dependent=args.exec_f3_dependent,
+        valLo=int(args.exec_val_range.split(",")[0]),
+        valHi=int(args.exec_val_range.split(",")[1]),
         writeLog=True,
     )
     board.chaos_exec = ex

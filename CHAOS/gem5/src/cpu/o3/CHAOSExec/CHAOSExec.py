@@ -27,4 +27,17 @@ class CHAOSExec(SimObject):
     countOnly = Param.Bool(False,
         "v1.1 Phase 8.2 countOnlyMode: consume eligible events and print "
         "CHAOS_ELIGIBLE_COUNT=<n> at teardown, never corrupt.")
+    # v1.2 Phase 13 mode 2 — bitseg: integers have no IEEE754 fields; the
+    # analog is byte/nibble position within the 64-bit result.
+    bitseg = Param.String("", "int bit segment: byte0..byte7 | nibble "
+                              "('' = uniform whole-register pick)")
+    # mode 3 — recurring_result_stuck: same fixed mask on every eligible
+    # INT result (stuck ALU/multiplier output bit). Pairs with maxFaults=0.
+    recurringStuck = Param.Bool(False, "recurring_result_stuck mode")
+    # mode 4 — f3_data_dependent: corrupt only when the RESULT value's
+    # high byte falls in [valLo, valHi] (post-hoc operand proxy; the
+    # operands are gone post-execute).
+    f3Dependent = Param.Bool(False, "f3_data_dependent gate")
+    valLo = Param.UInt64(0, "f3 result-value window lower bound")
+    valHi = Param.UInt64(0, "f3 result-value window upper bound")
     writeLog = Param.Bool(True, "Write a fault_injections.log file")
