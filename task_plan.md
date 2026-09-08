@@ -222,7 +222,77 @@ CHAOSCHI/CHAOSNoC pilot 已能触发（7c854bb/7582e8c，未提交的 ruby test 
 1. **复现（集 B / NUMA node 1）**：每个进 report 的**非零 SDC 数**、以及本轮触及的对照数（L2 data 定向、DRAM addr_map_sub、FPU recurring、ROB spec_leak）在 NUMA node 1 上重跑同 manifest，结局分类一致 + P_SDC 点估计落在集 A 的 95% CI 内 → 标 "reproduced (same host, disjoint NUMA)"。不一致 → 冻结该 cell，查是 cpu179 污染共享 L3/内存控制器，还是工具非确定性。
 2. **报告收尾**：更新 `plans/microarch-fault-injection-report.md`（FPU §7 / ROB §4.2 / L2 §13 / DRAM §14 的"已修正"标注 + 位谱数据）；更新 `tools/ras_escape_analysis.py` 的逃逸分解（fpu/exec 等目前是 "? unit not in map"）。
 
-**v1.1 本轮不做（Phase 4–8，按结果再决定）**：整数执行 Exec（同 FPU 修法：CHAOSExec 加 `bitseg`+`recurring`+`f3` + `elemwise_int.c`）；IQ（`stale_plausible.c` + CHAOSIQ `tag_sub` F5 + `f3`）；PRF pilot 网格扩 formal + F3/F4 轴 + 单独排查 **ROB=160 整行掩蔽**（读 `rob.cc` / `numROBEntries=160` 与 IQ/LSQ 深度、`squashWidth` 相互作用）；BPU 返回栈/间接预测器 F5 + L1I imm/Rm/Rd/cond 字段 + sed vs secded 2-bit protection 对照；H7（PTW ECC on/off）FS formal（boot 期注入，用 `numactl` 钉健康核多核并行）。
+**v1.1 本轮不做（转入下方 v1.2 深化轮 Phase 13–17）**：整数执行 Exec 同款修法；IQ tag_sub/f3；PRF 网格扩 formal + F3/F4；ROB=160 掩蔽根因；BPU 返回栈/间接预测器 F5 + L1I protection 对照；H7 FS formal；真独立复现。
+
+---
+
+# ═══ v1.2 深化与收口轮（Phase 13–17）——补 v1.1 遗留 + 独立复现 ═══
+
+> **依据**：v1.1 补救轮（Phase 8–12）已在 `gem5-fi` HEAD `f9124d7` 收官（28 commits `4bf8d0d..f9124d7`，已核对——kernel/oracle/campaign 产物齐备）。四处首轮伪影（FPU/Exec/L2/DRAM 0% + spec_leak 阴性）中 **FPU/L2/DRAM/spec_leak 已修正为阳性**（FPU mant 83–92% / L2 49% / DRAM 85–88% / spec_leak X10 16.5%）。本轮补 v1.1 明确列出的遗留缺口 + 首次真正的第二机独立复现。
+> **执行环境**：同 v1.1——build + campaign 只在 Linux 服务器（健康机，`numactl` 钉有内存的 NUMA node）。本机仅写代码/提交/push，遵 `gem5-fi/CLAUDE.md`。
+> **深度策略**：pilot n=100 → 有信号或与 method1/2/3 直接对照的 cell 扩 formal n=384 + 5% 重放 + Wilson CI。
+
+## Phase 13 — 整数执行 Exec + 发射队列 IQ 同款修法（最高优先，直接类比刚推翻的 FPU）
+
+**Status: pending**
+
+1. **CHAOSExec 注入点重写为 PRF-dest 路径**（同 `bfa9c4f`）：整数结果走 `setRegOperand → cpu->setReg → regFile`，旧 `instResult` 队列是死路径（唯一消费者 checker=Null）——不重写则下列模式全部架构不可见。
+2. **CHAOSExec 模式对齐 FPU**：`bitseg`（整数无尾数 → 按 byte/nibble 段）/ `recurring_result_stuck`（Phase 8.4 契约已就绪）/ `f3_data_dependent`（操作数落 `--exec_operand_range` 才损坏）/ stuck-at。
+3. **新 kernel `elemwise_int_kernel.c`**（逐元素输出 + `array_hash`/`per_element_diff` oracle）；cholesky + reg_chain 作归约对照。
+4. **IQ 深化**：`stale_plausible_kernel.c`（过期值 = 上一轮的**合法**结果，不是垃圾——F6 能读 stale 的真实形态）+ CHAOSIQ `tag_sub`（F5：唤醒 tag 换成另一个合法 in-flight tag）+ `f3`。首轮 IQ 只测了 wake_omit/src_ready/wake_phase，`tag_sub` 是 deferred（`CHAOSIQ.py:19`）。
+5. **campaign**：`pwf-v12-exec.yaml` + `pwf-v12-iq.yaml`；pilot n=100 → formal n=384（Exec `recurring` on elemwise_int + cholesky；IQ `tag_sub` on madd_chain + cholesky）。
+6. **验收断言**：Exec 只有在**逐元素 kernel + recurring + f3 都跑过仍全 Masked**时，才可写"整数执行对 SDC 钝"——只有首轮的单发 F1 + 归约负载全 Masked 不构成该结论（同 FPU 教训）。报告 §6 定稿（撤 ⚠ 标注或改为定论）。
+
+**补丁数**：CHAOSExec 4–5 + CHAOSIQ 2 + kernel 2 + campaign 2 ≈ 10。
+
+## Phase 14 — 存储层级臂补全 + protection 对照
+
+**Status: pending**
+
+1. **CHAOSCache `targetField=tag`**（F5）：同 set 内换一个合法对齐 tag（不是随机翻位）——建模 tag SRAM 软错误命中合法别名。
+2. **victim/writeback 路径 hook**（`mem/cache/base.cc`）：victim buffer / 回写数据错。
+3. **L2 事务队列（TQ）地址 F5**。
+4. **L2 容量扫描** {256 / 512 / 1024 KiB}（`kp920_proxy` 已参数化，机械可跑）。
+5. **L2 + DRAM secded protection 档对照**（`local_mbu` 多位档已就绪 Phase 8.3）：raw vs secded_poison 的风险反转图，1/2/3-bit 各档。
+6. **DRAM `ecc_logic_fault` formal**（旋钮在，首轮只有 pilot）。
+7. **campaign**：`pwf-v12-l2-arms.yaml` + `pwf-v12-dram-ecc.yaml`；pilot → formal n=384（L2 tag F5 + L2 victim on stencil_5pt；DRAM secded on stream_triad）。
+8. **验收**：L2 victim（无保护）P_SDC 预期 > L2 data 定向（49%）；报告 §13/§14 补 victim/tag 行 + protection 反转图。
+
+**补丁数**：CHAOSCache 3–4 + campaign 2 ≈ 6。
+
+## Phase 15 — spec_leak 扩样 + ROB=160 掩蔽根因 + PRF 网格补 formal
+
+**Status: pending**
+
+1. **spec_leak X10 formal 扩到 n=384**（当前 n=128 / n_valid 121）：C0 + C2 双平台，把 16.5% [11.0,24.2] 的 CI 收窄。
+2. **ROB=160 整行掩蔽根因排查**：Phase 10 已发现"ROB 深度 96→128→160 → DUE 单调升 11.3→13.1→19.0%"梯度机理（深 ROB 拉长泄漏 physReg 所有权窗口 → rename 一致性先破坏）。用 readtrace 级分析确认 Phase 3 遗留之谜：ROB=160 下 X3 bit0 翻转是否落在 squash 边界 / 被关键路径重算覆盖。读 `rob.cc` `numROBEntries` × `squashWidth` × IQ/LSQ 深度交互。
+3. **PRF 位段/ABI 角色/窗口扫描 pilot 网格扩 formal n=384** + F3（数据相关触发）/ F4（stuck-at）轴——Phase 3.1 剩余子项。
+
+**补丁数**：工具 1–2 + campaign 3 ≈ 5。
+
+## Phase 16 — BPU 返回栈/间接预测 + L1I protection 对照
+
+**Status: pending**
+
+1. **BPU 返回地址栈预测器**（分支预测侧的 RAS，非异常 §17 的 RAS）+ **间接预测器 F5**（换成另一个合法跳转目标）。
+2. **squash 后架构态 == golden 联合观测**：强化"BPU 错但架构无恙"的确认（当前只有结局分类，没有架构态逐位比对）。
+3. **L1I imm/Rm/Rd/cond 字段替换**（当前只做了 opcode/rn）。
+4. **L1I sed vs secded 2-bit protection 对照**（N1：L1I data 是 SED、双比特静默）。
+5. pilot → formal n=384（BPU 间接预测 F5 on branchy；L1I imm 字段 on l1iloop）。
+
+**补丁数**：CHAOSBPU 2 + CHAOSCache(L1I) 2 + campaign 2 ≈ 6。
+
+## Phase 17 — H7 FS formal + 真·独立复现
+
+**Status: pending**
+
+1. **H7（PTW ECC on/off）boot 期注入 formal**（Phase 5 唯一剩项）：健康机 / `numactl` 钉核多核并行；restore from `cpt.100000000`（boot 早期 walk 密集期）+ PTW clear_valid + ECC {off, on} × n=384；FS boot ~30min + ~4min/rep。验收断言：ECC-on spurious ≈ 0 vs ECC-off > 0（分支原始 5-seed 数据的 formal 级确认）。
+2. **真·第二台健康机独立复现**（取代 Phase 12 的"同种子跨 NUMA bit 级一致"——那是确定性仿真必然结果，不算复现）：
+   - 关键 cell（L1D 97.7% / PRF X3 3.9 / RAT 95.8 / LSQFwd 37.6 / L1DForward 90.9 / FPU mant_hi 92.4 / DRAM 85.4 / L2 49.0 / spec_leak X10 16.5 / AGU 100% DUE）**换随机种子集**在健康机复跑 n=384。
+   - **未改动 cell 的跨机吻合**：L1D 97.7% 在健康机（新 gem5 build、不同 NUMA 域）重跑，点估计落入原 CI → 才证明首轮数字不是 cpu179 污染。
+   - 不一致 → 冻结该 cell，查工具非确定性 vs 平台污染。
+
+**补丁数**：主要是 campaign 跑批 + 复现脚本；代码改动 ≈ 2。
 
 ---
 
@@ -237,29 +307,32 @@ Phase 5 (FS 管线)          ← 依赖 Phase 4.4 (TLB F5)                      
 Phase 6 (元分析+复现)      ← 贯穿，每完成一个 Phase 更新一次                       in_progress
 Phase 7 (系统级)           ← 后置
 
---- v1.1 补救轮（首轮伪影修正，Linux 服务器 gem5-fi/，numactl 集 A=NUMA0 / 集 B=NUMA1）---
-Phase 8  (基础设施)        ← 解锁 9–11：非 hash oracle + 均匀采样 helper + 多位 ECC 档 + recurring 契约松绑
-Phase 9  (FPU)             ← 最高优先，直接与 method3 尾数 SDC（85–93%）冲突；fma_intermediate + recurring + bitseg(mant_*)
-Phase 10 (ROB spec_leak)   ← method1 核心假设，定向 kernel（X10 泄漏窗口）+ commit.cc squashAfter 定向 hook
-Phase 11 (L2/DRAM)         ← 大工作集 kernel（stencil_5pt / stream_triad）+ 定向注入，机械修负载伪影
-Phase 12 (复现+报告收尾)   ← 贯穿，集 B（NUMA1）复现 + report §7/§4.2/§13/§14 已修正标注
+--- v1.1 补救轮（首轮伪影修正，gem5-fi HEAD f9124d7 已收官）---
+Phase 8  (基础设施)        ✅ complete — 非 hash oracle + 均匀采样 helper + 多位 ECC 档 + recurring 契约松绑
+Phase 9  (FPU)             ✅ complete — PRF-dest 重写 + 六模式；svd mant_hi 92.4% / mant_lo 83.1% SDC (n=384)
+Phase 10 (ROB spec_leak)   ✅ complete — 定向 X10 探针；16.5% SDC (n=128) + 消费者身份定律三臂 + ROB 深度-DUE 梯度
+Phase 11 (L2/DRAM)         ✅ complete — stencil_5pt/stream_triad + 定向；L2 49.0% / DRAM 85.4% / addr_map_sub 88% SDC
+Phase 12 (复现+报告收尾)   ✅ complete — 集 B 同种子跨 NUMA 一致；report §7/§4.2/§13/§14 已修正
+
+--- v1.2 深化与收口轮（补 v1.1 遗留 + 真独立复现，Linux 健康机）---
+Phase 13 (Exec + IQ 同款修法)  ← 最高优先，直接类比刚推翻的 FPU：CHAOSExec PRF-dest 重写 + elemwise_int + IQ tag_sub
+Phase 14 (存储层级臂补全)      ← L2 tag F5 / victim / TQ + 容量扫描 + L2/DRAM secded protection 对照
+Phase 15 (spec_leak 扩样 + ROB=160 根因 + PRF 网格 formal)  ← spec_leak n=128→384；readtrace 排 ROB=160 掩蔽
+Phase 16 (BPU 返回栈/间接预测 + L1I protection)  ← 间接预测器 F5；L1I imm/Rm/Rd/cond + sed vs secded 2-bit
+Phase 17 (H7 FS formal + 真独立复现)  ← Phase 5 唯一剩项 + 换种子/第二机复现关键 cell（含未改动的 L1D 97.7%）
 ```
 
 补丁纪律：沿用 CLAUDE.md（一补丁一单元、真机自验证 100%、自动 push 到 fix/fi-tool-correctness）。**v1.1 补救轮（Phase 8–12）遵 `gem5-fi/CLAUDE.md`**：每补丁 `numactl --cpunodebind=0 --membind=0 -- scons ... -j16`（零新增警告）→ 真机跑受影响行为贴真实输出 → `reg_chain` golden `f247ef3fe6f02cfd` 回归 → commit + push；commit 尾注 `Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>`。campaign 跑批用后台；pilot n=100 先看 Reachability + 方向，formal n=384 + 5% 重放（不一致冻结）+ Wilson 95% CI。
 
 ## Next Step
 
-**Phase 1–4 已收官**；**Phase 5–6 in_progress**（剩 H7 formal）；**v1.1 Phase 8 已完成**（0a–0d 四补丁 89832f6/1d2abce/878db03/c6d09e6，全部真机验收 + golden 回归；三项附带发现见 Phase 8 小节——最重要的是 **CHAOSFPU/Exec 注入点架构不可见，Phase 9 patch 1a 必须重写 PRF-dest 路径**）。
+**Phase 1–4 收官；Phase 5–6 in_progress（H7 formal 移入 Phase 17）；v1.1 补救轮 Phase 8–12 全部收官**（`gem5-fi` HEAD `f9124d7`，28 commits `4bf8d0d..f9124d7` 已核对——kernel/oracle/campaign 产物齐备；FPU/L2/DRAM/spec_leak 四处首轮伪影已修正为阳性）。`microarch-fault-injection-report.md` 已同步 v1.1 结果。
 
-下一步（**Linux 服务器** `gem5-fi/`，分支 `fix/fi-tool-correctness`，`numactl --cpunodebind=1 --membind=1`——本机内存只在 node 1）：
+下一步（**Linux 健康机** `gem5-fi/`，分支 `fix/fi-tool-correctness`，`numactl` 钉有内存的 NUMA node）：
 
-1. **Phase 9 — FPU（最高优先，直接与 method3 冲突）**：
-   - **patch 1a（前置，Phase 8.1/8.2 新发现）**：CHAOSFPU 重写注入点为 PRF-dest 路径（hook 改 `getWritableRegOperand` 返回的 VecRegContainer / `setRegOperand→cpu->setReg` 整数路径），使 FSU 故障架构可见——这是首轮 FPU 0% SDC 的深层根因，不修则六模式全部无效。
-   - 六模式：`bitseg`（sign/exp_hi/exp_lo/mant_hi/mant_mid/mant_lo）/ `fma_intermediate`（E3 行为代理）/ `recurring_result_stuck`（Phase 8.4 契约已就绪）/ `rounding_sub` / `f3_data_dependent` / `fpsr_suppress`。
-   - `elemwise_fma_kernel.c`（输出整个 c[]，ARRAYHASH= + ULP=）+ `pwf-v11-fpu.yaml`（C2-KP，oracle fp_ulp + array_hash 兜底；uniform_sampling: true）。
-   - **验收门**：`fma_intermediate`/`bitseg(mant_*)` 位谱尾数占比 **≥ 70%**;`recurring_result_stuck` 的 P_SDC 显著高于单发 F1（若 recurring 也全 Masked 才可写"FSU 数据通路对 SDC 钝"）。
-2. **Phase 10 — ROB spec_leak**：`spec_leak_probe_kernel.c`（X10 泄漏窗口 1–2 条指令）+ commit.cc squashAfter 定向 hook（`spec_leak_arch_reg`）+ exc_suppress 真异常 kernel。
-3. **Phase 11 — L2/DRAM**：`stencil_5pt`（2× L2）/ `stream_triad`（4× LLC）+ 定向注入（targetBlockAddr / addr_start-end）。
-4. **Phase 12**：集 B（NUMA node 2/3 CPU + node 1 内存——本机 node 0 无内存）复现 + report §7/§4.2/§13/§14 标注。
+**Phase 13.1 — CHAOSExec 注入点重写为 PRF-dest 路径**（最高优先）。直接照搬 FPU 的 `bfa9c4f`：整数结果走 `setRegOperand → cpu->setReg → regFile`，旧 `instResult` 队列是死路径（唯一消费者 checker=Null）。这是 §6「整数执行 0% SDC」大概率是伪影的深层根因——FPU 改完这一处，0% 直接变 92%。
+- 真机验收：cholesky 上单发 F1，看是否首次出现非零 SDC / Masked 分布（对照 FPU `bfa9c4f` 的 4 seeds 2 SDC）；`reg_chain` golden `f247ef3fe6f02cfd` 回归。
 
-（并行可继续：Phase 5 H7 formal。）
+**接着 Phase 13.2–13.6**：CHAOSExec 六模式（byte/nibble bitseg / recurring / f3 / stuck-at）+ `elemwise_int_kernel.c` + IQ `tag_sub`(F5) + `stale_plausible_kernel.c` + `pwf-v12-exec.yaml`/`pwf-v12-iq.yaml`；pilot n=100 → formal n=384。验收：Exec 只有逐元素 kernel + recurring + f3 都跑过仍全 Masked，才可写「整数执行对 SDC 钝」。
+
+**并行可推进**：Phase 15.1（spec_leak X10 扩 n=384，收窄 16.5% 的 CI）、Phase 17.1（H7 boot 期 formal，健康机多核并行）——两者不依赖 Phase 13 的代码。

@@ -2307,3 +2307,19 @@ method2 三根因的定量闭环补最后两臂（AGU 臂已完成 100% DUE）�
 
 **新机理**:ROB 深度与 spec_leak 的 DUE-SDC trade-off(深 ROB→泄漏 physReg 所有权窗口长→rename 一致性先破坏);兼解释 C0/C2 平台差与首轮"ROB=160 整行掩蔽"之谜。
 **仍开放(诚实入 task_plan)**:L2 tag/victim/TQ 臂(需新注入器代码)、L2 size sweep、DRAM ecc_logic_fault formal、Exec/IQ 同款修法。
+
+### 规划更新（2026-09-08）: v1.1 收官核对 + v1.2 深化轮（Phase 13–17）并入
+
+**v1.1 补救轮核对**：`git fetch` 后 `gem5-fi` 本地由 `4bf8d0d` 快进到 `f9124d7`（28 commits `4bf8d0d..f9124d7`）。逐项核对 v1.1 产物齐备：`CHAOS/gem5/src/cpu/o3/chaos_event_sample.hh`、`tools/classify.py`+`tools/runner.py` 的 oracle_kind（array_hash/per_element_diff/fp_ulp）、kernel（elemwise_fma/spec_leak_probe/stencil_5pt/stream_triad/divzero_loop）、10 个 `campaigns/pwf-v11-*.yaml`、以及 `fe5c190..3526fba` 的 formal 补跑提交。**此前两轮"progress.md Phase 8–12 无仓库支撑"的判断作废——当时是本机 `git fetch` 遇 SSL 网络故障 + 本地 clone 停在旧 HEAD 所致的误判**。v1.1 四处首轮伪影修正属实：FPU mant_hi 92.4% / mant_lo 83.1%（svd n=384）、L2 49.0%（n=384）、DRAM 85.4%（n=384）+ addr_map_sub 88%、spec_leak X10 16.5%（n=128）。
+
+**task_plan.md 更新**：
+- Phase 8–12 保持 `Status: complete`（与 f9124d7 提交一致）。
+- 新增 **v1.2 深化与收口轮（Phase 13–17）**：
+  - **Phase 13 — Exec + IQ 同款修法**（最高优先，直接类比 FPU）：CHAOSExec 注入点重写为 PRF-dest（照搬 `bfa9c4f`；整数结果走 `setRegOperand→cpu->setReg→regFile`，旧 instResult 死路径）+ byte/nibble bitseg/recurring/f3/stuck-at + `elemwise_int_kernel.c` + IQ `tag_sub`(F5) + `stale_plausible_kernel.c`。验收：逐元素 kernel + recurring + f3 都跑过仍全 Masked 才可写"整数执行对 SDC 钝"。
+  - **Phase 14 — 存储层级臂补全**：CHAOSCache `targetField=tag`(F5) + victim/writeback hook + L2 TQ 地址 F5 + 容量扫描 {256/512/1024 KiB} + L2/DRAM secded protection 对照 + DRAM `ecc_logic_fault` formal。
+  - **Phase 15 — spec_leak 扩样 + ROB=160 根因 + PRF 网格 formal**：spec_leak X10 n=128→384（C0+C2）；readtrace 排 ROB=160 整行掩蔽（Phase 10 的 ROB 深度-DUE 梯度机理是线索）；PRF 位段/ABI/窗口 pilot 扩 formal + F3/F4 轴。
+  - **Phase 16 — BPU 返回栈/间接预测 F5 + L1I protection 对照**：间接预测器 F5 + squash 后架构态==golden 联合观测；L1I imm/Rm/Rd/cond 字段 + sed vs secded 2-bit。
+  - **Phase 17 — H7 FS formal + 真独立复现**：H7 boot 期注入 formal（健康机多核并行，Phase 5 唯一剩项）；关键 cell 换随机种子在**第二台健康机**复跑 + 未改动 cell（L1D 97.7%）跨机吻合验证（取代 Phase 12 的同种子跨 NUMA——那是确定性仿真必然结果）。
+- 执行顺序框图 + Next Step 重写：下一步 = **Phase 13.1 CHAOSExec PRF-dest 重写**；并行可推 Phase 15.1（spec_leak 扩样）+ Phase 17.1（H7 formal）。
+
+**microarch-fault-injection-report.md**：已由服务器同步为 v1.1 修正版（header 结果表核对 `f9124d7`，§7/§13/§14/§4.2 已推翻首轮 0%/阴性，§6 Exec 标 ⚠，§十 列明遗留缺口）——无需本会话再改。
