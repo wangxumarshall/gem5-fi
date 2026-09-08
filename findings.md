@@ -503,3 +503,13 @@ L2 arms campaign(stencil,n=100×4,零 frozen,Reach 100%):
 | backing_byte × secded | **0.0% [0,3.7]** |
 
 与 L2 data 面(47%→0)同构:**存储层的数据面单 bit 错是 ECC-可防的**;ECC 盲区集中在**合法域替换**(L2 tag 别名 39→47%、LSQ fwd_source_sub 37.6%、DRAM addr_map_sub 88%——合法值零 syndrome)。保护投资图景:数据阵列→ECC;合法域通路(tag/转发源/地址映射)→别名检测/age 校验/重放比较。
+
+### v1.2 Phase 14 ecc_logic_fault 臂(2026-09-08): ECC 逻辑故障击穿 secded — DRAM 数据面三臂闭环
+
+| cell(stream_triad 定向,n=100) | P_SDC [Wilson 95%] |
+|---|---|
+| backing_byte × none | 87.0% [79.0,92.2] |
+| backing_byte × secded | 0.0% [0,3.7] |
+| backing_byte × secded + **ecc_logic_fault(错纠)** | **85.0% [76.7,90.7]** |
+
+**DRAM 数据面保护三臂闭环**:ECC 把 87% 降到 0%,但 **ECC 校验逻辑自身的一位故障(错纠:1-bit 错被"纠正"到错的位)几乎完全恢复原始风险(85%)**——保护收益 100% 依赖 ECC 逻辑自身的正确性。§4.2 保护投资表新行:**ECC 逻辑自检(syndrome 全零校验/双通道校验)是数据面 ECC 的必要配套**。至此 Phase 14 的保护反转图完整:数据面 ECC 可防但需逻辑自检;合法域通路(tag 别名/错源转发/错位写)ECC 天生不防。

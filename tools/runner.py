@@ -418,6 +418,11 @@ def main():
             cmd += ["--addr_start", str(aw["start"])]
         if aw.get("end") is not None:
             cmd += ["--addr_end", str(aw["end"])]
+        # v1.2 Phase 14 (plan item 6): §2.17 ecc_logic_fault — the SECDED
+        # logic itself mis-corrects (1-bit err -> wrong-bit fix). Pairs with
+        # protection_model=secded.
+        if inj.get("ecc_logic_fault"):
+            cmd += ["--ecc_logic_fault"]
         # §2.17 addr_map_sub (F5, Phase 4.6): manifest fault.model
         # stuck_at_one -> displaced-write mode (the displaced 8B write is
         # effectively a 'stuck' wrong-location copy).
