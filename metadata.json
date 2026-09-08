@@ -1,0 +1,35 @@
+{
+  "cli_version": "0.10.2",
+  "checkpoint_id": "01M1ZA3M3XKSH7WC9YSDAD5CTK",
+  "strategy": "manual-commit",
+  "branch": "fix/fi-tool-correctness",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "artifacts/pwf_v11_dram_pilot/heatmap.csv",
+    "artifacts/pwf_v11_dram_pilot/summary.md",
+    "artifacts/pwf_v11_l2_pilot/heatmap.csv",
+    "artifacts/pwf_v11_l2_pilot/summary.md",
+    "campaigns/pwf-v11-dram-pilot.yaml",
+    "campaigns/pwf-v11-l2-pilot.yaml",
+    "schemas/manifest.schema.json",
+    "tools/campaign.py",
+    "tools/classify.py",
+    "tools/runner.py"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 19770554,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 17998,
+    "api_call_count": 51
+  }
+}
