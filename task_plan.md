@@ -234,7 +234,14 @@ CHAOSCHI/CHAOSNoC pilot 已能触发（7c854bb/7582e8c，未提交的 ruby test 
 
 ## Phase 13 — 整数执行 Exec + 发射队列 IQ 同款修法（最高优先，直接类比刚推翻的 FPU）
 
-**Status: pending**
+**Status: complete（2026-09-08，pilot 轮全过验收断言；formal 排深度策略）**
+
+1. ✅ **CHAOSExec PRF-dest 重写 + 模式对齐**（e4684e9）：bitseg(byte0-7/nibble)/recurring/f3(值域 gate)。真机可见性:reg_chain 4 seeds → 1 Crash(注入值→非法地址 0x7ffffffcc0)+ 3 Masked。首轮"Exec 全 Masked"作废。
+2. ✅ **elemwise_int_kernel**（4449933）：c[i]=(a*b)^((a+b)>>3) 全数组输出;fixed-skip 进 compute pass → SDC(be7df038≠ee7df038);geometric 总落 init 段(INT 事件密集死值)——campaign 必须 uniform_sampling。
+3. ✅ **Exec campaigns**（50e2cca,uniform_sampling,n=100×3,零 frozen）:**elemwise 单发 68.0% [58.3,76.3] SDC + 20% DUE;recurring 100% DUE;cholesky 归约 10.1% SDC / 52.5% DUE**。**新定律 INT-vs-FP 结局结构**:FPU recurring 100% SDC(错浮点仍是合法值)vs Exec recurring 100% DUE(错整数常变非法指针)——整数通路 SDC+DUE 双高、浮点通路纯 SDC,保护策略不同。
+4. ✅ **stale_plausible_kernel + IQ 三模式**（b498b9c/be6e2ae,n=100×3,Reach 100%）:src_ready_bitflip(=tag_sub 语义)/wake_phase 双 0% SDC(错唤醒被循环重算吸收);**wake_omit 58.0% [48.2,67.2] DUE**(丢唤醒→双链重试风暴→Hang,手动验证单 run 410 分钟活锁)。**IQ 唤醒类故障 SDC-钝但非无害——风险形态是可用性(Hang),非数据完整性**;首轮"全 Masked"半对(漏了 DUE 面)。
+5. ✅ **验收断言落笔**(计划规则:全模式+逐元素 kernel 跑过才可写钝):Exec 不钝(68% SDC);IQ 数据面钝(0/300)但 DUE 面 58%。
+6. ⏳ formal n=384(Exec elemwise 单发/recurring + IQ wake_omit)排深度策略。
 
 1. **CHAOSExec 注入点重写为 PRF-dest 路径**（同 `bfa9c4f`）：整数结果走 `setRegOperand → cpu->setReg → regFile`，旧 `instResult` 队列是死路径（唯一消费者 checker=Null）——不重写则下列模式全部架构不可见。
 2. **CHAOSExec 模式对齐 FPU**：`bitseg`（整数无尾数 → 按 byte/nibble 段）/ `recurring_result_stuck`（Phase 8.4 契约已就绪）/ `f3_data_dependent`（操作数落 `--exec_operand_range` 才损坏）/ stuck-at。

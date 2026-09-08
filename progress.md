@@ -2323,3 +2323,11 @@ method2 三根因的定量闭环补最后两臂（AGU 臂已完成 100% DUE）�
 - 执行顺序框图 + Next Step 重写：下一步 = **Phase 13.1 CHAOSExec PRF-dest 重写**；并行可推 Phase 15.1（spec_leak 扩样）+ Phase 17.1（H7 formal）。
 
 **microarch-fault-injection-report.md**：已由服务器同步为 v1.1 修正版（header 结果表核对 `f9124d7`，§7/§13/§14/§4.2 已推翻首轮 0%/阴性，§6 Exec 标 ⚠，§十 列明遗留缺口）——无需本会话再改。
+
+### v1.2 Phase 13 完成（2026-09-08，e4684e9/4449933/50e2cca/b498b9c/be6e2ae）
+
+Exec+IQ 同款修法全部落地(pilot 轮,验收断言全过):
+- **Exec PRF-dest 重写**:首轮"全 Masked"作废——elemwise_int 单发 **68.0% SDC** / cholesky 归约 **52.5% DUE** / recurring **100% DUE**。**INT-vs-FP 结局结构定律**(FPU recurring 100% SDC vs Exec recurring 100% DUE:错浮点仍是合法值,错整数常变非法指针)。
+- **IQ 三模式全测**:src_ready_bitflip/wake_phase 0% SDC(重算吸收);wake_omit **58% DUE**(活锁)。IQ 风险形态=可用性,非数据完整性。
+- 新 kernel:elemwise_int(ee7df038)/stale_plausible(d882ffba),均 native==gem5 + golden 注册。
+- 教训:elemwise_int 上 geometric 采样总落 init 段死值——uniform_sampling 是 campaign 必选项;wake_omit 手动跑活锁 410 分钟——Hang 类结局必须走 campaign 的 timeout 分类。
