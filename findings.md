@@ -397,3 +397,21 @@ exec（IntAlu XOR）/ bpu（dir_flip）在 reg_chain 上 formal 384/384 全 Mask
 | fpu_bitseg=mant_lo | 384 | **83.1% [79.0,86.5]** | 0% | 100% [99,100] | no |
 
 **结论**:① method3 尾数谱在第二个 workload(svd_iterative,SVD 迭代归约型 FP)formal 级确认——尾数段单 bit 翻转 83-92% SDC;② **mant_hi(92.4%)> mant_lo(83.1%)的位段梯度真实存在**(高位尾数翻转逃逸更多,与 IEEE754 数值敏感度一致);③ 与 elemwise_fma 的平顶 100% 对照:归约型负载的 Masked 份额(8-17%)来自部分元素被后续迭代覆盖/吸收——负载消费模式决定 SDC 结构。首轮"FPU 0% SDC"作废结论再次加固。
+
+### v1.1 Phase 10 formal 轮(补):spec_leak 三寄存器 formal — 消费者身份定律 formal 级确认(2026-09-08)
+
+| cell(arch_reg) | n | P_SDC [Wilson 95%] | Reach | frozen | 解读 |
+|---|---|---|---|---|---|
+| **X10**(探针钉死的泄漏目标) | 128 | **16.5% [11.0,24.2]** | 94.5% [89.1,97.3] | no | 泄漏真实:抑制回滚→wrong-path 值进入正确路径消费者;formal 与 pilot(14.0%)一致 |
+| X9 | 128 | —(0 valid) | **0%** | no | kernel 不写 X9→抑制从未触发(128/128 Inactive)——"无目标写者"阴性 |
+| **X3** | 128 | 0.0% [0,2.9] | **100%** | no | X9 对照的关键臂:X3 有 rename 写者、抑制触发(Reach 100%),但泄漏值被正确路径覆盖→**0% SDC**——"有写者无消费者"阴性 |
+
+**消费者身份定律 formal 级闭环**:泄漏可见性 = 被抑制的写有没有正确路径消费者(X10 有→16.5%;X3 写者存在但消费者读的是覆盖后的值→0%;X9 连写者都没有→不触发)。method1 投机泄漏的 per-suppression 转化率 ~16%,窗口几何(mispredict-into-the-writer)是瓶颈。首轮"spec_leak 阴性"作废结论 formal 加固。
+
+### v1.1 Phase 11 formal 轮(补):L2 定向 formal(2026-09-08)
+
+| cell | n | P_SDC [Wilson 95%] | Reach | frozen |
+|---|---|---|---|---|
+| L2 data 定向(stencil, target_block_addr=0x420000) | 384 | **49.0% [44.0,53.9]** | 100% [99,100] | no |
+
+与 pilot 点估计完全一致(49.0%→49.0%),CI 从 [39.4,58.7] 收窄到 [44.0,53.9]——L2 层 51% 的 L1 副本/重取掩蔽是稳定结构,非抽样噪声。
