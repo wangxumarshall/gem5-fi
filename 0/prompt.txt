@@ -1,0 +1,5 @@
+/goal /executing-plans 继续执行task_plan，记得按时更新task_plan\findings和progress这三个文档。要求必须诚实、不能欺骗。
+
+---
+
+/goal /executing-plans 继续执行task_plan，记得按时更新task_plan\findings和progress这三个文档。要求必须诚实、不能欺骗。
