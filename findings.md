@@ -415,3 +415,11 @@ exec（IntAlu XOR）/ bpu（dir_flip）在 reg_chain 上 formal 384/384 全 Mask
 | L2 data 定向(stencil, target_block_addr=0x420000) | 384 | **49.0% [44.0,53.9]** | 100% [99,100] | no |
 
 与 pilot 点估计完全一致(49.0%→49.0%),CI 从 [39.4,58.7] 收窄到 [44.0,53.9]——L2 层 51% 的 L1 副本/重取掩蔽是稳定结构,非抽样噪声。
+
+### v1.1 Phase 11 formal 轮(补):DRAM 定向 formal(2026-09-08)
+
+| cell | n | P_SDC [Wilson 95%] | Reach | frozen |
+|---|---|---|---|---|
+| DRAM backing_byte 定向(stream_triad, 窗口[4MB,5MB]) | 384 | **85.4% [81.5,88.6]** | 100% [99,100] | no |
+
+pilot 点估计 87.0% 落在 formal CI [81.5,88.6] 内,一致性确认。DRAM 层 15% 的缓存胜出掩蔽稳定。
