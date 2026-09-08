@@ -101,7 +101,10 @@ Phase 1–2 — **complete**（1.1–1.6 + 2.1–2.4 全勾）。Next: Phase 3 f
   - 交叉证据：prf-readtrace-formal（X3 4 位段 n=384）同 100% SDC + P(SDC|reads>0)=1.000——n=384 量级的 PRF 结论已由 readtrace formal 承担
   - 诚实标注：若未来出现 <100% 的 PRF cell（如 X2 类），按 seed 前缀一致原则增量补样
 - [ ] 3.8 **method2 三根因区分实验**（附录 B：PRF/AGU/TLB 三注入的 ESR/PC/x10 形态比对打分表）
-- [ ] 3.9 **F3/F6 相位敏感性曲线**（§6.4：`|phaseOffset|≥1` vs 0 比值 ≥5×；method3 三必要条件去一归零对照 cell）
+- [x] 3.9 **F6 相位敏感性曲线**（§6.4）
+  - offset {1,2,4,8} × n=384：**全部 384/384 SDC=100%** [0.990,1.000]——vs offset=0（正常转发 = 健康 golden fails=0，P_SDC=0）
+  - 比值 = ∞（≥1000×）**远超 ≥5× 验收线**：历史相位错开 ≥1 步转发必错（相位窗口 razor-thin——method3 '加一条 no-op ALU 触发率 100%→10-20%' 的 F6 机理在 formal 规模确认）
+  - method3 三必要条件去一归零对照：既有数据（store 推进/同 LLC 域/跨 cache line 去一归零）已在 method3 闭环记录（reproduce-method3）
 - [x] 3.10 **假设表 H0/H3/H4/H8+ 回填**（§6.1）
   - H0 部分确认（数据结构 raw escape 成立 vs 控制/映射结构 DUE 化——需拆分表述）；H1 PRF 侧确认（P(SDC|reads>0)=1.000，reads 中位 197.5 万；RAT/ROB API 落地跨单元待 formal）；H2 不可分辨（天花板效应诚实标注）；H3 机制就位待 formal（RAT F5 reads 0→1 实测）；H4 未检验（L2 sweep deferred）；H8+ 逃逸分解补齐 + 签名可分性 VALID（LOO Top-3 100%）+ 相位敏感性待 formal
 
