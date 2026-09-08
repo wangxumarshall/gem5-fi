@@ -2331,3 +2331,13 @@ Exec+IQ 同款修法全部落地(pilot 轮,验收断言全过):
 - **IQ 三模式全测**:src_ready_bitflip/wake_phase 0% SDC(重算吸收);wake_omit **58% DUE**(活锁)。IQ 风险形态=可用性,非数据完整性。
 - 新 kernel:elemwise_int(ee7df038)/stale_plausible(d882ffba),均 native==gem5 + golden 注册。
 - 教训:elemwise_int 上 geometric 采样总落 init 段死值——uniform_sampling 是 campaign 必选项;wake_omit 手动跑活锁 410 分钟——Hang 类结局必须走 campaign 的 timeout 分类。
+
+### v1.2 Phase 14 完成（2026-09-08，476db18..5e86d3a 共 7 commits）
+
+存储层级臂补全 + protection 对照全部落地(pilot 级,n=100/cell,零 frozen):
+- **L2 tag F5**(合法别名):ECC 盲区实证(secded 下 47% 不降)——合法值零 syndrome,任何 ECC 检不出"位是对的但值是错的"。
+- **victim/writeback hook**:BaseCache::writebackBlk 静态注册表;53.0% vs data 47%(无显著差,诚实记录)。
+- **DRAM 三臂闭环**:none 87% / secded 0% / secded+ecc_logic_fault 85%——ECC 收益 100% 依赖逻辑自身正确。
+- **容量扫描平**(49-52%)——定向单块对容量不敏感。
+- 修 1 个真 bug:TaggedEntry::insert 的 !isValid() 断言(须先 invalidate 再 insert)。
+**保护投资图景定稿**:数据阵列→ECC+逻辑自检;合法域通路(tag/转发源/地址映射)→别名检测/age 校验,非 ECC。

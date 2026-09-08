@@ -254,7 +254,16 @@ CHAOSCHI/CHAOSNoC pilot 已能触发（7c854bb/7582e8c，未提交的 ruby test 
 
 ## Phase 14 — 存储层级臂补全 + protection 对照
 
-**Status: pending**
+**Status: complete（2026-09-08，pilot 轮全过；formal 排深度策略）**
+
+1. ✅ **L2 tag F5**（476db18）：合法对齐别名 tag 替换(invalidate+insert);3 seeds 2 SDC。**L2 2×2 arms**(23d766f):data×secded **47%→0%**(ECC 全纠)vs **tag×secded 39%→47%**(ECC 盲区——合法值零 syndrome)。附带修真 bug:TaggedEntry::insert 断言 !isValid()→必须先 invalidate。
+2. ✅ **victim/writeback hook**（6bbd8cd/5e86d3a）：BaseCache::writebackBlk 静态注册表 + 回写包在途翻转;**victim 53.0% [43.3,62.5]** vs data 定向 47%(方向符合预期但 CI 重叠,无显著差——强制逐出下两注入点暴露面等价,诚实记录)。
+3. ✅ **L2 容量扫描**（593d522,提前完成）：256K/512K/1M = 50/52/49%(平,定向单块对容量不敏感)。
+4. ✅ **DRAM protection 对照**（00a3c1f）：backing_byte×secded **87%→0%**。
+5. ✅ **ecc_logic_fault**（278ed87）：secded+逻辑故障 **85%**——ECC 校验逻辑一位错(错纠)几乎完全恢复原始风险。**DRAM 数据面三臂闭环**(none 87/secded 0/secded+逻辑故障 85)。
+6. ⏳ formal n=384 排深度策略;**TQ 地址 F5 未做**(诚实标注:classic cache 无独立 TQ 队列结构可挂,E3 限制)。
+
+**Phase 14 保护反转图**(入报告 §13/§14):数据面 ECC 可防(但需 ECC 逻辑自检,否则 85% 击穿);合法域通路(tag 别名 47%/错源转发/错位写)ECC 天生不防;victim≈data;容量不敏感。
 
 1. **CHAOSCache `targetField=tag`**（F5）：同 set 内换一个合法对齐 tag（不是随机翻位）——建模 tag SRAM 软错误命中合法别名。
 2. **victim/writeback 路径 hook**（`mem/cache/base.cc`）：victim buffer / 回写数据错。
