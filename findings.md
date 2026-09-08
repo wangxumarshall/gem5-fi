@@ -468,3 +468,16 @@ pilot 点估计 87.0% 落在 formal CI [81.5,88.6] 内,一致性确认。DRAM �
 | 单发 transient | cholesky(归约) | 10.1% [5.6,17.6] | **52.5%** | 归约负载下 DUE 主导(错值→非法指针) |
 
 **新定律:INT vs FP 数据通路的结局结构差**——FPU recurring 100% SDC(错浮点数仍是合法值)vs Exec recurring 100% DUE(错整数常变非法指针/控制流);elemwise 上 INT 单发 68% SDC + 20% DUE vs FP 单发 ~100% SDC。**整数通路是 SDC+DUE 双高风险,浮点通路是纯 SDC 风险**——保护策略不同(INT 需指针校验/奇偶,FP 需数值 ECC)。
+
+### v1.2 Phase 13 IQ 侧完成(2026-09-08,b498b9c + 本提交): 三模式全测 — 唤醒类故障是 DUE/Hang 形态,非 SDC
+
+**stale_plausible_kernel**(b498b9c):双独立生产者链 + 每轮双读消费者——wrong-source 唤醒下早发射的消费者读到的是生产者**上一轮的合法值**(F6 stale-legal 真实形态,tag/ECC 检不出)。golden d882ffba...4cd0。
+
+**IQ 三模式 campaign(stale_plausible,n=100 each,零 frozen,Reach 100%)**:
+| 模式 | P_SDC | P_DUE | 解读 |
+|---|---|---|---|
+| src_ready_bitflip(F5 错源唤醒=tag_sub 语义) | 0.0% [0,3.7] | 0% | 单次错唤醒被循环自然重算吸收 |
+| wake_phase(F6 相位延迟) | 0.0% [0,3.7] | 0% | 同上;相位差在宽裕调度下无效果 |
+| wake_omit(F6 丢唤醒) | 0.0% [0,3.7] | **58.0% [48.2,67.2]** | 丢唤醒→双链重试风暴→**Hang/DUE 主导**(手动验证:单 run 410+ 分钟 CPU 活锁) |
+
+**结论(验收断言按计划规则落笔)**:IQ 唤醒类故障在逐元素 kernel + 三模式全测后仍全 SDC-钝(0% [0,3.7]×3)——但**不是无害**:wake_omit 58% DUE。**IQ 单元的风险形态是可用性(Hang),不是数据完整性(SDC)**——首轮"全 Masked"部分成立(数据面)但漏掉了 DUE 面(负载无重试压力时全 Masked,stale_plausible 的双链重试才暴露 Hang)。tag_sub 语义由 src_ready_bitflip 承担(唤醒另一条合法 in-flight 链的依赖者),已覆盖。
