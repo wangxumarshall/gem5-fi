@@ -2447,3 +2447,11 @@ Exec(69.5%/recurring 100% DUE)、IQ(63.5% DUE)、L2 arms(0% vs 51.2%)五 cell fo
 ### v1.3 Phase 19.1 完成(2026-09-08): C2-KP 配置对齐 — 平台效应结构图景
 
 FPU(mant_hi 100%/mant_lo 91.1%)、Exec(0% SDC+52.1% DUE)、DRAM(30.2%)三项头条 C2 formal 完成。**平台效应三例定型**:FP 通路稳定/INT 通路全 DUE 化/DRAM 显著降(机理 open)。附带修 kp920 FPU 模式旋钮缺失。§十.9 配置 caveat 可撤(FPU/Exec/DRAM/spec_leak 四头条双平台)。
+
+### v1.3 收口轮(Phase 18–19)完成（2026-09-08，8d296c5..319b225）
+
+- **Phase 18 formal 补跑**:11 cell × n=384 全零 frozen,11 个 pilot 点估计全落入 formal CI;新发现 Exec C2 臂全 DUE 化(平台定律第二例)。
+- **Phase 19.1 C2 对齐**:FPU(mant_hi 100%/mant_lo 91.1%,稳定)、Exec(0%+52.1% DUE)、DRAM(30.2%,显著差,机理 open)——**平台效应结构定律**入报告第四横断定律;§十.9 caveat 四头条可撤;修 kp920 FPU 旋钮缺失。
+- **Phase 19.2-19.4 元分析定稿**:逃逸分解 230 cells/114 campaigns;§4.2 formal 级 8 行表(新增 INT 指针校验/L2 tag 别名检测/ECC 逻辑自检三行);§4.3 诚实边界 10 条(平台敏感性标注/真独立复现阻塞/formal 覆盖度/H7 语义/21-bug 史)。
+
+**Phase 20(遗留单元,低优先可选)未启动**——计划原文要求用户拍板(§23 NoC 窄版 vs scope-cut),诚实保持 pending。
