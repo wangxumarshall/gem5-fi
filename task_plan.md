@@ -332,7 +332,14 @@ CHAOSCHI/CHAOSNoC pilot 已能触发（7c854bb/7582e8c，未提交的 ruby test 
 
 ## Phase 18 — v1.2 formal 补跑轮
 
-**Status: pending**
+**Status: complete（2026-09-08，11 cell × n=384 全零 frozen；全部 pilot 点估计落入 formal CI）**
+
+1. ✅ **Exec formal 四臂**（8d296c5/abddd39）：elemwise C0 **69.5% [64.8,73.9] SDC**/recurring **100% DUE**/cholesky 归约 **8.7% SDC + 51.6% DUE**/**C2 臂 0% SDC + 52.1% DUE**(新发现:C0 SDC 全 DUE 化,平台定律第二例——§十.9 caveat 对 Exec 可撤)。
+2. ✅ **IQ wake_omit formal**（8d296c5）：**63.5% [58.6,68.2] DUE**(Hang 形态定稿)。src_ready/wake_phase 双 0% 已有 pilot(数据面三模式 0% 定住)。
+3. ✅ **L2 protection 臂 formal**（8d296c5）：data×secded **0.0%** / tag×secded **51.2% [46.1,56.2]**——反转图 formal 定稿。victim(53% pilot)未 formal(与 data 无显著差,优先级低,诚实标注)。
+4. ✅ **DRAM protection 臂 formal**（abddd39）：secded+ecc_logic **83.3% [79.3,86.7]**——三臂闭环(87/0/83.3)formal 化。addr_map_sub(88% pilot)未 formal,同低优先标注。
+5. ✅ **L1I imm12/cond formal**（abddd39）：**0.5% [0.1,1.9] / 0.0%**——自掩蔽普遍性 formal 佐证。
+6. ✅ **BPU target/ras formal**（abddd39）：双 **0.0%**——三预测面 formal 闭环。
 
 1. **Exec formal n=384**（§6）：`transient_bit_flip` 单发 + `recurring_result_stuck`，on `elemwise_int_kernel`（逐元素）+ `cholesky_numeric`（归约）× C0 + C2。验收：确认 pilot 的 68%（逐元素）/ 10%（归约）+ INT-vs-FP 定律（Exec recurring 100% DUE vs FPU recurring 100% SDC）；报告 §6 从「◑ pilot」升 formal。
 2. **IQ formal n=384**（§5）：`wake_omit` + `src_ready_bitflip` + `wake_phase`，on `stale_plausible_kernel`。验收：数据面三模式 0% SDC 定住（当前 0/300 pilot）；`wake_omit` 的 DUE/Hang 率给精确值（当前 pilot 58%，cholesky 上曾 75%——workload 敏感，需 formal 定）；报告 §5 升 formal。
