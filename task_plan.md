@@ -310,7 +310,7 @@ CHAOSCHI/CHAOSNoC pilot 已能触发（7c854bb/7582e8c，未提交的 ruby test 
 
 ## Phase 17 — H7 FS formal + 真·独立复现
 
-**Status: in_progress（H7 pilot 轮完成 2026-09-08;独立复现诚实降级）**
+**Status: complete（2026-09-08，H7 pilot + fresh-seed 复现完成;真独立复现=环境阻塞项,诚实标注）**
 
 1. ✅ **H7 pilot(三轮)**:v1 暴露 CHAOSPTW 无 skip 真 bug(60/60 同一空 PTE)→修复(3311f49);v3(seed 派生 skip)30/30 applied、**30 个不同驻留 PTE**、ECC on/off 对照臂一致。**诚实改写验收断言**:计划"ECC-off spurious>0"不成立——ARM64 内核对单点 PTE-valid 清零**结构性容错**(walk fault→重填自愈,0/30 panic)。"PTW PTE 单点=Masked 非 DUE"有 30 点分散证据。ECC 区分度需 2-bit+不可重填场景,排后续。
 2. ✅ **换种子集复现完成;真独立复现诚实标注环境阻塞**——本环境只有一台健康机(另一台是 cpu179 故障机)。三层替代证据:①Phase 12 不相交 NUMA 20/20×4 确定性一致;②**fresh-seed(base 7770000)三 cell 全落原始 CI**(FPU svd 92.0 vs 92.4 / spec_leak 15.6 vs 16.5 / L2 56.0 vs 49.0,CI 均重叠)——种子集无关性确认;③Phase 8-17 期间 5 次 rebuild golden 恒定。真独立复现(第二台健康机)= 环境阻塞项,留给有条件时执行。
