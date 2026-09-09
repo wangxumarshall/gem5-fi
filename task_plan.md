@@ -325,6 +325,48 @@ CHAOSCHI/CHAOSNoC pilot 已能触发（7c854bb/7582e8c，未提交的 ruby test 
 
 ---
 
+# ═══ v1.3 收口轮（Phase 18–20）——formal 补跑 + 配置对齐 + 元分析定稿 ═══
+
+> **依据**：v1.2 Phase 13–17 的 `Status: complete` 是「pilot 轮验收断言落笔」的意思——**§5 IQ / §6 Exec / §13 L2 protection 臂 / §14 DRAM protection 臂 / §12 L1I 六字段 / §16 BPU 的 F5 臂全部只到 n=100 pilot，formal 明确 deferred「排深度策略」**。这和 v1.1 之后的「formal 补跑轮」（`fe5c190..3526fba`）是同一个模式——pilot 定方向、补跑轮出可信数。本轮把这些补齐 + 解决 C0/C2-KP 配置不统一 + 定稿 §4 元分析。
+> **执行环境**：同前——Linux 健康机，`numactl` 钉有内存的 NUMA node。每 campaign：formal n=384 + 5% 重放（不一致冻结）+ Wilson 95% CI；结果逐项入 findings + report。
+
+## Phase 18 — v1.2 formal 补跑轮
+
+**Status: pending**
+
+1. **Exec formal n=384**（§6）：`transient_bit_flip` 单发 + `recurring_result_stuck`，on `elemwise_int_kernel`（逐元素）+ `cholesky_numeric`（归约）× C0 + C2。验收：确认 pilot 的 68%（逐元素）/ 10%（归约）+ INT-vs-FP 定律（Exec recurring 100% DUE vs FPU recurring 100% SDC）；报告 §6 从「◑ pilot」升 formal。
+2. **IQ formal n=384**（§5）：`wake_omit` + `src_ready_bitflip` + `wake_phase`，on `stale_plausible_kernel`。验收：数据面三模式 0% SDC 定住（当前 0/300 pilot）；`wake_omit` 的 DUE/Hang 率给精确值（当前 pilot 58%，cholesky 上曾 75%——workload 敏感，需 formal 定）；报告 §5 升 formal。
+3. **L2 protection 臂 formal n=384**（§13）：`data × {none, secded}` + `tag F5 × {none, secded}` + `victim`，on `stencil_5pt`。验收：protection 反转图（数据面 47→0 / tag 别名 39→47 ECC 盲区 / victim ≈ data）formal 化；报告 §13 升 formal。
+4. **DRAM protection 臂 formal n=384**（§14）：`data × {none, secded}` + `secded + ecc_logic_fault`，on `stream_triad`。验收：三臂闭环（87 / 0 / 85）formal 化；`addr_map_sub` 也扩 n=384；报告 §14 升 formal。
+5. **L1I 六字段 formal n=384**（§12）：至少 `imm12` + `cond`（最可能产生静默错值的两个）× `{none, sed}`，on `l1i_loop`。验收：自掩蔽普遍性 formal 佐证；报告 §12 六字段行升 formal。
+6. **BPU F5 臂 formal n=384**（§16）：`target_flip` + `ras_flip`，on `branchy_reduce` + `reg_chain`。验收：三预测面全 0% SDC formal 化（`dir_flip` 已 formal）；报告 §15 F5 臂升 formal。
+
+**补丁数**：主要是 campaign 跑批（代码已在 v1.2 落地）+ report/findings 更新 ≈ 3。
+
+## Phase 19 — C2-KP 配置对齐 + §4 元分析定稿
+
+**Status: pending**
+
+1. **头条数在 C2-KP（鲲鹏 V110 代理，2.6GHz）复跑**：FPU `bitseg mant_hi/mant_lo`（v1.1 在 C0）、L2 data 定向（v1.1 在 C0-CACHE）、DRAM data 定向（v1.1 在 C0）、Exec 单发（v1.2 在 C0）。formal n=384。**目的**：让这几个数能和 Phase 1–7 的表放在同一栏——`§十.9` 的「配置不统一」caveat 才能撤。spec_leak 已做双平台，作先例。
+2. **§4.1 逃逸集合分解定稿**：现在几乎每个单元都有数了（§8 lane / §21 SysReg / §23 互连除外），跑 `tools/ras_escape_analysis.py` 出「V110 代理 SDC 的逃逸集合」饼图——RAS 范围外结构 / SED 双比特 / ≥3-bit / post-check escape / ECC 逻辑故障各占多少。
+3. **§4.2 保护投资排序表定稿**：三类交付物——① DFT 向量表（含健康 / 次品签名对）；② 保护投资排序（L1D 数据 ECC → post-check 通路级 parity → 错源转发 age/ID 校验 → **整数通路指针校验**（v1.2 新增）→ **ECC 逻辑自检**（v1.2 新增）→ 取指 / L2 tag / 互连 无需 / 低优先）；③ 位谱指纹库现状。
+4. **§4.3 诚实边界定稿**：单机未真独立复现、C0/C2 配置史、FS oracle 分不清存活/静默、gem5 断言偏 Crash、384 次只到 1%、故障形态覆盖（F2/F3/F4 多数只到 pilot）。
+
+**补丁数**：campaign 跑批 + `ras_escape_analysis.py` 增强 + `docs/final-report-skeleton.md` 定稿 ≈ 4。
+
+## Phase 20 — 遗留单元（低优先，可选）
+
+**Status: pending**
+
+1. **§8 向量物理寄存器 lane formal**：位段 × lane {0,1,2,3}，n=384，与 §7 整寄存器注入对照。
+2. **§21 SysReg**：写一个「改完 SCTLR/TTBR0/TCR 后立刻触发地址翻译」的 FS workload → `value_to_legal` + 翻位两模式 formal。
+3. **§20 PTW H7 重设计**：v1.2 已证明「单点 PTE-valid 清零」被内核重填自愈（0/30 panic）——H7 的原始设计测不出 ECC 价值。改为 **2-bit PTE 损坏（不可重填）+ 内核态 walk（调度域遍历）** 场景，才有 ECC 开/关的区分度。
+4. **§23 NoC / CHI / HCCS**：按前期结论——链路级 CRC + 重传 + 无现场信号 + E3/E4——**做窄版**（DRAM addr_map_sub 类的「合法但放错」模式：NoC 路由地址错、L3 tag/一致性态）填逃逸饼图，**或** 最终报告 §4.3 明写「系统级未测，基于其保护 + 无现场信号预期贡献低，留作实机校准项」的 scope-cut。用户定。
+
+**补丁数**：视选择而定，§8/§21 各 ≈ 3；H7 重设计 ≈ 4；§23 窄版 ≈ 6 或 scope-cut 0。
+
+---
+
 ## 执行顺序与理由
 
 ```
@@ -343,25 +385,31 @@ Phase 10 (ROB spec_leak)   ✅ complete — 定向 X10 探针；16.5% SDC (n=128
 Phase 11 (L2/DRAM)         ✅ complete — stencil_5pt/stream_triad + 定向；L2 49.0% / DRAM 85.4% / addr_map_sub 88% SDC
 Phase 12 (复现+报告收尾)   ✅ complete — 集 B 同种子跨 NUMA 一致；report §7/§4.2/§13/§14 已修正
 
---- v1.2 深化与收口轮（补 v1.1 遗留 + 真独立复现，Linux 健康机）---
-Phase 13 (Exec + IQ 同款修法)  ← 最高优先，直接类比刚推翻的 FPU：CHAOSExec PRF-dest 重写 + elemwise_int + IQ tag_sub
-Phase 14 (存储层级臂补全)      ← L2 tag F5 / victim / TQ + 容量扫描 + L2/DRAM secded protection 对照
-Phase 15 (spec_leak 扩样 + ROB=160 根因 + PRF 网格 formal)  ← spec_leak n=128→384；readtrace 排 ROB=160 掩蔽
-Phase 16 (BPU 返回栈/间接预测 + L1I protection)  ← 间接预测器 F5；L1I imm/Rm/Rd/cond + sed vs secded 2-bit
-Phase 17 (H7 FS formal + 真独立复现)  ← Phase 5 唯一剩项 + 换种子/第二机复现关键 cell（含未改动的 L1D 97.7%）
+--- v1.2 深化与收口轮（gem5-fi HEAD 6ca091d 已收官；⚠ 四处只到 pilot，formal 排 Phase 18）---
+Phase 13 (Exec + IQ)          ✅ pilot complete — Exec PRF-dest 重写；elemwise_int 68% SDC + INT-vs-FP 定律；IQ 数据面 0/300、wake_omit 58% DUE（formal 未）
+Phase 14 (存储层级臂)         ✅ pilot complete — L2 data×secded 47→0 / tag 别名×secded 39→47（ECC 盲区）/ victim 53% / 容量平；DRAM 三臂 87/0/85（formal 未；TQ 臂 E3 做不了）
+Phase 15 (spec_leak + ROB=160 + PRF)  ✅ complete — spec_leak 双平台 formal C0 14.9% / C2 5.9%+11.3%DUE；ROB=160 机理定论；PRF X3 bit0 formal 双档 100%
+Phase 16 (BPU + L1I)          ✅ pilot complete — BPU 三预测面（dir formal + target/ras F5 pilot）全 0%；L1I 六字段×SED 全 0-1%（新臂 formal 未；架构态逐位比对 E3 deferred）
+Phase 17 (H7 + 复现)          ✅ complete — H7 pilot：内核对单点 PTE 丢失结构性容错（0/30 panic），验收断言诚实改写；换种子集三 cell 落原 CI；真独立复现=环境阻塞
+
+--- v1.3 收口轮（formal 补跑 + 配置对齐 + 元分析定稿，Linux 健康机）---
+Phase 18 (v1.2 formal 补跑)   ← §5/§6/§12/§13/§14/§16 的 pilot 数扩 n=384 + 5% 重放 + Wilson CI（照 v1.1 formal 补跑轮 fe5c190..3526fba 的先例）
+Phase 19 (C2-KP 配置对齐 + §4 元分析定稿)  ← 头条数（FPU/Exec/L2/DRAM）在 C2-KP 复跑，与 Phase 1-7 同表；逃逸集合分解饼图 + 保护投资排序表定稿
+Phase 20 (遗留单元，低优先)   ← §8 lane / §21 SysReg formal；H7 重设计（2-bit + 内核态 walk）；§23 NoC/CHI/HCCS = 窄版或 scope-cut
 ```
 
 补丁纪律：沿用 CLAUDE.md（一补丁一单元、真机自验证 100%、自动 push 到 fix/fi-tool-correctness）。**v1.1 补救轮（Phase 8–12）遵 `gem5-fi/CLAUDE.md`**：每补丁 `numactl --cpunodebind=0 --membind=0 -- scons ... -j16`（零新增警告）→ 真机跑受影响行为贴真实输出 → `reg_chain` golden `f247ef3fe6f02cfd` 回归 → commit + push；commit 尾注 `Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>`。campaign 跑批用后台；pilot n=100 先看 Reachability + 方向，formal n=384 + 5% 重放（不一致冻结）+ Wilson 95% CI。
 
 ## Next Step
 
-**Phase 1–4 收官；Phase 5–6 in_progress（H7 formal 移入 Phase 17）；v1.1 补救轮 Phase 8–12 全部收官**（`gem5-fi` HEAD `f9124d7`，28 commits `4bf8d0d..f9124d7` 已核对——kernel/oracle/campaign 产物齐备；FPU/L2/DRAM/spec_leak 四处首轮伪影已修正为阳性）。`microarch-fault-injection-report.md` 已同步 v1.1 结果。
+**v1.1（Phase 8–12）+ v1.2（Phase 13–17）全部 `Status: complete`**（`gem5-fi` HEAD `6ca091d`，`f9124d7..6ca091d` 28 commits 已核对）。但 **v1.2 是 pilot-heavy**：§5 IQ / §6 Exec / §13 L2 protection 臂 / §14 DRAM protection 臂 / §12 L1I 六字段 / §16 BPU F5 臂全部只到 n=100 pilot，formal 明确 deferred。唯一 v1.2 新做的 formal 是 spec_leak 双平台（C0 14.9% / C2 5.9%）和 PRF X3 bit0。`microarch-fault-injection-report.md` 已同步 v1.2 pilot 结果（逐条标注 pilot / 待 formal）。
 
 下一步（**Linux 健康机** `gem5-fi/`，分支 `fix/fi-tool-correctness`，`numactl` 钉有内存的 NUMA node）：
 
-**Phase 13.1 — CHAOSExec 注入点重写为 PRF-dest 路径**（最高优先）。直接照搬 FPU 的 `bfa9c4f`：整数结果走 `setRegOperand → cpu->setReg → regFile`，旧 `instResult` 队列是死路径（唯一消费者 checker=Null）。这是 §6「整数执行 0% SDC」大概率是伪影的深层根因——FPU 改完这一处，0% 直接变 92%。
-- 真机验收：cholesky 上单发 F1，看是否首次出现非零 SDC / Masked 分布（对照 FPU `bfa9c4f` 的 4 seeds 2 SDC）；`reg_chain` golden `f247ef3fe6f02cfd` 回归。
+**Phase 18.1 — Exec formal n=384**（最高优先，收口首轮伪影修正）。v1.2 已把代码（PRF-dest 重写 + `elemwise_int_kernel` + 三模式）落地，pilot 出 68% SDC——现在跑 formal：`transient_bit_flip` 单发 + `recurring_result_stuck`，on `elemwise_int` + `cholesky` × C0 + C2，n=384 + 5% 重放 + Wilson CI。验收：确认 68%（逐元素）/ 10%（归约）+ INT-vs-FP 定律；报告 §6 从「◑ pilot」升 formal，`§十.10`（v1.2 多为 pilot）相应更新。
 
-**接着 Phase 13.2–13.6**：CHAOSExec 六模式（byte/nibble bitseg / recurring / f3 / stuck-at）+ `elemwise_int_kernel.c` + IQ `tag_sub`(F5) + `stale_plausible_kernel.c` + `pwf-v12-exec.yaml`/`pwf-v12-iq.yaml`；pilot n=100 → formal n=384。验收：Exec 只有逐元素 kernel + recurring + f3 都跑过仍全 Masked，才可写「整数执行对 SDC 钝」。
+**接着 Phase 18.2–18.6**：IQ（`wake_omit` 的 DUE 率 workload 敏感，必须 formal 定）→ L2 protection 臂 → DRAM protection 臂 → L1I `imm12`/`cond` → BPU F5 臂。全部 formal n=384，代码已在 v1.2 就位，主要是 campaign 跑批。
 
-**并行可推进**：Phase 15.1（spec_leak X10 扩 n=384，收窄 16.5% 的 CI）、Phase 17.1（H7 boot 期 formal，健康机多核并行）——两者不依赖 Phase 13 的代码。
+**Phase 18 全部完成后转 Phase 19**：头条数（FPU/Exec/L2/DRAM）在 **C2-KP** 复跑对齐 Phase 1–7 → §4.1 逃逸饼图 + §4.2 保护排序表定稿。
+
+**并行 / 后置**：Phase 20（§8 lane / §21 SysReg / H7 重设计 / §23 互连窄版或 scope-cut——§23 需用户拍板做窄版还是直接 scope-cut）；Phase 17.2 真第二台健康机独立复现 = 环境阻塞，有机器再做。

@@ -2360,3 +2360,22 @@ Exec+IQ 同款修法全部落地(pilot 轮,验收断言全过):
 - **换种子集复现**:三关键 cell(FPU svd 92.0/spec_leak 15.6/L2 56.0)全落原始 CI——种子集无关性确认。真独立复现=环境阻塞(仅一台健康机),诚实标注。
 
 **v1.2 深化轮(Phase 13-17)完成**:Exec 68% SDC(INT-vs-FP 定律)/IQ 三模式(DUE 形态)/L2 2×2(ECC 盲区)/DRAM 三臂(ECC 逻辑击穿)/victim 53%/容量平/ROB=160 破案/BPU 三面闭环/L1I 六字段/H7 容错/spec_leak 双平台。共 ~20 commits(e4684e9..本提交),真机修复 5 个注入器/工具 bug(Exec 死路径、TaggedEntry 断言、BAC 漏分支、空 unique_ptr、CHAOSPTW 无 skip)。
+
+### 规划更新（2026-09-09）: v1.2 收官核对 + v1.3 收口轮（Phase 18–20）并入
+
+**v1.2 核对**：`git fetch` 后本地由 `f9124d7` 快进到 `6ca091d`（`f9124d7..6ca091d` 28 commits）。Phase 13–17 全部 `Status: complete`，campaign 产物逐项核对（关键 formal 均 `frozen: no`）：
+- **Phase 13**：CHAOSExec PRF-dest 重写（`e4684e9`）；elemwise_int pilot **68% SDC + 20% DUE**、cholesky 归约 10%/53%、recurring 100% DUE；**INT-vs-FP 结局结构定律**（浮点 recurring 100% SDC vs 整数 recurring 100% DUE）；IQ stale_plausible 三模式 **0/300 SDC**、wake_omit **58% DUE**（可用性风险非数据风险）。
+- **Phase 14**：L2 `data×secded 47→0` / `tag F5 别名×secded 39→47`（**ECC 盲区**）/ `victim 53%≈data` / 容量扫描平；DRAM 三臂 `87 / 0（secded）/ 85（secded+ecc_logic_fault）`。全 pilot n=100。TQ 臂 E3 做不了。
+- **Phase 15**：**spec_leak 双平台 formal n=384**——C0 **14.9% SDC**、C2 **5.9% SDC + 11.3% DUE**（平台调度决定泄漏结局形态，C0/C2 差异已解释）；**ROB=160 机理定论**（深 ROB 调度位置分布让翻转落死写）；PRF X3 bit0 formal rob 96/128 双 **100% SDC**。
+- **Phase 16**：BPU `ras_flip`（返回栈 F5 新注入器）+ `target_flip` 全 **0% SDC**——三预测面全闭环（性能事件非数据事件）；L1I 六字段 × {none, sed} 全 **0–1% SDC**（自掩蔽普遍性）。架构态逐位比对诚实标 E3 未做。
+- **Phase 17**：CHAOSPTW 采样 bug 修复（原 60/60 命中同一空 PTE）→ H7 pilot v3（30 点分散驻留 PTE）**0/30 内核 panic**——ARM64 内核对单点 PTE-valid 丢失结构性容错；**验收断言诚实改写**（计划的「ECC-off spurious>0」不成立）。换种子集复现：FPU svd 92.0/spec_leak 15.6/L2 56.0 三 cell 落原 CI。真独立复现（第二台健康机）= 环境阻塞。
+
+**评估**：v1.2 的 5 个 Phase 都到了 `complete` 标记，但**除 Phase 15（spec_leak 双平台 formal + PRF X3 formal）外，其余 4 个只到 n=100 pilot，formal 明确 deferred「排深度策略」**——和 v1.1 之后的 formal 补跑轮（`fe5c190..3526fba`）同一个模式。定性结论（Exec 不 Masked、IQ 是可用性风险、BPU 是性能事件、合法别名是 ECC 盲区、INT-vs-FP 定律）机理清楚可信；具体百分比（68/58/49/85%）是 pilot 点估计，扩 formal 后会动。好信号：自己抓出并修了 CHAOSPTW 采样 bug；诚实改写 H7 验收断言（没硬凑）。
+
+**task_plan.md 更新**：
+- Phase 13–17 的执行顺序框图标注为「✅ pilot complete / formal 排 Phase 18」（Phase 15/17 是 ✅ complete）。
+- 新增 **v1.3 收口轮（Phase 18–20）**：
+  - **Phase 18 — v1.2 formal 补跑轮**：§5 IQ / §6 Exec / §13 L2 臂 / §14 DRAM 臂 / §12 L1I 六字段 / §16 BPU F5 臂的 pilot 数扩 formal n=384（代码已在 v1.2 就位，主要是 campaign 跑批）。
+  - **Phase 19 — C2-KP 配置对齐 + §4 元分析定稿**：头条数（FPU/Exec/L2/DRAM）在鲲鹏 C2-KP 代理配置复跑，撤 `§十.9` 配置不统一 caveat；§4.1 逃逸集合分解饼图 + §4.2 保护投资排序表（新增「整数通路指针校验」「ECC 逻辑自检」两行）+ §4.3 诚实边界定稿。
+  - **Phase 20 — 遗留单元（低优先）**：§8 lane / §21 SysReg formal；H7 重设计（2-bit + 内核态 walk，单点已证被内核自愈）；§23 NoC/CHI/HCCS = 窄版或 scope-cut（用户拍板）。
+- Next Step 重写：下一步 = **Phase 18.1 Exec formal n=384**（收口首轮 Exec 0% 伪影修正）。
