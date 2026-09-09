@@ -352,7 +352,12 @@ CHAOSCHI/CHAOSNoC pilot 已能触发（7c854bb/7582e8c，未提交的 ruby test 
 
 ## Phase 19 — C2-KP 配置对齐 + §4 元分析定稿
 
-**Status: pending**
+**Status: complete（2026-09-08）**
+
+1. ✅ **C2-KP 复跑**（a9a892c）：FPU mant_hi **100%/mant_lo 91.1%**(稳定)、Exec **0% SDC+52.1% DUE**(全 DUE 化)、DRAM **30.2%**(显著平台差,机理 open)——**平台效应结构定律**(FP 稳定/INT DUE 化/DRAM 敏感)入报告第四横断定律;§十.9 caveat 对 FPU/Exec/DRAM/spec_leak 四头条可撤。附带修 kp920 FPU 旋钮缺失(首轮 C2 formal 384/384 Inactive 暴露)。
+2. ✅ **§4.1 逃逸分解**（5973f1b）：ras_escape_analysis 重跑,**230 cells / 114 campaigns**,v1.2/v1.3 全部单元映射齐。
+3. ✅ **§4.2 保护投资排序定稿**（5973f1b）：formal 级 8 行表 + 新增三行(INT 指针校验/L2 tag 别名检测/ECC 逻辑自检)。
+4. ✅ **§4.3 诚实边界定稿**（本提交）：10 条——新增平台敏感性(引用须标平台)、真独立复现环境阻塞(三层替代证据)、formal 覆盖度、H7 语义边界;工具 bug 史更新至 21 个。
 
 1. **头条数在 C2-KP（鲲鹏 V110 代理，2.6GHz）复跑**：FPU `bitseg mant_hi/mant_lo`（v1.1 在 C0）、L2 data 定向（v1.1 在 C0-CACHE）、DRAM data 定向（v1.1 在 C0）、Exec 单发（v1.2 在 C0）。formal n=384。**目的**：让这几个数能和 Phase 1–7 的表放在同一栏——`§十.9` 的「配置不统一」caveat 才能撤。spec_leak 已做双平台，作先例。
 2. **§4.1 逃逸集合分解定稿**：现在几乎每个单元都有数了（§8 lane / §21 SysReg / §23 互连除外），跑 `tools/ras_escape_analysis.py` 出「V110 代理 SDC 的逃逸集合」饼图——RAS 范围外结构 / SED 双比特 / ≥3-bit / post-check escape / ECC 逻辑故障各占多少。

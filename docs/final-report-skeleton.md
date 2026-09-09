@@ -78,7 +78,11 @@ method1 已证明 libc-only MRU 可作量产筛选；上述向量的"预期 vs �
 3. **workload 覆盖**：SE 侧 6 个定向 kernel 族；FS 侧为内核 boot 稳态（无 userspace 定向）。SDC 带结论对 workload 族敏感（X3 跨 workload 反转已证明）。
 4. **FS oracle 限制**：fs_mode 分类 oracle = 内核存活——SDC 与 Masked 不可区分（TLB F5 活页 384/384 "Masked" 实为"0% Crash + 静默面未知"）。
 5. **统计口径**：所有 P 为"该故障模型下单次注入的条件概率"，非产品 FIT；CI 为 Wilson 95%。
-6. **工具正确性史**：本轮共修复 15+ 个工具 bug（comp_map 改道、采样偏差族、protection 行双计数、重入递归等）——每个已提交结论都经过伪影审计（findings.md 记录全部作废与修正）。
+6. **工具正确性史**：三轮（v1.1–v1.3）共修复 **21 个**工具/注入器 bug（comp_map 改道、采样偏差族、protection 行双计数、重入递归、instResult 死路径 ×2、checksum FINAL= 前缀、golden 注册表错位、TaggedEntry 断言、BAC 漏分支、空 unique_ptr、CHAOSPTW 无 skip、kp920 FPU 旋钮缺失等）——每个已提交结论都经过伪影审计（findings.md 记录全部作废与修正）。
+7. **平台敏感性（v1.3 新增）**：头条数已双平台（C0/C2）——FP 通路稳定 / INT 通路全 DUE 化（69.5% SDC→0%）/ DRAM 显著降（85.4→30.2%，机理 open）。**引用任何单平台数字必须标注平台**。
+8. **真独立复现**：仍环境阻塞（仅一台健康机）。已做三层替代：不相交 NUMA 确定性一致（20/20×4）、换种子集落入 CI（3 cell）、跨 5 次 rebuild golden 恒定。**"同主机跨 NUMA"不构成独立复现**（确定性仿真必然一致）。
+9. **formal 覆盖度**：§5 IQ 数据面三模式 / §13 L2 victim / §14 addr_map_sub 等臂仍为 pilot 级（n=100,CI 宽）；§8 lane / §21 SysReg / §23 互连未测（见 §4 未完成项）。
+10. **H7 语义**：ARM64 内核对单点 PTE-valid 清零结构性容错（0/30 panic）——H7 原始设计测不出 ECC 价值,需 2-bit+不可重填场景重设计（Phase 20 项）。
 
 ## 4. 未完成项（不阻塞报告主体，列为后续）
 
