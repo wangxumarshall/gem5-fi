@@ -6,33 +6,19 @@
 
 ## 0. 总框架
 
-### 0.1 SDC 的严格定义
-
-SDC 判定是**三条件合取**，缺一不可 [MeRLiN/GeFIN 体系]：
+### 0.1 SDC定义
 
 ```
-SDC ⇔ (软件计算过程正常) ∧ (软件计算结果输出与 golden run 不一致) ∧ (CPU RAS 链路全程静默，如零GHES / ghes_edac / BERT / SEL等)
+SDC ⇔ (软件计算过程正常) ∧ (软件计算结果输出与 golden run 不一致) ∧ (CPU RAS 链路全程静默，如零GHES / ghes_edac / BERT / SEL等)  [MeRLiN/GeFIN 体系]。
 ```
-
-六级故障效果分类：
-
-| 类别 | 判定信号 | 判据 |
-|---|---|---|
-| **Masked** | 输出 + 异常均与 golden 完全一致 | 故障未到达架构层或被掩蔽 |
-| **SDC** | 程序计算过程正常（如正常结束/上条指令计算的地址正确但访问该地址时非法） ∧ 输出 diff ≠ 0 ∧ 零RAS异常 | 静默数据损坏 |
-| **DUE** | 完成或未完成，但有错误指示（异常/parity/断言）| 再分 true DUE（输出也错）/ false DUE（输出其实正确）|
-| **Timeout** | 执行时间 > 3× golden 时间（Deadlock：不再 commit；Livelock：持续重定向）| [MaFIN/GeFIN 的 3× 工程约定] |
-| **Crash** | 进程异常终止 / 系统不可恢复（kernel panic）/ 仿真器终止 | 分 process/system/simulator 三级 |
-| **Assert** | 仿真/固件断言触发 | |
-
-**应用容差修正** [GemFI]：输出"错"但仍在应用可接受容差内（PSNR>30dB、Monte Carlo 前两位小数正确、迭代收敛）**不是 SDC**，应单列"tolerant-correct"。诊断时必须区分"逐位正确 / 容差内正确 / 超容差（真 SDC）"三级。
+> SDC并非完全不导致显性故障，在某些场景因为上条指令计算的地址正确，但下条指令访问该地址时非法也会导致业务进程奔溃或内核panic，此类也属于SDC，因在访问非法地址前，SDC静默加载了错误的数据。
 
 ### 0.2 故障传播链层级模型
 
 ```
 L0 电路/物理层      缺陷本体：stuck-at、marginal、aging(BTI)、small delay fault、软错误
       ↓ 激活条件：toggle、时序裕量、电压/温度/频率、输入位模式
-L1 微架构层         结构承载：L1D/L1I/L2、RF、FU、TLB、ROB/LQ/SQ、BTB…
+L1 微架构层         结构承载：L1D/L1I/L2、RF、FU、TLB、ROB/LQ/SQ、BTB、ALU、FPU、SEV…
       ↓ 掩蔽三情形：invalid entry、被覆写、mis-speculation 被 flush [SVS]
       ↓ 架构可见点：OoO commit stage [SDC-μArch Perspectives]
 L2 ISA/指令层       架构状态污染五类：WD(错数据)/WI(错指令)/WOI(错操作数)/时序偏差/执行流改变
@@ -45,11 +31,11 @@ L4 应用/业务层      输出 diff、CRC 失配、重执行不一致、PMC 签
 L5 fleet/服务层     单机复发模式、跨机扩散、用户可见业务故障
 ```
 
-**诊断的本质**：沿传播链**自上而下取证**（从症状层向下收集证据）+ **自下而上归因**（用下层机理证据锁定根因），任一单层判定都有结构性盲区，必须多层协同 [ETS2024, SVS]。
+**SDC诊断的本质**：沿传播链**自上而下取证**（从症状层向下收集证据）+ **自下而上归因**（用下层机理证据锁定根因），任一单层判定都有结构性盲区，必须多层协同 [ETS2024, SVS]。
 
 ---
 
-## 1. 各层探针与单层判定规则
+## 1. 每层判定规则
 
 ### L0 电路/物理层探针
 
