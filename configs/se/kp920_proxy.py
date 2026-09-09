@@ -187,6 +187,20 @@ p.add_argument("--fpu_first_clock", type=lambda x: int(x,0), default=1000)
 p.add_argument("--fpu_max_faults", type=lambda x: int(x,0), default=1)
 p.add_argument("--fpu_fault_mask", type=lambda x: int(x,0), default=0)
 p.add_argument("--fpu_rng_seed", type=lambda x: int(x,0), default=20260825)
+# v1.3 Phase 19.1: FPU mode knobs (parity with arm_chaos.py — the v1.1/v1.2
+# modes were only wired on C0; the C2 arm died with argparse errors -> all
+# 384 reps Inactive).
+p.add_argument("--fpu_events_to_skip", type=lambda x: int(x,0), default=-1)
+p.add_argument("--fpu_count_only", action="store_true")
+p.add_argument("--fpu_bitseg", default="",
+               choices=["", "sign", "exp_hi", "exp_lo", "mant_hi", "mant_mid",
+                        "mant_lo"])
+p.add_argument("--fpu_fma_weighted", action="store_true")
+p.add_argument("--fpu_recurring_stuck", action="store_true")
+p.add_argument("--fpu_rounding_sub", action="store_true")
+p.add_argument("--fpu_f3_dependent", action="store_true")
+p.add_argument("--fpu_exp_range", default="-1,-1")
+p.add_argument("--fpu_fpsr_suppress", action="store_true")
 # §2.7 CHAOSL1DForward (post-check escape injector). SELF-ATTACHES at startup()
 # to cpu.chaosL1DFwd. Hooks LSQUnit::completeDataAccess before writeback;
 # XORs the load response data (post-L1D, post-ECC) — the escape path.
@@ -466,6 +480,17 @@ if args.chaos_fpu:
         maxFaults=args.fpu_max_faults,
         faultMask=args.fpu_fault_mask,
         rngSeed=args.fpu_rng_seed,
+        eventsToSkip=(0xFFFFFFFFFFFFFFFF if args.fpu_events_to_skip < 0
+                      else args.fpu_events_to_skip),
+        countOnly=args.fpu_count_only,
+        bitseg=args.fpu_bitseg,
+        fmaWeighted=args.fpu_fma_weighted,
+        recurringStuck=args.fpu_recurring_stuck,
+        roundingSub=args.fpu_rounding_sub,
+        f3Dependent=args.fpu_f3_dependent,
+        expLo=int(args.fpu_exp_range.split(",")[0]),
+        expHi=int(args.fpu_exp_range.split(",")[1]),
+        fpsrSuppress=args.fpu_fpsr_suppress,
         writeLog=True,
     )
     board.chaos_fpu = fpu

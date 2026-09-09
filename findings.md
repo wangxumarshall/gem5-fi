@@ -648,3 +648,14 @@ l1i_loop, n=100×12 cells, 零 frozen, Reach 100%:
 **新发现(§6 C2 臂)**:Exec 单发在 C2(V110 2.6GHz)上 **0% SDC + 52.1% DUE**——C0 逐元素 69.5% SDC 全部 DUE 化。与 spec_leak 的 C0/C2 分裂同构:**V110 调度下错值更早成为非法指针**。INT-vs-FP 定律的平台维度:C2 上 INT 通路是纯 DUE 风险(与 FP 纯 SDC 对照更鲜明)。§十.9 配置 caveat 对 Exec 项已可撤(C0/C2 双测)。
 
 全部 11 个 pilot 点估计落入 formal CI——v1.2/v1.3 核心结论 formal 定稿。
+
+### v1.3 Phase 19.1 C2-KP 配置对齐(2026-09-08,n=384 全零 frozen)
+
+| 头条数 | C0 | C2(V110 2.6GHz) | 平台效应 |
+|---|---|---|---|
+| FPU bitseg mant_hi on svd | 92.4% [89.4,94.7] | **100.0% [99,100]** | 稳定(同量级,FP 错值仍是合法浮点) |
+| FPU bitseg mant_lo on svd | 83.1% [79.0,86.5] | **91.1% [87.9,93.6]** | 稳定 |
+| Exec 单发 on elemwise_int | 69.5% SDC + 20.1% DUE | **0% SDC + 52.1% DUE** | **全 DUE 化**(平台定律第二例) |
+| DRAM 定向 on stream_triad | 85.4% [81.5,88.6] | **30.2% [25.8,35.0]** | **显著平台差**(第三例) |
+
+**平台效应的结构图景**:①FP 数据通路跨平台稳定(SDC 主导,错浮点恒合法);②INT 数据通路平台敏感(C0 SDC 主导→C2 全 DUE 化,调度激进程度决定错值多快成为非法指针);③存储层 DRAM 平台敏感(85%→30%,怀疑 C2 时序下 L2 命中/写回窗口几何不同——逐出节奏 2.6GHz 更快,注入字节更常在回读前被正确数据覆盖;机理待 readtrace 级分析,诚实标注 open)。附带修复:kp920_proxy.py 缺 FPU 模式旋钮(bitseg 等 v1.1 模式只加在 C0,首次 C2 formal 384/384 Inactive 暴露)。

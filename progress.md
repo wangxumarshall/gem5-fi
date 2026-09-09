@@ -2443,3 +2443,7 @@ Exec(69.5%/recurring 100% DUE)、IQ(63.5% DUE)、L2 arms(0% vs 51.2%)五 cell fo
 ### v1.3 Phase 18 formal 补跑轮完成(2026-09-08)
 
 六项全部 n=384+5% replay,零 frozen:Exec 四臂(69.5%/100%DUE/8.7%+51.6%/C2 0%+52.1%DUE)、IQ(63.5% DUE)、L2 arms(0%/51.2%)、DRAM ecc_logic(83.3%)、L1I imm12/cond(0.5%/0%)、BPU target/ras(双 0%)。全部 11 pilot 点估计落入 formal CI。新发现:Exec C2 臂全 DUE 化(平台定律第二例)。
+
+### v1.3 Phase 19.1 完成(2026-09-08): C2-KP 配置对齐 — 平台效应结构图景
+
+FPU(mant_hi 100%/mant_lo 91.1%)、Exec(0% SDC+52.1% DUE)、DRAM(30.2%)三项头条 C2 formal 完成。**平台效应三例定型**:FP 通路稳定/INT 通路全 DUE 化/DRAM 显著降(机理 open)。附带修 kp920 FPU 模式旋钮缺失。§十.9 配置 caveat 可撤(FPU/Exec/DRAM/spec_leak 四头条双平台)。
