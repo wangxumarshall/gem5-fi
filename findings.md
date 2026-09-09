@@ -617,3 +617,15 @@ l1i_loop, n=100×12 cells, 零 frozen, Reach 100%:
 | L2 定向 | 49.0% [44.0,53.9] | **56.0% [46.2,65.3]** | ✅ 落入(边缘,CI 重叠) |
 
 结论不依赖特定种子家族。**真独立复现(第二台健康机)仍是环境阻塞项**(本环境唯一另一台是 cpu179 故障机)——已做的三层替代证据:①不相交 NUMA 确定性一致(Phase 12);②换种子集落入 CI(本条);③跨 build(Phase 8-17 期间 5 次 rebuild 上 golden 恒定)。
+
+### v1.2 formal 扩展轮(2026-09-08,Phase 13/14 pilot 正式化,n=384 全零 frozen)
+
+| cell | n | P_SDC [Wilson 95%] | P_DUE | pilot 对照 |
+|---|---|---|---|---|
+| Exec 单发 on elemwise_int | 384 | **69.5% [64.8,73.9]** | 20.1% [16.4,24.3] | 68.0/20.0 ✅ |
+| Exec recurring on elemwise_int | 384 | 0.0% [0,1.0] | **100% [99,100]** | 100% DUE ✅ |
+| IQ wake_omit on stale_plausible | 384 | 0.0% [0,1.0] | **63.5% [58.6,68.2]** | 58.0% ✅ |
+| L2 data×secded on stencil | 384 | **0.0% [0,1.0]** | 0% | 0% ✅ |
+| L2 tag×secded on stencil | 384 | **51.2% [46.1,56.2]** | 1.1% | 47.0% ✅ |
+
+五个 pilot 点估计全部落入 formal CI——v1.2 核心结论全部 formal 级确认:①INT 数据通路 69.5% SDC+20.1% DUE 双高(vs FP ~100% SDC 纯 SDC——INT-vs-FP 定律 formal);②recurring INT 100% DUE;③IQ 唤醒类 63.5% DUE(可用性风险);④L2 数据面 ECC 全纠 0% vs **tag 合法别名 ECC 盲区 51.2%**——保护反转图 formal 定稿。

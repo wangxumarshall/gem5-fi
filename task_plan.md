@@ -241,7 +241,7 @@ CHAOSCHI/CHAOSNoC pilot 已能触发（7c854bb/7582e8c，未提交的 ruby test 
 3. ✅ **Exec campaigns**（50e2cca,uniform_sampling,n=100×3,零 frozen）:**elemwise 单发 68.0% [58.3,76.3] SDC + 20% DUE;recurring 100% DUE;cholesky 归约 10.1% SDC / 52.5% DUE**。**新定律 INT-vs-FP 结局结构**:FPU recurring 100% SDC(错浮点仍是合法值)vs Exec recurring 100% DUE(错整数常变非法指针)——整数通路 SDC+DUE 双高、浮点通路纯 SDC,保护策略不同。
 4. ✅ **stale_plausible_kernel + IQ 三模式**（b498b9c/be6e2ae,n=100×3,Reach 100%）:src_ready_bitflip(=tag_sub 语义)/wake_phase 双 0% SDC(错唤醒被循环重算吸收);**wake_omit 58.0% [48.2,67.2] DUE**(丢唤醒→双链重试风暴→Hang,手动验证单 run 410 分钟活锁)。**IQ 唤醒类故障 SDC-钝但非无害——风险形态是可用性(Hang),非数据完整性**;首轮"全 Masked"半对(漏了 DUE 面)。
 5. ✅ **验收断言落笔**(计划规则:全模式+逐元素 kernel 跑过才可写钝):Exec 不钝(68% SDC);IQ 数据面钝(0/300)但 DUE 面 58%。
-6. ⏳ formal n=384(Exec elemwise 单发/recurring + IQ wake_omit)排深度策略。
+6. ✅ **formal n=384 完成**(本提交):Exec 单发 **69.5% [64.8,73.9] SDC + 20.1% DUE** / recurring **100% DUE** / IQ wake_omit **63.5% [58.6,68.2] DUE**——五 pilot 点估计全落入 formal CI。
 
 1. **CHAOSExec 注入点重写为 PRF-dest 路径**（同 `bfa9c4f`）：整数结果走 `setRegOperand → cpu->setReg → regFile`，旧 `instResult` 队列是死路径（唯一消费者 checker=Null）——不重写则下列模式全部架构不可见。
 2. **CHAOSExec 模式对齐 FPU**：`bitseg`（整数无尾数 → 按 byte/nibble 段）/ `recurring_result_stuck`（Phase 8.4 契约已就绪）/ `f3_data_dependent`（操作数落 `--exec_operand_range` 才损坏）/ stuck-at。
@@ -261,7 +261,7 @@ CHAOSCHI/CHAOSNoC pilot 已能触发（7c854bb/7582e8c，未提交的 ruby test 
 3. ✅ **L2 容量扫描**（593d522,提前完成）：256K/512K/1M = 50/52/49%(平,定向单块对容量不敏感)。
 4. ✅ **DRAM protection 对照**（00a3c1f）：backing_byte×secded **87%→0%**。
 5. ✅ **ecc_logic_fault**（278ed87）：secded+逻辑故障 **85%**——ECC 校验逻辑一位错(错纠)几乎完全恢复原始风险。**DRAM 数据面三臂闭环**(none 87/secded 0/secded+逻辑故障 85)。
-6. ⏳ formal n=384 排深度策略;**TQ 地址 F5 未做**(诚实标注:classic cache 无独立 TQ 队列结构可挂,E3 限制)。
+6. ✅ **formal n=384 完成**(本提交):L2 data×secded **0.0%** / tag×secded **51.2% [46.1,56.2]**——ECC 盲区 formal 定稿。**TQ 地址 F5 未做**(诚实标注:classic cache 无独立 TQ 队列结构可挂,E3 限制)。
 
 **Phase 14 保护反转图**(入报告 §13/§14):数据面 ECC 可防(但需 ECC 逻辑自检,否则 85% 击穿);合法域通路(tag 别名 47%/错源转发/错位写)ECC 天生不防;victim≈data;容量不敏感。
 
