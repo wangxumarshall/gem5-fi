@@ -629,3 +629,22 @@ l1i_loop, n=100×12 cells, 零 frozen, Reach 100%:
 | L2 tag×secded on stencil | 384 | **51.2% [46.1,56.2]** | 1.1% | 47.0% ✅ |
 
 五个 pilot 点估计全部落入 formal CI——v1.2 核心结论全部 formal 级确认:①INT 数据通路 69.5% SDC+20.1% DUE 双高(vs FP ~100% SDC 纯 SDC——INT-vs-FP 定律 formal);②recurring INT 100% DUE;③IQ 唤醒类 63.5% DUE(可用性风险);④L2 数据面 ECC 全纠 0% vs **tag 合法别名 ECC 盲区 51.2%**——保护反转图 formal 定稿。
+
+### v1.3 Phase 18 formal 补跑轮完成(2026-09-08,全 n=384 + 5% replay,零 frozen)
+
+| cell(§=报告章节) | n | P_SDC [Wilson 95%] | P_DUE | pilot 对照 |
+|---|---|---|---|---|
+| §6 Exec 单发 on elemwise_int(C0) | 384 | **69.5% [64.8,73.9]** | 20.1% | 68.0 ✅ |
+| §6 Exec recurring | 384 | 0% | **100% [99,100]** | 100% DUE ✅ |
+| §6 Exec 单发 on cholesky(归约) | 384 | **8.7% [6.3,11.9]** | 51.6% | 10.1/52.5 ✅ |
+| §6 Exec 单发 on elemwise_int(**C2**) | 384 | 0% | **52.1% [47.1,57.0]** | (新) |
+| §5 IQ wake_omit | 384 | 0% | **63.5% [58.6,68.2]** | 58.0 ✅ |
+| §13 L2 data×secded | 384 | **0.0% [0,1.0]** | 0% | 0% ✅ |
+| §13 L2 tag×secded | 384 | **51.2% [46.1,56.2]** | 1.1% | 47.0 ✅ |
+| §14 DRAM secded+ecc_logic | 384 | **83.3% [79.3,86.7]** | 0% | 85.0 ✅ |
+| §12 L1I imm12 / cond | 384×2 | 0.5% [0.1,1.9] / 0.0% | ~1%/0% | 1%/0% ✅ |
+| §16 BPU target_flip / ras_flip | 384×2 | 0.0% / 0.0% | 0% | 0% ✅ |
+
+**新发现(§6 C2 臂)**:Exec 单发在 C2(V110 2.6GHz)上 **0% SDC + 52.1% DUE**——C0 逐元素 69.5% SDC 全部 DUE 化。与 spec_leak 的 C0/C2 分裂同构:**V110 调度下错值更早成为非法指针**。INT-vs-FP 定律的平台维度:C2 上 INT 通路是纯 DUE 风险(与 FP 纯 SDC 对照更鲜明)。§十.9 配置 caveat 对 Exec 项已可撤(C0/C2 双测)。
+
+全部 11 个 pilot 点估计落入 formal CI——v1.2/v1.3 核心结论 formal 定稿。

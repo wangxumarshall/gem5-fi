@@ -2439,3 +2439,7 @@ Exec+IQ 同款修法全部落地(pilot 轮,验收断言全过):
 - Next Step 重写：下一步 = **Phase 18.1 Exec formal n=384**（收口首轮 Exec 0% 伪影修正）——**已由本会话完成(见下条)**。
 
 Exec(69.5%/recurring 100% DUE)、IQ(63.5% DUE)、L2 arms(0% vs 51.2%)五 cell formal n=384 全零 frozen,pilot 点估计全落入 CI。v1.2 核心结论(INT-vs-FP 定律/IQ 可用性形态/L2 tag ECC 盲区)全部 formal 级确认。Phase 18.1 的 Exec formal 已含在内。
+
+### v1.3 Phase 18 formal 补跑轮完成(2026-09-08)
+
+六项全部 n=384+5% replay,零 frozen:Exec 四臂(69.5%/100%DUE/8.7%+51.6%/C2 0%+52.1%DUE)、IQ(63.5% DUE)、L2 arms(0%/51.2%)、DRAM ecc_logic(83.3%)、L1I imm12/cond(0.5%/0%)、BPU target/ras(双 0%)。全部 11 pilot 点估计落入 formal CI。新发现:Exec C2 臂全 DUE 化(平台定律第二例)。

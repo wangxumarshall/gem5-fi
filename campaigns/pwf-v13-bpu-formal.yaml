@@ -1,0 +1,18 @@
+schema_version: arm-chaos-fi/v1
+campaign_id: pwf_v13_bpu_formal
+injector: bpu
+config: C0
+mode: SE
+grid:
+  fault_model: [local_mbu, delay_omission]
+n_per_cell: 384
+base_seed: 20260930
+replay_pct: 5.0
+workload:
+  binary: workloads/directed/branchy_reduce
+  golden_id: branchyreduce-golden-v1
+  trigger_mode: cycle
+  trigger_value: 20000
+limits:
+  max_faults: 1
+hang_timeout: 300

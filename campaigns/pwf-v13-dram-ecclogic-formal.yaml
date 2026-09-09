@@ -1,0 +1,22 @@
+schema_version: arm-chaos-fi/v1
+campaign_id: pwf_v13_dram_ecclogic_formal
+injector: memory
+config: C0
+mode: SE
+grid:
+  fault_model: [transient_bit_flip]
+  mem_addr_start: [4194304]
+  mem_addr_end: [5242880]
+  protection_model: [secded]
+  ecc_logic_fault: [true]
+n_per_cell: 384
+base_seed: 20260908
+replay_pct: 5.0
+workload:
+  binary: workloads/directed/stream_triad_kernel
+  golden_id: streamtriad-golden-v1
+  trigger_mode: cycle
+  trigger_value: 3000000
+limits:
+  max_faults: 1
+hang_timeout: 900

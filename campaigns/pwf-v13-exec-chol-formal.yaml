@@ -1,0 +1,19 @@
+schema_version: arm-chaos-fi/v1
+campaign_id: pwf_v13_exec_chol_formal
+injector: exec
+config: C0
+mode: SE
+grid:
+  fault_model: [transient_bit_flip]
+n_per_cell: 384
+base_seed: 20260910
+replay_pct: 5.0
+workload:
+  binary: workloads/directed/cholesky_numeric
+  golden_id: cholesky-golden-v1
+  trigger_mode: cycle
+  trigger_value: 5000
+  uniform_sampling: true
+limits:
+  max_faults: 1
+hang_timeout: 300
