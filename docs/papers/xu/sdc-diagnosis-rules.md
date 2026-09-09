@@ -1,364 +1,1596 @@
-# SDC 诊断结构化判定规则：基于故障传播链的多层级探针协同判定
+# SDC 诊断规则 v2：基于跨层证据图与假设驱动实验的 CPU SDC 因果诊断框架
 
->基于业界SDC研究成果，综合提炼（AVF/ACE 分析谱系、gem5 故障注入谱系、全栈传播机理谱系、生产环境 fleet 实证谱系、硬件/运行时检测谱系、软件/应用级检测谱系），每条规则标注来源论文，保证可回溯。
-
-## 0. SDC定义与故障传播链层级模型
-
-### SDC定义
-SDC ⇔ (软件计算过程正常) ∧ (软件计算结果输出与 golden run 不一致) ∧ (CPU RAS 链路全程静默，如零GHES / ghes_edac / BERT / SEL等)  [MeRLiN/GeFIN 体系]。
-> 备注：SDC并非完全不导致显性故障，在某些场景因为上条指令计算的地址正确，但下条指令访问该地址时非法也会导致业务进程奔溃或内核panic，此类也属于SDC，因在访问非法地址前，SDC静默加载了错误的数据。
-
-### SDC故障传播链层级模型
-```
-L0 电路/物理层      缺陷本体：stuck-at、marginal、aging(BTI)、small delay fault、软错误
-      ↓ 激活条件：toggle、时序裕量、电压/温度/频率、输入位模式
-L1 微架构层         结构承载：L1D/L1I/L2、RF、FU、TLB、ROB/LQ/SQ、BTB、ALU、FPU、SEV…
-      ↓ 掩蔽三情形：invalid entry、被覆写、mis-speculation 被 flush [SVS]
-      ↓ 架构可见点：OoO commit stage [SDC-μArch Perspectives]
-L2 ISA/指令层       架构状态污染五类：WD(错数据)/WI(错指令)/WOI(错操作数)/时序偏差/执行流改变
-      ↓ 软件掩蔽：dead value、位级逻辑掩蔽、算法容错（迭代收敛/进化淘汰）
-      ↓ ESC 旁路：输出驻留缓存被直接损坏 → DMA 写回 → 必然 SDC，不经程序流 [SVS]
-L3 OS/系统层        kernel 异常、SEL/BMC 遥测、EDAC/MCE、reboot、syscall 行为
-      ↓ kernel 无软件防护、syscall/校验器自身可被污染
-L4 应用/业务层      输出 diff、CRC 失配、重执行不一致、PMC 签名偏移、业务数据异常
-      ↓ 错误数据跨服务传播
-L5 fleet/服务层     单机复发模式、跨机扩散、用户可见业务故障
-```
-
-**SDC诊断的本质**：沿传播链**自上而下取证**（从症状层向下收集证据）+ **自下而上归因**（用下层机理证据锁定根因），任一单层判定都有结构性盲区，必须多层协同 [ETS2024, SVS]。
+> 本文将原有的 SDC Rule Book 重构为可执行、可证伪、可校准的诊断框架。核心思想不是继续堆叠 Boolean Rule，而是把现场证据、微架构先验、差分执行、故障注入和主动实验选择统一到同一条诊断闭环中。
+>
+> 适用范围：ARM64 服务器 CPU，尤其是现网疑似 SDC、间歇性错误、跨核不一致、异常数据、异常崩溃和难以解释的 kernel panic。框架也可用于 x86 对照研究。
 
 ---
 
-## 1. SDC分层探针与判定规则
+## 0. 核心结论
 
-### L0 电路/物理层探针
+SDC 诊断应回答五个不同问题，不应混成一个 Boolean 判定：
 
-**Probe0-1 时序前兆**：aging-aware STA 的 slack/WNS、cell 延迟退化百分比 [Vega]
-**Probe0-2 环境遥测**：核心温度、电压、频率、功耗（BMC/SEL）[SOSP23, SEVI, Sentinel]
-**Probe0-3 输入位模式**：测试输入的位偏置统计（0/1 概率、特定位恒定）[SEVI, SiliFuzz]
+1. **发生了什么（Manifestation）**：masked / SDC / DUE / crash / hang / performance anomaly。
+2. **错误从哪里来（Source）**：software / hardware / environment / unknown。
+3. **故障域在哪里（Localization）**：socket → core → cluster → microarchitecture structure。
+4. **什么机制最可能（Root-cause hypothesis）**：FU / L1D / LSU datapath / TLB / timing / aging / shared interconnect 等。
+5. **下一步做什么（Active diagnosis）**：选择能够最大化区分候选假设的信息增益实验。
 
-**Rule0-1（前兆预警）**：if 时序违例路径 slack 持续下降 且 BTI 退化模型预测 10 年内违例 → 该 FU 列入 SDC 高危先验（预测性，非已发生）[Vega]
-**Rule0-2（触发条件判定）**：if SDC 频率与温度呈 log-线性相关（Pearson > 0.75）或存在最小触发温度阈值（如仅 >59°C 出错）→ 判定 marginal/aging 类物理缺陷，非软错误 [SOSP23]
-**Rule0-3（规格内出错）**：if 出错均发生在正常温度/频率范围内（95% incidents 频率 <80% max）→ 不可用"降频避险"处置，属设计/制造缺陷 [SEVI]
-**Rule0-4（输入位敏感）**：if 特定输入位（如 1<<23）清零时几乎必错、置位时正常 → 输入依赖型硬件缺陷，可作为指纹判据 [SiliFuzz FCOS 案例]
-**Rule0-5（延迟故障判据）**：if wire 延迟故障 → 必须同时满足 (a)路径静态超时钟周期 (b)信号实际 toggle (c)错误值被锁存 (d)锁存集合 GroupACE 才产生 SDC；注意 ECC 对延迟故障不等价防护（字线延迟可致 sense amp 锁错行且 ECC 校验通过）[DelayAVF]
+因此本文采用：
 
-### L1 微架构层探针
+```text
+Raw Evidence
+    ↓
+Evidence Normalization
+    ↓
+Manifestation Classification
+    ↓
+Hardware / Software / Environment Attribution
+    ↓
+Failure-domain Localization
+    ↓
+Root-cause Hypothesis Ranking
+    ↓
+Disambiguation Experiment Selection
+    ↓
+Confidence Calibration
+    ↓
+Isolation / Retirement / Failure Analysis
+```
 
-**Probe1-1 commit-stage trace diff**：逐条比对 commit cycle/PC/opcode/operands/寄存器内容，判定故障首次架构可见的位置与形式 [gem5-MARVEL, SVS]
-**Probe1-2 PMC/性能计数器**：golden run 与疑犯 run 的 HPC 平均绝对百分比偏差（指令数、cache miss、分支误预测、TLB miss 等 20 个）[CHAOS]
-**Probe1-3 结构占用与 ACE 驻留**：ROB/IQ 占用率、B_ACE×L_ACE（可由性能计数器获得）[AVF 奠基论文]
-**Probe1-4 注入映射表**：gem5-fi 离线注入建立的"注入点→症状"查找表 [ETS2024, Harpocrates]
+### 0.1 最重要的十条诊断原则
 
-**Rule1-1（传播前提）**：if 故障位落在 invalid entry、或被覆写先于读取、或位于 wrong-path（mis-speculation 被 flush）、或命中后从未被 committed 读 → 掩蔽，非 SDC [MaFIN/GeFIN 提前停判据；SVS 三情形]
-**Rule1-2（un-ACE 判据库，九类掩蔽）**：命中以下任一即掩蔽——idle/invalid 状态位（但控制位永远算 ACE）；wrong-path 指令；预测器结构（BTB/分支预测器 AVF=0）；ex-ACE（最后一次使用后）；NOP 指令非 opcode 位；非绑定 prefetch；predicated-false 指令；动态死代码（FDD/TDD，含连续写同地址无中间读）；逻辑掩蔽位（OR 常数、只需零/非零的比较、高位 unused）[Mukherjee MICRO-03 九类 un-ACE]
-**Rule1-3（cache 生命周期判据）**：写穿透 cache data 位 ACE 仅当 fill-to-read / read-to-read / write-to-read；idle/被覆写/驱逐后/写前被覆盖均掩蔽；写回 cache 中某字节一旦被写，同行所有未写字节全 ACE 直到 evict [Biswas ISCA-05]
-**Rule1-4（tag 判据）**：tag 单 bit 错 → 仅 false positive（错误命中、hamming distance=1 的位）可能致 SDC；false negative 只触发 miss+refetch 无害；SB/写回 cache 的 tag 从数据首次修改到 evict 全程 ACE（错 tag 会写错内存位置）[Biswas ISCA-05]
-**Rule1-5（HPC 偏差探针）**：if 输出正确但 HPC 偏差巨大（可达 10³~10⁵ %）→ 隐蔽执行轨迹异常，加严观测；**但注意：主存数据值型 SDC 在 HPC 上几乎无痕迹（<0.3%），纯计数器检测对这类 SDC 无效** [CHAOS]
-**Rule1-6（驻留时长放大）**：永久故障在 L1D 的 SDC 率（最高 70.8%）远高于瞬态（最高 43%）→ 症状反复在同一位置出现时，永久缺陷嫌疑上升 [ITC2023, MARVEL]
-
-### L2 ISA/指令层探针
-
-**Probe2-1 双执行不一致**：同一线程内同指令、相同架构输入、不同 execution context（前导指令序列、缓存状态）下输出对比 [ITHICA]
-**Probe2-2 指令级错误率**：特定指令/指令族的输出错误频率 [Veritas]
-**Probe2-3 受影响指令打印**：注入时打印受影响汇编指令，做事后相关分析 [GemFI]
-
-**Rule2-1（不一致即硬件证据）**：if 原始指令与复制指令架构输出不一致 → inconsistent error，硬件嫌疑成立并同步定位到 PC。注意：两份都错且错得相同时（consistent error）原理上检不到 [ITHICA]
-**Rule2-2（执行上下文主导）**：错误是否显现取决于前导指令序列塑造的微架构/电气 context，**而非指令使用频率**（59% 检出测试并非失败 opcode 执行频率最高者；单指令 reproducer 几乎全部失败）→ 复现策略必须构造触发序列，不能只轰炸热点指令 [ITHICA]
-**Rule2-3（x87/超越函数指纹）**：x87 legacy 指令单指令错误率 16–77%，可作单指令复现例外 [Veritas]
-**Rule2-4（ESC 旁路）**：if 故障击中 modified cache line 中即将输出的数据且不再被程序读取 → 经 DMA 直接写回，**必然 SDC**，且任何基于程序流/软件层的检测与归因均失效；输出缓冲区本身即观测点，概率与输出尺寸正相关（MB 级输出显著）[SVS, SDC-μArch]
-
-### L3 OS/系统层探针
-
-**Probe3-1 内核异常日志**：panic/lockup/GPF/MCE/divide error/stack corruption，按类型+频率+core ID 结构化 [Hardware Sentinel]
-**Probe3-2 SEL/BMC 遥测**：ECC/MCE/PCIe/thermal 事件 [Hardware Sentinel]
-**Probe3-3 EDAC/可纠正错误计数**：CE/UCE 记录 [ETS2024]
-**Probe3-4 重启记录**：意外重启次数、时间戳 [Hardware Sentinel]
-**Probe3-5 修理历史**：misdiagnosed/undiagnosed 修理记录 [Hardware Sentinel]
-
-**Rule3-1（静默性反向判据）**：if 应用异常时刻近旁 SEL 中 CPU 相关硬件故障（ECC/MCE/PCIe/thermal）条目数 = 0 → 保留 SDC 调查；** if 有任何硬件遥测故障，不是 SDC** [Hardware Sentinel]
-**Rule3-2（罕见异常聚合）**：if 罕见异常类型（doublefault 59.35×、stack segment 20.77×、invalid op 17.80× 等，相对 fleet 检出率倍数）在单核聚合出现 → SDC CPU 强指标 [Hardware Sentinel]
-**Rule3-3（重启规则）**：if 30 天窗口意外重启 ≥6 次（通用 fleet）/ ≥3 次（AI fleet）→ 进入 SDC 候选 [Hardware Sentinel]
-**Rule3-4（EDAC 负证据）**：if 应用层 SDC 症状 ∧ 全程零 RAS（EDAC/CE）记录 → **排除受 ECC/SECDED 保护的阵列（L2/L3、服务器内存），指向无保护单元：功能单元、无 ECC 的 L1D、流水线逻辑**；反之若伴随 EDAC 记录则优先走 CE/UCE 通路 [ETS2024]
-**Rule3-5（校验器自身污染）**：if EC/CRC 由向量指令加速计算 → 校验器与数据可能同时被污染，校验和与已坏数据自洽 → "校验通过"不可作为排除证据 [SOSP23]
-**Rule3-6（OS 放大效应）**：OS/kernel 参与使 SDC 率相对裸机最高放大 6.7×（A5 裸机 23.7% → Linux 59.3%）；kernel 代码涉事的 SDC 无软件防护（L1I tag 的 SDC 中 77% 来自 kernel 指令）→ 诊断规则中 syscall/库路径内的错误不能因"应用自身校验通过"而排除 [IOLTS23, SDC-μArch]
-
-### L4 应用/业务层探针
-
-**Probe4-1 输出校验**：golden diff、checksum/CRC、ABFT（如 matmul 行列 checksum）[SEVI, Orthrus]
-**Probe4-2 重执行比对**：确定性重放 + 跨核重执行，逐字节比较 [Orthrus]
-**Probe4-3 PMC 签名**：以同机同负载干净运行的重复测量分布为基线，ML 分类器判偏差（<2% 开销）[PMC-SpMV]
-**Probe4-4 业务级异常**：查询返回错数据、计算结果偏离、下游数据丢失（如 Spark 缺行）[Ripple]
-
-**Rule4-1（重执行黄金范式）**：if 相同输入 + 相同初始内存状态 + syscall 结果重放，在不同核心重执行结果不一致 → **硬件非确定性错误**（软件 bug 会确定性复现、比对一致不报警）；验证核必须与执行核物理隔离（核私有 ALU/FPU/向量单元），否则"同一个坏单元算两遍得到同样错误"漏检 [Orthrus]
-**Rule4-2（CRC 边界判据）**：数据跨越控制↔数据路径边界时 CRC 失配 → 搬运途 corruption；注意 checksum 只能发现"数据被改"，不能发现"计算过程算错"（哈希算错查错表），两者互补 [Orthrus]
-**Rule4-3（PMC 触发器定位）**：PMC 签名判据开销低、适作**必要非充分条件的高召回触发器**（疑点扫描），再触发昂贵的重算/复现取证；判据必须按负载类别（访存型/计算型/数值型）分别校准，并显式处理时间漂移 [PMC-SpMV]
-**Rule4-4（容差判定）**：if 输出偏差在应用语义容差内（PSNR/小数位/收敛性）→ 不是 SDC，避免误报 [GemFI]
-**Rule4-5（ABFT canary）**：if 数值负载（matmul）部署 checksum 类 ABFT → 生产负载自身变检测器（机器检出率 88–100%，时间开销 1.35%）[SEVI]
-
-### L5 fleet/服务层探针
-
-**Probe5-1 持续测试数据**：out-of-production 分钟级（Fleetscanner，45 天 cadence）+ in-production 毫秒级 co-located（Ripple，日级）[Ripple, SEVI, PinDrop]
-**Probe5-2 core 级失败分布**：失败测试的 core ID 遥测 [PinDrop, SiliFuzz, SEVI]
-**Probe5-3 复发史**：跨天/跨周/跨年的失败记录、失败 seed 回放 [PinDrop, SiliFuzz]
-**Probe5-4 差分测试**：向量单元 vs 标量单元参考输出对比（不同硬件单元天然差分）[SEVI]
-
-**Rule5-1（跨天复现定案）**：仅当**同一核多天可复现同一问题**才判 defective（抑制偶发噪声）；单次失败只进观察池 [SiliFuzz]
-**Rule5-2（单物理核指纹，最强定位证据）**：if 两个 sibling 逻辑核同败同一测试且频率几乎一致、跨物理核不扩散 → 单物理核单一失效单元缺陷；实证比例：SiliFuzz ~70%、SEVI 89%、PinDrop 62%、SOSP23 约一半机器 [四篇一致]
-**Rule5-3（向量输出 vs 标量参考）**：if 向量指令输出 ≠ 标量参考输出 → 向量单元缺陷；>80% SDC cases 首次失败 <10K 轮（1 秒内）[SEVI]
-**Rule5-4（FMA/向量 FP 高危）**：FMA 占向量 SDC cases >75%、incidents >92%；vfm（vector fused multiply）失败率最高 → 检测按硬件单元覆盖优先，FMA/向量 FP 是最高优先级探针 [SEVI, PinDrop, Veritas]
-**Rule5-5（持续测试必要性）**：if 仅做 snapshot 式一次性测试 → 必漏间歇/晚发/低频/磨损类缺陷（PinDrop：机器可于首测近 4 年后才首败；每季度 0.0024% 新增失败机器；Ripple：23%+7% 覆盖仅为两种模式各自独有）→ 判定体系必须内建"持续重测" [PinDrop, Ripple]
-**Rule5-6（复发是常态）**：>71% 失败机器随后 ≥2 年持续稳定失败（单机重复而非随机扩散）→ 复发支持硬件归因；但存在"自愈"异例（119 次失败后 59k+ 测试零失败）与晚发案例 → 单次窗口无失败不能排除 [PinDrop]
-**Rule5-7（晚发与磨损）**：if 机器在长期运行后新开始失败 → 硅退化（比传统 bathtub 更早显现），"今天正确不保证明天正确" [Ripple, PinDrop]
+| ID | 原则 | 含义 |
+|---|---|---|
+| P1 | **Symptom ≠ Cause** | 输出错误、panic、PMC 异常只是症状，不能直接等同于根因。 |
+| P2 | **Source ≠ Outcome** | 同一个硬件错误可表现为 masked、SDC、DUE、crash；不能用最终 outcome 反推唯一 source。 |
+| P3 | **Negative evidence is probabilistic** | 零 RAS、零 EDAC、零失败只能降低某些假设概率，不能逻辑排除它们。 |
+| P4 | **Differential execution 是强证据，不是数学证明** | 跨核/跨上下文不一致可以强烈提升硬件嫌疑，但必须排除软件非确定性。 |
+| P5 | **Core locality 指向故障域，不直接等于具体结构** | sibling 同败首先支持 core-local hypothesis，再定位到 L1D/LSU/FU/TLB 等。 |
+| P6 | **Temporal recurrence > single-shot failure** | 跨天、跨条件复现比单次失败更有诊断价值。 |
+| P7 | **Execution context 是一等公民** | 指令是否出错不仅取决于 opcode，还取决于前导指令、缓存、调度、温度、电压和资源占用。 |
+| P8 | **Data-path signature > opcode label** | “FPU 负载失败”不是“FPU 坏了”；必须分析错误值形态、地址关系、lane/byte pattern 和传播路径。 |
+| P9 | **Fault injection validates hypotheses** | gem5-fi 可以验证“某结构/故障模型能否产生同类症状”，不能单独证明真实硅片根因。 |
+| P10 | **Every conclusion must be falsifiable** | 每个结论必须给出反例条件和下一项区分实验。 |
 
 ---
 
-## 2. 结构→症状先验表，支持从症状反查可疑SDC部件
+# 1. SDC taxonomy：不要把故障源和故障表现混为一谈
 
-SDC 诊断的核心先验：**故障位置的结构语义（控制流载体 vs 数据通路载体）× 保护状态 × 负载倾向 → 症状类型**。
+## 1.1 两维定义
 
-### 2.1 CPU微架构层SDC敏感性先验知识
+### Dimension A：Fault source
 
-| 结构/部件 | SDC 倾向 | 症状签名 | 来源 |
+```text
+SOFTWARE
+HARDWARE
+ENVIRONMENT
+UNKNOWN
+MIXED
+```
+
+### Dimension B：Fault manifestation
+
+```text
+MASKED
+SDC
+DUE
+CRASH
+HANG
+WRONG_CONTROL_FLOW
+PERFORMANCE_ONLY
+```
+
+于是一个真实事件可以表示为：
+
+```text
+Hardware-originated
+        ↓
+microarchitectural corruption
+        ↓
+architectural corruption
+        ↓
+┌─────────────┬─────────────┬──────────────┐
+│ MASKED      │ SDC         │ DUE / CRASH  │
+│ no visible  │ wrong data  │ visible error│
+└─────────────┴─────────────┴──────────────┘
+```
+
+### 1.2 Latent corruption 与最终症状
+
+CPU179 类案例必须允许：
+
+```text
+latent hardware corruption
+        ↓
+wrong architectural value
+        ↓
+wrong address / wrong pointer
+        ↓
+page fault / kernel panic
+```
+
+此类事件最终可能是 `CRASH/DUE`，但其上游仍可能是静默加载错误。故障诊断不应因为最终出现 panic 就把“SDC-originated corruption”从研究集合中删除。
+
+### 1.3 严格的 SDC operational definition
+
+在本文中，**Observed SDC** 定义为：
+
+```text
+同一任务/输入的参考正确结果 R
+与疑犯执行结果 O
+在预先定义的业务/数值语义比较器下不等
+且异常不是由显式软件路径错误、已确认 loud RAS 故障或测试框架自身预期行为解释。
+```
+
+同时保留：
+
+```text
+Latent SDC-inducing corruption
+```
+
+用于描述已发现的中间状态污染，即使最终因该污染演化为 crash/DUE。
+
+---
+
+# 2. 六层传播模型 + 一个知识层
+
+```text
+L0 Physical / Environment
+    ↓ activation: voltage / temperature / frequency / aging / input pattern
+L1 Microarchitecture
+    ↓ structure: L1D/L1I/L2/RF/FU/LSU/TLB/ROB/LQ/SQ/BTB/bypass/interconnect
+L2 Architectural / ISA
+    ↓ state: data / instruction / operand / address / control-flow / timing effect
+L3 Runtime / OS
+    ↓ kernel / syscall / exception / RAS / reboot
+L4 Application / Data
+    ↓ output / checksum / replay / ABFT / business invariant
+L5 Fleet / Temporal
+    ↓ core affinity / recurrence / cohort / aging / workload distribution
+L6 Diagnostic Knowledge Plane
+    ↓ evidence graph / priors / hypothesis / experiment selection / confidence / action
+```
+
+**诊断原则：**
+
+```text
+自上而下：symptom → evidence collection
+自下而上：mechanism → root-cause attribution
+横向：cross-layer consistency
+时间轴：recurrence / aging / context
+```
+
+L6 不再是“第七层故障传播”，而是覆盖 L0–L5 的**诊断推理平面**。
+
+---
+
+# 3. Evidence schema：把 Rule 变成机器可处理的证据
+
+## 3.1 四类证据
+
+### E+：正证据
+
+直接支持某个假设的观测：
+
+- golden diff
+- cross-core disagreement
+- instruction/context disagreement
+- vector-vs-scalar differential failure
+- store→reload corruption
+- byte rotation / zero-collapse / lane-local corruption
+- known gem5-fi injection producing same signature
+- temperature threshold
+- repeated same-core failure
+
+### E−：负证据
+
+仅用于降低假设概率，不可写成绝对排除：
+
+- zero EDAC / zero SEL
+- no MCE/GHES
+- no failure under a particular workload
+- software deterministic reproduction
+- test failure across every core
+- checksum passes
+
+### ELOC：定位证据
+
+```text
+socket
+NUMA node
+physical core
+SMT sibling
+cluster
+PC
+instruction class
+virtual/physical address
+cache line
+lane
+byte offset
+bit mask
+microarchitecture structure
+```
+
+### ET：时间/环境证据
+
+```text
+timestamp
+uptime
+age
+core temperature
+voltage
+frequency
+power
+workload phase
+execution context
+failure rate
+inter-failure interval
+recovery / self-healing episode
+```
+
+---
+
+# 4. Evidence normalization：没有时间/空间对齐，跨层诊断容易产生假因果
+
+所有证据进入诊断引擎前统一成：
+
+```yaml
+case_id: <unique-case>
+timestamp: <monotonic + wall clock>
+host_id: <host>
+socket_id: <socket>
+core_id: <physical-core>
+smt_id: <logical-core>
+workload_id: <workload>
+seed: <seed>
+pc: <optional-pc>
+instruction: <opcode>
+address: <optional-address>
+temperature: <C>
+voltage: <V>
+frequency: <MHz>
+ras_state: <structured-r as>
+output_signature: <hash/digest/statistics>
+error_signature: <structured-signature>
+confidence: <0..1>
+```
+
+必须区分：
+
+```text
+observation timestamp
+failure timestamp
+first-corruption timestamp
+last-known-good timestamp
+```
+
+否则很容易把“同时发生”错误解释为“因果关系”。
+
+---
+
+# 5. 分层 Probe 与改进后的判定规则
+
+## 5.1 L0：Physical / Environment
+
+### Probe L0-1：thermal / voltage / frequency
+
+记录：
+
+```text
+temperature
+voltage
+frequency
+power
+DVFS state
+cooling state
+neighbor-core load
+```
+
+### Probe L0-2：input pattern
+
+记录：
+
+```text
+bit population
+constant bits
+mantissa/exponent distribution
+operand Hamming distance
+repeated-mask pattern
+```
+
+### Probe L0-3：aging / timing
+
+记录：
+
+```text
+slack/WNS
+critical path
+age / uptime
+silicon revision
+```
+
+### Rule L0-1：thermal-associated evidence
+
+```text
+if failure_rate changes consistently with temperature
+    → thermal-associated evidence ↑
+```
+
+**不能直接写成：**
+
+```text
+Pearson > 0.75 → aging defect
+```
+
+因为 workload、frequency throttling、execution context 和 cooling interaction 都可能造成伪相关。
+
+只有完成 controlled sweep：
+
+```text
+fixed workload
+fixed input
+fixed frequency
+fixed core
+controlled temperature sweep
+```
+
+才能升级为：
+
+```text
+thermal causality evidence
+```
+
+### Rule L0-2：marginal timing hypothesis
+
+支持条件：
+
+```text
+failure appears above a repeatable thermal/voltage boundary
++ threshold shifts with frequency
++ healthy-core control remains clean under same conditions
+```
+
+结论：
+
+```text
+marginal/timing hypothesis ↑↑
+```
+
+而不是“已证明 aging”。
+
+---
+
+## 5.2 L1：Microarchitecture
+
+### Probe L1-1：architectural visibility
+
+记录：
+
+```text
+PC
+opcode
+source registers
+destination registers
+architectural value
+commit order
+faulting address
+```
+
+### Probe L1-2：PMC / trace
+
+可收集：
+
+```text
+instructions
+cycles
+cache misses
+branch mispredict
+TLB miss
+stall
+load/store activity
+```
+
+PMC 的正确语义：
+
+```text
+high PMC deviation → anomaly trigger
+normal PMC → cannot exclude data-value SDC
+```
+
+主存数据值型 SDC 特别容易在 PMC 上保持近似正常，因此 PMC 应作为**必要非充分的低成本触发器**，而不是终局检测器。
+
+### Probe L1-3：ACE / lifetime
+
+使用 AVF/ACE 先验描述：
+
+```text
+activation × exposure × architectural vulnerability
+```
+
+但不得把 ACE 直接等同于真实 SDC rate：
+
+```text
+ACE = upper/structural vulnerability estimate
+Observed SDC = activation × propagation × software exposure × detection semantics
+```
+
+### Rule L1-1：masking
+
+以下事件优先标记为 `MASKED_CANDIDATE`：
+
+```text
+invalid entry
+wrong-path and flushed
+overwrite-before-read
+dead value
+logical masking
+never committed
+```
+
+注意：
+
+```text
+masked ≠ healthy hardware
+```
+
+它只表示**本次 fault activation 没有形成可观测系统错误**。
+
+### Rule L1-2：structure-specific signatures
+
+```text
+byte rotation
+zero collapse
+lane-select error
+store→reload mismatch
+wrong address
+TLB/translation signature
+```
+
+结构签名优先级高于“哪条应用看起来失败”。
+
+---
+
+## 5.3 L2：Architectural / ISA / Execution Context
+
+### Probe L2-1：Context-Sensitive Differential Execution
+
+定义：
+
+```text
+F(I, X, C1)
+F(I, X, C2)
+```
+
+其中：
+
+```text
+I = instruction
+X = architectural input
+C = execution context
+```
+
+若：
+
+```text
+F(I,X,C1) != F(I,X,C2)
+```
+
+产生：
+
+```text
+CDI = Context-Dependent Inconsistency
+```
+
+CDI 是强硬件嫌疑信号，但必须继续排除软件非确定性。
+
+### Rule L2-1：opcode ≠ cause
+
+```text
+vector workload fails
+```
+
+不得直接推导：
+
+```text
+vector unit defective
+```
+
+必须运行结构对照集：
+
+```text
+pure FMA
+scalar arithmetic
+vector arithmetic
+load/store
+integer load
+store→reload
+```
+
+### Rule L2-2：execution context is first-class
+
+若失败只在特定前导指令、缓存状态或 resource pressure 出现：
+
+```text
+context-sensitive hardware hypothesis ↑
+```
+
+而不是简单提升某个 opcode 的故障概率。
+
+### Rule L2-3：consistent error
+
+```text
+two executions produce identical wrong output
+```
+
+属于：
+
+```text
+DIFFERENTIAL-DETECTION BLIND SPOT
+```
+
+因此必须引入第三个独立 execution context / independent reference，或者使用物理隔离参考单元。
+
+---
+
+# 6. L3 Runtime / OS：RAS 是证据，不是上帝视角
+
+## 6.1 Probe
+
+```text
+GHES
+MCE
+EDAC CE/UCE
+BERT
+SEL/BMC
+kernel panic
+page fault
+watchdog
+reboot
+vmcore
+```
+
+### Rule L3-1：RAS silence
+
+正确语义：
+
+```text
+if symptom && observed_RAS == 0
+    → silent-hardware hypothesis ↑
+```
+
+不允许：
+
+```text
+RAS == 0 → hardware proven
+```
+
+### Rule L3-2：RAS presence
+
+```text
+hardware RAS event exists
+```
+
+应转化为：
+
+```text
+reported-hardware-fault hypothesis ↑
+```
+
+但仍保留：
+
+```text
+SDC hypothesis > 0
+```
+
+因为两个事件可能在同一时间窗口发生，RAS 事件也可能与目标症状无因果关系。
+
+### Rule L3-3：异常类型聚合
+
+rare exception / panic patterns 可以作为 fleet prior：
+
+```text
+single-core clustering
++ repeated exception family
++ cross-workload recurrence
+```
+
+→ 提升 hardware suspicion。
+
+不能把某一种 panic 类型写死为“SDC CPU 强指标”，除非完成 workload-normalized control comparison。
+
+### Rule L3-4：校验器污染
+
+若 checker 与被检计算共享：
+
+```text
+same SIMD/FPU
+same execution core
+same suspect structure
+```
+
+则：
+
+```text
+checker-pass is weak evidence
+```
+
+应优先采用：
+
+```text
+cross-core reference
+scalar reference
+physically isolated checker
+```
+
+---
+
+# 7. L4 Application / Data
+
+## Probe L4-1：golden output
+
+```text
+golden digest
+golden byte diff
+semantic comparator
+numeric tolerance
+business invariant
+```
+
+### Rule L4-1：semantic threshold first
+
+```text
+output difference > predefined semantic threshold
+```
+
+才进入 corruption diagnosis。
+
+避免把合法浮点 nondeterminism 当作 SDC。
+
+### Probe L4-2：cross-core replay
+
+推荐顺序：
+
+```text
+same input
+same software image
+same initial state
+same external side effects
+cross-core execution
+```
+
+### Rule L4-2：cross-core disagreement
+
+结果不一致：
+
+```text
+hardware suspicion ↑↑
+```
+
+但不是直接“hardware proof”。必须进一步检查：
+
+```text
+software nondeterminism
+race
+uninitialized state
+NUMA / I/O variability
+OS scheduler effects
+```
+
+### Probe L4-3：checksum / CRC / ABFT
+
+三类检查器应区分：
+
+```text
+data-integrity checker
+computation-integrity checker
+control-flow checker
+```
+
+单纯 checksum 能证明“数据变了”，不能证明“计算过程没有算错”。
+
+### Rule L4-3：independent checker
+
+检验器与被检计算必须尽可能做到：
+
+```text
+physical isolation
+execution-unit diversity
+core diversity
+software-path diversity
+```
+
+---
+
+# 8. L5 Fleet / Temporal
+
+## Probe L5-1：core affinity
+
+记录：
+
+```text
+physical core
+SMT sibling
+socket
+NUMA
+cluster
+```
+
+### Rule L5-1：core-locality hypothesis
+
+```text
+same physical core
++ sibling/related logical contexts affected
++ alternate physical cores clean
+```
+
+→ `core-local fault-domain hypothesis ↑↑`
+
+但不要直接写成：
+
+```text
+single physical core single structure proven
+```
+
+因为 core-local domain 仍可能包含：
+
+```text
+L1
+LSU
+scheduler
+clock
+power
+local interconnect
+execution resources
+```
+
+### Probe L5-2：temporal recurrence
+
+区分：
+
+```text
+single-shot failure
+repeatable failure
+intermittent failure
+late-onset failure
+self-healing episode
+```
+
+### Rule L5-2：recurrence
+
+```text
+same seed
+same core
+same signature
+across independent days/windows
+```
+
+→ hardware hypothesis 显著增强。
+
+### Rule L5-3：absence of failure
+
+```text
+one clean test window
+```
+
+不得写成：
+
+```text
+machine healthy
+```
+
+只能：
+
+```text
+no failure observed under tested exposure
+```
+
+---
+
+# 9. Structure → Signature Diagnostic Matrix
+
+| Candidate structure | Typical fault signature | High-value discriminating experiment | Negative evidence | Diagnostic confidence |
+|---|---|---|---|---|
+| L1D data | wrong load value, silent corruption | integer load + store/reload + cache-state variation | clean uncached path | medium/high |
+| L1D tag | wrong line selected, false-hit style corruption | same data with controlled tag/cache residency | miss/refetch restores value | medium/high |
+| LSU / fill-buffer / datapath | zero-collapse, byte rotation, stale/shifted value | store→load, alignment sweep, NOP/context perturbation | pure-FMA clean | high when signature matches |
+| Vector FPU | FMA/vector numerical mismatch | pure FMA + vector-vs-scalar reference | integer/load-store clean | medium/high |
+| Scalar ALU | integer result corruption | isolated ALU operands and repetitions | load/store reproducer | medium |
+| TLB / page-walk | translation fault, bad descriptor-derived address | page-table walk stress + controlled VA/PA mapping | no translation involvement | medium |
+| ROB/LQ/SQ/control metadata | DUE, control-flow anomaly, broad instability | OoO pressure + replay/flush stress | deterministic data-only corruption | low/medium |
+| DRAM / memory subsystem | address/data corruption depending on path | DIMM/channel swap + ECC syndrome correlation | cross-DIMM clean | medium |
+| Shared interconnect / routing | same-value displacement, byte/lane routing errors | different producers/consumers sharing datapath | private execution-unit test clean | high when signature consistent |
+| Timing / marginal path | strong V/F/T threshold, context-sensitive failure | controlled T/V/F sweep with healthy-core control | fixed-condition failure | medium/high |
+
+**重要：** 表中的“Diagnostic confidence”是先验模板，不是固定概率。真实系统必须用现场数据校准。
+
+---
+
+# 10. CPU179：为什么“浮点故障”只是伪标签
+
+CPU179 案例是本框架的标准 end-to-end case study。
+
+已有取证显示：
+
+```text
+22 days
+147 reproductions
+12 kernel panics
+4 independent trigger methods
+all converge to CORE179
+RAS chain silent
+```
+
+初期症状来自 Eigen sparse Cholesky / GEMM，因此“FPU defect”是自然假设；但后续差分证据不断削弱该假设：
+
+```text
+pure FMA          → clean
+SVD               → clean
+dense GEMM        → clean
+integer / CRC     → clean
+memcpy            → fails
+integer loads     → fails
+store→reload      → fails
+```
+
+进一步观察：
+
+```text
+zero-collapse
+byte/phase rotation
+bit-field corruption
+NOP changes failure probability
+same core across independent workloads
+```
+
+因此正确的诊断过程是：
+
+```text
+H1: FPU
+ ↓ counterexamples
+H2: vector datapath
+ ↓ memcpy / integer-load evidence
+H3: common data movement path
+ ↓ byte routing + timing phase evidence
+H4: LSU / fill-buffer / routing-local datapath
+```
+
+CPU179 说明一个重要方法论原则：
+
+> **“哪个 workload 最先暴露错误”不等于“哪个硬件单元损坏”。真正高价值的是寻找多个 workload 共享而单一功能单元不共享的中间结构。**
+
+---
+
+# 11. Hypothesis Engine：从规则匹配升级到因果诊断
+
+定义候选根因集合：
+
+```text
+H1 software bug
+H2 data/input corruption
+H3 L1D
+H4 LSU/fill-buffer/datapath
+H5 vector FPU
+H6 TLB/page-walk
+H7 shared interconnect
+H8 memory subsystem
+H9 thermal/timing marginality
+H10 mixed/unknown
+```
+
+## 11.1 证据评分
+
+第一版可以使用可解释线性评分：
+
+```text
+Score(Hk | E)
+    = Prior(Hk)
+    + Σ wi × ei
+```
+
+其中：
+
+```text
+ei ∈ [-1, +1]
+wi = evidence reliability
+```
+
+成熟版本可使用 likelihood ratio / Bayesian update：
+
+```text
+Posterior(Hk | E)
+    ∝ Prior(Hk) × Π LR(Ei | Hk)
+```
+
+但必须注意证据之间可能相关，不能机械相乘。例如：
+
+```text
+same-core failure
+same-core sibling failure
+core affinity
+```
+
+很可能是同一底层证据族，不能当作三个完全独立样本。
+
+---
+
+# 12. Counterexample-first diagnosis
+
+每个诊断结论必须绑定一个“最强反例”。
+
+| 当前假设 | 强支持证据 | 最危险反例 | 区分实验 |
 |---|---|---|---|
-| **L1D data（无 ECC）** | **最高**：53.4%；permanent 达 5–71% | SDC 主导，SDC 是其余类别之和的 3–5 倍 | SDC-μArch, ITC2023, MaFIN/GeFIN |
-| **向量 FP 加/乘单元** | **最高**：GEMM 98.7%、sparse 97.4%、SVD 45–62%；fleet 相对 scalar adder 高达 3 个数量级 | 数值/线性代数负载下错误几乎必然进入输出 | ETS2024, Veritas |
-| L1D tag | 38.0% | SDC 偏高但 crash 也多 | SDC-μArch |
-| L2 data | 36.9%（有 ECC 时转为 CE/DUE） | 混合 | SDC-μArch |
-| DTLB data | 22.2% | 偏 DUE（crash AVF ≈50%），SDC<1% | SDC-μArch, Arm 芯片实测 |
-| 物理寄存器堆 | 注入真值 0–9.9%（ACE 上界 25–30% 高估 3–7×） | crash 偏多 | MeRLiN, ITC2023 |
-| 标量整数加法器 | SDC 仅 0–18%（crash >80%） | **SDC 必然伴随极低 BER（~10⁻⁴）**——高烈度错误自我暴露为 crash | Gates-to-SDCs, Veritas |
-| 标量乘法器 | SDC 5–20%，掩蔽高于加法器 | 软件常丢弃 64 位乘积高位 | Gates-to-SDCs |
-| L1I data | 7.3% | crash 主导（非法指令） | SDC-μArch, CHAOS |
-| L1I tag / ITLB | ≈0.2% | SDC/crash/DUE | SDC-μArch |
-| **ROB / LQ / SQ** | **30%** | 传播到浮点/向量等逻辑单元导致SDC 或 crash 或 benign | SDC-μArch, MaFIN/GeFIN |
-| TLB（整体） | SDC <1%，DUE 为主（crash ≈50%、hang ≈10%） | — | Arm 芯片实测 |
-| 主存数据 | SDC/Masked 主导，crash 可忽略 | 随机命中关键数据概率低，**最难靠崩溃察觉的 SDC 源** | CHAOS |
-| 分支预测器/BTB | AVF = 0（纯性能结构） | 影响性能 | Mukherjee MICRO-03 |
+| FPU defect | vector numerical error | same-core memcpy failure | pure FMA + integer load |
+| L1D defect | load value corruption | byte rotation across structures | cache-disabled / uncached control |
+| software bug | deterministic reproduction | cross-core disagreement | alternate-core replay |
+| thermal aging | temperature correlation | DVFS/workload confounder | fixed-frequency T sweep |
+| core-local defect | same-core recurrence | shared power/clock domain | neighboring-core controlled comparison |
+| DRAM | memory-value corruption | CPU datapath corruption | DIMM/channel swap/control pattern |
+| TLB | translation fault | bad pointer created by LSU | known-good page tables + direct physical access |
 
-### 2.2 CPU指令集层SDC敏感性先验知识
+**原则：**
 
-| 受损数据的语义角色 | 症状 | 来源 |
+```text
+No hypothesis is “confirmed” until its strongest plausible counterexample has been tested.
+```
+
+---
+
+# 13. Active Diagnosis：下一轮应该跑什么？
+
+当多个假设都仍然成立时，不再人工凭经验挑测试，而是选择**信息增益最大**的实验。
+
+## 13.1 实验选择
+
+```text
+InformationGain(Test)
+  = expected uncertainty before test
+    - expected uncertainty after test
+```
+
+例如 CPU179：
+
+| Test | FPU hypothesis | LSU hypothesis | L1D hypothesis | 预期价值 |
+|---|---:|---:|---:|---:|
+| pure FMA | 高 | 低 | 低 | 中 |
+| integer load | 低 | 高 | 中 | 高 |
+| store→reload | 低 | 高 | 高 | 高 |
+| vector load | 中 | 高 | 中 | 高 |
+| NOP perturbation | 低 | 高 | 中 | 高 |
+| temperature sweep | 中 | 中 | 中 | 中 |
+| scalar reference | 高 | 中 | 低 | 中 |
+
+因此在已有 pure-FMA clean 之后，再继续堆叠 FMA 测试的信息价值迅速下降；此时应优先转向 integer load / store→reload / NOP-context experiment。
+
+---
+
+# 14. Cross-layer causal evidence graph
+
+建议把一次故障表示成图，而不是一条 Rule：
+
+```text
+                    [Temperature ↑]
+                           │
+                           ↓
+                  [Timing margin ↓]
+                           │
+                           ↓
+[CORE179] ───────→ [LSU datapath]
+    │                    │
+    │                    ↓
+    │              [byte rotation]
+    │                    │
+    │                    ↓
+    ├──────→ [bad architectural value]
+    │                    │
+    │                    ↓
+    └──────→ [bad pointer/address]
+                         │
+                         ↓
+                    [kernel panic]
+```
+
+旁边附加独立观察：
+
+```text
+memcpy failure ──────┐
+integer-load failure ┤
+GEMM reload failure ──┤ → shared datapath hypothesis
+no-op sensitivity ───┘
+```
+
+这比“Rule5-2 命中，所以坏核”更适合解释复杂现场。
+
+---
+
+# 15. Confidence model：允许“不知道”
+
+建议采用五级状态：
+
+| State | 含义 | 典型条件 |
 |---|---|---|
-| 地址/指针/索引/栈（ret/call/push/pop/leave） | crash（segfault/kernel panic），SDC少见 | Gates-to-SDCs, GemFI, MARVEL(BFS RegBank) |
-| 纯数据值（流向输出的数据、FP/向量运算） | SDC 主导（MARVEL：FFT SPM 45% 全 SDC） | MARVEL, Veritas |
-| opcode/指令编码 | illegal instruction → crash（未实现编码）；legal instruction → SDC；unused bits → 必 masked | GemFI |
-| 指令位移量/基址寄存器选择 | segfault 为主；decode 阶段错误通常演变为 SDC | GemFI |
-| load/store 数据值 | 78% 结果正确（高韧度），破坏地址性数据或crash或SDC | GemFI |
-| 输出驻留缓存行（ESC） | 必然 SDC，不经程序流 | SVS |
+| UNKNOWN | 信息不足 | 单次异常 / 无可靠 reference |
+| CANDIDATE | 有初步异常 | 单层输出异常、PMC 偏移 |
+| SUSPECT | 硬件/软件某一方明显领先 | 多证据一致但未完成反例实验 |
+| HIGH-CONFIDENCE | 跨层证据高度一致 | cross-core + recurrence + localization + controlled experiment |
+| CONFIRMED | 独立 failure analysis / 硅级证据支持 | 厂商 FA、ATE/shmoo 或独立硬件复现 |
 
-### 2.3 fleet 级SDC先验知识
+必须保留：
 
-| 量 | 值 | 来源 |
-|---|---|---|
-| CPU 缺陷率 | ~1/1000（1000 DPPM；PinDrop 精确测得终身失败率 0.035% ≈ 1/2850） | Harpocrates, PinDrop |
-| crash : SDC（fleet） | ≥ 2–3 : 1 | Veritas/Meta |
-| SDC 事件频率 | 10 万 SoC @10 FIT → 每月 ≥1 次 | IOLTS23 |
-| 新指令首发代 | 失败率最高，后续代下降（vendor QA 迭代） | PinDrop |
-| 位翻非 IID | multi-bit 常见（向量场景 multi > single）；同 setting 固定 mask（>5% 记录同 mask 即成 pattern） | PinDrop, SOSP23 |
-| 浮点位翻位置 | 集中在 fraction（f64 99.9% 误差 <0.02%）——精度阈值类检测失效；但指数位可翻（相对误差达 10240） | SOSP23, SEVI |
+```text
+ABSTAIN / INSUFFICIENT_EVIDENCE
+```
+
+“诊断系统不知道”比错误地给出一个精确根因更有工程价值。
 
 ---
 
-## 3. 跨层协同判定规则（诊断核心）
+# 16. Negative evidence 的正确语义
 
-### 3.1 证据类型学
+## 16.1 不能这样写
 
-- **E+（正证据）**：直接指示硬件错误——重执行不一致、双执行分歧、golden diff、差分测试失败
-- **E−（负证据）**：排除性证据——零 EDAC 记录（排除受保护阵列）、软件确定性复现（排除硬件）、SEL 静默（排除 loud 故障）
-- **ELOC（定位证据）**：core ID 聚集、单物理核 sibling 同败、失败指令 PC、位翻 mask 模式
-- **ET（时间证据）**：跨天复现、温度相关、晚发、持续失败史
-
-### 3.2 协同规则集
-
-**SYN-1（硬件归因成立的最小证据组合）**
-```
-if (L4: 确定性重放跨核比对不一致 ∨ L2: 双执行不一致 ∨ L5: 专用测试跨天复现)
-   ∧ (L3: 零 EDAC/SEL 硬件遥测)
-   ∧ (L4: 症状跨应用/跨 workload 复现，或与特定指令族强绑定)
-→ 判定：硬件 SDC（高置信）
-→ 下一步：按 §2 先验表 + ELOC 证据定位可疑单元/core
-```
-依据：Orthrus Rule4-1（跨核比对天然排除软件）+ Sentinel Rule3-1（静默性）+ SiliFuzz Rule5-1（跨天复现）。
-
-**SYN-2（软件原因排除规则——先于硬件归因执行）**
-```
-if (相同输入 ∧ 相同软件栈) 下错误确定性复现（每次都在同一点以同样方式出错）
-   ∧ 换核心执行症状不变
-→ 判定：软件 bug / 数据本身已坏，排除本机硬件归因
-```
-依据：Orthrus——软件 bug 在两次执行中同样复现、比对一致不报警。**注意反向不成立**：换核症状消失 ≠ 软件原因（单物理核缺陷正是换核即消失，见 SYN-4）。
-
-**SYN-3（负证据定罪：无保护单元指向）**
-```
-if L4 SDC 症状 ∧ L3 全程零 EDAC/CE/SEL 记录
-→ 排除：ECC 保护阵列（L2/L3、ECC 内存）
-→ 嫌疑收窄至：功能单元（ALU/FPU/向量单元，通常无 ECC）＞ 无 ECC 的 L1D ＞ 流水线逻辑
-→ 结合负载指纹细化：数值/向量负载 → 向量 FP 单元；通用负载 → L1D data
-```
-依据：ETS2024（FU 无 ECC 是 SDC 无缓释来源）+ Veritas（vector FP 是跨代首要嫌疑）。
-
-**SYN-4（定位到物理核）**
-```
-if 同一物理核的两个 sibling 逻辑核同败且频率相近 ∧ 跨物理核不扩散
-   ∧ (可选) 多个不同应用/测试在该核上失败
-→ 判定：单物理核缺陷（62–89% 的 fleet 案例属此）
-→ 处置：mask 该物理核（而非整颗退役），见 ACT-1
-```
-反例分支：if 失败均匀分布所有物理核 → 共享结构（cache）嫌疑 或 同型非共享组件每核皆缺陷 或（首要怀疑）**误报测试**——PinDrop 曾据此剔除 5 个 false-positive 测试；if transactional memory 类测试且无核亲和 → 跨核共享结构根因。
-
-**SYN-5（温度/环境触发的归因与复现策略）**
-```
-if log(失败频率) 与核心温度线性相关（Pearson > 0.75）或存在最小触发温度
-→ 判定：marginal/aging 类物理缺陷（L0 层根因）
-→ 复现策略：加温/压制交替测试（Farron：自适应温度边界，实测 0.864 秒/小时压制 <59°C 即可触发）
-→ 警告：工具链效率、测试顺序余热、其他核负载（共享散热）都会改变触发条件，复现实验必须记录完整环境状态
-```
-依据：SOSP23（MIX1 仅 >59°C 出错；最小触发温度与该温度下频率 log-线性 Pearson −0.83）。
-
-**SYN-6（"校验通过"不可作为排除证据）**
-```
-if EC/CRC/校验和由向量指令加速计算 ∨ SDC 发生在 parity 计算之前
-→ 校验器自身可被同一缺陷污染，校验和与已坏数据自洽
-→ 必须引入与被检硬件物理隔离的校验路径（跨核/标量参考/软件校验）
-```
-依据：SOSP23 校验失效链。
-
-**SYN-7（输出正确 ≠ 无异常：轨迹偏移规则）**
-```
-if 输出与 golden 一致 但 PMC/HPC 偏差巨大（成百上千 %）
-→ 判定：隐蔽执行轨迹异常（故障破坏了控制逻辑但碰巧收敛到正确输出）
-→ 状态：列入观察池，加严复测（这类机器可能间歇性恶化）
-→ 反面警告：主存数据值型 SDC 在 HPC 上几乎无痕迹 → PMC 正常不能排除 SDC，输出校验不可省略
-```
-依据：CHAOS（Qsort L1D-SDC HPC 偏差 83,211% 但也观察到主存故障偏差 <0.3%）。
-
-**SYN-8（传播阻断造成的假阴性）**
-```
-if 负载变更后症状消失
-→ 不可据此排除硬件故障：同一故障在不同负载下表现不同
-   (a) 软件掩蔽：错误数据被算法丢弃/覆盖（HVF 有 Corruption 但 AVF 为 Masked）
-   (b) 覆写掩蔽：MARVEL 中输出 SPM 因持续被写而 AVF 远低于输入 SPM
-   (c) 触发 context 不再出现：ITHICA——错误显现依赖前导指令序列
-→ 处置：记录症状出现时的负载指纹，用原负载/原 seed 回放复现
+```text
+zero EDAC → ECC-protected array excluded
+RAS present → not SDC
+one clean window → machine healthy
+core-local → exact structure identified
+temperature correlation → aging proven
 ```
 
-**SYN-9（kernel/系统路径盲区规则）**
-```
-if SDC 定位到 syscall / 库 / kernel 代码路径
-→ 应用层校验（重执行/CRC）不覆盖此路径（syscall 结果直接复用记录、库未插桩）
-→ 必须由 L2 指令级检测（ITHICA 式全程序插桩）或 L5 专用测试补位
-→ kernel 指令涉事的 SDC 无软件防护且占比可观（L1I tag 的 SDC 中 77% 来自 kernel）
+## 16.2 应写成
+
+```text
+zero EDAC
+→ reported-ECC-fault hypothesis decreases
+
+RAS present
+→ reported-hardware-fault hypothesis increases
+
+one clean window
+→ failure not observed under tested exposure
+
+core-local recurrence
+→ core-local fault-domain probability increases
+
+temperature association
+→ thermal/timing hypothesis increases
 ```
 
-**SYN-10（多缺陷判定与指令族交叉验证）**
-```
-if 仅凭单一指令族测试定位故障单元
-→ 不可靠：同一缺陷可跨指令类型以相差 6 个数量级的速率致错（表面是 vector 缺陷，实为多类型受累）
-→ 处置：多指令族证据必须交叉验证后才能锁定单元
-```
-依据：ITHICA Finding D1。
-
-### 3.3 置信度分级
-
-| 级别 | 判定条件组合 | 处置 |
-|---|---|---|
-| **确认（Confirmed）** | SYN-1 全部成立 ∧ 跨天复现 ∧ 已定位 core/单元 ∧ （金标准）厂商/独立 failure analysis 复现 | 隔离/退役 |
-| **高度可疑（Suspect）** | SYN-1 成立但复现轮次不足，或定位证据不完整 | 深度测试（hammering、变温、多 context）、隔离观察 |
-| **可疑（Candidate）** | 仅有单层证据（如仅 L4 输出异常，或仅 PMC 偏差） | 列观察池、提升测试 cadence、收集跨层证据 |
-| **排除（Excluded）** | SYN-2 软件确定性复现成立，或症状确认为 loud 故障（有 SEL/EDAC 遥测，走 CE/UCE 通路） | 转入对应故障处理流程 |
+这是本文件从 Rule Book 升级为诊断系统最重要的语言规范之一。
 
 ---
 
-## 4. 处置与运维规则（ACT）
+# 17. gem5-fi 的正确角色：Hypothesis Validator
 
-**ACT-1（细粒度退役）**：≤2 个缺陷物理核 → 仅 mask 坏核复用其余核；>2 个缺陷核 → 退役整颗。一轮常规测试 1.02 小时（vs 基线 10.55 小时），总开销 0.017–0.145% [SOSP23 Farron]
-**ACT-2（测试优先级）**：basic（每次必跑）/ active（suspected 候选机加跑）/ suspected（本机曾检出的用例最高优先）[SOSP23]
-**ACT-3（测试多样性）**：91.4% 测试至少失败过一次、31% 测试曾是某机器唯一失败测试 → 测试族须覆盖算术/向量/浮点/cache coherency/事务内存/加密/并发锁全谱，不可只盯算术 [PinDrop, SOSP23]
-**ACT-4（双轨持续测试）**：out-of-production（分钟级、全负载、93% 覆盖、5–6 个月周期）+ in-production（毫秒级、co-located、77% 覆盖、15 天快速收敛）必须并存——各自独有覆盖 23%/7%（silicon transition 类缺陷只有负载频繁切换才触发）[Ripple]
-**ACT-5（corpus 反哺）**：坏机 snapshot/测试回填语料库（一台机器发现缺陷的测试在另一台有更高概率再发现）；每批测试换伪随机指令/数据序列以扩大输入空间 [SiliFuzz, IOLTS23]
-**ACT-6（误报治理）**：持续识别剔除 false-positive 测试（指示全核失败的测试是首要嫌疑）；排除 fuzzer 类故意崩溃负载 [PinDrop, Sentinel]
-**ACT-7（复现报告必备字段）**：失败 seed、core ID、温度/频率/电压快照、前导指令序列（execution context）、负载指纹、复现频率（次/分钟）——缺任一项的复现不可用于定案。
+`gem5-fi` 不应该被描述为“真实硅片根因证明器”，而应该提供：
 
----
-
-## 5. 基于判定规则的诊断流程
-
+```text
+Fault model
+    ↓
+structure
+    ↓
+activation
+    ↓
+propagation
+    ↓
+observable signature
 ```
-第 1 步【L4 症状确认】
-  输出/数据异常是否超出应用容差？（Rule4-4）超容差 → 继续；容差内 → 关闭。
-  是否确定性复现？（SYN-2）是 → 软件流程；否 → 继续。
 
-第 2 步【L3 静默性判定】
-  RAS（如SEL/EDAC/MCE） 有记录？（Rule3-1/Rule3-4）有 → loud 故障，走 CE/UCE 流程；无 → SDC 流程继续。
+例如：
 
-第 3 步【L4/L2 硬件归因】
-  确定性重放跨核比对（Rule4-1）或双执行插桩（Rule2-1）→ 不一致 = 硬件证据（SYN-1）。
-  校验路径是否与被检硬件隔离？（SYN-6）未隔离 → 重做。
+```text
+inject L1D bit corruption
+→ observe wrong-load signature
 
-第 4 步【L5 定位】
-  core 级失败分布（Rule5-2/SYN-4）→ 单物理核 / 全核 / 共享结构 三分支。
-  跨天复现（Rule5-1）→ 定案或观察池。
+inject fill-buffer byte shift
+→ observe byte-rotation signature
 
-第 5 步【L1 归因到单元】
-  负载指纹 + §2 先验表 + 零 EDAC 负证据（SYN-3）→ 嫌疑单元排序
-  （数值负载 → 向量 FP；通用 → L1D data；伴随 crash → 控制通路单元）。
-  可选用 gem5-fi 注入映射表做"哪类注入能重现该症状"的反向验证。
+inject TLB/page-walk corruption
+→ observe ESR / translation signature
+```
 
-第 6 步【L0 根因与复现】
-  温度相关性（SYN-5）/ 输入位模式（Rule0-4）/ 晚发史（Rule5-7）→ marginal/aging/制造缺陷分类。
-  短探针反复运行（Harpocrates：前 10% 指令即可检出 permanent 缺陷）+ 变温/变 context 复现。
+然后把真实现场映射到 injection signature：
 
-第 7 步【处置】
-  按 §3.3 置信度分级 + ACT-1 细粒度退役；corpus 反哺（ACT-5）。
+```text
+Real signature
+       ↕
+Gem5 signature
+```
+
+得到：
+
+```text
+mechanistic consistency evidence
+```
+
+而不是：
+
+```text
+proof of physical root cause
+```
+
+## 17.1 推荐接口
+
+```yaml
+case_signature:
+  manifestation: SDC|DUE|CRASH|MASKED
+  locality: core/socket/shared
+  opcode_family: load/store/vector/integer
+  error_shape: zero-collapse|rotation|lane|bitmask|address
+  context_sensitivity: low|medium|high
+  thermal_sensitivity: low|medium|high
+
+injection_signature:
+  structure: LSU/L1D/TLB/FPU/...
+  fault_model: bitflip/stuck-at/phase-shift/metadata
+  output_signature: ...
+
+match:
+  structural_similarity: 0..1
+  signature_similarity: 0..1
+  context_similarity: 0..1
+  confidence: 0..1
 ```
 
 ---
 
-## 6. 判定规则的能力边界
+# 18. ARM64-specific diagnostic prior
 
-1. **consistent error**：两份冗余执行都错且错得相同 → 双执行类检测原理性盲区 [ITHICA]
-2. **ESC 类**：输出驻留缓存直接被坏 → 绕过一切程序流内检测，输出写入前的缓存数据必须纳入校验 [SVS]
-3. **masked error**：不改变输出的错误不可检（设计上可接受，但意味着"检测通过"≠"硬件无故障"）[Orthrus]
-4. **主存数据值型 SDC**：HPC/PMC 几乎无痕迹，只能靠输出校验 [CHAOS]
-5. **校验器自身污染**：向量加速的 EC/CRC 与数据同时受害 [SOSP23]
-6. **软件层评估反推不可靠**：PVF/SVF 与全栈 AVF 结论相反的频率达 27–50%；软件加固可能因延长执行时间使真实故障率反升 30% [SVS]
-7. **DUE 的核外低估**：互连/接口/OS 是 DUE 主源，微架构级注入只能给下界 [Arm 芯片实测]
-8. **ECC ≠ 无 SDC**：延迟故障可致锁错行且 ECC 校验通过（DelayAVF）；多位翻超出 SECDED 单纠双检（SOSP23）
-9. **"自愈"异例与晚发失败**：单窗口无失败永远不能证明无缺陷，判定体系必须建立在持续测试之上 [PinDrop, Ripple]
+ARM64 不应被简单描述成：
+
+```text
+31 GPR → bigger crossbar → more SDC
+```
+
+更严谨的因果链应为：
+
+```text
+ISA semantics
+      ↓
+instruction decomposition
+      ↓
+µArch resource usage
+      ↓
+renaming / scheduling / bypass / LSU pressure
+      ↓
+activation density of shared structures
+      ↓
+fault exposure
+      ↓
+observed SDC probability
+```
+
+ARM64 研究真正有价值的假设是：
+
+> **特定 ARM64 微架构可能由于 Load-Store 语义、寄存器使用方式、乱序窗口和共享数据通路组织方式，使某些中枢结构获得更高的激活/暴露密度。**
+
+这应作为可验证 hypothesis，而不是已证实的 ISA 定律。
+
+验证至少需要：
+
+```text
+ARM64 implementation A
+ARM64 implementation B
+x86 control
+same workload family
+same fault model
+same exposure metric
+```
+
+并区分：
+
+```text
+ISA effect
+vs
+microarchitecture implementation effect
+```
 
 ---
 
-## 附录
+# 19. Fleet / Temporal model
 
-| 简称 | 论文 |
+不要只记录“失败过几次”，建议记录：
+
+```text
+machine prevalence
+per-test failure probability
+new-failure incidence
+lifetime failure probability
+inter-failure interval
+hazard rate
+```
+
+可以进一步建模：
+
+```text
+λ(t | age, temperature, voltage, workload, prior failures)
+```
+
+可采用：
+
+```text
+survival analysis
+Weibull model
+Cox model
+hazard regression
+```
+
+这样 PinDrop / Ripple 类研究不再只是 ACT 规则，而成为**时间维度上的可靠性先验**。
+
+---
+
+# 20. Operational actions：从固定阈值改成风险决策
+
+不建议写死：
+
+```text
+≤2 bad cores → mask
+>2 → retire chip
+```
+
+改为：
+
+```text
+Action = f(
+  confidence,
+  bad-core count,
+  locality,
+  failure frequency,
+  workload criticality,
+  redundancy,
+  SLA impact,
+  replacement cost,
+  repairability
+)
+```
+
+### Action state
+
+```text
+OBSERVE
+↑ cadence
+TARGETED_RETEST
+CORE_ISOLATION
+NODE_ISOLATION
+SOCKET_RETIREMENT
+CHIP_RETIREMENT
+VENDOR_FA
+```
+
+### 推荐决策
+
+```text
+HIGH-CONFIDENCE + core-local
+    → core isolation first
+
+HIGH-CONFIDENCE + shared structure suspicion
+    → socket/node isolation
+
+MULTIPLE core / temporal worsening
+    → chip retirement candidate
+
+UNRESOLVED but high business impact
+    → isolate while continuing diagnosis
+```
+
+---
+
+# 21. Continuous corpus / knowledge evolution
+
+每次确认案例都必须反哺：
+
+```text
+failure seed
+core ID
+socket/NUMA
+PC
+instruction sequence
+input pattern
+temperature
+voltage
+frequency
+load fingerprint
+error signature
+vmcore
+trace
+PMU
+successful reproducer
+failed reproducer
+root-cause label
+counterexample
+```
+
+最终形成：
+
+```text
+SDC Case
+   ↓
+Canonical Signature
+   ↓
+Hypothesis Prior
+   ↓
+Best Disambiguation Test
+   ↓
+Confirmed Mechanism
+```
+
+这会让 `gem5-fi` 从“故障注入平台”逐渐形成：
+
+```text
+SDC Diagnosis Knowledge Base
+```
+
+---
+
+# 22. Machine-readable Rule Schema
+
+后续实现不建议继续维护纯 Markdown Boolean rules，而应同时生成 YAML/JSON：
+
+```yaml
+rule_id: DIAG-CORE-LOCAL-001
+name: core-locality-hypothesis
+layer: L5
+inputs:
+  - physical_core
+  - smt_sibling
+  - alternate_core_replay
+positive_evidence:
+  - same_core_recurrence
+  - sibling_agreement
+negative_evidence:
+  - all_core_failure
+conclusion:
+  hypothesis: core_local_fault_domain
+  confidence_delta: +0.35
+counterexamples:
+  - shared_clock_domain
+  - shared_power_domain
+  - shared_L2
+next_experiments:
+  - move_same_seed_to_neighbor_core
+  - stress_shared_structure
+```
+
+这样以后可以直接实现：
+
+```text
+sdc-diagnose case.json
+```
+
+输出：
+
+```text
+H1 software bug          0.04
+H2 L1D                   0.17
+H3 LSU datapath          0.61
+H4 vector FPU            0.09
+H5 TLB                   0.06
+H6 memory subsystem      0.03
+
+Recommended next test:
+  integer-load + store-reload + NOP perturbation
+Expected information gain: 0.42
+```
+
+---
+
+# 23. 端到端诊断流程（推荐实现版本）
+
+```text
+STEP 0  Collect
+  ↓
+output / vmcore / RAS / PMU / core / T-V-F / seed / trace
+
+STEP 1  Normalize
+  ↓
+time alignment + core topology + workload normalization
+
+STEP 2  Classify manifestation
+  ↓
+MASKED / SDC / DUE / CRASH / HANG
+
+STEP 3  Reject obvious software explanations
+  ↓
+deterministic software repro / race / input corruption / intentional crash
+
+STEP 4  Differential execution
+  ↓
+cross-core / cross-context / scalar-vs-vector / independent checker
+
+STEP 5  Localize fault domain
+  ↓
+core-local / socket-shared / memory / interconnect / unknown
+
+STEP 6  Extract signatures
+  ↓
+address / byte / lane / bit / instruction / context / timing
+
+STEP 7  Rank hypotheses
+  ↓
+Bayesian or explainable weighted evidence model
+
+STEP 8  Choose next experiment
+  ↓
+maximum information gain
+
+STEP 9  Validate mechanism
+  ↓
+gem5-fi / fault injection / controlled T-V-F / microbenchmark
+
+STEP 10  Temporal confirmation
+  ↓
+repeated seed / multiple days / changing environment
+
+STEP 11  Confidence
+  ↓
+Candidate / Suspect / High-Confidence / Confirmed
+
+STEP 12  Action
+  ↓
+isolate / retire / FA / corpus feedback
+```
+
+---
+
+# 24. 能力边界与已知盲区
+
+1. **Consistent error**：两份冗余执行同步产生同样错误，双执行机制可能漏检。
+2. **Output-resident corruption / ESC**：错误可在正常程序流之外写回输出，必须把输出边界本身作为独立观测点。
+3. **Masked error**：本次运行未改变结果，不等于硬件无故障。
+4. **Main-memory data corruption**：可能几乎没有 PMC/控制流痕迹，应依赖数据完整性检查。
+5. **Checker co-corruption**：checker 若共享可疑硬件，pass 只是弱证据。
+6. **RAS incompleteness**：零 RAS 不证明“没有硬件错误”，有 RAS 也不证明“不是 SDC”。
+7. **Software nondeterminism**：跨核不一致必须排除 race、I/O、NUMA、uninitialized state 等因素。
+8. **Microarchitecture injection coverage**：gem5-fi 只能覆盖被建模的结构和 fault model。
+9. **ISA generalization**：单个平台结果不能直接上升为“ARM ISA 普遍定律”。
+10. **Late-onset / self-healing**：单窗口 clean 不能证明长期健康。
+11. **Correlation ≠ causation**：温度、电压、PMC 等相关性必须配合 controlled experiment。
+12. **Multiple concurrent faults**：单一根因模型可能失效，必须保留 `MIXED` 假设。
+
+---
+
+# 25. 论文/工业实现的最终创新点
+
+本框架建议最终不以“SDC 规则数量”作为贡献，而以以下五点作为核心：
+
+### C1. Source–Manifestation 二维 SDC taxonomy
+
+解决“SDC、DUE、crash、hardware fault source”互相混淆的问题。
+
+### C2. Cross-layer Evidence Graph
+
+统一：
+
+```text
+RAS
+vmcore
+PMU
+execution trace
+core affinity
+output diff
+temperature/voltage
+```
+
+并明确区分正证据、负证据、定位证据和时间证据。
+
+### C3. Hypothesis-driven RCA
+
+从：
+
+```text
+rule matching
+```
+
+升级到：
+
+```text
+hypothesis ranking + counterexample testing
+```
+
+### C4. Active Diagnosis
+
+自动选择下一项信息增益最大的实验，而不是无限增加测试数量。
+
+### C5. Real-silicon ↔ gem5-fi causal validation
+
+把真实 ARM64 故障签名与模拟故障传播签名对齐，形成：
+
+```text
+field evidence
+    ↕
+gem5 mechanistic evidence
+    ↕
+microarchitecture hypothesis
+```
+
+---
+
+# 26. 推荐的最终研究定位
+
+本文不应再定位成：
+
+> “SDC diagnosis rules collection”
+
+而建议定位为：
+
+> **A Cross-Layer Evidence-Driven and Hypothesis-Guided Framework for CPU Silent Data Corruption Diagnosis**
+
+中文：
+
+> **基于跨层证据图与假设驱动实验的 CPU 静默数据损坏因果诊断框架**
+
+最终目标不是回答：
+
+```text
+“这台机器是不是 SDC？”
+```
+
+而是回答：
+
+```text
+发生了什么？
+        ↓
+为什么发生？
+        ↓
+故障域在哪里？
+        ↓
+最可能是哪一个微架构结构？
+        ↓
+什么实验能最快证伪当前假设？
+        ↓
+应该隔离什么？
+```
+
+这也是 `gem5-fi` 从 **Fault Injection** 向 **SDC Diagnosis / RCA Engine** 演进的核心方向。
+
+---
+
+# Appendix A. Legacy evidence catalogue
+
+下列知识继续保留为证据/先验库，使用时必须注明适用平台、实验语义和统计 denominator，不得直接写成跨平台定律：
+
+| Knowledge family | 典型用途 |
 |---|---|
-| Mukherjee MICRO-03 / IEEE Micro | A Systematic Methodology to Compute the AVFs…；Measuring AVFs |
-| Biswas ISCA-05 | Computing AVFs for Address-Based Structures |
-| Nair ISCA-12 | A First-Order Mechanistic Model for AVF |
-| Bower SIGMETRICS-06 | Applying AVA to Hard Faults |
-| MeRLiN ISCA-17 | MeRLiN |
-| DelayAVF MICRO-24 | DelayAVF |
-| Arm 芯片实测 TC-22 | Soft Error Effects on Arm Microprocessors |
-| MaFIN/GeFIN IISWC-15 | Differential Fault Injection on Microarchitectural Simulators |
-| CHAOS 2026 | CHAOS: Controlled Hardware Fault Injector System for Gem5 |
-| GemFI DSN-14 | GemFI |
-| MARVEL HPCA-24 | Gem5-MARVEL |
-| ITC2023 | Estimating the Failures and Silent Errors Rates of CPUs Across ISAs… |
-| SVS ISCA-21 | Demystifying the System Vulnerability Stack |
-| Gates-to-SDCs DATE-25 | From Gates to SDCs |
-| SDC-μArch TC-23 | Silent Data Corruptions: Microarchitectural Perspectives |
-| IOLTS23 | SDC: The Stealthy Saboteurs of Digital Integrity |
-| Veritas HPCA-25 | Veritas |
-| SEVI ASPLOS-26 | SEVI |
-| PinDrop HPCA-26 | PinDrop |
-| SOSP23 | Understanding SDC in a Large Production CPU Population |
-| Ripple | Fleetscanner/Ripple |
-| SiliFuzz | SiliFuzz |
-| Sentinel ASPLOS-25 | Hardware Sentinel |
-| Vega ASPLOS-24 | Proactive Runtime Detection of Aging-Related SDCs |
-| ITHICA | ITHICA |
-| Orthrus SOSP-25 | Orthrus |
-| Harpocrates ISCA-24 / IEEE Micro-26 | Harpocrates 两版 |
-| PMC-SpMV | Detecting SDC in Sparse Matrices using HPC |
-| ETS2024 | SDC in Computing Systems: Early Predictions and Large-Scale Measurements |
+| AVF / ACE | 结构脆弱性、masking、lifetime |
+| gem5-MARVEL | 微架构传播与结构定位 |
+| MaFIN / GeFIN | 注入停止条件与差分故障注入 |
+| GemFI | ISA/指令级 fault propagation |
+| SDC-μArch | 结构→症状先验 |
+| ITC / Veritas / Gates-to-SDCs | functional-unit / instruction family 统计先验 |
+| SOSP'23 production CPU study | large-fleet SDC characteristics |
+| SiliFuzz / Fleetscanner | continuous hardware testing / fingerprint |
+| Harpocrates | hardware-in-the-loop program generation |
+| Orthrus | cross-core redundant validation |
+| ITHICA | context-sensitive instruction-level checking |
+| Vega | aging/timing-aware runtime evidence |
+| SEVI | vector/FMA characterization与fleet evidence |
+| PinDrop | long-horizon recurring and late-onset failures |
+| CHAOS | gem5 controlled fault injection + PMC analysis |
+| Hardware Sentinel | fleet hardware-error diagnosis |
+| ETS2024 | large-scale SDC prediction / measurement |
+
+---
+
+# Appendix B. References
+
+完整参考文献建议在论文版本中使用标准 BibTeX/DOI 条目，并为每个关键 claim 增加 `paper + page/figure/table` 定位。当前仓库中的简称仅作为工程文档索引，不视为完整 bibliography。
+
+---
+
+# Appendix C. Implementation TODO
+
+```text
+[ ] docs/schema/sdc-evidence.schema.yaml
+[ ] docs/schema/sdc-hypothesis.schema.yaml
+[ ] tools/sdc-diagnose/evidence_normalizer.py
+[ ] tools/sdc-diagnose/hypothesis_engine.py
+[ ] tools/sdc-diagnose/experiment_selector.py
+[ ] tools/sdc-diagnose/signature_matcher.py
+[ ] gem5-fi integration: injection-signature export
+[ ] vmcore integration: register/address/error extraction
+[ ] PMU integration: normalized counter features
+[ ] ARM64 core-topology integration
+[ ] CPU179 regression corpus
+[ ] controlled counterexample test suite
+[ ] confidence calibration dataset
+```
