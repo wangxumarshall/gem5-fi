@@ -1,0 +1,23 @@
+== 案18 寄存器代数闭合 ==
+PASS x1 == &runqueues（crash sym 实锤）
+PASS x27 == x1 + x20 (mod 2^64)
+PASS FAR == x27 + 0x120
+PASS x25 == 8（迭代 CPU 8 ≠ 执行核 179）
+
+== KASLR 不变式（跨开机指纹，对齐 12 案 census §2.8）==
+PASS x9 - x1 == 0xfffffffffe5d1798
+PASS x21 - x1 == 0x3f65f0
+PASS x24 - x21 == 0x5350
+PASS x9 低 16 位 == ae58（fbG+0x150 页内偏移）
+PASS x23 == 0x400（前次迭代 load_avg 残留）
+
+== __per_cpu_offset[] 数组完整性（三点等差）==
+PASS off[8] - off[0] == 8*0x22000
+PASS off[179] - off[0] == 179*0x22000
+
+== 反事实：若 x20 收到真值 off[8] ==
+PASS x27_true == crash p runqueues [8] 实例（逐位）
+   x27_true      = 0xffff8000801276c0
+   反事实访问地址 = 0xffff8000801277e0（cpu8 rq + 0x120, cfs_rq.load_avg 域）
+   实测 FAR      = 0xffffdf9b728097e0（= runqueues 模板 + 0x120, init 解映射域）
+   汉明距离(x27_true, x27) = 22 位（真值高位 ffff800080… vs 塌缩 ffffdf9b72…）

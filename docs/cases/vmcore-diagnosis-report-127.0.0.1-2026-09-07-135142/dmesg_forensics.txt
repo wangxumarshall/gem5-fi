@@ -1,0 +1,137 @@
+=== 案18 dmesg 法证 (生成于 2026-09-09, 可复核) ===
+
+## 1. WARNING 计数与 CPU 分布
+     38 WARNING: CPU: 179
+
+## 2. spurious fault 全部 38 个地址
+[33497.052105] Ignoring spurious kernel translation fault at virtual address ffff60401452b50b
+[33604.488381] Ignoring spurious kernel translation fault at virtual address ffff60401452b311
+[33694.444585] Ignoring spurious kernel translation fault at virtual address ffff60401452a353
+[34017.047955] Ignoring spurious kernel translation fault at virtual address ffff60401452a3d7
+[34147.042497] Ignoring spurious kernel translation fault at virtual address ffff60401452e773
+[34244.464208] Ignoring spurious kernel translation fault at virtual address ffff604014529492
+[34317.051285] Ignoring spurious kernel translation fault at virtual address ffff60402d12e138
+[34537.052301] Ignoring spurious kernel translation fault at virtual address ffff60402d1280d5
+[34644.422462] Ignoring spurious kernel translation fault at virtual address ffff6040e3cb9138
+[34917.042705] Ignoring spurious kernel translation fault at virtual address ffff6040147b3277
+[35044.489890] Ignoring spurious kernel translation fault at virtual address ffff6040147b7277
+[35468.035932] Ignoring spurious kernel translation fault at virtual address ffff60402d12e5d1
+[35588.035420] Ignoring spurious kernel translation fault at virtual address ffff60402d12e558
+[35684.420733] Ignoring spurious kernel translation fault at virtual address ffff60402d128681
+[35748.035513] Ignoring spurious kernel translation fault at virtual address ffff60402d12d726
+[35838.039666] Ignoring spurious kernel translation fault at virtual address ffff6040e3cbf117
+[36218.050580] Ignoring spurious kernel translation fault at virtual address ffff6040e3cba046
+[36298.055587] Ignoring spurious kernel translation fault at virtual address ffff6040e3cbf2ae
+[37209.034798] Ignoring spurious kernel translation fault at virtual address ffff604017a5d3c1
+[37409.051201] Ignoring spurious kernel translation fault at virtual address ffff604017a59697
+[37414.495392] Ignoring spurious kernel translation fault at virtual address ffff604017a595c6
+[37869.047576] Ignoring spurious kernel translation fault at virtual address ffff6040147b16b8
+[37974.446030] Ignoring spurious kernel translation fault at virtual address ffff6040147b043a
+[37999.050496] Ignoring spurious kernel translation fault at virtual address ffff6040147b5844
+[38079.055670] Ignoring spurious kernel translation fault at virtual address ffff6040147b4579
+[38404.491804] Ignoring spurious kernel translation fault at virtual address ffff60402d12e823
+[38654.464328] Ignoring spurious kernel translation fault at virtual address ffff6040152c5584
+[39194.467068] Ignoring spurious kernel translation fault at virtual address ffff60401849a14e
+[39219.048123] Ignoring spurious kernel translation fault at virtual address ffff60401849e63f
+[39449.042295] Ignoring spurious kernel translation fault at virtual address ffff604009bdc45b
+[39464.497448] Ignoring spurious kernel translation fault at virtual address ffff604009bd92f0
+[44094.480766] Ignoring spurious kernel translation fault at virtual address ffff604005900697
+[56754.511745] Ignoring spurious kernel translation fault at virtual address ffff604013dbf1f3
+[56864.505430] Ignoring spurious kernel translation fault at virtual address ffff604017bed4df
+[57409.051870] Ignoring spurious kernel translation fault at virtual address ffff604017bed47c
+[70534.430784] Ignoring spurious kernel translation fault at virtual address ffff604005f4a5fd
+[71549.055518] Ignoring spurious kernel translation fault at virtual address ffff20400635e5dc
+[71564.497477] Ignoring spurious kernel translation fault at virtual address ffff604005f4e4b3
+
+## 3. WARNING 时间戳谱
+33497.052113
+33604.488391
+33694.444594
+34017.047966
+34147.042506
+34244.464218
+34317.051293
+34537.052310
+34644.422471
+34917.042713
+35044.489900
+35468.035942
+35588.035428
+35684.420743
+35748.035522
+35838.039675
+36218.050589
+36298.055596
+37209.034807
+37409.051209
+37414.495401
+37869.047585
+37974.446040
+37999.050505
+38079.055679
+38404.491812
+38654.464337
+39194.467077
+39219.048132
+39449.042303
+39464.497458
+44094.480776
+56754.511754
+56864.505439
+57409.051880
+70534.430792
+71549.055527
+71564.497487
+
+## 4. 崩溃块（Oops 全文, L4295 起）
+[223640.370375] Unable to handle kernel paging request at virtual address ffffdf9b728097e0
+[223640.379292] Mem abort info:
+[223640.383047]   ESR = 0x0000000096000006
+[223640.387758]   EC = 0x25: DABT (current EL), IL = 32 bits
+[223640.394034]   SET = 0, FnV = 0
+[223640.398048]   EA = 0, S1PTW = 0
+[223640.402147]   FSC = 0x06: level 2 translation fault
+[223640.407986] Data abort info:
+[223640.411824]   ISV = 0, ISS = 0x00000006, ISS2 = 0x00000000
+[223640.418273]   CM = 0, WnR = 0, TnD = 0, TagAccess = 0
+[223640.424288]   GCS = 0, Overlay = 0, DirtyBit = 0, Xs = 0
+[223640.430562] swapper pgtable: 4k pages, 48-bit VAs, pgdp=0000202cdfe34000
+[223640.438229] [ffffdf9b728097e0] pgd=10006057fffff403, p4d=10006057fffff403, pud=10006057ffffe403, pmd=0000000000000000
+[223640.449807] Internal error: Oops: 0000000096000006 [#1] SMP
+[223640.456345] Modules linked in: binfmt_misc nft_fib_inet nft_fib_ipv4 nft_fib_ipv6 nft_fib nft_reject_inet nf_reject_ipv4 nf_reject_ipv6 nft_reject nft_ct nft_chain_nat nf_nat nf_conntrack nf_defrag_ipv6 nf_defrag_ipv4 rfkill ip_set nf_tables libcrc32c vfat fat rpcrdma sunrpc rdma_ucm ib_srpt ib_isert iscsi_target_mod target_core_mod ib_iser rdma_cm iw_cm ib_cm libiscsi scsi_transport_iscsi ipmi_ssif hns_roce_hw_v2 ib_uverbs ses acpi_ipmi enclosure ib_core sg ipmi_si ipmi_devintf hisi_uncore_l3c_pmu hisi_uncore_hha_pmu hisi_uncore_ddrc_pmu ipmi_msghandler hisi_uncore_pmu ip6_tables ip_tables fuse nfnetlink ext4 mbcache jbd2 sd_mod t10_pi crc64_rocksoft_generic crc64_rocksoft crc64 motorcomm crct10dif_ce ghash_ce hibmc_drm drm_vram_helper drm_ttm_helper ttm sha2_ce drm_display_helper hisi_sas_v3_hw sha256_arm64 sha1_ce hclge sbsa_gwdt hisi_sas_main drm_kms_helper libsas ahci libahci scsi_transport_sas drm hns3 libata nfit hnae3 megaraid_sas host_edma_drv i2c_designware_platform libnvdimm i2c_designware_core hisi_trng_v2
+[223640.456459]  dm_mirror dm_region_hash dm_log dm_multipath dm_mod aes_neon_bs aes_neon_blk aes_ce_blk aes_ce_cipher
+[223640.559014] CPU: 179 PID: 1177282 Comm: mi-scavenger Kdump: loaded Tainted: G        W           6.6.0-145.3.23.154.oe2403sp3.aarch64 #1
+[223640.572248] Hardware name: Yangtze Computing R240K V2/BC82AMQA, BIOS 7.48 06/15/2026
+[223640.580959] pstate: 204000c9 (nzCv daIF +PAN -UAO -TCO -DIT -SSBS BTYPE=--)
+[223640.588889] pc : find_busiest_group+0x140/0xb60
+[223640.594392] lr : find_busiest_group+0x11c/0xb60
+[223640.599885] sp : ffff8001ddf5b740
+[223640.604159] x29: ffff8001ddf5b8c0 x28: ffff8001ddf5b770 x27: ffffdf9b728096c0
+[223640.612260] x26: ffff604003e61f00 x25: 0000000000000008 x24: ffffdf9b72c05000
+[223640.620364] x23: 0000000000000400 x22: ffff604003e61b40 x21: ffffdf9b72bffcb0
+[223640.628470] x20: 0000000000000000 x19: ffff8001ddf5b950 x18: 0000000000000000
+[223640.636572] x17: 0000000000000000 x16: 0000000000000000 x15: 0000ffffa96b7e20
+[223640.644676] x14: 0000000000000000 x13: 0000000000000000 x12: 0000000000000000
+[223640.652777] x11: 0000000000000000 x10: ffff8000817c9430 x9 : ffffdf9b70ddae58
+[223640.660879] x8 : ffff8001ddf5b7c8 x7 : 0000000000000000 x6 : 0000000000000008
+[223640.668982] x5 : ffffffffffffff00 x4 : 0000000000000000 x3 : 0000000000000008
+[223640.677083] x2 : 0000000000002000 x1 : ffffdf9b728096c0 x0 : 0000000000000008
+[223640.685185] Call trace:
+[223640.689251]  find_busiest_group+0x140/0xb60
+[223640.694947]  load_balance+0x108/0x6c0
+[223640.700082]  newidle_balance+0x198/0x510
+[223640.705470]  pick_next_task_fair+0x110/0x718
+[223640.711201]  pick_next_task+0x60/0x398
+[223640.716394]  __schedule+0x1b4/0x8a0
+[223640.721313]  schedule+0x58/0x130
+[223640.725969]  futex_wait_queue+0x78/0xb0
+[223640.731236]  futex_wait+0xe8/0x1d0
+[223640.736067]  do_futex+0xec/0x1a0
+[223640.740745]  __arm64_sys_futex+0x80/0x198
+[223640.746189]  invoke_syscall+0x50/0x128
+[223640.751361]  el0_svc_common.constprop.0+0xc8/0xf0
+
+## 5. 开机与 CPU179 上线
+1:[    0.000000] Booting Linux on physical CPU 0x0000080000 [0x481fd010]
+408:[    0.000000] Memory: 791048812K/805102592K available (15360K kernel code, 5418K rwdata, 10648K rodata, 5824K init, 27554K bss, 14053780K reserved, 0K cma-reserved)
+1206:[    0.330048] CPU179: Booted secondary processor 0x00007a0300 [0x481fd010]
