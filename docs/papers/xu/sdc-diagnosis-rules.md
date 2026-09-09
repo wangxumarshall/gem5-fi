@@ -2,19 +2,13 @@
 
 >基于业界SDC研究成果，综合提炼（AVF/ACE 分析谱系、gem5 故障注入谱系、全栈传播机理谱系、生产环境 fleet 实证谱系、硬件/运行时检测谱系、软件/应用级检测谱系），每条规则标注来源论文，保证可回溯。
 
----
+## 0. SDC定义与故障传播链层级模型
 
-## 0. 总框架
-
-### 0.1 SDC定义
-
-```
+### SDC定义
 SDC ⇔ (软件计算过程正常) ∧ (软件计算结果输出与 golden run 不一致) ∧ (CPU RAS 链路全程静默，如零GHES / ghes_edac / BERT / SEL等)  [MeRLiN/GeFIN 体系]。
-```
-> SDC并非完全不导致显性故障，在某些场景因为上条指令计算的地址正确，但下条指令访问该地址时非法也会导致业务进程奔溃或内核panic，此类也属于SDC，因在访问非法地址前，SDC静默加载了错误的数据。
+> 备注：SDC并非完全不导致显性故障，在某些场景因为上条指令计算的地址正确，但下条指令访问该地址时非法也会导致业务进程奔溃或内核panic，此类也属于SDC，因在访问非法地址前，SDC静默加载了错误的数据。
 
-### 0.2 故障传播链层级模型
-
+### SDC故障传播链层级模型
 ```
 L0 电路/物理层      缺陷本体：stuck-at、marginal、aging(BTI)、small delay fault、软错误
       ↓ 激活条件：toggle、时序裕量、电压/温度/频率、输入位模式
@@ -35,95 +29,95 @@ L5 fleet/服务层     单机复发模式、跨机扩散、用户可见业务故
 
 ---
 
-## 1. 每层判定规则
+## 1. SDC分层探针与判定规则
 
 ### L0 电路/物理层探针
 
-**P0-1 时序前兆**：aging-aware STA 的 slack/WNS、cell 延迟退化百分比 [Vega]
-**P0-2 环境遥测**：核心温度、电压、频率、功耗（BMC/SEL）[SOSP23, SEVI, Sentinel]
-**P0-3 输入位模式**：测试输入的位偏置统计（0/1 概率、特定位恒定）[SEVI, SiliFuzz]
+**Probe0-1 时序前兆**：aging-aware STA 的 slack/WNS、cell 延迟退化百分比 [Vega]
+**Probe0-2 环境遥测**：核心温度、电压、频率、功耗（BMC/SEL）[SOSP23, SEVI, Sentinel]
+**Probe0-3 输入位模式**：测试输入的位偏置统计（0/1 概率、特定位恒定）[SEVI, SiliFuzz]
 
-**R0-1（前兆预警）**：if 时序违例路径 slack 持续下降 且 BTI 退化模型预测 10 年内违例 → 该 FU 列入 SDC 高危先验（预测性，非已发生）[Vega]
-**R0-2（触发条件判定）**：if SDC 频率与温度呈 log-线性相关（Pearson > 0.75）或存在最小触发温度阈值（如仅 >59°C 出错）→ 判定 marginal/aging 类物理缺陷，非软错误 [SOSP23]
-**R0-3（规格内出错）**：if 出错均发生在正常温度/频率范围内（95% incidents 频率 <80% max）→ 不可用"降频避险"处置，属设计/制造缺陷 [SEVI]
-**R0-4（输入位敏感）**：if 特定输入位（如 1<<23）清零时几乎必错、置位时正常 → 输入依赖型硬件缺陷，可作为指纹判据 [SiliFuzz FCOS 案例]
-**R0-5（延迟故障判据）**：if wire 延迟故障 → 必须同时满足 (a)路径静态超时钟周期 (b)信号实际 toggle (c)错误值被锁存 (d)锁存集合 GroupACE 才产生 SDC；注意 ECC 对延迟故障不等价防护（字线延迟可致 sense amp 锁错行且 ECC 校验通过）[DelayAVF]
+**Rule0-1（前兆预警）**：if 时序违例路径 slack 持续下降 且 BTI 退化模型预测 10 年内违例 → 该 FU 列入 SDC 高危先验（预测性，非已发生）[Vega]
+**Rule0-2（触发条件判定）**：if SDC 频率与温度呈 log-线性相关（Pearson > 0.75）或存在最小触发温度阈值（如仅 >59°C 出错）→ 判定 marginal/aging 类物理缺陷，非软错误 [SOSP23]
+**Rule0-3（规格内出错）**：if 出错均发生在正常温度/频率范围内（95% incidents 频率 <80% max）→ 不可用"降频避险"处置，属设计/制造缺陷 [SEVI]
+**Rule0-4（输入位敏感）**：if 特定输入位（如 1<<23）清零时几乎必错、置位时正常 → 输入依赖型硬件缺陷，可作为指纹判据 [SiliFuzz FCOS 案例]
+**Rule0-5（延迟故障判据）**：if wire 延迟故障 → 必须同时满足 (a)路径静态超时钟周期 (b)信号实际 toggle (c)错误值被锁存 (d)锁存集合 GroupACE 才产生 SDC；注意 ECC 对延迟故障不等价防护（字线延迟可致 sense amp 锁错行且 ECC 校验通过）[DelayAVF]
 
 ### L1 微架构层探针
 
-**P1-1 commit-stage trace diff**：逐条比对 commit cycle/PC/opcode/operands/寄存器内容，判定故障首次架构可见的位置与形式 [gem5-MARVEL, SVS]
-**P1-2 PMC/性能计数器**：golden run 与疑犯 run 的 HPC 平均绝对百分比偏差（指令数、cache miss、分支误预测、TLB miss 等 20 个）[CHAOS]
-**P1-3 结构占用与 ACE 驻留**：ROB/IQ 占用率、B_ACE×L_ACE（可由性能计数器获得）[AVF 奠基论文]
-**P1-4 注入映射表**：gem5-fi 离线注入建立的"注入点→症状"查找表 [ETS2024, Harpocrates]
+**Probe1-1 commit-stage trace diff**：逐条比对 commit cycle/PC/opcode/operands/寄存器内容，判定故障首次架构可见的位置与形式 [gem5-MARVEL, SVS]
+**Probe1-2 PMC/性能计数器**：golden run 与疑犯 run 的 HPC 平均绝对百分比偏差（指令数、cache miss、分支误预测、TLB miss 等 20 个）[CHAOS]
+**Probe1-3 结构占用与 ACE 驻留**：ROB/IQ 占用率、B_ACE×L_ACE（可由性能计数器获得）[AVF 奠基论文]
+**Probe1-4 注入映射表**：gem5-fi 离线注入建立的"注入点→症状"查找表 [ETS2024, Harpocrates]
 
-**R1-1（传播前提）**：if 故障位落在 invalid entry、或被覆写先于读取、或位于 wrong-path（mis-speculation 被 flush）、或命中后从未被 committed 读 → 掩蔽，非 SDC [MaFIN/GeFIN 提前停判据；SVS 三情形]
-**R1-2（un-ACE 判据库，九类掩蔽）**：命中以下任一即掩蔽——idle/invalid 状态位（但控制位永远算 ACE）；wrong-path 指令；预测器结构（BTB/分支预测器 AVF=0）；ex-ACE（最后一次使用后）；NOP 指令非 opcode 位；非绑定 prefetch；predicated-false 指令；动态死代码（FDD/TDD，含连续写同地址无中间读）；逻辑掩蔽位（OR 常数、只需零/非零的比较、高位 unused）[Mukherjee MICRO-03 九类 un-ACE]
-**R1-3（cache 生命周期判据）**：写穿透 cache data 位 ACE 仅当 fill-to-read / read-to-read / write-to-read；idle/被覆写/驱逐后/写前被覆盖均掩蔽；写回 cache 中某字节一旦被写，同行所有未写字节全 ACE 直到 evict [Biswas ISCA-05]
-**R1-4（tag 判据）**：tag 单 bit 错 → 仅 false positive（错误命中、hamming distance=1 的位）可能致 SDC；false negative 只触发 miss+refetch 无害；SB/写回 cache 的 tag 从数据首次修改到 evict 全程 ACE（错 tag 会写错内存位置）[Biswas ISCA-05]
-**R1-5（HPC 偏差探针）**：if 输出正确但 HPC 偏差巨大（可达 10³~10⁵ %）→ 隐蔽执行轨迹异常，加严观测；**但注意：主存数据值型 SDC 在 HPC 上几乎无痕迹（<0.3%），纯计数器检测对这类 SDC 无效** [CHAOS]
-**R1-6（驻留时长放大）**：永久故障在 L1D 的 SDC 率（最高 70.8%）远高于瞬态（最高 43%）→ 症状反复在同一位置出现时，永久缺陷嫌疑上升 [ITC2023, MARVEL]
+**Rule1-1（传播前提）**：if 故障位落在 invalid entry、或被覆写先于读取、或位于 wrong-path（mis-speculation 被 flush）、或命中后从未被 committed 读 → 掩蔽，非 SDC [MaFIN/GeFIN 提前停判据；SVS 三情形]
+**Rule1-2（un-ACE 判据库，九类掩蔽）**：命中以下任一即掩蔽——idle/invalid 状态位（但控制位永远算 ACE）；wrong-path 指令；预测器结构（BTB/分支预测器 AVF=0）；ex-ACE（最后一次使用后）；NOP 指令非 opcode 位；非绑定 prefetch；predicated-false 指令；动态死代码（FDD/TDD，含连续写同地址无中间读）；逻辑掩蔽位（OR 常数、只需零/非零的比较、高位 unused）[Mukherjee MICRO-03 九类 un-ACE]
+**Rule1-3（cache 生命周期判据）**：写穿透 cache data 位 ACE 仅当 fill-to-read / read-to-read / write-to-read；idle/被覆写/驱逐后/写前被覆盖均掩蔽；写回 cache 中某字节一旦被写，同行所有未写字节全 ACE 直到 evict [Biswas ISCA-05]
+**Rule1-4（tag 判据）**：tag 单 bit 错 → 仅 false positive（错误命中、hamming distance=1 的位）可能致 SDC；false negative 只触发 miss+refetch 无害；SB/写回 cache 的 tag 从数据首次修改到 evict 全程 ACE（错 tag 会写错内存位置）[Biswas ISCA-05]
+**Rule1-5（HPC 偏差探针）**：if 输出正确但 HPC 偏差巨大（可达 10³~10⁵ %）→ 隐蔽执行轨迹异常，加严观测；**但注意：主存数据值型 SDC 在 HPC 上几乎无痕迹（<0.3%），纯计数器检测对这类 SDC 无效** [CHAOS]
+**Rule1-6（驻留时长放大）**：永久故障在 L1D 的 SDC 率（最高 70.8%）远高于瞬态（最高 43%）→ 症状反复在同一位置出现时，永久缺陷嫌疑上升 [ITC2023, MARVEL]
 
 ### L2 ISA/指令层探针
 
-**P2-1 双执行不一致**：同一线程内同指令、相同架构输入、不同 execution context（前导指令序列、缓存状态）下输出对比 [ITHICA]
-**P2-2 指令级错误率**：特定指令/指令族的输出错误频率 [Veritas]
-**P2-3 受影响指令打印**：注入时打印受影响汇编指令，做事后相关分析 [GemFI]
+**Probe2-1 双执行不一致**：同一线程内同指令、相同架构输入、不同 execution context（前导指令序列、缓存状态）下输出对比 [ITHICA]
+**Probe2-2 指令级错误率**：特定指令/指令族的输出错误频率 [Veritas]
+**Probe2-3 受影响指令打印**：注入时打印受影响汇编指令，做事后相关分析 [GemFI]
 
-**R2-1（不一致即硬件证据）**：if 原始指令与复制指令架构输出不一致 → inconsistent error，硬件嫌疑成立并同步定位到 PC。注意：两份都错且错得相同时（consistent error）原理上检不到 [ITHICA]
-**R2-2（执行上下文主导）**：错误是否显现取决于前导指令序列塑造的微架构/电气 context，**而非指令使用频率**（59% 检出测试并非失败 opcode 执行频率最高者；单指令 reproducer 几乎全部失败）→ 复现策略必须构造触发序列，不能只轰炸热点指令 [ITHICA]
-**R2-3（x87/超越函数指纹）**：x87 legacy 指令单指令错误率 16–77%，可作单指令复现例外 [Veritas]
-**R2-4（ESC 旁路）**：if 故障击中 modified cache line 中即将输出的数据且不再被程序读取 → 经 DMA 直接写回，**必然 SDC**，且任何基于程序流/软件层的检测与归因均失效；输出缓冲区本身即观测点，概率与输出尺寸正相关（MB 级输出显著）[SVS, SDC-μArch]
+**Rule2-1（不一致即硬件证据）**：if 原始指令与复制指令架构输出不一致 → inconsistent error，硬件嫌疑成立并同步定位到 PC。注意：两份都错且错得相同时（consistent error）原理上检不到 [ITHICA]
+**Rule2-2（执行上下文主导）**：错误是否显现取决于前导指令序列塑造的微架构/电气 context，**而非指令使用频率**（59% 检出测试并非失败 opcode 执行频率最高者；单指令 reproducer 几乎全部失败）→ 复现策略必须构造触发序列，不能只轰炸热点指令 [ITHICA]
+**Rule2-3（x87/超越函数指纹）**：x87 legacy 指令单指令错误率 16–77%，可作单指令复现例外 [Veritas]
+**Rule2-4（ESC 旁路）**：if 故障击中 modified cache line 中即将输出的数据且不再被程序读取 → 经 DMA 直接写回，**必然 SDC**，且任何基于程序流/软件层的检测与归因均失效；输出缓冲区本身即观测点，概率与输出尺寸正相关（MB 级输出显著）[SVS, SDC-μArch]
 
 ### L3 OS/系统层探针
 
-**P3-1 内核异常日志**：panic/lockup/GPF/MCE/divide error/stack corruption，按类型+频率+core ID 结构化 [Hardware Sentinel]
-**P3-2 SEL/BMC 遥测**：ECC/MCE/PCIe/thermal 事件 [Hardware Sentinel]
-**P3-3 EDAC/可纠正错误计数**：CE/UCE 记录 [ETS2024]
-**P3-4 重启记录**：意外重启次数、时间戳 [Hardware Sentinel]
-**P3-5 修理历史**：misdiagnosed/undiagnosed 修理记录 [Hardware Sentinel]
+**Probe3-1 内核异常日志**：panic/lockup/GPF/MCE/divide error/stack corruption，按类型+频率+core ID 结构化 [Hardware Sentinel]
+**Probe3-2 SEL/BMC 遥测**：ECC/MCE/PCIe/thermal 事件 [Hardware Sentinel]
+**Probe3-3 EDAC/可纠正错误计数**：CE/UCE 记录 [ETS2024]
+**Probe3-4 重启记录**：意外重启次数、时间戳 [Hardware Sentinel]
+**Probe3-5 修理历史**：misdiagnosed/undiagnosed 修理记录 [Hardware Sentinel]
 
-**R3-1（静默性反向判据）**：if 应用异常时刻近旁 SEL 中 CPU 相关硬件故障（ECC/MCE/PCIe/thermal）条目数 = 0 → 保留 SDC 调查；** if 有任何硬件遥测故障，不是 SDC** [Hardware Sentinel]
-**R3-2（罕见异常聚合）**：if 罕见异常类型（doublefault 59.35×、stack segment 20.77×、invalid op 17.80× 等，相对 fleet 检出率倍数）在单核聚合出现 → SDC CPU 强指标 [Hardware Sentinel]
-**R3-3（重启规则）**：if 30 天窗口意外重启 ≥6 次（通用 fleet）/ ≥3 次（AI fleet）→ 进入 SDC 候选 [Hardware Sentinel]
-**R3-4（EDAC 负证据）**：if 应用层 SDC 症状 ∧ 全程零 RAS（EDAC/CE）记录 → **排除受 ECC/SECDED 保护的阵列（L2/L3、服务器内存），指向无保护单元：功能单元、无 ECC 的 L1D、流水线逻辑**；反之若伴随 EDAC 记录则优先走 CE/UCE 通路 [ETS2024]
-**R3-5（校验器自身污染）**：if EC/CRC 由向量指令加速计算 → 校验器与数据可能同时被污染，校验和与已坏数据自洽 → "校验通过"不可作为排除证据 [SOSP23]
-**R3-6（OS 放大效应）**：OS/kernel 参与使 SDC 率相对裸机最高放大 6.7×（A5 裸机 23.7% → Linux 59.3%）；kernel 代码涉事的 SDC 无软件防护（L1I tag 的 SDC 中 77% 来自 kernel 指令）→ 诊断规则中 syscall/库路径内的错误不能因"应用自身校验通过"而排除 [IOLTS23, SDC-μArch]
+**Rule3-1（静默性反向判据）**：if 应用异常时刻近旁 SEL 中 CPU 相关硬件故障（ECC/MCE/PCIe/thermal）条目数 = 0 → 保留 SDC 调查；** if 有任何硬件遥测故障，不是 SDC** [Hardware Sentinel]
+**Rule3-2（罕见异常聚合）**：if 罕见异常类型（doublefault 59.35×、stack segment 20.77×、invalid op 17.80× 等，相对 fleet 检出率倍数）在单核聚合出现 → SDC CPU 强指标 [Hardware Sentinel]
+**Rule3-3（重启规则）**：if 30 天窗口意外重启 ≥6 次（通用 fleet）/ ≥3 次（AI fleet）→ 进入 SDC 候选 [Hardware Sentinel]
+**Rule3-4（EDAC 负证据）**：if 应用层 SDC 症状 ∧ 全程零 RAS（EDAC/CE）记录 → **排除受 ECC/SECDED 保护的阵列（L2/L3、服务器内存），指向无保护单元：功能单元、无 ECC 的 L1D、流水线逻辑**；反之若伴随 EDAC 记录则优先走 CE/UCE 通路 [ETS2024]
+**Rule3-5（校验器自身污染）**：if EC/CRC 由向量指令加速计算 → 校验器与数据可能同时被污染，校验和与已坏数据自洽 → "校验通过"不可作为排除证据 [SOSP23]
+**Rule3-6（OS 放大效应）**：OS/kernel 参与使 SDC 率相对裸机最高放大 6.7×（A5 裸机 23.7% → Linux 59.3%）；kernel 代码涉事的 SDC 无软件防护（L1I tag 的 SDC 中 77% 来自 kernel 指令）→ 诊断规则中 syscall/库路径内的错误不能因"应用自身校验通过"而排除 [IOLTS23, SDC-μArch]
 
 ### L4 应用/业务层探针
 
-**P4-1 输出校验**：golden diff、checksum/CRC、ABFT（如 matmul 行列 checksum）[SEVI, Orthrus]
-**P4-2 重执行比对**：确定性重放 + 跨核重执行，逐字节比较 [Orthrus]
-**P4-3 PMC 签名**：以同机同负载干净运行的重复测量分布为基线，ML 分类器判偏差（<2% 开销）[PMC-SpMV]
-**P4-4 业务级异常**：查询返回错数据、计算结果偏离、下游数据丢失（如 Spark 缺行）[Ripple]
+**Probe4-1 输出校验**：golden diff、checksum/CRC、ABFT（如 matmul 行列 checksum）[SEVI, Orthrus]
+**Probe4-2 重执行比对**：确定性重放 + 跨核重执行，逐字节比较 [Orthrus]
+**Probe4-3 PMC 签名**：以同机同负载干净运行的重复测量分布为基线，ML 分类器判偏差（<2% 开销）[PMC-SpMV]
+**Probe4-4 业务级异常**：查询返回错数据、计算结果偏离、下游数据丢失（如 Spark 缺行）[Ripple]
 
-**R4-1（重执行黄金范式）**：if 相同输入 + 相同初始内存状态 + syscall 结果重放，在不同核心重执行结果不一致 → **硬件非确定性错误**（软件 bug 会确定性复现、比对一致不报警）；验证核必须与执行核物理隔离（核私有 ALU/FPU/向量单元），否则"同一个坏单元算两遍得到同样错误"漏检 [Orthrus]
-**R4-2（CRC 边界判据）**：数据跨越控制↔数据路径边界时 CRC 失配 → 搬运途 corruption；注意 checksum 只能发现"数据被改"，不能发现"计算过程算错"（哈希算错查错表），两者互补 [Orthrus]
-**R4-3（PMC 触发器定位）**：PMC 签名判据开销低、适作**必要非充分条件的高召回触发器**（疑点扫描），再触发昂贵的重算/复现取证；判据必须按负载类别（访存型/计算型/数值型）分别校准，并显式处理时间漂移 [PMC-SpMV]
-**R4-4（容差判定）**：if 输出偏差在应用语义容差内（PSNR/小数位/收敛性）→ 不是 SDC，避免误报 [GemFI]
-**R4-5（ABFT canary）**：if 数值负载（matmul）部署 checksum 类 ABFT → 生产负载自身变检测器（机器检出率 88–100%，时间开销 1.35%）[SEVI]
+**Rule4-1（重执行黄金范式）**：if 相同输入 + 相同初始内存状态 + syscall 结果重放，在不同核心重执行结果不一致 → **硬件非确定性错误**（软件 bug 会确定性复现、比对一致不报警）；验证核必须与执行核物理隔离（核私有 ALU/FPU/向量单元），否则"同一个坏单元算两遍得到同样错误"漏检 [Orthrus]
+**Rule4-2（CRC 边界判据）**：数据跨越控制↔数据路径边界时 CRC 失配 → 搬运途 corruption；注意 checksum 只能发现"数据被改"，不能发现"计算过程算错"（哈希算错查错表），两者互补 [Orthrus]
+**Rule4-3（PMC 触发器定位）**：PMC 签名判据开销低、适作**必要非充分条件的高召回触发器**（疑点扫描），再触发昂贵的重算/复现取证；判据必须按负载类别（访存型/计算型/数值型）分别校准，并显式处理时间漂移 [PMC-SpMV]
+**Rule4-4（容差判定）**：if 输出偏差在应用语义容差内（PSNR/小数位/收敛性）→ 不是 SDC，避免误报 [GemFI]
+**Rule4-5（ABFT canary）**：if 数值负载（matmul）部署 checksum 类 ABFT → 生产负载自身变检测器（机器检出率 88–100%，时间开销 1.35%）[SEVI]
 
 ### L5 fleet/服务层探针
 
-**P5-1 持续测试数据**：out-of-production 分钟级（Fleetscanner，45 天 cadence）+ in-production 毫秒级 co-located（Ripple，日级）[Ripple, SEVI, PinDrop]
-**P5-2 core 级失败分布**：失败测试的 core ID 遥测 [PinDrop, SiliFuzz, SEVI]
-**P5-3 复发史**：跨天/跨周/跨年的失败记录、失败 seed 回放 [PinDrop, SiliFuzz]
-**P5-4 差分测试**：向量单元 vs 标量单元参考输出对比（不同硬件单元天然差分）[SEVI]
+**Probe5-1 持续测试数据**：out-of-production 分钟级（Fleetscanner，45 天 cadence）+ in-production 毫秒级 co-located（Ripple，日级）[Ripple, SEVI, PinDrop]
+**Probe5-2 core 级失败分布**：失败测试的 core ID 遥测 [PinDrop, SiliFuzz, SEVI]
+**Probe5-3 复发史**：跨天/跨周/跨年的失败记录、失败 seed 回放 [PinDrop, SiliFuzz]
+**Probe5-4 差分测试**：向量单元 vs 标量单元参考输出对比（不同硬件单元天然差分）[SEVI]
 
-**R5-1（跨天复现定案）**：仅当**同一核多天可复现同一问题**才判 defective（抑制偶发噪声）；单次失败只进观察池 [SiliFuzz]
-**R5-2（单物理核指纹，最强定位证据）**：if 两个 sibling 逻辑核同败同一测试且频率几乎一致、跨物理核不扩散 → 单物理核单一失效单元缺陷；实证比例：SiliFuzz ~70%、SEVI 89%、PinDrop 62%、SOSP23 约一半机器 [四篇一致]
-**R5-3（向量输出 vs 标量参考）**：if 向量指令输出 ≠ 标量参考输出 → 向量单元缺陷；>80% SDC cases 首次失败 <10K 轮（1 秒内）[SEVI]
-**R5-4（FMA/向量 FP 高危）**：FMA 占向量 SDC cases >75%、incidents >92%；vfm（vector fused multiply）失败率最高 → 检测按硬件单元覆盖优先，FMA/向量 FP 是最高优先级探针 [SEVI, PinDrop, Veritas]
-**R5-5（持续测试必要性）**：if 仅做 snapshot 式一次性测试 → 必漏间歇/晚发/低频/磨损类缺陷（PinDrop：机器可于首测近 4 年后才首败；每季度 0.0024% 新增失败机器；Ripple：23%+7% 覆盖仅为两种模式各自独有）→ 判定体系必须内建"持续重测" [PinDrop, Ripple]
-**R5-6（复发是常态）**：>71% 失败机器随后 ≥2 年持续稳定失败（单机重复而非随机扩散）→ 复发支持硬件归因；但存在"自愈"异例（119 次失败后 59k+ 测试零失败）与晚发案例 → 单次窗口无失败不能排除 [PinDrop]
-**R5-7（晚发与磨损）**：if 机器在长期运行后新开始失败 → 硅退化（比传统 bathtub 更早显现），"今天正确不保证明天正确" [Ripple, PinDrop]
+**Rule5-1（跨天复现定案）**：仅当**同一核多天可复现同一问题**才判 defective（抑制偶发噪声）；单次失败只进观察池 [SiliFuzz]
+**Rule5-2（单物理核指纹，最强定位证据）**：if 两个 sibling 逻辑核同败同一测试且频率几乎一致、跨物理核不扩散 → 单物理核单一失效单元缺陷；实证比例：SiliFuzz ~70%、SEVI 89%、PinDrop 62%、SOSP23 约一半机器 [四篇一致]
+**Rule5-3（向量输出 vs 标量参考）**：if 向量指令输出 ≠ 标量参考输出 → 向量单元缺陷；>80% SDC cases 首次失败 <10K 轮（1 秒内）[SEVI]
+**Rule5-4（FMA/向量 FP 高危）**：FMA 占向量 SDC cases >75%、incidents >92%；vfm（vector fused multiply）失败率最高 → 检测按硬件单元覆盖优先，FMA/向量 FP 是最高优先级探针 [SEVI, PinDrop, Veritas]
+**Rule5-5（持续测试必要性）**：if 仅做 snapshot 式一次性测试 → 必漏间歇/晚发/低频/磨损类缺陷（PinDrop：机器可于首测近 4 年后才首败；每季度 0.0024% 新增失败机器；Ripple：23%+7% 覆盖仅为两种模式各自独有）→ 判定体系必须内建"持续重测" [PinDrop, Ripple]
+**Rule5-6（复发是常态）**：>71% 失败机器随后 ≥2 年持续稳定失败（单机重复而非随机扩散）→ 复发支持硬件归因；但存在"自愈"异例（119 次失败后 59k+ 测试零失败）与晚发案例 → 单次窗口无失败不能排除 [PinDrop]
+**Rule5-7（晚发与磨损）**：if 机器在长期运行后新开始失败 → 硅退化（比传统 bathtub 更早显现），"今天正确不保证明天正确" [Ripple, PinDrop]
 
 ---
 
-## 2. 结构→症状先验表（从症状反查可疑部件）
+## 2. 结构→症状先验表，支持从症状反查可疑SDC部件
 
 SDC 诊断的核心先验：**故障位置的结构语义（控制流载体 vs 数据通路载体）× 保护状态 × 负载倾向 → 症状类型**。
 
-### 2.1 微架构结构先验（SDC 概率 = 该结构故障导致 SDC 的比例）
+### 2.1 CPU微架构层SDC敏感性先验知识
 
 | 结构/部件 | SDC 倾向 | 症状签名 | 来源 |
 |---|---|---|---|
@@ -142,7 +136,7 @@ SDC 诊断的核心先验：**故障位置的结构语义（控制流载体 vs �
 | 主存数据 | SDC/Masked 主导，crash 可忽略 | 随机命中关键数据概率低，**最难靠崩溃察觉的 SDC 源** | CHAOS |
 | 分支预测器/BTB | AVF = 0（纯性能结构） | 影响性能 | Mukherjee MICRO-03 |
 
-### 2.2 指令/数据语义先验
+### 2.2 CPU指令集层SDC敏感性先验知识
 
 | 受损数据的语义角色 | 症状 | 来源 |
 |---|---|---|
@@ -153,7 +147,7 @@ SDC 诊断的核心先验：**故障位置的结构语义（控制流载体 vs �
 | load/store 数据值 | 78% 结果正确（高韧度），破坏地址性数据或crash或SDC | GemFI |
 | 输出驻留缓存行（ESC） | 必然 SDC，不经程序流 | SVS |
 
-### 2.3 fleet 级基线数字（先验概率校准）
+### 2.3 fleet 级SDC先验知识
 
 | 量 | 值 | 来源 |
 |---|---|---|
@@ -185,7 +179,7 @@ if (L4: 确定性重放跨核比对不一致 ∨ L2: 双执行不一致 ∨ L5: 
 → 判定：硬件 SDC（高置信）
 → 下一步：按 §2 先验表 + ELOC 证据定位可疑单元/core
 ```
-依据：Orthrus R4-1（跨核比对天然排除软件）+ Sentinel R3-1（静默性）+ SiliFuzz R5-1（跨天复现）。
+依据：Orthrus Rule4-1（跨核比对天然排除软件）+ Sentinel Rule3-1（静默性）+ SiliFuzz Rule5-1（跨天复现）。
 
 **SYN-2（软件原因排除规则——先于硬件归因执行）**
 ```
@@ -292,19 +286,19 @@ if 仅凭单一指令族测试定位故障单元
 
 ```
 第 1 步【L4 症状确认】
-  输出/数据异常是否超出应用容差？（R4-4）超容差 → 继续；容差内 → 关闭。
+  输出/数据异常是否超出应用容差？（Rule4-4）超容差 → 继续；容差内 → 关闭。
   是否确定性复现？（SYN-2）是 → 软件流程；否 → 继续。
 
 第 2 步【L3 静默性判定】
-  RAS（如SEL/EDAC/MCE） 有记录？（R3-1/R3-4）有 → loud 故障，走 CE/UCE 流程；无 → SDC 流程继续。
+  RAS（如SEL/EDAC/MCE） 有记录？（Rule3-1/Rule3-4）有 → loud 故障，走 CE/UCE 流程；无 → SDC 流程继续。
 
 第 3 步【L4/L2 硬件归因】
-  确定性重放跨核比对（R4-1）或双执行插桩（R2-1）→ 不一致 = 硬件证据（SYN-1）。
+  确定性重放跨核比对（Rule4-1）或双执行插桩（Rule2-1）→ 不一致 = 硬件证据（SYN-1）。
   校验路径是否与被检硬件隔离？（SYN-6）未隔离 → 重做。
 
 第 4 步【L5 定位】
-  core 级失败分布（R5-2/SYN-4）→ 单物理核 / 全核 / 共享结构 三分支。
-  跨天复现（R5-1）→ 定案或观察池。
+  core 级失败分布（Rule5-2/SYN-4）→ 单物理核 / 全核 / 共享结构 三分支。
+  跨天复现（Rule5-1）→ 定案或观察池。
 
 第 5 步【L1 归因到单元】
   负载指纹 + §2 先验表 + 零 EDAC 负证据（SYN-3）→ 嫌疑单元排序
@@ -312,7 +306,7 @@ if 仅凭单一指令族测试定位故障单元
   可选用 gem5-fi 注入映射表做"哪类注入能重现该症状"的反向验证。
 
 第 6 步【L0 根因与复现】
-  温度相关性（SYN-5）/ 输入位模式（R0-4）/ 晚发史（R5-7）→ marginal/aging/制造缺陷分类。
+  温度相关性（SYN-5）/ 输入位模式（Rule0-4）/ 晚发史（Rule5-7）→ marginal/aging/制造缺陷分类。
   短探针反复运行（Harpocrates：前 10% 指令即可检出 permanent 缺陷）+ 变温/变 context 复现。
 
 第 7 步【处置】
