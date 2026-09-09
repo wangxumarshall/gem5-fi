@@ -1,0 +1,116 @@
+{
+  "cli_version": "0.10.2",
+  "checkpoint_id": "01M22WVVJJ416FNRRP7D84TGNC",
+  "session_id": "dabc3f2d-060b-4a1f-bb76-dea5ee7d3241",
+  "strategy": "manual-commit",
+  "created_at": "2026-09-09T10:54:23.3599875Z",
+  "branch": "docs/vmcore-case-reports-0907-2dumps",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "docs/cases/vmcore-diagnosis-report-127.0.0.1-2026-09-07-151631/algebra.py",
+    "docs/cases/vmcore-diagnosis-report-127.0.0.1-2026-09-07-151631/vmcore-diagnosis-report-127.0.0.1-2026-09-07-151631.md"
+  ],
+  "agent": "Claude Code",
+  "model": "GLM-5.3[1m]",
+  "turn_id": "be81e0459515",
+  "checkpoint_transcript_start": 322,
+  "transcript_lines_at_start": 322,
+  "compact_transcript_start": 64,
+  "token_usage": {
+    "input_tokens": 763684,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 7275,
+    "api_call_count": 7
+  },
+  "skill_events_version": 1,
+  "skill_events": [
+    {
+      "id": "prompt-skill-claude-code-superpowers:systematic-debugging-2026-09-09T10:24:34.75358451Z",
+      "event_type": "prompt_invocation",
+      "skill": {
+        "name": "superpowers:systematic-debugging"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "prompt_slash_command",
+        "confidence": "explicit"
+      },
+      "turn_id": "a572531810cf",
+      "timestamp": "2026-09-09T10:24:34.75358451Z",
+      "native": {
+        "command": "/superpowers:systematic-debugging"
+      },
+      "collapse": {
+        "target": "user_message",
+        "label": "/superpowers:systematic-debugging",
+        "default_collapsed": true
+      }
+    },
+    {
+      "id": "prompt-skill-claude-code-goal-2026-09-09T10:24:55.68759566Z",
+      "event_type": "prompt_invocation",
+      "skill": {
+        "name": "goal"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "prompt_slash_command",
+        "confidence": "explicit"
+      },
+      "turn_id": "be81e0459515",
+      "timestamp": "2026-09-09T10:24:55.68759566Z",
+      "native": {
+        "command": "/goal"
+      },
+      "collapse": {
+        "target": "user_message",
+        "label": "/goal",
+        "default_collapsed": true
+      }
+    },
+    {
+      "id": "claude-skill-call_0c06555167b24909a43a57ee",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "superpowers:systematic-debugging"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "be81e0459515",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 27,
+        "end": 28,
+        "entry_ids": [
+          "2a99b3d1-6a6e-4d91-b72a-ce4a25272224"
+        ],
+        "tool_use_id": "call_0c06555167b24909a43a57ee"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "call_0c06555167b24909a43a57ee"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: superpowers:systematic-debugging",
+        "default_collapsed": true
+      }
+    }
+  ],
+  "initial_attribution": {
+    "calculated_at": "2026-09-09T10:54:23.25295343Z",
+    "agent_lines": 199,
+    "agent_removed": 0,
+    "human_added": 113,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 312,
+    "total_lines_changed": 312,
+    "agent_percentage": 63.78205128205128,
+    "metric_version": 2
+  }
+}

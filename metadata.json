@@ -1,0 +1,27 @@
+{
+  "cli_version": "0.10.2",
+  "checkpoint_id": "01M22WVVJJ416FNRRP7D84TGNC",
+  "strategy": "manual-commit",
+  "branch": "docs/vmcore-case-reports-0907-2dumps",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "docs/cases/vmcore-diagnosis-report-127.0.0.1-2026-09-07-151631/algebra.py",
+    "docs/cases/vmcore-diagnosis-report-127.0.0.1-2026-09-07-151631/vmcore-diagnosis-report-127.0.0.1-2026-09-07-151631.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 763684,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 7275,
+    "api_call_count": 7
+  }
+}
