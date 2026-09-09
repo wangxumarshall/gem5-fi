@@ -25,32 +25,32 @@
 
 ## Task 1: 案 18（13:51:42）dmesg 全量法证
 
-- [ ] 1.1 WARNING 时间戳全谱提取（38 条，簇发结构分析）
-- [ ] 1.2 开机→panic 时间线表（0 → 33497 首症 → 71564 末次 WARNING → 223640 panic；注意 71564 后静默 152076s≈42.2h）
-- [ ] 1.3 崩溃块六要素摘录（Oops/ESR/FSC/FAR/寄存器/Call trace）
-- [ ] 1.4 受害进程身份与业务语义（mi-scavenger，futex→newidle 路径，与第 6 次 08-26 同型）
+- [x] 1.1 WARNING 时间戳全谱提取（38 条，簇发结构分析）
+- [x] 1.2 开机→panic 时间线表（0 → 33497 首症 → 71564 末次 WARNING → 223640 panic；注意 71564 后静默 152076s≈42.2h）
+- [x] 1.3 崩溃块六要素摘录（Oops/ESR/FSC/FAR/寄存器/Call trace）
+- [x] 1.4 受害进程身份与业务语义（mi-scavenger，futex→newidle 路径，与第 6 次 08-26 同型）
 
 ## Task 2: 案 18 crash 动态取证
 
-- [ ] 2.1 taskset 隔离下冷加载 17GB PARTIAL dump（复用既有 /tmp/crash-0907 会话结论，新会话补充）
-- [ ] 2.2 x1 语义钉死：`p runqueues` / `sym ffffdf9b728096c0` 附近符号 / 反汇编 fair.c:12050 上下文确定 x1 来源
-- [ ] 2.3 `__per_cpu_offset[]` 数组完整性 + 槽 8 真值（ffffa0650d91e000）vs 实收 0 对照
-- [ ] 2.4 反事实：vtop(x1 + off[8] + 0x120) 应 VALID 且内嵌自指针一致
-- [ ] 2.5 FAR 页表几何 vtop 复核（L2/pmd=0，与第 11 次案并排归一）
+- [x] 2.1 taskset 隔离下冷加载 17GB PARTIAL dump（复用既有 /tmp/crash-0907 会话结论，新会话补充）
+- [x] 2.2 x1 语义钉死：`p runqueues` / `sym ffffdf9b728096c0` 附近符号 / 反汇编 fair.c:12050 上下文确定 x1 来源
+- [x] 2.3 `__per_cpu_offset[]` 数组完整性 + 槽 8 真值（ffffa0650d91e000）vs 实收 0 对照
+- [x] 2.4 反事实：vtop(x1 + off[8] + 0x120) 应 VALID 且内嵌自指针一致
+- [x] 2.5 FAR 页表几何 vtop 复核（L2/pmd=0，与第 11 次案并排归一）
 
 ## Task 3: 案 18 报告撰写 + commit
 
-- [ ] 3.1 七要素报告写入 `docs/cases/vmcore-diagnosis-report-127.0.0.1-2026-09-07-135142/`（含 algebra.py + 输出）
-- [ ] 3.2 验证（报告引用与 crash log 逐条对照）→ commit → push
+- [x] 3.1 七要素报告写入 `docs/cases/vmcore-diagnosis-report-127.0.0.1-2026-09-07-135142/`（含 algebra.py + 输出）
+- [x] 3.2 验证（报告引用与 crash log 逐条对照）→ commit → push
 
 ## Task 4: 案 19（15:16:31）dmesg 法证 + 代数闭合 + 报告 + commit
 
-- [ ] 4.1 dmesg 全量法证（零前兆负证据；开机 4615.7s 时间线）
-- [ ] 4.2 代数闭合脚本（x27=x1+x20、FAR=x27+0x120 已验；x20 撕裂窗口形态初判——无 vmcore 不可做窗口直读，降级【强推】）
-- [ ] 4.3 七要素报告（内存真值对照显式标注"不可验证：kdump vmcore 文件缺失"）
-- [ ] 4.4 验证 → commit → push
+- [x] 4.1 dmesg 全量法证（零前兆负证据；开机 4615.7s 时间线）
+- [x] 4.2 代数闭合脚本（x27=x1+x20、FAR=x27+0x120 已验；x20 撕裂窗口形态初判——无 vmcore 不可做窗口直读，降级【强推】）
+- [x] 4.3 七要素报告（内存真值对照显式标注"不可验证：kdump vmcore 文件缺失"）
+- [x] 4.4 验证 → commit → push
 
 ## Task 5: 收尾
 
-- [ ] 5.1 两案跨案增量小结（18/19 案对 census 的增量：WARNING 谱 +42.2h 超长静默样本、案19 零前兆第二例）
-- [ ] 5.2 分支最终状态确认 + push
+- [x] 5.1 两案跨案增量小结（18/19 案对 census 的增量：WARNING 谱 +42.2h 超长静默样本、案19 零前兆第二例）
+- [x] 5.2 分支最终状态确认 + push
