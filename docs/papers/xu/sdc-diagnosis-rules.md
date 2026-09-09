@@ -1,27 +1,25 @@
-# SDC 诊断结构化判定规则
-## ——基于故障传播链的多层级探针协同判定体系
+# SDC 诊断结构化判定规则：基于故障传播链的多层级探针协同判定
 
-> 依据 `docs/papers/ref/` 目录下 29 篇 SDC 相关论文综合提炼（AVF/ACE 分析谱系、gem5 故障注入谱系、全栈传播机理谱系、生产环境 fleet 实证谱系、硬件/运行时检测谱系、软件/应用级检测谱系）。
-> 每条规则标注来源论文，保证可回溯。
+>基于业界SDC研究成果，综合提炼（AVF/ACE 分析谱系、gem5 故障注入谱系、全栈传播机理谱系、生产环境 fleet 实证谱系、硬件/运行时检测谱系、软件/应用级检测谱系），每条规则标注来源论文，保证可回溯。
 
 ---
 
 ## 0. 总框架
 
-### 0.1 SDC 的严格定义（判定的一切前提）
+### 0.1 SDC 的严格定义
 
 SDC 判定是**三条件合取**，缺一不可 [MeRLiN/GeFIN 体系]：
 
 ```
-SDC ⇔ (程序正常结束) ∧ (输出与 golden run 不一致) ∧ (全程零异常记录：无额外 ISA 异常、无 crash、无超时)
+SDC ⇔ (软件计算过程正常) ∧ (软件计算结果输出与 golden run 不一致) ∧ (CPU RAS 链路全程静默，如零GHES / ghes_edac / BERT / SEL等)
 ```
 
-配套的六级故障效果分类（一次事件必居其一）：
+六级故障效果分类：
 
 | 类别 | 判定信号 | 判据 |
 |---|---|---|
 | **Masked** | 输出 + 异常均与 golden 完全一致 | 故障未到达架构层或被掩蔽 |
-| **SDC** | 正常结束 ∧ 输出 diff ≠ 0 ∧ 零异常 | 静默数据损坏 |
+| **SDC** | 程序计算过程正常（如正常结束/上条指令计算的地址正确但访问该地址时非法） ∧ 输出 diff ≠ 0 ∧ 零RAS异常 | 静默数据损坏 |
 | **DUE** | 完成或未完成，但有错误指示（异常/parity/断言）| 再分 true DUE（输出也错）/ false DUE（输出其实正确）|
 | **Timeout** | 执行时间 > 3× golden 时间（Deadlock：不再 commit；Livelock：持续重定向）| [MaFIN/GeFIN 的 3× 工程约定] |
 | **Crash** | 进程异常终止 / 系统不可恢复（kernel panic）/ 仿真器终止 | 分 process/system/simulator 三级 |
@@ -98,10 +96,10 @@ L5 fleet/服务层     单机复发模式、跨机扩散、用户可见业务故
 **P3-4 重启记录**：意外重启次数、时间戳 [Hardware Sentinel]
 **P3-5 修理历史**：misdiagnosed/undiagnosed 修理记录 [Hardware Sentinel]
 
-**R3-1（静默性反向判据，关键）**：if 应用异常时刻近旁 SEL 中 CPU 相关硬件故障（ECC/MCE/PCIe/thermal）条目数 = 0 → 保留 SDC 调查；**有任何硬件遥测的是"loud"故障，不是 SDC** [Hardware Sentinel]
+**R3-1（静默性反向判据）**：if 应用异常时刻近旁 SEL 中 CPU 相关硬件故障（ECC/MCE/PCIe/thermal）条目数 = 0 → 保留 SDC 调查；** if 有任何硬件遥测故障，不是 SDC** [Hardware Sentinel]
 **R3-2（罕见异常聚合）**：if 罕见异常类型（doublefault 59.35×、stack segment 20.77×、invalid op 17.80× 等，相对 fleet 检出率倍数）在单核聚合出现 → SDC CPU 强指标 [Hardware Sentinel]
 **R3-3（重启规则）**：if 30 天窗口意外重启 ≥6 次（通用 fleet）/ ≥3 次（AI fleet）→ 进入 SDC 候选 [Hardware Sentinel]
-**R3-4（EDAC 负证据）**：if 应用层 SDC 症状 ∧ 全程零 EDAC/CE 记录 → **排除受 ECC/SECDED 保护的阵列（L2/L3、服务器内存），指向无保护单元：功能单元、无 ECC 的 L1D、流水线逻辑**；反之若伴随 EDAC 记录则优先走 CE/UCE 通路 [ETS2024]
+**R3-4（EDAC 负证据）**：if 应用层 SDC 症状 ∧ 全程零 RAS（EDAC/CE）记录 → **排除受 ECC/SECDED 保护的阵列（L2/L3、服务器内存），指向无保护单元：功能单元、无 ECC 的 L1D、流水线逻辑**；反之若伴随 EDAC 记录则优先走 CE/UCE 通路 [ETS2024]
 **R3-5（校验器自身污染）**：if EC/CRC 由向量指令加速计算 → 校验器与数据可能同时被污染，校验和与已坏数据自洽 → "校验通过"不可作为排除证据 [SOSP23]
 **R3-6（OS 放大效应）**：OS/kernel 参与使 SDC 率相对裸机最高放大 6.7×（A5 裸机 23.7% → Linux 59.3%）；kernel 代码涉事的 SDC 无软件防护（L1I tag 的 SDC 中 77% 来自 kernel 指令）→ 诊断规则中 syscall/库路径内的错误不能因"应用自身校验通过"而排除 [IOLTS23, SDC-μArch]
 
@@ -152,21 +150,21 @@ SDC 诊断的核心先验：**故障位置的结构语义（控制流载体 vs �
 | 标量整数加法器 | SDC 仅 0–18%（crash >80%） | **SDC 必然伴随极低 BER（~10⁻⁴）**——高烈度错误自我暴露为 crash | Gates-to-SDCs, Veritas |
 | 标量乘法器 | SDC 5–20%，掩蔽高于加法器 | 软件常丢弃 64 位乘积高位 | Gates-to-SDCs |
 | L1I data | 7.3% | crash 主导（非法指令） | SDC-μArch, CHAOS |
-| L1I tag / ITLB | ≈0.2% | 几乎必 crash/DUE | SDC-μArch |
-| **ROB / LQ / SQ** | **0%**（架构级兜底：依赖图检查在 commit 前失败） | 必 crash 或 benign | SDC-μArch, MaFIN/GeFIN |
+| L1I tag / ITLB | ≈0.2% | SDC/crash/DUE | SDC-μArch |
+| **ROB / LQ / SQ** | **30%** | 传播到浮点/向量等逻辑单元导致SDC 或 crash 或 benign | SDC-μArch, MaFIN/GeFIN |
 | TLB（整体） | SDC <1%，DUE 为主（crash ≈50%、hang ≈10%） | — | Arm 芯片实测 |
 | 主存数据 | SDC/Masked 主导，crash 可忽略 | 随机命中关键数据概率低，**最难靠崩溃察觉的 SDC 源** | CHAOS |
-| 分支预测器/BTB | AVF = 0（纯性能结构） | 只影响性能 | Mukherjee MICRO-03 |
+| 分支预测器/BTB | AVF = 0（纯性能结构） | 影响性能 | Mukherjee MICRO-03 |
 
 ### 2.2 指令/数据语义先验
 
 | 受损数据的语义角色 | 症状 | 来源 |
 |---|---|---|
-| 地址/指针/索引/栈（ret/call/push/pop/leave） | 几乎必 crash（segfault/kernel panic），绝不 SDC | Gates-to-SDCs, GemFI, MARVEL(BFS RegBank) |
+| 地址/指针/索引/栈（ret/call/push/pop/leave） | crash（segfault/kernel panic），SDC少见 | Gates-to-SDCs, GemFI, MARVEL(BFS RegBank) |
 | 纯数据值（流向输出的数据、FP/向量运算） | SDC 主导（MARVEL：FFT SPM 45% 全 SDC） | MARVEL, Veritas |
-| opcode/指令编码 | illegal instruction → crash（未实现编码）；unused bits → 必 masked | GemFI |
+| opcode/指令编码 | illegal instruction → crash（未实现编码）；legal instruction → SDC；unused bits → 必 masked | GemFI |
 | 指令位移量/基址寄存器选择 | segfault 为主；decode 阶段错误通常演变为 SDC | GemFI |
-| load/store 数据值 | 78% 结果正确（高韧度），仅破坏地址性数据才 crash | GemFI |
+| load/store 数据值 | 78% 结果正确（高韧度），破坏地址性数据或crash或SDC | GemFI |
 | 输出驻留缓存行（ESC） | 必然 SDC，不经程序流 | SVS |
 
 ### 2.3 fleet 级基线数字（先验概率校准）
@@ -295,7 +293,7 @@ if 仅凭单一指令族测试定位故障单元
 ## 4. 处置与运维规则（ACT）
 
 **ACT-1（细粒度退役）**：≤2 个缺陷物理核 → 仅 mask 坏核复用其余核；>2 个缺陷核 → 退役整颗。一轮常规测试 1.02 小时（vs 基线 10.55 小时），总开销 0.017–0.145% [SOSP23 Farron]
-**ACT-2（测试优先级三级）**：basic（每次必跑）/ active（suspected 候选机加跑）/ suspected（本机曾检出的用例最高优先）[SOSP23]
+**ACT-2（测试优先级）**：basic（每次必跑）/ active（suspected 候选机加跑）/ suspected（本机曾检出的用例最高优先）[SOSP23]
 **ACT-3（测试多样性）**：91.4% 测试至少失败过一次、31% 测试曾是某机器唯一失败测试 → 测试族须覆盖算术/向量/浮点/cache coherency/事务内存/加密/并发锁全谱，不可只盯算术 [PinDrop, SOSP23]
 **ACT-4（双轨持续测试）**：out-of-production（分钟级、全负载、93% 覆盖、5–6 个月周期）+ in-production（毫秒级、co-located、77% 覆盖、15 天快速收敛）必须并存——各自独有覆盖 23%/7%（silicon transition 类缺陷只有负载频繁切换才触发）[Ripple]
 **ACT-5（corpus 反哺）**：坏机 snapshot/测试回填语料库（一台机器发现缺陷的测试在另一台有更高概率再发现）；每批测试换伪随机指令/数据序列以扩大输入空间 [SiliFuzz, IOLTS23]
@@ -304,7 +302,7 @@ if 仅凭单一指令族测试定位故障单元
 
 ---
 
-## 5. 诊断流程（判定规则的操作顺序）
+## 5. 基于判定规则的诊断流程
 
 ```
 第 1 步【L4 症状确认】
@@ -312,7 +310,7 @@ if 仅凭单一指令族测试定位故障单元
   是否确定性复现？（SYN-2）是 → 软件流程；否 → 继续。
 
 第 2 步【L3 静默性判定】
-  SEL/EDAC/MCE 有记录？（R3-1/R3-4）有 → loud 故障，走 CE/UCE 流程；无 → SDC 流程继续。
+  RAS（如SEL/EDAC/MCE） 有记录？（R3-1/R3-4）有 → loud 故障，走 CE/UCE 流程；无 → SDC 流程继续。
 
 第 3 步【L4/L2 硬件归因】
   确定性重放跨核比对（R4-1）或双执行插桩（R2-1）→ 不一致 = 硬件证据（SYN-1）。
@@ -337,7 +335,7 @@ if 仅凭单一指令族测试定位故障单元
 
 ---
 
-## 6. 体系性盲区清单（判定规则必须显式声明的边界）
+## 6. 判定规则的能力边界
 
 1. **consistent error**：两份冗余执行都错且错得相同 → 双执行类检测原理性盲区 [ITHICA]
 2. **ESC 类**：输出驻留缓存直接被坏 → 绕过一切程序流内检测，输出写入前的缓存数据必须纳入校验 [SVS]
@@ -351,7 +349,7 @@ if 仅凭单一指令族测试定位故障单元
 
 ---
 
-## 附录：来源论文索引
+## 附录
 
 | 简称 | 论文 |
 |---|---|
