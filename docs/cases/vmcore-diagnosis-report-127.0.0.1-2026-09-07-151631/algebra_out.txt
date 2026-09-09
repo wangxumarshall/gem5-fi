@@ -1,0 +1,32 @@
+== 案19 寄存器代数闭合 ==
+PASS x27 == x1 + x20 (mod 2^64)
+PASS FAR == x27 + 0x120
+PASS x25 == 161（迭代 CPU 161 ≠ 执行核 179）
+PASS FAR 非规范（0xffdb… 高位不在内核地址形态）
+
+== KASLR 不变式（跨开机指纹，对齐 12 案 census §2.8）==
+PASS x9 - x1 == 0xfffffffffe5d1798
+PASS x21 - x1 == 0x3f65f0
+PASS x24 - x21 == 0x5350
+PASS x9 低 16 位 == ae58（fbG+0x150 页内偏移）
+PASS x23 == 0x400（前次迭代 load_avg 残留）
+PASS x22 == x26（sd/sched_group 相关指针一致）
+
+== x20 撕裂形态分析（无 vmcore，形态学【强推】）==
+x20 = 0xffdc206dfa4000ff
+ROL1B(x20) = 0xdc206dfa4000ffff
+ROL2B(x20) = 0x206dfa4000ffffdc
+ROL3B(x20) = 0x6dfa4000ffffdc20
+ROL4B(x20) = 0xfa4000ffffdc206d
+ROL5B(x20) = 0x4000ffffdc206dfa
+ROL6B(x20) = 0x00ffffdc206dfa40
+ROL7B(x20) = 0xffffdc206dfa4000
+
+形态判定：x20 为 __per_cpu_offset 字节流跨槽非对齐窗口（【强推】，无法窗口直读验证）
+对照：第 2/5 案 ≫8 形态（高3字节 00ffff）vs 本案 ff dc 20 跨槽原样窗口（近第 9 案非规范大值形态）
+
+== 反事实（不可验证声明）==
+vmcore 文件缺失：x27_true = &runqueues + off[161] 与 off[161] 真值均无法读出，
+反事实 vtop 不可执行（区别于案 18 的三重闭合）。撕裂窗口直读比对不可执行（区别于第 7/8/9 案）。
+子族归类依据：x20 非零非全零 + 非规范 FAR + x27=x1+x20 闭合 + L0 FSC —— 与撕裂移位族
+第 1/2/5/7/8/9 案全部几何特征吻合，唯缺内存真值比对，故降级【强推】。
