@@ -1,0 +1,9 @@
+/superpowers:systematic-debugging 诊断 ../127.0.0.1-2026-09-07-13 和 15 中的2个vmcore。
+
+---
+
+crash 等工具，加上 superpowers:systematic-debugging 诊断 ../127.0.0.1-2026-09-07-13 和 15 中的2个vmcore。
+
+---
+
+/goal crash 等工具，加上 superpowers:systematic-debugging 诊断 ../127.0.0.1-2026-09-07-13 和 15 中的2个vmcore。
