@@ -286,7 +286,8 @@ p.add_argument("--l1dfwd_count_only", action="store_true",
 # direction (dir_flip) or PC target bit (target_flip).
 p.add_argument("--chaos_bpu", action="store_true",
                help="attach CHAOSBPU (O3 branch-pred injector, §2.13)")
-p.add_argument("--bpu_mode", default="dir_flip", choices=["dir_flip","target_flip"])
+p.add_argument("--bpu_mode", default="dir_flip",
+               choices=["dir_flip","target_flip","ras_flip"])
 p.add_argument("--bpu_first_clock", type=lambda x: int(x,0), default=1000)
 p.add_argument("--bpu_max_faults", type=lambda x: int(x,0), default=1)
 p.add_argument("--bpu_fault_mask", type=lambda x: int(x,0), default=0)

@@ -14,7 +14,9 @@ class CHAOSBPU(SimObject):
     # the point — whether the wrong-path speculative flow it feeds leaks is'.
     mode = Param.String("dir_flip",
         "dir_flip: reverse the taken/not-taken prediction (F5 direction) | "
-        "target_flip: flip a bit of the predicted PC target (F5 target)")
+        "target_flip: flip a bit of the predicted PC target (F5 target) | "
+        "ras_flip: v1.2 Phase 16 — flip a bit of the RAS-predicted return "
+        "address (return-stack F5; hooks BPredUnit's return path)")
     probability = Param.Float(1.0, "per-predict injection probability")
     firstClock = Param.UInt64(0, "first clock cycle eligible for injection")
     lastClock = Param.UInt64(0, "last cycle (0 = unrestricted)")

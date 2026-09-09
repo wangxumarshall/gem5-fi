@@ -579,7 +579,9 @@ def main():
         cmd += ["--chaos_bpu"]
         bm = {"transient_bit_flip": "dir_flip",
               "local_mbu": "target_flip",
-              "legal_domain_sub": "target_flip"}.get(inj["model"], "dir_flip")
+              "legal_domain_sub": "target_flip",
+              # v1.2 Phase 16 (item 1): return-stack F5.
+              "delay_omission": "ras_flip"}.get(inj["model"], "dir_flip")
         cmd += ["--bpu_mode", bm, "--bpu_first_clock", str(t["value"]),
                 "--bpu_max_faults", str(m["limits"]["max_faults"]),
                 "--bpu_rng_seed", str(m["rng"]["selection_seed"])]

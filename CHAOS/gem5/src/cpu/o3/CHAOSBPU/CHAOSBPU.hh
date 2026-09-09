@@ -28,8 +28,16 @@ class CHAOSBPU : public SimObject
     // target (F5 target). Returns true if an injection happened.
     bool maybeCorrupt(ThreadID tid, bool &taken, PCStateBase &pc);
 
+    /** v1.2 Phase 16 (item 1): RAS F5 — flip a bit of the RAS-predicted
+     *  return address. Called from BPredUnit's return-predict path (via
+     *  the chaosRasHook registry). */
+    void maybeCorruptRas(ThreadID tid, gem5::PCStateBase &target);
+
   private:
-    enum class Mode { DirFlip, TargetFlip };
+    enum class Mode { DirFlip, TargetFlip ,
+        // v1.2 Phase 16: return-stack F5.
+        RasFlip
+    };
     static Mode stringToMode(const std::string &s);
 
     BaseCPU *cpu;
