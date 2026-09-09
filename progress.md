@@ -2347,3 +2347,16 @@ Exec+IQ 同款修法全部落地(pilot 轮,验收断言全过):
 1. **spec_leak X10 双平台 formal**:C0 14.9% [11.7,18.9] / C2 5.9%+11.3% DUE——平台调度形态定律。
 2. **ROB=160 之谜破案**:同参复现(128→100% vs 160→0%)+ 机理定论(深 ROB 调度位置分布→翻转落死写;fc=20000 首写者 Crash 反例);Phase 3"trigger 无关"部分修正。
 3. **PRF X3 bit0 formal**:rob 96/128 双 100% [99,100](n=384×2);阈值带 (128,160] 定界,V110 默认在全 SDC 侧。
+
+### v1.2 Phase 16 完成（2026-09-08，1608172/348250d/ae8c8f7）
+
+- **BPU 三预测面闭环**(dir/target/ras):全 0% SDC——预测类故障=性能事件,squash 全兜底,预测器状态无需数据级保护。ras_flip 新注入器带 2 个真 bug 修复(BAC 漏分支;空指针 SIGSEGV——addr2line 破案)。
+- **L1I 六字段 × 双保护**:全 0-1% SDC——自掩蔽普遍性;sed 清残余。首轮"L1I 0%"全字段加固。
+- **诚实标注**:架构态逐位观测(E3)未做——需 checkpoint 级比对工具,排下轮。
+
+### v1.2 Phase 17 完成（2026-09-08，3311f49/967b9b9 + 本提交）
+
+- **H7(PTW ECC)三轮 pilot**:v1 暴露 CHAOSPTW 无 skip 真 bug(60/60 同一空 PTE)→修复;v3 达 30/30 applied、30 个不同驻留 PTE。**诚实改写验收断言**:kernel 对单点 PTE-valid 清零结构性容错(0/30 panic,walk fault→重填自愈)——"PTW 单点=Masked 非 DUE"。
+- **换种子集复现**:三关键 cell(FPU svd 92.0/spec_leak 15.6/L2 56.0)全落原始 CI——种子集无关性确认。真独立复现=环境阻塞(仅一台健康机),诚实标注。
+
+**v1.2 深化轮(Phase 13-17)完成**:Exec 68% SDC(INT-vs-FP 定律)/IQ 三模式(DUE 形态)/L2 2×2(ECC 盲区)/DRAM 三臂(ECC 逻辑击穿)/victim 53%/容量平/ROB=160 破案/BPU 三面闭环/L1I 六字段/H7 容错/spec_leak 双平台。共 ~20 commits(e4684e9..本提交),真机修复 5 个注入器/工具 bug(Exec 死路径、TaggedEntry 断言、BAC 漏分支、空 unique_ptr、CHAOSPTW 无 skip)。
