@@ -130,6 +130,12 @@ p.add_argument("--ptw_max_faults", type=lambda x:int(x,0), default=1)
 p.add_argument("--ptw_fault_mask", type=lambda x:int(x,0), default=0,
                help="PTE XOR bitmask; 0 = random single bit")
 p.add_argument("--ptw_rng_seed", type=lambda x:int(x,0), default=20260825)
+p.add_argument("--ptw_events_to_skip", type=lambda x: int(x,0), default=0,
+               help="v1.2 Phase 17 H7: fixed eligible-walk skip (0 = legacy "
+                    "first-eligible — 60/60 seeds hit the same dead event).")
+p.add_argument("--ptw_skip_empty_pte", action="store_true",
+               help="v1.2 Phase 17 H7: only inject on resident (non-zero) "
+                    "PTEs — clear_valid on 0x0 is a no-op.")
 p.add_argument("--ptw_ecc", type=lambda x: (str(x).lower() in ("1","true","on")),
                default=True,
                help="H7: ECC on (spurious~0) / off (spurious>0)")
@@ -252,6 +258,8 @@ if args.chaos_armtlb or args.chaos_sysreg or args.chaos_ptw or args.chaos_phys o
                 firstClock=args.ptw_first_clock,
                 faultMask=args.ptw_fault_mask,
                 ptwEcc=args.ptw_ecc,
+                eventsToSkip=args.ptw_events_to_skip,
+                skipEmptyPte=args.ptw_skip_empty_pte,
                 maxFaults=args.ptw_max_faults,
                 rngSeed=args.ptw_rng_seed,
                 writeLog=True,

@@ -39,6 +39,9 @@ class CHAOSPTW : public SimObject
     bool ptw_ecc;
     uint64_t max_faults;
     uint64_t faults_injected_count = 0;
+    // v1.2 Phase 17 (H7 fix): skip mechanism + resident-PTE gate.
+    uint64_t events_to_skip = 0;
+    bool skip_empty_pte = false;
     uint64_t rng_seed;
     bool write_log;
 
