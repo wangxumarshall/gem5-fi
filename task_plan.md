@@ -292,7 +292,13 @@ CHAOSCHI/CHAOSNoC pilot 已能触发（7c854bb/7582e8c，未提交的 ruby test 
 
 ## Phase 16 — BPU 返回栈/间接预测 + L1I protection 对照
 
-**Status: pending**
+**Status: complete（2026-09-08，第 2 项诚实标注 E3 未做）**
+
+1. ✅ **BPU ras_flip**（ae8c8f7）：返回栈 F5 新注入器(BPredUnit return 路径静态注册表 hook);**0.0% [0,3.7] SDC**(n=100,零 frozen)——**三预测面(方向/间接目标/返回栈)全闭环:预测类故障=性能事件非数据事件,squash 全兜底**。附带修 2 真 bug(BAC if/else 漏分支;空 unique_ptr 解引用 SIGSEGV)。
+2. ⏳ **架构态逐位联合观测:诚实标注 E3 未做**——SE 无架构态快照机制,需 checkpoint 级全量比对工具;"BPU 错但架构无恙"当前证据=checksum 级全 Masked,逐位级排下轮工具项。
+3. ✅ **L1I 六字段**（1608172）：opcode/rn/rm/rd/imm12/cond × none/sed 全 0-1% SDC(n=100×12)——编码任意字段自掩蔽是普遍性质;sed 清残余;首轮"L1I 0%"全字段加固。
+4. ✅ **L1I sed 对照**（同上）:sed 档把残余 1-2% DUE/SDC 清零(1-bit invalidate→重取正确指令)。
+5. ✅ **BPU target_flip on branchy**（348250d）：0%——间接目标面(与 1 的 ras_flip 合并成三面闭环)。
 
 1. **BPU 返回地址栈预测器**（分支预测侧的 RAS，非异常 §17 的 RAS）+ **间接预测器 F5**（换成另一个合法跳转目标）。
 2. **squash 后架构态 == golden 联合观测**：强化"BPU 错但架构无恙"的确认（当前只有结局分类，没有架构态逐位比对）。
@@ -304,7 +310,10 @@ CHAOSCHI/CHAOSNoC pilot 已能触发（7c854bb/7582e8c，未提交的 ruby test 
 
 ## Phase 17 — H7 FS formal + 真·独立复现
 
-**Status: pending**
+**Status: in_progress（H7 pilot 轮完成 2026-09-08;独立复现诚实降级）**
+
+1. ✅ **H7 pilot(三轮)**:v1 暴露 CHAOSPTW 无 skip 真 bug(60/60 同一空 PTE)→修复(3311f49);v3(seed 派生 skip)30/30 applied、**30 个不同驻留 PTE**、ECC on/off 对照臂一致。**诚实改写验收断言**:计划"ECC-off spurious>0"不成立——ARM64 内核对单点 PTE-valid 清零**结构性容错**(walk fault→重填自愈,0/30 panic)。"PTW PTE 单点=Masked 非 DUE"有 30 点分散证据。ECC 区分度需 2-bit+不可重填场景,排后续。
+2. ⏳ **真·独立复现:诚实降级为不可行**——本环境只有一台健康机(另一台是 cpu179 故障机,不可作"健康机复现")。已做的最接近替代:①Phase 12 不相交 NUMA 集 20/20×4 确定性一致(计划自己已承认这不算复现);②**换种子集复跑**(fpu_svd 等关键 cell,base_seed 7770000)待跑。真独立复现需第二台健康机——**诚实标注为环境阻塞项,非已完成**。
 
 1. **H7（PTW ECC on/off）boot 期注入 formal**（Phase 5 唯一剩项）：健康机 / `numactl` 钉核多核并行；restore from `cpt.100000000`（boot 早期 walk 密集期）+ PTW clear_valid + ECC {off, on} × n=384；FS boot ~30min + ~4min/rep。验收断言：ECC-on spurious ≈ 0 vs ECC-off > 0（分支原始 5-seed 数据的 formal 级确认）。
 2. **真·第二台健康机独立复现**（取代 Phase 12 的"同种子跨 NUMA bit 级一致"——那是确定性仿真必然结果，不算复现）：

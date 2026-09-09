@@ -586,3 +586,24 @@ l1i_loop, n=100×12 cells, 零 frozen, Reach 100%:
 | target_flip(间接目标换合法位) | **0.0% [0,3.7]** | 0% | 100% | no |
 
 **BPU 间接目标 F5 阴性确认**:预测目标翻转被 O3 的 squash/重定向机制完全自愈——预测错误只付出重取代价,架构态无恙。连同首轮 dir_flip 384/384 Masked:**BPU 两个预测面(方向+目标)的故障都是性能事件而非数据完整性事件**——分支预测结构不需要数据级保护,squash 天然兜底。
+
+### v1.2 Phase 16 完成总结(2026-09-08,1608172/348250d/ae8c8f7)
+
+1. **BPU 三预测面全闭环**:dir_flip(首轮 384/384 Masked)/ target_flip(本轮 0% [0,3.7])/ **ras_flip(本轮新注入器,0% [0,3.7])**——三个预测面(方向/间接目标/返回栈)的故障全是性能事件非数据完整性事件,O3 squash 全兜底。附带修 2 个真 bug(BAC 路径 if/else 漏 RasFlip 分支;hook 在 set() 前解引用空 unique_ptr——addr2line 定位 SIGSEGV 到 pcstate.hh:110)。
+2. **L1I 六字段全臂**:opcode/rn/rm/rd/imm12/cond × none/sed 全 0-1% SDC——指令编码任意字段翻转的自掩蔽是普遍性质,sed 清残余。首轮"L1I 0%"全字段加固。
+3. **第 2 项(架构态逐位联合观测)诚实标注 E3 未做**:SE 无架构态快照机制;需 checkpoint 级 PCState+reg 全量比对工具,超出本轮补丁预算——"BPU 错但架构无恙"当前证据=结局分类全 Masked(checksum 级),逐位级确认排下轮工具项。
+
+### v1.2 Phase 17 H7:PTW ECC on/off — kernel 对单点 PTE-valid 清零完全容错(2026-09-08,3311f49 + 本提交)
+
+**三轮 pilot 的完整历程(诚实记录)**:
+1. **Pilot v1 暴露真 bug**:CHAOSPTW 无 skip 机制——60/60 seeds 命中**同一个空 L3 PTE**(old_pte=0x0,clear_valid 是 no-op)。"ECC-off spurious"全为假象。修复:eventsToSkip + skipEmptyPte(3311f49)。
+2. **Pilot v2 证实确定性落点**:修复后 30/30 仍同点(首个非空 PTE)——clear_valid 无随机性,首事件恒同。
+3. **Pilot v3(seed 派生 skip=seed%500+1)**:30/30 applied,**30 个不同驻留 PTE**(用户页+内核页混合,ECC-on 30/30 ECC-caught 对照臂一致)。
+
+**H7 最终结果(ECC off/on × n=30,修复后注入器)**:
+| 臂 | applied | kernel panic | 结局 |
+|---|---|---|---|
+| ECC off | 30/30(驻留 PTE valid 位真实清零) | **0/30** | 内核全存活——walk fault→内核重填/重试,自愈 |
+| ECC on | 0/30(ECC-caught) | 0/30 | 对照臂 |
+
+**验收断言的诚实改写**:计划的"ECC-off spurious>0"**不成立**——不是 ECC 没用,而是**ARM64 内核对单点 PTE-valid 丢失有结构性容错**(page fault 重填路径是正常内核机制,boot 早期注入的 30 个不同页全部自愈)。ECC-on 0 spurious 成立但同样被容错机制覆盖。**PTW PTE 单点故障在 FS 上是 Masked(内核重填)而非 DUE**——这与首轮 5-seed 数据一致,现在有 30 点分散注入的 pilot 级证据。ECC 的真实价值需要**多位 PTE 损坏(2-bit)+ 不可重填场景**(如内核态 walk)才有区分度,排后续。
