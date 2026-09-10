@@ -450,6 +450,16 @@ Phase 20 (遗留单元收口)       ← §8 lane / §21 SysReg formal；H7 重�
 
 ## Next Step
 
+> ### ⇄ 交接状态（2026-09-10 20:15，给恢复的服务器端 AI）
+> 用户暂停了服务器端 AI 会话来处理 huawei0101 内存事故。恢复后**按此顺序**：
+> 1. `cd ~/gem5-fi && git stash && git fetch origin && git rebase origin/fix/fi-tool-correctness && git stash pop`（或先 commit 本地对 task_plan/progress 的改动再 rebase）——把本 plan（含加速方案）拉下来。
+> 2. **当前有 detach 的旧跑批在低速跑**：`h7formal2.sh`（h7g `ecc false` 臂，**-j4**，启动时 swap>20% 定死的，~seed 1008）+ `campaign.py /tmp/p20/lane.yaml --jobs 8`。**先 `kill -- -PGID` 掉 `h7formal2.sh` 整个进程组**（结果已在 `/tmp/p20/h7formal2_results.txt` + `/tmp/p20/h7g_false_*`，可回收）；lane campaign 可留着跑完（SE，便宜）。
+> 3. tmpfs 已由本会话清理（`/tmp` 从 8.1 GB → 953 MB，available 回 15 GB；`cpt.100000000` / `/tmp/p20` 已保留）。**别再往 `/tmp` 写 campaign 输出**（见「跑批资源纪律」新加的两条）。
+> 4. 按 **Phase 20 §20 item 3 的 4 步加速方案**重建 H7 formal：① campaign `-d` 输出改 `~/gem5-fi/runs/h7formal/`；② `--early-checkpoint 190000000` 造 `cpt.190000000`（一次 ~15min）→ 替换 `--restore-checkpoint`；③ ECC-on 臂 `seq 1001 1384` → `seq 1001 1100`；④ launcher 加"跳过已完成 seed"（`/tmp/p20/h7f_false_*.out` 196 个 + `h7formal2_results.txt` 里的 ecc=false）。重启 launcher（precheck 现在过 → SLOTS=6）。
+> 5. 跑完 → 更新 `findings.md`（H7 两臂 P_DUE + CI）、`task_plan.md`（Phase 20 §20 item 3 标 formal complete）、`progress.md`；给用户反馈"H7 formal 完成"。
+> 6. 然后按 Phase 20 剩下的 §8 lane（跑批中）/ §21 SysReg / §23 L3 代理 / 报告收尾往下走。
+> **诚实纪律**（用户强调）：只跑了 pilot 不许标 complete；每个数字必须指到真实 `artifacts/<id>/summary.md` 且 `frozen: no`；引用的 commit 必须已 push（`git cat-file -t` 验）；配置（C0/C2-KP）随数字标注；验收断言不成立就如实改写，不硬凑。
+
 **v1.1（Phase 8–12）+ v1.2（Phase 13–17）+ v1.3 Phase 18–19 全部 `Status: complete`**（`gem5-fi` HEAD `abaf114`，已核对 commit + campaign 产物）。v1.3 Phase 18 formal 补跑（11 cell × n=384 全零 frozen，pilot 点估计全落入 CI）+ Phase 19（C2-KP 对齐 → 平台效应结构定律；§4.1 逃逸分解 230 cells/114 campaigns；§4.2 保护排序 formal 8 行 + 3 新行；§4.3 诚实边界 10 条）已收官。**唯一剩项 = Phase 20**（§23 决定已拍板 2026-09-10：NoC/HCCS scope-cut，L3 只跑 `pairedSector` 代理）。
 
 下一步（**Linux 健康机** `gem5-fi/`，分支 `fix/fi-tool-correctness`，`numactl` 钉有内存的 NUMA node）：
