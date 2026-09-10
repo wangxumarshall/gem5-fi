@@ -1,18 +1,30 @@
 # 深入理解 gem5 及 CHAOS 架构设计与源码实现
 
+## 关于本书
+
+本书写给两类读者：想读懂 gem5 仿真器源码的人，以及想在 gem5 上做微架构故障注入研究的人。它不是 API 手册，而是一份"源码深读笔记"——每一个结论都指向真实的文件与行号，每一处设计都回答"为什么非这样不可"。
+
+阅读路径由浅入深分三层：
+
+1. **入门层（第一章）**：gem5 是什么、一次仿真怎么跑起来、事件内核与对象树如何协作。读完能定位任何组件在框架中的位置。
+2. **微架构层（第二、三章）**：O3 乱序核的六级流水线与内存系统的完整通路。读完能读懂 `src/cpu/o3/` 与 `src/mem/` 里的任何文件。
+3. **研究层（第四~七章）**：CHAOS 故障注入框架的 19 个注入器、实验机器、以及"架构理解如何决定实验有效性"的方法论。读完能自己设计并辩护一个注入实验。
+
+全书约定：源码引用一律 `文件:行号`（如 `simulate.cc:292`），基于 vendored 树 `CHAOS/gem5/src/`；ASCII 图覆盖所有空间结构、时序关系与多对象关系，遇到复杂机制先看图再读码。
 
 ---
 
 ## 第一章 总论：gem5 是一个离散事件仿真内核
 
-gem5 CPU 模拟器核心是"**离散事件仿真内核（DES）+ 一棵 SimObject 对象树**"。CPU、Cache、总线、内存、故障注入器，全都只是挂在这棵树上的"事件生产者"。它相当于 Linux 内核里的调度器与中断子系统：一切上层行为最终都还原为它的基本操作。
+**本章导览**：要理解 gem5 里的一切行为——一条指令的执行、一次缓存缺失、一个故障注入器的击发——最终都要回到同一个原点：离散事件仿真内核。本章先带你完整走一遍"一次仿真从脚本到退出"的全流程（§1.0），再自顶向下拆开这个内核的三块基石：事件循环怎么转（§1.1-1.3）、对象树怎么建（§1.4-1.5）、精度与模式怎么选（§1.6）。本章不需要任何微架构背景，但它是后面所有章节的坐标系。
 
-全书全貌如下，从事件内核到 O3 流水线到内存系统，CHAOS 的 19 个注入器全部挂在这三层源码钩子上。
+gem5 CPU 模拟器核心是"**离散事件仿真内核（DES, Discrete Event Simulation）+ 一棵 SimObject 对象树**"。CPU、Cache、总线、内存、故障注入器，全都只是挂在这棵树上的"事件生产者"。它相当于 Linux 内核里的调度器与中断子系统：一切上层行为最终都还原为它的基本操作。
+
+全书全貌如下（图 1-2），从事件内核到 O3 流水线到内存系统，CHAOS 的 19 个注入器全部挂在这三层源码钩子上。这张图是全书的"地形图"——后面每章都在放大它的一个局部，读到任何一处迷路时都可以回到这里重新定位。
 
 ```
 ┌──────────────────────── gem5 离散事件内核（第一章）────────────────────────┐
-│  doSimLoop → EventQueue::serviceOne → event->process()   [tick 优先级排序]  │
-│         ▲                                    │                             │
+│  doSimLoop → EventQueue::serviceOne → event->process()   [tick 优先级排序]  ││         ▲                                    │                             │
 │  Python instantiate(): createCCObject→init→regStats→probe→initState        │
 │  （六遍扫描建对象图；startup 时注入器快照时间窗）                            │
 └──────────────────────────────┬─────────────────────────────────────────────┘
@@ -50,6 +62,51 @@ gem5 CPU 模拟器核心是"**离散事件仿真内核（DES）+ 一棵 SimObjec
         ▲ 门控公约：prob→0短路 ‖ 时间窗(tick域) ‖ maxFaults ‖ Bernoulli
         ▲ 实验机器：campaign→manifest→runner→classify(六类)→escape(A-F)→fingerprint
 ```
+
+### 1.0 从一次 `m5.simulate()` 说起
+
+在拆开内核之前，先把一次仿真从头到尾走一遍。假设你在命令行敲下：
+
+```bash
+./build/ARM/gem5.opt configs/se/arm_chaos.py --injector=physreg
+```
+
+从敲下回车到看到退出统计，完整生命周期是五步：
+
+```
+┌──────────────────────────────────────────────────────────────────────┐
+│ 图 1-1：一次 gem5 仿真的完整生命周期                                  │
+├──────────────────────────────────────────────────────────────────────┤
+│                                                                      │
+│  ① Python 配置脚本（arm_chaos.py）                                   │
+│     建 board / CPU / cache / 内存 / 注入器对象（全部还是 Python 对象）│
+│                          │                                           │
+│                          ▼                                           │
+│  ② m5.instantiate()                                                  │
+│     六遍扫描 Python 树 → 逐个调 C++ create() → 建出 SimObject 对象树  │
+│     → 端口连接 → init → regStats → 注册探针 → initState              │
+│                          │                                           │
+│                          ▼                                           │
+│  ③ m5.simulate()  ──►  C++ simulate()（simulate.cc:190）             │
+│     装信号处理器 → 进入 doSimLoop 主循环（simulate.cc:292）           │
+│                          │                                           │
+│                          ▼                                           │
+│  ④ 事件循环（全书的心脏）                                             │
+│     while(1) { 取队头事件 → setCurTick(事件时刻) → process() }       │
+│     CPU 周期、缓存写回、注入器 attackEvent……全是队列里的事件          │
+│                          │                                           │
+│                          ▼                                           │
+│  ⑤ 退出事件（exit_event）→ 回到 Python → dump 统计 → 结束            │
+│                                                                      │
+└──────────────────────────────────────────────────────────────────────┘
+```
+
+记住这张图，本章余下部分就是在放大它的每一步：§1.1 放大第③④步（控制流与主循环），§1.2-1.3 放大第④步内部（时间与队列），§1.4-1.5 放大第②步（对象树怎么建起来），§1.6 回答"这棵树上能挂哪些 CPU、跑哪些世界"。
+
+两个容易先入为主的误区，现在就纠正：
+
+- **gem5 里没有"线程"在跑你的程序**。被仿真的 CPU 不是宿主机上一个循环执行指令的线程，而是事件队列上一个自我重排的周期事件——每触发一次，就仿真一个周期。所谓"跑完一个 workload"，是几百万次事件 process() 的累积。
+- **Python 只管搭台，C++ 只管唱戏**。配置脚本建对象、连拓扑，然后就把舞台交给 C++ 的事件循环；仿真期间不会回头问 Python。这就是 §1.5 要讲的"双语言架构"。
 
 ### 1.1 一次仿真的顶层控制流
 
@@ -157,6 +214,36 @@ Event *nextInBin;
 
 外层 `nextBin` 按 `(when, priority)` 排序的 bin 串，内层 `nextInBin` 是同 bin 事件的 LIFO 栈。`schedule()`（`eventq.hh:756-782`）插入时线性找 bin、常数入栈；`serviceOne()` 出队是常数操作。这个设计换来了**确定性**：同 seed 下事件执行顺序严格可复现——这是本仓库全部 384-seed 统计方法的存在前提（第七章 §7.4）。
 
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│ 图 1-3：事件队列的 bin-of-bins 结构（链表的链表）                     │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                     │
+│   队列头 head                                                       │
+│      │                                                              │
+│      ▼                                                              │
+│   ┌──────────┐  nextBin   ┌──────────┐  nextBin   ┌──────────┐      │
+│   │ bin A    │──────────►│ bin B    │──────────►│ bin C    │──►nil │
+│   │(t=100,p=50)│          │(t=101,p=-1)│          │(t=105,p=50)│     │
+│   └────┬─────┘            └────┬─────┘            └────┬─────┘      │
+│        │ nextInBin            │ nextInBin            │ nextInBin   │
+│        ▼ (LIFO 栈)            ▼                      ▼              │
+│   ┌──────────┐            ┌──────────┐            ┌──────────┐      │
+│   │ CPU tick │            │ 写回事件 │            │ CPU tick │      │
+│   └────┬─────┘            └──────────┘            └──────────┘      │
+│        ▼                   (bin 内唯一,             (bin 内唯一,     │
+│   ┌──────────┐             出队即跳 bin)            出队即跳 bin)    │
+│   │ 进度心跳 │                                                   │
+│   └──────────┘   bin = (when, priority) 完全相同的             nil   │
+│                   事件组成的 LIFO 栈                              │
+│                                                                     │
+│   serviceOne(): head 弹出栈顶 → 栈空则 head=nextBin                 │
+│   → setCurTick(事件时刻) → event->process()                         │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+注意图中的一个细节：**bin 串按 (when, priority) 双键排序**，所以 t=101 的写回（优先级 -1）排在 t=105 的 CPU tick 之前——这就是 §1.2 优先级表在数据结构里的落点。
+
 多队列并行模式（`numMainEventQueues > 1`）下，跨队列调度走 `async_queue`，在每个 `simQuantum` 边界由 `handleAsyncInsertions()` 合并（`eventq.hh:604-613` 注释、成员 `:624-628`，`simulate.cc:297` 调用），以量子同步换取确定性——类比内核的 tick 间中断合并。注释明确了约束："这类事件必须至少提前一个 simQuantum 调度，否则在合并时可能已被调度到过去"。本仓库全部实验为单队列，不展开；`SimulatorThreads` 的线程模型（主线程跑 queue 0、从线程跑 1..N-1、Barrier 同步，`simulate.cc:95-117, :152-162`）备查。
 
 ### 1.4 SimObject：一切组件的基类
@@ -186,13 +273,79 @@ class SimObject : public EventManager,        // 拥有事件队列访问（sche
        startup()           仿真即将开始——注入器在这里把 cycle 域快照成 tick 域
 ```
 
+```
+┌──────────────────────────────────────────────────────────────────────┐
+│ 图 1-4：instantiate() 六遍扫描时间线与注入器的两个关键落点            │
+├──────────────────────────────────────────────────────────────────────┤
+│                                                                      │
+│  m5.instantiate()                                                    │
+│  ════════════════════════════════════════════════════════════════    │
+│   遍1        遍2      遍3       遍4        遍5                       │
+│  ┌─────┐   ┌─────┐  ┌─────┐  ┌─────┐   ┌─────┐                      │
+│  │构造  │   │init │  │regPr│  │regPr│   │init │                      │
+│  │+端口 │──►│+stat│─►│obePt│─►│obeLs│──►│State│                      │
+│  └──┬──┘   └─────┘  └─────┘  └─────┘   └─────┘                      │
+│     │                                                                │
+│     ▼  ★注入器 self-attach 落点                                      │
+│     │    （构造函数里把 this 写进宿主指针：                           │
+│     │      cpu->lsqFwd = this 等，§4.2 模式 A）                      │
+│     │    早于端口连接与 initState → hook 覆盖整个仿真生命周期          │
+│  ═══╪═══════════════════════════════════════════════════════════    │
+│     │                       m5.simulate()（首次）                     │
+│     ▼                          │                                     │
+│  ┌─────────┐                    ▼                                     │
+│  │startup()│◄────────  ★注入器第二个关键落点                          │
+│  └─────────┘            （TLB/SysReg 在这里把 firstClock/lastClock    │
+│                          从 cycle 域快照成 tick 域，§4.3 D1/D4 修复） │
+│                          │                                           │
+│                          ▼                                           │
+│                    事件循环开始（doSimLoop）                          │
+└──────────────────────────────────────────────────────────────────────┘
+```
+
+这张图解释了两条对 CHAOS 至关重要的时序约束：self-attach 发生在第 1 遍（最早的时机），而触碰全局时间的操作必须推迟到 `startup()`（curTick 此时才就绪）。
+
 一个对本项目重要的细节：**`startup()` 不在 instantiate 里调用**——它推迟到第一次 `m5.simulate()`，因为初始事件调度必须等 curTick 就绪（`sim_object.hh:273-280` startup 注释）。而 CHAOS 注入器的统一模式是在**构造函数里 self-attach**——attach 发生在第①遍，早于端口连接与 initState，所以 hook 生效期覆盖整个仿真生命周期。
 
 对注入器来说，这张时刻表是硬约束：构造函数里只准读参数、挂指针；`startup()` 里才准触碰全局时间（第七章 §7.6 的 D1/D4 陷阱正是违反/遵守它的正反案例）。
 
 ### 1.5 双语言架构：Python 配置面，C++ 行为面
 
-gem5 最具特色的设计：每个 SimObject 有一个 Python 参数类（`.py`）和一个 C++ 实现类，SCons 扫描 `.py` 生成纯 C++ 的 `params/<Name>.hh` 结构体。Python 版 SimObject 类实际代表它的 **Params 结构**；C++ 实例化经由 `Params::create()`（`sim_object.hh:97-101`），`PARAMS(type)` 宏（`:365-371`）用 `reinterpret_cast` 下转（目标类型可能是不完整类型，编译器不认识继承关系）。以本仓库的 CHAOSLSQFwd 为例（`src/cpu/o3/CHAOSLSQFwd/CHAOSLSQFwd.py`）：
+gem5 最具特色的设计：每个 SimObject 有一个 Python 参数类（`.py`）和一个 C++ 实现类，SCons 扫描 `.py` 生成纯 C++ 的 `params/<Name>.hh` 结构体。Python 版 SimObject 类实际代表它的 **Params 结构**；C++ 实例化经由 `Params::create()`（`sim_object.hh:97-101`），`PARAMS(type)` 宏（`:365-371`）用 `reinterpret_cast` 下转（目标类型可能是不完整类型，编译器不认识继承关系）。
+
+```
+┌──────────────────────────────────────────────────────────────────────┐
+│ 图 1-5：双语言架构——Python 定义"有什么"，C++ 定义"怎么动"             │
+├──────────────────────────────────────────────────────────────────────┤
+│                                                                      │
+│  ── 配置面（Python，用户可见）──────────────────────────────         │
+│   CHAOSLSQFwd.py                  board.chaos_lsq = CHAOSLSQFwd(     │
+│   ┌──────────────────────┐          cpu=cpu0, probability=0.01, ...) │
+│   │ class CHAOSLSQFwd(   │             │  (Python 对象入树)          │
+│   │   SimObject):        │             ▼                             │
+│   │   type/cxx_class/    │        instantiate() 遍1                  │
+│   │   cxx_header         │             │  createCCObject()           │
+│   │   + Param 字段       │             ▼                             │
+│   └──────────┬───────────┘        生成的 create() 调 C++ 构造         │
+│              │                              │                        │
+│   构建期：SCons os.walk 自动发现            │                        │
+│   （src/SConscript:570）                    │                        │
+│              │                              │                        │
+│              ▼                              ▼                        │
+│   ┌──────────────────────┐    ── 行为面（C++，仿真期执行）──         │
+│   │ params/CHAOSLSQFwd.hh│    CHAOSLSQFwd.hh / .cc                   │
+│   │ struct ...Params {   │    ┌──────────────────────┐               │
+│   │   float probability; │    │ class CHAOSLSQFwd :  │               │
+│   │   ...                │    │   public SimObject   │               │
+│   │   create();          │    │   processFault() …   │               │
+│   └──────────────────────┘    └──────────────────────┘               │
+│                                                                      │
+│   关键点：加新 SimObject = 放好 .py/.hh/.cc/SConscript 四个文件，     │
+│   零框架代码改动——CHAOS 全部 19 个注入器都这么进来                   │
+└──────────────────────────────────────────────────────────────────────┘
+```
+
+以本仓库的 CHAOSLSQFwd 为例（`src/cpu/o3/CHAOSLSQFwd/CHAOSLSQFwd.py`）：
 
 ```python
 class CHAOSLSQFwd(SimObject):
@@ -208,10 +361,10 @@ class CHAOSLSQFwd(SimObject):
 
 运行时链路：配置脚本 `CHAOSLSQFwd(cpu=cpu0, probability=...)` → Python 对象入树 → `createCCObject()` 时生成的 `create()` 调 C++ 构造函数 `CHAOSLSQFwd(const CHAOSLSQFwdParams &p)`（`sim_object.hh:103-125` 注释详解了三种 create 约定）→ 构造函数把 `p.probability` 等读进成员。
 
-构建侧的关键在 `src/SConscript:565-577`：
+构建侧的关键在 `src/SConscript:565-578`：
 
 ```python
-# src/SConscript:565-577（节选）
+# src/SConscript:565-578（节选）
 for root, dirs, files in os.walk(base_dir, topdown=True):
     if root == here:
         continue    # 不递归回自身
