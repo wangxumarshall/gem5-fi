@@ -1,0 +1,111 @@
+{
+  "cli_version": "0.10.2",
+  "checkpoint_id": "01M24VKDSPT0019M2CTZ26TSWY",
+  "session_id": "dc98424c-ead5-4e12-8232-7ec684bd5480",
+  "strategy": "manual-commit",
+  "created_at": "2026-09-10T05:10:48.41136453Z",
+  "branch": "fi-fuzz",
+  "checkpoints_count": 2,
+  "save_step_count": 1,
+  "files_touched": [
+    "docs/gem5/gem5-architecture-and-chaos-internals.md"
+  ],
+  "agent": "Claude Code",
+  "model": "GLM-5.3[1m]",
+  "turn_id": "21ae56d1e446",
+  "checkpoint_transcript_start": 175,
+  "transcript_lines_at_start": 175,
+  "compact_transcript_start": 26,
+  "token_usage": {
+    "input_tokens": 4835507,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 15439,
+    "api_call_count": 20,
+    "subagent_tokens": {
+      "input_tokens": 18677486,
+      "cache_creation_tokens": 0,
+      "cache_read_tokens": 0,
+      "output_tokens": 180938,
+      "api_call_count": 312
+    }
+  },
+  "skill_events_version": 1,
+  "skill_events": [
+    {
+      "id": "prompt-skill-claude-code-goal-2026-09-10T02:18:56.88055161Z",
+      "event_type": "prompt_invocation",
+      "skill": {
+        "name": "goal"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "prompt_slash_command",
+        "confidence": "explicit"
+      },
+      "turn_id": "24e113619ade",
+      "timestamp": "2026-09-10T02:18:56.88055161Z",
+      "native": {
+        "command": "/goal"
+      },
+      "collapse": {
+        "target": "user_message",
+        "label": "/goal",
+        "default_collapsed": true
+      }
+    },
+    {
+      "id": "prompt-skill-claude-code-humanizer:humanizer-2026-09-10T04:13:56.68266579Z",
+      "event_type": "prompt_invocation",
+      "skill": {
+        "name": "humanizer:humanizer"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "prompt_slash_command",
+        "confidence": "explicit"
+      },
+      "turn_id": "b7de82fed876",
+      "timestamp": "2026-09-10T04:13:56.68266579Z",
+      "native": {
+        "command": "/humanizer:humanizer"
+      },
+      "collapse": {
+        "target": "user_message",
+        "label": "/humanizer:humanizer",
+        "default_collapsed": true
+      }
+    }
+  ],
+  "session_metrics": {
+    "turn_count": 2
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-09-10T05:10:48.0884114Z",
+    "agent_lines": 26,
+    "agent_removed": 27,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 26,
+    "total_lines_changed": 53,
+    "agent_percentage": 100,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    },
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 21,
+      "agent_lines_removed": 17
+    }
+  ]
+}
