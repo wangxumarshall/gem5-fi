@@ -85,7 +85,7 @@ doSimLoop(EventQueue *eventq)
 }
 ```
 
-注意与 Linux 内核 `while (1) schedule()` 主循环的同构性：**循环体只做一件事——取下一个事件、执行它**。时间的前进不是连续的，而是 `serviceOne()` 内部一步跳到事件时刻：
+该思路与Linux 内核 `while (1) schedule()` 主循环类似，**循环体只做一件事——取下一个事件、执行它**，CPU时钟tick通过 `serviceOne()` 逐跳前进：
 
 ```cpp
 // src/sim/eventq.cc:224-247（节选）
@@ -110,9 +110,9 @@ EventQueue::serviceOne()
         ...
 ```
 
-`curTick` 从此只增不减（除非 checkpoint 回退）。**gem5 里没有"线程"在跑程序——只有事件链在互相触发**。一条 O3 指令的执行、一次 DRAM 刷新、一个注入器的攻击，全是 `process()` 虚函数的一次调用。
+与cpu tick一样，`curTick` 只增不减（除非 checkpoint 回退）。**gem5 里没有"线程"在跑程序——只有事件链在互相触发**，比如一条 O3 指令的执行、一次 DRAM 刷新、一个注入器的攻击，全是 `process()` 虚函数的一次调用。
 
-一个值得写进书的架构细节：CHAOS 对仿真内核本身也有极小的改动——`simulate.cc:189` 的全局 `global_exit_event`（跨多次 simulate() 调用清理上次退出事件）与 `:333-336` 的 `async_hypercall` 分支（信号驱动的运行时注入入口，配套 `src/sim/async.cc:38` 与 `init_signals.cc:236-243`）。此外，async 服务（statdump/io/exit/exception/hypercall）**只在主队列 queue 0 检查**——`bool mainQueue = eventq == getEventQueue(0)`；多队列并行模式下从队列不处理异步请求。
+CHAOS 对仿真内核本身也有极小的改动——`simulate.cc:189` 的全局 `global_exit_event`（跨多次 simulate() 调用清理上次退出事件）与  `async_hypercall` 分支（信号驱动的运行时注入入口，配套 `src/sim/async.cc:38` 与 `init_signals.cc:236-243`）。此外，async 服务（statdump/io/exit/exception/hypercall）**只在主队列 queue 0 检查**——`bool mainQueue = eventq == getEventQueue(0)`；多队列并行模式下从队列不处理异步请求。
 
 ### 1.2 时间系统：Tick 与事件优先级
 
