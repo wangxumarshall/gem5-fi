@@ -288,7 +288,10 @@ L0 电路/物理层   ──► 缺陷本体 (Stuck-at/Aging/Marginal/Delay)、�
 
 弃用纯经验判断，基于 `gem5-fi` 故障注入与 Fleet 统计建立定量概率计算网络：
 
-\\[P(H_j \mid E) = \frac{P(H_j) \cdot P_{\text{microarch}}(E \mid H_j) \cdot P_{\text{fleet}}(E \mid H_j) \cdot W_{\text{ISA}}(H_j)}{\sum_k P(H_k) \cdot P_{\text{microarch}}(E \mid H_k) \cdot P_{\text{fleet}}(E \mid H_k) \cdot W_{\text{ISA}}(H_k)}\\]
+\\[P(H_j \mid E) = \frac{P(H_j) \cdot W_{\text{ISA}}(H_j) \cdot \tilde{P}(E \mid H_j)}{\sum_k P(H_k) \cdot W_{\text{ISA}}(H_k) \cdot \tilde{P}(E \mid H_k)}\\]
+
+> **似然融合规则（防双重计数）**：\\(\tilde{P}(E \mid H_j)\\) 是**融合后**的似然，\\(P_{\text{microarch}}(E \mid H_j)\\)（gem5-fi 注入统计）与 \\(P_{\text{fleet}}(E \mid H_j)\\)（Fleet 实测统计）对同一 \\(P(E \mid H_j)\\) 各贡献一份信息，**不得独立连乘**（会重复计入同一证据的证明力导致过度自信）。融合方式按证据卡"校准状态"（3.0 节）取优先级：两者均 calibrated 时用 log-linear 意见池化；仅一方 calibrated 时取该方；均非 calibrated 时取几何均值并整体降级为 expert-prior。
+> **\\(W_{\text{ISA}}\\) 的定位**：它是假设先验的 ISA 条件化因子（\\(P(H_j \mid \text{ISA})\\) 对 \\(P(H_j)\\) 的修正），属于先验侧而非独立证据因子——不同 ISA（ARM64/x86）下各微架构单元的缺陷发生率基线不同，仅此而已。
 
 #### 微架构结构先验矩阵（结构 → 症状先验对照与受害单元反查表，由仿真与 Fleet 数据注入）：
 
@@ -306,7 +309,9 @@ L0 电路/物理层   ──► 缺陷本体 (Stuck-at/Aging/Marginal/Delay)、�
 
 根据当前证据后验概率 \\(P(H \mid E)\\)，利用目标函数动态选择**信息增益最大且成本最优**的下一个测试：
 
-\\[\text{Next Test}^* = \arg\max_{T_i} \frac{\text{EIG}(T_i \mid E) \cdot \left[1 - P_{\text{FP}}(T_i)\right]}{\text{Cost}_{\text{time}}(T_i) + \lambda_1 \text{Cost}_{\text{impact}}(T_i) + \lambda_2 \Delta \text{Env}(T_i)}\\]
+\\[\text{Next Test}^* = \arg\max_{T_i} \frac{\text{EIG}(T_i \mid E)}{\text{Cost}_{\text{time}}(T_i) + \lambda_1 \text{Cost}_{\text{impact}}(T_i) + \lambda_2 \Delta \text{Env}(T_i)}\\]
+
+> **假阳性率的折入方式**：测试 \\(T_i\\) 的假阳性率**不作为独立乘子**（如曾有的 \\(1 - P_{\text{FP}}\\) 因子），而是通过观测模型 \\(P(\text{result} \mid H_j)\\) 折入 EIG 计算本身——假阳性率越高的测试，其在各假设下的结果分布越趋同，EIG 自然下降。若再乘独立惩罚因子，会对同一信息二次扣减，系统性低估高假阳性但高判别力的测试。
 
 #### 三阶自适应测试阶梯：
 * **Step 1（低成本 / 在线遥测）**：收集 G1–G9 RAS/SEL 日志、G27 PMC 性能计数器轨迹签名（开销 \\(<2\%\\)，作初筛触发器）。
