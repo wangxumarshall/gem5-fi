@@ -699,7 +699,7 @@ bool contains(const PhysRegIdPtr reg) const {
 regfile.hh 本身被注入器"借道"加了三组热路径内联代码（`regfile.hh:167-231`）：
 
 1. **旁路访问器**（`:167-183`）：`numIntPhysRegs()/intPhysRegId(idx)/…/vecRegBytes()` 把私有 bank 暴露给注入器——注释声明"Direct members are private; these are the only public route"，且 `vecRegBytes()` 的注释记录了 64B 栈缓冲对 SVE-2048b（256B）溢出 192B 的 report issue #3；
-2. **read-trace**（`:185-209` 声明，`:248-263`/`:296-300` 计数，`:353-359`/`:372-374`/`:413-416` 置 overwritten）——读注入值计数、写即封存（第五章 §5.6 详述）；
+2. **read-trace**（`:185-209` 声明，`:248-263`/`:296-300` 计数，`:353-359`/`:372-374`/`:413-416` 置 overwritten）——读注入值计数、写即封存（第五章 §5.4 详述）；
 3. **G2 stuck-at 写路径掩码**（`:211-231` 声明，`:358-366`/`:371-380` 施加）——永久故障在**每次写**该槽位时强制粘死位。
 
 第五章会逐行读这三组代码；这里先记结构教训：**注入逻辑不塞进 regfile，regfile 只开最小通道**——侵入面控制在可审计的几十行。
@@ -1074,7 +1074,7 @@ if ((state.isStage2 && !vm) || (!state.isStage2 && !state.sctlr.m)) {
 
 ### 4.1 模块清单与目录学
 
-上游 CHAOS（巴西侧，README 署名 Vinciguerra 等）提供 4 个模块：CHAOSReg / CHAOSPhysReg / CHAOSCache / CHAOSMem，故障原语仅三种位级操作（bit_flip / stuck_at_zero / stuck_at_one）。本仓库在 fi-fuzz 分支扩展到 **19 个编译进 `build/ARM` 的模块**。先给一张总表，按微架构位置分组；每个注入器在第五章有单独一节：
+上游 CHAOS（巴西侧，README 署名 Vinciguerra 等）提供 4 个模块：CHAOSReg / CHAOSPhysReg / CHAOSCache / CHAOSMem，故障原语仅三种位级操作（bit_flip / stuck_at_zero / stuck_at_one）。本仓库在 fi-fuzz 分支扩展到 **19 个编译进 `build/ARM` 的模块**。先给一张总表，按微架构位置分组（与第五章的 G1-G6 分组对应）；每个注入器在第五章有单独一节：
 
 | 组 | 模块 | 靶点 | 挂载方式 | 故障模式（超出位级的部分） |
 |---|---|---|---|---|
@@ -1322,13 +1322,69 @@ ArmTLB 的 parity_interleaved 是同一思想的 TLB 版：1-bit 检出 → **�
 ---
 ## 第五章 注入器深读：19 个注入器逐一剖析
 
-本章按流水线顺序逐个讲透全部 19 个注入器。每一节覆盖：定位与设计意图 → 参数面 → 攻击路径（带真实代码）→ 故障模式与硅上缺陷对应 → Stats 与踩坑史。四种子节（参数表/Stats/踩坑史）以紧凑形式呈现，因为跨注入器的共性已在第四章建立。
+**本章导览**：第四章建立了共性（挂载、门控、故障轴、保护模型），本章逐个讲透全部 19 个注入器的个性。组织方式沿用图 2-1 的指令旅程，按数据流分六组：G1 前端与重命名（§5.1-5.4）、G2 发射与执行（§5.5-5.8）、G3 提交与恢复（§5.9-5.10）、G4 LSU 与地址通路（§5.11-5.12）、G5 内存与缓存（§5.13-5.15）、G6 翻译栈与系统（§5.16-5.19）。每组开头有一段组导航说明本组攻击流水线的哪一段、组内共性是什么。每一节覆盖：定位与设计意图 → 参数面 → 攻击路径（带真实代码）→ 故障模式与硅上缺陷对应 → Stats 与踩坑史。四种子节（参数表/Stats/踩坑史）以紧凑形式呈现，因为跨注入器的共性已在第四章建立。
 
 读者提前记住三条共性，后文不再重复：
 
 1. **O3-only 纪律**：14 个 CPU 侧注入器构造函数里 `dynamic_cast<o3::CPU *>`，失败即 throw（如 `CHAOSLSQFwd.cc:37-42`）；
 2. **RNG lambda 构造**：19 个注入器全部用 §4.3 的 lambda 局部 random_device 形态（修构造顺序 UB）；
 3. **写日志**：每个注入器一个专属日志（`fpu_injections.log` 等 13 种），runner.py:370-376 逐一解析（第六章）。
+
+```
+┌────────────────────────────────────────────────────────────────────────┐
+│ 图 5-0：第五章的六组导航——19 注入器沿指令旅程（图 2-1）的分布          │
+├────────────────────────────────────────────────────────────────────────┤
+│                                                                        │
+│   取指 ──► 译码 ──► 重命名 ──► 发射 ──► 执行 ──► 提交                   │
+│    │                │         │        │        │                      │
+│  G1 前端与重命名   G2 发射与执行        G3 提交与恢复                    │
+│  ├ 5.1 BPU        ├ 5.5 IQ            ├ 5.9 ROB                       │
+│  ├ 5.2 RenameMap  ├ 5.6 Exec(负对照)  └ 5.10 RAS                       │
+│  ├ 5.3 FreeList   ├ 5.7 FPU                                            │
+│  └ 5.4 PhysReg    └ 5.8 L1DForward                                     │
+│                                                                        │
+│   （load/store 侧路）                    （下行到内存）                 │
+│  G4 LSU 与地址通路                     G5 内存与缓存                   │
+│  ├ 5.11 LSQFwd      │                 ├ 5.13 Cache                     │
+│  └ 5.12 AddrPath ──┼──► MMU ──►       ├ 5.14 Mem                       │
+│                    │    (图3-3)       └ 5.15 ExMon                     │
+│                    │                                                  │
+│                    └──► 翻译栈：G6 翻译栈与系统                        │
+│                        ├ 5.16 ArmTLB   ├ 5.18 ArmSysReg                │
+│                        ├ 5.17 PTW      └ 5.19 Reg(上游,ThreadContext)  │
+│                                                                        │
+│   阅读策略：可按组选读；每组第一段的组导航给该组的共性索引              │
+└────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+### G1 前端与重命名（§5.1-5.4）
+
+> **组导航**：这一组攻击指令进入乱序区的"入口三件套"——预测流（BPU）、映射决定层（RenameMap/FreeList）、数据容器（PhysReg）。它们的共同点：**故障落在"指令还没执行"或"映射还没定型"的阶段**，因此 squash 语义对这组注入器的可观测性影响最大（BPU 是负对照的直接原因）。三个重命名侧注入器恰好构成同一现象的三个物理根因：RenameMap 换的是"映射"，FreeList 破坏的是"分配状态"，PhysReg 毁的是"数据本身"——method1 的"历史残留"签名（§4.4 轴三）在这三节里反复出现，互为佐证。
+
+```
+┌───────────────────────────────────────────────────────────────┐
+│ 图 5-1：G1 组靶点——重命名三件套与三个注入器的攻击向量           │
+├───────────────────────────────────────────────────────────────┤
+│                                                               │
+│   架构寄存器 x5          RenameMap ◆换映射(张冠李戴)           │
+│        │  lookup                 ▲                            │
+│        ▼                         │ setEntry(别的arch的phys)   │
+│   ┌─────────┐   getReg 分配  ┌─────────┐                       │
+│   │ RAT     │──────────────►│FreeList │◆把活的P塞回空闲池      │
+│   │ arch→P  │               │ 空闲队列 │ (下次getReg双占用)     │
+│   └────┬────┘               └─────────┘                       │
+│        │ 映射到                ▲ addReg(原生API滥用)           │
+│        ▼                      │                               │
+│   ┌─────────┐  ◆PhysReg 毁 cell 值（位翻/stuck/分lane）        │
+│   │ PRF     │  ◆PhysReg G2: 写路径粘死（每次写都强制）          │
+│   │ phys值  │  ◆PhysReg read-trace: 数注入值被读几次            │
+│   └─────────┘                                                 │
+│                                                               │
+│   同一现象(读错活变量的值)的三个根因：映射错/分配错/数据错      │
+└───────────────────────────────────────────────────────────────┘
+```
 
 ### 5.1 CHAOSBPU：负对照面
 
@@ -1414,54 +1470,7 @@ if (fi_mode == Mode::PopWrong) {
 
 **验证记录**（提交 379e11c6）：mark_free -1 扫描模式 → 日志 "PhysReg: 170, donor_arch: 13, live physReg added to free list (method1 residue)"——与 RenameMap f5_substitute 打了同一物理寄存器，互为佐证。**诚实账**：attackCheck 无 +1 拍退避修复（`:101-106`）——几何(1.0)=0 间隔 + 扫描全拒绝时理论上可死循环，未修。
 
-### 5.4 CHAOSROB：三模式双通道
-
-**定位**（`CHAOSROB.py:3-9`）：method1 的 ROB 维度——投机流状态泄漏 + 异常位静默。
-
-**参数面**（`CHAOSROB.py:24-43`）：`mode`("entry_bitflip" | "exc_suppress" | "spec_leak") / `distanceFromHead`（死参数）与 `bitsToChange`（死参数）——"only进初始化列表，processFault 固定 ROB 头、固定单 bit" / `faultMask` / 五元组。
-
-**挂载：双通道**。构造函数（`CHAOSROB.cc:16-55`）**无论何种模式都** `cpu->renameAccess().setChaosRob(this)`（其他模式靠 `maybeDelayFree` 入口的 `fi_mode != Mode::SpecLeak` 检查短路）；`startup()` 按模式分流（`:59-66`）：
-
-```cpp
-// S6-4: spec_leak is driven by the Rename::doSquash hook (event-driven),
-// NOT by attackEvent polling — do not schedule the attack event in that
-// mode (prob=1.0 would otherwise poll every cycle).
-if (fi_mode == Mode::SpecLeak) return;
-```
-
-**攻击路径**：entry_bitflip（`:129-145`）翻 ROB 头 DynInst 的 seqNum（bit 0-15 单 bit）——"A corrupted seqNum breaks re-ordering comparisons"；exc_suppress（`:146-168`）先资格检查（head 必须真有 fault，否则诚实拒绝并记日志"has no fault (NoFault) — nothing to suppress"），然后：
-
-```cpp
-Fault &fref = head->getFault();
-fref = NoFault;  // clear the fault -> commit proceeds -> SDC
-```
-
-spec_leak 的注入器侧是 `maybeDelayFree`（`:264-290`，五层门齐全），宿主侧已完整引用于 §2.4。
-
-**read-trace**（`armReadTrace`，`:183-221`）：对被毁 head 的首个可重命名目的寄存器布防；头常是 store/branch 无 renameable dest——诚实拒装（`:215-220`："declined (ROB head seq has no renameable int/float dest — nothing to count reads on)"）。首 poll 50 cycles 的实测依据（`:200-206`）："a corrupted seqNum often aborts the sim within a few hundred cycles of the injection (observed: inject @cycle 5000, abort @cycle ~5096)"。
-
-**Stats**（`:314-326`）：numFaultsInjected / numEntryBitFlips / numExcSuppress / numSpecLeak / numLegalityRejects。
-
-**验证记录**（提交 5502276e）：负对照 reg_chain（无 squash）golden 一致；branchy_leak + spec_leak → numSpecLeak=3，日志 3 次 `Site: rename_doSquash_freelist_skip, PhysReg: 104/105/106`。
-
-### 5.5 CHAOSRAS：ERR* 记录抑制
-
-**定位**（`CHAOSRAS.py:3-15`）：RAS-ESCAPE 机制模型——"a faulting instruction's exception is SILENTLY COMMITTED (the ERR* record that should log the error to the RAS subsystem is suppressed) — the DUE that hardware should have reported becomes an unreported SDC"。与 exc_suppress 的分工：微架构落点相同（都清 ROB 头 fault），但研究角色不同——RAS 版本的观测协议是"SDC 事件后无 RAS 记录"，是逃逸分解的元分析臂（机理 E 邻近：保护/报告逻辑本身失效）。
-
-**参数面**（`CHAOSRAS.py:25-34`）：六者中最简——probability(1.0，双重使用：既是几何间隔参数又是 per-eligible-head Bernoulli)/ 时间窗 / maxFaults / rngSeed / writeLog / semanticRole。配置面专用缺省（`arm_chaos.py:219-223`）：`--ras_probability=1.0 --ras_max_faults=1 --ras_rng_seed=20260825`。
-
-**攻击路径**（`processFault`，`CHAOSRAS.cc:82-137`）——门控次序与其他注入器不同，**资格检查先于窗口/概率**：
-
-1. 取 ROB 头，空则 numSkippedNoFault++；
-2. **faulting 资格**（`:89-95`）："Only a FAULTING head is eligible: the RAS-escape mechanism suppresses the error REPORT of an actual error. A clean head has nothing to suppress (honest skip)."
-3. **SVC 排除**（`:96-106`）——踩坑史原文："SE syscalls present as 'Supervisor Call' faults at the commit head BEFORE any program-level fault; suppressing one breaks the syscall path itself (observed: every seed hit SVC first, the workload then core-dumped on the BROKEN syscall, not the target DABT). Real RAS ERR* records concern hardware error reports — not the syscall mechanism."
-4. 时间窗 → Bernoulli → 抑制（清 fault + 记 numRasRecordMisses + 日志 `Site: commit_head_ras_record, Mode: ras_escape (ERR* record suppressed)`）。
-
-**Stats**（`:139-147`）：numFaultsInjected / numRasRecordMisses / numSkippedNoFault（SVC 跳过也并入此计数器——轻微语义过载，如实记录）。
-
-**实现注记**：注释说"hooks the COMMIT path (commitHead)"，实现上是**轮询 ROB 头**（等价于 commit 前一刻的观察点），未插 commit.cc 的 hook——与 CHAOSROB 共用 `robAccess().readHeadInst()`。attackCheck 带 +1 拍退避（`:70-79`）。
-
-### 5.6 CHAOSPhysReg：物理 cell 抽象与 read-trace 闭环（重点）
+### 5.4 CHAOSPhysReg：物理 cell 抽象与 read-trace 闭环（重点）
 
 **定位**：PRF cell 注入器，全项目"方法论宣言"所在地（`CHAOSPhysReg.py:1-17`）。三种注入抽象：
 
@@ -1509,7 +1518,35 @@ if (trigger_value_mask != 0 &&
 
 **Stats**（`:74-86`）：numFaultsInjected / numBitFlips / numStuckAtZero / numStuckAtOne / numPermanentFaults。
 
-### 5.7 CHAOSIQ：v1 轮询 + v2 唤醒钩子
+### G2 发射与执行（§5.5-5.8）
+
+> **组导航**：这一组攻击"数据被算出来"的通路——IQ 决定指令**何时**带着什么操作数发射，Exec/FPU 决定算术结果**对不对**，L1DForward 决定 load 数据**回来后**还可能被毁在哪。组内的对照结构值得先记住：Exec 是整数负对照（预期 0 SDC），FPU 是主战场（位段谱系），两者构成"整数通路完好 vs FSU 敏感"的双臂实验设计（method1 的核心假设）。另外，这组贡献了全书最著名的三次 hook 迁移教训：FPU v1 的"result already popped"5089/5089、isFloating 标志 0 命中、forwarding 掩蔽——都发生在"hook 点选错"上（§7.1 定律）。
+
+```
+┌───────────────────────────────────────────────────────────────────┐
+│ 图 5-2：G2 组靶点——从就绪判定到写回的四个攻击面                     │
+├───────────────────────────────────────────────────────────────────┤
+│                                                                   │
+│   IQ 依赖图            ALU/FSU 执行          写回/装载             │
+│   ┌─────────────┐      ┌─────────────┐     ┌─────────────┐        │
+│   │ 生产者完成   │      │ 整数 ALU    │     │ setRegOperand│       │
+│   │   │ wake    │      │ ◆Exec(负对照 │     │  (值进PRF前) │       │
+│   │   ▼         │      │  0/384 SDC) │     │  ◆FPU v2    │       │
+│   │ ◆IQ: 吞掉/  │      ├─────────────┤     ├─────────────┤        │
+│   │  推迟唤醒/  │      │ FSU (FP/SIMD)│     │ getRegOperand│       │
+│   │  翻就绪位/  │      │ ◆FPU: IEEE754│     │  (消费瞬间)  │       │
+│   │  换tag     │      │  sign/exp/   │     │  ◆FPU v3    │       │
+│   └─────────────┘      │  mantissa   │     ├─────────────┤        │
+│                        └─────────────┘     │ load 结果    │       │
+│   method3 相位签名 ────► 错过唤醒=相位错    │ (ECC后)     │        │
+│                                            │ ◆L1DFwd    │        │
+│                                            └─────────────┘        │
+│   对照设计：Exec 阴性臂 vs FPU 主战场——"整数通路完好"假设的        │
+│   实验载体（t3-1/t3-2 campaign，§6.6）                             │
+└───────────────────────────────────────────────────────────────────┘
+```
+
+### 5.5 CHAOSIQ：v1 轮询 + v2 唤醒钩子
 
 **定位**（`CHAOSIQ.py:3-9`）：method3/core179 的 IQ 维度——"错源唤醒 + 相位竞态"。头文件坦白代理局限（`CHAOSIQ.hh:25-27`）："Reaches the ROB-head DynInst via cpu->robAccess() (**the public IQ list is not iterable**). Operates on src-ready bits / src tags as the observable IQ-state proxy."
 
@@ -1526,7 +1563,7 @@ if (trigger_value_mask != 0 &&
 
 **Stats**（`:253-263`）：numFaultsInjected / numSrcReadyBitFlips / numTagSub / numLegalityRejects。
 
-### 5.8 CHAOSExec：整数负对照
+### 5.6 CHAOSExec：整数负对照
 
 **定位**（`CHAOSExec.py:2-5`）："Negative control: P_SDC(Int) << P_SDC(FSU/forwarding) — confirms method1 'integer path intact' + Veritas (integer adders SDC << FSU)."
 
@@ -1545,7 +1582,7 @@ switch (bit_seg) {
 
 **Stats**（`:130-138`）：numFaultsInjected / numIntResultCorrupted / numSkippedNonInt（四类拒绝共用一个计数器）。小瑕疵：`writeLog(tid, mask, 0, 63)` 硬编码位段界——日志不反映实际位段。
 
-### 5.9 CHAOSFPU：三代钩子演化史
+### 5.7 CHAOSFPU：三代钩子演化史
 
 **定位**：FSU 数据通路注入器。它的头文件（`CHAOSFPU.hh:20-29`）完整记录了三代钩子设计，每一代都是上一次失败换来的：
 
@@ -1561,7 +1598,7 @@ switch (bit_seg) {
 
 **Stats**（`:301-311`）：numFaultsInjected / numFpResultCorrupted（描述字符串 "Integer writeback results corrupted" 是复制残留笔误，如实记录）/ numSkippedNonFp / **numResultPopped**（FP 头到达但结果已弹出——v1 失效的直接计量）。
 
-### 5.10 CHAOSL1DForward：post-check escape
+### 5.8 CHAOSL1DForward：post-check escape
 
 **定位**（`CHAOSL1DForward.hh:18-23`）："flips bits of the load result AFTER ECC has passed (the data path between cache return and PhysReg writeback). **'Complete RAM protection pushes SDC to the post-check data path's inevitable exit.'**"
 
@@ -1573,27 +1610,104 @@ switch (bit_seg) {
 
 **硅上对应**：ECC/SECDED 检查点之后、寄存器写回之前的那段数据通路的瞬态故障——"即使存储器保护完备，SDC 仍会从检查后通路的必然出口逃逸"这一命题的实验载体。
 
-### 5.11 CHAOSExMon：hook 必须落在架构判定点
+### G3 提交与恢复（§5.9-5.10）
 
-**定位**：ARM 本地独占监视器注入器。靶点勘误（`CHAOSExMon.hh:18-25`，.py 的 docstring 已过时）："The ARM local exclusive monitor in gem5 SE is implemented in ArmISA as two misc registers — **MISCREG_LOCKADDR + MISCREG_LOCKFLAG** (arch/arm/isa.cc: handleLockedRead on LDXR, lockedWriteHandler on STXR). CacheBlk::lockList / AbstractMemory::lockedAddrList are the no-ISA-monitor paths (x86-style) and are NOT used on ARM."
+> **组导航**：这一组攻击流水线的"最后关卡"——ROB 头是唯一能把状态写进架构态的位置，所以本组注入器全部围绕"提交时刻的错误处置"做文章。ROB 的三模式覆盖了三类攻击面（结果位翻转/异常位静默/投机状态泄漏），RAS 则专门研究"错误报告本身被抑制"这一逃逸机理（保护逻辑失效是比无保护更糟的事）。组内共性：都从 `robAccess().readHeadInst()` 拿 ROB 头，都在"即将提交"的瞬间出手。
 
-**参数面**（`CHAOSExMon.py:27-36`）：`mode`("clear_reservation" | "stale_reservation") / probability / 时间窗 / `maxFaults`(**缺省 1**——G5 default，其他注入器缺省 0) / `rngSeed`(**缺省 20260825**——G0 可复现，其他缺省 0)。无 cpu 参数——监视器是 ISA 级状态，不属任何 CPU。
+```
+┌───────────────────────────────────────────────────────────────────┐
+│ 图 5-3：G3 组靶点——ROB 头提交时刻的三类攻击                        │
+├───────────────────────────────────────────────────────────────────┤
+│                                                                   │
+│        ROB（按序退休，只有头部能写架构态）                          │
+│   ┌───┬───┬───┬───┬───┬───┐                                       │
+│   │...│...│...│...│...│...│  ◆ROB/RAS 只打头部：                   │
+│   └───┴───┴───┴─▲─┴───┴───┘     │                                │
+│                 │ head          │                                 │
+│   提交前检查：   │               ▼                                 │
+│   ┌─────────────┴───┐   ┌─────────────────────────────┐           │
+│   │ fault? squashed?│   │ ◆ROB entry_bitflip: 翻seqNum │           │
+│   │ （架构态门槛）   │   │ ◆ROB exc_suppress: 清fault位 │           │
+│   └─────────────────┘   │   (DUE→SDC)                  │           │
+│                         │ ◆ROB spec_leak: 图2-3的      │           │
+│   ◆RAS: faulting head   │   rename回滚点跳过归还        │           │
+│    的 ERR* 记录被抑制   │ ◆RAS: 清fault但目的是研究     │           │
+│    （报告义务消失）      │   "无记录的SDC"（逃逸机理E）  │           │
+│                         └─────────────────────────────┘           │
+└───────────────────────────────────────────────────────────────────┘
+```
 
-**挂载**：命名空间级全局指针（§4.2 特例）。时间域用 `curTick() > last_clock * 1000` 的 advisory 换算（`:69-87`，注释自认 honest limitation——未采用 TLB 系的 startup 快照）。
+### 5.9 CHAOSROB：三模式双通道
 
-**两种模式的关键设计**——clear_reservation 实际注入在 **STXR 判定点**而非 LDXR，注释（`CHAOSExMon.cc:109-115`）记录了为什么：
+**定位**（`CHAOSROB.py:3-9`）：method1 的 ROB 维度——投机流状态泄漏 + 异常位静默。
 
-> "a one-shot clear at LDXR time is unobservable under O3 squash-replay: the replayed LDXR re-establishes the flag before the STXR checks it — verified empirically 2008/2008 lock_flag=1."
+**参数面**（`CHAOSROB.py:24-43`）：`mode`("entry_bitflip" | "exc_suppress" | "spec_leak") / `distanceFromHead`（死参数）与 `bitsToChange`（死参数）——"only进初始化列表，processFault 固定 ROB 头、固定单 bit" / `faultMask` / 五元组。
 
-三个要点：① 在 LDXR 时清标志会被 O3 squash-replay 洗掉（实证 2008/2008 次 lock_flag=1，注入完全不可见）——**hook 必须落在架构判定点，而不是状态建立点**；② 持久故障语义 = 让每个 STXR 都失败，G5 上限只约束 numFaultsInjected（记第一次），numClearReservations 持续累计；③ 窗口/概率门照常。
+**挂载：双通道**。构造函数（`CHAOSROB.cc:16-55`）**无论何种模式都** `cpu->renameAccess().setChaosRob(this)`（其他模式靠 `maybeDelayFree` 入口的 `fi_mode != Mode::SpecLeak` 检查短路）；`startup()` 按模式分流（`:59-66`）：
 
-stale_reservation（`:137-151`）走全套门控后授予假成功——"Grant the STXR a false success: the caller returns true without a valid reservation — a lost-update race window opens silently"（两个写者都以为赢了）。宿主双 hook（isa.cc:1929-1937 失败分支内的假成功、:1960-1971 成功路径上的假失败）已核验于第三章；hook 编号从 2 开始——hook 1（LDXR 清标志）被实验否决后删除。
+```cpp
+// S6-4: spec_leak is driven by the Rename::doSquash hook (event-driven),
+// NOT by attackEvent polling — do not schedule the attack event in that
+// mode (prob=1.0 would otherwise poll every cycle).
+if (fi_mode == Mode::SpecLeak) return;
+```
 
-**Stats**（`:14-27`）：numFaultsInjected / numClearReservations / numStaleReservations / **numInWindowChecks / numOutOfWindow**（行使归因对，§4.3）。
+**攻击路径**：entry_bitflip（`:129-145`）翻 ROB 头 DynInst 的 seqNum（bit 0-15 单 bit）——"A corrupted seqNum breaks re-ordering comparisons"；exc_suppress（`:146-168`）先资格检查（head 必须真有 fault，否则诚实拒绝并记日志"has no fault (NoFault) — nothing to suppress"），然后：
 
-**诚实边界**：单线程 SE 下 stale_reservation 的丢失更新竞态不可达（AGENT_TASKS.md 的 D-ExMon-多核 deferred，需多核场景）。
+```cpp
+Fault &fref = head->getFault();
+fref = NoFault;  // clear the fault -> commit proceeds -> SDC
+```
 
-### 5.12 CHAOSLSQFwd：双 hook 与结构化故障
+spec_leak 的注入器侧是 `maybeDelayFree`（`:264-290`，五层门齐全），宿主侧已完整引用于 §2.4。
+
+**read-trace**（`armReadTrace`，`:183-221`）：对被毁 head 的首个可重命名目的寄存器布防；头常是 store/branch 无 renameable dest——诚实拒装（`:215-220`："declined (ROB head seq has no renameable int/float dest — nothing to count reads on)"）。首 poll 50 cycles 的实测依据（`:200-206`）："a corrupted seqNum often aborts the sim within a few hundred cycles of the injection (observed: inject @cycle 5000, abort @cycle ~5096)"。
+
+**Stats**（`:314-326`）：numFaultsInjected / numEntryBitFlips / numExcSuppress / numSpecLeak / numLegalityRejects。
+
+**验证记录**（提交 5502276e）：负对照 reg_chain（无 squash）golden 一致；branchy_leak + spec_leak → numSpecLeak=3，日志 3 次 `Site: rename_doSquash_freelist_skip, PhysReg: 104/105/106`。
+
+### 5.10 CHAOSRAS：ERR* 记录抑制
+
+**定位**（`CHAOSRAS.py:3-15`）：RAS-ESCAPE 机制模型——"a faulting instruction's exception is SILENTLY COMMITTED (the ERR* record that should log the error to the RAS subsystem is suppressed) — the DUE that hardware should have reported becomes an unreported SDC"。与 exc_suppress 的分工：微架构落点相同（都清 ROB 头 fault），但研究角色不同——RAS 版本的观测协议是"SDC 事件后无 RAS 记录"，是逃逸分解的元分析臂（机理 E 邻近：保护/报告逻辑本身失效）。
+
+**参数面**（`CHAOSRAS.py:25-34`）：六者中最简——probability(1.0，双重使用：既是几何间隔参数又是 per-eligible-head Bernoulli)/ 时间窗 / maxFaults / rngSeed / writeLog / semanticRole。配置面专用缺省（`arm_chaos.py:219-223`）：`--ras_probability=1.0 --ras_max_faults=1 --ras_rng_seed=20260825`。
+
+**攻击路径**（`processFault`，`CHAOSRAS.cc:82-137`）——门控次序与其他注入器不同，**资格检查先于窗口/概率**：
+
+1. 取 ROB 头，空则 numSkippedNoFault++；
+2. **faulting 资格**（`:89-95`）："Only a FAULTING head is eligible: the RAS-escape mechanism suppresses the error REPORT of an actual error. A clean head has nothing to suppress (honest skip)."
+3. **SVC 排除**（`:96-106`）——踩坑史原文："SE syscalls present as 'Supervisor Call' faults at the commit head BEFORE any program-level fault; suppressing one breaks the syscall path itself (observed: every seed hit SVC first, the workload then core-dumped on the BROKEN syscall, not the target DABT). Real RAS ERR* records concern hardware error reports — not the syscall mechanism."
+4. 时间窗 → Bernoulli → 抑制（清 fault + 记 numRasRecordMisses + 日志 `Site: commit_head_ras_record, Mode: ras_escape (ERR* record suppressed)`）。
+
+**Stats**（`:139-147`）：numFaultsInjected / numRasRecordMisses / numSkippedNoFault（SVC 跳过也并入此计数器——轻微语义过载，如实记录）。
+
+**实现注记**：注释说"hooks the COMMIT path (commitHead)"，实现上是**轮询 ROB 头**（等价于 commit 前一刻的观察点），未插 commit.cc 的 hook——与 CHAOSROB 共用 `robAccess().readHeadInst()`。attackCheck 带 +1 拍退避（`:70-79`）。
+
+### G4 LSU 与地址通路（§5.11-5.12）
+
+> **组导航**：这一组攻击"数据从内存到寄存器"的最后一条旁路。LSQFwd 打在 store→load 转发 memcpy 的前后（图 2-4 的双 hook），AddrPath 打在地址进入 MMU 之前的通路上（图 3-3 的入口）。组内共性：两者都是"通路形状"的故障（§4.4 轴一/轴二），位翻转模型天然表达不了；且转发/翻译数据**不经过 cache 也不经过 PRF**——这决定了它们的注入在 PRF/Cache 注入器"天然失明"的盲区上（§7.3 定律）。时间域也有对照：LSQFwd 用 CPU cycle 域，AddrPath 用 sim tick 域（附录 B 速查卡的对照来源）。
+
+```
+┌───────────────────────────────────────────────────────────────────┐
+│ 图 5-4：G4 组靶点——LSQ 旁路与地址通路（图 2-4 / 3-3 的组视图）     │
+├───────────────────────────────────────────────────────────────────┤
+│                                                                   │
+│   store buffer          load                       │             │
+│   ┌──────────┐          ┌──────────┐               │             │
+│   │ SQ 条目  │──转发──► │ LQ 条目  │               ▼             │
+│   │ (data)   │  memcpy  │ memData  │         MMU（图3-3）        │
+│   └──────────┘          └──────────┘               │             │
+│        │①pickSource        │②corrupt               │             │
+│        │ (错store/陈旧行/  │ (位级/结构化)          ▼             │
+│        │  相位偏移)        │                 ◆AddrPath:          │
+│        ▼                  ▼                  翻译前毁vaddr        │
+│   ◆LSQFwd: 历史环HIST_CAP=8 ◆LSQFwd         (byte7清零,D2)       │
+│   全程不经过 cache / PRF 读端口——PRF与Cache注入器的天然盲区     │
+└───────────────────────────────────────────────────────────────────┘
+```
+
+### 5.11 CHAOSLSQFwd：双 hook 与结构化故障
 
 §2.7 已展示双 hook 宿主侧；注入器侧再补三件事：
 
@@ -1607,7 +1721,7 @@ stale_reservation（`:137-151`）走全套门控后授予假成功——"Grant t
 
 **Stats**（`:366-386`，9 个）：numFaultsInjected / numBitFlips / numStuckAtZero / numStuckAtOne / numStructuralByteLaneSkew / numStructuralAllZero / numFwdSourceSub / numStaleLineReplay / numPhaseOffset。
 
-### 5.13 CHAOSAddrPath：D2 签名直译
+### 5.12 CHAOSAddrPath：D2 签名直译
 
 **定位**（`CHAOSAddrPath.py:3-7`）：复现 core 179 D2——"the MSB byte of the address presented to the MMU was forced to 0 (0814: d9->00; 0824: 55->00), while the architectural register held the true computed value. This is an address-PATH corruption distinct from the data-path D1."
 
@@ -1629,7 +1743,34 @@ Addr mask = ~((Addr)0xFF << (off * 8));
 
 **FS 配置注意**（`arm_chaos_fs.py:299-303`）：FS boot 默认 Atomic，而本 hook 在 O3 LSQ——"On Atomic it instantiates but does not fire (harmless)"，须 checkpoint restore 后切 O3。
 
-### 5.14 CHAOSCache：字段级 × 保护模型的矩阵
+### G5 内存与缓存（§5.13-5.15）
+
+> **组导航**：这一组攻击数据通路的"下半场"——cache 的数据/标签/元数据/写回牺牲者、DRAM 字节、以及 ISA 级的独占监视器。组内复杂度梯度极大：ExMon 是全局指针特例（149 行），Cache 是全书最复杂的注入器（883 行、一个 SimObject 打四个结构）。共性是**保护模型的载体**——ECC/SECDED/parity 的"注入后判定"（§4.5）主要实现在这组的 Cache/Mem 上；"post-check escape"命题（L1DForward 在 G2）与这组的 ECC 实验互为对照。
+
+```
+┌───────────────────────────────────────────────────────────────────┐
+│ 图 5-5：G5 组靶点——cache 四结构 + DRAM + 独占监视器（图 3-2 放大） │
+├───────────────────────────────────────────────────────────────────┤
+│                                                                   │
+│  ┌─────────────── Cache（一个注入器打四个结构）─────────────┐      │
+│  │ 数据阵列字节   ◆含 L1I 指令编码字段(rd/rn/rm/opcode)     │      │
+│  │ 标签阵列       ◆findBlock 假命中改道（tag存储不动）       │      │
+│  │ 元数据位       ◆valid/dirty/repl/coh                    │      │
+│  │ 写回victim     ◆writebackBlk 载荷毁伤（cache行完好）      │      │
+│  └──────────────────────────────────────────────────────────┘      │
+│  ┌───────────────┐  ┌──────────────────────────────────┐          │
+│  │ DRAM 字节      │  │ ARM 独占监视器（ISA级）           │          │
+│  │ ◆Mem: functional│ │ LDXR 建立reservation             │          │
+│  │  RMW 直读直写  │  │   ◆ExMon clear: STXR恒败         │          │
+│  │ ◆保护模型:     │  │   ◆ExMon stale: STXR假成功       │          │
+│  │  secded/ecc_  │  │   (丢失更新,需多核才可达)          │          │
+│  │  logic_fault  │  └──────────────────────────────────┘          │
+│  └───────────────┘                                                 │
+│  本组是 §4.5 保护模型的主要实现地：注入后判定+PA标记                 │
+└───────────────────────────────────────────────────────────────────┘
+```
+
+### 5.13 CHAOSCache：字段级 × 保护模型的矩阵
 
 gem5 中最复杂的注入器：一个 SimObject 打**四个结构**——数据阵列字节（含 L1I 指令编码字段）、标签阵列 false-hit、元数据位（valid/dirty/repl/coh）、写回 victim 通路。两个热路径 hook（§3.3）+ attackEvent 采样。
 
@@ -1647,11 +1788,58 @@ gem5 中最复杂的注入器：一个 SimObject 打**四个结构**——数据
 
 **注释与实现的两处缝隙**（深读时实证发现，如实记录）：① `chaosDivertFindBlock` 注释（`:287-290`）声称 "Only divert while the victim still holds the tag it had at injection time"，但函数体**没有任何 tag 比对**——victim 被替换后新占位行仍会被分流；② `:825` 的 `faults_injected_count += corruption_size` 在 if/else 之外无条件执行——元数据路径在 `injectMetadataFault` 内已 `++`，之后又加一次（双计）；validBlocks 为空时也会加满。
 
-### 5.15 CHAOSMem：functional RMW
+### 5.14 CHAOSMem：functional RMW
 
 §3.4 已展开攻击循环与三条修复史。补充设计定位：唯一**不挂钩宿主代码路径**的注入器——`memory->access()` 是 gem5 原生 functional 接口，`addr_map_sub` 的 F5 重定向插在"target_addr 赋值之后、Request 构造之前"（注释声明了插入点的验证："Insertion point verified: between target_addr assignment (line 211) and the Request construction"）。
 
 **Stats**（`.cc:129-155`，11 个）：numFaultsInjected / numBitFlips / numStuckAtZero/One / numPermanentFaults / numPermanentReapplies/numPermanentChecks（D3）/ numEccCorrected / numDetectedContained / **numEccLogicMissed**（ecc_logic_fault 的专属计数）/ numLatent。
+
+### 5.15 CHAOSExMon：hook 必须落在架构判定点
+
+**定位**：ARM 本地独占监视器注入器。靶点勘误（`CHAOSExMon.hh:18-25`，.py 的 docstring 已过时）："The ARM local exclusive monitor in gem5 SE is implemented in ArmISA as two misc registers — **MISCREG_LOCKADDR + MISCREG_LOCKFLAG** (arch/arm/isa.cc: handleLockedRead on LDXR, lockedWriteHandler on STXR). CacheBlk::lockList / AbstractMemory::lockedAddrList are the no-ISA-monitor paths (x86-style) and are NOT used on ARM."
+
+**参数面**（`CHAOSExMon.py:27-36`）：`mode`("clear_reservation" | "stale_reservation") / probability / 时间窗 / `maxFaults`(**缺省 1**——G5 default，其他注入器缺省 0) / `rngSeed`(**缺省 20260825**——G0 可复现，其他缺省 0)。无 cpu 参数——监视器是 ISA 级状态，不属任何 CPU。
+
+**挂载**：命名空间级全局指针（§4.2 特例）。时间域用 `curTick() > last_clock * 1000` 的 advisory 换算（`:69-87`，注释自认 honest limitation——未采用 TLB 系的 startup 快照）。
+
+**两种模式的关键设计**——clear_reservation 实际注入在 **STXR 判定点**而非 LDXR，注释（`CHAOSExMon.cc:109-115`）记录了为什么：
+
+> "a one-shot clear at LDXR time is unobservable under O3 squash-replay: the replayed LDXR re-establishes the flag before the STXR checks it — verified empirically 2008/2008 lock_flag=1."
+
+三个要点：① 在 LDXR 时清标志会被 O3 squash-replay 洗掉（实证 2008/2008 次 lock_flag=1，注入完全不可见）——**hook 必须落在架构判定点，而不是状态建立点**；② 持久故障语义 = 让每个 STXR 都失败，G5 上限只约束 numFaultsInjected（记第一次），numClearReservations 持续累计；③ 窗口/概率门照常。
+
+stale_reservation（`:137-151`）走全套门控后授予假成功——"Grant the STXR a false success: the caller returns true without a valid reservation — a lost-update race window opens silently"（两个写者都以为赢了）。宿主双 hook（isa.cc:1929-1937 失败分支内的假成功、:1960-1971 成功路径上的假失败）已核验于第三章；hook 编号从 2 开始——hook 1（LDXR 清标志）被实验否决后删除。
+
+**Stats**（`:14-27`）：numFaultsInjected / numClearReservations / numStaleReservations / **numInWindowChecks / numOutOfWindow**（行使归因对，§4.3）。
+
+**诚实边界**：单线程 SE 下 stale_reservation 的丢失更新竞态不可达（AGENT_TASKS.md 的 D-ExMon-多核 deferred，需多核场景）。
+
+### G6 翻译栈与系统（§5.16-5.19）
+
+> **组导航**：这一组攻击"决定数据从哪来"的最外层机制——虚拟地址怎么变物理地址（ArmTLB/PTW）、系统寄存器读出什么配置（ArmSysReg）、以及上游 CHAOS 的原版架构寄存器注入（Reg，ThreadContext 后门）。组内最重要的共同约束是图 3-3 那条 SE/FS 分界线：TLB/PTW/SysReg 全部 FS-only，SE 下 hook 恒零调用（§7.7 定律）；Reg 则是"上游设计在 O3 上失效"的活标本，它被保留的唯一目的就是量化 arch_commit 抽象的伪迹（§5.4 三抽象对照的对照组）。
+
+```
+┌───────────────────────────────────────────────────────────────────┐
+│ 图 5-6：G6 组靶点——翻译栈三级 + 系统寄存器 + 上游后门（图 3-3）    │
+├───────────────────────────────────────────────────────────────────┤
+│                                                                   │
+│   vaddr ──► MMU ──► ┌─────────┐ miss  ┌─────────┐                │
+│                     │ TLB      │──────►│ PTW     │                │
+│                     │ ◆ArmTLB: │ walk  │ ◆PTW:   │                │
+│                     │ pfn位翻/ │◄──────│ 描述符  │                │
+│                     │ mapped_ │       │ 位翻/清 │                │
+│                     │ page/   │       │ valid位 │                │
+│                     │ ap/xn/  │       └─────────┘                │
+│                     │ asid字段│  全部 FS-only（SE 下死路）         │
+│                     └─────────┘                                   │
+│   MRS 读 ──► ┌─────────────────┐   ┌──────────────────────┐      │
+│              │ ◆ArmSysReg:      │   │ ◆Reg(上游):          │      │
+│              │ sctlr/ttbr/tcr  │   │ ThreadContext::setReg │      │
+│              │ 白名单 → 合法形  │   │ 后门——写commitRAT    │      │
+│              └─────────────────┘   │ (O3上失效,活标本)     │      │
+│                                    └──────────────────────┘      │
+└───────────────────────────────────────────────────────────────────┘
+```
 
 ### 5.16 CHAOSArmTLB：字段级 + parity
 
@@ -1718,7 +1906,7 @@ CPU::setArchReg(const RegId &reg, RegVal val, ThreadID tid)
 }
 ```
 
-**只写 commitRenameMap 解析出的物理寄存器**——在飞指令（按前端 RAT 重命名、经 bypass 前递）永远看不到这次写；再加 conditionalSquash 的重放，写的效果被流水线自身冲掉。这正是 §5.6 三抽象注释所说"a backdoor that doesn't propagate to in-flight instructions on O3"，也是 arch_commit 模式"FAILS on O3 — kept for comparison only, to quantify the artifact"的原因。
+**只写 commitRenameMap 解析出的物理寄存器**——在飞指令（按前端 RAT 重命名、经 bypass 前递）永远看不到这次写；再加 conditionalSquash 的重放，写的效果被流水线自身冲掉。这正是 §5.4 三抽象注释所说"a backdoor that doesn't propagate to in-flight instructions on O3"，也是 arch_commit 模式"FAILS on O3 — kept for comparison only, to quantify the artifact"的原因。
 
 **checkPermanent 修复史**（`:425-433`）：上游原版只重粘一次（update 置 false 后永久失效，"so 'stuck_at_zero/one' were NOT actually permanent"）；本仓库改为每周期重粘。但 PhysReg 侧的 G2 注释进一步指出周期重粘在 O3 上仍不完备——**三级演化：一次性 → 周期重粘（CHAOSReg 现状）→ 写路径掩码（CHAOSPhysReg G2）**。
 
@@ -1888,7 +2076,7 @@ except subprocess.TimeoutExpired:
 
 ### 7.1 hook 点选择 = 微架构定位
 
-同一个"数据损坏"可注在 cache、PRF、转发路径、内存——它们对应**不同的物理缺陷位置**。L1D 数据 97.7% SDC vs L1I 0%（错误指令流被 squash 或非法崩溃——取指通路自掩蔽）的悬崖，直接回答"ECC 预算投给取数还是取指"。CHAOSFPU v1→v2 的迁移（§2.9：ROB 头攻击 5089/5089 次"result already popped"）从反面证明：hook 位置差一个流水级，注入器就是哑炮。CHAOSExMon 的 hook 1 删除（§5.11：LDXR 点清标志被 squash-replay 抵消，2008/2008 实证不可见）是同一定律的 ISA 级版本。**写 hook 前先问：硅上这个故障发生在哪一级？数据在这一级长什么样？O3 的 squash 语义会不会把它洗掉？**
+同一个"数据损坏"可注在 cache、PRF、转发路径、内存——它们对应**不同的物理缺陷位置**。L1D 数据 97.7% SDC vs L1I 0%（错误指令流被 squash 或非法崩溃——取指通路自掩蔽）的悬崖，直接回答"ECC 预算投给取数还是取指"。CHAOSFPU v1→v2 的迁移（§2.9：ROB 头攻击 5089/5089 次"result already popped"）从反面证明：hook 位置差一个流水级，注入器就是哑炮。CHAOSExMon 的 hook 1 删除（§5.15：LDXR 点清标志被 squash-replay 抵消，2008/2008 实证不可见）是同一定律的 ISA 级版本。**写 hook 前先问：硅上这个故障发生在哪一级？数据在这一级长什么样？O3 的 squash 语义会不会把它洗掉？**
 
 ### 7.2 合法域内错误是 SDC 的核心形态
 
@@ -1896,7 +2084,7 @@ except subprocess.TimeoutExpired:
 
 ### 7.3 forwarding 掩蔽定律
 
-紧循环 chase 里指针的生产者-消费者距离只有一条 ldp——O3 转发直接把生产者结果递给消费者，**物理 cell 无读者**（read-trace reads=0 佐证），PRF 位翻转架构不可见。这条从仿真架构本身推导出的定律解释了：为何 PRF 臂实验必须在 FS 内核态跑（内核指针使用模式的依赖距离更长），也修正了"physreg 保护"的优先级评估。它同时是 CHAOSFPU v3 源读钩子存在的全部根据（§5.9："cell injection is defeated by forwarding — but the read hook sees EVERY consumption"）——**架构知识反过来指导注入有效性：不是所有靶点对所有 workload 都暴露**。campaign 层的镜像教训（§6.6）：lsq-matrix 的 fwdsrc/stale 两臂 0.000 Masked——fp_fwd_kernel 同址反复转发，历史环里仍是等值数据——**kernel 的转发几何必须与故障模式匹配**，否则阴性无意义（好在有机理解释）。
+紧循环 chase 里指针的生产者-消费者距离只有一条 ldp——O3 转发直接把生产者结果递给消费者，**物理 cell 无读者**（read-trace reads=0 佐证），PRF 位翻转架构不可见。这条从仿真架构本身推导出的定律解释了：为何 PRF 臂实验必须在 FS 内核态跑（内核指针使用模式的依赖距离更长），也修正了"physreg 保护"的优先级评估。它同时是 CHAOSFPU v3 源读钩子存在的全部根据（§5.7："cell injection is defeated by forwarding — but the read hook sees EVERY consumption"）——**架构知识反过来指导注入有效性：不是所有靶点对所有 workload 都暴露**。campaign 层的镜像教训（§6.6）：lsq-matrix 的 fwdsrc/stale 两臂 0.000 Masked——fp_fwd_kernel 同址反复转发，历史环里仍是等值数据——**kernel 的转发几何必须与故障模式匹配**，否则阴性无意义（好在有机理解释）。
 
 ### 7.4 确定性仿真的统计学陷阱
 
@@ -1918,7 +2106,7 @@ gem5 同 seed 同结果。事件驱动注入器若"窗口开后第一个过概�
 
 1. gem5 O3 ≠ TSV110 RTL；无 HCCS/NoC 周期精确模型；跨 ISA 结论限可建模子集，TSO-vs-弱序不可建模（wake_phase 不捕获 method3 相位签名即为一例，§2.6 已注明）。
 2. 本机即 CPU179 故障机：全部 formal 需第二台健康机复现才算最终确认。
-3. **文档与代码不一致处，以代码为准并如实声明**——本次重写逐一核验出的清单：CHAOSBPU 基础设施在但无自挂载调用（§5.1）；SE 真实路径是 translateSe 而非 translateMmuOff（结论不变，§3.5）；golden 注册表 14 条而非 15（§6.3）；replay 自检是 no-op 占位（§6.2）；批量 manifest 的 commit 哈希是 TBD（§6.1）；FreeList/ROB/Exec 缺 +1 拍退避（§4.2）；CHAOSExMon.py 的 docstring 靶点描述过时（§5.11）；CHAOSCache 分流函数注释声称的 tag 比对未实现 + faults 计数双计（§5.14）；CHAOSPTW 的 longDescInvalid 不认 0b10（§5.17）；CHAOSArmSysReg 的 value_to_legal 未列入 help（§5.18）；若干死参数（bitsToChange/distanceFromHead）与计数器语义过载（numSkippedNoFault 含 SVC）。
+3. **文档与代码不一致处，以代码为准并如实声明**——本次重写逐一核验出的清单：CHAOSBPU 基础设施在但无自挂载调用（§5.1）；SE 真实路径是 translateSe 而非 translateMmuOff（结论不变，§3.5）；golden 注册表 14 条而非 15（§6.3）；replay 自检是 no-op 占位（§6.2）；批量 manifest 的 commit 哈希是 TBD（§6.1）；FreeList/ROB/Exec 缺 +1 拍退避（§4.2）；CHAOSExMon.py 的 docstring 靶点描述过时（§5.15）；CHAOSCache 分流函数注释声称的 tag 比对未实现 + faults 计数双计（§5.13）；CHAOSPTW 的 longDescInvalid 不认 0b10（§5.17）；CHAOSArmSysReg 的 value_to_legal 未列入 help（§5.18）；若干死参数（bitsToChange/distanceFromHead）与计数器语义过载（numSkippedNoFault 含 SVC）。
 4. 阴性结果同样要有机理解释才算数（lsq-matrix 的 fwdsrc/stale=0 是"同址等值数据"而非"故障无效"，§6.6）；工具自身有限制时要打在产物上（escape_decomp 的 "no data" 行、loo_validate 的平凡命中警示、fisher 的 insufficient-n 分支）。
 
 ---
