@@ -60,7 +60,7 @@ Python 侧的 `m5.simulate()` 直接进入 C++ 的 `simulate()`（`src/sim/simul
 3. 若用户给了周期上限，调 `set_max_tick()` 挂一个 `GlobalSimLoopExitEvent`（`simulate.cc:213-224`，`set_max_tick` 定义 `:257-265`）；
 4. 进入主循环 `doSimLoop(mainEventQueue[0])`（`simulate.cc:238`）。
 
-`doSimLoop`（`simulate.cc:292-346`）是整个仿真器的心跳，值得逐行读：
+`doSimLoop`（`simulate.cc:292-346`）是整个仿真器的心跳，一共五十行，建议逐行读一遍：
 
 ```cpp
 // src/sim/simulate.cc:292-343（节选）
@@ -116,7 +116,7 @@ CHAOS 对仿真内核本身也有极小的改动——`simulate.cc:189` 的全�
 
 ### 1.2 时间系统：Tick 与事件优先级
 
-`Tick` 是 64 位最小时间单位（默认 1ps，`src/base/types.hh`）。但仅有时刻不足以确定同拍事件的执行顺序，所以 `EventBase`（`src/sim/eventq.hh:99`）定义了第二维——**优先级**（`typedef int8_t Priority`，`eventq.hh:126`；枚举值 `:138-244`）。**数值越小越先执行**。这张表是理解 gem5 行为次序的关键，值得像背内核中断优先级一样背下来：
+`Tick` 是 64 位最小时间单位（默认 1ps，`src/base/types.hh`）。但仅有时刻不足以确定同拍事件的执行顺序，所以 `EventBase`（`src/sim/eventq.hh:99`）定义了第二维——**优先级**（`typedef int8_t Priority`，`eventq.hh:126`；枚举值 `:138-244`）。**数值越小越先执行**。同拍事件谁先谁后，由这张表决定，值得像背内核中断优先级一样记住：
 
 | 优先级常量 | 值 | 含义 |
 |---|---|---|
@@ -186,9 +186,9 @@ class SimObject : public EventManager,        // 拥有事件队列访问（sche
        startup()           仿真即将开始——注入器在这里把 cycle 域快照成 tick 域
 ```
 
-一个对本项目至关重要的细节：**`startup()` 不在 instantiate 里调用**——它推迟到第一次 `m5.simulate()`，因为初始事件调度必须等 curTick 就绪（`sim_object.hh:273-280` startup 注释）。而 CHAOS 注入器的统一模式是在**构造函数里 self-attach**——attach 发生在第①遍，早于端口连接与 initState，所以 hook 生效期覆盖整个仿真生命周期。
+一个对本项目重要的细节：**`startup()` 不在 instantiate 里调用**——它推迟到第一次 `m5.simulate()`，因为初始事件调度必须等 curTick 就绪（`sim_object.hh:273-280` startup 注释）。而 CHAOS 注入器的统一模式是在**构造函数里 self-attach**——attach 发生在第①遍，早于端口连接与 initState，所以 hook 生效期覆盖整个仿真生命周期。
 
-**这张时刻表是注入器的宪法**：构造函数里只准读参数、挂指针；`startup()` 里才准触碰全局时间（第七章 §7.6 的 D1/D4 陷阱正是违反/遵守它的正反案例）。
+对注入器来说，这张时刻表是硬约束：构造函数里只准读参数、挂指针；`startup()` 里才准触碰全局时间（第七章 §7.6 的 D1/D4 陷阱正是违反/遵守它的正反案例）。
 
 ### 1.5 双语言架构：Python 配置面，C++ 行为面
 
@@ -234,7 +234,7 @@ Source('CHAOSLSQFwd.cc')
 
 同一内存系统上可挂四种 CPU 模型：AtomicSimpleCPU（功能级）、TimingSimpleCPU（时序近似）、MinorCPU（顺序流水线）、**O3CPU（周期级乱序流水线）**。物理寄存器堆、重命名、乱序调度这些微架构状态**只有 O3 建模**——这决定了 CHAOS 的 14 个 CPU 侧注入器全部 `dynamic_cast<o3::CPU *>` 且失败即抛异常（如 `CHAOSLSQFwd.cc:37-42`；CHAOSReg/CHAOSMem/CHAOSCache/ExMon 例外，它们不依赖 O3 专属结构）。
 
-Workload 分 SE（syscall emulation：gem5 内置 syscall表拦截 read/write/futex，不跑内核）与 FS（full system：真实 bootloader→vmlinux→用户态）。这条看似平凡的边界，在第四章 §4.5 与第七章 §7.7 将被证明是**实验有效性的分水岭**——一行 if 决定了某些注入器有没有研究对象。先给结论预览：SE 模式下 ARM 翻译走 `MMU::translateSe`（`mmu.cc:323-365`，软件页表 `EmulationPageTable`），FS 的 `translateFs` 在 `mmu.cc:1212` 处按 `sctlr.m` 分流——MMU 关（SE 不开）直接恒等映射，MMU 开（FS）才走 TLB→PTW 硬件通路。
+Workload 分 SE（syscall emulation：gem5 内置 syscall表拦截 read/write/futex，不跑内核）与 FS（full system：真实 bootloader→vmlinux→用户态）。这条边界直接决定某些注入器有没有研究对象（第四章 §4.5 与第七章 §7.7 展开）。先给结论预览：SE 模式下 ARM 翻译走 `MMU::translateSe`（`mmu.cc:323-365`，软件页表 `EmulationPageTable`），FS 的 `translateFs` 在 `mmu.cc:1212` 处按 `sctlr.m` 分流——MMU 关（SE 不开）直接恒等映射，MMU 开（FS）才走 TLB→PTW 硬件通路。
 
 ---
 
@@ -244,7 +244,7 @@ O3CPU（`src/cpu/o3/`，命名来自"Out of Order"）是本仓库全部 CPU 侧�
 
 ### 2.1 阶段组合模型与 TimeBuffer
 
-`o3::CPU`（`src/cpu/o3/cpu.hh:114`）**组合**（而非继承）六个阶段对象（`cpu.hh:431-466`）：
+`o3::CPU`（`src/cpu/o3/cpu.hh:114`）把六个阶段对象作为成员**组合**在一起（而非继承），每个阶段有自己的内部状态机（`cpu.hh:431-466`）：
 
 ```cpp
 // src/cpu/o3/cpu.hh:431-466（protected 成员区，节选）
@@ -266,7 +266,7 @@ O3CPU（`src/cpu/o3/`，命名来自"Out of Order"）是本仓库全部 CPU 侧�
 
 阶段间不用回调而用**时间滑窗队列** `TimeBuffer<T>`（`src/cpu/timebuf.hh:39`）通信。CPU 持有五个（`cpu.hh:556-568`）：总线的 `timeBuffer<TimeStruct>` 加四级指令队列。`TimeStruct`（`src/cpu/o3/comm.hh:112-224`）是纯数据聚合：`FetchComm`（squash/nextPC）、`DecodeComm`（mispredict 信息）、`RenameComm`（空）、`IewComm`（freeIQEntries/freeLQEntries 等反压计数）、`CommitComm`（ROB 空位、squash 序号——这个结构里有一段罕见的**成员级消费者标注注释**："each member is annotated with who consumes it e.g. `bool variable name; // *F, R`"，是读 O3 前端反馈通路的地图）。每个阶段通过 `wire`（`timebuf.hh:58-136`）读写本拍/前几拍/后几拍的槽位——**这建模的是真实流水线的段间寄存器**：上游写进 wire 的信号，下游在延迟若干拍后看到。
 
-`advance()`（`timebuf.hh:178-190`）是这套机制的精髓，值得整段读：
+`advance()`（`timebuf.hh:178-190`）是这套机制的核心，只有十二行：
 
 ```cpp
 // src/cpu/timebuf.hh:178-190
@@ -368,7 +368,7 @@ hook 挂在 `bpu->predict()` **之后**——"预测器已经说话，注入器�
 
 ### 2.4 Rename：两张 RAT 与历史缓冲
 
-Rename 阶段维护**两张映射表**（`cpu.hh:459-463`）：
+先补一句背景：乱序机执行时，一条指令的目的寄存器并不直接写在架构寄存器上，而是由 Rename 阶段分配一个空闲的物理寄存器，把"架构寄存器 → 物理寄存器"的映射记在 RAT（Rename Alias Table）里。指令被 squash 时，还要能按映射历史把 RAT 退回去。理解了这个机制，下面的两张表就好读了。Rename 阶段维护**两张映射表**（`cpu.hh:459-463`）：
 
 - `renameMap`（前端 RAT）：架构寄存器 → 物理寄存器的**投机**映射，在飞指令读它；
 - `commitRenameMap`（提交 RAT）：已提交指令确立的**提交**映射。
@@ -396,7 +396,7 @@ if (hb_it->newPhysReg != hb_it->prevPhysReg) {
 }
 ```
 
-关键语义：跳过的是 `freeingInProgress` 归还，**RAT 回滚（setEntry）保留**——RAT 一致性不破坏。这是全仓库"hook 位置必须忠实于微架构语义"的最佳标本：**错路径写保留**这个故障模型，在物理上对应"物理寄存器既不被 RAT 引用、也不回到空闲池"的泄漏态——它不是翻一个 bit，而是破坏一个**协议不变量**。hook 指针声明在 `rename.hh:89-95`（ctor self-attach 模式）。
+关键语义：跳过的是 `freeingInProgress` 归还，**RAT 回滚（setEntry）保留**——RAT 一致性不破坏。这个 hook 的位置选择忠实于微架构语义：**错路径写保留**这个故障模型，在物理上对应"物理寄存器既不被 RAT 引用、也不回到空闲池"的泄漏态。它翻的不是数据位，而是破坏了一个**协议不变量**——这正是位级注入器够不到的故障形态（§4.4 轴三）。hook 指针声明在 `rename.hh:89-95`（ctor self-attach 模式）。
 
 ### 2.5 物理寄存器堆与 FreeList：CHAOSPhysReg 的靶场
 
@@ -438,6 +438,8 @@ regfile.hh 本身被注入器"借道"加了三组热路径内联代码（`regfil
 
 ### 2.6 IEW：发射队列与依赖图
 
+IEW（Issue/Execute/Writeback）阶段管理乱序执行的核心问题：指令操作数没齐就不能发射。发射队列为此维护一张依赖图——每条指令挂在其源寄存器的等待队列上，生产者执行完后唤醒所有等它的消费者。
+
 `IEW::tick`（`src/cpu/o3/iew.cc:1430` 起）一拍内的次序：`ldstQueue.tick()`（LSQ）→ `sortInsts` → 各线程 `checkSignalsAndUpdate` + `dispatch` → `executeInsts` → `writebackInsts` → `instQueue.scheduleReadyInsts`（为下一拍排发射）→ `issueToExecQueue.advance()`。
 
 发射队列 `InstructionQueue` 的唤醒核心是 `wakeDependents`（`src/cpu/o3/inst_queue.cc:1077-1096`）：沿依赖图 `dependGraph` 弹出目的寄存器的等待者，`markSrcRegReady()` 后 `addIfReady()`。**CHAOSIQ 在每个依赖者被弹出后、置就绪位前插问**（`inst_queue.cc:1172-1191`）：
@@ -471,6 +473,8 @@ if (cpu->chaosIQ) {
 `HookAction` 三态枚举（`CHAOSIQ.hh:40`）：`{None, Omit, Defer}`——Omit=吞掉本次唤醒，Defer=推迟一拍（一拍延迟近似）。hook 的注释还自我声明建模局限：wake_phase 是"一拍延迟近似"，gem5 的同步 IQ 没有真正的相位流水可移位——**代理位置错位要如实声明**是这个项目的方法论纪律。
 
 ### 2.7 LSQ 与 store→load 转发：CHAOSLSQFwd 的靶点
+
+LSQ（Load/Store Queue）里有一条重要的快路径：load 发现队列里有地址重叠、尚未写回内存的 store 时，直接从 store buffer 把数据拷给自己，不必等 store 落到 cache 再去读。这就是 store→load 转发。它由一个 memcpy 完成，不经过 cache。
 
 `lsq_unit.cc` 的转发判定在 `:1440-1473`：遍历 SQ 中比 load 年轻的 store，按地址覆盖算出 `AddrRangeCoverage`（None/Partial/Full）。完整布尔代数由四个布尔（`store_has_lower/upper_limit`、`lower/upper_load_has_store_part`）加三个排除条件（atomic、LLSC、masked）构成；循环入口门槛（`:1423-1425`）：`store_size != 0 && !strictlyOrdered() && !isCacheMaintenance()`。`FullAddrRangeCoverage` 分支就是硅上 store buffer 前递网络的模型：
 
@@ -517,7 +521,7 @@ CHAOSFPU.hh 的注释记录了一次教科书式的 hook 迁移（`CHAOSFPU.hh:2
 
 ### 3.1 Request 与 Packet
 
-一次访存的三个抽象层：`Request`（谁、哪个虚地址、什么语义——`src/mem/request.hh`）→ `Packet`（带上 MemCmd 与数据缓冲的传输单元——`src/mem/packet.hh`）→ Port 间协议交互。request.hh 里有一处 CHAOS 修改值得注意（`request.hh:858-869`）：
+一次访存的三个抽象层：`Request`（谁、哪个虚地址、什么语义——`src/mem/request.hh`）→ `Packet`（带上 MemCmd 与数据缓冲的传输单元——`src/mem/packet.hh`）→ Port 间协议交互。request.hh 里有一处 CHAOS 修改（`request.hh:858-869`）：
 
 ```cpp
 // src/mem/request.hh:858-869
@@ -610,7 +614,7 @@ hook 位置在 `setDataFromBlock` **之后**——数据已从完好块拷出，
 
 ### 3.5 ARM 翻译栈与 SE/FS 边界——mmu.cc:1212 那行 if
 
-ARM 翻译栈：MMU（`src/arch/arm/mmu.cc`）→ TLB（`src/arch/arm/tlb.cc`）→ TableWalker（`src/arch/arm/table_walker.cc`）。四个注入器挂在这条链上，全部 **FS-only**。分界的核心在 `MMU::translateFs` 里（`mmu.cc:1203-1221`）：
+ARM 翻译栈是 MMU（`src/arch/arm/mmu.cc`）→ TLB（`src/arch/arm/tlb.cc`）→ TableWalker（`src/arch/arm/table_walker.cc`）三级：MMU 先查 TLB，TLB 未命中由页表走查器（PTW）从内存里逐级读描述符。四个注入器挂在这条链上，全部 **FS-only**。分界的核心在 `MMU::translateFs` 里（`mmu.cc:1203-1221`）：
 
 ```cpp
 // src/arch/arm/mmu.cc:1203-1221（节选）
@@ -638,7 +642,7 @@ if ((state.isStage2 && !vm) || (!state.isStage2 && !state.sctlr.m)) {
 
 项目早期 H6/H7 的 SE null 结果险些被当成"注入器无效"的发现——实为**仿真模式伪迹**。这不是文档层面的提醒，而是写在 `configs/se/arm_chaos.py` AddrPath 段注释里的工程约束："FS MODE REQUIRED for observable effect"。第七章 §7.7 展开其方法论含义。
 
-四个 MMU 链注入器的挂载方式各不相同，本身就是一份挂载模式教材：
+四个 MMU 链注入器的挂载方式各不相同，正好覆盖了 §4.2 的几种挂载模式：
 
 - **CHAOSArmTLB**：`tlb.cc` 文件级指针 `chaosTLB`（`tlb.hh:235-240`，构造置 `tlb->chaosTLB = this`），命中 hook 传 `TlbEntry*`；字段级目标（pfn/ap/xn/attridx/ng/asid）；`mapped_page` 模式把命中项的 pfn 换成**同 TLB 另一有效项**的 pfn——替换结果必是已映射页，永不触发 DUE 守卫，最危险的静默 SDC 通路。另注：hook 未检查 `lookup_data.functional`（functional 查找也会被腐蚀）；
 - **CHAOSPTW**：构造时 `mmu->setPtwInj(this)`（`mmu.hh:88-95` 提供 setter/getter），walker 经 `mmu->getPtwInj()` 反查——walker 已持有 mmu 指针，这样避免新增反向依赖；
@@ -651,7 +655,7 @@ if ((state.isStage2 && !vm) || (!state.isStage2 && !state.sctlr.m)) {
 
 ### 4.1 模块清单与目录学
 
-上游 CHAOS（巴西侧，README 署名 Vinciguerra 等）提供 4 个模块：CHAOSReg / CHAOSPhysReg / CHAOSCache / CHAOSMem，故障原语仅三种位级操作（bit_flip / stuck_at_zero / stuck_at_one）。本仓库在 fi-fuzz 分支扩展到 **19 个编译进 `build/ARM` 的模块**，按微架构位置分组：
+上游 CHAOS（巴西侧，README 署名 Vinciguerra 等）提供 4 个模块：CHAOSReg / CHAOSPhysReg / CHAOSCache / CHAOSMem，故障原语仅三种位级操作（bit_flip / stuck_at_zero / stuck_at_one）。本仓库在 fi-fuzz 分支扩展到 **19 个编译进 `build/ARM` 的模块**。先给一张总表，按微架构位置分组；每个注入器在第五章有单独一节：
 
 | 组 | 模块 | 靶点 | 挂载方式 | 故障模式（超出位级的部分） |
 |---|---|---|---|---|
@@ -1001,7 +1005,7 @@ switch (bit_seg) {
 
 ### 5.9 CHAOSFPU：三代钩子演化史
 
-**定位**：FSU 数据通路注入器，其头文件（`CHAOSFPU.hh:20-29`）完整记录了三代钩子设计——这是全书最有故事性的一节：
+**定位**：FSU 数据通路注入器。它的头文件（`CHAOSFPU.hh:20-29`）完整记录了三代钩子设计，每一代都是上一次失败换来的：
 
 - **v1（legacy）**：ROB 头 attackEvent 采样 `corruptResultRegVal`——"on gemm_double this hit 'result already popped' 5089/5089 times"（§2.9 已展开）；
 - **v2（primary）**：`maybeCorruptWriteback`——挂 `DynInst::setRegOperand`，值进 PhysReg+result queue **之前**（真 FSU 结果腐蚀点）；
@@ -1119,7 +1123,7 @@ gem5 中最复杂的注入器：一个 SimObject 打**四个结构**——数据
 
 ### 5.17 CHAOSPTW：descriptor type 陷阱
 
-§3.5 已展开挂载与 hook 位置。故障模式的三代演化是"现场形态学驱动设计"的教材：
+§3.5 已展开挂载与 hook 位置。故障模式的三代演化，每一代都由现场形态驱动：
 
 1. 初版对描述符 XOR bit0 想制造 invalid PTE——但 ARM PTE 低 2 位是 descriptor type（0b01=block，0b11=table），`0b01^1=0b00` 才 invalid，`0b11^1=0b10` 仍 valid——实测 629 次注入全 benign；
 2. 修复一 `clearValidBit`（`:119-138`）：AND `~0x3` 强制 invalid——2 bit 不可纠正、绕过 ECC，稳定制造 spurious fault（core 179 的 73 例 D3 签名）；
@@ -1143,7 +1147,7 @@ ValueToLegal 的实现（`:174-187`）：TTBR 类寄存器 AND `~0xFFF`——得
 
 ### 5.19 CHAOSReg：上游原版与 G 系列修正
 
-**定位**：上游 CHAOS 原版架构寄存器注入器（独居 `src/CHAOSReg/`，非 cpu/o3 下），走 `ThreadContext::setReg` 后门。本仓库叠加 G0/G1/G5/G7 修正，且它是 CHAOSPhysReg 三抽象对照实验的"反面教材"。
+**定位**：上游 CHAOS 原版架构寄存器注入器（独居 `src/CHAOSReg/`，非 cpu/o3 下），走 `ThreadContext::setReg` 后门。本仓库叠加 G0/G1/G5/G7 修正；在 CHAOSPhysReg 的三抽象对照实验里，它的行为（arch_commit 模式）正是被量化对照的那一面。
 
 **参数面的坑即文档**（`CHAOSReg.py:9-26`）：`maxRegIdx` 的描述原文——"0 = use full numRegs()-1 (original behavior, which on ARM/aarch64 includes **integer[31]=Zero and idx>=32 banked/non-arch slots — a systematic bias**). Set to 31 on aarch64 to restrict integer injection to X0-X30"。`rngSeed` 描述——"0 = seed from std::random_device (**original, NON-reproducible behavior**)"。
 
@@ -1338,7 +1342,7 @@ except subprocess.TimeoutExpired:
 ---
 ## 第七章 方法论：架构理解如何决定实验有效性
 
-本章是全书的落点：前六章的每一条架构事实，都曾直接决定一次实验的生死。
+前六章讲的每一条架构事实，都曾直接决定过一次实验的生死。本章把它们收拢成八条。
 
 ### 7.1 hook 点选择 = 微架构定位
 
