@@ -323,7 +323,18 @@ L0 电路/物理层   ──► 缺陷本体 (Stuck-at/Aging/Marginal/Delay)、�
 
 ### Step 4：成本感知的自适应隔离与处置（Action Framework）
 
-根据推导出的**诊断信心指数（Confidence Index）** 结合成本函数进行闭环处置（ACT-1–ACT-7 完整定义见第八章）：
+根据推导出的**诊断信心指数（Confidence Index）** 结合成本函数进行闭环处置（ACT-1–ACT-7 完整定义见第八章）。
+
+**决策阈值的 Bayes risk 推导**（置信度阈值不由拍脑袋给定）：
+设确诊动作（如 ACT-1 核级隔离/整机退役）的误报代价为 \\(C_{\text{FP}}\\)（误退健康 CPU / RMA 成本、算力损失），漏报代价为 \\(C_{\text{FN}}\\)（SDC 机器流入生产、数据损坏与业务风险）。对当前后验 \\(p = P(H_{\text{SDC}} \mid E)\\)，两动作的期望风险为：
+
+\\[R_{\text{处置}}(p) = (1 - p) \cdot C_{\text{FP}}, \qquad R_{\text{观察}}(p) = p \cdot C_{\text{FN}}\\]
+
+处置阈值取两者交点（风险最小化决策）：
+
+\\[p^* = \frac{C_{\text{FP}}}{C_{\text{FP}} + C_{\text{FN}}}\\]
+
+> **缺省示例**：对称代价假设（\\(C_{\text{FP}} = C_{\text{FN}}\\)）下 \\(p^* = 0.5\\)，对应下图的 50% 阈值；若 SDC 流入生产的代价 9 倍于误退一台机器（\\(C_{\text{FN}} = 9\,C_{\text{FP}}\\)，Fleet 数据损坏场景的保守估计），则 \\(p^* = 0.1\\)——即 10% 后验就该处置而非等到 50%。90% 高置信档同理：适用于处置动作**不可逆且代价大**（整机 RMA）而误报难以回收的场景（\\(C_{\text{FP}} \gg C_{\text{FN}}\\) 时的近似）。各 Fleet 应基于自身业务代价比实例化 \\(C_{\text{FP}}, C_{\text{FN}}\\)，而非沿用缺省数字。
 
 ```
                     [ 计算诊断置信度 Confidence Index ]
