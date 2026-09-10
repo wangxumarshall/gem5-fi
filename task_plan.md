@@ -375,7 +375,15 @@ CHAOSCHI/CHAOSNoC pilot 已能触发（7c854bb/7582e8c，未提交的 ruby test 
 1. **§8 向量物理寄存器 lane formal**：位段 × lane {0,1,2,3}，n=384，与 §7 整寄存器注入对照（`CHAOSPhysReg` vector class 已支持 lane 定向，只需 campaign）。
 2. **§21 SysReg formal**：先写 FS workload `sysreg_probe.rcS`（改完 SCTLR/TTBR0/TCR 立刻触发一次地址翻译 / TLB 操作），再跑 `value_to_legal` + `transient_bit_flip` 两模式 n=384（`CHAOSArmSysReg` 白名单已铺开）。
 3. ✅ **§20 PTW H7 重设计 — pilot 轮完成**（699ef23）：`two_bit_corrupt`(相邻 2-bit)+ `kernel_walk_only`(TTBR1 过滤)落地。**Pilot n=30/臂: ECC off 47% 致死**(8 kernel panic + 6 fault 诱导 gem5 abort)vs **ECC on 0%**——原验收断言首次成立。定界:单 bit 用户态=内核自愈;2-bit 内核态=ECC 唯一防线。
-   ⏳ formal n=384 排跑批。**⚠ 2026-09-10：首轮跑批 `/tmp/p20/h7formal.sh` → `xargs -P 16` 撑爆健康机（16 个 FS gem5 × ~2 GB / 单 NUMA node 30 GB → swap 全满 + 颠簸），已终止**（见下「跑批资源纪律」）。重启：**`parallel -j6`（FS gem5 硬上限），不是 -j16**；已完成 rep 在 `/tmp/p20/h7f_false_*/`（seed 1001–~1195，被 `timeout 900` 砍的需重跑）；`ecc true` 臂未开始。FS 单 run ~7min，`-j6` 下 768 run ≈ 15h（机械，可接受）。
+   ⏳ **formal 跑批中**（`h7formal2.sh`，信号量 launcher，precheck OK）。**⚠ 2026-09-10 首轮 `h7formal.sh` → `xargs -P 16` 撑爆健康机已终止**（见下「跑批资源纪律」）。
+
+   **H7 formal 加速方案（22h → ~2h，服务器端 AI 落地，优先级从高到低）**：
+   1. **清 tmpfs**（立刻，最省事）：`/tmp` 是 **tmpfs（15 GB，RAM 背）**，`/tmp/p20` 的 8 GB campaign 输出直接吃 RAM——available 被压到 8.8 GB，`-j6` 上不去。① `rm -rf /tmp/p20/h7f_false_*`（旧跑批 196 个死目录）+ 清 `/tmp` 里的 pdf 等杂物；② **campaign 输出 `-d` 改到 `/home/sdc/gem5-fi/runs/h7formal/`（磁盘，195 GB 空）**,不写 tmpfs。清完 available 回 ~16 GB → `-j6` 安全。**~1.5×**。
+   2. **近点 checkpoint**（一次 ~15min，收益最大）：现在每 run `--restore-checkpoint cpt.100000000` + `--ptw_first_clock 200000000` = **空跑 100M ticks 才到注入点**,占单 run 7min 的大头。用已有的 `--early-checkpoint`（`arm_chaos_fs.py:420`,`simulator.run(max_ticks=N)→save_checkpoint`）造 **`cpt.190000000`**（从 100M 跑 90M ticks 落盘）,把 `--restore-checkpoint` 换成它 → 单 run **7min → ~1.5min**。**~4×**。
+   3. **ECC-on 臂 n=384 → n=100**：pilot 已 **0/30**,0/100 → 95% 上界 ~3.6%,"ECC 全挡" 已决定性成立。`h7formal2.sh` 里 `for ecc in false true` 的 `true` 臂 `seq 1001 1384` 改 `seq 1001 1100`。768 → 484 run。**~1.6×**。
+   4. **续跑,不重跑 ECC-off 臂**：`/tmp/p20/h7f_false_*.out` 有 **196 个已完成**（同参数:`two_bit_corrupt` / `kernel_walk_only` / `ptw_first_clock 2e8`）。`h7formal2.sh` 改成 seed 循环里 `[ -s /tmp/p20/done/false_$s ] && continue`（先把 196 个已完成 seed 的 result 迁进 `done/`）。ECC-off 臂 384 → ~190 run。**~1.35×**。
+
+   全上:768 run × ~1.5min ÷ 6 slot,再砍掉 ECC-on 284 + ECC-off 196 → **~290 run ≈ 1.5–2h**。最省事组合 = 1+3（清 tmpfs 起 -j6 + ECC-on 减半）,不改 checkpoint 也能 22h → ~7h。
 4. **§23 L3 `pairedSector` 代理**：C0-CACHE，`pairedSector` 模式定向到 producer-consumer workload 正在共享的行，n=100 pilot（→ 有信号再 formal）。**NoC/HCCS 不跑**。
 5. **报告收尾**：§4.3 加 scope-cut 段（§23 NoC/HCCS）+ §4.1 饼图 L3 用 pairedSector 数、NoC/HCCS 标「未测，预期 <X%」；`microarch-fault-injection-report.md` §23 节改「⬜ 无正式数据」→「⬜ NoC/HCCS scope-cut（理由三条）+ L3 pairedSector 代理 pilot」。
 
@@ -430,6 +438,8 @@ Phase 20 (遗留单元收口)       ← §8 lane / §21 SysReg formal；H7 重�
 
 1. 并发数按 **node 1 的 30 GB** 算，不是 126 核。
 2. **FS gem5**（`arm_chaos_fs.py`，checkpoint restore）：**硬上限 `parallel -j6`**（6 × 2.5 GB = 15 GB，留一半给 page cache）。`numactl -H` 显示 node 1 free < 12 GB → **降 `-j4`**。
+   - **门禁看 `available` + `so` 速率，不看 swap 总量**：`swapon` 显示的 swap 已用可能是上次颠簸的死页（`vmstat` `si/so` 全 0）。真信号 = `available ≥ 15 GB` **且** `vmstat 1 3` 的 `so` 均值 < 5 MB/s。死页不算压力。
+   - **campaign 输出（gem5 `-d <dir>`）不写 `/tmp`**——本机 `/tmp` 是 **tmpfs（15 GB，RAM 背）**，几百个 run 目录的 stats/log 直接吃 RAM（2026-09-10 实测被压掉 8 GB available）。写 `/home/sdc/gem5-fi/runs/<campaign>/`（磁盘，195 GB 空）。
 3. **SE gem5**（`arm_chaos.py` / `arm_chaos_cache.py`，无 FS restore，~0.3–0.6 GB/进程）：上限 `-j20`（仍不是 `nproc`）。
 4. launcher **必须是占槽信号量**——`parallel -j<N>` / `xargs -P<N>`（N 按上面算）/ `while read; do …; done` + `wait -n`。**禁止**按固定时间间隔启新 job 的循环。
 5. **跑批前门禁**：`swapon --show` 若 swap 已用 > 20%，或 node 1 free < 12 GB → **不启动**。
@@ -450,7 +460,7 @@ Phase 20 (遗留单元收口)       ← §8 lane / §21 SysReg formal；H7 重�
 
 **接着 Phase 20.2–20.5**：
 - **§21 SysReg** — 写 FS workload `sysreg_probe.rcS`（改完 SCTLR/TTBR0/TCR 立刻触发地址翻译）→ `value_to_legal` + `transient_bit_flip` 两模式 n=384。
-- **§20 PTW H7 重设计** — `2-bit PTE 损坏（不可重填）× 内核态 walk × ECC {off,on}`，n=384（原单点设计被内核自愈，测不出 ECC 价值）。
+- **§20 PTW H7 重设计** — pilot 已成功（ECC off 47% / on 0%，`699ef23`）。formal 跑批中；**先做加速方案**（见 Phase 20 §20 item 3：清 tmpfs 起 -j6 + 近点 checkpoint `cpt.190000000` + ECC-on 臂 n=100 + 续跑 196 个已完成 ECC-off）→ 22h 降到 ~2h。
 - **§23 L3 `pairedSector` 代理** — C0-CACHE，定向到 producer-consumer 共享行，n=100 pilot（NoC/HCCS 不跑）。
 - **报告收尾** — §4.3 加 §23 scope-cut 段；§4.1 饼图 L3 用 pairedSector 数、NoC/HCCS 标「未测，预期 <X%」；`microarch-fault-injection-report.md` §23 节改写。
 

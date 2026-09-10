@@ -2491,3 +2491,18 @@ two_bit_corrupt + kernel_walk_only 落地;ECC off 47% 致死 vs on 0%(n=30/臂)�
 **根因**：launcher 并发按 CPU 数（126）定，没按内存（单节点 30 GB）定；FS gem5 内存受限不是 CPU 受限。plan 里 §20 item 3 甚至写了"9h/16 并发"——已改为 `-j6` + 事故注记。
 
 **新增强制纪律**（`task_plan.md` 新增「## 跑批资源纪律」节）：FS gem5 硬上限 `parallel -j6`（node 1 free < 12 GB → -j4）；SE gem5 -j20；launcher 用占槽信号量禁 timer 循环；启动前门禁 node 1 free ≥ 12 GB + swap < 20%；跑批中每 5 min 看 `vmstat` `so` 列 > 20 MB/s 立即降；`setsid` 进程组 + `kill -- -PGID`（7abc72e 教训）。
+
+### H7 formal 加速方案（2026-09-10）: 22h → ~2h
+
+用户嫌 H7 formal（`h7formal2.sh`，信号量 launcher 已合规，但 -j4 下 ~13–22h）太慢。SSH 实测诊断 + 加速方案写入 task_plan Phase 20 §20 item 3：
+
+1. **`/tmp` 是 tmpfs（15 GB，RAM 背）**——`/tmp/p20` 8 GB campaign 输出直接吃 RAM，把 available 压到 8.8 GB，`-j6` 上不去（pre-flight `swap>20%` 也是被上次颠簸的死页误导；死页 `si/so` 全 0，不是真压力）。→ 清 `/tmp/p20/h7f_false_*` + campaign `-d` 改写 `/home/sdc/gem5-fi/runs/`（磁盘 195 GB）。清完 available ~16 GB → -j6 安全。**~1.5×**。
+2. **近点 checkpoint**：每 run `restore cpt.100000000` + `ptw_first_clock 2e8` = 空跑 100M ticks 才注入，占 7min 单 run 的大头。用已有 `--early-checkpoint`（`arm_chaos_fs.py:420`）造 `cpt.190000000` → 单 run 7min → ~1.5min。**~4×**。一次 ~15min。
+3. **ECC-on 臂 n=384 → n=100**：pilot 0/30，0/100 → 95% 上界 3.6%，"ECC 全挡" 决定性成立。`h7formal2.sh` `true` 臂 `seq 1001 1384` → `seq 1001 1100`。**~1.6×**。
+4. **续跑不重跑**：`/tmp/p20/h7f_false_*.out` 196 个已完成（同参数），launcher 加 `[ -s done/false_$s ] && continue`。ECC-off 384 → ~190。**~1.35×**。
+
+全上 ≈ 290 run × ~1.5min ÷ 6 ≈ **1.5–2h**。最省事组合 1+3 = 22h → ~7h。
+
+**跑批资源纪律补两条**：① 门禁看 `available ≥ 15 GB` + `vmstat so < 5 MB/s`，不看 swap 总量（死页不算压力）；② campaign 输出不写 tmpfs `/tmp`，写磁盘 `runs/`。
+
+**服务器状态确认（2026-09-10 20:10）**：用户暂停了服务器端 AI 会话，但 detach 的跑批仍在跑（`h7formal2.sh` h7g 臂 -j4 + `lane.yaml --jobs 8`）。有人跑了 `swapoff -a && swapon -a` 清死页（swap 已用回到 465 MB）。available 8.8 GB（tmpfs 8 GB 占着），load 13，`so=0`，健康但偏紧。
