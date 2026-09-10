@@ -2471,3 +2471,23 @@ FPU(mant_hi 100%/mant_lo 91.1%)、Exec(0% SDC+52.1% DUE)、DRAM(30.2%)三项头�
 ### v1.3 Phase 20 H7 重设计完成(2026-09-08)
 
 two_bit_corrupt + kernel_walk_only 落地;ECC off 47% 致死 vs on 0%(n=30/臂)——H7 验收断言首次成立。§23 已按 scope-cut 收口(风险带 [37.6%,88.0%] 由三测量点定界)。
+
+### 事故 + 跑批资源纪律（2026-09-10）: Phase 20 §20 H7 formal 撑爆健康机
+
+**现象**：用户报 huawei0101 memory + swap 快满、跑不动。SSH 登录卡 90 秒 + 首次超时。
+
+**诊断（SSH 实测）**：
+- 126 核，但**内存只在 NUMA node 1（30 GB）**，node 0/2/3 size=0。
+- Phase 20 §20 H7 formal `ecc false` 臂：`/tmp/p20/h7formal.sh` → **`xargs -P 16 -n 2 bash -c run_one`** → 16 个并发 FS gem5（`arm_chaos_fs.py` + `--restore-checkpoint cpt.100000000`，每进程 ~2–2.6 GB RSS，随运行涨）。seed 已跑到 ~1195。
+- 16 × 2 GB → AnonPages 27 GB / buff-cache 747 MB（page cache 清光）/ MemAvailable 451 MB；swap 14–15 GB / 15.6 GB 全满；vmstat `so` 持续 84–217 MB/s（颠簸）。
+- load 40–52，CPU 88% 空闲——负载全是 D 状态进程卡 swap I/O（16 gem5 里 14 个 D，kswapd1 钉死，sshd 会话 D）。多数 job 被 `timeout 900` 砍在半途 = 白跑。
+
+**处置**：
+- 终止 `h7formal.sh`（PID 2842145）→ 无效，`xargs -P16`（PID 2842147）被 reparent 到 PID 1 成孤儿、继续从 stdin 拉 seed。
+- 终止 `xargs` 孤儿（`kill -9 2842147`）+ `pkill -9 run_one` + `pkill -9 h7f_false`。D 状态 straggler 随内存回落逐步清空。
+- **未重启**：新 H7 跑批由服务器端 AI 会话重新发起，遵新纪律 `-j6`。已完成 rep 在 `/tmp/p20/h7f_false_*/`（seed 1001–~1195，timeout 砍的需重跑）。`ecc true` 臂未开始。
+- 服务器端 claude 会话（pts/4，PID 3652742）未动。
+
+**根因**：launcher 并发按 CPU 数（126）定，没按内存（单节点 30 GB）定；FS gem5 内存受限不是 CPU 受限。plan 里 §20 item 3 甚至写了"9h/16 并发"——已改为 `-j6` + 事故注记。
+
+**新增强制纪律**（`task_plan.md` 新增「## 跑批资源纪律」节）：FS gem5 硬上限 `parallel -j6`（node 1 free < 12 GB → -j4）；SE gem5 -j20；launcher 用占槽信号量禁 timer 循环；启动前门禁 node 1 free ≥ 12 GB + swap < 20%；跑批中每 5 min 看 `vmstat` `so` 列 > 20 MB/s 立即降；`setsid` 进程组 + `kill -- -PGID`（7abc72e 教训）。

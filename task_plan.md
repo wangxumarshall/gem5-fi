@@ -374,7 +374,8 @@ CHAOSCHI/CHAOSNoC pilot 已能触发（7c854bb/7582e8c，未提交的 ruby test 
 
 1. **§8 向量物理寄存器 lane formal**：位段 × lane {0,1,2,3}，n=384，与 §7 整寄存器注入对照（`CHAOSPhysReg` vector class 已支持 lane 定向，只需 campaign）。
 2. **§21 SysReg formal**：先写 FS workload `sysreg_probe.rcS`（改完 SCTLR/TTBR0/TCR 立刻触发一次地址翻译 / TLB 操作），再跑 `value_to_legal` + `transient_bit_flip` 两模式 n=384（`CHAOSArmSysReg` 白名单已铺开）。
-3. ✅ **§20 PTW H7 重设计 — pilot 轮完成**（699ef23）：`two_bit_corrupt`(相邻 2-bit)+ `kernel_walk_only`(TTBR1 过滤)落地。**Pilot n=30/臂: ECC off 47% 致死**(8 kernel panic + 6 fault 诱导 gem5 abort)vs **ECC on 0%**——原验收断言首次成立。定界:单 bit 用户态=内核自愈;2-bit 内核态=ECC 唯一防线。⏳ formal n=384 排跑批(FS 单 run ~7min,×768 ≈ 9h/16 并发,机械)。
+3. ✅ **§20 PTW H7 重设计 — pilot 轮完成**（699ef23）：`two_bit_corrupt`(相邻 2-bit)+ `kernel_walk_only`(TTBR1 过滤)落地。**Pilot n=30/臂: ECC off 47% 致死**(8 kernel panic + 6 fault 诱导 gem5 abort)vs **ECC on 0%**——原验收断言首次成立。定界:单 bit 用户态=内核自愈;2-bit 内核态=ECC 唯一防线。
+   ⏳ formal n=384 排跑批。**⚠ 2026-09-10：首轮跑批 `/tmp/p20/h7formal.sh` → `xargs -P 16` 撑爆健康机（16 个 FS gem5 × ~2 GB / 单 NUMA node 30 GB → swap 全满 + 颠簸），已终止**（见下「跑批资源纪律」）。重启：**`parallel -j6`（FS gem5 硬上限），不是 -j16**；已完成 rep 在 `/tmp/p20/h7f_false_*/`（seed 1001–~1195，被 `timeout 900` 砍的需重跑）；`ecc true` 臂未开始。FS 单 run ~7min，`-j6` 下 768 run ≈ 15h（机械，可接受）。
 4. **§23 L3 `pairedSector` 代理**：C0-CACHE，`pairedSector` 模式定向到 producer-consumer workload 正在共享的行，n=100 pilot（→ 有信号再 formal）。**NoC/HCCS 不跑**。
 5. **报告收尾**：§4.3 加 scope-cut 段（§23 NoC/HCCS）+ §4.1 饼图 L3 用 pairedSector 数、NoC/HCCS 标「未测，预期 <X%」；`microarch-fault-injection-report.md` §23 节改「⬜ 无正式数据」→「⬜ NoC/HCCS scope-cut（理由三条）+ L3 pairedSector 代理 pilot」。
 
@@ -417,11 +418,33 @@ Phase 20 (遗留单元收口)       ← §8 lane / §21 SysReg formal；H7 重�
 
 补丁纪律：沿用 CLAUDE.md（一补丁一单元、真机自验证 100%、自动 push 到 fix/fi-tool-correctness）。**v1.1 补救轮（Phase 8–12）遵 `gem5-fi/CLAUDE.md`**：每补丁 `numactl --cpunodebind=0 --membind=0 -- scons ... -j16`（零新增警告）→ 真机跑受影响行为贴真实输出 → `reg_chain` golden `f247ef3fe6f02cfd` 回归 → commit + push；commit 尾注 `Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>`。campaign 跑批用后台；pilot n=100 先看 Reachability + 方向，formal n=384 + 5% 重放（不一致冻结）+ Wilson 95% CI。
 
+---
+
+## 跑批资源纪律（v1.3 事故后强制，2026-09-10）
+
+**事故**：Phase 20 §20 H7 formal 的 `ecc false` 臂经 `/tmp/p20/h7formal.sh` → **`xargs -P 16`** 起 16 个并发 FS gem5。健康机 huawei0101（node 1，`numactl -H`）：126 核，但**内存只在 NUMA node 1 = 30 GB**，node 0/2/3 size=0。FS gem5（`arm_chaos_fs.py` + `--restore-checkpoint cpt.100000000`）每进程 ~2–2.6 GB RSS 且随运行时间涨。16 × 2 GB → RAM 撑爆（AnonPages 27 GB / page cache 清光 / MemAvailable 451 MB）+ 15 GB swap 全满 → 持续换出 80–220 MB/s（颠簸），load 40+ / CPU 88% 空闲（全 D 状态卡 swap I/O），SSH 登录卡 90 秒。多数 job 被 `timeout 900` 砍在半途 = 白跑。孤儿链：杀 `h7formal.sh` 后 `xargs -P16` 被 reparent 到 PID 1 继续拉 seed，须直接杀 `xargs`。
+
+**根因**：并发数按 CPU 数（126）定，没按内存（单节点 30 GB）定。FS gem5 是**内存受限**不是 CPU 受限。
+
+**强制规则（任何 campaign 跑批前必须遵守）**：
+
+1. 并发数按 **node 1 的 30 GB** 算，不是 126 核。
+2. **FS gem5**（`arm_chaos_fs.py`，checkpoint restore）：**硬上限 `parallel -j6`**（6 × 2.5 GB = 15 GB，留一半给 page cache）。`numactl -H` 显示 node 1 free < 12 GB → **降 `-j4`**。
+3. **SE gem5**（`arm_chaos.py` / `arm_chaos_cache.py`，无 FS restore，~0.3–0.6 GB/进程）：上限 `-j20`（仍不是 `nproc`）。
+4. launcher **必须是占槽信号量**——`parallel -j<N>` / `xargs -P<N>`（N 按上面算）/ `while read; do …; done` + `wait -n`。**禁止**按固定时间间隔启新 job 的循环。
+5. **跑批前门禁**：`swapon --show` 若 swap 已用 > 20%，或 node 1 free < 12 GB → **不启动**。
+6. **跑批中**：每 5 分钟看 `vmstat 1 2` 的 `so` 列；持续 > 20 MB/s = 并发过高，立即降。
+7. launcher 用 `setsid` 起进程组、日志放 `runs/<campaign>/launch.log`（不放 `/tmp`）；kill 用进程组（`kill -- -PGID`），沿用 7abc72e 孤儿泄漏教训。
+
+**服务器端 AI 一句话**：跑任何 FS campaign 用 `parallel -j6`（或更低），启动前 `numactl -H | grep 'node 1'` 看 free + `swapon --show` 看 swap，超阈值就别开。
+
 ## Next Step
 
 **v1.1（Phase 8–12）+ v1.2（Phase 13–17）+ v1.3 Phase 18–19 全部 `Status: complete`**（`gem5-fi` HEAD `abaf114`，已核对 commit + campaign 产物）。v1.3 Phase 18 formal 补跑（11 cell × n=384 全零 frozen，pilot 点估计全落入 CI）+ Phase 19（C2-KP 对齐 → 平台效应结构定律；§4.1 逃逸分解 230 cells/114 campaigns；§4.2 保护排序 formal 8 行 + 3 新行；§4.3 诚实边界 10 条）已收官。**唯一剩项 = Phase 20**（§23 决定已拍板 2026-09-10：NoC/HCCS scope-cut，L3 只跑 `pairedSector` 代理）。
 
 下一步（**Linux 健康机** `gem5-fi/`，分支 `fix/fi-tool-correctness`，`numactl` 钉有内存的 NUMA node）：
+
+> ⚠ **先读上面「跑批资源纪律」**（v1.3 事故后强制）。任何 campaign：FS gem5 `parallel -j6` 硬上限、SE gem5 `-j20`、launcher 用信号量不用 timer、启动前查 node 1 free ≥ 12 GB 且 swap < 20%。Phase 20 §20 H7 formal 首轮跑批（`xargs -P 16`）因违反被终止（2026-09-10），重启用 `-j6`。
 
 **Phase 20.1 — §8 向量物理寄存器 lane formal**（最省事、先做）。`CHAOSPhysReg` vector class 已支持 lane 定向，只需 campaign：`bitseg × lane {0,1,2,3}`，n=384 + 5% 重放 + Wilson CI，on `neon_lane`。验收：4 个 lane 各自的 P_SDC/P_DUE，与 §7 整寄存器注入对照；报告 §8 从「⬜ 无正式数据」升 formal。
 
