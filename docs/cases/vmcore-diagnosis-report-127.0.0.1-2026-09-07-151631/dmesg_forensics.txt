@@ -1,0 +1,81 @@
+=== 案19 dmesg 法证 (生成于 2026-09-09, 可复核) ===
+
+## 0. 转储文件状态
+vmcore 文件缺失（kdump 未完成/未保存），仅 vmcore-dmesg.txt 2610+32 行
+总计 196
+drwxr-xr-x.  2 sdc sdc   4096  9月 7日 17:06 .
+drwxr-xr-x. 22 sdc sdc   4096  9月 7日 17:06 ..
+-rw-------.  1 sdc sdc 191371  9月 7日 17:06 vmcore-dmesg.txt
+
+## 1. WARNING/硬件错误计数（零前兆负证据）
+0
+（上行计数 = 0，即无任何 WARNING/MCE/EDAC 事件；仅有的 EDAC 两行是 0.87s/1.50s 的驱动初始化）
+1858:[    0.872083] EDAC MC: Ver: 3.0.0
+2177:[    1.504642] EDAC MC0: Giving out device to module ghes_edac.c controller ghes_edac: DEV ghes (INTERRUPT)
+
+## 2. 崩溃块全文（L2590 起）
+[ 4615.693020] Unable to handle kernel paging request at virtual address ffdbc44e0c5e98df
+[ 4615.701668] Mem abort info:
+[ 4615.705163]   ESR = 0x0000000096000004
+[ 4615.709613]   EC = 0x25: DABT (current EL), IL = 32 bits
+[ 4615.715628]   SET = 0, FnV = 0
+[ 4615.719382]   EA = 0, S1PTW = 0
+[ 4615.723224]   FSC = 0x04: level 0 translation fault
+[ 4615.728803] Data abort info:
+[ 4615.732382]   ISV = 0, ISS = 0x00000004, ISS2 = 0x00000000
+[ 4615.738569]   CM = 0, WnR = 0, TnD = 0, TagAccess = 0
+[ 4615.744322]   GCS = 0, Overlay = 0, DirtyBit = 0, Xs = 0
+[ 4615.750336] [ffdbc44e0c5e98df] address between user and kernel address ranges
+[ 4615.758176] Internal error: Oops: 0000000096000004 [#1] SMP
+[ 4615.764452] Modules linked in: binfmt_misc nft_fib_inet nft_fib_ipv4 nft_fib_ipv6 nft_fib nft_reject_inet nf_reject_ipv4 nf_reject_ipv6 nft_reject nft_ct nft_chain_nat nf_nat nf_conntrack nf_defrag_ipv6 nf_defrag_ipv4 ip_set rfkill nf_tables libcrc32c vfat fat rpcrdma sunrpc rdma_ucm ib_srpt ib_isert iscsi_target_mod target_core_mod ib_iser rdma_cm iw_cm ib_cm libiscsi scsi_transport_iscsi ipmi_ssif hns_roce_hw_v2 ib_uverbs ib_core acpi_ipmi ses ipmi_si enclosure ipmi_devintf hisi_uncore_l3c_pmu hisi_uncore_hha_pmu hisi_uncore_ddrc_pmu ipmi_msghandler hisi_uncore_pmu sg ip6_tables ip_tables fuse nfnetlink ext4 mbcache jbd2 sd_mod t10_pi crc64_rocksoft_generic crc64_rocksoft crc64 crct10dif_ce ghash_ce hibmc_drm drm_vram_helper drm_ttm_helper motorcomm ttm hisi_sas_v3_hw drm_display_helper sha2_ce hclge hisi_sas_main sha256_arm64 ahci libsas sha1_ce sbsa_gwdt drm_kms_helper libahci scsi_transport_sas drm hns3 libata nfit hnae3 megaraid_sas host_edma_drv i2c_designware_platform libnvdimm i2c_designware_core hisi_trng_v2
+[ 4615.764568]  dm_mirror dm_region_hash dm_log dm_multipath dm_mod aes_neon_bs aes_neon_blk aes_ce_blk aes_ce_cipher
+[ 4615.866609] CPU: 179 PID: 57029 Comm: HeapHelper Kdump: loaded Not tainted 6.6.0-145.3.23.154.oe2403sp3.aarch64 #1
+[ 4615.877668] Hardware name: Yangtze Computing R240K V2/BC82AMQA, BIOS 7.48 06/15/2026
+[ 4615.886116] pstate: 204000c9 (nzCv daIF +PAN -UAO -TCO -DIT -SSBS BTYPE=--)
+[ 4615.893784] pc : find_busiest_group+0x140/0xb60
+[ 4615.899021] lr : find_busiest_group+0x11c/0xb60
+[ 4615.904251] sp : ffff8001f59db740
+[ 4615.908264] x29: ffff8001f59db8c0 x28: ffff8001f59db850 x27: ffdbc44e0c5e97bf
+[ 4615.916108] x26: ffff604003ed3ea0 x25: 00000000000000a1 x24: ffffa3e0125e5000
+[ 4615.923949] x23: 0000000000000400 x22: ffff604003ed3ea0 x21: ffffa3e0125dfcb0
+[ 4615.931792] x20: ffdc206dfa4000ff x19: ffff8001f59db950 x18: 0000000000000000
+[ 4615.939634] x17: 0000000000000000 x16: 0000000000000000 x15: 0000000000000000
+[ 4615.947476] x14: 0000000000000000 x13: 0000000000000000 x12: 0000000000000000
+[ 4615.955316] x11: 0000000000000000 x10: 0000000000000000 x9 : ffffa3e0107bae58
+[ 4615.963158] x8 : ffff8001f59db8a8 x7 : 0000000000000000 x6 : 00000000000000a1
+[ 4615.971000] x5 : fffffffe00000000 x4 : 0000000000000002 x3 : 0000000000000021
+[ 4615.978841] x2 : 000000000001673e x1 : ffffa3e0121e96c0 x0 : 00000000000000a1
+[ 4615.986682] Call trace:
+[ 4615.990462]  find_busiest_group+0x140/0xb60
+[ 4615.995869]  load_balance+0x108/0x6c0
+[ 4616.000723]  newidle_balance+0x198/0x510
+[ 4616.005821]  pick_next_task_fair+0x110/0x718
+[ 4616.011259]  pick_next_task+0x60/0x398
+[ 4616.016177]  __schedule+0x1b4/0x8a0
+[ 4616.020832]  schedule+0x58/0x130
+[ 4616.025226]  futex_wait_queue+0x78/0xb0
+[ 4616.030217]  futex_wait+0xe8/0x1d0
+[ 4616.034757]  do_futex+0xec/0x1a0
+[ 4616.039123]  __arm64_sys_futex+0x80/0x198
+[ 4616.044270]  invoke_syscall+0x50/0x128
+[ 4616.049167]  el0_svc_common.constprop.0+0xc8/0xf0
+[ 4616.055031]  do_el0_svc+0x48/0x78
+[ 4616.059501]  el0_slow_syscall+0x44/0x1b8
+[ 4616.064579]  el0t_64_sync_handler+0x100/0x130
+[ 4616.070089]  el0t_64_sync+0x188/0x190
+[ 4616.074886] Code: f9400782 f879d814 2a1903e0 8b14003b (f9409377) 
+[ 4616.082117] SMP: stopping secondary CPUs
+[ 4616.091223] Starting crashdump kernel...
+[ 4616.096317] Bye!
+
+## 3. 开机与 CPU179 上线
+1:[    0.000000] Booting Linux on physical CPU 0x0000080000 [0x481fd010]
+3:[    0.000000] KASLR enabled
+384:[    0.000000] CPU features: kernel page table isolation forced ON by KASLR
+408:[    0.000000] Memory: 791048812K/805102592K available (15360K kernel code, 5418K rwdata, 10648K rodata, 5824K init, 27554K bss, 14053780K reserved, 0K cma-reserved)
+1206:[    0.330237] CPU179: Booted secondary processor 0x00007a0300 [0x481fd010]
+
+## 4. 崩溃前最后常规消息
+[   40.767786] firewalld[9820]: memfd_create() called without MFD_EXEC or MFD_NOEXEC_SEAL set
+[   42.627138] hns3 0000:bd:00.0 enp189s0f0: link up
+[   94.668778] block dm-2: the capability attribute has been deprecated.
