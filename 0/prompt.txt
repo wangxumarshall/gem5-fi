@@ -1,0 +1,1 @@
+/humanizer 人性化这本书，让这本书更自然，是gem5仿真器和CPU架构师和专家撰写的书籍 @docs/gem5/gem5-architecture-and-chaos-internals.md
