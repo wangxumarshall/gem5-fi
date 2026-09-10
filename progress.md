@@ -2506,3 +2506,11 @@ two_bit_corrupt + kernel_walk_only 落地;ECC off 47% 致死 vs on 0%(n=30/臂)�
 **跑批资源纪律补两条**：① 门禁看 `available ≥ 15 GB` + `vmstat so < 5 MB/s`，不看 swap 总量（死页不算压力）；② campaign 输出不写 tmpfs `/tmp`，写磁盘 `runs/`。
 
 **服务器状态确认（2026-09-10 20:10）**：用户暂停了服务器端 AI 会话，但 detach 的跑批仍在跑（`h7formal2.sh` h7g 臂 -j4 + `lane.yaml --jobs 8`）。有人跑了 `swapoff -a && swapon -a` 清死页（swap 已用回到 465 MB）。available 8.8 GB（tmpfs 8 GB 占着），load 13，`so=0`，健康但偏紧。
+
+### H7 formal 加速方案落地 + 资源纪律执行(2026-09-10 晚)
+
+**事故与纠正**:首次 H7 formal 用 -P 16(FS)违反并发纪律 → OOM killer 摧毁整批(180 runs 全废,rc=137×90/124×74)。第二次 6-slot 仍把 avail 压到 11.7GB(<12GB 红线)→ 强制降到 **4-slot 硬上限**(编辑两轮才真正生效——第一轮 python 补丁的 assert 在 kill 之后静默失败,诚实记录)。
+
+**加速方案(并行会话计划的四步)全部落地**:①清 tmpfs(旧死目录 90M)+ -d 改磁盘(runs/h7formal/);②**近点 checkpoint**(cpt.90000000 从 100M 跑 90M ticks 落盘,finalTick 190000233 确认绝对 tick;注入点 195M 从 7min 空跑缩到 ~15s);③ECC-on 臂 n=384→100(pilot 0/30,0/100 上界 3.6%);④300s 截断观察窗(panic 文本在头几分钟打印;censored-window 协议诚实入档——survivor= "窗口内无 panic")。**速度定标:10M ticks=27.5s**;单 run ~5min(注入后仿真占大头)。总 484 runs/4 slots ≈ 10h,合规运行中。
+
+**§8 lane pilot 已完成**(f23ec73):四 lane 全 0.0% SDC(oracle 弱标注)。
