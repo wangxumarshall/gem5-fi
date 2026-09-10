@@ -2514,3 +2514,9 @@ two_bit_corrupt + kernel_walk_only 落地;ECC off 47% 致死 vs on 0%(n=30/臂)�
 **加速方案(并行会话计划的四步)全部落地**:①清 tmpfs(旧死目录 90M)+ -d 改磁盘(runs/h7formal/);②**近点 checkpoint**(cpt.90000000 从 100M 跑 90M ticks 落盘,finalTick 190000233 确认绝对 tick;注入点 195M 从 7min 空跑缩到 ~15s);③ECC-on 臂 n=384→100(pilot 0/30,0/100 上界 3.6%);④300s 截断观察窗(panic 文本在头几分钟打印;censored-window 协议诚实入档——survivor= "窗口内无 panic")。**速度定标:10M ticks=27.5s**;单 run ~5min(注入后仿真占大头)。总 484 runs/4 slots ≈ 10h,合规运行中。
 
 **§8 lane pilot 已完成**(f23ec73):四 lane 全 0.0% SDC(oracle 弱标注)。
+
+### H7 formal tick-基准踩坑与修复(2026-09-10 深夜,诚实记录)
+
+**第二个跑批事故**：近点 checkpoint 加速方案有一个隐藏错误——`cpt.90000000` 的**恢复基准 tick 是 90e9**(目录名=自 run 起的 tick 数),而 PTW 的 first_clock 语义是**绝对 tick**。我误以为恢复落在 190e9(mkckpt 的 finalTick),把窗口设在 195e9——实际需要从 90e9 跑 105e9 ticks(~13min)才到窗口,而 300s cap 的批量跑全部在窗口前超时:**52 个 ECC-off runs 全部 applied=0,纯垃圾**(结果存 results_invalid_195e9.txt 留证)。SysReg 10-seed 序列同样 0 触发(同一根因)。
+
+**诊断链**:PTW smoke 13m20s 才注入(与"15s"预期矛盾)→ 算 tick 速率(370k/s→13min=105e9 ticks)→ 复原恢复基准。**修复**:first_clock 95000000(95e9 绝对 = 恢复点 90e9 后 5e9,仍在 boot 期 walk 密集段),单发验证 Tick 95001363540 注入驻留 PTE;重启 formal 后 4/4 applied=1。**教训(入 memory)**:gem5 checkpoint 恢复的 curTick 基准 = 目录名数字,不是父 run 的 finalTick;绝对 tick 语义注入器的窗口必须从恢复基准 + 期望提前量计算。
