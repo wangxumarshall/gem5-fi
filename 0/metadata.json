@@ -1,0 +1,137 @@
+{
+  "cli_version": "0.10.2",
+  "checkpoint_id": "01M24D57VTE1HHTM3ZZRTZ2J6Y",
+  "session_id": "dabc3f2d-060b-4a1f-bb76-dea5ee7d3241",
+  "strategy": "manual-commit",
+  "created_at": "2026-09-10T00:58:23.15131713Z",
+  "branch": "docs/gem5-project-understanding",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "docs/gem5/gem5-architecture-and-chaos-internals.md"
+  ],
+  "agent": "Claude Code",
+  "model": "GLM-5.3[1m]",
+  "turn_id": "0b244d145296",
+  "checkpoint_transcript_start": 591,
+  "transcript_lines_at_start": 591,
+  "compact_transcript_start": 119,
+  "token_usage": {
+    "input_tokens": 3498091,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 10248,
+    "api_call_count": 17
+  },
+  "skill_events_version": 1,
+  "skill_events": [
+    {
+      "id": "prompt-skill-claude-code-superpowers:systematic-debugging-2026-09-09T10:24:34.75358451Z",
+      "event_type": "prompt_invocation",
+      "skill": {
+        "name": "superpowers:systematic-debugging"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "prompt_slash_command",
+        "confidence": "explicit"
+      },
+      "turn_id": "a572531810cf",
+      "timestamp": "2026-09-09T10:24:34.75358451Z",
+      "native": {
+        "command": "/superpowers:systematic-debugging"
+      },
+      "collapse": {
+        "target": "user_message",
+        "label": "/superpowers:systematic-debugging",
+        "default_collapsed": true
+      }
+    },
+    {
+      "id": "prompt-skill-claude-code-goal-2026-09-09T10:24:55.68759566Z",
+      "event_type": "prompt_invocation",
+      "skill": {
+        "name": "goal"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "prompt_slash_command",
+        "confidence": "explicit"
+      },
+      "turn_id": "be81e0459515",
+      "timestamp": "2026-09-09T10:24:55.68759566Z",
+      "native": {
+        "command": "/goal"
+      },
+      "collapse": {
+        "target": "user_message",
+        "label": "/goal",
+        "default_collapsed": true
+      }
+    },
+    {
+      "id": "claude-skill-call_0c06555167b24909a43a57ee",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "superpowers:systematic-debugging"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "0b244d145296",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 27,
+        "end": 28,
+        "entry_ids": [
+          "2a99b3d1-6a6e-4d91-b72a-ce4a25272224"
+        ],
+        "tool_use_id": "call_0c06555167b24909a43a57ee"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "call_0c06555167b24909a43a57ee"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: superpowers:systematic-debugging",
+        "default_collapsed": true
+      }
+    }
+  ],
+  "session_metrics": {
+    "turn_count": 2
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-09-10T00:58:22.9330697Z",
+    "agent_lines": 273,
+    "agent_removed": 0,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 273,
+    "total_lines_changed": 273,
+    "agent_percentage": 100,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 662,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".planning/.active_plan": 1,
+        ".planning/2026-09-04-vmcore-case-diagnosis-reports/findings.md": 86,
+        ".planning/2026-09-04-vmcore-case-diagnosis-reports/findings_newmining.md": 55,
+        ".planning/2026-09-04-vmcore-case-diagnosis-reports/progress.md": 105,
+        ".planning/2026-09-04-vmcore-case-diagnosis-reports/task_plan.md": 44,
+        ".planning/2026-09-05-vmcore-sdc-microarch-root-cause/findings.md": 265,
+        ".planning/2026-09-05-vmcore-sdc-microarch-root-cause/progress.md": 25,
+        ".planning/2026-09-05-vmcore-sdc-microarch-root-cause/task_plan.md": 81
+      }
+    }
+  ]
+}
