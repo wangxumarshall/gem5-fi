@@ -322,6 +322,9 @@ def manifest_for_cell(campaign, cell, cell_ordinal, rep, outdir):
     # v1.2 Phase 14 (item 2): victim-path fault axis.
     if cell.get("victim_fault"):
         manifest["fault"]["victim_fault"] = True
+    # v1.3 Phase 20 §23: L3 paired-sector proxy axis.
+    if cell.get("paired"):
+        manifest["fault"]["paired"] = True
     # v1.2 Phase 16 (item 3): L1I instruction-encoding field axis.
     if cell.get("l1i_field"):
         manifest["fault"]["l1i_field"] = cell["l1i_field"]

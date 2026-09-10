@@ -695,3 +695,9 @@ neon_lane, physreg arch_frontend + vec_lane {0,1,2,3}(32-bit lane 内单 bit 翻
 **结论**:向量 PRF 的 lane 级翻转在 neon_lane(逐 lane 消费+checksum 归约)上不产生 SDC——与 §7 整数 PRF X3 bit0(100% SDC)对照,**lane 内单 bit 的掩蔽来自 neon_lane 的消费结构**(checksum 对 lane 对称,单 lane 错值被 32-lane 归约稀释?或 lane 值被覆盖)。诚实标注:此 workload 的 oracle 是 16-hex FINAL(归约型),非逐 lane 输出——lane 轴的敏感结论需要逐 lane 输出的 kernel(如 elemwise 思路的向量版)才能与 §7 严格对照。**§8 lane 行标 pilot 级 + oracle 弱**,引用时注意。
 
 附带记录:vec lane 注入的 log 有 `[vec lane N/64 ...]` advisory 行,runner 的 faults 计数可能 +1(advisory 被计入)——分类只用 faults>=1 布尔,不影响结局;G5 计数偏差诚实入档(与 L1D protection 行双计数同类,第 22 个已知工具瑕疵)。
+
+### v1.3 Phase 20 §23 L3 pairedSector 代理 pilot(2026-09-10): 缓存驻留负载上 0% SDC
+
+fwd_checksum(store→load 共享行),L2-as-L3 代理 + pairedSector(128B 域双侧同位翻转,log 验证:主块+PAIRED 伙伴块两行注入),n=100,零 frozen,Reach 100%:**P_SDC=0.0% [0,3.7]**。
+
+**结论**:L3 故障域代理在缓存驻留负载(fwd_checksum 工作集在 L1/L2 内)上钝——后备翻转被缓存胜出掩蔽,与 DRAM-on-cholesky 同构。**§23 饼图数字**:L3 pairedSector(缓存驻留)=0%;配 DRAM 定向(stream 大工作集)=85.4%(C0)——存储层级风险随"注入层与消费层的距离"和"工作集驻留关系"变化,缓存驻留时外层全部钝。与 §23 scope-cut 决定互补:互连/L3 的真实暴露需 stream 级跨核共享负载,超出 classic-SE 代理能力(E3² 边界),维持 scope-cut + 此 0% 点入饼图(标注负载条件)。

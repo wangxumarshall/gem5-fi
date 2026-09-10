@@ -1,0 +1,19 @@
+schema_version: arm-chaos-fi/v1
+campaign_id: pwf_v13_l3_paired_pilot
+injector: l2
+config: C0-CACHE
+mode: SE
+grid:
+  fault_model: [transient_bit_flip]
+  paired: [true]
+n_per_cell: 100
+base_seed: 20260950
+replay_pct: 5.0
+workload:
+  binary: workloads/directed/fwd_checksum_kernel
+  golden_id: fwdchecksum-golden-v1
+  trigger_mode: cycle
+  trigger_value: 20000
+limits:
+  max_faults: 1
+hang_timeout: 300

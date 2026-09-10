@@ -628,6 +628,9 @@ def main():
         # v1.2 Phase 14 (item 2): victim/writeback-path fault.
         if inj.get("victim_fault"):
             cmd += ["--victim_fault"]
+        # v1.3 Phase 20 §23: L3 paired-sector fault-domain proxy.
+        if inj.get("paired"):
+            cmd += ["--paired"]
         # v1.1 Phase 11 (open item): L2 capacity sweep axis.
         if inj.get("l2_size"):
             cmd += ["--l2_size", str(inj["l2_size"])]
