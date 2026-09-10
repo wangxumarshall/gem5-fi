@@ -1,0 +1,1 @@
+/goal 深度理解项目所有源码，参考《深入理解linux内核的架构与设计》的撰写方式，撰写《深入理解gem5及CHAOS架构设计与源码实现》，输出markdown文件，覆盖 @docs/gem5/gem5-architecture-and-chaos-internals.md，要求通俗易懂，又不失深刻（结合源码）。
