@@ -374,7 +374,7 @@ CHAOSCHI/CHAOSNoC pilot 已能触发（7c854bb/7582e8c，未提交的 ruby test 
 
 1. **§8 向量物理寄存器 lane formal**：位段 × lane {0,1,2,3}，n=384，与 §7 整寄存器注入对照（`CHAOSPhysReg` vector class 已支持 lane 定向，只需 campaign）。
 2. **§21 SysReg formal**：先写 FS workload `sysreg_probe.rcS`（改完 SCTLR/TTBR0/TCR 立刻触发一次地址翻译 / TLB 操作），再跑 `value_to_legal` + `transient_bit_flip` 两模式 n=384（`CHAOSArmSysReg` 白名单已铺开）。
-3. **§20 PTW H7 重设计**：v1.2 已证「单点 PTE-valid 清零」被内核重填自愈（0/30 panic）→ 原设计测不出 ECC 价值。改 **2-bit PTE 损坏（不可重填）× 内核态 walk（调度域遍历 workload）× ECC {off,on}**，n=384，才有区分度。
+3. ✅ **§20 PTW H7 重设计 — pilot 轮完成**（699ef23）：`two_bit_corrupt`(相邻 2-bit)+ `kernel_walk_only`(TTBR1 过滤)落地。**Pilot n=30/臂: ECC off 47% 致死**(8 kernel panic + 6 fault 诱导 gem5 abort)vs **ECC on 0%**——原验收断言首次成立。定界:单 bit 用户态=内核自愈;2-bit 内核态=ECC 唯一防线。⏳ formal n=384 排跑批(FS 单 run ~7min,×768 ≈ 9h/16 并发,机械)。
 4. **§23 L3 `pairedSector` 代理**：C0-CACHE，`pairedSector` 模式定向到 producer-consumer workload 正在共享的行，n=100 pilot（→ 有信号再 formal）。**NoC/HCCS 不跑**。
 5. **报告收尾**：§4.3 加 scope-cut 段（§23 NoC/HCCS）+ §4.1 饼图 L3 用 pairedSector 数、NoC/HCCS 标「未测，预期 <X%」；`microarch-fault-injection-report.md` §23 节改「⬜ 无正式数据」→「⬜ NoC/HCCS scope-cut（理由三条）+ L3 pairedSector 代理 pilot」。
 
