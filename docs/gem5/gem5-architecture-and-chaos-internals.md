@@ -10,7 +10,7 @@
 2. **微架构层（第二、三章）**：O3 乱序核的六级流水线与内存系统的完整通路。读完能读懂 `src/cpu/o3/` 与 `src/mem/` 里的任何文件。
 3. **研究层（第四~七章）**：CHAOS 故障注入框架的 19 个注入器、实验机器、以及"架构理解如何决定实验有效性"的方法论。读完能自己设计并辩护一个注入实验。
 
-全书约定：源码引用一律 `文件:行号`（如 `simulate.cc:292`），基于 vendored 树 `CHAOS/gem5/src/`；ASCII 图覆盖所有空间结构、时序关系与多对象关系，遇到复杂机制先看图再读码。
+> 全书约定：源码引用一律 `文件:行号`（如 `simulate.cc:292`），基于 vendored 树 `CHAOS/gem5/src/`；ASCII 图覆盖所有空间结构、时序关系与多对象关系，遇到复杂机制先看图再读码。
 
 ---
 
@@ -2277,5 +2277,3 @@ gem5 同 seed 同结果。事件驱动注入器若"窗口开后第一个过概�
 | CHAOSPTW | **curTick** | mmu->setPtwInj | ptw_injections.log | numSpuriousFaults |
 | CHAOSArmSysReg | **curTick(D4快照)** | 自挂 | arm_sysreg_injections.log | numFaultsInjected |
 | CHAOSReg | curCycle | attackEvent | fault_injections.log | numPermanentFaults |
-
-> 本文与其姊妹篇 `docs/gem5/project-understanding.md`（研究主线与定量结论）互为表里：本文讲"机器怎么造的"，彼篇讲"机器跑出了什么"。
