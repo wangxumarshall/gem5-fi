@@ -744,7 +744,7 @@ if (cpu->chaosIQ) {
 
 LSQ（Load/Store Queue）里有一条重要的快路径：load 发现队列里有地址重叠、尚未写回内存的 store 时，直接从 store buffer 把数据拷给自己，不必等 store 落到 cache 再去读。这就是 store→load 转发。它由一个 memcpy 完成，不经过 cache。
 
-`lsq_unit.cc` 的转发判定在 `:1440-1473`：遍历 SQ 中比 load 年轻的 store，按地址覆盖算出 `AddrRangeCoverage`（None/Partial/Full）。完整布尔代数由四个布尔（`store_has_lower/upper_limit`、`lower/upper_load_has_store_part`）加三个排除条件（atomic、LLSC、masked）构成；循环入口门槛（`:1423-1425`）：`store_size != 0 && !strictlyOrdered() && !isCacheMaintenance()`。`FullAddrRangeCoverage` 分支就是硅上 store buffer 前递网络的模型：
+`lsq_unit.cc` 的转发判定在 `:1440-1473`：遍历 SQ 中比 load 年长的 store，按地址覆盖算出 `AddrRangeCoverage`（None/Partial/Full）。完整布尔代数由四个布尔（`store_has_lower/upper_limit`、`lower/upper_load_has_store_part`）加三个排除条件（atomic、LLSC、masked）构成；循环入口门槛（`:1423-1425`）：`store_size != 0 && !strictlyOrdered() && !isCacheMaintenance()`。`FullAddrRangeCoverage` 分支就是硅上 store buffer 前递网络的模型：
 
 ```cpp
 // src/cpu/o3/lsq_unit.cc:1489-1516（节选，两处 CHAOS hook 原样保留）
@@ -818,6 +818,12 @@ CHAOSROB/CHAOSRAS/CHAOSExec 都从 `cpu->robAccess()`（`cpu.hh:497`，转发 `r
 - `corruptResultRegVal`（`:705-718`）：通用结果毁伤入口，CHAOSExec/CHAOSL1DForward/CHAOSFPU v1 用它攻击 ROB 头 load/ALU 结果。底层原语 `InstResult::corruptRegVal`（`src/cpu/inst_res.hh:110-117`）对 blob（向量）返回 false，明确拒绝不可 XOR 的结果。
 
 CHAOSFPU.hh 的注释完整记录了一次 hook 迁移（`CHAOSFPU.hh:20-29` + `cpu.hh:529-538`）：v1 挂在 ROB 头攻击 `corruptResultRegVal`，在 gemm_double 上 **5089/5089 次命中"result already popped"**（到 ROB 头时结果早已弹出，0 次真实命中）。hook 点选错，注入器就成了永不击发的枪。v2 迁到 setRegOperand 写回路径后才有真实命中。第七章 §7.1 把这条经验上升为定律。另一个并列的教训：CHAOSFPU 曾用 `isFloating()` 过滤 FP 指令，但**ARM ISA 从不设置 IsFloating 静态标志**（只有 x86/riscv/sparc 设），gemm_kernel 上 14.4 万次采样 0 命中；修法是按**目的寄存器类**（FloatRegClass/VecRegClass）过滤（`CHAOSFPU.cc:258-263` 注释）。
+
+### 2.10 FSU 与 LSU：IEW 执行侧的两类单元
+
+第二章讲到这里，执行侧还差一张总图。O3 的执行单元分两类，CHAOS 对应的注入器也分成两族：FSU（浮点/向量执行单元）管"算"，攻击它的是 CHAOSFPU（§5.7）；LSU（访存单元）管"搬"，攻击它的是 CHAOSLSQFwd（§5.11）与 CHAOSAddrPath（§5.12），下游再接 Cache/Mem/TLB/PTW 一串（第五章 G4/G5 组）。两类单元的故障语义不同：FSU 的故障是算出来的值错（IEEE754 位段），LSU 的故障是拿错的数据或错地址。图 2-5 给出全景：
+
+![图 2-5：FSU 与 LSU——IEW 里的两类执行单元（红 = CHAOS 注入点）](figures/fsu-lsu-panorama.svg)
 
 ---
 
