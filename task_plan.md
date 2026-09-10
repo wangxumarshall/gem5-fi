@@ -366,16 +366,21 @@ CHAOSCHI/CHAOSNoC pilot 已能触发（7c854bb/7582e8c，未提交的 ruby test 
 
 **补丁数**：campaign 跑批 + `ras_escape_analysis.py` 增强 + `docs/final-report-skeleton.md` 定稿 ≈ 4。
 
-## Phase 20 — 遗留单元（低优先，可选）
+## Phase 20 — 遗留单元收口（§23 已定：scope-cut + L3 代理）
 
-**Status: pending**
+**Status: pending（§23 决定已拍板 2026-09-10：NoC/HCCS scope-cut，L3 只跑 `pairedSector` 代理）**
 
-1. **§8 向量物理寄存器 lane formal**：位段 × lane {0,1,2,3}，n=384，与 §7 整寄存器注入对照。
-2. **§21 SysReg**：写一个「改完 SCTLR/TTBR0/TCR 后立刻触发地址翻译」的 FS workload → `value_to_legal` + 翻位两模式 formal。
-3. **§20 PTW H7 重设计**：v1.2 已证明「单点 PTE-valid 清零」被内核重填自愈（0/30 panic）——H7 的原始设计测不出 ECC 价值。改为 **2-bit PTE 损坏（不可重填）+ 内核态 walk（调度域遍历）** 场景，才有 ECC 开/关的区分度。
-4. **§23 NoC / CHI / HCCS**：按前期结论——链路级 CRC + 重传 + 无现场信号 + E3/E4——**做窄版**（DRAM addr_map_sub 类的「合法但放错」模式：NoC 路由地址错、L3 tag/一致性态）填逃逸饼图，**或** 最终报告 §4.3 明写「系统级未测，基于其保护 + 无现场信号预期贡献低，留作实机校准项」的 scope-cut。用户定。
+**§23 决定（用户拍板）**：NoC / HCCS **不做**（完整版天花板是 S7 实机；gem5 Garnet/CHI 对鲲鹏双环/HCCS 是 E3/E4，出数不足以支撑芯片决策；method1/2/3 三份现场证据全在核内；链路级 CRC+重传 + L3 数据 SECDED 使"贡献低"的论证足够硬）。L3 **只跑已验证的 `pairedSector` 代理**（128B 故障域，`0xfb700` 已触发验证，不写新注入器），给逃逸饼图一个 token 数。三层缓冲写进 §4.3：pairedSector L3 token 数 + CRC/SECDED/无现场信号论证段 + future work 指向 S7。
 
-**补丁数**：视选择而定，§8/§21 各 ≈ 3；H7 重设计 ≈ 4；§23 窄版 ≈ 6 或 scope-cut 0。
+1. **§8 向量物理寄存器 lane formal**：位段 × lane {0,1,2,3}，n=384，与 §7 整寄存器注入对照（`CHAOSPhysReg` vector class 已支持 lane 定向，只需 campaign）。
+2. **§21 SysReg formal**：先写 FS workload `sysreg_probe.rcS`（改完 SCTLR/TTBR0/TCR 立刻触发一次地址翻译 / TLB 操作），再跑 `value_to_legal` + `transient_bit_flip` 两模式 n=384（`CHAOSArmSysReg` 白名单已铺开）。
+3. **§20 PTW H7 重设计**：v1.2 已证「单点 PTE-valid 清零」被内核重填自愈（0/30 panic）→ 原设计测不出 ECC 价值。改 **2-bit PTE 损坏（不可重填）× 内核态 walk（调度域遍历 workload）× ECC {off,on}**，n=384，才有区分度。
+4. **§23 L3 `pairedSector` 代理**：C0-CACHE，`pairedSector` 模式定向到 producer-consumer workload 正在共享的行，n=100 pilot（→ 有信号再 formal）。**NoC/HCCS 不跑**。
+5. **报告收尾**：§4.3 加 scope-cut 段（§23 NoC/HCCS）+ §4.1 饼图 L3 用 pairedSector 数、NoC/HCCS 标「未测，预期 <X%」；`microarch-fault-injection-report.md` §23 节改「⬜ 无正式数据」→「⬜ NoC/HCCS scope-cut（理由三条）+ L3 pairedSector 代理 pilot」。
+
+**补丁数**：§8 ≈ 2（campaign）；§21 ≈ 3（rcS + campaign + 白名单微调）；H7 重设计 ≈ 4；§23 L3 代理 ≈ 2；报告收尾 ≈ 2 —— 合计 ≈ 13。**机器**：Linux 健康机。
+
+**Phase 20 收口后**：工程设计文档「本仿真环境能做的」全部完成。剩余仅 **S6 真第二台健康机独立复现**（环境阻塞，有机器再做）+ **S7 实机 RAS 校准**（授权后，不在本环境）。
 
 ---
 
@@ -407,21 +412,25 @@ Phase 17 (H7 + 复现)          ✅ complete — H7 pilot：内核对单点 PTE 
 --- v1.3 收口轮（formal 补跑 + 配置对齐 + 元分析定稿，Linux 健康机）---
 Phase 18 (v1.2 formal 补跑)   ← §5/§6/§12/§13/§14/§16 的 pilot 数扩 n=384 + 5% 重放 + Wilson CI（照 v1.1 formal 补跑轮 fe5c190..3526fba 的先例）
 Phase 19 (C2-KP 配置对齐 + §4 元分析定稿)  ← 头条数（FPU/Exec/L2/DRAM）在 C2-KP 复跑，与 Phase 1-7 同表；逃逸集合分解饼图 + 保护投资排序表定稿
-Phase 20 (遗留单元，低优先)   ← §8 lane / §21 SysReg formal；H7 重设计（2-bit + 内核态 walk）；§23 NoC/CHI/HCCS = 窄版或 scope-cut
+Phase 20 (遗留单元收口)       ← §8 lane / §21 SysReg formal；H7 重设计（2-bit + 内核态 walk）；§23 已定：NoC/HCCS scope-cut，L3 只跑 pairedSector 代理
 ```
 
 补丁纪律：沿用 CLAUDE.md（一补丁一单元、真机自验证 100%、自动 push 到 fix/fi-tool-correctness）。**v1.1 补救轮（Phase 8–12）遵 `gem5-fi/CLAUDE.md`**：每补丁 `numactl --cpunodebind=0 --membind=0 -- scons ... -j16`（零新增警告）→ 真机跑受影响行为贴真实输出 → `reg_chain` golden `f247ef3fe6f02cfd` 回归 → commit + push；commit 尾注 `Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>`。campaign 跑批用后台；pilot n=100 先看 Reachability + 方向，formal n=384 + 5% 重放（不一致冻结）+ Wilson 95% CI。
 
 ## Next Step
 
-**v1.1（Phase 8–12）+ v1.2（Phase 13–17）全部 `Status: complete`**（`gem5-fi` HEAD `6ca091d`，`f9124d7..6ca091d` 28 commits 已核对）。但 **v1.2 是 pilot-heavy**：§5 IQ / §6 Exec / §13 L2 protection 臂 / §14 DRAM protection 臂 / §12 L1I 六字段 / §16 BPU F5 臂全部只到 n=100 pilot，formal 明确 deferred。唯一 v1.2 新做的 formal 是 spec_leak 双平台（C0 14.9% / C2 5.9%）和 PRF X3 bit0。`microarch-fault-injection-report.md` 已同步 v1.2 pilot 结果（逐条标注 pilot / 待 formal）。
+**v1.1（Phase 8–12）+ v1.2（Phase 13–17）+ v1.3 Phase 18–19 全部 `Status: complete`**（`gem5-fi` HEAD `abaf114`，已核对 commit + campaign 产物）。v1.3 Phase 18 formal 补跑（11 cell × n=384 全零 frozen，pilot 点估计全落入 CI）+ Phase 19（C2-KP 对齐 → 平台效应结构定律；§4.1 逃逸分解 230 cells/114 campaigns；§4.2 保护排序 formal 8 行 + 3 新行；§4.3 诚实边界 10 条）已收官。**唯一剩项 = Phase 20**（§23 决定已拍板 2026-09-10：NoC/HCCS scope-cut，L3 只跑 `pairedSector` 代理）。
 
 下一步（**Linux 健康机** `gem5-fi/`，分支 `fix/fi-tool-correctness`，`numactl` 钉有内存的 NUMA node）：
 
-**Phase 18.1 — Exec formal n=384**（最高优先，收口首轮伪影修正）。v1.2 已把代码（PRF-dest 重写 + `elemwise_int_kernel` + 三模式）落地，pilot 出 68% SDC——现在跑 formal：`transient_bit_flip` 单发 + `recurring_result_stuck`，on `elemwise_int` + `cholesky` × C0 + C2，n=384 + 5% 重放 + Wilson CI。验收：确认 68%（逐元素）/ 10%（归约）+ INT-vs-FP 定律；报告 §6 从「◑ pilot」升 formal，`§十.10`（v1.2 多为 pilot）相应更新。
+**Phase 20.1 — §8 向量物理寄存器 lane formal**（最省事、先做）。`CHAOSPhysReg` vector class 已支持 lane 定向，只需 campaign：`bitseg × lane {0,1,2,3}`，n=384 + 5% 重放 + Wilson CI，on `neon_lane`。验收：4 个 lane 各自的 P_SDC/P_DUE，与 §7 整寄存器注入对照；报告 §8 从「⬜ 无正式数据」升 formal。
 
-**接着 Phase 18.2–18.6**：IQ（`wake_omit` 的 DUE 率 workload 敏感，必须 formal 定）→ L2 protection 臂 → DRAM protection 臂 → L1I `imm12`/`cond` → BPU F5 臂。全部 formal n=384，代码已在 v1.2 就位，主要是 campaign 跑批。
+**接着 Phase 20.2–20.5**：
+- **§21 SysReg** — 写 FS workload `sysreg_probe.rcS`（改完 SCTLR/TTBR0/TCR 立刻触发地址翻译）→ `value_to_legal` + `transient_bit_flip` 两模式 n=384。
+- **§20 PTW H7 重设计** — `2-bit PTE 损坏（不可重填）× 内核态 walk × ECC {off,on}`，n=384（原单点设计被内核自愈，测不出 ECC 价值）。
+- **§23 L3 `pairedSector` 代理** — C0-CACHE，定向到 producer-consumer 共享行，n=100 pilot（NoC/HCCS 不跑）。
+- **报告收尾** — §4.3 加 §23 scope-cut 段；§4.1 饼图 L3 用 pairedSector 数、NoC/HCCS 标「未测，预期 <X%」；`microarch-fault-injection-report.md` §23 节改写。
 
-**Phase 18 全部完成后转 Phase 19**：头条数（FPU/Exec/L2/DRAM）在 **C2-KP** 复跑对齐 Phase 1–7 → §4.1 逃逸饼图 + §4.2 保护排序表定稿。
+**Phase 20 收口后**：工程设计文档「本仿真环境能做的」全部完成。剩余仅 S6 真第二台健康机复现（环境阻塞）+ S7 实机 RAS 校准（授权后，不在本环境）。
 
-**并行 / 后置**：Phase 20（§8 lane / §21 SysReg / H7 重设计 / §23 互连窄版或 scope-cut——§23 需用户拍板做窄版还是直接 scope-cut）；Phase 17.2 真第二台健康机独立复现 = 环境阻塞，有机器再做。
+**后置**：Phase 17.2 真第二台健康机独立复现 = 环境阻塞，有机器再做。

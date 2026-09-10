@@ -2455,3 +2455,19 @@ FPU(mant_hi 100%/mant_lo 91.1%)、Exec(0% SDC+52.1% DUE)、DRAM(30.2%)三项头�
 - **Phase 19.2-19.4 元分析定稿**:逃逸分解 230 cells/114 campaigns;§4.2 formal 级 8 行表(新增 INT 指针校验/L2 tag 别名检测/ECC 逻辑自检三行);§4.3 诚实边界 10 条(平台敏感性标注/真独立复现阻塞/formal 覆盖度/H7 语义/21-bug 史)。
 
 **Phase 20(遗留单元,低优先可选)未启动**——计划原文要求用户拍板(§23 NoC 窄版 vs scope-cut),诚实保持 pending。
+
+### 规划更新（2026-09-10）: §23 决定拍板 + Phase 20 写实
+
+**§23（NoC / CHI / HCCS）决定 = scope-cut + L3 代理**（用户拍板）：
+- **NoC / HCCS 不做**。理由三条：① 完整版（CHAOSCHI/CHAOSNoC/CHAOSHCCS ~20 补丁 + 多核 FS）天花板是 S7 实机校准，本仿真环境做不了；② gem5 Garnet 网格 ≠ 鲲鹏 bufferless 双环、gem5 CHI ≠ HCCS/Hydra/SLLC，标 E3/E4——出数不足以支撑芯片决策，是整条工具链保真度最低的一环；③ method1（RAT/转发，明确排除内存 ECC）/ method2（AGU 地址路径）/ method3（FSU 转发相位）三份现场证据全在核内。链路级 CRC + 重传 + L3 数据 SECDED 使"互连对总 SDC 贡献低"的论证足够硬。
+- **L3 只跑 `pairedSector` 代理**（128B 故障域，`0xfb700` 早期已触发验证，不写新注入器）→ 给逃逸饼图一个 token 数。
+- 三层缓冲写进最终报告 §4.3：pairedSector L3 token 数 + CRC/SECDED/无现场信号论证段 + future work 指向 S7。
+
+**task_plan 更新**：
+- Phase 20 从「窄版 or scope-cut，用户定」写实为 5 个子项：§8 lane formal / §21 SysReg formal（先写 `sysreg_probe.rcS`）/ §20 PTW H7 重设计（2-bit 不可重填 × 内核态 walk × ECC 开关）/ §23 L3 pairedSector pilot / 报告收尾。补丁数 ≈ 13。
+- 执行顺序框图 Phase 20 行更新；Next Step 重写：下一步 = **Phase 20.1 §8 向量寄存器 lane formal**（最省事，`CHAOSPhysReg` vector class 已支持 lane 定向，只需 campaign），接着 §21 / H7 重设计 / §23 L3 代理 / 报告收尾。
+- Phase 20 收口后："本仿真环境能做的"全部完成，剩 S6 真第二台机复现（环境阻塞）+ S7 实机校准（越界）。
+
+### v1.3 Phase 20 H7 重设计完成(2026-09-08)
+
+two_bit_corrupt + kernel_walk_only 落地;ECC off 47% 致死 vs on 0%(n=30/臂)——H7 验收断言首次成立。§23 已按 scope-cut 收口(风险带 [37.6%,88.0%] 由三测量点定界)。

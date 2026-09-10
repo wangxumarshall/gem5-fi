@@ -28,7 +28,12 @@ class CHAOSPTW : public SimObject
     bool maybeCorrupt(uint64_t &pte_data, unsigned lookup_level, Addr vaddr);
 
   private:
-    enum class Mode { SingleBitXor, ClearValid };
+    enum class Mode { SingleBitXor, ClearValid,
+                      // v1.3 Phase 20 (H7 redesign): 2-bit adjacent
+                      // corruption — the SECDED-detects-but-cannot-correct
+                      // shape (unlike clear_valid, which the kernel
+                      // refills/self-heals).
+                      TwoBitCorrupt };
     static Mode stringToMode(const std::string &s);
 
     ArmISA::WalkUnit *walker;  // raw; set from p.walker
@@ -42,6 +47,10 @@ class CHAOSPTW : public SimObject
     // v1.2 Phase 17 (H7 fix): skip mechanism + resident-PTE gate.
     uint64_t events_to_skip = 0;
     bool skip_empty_pte = false;
+    // v1.3 Phase 20 (H7 redesign): kernel-mode-walk filter — inject only
+    // on TTBR1-range translations (vaddr 0xffffff8..., the kernel address
+    // space): the non-refillable context where ECC has discrimination.
+    bool kernel_walk_only = false;
     uint64_t rng_seed;
     bool write_log;
 

@@ -123,7 +123,7 @@ p.add_argument("--sysreg_rng_seed", type=lambda x:int(x,0), default=20260825)
 p.add_argument("--chaos_ptw", action="store_true",
                help="attach CHAOSPTW to the D-side walk unit (FS-only)")
 p.add_argument("--ptw_mode", default="single_bit_xor",
-               choices=["single_bit_xor", "clear_valid"],
+               choices=["single_bit_xor", "clear_valid", "two_bit_corrupt"],
                help="PTE fault mode (clear_valid = H7 conditionalValidBit)")
 p.add_argument("--ptw_first_clock", type=lambda x:int(x,0), default=100000)
 p.add_argument("--ptw_max_faults", type=lambda x:int(x,0), default=1)
@@ -133,6 +133,9 @@ p.add_argument("--ptw_rng_seed", type=lambda x:int(x,0), default=20260825)
 p.add_argument("--ptw_events_to_skip", type=lambda x: int(x,0), default=0,
                help="v1.2 Phase 17 H7: fixed eligible-walk skip (0 = legacy "
                     "first-eligible — 60/60 seeds hit the same dead event).")
+p.add_argument("--ptw_kernel_walk_only", action="store_true",
+               help="v1.3 Phase 20 H7 redesign: inject only on kernel-space "
+                    "(TTBR1-range) walks — the non-refillable context.")
 p.add_argument("--ptw_skip_empty_pte", action="store_true",
                help="v1.2 Phase 17 H7: only inject on resident (non-zero) "
                     "PTEs — clear_valid on 0x0 is a no-op.")
@@ -260,6 +263,7 @@ if args.chaos_armtlb or args.chaos_sysreg or args.chaos_ptw or args.chaos_phys o
                 ptwEcc=args.ptw_ecc,
                 eventsToSkip=args.ptw_events_to_skip,
                 skipEmptyPte=args.ptw_skip_empty_pte,
+                kernelWalkOnly=args.ptw_kernel_walk_only,
                 maxFaults=args.ptw_max_faults,
                 rngSeed=args.ptw_rng_seed,
                 writeLog=True,

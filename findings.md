@@ -659,3 +659,27 @@ l1i_loop, n=100×12 cells, 零 frozen, Reach 100%:
 | DRAM 定向 on stream_triad | 85.4% [81.5,88.6] | **30.2% [25.8,35.0]** | **显著平台差**(第三例) |
 
 **平台效应的结构图景**:①FP 数据通路跨平台稳定(SDC 主导,错浮点恒合法);②INT 数据通路平台敏感(C0 SDC 主导→C2 全 DUE 化,调度激进程度决定错值多快成为非法指针);③存储层 DRAM 平台敏感(85%→30%,怀疑 C2 时序下 L2 命中/写回窗口几何不同——逐出节奏 2.6GHz 更快,注入字节更常在回读前被正确数据覆盖;机理待 readtrace 级分析,诚实标注 open)。附带修复:kp920_proxy.py 缺 FPU 模式旋钮(bitseg 等 v1.1 模式只加在 C0,首次 C2 formal 384/384 Inactive 暴露)。
+
+### §23 系统级互连 scope-cut 的方法学依据（2026-09-10 决定）
+
+NoC / CHI / HCCS 不做故障注入，最终报告 §4.3 以论证代替实测。三条依据：
+
+1. **保护强**：NoC / HCCS 每一跳链路级 CRC + 重传；L3 数据 SECDED。传输错绝大多数当场检出重发——这是全系统保护最强的一层。
+2. **无现场信号**：三份现场证据（method1 = RAT/转发 + 明确 EDAC=0 排除内存 ECC；method2 = AGU 地址生成路径；method3 = FSU 转发相位）无一指向互连。研究价值集中在核内乱序后端 + 数据/转发通路。
+3. **模型保真度最低**：gem5 Garnet 网格 ≠ 鲲鹏 bufferless 双环 NoC；gem5 CHI ≠ HCCS/Hydra/SLLC。设计文档标 E3/E4，完整版（~20 补丁 + 多核 FS）的天花板是 S7 授权实机校准——本仿真环境即使跑出数也带"建模的是另一个 NoC"的大星号，不足以支撑芯片决策。
+
+**保留口子**：L3 跑已验证的 `pairedSector` 128B 故障域代理（不写新注入器），给 §4.1 逃逸饼图一个 token L3 数；NoC/HCCS 在饼图里标「未测，预期 <X%」+ future work 指向 S7。
+
+**残余风险**：若日后现场出现互连 SDC，研究显不完整。但依据 1–3 足够硬，且设计文档从头把 S4 系统级划为"独立子项目"。
+
+### v1.3 Phase 20 H7 重设计成功(2026-09-08): 2-bit PTE + 内核态 walk — ECC 区分度完全显形
+
+**设计**(v1.2 单点实验 0/30 致死、ECC 无区分度的教训):CHAOSPTW 新增 `two_bit_corrupt` 模式(相邻 2-bit 损坏——SECDED 检出不纠的形态)+ `kernel_walk_only` 过滤(TTBR1 域 0xffffff...,不可走用户页错误重填路径)。
+
+**Pilot 结果(ECC off/on × n=30,seed 派生 skip,30 个不同注入点/臂)**:
+| 臂 | applied | kernel panic | gem5 abort(fault 诱导) | 存活 | 致死率 |
+|---|---|---|---|---|---|
+| ECC off | 30/30 | 8 | 6(如 `panic: pkt.isError() Data fetch`——注入诱导的内核态坏取指) | 16 | **14/30 = 47%** |
+| ECC on | 0/30(ECC-caught) | 0 | 0 | 30 | **0%** |
+
+**H7 验收断言(原计划"ECC-off spurious>0 vs ECC-on≈0")首次成立**:47% vs 0%。对比链:单点 clear_valid(0% vs 0%,无区分)→ 2-bit+内核态(47% vs 0%,完全区分)。**PTW/PTE 保护的 ECC 价值定界:单 bit 用户态=内核自愈;2-bit 内核态=ECC 是唯一防线**。±CI:47% [30.9,63.7](n=30 Wilson)。
