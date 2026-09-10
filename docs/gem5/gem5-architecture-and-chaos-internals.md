@@ -1915,15 +1915,32 @@ CPU::setArchReg(const RegId &reg, RegVal val, ThreadID tid)
 ---
 ## 第六章 实验基础设施：从 manifest 到结论
 
+**本章导览**：前五章的注入器是"武器"，本章是"实验机器"——它把"跑一次 gem5"变成"一个可复现、可统计、可辩护的实验单元"。三层分工：campaign.py 决定跑**哪些**实验（网格展开）、runner.py 决定**怎么**跑一次（manifest→命令行→分类）、classify/escape/fingerprint 决定**怎么读**结果（六类/九类/逃逸机理/位谱）。§6.1-6.4 顺数据流走一遍机器，§6.5 是分析层，§6.6 汇总 11 个 campaign 的关键结论，§6.7-6.8 讲 workload 与配置这两层"弹药与装填"。
+
 仿真器之上是三层实验机器（全部在仓库根，非 gem5 树）：
 
 ```
-campaigns/*.yaml ──campaign.py──► manifests/*.yaml ──runner.py──► gem5.opt 一次运行
-      │        (笛卡尔展开+seed律)        │       (参数映射+断言)      │
-      ▼                                  ▼                          ▼
- artifacts/<camp>/{cells.csv,summary.md} ◄──classify.py 六类/九类 ◄─ stdout/stderr/stats
-                                                    │
-                              escape_decomp.py(逃逸机理A-F) + sdc_fingerprint.py(位谱库)
+┌────────────────────────────────────────────────────────────────────────┐
+│ 图 6-1：三层实验机器总图                                                 │
+├────────────────────────────────────────────────────────────────────────┤
+│                                                                        │
+│  ① 设计层                     ② 执行层                ③ 判读层          │
+│  ┌──────────────┐            ┌──────────────┐       ┌─────────────┐    │
+│  │campaigns/*.yaml│──campaign──►│manifests/*.yaml│──runner──►│gem5.opt 一次│   │
+│  │ (实验网格)     │  .py      │ (单次运行单元)│  .py   │ 运行       │    │
+│  └──────────────┘ 笛卡尔展开  └──────────────┘ 参数映射 └─────┬─────┘    │
+│                    +seed律                        +断言      │stdout/   │
+│                                                                │stderr/   │
+│  artifacts/<camp>/                                              │stats+日志│
+│  {cells.csv, summary.md} ◄─── classify.py 六类/九类 ◄──────────┘        │
+│          ▲                          │                                 │
+│          │                          ▼                                 │
+│  ┌──────────────┐            ┌──────────────────────────┐             │
+│  │ report.py    │            │ escape_decomp.py 逃逸机理 │             │
+│  │ (Wilson CI)  │            │ sdc_fingerprint.py 位谱库 │             │
+│  └──────────────┘            └──────────────────────────┘             │
+│                                                                        │
+└────────────────────────────────────────────────────────────────────────┘
 ```
 
 工具链的核心信条写在 campaign.py 文件头（`tools/campaign.py:9-16`）："single-fault discipline: max_faults ∈ {0,1} (runner asserts G5); deterministic seeds: base 20260825 + cell_ordinal×1000 + rep; ≥5% replay self-check; Wilson CI with 0-SDC upper bound 3/n"——每个 summary.md 的固定尾部（`:404-408`）都强制写出三条诚实边界："All P_SDC are gem5 O3 conditional probabilities, NOT product FIT" / "SE mode: no MMU-on translation" / "Results NOT second-machine-reproduced"。
@@ -1967,6 +1984,38 @@ except subprocess.TimeoutExpired:
 
 **replay 自检的诚实披露**（重要）：docstring 声称 "≥5% replay self-check"，但当前实现（`:348-354`）是**诚实的占位 no-op**——replay manifest 文件确实生成了，循环体是 `pass`，重放从未执行；`replays_consistent` 恒 True 且未被消费。注释自陈："G0 self-check simplified: runner is deterministic by construction (mt19937 seed)"。**G0 自检当前依赖构造性论证而非运行时验证**——工具链自己标注的已知边界。
 
+runner.py 是三层机器的中间枢纽——把 manifest 变成一次真实运行。它的完整生命周期（图 6-2）值得先建立，再看 §6.3 的细节：
+
+```
+┌────────────────────────────────────────────────────────────────────────┐
+│ 图 6-2：一次 run 的生命周期（runner.py 主流程）                         │
+├────────────────────────────────────────────────────────────────────────┤
+│                                                                        │
+│  manifest.yaml ──► ① 三重前置校验                                      │
+│                     ├ jsonschema 校验（缺 schema→打 skip，不假通过）    │
+│                     ├ binary sha256 比对（workload 锁定）               │
+│                     └ assert max_faults ∈ (0,1)（G5）                  │
+│                          │ 任一失败 → sys.exit（绝不静默空 golden）     │
+│                          ▼                                             │
+│                   ② manifest → 命令行映射（:205-323）                  │
+│                     按 component 路由到 19 个注入器的 flag 组合          │
+│                     （FS 组件直接 sys.exit："SE runner 无法驱动"）      │
+│                          ▼                                             │
+│                   ③ gem5.opt 运行（campaign.run_one 进程组卫生）       │
+│                     stdout/stderr/stats + 注入日志                      │
+│                          ▼                                             │
+│                   ④ faults 日志解析（:358-428）                        │
+│                     扫 13 种日志，排除非注入行（REJECT/MISS/通告）       │
+│                     G5 断言：faults∉(0,1) → VIOLATION 标记（不 exit）   │
+│                          ▼                                             │
+│                   ⑤ oracle 三路分派（:468-498）                        │
+│                     fail_count / protection_model→九类 / 六类          │
+│                          ▼                                             │
+│                   ⑥ RESULT 行（:499）──► classify/campaign 的解析契约   │
+│                                                                        │
+└────────────────────────────────────────────────────────────────────────┘
+```
+
 ### 6.3 runner.py：manifest 执行器
 
 **golden 注册表**（`tools/runner.py:43-59`）——**实测 14 个条目**（13 个 16-hex 校验和 + 1 个 fail_count 语义条目 movbe），注释声明合法性来源："the no-injection reference outputs (native == gem5, deterministic)"。解析优先级（`:92-102`）：显式参数 > golden_id 查表 > `sys.exit`——**绝不静默使用空 golden**。
@@ -1989,20 +2038,35 @@ except subprocess.TimeoutExpired:
 
 文件头（`tools/classify.py:4-13`）同时给出总纲与历史动机（report issue #4）："the old runner and the p0_* scripts NEVER checked the program exit code — a run that crashed (exit!=0) with empty stdout but 1 logged injection was silently labeled SDC."
 
-六类判定次序（`classify_run`，`:84-142`）——**次序即语义**：
+六类判定次序（`classify_run`，`:84-142`）——**次序即语义**（图 6-3）：
 
 ```
-1 SimulatorError  stderr 含 panic/Assertion/SIGSEGV/abort/fatal:/RuntimeError/...
-                  （gem5 自身坏了 → run 无效；不先排除会污染后续所有判读）
-2 Hang            timed_out and not out_checksum（从未完成）
-3 Crash           (returncode!=0 or 架构 trap) and not out_checksum
-                  （workload 级 trap = 真实 DUE；判别基理："here gem5 did NOT
-                   panic; the WORKLOAD trapped (arch-level fault)"）
-4 Inactive        faults_injected == 0（故障没落上，不进概率分母）
-5 (歧义)          not out_checksum 且非超时、exit 0、无 trap
-                  （"an ambiguous/tool-error state — report honestly rather than guess"）
-6 Masked          out_checksum == golden_checksum（落了但未传播）
-7 SDC             校验和不等（静默数据损坏）
+┌────────────────────────────────────────────────────────────────────────┐
+│ 图 6-3：classify 六类判定漏斗——由外到内，先排除工具再读语义             │
+├────────────────────────────────────────────────────────────────────────┤
+│                                                                        │
+│   一次 run 的 stdout/stderr/returncode/faults_injected                 │
+│        │                                                               │
+│        ▼ ① SimulatorError：stderr 含 panic/Assertion/SIGSEGV/abort/    │
+│        │   fatal:/RuntimeError…（gem5 坏了→run 无效；不先排除会        │
+│        │    污染后续所有判读）                                          │
+│        ├──命中──► [无效，不进分母]                                      │
+│        ▼ ② Hang：timed_out and not out_checksum（从未完成）            │
+│        ├──命中──► [DUE 类]                                             │
+│        ▼ ③ Crash：(returncode!=0 or 架构 trap) and not out_checksum    │
+│        │   （workload 级 trap = 真实 DUE："gem5 did NOT panic;         │
+│        │     the WORKLOAD trapped"）                                    │
+│        ├──命中──► [DUE 类]                                             │
+│        ▼ ④ Inactive：faults_injected == 0（故障没落上）                 │
+│        ├──命中──► [不进概率分母]                                        │
+│        ▼ ⑤ 歧义：not out_checksum 且非超时、exit 0、无 trap             │
+│        ├──命中──► ["report honestly rather than guess"]                │
+│        ▼ ⑥ Masked：out_checksum == golden（落了但未传播）               │
+│        ├──命中──► [有效，未传播]                                        │
+│        ▼ ⑦ SDC：校验和不等                                              │
+│                [静默数据损坏——研究的主事件]                              │
+│                                                                        │
+└────────────────────────────────────────────────────────────────────────┘
 ```
 
 **设计哲学**：这是一个"从工具故障 → 时间异常 → 架构异常 → 注入有效性 → 输出语义"的**由外到内漏斗**。互斥性由 early-return 的 if 链保证；校验和提取取**最后一个**独立 16-hex 行（`:54-59`）。
