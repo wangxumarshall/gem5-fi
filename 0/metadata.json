@@ -1,0 +1,69 @@
+{
+  "cli_version": "0.10.2",
+  "checkpoint_id": "01M255NZP265RQWE4KHCYNN33A",
+  "session_id": "5f8f34aa-25fa-408b-952f-7aa4c4fdcbb2",
+  "strategy": "manual-commit",
+  "created_at": "2026-09-10T08:06:57.40985077Z",
+  "branch": "fi-fuzz",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "docs/gem5/gem5-architecture-and-chaos-internals.md"
+  ],
+  "agent": "Claude Code",
+  "model": "GLM-5.3[1m]",
+  "turn_id": "913f66b87e13",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 3852971,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 45858,
+    "api_call_count": 39
+  },
+  "skill_events_version": 1,
+  "skill_events": [
+    {
+      "id": "prompt-skill-claude-code-humanizer-zh-2026-09-10T07:17:43.29940359Z",
+      "event_type": "prompt_invocation",
+      "skill": {
+        "name": "humanizer-zh"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "prompt_slash_command",
+        "confidence": "explicit"
+      },
+      "turn_id": "913f66b87e13",
+      "timestamp": "2026-09-10T07:17:43.29940359Z",
+      "native": {
+        "command": "/humanizer-zh"
+      },
+      "collapse": {
+        "target": "user_message",
+        "label": "/humanizer-zh",
+        "default_collapsed": true
+      }
+    }
+  ],
+  "initial_attribution": {
+    "calculated_at": "2026-09-10T08:06:57.28197665Z",
+    "agent_lines": 0,
+    "agent_removed": 0,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 0,
+    "total_lines_changed": 0,
+    "agent_percentage": 0,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    }
+  ]
+}
