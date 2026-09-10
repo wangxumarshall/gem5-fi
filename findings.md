@@ -701,3 +701,17 @@ neon_lane, physreg arch_frontend + vec_lane {0,1,2,3}(32-bit lane 内单 bit 翻
 fwd_checksum(store→load 共享行),L2-as-L3 代理 + pairedSector(128B 域双侧同位翻转,log 验证:主块+PAIRED 伙伴块两行注入),n=100,零 frozen,Reach 100%:**P_SDC=0.0% [0,3.7]**。
 
 **结论**:L3 故障域代理在缓存驻留负载(fwd_checksum 工作集在 L1/L2 内)上钝——后备翻转被缓存胜出掩蔽,与 DRAM-on-cholesky 同构。**§23 饼图数字**:L3 pairedSector(缓存驻留)=0%;配 DRAM 定向(stream 大工作集)=85.4%(C0)——存储层级风险随"注入层与消费层的距离"和"工作集驻留关系"变化,缓存驻留时外层全部钝。与 §23 scope-cut 决定互补:互连/L3 的真实暴露需 stream 级跨核共享负载,超出 classic-SE 代理能力(E3² 边界),维持 scope-cut + 此 0% 点入饼图(标注负载条件)。
+
+### v1.3 Phase 20 §21 SysReg pilot v2(tick 修复后,2026-09-11): 10/10 触发全 Masked — SCTLR 跨白名单替换被内核吸收
+
+**Pilot v2**(value_to_legal,白名单 6 寄存器,restore cpt.90000000 + first_clock 95e9,360s censored 窗口,1-slot 与 H7 并行合规):
+
+| seed | 注入点 | 替换值 | panic |
+|---|---|---|---|
+| 501/508/510 | sctlr_el1 | 0xffffffc008010800(vbar 类内核指针) | 0 |
+| 502-505/507 | sctlr_el1 | 0x32b5593519(nzcv 类) | 0 |
+| 504/509 | sctlr_el1 | **0x0** | 0 |
+
+**结果**:10/10 注入(每条结果行都有 `Reg: sctlr_el1, idx: 518` site 证据——注:SysReg log 行不含 `faults_injected:` 字符串,我的计数 grep 是 0 属**计数器格式 bug**,第 23 个已知工具瑕疵,非注入缺失)。**10/10 kernel 存活,包括 SCTLR 被替换为 0x0 的极端臂**。
+
+**结论(诚实)**:§21 的"改完立刻触发翻译"实验条件**未满足**——95e9 窗口处内核的 SCTLR MRS 读是非关键路径(如 procfs/打印路径),替换值没有喂给即时 MMU 决策;H7 的对照(2-bit PTE @ 内核态 walk 47% 致死)说明**这个 boot 段的 SysReg 读本身是钝的**。真正的 §21 需要注入点紧跟一个"写 SCTLR→立刻翻页"的活跃序列(sysreg_churn.rcS 已就绪,但需 fresh-boot 管线 ~30-60min/run)。**§21 标注:pilot 级阴性 + 实验条件未满足(同 Phase 5.5 稳态结论一致),fresh-boot 版留待需要时跑**。

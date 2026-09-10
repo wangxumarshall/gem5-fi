@@ -2520,3 +2520,7 @@ two_bit_corrupt + kernel_walk_only 落地;ECC off 47% 致死 vs on 0%(n=30/臂)�
 **第二个跑批事故**：近点 checkpoint 加速方案有一个隐藏错误——`cpt.90000000` 的**恢复基准 tick 是 90e9**(目录名=自 run 起的 tick 数),而 PTW 的 first_clock 语义是**绝对 tick**。我误以为恢复落在 190e9(mkckpt 的 finalTick),把窗口设在 195e9——实际需要从 90e9 跑 105e9 ticks(~13min)才到窗口,而 300s cap 的批量跑全部在窗口前超时:**52 个 ECC-off runs 全部 applied=0,纯垃圾**(结果存 results_invalid_195e9.txt 留证)。SysReg 10-seed 序列同样 0 触发(同一根因)。
 
 **诊断链**:PTW smoke 13m20s 才注入(与"15s"预期矛盾)→ 算 tick 速率(370k/s→13min=105e9 ticks)→ 复原恢复基准。**修复**:first_clock 95000000(95e9 绝对 = 恢复点 90e9 后 5e9,仍在 boot 期 walk 密集段),单发验证 Tick 95001363540 注入驻留 PTE;重启 formal 后 4/4 applied=1。**教训(入 memory)**:gem5 checkpoint 恢复的 curTick 基准 = 目录名数字,不是父 run 的 finalTick;绝对 tick 语义注入器的窗口必须从恢复基准 + 期望提前量计算。
+
+### §21 SysReg pilot v2 完成(2026-09-11)
+
+tick 修复(95e9 窗口)后 10/10 触发(单发验证 + 序列),全 Masked——包括 SCTLR→0x0 极端臂。诚实结论:该 boot 段 SCTLR 读非关键路径,§21 的"立即翻译消费"条件未满足;fresh-boot churn 版留待需要。附带发现第 23 个工具瑕疵(SysReg log 无 faults_injected 字段,计数 grep 不匹配)。
