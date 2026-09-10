@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.10.2",
+  "checkpoint_id": "01M24X7V8D5KE890FXZJDEJ5JP",
+  "strategy": "manual-commit",
+  "branch": "fi-fuzz",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "docs/superpowers/plans/2026-09-10-gem5-book-refactor.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 6487888,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 20432,
+    "api_call_count": 90
+  }
+}

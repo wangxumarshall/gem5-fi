@@ -1,0 +1,1 @@
+/goal 使用lsp深度理解项目源码，对 @docs/gem5/gem5-architecture-and-chaos-internals.md 重构，使得本书由浅入深、通俗易懂，又能再需要的地方深入源码十分深刻。所有重要内容都要增加图示
