@@ -683,3 +683,15 @@ NoC / CHI / HCCS 不做故障注入，最终报告 §4.3 以论证代替实测�
 | ECC on | 0/30(ECC-caught) | 0 | 0 | 30 | **0%** |
 
 **H7 验收断言(原计划"ECC-off spurious>0 vs ECC-on≈0")首次成立**:47% vs 0%。对比链:单点 clear_valid(0% vs 0%,无区分)→ 2-bit+内核态(47% vs 0%,完全区分)。**PTW/PTE 保护的 ECC 价值定界:单 bit 用户态=内核自愈;2-bit 内核态=ECC 是唯一防线**。±CI:47% [30.9,63.7](n=30 Wilson)。
+
+### v1.3 Phase 20 §8 lane pilot(2026-09-08): 向量 PRF lane 0-3 全 0% SDC
+
+neon_lane, physreg arch_frontend + vec_lane {0,1,2,3}(32-bit lane 内单 bit 翻,`--vec_lane_offset` 路由验证:lane marker 在 log 中随 cell 变化),n=100×4,零 frozen,Reach 100%:
+
+| vec_lane | P_SDC [Wilson 95%] |
+|---|---|
+| 0 / 1 / 2 / 3 | 全 **0.0% [0,3.7]** |
+
+**结论**:向量 PRF 的 lane 级翻转在 neon_lane(逐 lane 消费+checksum 归约)上不产生 SDC——与 §7 整数 PRF X3 bit0(100% SDC)对照,**lane 内单 bit 的掩蔽来自 neon_lane 的消费结构**(checksum 对 lane 对称,单 lane 错值被 32-lane 归约稀释?或 lane 值被覆盖)。诚实标注:此 workload 的 oracle 是 16-hex FINAL(归约型),非逐 lane 输出——lane 轴的敏感结论需要逐 lane 输出的 kernel(如 elemwise 思路的向量版)才能与 §7 严格对照。**§8 lane 行标 pilot 级 + oracle 弱**,引用时注意。
+
+附带记录:vec lane 注入的 log 有 `[vec lane N/64 ...]` advisory 行,runner 的 faults 计数可能 +1(advisory 被计入)——分类只用 faults>=1 布尔,不影响结局;G5 计数偏差诚实入档(与 L1D protection 行双计数同类,第 22 个已知工具瑕疵)。

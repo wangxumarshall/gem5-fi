@@ -1,0 +1,19 @@
+schema_version: arm-chaos-fi/v1
+campaign_id: pwf_v13_lane_pilot
+injector: physreg
+config: C0
+mode: SE
+grid:
+  fault_model: [transient_bit_flip]
+  vec_lane: [0, 1, 2, 3]
+n_per_cell: 100
+base_seed: 20260940
+replay_pct: 5.0
+workload:
+  binary: workloads/directed/neon_lane
+  golden_id: neon-golden-v1
+  trigger_mode: cycle
+  trigger_value: 20000
+limits:
+  max_faults: 1
+hang_timeout: 300
