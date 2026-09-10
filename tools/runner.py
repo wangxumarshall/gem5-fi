@@ -395,6 +395,11 @@ def main():
         # max_reg_idx still bounds random sampling when idx is None (random cell)
     elif comp == "physreg":
         cmd += ["--chaos_phys"]
+        # v1.3 Phase 20 §8: vector-lane axis — fault.vec_lane selects the
+        # lane within a vector physreg (with reg_class=vector).
+        if inj.get("vec_lane") is not None:
+            cmd += ["--phys_reg_class", "vector",
+                    "--vec_lane_offset", str(inj["vec_lane"])]
         if layer == "physical":
             cmd += ["--phys_mode", "phys"]
             if idx is not None:

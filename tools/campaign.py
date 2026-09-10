@@ -325,6 +325,9 @@ def manifest_for_cell(campaign, cell, cell_ordinal, rep, outdir):
     # v1.2 Phase 16 (item 3): L1I instruction-encoding field axis.
     if cell.get("l1i_field"):
         manifest["fault"]["l1i_field"] = cell["l1i_field"]
+    # v1.3 Phase 20 §8: vector-lane axis.
+    if cell.get("vec_lane") is not None:
+        manifest["fault"]["vec_lane"] = cell["vec_lane"]
     # v1.2 Phase 14: DRAM ECC-logic-fault arm (§2.17).
     if cell.get("ecc_logic_fault"):
         manifest["fault"]["ecc_logic_fault"] = True
