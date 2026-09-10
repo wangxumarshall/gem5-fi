@@ -1,0 +1,49 @@
+/goal /executing-plans 继续执行task_plan，记得按时更新task_plan\findings和progress这三个文档。要求必须诚实、不能欺骗。
+
+---
+
+/goal /executing-plans 继续执行task_plan，记得按时更新task_plan\findings和progress这三个文档。要求必须诚实、不能欺骗。
+
+---
+
+/goal /executing-plans 继续执行task_plan，记得按时更新task_plan\findings和progress这三个文档。要求必须诚实、不能欺骗。
+
+---
+
+/goal /executing-plans 继续执行task_plan，记得按时更新task_plan、findings和progress这三个文档。要求必须诚实、不能欺骗、必须全力以赴。
+
+---
+
+你觉得窄版和scope-out哪个更合适，为什么？
+
+---
+
+/goal /executing-plans 继续执行task_plan，记得按时更新task_plan、findings和progress这三个文档。要求必须诚实、不能欺骗、必须全力以赴。
+
+---
+
+/goal /executing-plans 继续执行task_plan，记得按时更新task_plan、findings和progress这三个文档。要求必须诚实、不能欺骗、必须全力以赴。FS gem5 并发 parallel -j6(node1 free<12GB→-j4),SE gem5 -j20,绝不 -j16/-jnproc;launcher 用占槽信号量不用 timer 循环;启动前查 node1 free≥12GB 且 swap<20%;跑批中盯 vmstat 的 so 列;setsid 进程组 + kill -- -PGID。本机内存只在 NUMA node1=30GB。
+
+---
+
+/goal /executing-plans 继续执行task_plan，记得按时更新task_plan、findings和progress这三个文档。要求必须诚实、不能欺骗、必须全力以赴。
+
+---
+
+/goal /executing-plans 继续执行task_plan，记得按时更新task_plan、findings和progress这三个文档。要求必须诚实、不能欺骗、必须全力以赴。
+
+---
+
+phase20做完了？
+
+---
+
+所以还没做完，为什么你会给我反馈
+
+---
+
+你同时跑会出现oom吗，会出现别的错误吗
+
+---
+
+要
