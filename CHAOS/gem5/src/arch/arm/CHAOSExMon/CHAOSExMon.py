@@ -7,6 +7,7 @@ class CHAOSExMon(SimObject):
     cxx_header = "arch/arm/CHAOSExMon/CHAOSExMon.hh"
 
     isa = Param.BaseISA(NULL, "Target BaseISA (the ArmISA; reached via cpu->isa[0])")
+    cpu = Param.BaseCPU(NULL, "Owning CPU (for clockPeriod-correct inWindow; NULL = 1GHz fallback)")
 
     # §2.4 exclusive-monitor fault injector. Hooks ISA::handleLockedWrite
     # (the STXR success/failure decision). mode:

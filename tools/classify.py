@@ -39,10 +39,13 @@ Usage:
 """
 import re
 
-# Workload checksum = a standalone 16-hex line on its own (the kernels print
-# FINAL=<16-hex> to stdout/stderr). Match the last such line in the combined
-# output. Empty string if the program never printed one (Hang/Crash).
-_CHECKSUM_RE = re.compile(r"^[0-9a-fA-F]{16}$", re.MULTILINE)
+# Workload checksum = a 16-hex value, either a standalone line (reg_chain
+# style) or FINAL=<16-hex> prefixed (the v1.1 Phase 10/11 kernels:
+# spec_leak_probe / stencil_5pt / stream_triad print "FINAL=<hex>"; found
+# when the stream_triad DRAM pilot classified a REAL SDC run as
+# SimulatorError 'no program checksum' — the regex never matched the
+# prefixed form). Match the LAST occurrence in the combined output.
+_CHECKSUM_RE = re.compile(r"^(?:FINAL=)?([0-9a-fA-F]{16})$", re.MULTILINE)
 
 # gem5-side fatal markers (SimulatorError). These appear in stderr when gem5
 # itself panics/asserts/segs fault — distinct from the workload trapping.
@@ -52,11 +55,65 @@ _SIMERR_MARKERS = ("panic", "Assertion", "SIGSEGV", "abort",
 
 
 def extract_checksum(text):
-    """Return the last 16-hex standalone line in text, or '' if none."""
+    """Return the last 16-hex value (standalone or FINAL=-prefixed line),
+    or '' if none."""
     if not text:
         return ""
     m = _CHECKSUM_RE.findall(text)
     return m[-1] if m else ""
+
+
+# ---------------------------------------------------------------------------
+# v1.1 Phase 8.1 non-hash oracles (task_plan §Phase 8.1 / design doc §1.7).
+# The exact_hash oracle (16-hex FINAL checksum) folds the whole workload
+# output into ONE word — a reduction kernel hides WHERE the fault landed and
+# an FP kernel's last-bit rounding differences are indistinguishable from
+# real SDC. The per-element kernels print richer self-describing lines:
+#
+#   ARRAYHASH=<64hex>   — hash over the full output array (array_hash oracle;
+#                         compares to the golden run's array hash)
+#   ELEMDIFF n=<count> first=<idx> maxulp=<n>
+#                       — per-element diff against a golden array
+#                         (per_element_diff oracle; count>0 -> SDC, and
+#                         first/maxulp are carried into the reason)
+#   ULP=<max_ulp_error> — max ULP error over the output array (fp_ulp oracle;
+#                         > tol -> SDC, <= tol -> Masked even if the bits are
+#                         not exactly equal — a rounding-level difference
+#                         within tolerance is NOT corruption)
+#
+# Regexes match the LAST such line in the combined output (kernels may print
+# progress lines; the final one is the oracle line).
+_ARRAYHASH_RE = re.compile(r"ARRAYHASH=([0-9a-fA-F]{64})")
+_ELEMDIFF_RE = re.compile(
+    r"ELEMDIFF n=(\d+) first=(-?\d+) maxulp=(\d+)")
+_ULP_RE = re.compile(r"ULP=(\d+)")
+
+
+def extract_arrayhash(text):
+    """Return the last ARRAYHASH=<64hex> value in text, or '' if none."""
+    if not text:
+        return ""
+    m = _ARRAYHASH_RE.findall(text)
+    return m[-1] if m else ""
+
+
+def extract_elemdiff(text):
+    """Return the last ELEMDIFF triple (n, first, maxulp) as ints, or None."""
+    if not text:
+        return None
+    m = _ELEMDIFF_RE.findall(text)
+    if not m:
+        return None
+    n, first, maxulp = m[-1]
+    return (int(n), int(first), int(maxulp))
+
+
+def extract_ulp(text):
+    """Return the last ULP=<n> value in text as int, or None if none."""
+    if not text:
+        return None
+    m = _ULP_RE.findall(text)
+    return int(m[-1]) if m else None
 
 
 def _is_simerr(stderr):
@@ -67,9 +124,34 @@ def _is_simerr(stderr):
 
 
 def classify_run(stdout, stderr, returncode, faults_injected,
-                 golden_checksum, timed_out=False):
+                 golden_checksum, timed_out=False, fs_mode=False,
+                 oracle_kind="exact_hash", oracle_tol=0):
     """Classify one run per plan §9.1 (ordered). Returns the category string
-    plus a short reason (for the evidence log)."""
+    plus a short reason (for the evidence log).
+
+    fs_mode (§3.2 Phase 5.4): the FS pipeline has NO workload checksum — the
+    oracle is kernel survival. Ordered rules: kernel-panic/Oops markers ->
+    Crash (DUE); gem5 panic/assert -> SimulatorError (tool); timeout ->
+    Hang; clean exit with faults>=1 -> Masked (kernel absorbed the fault);
+    clean exit with faults==0 -> Inactive.
+
+    oracle_kind (v1.1 Phase 8.1, design doc §1.7): how the completed
+    program's output is compared to the golden reference.
+      exact_hash      — legacy 16-hex FINAL checksum (default; unchanged
+                        behavior for ALL existing campaigns).
+      array_hash      — ARRAYHASH=<64hex> line compared to golden_checksum
+                        (which then carries the golden ARRAYHASH value).
+      per_element_diff— ELEMDIFF n=<count> first=<idx> maxulp=<n> line;
+                        count>0 -> SDC (first/maxulp into the reason),
+                        count==0 -> Masked.
+      fp_ulp          — ULP=<max_ulp_error> line; > oracle_tol -> SDC,
+                        <= oracle_tol -> Masked (rounding-level differences
+                        within tolerance are NOT corruption).
+    All non-hash oracles run AFTER the SimulatorError/Hang/Crash/Inactive
+    rules — the ordered §9.1 categories are unchanged; only the
+    Masked-vs-SDC split at the end is oracle-specific."""
+    # Normalize bytes (subprocess.TimeoutExpired.stdout/stderr may be bytes
+    # even with text=True under some py versions) -> str.
     # Normalize bytes (subprocess.TimeoutExpired.stdout/stderr may be bytes
     # even with text=True under some py versions) -> str.
     def _s(x):
@@ -93,6 +175,26 @@ def classify_run(stdout, stderr, returncode, faults_injected,
         return ("SimulatorError",
                 "config-script argparse/usage error (exit=2, simulation "
                 "never ran, faults_injected=0) — tool failure, run invalid")
+
+    # §3.2 FS pipeline classification (Phase 5.4): no SE checksum exists;
+    # the oracle is kernel survival. gem5's own panic/assert is still a
+    # tool error (simerr); the KERNEL's panic/Oops is the fault outcome.
+    if fs_mode:
+        kernel_died = ("Kernel panic" in out or "Kernel Oops" in out or
+                       "internal error" in out.lower() and "Oops" in out)
+        if simerr:
+            return ("SimulatorError",
+                    "gem5 panic/assert/SIGSEGV (tool failure) — run invalid")
+        if kernel_died:
+            return ("Crash",
+                    "kernel panic/Oops under the fault (DUE per §3.2)")
+        if timed_out:
+            return ("Hang",
+                    "FS run exceeded timeout — kernel wedged under the fault")
+        if faults_injected >= 1:
+            return ("Masked",
+                    "kernel survived the injected fault (clean exit)")
+        return ("Inactive", "no injection landed (window/target absent)")
 
     # 0.5 §2.2 RAT/freelist rename-inconsistency carve-out: a rename-map or
     # freelist fault breaks gem5 O3's internal rename consistency, which gem5
@@ -149,7 +251,63 @@ def classify_run(stdout, stderr, returncode, faults_injected,
                 "0 valid injections (target absent/invalid at trigger, "
                 "or XZR discard)")
 
-    # 5/6. Program completed with a checksum: compare to golden.
+    # 5/6. Program completed: apply the oracle (v1.1 Phase 8.1). The legacy
+    # exact_hash path is byte-for-byte the old behavior; the non-hash kinds
+    # only change HOW the completed output is compared to golden.
+    if oracle_kind == "array_hash":
+        # ARRAYHASH=<64hex> over the whole output array; golden_checksum
+        # carries the golden run's array hash.
+        ah = extract_arrayhash(out)
+        if not ah:
+            return ("SimulatorError",
+                    f"no ARRAYHASH line, exit={returncode}, not timed out — "
+                     f"oracle line missing, run invalid")
+        if ah == golden_checksum:
+            return ("Masked",
+                    f"completed exit={returncode}, ARRAYHASH==golden "
+                    f"({ah[:16]}...) — fault did not propagate")
+        return ("SDC",
+                f"completed exit={returncode}, ARRAYHASH {ah} != "
+                f"golden {golden_checksum} — silent data corruption")
+
+    if oracle_kind == "per_element_diff":
+        # ELEMDIFF n=<count> first=<idx> maxulp=<n>: the kernel itself diffs
+        # its output array against a golden copy; count>0 -> SDC.
+        ed = extract_elemdiff(out)
+        if ed is None:
+            return ("SimulatorError",
+                    f"no ELEMDIFF line, exit={returncode}, not timed out — "
+                     f"oracle line missing, run invalid")
+        n_diff, first, maxulp = ed
+        if n_diff == 0:
+            return ("Masked",
+                    f"completed exit={returncode}, ELEMDIFF n=0 — every "
+                    f"element matches the golden array")
+        return ("SDC",
+                f"completed exit={returncode}, ELEMDIFF n={n_diff} "
+                f"first={first} maxulp={maxulp} — {n_diff} elements differ "
+                f"from the golden array (first differing index {first}, "
+                f"max ULP error {maxulp})")
+
+    if oracle_kind == "fp_ulp":
+        # ULP=<max_ulp_error>: max ULP distance over the output array.
+        # > tol -> SDC; <= tol -> Masked (a rounding-level difference within
+        # tolerance is NOT corruption — the exact_hash oracle would have
+        # mis-counted it as SDC).
+        ulp = extract_ulp(out)
+        if ulp is None:
+            return ("SimulatorError",
+                    f"no ULP line, exit={returncode}, not timed out — "
+                     f"oracle line missing, run invalid")
+        if ulp <= oracle_tol:
+            return ("Masked",
+                    f"completed exit={returncode}, ULP={ulp} <= tol "
+                    f"{oracle_tol} — within rounding tolerance")
+        return ("SDC",
+                f"completed exit={returncode}, ULP={ulp} > tol {oracle_tol} "
+                f"— silent data corruption beyond rounding tolerance")
+
+    # exact_hash (legacy default — unchanged behavior).
     if not out_checksum:
         # No checksum but not timed-out and exit 0 and not trapped: this is
         # an ambiguous/tool-error state — report honestly rather than guess.

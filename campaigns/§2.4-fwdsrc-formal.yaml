@@ -1,0 +1,23 @@
+schema_version: arm-chaos-fi/v1
+campaign_id: fwdsrc_formal_fwd
+injector: lsqfwd
+config: C2
+mode: SE
+grid:
+  # §2.4 fwd_source_sub formal (Phase 4.2): method1 wrong-source forwarding.
+  # fault.model stuck_at_zero -> runner maps to --lsq_struct_mode fwd_source_sub.
+  target_index: [0]
+  bit: []
+  fault_model: [stuck_at_zero]
+  protection_model: [none]
+n_per_cell: 384
+base_seed: 20260825
+replay_pct: 5.0
+workload:
+  binary: workloads/directed/fwd_checksum_kernel
+  golden_id: fwdchecksum-golden-v1
+  trigger_mode: cycle
+  trigger_value: 1000
+limits:
+  max_faults: 1
+hang_timeout: 300

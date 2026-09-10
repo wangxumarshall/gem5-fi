@@ -100,6 +100,8 @@ struct BaseCacheParams;
 /**
  * A basic cache interface. Implements some common functions for speed.
  */
+class CHAOSCache;  // v1.2 Phase 14: victim-fault registry
+
 class BaseCache : public ClockedObject
 {
   protected:
@@ -113,6 +115,12 @@ class BaseCache : public ClockedObject
     };
 
   public:
+    // v1.2 Phase 14 (plan item 2): the CHAOSCache victim-fault registry.
+    // The injector wraps (not subclasses) the cache, so it registers here;
+    // writebackBlk consults the registry AFTER the packet data is set.
+    // nullptr = zero regression. PUBLIC: the injector sets it from its ctor.
+    static class CHAOSCache *chaosVictimHook;
+
     /**
      * Reasons for caches to be blocked.
      */

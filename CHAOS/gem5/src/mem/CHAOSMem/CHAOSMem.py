@@ -40,6 +40,12 @@ class CHAOSMem(SimObject):
     # (a 1-bit data error gets miscorrected to a DIFFERENT value; a 2-bit
     # error is declared 'no error'). Models §2.17 'ECC logic itself unreliable'.
     # NOTE: §2.17 addr_map_sub needs DRAM coordinate mapping (E3, NOT here).
+    # §2.17 addr_map_sub (F5, Phase 4.6): displaced WRITE — read 8 bytes at
+    # the target address, write them at ANOTHER legal address (wrong DRAM
+    # coordinate, bypasses cache tags). E3 proxy (no real DRAM geometry).
+    addrMapSub = Param.Bool(False,
+        "§2.17 F5: if true, attackMemory performs a displaced write (read at "
+        "target, write at another legal address) instead of a byte flip.")
     eccLogicFault = Param.Bool(False,
         "§2.17: if true, the fault is applied to the in-CHAOSMem SECDED "
         "syndrome (ECC-logic fault), not the data byte. Models mis-correction "

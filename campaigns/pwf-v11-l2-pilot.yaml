@@ -1,0 +1,19 @@
+schema_version: arm-chaos-fi/v1
+campaign_id: pwf_v11_l2_pilot
+injector: l2
+config: C0-CACHE
+mode: SE
+grid:
+  fault_model: [transient_bit_flip]
+  target_block_addr: [4325376]
+n_per_cell: 100
+base_seed: 20260908
+replay_pct: 5.0
+workload:
+  binary: workloads/directed/stencil_5pt_kernel
+  golden_id: stencil5pt-golden-v1
+  trigger_mode: cycle
+  trigger_value: 80000
+limits:
+  max_faults: 1
+hang_timeout: 300

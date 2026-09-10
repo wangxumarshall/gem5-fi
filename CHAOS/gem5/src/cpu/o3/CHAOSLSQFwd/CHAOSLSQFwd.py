@@ -40,11 +40,23 @@ class CHAOSLSQFwd(SimObject):
     structMode = Param.String("byte_flip",
         "byte_flip (default, orig) | byte_lane_skew (rol_k rotate the whole "
         "forwarded buffer by laneSkewK bytes — core179 D1 byte-lane phase "
-        "signature) | all_zero (zero the whole 8-byte buffer)")
+        "signature) | all_zero (zero the whole 8-byte buffer) | "
+        "fwd_source_sub (F5 Phase 4.2: forward from the WRONG older SQ "
+        "entry — method1 wrong-source store->load forwarding)")
     laneSkewK = Param.Int(1, "§2.4 byte_lane_skew: rotate by k bytes (default 1)")
 
     firstClock = Param.UInt64(0, "First clock cycle eligible for injection")
     lastClock = Param.UInt64(0, "Last cycle (0 = unrestricted)")
     maxFaults = Param.UInt64(0, "Max faults to inject; 0 = unlimited")
     rngSeed = Param.UInt64(0, "RNG seed (0 = random_device)")
+    # v1.1 Phase 8.2 uniform sampling (design doc §1.7 rule 4): FIXED skip
+    # from the driver's chaosPickSkip(seed, N_eligible) overrides the
+    # legacy geometric(p=0.1) draw. UINT64_MAX sentinel = legacy behavior.
+    eventsToSkip = Param.UInt64(0xFFFFFFFFFFFFFFFF,
+        "FIXED number of eligible events to skip before the first "
+        "injection (uniform-sampling mode). Default UINT64_MAX = legacy "
+        "geometric(0.1) draw from rngSeed.")
+    countOnly = Param.Bool(False,
+        "v1.1 Phase 8.2 countOnlyMode: consume eligible events and print "
+        "CHAOS_ELIGIBLE_COUNT=<n> at teardown, never corrupt.")
     writeLog = Param.Bool(True, "Write a fault_injections.log file")

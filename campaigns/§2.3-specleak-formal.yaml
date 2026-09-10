@@ -1,0 +1,23 @@
+schema_version: arm-chaos-fi/v1
+campaign_id: specleak_formal_branchy
+injector: rat
+config: C2
+mode: SE
+grid:
+  # §2.3 spec_leak formal (Phase 4.1): branch-heavy workload (rich squash
+  # stream) + X3 accumulator. fault.model intermittent_burst -> spec_leak.
+  target_index: [3, 9]
+  bit: []
+  fault_model: [intermittent_burst]
+  protection_model: [none]
+n_per_cell: 384
+base_seed: 20260825
+replay_pct: 5.0
+workload:
+  binary: workloads/directed/branchy_reduce
+  golden_id: branchyreduce-golden-v1
+  trigger_mode: cycle
+  trigger_value: 20000
+limits:
+  max_faults: 1
+hang_timeout: 300

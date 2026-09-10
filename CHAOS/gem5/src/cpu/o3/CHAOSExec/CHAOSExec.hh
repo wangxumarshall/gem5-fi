@@ -46,6 +46,18 @@ class CHAOSExec : public SimObject
     // instead of always the first eligible one (same dynamic instruction
     // every rep on a deterministic stream).
     uint64_t events_to_skip = 0;
+    // v1.1 Phase 8.2 uniform sampling (chaos_event_sample.hh): FIXED skip
+    // from the driver overrides the legacy geometric(0.1) draw.
+    bool fixed_skip_mode = false;    // skip indexes the corruptible stream
+    bool count_only = false;         // consume + count, never corrupt
+    uint64_t eligible_count = 0;     // CHAOS_ELIGIBLE_COUNT=<n> at teardown
+    // v1.2 Phase 13 modes.
+    std::string bitseg;              // byte0..byte7 | nibble
+    bool recurring_stuck = false;
+    uint64_t recurring_mask = 0;
+    bool recurring_mask_drawn = false;
+    bool f3_dependent = false;
+    uint64_t val_lo = 0, val_hi = 0;
 
     std::mt19937 rng;
     std::random_device rd;

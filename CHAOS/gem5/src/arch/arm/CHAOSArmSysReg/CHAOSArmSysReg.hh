@@ -45,7 +45,11 @@ class CHAOSArmSysReg : public SimObject
     void startup() override;  // convert first/last Cycles -> Tick window
 
   private:
-    enum class FaultType { BitFlip, StuckAtZero, StuckAtOne, Random };
+    // ValueToLegal = §2.10 F5 (Phase 4.5, FS-only): substitute the MRS-read
+    // value with the CURRENT VALUE of another whitelisted sysreg (a legal,
+    // in-use configuration value -> silent misconfiguration, not a fault).
+    enum class FaultType { BitFlip, StuckAtZero, StuckAtOne, Random,
+                           ValueToLegal };
     static FaultType stringToFaultType(const std::string &s);
     const char *faultTypeToString(FaultType f);
 
@@ -54,6 +58,12 @@ class CHAOSArmSysReg : public SimObject
     void parseWhitelist(const std::string &s);
 
     ArmISA::ISA *isa;
+    // value_to_legal re-entrancy guard: the F5 branch calls
+    // isa->readMiscRegNoEffect(other) to fetch the substitute value, which
+    // re-enters this hook (isa.cc:457) — infinite recursion -> stack
+    // overflow SIGSEGV (found in the Phase 5.5 pilot). Re-entrant calls
+    // return false immediately (no injection).
+    bool in_injection = false;
     float probability;
     FaultType fault_type_enum;
     uint64_t fault_mask;

@@ -40,6 +40,11 @@ class CHAOSCache(SimObject):
     #   coh   : toggle a coherence bit (§2.7 coh field; shared<->modified flip).
     # tag(F5 same-set legal tag) + repl(replacement meta) DEFERRED (need
     # lookup of another legal tag / repl meta, more plumbing).
+    # v1.2 Phase 14 (plan item 2): victim/writeback path fault — corrupt the
+    # data AS IT LEAVES the cache in a writeback packet (the victim buffer
+    # path; the cache array itself stays clean — the corruption only exists
+    # in flight to the next level).
+    victimFault = Param.Bool(False, "victim/writeback path fault mode")
     targetField = Param.String("data",
         "§2.7/§2.11 field-level fault: data (default, byteOffset/mask) | "
         "valid (invalidate block) | dirty (toggle dirty bit) | coh (toggle "

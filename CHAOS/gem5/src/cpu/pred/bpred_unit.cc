@@ -41,6 +41,7 @@
  */
 
 #include "cpu/pred/bpred_unit.hh"
+#include "cpu/o3/CHAOSBPU/CHAOSBPU.hh"  // v1.2 Phase 16: RAS hook
 
 #include <algorithm>
 
@@ -54,6 +55,12 @@ namespace gem5
 
 namespace branch_prediction
 {
+
+// v1.2 Phase 16 (item 1): the CHAOSBPU RAS-fault hook registry (declared
+// in bpred_unit.hh). The injector (gem5::CHAOSBPU) sets it from its ctor
+// when mode==ras_flip; the return-predict path consults it after the
+// RAS pop. nullptr = zero regression.
+gem5::CHAOSBPU *BPredUnit::chaosRasHook = nullptr;
 
 BPredUnit::BPredUnit(const Params &params)
     : SimObject(params), numThreads(params.numThreads),
@@ -229,6 +236,15 @@ BPredUnit::predict(const StaticInstPtr &inst, const InstSeqNum &seqNum,
 
                 // Set the target to the return address
                 set(hist->target, *return_addr);
+
+                // v1.2 Phase 16 (item 1): CHAOSBPU ras_flip — flip a bit of
+                // the RAS-predicted return address (the return-stack F5).
+                // AFTER set(): hist->target is guaranteed initialized (the
+                // pre-set hook dereferenced a null unique_ptr — real-machine
+                // SIGSEGV in instAddr, pcstate.hh:110). nullptr / non-
+                // ras_flip mode = zero regression.
+                if (chaosRasHook)
+                    chaosRasHook->maybeCorruptRas(tid, *hist->target);
                 hist->targetProvider = TargetProvider::RAS;
 
                 DPRINTF(Branch, "[tid:%i] [sn:%llu] Instr. %s is a "

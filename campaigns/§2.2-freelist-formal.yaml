@@ -1,0 +1,23 @@
+schema_version: arm-chaos-fi/v1
+campaign_id: freelist_formal_cholesky
+injector: freelist
+config: C2
+mode: SE
+grid:
+  # §2.2 CHAOSFreeList: mark_free (premature free-list return, 'double
+  # allocation' family). Runner maps transient_bit_flip -> mark_free.
+  target_index: [3, 9]
+  bit: []
+  fault_model: [transient_bit_flip]
+  protection_model: [none]
+n_per_cell: 384
+base_seed: 20260825
+replay_pct: 5.0
+workload:
+  binary: workloads/directed/cholesky_numeric
+  golden_id: cholesky-golden-v1
+  trigger_mode: cycle
+  trigger_value: 50000
+limits:
+  max_faults: 1
+hang_timeout: 300

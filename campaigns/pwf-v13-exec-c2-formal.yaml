@@ -1,0 +1,20 @@
+schema_version: arm-chaos-fi/v1
+campaign_id: pwf_v13_exec_c2_formal
+injector: exec
+config: C2
+mode: SE
+grid:
+  fault_model: [transient_bit_flip]
+n_per_cell: 384
+base_seed: 20260910
+replay_pct: 5.0
+workload:
+  binary: workloads/directed/elemwise_int_kernel
+  golden_id: elemwiseint-golden-v1
+  oracle_kind: array_hash
+  trigger_mode: cycle
+  trigger_value: 20000
+  uniform_sampling: true
+limits:
+  max_faults: 1
+hang_timeout: 300

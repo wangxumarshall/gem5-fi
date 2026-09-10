@@ -22,4 +22,14 @@ class CHAOSPTW(SimObject):
     ptwEcc = Param.Bool(True, "H7: ECC-on (spurious≈0) / off (spurious>0)")
     maxFaults = Param.UInt64(0, "max faults; 0 = unlimited. Use 1.")
     rngSeed = Param.UInt64(0, "RNG seed (0 = random_device)")
+    # v1.2 Phase 17 (H7 fix): fixed skip + empty-PTE skip. The pilot showed
+    # 60/60 seeds hitting the SAME first-eligible walk (an EMPTY L3 PTE —
+    # clear_valid on 0x0 is a no-op): the injector had NO skip mechanism,
+    # so every rep measured the same dead event.
+    eventsToSkip = Param.UInt64(0,
+        "FIXED number of eligible walk events to skip before the first "
+        "injection (driver-provided; 0 = legacy first-eligible).")
+    skipEmptyPte = Param.Bool(False,
+        "Only inject on NON-EMPTY PTEs (old_pte != 0). clear_valid on an "
+        "empty entry is a no-op — the H7 arm needs resident PTEs.")
     writeLog = Param.Bool(True, "Write a fault_injections.log file")

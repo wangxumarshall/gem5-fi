@@ -182,6 +182,19 @@ class IQUnit : public SimObject
  * have the execute() function called on it.
  * @todo: Make IQ able to handle multiple FU pools.
  */
+// §2.5 CHAOSIQ F6 wake_phase (Phase 4.3): re-issues a delayed wakeup
+// broadcast after |phase_offset| cycles (method3 phase collapse proxy).
+class DelayedWakeEvent : public Event
+{
+  private:
+    InstructionQueue *iq;
+    DynInstPtr inst;
+  public:
+    DelayedWakeEvent(InstructionQueue *_iq, const DynInstPtr &_inst);
+    void process() override;  // in inst_queue.cc (IQ is incomplete here)
+    const char *description() const override { return "CHAOSIQ DelayedWake"; }
+};
+
 class InstructionQueue
 {
   public:

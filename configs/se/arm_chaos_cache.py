@@ -37,9 +37,13 @@ p.add_argument("--probability", type=float, default=1.0)
 p.add_argument("--target_block_addr", type=lambda x:int(x,0), default=0,
                help="Directed: cache block address to inject (block-aligned "
                     "lookup among VALID blocks). 0 = random (default).")
+p.add_argument("--victim_fault", action="store_true",
+               help="v1.2 Phase 14: victim/writeback-path fault — corrupt "
+                    "the in-flight writeback payload (cache array stays "
+                    "clean).")
 p.add_argument("--target_field", default="data",
-               choices=["data","valid","dirty","coh"],
-               help="§2.7/§2.11 field-level: data(default)/valid(invalidate)/dirty(toggle)/coh(toggle)")
+               choices=["data","valid","dirty","coh","tag"],
+               help="§2.7/§2.11/§v1.2-14 field-level: data(default)/valid(invalidate)/dirty(toggle)/coh(toggle)/tag(F5 legal alias — v1.2 Phase 14)")
 p.add_argument("--target_byte_offset", type=int, default=-1,
                help="Directed: byte offset within the target block "
                     "(0..blockSize-1). -1 = random (default).")
@@ -59,10 +63,17 @@ p.add_argument("--protection_model", default="none",
                     "(L1D/L2 data: 1-bit undo=Corrected, 2-bit poison-log=Latent "
                     "E3, >=3 silent); 'secded' (L1D/L2 tag: 1-bit undo, 2-bit "
                     "invalidate=DetectedContained, >=3 silent).")
+# v1.1 Phase 11 open item (L2 size sweep, plan 3c): parameterized L2 size
+# {256KiB, 512KiB, 1MiB} for the stencil working-set-vs-L2-capacity axis.
+p.add_argument("--l2_size", default="512KiB",
+               choices=["256KiB", "512KiB", "1MiB"],
+               help="v1.1 Phase 11: L2 capacity sweep (stencil working set "
+                    "400KB — 256KiB forces spill, 512KiB resident, 1MiB "
+                    "over-provisioned).")
 args = p.parse_args()
 
 cm = {"O3":CPUTypes.O3,"Timing":CPUTypes.TIMING,"Atomic":CPUTypes.ATOMIC,"Minor":CPUTypes.MINOR}
-ch = _Base(l1d_size="64KiB", l1i_size="64KiB", l2_size="512KiB")
+ch = _Base(l1d_size="64KiB", l1i_size="64KiB", l2_size=args.l2_size)
 mem = SingleChannelDDR3_1600("1GiB")
 proc = SimpleProcessor(cpu_type=cm[args.cpu], num_cores=1, isa=ISA.ARM)
 board = SimpleBoard(clk_freq="2GHz", processor=proc, memory=mem, cache_hierarchy=ch)
@@ -91,6 +102,7 @@ def cap(root):
         targetBlockAddr=args.target_block_addr,
         targetByteOffset=args.target_byte_offset,
         targetField=args.target_field,
+        victimFault=args.victim_fault,
         pairedSector=args.paired,
         protectionModel=args.protection_model,
         l1iSemanticField=args.l1i_semantic_field,

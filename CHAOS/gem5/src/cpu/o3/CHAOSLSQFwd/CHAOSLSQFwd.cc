@@ -1,4 +1,5 @@
 #include "cpu/o3/CHAOSLSQFwd/CHAOSLSQFwd.hh"
+#include "sim/sim_exit.hh"
 #include "params/CHAOSLSQFwd.hh"
 
 #include <iostream>
@@ -48,8 +49,27 @@ namespace gem5
             // fault (maxFaults=1) lands on a seed-dependent event instead
             // of always the first eligible one (same dynamic store->load
             // pair every rep on a deterministic stream).
-            std::geometric_distribution<uint64_t> skip_dist(0.1);
-            events_to_skip = skip_dist(rng);
+            // v1.1 Phase 8.2: fixed uniform skip (driver-provided,
+            // chaos_event_sample.hh) overrides the legacy geometric(0.1)
+            // draw; UINT64_MAX sentinel keeps legacy behavior.
+            if (p.eventsToSkip != ~0ULL)
+                events_to_skip = p.eventsToSkip;
+            else {
+                std::geometric_distribution<uint64_t> skip_dist(0.1);
+                events_to_skip = skip_dist(rng);
+            }
+            count_only = p.countOnly;
+            // v1.1 Phase 8.2: print CHAOS_ELIGIBLE_COUNT at sim exit (the
+            // destructor may not run before gem5's exit path; the exit
+            // callback always fires). Registered here because CHAOSLSQFwd
+            // self-attaches in the ctor (no startup() override).
+            if (count_only) {
+                registerExitCallback([this]() {
+                    if (log_stream && log_stream->stream())
+                        *(log_stream->stream()) << "CHAOS_ELIGIBLE_COUNT="
+                            << eligible_count << std::endl;
+                });
+            }
             stats = std::make_unique<CHAOSLSQFwdStats>(this);
             random_fault_distribution = std::discrete_distribution<int>(
                 {0.9, 0.05, 0.05});  // bit_flip / stuck0 / stuck1
@@ -61,7 +81,15 @@ namespace gem5
         }
     }
 
-    CHAOSLSQFwd::~CHAOSLSQFwd() {}
+    CHAOSLSQFwd::~CHAOSLSQFwd()
+    {
+        // v1.1 Phase 8.2 countOnlyMode: the driver's dry-run learns
+        // N_eligible from this line (campaign.py parses the log).
+        if (count_only && log_stream && log_stream->stream()) {
+            *(log_stream->stream()) << "CHAOS_ELIGIBLE_COUNT=" << eligible_count
+                << std::endl;
+        }
+    }
 
     CHAOSLSQFwd::FaultType
     CHAOSLSQFwd::stringToFaultType(const std::string &s) {
@@ -87,6 +115,8 @@ namespace gem5
     CHAOSLSQFwd::stringToStructMode(const std::string &s) {
         if (s == "byte_lane_skew") return StructMode::ByteLaneSkew;
         if (s == "all_zero") return StructMode::AllZero;
+        if (s == "fwd_source_sub") return StructMode::FwdSourceSub;
+        if (s == "phase_offset") return StructMode::PhaseOffset;
         return StructMode::ByteFlip;  // default / unknown
     }
 
@@ -122,6 +152,15 @@ namespace gem5
     {
         // Hot-path short-circuit: no injection configured.
         if (probability <= 0.0f) return;
+        // fwd_source_sub injects at the DECISION point (maybeSubstituteSource,
+        // called before the memcpy); this post-forward corrupt hook must NOT
+        // also fire in that mode (double-injection bug found in Phase 4.2
+        // verification: an unlimited-faults run showed bit_flip lines while
+        // in fwd_source_sub mode — the old hook was still active).
+        // phase_offset likewise acts at the WRITEBACK-SCHEDULE point
+        // (maybeDelayForward) — no data mutation there either.
+        if (struct_mode == StructMode::FwdSourceSub) return;
+        if (struct_mode == StructMode::PhaseOffset) return;
         Cycles cur = cpu->curCycle();
         if (cur < first_clock) return;
         if (last_clock != Cycles(0) && cur > last_clock) return;
@@ -130,6 +169,7 @@ namespace gem5
         // Sampling-bias fix (findings.md Phase 2.2): skip the first N
         // eligible forwarding events (N ~ geometric(0.1) from the seed) so
         // the single fault lands on a seed-dependent event.
+        if (count_only) { ++eligible_count; return; }
         if (events_to_skip > 0) {
             --events_to_skip;
             return;
@@ -208,6 +248,105 @@ namespace gem5
         DPRINTF(LSQUnit, "CHAOSLSQFwd: corrupted forwarded byte %d (vaddr=%#x "
                 "mask=%#x type=%s)\n", off, vaddr, mask,
                 faultTypeToString(chosen));
+    }
+
+    bool
+    CHAOSLSQFwd::maybeSubstituteSource(uint8_t *load_data,
+                                       const uint8_t *true_src,
+                                       unsigned copy_size,
+                                       const uint8_t *alt_src,
+                                       unsigned alt_size, Addr vaddr)
+    {
+        // §2.4 fwd_source_sub (F5): wrong-source store->load forwarding.
+        // Only active in FwdSourceSub mode; other modes return false and the
+        // caller does its normal memcpy (zero regression).
+        if (struct_mode != StructMode::FwdSourceSub) return false;
+        if (probability <= 0.0f) return false;
+        if (!load_data || !true_src || !alt_src) return false;
+        if (copy_size == 0 || alt_size == 0) return false;
+
+        Cycles cur = cpu->curCycle();
+        if (cur < first_clock) return false;
+        if (last_clock != Cycles(0) && cur > last_clock) return false;
+        if (max_faults != 0 && faults_injected_count >= max_faults) return false;
+
+        // sampling-bias fix: consume skip only on eligible wrong-source
+        // opportunities (an older SQ entry exists with data)
+        if (count_only) { ++eligible_count; return false; }
+        if (events_to_skip > 0) { --events_to_skip; return false; }
+
+        std::uniform_real_distribution<float> dist(0.0f, 1.0f);
+        if (dist(rng) >= probability) return false;
+
+        // Copy the WRONG store's data into the load buffer. If the wrong
+        // source is smaller than the load, copy what it has (the tail keeps
+        // whatever the caller's buffer held — the mismatch IS the fault).
+        unsigned n = copy_size < alt_size ? copy_size : alt_size;
+        memcpy(load_data, alt_src, n);
+        stats->numFaultsInjected++;
+        ++faults_injected_count;
+        if (write_log) {
+            *(log_stream->stream())
+                << "Cycle: " << cpu->curCycle()
+                << ", Site: store->load_forward_decision"
+                << ", FaultType: fwd_source_sub"
+                << ", Vaddr: 0x" << std::hex << vaddr << std::dec
+                << ", TrueSrcSize: " << copy_size
+                << ", AltSrcSize: " << alt_size
+                << ", Copied: " << n
+                << ", faults_injected: " << faults_injected_count
+                << std::endl;
+        }
+        DPRINTF(LSQUnit, "CHAOSLSQFwd: fwd_source_sub wrong-source forward "
+                "(vaddr=%#x true=%uB alt=%uB)\n", vaddr, copy_size, alt_size);
+        return true;
+    }
+
+    Cycles
+    CHAOSLSQFwd::maybeDelayForward(Addr vaddr, unsigned size)
+    {
+        // §2.4 F6 phase_offset (Phase 4.7, the REAL method3 forward-path
+        // phase proxy): delay ONE forward's WritebackEvent by phaseOffset
+        // CPU cycles. The method3 field signature ('add a no-op ALU ->
+        // trigger rate collapses') is a forward-path timing race — the
+        // load's writeback landing LATER than the dependent instruction's
+        // read window (or vice versa) changes what the consumer sees.
+        // Only active in PhaseOffset mode; other modes return Cycles(0)
+        // (zero regression — the caller schedules at curTick() as usual).
+        if (struct_mode != StructMode::PhaseOffset) return Cycles(0);
+        if (probability <= 0.0f) return Cycles(0);
+        if (max_faults != 0 && faults_injected_count >= max_faults)
+            return Cycles(0);
+
+        Cycles cur = cpu->curCycle();
+        if (cur < first_clock) return Cycles(0);
+        if (last_clock != Cycles(0) && cur > last_clock) return Cycles(0);
+
+        // sampling-bias fix: skip budget consumed on eligible forwards
+        if (count_only) { ++eligible_count; return Cycles(0); }
+        if (events_to_skip > 0) { --events_to_skip; return Cycles(0); }
+
+        std::uniform_real_distribution<float> dist(0.0f, 1.0f);
+        if (dist(rng) >= probability) return Cycles(0);
+
+        faults_injected_count++;
+        stats->numFaultsInjected++;
+        if (write_log) {
+            *(log_stream->stream())
+                << "Cycle: " << cpu->curCycle()
+                << ", Site: store->load_forward_wb_schedule"
+                << ", FaultType: phase_offset"
+                << ", Vaddr: 0x" << std::hex << vaddr << std::dec
+                << ", FwdSize: " << size
+                << ", DelayCycles: +" << lane_skew_k
+                << ", faults_injected: " << faults_injected_count
+                << std::endl;
+        }
+        DPRINTF(LSQUnit, "CHAOSLSQFwd: phase_offset delay +%d cycles "
+                "(vaddr=%#x)\n", lane_skew_k, vaddr);
+        // reuse lane_skew_k as the offset knob (the --lsq_lane_skew_k CLI
+        // arg; documented here as the phase offset in cycles)
+        return Cycles(lane_skew_k > 0 ? lane_skew_k : 1);
     }
 
     CHAOSLSQFwd::CHAOSLSQFwdStats::CHAOSLSQFwdStats(statistics::Group *parent)

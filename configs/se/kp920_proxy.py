@@ -101,6 +101,8 @@ p.add_argument("--phys_reg_class", default="integer",
 p.add_argument("--vec_lane_width", type=int, default=32, choices=[8, 16, 32, 64])
 p.add_argument("--vec_lane_offset", type=int, default=-1)
 p.add_argument("--chaos_mem", action="store_true")
+p.add_argument("--addr_map_sub", action="store_true",
+               help="§2.17 F5: CHAOSMem displaced write (addr map substitution)")
 # §1.2 protection-aware modeling (CHAOSMem's protectionModel; DRAM = secded
 # per Huawei DDR ECC proxy). Same surface as arm_chaos.py — runner.py passes
 # it on the memory route.
@@ -120,7 +122,7 @@ p.add_argument("--lsq_byte_offset", type=int, default=-1)
 # as Crash => the committed "§2.4 LSQFwd 100% DUE" result is INVALID).
 p.add_argument("--lsq_struct_mode", default="byte_flip",
                choices=["byte_flip", "byte_lane_skew", "stale_line_replay",
-                        "all_zero"])
+                        "all_zero", "fwd_source_sub", "phase_offset"])
 p.add_argument("--lsq_lane_skew_k", type=int, default=1)
 # §2.2 CHAOSRenameMap (O3 rename-map fault injector). SELF-ATTACHES at
 # startup() to thread-0 frontRenameMap.chaosRenameMap. map_bitflip /
@@ -128,7 +130,7 @@ p.add_argument("--lsq_lane_skew_k", type=int, default=1)
 p.add_argument("--chaos_rename", action="store_true",
                help="attach CHAOSRenameMap (O3 rename-map injector, §2.2)")
 p.add_argument("--rename_mode", default="map_bitflip",
-               choices=["map_bitflip","f5_substitute","f4_field_stuck"])
+               choices=["map_bitflip","f5_substitute","f4_field_stuck","spec_leak"])
 p.add_argument("--rename_target_arch", type=int, default=-1,
                help="arch reg index whose map entry to corrupt (-1=random 0..30)")
 p.add_argument("--rename_first_clock", type=lambda x: int(x,0), default=100000)
@@ -160,8 +162,10 @@ p.add_argument("--rob_rng_seed", type=lambda x: int(x,0), default=20260825)
 # to IEW.instQueue.chaosIQ. wake_omit (F6) mode (§2.5).
 p.add_argument("--chaos_iq", action="store_true",
                help="attach CHAOSIQ (O3 IQ injector, §2.5)")
-p.add_argument("--iq_mode", default="wake_omit", choices=["wake_omit"])
-p.add_argument("--iq_phase_offset", type=int, default=0)
+p.add_argument("--iq_mode", default="wake_omit",
+               choices=["wake_omit", "src_ready_bitflip", "wake_phase"])
+p.add_argument("--iq_phase_offset", type=int, default=1,
+               help="F6 wake_phase: delay cycles (positive only)")
 p.add_argument("--iq_first_clock", type=lambda x: int(x,0), default=1000)
 p.add_argument("--iq_max_faults", type=lambda x: int(x,0), default=1)
 p.add_argument("--iq_rng_seed", type=lambda x: int(x,0), default=20260825)
@@ -183,6 +187,20 @@ p.add_argument("--fpu_first_clock", type=lambda x: int(x,0), default=1000)
 p.add_argument("--fpu_max_faults", type=lambda x: int(x,0), default=1)
 p.add_argument("--fpu_fault_mask", type=lambda x: int(x,0), default=0)
 p.add_argument("--fpu_rng_seed", type=lambda x: int(x,0), default=20260825)
+# v1.3 Phase 19.1: FPU mode knobs (parity with arm_chaos.py — the v1.1/v1.2
+# modes were only wired on C0; the C2 arm died with argparse errors -> all
+# 384 reps Inactive).
+p.add_argument("--fpu_events_to_skip", type=lambda x: int(x,0), default=-1)
+p.add_argument("--fpu_count_only", action="store_true")
+p.add_argument("--fpu_bitseg", default="",
+               choices=["", "sign", "exp_hi", "exp_lo", "mant_hi", "mant_mid",
+                        "mant_lo"])
+p.add_argument("--fpu_fma_weighted", action="store_true")
+p.add_argument("--fpu_recurring_stuck", action="store_true")
+p.add_argument("--fpu_rounding_sub", action="store_true")
+p.add_argument("--fpu_f3_dependent", action="store_true")
+p.add_argument("--fpu_exp_range", default="-1,-1")
+p.add_argument("--fpu_fpsr_suppress", action="store_true")
 # §2.7 CHAOSL1DForward (post-check escape injector). SELF-ATTACHES at startup()
 # to cpu.chaosL1DFwd. Hooks LSQUnit::completeDataAccess before writeback;
 # XORs the load response data (post-L1D, post-ECC) — the escape path.
@@ -354,6 +372,7 @@ if args.chaos_mem:
         rngSeed=args.rng_seed,
         maxFaults=args.max_faults,
         protectionModel=args.protection_model,
+        addrMapSub=args.addr_map_sub,
         writeLog=True,
     )
 
@@ -461,6 +480,17 @@ if args.chaos_fpu:
         maxFaults=args.fpu_max_faults,
         faultMask=args.fpu_fault_mask,
         rngSeed=args.fpu_rng_seed,
+        eventsToSkip=(0xFFFFFFFFFFFFFFFF if args.fpu_events_to_skip < 0
+                      else args.fpu_events_to_skip),
+        countOnly=args.fpu_count_only,
+        bitseg=args.fpu_bitseg,
+        fmaWeighted=args.fpu_fma_weighted,
+        recurringStuck=args.fpu_recurring_stuck,
+        roundingSub=args.fpu_rounding_sub,
+        f3Dependent=args.fpu_f3_dependent,
+        expLo=int(args.fpu_exp_range.split(",")[0]),
+        expHi=int(args.fpu_exp_range.split(",")[1]),
+        fpsrSuppress=args.fpu_fpsr_suppress,
         writeLog=True,
     )
     board.chaos_fpu = fpu
@@ -527,6 +557,7 @@ if args.chaos_exmon:
     # (ISA::handleLockedWrite calls maybeCorrupt on the STXR verdict).
     ex = CHAOSExMon(
         isa=cpu0.isa[0],
+        cpu=cpu0,
         mode=args.exmon_mode,
         probability=args.probability,
         firstClock=args.exmon_first_clock,

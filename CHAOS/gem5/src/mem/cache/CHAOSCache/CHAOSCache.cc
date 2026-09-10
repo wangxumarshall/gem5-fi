@@ -30,6 +30,7 @@ namespace gem5
         target_byte_offset(p.targetByteOffset),
         paired_sector(p.pairedSector),
         target_field(p.targetField),
+        victim_fault(p.victimFault),
         l1i_semantic_field(p.l1iSemanticField),
         protection_model(p.protectionModel),
         rng_seed(p.rngSeed),
@@ -39,6 +40,11 @@ namespace gem5
         periodicCheck([this] { this->checkPermanent(); }, name() + ".periodicCheck"),
         stats(nullptr)
     {
+        // v1.2 Phase 14: register the victim hook with BaseCache so
+        // writebackBlk can consult us (victim-path faults).
+        if (victim_fault) {
+            BaseCache::chaosVictimHook = this;
+        }
         if (probability != 0.0) {
             log_stream = simout.create("cache_injections.log", false, true);
             if (!log_stream || !log_stream->stream()) {
@@ -243,12 +249,22 @@ namespace gem5
 
     uint8_t 
     CHAOSCache::generateRandomMask(std::mt19937 &rng, int bits_to_change, unsigned size) {
-        uint8_t mask = 0;
-        std::uniform_int_distribution<int> bit_dist(0, size - 1);
-        for (int i = 0; i < bits_to_change; i++) {
-            mask |= (1ULL << bit_dist(rng));
-        }
-        return mask;
+        // v1.1 Phase 8.3 (design doc §1.2 multi-bit ECC ladder): when
+        // faultMask==0 (caller wants a generated mask), bits_to_change bits
+        // are now ADJACENT (a contiguous n-bit burst starting at a random
+        // position), not independent random positions. Independent random
+        // picks made popcount(mask)==bits_to_change improbable (overlapping
+        // picks collapse the burst), so applyProtection()'s 2-bit (poison/
+        // Latent) and >=3-bit (SilentEscape) branches never fired
+        // deterministically — the L1D secded_poison formal only exercised
+        // 1-bit Corrected. A contiguous burst matches the physical MBU
+        // model (adjacent-cell upset, e.g. a single particle strike) and
+        // popcount == bits_to_change exactly.
+        if (bits_to_change <= 0) return 0;
+        if ((unsigned)bits_to_change >= size) return (uint8_t)((1ULL << size) - 1);
+        std::uniform_int_distribution<int> start_dist(0, size - bits_to_change);
+        int start = start_dist(rng);
+        return (uint8_t)(((1ULL << bits_to_change) - 1) << start);
     }
 
     void
@@ -360,6 +376,50 @@ namespace gem5
                 // §2.7/§2.11 field-level fault: when target_field != "data",
                 // corrupt the CacheBlk field (valid/dirty/coh) instead of the
                 // data byte. tag(F5) + repl deferred.
+                // v1.2 Phase 14 (plan 14 item 1): L2 tag F5 — replace the
+                // block's tag with ANOTHER VALID BLOCK's tag from the same
+                // cache (a legal, aligned, in-cache alias — modeling a tag
+                // SRAM soft error that hits a legal value, NOT a random bit
+                // flip). The block now aliases: a lookup for the OTHER
+                // address hits THIS block's data -> silent wrong-data
+                // (method2-style).
+                if (target_field == "tag") {
+                    if (validBlocks.size() < 2) {
+                        if (write_log) {
+                            *(log_stream->stream()) << "Tick: " << curTick()
+                                << ", Cache Block Addr: " << blockAddr
+                                << ", Field: tag — NO partner block (need >=2 valid)"
+                                << std::endl;
+                        }
+                        faults_injected_count++;
+                        continue;
+                    }
+                    // pick a partner != targetBlk
+                    CacheBlk *partner = nullptr;
+                    for (auto *b : validBlocks) {
+                        if (b != targetBlk) { partner = b; break; }
+                    }
+                    if (!partner) continue;
+                    auto old_tag = targetBlk->getTag();
+                    // re-tag via invalidate + insert (TaggedEntry::insert
+                    // asserts !isValid() — setValid on a valid block aborts;
+                    // found on the real machine as a gem5 assertion failure
+                    // at the injection tick). The block now answers to the
+                    // partner's address.
+                    bool was_secure = targetBlk->isSecure();
+                    targetBlk->invalidate();
+                    targetBlk->insert({partner->getTag(), was_secure});
+                    stats->numFaultsInjected++;
+                    faults_injected_count++;
+                    if (write_log) {
+                        *(log_stream->stream()) << "Tick: " << curTick()
+                            << ", Cache Block Addr: " << blockAddr
+                            << ", Field: tag (F5 alias), old_tag=0x" << std::hex
+                            << old_tag << " -> new_tag=0x" << partner->getTag()
+                            << std::dec << std::endl;
+                    }
+                    continue;
+                }
                 if (target_field == "valid") {
                     targetBlk->invalidate();
                     stats->numFaultsInjected++;
@@ -550,4 +610,36 @@ namespace gem5
             }
         }
     }
+    // v1.2 Phase 14 (plan item 2): victim/writeback-path fault. Called by
+    // BaseCache::writebackBlk after setDataFromBlock — the corruption lives
+    // only in the in-flight writeback payload (the cache array stays
+    // clean, so a re-read of the block gets the GOOD data: the fault
+    // surfaces only if the next level's copy is later read back).
+    bool
+    CHAOSCache::maybeCorruptVictim(PacketPtr pkt)
+    {
+        if (!victim_fault) return false;
+        if (max_faults != 0 && faults_injected_count >= max_faults) return false;
+        if (!pkt || !pkt->hasData()) return false;
+        uint8_t *data = pkt->getPtr<uint8_t>();
+        unsigned sz = pkt->getSize();
+        if (sz == 0) return false;
+        // adjacent multi-bit mask (the Phase 8.3 generator) on a random byte
+        std::uniform_int_distribution<int> byteDist(0, sz - 1);
+        int off = byteDist(rng);
+        uint8_t mask = generateRandomMask(rng, bits_to_change, 8);
+        if (mask == 0) mask = 0x80;
+        data[off] ^= mask;
+        faults_injected_count++;
+        if (write_log) {
+            *(log_stream->stream()) << "Tick: " << curTick()
+                << ", Site: writebackBlk (victim path), pkt_addr=0x" << std::hex
+                << pkt->getAddr() << std::dec << ", byte_off=" << off
+                << ", Mask: " << std::bitset<8>(mask)
+                << ", faults_injected: " << faults_injected_count
+                << std::endl;
+        }
+        return true;
+    }
+
 } // namespace gem5

@@ -18,6 +18,8 @@ namespace gem5
           ptw_ecc(p.ptwEcc),
           max_faults(p.maxFaults),
           rng_seed(p.rngSeed),
+          events_to_skip(p.eventsToSkip),
+          skip_empty_pte(p.skipEmptyPte),
           write_log(p.writeLog)
     {
         if (probability > 0.0f) {
@@ -51,6 +53,15 @@ namespace gem5
         if (probability <= 0.0f) return false;
         if (max_faults != 0 && faults_injected_count >= max_faults) return false;
         if (!inWindow()) return false;
+
+        // v1.2 Phase 17 (H7 fix): resident-PTE gate — clear_valid on an
+        // EMPTY entry (0x0) is a no-op; the H7 arm needs resident PTEs.
+        if (skip_empty_pte && pte_data == 0) return false;
+
+        // v1.2 Phase 17 (H7 fix): fixed skip (driver-provided) so the
+        // injection lands on a seed-dependent walk event — the pilot showed
+        // 60/60 seeds hitting the SAME first-eligible (dead) event.
+        if (events_to_skip > 0) { --events_to_skip; return false; }
 
         std::uniform_real_distribution<float> pd(0.0f, 1.0f);
         if (pd(rng) > probability) return false;

@@ -1,0 +1,17 @@
+#!/bin/sh
+# boot_ckpt.rcS — §3.2 FS checkpoint pipeline step 1 (Phase 5.2).
+# Runs via `m5 readfile` after the Atomic boot reaches userspace.
+# Takes a checkpoint at the booted-bash point, then exits the sim so the
+# checkpoint directory is complete and reusable.
+#
+# Pipeline (design doc §3.2 / risk table row 'FS 启动慢 / virtio_blk 挂起'):
+#   1. Atomic boot:  kp920_proxy_fs.py --cpu Atomic --readfile boot_ckpt.rcS
+#      (this script) -> m5 checkpoint -> m5 exit
+#   2. Restore:      --restore-checkpoint cpt.<tick> --cpu O3 (or Atomic)
+#      injectors mount at restore; firstClock is relative to the checkpoint
+#      tick (the config re-bases it — see arm_chaos_fs.py --ckpt_first_clock).
+#   3. ROI single fault -> collect -> classify (FS Crash = kernel panic/Oops).
+echo "[boot_ckpt.rcS] booted to userspace; taking checkpoint"
+m5 checkpoint
+echo "[boot_ckpt.rcS] checkpoint taken; exiting"
+m5 exit

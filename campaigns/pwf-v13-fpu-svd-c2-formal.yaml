@@ -1,0 +1,19 @@
+schema_version: arm-chaos-fi/v1
+campaign_id: pwf_v13_fpu_svd_c2_formal
+injector: fsu
+config: C2
+mode: SE
+grid:
+  fault_model: [transient_bit_flip]
+  fpu_bitseg: [mant_hi, mant_lo]
+n_per_cell: 384
+base_seed: 20260909
+replay_pct: 5.0
+workload:
+  binary: workloads/directed/svd_iterative_kernel
+  golden_id: svditerative-golden-v1
+  trigger_mode: cycle
+  trigger_value: 5000
+limits:
+  max_faults: 1
+hang_timeout: 300

@@ -44,6 +44,7 @@
  */
 
 #include "mem/cache/base.hh"
+#include "mem/cache/CHAOSCache/CHAOSCache.hh"  // v1.2 Phase 14: victim hook
 
 #include "base/compiler.hh"
 #include "base/logging.hh"
@@ -67,6 +68,9 @@
 
 namespace gem5
 {
+
+// v1.2 Phase 14: the CHAOSCache victim-fault registry (declared in base.hh).
+CHAOSCache *BaseCache::chaosVictimHook = nullptr;
 
 BaseCache::CacheResponsePort::CacheResponsePort(const std::string &_name,
                                           BaseCache& _cache,
@@ -1792,6 +1796,12 @@ BaseCache::writebackBlk(CacheBlk *blk)
 
     pkt->allocate();
     pkt->setDataFromBlock(blk->data, blkSize);
+
+    // v1.2 Phase 14 (plan item 2): victim/writeback-path fault. The
+    // registered CHAOSCache may XOR a byte of the IN-FLIGHT payload (the
+    // cache array stays clean). nullptr = zero regression.
+    if (chaosVictimHook)
+        chaosVictimHook->maybeCorruptVictim(pkt);
 
     // When a block is compressed, it must first be decompressed before being
     // sent for writeback.

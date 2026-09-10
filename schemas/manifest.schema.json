@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "arm-chaos-fi fault-injection manifest (v1 + v2)",
-  "description": "Per-run manifest for the ARM64 CHAOS SDC fault-injection campaign (plan \u00a75.1, \u00a71.6). One manifest == exactly one deterministic fault (max_faults=1). v2 (\u00a71.6) is ADDITIVE: it widens target.component, adds target.sub_field/semantic_role, fault.f5_substitute_target/f6_phase_offset/trigger_value_pattern, and the dynamic_context provenance block. All v2 fields are OPTIONAL so existing v1 manifests validate unchanged. S1 injectors (rat/freelist/rob/iq/...) are forward-declared in the component enum; runner.py rejects unmapped components with a clear error (\u00a71.6 honest-reject) until their mapping patch lands.",
+  "description": "Per-run manifest for the ARM64 CHAOS SDC fault-injection campaign (plan §5.1, §1.6). One manifest == exactly one deterministic fault (max_faults=1). v2 (§1.6) is ADDITIVE: it widens target.component, adds target.sub_field/semantic_role, fault.f5_substitute_target/f6_phase_offset/trigger_value_pattern, and the dynamic_context provenance block. All v2 fields are OPTIONAL so existing v1 manifests validate unchanged. S1 injectors (rat/freelist/rob/iq/...) are forward-declared in the component enum; runner.py rejects unmapped components with a clear error (§1.6 honest-reject) until their mapping patch lands.",
   "type": "object",
   "required": [
     "schema_version",
@@ -186,11 +186,11 @@
         },
         "sub_field": {
           "type": "string",
-          "description": "\u00a71.6 v2: structural sub-field, e.g. pfn/ap/asid (TLB), src_ready/dst_tag (IQ), map_entry/free_bit (RAT)"
+          "description": "§1.6 v2: structural sub-field, e.g. pfn/ap/asid (TLB), src_ready/dst_tag (IQ), map_entry/free_bit (RAT)"
         },
         "semantic_role": {
           "type": "string",
-          "description": "\u00a71.6 v2: ABI role / register semantics (e.g. 'accumulator','pointer','loop-counter')"
+          "description": "§1.6 v2: ABI role / register semantics (e.g. 'accumulator','pointer','loop-counter')"
         }
       }
     },
@@ -211,7 +211,8 @@
             "stuck_at_zero",
             "stuck_at_one",
             "legal_domain_sub",
-            "delay_omission"
+            "delay_omission",
+            "recurring_result_stuck"
           ]
         },
         "bit_indices": {
@@ -235,21 +236,119 @@
         },
         "f5_substitute_target": {
           "type": "string",
-          "description": "\u00a71.6 v2 (F5 legal-domain substitute): description of the substitution target (e.g. 'another currently-allocated physReg','another legal tag','another mapped active page pfn')"
+          "description": "§1.6 v2 (F5 legal-domain substitute): description of the substitution target (e.g. 'another currently-allocated physReg','another legal tag','another mapped active page pfn')"
         },
         "f6_phase_offset": {
           "type": "integer",
-          "description": "\u00a71.6 v2 (F6 delay/omission): phase offset in issue/fwd slots (e.g. -2..+2); models method3 timing-race phase shift"
+          "description": "§1.6 v2 (F6 delay/omission): phase offset in issue/fwd slots (e.g. -2..+2); models method3 timing-race phase shift"
         },
         "trigger_value_pattern": {
           "type": "string",
-          "description": "\u00a71.6 v2 (F3 data-dependent trigger): hex pattern; inject only when (target_val & triggerValueMask)==pattern (method2 undervoltage setup-time violation)"
+          "description": "§1.6 v2 (F3 data-dependent trigger): hex pattern; inject only when (target_val & triggerValueMask)==pattern (method2 undervoltage setup-time violation)"
+        },
+        "fpu_mode": {
+          "type": "object",
+          "description": "v1.1 Phase 9: CHAOSFPU mode selection (task_plan 1a). Exactly one mode flag per manifest.",
+          "properties": {
+            "bitseg": {
+              "type": "string",
+              "enum": [
+                "sign",
+                "exp_hi",
+                "exp_lo",
+                "mant_hi",
+                "mant_mid",
+                "mant_lo"
+              ]
+            },
+            "fma_weighted": {
+              "type": "boolean"
+            },
+            "recurring_stuck": {
+              "type": "boolean"
+            },
+            "rounding_sub": {
+              "type": "boolean"
+            },
+            "f3_dependent": {
+              "type": "boolean"
+            },
+            "exp_lo": {
+              "type": "integer"
+            },
+            "exp_hi": {
+              "type": "integer"
+            },
+            "fpsr_suppress": {
+              "type": "boolean"
+            }
+          }
+        },
+        "addr_window": {
+          "type": "object",
+          "description": "v1.1 Phase 11: directed physical DRAM byte window for the memory component.",
+          "properties": {
+            "start": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "end": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        },
+        "target_block_addr": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "v1.1 Phase 11: directed cache-block address for the l1d/l2 components."
+        },
+        "l2_size": {
+          "type": "string",
+          "enum": [
+            "256KiB",
+            "512KiB",
+            "1MiB"
+          ],
+          "description": "v1.1 Phase 11: L2 capacity sweep (cache components)."
+        },
+        "exec_mode": {
+          "type": "object",
+          "description": "v1.2 Phase 13: CHAOSExec mode selection.",
+          "properties": {
+            "bitseg": {
+              "type": "string",
+              "enum": [
+                "byte0",
+                "byte1",
+                "byte2",
+                "byte3",
+                "byte4",
+                "byte5",
+                "byte6",
+                "byte7",
+                "nibble"
+              ]
+            },
+            "recurring_stuck": {
+              "type": "boolean"
+            },
+            "f3_dependent": {
+              "type": "boolean"
+            },
+            "val_lo": {
+              "type": "integer"
+            },
+            "val_hi": {
+              "type": "integer"
+            }
+          }
         }
       }
     },
     "dynamic_context": {
       "type": "object",
-      "description": "\u00a79.2 v2 provenance: post-run observed context at the injection point (filled by the runner/analysis, optional in the manifest as a forward-declared schema).",
+      "description": "§9.2 v2 provenance: post-run observed context at the injection point (filled by the runner/analysis, optional in the manifest as a forward-declared schema).",
       "properties": {
         "mapped_phys_reg": {
           "type": "integer"
@@ -316,11 +415,34 @@
           "enum": [
             "exact_hash",
             "invariant",
-            "allowed_set"
+            "allowed_set",
+            "array_hash",
+            "per_element_diff",
+            "fp_ulp"
           ]
         },
         "golden_id": {
           "type": "string"
+        },
+        "tol": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "v1.1 Phase 8.1: ULP tolerance for kind=fp_ulp (ULP <= tol -> Masked)"
+        }
+      }
+    },
+    "sampling": {
+      "type": "object",
+      "properties": {
+        "events_to_skip": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "v1.1 Phase 8.2: FIXED eligible-event skip (driver-computed uniform draw). Absent = injector's legacy geometric(0.1)."
+        },
+        "count_only": {
+          "type": "boolean",
+          "default": false,
+          "description": "v1.1 Phase 8.2 countOnlyMode dry-run: count eligible events (CHAOS_ELIGIBLE_COUNT in the injector log), never corrupt."
         }
       }
     }

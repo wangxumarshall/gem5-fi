@@ -1,4 +1,5 @@
 #include "cpu/o3/CHAOSBPU/CHAOSBPU.hh"
+#include "cpu/pred/bpred_unit.hh"  // v1.2 Phase 16: RAS registry
 
 #include "cpu/o3/cpu.hh"          // o3::CPU
 #include "arch/generic/pcstate.hh"
@@ -20,6 +21,12 @@ namespace gem5
           rng_seed(p.rngSeed),
           write_log(p.writeLog)
     {
+    // v1.2 Phase 16: register the RAS hook (BPredUnit's return-predict
+    // path consults it). Single global — one CHAOSBPU per run.
+    if (fi_mode == Mode::RasFlip) {
+        branch_prediction::BPredUnit::chaosRasHook = this;
+    }
+
         if (probability > 0.0f) {
             log_stream = simout.create("bpu_injections.log", false, true);
             if (!log_stream || !log_stream->stream())
@@ -38,6 +45,7 @@ namespace gem5
     CHAOSBPU::Mode
     CHAOSBPU::stringToMode(const std::string &s) {
         if (s == "target_flip") return Mode::TargetFlip;
+        if (s == "ras_flip") return Mode::RasFlip;  // v1.2 Phase 16
         return Mode::DirFlip;  // default / unknown
     }
 
@@ -60,6 +68,9 @@ namespace gem5
     bool
     CHAOSBPU::maybeCorrupt(ThreadID tid, bool &taken, PCStateBase &pc)
     {
+        // v1.2 Phase 16: ras_flip mode lives on the BPredUnit return path
+        // (maybeCorruptRas); the BAC post-predict hook must NOT fire it.
+        if (fi_mode == Mode::RasFlip) return false;
         if (!cpu || probability <= 0.0f) return false;
         if (max_faults != 0 && faults_injected_count >= max_faults) return false;
         if (!inWindow()) return false;
@@ -107,6 +118,36 @@ namespace gem5
             return;
         }
         o3cpu->o3BAC().setChaosBPU(this);
+    }
+
+    // v1.2 Phase 16 (item 1): RAS F5 — flip a bit of the predicted return
+    // address. Gated on window/faults/probability like the other modes.
+    void
+    CHAOSBPU::maybeCorruptRas(ThreadID tid, PCStateBase &target)
+    {
+        if (fi_mode != Mode::RasFlip) return;
+        if (!cpu || probability <= 0.0f) return;
+        if (max_faults != 0 && faults_injected_count >= max_faults) return;
+        if (!inWindow()) return;
+
+        if (events_to_skip > 0) { --events_to_skip; return; }
+
+        std::uniform_real_distribution<float> pd(0.0f, 1.0f);
+        if (pd(rng) > probability) return;
+
+        // flip one bit of the return address (faultMask directs, else random)
+        RegVal mask = fault_mask ? fault_mask : (1ULL << (rng() % 48));
+        Addr ra = target.instAddr();
+        target.set(ra ^ (Addr)mask);
+        faults_injected_count++;
+        if (write_log) {
+            *(log_stream->stream()) << "Tick: " << curTick()
+                << ", Site: bpred_ras_return, mode=ras_flip, tid=" << (int)tid
+                << ", old_ra=0x" << std::hex << ra
+                << ", new_ra=0x" << (Addr)(ra ^ mask) << std::dec
+                << ", faults_injected: " << faults_injected_count
+                << std::endl;
+        }
     }
 
 } // namespace gem5

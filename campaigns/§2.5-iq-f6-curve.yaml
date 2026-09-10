@@ -1,0 +1,25 @@
+schema_version: arm-chaos-fi/v1
+campaign_id: iq_f6_phase_curve
+injector: iq
+config: C2
+mode: SE
+grid:
+  # §2.5 F6 wake_phase phase-sensitivity curve (Phase 4.3 flagship):
+  # P_SDC/P_DUE vs phaseOffset in {1,2,4,8} cycles. The `bit` grid axis is
+  # repurposed as the offset (runner passes bit_indices[0] as
+  # --iq_phase_offset for intermittent_burst).
+  target_index: [0]
+  bit: [1, 2, 4, 8]
+  fault_model: [intermittent_burst]
+  protection_model: [none]
+n_per_cell: 96
+base_seed: 20260825
+replay_pct: 5.0
+workload:
+  binary: workloads/directed/madd_chain
+  golden_id: maddchain-golden-v1
+  trigger_mode: cycle
+  trigger_value: 20000
+limits:
+  max_faults: 1
+hang_timeout: 300

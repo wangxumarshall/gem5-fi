@@ -1,0 +1,5 @@
+off 0 rc=124 inj=1 oops=0
+off 1 rc=124 inj=1 oops=0
+on 0 rc=0 inj=1 oops=0
+on 1 rc=0 inj=1 oops=0
+DONE

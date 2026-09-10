@@ -34,7 +34,7 @@ campaigns belong on a healthy 2nd machine. This driver is machine-agnostic; the
 results it produces on cpu179 are PILOT-only and must be replicated before any
 formal claim (§3.1 S6).
 """
-import sys, os, json, argparse, tempfile, subprocess, itertools, time
+import sys, os, json, argparse, tempfile, subprocess, itertools, time, signal
 
 REPO = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 sys.path.insert(0, os.path.dirname(os.path.realpath(__file__)))
@@ -95,6 +95,77 @@ def cell_id_str(cell_idx, cell):
 
 # ---------------------------------------------------------------- manifest write
 
+# v1.1 Phase 8.2: uniform event sampling (design doc §1.7 rule 4). The
+# legacy geometric(p=0.1) skip concentrates the single fault in the first
+# ~30 eligible events (mean 10, P(<=30)~=96%). The two-step replacement:
+#   1. countOnly dry-run: run the cell's manifest with sampling.count_only
+#      once; the injector consumes eligible events WITHOUT corrupting and
+#      prints CHAOS_ELIGIBLE_COUNT=<n> in its log at teardown.
+#   2. the per-rep manifest carries sampling.events_to_skip =
+#      chaos_pick_skip(seed, N_eligible) — a seed-derived UNIFORM draw over
+#      [0, N) (same LCG as the C++ helper chaos_event_sample.hh so the
+#      driver and the injector agree bit-for-bit).
+def chaos_pick_skip(seed, n_eligible):
+    """Python twin of gem5::chaosPickSkip (cpu/o3/chaos_event_sample.hh):
+    one LCG round of the seed, modulo n_eligible."""
+    if n_eligible <= 0:
+        return 0
+    x = (seed ^ 0x9E3779B97F4A7C15) & 0xFFFFFFFFFFFFFFFF
+    x = (x * 6364136223846793005 + 1442695040888963407) & 0xFFFFFFFFFFFFFFFF
+    return x % n_eligible
+
+
+# injector component -> (runner resultdir log name with CHAOS_ELIGIBLE_COUNT)
+_ELIGIBLE_LOG = {
+    "fsu": "fpu_injections.log", "exec": "exec_injections.log",
+    "l1d_fwd": "l1d_fwd_injections.log", "iq": "iq_injections.log",
+    "lsq_fwd": "lsq_fwd_injections.log",
+}
+
+
+def count_eligible_events(campaign, cell, cell_ordinal, outdir, binary,
+                          hang_timeout):
+    """v1.1 Phase 8.2 step 1: one countOnly dry-run of the cell's manifest.
+    Returns N_eligible (int) or None when the injector has no countOnly
+    support (component not in _ELIGIBLE_LOG) — None = legacy geometric
+    sampling stays in effect for that campaign."""
+    inj = campaign["injector"]
+    comp_map = {"gpr": "gpr", "physreg": "physreg", "memory": "memory",
+                "cache": "l1d", "lsqfwd": "physreg",
+                "rat": "rat", "freelist": "freelist", "rob": "rob", "iq": "iq"}
+    comp = comp_map.get(inj, inj)
+    if comp not in _ELIGIBLE_LOG:
+        return None
+    # build the count manifest (rep 0 seed; the count is deterministic in
+    # the workload+trigger, independent of the rep seed)
+    mpath, man = manifest_for_cell(campaign, dict(cell), cell_ordinal, 0,
+                                   outdir)
+    man["sampling"] = {"count_only": True}
+    with open(mpath, "w") as f:
+        yaml.safe_dump(man, f, sort_keys=False, default_flow_style=False)
+    # run it through runner.py (single rep, no replay)
+    cmd = [sys.executable, RUNNER, mpath, "--binary", binary]
+    try:
+        import subprocess as _sp
+        r = _sp.run(cmd, capture_output=True, text=True,
+                    timeout=hang_timeout + 30)
+    except Exception:
+        return None
+    # the injector's log lands in runner's tempfile -d dir; runner prints
+    # the command with it. Simpler: find the newest man-* dir's log.
+    import tempfile as _tf, glob as _glob, re as _re
+    cands = sorted(_glob.glob(os.path.join(_tf.gettempdir(), "man-*")),
+                   key=os.path.getmtime, reverse=True)
+    for d in cands[:3]:
+        lp = os.path.join(d, _ELIGIBLE_LOG[comp])
+        if os.path.exists(lp):
+            for line in open(lp):
+                mm = _re.search(r"CHAOS_ELIGIBLE_COUNT=(\d+)", line)
+                if mm:
+                    return int(mm.group(1))
+    return None
+
+
 def manifest_for_cell(campaign, cell, cell_ordinal, rep, outdir):
     """Build an arm-chaos-fi/v1 manifest (reuses the EXISTING v1 schema that
     runner.py validates) for one (cell, rep), write it to outdir, return path.
@@ -109,13 +180,24 @@ def manifest_for_cell(campaign, cell, cell_ordinal, rep, outdir):
     seed = base + cell_ordinal * 1000 + rep
     run_id = f"{campaign['campaign_id']}-c{cell_ordinal:04d}-r{rep:04d}"
 
+    # H2 microarch axes (rob/phys_int/phys_float/lq/sq) live in the grid
+    # alongside fault axes but are config knobs, not fault fields. Pull them
+    # out of the cell so they flow to platform.config_params only.
+    MICROARCH_AXES = ("rob", "phys_int", "phys_float", "lq", "sq")
+    config_params = {k: cell[k] for k in MICROARCH_AXES if k in cell}
+    cell = {k: v for k, v in cell.items() if k not in MICROARCH_AXES}
+
     # target component <-> injector (schema enum is wider than what runner.py
     # maps today; runner.py will reject unmapped ones with a clear error).
+    # History note: freelist/rob/iq were once mapped to "rat" as a
+    # forward-declaration placeholder from when runner.py only knew rat —
+    # that silently re-routed those campaigns' manifests to the RAT
+    # injector (rob/iq formals were invalid; found 2026-09-04, fixed here).
     comp_map = {
         "gpr": "gpr", "physreg": "physreg", "memory": "memory",
         "cache": "l1d", "lsqfwd": "physreg",  # cache->l1d; lsqfwd uses physreg
-        # forward-declared; runner.py rejects until mapping lands:
-        "rat": "rat", "freelist": "rat", "rob": "rat", "iq": "rat",
+        # runner.py maps these components directly (freelist/rob/iq branches):
+        "rat": "rat", "freelist": "freelist", "rob": "rob", "iq": "iq",
     }
     comp = comp_map.get(inj, inj)
     layer = "physical" if (inj == "physreg" and cell.get("phys_mode") == "phys") else "architectural"
@@ -135,10 +217,23 @@ def manifest_for_cell(campaign, cell, cell_ordinal, rep, outdir):
             "cpu_model": campaign.get("cpu_model", "ArmO3CPU"),
             "config_family": campaign.get("config", "C0"),
         },
+        # H2 window sweep: grid axes named rob/phys_int/phys_float/lq/sq are
+        # MICROARCH KNOBS, not fault axes — collected into
+        # platform.config_params (runner whitelists + passes to the C2
+        # config). Added only when non-empty so old manifests are unchanged.
         "workload": {
             "binary_sha256": wl.get("binary_sha256", ""),
             "input_sha256": "",
             "roi": wl.get("roi", {}),
+            # v1.1 Phase 8.1 (design doc §1.7): non-hash oracles for the
+            # per-element kernels. Omitted when the campaign sets none, so
+            # legacy exact_hash manifests are byte-identical to before.
+            # runner.py reads workload.oracle_kind/workload.oracle_tol (the
+            # manifest oracle block mirrors kind for schema visibility).
+            **({"oracle_kind": wl["oracle_kind"]}
+               if wl.get("oracle_kind") else {}),
+            **({"oracle_tol": wl["oracle_tol"]}
+               if wl.get("oracle_tol") is not None else {}),
         },
         "trigger": {
             "mode": wl.get("trigger_mode", "cycle"),
@@ -168,13 +263,82 @@ def manifest_for_cell(campaign, cell, cell_ordinal, rep, outdir):
             "protection_model": cell.get("protection_model", "none"),
         },
         "rng": {"master_seed": seed, "selection_seed": seed},
-        "limits": {"max_faults": limits.get("max_faults", 1), "max_ticks": 0},
-        "oracle": {"kind": "exact_hash", "golden_id": wl.get("golden_id", "")},
+        # v1.1 Phase 8.4 (task_plan 0d): the recurring_result_stuck model
+        # needs max_faults=0 (the permanent fault recurs on every eligible
+        # event). Emit 0 for that model so runner.py's pairing check passes;
+        # every other model keeps the single-fault contract (default 1).
+        "limits": {"max_faults": (0 if cell.get("fault_model") == "recurring_result_stuck"
+                                  else limits.get("max_faults", 1)),
+                   "max_ticks": 0},
+        # v1.1 Phase 8.1: oracle.kind mirrors the campaign's workload
+        # .oracle_kind (default exact_hash = legacy). tol rides along for
+        # fp_ulp. Kept in the manifest oracle block (schema-visible) AND in
+        # workload (runner reads both, workload spelling wins if both set —
+        # they are written from the same source here so they agree).
+        "oracle": {"kind": wl.get("oracle_kind", "exact_hash"),
+                   "golden_id": wl.get("golden_id", ""),
+                   **({"tol": wl["oracle_tol"]}
+                      if wl.get("oracle_tol") is not None else {})},
     }
+    # v1.1 Phase 9 (task_plan 1c): grid axes named fpu_bitseg / fpu_mode_*
+    # flow into fault.fpu_mode (runner routes them to the CHAOSFPU CLI
+    # flags). Applied after the dict literal closes.
+    _fpu_mode = {}
+    if cell.get("fpu_bitseg"):
+        _fpu_mode["bitseg"] = cell["fpu_bitseg"]
+    for _flag in ("fma_weighted", "recurring_stuck", "rounding_sub",
+                  "f3_dependent", "fpsr_suppress"):
+        if cell.get(f"fpu_mode_{_flag}"):
+            _fpu_mode[_flag] = True
+    if (cell.get("fpu_mode_exp_lo") is not None
+            and cell.get("fpu_mode_exp_hi") is not None):
+        _fpu_mode["exp_lo"] = cell["fpu_mode_exp_lo"]
+        _fpu_mode["exp_hi"] = cell["fpu_mode_exp_hi"]
+    if _fpu_mode:
+        manifest["fault"]["fpu_mode"] = _fpu_mode
+    # v1.2 Phase 13: Exec mode axes.
+    _exec_mode = {}
+    if cell.get("exec_bitseg"):
+        _exec_mode["bitseg"] = cell["exec_bitseg"]
+    for _flag in ("recurring_stuck", "f3_dependent"):
+        if cell.get(f"exec_mode_{_flag}"):
+            _exec_mode[_flag] = True
+    if _exec_mode:
+        manifest["fault"]["exec_mode"] = _exec_mode
+    # v1.1 Phase 11 (task_plan 3b): directed DRAM window axes.
+    _aw = {}
+    if cell.get("mem_addr_start") is not None:
+        _aw["start"] = cell["mem_addr_start"]
+    if cell.get("mem_addr_end") is not None:
+        _aw["end"] = cell["mem_addr_end"]
+    if _aw:
+        manifest["fault"]["addr_window"] = _aw
+    # v1.1 Phase 11: directed cache-block axis + L2 capacity axis.
+    if cell.get("target_block_addr") is not None:
+        manifest["fault"]["target_block_addr"] = cell["target_block_addr"]
+    # v1.2 Phase 14: cache field-level arm (data/valid/dirty/coh/tag).
+    if cell.get("target_field"):
+        manifest["fault"]["target_field"] = cell["target_field"]
+    # v1.2 Phase 14 (item 2): victim-path fault axis.
+    if cell.get("victim_fault"):
+        manifest["fault"]["victim_fault"] = True
+    # v1.2 Phase 16 (item 3): L1I instruction-encoding field axis.
+    if cell.get("l1i_field"):
+        manifest["fault"]["l1i_field"] = cell["l1i_field"]
+    # v1.2 Phase 14: DRAM ECC-logic-fault arm (§2.17).
+    if cell.get("ecc_logic_fault"):
+        manifest["fault"]["ecc_logic_fault"] = True
+    if cell.get("l2_size"):
+        manifest["fault"]["l2_size"] = cell["l2_size"]
     # clean None values the v1 schema doesn't want
     for k in list(manifest["target"]):
         if manifest["target"][k] is None:
             del manifest["target"][k]
+
+    # H2 microarch knobs -> platform.config_params (additive; skipped when
+    # the campaign has no microarch grid axes)
+    if config_params:
+        manifest["platform"]["config_params"] = config_params
 
     os.makedirs(outdir, exist_ok=True)
     path = os.path.join(outdir, f"{run_id}.yaml")
@@ -231,17 +395,23 @@ class _PoolRep:
     main() is NOT picklable and crashes --jobs>1 — including the old local
     log_bad; we carry bad_log_path and use the module-level _log_bad."""
 
-    def __init__(self, binary, hang_timeout, keep_manifests, bad_log_path):
+    def __init__(self, binary, hang_timeout, keep_manifests, bad_log_path,
+                 fs_extra=None):
         self.binary = binary
         self.hang_timeout = hang_timeout
         self.keep_manifests = keep_manifests
         self.bad_log_path = bad_log_path
+        # §3.2 FS pipeline (Phase 5.4): extra runner flags for FS campaigns
+        # (restore-checkpoint/kernel/disk/bootloader/fs-cpu), from the
+        # campaign yaml's `fs:` block. None for SE campaigns (no-op).
+        self.fs_extra = fs_extra or []
 
     def __call__(self, item):
         ord_i, cell, rep, mpath, outdir = item
         res = run_one_rep(mpath, self.binary, self.hang_timeout,
                           self.keep_manifests,
-                          _log_bad(self.bad_log_path))
+                          _log_bad(self.bad_log_path),
+                          fs_extra=self.fs_extra)
         return (mpath, res)
 
 
@@ -255,17 +425,44 @@ def _log_bad(bad_log_path):
     return log_bad
 
 
-def run_one_rep(manifest_path, binary, hang_timeout, keep_manifests, log_bad):
+def run_one_rep(manifest_path, binary, hang_timeout, keep_manifests, log_bad,
+                fs_extra=None):
     """Shell out to tools/runner.py for one manifest. Returns a result dict
-    (classification etc.) for the results.jsonl line."""
+    (classification etc.) for the results.jsonl line.
+
+    The runner is started in its own process group (start_new_session) so a
+    campaign-level timeout kills the WHOLE tree — runner.py AND its gem5
+    child. Plain subprocess.run(timeout=...) only kills runner.py; the gem5
+    grandchild survives as an orphan (PPID=1) and burns a core per hang
+    (found 2026-09-04: 80+ leaked gem5 procs after IQ hang runs).
+    """
     cmd = [sys.executable, RUNNER, manifest_path, "--binary", binary]
+    # §3.2 FS pipeline (Phase 5.4): forward FS runner flags (restore-
+    # checkpoint etc.) — no-op for SE campaigns (fs_extra=[]).
+    if fs_extra:
+        cmd += list(fs_extra)
     try:
-        r = subprocess.run(cmd, capture_output=True, text=True,
-                           timeout=hang_timeout + 30)
-    except subprocess.TimeoutExpired as e:
+        p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                             text=True, start_new_session=True)
+        try:
+            out, err = p.communicate(timeout=hang_timeout + 30)
+            r = subprocess.CompletedProcess(cmd, p.returncode, stdout=out, stderr=err)
+        except subprocess.TimeoutExpired:
+            # kill the WHOLE process group (runner + its gem5 child);
+            # plain kill would orphan the gem5 grandchild (PPID=1)
+            try:
+                os.killpg(os.getpgid(p.pid), signal.SIGKILL)
+            except Exception:
+                p.kill()
+            p.wait()
+            res = {"classification": "Hang", "faults_injected": None,
+                   "exit": -1, "timed_out": True,
+                   "reason": f"runner.py exceeded {hang_timeout+30}s wall budget"}
+            return res
+    except Exception as e:
         res = {"classification": "Hang", "faults_injected": None,
                "exit": -1, "timed_out": True,
-               "reason": f"runner.py exceeded {hang_timeout+30}s wall budget"}
+               "reason": f"spawn failure: {e}"}
         return res
     out = r.stdout or ""
     parsed = parse_runner_result(out)
@@ -431,11 +628,38 @@ def main():
 
     # build the full rep work-list first (so ProcessPoolExecutor can batch),
     # preserving cell ordering for deterministic cell_ordinal.
+    # v1.1 Phase 8.2: when the campaign yaml sets workload.uniform_sampling
+    # (true), each cell gets ONE countOnly dry-run first; the per-rep
+    # manifests then carry sampling.events_to_skip = chaos_pick_skip(seed,
+    # N_eligible) — uniform over the ROI's eligible events (design doc §1.7
+    # rule 4). Absent/false = legacy geometric(0.1) sampling, unchanged.
+    use_uniform = bool(campaign["workload"].get("uniform_sampling", False))
     work = []  # (cell_ordinal, cell, rep, manifest_path, outdir)
     for ord_i, cell in enumerate(cells):
         outdir = os.path.join(runs_dir, f"c{ord_i:04d}")
+        n_eligible = None
+        if use_uniform:
+            n_eligible = count_eligible_events(campaign, cell, ord_i,
+                                               outdir, binary, hang_timeout)
+            if n_eligible is None:
+                print(f"[campaign] cell {ord_i}: countOnly unsupported or "
+                      f"dry-run failed — falling back to legacy geometric "
+                      f"sampling for this cell")
+            elif n_eligible == 0:
+                print(f"[campaign] cell {ord_i}: N_eligible=0 (window "
+                      f"empty) — every rep will be Inactive; skip=0")
+            else:
+                print(f"[campaign] cell {ord_i}: N_eligible={n_eligible} "
+                      f"(countOnly dry-run)")
         for rep in range(n_per_cell):
-            mpath, _ = manifest_for_cell(campaign, cell, ord_i, rep, outdir)
+            mpath, man = manifest_for_cell(campaign, cell, ord_i, rep, outdir)
+            if use_uniform and n_eligible is not None:
+                seed = man["rng"]["selection_seed"]
+                man["sampling"] = {
+                    "events_to_skip": chaos_pick_skip(seed, n_eligible)}
+                with open(mpath, "w") as f:
+                    yaml.safe_dump(man, f, sort_keys=False,
+                                   default_flow_style=False)
             work.append((ord_i, cell, rep, mpath, outdir))
 
     if args.dry:
@@ -453,7 +677,27 @@ def main():
     # "Can't pickle local object 'main.<locals>._do_rep'". The module-level
     # _PoolRep class below carries the run context; the item is the plain
     # (ord_i, cell, rep, mpath, outdir) tuple.
-    _do_rep = _PoolRep(binary, hang_timeout, args.keep_manifests, bad_log_path)
+    # §3.2 FS pipeline (Phase 5.4): the campaign yaml's `fs:` block carries
+    # the runner's FS flags. Recognized keys -> runner CLI flags:
+    #   restore_checkpoint -> --restore-checkpoint (REQUIRED for FS campaigns
+    #   that don't want a fresh boot per rep; the one-time boot_ckpt dir)
+    #   kernel/disk/bootloader/root_partition/fs_cpu -> the same-named runner
+    #   flags (defaults live in runner.py).
+    fs_cfg = campaign.get("fs", {}) or {}
+    fs_extra = []
+    if fs_cfg.get("restore_checkpoint"):
+        fs_extra += ["--restore-checkpoint", str(fs_cfg["restore_checkpoint"])]
+    for key, flag in (("kernel", "--kernel"), ("disk", "--disk"),
+                      ("bootloader", "--bootloader"),
+                      ("root_partition", "--root-partition"),
+                      ("fs_cpu", "--fs-cpu")):
+        if fs_cfg.get(key) is not None:
+            fs_extra += [flag, str(fs_cfg[key])]
+    if fs_extra:
+        print(f"[campaign] FS pipeline flags: {fs_extra}")
+
+    _do_rep = _PoolRep(binary, hang_timeout, args.keep_manifests, bad_log_path,
+                       fs_extra=fs_extra)
 
     if args.jobs <= 1:
         for item in work:

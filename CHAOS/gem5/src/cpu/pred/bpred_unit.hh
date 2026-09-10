@@ -61,6 +61,8 @@
 namespace gem5
 {
 
+class CHAOSBPU;  // v1.2 Phase 16: RAS-fault registry (cpu/o3/CHAOSBPU)
+
 namespace branch_prediction
 {
 
@@ -75,6 +77,12 @@ class BPredUnit : public SimObject
 
     /** Branch Predictor Unit (BPU) interface functions */
   public:
+    // v1.2 Phase 16 (item 1): the CHAOSBPU RAS-fault hook registry. The
+    // injector wraps the predictor, not subclasses it — it registers here;
+    // the return-predict path consults it after the RAS pop. nullptr =
+    // zero regression. PUBLIC: the injector sets it from its ctor.
+    static CHAOSBPU *chaosRasHook;
+
     /**
      * @param params The params object, that has the size of the BP and BTB.
      */

@@ -1,0 +1,25 @@
+schema_version: arm-chaos-fi/v1
+campaign_id: fwdphase_curve_4
+injector: lsqfwd
+config: C2
+mode: SE
+grid:
+  # §2.4 F6 phase_offset curve (Phase 4.7 flagship): P_SDC/P_DUE vs
+  # forward-writeback delay in cycles. This campaign: offset=4 (the
+  # --lsq_lane_skew_k knob; campaign grid carries no offset axis — one
+  # campaign per offset point).
+  target_index: [0]
+  bit: [4]  # bit axis = phase offset in cycles
+  fault_model: [delay_omission]
+  protection_model: [none]
+n_per_cell: 96
+base_seed: 20260825
+replay_pct: 5.0
+workload:
+  binary: workloads/directed/fwd_checksum_kernel
+  golden_id: fwdchecksum-golden-v1
+  trigger_mode: cycle
+  trigger_value: 1000
+limits:
+  max_faults: 1
+hang_timeout: 300

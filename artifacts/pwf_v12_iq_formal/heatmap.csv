@@ -1,0 +1,2 @@
+fault_model,n_total,n_valid,n_inactive,n_simerror,P_SDC,P_SDC_lo,P_SDC_hi,P_DUE,P_DUE_lo,P_DUE_hi,Reach,Reach_lo,Reach_hi,frozen
+transient_bit_flip,384,384,0,0,0.0000,0.0000,0.0099,0.6354,0.5862,0.6820,1.0000,0.9901,1.0000,0

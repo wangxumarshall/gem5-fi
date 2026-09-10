@@ -90,6 +90,14 @@ p.add_argument("--chaos_mem", action="store_true",
                help="attach CHAOSMem to the board DRAM")
 p.add_argument("--addr_start", type=lambda x: int(x,0), default=0)
 p.add_argument("--addr_end", type=lambda x: int(x,0), default=0)
+# §2.17 addr_map_sub (F5, Phase 4.6): displaced-write mode. Present in
+# kp920_proxy.py since Phase 4.6 but the arm_chaos.py argparse flag was
+# missed — every --chaos_mem run on C0 died with AttributeError
+# 'Namespace' object has no attribute 'addr_map_sub' (found during the
+# v1.1 Phase 8.3 acceptance run).
+p.add_argument("--addr_map_sub", action="store_true",
+               help="§2.17 F5: displace the corrupted write to a wrong "
+                    "(adjacent) address instead of corrupting in place")
 p.add_argument("--bit_flip_prob", type=float, default=0.9)
 p.add_argument("--stuck_at_zero_prob", type=float, default=0.05)
 p.add_argument("--stuck_at_one_prob", type=float, default=0.05)
@@ -120,13 +128,21 @@ p.add_argument("--lsq_struct_mode", default="byte_flip",
                     "(rol_k) | all_zero)")
 p.add_argument("--lsq_lane_skew_k", type=int, default=1,
                help="§2.4 byte_lane_skew: rotate by k bytes")
+# v1.1 Phase 8.2 uniform sampling: fixed skip + count-only for CHAOSLSQFwd
+# (its window knobs reuse --first_clock/--last_clock/--max_faults/--rng_seed).
+p.add_argument("--lsq_events_to_skip", type=lambda x: int(x,0), default=-1,
+               help="v1.1 Phase 8.2: FIXED eligible-event skip (uniform "
+                    "sampling). Default -1 = legacy geometric(0.1).")
+p.add_argument("--lsq_count_only", action="store_true",
+               help="v1.1 Phase 8.2 countOnlyMode: count eligible events "
+                    "(CHAOS_ELIGIBLE_COUNT in log), never corrupt.")
 # §2.2 CHAOSRenameMap (O3 rename-map fault injector). SELF-ATTACHES at
 # startup() to thread-0 frontRenameMap.chaosRenameMap. map_bitflip /
 # f5_substitute / f4_field_stuck modes (design doc §2.2).
 p.add_argument("--chaos_rename", action="store_true",
                help="attach CHAOSRenameMap (O3 rename-map injector, §2.2)")
 p.add_argument("--rename_mode", default="map_bitflip",
-               choices=["map_bitflip","f5_substitute","f4_field_stuck"])
+               choices=["map_bitflip","f5_substitute","f4_field_stuck","spec_leak"])
 p.add_argument("--rename_target_arch", type=int, default=-1,
                help="arch reg index whose map entry to corrupt (-1=random 0..30)")
 p.add_argument("--rename_first_clock", type=lambda x: int(x,0), default=100000)
@@ -158,11 +174,21 @@ p.add_argument("--rob_rng_seed", type=lambda x: int(x,0), default=20260825)
 # to IEW.instQueue.chaosIQ. wake_omit (F6) mode (§2.5).
 p.add_argument("--chaos_iq", action="store_true",
                help="attach CHAOSIQ (O3 IQ injector, §2.5)")
-p.add_argument("--iq_mode", default="wake_omit", choices=["wake_omit"])
-p.add_argument("--iq_phase_offset", type=int, default=0)
+p.add_argument("--iq_mode", default="wake_omit",
+               choices=["wake_omit", "src_ready_bitflip", "wake_phase"])
+p.add_argument("--iq_phase_offset", type=int, default=1,
+               help="F6 wake_phase: delay cycles (positive only)")
 p.add_argument("--iq_first_clock", type=lambda x: int(x,0), default=1000)
 p.add_argument("--iq_max_faults", type=lambda x: int(x,0), default=1)
 p.add_argument("--iq_rng_seed", type=lambda x: int(x,0), default=20260825)
+# v1.1 Phase 8.2 uniform sampling: --iq_events_to_skip (fixed skip from the
+# driver's chaosPickSkip; -1 = legacy geometric draw) + --iq_count_only.
+p.add_argument("--iq_events_to_skip", type=lambda x: int(x,0), default=-1,
+               help="v1.1 Phase 8.2: FIXED eligible-event skip (uniform "
+                    "sampling). Default -1 = legacy geometric(0.1).")
+p.add_argument("--iq_count_only", action="store_true",
+               help="v1.1 Phase 8.2 countOnlyMode: count eligible events "
+                    "(CHAOS_ELIGIBLE_COUNT in log), never corrupt.")
 # §2.12 CHAOSExec (O3 integer execution-unit injector). SELF-ATTACHES at
 # startup() to cpu.chaosExec. Hooks DynInst::execute() post-staticInst->execute;
 # filters opClass IntAlu/IntMult/IntDiv; XORs integer result.
@@ -172,6 +198,27 @@ p.add_argument("--exec_first_clock", type=lambda x: int(x,0), default=1000)
 p.add_argument("--exec_max_faults", type=lambda x: int(x,0), default=1)
 p.add_argument("--exec_fault_mask", type=lambda x: int(x,0), default=0)
 p.add_argument("--exec_rng_seed", type=lambda x: int(x,0), default=20260825)
+# v1.1 Phase 8.2 uniform sampling (same contract as --iq_events_to_skip).
+p.add_argument("--exec_events_to_skip", type=lambda x: int(x,0), default=-1,
+               help="v1.1 Phase 8.2: FIXED eligible-event skip (uniform "
+                    "sampling). Default -1 = legacy geometric(0.1).")
+p.add_argument("--exec_count_only", action="store_true",
+               help="v1.1 Phase 8.2 countOnlyMode: count eligible events "
+                    "(CHAOS_ELIGIBLE_COUNT in log), never corrupt.")
+# v1.2 Phase 13 — CHAOSExec mode alignment (PRF-dest rewrite + modes).
+p.add_argument("--exec_bitseg", default="",
+               choices=["", "byte0", "byte1", "byte2", "byte3", "byte4",
+                        "byte5", "byte6", "byte7", "nibble"],
+               help="v1.2 Phase 13: flip bits ONLY within this byte/nibble "
+                    "of the INT result (empty = uniform).")
+p.add_argument("--exec_recurring_stuck", action="store_true",
+               help="v1.2 Phase 13: same fixed mask on every eligible INT "
+                    "result. Use with --max_faults 0.")
+p.add_argument("--exec_f3_dependent", action="store_true",
+               help="v1.2 Phase 13: corrupt only when the result value is "
+                    "within --exec_val_range.")
+p.add_argument("--exec_val_range", default="0,0",
+               help="mode f3 result-value window 'lo,hi' (0,0 = off).")
 # §2.6 CHAOSFPU (O3 FP/vector execution-unit injector). SELF-ATTACHES at
 # startup() to cpu.chaosFPU. Hooks DynInst::execute() post-execute; filters
 # opClass Float*/SimdFloat*; XORs FP result blob (IEEE754 sign/exp/mantissa).
@@ -181,6 +228,43 @@ p.add_argument("--fpu_first_clock", type=lambda x: int(x,0), default=1000)
 p.add_argument("--fpu_max_faults", type=lambda x: int(x,0), default=1)
 p.add_argument("--fpu_fault_mask", type=lambda x: int(x,0), default=0)
 p.add_argument("--fpu_rng_seed", type=lambda x: int(x,0), default=20260825)
+# v1.1 Phase 8.2 uniform sampling (same contract as --iq_events_to_skip).
+p.add_argument("--fpu_events_to_skip", type=lambda x: int(x,0), default=-1,
+               help="v1.1 Phase 8.2: FIXED eligible-event skip (uniform "
+                    "sampling). Default -1 = legacy geometric(0.1).")
+p.add_argument("--fpu_count_only", action="store_true",
+               help="v1.1 Phase 8.2 countOnlyMode: count eligible events "
+                    "(CHAOS_ELIGIBLE_COUNT in log), never corrupt.")
+# v1.1 Phase 9 patch 1a mode 1 — bitseg field stratification.
+p.add_argument("--fpu_bitseg", default="",
+               choices=["", "sign", "exp_hi", "exp_lo", "mant_hi", "mant_mid",
+                        "mant_lo"],
+               help="v1.1 Phase 9: flip bits ONLY within this IEEE754 "
+                    "field (empty = uniform whole-register pick).")
+# v1.1 Phase 9 mode 2 — fma_intermediate (E3 behavioral proxy).
+p.add_argument("--fpu_fma_weighted", action="store_true",
+               help="v1.1 Phase 9: fma_intermediate proxy — draw the flip "
+                    "bit from method3's matched weighted field distribution "
+                    "(mant 85% / exp 10% / sign 5%).")
+# v1.1 Phase 9 mode 3 — recurring_result_stuck (pair with --max_faults 0).
+p.add_argument("--fpu_recurring_stuck", action="store_true",
+               help="v1.1 Phase 9: recurring_result_stuck — the SAME fixed "
+                    "mask on every eligible FSU result (stuck multiplier "
+                    "bit). Use with --max_faults 0.")
+# v1.1 Phase 9 modes 4-6.
+p.add_argument("--fpu_rounding_sub", action="store_true",
+               help="v1.1 Phase 9 mode 4: rounding_sub — one-ULP nudge to "
+                    "the opposite rounding neighbor (E3 proxy for flipped "
+                    "FPCR RMODE).")
+p.add_argument("--fpu_f3_dependent", action="store_true",
+               help="v1.1 Phase 9 mode 5: f3_data_dependent — corrupt only "
+                    "when the result exponent is within --fpu_exp_range.")
+p.add_argument("--fpu_exp_range", default="-1,-1",
+               help="mode 5 exponent window 'lo,hi' (biased exponent, "
+                    "inclusive; -1,-1 = unrestricted).")
+p.add_argument("--fpu_fpsr_suppress", action="store_true",
+               help="v1.1 Phase 9 mode 6: fpsr_suppress — clear FP "
+                    "exception flags (E3 placeholder, logged count).")
 # §2.7 CHAOSL1DForward (post-check escape injector). SELF-ATTACHES at startup()
 # to cpu.chaosL1DFwd. Hooks LSQUnit::completeDataAccess before writeback;
 # XORs the load response data (post-L1D, post-ECC) — the escape path.
@@ -190,12 +274,20 @@ p.add_argument("--l1dfwd_first_clock", type=lambda x: int(x,0), default=1000)
 p.add_argument("--l1dfwd_max_faults", type=lambda x: int(x,0), default=1)
 p.add_argument("--l1dfwd_fault_mask", type=lambda x: int(x,0), default=0)
 p.add_argument("--l1dfwd_rng_seed", type=lambda x: int(x,0), default=20260825)
+# v1.1 Phase 8.2 uniform sampling (same contract as --iq_events_to_skip).
+p.add_argument("--l1dfwd_events_to_skip", type=lambda x: int(x,0), default=-1,
+               help="v1.1 Phase 8.2: FIXED eligible-event skip (uniform "
+                    "sampling). Default -1 = legacy geometric(0.1).")
+p.add_argument("--l1dfwd_count_only", action="store_true",
+               help="v1.1 Phase 8.2 countOnlyMode: count eligible events "
+                    "(CHAOS_ELIGIBLE_COUNT in log), never corrupt.")
 # §2.13 CHAOSBPU (O3 branch-prediction injector). SELF-ATTACHES at startup()
 # to cpu.o3BAC().chaosBPU. Hooks BAC::predict post-bpu->predict; F5 flips
 # direction (dir_flip) or PC target bit (target_flip).
 p.add_argument("--chaos_bpu", action="store_true",
                help="attach CHAOSBPU (O3 branch-pred injector, §2.13)")
-p.add_argument("--bpu_mode", default="dir_flip", choices=["dir_flip","target_flip"])
+p.add_argument("--bpu_mode", default="dir_flip",
+               choices=["dir_flip","target_flip","ras_flip"])
 p.add_argument("--bpu_first_clock", type=lambda x: int(x,0), default=1000)
 p.add_argument("--bpu_max_faults", type=lambda x: int(x,0), default=1)
 p.add_argument("--bpu_fault_mask", type=lambda x: int(x,0), default=0)
@@ -333,11 +425,18 @@ if args.chaos_mem:
         bitFlipProb=args.bit_flip_prob,
         stuckAtZeroProb=args.stuck_at_zero_prob,
         stuckAtOneProb=args.stuck_at_one_prob,
+        # v1.1 Phase 8.3: --bits_to_change was NEVER passed to CHAOSMem here
+        # (only kp920_proxy.py had it) — the SimObject default (-1) drew a
+        # random 1..8 bits per rep, so --bits_to_change was silently ignored
+        # on C0 and the ECC ladder was unreachable. Found during the Phase
+        # 8.3 acceptance run (bits=1/2/3 all produced Mask 0xfe = 7 bits).
+        bitsToChange=args.bits_to_change,
         addr_start=args.addr_start,
         addr_end=args.addr_end,
         rngSeed=args.rng_seed,
         maxFaults=args.max_faults,
         protectionModel=args.protection_model,
+        addrMapSub=args.addr_map_sub,
         eccLogicFault=args.ecc_logic_fault if hasattr(args,'ecc_logic_fault') else False,
         writeLog=True,
     )
@@ -363,6 +462,9 @@ if args.chaos_lsqfwd:
         lastClock=args.last_clock,
         maxFaults=args.max_faults,
         rngSeed=args.rng_seed,
+        eventsToSkip=(0xFFFFFFFFFFFFFFFF if args.lsq_events_to_skip < 0
+                      else args.lsq_events_to_skip),
+        countOnly=args.lsq_count_only,
         writeLog=True,
     )
     board.chaos_lsqfwd = lsq
@@ -426,6 +528,9 @@ if args.chaos_iq:
         firstClock=args.iq_first_clock,
         maxFaults=args.iq_max_faults,
         rngSeed=args.iq_rng_seed,
+        eventsToSkip=(0xFFFFFFFFFFFFFFFF if args.iq_events_to_skip < 0
+                      else args.iq_events_to_skip),
+        countOnly=args.iq_count_only,
         writeLog=True,
     )
     board.chaos_iq = iq
@@ -440,6 +545,14 @@ if args.chaos_exec:
         maxFaults=args.exec_max_faults,
         faultMask=args.exec_fault_mask,
         rngSeed=args.exec_rng_seed,
+        eventsToSkip=(0xFFFFFFFFFFFFFFFF if args.exec_events_to_skip < 0
+                      else args.exec_events_to_skip),
+        countOnly=args.exec_count_only,
+        bitseg=args.exec_bitseg,
+        recurringStuck=args.exec_recurring_stuck,
+        f3Dependent=args.exec_f3_dependent,
+        valLo=int(args.exec_val_range.split(",")[0]),
+        valHi=int(args.exec_val_range.split(",")[1]),
         writeLog=True,
     )
     board.chaos_exec = ex
@@ -453,6 +566,17 @@ if args.chaos_fpu:
         maxFaults=args.fpu_max_faults,
         faultMask=args.fpu_fault_mask,
         rngSeed=args.fpu_rng_seed,
+        eventsToSkip=(0xFFFFFFFFFFFFFFFF if args.fpu_events_to_skip < 0
+                      else args.fpu_events_to_skip),
+        countOnly=args.fpu_count_only,
+        bitseg=args.fpu_bitseg,
+        fmaWeighted=args.fpu_fma_weighted,
+        recurringStuck=args.fpu_recurring_stuck,
+        roundingSub=args.fpu_rounding_sub,
+        f3Dependent=args.fpu_f3_dependent,
+        expLo=int(args.fpu_exp_range.split(",")[0]),
+        expHi=int(args.fpu_exp_range.split(",")[1]),
+        fpsrSuppress=args.fpu_fpsr_suppress,
         writeLog=True,
     )
     board.chaos_fpu = fpu
@@ -467,6 +591,9 @@ if args.chaos_l1dfwd:
         maxFaults=args.l1dfwd_max_faults,
         faultMask=args.l1dfwd_fault_mask,
         rngSeed=args.l1dfwd_rng_seed,
+        eventsToSkip=(0xFFFFFFFFFFFFFFFF if args.l1dfwd_events_to_skip < 0
+                      else args.l1dfwd_events_to_skip),
+        countOnly=args.l1dfwd_count_only,
         writeLog=True,
     )
     board.chaos_l1dfwd = l1df
@@ -519,6 +646,7 @@ if args.chaos_exmon:
     # (ISA::handleLockedWrite calls maybeCorrupt on the STXR verdict).
     ex = CHAOSExMon(
         isa=cpu0.isa[0],
+        cpu=cpu0,
         mode=args.exmon_mode,
         probability=args.probability,
         firstClock=args.exmon_first_clock,
