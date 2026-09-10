@@ -10,6 +10,49 @@
 
 理解 gem5 的正确起点不是"CPU 模拟器"，而是"**离散事件仿真内核（DES）+ 一棵 SimObject 对象树**"。CPU、Cache、总线、内存、故障注入器，全都只是挂在这棵树上的"事件生产者"。本章先看内核本身——它相当于 Linux 内核里的调度器与中断子系统：一切上层行为最终都还原为它的基本操作。
 
+先给出全书的地形图——从事件内核到 O3 流水线到内存系统，CHAOS 的 19 个注入器（图中 `CHAOS*` 标注）全部挂在这三个层次的真实源码钩子上。后文各章即是对这张图逐层的下潜：
+
+```
+┌──────────────────────── gem5 离散事件内核（第一章）────────────────────────┐
+│  doSimLoop → EventQueue::serviceOne → event->process()   [tick 优先级排序]  │
+│         ▲                                    │                             │
+│  Python instantiate(): createCCObject→init→regStats→probe→initState        │
+│  （六遍扫描建对象图；startup 时注入器快照时间窗）                            │
+└──────────────────────────────┬─────────────────────────────────────────────┘
+                               │ CPU_Tick_Pri 自排事件
+┌──────────────────── O3CPU::tick()（第二章）────────────────────────────────┐
+│  BAC──►FTQ──►Fetch──►Decode──►Rename──►IEW──►Commit   ⟨TimeBuffer×5⟩       │
+│   │BPU注入     │        │RAT/FreeList │  │IQ/LSQ/写回  │ROB头               │
+│   │(负对照)    │        │  ↑↑  ↓↓     │  ↑↑           │                     │
+│   │           │     ┌──┴──────────────┴──┴──┐         │                     │
+│   │           │     │ PhysRegFile + FreeList │◄─旁路访问器                  │
+│   │           │     │ （read-trace/stuck 内联hook）       │                     │
+│   │           │     └────────────────────────┘         │                     │
+│   │           │  spec_leak hook: rename.cc:967 跳过freelist归还             │
+│   ▼           ▼                                        ▼                     │
+│  LSQ::executeLoad                                                      │
+│   ├─ sendFragmentToTranslation ──CHAOSAddrPath(翻译前毁vaddr)──► MMU     │
+│   │        │                                                            │
+│   │  mmu.cc:1212: !sctlr.m ──► translateMmuOff（SE 恒走此路，PTW/TLB死路）│
+│   │        │ FS: SCTLR.M=1                                              │
+│   │        ├─► TLB::lookup ──CHAOSArmTLB(命中毁pfn)                     │
+│   │        └─► TableWalker::doLongDescriptor ──CHAOSPTW(PTE读出后)       │
+│   └─ LSQUnit 转发 memcpy（lsq_unit.cc:1502）                             │
+│        ├─ pickSource(换源:错源/陈旧行/相位)   ← hook ①                   │
+│        └─ corrupt(毁数:位级/byte_lane_skew)   ← hook ②                   │
+└──────────────────────────────┬─────────────────────────────────────────────┘
+                               │ RequestPort/ResponsePort（第三章）
+┌──────────────────── 内存系统 ──────────────────────────────────────────────┐
+│ L1D/L1I ──► BaseCache ──► BaseTags::findBlock ◄─CHAOSCache(假命中改道)      │
+│    │          └writebackBlk ◄─CHAOSCache(victim毁写回payload)              │
+│    ▼  XBar ──► L2 ──► MemCtrl ──► AbstractMemory ◄─CHAOSMem(functional RMW)│
+│  isa.cc: MRS读──CHAOSArmSysReg   STXR判定──CHAOSExMon(chaos_exmon_g)       │
+└────────────────────────────────────────────────────────────────────────────┘
+        ▲ 全部注入器 = SimObject 插件（.py/.hh/.cc/SConscript 四文件自发现）
+        ▲ 门控公约：prob→0短路 ‖ 时间窗(tick域) ‖ maxFaults ‖ Bernoulli
+        ▲ 实验机器：campaign→manifest→runner→classify(六类)→escape(A-F)→fingerprint
+```
+
 ### 1.1 一次仿真的顶层控制流
 
 Python 侧的 `m5.simulate()` 直接进入 C++ 的 `simulate()`（`src/sim/simulate.cc:190`）。它做四件事：
@@ -661,49 +704,6 @@ gem5 同 seed 同结果。事件驱动注入器若"窗口开后第一个过概�
 3. CHAOSBPU 在标准 SE 板上不被行使（解耦前端不兼容 SimpleBoard，§2.3）；CHAOSDecode/CHAOSPosParity 不存在于源码树（§4.1）——文档与代码不一致时，以代码为准并如实声明。
 
 ---
-
-## 第八章 一图总览
-
-```
-┌──────────────────────── gem5 离散事件内核（第一章）────────────────────────┐
-│  doSimLoop → EventQueue::serviceOne → event->process()   [tick 优先级排序]  │
-│         ▲                                    │                             │
-│  Python instantiate(): createCCObject→init→regStats→probe→initState        │
-│  （六遍扫描建对象图；startup 时注入器快照时间窗）                            │
-└──────────────────────────────┬─────────────────────────────────────────────┘
-                               │ CPU_Tick_Pri 自排事件
-┌──────────────────── O3CPU::tick()（第二章）────────────────────────────────┐
-│  BAC──►FTQ──►Fetch──►Decode──►Rename──►IEW──►Commit   ⟨TimeBuffer×5⟩       │
-│   │BPU注入     │        │RAT/FreeList │  │IQ/LSQ/写回  │ROB头               │
-│   │(负对照)    │        │  ↑↑  ↓↓     │  ↑↑           │                     │
-│   │           │     ┌──┴──────────────┴──┴──┐         │                     │
-│   │           │     │ PhysRegFile + FreeList │◄─旁路访问器                  │
-│   │           │     │ （read-trace/stuck 内联hook）       │                     │
-│   │           │     └────────────────────────┘         │                     │
-│   │           │  spec_leak hook: rename.cc:967 跳过freelist归还             │
-│   ▼           ▼                                        ▼                     │
-│  LSQ::executeLoad                                                      │
-│   ├─ sendFragmentToTranslation ──CHAOSAddrPath(翻译前毁vaddr)──► MMU     │
-│   │        │                                                            │
-│   │  mmu.cc:1212: !sctlr.m ──► translateMmuOff（SE 恒走此路，PTW/TLB死路）│
-│   │        │ FS: SCTLR.M=1                                              │
-│   │        ├─► TLB::lookup ──CHAOSArmTLB(命中毁pfn)                     │
-│   │        └─► TableWalker::doLongDescriptor ──CHAOSPTW(PTE读出后)       │
-│   └─ LSQUnit 转发 memcpy（lsq_unit.cc:1502）                             │
-│        ├─ pickSource(换源:错源/陈旧行/相位)   ← hook ①                   │
-│        └─ corrupt(毁数:位级/byte_lane_skew)   ← hook ②                   │
-└──────────────────────────────┬─────────────────────────────────────────────┘
-                               │ RequestPort/ResponsePort（第三章）
-┌──────────────────── 内存系统 ──────────────────────────────────────────────┐
-│ L1D/L1I ──► BaseCache ──► BaseTags::findBlock ◄─CHAOSCache(假命中改道)      │
-│    │          └writebackBlk ◄─CHAOSCache(victim毁写回payload)              │
-│    ▼  XBar ─► L2 ─► MemCtrl ─► AbstractMemory ◄─CHAOSMem(functional RMW)  │
-│  isa.cc: MRS读──CHAOSArmSysReg   STXR判定──CHAOSExMon(chaos_exmon_g)       │
-└────────────────────────────────────────────────────────────────────────────┘
-        ▲ 全部注入器 = SimObject 插件（.py/.hh/.cc/SConscript 四文件自发现）
-        ▲ 门控公约：prob→0短路 ‖ 时间窗(tick域) ‖ maxFaults ‖ Bernoulli
-        ▲ 实验机器：campaign→manifest→runner→classify(六类)→escape(A-F)→fingerprint
-```
 
 ## 附录：关键源码索引
 
