@@ -1070,6 +1070,8 @@ if ((state.isStage2 && !vm) || (!state.isStage2 && !state.sctlr.m)) {
 
 ## 第四章 CHAOS 框架总览：19 个注入器的组织法
 
+**本章导览**：前三章讲了"机器怎么造"，从本章起讲"机器怎么被攻击"。CHAOS 的答案是把每个注入器做成一个标准 SimObject 插件（§1.5），挂到前两章讲过的微结构上。本章回答三个组织性问题：19 个注入器各在哪、怎么挂（§4.1-4.2）、什么条件下才真正击发（§4.3）、能表达哪些故障形态（§4.4）、怎么模拟保护机制（§4.5）。这些共性建立后，第五章的 19 节深读就只剩"每个注入器的个性"了。
+
 ### 4.1 模块清单与目录学
 
 上游 CHAOS（巴西侧，README 署名 Vinciguerra 等）提供 4 个模块：CHAOSReg / CHAOSPhysReg / CHAOSCache / CHAOSMem，故障原语仅三种位级操作（bit_flip / stuck_at_zero / stuck_at_one）。本仓库在 fi-fuzz 分支扩展到 **19 个编译进 `build/ARM` 的模块**。先给一张总表，按微架构位置分组；每个注入器在第五章有单独一节：
@@ -1098,7 +1100,71 @@ if ((state.isStage2 && !vm) || (!state.isStage2 && !state.sctlr.m)) {
 
 四个诚实注记：① 旧版本文档提到过的 CHAOSDecode 与 CHAOSPosParity **在源码树中不存在**（`grep -r` 全树无此类）——前者从未实现（译码覆盖由 BPU/RAS/Exec/FPU 承担），后者是研究设计（`docs/cases/core179-microarch-rootcause-synthesis/POSITIONAL_PARITY_RESEARCH.md`），其 tag/verify 双侧校验 hook 并未进入当前 lsq_unit.cc；② CHAOSIQ 的 v1 attackEvent 与 v2 wake hook 并存，按模式分流；③ 同名顶层 `CHAOS/CHAOSxxx/` 目录是 vendored 副本的镜像，构建以 vendored 为权威（§1.5）；④ 六份深读报告比对确认顶层与 vendored 副本逐字节一致（仅 SConscript 行尾差异、CHAOSROB.hh 有 1 行 include 漂移）。
 
+把总表投影到"微架构位置 × 挂载模式"的矩阵上（图 4-1），19 个注入器的组织法一图收尽——横轴即 §4.2 要讲的四种模式，纵轴即图 2-1 的流水线旅程：
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│ 图 4-1：19 注入器 × 微架构位置 × 挂载模式矩阵（◆=主要模式）            │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                         │
+│   微架构位置        模式A自挂载   模式B访问器   模式C attackEvent  模式D  │
+│   （图2-1旅程）     （宿主指针）  （旁路通道）   （自驱动事件）  （hook）│
+│   ─────────────────────────────────────────────────────────────────    │
+│   前端 BAC          BPU(未接线)   BPU基础设施   —              BPU     │
+│   重命名 RAT        ROB(spec_leak)RenameMap    ◆RenameMap     spec_leak│
+│   FreeList          —            ◆FreeList    ◆FreeList      —       │
+│   PRF cell          —            ◆PhysReg     ◆PhysReg       read-trace│
+│   发射 IQ           ◆IQ(wake)    ◆IQ          IQ(v1)         ◆IQ(wake)│
+│   执行 ALU/FSU      ◆FPU(v2/v3)  —            Exec/FPU v1/   ◆FPU     │
+│                                  L1DForward     L1DFwd        v2/v3   │
+│   提交 ROB头        ROB          ◆ROB/RAS     ◆ROB/RAS       —       │
+│   LSU 转发          ◆LSQFwd      —            —              ◆LSQFwd │
+│   AGU→MMU 通路      ◆AddrPath    —            —              ◆AddrPath│
+│   Cache             ◆Cache(双)   ◆Cache       ◆Cache         ◆Cache  │
+│   DRAM              —            —            ◆Mem           —       │
+│   TLB               ◆ArmTLB      ◆ArmTLB      —              ◆ArmTLB │
+│   PTW               ◆PTW         —            —              ◆PTW    │
+│   ISA 系统寄存器    ◆SysReg      —            —              ◆SysReg │
+│                     ExMon(全局指针,唯一特例)   —              ◆ExMon  │
+│   ThreadContext     —            —            ◆Reg(上游)     —       │
+│                                                                         │
+│   规律：越是"事件形状"的故障（何时毁）越靠 C；越是"通路形状"的         │
+│   故障（毁在哪个数据流上）越靠 A+D；B 是 A/C 共用的地基。              │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
 ### 4.2 四种挂载模式
+
+注入器要把攻击送进微结构，但 gem5 的核心状态（RAT、FreeList、ROB、PRF……）大多是 CPU 的私有成员。CHAOS 用四种模式解决"够得着"的问题，图 4-2 先给全貌，再逐个展开：
+
+```
+┌────────────────────────────────────────────────────────────────────────┐
+│ 图 4-2：四种挂载模式——注入器如何"够到"宿主私有状态                     │
+├────────────────────────────────────────────────────────────────────────┤
+│                                                                        │
+│  A 自挂载(宿主指针)      B 旁路访问器        C attackEvent 自驱动      │
+│  ┌───────────────┐      ┌───────────────┐   ┌────────────────────┐    │
+│  │ 注入器构造:    │      │ gem5 CPU/RegFile│  │ 注入器自己的事件：  │    │
+│  │ cpu->lsqFwd=  │      │ ┌───────────┐ │   │ attackEvent ─┐     │    │
+│  │   this        │      │ │private 状态│ │  │   ▲          │自排  │    │
+│  └───────┬───────┘      │ │(RAT/ROB/..)│ │  │   │几何间隔    │     │    │
+│          │              │ └─────▲─────┘ │   │   ▼          │     │    │
+│          ▼              │       │只读/定位│   │ processFault ┘     │    │
+│  ┌───────────────┐      │       │       │   │ （经B模式通道访问   │    │
+│  │ 宿主热路径:    │      │ ┌─────┴─────┐ │   │   目标，解耦最彻底） │    │
+│  │ if(lsqFwd)    │      │ │公开访问器  │ │   └────────────────────┘    │
+│  │  lsqFwd->…() │      │ │physRegFile │ │                             │
+│  └───────────────┘      │ │()/robAccess│ │   D 热路径 hook            │
+│   优点:零框架开销        │ └───────────┘ │   = A 的调用侧宿主代码：     │
+│   判空短路即"没挂"       │ ┌───────────┐ │   if (cpu->xxx)            │
+│                         │ │ 注入器经通道│ │     cpu->xxx->method()     │
+│                         │ │ 施加注入   │ │   ——这是CHAOS对gem5的       │
+│                         │ └───────────┘ │     全部侵入（每处几行）     │
+│                         └───────────────┘                              │
+│                                                                        │
+│  特例：ExMon 用命名空间级全局指针 chaos_exmon_g（自由模板函数无 this） │
+└────────────────────────────────────────────────────────────────────────┘
+```
 
 **模式 A：自挂载（self-attach）**——注入器构造函数把 `this` 写进宿主的裸指针，热路径判空短路。全家福：
 
@@ -1140,6 +1206,32 @@ if (dist(rng) >= probability) return;                // ⑤ Bernoulli 抽样
 // …门门过了才真正改数据
 ```
 
+```
+┌──────────────────────────────────────────────────────────────────┐
+│ 图 4-3：五层门控漏斗——每个注入事件的必经之路                        │
+├──────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│   hook 被行使（numHooksCalled 在漏斗之外先计数，§7.5）             │
+│        │                                                         │
+│        ▼ ① probability<=0？──是──► return（未配置，零开销）        │
+│        │否                                                       │
+│        ▼ ② cur < first_clock？──是──► return（窗口未开）           │
+│        │否            ⚠D1/D4：tick/cycle 域混用 → 窗口推到       │
+│        │                      仿真外 → 384 次全 Inactive          │
+│        ▼ ③ cur > last_clock？──是──► return（窗口已关）            │
+│        │否            ⚠lastClock 小非零值 = 静默零注入            │
+│        │                        （README 警告，窗口控制用maxFaults）│
+│        ▼ ④ faults>=max_faults？──是──► return（单故障纪律 G5）     │
+│        │否            ★ maxFaults=1 + 固定seed = 可复现实验单元    │
+│        ▼ ⑤ dist(rng)>=p？──是──► return（Bernoulli 未命中）        │
+│        │否            ⚠RNG 构造顺序 UB → seed 0 必崩（patch      │
+│        │                      bc4feb4，lambda 局部构造修复）       │
+│        ▼                                                         │
+│   真正改数据（毁值/换源/改映射/清标志……）                           │
+│                                                                  │
+└──────────────────────────────────────────────────────────────────┘
+```
+
 每一条门都是踩坑换来的，项目注释就是证据链：
 
 - **②③ 的时间域陷阱（D1/D4）**：LSQ/TLB/PTW 不是 ClockedObject，够不到 `curCycle()`，只能用 `curTick()`。CHAOSMem 曾因 `tickToClockRatio=1000`（1GHz 假设）在 2.6GHz 配置下把窗口推出仿真总长，384 次全 Inactive。修法（CHAOSArmTLB.hh:42-46 与 CHAOSArmSysReg.cc:59-67 的 D1/D4 fix 注释）：firstClock/lastClock 语义改为 **sim tick 域**，`startup()` 里快照一次，不猜换算比。例外要如实记录：CHAOSCache/CHAOSMem 仍用显式 `tickToClockRatio` 换算（`CHAOSCache.cc:56-58`）、CHAOSExMon 用 `curTick() > last_clock * 1000` 的 advisory 换算（`CHAOSExMon.cc:69-87`，注释自认"honest limitation"）；而持有 O3 CPU 指针的 LSQFwd 用 `cpu->curCycle()` 域——**同一个"时间窗"参数在不同注入器里是不同的时间域**，这是使用者的必修课。
@@ -1161,6 +1253,39 @@ rng([this]() {
 ### 4.4 故障模型的三层表达力
 
 上游 CHAOS 只有位级三原语（对一个 byte：`&=~mask` / `|=mask` / `^=mask`）。本仓库的扩展沿三个正交轴展开：
+
+```
+┌────────────────────────────────────────────────────────────────────┐
+│ 图 4-4：故障模型的三条正交轴——从"翻个位"到"破坏决定机制"             │
+├────────────────────────────────────────────────────────────────────┤
+│                                                                    │
+│   表达力 ──────────────────────────────────────────────► 更强      │
+│                                                                    │
+│   轴一：结构化故障            轴二：错源/时序         轴三：协议    │
+│   （整字错误路由）            （拿错的数据）          （不变量破坏）│
+│   ┌───────────────────┐      ┌──────────────────┐  ┌────────────┐  │
+│   │ 位翻转表达不了的:  │      │ 数据没错,来源错: │  │ "决定数据  │  │
+│   │ • byte_lane_skew  │      │ • fwd_source_sub │  │  从哪来"的  │  │
+│   │  (字节流循环移位,  │      │  (错store转发)   │  │  机制错了: │  │
+│   │  汉明距离可为0)    │      │ • stale_line_    │  │ • RAT 张冠 │  │
+│   │ • all_zero        │      │  replay(陈旧行)  │  │  李戴      │  │
+│   │ • L1I 语义字段    │      │ • phase_offset   │  │ • 活寄存器 │  │
+│   │  (rd/rn/rm/opcode │      │  (相位竞态)      │  │  入空闲池  │  │
+│   │  位段搬移)        │      │ • TLB mapped_page│  │ • 错路径写 │  │
+│   │ 代表: LSQFwd/     │      │ • SysReg legal值 │  │  保留      │  │
+│   │  Cache/AddrPath   │      │ 代表: LSQFwd/    │  │ • SC假成功 │  │
+│   │                   │      │  TLB/SysReg/Mem/ │  │ • cache假命│  │
+│   │ 当structural≠none │      │  RenameMap       │  │  中改道    │  │
+│   │ 优先于位级轴      │      │                  │  │ • 异常静默 │  │
+│   └───────────────────┘      └──────────────────┘  └────────────┘  │
+│                                                    代表: RenameMap/│
+│                                                    FreeList/ROB/  │
+│                                                    ExMon/Cache    │
+│   上游三原语（bit_flip/stuck_zero/stuck_one）是三条轴共享的底层    │
+│   毁伤原语——轴是"路由到什么粒度/哪一层"的组织，不是替代             │
+└────────────────────────────────────────────────────────────────────┘
+```
+
 
 **轴一：结构化故障（整字错路由）**——`CHAOSLSQFwd::applyStructuralFault`（`CHAOSLSQFwd.cc:202-244`）：
 
