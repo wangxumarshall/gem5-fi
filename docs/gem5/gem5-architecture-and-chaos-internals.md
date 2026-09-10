@@ -823,9 +823,40 @@ CHAOSFPU.hh 的注释记录了一次教科书式的 hook 迁移（`CHAOSFPU.hh:2
 
 ## 第三章 内存系统：从 Request 到 DRAM
 
+**本章导览**：CPU 流水线之外的一切"慢"东西——cache、总线、内存、地址翻译——都归内存系统管。本章沿一次访存的传播方向讲：先看它被包装成什么对象（§3.1 Request/Packet），再看它走什么通道（§3.2 Port 三模式），然后逐层下行（§3.3 Cache、§3.4 物理内存），最后单独深读 ARM 地址翻译栈（§3.5）——因为四个 FS-only 注入器全部挂在翻译栈上，而 §3.5 的那行 `if` 是全书最重要的"模式边界"之一。
+
 ### 3.1 Request 与 Packet
 
-一次访存的三个抽象层：`Request`（谁、哪个虚地址、什么语义——`src/mem/request.hh`）→ `Packet`（带上 MemCmd 与数据缓冲的传输单元——`src/mem/packet.hh`）→ Port 间协议交互。request.hh 里有一处 CHAOS 修改（`request.hh:858-869`）：
+一次访存的三个抽象层：`Request`（谁、哪个虚地址、什么语义——`src/mem/request.hh`）→ `Packet`（带上 MemCmd 与数据缓冲的传输单元——`src/mem/packet.hh`）→ Port 间协议交互。
+
+```
+┌────────────────────────────────────────────────────────────────────┐
+│ 图 3-1：一次访存的三层抽象                                           │
+├────────────────────────────────────────────────────────────────────┤
+│                                                                    │
+│  CPU 一条 load 执行：                                              │
+│                                                                    │
+│  ┌──────────────┐  "谁、哪个虚地址、什么语义"                        │
+│  │ Request      │  requestorId / vaddr / size / flags / pc          │
+│  │ (request.hh) │  ◆CHAOSAddrPath 的 setVaddr 落点（:858，          │
+│  └──────┬───────┘    翻译前只改 vaddr，保全其余元数据）              │
+│         │                                                          │
+│         ▼  被包装进                                                 │
+│  ┌──────────────┐  "带 MemCmd 与数据缓冲的传输单元"                  │
+│  │ Packet       │  cmd(ReadReq/WriteReq/...) + data 指针            │
+│  │ (packet.hh)  │  ◆CHAOSMem 构造 Read/Write 包直捅内存             │
+│  └──────┬───────┘    （functional 模式，§3.2）                       │
+│         │                                                          │
+│         ▼  沿 Port 间协议流动                                       │
+│  ┌──────────────┐  timing / atomic / functional 三模式              │
+│  │ Port 交互     │  CPU.port ◄──► L1D ◄──► XBar ◄──► ... ◄──► DRAM  │
+│  │ (port.hh)    │  （§3.2 展开）                                    │
+│  └──────────────┘                                                  │
+│                                                                    │
+└────────────────────────────────────────────────────────────────────┘
+```
+
+request.hh 里有一处 CHAOS 修改（`request.hh:858-869`）：
 
 ```cpp
 // src/mem/request.hh:858-869
@@ -856,13 +887,53 @@ class RequestPort: public Port, public AtomicRequestProtocol,
 {
 ```
 
-标准拓扑：
+标准拓扑（图 3-2，标注全部 CHAOS 攻击位点）：
 
 ```
-CPU.dcache_port ──► L1D(ResponsePort) ──► XBar ──► L2 ──► XBar ──► MemCtrl ──► DRAM
+┌────────────────────────────────────────────────────────────────────────┐
+│ 图 3-2：内存层级拓扑与 CHAOS 攻击位点                                   │
+├────────────────────────────────────────────────────────────────────────┤
+│                                                                        │
+│   CPU（O3，第二章）                                                     │
+│    │ icache_port                    │ dcache_port                      │
+│    ▼                                ▼                                  │
+│  ┌─────────┐   ┌──────────────────────────┐   ┌─────────┐              │
+│  │ L1I     │   │ L1D (BaseCache)          │   │  Walker │(FS:页表走查)│
+│  │ ◆Cache: │   │  ├ findBlock ◄─◆Cache     │   │  ◆PTW   │              │
+│  │ L1I语义 │   │  │  (tag假命中改道)        │   └────┬────┘              │
+│  │ 字段注入│   │  ├ writebackBlk ◄─◆Cache  │   ┌────▼────┐              │
+│  └────┬────┘   │  │  (victim载荷毁伤)      │   │ D/I TLB │              │
+│       │        │  └ 数据字节 ◄─◆Cache      │   │ ◆ArmTLB │(命中毁pfn)  │
+│       │        └────────────┬─────────────┘   │ ◆ExMon   │(STXR判定)   │
+│       │                     │                 └──────────┘              │
+│       ▼                     ▼                                           │
+│  ┌──────────────────────────────────────────┐                          │
+│  │ XBar（RequestPort/ResponsePort 互联）     │                          │
+│  └───────────────────┬──────────────────────┘                          │
+│                      ▼                                                 │
+│  ┌──────────────────────────────────────────┐                          │
+│  │ L2 (BaseCache)  ◆Cache 亦可打            │                          │
+│  └───────────────────┬──────────────────────┘                          │
+│                      ▼                                                 │
+│  ┌──────────────┐   ┌─────────────────────────────────────┐            │
+│  │ MemCtrl      │──►│ AbstractMemory / DRAM               │            │
+│  └──────────────┘   │ ◆Mem: functional RMW 直读直写        │            │
+│                     │   (CHAOSMem.cc:237-244, 不占时序资源) │            │
+│                     └─────────────────────────────────────┘            │
+│                                                                        │
+│  ◆SysReg 打在 isa.cc MRS 读路径（§3.5），不在本图拓扑上                  │
+└────────────────────────────────────────────────────────────────────────┘
 ```
 
 （脚注：`port.hh:332-336` 还保留了 `[[deprecated]] class MasterPort : public RequestPort`——Master/Slave → Request/Response 的命名演进史。）
+
+三种访问模式的分工与 CHAOS 的使用者：
+
+| 模式 | 用途 | CHAOS 谁在用 |
+|---|---|---|
+| timing | 周期精确模拟，带 retry 反压（真实流量） | 全部 CPU 侧注入器的研究通路 |
+| atomic | 单拍功能模拟（快速 boot、非时序探索） | fs_checkpoint 的 Atomic-boot 阶段 |
+| functional | 绕过时序直读直写（debugger/注入器） | CHAOSMem 的 RMW 攻击、TLB functional 查找 |
 
 CHAOSMem 对 DRAM 的攻击走 **functional 通道**（`CHAOSMem.cc:237-244/331`：`memory->access(read_pkt)`）——构造 ReadReq/WriteReq 包直读直写物理内存，不占用时序资源。这是"注入器是旁观者，不是访存者"原则的体现。
 
@@ -945,6 +1016,48 @@ if ((state.isStage2 && !vm) || (!state.isStage2 && !state.sctlr.m)) {
 - CHAOSAddrPath 清零 byte7 后地址仍落有效映射范围，不产生硬件式 translation fault。
 
 项目早期 H6/H7 的 SE null 结果险些被当成"注入器无效"的发现——实为**仿真模式伪迹**。这不是文档层面的提醒，而是写在 `configs/se/arm_chaos.py` AddrPath 段注释里的工程约束："FS MODE REQUIRED for observable effect"。第七章 §7.7 展开其方法论含义。
+
+把这条分界画成图，四个注入器为何 FS-only 一目了然：
+
+```
+┌────────────────────────────────────────────────────────────────────────┐
+│ 图 3-3：ARM 地址翻译栈与 SE/FS 分流（mmu.cc:1212 那行 if）              │
+├────────────────────────────────────────────────────────────────────────┤
+│                                                                        │
+│   load 的 vaddr（LSQ，§2.7）                                           │
+│        │                                                               │
+│        │  ◆CHAOSAddrPath hook（lsq.cc:1130，翻译前毁 vaddr）            │
+│        ▼                                                               │
+│   ┌─────────┐                                                          │
+│   │  MMU    │  模式分岔（这是全书最重要的一条分界线）                    │
+│   │(mmu.cc) │                                                          │
+│   └────┬────┘                                                          │
+│        │                                                               │
+│   ┌────┴───────────────────────┬──────────────────────────────┐       │
+│   │ SE 模式                    │ FS 模式                       │       │
+│   │ translateSe (:323)         │ translateFs → :1212 if        │       │
+│   │ ▼                          │                               │       │
+│   │ 软件页表                   │  sctlr.m == 0?                │       │
+│   │ EmulationPageTable         │   ├─是→ translateMmuOff       │       │
+│   │ （gem5 内部直接查表，       │   │     （恒等映射，TLB/PTW     │       │
+│   │  不查 TLB、不走 PTW）       │   │      同样死路）             │       │
+│   │                            │   └─否→ translateMmuOn        │       │
+│   │ ✗ TLB 不可达               │        ▼                      │       │
+│   │ ✗ PTW 不可达               │   ┌─────────┐   miss   ┌────┐ │       │
+│   │                            │   │ TLB     │─────────►│PTW │ │       │
+│   │ ⇒ ArmTLB/PTW/SysReg 的     │   │ ◆ArmTLB │  walk    │◆PTW│ │       │
+│   │   hook 恒零调用            │   │(tlb.cc  │          │(:1944)│      │
+│   │   AddrPath 症状畸变        │   │ :164)   │◄─────────│    │ │       │
+│   │                            │   └─────────┘  描述符   └────┘ │       │
+│   │                            │                                │       │
+│   │                            │  ◆SysReg 打在 isa.cc MRS 读     │       │
+│   │                            │    （SCTLR/TTBR/TCR 白名单）    │       │
+│   └────────────────────────────┴────────────────────────────────┘       │
+│                                                                        │
+│  SE 模式的四个 hook 全部空转 —— 零注入不是"注入器无效"，是模式边界      │
+└────────────────────────────────────────────────────────────────────────┘
+```
+
 
 四个 MMU 链注入器的挂载方式各不相同，正好覆盖了 §4.2 的几种挂载模式：
 
