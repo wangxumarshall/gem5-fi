@@ -1,0 +1,5 @@
+/planning-with-files 深度理解gem5源码、@docs/cpu/ 中的每个md文件、@docs/gem5/ 、@docs/arm64 等中的每个文件，研究arm64服务器芯片微架构，撰写一本深度研究arm64服务器芯片微架构的书，kunpeng920作为一个案例独立成为一个章节，输出到 docs/cpu/arm64-microarchtecture-internals.md
+
+---
+
+/planning-with-files 深度理解gem5源码、@docs/cpu/ 中的每个md文件、@docs/gem5/ 、@docs/arm64 等中的每个文件，研究arm64服务器芯片微架构，撰写一本深度研究arm64服务器芯片微架构的书，kunpeng920作为一个案例独立成为一个章节，输出到 docs/cpu/arm64-microarchtecture-internals.md
