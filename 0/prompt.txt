@@ -1,0 +1,97 @@
+/goal /executing-plans 继续执行task_plan，记得按时更新task_plan\findings和progress这三个文档。要求必须诚实、不能欺骗。
+
+---
+
+/goal /executing-plans 继续执行task_plan，记得按时更新task_plan\findings和progress这三个文档。要求必须诚实、不能欺骗。
+
+---
+
+/goal /executing-plans 继续执行task_plan，记得按时更新task_plan\findings和progress这三个文档。要求必须诚实、不能欺骗。
+
+---
+
+/goal /executing-plans 继续执行task_plan，记得按时更新task_plan、findings和progress这三个文档。要求必须诚实、不能欺骗、必须全力以赴。
+
+---
+
+你觉得窄版和scope-out哪个更合适，为什么？
+
+---
+
+/goal /executing-plans 继续执行task_plan，记得按时更新task_plan、findings和progress这三个文档。要求必须诚实、不能欺骗、必须全力以赴。
+
+---
+
+/goal /executing-plans 继续执行task_plan，记得按时更新task_plan、findings和progress这三个文档。要求必须诚实、不能欺骗、必须全力以赴。FS gem5 并发 parallel -j6(node1 free<12GB→-j4),SE gem5 -j20,绝不 -j16/-jnproc;launcher 用占槽信号量不用 timer 循环;启动前查 node1 free≥12GB 且 swap<20%;跑批中盯 vmstat 的 so 列;setsid 进程组 + kill -- -PGID。本机内存只在 NUMA node1=30GB。
+
+---
+
+/goal /executing-plans 继续执行task_plan，记得按时更新task_plan、findings和progress这三个文档。要求必须诚实、不能欺骗、必须全力以赴。
+
+---
+
+/goal /executing-plans 继续执行task_plan，记得按时更新task_plan、findings和progress这三个文档。要求必须诚实、不能欺骗、必须全力以赴。
+
+---
+
+phase20做完了？
+
+---
+
+所以还没做完，为什么你会给我反馈
+
+---
+
+你同时跑会出现oom吗，会出现别的错误吗
+
+---
+
+要
+
+---
+
+你现在还
+
+---
+
+你现在还在监控 phase20 未完成的任务吗
+
+---
+
+我希望整个 phase20 做完以后 你第一时间向我汇报结果
+
+---
+
+H7 formal 检查(Phase 20 最后跑批):①读 /home/sdc/gem5-fi/runs/h7formal/HARVEST.md(存在=跑批完成或死亡,内含最终 tally + Wilson CI);②pgrep -f h7fast.sh + results.txt 行数;③free -m avail ≥12GB、vmstat so=0。若 HARVEST.md 存在且 STATUS=COMPLETE:立即收割——H7 formal 两臂结果(致死率+CI,对照 pilot 47%/0%)写入 findings.md,task_plan.md Phase 20 item 3 标 formal complete,progress.md 更新,报告 §23 节改写,commit+push,然后第一时间向用户完整汇报 Phase 20 最终结果(用户明确要求第一时间汇报)。若 STATUS=LAUNCHER-DEAD:诊断 h7fast.log 尾部,如实报告死亡原因+已收集数据+修复方案。若仍在跑:简要报告进度(ECC-off x/384, ECC-on x/100, 中期致死率),不打扰用户太多。
+
+---
+
+H7 formal 检查(Phase 20 最后跑批):①读 /home/sdc/gem5-fi/runs/h7formal/HARVEST.md(存在=跑批完成或死亡,内含最终 tally + Wilson CI);②pgrep -f h7fast.sh + results.txt 行数;③free -m avail ≥12GB、vmstat so=0。若 HARVEST.md 存在且 STATUS=COMPLETE:立即收割——H7 formal 两臂结果(致死率+CI,对照 pilot 47%/0%)写入 findings.md,task_plan.md Phase 20 item 3 标 formal complete,progress.md 更新,报告 §23 节改写,commit+push,然后第一时间向用户完整汇报 Phase 20 最终结果(用户明确要求第一时间汇报)。若 STATUS=LAUNCHER-DEAD:诊断 h7fast.log 尾部,如实报告死亡原因+已收集数据+修复方案。若仍在跑:简要报告进度(ECC-off x/384, ECC-on x/100, 中期致死率),不打扰用户太多。
+
+---
+
+H7 formal 检查(Phase 20 最后跑批):①读 /home/sdc/gem5-fi/runs/h7formal/HARVEST.md(存在=跑批完成或死亡,内含最终 tally + Wilson CI);②pgrep -f h7fast.sh + results.txt 行数;③free -m avail ≥12GB、vmstat so=0。若 HARVEST.md 存在且 STATUS=COMPLETE:立即收割——H7 formal 两臂结果(致死率+CI,对照 pilot 47%/0%)写入 findings.md,task_plan.md Phase 20 item 3 标 formal complete,progress.md 更新,报告 §23 节改写,commit+push,然后第一时间向用户完整汇报 Phase 20 最终结果(用户明确要求第一时间汇报)。若 STATUS=LAUNCHER-DEAD:诊断 h7fast.log 尾部,如实报告死亡原因+已收集数据+修复方案。若仍在跑:简要报告进度(ECC-off x/384, ECC-on x/100, 中期致死率),不打扰用户太多。
+
+---
+
+H7 formal 检查(Phase 20 最后跑批):①读 /home/sdc/gem5-fi/runs/h7formal/HARVEST.md(存在=跑批完成或死亡,内含最终 tally + Wilson CI);②pgrep -f h7fast.sh + results.txt 行数;③free -m avail ≥12GB、vmstat so=0。若 HARVEST.md 存在且 STATUS=COMPLETE:立即收割——H7 formal 两臂结果(致死率+CI,对照 pilot 47%/0%)写入 findings.md,task_plan.md Phase 20 item 3 标 formal complete,progress.md 更新,报告 §23 节改写,commit+push,然后第一时间向用户完整汇报 Phase 20 最终结果(用户明确要求第一时间汇报)。若 STATUS=LAUNCHER-DEAD:诊断 h7fast.log 尾部,如实报告死亡原因+已收集数据+修复方案。若仍在跑:简要报告进度(ECC-off x/384, ECC-on x/100, 中期致死率),不打扰用户太多。
+
+---
+
+H7 formal 检查(Phase 20 最后跑批):①读 /home/sdc/gem5-fi/runs/h7formal/HARVEST.md(存在=跑批完成或死亡,内含最终 tally + Wilson CI);②pgrep -f h7fast.sh + results.txt 行数;③free -m avail ≥12GB、vmstat so=0。若 HARVEST.md 存在且 STATUS=COMPLETE:立即收割——H7 formal 两臂结果(致死率+CI,对照 pilot 47%/0%)写入 findings.md,task_plan.md Phase 20 item 3 标 formal complete,progress.md 更新,报告 §23 节改写,commit+push,然后第一时间向用户完整汇报 Phase 20 最终结果(用户明确要求第一时间汇报)。若 STATUS=LAUNCHER-DEAD:诊断 h7fast.log 尾部,如实报告死亡原因+已收集数据+修复方案。若仍在跑:简要报告进度(ECC-off x/384, ECC-on x/100, 中期致死率),不打扰用户太多。
+
+---
+
+H7 formal 检查(Phase 20 最后跑批):①读 /home/sdc/gem5-fi/runs/h7formal/HARVEST.md(存在=跑批完成或死亡,内含最终 tally + Wilson CI);②pgrep -f h7fast.sh + results.txt 行数;③free -m avail ≥12GB、vmstat so=0。若 HARVEST.md 存在且 STATUS=COMPLETE:立即收割——H7 formal 两臂结果(致死率+CI,对照 pilot 47%/0%)写入 findings.md,task_plan.md Phase 20 item 3 标 formal complete,progress.md 更新,报告 §23 节改写,commit+push,然后第一时间向用户完整汇报 Phase 20 最终结果(用户明确要求第一时间汇报)。若 STATUS=LAUNCHER-DEAD:诊断 h7fast.log 尾部,如实报告死亡原因+已收集数据+修复方案。若仍在跑:简要报告进度(ECC-off x/384, ECC-on x/100, 中期致死率),不打扰用户太多。
+
+---
+
+H7 formal 检查(Phase 20 最后跑批):①读 /home/sdc/gem5-fi/runs/h7formal/HARVEST.md(存在=跑批完成或死亡,内含最终 tally + Wilson CI);②pgrep -f h7fast.sh + results.txt 行数;③free -m avail ≥12GB、vmstat so=0。若 HARVEST.md 存在且 STATUS=COMPLETE:立即收割——H7 formal 两臂结果(致死率+CI,对照 pilot 47%/0%)写入 findings.md,task_plan.md Phase 20 item 3 标 formal complete,progress.md 更新,报告 §23 节改写,commit+push,然后第一时间向用户完整汇报 Phase 20 最终结果(用户明确要求第一时间汇报)。若 STATUS=LAUNCHER-DEAD:诊断 h7fast.log 尾部,如实报告死亡原因+已收集数据+修复方案。若仍在跑:简要报告进度(ECC-off x/384, ECC-on x/100, 中期致死率),不打扰用户太多。
+
+---
+
+H7 formal 检查(Phase 20 最后跑批):①读 /home/sdc/gem5-fi/runs/h7formal/HARVEST.md(存在=跑批完成或死亡,内含最终 tally + Wilson CI);②pgrep -f h7fast.sh + results.txt 行数;③free -m avail ≥12GB、vmstat so=0。若 HARVEST.md 存在且 STATUS=COMPLETE:立即收割——H7 formal 两臂结果(致死率+CI,对照 pilot 47%/0%)写入 findings.md,task_plan.md Phase 20 item 3 标 formal complete,progress.md 更新,报告 §23 节改写,commit+push,然后第一时间向用户完整汇报 Phase 20 最终结果(用户明确要求第一时间汇报)。若 STATUS=LAUNCHER-DEAD:诊断 h7fast.log 尾部,如实报告死亡原因+已收集数据+修复方案。若仍在跑:简要报告进度(ECC-off x/384, ECC-on x/100, 中期致死率),不打扰用户太多。
+
+---
+
+现有进度是否都放到github上了
