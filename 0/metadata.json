@@ -1,0 +1,110 @@
+{
+  "cli_version": "0.10.2",
+  "checkpoint_id": "01M27EWK3ZJY52TPYTEC4JVKGE",
+  "session_id": "aee7b9ed-f76f-488d-8ed9-d67abd799e66",
+  "strategy": "manual-commit",
+  "created_at": "2026-09-11T05:26:18.03908433Z",
+  "branch": "fi-wangxu",
+  "checkpoints_count": 1,
+  "save_step_count": 1,
+  "files_touched": [
+    "docs/tmp/ARM SDC故障注入阶段性进展报告",
+    "docs/tmp/ARM64_Kunpeng_SDC_Fault_Injection_Plan.pdf",
+    "docs/tmp/KUNPENG920-SDC研究方案-系统完备版.md",
+    "docs/tmp/arm64-fi-plan-based-on-CHAOS.md",
+    "docs/tmp/arm64-sdc-STATUS.md",
+    "docs/tmp/fi.md",
+    "docs/tmp/gem5-fi_branch_next_step.md"
+  ],
+  "agent": "Claude Code",
+  "model": "glm-5.3",
+  "turn_id": "b9284ae8d9bc",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 4080986,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 65811,
+    "api_call_count": 57
+  },
+  "skill_events_version": 1,
+  "skill_events": [
+    {
+      "id": "claude-skill-call_1c1e5769c1ce41bca9e87710",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "superpowers:writing-plans"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "b9284ae8d9bc",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 125,
+        "end": 126,
+        "entry_ids": [
+          "5131204c-2426-4503-a5f0-49cd04c1f76e"
+        ],
+        "tool_use_id": "call_1c1e5769c1ce41bca9e87710"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "call_1c1e5769c1ce41bca9e87710"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: superpowers:writing-plans",
+        "default_collapsed": true
+      }
+    },
+    {
+      "id": "claude-skill-call_a1072dcbbda2438b9eb4ecf3",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "superpowers:executing-plans"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "b9284ae8d9bc",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 140,
+        "end": 141,
+        "entry_ids": [
+          "87044c8a-9367-41a9-999e-9911ca871059"
+        ],
+        "tool_use_id": "call_a1072dcbbda2438b9eb4ecf3"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "call_a1072dcbbda2438b9eb4ecf3"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: superpowers:executing-plans",
+        "default_collapsed": true
+      }
+    }
+  ],
+  "session_metrics": {
+    "turn_count": 2
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-09-11T05:26:17.93598158Z",
+    "agent_lines": 7254,
+    "agent_removed": 0,
+    "human_added": 4274,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 11528,
+    "total_lines_changed": 11528,
+    "agent_percentage": 62.92505204718945,
+    "metric_version": 2
+  }
+}
