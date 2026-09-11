@@ -389,7 +389,75 @@ CHAOSCHI/CHAOSNoC pilot 已能触发（7c854bb/7582e8c，未提交的 ruby test 
 
 **补丁数**：§8 ≈ 2（campaign）；§21 ≈ 3（rcS + campaign + 白名单微调）；H7 重设计 ≈ 4；§23 L3 代理 ≈ 2；报告收尾 ≈ 2 —— 合计 ≈ 13。**机器**：Linux 健康机。
 
-**Phase 20 收口后**：工程设计文档「本仿真环境能做的」全部完成。剩余仅 **S6 真第二台健康机独立复现**（环境阻塞，有机器再做）+ **S7 实机 RAS 校准**（授权后，不在本环境）。
+**Phase 20 收口后的复核（2026-09-11）**：「本仿真环境能做的全部完成」这句话**过头了**——那只是 S0–S5 主线 + S6 仿真部分做完。逐条对照工程设计文档 §1.3 必跑矩阵 / §1.4 read-trace 四分类 / §1.5 663 样本量 / §2.18 RAS / §4.1-4.2 交付物 / 附录 B，还有一批**仿真环境内可执行、没有被 Phase 1–20 任何一项覆盖**的项目。归为 Phase 21–25，S6/S7 维持环境阻塞 / 越界不变（Phase 26）。
+
+---
+
+# ═══ v1.4 完整性轮（Phase 21–26）——把工程设计文档剩余的仿真内可执行项做完 ═══
+
+> **依据**：Phase 1–20 收官后逐条核对工程设计文档全文（§1.3/§1.4/§1.5/§2.1-2.18/§4.1-4.2/附录 A/B），列出**仿真环境内可执行、未被任何已完成 Phase 覆盖**的项目。不含 S4 系统级完整版（用户已 scope-cut）、S6 真第二台机复现（环境阻塞）、S7 实机校准（越界）——这三块维持 Phase 26 的现状标注，不算「未完成」。
+> **执行环境**：同前，Linux 健康机，遵「跑批资源纪律」。
+
+## Phase 21 — 平台效应根因 + v1.3 遗留 formal 收尾
+
+**Status: pending**
+
+1. **DRAM C0/C2 差 2.8 倍机理排查**：`stream_triad` 在两个配置上 SDC 85.4%（C0）vs 30.2%（C2）——查 DRAM 时序参数（tCL/tRCD 等）、cache line size、L2/LLC 容量差是否改变了「注入字节被读回」的概率分布；readtrace 级比对两配置下同一注入地址的消费者数量。这是本轮除 H7 外最大的悬而未决问题，直接关系 §4.2 保护排序里 DRAM 这一行能不能用。
+2. **§8 lane 逐元素 formal**：写 `neon_lane_elemwise_kernel.c`（逐 lane 独立输出，不整体归约），4 lane × formal n=384，与 §7 FPU 整寄存器结果交叉对照。解决 pilot 阶段"oracle 太弱"的诚实缺口。
+3. **§21 SysReg fresh-boot churn formal**：`sysreg_churn.rcS` 已就绪（30–60 min/run）——boot 到位后立即触发一段"写 SCTLR→读→用于地址翻译"的活跃序列，`value_to_legal` + `transient_bit_flip` 两模式，n=100 pilot → 有信号再 formal。这是唯一能把 §21 从"条件未满足"转成真实数的路径。
+4. **§13 L2 victim / 容量扫描 formal**：pilot 已定方向（53% / 50-52% 平），扩 n=384。TQ 臂维持 E3 标注不强做。
+5. **§14 DRAM 数据面 SECDED + addr_map_sub formal**：pilot（0% / 88%）扩 n=384。
+
+**验收**：DRAM 平台差异给出机理假说 + 至少一个能证伪/证实的readtrace证据；§8/§21 各产出至少一个 formal 或诚实记录"仍不到位+原因"；L2/DRAM 补齐的臂全部 `frozen: no`。
+
+## Phase 22 — F2/F3/F4 故障模型矩阵补齐（§1.3 必跑矩阵）
+
+**Status: pending**
+
+工程设计文档 §1.3 要求每个 P0/P1 单元至少覆盖 F1(单bit)/F2(多bit)/F3(数据相关)/F4(卡死)四类，目前多数单元只做了 F1（+ 少数 F4/F5/F6）。本 Phase 补齐：
+
+1. **L1D 多位 ECC 档（F2）**：`local_mbu` 掩码已就绪（Phase 8.3），2-bit / 3-bit × `secded_poison` formal n=384，验证 SECDED 在多位错下的静默逃逸（poison / SilentEscape 档）。
+2. **F3 数据相关触发 formal**：PRF（`triggerValueMask/Pattern` 已有先例）、Exec、FPU 各补一组 F3 formal——仅当操作数落在特定区间才注入，验证"特定数据才暴露"的故障是否比随机 F1 更容易/更难产生 SDC。
+3. **RAT `f4_field_stuck` formal**：模式已实现从未跑 formal——映射编号某位卡死，补上 rename 子系统的 F4 缺口。
+4. **DRAM/Cache `local_mbu` 多位档到 formal**（若 Phase 21.4/21.5 未覆盖，此处补齐）。
+
+**验收**：每个补齐的 F2/F3/F4 组合 formal n=384（或 n=100 pilot + 书面理由），更新报告对应节的覆盖表。
+
+## Phase 23 — 第二 workload 扩样 + 统计功效提升（§1.1/§1.5）
+
+**Status: pending**
+
+1. **第二 workload formal**：Decode（dest_reg_sub）、FreeList（mark_free）、L1DForward（post-check）、LSQFwd（byte_flip/fwd_source_sub）目前都只有单 workload；各配一个第二 workload（reg_chain 或已有的其它 kernel）formal n=384，交叉验证"全 X%"不是单一程序的偶然。
+2. **边界低 SDC cell 扩 n=663**（§1.5，≈±3.8% CI）：PRF X3（3.9%）、LSQFwd byte_flip（4.7%）、Decode dest_reg_sub（0.3%）、spec_leak 系列——目前 n=384 的 CI 偏宽，扩样收窄。
+
+**验收**：交叉 workload 结论一致（或差异有机理解释）；n=663 的点估计落入原 n=384 的 CI（否则记冻结查因）。
+
+## Phase 24 — §19 RAS 元分析完整化 + method3 证伪实验（§2.18/附录 B）
+
+**Status: pending**
+
+1. **`CHAOSRAS` 补两个模式**：`errrec_bitflip`（ERR* 错误记录寄存器字段翻转 → 误定位率，即"记录的故障单元 ≠ 真实注入单元"的概率）、`poison_lose`（毒化位在无 poison 结构边界丢失率）。`exc_suppress` 已做（SE 无载体，需 FS）。这两个模式目前**代码从未写**，是 §2.18 的真空白。
+2. **method3 三必要条件敲除证伪实验**（附录 B）：LSQFwd `phase_offset` 相位曲线已做，但"敲掉任一必要条件（错源/相位/特定负载）→ P_SDC 应归零"的系统性证伪对照没做——补上，用来加固 method3 对照实验的因果链条，不只是相关。
+3. **read-trace 四分类 H3 跨单元一致性验证**（§1.4）：`reads_before_overwrite` 四分类目前只在 PRF 链表追逐上零散用过；系统性跑一遍 PRF/RAT/ROB 三个已有 formal 数据的单元，验证"SDC∣reads>0"的比例是否跨单元一致（这是 H3 假说，直接支撑 AVF 分母的可解释性）。
+
+**验收**：`errrec_bitflip`/`poison_lose` 各产出至少 pilot 级数据；method3 证伪对照至少 1 组（敲掉相位条件、保留错源，看 SDC 是否显著下降）；H3 跨单元对比表（≥3 单元）。
+
+## Phase 25 — §4 元分析终稿的完整交付物
+
+**Status: pending**
+
+1. **位谱指纹库全单元版**：对所有有非零 SDC 的单元（L1D/L1DForward/LSQFwd/FPU/Exec/L2/DRAM/spec_leak）系统跑 `tools/bit_spectrum.py`，汇总成一张跨单元位谱对照表（现在只有 PRF 三画像 + FPU 尾数谱）。
+2. **AVF 跨单元统一图谱**：每个 campaign 已有 `heatmap.csv`，组装成 `target × field × bit-role` 的统一热图（§4.2 云厂商交付物 1，目前只有 weight(unit) 的排序表，没有热图本体）。
+3. **`microarch-fault-injection-report.md` + `docs/final-report-skeleton.md` 双料终稿**：并入 Phase 21–24 的所有新结果；§4.3 诚实边界补充平台效应结构 + Phase 21-24 各项的边界。
+
+**验收**：位谱库覆盖 ≥8 个高 SDC 单元；AVF 热图能直接回答"哪个 target×field 组合风险最高"；两份报告与 `findings.md`/`progress.md` 数字一一对应。
+
+## Phase 26 — S6/S7（环境阻塞 / 越界，现状标注，不算"未完成"）
+
+**Status: blocked（不在本方案执行范围）**
+
+1. **S6 真第二台健康机独立复现**：本环境只有一台健康机（huawei0101）+ 一台故障机（cpu179 所在的 192 核机）。Phase 12/17 的"同种子跨 NUMA / 换种子集复现"是替代证据，不是真正的第二台机独立复现。有第二台健康机时按报告 §十.7 的清单跑（关键 cell + 未改动的 L1D 97.7% 跨机吻合）。
+2. **S7 鲲鹏实机 RAS 校准**：授权实机后，把 N1 代理保护表 / gem5 Garnet-CHI 拓扑 / V110 微架构参数这些 E3/E4 假设逐条证实或证伪。设计文档从一开始就把这块划在"授权后，不在本环境"。
 
 ---
 
@@ -418,10 +486,18 @@ Phase 15 (spec_leak + ROB=160 + PRF)  ✅ complete — spec_leak 双平台 forma
 Phase 16 (BPU + L1I)          ✅ pilot complete — BPU 三预测面（dir formal + target/ras F5 pilot）全 0%；L1I 六字段×SED 全 0-1%（新臂 formal 未；架构态逐位比对 E3 deferred）
 Phase 17 (H7 + 复现)          ✅ complete — H7 pilot：内核对单点 PTE 丢失结构性容错（0/30 panic），验收断言诚实改写；换种子集三 cell 落原 CI；真独立复现=环境阻塞
 
---- v1.3 收口轮（formal 补跑 + 配置对齐 + 元分析定稿，Linux 健康机）---
-Phase 18 (v1.2 formal 补跑)   ← §5/§6/§12/§13/§14/§16 的 pilot 数扩 n=384 + 5% 重放 + Wilson CI（照 v1.1 formal 补跑轮 fe5c190..3526fba 的先例）
-Phase 19 (C2-KP 配置对齐 + §4 元分析定稿)  ← 头条数（FPU/Exec/L2/DRAM）在 C2-KP 复跑，与 Phase 1-7 同表；逃逸集合分解饼图 + 保护投资排序表定稿
-Phase 20 (遗留单元收口)       ← §8 lane / §21 SysReg formal；H7 重设计（2-bit + 内核态 walk）；§23 已定：NoC/HCCS scope-cut，L3 只跑 pairedSector 代理
+--- v1.3 收口轮（formal 补跑 + 配置对齐 + 元分析定稿，Linux 健康机，✅ 全部完成 5a2e86c）---
+Phase 18 (v1.2 formal 补跑)   ✅ complete — 11 cell formal，pilot 全落入 CI
+Phase 19 (C2-KP 配置对齐 + §4 元分析定稿)  ✅ complete — 平台效应结构定律浮现；逃逸分解 230 cells；保护排序表 formal 8 行+3 新行
+Phase 20 (遗留单元收口)       ✅ complete — §20 H7 formal（49.0% vs 0.0%，CI 零重叠）；§8/§21 诚实 pilot；§23 scope-cut+L3 token
+
+--- v1.4 完整性轮（补 §1.3/1.4/1.5/2.18/4.1-4.2/附录 B 的仿真内可执行缺口）---
+Phase 21 (平台效应根因 + v1.3 遗留 formal)  ← 最高优先：DRAM C0/C2 2.8 倍差机理 + §8 lane 逐 lane formal + §21 fresh-boot churn + L2/DRAM 剩余臂
+Phase 22 (F2/F3/F4 矩阵补齐)   ← L1D 多位 ECC 档 + PRF/Exec/FPU 的 F3 formal + RAT f4_field_stuck
+Phase 23 (第二 workload + n=663)  ← Decode/FreeList/L1DForward/LSQFwd 交叉 workload；边界 cell 扩样收窄 CI
+Phase 24 (§19 RAS 完整化 + method3 证伪)  ← CHAOSRAS errrec_bitflip/poison_lose 新写；三必要条件敲除对照；read-trace H3 跨单元
+Phase 25 (§4 元分析终稿)       ← 位谱指纹库全单元版 + AVF 统一热图 + 报告双料定稿
+Phase 26 (S6/S7)               ← 环境阻塞/越界，现状标注，不算未完成
 ```
 
 补丁纪律：沿用 CLAUDE.md（一补丁一单元、真机自验证 100%、自动 push 到 fix/fi-tool-correctness）。**v1.1 补救轮（Phase 8–12）遵 `gem5-fi/CLAUDE.md`**：每补丁 `numactl --cpunodebind=0 --membind=0 -- scons ... -j16`（零新增警告）→ 真机跑受影响行为贴真实输出 → `reg_chain` golden `f247ef3fe6f02cfd` 回归 → commit + push；commit 尾注 `Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>`。campaign 跑批用后台；pilot n=100 先看 Reachability + 方向，formal n=384 + 5% 重放（不一致冻结）+ Wilson 95% CI。
@@ -450,30 +526,21 @@ Phase 20 (遗留单元收口)       ← §8 lane / §21 SysReg formal；H7 重�
 
 ## Next Step
 
-> ### ⇄ 交接状态（2026-09-10 20:15，给恢复的服务器端 AI）
-> 用户暂停了服务器端 AI 会话来处理 huawei0101 内存事故。恢复后**按此顺序**：
-> 1. `cd ~/gem5-fi && git stash && git fetch origin && git rebase origin/fix/fi-tool-correctness && git stash pop`（或先 commit 本地对 task_plan/progress 的改动再 rebase）——把本 plan（含加速方案）拉下来。
-> 2. **当前有 detach 的旧跑批在低速跑**：`h7formal2.sh`（h7g `ecc false` 臂，**-j4**，启动时 swap>20% 定死的，~seed 1008）+ `campaign.py /tmp/p20/lane.yaml --jobs 8`。**先 `kill -- -PGID` 掉 `h7formal2.sh` 整个进程组**（结果已在 `/tmp/p20/h7formal2_results.txt` + `/tmp/p20/h7g_false_*`，可回收）；lane campaign 可留着跑完（SE，便宜）。
-> 3. tmpfs 已由本会话清理（`/tmp` 从 8.1 GB → 953 MB，available 回 15 GB；`cpt.100000000` / `/tmp/p20` 已保留）。**别再往 `/tmp` 写 campaign 输出**（见「跑批资源纪律」新加的两条）。
-> 4. 按 **Phase 20 §20 item 3 的 4 步加速方案**重建 H7 formal：① campaign `-d` 输出改 `~/gem5-fi/runs/h7formal/`；② `--early-checkpoint 190000000` 造 `cpt.190000000`（一次 ~15min）→ 替换 `--restore-checkpoint`；③ ECC-on 臂 `seq 1001 1384` → `seq 1001 1100`；④ launcher 加"跳过已完成 seed"（`/tmp/p20/h7f_false_*.out` 196 个 + `h7formal2_results.txt` 里的 ecc=false）。重启 launcher（precheck 现在过 → SLOTS=6）。
-> 5. 跑完 → 更新 `findings.md`（H7 两臂 P_DUE + CI）、`task_plan.md`（Phase 20 §20 item 3 标 formal complete）、`progress.md`；给用户反馈"H7 formal 完成"。
-> 6. 然后按 Phase 20 剩下的 §8 lane（跑批中）/ §21 SysReg / §23 L3 代理 / 报告收尾往下走。
-> **诚实纪律**（用户强调）：只跑了 pilot 不许标 complete；每个数字必须指到真实 `artifacts/<id>/summary.md` 且 `frozen: no`；引用的 commit 必须已 push（`git cat-file -t` 验）；配置（C0/C2-KP）随数字标注；验收断言不成立就如实改写，不硬凑。
-
-**v1.1（Phase 8–12）+ v1.2（Phase 13–17）+ v1.3 Phase 18–19 全部 `Status: complete`**（`gem5-fi` HEAD `abaf114`，已核对 commit + campaign 产物）。v1.3 Phase 18 formal 补跑（11 cell × n=384 全零 frozen，pilot 点估计全落入 CI）+ Phase 19（C2-KP 对齐 → 平台效应结构定律；§4.1 逃逸分解 230 cells/114 campaigns；§4.2 保护排序 formal 8 行 + 3 新行；§4.3 诚实边界 10 条）已收官。**唯一剩项 = Phase 20**（§23 决定已拍板 2026-09-10：NoC/HCCS scope-cut，L3 只跑 `pairedSector` 代理）。
+**Phase 1–20 全部 `Status: complete`**（`gem5-fi` HEAD `5a2e86c`，已核对 commit + campaign 产物）。v1.3 Phase 18-20 收官：11 个 formal cell 补齐、C2-KP 配置对齐浮现平台效应结构定律、§20 H7 formal（ECC off 49.0% vs on 0.0%，CI 零重叠，本轮头号结论）、§8/§21 诚实 pilot、§23 scope-cut 拍板落地。**v1.4 完整性轮（Phase 21–26）已并入本计划**——补齐工程设计文档 §1.3/1.4/1.5/2.18/4.1-4.2/附录 B 里仿真环境内可执行、但未被 Phase 1–20 任何一项覆盖的缺口（详见上方 Phase 21–26）。
 
 下一步（**Linux 健康机** `gem5-fi/`，分支 `fix/fi-tool-correctness`，`numactl` 钉有内存的 NUMA node）：
 
-> ⚠ **先读上面「跑批资源纪律」**（v1.3 事故后强制）。任何 campaign：FS gem5 `parallel -j6` 硬上限、SE gem5 `-j20`、launcher 用信号量不用 timer、启动前查 node 1 free ≥ 12 GB 且 swap < 20%。Phase 20 §20 H7 formal 首轮跑批（`xargs -P 16`）因违反被终止（2026-09-10），重启用 `-j6`。
+> ⚠ **先读「跑批资源纪律」**（v1.3 事故后强制，仍然有效）。FS gem5 `parallel -j6` 硬上限、SE gem5 `-j20`、launcher 用信号量不用 timer、启动前查 node 1 free ≥ 12 GB 且 swap < 20%。
 
-**Phase 20.1 — §8 向量物理寄存器 lane formal**（最省事、先做）。`CHAOSPhysReg` vector class 已支持 lane 定向，只需 campaign：`bitseg × lane {0,1,2,3}`，n=384 + 5% 重放 + Wilson CI，on `neon_lane`。验收：4 个 lane 各自的 P_SDC/P_DUE，与 §7 整寄存器注入对照；报告 §8 从「⬜ 无正式数据」升 formal。
+**Phase 21.1 — DRAM C0/C2 平台差机理排查**（最高优先，唯一悬而未决的量级问题）。`stream_triad` 定向翻位在 C0 上 85.4% SDC、C2 上只有 30.2%——查 DRAM 时序参数 / cache line size / LLC 容量差异是否改变了"注入字节被读回"的概率。用 readtrace 在两个配置上各挑几个注入地址，比对消费者数量分布。产出：机理假说 + 至少一组能证伪/证实的对照数据。
 
-**接着 Phase 20.2–20.5**：
-- **§21 SysReg** — 写 FS workload `sysreg_probe.rcS`（改完 SCTLR/TTBR0/TCR 立刻触发地址翻译）→ `value_to_legal` + `transient_bit_flip` 两模式 n=384。
-- **§20 PTW H7 重设计** — pilot 已成功（ECC off 47% / on 0%，`699ef23`）。formal 跑批中；**先做加速方案**（见 Phase 20 §20 item 3：清 tmpfs 起 -j6 + 近点 checkpoint `cpt.190000000` + ECC-on 臂 n=100 + 续跑 196 个已完成 ECC-off）→ 22h 降到 ~2h。
-- **§23 L3 `pairedSector` 代理** — C0-CACHE，定向到 producer-consumer 共享行，n=100 pilot（NoC/HCCS 不跑）。
-- **报告收尾** — §4.3 加 §23 scope-cut 段；§4.1 饼图 L3 用 pairedSector 数、NoC/HCCS 标「未测，预期 <X%」；`microarch-fault-injection-report.md` §23 节改写。
+**接着 Phase 21.2–21.5**（可并行）：
+- **§8 lane 逐元素 formal**——写 `neon_lane_elemwise_kernel.c`（逐 lane 独立输出），4 lane × formal n=384，解决 pilot 阶段"oracle 太弱"的诚实缺口。
+- **§21 SysReg fresh-boot churn formal**——`sysreg_churn.rcS` 已就绪，boot 后立刻触发"写 SCTLR→读→翻译"活跃序列，n=100 pilot → 有信号再 formal。
+- **§13 L2 victim/容量扫描 formal**、**§14 DRAM 数据面 SECDED + addr_map_sub formal**——pilot 已定方向，扩 n=384。
 
-**Phase 20 收口后**：工程设计文档「本仿真环境能做的」全部完成。剩余仅 S6 真第二台健康机复现（环境阻塞）+ S7 实机 RAS 校准（授权后，不在本环境）。
+**Phase 21 收口后转 Phase 22**（F2/F3/F4 故障模型矩阵补齐：L1D 多位 ECC 档 / PRF-Exec-FPU 的 F3 formal / RAT f4_field_stuck），再 Phase 23（第二 workload + n=663 扩样）→ Phase 24（§19 RAS 完整化 + method3 证伪）→ Phase 25（§4 元分析终稿）。
 
-**后置**：Phase 17.2 真第二台健康机独立复现 = 环境阻塞，有机器再做。
+**诚实纪律不变**：只跑了 pilot 不许标 complete；每个数字必须指到真实 `artifacts/<id>/summary.md` 且 `frozen: no`；引用的 commit 必须已 push（`git cat-file -t` 验）；配置（C0/C2-KP）随数字标注；验收断言不成立就如实改写，不硬凑；跑批遵「跑批资源纪律」。
+
+**后置 / 不算未完成**：Phase 26（S6 真第二台健康机复现 = 环境阻塞；S7 实机 RAS 校准 = 越界，授权后再做）。

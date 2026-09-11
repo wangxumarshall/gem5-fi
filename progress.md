@@ -2536,3 +2536,17 @@ tick 修复(95e9 窗口)后 10/10 触发(单发验证 + 序列),全 Masked——
 CI 零重叠——**H7 验收断言("ECC-off spurious>0 vs ECC-on≈0")formal 定稿**。三轮链:单 bit 用户态 0/30(内核自愈)→ 2-bit 内核态 ECC 是唯一防线(49.0% vs 0.0%)。PTE 保护定稿:**ECC 本体 + ECC 逻辑自检缺一不可**(后者防 §14 的 85% 击穿)。
 
 **Phase 20 全子项**:§8 lane pilot(四 lane 0%)/§21 SysReg pilot v2(10/10 Masked,条件未满足诚实阴性)/§20 H7 formal(49.0% vs 0.0%)/§23 scope-cut+L3 代理(0% 缓存驻留)/报告 §23 节改写。**v1.3 全轮(Phase 18-20)收官**。
+
+### 规划更新（2026-09-11）: Phase 1-20 完成度复核 + v1.4 完整性轮（Phase 21-26）并入
+
+**复核结论**：核对 `gem5-fi` HEAD `5a2e86c` 的 commit + `artifacts/*/summary.md`，Phase 1-20 确认全部真实完成（H7 formal 49.0%/0.0% CI 零重叠、11 个 v1.3 formal cell 全 frozen:no、§8/§21/§23 三处诚实降级为 pilot 有正当理由）。**同时发现两处收尾疏漏**：① `task_plan.md` 的 `## Next Step` 未同步刷新，还停在 Phase 20 完成前的交接指令上——已修正为反映 Phase 1-20 全部 complete + 指向 Phase 21.1；② "Phase 20 收口后工程设计文档本仿真环境能做的全部完成"这句结论**过头了**——逐条对照设计文档 §1.3 必跑矩阵/§1.4 read-trace 四分类/§1.5 663 样本量/§2.18 RAS/§4.1-4.2 交付物/附录 B，找出一批仿真环境内可执行、未被 Phase 1-20 任何一项覆盖的缺口。
+
+**task_plan.md 新增 v1.4 完整性轮（Phase 21-26）**：
+- **Phase 21（最高优先）**：DRAM C0/C2 平台差 2.8 倍机理排查（唯一悬而未决的量级问题）+ §8 lane 逐元素 formal（解决 pilot oracle 太弱）+ §21 SysReg fresh-boot churn formal（`sysreg_churn.rcS` 已就绪）+ §13 L2/§14 DRAM 剩余臂扩 formal。
+- **Phase 22**：F2/F3/F4 故障模型矩阵补齐——L1D 多位 ECC 档（2/3-bit）、PRF/Exec/FPU 的 F3 数据相关 formal、RAT `f4_field_stuck` formal（实现了从没跑过）。
+- **Phase 23**：第二 workload 扩样（Decode/FreeList/L1DForward/LSQFwd）+ 边界低 SDC cell 扩 n=663（§1.5 规格）。
+- **Phase 24**：§19 RAS 元分析完整化——`CHAOSRAS` 补 `errrec_bitflip`/`poison_lose` 两个从未写过的模式；method3 三必要条件敲除证伪实验（附录 B）；read-trace H3 跨单元一致性验证（§1.4）。
+- **Phase 25**：§4 元分析终稿——位谱指纹库全单元版（现在只有 PRF/FPU 有谱）+ AVF 跨单元统一热图（heatmap.csv 有，没组装）+ 报告双料定稿。
+- **Phase 26**：S6 真第二台健康机复现（环境阻塞）+ S7 实机 RAS 校准（越界），维持现状标注，不计入"未完成"。
+
+执行顺序框图 + Next Step 已重写，指向 Phase 21.1（DRAM 平台差机理）为下一步最高优先项。跑批资源纪律不变。
