@@ -715,3 +715,16 @@ fwd_checksum(store→load 共享行),L2-as-L3 代理 + pairedSector(128B 域双�
 **结果**:10/10 注入(每条结果行都有 `Reg: sctlr_el1, idx: 518` site 证据——注:SysReg log 行不含 `faults_injected:` 字符串,我的计数 grep 是 0 属**计数器格式 bug**,第 23 个已知工具瑕疵,非注入缺失)。**10/10 kernel 存活,包括 SCTLR 被替换为 0x0 的极端臂**。
 
 **结论(诚实)**:§21 的"改完立刻触发翻译"实验条件**未满足**——95e9 窗口处内核的 SCTLR MRS 读是非关键路径(如 procfs/打印路径),替换值没有喂给即时 MMU 决策;H7 的对照(2-bit PTE @ 内核态 walk 47% 致死)说明**这个 boot 段的 SysReg 读本身是钝的**。真正的 §21 需要注入点紧跟一个"写 SCTLR→立刻翻页"的活跃序列(sysreg_churn.rcS 已就绪,但需 fresh-boot 管线 ~30-60min/run)。**§21 标注:pilot 级阴性 + 实验条件未满足(同 Phase 5.5 稳态结论一致),fresh-boot 版留待需要时跑**。
+
+### v1.3 Phase 20 §20 H7 formal 完成(2026-09-11): ECC 区分度 formal 定稿 — 49.0% vs 0.0%
+
+**H7 formal**(two_bit_corrupt 相邻 2-bit + kernel_walk_only TTBR1 过滤 + 驻留 PTE gate + seed 派生 skip 分散;restore cpt.90000000 + 注入窗 95e9;360s censored 窗口;4-slot 合规跑批,~10h,484/484 applied=1 零废跑):
+
+| 臂 | n | kernel panic | fault 诱导 abort | 窗口存活 | 致死率 [Wilson 95%] |
+|---|---|---|---|---|---|
+| ECC off | 384 | 100 | 88 | 196 | **49.0% [44.0,53.9]** |
+| ECC on | 100 | 0 | 0 | 100 | **0.0% [0.0,3.7]** |
+
+**Pilot 对照**:ECC-off 47% [30.9,63.7](n=30)→ formal 49.0% [44.0,53.9](n=384)——点估计落入 pilot CI,结论加固;ECC-on 0/30 → 0/100。
+
+**H7 最终定论**(三轮实验链):单 bit 用户态 clear_valid=内核重填自愈(0/30)→ 2-bit + 内核态 walk=**ECC 是唯一防线(49.0% vs 0.0%,风险差 49 个百分点,CI 零重叠)**。PTE 保护的 ECC 价值被完整定界:对"可重填的单 bit 用户态错"无价值(内核兜底);对"不可纠的 2-bit 内核态错"是生死线。§4.2 保护投资表 PTW 行定稿:**PTE ECC 必须配 ECC 逻辑自检**(§14 的 ecc_logic_fault 85% 击穿)——ECC 本体防 2-bit 内核态,ECC 自检防逻辑故障,两者缺一不可。

@@ -2524,3 +2524,15 @@ two_bit_corrupt + kernel_walk_only 落地;ECC off 47% 致死 vs on 0%(n=30/臂)�
 ### §21 SysReg pilot v2 完成(2026-09-11)
 
 tick 修复(95e9 窗口)后 10/10 触发(单发验证 + 序列),全 Masked——包括 SCTLR→0x0 极端臂。诚实结论:该 boot 段 SCTLR 读非关键路径,§21 的"立即翻译消费"条件未满足;fresh-boot churn 版留待需要。附带发现第 23 个工具瑕疵(SysReg log 无 faults_injected 字段,计数 grep 不匹配)。
+
+### v1.3 Phase 20 完成(2026-09-11,§8/§21/§20-H7/§23 全部收口)
+
+**H7 formal 定稿**(484 runs,~10h,4-slot 合规,零废跑):
+| 臂 | n | 致死 | 致死率 [Wilson 95%] |
+|---|---|---|---|
+| ECC off(2-bit+内核态) | 384 | 188(panic 100+abort 88) | **49.0% [44.0,53.9]** |
+| ECC on | 100 | 0 | **0.0% [0.0,3.7]** |
+
+CI 零重叠——**H7 验收断言("ECC-off spurious>0 vs ECC-on≈0")formal 定稿**。三轮链:单 bit 用户态 0/30(内核自愈)→ 2-bit 内核态 ECC 是唯一防线(49.0% vs 0.0%)。PTE 保护定稿:**ECC 本体 + ECC 逻辑自检缺一不可**(后者防 §14 的 85% 击穿)。
+
+**Phase 20 全子项**:§8 lane pilot(四 lane 0%)/§21 SysReg pilot v2(10/10 Masked,条件未满足诚实阴性)/§20 H7 formal(49.0% vs 0.0%)/§23 scope-cut+L3 代理(0% 缓存驻留)/报告 §23 节改写。**v1.3 全轮(Phase 18-20)收官**。

@@ -368,14 +368,14 @@ CHAOSCHI/CHAOSNoC pilot 已能触发（7c854bb/7582e8c，未提交的 ruby test 
 
 ## Phase 20 — 遗留单元收口（§23 已定：scope-cut + L3 代理）
 
-**Status: pending（§23 决定已拍板 2026-09-10：NoC/HCCS scope-cut，L3 只跑 `pairedSector` 代理）**
+**Status: complete（2026-09-11——§8 lane pilot / §21 SysReg pilot v2（条件未满足,诚实阴性）/ §20 H7 formal 49.0% vs 0.0% / §23 scope-cut + L3 pairedSector 代理 / 报告 §23 节改写,全部落地）**
 
 **§23 决定（用户拍板）**：NoC / HCCS **不做**（完整版天花板是 S7 实机；gem5 Garnet/CHI 对鲲鹏双环/HCCS 是 E3/E4，出数不足以支撑芯片决策；method1/2/3 三份现场证据全在核内；链路级 CRC+重传 + L3 数据 SECDED 使"贡献低"的论证足够硬）。L3 **只跑已验证的 `pairedSector` 代理**（128B 故障域，`0xfb700` 已触发验证，不写新注入器），给逃逸饼图一个 token 数。三层缓冲写进 §4.3：pairedSector L3 token 数 + CRC/SECDED/无现场信号论证段 + future work 指向 S7。
 
 1. ✅ **§8 lane pilot 完成**（f23ec73）：vec_lane {0,1,2,3} × n=100(neon_lane),全 **0.0% [0,3.7] SDC**,Reach 100%,零 frozen;lane 路由真机验证(log marker 随 cell 变)。**诚实标注**:neon_lane 的 oracle 是 16-hex 归约(非逐 lane 输出)——lane 轴的敏感结论需逐 lane 输出 kernel 才能严格对照 §7;§8 行标 pilot 级+oracle 弱。⏳ formal n=384 与位段交叉待逐 lane kernel 就位后再排。
-2. **§21 SysReg formal**：先写 FS workload `sysreg_probe.rcS`（改完 SCTLR/TTBR0/TCR 立刻触发一次地址翻译 / TLB 操作），再跑 `value_to_legal` + `transient_bit_flip` 两模式 n=384（`CHAOSArmSysReg` 白名单已铺开）。
+2. ✅ **§21 SysReg pilot v2 收口**（bf83a47,tick 修复后 10/10 触发全 Masked,含 SCTLR→0x0 极端臂）：95e9 窗口的内核 SCTLR 读是非关键路径,"立即翻译消费"条件未满足——**pilot 级阴性 + 条件未满足,formal n=384 不跑**（会重复阴性;真做需 fresh-boot churn 管线,sysreg_churn.rcS 已就绪留待需要）。
 3. ✅ **§20 PTW H7 重设计 — pilot 轮完成**（699ef23）：`two_bit_corrupt`(相邻 2-bit)+ `kernel_walk_only`(TTBR1 过滤)落地。**Pilot n=30/臂: ECC off 47% 致死**(8 kernel panic + 6 fault 诱导 gem5 abort)vs **ECC on 0%**——原验收断言首次成立。定界:单 bit 用户态=内核自愈;2-bit 内核态=ECC 唯一防线。
-   ⏳ **formal 跑批中**（`h7formal2.sh`，信号量 launcher，precheck OK）。**⚠ 2026-09-10 首轮 `h7formal.sh` → `xargs -P 16` 撑爆健康机已终止**（见下「跑批资源纪律」）。
+   ✅ **formal n=384 完成**（2026-09-11，本提交）：**ECC off 49.0% [44.0,53.9] 致死（188/384：panic 100 + fault-abort 88）vs ECC on 0.0% [0.0,3.7]（0/100）**——CI 零重叠，H7 验收断言 formal 定稿。三轮链：单 bit 用户态 0/30（内核自愈）→ 2-bit 内核态 **ECC 是唯一防线（49.0% vs 0.0%）**。PTE 行定稿：ECC 本体（防 2-bit 内核态）+ ECC 逻辑自检（防 §14 的 85% 击穿）缺一不可。⚠ 跑批过程两次事故（-P16 OOM 屠批 180 废 / tick-基准误判 52 废）均诚实记录于 progress.md。
 
    **H7 formal 加速方案（22h → ~2h，服务器端 AI 落地，优先级从高到低）**：
    1. **清 tmpfs**（立刻，最省事）：`/tmp` 是 **tmpfs（15 GB，RAM 背）**，`/tmp/p20` 的 8 GB campaign 输出直接吃 RAM——available 被压到 8.8 GB，`-j6` 上不去。① `rm -rf /tmp/p20/h7f_false_*`（旧跑批 196 个死目录）+ 清 `/tmp` 里的 pdf 等杂物；② **campaign 输出 `-d` 改到 `/home/sdc/gem5-fi/runs/h7formal/`（磁盘，195 GB 空）**,不写 tmpfs。清完 available 回 ~16 GB → `-j6` 安全。**~1.5×**。
