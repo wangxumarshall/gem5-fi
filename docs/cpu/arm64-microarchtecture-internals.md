@@ -609,6 +609,8 @@ ESB（Error Synchronization Barrier）服务于 RAS：它把 pending 的 SError 
 
 N1 的 PMU 把这个谱系做成了可数的：事件 0x7C–0x7E 分别计数 ISB/DSB/DMB 的执行（speculative 口径）——屏障成本从此可以用计数器直接进入性能模型，第 8 章将用它做屏障开销的实测分解。V110 侧的近似观测手段是 stall_frontend/backend + imp-def 的 exe_stall_cycle（0x7001）分解（第 8 章）。
 
+![图 3-2：ARM64 屏障生效点地图——ISB 冲刷前端、CSDB/SB 卡发射前操作数检查、DMB/DSB 在 LSU 排序过滤器；底部四种成本中心（排序折扣 / 完成等待 / 推测阻断 / 错误同步）](figures/ch3-barrier-points.svg)
+
 屏障地图的最后一层是**谁在付钱**：DMB 的 ISH 便宜是"同 cluster 数据"场景的折扣价；DSB/ISB 三连（每次 TLBI/IC 维护）由全系统均摊（§3.6.2 的 DVM issuing 账单）；SB/CSDB 的推测阻断只在显式部署了缓解的代码里出现（内核的 Spectre 缓解补丁）。**同一个"屏障"词，在四种语境下是四种不同的成本中心**——性能分析时必须先问"这条屏障在地图的哪个位置、谁付账"，第 8 章的事件选型表按这四个成本中心组织。
 
 ## 3.6 系统指令：TLBI 广播、缓存维护与"完全串行点"
