@@ -456,6 +456,8 @@ ARMv8 的内存序不是"强/弱"二值，而是一条从无序到单拷贝原�
 
 **V110 与 N1 在这条阶梯上的落点**：两者都完整实现 0–3 级与 LSE（V110 实测 ISAR0.Atomic=2，完整 LSE；N1 TRM ISAR0=0x0000100010211120，Atomic=2）。N1 额外实现了第 4 级 LDAPR（ISAR1=0x0000000000100001，RCPC=1）；V110 实测无 LRCPC（ISAR1.LRCPC=0）。LD64B（v8.7）与 MOPS（v8.8）两机都未实现——一代服务器核的内存序能力停在"RCsc + LSE"，这在 2019 年的负载域（云微服务、数据库）是够用的合同。
 
+![图 3-1：ARMv8 内存序七级阶梯（AccType 谱系）——每升一级 MOB 多一层跟踪结构；LSE 为平行支线（三级执行点）；★ = V110 能力上限（RCsc+LSE），◆ = N1 额外实现 RCpc](figures/ch3-memory-ordering.svg)
+
 ### 3.3.2 每一级的 LSQ/MOB 账单
 
 把谱系翻译成内存序缓冲（MOB，即 LQ/SQ 及其排序逻辑）的实现账单，逐级递增：
