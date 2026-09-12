@@ -1427,6 +1427,8 @@ gem5 O3 的 InstructionQueue 用一个数据结构把"唤醒"表达得极其干�
 
 就绪队列的组织同样值得一句：gem5 按操作类型（OpClass）设一组 `priority_queue`，另有 `listOrder` 跨类年龄链表兜底（inst_queue.hh:447-480）。为什么需要跨类年龄？因为 priority_queue 只在类内有序，而**发射仲裁有时要看全局年龄**（比如 squash 后按序恢复、或防饿死）——listOrder 保留全部就绪指令的全局时间序。真实 IQ 的年龄矩阵（每个槽位的到达周期比较器）承担同一职责，是调度器里仅次于唤醒网络的第二大比较器堆。CHAOSIQ 的四模式（src_ready_bitflip/tag_sub/wake_omit/wake_phase，inst_queue.cc:1172 附近 hook）攻击的正是这两个结构：改就绪位=假就绪/假等待，改 tag=错队身份，漏唤醒=依赖链断裂，唤醒延迟=相位错位——每个模式对应唤醒-选择环路的一个可分离故障面。
 
+![图 5-1：重命名三方联动与唤醒-选择环路——上：FreeList/RAT/历史缓冲三句话机制（写 Ra 的指令 D 为例，含 gem5 RenameHistory 标本与物理寄存器生命周期）；中：前端 RAT（投机）与提交 RAT（架构态真相）分工及天然不变量；下：唤醒-选择环路（推测唤醒 + 环路延迟 = 背靠背吞吐）与集中式/按类型分离/多独立小队列三条路线（Intel / V110 / V2）](figures/ch5-rename-scheduler.svg)
+
 ## 5.4 旁路网络：背靠背链不写 PRF
 
 ### 5.4.1 forwarding 的机制
