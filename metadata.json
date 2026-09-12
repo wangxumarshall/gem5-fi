@@ -3,8 +3,11 @@
   "checkpoint_id": "01M2A0M1ADMVPHQXASD9KK30K9",
   "strategy": "manual-commit",
   "branch": "fi-wangxu",
-  "checkpoints_count": 1,
-  "files_touched": null,
+  "checkpoints_count": 2,
+  "files_touched": [
+    "docs/cpu/arm64-microarchtecture-internals.md",
+    "docs/cpu/figures/ch4-frontend-bandwidth.svg"
+  ],
   "sessions": [
     {
       "metadata": "/0/metadata.json",
@@ -12,13 +15,20 @@
       "compact_transcript": "/0/transcript.jsonl",
       "content_hash": "/0/content_hash.txt",
       "prompt": "/0/prompt.txt"
+    },
+    {
+      "metadata": "/1/metadata.json",
+      "transcript": "/1/full.jsonl",
+      "compact_transcript": "/1/transcript.jsonl",
+      "content_hash": "/1/content_hash.txt",
+      "prompt": "/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 1176016,
+    "input_tokens": 1366166,
     "cache_creation_tokens": 0,
-    "cache_read_tokens": 6639040,
-    "output_tokens": 126415,
-    "api_call_count": 44
+    "cache_read_tokens": 8248256,
+    "output_tokens": 136042,
+    "api_call_count": 66
   }
 }
