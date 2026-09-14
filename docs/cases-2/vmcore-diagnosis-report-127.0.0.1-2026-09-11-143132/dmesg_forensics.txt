@@ -1,0 +1,179 @@
+# 案 #22 dmesg 法证摘录 (127.0.0.1-2026-09-11-14:31:32)
+# 源文件: /home/sdc/wangxu/vmcore0102/127.0.0.1-2026-09-11-14:31:32/vmcore-dmesg.txt (共 2642 行, 191372 字节)
+# 摘录原则: 行号 + 原文逐字, 无任何改写。
+# 法证降级声明: 本目录仅有 vmcore-dmesg.txt, 无 vmcore 内存转储文件。
+# /tmp/vmlinux-0102 namelist 在本环境不可用 (ls /tmp/vmlinux-0102 无输出),
+# 故本案无法做 crash 工具真值对照 (内存真值 __per_cpu_offset[179] 不可读出),
+# 真值级结论不可达, 报告以 dmesg-only 证据链闭合。
+
+=====================================================================
+一、开机头 (行 1-3, 122, 320-322, 408, 1255-1256)
+=====================================================================
+1:[    0.000000] Booting Linux on physical CPU 0x0000080000 [0x481fd010]
+2:[    0.000000] Linux version 6.6.0-145.3.23.154.oe2403sp3.aarch64 (root@node-48snw.compass-ci.net) (gcc_old (GCC) 12.3.1 (openEuler 12.3.1-110.oe2403sp3), GNU ld (GNU Binutils) 2.41) #1 SMP Mon Jul 27 19:00:34 CST 2026
+3:[    0.000000] KASLR enabled
+122:[    0.000000] crashkernel reserved: 0x000060575fe00000 - 0x000060579fe00000 (1024 MB)
+320:[    0.000000] percpu: max_distance=0x601fc0360000 too large for vmalloc space 0x7bff70000000
+321:[    0.000000] NUMA: PERCPU: auto allocator failed (-22), falling back to page size
+322:[    0.000000] percpu: 34 4K pages/cpu s107496 r8192 d23576
+408:[    0.000000] Memory: 791048812K/805102592K available (15360K kernel code, 5418K rwdata, 10648K rodata, 5824K init, 27554K bss, 14053780K reserved, 0K cma-reserved)
+1255:[    0.349398] smp: Brought up 8 nodes, 192 CPUs
+1256:[    0.349581] SMP: Total of 192 processors activated.
+
+注: 行 321 "PERCPU: auto allocator failed" 是 8 节点 NUMA 拓扑下 percpu 首选分配器
+(因 max_distance 过大) 的标准回退, 所有同批次案 (含未崩的正常启动) 均有此行,
+非故障前兆, 不构成异常。
+
+=====================================================================
+二、EDAC / GHES / RAS 初始化 (行 1262, 1307, 1857, 1944, 2175-2176)
+=====================================================================
+1262:[    0.349590] CPU features: detected: RAS Extension Support
+1307:[    0.557485] GHES: APEI firmware first mode is enabled by APEI bit and WHEA _OSC.
+1857:[    0.857542] EDAC MC: Ver: 3.0.0
+1944:[    1.089410] ERST: Error Record Serialization Table (ERST) support is initialized.
+2175:[    1.484729] ghes_edac: This system has 32 DIMM sockets.
+2176:[    1.485139] EDAC MC0: Giving out device to module ghes_edac.c controller ghes_edac: DEV ghes (INTERRUPT)
+
+注: RAS/GHES/EDAC 全栈初始化成功且工作 (firmware-first, 32 DIMM 全覆盖),
+故下述"零上报"是真负证据而非"没开检测"。
+
+=====================================================================
+三、崩溃前最后正常日志 (行 2589)
+=====================================================================
+2589:[  293.023535] i2c_dev: i2c /dev entries driver
+(此后 15686 秒完全静默, 直至 15979.336 崩溃 —— 日志真空 4.35 小时)
+
+=====================================================================
+四、致命 Oops 完整块 (行 2590-2642, 逐字)
+=====================================================================
+2590:[15979.336387] Unable to handle kernel paging request at virtual address 0026bb43eeea3c9d
+2591:[15979.345043] Mem abort info:
+2592:[15979.348538]   ESR = 0x0000000096000004
+2593:[15979.352988]   EC = 0x25: DABT (current EL), IL = 32 bits
+2594:[15979.359003]   SET = 0, FnV = 0
+2595:[15979.362756]   EA = 0, S1PTW = 0
+2596:[15979.366596]   FSC = 0x04: level 0 translation fault
+2597:[15979.372174] Data abort info:
+2598:[15979.375753]   ISV = 0, ISS = 0x00000004, ISS2 = 0x00000000
+2599:[15979.381941]   CM = 0, WnR = 0, TnD = 0, TagAccess = 0
+2600:[15979.387693]   GCS = 0, Overlay = 0, DirtyBit = 0, Xs = 0
+2601:[15979.393708] [0026bb43eeea3c9d] address between user and kernel address ranges
+2602:[15979.401547] Internal error: Oops: 0000000096000004 [#1] SMP
+2603:[15979.407823] Modules linked in: binfmt_misc i2c_dev hisi_thermal nft_fib_inet ...(略,完整列表见源文件行 2603-2604)
+2605:[15979.511806] CPU: 179 PID: 59653 Comm: mi-scavenger Kdump: loaded Not tainted 6.6.0-145.3.23.154.oe2403sp3.aarch64 #1
+2606:[15979.523036] Hardware name: Yangtze Computing R240K V2/BC82AMQA, BIOS 7.48 06/15/2026
+2607:[15979.531486] pstate: 204000c9 (nzCv daIF +PAN -UAO -TCO -DIT -SSBS BTYPE=--)
+2608:[15979.539155] pc : find_busiest_group+0x140/0xb60
+2609:[15979.544397] lr : find_busiest_group+0x11c/0xb60
+2610:[15979.549630] sp : ffff8000cc5b3740
+2611:[15979.553645] x29: ffff8000cc5b38c0 x28: ffff8000cc5b3850 x27: 9226bb43eeea3b7d
+2612:[15979.561491] x26: ffff604003a60cc0 x25: 00000000000000b3 x24: ffffdb42ef2a5000
+2613:[15979.569334] x23: 00000000000003ff x22: ffff604003a60cc0 x21: ffffdb42ef29fcb0
+2614:[15979.577178] x20: 9226e000ffffa4bd x19: ffff8000cc5b3950 x18: 0000000000000000
+2615:[15979.585021] x17: 0000000000000000 x16: 0000000000000000 x15: 0000ffff9d8a7e20
+2616:[15979.592864] x14: 0000000000000000 x13: 0000000000000000 x12: 0000000000000000
+2617:[15979.600707] x11: 0000000000000000 x10: 0000000000000000 x9 : ffffdb42ed47ae58
+2618:[15979.608549] x8 : ffff8000cc5b38a8 x7 : 0000000000000000 x6 : 00000000000000b3
+2619:[15979.616392] x5 : fff8000000000000 x4 : 0000000000000002 x3 : 0000000000000033
+2620:[15979.624235] x2 : 000000000001ac5f x1 : ffffdb42eeea96c0 x0 : 00000000000000b3
+2621:[15979.632079] Call trace:
+2622:[15979.635226]  find_busiest_group+0x140/0xb60
+2623:[15979.640113]  load_balance+0x108/0x6c0
+2624:[15979.645185]  newidle_balance+0x198/0x510
+2625:[15979.650357]  pick_next_task_fair+0x110/0x718
+2626:[15979.655834]  pick_next_task+0x60/0x398
+2627:[15979.660779]  __schedule+0x1b4/0x8a0
+2628:[15979.665458]  schedule+0x58/0x130
+2629:[15979.669859]  futex_wait_queue+0x78/0xb0
+2630:[15979.674862]  futex_wait+0xe8/0x1d0
+2631:[15979.679419]  do_futex+0xec/0x1a0
+2632:[15979.683806]  __arm64_sys_futex+0x80/0x198
+2633:[15979.688969]  invoke_syscall+0x50/0x128
+2634:[15979.693877]  el0_svc_common.constprop.0+0xc8/0xf0
+2635:[15979.699740]  do_el0_svc+0x48/0x78
+2636:[15979.704208]  el0_slow_syscall+0x44/0x1b8
+2637:[15979.709283]  el0t_64_sync_handler+0x100/0x130
+2638:[15979.714789]  el0t_64_sync+0x188/0x190
+2639:[15979.719593] Code: f9400782 f879d814 2a1903e0 8b14003b (f9409377)
+2640:[15979.726841] SMP: stopping secondary CPUs
+2641:[15979.736413] Starting crashdump kernel...
+2642:[15979.741543] Bye!
+
+关键寄存器快照 (行号见上):
+  x20 = 9226e000ffffa4bd  (坏值: 装载返回的非 percpu 偏移)
+  x27 = 9226bb43eeea3b7d  (= x1 + x20, 代数闭合, 见 algebra_out.txt)
+  x1  = ffffdb42eeea96c0  (rq 基址, 规范内核指针)
+  x25 = 0xb3 = 179        (= CPU179 自身, 自指装载)
+  x0  = 0xb3              (percpu 基址指针入参, __per_cpu_offset 数组基)
+  x23 = 0x3ff             (装载目标寄存器, 崩溃时未完成写回/旧值)
+  FAR = 0026bb43eeea3c9d  (致命非规范地址)
+  x15 = 0000ffff9d8a7e20  (高位 ffff 残影, 与谱系对照用)
+  x5  = fff8000000000000  (percpu 区形态参照)
+  x24 = ffffdb42ef2a5000  (本 CPU sched 域数据, 规范指针对照)
+  x21 = ffffdb42ef29fcb0  (规范指针对照)
+  x9  = ffffdb42ed47ae58  (规范指针对照)
+
+=====================================================================
+五、零前兆负证据 (真实命令输出)
+=====================================================================
+$ grep -c "Ignoring spurious" vmcore-dmesg.txt
+0
+$ grep -n "Ignoring spurious\|spurious" vmcore-dmesg.txt; echo "exit=$?"
+exit=1        (无任何 spurious 行, 全程 15980s 零前兆)
+
+$ grep -v "15979" vmcore-dmesg.txt | grep -c -i "warning\|call trace"
+1
+$ grep -v "15979" vmcore-dmesg.txt | grep -i "warn"
+2300:[    2.094709] systemd[1]: systemd-journald.service: (This warning is only shown only for the first unit using IP firewalling.)
+(唯一 warning 是 systemd 开机例行提示, 与硬件/内核无关;
+内核态 Call trace / Oops / BUG 全程零次 —— 直至 15979.336 首次即致命)
+
+崩溃前最后一条非静默日志在 293s (行 2589 i2c_dev), 15980s 崩溃 ——
+零前兆谱系 (#5 案 418s 单发无前兆、#12 案 38.09s 前兆间隔) 的又一例。
+
+=====================================================================
+六、RAS 负证据 grep 统计 (真实命令输出)
+=====================================================================
+$ grep -c "Ignoring spurious" vmcore-dmesg.txt        -> 0
+$ grep -c -i "corrected" vmcore-dmesg.txt             -> 0   (零 CE 上报)
+$ grep -c -i "edac.*error\|error.*edac" vmcore-dmesg.txt -> 0   (EDAC 零错误事件)
+$ grep -c -i "Hardware error" vmcore-dmesg.txt        -> 0   (零硬件错误上报)
+$ grep -c -i "ghes.*event\|GHES:" vmcore-dmesg.txt    -> 1   (仅行1307初始化行, 非错误事件)
+$ grep -c -i "mce\|Machine check" vmcore-dmesg.txt    -> 0
+$ grep -c -i "ecc" vmcore-dmesg.txt                   -> 2   (两处均为 systemd 版本功能串, 非ECC事件)
+$ grep -c -i "scrub\|bad page\|page corruption" vmcore-dmesg.txt -> 0
+
+即: RAS 全栈 (GHES firmware-first + ghes_edac 32 DIMM + ERST + RAS Extension)
+全程零 CE / 零 UE / 零 MCE / 零 EDAC 事件上报。
+
+=====================================================================
+七、四连崩跨冷启动对照 (同日 09-11 四次独立开机, 原始 dmesg 取证)
+=====================================================================
+$ for d in 14:31:32 16:30:10 17:06:07 17:58:36; do grep -m1 "Internal error" $d/vmcore-dmesg.txt; ... (详见各源文件)
+
+案#22 14:31:32  uptime 15980s  CPU179  mi-scavenger 59653   find_busiest_group+0x140  FAR=0026bb43eeea3c9d  x20=9226e000ffffa4bd  x25=179  ESR=...04/FSC=L0  spurious=0
+案#23 16:30:10  uptime  6648s  CPU179  mi-scavenger 55812   find_busiest_group+0x140  FAR=ffa90aeec68998df  x20=ffa9342267e000ff  x25=164 (0xa4)  ESR=...04/FSC=L0  spurious=0
+案#24 17:06:07  uptime  1592s  CPU179  kworker/179:1 1205   find_busiest_group+0x140  FAR=00ffc7a7ac4a3a20  x20=00ffffb810e4a240  x25=50  (0x32)  ESR=...04/FSC=L0  spurious=0
+案#25 17:58:36  uptime  2777s  CPU179  mi-scavenger 56594   find_busiest_group+0x140  FAR=ffffdee405e697e0  x20=0000000000000000  x25=6   (0x6)   ESR=...06/FSC=L2  spurious=0
+(四案 Code: 流完全一致: f9400782 f879d814 2a1903e0 8b14003b (f9409377);
+ 四案 Linux version 行完全一致, 同一内核 build;
+ 四案 Not tainted, 四案 spurious=0)
+
+注: 案#23/#24 的 x25 不再是 179 —— 见报告第 3 节指令级解剖: find_busiest_group
+对 sched_group 内各 CPU 循环, 装载对象 __per_cpu_offset[cpu] 的 cpu 是被考察
+ busiest 候选核编号, 不必等于当前核。案#22 x25=179 是"装载自己的槽位"这一
+ 特殊实例; 四案共同点仍是: 崩溃核 = 执行核 = CPU179, 装载指令同一
+ ldr x20, [x0, w25, sxtw #3] (find_busiest_group+0x134)。
+
+=====================================================================
+八、09-07/09-08/09-12/09-14 后续案签名速览 (原始 dmesg, 编号归属以主会话为准)
+=====================================================================
+09-07-13:51:42  CPU179 irqbalance   __do_kernel_fault+0x130  spurious=38  (前兆充裕型)
+09-07-15:16:31  CPU179 HeapHelper   find_busiest_group+0x140  spurious=0   (零前兆型, x20=ffdc206dfa4000ff)
+09-07-20:04:26  CPU179 pmdalinux    __do_kernel_fault+0x130  spurious=8
+09-08-17:21:33  CPU179 pmdalinux    __do_kernel_fault+0x130  spurious=3
+09-12-00:09:19  CPU179 pmdalinux    __do_kernel_fault+0x130  spurious=63
+09-12-10:00:31  CPU179 pmdalinux    __do_kernel_fault+0x130  spurious=17
+09-14-01:45:56  CPU179 pmdalinux    __do_kernel_fault+0x130  spurious=184
+(全部同核 CPU179; __do_kernel_fault+0x130 型为 spurious fault 深化后的
+ 缺页处理二次崩溃路径, 与 find_busiest_group+0x140 型同谱系)
