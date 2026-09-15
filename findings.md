@@ -659,3 +659,72 @@ l1i_loop, n=100×12 cells, 零 frozen, Reach 100%:
 | DRAM 定向 on stream_triad | 85.4% [81.5,88.6] | **30.2% [25.8,35.0]** | **显著平台差**(第三例) |
 
 **平台效应的结构图景**:①FP 数据通路跨平台稳定(SDC 主导,错浮点恒合法);②INT 数据通路平台敏感(C0 SDC 主导→C2 全 DUE 化,调度激进程度决定错值多快成为非法指针);③存储层 DRAM 平台敏感(85%→30%,怀疑 C2 时序下 L2 命中/写回窗口几何不同——逐出节奏 2.6GHz 更快,注入字节更常在回读前被正确数据覆盖;机理待 readtrace 级分析,诚实标注 open)。附带修复:kp920_proxy.py 缺 FPU 模式旋钮(bitseg 等 v1.1 模式只加在 C0,首次 C2 formal 384/384 Inactive 暴露)。
+
+### §23 系统级互连 scope-cut 的方法学依据（2026-09-10 决定）
+
+NoC / CHI / HCCS 不做故障注入，最终报告 §4.3 以论证代替实测。三条依据：
+
+1. **保护强**：NoC / HCCS 每一跳链路级 CRC + 重传；L3 数据 SECDED。传输错绝大多数当场检出重发——这是全系统保护最强的一层。
+2. **无现场信号**：三份现场证据（method1 = RAT/转发 + 明确 EDAC=0 排除内存 ECC；method2 = AGU 地址生成路径；method3 = FSU 转发相位）无一指向互连。研究价值集中在核内乱序后端 + 数据/转发通路。
+3. **模型保真度最低**：gem5 Garnet 网格 ≠ 鲲鹏 bufferless 双环 NoC；gem5 CHI ≠ HCCS/Hydra/SLLC。设计文档标 E3/E4，完整版（~20 补丁 + 多核 FS）的天花板是 S7 授权实机校准——本仿真环境即使跑出数也带"建模的是另一个 NoC"的大星号，不足以支撑芯片决策。
+
+**保留口子**：L3 跑已验证的 `pairedSector` 128B 故障域代理（不写新注入器），给 §4.1 逃逸饼图一个 token L3 数；NoC/HCCS 在饼图里标「未测，预期 <X%」+ future work 指向 S7。
+
+**残余风险**：若日后现场出现互连 SDC，研究显不完整。但依据 1–3 足够硬，且设计文档从头把 S4 系统级划为"独立子项目"。
+
+### v1.3 Phase 20 H7 重设计成功(2026-09-08): 2-bit PTE + 内核态 walk — ECC 区分度完全显形
+
+**设计**(v1.2 单点实验 0/30 致死、ECC 无区分度的教训):CHAOSPTW 新增 `two_bit_corrupt` 模式(相邻 2-bit 损坏——SECDED 检出不纠的形态)+ `kernel_walk_only` 过滤(TTBR1 域 0xffffff...,不可走用户页错误重填路径)。
+
+**Pilot 结果(ECC off/on × n=30,seed 派生 skip,30 个不同注入点/臂)**:
+| 臂 | applied | kernel panic | gem5 abort(fault 诱导) | 存活 | 致死率 |
+|---|---|---|---|---|---|
+| ECC off | 30/30 | 8 | 6(如 `panic: pkt.isError() Data fetch`——注入诱导的内核态坏取指) | 16 | **14/30 = 47%** |
+| ECC on | 0/30(ECC-caught) | 0 | 0 | 30 | **0%** |
+
+**H7 验收断言(原计划"ECC-off spurious>0 vs ECC-on≈0")首次成立**:47% vs 0%。对比链:单点 clear_valid(0% vs 0%,无区分)→ 2-bit+内核态(47% vs 0%,完全区分)。**PTW/PTE 保护的 ECC 价值定界:单 bit 用户态=内核自愈;2-bit 内核态=ECC 是唯一防线**。±CI:47% [30.9,63.7](n=30 Wilson)。
+
+### v1.3 Phase 20 §8 lane pilot(2026-09-08): 向量 PRF lane 0-3 全 0% SDC
+
+neon_lane, physreg arch_frontend + vec_lane {0,1,2,3}(32-bit lane 内单 bit 翻,`--vec_lane_offset` 路由验证:lane marker 在 log 中随 cell 变化),n=100×4,零 frozen,Reach 100%:
+
+| vec_lane | P_SDC [Wilson 95%] |
+|---|---|
+| 0 / 1 / 2 / 3 | 全 **0.0% [0,3.7]** |
+
+**结论**:向量 PRF 的 lane 级翻转在 neon_lane(逐 lane 消费+checksum 归约)上不产生 SDC——与 §7 整数 PRF X3 bit0(100% SDC)对照,**lane 内单 bit 的掩蔽来自 neon_lane 的消费结构**(checksum 对 lane 对称,单 lane 错值被 32-lane 归约稀释?或 lane 值被覆盖)。诚实标注:此 workload 的 oracle 是 16-hex FINAL(归约型),非逐 lane 输出——lane 轴的敏感结论需要逐 lane 输出的 kernel(如 elemwise 思路的向量版)才能与 §7 严格对照。**§8 lane 行标 pilot 级 + oracle 弱**,引用时注意。
+
+附带记录:vec lane 注入的 log 有 `[vec lane N/64 ...]` advisory 行,runner 的 faults 计数可能 +1(advisory 被计入)——分类只用 faults>=1 布尔,不影响结局;G5 计数偏差诚实入档(与 L1D protection 行双计数同类,第 22 个已知工具瑕疵)。
+
+### v1.3 Phase 20 §23 L3 pairedSector 代理 pilot(2026-09-10): 缓存驻留负载上 0% SDC
+
+fwd_checksum(store→load 共享行),L2-as-L3 代理 + pairedSector(128B 域双侧同位翻转,log 验证:主块+PAIRED 伙伴块两行注入),n=100,零 frozen,Reach 100%:**P_SDC=0.0% [0,3.7]**。
+
+**结论**:L3 故障域代理在缓存驻留负载(fwd_checksum 工作集在 L1/L2 内)上钝——后备翻转被缓存胜出掩蔽,与 DRAM-on-cholesky 同构。**§23 饼图数字**:L3 pairedSector(缓存驻留)=0%;配 DRAM 定向(stream 大工作集)=85.4%(C0)——存储层级风险随"注入层与消费层的距离"和"工作集驻留关系"变化,缓存驻留时外层全部钝。与 §23 scope-cut 决定互补:互连/L3 的真实暴露需 stream 级跨核共享负载,超出 classic-SE 代理能力(E3² 边界),维持 scope-cut + 此 0% 点入饼图(标注负载条件)。
+
+### v1.3 Phase 20 §21 SysReg pilot v2(tick 修复后,2026-09-11): 10/10 触发全 Masked — SCTLR 跨白名单替换被内核吸收
+
+**Pilot v2**(value_to_legal,白名单 6 寄存器,restore cpt.90000000 + first_clock 95e9,360s censored 窗口,1-slot 与 H7 并行合规):
+
+| seed | 注入点 | 替换值 | panic |
+|---|---|---|---|
+| 501/508/510 | sctlr_el1 | 0xffffffc008010800(vbar 类内核指针) | 0 |
+| 502-505/507 | sctlr_el1 | 0x32b5593519(nzcv 类) | 0 |
+| 504/509 | sctlr_el1 | **0x0** | 0 |
+
+**结果**:10/10 注入(每条结果行都有 `Reg: sctlr_el1, idx: 518` site 证据——注:SysReg log 行不含 `faults_injected:` 字符串,我的计数 grep 是 0 属**计数器格式 bug**,第 23 个已知工具瑕疵,非注入缺失)。**10/10 kernel 存活,包括 SCTLR 被替换为 0x0 的极端臂**。
+
+**结论(诚实)**:§21 的"改完立刻触发翻译"实验条件**未满足**——95e9 窗口处内核的 SCTLR MRS 读是非关键路径(如 procfs/打印路径),替换值没有喂给即时 MMU 决策;H7 的对照(2-bit PTE @ 内核态 walk 47% 致死)说明**这个 boot 段的 SysReg 读本身是钝的**。真正的 §21 需要注入点紧跟一个"写 SCTLR→立刻翻页"的活跃序列(sysreg_churn.rcS 已就绪,但需 fresh-boot 管线 ~30-60min/run)。**§21 标注:pilot 级阴性 + 实验条件未满足(同 Phase 5.5 稳态结论一致),fresh-boot 版留待需要时跑**。
+
+### v1.3 Phase 20 §20 H7 formal 完成(2026-09-11): ECC 区分度 formal 定稿 — 49.0% vs 0.0%
+
+**H7 formal**(two_bit_corrupt 相邻 2-bit + kernel_walk_only TTBR1 过滤 + 驻留 PTE gate + seed 派生 skip 分散;restore cpt.90000000 + 注入窗 95e9;360s censored 窗口;4-slot 合规跑批,~10h,484/484 applied=1 零废跑):
+
+| 臂 | n | kernel panic | fault 诱导 abort | 窗口存活 | 致死率 [Wilson 95%] |
+|---|---|---|---|---|---|
+| ECC off | 384 | 100 | 88 | 196 | **49.0% [44.0,53.9]** |
+| ECC on | 100 | 0 | 0 | 100 | **0.0% [0.0,3.7]** |
+
+**Pilot 对照**:ECC-off 47% [30.9,63.7](n=30)→ formal 49.0% [44.0,53.9](n=384)——点估计落入 pilot CI,结论加固;ECC-on 0/30 → 0/100。
+
+**H7 最终定论**(三轮实验链):单 bit 用户态 clear_valid=内核重填自愈(0/30)→ 2-bit + 内核态 walk=**ECC 是唯一防线(49.0% vs 0.0%,风险差 49 个百分点,CI 零重叠)**。PTE 保护的 ECC 价值被完整定界:对"可重填的单 bit 用户态错"无价值(内核兜底);对"不可纠的 2-bit 内核态错"是生死线。§4.2 保护投资表 PTW 行定稿:**PTE ECC 必须配 ECC 逻辑自检**(§14 的 ecc_logic_fault 85% 击穿)——ECC 本体防 2-bit 内核态,ECC 自检防逻辑故障,两者缺一不可。

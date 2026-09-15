@@ -395,6 +395,11 @@ def main():
         # max_reg_idx still bounds random sampling when idx is None (random cell)
     elif comp == "physreg":
         cmd += ["--chaos_phys"]
+        # v1.3 Phase 20 §8: vector-lane axis — fault.vec_lane selects the
+        # lane within a vector physreg (with reg_class=vector).
+        if inj.get("vec_lane") is not None:
+            cmd += ["--phys_reg_class", "vector",
+                    "--vec_lane_offset", str(inj["vec_lane"])]
         if layer == "physical":
             cmd += ["--phys_mode", "phys"]
             if idx is not None:
@@ -623,6 +628,9 @@ def main():
         # v1.2 Phase 14 (item 2): victim/writeback-path fault.
         if inj.get("victim_fault"):
             cmd += ["--victim_fault"]
+        # v1.3 Phase 20 §23: L3 paired-sector fault-domain proxy.
+        if inj.get("paired"):
+            cmd += ["--paired"]
         # v1.1 Phase 11 (open item): L2 capacity sweep axis.
         if inj.get("l2_size"):
             cmd += ["--l2_size", str(inj["l2_size"])]

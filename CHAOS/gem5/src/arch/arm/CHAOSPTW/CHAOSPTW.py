@@ -32,4 +32,8 @@ class CHAOSPTW(SimObject):
     skipEmptyPte = Param.Bool(False,
         "Only inject on NON-EMPTY PTEs (old_pte != 0). clear_valid on an "
         "empty entry is a no-op — the H7 arm needs resident PTEs.")
+    kernelWalkOnly = Param.Bool(False,
+        "v1.3 Phase 20 (H7 redesign): inject only on kernel-space walks "
+        "(vaddr in the 0xffffff8... TTBR1 range) — the non-refillable "
+        "context where ECC discrimination exists.")
     writeLog = Param.Bool(True, "Write a fault_injections.log file")

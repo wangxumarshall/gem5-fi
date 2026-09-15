@@ -1,0 +1,21 @@
+schema_version: arm-chaos-fi/v1
+campaign_id: pwf_v11_rob_specleak_depth
+injector: rat
+config: C2
+mode: SE
+grid:
+  fault_model: [intermittent_burst]
+  target_index: [10]
+  rob: [96, 128, 160]
+n_per_cell: 128
+base_seed: 20260908
+replay_pct: 5.0
+workload:
+  binary: workloads/directed/spec_leak_probe_kernel
+  golden_id: specleakprobe-golden-v1
+  oracle_kind: per_element_diff
+  trigger_mode: cycle
+  trigger_value: 25000
+limits:
+  max_faults: 1
+hang_timeout: 300

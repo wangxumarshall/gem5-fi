@@ -2455,3 +2455,98 @@ FPU(mant_hi 100%/mant_lo 91.1%)、Exec(0% SDC+52.1% DUE)、DRAM(30.2%)三项头�
 - **Phase 19.2-19.4 元分析定稿**:逃逸分解 230 cells/114 campaigns;§4.2 formal 级 8 行表(新增 INT 指针校验/L2 tag 别名检测/ECC 逻辑自检三行);§4.3 诚实边界 10 条(平台敏感性标注/真独立复现阻塞/formal 覆盖度/H7 语义/21-bug 史)。
 
 **Phase 20(遗留单元,低优先可选)未启动**——计划原文要求用户拍板(§23 NoC 窄版 vs scope-cut),诚实保持 pending。
+
+### 规划更新（2026-09-10）: §23 决定拍板 + Phase 20 写实
+
+**§23（NoC / CHI / HCCS）决定 = scope-cut + L3 代理**（用户拍板）：
+- **NoC / HCCS 不做**。理由三条：① 完整版（CHAOSCHI/CHAOSNoC/CHAOSHCCS ~20 补丁 + 多核 FS）天花板是 S7 实机校准，本仿真环境做不了；② gem5 Garnet 网格 ≠ 鲲鹏 bufferless 双环、gem5 CHI ≠ HCCS/Hydra/SLLC，标 E3/E4——出数不足以支撑芯片决策，是整条工具链保真度最低的一环；③ method1（RAT/转发，明确排除内存 ECC）/ method2（AGU 地址路径）/ method3（FSU 转发相位）三份现场证据全在核内。链路级 CRC + 重传 + L3 数据 SECDED 使"互连对总 SDC 贡献低"的论证足够硬。
+- **L3 只跑 `pairedSector` 代理**（128B 故障域，`0xfb700` 早期已触发验证，不写新注入器）→ 给逃逸饼图一个 token 数。
+- 三层缓冲写进最终报告 §4.3：pairedSector L3 token 数 + CRC/SECDED/无现场信号论证段 + future work 指向 S7。
+
+**task_plan 更新**：
+- Phase 20 从「窄版 or scope-cut，用户定」写实为 5 个子项：§8 lane formal / §21 SysReg formal（先写 `sysreg_probe.rcS`）/ §20 PTW H7 重设计（2-bit 不可重填 × 内核态 walk × ECC 开关）/ §23 L3 pairedSector pilot / 报告收尾。补丁数 ≈ 13。
+- 执行顺序框图 Phase 20 行更新；Next Step 重写：下一步 = **Phase 20.1 §8 向量寄存器 lane formal**（最省事，`CHAOSPhysReg` vector class 已支持 lane 定向，只需 campaign），接着 §21 / H7 重设计 / §23 L3 代理 / 报告收尾。
+- Phase 20 收口后："本仿真环境能做的"全部完成，剩 S6 真第二台机复现（环境阻塞）+ S7 实机校准（越界）。
+
+### v1.3 Phase 20 H7 重设计完成(2026-09-08)
+
+two_bit_corrupt + kernel_walk_only 落地;ECC off 47% 致死 vs on 0%(n=30/臂)——H7 验收断言首次成立。§23 已按 scope-cut 收口(风险带 [37.6%,88.0%] 由三测量点定界)。
+
+### 事故 + 跑批资源纪律（2026-09-10）: Phase 20 §20 H7 formal 撑爆健康机
+
+**现象**：用户报 huawei0101 memory + swap 快满、跑不动。SSH 登录卡 90 秒 + 首次超时。
+
+**诊断（SSH 实测）**：
+- 126 核，但**内存只在 NUMA node 1（30 GB）**，node 0/2/3 size=0。
+- Phase 20 §20 H7 formal `ecc false` 臂：`/tmp/p20/h7formal.sh` → **`xargs -P 16 -n 2 bash -c run_one`** → 16 个并发 FS gem5（`arm_chaos_fs.py` + `--restore-checkpoint cpt.100000000`，每进程 ~2–2.6 GB RSS，随运行涨）。seed 已跑到 ~1195。
+- 16 × 2 GB → AnonPages 27 GB / buff-cache 747 MB（page cache 清光）/ MemAvailable 451 MB；swap 14–15 GB / 15.6 GB 全满；vmstat `so` 持续 84–217 MB/s（颠簸）。
+- load 40–52，CPU 88% 空闲——负载全是 D 状态进程卡 swap I/O（16 gem5 里 14 个 D，kswapd1 钉死，sshd 会话 D）。多数 job 被 `timeout 900` 砍在半途 = 白跑。
+
+**处置**：
+- 终止 `h7formal.sh`（PID 2842145）→ 无效，`xargs -P16`（PID 2842147）被 reparent 到 PID 1 成孤儿、继续从 stdin 拉 seed。
+- 终止 `xargs` 孤儿（`kill -9 2842147`）+ `pkill -9 run_one` + `pkill -9 h7f_false`。D 状态 straggler 随内存回落逐步清空。
+- **未重启**：新 H7 跑批由服务器端 AI 会话重新发起，遵新纪律 `-j6`。已完成 rep 在 `/tmp/p20/h7f_false_*/`（seed 1001–~1195，timeout 砍的需重跑）。`ecc true` 臂未开始。
+- 服务器端 claude 会话（pts/4，PID 3652742）未动。
+
+**根因**：launcher 并发按 CPU 数（126）定，没按内存（单节点 30 GB）定；FS gem5 内存受限不是 CPU 受限。plan 里 §20 item 3 甚至写了"9h/16 并发"——已改为 `-j6` + 事故注记。
+
+**新增强制纪律**（`task_plan.md` 新增「## 跑批资源纪律」节）：FS gem5 硬上限 `parallel -j6`（node 1 free < 12 GB → -j4）；SE gem5 -j20；launcher 用占槽信号量禁 timer 循环；启动前门禁 node 1 free ≥ 12 GB + swap < 20%；跑批中每 5 min 看 `vmstat` `so` 列 > 20 MB/s 立即降；`setsid` 进程组 + `kill -- -PGID`（7abc72e 教训）。
+
+### H7 formal 加速方案（2026-09-10）: 22h → ~2h
+
+用户嫌 H7 formal（`h7formal2.sh`，信号量 launcher 已合规，但 -j4 下 ~13–22h）太慢。SSH 实测诊断 + 加速方案写入 task_plan Phase 20 §20 item 3：
+
+1. **`/tmp` 是 tmpfs（15 GB，RAM 背）**——`/tmp/p20` 8 GB campaign 输出直接吃 RAM，把 available 压到 8.8 GB，`-j6` 上不去（pre-flight `swap>20%` 也是被上次颠簸的死页误导；死页 `si/so` 全 0，不是真压力）。→ 清 `/tmp/p20/h7f_false_*` + campaign `-d` 改写 `/home/sdc/gem5-fi/runs/`（磁盘 195 GB）。清完 available ~16 GB → -j6 安全。**~1.5×**。
+2. **近点 checkpoint**：每 run `restore cpt.100000000` + `ptw_first_clock 2e8` = 空跑 100M ticks 才注入，占 7min 单 run 的大头。用已有 `--early-checkpoint`（`arm_chaos_fs.py:420`）造 `cpt.190000000` → 单 run 7min → ~1.5min。**~4×**。一次 ~15min。
+3. **ECC-on 臂 n=384 → n=100**：pilot 0/30，0/100 → 95% 上界 3.6%，"ECC 全挡" 决定性成立。`h7formal2.sh` `true` 臂 `seq 1001 1384` → `seq 1001 1100`。**~1.6×**。
+4. **续跑不重跑**：`/tmp/p20/h7f_false_*.out` 196 个已完成（同参数），launcher 加 `[ -s done/false_$s ] && continue`。ECC-off 384 → ~190。**~1.35×**。
+
+全上 ≈ 290 run × ~1.5min ÷ 6 ≈ **1.5–2h**。最省事组合 1+3 = 22h → ~7h。
+
+**跑批资源纪律补两条**：① 门禁看 `available ≥ 15 GB` + `vmstat so < 5 MB/s`，不看 swap 总量（死页不算压力）；② campaign 输出不写 tmpfs `/tmp`，写磁盘 `runs/`。
+
+**服务器状态确认（2026-09-10 20:10）**：用户暂停了服务器端 AI 会话，但 detach 的跑批仍在跑（`h7formal2.sh` h7g 臂 -j4 + `lane.yaml --jobs 8`）。有人跑了 `swapoff -a && swapon -a` 清死页（swap 已用回到 465 MB）。available 8.8 GB（tmpfs 8 GB 占着），load 13，`so=0`，健康但偏紧。
+
+### H7 formal 加速方案落地 + 资源纪律执行(2026-09-10 晚)
+
+**事故与纠正**:首次 H7 formal 用 -P 16(FS)违反并发纪律 → OOM killer 摧毁整批(180 runs 全废,rc=137×90/124×74)。第二次 6-slot 仍把 avail 压到 11.7GB(<12GB 红线)→ 强制降到 **4-slot 硬上限**(编辑两轮才真正生效——第一轮 python 补丁的 assert 在 kill 之后静默失败,诚实记录)。
+
+**加速方案(并行会话计划的四步)全部落地**:①清 tmpfs(旧死目录 90M)+ -d 改磁盘(runs/h7formal/);②**近点 checkpoint**(cpt.90000000 从 100M 跑 90M ticks 落盘,finalTick 190000233 确认绝对 tick;注入点 195M 从 7min 空跑缩到 ~15s);③ECC-on 臂 n=384→100(pilot 0/30,0/100 上界 3.6%);④300s 截断观察窗(panic 文本在头几分钟打印;censored-window 协议诚实入档——survivor= "窗口内无 panic")。**速度定标:10M ticks=27.5s**;单 run ~5min(注入后仿真占大头)。总 484 runs/4 slots ≈ 10h,合规运行中。
+
+**§8 lane pilot 已完成**(f23ec73):四 lane 全 0.0% SDC(oracle 弱标注)。
+
+### H7 formal tick-基准踩坑与修复(2026-09-10 深夜,诚实记录)
+
+**第二个跑批事故**：近点 checkpoint 加速方案有一个隐藏错误——`cpt.90000000` 的**恢复基准 tick 是 90e9**(目录名=自 run 起的 tick 数),而 PTW 的 first_clock 语义是**绝对 tick**。我误以为恢复落在 190e9(mkckpt 的 finalTick),把窗口设在 195e9——实际需要从 90e9 跑 105e9 ticks(~13min)才到窗口,而 300s cap 的批量跑全部在窗口前超时:**52 个 ECC-off runs 全部 applied=0,纯垃圾**(结果存 results_invalid_195e9.txt 留证)。SysReg 10-seed 序列同样 0 触发(同一根因)。
+
+**诊断链**:PTW smoke 13m20s 才注入(与"15s"预期矛盾)→ 算 tick 速率(370k/s→13min=105e9 ticks)→ 复原恢复基准。**修复**:first_clock 95000000(95e9 绝对 = 恢复点 90e9 后 5e9,仍在 boot 期 walk 密集段),单发验证 Tick 95001363540 注入驻留 PTE;重启 formal 后 4/4 applied=1。**教训(入 memory)**:gem5 checkpoint 恢复的 curTick 基准 = 目录名数字,不是父 run 的 finalTick;绝对 tick 语义注入器的窗口必须从恢复基准 + 期望提前量计算。
+
+### §21 SysReg pilot v2 完成(2026-09-11)
+
+tick 修复(95e9 窗口)后 10/10 触发(单发验证 + 序列),全 Masked——包括 SCTLR→0x0 极端臂。诚实结论:该 boot 段 SCTLR 读非关键路径,§21 的"立即翻译消费"条件未满足;fresh-boot churn 版留待需要。附带发现第 23 个工具瑕疵(SysReg log 无 faults_injected 字段,计数 grep 不匹配)。
+
+### v1.3 Phase 20 完成(2026-09-11,§8/§21/§20-H7/§23 全部收口)
+
+**H7 formal 定稿**(484 runs,~10h,4-slot 合规,零废跑):
+| 臂 | n | 致死 | 致死率 [Wilson 95%] |
+|---|---|---|---|
+| ECC off(2-bit+内核态) | 384 | 188(panic 100+abort 88) | **49.0% [44.0,53.9]** |
+| ECC on | 100 | 0 | **0.0% [0.0,3.7]** |
+
+CI 零重叠——**H7 验收断言("ECC-off spurious>0 vs ECC-on≈0")formal 定稿**。三轮链:单 bit 用户态 0/30(内核自愈)→ 2-bit 内核态 ECC 是唯一防线(49.0% vs 0.0%)。PTE 保护定稿:**ECC 本体 + ECC 逻辑自检缺一不可**(后者防 §14 的 85% 击穿)。
+
+**Phase 20 全子项**:§8 lane pilot(四 lane 0%)/§21 SysReg pilot v2(10/10 Masked,条件未满足诚实阴性)/§20 H7 formal(49.0% vs 0.0%)/§23 scope-cut+L3 代理(0% 缓存驻留)/报告 §23 节改写。**v1.3 全轮(Phase 18-20)收官**。
+
+### 规划更新（2026-09-11）: Phase 1-20 完成度复核 + v1.4 完整性轮（Phase 21-26）并入
+
+**复核结论**：核对 `gem5-fi` HEAD `5a2e86c` 的 commit + `artifacts/*/summary.md`，Phase 1-20 确认全部真实完成（H7 formal 49.0%/0.0% CI 零重叠、11 个 v1.3 formal cell 全 frozen:no、§8/§21/§23 三处诚实降级为 pilot 有正当理由）。**同时发现两处收尾疏漏**：① `task_plan.md` 的 `## Next Step` 未同步刷新，还停在 Phase 20 完成前的交接指令上——已修正为反映 Phase 1-20 全部 complete + 指向 Phase 21.1；② "Phase 20 收口后工程设计文档本仿真环境能做的全部完成"这句结论**过头了**——逐条对照设计文档 §1.3 必跑矩阵/§1.4 read-trace 四分类/§1.5 663 样本量/§2.18 RAS/§4.1-4.2 交付物/附录 B，找出一批仿真环境内可执行、未被 Phase 1-20 任何一项覆盖的缺口。
+
+**task_plan.md 新增 v1.4 完整性轮（Phase 21-26）**：
+- **Phase 21（最高优先）**：DRAM C0/C2 平台差 2.8 倍机理排查（唯一悬而未决的量级问题）+ §8 lane 逐元素 formal（解决 pilot oracle 太弱）+ §21 SysReg fresh-boot churn formal（`sysreg_churn.rcS` 已就绪）+ §13 L2/§14 DRAM 剩余臂扩 formal。
+- **Phase 22**：F2/F3/F4 故障模型矩阵补齐——L1D 多位 ECC 档（2/3-bit）、PRF/Exec/FPU 的 F3 数据相关 formal、RAT `f4_field_stuck` formal（实现了从没跑过）。
+- **Phase 23**：第二 workload 扩样（Decode/FreeList/L1DForward/LSQFwd）+ 边界低 SDC cell 扩 n=663（§1.5 规格）。
+- **Phase 24**：§19 RAS 元分析完整化——`CHAOSRAS` 补 `errrec_bitflip`/`poison_lose` 两个从未写过的模式；method3 三必要条件敲除证伪实验（附录 B）；read-trace H3 跨单元一致性验证（§1.4）。
+- **Phase 25**：§4 元分析终稿——位谱指纹库全单元版（现在只有 PRF/FPU 有谱）+ AVF 跨单元统一热图（heatmap.csv 有，没组装）+ 报告双料定稿。
+- **Phase 26**：S6 真第二台健康机复现（环境阻塞）+ S7 实机 RAS 校准（越界），维持现状标注，不计入"未完成"。
+
+执行顺序框图 + Next Step 已重写，指向 Phase 21.1（DRAM 平台差机理）为下一步最高优先项。跑批资源纪律不变。

@@ -20,6 +20,7 @@ namespace gem5
           rng_seed(p.rngSeed),
           events_to_skip(p.eventsToSkip),
           skip_empty_pte(p.skipEmptyPte),
+          kernel_walk_only(p.kernelWalkOnly),
           write_log(p.writeLog)
     {
         if (probability > 0.0f) {
@@ -35,6 +36,8 @@ namespace gem5
     CHAOSPTW::Mode
     CHAOSPTW::stringToMode(const std::string &s) {
         if (s == "clear_valid") return Mode::ClearValid;
+        // v1.3 Phase 20 (H7 redesign)
+        if (s == "two_bit_corrupt") return Mode::TwoBitCorrupt;
         return Mode::SingleBitXor;  // default / unknown
     }
 
@@ -58,6 +61,12 @@ namespace gem5
         // EMPTY entry (0x0) is a no-op; the H7 arm needs resident PTEs.
         if (skip_empty_pte && pte_data == 0) return false;
 
+        // v1.3 Phase 20 (H7 redesign): kernel-mode-walk filter — the
+        // TTBR1 range (top bits all-ones, 0xffff... ) is the kernel
+        // address space; its walks cannot take the user page-fault
+        // refill path (the 0/30-panic self-heal from the v1.2 pilot).
+        if (kernel_walk_only && (vaddr >> 40) != 0xffffffULL) return false;
+
         // v1.2 Phase 17 (H7 fix): fixed skip (driver-provided) so the
         // injection lands on a seed-dependent walk event — the pilot showed
         // 60/60 seeds hitting the SAME first-eligible (dead) event.
@@ -71,6 +80,18 @@ namespace gem5
         // clear_valid: clear the PTE valid bit (conditionalValidBit, H7).
         if (fi_mode == Mode::ClearValid) {
             pte_data &= ~((uint64_t)1);  // bit0 = valid (approx; AArch64 PTE)
+        } else if (fi_mode == Mode::TwoBitCorrupt) {
+            // v1.3 Phase 20 (H7 redesign): ADJACENT 2-bit corruption — the
+            // SECDED detect-but-not-correct shape (a random 2-bit XOR is
+            // usually non-adjacent; adjacent pairs are the realistic MBU).
+            uint64_t mask = 0;
+            if (fault_mask) {
+                mask = fault_mask;
+            } else {
+                int start = (int)(rng() % 63);
+                mask = (1ULL << start) | (1ULL << (start + 1));
+            }
+            pte_data ^= mask;
         } else {
             uint64_t mask = fault_mask ? fault_mask : (1ULL << (rng() % 64));
             pte_data ^= mask;
