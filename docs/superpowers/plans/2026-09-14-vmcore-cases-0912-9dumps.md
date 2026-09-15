@@ -29,7 +29,7 @@
 - RAS 负证据:9 案均仅 2 条开机 EDAC/ghes_edac 初始化行,零真实 RAS 错误上报。
 - 8 案无 vmcore 文件(仅 dmesg),1 案(28)有 12GB 完整 vmcore。
 - 案 22 x25=0xb3=179:**自指装载**——CPU179 装载自己的 percpu 偏移槽时坏值。案 24 x25=50、案 27 x25=20 为跨槽装载。
-- 案 27 受害进程 `neon_rot_ldr_at` 是本仓库部署的满载探针(fi_research/probes),首次作为崩溃进程出现。
+- 案 27 受害进程 `neon_rot_ldr_at` 是 opendcdiag 派生的每核满载压测进程(谱系#11案crash实测确认;原勘察表误记为'本仓库探针',案27报告已澄清),首次作为崩溃进程出现。
 
 ## Global Constraints
 
@@ -100,10 +100,10 @@
 
 ## Task 8: 案 27(09-12-10:00:31)同上四步
 
-- [ ] 8.1 复核(受害进程 neon_rot_ldr_at=本仓库满载探针首次成为崩溃进程;前兆 17 次;exit 系统调用路径 do_task_dead→schedule 崩溃链首见)
-- [ ] 8.2 代数闭合
-- [ ] 8.3 附件+报告
-- [ ] 8.4 验证 → commit → push
+- [x] 8.1 复核(受害进程 neon_rot_ldr_at=本仓库满载探针首次成为崩溃进程;前兆 17 次;exit 系统调用路径 do_task_dead→schedule 崩溃链首见)
+- [x] 8.2 代数闭合
+- [x] 8.3 附件+报告
+- [x] 8.4 验证 → commit → push
 
 ## Task 9: 案 28(09-14-01:45:56)完整 crash 取证 + 报告 + commit
 
