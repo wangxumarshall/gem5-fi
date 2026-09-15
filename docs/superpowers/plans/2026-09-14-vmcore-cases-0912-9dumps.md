@@ -107,11 +107,11 @@
 
 ## Task 9: 案 28(09-14-01:45:56)完整 crash 取证 + 报告 + commit
 
-- [ ] 9.1 dmesg 法证(前兆 184 次新纪录;swapper/179 idle softirq 路径)
-- [ ] 9.2 taskset -c 0-47 下 crash 冷加载 12GB vmcore(`crash -i cmdfile` 批处理,timeout 590+)
-- [ ] 9.3 x1 语义钉死(p runqueues/sym x1)、`__per_cpu_offset[7]` 真值 vs 实收 x20=0 对照、反事实 vtop(x1+off[7]+0x120) VALID 验证、FAR 页表几何
-- [ ] 9.4 附件(crash 会话 log)+报告
-- [ ] 9.5 验证 → commit → push
+- [x] 9.1 dmesg 法证(前兆 184 次新纪录;swapper/179 idle softirq 路径)
+- [x] 9.2 taskset -c 0-47 下 crash 冷加载 12GB vmcore(`crash -i cmdfile` 批处理,timeout 590+)
+- [x] 9.3 x1 语义钉死(p runqueues/sym x1)、`__per_cpu_offset[7]` 真值 vs 实收 x20=0 对照、反事实 vtop(x1+off[7]+0x120) VALID 验证、FAR 页表几何
+- [x] 9.4 附件(crash 会话 log)+报告
+- [x] 9.5 验证 → commit → push
 
 ## Task 10: 收尾——9 案汇总增量 + SYNTHESIS 更新
 
