@@ -1,0 +1,130 @@
+案 #27 dmesg 法证摘录（原文+行号）
+源文件: /home/sdc/wangxu/vmcore0102/127.0.0.1-2026-09-12-10:00:31/vmcore-dmesg.txt
+摘录时间: 2026-09-15 11:18:25  行号 = grep -n 原始行号
+
+==================================================================
+A. 开机头
+==================================================================
+L1	[    0.000000] Booting Linux on physical CPU 0x0000080000 [0x481fd010]
+L2	[    0.000000] Linux version 6.6.0-145.3.23.154.oe2403sp3.aarch64 (root@node-48snw.compass-ci.net) (gcc_old (GCC) 12.3.1 (openEuler 12.3.1-110.oe2403sp3), GNU ld (GNU Binutils) 2.41) #1 SMP Mon Jul 27 19:00:34 CST 2026
+L321	[    0.000000] NUMA: PERCPU: auto allocator failed (-22), falling back to page size
+L322	[    0.000000] percpu: 34 4K pages/cpu s107496 r8192 d23576
+
+==================================================================
+B. RAS/EDAC/GHES 初始化
+==================================================================
+L1262	[    0.350745] CPU features: detected: RAS Extension Support
+L1309	[    0.563062] GHES: APEI firmware first mode is enabled by APEI bit and WHEA _OSC.
+L1859	[    0.859859] EDAC MC: Ver: 3.0.0
+L2177	[    1.491137] ghes_edac: This system has 32 DIMM sockets.
+L2178	[    1.491595] EDAC MC0: Giving out device to module ghes_edac.c controller ghes_edac: DEV ghes (INTERRUPT)
+
+==================================================================
+C. 前兆谱（17 次 spurious fault 全录）
+==================================================================
+L2592	[34323.573051] Ignoring spurious kernel translation fault at virtual address ffff60400c24a4a8
+L2637	[34333.581532] Ignoring spurious kernel translation fault at virtual address ffff60400c24d500
+L2682	[34333.599789] Ignoring spurious kernel translation fault at virtual address ffff60400c24d4ea
+L2727	[34333.622890] Ignoring spurious kernel translation fault at virtual address ffff60400c24d7c0
+L2772	[34353.544256] Ignoring spurious kernel translation fault at virtual address ffff60400c24d1bc
+L2817	[34363.657182] Ignoring spurious kernel translation fault at virtual address ffff60400c249747
+L2862	[34373.627092] Ignoring spurious kernel translation fault at virtual address ffff60400c24922a
+L2907	[34373.636258] Ignoring spurious kernel translation fault at virtual address ffff60400c2491c7
+L2952	[34383.606924] Ignoring spurious kernel translation fault at virtual address ffff60400c248450
+L2997	[34383.654254] Ignoring spurious kernel translation fault at virtual address ffff60400c24858f
+L3042	[34413.623506] Ignoring spurious kernel translation fault at virtual address ffff60400c249655
+L3087	[34423.609067] Ignoring spurious kernel translation fault at virtual address ffff60400c24c14e
+L3132	[34423.669150] Ignoring spurious kernel translation fault at virtual address ffff60400c24c2a3
+L3177	[34953.595138] Ignoring spurious kernel translation fault at virtual address ffff604007550277
+L3222	[34963.549451] Ignoring spurious kernel translation fault at virtual address ffff60400c24f773
+L3267	[34970.067966] Ignoring spurious kernel translation fault at virtual address ffff60400c24b5e7
+L3312	[34983.607754] Ignoring spurious kernel translation fault at virtual address ffff60400c24f31c
+-- 17/17 全部 CPU: 179；地址全部 ffff6040 前缀（canonical）--
+-- 前兆受害 PID: 13780×16（pmdalinux）+ 9692×1 --
+-- 首次前兆完整栈（L3378 起, show_interrupts 路径）--
+L2594	[34323.573075] Modules linked in: binfmt_misc nft_fib_inet nft_fib_ipv4 nft_fib_ipv6 nft_fib nft_reject_inet nf_reject_ipv4 nf_reject_ipv6 nft_reject nft_ct nft_chain_nat nf_nat nf_conntrack nf_defrag_ipv6 nf_defrag_ipv4 rfkill ip_set nf_tables libcrc32c vfat fat rpcrdma sunrpc rdma_ucm ib_srpt ib_isert iscsi_target_mod target_core_mod ib_iser rdma_cm iw_cm ib_cm libiscsi scsi_transport_iscsi ipmi_ssif hns_roce_hw_v2 ib_uverbs acpi_ipmi ses enclosure ipmi_si ib_core sg hisi_uncore_ddrc_pmu hisi_uncore_l3c_pmu hisi_uncore_hha_pmu hisi_uncore_pmu ipmi_devintf ipmi_msghandler ip6_tables ip_tables fuse nfnetlink ext4 mbcache jbd2 sd_mod t10_pi hibmc_drm crc64_rocksoft_generic drm_vram_helper drm_ttm_helper crc64_rocksoft crc64 ttm drm_display_helper motorcomm hclge crct10dif_ce ghash_ce hisi_sas_v3_hw sha2_ce sha256_arm64 hisi_sas_main sha1_ce drm_kms_helper libsas ahci sbsa_gwdt libahci scsi_transport_sas drm hns3 libata nfit hnae3 megaraid_sas host_edma_drv i2c_designware_platform libnvdimm i2c_designware_core hisi_trng_v2
+L2595	[34323.573187]  dm_mirror dm_region_hash dm_log dm_multipath dm_mod aes_neon_bs aes_neon_blk aes_ce_blk aes_ce_cipher
+L2596	[34323.573203] CPU: 179 PID: 13780 Comm: pmdalinux Kdump: loaded Not tainted 6.6.0-145.3.23.154.oe2403sp3.aarch64 #1
+L2597	[34323.573207] Hardware name: Yangtze Computing R240K V2/BC82AMQA, BIOS 7.48 06/15/2026
+L2598	[34323.573210] pstate: 60400009 (nZCv daif +PAN -UAO -TCO -DIT -SSBS BTYPE=--)
+L2599	[34323.573213] pc : __do_kernel_fault+0x130/0x1b8
+L2600	[34323.573216] lr : __do_kernel_fault+0x130/0x1b8
+L2601	[34323.573219] sp : ffff8001dc2cb880
+L2602	[34323.573220] x29: ffff8001dc2cb880 x28: ffff60400d0a9500 x27: 00000000ffffffd8
+L2603	[34323.573225] x26: ffff8001dc2cbbd0 x25: 0000000000000b62 x24: ffff60400c24a49e
+L2604	[34323.573229] x23: 0000000080400009 x22: 0000000000000025 x21: ffff60400c24a4a8
+L2605	[34323.573232] x20: ffff8001dc2cb950 x19: 0000000096000044 x18: ffffffffffffffff
+L2606	[34323.573236] x17: 6666207373657264 x16: 6461206c61757472 x15: 697620746120746c
+L2607	[34323.573240] x14: 756166206e6f6974 x13: 3861346134326330 x12: 3034303666666666
+L2608	[34323.573244] x11: 00000000fffeffff x10: ffff60575f8cfb40 x9 : ffffd431b192c520
+L2609	[34323.573247] x8 : 000000000017ffe8 x7 : c0000000fffeffff x6 : 000000000057ffa8
+L2610	[34323.573251] x5 : ffff8000817c9d88 x4 : ffff8001dc2cb6e0 x3 : ffffabcece4d4000
+L2611	[34323.573255] x2 : 0000000000000000 x1 : 0000000000000000 x0 : ffff60400d0a9500
+L2612	[34323.573260] Call trace:
+L2613	[34323.573262]  __do_kernel_fault+0x130/0x1b8
+L2614	[34323.573266]  do_bad_area+0x70/0x88
+L2615	[34323.573269]  do_translation_fault+0x40/0x80
+L2616	[34323.573275]  do_mem_abort+0x4c/0xa8
+
+==================================================================
+D. 致命 Oops 完整块（L3356-3406）
+==================================================================
+L3356	[34999.538806] Unable to handle kernel paging request at virtual address 003fd531b2dc66ac
+L3357	[34999.547548] Mem abort info:
+L3358	[34999.551128]   ESR = 0x0000000096000004
+L3359	[34999.555665]   EC = 0x25: DABT (current EL), IL = 32 bits
+L3360	[34999.561766]   SET = 0, FnV = 0
+L3361	[34999.565606]   EA = 0, S1PTW = 0
+L3362	[34999.569532]   FSC = 0x04: level 0 translation fault
+L3363	[34999.575197] Data abort info:
+L3364	[34999.578863]   ISV = 0, ISS = 0x00000004, ISS2 = 0x00000000
+L3365	[34999.585136]   CM = 0, WnR = 0, TnD = 0, TagAccess = 0
+L3366	[34999.590974]   GCS = 0, Overlay = 0, DirtyBit = 0, Xs = 0
+L3367	[34999.597077] [003fd531b2dc66ac] address between user and kernel address ranges
+L3368	[34999.605005] Internal error: Oops: 0000000096000004 [#1] SMP
+L3369	[34999.611367] Modules linked in: binfmt_misc nft_fib_inet nft_fib_ipv4 nft_fib_ipv6 nft_fib nft_reject_inet nf_reject_ipv4 nf_reject_ipv6 nft_reject nft_ct nft_chain_nat nf_nat nf_conntrack nf_defrag_ipv6 nf_defrag_ipv4 rfkill ip_set nf_tables libcrc32c vfat fat rpcrdma sunrpc rdma_ucm ib_srpt ib_isert iscsi_target_mod target_core_mod ib_iser rdma_cm iw_cm ib_cm libiscsi scsi_transport_iscsi ipmi_ssif hns_roce_hw_v2 ib_uverbs acpi_ipmi ses enclosure ipmi_si ib_core sg hisi_uncore_ddrc_pmu hisi_uncore_l3c_pmu hisi_uncore_hha_pmu hisi_uncore_pmu ipmi_devintf ipmi_msghandler ip6_tables ip_tables fuse nfnetlink ext4 mbcache jbd2 sd_mod t10_pi hibmc_drm crc64_rocksoft_generic drm_vram_helper drm_ttm_helper crc64_rocksoft crc64 ttm drm_display_helper motorcomm hclge crct10dif_ce ghash_ce hisi_sas_v3_hw sha2_ce sha256_arm64 hisi_sas_main sha1_ce drm_kms_helper libsas ahci sbsa_gwdt libahci scsi_transport_sas drm hns3 libata nfit hnae3 megaraid_sas host_edma_drv i2c_designware_platform libnvdimm i2c_designware_core hisi_trng_v2
+L3370	[34999.611481]  dm_mirror dm_region_hash dm_log dm_multipath dm_mod aes_neon_bs aes_neon_blk aes_ce_blk aes_ce_cipher
+L3371	[34999.713686] CPU: 179 PID: 741633 Comm: neon_rot_ldr_at Kdump: loaded Tainted: G        W           6.6.0-145.3.23.154.oe2403sp3.aarch64 #1
+L3372	[34999.726917] Hardware name: Yangtze Computing R240K V2/BC82AMQA, BIOS 7.48 06/15/2026
+L3373	[34999.735452] pstate: 204000c9 (nzCv daIF +PAN -UAO -TCO -DIT -SSBS BTYPE=--)
+L3374	[34999.743204] pc : find_busiest_group+0x140/0xb60
+L3375	[34999.748530] lr : find_busiest_group+0x11c/0xb60
+L3376	[34999.753849] sp : ffff8001fa2a3900
+L3377	[34999.757947] x29: ffff8001fa2a3a80 x28: ffff8001fa2a3930 x27: d73fd531b2dc658c
+L3378	[34999.765876] x26: ffff6040120deba0 x25: 0000000000000014 x24: ffffd431b3705000
+L3379	[34999.773802] x23: 0000000000000400 x22: ffff6040120def00 x21: ffffd431b36ffcb0
+L3380	[34999.781728] x20: d74000ffffabcecc x19: ffff8001fa2a3b10 x18: 0000000000000000
+L3381	[34999.789656] x17: 0000000000000000 x16: 0000000000000000 x15: 0000000000000000
+L3382	[34999.797584] x14: 0000000000000004 x13: ffffd431b3731988 x12: 0000000000013bbc
+L3383	[34999.805512] x11: 0000000000000048 x10: 0000000000000000 x9 : ffffd431b18dae58
+L3384	[34999.813441] x8 : ffff8001fa2a3988 x7 : 0000000000000000 x6 : 0000000000000014
+L3385	[34999.821369] x5 : fffffffffff00000 x4 : 0000000000000000 x3 : 0000000000000014
+L3386	[34999.829296] x2 : 0000000000004ffe x1 : ffffd431b33096c0 x0 : 0000000000000014
+L3387	[34999.837224] Call trace:
+L3388	[34999.840455]  find_busiest_group+0x140/0xb60
+L3389	[34999.845426]  load_balance+0x108/0x6c0
+L3390	[34999.850492]  newidle_balance+0x198/0x510
+L3391	[34999.855729]  pick_next_task_fair+0x110/0x718
+L3392	[34999.861278]  pick_next_task+0x60/0x398
+L3393	[34999.866294]  __schedule+0x1b4/0x8a0
+L3394	[34999.871045]  do_task_dead+0x74/0xe8
+L3395	[34999.875778]  do_exit+0x2a4/0x440
+L3396	[34999.880240]  __arm64_sys_exit+0x20/0x28
+L3397	[34999.885311]  invoke_syscall+0x50/0x128
+L3398	[34999.890291]  el0_svc_common.constprop.0+0xc8/0xf0
+L3399	[34999.896227]  do_el0_svc+0x48/0x78
+L3400	[34999.900773]  el0_slow_syscall+0x44/0x1b8
+L3401	[34999.905931]  el0t_64_sync_handler+0x100/0x130
+L3402	[34999.911518]  el0t_64_sync+0x188/0x190
+L3403	[34999.916407] Code: f9400782 f879d814 2a1903e0 8b14003b (f9409377) 
+L3404	[34999.923735] SMP: stopping secondary CPUs
+L3405	[34999.933374] Starting crashdump kernel...
+L3406	[34999.938608] Bye!
+
+==================================================================
+E. RAS 负证据 + taint + 时间线
+==================================================================
+-- 全文 hardware error/Machine check 匹配数: 0
+-- 致命块 taint: Tainted: G W（17 次 spurious WARNING 累积,自洽）--
+L2547	[   26.613008] systemd-journald[2501]: File /var/log/journal/0a19aafaa6074d29877f0b04ba7fdbf6/system.journal corrupted or uncleanly shut down, renaming and replacing.
+-- 上次非正常关机 = 09-12-00:09 案#26 崩溃 --
