@@ -524,11 +524,15 @@ Phase 26 (S6/S7)               ← 环境阻塞/越界，现状标注，不算�
 
 **服务器端 AI 一句话**：跑任何 FS campaign 用 `parallel -j6`（或更低），启动前 `numactl -H | grep 'node 1'` 看 free + `swapon --show` 看 swap，超阈值就别开。
 
+## 分支变更（2026-09-17）
+
+`fix/fi-tool-correctness` 已在 GitHub 上被删除（PR #47 于 2026-09-15 00:45 合并进 `fi-ding` 后自动删的，`git ls-remote` 实测核对过，不是网络抽风）。本地历史（`effe3a80` / 服务器 `41fca2c`）都是 `fi-ding` 的祖先，没有丢任何提交。**决定：往后所有工作推送目标改为 `fi-ding`**（不再重建 `fix/fi-tool-correctness`）。Windows 侧本地 clone 已切到 `fi-ding` 并重设 fetch refspec；服务器端 clone（`/home/sdc/gem5-fi`，当前仍在 `fix/fi-tool-correctness`）下次提交前需要 `git checkout -B fi-ding origin/fi-ding`（当前分支干净可直接切，未提交的 untracked 文件如 `tools/reclassify3*.py` 不受影响）再推。下文「下一步」的分支名已同步更新。
+
 ## Next Step
 
 **Phase 1–20 全部 `Status: complete`**（`gem5-fi` HEAD `5a2e86c`，已核对 commit + campaign 产物）。v1.3 Phase 18-20 收官：11 个 formal cell 补齐、C2-KP 配置对齐浮现平台效应结构定律、§20 H7 formal（ECC off 49.0% vs on 0.0%，CI 零重叠，本轮头号结论）、§8/§21 诚实 pilot、§23 scope-cut 拍板落地。**v1.4 完整性轮（Phase 21–26）已并入本计划**——补齐工程设计文档 §1.3/1.4/1.5/2.18/4.1-4.2/附录 B 里仿真环境内可执行、但未被 Phase 1–20 任何一项覆盖的缺口（详见上方 Phase 21–26）。
 
-下一步（**Linux 健康机** `gem5-fi/`，分支 `fix/fi-tool-correctness`，`numactl` 钉有内存的 NUMA node）：
+下一步（**Linux 健康机** `gem5-fi/`，分支 `fi-ding`（2026-09-17 起，见上方「分支变更」），`numactl` 钉有内存的 NUMA node）：
 
 > ⚠ **先读「跑批资源纪律」**（v1.3 事故后强制，仍然有效）。FS gem5 `parallel -j6` 硬上限、SE gem5 `-j20`、launcher 用信号量不用 timer、启动前查 node 1 free ≥ 12 GB 且 swap < 20%。
 
