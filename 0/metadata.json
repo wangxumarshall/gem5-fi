@@ -1,0 +1,106 @@
+{
+  "cli_version": "0.10.2",
+  "checkpoint_id": "01M2QDFPYX8CYR9VNNTR94KJQW",
+  "session_id": "58d3bf6c-be39-41f5-8b84-b52f3eb0559f",
+  "strategy": "manual-commit",
+  "created_at": "2026-09-17T10:09:49.416821499Z",
+  "branch": "fix/fi-tool-correctness",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "task_plan.md"
+  ],
+  "agent": "Claude Code",
+  "model": "glm-5.3",
+  "turn_id": "53068195460a",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 563363763,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 32094272,
+    "output_tokens": 454729,
+    "api_call_count": 1429
+  },
+  "skill_events_version": 1,
+  "skill_events": [
+    {
+      "id": "prompt-skill-claude-code-goal-2026-09-17T09:42:20.425876917Z",
+      "event_type": "prompt_invocation",
+      "skill": {
+        "name": "goal"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "prompt_slash_command",
+        "confidence": "explicit"
+      },
+      "turn_id": "53068195460a",
+      "timestamp": "2026-09-17T09:42:20.425876917Z",
+      "native": {
+        "command": "/goal"
+      },
+      "collapse": {
+        "target": "user_message",
+        "label": "/goal",
+        "default_collapsed": true
+      }
+    },
+    {
+      "id": "claude-skill-call_c5707cfc62704c5ea255130e",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "executing-plans"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "53068195460a",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 36,
+        "end": 37,
+        "entry_ids": [
+          "d42315fb-fd52-43ef-84bd-3641054ffa7e"
+        ],
+        "tool_use_id": "call_c5707cfc62704c5ea255130e"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "call_c5707cfc62704c5ea255130e"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: executing-plans",
+        "default_collapsed": true
+      }
+    }
+  ],
+  "initial_attribution": {
+    "calculated_at": "2026-09-17T10:09:48.27089312Z",
+    "agent_lines": 11,
+    "agent_removed": 0,
+    "human_added": 12014,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 12025,
+    "total_lines_changed": 12025,
+    "agent_percentage": 0.09147609147609147,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 120,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".plan.md": 61,
+        "CHAOS/gem5/configs/ruby/CHAOSNoC_test.py": 14,
+        "CHAOS/gem5/configs/ruby_chi_test.py": 29,
+        "CHAOS/gem5/configs/ruby_noctest_launcher.py": 16
+      }
+    }
+  ]
+}
