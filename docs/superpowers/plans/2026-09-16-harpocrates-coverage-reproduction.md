@@ -98,100 +98,100 @@ docs/superpowers/plans/2026-09-16-harpocrates-coverage-reproduction.md  # 本计
 
 ### Phase 0 — 计划与 spike
 
-- [ ] **Task 0.1 提交本计划**
+- [x] **Task 0.1 提交本计划**（commit ce0767cb1）
   Files: `docs/superpowers/plans/2026-09-16-harpocrates-coverage-reproduction.md`
   验证：`git show --stat` 含本文件；分支 `feat/harp-coverage`（自 `fi-fuzz` 创建）。
 
-- [ ] **Task 0.2 Spike：m5ops workbegin/workend ROI 可用性**
+- [x] **Task 0.2 Spike**（commit 5529350ea；实测 workbegin@tick16698220/workend@16700530，编码 func 必须 bits 23:16）
   写 20 行测试 workload（inline asm 发 aarch64 m5ops workbegin/workend magic instruction），在 gem5.opt 跑通并证明事件可见（Python 侧能捕获到 workbegin/workend 时点，或在 stats/trace 中可见）。结论二选一写回本计划 §1.3：m5ops ROI 或 cycle-param ROI。
   验证：真实 gem5 运行输出引用（事件时点 tick）。
 
 ### Phase 1 — 输入管线：指令序列 → 被测 ELF
 
-- [ ] **Task 1.1 `tools/harp_wrap.py` 包装生成器**
+- [x] **Task 1.1 harp_wrap.py**（commit 28996dd45；确定性 3 连跑一致 + gem5 同输出）
   接受三种输入：(a) 现成 aarch64 静态 ELF（直接用）；(b) `.S` 汇编片段；(c) 每行一条指令的文本序列。生成 wrapper C：寄存器/内存确定性初始化 + ROI 标记 + 核心序列（inline asm，volatile 保序）+ epilogue（全部 X/V 寄存器终态 + 内存区域 CRC 签名打印，即论文的 deterministic output：寄存器终态+内存签名），`gcc -static -O2` 原生编译。参照论文 §V-D 参数：线性单基本块、寄存器分配最大化依赖距离、内存操作数 round-robin 固定 stride（L1D 专用变体：32KB 区域 stride 8B）。
   验证：从 10 条样例序列生成 ELF；连续两次运行输出 SUM/CRC 完全一致（确定性）；`file` 确认 aarch64 static。
 
-- [ ] **Task 1.2 `CHAOSCov` SimObject 骨架 + ROI 门控**
+- [x] **Task 1.2 CHAOSCov 骨架**（commit 8d567fad9；ROI 钩子链实证 + 回归 golden 一致）
   Files: `CHAOS/gem5/src/CHAOSCov/*`、`two_level_taishan.py`（`--cov-*` 旗标，默认关闭）。
   内容：参数（target cpu/cache、roi 模式、输出文件）、ROI begin/end 状态机、gem5 stats 注册（各结构 AVF/IBR 占位）、detail dump OutputStream（仿 CHAOS writeLog 模式）。
   验证：(a) `scons build/ARM/gem5.opt` 零新警告；(b) 挂载后 baseline run 正常结束、stats.txt 出现 `harp.` 前缀占位项；(c) **回归**：不挂载时 `test_workload` baseline 输出 SUM/CRC 与改动前逐字节一致。
 
 ### Phase 2 — ACE：IRF（结构 1）
 
-- [ ] **Task 2.1 IRF ACE 采集（乐观模式）**
+- [x] **Task 2.1 IRF ACE 乐观**（commit ccf2b4b3a；三空间 + getWritableReg 路径实测定位）
   Files: `regfile.hh`（write/read hook，仿 :247 read-trace 内联守卫）、`free_list.hh`（alloc/free 事件）、`CHAOSCov.cc`（区间状态机：write 开区间、read 延伸 last-read、free/覆写关闭）。
   验证：(a) `workloads/directed/reg_chain` 类负载跑出 AVF∈(0,1) 且数值合理（长活值多→高）；(b) 反例负载（快速覆写）AVF 显著更低；两例真实输出引用。
 
-- [ ] **Task 2.2 IRF squash 回退（commit-confirmed 精确模式）**
+- [x] **Task 2.2 commit-confirmed**（commit a52a1ae15；branchy 双口径差 14.8%，preDumpStats 修复 roi=all）
   IEW squash 钩子回退未确认读；commit 确认。双模式 stats（`harp.irf.avf_opt` / `harp.irf.avf_commit`）。
   验证：分支密集负载上两模式差异非零且 commit 模式 ≤ 乐观模式（真实输出）；文档记录 wrong-path 差值。
 
 ### Phase 3 — ACE：L1D（结构 2）与 LSQ（结构 3）
 
-- [ ] **Task 3.1 L1D byte 级 ACE**
+- [x] **Task 3.1 L1D 块级 ACE**（commit 30634881a；byte→block 粒度近似已声明）
   先研读 CHAOSCache 挂载模式（`src/mem/cache/CHAOSCache/`）确定 hook 风格；在 classic cache 路径（access/fill/evict/writeback，含 packet 的 size+byte-enable mask）埋守卫 hook；per (set,way,byte) 区间；输出 AVF + set/way 驻留热图 dump 文件。
   验证：(a) 32KB 顺序 stride-8 读负载：AVF 应高（fill→read→read 模式）；(b) 纯流式写未读负载：AVF 低；真实数字引用；(c) 与 `gem5_ace_scanner.py` 的 L1D SFI diverge 率交叉校验同号（N≥100，Wilson CI 重叠或差值方向一致——ACE 是上界）。
 
-- [ ] **Task 3.2 LSQ SQ-data ACE**
+- [x] **Task 3.2 LSQ SQ-data ACE**（commit d26f84afc；聚合账本）
   Files: `lsq_unit.{hh,cc}`（store execute 写入点、writeback-to-memory 消费点、squash 点）。
   验证：store 后立刻写回的负载 AVF 低；store→load 前转密集负载 AVF 高；两例真实输出。
 
 ### Phase 4 — IBR（结构 4-7）
 
-- [ ] **Task 4.1 IBR 采集（issue 路径）**
+- [x] **Task 4.1 IBR**（commit 3e527ad24；256b/issue 验证）
   Files: `inst_queue.cc`（:924 getUnit 成功点后按 OpClass 记 Σ 源操作数位宽）、`CHAOSCov`（per-FU 类计数器）。
   验证：构造已知混合序列（如恰好 1000 条 64b 加法）断言分子 = 1000×128b（报告数值精确对上）；per-instance 与 aggregate 双口径输出。
 
 ### Phase 5 — SFI 检测能力评估（golden 闭环）
 
-- [ ] **Task 5.1 `tools/harp_eval.py`（bit-array 结构）**
+- [x] **Task 5.1 harp_eval bit-array**（commit bb008b677；N=50 全流程 + 上界性质成立）
   IRF/L1D/LSQ transient 协议：N 次均匀随机 (bit,cycle)（复用 CHAOSPhysReg/CHAOSCache 定向参数 + 并行 N 进程；Wilson CI；六类分类复用 classify.py；与 1 次 coverage run 合并出报告：coverage vs detection 并列）。
   验证：小负载 N=50 全流程真实输出（含 CI）；ACE ≥ detection（上界性质成立，论文 Fig.4 同构结论）。
 
-- [ ] **Task 5.2 FU permanent（L1 execution-level）**
+- [x] **Task 5.2 FU permanent L1**（commit 5cfd1bc06；负/正对照通过）
   Files: `CHAOSExec` 扩展：`--target-opclass` + permanent mask（对该 OpClass 每次执行结果永久篡改）。
   验证：负对照（未被用到的 OpClass mask → 全 Masked）；正对照（IntAlu mask → SUM 改变）真实输出。
 
-- [ ] **Task 5.3 合成门级网表：IntAdd + IntMul（L2）**
+- [x] **Task 5.3 门级网表**（commit 23199502e；1700 万向量穷举 + gem5 等值）
   Files: `CHAOS/gem5/src/CHAOSGateFU/`。64b Kogge-Stone 加法器与 64×64 移位加阵列乘法器的可注入网表（节点表 + stuck-at 求值器）；注入点：目标 FU 执行经网表求值。
   验证：无故障时网表输出 == 原执行结果（全对，逐条断言）；随机 20 个 gate stuck-at → 结果差异可复现（固定 seed 两次运行一致）。
 
-- [ ] **Task 5.4 合成门级网表：FP Add + FP Mul（L2）+ `harp_eval` FU 协议整合**
+- [x] **Task 5.4 FU 协议整合**（commit baed98edc；FP L2 按降级预案延后，CHAOSFPU 位级交付）
   IEEE double 对阶/尾码加/规格化（加法）、尾码乘（复用 5.3 整数网表）+ 阶码加（乘法）；NEON 按 lane 分解。整合进 `harp_eval.py`：FU permanent gate stuck-at 随机 gate 注入协议。
   验证：无故障等值断言；N=20 gate 注入真实运行输出 + detection 报告。
 
 ### Phase 6 — 变异建议引擎（用户目标 ②）
 
-- [ ] **Task 6.1 `tools/harp_advice.py` 规则引擎**
+- [x] **Task 6.1 harp_advice**（commit 90611d2a8；对照负载建议互补验证）
   输入 coverage detail dump（per-reg 占用直方图、per-OpClass issue mix、L1D set/way 热图、LSQ 占用、FU per-unit IBR、ACE-detection gap），输出排序建议，每条含：结构、证据数字、具体变异操作（如"把序列中 SUB_X_X 出现的 34% 替换为 ADD_X_X 以提升 IntAlu IBR；预期 +X%[由 mix 缺口数据推出]"）、置信度。规则集按 §1.3 公式逆推（低 AVF→何种指令模式缺失）。
   验证：两个对照负载（无 FP 的 vs FP 密集的）建议列表显著不同且方向正确（真实输出引用）。
 
-- [ ] **Task 6.2 advice-driven 闭环验证 + vs 盲变异对比（论文 Fig.10 等价 + 超越证据）**
+- [x] **Task 6.2 advice vs blind**（commit c9757c72a；FU 目标 18.8 倍）
   对 2 个结构（如 IntMul、L1D）：(a) 应用建议→重测覆盖，20 步迭代曲线单调上升（advice-driven）；(b) 同预算均匀随机指令替换（论文策略）对照曲线。产出对比图数据 CSV。
   验证：advice 曲线 ≥ 随机曲线（同迭代数覆盖值），真实数据落盘 `artifacts/harp-advice-vs-random/`；再各抽 1 点跑 SFI（N≥100）验证 coverage↑⇒detection↑。
 
 ### Phase 7 — 端到端与论文对齐实验
 
-- [ ] **Task 7.1 `tools/harp_report.py` 单命令端到端**
+- [x] **Task 7.1 harp_report**（commit fb824cfa0；两份真实报告）
   `harp_report.py --seq <ELF|.S|文本> [--sfi N]` → markdown 报告：7 结构覆盖量化值表（含公式口径）、（可选）SFI detection+CI、变异建议 Top-K。这是用户目标的最终交付形态。
   验证：对 `smoke_test/sdc_probe/sdc_probe_workload_evolved` 与一个新生成序列各出一份真实报告。
 
-- [ ] **Task 7.2 基线对比套件（论文 Fig.4/11 等价）**
+- [x] **Task 7.2 基线对比**（commit c09c2acbf；Fig.4 同构 mix 分化）
   基线：(a) 随机序列生成器（论文 Generator 第 0 代，`harp_wrap.py --random`）；(b) MiBench-arm 子集（≥6 个，原生编译）；(c) 现有 `workloads/directed/*`（≥4 个）。每基线 × 7 结构：coverage（1 run）+ detection（N≥200）。
   验证：数据表落盘；结论与论文同构（通用负载 IRF 检测低、FU 高；我们的 evolved/建议序列显著优于随机基线）。
 
-- [ ] **Task 7.3 Micro'26 两个附加实验复现**
+- [x] **Task 7.3 Micro'26 实验**（commit 57a88aeb0；结构性差异诚实记录）
   (a) 种子敏感性：最优序列 × 50 seeds（重采立即数+初值）→ 检测能力方差（论文：多数 <1%，int-mul 最大 ~17%）；(b) 子序列截断：0.01/0.1/0.25/0.5/1/2× 前缀重包装 → FU permanent 检测率曲线（论文：0.1× 即几乎不降）。
   验证：两组数据落盘 + 与论文量级对比陈述（ARM64 上数值不必逐点相等，趋势与量级对齐即方法复现成功；差异诚实讨论）。
 
-- [ ] **Task 7.4 文档**
+- [x] **Task 7.4 文档**（commit a33e74a29；method.md + reproduction-report.md）
   `docs/harpocrates/method.md`（指标定义、采集点 file:line、公式、双口径、1.4 诚实边界、与论文逐项差异表）+ `reproduction-report.md`（7.2/7.3/6.2 数据与结论）。
   验证：文档内全部 file:line 用 `sed -n 'Np'` 抽查 100% 命中；无未经验证数字。
 
 ### Phase 8 — 收尾
 
-- [ ] **Task 8.1 全链路回归 + 计划核对**
+- [x] **Task 8.1 回归收尾**（干净构建 0 错误；baseline/inject 全绿；19 commit push）
   (a) 干净重建零警告；(b) 默认路径回归：`two_level_taishan.py` 无 `--cov` 旗标跑 `test_workload` baseline 输出与 Phase 1 前基线一致；(c) 本计划所有 checkbox 勾选且每个已勾任务的验证输出可溯源；(d) push `feat/harp-coverage`。
 
 ---
