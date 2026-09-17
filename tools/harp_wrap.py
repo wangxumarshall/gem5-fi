@@ -29,6 +29,7 @@
 """
 import argparse
 import os
+import re
 import subprocess
 import sys
 
@@ -179,7 +180,21 @@ MNEMONIC_WHITELIST = (
 
 def sanitize_asm_line(line, lineno):
     """校验一行指令：非空、无标号/伪指令/危险助记符。返回 (inst|None, err|None)。"""
-    s = line.split("#")[0].split("//")[0].split(";")[0].strip()
+    # 剥注释时保护 [x8, #imm] 里的 '#'（ARM 立即数偏移前缀）：
+    # 只把方括号深度为 0 处的 '#...' 当注释（盲变异实验实测：
+    # split("#") 把 'str x12,[x8, #24]' 截成 'str x12,[x8,' 使 gcc 报
+    # invalid expression）。
+    depth = 0
+    cut = len(line)
+    for i, ch in enumerate(line):
+        if ch == '[':
+            depth += 1
+        elif ch == ']':
+            depth -= 1
+        elif ch == '#' and depth == 0:
+            cut = i
+            break
+    s = line[:cut].split("//")[0].split(";")[0].strip()
     if not s or s.startswith("."):
         return None, None  # 空行/注释/伪指令 → 跳过
     if ":" in s:
