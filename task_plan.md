@@ -461,6 +461,17 @@ CHAOSCHI/CHAOSNoC pilot 已能触发（7c854bb/7582e8c，未提交的 ruby test 
 
 ---
 
+## Phase 27 — v1.4:SDC 过程三分类重统计(2026-09-11)
+
+**Status: complete**
+
+1. ✅ **三分类表**:全部 115 campaigns / 233 cells / 34,068 reps 按新框架(无影响/过程中检出/未检出但有问题[3a/3b/3c])重统计;工具 tools/reclassify3{,_report,_md}.py;机读 artifacts/meta/reclass3_{cells,metrics}.json;**人读主表 plans/sdc-process-reclassification.md**。
+2. ✅ **类别2 三态审计**:4 保护单元(实际 rep 统计)/7 N/A/1 未实现/**9 未知待证实**(N1 代理假设未经实机验证)。
+3. ✅ **Crash≥10% 二次核实**:6 单元 8 reps 重放——4 单元 guest 真实页故障(Crash 正确)、exmon gem5-断言中介(DUE 标注)、**iq 旧 F5/F6 三 campaign 778 条 Crash = 配置错误伪影,作废重计 SimulatorError**(IQ 可信数字 = v1.2 修复后数据)。exec/lsq_fwd 未逐 rep 重放(同签名家族),表中标注。
+4. ⏳ **新待办(单独列,未顺手改)**:runner.py 的 results.jsonl 加 `exit_reason` 字段(保存 stderr 首个 panic/assert/Exception 行,~50 字符)——本次 SIGABRT 疑点回溯靠重放,根因是结果文件不留 stderr 原文。下轮 campaign 工具补丁时一并做。
+
+---
+
 ## 执行顺序与理由
 
 ```

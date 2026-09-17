@@ -728,3 +728,13 @@ fwd_checksum(store→load 共享行),L2-as-L3 代理 + pairedSector(128B 域双�
 **Pilot 对照**:ECC-off 47% [30.9,63.7](n=30)→ formal 49.0% [44.0,53.9](n=384)——点估计落入 pilot CI,结论加固;ECC-on 0/30 → 0/100。
 
 **H7 最终定论**(三轮实验链):单 bit 用户态 clear_valid=内核重填自愈(0/30)→ 2-bit + 内核态 walk=**ECC 是唯一防线(49.0% vs 0.0%,风险差 49 个百分点,CI 零重叠)**。PTE 保护的 ECC 价值被完整定界:对"可重填的单 bit 用户态错"无价值(内核兜底);对"不可纠的 2-bit 内核态错"是生死线。§4.2 保护投资表 PTW 行定稿:**PTE ECC 必须配 ECC 逻辑自检**(§14 的 ecc_logic_fault 85% 击穿)——ECC 本体防 2-bit 内核态,ECC 自检防逻辑故障,两者缺一不可。
+
+### v1.4 SDC 过程三分类重统计(2026-09-11): 方法论 + 两个审计发现
+
+**方法论**:SDC 重新定义为过程(错误架构结果+RAS 零告警+穿透保护路径),按三分类(无影响/过程中检出/未检出但有问题[3a 静默错/3b 崩溃/3c 挂起])重统计全部 115 campaigns / 233 cells / 34,068 reps(工具 tools/reclassify3{,_report,_md}.py,机读表 artifacts/meta/reclass3_{cells,metrics}.json,人读表 plans/sdc-process-reclassification.md)。N_valid 沿用旧定义(伪影在分母外);有效率/伪影率单独报。
+
+**发现1——类别2 大面积结构性缺失**:全仓库只有 4 个注入器真实现保护建模(CHAOSCache/CHAOSMem/CHAOSArmTLB/CHAOSPTW),其余 17 个单元类别2 为零。三态标注:N/A(Exec/FPU/Decode/AGU/BPU/ExMon/RAS,行业共识不保护)× 暂未实现(NoC/CHI/HCCS,行业有我们 scope-cut)× **未知/待证实(PRF/RAT/FreeList/ROB/IQ/LSQFwd/L1DForward/SysReg/L3 tag,共 9 单元——V110 是否保护无公开资料,N1 代理假设未经实机验证)**。这本身是 §4.2 保护投资表的重要边界:对"未知"单元的 C3 数字,不能推出"真机也不检出"。
+
+**发现2——IQ 旧 F5/F6 三 campaign 全部作废**:iq_f5f6_pilot/iq_f5_formal_madd/iq_f6_phase_curve 的 778 条 "Crash" 全是 exit∈{1,2}+faults=0 = **gem5 配置错误**(campaign binary 写了 madd_chain,实际文件名 madd_chain_kernel),被 2026-09-04 版分类器误标 Crash。本表重计为 SimulatorError;**IQ 单元的可信数字 = v1.2 修复后的 pwf_v12_iq_***。这是第 24 个已知工具瑕疵(分类器对 exit=1/2 的处理在 0.4 argparse-guard 补丁之前)。
+
+**SIGABRT 疑点核实(8 replays/6 单元,stderr 全留)**:physreg/rat/freelist/decode 的 exit=-6 Crash 全部核实为 **guest 真实页表故障**(gem5-SE 以 panic-abort 报告无 handler 的 guest fault)——Crash 分类正确;exmon 为 gem5 断言中介(注入破坏 STXR 协议→gem5 内部断言,真机对应锁协议破坏)——按 DUE 计,标注 mediated。exec/lsq_fwd 未逐 rep 重放(exit=-6 全体,同签名家族),表中标注。

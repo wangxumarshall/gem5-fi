@@ -2550,3 +2550,10 @@ CI 零重叠——**H7 验收断言("ECC-off spurious>0 vs ECC-on≈0")formal �
 - **Phase 26**：S6 真第二台健康机复现（环境阻塞）+ S7 实机 RAS 校准（越界），维持现状标注，不计入"未完成"。
 
 执行顺序框图 + Next Step 已重写，指向 Phase 21.1（DRAM 平台差机理）为下一步最高优先项。跑批资源纪律不变。
+
+### v1.4 三分类重统计完成(2026-09-11)
+
+- **统计**:115 campaigns / 233 cells / 34,068 reps 全部按三分类重算(tools/reclassify3*.py;机读 artifacts/meta/reclass3_*.json;人读 plans/sdc-process-reclassification.md 381 行)。交叉验证:l1d 97.7%/exec 69.5%+20.1% 与已知 formal 数字一致。
+- **二次核实**:6 单元 8 reps 重放(stderr 全留)——physreg/rat/freelist/decode = guest 真实页故障(Crash 正确);exmon = gem5 断言中介(DUE,标注);iq = **发现伪影**:778 条 Crash 是 madd_chain 二进制名配置错误,重计 SimulatorError,3 个旧 IQ campaign 作废(真 IQ 数字用 v1.2 修复后数据)。
+- **类别2 审计**:4 单元有真保护建模;7 个 N/A;1 个未实现;**9 个未知/待证实**(N1 代理假设,未经实机验证,引用必须带限定)。
+- **新待办**(未顺手改):runner.py results.jsonl 加 exit_reason 字段(stderr 首个 panic/assert 行),解决本次 stderr 缺失回溯难的问题。
