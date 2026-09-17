@@ -54,6 +54,17 @@
 namespace gem5
 {
 
+// Harpocrates IRF-ACE collector hooks (harp plan Task 2.1). Defined in
+// CHAOSCov/CHAOSCov.cc; no-ops (cheap branch on null instance) unless a
+// CHAOSCov analyzer is mounted. Mirrors the CHAOSPhysReg read-trace hook
+// pattern already used in this file. harp_enabled is the hot-path guard
+// (false = one predictable branch, no call).
+void harp_cov_on_prf_read(int class_type, int idx);
+void harp_cov_on_prf_write(int class_type, int idx);
+// Per-cycle tick from Commit::tick (ROI bookkeeping + occupancy sampling).
+void harp_cov_on_cycle();
+extern bool harp_enabled;
+
 namespace o3
 {
 
@@ -251,6 +262,10 @@ class PhysRegFile
             if (trace_type == IntRegClass && !trace_overwritten
                 && (int)idx == trace_idx)
                 ++reads_before_overwrite;
+            // Harpocrates IRF-ACE: optimistic read event (extends the
+            // value's ACE interval). No-op unless CHAOSCov is mounted.
+            if (harp_enabled)
+                harp_cov_on_prf_read(0, idx);
             DPRINTF(IEW, "RegFile: Access to int register %i, has data %#x\n",
                     idx, val);
             return val;
@@ -260,6 +275,9 @@ class PhysRegFile
             if (trace_type == FloatRegClass && !trace_overwritten
                 && (int)idx == trace_idx)
                 ++reads_before_overwrite;
+            // Harpocrates IRF-ACE (float space): optimistic read event.
+            if (harp_enabled)
+                harp_cov_on_prf_read(1, idx);
             DPRINTF(IEW, "RegFile: Access to float register %i has data %#x\n",
                     idx, val);
             return val;
@@ -298,6 +316,10 @@ class PhysRegFile
             if (trace_type == VecRegClass && !trace_overwritten
                 && (int)idx == trace_idx)
                 ++reads_before_overwrite;
+            // Harpocrates IRF-ACE (vector space — AArch64 FP/SIMD regs):
+            // optimistic read event.
+            if (harp_enabled)
+                harp_cov_on_prf_read(2, idx);
             DPRINTF(IEW, "RegFile: Access to vector register %i, has "
                     "data %s\n", idx, vectorRegFile.regClass.valString(val));
             break;
@@ -330,6 +352,13 @@ class PhysRegFile
 
         switch (type) {
           case VecRegClass:
+            // Harpocrates IRF-ACE: FP/SIMD results are written through this
+            // writable-pointer path (bypassing setReg — measured: zero
+            // "Setting vector register" DPRINTs on an fp-heavy run). Treat
+            // the pointer handout as the write event (the slot is about to
+            // be overwritten by the producer).
+            if (harp_enabled)
+                harp_cov_on_prf_write(2, idx);
             return vectorRegFile.ptr(idx);
           case VecPredRegClass:
             return vecPredRegFile.ptr(idx);
@@ -364,6 +393,10 @@ class PhysRegFile
                 if (stuck_polarity == 0) val &= ~stuck_mask;  // stuck_at_zero
                 else                      val |=  stuck_mask;  // stuck_at_one
             }
+            // Harpocrates IRF-ACE: write event (opens the new value's
+            // interval; closes the old value's if unread = un-ACE).
+            if (harp_enabled)
+                harp_cov_on_prf_write(0, idx);
             intRegFile.reg(idx) = val;
             DPRINTF(IEW, "RegFile: Setting int register %i to %#x\n",
                     idx, val);
@@ -377,6 +410,9 @@ class PhysRegFile
                 if (stuck_polarity == 0) val &= ~stuck_mask;
                 else                      val |=  stuck_mask;
             }
+            // Harpocrates IRF-ACE (float space): write event.
+            if (harp_enabled)
+                harp_cov_on_prf_write(1, idx);
             floatRegFile.reg(idx) = val;
             DPRINTF(IEW, "RegFile: Setting float register %i to %#x\n",
                     idx, val);
@@ -414,6 +450,9 @@ class PhysRegFile
             // destroys the injected value → stop counting reads from here.
             if (trace_type == VecRegClass && (int)idx == trace_idx)
                 trace_overwritten = true;
+            // Harpocrates IRF-ACE (vector space): write event.
+            if (harp_enabled)
+                harp_cov_on_prf_write(2, idx);
             DPRINTF(IEW, "RegFile: Setting vector register %i to %s\n",
                     idx, vectorRegFile.regClass.valString(val));
             vectorRegFile.set(idx, val);

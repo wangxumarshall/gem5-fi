@@ -40,6 +40,16 @@ namespace o3 { class CPU; }
 void harp_cov_notify_work_begin();
 void harp_cov_notify_work_end();
 
+// --- IRF ACE collector hooks (Task 2.1; called from regfile.hh/free_list.hh
+// inline guarded call sites; no-ops unless CHAOSCov is mounted) ---
+// Physical-register lifecycle events. Optimistic mode: a read at execute
+// time extends the ACE interval of the value written into the slot.
+void harp_cov_on_prf_write(int class_type, int idx);   // setReg int/float
+void harp_cov_on_prf_read(int class_type, int idx);    // getReg int/float
+void harp_cov_on_prf_alloc(int class_type, int idx);   // freeList getReg
+void harp_cov_on_prf_free(int class_type, int idx);    // freeList addReg
+bool harp_cov_prf_enabled();  // fast guard for inline hot paths
+
 class CHAOSCov : public SimObject
 {
   public:
@@ -56,6 +66,13 @@ class CHAOSCov : public SimObject
     // Notification from the global hooks (pseudo_inst workbegin/workend).
     void onWorkBegin();
     void onWorkEnd();
+
+    // --- IRF collector event handlers (called by the hooks above) ---
+    void irfOnWrite(int class_type, int idx);
+    void irfOnRead(int class_type, int idx);
+    void irfOnAlloc(int class_type, int idx);
+    void irfOnFree(int class_type, int idx);
+    void irfSampleOccupancy();   // per-ROI-cycle histogram sampling
 
     // Per-cycle poll from collectors (cycle-granular ROI bookkeeping).
     void tickROICycles() { if (roi_active) roi_cycles++; }
@@ -74,6 +91,38 @@ class CHAOSCov : public SimObject
 
     OutputStream *detail_stream = nullptr;
 
+    // --- IRF ACE collector state (Task 2.1, optimistic mode) ---
+    // Per physical register (int and float spaces independently numbered):
+    //   value_birth_cycle : cycle the current value was written (setReg),
+    //                       or 0 = no live value since ROI start
+    //   last_read_cycle   : last optimistic read (getReg at execute time);
+    //                       ACE interval = [birth, last_read] (read-extended)
+    //   open              : interval currently open (written, not yet free'd
+    //                       or overwritten)
+    // ACE accounting (paper Fig.3 semantics):
+    //   write→read    : ACE  [write, read]
+    //   read→read     : ACE  (extends to latest read)
+    //   write→write   : un-ACE (overwritten unread → 0 contribution)
+    //   read→free     : un-ACE (idle tail until free)
+    //   alloc→write   : un-ACE (free-list residency excluded)
+    // Only intervals fully inside the ROI count; an interval open at ROI end
+    // contributes up to the last read (conservative close).
+    struct PrfRegState
+    {
+        uint64_t birth = 0;
+        uint64_t last_read = 0;
+        bool has_value = false;   // written, not yet overwritten/freed
+        bool ever_read = false;
+    };
+    std::vector<PrfRegState> irf_state[3];  // [0]=int [1]=float [2]=vector
+    uint64_t irf_ace_cycles[3] = {0, 0, 0}; // accumulated ACE cycles
+    uint64_t irf_live_regs[3]  = {0, 0, 0}; // regs with open interval at ROI end
+    // occupancy histogram for the advice engine: samples of
+    // (#regs with has_value && ever_read) taken each ROI cycle, bucketed.
+    static constexpr int OCC_BUCKETS = 33;  // 0..32+ live-value regs
+    std::vector<uint64_t> irf_occ_hist;     // per-bucket cycle counts
+    uint64_t irf_occ_samples = 0;
+
   protected:
     struct HarpStats : public statistics::Group
     {
@@ -82,8 +131,17 @@ class CHAOSCov : public SimObject
         statistics::Scalar roiCycles;
         statistics::Scalar roiBeginTick;
         statistics::Scalar roiEndTick;
-        // --- structure coverage stats (filled by Tasks 2-4 collectors) ---
+        // --- IRF ACE (Task 2.1) ---
+        statistics::Scalar irfIntAceCycles;
+        statistics::Scalar irfFloatAceCycles;
+        statistics::Scalar irfVecAceCycles;
+        statistics::Scalar irfAvf;         // (int+float ACE) / (totalRegs*T_ROI)
+        statistics::Scalar irfAvfInt;
+        statistics::Scalar irfAvfFloat;
+        statistics::Scalar irfAvfVec;
     } harpStats;
+
+    void irfFinish();   // close open intervals at ROI end / sim end
 };
 
 } // namespace gem5

@@ -602,6 +602,13 @@ Commit::tick()
     wroteToTimeBuffer = false;
     _nextStatus = Inactive;
 
+    // Harpocrates coverage (harp plan Task 2.1): per-cycle ROI bookkeeping
+    // (roi_cycles++ while inside the ROI window) + IRF occupancy sampling
+    // for the advice engine. Single predictable branch when no CHAOSCov is
+    // mounted.
+    if (harp_enabled)
+        harp_cov_on_cycle();
+
     if (activeThreads->empty())
         return;
 
