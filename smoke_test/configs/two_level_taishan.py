@@ -327,6 +327,7 @@ if _args.cov:
         cpu=system.cpu,
         targetCache=system.cpu.dcache,
         cacheNumBlocks=64 * 1024 // 64,  # L1D 64KiB, 64B blocks
+        sqEntries=system.cpu.SQEntries,
         roiMode=_args.cov_roi,
         roiBeginCycle=_args.cov_roi_begin_cycle,
         roiEndCycle=_args.cov_roi_end_cycle,

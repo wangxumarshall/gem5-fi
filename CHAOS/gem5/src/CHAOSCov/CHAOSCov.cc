@@ -46,6 +46,11 @@ void harp_cov_on_prf_free(int class_type, int idx)
 void harp_cov_on_prf_commit_read(int class_type, int idx)
 { if (CHAOSCov::instance) CHAOSCov::instance->irfOnCommitRead(class_type, idx); }
 
+// --- LSQ SQ-data ACE collector hooks (Task 3.2) ---
+void harp_cov_on_sq_write()   { if (CHAOSCov::instance) CHAOSCov::instance->sqOnWrite(); }
+void harp_cov_on_sq_consume() { if (CHAOSCov::instance) CHAOSCov::instance->sqOnConsume(); }
+void harp_cov_on_sq_free()    { if (CHAOSCov::instance) CHAOSCov::instance->sqOnFree(); }
+
 // --- L1D ACE collector hooks (Task 3.1) ---
 // The cache pointer identifies which cache instance fired the event;
 // CHAOSCov filters against its configured targetCache.
@@ -112,6 +117,10 @@ CHAOSCov::CHAOSCov(const CHAOSCovParams &p)
         cache_block_size = p.targetCache->getBlockSize();
         cache_num_blocks = p.cacheNumBlocks;
     }
+    // Task 3.2: SQ sizing (passed from the config; LSQ::SQEntries is
+    // private to the LSQ).
+    sq_entries = p.sqEntries;
+    sq_state.clear();
     harp_enabled = true;
 
     if (roi_mode == RoiMode::All)
@@ -207,6 +216,13 @@ CHAOSCov::finishStats()
         harpStats.l1dAvf =
             (double)cache_ace_cycles
             / ((double)cache_num_blocks * (double)roi_cycles);
+    harpStats.sqAceCycles = sq_ace_cycles;
+    harpStats.sqWrites = sq_writes;
+    harpStats.sqConsumes = sq_consumes;
+    harpStats.sqFrees = sq_frees;
+    if (roi_cycles > 0 && sq_entries > 0)
+        harpStats.sqAvf =
+            (double)sq_ace_cycles / ((double)sq_entries * (double)roi_cycles);
     if (detail_stream && detail_stream->stream()) {
         auto &os = *(detail_stream->stream());
         os << "# finish roi_cycles " << roi_cycles << "\n";
@@ -232,6 +248,11 @@ CHAOSCov::finishStats()
            << " reads " << cache_reads
            << " writes " << cache_writes
            << " evicts " << cache_evicts << "\n";
+        os << "sq entries " << sq_entries
+           << " ace_cycles " << sq_ace_cycles
+           << " writes " << sq_writes
+           << " consumes " << sq_consumes
+           << " frees " << sq_frees << "\n";
     }
 }
 
@@ -382,8 +403,72 @@ CHAOSCov::HarpStats::HarpStats(statistics::Group *parent)
                "L1D evictions observed"),
       ADD_STAT(l1dAvf, statistics::units::Ratio::get(),
                "L1D AVF = block ACE cycles / (numBlocks * ROI cycles). "
-               "Paper: ACE lifetime analysis for caches")
+               "Paper: ACE lifetime analysis for caches"),
+      ADD_STAT(sqAceCycles, statistics::units::Cycle::get(),
+               "SQ data-field ACE cycles (aggregate interval ledger)"),
+      ADD_STAT(sqWrites, statistics::units::Count::get(),
+               "Store data writes into SQ entries"),
+      ADD_STAT(sqConsumes, statistics::units::Count::get(),
+               "SQ data consumptions (writebacks + forwards)"),
+      ADD_STAT(sqFrees, statistics::units::Count::get(),
+               "SQ entry frees (completions/squashes)"),
+      ADD_STAT(sqAvf, statistics::units::Ratio::get(),
+               "SQ AVF = ACE cycles / (SQEntries * ROI cycles). Paper: "
+               "SQ-data ACE (Micro'26 adds the LSQ as a bit-array)")
 {
+}
+
+// ---------------------------------------------------------------------------
+// LSQ SQ-data ACE collector (Task 3.2)
+// ---------------------------------------------------------------------------
+// Slot identity: the O3 storeQueue is a circular buffer; the data array is
+// per-slot and stable, so we track the aggregate ledger with a simple
+// open-interval count: each write opens an interval, consume extends all
+// open intervals (conservative — exact per-slot tracking would need the
+// slot index through the forwarding path, which the gem5 API doesn't
+// expose cheaply; the aggregate approximates the paper's SQ-data AVF from
+// above for the forward part and exactly for the writeback part).
+//   NOTE (honest boundary): this is an aggregate approximation. Per-slot
+//   exact tracking is deferred to Task 7.4 documentation.
+struct HarpSqOpenInterval
+{
+    uint64_t birth;
+    bool consumed;
+};
+static std::vector<HarpSqOpenInterval> harp_sq_open;
+
+void
+CHAOSCov::sqOnWrite()
+{
+    if (!roi_active) return;
+    sq_writes++;
+    harp_sq_open.push_back({roi_cycles, false});
+}
+
+void
+CHAOSCov::sqOnConsume()
+{
+    if (!roi_active) return;
+    // A consume event closes ONE open interval (the SQ drains roughly in
+    // order). We close the oldest, accumulating [birth, now] if it was
+    // never consumed before (first consume), else extending.
+    if (!harp_sq_open.empty()) {
+        auto &iv = harp_sq_open.front();
+        sq_ace_cycles += roi_cycles - iv.birth;
+        harp_sq_open.erase(harp_sq_open.begin());
+    }
+    sq_consumes++;
+}
+
+void
+CHAOSCov::sqOnFree()
+{
+    if (!roi_active) return;
+    sq_frees++;
+    // Free without consume (squashed, never forwarded/written back):
+    // un-ACE — drop the oldest open interval without accumulating.
+    if (!harp_sq_open.empty())
+        harp_sq_open.erase(harp_sq_open.begin());
 }
 
 // ---------------------------------------------------------------------------

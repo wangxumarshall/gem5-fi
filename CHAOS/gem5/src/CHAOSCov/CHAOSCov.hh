@@ -94,6 +94,11 @@ class CHAOSCov : public SimObject
     void cacheOnRead(void *cache, void *blk);
     void cacheOnEvict(void *cache, void *blk);
 
+    // --- LSQ SQ-data ACE collector (Task 3.2) ---
+    void sqOnWrite();
+    void sqOnConsume();
+    void sqOnFree();
+
     // Per-cycle poll from collectors (cycle-granular ROI bookkeeping).
     void tickROICycles() { if (roi_active) roi_cycles++; }
 
@@ -172,6 +177,23 @@ class CHAOSCov : public SimObject
     uint64_t cache_ace_cycles = 0;
     uint64_t cache_reads = 0, cache_writes = 0, cache_evicts = 0;
 
+    // --- LSQ SQ-data ACE state (Task 3.2) ---
+    // Interval ledger keyed by SQ slot index (0..SQEntries-1). The same
+    // Fig.3 semantics: data-write opens, consume extends/closes, free
+    // closes; a written-but-never-consumed entry (squashed before
+    // writeback, no forward) is un-ACE.
+    struct SqState
+    {
+        uint64_t birth = 0;
+        uint64_t last_consume = 0;
+        bool has_data = false;
+        bool ever_consumed = false;
+    };
+    std::vector<SqState> sq_state;
+    unsigned sq_entries = 0;
+    uint64_t sq_ace_cycles = 0;
+    uint64_t sq_writes = 0, sq_consumes = 0, sq_frees = 0;
+
   protected:
     struct HarpStats : public statistics::Group
     {
@@ -197,6 +219,12 @@ class CHAOSCov : public SimObject
         statistics::Scalar l1dWrites;
         statistics::Scalar l1dEvicts;
         statistics::Scalar l1dAvf;
+        // --- LSQ SQ-data ACE (Task 3.2) ---
+        statistics::Scalar sqAceCycles;
+        statistics::Scalar sqWrites;
+        statistics::Scalar sqConsumes;
+        statistics::Scalar sqFrees;
+        statistics::Scalar sqAvf;
     } harpStats;
 
     void irfFinish();   // close open intervals at ROI end / sim end

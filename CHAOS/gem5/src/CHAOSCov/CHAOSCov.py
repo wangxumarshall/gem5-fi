@@ -28,6 +28,9 @@ class CHAOSCov(SimObject):
         "the config because BaseTags::numBlocks is protected — 0 = "
         "derive at runtime via Cache::getTags() friend-free fallback: "
         "size / blockSize)")
+    sqEntries = Param.UInt32(0,
+        "Store-queue entry count (Task 3.2 AVF denominator; passed from "
+        "the config — LSQ::SQEntries is not public to C++ clients)")
 
     # --- ROI gating ---
     roiMode = Param.String(
