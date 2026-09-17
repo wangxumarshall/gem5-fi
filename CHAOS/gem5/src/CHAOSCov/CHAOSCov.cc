@@ -46,6 +46,13 @@ void harp_cov_on_prf_free(int class_type, int idx)
 void harp_cov_on_prf_commit_read(int class_type, int idx)
 { if (CHAOSCov::instance) CHAOSCov::instance->irfOnCommitRead(class_type, idx); }
 
+// --- IBR collector hooks (Task 4.1) ---
+void harp_cov_on_fu_issue(int fu_class, uint64_t src_bits)
+{
+    if (!CHAOSCov::instance) return;
+    CHAOSCov::instance->fuOnIssue(fu_class, src_bits);
+}
+
 // --- LSQ SQ-data ACE collector hooks (Task 3.2) ---
 void harp_cov_on_sq_write()   { if (CHAOSCov::instance) CHAOSCov::instance->sqOnWrite(); }
 void harp_cov_on_sq_consume() { if (CHAOSCov::instance) CHAOSCov::instance->sqOnConsume(); }
@@ -223,6 +230,22 @@ CHAOSCov::finishStats()
     if (roi_cycles > 0 && sq_entries > 0)
         harpStats.sqAvf =
             (double)sq_ace_cycles / ((double)sq_entries * (double)roi_cycles);
+    // IBR (paper: input bits / theoretical max at every ROI cycle).
+    for (int c = 0; c < 4; c++) {
+        harpStats.ibrInputBits[c] = ibr_input_bits[c];
+        harpStats.ibrIssues[c] = ibr_issues[c];
+    }
+    const double denom[4] = {
+        (double)ibr_full_width[0] * ibr_fu_count[0] * (double)roi_cycles,
+        (double)ibr_full_width[1] * ibr_fu_count[1] * (double)roi_cycles,
+        (double)ibr_full_width[2] * ibr_fu_count[2] * (double)roi_cycles,
+        (double)ibr_full_width[3] * ibr_fu_count[3] * (double)roi_cycles};
+    if (roi_cycles > 0) {
+        harpStats.ibrIntAdd = denom[0] ? (double)ibr_input_bits[0] / denom[0] : 0;
+        harpStats.ibrIntMul = denom[1] ? (double)ibr_input_bits[1] / denom[1] : 0;
+        harpStats.ibrFpAdd  = denom[2] ? (double)ibr_input_bits[2] / denom[2] : 0;
+        harpStats.ibrFpMul  = denom[3] ? (double)ibr_input_bits[3] / denom[3] : 0;
+    }
     if (detail_stream && detail_stream->stream()) {
         auto &os = *(detail_stream->stream());
         os << "# finish roi_cycles " << roi_cycles << "\n";
@@ -253,6 +276,10 @@ CHAOSCov::finishStats()
            << " writes " << sq_writes
            << " consumes " << sq_consumes
            << " frees " << sq_frees << "\n";
+        os << "ibr";
+        for (int c = 0; c < 4; c++)
+            os << " " << ibr_input_bits[c] << "/" << ibr_issues[c];
+        os << "\n";
     }
 }
 
@@ -414,8 +441,43 @@ CHAOSCov::HarpStats::HarpStats(statistics::Group *parent)
                "SQ entry frees (completions/squashes)"),
       ADD_STAT(sqAvf, statistics::units::Ratio::get(),
                "SQ AVF = ACE cycles / (SQEntries * ROI cycles). Paper: "
-               "SQ-data ACE (Micro'26 adds the LSQ as a bit-array)")
+               "SQ-data ACE (Micro'26 adds the LSQ as a bit-array)"),
+      ADD_STAT(ibrInputBits, statistics::units::Bit::get(),
+               "IBR numerator: input bits delivered per FU class "
+               "[0=IntAdd 1=IntMul 2=FPAdd 3=FPMul]"),
+      ADD_STAT(ibrIssues, statistics::units::Count::get(),
+               "Issues per FU class (instruction-mix evidence)"),
+      ADD_STAT(ibrIntAdd, statistics::units::Ratio::get(),
+               "IBR IntAdd = input bits / (128 * instances * ROI cycles)"),
+      ADD_STAT(ibrIntMul, statistics::units::Ratio::get(),
+               "IBR IntMul = input bits / (128 * instances * ROI cycles)"),
+      ADD_STAT(ibrFpAdd, statistics::units::Ratio::get(),
+               "IBR FPAdd = input bits / (256 * instances * ROI cycles)"),
+      ADD_STAT(ibrFpMul, statistics::units::Ratio::get(),
+               "IBR FPMul = input bits / (256 * instances * ROI cycles)")
 {
+    ibrInputBits.init(NUM_FU_CLASSES);
+    ibrInputBits.subname(0, "IntAdd");
+    ibrInputBits.subname(1, "IntMul");
+    ibrInputBits.subname(2, "FPAdd");
+    ibrInputBits.subname(3, "FPMul");
+    ibrIssues.init(NUM_FU_CLASSES);
+    ibrIssues.subname(0, "IntAdd");
+    ibrIssues.subname(1, "IntMul");
+    ibrIssues.subname(2, "FPAdd");
+    ibrIssues.subname(3, "FPMul");
+}
+
+// ---------------------------------------------------------------------------
+// IBR collector (Task 4.1)
+// ---------------------------------------------------------------------------
+void
+CHAOSCov::fuOnIssue(int fu_class, uint64_t src_bits)
+{
+    if (!roi_active) return;
+    if (fu_class < 0 || fu_class >= NUM_FU_CLASSES) return;
+    ibr_input_bits[fu_class] += src_bits;
+    ibr_issues[fu_class]++;
 }
 
 // ---------------------------------------------------------------------------

@@ -65,6 +65,55 @@ using std::list;
 namespace gem5
 {
 
+// Harpocrates IBR collector hook (harp plan Task 4.1). Defined in
+// CHAOSCov/CHAOSCov.cc; no-op unless a CHAOSCov analyzer is mounted.
+void harp_cov_on_fu_issue(int fu_class, uint64_t src_bits);
+extern bool harp_enabled;
+
+// Map an OpClass to the paper's four FU classes; -1 = not tracked.
+// (SSE-FP correspondence on AArch64: NEON float ops map to the FP
+// classes, matching the paper's SSE FP adder/multiplier.)
+static inline int
+harp_fu_class_of(OpClass op_class)
+{
+    switch (op_class) {
+      case IntAluOp:            return 0;  // IntAdd
+      case IntMultOp:           return 1;  // IntMul
+      case FloatAddOp:
+      case SimdFloatAddOp:
+      case SimdAddOp:
+      case SimdAddAccOp:        return 2;  // FPAdd
+      case FloatMultOp:
+      case FloatMultAccOp:
+      case SimdFloatMultOp:
+      case SimdFloatMultAccOp:
+      case SimdMultOp:
+      case SimdMultAccOp:       return 3;  // FPMul
+      default:                  return -1;
+    }
+}
+
+// Sum of source-operand widths (bits) of the issued instruction: the
+// IBR numerator's "effective input bits". (o3::-qualified: this file's
+// gem5-level scope precedes namespace o3, where DynInstPtr lives.)
+static inline uint64_t
+harp_src_bits_of(const o3::DynInstPtr &inst)
+{
+    uint64_t bits = 0;
+    for (size_t i = 0; i < inst->numSrcRegs(); ++i) {
+        const RegId &reg = inst->srcRegIdx(i);
+        switch (reg.classValue()) {
+          case IntRegClass:
+          case FloatRegClass:   bits += 64; break;   // scalar GPR/FPR
+          case VecRegClass:     bits += 128; break;  // NEON full width
+          case VecElemClass:    bits += 64; break;   // D-register element
+          case CCRegClass:      bits += 4;  break;
+          default: break;  // misc etc. contribute 0 (not FU datapath)
+        }
+    }
+    return bits;
+}
+
 namespace o3
 {
 
@@ -932,6 +981,15 @@ InstructionQueue::scheduleReadyInsts()
             if (idx > FUPool::NoFreeFU) {
                 op_latency = fu_pool->getOpLatency(op_class);
             }
+        }
+
+        // Harpocrates IBR: this instruction is issuing (to an FU, or
+        // needs no FU for its op) — count its effective input bits into
+        // the matching FU class ledger (Task 4.1).
+        if (harp_enabled) {
+            const int fc = harp_fu_class_of(op_class);
+            if (fc >= 0)
+                harp_cov_on_fu_issue(fc, harp_src_bits_of(issuing_inst));
         }
 
         // If we have an instruction that doesn't require a FU, or a

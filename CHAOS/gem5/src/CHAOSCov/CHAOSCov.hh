@@ -99,6 +99,9 @@ class CHAOSCov : public SimObject
     void sqOnConsume();
     void sqOnFree();
 
+    // --- IBR collector (Task 4.1) ---
+    void fuOnIssue(int fu_class, uint64_t src_bits);
+
     // Per-cycle poll from collectors (cycle-granular ROI bookkeeping).
     void tickROICycles() { if (roi_active) roi_cycles++; }
 
@@ -194,6 +197,18 @@ class CHAOSCov : public SimObject
     uint64_t sq_ace_cycles = 0;
     uint64_t sq_writes = 0, sq_consumes = 0, sq_frees = 0;
 
+    // --- IBR state (Task 4.1) ---
+    // Numerators per FU class (input bits actually delivered), plus issue
+    // counts for the advice engine's instruction-mix evidence.
+    static constexpr int NUM_FU_CLASSES = 4;  // IntAdd IntMul FPAdd FPMul
+    uint64_t ibr_input_bits[NUM_FU_CLASSES] = {0, 0, 0, 0};
+    uint64_t ibr_issues[NUM_FU_CLASSES]     = {0, 0, 0, 0};
+    // Denominator widths per FU class (paper: theoretical max input bits
+    // per cycle): IntAdd 2x64, IntMul 2x64, FPAdd 2x128 (NEON lanes),
+    // FPMul 2x128. Aggregate and per-instance (FU counts) both reported.
+    unsigned ibr_fu_count[NUM_FU_CLASSES]   = {3, 1, 2, 2};  // TaiShan v110
+    unsigned ibr_full_width[NUM_FU_CLASSES] = {128, 128, 256, 256};
+
   protected:
     struct HarpStats : public statistics::Group
     {
@@ -225,6 +240,13 @@ class CHAOSCov : public SimObject
         statistics::Scalar sqConsumes;
         statistics::Scalar sqFrees;
         statistics::Scalar sqAvf;
+        // --- IBR (Task 4.1) ---
+        statistics::Vector ibrInputBits;
+        statistics::Vector ibrIssues;
+        statistics::Scalar ibrIntAdd;
+        statistics::Scalar ibrIntMul;
+        statistics::Scalar ibrFpAdd;
+        statistics::Scalar ibrFpMul;
     } harpStats;
 
     void irfFinish();   // close open intervals at ROI end / sim end
