@@ -49,6 +49,7 @@
 #include "base/loader/symtab.hh"
 #include "base/logging.hh"
 #include "cpu/base.hh"
+#include "CHAOSCov/CHAOSCov.hh"
 #include "cpu/checker/cpu.hh"
 #include "cpu/exetrace.hh"
 #include "cpu/o3/cpu.hh"
@@ -996,6 +997,22 @@ Commit::commitInsts()
                     ->committedInstType[head_inst->opClass()]++;
                 stats.committedInstType[tid][head_inst->opClass()]++;
                 ppCommit->notify(head_inst);
+
+                // Harpocrates IRF-ACE (Task 2.2): commit-confirmed read —
+                // each physical source register of a COMMITTED instruction
+                // is a consumption that no squash can retract.
+                if (harp_enabled && gem5::CHAOSCov::roiActive()) {
+                    for (size_t sr = 0; sr < head_inst->numSrcRegs(); ++sr) {
+                        const PhysRegIdPtr reg = head_inst->renamedSrcIdx(sr);
+                        const auto cls = reg->classValue();
+                        if (cls == IntRegClass)
+                            harp_cov_on_prf_commit_read(0, reg->index());
+                        else if (cls == FloatRegClass)
+                            harp_cov_on_prf_commit_read(1, reg->index());
+                        else if (cls == VecRegClass)
+                            harp_cov_on_prf_commit_read(2, reg->index());
+                    }
+                }
 
                 // hardware transactional memory
 

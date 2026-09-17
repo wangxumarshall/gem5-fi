@@ -54,13 +54,15 @@
 namespace gem5
 {
 
-// Harpocrates IRF-ACE collector hooks (harp plan Task 2.1). Defined in
+// Harpocrates IRF-ACE collector hooks (harp plan Task 2.1/2.2). Defined in
 // CHAOSCov/CHAOSCov.cc; no-ops (cheap branch on null instance) unless a
 // CHAOSCov analyzer is mounted. Mirrors the CHAOSPhysReg read-trace hook
 // pattern already used in this file. harp_enabled is the hot-path guard
 // (false = one predictable branch, no call).
 void harp_cov_on_prf_read(int class_type, int idx);
 void harp_cov_on_prf_write(int class_type, int idx);
+// Commit-confirmed read (Task 2.2): per committed instruction, per phys src.
+void harp_cov_on_prf_commit_read(int class_type, int idx);
 // Per-cycle tick from Commit::tick (ROI bookkeeping + occupancy sampling).
 void harp_cov_on_cycle();
 extern bool harp_enabled;

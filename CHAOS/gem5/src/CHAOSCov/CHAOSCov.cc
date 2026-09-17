@@ -41,6 +41,10 @@ void harp_cov_on_prf_alloc(int class_type, int idx)
 void harp_cov_on_prf_free(int class_type, int idx)
 { if (CHAOSCov::instance) CHAOSCov::instance->irfOnFree(class_type, idx); }
 
+// Task 2.2: commit-confirmed read (per committed inst, per phys src reg).
+void harp_cov_on_prf_commit_read(int class_type, int idx)
+{ if (CHAOSCov::instance) CHAOSCov::instance->irfOnCommitRead(class_type, idx); }
+
 // Per-cycle tick from Commit::tick — drives the ROI cycle counter and the
 // IRF occupancy sampling (advice-engine evidence).
 void harp_cov_on_cycle()
@@ -117,18 +121,28 @@ CHAOSCov::onWorkEnd()
     // Marker pair seen; close the window. (Re-open supported: harp_wrap
     // emits exactly one pair, but keep it robust for multi-ROI workloads.)
     roi_active = false;
-    irfFinish();
     harpStats.roiEndTick = curTick();
+    finishStats();
+    DPRINTF(CHAOSCov, "ROI end @ tick %llu (roi_cycles=%llu)\n",
+            (unsigned long long)curTick(), (unsigned long long)roi_cycles);
+}
+
+// Finalize all coverage stats from the raw ledgers. Also the only writer
+// of the detail dump. Called from onWorkEnd (m5ops) and from the config
+// script post-simulate (roi=all/cycles); idempotent for the ledgers
+// because the raw counters are monotone and the scalars simply take the
+// final values.
+void
+CHAOSCov::finishStats()
+{
+    irfFinish();
     harpStats.roiCycles = roi_cycles;
     harpStats.irfIntAceCycles = irf_ace_cycles[0];
     harpStats.irfFloatAceCycles = irf_ace_cycles[1];
     harpStats.irfVecAceCycles = irf_ace_cycles[2];
     // AVF per the paper's definition: ACE cycles summed over all bits of
-    // the structure / (total bits * exposure window). Computed per-reg
-    // with widths: int/float 64b, vector 128b (NEON) — the weighted form
-    // is the literal paper formula; the unweighted per-slot variant is
-    // dominated by the same numerator/denominator scaling, so we report
-    // the width-weighted AVF as the primary metric.
+    // the structure / (total bits * exposure window). Width-weighted:
+    // int/float 64b, vector 128b (NEON).
     const double w[3] = {64.0, 64.0, 128.0};
     double bits_total = 0, bits_ace = 0;
     for (int c = 0; c < 3; c++) {
@@ -150,13 +164,19 @@ CHAOSCov::onWorkEnd()
                 ? (double)irf_ace_cycles[2] * w[2]
                       / ((double)irf_state[2].size() * w[2] * roi_cycles)
                 : 0.0;
+        double bits_ace_c = 0;
+        for (int c = 0; c < 3; c++)
+            bits_ace_c += (double)irf_ace_commit_cycles[c] * w[c];
+        harpStats.irfAvfCommit = bits_ace_c / bits_total;
+        harpStats.irfAvfCommitInt =
+            irf_state[0].size()
+                ? (double)irf_ace_commit_cycles[0] * w[0]
+                      / ((double)irf_state[0].size() * w[0] * roi_cycles)
+                : 0.0;
     }
-    DPRINTF(CHAOSCov, "ROI end @ tick %llu (roi_cycles=%llu)\n",
-            (unsigned long long)curTick(), (unsigned long long)roi_cycles);
     if (detail_stream && detail_stream->stream()) {
         auto &os = *(detail_stream->stream());
-        os << "# workend @ tick " << curTick()
-           << " roi_cycles " << roi_cycles << "\n";
+        os << "# finish roi_cycles " << roi_cycles << "\n";
         // IRF detail block (advice-engine evidence)
         os << "irf int_regs " << irf_state[0].size()
            << " float_regs " << irf_state[1].size()
@@ -164,6 +184,9 @@ CHAOSCov::onWorkEnd()
         os << "irf int_ace_cycles " << irf_ace_cycles[0]
            << " float_ace_cycles " << irf_ace_cycles[1]
            << " vec_ace_cycles " << irf_ace_cycles[2] << "\n";
+        os << "irf int_ace_commit_cycles " << irf_ace_commit_cycles[0]
+           << " float_ace_commit_cycles " << irf_ace_commit_cycles[1]
+           << " vec_ace_commit_cycles " << irf_ace_commit_cycles[2] << "\n";
         os << "irf live_at_end int " << irf_live_regs[0]
            << " float " << irf_live_regs[1]
            << " vec " << irf_live_regs[2] << "\n";
@@ -196,6 +219,8 @@ CHAOSCov::irfOnWrite(int class_type, int idx)
     st.last_read = now;
     st.has_value = true;
     st.ever_read = false;
+    st.last_commit_read = now;
+    st.ever_commit_read = false;
 }
 
 void
@@ -216,6 +241,22 @@ CHAOSCov::irfOnRead(int class_type, int idx)
         irf_ace_cycles[class_type] += now - st.last_read;
     }
     st.last_read = now;
+}
+
+void
+CHAOSCov::irfOnCommitRead(int class_type, int idx)
+{
+    if (!roi_active) return;
+    auto &st = irf_state[class_type][idx];
+    if (!st.has_value) return;
+    const uint64_t now = roi_cycles;
+    if (!st.ever_commit_read) {
+        irf_ace_commit_cycles[class_type] += now - st.birth;
+        st.ever_commit_read = true;
+    } else {
+        irf_ace_commit_cycles[class_type] += now - st.last_commit_read;
+    }
+    st.last_commit_read = now;
 }
 
 void
@@ -287,8 +328,18 @@ CHAOSCov::HarpStats::HarpStats(statistics::Group *parent)
       ADD_STAT(irfAvfFloat, statistics::units::Ratio::get(),
                "IRF AVF, float space"),
       ADD_STAT(irfAvfVec, statistics::units::Ratio::get(),
-               "IRF AVF, vector space (AArch64 FP/SIMD)")
+               "IRF AVF, vector space (AArch64 FP/SIMD)"),
+      ADD_STAT(irfAvfCommit, statistics::units::Ratio::get(),
+               "IRF AVF, commit-confirmed reads only (wrong-path excluded)"),
+      ADD_STAT(irfAvfCommitInt, statistics::units::Ratio::get(),
+               "IRF AVF int space, commit-confirmed")
 {
+}
+
+void
+CHAOSCov::preDumpStats()
+{
+    finishStats();
 }
 
 void

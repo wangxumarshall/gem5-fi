@@ -56,6 +56,10 @@ class CHAOSCov : public SimObject
     CHAOSCov(const CHAOSCovParams &p);
     ~CHAOSCov() override;
     void startup() override;
+    // statistics::Group hook: finalize ledgers into stats right before any
+    // stats dump. Covers every ROI mode (incl. roi=all/cycles where no
+    // m5ops marker fires) without config-script cooperation.
+    void preDumpStats() override;
 
     // ROI state (also read by collector hooks in later tasks)
     static bool roiActive() { return roi_active; }
@@ -73,11 +77,21 @@ class CHAOSCov : public SimObject
     void irfOnAlloc(int class_type, int idx);
     void irfOnFree(int class_type, int idx);
     void irfSampleOccupancy();   // per-ROI-cycle histogram sampling
+    // Task 2.2 commit-confirmed read: called from Commit per committed
+    // instruction per physical source register. Accumulates a second,
+    // wrong-path-free ACE ledger (reads by squashed instructions never
+    // commit, so they never enter this counter).
+    void irfOnCommitRead(int class_type, int idx);
 
     // Per-cycle poll from collectors (cycle-granular ROI bookkeeping).
     void tickROICycles() { if (roi_active) roi_cycles++; }
 
     uint64_t roiCycles() const { return roi_cycles; }
+
+    // Finalize stats. Called from onWorkEnd (m5ops mode) and from the
+    // config script after m5.simulate() returns (roi=all/cycles modes,
+    // where no marker ever fires). Idempotent via max() guards.
+    void finishStats();
 
   private:
     o3::CPU *cpu;
@@ -113,9 +127,14 @@ class CHAOSCov : public SimObject
         uint64_t last_read = 0;
         bool has_value = false;   // written, not yet overwritten/freed
         bool ever_read = false;
+        // Task 2.2 commit-confirmed mirrors (separate ledger; wrong-path
+        // reads extend only the optimistic fields above).
+        uint64_t last_commit_read = 0;
+        bool ever_commit_read = false;
     };
     std::vector<PrfRegState> irf_state[3];  // [0]=int [1]=float [2]=vector
-    uint64_t irf_ace_cycles[3] = {0, 0, 0}; // accumulated ACE cycles
+    uint64_t irf_ace_cycles[3] = {0, 0, 0}; // accumulated ACE cycles (optimistic)
+    uint64_t irf_ace_commit_cycles[3] = {0, 0, 0}; // commit-confirmed ledger
     uint64_t irf_live_regs[3]  = {0, 0, 0}; // regs with open interval at ROI end
     // occupancy histogram for the advice engine: samples of
     // (#regs with has_value && ever_read) taken each ROI cycle, bucketed.
@@ -135,10 +154,13 @@ class CHAOSCov : public SimObject
         statistics::Scalar irfIntAceCycles;
         statistics::Scalar irfFloatAceCycles;
         statistics::Scalar irfVecAceCycles;
-        statistics::Scalar irfAvf;         // (int+float ACE) / (totalRegs*T_ROI)
+        statistics::Scalar irfAvf;         // (int+float+vec ACE) / (bits*T_ROI)
         statistics::Scalar irfAvfInt;
         statistics::Scalar irfAvfFloat;
         statistics::Scalar irfAvfVec;
+        // Task 2.2 commit-confirmed variants (wrong-path reads excluded)
+        statistics::Scalar irfAvfCommit;
+        statistics::Scalar irfAvfCommitInt;
     } harpStats;
 
     void irfFinish();   // close open intervals at ROI end / sim end
