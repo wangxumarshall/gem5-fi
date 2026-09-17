@@ -290,6 +290,19 @@ _ap.add_argument("--fu-perm-seed", type=int, default=20260916,
 _ap.add_argument("--fu-perm-first-clock", type=int, default=0,
                 help="cycle after which the fault is active (0=start; "
                      "set to ROI begin to skip C-lib startup)")
+# --- gate-level netlist FU fault (harp plan Task 5.3) ---
+_ap.add_argument("--gate-fu", action="store_true", default=False,
+                help="mount CHAOSGateFU (synthetic gate-level netlist "
+                     "stuck-at; IntAlu/IntMult)")
+_ap.add_argument("--gate-fu-opclass", default="IntMult",
+                help="netlist target: IntAlu (Kogge-Stone) | IntMult "
+                     "(shift-add array)")
+_ap.add_argument("--gate-fu-gate", type=int, default=-1,
+                help="gate index to stick (-1 = none, equivalence mode)")
+_ap.add_argument("--gate-fu-polarity", type=int, default=1,
+                help="stuck value 0|1")
+_ap.add_argument("--gate-fu-first-clock", type=int, default=0,
+                help="cycle after which the fault is active")
 _args = _ap.parse_args()
 
 system = build_system(_args.binary)
@@ -341,6 +354,16 @@ if _args.fu_perm:
         faultMask=_args.fu_perm_mask,
         rngSeed=_args.fu_perm_seed,
         firstClock=_args.fu_perm_first_clock,
+    )
+
+# --- Gate-level netlist injector (Task 5.3): default-off mount ---
+if _args.gate_fu:
+    system.CHAOSGateFU = CHAOSGateFU(
+        cpu=system.cpu,
+        targetOpClass=_args.gate_fu_opclass,
+        targetGate=_args.gate_fu_gate,
+        stuckPolarity=_args.gate_fu_polarity,
+        firstClock=_args.gate_fu_first_clock,
     )
 
 # --- Harpocrates coverage analyzer (Task 1.2): default-off mount ---
