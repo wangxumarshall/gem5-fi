@@ -1,0 +1,5 @@
+Import('*')
+
+SimObject('CHAOSCov.py', sim_objects=['CHAOSCov'])
+Source('CHAOSCov.cc')
+DebugFlag('CHAOSCov')

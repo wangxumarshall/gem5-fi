@@ -58,6 +58,12 @@
 namespace gem5
 {
 
+// Harpocrates SQ-data ACE hooks (harp plan Task 3.2).
+void harp_cov_on_sq_write();
+void harp_cov_on_sq_consume();
+void harp_cov_on_sq_free();
+extern bool harp_enabled;
+
 namespace o3
 {
 
@@ -874,6 +880,10 @@ LSQUnit::writebackStores()
             memset(inst->memData, 0, request->_size);
         else
             memcpy(inst->memData, storeWBIt->data(), request->_size);
+        // Harpocrates SQ-data ACE: data consumed by the final memory
+        // writeback — closes its interval with ACE use (Task 3.2).
+        if (harp_enabled)
+            harp_cov_on_sq_consume();
 
         request->buildPackets();
 
@@ -1165,6 +1175,10 @@ LSQUnit::completeStore(typename StoreQueue::iterator store_idx)
     assert(store_idx->valid());
     store_idx->completed() = true;
     --storesToWB;
+    // Harpocrates SQ-data ACE: SQ entry cleared — interval closes
+    // (un-consumed = squashed/never-forwarded = un-ACE) (Task 3.2).
+    if (harp_enabled)
+        harp_cov_on_sq_free();
     // A bit conservative because a store completion may not free up entries,
     // but hopefully avoids two store completions in one cycle from making
     // the CPU tick twice.
@@ -1678,8 +1692,13 @@ LSQUnit::write(LSQRequest *request, uint8_t *data, ssize_t store_idx)
     // copy data into the storeQueue only if the store request has valid data
     if (!(request->req()->getFlags() & Request::CACHE_BLOCK_ZERO) &&
         !request->req()->isCacheMaintenance() &&
-        !request->req()->isAtomic())
+        !request->req()->isAtomic()) {
         memcpy(storeQueue[store_idx].data(), data, size);
+        // Harpocrates SQ-data ACE: store data now resident in the SQ
+        // data field — opens its interval (Task 3.2).
+        if (harp_enabled)
+            harp_cov_on_sq_write();
+    }
 
     // This function only writes the data to the store queue, so no fault
     // can happen here.

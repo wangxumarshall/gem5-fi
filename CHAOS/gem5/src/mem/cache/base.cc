@@ -70,6 +70,13 @@
 namespace gem5
 {
 
+// Harpocrates L1D-ACE collector hooks (harp plan Task 3.1). No-ops unless
+// a CHAOSCov analyzer is mounted AND this cache is its target.
+void harp_cov_on_cache_write(void *cache, void *blk);
+void harp_cov_on_cache_read(void *cache, void *blk);
+void harp_cov_on_cache_evict(void *cache, void *blk);
+extern bool harp_enabled;
+
 BaseCache::CacheResponsePort::CacheResponsePort(const std::string &_name,
                                           BaseCache& _cache,
                                           const std::string &_label)
@@ -823,6 +830,11 @@ void
 BaseCache::updateBlockData(CacheBlk *blk, const PacketPtr cpkt,
     bool has_old_data)
 {
+    // Harpocrates L1D-ACE: block data (re)written by a store / writeback /
+    // fill update — opens a new interval (Task 3.1).
+    if (harp_enabled && blk)
+        harp_cov_on_cache_write(this, blk);
+
     CacheDataUpdateProbeArg data_update(
         regenerateBlkAddr(blk), blk->isSecure(),
         blk->getSrcRequestorId(), accessor);
@@ -1150,6 +1162,11 @@ BaseCache::satisfyRequest(PacketPtr pkt, CacheBlk *blk, bool, bool)
     assert(pkt->isRequest());
 
     assert(blk && blk->isValid());
+
+    // Harpocrates L1D-ACE: demand read of a resident block extends its
+    // ACE interval (Task 3.1).
+    if (harp_enabled && pkt->isRead() && blk)
+        harp_cov_on_cache_read(this, blk);
     // Occasionally this is not true... if we are a lower-level cache
     // satisfying a string of Read and ReadEx requests from
     // upper-level caches, a Read will mark the block as shared but we
@@ -1573,6 +1590,13 @@ CacheBlk*
 BaseCache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
                       bool allocate)
 {
+    // Harpocrates L1D-ACE: a fill writes new data into the block — write
+    // event (Task 3.1). (updateBlockData is also hooked; a fill that
+    // routes through it fires twice, which is idempotent for the ledger:
+    // the second write simply re-opens the same-birth interval.)
+    if (harp_enabled && blk)
+        harp_cov_on_cache_write(this, blk);
+
     assert(pkt->isResponse());
     Addr addr = pkt->getAddr();
     bool is_secure = pkt->isSecure();
@@ -1748,6 +1772,10 @@ BaseCache::invalidateBlock(CacheBlk *blk)
 void
 BaseCache::evictBlock(CacheBlk *blk, PacketList &writebacks)
 {
+    // Harpocrates L1D-ACE: eviction closes the block's interval (Task 3.1).
+    if (harp_enabled && blk)
+        harp_cov_on_cache_evict(this, blk);
+
     PacketPtr pkt = evictBlock(blk);
     if (pkt) {
         writebacks.push_back(pkt);

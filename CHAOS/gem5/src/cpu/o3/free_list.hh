@@ -47,6 +47,18 @@
 #include <iostream>
 #include <queue>
 
+namespace gem5
+{
+
+// Harpocrates IRF-ACE lifecycle hooks (harp plan Task 2.1). Defined in
+// CHAOSCov/CHAOSCov.cc; harp_enabled is false (no-op branch) unless a
+// CHAOSCov analyzer is mounted. class_type: 0=int, 1=float.
+void harp_cov_on_prf_alloc(int class_type, int idx);
+void harp_cov_on_prf_free(int class_type, int idx);
+extern bool harp_enabled;
+
+} // namespace gem5
+
 #include "base/logging.hh"
 #include "base/trace.hh"
 #include "cpu/o3/comm.hh"
@@ -80,7 +92,21 @@ class SimpleFreeList
     SimpleFreeList() {};
 
     /** Add a physical register to the free list */
-    void addReg(PhysRegIdPtr reg) { freeRegs.push(reg); }
+    void addReg(PhysRegIdPtr reg)
+    {
+        // Harpocrates IRF-ACE: free event (closes the slot's open interval;
+        // the post-last-read idle tail is un-ACE and never accumulated).
+        // Int/float classes only — see getReg's comment.
+        if (harp_enabled) {
+            const auto cls = reg->classValue();
+            if (cls == IntRegClass || cls == FloatRegClass)
+                harp_cov_on_prf_free(cls == IntRegClass ? 0 : 1,
+                                     reg->index());
+            else if (cls == VecRegClass)
+                harp_cov_on_prf_free(2, reg->index());
+        }
+        freeRegs.push(reg);
+    }
 
     /** Add physical registers to the free list */
     template<class InputIt>
@@ -97,6 +123,19 @@ class SimpleFreeList
         assert(!freeRegs.empty());
         PhysRegIdPtr free_reg = freeRegs.front();
         freeRegs.pop();
+        // Harpocrates IRF-ACE: allocation event (free-list residency is
+        // un-ACE; resets any stale interval state for the slot). Only the
+        // int and float classes are tracked (SimpleFreeList is shared by
+        // all classes; vec/pred/mat/cc indices would overflow the float
+        // space — measured segfault before this guard).
+        if (harp_enabled) {
+            const auto cls = free_reg->classValue();
+            if (cls == IntRegClass || cls == FloatRegClass)
+                harp_cov_on_prf_alloc(cls == IntRegClass ? 0 : 1,
+                                      free_reg->index());
+            else if (cls == VecRegClass)
+                harp_cov_on_prf_alloc(2, free_reg->index());
+        }
         return free_reg;
     }
 

@@ -59,6 +59,18 @@
 #include "cpu/o3/dyn_inst_ptr.hh"
 #include "cpu/o3/lsq_unit.hh"
 #include "cpu/o3/CHAOSFPU/CHAOSFPU.hh"  // §5.6 v2 FSU writeback hook (setRegOperand)
+
+namespace gem5 {
+// Harpocrates FU fault injectors (harp plan Tasks 5.2/5.3) — oracles used
+// in setRegOperand below. CHAOSFUPerm: execution-level permanent XOR mask.
+// CHAOSGateFU: synthetic gate-level netlist stuck-at (source operands are
+// read from the issuing instruction via renamedSrcIdx).
+extern bool fu_perm_enabled;
+uint64_t fu_perm_mask_for(int op_class);
+uint64_t fu_perm_mask_for_blob(int op_class);
+extern bool gatefu_enabled;
+bool gatefu_evaluate(int op_class, o3::DynInst *inst, uint64_t &result);
+} // namespace gem5
 #include "cpu/op_class.hh"
 #include "cpu/reg_class.hh"
 #include "cpu/static_inst.hh"
@@ -1227,6 +1239,22 @@ class DynInst : public ExecContext, public RefCounted
         if (cpu->chaosFPUHook) {
             cpu->chaosFPUHook->maybeCorruptWriteback(reg, val);
         }
+        // Harpocrates FU permanent fault (Task 5.2): mask oracle on the
+        // REAL writeback path — every result of the target OpClass is
+        // XORed (execution-level permanent model). 0 when no injector.
+        if (fu_perm_enabled) {
+            const uint64_t m = fu_perm_mask_for((int)si->opClass());
+            if (m)
+                val ^= m;
+        }
+        // Harpocrates gate-level netlist fault (Task 5.3): structural
+        // stuck-at delta — clean vs faulted netlist on the same inputs;
+        // the XOR delta is applied to the architectural value.
+        if (gatefu_enabled) {
+            uint64_t delta;
+            if (gatefu_evaluate((int)si->opClass(), this, delta))
+                val ^= delta;
+        }
         cpu->setReg(reg, val, threadNumber);
         setResult(reg->regClass(), val);
     }
@@ -1242,6 +1270,14 @@ class DynInst : public ExecContext, public RefCounted
         // overload; symmetric hook so SIMD FP is covered too).
         if (cpu->chaosFPUHook) {
             cpu->chaosFPUHook->maybeCorruptWritebackBlob(reg, val);
+        }
+        // Harpocrates FU permanent fault (Task 5.2/5.4): FP results go
+        // through THIS blob path (measured: FloatMult via the RegVal
+        // oracle matched 0). XOR the first 8 bytes by the mask.
+        if (fu_perm_enabled) {
+            const uint64_t m = fu_perm_mask_for_blob((int)si->opClass());
+            if (m)
+                *(uint64_t *)val ^= m;
         }
         cpu->setReg(reg, val, threadNumber);
         setResult(reg->regClass(), val);
