@@ -67,6 +67,7 @@ namespace gem5 {
 // read from the issuing instruction via renamedSrcIdx).
 extern bool fu_perm_enabled;
 uint64_t fu_perm_mask_for(int op_class);
+uint64_t fu_perm_mask_for_blob(int op_class);
 extern bool gatefu_enabled;
 bool gatefu_evaluate(int op_class, o3::DynInst *inst, uint64_t &result);
 } // namespace gem5
@@ -1269,6 +1270,14 @@ class DynInst : public ExecContext, public RefCounted
         // overload; symmetric hook so SIMD FP is covered too).
         if (cpu->chaosFPUHook) {
             cpu->chaosFPUHook->maybeCorruptWritebackBlob(reg, val);
+        }
+        // Harpocrates FU permanent fault (Task 5.2/5.4): FP results go
+        // through THIS blob path (measured: FloatMult via the RegVal
+        // oracle matched 0). XOR the first 8 bytes by the mask.
+        if (fu_perm_enabled) {
+            const uint64_t m = fu_perm_mask_for_blob((int)si->opClass());
+            if (m)
+                *(uint64_t *)val ^= m;
         }
         cpu->setReg(reg, val, threadNumber);
         setResult(reg->regClass(), val);

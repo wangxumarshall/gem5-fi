@@ -60,6 +60,10 @@ class CHAOSFUPerm : public SimObject
 // Returns the XOR mask to apply to this op's result, or 0 if none.
 extern bool fu_perm_enabled;
 uint64_t fu_perm_mask_for(int op_class);   // op_class = enums::OpClass
+// Blob overload (FP/vector results are written as byte blobs through the
+// const void* setRegOperand — measured: FloatMult matches stay 0 via the
+// RegVal path). Returns the mask; the caller XORs the blob words.
+uint64_t fu_perm_mask_for_blob(int op_class);
 
 } // namespace gem5
 

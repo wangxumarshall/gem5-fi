@@ -109,6 +109,30 @@ def sfi_run(i, binary, structure, seed, roi_lo_c, roi_hi_c, tmpdir):
                "--max-faults", "1", "--probability", "1.0",
                "--fault-type", "bit_flip", "--bits", "1",
                "--rng-seed", str(seed)]
+    elif structure in ("intadd", "intmul"):
+        # Int FU permanent (L1 execution-level): random result-bit mask
+        # per run (the paper samples random gates; the L1 equivalent
+        # samples a random output bit).
+        opclass = {"intadd": "IntAlu", "intmul": "IntMult"}[structure]
+        bit = rng.randint(0, 63)
+        mask = 1 << bit
+        cmd = [GEM5, "-r", "-e", "--silent-redirect", "-d", out, TS_CFG,
+               "--binary", binary, "--mode", "baseline",
+               "--fu-perm", "--fu-perm-opclass", opclass,
+               "--fu-perm-mask", hex(mask),
+               "--fu-perm-first-clock", str(first_clock)]
+    elif structure in ("fpadd", "fpmul"):
+        # FP FU: CHAOSFPU (the repo's proven FSU writeback injector —
+        # AArch64 FP results bypass setRegOperand via the writable/blob
+        # paths; CHAOSFPU's maybeCorruptWriteback(Blob) hooks exactly
+        # those). Single fault (maxFaults=1) at a random bit, permanent
+        # within the run from first_clock.
+        bit = rng.randint(0, 63)
+        mask = 1 << bit
+        cmd = [GEM5, "-r", "-e", "--silent-redirect", "-d", out, TS_CFG,
+               "--binary", binary, "--mode", "baseline",
+               "--fpu-inject", "--fpu-fault-mask", hex(mask),
+               "--fpu-first-clock", str(first_clock)]
     else:
         raise ValueError(structure)
 
@@ -129,7 +153,8 @@ def main():
     ap = argparse.ArgumentParser(description="Harpocrates SFI evaluation")
     ap.add_argument("--seq", required=True, help="被测 aarch64 静态 ELF")
     ap.add_argument("--structure", required=True,
-                    choices=["irf", "l1d", "lsq"])
+                    choices=["irf", "l1d", "lsq",
+                             "intadd", "intmul", "fpadd", "fpmul"])
     ap.add_argument("--n", type=int, default=50, help="注入次数 N")
     ap.add_argument("--jobs", type=int, default=8, help="并行 gem5 进程数")
     ap.add_argument("--master-seed", type=int, default=20260916)
@@ -217,11 +242,12 @@ def main():
                 f"= **{p:.4f}**\n")
         f.write(f"- Wilson 95% CI: [{lo:.4f}, {hi:.4f}]\n")
         f.write(f"- 分类: {counts}\n\n")
-        # 注入空间的 AVF 口径必须对齐：IRF 的 SFI 打的是 int 物理寄存器
-        # 空间（phys_idx 0..124），上界应对照 irfAvfInt（纯 int 空间
-        # AVF），而不是三空间加权的 irfAvf——首版用了加权口径导致
-        # "ACE < detection" 的假上界违反（实测发现后修正）。
-        ace_key = {"irf": "irfAvfInt", "l1d": "l1dAvf", "lsq": "sqAvf"}[
+        # 注入空间的 AVF/IBR 口径必须对齐：IRF 的 SFI 打的是 int 物理
+        # 寄存器空间，上界对照 irfAvfInt；FU 结构对照同类的 IBR
+        # （IBR 是相关性指标而非上界，报告口径注明）。
+        ace_key = {"irf": "irfAvfInt", "l1d": "l1dAvf", "lsq": "sqAvf",
+                   "intadd": "ibrIntAdd", "intmul": "ibrIntMul",
+                   "fpadd": "ibrFpAdd", "fpmul": "ibrFpMul"}[
             args.structure]
         f.write("## coverage vs detection（论文 Fig.4 形态）\n\n")
         f.write(f"- {args.structure} ACE ({ace_key}): "
@@ -229,8 +255,12 @@ def main():
         f.write(f"- detection: {p:.4f}\n")
         ace = cov_stats.get(ace_key)
         if ace is not None:
-            f.write(f"- ACE >= detection（上界性质）: "
-                    f"{'YES' if ace >= p else 'NO'}\n")
+            if args.structure in ("irf", "l1d", "lsq"):
+                f.write(f"- ACE >= detection（上界性质）: "
+                        f"{'YES' if ace >= p else 'NO'}\n")
+            else:
+                f.write(f"- IBR（相关性指标，非上界）：detection {p:.4f} vs "
+                        f"IBR {ace:.4f}\n")
         f.write("\n## 全部结构 coverage\n\n")
         for k, v in cov_stats.items():
             f.write(f"- {k}: {v:.6f}\n")

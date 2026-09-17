@@ -290,6 +290,18 @@ _ap.add_argument("--fu-perm-seed", type=int, default=20260916,
 _ap.add_argument("--fu-perm-first-clock", type=int, default=0,
                 help="cycle after which the fault is active (0=start; "
                      "set to ROI begin to skip C-lib startup)")
+# --- CHAOSFPU FP writeback fault (harp plan Task 5.4: FP FU SFI) ---
+_ap.add_argument("--fpu-inject", action="store_true", default=False,
+                help="mount CHAOSFPU (FP writeback result corruption)")
+_ap.add_argument("--fpu-fault-mask", type=lambda x: int(x, 0), default=0,
+                help="FP result XOR mask (0 = random bit from seed)")
+_ap.add_argument("--fpu-first-clock", type=int, default=0,
+                help="first cycle eligible")
+_ap.add_argument("--fpu-seed", type=int, default=20260916,
+                help="RNG seed for random bit")
+_ap.add_argument("--fpu-bit-segment", default="all",
+                help="all | low | mid | high (IEEE754 spectrum)")
+
 # --- gate-level netlist FU fault (harp plan Task 5.3) ---
 _ap.add_argument("--gate-fu", action="store_true", default=False,
                 help="mount CHAOSGateFU (synthetic gate-level netlist "
@@ -354,6 +366,21 @@ if _args.fu_perm:
         faultMask=_args.fu_perm_mask,
         rngSeed=_args.fu_perm_seed,
         firstClock=_args.fu_perm_first_clock,
+    )
+
+# --- CHAOSFPU (Task 5.4): FP writeback fault, self-wires its hook ---
+if _args.fpu_inject:
+    system.CHAOSFPU = CHAOSFPU(
+        cpu=system.cpu,
+        probability=1.0,
+        faultMask=_args.fpu_fault_mask,
+        bitsToChange=1,
+        bitSegment=_args.fpu_bit_segment,
+        firstClock=_args.fpu_first_clock,
+        lastClock=0,
+        maxFaults=1,
+        rngSeed=_args.fpu_seed,
+        writeLog=True,
     )
 
 # --- Gate-level netlist injector (Task 5.3): default-off mount ---

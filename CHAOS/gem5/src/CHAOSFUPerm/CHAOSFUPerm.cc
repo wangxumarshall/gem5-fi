@@ -16,6 +16,14 @@ namespace gem5
 CHAOSFUPerm *CHAOSFUPerm::instance = nullptr;
 bool fu_perm_enabled = false;
 
+// Blob-path mask oracle: identical policy to fu_perm_mask_for (the FP
+// result path), logging shared.
+uint64_t
+fu_perm_mask_for_blob(int op_class)
+{
+    return fu_perm_mask_for(op_class);
+}
+
 // Mask oracle for cpu/o3/dyn_inst.hh setRegOperand: returns the XOR mask
 // for this op class, 0 if none. Hot path: one compare when disabled.
 uint64_t
