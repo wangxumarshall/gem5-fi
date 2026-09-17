@@ -28,12 +28,15 @@
 
 #include <cstdint>
 #include <string>
+#include <unordered_map>
 
 namespace gem5
 {
 
 class CHAOSCovParams;
 namespace o3 { class CPU; }
+class BaseCache;
+class CacheBlk;
 
 // Global ROI notification hooks called from sim/pseudo_inst.cc.
 // Defined in CHAOSCov.cc; when no CHAOSCov instance exists they are no-ops.
@@ -67,6 +70,9 @@ class CHAOSCov : public SimObject
     // Single-instance pointer (read by the global notify hooks below).
     static CHAOSCov *instance;
 
+    // Target-cache identity for the L1D collector's owner filter.
+    static const void *cacheTarget() { return instance ? instance->target_cache : nullptr; }
+
     // Notification from the global hooks (pseudo_inst workbegin/workend).
     void onWorkBegin();
     void onWorkEnd();
@@ -82,6 +88,11 @@ class CHAOSCov : public SimObject
     // wrong-path-free ACE ledger (reads by squashed instructions never
     // commit, so they never enter this counter).
     void irfOnCommitRead(int class_type, int idx);
+
+    // --- L1D ACE collector (Task 3.1) ---
+    void cacheOnWrite(void *cache, void *blk);
+    void cacheOnRead(void *cache, void *blk);
+    void cacheOnEvict(void *cache, void *blk);
 
     // Per-cycle poll from collectors (cycle-granular ROI bookkeeping).
     void tickROICycles() { if (roi_active) roi_cycles++; }
@@ -142,6 +153,25 @@ class CHAOSCov : public SimObject
     std::vector<uint64_t> irf_occ_hist;     // per-bucket cycle counts
     uint64_t irf_occ_samples = 0;
 
+    // --- L1D ACE state (Task 3.1) ---
+    // Block-granular interval ledger keyed by CacheBlk pointer (stable
+    // for the lifetime of the tags store). The same Fig.3 semantics as
+    // the IRF: fill/store opens an interval, demand read extends it,
+    // evict or overwrite closes it (unread tail un-ACE).
+    struct BlkState
+    {
+        uint64_t birth = 0;
+        uint64_t last_read = 0;
+        bool has_value = false;
+        bool ever_read = false;
+    };
+    const void *target_cache = nullptr;    // filter: only this cache
+    unsigned cache_num_blocks = 0;         // sizing for AVF denominator
+    unsigned cache_block_size = 0;
+    std::unordered_map<const void *, BlkState> cache_state;
+    uint64_t cache_ace_cycles = 0;
+    uint64_t cache_reads = 0, cache_writes = 0, cache_evicts = 0;
+
   protected:
     struct HarpStats : public statistics::Group
     {
@@ -161,6 +191,12 @@ class CHAOSCov : public SimObject
         // Task 2.2 commit-confirmed variants (wrong-path reads excluded)
         statistics::Scalar irfAvfCommit;
         statistics::Scalar irfAvfCommitInt;
+        // --- L1D ACE (Task 3.1) ---
+        statistics::Scalar l1dAceCycles;
+        statistics::Scalar l1dReads;
+        statistics::Scalar l1dWrites;
+        statistics::Scalar l1dEvicts;
+        statistics::Scalar l1dAvf;
     } harpStats;
 
     void irfFinish();   // close open intervals at ROI end / sim end

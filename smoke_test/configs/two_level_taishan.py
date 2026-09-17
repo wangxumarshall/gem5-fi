@@ -325,6 +325,8 @@ if _args.mode == "inject":
 if _args.cov:
     system.CHAOSCov = CHAOSCov(
         cpu=system.cpu,
+        targetCache=system.cpu.dcache,
+        cacheNumBlocks=64 * 1024 // 64,  # L1D 64KiB, 64B blocks
         roiMode=_args.cov_roi,
         roiBeginCycle=_args.cov_roi_begin_cycle,
         roiEndCycle=_args.cov_roi_end_cycle,

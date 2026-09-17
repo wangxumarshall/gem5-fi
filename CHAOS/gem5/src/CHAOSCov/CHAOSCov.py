@@ -10,6 +10,7 @@
 # This skeleton (Task 1.2) wires: SimObject + ROI state machine + stats
 # registration + detail dump. Per-structure collectors land in Tasks 2-4.
 from m5.params import *
+from m5.proxy import *
 from m5.SimObject import SimObject
 
 
@@ -19,6 +20,14 @@ class CHAOSCov(SimObject):
     cxx_header = "CHAOSCov/CHAOSCov.hh"
 
     cpu = Param.BaseCPU(NULL, "Target CPU (must be an O3CPU)")
+    targetCache = Param.BaseCache(NULL,
+        "Cache whose blocks are ACE-analyzed (Task 3.1; typically the "
+        "L1D. NULL = cache analysis disabled)")
+    cacheNumBlocks = Param.UInt32(0,
+        "Number of blocks in targetCache (AVF denominator; passed from "
+        "the config because BaseTags::numBlocks is protected — 0 = "
+        "derive at runtime via Cache::getTags() friend-free fallback: "
+        "size / blockSize)")
 
     # --- ROI gating ---
     roiMode = Param.String(

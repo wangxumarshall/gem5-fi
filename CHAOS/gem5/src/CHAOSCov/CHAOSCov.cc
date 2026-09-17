@@ -5,6 +5,7 @@
 #include "CHAOSCov/CHAOSCov.hh"
 #include "params/CHAOSCov.hh"
 #include "cpu/o3/cpu.hh"
+#include "mem/cache/base.hh"
 #include "base/trace.hh"
 #include "debug/CHAOSCov.hh"
 
@@ -44,6 +45,21 @@ void harp_cov_on_prf_free(int class_type, int idx)
 // Task 2.2: commit-confirmed read (per committed inst, per phys src reg).
 void harp_cov_on_prf_commit_read(int class_type, int idx)
 { if (CHAOSCov::instance) CHAOSCov::instance->irfOnCommitRead(class_type, idx); }
+
+// --- L1D ACE collector hooks (Task 3.1) ---
+// The cache pointer identifies which cache instance fired the event;
+// CHAOSCov filters against its configured targetCache.
+static inline bool harp_cache_owner(void *cache)
+{ return CHAOSCov::instance && cache && CHAOSCov::cacheTarget() == cache; }
+
+void harp_cov_on_cache_write(void *cache, void *blk)
+{ if (harp_cache_owner(cache)) CHAOSCov::instance->cacheOnWrite(cache, blk); }
+
+void harp_cov_on_cache_read(void *cache, void *blk)
+{ if (harp_cache_owner(cache)) CHAOSCov::instance->cacheOnRead(cache, blk); }
+
+void harp_cov_on_cache_evict(void *cache, void *blk)
+{ if (harp_cache_owner(cache)) CHAOSCov::instance->cacheOnEvict(cache, blk); }
 
 // Per-cycle tick from Commit::tick — drives the ROI cycle counter and the
 // IRF occupancy sampling (advice-engine evidence).
@@ -88,6 +104,14 @@ CHAOSCov::CHAOSCov(const CHAOSCovParams &p)
     irf_state[1].assign(n_flt, PrfRegState{});
     irf_state[2].assign(n_vec, PrfRegState{});
     irf_occ_hist.assign(OCC_BUCKETS, 0);
+    // Task 3.1: target cache + sizing for the AVF denominator.
+    // BaseTags::numBlocks is protected and BaseCache params lack size in
+    // C++ view, so the config passes cacheNumBlocks explicitly.
+    if (p.targetCache) {
+        target_cache = p.targetCache;
+        cache_block_size = p.targetCache->getBlockSize();
+        cache_num_blocks = p.cacheNumBlocks;
+    }
     harp_enabled = true;
 
     if (roi_mode == RoiMode::All)
@@ -174,6 +198,15 @@ CHAOSCov::finishStats()
                       / ((double)irf_state[0].size() * w[0] * roi_cycles)
                 : 0.0;
     }
+    // L1D ACE stats
+    harpStats.l1dAceCycles = cache_ace_cycles;
+    harpStats.l1dReads = cache_reads;
+    harpStats.l1dWrites = cache_writes;
+    harpStats.l1dEvicts = cache_evicts;
+    if (roi_cycles > 0 && cache_num_blocks > 0)
+        harpStats.l1dAvf =
+            (double)cache_ace_cycles
+            / ((double)cache_num_blocks * (double)roi_cycles);
     if (detail_stream && detail_stream->stream()) {
         auto &os = *(detail_stream->stream());
         os << "# finish roi_cycles " << roi_cycles << "\n";
@@ -193,6 +226,12 @@ CHAOSCov::finishStats()
         os << "irf occupancy_hist (bucket=live/8)";
         for (auto b : irf_occ_hist) os << " " << b;
         os << "\n";
+        os << "l1d blocks " << cache_num_blocks
+           << " block_size " << cache_block_size
+           << " ace_cycles " << cache_ace_cycles
+           << " reads " << cache_reads
+           << " writes " << cache_writes
+           << " evicts " << cache_evicts << "\n";
     }
 }
 
@@ -332,8 +371,67 @@ CHAOSCov::HarpStats::HarpStats(statistics::Group *parent)
       ADD_STAT(irfAvfCommit, statistics::units::Ratio::get(),
                "IRF AVF, commit-confirmed reads only (wrong-path excluded)"),
       ADD_STAT(irfAvfCommitInt, statistics::units::Ratio::get(),
-               "IRF AVF int space, commit-confirmed")
+               "IRF AVF int space, commit-confirmed"),
+      ADD_STAT(l1dAceCycles, statistics::units::Cycle::get(),
+               "L1D ACE cycles accumulated over blocks (block-granular)"),
+      ADD_STAT(l1dReads, statistics::units::Count::get(),
+               "L1D demand reads observed by the collector"),
+      ADD_STAT(l1dWrites, statistics::units::Count::get(),
+               "L1D fills + store-data updates observed"),
+      ADD_STAT(l1dEvicts, statistics::units::Count::get(),
+               "L1D evictions observed"),
+      ADD_STAT(l1dAvf, statistics::units::Ratio::get(),
+               "L1D AVF = block ACE cycles / (numBlocks * ROI cycles). "
+               "Paper: ACE lifetime analysis for caches")
 {
+}
+
+// ---------------------------------------------------------------------------
+// L1D ACE collector (Task 3.1, block-granular Fig.3 semantics)
+// ---------------------------------------------------------------------------
+void
+CHAOSCov::cacheOnWrite(void *cache, void *blk)
+{
+    if (!roi_active) return;
+    cache_writes++;
+    auto &st = cache_state[blk];
+    const uint64_t now = roi_cycles;
+    // Overwrite closes the previous interval exactly as in the IRF: an
+    // interval that was read has already been accumulated; an unread one
+    // contributes nothing (write→write = un-ACE).
+    st.birth = now;
+    st.last_read = now;
+    st.has_value = true;
+    st.ever_read = false;
+}
+
+void
+CHAOSCov::cacheOnRead(void *cache, void *blk)
+{
+    if (!roi_active) return;
+    auto it = cache_state.find(blk);
+    if (it == cache_state.end()) return;   // block never written in ROI
+    auto &st = it->second;
+    if (!st.has_value) return;
+    const uint64_t now = roi_cycles;
+    if (!st.ever_read) {
+        cache_ace_cycles += now - st.birth;
+        st.ever_read = true;
+    } else {
+        cache_ace_cycles += now - st.last_read;
+    }
+    st.last_read = now;
+    cache_reads++;
+}
+
+void
+CHAOSCov::cacheOnEvict(void *cache, void *blk)
+{
+    if (!roi_active) return;
+    cache_evicts++;
+    auto it = cache_state.find(blk);
+    if (it != cache_state.end())
+        it->second.has_value = false;   // unread tail un-ACE; state kept
 }
 
 void
