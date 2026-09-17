@@ -74,6 +74,14 @@
 namespace gem5
 {
 
+// Harpocrates coverage ROI hooks (harp plan Task 1.2). No-op unless a
+// CHAOSCov SimObject is mounted; definitions live in CHAOSCov/CHAOSCov.cc.
+// Declared at true gem5 scope (inside namespace gem5, OUTSIDE pseudo_inst —
+// both a bare declaration inside pseudo_inst and `void ::gem5::f();`
+// qualified-declaration forms are ill-formed here; measured).
+void harp_cov_notify_work_begin();
+void harp_cov_notify_work_end();
+
 using namespace statistics;
 
 namespace pseudo_inst
@@ -504,6 +512,7 @@ workbegin(ThreadContext *tc, uint64_t workid, uint64_t threadid)
         exitSimLoop("workbegin", static_cast<int>(workid));
         return;
     }
+    harp_cov_notify_work_begin();
 
     DPRINTF(WorkItems, "Work Begin workid: %d, threadid %d\n", workid,
             threadid);
@@ -567,6 +576,7 @@ workend(ThreadContext *tc, uint64_t workid, uint64_t threadid)
         exitSimLoop("workend", static_cast<int>(workid));
         return;
     }
+    harp_cov_notify_work_end();
 
     DPRINTF(WorkItems, "Work End workid: %d, threadid %d\n", workid, threadid);
     tc->getCpuPtr()->workItemEnd();
