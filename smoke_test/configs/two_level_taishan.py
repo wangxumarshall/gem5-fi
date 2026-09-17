@@ -278,6 +278,18 @@ _ap.add_argument("--cov-roi-end-cycle", type=int, default=0,
                 help="ROI end cycle (cov-roi=cycles; 0=end)")
 _ap.add_argument("--cov-detail", action="store_true", default=True,
                 help="write harp_cov_detail.log (advice-engine evidence)")
+# --- FU permanent fault (harp plan Task 5.2, execution-level L1) ---
+_ap.add_argument("--fu-perm", action="store_true", default=False,
+                help="mount CHAOSFUPerm (permanent execution-level FU fault)")
+_ap.add_argument("--fu-perm-opclass", default="IntAlu",
+                help="target OpClass name (IntAlu/IntMult/FloatAdd/...)")
+_ap.add_argument("--fu-perm-mask", type=lambda x: int(x, 0), default=0,
+                help="fixed result XOR mask (0 = one random bit from seed)")
+_ap.add_argument("--fu-perm-seed", type=int, default=20260916,
+                help="seed for the random bit when mask=0")
+_ap.add_argument("--fu-perm-first-clock", type=int, default=0,
+                help="cycle after which the fault is active (0=start; "
+                     "set to ROI begin to skip C-lib startup)")
 _args = _ap.parse_args()
 
 system = build_system(_args.binary)
@@ -320,6 +332,16 @@ if _args.mode == "inject":
             rng_seed=_args.rng_seed,
             max_reg_idx=_args.max_reg_idx,
         )
+
+# --- FU permanent injector (Task 5.2): default-off mount ---
+if _args.fu_perm:
+    system.CHAOSFUPerm = CHAOSFUPerm(
+        cpu=system.cpu,
+        targetOpClass=_args.fu_perm_opclass,
+        faultMask=_args.fu_perm_mask,
+        rngSeed=_args.fu_perm_seed,
+        firstClock=_args.fu_perm_first_clock,
+    )
 
 # --- Harpocrates coverage analyzer (Task 1.2): default-off mount ---
 if _args.cov:

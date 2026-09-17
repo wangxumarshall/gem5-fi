@@ -59,6 +59,13 @@
 #include "cpu/o3/dyn_inst_ptr.hh"
 #include "cpu/o3/lsq_unit.hh"
 #include "cpu/o3/CHAOSFPU/CHAOSFPU.hh"  // §5.6 v2 FSU writeback hook (setRegOperand)
+
+namespace gem5 {
+// Harpocrates FU permanent fault (harp plan Task 5.2) — mask oracle used
+// in setRegOperand below. Defined in CHAOSFUPerm/CHAOSFUPerm.cc.
+extern bool fu_perm_enabled;
+uint64_t fu_perm_mask_for(int op_class);
+} // namespace gem5
 #include "cpu/op_class.hh"
 #include "cpu/reg_class.hh"
 #include "cpu/static_inst.hh"
@@ -1226,6 +1233,14 @@ class DynInst : public ExecContext, public RefCounted
         // injector attached → short-circuit on the hot path.
         if (cpu->chaosFPUHook) {
             cpu->chaosFPUHook->maybeCorruptWriteback(reg, val);
+        }
+        // Harpocrates FU permanent fault (Task 5.2): mask oracle on the
+        // REAL writeback path — every result of the target OpClass is
+        // XORed (execution-level permanent model). 0 when no injector.
+        if (fu_perm_enabled) {
+            const uint64_t m = fu_perm_mask_for((int)si->opClass());
+            if (m)
+                val ^= m;
         }
         cpu->setReg(reg, val, threadNumber);
         setResult(reg->regClass(), val);
