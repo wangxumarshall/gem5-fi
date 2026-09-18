@@ -64,10 +64,10 @@
 
   <g>
     <rect x="1078" y="176" width="352" height="120" rx="8" fill="#fffbeb" stroke="#b45309" stroke-width="3"/>
-    <text x="1090" y="198" font-size="13" font-weight="700" fill="#92400e">★ MPAM（§1.1 Cache features）</text>
+    <text x="1090" y="198" font-size="13" font-weight="700" fill="#92400e">MPAM（§1.1；N2 亦有 FEAT_MPAM）</text>
     <text x="1090" y="220" font-size="11" fill="#334155">Memory System Resource Partitioning &amp; Monitoring</text>
     <text x="1090" y="237" font-size="11" fill="#334155">缓存/带宽 QoS 硬件分区</text>
-    <text x="1090" y="260" font-size="10.5" fill="#6b7280">（920 平台级 MPAM 有 ACPI 表；N3 为核内特性）</text>
+    <text x="1090" y="260" font-size="10.5" fill="#6b7280">（920 平台级 MPAM 有 ACPI 表；N2/N3 为核内 FEAT_MPAM）</text>
   </g>
 
   <!-- ============ 后端泳道 ============ -->
@@ -142,13 +142,13 @@
     <text x="530" y="798" text-anchor="middle" font-size="12.5" font-weight="700" fill="#92400e">★ L2 128KB–2MB 8-way 2-bank</text>
     <text x="530" y="816" text-anchor="middle" fill="#334155">PIPT · 动态偏置替换策略（Table 8-1）</text>
     <text x="530" y="833" text-anchor="middle" fill="#334155">tag/data: SECDED · ECC granule 可配</text>
-    <text x="530" y="853" text-anchor="middle" font-weight="600" fill="#b45309">★ ECC granule 128/256 bit（§1.2）</text>
-    <text x="530" y="873" text-anchor="middle" fill="#6b7280">五款最细可配纠错粒度 · TQ 亦 SECDED</text>
+    <text x="530" y="853" text-anchor="middle" font-weight="600" fill="#b45309">ECC granule 128/256 bit 可配（§1.2，五款唯一可配）</text>
+    <text x="530" y="873" text-anchor="middle" fill="#6b7280">注意：比 N1/N2 的 64b 码字更粗（UC poison 波及面更大）</text>
 
     <rect x="730" y="776" width="260" height="150" rx="8" fill="#ffffff" stroke="#059669" stroke-width="1.8"/>
     <text x="860" y="798" text-anchor="middle" font-size="12.5" font-weight="700" fill="#065f46">DSU-120（Direct connect）</text>
-    <text x="860" y="816" text-anchor="middle" fill="#334155">★ CHI Issue E 接口</text>
-    <text x="860" y="833" text-anchor="middle" fill="#334155">★ 256-bit 读/写通道宽</text>
+    <text x="860" y="816" text-anchor="middle" fill="#334155">CHI Issue E 接口（N2 同款）</text>
+    <text x="860" y="833" text-anchor="middle" fill="#334155">256-bit 读/写通道宽</text>
     <text x="860" y="853" text-anchor="middle" fill="#334155">单核配置：无 L3 / 无 SCU</text>
     <text x="860" y="873" text-anchor="middle" fill="#6b7280">（L3 保护 = DSU TRM 范围）</text>
 

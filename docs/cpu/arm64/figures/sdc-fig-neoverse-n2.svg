@@ -23,7 +23,7 @@
   <!-- ============ 前端泳道 ============ -->
   <rect x="30" y="130" width="1420" height="230" rx="12" fill="#f0f9ff" stroke="#0891b2" stroke-width="2"/>
   <text x="46" y="156" font-size="15" font-weight="700" fill="#0e7490">前端（按序 · TRM §3.1 p40）</text>
-  <text x="280" y="156" font-size="11.5" fill="#0369a1">L1I 64KB 4-way 64B · iTLB 全相联（4K/16K/64K/2M 原生页）· A32/T32/A64 全译码（★ AArch32 全保留）</text>
+  <text x="280" y="156" font-size="11.5" fill="#0369a1">L1I 64KB 4-way 64B · iTLB 全相联（4K/16K/64K/2M 原生页）· A32/T32/A64 全译码（AArch32 EL0，与 N1 相同）</text>
 
   <g>
     <rect x="50" y="176" width="240" height="120" rx="8" fill="#ecfeff" stroke="#0891b2" stroke-width="1.8"/>
@@ -31,7 +31,7 @@
     <text x="62" y="220" font-size="11" fill="#334155">· BTB（taken 目标）+ 方向预测器（历史）</text>
     <text x="62" y="237" font-size="11" fill="#334155">· 返回栈 + 静态预测器 + 间接预测器</text>
     <text x="62" y="260" font-size="11" font-weight="600" fill="#b91c1c">· BTB/GHB/BIM 保护未列（Table 11-1）</text>
-    <text x="62" y="277" font-size="11" fill="#6b7280">· A32↔T32 状态切换分支也预测</text>
+    <text x="62" y="277" font-size="11" fill="#6b7280">· A32↔T32 状态切换分支也预测（AArch32 仅 EL0，同 N1）</text>
   </g>
 
   <path d="M 290 220 C 320 220, 330 220, 358 220" fill="none" stroke="#7c3aed" stroke-width="2" stroke-dasharray="5 3" marker-end="url(#arwC)"/>
@@ -113,7 +113,7 @@
     <text x="70" y="604" font-size="13" font-weight="700" fill="#9a3412">LSU + L1D（§8 p69-72）</text>
     <text x="70" y="626" font-size="10.5" fill="#334155">· L1D 64KB 4-way 64B · tag/data SECDED（Table 11-1）</text>
     <text x="70" y="646" font-size="10.5" font-weight="600" fill="#b91c1c">· 独占监视器（§8.3）· DC ZVA 64B</text>
-    <text x="70" y="666" font-size="10.5" fill="#6b7280">· ★ write streaming（read allocate）L1+L2 双级（§8.5）</text>
+    <text x="70" y="666" font-size="10.5" fill="#6b7280">· write streaming（read allocate）L1+L2（§8.5；N1/N3 亦有，N2 特点在双级阈值可控）</text>
   </g>
 
   <g>

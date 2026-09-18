@@ -224,7 +224,7 @@
     <text x="1280" y="908" text-anchor="middle" font-size="12.5" font-weight="700" fill="#6d28d9">MMU：TLB + PTW</text>
     <text x="1142" y="928" font-size="10.5" fill="#334155">· iTLB 32 项全相联 · dTLB 32 项全相联</text>
     <text x="1142" y="945" font-size="10.5" fill="#334155">· L2 TLB 1024 项 I/D 共用，命中 +11c</text>
-    <text x="1142" y="965" font-size="10.5" fill="#334155">· PTW 4KB/16KB/64KB 粒度</text>
+    <text x="1142" y="965" font-size="10.5" fill="#334155">· PTW 4KB 实测（64KB 架构必备；16KB 未验证）</text>
     <text x="1142" y="985" font-size="10.5" font-weight="600" fill="#b91c1c">· TLB 无保护披露（RAS=0）</text>
     <text x="1142" y="1005" font-size="10.5" fill="#6b7280">· 4KB×4=16KB 恰处 VIPT 别名临界</text>
     <text x="1142" y="1025" font-size="10.5" fill="#6b7280">　（实测无别名，公共页着色）</text>

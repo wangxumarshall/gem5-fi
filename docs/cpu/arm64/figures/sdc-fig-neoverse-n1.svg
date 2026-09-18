@@ -39,20 +39,16 @@
   <g>
     <rect x="372" y="176" width="190" height="120" rx="8" fill="#ffffff" stroke="#0891b2" stroke-width="1.8"/>
     <text x="467" y="200" text-anchor="middle" font-size="13" font-weight="700" fill="#0e7490">L1I 64KB 4-way</text>
-    <text x="467" y="222" text-anchor="middle" font-size="11" fill="#334155">64B 行 · 硬件一致性可配（§3.1.1）</text>
+    <text x="467" y="222" text-anchor="middle" font-size="11" fill="#334155">64B 行 · 硬件一致性可配（Table 2-2/§7.2.6）</text>
     <text x="467" y="242" text-anchor="middle" font-size="10.5" fill="#334155">tag: 1 parity/39b · data: SED/72b</text>
     <text x="467" y="262" text-anchor="middle" font-size="10.5" fill="#334155">错误→行失效重取（无数据丢失）</text>
   </g>
-  <g>
-    <rect x="372" y="290" width="190" height="0" fill="none"/>
-  </g>
-
   <g>
     <rect x="590" y="176" width="200" height="120" rx="8" fill="#ffffff" stroke="#0891b2" stroke-width="1.8"/>
     <text x="690" y="200" text-anchor="middle" font-size="13" font-weight="700" fill="#0e7490">译码（§3.1.2）</text>
     <text x="690" y="222" text-anchor="middle" font-size="11" fill="#334155">A32 / T32 / A64</text>
     <text x="690" y="240" text-anchor="middle" font-size="10.5" fill="#334155">NEON+FP 各态支持</text>
-    <text x="690" y="262" text-anchor="middle" font-size="10.5" fill="#6b7280">★ AArch32 EL0（五款唯一）</text>
+    <text x="690" y="262" text-anchor="middle" font-size="10.5" fill="#6b7280">AArch32 EL0（A32/T32/A64，与 N2 相同）</text>
   </g>
   <line x1="562" y1="236" x2="584" y2="236" stroke="#374151" stroke-width="2.5" marker-end="url(#arw)"/>
 
@@ -107,7 +103,7 @@
 
   <g>
     <rect x="730" y="426" width="330" height="120" rx="8" fill="#fffbeb" stroke="#b45309" stroke-width="3"/>
-    <text x="895" y="450" text-anchor="middle" font-size="13" font-weight="700" fill="#92400e">★ 三级原子执行（§7.4.1）</text>
+    <text x="895" y="450" text-anchor="middle" font-size="13" font-weight="700" fill="#92400e">三级原子执行（§7.4.1，N2/N3 亦有同类）</text>
     <text x="742" y="472" font-size="10.5" fill="#334155">· near atomic：L1 命中且 unique 态，核内完成</text>
     <text x="742" y="489" font-size="10.5" fill="#334155">· far atomic：miss/共享 → CHI 接口送互联</text>
     <text x="742" y="506" font-size="10.5" fill="#334155">· 全簇 miss → DSU L3 分配执行（可配 L3 时）</text>
@@ -186,13 +182,13 @@
   <g>
     <rect x="30" y="990" width="1420" height="190" rx="12" fill="#f0fdf4" stroke="#059669" stroke-width="2.5"/>
     <text x="46" y="1018" font-size="14" font-weight="700" fill="#047857">RAS 扩展（TRM §9 全披露）——五款中的"透明度参照系"</text>
-    <text x="46" y="1042" font-size="11.5" fill="#334155">· 架构化机制齐全：ERR&lt;n&gt;FR/CTLR/MISC0-3 · SEA/AEA/ERI · FHI/ERI 中断 · ESB 指令 · poison 传播（64b 粒度，L1D 32b）</text>
+    <text x="46" y="1042" font-size="11.5" fill="#334155">· 架构化机制齐全：ERR&lt;n&gt;FR/CTLR/MISC0-1 + PFGF（§13.47-13.51） · SEA/AEA/ERI · FHI/ERI 中断 · ESB 指令 · poison 传播（64b 粒度，L1D 32b）</text>
     <text x="46" y="1062" font-size="11.5" fill="#334155">· ★ 错误注入（§9.7）：CE/DE/UC/RE 四类全可注入（ERRSELR_EL1 选 record 0 + ERR0CTLR），注入不破坏真实 RAM 数据/校验逻辑</text>
     <text x="46" y="1082" font-size="11.5" fill="#334155">· tag UC → 失效整行 + ERI 通知（地址/一致性态未知，无法 poison，软件被告知数据可能丢失——显式非静默）</text>
     <text x="46" y="1102" font-size="11.5" fill="#334155">· TRM §9.1 直接给出 SDC 定义（"silent data corruptions"）——本仓库 SDC 判定基准的引用源</text>
     <text x="46" y="1126" font-size="11.5" font-weight="600" fill="#b91c1c">· 明示无保护清单：L1 BTB · GHB · BPIQ · L1 PHT · MMU replacement/biased-repl · L2 victim · L1 TLB（flops）</text>
     <text x="46" y="1150" font-size="11.5" fill="#334155">· I$ tag parity+data SED（弱于 L1D SECDED）→ TRM 承认 SED 双位错"might cause data corruption"</text>
-    <text x="46" y="1172" font-size="10.5" fill="#6b7280">· SDP 视角：N1 的价值=每个部件的保护状态都有官方答案，是 FI 注入矩阵设计时"已知防御面"的标定基准</text>
+    <text x="46" y="1172" font-size="10.5" fill="#6b7280">· SDC 视角：N1 的价值=每个部件的保护状态都有官方答案，是 FI 注入矩阵设计时"已知防御面"的标定基准</text>
   </g>
 
   <text x="30" y="1282" font-size="10.5" fill="#9ca3af">图 N1-1：Arm Neoverse N1 微架构功能图 · ★=独有/标志性 · 红色=SDC 高危/TRM 明示无保护 · 出处：Neoverse N1 TRM（neoverse_n1_trm.md）§2/§3/§6/§7/§9 · 与 microarchitecture-sdc-sensitivity.md §3–§9 对应</text>

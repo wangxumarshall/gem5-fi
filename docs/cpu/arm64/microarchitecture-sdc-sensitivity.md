@@ -37,9 +37,9 @@
 | 定位 | 7nm 数据中心核，chiplet | HPC/超算核（608 核/节点） | 高性能基础设施核 | 高性能/平衡核 | 平衡性能、低功耗、面积受限核 |
 | 流水线 | 4-wide OoO，~8 级，PRF 后端 | 未知（SVE512 双 FMA 实测） | 超标量变长 OoO | 超标量 OoO（TRM 未公开宽度） | 超标量 OoO（TRM 未公开宽度） |
 | 簇/共享单元 | 4 核 CCL 共享 L3 tag；SCCL=die | 38 核/NUMA 节点（节点即调度域） | DSU 簇（≤4 核 + L3 可选） | DSU-110 簇 | DSU-120（Direct connect 单核配置无 L3/SCU） |
-| 内存/页 | DDR4-2933 8通道；4KB/16KB/64KB granule | 565GB；**仅 64KB 页**（TGran4=0xf） | 48-bit PA | 48-bit PA（4/16/64KB granule） | 48-bit VA/PA |
+| 内存/页 | DDR4-2933 8通道；4KB 实测（内核页大小）；64KB 为 ARMv8.2 架构必备；16KB 未验证（MMFR0 相应字段固件不可读，见源文档可信度警告） | 565GB；**仅 64KB 页**（TGran4=0xf） | 48-bit PA | 48-bit PA（4/16/64KB granule） | 48-bit VA/PA |
 | ISA 边界要点 | 无 SVE/PAC/BTI/LRCPC/AArch32；有 LSE | SVE512+SME2+SHA3/SM3/SM4+LRCPC2/3；BTI=0,MTE=0 | AArch32 EL0；LDAPR(v8.3) | SVE/SVE2 128b 向量；AArch32+AArch64 | 仅 A64；SVE/SVE2 128b 向量 |
-| 主频（实测/典型） | 2.6 GHz 固定 | 2.0 GHz 定频 | ~2.6-3.1 GHz | ~2.4-3.0 GHz | ~2.4-3.0 GHz |
+| 主频（实测/典型） | 2.6 GHz 固定 | 2.0 GHz 定频 | ~2.6-3.1 GHz（公开资料，非 TRM 披露） | ~2.4-3.0 GHz（公开资料，非 TRM 披露） | ~2.4-3.0 GHz（公开资料，非 TRM 披露） |
 
 来源：920 实测 lscpu/MIDR；920f 实测（920f.md §1）；N1 TRM §2.2；N2 TRM ch2 p30；N3 TRM ch1 p17。
 
@@ -69,25 +69,26 @@
 
 ![Neoverse N1 微架构功能图](figures/sdc-fig-neoverse-n1.svg)
 
-独有/标志性：**ETM**（指令 trace，N2/N3 改 ETE+TRBE）；**AArch32 EL0**（五款唯一 32 位支持）；
-**三级原子执行**（near L1 → far CHI → DSU L3）；L2 TQ 24/36/48 项可配；TRM 明示无保护清单最完整
-（BTB/GHB/BPIQ/PHT/L2 victim/L1 TLB flops）——本组"披露透明度参照系"。
+独有/标志性：**ETM**（指令 trace，N2/N3 改 ETE+TRBE）——五款唯一仍在用 ETM 型 trace 单元；
+AArch32 EL0（A32/T32/A64，与 N2 相同；920/920f/N3 无）；
+三级原子执行（near L1 → far CHI → DSU L3，N2/N3 亦有同类机制）；L2 TQ 24/36/48 项可配（五款唯一把 TQ 深度列为构建选项）；
+TRM 明示无保护清单最完整（BTB/GHB/BPIQ/PHT/L2 victim/L1 TLB flops）——本组"披露透明度参照系"。
 
 ### Neoverse N2
 
 ![Neoverse N2 微架构功能图](figures/sdc-fig-neoverse-n2.svg)
 
-独有/标志性：**L0 MOP 缓存 1536 项 4-way skewed**（存已译码优化指令，SED 弱保护×高命中×指令面）；
-**MMUTC 拉进 SED**（N1 仅 2-bit 交错 parity）；AArch32 全保留（A32/T32/A64）；write streaming L1+L2 双级；
-load VA / store PA 分裂预取器。
+独有/标志性：**L0 MOP 缓存 1536 项 4-way skewed**（存已译码优化指令，SED 弱保护×高命中×指令面，五款唯一 MOP）；
+**MMUTC 拉进 SED**（N1 仅 2-bit 交错 parity）；AArch32 EL0（A32/T32/A64，与 N1 相同）；write streaming L1+L2 双级；
+load VA / store PA 分裂预取器（N3 改为 VA+PC 双源引擎）。
 
 ### Neoverse N3
 
 ![Neoverse N3 微架构功能图](figures/sdc-fig-neoverse-n3.svg)
 
 独有/标志性：**分裂式 L2 TLB**（small-page 1536 项 6-way + medium-page 256 项 4-way + walk cache）；
-**TLB 整体 SED**（N2 仅 MMUTC）；**L1D aux tag SECDED**（新增披露行）；**L2 ECC granule 128/256b 可配**；
-**MPAM** 核内特性；CHI Issue E 256-bit 接口；PMU 6/20 计数器可配；RAS Node 0 明确覆盖 MMU/TLB；
+**TLB 整体 SED**（N2 仅 MMUTC）；**L1D aux tag SECDED**（新增披露行）；L2 ECC granule 128/256b 可配（注意：比 N1/N2 的 64b 码字更粗，UC poison 波及面更大，但为五款唯一可配）；
+MPAM（N2 亦有 FEAT_MPAM）；CHI Issue E 256-bit 接口（N2 同款）；PMU 6/20 计数器可配（五款唯一 PMU 深度构建选项）；RAS Node 0 明确覆盖 MMU/TLB；
 无 MOP 结构（相对 N2 删减）——披露范围内 SDC 防御最厚。
 
 ---
@@ -272,13 +273,13 @@ SDC 视角：TLB 翻转 = 错误 VA→PA 映射 → **load/store 落错物理页
 | | 920 | 920f | N1 | N2 | N3 |
 |---|---|---|---|---|---|
 | ID_AA64PFR0.RAS | **0（实测，无 ARMv8.2 RAS）** | **1（实测）** | 实现完整 RAS 扩展 | v9.0 RAS 全量 | v9.2 RAS 全量 |
-| 错误记录寄存器 ERR* | 无 | 有（无 TRM 细节） | ERR<n>FR/CTLR/MISC0-3 | 同 + ERR<n>PFGF | 同（寄存器带 _EL1 后缀，RASv1.1 风格：ER1PFGCDN_EL1） |
+| 错误记录寄存器 ERR* | 无 | 有（无 TRM 细节） | ERR<n>FR/CTLR/MISC0-1 + PFGF（TRM §13.47-13.51） | 同 N1 + MISC2-3 | 同 + 寄存器带 _EL1 后缀（RASv1.1 风格：ER1PFGCDN_EL1） |
 | 中断 | — | — | FHI/ERI | FHI(nCOREFAULTIRQ)/ERI(nCOREERRIRQ) | 同 |
 | 消费时报错 | — | — | SEA/AEA/ERI | SEA/AEA/ERI | SEA/AEA/ERI |
 | ESB 指令 | 无 | 有 | 有 | 有 | 有 |
 | Poison 传播 | 无架构机制（厂商私有） | 有（架构） | 64b 粒度（L1D 32b）；tag UC→失效+ERI | 总线 poison 属性；evict 双错 poison | 同 N2 |
-| 错误注入 | 无架构接口 | 未知 | CE/DE/UC 可注入 | CE(L1D 单 ECC)/DE(L1→L2 evict 双 ECC 或 snoop)/UC(L1 tag evict 后双 ECC) | CE/DE/UC（UC 定义为 L1 **和** L2 tag） |
-| PMU 联动 | ghes_edac 平台计数 | SPE/PMUv3 | — | MEMORY_ERROR 事件 | MEMORY_ERROR 事件 |
+| 错误注入 | 无架构接口 | 未知 | CE/DE/UC/RE 四类全可注入（§9.7） | CE(L1D 单 ECC)/DE(L1→L2 evict 双 ECC 或 snoop)/UC(L1 tag evict 后双 ECC) | CE/DE/UC（UC 定义为 L1 **和** L2 tag） |
+| PMU 联动 | ghes_edac 平台计数 | SPE/PMUv3 | MEMORY_ERROR 事件（0x1A，§13 PMU 事件表） | MEMORY_ERROR 事件 | MEMORY_ERROR 事件 |
 | 节点划分 | — | — | Node0=L1+L2 | Node0=L1+L2 私有存储系统 | Node0=L1+L2+**MMU/TLB**（N3 明确纳入） |
 
 ### F2. 平台级 RAS 栈
@@ -322,7 +323,7 @@ SDC 视角：TLB 翻转 = 错误 VA→PA 映射 → **load/store 落错物理页
 - **920f**：架构上 RAS=1（有防御潜力），但无 TRM → 防御矩阵黑盒；**无 LLC** → 缓存暴露面反而小于 920（只有 L1D 32KB+L2 768KB），但 **64KB 强制页**放大 TLB 类翻转的波及面。SME/SVE512 的巨型向量寄存器（Z0–Z31 × 512b + 矩阵 tile）是新增的**无保护数据面**——单次向量寄存器翻转影响 64B 连续数据。
 - **Neoverse N1**：RAS 矩阵披露最完整（连 None 都写明）；薄弱点：L1 TLB（flops 无保护）、BTB/GHB/BPIQ/PHT/L2 victim 无保护、I$ 仅 SED。作为"披露透明度最高"的参照系。
 - **Neoverse N2**：在 N1 基础上把 MMUTC 拉进 SED、MOP cache 有 SED、其余同 N1；无新增明显弱点；数据面 SDC 防御 ≈ N1。
-- **Neoverse N3**：保护矩阵最厚——TLB 明确 SED、L1D aux tag 新增 SECDED、L2 ECC granule 可配 256b（更细纠错粒度）、RAS 节点明确覆盖 MMU/TLB。**相对 SDC 敏感性最低**（在披露范围内）。
+- **Neoverse N3**：保护矩阵最厚——TLB 明确 SED、L1D aux tag 新增 SECDED、L2 ECC granule 128/256b 可配（注意：比 N1/N2 的 64b 码字**更粗**，不可纠错误 poison 的数据跨度反而更大；其价值在构建期可配而非更细）、RAS 节点明确覆盖 MMU/TLB。**相对 SDC 敏感性最低**（在披露范围内，依据 TLB SED/aux tag/Node 0 覆盖，而非 granule）。
 
 ### 9.3 对本仓库 FI/SDC 研究的可操作结论
 
