@@ -32,6 +32,17 @@ class CHAOSCov(SimObject):
         "Store-queue entry count (Task 3.2 AVF denominator; passed from "
         "the config — LSQ::SQEntries is not public to C++ clients)")
 
+    # --- SDC-ED Task 2.1: IBR denominator parameterization (Layer C) ---
+    # FU instance counts per class [IntAdd, IntMul, FPAdd, FPMul]; defaults
+    # are the TaiShan v110 fu_pool.py implementation values. A CPU profile
+    # (configs/cpu-profiles/*.yaml) overrides these — see the config glue
+    # in smoke_test/configs/two_level_taishan.py (--cov-profile).
+    ibrFuCounts = VectorParam.Int([3, 1, 2, 2],
+        "FU instance counts per IBR class [IntAdd, IntMul, FPAdd, FPMul]")
+    ibrFuWidths = VectorParam.Int([128, 128, 256, 256],
+        "Full input width (bits) per IBR class [IntAdd, IntMul, FPAdd, "
+        "FPMul] (IntAdd/IntMul 2x64; FP 2x128 NEON lanes)")
+
     # --- ROI gating ---
     roiMode = Param.String(
         "m5ops",

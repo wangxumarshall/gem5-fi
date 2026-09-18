@@ -128,6 +128,22 @@ CHAOSCov::CHAOSCov(const CHAOSCovParams &p)
     // private to the LSQ).
     sq_entries = p.sqEntries;
     sq_state.clear();
+    // SDC-ED Task 2.1: IBR denominators from the CPU profile (defaults =
+    // TaiShan v110 fu_pool values; the .py params carry the same defaults,
+    // so behavior is unchanged unless a profile overrides them).
+    {
+        const auto &counts = p.ibrFuCounts;
+        const auto &widths = p.ibrFuWidths;
+        if (counts.size() != static_cast<size_t>(NUM_FU_CLASSES)
+            || widths.size() != static_cast<size_t>(NUM_FU_CLASSES))
+            throw std::runtime_error(
+                "CHAOSCov: ibrFuCounts/ibrFuWidths must have exactly 4 "
+                "entries [IntAdd, IntMul, FPAdd, FPMul]");
+        for (int c = 0; c < NUM_FU_CLASSES; c++) {
+            ibr_fu_count[c] = static_cast<unsigned>(counts[c]);
+            ibr_full_width[c] = static_cast<unsigned>(widths[c]);
+        }
+    }
     harp_enabled = true;
 
     if (roi_mode == RoiMode::All)
