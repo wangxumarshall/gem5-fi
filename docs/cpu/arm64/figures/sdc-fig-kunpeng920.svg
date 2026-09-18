@@ -1,0 +1,257 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1480 1300" width="1480" height="1300" font-family="-apple-system,'PingFang SC','Noto Sans CJK SC','Microsoft YaHei',sans-serif">
+  <defs>
+    <marker id="arw" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#374151"/></marker>
+    <marker id="arwC" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#7c3aed"/></marker>
+    <marker id="arwG" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#059669"/></marker>
+    <marker id="arwR" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#dc2626"/></marker>
+  </defs>
+
+  <rect x="0" y="0" width="1480" height="1300" fill="#ffffff"/>
+
+  <!-- title -->
+  <text x="30" y="34" font-size="21" font-weight="700" fill="#111827">Kunpeng 920 · TaiShan v110 微架构功能图（ARMv8.2-A · 4 宽乱序 · 2.6GHz 实测）</text>
+  <text x="30" y="56" font-size="12.5" fill="#6b7280">★ 金粗边框 = 本机独有/标志性设计 · 红色 = SDC 高危（无架构 RAS） · 数据出处：kunpeng920_microarchitecture.md 本机实测 + 公开资料（CnC/LLVM/IEEE Micro）</text>
+
+  <!-- legend -->
+  <g font-size="11.5">
+    <rect x="30" y="70" width="720" height="46" rx="6" fill="#f9fafb" stroke="#e5e7eb"/>
+    <line x1="44" y1="86" x2="76" y2="86" stroke="#374151" stroke-width="2.5" marker-end="url(#arw)"/><text x="82" y="90" fill="#374151">数据流</text>
+    <line x1="140" y1="86" x2="172" y2="86" stroke="#7c3aed" stroke-width="2" stroke-dasharray="5 3" marker-end="url(#arwC)"/><text x="178" y="90" fill="#7c3aed">控制流</text>
+    <line x1="238" y1="86" x2="270" y2="86" stroke="#059669" stroke-width="2" marker-end="url(#arwG)"/><text x="276" y="90" fill="#059669">重填/一致性</text>
+    <line x1="372" y1="86" x2="404" y2="86" stroke="#dc2626" stroke-width="3.5"/><text x="410" y="90" fill="#dc2626">SDC 高危通路/部件</text>
+    <rect x="560" y="79" width="14" height="14" fill="#fffbeb" stroke="#b45309" stroke-width="3"/><text x="580" y="90" fill="#b45309" font-weight="600">★ 独有</text>
+    <text x="44" y="110" fill="#b45309" font-weight="600">★ 全部规格为公开资料/实测口径；无 TRM，保护强度除 DRAM SECDED 外均不可验证</text>
+  </g>
+
+  <!-- ============ 前端泳道 ============ -->
+  <rect x="30" y="130" width="1420" height="230" rx="12" fill="#f0f9ff" stroke="#0891b2" stroke-width="2"/>
+  <text x="46" y="156" font-size="15" font-weight="700" fill="#0e7490">前端（按序 · 4 宽）</text>
+  <text x="200" y="156" font-size="11.5" fill="#0369a1">无 µop cache → 取指带宽悬崖：L1I 内 4 条/cyc → L2 ~1.75 → L3/内存 ~0.25</text>
+
+  <g>
+    <rect x="50" y="176" width="250" height="166" rx="8" fill="#ecfeff" stroke="#0891b2" stroke-width="1.8"/>
+    <text x="62" y="197" font-size="13" font-weight="700" fill="#155e75">BPU 分支预测</text>
+    <text x="62" y="217" font-size="11" fill="#334155">· BTB 两级：L1 64 项（taken 1c）/ L2 ~2048</text>
+    <text x="62" y="234" font-size="11" fill="#334155">· 方向：两级动态（≈A73 水平，弱于 N1）</text>
+    <text x="62" y="251" font-size="11" fill="#334155">· RAS 31–32 · 间接 ~16 目标/分支（~256 全局）</text>
+    <text x="62" y="271" font-size="11" font-weight="600" fill="#b91c1c">· 无任何 ECC/parity 披露（且无 PAC 缓解）</text>
+    <text x="62" y="291" font-size="11" fill="#334155">· mcf MPKI 16.64 vs N1 15.03</text>
+    <text x="62" y="311" font-size="10.5" fill="#6b7280">· 密集 taken 链实测 5.8c/分支</text>
+  </g>
+
+  <path d="M 300 220 C 330 220, 340 220, 368 220" fill="none" stroke="#7c3aed" stroke-width="2" stroke-dasharray="5 3" marker-end="url(#arwC)"/>
+  <text x="308" y="212" font-size="10" fill="#7c3aed">下一 PC</text>
+
+  <g>
+    <rect x="372" y="176" width="180" height="76" rx="8" fill="#ffffff" stroke="#0891b2" stroke-width="1.8"/>
+    <text x="462" y="200" text-anchor="middle" font-size="13" font-weight="700" fill="#0e7490">L1I 64KB 4-way</text>
+    <text x="462" y="218" text-anchor="middle" font-size="11" fill="#334155">64B 行 · 厂商称 ECC（无证据）</text>
+    <text x="462" y="236" text-anchor="middle" font-size="10.5" font-weight="600" fill="#b45309">★ AIVIVT（L1Ip=2，实测）</text>
+  </g>
+  <g>
+    <rect x="372" y="266" width="180" height="76" rx="8" fill="#ffffff" stroke="#0891b2" stroke-width="1.8"/>
+    <text x="462" y="290" text-anchor="middle" font-size="13" font-weight="700" fill="#0e7490">取指+译码</text>
+    <text x="462" y="308" text-anchor="middle" font-size="11" fill="#334155">4 条/周期 · 定长 32-bit</text>
+    <text x="462" y="326" text-anchor="middle" font-size="10.5" fill="#6b7280">仅 AArch64（无 AArch32）</text>
+  </g>
+  <line x1="462" y1="252" x2="462" y2="262" stroke="#374151" stroke-width="2.5" marker-end="url(#arw)"/>
+
+  <g>
+    <rect x="590" y="176" width="220" height="166" rx="8" fill="#ffffff" stroke="#0891b2" stroke-width="1.8"/>
+    <text x="700" y="200" text-anchor="middle" font-size="13" font-weight="700" fill="#0e7490">重命名 Rename</text>
+    <text x="602" y="222" font-size="10.5" fill="#334155">· PRF 式：31 GPR → INT ~128 物理寄存器</text>
+    <text x="602" y="238" font-size="10.5" fill="#334155">· Flag 重命名 ~31 · move elimination</text>
+    <text x="602" y="254" font-size="10.5" fill="#334155">· FP/向量 PRF 偏小（易压满）</text>
+    <text x="602" y="276" font-size="10.5" font-weight="600" fill="#b91c1c">· PRF 翻转=直接 SDC（无保护披露）</text>
+    <text x="602" y="296" font-size="10.5" fill="#6b7280">· squash 回滚依赖历史缓冲正确性</text>
+  </g>
+  <line x1="552" y1="290" x2="584" y2="290" stroke="#374151" stroke-width="2.5" marker-end="url(#arw)"/>
+
+  <g>
+    <rect x="848" y="176" width="180" height="166" rx="8" fill="#ffffff" stroke="#0891b2" stroke-width="1.8"/>
+    <text x="938" y="200" text-anchor="middle" font-size="13" font-weight="700" fill="#0e7490">派遣 Dispatch</text>
+    <text x="938" y="222" text-anchor="middle" font-size="10.5" fill="#334155">按类分流 → 三类调度器</text>
+    <text x="938" y="240" text-anchor="middle" font-size="10.5" fill="#334155">load/store → LSQ</text>
+    <text x="938" y="258" text-anchor="middle" font-size="10.5" fill="#334155">全部 → ROB</text>
+    <text x="938" y="282" text-anchor="middle" font-size="10" fill="#6b7280">受各队列空位反压</text>
+  </g>
+  <line x1="810" y1="250" x2="842" y2="250" stroke="#374151" stroke-width="2.5" marker-end="url(#arw)"/>
+
+  <!-- ISA 边界卡 -->
+  <g>
+    <rect x="1078" y="176" width="352" height="166" rx="8" fill="#fffbeb" stroke="#b45309" stroke-width="3"/>
+    <text x="1090" y="198" font-size="13" font-weight="700" fill="#92400e">★ ISA 精确边界（ID 寄存器 EL0 实测）</text>
+    <text x="1090" y="220" font-size="11" fill="#334155">有：LSE 完整 · AES+PMULL · SHA1/SHA256（无 512）</text>
+    <text x="1090" y="237" font-size="11" fill="#334155">　　CRC32 · DP(UDOT/SDOT) · FHM · JSCVT · FCMA</text>
+    <text x="1090" y="260" font-size="11" font-weight="600" fill="#b91c1c">无：SVE · PAC · BTI · LRCPC · MTE · AArch32</text>
+    <text x="1090" y="283" font-size="11" fill="#334155">CTR：DIC=IDC=0（无 I/D 自动一致）· ERG=64B</text>
+    <text x="1090" y="304" font-size="10.5" fill="#6b7280">⚠ MMFR0/DFR0 部分字段固件实现不全（已判可信边界）</text>
+    <text x="1090" y="326" font-size="10.5" fill="#6b7280">CASAL 实测 43c · NOP 0.26c ≈ 3.9 IPC</text>
+  </g>
+  <line x1="1028" y1="250" x2="1070" y2="250" stroke="#374151" stroke-width="2.5" marker-end="url(#arw)"/>
+
+  <!-- ============ 后端泳道 ============ -->
+  <rect x="30" y="380" width="1420" height="440" rx="12" fill="#fff7ed" stroke="#ea580c" stroke-width="2"/>
+  <text x="46" y="406" font-size="15" font-weight="700" fill="#c2410c">后端（乱序执行）</text>
+  <text x="180" y="406" font-size="11.5" fill="#9a3412">ROB ~128 µop（实测有效 108–110）· 三类统一式调度器各 ~33 项（Neoverse V2 对照：9 分立 IQ）</text>
+
+  <g>
+    <rect x="50" y="426" width="220" height="130" rx="8" fill="#ffedd5" stroke="#ea580c" stroke-width="1.8"/>
+    <text x="160" y="448" text-anchor="middle" font-size="13" font-weight="700" fill="#9a3412">发射队列（3 类统一式）</text>
+    <text x="62" y="470" font-size="10.5" fill="#334155">· ALU 类 ~33 · 访存类 ~33 · FP/向量类 ~33</text>
+    <text x="62" y="487" font-size="10.5" fill="#334155">· 唤醒-选择环路 1–2c</text>
+    <text x="62" y="508" font-size="10.5" font-weight="600" fill="#b91c1c">· 控制触发器密集 = SDC 敏感区</text>
+    <text x="62" y="528" font-size="10.5" fill="#6b7280">· 每源寄存器一条等待链</text>
+  </g>
+
+  <g>
+    <rect x="320" y="426" width="240" height="130" rx="8" fill="#ffffff" stroke="#ea580c" stroke-width="1.8"/>
+    <text x="440" y="448" text-anchor="middle" font-size="13" font-weight="700" fill="#9a3412">PRF + 旁路网络</text>
+    <text x="332" y="470" font-size="10.5" fill="#334155">· INT PRF ~128 · Flag ~31 · FP PRF 偏小</text>
+    <text x="332" y="487" font-size="10.5" fill="#334155">· 记分牌：读 PRF 或等旁路</text>
+    <text x="332" y="508" font-size="10.5" font-weight="600" fill="#b91c1c">· 旁路=纯导线+传输门，无任何保护</text>
+    <text x="332" y="528" font-size="10.5" fill="#6b7280">· 背靠背链不写 PRF（转发掩蔽）</text>
+  </g>
+
+  <g>
+    <rect x="610" y="426" width="350" height="130" rx="8" fill="#ffffff" stroke="#ea580c" stroke-width="1.8"/>
+    <text x="785" y="448" text-anchor="middle" font-size="13" font-weight="700" fill="#9a3412">执行单元簇</text>
+    <text x="622" y="470" font-size="10.5" fill="#334155">· ALU×3（加 1c）· MUL/DIV×1（乘 4c；除 19c 全幅/早退 6.2c）</text>
+    <text x="622" y="487" font-size="10.5" fill="#334155">· FP0/FP1 双 128-bit FMA（FP32 5c · FP64 quarter-rate）</text>
+    <text x="622" y="504" font-size="10.5" fill="#334155">· 分支两口 · 1 taken/cyc · CRC32X 1c · AESD 3c</text>
+    <text x="622" y="524" font-size="10.5" font-weight="600" fill="#b91c1c">· 进位链/FMA 树=数据敏感时序违例重灾区（纯 SDC 通路）</text>
+    <text x="622" y="544" font-size="10.5" fill="#6b7280">· NEON 128b 上限（无 SVE）</text>
+  </g>
+
+  <line x1="270" y1="480" x2="314" y2="480" stroke="#374151" stroke-width="2.5" marker-end="url(#arw)"/>
+  <line x1="560" y1="480" x2="604" y2="480" stroke="#374151" stroke-width="2.5" marker-end="url(#arw)"/>
+
+  <!-- LSU 区块 -->
+  <g>
+    <rect x="50" y="590" width="450" height="210" rx="8" fill="#ffedd5" stroke="#ea580c" stroke-width="2"/>
+    <text x="275" y="614" text-anchor="middle" font-size="13.5" font-weight="700" fill="#9a3412">LSU：访存子系统</text>
+
+    <rect x="66" y="630" width="120" height="52" rx="6" fill="#ffffff" stroke="#ea580c" stroke-width="1.6"/>
+    <text x="126" y="651" text-anchor="middle" font-size="12" font-weight="700" fill="#9a3412">AGU ×2</text>
+    <text x="126" y="668" text-anchor="middle" font-size="10" fill="#334155">2 load 或 1L+1S /cyc</text>
+
+    <rect x="66" y="700" width="190" height="88" rx="6" fill="#ffffff" stroke="#059669" stroke-width="1.8"/>
+    <text x="161" y="722" text-anchor="middle" font-size="12" font-weight="700" fill="#065f46">L1D 64KB 4-way</text>
+    <text x="161" y="740" text-anchor="middle" font-size="10" fill="#334155">64B · load-to-use 4c · 2×128b 读</text>
+    <text x="161" y="757" text-anchor="middle" font-size="10" fill="#334155">厂商称 ECC（无架构化证据）</text>
+    <text x="161" y="777" text-anchor="middle" font-size="10" fill="#6b7280">store 转发 6–7c（跨 16B +1~2c）</text>
+
+    <rect x="270" y="630" width="214" height="158" rx="6" fill="#ffffff" stroke="#ea580c" stroke-width="1.8"/>
+    <text x="377" y="652" text-anchor="middle" font-size="12" font-weight="700" fill="#9a3412">LSQ（LQ + SQ）</text>
+    <text x="282" y="674" font-size="10.5" fill="#334155">· store 不投机：退休后才写 L1D</text>
+    <text x="282" y="691" font-size="10.5" fill="#334155">· load 乱序但先查 SQ（STLF）</text>
+    <text x="282" y="711" font-size="10.5" font-weight="600" fill="#b91c1c">· STLF：CAM 匹配直转，</text>
+    <text x="282" y="727" font-size="10.5" font-weight="600" fill="#b91c1c">　ECC 全失明段</text>
+    <text x="282" y="747" font-size="10.5" fill="#6b7280">· LSE 原子在 L1 争用下 43c</text>
+  </g>
+  <path d="M 484 760 C 540 760, 575 660, 660 560" fill="none" stroke="#dc2626" stroke-width="3.5" marker-end="url(#arwR)"/>
+  <text x="530" y="700" font-size="10.5" font-weight="700" fill="#dc2626">STLF 不经 cache/PRF</text>
+
+  <line x1="126" y1="682" x2="140" y2="696" stroke="#374151" stroke-width="2.5" marker-end="url(#arw)"/>
+
+  <!-- ROB + 提交 -->
+  <g>
+    <rect x="1000" y="590" width="430" height="120" rx="10" fill="#ffffff" stroke="#b45309" stroke-width="3.5"/>
+    <text x="1215" y="615" text-anchor="middle" font-size="14" font-weight="700" fill="#92400e">ROB ~128 µop（实测有效 108–110）</text>
+    <text x="1215" y="637" text-anchor="middle" font-size="11" fill="#334155">按程序序飞行指令账本 · 头部完成且无异常才退休</text>
+    <text x="1215" y="657" text-anchor="middle" font-size="11" fill="#334155">squash 从出错点回滚全部后继</text>
+    <text x="1215" y="681" text-anchor="middle" font-size="10.5" fill="#6b7280">x86 ROB 320–512 vs ARM 640–768+（面积账对照）</text>
+  </g>
+  <g>
+    <rect x="1000" y="730" width="430" height="70" rx="10" fill="#fef3c7" stroke="#b45309" stroke-width="3.5"/>
+    <text x="1215" y="755" text-anchor="middle" font-size="13.5" font-weight="700" fill="#92400e">提交 Commit（4 宽 · NOP 0.26c ≈ 3.9 IPC 实证）</text>
+    <text x="1215" y="775" text-anchor="middle" font-size="10.5" fill="#334155">结果退休进架构态 · store 放行写 L1D · 异常精确报告</text>
+  </g>
+  <line x1="1215" y1="710" x2="1215" y2="724" stroke="#374151" stroke-width="2.5" marker-end="url(#arw)"/>
+  <path d="M 1000 765 C 800 765, 560 800, 500 800" fill="none" stroke="#7c3aed" stroke-width="2" stroke-dasharray="5 3" marker-end="url(#arwC)"/>
+  <text x="690" y="758" font-size="10.5" fill="#7c3aed">C7：store 退休才放行写 L1D</text>
+  <path d="M 938 342 C 938 370, 200 420, 160 422" fill="none" stroke="#374151" stroke-width="2.5" marker-end="url(#arw)"/>
+  <line x1="960" y1="342" x2="1130" y2="586" stroke="#374151" stroke-width="2.5" marker-end="url(#arw)"/>
+  <text x="1000" y="470" font-size="10.5" fill="#374151">→ ROB（全部指令）</text>
+
+  <path d="M 60 590 C 22 500, 22 300, 46 214" fill="none" stroke="#dc2626" stroke-width="2" stroke-dasharray="4 3" marker-end="url(#arwR)"/>
+  <text x="42" y="470" font-size="10.5" fill="#dc2626" transform="rotate(-90 42 470)">反压：ROB/IQ/LSQ 满 → rename 停</text>
+
+  <!-- ============ 内存+MMU 泳道 ============ -->
+  <rect x="30" y="840" width="1420" height="270" rx="12" fill="#f0fdf4" stroke="#059669" stroke-width="2"/>
+  <text x="46" y="866" font-size="15" font-weight="700" fill="#047857">内存层级 + MMU</text>
+  <text x="190" y="866" font-size="11.5" fill="#065f46">chiplet：2 计算die(SCCL)+1 IO die，CoWoS · 每die 8 CCL(4核簇) · Hydra 互联 · 距离 10/12/20/22</text>
+
+  <g font-size="11">
+    <rect x="60" y="886" width="200" height="150" rx="8" fill="#ffffff" stroke="#059669" stroke-width="1.8"/>
+    <text x="160" y="908" text-anchor="middle" font-size="12.5" font-weight="700" fill="#065f46">L1D 64KB 4-way</text>
+    <text x="160" y="926" text-anchor="middle" fill="#334155">load 54.6 / store 41.2 GB/s</text>
+    <text x="160" y="943" text-anchor="middle" fill="#334155">4c load-to-use（实测 2.87 依赖链）</text>
+    <text x="160" y="963" text-anchor="middle" fill="#6b7280">ECC 强度不可验证</text>
+    <text x="160" y="983" text-anchor="middle" fill="#334155">L1←L2 ~32B/cyc</text>
+    <text x="160" y="1022" text-anchor="middle" fill="#6b7280">l1d_cache_refill 实测可用</text>
+
+    <rect x="310" y="886" width="200" height="150" rx="8" fill="#ffffff" stroke="#059669" stroke-width="1.8"/>
+    <text x="410" y="908" text-anchor="middle" font-size="12.5" font-weight="700" fill="#065f46">L2 512KB/核 8-way</text>
+    <text x="410" y="926" text-anchor="middle" fill="#334155">10c · 64B · PoU 私有</text>
+    <text x="410" y="943" text-anchor="middle" fill="#334155">实测 4.88ns（256KB 工作集）</text>
+    <text x="410" y="963" text-anchor="middle" fill="#6b7280">厂商称 ECC（无证据）</text>
+    <text x="410" y="983" text-anchor="middle" fill="#334155">load 42.8 GB/s（256KB）</text>
+
+    <rect x="560" y="886" width="270" height="150" rx="8" fill="#fffbeb" stroke="#b45309" stroke-width="3"/>
+    <text x="695" y="908" text-anchor="middle" font-size="12.5" font-weight="700" fill="#92400e">★ L3 / SLC 每 die 32MB</text>
+    <text x="695" y="926" text-anchor="middle" fill="#334155">8 bank×4MB · 15-way 伪随机</text>
+    <text x="695" y="943" text-anchor="middle" font-weight="600" fill="#b91c1c">128B 行（L1/L2 是 64B！）</text>
+    <text x="695" y="960" text-anchor="middle" fill="#334155">★ tag 在簇侧 · 数据 bank 在 NoC 侧</text>
+    <text x="695" y="977" text-anchor="middle" fill="#334155">★ 三模式 Shared/Private/Partition(默认)</text>
+    <text x="695" y="997" text-anchor="middle" fill="#6b7280">partition 近端 4MB ~36c → 全容量 &gt;90c</text>
+    <text x="695" y="1022" text-anchor="middle" fill="#6b7280">★ 双核共享退化为全容量高延迟</text>
+
+    <rect x="880" y="886" width="210" height="150" rx="8" fill="#ffffff" stroke="#059669" stroke-width="1.8"/>
+    <text x="985" y="908" text-anchor="middle" font-size="12.5" font-weight="700" fill="#065f46">DDR4-2933 ×8ch</text>
+    <text x="985" y="926" text-anchor="middle" fill="#334155">每 die 读 ~63 GB/s</text>
+    <text x="985" y="943" text-anchor="middle" fill="#334155">空载 ~96ns · 实测 163.5ns(256MB)</text>
+    <text x="985" y="965" text-anchor="middle" fill="#334155">Registered-DDR4</text>
+    <text x="985" y="985" text-anchor="middle" font-weight="600" fill="#059669">SECDED（ghes_edac 实证）</text>
+    <text x="985" y="1022" text-anchor="middle" fill="#6b7280">ce/ue 计数实测为 0</text>
+  </g>
+  <line x1="260" y1="960" x2="304" y2="960" stroke="#059669" stroke-width="2.5" marker-end="url(#arwG)"/>
+  <line x1="510" y1="960" x2="554" y2="960" stroke="#059669" stroke-width="2.5" marker-end="url(#arwG)"/>
+  <line x1="830" y1="960" x2="874" y2="960" stroke="#059669" stroke-width="2.5" marker-end="url(#arwG)"/>
+
+  <g>
+    <rect x="1130" y="886" width="300" height="150" rx="8" fill="#ffffff" stroke="#7c3aed" stroke-width="1.8"/>
+    <text x="1280" y="908" text-anchor="middle" font-size="12.5" font-weight="700" fill="#6d28d9">MMU：TLB + PTW</text>
+    <text x="1142" y="928" font-size="10.5" fill="#334155">· iTLB 32 项全相联 · dTLB 32 项全相联</text>
+    <text x="1142" y="945" font-size="10.5" fill="#334155">· L2 TLB 1024 项 I/D 共用，命中 +11c</text>
+    <text x="1142" y="965" font-size="10.5" fill="#334155">· PTW 4KB/16KB/64KB 粒度</text>
+    <text x="1142" y="985" font-size="10.5" font-weight="600" fill="#b91c1c">· TLB 无保护披露（RAS=0）</text>
+    <text x="1142" y="1005" font-size="10.5" fill="#6b7280">· 4KB×4=16KB 恰处 VIPT 别名临界</text>
+    <text x="1142" y="1025" font-size="10.5" fill="#6b7280">　（实测无别名，公共页着色）</text>
+  </g>
+  <path d="M 260 900 C 500 872, 900 872, 1126 900" fill="none" stroke="#7c3aed" stroke-width="1.8" stroke-dasharray="5 3" marker-end="url(#arwC)"/>
+  <text x="600" y="876" font-size="10" fill="#7c3aed">访存虚拟地址先过 dTLB 翻译</text>
+  <path d="M 156 860 C 156 850, 160 840, 160 836" fill="none" stroke="#059669" stroke-width="2.5" marker-end="url(#arwG)" transform="translate(0,50)"/>
+  <path d="M 156 800 C 156 820, 160 830, 160 882" fill="none" stroke="#059669" stroke-width="2.5" marker-end="url(#arwG)"/>
+  <text x="168" y="840" font-size="10.5" fill="#059669">miss 下行 / 重填上行</text>
+
+  <!-- RAS 横幅（920 独有地位） -->
+  <g>
+    <rect x="30" y="1130" width="1420" height="130" rx="12" fill="#fef2f2" stroke="#dc2626" stroke-width="2.5"/>
+    <text x="46" y="1158" font-size="14" font-weight="700" fill="#b91c1c">★ RAS 状况：ID_AA64PFR0_EL1.RAS = 0（EL0 实测）—— 无 ARMv8.2 RAS 架构扩展</text>
+    <text x="46" y="1182" font-size="11.5" fill="#334155">· 无 ERR* 错误记录寄存器 · 无 ESB 指令 · 无架构化 poison · 无 FHI/ERI · 无架构化错误注入</text>
+    <text x="46" y="1202" font-size="11.5" fill="#334155">· 核内翻转只有三种归宿：性能异常 / 崩溃 / 静默（SDC）——最后一类无任何架构级可见信号</text>
+    <text x="46" y="1224" font-size="11.5" fill="#334155">· 平台级 RAS 依赖 ACPI：HEST/EINJ/BERT/ERST 全在（EINJ 368B 固件错误注入可用）· ghes_edac DDR SECDED · MPAM · SDEI</text>
+    <text x="46" y="1246" font-size="11" font-weight="600" fill="#b45309">· 厂商宣称的"I$/D$ ECC、Memory Poisoning"与 RAS=0 冲突：即便有也是非架构化私有实现，SDC 实验不可依赖</text>
+  </g>
+
+  <!-- uncore 提示（右侧） -->
+  <g>
+    <rect x="1130" y="1050" width="300" height="60" rx="8" fill="#f0fdf4" stroke="#059669" stroke-width="1.6"/>
+    <text x="1280" y="1072" text-anchor="middle" font-size="11.5" font-weight="700" fill="#065f46">uncore 观测仪器（每 die）</text>
+    <text x="1280" y="1090" text-anchor="middle" font-size="10" fill="#334155">L3C×8（back_invalid=一致性干扰计数）· HHA×2 · DDRC×4</text>
+    <text x="1280" y="1105" text-anchor="middle" font-size="10" fill="#6b7280">uncore 需 perf_event_paranoid≤1；调频粒度=die 级</text>
+  </g>
+
+  <text x="30" y="1282" font-size="10.5" fill="#9ca3af">图 920-1：Kunpeng 920（TaiShan v110）微架构功能图 · ★=独有/标志性设计 · 红色=SDC 高危 · 规格/延迟出处：kunpeng920_microarchitecture.md（本机实测）· 与 microarchitecture-sdc-sensitivity.md §3–§9 对应</text>
+</svg>

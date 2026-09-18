@@ -45,6 +45,53 @@
 
 ---
 
+## 1.5 各芯片微架构功能图（★ = 独有/标志性设计）
+
+以下五张图采用统一泳道格式（前端按序 / 后端乱序 / 内存层级+MMU，外加 RAS 横幅），
+**金粗边框（★）标记该芯片在本组五款中独有或标志性的设计**，红色标记 SDC 高危部件/通路，
+灰虚线框（920f）表示黑盒未公开。图内数字均与本文各节表格同源，可交叉验证。
+
+### Kunpeng 920（TaiShan v110）
+
+![Kunpeng 920 微架构功能图](figures/sdc-fig-kunpeng920.svg)
+
+独有/标志性：L3/SLC 三模式（Shared/Private/**Partition 默认**）+ **128B 行**（L1/L2 是 64B）+ tag 在簇侧；
+无 µop cache（取指带宽悬崖）；**RAS=0**（无架构化 RAS，全图唯一的"裸奔"平台）；AIVIVT L1I；NEON 128b 上限。
+
+### 920f（HiSilicon part 0xd22，未发布）
+
+![920f 微架构功能图](figures/sdc-fig-920f.svg)
+
+独有/标志性：**SVE 512-bit + SME/SME2**（五款唯一宽向量）；**768KB/12-way L2**（非常规配置）；
+**无 L3/LLC**（少一级缓存暴露面）；**64KB 强制页**（TLB 翻转波及面 ×16 放大器）；RAS=1 但防御矩阵黑盒。
+
+### Neoverse N1
+
+![Neoverse N1 微架构功能图](figures/sdc-fig-neoverse-n1.svg)
+
+独有/标志性：**ETM**（指令 trace，N2/N3 改 ETE+TRBE）；**AArch32 EL0**（五款唯一 32 位支持）；
+**三级原子执行**（near L1 → far CHI → DSU L3）；L2 TQ 24/36/48 项可配；TRM 明示无保护清单最完整
+（BTB/GHB/BPIQ/PHT/L2 victim/L1 TLB flops）——本组"披露透明度参照系"。
+
+### Neoverse N2
+
+![Neoverse N2 微架构功能图](figures/sdc-fig-neoverse-n2.svg)
+
+独有/标志性：**L0 MOP 缓存 1536 项 4-way skewed**（存已译码优化指令，SED 弱保护×高命中×指令面）；
+**MMUTC 拉进 SED**（N1 仅 2-bit 交错 parity）；AArch32 全保留（A32/T32/A64）；write streaming L1+L2 双级；
+load VA / store PA 分裂预取器。
+
+### Neoverse N3
+
+![Neoverse N3 微架构功能图](figures/sdc-fig-neoverse-n3.svg)
+
+独有/标志性：**分裂式 L2 TLB**（small-page 1536 项 6-way + medium-page 256 项 4-way + walk cache）；
+**TLB 整体 SED**（N2 仅 MMUTC）；**L1D aux tag SECDED**（新增披露行）；**L2 ECC granule 128/256b 可配**；
+**MPAM** 核内特性；CHI Issue E 256-bit 接口；PMU 6/20 计数器可配；RAS Node 0 明确覆盖 MMU/TLB；
+无 MOP 结构（相对 N2 删减）——披露范围内 SDC 防御最厚。
+
+---
+
 ## 2. 纵轴分类体系（体系结构公认分层）
 
 ```

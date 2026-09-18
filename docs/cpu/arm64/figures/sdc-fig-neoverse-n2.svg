@@ -1,0 +1,187 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1480 1300" width="1480" height="1300" font-family="-apple-system,'PingFang SC','Noto Sans CJK SC','Microsoft YaHei',sans-serif">
+  <defs>
+    <marker id="arw" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#374151"/></marker>
+    <marker id="arwC" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#7c3aed"/></marker>
+    <marker id="arwG" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#059669"/></marker>
+    <marker id="arwR" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#dc2626"/></marker>
+  </defs>
+
+  <rect x="0" y="0" width="1480" height="1300" fill="#ffffff"/>
+
+  <text x="30" y="34" font-size="21" font-weight="700" fill="#111827">Arm Neoverse N2 微架构功能图（Armv9.0-A · 超标量乱序 · DSU-110 簇）</text>
+  <text x="30" y="56" font-size="12.5" fill="#6b7280">★ 金粗边框 = 独有/标志性（相对本组五款） · 红色 = SDC 高危/TRM 弱保护 · 全部规格出处：Neoverse N2 Core TRM（102099_0003_06）页码随文标注</text>
+
+  <g font-size="11.5">
+    <rect x="30" y="70" width="660" height="46" rx="6" fill="#f9fafb" stroke="#e5e7eb"/>
+    <line x1="44" y1="86" x2="76" y2="86" stroke="#374151" stroke-width="2.5" marker-end="url(#arw)"/><text x="82" y="90" fill="#374151">数据流</text>
+    <line x1="140" y1="86" x2="172" y2="86" stroke="#7c3aed" stroke-width="2" stroke-dasharray="5 3" marker-end="url(#arwC)"/><text x="178" y="90" fill="#7c3aed">控制流</text>
+    <line x1="238" y1="86" x2="270" y2="86" stroke="#059669" stroke-width="2" marker-end="url(#arwG)"/><text x="276" y="90" fill="#059669">重填/一致性</text>
+    <rect x="420" y="79" width="14" height="14" fill="#fffbeb" stroke="#b45309" stroke-width="3"/><text x="440" y="90" fill="#b45309" font-weight="600">★ 独有/标志</text>
+    <text x="44" y="110" fill="#6b7280" font-weight="600">RAS 矩阵在 N1 基础上增强：MMUTC 拉进 SED · MOP cache 有 SED · 其余同 N1</text>
+  </g>
+
+  <!-- ============ 前端泳道 ============ -->
+  <rect x="30" y="130" width="1420" height="230" rx="12" fill="#f0f9ff" stroke="#0891b2" stroke-width="2"/>
+  <text x="46" y="156" font-size="15" font-weight="700" fill="#0e7490">前端（按序 · TRM §3.1 p40）</text>
+  <text x="280" y="156" font-size="11.5" fill="#0369a1">L1I 64KB 4-way 64B · iTLB 全相联（4K/16K/64K/2M 原生页）· A32/T32/A64 全译码（★ AArch32 全保留）</text>
+
+  <g>
+    <rect x="50" y="176" width="240" height="120" rx="8" fill="#ecfeff" stroke="#0891b2" stroke-width="1.8"/>
+    <text x="62" y="198" font-size="13" font-weight="700" fill="#155e75">程序流预测（§7.3 p66）</text>
+    <text x="62" y="220" font-size="11" fill="#334155">· BTB（taken 目标）+ 方向预测器（历史）</text>
+    <text x="62" y="237" font-size="11" fill="#334155">· 返回栈 + 静态预测器 + 间接预测器</text>
+    <text x="62" y="260" font-size="11" font-weight="600" fill="#b91c1c">· BTB/GHB/BIM 保护未列（Table 11-1）</text>
+    <text x="62" y="277" font-size="11" fill="#6b7280">· A32↔T32 状态切换分支也预测</text>
+  </g>
+
+  <path d="M 290 220 C 320 220, 330 220, 358 220" fill="none" stroke="#7c3aed" stroke-width="2" stroke-dasharray="5 3" marker-end="url(#arwC)"/>
+
+  <g>
+    <rect x="362" y="176" width="180" height="120" rx="8" fill="#ffffff" stroke="#0891b2" stroke-width="1.8"/>
+    <text x="452" y="200" text-anchor="middle" font-size="13" font-weight="700" fill="#0e7490">L1I 64KB 4-way</text>
+    <text x="452" y="222" text-anchor="middle" font-size="11" fill="#334155">64B 行 · I$ 硬件一致性（§7.4）</text>
+    <text x="452" y="242" text-anchor="middle" font-size="10.5" fill="#334155">tag/data: SED parity（Table 11-1）</text>
+    <text x="452" y="262" text-anchor="middle" font-size="10.5" fill="#6b7280">投机取指行为 §7.2 约束</text>
+  </g>
+  <line x1="542" y1="236" x2="576" y2="236" stroke="#374151" stroke-width="2.5" marker-end="url(#arw)"/>
+
+  <!-- MOP cache（N2 标志） -->
+  <g>
+    <rect x="580" y="176" width="290" height="120" rx="8" fill="#fffbeb" stroke="#b45309" stroke-width="3"/>
+    <text x="725" y="200" text-anchor="middle" font-size="13" font-weight="700" fill="#92400e">★ L0 MOP 缓存（§3.1 p40）</text>
+    <text x="592" y="222" font-size="11" fill="#334155">· 1536 项 · 4-way 倾斜相联（skewed）</text>
+    <text x="592" y="240" font-size="11" fill="#334155">· 存已译码+已优化指令</text>
+    <text x="592" y="262" font-size="11" font-weight="600" fill="#b91c1c">· data: SED（Table 11-1）——弱保护×高命中×指令面</text>
+  </g>
+  <line x1="870" y1="236" x2="900" y2="236" stroke="#374151" stroke-width="2.5" marker-end="url(#arw)"/>
+
+  <g>
+    <rect x="904" y="176" width="180" height="120" rx="8" fill="#ffffff" stroke="#0891b2" stroke-width="1.8"/>
+    <text x="994" y="200" text-anchor="middle" font-size="13" font-weight="700" fill="#0e7490">重命名（§3.1）</text>
+    <text x="994" y="222" text-anchor="middle" font-size="10.5" fill="#334155">重命名促乱序</text>
+    <text x="994" y="240" text-anchor="middle" font-size="10.5" fill="#334155">分发至各发射队列</text>
+    <text x="994" y="262" text-anchor="middle" font-size="10.5" font-weight="600" fill="#b91c1c">PRF 保护未披露</text>
+  </g>
+
+  <g>
+    <rect x="1120" y="176" width="170" height="120" rx="8" fill="#ffffff" stroke="#0891b2" stroke-width="1.8"/>
+    <text x="1205" y="200" text-anchor="middle" font-size="13" font-weight="700" fill="#0e7490">发射（§3.1）</text>
+    <text x="1205" y="222" text-anchor="middle" font-size="10.5" fill="#334155">issue queues</text>
+    <text x="1205" y="240" text-anchor="middle" font-size="10.5" fill="#334155">（容量未披露）</text>
+  </g>
+
+  <g>
+    <rect x="1310" y="176" width="120" height="120" rx="8" fill="#ffffff" stroke="#0891b2" stroke-width="1.8"/>
+    <text x="1370" y="200" text-anchor="middle" font-size="12.5" font-weight="700" fill="#0e7490">ETE+TRBE</text>
+    <text x="1370" y="222" text-anchor="middle" font-size="10" fill="#334155">Embedded Trace</text>
+    <text x="1370" y="238" text-anchor="middle" font-size="10" fill="#334155">Ext + Trace Buffer</text>
+    <text x="1370" y="260" text-anchor="middle" font-size="10" fill="#6b7280">（替代 N1 ETM）</text>
+  </g>
+
+  <!-- ============ 后端泳道 ============ -->
+  <rect x="30" y="380" width="1420" height="330" rx="12" fill="#fff7ed" stroke="#ea580c" stroke-width="2"/>
+  <text x="46" y="406" font-size="15" font-weight="700" fill="#c2410c">后端（乱序执行 · TRM §3.1 p41-42）</text>
+  <text x="300" y="406" font-size="11.5" fill="#9a3412">整数执行 + 向量执行（FPU · NEON · ★ SVE/SVE2 128b 向量长度 · Crypto 可选含 SM3/SM4）</text>
+
+  <g>
+    <rect x="50" y="426" width="300" height="120" rx="8" fill="#ffffff" stroke="#ea580c" stroke-width="1.8"/>
+    <text x="200" y="450" text-anchor="middle" font-size="13" font-weight="700" fill="#9a3412">整数执行单元</text>
+    <text x="62" y="472" font-size="10.5" fill="#334155">· 算术/逻辑数据处理（§3.1）</text>
+    <text x="62" y="489" font-size="10.5" fill="#334155">· RNG 支持（§16，RNDR/RNDRRS）</text>
+    <text x="62" y="509" font-size="10.5" font-weight="600" fill="#b91c1c">· ALU 数据通路无保护披露</text>
+  </g>
+
+  <g>
+    <rect x="390" y="426" width="310" height="120" rx="8" fill="#fffbeb" stroke="#b45309" stroke-width="3"/>
+    <text x="545" y="450" text-anchor="middle" font-size="13" font-weight="700" fill="#92400e">★ 向量执行：SVE/SVE2（§14）</text>
+    <text x="402" y="472" font-size="10.5" fill="#334155">· 向量长度 128-bit（与 NEON 等宽，非宽向量）</text>
+    <text x="402" y="489" font-size="10.5" fill="#334155">· SVE2 全集：predication/gather/permute</text>
+    <text x="402" y="509" font-size="10.5" fill="#6b7280">· 五款 Neoverse 侧第一个 SVE 世代（920f 为 512b）</text>
+  </g>
+
+  <g>
+    <rect x="740" y="426" width="300" height="120" rx="8" fill="#ffffff" stroke="#ea580c" stroke-width="1.8"/>
+    <text x="890" y="450" text-anchor="middle" font-size="13" font-weight="700" fill="#9a3412">Crypto 扩展（可选 · §3.1）</text>
+    <text x="752" y="472" font-size="10.5" fill="#334155">· AES · SHA-1/224/256/384/512</text>
+    <text x="752" y="489" font-size="10.5" fill="#334155">· SM3/SM4（v8.2-SM）· 有限域（GCM/ECC）</text>
+    <text x="752" y="509" font-size="10.5" fill="#6b7280">· 独立授权许可（实现时可含/不含）</text>
+  </g>
+
+  <!-- LSU/L1D -->
+  <g>
+    <rect x="50" y="580" width="450" height="110" rx="8" fill="#ffedd5" stroke="#ea580c" stroke-width="2"/>
+    <text x="70" y="604" font-size="13" font-weight="700" fill="#9a3412">LSU + L1D（§8 p69-72）</text>
+    <text x="70" y="626" font-size="10.5" fill="#334155">· L1D 64KB 4-way 64B · tag/data SECDED（Table 11-1）</text>
+    <text x="70" y="646" font-size="10.5" font-weight="600" fill="#b91c1c">· 独占监视器（§8.3）· DC ZVA 64B</text>
+    <text x="70" y="666" font-size="10.5" fill="#6b7280">· ★ write streaming（read allocate）L1+L2 双级（§8.5）</text>
+  </g>
+
+  <g>
+    <rect x="540" y="580" width="260" height="110" rx="8" fill="#f0fdf4" stroke="#059669" stroke-width="1.8"/>
+    <text x="670" y="604" text-anchor="middle" font-size="13" font-weight="700" fill="#065f46">预取器（§8.4）</text>
+    <text x="670" y="626" text-anchor="middle" font-size="10.5" fill="#334155">load 侧 VA → L1+L2</text>
+    <text x="670" y="643" text-anchor="middle" font-size="10.5" fill="#334155">store 侧 PA → 仅 L2</text>
+    <text x="670" y="663" text-anchor="middle" font-size="10.5" fill="#6b7280">+ TLB 预取器 · region 预取器（CPUECTLR 可控）</text>
+  </g>
+
+  <!-- MMU/TLB -->
+  <g>
+    <rect x="830" y="580" width="600" height="110" rx="8" fill="#ffffff" stroke="#7c3aed" stroke-width="1.8"/>
+    <text x="1130" y="604" text-anchor="middle" font-size="13" font-weight="700" fill="#6d28d9">MMU：两级 TLB + MMUTC（§6.1 p57-58 Table 6-1）</text>
+    <text x="842" y="626" font-size="10.5" fill="#334155">· iTLB 48 项全相联 · dTLB 44 项全相联 · L2 TLB 1280 项 5-way I/D 共享</text>
+    <text x="842" y="646" font-size="10.5" fill="#334155">· TRBE TLB 2 项 · 翻译表预取器（ECtlR 可关）· L2 命中 +3c 罚</text>
+    <text x="842" y="666" font-size="10.5" font-weight="600" fill="#b91c1c">· ★ MMUTC：SED（Table 11-1）——N1 的 MMU 翻译缓存只有 2-bit 交错 parity，N2 升级</text>
+  </g>
+
+  <!-- ============ 内存泳道 ============ -->
+  <rect x="30" y="730" width="1420" height="240" rx="12" fill="#f0fdf4" stroke="#059669" stroke-width="2"/>
+  <text x="46" y="756" font-size="15" font-weight="700" fill="#047857">内存层级（L1 → L2 → DSU-110）</text>
+  <text x="300" y="756" font-size="11.5" fill="#065f46">异步 CPU bridge 连 DSU-110（缓冲+同步核与簇）· 组件常在（"All components always present"§3）</text>
+
+  <g font-size="11">
+    <rect x="60" y="776" width="260" height="150" rx="8" fill="#ffffff" stroke="#059669" stroke-width="1.8"/>
+    <text x="190" y="798" text-anchor="middle" font-size="12.5" font-weight="700" fill="#065f46">L1D 64KB 4-way</text>
+    <text x="190" y="816" text-anchor="middle" fill="#334155">64B 行（§3.1 p42）</text>
+    <text x="190" y="833" text-anchor="middle" fill="#334155">tag/data: SECDED（Table 11-1）</text>
+    <text x="190" y="853" text-anchor="middle" fill="#6b7280">双位错=检出/上报/延迟</text>
+    <text x="190" y="873" text-anchor="middle" fill="#6b7280">dirty 行双位错→数据可能丢失（显式）</text>
+
+    <rect x="380" y="776" width="280" height="150" rx="8" fill="#ffffff" stroke="#059669" stroke-width="1.8"/>
+    <text x="520" y="798" text-anchor="middle" font-size="12.5" font-weight="700" fill="#065f46">L2 512KB/1024KB 8-way 私有</text>
+    <text x="520" y="816" text-anchor="middle" fill="#334155">统一 I+D（§3.1 p42 · §9）</text>
+    <text x="520" y="833" text-anchor="middle" fill="#334155">tag/data: SECDED</text>
+    <text x="520" y="853" text-anchor="middle" font-weight="600" fill="#b91c1c">L2 TQ：SECDED（表 11-1 唯一队列类保护）</text>
+    <text x="520" y="873" text-anchor="middle" fill="#6b7280">victim 表未列（N1 明示 None，N2 未披露）</text>
+
+    <rect x="710" y="776" width="250" height="150" rx="8" fill="#ffffff" stroke="#059669" stroke-width="1.8"/>
+    <text x="835" y="798" text-anchor="middle" font-size="12.5" font-weight="700" fill="#065f46">DSU-110 簇</text>
+    <text x="835" y="816" text-anchor="middle" fill="#334155">L3/SCU/snoop filter = DSU TRM 范围</text>
+    <text x="835" y="833" text-anchor="middle" fill="#334155">CPU bridge 异步（频/电/面积解耦）</text>
+    <text x="835" y="853" text-anchor="middle" fill="#6b7280">DSU 依赖特性见 TRM §2.3</text>
+
+    <rect x="1010" y="776" width="240" height="150" rx="8" fill="#ffffff" stroke="#059669" stroke-width="1.8"/>
+    <text x="1130" y="798" text-anchor="middle" font-size="12.5" font-weight="700" fill="#065f46">SoC 侧</text>
+    <text x="1130" y="816" text-anchor="middle" fill="#334155">48-bit PA · PMU 6 计数器（§3.1 p42）</text>
+    <text x="1130" y="833" text-anchor="middle" fill="#334155">SPE（v8.4 可选实现）· AMU</text>
+    <text x="1130" y="853" text-anchor="middle" fill="#6b7280">GIC CPU 接口 · RNG</text>
+    <text x="1130" y="873" text-anchor="middle" fill="#6b7280">Debug/ELA 可选（§2.5）</text>
+  </g>
+  <line x1="320" y1="850" x2="374" y2="850" stroke="#059669" stroke-width="2.5" marker-end="url(#arwG)"/>
+  <line x1="660" y1="850" x2="704" y2="850" stroke="#059669" stroke-width="2.5" marker-end="url(#arwG)"/>
+  <line x1="960" y1="850" x2="1004" y2="850" stroke="#059669" stroke-width="2.5" marker-end="url(#arwG)"/>
+
+  <!-- RAS 横幅 -->
+  <g>
+    <rect x="30" y="990" width="1420" height="200" rx="12" fill="#f0fdf4" stroke="#059669" stroke-width="2.5"/>
+    <text x="46" y="1018" font-size="14" font-weight="700" fill="#047857">RAS 扩展（TRM §11 p96-100）——含至 Armv9.0-A 全量</text>
+    <text x="46" y="1042" font-size="11.5" fill="#334155">· 保护矩阵（Table 11-1）：SECDED = L1D tag/data · L2 tag/data · L2 TQ；SED = L1I tag/data · ★ L0 MOP · ★ MMUTC</text>
+    <text x="46" y="1062" font-size="11.5" fill="#334155">· TRM 原文承认：SED RAM 双位错"core does not detect … might cause data corruption"——I$/MOP/MMUTC 是承认的 SDC 通道</text>
+    <text x="46" y="1082" font-size="11.5" fill="#334155">· 错误遏制（§11.2）：数据错误经 poison 传播不静默扩散 · evict 双错可 poison · ★ "L1D/L2 tag 不可遏制错误"（UC 声明）</text>
+    <text x="46" y="1102" font-size="11.5" fill="#334155">· 错误注入（§11.5）：CE（L1D 单 ECC）· DE（L1→L2 evict 双 ECC / snoop）· UC（L1 tag evict 后双 ECC）· ERR0PFGCDN 倒计数</text>
+    <text x="46" y="1122" font-size="11.5" fill="#334155">· 报告：FHI=nCOREFAULTIRQ · ERI=nCOREERRIRQ · 消费时 SEA/AEA/ERI · MEMORY_ERROR PMU 事件联动</text>
+    <text x="46" y="1142" font-size="11.5" fill="#334155">· ESB 指令同步不精确异常 · Node 0 = 核私有 L1+L2（§11）</text>
+    <text x="46" y="1168" font-size="11" font-weight="600" fill="#b45309">· SDC 视角：N2 相对 N1 的增量 = MMUTC SED + MOP SED；新增 MOP 是"弱保护×高命中率×指令面"三重叠加的独立注入靶点</text>
+  </g>
+
+  <text x="30" y="1282" font-size="10.5" fill="#9ca3af">图 N2-1：Arm Neoverse N2 微架构功能图 · ★=独有/标志性 · 红色=SDC 高危/弱保护 · 出处：Neoverse N2 Core TRM 102099_0003_06（§3/§6/§7/§8/§9/§11）· 与 microarchitecture-sdc-sensitivity.md §3–§9 对应</text>
+</svg>
