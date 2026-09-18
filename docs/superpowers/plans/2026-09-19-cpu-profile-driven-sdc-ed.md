@@ -128,7 +128,7 @@ units:
   LSU:  {l1d: {size: 64KiB, assoc: 4, blk: 64, prot: none},
          forwarding: true, store_set: false}
   MMU:  {l2_tlb: {entries: 1024, prot: none}}
-  L2C:  {l2: {size: 1MiB, assoc: 8, prot: none}}      # two_level 默认，Phase 1 核实
+  L2C:  {l2: {size: 512KiB, assoc: 8, prot: none}}     # smoke_test/configs/caches.py 实读（Task 0.1 恢复后核实）
 weights_override: {}      # 用户手工覆盖 w_u
 rho_overrides: {}         # 用户手工覆盖 ρ_u（覆盖标定值须附理由）
 residuals: [mop_cache_absent, l1i_prot_claim_unverified]   # 诚实边界：未建模/未证实项
@@ -178,10 +178,11 @@ docs/superpowers/plans/2026-09-19-cpu-profile-driven-sdc-ed.md   # 本计划
 
 ### Phase 0 — 环境重建与方法文档骨架（硬阻塞解除）
 
-- [ ] **Task 0.1 gem5 增量重建 + 双回归锚固定**
-  Files: 无源码改动（构建产物）。
+- [ ] **Task 0.1 gem5 增量重建 + 配套 config 恢复 + 双回归锚固定**
+  Files: `smoke_test/configs/caches.py`、`smoke_test/configs/fu_pool.py`（**从 sdcfuzz 备份恢复——这两个文件从未被 git 跟踪，仓库克隆后 config 无法 import**）。
   命令: `cd CHAOS/gem5 && scons build/ARM/gem5.opt -j16`（禁止 -j126，OOM 实测）。
   验证: (a) scons done 0 错误；(b) `two_level_taishan.py --binary workloads/directed/reg_chain --mode baseline` exit 0 且 checksum=`f247ef3fe6f02cfd`；(c) `--binary workloads/harp/sample_seq` SUM=`17994817166615565002` CRC=`8f333d15`。两个锚与 runner.py GOLDEN_IDS / Task 1.1 commit 实证一致。**登记基线构建耗时，后续任务共享增量构建。**
+  恢复文件核实（与 sdcfuzz/gem5_config/configs/ 备份 diff 一致）：L1I=64KiB 4-way、L1D=64KiB 4-way、L2=512KiB 8-way；FU 池 IntAlu×3/IntMult×1(opLat=3)/FPU×2(FloatAdd opLat=2、FloatMult 4、FMA 5)/SIMD×2/AGU×2+2/System×1。
 - [ ] **Task 0.2 `docs/sdc-ed/method.md` 骨架**
   内容: §1.1-1.6 指标定义全文（本计划一、三节）、三层架构图、诚实边界清单（taint 近似、ρ 初值来源、gate 网表非 RTL、ceiling 依据）。
   验证: 文档入库，公式与代码注释逐字一致（后续每个任务同步该文档对应小节）。
