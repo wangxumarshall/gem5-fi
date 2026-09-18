@@ -132,6 +132,60 @@ F. 可靠性/ RAS 与错误处理 (Reliability)
 
 ---
 
+## 2.5 全单元微架构大对比总表（五款 × 全部件速查）
+
+> 本表是 §1.5 五张功能图（`figures/sdc-fig-*.svg`）与 §3–§8 各分表的**全景汇总**：
+> 纵轴为微架构逻辑单元，分组与功能图完全一致（取指与前段 Fetch → OoO 译码/重命名/分发 → IEX → LSU → FSU → MMU → L2/一致性，末行 RAS 总线跨组）；
+> 横轴为五款处理器。**单元格事实与出处均见对应章节（§3 前端 / §4 乱序引擎 / §5 访存 / §6 缓存 / §7 地址转换 / §8 RAS），本表不引入新数据**；★ = 该行中独有/标志性设计（与 §1.5 定义一致）。
+
+| 分组 | 单元 | Kunpeng 920 (TSV110) | 920f (0xd22) | Neoverse N1 | Neoverse N2 | Neoverse N3 |
+|---|---|---|---|---|---|---|
+| **Fetch 取指与前段** | IFU 取指宽度 | 4 条/周期 | 未公开 | 超标量（宽度未披露） | 超标量（宽度未披露） | 超标量（宽度未披露） |
+| | BRE 分支方向预测 | 两级动态（≈A73 水平） | 未测（bpbench 未完成） | 动态预测器 | 分支方向预测器（历史） | 方向预测器（历史） |
+| | BP / BTB | L1 64 项；L2 ~2048 项 | 未测 | BTB 容量未披露 | BTB 容量未披露 | BTB 容量未披露 |
+| | 返回栈 RAS | 31–32 项 | 未测 | 有 | 有 | 有（BL/BLR* push；RET* pop） |
+| | µop / MOP cache | 无（代码溢出 L1i 后带宽 4→0.25 条/cyc） | 未披露 | 无此结构 | ★ L0 MOP 1536 项 4-way skewed（data SED） | 无（相对 N2 删减） |
+| | L1-I-TLB | 32 项全相联 | 未测 | 48 项全相联 | 48 项全相联 | 32 项全相联 |
+| | L1-I-cache | 64KB 4-way AIVIVT | 32KB 4-way | 64KB 4-way | 64KB 4-way | 32/64KB（可配）4-way |
+| | I$ RAM 保护 | 声称 ECC（无架构化证据） | 未披露 | tag parity + data SED | tag+data SED | tag+data SED |
+| **OoO 译码·重命名·分发** | Int Decode | 4 宽 | 未公开 | A32/T32/A64 | A32/T32/A64 | 仅 A64 |
+| | Int Rename | PRF ~128 项 | 未公开 | 未披露 | 未披露 | 未披露 |
+| | Int Dispatch（ROB 提交） | ROB ~128（实测有效 108–110） | 未测 | 128（公开规格） | 未披露 | 未披露 |
+| | FP/SIMD decode·rename·dispatch | 2×FP 管线 | SVE512 译码 | NEON 128b | SVE2 128b | SVE2 128b |
+| | 调度器 Issue Queue | ALU/LS/FP 三类统一式，各 ~33 项 | 未测 | issue queues（容量未给） | issue queues | issue queues |
+| | 乱序引擎保护 | 无（RAS=0） | 未披露 | 无披露 | 无披露 | 无披露 |
+| **IEX 整数执行** | ALU Issue Queue ×3 | 各 ~33 项 | 未公开 | 未披露 | 未披露 | 未披露 |
+| | Int PRF | ~128 项；Flag rename ~31 | 未公开 | 未披露 | 未披露 | 未披露 |
+| | ALU ×3 | 分支可占 2 ALU，1 taken/cyc | 未公开 | INT 执行单元 | INT 执行单元 | INT 执行单元 |
+| | MDU 乘除 | 乘 4 / 除 19（udiv 小商早退 6.2） | 未公开 | 未披露 | 未披露 | 未披露 |
+| | MSR/CP15 系统寄存器 | 有 | 有 | 系统寄存器 | 系统寄存器 | 系统寄存器 |
+| | 执行单元保护 | 无公开信息 | 未披露 | 无披露 | 无披露 | 无披露 |
+| **LSU 访存** | LSU MDU/SYS Issue Queue | ~33 项 | 未公开 | 未披露 | 未披露 | 未披露 |
+| | LS×2 / STD×2（AGU/store） | 2×AGU：2 load 或 1L+1S /cyc；store→load 转发 6–7 cyc | 未测 | load/store 单元 | LSU | LSU |
+| | L1-DTLB | 32 项全相联 | 未测（64KB 强制页 → 波及面 ×16） | 48 项全相联 | 44 项全相联 | 48 项全相联 |
+| | L1-Dcache | 64KB 4-way，load-to-use 4 cyc | 32KB 8-way（~10 cyc） | 64KB 4-way | 64KB 4-way | 32/64KB 4-way |
+| | L1D / L1 TLB 保护 | ECC 声称无证据 | 未披露 | D$ SECDED（42b+7；32b+1 poison）；L1 TLB = flops 无保护 | D$ SECDED；MMUTC SED | D$ SECDED + ★ aux tag SECDED；TLB SED |
+| **FSU 浮点/向量** | FSU Issue Queue | ~33 项 | 未公开 | 未披露 | 未披露 | 未披露 |
+| | FP/SIMD PRF | 偏小 | ★ Z0–Z31 ×512b | 128b NEON | SVE 128b | SVE 128b |
+| | FSU Pipe ×2 | FP32 FMA 2/cyc；FP64 1/4 rate | SVE512 FMA ≥2/cyc（13.6 flop/cyc 下限） | NEON 128b | SVE2 128b | SVE2 128b（+SHA-3） |
+| | 向量数据面保护 | 无披露 | SVE512 巨型寄存器 = 新增无保护数据面 | 无披露 | 无披露 | 无披露 |
+| **MMU 地址转换** | L2 TLB | 1024 项共用（命中 +11 cyc） | 未测 | 1280 项 5-way | 1280 项 5-way | ★ 分裂：small 1536 项 6-way + medium 256 项 4-way + walk cache |
+| | MMU/TLB 保护 | 无披露（RAS=0） | 未披露 | MMUTC 2-bit 交错 parity | MMUTC SED | TLB 整体 SED；RAS Node 0 覆盖 MMU/TLB |
+| **L2 / 核缓存一致性** | L2 私有缓存 | 512KB 8-way 10 cyc | ★ 768KB 12-way 17 cyc | 256/512/1024KB 8-way（★ TQ 24/36/48 可配） | 512/1024KB 8-way | 128KB–2MB 8-way 2-bank PIPT |
+| | L2 RAM 保护 | 声称 ECC（无证据） | 未披露 | tag+data SECDED | tag+data+TQ SECDED | SECDED（granule 128/256b 可配） |
+| | L3 / LLC | 每 die 32MB SLC 15-way 128B 行，tag 在簇侧，S/P/P(默认) 三模式 | ★ 无 L3/LLC（少一级暴露面） | DSU 内可选 L3 | DSU-110 L3 | Direct connect 无 L3/SCU |
+| | 互连 / 一致性 | Hydra/HHA 目录 + 跨 die 环形 NoC | HCCS（跨 socket NUMA 61–91） | DSU SCU + snoop filter | DSU-110 | DSU-120；CHI-E 256-bit |
+| | 内存接口 | DDR4-2933 ×8ch | 565GB；16+16 NUMA | 48-bit PA；GICv4.1 | CHI-E 256-bit | 48-bit VA/PA；MPAM |
+| **RAS 总线（跨组）** | 架构化 RAS | ✗ RAS=0（无 ERR*/ESB/poison） | ✓ RAS=1（黑盒） | 完整 RAS 扩展 | v9.0 全量 | v9.2 全量 |
+| | SDC 敏感性画像（§9.2） | 最高（核内翻转无架构级可见信号） | 高（黑盒 + SVE512 新数据面） | 披露透明度参照系 | ≈N1（MOP 为独立靶点） | 披露范围内最低 |
+
+速查要点（详见 §9）：
+1. **结构覆盖面**：920f（无 LLC + SVE512）与 920（片上 SLC 三模式）是两个极端的缓存/向量组织；N2 是五款唯一带 MOP cache 的核（多一个指令面暴露点），N3 是唯一分裂式 L2 TLB。
+2. **保护覆盖面**：从 920 的「RAS=0 + ECC 声称无证据」到 N3 的「TLB/aux tag/granule 全披露」，架构化防御纵深单调递增（920 < 920f(未知) < N1 ≤ N2 < N3）；但**五款的执行单元、PRF、调度器、LSQ 均无任何保护披露**——这是所有乱序核共同的 SDC 盲区（§4）。
+3. **速查表用法**：行 = 注入靶点候选，列 = 平台差异；「未披露/未测」单元格即黑盒区域，FI 建模时按未知处理而非假设有保护。
+
+---
+
 ## 3. A. 指令供给前端
 
 ### A1. L1 指令缓存
