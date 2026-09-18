@@ -178,34 +178,34 @@ docs/superpowers/plans/2026-09-19-cpu-profile-driven-sdc-ed.md   # 本计划
 
 ### Phase 0 — 环境重建与方法文档骨架（硬阻塞解除）
 
-- [ ] **Task 0.1 gem5 增量重建 + 配套 config 恢复 + 双回归锚固定**
+- [x] **Task 0.1 gem5 增量重建 + 配套 config 恢复 + 双回归锚固定**
   Files: `smoke_test/configs/caches.py`、`smoke_test/configs/fu_pool.py`（**从 sdcfuzz 备份恢复——这两个文件从未被 git 跟踪，仓库克隆后 config 无法 import**）。
   命令: `cd CHAOS/gem5 && scons build/ARM/gem5.opt -j16`（禁止 -j126，OOM 实测）。
   验证: (a) scons done 0 错误；(b) `two_level_taishan.py --binary workloads/directed/reg_chain --mode baseline` exit 0 且 checksum=`f247ef3fe6f02cfd`；(c) `--binary workloads/harp/sample_seq` SUM=`17994817166615565002` CRC=`8f333d15`。两个锚与 runner.py GOLDEN_IDS / Task 1.1 commit 实证一致。**登记基线构建耗时，后续任务共享增量构建。**
   恢复文件核实（与 sdcfuzz/gem5_config/configs/ 备份 diff 一致）：L1I=64KiB 4-way、L1D=64KiB 4-way、L2=512KiB 8-way；FU 池 IntAlu×3/IntMult×1(opLat=3)/FPU×2(FloatAdd opLat=2、FloatMult 4、FMA 5)/SIMD×2/AGU×2+2/System×1。
-- [ ] **Task 0.2 `docs/sdc-ed/method.md` 骨架**
+- [x] **Task 0.2 `docs/sdc-ed/method.md` 骨架**
   内容: §1.1-1.6 指标定义全文（本计划一、三节）、三层架构图、诚实边界清单（taint 近似、ρ 初值来源、gate 网表非 RTL、ceiling 依据）。
   验证: 文档入库，公式与代码注释逐字一致（后续每个任务同步该文档对应小节）。
 
 ### Phase 1 — CPU 描述文件与解析库（Layer C 落地）
 
-- [ ] **Task 1.1 `tools/ed_profile.py`：YAML 解析 + w/ceiling 推导**
+- [x] **Task 1.1 `tools/ed_profile.py`：YAML 解析 + w/ceiling 推导**
   内容: 读取 cpu-profile YAML；`bits(u)` 按单元位容量累加（SRAM：容量×位宽；PRF：regs×width；FU：门数×平均扇入触发器——**组合逻辑按 1/3 SRAM 权重折算，系数写明并进 residuals**）；输出 w_u 表与 uncertainty 区间。
   验证: 对 taishan-v110.yaml 输出 7 单元 w_u（总和=1.0）；null 字段正确产生区间；`python3 -m pytest tools/tests/test_ed_profile.py`（新增，≥8 用例：全字段/含 null/含 override/residuals 传播）。
-- [ ] **Task 1.2 `configs/cpu-profiles/` 四文件（taishan-v110 + kunpeng920 + neoverse-n2 + schema.md）**
+- [x] **Task 1.2 `configs/cpu-profiles/` 四文件（taishan-v110 + kunpeng920 + neoverse-n2 + schema.md）**
   内容: taishan-v110 与 two_level_taishan.py 逐参数对齐（PRF/ROB/LQ/SQ/fu_pool/L1D/L2——**L2 容量从 config 实读，不凭记忆**）；kunpeng920/neoverse-n2 从 `docs/cpu/arm64/microarchitecture-sdc-sensitivity.md` §3-§8 机械转写，未披露=null+uncertainty；schema.md 写字段语义与两条硬规则。
   验证: (a) `ed_profile.py` 对三份 YAML 全部解析成功且 w_u 归一；(b) 抽查 10 个字段与底表原文逐字一致（列对照表进 commit message）；(c) residuals 非空时解析器输出警告。
-- [ ] **Task 1.3 `configs/se/profile_taishan.py` --profile 入口**
+- [x] **Task 1.3 `configs/se/profile_taishan.py` --profile 入口**
   内容: 新 config 入口，`--profile configs/cpu-profiles/taishan-v110.yaml`；内部把 YAML 单元参数映射到 O3/cache 实例化（复用 two_level_taishan.py 结构）；**默认无 --profile 时行为与 two_level_taishan.py 完全一致**（回归锚）。
   验证: (a) `--profile taishan-v110.yaml --binary workloads/harp/sample_seq` 输出 SUM/CRC 与 two_level_taishan.py 直跑逐字节一致（同构实证：描述文件⇔现配置等价）；(b) 回归：two_level_taishan.py 无新旗标路径跑 reg_chain golden 不变。
 
 ### Phase 2 — CHAOSCov 参数化 + 单元化 stats（Layer A 的分母缝合）
 
-- [ ] **Task 2.1 去硬编码：ibrFuCounts/ibrFuWidths/cacheNumBlocks/sqEntries 全部参数化**
+- [x] **Task 2.1 去硬编码：ibrFuCounts/ibrFuWidths/cacheNumBlocks/sqEntries 全部参数化**
   Files: `CHAOSCov.{hh,cc,py}` + `two_level_taishan.py --cov-profile`。
   内容: C++ 侧 `ibr_fu_count/ibr_full_width` 改为 SimObject 参数（VectorParam）；Python 侧从 --cov-profile 读 YAML 填参（无 --cov-profile 时保持现默认值=行为不变）。
   验证: (a) 增量构建零新警告；(b) `--cov --cov-profile taishan-v110.yaml` 跑 sample_seq：**全部 harp.* stats 数值与改动前（硬编码版）完全一致**（参数化无行为变化的实证）；(c) 回归：无 --cov 路径 reg_chain golden 不变。
-- [ ] **Task 2.2 targetCache 列表化（L1D+L2 双采集）**
+- [x] **Task 2.2 targetCache 列表化（L1D+L2 双采集）**
   Files: `CHAOSCov.{hh,cc,py}`。
   内容: targetCache 单值 → 列表；每 cache 独立 block-ACE 账本（per-cache aceCycles/Avf stats）；owner 过滤逻辑改为集合匹配。
   验证: (a) 单 cache 配置（仅 L1D）数值与改动前一致；(b) 双 cache（L1D+L2）跑 rand_mem：两账本均有非零事件且 L2 账本事件数 < L1D（层级过滤正确）；(c) 回归 golden 不变。
