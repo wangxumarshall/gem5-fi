@@ -51,23 +51,33 @@
 **金粗边框（★）标记该芯片在本组五款中独有或标志性的设计**，红色标记 SDC 高危部件/通路，
 灰虚线框（920f）表示黑盒未公开。图内数字均与本文各节表格同源，可交叉验证。
 
+> 嵌入格式说明：GitHub 的 markdown 渲染器对内嵌 SVG 会报 "Unable to render code block"，
+> 因此本文嵌入的是由 SVG 栅格化的 PNG（2× 分辨率）；每图下方附**矢量源文件链接**（.svg，
+> 适合本地浏览/放大/编辑）。
+
 ### Kunpeng 920（TaiShan v110）
 
-![Kunpeng 920 微架构功能图](figures/sdc-fig-kunpeng920.svg)
+![Kunpeng 920 微架构功能图](figures/sdc-fig-kunpeng920.png)
+
+*矢量源文件：[figures/sdc-fig-kunpeng920.svg](figures/sdc-fig-kunpeng920.svg)*
 
 独有/标志性：L3/SLC 三模式（Shared/Private/**Partition 默认**）+ **128B 行**（L1/L2 是 64B）+ tag 在簇侧；
 无 µop cache（取指带宽悬崖）；**RAS=0**（无架构化 RAS，全图唯一的"裸奔"平台）；AIVIVT L1I；NEON 128b 上限。
 
 ### 920f（HiSilicon part 0xd22，未发布）
 
-![920f 微架构功能图](figures/sdc-fig-920f.svg)
+![920f 微架构功能图](figures/sdc-fig-920f.png)
+
+*矢量源文件：[figures/sdc-fig-920f.svg](figures/sdc-fig-920f.svg)*
 
 独有/标志性：**SVE 512-bit + SME/SME2**（五款唯一宽向量）；**768KB/12-way L2**（非常规配置）；
 **无 L3/LLC**（少一级缓存暴露面）；**64KB 强制页**（TLB 翻转波及面 ×16 放大器）；RAS=1 但防御矩阵黑盒。
 
 ### Neoverse N1
 
-![Neoverse N1 微架构功能图](figures/sdc-fig-neoverse-n1.svg)
+![Neoverse N1 微架构功能图](figures/sdc-fig-neoverse-n1.png)
+
+*矢量源文件：[figures/sdc-fig-neoverse-n1.svg](figures/sdc-fig-neoverse-n1.svg)*
 
 独有/标志性：**ETM**（指令 trace，N2/N3 改 ETE+TRBE）——五款唯一仍在用 ETM 型 trace 单元；
 AArch32 EL0（A32/T32/A64，与 N2 相同；920/920f/N3 无）；
@@ -76,7 +86,9 @@ TRM 明示无保护清单最完整（BTB/GHB/BPIQ/PHT/L2 victim/L1 TLB flops）�
 
 ### Neoverse N2
 
-![Neoverse N2 微架构功能图](figures/sdc-fig-neoverse-n2.svg)
+![Neoverse N2 微架构功能图](figures/sdc-fig-neoverse-n2.png)
+
+*矢量源文件：[figures/sdc-fig-neoverse-n2.svg](figures/sdc-fig-neoverse-n2.svg)*
 
 独有/标志性：**L0 MOP 缓存 1536 项 4-way skewed**（存已译码优化指令，SED 弱保护×高命中×指令面，五款唯一 MOP）；
 **MMUTC 拉进 SED**（N1 仅 2-bit 交错 parity）；AArch32 EL0（A32/T32/A64，与 N1 相同）；write streaming L1+L2 双级；
@@ -84,7 +96,9 @@ load VA / store PA 分裂预取器（N3 改为 VA+PC 双源引擎）。
 
 ### Neoverse N3
 
-![Neoverse N3 微架构功能图](figures/sdc-fig-neoverse-n3.svg)
+![Neoverse N3 微架构功能图](figures/sdc-fig-neoverse-n3.png)
+
+*矢量源文件：[figures/sdc-fig-neoverse-n3.svg](figures/sdc-fig-neoverse-n3.svg)*
 
 独有/标志性：**分裂式 L2 TLB**（small-page 1536 项 6-way + medium-page 256 项 4-way + walk cache）；
 **TLB 整体 SED**（N2 仅 MMUTC）；**L1D aux tag SECDED**（新增披露行）；L2 ECC granule 128/256b 可配（注意：比 N1/N2 的 64b 码字更粗，UC poison 波及面更大，但为五款唯一可配）；
@@ -319,11 +333,11 @@ SDC 视角：TLB 翻转 = 错误 VA→PA 映射 → **load/store 落错物理页
 
 ### 9.2 芯片级 SDC 敏感性画像
 
-- **Kunpeng 920**：**敏感性最高**。RAS=0 → 无架构化错误记录/ESB/poison，任何核内翻转只有"性能异常/崩溃/静默"三种归宿，其中"静默"无任何架构级可见信号；cache ECC 为厂商私有实现，强度不可验证；L3 128B 行 + tag 在簇侧的设计让 tag 翻转的波及面更大（一行 128B）。对 SDC 实验而言它是"最坏情况"平台，也是本仓库 gem5 FI 建模的主要对象。
-- **920f**：架构上 RAS=1（有防御潜力），但无 TRM → 防御矩阵黑盒；**无 LLC** → 缓存暴露面反而小于 920（只有 L1D 32KB+L2 768KB），但 **64KB 强制页**放大 TLB 类翻转的波及面。SME/SVE512 的巨型向量寄存器（Z0–Z31 × 512b + 矩阵 tile）是新增的**无保护数据面**——单次向量寄存器翻转影响 64B 连续数据。
-- **Neoverse N1**：RAS 矩阵披露最完整（连 None 都写明）；薄弱点：L1 TLB（flops 无保护）、BTB/GHB/BPIQ/PHT/L2 victim 无保护、I$ 仅 SED。作为"披露透明度最高"的参照系。
-- **Neoverse N2**：在 N1 基础上把 MMUTC 拉进 SED、MOP cache 有 SED、其余同 N1；无新增明显弱点；数据面 SDC 防御 ≈ N1。
-- **Neoverse N3**：保护矩阵最厚——TLB 明确 SED、L1D aux tag 新增 SECDED、L2 ECC granule 128/256b 可配（注意：比 N1/N2 的 64b 码字**更粗**，不可纠错误 poison 的数据跨度反而更大；其价值在构建期可配而非更细）、RAS 节点明确覆盖 MMU/TLB。**相对 SDC 敏感性最低**（在披露范围内，依据 TLB SED/aux tag/Node 0 覆盖，而非 granule）。
+- **Kunpeng 920**（功能图见 [图 920-1](#kunpeng-920taishan-v110)）：**敏感性最高**。RAS=0 → 无架构化错误记录/ESB/poison，任何核内翻转只有"性能异常/崩溃/静默"三种归宿，其中"静默"无任何架构级可见信号；cache ECC 为厂商私有实现，强度不可验证；L3 128B 行 + tag 在簇侧的设计让 tag 翻转的波及面更大（一行 128B）。对 SDC 实验而言它是"最坏情况"平台，也是本仓库 gem5 FI 建模的主要对象。
+- **920f**（功能图见 [图 920f-1](#920fhisilicon-part-0xd22未发布)）：架构上 RAS=1（有防御潜力），但无 TRM → 防御矩阵黑盒；**无 LLC** → 缓存暴露面反而小于 920（只有 L1D 32KB+L2 768KB），但 **64KB 强制页**放大 TLB 类翻转的波及面。SME/SVE512 的巨型向量寄存器（Z0–Z31 × 512b + 矩阵 tile）是新增的**无保护数据面**——单次向量寄存器翻转影响 64B 连续数据。
+- **Neoverse N1**（功能图见 [图 N1-1](#neoverse-n1)）：RAS 矩阵披露最完整（连 None 都写明）；薄弱点：L1 TLB（flops 无保护）、BTB/GHB/BPIQ/PHT/L2 victim 无保护、I$ 仅 SED。作为"披露透明度最高"的参照系。
+- **Neoverse N2**（功能图见 [图 N2-1](#neoverse-n2)）：在 N1 基础上把 MMUTC 拉进 SED、MOP cache 有 SED、其余同 N1；无新增明显弱点；数据面 SDC 防御 ≈ N1。
+- **Neoverse N3**（功能图见 [图 N3-1](#neoverse-n3)）：保护矩阵最厚——TLB 明确 SED、L1D aux tag 新增 SECDED、L2 ECC granule 128/256b 可配（注意：比 N1/N2 的 64b 码字**更粗**，不可纠错误 poison 的数据跨度反而更大；其价值在构建期可配而非更细）、RAS 节点明确覆盖 MMU/TLB。**相对 SDC 敏感性最低**（在披露范围内，依据 TLB SED/aux tag/Node 0 覆盖，而非 granule）。
 
 ### 9.3 对本仓库 FI/SDC 研究的可操作结论
 
