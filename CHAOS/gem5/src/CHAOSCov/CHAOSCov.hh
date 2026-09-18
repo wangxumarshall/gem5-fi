@@ -53,6 +53,32 @@ void harp_cov_on_prf_alloc(int class_type, int idx);   // freeList getReg
 void harp_cov_on_prf_free(int class_type, int idx);    // freeList addReg
 bool harp_cov_prf_enabled();  // fast guard for inline hot paths
 
+// --- Cache block-ACE ledger types (Task 3.1; SDC-ED Task 2.2 multi-cache) ---
+// Block-granular interval state, keyed by CacheBlk pointer (stable for the
+// lifetime of the tags store). Same Fig.3 semantics as the IRF: fill/store
+// opens an interval, demand read extends it, evict/overwrite closes it
+// (unread tail un-ACE).
+struct HarpBlkState
+{
+    uint64_t birth = 0;
+    uint64_t last_read = 0;
+    bool has_value = false;
+    bool ever_read = false;
+};
+// One ledger per tracked cache. Slot 0 = the legacy targetCache (L1D,
+// reported via the l1d* stats, unchanged); slots 1.. = the
+// extraTargetCaches list (L2 etc., reported via l2c* stats — the SDC-ED
+// L2C-unit collector).
+struct CacheLedger
+{
+    const void *cache = nullptr;
+    unsigned num_blocks = 0;           // AVF denominator (config-passed)
+    unsigned block_size = 0;
+    std::unordered_map<const void *, HarpBlkState> state;
+    uint64_t ace_cycles = 0;
+    uint64_t reads = 0, writes = 0, evicts = 0;
+};
+
 class CHAOSCov : public SimObject
 {
   public:
@@ -71,7 +97,8 @@ class CHAOSCov : public SimObject
     static CHAOSCov *instance;
 
     // Target-cache identity for the L1D collector's owner filter.
-    static const void *cacheTarget() { return instance ? instance->target_cache : nullptr; }
+    // SDC-ED Task 2.2: multi-cache dispatch lives in ledgerFor(); this
+    // accessor remains for the first (L1D) ledger.
 
     // Notification from the global hooks (pseudo_inst workbegin/workend).
     void onWorkBegin();
@@ -93,6 +120,10 @@ class CHAOSCov : public SimObject
     void cacheOnWrite(void *cache, void *blk);
     void cacheOnRead(void *cache, void *blk);
     void cacheOnEvict(void *cache, void *blk);
+    // SDC-ED Task 2.2: dispatch to the ledger owning this cache instance
+    // (nullptr = untracked). Public: the file-level owner-filter hooks in
+    // CHAOSCov.cc call it before invoking the handlers.
+    CacheLedger *ledgerFor(void *cache);
 
     // --- LSQ SQ-data ACE collector (Task 3.2) ---
     void sqOnWrite();
@@ -161,24 +192,15 @@ class CHAOSCov : public SimObject
     std::vector<uint64_t> irf_occ_hist;     // per-bucket cycle counts
     uint64_t irf_occ_samples = 0;
 
-    // --- L1D ACE state (Task 3.1) ---
-    // Block-granular interval ledger keyed by CacheBlk pointer (stable
-    // for the lifetime of the tags store). The same Fig.3 semantics as
-    // the IRF: fill/store opens an interval, demand read extends it,
-    // evict or overwrite closes it (unread tail un-ACE).
-    struct BlkState
-    {
-        uint64_t birth = 0;
-        uint64_t last_read = 0;
-        bool has_value = false;
-        bool ever_read = false;
-    };
-    const void *target_cache = nullptr;    // filter: only this cache
+    // --- L1D/L2 ACE state (Task 3.1; SDC-ED Task 2.2 multi-cache) ---
+    // Per-cache ledgers (types defined above the class): slot 0 = legacy
+    // targetCache (l1d* stats), slots 1.. = extraTargetCaches (l2c*).
+    std::vector<CacheLedger> cache_ledgers;   // [0]=L1D, [1+]=L2/...
+    // Legacy single-cache scalars (kept for the constructor's L1D sizing
+    // bookkeeping; the live ledgers are cache_ledgers).
+    const void *target_cache = nullptr;    // filter: only tracked caches
     unsigned cache_num_blocks = 0;         // sizing for AVF denominator
     unsigned cache_block_size = 0;
-    std::unordered_map<const void *, BlkState> cache_state;
-    uint64_t cache_ace_cycles = 0;
-    uint64_t cache_reads = 0, cache_writes = 0, cache_evicts = 0;
 
     // --- LSQ SQ-data ACE state (Task 3.2) ---
     // Interval ledger keyed by SQ slot index (0..SQEntries-1). The same
@@ -236,6 +258,12 @@ class CHAOSCov : public SimObject
         statistics::Scalar l1dWrites;
         statistics::Scalar l1dEvicts;
         statistics::Scalar l1dAvf;
+        // --- L2C ACE (SDC-ED Task 2.2: extra caches ledger) ---
+        statistics::Scalar l2cAceCycles;
+        statistics::Scalar l2cReads;
+        statistics::Scalar l2cWrites;
+        statistics::Scalar l2cEvicts;
+        statistics::Scalar l2cAvf;
         // --- LSQ SQ-data ACE (Task 3.2) ---
         statistics::Scalar sqAceCycles;
         statistics::Scalar sqWrites;

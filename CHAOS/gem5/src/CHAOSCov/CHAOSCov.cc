@@ -58,11 +58,12 @@ void harp_cov_on_sq_write()   { if (CHAOSCov::instance) CHAOSCov::instance->sqOn
 void harp_cov_on_sq_consume() { if (CHAOSCov::instance) CHAOSCov::instance->sqOnConsume(); }
 void harp_cov_on_sq_free()    { if (CHAOSCov::instance) CHAOSCov::instance->sqOnFree(); }
 
-// --- L1D ACE collector hooks (Task 3.1) ---
+// --- L1D/L2 ACE collector hooks (Task 3.1; SDC-ED Task 2.2 multi-cache) ---
 // The cache pointer identifies which cache instance fired the event;
-// CHAOSCov filters against its configured targetCache.
+// CHAOSCov dispatches to the ledger whose cache matches (owner filter:
+// untracked caches — I$, other levels — are ignored).
 static inline bool harp_cache_owner(void *cache)
-{ return CHAOSCov::instance && cache && CHAOSCov::cacheTarget() == cache; }
+{ return CHAOSCov::instance && cache && CHAOSCov::instance->ledgerFor(cache); }
 
 void harp_cov_on_cache_write(void *cache, void *blk)
 { if (harp_cache_owner(cache)) CHAOSCov::instance->cacheOnWrite(cache, blk); }
@@ -119,10 +120,36 @@ CHAOSCov::CHAOSCov(const CHAOSCovParams &p)
     // Task 3.1: target cache + sizing for the AVF denominator.
     // BaseTags::numBlocks is protected and BaseCache params lack size in
     // C++ view, so the config passes cacheNumBlocks explicitly.
+    // SDC-ED Task 2.2: slot 0 = legacy targetCache (l1d* stats); the
+    // extraTargetCaches list appends independent ledgers (l2c* stats).
+    cache_ledgers.clear();
     if (p.targetCache) {
         target_cache = p.targetCache;
         cache_block_size = p.targetCache->getBlockSize();
         cache_num_blocks = p.cacheNumBlocks;
+        CacheLedger led;
+        led.cache = p.targetCache;
+        led.block_size = cache_block_size;
+        led.num_blocks = cache_num_blocks;
+        cache_ledgers.push_back(led);
+    }
+    {
+        const auto &extras = p.extraTargetCaches;
+        const auto &extra_blocks = p.extraCacheNumBlocks;
+        if (extras.size() != extra_blocks.size())
+            throw std::runtime_error(
+                "CHAOSCov: extraTargetCaches and extraCacheNumBlocks must "
+                "have equal length");
+        for (size_t i = 0; i < extras.size(); i++) {
+            if (!extras[i])
+                throw std::runtime_error(
+                    "CHAOSCov: extraTargetCaches contains NULL");
+            CacheLedger led;
+            led.cache = extras[i];
+            led.block_size = extras[i]->getBlockSize();
+            led.num_blocks = static_cast<unsigned>(extra_blocks[i]);
+            cache_ledgers.push_back(led);
+        }
     }
     // Task 3.2: SQ sizing (passed from the config; LSQ::SQEntries is
     // private to the LSQ).
@@ -230,15 +257,44 @@ CHAOSCov::finishStats()
                       / ((double)irf_state[0].size() * w[0] * roi_cycles)
                 : 0.0;
     }
-    // L1D ACE stats
-    harpStats.l1dAceCycles = cache_ace_cycles;
-    harpStats.l1dReads = cache_reads;
-    harpStats.l1dWrites = cache_writes;
-    harpStats.l1dEvicts = cache_evicts;
-    if (roi_cycles > 0 && cache_num_blocks > 0)
-        harpStats.l1dAvf =
-            (double)cache_ace_cycles
-            / ((double)cache_num_blocks * (double)roi_cycles);
+    // L1D ACE stats (ledger 0 = legacy targetCache)
+    {
+        uint64_t ace = 0, rd = 0, wr = 0, ev = 0;
+        unsigned blocks = 0;
+        if (!cache_ledgers.empty()) {
+            ace = cache_ledgers[0].ace_cycles;
+            rd = cache_ledgers[0].reads;
+            wr = cache_ledgers[0].writes;
+            ev = cache_ledgers[0].evicts;
+            blocks = cache_ledgers[0].num_blocks;
+        }
+        harpStats.l1dAceCycles = ace;
+        harpStats.l1dReads = rd;
+        harpStats.l1dWrites = wr;
+        harpStats.l1dEvicts = ev;
+        if (roi_cycles > 0 && blocks > 0)
+            harpStats.l1dAvf =
+                (double)ace / ((double)blocks * (double)roi_cycles);
+    }
+    // L2C ACE stats (aggregate over extra ledgers; SDC-ED Task 2.2)
+    {
+        uint64_t ace = 0, rd = 0, wr = 0, ev = 0;
+        double blocks_total = 0;
+        for (size_t i = 1; i < cache_ledgers.size(); i++) {
+            ace += cache_ledgers[i].ace_cycles;
+            rd += cache_ledgers[i].reads;
+            wr += cache_ledgers[i].writes;
+            ev += cache_ledgers[i].evicts;
+            blocks_total += (double)cache_ledgers[i].num_blocks;
+        }
+        harpStats.l2cAceCycles = ace;
+        harpStats.l2cReads = rd;
+        harpStats.l2cWrites = wr;
+        harpStats.l2cEvicts = ev;
+        if (roi_cycles > 0 && blocks_total > 0)
+            harpStats.l2cAvf =
+                (double)ace / (blocks_total * (double)roi_cycles);
+    }
     harpStats.sqAceCycles = sq_ace_cycles;
     harpStats.sqWrites = sq_writes;
     harpStats.sqConsumes = sq_consumes;
@@ -281,12 +337,16 @@ CHAOSCov::finishStats()
         os << "irf occupancy_hist (bucket=live/8)";
         for (auto b : irf_occ_hist) os << " " << b;
         os << "\n";
-        os << "l1d blocks " << cache_num_blocks
-           << " block_size " << cache_block_size
-           << " ace_cycles " << cache_ace_cycles
-           << " reads " << cache_reads
-           << " writes " << cache_writes
-           << " evicts " << cache_evicts << "\n";
+        for (size_t i = 0; i < cache_ledgers.size(); i++) {
+            const auto &led = cache_ledgers[i];
+            os << (i == 0 ? "l1d" : "l2c") << " cache " << i
+               << " blocks " << led.num_blocks
+               << " block_size " << led.block_size
+               << " ace_cycles " << led.ace_cycles
+               << " reads " << led.reads
+               << " writes " << led.writes
+               << " evicts " << led.evicts << "\n";
+        }
         os << "sq entries " << sq_entries
            << " ace_cycles " << sq_ace_cycles
            << " writes " << sq_writes
@@ -447,6 +507,18 @@ CHAOSCov::HarpStats::HarpStats(statistics::Group *parent)
       ADD_STAT(l1dAvf, statistics::units::Ratio::get(),
                "L1D AVF = block ACE cycles / (numBlocks * ROI cycles). "
                "Paper: ACE lifetime analysis for caches"),
+      ADD_STAT(l2cAceCycles, statistics::units::Cycle::get(),
+               "Extra-cache (L2) ACE cycles, aggregated over "
+               "extraTargetCaches ledgers (SDC-ED L2C unit)"),
+      ADD_STAT(l2cReads, statistics::units::Count::get(),
+               "Extra-cache demand reads observed"),
+      ADD_STAT(l2cWrites, statistics::units::Count::get(),
+               "Extra-cache fills + store-data updates observed"),
+      ADD_STAT(l2cEvicts, statistics::units::Count::get(),
+               "Extra-cache evictions observed"),
+      ADD_STAT(l2cAvf, statistics::units::Ratio::get(),
+               "Extra-cache AVF = block ACE cycles / (total extra blocks "
+               "* ROI cycles) (SDC-ED L2C unit)"),
       ADD_STAT(sqAceCycles, statistics::units::Cycle::get(),
                "SQ data-field ACE cycles (aggregate interval ledger)"),
       ADD_STAT(sqWrites, statistics::units::Count::get(),
@@ -550,14 +622,27 @@ CHAOSCov::sqOnFree()
 }
 
 // ---------------------------------------------------------------------------
-// L1D ACE collector (Task 3.1, block-granular Fig.3 semantics)
+// L1D/L2 ACE collector (Task 3.1; SDC-ED Task 2.2 multi-cache ledgers)
 // ---------------------------------------------------------------------------
+// Dispatch: find the ledger owning this cache instance (nullptr = the
+// event came from an untracked cache; the hook already checked).
+CacheLedger *
+CHAOSCov::ledgerFor(void *cache)
+{
+    for (auto &led : cache_ledgers)
+        if (led.cache == cache)
+            return &led;
+    return nullptr;
+}
+
 void
 CHAOSCov::cacheOnWrite(void *cache, void *blk)
 {
     if (!roi_active) return;
-    cache_writes++;
-    auto &st = cache_state[blk];
+    CacheLedger *led = ledgerFor(cache);
+    if (!led) return;
+    led->writes++;
+    auto &st = led->state[blk];
     const uint64_t now = roi_cycles;
     // Overwrite closes the previous interval exactly as in the IRF: an
     // interval that was read has already been accumulated; an unread one
@@ -572,28 +657,32 @@ void
 CHAOSCov::cacheOnRead(void *cache, void *blk)
 {
     if (!roi_active) return;
-    auto it = cache_state.find(blk);
-    if (it == cache_state.end()) return;   // block never written in ROI
+    CacheLedger *led = ledgerFor(cache);
+    if (!led) return;
+    auto it = led->state.find(blk);
+    if (it == led->state.end()) return;   // block never written in ROI
     auto &st = it->second;
     if (!st.has_value) return;
     const uint64_t now = roi_cycles;
     if (!st.ever_read) {
-        cache_ace_cycles += now - st.birth;
+        led->ace_cycles += now - st.birth;
         st.ever_read = true;
     } else {
-        cache_ace_cycles += now - st.last_read;
+        led->ace_cycles += now - st.last_read;
     }
     st.last_read = now;
-    cache_reads++;
+    led->reads++;
 }
 
 void
 CHAOSCov::cacheOnEvict(void *cache, void *blk)
 {
     if (!roi_active) return;
-    cache_evicts++;
-    auto it = cache_state.find(blk);
-    if (it != cache_state.end())
+    CacheLedger *led = ledgerFor(cache);
+    if (!led) return;
+    led->evicts++;
+    auto it = led->state.find(blk);
+    if (it != led->state.end())
         it->second.has_value = false;   // unread tail un-ACE; state kept
 }
 

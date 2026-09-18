@@ -28,6 +28,15 @@ class CHAOSCov(SimObject):
         "the config because BaseTags::numBlocks is protected — 0 = "
         "derive at runtime via Cache::getTags() friend-free fallback: "
         "size / blockSize)")
+    # --- SDC-ED Task 2.2: additional caches with independent ledgers ---
+    # Each entry gets its own block-ACE ledger (l2c* stats aggregate over
+    # the extras; the L1D targetCache keeps the legacy l1d* stats).
+    extraTargetCaches = VectorParam.BaseCache([],
+        "Additional caches to ACE-analyze with independent ledgers "
+        "(SDC-ED L2C unit; e.g. [system.l2cache])")
+    extraCacheNumBlocks = VectorParam.Int([],
+        "Block counts for extraTargetCaches (AVF denominators), "
+        "same order")
     sqEntries = Param.UInt32(0,
         "Store-queue entry count (Task 3.2 AVF denominator; passed from "
         "the config — LSQ::SQEntries is not public to C++ clients)")

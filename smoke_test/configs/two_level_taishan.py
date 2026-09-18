@@ -285,6 +285,10 @@ _ap.add_argument("--cov-profile", default=None,
                      "IEX/FSU fus tables. Absent = TaiShan v110 defaults "
                      "(behavior identical to the pre-parameterization "
                      "hardcoded values)")
+_ap.add_argument("--cov-l2", action="store_true", default=False,
+                help="SDC-ED Task 2.2: add an independent block-ACE "
+                     "ledger for the L2 (l2c* stats; L2C unit of the "
+                     "ED decomposition)")
 # --- FU permanent fault (harp plan Task 5.2, execution-level L1) ---
 _ap.add_argument("--fu-perm", action="store_true", default=False,
                 help="mount CHAOSFUPerm (permanent execution-level FU fault)")
@@ -449,6 +453,10 @@ if _args.cov:
         writeDetail=_args.cov_detail,
         **_cov_extra,
     )
+    # SDC-ED Task 2.2: optional L2 ledger (independent block-ACE account).
+    if _args.cov_l2:
+        system.CHAOSCov.extraTargetCaches = [system.l2cache]
+        system.CHAOSCov.extraCacheNumBlocks = [512 * 1024 // 64]  # L2 512KiB
 
 root = Root(full_system=False, system=system)
 m5.instantiate()
