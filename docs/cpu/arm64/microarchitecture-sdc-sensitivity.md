@@ -2,19 +2,23 @@
 ---
 
 ## 1. 基本信息
-A. IFU（指令供给前端）：分支预测 (BP/BRE分支方向预测/BTB/间接预测/GHB/BPIQ/返回栈 RAS)、µop / MOP cache、L1-iTLB、L1i-Cache（tag/data）、Instruction Queue；
-B. OoO（乱序执行引擎）：Int instruction Decode、Int Registor Rename、Int Dispatch、FP/SIMD instruction Decode、FP/SIMD Registor Rename、FP/SIMD Dispatch；ROB（Reorder Buffer，重排序缓冲）
-C. IEX（Int instr Execute）：ALU Issue Queue、LSU/MDU/SYS Issue Queue、Int Physically Registor File、ALU执行单元、MDU执行单元（整数乘除）、MSR/CP15；
-D. LSU（Load Store Unit）：LS（AGU/load）、STD（AGU/store）、L1-dTLB、Store Queue、L1d-Cache（tag/data/aux tag）；原子与同步单元（执行原子读改写如 CAS/atomic RMW、缓存行锁、总线锁，fence/barrier多核同步）；数据预取器（L1 PHT（prefetch history table）/TLB prefetcher/region prefetcher/L2 prefecther）
-F. FSU（FP/SIMD Unit）：FP/SIMD Issue Queue、FP/SIMD PRF、FSU Pipe执行单元；
-G. MMU：L2-TLB、PTW（页表遍历）、PWC（页表遍历缓存）
-H. L2：L2-Cache（tag/data/TQ/victim/uncore/DSU）、核缓存一致性（MESI/MOESI、snooping 或目录协议）
-I. L3：L3-Cache/SLC（tag/data）
-J. RAS：RAM 保护 (ECC/parity 矩阵)、架构化 RAS (寄存器/异常/ESB/poison)、错误注入、平台 RAS 栈 (ACPI/EDAC)
+- A. IFU（指令供给前端）：分支预测 (BP/BRE分支方向预测/BTB/间接预测/GHB/BPIQ/返回栈 RAS)、µop/MOP cache、L1-iTLB、L1i-Cache（tag/data）、Instruction Queue；
+- B. OoO（乱序执行引擎）：Int instruction Decode、Int Registor Rename、Int Dispatch、FP/SIMD instruction Decode、FP/SIMD Registor Rename、FP/SIMD Dispatch；ROB（Reorder Buffer，重排序缓冲）
+- C1. IEX（Int instr Execute）：ALU Issue Queue、LSU/MDU/SYS Issue Queue、Int Physically Registor File、ALU执行单元、MDU执行单元（整数乘除）、MSR/CP15；
+- D. LSU（Load Store Unit）：LS（AGU/load）、STD（AGU/store）、L1-dTLB、Store Queue、L1d-Cache（tag/data/aux tag）；原子与同步单元（执行原子读改写如 CAS/atomic RMW、缓存行锁、总线锁，fence/barrier多核同步）；数据预取器（L1 PHT（prefetch history table）/TLB prefetcher/region prefetcher/L2 prefecther）
+- C2. FSU（FP/SIMD Unit）：FP/SIMD Issue Queue、FP/SIMD PRF、FSU Pipe执行单元；
+- Cx. FP/SIMD：2×FP；FP32 FMA 2/cyc（128b），FP64；FADD 4/FMUL 5/FMA 5–7 cyc；NEON128 2/cyc；SVE512 FMA ≥2/cyc；SVE128b FMA
 
+- C3. Crypto：AES+PMULL/SHA1/SHA2/SHA3/SHA256/CRC32/SM3/SM4/EOR3/XAR/BCAX
+
+- E. MMU：L2-TLB、PTW（页表遍历）、PWC（页表遍历缓存）
+- F. L2：L2-Cache（tag/data/TQ/victim/uncore/DSU）、核缓存一致性（MESI/MOESI、snooping 或目录协议）
+- G. L3：L3-Cache/SLC（tag/data）
+- H. RAS：RAM 保护 (ECC/parity 矩阵)、架构化 RAS (寄存器/异常/ESB/poison)、错误注入、平台 RAS 栈 (ACPI/EDAC)
+
+---
 ALU：3×ALU + 1×MUL/DIV
 FP/SIMD：2×FP；FP32 FMA 2/cyc（128b），FP64；FADD 4/FMUL 5/FMA 5–7 cyc；NEON128 2/cyc；SVE512 FMA ≥2/cyc；SVE128b FMA
-Crypto：AES+PMULL/SHA1/SHA2/SHA3/SHA256/CRC32/SM3/SM4/EOR3/XAR/BCAX
 
 ---
 
