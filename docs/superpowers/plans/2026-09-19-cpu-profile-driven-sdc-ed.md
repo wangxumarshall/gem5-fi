@@ -313,6 +313,7 @@ docs/superpowers/plans/2026-09-19-cpu-profile-driven-sdc-ed.md   # 本计划
   完成口径修正（诚实边界）: 计划写「全部 checkbox 勾选」系制定时的预期——实际执行中 Phase 3.4/4.x/5.x/6.2/6.3/7.1 共 10 任务未实施（部分依赖链未解锁），按「不勾选未验证任务」的纪律保持 `[ ]` 并逐任务登记 deferred 状态与原因（见各任务行「状态」注记）。已勾 13 任务全部附 commit 哈希溯源。method.md 定稿含 §4 诚实边界三张表（预注册核实/标定新增/实施偏差）与 §7 实施状态总表（13 done / 10 deferred）。
   完成（2026-09-19）：method.md 定稿（ρ_measured 回填表/诚实边界 14 项三表/实施状态总表）+ AGENT_TASKS.md 登记 SDCED-* 24 行 + 本计划全 23 checkbox 核对（13 [x] 均附 commit 哈希，10 [ ] 均附 deferred 状态行）。验证：增量构建 scons done 0 新警告；reg_chain → f247ef3fe6f02cfd；sample_seq → SUM=17994817166615565002 CRC=8f333d15；pytest ed_profile 13/13。
   收尾修正记录（诚实边界）: 本任务写作期间 Task 2.3（9274f1e3）与 Task 3.2（7c27f2f2）并行合入——method.md/AGENT_TASKS.md 中二者的登记从「deferred 未实施」修正为 done（各含实测注记），此前草稿中的 deferred 表述系快照时序差，已在 §7 总表、§4.3 偏差表与 AGENT_TASKS 同步修正。
+  终态修正（595636a4，深夜收尾轮）: 上两段所记「10 任务未实施」为 7.2 首次执行时的快照——收尾轮已全部实施并勾选（2.3/3.2/3.4/4.1/4.2/4.3/5.1/5.2/5.3/6.2/6.3/7.1，各含真机验证注记与 commit 溯源）。终态 24/24 闭环；3 处负结果/未达判据保持原样（6.2 lift 判据未达成、6.3a 不显著、5.3 ED-fitness 2 步未升）——method.md §7 总表已同步。
 
 ---
 
