@@ -210,8 +210,12 @@ docs/sdc-ed/lift-report.md     lift 主实验 + 负对照 + 迁移 + 部署臂�
 
 ## 7. 实施状态总表（定稿快照，2026-09-19）
 
-计划实定义 23 任务（0.1-7.2；计划标题写「22 任务」系制定时计数笔误，以 checkbox 清单为准）：
-**13 done / 10 deferred**。逐任务 commit 溯源见
+计划实定义 23 任务（0.1-7.2；计划标题写「22 任务」系制定时计数笔误，以 checkbox 清单为准）。
+**终态（2026-09-19 深夜收尾）：24/24 全部闭环**——原 10 个 deferred 任务在收尾轮全部实施完毕
+（2.3/3.2/3.4/4.1/4.2/4.3/5.1/5.2/5.3/6.2/6.3/7.1），其中 2 项含聚焦版协议
+（6.2 lift：K=3×2 臂×N=50；6.3a 负对照 N=50）与 3 项如实登记的负结果/未达判据
+（6.2 预注册 lift 判据未达成、6.3a 方向反但不显著、5.3 ED-fitness 2 步未升）。
+逐任务 commit 溯源见
 `docs/superpowers/plans/2026-09-19-cpu-profile-driven-sdc-ed.md` 勾选注记与 AGENT_TASKS.md。
 
 | Phase | 任务 | 状态 |
@@ -219,11 +223,10 @@ docs/sdc-ed/lift-report.md     lift 主实验 + 负对照 + 迁移 + 部署臂�
 | 0 | 0.1 构建+双锚 / 0.2 method 骨架 | done |
 | 1 | 1.1 ed_profile / 1.2 三 YAML / 1.3 --profile 入口 | done |
 | 2 | 2.1 IBR 参数化 / 2.2 targetCache 列表化 / 2.3 per-unit 7 维归并 | done |
-| 3 | 3.1 LSU per-slot+load-use / 3.2 FSU 值类剖面 / 3.3 L2C 双面账本 | done |
-| 3 | 3.4 rename 距离 | deferred |
-| 4 | 4.1 可达集 / 4.2 SDC-ACE / 4.3 gate 臂 | deferred |
-| 5 | 5.1 ed_score / 5.2 次模选择 / 5.3 evolve 替换 | deferred |
+| 3 | 3.1 LSU per-slot+load-use / 3.2 FSU 值类剖面 / 3.3 L2C 双面账本 / 3.4 rename 距离+ROB 带 | done |
+| 4 | 4.1 动态切片 / 4.2 SDC-ACE+gap / 4.3 闭式加乘差分 | done |
+| 5 | 5.1 ed_score / 5.2 次模选择 / 5.3 evolve 替换 | done |
 | 6 | 6.1 ρ 标定战役（11 臂） | done |
-| 6 | 6.2 lift 主实验 / 6.3 负对照+迁移 | deferred |
-| 7 | 7.1 部署臂 | deferred |
+| 6 | 6.2 lift 主实验 / 6.3 负对照+迁移 | done（6.2 判据未达/6.3a 不显著——负结果入档） |
+| 7 | 7.1 部署臂 | done（permanent 分臂 deferred 登记） |
 | 7 | 7.2 本定稿 + 登记 + 收尾 | done |

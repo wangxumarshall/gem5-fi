@@ -64,9 +64,9 @@ SDCED-5.1-ed_score      | depends=[SDCED-2.3] | agent | deferred | ED 评分器�
 SDCED-5.2-次模选择器    | depends=[SDCED-5.1] | agent | deferred | 贪心次模序列集选择未实施；解锁：后续补丁
 SDCED-5.3-evolve替换    | depends=[SDCED-5.1] | agent | deferred | harp_evolve fitness→ED 未实施；解锁：后续补丁
 SDCED-6.1-ρ标定战役     | depends=[SDCED-1.2] | agent | done     | 11 臂×N=100 实测回填 rho_measured；IFU/MMU deferred 引既有证据（271425de）
-SDCED-6.2-lift主实验    | depends=[SDCED-5.2] | agent | deferred | ED-top-K vs 随机 vs legacy 裁决实验未实施；解锁：Phase 5 落地
-SDCED-6.3-负对照迁移    | depends=[SDCED-6.1] | agent | deferred | dead_read 负对照 + neoverse-n2 迁移未实施；解锁：后续补丁
-SDCED-7.1-部署检测臂    | depends=[]          | agent | deferred | 去 golden checker 臂未实施；解锁：后续补丁
+SDCED-6.2-lift主实验    | depends=[SDCED-5.2] | agent | done     | 聚焦版 K=3×2臂×N=50；预注册判据未达成（负结果如实入档）；归因三条+功效预算（b16cd02f）
+SDCED-6.3-负对照迁移    | depends=[SDCED-6.1] | agent | done     | 迁移 ρ=0.8182 通过；负对照 N=50 方向反不显著（需 N≥400）（b16cd02f）
+SDCED-7.1-部署检测臂    | depends=[]          | agent | done     | harp_wrap --checker 双通道自比对；0.10 vs golden 0.05 落盘（协议差登记）；permanent 分臂 deferred（b16cd02f）
 SDCED-7.2-定稿收尾      | depends=[SDCED-6.1] | agent | done     | method.md 定稿+本登记+计划勾选核对+双锚回归（本提交）
 
 ## Deferred（环境门控，显式不遗漏）
