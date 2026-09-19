@@ -203,7 +203,9 @@ CHAOSCov                       采集器——已升级（IBR 分母参数化 / 
 tools/harp_eval.py             SFI harness——已扩展（l2c_data/l2c_tag 双面臂 +
                                --protection + 六类分类 + l1d 输出捕获修复）
 tools/ed_score.py              ED 计算 + per-unit 报告 + 次模选择——deferred（Task 5.1/5.2）
-tools/sfi_lift.py              per-unit lift 战役 + Wilson CI + AUC——deferred（Task 6.2）
+tools/harp_wrap.py --checker   部署模式 wrapper（双通道自比对）——已入库（Task 7.1）
+docs/sdc-ed/lift-report.md     lift 主实验 + 负对照 + 迁移 + 部署臂报告——已入库
+                               （Task 6.2/6.3/7.1；预注册 lift 判据负结果如实入档）
 ```
 
 ## 7. 实施状态总表（定稿快照，2026-09-19）

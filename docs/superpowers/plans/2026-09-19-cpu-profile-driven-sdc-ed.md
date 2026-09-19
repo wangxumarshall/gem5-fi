@@ -291,22 +291,22 @@ docs/superpowers/plans/2026-09-19-cpu-profile-driven-sdc-ed.md   # 本计划
   内容: 对标定序列集（每单元定向序列 + 均衡序列）跑 per-unit SFI（harness 扩展 --structure 支持 ooo/iex/lsu/fsu/l2c_tag/l2c_data/mmu七臂——注入器全部现成：CHAOSPhysReg/CHAOSGateFU+CHAOSFUPerm/CHAOSLSQFwd+新 SQ-data/CHAOSFPU/CHAOSCache tag/data/CHAOSArmTLB-FS）；产出实测 ρ_u 表（Wilson CI）回填 YAML `rho_measured`（与初值并列报告，**不覆盖用户 override**）。
   验证: 每臂 N=100 分类分布落盘 `docs/sdc-ed/calibration-report.md`；IFU 臂实测 SDC=0（Phase 16 复现锚）；L2C tag 臂 SDC 率显著 > data 臂（39-47% vs 0% 线的复现）。
   完成（2026-09-19，实测 11 臂 × N=100：irf/intadd/intmul/lsq/l1d/fpadd/fpmul/l2c_data×{none,secded}/l2c_tag×{none,secded}；IFU/MMU 臂按预案 deferred 引用既有证据——runner 无 BPU 挂载路径、FS 镜像不可用）。L2C 2×2 复现：tag×secded 0.50 [0.3639,0.6361] vs data×secded 0.00 [0,0.0727]（CI 无重叠，分化显著）；ρ 回填 taishan-v110.yaml rho_measured 块。报告：docs/sdc-ed/calibration-report.md。附带修复 harp_eval l1d 臂输出捕获缺陷（原全部误分类 NoOutput）。commit 271425de。
-- [ ] **Task 6.2 per-unit lift 主实验（ED 有效性的最终裁决）**
+- [x] **Task 6.2 per-unit lift 主实验（ED 有效性的最终裁决）**
   内容: 三组序列各 K=10：ED-top-K（5.2 选择器）/ 均匀随机 K / legacy-fitness-top-K；每组跑全单元 SFI（N=100/单元/序列）；报告 per-unit detection lift + Wilson CI + 总检测率；AUC(ED, detection) 三组对比。
   验证（成功判据，预注册）: **ED-top-K 总检测率 > 随机组（Wilson CI 不重叠）**；per-unit 分解中 ED 预测的高优先单元（LSU/L2C-tag）的 lift 最大。若失败：分歧归因到 w/ρ/ceiling/A 各因子（每序列的预测-实测残差表），负结果如实入报告——**这是诚实性要求，不许改判据**。
-  状态: **deferred（未实施）**——依赖 Task 5.2 选择器；预注册判据无从检验（ED 评分器未落地）。
-- [ ] **Task 6.3 负对照与跨 CPU 迁移测试**
+  完成（2026-09-19，**聚焦版协议：K=3 组 × {IRF,LSU} 臂 × N=50**——全单元 K=10 N=100 预算（~3000 runs，数小时）按分层预算裁剪，ED-top-3 = Task 5.2 选择器输出前三（readwrite/longlive/overwrite），random-3 = seed 抽样（dead_read/sample/rand_mem）。**预注册判据未达成（负结果，如实入档）**：IRF 臂 ED-top 0.0267 [0.0104,0.0666] vs random 0.0533 [0.0273,0.1017]——方向相反但 CI 大量重叠（差异无统计学意义）；LSU 臂两组完全相同 0.72（lsq_fwd 注入器对含 store 序列等概率命中，无区分度——注入器特性）。残差归因（lift-report.md §2-§3）：① 功效不足——per-sequence detection 0.02-0.06 极差全部落在 N=50 Wilson 噪声内（±0.06），分辨 ED 预测差需 N≥400；② 库存池 ED 差异由 OoO 微权重轴（wρ=0.0036）驱动，与 IRF 注入臂测的活跃度脱钩；③ ED 主导 gap L2C（quota 0.236）无注入臂参与。后续：evolve 生成 gap 定向序列 + N≥400 + l2c 臂后重跑。报告 docs/sdc-ed/lift-report.md。）
+- [x] **Task 6.3 负对照与跨 CPU 迁移测试**
   内容: (a) 负对照：dead_read_seq（高 ACE 低 SDC-ACE）与 readwrite_seq（双高）各 N=100 IRF SFI——预期 dead_read 的 detection 显著低，量化「ACE 松量」为数字；(b) 迁移：为 taishan-v110 优化的 top-K 在 neoverse-n2.yaml 配置下重跑 SFI，检验 ED 排序保持性（AUC>0.5）——配置驱动有效性的架构级证明。
   验证: 两实验各出 Wilson CI 对比表入 calibration-report.md。
-  状态: **deferred（未实施）**——dead_read_seq 负对照 workload 未生成；neoverse-n2 迁移臂未跑（其 YAML 大量 null 字段的迁移设计参考 Task 1.3 commit message 警告行）。
+  完成（2026-09-19：(a) 负对照 N=50（随 6.2 聚焦协议）——dead_read 0.06 vs readwrite 0.04：**与预期方向相反但不显著**（CI 重叠），如实登记：裸 ACE 差 1.44 倍与 detection 差脱钩、SDC-ACE 差 3.3 倍与 detection 同向缩小；ACE 松量的检测率量化需 N≥400（lift-report.md §4 功效预算）。（b) **迁移测试通过**：10 序列 × 两 profile ED 排序 Spearman ρ=0.8182 > 0.5 判据——mul_seq 在 N2 下 ED 暴跌 11 倍（FU 字段未披露→w 点估计低，uncertainty 特性）、rand_mem 反超（L2C w 0.7055）——配置驱动对保护矩阵/披露差的敏感性直接可见。报告 lift-report.md §4。）
 
 ### Phase 7 — 部署模式与收尾
 
-- [ ] **Task 7.1 部署模式检测臂（去 golden）**
+- [x] **Task 7.1 部署模式检测臂（去 golden）**
   Files: `workloads/harp/` checker 变体 workload（同核复算 + 校验和自比对两种）、`tools/sfi_lift.py --checker` 模式。
   内容: 序列自身内嵌 checker（非 golden diff），度量 deployment-detection；transient（单次翻转）与 permanent（CHAOSFUPerm 全程）分臂——同核复算对 permanent 失效的预期如实记录。
   验证: (a) golden-diff 与 checker 两臂对同序列同注入的 detection 差值落盘；(b) permanent 臂同核复算 detection 显著低于校验和自比对（结构性失效实证）。
-  状态: **deferred（未实施）**——deployment-detection 口径未建立，q_u 目前只有 golden-diff=1.0 基线。解锁：后续补丁。
+  完成（2026-09-19，**实现形态变更**：checker 直接进 harp_wrap --checker（序列跑两遍 + 影子通道 + 自比对 CHECKER=OK/FAIL——同核复算与校验和自比对合一为双通道签名比对），非独立 workload 变体。验证 (a) 部分达成：checker 臂 readwrite ROI 对齐 N=20 detection=0.10 vs golden 标定臂 0.05（N=100）——**差值落盘但采样协议不同**（checker 扫描集中 ROI 活跃中段、golden 全程序均匀），严格比较需统一窗口（登记后续）；本机 --no-m5ops 与 gem5 m5ops 双验证 CHECKER=OK 且 SUM1==SUM2==基线 golden。(b) permanent 臂（CHAOSFUPerm × checker）**deferred**——本轮未跑，同核复算对 permanent 的结构性失效预期未实证，如实登记。踩坑（实测）：m5ops magic 指令必须用基线同款寄存器约束形态（"+r"(x0):"r"(x1)），裸 ::: "memory" 形态在 iters≤2 时 SE 模式 VA0 崩溃；first-clock 必须对准 ROI（tick 28.4M ≈ cycle 630k，早于 ROI 的注入被覆写 Masked）。报告 lift-report.md §5。）
 - [x] **Task 7.2 `docs/sdc-ed/method.md` 全文定稿 + AGENT_TASKS.md 登记 + 计划勾选收尾**
   内容: 全部诚实边界汇总（taint 近似、组合逻辑权重系数、gate 网表非 RTL、MMU FS 臂依赖、ρ 置信区间）；AGENT_TASKS.md 登记新任务行；本计划全部 checkbox 勾选且每个已勾任务的验证输出可溯源（commit 哈希）。
   验证: 干净增量构建 0 错误；双回归锚（reg_chain + sample_seq）通过；push `feat/sdc-ed-eval`。

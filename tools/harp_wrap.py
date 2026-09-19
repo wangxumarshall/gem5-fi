@@ -137,6 +137,120 @@ __asm__ volatile (
 }}
 '''
 
+# SDC-ED Task 7.1 部署模式 checker 模板（--checker）：同核复算——核心
+# 序列跑两遍（第二遍用影子内存 mem2 与影子寄存器数组 g_reg2），epilogue
+# 比对两份签名。无 golden 对照：检测 = 两次执行不一致（CHECKER=FAIL）。
+# 结构性弱点如实入文档：permanent FU 故障若两次执行都走同一 FU 则两次
+# 同样腐蚀 → 漏检——同核复算对 permanent 的失效是该臂要量化的部署态
+# 缺陷（对照 transient 单次翻转天然只腐蚀一遍）。
+CHECKER_TEMPLATE = '''
+#include <stdio.h>
+#include <stdint.h>
+#include <string.h>
+
+#define MEM_BYTES   {mem_bytes}
+#define MEM_ELEMS   (MEM_BYTES / 8)
+#define NREGS       {nregs}
+#define ITERS       {iters}
+
+static uint64_t g_reg[NREGS];
+static uint64_t g_reg2[NREGS];
+static uint64_t mem[MEM_ELEMS] __attribute__((aligned(64)));
+static uint64_t mem2[MEM_ELEMS] __attribute__((aligned(64)));
+
+static uint64_t xs1 = {xs1}ULL;
+static uint64_t xs2 = {xs2}ULL;
+static uint64_t xs64(void)
+{{
+    uint64_t s1 = xs1, s2 = xs2 ^ (xs2 << 23);
+    xs1 = s2; xs2 = s1 ^ (s1 >> 17) ^ (s2 >> 26);
+    return xs1 + s2;
+}}
+
+static uint32_t crc32(const void *buf, size_t n)
+{{
+    const uint8_t *p = (const uint8_t *)buf;
+    uint32_t crc = 0xFFFFFFFFu;
+    for (size_t i = 0; i < n; i++) {{
+        crc ^= p[i];
+        for (int k = 0; k < 8; k++)
+            crc = (crc >> 1) ^ (0xEDB88320u & (uint32_t)(-(int32_t)(crc & 1)));
+    }}
+    return ~crc;
+}}
+
+#if WITH_M5OPS
+static void m5_workbegin(void)
+{{
+    register uint64_t x0 __asm__("x0") = 1, x1 __asm__("x1") = 0;
+    __asm__ volatile(".inst 0x{wb:x}" : "+r"(x0) : "r"(x1) : "memory");
+}}
+static void m5_workend(void)
+{{
+    register uint64_t x0 __asm__("x0") = 1, x1 __asm__("x1") = 0;
+    __asm__ volatile(".inst 0x{we:x}" : "+r"(x0) : "r"(x1) : "memory");
+}}
+#else
+static void m5_workbegin(void) {{}}
+static void m5_workend(void) {{}}
+#endif
+
+int main(void)
+{{
+    /* 确定性初始化：两通道同种子 → 同初值（复算前提）*/
+    for (int i = 0; i < NREGS; i++) {{
+        uint64_t v = xs64();
+        g_reg[i] = v; g_reg2[i] = v;
+    }}
+    for (int i = 0; i < MEM_ELEMS; i++) {{
+        uint64_t v = xs64();
+        mem[i] = v; mem2[i] = v;
+    }}
+    {{ uint64_t w = 0; for (int i = 0; i < 64; i++) w += xs64(); (void)w; }}
+
+    m5_workbegin();
+    for (int it = 0; it < ITERS; it++) {{
+__asm__ volatile (
+{load_body}
+    /* ==== 核心指令序列 pass1（{seq_name}）==== */
+{asm_body}
+{store_body}
+    :
+    : [regs] "r" (g_reg), [base] "r" (mem)
+    : "memory"{clobbers}
+);
+    }}
+    for (int it = 0; it < ITERS; it++) {{
+__asm__ volatile (
+{load_body}
+    /* ==== 核心指令序列 pass2（影子通道，{seq_name}）==== */
+{asm_body}
+{store_body}
+    :
+    : [regs] "r" (g_reg2), [base] "r" (mem2)
+    : "memory"{clobbers}
+);
+    }}
+    m5_workend();
+
+    /* checker 判定（部署态——无 golden）*/
+    uint64_t s1 = 0, s2 = 0;
+    for (int i = 0; i < NREGS; i++) {{
+        s1 = s1 * 1315423911u + g_reg[i];
+        s2 = s2 * 1315423911u + g_reg2[i];
+    }}
+    uint32_t c1 = crc32(mem, sizeof(mem));
+    uint32_t c2 = crc32(mem2, sizeof(mem2));
+    printf("SUM1=%llu CRC1=%08x SUM2=%llu CRC2=%08x\\n",
+           (unsigned long long)s1, c1, (unsigned long long)s2, c2);
+    if (s1 != s2 || c1 != c2)
+        printf("CHECKER=FAIL\\n");
+    else
+        printf("CHECKER=OK\\n");
+    return 0;
+}}
+'''
+
 # 指令池（Task 7.2 随机基线 + Task 6.2 盲变异共用）。
 # ARM64 MUL 是三操作数（无 x86 MUL 隐式写 RAX 的 quirk）。
 # FP 用 D 寄存器（64b double）；FP 初值从 g_reg 载入 v8-v15 需要额外
@@ -225,7 +339,7 @@ def gen_random_sequence(n, mix, rng):
 
 
 def wrap_and_compile(seq_lines, out_path, seq_name, mem_bytes, iters,
-                     seed1, seed2, with_m5ops=True):
+                     seed1, seed2, with_m5ops=True, checker=False):
     """生成 wrapper C 并编译为静态 ELF。返回 (elf_path, c_path)。
 
     with_m5ops=False 时宏 WITH_M5OPS=0（本机可跑，无 ROI 标记）；
@@ -263,6 +377,16 @@ def wrap_and_compile(seq_lines, out_path, seq_name, mem_bytes, iters,
         load_body=load_body, asm_body=asm_body, store_body=store_body,
         clobbers=clobbers,
     )
+    if checker:
+        # SDC-ED Task 7.1 deployment arm: same core sequence, two passes
+        # over shadow channels, self-comparison epilogue (no golden).
+        src = CHECKER_TEMPLATE.format(
+            seq_name=seq_name, n_lines=len(seq_lines), iters=iters,
+            mem_bytes=mem_bytes, nregs=n, xs1=seed1, xs2=seed2,
+            wb=M5_WORKBEGIN, we=M5_WORKEND,
+            load_body=load_body, asm_body=asm_body, store_body=store_body,
+            clobbers=clobbers,
+        )
     c_path = out_path + ".c"
     with open(c_path, "w") as f:
         f.write(src)
@@ -315,6 +439,10 @@ def main():
     ap.add_argument("--no-m5ops", action="store_true",
                     help="编译期去掉 ROI 标记（本机可跑；SUM/CRC 应与 "
                          "gem5 版一致，用于快速确定性验证）")
+    ap.add_argument("--checker", action="store_true",
+                    help="SDC-ED Task 7.1 部署模式：核心序列跑两遍"
+                         "（影子通道），自比对输出 CHECKER=OK/FAIL"
+                         "（无 golden——deployment-detection 臂）")
     args = ap.parse_args()
 
     if not args.seq and not args.random:
@@ -353,7 +481,8 @@ def main():
 
     elf, c = wrap_and_compile(lines, args.out, seq_name, args.mem_bytes,
                               args.iters, args.reg_seed1, args.reg_seed2,
-                              with_m5ops=not args.no_m5ops)
+                              with_m5ops=not args.no_m5ops,
+                              checker=args.checker)
     r = subprocess.run(["file", elf], capture_output=True, text=True)
     print(f"wrapped {len(lines)} lines (iters={args.iters}) -> {elf}")
     print(f"  {r.stdout.strip()}")
