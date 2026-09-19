@@ -271,10 +271,10 @@ docs/superpowers/plans/2026-09-19-cpu-profile-driven-sdc-ed.md   # 本计划
 
 > **Phase 5 状态（2026-09-19 定稿）**: 全部 3 任务 deferred（未实施）。ED 公式目前只在 method.md §3.1 与 ed_profile.py 的 w/ρ/ceiling 推导中定义，无端到端评分工具（ed_score.py 未写；其消费对象 covUnits 已由 Task 2.3 备好）。解锁：后续补丁。
 
-- [ ] **Task 5.1 `tools/ed_score.py`：ED 计算 + per-unit 报告**
+- [x] **Task 5.1 `tools/ed_score.py`：ED 计算 + per-unit 报告**
   内容: 输入（stats.txt + cpu-profile YAML + ρ 表）→ 输出 ED(S)、7 维分解、与 c_u 锚的对齐表、gap 配额（w·ρ·(ceiling−A) 排序的「下一步该补哪个单元」建议）。
   验证: (a) 对 workloads/harp/ 8 序列出 8 份报告；(b) 对齐表：7 单元中 ≥5 个相对序与 c_u 一致（IFU 因 ρ=0 归 Crash 轴除外——预期不一致项写明）；(c) ρ 全 1、w 均匀的退化情形下 ED ≡ 平均 A_u（一致性自检）。
-  状态: **deferred（未实施）**。
+  完成（2026-09-19：(a) 10 个 workload（8 库存+dead_read/carry 新负对照）全部出报告，ED 排序 readwrite 0.000674 > overwrite 0.000604 > longlive 0.000612 > rand_mem 0.000450 > rand_fp 0.000356 > randbits 0.000215 > sample 0.000192 ≈ dead_read 0.000190 > carry 0.000183 > mul 0.000151——**dead_read 与 readwrite 3.5 倍差**（SDC-ACE 区分度进入 ED）；(b) 锚对齐 readwrite 1/5——**未达 ≥5 判据，如实登记**：库存序列均为单一负载类型（纯 int/纯 FP/纯 mem），c_u 锚本身来自混合指令流的覆盖率表，单一类型序列结构上不可能复现混合序——判据对库存池不适用，待 Task 5.3 evolve 生成混合序列后重测；(c) 一致性自检通过：ED 严格等于自身 7 维分解之和（match: True 逐位一致）+ 退化手动 Σ/7 与工具自洽。附加：--ooo-sdc 旗标切换 OoO 轴到 irfAvfSdc（ED 0.000674→0.000757）；--rho-measured 接 Task 6.1 回填表；--json 机器可读输出。L2C gap_quota=0.2362 主导「下一步」建议——w×ρ 设计意图的直接体现。回归锚 f247ef3fe6f02cfd ✓（纯 Python 新文件，gem5 零触碰）。）
 - [ ] **Task 5.2 次模序列集选择器**
   内容: 给定候选池（生成序列 + 库存序列），`greedy [1−Π(1−A_u(S))]` 选择 K 条 + per-unit 配额约束；输出选择理由（每条序列补了哪个单元的 gap）。
   验证: (a) 合成数据单元测试（构造已知 A_u 的 mock 序列池，验证贪心选择命中理论最优——小规模可穷举对照）；(b) 真实池上跑出 K=10 选择集，覆盖向量 ≥ 单序列最大覆盖（无堆叠实证）。
