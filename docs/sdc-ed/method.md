@@ -2,11 +2,11 @@
 
 > 计划：`docs/superpowers/plans/2026-09-19-cpu-profile-driven-sdc-ed.md`（2026-09-19）
 > 本文档是指标定义的**单一权威源**：代码注释、工具帮助文本、标定报告中的公式必须与本文逐字一致。
-> **定稿状态（2026-09-19，Task 7.2）**：本文按计划执行到 Phase 6.1（ρ_u 标定）与 2.3（covUnits
-> 归并）后定稿。已落地：Layer C 三份 CPU 描述 + 解析库、Layer A 分母参数化 + covUnits 7 维
-> 向量 + LSU/L2C 采集升级、ρ_u 11 臂实测回填。deferred：次模选择与 ED 评分器（Phase 5）、
-> lift 主实验（Phase 6.2/6.3）、部署臂（Phase 7.1）——全部按 §7 实施状态表与 §4 诚实边界
-> 如实登记，未做的不粉饰为已做。
+> **定稿状态（2026-09-19，Task 7.2）**：本文按计划执行到 Phase 6.1（ρ_u 标定）、2.3（covUnits
+> 归并）与 3.2（FSU 值类剖面）后定稿。已落地：Layer C 三份 CPU 描述 + 解析库、Layer A 分母
+> 参数化 + covUnits 7 维向量 + LSU/FSU/L2C 采集升级、ρ_u 11 臂实测回填。deferred：次模选择
+> 与 ED 评分器（Phase 5）、lift 主实验（Phase 6.2/6.3）、部署臂（Phase 7.1）等 10 任务——
+> 全部按 §7 实施状态表与 §4 诚实边界如实登记，未做的不粉饰为已做。
 
 ## 1. 背景与动机
 
@@ -159,7 +159,6 @@ checker 候选：同核复算（时间冗余，transient）/ 校验和自比对�
 
 | 计划任务 | 内容 | 状态与原因 |
 |---|---|---|
-| 3.2 | FSU 值类剖面（FP value-class 直方图 + 值类熵） | deferred——未实施；FSU 的 A_u 目前只有 IBR(FP) 分量 |
 | 3.4 | OoO rename 距离分布 + ROB 占用带细化 | deferred——未实施；占用直方图已有，距离分布缺 |
 | 4.1/4.2 | epilogue 可达集 + SDC-ACE 三账本 + gap 指标 | deferred——未实施；**这是「核心超越点」中未落地的那一半**：ED 目前消费裸 ACE 账本，SDC-ACE 的松量量化（dead_read 负对照）未做 |
 | 4.3 | gate 级敏感覆盖臂（IEX 门级位图） | deferred——未实施；含 1/64 采样降级预案未触发（未开工） |
@@ -199,7 +198,7 @@ tools/sfi_lift.py              per-unit lift 战役 + Wilson CI + AUC——defer
 ## 7. 实施状态总表（定稿快照，2026-09-19）
 
 计划实定义 23 任务（0.1-7.2；计划标题写「22 任务」系制定时计数笔误，以 checkbox 清单为准）：
-**12 done / 11 deferred**。逐任务 commit 溯源见
+**13 done / 10 deferred**。逐任务 commit 溯源见
 `docs/superpowers/plans/2026-09-19-cpu-profile-driven-sdc-ed.md` 勾选注记与 AGENT_TASKS.md。
 
 | Phase | 任务 | 状态 |
@@ -207,8 +206,8 @@ tools/sfi_lift.py              per-unit lift 战役 + Wilson CI + AUC——defer
 | 0 | 0.1 构建+双锚 / 0.2 method 骨架 | done |
 | 1 | 1.1 ed_profile / 1.2 三 YAML / 1.3 --profile 入口 | done |
 | 2 | 2.1 IBR 参数化 / 2.2 targetCache 列表化 / 2.3 per-unit 7 维归并 | done |
-| 3 | 3.1 LSU per-slot+load-use / 3.3 L2C 双面账本 | done |
-| 3 | 3.2 FSU 值类剖面 / 3.4 rename 距离 | deferred |
+| 3 | 3.1 LSU per-slot+load-use / 3.2 FSU 值类剖面 / 3.3 L2C 双面账本 | done |
+| 3 | 3.4 rename 距离 | deferred |
 | 4 | 4.1 可达集 / 4.2 SDC-ACE / 4.3 gate 臂 | deferred |
 | 5 | 5.1 ed_score / 5.2 次模选择 / 5.3 evolve 替换 | deferred |
 | 6 | 6.1 ρ 标定战役（11 臂） | done |

@@ -43,6 +43,32 @@ T5-1..T5-6-建议产出    | depends=[T3-*]      | agent | done     | §8 CHAOSR
 T6-1..T6-3-论文收尾    | depends=[T3,T4,T5]  | agent | done     | 五贡献点+诚实边界+终态收尾（d2d111ab/d7646210/本提交）
 T7-1..T7-7-环境门控    | depends=[]          | agent | done     | 全 7 项显式登记（2df8e9a5）
 
+## SDC-ED 评估计划任务（docs/superpowers/plans/2026-09-19-cpu-profile-driven-sdc-ed.md，feat/sdc-ed-eval 分支）
+
+SDCED-0.1-构建双锚      | depends=[]          | agent | done     | gem5 重建 + caches/fu_pool 恢复 + reg_chain f247ef3fe6f02cfd / sample_seq SUM=17994817166615565002 双锚（b882cb24/6eef63bd）
+SDCED-0.2-method骨架    | depends=[SDCED-0.1] | agent | done     | docs/sdc-ed/method.md 指标定义+三层架构+诚实边界 7 项（f503e047）
+SDCED-1.1-ed_profile    | depends=[SDCED-0.2] | agent | done     | YAML 解析 + w/ceiling/ρ初值 推导库，pytest 13/13（da560e02）
+SDCED-1.2-CPU描述YAML   | depends=[SDCED-1.1] | agent | done     | taishan-v110/kunpeng920/neoverse-n2 + schema.md，Σw=1.0，10 字段底表抽查一致（1ceffd45）
+SDCED-1.3-profile入口   | depends=[SDCED-1.2] | agent | done     | configs/se/profile_taishan.py --profile 描述驱动实例化（bf24913f）
+SDCED-2.1-IBR参数化     | depends=[SDCED-0.1] | agent | done     | ibrFuCounts/Widths/cacheNumBlocks/sqEntries 全参数化，8 stat 逐位一致（6eef63bd）
+SDCED-2.2-双cache账本   | depends=[SDCED-2.1] | agent | done     | targetCache 列表化 L1D+L2 独立 block-ACE（7913f11b）
+SDCED-2.3-7维归并       | depends=[SDCED-2.2] | agent | done     | harp.covUnits 7 维向量（OoO=irfAvf/IEX/LSU/FSU/L2C 归并，IFU/MMU 占位），OoO/IEX/LSU 分量与旧标量一致（9274f1e3）
+SDCED-3.1-LSU前转hook   | depends=[SDCED-2.2] | agent | done     | SQ per-slot 前转/写回双账本 + load-use 距离直方图（b8ac04eb）
+SDCED-3.2-FSU值类剖面   | depends=[]          | agent | done     | IEEE754 五类直方图+归一化熵 fpValueHist/fpValueEntropy，randbits_seq rare-bin 端到端命中（7c27f2f2）
+SDCED-3.3-L2C双面账本   | depends=[SDCED-2.2] | agent | done     | data-face/tag-face 双账本 + conflict_seq 别名臂（0759eb58）
+SDCED-3.4-rename距离    | depends=[]          | agent | deferred | rename 距离直方图未实施；解锁：后续补丁
+SDCED-4.1-可达集分析    | depends=[SDCED-2.3] | agent | deferred | epilogue .reach.json taint 源未实施；解锁：后续补丁
+SDCED-4.2-SDC-ACE账本   | depends=[SDCED-4.1] | agent | deferred | 三账本 SDC-ACE 化+gap 指标未实施（核心超越点半边）；解锁：后续补丁
+SDCED-4.3-gate敏感覆盖  | depends=[SDCED-2.3] | agent | deferred | IEX 门级位图差分臂未实施；解锁：后续补丁
+SDCED-5.1-ed_score      | depends=[SDCED-2.3] | agent | deferred | ED 评分器未实施（ED 无端到端工具）；解锁：后续补丁
+SDCED-5.2-次模选择器    | depends=[SDCED-5.1] | agent | deferred | 贪心次模序列集选择未实施；解锁：后续补丁
+SDCED-5.3-evolve替换    | depends=[SDCED-5.1] | agent | deferred | harp_evolve fitness→ED 未实施；解锁：后续补丁
+SDCED-6.1-ρ标定战役     | depends=[SDCED-1.2] | agent | done     | 11 臂×N=100 实测回填 rho_measured；IFU/MMU deferred 引既有证据（271425de）
+SDCED-6.2-lift主实验    | depends=[SDCED-5.2] | agent | deferred | ED-top-K vs 随机 vs legacy 裁决实验未实施；解锁：Phase 5 落地
+SDCED-6.3-负对照迁移    | depends=[SDCED-6.1] | agent | deferred | dead_read 负对照 + neoverse-n2 迁移未实施；解锁：后续补丁
+SDCED-7.1-部署检测臂    | depends=[]          | agent | deferred | 去 golden checker 臂未实施；解锁：后续补丁
+SDCED-7.2-定稿收尾      | depends=[SDCED-6.1] | agent | done     | method.md 定稿+本登记+计划勾选核对+双锚回归（本提交）
+
 ## Deferred（环境门控，显式不遗漏）
 
 D-S4-系统级            | depends=[T3-*]      | agent | deferred | CHAOSCHI/NoC/HCCS ~20 补丁独立子项目；解锁：独立排期立项

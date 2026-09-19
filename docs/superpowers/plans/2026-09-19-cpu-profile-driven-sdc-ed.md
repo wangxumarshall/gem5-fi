@@ -174,7 +174,7 @@ docs/superpowers/plans/2026-09-19-cpu-profile-driven-sdc-ed.md   # 本计划
 
 ---
 
-## 四、任务分解（7 Phase / 22 任务，一补丁一单元）
+## 四、任务分解（7 Phase / 23 任务，一补丁一单元——原写 22 系制定时计数笔误，以 checkbox 清单为准）
 
 ### Phase 0 — 环境重建与方法文档骨架（硬阻塞解除）
 
@@ -234,8 +234,8 @@ docs/superpowers/plans/2026-09-19-cpu-profile-driven-sdc-ed.md   # 本计划
   Files: `inst_queue.cc`（issue 点采样源操作数）、`CHAOSCov.{hh,cc}`。
   内容: FP issue 事件按源操作数位模式分类（normal/subnormal/NaN/Inf/zero，AArch64 double 布局判别），per-FU-class 直方图 + 值类熵 stat `harp.cov.fsu.value_entropy`。**注意：读操作数值须在 issue 点经 getReg 旁路安全读取——若 IQ 阶段操作数未定（举旗等待），回退 execute 完成点采样并诚实记录口径**。
   验证: (a) rand_fp 跑出五类直方图，normal 占主导（随机指数位生成下 NaN/Inf 有非零占比）；(b) 定向构造 subnormal-heavy 序列（新 workload `workloads/harp/subnormal_seq.S`）直方图相应偏移；(c) 回归 golden 不变。
-  完成（2026-09-19，读点安全性实证：ISA execute 经 setRegOperand 直写 PRF、wakeDependents 在 writeback——issue 点（wake 后）源值必驻留 PRF，与 CHAOSFPU 源读 hook 同路径。`harp_fp_class_of` IEEE754 分类器 8 用例单元测试全 OK（normal/subnormal/NaN/Inf/zero/-Inf/sNaN + 10M 随机位模式率校验 sub 0.049%/NaN 0.049%）。rand_fp：FPAdd normal=382/zero=130、熵 0.351；randbits_seq（3000 行随机位模式链）：**subnormal=1、Inf=56 端到端命中**、熵 0.392；分类器对 NaN 由单元测试证明（该负载无 NaN 源）。回归 reg_chain f247ef3fe6f02cfd ✓ 零新警告。诚实边界：Scalar FP 走 RegVal、Vec 走 blob 2-lane（128b 全宽）——subnormal_seq.S 原设计因 fmov 不在白名单改用 ldr 装载随机位模式，定向偏移验证由 randbits 的 rare-bin 命中替代）。
-  状态: **deferred（未实施）**——FSU 的 A_u 目前只有 IBR(FP) 分量。解锁：后续补丁。
+  完成（2026-09-19，读点安全性实证：ISA execute 经 setRegOperand 直写 PRF、wakeDependents 在 writeback——issue 点（wake 后）源值必驻留 PRF，与 CHAOSFPU 源读 hook 同路径。`harp_fp_class_of` IEEE754 分类器 8 用例单元测试全 OK（normal/subnormal/NaN/Inf/zero/-Inf/sNaN + 10M 随机位模式率校验 sub 0.049%/NaN 0.049%）。rand_fp：FPAdd normal=382/zero=130、熵 0.351；randbits_seq（3000 行随机位模式链）：**subnormal=1、Inf=56 端到端命中**、熵 0.392；分类器对 NaN 由单元测试证明（该负载无 NaN 源）。回归 reg_chain f247ef3fe6f02cfd ✓ 零新警告。诚实边界：Scalar FP 走 RegVal、Vec 走 blob 2-lane（128b 全宽）——subnormal_seq.S 原设计因 fmov 不在白名单改用 ldr 装载随机位模式，定向偏移验证由 randbits 的 rare-bin 命中替代）。commit 7c27f2f2。
+  （注：Task 7.2 收尾时清除本条早期登记的「deferred 未实施」行——该行为定稿快照写作时 3.2 尚未合入的临时状态，与 7c27f2f2 的实测完成注记矛盾，以完成为准。）
 - [x] **Task 3.3 L2C data-face/tag-face 双账本**
   Files: `mem/cache/base.cc`（事件点补 tag 语义）、`CHAOSCov.{hh,cc}`。
   内容: read/write/evict hook 补 face 维度：数据面=read 命中数据/fill 数据；tag 面=tag 比较参与的事件（lookup 时 tag 匹配行为——在 satisfyRequest/handleFill 的 blk 选择路径上区分）。per-face aceCycles + Avf。**L2 tag-face AVF 高 = 序列触发了合法别名域 = ECC 盲高危区（39-47% 实测线的覆盖侧对应物）**。
@@ -310,9 +310,9 @@ docs/superpowers/plans/2026-09-19-cpu-profile-driven-sdc-ed.md   # 本计划
 - [x] **Task 7.2 `docs/sdc-ed/method.md` 全文定稿 + AGENT_TASKS.md 登记 + 计划勾选收尾**
   内容: 全部诚实边界汇总（taint 近似、组合逻辑权重系数、gate 网表非 RTL、MMU FS 臂依赖、ρ 置信区间）；AGENT_TASKS.md 登记新任务行；本计划全部 checkbox 勾选且每个已勾任务的验证输出可溯源（commit 哈希）。
   验证: 干净增量构建 0 错误；双回归锚（reg_chain + sample_seq）通过；push `feat/sdc-ed-eval`。
-  完成口径修正（诚实边界）: 计划写「全部 checkbox 勾选」系制定时的预期——实际执行中 Phase 3.2/3.4/4.x/5.x/6.2/6.3/7.1 共 11 任务未实施（部分依赖链未解锁），按「不勾选未验证任务」的纪律保持 `[ ]` 并逐任务登记 deferred 状态与原因（见各任务行「状态」注记）。已勾 12 任务全部附 commit 哈希溯源。method.md 定稿含 §4 诚实边界三张表（预注册核实/标定新增/实施偏差）与 §7 实施状态总表（12 done / 11 deferred）。
-  完成（2026-09-19）：method.md 定稿（ρ_measured 回填表/诚实边界 14 项三表/实施状态总表）+ AGENT_TASKS.md 登记 SDCED-* 24 行 + 本计划全 23 checkbox 核对（12 [x] 均附 commit 哈希，11 [ ] 均附 deferred 状态行）。验证：增量构建 scons done 0 新警告；reg_chain → f247ef3fe6f02cfd；sample_seq → SUM=17994817166615565002 CRC=8f333d15；pytest ed_profile 13/13。
-  收尾修正记录（诚实边界）: 本任务写作期间 Task 2.3（9274f1e3）并行合入——method.md/AGENT_TASKS.md 的 2.3 登记从「deferred 未实施」修正为 done（含分量一致性实测），此前草稿中的 2.3 deferred 表述系快照时序差，已在 §7 总表与 AGENT_TASKS 同步修正。
+  完成口径修正（诚实边界）: 计划写「全部 checkbox 勾选」系制定时的预期——实际执行中 Phase 3.4/4.x/5.x/6.2/6.3/7.1 共 10 任务未实施（部分依赖链未解锁），按「不勾选未验证任务」的纪律保持 `[ ]` 并逐任务登记 deferred 状态与原因（见各任务行「状态」注记）。已勾 13 任务全部附 commit 哈希溯源。method.md 定稿含 §4 诚实边界三张表（预注册核实/标定新增/实施偏差）与 §7 实施状态总表（13 done / 10 deferred）。
+  完成（2026-09-19）：method.md 定稿（ρ_measured 回填表/诚实边界 14 项三表/实施状态总表）+ AGENT_TASKS.md 登记 SDCED-* 24 行 + 本计划全 23 checkbox 核对（13 [x] 均附 commit 哈希，10 [ ] 均附 deferred 状态行）。验证：增量构建 scons done 0 新警告；reg_chain → f247ef3fe6f02cfd；sample_seq → SUM=17994817166615565002 CRC=8f333d15；pytest ed_profile 13/13。
+  收尾修正记录（诚实边界）: 本任务写作期间 Task 2.3（9274f1e3）与 Task 3.2（7c27f2f2）并行合入——method.md/AGENT_TASKS.md 中二者的登记从「deferred 未实施」修正为 done（各含实测注记），此前草稿中的 deferred 表述系快照时序差，已在 §7 总表、§4.3 偏差表与 AGENT_TASKS 同步修正。
 
 ---
 
