@@ -9,6 +9,7 @@
 #include "base/trace.hh"
 #include "debug/CHAOSCov.hh"
 
+#include <algorithm>
 #include <fstream>
 #include <iomanip>
 
@@ -364,6 +365,27 @@ CHAOSCov::finishStats()
         harpStats.ibrFpAdd  = denom[2] ? (double)ibr_input_bits[2] / denom[2] : 0;
         harpStats.ibrFpMul  = denom[3] ? (double)ibr_input_bits[3] / denom[3] : 0;
     }
+    // SDC-ED Task 2.3: merge the per-collector stats into the 7-unit
+    // coverage vector (mapping fixed in CHAOSCov.hh's covUnits comment).
+    // Read back the scalar stats just finalized — the merge is derived,
+    // never double-counted from raw ledgers, so it stays consistent with
+    // the legacy stats by construction.
+    {
+        const double irf_avf = roi_cycles ? harpStats.irfAvf.value() : 0.0;
+        const double iex = std::max(harpStats.ibrIntAdd.value(),
+                                    harpStats.ibrIntMul.value());
+        const double fsu = std::max(harpStats.ibrFpAdd.value(),
+                                    harpStats.ibrFpMul.value());
+        const double l2c = std::max(harpStats.l1dAvf.value(),
+                                    harpStats.l2cAvf.value());
+        harpStats.covUnits[0] = 0.0;   // IFU: Crash axis (ρ=0, Phase 16)
+        harpStats.covUnits[1] = irf_avf;
+        harpStats.covUnits[2] = iex;
+        harpStats.covUnits[3] = roi_cycles ? harpStats.sqAvf.value() : 0.0;
+        harpStats.covUnits[4] = fsu;
+        harpStats.covUnits[5] = 0.0;   // MMU: SE userspace ceiling
+        harpStats.covUnits[6] = l2c;
+    }
     if (detail_stream && detail_stream->stream()) {
         auto &os = *(detail_stream->stream());
         os << "# finish roi_cycles " << roi_cycles << "\n";
@@ -633,7 +655,13 @@ CHAOSCov::HarpStats::HarpStats(statistics::Group *parent)
       ADD_STAT(ibrFpAdd, statistics::units::Ratio::get(),
                "IBR FPAdd = input bits / (256 * instances * ROI cycles)"),
       ADD_STAT(ibrFpMul, statistics::units::Ratio::get(),
-               "IBR FPMul = input bits / (256 * instances * ROI cycles)")
+               "IBR FPMul = input bits / (256 * instances * ROI cycles)"),
+      ADD_STAT(covUnits, statistics::units::Ratio::get(),
+               "SDC-ED 7-unit coverage vector A_u [IFU OoO IEX LSU FSU MMU "
+               "L2C]. IFU=0 (Crash axis, rho=0), MMU=0 (SE ceiling, FS arm "
+               "TBD), OoO=irfAvf, IEX=max(ibrIntAdd,ibrIntMul), LSU=sqAvf, "
+               "FSU=max(ibrFpAdd,ibrFpMul), L2C=max(l1dAvf,l2cAvf). "
+               "Consumed by tools/ed_score.py (ED = Σ w·ρ·q·A_u)")
 {
     ibrInputBits.init(NUM_FU_CLASSES);
     ibrInputBits.subname(0, "IntAdd");
@@ -653,6 +681,15 @@ CHAOSCov::HarpStats::HarpStats(statistics::Group *parent)
                                + "-" + std::to_string(1 << b));
     }
     loadUseDist.subname(LU_BUCKETS - 1, "gt32768");
+    // SDC-ED Task 2.3: 7-unit vector subnames (order fixed in CHAOSCov.hh)
+    covUnits.init(NUM_ED_UNITS);
+    covUnits.subname(0, "IFU");
+    covUnits.subname(1, "OoO");
+    covUnits.subname(2, "IEX");
+    covUnits.subname(3, "LSU");
+    covUnits.subname(4, "FSU");
+    covUnits.subname(5, "MMU");
+    covUnits.subname(6, "L2C");
 }
 
 // ---------------------------------------------------------------------------

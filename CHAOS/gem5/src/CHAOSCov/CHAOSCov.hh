@@ -296,6 +296,8 @@ class CHAOSCov : public SimObject
     // Numerators per FU class (input bits actually delivered), plus issue
     // counts for the advice engine's instruction-mix evidence.
     static constexpr int NUM_FU_CLASSES = 4;  // IntAdd IntMul FPAdd FPMul
+    // SDC-ED Task 2.3: unit-axis size for the covUnits merge vector.
+    static constexpr int NUM_ED_UNITS = 7;    // IFU OoO IEX LSU FSU MMU L2C
     uint64_t ibr_input_bits[NUM_FU_CLASSES] = {0, 0, 0, 0};
     uint64_t ibr_issues[NUM_FU_CLASSES]     = {0, 0, 0, 0};
     // Denominator widths per FU class (paper: theoretical max input bits
@@ -363,6 +365,25 @@ class CHAOSCov : public SimObject
         statistics::Scalar ibrIntMul;
         statistics::Scalar ibrFpAdd;
         statistics::Scalar ibrFpMul;
+        // --- SDC-ED Task 2.3: 7-unit coverage vector ---
+        // Per-unit activation coverage A_u, merged from the collectors
+        // above for tools/ed_score.py (ED = Σ w_u·ρ_u·q_u·A_u). The unit
+        // decomposition is Layer A (CPU-independent); which collector
+        // feeds which unit is fixed here, the weights live in the CPU
+        // profile (Layer B/C):
+        //   [0] IFU  = 0 placeholder (ρ=0 SDC axis per Phase 16; the
+        //              predictor-plane signal goes to the Crash axis —
+        //              SDC-ED Phase 7/8 may add a BPU collector)
+        //   [1] OoO  = irfAvf (width-weighted PRF ACE across the three
+        //              register spaces)
+        //   [2] IEX  = max(ibrIntAdd, ibrIntMul) — integer FU classes
+        //   [3] LSU  = sqAvf (SQ-data ACE; L1D sits on the cache axis)
+        //   [4] FSU  = max(ibrFpAdd, ibrFpMul) — FP FU classes
+        //   [5] MMU  = 0 placeholder (SE userspace ceiling; FS arm TBD)
+        //   [6] L2C  = max(l1dAvf, l2cAvf) — cache hierarchy: the most
+        //              activated level's block-ACE AVF
+        // Legacy scalar stats above are all kept (harp_eval.py compat).
+        statistics::Vector covUnits;
     } harpStats;
 
     void irfFinish();   // close open intervals at ROI end / sim end
