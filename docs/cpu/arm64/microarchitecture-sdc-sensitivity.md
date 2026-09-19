@@ -1,47 +1,20 @@
-# ARM64 五款 CPU 微架构 × SDC 敏感性对比研究
-
-> 调研日期：2026-09-18。
-> 目的：为 CPU 微架构层面的 **SDC（Silent Data Corruption，静默数据损坏）敏感性分析**提供系统化的横向底表。
-> 纵轴 = 微架构部件（按体系结构学界公认的前端/乱序执行引擎/访存/缓存层次/地址转换/RAS 多级分类），
-> 横轴 = 五款芯片：**Kunpeng 920（TaiShan v110）、920f（HiSilicon 0xd22 新核）、Neoverse N1、N2、N3**。
-> 每格尽量标注信息来源；无数据处显式标注「未公开/TRM 未披露」，绝不臆造。
-
----
-
-## 0. 信息来源与可信度分级
-
-| 芯片 | 主要来源 | 性质 | 可信度 |
-|---|---|---|---|
-| Kunpeng 920 | `kungpeng/kunpeng920_microarchitecture.md`（本机实测 + ID 寄存器直读 + 微基准）、`kunpeng920.md`（公开资料汇总）、`kunpeng920_pmu_events.md` | 本机 128 核 TaiShan 200 实测；公开规格为 CnC/LLVM/IEEE Micro | 实测部分 100%；公开规格部分为厂商/第三方宣称 |
-| 920f | `kungpeng/920f.md`（NSCC cn23154 实测） | 未发布 CPU，仅黑盒实测 | 实测部分 100%；无 TRM |
-| Neoverse N1 | `neoverse-n1-trm/neoverse_n1_trm.md`（= TRM 100616_0401_02 全文） | Arm 官方 TRM | 官方文档 100% |
-| Neoverse N2 | `neoverse-n2-trm/arm_neoverse_n2_core_trm_102099_0003_06_en.pdf`（本文引用页码均出自该 PDF） | Arm 官方 TRM | 官方文档 100% |
-| Neoverse N3 | `neoverse-n3-trm/arm_neoverse_n3_core_technical_reference_manual_107997_0001_03_en.pdf` | Arm 官方 TRM | 官方文档 100% |
-
-**SDC 判定基准**（引 Neoverse N1 TRM §9.1 原文）：故障后果二分——「被掩盖、不影响系统输出的良性/假错误」 vs「影响系统服务接口并导致失败的**静默数据损坏**」。微架构层面 SDC 敏感性 = **单位粒子翻转在部件 X 中最终演化为 SDC 的概率**，由四个因子决定：
-1. **有无保护**（无 ECC/parity → 单比特翻转直接改变状态）；
-2. **保护强度**（SED parity 只检 1 位，双位翻转漏检 → TRM 原文明言 "This might cause data corruption"；SECDED 检 2 位）；
-3. **数据流向**（部件承载"数据面"还是"控制面"：数据面错误直接进指令结果；控制面错误多半表现为崩溃/挂起/性能异常，反而不是 SDC）；
-4. **暴露窗口**（状态驻留时间 × 是否会写回下游存储层级）。
-
+# ARM64 CPU 微架构 × SDC 敏感性对比研究
 ---
 
 ## 1. 基本信息
 
 | | Kunpeng 920 | 920f | Neoverse N1 | Neoverse N2 | Neoverse N3 |
 |---|---|---|---|---|---|
-| 厂商/系列 | HiSilicon TaiShan | HiSilicon（未发布） | Arm Neoverse | Arm Neoverse | Arm Neoverse |
-| 微架构名 | TaiShan v110 (TSV110) | part 0xd22（"72F5"，新一代 Taishan，未公开命名） | Neoverse N1 | Neoverse N2 | Neoverse N3 |
-| 架构版本 | ARMv8.2-A | ARMv9（SVE2/SME2；PFR0 实测） | ARMv8.2-A | Armv9.0-A（含至 v8.5 特性） | Armv9.2-A（含至 v8.7 特性） |
+| 厂商/系列 | HiSilicon | HiSilicon | Arm Neoverse | Arm Neoverse | Arm Neoverse |
+| 微架构名 | TaiShan v110 | part 0xd22（"72F5"） | Neoverse N1 | Neoverse N2 | Neoverse N3 |
+| 架构版本 | ARMv8.2-A | ARMv8（SVE2/SME2） | ARMv8.2-A | Armv9.0-A（含v8.5特性） | Armv9.2-A（含v8.7特性） |
 | MIDR part | 0xd01 (0x481fd010) | 0xd22 (0x480fd220) | — | — | — |
-| 定位 | 7nm 数据中心核，chiplet | HPC/超算核（608 核/节点） | 高性能基础设施核 | 高性能/平衡核 | 平衡性能、低功耗、面积受限核 |
+| 定位 | 数据中心 | HPC/超算核 | 高性能基础设施核 | 高性能/平衡核 | 平衡性能、低功耗、面积受限核 |
 | 流水线 | 4-wide OoO，~8 级，PRF 后端 | 未知（SVE512 双 FMA 实测） | 超标量变长 OoO | 超标量 OoO（TRM 未公开宽度） | 超标量 OoO（TRM 未公开宽度） |
 | 簇/共享单元 | 4 核 CCL 共享 L3 tag；SCCL=die | 38 核/NUMA 节点（节点即调度域） | DSU 簇（≤4 核 + L3 可选） | DSU-110 簇 | DSU-120（Direct connect 单核配置无 L3/SCU） |
-| 内存/页 | DDR4-2933 8通道；4KB 实测（内核页大小）；64KB 为 ARMv8.2 架构必备；16KB 未验证（MMFR0 相应字段固件不可读，见源文档可信度警告） | 565GB；**仅 64KB 页**（TGran4=0xf） | 48-bit PA | 48-bit PA（4/16/64KB granule） | 48-bit VA/PA |
-| ISA 边界要点 | 无 SVE/PAC/BTI/LRCPC/AArch32；有 LSE | SVE512+SME2+SHA3/SM3/SM4+LRCPC2/3；BTI=0,MTE=0 | AArch32 EL0；LDAPR(v8.3) | SVE/SVE2 128b 向量；AArch32+AArch64 | 仅 A64；SVE/SVE2 128b 向量 |
-| 主频（实测/典型） | 2.6 GHz 固定 | 2.0 GHz 定频 | ~2.6-3.1 GHz（公开资料，非 TRM 披露） | ~2.4-3.0 GHz（公开资料，非 TRM 披露） | ~2.4-3.0 GHz（公开资料，非 TRM 披露） |
-
-来源：920 实测 lscpu/MIDR；920f 实测（920f.md §1）；N1 TRM §2.2；N2 TRM ch2 p30；N3 TRM ch1 p17。
+| 内存/页 | DDR4-2933 8通道；4KB页大小；64KB 为 ARMv8.2 架构必备；16KB 未验证（MMFR0 相应字段固件不可读，见源文档可信度警告） | 565GB；**64KB**（TGran4=0xf） | 48-bit PA | 48-bit PA（4/16/64KB granule） | 48-bit VA/PA |
+| ISA 边界要点 | 无 SVE/PAC/BTI/LRCPC/AArch32；有 LSE | SVE512+SME2+SHA3/SM3/SM4+LRCPC2/3；BTI=0,MTE=0 | AArch32 EL0；LDAPR(v8.3) | SVE/SVE2 128b；AArch32+AArch64 | 仅 A64；SVE/SVE2 128b|
+| 主频（实测/典型） | 2.6 GHz 固定 | 2.0 GHz 定频 | ~2.6-3.1 GHz（公开资料） | ~2.4-3.0 GHz（公开资料） | ~2.4-3.0 GHz（公开资料） |
 
 ---
 
@@ -55,7 +28,7 @@
 > 因此本文嵌入的是由 SVG 栅格化的 PNG（2× 分辨率）；每图下方附**矢量源文件链接**（.svg，
 > 适合本地浏览/放大/编辑）。
 
-### Kunpeng 920（TaiShan v110）
+### Kunpeng 920
 
 ![Kunpeng 920 微架构功能图](figures/sdc-fig-kunpeng920.png)
 
@@ -64,7 +37,7 @@
 独有/标志性：L3/SLC 三模式（Shared/Private/**Partition 默认**）+ **128B 行**（L1/L2 是 64B）+ tag 在簇侧；
 无 µop cache（取指带宽悬崖）；**RAS=0**（无架构化 RAS，全图唯一的"裸奔"平台）；AIVIVT L1I；NEON 128b 上限。
 
-### 920f（HiSilicon part 0xd22，未发布）
+### 920f（part 0xd22）
 
 ![920f 微架构功能图](figures/sdc-fig-920f.png)
 
