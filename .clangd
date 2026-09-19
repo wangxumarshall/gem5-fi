@@ -5,38 +5,45 @@
 # 并与 CHAOS/gem5/src/ 下的构建镜像保持双副本同步（同一 commit
 # 同时改两棵树）。vendored 树有 compile_commands.json 提供编译标志，
 # 根树没有——本文件把 gem5 构建的 -I/-D 标志（取自
-# build/ARM/compile_commands.json 中 src/CHAOSReg/CHAOSReg.cc 条目，
-# 相对路径已转绝对）显式补齐，使根树文件获得与镜像一致的 LSP 分析。
+# build/ARM/compile_commands.json 中 src/CHAOSReg/CHAOSReg.cc 条目）
+# 显式补齐，使根树文件获得与镜像一致的 LSP 分析。
 #
-# 已知限制（诚实声明）：params/*.hh 是 scons 生成到 build/ARM 的，
-# 根树分析依赖这些生成物存在（跑过一次构建即有）；根树文件不在
-# compile db 中，跨文件 references/workspace 符号仍以 vendored 树
-# 为准（编辑规范：两树同步提交，见 7f538c493 等 commit 的先例）。
+# 可移植性（本版要点）：全部使用相对路径。实测（clangd 22.1.1，
+# 最小用例 /tmp/rt2 系列）相对路径的解析基准是 compile db 的
+# directory 字段（构建根），而非 cwd 或源文件目录——因此必须先
+# 用 CompilationDatabase 显式锚定 db，再写相对 -I。仓库整体迁移
+# 路径后无需修改本文件。
 CompileFlags:
+  # 锚定构建数据库：vendored 树的 db（相对本 .clangd 所在目录）。
+  # 副作用（正向）：根树文件由此获得 db 的 directory 基准与
+  # fallback 命令，相对 -I 全部以此为基准解析。
+  CompilationDatabase: CHAOS/gem5/build/ARM
   Add:
     # 工具链修复（同 CHAOS/gem5/.clangd）：pip 版 clangd 22.1.1 对
     # openEuler gcc 12 的自动探测不完整，显式补 libstdc++ 头路径
+    # （系统路径，绝对本就正确）
     - "-isystem/usr/include/c++/12"
     - "-isystem/usr/include/c++/12/aarch64-openEuler-linux"
     - "-isystem/usr/lib/gcc/aarch64-openEuler-linux/12/include"
-    # gem5 构建标志（compile_commands.json 的 -I 相对路径 → 绝对）
-    - "-I/home/sdc/wangxu/gem5-fi/CHAOS/gem5/src"
-    - "-I/home/sdc/wangxu/gem5-fi/CHAOS/gem5/include"
-    - "-I/home/sdc/wangxu/gem5-fi/CHAOS/gem5/ext"
-    - "-I/home/sdc/wangxu/gem5-fi/CHAOS/gem5/build/ARM"
-    - "-I/home/sdc/wangxu/gem5-fi/CHAOS/gem5/ext/libelf"
-    - "-I/home/sdc/wangxu/gem5-fi/CHAOS/gem5/ext/iostream3"
-    - "-I/home/sdc/wangxu/gem5-fi/CHAOS/gem5/ext/nomali/include"
-    - "-I/home/sdc/wangxu/gem5-fi/CHAOS/gem5/ext/drampower/src"
-    - "-I/home/sdc/wangxu/gem5-fi/CHAOS/gem5/ext/softfloat"
-    - "-I/home/sdc/wangxu/gem5-fi/CHAOS/gem5/ext/fputils/include"
-    - "-I/home/sdc/wangxu/gem5-fi/CHAOS/gem5/ext/libfdt"
-    - "-I/home/sdc/wangxu/gem5-fi/CHAOS/gem5/ext/pybind11/include"
+    # gem5 构建标志（相对 db 目录 = CHAOS/gem5/，与 scons 命令行
+    # 的相对形态一致——从 compile_commands.json 原样照抄）
+    - "-Isrc"
+    - "-Iinclude"
+    - "-Iext"
+    - "-Iext/libelf"
+    - "-Iext/iostream3"
+    - "-Iext/nomali/include"
+    - "-Iext/drampower/src"
+    - "-Iext/softfloat"
+    - "-Iext/fputils/include"
+    - "-Iext/libfdt"
+    - "-Iext/pybind11/include"
     - "-I/usr/include/python3.11"
-    - "-I/home/sdc/wangxu/gem5-fi/CHAOS/gem5/ext/googletest/googletest/include"
-    - "-I/home/sdc/wangxu/gem5-fi/CHAOS/gem5/ext/googletest/googlemock/include"
-    - "-I/home/sdc/wangxu/gem5-fi/CHAOS/gem5/src/systemc/ext/systemc_home/include"
-    - "-I/home/sdc/wangxu/gem5-fi/CHAOS/gem5/build/ARM/systemc/ext"
+    - "-Iext/googletest/googletest/include"
+    - "-Iext/googletest/googlemock/include"
+    - "-Ibuild/ARM"
+    - "-Isrc/systemc/ext/systemc_home/include"
+    - "-Ibuild/ARM/systemc/ext"
     # 关键 -D 宏（compile_commands.json 同源）
     - "-DPROTOBUF_INLINE_NOT_IN_HEADERS=0"
     - "-DPROTOBUF_ENABLE_DEBUG_LOGGING_MAY_LEAK_PII=0"
