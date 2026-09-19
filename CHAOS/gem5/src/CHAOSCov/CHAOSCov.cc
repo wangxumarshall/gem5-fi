@@ -53,10 +53,23 @@ void harp_cov_on_fu_issue(int fu_class, uint64_t src_bits)
     CHAOSCov::instance->fuOnIssue(fu_class, src_bits);
 }
 
-// --- LSQ SQ-data ACE collector hooks (Task 3.2) ---
-void harp_cov_on_sq_write()   { if (CHAOSCov::instance) CHAOSCov::instance->sqOnWrite(); }
-void harp_cov_on_sq_consume() { if (CHAOSCov::instance) CHAOSCov::instance->sqOnConsume(); }
-void harp_cov_on_sq_free()    { if (CHAOSCov::instance) CHAOSCov::instance->sqOnFree(); }
+// --- LSQ SQ-data ACE collector hooks (Task 3.2; SDC-ED Task 3.1 adds
+// the slot index — the legacy aggregate ledger inside the handlers is
+// unchanged) ---
+void harp_cov_on_sq_write(unsigned slot_idx)
+{ if (CHAOSCov::instance) CHAOSCov::instance->sqOnWrite(slot_idx); }
+void harp_cov_on_sq_consume(unsigned slot_idx)
+{ if (CHAOSCov::instance) CHAOSCov::instance->sqOnConsume(slot_idx); }
+void harp_cov_on_sq_free(unsigned slot_idx)
+{ if (CHAOSCov::instance) CHAOSCov::instance->sqOnFree(slot_idx); }
+
+// --- SDC-ED Task 3.1: per-slot forward + load-use distance hooks ---
+void harp_cov_on_sq_forward(unsigned slot_idx)
+{ if (CHAOSCov::instance) CHAOSCov::instance->sqOnForward(slot_idx); }
+void harp_cov_on_load_wb(int class_type, int idx)
+{ if (CHAOSCov::instance) CHAOSCov::instance->loadOnWriteback(class_type, idx); }
+void harp_cov_on_load_use(int class_type, int idx)
+{ if (CHAOSCov::instance) CHAOSCov::instance->loadOnUse(class_type, idx); }
 
 // --- L1D/L2 ACE collector hooks (Task 3.1; SDC-ED Task 2.2 multi-cache) ---
 // The cache pointer identifies which cache instance fired the event;
@@ -155,6 +168,11 @@ CHAOSCov::CHAOSCov(const CHAOSCovParams &p)
     // private to the LSQ).
     sq_entries = p.sqEntries;
     sq_state.clear();
+    sq_state.resize(sq_entries);
+    // SDC-ED Task 3.1: load-use birth marks mirror the IRF spaces (the
+    // load-use interval lives in the PRF; [0]=int [1]=float [2]=vector).
+    for (int c = 0; c < 3; c++)
+        lu_state[c].assign(irf_state[c].size(), 0);
     // SDC-ED Task 2.1: IBR denominators from the CPU profile (defaults =
     // TaiShan v110 fu_pool values; the .py params carry the same defaults,
     // so behavior is unchanged unless a profile overrides them).
@@ -302,6 +320,16 @@ CHAOSCov::finishStats()
     if (roi_cycles > 0 && sq_entries > 0)
         harpStats.sqAvf =
             (double)sq_ace_cycles / ((double)sq_entries * (double)roi_cycles);
+    // SDC-ED Task 3.1: per-slot forward/wb face split + load-use histogram
+    harpStats.sqForwards = sq_forwards;
+    harpStats.sqForwardAceCycles = sq_fwd_ace_cycles;
+    harpStats.sqWritebackAceCycles = sq_wb_ace_cycles;
+    if (roi_cycles > 0 && sq_entries > 0)
+        harpStats.sqForwardAvf =
+            (double)sq_fwd_ace_cycles
+            / ((double)sq_entries * (double)roi_cycles);
+    for (int b = 0; b < LU_BUCKETS; b++)
+        harpStats.loadUseDist[b] = lu_hist[b];
     // IBR (paper: input bits / theoretical max at every ROI cycle).
     for (int c = 0; c < 4; c++) {
         harpStats.ibrInputBits[c] = ibr_input_bits[c];
@@ -352,6 +380,15 @@ CHAOSCov::finishStats()
            << " writes " << sq_writes
            << " consumes " << sq_consumes
            << " frees " << sq_frees << "\n";
+        // SDC-ED Task 3.1 detail: forward/wb face split + load-use hist
+        os << "sq_fwd forwards " << sq_forwards
+           << " fwd_ace_cycles " << sq_fwd_ace_cycles
+           << " wb_ace_cycles " << sq_wb_ace_cycles << "\n";
+        os << "load_use samples " << lu_samples
+           << " hist (buckets 0,1,2,4,...,32768,>32768)";
+        for (int b = 0; b < LU_BUCKETS; b++)
+            os << " " << lu_hist[b];
+        os << "\n";
         os << "ibr";
         for (int c = 0; c < 4; c++)
             os << " " << ibr_input_bits[c] << "/" << ibr_issues[c];
@@ -384,6 +421,15 @@ CHAOSCov::irfOnWrite(int class_type, int idx)
     st.ever_read = false;
     st.last_commit_read = now;
     st.ever_commit_read = false;
+    // SDC-ED Task 3.1: any producer write invalidates a pending load-use
+    // birth mark on this slot (the load value was overwritten before its
+    // first committed consumption — dead interval, not counted). The
+    // load's OWN writeback re-marks the slot right after (completeAcc:
+    // setReg fires first, then harp_cov_on_load_wb — call order in
+    // LSQUnit::writeback, measured).
+    if (class_type >= 0 && class_type <= 2 &&
+        (size_t)idx < lu_state[class_type].size())
+        lu_state[class_type][idx] = 0;
 }
 
 void
@@ -530,6 +576,24 @@ CHAOSCov::HarpStats::HarpStats(statistics::Group *parent)
       ADD_STAT(sqAvf, statistics::units::Ratio::get(),
                "SQ AVF = ACE cycles / (SQEntries * ROI cycles). Paper: "
                "SQ-data ACE (Micro'26 adds the LSQ as a bit-array)"),
+      ADD_STAT(sqForwards, statistics::units::Count::get(),
+               "Store→load forwards observed (per-slot ledger; the load "
+               "consumed the store data inside the SQ)"),
+      ADD_STAT(sqForwardAceCycles, statistics::units::Cycle::get(),
+               "SQ data-field ACE cycles attributable to forwarding "
+               "consumption (per-slot exact ledger — supersedes the "
+               "aggregate approximation for the forward face)"),
+      ADD_STAT(sqWritebackAceCycles, statistics::units::Cycle::get(),
+               "SQ data-field ACE cycles attributable to memory-writeback "
+               "consumption (per-slot exact ledger)"),
+      ADD_STAT(sqForwardAvf, statistics::units::Ratio::get(),
+               "Forward-face SQ AVF = forward ACE cycles / (SQEntries * "
+               "ROI cycles) (SDC-ED LSU unit, forward coverage)"),
+      ADD_STAT(loadUseDist, statistics::units::Count::get(),
+               "Load-use distance histogram: cycles between a load's data "
+               "writeback into the PRF and its first commit-confirmed "
+               "consumption. Buckets: [0]=0, [i]=2^(i-1)..2^i cycles, "
+               "[16]=>32768 (SDC-ED LSU unit, load-use distance)"),
       ADD_STAT(ibrInputBits, statistics::units::Bit::get(),
                "IBR numerator: input bits delivered per FU class "
                "[0=IntAdd 1=IntMul 2=FPAdd 3=FPMul]"),
@@ -554,6 +618,14 @@ CHAOSCov::HarpStats::HarpStats(statistics::Group *parent)
     ibrIssues.subname(1, "IntMul");
     ibrIssues.subname(2, "FPAdd");
     ibrIssues.subname(3, "FPMul");
+    // SDC-ED Task 3.1: load-use distance buckets (0, 1, 2, 4, ..., >32768)
+    loadUseDist.init(LU_BUCKETS);
+    loadUseDist.subname(0, "c0");
+    for (int b = 1; b < LU_BUCKETS - 1; b++) {
+        loadUseDist.subname(b, "c" + std::to_string(1 << (b - 1))
+                               + "-" + std::to_string(1 << b));
+    }
+    loadUseDist.subname(LU_BUCKETS - 1, "gt32768");
 }
 
 // ---------------------------------------------------------------------------
@@ -588,15 +660,26 @@ struct HarpSqOpenInterval
 static std::vector<HarpSqOpenInterval> harp_sq_open;
 
 void
-CHAOSCov::sqOnWrite()
+CHAOSCov::sqOnWrite(unsigned slot_idx)
 {
     if (!roi_active) return;
     sq_writes++;
     harp_sq_open.push_back({roi_cycles, false});
+    // SDC-ED Task 3.1 per-slot ledger: data entered this slot's data
+    // field — birth of both the forward-face and wb-face intervals.
+    if (slot_idx < sq_state.size()) {
+        auto &st = sq_state[slot_idx];
+        st.birth = roi_cycles;
+        st.last_consume = roi_cycles;
+        st.last_forward = roi_cycles;
+        st.has_data = true;
+        st.ever_consumed = false;
+        st.ever_forwarded = false;
+    }
 }
 
 void
-CHAOSCov::sqOnConsume()
+CHAOSCov::sqOnConsume(unsigned slot_idx)
 {
     if (!roi_active) return;
     // A consume event closes ONE open interval (the SQ drains roughly in
@@ -608,10 +691,24 @@ CHAOSCov::sqOnConsume()
         harp_sq_open.erase(harp_sq_open.begin());
     }
     sq_consumes++;
+    // SDC-ED Task 3.1 per-slot wb ledger: the memory writeback consumed
+    // this slot's data (writeback face of the SQ-data ACE).
+    if (slot_idx < sq_state.size()) {
+        auto &st = sq_state[slot_idx];
+        if (st.has_data) {
+            if (!st.ever_consumed) {
+                sq_wb_ace_cycles += roi_cycles - st.birth;
+                st.ever_consumed = true;
+            } else {
+                sq_wb_ace_cycles += roi_cycles - st.last_consume;
+            }
+            st.last_consume = roi_cycles;
+        }
+    }
 }
 
 void
-CHAOSCov::sqOnFree()
+CHAOSCov::sqOnFree(unsigned slot_idx)
 {
     if (!roi_active) return;
     sq_frees++;
@@ -619,6 +716,84 @@ CHAOSCov::sqOnFree()
     // un-ACE — drop the oldest open interval without accumulating.
     if (!harp_sq_open.empty())
         harp_sq_open.erase(harp_sq_open.begin());
+    // SDC-ED Task 3.1 per-slot ledger: slot released — close the value's
+    // intervals. Un-consumed tails (neither forwarded nor written back
+    // since the last event) are un-ACE and add nothing (already the case:
+    // each face only ever accumulated up to its last event).
+    if (slot_idx < sq_state.size())
+        sq_state[slot_idx].has_data = false;
+}
+
+// ---------------------------------------------------------------------------
+// SDC-ED Task 3.1: per-slot forward ledger + load-use distance
+// ---------------------------------------------------------------------------
+// The forwarding hook fires at the exact store→load forwarding hit in
+// LSQUnit::read (FullAddrRangeCoverage branch), with the SQ slot id
+// (absolute index mod capacity — the data-array position). This is the
+// per-slot read-type consumption the Task 3.2 aggregate approximated:
+//
+//   forward-ACE  [store-data write, forwarding read]   — this ledger
+//   wb-ACE       [store-data write, memory writeback]  — sqOnConsume
+//
+// Both ledgers are per-slot: a forwarded store that is later written back
+// to memory contributes to BOTH (its data was consumed twice — by the
+// forwarding load inside the SQ, and by the memory system at writeback),
+// which the aggregate approximation could not express.
+
+void
+CHAOSCov::sqOnForward(unsigned slot_idx)
+{
+    if (!roi_active) return;
+    if (slot_idx >= sq_state.size()) return;   // defensive: config mismatch
+    auto &st = sq_state[slot_idx];
+    const uint64_t now = roi_cycles;
+    // Forward is a read of the value written at st.birth (or extends the
+    // forward interval from the last forward). Only stores that wrote
+    // actual data open a per-slot interval (write() fires sqOnWrite at the
+    // same slot; sqOnWrite below is bookkeeping for the aggregate).
+    if (!st.has_data) return;
+    if (!st.ever_forwarded) {
+        sq_fwd_ace_cycles += now - st.birth;
+        st.ever_forwarded = true;
+    } else {
+        sq_fwd_ace_cycles += now - st.last_forward;
+    }
+    st.last_forward = now;
+    sq_forwards++;
+}
+
+void
+CHAOSCov::loadOnWriteback(int class_type, int idx)
+{
+    if (!roi_active) return;
+    if (class_type < 0 || class_type > 2) return;
+    if (idx < 0 || (size_t)idx >= lu_state[class_type].size()) return;
+    // Birth of the load-use interval: load data entered the PRF this cycle.
+    // Cycle 0 is reserved as "no mark" (roi_cycles is 0 before the first
+    // ROI cycle; a mark set in the very first ROI cycle would read as
+    // empty — accept that one-off imprecision rather than paying an extra
+    // flag word per reg; the first ROI cycle is the m5ops marker tick).
+    lu_state[class_type][idx] = roi_cycles ? roi_cycles : 1;
+}
+
+void
+CHAOSCov::loadOnUse(int class_type, int idx)
+{
+    if (!roi_active) return;
+    if (class_type < 0 || class_type > 2) return;
+    if (idx < 0 || (size_t)idx >= lu_state[class_type].size()) return;
+    const uint64_t birth = lu_state[class_type][idx];
+    if (!birth) return;   // not fresh load data — nothing to close
+    const uint64_t dist = roi_cycles - birth;
+    lu_state[class_type][idx] = 0;   // interval closed
+    lu_samples++;
+    // Bucket: powers of two — b[i] = cycles in (2^(i-1), 2^i], b[0]=0,
+    // b[16]=>32768.
+    unsigned b = LU_BUCKETS - 1;
+    for (unsigned i = 0; i < LU_BUCKETS - 1; i++) {
+        if (dist <= (1ull << i)) { b = i; break; }
+    }
+    lu_hist[b]++;
 }
 
 // ---------------------------------------------------------------------------

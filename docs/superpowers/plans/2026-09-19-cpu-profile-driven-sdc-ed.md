@@ -216,7 +216,7 @@ docs/superpowers/plans/2026-09-19-cpu-profile-driven-sdc-ed.md   # 本计划
 
 ### Phase 3 — 采集精度升级（A_u 的三个新信号）
 
-- [ ] **Task 3.1 LSU 前转 per-slot hook + load-use 距离 stat**（消除 method.md 已声明的聚合近似）
+- [x] **Task 3.1 LSU 前转 per-slot hook + load-use 距离 stat**（消除 method.md 已声明的聚合近似）
   Files: `lsq_unit.cc`（前转匹配处 + load 数据返回处）、`CHAOSCov.{hh,cc}`。
   内容: `LSQUnit::read` 的 store→load 前转成功点加 `harp_cov_on_sq_forward(slot_idx)`；SQ 账本改 per-slot（消除「按序关闭最老开区间」近似）；新增 load-use 距离直方图（load 写回 → 首次 getReg 消费）。
   验证: (a) rand_mem 跑出 sqForwardCycles 与 writeback 账本分离且 sqAvf 数值变化（近似消除的实证，差异写进 commit message）；(b) 回归 golden 不变。

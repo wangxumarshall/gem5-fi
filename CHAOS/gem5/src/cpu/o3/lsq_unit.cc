@@ -58,10 +58,16 @@
 namespace gem5
 {
 
-// Harpocrates SQ-data ACE hooks (harp plan Task 3.2).
-void harp_cov_on_sq_write();
-void harp_cov_on_sq_consume();
-void harp_cov_on_sq_free();
+// Harpocrates SQ-data ACE hooks (harp plan Task 3.2; SDC-ED Task 3.1 adds
+// the slot index for the per-slot ledger — legacy aggregate behavior of
+// the first three hooks is unchanged).
+void harp_cov_on_sq_write(unsigned slot_idx);
+void harp_cov_on_sq_consume(unsigned slot_idx);
+void harp_cov_on_sq_free(unsigned slot_idx);
+// SDC-ED Task 3.1: per-slot forward hook + load writeback hook (load-use
+// distance birth). Both guarded by harp_enabled at the call sites.
+void harp_cov_on_sq_forward(unsigned slot_idx);
+void harp_cov_on_load_wb(int class_type, int idx);
 extern bool harp_enabled;
 
 namespace o3
@@ -881,9 +887,11 @@ LSQUnit::writebackStores()
         else
             memcpy(inst->memData, storeWBIt->data(), request->_size);
         // Harpocrates SQ-data ACE: data consumed by the final memory
-        // writeback — closes its interval with ACE use (Task 3.2).
+        // writeback — closes its interval with ACE use (Task 3.2; SDC-ED
+        // Task 3.1 passes the slot for the per-slot wb ledger).
         if (harp_enabled)
-            harp_cov_on_sq_consume();
+            harp_cov_on_sq_consume(
+                (unsigned)(storeWBIt.idx() % storeQueue.capacity()));
 
         request->buildPackets();
 
@@ -1125,6 +1133,25 @@ LSQUnit::writeback(const DynInstPtr &inst, PacketPtr pkt)
         if (inst->fault == NoFault) {
             // Complete access to copy data to proper place.
             inst->completeAcc(pkt);
+
+            // SDC-ED Task 3.1: load result written back to the PRF (via
+            // setRegOperand → CPU::setReg → regFile.setReg inside
+            // completeAcc — both ldr and ldp destinations, measured). Mark
+            // each renamed dest as "fresh load data" for the load-use
+            // distance histogram (birth = this cycle). The first
+            // commit-confirmed consumption closes the interval.
+            if (harp_enabled) {
+                for (size_t d = 0; d < inst->numDestRegs(); ++d) {
+                    const PhysRegIdPtr reg = inst->renamedDestIdx(d);
+                    const auto cls = reg->classValue();
+                    if (cls == IntRegClass)
+                        harp_cov_on_load_wb(0, reg->index());
+                    else if (cls == FloatRegClass)
+                        harp_cov_on_load_wb(1, reg->index());
+                    else if (cls == VecRegClass || cls == VecElemClass)
+                        harp_cov_on_load_wb(2, reg->index());
+                }
+            }
         } else {
             // If the instruction has an outstanding fault, we cannot complete
             // the access as this discards the current fault.
@@ -1176,9 +1203,11 @@ LSQUnit::completeStore(typename StoreQueue::iterator store_idx)
     store_idx->completed() = true;
     --storesToWB;
     // Harpocrates SQ-data ACE: SQ entry cleared — interval closes
-    // (un-consumed = squashed/never-forwarded = un-ACE) (Task 3.2).
+    // (un-consumed = squashed/never-forwarded = un-ACE) (Task 3.2; SDC-ED
+    // Task 3.1 passes the slot for the per-slot ledger).
     if (harp_enabled)
-        harp_cov_on_sq_free();
+        harp_cov_on_sq_free(
+            (unsigned)(store_idx.idx() % storeQueue.capacity()));
     // A bit conservative because a store completion may not free up entries,
     // but hopefully avoids two store completions in one cycle from making
     // the CPU tick twice.
@@ -1588,6 +1617,16 @@ LSQUnit::read(LSQRequest *request, ssize_t load_idx)
                 // Don't need to do anything special for split loads.
                 ++stats.forwLoads;
 
+                // SDC-ED Task 3.1: store→load forwarding succeeded — the
+                // store's data is consumed IN THE SQ (never leaves as the
+                // writeback's memory request for these bytes). Per-slot
+                // event for the forward ledger (slot id = absolute SQ index
+                // mod capacity — the stable data-array position; the
+                // collector maps it onto its sq_state vector).
+                if (harp_enabled)
+                    harp_cov_on_sq_forward(
+                        (unsigned)(store_it._idx % storeQueue.capacity()));
+
                 return NoFault;
             } else if (
                     coverage == AddrRangeCoverage::PartialAddrRangeCoverage) {
@@ -1695,9 +1734,11 @@ LSQUnit::write(LSQRequest *request, uint8_t *data, ssize_t store_idx)
         !request->req()->isAtomic()) {
         memcpy(storeQueue[store_idx].data(), data, size);
         // Harpocrates SQ-data ACE: store data now resident in the SQ
-        // data field — opens its interval (Task 3.2).
+        // data field — opens its interval (Task 3.2; SDC-ED Task 3.1
+        // passes the slot for the per-slot ledger).
         if (harp_enabled)
-            harp_cov_on_sq_write();
+            harp_cov_on_sq_write(
+                (unsigned)(store_idx % storeQueue.capacity()));
     }
 
     // This function only writes the data to the store queue, so no fault

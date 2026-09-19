@@ -53,6 +53,18 @@ void harp_cov_on_prf_alloc(int class_type, int idx);   // freeList getReg
 void harp_cov_on_prf_free(int class_type, int idx);    // freeList addReg
 bool harp_cov_prf_enabled();  // fast guard for inline hot paths
 
+// --- SDC-ED Task 3.1: SQ per-slot forward + load-use distance hooks ---
+// Called from cpu/o3/lsq_unit.cc (forwarding hit / load writeback) and
+// cpu/o3/commit.cc (commit-confirmed use). No-ops unless mounted. The
+// first three hooks gained a slot_idx parameter (per-slot ledger); their
+// legacy aggregate accounting is unchanged.
+void harp_cov_on_sq_write(unsigned slot_idx);    // store data → SQ slot
+void harp_cov_on_sq_consume(unsigned slot_idx);  // SQ data → memory writeback
+void harp_cov_on_sq_free(unsigned slot_idx);     // SQ slot released
+void harp_cov_on_sq_forward(unsigned slot_idx);  // store→load forward hit
+void harp_cov_on_load_wb(int class_type, int idx);  // load data → PRF write
+void harp_cov_on_load_use(int class_type, int idx); // committed consumption
+
 // --- Cache block-ACE ledger types (Task 3.1; SDC-ED Task 2.2 multi-cache) ---
 // Block-granular interval state, keyed by CacheBlk pointer (stable for the
 // lifetime of the tags store). Same Fig.3 semantics as the IRF: fill/store
@@ -125,10 +137,24 @@ class CHAOSCov : public SimObject
     // CHAOSCov.cc call it before invoking the handlers.
     CacheLedger *ledgerFor(void *cache);
 
-    // --- LSQ SQ-data ACE collector (Task 3.2) ---
-    void sqOnWrite();
-    void sqOnConsume();
-    void sqOnFree();
+    // --- LSQ SQ-data ACE collector (Task 3.2; SDC-ED Task 3.1 adds the
+    // slot index — the legacy aggregate interval ledger inside these
+    // handlers is unchanged, the per-slot forward/wb ledgers are new) ---
+    void sqOnWrite(unsigned slot_idx);
+    void sqOnConsume(unsigned slot_idx);
+    void sqOnFree(unsigned slot_idx);
+    // SDC-ED Task 3.1: per-slot forward + load-use-distance collectors.
+    // sqOnForward(slot): a load consumed this SQ slot's data IN THE QUEUE
+    //   (store→load forwarding) — read-type consumption, kept in a separate
+    //   ledger from the writeback consumption (sqOnConsume) so the forward
+    //   face and writeback face of SQ-data ACE can be reported apart.
+    // loadOnWriteback(class, idx): a load result was written back to the
+    //   PRF (birth of the load-use interval). loadOnUse(class, idx): first
+    //   commit-confirmed consumption — closes the interval, feeding the
+    //   load-use distance histogram.
+    void sqOnForward(unsigned slot_idx);
+    void loadOnWriteback(int class_type, int idx);
+    void loadOnUse(int class_type, int idx);
 
     // --- IBR collector (Task 4.1) ---
     void fuOnIssue(int fu_class, uint64_t src_bits);
@@ -213,11 +239,42 @@ class CHAOSCov : public SimObject
         uint64_t last_consume = 0;
         bool has_data = false;
         bool ever_consumed = false;
+        // SDC-ED Task 3.1: forward-consumption mirror of the Task 3.2
+        // aggregate event stream — the per-slot ledger that eliminates the
+        // "close the oldest open interval" approximation for the
+        // forwarding face. ever_forwarded marks that this value was read
+        // inside the SQ (store→load forwarding), independently of the
+        // writeback consumption.
+        uint64_t last_forward = 0;
+        bool ever_forwarded = false;
     };
     std::vector<SqState> sq_state;
     unsigned sq_entries = 0;
     uint64_t sq_ace_cycles = 0;
     uint64_t sq_writes = 0, sq_consumes = 0, sq_frees = 0;
+    // SDC-ED Task 3.1 per-slot forward ledger: forwarding is a read-type
+    // consumption of the SQ data (the load reads the store's data IN the
+    // queue). ACE split:
+    //   sq_fwd_ace_cycles  — intervals closed/extended by forwards
+    //   sq_wb_ace_cycles   — intervals closed/extended by writebacks
+    // (sq_ace_cycles above remains the legacy aggregate — unchanged stats.)
+    uint64_t sq_fwd_ace_cycles = 0;
+    uint64_t sq_wb_ace_cycles = 0;
+    uint64_t sq_forwards = 0;
+    // --- load-use distance state (SDC-ED Task 3.1) ---
+    // Birth marks: phys reg slots whose current value was produced by a
+    // LOAD writeback and not yet consumed by a committed instruction.
+    // loadOnWriteback sets the birth cycle; the first commit-confirmed
+    // read of the slot (loadOnUse) closes the interval and buckets
+    // (cycle_now - birth). Any intervening producer write clears the mark
+    // (the load value was overwritten — interval dead, not counted).
+    // Mirrors the irf_state spaces [0]=int [1]=float [2]=vector.
+    std::vector<uint64_t> lu_state[3];
+    uint64_t lu_samples = 0, lu_dead = 0;
+    // Histogram buckets: powers of two up to 2^16, then an open last
+    // bucket (16 buckets total: 0,1,2,4,...,32768,>32768).
+    static constexpr int LU_BUCKETS = 17;
+    uint64_t lu_hist[LU_BUCKETS] = {0};
 
     // --- IBR state (Task 4.1; SDC-ED Task 2.1 parameterized) ---
     // Numerators per FU class (input bits actually delivered), plus issue
@@ -270,6 +327,12 @@ class CHAOSCov : public SimObject
         statistics::Scalar sqConsumes;
         statistics::Scalar sqFrees;
         statistics::Scalar sqAvf;
+        // SDC-ED Task 3.1: forward/writeback face split + load-use distance
+        statistics::Scalar sqForwards;
+        statistics::Scalar sqForwardAceCycles;
+        statistics::Scalar sqWritebackAceCycles;
+        statistics::Scalar sqForwardAvf;
+        statistics::Vector loadUseDist;
         // --- IBR (Task 4.1) ---
         statistics::Vector ibrInputBits;
         statistics::Vector ibrIssues;
