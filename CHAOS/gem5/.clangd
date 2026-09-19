@@ -1,0 +1,11 @@
+# clangd 配置（harp 工程 LSP 支持添加时引入）。
+# pip 安装的 clangd 22.1.1 自动探测 gcc 12 工具链不完整：
+# 实测 cc1 参数里 -internal-externc-isystem /include 为空路径、
+# C++ 标准库路径缺失，报 "no member named 'runtime_error' in
+# namespace 'std'"（同一文件 scons/g++ 编译零错误——纯工具链配置
+# 问题，非代码缺陷）。显式补上系统 libstdc++ 头路径。
+CompileFlags:
+  Add:
+    - "-isystem/usr/include/c++/12"
+    - "-isystem/usr/include/c++/12/aarch64-openEuler-linux"
+    - "-isystem/usr/lib/gcc/aarch64-openEuler-linux/12/include"
