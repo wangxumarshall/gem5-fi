@@ -7,7 +7,7 @@
 - C1. IEX（Int instr Execute）：ALU Issue Queue、LSU/MDU/SYS Issue Queue、Int Physically Registor File、ALU执行单元、MDU执行单元（整数乘除）、MSR/CP15；
 - D. LSU（Load Store Unit）：LS（AGU/load）、STD（AGU/store）、L1-dTLB、Store Queue、L1d-Cache（tag/data/aux tag）；原子与同步单元（执行原子读改写如 CAS/atomic RMW、缓存行锁、总线锁，fence/barrier多核同步）；数据预取器（L1 PHT（prefetch history table）/TLB prefetcher/region prefetcher/L2 prefecther）
 - C2. FSU（FP/SIMD Unit）：FP/SIMD Issue Queue、FP/SIMD PRF、FSU Pipe执行单元；
-- Cx. FP/SIMD：2×FP；FP32 FMA 2/cyc（128b），FP64；FADD 4/FMUL 5/FMA 5–7 cyc；NEON128 2/cyc；SVE512 FMA ≥2/cyc；SVE128b FMA
+  - Cx. FP/SIMD：2×FP；FP32 FMA 2/cyc（128b），FP64；FADD 4/FMUL 5/FMA 5–7 cyc；NEON128 2/cyc；SVE512 FMA ≥2/cyc；SVE128b FMA
 
 - C3. Crypto：AES+PMULL/SHA1/SHA2/SHA3/SHA256/CRC32/SM3/SM4/EOR3/XAR/BCAX
 
@@ -25,7 +25,7 @@ FP/SIMD：2×FP；FP32 FMA 2/cyc（128b），FP64；FADD 4/FMUL 5/FMA 5–7 cyc�
 ## 2. CPU 微架构对比与 SDC 敏感性
 
 
-### 2.1 微架构分组与单元全景（源自 sdc-fig-arm64.html）
+### 2.1 微架构分组与单元全景
 
 | 分区 | 逻辑图单元清单 |
 |---|---|
@@ -148,7 +148,7 @@ detect a double bit error. This might cause data corruption."）。
   L1D 辅助标签状态）、**TLB 整体 SED**、**L2 ECC granule 可配 128/256b**、分裂 L2 TLB + walk cache、
   CHI-E 256-bit、v9.2-A 全量、Node0 覆盖 MMU/TLB。但执行阵列仍无披露。
 
-#### 2.3.5 分核 SDC 画像（速记）
+#### 2.3.5 分核 SDC 画像
 
 | 核 | SDC 敏感性定位 | 关键薄弱点 | 最值得打点的注入靶 |
 |---|---|---|---|
