@@ -104,10 +104,21 @@ L2C=max(l1dAvf,l2cAvf)、IFU/MMU=0 占位），供 ed_score.py 消费。
 
 ```
 SDC-ACE 区间 = [write, last_read_on_path_to_checkable_output)
-gap 指标     = (ACE − SDC-ACE) / ACE   （序列设计缺陷证据，喂 advice 引擎）
+gap 指标     = (commit-confirmed ACE − SDC-ACE) / commit-confirmed ACE
+               （同一读流基线：SDC replay 骑 commit 读流——wrong-path 读
+                 天然排除；对照乐观账本会产生负 gap，实测后修正）
 ```
 
-读事件在「校验输出可达集」（harp_wrap epilogue 生成的 `.reach.json` 静态清单）内 → 双计（ACE + SDC-ACE）；可达集外 → 仅 ACE。
+**实现（Task 4.1/4.2 已落地，动态反向切片而非静态清单）**：
+commit 点收集每条提交指令的数据流节点（dsts/srcs 物理寄存器 + store 标志，producer 前向快照）；finishStats 反向扫——**sink = 提交的 store**（wrapper CRC 覆盖全部 mem、epilogue 哈希存回后的 g_reg；store 的 data+addr 源都在输出可达路径上），on-path 节点的 producer 递归标记（一遍 O(n) 闭包，src_prod[i]<i 保证）。读事件按**节点级** on-path 分类（同 slot 的死区间不因终值存回而混入——比 slot 级 OR 严格）。负对照实测（2026-09-19）：
+
+| 负载 | commit-ACE | SDC-ACE | gap |
+|---|---|---|---|
+| dead_read_seq（读喂被覆盖的死链） | 0.018793 | 0.015105 | **0.196** |
+| readwrite_seq（链直达存回） | 0.053536 | 0.050213 | **0.062** |
+| sample_seq（全直达） | 0.015823 | 0.015823 | **0** |
+
+诚实边界：① slice 不追值依赖的控制流（完整程序切片的差距由上表负对照量化——dead_read 的 0.196 即「读而不达」的实测松量下界）；② 静态 `.reach.json` 清单设计被动态切片取代（wrapper 无条件存回全部 20 寄存器，静态可达集无区分度——实测后弃用）；③ 事件流上限 4M（超出退化并记录）。
 
 ### 3.5 序列集选择（次模）
 
@@ -133,7 +144,7 @@ checker 候选：同核复算（时间冗余，transient）/ 校验和自比对�
 
 | # | 边界 | 说明 | 执行后状态 |
 |---|---|---|---|
-| 1 | SDC-taint 是「epilogue 可达性」近似 | 不追值依赖控制流；与完整程序切片的差距由负对照量化 | **未触及**——Task 4.1/4.2（SDC-ACE 账本）deferred，本边界目前是纯设计声明 |
+| 1 | SDC-taint 是动态反向切片近似 | 不追值依赖控制流；与完整程序切片的差距由负对照量化 | **已量化**（2026-09-19）——dead_read 负对照 gap=0.196 即「读而不达」的实测松量下界；Task 4.1/4.2 落地为 commit 流动态切片（静态清单方案实测无区分度后弃用） |
 | 2 | 组合逻辑翻转份额按 1/3 SRAM 权重折算 | 系数是文献级先验，进 residuals 声明 | 生效中（ed_profile.py COMBINATIONAL_WEIGHT，三份 YAML residuals 自动附加） |
 | 3 | gate 网表是合成模型非真实 RTL | Kogge-Stone 1154 门 + 移位加 44418 门（已三层等值验证）；GeFIN RTL 不可得 | 生效中；gate 差分覆盖臂（Task 4.3）deferred，网表仅用于既有注入器 |
 | 4 | MMU ρ 依赖 FS 臂 | kernel/disk 镜像未入库时降级为 SE 可达子集 + deferred 登记 | **按预案触发**——FS 镜像不可用，ρ_MMU=0.00（SE）引用 addrmap 384/384 Masked，FS 臂 deferred |
@@ -160,7 +171,7 @@ checker 候选：同核复算（时间冗余，transient）/ 校验和自比对�
 | 计划任务 | 内容 | 状态与原因 |
 |---|---|---|
 | 3.4 | OoO rename 距离分布 + ROB 占用带细化 | **已实施**（2026-09-19：`harp.renameDist` 17 桶 write→首读距离直方图（irfOnRead 区间关闭点采样）+ `harp.robOccBands` 8 带占用直方图（commit tick 经 robAccess() 读 numInstsInROB）；方向验证 sample_seq 86% 样本在 0-12% 带 vs readwrite_seq 铺至 25-37% 带） |
-| 4.1/4.2 | epilogue 可达集 + SDC-ACE 三账本 + gap 指标 | deferred——未实施；**这是「核心超越点」中未落地的那一半**：ED 目前消费裸 ACE 账本，SDC-ACE 的松量量化（dead_read 负对照）未做 |
+| 4.1/4.2 | epilogue 可达集 + SDC-ACE 三账本 + gap 指标 | **IRF 账本已落地**（动态反向切片 + gap=0.196/0.062/0 负正对照实测）；L1D/SQ 账本 SDC 化未做（IRF 先行，按需补） |
 | 4.3 | gate 级敏感覆盖臂（IEX 门级位图） | deferred——未实施；含 1/64 采样降级预案未触发（未开工） |
 | 5.1/5.2/5.3 | ed_score.py + 次模选择器 + harp_evolve fitness 替换 | deferred——未实施；**ED 评分器未落地**，ED 公式目前只在本文件与 ed_profile.py 的 w/ρ/ceiling 推导中定义，无端到端评分工具 |
 | 6.2 | per-unit lift 主实验（ED 有效性最终裁决） | deferred——未实施；ED-top-K vs 随机 vs legacy 的预注册判据无从检验（依赖 5.1/5.2） |

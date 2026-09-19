@@ -25,10 +25,12 @@
 #include "base/output.hh"
 #include "base/statistics.hh"
 #include "base/types.hh"
+#include "cpu/o3/dyn_inst_ptr.hh"
 
 #include <cstdint>
 #include <string>
 #include <unordered_map>
+#include <vector>
 
 namespace gem5
 {
@@ -64,6 +66,10 @@ void harp_cov_on_sq_free(unsigned slot_idx);     // SQ slot released
 void harp_cov_on_sq_forward(unsigned slot_idx);  // store→load forward hit
 void harp_cov_on_load_wb(int class_type, int idx);  // load data → PRF write
 void harp_cov_on_load_use(int class_type, int idx); // committed consumption
+
+// SDC-ED Task 4.1: dynamic-slice node from the commit point (dsts/srcs
+// phys regs + store flag). The slice is solved at finishStats.
+void harp_cov_on_slice_commit(const o3::DynInstPtr &inst);
 
 // --- Cache block-ACE ledger types (Task 3.1; SDC-ED Task 2.2 multi-cache) ---
 // Block-granular interval state, keyed by CacheBlk pointer (stable for the
@@ -147,6 +153,18 @@ class CHAOSCov : public SimObject
     // wrong-path-free ACE ledger (reads by squashed instructions never
     // commit, so they never enter this counter).
     void irfOnCommitRead(int class_type, int idx);
+    // SDC-ED Task 4.1/4.2: dynamic-slice collector. Called from the same
+    // commit point with the full instruction record (dst/src phys regs,
+    // store flag, effective address). The slice is solved at finishStats:
+    // sinks = committed stores (their data+addr sources are on the path to
+    // the checkable output — the wrapper CRC-hashes all of mem and the
+    // epilogue hashes g_reg which the store-back wrote), then backward
+    // propagation over the in-ROI dataflow edges to a fixed point. The
+    // resulting per-phys-reg on_path marks close the SDC-ACE ledgers
+    // (reads logged at execute time are re-classified post hoc).
+    void sliceOnCommit(const o3::DynInstPtr &inst);    // SDC-ED Task 4.1: wrapper-emitted reachability manifest path
+    // (.reach.json). Empty/unread → slice sinks stay store-based only.
+    void setReachManifest(const std::string &path);
 
     // --- L1D ACE collector (Task 3.1) ---
     void cacheOnWrite(void *cache, void *blk);
@@ -342,6 +360,57 @@ class CHAOSCov : public SimObject
     uint64_t fp_value_hist[NUM_FU_CLASSES][NUM_VALUE_CLASSES] = {};
     uint64_t fp_lanes_sampled = 0;
 
+    // --- Dynamic-slice state (SDC-ED Task 4.1/4.2) ---
+    // Per committed in-ROI instruction: phys dsts/srcs (class,idx pairs)
+    // + store flag. Program order (commit order). Sinks = stores (the
+    // wrapper CRCs all of mem and hashes g_reg after the store-back; a
+    // store's data AND address sources sit on the path to the checkable
+    // output). Solve at finishStats:
+    //   forward pass  — snapshot each node's src→producer pointer
+    //                   (last earlier node writing that slot)
+    //   backward sweep — stores on-path; an on-path node marks its
+    //                   recorded producers (indices < i, so one
+    //                   newest→oldest sweep reaches the transitive
+    //                   closure). Node-level marks (NOT slot-level):
+    //                   a read is on-path iff its reading instruction
+    //                   is — this keeps overwritten-dead-chain intervals
+    //                   out of SDC-ACE even when the slot's FINAL value
+    //                   is stored back (the slot-OR would lose them).
+    struct SliceNode
+    {
+        static constexpr int MAX_REGS = 8;
+        int n_dst = 0, n_src = 0;
+        int8_t dst_cls[MAX_REGS]; int dst_idx[MAX_REGS];
+        int8_t src_cls[MAX_REGS]; int src_idx[MAX_REGS];
+        int src_prod[MAX_REGS];   // producer node index (-1 = pre-ROI)
+        bool is_store = false;
+        bool on_path = false;
+    };
+    std::vector<SliceNode> slice_nodes;
+    // Merged SDC event stream, chronological: writes (execute-time,
+    // interval births, node=-1) + reads (commit-time, node-tagged).
+    // SDC-ACE therefore rides the COMMIT-CONFIRMED read stream —
+    // wrong-path reads never commit, so they are excluded from SDC-ACE
+    // by construction (stricter than the optimistic ledger).
+    struct SdcEvent
+    {
+        bool is_write;
+        int8_t cls;
+        int idx;
+        int node;         // slice_nodes index for reads; -1 for writes
+        uint64_t cycle;
+    };
+    std::vector<SdcEvent> sdc_events;
+    // SDC-ACE ledgers (int/float/vec) + raw counts for the gap stat.
+    uint64_t irf_ace_sdc_cycles[3] = {0, 0, 0};
+    uint64_t sdc_on_path_reads = 0, sdc_total_reads = 0;
+    // Forward producer map for sliceOnCommit snapshots: [cls][phys idx]
+    // -> most recent earlier node index writing that slot.
+    std::vector<int> slice_producer[3];
+    // Task 4.1: optional reachability manifest (unused reserved hook —
+    // store-based sinks cover the wrapper's epilogue by construction).
+    std::string reach_manifest_path;
+
   protected:
     struct HarpStats : public statistics::Group
     {
@@ -402,6 +471,12 @@ class CHAOSCov : public SimObject
         statistics::Scalar ibrIntMul;
         statistics::Scalar ibrFpAdd;
         statistics::Scalar ibrFpMul;
+        // --- SDC-ACE + gap (SDC-ED Task 4.2) ---
+        statistics::Scalar irfAvfSdc;
+        statistics::Scalar irfAvfSdcInt;
+        statistics::Scalar sdcGap;
+        statistics::Scalar sdcOnPathReads;
+        statistics::Scalar sdcTotalReads;
         // --- FP value-class profile (SDC-ED Task 3.2) ---
         // Per-FU-class 5-bin histogram of FP source-operand lanes
         // (normal/subnormal/NaN/Inf/zero) + the normalized Shannon
@@ -432,6 +507,10 @@ class CHAOSCov : public SimObject
     } harpStats;
 
     void irfFinish();   // close open intervals at ROI end / sim end
+    // SDC-ED Task 4.2: forward producer snapshots + backward on-path
+    // sweep + SDC-ACE replay over the merged event stream. Fills
+    // irf_ace_sdc_cycles and the on/total read counters.
+    void solveSliceAndSdc();
 };
 
 } // namespace gem5

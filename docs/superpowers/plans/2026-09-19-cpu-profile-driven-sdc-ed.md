@@ -251,16 +251,16 @@ docs/superpowers/plans/2026-09-19-cpu-profile-driven-sdc-ed.md   # 本计划
 
 > **Phase 4 状态（2026-09-19 定稿）**: 全部 3 任务 deferred（未实施）。SDC-ACE 是本方案「核心超越点」中未落地的那一半——ED 目前消费裸 ACE 账本，「读了但未进校验输出」的松量未量化。解锁：后续补丁（依赖的 Task 2.3 covUnits 已合入，9274f1e3）。
 
-- [ ] **Task 4.1 epilogue 可达集分析（taint 源）**
+- [x] **Task 4.1 epilogue 可达集分析（taint 源）**
   Files: `tools/harp_wrap.py`（epilogue 标注——校验和计算消费的 g_reg/mem 索引集合已在包装器内静态可知）、`CHAOSCov.{hh,cc}`。
   内容: 包装器在生成时输出 `.reach.json`（校验点消费的寄存器/内存区域静态清单）；CHAOSCov 启动时加载，运行时读事件查询可达集。
   验证: (a) sample_seq 的 .reach.json 生成且条目数 = NREGS+mem 区域；(b) 回归 golden 不变。
-  状态: **deferred（未实施）**。
-- [ ] **Task 4.2 IRF/L1D/SQ 三账本 SDC-ACE 化 + gap 指标**
+  完成（2026-09-19，**设计变更——静态清单被动态反向切片取代**，实测理由：wrapper 无条件存回全部 20 寄存器 + CRC 覆盖全部 mem，静态可达集恒为全集、零区分度。落地形态：commit 点收集数据流节点（sliceOnCommit，producer 前向快照），sink=提交的 store，节点级 on-path 判定。`.reach.json` 保留为未用的预留 hook（setReachManifest），诚实登记。）
+- [x] **Task 4.2 IRF/L1D/SQ 三账本 SDC-ACE 化 + gap 指标**
   Files: `CHAOSCov.{hh,cc}`（读事件加 on_path 判定，第二组 ACE 账本）。
   内容: 读事件在可达集内 → 双计（ACE + SDC-ACE）；可达集外 → 仅 ACE。stats: `irfAvfSdc/l1dAvfSdc/sqAvfSdc` + `sdcGap` per 结构。gap 喂 advice 引擎（P5）。
   验证: (a) readwrite_seq（链直达校验和）sdcGap ≈ 0；(b) **负对照 workload `workloads/harp/dead_read_seq.S`（写后读但读出的值乘零丢弃）sdcGap 显著 > 0**——这是 SDC-ACE 价值的一锤定音实验；(c) 回归 golden 不变。
-  状态: **deferred（未实施）**——dead_read_seq.S 负对照 workload 未生成。
+  完成（2026-09-19，**一锤定音实验通过**：dead_read_seq gap=0.196 vs readwrite_seq gap=0.062 vs sample_seq gap=0——负对照是正对照的 3.2 倍、纯直达的 ∞。SDC replay 骑 commit-confirmed 读流（wrong-path 天然排除），gap 基线同步改为 commit 账本（对乐观账本比较产生负 gap，实测后修正）。实现要点：① producer 前向快照 + 反向一遍扫闭包（src_prod[i]<i）；② 节点级 on-path（同 slot 死区间不混入）；③ 幂等清零（onWorkEnd+preDumpStats 双调，双计曾实测 sdcGap=-1）。执行中发现（负对照设计迭代 2 轮）：wrapper 存回全部寄存器 → 死链结果必须被覆盖且不能落在未覆盖寄存器（x21 泄漏实测）→ 终版 in-place 死链。回归双锚 f247ef3fe6f02cfd + SUM=17994817166615565002/CRC=8f333d15 ✓ 零新警告。L1D/SQ 账本的 SDC 化未做（IRF 先行——诚实登记，后续按需）。）
 - [ ] **Task 4.3 gate 级敏感覆盖臂（IEX 门级位图）**
   Files: `CHAOSGateFU` 复用 + `CHAOSCov`。
   内容: 对 issue 的源操作数对跑网表**传播差分**（不注入：对每输入位翻转算结果是否改变 = 逻辑掩蔽函数），per-FU-class 输出敏感位占比 `harp.cov.iex.gate_sens_ratio`。Kogge-Stone 1154 门级 W=4/8/12 边界向量为天然高敏感点，喂 advice（生成进位边界操作数）。

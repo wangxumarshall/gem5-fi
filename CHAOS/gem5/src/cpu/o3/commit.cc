@@ -1008,6 +1008,10 @@ Commit::commitInsts()
                 // any load-use birth mark on the slot (first consumption
                 // of load data → load-use distance histogram).
                 if (harp_enabled && gem5::CHAOSCov::roiActive()) {
+                    // SDC-ED Task 4.1: dynamic-slice node FIRST — the
+                    // commit-read hook below tags its logged events
+                    // with this node's index (slice_nodes.size()-1).
+                    harp_cov_on_slice_commit(head_inst);
                     for (size_t sr = 0; sr < head_inst->numSrcRegs(); ++sr) {
                         const PhysRegIdPtr reg = head_inst->renamedSrcIdx(sr);
                         const auto cls = reg->classValue();

@@ -5,6 +5,7 @@
 #include "CHAOSCov/CHAOSCov.hh"
 #include "params/CHAOSCov.hh"
 #include "cpu/o3/cpu.hh"
+#include "cpu/o3/dyn_inst.hh"
 #include "mem/cache/base.hh"
 #include "base/trace.hh"
 #include "debug/CHAOSCov.hh"
@@ -60,6 +61,13 @@ void harp_cov_on_fu_issue_value(int fu_class, int n_lanes, const int *cls)
 {
     if (!CHAOSCov::instance) return;
     CHAOSCov::instance->fuOnIssueValue(fu_class, n_lanes, cls);
+}
+
+// SDC-ED Task 4.1/4.2: dynamic-slice node from the commit point.
+void harp_cov_on_slice_commit(const o3::DynInstPtr &inst)
+{
+    if (!CHAOSCov::instance) return;
+    CHAOSCov::instance->sliceOnCommit(inst);
 }
 
 // --- LSQ SQ-data ACE collector hooks (Task 3.2; SDC-ED Task 3.1 adds
@@ -297,6 +305,31 @@ CHAOSCov::finishStats()
                       / ((double)irf_state[0].size() * w[0] * roi_cycles)
                 : 0.0;
     }
+    // SDC-ED Task 4.2: solve the dynamic slice, then close the SDC-ACE
+    // ledgers by re-classifying the logged commit reads.
+    solveSliceAndSdc();
+    if (roi_cycles > 0 && bits_total > 0) {
+        double bits_sdc = 0;
+        for (int c = 0; c < 3; c++)
+            bits_sdc += (double)irf_ace_sdc_cycles[c] * w[c];
+        harpStats.irfAvfSdc = bits_sdc / bits_total;
+        harpStats.irfAvfSdcInt =
+            irf_state[0].size()
+                ? (double)irf_ace_sdc_cycles[0] * w[0]
+                      / ((double)irf_state[0].size() * w[0] * roi_cycles)
+                : 0.0;
+        // Gap baseline = the COMMIT-CONFIRMED ACE ledger (same read
+        // stream the SDC replay rides — the optimistic ledger would
+        // mix in wrong-path reads and can even be smaller than the
+        // commit ledger, producing negative gaps; measured).
+        double bits_ace_cc = 0;
+        for (int c = 0; c < 3; c++)
+            bits_ace_cc += (double)irf_ace_commit_cycles[c] * w[c];
+        harpStats.sdcGap = bits_ace_cc
+            ? (bits_ace_cc - bits_sdc) / bits_ace_cc : 0.0;
+    }
+    harpStats.sdcOnPathReads = sdc_on_path_reads;
+    harpStats.sdcTotalReads = sdc_total_reads;
     // L1D ACE stats (ledger 0 = legacy targetCache)
     {
         uint64_t ace = 0, rd = 0, wr = 0, ev = 0;
@@ -481,6 +514,14 @@ CHAOSCov::finishStats()
         for (int b = 0; b < 8; b++)
             os << " " << rob_occ_hist[b];
         os << "\n";
+        // SDC-ED Task 4.2: slice + SDC-ACE evidence
+        os << "sdc slice_nodes " << slice_nodes.size()
+           << " events " << sdc_events.size()
+           << " on_path_reads " << sdc_on_path_reads
+           << " total_reads " << sdc_total_reads
+           << " sdc_ace_cycles int " << irf_ace_sdc_cycles[0]
+           << " float " << irf_ace_sdc_cycles[1]
+           << " vec " << irf_ace_sdc_cycles[2] << "\n";
         os << "ibr";
         for (int c = 0; c < 4; c++)
             os << " " << ibr_input_bits[c] << "/" << ibr_issues[c];
@@ -532,6 +573,11 @@ CHAOSCov::irfOnWrite(int class_type, int idx)
     if (class_type >= 0 && class_type <= 2 &&
         (size_t)idx < lu_state[class_type].size())
         lu_state[class_type][idx] = 0;
+    // SDC-ED Task 4.2: log the write for the SDC replay (interval
+    // birth; execute-time, node unknown — the replay pairs it with the
+    // next commit-read of the slot via interval arithmetic).
+    if (sdc_events.size() < (4u << 20))
+        sdc_events.push_back({true, (int8_t)class_type, idx, -1, now});
 }
 
 void
@@ -571,6 +617,80 @@ CHAOSCov::irfOnCommitRead(int class_type, int idx)
         irf_ace_commit_cycles[class_type] += now - st.last_commit_read;
     }
     st.last_commit_read = now;
+    // SDC-ED Task 4.2: commit-confirmed read event for the SDC replay,
+    // tagged with the reading instruction's slice node (sliceOnCommit
+    // ran first in the same commit step — commit.cc call order).
+    if (sdc_events.size() < (4u << 20) && !slice_nodes.empty())
+        sdc_events.push_back({false, (int8_t)class_type, idx,
+                              (int)slice_nodes.size() - 1, now});
+}
+
+// SDC-ED Task 4.1: record one committed instruction's dataflow node.
+// Called FIRST in the commit-step harp block (before the commit-read
+// hook — the read events tag themselves with this node's index).
+// Class mapping mirrors the IRF spaces: int/float/vec → 0/1/2; other
+// classes (cc/misc/pred/mat) are skipped — they never enter the IRF
+// ledgers. Producer snapshot: slice_producer[cls][idx] holds the node
+// index of the most recent EARLIER writer (updated as nodes are
+// appended in commit order — so src_prod captures "who wrote the value
+// this instruction reads" exactly). Buffer cap: 1M nodes (~20 MB) —
+// beyond that the slice degrades to the first 1M committed insts
+// (logged honestly in the detail dump).
+void
+CHAOSCov::sliceOnCommit(const o3::DynInstPtr &inst)
+{
+    if (!roi_active) return;
+    if (slice_nodes.size() >= (1u << 20)) return;
+    // Lazy init (sizes only known once the regfile is sized).
+    if (slice_producer[0].empty()) {
+        for (int c = 0; c < 3; c++)
+            slice_producer[c].assign(irf_state[c].size(), -1);
+    }
+    SliceNode n;
+    n.is_store = inst->isStore();
+    for (size_t i = 0; i < inst->numDestRegs() && n.n_dst < SliceNode::MAX_REGS; i++) {
+        const PhysRegIdPtr reg = inst->renamedDestIdx(i);
+        const auto cls = reg->classValue();
+        if (cls == IntRegClass) {
+            n.dst_cls[n.n_dst] = 0; n.dst_idx[n.n_dst] = (int)reg->index();
+        } else if (cls == FloatRegClass) {
+            n.dst_cls[n.n_dst] = 1; n.dst_idx[n.n_dst] = (int)reg->index();
+        } else if (cls == VecRegClass) {
+            n.dst_cls[n.n_dst] = 2; n.dst_idx[n.n_dst] = (int)reg->index();
+        } else continue;
+        n.n_dst++;
+    }
+    for (size_t i = 0; i < inst->numSrcRegs() && n.n_src < SliceNode::MAX_REGS; i++) {
+        const PhysRegIdPtr reg = inst->renamedSrcIdx(i);
+        if (reg->is(InvalidRegClass)) continue;
+        const auto cls = reg->classValue();
+        int c;
+        if (cls == IntRegClass) c = 0;
+        else if (cls == FloatRegClass) c = 1;
+        else if (cls == VecRegClass) c = 2;
+        else continue;
+        n.src_cls[n.n_src] = (int8_t)c;
+        n.src_idx[n.n_src] = (int)reg->index();
+        const int idx = (int)reg->index();
+        n.src_prod[n.n_src] =
+            (idx >= 0 && (size_t)idx < slice_producer[c].size())
+                ? slice_producer[c][idx] : -1;
+        n.n_src++;
+    }
+    const int my = (int)slice_nodes.size();
+    // The node itself becomes the most recent writer of its dsts.
+    for (int d = 0; d < n.n_dst; d++) {
+        const int c = n.dst_cls[d], idx = n.dst_idx[d];
+        if (idx >= 0 && (size_t)idx < slice_producer[c].size())
+            slice_producer[c][idx] = my;
+    }
+    slice_nodes.push_back(std::move(n));
+}
+
+void
+CHAOSCov::setReachManifest(const std::string &path)
+{
+    reach_manifest_path = path;
 }
 
 void
@@ -602,6 +722,102 @@ CHAOSCov::irfFinish()
         irf_live_regs[c] = 0;
         for (auto &st : irf_state[c])
             if (st.has_value) irf_live_regs[c]++;
+    }
+}
+
+// SDC-ED Task 4.2: solve the dynamic slice and close the SDC-ACE
+// ledgers. Algorithm:
+//   1. Backward on-path sweep over slice_nodes (commit order == program
+//      order): stores are sinks (their data+addr sources sit on the
+//      path to the checkable output — the wrapper CRC-hashes all of
+//      mem and hashes g_reg after the store-back). An on-path node
+//      marks its RECORDED producers (src_prod[] was snapshotted in the
+//      forward pass at sliceOnCommit time — "who wrote the value this
+//      instruction reads"). Since src_prod[i] < i always, one
+//      newest→oldest sweep reaches the transitive closure.
+//   2. Replay sdc_events (chronological: execute-time writes with
+//      node=-1 + commit-time reads tagged with the reading node).
+//      Interval arithmetic mirrors irfOnWrite/irfOnCommitRead, but only
+//      reads whose READING NODE is on-path count into irf_ace_sdc_cycles
+//      — node-level classification (a slot's dead intervals stay out
+//      even when the same slot's final value is stored back; stricter
+//      and more faithful than any slot-level OR). Reads on the
+//      commit-confirmed stream: wrong-path reads never commit, so
+//      SDC-ACE ≤ commit-confirmed ACE ≤ optimistic ACE by construction.
+void
+CHAOSCov::solveSliceAndSdc()
+{
+    if (slice_nodes.empty()) return;
+    // Idempotence: finishStats runs from both onWorkEnd and
+    // preDumpStats (measured — the m5ops path fires onWorkEnd first,
+    // then the stats dump calls it again). The optimistic ledgers are
+    // naturally monotone; these SDC counters are RE-DERIVED each call,
+    // so clear them here (double-count was measured as sdcGap=-1).
+    irf_ace_sdc_cycles[0] = irf_ace_sdc_cycles[1] = irf_ace_sdc_cycles[2] = 0;
+    sdc_on_path_reads = 0;
+    sdc_total_reads = 0;
+    // 1. Backward on-path sweep.
+    for (int i = (int)slice_nodes.size() - 1; i >= 0; i--) {
+        SliceNode &n = slice_nodes[i];
+        if (n.is_store) n.on_path = true;
+        if (n.on_path) {
+            for (int s = 0; s < n.n_src; s++) {
+                const int p = n.src_prod[s];
+                if (p >= 0 && p < (int)slice_nodes.size())
+                    slice_nodes[p].on_path = true;
+            }
+        }
+    }
+    // 2. Chronological replay with node-level on-path classification.
+    //    Events: writes (node=-1) reset the interval machine for the
+    //    slot; reads (node>=0) extend it iff the reading node is
+    //    on-path. Stable sort by cycle keeps the write-before-read
+    //    order inside a cycle (execute precedes commit within a tick;
+    //    std::stable_sort preserves the append order for ties, and
+    //    writes are appended during execute before the commit reads of
+    //    the same cycle — measured pipeline order).
+    {
+        std::vector<size_t> order(sdc_events.size());
+        for (size_t i = 0; i < order.size(); i++) order[i] = i;
+        std::stable_sort(order.begin(), order.end(),
+            [this](size_t a, size_t b) {
+                return sdc_events[a].cycle < sdc_events[b].cycle;
+            });
+        struct SdcSlot
+        {
+            uint64_t birth = 0, last_read = 0;
+            bool has_value = false, ever_read = false;
+        };
+        std::vector<SdcSlot> sdc_st[3];
+        for (int c = 0; c < 3; c++) sdc_st[c].assign(irf_state[c].size(), {});
+        for (size_t oi = 0; oi < order.size(); oi++) {
+            const SdcEvent &ev = sdc_events[order[oi]];
+            if (ev.cls < 0 || ev.cls > 2) continue;
+            if ((size_t)ev.idx >= sdc_st[ev.cls].size()) continue;
+            SdcSlot &st = sdc_st[ev.cls][ev.idx];
+            if (ev.is_write) {
+                st.birth = ev.cycle;
+                st.last_read = ev.cycle;
+                st.has_value = true;
+                st.ever_read = false;
+            } else {
+                sdc_total_reads++;
+                if (!st.has_value) continue;
+                const bool on_path =
+                    ev.node >= 0 && ev.node < (int)slice_nodes.size()
+                    && slice_nodes[ev.node].on_path;
+                if (on_path) {
+                    if (!st.ever_read) {
+                        irf_ace_sdc_cycles[ev.cls] += ev.cycle - st.birth;
+                        st.ever_read = true;
+                    } else {
+                        irf_ace_sdc_cycles[ev.cls] += ev.cycle - st.last_read;
+                    }
+                    sdc_on_path_reads++;
+                }
+                st.last_read = ev.cycle;
+            }
+        }
     }
 }
 
@@ -759,7 +975,22 @@ CHAOSCov::HarpStats::HarpStats(statistics::Group *parent)
       ADD_STAT(fpValueEntropy, statistics::units::Ratio::get(),
                "Normalized Shannon entropy of the merged FP value-class "
                "distribution (0=single class, 1=uniform over 5 classes). "
-               "FSU value-coverage axis the IBR cannot see")
+               "FSU value-coverage axis the IBR cannot see"),
+      ADD_STAT(irfAvfSdc, statistics::units::Ratio::get(),
+               "SDC-ACE AVF: ACE cycles whose reads lie on the dynamic "
+               "slice to a checkable output (committed-store sinks), / "
+               "(bits * ROI cycles). SDC-ED Task 4.2"),
+      ADD_STAT(irfAvfSdcInt, statistics::units::Ratio::get(),
+               "SDC-ACE AVF, int space"),
+      ADD_STAT(sdcGap, statistics::units::Ratio::get(),
+               "SDC gap = (ACE - SDC-ACE) / ACE: the fraction of "
+               "architecturally-consumed residency that never reaches a "
+               "checkable output (sequence-design defect signal for the "
+               "advice engine)"),
+      ADD_STAT(sdcOnPathReads, statistics::units::Count::get(),
+               "Optimistic IRF reads on the dynamic slice"),
+      ADD_STAT(sdcTotalReads, statistics::units::Count::get(),
+               "Total optimistic IRF reads logged")
 {
     ibrInputBits.init(NUM_FU_CLASSES);
     ibrInputBits.subname(0, "IntAdd");
