@@ -263,9 +263,10 @@ docs/superpowers/plans/2026-09-19-cpu-profile-driven-sdc-ed.md   # 本计划
 
 ### Phase 6 — SFI 标定与 lift 验证（真值闭环，证明"更能检出 SDC"）
 
-- [ ] **Task 6.1 ρ_u 标定战役（per-unit SFI，N=100/单元）**
+- [x] **Task 6.1 ρ_u 标定战役（per-unit SFI，N=100/单元）**
   内容: 对标定序列集（每单元定向序列 + 均衡序列）跑 per-unit SFI（harness 扩展 --structure 支持 ooo/iex/lsu/fsu/l2c_tag/l2c_data/mmu七臂——注入器全部现成：CHAOSPhysReg/CHAOSGateFU+CHAOSFUPerm/CHAOSLSQFwd+新 SQ-data/CHAOSFPU/CHAOSCache tag/data/CHAOSArmTLB-FS）；产出实测 ρ_u 表（Wilson CI）回填 YAML `rho_measured`（与初值并列报告，**不覆盖用户 override**）。
   验证: 每臂 N=100 分类分布落盘 `docs/sdc-ed/calibration-report.md`；IFU 臂实测 SDC=0（Phase 16 复现锚）；L2C tag 臂 SDC 率显著 > data 臂（39-47% vs 0% 线的复现）。
+  完成（2026-09-19，实测 11 臂 × N=100：irf/intadd/intmul/lsq/l1d/fpadd/fpmul/l2c_data×{none,secded}/l2c_tag×{none,secded}；IFU/MMU 臂按预案 deferred 引用既有证据——runner 无 BPU 挂载路径、FS 镜像不可用）。L2C 2×2 复现：tag×secded 0.50 [0.3639,0.6361] vs data×secded 0.00 [0,0.0727]（CI 无重叠，分化显著）；ρ 回填 taishan-v110.yaml rho_measured 块。报告：docs/sdc-ed/calibration-report.md。附带修复 harp_eval l1d 臂输出捕获缺陷（原全部误分类 NoOutput）。
 - [ ] **Task 6.2 per-unit lift 主实验（ED 有效性的最终裁决）**
   内容: 三组序列各 K=10：ED-top-K（5.2 选择器）/ 均匀随机 K / legacy-fitness-top-K；每组跑全单元 SFI（N=100/单元/序列）；报告 per-unit detection lift + Wilson CI + 总检测率；AUC(ED, detection) 三组对比。
   验证（成功判据，预注册）: **ED-top-K 总检测率 > 随机组（Wilson CI 不重叠）**；per-unit 分解中 ED 预测的高优先单元（LSU/L2C-tag）的 lift 最大。若失败：分歧归因到 w/ρ/ceiling/A 各因子（每序列的预测-实测残差表），负结果如实入报告——**这是诚实性要求，不许改判据**。

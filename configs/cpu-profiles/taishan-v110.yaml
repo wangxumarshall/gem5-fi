@@ -70,6 +70,29 @@ ceilings:
 
 rho_overrides: {}       # 标定战役（Phase 6）回填 rho_measured，不覆盖此表
 
+# rho_measured — Task 6.1 ρ_u 标定战役实测回填（2026-09-19）。
+# 口径 = detection | active = (SDC+Crash)/(N−Inactive−SimErr)，与
+# ed_profile.py DEFAULT_RHO 初值口径一致（初值表 OoO 0.05 即
+# readwrite_seq detection 0.04）。SDC/Crash 拆分与全部诚实边界见
+# docs/sdc-ed/calibration-report.md §4。与 rho_overrides 并列；
+# rho_initial() 优先级仍是 overrides > 保护矩阵 > DEFAULT（本表
+# 供 ed_score/报告消费，不改变 rho_initial 推导）。
+rho_measured:
+  IFU:  {value: 0.00, ci: null, arm: "deferred（引用 Phase 16 三面 0%）",
+         detail: "dir_flip 384/384 Masked + target_flip/ras_flip n=100 各 0.0%"}
+  OoO:  {value: 0.05, ci: [0.0215, 0.1118], arm: "irf x readwrite_seq, N=100",
+         detail: "5 Crash/95 Masked；SDC=0（全 Crash 承担）"}
+  IEX:  {value: 1.00, ci: [0.9630, 1.0000], arm: "intadd x sample_seq, N=100",
+         detail: "permanent FU-mask 协议语义（上界）；intmul 0.82 [0.72,0.88]；SDC=0"}
+  LSU:  {value: 0.69, ci: [0.5937, 0.7722], arm: "lsq x rand_mem, N=100",
+         detail: "69 Crash/31 Masked；l1d 数据面另臂 0.04；SDC=0；负载依赖见报告 §4.1"}
+  FSU:  {value: 0.00, ci: [0.0000, 0.0370], arm: "fpadd+fpmul x rand_fp, N=100x2",
+         detail: "200/200 Masked；值依赖（t3-1: float 60-66% vs double 14-18%）"}
+  MMU:  {value: 0.00, ci: null, arm: "deferred（引用 addrmap_formal_fwd）",
+         detail: "SE 384/384 Masked；FS 臂镜像不可用，deferred 登记"}
+  L2C:  {value: 0.50, ci: [0.3639, 0.6361], arm: "l2c_tag x stencil, N=100",
+         detail: "tag 面（双面账本取 tag）；data-none 0.41 [0.28,0.55]；data-secded 0.00（SECDED 全纠，tag 面 ECC 盲——2x2 CI 无重叠）"}
+
 residuals:
   - l1i_prot_claim_unverified      # I$ "声称 ECC" 无架构化证据
   - l2_prot_claim_unverified       # L2 同上
