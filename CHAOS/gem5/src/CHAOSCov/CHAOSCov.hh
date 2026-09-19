@@ -174,6 +174,18 @@ class CHAOSCov : public SimObject
 
     // --- IBR collector (Task 4.1) ---
     void fuOnIssue(int fu_class, uint64_t src_bits);
+    // SDC-ED Task 3.2: FP value-class profile. Same issue point as
+    // fuOnIssue, but the caller (inst_queue.cc, which can safely read the
+    // PRF at issue — values are written at execute, wake happens at
+    // writeback, so by issue time every source value is resident) also
+    // classifies each FP source operand's 64-bit lanes per IEEE754:
+    //   0=normal 1=subnormal 2=NaN 3=Inf 4=zero
+    // Per-FU-class histogram + normalized Shannon entropy over the five
+    // classes. Motivation: CHAOSFPU N=20 all-Masked showed FP software
+    // masking is VALUE-dependent — structural coverage (IBR) alone can't
+    // distinguish a sequence exercising only normal-normal adds from one
+    // that also drives NaN/subnormal/Inf propagation paths.
+    void fuOnIssueValue(int fu_class, int n_lanes, const int *lane_class);
 
     // Per-cycle poll from collectors (cycle-granular ROI bookkeeping).
     void tickROICycles() { if (roi_active) roi_cycles++; }
@@ -308,6 +320,14 @@ class CHAOSCov : public SimObject
     unsigned ibr_fu_count[NUM_FU_CLASSES]   = {3, 1, 2, 2};
     unsigned ibr_full_width[NUM_FU_CLASSES] = {128, 128, 256, 256};
 
+    // --- FP value-class state (SDC-ED Task 3.2) ---
+    // [fu_class][value_class] lane counts; only FP classes (2=FPAdd,
+    // 3=FPMul) are ever touched. Entropy computed at finishStats.
+    static constexpr int NUM_FU_CLASSES_ = 4;
+    static constexpr int NUM_VALUE_CLASSES = 5;  // normal subnorm NaN Inf zero
+    uint64_t fp_value_hist[NUM_FU_CLASSES][NUM_VALUE_CLASSES] = {};
+    uint64_t fp_lanes_sampled = 0;
+
   protected:
     struct HarpStats : public statistics::Group
     {
@@ -365,6 +385,14 @@ class CHAOSCov : public SimObject
         statistics::Scalar ibrIntMul;
         statistics::Scalar ibrFpAdd;
         statistics::Scalar ibrFpMul;
+        // --- FP value-class profile (SDC-ED Task 3.2) ---
+        // Per-FU-class 5-bin histogram of FP source-operand lanes
+        // (normal/subnormal/NaN/Inf/zero) + the normalized Shannon
+        // entropy over the merged distribution. Value-class coverage is
+        // the FSU axis the IBR can't see (software masking is
+        // value-dependent — CHAOSFPU all-Masked evidence).
+        statistics::Vector fpValueHist;
+        statistics::Scalar fpValueEntropy;
         // --- SDC-ED Task 2.3: 7-unit coverage vector ---
         // Per-unit activation coverage A_u, merged from the collectors
         // above for tools/ed_score.py (ED = Σ w_u·ρ_u·q_u·A_u). The unit

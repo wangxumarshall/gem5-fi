@@ -68,6 +68,8 @@ namespace gem5
 // Harpocrates IBR collector hook (harp plan Task 4.1). Defined in
 // CHAOSCov/CHAOSCov.cc; no-op unless a CHAOSCov analyzer is mounted.
 void harp_cov_on_fu_issue(int fu_class, uint64_t src_bits);
+// SDC-ED Task 3.2: FP source-lane value classes at the same issue point.
+void harp_cov_on_fu_issue_value(int fu_class, int n_lanes, const int *cls);
 extern bool harp_enabled;
 
 // Map an OpClass to the paper's four FU classes; -1 = not tracked.
@@ -112,6 +114,58 @@ harp_src_bits_of(const o3::DynInstPtr &inst)
         }
     }
     return bits;
+}
+
+// SDC-ED Task 3.2: classify a 64-bit IEEE754 double pattern.
+//   0=normal 1=subnormal 2=NaN 3=Inf 4=zero
+static inline int
+harp_fp_class_of(uint64_t bits)
+{
+    const uint64_t expo = (bits >> 52) & 0x7ff;   // exponent field
+    const uint64_t mant = bits & ((1ULL << 52) - 1);
+    if (expo == 0)
+        return mant ? 1 : 4;                      // subnormal : zero
+    if (expo == 0x7ff)
+        return mant ? 2 : 3;                      // NaN : Inf
+    return 0;                                     // normal
+}
+
+// Classify the FP source operands of an issued FP-class instruction.
+// Read safety (verified in the call chain): results reach the PRF via
+// setRegOperand AT EXECUTE (ISA semantics, operands.isa), dependents
+// wake in writebackInsts — so at the scheduleReadyInsts issue point of
+// a CanIssue instruction every source value is already resident in the
+// phys reg file (this is the same read path the CHAOSFPU source-read
+// hook corrupts, i.e. the final post-forwarding value).
+//   FloatRegClass sources: one 64-bit lane (scalar FP).
+//   VecRegClass sources: two 64-bit lanes (NEON 128b) via the blob
+//   overload — the RegVal overload only covers scalar-width reads.
+// VecElemClass: D-register element = one 64-bit lane.
+static inline void
+harp_fp_value_classes_of(const o3::DynInstPtr &inst, int out[8],
+                         int &n_lanes)
+{
+    uint64_t lo = 0, hi = 0;
+    n_lanes = 0;
+    for (size_t i = 0; i < inst->numSrcRegs() && n_lanes < 8; ++i) {
+        const PhysRegIdPtr preg = inst->renamedSrcIdx(i);
+        if (preg->is(InvalidRegClass)) continue;
+        const auto rc = preg->classValue();
+        if (rc == FloatRegClass) {
+            const RegVal v = inst->cpu->getReg(preg, inst->threadNumber);
+            out[n_lanes++] = harp_fp_class_of((uint64_t)v);
+        } else if (rc == VecRegClass) {
+            uint8_t blob[16] = {0};
+            inst->cpu->getReg(preg, blob, inst->threadNumber);
+            memcpy(&lo, blob, 8);
+            memcpy(&hi, blob + 8, 8);
+            out[n_lanes++] = harp_fp_class_of(lo);
+            out[n_lanes++] = harp_fp_class_of(hi);
+        } else if (rc == VecElemClass) {
+            const RegVal v = inst->cpu->getReg(preg, inst->threadNumber);
+            out[n_lanes++] = harp_fp_class_of((uint64_t)v);
+        }
+    }
 }
 
 namespace o3
@@ -988,8 +1042,18 @@ InstructionQueue::scheduleReadyInsts()
         // the matching FU class ledger (Task 4.1).
         if (harp_enabled) {
             const int fc = harp_fu_class_of(op_class);
-            if (fc >= 0)
+            if (fc >= 0) {
                 harp_cov_on_fu_issue(fc, harp_src_bits_of(issuing_inst));
+                // SDC-ED Task 3.2: FP classes also get a value-class
+                // profile of their source lanes (software masking is
+                // value-dependent — the FSU coverage axis beyond IBR).
+                if (fc >= 2) {
+                    int lane_cls[8], n_lanes = 0;
+                    harp_fp_value_classes_of(issuing_inst, lane_cls, n_lanes);
+                    if (n_lanes)
+                        harp_cov_on_fu_issue_value(fc, n_lanes, lane_cls);
+                }
+            }
         }
 
         // If we have an instruction that doesn't require a FU, or a

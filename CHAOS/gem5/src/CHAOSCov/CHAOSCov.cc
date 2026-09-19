@@ -10,6 +10,7 @@
 #include "debug/CHAOSCov.hh"
 
 #include <algorithm>
+#include <cmath>
 #include <fstream>
 #include <iomanip>
 
@@ -52,6 +53,13 @@ void harp_cov_on_fu_issue(int fu_class, uint64_t src_bits)
 {
     if (!CHAOSCov::instance) return;
     CHAOSCov::instance->fuOnIssue(fu_class, src_bits);
+}
+
+// SDC-ED Task 3.2: FP value-class lanes from the issue point.
+void harp_cov_on_fu_issue_value(int fu_class, int n_lanes, const int *cls)
+{
+    if (!CHAOSCov::instance) return;
+    CHAOSCov::instance->fuOnIssueValue(fu_class, n_lanes, cls);
 }
 
 // --- LSQ SQ-data ACE collector hooks (Task 3.2; SDC-ED Task 3.1 adds
@@ -386,6 +394,29 @@ CHAOSCov::finishStats()
         harpStats.covUnits[5] = 0.0;   // MMU: SE userspace ceiling
         harpStats.covUnits[6] = l2c;
     }
+    // SDC-ED Task 3.2: FP value-class histogram + entropy (merged over
+    // the two FP FU classes; per-class rows in the detail dump).
+    {
+        uint64_t merged[NUM_VALUE_CLASSES] = {0, 0, 0, 0, 0};
+        for (int fc = 0; fc < NUM_FU_CLASSES; fc++)
+            for (int vc = 0; vc < NUM_VALUE_CLASSES; vc++) {
+                harpStats.fpValueHist[fc * NUM_VALUE_CLASSES + vc] =
+                    fp_value_hist[fc][vc];
+                if (fc >= 2) merged[vc] += fp_value_hist[fc][vc];
+            }
+        uint64_t total = 0;
+        for (int vc = 0; vc < NUM_VALUE_CLASSES; vc++) total += merged[vc];
+        double entropy = 0.0;
+        if (total > 0) {
+            for (int vc = 0; vc < NUM_VALUE_CLASSES; vc++) {
+                if (!merged[vc]) continue;
+                const double p = (double)merged[vc] / (double)total;
+                entropy -= p * std::log2(p);
+            }
+            entropy /= std::log2((double)NUM_VALUE_CLASSES);  // normalize
+        }
+        harpStats.fpValueEntropy = entropy;
+    }
     if (detail_stream && detail_stream->stream()) {
         auto &os = *(detail_stream->stream());
         os << "# finish roi_cycles " << roi_cycles << "\n";
@@ -434,6 +465,16 @@ CHAOSCov::finishStats()
         for (int c = 0; c < 4; c++)
             os << " " << ibr_input_bits[c] << "/" << ibr_issues[c];
         os << "\n";
+        // SDC-ED Task 3.2: per-FU-class value-class rows (advice engine:
+        // "generate subnormal/NaN-heavy operands" rules read this)
+        static const char *const vc_names[NUM_VALUE_CLASSES] =
+            {"normal", "subnormal", "NaN", "Inf", "zero"};
+        for (int fc = 2; fc < 4; fc++) {
+            os << "fp_values " << (fc == 2 ? "FPAdd" : "FPMul");
+            for (int vc = 0; vc < NUM_VALUE_CLASSES; vc++)
+                os << " " << vc_names[vc] << "=" << fp_value_hist[fc][vc];
+            os << "\n";
+        }
     }
 }
 
@@ -661,7 +702,15 @@ CHAOSCov::HarpStats::HarpStats(statistics::Group *parent)
                "L2C]. IFU=0 (Crash axis, rho=0), MMU=0 (SE ceiling, FS arm "
                "TBD), OoO=irfAvf, IEX=max(ibrIntAdd,ibrIntMul), LSU=sqAvf, "
                "FSU=max(ibrFpAdd,ibrFpMul), L2C=max(l1dAvf,l2cAvf). "
-               "Consumed by tools/ed_score.py (ED = Σ w·ρ·q·A_u)")
+               "Consumed by tools/ed_score.py (ED = Σ w·ρ·q·A_u)"),
+      ADD_STAT(fpValueHist, statistics::units::Count::get(),
+               "FP source-lane value-class histogram [FU class][class]: "
+               "rows IntAdd/IntMul/FPAdd/FPMul (FP rows only), cols "
+               "normal/subnormal/NaN/Inf/zero. SDC-ED Task 3.2"),
+      ADD_STAT(fpValueEntropy, statistics::units::Ratio::get(),
+               "Normalized Shannon entropy of the merged FP value-class "
+               "distribution (0=single class, 1=uniform over 5 classes). "
+               "FSU value-coverage axis the IBR cannot see")
 {
     ibrInputBits.init(NUM_FU_CLASSES);
     ibrInputBits.subname(0, "IntAdd");
@@ -690,6 +739,17 @@ CHAOSCov::HarpStats::HarpStats(statistics::Group *parent)
     covUnits.subname(4, "FSU");
     covUnits.subname(5, "MMU");
     covUnits.subname(6, "L2C");
+    // SDC-ED Task 3.2: [fu_class][value_class] flattened 4x5 subnames
+    fpValueHist.init(NUM_FU_CLASSES * NUM_VALUE_CLASSES);
+    static const char *const fu_names[NUM_FU_CLASSES] =
+        {"IntAdd", "IntMul", "FPAdd", "FPMul"};
+    static const char *const vc_names[NUM_VALUE_CLASSES] =
+        {"normal", "subnormal", "NaN", "Inf", "zero"};
+    for (int fc = 0; fc < NUM_FU_CLASSES; fc++)
+        for (int vc = 0; vc < NUM_VALUE_CLASSES; vc++)
+            fpValueHist.subname(fc * NUM_VALUE_CLASSES + vc,
+                                std::string(fu_names[fc]) + "."
+                                + vc_names[vc]);
 }
 
 // ---------------------------------------------------------------------------
@@ -702,6 +762,22 @@ CHAOSCov::fuOnIssue(int fu_class, uint64_t src_bits)
     if (fu_class < 0 || fu_class >= NUM_FU_CLASSES) return;
     ibr_input_bits[fu_class] += src_bits;
     ibr_issues[fu_class]++;
+}
+
+// SDC-ED Task 3.2: FP source-lane value classification. The caller
+// already filtered to FP FU classes (2/3) and classified each 64-bit
+// lane; this only buckets. Entropy is finalized in finishStats.
+void
+CHAOSCov::fuOnIssueValue(int fu_class, int n_lanes, const int *lane_class)
+{
+    if (!roi_active) return;
+    if (fu_class < 0 || fu_class >= NUM_FU_CLASSES) return;
+    for (int i = 0; i < n_lanes; i++) {
+        const int c = lane_class[i];
+        if (c < 0 || c >= NUM_VALUE_CLASSES) continue;
+        fp_value_hist[fu_class][c]++;
+        fp_lanes_sampled++;
+    }
 }
 
 // ---------------------------------------------------------------------------

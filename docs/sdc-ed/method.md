@@ -2,10 +2,11 @@
 
 > 计划：`docs/superpowers/plans/2026-09-19-cpu-profile-driven-sdc-ed.md`（2026-09-19）
 > 本文档是指标定义的**单一权威源**：代码注释、工具帮助文本、标定报告中的公式必须与本文逐字一致。
-> **定稿状态（2026-09-19，Task 7.2）**：本文按计划执行到 Phase 6.1（ρ_u 标定）后定稿。
-> 已落地：Layer C 三份 CPU 描述 + 解析库、Layer A 分母参数化与 LSU/L2C 采集升级、
-> ρ_u 11 臂实测回填。deferred：次模选择与 ED 评分器（Phase 5）、lift 主实验（Phase 6.2/6.3）、
-> 部署臂（Phase 7.1）——全部按 §6 实施状态表与 §4 诚实边界如实登记，未做的不粉饰为已做。
+> **定稿状态（2026-09-19，Task 7.2）**：本文按计划执行到 Phase 6.1（ρ_u 标定）与 2.3（covUnits
+> 归并）后定稿。已落地：Layer C 三份 CPU 描述 + 解析库、Layer A 分母参数化 + covUnits 7 维
+> 向量 + LSU/L2C 采集升级、ρ_u 11 臂实测回填。deferred：次模选择与 ED 评分器（Phase 5）、
+> lift 主实验（Phase 6.2/6.3）、部署臂（Phase 7.1）——全部按 §7 实施状态表与 §4 诚实边界
+> 如实登记，未做的不粉饰为已做。
 
 ## 1. 背景与动机
 
@@ -85,15 +86,19 @@ ceiling_u  可达性上限；有效覆盖 A'_u(S) = min(A_u(S), ceiling_u)
 
 ### 3.3 A_u 采集定义（per-unit）
 
+各单元 A_u 经 `harp.covUnits` 7 维向量归并输出（Task 2.3，commit 9274f1e3：
+OoO=irfAvf、IEX=max(ibrIntAdd,ibrIntMul)、LSU=sqAvf、FSU=max(ibrFpAdd,ibrFpMul)、
+L2C=max(l1dAvf,l2cAvf)、IFU/MMU=0 占位），供 ed_score.py 消费。
+
 | 单元 | A_u 定义 | 数据源 | 实施状态 |
 |---|---|---|---|
 | IFU | 预测器状态覆盖 | CHAOSBPU 基建；**SDC 轴 ρ=0，只进 Crash 轴** | deferred（runner 无 BPU 挂载路径；ρ=0 已由既有证据钉死） |
-| OoO | ROB 占用带覆盖 × rename 距离分布 | commit.cc tick + PrfRegState birth/last_read | 占用直方图已有；rename 距离分布 deferred（Task 3.4） |
-| IEX | IBR × 门级敏感位覆盖 | inst_queue.cc + CHAOSGateFU 网表差分 | IBR 已参数化落地（Task 2.1）；门级差分臂 deferred（Task 4.3） |
-| LSU | sqAvf（per-slot 精确）+ 前转覆盖比 + load-use 距离 | lsq_unit.cc | **已落地**（Task 3.1：per-slot 前转/写回双账本 + load-use 直方图） |
-| FSU | IBR(FP) × FP 值类熵 | inst_queue.cc issue 点值类采样 | IBR(FP) 已有；值类熵 deferred（Task 3.2） |
-| MMU | TLB 条目/页大小多样性 | FS 臂（SE 用户态封顶 ≈0.2×FS 可达） | deferred（FS 镜像未入库，计划 §六预案） |
-| L2C | block-ACE data-face/tag-face 双账本 | mem/cache/base.cc + targetCache 列表化 | **已落地**（Task 2.2 L1D+L2 双账本 + Task 3.3 tag-face 账本） |
+| OoO | ROB 占用带覆盖 × rename 距离分布 | commit.cc tick + PrfRegState birth/last_read | irfAvf 分量已进 covUnits；rename 距离分布 deferred（Task 3.4） |
+| IEX | IBR × 门级敏感位覆盖 | inst_queue.cc + CHAOSGateFU 网表差分 | IBR 已进 covUnits（Task 2.1/2.3）；门级差分臂 deferred（Task 4.3） |
+| LSU | sqAvf（per-slot 精确）+ 前转覆盖比 + load-use 距离 | lsq_unit.cc | **已落地**（Task 3.1：per-slot 前转/写回双账本 + load-use 直方图；sqAvf 进 covUnits） |
+| FSU | IBR(FP) × FP 值类熵 | inst_queue.cc issue 点值类采样 | **已落地**（Task 3.2：issue 点读 PRF 源值，Float/VecElem 标量 1 lane、Vec blob 2 lane，IEEE754 五类直方图 + 归一化熵 `fpValueHist/fpValueEntropy`；IBR(FP) 已进 covUnits） |
+| MMU | TLB 条目/页大小多样性 | FS 臂（SE 用户态封顶 ≈0.2×FS 可达） | deferred（FS 镜像未入库，计划 §六预案）；covUnits 占位 0 |
+| L2C | block-ACE data-face/tag-face 双账本 | mem/cache/base.cc + targetCache 列表化 | **已落地**（Task 2.2 L1D+L2 双账本 + Task 3.3 tag-face 账本；max(l1d,l2c) 进 covUnits） |
 
 ### 3.4 SDC-ACE（bit-array 结构的 A_u 分量升级）
 
@@ -154,7 +159,6 @@ checker 候选：同核复算（时间冗余，transient）/ 校验和自比对�
 
 | 计划任务 | 内容 | 状态与原因 |
 |---|---|---|
-| 2.3 | per-unit stats 归并（7 维覆盖向量 `harp.cov.units.*`） | deferred——未实施；旧 stats 名保留故 harp_eval.py 兼容性未破坏 |
 | 3.2 | FSU 值类剖面（FP value-class 直方图 + 值类熵） | deferred——未实施；FSU 的 A_u 目前只有 IBR(FP) 分量 |
 | 3.4 | OoO rename 距离分布 + ROB 占用带细化 | deferred——未实施；占用直方图已有，距离分布缺 |
 | 4.1/4.2 | epilogue 可达集 + SDC-ACE 三账本 + gap 指标 | deferred——未实施；**这是「核心超越点」中未落地的那一半**：ED 目前消费裸 ACE 账本，SDC-ACE 的松量量化（dead_read 负对照）未做 |
@@ -195,15 +199,14 @@ tools/sfi_lift.py              per-unit lift 战役 + Wilson CI + AUC——defer
 ## 7. 实施状态总表（定稿快照，2026-09-19）
 
 计划实定义 23 任务（0.1-7.2；计划标题写「22 任务」系制定时计数笔误，以 checkbox 清单为准）：
-**11 done / 12 deferred**。逐任务 commit 溯源见
+**12 done / 11 deferred**。逐任务 commit 溯源见
 `docs/superpowers/plans/2026-09-19-cpu-profile-driven-sdc-ed.md` 勾选注记与 AGENT_TASKS.md。
 
 | Phase | 任务 | 状态 |
 |---|---|---|
 | 0 | 0.1 构建+双锚 / 0.2 method 骨架 | done |
 | 1 | 1.1 ed_profile / 1.2 三 YAML / 1.3 --profile 入口 | done |
-| 2 | 2.1 IBR 参数化 / 2.2 targetCache 列表化 | done |
-| 2 | 2.3 per-unit 7 维归并 | deferred |
+| 2 | 2.1 IBR 参数化 / 2.2 targetCache 列表化 / 2.3 per-unit 7 维归并 | done |
 | 3 | 3.1 LSU per-slot+load-use / 3.3 L2C 双面账本 | done |
 | 3 | 3.2 FSU 值类剖面 / 3.4 rename 距离 | deferred |
 | 4 | 4.1 可达集 / 4.2 SDC-ACE / 4.3 gate 臂 | deferred |

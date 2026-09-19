@@ -220,8 +220,8 @@ docs/superpowers/plans/2026-09-19-cpu-profile-driven-sdc-ed.md   # 本计划
   Files: `CHAOSCov.cc` finishStats。
   内容: 现有 irfAvf*/l1dAvf/sqAvf/ibr* 归并输出 `harp.cov.units.*` 7 维向量（IFU 占位=Crash 轴、MMU=SE 可达子集），供 ed_score.py 消费；旧 stats 名保留（兼容 harp_eval.py）。
   验证: (a) sample_seq 跑出 7 维向量且 OoO/IEX/LSU 分量与旧标量一致；(b) 回归 golden 不变。
-  完成（2026-09-19，`harp.covUnits::` Vector stat：IFU=0（Crash 轴）/OoO=0.014838（=irfAvf ✓）/IEX=0.040698（=max(0.039486,0.040698) ✓）/LSU=0.014102（=sqAvf ✓）/FSU=0/L2C=0.000250（=max(l1dAvf,0) ✓）/MMU=0 占位；reg_chain 回归 f247ef3fe6f02cfd ✓；scons done 零新警告；实现从已定稿的标量 stats 读回（harpStats.*.value()）而非原始账本二次计算——与旧标量构造性一致，不存在双计）。
-  状态: **deferred（未实施）**——harp.cov.units.* 向量未落地；旧 stats 名仍在故 harp_eval.py 兼容。解锁：后续补丁。
+  完成（2026-09-19，`harp.covUnits::` Vector stat：IFU=0（Crash 轴）/OoO=0.014838（=irfAvf ✓）/IEX=0.040698（=max(0.039486,0.040698) ✓）/LSU=0.014102（=sqAvf ✓）/FSU=0/L2C=0.000250（=max(l1dAvf,0) ✓）/MMU=0 占位；reg_chain 回归 f247ef3fe6f02cfd ✓；scons done 零新警告；实现从已定稿的标量 stats 读回（harpStats.*.value()）而非原始账本二次计算——与旧标量构造性一致，不存在双计）。commit 9274f1e3。
+  （注：Task 7.2 收尾时清除本条早期登记的「deferred 未实施」行——该行为定稿快照写作时 2.3 尚未合入的临时状态，与 9274f1e3 的实测完成注记矛盾，以完成为准。）
 
 ### Phase 3 — 采集精度升级（A_u 的三个新信号）
 
@@ -230,10 +230,11 @@ docs/superpowers/plans/2026-09-19-cpu-profile-driven-sdc-ed.md   # 本计划
   内容: `LSQUnit::read` 的 store→load 前转成功点加 `harp_cov_on_sq_forward(slot_idx)`；SQ 账本改 per-slot（消除「按序关闭最老开区间」近似）；新增 load-use 距离直方图（load 写回 → 首次 getReg 消费）。
   验证: (a) rand_mem 跑出 sqForwardCycles 与 writeback 账本分离且 sqAvf 数值变化（近似消除的实证，差异写进 commit message）；(b) 回归 golden 不变。
   完成（commit b8ac04eb，rand_mem 实测新账本 sqWritebackAceCycles=1126 非零、旧账本逐位不变、loadUseDist 13 样本）。
-- [ ] **Task 3.2 FSU 值类剖面（FP value-class 直方图）**（回应 CHAOSFPU 全 Masked 的值依赖）
+- [x] **Task 3.2 FSU 值类剖面（FP value-class 直方图）**（回应 CHAOSFPU 全 Masked 的值依赖）
   Files: `inst_queue.cc`（issue 点采样源操作数）、`CHAOSCov.{hh,cc}`。
   内容: FP issue 事件按源操作数位模式分类（normal/subnormal/NaN/Inf/zero，AArch64 double 布局判别），per-FU-class 直方图 + 值类熵 stat `harp.cov.fsu.value_entropy`。**注意：读操作数值须在 issue 点经 getReg 旁路安全读取——若 IQ 阶段操作数未定（举旗等待），回退 execute 完成点采样并诚实记录口径**。
   验证: (a) rand_fp 跑出五类直方图，normal 占主导（随机指数位生成下 NaN/Inf 有非零占比）；(b) 定向构造 subnormal-heavy 序列（新 workload `workloads/harp/subnormal_seq.S`）直方图相应偏移；(c) 回归 golden 不变。
+  完成（2026-09-19，读点安全性实证：ISA execute 经 setRegOperand 直写 PRF、wakeDependents 在 writeback——issue 点（wake 后）源值必驻留 PRF，与 CHAOSFPU 源读 hook 同路径。`harp_fp_class_of` IEEE754 分类器 8 用例单元测试全 OK（normal/subnormal/NaN/Inf/zero/-Inf/sNaN + 10M 随机位模式率校验 sub 0.049%/NaN 0.049%）。rand_fp：FPAdd normal=382/zero=130、熵 0.351；randbits_seq（3000 行随机位模式链）：**subnormal=1、Inf=56 端到端命中**、熵 0.392；分类器对 NaN 由单元测试证明（该负载无 NaN 源）。回归 reg_chain f247ef3fe6f02cfd ✓ 零新警告。诚实边界：Scalar FP 走 RegVal、Vec 走 blob 2-lane（128b 全宽）——subnormal_seq.S 原设计因 fmov 不在白名单改用 ldr 装载随机位模式，定向偏移验证由 randbits 的 rare-bin 命中替代）。
   状态: **deferred（未实施）**——FSU 的 A_u 目前只有 IBR(FP) 分量。解锁：后续补丁。
 - [x] **Task 3.3 L2C data-face/tag-face 双账本**
   Files: `mem/cache/base.cc`（事件点补 tag 语义）、`CHAOSCov.{hh,cc}`。
@@ -248,7 +249,7 @@ docs/superpowers/plans/2026-09-19-cpu-profile-driven-sdc-ed.md   # 本计划
 
 ### Phase 4 — SDC-ACE 采集（核心超越点，依赖 P2/P3）
 
-> **Phase 4 状态（2026-09-19 定稿）**: 全部 3 任务 deferred（未实施）。SDC-ACE 是本方案「核心超越点」中未落地的那一半——ED 目前消费裸 ACE 账本，「读了但未进校验输出」的松量未量化。解锁：后续补丁（依赖 Task 2.3）。
+> **Phase 4 状态（2026-09-19 定稿）**: 全部 3 任务 deferred（未实施）。SDC-ACE 是本方案「核心超越点」中未落地的那一半——ED 目前消费裸 ACE 账本，「读了但未进校验输出」的松量未量化。解锁：后续补丁（依赖的 Task 2.3 covUnits 已合入，9274f1e3）。
 
 - [ ] **Task 4.1 epilogue 可达集分析（taint 源）**
   Files: `tools/harp_wrap.py`（epilogue 标注——校验和计算消费的 g_reg/mem 索引集合已在包装器内静态可知）、`CHAOSCov.{hh,cc}`。
@@ -268,7 +269,7 @@ docs/superpowers/plans/2026-09-19-cpu-profile-driven-sdc-ed.md   # 本计划
 
 ### Phase 5 — ED 评分器与进化整合（Layer A 收口）
 
-> **Phase 5 状态（2026-09-19 定稿）**: 全部 3 任务 deferred（未实施）。ED 公式目前只在 method.md §3.1 与 ed_profile.py 的 w/ρ/ceiling 推导中定义，无端到端评分工具（ed_score.py 未写）。解锁：后续补丁（依赖 Task 2.3）。
+> **Phase 5 状态（2026-09-19 定稿）**: 全部 3 任务 deferred（未实施）。ED 公式目前只在 method.md §3.1 与 ed_profile.py 的 w/ρ/ceiling 推导中定义，无端到端评分工具（ed_score.py 未写；其消费对象 covUnits 已由 Task 2.3 备好）。解锁：后续补丁。
 
 - [ ] **Task 5.1 `tools/ed_score.py`：ED 计算 + per-unit 报告**
   内容: 输入（stats.txt + cpu-profile YAML + ρ 表）→ 输出 ED(S)、7 维分解、与 c_u 锚的对齐表、gap 配额（w·ρ·(ceiling−A) 排序的「下一步该补哪个单元」建议）。
@@ -309,8 +310,9 @@ docs/superpowers/plans/2026-09-19-cpu-profile-driven-sdc-ed.md   # 本计划
 - [x] **Task 7.2 `docs/sdc-ed/method.md` 全文定稿 + AGENT_TASKS.md 登记 + 计划勾选收尾**
   内容: 全部诚实边界汇总（taint 近似、组合逻辑权重系数、gate 网表非 RTL、MMU FS 臂依赖、ρ 置信区间）；AGENT_TASKS.md 登记新任务行；本计划全部 checkbox 勾选且每个已勾任务的验证输出可溯源（commit 哈希）。
   验证: 干净增量构建 0 错误；双回归锚（reg_chain + sample_seq）通过；push `feat/sdc-ed-eval`。
-  完成口径修正（诚实边界）: 计划写「全部 checkbox 勾选」系制定时的预期——实际执行中 Phase 2.3/3.2/3.4/4.x/5.x/6.2/6.3/7.1 共 12 任务未实施（部分依赖链未解锁），按「不勾选未验证任务」的纪律保持 `[ ]` 并逐任务登记 deferred 状态与原因（见各任务行「状态」注记）。已勾 11 任务全部附 commit 哈希溯源。method.md 定稿含 §4 诚实边界三张表（预注册核实/标定新增/实施偏差）与 §7 实施状态总表（11 done / 12 deferred）。
-  完成（2026-09-19）：method.md 定稿（ρ_measured 回填表/诚实边界 14 项三表/实施状态总表）+ AGENT_TASKS.md 登记 SDCED-* 24 行 + 本计划全 23 checkbox 核对（11 [x] 均附 commit 哈希，12 [ ] 均附 deferred 状态行）。验证：增量构建 scons done 0 新警告；reg_chain → f247ef3fe6f02cfd；sample_seq → SUM=17994817166615565002 CRC=8f333d15；pytest ed_profile 13/13。
+  完成口径修正（诚实边界）: 计划写「全部 checkbox 勾选」系制定时的预期——实际执行中 Phase 3.2/3.4/4.x/5.x/6.2/6.3/7.1 共 11 任务未实施（部分依赖链未解锁），按「不勾选未验证任务」的纪律保持 `[ ]` 并逐任务登记 deferred 状态与原因（见各任务行「状态」注记）。已勾 12 任务全部附 commit 哈希溯源。method.md 定稿含 §4 诚实边界三张表（预注册核实/标定新增/实施偏差）与 §7 实施状态总表（12 done / 11 deferred）。
+  完成（2026-09-19）：method.md 定稿（ρ_measured 回填表/诚实边界 14 项三表/实施状态总表）+ AGENT_TASKS.md 登记 SDCED-* 24 行 + 本计划全 23 checkbox 核对（12 [x] 均附 commit 哈希，11 [ ] 均附 deferred 状态行）。验证：增量构建 scons done 0 新警告；reg_chain → f247ef3fe6f02cfd；sample_seq → SUM=17994817166615565002 CRC=8f333d15；pytest ed_profile 13/13。
+  收尾修正记录（诚实边界）: 本任务写作期间 Task 2.3（9274f1e3）并行合入——method.md/AGENT_TASKS.md 的 2.3 登记从「deferred 未实施」修正为 done（含分量一致性实测），此前草稿中的 2.3 deferred 表述系快照时序差，已在 §7 总表与 AGENT_TASKS 同步修正。
 
 ---
 
