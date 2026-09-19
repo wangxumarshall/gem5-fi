@@ -1,0 +1,6 @@
+- **Code intelligence**：接语言服务器，符号级导航 + 实时类型报错
+- **Dynamic workflows / Cross-session messaging**：脚本批量调度多个 subagent、跨会话传消息 . 如何使用
+
+---
+
+装 clangd + 生成 compile_commands.json，零配置自动生效
