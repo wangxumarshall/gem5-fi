@@ -70,6 +70,20 @@ void harp_cov_on_slice_commit(const o3::DynInstPtr &inst)
     CHAOSCov::instance->sliceOnCommit(inst);
 }
 
+// SDC-ED Task 4.3: IntAdd operand pair from the issue point (sampled).
+void harp_cov_on_add_issue(uint64_t a, uint64_t b)
+{
+    if (!CHAOSCov::instance) return;
+    CHAOSCov::instance->iexOnAddIssue(a, b);
+}
+
+// SDC-ED Task 4.3: IntMul operand pair from the issue point (sampled).
+void harp_cov_on_mul_issue(uint64_t a, uint64_t b)
+{
+    if (!CHAOSCov::instance) return;
+    CHAOSCov::instance->iexOnMulIssue(a, b);
+}
+
 // --- LSQ SQ-data ACE collector hooks (Task 3.2; SDC-ED Task 3.1 adds
 // the slot index — the legacy aggregate ledger inside the handlers is
 // unchanged) ---
@@ -461,6 +475,17 @@ CHAOSCov::finishStats()
         }
         harpStats.fpValueEntropy = entropy;
     }
+    // SDC-ED Task 4.3: IEX adder gate sensitivity
+    harpStats.gateSensSamples = iex_add_sampled;
+    harpStats.gateSensRatio =
+        iex_add_sampled
+            ? (double)iex_sens_bits / (128.0 * (double)iex_add_sampled)
+            : 0.0;
+    harpStats.mulSensSamples = iex_mul_sampled;
+    harpStats.mulSensRatio =
+        iex_mul_sampled
+            ? (double)iex_mul_sens_bits / (128.0 * (double)iex_mul_sampled)
+            : 0.0;
     if (detail_stream && detail_stream->stream()) {
         auto &os = *(detail_stream->stream());
         os << "# finish roi_cycles " << roi_cycles << "\n";
@@ -976,6 +1001,24 @@ CHAOSCov::HarpStats::HarpStats(statistics::Group *parent)
                "Normalized Shannon entropy of the merged FP value-class "
                "distribution (0=single class, 1=uniform over 5 classes). "
                "FSU value-coverage axis the IBR cannot see"),
+      ADD_STAT(gateSensRatio, statistics::units::Ratio::get(),
+               "IEX adder input-bit sensitivity: fraction of the 128 "
+               "input bits whose flip changes the 64-bit sum, averaged "
+               "over sampled IntAdd issues (1-in-16 sampling). The "
+               "operand pair's logical-masking profile — carry-boundary "
+               "pairs sit near 1.0, absorbing pairs near 0 (SDC-ED "
+               "Task 4.3)"),
+      ADD_STAT(gateSensSamples, statistics::units::Count::get(),
+               "IntAdd issues actually evaluated for gate sensitivity "
+               "(total IntAdd issues reported via ibrIssues::IntAdd)"),
+      ADD_STAT(mulSensRatio, statistics::units::Ratio::get(),
+               "IntMul input-bit sensitivity: fraction of 128 input "
+               "bits whose flip changes the 64-bit product, over "
+               "sampled issues. REAL masking lives here (b=0 masks all "
+               "a-bits; leading-zero overlap) — the nonzero-dense-"
+               "operand advice rule consumes this (SDC-ED Task 4.3)"),
+      ADD_STAT(mulSensSamples, statistics::units::Count::get(),
+               "IntMul issues actually evaluated"),
       ADD_STAT(irfAvfSdc, statistics::units::Ratio::get(),
                "SDC-ACE AVF: ACE cycles whose reads lie on the dynamic "
                "slice to a checkable output (committed-store sinks), / "
@@ -1070,6 +1113,54 @@ CHAOSCov::fuOnIssueValue(int fu_class, int n_lanes, const int *lane_class)
         if (c < 0 || c >= NUM_VALUE_CLASSES) continue;
         fp_value_hist[fu_class][c]++;
         fp_lanes_sampled++;
+    }
+}
+
+// SDC-ED Task 4.3: closed-form datapath differential per sampled issue.
+// Adder: a binary adder has ZERO masking against single input-bit flips
+// (brute-force verified 0/1024 at width 4 — every a[i] flip changes
+// a+b; the plan's preregistered "all-ones/all-zero ≈ 0 sensitivity"
+// expectation was WRONG for adders and is recorded as such in
+// method.md). The ratio is therefore reported but expected ≈ 1.0 —
+// its value for the advice engine is confirming the zero-masking
+// structure, and the add samples also feed the multiplier below.
+// Multiplier: real masking exists (b=0 masks every a bit; high zero
+// bits of both operands mask each other) — mul samples are what the
+// "generate nonzero-dense operand pairs" advice rule consumes.
+void
+CHAOSCov::iexOnAddIssue(uint64_t a, uint64_t b)
+{
+    if (!roi_active) return;
+    iex_add_issues++;
+    if (iex_add_issues % SENS_SAMPLE != 1) return;   // 1-in-16 sampling
+    iex_add_sampled++;
+    const uint64_t sum = a + b;
+    for (int i = 0; i < 64; i++) {
+        const uint64_t aflip = a ^ (1ULL << i);
+        if (aflip + b != sum) iex_sens_bits++;
+    }
+    for (int i = 0; i < 64; i++) {
+        const uint64_t bflip = b ^ (1ULL << i);
+        if (a + bflip != sum) iex_sens_bits++;
+    }
+}
+
+// SDC-ED Task 4.3: multiplier differential (real masking exists).
+void
+CHAOSCov::iexOnMulIssue(uint64_t a, uint64_t b)
+{
+    if (!roi_active) return;
+    iex_mul_issues++;
+    if (iex_mul_issues % SENS_SAMPLE != 1) return;
+    iex_mul_sampled++;
+    const uint64_t prod = a * b;
+    for (int i = 0; i < 64; i++) {
+        const uint64_t aflip = a ^ (1ULL << i);
+        if (aflip * b != prod) iex_mul_sens_bits++;
+    }
+    for (int i = 0; i < 64; i++) {
+        const uint64_t bflip = b ^ (1ULL << i);
+        if (a * bflip != prod) iex_mul_sens_bits++;
     }
 }
 

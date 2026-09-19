@@ -200,7 +200,13 @@ class CHAOSCov : public SimObject
 
     // --- IBR collector (Task 4.1) ---
     void fuOnIssue(int fu_class, uint64_t src_bits);
-    // SDC-ED Task 3.2: FP value-class profile. Same issue point as
+    // SDC-ED Task 4.3: IEX gate-sensitivity coverage. At the issue
+    // point (same as IBR): per input bit, flip and recompute — the
+    // logical-masking function of the operand pair (closed-form, no
+    // netlist dependency; adder zero-masking / multiplier real masking
+    // — see the .cc implementation comment).
+    void iexOnAddIssue(uint64_t a, uint64_t b);
+    void iexOnMulIssue(uint64_t a, uint64_t b);
     // fuOnIssue, but the caller (inst_queue.cc, which can safely read the
     // PRF at issue — values are written at execute, wake happens at
     // writeback, so by issue time every source value is resident) also
@@ -360,6 +366,16 @@ class CHAOSCov : public SimObject
     uint64_t fp_value_hist[NUM_FU_CLASSES][NUM_VALUE_CLASSES] = {};
     uint64_t fp_lanes_sampled = 0;
 
+    // --- IEX gate-sensitivity state (SDC-ED Task 4.3) ---
+    // Closed-form datapath differential per sampled issue. Adder:
+    // zero masking (see .cc comment — brute-force verified); kept as
+    // the structural-confirmation signal. Multiplier: real masking.
+    uint64_t iex_add_issues = 0, iex_add_sampled = 0;
+    uint64_t iex_sens_bits = 0;
+    uint64_t iex_mul_issues = 0, iex_mul_sampled = 0;
+    uint64_t iex_mul_sens_bits = 0;
+    static constexpr int SENS_SAMPLE = 16;
+
     // --- Dynamic-slice state (SDC-ED Task 4.1/4.2) ---
     // Per committed in-ROI instruction: phys dsts/srcs (class,idx pairs)
     // + store flag. Program order (commit order). Sinks = stores (the
@@ -485,6 +501,11 @@ class CHAOSCov : public SimObject
         // value-dependent — CHAOSFPU all-Masked evidence).
         statistics::Vector fpValueHist;
         statistics::Scalar fpValueEntropy;
+        // --- IEX gate sensitivity (SDC-ED Task 4.3) ---
+        statistics::Scalar gateSensRatio;   // adder: sens/128/sample (≈1)
+        statistics::Scalar gateSensSamples; // sampled IntAdd issues
+        statistics::Scalar mulSensRatio;    // multiplier: real masking
+        statistics::Scalar mulSensSamples;
         // --- SDC-ED Task 2.3: 7-unit coverage vector ---
         // Per-unit activation coverage A_u, merged from the collectors
         // above for tools/ed_score.py (ED = Σ w_u·ρ_u·q_u·A_u). The unit

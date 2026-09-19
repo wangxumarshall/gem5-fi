@@ -70,6 +70,9 @@ namespace gem5
 void harp_cov_on_fu_issue(int fu_class, uint64_t src_bits);
 // SDC-ED Task 3.2: FP source-lane value classes at the same issue point.
 void harp_cov_on_fu_issue_value(int fu_class, int n_lanes, const int *cls);
+// SDC-ED Task 4.3: IntAdd/IntMul operand pairs at the same issue point.
+void harp_cov_on_add_issue(uint64_t a, uint64_t b);
+void harp_cov_on_mul_issue(uint64_t a, uint64_t b);
 extern bool harp_enabled;
 
 // Map an OpClass to the paper's four FU classes; -1 = not tracked.
@@ -166,6 +169,25 @@ harp_fp_value_classes_of(const o3::DynInstPtr &inst, int out[8],
             out[n_lanes++] = harp_fp_class_of((uint64_t)v);
         }
     }
+}
+
+// SDC-ED Task 4.3: capture the first two integer source operands of an
+// issued instruction (same read-safety argument as the FP helper —
+// values are PRF-resident at the issue point of a CanIssue inst).
+// Returns false if fewer than two int sources (e.g. mov-immediate).
+static inline bool
+harp_two_int_srcs(const o3::DynInstPtr &inst, uint64_t &a, uint64_t &b)
+{
+    int got = 0;
+    for (size_t i = 0; i < inst->numSrcRegs() && got < 2; ++i) {
+        const PhysRegIdPtr preg = inst->renamedSrcIdx(i);
+        if (preg->is(InvalidRegClass)) continue;
+        if (preg->classValue() != IntRegClass) continue;
+        const RegVal v = inst->cpu->getReg(preg, inst->threadNumber);
+        if (got == 0) a = (uint64_t)v; else b = (uint64_t)v;
+        got++;
+    }
+    return got >= 2;
 }
 
 namespace o3
@@ -1052,6 +1074,19 @@ InstructionQueue::scheduleReadyInsts()
                     harp_fp_value_classes_of(issuing_inst, lane_cls, n_lanes);
                     if (n_lanes)
                         harp_cov_on_fu_issue_value(fc, n_lanes, lane_cls);
+                }
+                // SDC-ED Task 4.3: IntAdd/IntMul issues feed the
+                // closed-form datapath differential (1-in-16 sampled
+                // inside CHAOSCov — adder zero-masking confirmation,
+                // multiplier real-masking profile).
+                if (fc == 0 || fc == 1) {
+                    uint64_t a = 0, b = 0;
+                    if (harp_two_int_srcs(issuing_inst, a, b)) {
+                        if (fc == 0)
+                            harp_cov_on_add_issue(a, b);
+                        else
+                            harp_cov_on_mul_issue(a, b);
+                    }
                 }
             }
         }

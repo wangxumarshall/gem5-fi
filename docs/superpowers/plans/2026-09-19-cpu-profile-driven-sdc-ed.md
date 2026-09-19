@@ -261,11 +261,11 @@ docs/superpowers/plans/2026-09-19-cpu-profile-driven-sdc-ed.md   # 本计划
   内容: 读事件在可达集内 → 双计（ACE + SDC-ACE）；可达集外 → 仅 ACE。stats: `irfAvfSdc/l1dAvfSdc/sqAvfSdc` + `sdcGap` per 结构。gap 喂 advice 引擎（P5）。
   验证: (a) readwrite_seq（链直达校验和）sdcGap ≈ 0；(b) **负对照 workload `workloads/harp/dead_read_seq.S`（写后读但读出的值乘零丢弃）sdcGap 显著 > 0**——这是 SDC-ACE 价值的一锤定音实验；(c) 回归 golden 不变。
   完成（2026-09-19，**一锤定音实验通过**：dead_read_seq gap=0.196 vs readwrite_seq gap=0.062 vs sample_seq gap=0——负对照是正对照的 3.2 倍、纯直达的 ∞。SDC replay 骑 commit-confirmed 读流（wrong-path 天然排除），gap 基线同步改为 commit 账本（对乐观账本比较产生负 gap，实测后修正）。实现要点：① producer 前向快照 + 反向一遍扫闭包（src_prod[i]<i）；② 节点级 on-path（同 slot 死区间不混入）；③ 幂等清零（onWorkEnd+preDumpStats 双调，双计曾实测 sdcGap=-1）。执行中发现（负对照设计迭代 2 轮）：wrapper 存回全部寄存器 → 死链结果必须被覆盖且不能落在未覆盖寄存器（x21 泄漏实测）→ 终版 in-place 死链。回归双锚 f247ef3fe6f02cfd + SUM=17994817166615565002/CRC=8f333d15 ✓ 零新警告。L1D/SQ 账本的 SDC 化未做（IRF 先行——诚实登记，后续按需）。）
-- [ ] **Task 4.3 gate 级敏感覆盖臂（IEX 门级位图）**
+- [x] **Task 4.3 gate 级敏感覆盖臂（IEX 门级位图）**
   Files: `CHAOSGateFU` 复用 + `CHAOSCov`。
   内容: 对 issue 的源操作数对跑网表**传播差分**（不注入：对每输入位翻转算结果是否改变 = 逻辑掩蔽函数），per-FU-class 输出敏感位占比 `harp.cov.iex.gate_sens_ratio`。Kogge-Stone 1154 门级 W=4/8/12 边界向量为天然高敏感点，喂 advice（生成进位边界操作数）。
   验证: (a) 全 1/全 0 操作数敏感比 ≈ 0（掩蔽下界）；(b) 随机操作数敏感比 ∈ (0,1) 且加法进位链位段敏感占比高于低连续位段（结构先验方向）；(c) 回归 golden 不变。**性能边界：网表差分每 issue 调用，若 IQ 热路径开销 >5%（实测构建后 profile）则降级为采样 1/64 并记录**。
-  状态: **deferred（未实施）**——1/64 采样降级预案未触发（未开工）。
+  完成（2026-09-19，**实现方式变更 + 预注册判据证伪（如实登记）**：① 闭式差分替代网表差分——每输入位翻转后直接重算 64b 和/积比较（数学上等价于网表传播差分对单 bit 翻转的判定，无网表依赖、无 SimObject 挂载需求）；② **判据 (a) 对加法器被证伪**——二进制加法器对单输入位翻转零掩蔽（宽度 1-4 穷举 0/1024 全敏感，数学证明：sum[i]=a[i]^b[i]^c[i]，翻转 a[i] 必翻 sum[i] 或向上改变进位），计划预注册时把 AND/OR 的逻辑掩蔽错加给了加法器——gateSensRatio 端到端实测 1.0（4 样本×128 位）为**结构性正确值**；③ 真实掩蔽在乘法器（mulSensRatio）：数学极性 0×0→0.000 / 随机对→1.000（单元测试），端到端 mul_seq（64 mul）实测 0.980469 ∈ (0,1)；④ 采样 1/16（预算内，mul_seq 64 issues 采 4）。回归 reg_chain f247ef3fe6f02cfd ✓ 零新警告。Kogge-Stone 边界向量建议规则**不成立**（加法器无掩蔽即无需边界操作数）——advice 引擎该规则改为「乘法非零密集操作数」。）
 
 ### Phase 5 — ED 评分器与进化整合（Layer A 收口）
 

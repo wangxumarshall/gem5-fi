@@ -94,7 +94,7 @@ L2C=max(l1dAvf,l2cAvf)、IFU/MMU=0 占位），供 ed_score.py 消费。
 |---|---|---|---|
 | IFU | 预测器状态覆盖 | CHAOSBPU 基建；**SDC 轴 ρ=0，只进 Crash 轴** | deferred（runner 无 BPU 挂载路径；ρ=0 已由既有证据钉死） |
 | OoO | ROB 占用带覆盖 × rename 距离分布 | commit.cc tick + PrfRegState birth/last_read | **已落地**（Task 3.4：renameDist 17 桶直方图 + robOccBands 8 带直方图；irfAvf 分量已进 covUnits） |
-| IEX | IBR × 门级敏感位覆盖 | inst_queue.cc + CHAOSGateFU 网表差分 | IBR 已进 covUnits（Task 2.1/2.3）；门级差分臂 deferred（Task 4.3） |
+| IEX | IBR × 门级敏感位覆盖 | inst_queue.cc issue 点闭式差分 | **已落地**（Task 4.3：闭式加/乘差分替代网表差分——加法器零掩蔽（0/1024 穷举证明，计划预注册判据证伪并登记）、乘法器真实掩蔽 mulSensRatio∈(0,1)；1/16 采样） |
 | LSU | sqAvf（per-slot 精确）+ 前转覆盖比 + load-use 距离 | lsq_unit.cc | **已落地**（Task 3.1：per-slot 前转/写回双账本 + load-use 直方图；sqAvf 进 covUnits） |
 | FSU | IBR(FP) × FP 值类熵 | inst_queue.cc issue 点值类采样 | **已落地**（Task 3.2：issue 点读 PRF 源值，Float/VecElem 标量 1 lane、Vec blob 2 lane，IEEE754 五类直方图 + 归一化熵 `fpValueHist/fpValueEntropy`；IBR(FP) 已进 covUnits） |
 | MMU | TLB 条目/页大小多样性 | FS 臂（SE 用户态封顶 ≈0.2×FS 可达） | deferred（FS 镜像未入库，计划 §六预案）；covUnits 占位 0 |
