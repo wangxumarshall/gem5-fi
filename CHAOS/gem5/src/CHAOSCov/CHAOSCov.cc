@@ -87,6 +87,13 @@ void harp_cov_on_cache_read(void *cache, void *blk)
 void harp_cov_on_cache_evict(void *cache, void *blk)
 { if (harp_cache_owner(cache)) CHAOSCov::instance->cacheOnEvict(cache, blk); }
 
+// SDC-ED Task 3.3: tag-face event — a tag comparison was performed by this
+// cache for a CPU-side access (fired from BaseCache::access right after
+// tags->accessBlock, so exactly once per CPU-side access regardless of
+// hit/miss). Counts tag-plane coverage; no ACE-interval effect.
+void harp_cov_on_cache_tag_access(void *cache)
+{ if (harp_cache_owner(cache)) CHAOSCov::instance->cacheOnTagAccess(cache); }
+
 // Per-cycle tick from Commit::tick — drives the ROI cycle counter and the
 // IRF occupancy sampling (advice-engine evidence).
 void harp_cov_on_cycle()
@@ -294,21 +301,32 @@ CHAOSCov::finishStats()
             harpStats.l1dAvf =
                 (double)ace / ((double)blocks * (double)roi_cycles);
     }
-    // L2C ACE stats (aggregate over extra ledgers; SDC-ED Task 2.2)
+    // L2C ACE stats (aggregate over extra ledgers; SDC-ED Task 2.2;
+    // SDC-ED Task 3.3 adds the tag-face counter and ratio)
     {
-        uint64_t ace = 0, rd = 0, wr = 0, ev = 0;
+        uint64_t ace = 0, rd = 0, wr = 0, ev = 0, trd = 0;
         double blocks_total = 0;
         for (size_t i = 1; i < cache_ledgers.size(); i++) {
             ace += cache_ledgers[i].ace_cycles;
             rd += cache_ledgers[i].reads;
             wr += cache_ledgers[i].writes;
             ev += cache_ledgers[i].evicts;
+            trd += cache_ledgers[i].tag_reads;
             blocks_total += (double)cache_ledgers[i].num_blocks;
         }
         harpStats.l2cAceCycles = ace;
         harpStats.l2cReads = rd;
         harpStats.l2cWrites = wr;
         harpStats.l2cEvicts = ev;
+        harpStats.l2cTagReads = trd;
+        // tag-face ratio: tag comparisons per data-face event (reads+
+        // writes). > 1 is expected — every access does one tag lookup,
+        // while a data event only fires on fill/read-hit/writeback.
+        // Honest boundary: coverage signal for the ECC-blind tag plane
+        // (ρ_L2C tag 0.45 vs data SECDED 0.0), NOT an ACE interval.
+        const uint64_t data_events = rd + wr;
+        harpStats.l2cTagFaceRatio =
+            data_events ? (double)trd / (double)data_events : 0.0;
         if (roi_cycles > 0 && blocks_total > 0)
             harpStats.l2cAvf =
                 (double)ace / (blocks_total * (double)roi_cycles);
@@ -373,7 +391,8 @@ CHAOSCov::finishStats()
                << " ace_cycles " << led.ace_cycles
                << " reads " << led.reads
                << " writes " << led.writes
-               << " evicts " << led.evicts << "\n";
+               << " evicts " << led.evicts
+               << " tag_reads " << led.tag_reads << "\n";
         }
         os << "sq entries " << sq_entries
            << " ace_cycles " << sq_ace_cycles
@@ -565,6 +584,14 @@ CHAOSCov::HarpStats::HarpStats(statistics::Group *parent)
       ADD_STAT(l2cAvf, statistics::units::Ratio::get(),
                "Extra-cache AVF = block ACE cycles / (total extra blocks "
                "* ROI cycles) (SDC-ED L2C unit)"),
+      ADD_STAT(l2cTagReads, statistics::units::Count::get(),
+               "Extra-cache tag comparisons (tag-plane coverage signal; "
+               "NOT an ACE interval — the data-face ledger above stays the "
+               "ACE account. ECC-blind tag plane: rho_L2C tag=0.45 vs "
+               "data SECDED=0.0)"),
+      ADD_STAT(l2cTagFaceRatio, statistics::units::Ratio::get(),
+               "Extra-cache tag-face ratio = tagReads / (reads + writes). "
+               "Coverage signal for the tag plane (SDC-ED L2C unit)"),
       ADD_STAT(sqAceCycles, statistics::units::Cycle::get(),
                "SQ data-field ACE cycles (aggregate interval ledger)"),
       ADD_STAT(sqWrites, statistics::units::Count::get(),
@@ -859,6 +886,22 @@ CHAOSCov::cacheOnEvict(void *cache, void *blk)
     auto it = led->state.find(blk);
     if (it != led->state.end())
         it->second.has_value = false;   // unread tail un-ACE; state kept
+}
+
+// SDC-ED Task 3.3: tag-face event handler. One call per CPU-side access's
+// tag comparison (BaseCache::access after tags->accessBlock — fires for
+// hits AND misses). Count only; deliberately no interval bookkeeping:
+// reading a tag does not extend any data bit's ACE residency. This is the
+// coverage-side counterpart of the L2 tag-face SDC line (39-47% vs
+// data-face SECDED 0%): a workload touching many distinct tags exercises
+// the unprotected tag plane, which SECDED on the data array does not cover.
+void
+CHAOSCov::cacheOnTagAccess(void *cache)
+{
+    if (!roi_active) return;
+    CacheLedger *led = ledgerFor(cache);
+    if (!led) return;
+    led->tag_reads++;
 }
 
 void

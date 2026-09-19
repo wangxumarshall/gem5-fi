@@ -224,7 +224,7 @@ docs/superpowers/plans/2026-09-19-cpu-profile-driven-sdc-ed.md   # 本计划
   Files: `inst_queue.cc`（issue 点采样源操作数）、`CHAOSCov.{hh,cc}`。
   内容: FP issue 事件按源操作数位模式分类（normal/subnormal/NaN/Inf/zero，AArch64 double 布局判别），per-FU-class 直方图 + 值类熵 stat `harp.cov.fsu.value_entropy`。**注意：读操作数值须在 issue 点经 getReg 旁路安全读取——若 IQ 阶段操作数未定（举旗等待），回退 execute 完成点采样并诚实记录口径**。
   验证: (a) rand_fp 跑出五类直方图，normal 占主导（随机指数位生成下 NaN/Inf 有非零占比）；(b) 定向构造 subnormal-heavy 序列（新 workload `workloads/harp/subnormal_seq.S`）直方图相应偏移；(c) 回归 golden 不变。
-- [ ] **Task 3.3 L2C data-face/tag-face 双账本**
+- [x] **Task 3.3 L2C data-face/tag-face 双账本**
   Files: `mem/cache/base.cc`（事件点补 tag 语义）、`CHAOSCov.{hh,cc}`。
   内容: read/write/evict hook 补 face 维度：数据面=read 命中数据/fill 数据；tag 面=tag 比较参与的事件（lookup 时 tag 匹配行为——在 satisfyRequest/handleFill 的 blk 选择路径上区分）。per-face aceCycles + Avf。**L2 tag-face AVF 高 = 序列触发了合法别名域 = ECC 盲高危区（39-47% 实测线的覆盖侧对应物）**。
   验证: (a) rand_mem 双 face 账本非零且 data-face 事件 >> tag-face（每 access 一次数据事件、一次 tag 参与）；(b) 构造别名触发序列（不同地址同 tag 低位——64KiB 4-way 的冲突序列）tag-face 事件显著上升；(c) 回归 golden 不变。

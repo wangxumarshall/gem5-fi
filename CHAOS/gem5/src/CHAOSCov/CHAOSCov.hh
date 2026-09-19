@@ -81,6 +81,15 @@ struct HarpBlkState
 // reported via the l1d* stats, unchanged); slots 1.. = the
 // extraTargetCaches list (L2 etc., reported via l2c* stats — the SDC-ED
 // L2C-unit collector).
+//
+// SDC-ED Task 3.3 — data-face/tag-face dual ledger: the ACE interval
+// state below stays DATA-FACE only (reads/fills of block data). The tag
+// face is a separate counter (tag_reads): how many tag comparisons this
+// cache performed. Honest boundary: a tag lookup is NOT an ACE interval
+// — reading a tag does not prolong any data bit's required residency —
+// so tag_reads is a coverage signal for the ECC-blind tag plane (the
+// ρ_L2C(tag)=0.45 vs data-face-SECDED ρ=0 split), never mixed into
+// ace_cycles.
 struct CacheLedger
 {
     const void *cache = nullptr;
@@ -89,6 +98,9 @@ struct CacheLedger
     std::unordered_map<const void *, HarpBlkState> state;
     uint64_t ace_cycles = 0;
     uint64_t reads = 0, writes = 0, evicts = 0;
+    // SDC-ED Task 3.3: tag-plane lookup counter (one per CPU-side access's
+    // tag comparison, hit or miss). Coverage signal only — see above.
+    uint64_t tag_reads = 0;
 };
 
 class CHAOSCov : public SimObject
@@ -132,6 +144,10 @@ class CHAOSCov : public SimObject
     void cacheOnWrite(void *cache, void *blk);
     void cacheOnRead(void *cache, void *blk);
     void cacheOnEvict(void *cache, void *blk);
+    // SDC-ED Task 3.3: tag-face event — a tag comparison was performed for
+    // a CPU-side access (hit or miss; blk may be nullptr on miss). Counts
+    // into the ledger's tag_reads; no ACE-interval effect.
+    void cacheOnTagAccess(void *cache);
     // SDC-ED Task 2.2: dispatch to the ledger owning this cache instance
     // (nullptr = untracked). Public: the file-level owner-filter hooks in
     // CHAOSCov.cc call it before invoking the handlers.
@@ -321,6 +337,13 @@ class CHAOSCov : public SimObject
         statistics::Scalar l2cWrites;
         statistics::Scalar l2cEvicts;
         statistics::Scalar l2cAvf;
+        // SDC-ED Task 3.3: data-face/tag-face dual ledger. tagReads counts
+        // tag comparisons (tag-plane coverage — the ECC-blind face);
+        // tagFaceRatio = tagReads / (reads+writes) normalizes against the
+        // data-face event stream. Both are coverage signals, NOT ACE
+        // intervals (see CacheLedger for the honest boundary).
+        statistics::Scalar l2cTagReads;
+        statistics::Scalar l2cTagFaceRatio;
         // --- LSQ SQ-data ACE (Task 3.2) ---
         statistics::Scalar sqAceCycles;
         statistics::Scalar sqWrites;
