@@ -64,7 +64,9 @@ void harp_cov_on_prf_write(int class_type, int idx);
 // Commit-confirmed read (Task 2.2): per committed instruction, per phys src.
 void harp_cov_on_prf_commit_read(int class_type, int idx);
 // Per-cycle tick from Commit::tick (ROI bookkeeping + occupancy sampling).
-void harp_cov_on_cycle();
+// SDC-ED Task 3.4: gained the ROB in-flight count + capacity for the
+// occupancy-band histogram (caller reads cpu->rob public members).
+void harp_cov_on_cycle(int rob_in_flight = 0, int rob_max = 0);
 extern bool harp_enabled;
 
 namespace o3

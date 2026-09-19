@@ -606,9 +606,12 @@ Commit::tick()
     // Harpocrates coverage (harp plan Task 2.1): per-cycle ROI bookkeeping
     // (roi_cycles++ while inside the ROI window) + IRF occupancy sampling
     // for the advice engine. Single predictable branch when no CHAOSCov is
-    // mounted.
+    // mounted. SDC-ED Task 3.4: also feeds the ROB occupancy-band
+    // histogram (numInstsInROB is a public ROB member; read before any
+    // commit retires this cycle, so the sample is the steady-state band).
     if (harp_enabled)
-        harp_cov_on_cycle();
+        harp_cov_on_cycle(cpu->robAccess().numInstsInROB,
+                          cpu->robAccess().getMaxEntries(0));
 
     if (activeThreads->empty())
         return;

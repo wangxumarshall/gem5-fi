@@ -104,13 +104,19 @@ void harp_cov_on_cache_tag_access(void *cache)
 { if (harp_cache_owner(cache)) CHAOSCov::instance->cacheOnTagAccess(cache); }
 
 // Per-cycle tick from Commit::tick — drives the ROI cycle counter and the
-// IRF occupancy sampling (advice-engine evidence).
-void harp_cov_on_cycle()
+// IRF occupancy sampling (advice-engine evidence). SDC-ED Task 3.4: also
+// buckets the ROB occupancy band (in-flight / capacity, 8 bands of 12.5%).
+void harp_cov_on_cycle(int rob_in_flight, int rob_max)
 {
     if (!CHAOSCov::instance) return;
     CHAOSCov::instance->tickROICycles();
     if (CHAOSCov::roiActive())
         CHAOSCov::instance->irfSampleOccupancy();
+    if (CHAOSCov::roiActive() && rob_max > 0) {
+        unsigned band = (unsigned)((long long)rob_in_flight * 8 / rob_max);
+        if (band > 7) band = 7;
+        CHAOSCov::instance->robOccSample(band);
+    }
 }
 
 CHAOSCov::CHAOSCov(const CHAOSCovParams &p)
@@ -357,6 +363,11 @@ CHAOSCov::finishStats()
             / ((double)sq_entries * (double)roi_cycles);
     for (int b = 0; b < LU_BUCKETS; b++)
         harpStats.loadUseDist[b] = lu_hist[b];
+    // SDC-ED Task 3.4: rename distance + ROB occupancy bands
+    for (int b = 0; b < RD_BUCKETS; b++)
+        harpStats.renameDist[b] = rd_hist[b];
+    for (int b = 0; b < 8; b++)
+        harpStats.robOccBands[b] = rob_occ_hist[b];
     // IBR (paper: input bits / theoretical max at every ROI cycle).
     for (int c = 0; c < 4; c++) {
         harpStats.ibrInputBits[c] = ibr_input_bits[c];
@@ -461,6 +472,15 @@ CHAOSCov::finishStats()
         for (int b = 0; b < LU_BUCKETS; b++)
             os << " " << lu_hist[b];
         os << "\n";
+        // SDC-ED Task 3.4: OoO evidence — rename distance + ROB bands
+        os << "rename_dist hist (buckets 0,1,2,4,...,32768,>32768)";
+        for (int b = 0; b < RD_BUCKETS; b++)
+            os << " " << rd_hist[b];
+        os << "\n";
+        os << "rob_occ bands (0-12.5%,...,87.5-100%)";
+        for (int b = 0; b < 8; b++)
+            os << " " << rob_occ_hist[b];
+        os << "\n";
         os << "ibr";
         for (int c = 0; c < 4; c++)
             os << " " << ibr_input_bits[c] << "/" << ibr_issues[c];
@@ -527,6 +547,9 @@ CHAOSCov::irfOnRead(int class_type, int idx)
         // First read: accumulate [birth, now] (write→read interval).
         irf_ace_cycles[class_type] += now - st.birth;
         st.ever_read = true;
+        // SDC-ED Task 3.4: rename-distance sample at interval close
+        // (producer write → first consumer read, cycles).
+        renameDistSample(now - st.birth);
     } else {
         // read→read: extend to now.
         irf_ace_cycles[class_type] += now - st.last_read;
@@ -593,6 +616,23 @@ CHAOSCov::irfSampleOccupancy()
     unsigned bucket = std::min<unsigned>(live / 8, OCC_BUCKETS - 1);
     irf_occ_hist[bucket]++;
     irf_occ_samples++;
+}
+
+// SDC-ED Task 3.4: bucket a rename distance into the power-of-two
+// histogram (same scheme as the load-use distance).
+void
+CHAOSCov::renameDistSample(uint64_t dist)
+{
+    int b;
+    if (dist == 0) b = 0;
+    else if (dist > 32768) b = RD_BUCKETS - 1;
+    else {
+        b = 1;
+        while ((1ULL << b) < dist) b++;
+        // dist in (2^(b-1), 2^b] → bucket b, capped
+        if (b >= RD_BUCKETS - 1) b = RD_BUCKETS - 2;
+    }
+    rd_hist[b]++;
 }
 
 CHAOSCov::HarpStats::HarpStats(statistics::Group *parent)
@@ -684,6 +724,15 @@ CHAOSCov::HarpStats::HarpStats(statistics::Group *parent)
                "writeback into the PRF and its first commit-confirmed "
                "consumption. Buckets: [0]=0, [i]=2^(i-1)..2^i cycles, "
                "[16]=>32768 (SDC-ED LSU unit, load-use distance)"),
+      ADD_STAT(renameDist, statistics::units::Count::get(),
+               "Rename-distance histogram: cycles from a PRF value's "
+               "producing write to its first read (the write→read ACE "
+               "interval length). Buckets: [0]=0, [i]=2^(i-1)..2^i, "
+               "[16]=>32768 (SDC-ED Task 3.4, OoO unit)"),
+      ADD_STAT(robOccBands, statistics::units::Count::get(),
+               "ROB occupancy-band histogram: per-ROI-cycle samples of "
+               "numInstsInROB bucketed into 8 bands of capacity/8 "
+               "(SDC-ED Task 3.4, OoO unit)"),
       ADD_STAT(ibrInputBits, statistics::units::Bit::get(),
                "IBR numerator: input bits delivered per FU class "
                "[0=IntAdd 1=IntMul 2=FPAdd 3=FPMul]"),
@@ -730,6 +779,19 @@ CHAOSCov::HarpStats::HarpStats(statistics::Group *parent)
                                + "-" + std::to_string(1 << b));
     }
     loadUseDist.subname(LU_BUCKETS - 1, "gt32768");
+    // SDC-ED Task 3.4: rename-distance buckets (same scheme)
+    renameDist.init(RD_BUCKETS);
+    renameDist.subname(0, "c0");
+    for (int b = 1; b < RD_BUCKETS - 1; b++) {
+        renameDist.subname(b, "c" + std::to_string(1 << (b - 1))
+                               + "-" + std::to_string(1 << b));
+    }
+    renameDist.subname(RD_BUCKETS - 1, "gt32768");
+    robOccBands.init(8);
+    for (int b = 0; b < 8; b++)
+        robOccBands.subname(b, "b" + std::to_string(b) + "_" +
+                               std::to_string(b * 100 / 8) + "-"
+                               + std::to_string((b + 1) * 100 / 8) + "pct");
     // SDC-ED Task 2.3: 7-unit vector subnames (order fixed in CHAOSCov.hh)
     covUnits.init(NUM_ED_UNITS);
     covUnits.subname(0, "IFU");

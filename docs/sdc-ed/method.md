@@ -93,7 +93,7 @@ L2C=max(l1dAvf,l2cAvf)、IFU/MMU=0 占位），供 ed_score.py 消费。
 | 单元 | A_u 定义 | 数据源 | 实施状态 |
 |---|---|---|---|
 | IFU | 预测器状态覆盖 | CHAOSBPU 基建；**SDC 轴 ρ=0，只进 Crash 轴** | deferred（runner 无 BPU 挂载路径；ρ=0 已由既有证据钉死） |
-| OoO | ROB 占用带覆盖 × rename 距离分布 | commit.cc tick + PrfRegState birth/last_read | irfAvf 分量已进 covUnits；rename 距离分布 deferred（Task 3.4） |
+| OoO | ROB 占用带覆盖 × rename 距离分布 | commit.cc tick + PrfRegState birth/last_read | **已落地**（Task 3.4：renameDist 17 桶直方图 + robOccBands 8 带直方图；irfAvf 分量已进 covUnits） |
 | IEX | IBR × 门级敏感位覆盖 | inst_queue.cc + CHAOSGateFU 网表差分 | IBR 已进 covUnits（Task 2.1/2.3）；门级差分臂 deferred（Task 4.3） |
 | LSU | sqAvf（per-slot 精确）+ 前转覆盖比 + load-use 距离 | lsq_unit.cc | **已落地**（Task 3.1：per-slot 前转/写回双账本 + load-use 直方图；sqAvf 进 covUnits） |
 | FSU | IBR(FP) × FP 值类熵 | inst_queue.cc issue 点值类采样 | **已落地**（Task 3.2：issue 点读 PRF 源值，Float/VecElem 标量 1 lane、Vec blob 2 lane，IEEE754 五类直方图 + 归一化熵 `fpValueHist/fpValueEntropy`；IBR(FP) 已进 covUnits） |
@@ -159,7 +159,7 @@ checker 候选：同核复算（时间冗余，transient）/ 校验和自比对�
 
 | 计划任务 | 内容 | 状态与原因 |
 |---|---|---|
-| 3.4 | OoO rename 距离分布 + ROB 占用带细化 | deferred——未实施；占用直方图已有，距离分布缺 |
+| 3.4 | OoO rename 距离分布 + ROB 占用带细化 | **已实施**（2026-09-19：`harp.renameDist` 17 桶 write→首读距离直方图（irfOnRead 区间关闭点采样）+ `harp.robOccBands` 8 带占用直方图（commit tick 经 robAccess() 读 numInstsInROB）；方向验证 sample_seq 86% 样本在 0-12% 带 vs readwrite_seq 铺至 25-37% 带） |
 | 4.1/4.2 | epilogue 可达集 + SDC-ACE 三账本 + gap 指标 | deferred——未实施；**这是「核心超越点」中未落地的那一半**：ED 目前消费裸 ACE 账本，SDC-ACE 的松量量化（dead_read 负对照）未做 |
 | 4.3 | gate 级敏感覆盖臂（IEX 门级位图） | deferred——未实施；含 1/64 采样降级预案未触发（未开工） |
 | 5.1/5.2/5.3 | ed_score.py + 次模选择器 + harp_evolve fitness 替换 | deferred——未实施；**ED 评分器未落地**，ED 公式目前只在本文件与 ed_profile.py 的 w/ρ/ceiling 推导中定义，无端到端评分工具 |

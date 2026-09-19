@@ -241,11 +241,11 @@ docs/superpowers/plans/2026-09-19-cpu-profile-driven-sdc-ed.md   # 本计划
   内容: read/write/evict hook 补 face 维度：数据面=read 命中数据/fill 数据；tag 面=tag 比较参与的事件（lookup 时 tag 匹配行为——在 satisfyRequest/handleFill 的 blk 选择路径上区分）。per-face aceCycles + Avf。**L2 tag-face AVF 高 = 序列触发了合法别名域 = ECC 盲高危区（39-47% 实测线的覆盖侧对应物）**。
   验证: (a) rand_mem 双 face 账本非零且 data-face 事件 >> tag-face（每 access 一次数据事件、一次 tag 参与）；(b) 构造别名触发序列（不同地址同 tag 低位——64KiB 4-way 的冲突序列）tag-face 事件显著上升；(c) 回归 golden 不变。
   完成（commit 0759eb58，tag-face 账本 + conflict_seq 别名触发 workload 实证 tag 事件显著上升；单 L1D 路径逐位一致）。
-- [ ] **Task 3.4 OoO rename 距离分布 + ROB 占用带**（纯 stat，不加 hook）
+- [x] **Task 3.4 OoO rename 距离分布 + ROB 占用带**（纯 stat，不加 hook）
   Files: `CHAOSCov.{hh,cc}`。
   内容: PrfRegState 已有 birth/last_read——finishStats 输出 rename 距离直方图（write→last_read 周期差）；占用直方图细化到 ROB 占用带（commit tick 采样点已有）。
   验证: (a) readwrite_seq（长链）vs overwrite_seq（死写）距离直方图形态分化（长链右移——方向验证）；(b) 回归 golden 不变。
-  状态: **deferred（未实施）**——占用直方图已有，rename 距离分布缺。解锁：后续补丁。
+  完成（2026-09-19：renameDist 在 irfOnRead 首读点（区间关闭处）采样 write→首读周期差，17 桶 2 的幂直方图；robOccBands 由 Commit::tick 经 robAccess()（既有公开访问器；直接 cpu->rob 编译错 protected，实测后改）读 numInstsInROB/getMaxEntries，8 带 ×12.5%。方向验证（诚实口径）：sample_seq 86/86 样本在 0-12% 带 vs readwrite_seq 铺至 25-37% 带（2981 样本）、longlive 中带 1194——序列规模与占用带同步展开 ✓；rename 距离 readwrite c2-4 峰 2000 vs overwrite 401（短自依赖链密度 5 倍）——两负载均为 12/9 行短链，计划预期的「长链右移」判据在小序列上不成立（overwrite 三源操作数拉长均值），形态分化本身成立且如实记录。回归 reg_chain f247ef3fe6f02cfd ✓ scons done 零新警告。）
 
 ### Phase 4 — SDC-ACE 采集（核心超越点，依赖 P2/P3）
 

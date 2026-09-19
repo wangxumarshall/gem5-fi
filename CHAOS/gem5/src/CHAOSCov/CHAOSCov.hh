@@ -134,6 +134,14 @@ class CHAOSCov : public SimObject
     void irfOnAlloc(int class_type, int idx);
     void irfOnFree(int class_type, int idx);
     void irfSampleOccupancy();   // per-ROI-cycle histogram sampling
+    // SDC-ED Task 3.4: ROB occupancy-band sample (band = in-flight*8/max,
+    // 0..7) and the rename-distance histogram sample point. Rename
+    // distance = cycles from a value's producing write (birth) to its
+    // first (optimistic) read — sampled where the interval closes in
+    // irfOnRead, no extra hook. Long-chain sequences must skew this
+    // right vs dead-write sequences (direction check in the plan).
+    void robOccSample(unsigned band) { rob_occ_hist[band]++; }
+    void renameDistSample(uint64_t dist);
     // Task 2.2 commit-confirmed read: called from Commit per committed
     // instruction per physical source register. Accumulates a second,
     // wrong-path-free ACE ledger (reads by squashed instructions never
@@ -245,6 +253,12 @@ class CHAOSCov : public SimObject
     static constexpr int OCC_BUCKETS = 33;  // 0..32+ live-value regs
     std::vector<uint64_t> irf_occ_hist;     // per-bucket cycle counts
     uint64_t irf_occ_samples = 0;
+    // SDC-ED Task 3.4: ROB occupancy bands (8 bands of capacity/8) and
+    // the rename-distance histogram (same bucket scheme as load-use:
+    // 0,1,2,4,...,32768,>32768 — 17 buckets).
+    uint64_t rob_occ_hist[8] = {0, 0, 0, 0, 0, 0, 0, 0};
+    static constexpr int RD_BUCKETS = 17;
+    uint64_t rd_hist[RD_BUCKETS] = {0};
 
     // --- L1D/L2 ACE state (Task 3.1; SDC-ED Task 2.2 multi-cache) ---
     // Per-cache ledgers (types defined above the class): slot 0 = legacy
@@ -378,6 +392,9 @@ class CHAOSCov : public SimObject
         statistics::Scalar sqWritebackAceCycles;
         statistics::Scalar sqForwardAvf;
         statistics::Vector loadUseDist;
+        // --- SDC-ED Task 3.4: OoO rename distance + ROB occupancy bands ---
+        statistics::Vector renameDist;
+        statistics::Vector robOccBands;
         // --- IBR (Task 4.1) ---
         statistics::Vector ibrInputBits;
         statistics::Vector ibrIssues;
