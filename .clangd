@@ -1,0 +1,47 @@
+# 仓库根 .clangd —— 覆盖根目录 CHAOS/ 规范源本（与 CHAOS/gem5/.clangd 分工）。
+#
+# 背景（git 历史核实）：根 CHAOS/<模块>/ 是 CHAOS 框架的规范源本，
+# 历史上由多个 commit 直接编辑（S1-1、G1/64-bit、NEON-lane 等），
+# 并与 CHAOS/gem5/src/ 下的构建镜像保持双副本同步（同一 commit
+# 同时改两棵树）。vendored 树有 compile_commands.json 提供编译标志，
+# 根树没有——本文件把 gem5 构建的 -I/-D 标志（取自
+# build/ARM/compile_commands.json 中 src/CHAOSReg/CHAOSReg.cc 条目，
+# 相对路径已转绝对）显式补齐，使根树文件获得与镜像一致的 LSP 分析。
+#
+# 已知限制（诚实声明）：params/*.hh 是 scons 生成到 build/ARM 的，
+# 根树分析依赖这些生成物存在（跑过一次构建即有）；根树文件不在
+# compile db 中，跨文件 references/workspace 符号仍以 vendored 树
+# 为准（编辑规范：两树同步提交，见 7f538c493 等 commit 的先例）。
+CompileFlags:
+  Add:
+    # 工具链修复（同 CHAOS/gem5/.clangd）：pip 版 clangd 22.1.1 对
+    # openEuler gcc 12 的自动探测不完整，显式补 libstdc++ 头路径
+    - "-isystem/usr/include/c++/12"
+    - "-isystem/usr/include/c++/12/aarch64-openEuler-linux"
+    - "-isystem/usr/lib/gcc/aarch64-openEuler-linux/12/include"
+    # gem5 构建标志（compile_commands.json 的 -I 相对路径 → 绝对）
+    - "-I/home/sdc/wangxu/gem5-fi/CHAOS/gem5/src"
+    - "-I/home/sdc/wangxu/gem5-fi/CHAOS/gem5/include"
+    - "-I/home/sdc/wangxu/gem5-fi/CHAOS/gem5/ext"
+    - "-I/home/sdc/wangxu/gem5-fi/CHAOS/gem5/build/ARM"
+    - "-I/home/sdc/wangxu/gem5-fi/CHAOS/gem5/ext/libelf"
+    - "-I/home/sdc/wangxu/gem5-fi/CHAOS/gem5/ext/iostream3"
+    - "-I/home/sdc/wangxu/gem5-fi/CHAOS/gem5/ext/nomali/include"
+    - "-I/home/sdc/wangxu/gem5-fi/CHAOS/gem5/ext/drampower/src"
+    - "-I/home/sdc/wangxu/gem5-fi/CHAOS/gem5/ext/softfloat"
+    - "-I/home/sdc/wangxu/gem5-fi/CHAOS/gem5/ext/fputils/include"
+    - "-I/home/sdc/wangxu/gem5-fi/CHAOS/gem5/ext/libfdt"
+    - "-I/home/sdc/wangxu/gem5-fi/CHAOS/gem5/ext/pybind11/include"
+    - "-I/usr/include/python3.11"
+    - "-I/home/sdc/wangxu/gem5-fi/CHAOS/gem5/ext/googletest/googletest/include"
+    - "-I/home/sdc/wangxu/gem5-fi/CHAOS/gem5/ext/googletest/googlemock/include"
+    - "-I/home/sdc/wangxu/gem5-fi/CHAOS/gem5/src/systemc/ext/systemc_home/include"
+    - "-I/home/sdc/wangxu/gem5-fi/CHAOS/gem5/build/ARM/systemc/ext"
+    # 关键 -D 宏（compile_commands.json 同源）
+    - "-DPROTOBUF_INLINE_NOT_IN_HEADERS=0"
+    - "-DPROTOBUF_ENABLE_DEBUG_LOGGING_MAY_LEAK_PII=0"
+    - "-DNOMINMAX"
+    - "-DMAGIC_ENUM_RANGE_MAX=0x100"
+    - "-DNUMBER_BITS_PER_SET=64"
+    - "-DTRACING_ON=1"
+    - "-std=c++17"
