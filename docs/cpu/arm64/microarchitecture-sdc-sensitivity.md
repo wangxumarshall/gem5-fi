@@ -1,4 +1,4 @@
-# ARM64 CPU 微架构 × SDC 敏感性对比研究
+# ARM64 CPU 微架构 × SDC 敏感性对比
 ---
 
 ## 1. 基本信息
@@ -8,22 +8,15 @@
 - D. LSU（Load Store Unit）：LS（AGU/load）、STD（AGU/store）、L1-dTLB、Store Queue、L1d-Cache（tag/data/aux tag）；原子与同步单元（执行原子读改写如 CAS/atomic RMW、缓存行锁、总线锁，fence/barrier多核同步）；数据预取器（L1 PHT（prefetch history table）/TLB prefetcher/region prefetcher/L2 prefecther）
 - C2. FSU（FP/SIMD Unit）：FP/SIMD Issue Queue、FP/SIMD PRF、FSU Pipe执行单元；
   - Cx. FP/SIMD：2×FP；FP32 FMA 2/cyc（128b），FP64；FADD 4/FMUL 5/FMA 5–7 cyc；NEON128 2/cyc；SVE512 FMA ≥2/cyc；SVE128b FMA
-
 - C3. Crypto：AES+PMULL/SHA1/SHA2/SHA3/SHA256/CRC32/SM3/SM4/EOR3/XAR/BCAX
-
 - E. MMU：L2-TLB、PTW（页表遍历）、PWC（页表遍历缓存）
 - F. L2：L2-Cache（tag/data/TQ/victim/uncore/DSU）、核缓存一致性（MESI/MOESI、snooping 或目录协议）
 - G. L3：L3-Cache/SLC（tag/data）
 - H. RAS：RAM 保护 (ECC/parity 矩阵)、架构化 RAS (寄存器/异常/ESB/poison)、错误注入、平台 RAS 栈 (ACPI/EDAC)
 
 ---
-ALU：3×ALU + 1×MUL/DIV
-FP/SIMD：2×FP；FP32 FMA 2/cyc（128b），FP64；FADD 4/FMUL 5/FMA 5–7 cyc；NEON128 2/cyc；SVE512 FMA ≥2/cyc；SVE128b FMA
-
----
 
 ## 2. CPU 微架构对比与 SDC 敏感性
-
 
 ### 2.1 微架构分组与单元全景
 
@@ -58,9 +51,9 @@ FP/SIMD：2×FP；FP32 FMA 2/cyc（128b），FP64；FADD 4/FMUL 5/FMA 5–7 cyc�
 | | 调度器 Issue Queue | ALU/LS/FP 各 ~33 | 未公开 | issue queues（容量未给） | issue queues | issue queues |
 | **C1. IEX** | ALU Issue Queue | ~33 | 未公开 | 未披露 | 未披露 | 未披露 |
 | | Int PRF | ~128 | 未公开 | 未披露 | 未披露 | 未披露 |
-| | ALU ×3 | 3 ALU，分支占 2 口 | 未公开 | 整数执行单元 | 整数执行单元 | 整数执行单元 |
+| | ALU | 3 ALU，分支占 2 口 | 未公开 | 整数执行单元 | 整数执行单元 | 整数执行单元 |
 | | MDU 乘除 | 乘 4 / 除 19（早退） | 未公开 | 未披露 | 未披露 | 未披露 |
-| | MSR / CP15 | 有 | 有 | 系统寄存器 | 系统寄存器 | 系统寄存器 |
+| | MSR/CP15 | 有 | 有 | 系统寄存器 | 系统寄存器 | 系统寄存器 |
 | **D. LSU** | LS×2 / STD×2（AGU） | 2 AGU：2 load 或 1L+1S/cyc | 未公开 | load/store 单元 | LSU | LSU |
 | | L1-dTLB | 32 项全相联 | 未测 | 48 项全相联 | 44 项全相联 | 48 项全相联 |
 | | Store Queue | 未公开 | 未公开 | 未披露 | 未披露 | 未披露 |
@@ -69,7 +62,7 @@ FP/SIMD：2×FP；FP32 FMA 2/cyc（128b），FP64；FADD 4/FMUL 5/FMA 5–7 cyc�
 | | 数据预取器 | L1/region/L2 预取 | 未测 | L1 PHT（**无保护**） | 有（未披露） | VA/PC 引擎（L2 预取） |
 | **C2. FSU** | FP/SIMD Issue Queue | ~33 | 未公开 | 未披露 | 未披露 | 未披露 |
 | | FP/SIMD PRF | 偏小（32×128b） | ★ **Z0–Z31 ×512b + SME** | NEON 128b | SVE 128b（32×128b） | SVE2 128b |
-| | FSU Pipe ×2 | FP32 FMA 2/cyc；FP64 **1/4 rate** | SVE512 FMA ≥2/cyc（实测 13.6 flop/cyc 下限） | NEON 128b | SVE2 128b | SVE2 128b |
+| | FSU Pipe | FP32 FMA 2/cyc；FP64 **1/4 rate** | SVE512 FMA ≥2/cyc（实测 13.6 flop/cyc 下限） | NEON 128b | SVE2 128b | SVE2 128b |
 | **C3. Crypto** | AES/SHA/SM/CRC | AES+PMULL·SHA1·SHA2(仅 256)·CRC32；无 SHA3/SM3/SM4 | AES·SHA1/2/512·SHA3·SM3/SM4·CRC32·SVE2 crypto | 可选 Crypto | SVE2 crypto + 可选 | v9.2 全量（SHA3 等） |
 | **E. MMU** | L2-TLB | 1024 项共用（+11 cyc） | 未测 | 1280 项 5-way | 1280 项 5-way | ★ **分裂：small 1536/6-way + medium 256/4-way + walk cache** |
 | | PTW / PWC | 页表遍历 | 未披露 | 4 并发遍历 + 预取 | translation table prefetcher | walk cache + prefetcher |
