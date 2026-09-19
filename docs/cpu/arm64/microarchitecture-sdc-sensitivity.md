@@ -22,15 +22,15 @@
 
 | 分区 | 逻辑图单元清单 |
 |---|---|
-| **IFU 指令供给前端** | 分支预测（BP/BRE 方向、BTB、间接预测、GHB、BPIQ、返回栈 RAS）· µop/MOP cache · L1i-Cache（tag/data）· L1-iTLB · Instruction Queue |
-| **OoO 乱序执行引擎** | Int Decode→Rename→Dispatch · FP/SIMD Decode→Rename→Dispatch · **ROB（重排序缓冲：乱序执行/按序提交/精确异常）** |
-| **IEX 整数执行** | ALU Issue Queue · LSU/MDU/SYS Issue Queue · Int PRF · ALU×3 · MDU（乘除）· MSR/CP15 |
-| **LSU 访存单元** | LS1/LS2（AGU/load）· STD1/STD2（AGU/store）· L1-dTLB · Store Queue · L1d-Cache（tag/data/aux tag）· 原子与同步单元 · 数据预取器（PHT/TLB/region/L2） |
-| **FSU 浮点/向量 · C3 Crypto** | FP/SIMD Issue Queue · FP/SIMD PRF（V/Z）· FSU Pipe 0/1（FADD/FMUL/FMA/NEON/SVE）· Cx 吞吐参数 · Crypto（AES/PMULL/SHA/SM3/SM4/CRC32） |
-| **MMU 地址转换** | L2-TLB · PTW（页表遍历）· PWC（遍历缓存） |
-| **L2 与核缓存一致性** | L2-Cache（tag/data/TQ/victim）· 核缓存一致性（MESI/MOESI/snooping/目录）· 簇/互连（DSU/SCU·CHI·snoop filter） |
-| **L3/SLC · 内存** | L3-Cache/SLC（多核共享·可选）· DRAM（经 CHI/内存控制器） |
-| **RAS（横切 A–G）** | H1 RAM 保护（ECC/parity/SED）· H2 架构化 RAS（ERR*/异常/ESB/poison）· H3 错误注入 · H4 平台 RAS 栈（APEI/GHES/EDAC/BMC） |
+| **IFU 指令供给前端** | 分支预测（BP/BRE 方向、BTB、间接预测、GHB、BPIQ、返回栈 RAS）;µop/MOP cache;L1i-Cache（tag/data）;L1-iTLB;Instruction Queue |
+| **OoO 乱序执行引擎** | Int Decode→Rename→Dispatch;FP/SIMD Decode→Rename→Dispatch;**ROB（重排序缓冲：乱序执行/按序提交/精确异常）** |
+| **IEX 整数执行** | ALU Issue Queue;LSU/MDU/SYS Issue Queue;Int PRF;ALU×3;MDU（乘除）;MSR/CP15 |
+| **LSU 访存单元** | LS1/LS2（AGU/load）;STD1/STD2（AGU/store）;L1-dTLB;Store Queue;L1d-Cache（tag/data/aux tag）;原子与同步单元;数据预取器（PHT/TLB/region/L2） |
+| **FSU 浮点/向量;C3 Crypto** | FP/SIMD Issue Queue;FP/SIMD PRF（V/Z）;FSU Pipe 0/1（FADD/FMUL/FMA/NEON/SVE）;Cx 吞吐参数;Crypto（AES/PMULL/SHA/SM3/SM4/CRC32） |
+| **MMU 地址转换** | L2-TLB;PTW（页表遍历）;PWC（遍历缓存） |
+| **L2 与核缓存一致性** | L2-Cache（tag/data/TQ/victim）;核缓存一致性（MESI/MOESI/snooping/目录）;簇/互连（DSU/SCU·CHI·snoop filter） |
+| **L3/SLC;内存** | L3-Cache/SLC（多核共享·可选）;DRAM（经 CHI/内存控制器） |
+| **RAS（横切 A–G）** | RAM 保护（ECC/parity/SED）;架构化 RAS（ERR*/异常/ESB/poison）;错误注入;平台 RAS 栈（APEI/GHES/EDAC/BMC） |
 
 ### 2.2 全单元对比总表
 
@@ -69,14 +69,14 @@
 | | MMU/TLB 保护 | 无披露（RAS=0） | 未披露 | MMUTC 2×交织 parity；**L1 TLB=flops 无保护** | MMUTC SED | TLB 整体 SED |
 | **L2 一致性** | L2-Cache | 512KB/8-way（10 cyc） | ★ **768KB/12-way（17 cyc）** | 256–1024KB/8-way（TQ 24/36/48） | 512/1024KB/8-way | 128KB–2MB/8-way/2-bank PIPT |
 | | L2 RAM 保护 | 声称 ECC（无证据） | 未披露 | tag+data+TQ SECDED | tag+data+TQ SECDED | SECDED（granule 128/256b 可配） |
-| | 核缓存一致性 | HHA 目录 + bufferless 环 NoC | HCCS（跨 socket NUMA 61–91） | DSU SCU + snoop filter（MESI） | DSU-110 | DSU-120 · CHI-E 256-bit |
+| | 核缓存一致性 | HHA 目录 + bufferless 环 NoC | HCCS（跨 socket NUMA 61–91） | DSU SCU + snoop filter（MESI） | DSU-110 | DSU-120;CHI-E 256-bit |
 | **L3/内存** | L3 / LLC | 32MB/die·15-way·128B 行·tag 在簇·S/P/P | ★ **无 L3/LLC** | DSU 内可选 L3 | DSU-110 L3 | Direct connect，**无 L3/SCU** |
 | | 内存接口 | DDR4-2933 ×8ch（~187 GB/s） | 565GB·16+16 NUMA·8×200G | 48-bit PA·GICv4.1 | DSU-110 | 48-bit VA/PA·MPAM·CHI-E |
 | **RAS** | H2 架构化 RAS | ✗ **RAS=0**（无 ERR*/ESB/poison） | ✓ RAS=1（黑盒，无 TRM） | v8.2 完整（CE/DE/UE） | v9.0 全量，Node0=L1+L2 | v9.2 全量，Node0=L1+L2+MMU/TLB |
 | | H3 核心错误注入 | 仅平台级 EINJ（固件） | 未披露 | CE/DE/UC 注入 | CE/DE/UC 注入 | CE/DE/UC 注入 |
 | | H4 平台 RAS 栈 | HEST/EINJ/BERT/ghes_edac | 未披露 | FHI/ERI/ESB/poison | FHI/ERI/ESB/poison | FHI/ERI/ESB/poison |
 
-### 2.3 SDC 敏感性：现状 · 薄弱点 · 加固点
+### 2.3 SDC 敏感性：现状;薄弱点;加固点
 
 五款核在「RAM 阵列保护」这一维度上披露得最多，但**保护范围几乎全部止步于存储阵列 SRAM**。
 下面按主题逐层挖掘，其中第 1–4 点是对五款核的**共同**结论，第 5 点是分核画像，第 6 点是加固优先级。
