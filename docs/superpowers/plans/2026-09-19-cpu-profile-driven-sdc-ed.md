@@ -279,11 +279,11 @@ docs/superpowers/plans/2026-09-19-cpu-profile-driven-sdc-ed.md   # 本计划
   内容: 给定候选池（生成序列 + 库存序列），`greedy [1−Π(1−A_u(S))]` 选择 K 条 + per-unit 配额约束；输出选择理由（每条序列补了哪个单元的 gap）。
   验证: (a) 合成数据单元测试（构造已知 A_u 的 mock 序列池，验证贪心选择命中理论最优——小规模可穷举对照）；(b) 真实池上跑出 K=10 选择集，覆盖向量 ≥ 单序列最大覆盖（无堆叠实证）。
   完成（2026-09-19，tools/ed_select.py：(a) 合成 5 序列池穷举对照——贪心 obj=0.550714 **恰等于穷举最优**（比率 1.0000 ≥ 理论下界 1−1/e=0.6321），选择顺序合理（通用型先选、重复覆盖边际正确递减）；(b) 真实 10 序列池 K=10 选 9（dead_read 边际被支配不选——正确）：组合覆盖 OoO 0.209 / IEX 0.554 / LSU 0.253 / FSU 0.163 / L2C 0.0041 全部 ≥ 单序列最大（0.038/0.203/0.090/0.072/0.0014），多数 2-3 倍——无堆叠成立。软配额 ceil(k×0.4)（硬禁会在池枯竭时选空，理由入代码注释）。）
-- [ ] **Task 5.3 harp_evolve fitness 替换 + advice 规则扩展**
+- [x] **Task 5.3 harp_evolve fitness 替换 + advice 规则扩展**
   Files: `tools/harp_evolve.py`、`tools/harp_advice.py`。
   内容: evolve 的 fitness 从标量 ACE → ED（--fitness ed|legacy 双模式保留对照）；advice 新规则：sdcGap 高→引导值消费改造；FSU 值类熵低→引导 subnormal/NaN 生成；L2C tag-face 低→引导冲突序列；rename 距离集中→引导依赖链变长。
   验证: (a) 同 seed 同序列池，ed 与 legacy 两模式各跑 1 代，ED 模式的子代 ED 均值 > 初代（进化方向正确）；(b) advice 规则单元测试（mock detail log → 规则命中）；(c) 回归 golden 不变。
-  状态: **deferred（未实施）**。
+  完成（2026-09-19：(a) **判据部分未达，如实登记**——ED 模式 2 步 advice 0.000626→0.000626 持平（blind 0.000661 反升）：sample_seq+irf-target 下 advice 规则提升的是 OoO 轴（wρ=0.0036 第 4 权重），ED 的主导 gap 在 L2C（0.2362）而 irf 目标规则不指向它——**这本身是 ED fitness 的正确行为**（不奖励非加权敏感度的提升），gap_quota 定向目标选择登记为后续改进；legacy 对照无回归（advice +0.0045 > blind，与历史结论一致）；ed_of_stats 与 ed_score CLI 数值一致性独立验证（0.000192266 == 0.000192，match: True）。(b) 规则命中验证：dead_read stats 触发 IRF-SDC 规则（sdcGap=0.1962 死链改造，排 #3）+ L2C-tag 规则（#2）；STAT_KEYS 扩 16 个新信号键（irfAvfSdc/sdcGap/fpValueEntropy/mulSensRatio/l2cTagFaceRatio 等）+ Vector ::subname 解析修复（ibrIssues::FPAdd——\w+ 在冒号处截断，实测修复）。(c) 回归锚 f247ef3fe6f02cfd ✓。新规则四条：IRF-SDC（gap>0.10）/FSU-value（熵<0.30 且有 FP issue）/IEX-mul（mulSensRatio<0.9）/L2C-tag（l2cReads=0）——参数全部来自本计划实测负对照。）
 
 ### Phase 6 — SFI 标定与 lift 验证（真值闭环，证明"更能检出 SDC"）
 

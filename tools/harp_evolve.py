@@ -75,13 +75,32 @@ def measure(lines, tmpdir, iters=200):
                    capture_output=True, timeout=300)
     stats = {}
     for line in open(os.path.join(d, "stats.txt"), errors="replace"):
-        m = re.match(r"system\.CHAOSCov\.harp\.(\w+)\s+([\d.eE+-]+)", line)
+        # Vector stats carry ::subname (covUnits::IFU etc.) — \w+ alone
+        # would truncate at the colons and lose the subname (measured).
+        m = re.match(r"system\.CHAOSCov\.harp\.(\w+(?:::\w+)*)\s+([\d.eE+-]+)",
+                     line)
         if m:
             try:
                 stats[m.group(1)] = float(m.group(2))
             except ValueError:
                 pass
     return stats
+
+
+def ed_of_stats(stats, profile_path):
+    """SDC-ED Task 5.3：从 measure() 的 stats 字典直接算 ED（复用
+    ed_score 的推导：covUnits 7 维 + profile 的 w/ρ/ceiling）。"""
+    sys.path.insert(0, os.path.dirname(os.path.realpath(__file__)))
+    from ed_profile import load_profile, UNITS
+    prof = load_profile(profile_path)
+    w = prof.weights()
+    rho = prof.rho_initial()
+    cov = {u: stats.get(f"covUnits::{u}", 0.0) for u in UNITS}
+    ed = 0.0
+    for u in UNITS:
+        a_eff = min(cov[u], prof.ceiling(u))
+        ed += w[u] * rho.get(u, 0.0) * a_eff
+    return ed
 
 
 def advice_step(lines, target, rng):
@@ -147,11 +166,24 @@ def main():
     ap.add_argument("--iters", type=int, default=200)
     ap.add_argument("--seed", type=int, default=20260916)
     ap.add_argument("--out", default=None)
+    # SDC-ED Task 5.3: ED fitness mode (legacy = the original single-stat
+    # scalar; ed = Σ w·ρ·A_eff from the cpu profile — kept side by side
+    # for the comparison protocol).
+    ap.add_argument("--fitness", choices=["legacy", "ed"], default="legacy")
+    ap.add_argument("--profile",
+                    default=os.path.join(REPO, "configs/cpu-profiles",
+                                         "taishan-v110.yaml"),
+                    help="cpu profile for --fitness ed")
     args = ap.parse_args()
 
     out = args.out or os.path.join(REPO, "artifacts", "harp-advice-vs-random")
     os.makedirs(out, exist_ok=True)
     key = TARGETS[args.target][0]
+
+    def fitness(stats):
+        if args.fitness == "ed":
+            return ed_of_stats(stats, args.profile)
+        return stats.get(key, 0)
 
     lines = [l.strip() for l in open(args.seq)
              if l.strip() and not l.startswith("#")]
@@ -167,17 +199,17 @@ def main():
     rows = []
     # step 0
     s0 = measure(seq_a, tmp_a, args.iters)
-    rows.append((0, s0.get(key, 0), s0.get(key, 0)))
-    print(f"step 0: advice={s0.get(key, 0):.4f} blind={s0.get(key, 0):.4f}")
+    rows.append((0, fitness(s0), fitness(s0)))
+    print(f"step 0: advice={rows[0][1]:.6f} blind={rows[0][2]:.6f}")
 
     for step in range(1, args.steps + 1):
         seq_a = advice_step(seq_a, args.target, rng_a)
         seq_b = blind_step(seq_b, rng_b)
         sa = measure(seq_a, tmp_a, args.iters)
         sb = measure(seq_b, tmp_b, args.iters)
-        rows.append((step, sa.get(key, 0), sb.get(key, 0)))
-        print(f"step {step}: advice={sa.get(key, 0):.4f} "
-              f"blind={sb.get(key, 0):.4f}")
+        rows.append((step, fitness(sa), fitness(sb)))
+        print(f"step {step}: advice={rows[-1][1]:.6f} "
+              f"blind={rows[-1][2]:.6f}")
 
     csv = os.path.join(out, f"curve-{args.target}.csv")
     with open(csv, "w") as f:
