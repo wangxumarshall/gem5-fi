@@ -78,3 +78,10 @@ D-D10-G7-sanitizer     | depends=[]          | agent | deferred | SConstruct soc
 D-ExMon-多核           | depends=[]          | agent | deferred | stale_reservation 多核场景；解锁：多核 SE/FS 配置
 D-Decode-P4            | depends=[]          | agent | skipped  | 方案 §5.11 明示"可跳过"
 D-FS-O3-switch         | depends=[S0-02]     | agent | deferred | checkpoint restore 后切 O3（stdlib 无 clean switchCpus）；解锁：CPU 切换路径落地或 atomic-only 分类验证失败
+
+SDCEDR2-0.1-臂采集对齐   | depends=[]          | agent | done     | stdlib l2_assoc 不传实测 16→对齐 8-way/8·8·8（e2285f01）
+SDCEDR2-1.1-evolve定向    | depends=[SDCEDR2-0.1] | agent | done     | l2c 目标+幂等窗口；tagFaceRatio 虚假值/步进越界两坑（50134a8e）
+SDCEDR2-1.2/1.3-H6L6组   | depends=[SDCEDR2-1.1] | agent | done     | 模板展开 H6 激活 L2；wrapper 底噪边界登记（076131bc）
+SDCEDR2-2.1-批量断点核对  | depends=[SDCEDR2-1.3] | agent | done     | simTicks 末值修复 19/20 Inactive（f2a2b487）
+SDCEDR2-2.2-2.4-N400战役  | depends=[SDCEDR2-2.1] | agent | done     | 12 序列×3 臂×N=400=14,400 runs（本提交）
+SDCEDR2-3.1/3.2-裁决报告  | depends=[SDCEDR2-2.4] | agent | done     | J1/J3 PASS、J2 FAIL（剔底噪 0.7639）；lift-report-round2.md（本提交）
