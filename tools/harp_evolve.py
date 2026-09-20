@@ -55,6 +55,12 @@ TARGETS = {
     "fu-fpadd": ("ibrFpAdd", "fadd d8, d9, d10", True),
     "fu-fpmul": ("ibrFpMul", "fmul d11, d12, d13", True),
     "irf": ("irfAvfInt", None, False),
+    # SDC-ED Round 2 Task 1.1: L2C gap 定向目标——advice L2C-tag 规则的
+    # 进化形态。覆盖信号是「足迹越过 L1D 64KiB 迫使 L2 读写 + 同 tag
+    # 冲突」：每步插入一个 4KiB 步进窗口（add x8,x8,4096 + str/ldr 对，
+    # conflict_seq 模板派生）。定向序列必须配 --mem-bytes ≥ 256KB
+    # （measure() 侧已同步传 262144）。
+    "l2c": ("l2cReads", None, True),
 }
 
 
@@ -64,14 +70,20 @@ def measure(lines, tmpdir, iters=200):
     with open(seq_path, "w") as f:
         f.write("\n".join(lines) + "\n")
     out = os.path.join(tmpdir, "cur")
+    # SDC-ED Round 2 Task 1.1: L2C 定向需要足迹 > L1D 64KiB（默认
+    # 32KB 全在 L1 命中，l2cReads 恒 0——findings.md 实测）。262144
+    # = 64 个 4KiB 步进窗口的上界，对非 l2c 目标同样安全（足迹只影响
+    # L2 激活，不改指令语义）。
     r = subprocess.run([sys.executable, WRAP, "--seq", seq_path,
-                        "--out", out, "--iters", str(iters)],
+                        "--out", out, "--iters", str(iters),
+                        "--mem-bytes", "262144"],
                        capture_output=True, text=True, timeout=120)
     if r.returncode != 0:
         sys.exit(f"wrap failed: {r.stderr}")
     d = os.path.join(tmpdir, "m5out")
     subprocess.run([GEM5, "-r", "-e", "--silent-redirect", "-d", d, SCRIPT,
-                    "--binary", out, "--mode", "baseline", "--cov"],
+                    "--binary", out, "--mode", "baseline", "--cov",
+                    "--cov-l2"],
                    capture_output=True, timeout=300)
     stats = {}
     for line in open(os.path.join(d, "stats.txt"), errors="replace"):
@@ -106,6 +118,27 @@ def ed_of_stats(stats, profile_path):
 def advice_step(lines, target, rng):
     """建议驱动的一步：按规则直接改写。"""
     key, repl, is_mem = TARGETS[target]
+    if target == "l2c":
+        # SDC-ED Round 2 Task 1.1: L2C gap 定向——每步插入一个 4KiB
+        # 步进窗口（conflict_seq 模板派生）：基址步进保持 bits[11:0]=0
+        # （同 set 同 tag 低位），str+ldr 对制造「写后读」+ tag 比较流。
+        # 窗口末尾把 x8 复位（sub 与 add 对称）——measure 的 iters=200
+        # 下每轮步进必须幂等，否则累计越出 mem 区域（实测 VA 0x4f9a80
+        # Page fault——conflict_seq 模板用 iters=1 无此问题，evolve 协议
+        # 有）。序列长度上界守卫（wrapper asm 块约束）。
+        if len(lines) > 400:
+            return lines
+        out = list(lines)
+        window = [
+            "add x8, x8, 4096",
+            "str x9, [x8]",
+            "ldr x10, [x8]",
+            "add x8, x8, 4096",
+            "str x11, [x8]",
+            "ldr x12, [x8]",
+            "sub x8, x8, 8192",
+        ]
+        return window + out
     if target == "irf":
         # 策略 A（并行链化）：串行自依赖 (a xN,xN,xN) → 独立三操作数。
         # 策略 B（冷目的寄存器）：dest 在近期已被写过（即将覆写一个
