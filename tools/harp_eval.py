@@ -327,9 +327,13 @@ def main():
         total_cycles = 40000
         if os.path.exists(gs):
             s = open(gs).read()
-            m = re.search(r"^simTicks\s+(\d+)", s, re.M)
-            if m:
-                total_cycles = int(m.group(1)) // 500
+            # 取最后一个 simTicks：stats.txt 可能含 early dump（gem5
+            # 中途 dump 的首值远小于终值——h1 实测 1.17M vs 5.38G，
+            # 首值把 ROI 窗口算成 [116,2218] 周期，注入全部 miss
+            # 活跃期 → 19/20 Inactive。findall 取末值修复。）
+            ms = re.findall(r"^simTicks\s+(\d+)", s, re.M)
+            if ms:
+                total_cycles = int(ms[-1]) // 500
         roi_lo_c = max(1, total_cycles // 20)
         roi_hi_c = max(roi_lo_c + 1, total_cycles * 19 // 20)
         print(f"ROI cycles (from golden simTicks/500, 5%-95%): "
