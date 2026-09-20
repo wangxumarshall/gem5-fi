@@ -165,11 +165,15 @@ detect a double bit error. This might cause data corruption."）。
 
 ## 3. 各芯片微架构功能图（★ = 独有/标志性设计）
 
+> 渲染说明：GitHub 会剥离 markdown 内联 SVG（防 XSS），仓库相对路径的 `.svg` 也无法稳定渲染；
+> 故五图**直接引用仓库内同名矢量 `.svg`**（经 jsDelivr CDN 以 `image/svg+xml` 提供），不转 PNG、矢量无损放大。
+> SVG 源文件即 `figures/` 下同名文件，本地浏览器可直接打开编辑。
+
 ### Kunpeng 920
 
 <div align="center">
 
-![Kunpeng 920 微架构功能图](figures/sdc-fig-920.png)
+![Kunpeng 920 微架构功能图](https://cdn.jsdelivr.net/gh/wangxumarshall/gem5-fi@fi-fuzz/docs/cpu/arm64/figures/sdc-fig-920.svg)
 
 </div>
 
@@ -180,7 +184,7 @@ detect a double bit error. This might cause data corruption."）。
 
 <div align="center">
 
-![920f 微架构功能图](figures/sdc-fig-920f.png)
+![920f 微架构功能图](https://cdn.jsdelivr.net/gh/wangxumarshall/gem5-fi@fi-fuzz/docs/cpu/arm64/figures/sdc-fig-920f.svg)
 
 </div>
 
@@ -191,7 +195,7 @@ detect a double bit error. This might cause data corruption."）。
 
 <div align="center">
 
-![Neoverse N1 微架构功能图](figures/sdc-fig-neoverse-n1.png)
+![Neoverse N1 微架构功能图](https://cdn.jsdelivr.net/gh/wangxumarshall/gem5-fi@fi-fuzz/docs/cpu/arm64/figures/sdc-fig-neoverse-n1.svg)
 
 </div>
 
@@ -204,7 +208,7 @@ TRM 明示无保护清单最完整（BTB/GHB/BPIQ/PHT/L2 victim/L1 TLB flops）�
 
 <div align="center">
 
-![Neoverse N2 微架构功能图](figures/sdc-fig-neoverse-n2.png)
+![Neoverse N2 微架构功能图](https://cdn.jsdelivr.net/gh/wangxumarshall/gem5-fi@fi-fuzz/docs/cpu/arm64/figures/sdc-fig-neoverse-n2.svg)
 
 </div>
 
@@ -216,7 +220,7 @@ load VA / store PA 分裂预取器（N3 改为 VA+PC 双源引擎）。
 
 <div align="center">
 
-![Neoverse N3 微架构功能图](figures/sdc-fig-neoverse-n3.png)
+![Neoverse N3 微架构功能图](https://cdn.jsdelivr.net/gh/wangxumarshall/gem5-fi@fi-fuzz/docs/cpu/arm64/figures/sdc-fig-neoverse-n3.svg)
 
 </div>   
 
