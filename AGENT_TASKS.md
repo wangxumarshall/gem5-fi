@@ -56,13 +56,13 @@ SDCED-2.3-7维归并       | depends=[SDCED-2.2] | agent | done     | harp.covUn
 SDCED-3.1-LSU前转hook   | depends=[SDCED-2.2] | agent | done     | SQ per-slot 前转/写回双账本 + load-use 距离直方图（b8ac04eb）
 SDCED-3.2-FSU值类剖面   | depends=[]          | agent | done     | IEEE754 五类直方图+归一化熵 fpValueHist/fpValueEntropy，randbits_seq rare-bin 端到端命中（7c27f2f2）
 SDCED-3.3-L2C双面账本   | depends=[SDCED-2.2] | agent | done     | data-face/tag-face 双账本 + conflict_seq 别名臂（0759eb58）
-SDCED-3.4-rename距离    | depends=[]          | agent | deferred | rename 距离直方图未实施；解锁：后续补丁
-SDCED-4.1-可达集分析    | depends=[SDCED-2.3] | agent | deferred | epilogue .reach.json taint 源未实施；解锁：后续补丁
-SDCED-4.2-SDC-ACE账本   | depends=[SDCED-4.1] | agent | deferred | 三账本 SDC-ACE 化+gap 指标未实施（核心超越点半边）；解锁：后续补丁
-SDCED-4.3-gate敏感覆盖  | depends=[SDCED-2.3] | agent | deferred | IEX 门级位图差分臂未实施；解锁：后续补丁
-SDCED-5.1-ed_score      | depends=[SDCED-2.3] | agent | deferred | ED 评分器未实施（ED 无端到端工具）；解锁：后续补丁
-SDCED-5.2-次模选择器    | depends=[SDCED-5.1] | agent | deferred | 贪心次模序列集选择未实施；解锁：后续补丁
-SDCED-5.3-evolve替换    | depends=[SDCED-5.1] | agent | deferred | harp_evolve fitness→ED 未实施；解锁：后续补丁
+SDCED-3.4-rename距离    | depends=[]          | agent | done     | renameDist 17 桶+robOccBands 8 带；方向验证 sample 86% 在 0-12% 带 vs readwrite 25-37%（c379f1bd）
+SDCED-4.1-可达集分析    | depends=[SDCED-2.3] | agent | done     | 静态清单改动态反向切片（wrapper 全存回→静态零区分度，实测弃用）（c0e8b329）
+SDCED-4.2-SDC-ACE账本   | depends=[SDCED-4.1] | agent | done     | IRF 账本 SDC-ACE+gap；负对照 0.196/正 0.062/直达 0；L1D/SQ 按需补（c0e8b329）
+SDCED-4.3-gate敏感覆盖  | depends=[SDCED-2.3] | agent | done     | 闭式加/乘差分；加法器零掩蔽判据证伪（0/1024 穷举）；乘法 0.98（7c0bd77c）
+SDCED-5.1-ed_score      | depends=[SDCED-2.3] | agent | done     | ED+7 维分解+gap 配额；ED==Σ分解逐位自检；10 负载全覆盖（76d0a5ab）
+SDCED-5.2-次模选择器    | depends=[SDCED-5.1] | agent | done     | 贪心恰中穷举最优（1.0000≥1-1/e）；真实池覆盖 2-3 倍单序列（d53fd2c0）
+SDCED-5.3-evolve替换    | depends=[SDCED-5.1] | agent | done     | --fitness ed|legacy 双模式+4 新 advice 规则；ED 2 步未升如实登记（ea8d3949）
 SDCED-6.1-ρ标定战役     | depends=[SDCED-1.2] | agent | done     | 11 臂×N=100 实测回填 rho_measured；IFU/MMU deferred 引既有证据（271425de）
 SDCED-6.2-lift主实验    | depends=[SDCED-5.2] | agent | done     | 聚焦版 K=3×2臂×N=50；预注册判据未达成（负结果如实入档）；归因三条+功效预算（b16cd02f）
 SDCED-6.3-负对照迁移    | depends=[SDCED-6.1] | agent | done     | 迁移 ρ=0.8182 通过；负对照 N=50 方向反不显著（需 N≥400）（b16cd02f）
