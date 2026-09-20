@@ -1,0 +1,30 @@
+SDC-ED Round 2 Task 0.1: l2c 注入臂-采集器 L2 配置一致性核对表
+================================================================
+采集侧（smoke_test/configs/two_level_taishan.py --cov-l2 → caches.py L2Cache）
+注入侧（configs/se/arm_chaos_cache.py → stdlib PrivateL1PrivateL2CacheHierarchy）
+
+参数          采集侧(对齐目标)   注入侧(修正前)          注入侧(修正后,实测)
+size          512KiB             512KiB ✓               512KiB ✓ (config.ini size=524288)
+assoc         8                  16 ✗ (类默认;_Base声明的        8 ✓ (config.ini assoc=8)
+                                  l2_assoc=4 未传,hierarchy:138)
+tag_latency   8                  10 ✗ (类默认)           8 ✓
+data_latency  8                  10 ✗                   8 ✓
+response_lat  8                  1 ✗                    8 ✓
+block_size    64                 64 ✓                   64 ✓
+
+修正:_pre_instantiate hook 内直接覆写 ch.l2-cache-0 参数
+(该 hook 在 hierarchy setattr 之后、m5.instantiate 之前——与
+ CHAOSCache 挂载同点,文件既有机制)
+实测命令: arm_chaos_cache.py --target l2 --target_field tag
+  → simout "[arm_chaos_cache] L2 aligned to collector side:
+    512KiB/8-way/tag=data=response=8"
+  → config.ini l2-cache-0: assoc=8 size=524288 tag/data/response=8 ✓
+
+剩余差异(如实登记,不修正):
+- L1d assoc: 注入臂 8(stdlib) vs 采集臂 4(caches.py)——L1d 不在
+  l2c 臂的注入路径上(CHAOSCache 只挂 l2-cache-0),对 tag 别名/数据
+  翻转的注入面无影响;但 L1d assoc 影响到达 L2 的 miss 流量模式,
+  列为已知残差(方向:H 组足迹>128KiB 时 L1d assoc 4/8 的 miss 率
+  差异 ~2x,对两组对称,不影响组间比较)
+- 内存: DDR3_1600 vs TS_CFG 默认——注入发生在 cache 命中周期内,
+  内存时序不在注入因果链上(登记不修正)
