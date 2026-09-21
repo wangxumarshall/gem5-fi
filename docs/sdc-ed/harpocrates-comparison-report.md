@@ -76,9 +76,40 @@ Spearman ρ(ED, detection)：tag 0.02 / data 0.08 / irf −0.02——ED 的
 改进方向登记**：(a) evolve 的 fitness 用绝对量（l2cReads）而非比率；
 (b) ITERS 固定为 1 消除分母膨胀。本轮如实记录负结果，不事后调整。
 
-## 三、CE-3 剖面与 portfolio
+## 三、CE-3 剖面与 portfolio（对齐 P1-E3/E4）
 
-（BPU 臂 + 7 结构矩阵 + 饱和曲线——待跑）
+### 3.1 剖面矩阵（18 序列 × 3 实测臂 + BPU 引用）
+
+l2c_tag 列（0.0000-0.4100）分化最大；l2c_data（0-0.2175）与
+l2c_tag 同足迹驱动；irf（0.0300-0.1075）最平。conflict_seq 是
+唯一 tag 高位库存序列（0.41）。完整矩阵见 artifacts/sdc-ed-cmp/
+与 -r2/ 各 summary.md。
+
+### 3.2 剖面互补性（P1-E3 的"程序-注入点互补"检验）
+
+臂间 Spearman：tag↔data **0.9224**、tag↔irf 0.8565、data↔irf
+0.8636——**高相关，非互补**。对照 P1-E3 论文形态（不同程序对
+不同注入点敏感度互补）：本池三臂的检测由同一驱动因子（足迹×
+活跃度）承载，程序特征（int/FP/mem mix）没有产生独立剖面——
+**池多样性不足以复现论文的互补结构**（H 组同质 + 库存组低活跃）。
+诚实归因：这不是方法论失效，是序列池工程问题。
+
+### 3.3 portfolio 联合检测率（P1-E4 对齐）
+
+- 单序列最优 conflict_seq union(3臂)=0.4902
+- 池平均 0.2044；18 序列全组合理论上限 **0.9917**（1-Π(1-p)）
+- P1-E4 的"组合趋近饱和"形态在本池上成立（上限高），但因 3.2
+  的非互补性，**组合增益主要来自叠加同类检测概率而非覆盖新注入点**
+  ——与论文的 portfolio 语义有本质差异，如实登记
+
+### 3.4 BPU 臂（P1 b/t 点对应物）——引用既有证据收口
+
+当前分支 CHAOSBPU 仅 BAC 路径（TargetSub/DirectionFlip），受
+decoupled-FE 板限制不触发（S8-4 原始 commit 诚实限制，本轮实测
+复确认 numFaultsInjected=0）；ras_flip/target_flip hook 在 v1.2
+Phase 16 分支（ae8c8f7e/348250de）——**跨分支移植登记为不做的
+计划外工程**，BPU 臂引用该分支实测：dir_flip 384/384 Masked、
+target_flip n=100 0% SDC、ras_flip 0% SDC（squash 全含三预测面）。
 
 ## 四、CE-4 oracle 严格性（分析型）
 
