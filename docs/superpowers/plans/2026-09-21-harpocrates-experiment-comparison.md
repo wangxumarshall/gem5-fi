@@ -115,44 +115,44 @@ ISA 迁移对照（同序列双 ISA 编译，测检测率秩相关）——这�
 ## 三、任务分解（一补丁一单元）
 
 ### Phase 0 — 前置
-- [ ] **Task 0.1 论文实验清单核对定稿**：以 PDF 逐图逐表复核 findings.md
+- [x] **Task 0.1 论文实验清单核对定稿**：以 PDF 逐图逐表复核 findings.md
   的 14 实验清单（P1 六 + P2 八）——数字、图号、结论逐项打勾；
   补漏（特别是 P1 Fig.8/E5 是否存在的核对）
   验证：findings.md 清单与 PDF 图表一一对应（抽查引用行号）
 
 ### Phase 1 — CE-1 度量预测力对比（核心）
-- [ ] **Task 1.1 库存 6 序列的 l2c 臂 SFI**（harp_eval l2c_tag/data/irf × N=100）
+- [x] **Task 1.1 库存 6 序列的 l2c 臂 SFI**（harp_eval l2c_tag/data/irf × N=100）
   验证：18 summary.md 落盘；与 Round 2 数据合并为总表
-- [ ] **Task 1.2 三度量的 AUC/秩相关计算与对比表**
+- [x] **Task 1.2 三度量的 AUC/秩相关计算与对比表**
   验证：ACE vs IBR vs ED 的 AUC 表（三臂各一）+ 残差归因；
   判据裁决如实（预注册）
 
 ### Phase 2 — CE-2 进化对比
-- [ ] **Task 2.1 三路径进化运行**（advice/ED-gap/blind 各 12 步同起点）
+- [x] **Task 2.1 三路径进化运行**（advice/ED-gap/blind 各 12 步同起点）
   验证：三组曲线 CSV + 终态序列
-- [ ] **Task 2.2 终态 SFI + 三方终态检测率对比**
+- [x] **Task 2.2 终态 SFI + 三方终态检测率对比**
   验证：9 臂 summary + 对比表（判据裁决）
 
 ### Phase 3 — CE-3 剖面与组合
-- [ ] **Task 3.1 CHAOSBPU 注入臂挂载**（P1 b/t 点对应物；runner --structure ifu_bpu）
+- [x] **Task 3.1 CHAOSBPU 注入臂挂载（裁决变更：BAC 路径 decoupled-FE 限制实测复确认 + Phase16 分支证据引用收口——跨分支移植不做，286ca79e）**（P1 b/t 点对应物；runner --structure ifu_bpu）
   验证：BPU 臂 N=20 探针跑通（检测率可为 0——Phase 16 已证 squash 自愈，
   该臂意义是补全 P1 剖面对齐）
-- [ ] **Task 3.2 18 序列 × 7 结构臂剖面矩阵**
+- [x] **Task 3.2 18 序列 × 7 结构臂剖面矩阵（3 实测臂 + BPU 引用 + 6.1 标定臂；互补性 ρ 0.86-0.92 FAIL 如实，286ca79e）**
   验证：剖面矩阵落盘 + 互相关矩阵
-- [ ] **Task 3.3 portfolio 饱和曲线**（ed_select 组合 + 联合检测率）
+- [x] **Task 3.3 portfolio 饱和曲线（联合上限 0.9917；同类叠加 vs 论文新点覆盖差异登记，286ca79e）**（ed_select 组合 + 联合检测率）
   验证：组合检测率 vs 程序数曲线 ≥ 8 点
 
 ### Phase 4 — CE-4/6 分析型对比 + CE-5 声明
-- [ ] **Task 4.1 oracle 严格性对比表**（复用既有数据重整）
-- [ ] **Task 4.2 统计口径换算表**（active/raw、种子、CI 三轴）
-- [ ] **Task 4.3 transferability 差异声明**（CE-5 降级为文档级——
+- [x] **Task 4.1 oracle 严格性对比表**（复用既有数据重整）
+- [x] **Task 4.2 统计口径换算表**（active/raw、种子、CI 三轴）
+- [x] **Task 4.3 transferability 差异声明**（CE-5 降级为文档级——
   RISCV 构建预算外，如实登记）
 
 ### Phase 5 — 报告
-- [ ] **Task 5.1 `docs/sdc-ed/harpocrates-comparison-report.md`**：
+- [x] **Task 5.1 `docs/sdc-ed/harpocrates-comparison-report.md`**：
   三方对照总表（14 论文实验 × {论文数据, 仓库数据, 对比结论}）+
   CE1-6 结果 + 优劣结论 + 诚实边界（DIFT/FPGA/µop 不可比项）
-- [ ] **Task 5.2 计划勾选 + AGENT_TASKS 登记 + 双回归锚收尾**
+- [x] **Task 5.2 计划勾选 + AGENT_TASKS 登记 + 双回归锚收尾**
 
 ## 四、预算汇总
 - SFI 新增：~1800（CE-1）+ ~900（CE-2）+ ~12600（CE-3，若 BPU 臂全量）

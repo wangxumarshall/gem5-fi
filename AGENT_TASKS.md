@@ -85,3 +85,9 @@ SDCEDR2-1.2/1.3-H6L6组   | depends=[SDCEDR2-1.1] | agent | done     | 模板展
 SDCEDR2-2.1-批量断点核对  | depends=[SDCEDR2-1.3] | agent | done     | simTicks 末值修复 19/20 Inactive（f2a2b487）
 SDCEDR2-2.2-2.4-N400战役  | depends=[SDCEDR2-2.1] | agent | done     | 12 序列×3 臂×N=400=14,400 runs（本提交）
 SDCEDR2-3.1/3.2-裁决报告  | depends=[SDCEDR2-2.4] | agent | done     | J1/J3 PASS、J2 FAIL（剔底噪 0.7639）；lift-report-round2.md（本提交）
+HARPCMP-清单复核   | depends=[]          | agent | done     | P1 6+P2 8 实验零丢失登记；口径修正（P1 剔 ineffective/P2 raw）（56f81afe 后）
+HARPCMP-CE1度量对比 | depends=[HARPCMP-清单复核] | agent | done     | 18 序列×3 臂；ED FAIL（AUC 0.51-0.55 < ACE 0.60-0.67）；足迹盲区新发现（27238030）
+HARPCMP-CE2进化对比 | depends=[HARPCMP-CE1度量对比] | agent | done     | 三路径曲线；ED-fitness 分母耦合第四缺陷；判据无法裁决如实（27238030）
+HARPCMP-CE3剖面组合 | depends=[HARPCMP-CE1度量对比] | agent | done     | 互补性 FAIL（ρ 0.86-0.92）；portfolio 上限 0.9917；BPU 臂引用收口（286ca79e）
+HARPCMP-CE4/5/6分析 | depends=[]          | agent | done     | oracle 严格性表+transferability 声明+口径换算表（56f81afe/27238030）
+HARPCMP-报告终稿    | depends=[all]       | agent | done     | harpocrates-comparison-report.md 三方对照+总结论（本提交）
