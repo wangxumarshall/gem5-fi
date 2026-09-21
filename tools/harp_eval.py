@@ -246,7 +246,7 @@ def sfi_run(i, binary, structure, seed, roi_lo_c, roi_hi_c, tmpdir,
     else:
         raise ValueError(structure)
 
-    txt, err, rc, timed_out = run_gem5(out, cmd)
+    txt, err, rc, timed_out = run_gem5(out, cmd, timeout=900)
     n_inj = count_injections(out, structure)
 
     # --- 六类分类（classify.py §9.1 语义，SUM/FINAL 输出适配） ---
@@ -314,7 +314,10 @@ def main():
                 "--target_field", "data",
                 "--first_clock", "1", "--max_faults", "0",
                 "--probability", "0.0", "--rng_seed", str(args.master_seed)]
-        gtxt, _, _, _ = run_gem5(gdir, gcmd)
+        # CE-1 实测：conflict_seq 类大足迹负载的 golden 运行 ~8 分钟，
+        # 默认 timeout=300 截断输出（SUM= 未打印即被 kill）→
+        # "golden run produced no SUM=" 假失败。升到 1200s。
+        gtxt, _, _, _ = run_gem5(gdir, gcmd, timeout=1200)
         gm = extract_output_line(gtxt)
         if gm is None:
             sys.exit("ERROR: golden run produced no SUM=/FINAL= output")
@@ -339,10 +342,12 @@ def main():
         print(f"ROI cycles (from golden simTicks/500, 5%-95%): "
               f"[{roi_lo_c}, {roi_hi_c}]")
     else:
+        # 同 CACHE 分支：conflict_seq 类大足迹负载 golden ~8min（实测），
+        # 默认 300s 截断 → "no SUM=" 假失败（irf 臂实测复现）。
         gtxt, _, _, _ = run_gem5(
             gdir, [GEM5, "-r", "-e", "--silent-redirect", "-d", gdir,
                    TS_CFG, "--binary", args.seq, "--mode", "baseline",
-                   "--cov"])
+                   "--cov"], timeout=1200)
         gm = SUM_RE.search(gtxt)
         if gm is None:
             sys.exit("ERROR: golden run produced no SUM= output")
