@@ -200,3 +200,65 @@ probe 列 = CHAOS_PROBE 行 11 键（samples/robOver80/iqOver80/flIntLe8/flFloat
 5. 聚合输出为 MEAN/MIN/MAX 三行（计划 Step 2「均值/最小/最大」，任务概要只要求均值行——两者都满足）。</result>
 <usage><subagent_tokens>0</subagent_tokens><tool_uses>24</tool_uses><duration_ms>1446508</duration_ms></usage>
 </task-notification>
+
+---
+
+<task-notification>
+<task-id>a0df63abf3bbab91a</task-id>
+<tool-use-id>call_9cd67b9a7bfb4be88db19bfa</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi/986103be-6dae-4d5b-8b58-a5f2abf15cf7/tasks/a0df63abf3bbab91a.output</output-file>
+<status>completed</status>
+<summary>Agent "实现 W1.0 负载构建框架" came to rest</summary>
+<note>A task-notification fires each time this agent comes to rest with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>Task 1 (W1.0) 完成。全部验证通过，未 commit/push（Step 3 留给编排者），未动 runner.py 与 workloads/directed/。
+
+## 文件清单（均为新建）
+
+- `/home/sdc/gem5-fi/workloads/ooo/Makefile` — CC=gcc、CFLAGS=-O2 -static -Wall -Wextra；foreach/eval 模板实现「pattern rule + per-target 源目录」（`&lt;name&gt;: &lt;name&gt;/&lt;name&gt;` 别名 + `&lt;name&gt;/&lt;name&gt; &lt;- &lt;name&gt;/&lt;name&gt;.c` 实规则）；WORKLOADS 列表含 Task 2-8 全部后续负载的骨架注释（branch_mispred/dep_chain/rob_fill/coremark/embench/polybench/gap/libjpeg）
+- `/home/sdc/gem5-fi/workloads/ooo/smoke/smoke.c` — 固定 seed 0x0123456789abcdef，LCG 填 256 项 buffer（store 路）+ 50000 轮 xorshift 累加链 + buffer 折叠（load 路），打印 `FINAL=&lt;16hex&gt;` 行
+- `/home/sdc/gem5-fi/workloads/ooo/smoke/smoke` — 产物 ELF（636712 B，随源码入库）
+- `/home/sdc/gem5-fi/workloads/ooo/README.md` — SE ≤60s 预算纪律声明（硬门）+ native==gem5 golden 纪律 + 密度门说明 + 8 负载台账（smoke 行已填实测值，其余「待实测」）+ smoke 实测记录
+
+## 验证输出（逐字）
+
+**a. 构建 + ELF 类型**（零 warning）：
+```
+make: 进入目录“/home/sdc/gem5-fi/workloads/ooo”
+gcc -O2 -static -Wall -Wextra  -o smoke/smoke smoke/smoke.c
+make: 离开目录“/home/sdc/gem5-fi/workloads/ooo”
+MAKE_EXIT=0
+---
+/home/sdc/gem5-fi/workloads/ooo/smoke/smoke: ELF 64-bit LSB executable, ARM aarch64, version 1 (GNU/Linux), statically linked, BuildID[sha1]=36e68e4f62173e23aa5e311a5c68f6d0a35e60be, for GNU/Linux 3.7.0, not stripped
+```
+
+**b. C3 SE 两次运行**：`EXIT_S1=0`、`EXIT_S2=0`；两 outdir 各恰 1 行 FINAL，逐字节一致（od -c 证实 23 字节 `F I N A L = 4 5 7 3 7 c c 9 a 7 6 c 0 d c e \n`，diff 输出 `FINAL_LINES_IDENTICAL`）：
+```
+FINAL=45737cc9a76c0dce     (s1)
+FINAL=45737cc9a76c0dce     (s2)
+hostSeconds  1.18          (s1, stats.txt)
+hostSeconds  1.19          (s2, stats.txt)
+simInsts     308057        (s1)
+```
+hostSeconds 1.18/1.19 &lt; 5s 达标（预算 60s 的 2%）。
+
+**c. 本机原生**（初始一次 + clean/all 重建后再一次，均一致）：
+```
+FINAL=45737cc9a76c0dce
+NATIVE_EXIT=0
+```
+
+**框架回归**：`make clean` → `make`（默认 all）→ `make smoke`（幂等「无需做任何事」）全部正常。
+
+## FINAL checksum（供 GOLDEN_IDS 注册，编排者处理）
+
+```
+45737cc9a76c0dce
+```
+
+## 偏差说明
+
+1. **FINAL 格式**：reg_chain.c 本体打印裸 16-hex（无前缀）；计划/指令要求的 `FINAL=&lt;16hex&gt;` 行实为仓库 v1.1+ directed 内核（stencil_5pt/stream_triad）的格式，且 `tools/classify.py` 的 `_CHECKSUM_RE = ^(?:FINAL=)?([0-9a-fA-F]{16})$` 两者都认。已采用 `FINAL=&lt;16hex&gt;`。
+2. **outdir 命名**：计划文件写 `/tmp/ooo_w10_smoke`（单次），编排者指令指定两次运行 `/tmp/ooo_w10_s1`/`_s2`——按编排者执行（是计划 golden 稳定要求的超集）。
+3. `git status` 确认本次仅新增 `workloads/ooo/`（.plan.md/.planning//计划文件为编排者既有产物，未触碰）；`git diff --stat` 为空，无任何已跟踪文件被修改。</result>
+<usage><subagent_tokens>0</subagent_tokens><tool_uses>26</tool_uses><duration_ms>466660</duration_ms></usage>
+</task-notification>
