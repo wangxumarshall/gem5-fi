@@ -44,6 +44,37 @@
         "label": "/planning-with-files",
         "default_collapsed": true
       }
+    },
+    {
+      "id": "claude-skill-call_588891458f444c48b9d700e8",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "superpowers:writing-plans"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "b3b95ffb2eaa",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 544,
+        "end": 545,
+        "entry_ids": [
+          "8c57cf67-ceba-4123-b7ea-001458830c95"
+        ],
+        "tool_use_id": "call_588891458f444c48b9d700e8"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "call_588891458f444c48b9d700e8"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: superpowers:writing-plans",
+        "default_collapsed": true
+      }
     }
   ],
   "initial_attribution": {
