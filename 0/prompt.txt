@@ -1,0 +1,1 @@
+调用excel解析skill，深度理解 @docs/gem5-fi-OoO单元故障注入方案V1.0.xlsx ，提取为面向 Out-Of-Order这个微架构单元的故障注入方案实现的项目北极星。整个方案放在docs/gem5-fi/ooo目录中

@@ -1,0 +1,53 @@
+{
+  "cli_version": "0.10.2",
+  "checkpoint_id": "01M34RR2K4CVTDGNV3EX81YPWR",
+  "session_id": "b0e96aad-7662-4128-a99d-4efd1be961b8",
+  "strategy": "manual-commit",
+  "created_at": "2026-09-22T14:36:36.101321172Z",
+  "branch": "fi-ding",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "docs/gem5-fi/ooo/00-overview.md",
+    "docs/gem5-fi/ooo/01-observation-points.md",
+    "docs/gem5-fi/ooo/02-frequency-and-sampling.md",
+    "docs/gem5-fi/ooo/03-workloads.md",
+    "docs/gem5-fi/ooo/README.md",
+    "docs/gem5-fi/ooo/extract.py",
+    "docs/superpowers/plans/2026-09-22-ooo-fault-injection-northstar-extraction.md"
+  ],
+  "agent": "Claude Code",
+  "model": "GLM-5.3[1m]",
+  "turn_id": "9f26aedd4fe4",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 289490,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 4957376,
+    "output_tokens": 57838,
+    "api_call_count": 45
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-09-22T14:36:35.999413784Z",
+    "agent_lines": 659,
+    "agent_removed": 0,
+    "human_added": 790,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 1449,
+    "total_lines_changed": 1449,
+    "agent_percentage": 45.47964113181504,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 61,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".plan.md": 61
+      }
+    }
+  ]
+}
