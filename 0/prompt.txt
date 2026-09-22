@@ -143,3 +143,60 @@ C0 在新二进制上 golden 命中、无探针痕迹——无附带破坏。
 6. 计划文件复选框未勾（该文件不在我的允许改动集内，由编排者在 commit 时处理）。</result>
 <usage><subagent_tokens>0</subagent_tokens><tool_uses>51</tool_uses><duration_ms>1930898</duration_ms></usage>
 </task-notification>
+
+---
+
+<task-notification>
+<task-id>a5f65474d38dc57d5</task-id>
+<tool-use-id>call_18005694f59b4eaab68b1132</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi/986103be-6dae-4d5b-8b58-a5f2abf15cf7/tasks/a5f65474d38dc57d5.output</output-file>
+<status>completed</status>
+<summary>Agent "实现 W0.3b event_density" came to rest</summary>
+<note>A task-notification fires each time this agent comes to rest with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>全部验证通过。工作区干净（仅新增 `tools/event_density.py`；`.plan.md`/`.planning/` 为先前已存在的无关未跟踪项）。
+
+# Task 4 (W0.3b) 完成报告
+
+## 1. Step 1 实测 stats 字段名清单（来自 /tmp/ooo_w03a/stats.txt 与 /tmp/ooo_w01_c3/stats.txt，两文件交叉一致）
+
+| 列名 | 实测 stats.txt 字段 | 实测值 |
+|---|---|---|
+| branch_mispred | `board.processor.cores.core.commit.branchMispredicts` | 227 |
+| squash（主列） | `board.processor.cores.core.commit.commitSquashedInsts` | 3329 |
+| squash_decode | `board.processor.cores.core.decode.squashedInsts` | 491 |
+| squash_disp | `board.processor.cores.core.iew.dispSquashedInsts` | 350 |
+| squash_exec | `board.processor.cores.core.numSquashedInsts` | 382 |
+| squash_bp | `board.processor.cores.core.branchPred.squashes_0::total` | 1155 |
+| renamed_insts | `board.processor.cores.core.rename.renamedInsts` | 20010577 |
+| rat_writes | `board.processor.cores.core.rename.renamedOperands` | 22010422 |
+| commits | `board.processor.cores.core.commit.committedInstType_0::total` | 20006562 |
+| sim_insts / sim_ticks | `simInsts` / `simTicks` | 20005498 / 3094844830 |
+
+probe 列 = CHAOS_PROBE 行 11 键（samples/robOver80/iqOver80/flIntLe8/flFloatLe12/flVecLe6/robMax/iqMax/flIntMin/flFloatMin/flVecMin）。
+
+## 2. 文件清单
+
+- 新建（唯一改动）：`/home/sdc/gem5-fi/tools/event_density.py`（stdlib-only；`python3 -m py_compile` 通过）
+- 临时产物（/tmp，不入库）：`/tmp/dens_w03a.json`、`/tmp/dens_multi.json`、`/tmp/dens_det.json`、`/tmp/ooo_w03b_det{,.out}`（确定性重跑）
+- 未 commit / 未 push（按纪律留给编排者）；未改其他任何文件
+
+## 3. 三条验证实际输出（摘录）
+
+**验证 1（两源一致）**：`python3 tools/event_density.py --runs /tmp/ooo_w03a --stdout /tmp/ooo_w03a.out --json /tmp/dens_w03a.json` → EXIT=0；表行 `| ooo_w03a | 227 | 3329 | 491 | 350 | 382 | 1155 | 20010577 | 22010422 | 20006562 | 20005498 | 3094844830 | 8038558 | 7999976 | 8000092 | 7999837 | 0 | 8038558 | 124 | 64 | 1 | 192 | 0 |`。原值 `grep branchMispredicts`：`...commit.branchMispredicts 227`；`grep CHAOS_PROBE`：`samples=8038558 robOver80=7999976 ...`。程序化三方核对输出：`json runs[0] stats+probe all match raw grep: True` / `json aggregate mean/min/max all equal raw values: True` / **`TWO-SOURCE-CONSISTENT`**。
+
+**验证 2（n/a 路径 + 确定性）**：
+- 变体 a（给了 .out 但无 probe 行）：`event_density.py: note: /tmp/ooo_w01_c3: probe columns n/a -- no CHAOS_PROBE line in /tmp/ooo_w01_c3.out (run without --chaos_probe?)`，该行 probe 列全部 `n/a`，EXIT=0，不编造。
+- 变体 b（完全没给 stdout 文件）：`note: ... probe columns n/a -- no --stdout file given for this run`，EXIT=0。
+- 确定性重跑（新 outdir，GEM5-EXIT=0、golden=1、CHAOS_PROBE 行与 W0.3a 逐字节一致）：密度对比输出 `stats identical across runs: True` / `probe identical across runs: True` / **`DETERMINISM-CONFIRMED`**（MEAN==MIN==MAX 全列相等）。另 w01_c3（无 probe）与 w03a（有 probe）stats 全列相同——顺带再次证明探针无扰动。
+
+**验证 3（阴性，大声失败 exit 1）**：假 outdir（stats.txt 仅含 simInsts/simOps）→ `ERROR: /tmp/dens_fake_outdir/stats.txt: missing required stat key(s): ['board.processor.cores.core.commit.branchMispredicts', ...共10键...]`，**EXIT=1**；不存在目录 → `ERROR: --runs entry is not a directory: /tmp/no_such_outdir`，EXIT=1。附加健壮性阴性（均 EXIT=1）：stray stdout 文件无法归属、单文件含 2 条 CHAOS_PROBE 行、probe 行缺 9 键——均逐键点名。
+
+## 4. 偏差说明（冲突以计划为准，但计划预命名字段与实测不符处按「实测发现，不猜」原则处理）
+
+1. **前缀不同**：计划预期 `system.cpu.*`，实测为 stdlib board 命名 `board.processor.cores.core.*`（`branchMispredicts`、`renamedInsts` 两键语义与计划一致，仅前缀不同）。
+2. **两键不存在**：`rename.squashedInsts` 与裸 `committedInsts` 在 gem5 v25.1.0.1 中不存在。squash 主列取 `commit.commitSquashedInsts`（被 squash 在飞指令经 commit 排空的最完整计数），并暴露 decode/disp/exec/bp 四个补充列供 W3.2 按注入 hook 位置选用；commits 取 `commit.committedInstType_0::total`。
+3. **`--stdout` 支持多文件**（nargs='+'）：按 `&lt;run_dir&gt;.out` 同胞约定归属，单 run 单文件时按位置配对；无法归属的文件报错，无文件的 run 标 n/a——计划写的是单数 FILE，此为满足多 run 验证的最小扩展。
+4. **新增 rat_writes 列**：06 文档 W0.3 事件清单含「RAT 覆盖」，对应 `rename.renamedOperands`。
+5. 聚合输出为 MEAN/MIN/MAX 三行（计划 Step 2「均值/最小/最大」，任务概要只要求均值行——两者都满足）。</result>
+<usage><subagent_tokens>0</subagent_tokens><tool_uses>24</tool_uses><duration_ms>1446508</duration_ms></usage>
+</task-notification>
