@@ -43,6 +43,8 @@ CFG = os.path.join(REPO, "configs/se/arm_chaos.py")
 CONFIG_FAMILY = {
     "C0": os.path.join(REPO, "configs/se/arm_chaos.py"),
     "C2": os.path.join(REPO, "configs/se/kp920_proxy.py"),
+    # OoO north-star platform (docs/gem5-fi/ooo): vec48 PRF, ROB128, 2.6GHz
+    "C3": os.path.join(REPO, "configs/se/ooo_proxy.py"),
     # §2.7 cache injector harness (CHAOSCache mounts via _pre_instantiate)
     "C0-CACHE": os.path.join(REPO, "configs/se/arm_chaos_cache.py"),
     # §2.10 FS harness (CHAOSArmTLB/CHAOSArmSysReg; needs gem5-fs deps)
