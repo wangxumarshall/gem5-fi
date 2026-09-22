@@ -1,0 +1,79 @@
+{
+  "cli_version": "0.10.2",
+  "checkpoint_id": "01M33ESV62ZVDDCPNZAZ1Y35YE",
+  "session_id": "b5a8451b-8985-4941-acdc-75e7850ef67b",
+  "strategy": "manual-commit",
+  "created_at": "2026-09-22T02:23:33.22499441Z",
+  "branch": "fi-wx-verify-sdcshield",
+  "checkpoints_count": 1,
+  "files_touched": [
+    ".gitmodules",
+    "sdcshield"
+  ],
+  "agent": "Claude Code",
+  "model": "GLM-5.3[1m]",
+  "turn_id": "f131f5424c49",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 26720,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 159680,
+    "output_tokens": 5615,
+    "api_call_count": 6
+  },
+  "skill_events_version": 1,
+  "skill_events": [
+    {
+      "id": "claude-skill-call_a64664e6a9f841eaac031d82",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "superpowers:verification-before-completion"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "f131f5424c49",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 31,
+        "end": 32,
+        "entry_ids": [
+          "6b461db2-02d1-4d7a-b3c8-857393d6d96b"
+        ],
+        "tool_use_id": "call_a64664e6a9f841eaac031d82"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "call_a64664e6a9f841eaac031d82"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: superpowers:verification-before-completion",
+        "default_collapsed": true
+      }
+    }
+  ],
+  "initial_attribution": {
+    "calculated_at": "2026-09-22T02:23:33.20275523Z",
+    "agent_lines": 3,
+    "agent_removed": 0,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 3,
+    "total_lines_changed": 3,
+    "agent_percentage": 100,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    }
+  ]
+}
