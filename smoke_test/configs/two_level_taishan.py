@@ -278,6 +278,17 @@ _ap.add_argument("--cov-roi-end-cycle", type=int, default=0,
                 help="ROI end cycle (cov-roi=cycles; 0=end)")
 _ap.add_argument("--cov-detail", action="store_true", default=True,
                 help="write harp_cov_detail.log (advice-engine evidence)")
+# --- SDC-ED Task 2.1: CPU-profile-driven CHAOSCov denominators ---
+_ap.add_argument("--cov-profile", default=None,
+                help="CPU profile YAML (configs/cpu-profiles/*.yaml): "
+                     "overrides IBR FU counts/widths from the profile's "
+                     "IEX/FSU fus tables. Absent = TaiShan v110 defaults "
+                     "(behavior identical to the pre-parameterization "
+                     "hardcoded values)")
+_ap.add_argument("--cov-l2", action="store_true", default=False,
+                help="SDC-ED Task 2.2: add an independent block-ACE "
+                     "ledger for the L2 (l2c* stats; L2C unit of the "
+                     "ED decomposition)")
 # --- FU permanent fault (harp plan Task 5.2, execution-level L1) ---
 _ap.add_argument("--fu-perm", action="store_true", default=False,
                 help="mount CHAOSFUPerm (permanent execution-level FU fault)")
@@ -395,6 +406,42 @@ if _args.gate_fu:
 
 # --- Harpocrates coverage analyzer (Task 1.2): default-off mount ---
 if _args.cov:
+    # SDC-ED Task 2.1: IBR denominators from the CPU profile when given.
+    # Defaults (absent --cov-profile) are the TaiShan v110 fu_pool values,
+    # identical to the pre-parameterization C++ hardcoded arrays.
+    _cov_extra = {}
+    if _args.cov_profile:
+        import yaml as _yaml
+        with open(_args.cov_profile) as _f:
+            _prof = _yaml.safe_load(_f)
+        _units = _prof.get("units", {})
+
+        def _fu_param(unit, key, names):
+            # Map profile FU entries to the 4 IBR classes. Widths: the
+            # profile stores per-FU input path width (e.g. 128 for an int
+            # adder's 2x64 inputs; 256 for FP 2x128 NEON lanes) — pass
+            # through as-is; count from the matching fus entry.
+            vals = []
+            for n in names:
+                d = ((_units.get(unit) or {}).get("fus") or {}).get(n) or {}
+                vals.append(int(d.get(key, 0)) if d else 0)
+            return vals
+
+        _counts = _fu_param("IEX", "count", ["int_add", "int_mul"]) + \
+                  _fu_param("FSU", "count", ["fp_add", "fp_mul"])
+        _widths = _fu_param("IEX", "width", ["int_add", "int_mul"]) + \
+                  _fu_param("FSU", "width", ["fp_add", "fp_mul"])
+        if all(_counts) and all(_widths):
+            _cov_extra["ibrFuCounts"] = _counts
+            _cov_extra["ibrFuWidths"] = _widths
+            print(f"[cov-profile] {_args.cov_profile}: "
+                  f"ibrFuCounts={_counts} ibrFuWidths={_widths}")
+        else:
+            # Undisclosed FU fields: keep defaults (schema.md rule 1 —
+            # never guess; the honest fallback is the calibre defaults).
+            print(f"[cov-profile] {_args.cov_profile}: FU fields "
+                  f"undisclosed/absent — keeping TaiShan v110 defaults")
+
     system.CHAOSCov = CHAOSCov(
         cpu=system.cpu,
         targetCache=system.cpu.dcache,
@@ -404,7 +451,12 @@ if _args.cov:
         roiBeginCycle=_args.cov_roi_begin_cycle,
         roiEndCycle=_args.cov_roi_end_cycle,
         writeDetail=_args.cov_detail,
+        **_cov_extra,
     )
+    # SDC-ED Task 2.2: optional L2 ledger (independent block-ACE account).
+    if _args.cov_l2:
+        system.CHAOSCov.extraTargetCaches = [system.l2cache]
+        system.CHAOSCov.extraCacheNumBlocks = [512 * 1024 // 64]  # L2 512KiB
 
 root = Root(full_system=False, system=system)
 m5.instantiate()

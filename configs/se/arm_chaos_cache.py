@@ -82,6 +82,20 @@ def cap(root):
     orig_pi(root)
     if attached[0]:
         return
+    # SDC-ED Task 0.1（Round 2）: 注入面-采集面一致性——把 L2 参数对齐
+    # 采集侧（smoke_test/configs/caches.py L2Cache：512KiB/8-way/
+    # tag·data·response=8）。stdlib _Base 声明 l2_assoc=4 却不传给
+    # L2Cache（实测 hierarchy:138 只传 size——实际生效为类默认 16-way/
+    # latency 10/1）。l2c_tag/l2c_data 臂的注入组织必须与 covUnits::L2C
+    # 的采集组织一致，否则 lift 无意义。
+    l2 = getattr(ch, "l2-cache-0", None)
+    if l2 is not None:
+        l2.assoc = 8
+        l2.tag_latency = 8
+        l2.data_latency = 8
+        l2.response_latency = 8
+        print("[arm_chaos_cache] L2 aligned to collector side: "
+              "512KiB/8-way/tag=data=response=8")
     target = getattr(ch, f"{args.target}-cache-0", None)
     if target is None:
         print(f"[arm_chaos_cache] WARNING: {args.target}-cache-0 not found; "
