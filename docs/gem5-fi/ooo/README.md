@@ -111,7 +111,7 @@
 
 ```bash
 # 源文件（随本目录一并入库）：
-#   docs/gem5-fi-OoO单元故障注入方案V1.0.xlsx  (sha256 见文首)
+#   docs/gem5-fi/ooo/gem5-fi-OoO单元故障注入方案V1.0.xlsx  (sha256 见文首)
 # 重新生成忠实层并跑交叉校验（纯标准库，无需 openpyxl）：
 cd docs/gem5-fi/ooo && python3 extract.py
 # 预期输出末行：EXTRACTION VERIFICATION PASSED

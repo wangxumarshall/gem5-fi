@@ -14,7 +14,9 @@ from pathlib import Path
 NS_MAIN = '{http://schemas.openxmlformats.org/spreadsheetml/2006/main}'
 NS_REL = '{http://schemas.openxmlformats.org/officeDocument/2006/relationships}'
 HERE = Path(__file__).resolve().parent
-XLSX = HERE.parent.parent / 'gem5-fi-OoO单元故障注入方案V1.0.xlsx'
+XLSX = HERE / 'gem5-fi-OoO单元故障注入方案V1.0.xlsx'
+if not XLSX.exists():
+    XLSX = HERE.parent.parent / 'gem5-fi-OoO单元故障注入方案V1.0.xlsx'
 
 
 def col_to_num(col):
