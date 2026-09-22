@@ -62,3 +62,84 @@ CHAOS_TRIGGER_TEST PASS
 `git status --porcelain`：仅显示 `?? CHAOS/gem5/src/cpu/o3/chaos_trigger.hh`、`?? tests/chaos_trigger_test.cc`，以及预先存在的未追踪 `.plan.md` / `.planning/`。未修改任何跟踪文件；根据纪律，未进行任何 commit/push。</result>
 <usage><subagent_tokens>250</subagent_tokens><tool_uses>10</tool_uses><duration_ms>1568823</duration_ms></usage>
 </task-notification>
+
+---
+
+<task-notification>
+<task-id>a3aee3f875eccc356</task-id>
+<tool-use-id>call_a9b3ae79353b4034988f3598</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi/986103be-6dae-4d5b-8b58-a5f2abf15cf7/tasks/a3aee3f875eccc356.output</output-file>
+<status>completed</status>
+<summary>Agent "实现 W0.3a CHAOSProbe" came to rest</summary>
+<note>A task-notification fires each time this agent comes to rest with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>Task 3（W0.3a）完成，全部验证通过。最终报告：
+
+## W0.3a CHAOSProbe 完成报告
+
+### 文件清单（git status --short，逐字）
+```
+ M configs/se/ooo_proxy.py
+?? .plan.md
+?? .planning/
+?? CHAOS/gem5/src/cpu/o3/CHAOSProbe/
+```
+（`.plan.md`/`.planning/` 为先前已存在的 untracked，非本次产物；本次改动 = CHAOSProbe 四件套 + ooo_proxy.py 三处纯增量编辑。**未 commit/push**，Step 6 留给编排者。）
+
+新建四件套（模板 CHAOSFreeList/）：
+- `/home/sdc/gem5-fi/CHAOS/gem5/src/cpu/o3/CHAOSProbe/CHAOSProbe.hh`
+- `/home/sdc/gem5-fi/CHAOS/gem5/src/cpu/o3/CHAOSProbe/CHAOSProbe.cc`
+- `/home/sdc/gem5-fi/CHAOS/gem5/src/cpu/o3/CHAOSProbe/CHAOSProbe.py`
+- `/home/sdc/gem5-fi/CHAOS/gem5/src/cpu/o3/CHAOSProbe/SConscript`
+
+### 构建输出尾部（`cd CHAOS/gem5 &amp;&amp; scons -j126 build/ARM/gem5.opt 2&gt;&amp;1 | tail -8`，逐字）
+```
+scons: done building targets.
+*** Summary of Warnings ***
+Warning: Header file &lt;capstone/capstone.h&gt; not found.
+         This host has no capstone library installed.
+Warning: Header file &lt;png.h&gt; not found.
+         This host has no libpng library.
+         Disabling support for PNG framebuffers.
+Warning: Couldn't find HDF5 C++ libraries. Disabling HDF5 support.
+```
+- SCONS_EXIT=0；产物在**仓库根** `build/ARM/gem5.opt`（时间戳 9月23日 00:44 已更新，1.13GB）。
+- **零新告警**：完整构建日志中 13 条非环境警告全部来自本次未改动的既有文件（CHAOSPTW/CHAOSPhysReg/CHAOSCache/CHAOSIQ 的 -Wreorder 及 1 条 unused variable，git status 证明这些文件零改动；CHAOSCache -Wreorder 在 memory 有 pre-existing 记录）。CHAOSProbe 三个编译单元（CHAOSProbe.cc / param_CHAOSProbe.cc / debug/CHAOSProbe.cc）**零警告零错误**。capstone/png/HDF5 为每次构建都有的环境级提示。
+
+### 定向 + 无扰动验证（同一命令，逐字）
+```
+$ build/ARM/gem5.opt --outdir=/tmp/ooo_w03a configs/se/ooo_proxy.py --cmd workloads/directed/reg_chain --cpu O3 --chaos_probe &gt; /tmp/ooo_w03a.out 2&gt;&amp;1
+EXIT=0  (real 1m31.786s)
+
+$ grep "CHAOS_PROBE" /tmp/ooo_w03a.out
+CHAOS_PROBE samples=8038558 robOver80=7999976 iqOver80=8000092 flIntLe8=7999837 flFloatLe12=0 flVecLe6=8038558 robMax=124 iqMax=64 flIntMin=1 flFloatMin=192 flVecMin=0
+
+$ grep -c "f247ef3fe6f02cfd" /tmp/ooo_w03a.out
+1
+```
+- **golden = 1**：探针只读不改架构状态的证明成立。
+- 数值合理性：samples=803 万（百万级 ✓）；**robMax=124 ≤ 128** ✓；**iqMax=64 与已知 IQ 容量精确相等**（独立佐证容量推导正确）；`chaos_probe.log`（writeLog）含同一行。
+- freelist 数值交叉自洽（核查过）：reg_chain 静态二进制 _start/main 含 302 条 NEON 指令，AArch64 的 SIMD&amp;FP V 寄存器在 gem5 走 VecRegClass → vec 池（48−32 arch=16 动态槽）全程 ≤6、min=0；FloatRegClass 在 AArch64 未使用 → 恒 192、flFloatLe12=0；int 池（128−32=96 槽）在 99.5% ROB 超阈值占用下 min=1。robOver80=99.5% 与 reg_chain 长依赖链填满 ROB/IQ 的行为一致。
+
+### hostSeconds 开销对比
+```
+/tmp/ooo_w01_c3/stats.txt（无探针基线）:  hostSeconds 90.19
+/tmp/ooo_w03a/stats.txt（探针 sampleEvery=1，803 万次采样）:  hostSeconds 90.33
+```
+**差值 +0.14s（+0.16%）**——逐周期采样开销可忽略。
+
+### 回归（CLAUDE.md 纪律补充，未受影响路径 C0）
+```
+$ build/ARM/gem5.opt --outdir=/tmp/ooo_w03a_c0 configs/se/arm_chaos.py --cmd workloads/directed/reg_chain --cpu O3
+EXIT=0；grep -c "f247ef3fe6f02cfd" → 1；grep -c "CHAOS_PROBE" → 0
+```
+C0 在新二进制上 golden 命中、无探针痕迹——无附带破坏。
+
+### 偏差/设计决定记录（均已在代码注释中声明）
+1. **ROB/IQ 容量未硬编码**：startup() 用公开不变式推导（`countInsts()+numFreeEntries()`，rob.cc:306 / inst_queue.cc 实证），比计划允许的“硬编码 64 并注释”更强；iqMax=64 的实测结果独立验证了推导。未触碰任何 gem5 原生源码。
+2. **字段名动态嵌入实际阈值**：默认参数下逐字复现计划接口（robOver80/iqOver80/flIntLe8/flFloatLe12/flVecLe6），阈值被覆盖时标签不会说谎。
+3. **end-of-sim 打印**：用 `registerExitCallback`（CHAOSIQ.cc:186 先例，比析构可靠）；CHAOS_PROBE 行**无条件打印到 stdout**（Task 4 解析接口），writeLog=True 时额外落盘 `chaos_probe.log`。停止采样用 anyThreadActive 检查（CHAOSPhysReg.cc:573 ReadTraceFinal 同款 halt 检测）。
+4. **sampleEvery=0 防活锁**：warn + 钳位到 1。
+5. ooo_proxy.py 除 `--chaos_probe` 外加了 6 个阈值/周期旋钮（默认=计划值），与现有 16 块“块传参”模式一致，W1.5 可免重建扫阈值。未动 arm_chaos.py / kp920_proxy.py。
+6. 计划文件复选框未勾（该文件不在我的允许改动集内，由编排者在 commit 时处理）。</result>
+<usage><subagent_tokens>0</subagent_tokens><tool_uses>51</tool_uses><duration_ms>1930898</duration_ms></usage>
+</task-notification>
