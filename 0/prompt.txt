@@ -1,0 +1,41 @@
+/goal 把现有 SDC 故障注入结果，按新的三分类框架（无影响 / 过程中被检出 / 过程中未检出但导致问题）逐单元逐故障模型重新统计，产出可信、可溯源的完整表格，并更新 task_plan/findings/progress。
+
+背景：现有分类把"SDC"当成和"崩溃/死锁"并列的一种表现形式。但 SDC 的本质是过程——CPU 计算出错误的架构结果、RAS 链路全程零告警（无 MCE/SError/GHES/BERT/SEL），错误数据穿透保护路径——不取决于最后是"安静算错"还是"崩溃"还是"卡死"。本任务把评价框架改成三类，覆盖所有已经跑完、runs/ 下有 results.jsonl 的微架构（不需要新开 campaign，先用现有数据重新汇总）。
+
+三分类定义（基于 tools/classify.py 现有九分类）。对每个（单元, 故障模型, workload）这个 cell 分别算：N_valid = N_total − N_inactive − N_simulator_error（沿用现有定义，工具伪影已在分母外，不改）。类别1 无影响 = N_Masked / N_valid。类别2 过程中被检出 = (N_Corrected + N_DetectedContained) / N_valid（见下"保护机制审计"，只有真建模了保护的单元才有非零值）。类别3 未检出但有问题 = (N_SDC + N_Crash + N_Hang) / N_valid，并展开成三个子项，都要单独报概率，不能只报类别3的合计：3a 静默完成但结果错 = N_SDC/N_valid；3b 未检出、崩溃暴露 = N_Crash/N_valid；3c 未检出、挂起暴露 = N_Hang/N_valid。
+
+工具伪影（SimulatorError）不进类别1/2/3任何一类，单独报一行"有效率 = N_valid/(N_total−N_inactive)"，伪影率 = 1 − 有效率。
+
+类别2 保护机制审计：先判断"这个点有没有真实保护"，再统计检出率。全仓库 grep 核实过，只有 4 个注入器实现了 protectionModel/等价参数——CHAOSCache（L1D/L1I/L2）、CHAOSMem（DRAM）、CHAOSArmTLB（数据 TLB）、CHAOSPTW（ptwEcc，H7）。这 4 个：类别2 = 该 cell 在 protection_model≠none（或 ptwEcc=true）配置下实际的 Corrected+DetectedContained 占比，不是"这个 campaign 挂了保护参数就填个数"，是真按每个 rep 的分类结果算。
+
+其余全部单元（PRF/RAT/FreeList/ROB/IQ/Exec/FPU/LSQFwd/L1DForward/BPU/Decode/RAS/ExMon/AGU/SysReg/NoC-CHI-HCCS）代码里零保护实现，类别2 结构性缺失——但不能统一填 N/A，要按三态标注。N/A（真实硬件大概率也不保护，行业共识级判断）：Exec、FPU、Decode、AGU、BPU、ExMon、RAS（组合逻辑/控制状态机，商用非安全关键芯片普遍不加 ECC）。暂未实现（真实硬件业界标准做法会有，我们代码没做，有据可查）：NoC/CHI/HCCS（链路级 CRC+重传是行业标准，我们是主动 scope-cut）。未知/待证实（真实鲲鹏 V110 是否有保护无法确定，N1 代理假设"未列=无保护"但这只是 ARM 公开手册没提、不代表真没有）：PRF、RAT、FreeList、ROB、IQ、LSQFwd、L1DForward、SysReg、L3 tag/一致性目录。这批不许拍死成"暂未实现"或"N/A"中任何一个，除非你能找到 V110 或同代服务器核的公开资料/内部文档证实，否则原样标"未知/待证实"并写清楚这是 N1 代理假设、未经实机验证。
+
+已知数据缺口，需要你决定怎么处理：对 fwdsrc_formal_fwd（LSQFwd fwd_source_sub）抽查发现，217 条 Crash 记录退出信号全是 SIGABRT（-6）不是 SIGSEGV——现有 SimulatorError 关键词过滤器（_is_simerr 查 stderr 里的 "panic/Assertion/SIGSEGV/abort"）可能有漏判，因为 SIGABRT 常见于 gem5 自身 panic 触发的 abort()，但 results.jsonl 没留 stderr 原文，回溯查不了。要求：对每个单元里 Crash 占比 ≥10% 的 cell，挑 5–10 个具体 rep，用相同 manifest 单独重放（关闭静默、留全 stderr），核实退出信号来源是"guest 真实异常/panic"还是"疑似 gem5 内部路径"。做不完全部的话，优先级给 Crash 占比高、结论权重大的单元（LSQFwd/RAT/PRF/AGU/ROB/IQ 这类）；没抽查到的单元在最终表格里显式标"该单元 Crash 分类未做工具伪影二次核实"，不要吞掉这个局限。这一步涉及的重放数量很小，不用走完整 campaign 并发机制，但如果批量做要遵守 task_plan 的「跑批资源纪律」。
+
+产出：一、新文档（建议 plans/sdc-process-reclassification.md，或你认为更合适的位置/文件名均可，但要新建不要塞进现有 injection report 改乱结构），每个单元、每个故障模型一行/一组，三分类占比 + 类别3 三个子项 + 类别2 的保护审计状态（含三态标注）+ 有效率/伪影率 + 是否做过工具伪影二次核实。二、findings.md 记录这次重新统计的方法论、发现（尤其是类别2 大面积是 N/A/未知/暂未实现这件事本身，以及审计过程中发现的任何分类器问题）。三、progress.md 如实记录跑批/统计过程（几个 cell、哪些做了二次核实、有没有发现新 bug）。四、task_plan.md 加一个新 Phase，标注这次重新分类的范围和完成状态；如果发现 classify.py/runner.py 需要改（比如给未来的跑批加一个"退出原因文本"字段，解决这次 stderr 缺失的问题），单独列一条待办，不要顺手改了但没记录。
+
+诚实纪律不变，重申：每个数字必须能指到真实的 runs/campaign/c*/results.jsonl；类别2 的三态标注不许因为"报告好看"就含糊处理，能确定就确定，不能确定必须标"未知/待证实"并写理由；工具伪影相关的局限（尤其是这次发现的 SIGABRT 疑点）必须写进诚实边界，不能悄悄略过。
+
+完成标志：三分类表格覆盖现有全部已完成单元 + 类别2 三态标注全部有依据（不是拍脑袋）+ 至少完成 Crash 占比最高的几个单元的二次核实（或明确记录为什么没做）+ 三个规划文档同步更新。
+
+---
+
+/goal 把现有 SDC 故障注入结果，按新的三分类框架（无影响 / 过程中被检出 / 过程中未检出但导致问题）逐单元逐故障模型重新统计，产出可信、可溯源的完整表格，并更新 task_plan/findings/progress。
+
+背景：现有分类把"SDC"当成和"崩溃/死锁"并列的一种表现形式。但 SDC 的本质是过程——CPU 计算出错误的架构结果、RAS 链路全程零告警（无 MCE/SError/GHES/BERT/SEL），错误数据穿透保护路径——不取决于最后是"安静算错"还是"崩溃"还是"卡死"。本任务把评价框架改成三类，覆盖所有已经跑完、runs/ 下有 results.jsonl 的微架构（不需要新开 campaign，先用现有数据重新汇总）。
+
+三分类定义（基于 tools/classify.py 现有九分类）。对每个（单元, 故障模型, workload）这个 cell 分别算：N_valid = N_total − N_inactive − N_simulator_error（沿用现有定义，工具伪影已在分母外，不改）。类别1 无影响 = N_Masked / N_valid。类别2 过程中被检出 = (N_Corrected + N_DetectedContained) / N_valid（见下"保护机制审计"，只有真建模了保护的单元才有非零值）。类别3 未检出但有问题 = (N_SDC + N_Crash + N_Hang) / N_valid，并展开成三个子项，都要单独报概率，不能只报类别3的合计：3a 静默完成但结果错 = N_SDC/N_valid；3b 未检出、崩溃暴露 = N_Crash/N_valid；3c 未检出、挂起暴露 = N_Hang/N_valid。
+
+工具伪影（SimulatorError）不进类别1/2/3任何一类，单独报一行"有效率 = N_valid/(N_total−N_inactive)"，伪影率 = 1 − 有效率。
+
+类别2 保护机制审计：先判断"这个点有没有真实保护"，再统计检出率。全仓库 grep 核实过，只有 4 个注入器实现了 protectionModel/等价参数——CHAOSCache（L1D/L1I/L2）、CHAOSMem（DRAM）、CHAOSArmTLB（数据 TLB）、CHAOSPTW（ptwEcc，H7）。这 4 个：类别2 = 该 cell 在 protection_model≠none（或 ptwEcc=true）配置下实际的 Corrected+DetectedContained 占比，不是"这个 campaign 挂了保护参数就填个数"，是真按每个 rep 的分类结果算。
+
+其余全部单元（PRF/RAT/FreeList/ROB/IQ/Exec/FPU/LSQFwd/L1DForward/BPU/Decode/RAS/ExMon/AGU/SysReg/NoC-CHI-HCCS）代码里零保护实现，类别2 结构性缺失——但不能统一填 N/A，要按三态标注。N/A（真实硬件大概率也不保护，行业共识级判断）：Exec、FPU、Decode、AGU、BPU、ExMon、RAS（组合逻辑/控制状态机，商用非安全关键芯片普遍不加 ECC）。暂未实现（真实硬件业界标准做法会有，我们代码没做，有据可查）：NoC/CHI/HCCS（链路级 CRC+重传是行业标准，我们是主动 scope-cut）。未知/待证实（真实鲲鹏 V110 是否有保护无法确定，N1 代理假设"未列=无保护"但这只是 ARM 公开手册没提、不代表真没有）：PRF、RAT、FreeList、ROB、IQ、LSQFwd、L1DForward、SysReg、L3 tag/一致性目录。这批不许拍死成"暂未实现"或"N/A"中任何一个，除非你能找到 V110 或同代服务器核的公开资料/内部文档证实，否则原样标"未知/待证实"并写清楚这是 N1 代理假设、未经实机验证。
+
+已知数据缺口，需要你决定怎么处理：对 fwdsrc_formal_fwd（LSQFwd fwd_source_sub）抽查发现，217 条 Crash 记录退出信号全是 SIGABRT（-6）不是 SIGSEGV——现有 SimulatorError 关键词过滤器（_is_simerr 查 stderr 里的 "panic/Assertion/SIGSEGV/abort"）可能有漏判，因为 SIGABRT 常见于 gem5 自身 panic 触发的 abort()，但 results.jsonl 没留 stderr 原文，回溯查不了。要求：对每个单元里 Crash 占比 ≥10% 的 cell，挑 5–10 个具体 rep，用相同 manifest 单独重放（关闭静默、留全 stderr），核实退出信号来源是"guest 真实异常/panic"还是"疑似 gem5 内部路径"。做不完全部的话，优先级给 Crash 占比高、结论权重大的单元（LSQFwd/RAT/PRF/AGU/ROB/IQ 这类）；没抽查到的单元在最终表格里显式标"该单元 Crash 分类未做工具伪影二次核实"，不要吞掉这个局限。这一步涉及的重放数量很小，不用走完整 campaign 并发机制，但如果批量做要遵守 task_plan 的「跑批资源纪律」。
+
+产出：一、新文档（建议 plans/sdc-process-reclassification.md，或你认为更合适的位置/文件名均可，但要新建不要塞进现有 injection report 改乱结构），每个单元、每个故障模型一行/一组，三分类占比 + 类别3 三个子项 + 类别2 的保护审计状态（含三态标注）+ 有效率/伪影率 + 是否做过工具伪影二次核实。二、findings.md 记录这次重新统计的方法论、发现（尤其是类别2 大面积是 N/A/未知/暂未实现这件事本身，以及审计过程中发现的任何分类器问题）。三、progress.md 如实记录跑批/统计过程（几个 cell、哪些做了二次核实、有没有发现新 bug）。四、task_plan.md 加一个新 Phase，标注这次重新分类的范围和完成状态；如果发现 classify.py/runner.py 需要改（比如给未来的跑批加一个"退出原因文本"字段，解决这次 stderr 缺失的问题），单独列一条待办，不要顺手改了但没记录。
+
+诚实纪律不变，重申：每个数字必须能指到真实的 runs/campaign/c*/results.jsonl；类别2 的三态标注不许因为"报告好看"就含糊处理，能确定就确定，不能确定必须标"未知/待证实"并写理由；工具伪影相关的局限（尤其是这次发现的 SIGABRT 疑点）必须写进诚实边界，不能悄悄略过。
+
+完成标志：三分类表格覆盖现有全部已完成单元 + 类别2 三态标注全部有依据（不是拍脑袋）+ 至少完成 Crash 占比最高的几个单元的二次核实（或明确记录为什么没做）+ 三个规划文档同步更新。
