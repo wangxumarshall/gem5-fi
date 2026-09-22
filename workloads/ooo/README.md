@@ -31,7 +31,7 @@
 | workload | 任务 | golden (FINAL=16hex) | C3 SE hostSeconds | simInsts | 事件密度要点 | 状态 |
 |---|---|---|---|---|---|---|
 | smoke | W1.0 | `45737cc9a76c0dce` | 1.18 / 1.19（两次） | 308057 | —（框架冒烟核，非探针，无密度门） | done |
-| branch_mispred | W1.5a | （待实测） | （待实测） | （待实测） | mispredicts/commits ≥5% | pending |
+| branch_mispred | W1.5a | `06e84f119c258fa7` | 55.86 / 56.77（s1/p1） | 8611484 | mispredicts/commits = **5.70%** ≥5% PASS；squash 密度 59.1%；mispredicts=490766/运行 | done |
 | dep_chain（int/vec 两版） | W1.5b | （待实测） | （待实测） | （待实测） | flIntLe8 ≥1%（int）/ flVecLe6 ≥1%（vec） | pending |
 | rob_fill（int/fp 两版） | W1.5c | （待实测） | （待实测） | （待实测） | robOver80 ≥50% 且 div>0 | pending |
 | coremark | W1.1 | （待实测） | （待实测） | （待实测） | 自带 CRC 校验 | pending |

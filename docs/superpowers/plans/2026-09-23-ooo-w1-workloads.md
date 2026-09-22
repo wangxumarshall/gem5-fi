@@ -41,9 +41,9 @@
 
 **Files:** Create `workloads/ooo/branch_mispred/branch_mispred.c`（+Makefile 目标）
 **Spec（03-workloads.md 原文）:** 构造大量数据相关、不可预测的条件跳转（对随机排列数组做条件分支遍历），刻意压高分支误预测率，制造 RAT/Rename 检查点被频繁触发恢复的场景；校验=结果数组自校验（排列的统计量）。
-- [ ] Step 1: 写核——固定 seed LCG 生成随机排列数组，遍历并做数据相关条件分支（如 `if (perm[i] & 1) acc += perm[i]; else acc ^= perm[i]>>1;` 交织嵌套变体），累计校验值打印 FINAL 行；规模调到 SE ≤60s。
-- [ ] Step 2: 验证三件套 + 密度门（`--chaos_probe` 跑 C3，event_density.py 出 mispredicts/commits ≥ 5%）+ runner.py GOLDEN_IDS 注册。
-- [ ] Step 3: Commit + push
+- [x] Step 1: 写核——固定 seed LCG 生成随机排列数组，遍历并做数据相关条件分支（如 `if (perm[i] & 1) acc += perm[i]; else acc ^= perm[i]>>1;` 交织嵌套变体），累计校验值打印 FINAL 行；规模调到 SE ≤60s。〔执行注 2026-09-23：实现 = 4096 项 Fisher-Yates 排列 + 48 轮旋转窗重洗牌 + 每元素 5 类数据相关条件分支（B1 奇偶/B2 演化阈值/B3-B5 状态混合奇偶），每臂独立全局 store 阻断 csel if-conversion（objdump 实测 9077 条件分支 vs 429 csel）；校验 = 累加器 + 排列统计量（descents/fixed points/位移 xor/逆序数）。**过程中断记录**：子代理在验证阶段前被进程退出打断，源码/ELF/Makefile 为其遗留，验证链由编排者接管完成。〕
+- [x] Step 2: 验证三件套 + 密度门 + GOLDEN_IDS 注册。〔执行注：golden `06e84f119c258fa7` 三跑一致（s1/s2/p1 逐字节相同）+ native==gem5；hostSeconds 55.86/56.77（预算内）；simInsts 8611484；**密度门 PASS：mispredicts/commits = 5.70% ≥5%**（490766 mispredicts + squash 密度 59.1%=5091001 条——正是 D14 误预测恢复场景）；runner.py GOLDEN_IDS 注册 branchmispred-golden-v1。附带发现：vec freelist 在全部运行恒 ≤6（含无向量代码负载），已记 findings.md，W1.5b 向量门需加强。〕
+- [x] Step 3: Commit + push
 
 ### Task 3: W1.5b — 长依赖链压力核（dep_chain_pressure int + vec 两版）
 

@@ -87,6 +87,8 @@ GOLDEN_IDS = {
     # print a 16-hex FINAL= line -> exact_hash).
     "stencil5pt-golden-v1": "6216d7bd62318f00",      # stencil W=160
     "streamtriad-golden-v1": "0a3e17d4e5740000",     # triad N=262144 (6MB)
+    # OoO track W1 (docs/gem5-fi/ooo; config family C3, workloads/ooo/):
+    "branchmispred-golden-v1": "06e84f119c258fa7",  # W1.5a probe kernel
 }
 
 # v1.1 Phase 8.1: golden ARRAY registry — for workloads whose oracle is
