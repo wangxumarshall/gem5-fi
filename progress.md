@@ -2557,3 +2557,10 @@ CI 零重叠——**H7 验收断言("ECC-off spurious>0 vs ECC-on≈0")formal �
 - **二次核实**:6 单元 8 reps 重放(stderr 全留)——physreg/rat/freelist/decode = guest 真实页故障(Crash 正确);exmon = gem5 断言中介(DUE,标注);iq = **发现伪影**:778 条 Crash 是 madd_chain 二进制名配置错误,重计 SimulatorError,3 个旧 IQ campaign 作废(真 IQ 数字用 v1.2 修复后数据)。
 - **类别2 审计**:4 单元有真保护建模;7 个 N/A;1 个未实现;**9 个未知/待证实**(N1 代理假设,未经实机验证,引用必须带限定)。
 - **新待办**(未顺手改):runner.py results.jsonl 加 exit_reason 字段(stderr 首个 panic/assert 行),解决本次 stderr 缺失回溯难的问题。
+
+### OoO 单元故障注入方案 V1.0 北极星提取完成(2026-09-22)
+
+- **交付**:`docs/gem5-fi/ooo/` 整套北极星文档(README 总纲 + 00 总览/01 观测点/02 频率采样/03 负载 + 04 设计矩阵 91 行 D01-D91 + 05 展开矩阵 226 格 E001-E226 机读 CSV + extract.py 生成器 + verify_extraction.py 校验器)。源 xlsx 一并入库(sha256=9c819357…)。
+- **提取正确性**:extract.py 内置交叉校验(从设计矩阵重放展开逻辑,226 行×10 列与源表逐格全等)+ verify_extraction.py 全量回比(两份 CSV 逐格 vs xlsx、91 行标签与预期文本、手写文档 55 个关键原文片段空白归一化匹配)——ALL PASSED。校验过程抓出 2 处真实提取偏差(L4 定义多写"边界条件"三字、表头"L1 重点观测点"空格)并已修正。
+- **方案要点**:六单元(Int/FP-SIMD × Decode/Rename/Dispatch-ROB)× 91 设计行 → 226 实验格 × n=2000 ≈ 45.2 万次;核心主张=结构化故障模型(换值/卡死/读到旧数据/状态位)绕过 gem5 依赖检查测真实 SDC 潜力;L0-L4 五层观测(L1 微架构偏差为文献空白点;Crash 双拆分与本仓 v1.4 三分类同构)。
+- **与现有轨道关系**:这是与 KUNPENG920 384 样本轨道**并行的新方案**(平台参数/负载/样本量口径均不同);README §7 给出诚实映射(runner 组件路由可复用,L1 影子比对/commit 级五分类/新故障模型/新负载需新建)。
