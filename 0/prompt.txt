@@ -262,3 +262,24 @@ NATIVE_EXIT=0
 3. `git status` 确认本次仅新增 `workloads/ooo/`（.plan.md/.planning//计划文件为编排者既有产物，未触碰）；`git diff --stat` 为空，无任何已跟踪文件被修改。</result>
 <usage><subagent_tokens>0</subagent_tokens><tool_uses>26</tool_uses><duration_ms>466660</duration_ms></usage>
 </task-notification>
+
+---
+
+<task-notification>
+<task-id>a00e776ba7d4f07ab</task-id>
+<tool-use-id>call_e5e95e9cb5d1469f93e93ed8</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi/986103be-6dae-4d5b-8b58-a5f2abf15cf7/tasks/a00e776ba7d4f07ab.output</output-file>
+<status>killed</status>
+<summary>Agent "实现 W1.5a 误预测密集核" came to rest (stopped by user)</summary>
+<note>A task-notification fires each time this agent comes to rest with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>ROUNDS=48 时的 Native 基准 Golden：`FINAL=06e84f119c258fa7`。接下来进行两次 gem5 验证运行（顺序执行，以获得准确的 hostSeconds 预算值）。</result>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a00e776ba7d4f07ab</task-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi/986103be-6dae-4d5b-8b58-a5f2abf15cf7/tasks/a00e776ba7d4f07ab.output</output-file>
+<status>failed</status>
+<summary>Background agent "实现 W1.5a 误预测密集核" was running when the previous Claude Code process exited and did not complete. Its in-process state was lost. Check its worktree/output for partial work before assuming the task landed.</summary>
+</task-notification>
