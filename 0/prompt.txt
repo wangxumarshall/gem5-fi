@@ -3,3 +3,7 @@
 ---
 
 /planning-with-files:plan-goal 调用多agent协同实现本方案
+
+---
+
+/planning-with-files:plan-goal 调用多agent协同实现本方案。必须完成所有实现再解决，否则永远不要结束
