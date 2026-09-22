@@ -360,21 +360,23 @@ Expected: CHAOS_PROBE 行出现且 samples/robMax 数值合理（robMax ≤ 128�
 - Produces: `python3 tools/event_density.py --runs DIR [DIR...] [--json OUT]`——每个 DIR = 一个 gem5 outdir（含 stats.txt；若 stdout 留存则顺带解析 CHAOS_PROBE 行）。输出表：`workload | branch_mispred/run | squash/run | renamed_insts/run | commits/run | robOver80/run | iqOver80/run | flIntLe8/run | ...`（--json 同内容机器可读版）。
 - 下游：W3.2 事件覆盖计数倒推（密度表 → 运行数）；W1.5 探针核达标验收。
 
-- [ ] **Step 1: 从真实产物发现 stats 字段名**（Step 2 写码的前置——名字必须来自实测，不猜）
+- [x] **Step 1: 从真实产物发现 stats 字段名**（Step 2 写码的前置——名字必须来自实测，不猜）
+
+〔执行注 2026-09-23：实测前缀为 **`board.processor.cores.core.*`**（stdlib board 命名），非计划预期的 `system.cpu.*`；两键在 v25.1 不存在——`rename.squashedInsts` 改用 `commit.commitSquashedInsts`（+decode/disp/exec/bp 四个补充列），裸 `committedInsts` 改用 `commit.committedInstType_0::total`；新增 rat_writes=`rename.renamedOperands`（06 W0.3 的「RAT 覆盖」）。原则：实测发现优先于计划预命名。〕
 
 ```bash
 grep -iE "mispred|squash|renamedInsts|committedInst" /tmp/ooo_w01_c3/stats.txt | head
 ```
 Expected: 得到形如 `system.cpu.commit.branchMispredicts` / `system.cpu.rename.squashedInsts` / `system.cpu.rename.renamedInsts` / `system.cpu.commit.committedInsts` 的**实际字段名**（记下，写入 Step 2 的 STATS_KEYS；stats.txt 由 Task 1 的 C3 冒烟运行产出——依赖 Task 1 已完成）。
 
-- [ ] **Step 2: 写解析器**——STATS_KEYS = Step 1 实测名（缺键时大声失败 exit 1，不静默）；`--runs` 每目录读 stats.txt（文本格式 `name value ...`）+ 可选 `gem5.out`/stdout 抓 `CHAOS_PROBE` 行；聚合均值/最小/最大；打印 markdown 表 + 可选 --json。
-- [ ] **Step 3: 验证（两源一致 + 确定性）**
+- [x] **Step 2: 写解析器**——STATS_KEYS = Step 1 实测名（缺键时大声失败 exit 1，不静默）；`--runs` 每目录读 stats.txt（文本格式 `name value ...`）+ 可选 `gem5.out`/stdout 抓 `CHAOS_PROBE` 行；聚合均值/最小/最大；打印 markdown 表 + 可选 --json。（`--stdout` 实现为 nargs='+' 多文件，按 `<run_dir>.out` 同胞约定归属；无 probe 行的 run 标 n/a 不编造。）
+- [x] **Step 3: 验证（两源一致 + 确定性）**〔执行注：TWO-SOURCE-CONSISTENT（JSON vs raw grep vs CHAOS_PROBE 行三方核对 True）+ DETERMINISM-CONFIRMED（重跑 GEM5-EXIT=0 golden=1，CHAOS_PROBE 逐字节一致，MEAN==MIN==MAX）+ 阴性 4 例全部大声 exit 1（缺键逐键点名/非目录/stray stdout/重复行）。顺带再证探针无扰动（w01_c3 与 w03a stats 全列相同）。〕
 
 ```bash
 python3 tools/event_density.py --runs /tmp/ooo_w03a --json /tmp/dens_w03a.json
 ```
 Expected: 表中 mispredict 数与 `grep branchMispredicts /tmp/ooo_w03a/stats.txt` 的原值一致（解析正确性）；再跑一次 reg_chain（不同 outdir）密度一致（确定性）。**注意**：若 /tmp/ooo_w03a 的 stats.txt 不含 CHAOS_PROBE（probe 在 stdout），确认解析路径取的是 .out 文件。
-- [ ] **Step 4: Commit + push**
+- [x] **Step 4: Commit + push**
 
 ---
 
