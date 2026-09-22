@@ -199,7 +199,7 @@ git push origin fi-ding
   `ChaOSTrigger(ChaOSTier t, uint64_t seed, uint64_t first_cycle, uint64_t last_cycle)`；`bool fire(uint64_t now_cycle)`；`static constexpr uint64_t intervalCycles(ChaOSTier)`（F1=2600000/F2=260000/F3=26000，2.6GHz 折算）。
   语义（北极星 02）：F0=窗口内单次均匀（**要求显式 last_cycle**，0 时退化为 first_cycle 立即触发并在头注释声明）；F1–F3=固定平均间隔±50% 抖动；F5=恒真（永久缺陷，写路径 mask 语义由注入器负责）。契约：在注入器 hook 点轮询（cycle 或事件粒度均可，间隔按 CPU cycle 计）。
 
-- [ ] **Step 1: 写 chaos_trigger.hh**
+- [x] **Step 1: 写 chaos_trigger.hh**
 
 ```cpp
 /*
@@ -296,19 +296,20 @@ struct ChaOSTrigger
 #endif // __CPU_O3_CHAOS_TRIGGER_HH__
 ```
 
-- [ ] **Step 2: 写独立单测 tests/chaos_trigger_test.cc**
+- [x] **Step 2: 写独立单测 tests/chaos_trigger_test.cc**
 
 断言：①F1 抽 1000 个相邻 fire 间隔全部 ∈ [1.3M, 3.9M)（±50% of 2.6M）；②F0 在 [1000, 2000) 窗口恰好 fire 一次且同 seed 复现同 cycle；③F5 恒真；④同 seed 两次构造的 F1 序列逐项相等（确定性）。main() 末尾打印 `CHAOS_TRIGGER_TEST PASS`。
 
-- [ ] **Step 3: 运行单测（真机输出为证）**
+- [x] **Step 3: 运行单测（真机输出为证）**
 
 ```bash
-g++ -std=c++17 -Wall -Wextra -Werror -I CHAOS/gem5/src/cpu/o3 \
+g++ -std=c++17 -Wall -Wextra -Werror -I CHAOS/gem5/src -I CHAOS/gem5/src/cpu/o3 \
     tests/chaos_trigger_test.cc -o /tmp/chaos_trigger_test && /tmp/chaos_trigger_test
 ```
 Expected: `CHAOS_TRIGGER_TEST PASS`（零 warning——`-Wall -Wextra -Werror` 近似 gem5 编译纪律；首次 gem5 旗标编译在 W4.1 接线时）。
+〔执行注 2026-09-23：原命令只有 `-I CHAOS/gem5/src/cpu/o3`，与 header 的仓库惯例 include "cpu/o3/chaos_event_sample.hh" 不自洽（g++ 需要相对 src/ 解析）——补 `-I CHAOS/gem5/src` 镜像 gem5 真实 CPPPATH（CHAOSFPU.cc:11 同款 include 在真实构建中即如此解析），已修正上方命令。实测输出：5 项 PASS（F1 mean=2653066；F0 落点 cycle 1733 同 seed 复现；F5 恒真；同 seed 序列逐项相等；F2 mean=267273/F3 mean=26179）+ CHAOS_TRIGGER_TEST PASS，EXIT=0。〕
 
-- [ ] **Step 4: Commit + push**（同 Task 1 格式，引用 Step 3 输出）
+- [x] **Step 4: Commit + push**（同 Task 1 格式，引用 Step 3 输出）
 
 ---
 
