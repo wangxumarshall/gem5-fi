@@ -1,0 +1,1 @@
+/planning-with-files 深度研究项目源码，我要通过gem5故障注入研究 sdcshield 这个sdc检测用例的检测效果，设计实现方案，要求明确采用gem5 fs模式还是se模式，通过哪些cpu微架构上的哪些故障注入方式
