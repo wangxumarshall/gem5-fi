@@ -128,7 +128,12 @@ if float(fi_args.lsq_fwd_prob) > 0.0:
 
 # Instantiate (after injectors are attached) then simulate. Cap sim via
 # m5.simulate(max_tick) if requested (Root has no max_tick param in v25.1).
-m5.instantiate()
+if options.restore_from:
+    import os
+    cpt_dir = os.path.join(m5.options.outdir, options.restore_from) if not os.path.isabs(options.restore_from) else options.restore_from
+    m5.instantiate(cpt_dir)
+else:
+    m5.instantiate()
 m5.util.inform("FS+CHAOS instantiated. Simulating (MMU-on translation will "
                "exercise D2/D3 hooks; SIGINT to dump stats & exit).")
 max_tick = int(fi_args.max_tick)
