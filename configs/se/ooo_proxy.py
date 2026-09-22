@@ -25,7 +25,7 @@
 
 import argparse
 import m5
-from m5.objects import CHAOSReg, CHAOSPhysReg, CHAOSMem, CHAOSLSQFwd, CHAOSRenameMap, CHAOSFreeList, CHAOSROB, CHAOSIQ, CHAOSExec, CHAOSFPU, CHAOSL1DForward, CHAOSBPU, CHAOSAddrPath, CHAOSDecode, CHAOSExMon, CHAOSRAS
+from m5.objects import CHAOSReg, CHAOSPhysReg, CHAOSMem, CHAOSLSQFwd, CHAOSRenameMap, CHAOSFreeList, CHAOSROB, CHAOSIQ, CHAOSExec, CHAOSFPU, CHAOSL1DForward, CHAOSBPU, CHAOSAddrPath, CHAOSDecode, CHAOSExMon, CHAOSRAS, CHAOSProbe
 from gem5.components.boards.simple_board import SimpleBoard
 from gem5.components.cachehierarchies.classic.private_l1_private_l2_cache_hierarchy import (
     PrivateL1PrivateL2CacheHierarchy,
@@ -243,6 +243,25 @@ p.add_argument("--chaos_ras", action="store_true",
 p.add_argument("--ras_first_clock", type=lambda x: int(x,0), default=1000)
 p.add_argument("--ras_max_faults", type=lambda x: int(x,0), default=1)
 p.add_argument("--ras_rng_seed", type=lambda x: int(x,0), default=20260825)
+# W0.3a CHAOSProbe (OoO occupancy/threshold event probe). READ-ONLY: no
+# injector, no architectural-state writes — the reg_chain golden checksum
+# must be unchanged with it attached. Emits ONE `CHAOS_PROBE samples=...
+# robOver80=... iqOver80=... flIntLe8=... ...` stdout line at end of sim
+# (field names embed these thresholds; parsed by tools/event_density.py).
+p.add_argument("--chaos_probe", action="store_true",
+               help="attach CHAOSProbe (OoO occupancy/threshold event probe, W0.3a)")
+p.add_argument("--probe_sample_every", type=int, default=1,
+               help="probe sampling period in CPU cycles")
+p.add_argument("--probe_rob_pct", type=int, default=80,
+               help="ROB over-occupancy threshold percent")
+p.add_argument("--probe_iq_pct", type=int, default=80,
+               help="IQ over-occupancy threshold percent")
+p.add_argument("--probe_fl_int_le", type=int, default=8,
+               help="int PRF freelist low-watermark (remaining <= N counts)")
+p.add_argument("--probe_fl_float_le", type=int, default=12,
+               help="float PRF freelist low-watermark")
+p.add_argument("--probe_fl_vec_le", type=int, default=6,
+               help="vec PRF freelist low-watermark")
 args = p.parse_args()
 
 # C3-OOO cache geometry = same as kp920_proxy.py/C0: 64KiB L1 (4-way, 64B),
@@ -569,6 +588,24 @@ if args.chaos_ras:
         writeLog=True,
     )
     board.chaos_ras = ras
+
+if args.chaos_probe:
+    # W0.3a CHAOSProbe: O3-only, READ-ONLY occupancy/threshold probe.
+    # SELF-ATTACHES at startup() (dynamic_cast O3CPU; no gem5 source hook —
+    # unlike the injectors it patches nothing). Sampling is a periodic
+    # EventFunctionWrapper on the CPU clock; the summary line comes from an
+    # exit callback at end of sim.
+    probe = CHAOSProbe(
+        cpu=cpu0,
+        sampleEvery=args.probe_sample_every,
+        robThresholdPct=args.probe_rob_pct,
+        iqThresholdPct=args.probe_iq_pct,
+        flIntLe=args.probe_fl_int_le,
+        flFloatLe=args.probe_fl_float_le,
+        flVecLe=args.probe_fl_vec_le,
+        writeLog=True,
+    )
+    board.chaos_probe = probe
 
 if args.maxinsts:
     cpu0.max_insts = args.maxinsts

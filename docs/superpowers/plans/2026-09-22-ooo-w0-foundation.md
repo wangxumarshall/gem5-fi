@@ -325,17 +325,19 @@ Expected: `CHAOS_TRIGGER_TEST PASS`（零 warning——`-Wall -Wextra -Werror` �
 - Consumes（已核实的访问器）: `cpu->o3ROB()` 上 `countInsts()`（rob.hh:268）；IEW 侧 IQ 占用 `getCount(ThreadID)`（inst_queue.hh:391，线程 0）；`cpu->physFreeList().numFreeRegs(RegClassType)`（free_list.hh:255；IntRegClass/FloatRegClass/VecRegClass）。
 - 下游：Task 4（event_density.py 解析该行）；W1.5 探针核达标验证；W2.4 CHAOSMicroSnap 复用本骨架。
 
-- [ ] **Step 1: 阅读模板**——`CHAOSFreeList/` 四件 + `free_list.hh:189-195`（setChaosFreeList self-attach 样板）+ `CHAOSReg.hh:61`（periodic event 样板：EventFunctionWrapper + cpu->schedule(cpu->clockEdge(...))）。
-- [ ] **Step 2: 写四件套**——.hh：参数+计数器成员+`tick()`；.cc：startup() self-attach + 首次调度、tick() 采样（读三处占用，越阈值计数，重调度 `cpu->clockEdge(Cycles(sampleEvery))`）、end-of-sim（`drain()` 或 startup 注册 exit callback——用 CHAOSPhysReg.cc:566 `ReadTraceFinal` 同款机制）打印汇总行；.py：SimObject 参数声明（Param.Unsigned/Param.Percent 或 Float/Bool writeLog）；SConscript：仿 CHAOSFreeList 的 Source 列表。
-- [ ] **Step 3: 增量构建（零警告）**
+- [x] **Step 1: 阅读模板**——`CHAOSFreeList/` 四件 + `free_list.hh:189-195`（setChaosFreeList self-attach 样板）+ `CHAOSReg.hh:61`（periodic event 样板：EventFunctionWrapper + cpu->schedule(cpu->clockEdge(...))）。
+- [x] **Step 2: 写四件套**——.hh：参数+计数器成员+`tick()`；.cc：startup() self-attach + 首次调度、tick() 采样（读三处占用，越阈值计数，重调度 `cpu->clockEdge(Cycles(sampleEvery))`）、end-of-sim（`drain()` 或 startup 注册 exit callback——用 CHAOSPhysReg.cc:566 `ReadTraceFinal` 同款机制）打印汇总行；.py：SimObject 参数声明（Param.Unsigned/Param.Percent 或 Float/Bool writeLog）；SConscript：仿 CHAOSFreeList 的 Source 列表。
+- [x] **Step 3: 增量构建（零警告）**
 
 ```bash
 cd CHAOS/gem5 && scons -j126 build/ARM/gem5.opt 2>&1 | tail -5
 ```
 Expected: `scons: Building targets ...` 完成无新 warning/error（输出二进制时间戳更新；注意 buildpath 陷阱——最终产物必须在**仓库根** `build/ARM/gem5.opt`）。
 
-- [ ] **Step 4: 挂载进 C3**——ooo_proxy.py 加 `--chaos_probe` 参数与 `CHAOSProbe(cpu=cpu0, ...)` 挂载块（`board.chaos_probe = probe`）。
-- [ ] **Step 5: 定向验证 + 观测无扰动证明（同一命令完成）**
+- [x] **Step 4: 挂载进 C3**——ooo_proxy.py 加 `--chaos_probe` 参数与 `CHAOSProbe(cpu=cpu0, ...)` 挂载块（`board.chaos_probe = probe`）。
+- [x] **Step 5: 定向验证 + 观测无扰动证明（同一命令完成）**
+
+〔执行注 2026-09-23：EXIT=0（91.8s）；`CHAOS_PROBE samples=8038558 robOver80=7999976 iqOver80=8000092 flIntLe8=7999837 flFloatLe12=0 flVecLe6=8038558 robMax=124 iqMax=64 flIntMin=1 flFloatMin=192 flVecMin=0`；golden=1（无扰动证明）；开销 hostSeconds 90.19→90.33（+0.16%，803 万次逐周期采样）；C0 回归 golden=1 且无 CHAOS_PROBE 痕迹。iqMax=64 与 IQ 容量精确吻合——容量经 countInsts()+numFreeEntries() 公开不变式推导（rob.cc:306 实证），非硬编码。构建零新告警（既有 13 条 -Wreorder 等全部位于本次零改动文件；CHAOSProbe 三个编译单元零警告）。〕
 
 ```bash
 build/ARM/gem5.opt --outdir=/tmp/ooo_w03a configs/se/ooo_proxy.py \

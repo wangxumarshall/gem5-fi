@@ -1,0 +1,12 @@
+# -*- mode:python -*-
+# CHAOSProbe — W0.3a read-only OoO occupancy/threshold event probe.
+# Discovered by src/SConscript's os.walk. O3-only: reads o3ROB()/IEW IQ/
+# physFreeList() occupancy every sampleEvery cycles via public accessors;
+# no gem5 source hooks. Self-attaches at startup() (dynamic_cast O3CPU).
+
+Import('*')
+
+SimObject('CHAOSProbe.py', sim_objects=['CHAOSProbe'], enums=[])
+Source('CHAOSProbe.cc')
+
+DebugFlag('CHAOSProbe')
