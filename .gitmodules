@@ -2,3 +2,6 @@
 	path = gem5-fs
 	url = git@github.com:wangxumarshall/gem5-fs.git
 	branch = main
+[submodule "sdcshield"]
+	path = sdcshield
+	url = git@github.com:wangxumarshall/sdcshield.git
