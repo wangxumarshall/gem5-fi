@@ -216,7 +216,8 @@
   - **裁决：SE 为主战场（O3 + 提取式双通道内核，承载 sdcshield 检测语义）+ FS 为保真验证臂（真二进制，小 N）**。依据：SDC 高发位点全 O3-only（SE 独有）；N≥100-400 规模只有 SE 支撑；真二进制 SE 被实证三重阻断（prctl fatal + pre-main 确定性崩溃 @123.5M tick + 信号 syscall 忽略，/bin/true 对照 exit 0 证明是 sdcshield 特有）；FS-only 位点 DUE 主导但完整性必补。详见 findings.md F-SS-6/F-SS-7
 - [x] 8.6 裁决二：注入位点 × 故障模型 × 实验设计（结构清单、F1–F6/PCE 模式映射、N/判据/指标：检出率、检出延迟、误报底噪）
   - **Tier1 N=400**（FPU 位段/PhysReg/LSQFwd F5+F6/L1DForward PCE/Exec/Cache data+secded/Mem+ecc_logic_fault）；**Tier2 永久对照 N=100-200**（FUPerm 补 harp_wrap deferred 缺口）；**Tier3 DUE 臂 N=100**（ROB/RAT/freelist/IQ，SDC/DUE 分口径；BPU 引既有证据）；**FS 臂 N=32-100**（TLB/PTW/SysReg/Cache/Mem × 真二进制）；基线=瞬态单比特 one-fault-per-run；双通道 oracle（内部校验=Detected + 独立 checksum=escape/masked 判别）；测试选择 ~12-14 个按检测域展开。详见 findings.md F-SS-7
-- [ ] 8.7 撰写方案文档 `docs/superpowers/plans/2026-09-22-sdcshield-fi-eval.md` + 向用户汇报（一补丁一单元分解、真实验证命令、checkbox）
+- [x] 8.7 撰写方案文档 `docs/superpowers/plans/2026-09-22-sdcshield-fi-eval.md` + 向用户汇报（一补丁一单元分解、真实验证命令、checkbox）
+  - 完成：`839ee64b`（计划入库+push；Phase 8 全 7 任务闭环；执行入口=该计划 Task 0.1，前置=全量 gem5.opt 从 gem5-fi-fuzz 拷贝）
 
 ## Errors Encountered
 | Error | Attempt | Resolution |
