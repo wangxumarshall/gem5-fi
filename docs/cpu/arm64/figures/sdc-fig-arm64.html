@@ -1,0 +1,304 @@
+<html style="margin:0;padding:0;">
+<title>CPU 微架构功能图（SVG 重绘）</title>
+<div style="width:100%;box-sizing:border-box;padding:14px 12px 24px;background:#f7f8fa;font-family:system-ui,'PingFang SC','Microsoft YaHei',sans-serif;color:#1f2937;">
+  <h2 style="font-size:20px;margin:6px 2px 6px;">CPU 微架构功能图（SVG 重绘）</h2>
+  <p style="font-size:13.5px;color:#6b7280;margin:0 2px 4px;">根据上传的两张手绘架构图整理重绘。图 1 为处理器核心乱序执行流水线（取指 → 译码/重命名 → 分发 → 执行 → 访存/一致性）；图 2 为顶层模块划分（taishan_proc / L2C / hab4_biu 与总线接口）。布局为规整后的示意，模块名称与原图保持一致。</p>
+  <p style="font-size:13.5px;color:#6b7280;margin:0 2px 12px;">实线箭头表示指令/数据流方向，双向箭头表示交互关系。建议在新标签页打开或双指缩放查看细节。</p>
+
+  <h3 style="font-size:16px;margin:10px 2px 6px;color:#334155;">图 1 · 核心微架构流水线（乱序执行）</h3>
+  <svg viewBox="0 0 1520 880" style="width:100%;height:auto;display:block;background:#ffffff;border:1px solid #e2e8f0;border-radius:10px;">
+    <defs>
+      <marker id="f1-arr" markerWidth="11" markerHeight="9" refX="9.5" refY="4.5" orient="auto" markerUnits="userSpaceOnUse">
+        <path d="M0,0 L11,4.5 L0,9 Z" fill="#5a6b7c"/>
+      </marker>
+      <marker id="f1-arrR" markerWidth="11" markerHeight="9" refX="1.5" refY="4.5" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
+        <path d="M11,0 L0,4.5 L11,9 Z" fill="#5a6b7c"/>
+      </marker>
+    </defs>
+
+    <!-- ============ 组背景 ============ -->
+    <rect x="40" y="40" width="515" height="345" rx="10" fill="#eaf2fb" stroke="#a9c9ec" stroke-width="1.4"/>
+    <rect x="40" y="22" width="210" height="22" rx="5" fill="#4a5f78"/>
+    <text x="50" y="37.5" font-size="14" fill="#ffffff" font-weight="600">取指与前段 Fetch</text>
+
+    <rect x="380" y="120" width="170" height="80" rx="8" fill="#f7f9fb" stroke="#c6d2dd" stroke-width="1.4"/>
+
+    <rect x="570" y="200" width="470" height="240" rx="10" fill="#eaf6ee" stroke="#a9d9bc" stroke-width="1.4"/>
+    <rect x="570" y="182" width="225" height="22" rx="5" fill="#3f7a58"/>
+    <text x="580" y="197.5" font-size="14" fill="#ffffff" font-weight="600">OoO 译码 · 重命名 · 分发</text>
+    <text x="805" y="197" font-size="14" fill="#3f7a58" font-style="italic">ooo</text>
+
+    <rect x="1080" y="40" width="400" height="660" rx="10" fill="#fdf2e5" stroke="#edcba0" stroke-width="1.4"/>
+    <rect x="1080" y="22" width="160" height="22" rx="5" fill="#a05a2c"/>
+    <text x="1090" y="37.5" font-size="14" fill="#ffffff" font-weight="600">执行单元 Execute</text>
+
+    <rect x="40" y="720" width="1440" height="120" rx="10" fill="#f1edfb" stroke="#cfc0ef" stroke-width="1.4"/>
+    <rect x="40" y="702" width="230" height="22" rx="5" fill="#6d5aa0"/>
+    <text x="50" y="717.5" font-size="14" fill="#ffffff" font-weight="600">访存与一致性 Memory</text>
+
+    <!-- ============ 取指组模块 ============ -->
+    <rect x="105" y="70" width="170" height="44" rx="6" fill="#ffffff" stroke="#7c93a8" stroke-width="1.4"/>
+    <text x="190" y="97" font-size="16" fill="#1f2937" font-weight="600" text-anchor="middle">IFU</text>
+    <rect x="65" y="160" width="115" height="42" rx="6" fill="#ffffff" stroke="#7c93a8" stroke-width="1.4"/>
+    <text x="122" y="186" font-size="15" fill="#1f2937" text-anchor="middle">BRE</text>
+    <rect x="210" y="160" width="100" height="42" rx="6" fill="#ffffff" stroke="#7c93a8" stroke-width="1.4"/>
+    <text x="260" y="186" font-size="15" fill="#1f2937" text-anchor="middle">BP</text>
+    <rect x="85" y="250" width="210" height="44" rx="6" fill="#ffffff" stroke="#7c93a8" stroke-width="1.4"/>
+    <text x="190" y="278" font-size="15" fill="#1f2937" text-anchor="middle">L1-I-TLB</text>
+    <rect x="60" y="330" width="260" height="50" rx="6" fill="#ffffff" stroke="#7c93a8" stroke-width="1.4"/>
+    <text x="190" y="349" font-size="15" fill="#1f2937" text-anchor="middle">L1-I-cache</text>
+    <text x="190" y="367" font-size="13" fill="#6b7280" text-anchor="middle">64KB 4-way</text>
+
+    <!-- ============ 指令队列 ============ -->
+    <text x="465" y="144" font-size="14" fill="#4b5563" text-anchor="middle">40 entry</text>
+    <text x="465" y="164" font-size="15" fill="#1f2937" text-anchor="middle">Instr</text>
+    <text x="465" y="184" font-size="15" fill="#1f2937" text-anchor="middle">queue</text>
+
+    <!-- ============ OoO 模块 ============ -->
+    <rect x="590" y="210" width="130" height="46" rx="6" fill="#ffffff" stroke="#7c93a8" stroke-width="1.4"/>
+    <text x="655" y="238" font-size="15" fill="#1f2937" text-anchor="middle">Int Decode</text>
+    <rect x="745" y="210" width="130" height="46" rx="6" fill="#ffffff" stroke="#7c93a8" stroke-width="1.4"/>
+    <text x="810" y="238" font-size="15" fill="#1f2937" text-anchor="middle">Int rename</text>
+    <rect x="900" y="210" width="120" height="46" rx="6" fill="#ffffff" stroke="#7c93a8" stroke-width="1.4"/>
+    <text x="960" y="238" font-size="15" fill="#1f2937" text-anchor="middle">Int Dispatch</text>
+
+    <rect x="745" y="275" width="130" height="70" rx="6" fill="#f0faf5" stroke="#7c93a8" stroke-width="1.4"/>
+    <text x="810" y="298" font-size="14" fill="#1f2937" text-anchor="middle">Sync</text>
+    <text x="810" y="318" font-size="14" fill="#1f2937" text-anchor="middle">mail Box</text>
+
+    <rect x="590" y="370" width="130" height="46" rx="6" fill="#ffffff" stroke="#7c93a8" stroke-width="1.4"/>
+    <text x="655" y="398" font-size="14.5" fill="#1f2937" text-anchor="middle">FP/SIMD decode</text>
+    <rect x="745" y="370" width="130" height="46" rx="6" fill="#ffffff" stroke="#7c93a8" stroke-width="1.4"/>
+    <text x="810" y="398" font-size="14.5" fill="#1f2937" text-anchor="middle">FP/SIMD rename</text>
+    <rect x="900" y="370" width="120" height="46" rx="6" fill="#ffffff" stroke="#7c93a8" stroke-width="1.4"/>
+    <text x="960" y="398" font-size="14.5" fill="#1f2937" text-anchor="middle">FP/SIMD Dispatch</text>
+
+    <!-- ============ 执行组 IEX ============ -->
+    <rect x="1090" y="70" width="380" height="250" rx="8" fill="#fff8ef" stroke="#e0b98a" stroke-width="1.3"/>
+    <text x="1102" y="92" font-size="16" fill="#a05a2c" font-weight="700">IEX</text>
+    <rect x="1102" y="100" width="120" height="36" rx="5" fill="#ffffff" stroke="#7c93a8" stroke-width="1.4"/>
+    <text x="1162" y="123" font-size="13.5" fill="#1f2937" text-anchor="middle">ALU1 Issue Queue</text>
+    <rect x="1102" y="150" width="120" height="36" rx="5" fill="#ffffff" stroke="#7c93a8" stroke-width="1.4"/>
+    <text x="1162" y="173" font-size="13.5" fill="#1f2937" text-anchor="middle">ALU2 Queue</text>
+    <rect x="1102" y="200" width="120" height="36" rx="5" fill="#ffffff" stroke="#7c93a8" stroke-width="1.4"/>
+    <text x="1162" y="223" font-size="13.5" fill="#1f2937" text-anchor="middle">ALU3 Queue</text>
+    <rect x="1260" y="140" width="105" height="72" rx="6" fill="#ffffff" stroke="#7c93a8" stroke-width="1.4"/>
+    <text x="1312" y="166" font-size="14" fill="#1f2937" text-anchor="middle">Int</text>
+    <text x="1312" y="184" font-size="14" fill="#1f2937" text-anchor="middle">PRF</text>
+    <rect x="1380" y="95" width="90" height="34" rx="5" fill="#ffffff" stroke="#7c93a8" stroke-width="1.4"/>
+    <text x="1425" y="117" font-size="14.5" fill="#1f2937" text-anchor="middle">ALU1</text>
+    <rect x="1380" y="140" width="90" height="34" rx="5" fill="#ffffff" stroke="#7c93a8" stroke-width="1.4"/>
+    <text x="1425" y="162" font-size="14.5" fill="#1f2937" text-anchor="middle">ALU2</text>
+    <rect x="1380" y="185" width="90" height="34" rx="5" fill="#ffffff" stroke="#7c93a8" stroke-width="1.4"/>
+    <text x="1425" y="207" font-size="14.5" fill="#1f2937" text-anchor="middle">ALU3</text>
+    <rect x="1380" y="230" width="90" height="34" rx="5" fill="#ffffff" stroke="#7c93a8" stroke-width="1.4"/>
+    <text x="1425" y="252" font-size="14.5" fill="#1f2937" text-anchor="middle">MDU</text>
+    <rect x="1380" y="275" width="90" height="34" rx="5" fill="#ffffff" stroke="#7c93a8" stroke-width="1.4"/>
+    <text x="1425" y="297" font-size="13.5" fill="#1f2937" text-anchor="middle">MSR/CP15</text>
+
+    <!-- ============ 执行组 LSU ============ -->
+    <rect x="1090" y="340" width="380" height="205" rx="8" fill="#fff8ef" stroke="#e0b98a" stroke-width="1.3"/>
+    <text x="1102" y="362" font-size="16" fill="#a05a2c" font-weight="700">LSU</text>
+    <rect x="1102" y="365" width="130" height="58" rx="5" fill="#ffffff" stroke="#7c93a8" stroke-width="1.4"/>
+    <text x="1167" y="386" font-size="13.5" fill="#1f2937" text-anchor="middle">LSU MDU/SYS</text>
+    <text x="1167" y="404" font-size="13.5" fill="#1f2937" text-anchor="middle">Issue Queue</text>
+    <rect x="1270" y="360" width="80" height="34" rx="5" fill="#ffffff" stroke="#7c93a8" stroke-width="1.4"/>
+    <text x="1310" y="382" font-size="14.5" fill="#1f2937" text-anchor="middle">LS1</text>
+    <rect x="1270" y="408" width="80" height="34" rx="5" fill="#ffffff" stroke="#7c93a8" stroke-width="1.4"/>
+    <text x="1310" y="430" font-size="14.5" fill="#1f2937" text-anchor="middle">LS2</text>
+    <rect x="1270" y="456" width="80" height="34" rx="5" fill="#ffffff" stroke="#7c93a8" stroke-width="1.4"/>
+    <text x="1310" y="478" font-size="14.5" fill="#1f2937" text-anchor="middle">STD1</text>
+    <rect x="1270" y="500" width="80" height="34" rx="5" fill="#ffffff" stroke="#7c93a8" stroke-width="1.4"/>
+    <text x="1310" y="522" font-size="14.5" fill="#1f2937" text-anchor="middle">STD2</text>
+    <rect x="1380" y="370" width="100" height="40" rx="5" fill="#ffffff" stroke="#7c93a8" stroke-width="1.4"/>
+    <text x="1430" y="395" font-size="14" fill="#1f2937" text-anchor="middle">L1 DTLB</text>
+    <rect x="1380" y="440" width="100" height="50" rx="5" fill="#ffffff" stroke="#7c93a8" stroke-width="1.4"/>
+    <text x="1430" y="459" font-size="14" fill="#1f2937" text-anchor="middle">L1-Dcache</text>
+    <text x="1430" y="477" font-size="12.5" fill="#6b7280" text-anchor="middle">64K 4-way</text>
+    <rect x="1380" y="505" width="100" height="32" rx="5" fill="#ffffff" stroke="#7c93a8" stroke-width="1.4"/>
+    <text x="1430" y="526" font-size="14.5" fill="#1f2937" text-anchor="middle">LSU</text>
+
+    <!-- ============ 执行组 FSU ============ -->
+	
+    <rect x="1090" y="565" width="380" height="120" rx="8" fill="#fff8ef" stroke="#e0b98a" stroke-width="1.3"/>
+    <text x="1102" y="587" font-size="16" fill="#a05a2c" font-weight="700">FSU</text>
+    <rect x="1102" y="590" width="130" height="30" rx="5" fill="#ffffff" stroke="#7c93a8" stroke-width="1.4"/>
+    <text x="1167" y="610" font-size="14" fill="#1f2937" text-anchor="middle">FSU Issue Queue</text>
+    <rect x="1102" y="635" width="95" height="32" rx="5" fill="#ffffff" stroke="#7c93a8" stroke-width="1.4"/>
+    <text x="1149" y="656" font-size="14.5" fill="#1f2937" text-anchor="middle">FSU</text>
+    <rect x="1260" y="580" width="115" height="62" rx="6" fill="#ffffff" stroke="#7c93a8" stroke-width="1.4"/>
+    <text x="1317" y="604" font-size="13.5" fill="#1f2937" text-anchor="middle">FP/SIMD</text>
+    <text x="1317" y="622" font-size="13.5" fill="#1f2937" text-anchor="middle">PRF</text>
+    <rect x="1385" y="575" width="95" height="36" rx="5" fill="#ffffff" stroke="#7c93a8" stroke-width="1.4"/>
+    <text x="1432" y="597" font-size="13.5" fill="#1f2937" text-anchor="middle">FSU Pipe 1</text>
+    <rect x="1385" y="625" width="95" height="36" rx="5" fill="#ffffff" stroke="#7c93a8" stroke-width="1.4"/>
+    <text x="1432" y="647" font-size="13.5" fill="#1f2937" text-anchor="middle">FSU Pipe 2</text>
+
+    <!-- ============ 存储组模块 ============ -->
+    <rect x="80" y="765" width="130" height="46" rx="6" fill="#ffffff" stroke="#7c93a8" stroke-width="1.4"/>
+    <text x="145" y="793" font-size="15" fill="#1f2937" text-anchor="middle">mmu</text>
+    <rect x="270" y="760" width="380" height="56" rx="6" fill="#ffffff" stroke="#7c93a8" stroke-width="1.4"/>
+    <text x="460" y="777" font-size="14.5" fill="#1f2937" text-anchor="middle">L2 and Coherent Control</text>
+    <text x="460" y="797" font-size="12.5" fill="#6b7280" text-anchor="middle">(L2 缓存与一致性控制)</text>
+    <rect x="500" y="770" width="120" height="36" rx="5" fill="#f1edfb" stroke="#8f7bc4" stroke-width="1.3"/>
+    <text x="560" y="793" font-size="14" fill="#1f2937" text-anchor="middle">master</text>
+    <rect x="710" y="765" width="110" height="46" rx="6" fill="#ffffff" stroke="#7c93a8" stroke-width="1.4"/>
+    <text x="765" y="793" font-size="15" fill="#1f2937" text-anchor="middle">CHI-E</text>
+    <rect x="880" y="765" width="200" height="46" rx="6" fill="#ffffff" stroke="#7c93a8" stroke-width="1.4"/>
+    <text x="980" y="793" font-size="15" fill="#1f2937" text-anchor="middle">memory interface</text>
+
+    <!-- ============ 箭头（图1） ============ -->
+    <path d="M190,114 L190,140 L122,140 L122,158" fill="none" stroke="#5a6b7c" stroke-width="1.6" marker-end="url(#f1-arr)"/>
+    <path d="M190,114 L190,140 L260,140 L260,158" fill="none" stroke="#5a6b7c" stroke-width="1.6" marker-end="url(#f1-arr)"/>
+    <path d="M122,202 L122,224 L190,224 L190,248" fill="none" stroke="#5a6b7c" stroke-width="1.6" marker-end="url(#f1-arr)"/>
+    <path d="M190,294 L190,328" fill="none" stroke="#5a6b7c" stroke-width="1.6" marker-end="url(#f1-arr)"/>
+    <path d="M320,355 L360,355 L360,160 L378,160" fill="none" stroke="#5a6b7c" stroke-width="1.6" marker-end="url(#f1-arr)"/>
+
+    <path d="M505,200 L505,225 L655,225 L655,208" fill="none" stroke="#5a6b7c" stroke-width="1.6" marker-end="url(#f1-arr)"/>
+    <path d="M505,200 L505,250 L655,250 L655,368" fill="none" stroke="#5a6b7c" stroke-width="1.6" marker-end="url(#f1-arr)"/>
+
+    <path d="M720,233 L743,233" fill="none" stroke="#5a6b7c" stroke-width="1.6" marker-end="url(#f1-arr)"/>
+    <path d="M875,233 L898,233" fill="none" stroke="#5a6b7c" stroke-width="1.6" marker-end="url(#f1-arr)"/>
+    <path d="M720,393 L743,393" fill="none" stroke="#5a6b7c" stroke-width="1.6" marker-end="url(#f1-arr)"/>
+    <path d="M875,393 L898,393" fill="none" stroke="#5a6b7c" stroke-width="1.6" marker-end="url(#f1-arr)"/>
+    <path d="M810,256 L810,273" fill="none" stroke="#5a6b7c" stroke-width="1.6" marker-start="url(#f1-arrR)" marker-end="url(#f1-arr)"/>
+    <path d="M810,347 L810,368" fill="none" stroke="#5a6b7c" stroke-width="1.6" marker-start="url(#f1-arrR)" marker-end="url(#f1-arr)"/>
+
+    <path d="M1020,233 L1060,233 L1060,118 L1100,118" fill="none" stroke="#5a6b7c" stroke-width="1.6" marker-end="url(#f1-arr)"/>
+    <path d="M1020,233 L1060,233 L1060,168 L1100,168" fill="none" stroke="#5a6b7c" stroke-width="1.6" marker-end="url(#f1-arr)"/>
+    <path d="M1020,233 L1060,233 L1060,218 L1100,218" fill="none" stroke="#5a6b7c" stroke-width="1.6" marker-end="url(#f1-arr)"/>
+    <path d="M1020,393 L1098,393" fill="none" stroke="#5a6b7c" stroke-width="1.6" marker-end="url(#f1-arr)"/>
+    <path d="M1020,393 L1020,600 L1096,600" fill="none" stroke="#5a6b7c" stroke-width="1.6" marker-end="url(#f1-arr)"/>
+
+    <path d="M1222,118 L1258,142" fill="none" stroke="#5a6b7c" stroke-width="1.6" marker-end="url(#f1-arr)"/>
+    <path d="M1222,168 L1258,160" fill="none" stroke="#5a6b7c" stroke-width="1.6" marker-end="url(#f1-arr)"/>
+    <path d="M1222,218 L1258,178" fill="none" stroke="#5a6b7c" stroke-width="1.6" marker-end="url(#f1-arr)"/>
+    <path d="M1365,152 L1378,114" fill="none" stroke="#5a6b7c" stroke-width="1.6" marker-end="url(#f1-arr)"/>
+    <path d="M1365,158 L1378,159" fill="none" stroke="#5a6b7c" stroke-width="1.6" marker-end="url(#f1-arr)"/>
+    <path d="M1365,165 L1378,204" fill="none" stroke="#5a6b7c" stroke-width="1.6" marker-end="url(#f1-arr)"/>
+    <path d="M1365,172 L1378,249" fill="none" stroke="#5a6b7c" stroke-width="1.6" marker-end="url(#f1-arr)"/>
+    <path d="M1365,180 L1378,294" fill="none" stroke="#5a6b7c" stroke-width="1.6" marker-end="url(#f1-arr)"/>
+
+    <path d="M1232,394 L1268,377" fill="none" stroke="#5a6b7c" stroke-width="1.6" marker-end="url(#f1-arr)"/>
+    <path d="M1232,394 L1268,425" fill="none" stroke="#5a6b7c" stroke-width="1.6" marker-end="url(#f1-arr)"/>
+    <path d="M1232,394 L1268,473" fill="none" stroke="#5a6b7c" stroke-width="1.6" marker-end="url(#f1-arr)"/>
+    <path d="M1232,394 L1268,517" fill="none" stroke="#5a6b7c" stroke-width="1.6" marker-end="url(#f1-arr)"/>
+    <path d="M1350,377 L1378,390" fill="none" stroke="#5a6b7c" stroke-width="1.6" marker-end="url(#f1-arr)"/>
+    <path d="M1350,425 L1378,402" fill="none" stroke="#5a6b7c" stroke-width="1.6" marker-end="url(#f1-arr)"/>
+    <path d="M1350,473 L1378,465" fill="none" stroke="#5a6b7c" stroke-width="1.6" marker-end="url(#f1-arr)"/>
+    <path d="M1350,517 L1378,478" fill="none" stroke="#5a6b7c" stroke-width="1.6" marker-end="url(#f1-arr)"/>
+    <path d="M1430,490 L1430,503" fill="none" stroke="#5a6b7c" stroke-width="1.6" marker-end="url(#f1-arr)"/>
+
+    <path d="M1167,625 L1167,633" fill="none" stroke="#5a6b7c" stroke-width="1.6" marker-end="url(#f1-arr)"/>
+    <path d="M1197,651 L1258,622" fill="none" stroke="#5a6b7c" stroke-width="1.6" marker-end="url(#f1-arr)"/>
+    <path d="M1375,601 L1383,594" fill="none" stroke="#5a6b7c" stroke-width="1.6" marker-start="url(#f1-arrR)" marker-end="url(#f1-arr)"/>
+    <path d="M1375,619 L1383,632" fill="none" stroke="#5a6b7c" stroke-width="1.6" marker-start="url(#f1-arrR)" marker-end="url(#f1-arr)"/>
+
+    <path d="M210,788 L268,788" fill="none" stroke="#5a6b7c" stroke-width="1.6" marker-start="url(#f1-arrR)" marker-end="url(#f1-arr)"/>
+    <path d="M650,788 L708,788" fill="none" stroke="#5a6b7c" stroke-width="1.6" marker-end="url(#f1-arr)"/>
+    <path d="M820,788 L878,788" fill="none" stroke="#5a6b7c" stroke-width="1.6" marker-end="url(#f1-arr)"/>
+    <path d="M1280,680 L1280,740 L650,740 L650,758" fill="none" stroke="#5a6b7c" stroke-width="1.6" stroke-dasharray="5,4" marker-end="url(#f1-arr)"/>
+    <text x="1290" y="712" font-size="13" fill="#6b7280">访存请求</text>
+  </svg>
+
+  <h3 style="font-size:16px;margin:18px 2px 6px;color:#334155;">图 2 · 顶层模块划分（处理器 / L2 / 总线接口）</h3>
+  <svg viewBox="0 0 1280 620" style="width:100%;height:auto;display:block;background:#ffffff;border:1px solid #e2e8f0;border-radius:10px;">
+    <defs>
+      <marker id="f2-arr" markerWidth="11" markerHeight="9" refX="9.5" refY="4.5" orient="auto" markerUnits="userSpaceOnUse">
+        <path d="M0,0 L11,4.5 L0,9 Z" fill="#5a6b7c"/>
+      </marker>
+    </defs>
+
+    <!-- 组背景 -->
+    <rect x="40" y="60" width="300" height="360" rx="10" fill="#eaf2fb" stroke="#a9c9ec" stroke-width="1.4"/>
+    <text x="190" y="90" font-size="17" fill="#1f2937" font-weight="700" text-anchor="middle">taishan_proc</text>
+    <rect x="400" y="60" width="300" height="360" rx="10" fill="#eaf6ee" stroke="#a9d9bc" stroke-width="1.4"/>
+    <text x="550" y="90" font-size="17" fill="#1f2937" font-weight="700" text-anchor="middle">L2C</text>
+    <rect x="760" y="60" width="280" height="420" rx="10" fill="#fdf2e5" stroke="#edcba0" stroke-width="1.4"/>
+    <text x="900" y="90" font-size="17" fill="#1f2937" font-weight="700" text-anchor="middle">hab4_biu</text>
+    <rect x="1100" y="60" width="180" height="420" rx="10" fill="#f1edfb" stroke="#cfc0ef" stroke-width="1.4"/>
+    <text x="1190" y="90" font-size="16" fill="#1f2937" font-weight="700" text-anchor="middle">总线接口</text>
+
+    <!-- taishan_proc -->
+    <rect x="65" y="120" width="120" height="44" rx="6" fill="#ffffff" stroke="#7c93a8" stroke-width="1.4"/>
+    <text x="125" y="147" font-size="15" fill="#1f2937" text-anchor="middle">FSU</text>
+    <rect x="65" y="200" width="120" height="44" rx="6" fill="#ffffff" stroke="#7c93a8" stroke-width="1.4"/>
+    <text x="125" y="227" font-size="15" fill="#1f2937" text-anchor="middle">OEX</text>
+    <rect x="65" y="300" width="120" height="44" rx="6" fill="#ffffff" stroke="#7c93a8" stroke-width="1.4"/>
+    <text x="125" y="327" font-size="15" fill="#1f2937" text-anchor="middle">IFU</text>
+    <rect x="210" y="120" width="110" height="125" rx="7" fill="#e3edf8" stroke="#8fa9c6" stroke-width="1.3"/>
+    <text x="220" y="140" font-size="13" fill="#4b5563" font-weight="600">ism</text>
+    <rect x="220" y="155" width="90" height="36" rx="5" fill="#ffffff" stroke="#7c93a8" stroke-width="1.4"/>
+    <text x="265" y="177" font-size="14.5" fill="#1f2937" text-anchor="middle">LSU</text>
+    <rect x="220" y="200" width="90" height="36" rx="5" fill="#ffffff" stroke="#7c93a8" stroke-width="1.4"/>
+    <text x="265" y="222" font-size="14.5" fill="#1f2937" text-anchor="middle">mmu</text>
+
+    <!-- L2C -->
+    <rect x="425" y="120" width="250" height="60" rx="6" fill="#ffffff" stroke="#7c93a8" stroke-width="1.4"/>
+    <text x="550" y="157" font-size="16" fill="#1f2937" text-anchor="middle">L2C-L2</text>
+    <rect x="425" y="220" width="250" height="190" rx="7" fill="#e2f2e9" stroke="#8fbfa2" stroke-width="1.3"/>
+    <text x="437" y="242" font-size="13" fill="#4b5563" font-weight="600">L2C_nonL2</text>
+    <rect x="440" y="265" width="110" height="40" rx="5" fill="#ffffff" stroke="#7c93a8" stroke-width="1.4"/>
+    <text x="495" y="291" font-size="15" fill="#1f2937" text-anchor="middle">icc</text>
+    <rect x="565" y="265" width="95" height="40" rx="5" fill="#ffffff" stroke="#7c93a8" stroke-width="1.4"/>
+    <text x="612" y="291" font-size="14.5" fill="#1f2937" text-anchor="middle">reg_lau</text>
+    <rect x="440" y="340" width="220" height="40" rx="5" fill="#ffffff" stroke="#7c93a8" stroke-width="1.4"/>
+    <text x="550" y="366" font-size="15" fill="#1f2937" text-anchor="middle">(L2CC)</text>
+
+    <!-- hab4_biu -->
+    <rect x="780" y="120" width="110" height="40" rx="5" fill="#ffffff" stroke="#7c93a8" stroke-width="1.4"/>
+    <text x="835" y="146" font-size="15" fill="#1f2937" text-anchor="middle">DSU</text>
+    <rect x="780" y="180" width="150" height="40" rx="5" fill="#ffffff" stroke="#7c93a8" stroke-width="1.4"/>
+    <text x="855" y="206" font-size="14.5" fill="#1f2937" text-anchor="middle">hab4_biu_ic</text>
+    <rect x="780" y="240" width="150" height="40" rx="5" fill="#ffffff" stroke="#7c93a8" stroke-width="1.4"/>
+    <text x="855" y="266" font-size="14" fill="#1f2937" text-anchor="middle">hab4_biu_chie</text>
+    <rect x="780" y="300" width="130" height="40" rx="5" fill="#ffffff" stroke="#7c93a8" stroke-width="1.4"/>
+    <text x="845" y="326" font-size="14" fill="#1f2937" text-anchor="middle">regs_remote</text>
+    <rect x="780" y="360" width="150" height="44" rx="5" fill="#ffffff" stroke="#7c93a8" stroke-width="1.4"/>
+    <text x="855" y="383" font-size="14" fill="#1f2937" text-anchor="middle">dpc</text>
+    <text x="855" y="399" font-size="13.5" fill="#1f2937" text-anchor="middle">clkctl_mp</text>
+
+    <!-- 总线接口 -->
+    <rect x="1115" y="110" width="100" height="38" rx="5" fill="#ffffff" stroke="#7c93a8" stroke-width="1.4"/>
+    <text x="1165" y="135" font-size="15" fill="#1f2937" text-anchor="middle">APB</text>
+    <rect x="1115" y="165" width="100" height="38" rx="5" fill="#ffffff" stroke="#7c93a8" stroke-width="1.4"/>
+    <text x="1165" y="190" font-size="15" fill="#1f2937" text-anchor="middle">ATB</text>
+    <rect x="1115" y="220" width="130" height="38" rx="5" fill="#ffffff" stroke="#7c93a8" stroke-width="1.4"/>
+    <text x="1180" y="245" font-size="14" fill="#1f2937" text-anchor="middle">AXI4 stream</text>
+    <rect x="1115" y="275" width="100" height="38" rx="5" fill="#ffffff" stroke="#7c93a8" stroke-width="1.4"/>
+    <text x="1165" y="300" font-size="15" fill="#1f2937" text-anchor="middle">CHI-E</text>
+    <rect x="1115" y="330" width="150" height="38" rx="5" fill="#ffffff" stroke="#7c93a8" stroke-width="1.4"/>
+    <text x="1190" y="355" font-size="14" fill="#1f2937" text-anchor="middle">STANDBYUFIMP</text>
+    <rect x="1115" y="385" width="150" height="38" rx="5" fill="#ffffff" stroke="#7c93a8" stroke-width="1.4"/>
+    <text x="1190" y="410" font-size="14" fill="#1f2937" text-anchor="middle">MISC Configure.</text>
+
+    <!-- 底部一致性/IO 通路 -->
+    <rect x="40" y="520" width="1240" height="90" rx="10" fill="#f1edfb" stroke="#cfc0ef" stroke-width="1.4"/>
+    <rect x="40" y="502" width="210" height="22" rx="5" fill="#6d5aa0"/>
+    <text x="50" y="517.5" font-size="14" fill="#ffffff" font-weight="600">一致性 / IO 通路</text>
+    <rect x="80" y="545" width="260" height="50" rx="6" fill="#ffffff" stroke="#7c93a8" stroke-width="1.4"/>
+    <text x="210" y="565" font-size="14" fill="#1f2937" text-anchor="middle">L2 and Coherent Control</text>
+    <text x="210" y="583" font-size="12.5" fill="#6b7280" text-anchor="middle">(L2 缓存与一致性控制)</text>
+    <rect x="390" y="545" width="110" height="44" rx="5" fill="#ffffff" stroke="#7c93a8" stroke-width="1.4"/>
+    <text x="445" y="574" font-size="15" fill="#1f2937" text-anchor="middle">master</text>
+    <rect x="550" y="545" width="110" height="44" rx="5" fill="#ffffff" stroke="#7c93a8" stroke-width="1.4"/>
+    <text x="605" y="574" font-size="15" fill="#1f2937" text-anchor="middle">CHI-E</text>
+    <rect x="710" y="545" width="190" height="44" rx="5" fill="#ffffff" stroke="#7c93a8" stroke-width="1.4"/>
+    <text x="805" y="574" font-size="15" fill="#1f2937" text-anchor="middle">iommu program</text>
+
+    <!-- 连线 -->
+    <path d="M320,173 L423,152" fill="none" stroke="#5a6b7c" stroke-width="1.6" marker-end="url(#f2-arr)"/>
+    <path d="M320,218 L423,170" fill="none" stroke="#5a6b7c" stroke-width="1.6" marker-end="url(#f2-arr)"/>
+    <path d="M700,150 L758,150" fill="none" stroke="#5a6b7c" stroke-width="1.6" marker-end="url(#f2-arr)"/>
+    <path d="M700,300 L758,300" fill="none" stroke="#5a6b7c" stroke-width="1.6" marker-end="url(#f2-arr)"/>
+    <path d="M1040,240 L1098,240" fill="none" stroke="#5a6b7c" stroke-width="1.6" marker-end="url(#f2-arr)"/>
+    <path d="M900,480 L900,530 L605,530 L605,543" fill="none" stroke="#5a6b7c" stroke-width="1.6" stroke-dasharray="5,4" marker-end="url(#f2-arr)"/>
+    <text x="910" y="518" font-size="13" fill="#6b7280">一致性 / IO 路径</text>
+    <path d="M340,570 L388,570" fill="none" stroke="#5a6b7c" stroke-width="1.6" marker-end="url(#f2-arr)"/>
+    <path d="M500,567 L548,567" fill="none" stroke="#5a6b7c" stroke-width="1.6" marker-end="url(#f2-arr)"/>
+    <path d="M660,567 L708,567" fill="none" stroke="#5a6b7c" stroke-width="1.6" marker-end="url(#f2-arr)"/>
+  </svg>
+
+  <p style="font-size:12.5px;color:#9ca3af;margin:10px 2px 0;">注：为手绘草图的结构示意重绘，模块名称保留原图写法（含 L1-I-cache "64KB 4-way"、L1-Dcache "64K 4-way"、MSR/CP15、reg_lau 等）。</p>
+</div>
+</html>
