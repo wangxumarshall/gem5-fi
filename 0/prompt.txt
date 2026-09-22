@@ -1,0 +1,9 @@
+/planning-with-files:planning-with-files 深刻理解本项目源码，深度理解 @docs/gem5-fi/ooo/ 目录中内容(要实现CPU的乱序执行OoO微架构的故障注入，该目录是ooo实现的北极星和完整的实现方案)，要求你制定实现OOO故障注入的宏伟计划。
+
+---
+
+/planning-with-files:plan-goal 调用多agent协同实现本方案
+
+---
+
+/planning-with-files:plan-goal 调用多agent协同实现本方案。必须完成所有实现再解决，否则永远不要结束
