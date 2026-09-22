@@ -999,3 +999,16 @@ pytest 4 用例（初版测试数据的 prf masks 误用 bit31 落 mantissa 区
 3. 背靠背依赖链走 bypass 网络不回读 PRF（PRF cell 注入被转发击败，15 seed 全 Masked）→ v3 源读 hook（读即破坏）
 4. vec lane 32-bit 默认窗口截断 64-bit mask（mask=0x0 no-op 教训）
 5. campaign 运行前必须 source env.sh（缺 LD_LIBRARY_PATH → exit 127 → 全 Crash 假象）
+
+---
+
+## 2026-09-22 新使命开题：SDCShield 检测效果 gem5 FI 评估（分支 fi-wx-verify-sdcshield）
+
+指令：深度研究项目源码，设计通过 gem5 故障注入研究 sdcshield（SDC 检测用例）检测效果的实现方案；必须明确 gem5 FS vs SE 模式、CPU 微架构注入位点与故障注入方式。
+
+现状锚点（开题时实证）：
+- 今日新增两子模块：`sdcshield`（07be34e2，meson C 项目，有 framework/bats/tests/third-party）+ `gem5-fs`（aa234b9，ARM64 FS 四件套：vmlinux 5.15.36 / ubuntu.img 2.2GB / armv8_gem5_v1|v2 DTB 全系 / boot*.arm64）
+- `gem5-fs/readme.md` 关键事实：SE 模式 translateMmuOff→setPaddr(vaddr) 直接物理映射 → AddrPath(D2 lsq.cc corruptAddr)/PTW(D3 table_walker corruptDescriptor) 钩子 SE 不触发（H6/H7 必须 FS）；FS 推荐 fs_bigLITTLE.py + VExpress_GEM5_V1
+- 前序 SDC-ED 评估（feat/sdc-ed-eval，PR #57 已合并）已建：ED 度量（method.md）/harp.covUnits 7 维/harp_wrap --checker 检测臂/ρ 标定战役/N=400 裁决/雅典 Harpocrates 两论文对照（CE-1/2/3，多项 FAIL 如实裁决）
+
+计划：task_plan.md Phase 8（研究 8.1–8.4 → 裁决 8.5–8.6 → 方案 8.7）。

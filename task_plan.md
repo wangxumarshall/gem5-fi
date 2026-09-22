@@ -9,7 +9,9 @@
 
 ## Current Phase
 
-**ALL 7 PHASES COMPLETE**（33 任务全部闭环：26 完成 + 7 环境门控显式登记 deferred/skipped）
+**Phase 8 — SDCShield 检测效果 gem5 FI 评估：研究与方案设计（in_progress，新使命 2026-09-22，分支 fi-wx-verify-sdcshield）**
+
+（前任务：Phase 1–7 Kunpeng920 收尾**ALL COMPLETE**——33 任务闭环：26 完成 + 7 环境门控显式登记 deferred/skipped）
 
 - Phase 1 工具补全 6/6（6c672323..a350e428）
 - Phase 2 kernel 库 4/4（feeba037..a276723f）
@@ -194,10 +196,32 @@
 - [x] 7.6 CHAOSDecode（P4）→ skipped 登记（`D-Decode-P4`）：方案 §5.11 明示"可跳过"
 - [x] 7.7 FS O3-switch → **实测一轮后登记**：atomic-only 下 TLB/sysreg/ptw hooks 已验证可分类（Task 1.3 pfn_to_mapped_page → guest Oops 0x9600004f 正常 Kernel-oops exit + Task 1.4 parity 行为可见 + fs_checkpoint 流水线 84M 注入 0 SimulatorError），分类不受 atomic 限制；O3-switch 本身 deferred（stdlib SimpleProcessor 无 clean switchCpus 路径）——`D-FS-O3-switch`
 
+## Phase 8 — SDCShield 检测效果 gem5 FI 评估：研究与方案设计（2026-09-22）
+
+**Status: in_progress**
+
+> **Goal**: 深度研究 sdcshield 子模块（SDC 检测用例）+ 本仓库 CHAOS/gem5-fi 基础设施，设计"通过 gem5 故障注入评估 SDCShield 的 SDC 检测效果"的实现方案。必须明确裁决：① gem5 **FS 还是 SE 模式**；② CPU 微架构上**注入哪些结构、用哪些故障注入方式**（F1–F6/PCE 各模式）。产出：`docs/superpowers/plans/2026-09-22-sdcshield-fi-eval.md`（CLAUDE.md plan-driven 纪律）。
+>
+> 锚点（已实证）：今日新增子模块 `sdcshield`（07be34e2，meson C 项目）与 `gem5-fs`（aa234b9，ARM64 FS 四件套：vmlinux 5.15.36 / ubuntu.img 20.04 / DTB / bootloader）；`gem5-fs/readme.md` 载明：SE 走 translateMmuOff → AddrPath(D2)/PTW(D3) 钩子 SE 不触发，H6/H7 必须 FS 验证；FS boot 实测 890s。
+
+- [x] 8.1 SDCShield 子模块深度研究（README/CLAUDE.md/framework/：SDC 检测机理、软件形态（库/可执行/内核依赖/线程）、检测信号与输出、构建与运行方式）
+  - 完成实证：OpenDCDiag ARM64 移植，350 用例最小构建可用（meson 403/403）；检测=per-test golden memcmp（fma 实证=NEON FMA vs fmaf 软件参考）；信号=`result: fail`+EXIT_FAILURE；`-f no`/`-n 1` 模式存在；原生输出跨 run 确定；详见 findings.md F-SS-1/F-SS-3
+- [x] 8.2 gem5-fs 与 FS 基础设施现状（fs_checkpoint.py 两阶段流水线、restore 后 CPU 模型、D-FS-O3-switch 边界、guest 内结果回收方式、fs_bigLITTLE.py 路径）
+  - 完成实证：boot 890s→checkpoint→restore 恒 Atomic（stdlib 无 switchCpus）；FS 臂仅 armtlb/sysreg/ptw；--readfile 是唯一 guest 用户态发射机制；dmesg/terminal 回收；fs_bigLITTLE 无 O3 无 switchCpus；restore+run ~13s/run 实测；详见 findings.md F-SS-5
+- [x] 8.3 CHAOS 19 注入器 × {SE-O3, FS-atomic, FS-O3} 可用性矩阵（逐注入器：目标结构、故障模式、CPU 依赖）
+  - 完成实证：任意 CPU 可用=Reg/Mem/Cache/ExMon/ArmTLB/ArmSysReg/PTW（后三个需 FS）；O3-only=PhysReg/AddrPath/LSQFwd/RenameMap/FreeList/ROB/IQ/RAS/Exec/FPU/L1DForward/BPU/FUPerm/GateFU；**本仓 gem5.opt 陈旧仅 7 类**（gem5-fi-fuzz 仓有全量 22 类 09-21 版）；详见 findings.md F-SS-5
+- [x] 8.4 SDC-ED/Harpocrates 方法论研究（docs/sdc-ed/method.md ED 度量与 J 判据、harp_wrap --checker 检测臂、雅典两论文 FI 设置、CE-1/2/3 结论与度量层缺陷）
+  - 完成实证：雅典两论文=Harpocrates ISCA'24 + Harpocrates++ Micro'26（gem5 SE x86-64 OoO、6-7 结构、瞬态单比特/门级永久、golden-diff 检出）；本仓复现=ArmO3 SE；harp_wrap --checker 双通道先例；公平性纪律清单（预注册/N≥400 Wilson/双口径/窗口统一/SDC-Crash 拆分/底噪对照）；详见 findings.md F-SS-4
+- [x] 8.5 裁决一：FS vs SE（依据：sdcshield 检测通路保真度 × 注入器覆盖 × 时间预算；唯一推荐 + 备选与代价）
+  - **裁决：SE 为主战场（O3 + 提取式双通道内核，承载 sdcshield 检测语义）+ FS 为保真验证臂（真二进制，小 N）**。依据：SDC 高发位点全 O3-only（SE 独有）；N≥100-400 规模只有 SE 支撑；真二进制 SE 被实证三重阻断（prctl fatal + pre-main 确定性崩溃 @123.5M tick + 信号 syscall 忽略，/bin/true 对照 exit 0 证明是 sdcshield 特有）；FS-only 位点 DUE 主导但完整性必补。详见 findings.md F-SS-6/F-SS-7
+- [x] 8.6 裁决二：注入位点 × 故障模型 × 实验设计（结构清单、F1–F6/PCE 模式映射、N/判据/指标：检出率、检出延迟、误报底噪）
+  - **Tier1 N=400**（FPU 位段/PhysReg/LSQFwd F5+F6/L1DForward PCE/Exec/Cache data+secded/Mem+ecc_logic_fault）；**Tier2 永久对照 N=100-200**（FUPerm 补 harp_wrap deferred 缺口）；**Tier3 DUE 臂 N=100**（ROB/RAT/freelist/IQ，SDC/DUE 分口径；BPU 引既有证据）；**FS 臂 N=32-100**（TLB/PTW/SysReg/Cache/Mem × 真二进制）；基线=瞬态单比特 one-fault-per-run；双通道 oracle（内部校验=Detected + 独立 checksum=escape/masked 判别）；测试选择 ~12-14 个按检测域展开。详见 findings.md F-SS-7
+- [ ] 8.7 撰写方案文档 `docs/superpowers/plans/2026-09-22-sdcshield-fi-eval.md` + 向用户汇报（一补丁一单元分解、真实验证命令、checkbox）
+
 ## Errors Encountered
 | Error | Attempt | Resolution |
 |-------|---------|------------|
 | （空 — 计划阶段） | | |
 
 ## Next Step
-Task 1.1 — CHAOSCache tag/valid/dirty/repl/coh 字段级注入（一补丁一单元流程）
+Phase 8.1 — 通读 sdcshield/README.md 与 sdcshield/CLAUDE.md，确立 SDC 检测机理与软件形态
