@@ -1,0 +1,136 @@
+<task-notification>
+<task-id>a9301c8c44f589180</task-id>
+<tool-use-id>call_64f884ffa7c146e4ac253313</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi/801d1500-1949-47d1-8f2e-95e2ab568418/tasks/a9301c8c44f589180.output</output-file>
+<status>completed</status>
+<summary>Agent "实现 W1.1 CoreMark" came to rest</summary>
+<note>A task-notification fires each time this agent comes to rest with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>全部完成。`make` 是幂等的，全部 16 个文件都已就位。最终报告：
+
+---
+
+# Task 5 (W1.1 CoreMark) — 完成报告
+
+## 文件清单
+
+**新建 `workloads/ooo/coremark/`**（16 个文件）：
+- 上游子集（除 core_main.c 外与上游逐字节一致）：`core_list_join.c core_main.c(+gem5-fi 块) core_matrix.c core_state.c core_util.c coremark.h coremark.md5 LICENSE.md Makefile README.md posix/{core_portme.c, core_portme.h, core_portme.mak, core_portme_posix_overrides.h}` — 无 .git
+- 构建产物：`coremark`（静态 AArch64 ELF, 640KB）+ `.iterations-35` 戳（构建内部产物，可不入库）
+
+**修改**：`workloads/ooo/Makefile`（coremark 目标 + PROVENANCE/适配注释 + clean）、`workloads/ooo/README.md`（台账行 + 完整实测记录）。**未 commit/push**（按纪律留给编排者）。
+
+## 上游源
+
+`git clone https://github.com/eembc/coremark` → HEAD = **1f483d5b8316753a742cbf5590caf5bd0a4e4777**（与预期 1f483d5b 一致），`git log -1`: "Merge pull request #55 from DeflateAwning/main — Fix typo (fixes #52)", Joseph Yiu, 2025-05-01。**上游唯一源码偏离**：core_main.c 末尾 11 行 gem5-fi 块（带 `/* gem5-fi W1.1: FINAL line for oracle chain */` 注释），diff 已核实仅此一块，基准逻辑零改动。
+
+## 验证输出（逐字，关键行）
+
+**构建零告警 + ELF**：`MAKE_EXIT=0`，warning/error 计数 **0**；`file`: `ELF 64-bit LSB executable, ARM aarch64, … statically linked`。编译行（上游 Makefile 委托，保留 FLAGS_STR 引号链）：`gcc -O2 … -DITERATIONS=35 -static -Wall -Wextra -DSEED_METHOD=SEED_VOLATILE -DPERFORMANCE_RUN=1 core_list_join.c core_main.c core_matrix.c core_state.c core_util.c posix/core_portme.c -o ./coremark.exe -lrt`
+
+**C3 SE（ITERATIONS=35）**：
+```
+S1_EXIT=0  hostSeconds=52.62  simInsts=10808351  FINAL=000000000000cf56
+S2_EXIT=0  hostSeconds=52.62→52.92  simInsts=10808351  FINAL=000000000000cf56
+NATIVE_EXIT=0  FINAL=000000000000cf56   （uniq -c: 3×同一行；od -c 23 字节精确）
+classify.extract_checksum(gem5输出)=000000000000cf56 （oracle 链端到端验证）
+```
+
+**自带 CRC 校验（native==gem5 一致）**：`2K performance run parameters` / `seedcrc 0xe9f5` / `crclist 0xe714 / crcmatrix 0x1fd7 / crcstate 0x8e3a` 全部命中 known_id=3 已知值，**无任何 crc ERROR 行**。
+
+**密度（event_density.py，s1/s2/p1 三跑计数逐位一致）**：mispredicts **73348**（/commits=**0.66%**）、squash **1677415**（**15.1%**，squash_bp 783831 主导）、renamed 13209178、rat_writes 15377069、commits 11121427、IPC≈2.14；probe：samples 5039172、robOver80 67194（1.33%，robMax=128 到顶）、iqOver80 309285（6.14%）、flIntLe8 533971（10.6%，**flIntMin=0 实压穿**）、flFloatMin=192 恒满、flVecLe6=100% 平台基线。
+
+**回归**：`make clean &amp;&amp; make`（7 目标）EXIT=0 零告警；6 个既有 golden 全部不变（smoke `45737cc9a76c0dce`、branch_mispred `06e84f119c258fa7`、dep_chain `98e5e31e726e383f`/`b1e661a247b95774`、rob_fill `19eab7d0de27237e`/`85085fd5686d173b`；采用"全部重建+native 确定性重放比对"，强于抽查）。
+
+## 关键数字
+
+| 项 | 值 |
+|---|---|
+| **golden (FINAL)** | `000000000000cf56`（crcfinal=0xcf56 零填充 16 位） |
+| **ITERATIONS 终值** | **35**（20 实测 30.67s/6.19M insts ≈31 万 insts/迭代 → 35 = 52.62/52.92s、10.81M insts，双目标带内） |
+| hostSeconds / simInsts | 52.62 / 52.92；10,808,351 |
+
+## 偏差说明（诚实记录，已写入 README）
+
+1. **端口路径**：该 HEAD 上游端口目录为顶层 `posix/`，非旧布局 `cores/posix`（计划笔误，实证修正）。
+2. **"Correct operation performed / 无 Errors detected" 不可达（结构性）**：EEMBC 10 秒计分规则在 native（35 迭代=1ms）与 gem5 SE（全程模拟时间 1.94ms；`clock_gettime`→curTick 模拟时间）下都不可能 ≥10s（10 模拟秒=2.6e10 周期≈数十主机小时）。输出中 "Errors detected" **仅**来自该计时规则，CRC 校验本身 3/3 全过。故 FINAL 门放 CRC 校验通过路径（`known_id&gt;=0 &amp;&amp; results[0].err==0`）而非 `total_errors==0`（后者会吞掉 oracle 行）。
+3. **ITERATIONS 起试值超 50 倍**：任务提示 2000 ≈ 6.2 亿指令 ≈ 35+ 分钟；按实测校准到 35。
+4. **SEED_VOLATILE 适配**：posix 默认 SEED_ARG 无参运行会在 gem5 里死循环（自校准探针永远到不了 1 模拟秒）；用上游 `#ifndef` 守卫的 `-DSEED_METHOD=SEED_VOLATILE`（零文件修改）+ `-DPERFORMANCE_RUN=1`（官方 0/0/0x66 种子），使二进制无参自含。
+5. **FINAL 为 16 位 CRC 值**（CoreMark crcfinal，随 ITERATIONS 变化：20/2000 恰落同一折叠环态 0x4983，35 为 0xcf56；固定 ITERATIONS 下确定）——oracle 熵 16 位，比自设核的 64 位 hash 粗，此为 "值为 CoreMark 计算 CRC" 指令的固有属性；crcfinal 覆盖全部迭代（比只冻结第 0 迭代的 crclist/matrix/state 更强）。
+6. 上游 `coremark.md5` 在该 commit 对 coremark.h 过期（git 内容为准）；`--maxinsts` 本任务未用到（校准直接用小 ITERATIONS 实测）。
+
+GOLDEN_IDS 注册（建议 key 如 `coremark-golden-v1` → `000000000000cf56`）与 commit/push 留给编排者。里程碑全程追加于 `/tmp/ooo_w11_progress.txt`。</result>
+<usage><subagent_tokens>0</subagent_tokens><tool_uses>79</tool_uses><duration_ms>13428117</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>ad24f26b5a2af3370</task-id>
+<tool-use-id>call_40b853ca13a441ac98a42ea9</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi/801d1500-1949-47d1-8f2e-95e2ab568418/tasks/ad24f26b5a2af3370.output</output-file>
+<status>completed</status>
+<summary>Agent "实现 W1.2 Embench 子集" came to rest</summary>
+<note>A task-notification fires each time this agent comes to rest with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>W1.2 (Task 6) Steps 1–2 完成，未做任何 git commit（Step 3 留给编排者）。以下为最终报告。
+
+## W1.2 Embench 整数+浮点子集 — 完成报告
+
+### 上游与诚实偏差（最重要发现）
+
+- 上游 `github.com/embench/embench-iot`，克隆记录 HEAD = **09c2ed8c3b7008c95d08b038de4a3f6dc103ed70**（I-mikan-I，2024-08-29，"Remove CPU_MHZ references"）。
+- **计划点名的 6 程序中 3 个不可得，实证后替换**：
+  - `qlsort`、`qrsolve`（及候选名单中的 `stoneman`）在 embench-iot **全部 master 历史中从未存在**（unshallow 后 `git log --all -- src/qlsort src/qrsolve` 为空）。
+  - **Embench-IoT 2.0 删除了全部浮点基准**：nbody/cubic/primecount 于 1b2731f（2024-03-08）、minver/st 于 fc72c8d 删除；HEAD 上唯一含 float 字段的 depthconv 实为量化 int8/int32（字段未使用）。HEAD 上**没有任何真浮点基准**。
+  - 替换：qlsort→**wikisort**（排序类语义最近）；qrsolve→**minver**（3×3 float 矩阵求逆，线性代数语义最近）；nbody 保留。nbody/minver 取自其存在的最后一个 commit **92da124bb8da825b2937abaaed2aca9bb9e50fc9**（2024-03-08，"Remove legacy build script"）。03-workloads.md 只要求"22 个小程序、整数/浮点/乘除/哈希、自带校验"，未指定程序名，替换在 spec 内。
+
+### 文件清单（全部实际存在）
+
+- `workloads/ooo/embench/`（19 文件，3.7MB）：`PROVENANCE.md`（双 commit、替换理由、逐文件来源、适配清单）、`COPYING`（上游原样）、`boardsupport.c`、`support/{main,support.h,beebsc.c,beebsc.h}`、`{crc32,md5sum,matmult-int,wikisort,nbody,minver}/`（各含上游源 + 构建产物静态 ELF）。无 .git。
+- `workloads/ooo/Makefile`：`embench` 目标 + 6 条规则 + 规模旋钮（`EMBENCH_*_GSF` / `EMBENCH_*_MHZ`，可覆写）。
+- `workloads/ooo/README.md`：台账行 + W1.2 详录。
+
+### 每程序验证（逐字关键输出）
+
+构建：`make -C workloads/ooo embench` → `MAKE_EXIT=0` **零告警**（gcc 12.3.1 `-O2 -static -Wall -Wextra` + 5 个有记录的上游代码质量类抑制，见下）；`file` 6/6 `ELF 64-bit LSB executable, ARM aarch64, ... statically linked`。
+
+| 程序 | FINAL（golden） | native | SE hostSeconds s1/s2 | simInsts |
+|---|---|---|---|---|
+| crc32 | `b87739d9c40d1798` | EXIT=0 | 39.35 / 38.87 | 8908567 |
+| md5sum | `973ff8cc9018e79f` | EXIT=0 | 40.04 / 40.39 | 12071108 |
+| matmult-int | `e105f98022b761ef` | EXIT=0 | 42.83 / 42.73 | 6217780 |
+| wikisort | `d2cf29655e3e0f06` | EXIT=0 | 29.85 / 29.79 | 5156577 |
+| nbody | `f39b4e8804f279c3` | EXIT=0 | 33.40 / 33.37 | 3719230 |
+| minver | `9792f3ee24af3023` | EXIT=0 | 53.14 / 54.04 | 9276668 |
+
+- 全 6 程序：native==gem5 s1==s2 FINAL **od -c 逐字节一致**；全部 ≤60s 预算（minver 最贴边余量 ~6s，可用 `EMBENCH_MINVER_MHZ=18` 覆写，FINAL 已实证不随规模变化）。
+- **身份核实**：12/12 跑 config.ini 逐跑 `cmd=workloads/ooo/embench/&lt;b&gt;/&lt;b&gt;` 全对（另 clean 重建后 crc32 复跑 EXIT=0 / FINAL 同 / 37.99s，重建二进制与 SE 验证版 md5 相同）。
+- 自带校验：native 6/6 exit 0（上游 verify_benchmark 全过）。nbody/minver 的 native==gem5 将 W1.5b/W1.5c 的 fplib 位级一致结论扩展到 FSQRT。
+
+### 密度实测（每程序一次 `--chaos_probe`，read-only，p1 FINAL 不变；s1/s2/p1 计数逐位一致）
+
+| 程序 | mispredicts(/commits) | squash(/commits) | robOver80 采样 | iqMax/robMax | flIntLe8 |
+|---|---|---|---|---|---|
+| crc32 | 848（0.0095%） | 6714（0.075%） | 4475/3726427 | 44/128 | 4613 |
+| md5sum | 22987（0.19%） | 214830（1.76%） | 435 | 41/128 | 160 |
+| matmult-int | 50346（0.61%） | 801783（9.7%） | 13727/2654161 | **64 满容**/128 | 13331 |
+| wikisort | 49144（0.87%） | 687919（12.1%） | 23119/2682852 | **64 满容**/128 | 21818 |
+| nbody | 504（0.012%） | 5273（0.13%） | 1514/10156448 | 44/128 | 1120 |
+| minver | 482（0.005%） | 5451（0.055%） | 674/7949575 | 44/128 | 165 |
+
+整型 vs 浮点三档格局清晰（wikisort/matmult 分支/squash 密集 → md5sum 中间 → nbody/minver FP 循环主导 ~0.01%），50+15 实验格的 D01/D02/D04 事件供给按程序分层可用；全 6 程序 flIntMin=0；flFloatMin=192/flVecLe6=100% 为 W1.5b 已知平台基线。
+
+### 适配清单（唯一源码偏离）
+
+每基准 1 个 `/* gem5-fi W1.2 */` FINAL 块（verify 成功路径，FNV-1a 64 over 校验数据）+ 4 文件各 2 行 include（同标记）。与上游 git blob diff 逐行核实：support/ 5 文件 0 差异，6 基准差异行 18-36 全在 hunk 内。哈希数据：crc32=r（15 位熵=上游自检同口径，已注明）；md5sum=完整 4 字摘要（强于上游 XOR 折叠）；matmult=ResultArray；wikisort=array1；nbody=solar_bodies；minver=c/d/det（后两者字节级 FP oracle）。verify 失败仍 exit 1 → classify.py Crash/DUE，oracle 链语义与 coremark 先例一致。零告警实现方式：源码原样 + 5 个逐一记录的上游代码质量类告警抑制（`-Wno-unused-variable/-Wunused-parameter/-Wunused-but-set-variable/-Wno-maybe-uninitialized/-Wno-absolute-value`，理由全文在 PROVENANCE.md），新告警类仍会失败构建。
+
+### 回归（用了全量重建 native 重放路线）
+
+`make clean &amp;&amp; make`（13 目标含 embench）幂等零告警；7 个既有 golden 全部不变：smoke `45737cc9a76c0dce`、branch_mispred `06e84f119c258fa7`、dep_chain `98e5e31e726e383f`/`b1e661a247b95774`、rob_fill `19eab7d0de27237e`/`85085fd5686d173b`、coremark `000000000000cf56`。
+
+### GOLDEN_IDS 候选（待编排者注册）
+
+`embenchcrc32-golden-v1 b87739d9c40d1798`、`embenchmd5sum-golden-v1 973ff8cc9018e79f`、`embenchmatmult-golden-v1 e105f98022b761ef`、`embenchwikisort-golden-v1 d2cf29655e3e0f06`、`embenchnbody-golden-v1 f39b4e8804f279c3`、`embenchminver-golden-v1 9792f3ee24af3023`。
+
+里程碑全程追加在 `/tmp/ooo_w12_progress.txt`；变更范围仅 `workloads/ooo/embench/` + Makefile + README（git status 核实）。</result>
+<usage><subagent_tokens>0</subagent_tokens><tool_uses>105</tool_uses><duration_ms>7138587</duration_ms></usage>
+</task-notification>
