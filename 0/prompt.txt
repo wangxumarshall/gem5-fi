@@ -134,3 +134,90 @@ GOLDEN_IDS 注册（建议 key 如 `coremark-golden-v1` → `000000000000cf56`�
 里程碑全程追加在 `/tmp/ooo_w12_progress.txt`；变更范围仅 `workloads/ooo/embench/` + Makefile + README（git status 核实）。</result>
 <usage><subagent_tokens>0</subagent_tokens><tool_uses>105</tool_uses><duration_ms>7138587</duration_ms></usage>
 </task-notification>
+
+---
+
+<task-notification>
+<task-id>a52d1fd065e007dbc</task-id>
+<tool-use-id>call_32456747972142a893e7c868</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi/801d1500-1949-47d1-8f2e-95e2ab568418/tasks/a52d1fd065e007dbc.output</output-file>
+<status>completed</status>
+<summary>Agent "实现 W1.3 PolyBench" came to rest</summary>
+<note>A task-notification fires each time this agent comes to rest with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>所有工作已完成。最终报告：
+
+---
+
+# W1.3 PolyBench 任务报告（Task 7, Step 1–2 完成；Step 3 commit 留给编排者）
+
+## 1. 上游源（实际获取路径，含探测过程）
+
+- 净版 tarball 分发点全部不可达（实证）：netlib 404（计划已记录）、`web.cse.ohio-state.edu/~pouchet.2/.../polybench-c-4.2.1.tar.gz` 重定向到 OSU CSE 通用目录页、SourceForge 404。
+- 计划首选 `cavazos-lab/PolyBench@70ea4ca9` 探测存活，但实测为 **GPU 变体套件**（CUDA/OpenCL/OpenACC/OpenMP/HMPP 内核 + 共享 common/），非 plain PolyBench/C → 弃用。
+- **实际源：`https://github.com/MatthiasJReisinger/PolyBenchC-4.2.1` @ `3e872547cef7e5c9909422ef1e6af03cf4e56072`**（2016-06-10，单 commit "Initial commit with PolyBench/C 4.2.1 beta sources"）。
+- **保真度交叉验证**：`utilities/polybench.c`、`utilities/polybench.h`、4 个内核 `.h` 与 `llvm/llvm-test-suite@4eee8855` 内嵌副本**逐字节相同**（diff 0 行）；LLVM 副本内核 `.c` 带 StrictFP/check_FP 适配，净版不含 → 取净版。
+
+## 2. 文件清单（git status：`M workloads/ooo/Makefile`、`M workloads/ooo/README.md`、`?? workloads/ooo/polybench/`；未 commit）
+
+`workloads/ooo/polybench/`（17 文件，无 .git）：`LICENSE.txt`、`README`（上游原样）、`PROVENANCE.md`（gem5-fi）、`utilities/{polybench.c,polybench.h}`、`linear-algebra/blas/gemm/{gemm.c,gemm.h}`、`linear-algebra/solvers/{lu,cholesky}/*.{{c,h}}`、`stencils/jacobi-2d/{jacobi-2d.c,jacobi-2d.h}` + 4 个静态 ELF（`gemm/gemm`、`lu/lu`、`cholesky/cholesky`、`jacobi-2d/jacobi-2d`）。
+
+**唯一源码偏离**：4 个内核 `.c` 各一个 `/* gem5-fi W1.3 */` 标记的 `#include &lt;stdint.h&gt;` + main 末尾 FINAL 块（diff 实测 23-27 行/文件，全在 hunk 内；其余 8 文件与上游逐字节相同）。oracle = 上游 print_array live-out 域的 FNV-1a 64 全数组 hash；**cholesky 按上游 dump 口径取下三角含对角**（其内核只写下三角，上三角 init 后为死数据——避免把落进死区的故障误报 SDC）。
+
+## 3. 构建验证（逐字）
+
+- `make -C workloads/ooo clean &amp;&amp; make -C workloads/ooo polybench`：**MAKE_EXIT=0，WARN_COUNT=0**（`-O2 -static -Wall -Wextra` + 3 个逐一记录的上游代码质量类抑制：`-Wno-unknown-pragmas`〔scop/endscop〕、`-Wno-unused-variable`〔polybench.c 分配表〕、`-Wno-misleading-indentation`〔lu/cholesky PSD 拷贝循环缩进假阳性，语义已人工核实〕；理由全文在 PROVENANCE.md）。
+- `file` 4/4：`ELF 64-bit LSB executable, ARM aarch64, ... statically linked`。
+- 确定性核实：全树无 `rand()/srand()`；无 `-DPOLYBENCH_TIME` 时 instrument 宏为空（无 gettimeofday、无 32MB flush）；print_array 挂在 `argc &gt; 40` 守卫后 SE 不触发。
+- 尺寸终值（-D 命令行旋钮，零 .h 修改；Makefile 变量可覆写）：**gemm 88³ / lu 84 / cholesky 88 / jacobi-2d T=8,N=160**，`-DDATA_TYPE_IS_FLOAT`（fp32）。首候选（96³/92/100/T10N160）实测 62-76s 超预算（FP 核 ~125 KIPS vs 整型 ~200）→ 缩至终值。
+
+## 4. 每内核验证输出（逐字关键行，逐文件带标签）
+
+**native（各 2 跑 same=YES）**：
+```
+native gemm: run1=[FINAL=116849d3adf3227b] exit=0 run2=[FINAL=116849d3adf3227b] exit=0 same=YES
+native lu: run1=[FINAL=74ffe5eb77ea9257] ... same=YES
+native cholesky: run1=[FINAL=ea7e0d0e7c86582d] ... same=YES
+native jacobi-2d: run1=[FINAL=dc867b5f02998c1e] ... same=YES
+```
+**C3 SE（全部 exit=0；od -c 逐文件证实 23 字节 `FINAL=&lt;16hex&gt;\n`；s1/s2/s3 simInsts 精确相同）**：
+```
+s1 gemm: FINAL=116849d3adf3227b simInsts=6460912 hostSeconds=52.87
+s2 gemm: FINAL=116849d3adf3227b simInsts=6460912 hostSeconds=53.98
+s3 gemm: FINAL=116849d3adf3227b simInsts=6460912 hostSeconds=53.30   ← clean 重建后复跑
+s1 lu: FINAL=74ffe5eb77ea9257 simInsts=6651537 hostSeconds=51.43
+s2 lu: FINAL=74ffe5eb77ea9257 simInsts=6651537 hostSeconds=51.62
+s3 lu: FINAL=74ffe5eb77ea9257 simInsts=6651537 hostSeconds=51.54
+s1 cholesky: FINAL=ea7e0d0e7c86582d simInsts=6539248 hostSeconds=53.14
+s2 cholesky: FINAL=ea7e0d0e7c86582d simInsts=6539248 hostSeconds=51.92
+s3 cholesky: FINAL=ea7e0d0e7c86582d simInsts=6539248 hostSeconds=51.63
+s1 jacobi-2d: FINAL=dc867b5f02998c1e simInsts=6571463 hostSeconds=51.15
+s2 jacobi-2d: FINAL=dc867b5f02998c1e simInsts=6571463 hostSeconds=52.04
+s3 jacobi-2d: FINAL=dc867b5f02998c1e simInsts=6571463 hostSeconds=51.51
+```
+- config.ini 身份核实 **12/12**（s1/s2/s3 × 4，逐文件带标签 grep，`cmd=/home/sdc/gem5-fi/workloads/ooo/polybench/&lt;kernel&gt;/&lt;kernel&gt;` 全对）。
+- `tools/classify.py extract_checksum` 对 4 份 gem5 输出端到端取值正确（oracle 链闭合）。
+- native==gem5 把 fplib 位级一致扩展到 **fp32 标量 fdiv 与 fp32 fsqrt**（此前已证 fp32 FMA、fp64 div/sqrt）。
+
+## 5. 密度表（官方 `tools/event_density.py` s1/s2/p1 三跑聚合，全部计数逐位一致；p1 probe read-only，FINAL 不变）
+
+| 内核 | mispred(/commits) | squash(/commits) | robOver80 | iqMax/robMax | flIntMin | flFloatMin | flVecMin |
+|---|---|---|---|---|---|---|---|
+| gemm | 8604（0.13%） | 22848（0.35%） | 124829/10580668（1.18%） | 64/128 满容 | 0 | **192** | **0** |
+| lu | 13611（0.19%） | 45493（0.63%） | 113466/8557969（1.32%） | 64/128 | 1 | **192** | **0** |
+| cholesky | 12060（0.17%） | 41265（0.57%） | 63145/8803460（0.72%） | 64/128 | 4 | **192** | **0** |
+| jacobi-2d | 3123（0.048%） | 10278（0.16%） | 410241/9886860（4.15%） | 64/128 | 1 | **192** | **0** |
+
+## 6. flFloatMin 交叉确认（triple 确认，结论成立）
+
+4 个 fp32 内核 **flFloatMin=192 恒满**（FloatRegClass 池从未被消耗）且 FP 指令真实在场——committedInstType 动态计数：gemm FloatMult=681472+FloatMultAcc=681472（=88³ 精确）；lu FloatMultAcc=786758+FloatDiv=7056；cholesky …+FloatDiv=7744+**FloatSqrt=88（=N）**；jacobi FloatAdd=1597696（=4×2×T×(N-2)² 精确）；**全部 SimdFloat\*=0（纯标量 Float 类）**。标量 FP 走 VecRegClass 的直接后果：**flVecMin=0**（vec 池 48 项，D75 实测零向量核初始剩 4 → 被标量 FP 物理寄存器消耗压穿到 0）——"vec 池受压"得到直接实证。W1.2 结论三重确认，D62-66/D72/73/76 标量 FP 行并入向量行的合并条款再添一柱。
+
+## 7. 回归（全量重建 native 重放路线，非抽查）
+
+`make clean &amp;&amp; make`（**17 目标** 含 polybench）幂等 **REG_MAKE_EXIT=0 WARN=0**；native golden 重放 **17/17 PASS**：既有 13 个（smoke `45737cc9a76c0dce`、branch_mispred `06e84f119c258fa7`、dep_chain int/vec `98e5e31e726e383f`/`b1e661a247b95774`、rob_fill int/fp `19eab7d0de27237e`/`85085fd5686d173b`、coremark `000000000000cf56`、embench 6 个）全部不变 + polybench 4 个重建后同值；另加 s3 SE 复跑闭环（提交版二进制再证）。
+
+## 8. GOLDEN_IDS 候选 + 偏差说明
+
+- `polybenchgemm-golden-v1 116849d3adf3227b`、`polybenchlu-golden-v1 74ffe5eb77ea9257`、`polybenchcholesky-golden-v1 ea7e0d0e7c86582d`、`polybenchjacobi2d-golden-v1 dc867b5f02998c1e`（待编排者注册 runner.py）。
+- 偏差（全部已入档 PROVENANCE.md/README）：(a) 上游为 GitHub 镜像而非官方 tarball（官方分发点死链，镜像经 llvm-test-suite 交叉验证）；(b) 3 个有记录的上游告警抑制；(c) cholesky oracle 域取下三角（上游 print_array 口径，其余 3 内核全数组）；(d) FINAL 尺寸相关——换 Makefile 尺寸变量需同步换 golden（已在 Makefile/PROVENANCE 注明）；(e) s1/s2 验证版二进制未保留 md5（clean 已删），以 s3 重建复跑 + native 重放双证替代。中断保护里程碑全程追加于 `/tmp/ooo_w13_progress.txt`。未执行 git commit/push（按纪律留给编排者）。</result>
+<usage><subagent_tokens>0</subagent_tokens><tool_uses>102</tool_uses><duration_ms>3504100</duration_ms></usage>
+</task-notification>
