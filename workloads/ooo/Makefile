@@ -31,7 +31,7 @@ LDFLAGS :=
 #   embench        W1.2  Embench-Io int+fp subset                (Task 6)
 #   polybench      W1.3  PolyBench gemm/lu/cholesky/jacobi-2d    (Task 7)
 #   gap, libjpeg   W1.4  GAP semantic proxy + libjpeg-turbo      (Task 8)
-WORKLOADS := smoke branch_mispred dep_chain rob_fill
+WORKLOADS := smoke branch_mispred dep_chain rob_fill gap
 
 .PHONY: all clean $(WORKLOADS) dep_chain_vec rob_fill_fp coremark embench polybench
 

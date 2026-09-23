@@ -37,7 +37,8 @@
 | coremark | W1.1 | `000000000000cf56` | 52.62 / 52.92（s1/s2） | 10808351 | 自带 CRC 校验 PASS（seedcrc 0xe9f5，crclist 0xe714/crcmatrix 0x1fd7/crcstate 0x8e3a 全对 known_id=3；"Errors detected" **仅**来自 EEMBC 10 秒计时报告规则——SE 模拟时钟结构性不可满足，见实测记录）；密度：mispredicts/commits 0.66%、squash 15.1%、flIntLe8 10.6%（flIntMin=0 实压穿）、robOver80 1.3%（robMax=128 到顶） | done |
 | embench | W1.2 | crc32 `b87739d9c40d1798` / md5sum `973ff8cc9018e79f` / matmult-int `e105f98022b761ef` / wikisort `d2cf29655e3e0f06` / nbody `f39b4e8804f279c3` / minver `9792f3ee24af3023` | crc32 39.35/38.87；md5sum 40.04/40.39；matmult-int 42.83/42.73；wikisort 29.85/29.79；nbody 33.40/33.37；minver 53.14/54.04（各两次，全 ≤60s） | 8908567 / 12071108 / 6217780 / 5156577 / 3719230 / 9276668 | 6 程序各自带校验退出码 0（native==gem5==golden FINAL 逐字节一致）；密度三档：wikisort/matmult 误预测 0.61-0.87% + squash 9.7-12.1%，md5sum 中间，nbody/minver（FP）误预测 ~0.01% 循环主导；flIntMin=0 全部 6 程序 | done |
 | polybench | W1.3 | gemm `116849d3adf3227b` / lu `74ffe5eb77ea9257` / cholesky `ea7e0d0e7c86582d` / jacobi-2d `dc867b5f02998c1e` | gemm 52.87/53.98；lu 51.43/51.62；cholesky 53.14/51.92；jacobi-2d 51.15/52.04（s1/s2；重建后 s3 复跑 53.30/51.54/51.63/51.51） | 6460912 / 6651537 / 6539248 / 6571463 | 全数组 FNV-1a hash（cholesky 按上游 print_array 口径=下三角含对角）；**flFloatMin=192 全部 4 内核（W1.2「标量 FP→VecRegClass」三重确认）+ flVecMin=0（vec 池压穿，D75 初始 4→0）**；robMax=128/iqMax=64 全部到顶；详见 W1.3 实测记录 | done |
-| gap / libjpeg | W1.4 | （待实测） | （待实测） | （待实测） | 语义代理 checksum / 逐像素 hash | pending |
+| gap | W1.4a | `2ec8c1e59f2808c5` | 54.77 / 54.78（s1/s2） | 6413647 | mispredicts/commits 0.58%、squash 19.1%（squash_bp 主导）、robOver80 34.2%（采样占比，robMax=128 到顶）、iqOver80 25.6%、flIntMin=0——D36-D38 old-phys squash 场景事件供给充足 | done |
+| libjpeg | W1.4b | （待实测） | （待实测） | （待实测） | 逐像素 hash | pending |
 
 ## smoke 实测记录（W1.0，2026-09-23）
 
@@ -395,3 +396,56 @@
   116849d3adf3227b`、`polybenchlu-golden-v1 74ffe5eb77ea9257`、
   `polybenchcholesky-golden-v1 ea7e0d0e7c86582d`、`polybenchjacobi2d-golden-v1
   dc867b5f02998c1e`。
+
+## gap 实测记录（W1.4a，2026-09-23）
+
+- **HONEST PROVENANCE（语义代理，非 vendored GAP）**：上游 GAP benchmark suite
+  （Beamer/Patterson/Dongarra，gapbs）面向机器规模图（2^20+ 顶点、GB 级 CSR、
+  带宽导向），裁剪进 SE 60 s 预算后就不再是 GAP——按 W1 计划 Task 8 Step 1 决策，
+  本核为**从零自写的语义代理**（`gap/gap.c` 单文件，无任何上游代码）：固定种子
+  LCG 生成 CSR 有向图（每顶点恰好 DEGREE=8 条出边——随机图替代 R-MAT，自环/
+  重边可能且完全确定）+ 顶向下 FIFO frontier BFS（层序遍历，GAP-bfs 算法族）+
+  scatter 形 PageRank（固定迭代、double 累加，GAP-pr 算法族）。自校验口径 =
+  BFS 逐出队 (vertex,level) 折叠 + level 向量后扫（lsum/可达数/离心率）+
+  PageRank 秩向量与收敛残差的位模式哈希，折叠为单行 `FINAL=<16hex>`。
+- **重派核实（诚实记录）**：前代理遗留二进制（BFS_RUNS=3/PR_ITERS=3）native
+  重跑 EXIT=0 `FINAL=8b3b8f5b90da4c89` 复现；但其 C3 实测 78.33 s 超预算 →
+  重标定后该值作废，golden 以重标定版（BFS=2/PR=2）为准。
+- **规模校准**：图规模不动（NVERT=16384 × DEGREE=8：colidx 512 KiB 刻意超
+  C3 64 KiB L1D / 512 KiB L2 工作集 = 不规则 cache miss 设计点），只减
+  BFS_RUNS 3→2 + PR_ITERS 3→2。cal1（3/3）hostSeconds **78.33** 超预算
+  （simInsts 9081190，~116 KIPS）；cal2（2/2）**54.72** 入 30-60 s 带
+  （simInsts 6413647）。终版 = 2/2。
+- **构建**：`make -C workloads/ooo gap` 零告警（gcc -O2 -static -Wall
+  -Wextra，走 WORKLOADS 模式规则）；`file`：ARM aarch64 static ELF。
+  **objdump 全二进制零 FMA 位点**（fmadd/fmsub/fnmadd/fnmsub/fmla 计数=0，
+  重标定后复检仍 0；FP 指令清单仅 4 fadd / 2 fmul / 2 fsub / 2 fdiv，其中
+  fdiv/fsub 属 CRT 启动）——PageRank 的 mul/add 中间隔着 store 不给 gcc
+  收缩成 FMA 的机会；无 libm 调用、无运行时除法（tele/base_scale/init
+  编译期常量），PR 值域 ~1e-4 远离 denormal。
+- **golden（native==gem5，cal2/s1/s2 三跑 + native 逐字节一致）**：
+  `FINAL=2ec8c1e59f2808c5`（od -c 证实 23 字节 `FINAL=2ec8c1e59f2808c5\n`；
+  native/cal2/s1/s2 四份 FINAL 行 md5 同为 `1b63503ae07b2047cd5ddb1a3469ed4e`）。
+  s1/s2 hostSeconds **54.77 / 54.78**、simInsts **6413647**（cal2/s1/s2 三跑
+  精确相同）；config.ini 逐跑核实 `cmd=workloads/ooo/gap/gap` **5/5**
+  （cal1/cal2/s1/s2/p1）。`tools/classify.py extract_checksum` 对真实 gem5
+  输出端到端取值 `2ec8c1e59f2808c5`（oracle 链验证）。提交版 ELF md5
+  `7a0c332186c70ec839d4ddd8e774105c`。native==gem5 同时覆盖 double 标量
+  fmul/fadd 的 gem5 fplib 位级一致（此前 W1.5b/W1.5c/W1.2/W1.3 已证
+  FMA/DIV/SQRT，本核补 mul/add 非融合路径）。
+- **事件密度实测**（p1 `--chaos_probe` read-only——p1 的 FINAL 与 s1/s2 相同；
+  s1/s2/p1 全部计数逐位一致，`tools/event_density.py --runs s1 s2 p1
+  --stdout …` 三跑聚合）：mispredicts **38936**（/commits 6685109 =
+  **0.58%**）、squash **1276484**（**19.1%**；squash_bp 463014 主导 +
+  squash_disp 103061 + squash_exec 83925）、CHAOS_PROBE samples **8190376**、
+  robOver80 **2800014（34.2% 采样占比，robMax=128 到顶）**、iqOver80
+  **2097113（25.6%，iqMax=64 满容）**、flIntLe8 197571（2.41%，flIntMin=0
+  ——int freelist 实压穿）；flFloatMin=192 恒满 / flVecLe6=100% / flVecMin=0
+  为 W1.5b 已记录平台基线。renamed_insts 8150927、rat_writes 9644477、
+  sim_ticks 3153294760（2.6 GHz 折算 IPC≈0.78——不规则访存 + 误预测恢复的
+  宽窗口低 IPC 形态，对照 CoreMark 2.14）。D36-D38 old-phys squash 场景
+  （北极星指派 gap 的「控制流不规则」单元）事件供给：误预测 38936/跑 +
+  squash 19.1% + robOver80 34.2% + freelist 压穿。
+- 回归（抽查路线，避开并行 W1.4b 任务的全量重建）：smoke `45737cc9a76c0dce`、
+  coremark `000000000000cf56` native 重放不变；`make gap` 幂等（无需重建）。
+- **GOLDEN_IDS 候选（待编排者注册 runner.py）**：`gap-golden-v1 2ec8c1e59f2808c5`。
