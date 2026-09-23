@@ -33,9 +33,9 @@ LDFLAGS :=
 #   gap, libjpeg   W1.4  GAP semantic proxy + libjpeg-turbo      (Task 8)
 WORKLOADS := smoke branch_mispred dep_chain rob_fill
 
-.PHONY: all clean $(WORKLOADS) dep_chain_vec rob_fill_fp coremark
+.PHONY: all clean $(WORKLOADS) dep_chain_vec rob_fill_fp coremark embench
 
-all: $(WORKLOADS) dep_chain_vec rob_fill_fp coremark
+all: $(WORKLOADS) dep_chain_vec rob_fill_fp coremark embench
 
 # Per-workload pattern, instantiated once per name above: a phony alias
 # target <name> plus the real rule <name>/<name> <- <name>/<name>.c.
@@ -115,6 +115,86 @@ coremark/.iterations-%: $(wildcard coremark/*.c coremark/*.h) \
 	mv -f coremark/coremark.exe coremark/coremark
 	touch $@
 
+# W1.2 embench — Embench-IoT int+fp subset.  PROVENANCE (both vendored
+# commits, the Embench-2.0 fp-benchmark removal that forced the
+# qlsort/qrsolve/nbody substitutions, per-file source commit, the gem5-fi
+# FINAL hunks and the -Wno-* rationale) is recorded in
+# embench/PROVENANCE.md — read it first.
+#
+# Build = upstream's per-benchmark recipe (cf. sconstruct.py
+# build_support_objects): <benchmark>.c + support/main.c + support/beebsc.c
+# + boardsupport.c (vendored from examples/native/speed), -I support.
+# HEAD-era benchmarks scale iterations as LOCAL_SCALE_FACTOR x
+# GLOBAL_SCALE_FACTOR (two nested loops); the pre-2.0 fp benchmarks
+# (nbody/minver) scale as LOCAL_SCALE_FACTOR x CPU_MHZ (their 1.0-era
+# convention, removed from master at 09c2ed8c).
+#
+# EMBENCH_NOWARN: upstream sources are not -Wall -Wextra clean — dead
+# locals (-Wunused-variable, -Wunused-but-set-variable), unused
+# test-generator parameters (-Wunused-parameter), one provably-false
+# -Wmaybe-uninitialized (crc32 r: the scale factors are compile-time >= 1
+# so the loop always executes) and beebsc.h's float_eq_beebs macro called
+# with a double constant (-Wabsolute-value, minver).  Sources are kept
+# verbatim (only the /* gem5-fi W1.2 */ FINAL hunks differ from upstream);
+# these five upstream code-quality classes are suppressed instead,
+# documented in embench/PROVENANCE.md.  Any NEW warning class still fails
+# the build.
+EMBENCH_NOWARN := -Wno-unused-variable -Wno-unused-parameter \
+                  -Wno-unused-but-set-variable -Wno-maybe-uninitialized \
+                  -Wno-absolute-value
+EMBENCH_SUPPORT := embench/support/main.c embench/support/beebsc.c \
+                   embench/boardsupport.c
+EMBENCH_INC := -I embench/support -I embench
+
+# Scale factors calibrated 2026-09-23 for the C3 SE <=60 s hostSeconds
+# budget (W1 Global Constraints); scale-1 measurements in
+# workloads/ooo/README.md (W1.2 record).  FINAL is scale-invariant (every
+# iteration recomputes the identical checked state), so re-calibrating
+# these does NOT change the golden values.
+EMBENCH_CRC32_GSF    ?= 3     # 170 x 3 iters -> ~9.0M insts
+EMBENCH_MD5SUM_GSF   ?= 5     # 66 x 5 iters  -> ~12.2M insts
+EMBENCH_MATMULT_GSF  ?= 3     # 39 x 3 iters  -> ~6.4M insts
+EMBENCH_WIKISORT_GSF ?= 5     # 2 x 5 iters   -> ~7.1M insts
+EMBENCH_NBODY_MHZ    ?= 120   # 1 x 120 reps  -> ~8.4M insts
+EMBENCH_MINVER_MHZ   ?= 20    # 555 x 20 reps -> ~9.4M insts
+
+EMBENCH_BINS := embench/crc32/crc32 embench/md5sum/md5sum \
+                embench/matmult-int/matmult-int embench/wikisort/wikisort \
+                embench/nbody/nbody embench/minver/minver
+embench: $(EMBENCH_BINS)
+
+embench/crc32/crc32: embench/crc32/crc_32.c $(EMBENCH_SUPPORT)
+	$(CC) $(CFLAGS) $(EMBENCH_NOWARN) -DWARMUP_HEAT=1 \
+	    -DGLOBAL_SCALE_FACTOR=$(EMBENCH_CRC32_GSF) $(EMBENCH_INC) \
+	    -o $@ embench/crc32/crc_32.c $(EMBENCH_SUPPORT) -lm
+
+embench/md5sum/md5sum: embench/md5sum/md5.c $(EMBENCH_SUPPORT)
+	$(CC) $(CFLAGS) $(EMBENCH_NOWARN) -DWARMUP_HEAT=1 \
+	    -DGLOBAL_SCALE_FACTOR=$(EMBENCH_MD5SUM_GSF) $(EMBENCH_INC) \
+	    -o $@ embench/md5sum/md5.c $(EMBENCH_SUPPORT) -lm
+
+embench/matmult-int/matmult-int: embench/matmult-int/matmult-int.c \
+                                 $(EMBENCH_SUPPORT)
+	$(CC) $(CFLAGS) $(EMBENCH_NOWARN) -DWARMUP_HEAT=1 \
+	    -DGLOBAL_SCALE_FACTOR=$(EMBENCH_MATMULT_GSF) $(EMBENCH_INC) \
+	    -o $@ embench/matmult-int/matmult-int.c $(EMBENCH_SUPPORT) -lm
+
+embench/wikisort/wikisort: embench/wikisort/libwikisort.c $(EMBENCH_SUPPORT)
+	$(CC) $(CFLAGS) $(EMBENCH_NOWARN) -DWARMUP_HEAT=1 \
+	    -DGLOBAL_SCALE_FACTOR=$(EMBENCH_WIKISORT_GSF) $(EMBENCH_INC) \
+	    -o $@ embench/wikisort/libwikisort.c $(EMBENCH_SUPPORT) -lm
+
+embench/nbody/nbody: embench/nbody/nbody.c $(EMBENCH_SUPPORT)
+	$(CC) $(CFLAGS) $(EMBENCH_NOWARN) -DWARMUP_HEAT=1 \
+	    -DCPU_MHZ=$(EMBENCH_NBODY_MHZ) $(EMBENCH_INC) \
+	    -o $@ embench/nbody/nbody.c $(EMBENCH_SUPPORT) -lm
+
+embench/minver/minver: embench/minver/libminver.c $(EMBENCH_SUPPORT)
+	$(CC) $(CFLAGS) $(EMBENCH_NOWARN) -DWARMUP_HEAT=1 \
+	    -DCPU_MHZ=$(EMBENCH_MINVER_MHZ) $(EMBENCH_INC) \
+	    -o $@ embench/minver/libminver.c $(EMBENCH_SUPPORT) -lm
+
 clean:
 	rm -f $(foreach w,$(WORKLOADS),$(w)/$(w)) dep_chain/dep_chain_vec rob_fill/rob_fill_fp coremark/coremark coremark/.iterations-*
 	$(MAKE) -C coremark PORT_DIR=posix clean || true
+	rm -f $(EMBENCH_BINS)

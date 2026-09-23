@@ -71,9 +71,9 @@
 ### Task 6: W1.2 — Embench 整数+浮点子集
 
 **Files:** Create `workloads/ooo/embench/`
-- [ ] Step 1: `git clone https://github.com/embench/embench-iot`，用其 build.py 选 6 个代表程序（整型：crc32/md5sum/qlsort/matmult-int；浮点：nbody/qrsolve 或 huffbench），-static 适配。
-- [ ] Step 2: 验证——每程序自带校验退出码 0 + 各自 golden 入档（每程序一条 GOLDEN_IDS）+ 每程序 SE 预算实测（超 60s 的调 --cpu-mhz 缩放或减少迭代，embench 支持缩放）。
-- [ ] Step 3: Commit + push
+- [x] Step 1: 源获取与构建。〔执行注 2026-09-24：上游 embench-iot@09c2ed8c。**计划点名 6 程序中 3 个不可得（实证）**：qlsort/qrsolve 上游全部历史从未存在；**Embench-IoT 2.0 删除了全部浮点基准**（nbody/cubic/primecount 于 1b2731f、minver/st 于 fc72c8d）。替换：qlsort→wikisort、qrsolve→minver（3×3 float 求逆）；nbody/minver 取自末代存在 commit 92da124b。03-workloads.md 未指定程序名，替换在 spec 内（PROVENANCE.md 双 commit 记录）。每基准 1 个 `/* gem5-fi W1.2 */` FINAL 块（FNV-1a 64；crc32 为 15 位熵=上游自检同口径）；5 个逐一记录的上游代码质量类告警抑制（新告警类仍失败构建）。〕
+- [x] Step 2: 验证 + GOLDEN_IDS×6。〔执行注：全 6 程序 native==gem5、s1==s2 逐字节一致、config.ini 身份 12/12；编排者另对 nbody/minver 独立 C3+native 三重核对+二进制指纹（一次多文件 grep -h 位置配对虚警，经 config.ini 终裁澄清——教训入档：逐文件带标签 grep）。hostSeconds 29.8-54.0 全 ≤60s；密度入档（整型/浮点三档格局）；nbody/minver native==gem5 将 fplib 位级一致扩展到 FSQRT。回归 7 既有 golden 全过。**重大发现（findings + 06 修订依据）**：标量 FP 程序 flFloatMin=192 恒满 + vec 池压 0 + 标量 FP 指令在场（objdump nbody 17 处 d/s 形式）→ **AArch64 gem5 v25 标量 FP 走 VecRegClass，FloatRegClass 池/RAT 惰性**——触发北极星 D62 自带合并条款（D62-66↔D67-71、D72/73/76↔D74/75/77 合并）。〕
+- [x] Step 3: Commit + push
 
 ### Task 7: W1.3 — PolyBench（gemm/lu/cholesky/jacobi-2d）
 

@@ -35,7 +35,7 @@
 | dep_chain（int/vec 两版） | W1.5b | int `98e5e31e726e383f` / vec `b1e661a247b95774` | int 45.86 / 45.96；vec 47.36 / 47.00（各两次） | int 17505782 / vec 6310709 | int：**flIntLe8 = 99.42%** ≥1% PASS（iqOver80=99.4%，iqMax=64 满容）；vec 加强门：**vecLookups=15336251（2.43×simInsts）+ objdump fmla=1056>1000 + 初始 vec freelist=4（D75 校准，见下）** 全 PASS | done |
 | rob_fill（int/fp 两版） | W1.5c | int `19eab7d0de27237e` / fp `85085fd5686d173b` | int 43.90 / 40.34；fp 40.75 / 44.25（各两次，编排者终跑） | int 7901621 / fp 8692564 | **robOver80：int 4.91%（275648/5609073）/ fp 7.09%（426601/6013631），原 ≥50% 门未达 → 编排者裁决：门重校准为事件覆盖口径，PASS**（robMax=128 到顶 + 越阈采样 27.5 万/42.7 万每跑 + commit 空转 ~49% + div 静态 192/130、动态 IntDiv=140290/FloatDiv=69120；8 轮诊断证明 ≥50% 持续占用是 gem5 v25 rename skid 平台属性——D75 同类，见下） | done（门重校准裁决） |
 | coremark | W1.1 | `000000000000cf56` | 52.62 / 52.92（s1/s2） | 10808351 | 自带 CRC 校验 PASS（seedcrc 0xe9f5，crclist 0xe714/crcmatrix 0x1fd7/crcstate 0x8e3a 全对 known_id=3；"Errors detected" **仅**来自 EEMBC 10 秒计时报告规则——SE 模拟时钟结构性不可满足，见实测记录）；密度：mispredicts/commits 0.66%、squash 15.1%、flIntLe8 10.6%（flIntMin=0 实压穿）、robOver80 1.3%（robMax=128 到顶） | done |
-| embench | W1.2 | （待实测） | （待实测） | （待实测） | 每程序自带校验退出码 | pending |
+| embench | W1.2 | crc32 `b87739d9c40d1798` / md5sum `973ff8cc9018e79f` / matmult-int `e105f98022b761ef` / wikisort `d2cf29655e3e0f06` / nbody `f39b4e8804f279c3` / minver `9792f3ee24af3023` | crc32 39.35/38.87；md5sum 40.04/40.39；matmult-int 42.83/42.73；wikisort 29.85/29.79；nbody 33.40/33.37；minver 53.14/54.04（各两次，全 ≤60s） | 8908567 / 12071108 / 6217780 / 5156577 / 3719230 / 9276668 | 6 程序各自带校验退出码 0（native==gem5==golden FINAL 逐字节一致）；密度三档：wikisort/matmult 误预测 0.61-0.87% + squash 9.7-12.1%，md5sum 中间，nbody/minver（FP）误预测 ~0.01% 循环主导；flIntMin=0 全部 6 程序 | done |
 | polybench | W1.3 | （待实测） | （待实测） | （待实测） | 全数组 array_hash | pending |
 | gap / libjpeg | W1.4 | （待实测） | （待实测） | （待实测） | 语义代理 checksum / 逐像素 hash | pending |
 
@@ -215,3 +215,92 @@
   `06e84f119c258fa7`、dep_chain int/vec `98e5e31e726e383f`/
   `b1e661a247b95774`、rob_fill int/fp `19eab7d0de27237e`/
   `85085fd5686d173b` 全部 golden 不变（native 确定性重放比对）。
+
+## embench 实测记录（W1.2，2026-09-23）
+
+- **PROVENANCE（详见 `embench/PROVENANCE.md`）**：`git clone
+  https://github.com/embench/embench-iot`，两个上游 commit：
+  HEAD `09c2ed8c3b7008c95d08b038de4a3f6dc103ed70`（I-mikan-I，2024-08-29，
+  "Remove CPU_MHZ references"，当前 master）+ pre-2.0
+  `92da124bb8da825b2937abaaed2aca9bb9e50fc9`（I-mikan-I，2024-03-08，
+  "Remove legacy build script"，浮点基准存在的最后一个 commit）。
+  上游 COPYING（GPL-3.0-or-later）原样入库，无 .git。
+- **诚实偏差（计划 6 程序中 3 个不可得，实证后替换）**：`qlsort`/`qrsolve`
+  在 embench-iot 全部 master 历史中**从未存在**（`git log --all -- src/qlsort
+  src/qrsolve` 为空；候选名单里的 `stoneman` 同样从未存在）；**Embench-IoT
+  2.0 删除了全部浮点基准**（nbody/cubic/primecount 于 1b2731f、minver/st 于
+  fc72c8d），HEAD 上唯一含 float 字段的 depthconv 实为量化 int8/int32
+  运算（float_activation_min/max 字段未使用）——HEAD 上不存在任何真浮点
+  基准。03-workloads.md 仅要求「Embench 22 个小程序，整数、浮点、乘除、
+  哈希都有，每个自带结果校验」（未指定程序名），故按计划替换规则处理：
+  qlsort→**wikisort**（排序类，WikiSort O(n log n) 稳定排序，语义最近）；
+  qrsolve→**minver**（3×3 float 矩阵求逆，线性代数语义最近）；nbody 保留
+  **nbody**（double 精度 N-body 能量核，sqrt/div 密集）。前两者中 nbody/minver
+  取自 92da124b，其余 4 程序 + support/ 全部取自 HEAD。
+- **唯一源码偏离**：每基准恰好一个 `/* gem5-fi W1.2 */` 标记的 FINAL 块
+  （verify_benchmark 成功路径打印 `FINAL=<16hex>`，值 = 其校验数据的
+  FNV-1a 64 位 hash；模式仿 coremark/core_main.c W1.1 块）+ crc_32.c/
+  nbody.c/libminver.c/matmult-int.c 四文件各 2 行 `#include <stdio.h>/<stdint.h>`
+  （同标记）。与上游 git blob 的 diff 逐行核实仅含这些块（support/ 5 文件
+  0 差异；6 基准文件差异行 18-36 行全在 hunk 内）。基准逻辑零改动；verify
+  失败仍走上游 main 的 `return !correct`（exit 1 → classify.py Crash/DUE）。
+  哈希数据：crc32=校验结果 r（上游 `%32768` 折叠，熵与上游自检同 15 位）；
+  md5sum=完整 4 字摘要 {h0..h3}（严格强于上游 XOR 折叠）；matmult=
+  ResultArray 20×20；wikisort=array1 400 元素；nbody=solar_bodies
+  5 体×8 double（字节级 FP oracle）；minver=c/d/det（3×3 float×2+det，
+  字节级 FP oracle，严格于上游 epsilon 比较）。
+- **构建**：`make -C workloads/ooo embench` → MAKE_EXIT=0 **零告警**
+  （gcc 12.3.1，`-O2 -static -Wall -Wextra` + 5 个**有记录的**上游代码质量类
+  告警抑制：-Wno-unused-variable/-Wunused-parameter/-Wno-unused-but-set-
+  variable/-Wno-maybe-uninitialized（crc32 r，规模因子编译期 ≥1 恒初始化，
+  伪阳性）/-Wno-absolute-value（beebsc.h float_eq_beebs 宏 + minver double
+  常量）；源码保持原样，抑制理由全文记录于 embench/PROVENANCE.md——新告警
+  类仍会失败构建）；`file` 6/6：ELF 64-bit ARM aarch64, statically linked。
+  规模旋钮：HEAD 代基准 `-DGLOBAL_SCALE_FACTOR`（两重循环 lsf×gsf），1.0 代
+  nbody/minver `-DCPU_MHZ`（其当代惯例）；校准终值 crc32 GSF=3 / md5sum
+  GSF=5 / matmult-int GSF=3 / wikisort GSF=5 / nbody MHZ=120 / minver
+  MHZ=20（scale-1 实测指令数外推 + 一轮实跑确认）。
+- **golden（6/6，native==gem5 s1==s2 逐字节一致，od -c 证实；config.ini
+  逐跑核实 cmd= 二进制身份 12/12，另 clean 重建后 crc32 复跑一次
+  EXIT=0/FINAL 同/37.99s）**：
+  crc32 `b87739d9c40d1798`（39.35/38.87 s，8908567 insts）、
+  md5sum `973ff8cc9018e79f`（40.04/40.39 s，12071108）、
+  matmult-int `e105f98022b761ef`（42.83/42.73 s，6217780）、
+  wikisort `d2cf29655e3e0f06`（29.85/29.79 s，5156577）、
+  nbody `f39b4e8804f279c3`（33.40/33.37 s，3719230）、
+  minver `9792f3ee24af3023`（53.14/54.04 s，9276668）。
+  全部 ≤60 s 预算（minver 最贴边，余量 ~6 s；如需更大余量可
+  `EMBENCH_MINVER_MHZ=18` 重编，FINAL 不随规模变化——已实证 scale=1 与
+  校准规模同值）。自带校验退出码 0（=上游 verify_benchmark 通过）native
+  6/6。nbody/minver 的 native==gem5 同时证明 gem5 fplib 的 sqrt/mul/div/
+  add/sub 对这两个核的全部输出位级一致（W1.5b/W1.5c 的 FMA/DIV 结论扩至
+  FSQRT）。
+- **事件密度实测**（每程序一次 `--chaos_probe` p1，read-only，p1 的 FINAL 与
+  s1/s2 相同；s1/s2/p1 全部计数逐位一致，确定性）：
+  | 程序 | mispredicts(/commits) | squash(/commits) | robOver80(采样占比) | iqOver80 | iqMax | robMax | flIntLe8 |
+  |---|---|---|---|---|---|---|---|
+  | crc32 | 848（0.0095%） | 6714（0.075%） | 4475/3726427（0.12%） | 0 | 44 | 128 | 4613 |
+  | md5sum | 22987（0.19%） | 214830（1.76%） | 435（0.01%） | 0 | 41 | 128 | 160 |
+  | matmult-int | 50346（0.61%） | 801783（9.7%） | 13727/2654161（0.52%） | 9494 | 64 满容 | 128 | 13331 |
+  | wikisort | 49144（0.87%） | 687919（12.1%） | 23119/2682852（0.86%） | 177 | 64 满容 | 128 | 21818 |
+  | nbody | 504（0.012%） | 5273（0.13%） | 1514/10156448（0.015%） | 0 | 44 | 128 | 1120 |
+  | minver | 482（0.005%） | 5451（0.055%） | 674/7949575（0.008%） | 0 | 44 | 128 | 165 |
+  整型 vs 浮点三档格局清晰：wikisort/matmult（访存+分支密集）误预测
+  0.61-0.87%、squash 9.7-12.1%；md5sum 中间（1.76%）；nbody/minver
+  （FP 循环主导）误预测 ~0.01%——北极星 Embench 50（整型）+15（浮点子集）
+  实验格的 D01/D02/D04 误预测恢复与 squash 事件供给按程序分层可用。
+  全部 6 程序 flIntMin=0（int freelist 实际压穿）；flFloatMin=192 恒满 /
+  flVecLe6=100% 为 W1.5b 已记录的平台基线（AArch64 标量 FP 走 VecRegClass
+  + D75）。
+- 回归（**全量重建 native 确定性重放**路线）：`make -C workloads/ooo clean
+  && make`（13 个目标含 embench）幂等零告警；既有 7 个 golden 全部不变
+  （smoke `45737cc9a76c0dce`、branch_mispred `06e84f119c258fa7`、
+  dep_chain int/vec `98e5e31e726e383f`/`b1e661a247b95774`、rob_fill
+  int/fp `19eab7d0de27237e`/`85085fd5686d173b`、coremark
+  `000000000000cf56`），embench 6 程序 FINAL 重放一致；重建二进制与
+  SE 验证版 md5 相同（gcc 确定性编译，`d600ff2f…`）。
+- **GOLDEN_IDS 候选（待编排者注册 runner.py）**：`embenchcrc32-golden-v1
+  b87739d9c40d1798`、`embenchmd5sum-golden-v1 973ff8cc9018e79f`、
+  `embenchmatmult-golden-v1 e105f98022b761ef`、`embenchwikisort-golden-v1
+  d2cf29655e3e0f06`、`embenchnbody-golden-v1 f39b4e8804f279c3`、
+  `embenchminver-golden-v1 9792f3ee24af3023`。

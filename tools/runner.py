@@ -94,6 +94,14 @@ GOLDEN_IDS = {
     "robfillint-golden-v1": "19eab7d0de27237e",    # W1.5c int probe kernel
     "robfillfp-golden-v1": "85085fd5686d173b",     # W1.5c fp probe kernel
     "coremark-golden-v1": "000000000000cf56",      # W1.1 EEMBC CoreMark ITERATIONS=35
+    # W1.2 Embench subset (upstream 09c2ed8c; nbody/minver from pre-2.0
+    # commit 92da124b — Embench-IoT 2.0 deleted all FP benchmarks):
+    "embenchcrc32-golden-v1": "b87739d9c40d1798",
+    "embenchmd5sum-golden-v1": "973ff8cc9018e79f",
+    "embenchmatmult-golden-v1": "e105f98022b761ef",
+    "embenchwikisort-golden-v1": "d2cf29655e3e0f06",  # replaces qlsort (never existed upstream)
+    "embenchnbody-golden-v1": "f39b4e8804f279c3",     # FP, from 92da124b
+    "embenchminver-golden-v1": "9792f3ee24af3023",    # FP, from 92da124b (replaces qrsolve)
 }
 
 # v1.1 Phase 8.1: golden ARRAY registry — for workloads whose oracle is
