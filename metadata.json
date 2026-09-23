@@ -3,7 +3,7 @@
   "checkpoint_id": "01M36G0W4XWHB8KXBDZNHAFVY5",
   "strategy": "manual-commit",
   "branch": "fi-ding",
-  "checkpoints_count": 2,
+  "checkpoints_count": 3,
   "files_touched": [
     "workloads/ooo/Makefile",
     "workloads/ooo/rob_fill/rob_fill",
@@ -25,13 +25,27 @@
       "compact_transcript": "/1/transcript.jsonl",
       "content_hash": "/1/content_hash.txt",
       "prompt": "/1/prompt.txt"
+    },
+    {
+      "metadata": "/2/metadata.json",
+      "transcript": "/2/full.jsonl",
+      "compact_transcript": "/2/transcript.jsonl",
+      "content_hash": "/2/content_hash.txt",
+      "prompt": "/2/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 139732,
+    "input_tokens": 2861029,
     "cache_creation_tokens": 0,
-    "cache_read_tokens": 1966272,
-    "output_tokens": 24801,
-    "api_call_count": 29
+    "cache_read_tokens": 30253952,
+    "output_tokens": 198914,
+    "api_call_count": 153,
+    "subagent_tokens": {
+      "input_tokens": 204538,
+      "cache_creation_tokens": 0,
+      "cache_read_tokens": 10663360,
+      "output_tokens": 19073,
+      "api_call_count": 96
+    }
   }
 }
