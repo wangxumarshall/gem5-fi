@@ -93,6 +93,10 @@ import sys
 UINT_RE = re.compile(r"^[0-9]+$")
 HEX_RE = re.compile(r"^[0-9a-fA-F]+$")
 VAL_RE = re.compile(r"^[0-9a-fA-F]{16}$")
+# class = gem5 RegClass 值；-1 = InvalidRegClass 哨兵（XZR/WZR 等零寄存器目的映射到
+# gem5 哨兵 PhysRegId，W2.1 CHAOSCommitTrace 忠实输出其 class=-1/phys=65535——
+# 2026-09-24 W2.1+W2.2 集成验收发现的真实契约缺口，钉死格式据此修订）
+CLASS_RE = re.compile(r"^(?:-1|[0-9]+)$")
 
 GZIP_MAGIC = b"\x1f\x8b"
 
@@ -155,6 +159,14 @@ def _uint(tok, what, path, lineno):
     return int(tok)
 
 
+def _cls(tok, what, path, lineno):
+    """dest class 字段：非负 RegClass 值或 -1（InvalidRegClass 哨兵=零寄存器）。"""
+    if not CLASS_RE.match(tok):
+        raise TraceError("%s: line %d: %s 字段 '%s' 不是寄存器类值"
+                         "（非负整数或 -1 哨兵）" % (path, lineno, what, tok))
+    return int(tok)
+
+
 def _pc(tok, path, lineno):
     if tok[:2] in ("0x", "0X"):
         raise TraceError("%s: line %d: pc 字段 '%s' 带 0x 前缀"
@@ -194,7 +206,7 @@ def parse_line(path, lineno, line):
     dests = []
     for i in range(ndest):
         b = 6 + 4 * i
-        dcls = _uint(cols[b], "dest[%d].class" % i, path, lineno)
+        dcls = _cls(cols[b], "dest[%d].class" % i, path, lineno)
         darch = _uint(cols[b + 1], "dest[%d].arch" % i, path, lineno)
         dphys = _uint(cols[b + 2], "dest[%d].phys" % i, path, lineno)
         dval = _val(cols[b + 3], "dest[%d].val" % i, path, lineno)
