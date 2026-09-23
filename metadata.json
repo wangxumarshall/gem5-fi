@@ -1,0 +1,31 @@
+{
+  "cli_version": "0.10.2",
+  "checkpoint_id": "01M35XAEKWB0KJGNSXQ3GGQYYR",
+  "strategy": "manual-commit",
+  "branch": "fi-ding",
+  "checkpoints_count": 1,
+  "files_touched": null,
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 2285938,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 22120128,
+    "output_tokens": 148554,
+    "api_call_count": 107,
+    "subagent_tokens": {
+      "input_tokens": 103660,
+      "cache_creation_tokens": 0,
+      "cache_read_tokens": 540416,
+      "output_tokens": 3593,
+      "api_call_count": 19
+    }
+  }
+}
