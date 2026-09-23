@@ -49,9 +49,9 @@
 
 ### Task 3: W2.3 — 两遍法编排（campaign/runner）
 
-- [ ] runner/campaign 支持 trace 重放遍：对 classify 为 SDC/Crash/Hang 的 rep 同 seed 重跑 + `--chaos_ctrace`，参照 run 名命名 trace 文件（cell/rep 可追溯）；无故障参照遍每 cell 一次。
-- [ ] 验证：玩具 campaign 端到端（1 cell × 小 n，含一次已知 SDC 定向注入）→ L2 列可回填。
-- [ ] Commit + push
+- [x] runner/campaign 支持 trace 重放遍。〔执行注 2026-09-24：runner 加 --ctrace/--ctrace-ref/--no-inject（C3-only 早期校验；L2RESULT 单行 JSON 输出含诚实 l2_error 失败路径）+ PYTHONHASHSEED=0 子进程 env（/proc 实证）+ smoke-golden-v1 注册；campaign 加 trace: 节（参照遍每 cell 一次 --no-inject --ctrace + sidecar 溯源 sha256；重放遍对 replay_for 类同 seed 重跑 + commit_diff 结果并入 results.jsonl 的 l2 块含 replay_determinism）。**实测竞态催生守卫**（并行 W2.4 重建 gem5.opt 撞出 PermissionError——非确定性假象的铁证）：参照复用 sha 校验 + 重放前二进制 sha 守卫（跨二进制 diff=垃圾则跳过记 l2_error）。**真 bug 发现并修复**：Crash rep 的截断 gzip 使 count_trace_lines 抛 EOFError 丢 L2RESULT——catch 修复 + 真实截断文件单测。〕
+- [x] 验证：三臂玩具 campaign 端到端。〔执行注：A 臂（smoke，Masked 不触发重放 + ref 幂等复用）；B 臂（replay_for 加 Masked 验证机制，3/3 determinism=match + no_divergence）；**C3 臂（branch_mispred+rat map_bitflip，真实回填）**：rep0 SDC → verdict=diverged **primary_class=data_corruption、latency_seq=210665**（首分歧 3ca26881→1eb1，两次构建的二进制上逐字段复现=确定性铁证）+ divergence_counts 全量；rep1 Crash → **诚实 l2_error**（trace 截断——见发现）。编排者亲测：py_compile + results.jsonl 的 l2 块逐字段核验。回归：无 trace campaign 1200/1200 manifests 逐字节同形。**发现（W2.1 后续）**：gem5 abort 不 flush gzip——Crash rep trace 截断（本例 2.3MB 幸存），Crash 类 L2 五分类暂得 l2_error；CHAOSCommitTrace 需周期 flush（与 W2.4 micro-snap 的 gzflush 同族修复，列入待办）。〕
+- [x] Commit + push
 
 ### Task 4: W2.4 — CHAOSMicroSnap + micro_diff.py（L1 影子快照）
 

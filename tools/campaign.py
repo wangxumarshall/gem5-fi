@@ -55,6 +55,48 @@ except ImportError:
 
 RUNNER = os.path.join(REPO, "tools", "runner.py")
 
+# W2.3 determinism (W1.3 cross-environment micro-difference lesson): every
+# runner.py child of this campaign — and through it every gem5 and
+# commit_diff grandchild — runs with PYTHONHASHSEED pinned to 0. The value is
+# FORCED (not setdefault): the campaign contract is one fixed hash seed for
+# the whole process tree, whatever the invoking shell happened to export.
+CHILD_ENV = dict(os.environ)
+CHILD_ENV["PYTHONHASHSEED"] = "0"
+
+# W2.3 ref-provenance guard: the trace two-pass only means anything when the
+# ref trace and the replay traces come from the SAME gem5.opt. A rebuild that
+# swaps the binary between the ref pass and a replay pass turns the
+# commit_diff verdict into garbage (found live 2026-09-24: a parallel W2.4
+# rebuild replaced build/ARM/gem5.opt mid-campaign). gem5_sha256() is cached
+# per (mtime_ns, size) so the ~3s hash of the 1.1GB binary is recomputed only
+# when the file actually changed.
+_G5_SHA_STATE = None  # (mtime_ns, size) -> sha256
+
+
+def gem5_sha256():
+    """sha256 of build/ARM/gem5.opt, stat-cached; '<unreadable: ...>' on IO
+    error (the caller compares strings, never crashes on a missing binary)."""
+    global _G5_SHA_STATE
+    p = os.path.join(REPO, "build/ARM/gem5.opt")
+    try:
+        st = os.stat(p)
+    except OSError as e:
+        return f"<unreadable: {e}>"
+    key = (st.st_mtime_ns, st.st_size)
+    if _G5_SHA_STATE is not None and _G5_SHA_STATE[0] == key:
+        return _G5_SHA_STATE[1]
+    import hashlib
+    h = hashlib.sha256()
+    try:
+        with open(p, "rb") as f:
+            for chunk in iter(lambda: f.read(1 << 20), b""):
+                h.update(chunk)
+    except OSError as e:
+        return f"<unreadable: {e}>"
+    sha = h.hexdigest()
+    _G5_SHA_STATE = (key, sha)
+    return sha
+
 
 # ---------------------------------------------------------------- grid expansion
 
@@ -356,6 +398,11 @@ def manifest_for_cell(campaign, cell, cell_ordinal, rep, outdir):
 # ---------------------------------------------------------------- run one rep
 
 RESULT_PREFIX = "RESULT:"
+# W2.3 trace two-pass markers printed by runner.py AFTER the RESULT line.
+# NOTE: "RESULT:" is a substring of "L2RESULT:" — the L2 branch below must
+# match (and consume) its line first, and the RESULT branch must never see it.
+L2_PREFIX = "L2RESULT:"
+CTRACE_PREFIX = "CTRACE:"
 
 def parse_runner_result(stdout):
     """Extract (classification, faults, exit_code) from runner.py's
@@ -364,11 +411,39 @@ def parse_runner_result(stdout):
     SimulatorError by the caller — honest, never a silent Masked).
 
     runner.py prefixes its prints with "[runner] ", so we search for the
-    RESULT marker anywhere in the line (not startswith)."""
+    RESULT marker anywhere in the line (not startswith).
+
+    W2.3: also captures the optional `[runner] CTRACE: file=... lines=N
+    bytes=B` evidence line and the `[runner] L2RESULT: {json}` five-class
+    commit_diff result that runner.py prints after RESULT (only on
+    --ctrace runs) — the scan therefore covers ALL lines instead of
+    breaking at the first RESULT."""
     res = {"classification": None, "faults_injected": None, "exit": None,
-           "timed_out": False, "run_id": None}
+           "timed_out": False, "run_id": None, "ctrace": None, "l2": None}
     for line in (stdout or "").splitlines():
         line = line.strip()
+        if L2_PREFIX in line:
+            # five-class commit_diff JSON (or an honest {"l2_error": ...})
+            try:
+                res["l2"] = json.loads(line.split(L2_PREFIX, 1)[1].strip())
+            except ValueError:
+                res["l2"] = {"l2_error": "unparseable L2RESULT line"}
+            continue
+        if CTRACE_PREFIX in line:
+            body = line.split(CTRACE_PREFIX, 1)[1].strip()
+            ct = {"missing": "MISSING" in body}
+            for tok in body.split():
+                if "=" in tok:
+                    k, v = tok.split("=", 1)
+                    ct[k] = v
+            for numk in ("lines", "bytes"):
+                if numk in ct:
+                    try:
+                        ct[numk] = int(ct[numk])
+                    except ValueError:
+                        pass
+            res["ctrace"] = ct
+            continue
         if RESULT_PREFIX in line:
             body = line.split(RESULT_PREFIX, 1)[1].strip()
             for tok in body.split():
@@ -390,7 +465,6 @@ def parse_runner_result(stdout):
                         res["timed_out"] = (v.lower() == "true")
                     elif k == "run_id":
                         res["run_id"] = v
-            break
     return res
 
 
@@ -432,7 +506,7 @@ def _log_bad(bad_log_path):
 
 
 def run_one_rep(manifest_path, binary, hang_timeout, keep_manifests, log_bad,
-                fs_extra=None):
+                fs_extra=None, extra_args=None):
     """Shell out to tools/runner.py for one manifest. Returns a result dict
     (classification etc.) for the results.jsonl line.
 
@@ -441,15 +515,21 @@ def run_one_rep(manifest_path, binary, hang_timeout, keep_manifests, log_bad,
     child. Plain subprocess.run(timeout=...) only kills runner.py; the gem5
     grandchild survives as an orphan (PPID=1) and burns a core per hang
     (found 2026-09-04: 80+ leaked gem5 procs after IQ hang runs).
+
+    W2.3: extra_args appends runner CLI flags AFTER fs_extra — the trace
+    two-pass passes --ctrace/--ctrace-ref/--no-inject here. Every child runs
+    under CHILD_ENV (PYTHONHASHSEED=0, W1.3 lesson).
     """
     cmd = [sys.executable, RUNNER, manifest_path, "--binary", binary]
     # §3.2 FS pipeline (Phase 5.4): forward FS runner flags (restore-
     # checkpoint etc.) — no-op for SE campaigns (fs_extra=[]).
     if fs_extra:
         cmd += list(fs_extra)
+    if extra_args:
+        cmd += list(extra_args)
     try:
         p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                             text=True, start_new_session=True)
+                             text=True, start_new_session=True, env=CHILD_ENV)
         try:
             out, err = p.communicate(timeout=hang_timeout + 30)
             r = subprocess.CompletedProcess(cmd, p.returncode, stdout=out, stderr=err)
@@ -486,6 +566,13 @@ def run_one_rep(manifest_path, binary, hang_timeout, keep_manifests, log_bad,
         "timed_out": parsed["timed_out"],
         "run_id": parsed["run_id"],
     }
+    # W2.3: trace-run evidence (CTRACE line) + five-class commit_diff result
+    # (L2RESULT line); both None on plain runs (records stay byte-identical
+    # to the legacy single-pass format).
+    if parsed.get("ctrace") is not None:
+        res["ctrace"] = parsed["ctrace"]
+    if parsed.get("l2") is not None:
+        res["l2"] = parsed["l2"]
     return res
 
 
@@ -523,7 +610,7 @@ def write_heatmap(cell_results, campaign_id, artifacts_dir):
 
 
 def write_summary(cell_results, campaign, artifacts_dir, wall_s, n_reps_done,
-                  n_cells, runs_skipped):
+                  n_cells, runs_skipped, n_l2_replayed=0):
     """Human-readable summary.md with per-cell table + honesty notes."""
     md = os.path.join(artifacts_dir, "summary.md")
     lines = []
@@ -533,6 +620,14 @@ def write_summary(cell_results, campaign, artifacts_dir, wall_s, n_reps_done,
     wl = campaign["workload"]
     lines.append(f"- workload: `{wl.get('binary')}`  golden_id: `{wl.get('golden_id')}`")
     lines.append(f"- base_seed: {campaign['base_seed']}  (rep seed = base + cell_ordinal*1000 + rep)")
+    # W2.3 trace two-pass provenance
+    tc = campaign.get("trace") or {}
+    if tc.get("enabled"):
+        lines.append(f"- trace two-pass (W2.3): ref_run=`{tc.get('ref_run','once')}` "
+                     f"replay_for=`{tc.get('replay_for',['SDC','Crash','Hang'])}` "
+                     f"replayed reps: {n_l2_replayed} (five-class commit_diff "
+                     f"result + latency in each replayed rep's `l2` block in "
+                     f"results.jsonl; ref traces at runs/<cid>/ctrace_ref_cNNNN.csv.gz)")
     if runs_skipped:
         lines.append(f"- **skipped reps**: {runs_skipped} (see log)")
     lines.append("")
@@ -553,6 +648,13 @@ def write_summary(cell_results, campaign, artifacts_dir, wall_s, n_reps_done,
         )
     lines.append("")
     lines.append("## Honesty notes\n")
+    if (campaign.get("trace") or {}).get("enabled"):
+        lines.append("- Trace replay determinism relies on gem5 same-environment "
+                     "reproducibility (W2.1: two no-injection smoke traces are "
+                     "field-identical). A replay classification differing from "
+                     "pass 1 is recorded as replay_determinism=MISMATCH in the "
+                     "rep's l2 block — that mismatch is a finding, not noise to "
+                     "be dropped. All campaign children ran with PYTHONHASHSEED=0.")
     lines.append("- This fault machine (cpu179) takes ~92s/run; formal n=384 belongs "
                  "on a healthy 2nd machine (§0.4, §3.1 S6).")
     lines.append("- `SimulatorError` counts are runs where the tool/simulator broke "
@@ -604,6 +706,41 @@ def main():
     n_per_cell = args.n_per_cell or campaign["n_per_cell"]
     replay_pct = args.replay_pct if args.replay_pct >= 0 else campaign.get("replay_pct", 5.0)
     hang_timeout = campaign.get("hang_timeout", 600)
+
+    # ---- W2.3 trace two-pass (plan Task 3): the campaign yaml's optional
+    # `trace:` block. Absent/enabled:false = the legacy single-pass behavior,
+    # byte-identical (regression contract). When enabled, after the
+    # production pass each cell gets (a) ONE no-injection reference run with
+    # --ctrace (the per-cell fault-free baseline, rep-0 manifest + --no-inject)
+    # and (b) a replay run with --ctrace + --ctrace-ref for every rep whose
+    # pass-1 classification is in replay_for — same manifest, same seed;
+    # runner.py calls tools/commit_diff.py and the five-class result is
+    # merged into that rep's results.jsonl record under "l2".
+    trace_cfg = campaign.get("trace") or {}
+    trace_enabled = bool(trace_cfg.get("enabled", False))
+    trace_replay_for = list(trace_cfg.get("replay_for", ["SDC", "Crash", "Hang"]))
+    trace_ref_mode = str(trace_cfg.get("ref_run", "once"))
+    if trace_enabled:
+        if campaign.get("config", "C0") != "C3":
+            sys.exit("[campaign] trace.enabled requires config: C3 (only "
+                     "configs/se/ooo_proxy.py defines --chaos_ctrace/"
+                     "--ctrace_file). Aborting.")
+        if trace_ref_mode != "once":
+            sys.exit(f"[campaign] trace.ref_run='{trace_ref_mode}' not "
+                     f"supported (only 'once' = one no-injection ref run per "
+                     f"cell). Aborting.")
+        bad_cls = [c for c in trace_replay_for if c not in ALL_CLASSES]
+        if bad_cls:
+            sys.exit(f"[campaign] trace.replay_for {bad_cls} not in known "
+                     f"classes {list(ALL_CLASSES)}. Aborting.")
+        if args.dry:
+            print("[campaign] trace two-pass ENABLED (ref+replay passes are "
+                  "RUN passes — skipped under --dry, which only writes "
+                  f"manifests): replay_for={trace_replay_for}")
+        else:
+            print(f"[campaign] trace two-pass ENABLED: ref_run={trace_ref_mode} "
+                  f"replay_for={trace_replay_for} "
+                  f"(PYTHONHASHSEED=0 pinned for all children)")
     # §2.2 fix: pass the binary path as RELATIVE (not absolute) — gem5's
     # process image layout / readlink emulation behaves differently with
     # absolute paths (rename injection lands at a different PC → different
@@ -676,8 +813,13 @@ def main():
     from concurrent.futures import ProcessPoolExecutor, as_completed
     results_by_cell = {i: [] for i in range(len(cells))}
     cell_of = {}  # manifest_path -> cell_ordinal (for result routing)
+    rep_of = {}   # manifest_path -> rep index (W2.3 trace replay naming)
+    rep0_manifest = {}  # cell_ordinal -> rep-0 manifest path (W2.3 ref run)
     for (ord_i, cell, rep, mpath, outdir) in work:
         cell_of[mpath] = ord_i
+        rep_of[mpath] = rep
+        if rep == 0:
+            rep0_manifest[ord_i] = mpath
 
     # The pool worker must be picklable: a closure local to main() fails with
     # "Can't pickle local object 'main.<locals>._do_rep'". The module-level
@@ -726,8 +868,159 @@ def main():
                     print(f"[campaign] {runs_done}/{total_runs} reps done ({el:.0f}s)")
 
     # write per-cell results.jsonl + aggregate counts
+    n_l2_replayed = 0  # W2.3: total reps that got a trace replay pass
     for ord_i, cell in enumerate(cells):
         cdir = os.path.join(runs_dir, f"c{ord_i:04d}")
+
+        # ---- W2.3 trace two-pass: (a) ref pass, (b) replay pass ----
+        # Runs serially in the driver (NOT in the rep pool): the ref must
+        # exist before any replay diff, and each replay re-runs the SAME
+        # manifest (same seed) — determinism relies on gem5 same-environment
+        # reproducibility (verified W2.1: two no-injection smoke traces are
+        # field-identical). A replay classification that DIFFERS from pass 1
+        # is recorded honestly in the l2 block (replay_determinism), not
+        # hidden — that mismatch is itself a finding.
+        if trace_enabled:
+            # (a) ref pass: ONE no-injection run per cell (rep-0 manifest +
+            # --no-inject), trace named ctrace_ref_cNNNN.csv.gz at the
+            # campaign root. Reuse an existing file (idempotent resume) —
+            # BUT only when its sidecar records the SAME gem5.opt sha256:
+            # a ref traced on an older binary produces garbage verdicts
+            # against run traces from the current one (found live 2026-09-24:
+            # a parallel W2.4 rebuild swapped gem5.opt mid-campaign).
+            ref_path = os.path.join(runs_dir, f"ctrace_ref_c{ord_i:04d}.csv.gz")
+            ref_side = ref_path + ".provenance.json"
+            reuse_ref = os.path.exists(ref_path)
+            if reuse_ref:
+                side = None
+                if os.path.exists(ref_side):
+                    try:
+                        with open(ref_side) as f:
+                            side = json.load(f)
+                    except (OSError, ValueError):
+                        side = None
+                if side is None:
+                    print(f"[campaign] trace ref cell {ord_i}: WARNING — "
+                          f"reusing {ref_path} with UNKNOWN binary "
+                          f"provenance (no readable sidecar)")
+                elif side.get("gem5_sha256") != gem5_sha256():
+                    print(f"[campaign] trace ref cell {ord_i}: ref traced "
+                          f"with a DIFFERENT gem5.opt (sidecar "
+                          f"{str(side.get('gem5_sha256'))[:12]}... != current "
+                          f"{gem5_sha256()[:12]}...) — REGENERATING the ref "
+                          f"(a stale-binary ref would diff garbage)")
+                    reuse_ref = False
+                else:
+                    print(f"[campaign] trace ref cell {ord_i}: reusing existing "
+                          f"{ref_path} (same gem5.opt "
+                          f"{gem5_sha256()[:12]}...)")
+            if not reuse_ref:
+                m0 = rep0_manifest.get(ord_i)
+                if m0 is None:
+                    print(f"[campaign] trace ref cell {ord_i}: WARNING — no "
+                          f"rep-0 manifest; cell has no ref trace, replay "
+                          f"diffs will record l2_error")
+                else:
+                    print(f"[campaign] trace ref pass cell {ord_i}: "
+                          f"--no-inject --ctrace -> {ref_path}")
+                    rref = run_one_rep(m0, binary, hang_timeout,
+                                       args.keep_manifests, log_bad,
+                                       extra_args=["--no-inject", "--ctrace",
+                                                   ref_path])
+                    ref_ct = rref.get("ctrace") or {}
+                    # A no-inject run classifies Inactive (faults=0 -> "0
+                    # valid injections") or Masked; anything else means the
+                    # fault-free baseline itself is broken (golden mismatch,
+                    # crash) — the l2 diffs against it would be meaningless.
+                    if rref["classification"] not in ("Inactive", "Masked"):
+                        print(f"[campaign] trace ref cell {ord_i}: WARNING — "
+                              f"no-inject ref classified "
+                              f"{rref['classification']} (expected Inactive/"
+                              f"Masked; golden/baseline suspect)")
+                    if isinstance(ref_ct.get("lines"), int) and ref_ct["lines"] > 0:
+                        print(f"[campaign] trace ref cell {ord_i}: ref trace "
+                              f"OK ({ref_ct['lines']} committed instructions, "
+                              f"{ref_ct.get('bytes')} bytes, classification="
+                              f"{rref['classification']})")
+                        # provenance sidecar: which gem5.opt traced this ref
+                        try:
+                            with open(ref_side, "w") as f:
+                                json.dump({"gem5_sha256": gem5_sha256(),
+                                           "created": time.strftime(
+                                               "%Y-%m-%dT%H:%M:%S"),
+                                           "lines": ref_ct.get("lines"),
+                                           "manifest": os.path.basename(m0)},
+                                          f)
+                        except OSError:
+                            pass  # next reuse falls to the UNKNOWN-provenance warn
+                    else:
+                        print(f"[campaign] trace ref cell {ord_i}: WARNING — "
+                              f"ref trace missing/empty ({ref_ct}); replay "
+                              f"diffs will record l2_error")
+            # (b) replay pass: every rep classified into replay_for re-runs
+            # the SAME manifest with --ctrace (run trace named per (cell,rep)
+            # in the cell dir) + --ctrace-ref (runner diffs via commit_diff
+            # and prints L2RESULT, which run_one_rep parses into res["l2"]).
+            # Binary-consistency guard: if gem5.opt changed since the ref was
+            # traced, the diff would be garbage — record an honest l2_error
+            # instead of running a meaningless replay.
+            ref_sha = None
+            if os.path.exists(ref_side):
+                try:
+                    with open(ref_side) as f:
+                        ref_sha = json.load(f).get("gem5_sha256")
+                except (OSError, ValueError):
+                    pass
+            for (mpath, res) in results_by_cell[ord_i]:
+                if res.get("classification") not in trace_replay_for:
+                    continue
+                rep = rep_of[mpath]
+                tpath = os.path.join(cdir, f"ctrace_r{rep:04d}.csv.gz")
+                if ref_sha is not None and gem5_sha256() != ref_sha:
+                    res["l2"] = {"l2_error":
+                                 "gem5.opt changed since the ref trace was "
+                                 f"recorded (ref {str(ref_sha)[:12]}... vs "
+                                 f"current {gem5_sha256()[:12]}...) — replay "
+                                 "skipped, a cross-binary diff would be "
+                                 "garbage"}
+                    with open(bad_log_path, "a") as f:
+                        f.write(f"[l2-binary-swap] {mpath}: gem5.opt changed "
+                                f"since ref; replay skipped\n")
+                    print(f"[campaign] trace replay cell {ord_i} rep {rep}: "
+                          f"SKIPPED — gem5.opt changed since the ref was "
+                          f"traced")
+                    continue
+                r2 = run_one_rep(mpath, binary, hang_timeout,
+                                 args.keep_manifests, log_bad,
+                                 extra_args=["--ctrace", tpath,
+                                             "--ctrace-ref", ref_path])
+                n_l2_replayed += 1
+                det = ("match" if r2["classification"] == res["classification"]
+                       else f"MISMATCH({res['classification']}"
+                            f"->{r2['classification']})")
+                if det != "match":
+                    with open(bad_log_path, "a") as f:
+                        f.write(f"[l2-replay-mismatch] {mpath}: "
+                                f"{res['classification']} -> "
+                                f"{r2['classification']}\n")
+                res["l2"] = {
+                    "replay_triggered_for": res["classification"],
+                    "replay_classification": r2["classification"],
+                    "replay_determinism": det,
+                    "trace_file": tpath,
+                    "ref_file": ref_path,
+                    "replay_ctrace": r2.get("ctrace"),
+                    "commit_diff": r2.get("l2"),
+                }
+                l2v = (r2.get("l2") or {}).get("verdict", "l2_error")
+                print(f"[campaign] trace replay cell {ord_i} rep {rep}: "
+                      f"{res['classification']} -> determinism={det} "
+                      f"commit_diff.verdict={l2v}")
+            n_hit = sum(1 for (_, r) in results_by_cell[ord_i]
+                        if r.get("l2") is not None)
+            print(f"[campaign] trace two-pass cell {ord_i}: {n_hit}/"
+                  f"{len(results_by_cell[ord_i])} reps replayed")
+
         jpath = os.path.join(cdir, "results.jsonl")
         counter = {c: 0 for c in ALL_CLASSES}
         with open(jpath, "w") as f:
@@ -736,6 +1029,13 @@ def main():
                        "classification": res["classification"],
                        "faults_injected": res["faults_injected"],
                        "exit": res["exit"], "timed_out": res["timed_out"]}
+                # W2.3: trace-run evidence + five-class l2 block; keys added
+                # ONLY when present so non-trace campaigns keep the legacy
+                # record shape byte-for-byte.
+                if res.get("ctrace") is not None:
+                    rec["ctrace"] = res["ctrace"]
+                if res.get("l2") is not None:
+                    rec["l2"] = res["l2"]
                 f.write(json.dumps(rec) + "\n")
                 if res["classification"] in counter:
                     counter[res["classification"]] += 1
@@ -757,7 +1057,8 @@ def main():
 
     wall = time.time() - t0
     csv = write_heatmap(cell_results, campaign["campaign_id"], artifacts_dir)
-    md = write_summary(cell_results, campaign, artifacts_dir, wall, runs_done, len(cells), 0)
+    md = write_summary(cell_results, campaign, artifacts_dir, wall, runs_done, len(cells), 0,
+                       n_l2_replayed=n_l2_replayed)
     print(f"\n[campaign] DONE — {runs_done} reps in {wall:.0f}s")
     print(f"[campaign] heatmap: {csv}")
     print(f"[campaign] summary: {md}")

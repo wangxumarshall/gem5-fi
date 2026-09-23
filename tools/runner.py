@@ -12,7 +12,7 @@ implements the plan §9.1 mutually-exclusive order.
 
 Usage: python3 tools/runner.py <manifest.yaml> <golden_stdout_hash>
 """
-import sys, os, json, subprocess, hashlib, argparse, tempfile
+import sys, os, json, subprocess, hashlib, argparse, tempfile, gzip
 
 # Shared honest classifier (plan §9.1; report issue #4 fix).
 sys.path.insert(0, os.path.dirname(os.path.realpath(__file__)))
@@ -110,6 +110,11 @@ GOLDEN_IDS = {
     "polybenchjacobi2d-golden-v1": "dc867b5f02998c1e",
     "gap-golden-v1": "2ec8c1e59f2808c5",             # W1.4a GAP semantic proxy (BFS=2/PR=2)
     "libjpeg-golden-v1": "c712f8f6fb9e21ec",         # W1.4b libjpeg-turbo NEON decode (rounds=3)
+    # W2.3 (registered for the trace two-pass toy campaign): the W1.0 smoke
+    # kernel's no-injection FINAL, byte-identical across native/gem5/2 runs
+    # (workloads/ooo/README.md W1.0 record; W2 regression golden per the W2
+    # plan Global Constraints).
+    "smoke-golden-v1": "45737cc9a76c0dce",           # W1.0 smoke kernel (C3 SE)
 }
 
 # v1.1 Phase 8.1: golden ARRAY registry — for workloads whose oracle is
@@ -142,6 +147,73 @@ def sha256_file(path):
         for chunk in iter(lambda: f.read(1<<16), b""):
             h.update(chunk)
     return h.hexdigest()
+
+
+# ------------------------- W2.3 trace two-pass helpers -------------------------
+
+def count_trace_lines(path):
+    """Count committed-instruction lines in a (gzipped by magic) commit trace.
+    Returns None on any read error — honest missing evidence, never a fake 0.
+    NOTE: a Crash rep's trace is typically TRUNCATED (gem5 aborts before the
+    gzip stream is finalized) — gzip iteration then raises EOFError, which is
+    NOT an OSError; both are caught (found live on the bm+rat Crash rep)."""
+    try:
+        with open(path, "rb") as f:
+            magic = f.read(2)
+        if magic == b"\x1f\x8b":
+            fh = gzip.open(path, "rt", encoding="utf-8", errors="replace")
+        else:
+            fh = open(path, "rt", encoding="utf-8", errors="replace")
+        try:
+            return sum(1 for _ in fh)
+        finally:
+            fh.close()
+    except (OSError, EOFError):
+        return None
+
+
+def run_commit_diff(ref_path, run_path):
+    """W2.3: diff the run trace against the no-injection ref via
+    tools/commit_diff.py (W2.2) and return its five-class JSON dict
+    (primary_class / latency_seq / verdict / divergence_counts / ...).
+
+    On ANY failure returns {'l2_error': ...} — never a fabricated verdict:
+    the caller merges this dict verbatim into the results.jsonl l2 block, so
+    an honest error string is the correct outcome, not a fake no_divergence.
+    """
+    if not os.path.exists(run_path):
+        return {"l2_error": f"run trace missing: {run_path}"}
+    if not os.path.exists(ref_path):
+        return {"l2_error": f"ref trace missing: {ref_path}"}
+    cd = os.path.join(REPO, "tools", "commit_diff.py")
+    tmpd = tempfile.mkdtemp(prefix="l2diff-")
+    jpath = os.path.join(tmpd, "l2.json")
+    env = dict(os.environ)
+    env.setdefault("PYTHONHASHSEED", "0")
+    try:
+        r = subprocess.run([sys.executable, cd, "--ref", ref_path,
+                            "--run", run_path, "--json", jpath],
+                           capture_output=True, text=True, timeout=600,
+                           env=env)
+    except subprocess.TimeoutExpired:
+        return {"l2_error": "commit_diff exceeded 600s"}
+    if r.returncode != 0 or not os.path.exists(jpath):
+        return {"l2_error": f"commit_diff exit={r.returncode}",
+                "commit_diff_stderr": (r.stderr or "")[-500:]}
+    try:
+        with open(jpath) as f:
+            return json.load(f)
+    except (OSError, ValueError) as e:
+        return {"l2_error": f"commit_diff json unreadable: {e}"}
+    finally:
+        try:
+            os.unlink(jpath)
+        except OSError:
+            pass
+        try:
+            os.rmdir(tmpd)
+        except OSError:
+            pass
 
 def main():
     ap = argparse.ArgumentParser()
@@ -183,6 +255,24 @@ def main():
                          "boots Atomic; restore may switch)")
     ap.add_argument("--restore-checkpoint", default=None,
                     help="checkpoint dir to restore from (Phase 5.2 pipeline)")
+    # ---- W2.3 trace two-pass (plan Task 3): L2 commit-trace replay pass ----
+    ap.add_argument("--ctrace", default=None, metavar="PATH",
+                    help="W2.3: enable the L2 commit trace — passes "
+                         "--chaos_ctrace --ctrace_file PATH to the config "
+                         "(C3/ooo_proxy.py only; the path is made absolute so "
+                         "the trace lands exactly here).")
+    ap.add_argument("--ctrace-ref", default=None, metavar="REF.csv.gz",
+                    help="W2.3: after the run, diff the produced trace "
+                         "against this no-injection reference via "
+                         "tools/commit_diff.py and print the five-class "
+                         "result as an '[runner] L2RESULT: {json}' line "
+                         "(requires --ctrace).")
+    ap.add_argument("--no-inject", action="store_true",
+                    help="W2.3: no-injection REFERENCE run — run the same "
+                         "manifest/workload/seed with every injector flag "
+                         "omitted (the per-cell fault-free trace baseline; "
+                         "the manifest's fault block is validated but NOT "
+                         "mapped to any --chaos_* flag).")
     args = ap.parse_args()
 
     with open(args.manifest) as f:
@@ -197,6 +287,17 @@ def main():
                  f"{list(CONFIG_FAMILY)}. Aborting.")
     cfg_path = CONFIG_FAMILY[cfg_family]
     print(f"[runner] config_family: {cfg_family} -> {os.path.basename(cfg_path)}")
+
+    # W2.3 trace two-pass: validate the trace flag surface EARLY (before any
+    # gem5 run) so a mis-scoped campaign fails loudly at the runner, not
+    # silently inside gem5's argparse.
+    if args.ctrace and cfg_family != "C3":
+        sys.exit(f"[runner] --ctrace requires --config C3 (only "
+                 f"configs/se/ooo_proxy.py defines --chaos_ctrace/"
+                 f"--ctrace_file; config_family={cfg_family}). Aborting.")
+    if args.ctrace_ref and not args.ctrace:
+        sys.exit("[runner] --ctrace-ref requires --ctrace (the five-class "
+                 "diff compares the trace THIS run produces). Aborting.")
 
     # platform.config_params (optional dict): microarch knob overrides passed
     # through to the config script (Phase 3 H2 window sweep — ROB/PhysInt
@@ -407,10 +508,17 @@ def main():
     # (different param surface than arm_chaos.py), and neither do the FS
     # configs (arm_chaos_fs.py — SE-only knobs). Pass them only on the SE
     # arm_chaos.py-family configs.
-    if cfg_family not in ("C0-CACHE", "C0-FS", "C2-FS"):
+    if not args.no_inject and cfg_family not in ("C0-CACHE", "C0-FS", "C2-FS"):
         cmd += ["--fault_mask", fault_mask, "--bits_to_change", bits_to_change]
+    # W2.3 --no-inject: no-injection REFERENCE run — the manifest's fault
+    # block was validated above but is intentionally NOT mapped to any
+    # --chaos_* flag (same workload, same seed, zero injectors). This is the
+    # per-cell fault-free baseline the trace two-pass diffs against; anything
+    # below this branch is the injection mapping and is skipped whole.
+    if args.no_inject:
+        print("[runner] NO-INJECT reference run: injector flags omitted")
     # target component + layer -> the right injector + index knob
-    if comp == "gpr":
+    elif comp == "gpr":
         cmd += ["--chaos_reg"]
         if idx is not None:
             # Report #5: manifest target.index MUST take effect. CHAOSReg now
@@ -776,15 +884,30 @@ def main():
         for k, v in cfg_params.items():
             cmd += [f"--{k}", str(v)]
         print(f"[runner] config_params: {cfg_params}")
+    # W2.3 L2 commit trace: C3-only (validated above). An ABSOLUTE path pins
+    # the trace to this exact location regardless of the config's --outdir
+    # handling (ooo_proxy resolves a relative --ctrace_file against its
+    # --outdir, which is the runner's private man-* tempdir).
+    if args.ctrace:
+        ctrace_path = os.path.abspath(args.ctrace)
+        cmd += ["--chaos_ctrace", "--ctrace_file", ctrace_path]
+        note = f" (diff vs ref {os.path.abspath(args.ctrace_ref)})" if args.ctrace_ref else ""
+        print(f"[runner] ctrace: {ctrace_path}{note}")
     print("[runner] running:", " ".join(cmd[:4]), "...")
     # Hang timeout (plan §13.2): a normal sim completes in well under the
     # wall budget; a Hang = no completion within this. Default 600s; the
     # manifest may specify limits.max_ticks but we bound on wall time here.
     HANG_TIMEOUT = 600
     timed_out = False
+    # W2.3 determinism (W1.3 cross-environment micro-difference lesson): pin
+    # PYTHONHASHSEED for the gem5 child. setdefault — an explicitly inherited
+    # value (e.g. campaign.py's pinned 0) wins; standalone invocations get a
+    # fixed 0 instead of a per-process random seed.
+    child_env = dict(os.environ)
+    child_env.setdefault("PYTHONHASHSEED", "0")
     try:
         r = subprocess.run(cmd, capture_output=True, text=True,
-                           timeout=HANG_TIMEOUT)
+                           timeout=HANG_TIMEOUT, env=child_env)
     except subprocess.TimeoutExpired as e:
         timed_out = True
         # Build a pseudo-result from whatever was captured. e.stdout/stderr may
@@ -863,6 +986,27 @@ def main():
           f"faults_injected={faults} exit={r.returncode} "
           f"timed_out={timed_out} oracle={oracle_kind}")
     print(f"[runner]   reason: {reason}")
+    # ---- W2.3: L2 commit-trace evidence + five-class merge (commit_diff) ----
+    # CTRACE prints where the trace landed and how many committed instructions
+    # it holds (parsed by campaign.py's parse_runner_result). L2RESULT carries
+    # the commit_diff five-class JSON (or an honest l2_error dict) printed as
+    # ONE line so the campaign can merge it into the rep's results.jsonl l2.
+    if args.ctrace:
+        ctrace_path = os.path.abspath(args.ctrace)
+        if os.path.exists(ctrace_path):
+            nbytes = os.path.getsize(ctrace_path)
+            nlines = count_trace_lines(ctrace_path)
+            # None = unreadable (typically a truncated trace from a Crash
+            # rep: gem5 aborts before the gzip stream is finalized)
+            print(f"[runner] CTRACE: file={ctrace_path} "
+                  f"lines={nlines if nlines is not None else 'unreadable'} "
+                  f"bytes={nbytes}")
+        else:
+            print(f"[runner] CTRACE: file={ctrace_path} MISSING")
+        if args.ctrace_ref:
+            l2 = run_commit_diff(os.path.abspath(args.ctrace_ref),
+                                 ctrace_path)
+            print("[runner] L2RESULT: " + json.dumps(l2, ensure_ascii=False))
     return 0
 
 if __name__ == "__main__":
