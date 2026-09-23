@@ -900,3 +900,152 @@ verdict=DIVERGENCE
 里程碑与全部运行产物在 `/tmp/ooo_w24_progress.txt` 与 `/tmp/w24_runs/`（R1f–R6g、micro_diff JSON）。计划文件 Task 4 复选框未动（编排者验收后勾选）。</result>
 <usage><subagent_tokens>0</subagent_tokens><tool_uses>131</tool_uses><duration_ms>3580615</duration_ms></usage>
 </task-notification>
+
+---
+
+<task-notification>
+<task-id>a15762c3b3df45e33</task-id>
+<tool-use-id>call_3b77594b3cc34244bc2d5e31</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi/801d1500-1949-47d1-8f2e-95e2ab568418/tasks/a15762c3b3df45e33.output</output-file>
+<status>completed</status>
+<summary>Agent "实现 W2.3 两遍法编排" came to rest</summary>
+<note>A task-notification fires each time this agent comes to rest with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>W2.3 全部完成。最终报告如下。
+
+---
+
+# W2.3 两遍法编排（campaign/runner trace 重放遍）— 完成报告
+
+## 1. 文件清单
+
+| 文件 | 变更 |
+|---|---|
+| `/home/sdc/gem5-fi/tools/runner.py` | 修改（+152/-11 行）：trace 重放遍的 runner 侧 |
+| `/home/sdc/gem5-fi/tools/campaign.py` | 修改（+315/-11 行）：两遍法编排 + 守卫 |
+
+**未触碰**任何 gem5 源码/configs（git status 中 `CHAOS/gem5/src/**`、`configs/se/ooo_proxy.py`、`tools/micro_diff.py` 的改动全部来自并行 W2.4 代理）。**未 commit/push**（按纪律留给编排者）。测试 yaml 在 `/tmp/w23_toy_smoke_prf.yaml`、`/tmp/w23_toy_smoke_prf_mb.yaml`、`/tmp/w23_toy_bm_rat.yaml`。
+
+## 2. 变更摘要
+
+**runner.py**
+- `--ctrace &lt;path&gt;`：透传 `--chaos_ctrace --ctrace_file &lt;abspath&gt;`（绝对路径钉死落点）；早期校验 C3-only（其他 family 明确拒绝），`--ctrace-ref` 必须伴随 `--ctrace`。
+- `--ctrace-ref &lt;ref.gz&gt;`：跑完 gem5 后调用 `tools/commit_diff.py --ref --run --json`，五分类结果（`verdict/primary_class/latency_seq/divergence_counts/first_divergence/aux`）以单行 `[runner] L2RESULT: {json}` 打印（含诚实 `{"l2_error":...}` 失败路径，绝不伪造判定）。
+- `--no-inject`：无注入参照遍——manifest 故障块照常校验但不映射任何 `--chaos_*` 旗标（同 workload 同 seed 零注入器）。
+- 跑后打印 `[runner] CTRACE: file=... lines=N bytes=B`（MISSING/unreadable 也有明确形态）。
+- gem5 子进程 env `PYTHONHASHSEED` setdefault 0（W1.3 教训）；`GOLDEN_IDS` 注册 `smoke-golden-v1: 45737cc9a76c0dce`（W1.0 记录值）。
+- 辅助函数 `count_trace_lines`（gzip magic 识别，`(OSError, EOFError)` 都捕获）、`run_commit_diff`（失败→`l2_error`）。
+
+**campaign.py**
+- campaign yaml 新节 `trace: {enabled, replay_for: [SDC,Crash,Hang], ref_run: once}`；早期校验（C3-only、replay_for 合法类、ref_run 仅 once）；jsonschema 的 campaign schema 无 `additionalProperties:false`，新键兼容。
+- 第一遍（量产遍）不变；**参照遍**：每 cell 一次 rep-0 manifest + `--no-inject --ctrace` → `runs/&lt;cid&gt;/ctrace_ref_cNNNN.csv.gz` + 溯源 sidecar（`.provenance.json` 记 gem5 sha256）；**重放遍**：classify ∈ replay_for 的 rep 同 manifest 同 seed + `--ctrace runs/&lt;cid&gt;/cNNNN/ctrace_rRRRR.csv.gz --ctrace-ref &lt;该 cell ref&gt;`，L2RESULT 解析并入 results.jsonl 的 `l2` 块（含 `replay_determinism`，MISMATCH 如实记录并写 bad_runs.log）。
+- `CHILD_ENV`：所有 runner 子进程（及其 gem5/commit_diff 后代）强制 `PYTHONHASHSEED=0`。
+- **参照溯源守卫**（由实测竞态催生，非镀金）：ref 复用时 sidecar sha 不符→警告并重建；每次重放前 gem5.opt sha 与 sidecar 不符→跳过并记 `l2_error`（跨二进制 diff=垃圾）；`gem5_sha256()` 按 (mtime_ns,size) 缓存。
+- results.jsonl 记录仅在 trace 跑时新增 `l2`/`ctrace` 键——**无 trace campaign 的记录逐字节保持旧格式**；summary.md 增 trace 溯源行 + 诚实性注记。
+
+## 3. 验证输出（真机，逐字摘录）
+
+**a. py_compile（改后终态复验）**
+```
+FINAL_PY_COMPILE_OK
+```
+（过程中每次编辑后均 `PY_COMPILE_OK`，EXIT=0 无管道直测）
+
+**单元测试**（合成 stdout 含 L2RESULT/CTRACE/子串陷阱 "RESULT:"⊂"L2RESULT:"、CHILD_ENV、count_trace_lines、run_commit_diff 错误路径）：
+```
+parse_runner_result + CHILD_ENV: ALL ASSERTS PASS
+runner helpers (count_trace_lines/run_commit_diff error paths): ALL ASSERTS PASS
+count_trace_lines(truncated gz from Crash rep) -&gt; None: PASS (no EOFError crash)
+count_trace_lines(healthy smoke ref) -&gt; 309387: PASS
+```
+
+**b. 玩具 campaign 端到端**（三臂，推荐注入 `--chaos_phys --phys_mode arch_frontend --phys_target_arch 3 --fault_mask 0x1 --first_clock 200000` 在 smoke 上如预告全 Masked，故按任务许可**临时把 Masked 加入 replay_for 跑了 B 臂验证重放机制本身**，另跑 A 臂验证「Masked 不触发」路径，并用任务给的备选 branch_mispred+rename 拿到真实非 Masked 样本）：
+
+- **A 臂（smoke，replay_for=[SDC,Crash,Hang]，n=3）**：
+```
+[campaign] trace ref pass cell 0: --no-inject --ctrace -&gt; /home/sdc/gem5-fi/runs/w23-toy-smoke-prf/ctrace_ref_c0000.csv.gz
+[campaign] trace ref cell 0: ref trace OK (309387 committed instructions, 5128836 bytes, classification=Inactive)
+[campaign] trace two-pass cell 0: 0/3 reps replayed
+[campaign] DONE — 3 reps in 15s
+```
+（重跑验证 ref 幂等复用：`[campaign] trace ref cell 0: reusing existing ...`；§1.5 复查不 frozen）
+- **B 臂（smoke，replay_for 加 Masked）**：
+```
+[campaign] trace replay cell 0 rep 0: Masked -&gt; determinism=match commit_diff.verdict=no_divergence
+[campaign] trace replay cell 0 rep 1: Masked -&gt; determinism=match commit_diff.verdict=no_divergence
+[campaign] trace replay cell 0 rep 2: Masked -&gt; determinism=match commit_diff.verdict=no_divergence
+[campaign] trace two-pass cell 0: 3/3 reps replayed
+[campaign] DONE — 3 reps in 49s
+```
+- **C3 臂（branch_mispred + rat map_bitflip bit0@200000，replay_for=[SDC,Crash,Hang]，最终干净产物）**：
+```
+[campaign] trace ref cell 0: ref trace OK (8612678 committed instructions, 97858683 bytes, classification=Inactive)
+[campaign] trace replay cell 0 rep 0: SDC -&gt; determinism=match commit_diff.verdict=diverged
+[campaign] trace replay cell 0 rep 1: Crash -&gt; determinism=match commit_diff.verdict=l2_error
+[campaign] trace two-pass cell 0: 2/2 reps replayed
+[campaign] DONE — 2 reps in 484s
+```
+（C1 探针：`classification=SDC ... reason: completed exit=0, checksum cbe884fe24e18fc9 != golden 06e84f119c258fa7 — silent data corruption`）
+
+**c. 产物断言**
+```
+runs/w23-toy-smoke-prf/ctrace_ref_c0000.csv.gz : EXISTS, 309387 lines, 5128836 bytes
+runs/w23-toy-smoke-prf-mb/ctrace_ref_c0000.csv.gz : EXISTS, 309387 lines, 5128836 bytes
+runs/w23-toy-smoke-prf-mb/c0000/ctrace_r0000.csv.gz : 309387 lines   (r0001/r0002 同)
+runs/w23-toy-bm-rat/ctrace_ref_c0000.csv.gz : 97858683 bytes (8612678 条)
+runs/w23-toy-bm-rat/c0000/ctrace_r0000.csv.gz : 97616294 bytes (8613029 条)
+sidecar: {"gem5_sha256": "290ca3eb150920d8...", "created": "2026-09-24T01:16:30", "lines": 8612678, ...}
+```
+**PYTHONHASHSEED 生效证据**（campaign 运行中抓真实 gem5 子进程）：
+```
+found gem5.opt pid=261721 at iter 1 (00:44:11)
+--- /proc/261721/environ PYTHONHASHSEED:
+PYTHONHASHSEED=0
+--- /proc/261721/cmdline (first 5 tokens):
+/home/sdc/gem5-fi/build/ARM/gem5.opt --quiet -d /tmp/man-16zww0ec /home/sdc/gem5-fi/configs/se/ooo_proxy.py
+```
+
+**d. 回归（无 trace: 节路径不变）**：`git show HEAD:tools/campaign.py` 参照副本 vs 当前版本，对同一无 trace yaml（12 cells × 100 reps）各 `--dry` 展开：
+```
+REGRESSION_MANIFESTS: 1200/1200 byte-identical (after campaign-id normalization)
+```
+加上：A 臂 results.jsonl 与旧格式逐字节同形（无 l2/ctrace 键）、parse_runner_result 对 legacy 输出返回 ctrace/l2=None（单测覆盖）。唯一有意行为差：所有子进程 `PYTHONHASHSEED=0`（任务指定的 W1.3 修复）。
+
+## 4. l2 JSON 样本
+
+**SDC rep（真实五分类回填，C3 rep0）**：
+```json
+"l2": {"replay_triggered_for": "SDC", "replay_classification": "SDC", "replay_determinism": "match",
+  "trace_file": ".../runs/w23-toy-bm-rat/c0000/ctrace_r0000.csv.gz",
+  "ref_file": ".../runs/w23-toy-bm-rat/ctrace_ref_c0000.csv.gz",
+  "replay_ctrace": {"missing": false, "lines": 8613029, "bytes": 97616294},
+  "commit_diff": {"verdict": "diverged", "primary_class": "data_corruption", "primary_class_zh": "⑤数据损坏",
+    "latency_seq": 210665, "ref_instructions": 8612678, "run_instructions": 8613029, "aligned_pairs": 8612678,
+    "first_divergence": {"seq": 210665, "class": "data_corruption", "level": "dest[0].val",
+      "detail": "dest[0] val: ref=000000003ca26881 run=0000000000001eb1",
+      "ref_line": "210665,0,77005775,4006e8,add,1,0,4,13,000000003ca26881",
+      "run_line": "210665,0,77005775,4006e8,add,1,0,4,13,0000000000001eb1"},
+    "divergence_counts": {"timing_error": 0, "instruction_flow_change": 8257869, "instruction_substitution": 0,
+      "operand_forced_switch": 0, "data_corruption": 74948},
+    "total_divergence_points": 8332817,
+    "aux": {"phys_mismatch": 39253, "tid_mismatch": 0, "tick_compared_pairs": 280212, "max_tick_drift": 1844150, ...}}}
+```
+**Crash rep（诚实 l2_error，C3 rep1）**：
+```json
+"l2": {"replay_triggered_for": "Crash", "replay_classification": "Crash", "replay_determinism": "match",
+  "replay_ctrace": {"missing": false, "lines": "unreadable", "bytes": 2342912},
+  "commit_diff": {"l2_error": "commit_diff exit=1",
+    "commit_diff_stderr": "commit_diff: ERROR: .../ctrace_r0001.csv.gz: line 209623 附近读取失败: Compressed file ended before the end-of-stream marker was reached\n"}}
+```
+
+## 5. 偏差与诚实说明
+
+1. **外部竞态（非我代码问题，已实证+已加固）**：C 臂首跑（00:46-00:54）期间并行 W2.4 代理再次重建 gem5.opt，rep1 重放与 §1.5 复查撞上 `PermissionError: [Errno 13] Permission denied: '.../gem5.opt'`（bad_runs.log 两条 traceback 为铁证）→ 产生 `MISMATCH(Crash-&gt;SimulatorError)` 与 frozen=yes。**这不是 gem5 非确定性**。现场保留于 `runs|artifacts/w23-toy-bm-rat.race1/`。由此新增了参照溯源 sidecar + 二进制交换守卫（见变更摘要）。
+2. **真 bug 发现并修复**：`count_trace_lines` 原只 catch `OSError`；Crash rep 的 trace 是 abort 前部分 flush 的截断 gzip，读它抛 `EOFError` → runner 在 RESULT 与 CTRACE 之间崩溃、丢 L2RESULT（C2 rep1 的 `replay_ctrace/commit_diff` 双 null）。修复（catch EOFError + `lines=unreadable`）已用真实截断文件单测验证；C2 现场保留于 `.eofbug`。
+3. **Crash rep 的 trace 截断是 W2.3 管线的真实发现**：gem5 abort 不 flush gzip 流（本例 2.3MB/约 20.96 万条幸存），Crash 类 rep 的 L2 五分类目前只能得 `l2_error`；如需 Crash rep 的完整 trace，CHAOSCommitTrace 需周期性 flush（gem5 侧改动，属后续工作，未越权处理）。
+4. **确定性结论（正面）**：所有重放遍 determinism 全 match（smoke 3/3、bm-rat 2/2）；rep0 的首分歧点 seq=210665 在两次 W2.4 二进制（00:39:57 与 01:01:39 构建）上逐字段复现（同为 `3ca26881→1eb1`）。
+5. 无注入参照遍分类为 **Inactive**（faults=0 路径）而非 Masked——campaign 的预期警告按此修正（Inactive/Masked 皆正常）。
+6. **二进制身份**：smoke A/B 臂及探针跑在 W2.4 WIP#1 二进制（00:39:57 构建，现已不存在，产物自洽）；C3 跑在 W2.4 WIP#2（sha256 `290ca3eb...`，sidecar 在案）。W2.4 的 commit.cc/rename_map.hh 改动包含在这些二进制中（其纯读证明属 W2.4 职责）。
+7. 遗留产物（供编排者裁量，runs/ 已 gitignore，artifacts/ 未忽略）：`artifacts/w23-toy-smoke-prf{,-mb}/`、`artifacts/w23-toy-bm-rat{,.race1,.eofbug}/`（heatmap.csv+summary.md）及对应 `runs/w23-toy-*`（含全部 trace，bm 系列每个 ~98MB）。
+8. 里程碑全程记录于 `/tmp/ooo_w23_progress.txt`。</result>
+<usage><subagent_tokens>0</subagent_tokens><tool_uses>93</tool_uses><duration_ms>4913797</duration_ms></usage>
+</task-notification>
