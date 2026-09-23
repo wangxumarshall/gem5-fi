@@ -3,7 +3,7 @@
   "checkpoint_id": "01M36BB7RGBMBJH8SSS3NZSPW7",
   "strategy": "manual-commit",
   "branch": "fi-ding",
-  "checkpoints_count": 2,
+  "checkpoints_count": 3,
   "files_touched": [
     "CLAUDE.md"
   ],
@@ -21,14 +21,21 @@
       "compact_transcript": "/1/transcript.jsonl",
       "content_hash": "/1/content_hash.txt",
       "prompt": "/1/prompt.txt"
+    },
+    {
+      "metadata": "/2/metadata.json",
+      "transcript": "/2/full.jsonl",
+      "compact_transcript": "/2/transcript.jsonl",
+      "content_hash": "/2/content_hash.txt",
+      "prompt": "/2/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 315970,
+    "input_tokens": 338368,
     "cache_creation_tokens": 0,
-    "cache_read_tokens": 3122496,
-    "output_tokens": 50176,
-    "api_call_count": 47,
+    "cache_read_tokens": 3217536,
+    "output_tokens": 51612,
+    "api_call_count": 50,
     "subagent_tokens": {
       "input_tokens": 154492,
       "cache_creation_tokens": 0,
