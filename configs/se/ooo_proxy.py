@@ -608,7 +608,13 @@ if args.chaos_probe:
     board.chaos_probe = probe
 
 if args.maxinsts:
-    cpu0.max_insts = args.maxinsts
+    # W1.5b followup fix: BaseCPU's real param is max_insts_any_thread
+    # (base.cc:334 -> scheduleInstStopAnyThread); the inherited
+    # `cpu0.max_insts` raised AttributeError on ArmO3CPU (no such param,
+    # discovered sizing W1.5b). Works for every cpu type incl. O3.
+    # NOTE: arm_chaos.py / kp920_proxy.py carry the same broken knob on the
+    # KP920 track — deliberately NOT touched here (track isolation).
+    cpu0.max_insts_any_thread = args.maxinsts
 
 simulator = Simulator(board=board, full_system=False)
 simulator.run()
