@@ -3,7 +3,7 @@
   "checkpoint_id": "01M36G0W4XWHB8KXBDZNHAFVY5",
   "strategy": "manual-commit",
   "branch": "fi-ding",
-  "checkpoints_count": 3,
+  "checkpoints_count": 4,
   "files_touched": [
     "workloads/ooo/Makefile",
     "workloads/ooo/rob_fill/rob_fill",
@@ -32,6 +32,13 @@
       "compact_transcript": "/2/transcript.jsonl",
       "content_hash": "/2/content_hash.txt",
       "prompt": "/2/prompt.txt"
+    },
+    {
+      "metadata": "/3/metadata.json",
+      "transcript": "/3/full.jsonl",
+      "compact_transcript": "/3/transcript.jsonl",
+      "content_hash": "/3/content_hash.txt",
+      "prompt": "/3/prompt.txt"
     }
   ],
   "token_usage": {

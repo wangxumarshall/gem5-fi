@@ -1,0 +1,40 @@
+{
+  "cli_version": "0.10.2",
+  "checkpoint_id": "01M36G0W4XWHB8KXBDZNHAFVY5",
+  "session_id": "ad1a367e-1795-4233-adf9-de4cb114ac37",
+  "strategy": "manual-commit",
+  "created_at": "2026-09-23T06:42:39.993742904Z",
+  "branch": "fi-ding",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "workloads/ooo/Makefile"
+  ],
+  "agent": "Claude Code",
+  "model": "glm-5.3",
+  "turn_id": "c22db2bdcc8f",
+  "checkpoint_transcript_start": 28,
+  "transcript_lines_at_start": 28,
+  "compact_transcript_start": 4,
+  "token_usage": {
+    "input_tokens": 0,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 0,
+    "api_call_count": 0
+  },
+  "session_metrics": {
+    "turn_count": 1
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-09-23T06:42:39.965258354Z",
+    "agent_lines": 11,
+    "agent_removed": 4,
+    "human_added": 676,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 687,
+    "total_lines_changed": 695,
+    "agent_percentage": 2.158273381294964,
+    "metric_version": 2
+  }
+}

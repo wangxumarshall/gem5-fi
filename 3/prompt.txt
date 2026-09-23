@@ -1,0 +1,1 @@
+Use the LSP tool to run a goToDefinition query: in file CHAOS/gem5/src/cpu/o3/CHAOSPhysReg/CHAOSPhysReg.cc, line 422 contains a call to setStuckTarget — find where setStuckTarget is defined. Report the exact file path and line number returned by the LSP tool (quote the tool output). If the LSP tool is not available to you, state that explicitly.
