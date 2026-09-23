@@ -815,3 +815,88 @@ gz 体积：smoke 5.1MB（309K 行）、bm 97.9MB（8.6M 行，落点在 spike �
 6. **未 commit/push**（按任务纪律，提交归编排者）；里程碑全程追加于 `/tmp/ooo_w21_progress.txt`。</result>
 <usage><subagent_tokens>0</subagent_tokens><tool_uses>80</tool_uses><duration_ms>2689006</duration_ms></usage>
 </task-notification>
+
+---
+
+<task-notification>
+<task-id>ab7d5ef8c14b2d19d</task-id>
+<tool-use-id>call_778ee2428f304087b124cfbf</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi/801d1500-1949-47d1-8f2e-95e2ab568418/tasks/ab7d5ef8c14b2d19d.output</output-file>
+<status>completed</status>
+<summary>Agent "实现 W2.4 CHAOSMicroSnap" came to rest</summary>
+<note>A task-notification fires each time this agent comes to rest with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>W2.4 全部完成。最终报告如下。
+
+# W2.4 CHAOSMicroSnap + micro_diff.py 完成报告
+
+## 文件清单
+
+**新建**
+- `/home/sdc/gem5-fi/CHAOS/gem5/src/cpu/o3/CHAOSMicroSnap/CHAOSMicroSnap.hh` — SimObject 头：契约 + 钉死 CSV 格式 + 崩溃持久化设计说明
+- `/home/sdc/gem5-fi/CHAOS/gem5/src/cpu/o3/CHAOSMicroSnap/CHAOSMicroSnap.cc` — 实现：占用读（CHAOSProbe.cc:92-125 读法）、ROB head/tail seqNum、front RAT 三类 FNV-1a-64 hash + 全表、每快照 `gzflush(Z_SYNC_FLUSH)`
+- `/home/sdc/gem5-fi/CHAOS/gem5/src/cpu/o3/CHAOSMicroSnap/CHAOSMicroSnap.py` / `SConscript` — 四件套
+- `/home/sdc/gem5-fi/tools/micro_diff.py` — stdlib-only 比对器 + 11 项自测（`--self-test`）
+
+**修改（最小）**
+- `rename_map.hh` — :204 public 块加 `map(RegClassType)` const/non-const accessor（/* gem5-fi W2.4 */，9 行）
+- `commit.hh` — +13（前置声明/成员/setter，照抄 W2.1 模式）
+- `commit.cc` — +13（W2.1 块后第二钩子 `chaosMicroSnap-&gt;maybeSample(tid, head_inst.get())` + include）
+- `configs/se/ooo_proxy.py` — +29（`--chaos_msnap/--msnap_every/--msnap_file` + 自己的挂载块）
+
+未碰 tools/runner.py、tools/campaign.py（git 确认其为并行 W2.3 代理的改动）。未 commit/push。
+
+## 构建输出尾部（第 4 次构建=最终，逐字）
+
+```
+ [     CXX] src/cpu/o3/CHAOSMicroSnap/CHAOSMicroSnap.cc -&gt; ARM/cpu/o3/CHAOSMicroSnap/CHAOSMicroSnap.o
+ [     CXX] src/cpu/o3/commit.cc -&gt; ARM/cpu/o3/commit.o
+ [     CXX] src/base/date.cc -&gt; ARM/base/date.o
+ [    LINK]  -&gt; ARM/gem5.opt
+...
+BUILD_EXIT=0
+```
+零新告警（既有 capstone/png/HDF5/systemc configure 告警在未触碰代码；CHAOSPhysReg/CHAOSIQ 既有告警仅在首轮全量日志）。第 1 次构建抓出 2 个真实错误（commit.cc 缺全定义 include；`DynInstPtr` 缺 `o3::` 命名空间）后修复。
+
+## 验证输出（逐字）
+
+**b. 纯读硬门（最终二进制）**
+```
+R1F_EXIT=0   R2F_EXIT=0
+/tmp/w24_runs/R1f.out:FINAL=45737cc9a76c0dce
+/tmp/w24_runs/R2f.out:FINAL=45737cc9a76c0dce
+simInsts  308057 (both)
+stdout diff = 仅 3 行 gem5 banner（时间/pid/命令行）；STDOUT_DIFF_EXIT=1
+GZ_STREAM_COMPLETE
+R4F_EXIT=0   R5F_EXIT=0
+FINAL=06e84f119c258fa7 (both)   simInsts 8611484 (both)
+```
+减速实测 bm 57.65/55.58 = **1.037×**（含每快照 gzflush）；体积 smoke 18KB / bm 1.05MB gz（每 1000 commit）。
+
+**c. 快照自洽**：smoke 309 行 == ceil(308057/1000)=309；bm 8612 行 == floor(8612678/1000)==ceil(8611484/1000)；`SELF_CONSISTENCY_PASS`（snap_seq=0..N-1、commit_seq/tick 严格单调、commit_seq 均为 snapEvery 倍数）。
+
+**d. micro_diff**：`self-test: 11/11 checks (10 synthetic cases) PASS`（RAT 分歧/占用偏差/IPC 偏差±阈值边界/长度不匹配/hash-表一致性/畸形行拒绝/截断流抢救/跨周期拒绝）；真实文件自比对与干净双跑（R5 vs R5b 解压后逐字节一致）均 `verdict=no_divergence`。
+
+**e. 定向注入（--chaos_rename map_bitflip target 3 mask 0x1 + snap，--msnap_every 10）**
+```
+rat_int_div: max=1 first_snap=30867 last_snap=30909 nonzero_snaps=2 final=0
+rat_fp_div/rat_vec_div: max=0
+occ_dev_*, max_ipc_dev_pct: 全 0
+verdict=DIVERGENCE
+```
+分歧明细：snap 30867（commit 308680，tick **89981430 == 注入 tick 精确对上**）arch3: ref 8 → run 9；snap 30909 arch1: 8→9（freelist 状态传播的**下游分歧**，随快照演化）；随后愈合（覆盖）。fp/vec=0 与注入器 int-only 设计一致。abort（EXIT=134）为注入器既有 rename-inconsistency 效应——对照 R6b（同注入无 snap）同样 abort，与 MicroSnap 无关；且该样本 FINAL 仍金标、tick 全程一致、占用/IPC 零偏差——**教科书级隐蔽样本：只有 L1 层能看见**。
+
+**f. 回归**：smoke FINAL=45737cc9a76c0dce 不变（R1f/R2f/R2g 三跑 + native 全同）。
+
+## 诚实偏差
+
+1. **快照目标=front rename map（真 RAT）**：机制核实发现 CHAOSRenameMap 只挂 frontRenameMap[0]，SimpleRenameMap::rename() 直写 map 不走 setEntry——注入只经 squash 回滚落进 front 表；commit map 只收 per-inst dest id，永远干净。快照 commit map 会使定向验收恒为 0。
+2. **CSV 列**：按任务自身「定案」，每类 dump hash + 全表（`rat_*_div` 不在 CSV，由 micro_diff 对齐两跑计算）；新增 rob_head/rob_tail 列（定案要求的 head/tail seqNum）。
+3. **表内分隔符 `;`**（非任务示意里的 `,`）：自测抓出表内逗号破坏 16 列契约——列数契约检查又一次当场抓真 bug。
+4. **崩溃持久化（实测驱动的设计修正）**：simout gz 流只走 gzwrite，裸 gzwrite 数据滞留 zlib 内部——abort 后快照 **0 字节**（实测）；改为自管 gzFile + 每快照 `gzflush(Z_SYNC_FLUSH)`，abort 后 309 行全部抢救（缺 trailer 由 micro_diff 截断流抢救路径处理，`truncated` 字段如实标记）。正常退出的 trailer 由 registerExitCallback 写（实测析构在 gem5 退出路径不可靠）。
+5. **默认 snapEvery=1000 采漏定向分歧窗口**：注入愈合窗口 &lt;1000 commits，定向验收用 `--msnap_every 10` 达成（生产默认 1000 时该窗口不可见——对 W2.3 量产的已知边界，如实记录）。
+6. **发现 W2.1 注释失准**（未改动，仅报告）：CHAOSCommitTrace.hh/commit.cc 中“hook 读到 POST-INJECTION RAT（setEntry 含注入钩）”的机制表述不成立——该钩在 front map，commit map 的 setEntry 不含注入；W2.1 trace 读的是 inst 字段故不受影响。
+7. 过程中曾误判 smoke 无窗口内 squash——实际注入在 tick 89.98M 触发（fold-loop 分支误预测），已实证纠正。
+
+里程碑与全部运行产物在 `/tmp/ooo_w24_progress.txt` 与 `/tmp/w24_runs/`（R1f–R6g、micro_diff JSON）。计划文件 Task 4 复选框未动（编排者验收后勾选）。</result>
+<usage><subagent_tokens>0</subagent_tokens><tool_uses>131</tool_uses><duration_ms>3580615</duration_ms></usage>
+</task-notification>
