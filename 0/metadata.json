@@ -1,0 +1,43 @@
+{
+  "cli_version": "0.10.2",
+  "checkpoint_id": "01M36G0W4XWHB8KXBDZNHAFVY5",
+  "session_id": "03f71e2a-416a-41e1-88bb-6bf61c2fcd61",
+  "strategy": "manual-commit",
+  "created_at": "2026-09-23T06:42:34.623783254Z",
+  "branch": "fi-ding",
+  "checkpoints_count": 1,
+  "save_step_count": 1,
+  "files_touched": [
+    "workloads/ooo/Makefile",
+    "workloads/ooo/rob_fill/rob_fill",
+    "workloads/ooo/rob_fill/rob_fill.c",
+    "workloads/ooo/rob_fill/rob_fill_fp",
+    "workloads/ooo/rob_fill/rob_fill_fp.c"
+  ],
+  "agent": "Claude Code",
+  "model": "GLM-5.3[1m]",
+  "turn_id": "d46e10f486a2",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 139732,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 1966272,
+    "output_tokens": 24801,
+    "api_call_count": 29
+  },
+  "session_metrics": {
+    "turn_count": 1
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-09-23T06:42:34.55979608Z",
+    "agent_lines": 211,
+    "agent_removed": 4,
+    "human_added": 153,
+    "human_modified": 323,
+    "human_removed": 0,
+    "total_committed": 687,
+    "total_lines_changed": 695,
+    "agent_percentage": 30.935251798561154,
+    "metric_version": 2
+  }
+}
