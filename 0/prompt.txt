@@ -1,0 +1,63 @@
+<task-notification>
+<task-id>a9301c8c44f589180</task-id>
+<tool-use-id>call_64f884ffa7c146e4ac253313</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi/801d1500-1949-47d1-8f2e-95e2ab568418/tasks/a9301c8c44f589180.output</output-file>
+<status>completed</status>
+<summary>Agent "实现 W1.1 CoreMark" came to rest</summary>
+<note>A task-notification fires each time this agent comes to rest with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>全部完成。`make` 是幂等的，全部 16 个文件都已就位。最终报告：
+
+---
+
+# Task 5 (W1.1 CoreMark) — 完成报告
+
+## 文件清单
+
+**新建 `workloads/ooo/coremark/`**（16 个文件）：
+- 上游子集（除 core_main.c 外与上游逐字节一致）：`core_list_join.c core_main.c(+gem5-fi 块) core_matrix.c core_state.c core_util.c coremark.h coremark.md5 LICENSE.md Makefile README.md posix/{core_portme.c, core_portme.h, core_portme.mak, core_portme_posix_overrides.h}` — 无 .git
+- 构建产物：`coremark`（静态 AArch64 ELF, 640KB）+ `.iterations-35` 戳（构建内部产物，可不入库）
+
+**修改**：`workloads/ooo/Makefile`（coremark 目标 + PROVENANCE/适配注释 + clean）、`workloads/ooo/README.md`（台账行 + 完整实测记录）。**未 commit/push**（按纪律留给编排者）。
+
+## 上游源
+
+`git clone https://github.com/eembc/coremark` → HEAD = **1f483d5b8316753a742cbf5590caf5bd0a4e4777**（与预期 1f483d5b 一致），`git log -1`: "Merge pull request #55 from DeflateAwning/main — Fix typo (fixes #52)", Joseph Yiu, 2025-05-01。**上游唯一源码偏离**：core_main.c 末尾 11 行 gem5-fi 块（带 `/* gem5-fi W1.1: FINAL line for oracle chain */` 注释），diff 已核实仅此一块，基准逻辑零改动。
+
+## 验证输出（逐字，关键行）
+
+**构建零告警 + ELF**：`MAKE_EXIT=0`，warning/error 计数 **0**；`file`: `ELF 64-bit LSB executable, ARM aarch64, … statically linked`。编译行（上游 Makefile 委托，保留 FLAGS_STR 引号链）：`gcc -O2 … -DITERATIONS=35 -static -Wall -Wextra -DSEED_METHOD=SEED_VOLATILE -DPERFORMANCE_RUN=1 core_list_join.c core_main.c core_matrix.c core_state.c core_util.c posix/core_portme.c -o ./coremark.exe -lrt`
+
+**C3 SE（ITERATIONS=35）**：
+```
+S1_EXIT=0  hostSeconds=52.62  simInsts=10808351  FINAL=000000000000cf56
+S2_EXIT=0  hostSeconds=52.62→52.92  simInsts=10808351  FINAL=000000000000cf56
+NATIVE_EXIT=0  FINAL=000000000000cf56   （uniq -c: 3×同一行；od -c 23 字节精确）
+classify.extract_checksum(gem5输出)=000000000000cf56 （oracle 链端到端验证）
+```
+
+**自带 CRC 校验（native==gem5 一致）**：`2K performance run parameters` / `seedcrc 0xe9f5` / `crclist 0xe714 / crcmatrix 0x1fd7 / crcstate 0x8e3a` 全部命中 known_id=3 已知值，**无任何 crc ERROR 行**。
+
+**密度（event_density.py，s1/s2/p1 三跑计数逐位一致）**：mispredicts **73348**（/commits=**0.66%**）、squash **1677415**（**15.1%**，squash_bp 783831 主导）、renamed 13209178、rat_writes 15377069、commits 11121427、IPC≈2.14；probe：samples 5039172、robOver80 67194（1.33%，robMax=128 到顶）、iqOver80 309285（6.14%）、flIntLe8 533971（10.6%，**flIntMin=0 实压穿**）、flFloatMin=192 恒满、flVecLe6=100% 平台基线。
+
+**回归**：`make clean &amp;&amp; make`（7 目标）EXIT=0 零告警；6 个既有 golden 全部不变（smoke `45737cc9a76c0dce`、branch_mispred `06e84f119c258fa7`、dep_chain `98e5e31e726e383f`/`b1e661a247b95774`、rob_fill `19eab7d0de27237e`/`85085fd5686d173b`；采用"全部重建+native 确定性重放比对"，强于抽查）。
+
+## 关键数字
+
+| 项 | 值 |
+|---|---|
+| **golden (FINAL)** | `000000000000cf56`（crcfinal=0xcf56 零填充 16 位） |
+| **ITERATIONS 终值** | **35**（20 实测 30.67s/6.19M insts ≈31 万 insts/迭代 → 35 = 52.62/52.92s、10.81M insts，双目标带内） |
+| hostSeconds / simInsts | 52.62 / 52.92；10,808,351 |
+
+## 偏差说明（诚实记录，已写入 README）
+
+1. **端口路径**：该 HEAD 上游端口目录为顶层 `posix/`，非旧布局 `cores/posix`（计划笔误，实证修正）。
+2. **"Correct operation performed / 无 Errors detected" 不可达（结构性）**：EEMBC 10 秒计分规则在 native（35 迭代=1ms）与 gem5 SE（全程模拟时间 1.94ms；`clock_gettime`→curTick 模拟时间）下都不可能 ≥10s（10 模拟秒=2.6e10 周期≈数十主机小时）。输出中 "Errors detected" **仅**来自该计时规则，CRC 校验本身 3/3 全过。故 FINAL 门放 CRC 校验通过路径（`known_id&gt;=0 &amp;&amp; results[0].err==0`）而非 `total_errors==0`（后者会吞掉 oracle 行）。
+3. **ITERATIONS 起试值超 50 倍**：任务提示 2000 ≈ 6.2 亿指令 ≈ 35+ 分钟；按实测校准到 35。
+4. **SEED_VOLATILE 适配**：posix 默认 SEED_ARG 无参运行会在 gem5 里死循环（自校准探针永远到不了 1 模拟秒）；用上游 `#ifndef` 守卫的 `-DSEED_METHOD=SEED_VOLATILE`（零文件修改）+ `-DPERFORMANCE_RUN=1`（官方 0/0/0x66 种子），使二进制无参自含。
+5. **FINAL 为 16 位 CRC 值**（CoreMark crcfinal，随 ITERATIONS 变化：20/2000 恰落同一折叠环态 0x4983，35 为 0xcf56；固定 ITERATIONS 下确定）——oracle 熵 16 位，比自设核的 64 位 hash 粗，此为 "值为 CoreMark 计算 CRC" 指令的固有属性；crcfinal 覆盖全部迭代（比只冻结第 0 迭代的 crclist/matrix/state 更强）。
+6. 上游 `coremark.md5` 在该 commit 对 coremark.h 过期（git 内容为准）；`--maxinsts` 本任务未用到（校准直接用小 ITERATIONS 实测）。
+
+GOLDEN_IDS 注册（建议 key 如 `coremark-golden-v1` → `000000000000cf56`）与 commit/push 留给编排者。里程碑全程追加于 `/tmp/ooo_w11_progress.txt`。</result>
+<usage><subagent_tokens>0</subagent_tokens><tool_uses>79</tool_uses><duration_ms>13428117</duration_ms></usage>
+</task-notification>
