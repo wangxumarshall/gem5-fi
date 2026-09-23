@@ -203,6 +203,15 @@ class UnifiedRenameMap
 
   public:
 
+    /* gem5-fi W2.4 */ /** Minimal read accessor to the class-specific table
+     * (renameMaps itself is private; SimpleRenameMap exposes public
+     * iterators, but there was no way to REACH the right SimpleRenameMap
+     * from a UnifiedRenameMap). Added for the READ-ONLY CHAOSMicroSnap RAT
+     * snapshot (W2.4 L1 shadow compare); no existing caller is affected. */
+    SimpleRenameMap &map(RegClassType c) { return renameMaps[c]; }
+    /* gem5-fi W2.4 */ const SimpleRenameMap &map(RegClassType c) const
+    { return renameMaps[c]; }
+
     typedef SimpleRenameMap::RenameInfo RenameInfo;
 
     typedef std::array<UnifiedRenameMap, MaxThreads> PerThreadUnifiedRenameMap;

@@ -69,6 +69,8 @@ struct BaseO3CPUParams;
 class CHAOSRAS;
 // W2.1 CHAOSCommitTrace: forward decl (gem5 top-level namespace, not o3).
 class CHAOSCommitTrace;
+// W2.4 CHAOSMicroSnap: forward decl (gem5 top-level namespace, not o3).
+class CHAOSMicroSnap;
 
 namespace o3
 {
@@ -373,6 +375,17 @@ class Commit
   public:
     /** W2.1 CHAOSCommitTrace accessor. */
     void setChaosCommitTrace(::gem5::CHAOSCommitTrace *p) { chaosCommitTrace = p; }
+
+  private:
+    // W2.4 CHAOSMicroSnap: raw pointer to the READ-ONLY µarch snapshot
+    // sampler. Set by the sampler's startup() (cpu->o3Commit().
+    // setChaosMicroSnap(this)). nullptr = no snapshot (zero regression).
+    // Forward-declared above.
+    ::gem5::CHAOSMicroSnap *chaosMicroSnap = nullptr;
+
+  public:
+    /** W2.4 CHAOSMicroSnap accessor. */
+    void setChaosMicroSnap(::gem5::CHAOSMicroSnap *p) { chaosMicroSnap = p; }
 
   private:
     /** Vector of all of the threads. */

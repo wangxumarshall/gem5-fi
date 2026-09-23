@@ -59,6 +59,10 @@
 // o3::CPU/o3::DynInst and does NOT include commit.hh (same rationale as the
 // CHAOSRAS include in commit.hh).
 #include "cpu/o3/CHAOSCommitTrace/CHAOSCommitTrace.hh"
+// gem5-fi W2.4: full definition for the read-only µarch snapshot sampler
+// called from commitHead below (second hook, same anchor point as W2.1).
+// Non-circular for the same reason as the W2.1 include above.
+#include "cpu/o3/CHAOSMicroSnap/CHAOSMicroSnap.hh"
 #include "cpu/o3/thread_state.hh"
 #include "cpu/timebuf.hh"
 #include "debug/Activity.hh"
@@ -1286,6 +1290,15 @@ Commit::commitHead(const DynInstPtr &head_inst, unsigned inst_num)
         // post-write hook) and BEFORE rob->retireHead. nullptr = no trace
         // (zero regression).
         chaosCommitTrace->traceCommit(tid, head_inst.get());
+    }
+
+    /* gem5-fi W2.4 */ if (chaosMicroSnap) {
+        // Read-only L1 µarch snapshot: the sampler keeps its own commit
+        // counter and emits one CSV row every snapEvery commits (RAT per
+        // class + ROB/IQ/freelist occupancy + ROB head/tail + tick). Same
+        // anchor point as the W2.1 trace so both observation layers see the
+        // same commit stream. nullptr = no snapshot (zero regression).
+        chaosMicroSnap->maybeSample(tid, head_inst.get());
     }
 
     // hardware transactional memory

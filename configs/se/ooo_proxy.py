@@ -25,7 +25,7 @@
 
 import argparse
 import m5
-from m5.objects import CHAOSReg, CHAOSPhysReg, CHAOSMem, CHAOSLSQFwd, CHAOSRenameMap, CHAOSFreeList, CHAOSROB, CHAOSIQ, CHAOSExec, CHAOSFPU, CHAOSL1DForward, CHAOSBPU, CHAOSAddrPath, CHAOSDecode, CHAOSExMon, CHAOSRAS, CHAOSProbe, CHAOSCommitTrace
+from m5.objects import CHAOSReg, CHAOSPhysReg, CHAOSMem, CHAOSLSQFwd, CHAOSRenameMap, CHAOSFreeList, CHAOSROB, CHAOSIQ, CHAOSExec, CHAOSFPU, CHAOSL1DForward, CHAOSBPU, CHAOSAddrPath, CHAOSDecode, CHAOSExMon, CHAOSRAS, CHAOSProbe, CHAOSCommitTrace, CHAOSMicroSnap
 from gem5.components.boards.simple_board import SimpleBoard
 from gem5.components.cachehierarchies.classic.private_l1_private_l2_cache_hierarchy import (
     PrivateL1PrivateL2CacheHierarchy,
@@ -272,6 +272,19 @@ p.add_argument("--chaos_ctrace", action="store_true",
 p.add_argument("--ctrace_file", default="commit_trace.csv.gz",
                help="commit trace output file (relative to --outdir; "
                     "a .gz suffix is gzip-compressed automatically)")
+# W2.4 CHAOSMicroSnap (L1 µarch shadow snapshot). READ-ONLY: no injector, no
+# state writes, no events, nothing on stdout — the workload FINAL checksum
+# must be byte-identical with it attached (hard gate). Emits one pinned-format
+# CSV row every msnap_every committed instructions (ROB/IQ/freelist occupancy
+# + ROB head/tail + the FRONT rename map per class as FNV hash + full table)
+# into the run --outdir; tools/micro_diff.py aligns a no-fault reference run
+# against a faulted run by snap_seq (L1 shadow compare).
+p.add_argument("--chaos_msnap", action="store_true",
+               help="attach CHAOSMicroSnap (L1 µarch snapshot, W2.4)")
+p.add_argument("--msnap_every", type=int, default=1000,
+               help="snapshot period in committed instructions")
+p.add_argument("--msnap_file", default="micro_snap.csv.gz",
+               help="snapshot CSV output (relative to --outdir; .gz = auto gzip)")
 args = p.parse_args()
 
 # C3-OOO cache geometry = same as kp920_proxy.py/C0: 64KiB L1 (4-way, 64B),
@@ -629,6 +642,20 @@ if args.chaos_ctrace:
         writeLog=True,
     )
     board.chaos_ctrace = ctr
+
+if args.chaos_msnap:
+    # W2.4 CHAOSMicroSnap: O3-only, READ-ONLY L1 µarch shadow snapshot.
+    # SELF-ATTACHES at startup() to cpu.commit.chaosMicroSnap (commitHead
+    # calls maybeSample at the same anchor point as the W2.1 trace — one
+    # added gem5 source hook next to the W2.1 one; attaching changes nothing
+    # else). Sampled every msnap_every committed instructions.
+    msnap = CHAOSMicroSnap(
+        cpu=cpu0,
+        snapEvery=args.msnap_every,
+        traceFile=args.msnap_file,
+        writeLog=True,
+    )
+    board.chaos_msnap = msnap
 
 if args.maxinsts:
     # W1.5b followup fix: BaseCPU's real param is max_insts_any_thread

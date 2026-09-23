@@ -55,9 +55,9 @@
 
 ### Task 4: W2.4 — CHAOSMicroSnap + micro_diff.py（L1 影子快照）
 
-- [ ] 四件套（self-attach 零源码钩子 + rename_map.hh:204 加 map(RegClassType) accessor 最小 patch）+ commit 侧采样（与 Task 1 同一钩点每 N 条调 sample()：RAT 三类表快照 + freelist/ROB head-tail/IQ 占用 + tick）+ tools/micro_diff.py（按 commit 序号对齐快照序列 → 分歧项数/占用偏差/停顿差/IPC 偏差 + **隐蔽样本标记**：Masked/SDC 但 IPC 偏差>50%）。
-- [ ] 验证：纯读证明（FINAL 不变）+ 定向：一次已知 RAT 注入的快照分歧>0 且随 commit 演化 + micro_diff 输出合理。
-- [ ] Commit + push
+- [x] 四件套 + commit 侧采样 + micro_diff.py。〔执行注 2026-09-24：**快照目标修正为 front rename map（真 RAT）**——机制发现：CHAOSRenameMap 只挂 frontRenameMap[0]、SimpleRenameMap::rename() 直写不走 setEntry（注入经 squash 回滚落 front 表；commit map 只收 per-inst dest id 永远干净——快照 commit map 定向验收会恒 0）。**崩溃持久化实测驱动修正**：simout gz 流裸 gzwrite 数据滞留 zlib——abort 后快照 0 字节（实测）；改自管 gzFile+每快照 gzflush(Z_SYNC_FLUSH)，abort 后 309 行全抢救（micro_diff 截断流抢救路径+truncated 如实标记；正常退出 trailer 由 exit callback 写）。CSV：hash+全表（表内分隔符 `;`——自测抓出逗号破坏列契约）+rob_head/tail；每快照 gzflush 减速 1.037×、体积 18KB/1.05MB。**发现 W2.1 注释失准**（未改动仅报告）：「钩后读到注入后 RAT」表述不成立——注入钩在 front map，commit.cc:1273 的 setEntry 不含注入；W2.1 trace 读 inst 字段故不受影响（phys 经 inst 自身 rename 已携带注入映射）。〕
+- [x] 验证全过。〔执行注：纯读硬门（编排者亲测 smoke+msnap FINAL=45737cc9a76c0dce/simInsts 不变/默认关闭回归）；快照自洽（309/8612==预期、单调）；micro_diff 自测 11/11（编排者亲测重跑）+自比对/干净双跑 no_divergence；**定向验收（--msnap_every 10，编排者从产物 JSON 复核）**：int RAT 分歧 max=1 first_snap=30867（tick 89981430==注入 tick 精确对上）、nonzero_snaps=2、愈合 final=0；下游分歧 arch1 随快照传播；fp/vec=0 与注入器 int-only 一致；占用/IPC 全零=**教科书隐蔽样本（只有 L1 能看见）**；abort 抢救路径实证。**已知边界（诚实记录）**：默认 snapEvery=1000 采漏 <1000 commit 的愈合窗口（R2f/R6f 全零反向印证）——W2.3 量产时按需调 --msnap_every。〕
+- [x] Commit + push
 
 ### Task 5: W2.5 — L0 注入项生命周期接口
 
