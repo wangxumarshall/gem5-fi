@@ -233,3 +233,61 @@ subagent数量 不超过2个
 ---
 
 并发subagent数量不超过2个
+
+---
+
+<task-notification>
+<task-id>a6c885a58d38cb63e</task-id>
+<tool-use-id>call_1830a902defa409e9b9ca962</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi/801d1500-1949-47d1-8f2e-95e2ab568418/tasks/a6c885a58d38cb63e.output</output-file>
+<status>completed</status>
+<summary>Agent "重派 W1.4a GAP 续做" came to rest</summary>
+<note>A task-notification fires each time this agent comes to rest with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>W1.4a GAP 任务完成。最终报告：
+
+## 一、遗留物核实（先核实，未盲目信任）
+
+**遗留 FINAL 复现：成功。** 前代理的 ELF（BFS=3/PR=3 规模）native 重跑：
+```
+real 0m0.005s
+EXIT=0
+FINAL=8b3b8f5b90da4c89
+```
+单行 22 字符 + 换行 = 23 字节，与前代理报告一致。gap.c 通读确认符合北极星 03-workloads.md GAP 行口径（固定 seed LCG CSR 图 + FIFO 层序 BFS + scatter PageRank double 累加 + FINAL 自校验；诚实标注为语义代理、非 vendored gapbs）。FMA 零位点独立复检（objdump fmadd/fmsub/fnmadd/fnmsub/fmla 计数=0；FP 清单 4 fadd/2 fmul/2 fsub/2 fdiv，fdiv/fsub 属 CRT）。**注意：该 3/3 规模 ELF 已因超预算被重编译覆盖，8b3b8f5b90da4c89 作废。**
+
+## 二、C3 校准（真机，逐字输出）
+
+**cal1（BFS=3/PR=3，遗留规模）**：EXIT=0，`FINAL=8b3b8f5b90da4c89`（==native），**hostSeconds 78.33 &gt; 60s 超预算**，simInsts 9081190（~116 KIPS），config.ini:2252 `cmd=workloads/ooo/gap/gap`。
+
+**重标定**：图规模不动（NVERT=16384×DEGREE=8，colidx 512KiB 超 L1D/L2 工作集是不规则 miss 设计点），只减 BFS_RUNS 3→2 + PR_ITERS 3→2。重建零告警，native 新值 `FINAL=2ec8c1e59f2808c5`（od -c 23 字节），FMA 复检仍 0。
+
+**cal2（BFS=2/PR=2）**：EXIT=0，`FINAL=2ec8c1e59f2808c5`，**hostSeconds 54.72 入 30-60s 带**，simInsts 6413647，config.ini cmd 核实。此为终版规模。
+
+## 三、终版验证（C3×2，逐字）
+
+```
+=== RUN s1 ===  EXIT=0  FINAL=2ec8c1e59f2808c5  hostSeconds 54.77  simInsts 6413647  config.ini:2252 cmd=workloads/ooo/gap/gap
+=== RUN s2 ===  EXIT=0  FINAL=2ec8c1e59f2808c5  hostSeconds 54.78  simInsts 6413647  config.ini:2252 cmd=workloads/ooo/gap/gap
+```
+od -c 两跑均 `F I N A L = 2 e c 8 c 1 e 5 9 f 2 8 0 8 c 5 \n`；native/cal2/s1/s2 四份 FINAL 行 md5 同为 `1b63503ae07b2047cd5ddb1a3469ed4e`（golden 稳定 + native==gem5）。`tools/classify.py extract_checksum` 对 cal2/s1/s2/native 端到端均取值 `2ec8c1e59f2808c5`。提交版 ELF md5 `7a0c332186c70ec839d4ddd8e774105c`。
+
+## 四、密度（p1 --chaos_probe read-only，FINAL 不变；event_density.py s1/s2/p1 三跑计数逐位一致）
+
+```
+CHAOS_PROBE samples=8190376 robOver80=2800014 iqOver80=2097113 flIntLe8=197571 flFloatLe12=0 flVecLe6=8190376 robMax=128 iqMax=64 flIntMin=0 flFloatMin=192 flVecMin=0
+```
+mispredicts **38936**（/commits 6685109 = **0.58%**）；squash **1276484**（**19.1%**，squash_bp 463014 主导）；**robOver80 34.2%** 采样占比（robMax=128 到顶）；iqOver80 25.6%（iqMax=64 满容）；flIntMin=0（freelist 实压穿）；renamed_insts 8150927、rat_writes 9644477、sim_ticks 3153294760（IPC≈0.78）。D36-D38 old-phys squash 场景事件供给充足。
+
+## 五、注册与回归
+
+- **Makefile**：gap 行已在前代理遗留 diff 中（`WORKLOADS := … rob_fill gap`），模式规则即可构建（本次重编译即走该规则），零告警、幂等。
+- **README**：共享行拆为 gap 行（实测值填入，done）+ libjpeg 占位行（原样保留，并行代理的 `workloads/ooo/libjpeg/` 未触碰）；追加「## gap 实测记录（W1.4a）」完整记录节。git diff 自查确认只含 gap 内容。
+- **回归抽查**：smoke `FINAL=45737cc9a76c0dce` EXIT=0、coremark `FINAL=000000000000cf56` EXIT=0，均不变（未跑全量 make clean，避开并行任务）。
+
+## 六、偏差说明
+
+1. 遗留 3/3 规模超预算（78.33s），FINAL 8b3b8f5b90da4c89 随重标定作废，golden 以 2/2 版 `2ec8c1e59f2808c5` 为准。
+2. 终版 hostSeconds 54.77/54.78 贴 60s 上沿（余量 ~5s），与 embench minver（53.14/54.04）同档，符合先例口径。
+3. GOLDEN_IDS 候选 `gap-golden-v1 2ec8c1e59f2808c5` 留待编排者注册；里程碑已全部追加 /tmp/ooo_w14a_progress.txt。**未做任何 git commit/push**（按纪律）。</result>
+<usage><subagent_tokens>0</subagent_tokens><tool_uses>29</tool_uses><duration_ms>1022530</duration_ms></usage>
+</task-notification>
