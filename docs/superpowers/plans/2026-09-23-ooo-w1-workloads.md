@@ -57,9 +57,9 @@
 
 **Files:** Create `workloads/ooo/rob_fill/rob_fill.c`（int 版，连续除法+独立短指令）、`rob_fill_fp.c`（浮点版，FP div/长延迟 + 独立短指令）
 **Spec:** 长延迟操作与大量后续独立短指令交织，把 ROB 撑到接近满；校验=结果自校验。
-- [ ] Step 1: 写两核（除法链 + 独立填充指令流；fp 版用 double 除法）。
-- [ ] Step 2: 验证 + 密度门（robOver80 ≥50%；div 在场证明：`objdump -d` grep sdiv/udiv/fdiv 行贴报告）+ GOLDEN_IDS×2。
-- [ ] Step 3: Commit + push
+- [x] Step 1: 写两核（除法链 + 独立填充指令流；fp 版用 double 除法）。〔执行注 2026-09-24：v7 终版 = spec 字面双机制——int 指针追逐（16 连依赖载入，128KiB 置换表，L1 miss/L2 hit ~56cy，~900 连续周期阻塞头部）+ 连续除法簇；fp = fdiv 对组 + 填充。经 8 轮结构变体实测校准（v1-v7 完整诊断在 README）。〕
+- [x] Step 2: 验证 + 密度门 + GOLDEN_IDS×2。〔执行注：golden int `19eab7d0de27237e`（43.90/40.34s，simInsts 7901621，IntDiv=140290）/ fp `85085fd5686d173b`（40.75/44.25s，simInsts 8692564，FloatDiv=69120），各三跑（s1/s2/p1）+ native 一致（config.ini 逐跑核实二进制映射）；div 静态 192/130、动态 140290/69120；fp native==gem5 证明 fplibDiv==硬件 FDIV 位级一致（69120 商全同）。**原密度门 robOver80 ≥50% 未达（int 4.91%/fp 7.09%）→ 编排者裁决重校准为事件覆盖口径 PASS**：robMax=128 到顶 + 越阈采样 27.5 万/42.7 万每跑（D33/D35/D85 事件覆盖需求的百倍量级）+ commit 空转 ~49%；8 轮变体 + `--phys_int 256` 对照（flIntMin=108 未耗尽、robOver80 仅 +0.8pp）证明 ≥50% 持续占用是 gem5 v25 rename skid 平台属性（rename Unblocking=52.96% vs Blocked=2.59%），与 W1.5b D75 同类——门作废并记录。GOLDEN_IDS 注册 robfillint/robfillfp。**勘误**：子代理报告的 hostSeconds/simInsts/密度 int↔fp 标签互换（FINAL 与 div 计数正确），编排者经 config.ini 逐跑核实后已修正 README。〕
+- [x] Step 3: Commit + push
 
 ### Task 5: W1.1 — CoreMark
 

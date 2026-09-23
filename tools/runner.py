@@ -91,6 +91,8 @@ GOLDEN_IDS = {
     "branchmispred-golden-v1": "06e84f119c258fa7",  # W1.5a probe kernel
     "depchainint-golden-v1": "98e5e31e726e383f",   # W1.5b int probe kernel
     "depchainvec-golden-v1": "b1e661a247b95774",   # W1.5b NEON probe kernel
+    "robfillint-golden-v1": "19eab7d0de27237e",    # W1.5c int probe kernel
+    "robfillfp-golden-v1": "85085fd5686d173b",     # W1.5c fp probe kernel
 }
 
 # v1.1 Phase 8.1: golden ARRAY registry — for workloads whose oracle is

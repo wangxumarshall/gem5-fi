@@ -31,11 +31,11 @@ LDFLAGS :=
 #   embench        W1.2  Embench-Io int+fp subset                (Task 6)
 #   polybench      W1.3  PolyBench gemm/lu/cholesky/jacobi-2d    (Task 7)
 #   gap, libjpeg   W1.4  GAP semantic proxy + libjpeg-turbo      (Task 8)
-WORKLOADS := smoke branch_mispred dep_chain
+WORKLOADS := smoke branch_mispred dep_chain rob_fill
 
-.PHONY: all clean $(WORKLOADS) dep_chain_vec
+.PHONY: all clean $(WORKLOADS) dep_chain_vec rob_fill_fp
 
-all: $(WORKLOADS) dep_chain_vec
+all: $(WORKLOADS) dep_chain_vec rob_fill_fp
 
 # Per-workload pattern, instantiated once per name above: a phony alias
 # target <name> plus the real rule <name>/<name> <- <name>/<name>.c.
@@ -56,5 +56,12 @@ dep_chain_vec: dep_chain/dep_chain_vec
 dep_chain/dep_chain_vec: dep_chain/dep_chain_vec.c
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $<
 
+# W1.5c rob_fill: the int binary comes from the pattern rule above
+# (rob_fill/rob_fill <- rob_fill/rob_fill.c).  The fp variant shares the
+# directory but has its own name -> explicit rule here.
+rob_fill_fp: rob_fill/rob_fill_fp
+rob_fill/rob_fill_fp: rob_fill/rob_fill_fp.c
+	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $<
+
 clean:
-	rm -f $(foreach w,$(WORKLOADS),$(w)/$(w)) dep_chain/dep_chain_vec
+	rm -f $(foreach w,$(WORKLOADS),$(w)/$(w)) dep_chain/dep_chain_vec rob_fill/rob_fill_fp

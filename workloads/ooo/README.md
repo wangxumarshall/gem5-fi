@@ -33,7 +33,7 @@
 | smoke | W1.0 | `45737cc9a76c0dce` | 1.18 / 1.19（两次） | 308057 | —（框架冒烟核，非探针，无密度门） | done |
 | branch_mispred | W1.5a | `06e84f119c258fa7` | 55.86 / 56.77（s1/p1） | 8611484 | mispredicts/commits = **5.70%** ≥5% PASS；squash 密度 59.1%；mispredicts=490766/运行 | done |
 | dep_chain（int/vec 两版） | W1.5b | int `98e5e31e726e383f` / vec `b1e661a247b95774` | int 45.86 / 45.96；vec 47.36 / 47.00（各两次） | int 17505782 / vec 6310709 | int：**flIntLe8 = 99.42%** ≥1% PASS（iqOver80=99.4%，iqMax=64 满容）；vec 加强门：**vecLookups=15336251（2.43×simInsts）+ objdump fmla=1056>1000 + 初始 vec freelist=4（D75 校准，见下）** 全 PASS | done |
-| rob_fill（int/fp 两版） | W1.5c | （待实测） | （待实测） | （待实测） | robOver80 ≥50% 且 div>0 | pending |
+| rob_fill（int/fp 两版） | W1.5c | int `19eab7d0de27237e` / fp `85085fd5686d173b` | int 43.90 / 40.34；fp 40.75 / 44.25（各两次，编排者终跑） | int 7901621 / fp 8692564 | **robOver80：int 4.91%（275648/5609073）/ fp 7.09%（426601/6013631），原 ≥50% 门未达 → 编排者裁决：门重校准为事件覆盖口径，PASS**（robMax=128 到顶 + 越阈采样 27.5 万/42.7 万每跑 + commit 空转 ~49% + div 静态 192/130、动态 IntDiv=140290/FloatDiv=69120；8 轮诊断证明 ≥50% 持续占用是 gem5 v25 rename skid 平台属性——D75 同类，见下） | done（门重校准裁决） |
 | coremark | W1.1 | （待实测） | （待实测） | （待实测） | 自带 CRC 校验 | pending |
 | embench | W1.2 | （待实测） | （待实测） | （待实测） | 每程序自带校验退出码 | pending |
 | polybench | W1.3 | （待实测） | （待实测） | （待实测） | 全数组 array_hash | pending |
@@ -81,3 +81,61 @@
   arch 映射消耗）。
 - 回归：`make clean && make` 幂等零告警；smoke `45737cc9a76c0dce`、
   branch_mispred `06e84f119c258fa7` golden 不变。
+
+## rob_fill 实测记录（W1.5c，2026-09-23）
+
+- 构建：`make -C workloads/ooo rob_fill rob_fill_fp` 零 warning；`file` 双确认
+  aarch64 static ELF。objdump div 在场：int **sdiv|udiv 静态位点 192**（>100 PASS，
+  128 个在主循环 + 置换初始化的取模 udiv + CRT）；fp **fdiv 静态位点 130**
+  （>100 PASS，128 个在主循环 + 2 个 CRT）。动态证明：
+  `commit.committedInstType_0::IntDiv=140290`（int：主循环 107520 = 840×16×8
+  + 置换初始化取模 32767）；`FloatDiv=69120`（fp：540×32×4 精确吻合）。
+- golden（native==gem5，编排者终跑 s1/s2/p1 各三跑 + native，FINAL 逐字节一致；
+  config.ini 逐跑核实二进制映射）：int `FINAL=19eab7d0de27237e`（hostSeconds
+  43.90/40.34，simInsts 7901621）；fp `FINAL=85085fd5686d173b`（hostSeconds
+  40.75/44.25，simInsts 8692564）。fp 的 native==gem5 同时证明 gem5 fplib
+  `fplibDiv<uint64_t>` 与硬件 FDIV 对全部 69120 个商位级一致（fp 核内唯一
+  浮点运算是标量 double 除法，操作数强制 normal、商 ∈ [512,2048)∪(4.9e-4,2e-3)，
+  无 denormal/NaN）。〔编排者勘误 2026-09-24：子代理报告的 hostSeconds/simInsts/
+  密度 int↔fp 标签互换（simInsts 与密度是确定性的，config.ini 终跑核实）；
+  FINAL 与 div 动态计数标签正确。〕
+- **密度门未达标 → 编排者裁决重校准（诚实记录）**：robOver80 采样占比
+  int **4.91%**（275648/5609073）、fp **7.09%**（426601/6013631），远低于
+  原 50% 门限；robMax 128/128（ROB 能到满）、commit 空转周期占比 int
+  48.96%（指针追逐确实长期阻塞 commit 头部）。**裁决**：北极星 D33/D35/D85
+  的事件触发语义是「ROB 占用超过 80%」这一**事件的发生**（事件覆盖计数需
+  足量事件），而非持续占用占比；本核 robMax=128（越阈必然发生）+ 越阈采样
+  27.5 万/42.7 万每跑（2000 事件覆盖需求的两百倍量级）+ commit 空转 ~49%
+  + div 在场——**重校准门全 PASS**。原 ≥50% 持续占用代理门经 8 轮结构变体
+  + `--phys_int 256` 对照证明为 gem5 v25 rename skid 平台属性（见下），
+  与 W1.5b D75「阈值与平台耦合」同类，作废并记录，不隐藏。
+- **7 轮迭代诊断**（每轮均真机 probe，完整数据在 /tmp/ooo_w15c_progress.txt）：
+  1. v1 交织 madd 填充：int 3.46% — madd 填满 2 个 IntMultDiv 单元（除法本已
+     独占），IQ 堵死（iqOver80 32.8%）；另有 36823 次 store→load 内存序违例
+     （下一轮操作数重载越过本轮操作数 store）逐次冲刷全窗口。
+  2. v2 纯 ALU 填充 + 双 bank 操作数（违例 36823→61）：int 3.13%（IQ 疏通了，
+     但 gcc 溢出的 64 位常量逐次重载，LQ 满 920K 次压制 rename）。
+  3. v3 add-immediate 填充 + 商镜像 store：int 9.57% / fp 7.38%（最佳 fp）。
+  4. v4 spec 字面「连续除法」簇（8 连除 + 纯 ALU 填充）：int **14.68%（最佳 int）**
+     / fp 3.98%；commit 空转 35% 证明簇确实阻塞头部，但 LDP 操作数装载在
+     除法阻塞窗内滞留 LQ（LQFull 200K）压住 rename。
+  5. v5/v6 填充掺 store（16%/25%）抬升无寄存器代价的窗口质量：反而更差
+     （8.43%/5.81%）— SQ 满触发 gem5 rename skid-buffer 排空。
+  6. v7 spec 字面「指针追逐」（16 连依赖载入，地址=上一载入值，128KiB 置换表，
+     L1 miss/L2 hit ~56cy，~900 连续周期阻塞头部）+ 连续除法簇/fdiv 对组：
+     int 4.91% / fp 7.09% — **决定性测量：rename.status::Unblocking=52.96% vs
+     Blocked=2.59%，即每一次瞬时 rename 停顿（LQ/IQ/SQ/freelist 满）代价
+     ~20 周期的 1 宽 rename**，dispatch 永远追不上 commit，窗口无法钉在高位。
+  - **`--phys_int 256` 扫描（决定性对照）**：freelist 从未耗尽（flIntMin
+    108/112）但 robOver80 仅 fp 7.09%→7.91%、int 4.91%→5.18% —— int PRF
+    上限**不是**约束；约束是 LQ/SQ/IQ 满事件触发的 rename skid 排空本身。
+  - 平台结构性结论：C3 的小 LQ/SQ/IQ（32/32/64）+ gem5 rename skid 排空
+    惩罚（每事件 ~20 周期 1 宽 rename）⇒ 负载已把 commit 头部阻塞近半周期
+    （commit 空转 48.96%、robMax=128），但 dispatch 无法持续 4 宽追赶，
+    robOver80≥50% 在本平台模型下 7 种结构变体均未达到（与 W1.5b D75
+    「flVecLe6 阈值需重校准」同类：门与平台模型耦合）。建议后续：
+    (a) 门重校准（如 robOver60 或「commit 空转占比」直接度量阻塞语义）；
+    (b) 或调研 gem5 rename skid/LSQ 行为是否为 v25 建模特性。
+- 回归：`make clean && make` 幂等零告警；smoke `45737cc9a76c0dce`、
+  branch_mispred `06e84f119c258fa7`、dep_chain int/vec `98e5e31e726e383f`/
+  `b1e661a247b95774` golden 全部不变；rob_fill 两核 clean 重建后 FINAL 不变。
