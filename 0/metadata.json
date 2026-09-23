@@ -1,0 +1,188 @@
+{
+  "cli_version": "0.10.2",
+  "checkpoint_id": "01M37F6T3NY0WK0RDFPEK6XREQ",
+  "session_id": "986103be-6dae-4d5b-8b58-a5f2abf15cf7",
+  "strategy": "manual-commit",
+  "created_at": "2026-09-23T15:47:40.63078674Z",
+  "branch": "fi-ding",
+  "checkpoints_count": 2,
+  "save_step_count": 3,
+  "files_touched": [
+    "docs/superpowers/plans/2026-09-24-ooo-w2-observation.md"
+  ],
+  "agent": "Claude Code",
+  "model": "GLM-5.3[1m]",
+  "turn_id": "17a88ed1cadc",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 6410529,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 65165568,
+    "output_tokens": 262587,
+    "api_call_count": 198,
+    "subagent_tokens": {
+      "input_tokens": 132387,
+      "cache_creation_tokens": 0,
+      "cache_read_tokens": 3669952,
+      "output_tokens": 11282,
+      "api_call_count": 45
+    }
+  },
+  "skill_events_version": 1,
+  "skill_events": [
+    {
+      "id": "prompt-skill-claude-code-planning-with-files:planning-with-files-2026-09-22T14:51:20.084795095Z",
+      "event_type": "prompt_invocation",
+      "skill": {
+        "name": "planning-with-files:planning-with-files"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "prompt_slash_command",
+        "confidence": "explicit"
+      },
+      "turn_id": "e303d9da3878",
+      "timestamp": "2026-09-22T14:51:20.084795095Z",
+      "native": {
+        "command": "/planning-with-files:planning-with-files"
+      },
+      "collapse": {
+        "target": "user_message",
+        "label": "/planning-with-files:planning-with-files",
+        "default_collapsed": true
+      }
+    },
+    {
+      "id": "prompt-skill-claude-code-planning-with-files:plan-goal-2026-09-22T15:19:12.899328958Z",
+      "event_type": "prompt_invocation",
+      "skill": {
+        "name": "planning-with-files:plan-goal"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "prompt_slash_command",
+        "confidence": "explicit"
+      },
+      "turn_id": "8b43bf4a8426",
+      "timestamp": "2026-09-22T15:19:12.899328958Z",
+      "native": {
+        "command": "/planning-with-files:plan-goal"
+      },
+      "collapse": {
+        "target": "user_message",
+        "label": "/planning-with-files:plan-goal",
+        "default_collapsed": true
+      }
+    },
+    {
+      "id": "prompt-skill-claude-code-planning-with-files:plan-goal-2026-09-22T15:32:21.578704361Z",
+      "event_type": "prompt_invocation",
+      "skill": {
+        "name": "planning-with-files:plan-goal"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "prompt_slash_command",
+        "confidence": "explicit"
+      },
+      "turn_id": "c932ddb3086f",
+      "timestamp": "2026-09-22T15:32:21.578704361Z",
+      "native": {
+        "command": "/planning-with-files:plan-goal"
+      },
+      "collapse": {
+        "target": "user_message",
+        "label": "/planning-with-files:plan-goal",
+        "default_collapsed": true
+      }
+    },
+    {
+      "id": "claude-skill-call_2fd9e2cd093047e7be818957",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "superpowers:writing-plans"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "17a88ed1cadc",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 423,
+        "end": 424,
+        "entry_ids": [
+          "b6a95cb6-435a-4402-90f8-f3151608a3c1"
+        ],
+        "tool_use_id": "call_2fd9e2cd093047e7be818957"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "call_2fd9e2cd093047e7be818957"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: superpowers:writing-plans",
+        "default_collapsed": true
+      }
+    }
+  ],
+  "session_metrics": {
+    "turn_count": 19
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-09-23T15:47:40.036658141Z",
+    "agent_lines": 76,
+    "agent_removed": 0,
+    "human_added": 507,
+    "human_modified": 4,
+    "human_removed": 0,
+    "total_committed": 587,
+    "total_lines_changed": 587,
+    "agent_percentage": 12.947189097103918,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    },
+    {
+      "checkpoint_number": 3,
+      "user_lines_added": 62,
+      "user_lines_removed": 0,
+      "agent_lines_added": 458,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".plan.md": 61,
+        ".planning/.active_plan": 1
+      }
+    },
+    {
+      "checkpoint_number": 4,
+      "user_lines_added": 900,
+      "user_lines_removed": 1,
+      "agent_lines_added": 549,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".plan.md": 61,
+        ".planning/.active_plan": 1,
+        "CHAOS/gem5/src/cpu/o3/CHAOSCommitTrace/CHAOSCommitTrace.cc": 151,
+        "CHAOS/gem5/src/cpu/o3/CHAOSCommitTrace/CHAOSCommitTrace.hh": 91,
+        "CHAOS/gem5/src/cpu/o3/CHAOSCommitTrace/CHAOSCommitTrace.py": 26,
+        "CHAOS/gem5/src/cpu/o3/CHAOSCommitTrace/SConscript": 13,
+        "CHAOS/gem5/src/cpu/o3/commit.cc": 14,
+        "CHAOS/gem5/src/cpu/o3/commit.hh": 12,
+        "configs/se/ooo_proxy.py": 24,
+        "tools/commit_diff.py": 507
+      },
+      "user_removed_per_file": {
+        "configs/se/ooo_proxy.py": 1
+      }
+    }
+  ]
+}
