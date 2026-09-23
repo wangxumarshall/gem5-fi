@@ -34,7 +34,7 @@
 | branch_mispred | W1.5a | `06e84f119c258fa7` | 55.86 / 56.77（s1/p1） | 8611484 | mispredicts/commits = **5.70%** ≥5% PASS；squash 密度 59.1%；mispredicts=490766/运行 | done |
 | dep_chain（int/vec 两版） | W1.5b | int `98e5e31e726e383f` / vec `b1e661a247b95774` | int 45.86 / 45.96；vec 47.36 / 47.00（各两次） | int 17505782 / vec 6310709 | int：**flIntLe8 = 99.42%** ≥1% PASS（iqOver80=99.4%，iqMax=64 满容）；vec 加强门：**vecLookups=15336251（2.43×simInsts）+ objdump fmla=1056>1000 + 初始 vec freelist=4（D75 校准，见下）** 全 PASS | done |
 | rob_fill（int/fp 两版） | W1.5c | int `19eab7d0de27237e` / fp `85085fd5686d173b` | int 43.90 / 40.34；fp 40.75 / 44.25（各两次，编排者终跑） | int 7901621 / fp 8692564 | **robOver80：int 4.91%（275648/5609073）/ fp 7.09%（426601/6013631），原 ≥50% 门未达 → 编排者裁决：门重校准为事件覆盖口径，PASS**（robMax=128 到顶 + 越阈采样 27.5 万/42.7 万每跑 + commit 空转 ~49% + div 静态 192/130、动态 IntDiv=140290/FloatDiv=69120；8 轮诊断证明 ≥50% 持续占用是 gem5 v25 rename skid 平台属性——D75 同类，见下） | done（门重校准裁决） |
-| coremark | W1.1 | （待实测） | （待实测） | （待实测） | 自带 CRC 校验 | pending |
+| coremark | W1.1 | `000000000000cf56` | 52.62 / 52.92（s1/s2） | 10808351 | 自带 CRC 校验 PASS（seedcrc 0xe9f5，crclist 0xe714/crcmatrix 0x1fd7/crcstate 0x8e3a 全对 known_id=3；"Errors detected" **仅**来自 EEMBC 10 秒计时报告规则——SE 模拟时钟结构性不可满足，见实测记录）；密度：mispredicts/commits 0.66%、squash 15.1%、flIntLe8 10.6%（flIntMin=0 实压穿）、robOver80 1.3%（robMax=128 到顶） | done |
 | embench | W1.2 | （待实测） | （待实测） | （待实测） | 每程序自带校验退出码 | pending |
 | polybench | W1.3 | （待实测） | （待实测） | （待实测） | 全数组 array_hash | pending |
 | gap / libjpeg | W1.4 | （待实测） | （待实测） | （待实测） | 语义代理 checksum / 逐像素 hash | pending |
@@ -139,3 +139,79 @@
 - 回归：`make clean && make` 幂等零告警；smoke `45737cc9a76c0dce`、
   branch_mispred `06e84f119c258fa7`、dep_chain int/vec `98e5e31e726e383f`/
   `b1e661a247b95774` golden 全部不变；rob_fill 两核 clean 重建后 FINAL 不变。
+
+## coremark 实测记录（W1.1，2026-09-23）
+
+- **PROVENANCE**：`git clone https://github.com/eembc/coremark`，
+  HEAD = `1f483d5b8316753a742cbf5590caf5bd0a4e4777`（与计划预期 1f483d5b 一致）。
+  `git log -1`：`Merge pull request #55 from DeflateAwning/main — Fix typo
+  (fixes #52)`，Joseph Yiu，2025-05-01。入库子集（无 .git，上游 Apache-2.0
+  LICENSE.md 原样保留）：`core_list_join.c core_main.c core_matrix.c
+  core_state.c core_util.c coremark.h posix/{core_portme.c, core_portme.h,
+  core_portme.mak, core_portme_posix_overrides.h} LICENSE.md Makefile
+  README.md coremark.md5`。注意：该 HEAD 上游端口目录为**顶层 `posix/`**
+  （非 2019 前的 `cores/posix` 布局）；上游 `coremark.md5` 在该 commit 对
+  coremark.h **过期**（pristine git blob md5 `b0ec69b6…` ≠ 清单值
+  `8ca974c0…`；core_main.c pristine `4a9e6dad…` 与清单一致）——git 内容为准。
+- **唯一源码偏离**：`coremark/core_main.c` 结尾追加一个 gem5-fi 块（11 行，
+  带 `/* gem5-fi W1.1: FINAL line for oracle chain */` 注释）：CRC 校验通过
+  路径（`known_id >= 0 && results[0].err == 0`）打印
+  `FINAL=%016x`，值为 CoreMark 计算的最终 CRC（crcfinal，`(ee_u32)` 转换，
+  零填充 16 位十六进制）。`diff`（上游 git blob vs 入库副本）= 恰好这一块。
+  其余文件与上游逐字节一致。基准逻辑/迭代内容零改动。
+- **构建适配**（Makefile 注释里同步记录）：框架 Makefile 的 `coremark` 目标
+  委托**入库的上游 Makefile**（`make -C coremark PORT_DIR=posix … load`，
+  保留上游 FLAGS_STR 引号/vpath 插件链），旋钮走上游文档化接口：
+  `XCFLAGS="-static -Wall -Wextra -DSEED_METHOD=SEED_VOLATILE
+  -DPERFORMANCE_RUN=1"` + `ITERATIONS=N`。要点：
+  - posix 默认 `SEED_METHOD=SEED_ARG` 从 argv 取种子；SE runner 不传参
+    （`set_se_binary_workload` 只收二进制），无参运行会进入按 1 秒探针的
+    迭代数自校准循环——gem5 SE 下 `clock_gettime` 返回**模拟时间**
+    （syscall_emul.hh `getElapsedTimeNano` → `curTick()`），探针永远到不了
+    1 秒 ⇒ 实质挂死。`SEED_VOLATILE`（core_portme.h `#ifndef` 守卫，零文件
+    修改）是上游的编译期种子路径，并让 `-DITERATIONS` 生效（喂
+    `seed4_volatile`）。
+  - `PERFORMANCE_RUN=1` = 官方 performance 种子 0x0/0x0/0x66（seedcrc
+    0xe9f5，known_id=3 "2K performance run"，自带 CRC 校验激活）。
+  - `.iterations-N` 戳规则保证换 ITERATIONS 必重建（上游 Makefile 看不见
+    `-D` 宏变化）。
+- **构建验证**：`make -C workloads/ooo coremark` → MAKE_EXIT=0 **零警告**
+  （`gcc -O2 … -static -Wall -Wextra …` 上游源码本身 -Wall -Wextra 干净）；
+  `file`：`ELF 64-bit LSB executable, ARM aarch64, … statically linked`。
+- **ITERATIONS 校准**：任务提示"从 2000 起试"实测超约 50 倍（2000 迭代 ≈
+  6.2 亿指令 ≈ 35+ 分钟）。实测 ITERATIONS=20：hostSeconds 30.67 / simInsts
+  6190128（≈31 万指令/迭代，≈202 KIPS）⇒ 终值 **ITERATIONS=35**：
+  hostSeconds **52.62 / 52.92**（s1/s2，≤60s 预算内、30-60s 目标带内），
+  simInsts **10808351**（10-15M 目标带内）。
+- **golden**：native EXIT=0 `FINAL=000000000000cf56`；C3 SE s1/s2 均 EXIT=0
+  且 FINAL 与 native **逐字节一致**（`od -c`：`FINAL=000000000000cf56\n`
+  共 23 字节）；`tools/classify.py extract_checksum` 对真实 gem5 输出取值
+  `000000000000cf56`（oracle 链端到端验证）。crcfinal 随 ITERATIONS 变化
+  （20 与 2000 恰落同一 CRC 折叠环态 0x4983，35 则 0xcf56），对固定
+  ITERATIONS 确定性成立。
+- **自带校验（3/3 内核全过）**：seedcrc 0xe9f5；`[0]crclist 0xe714 /
+  [0]crcmatrix 0x1fd7 / [0]crcstate 0x8e3a` 全部等于 known_id=3 已知值，
+  无任何 `ERROR! … crc` 行，native 与 gem5 一致。**诚实偏差记录**：输出仍
+  含 `ERROR! Must execute for at least 10 secs…` 与 `Errors detected`——
+  这**不是**校验失败，而是 EEMBC 计分发布规则（总分需 ≥10 秒平台时间）：
+  native 35 迭代仅 1ms，gem5 SE 全程模拟时间 1.94ms（simTicks
+  1940081220），两者都结构性不可能 ≥10s（10 模拟秒 = 2.6e10 周期 ≈ 数十
+  主机小时）。计划要求"输出含 Correct operation performed / 无 Errors
+  detected"在 SE 预算内不可达，故 FINAL 门放在 CRC 校验通过路径而非
+  `total_errors == 0`（后者含计时规则，会吞掉 oracle 行）。
+- **事件密度实测**（probe p1，read-only，FINAL 不变；event_density.py 三跑
+  聚合，s1/s2/p1 全部计数逐位一致）：mispredicts **73348**
+  （/commits 11121427 = **0.66%**）、squash **1677415**（**15.1%**，
+  squash_bp 783831 主导）、renamed_insts 13209178、rat_writes 15377069、
+  sim_ticks 1940081220（IPC≈2.14）；CHAOS_PROBE samples **5039172**、
+  robOver80 **67194**（1.33%，robMax=128 到顶）、iqOver80 **309285**
+  （6.14%，iqMax=64 满容）、flIntLe8 **533971**（10.60%，**flIntMin=0**
+  ——CoreMark 实际压穿过 int freelist，与探针核不同）、flFloatMin=192
+  恒满（AArch64 标量 FP 走 VecRegClass，W1.5b 已记录）、flVecLe6=100%
+  平台基线（D75）。CoreMark 作为 59 实验格主力负载的 D01/D02/D04 误预测
+  恢复、squash、占用事件供给充足。
+- 回归：`make -C workloads/ooo clean && make`（含 coremark 共 7 个目标）
+  幂等零告警；smoke `45737cc9a76c0dce`、branch_mispred
+  `06e84f119c258fa7`、dep_chain int/vec `98e5e31e726e383f`/
+  `b1e661a247b95774`、rob_fill int/fp `19eab7d0de27237e`/
+  `85085fd5686d173b` 全部 golden 不变（native 确定性重放比对）。

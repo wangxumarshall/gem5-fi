@@ -93,6 +93,7 @@ GOLDEN_IDS = {
     "depchainvec-golden-v1": "b1e661a247b95774",   # W1.5b NEON probe kernel
     "robfillint-golden-v1": "19eab7d0de27237e",    # W1.5c int probe kernel
     "robfillfp-golden-v1": "85085fd5686d173b",     # W1.5c fp probe kernel
+    "coremark-golden-v1": "000000000000cf56",      # W1.1 EEMBC CoreMark ITERATIONS=35
 }
 
 # v1.1 Phase 8.1: golden ARRAY registry — for workloads whose oracle is

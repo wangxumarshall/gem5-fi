@@ -64,9 +64,9 @@
 ### Task 5: W1.1 — CoreMark
 
 **Files:** Create `workloads/ooo/coremark/`（上游 eembc/coremark @1f483d5b 子集 + Makefile 适配 + 构建产物）
-- [ ] Step 1: `git clone https://github.com/eembc/coremark`（记录 HEAD），选 posix port，ITERATIONS 调到 C3 SE ≤60s（从 1000 起试，按 hostSeconds 缩放），`make PORT_DIR=cores/posix` 适配到本框架（-static）。
-- [ ] Step 2: 验证——CoreMark 自带 CRC 校验通过（输出 Correct operation...）；两次运行 golden 稳定（把 CRC 输出整行 hash 或 FINAL 封装进 GOLDEN_IDS）；密度实测入档（CoreMark 是 D01/D02/D04/D11/D25 等 59 格的主力负载）。
-- [ ] Step 3: Commit + push（源码按上游 LICENSE 原样保留）
+- [x] Step 1: 源获取与构建适配。〔执行注 2026-09-24：上游 eembc/coremark@1f483d5b（git log "Merge PR #55", 2025-05-01）；16 文件 vendored（无 .git，LICENSE 原样）；**唯一源码偏离 = core_main.c 末尾 11 行 gem5-fi FINAL 块**（`/* gem5-fi W1.1: FINAL line for oracle chain */`，diff 核实仅此一块，基准逻辑零改动）。实证修正：该 HEAD 的端口目录是顶层 `posix/` 非旧布局 `cores/posix`；ITERATIONS 从 2000（≈6.2 亿指令 35+ 分钟）校准到 **35**（52.62/52.92s，10,808,351 insts，实测 31 万 insts/迭代）；`-DSEED_METHOD=SEED_VOLATILE -DPERFORMANCE_RUN=1`（上游 #ifndef 守卫，零文件修改，避免 SEED_ARG 在 gem5 SE 自校准死循环）。〕
+- [x] Step 2: 验证 + GOLDEN_IDS 注册。〔执行注：golden `000000000000cf56`（crcfinal=0xcf56 零填充，覆盖全部迭代，强于只冻结第 0 迭代的分项 CRC）；native + C3×2 + 编排者独立 C3 跑共 4 次逐字节一致（config.ini 身份核实）；hostSeconds 52.62/52.92/52.86；simInsts 10808351 三跑精确同。**自带 CRC 校验 3/3 全过**（seedcrc 0xe9f5/crclist 0xe714/crcmatrix 0x1fd7/crcstate 0x8e3a 全对 known_id=3）；"Correct operation performed" 不可达为 EEMBC 10 秒计时规则的结构性现象（SE 模拟时钟 10 秒=2.6e10 周期≈数十主机小时）——"Errors detected" 行仅来自该规则，FINAL 门放 CRC 通过路径。**oracle 16 位熵（crcfinal 固有属性）**：比自设核 64 位 hash 粗，SDC 判定按此口径，记录在案。密度入档：mispredicts 73348（0.66%）、squash 15.1%、flIntLe8 10.6%（flIntMin=0 实压穿）、robOver80 1.3%（robMax=128）、IPC≈2.14。回归：全部 6 既有 golden 不变（全量重建+native 确定性重放）+ 编排者 smoke 独立回归。GOLDEN_IDS 注册 coremark-golden-v1。〕
+- [x] Step 3: Commit + push（源码按上游 LICENSE 原样保留）
 
 ### Task 6: W1.2 — Embench 整数+浮点子集
 

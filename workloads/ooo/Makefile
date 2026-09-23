@@ -33,9 +33,9 @@ LDFLAGS :=
 #   gap, libjpeg   W1.4  GAP semantic proxy + libjpeg-turbo      (Task 8)
 WORKLOADS := smoke branch_mispred dep_chain rob_fill
 
-.PHONY: all clean $(WORKLOADS) dep_chain_vec rob_fill_fp
+.PHONY: all clean $(WORKLOADS) dep_chain_vec rob_fill_fp coremark
 
-all: $(WORKLOADS) dep_chain_vec rob_fill_fp
+all: $(WORKLOADS) dep_chain_vec rob_fill_fp coremark
 
 # Per-workload pattern, instantiated once per name above: a phony alias
 # target <name> plus the real rule <name>/<name> <- <name>/<name>.c.
@@ -63,5 +63,58 @@ rob_fill_fp: rob_fill/rob_fill_fp
 rob_fill/rob_fill_fp: rob_fill/rob_fill_fp.c
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $<
 
+# W1.1 coremark — EEMBC CoreMark (posix port).
+#
+# PROVENANCE: vendored subset of https://github.com/eembc/coremark @
+#   1f483d5b8316753a742cbf5590caf5bd0a4e4777 (2025-05-01, "Merge pull
+#   request #55 from DeflateAwning/main - Fix typo (fixes #52)")
+# Files kept: core_{list_join,main,matrix,state,util}.c coremark.h
+#   posix/{core_portme.c,core_portme.h,core_portme.mak,
+#   core_portme_posix_overrides.h} LICENSE.md Makefile README.md coremark.md5
+#   (upstream Apache-2.0 LICENSE.md kept verbatim; no .git). NB: at this HEAD
+#   upstream's port dirs are top-level (posix/), not the pre-2019 cores/.
+#   Upstream coremark.md5 is STALE at this commit for coremark.h (pristine
+#   git blob b0ec69b6... != manifest 8ca974c0...); git content is authoritative.
+# ONLY local source deviation: coremark/core_main.c carries one gem5-fi hunk
+#   printing the FINAL=<16hex> oracle line (see the "gem5-fi W1.1" comment
+#   there); every other file is byte-identical to upstream.
+#
+# Build: delegating to the VENDORED UPSTREAM Makefile (chosen over listing
+# sources by hand because it keeps upstream's flag plumbing intact — FLAGS_STR
+# shell quoting, -Iposix includes, vpath). Our knobs ride the documented
+# upstream hooks XCFLAGS / ITERATIONS:
+#   -DSEED_METHOD=SEED_VOLATILE : posix default SEED_ARG reads seeds from
+#       argv; our SE runner passes NO args (set_se_binary_workload), and a
+#       no-arg SEED_ARG run calibrates iterations from a 1-second probe loop
+#       that never converges under gem5 SE (clock_gettime returns simulated
+#       time). SEED_VOLATILE is the upstream-sanctioned compile-time seed
+#       path (core_portme.h #ifndef-guarded, zero file edits) and makes
+#       -DITERATIONS live (feeds seed4_volatile).
+#   -DPERFORMANCE_RUN=1 : canonical CoreMark performance seeds 0x0/0x0/0x66
+#       (seedcrc 0xe9f5, known_id=3 "2K performance run" — self-check active).
+#   ITERATIONS : calibration knob for the C3 SE <=60s hostSeconds budget.
+# ITERATIONS calibrated 2026-09-23 for the C3 SE budget (W1 Global
+# Constraints): 20 iters measured 30.67 s hostSeconds / 6190128 simInsts
+# (~310k insts/iter, ~202 KIPS) -> 35 iters lands ~10.8M insts / ~53 s,
+# inside the 30-60 s / 10-15M target window. (The task brief's "start from
+# ITERATIONS=2000" overshot ~50x: 2000 iters ~ 620M insts ~ 35+ min.)
+COREMARK_ITERATIONS ?= 35
+coremark: coremark/coremark
+coremark/coremark: coremark/.iterations-$(COREMARK_ITERATIONS)
+# Stamp rule: rebuilds whenever sources change OR the requested ITERATIONS
+# differs from the last build (stale stamps are removed first, so flipping
+# COREMARK_ITERATIONS re-triggers the sub-make — upstream's own Makefile
+# cannot see -DITERATIONS changes by itself).
+coremark/.iterations-%: $(wildcard coremark/*.c coremark/*.h) \
+                        $(wildcard coremark/posix/*) coremark/Makefile
+	rm -f coremark/.iterations-*
+	$(MAKE) -C coremark PORT_DIR=posix CC=$(CC) \
+	    ITERATIONS=$* \
+	    XCFLAGS="-static -Wall -Wextra -DSEED_METHOD=SEED_VOLATILE -DPERFORMANCE_RUN=1" \
+	    load
+	mv -f coremark/coremark.exe coremark/coremark
+	touch $@
+
 clean:
-	rm -f $(foreach w,$(WORKLOADS),$(w)/$(w)) dep_chain/dep_chain_vec rob_fill/rob_fill_fp
+	rm -f $(foreach w,$(WORKLOADS),$(w)/$(w)) dep_chain/dep_chain_vec rob_fill/rob_fill_fp coremark/coremark coremark/.iterations-*
+	$(MAKE) -C coremark PORT_DIR=posix clean || true
