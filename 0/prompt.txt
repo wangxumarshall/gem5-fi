@@ -283,3 +283,72 @@ NATIVE_EXIT=0
 <status>failed</status>
 <summary>Background agent "实现 W1.5a 误预测密集核" was running when the previous Claude Code process exited and did not complete. Its in-process state was lost. Check its worktree/output for partial work before assuming the task landed.</summary>
 </task-notification>
+
+---
+
+<task-notification>
+<task-id>a27ae4dda4344a50a</task-id>
+<tool-use-id>call_35b388f50d5b4518946509df</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi/801d1500-1949-47d1-8f2e-95e2ab568418/tasks/a27ae4dda4344a50a.output</output-file>
+<status>completed</status>
+<summary>Agent "实现 W1.5b 长依赖链压力核" came to rest</summary>
+<note>A task-notification fires each time this agent comes to rest with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>W1.5b（Task 3，dep_chain_pressure int+vec 两版）完成。全部验证真机实测，逐字输出如下。
+
+## 文件清单（仅这些，未 commit/push，HEAD 仍为 55e2e2e1）
+
+- 新建 `/home/sdc/gem5-fi/workloads/ooo/dep_chain/dep_chain.c`（int 版：8 条并行 `c=c*K+D` 真依赖 madd 链 × 1,750,000 步，K/D 为大奇 64 位常数不可强度削减）
+- 新建 `/home/sdc/gem5-fi/workloads/ooo/dep_chain/dep_chain_vec.c`（NEON 版：12 条 `vfmaq_laneq_f32` 累加链，宏展开 88 sweep × 12 = 1056 静态 fmla/round × 4500 rounds）
+- 构建产物入库：`dep_chain/dep_chain`、`dep_chain/dep_chain_vec`（静态 ELF）
+- 修改 `/home/sdc/gem5-fi/workloads/ooo/Makefile`（WORKLOADS += dep_chain + 显式 dep_chain_vec 规则 + clean）
+- 修改 `/home/sdc/gem5-fi/workloads/ooo/README.md`（台账行填实测值 + W1.5b 实测记录节）
+- 测量仪器（非仓库文件）：`/tmp/ooo_w15b_vecfree.c`（零向量无 CRT 测量核）
+
+## 两个 GOLDEN（供 GOLDEN_IDS 注册）
+
+- **dep_chain (int): `FINAL=98e5e31e726e383f`**
+- **dep_chain_vec: `FINAL=b1e661a247b95774`**
+
+## 验证输出（逐字）
+
+**1. 构建 + ELF + objdump 门**（`make clean &amp;&amp; make` 幂等，`ALL_EXIT=0` 零告警）：
+```
+gcc -O2 -static -Wall -Wextra  -o dep_chain/dep_chain dep_chain/dep_chain.c
+gcc -O2 -static -Wall -Wextra  -o dep_chain/dep_chain_vec dep_chain/dep_chain_vec.c
+file: 均为 "ELF 64-bit LSB executable, ARM aarch64, ... statically linked"
+int: objdump madd/msub 计数 = 74（热循环 0x400688-0x4006a8 为 8 条 madd x 真链）；fmla = 0
+vec: objdump fmla 计数 = 1056（fmla v18.4s, v20.4s, v0.4s 型）
+```
+
+**2. C3 SE 各两次（native==gem5，`od -c` 逐字节一致）**：
+```
+int s1: EXIT=0 FINAL=98e5e31e726e383f hostSeconds=45.86 simInsts=17505782
+int s2: EXIT=0 FINAL=98e5e31e726e383f hostSeconds=45.96 simInsts=17505782
+vec s1: EXIT=0 FINAL=b1e661a247b95774 hostSeconds=47.36 simInsts=6310709
+vec s2: EXIT=0 FINAL=b1e661a247b95774 hostSeconds=47.00 simInsts=6310709
+（hostSeconds 全部 ≤60s 且落在 30-60s 窗口；smoke/branch_mispred golden 回归不变）
+```
+
+**3. int 密度门（probe + event_density.py）**：
+```
+CHAOS_PROBE samples=7040858 robOver80=137 iqOver80=7000882 flIntLe8=6999912 flFloatLe12=0
+flVecLe6=7040858 robMax=120 iqMax=64 flIntMin=0 flFloatMin=192 flVecMin=0
+```
+**flIntLe8 占比 = 6999912/7040858 = 99.42% ≥ 1% PASS**（对照 reg_chain 基线 99.5%，同量级；iqMax=64 与 IQ 容量精确吻合——等待中的 madd 塞满 IQ，iqOver80=99.4%）。event_density.py 表已产出（含 renamed_insts=17510520、rat_writes=21010348、commits=17506862）。
+
+**4. vec 加强门三要素**：
+- a) `board.processor.cores.core.rename.vecLookups = 15,336,251` vs simInsts=6,310,709（2.43×，同数量级）PASS（对照 int 版仅 182=CRT NEON）
+- b) objdump fmla 静态计数 = 1056 &gt; 1000 PASS
+- c) **实测初始 vec freelist = 4**：零向量指令测量核 + probe → `samples=1600563 ... flVecMin=4 flFloatMin=192 flIntMin=4`（160 万采样恒定 4，从未分配）。与源码推导精确吻合：`regs/vec.hh:83` NumVecRegs = 32(V0-V31)+8(special)+4(interleave) = 44 arch 映射，48−44=4。
+
+**D75 校准结论**：C3 vec48 平台**启动即剩 4 ≤ 6**（flVecLe6 对零向量代码也恒 100%）——「向量池剩余 ≤6」阈值在本平台无法隔离压力窗口，建议重校准为 `free==0`（int 版 CRT 已瞬时压 0、vec 版持续 0）。附带发现：flFloatMin=192 恒满（AArch64 gem5 v25 浮点全部走 VecRegClass，FloatRegClass 池初始零消耗）。
+
+## 偏差说明
+
+- 首版规模（int 900k 步=23.9s 低于 30s 窗口、vec 6000 轮=62.8s 超预算）经全量实测校准后重定为 int 1,750,000 步 / vec 4500 轮（终版 45.9s / 47.2s）。
+- `ooo_proxy.py --maxinsts` 对 O3 是坏的（ArmO3CPU 无 max_insts 参数，AttributeError exit 1）——未改它（超出本任务文件范围），改用全量跑校准；**建议后续修掉**。
+- vec 版 gcc 把 `vfmaq_laneq_f32` 的 lane 常量物化为广播向量，实际发射 `fmla v.4s` 向量形（语义/融合性/opClass 完全等同，FINAL 位级一致已证 gem5 fplib 单舍入融合 FMA == 硬件 FMLA）。
+- 探针运行开销：int p1 47.32s / vec p1 48.27s（≤60s），FINAL 均不变（探针只读再次验证）。
+- 进度守护文件：`/tmp/ooo_w15b_progress.txt`（全程里程碑+关键输出）。</result>
+<usage><subagent_tokens>0</subagent_tokens><tool_uses>108</tool_uses><duration_ms>4539282</duration_ms></usage>
+</task-notification>
