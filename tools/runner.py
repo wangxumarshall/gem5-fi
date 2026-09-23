@@ -109,6 +109,7 @@ GOLDEN_IDS = {
     "polybenchcholesky-golden-v1": "ea7e0d0e7c86582d",
     "polybenchjacobi2d-golden-v1": "dc867b5f02998c1e",
     "gap-golden-v1": "2ec8c1e59f2808c5",             # W1.4a GAP semantic proxy (BFS=2/PR=2)
+    "libjpeg-golden-v1": "c712f8f6fb9e21ec",         # W1.4b libjpeg-turbo NEON decode (rounds=3)
 }
 
 # v1.1 Phase 8.1: golden ARRAY registry — for workloads whose oracle is

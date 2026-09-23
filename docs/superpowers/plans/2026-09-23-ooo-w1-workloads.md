@@ -85,9 +85,9 @@
 ### Task 8: W1.4 — GAP（bfs/pr）+ libjpeg-turbo（风险最高，允许诚实 blocker）
 
 **Files:** Create `workloads/ooo/gap/`、`workloads/ooo/libjpeg/`
-- [ ] Step 1: GAP——上游 GAP 套件面向原生机大图，SE 移植成本高；先用轻量自实现 bfs/pr（固定 seed 生成 CSR 图，BFS 层序和 PageRank 迭代，结果 checksum 自校验），标注「GAP 语义代理」诚实口径；若必须用上游再评估。
-- [ ] Step 2: libjpeg-turbo——`git clone github.com/libjpeg-turbo/libjpeg-turbo`（需 cmake；检查宿主 cmake 可用性），构建 djpeg NEON 路径，嵌入一张小 JPEG，解码输出逐字节 hash 为 golden；若 cmake/nasm 缺失→诚实 blocker 记录。
-- [ ] Step 3: 验证 + Commit + push
+- [x] Step 1: GAP 语义代理。〔执行注 2026-09-24（commit 5f94a383）：自实现 CSR 图（16384×8，colidx 512KiB 超缓存=miss 设计点）+ BFS + PageRank；诚实口径「GAP 语义代理」；经历中断-重派-遗留核实-超预算重定标（3/3→2/2，78.33s→54.77s）；golden 2ec8c1e59f2808c5 四份 FINAL md5 同；密度 squash 19.1%/robOver80 34.2%——D36-D38 事件供给充足。〕
+- [x] Step 2: libjpeg-turbo。〔执行注 2026-09-24：上游@2a8bd381 vendored 255 文件（NEON=C intrinsics 无 nasm；cfg/ 4 个 cmake 生成头逐字节拷贝入库）；in-repo 手写转录上游配方（对象集与 cmake 参考构建 117/117 逐成员一致）；**诚实纠错：中文 locale 遮蔽 gcc 告警的初判被更正——285×unused-parameter+2×sign-compare 逐一记录抑制**；嵌入式 256×256 PPM→JPEG（构建期 cjpeg，运行期纯解码 wrapper rounds=3=46s）；偏差：PGM→PPM（灰度会绕过 YCbCr/上采样 NEON 内核，违背向量压力用途）；oracle=词折叠 FNV-1a（逐字节串行会挤爆预算，每轮像素+round 索引折入，任意轮故障必改 FINAL）。〕
+- [x] Step 3: 验证 + Commit + push。〔执行注：golden `c712f8f6fb9e21ec`（native/s1/s2/p1/编排者独立跑五份一致，config.ini 身份核实）；hostSeconds 45.7-46.9；**vec 密度四数量级实证：vecLookups=4,612,072（0.556×simInsts，int 基线 ~182）+ flVecMin=0 + Simd 提交占比 21.3% + objdump 向量指令 14,368**——北极星「向量寄存器堆压力」用途负载确认；native==gem5 证明 gem5 O3 对 NEON 解码路径位级一致；回归 smoke 不变。GOLDEN_IDS 注册 libjpeg-golden-v1。〕
 
 ---
 

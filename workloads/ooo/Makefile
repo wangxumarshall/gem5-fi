@@ -33,9 +33,9 @@ LDFLAGS :=
 #   gap, libjpeg   W1.4  GAP semantic proxy + libjpeg-turbo      (Task 8)
 WORKLOADS := smoke branch_mispred dep_chain rob_fill gap
 
-.PHONY: all clean $(WORKLOADS) dep_chain_vec rob_fill_fp coremark embench polybench
+.PHONY: all clean $(WORKLOADS) dep_chain_vec rob_fill_fp coremark embench polybench libjpeg
 
-all: $(WORKLOADS) dep_chain_vec rob_fill_fp coremark embench polybench
+all: $(WORKLOADS) dep_chain_vec rob_fill_fp coremark embench polybench libjpeg
 
 # Per-workload pattern, instantiated once per name above: a phony alias
 # target <name> plus the real rule <name>/<name> <- <name>/<name>.c.
@@ -265,8 +265,18 @@ polybench/jacobi-2d/jacobi-2d: polybench/stencils/jacobi-2d/jacobi-2d.c \
                                polybench/stencils/jacobi-2d/jacobi-2d.h $(POLYBENCH_UTIL_SRC) $(POLYBENCH_UTIL_DEP)
 	$(POLYBENCH_COMPILE) -DTSTEPS=$(POLYBENCH_JAC_T) -DN=$(POLYBENCH_JAC_N)
 
+# W1.4b libjpeg — libjpeg-turbo NEON decode workload.  PROVENANCE (upstream
+# repo/commit, vendored inventory, checked-in cmake-generated headers under
+# libjpeg/cfg/, embedded-JPEG regeneration, warning suppressions) is
+# recorded in libjpeg/PROVENANCE.md — read it first.  Build rules live in
+# libjpeg/libjpeg.mk (117-object hand-rolled transcription of the upstream
+# cmake build; kept per-directory, like coremark keeps its own build logic).
+-include libjpeg/libjpeg.mk
+
 clean:
 	rm -f $(foreach w,$(WORKLOADS),$(w)/$(w)) dep_chain/dep_chain_vec rob_fill/rob_fill_fp coremark/coremark coremark/.iterations-*
 	$(MAKE) -C coremark PORT_DIR=posix clean || true
 	rm -f $(EMBENCH_BINS)
 	rm -f $(POLYBENCH_BINS)
+	rm -f libjpeg/jpeg_wl libjpeg/.rounds-*
+	rm -rf libjpeg/build

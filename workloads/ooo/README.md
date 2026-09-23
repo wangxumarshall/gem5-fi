@@ -38,7 +38,7 @@
 | embench | W1.2 | crc32 `b87739d9c40d1798` / md5sum `973ff8cc9018e79f` / matmult-int `e105f98022b761ef` / wikisort `d2cf29655e3e0f06` / nbody `f39b4e8804f279c3` / minver `9792f3ee24af3023` | crc32 39.35/38.87；md5sum 40.04/40.39；matmult-int 42.83/42.73；wikisort 29.85/29.79；nbody 33.40/33.37；minver 53.14/54.04（各两次，全 ≤60s） | 8908567 / 12071108 / 6217780 / 5156577 / 3719230 / 9276668 | 6 程序各自带校验退出码 0（native==gem5==golden FINAL 逐字节一致）；密度三档：wikisort/matmult 误预测 0.61-0.87% + squash 9.7-12.1%，md5sum 中间，nbody/minver（FP）误预测 ~0.01% 循环主导；flIntMin=0 全部 6 程序 | done |
 | polybench | W1.3 | gemm `116849d3adf3227b` / lu `74ffe5eb77ea9257` / cholesky `ea7e0d0e7c86582d` / jacobi-2d `dc867b5f02998c1e` | gemm 52.87/53.98；lu 51.43/51.62；cholesky 53.14/51.92；jacobi-2d 51.15/52.04（s1/s2；重建后 s3 复跑 53.30/51.54/51.63/51.51） | 6460912 / 6651537 / 6539248 / 6571463 | 全数组 FNV-1a hash（cholesky 按上游 print_array 口径=下三角含对角）；**flFloatMin=192 全部 4 内核（W1.2「标量 FP→VecRegClass」三重确认）+ flVecMin=0（vec 池压穿，D75 初始 4→0）**；robMax=128/iqMax=64 全部到顶；详见 W1.3 实测记录 | done |
 | gap | W1.4a | `2ec8c1e59f2808c5` | 54.77 / 54.78（s1/s2） | 6413647 | mispredicts/commits 0.58%、squash 19.1%（squash_bp 主导）、robOver80 34.2%（采样占比，robMax=128 到顶）、iqOver80 25.6%、flIntMin=0——D36-D38 old-phys squash 场景事件供给充足 | done |
-| libjpeg | W1.4b | （待实测） | （待实测） | （待实测） | 逐像素 hash | pending |
+| libjpeg | W1.4b | `c712f8f6fb9e21ec` | 45.69 / 45.70（s1/s2） | 8301095 | 逐像素 hash（每轮解码 RGB 全像折入单一 FNV-1a-64 running state，round 索引防轮次转置）；**vecLookups=4612072（0.56×simInsts；int 负载基线 ~182）+ Simd 提交占比 21.3%（1898432/8906842）+ flVecMin=0（vec 池 D75 初始 4→压穿 0）**；mispredicts 0.30%、squash 10.6%、robOver80 4.09%（robMax=128 到顶）、iqOver80 3.28%、flIntMin=0 | done |
 
 ## smoke 实测记录（W1.0，2026-09-23）
 
@@ -449,3 +449,83 @@
 - 回归（抽查路线，避开并行 W1.4b 任务的全量重建）：smoke `45737cc9a76c0dce`、
   coremark `000000000000cf56` native 重放不变；`make gap` 幂等（无需重建）。
 - **GOLDEN_IDS 候选（待编排者注册 runner.py）**：`gap-golden-v1 2ec8c1e59f2808c5`。
+
+## libjpeg 实测记录（W1.4b，2026-09-23）
+
+- **PROVENANCE（详见 `libjpeg/PROVENANCE.md`）**：`git clone
+  https://github.com/libjpeg-turbo/libjpeg-turbo`，HEAD =
+  `2a8bd381b42664e72cfc0f652db6caf4c9e98117`（2026-09-22，master 最新，
+  v3.2.1，"TJDecomp: Claim ICC profile extraction support"）。入库
+  255 文件 / 3.7MB：src/ 全量（除 md5/、spng/）、simd 顶层 + simd/arm/
+  全量（aarch64 NEON 内核 = `simd/arm/*-neon.c` C intrinsics +
+  `aarch64/jchuff-neon.c`；无 nasm 依赖）、`cfg/` 4 个 cmake 生成头
+  （jconfig.h/jconfigint.h/jversion.h/simd/arm/neon-compat.h，为真 cmake
+  configure 的逐字节拷贝）、LICENSE.md 原样；gem5-fi 自有文件 =
+  gen_img.c / jpeg_wl.c / embedded_jpg.h / libjpeg.mk / PROVENANCE.md。
+  **vendored 文件与上游逐字节一致**（diff -r 证实）。上游 ctest 在本机
+  **332/332 全过**（官方 SIMD 校验套件）。
+- **构建（无 blocker；cmake 预案未触发但已绕开）**：宿主 cmake 3.27.9
+  可用，但 in-repo 构建是**手写转录的上游 cmake 配方**（保持框架纯
+  gcc/make）：每对象 `gcc -Wall -Wextra -O3 -DNDEBUG -Icfg [-Icfg/simd/arm]`
+  （flags 逐条读自 cmake 生成的 flags.make，无隐藏 flag）。**配方验证：
+  归档成员 117/117 与参考 cmake 构建逐成员相同**（101 src 对象含
+  per-precision wrapper + 16 NEON 对象；`libjpeg.mk` 的
+  LIBJPEG_LIB_MEMBERS 即该清单，兼作构建审计）。`make -C workloads/ooo
+  libjpeg` EXIT=0 **零告警**——2 个逐一记录的上游代码质量类抑制
+  （-Wno-unused-parameter〔285 处，libjpeg 方法回调 API 固定签名〕、
+  -Wno-sign-compare〔2 处，jdphuff.c HUFF_EXTEND 宏〕；新告警类仍失败
+  构建）。规则在 `libjpeg/libjpeg.mk`（从主 Makefile include，共享文件
+  仅 4 行改动）。过程中真机修掉两个构建 bug：make 内建 `%: %.c` 隐式
+  规则劫持无配方目标（重构成显式配方 + .rounds-N 戳前置）、regen 规则
+  缺 mkdir。
+- **嵌入 JPEG（确定性全链）**：gen_img.c（纯整数 + 固定种子 LCG）→
+  256×256 RGB PPM → **PPM-only cjpeg**（vendored 源码 + 本库构建）
+  `-quality 80 -dct int -sample 2x2` → 23,980 字节 JPEG（md5
+  `49e44ba3f90d979acef5437f8f3dff39`）→ `xxd -i` → embedded_jpg.h。
+  `make libjpeg-regen` 端到端复跑输出 "unchanged (deterministic)"
+  （cmp 干净）。**诚实偏差**：任务书说 PGM，实际用 PPM——灰度 PGM 的
+  解码会完全绕过 YCbCr→RGB 与色度上采样 NEON 内核（本负载指派用途是
+  向量寄存器堆压力）；仍是程序生成确定性图 + vendored cjpeg 压缩。
+  运行时核为纯解码（jpeg_mem_src 内存源、jmemnobs 纯 malloc、无
+  getauxval/HWCAP——aarch64 jsimdcpu.c 无条件 return JSIMD_NEON，gem5 SE
+  安全且 SIMD 编译期常开）。
+- **oracle**：每轮解码的 RGB 像素（196,608 字节/轮）折入单一
+  FNV-1a-64 running state（**词折叠**：8 字节/步 `h=(h^w)*prime`，每
+  字节恰好覆盖一次——逐字节串行 FNV 的指令量会与解码本身同量级、
+  挤爆 SE 预算，理由记录于 jpeg_wl.c 头注）；round 索引先折入防轮次
+  转置；任意一轮的瞬时故障都会改变 FINAL（每轮都从同一内存输入重解，
+  不折叠则早轮故障会自愈逃逸）。
+- **校准**：rounds=4 实测 61.26s（超 60s 预算）→ **DECODE_ROUNDS=3**
+  （libjpeg.mk LIBJPEG_ROUNDS 旋钮，.rounds-N 戳保证改值必重链）。
+- **golden（native==gem5，s1==s2==p1 逐字节一致；config.ini 逐跑
+  核实 `cmd=workloads/ooo/libjpeg/jpeg_wl` 3/3）**：
+  `FINAL=c712f8f6fb9e21ec`；hostSeconds **45.69 / 45.70**（s1/s2，探针
+  跑 p1 同量级）；simInsts **8301095**（s1==s2 精确相同，p1 同）；
+  `tools/classify.py extract_checksum` 对三份真实 gem5 输出均取值
+  `c712f8f6fb9e21ec`（oracle 链端到端）。native==gem5 同时证明 gem5
+  O3 对 libjpeg-turbo 全部 NEON 解码路径（idct/上采样/色彩转换）的
+  执行与宿主硬件**位级一致**。
+- **NEON/向量压力证据（北极星「FP/SIMD Rename 向量寄存器堆压力」用
+  途负载的实测确认）**：
+  - committedInstType Simd 类合计 **1,898,432 / 8,906,842 commits =
+    21.3%**（SimdAlu 564,880 / SimdAdd 527,724 / SimdShift 429,173 /
+    SimdMult 357,484 / SimdMultAcc 362,256 / SimdAddAcc 163,840 /
+    SimdMisc 125,758，rounds=4 校准跑口径）；
+  - `rename.vecLookups = 4,612,072`（**0.556×simInsts**；对照 int 负载
+    基线 ~182 = 纯 CRT NEON，本负载高 4 个数量级）；
+  - probe：`flVecMin=0`（vec 池 48 项、D75 实测初始剩 4 → 被 NEON
+    解码流压穿到 0）+ `flVecLe6=7,273,837/7,273,837=100%`（D75 平台
+    基线口径）；`flIntMin=0`、`flFloatMin=192`（W1.5b 已记录平台基线）；
+  - 二进制级：objdump 向量寄存器指令 14,368 条、jsimd 符号 103 个
+    （jsimd_idct_islow_neon / jsimd_h2v2_fancy_upsample_neon 等在链）。
+- **事件密度实测**（`tools/event_density.py --runs s1 s2 p1 --stdout …`，
+  三跑全部功能计数逐位相同——probe read-only 实证）：mispredicts
+  26,875（/commits 8,906,842 = **0.30%**）、squash 941,927（**10.6%**，
+  squash_bp 222,192 主导）、renamed_insts 10,017,746、rat_writes
+  11,702,335、sim_ticks 2,800,427,245；CHAOS_PROBE samples 7,273,837、
+  robOver80 297,706（**4.09%**，robMax=128 到顶）、iqOver80 238,328
+  （3.28%，iqMax=64 满容）。
+- 回归（抽查路线，避开并行 W1.4a 任务的全量重建）：smoke
+  `45737cc9a76c0dce` native 重放不变；`make libjpeg` 幂等（重跑无动作）。
+- **GOLDEN_IDS 候选（待编排者注册 runner.py）**：`libjpeg-golden-v1
+  c712f8f6fb9e21ec`。
