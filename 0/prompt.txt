@@ -708,3 +708,110 @@ commit_diff: ERROR: cannot open '/tmp/ooo_w22/NO_SUCH_FILE.csv.gz': No such file
 8. **纪律遵守**：未 git commit/push；仓库内仅新增 `tools/commit_diff.py` 一个文件；未触碰 gem5 源码/configs（git status 中 commit.cc/commit.hh/ooo_proxy.py/CHAOSCommitTrace/ 的改动全部来自并行 W2.1 代理）。</result>
 <usage><subagent_tokens>0</subagent_tokens><tool_uses>24</tool_uses><duration_ms>1579428</duration_ms></usage>
 </task-notification>
+
+---
+
+<task-notification>
+<task-id>a2c8c1db3ed8dda66</task-id>
+<tool-use-id>call_ceaa1746a30246e289b2a35b</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi/801d1500-1949-47d1-8f2e-95e2ab568418/tasks/a2c8c1db3ed8dda66.output</output-file>
+<status>completed</status>
+<summary>Agent "实现 W2.1 CHAOSCommitTrace" came to rest</summary>
+<note>A task-notification fires each time this agent comes to rest with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>所有关卡均已通过，工作已完成（根据纪律，未提交 —— 由编排器负责提交）。最终报告：
+
+# W2.1 CHAOSCommitTrace — 已完成，所有验证关卡通过
+
+## 文件清单 (7)
+
+**已创建 (4件套, 骨架抄 CHAOSProbe):**
+- `/home/sdc/gem5-fi/CHAOS/gem5/src/cpu/o3/CHAOSCommitTrace/CHAOSCommitTrace.hh`
+- `/home/sdc/gem5-fi/CHAOS/gem5/src/cpu/o3/CHAOSCommitTrace/CHAOSCommitTrace.cc`
+- `/home/sdc/gem5-fi/CHAOS/gem5/src/cpu/o3/CHAOSCommitTrace/CHAOSCommitTrace.py`
+- `/home/sdc/gem5-fi/CHAOS/gem5/src/cpu/o3/CHAOSCommitTrace/SConscript`
+
+**已修改 (最小改动, 50 insertions / 1 deletion):**
+- `commit.hh` (+12): 前置声明 + `chaosCommitTrace` 成员 + `setChaosCommitTrace` setter (CHAOSRAS@356-363 模式)
+- `commit.cc` (+14): include + 钩子 `/* gem5-fi W2.1 */ if (chaosCommitTrace) chaosCommitTrace-&gt;traceCommit(tid, head_inst.get());` — 位于 setEntry 循环之后（读到注入后的 RAT）、`rob-&gt;retireHead` 之前
+- `configs/se/ooo_proxy.py` (+25/-1): import + `--chaos_ctrace` / `--ctrace_file` (默认 `commit_trace.csv.gz`) + 挂载块 (`board.chaos_ctrace`)
+
+## 构建输出尾部（逐字）
+
+```
+ [     CXX] src/cpu/o3/CHAOSCommitTrace/CHAOSCommitTrace.cc -&gt; ARM/cpu/o3/CHAOSCommitTrace/CHAOSCommitTrace.cc.o
+ ...
+ [     LINK]  -&gt; ARM/gem5.opt
+scons: done building targets.
+```
+产物 `/home/sdc/gem5-fi/build/ARM/gem5.opt`（2026-09-23 23:56:47, 1137089992 B）。**我的文件零告警**；第一次全量构建中的 4 行告警（CHAOSIQ -Wreorder ×3、CHAOSPhysReg.cc:534 unused tid）均为未触碰文件的既有告警（因 SimObject 参数重生成而重编）。修复后增量构建 `grep -c 警告 = 0`。
+
+## 验证输出（逐字，全部在修复后二进制上）
+
+**① 纯读证明（硬门）— FINAL 逐字节一致 + golden:**
+```
+--- smoke notrace2: FINAL=45737cc9a76c0dce
+--- smoke trace2:   FINAL=45737cc9a76c0dce
+--- smoke FINAL lines BYTE-IDENTICAL
+--- branch_mispred notrace2: FINAL=06e84f119c258fa7
+--- branch_mispred trace2:   FINAL=06e84f119c258fa7
+--- branch_mispred FINAL lines BYTE-IDENTICAL
+0000000   F   I   N   A   L   =   4   5   7   3   7   c   c   9   a   7
+0000020   6   c   0   d   c   e  \n
+```
+simInsts 不变：smoke 308057 / bm 8611484（notrace==trace）。默认关闭回归：notrace outdir 无 trace 文件，EXIT=0，golden 不变。
+
+**② 行数自洽:**
+```
+smoke: trace_lines=309387 committedInstType_0_total=309387 MATCH
+branch_mispred: trace_lines=8612678 committedInstType_0_total=8612678 MATCH
+```
+
+**③ 内容抽查 — trace 前 20 行:**
+```
+0,0,73535,400640,nop,0
+1,0,74690,400644,movz,1,0,29,42,0000000000000000
+2,0,74690,400648,movz,1,0,30,43,0000000000000000
+3,0,74690,40064c,orr,1,0,5,44,0000000000000000
+4,0,137445,400650,ldr,1,0,1,45,0000000000000001
+5,0,137445,400654,add,1,0,2,46,0000007ffffefe68
+6,0,137445,400658,add,1,0,6,47,0000007ffffefe60
+7,0,137445,40065c,adrp,1,0,0,48,0000000000400000
+8,0,137830,400660,add,1,0,0,49,0000000000400674
+9,0,137830,400664,movz,1,0,3,50,0000000000000000
+10,0,137830,400668,movz,1,0,4,51,0000000000000000
+11,0,137830,40066c,bl,1,0,30,52,0000000000400670
+12,0,138215,400950,addxi_uop,1,0,35,53,0000007ffffefdd0
+13,0,138215,400950,strxi_uop,0
+14,0,138215,400950,strxi_uop,0
+15,0,138215,400950,addxi_uop,1,0,42,54,0000007ffffefdd0
+16,0,138600,400954,add,1,0,29,55,0000007ffffefdd0
+17,0,138600,400958,addxi_uop,1,0,35,56,0000007ffffefde0
+18,0,138600,400958,strxi_uop,0
+19,0,138600,400958,strxi_uop,0
+```
+vs `--debug-flags=Commit`（同一 workload）：
+```
+309387   (= debug "Committing" 行数 = trace 行数)
+TICK+PC STREAMS IDENTICAL (all 309387 lines)
+```
+op 与 objdump 反汇编一致（gem5 基础名 vs objdump 别名）：`400640 nop==nop, 400644 movz=="mov x29,#0", 40064c orr=="mov x5,x0", 400650 ldr==ldr, 40065c adrp==adrp, 40066c bl==bl, 4096fc mrs==mrs`；arch 语义吻合（x29/x30/x5/x1/x0/x3/x4）；值语义抽查：`adrp x0,400000 → 0000000000400000`、`bl → x30=400670 (返回地址)` ✓。
+
+**④ 减速实测:**
+```
+smoke: notrace=1.16s trace=2.43s ratio=2.09x
+branch_mispred: notrace=56.61s trace=88.52s ratio=1.56x
+```
+gz 体积：smoke 5.1MB（309K 行）、bm 97.9MB（8.6M 行，落点在 spike 估计 60-130MB 内）。
+
+**⑤ 格式自检:** 全部 val 字段=16 位十六进制；列数契约 `6+4*ndest` 全行通过；seq 0..N-1 单调通过。
+
+## 偏差说明（全部诚实披露）
+
+1. **过程中发现并修复一个真实格式 bug**：首版 `hex16`/MiscReg 分支漏打 phys 与 val 之间的逗号（phys/val 两列粘连，dest 行 9 列而非 10 列）——被我自己加的列数契约检查当场抓出；修复后**重新构建并重跑了全部 5 个验证运行**（上文全部为修复后输出）。此 bug 直接影响已落地的 W2.2 commit_diff.py（80dd4322）对钉死格式的解析，修复使其对齐。
+2. **class=-1 行**：为 `subs xzr`/`cmp` 类指令的 X31/XZR 目的寄存器——映射到 gem5 哨兵零 PhysRegId（InvalidRegClass, index 65535=0xFFFF），val 全零即零寄存器真值；bm 中 504377 行（5.9%，分支密集负载的 cmp 量）属正常。MiscReg 目的（msr）不读 physRegFile（getReg 会 panic），val 记为零。
+3. **行数口径**：trace 按 commitHead 逐 DynInst（含微码 op，如 addxi_uop/strxi_uop），故 309387 &gt; simInsts 308057——这正是计划钉死用 `committedInstType_0::total` 而非 simInsts 做交叉验证的原因。
+4. **VecPred/Mat 宽度**：regfile 无公开 `vecPredRegBytes()`（只有 `vecRegBytes()`），VecPred/Mat 走 `phys-&gt;regClass().regBytes()`（代码内注明）；本两负载未触达该两类。VecRegClass FNV-1a-64 路径已被真实执行（libc NEON 的 dup/movi/mvni/ldfp16_uop，如 `64,0,308770,408fc4,dup,1,2,0,44,d80ac658736bb725`）。
+5. **无 stdout 汇总行**（与 CHAOS_PROBE 不同，刻意为之）：保证带 trace 运行的 stdout 可与无 trace 逐字节比对（除 gem5 自身输出外零差异）。
+6. **未 commit/push**（按任务纪律，提交归编排者）；里程碑全程追加于 `/tmp/ooo_w21_progress.txt`。</result>
+<usage><subagent_tokens>0</subagent_tokens><tool_uses>80</tool_uses><duration_ms>2689006</duration_ms></usage>
+</task-notification>
