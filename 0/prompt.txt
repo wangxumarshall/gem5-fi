@@ -426,3 +426,285 @@ smoke 回归（抽查）：FINAL=45737cc9a76c0dce 不变（未跑全量 make cle
 - **CHAOSIQ 采样模式**（`CHAOSIQ.cc:31-48`、`:84-90`、`:121-126`）：`countOnly` 干跑消费 eligible 事件并打印 `CHAOS_ELIGIBLE_COUNT`（`:46-50`），driver 用 `chaosPickSkip`（`chaos_event_sample.hh:68-73`）算出固定 `eventsToSkip` 回传。**W2.3 可借鉴点** = 「干跑计数 → driver 回传固定参数」这一可审计的两遍编排骨架 + `countOnly`/`eventsToSkip` 式 Param 设计；但 trace 遍不需要 RNG（纯读），核心是 runner 以同 seed 重放 + trace 文件按 (cell, rep) 命名。</result>
 <usage><subagent_tokens>0</subagent_tokens><tool_uses>39</tool_uses><duration_ms>233933</duration_ms></usage>
 </task-notification>
+
+---
+
+<task-notification>
+<task-id>aa8ab907204f2569a</task-id>
+<tool-use-id>call_55604ca7c8de45ea892481e8</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi/801d1500-1949-47d1-8f2e-95e2ab568418/tasks/aa8ab907204f2569a.output</output-file>
+<status>completed</status>
+<summary>Agent "实现 W2.2 commit_diff.py" came to rest</summary>
+<note>A task-notification fires each time this agent comes to rest with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>W2.2 完成且全部验证通过。git 状态确认：仓库内我的唯一足迹是新增 `tools/commit_diff.py`（commit.cc/commit.hh/ooo_proxy.py/CHAOSCommitTrace/ 是并行 W2.1 代理的改动，我未触碰）。未做任何 git commit/push（按纪律留给编排者）。
+
+# W2.2 交付报告：tools/commit_diff.py（TC'23 五分类离线比对器）
+
+## 一、文件清单
+
+| 文件 | 性质 | 说明 |
+|---|---|---|
+| `/home/sdc/gem5-fi/tools/commit_diff.py` | **新增（唯一入库文件）** | 507 行，python3 stdlib-only（argparse/gzip/json/re/sys），未 commit/push（按纪律留给编排者） |
+| `/tmp/ooo_w22/gen_traces.py` | 测试输入生成器（不入库） | 手写 12 行定向对（五类+变体）+ 100 行伪 trace 预演对（gzip）+ 阴性坏文件 |
+| `/tmp/ooo_w22/run_tests.py` | 断言驱动（不入库） | 40 项断言（exit 码/主类/潜伏期/计数/分歧层级/辅助诊断） |
+| `/tmp/ooo_w22/*.{csv,csv.gz}` | 测试输入数据（不入库） | 22 个文件 |
+| `/tmp/ooo_w22_progress.txt` | 中断保护里程碑 | 已更新至 DONE |
+
+CLI 与计划 Interface 一致：`python3 tools/commit_diff.py --ref A.csv.gz --run B.csv.gz [--json OUT] [--tick-tol T]`（默认 T=0）。退出码：0=比对完成（分歧与否看输出/JSON 的 verdict）；1=文件不可读/坏行（消息带文件名+行号）；2=CLI 误用。
+
+## 二、验证输出（逐字，真机 python 3.11.6）
+
+### 断言驱动全量输出（40/40 PASS）
+
+```
+PASS  t1 ②指令流改变 (pc diff @5)
+PASS  t2 ②指令流改变 (seq 单侧缺失 @10)
+PASS  t3 ③指令替换 (op @8)
+PASS  t4a ④操作数强制切换 (dest[1].arch @6)
+PASS  t4b ④操作数强制切换 (ndest 数量 @6)
+PASS  t5 ⑤数据损坏 (dest[0].val @9, csv)
+PASS  t5 ⑤数据损坏 (dest[0].val @9, gzip)
+PASS  t6 ①执行时间错 (tick 漂移, tol=0 → 首超 @3)
+PASS  t6 ①执行时间错 (tol=10 → 首超 @11)
+PASS  t6 无分歧 (tol=5000 覆盖全部漂移)
+PASS  t7 多分歧 (先 val@4 后 op@10 → 主类=首个⑤)
+PASS  self-compare 无分歧: d_ref.csv
+PASS  self-compare 无分歧: d_ref.csv.gz
+PASS  self-compare 无分歧: t1_flow_pc_run.csv
+PASS  self-compare 无分歧: t2_flow_missing_run.csv
+PASS  self-compare 无分歧: t3_subst_run.csv
+PASS  self-compare 无分歧: t4a_opnd_arch_run.csv
+PASS  self-compare 无分歧: t4b_opnd_count_run.csv
+PASS  self-compare 无分歧: t5_corrupt_run.csv
+PASS  self-compare 无分歧: t5_corrupt_run.csv.gz
+PASS  self-compare 无分歧: t6_timing_run.csv
+PASS  self-compare 无分歧: t7_multi_run.csv
+PASS  self-compare 无分歧: p_ref.csv.gz
+PASS  self-compare 无分歧: p1_run.csv.gz
+PASS  self-compare 无分歧: p2_run.csv.gz
+PASS  self-compare 无分歧: p3_run.csv.gz
+PASS  p1 100 行伪 trace 完全一致 → 无分歧
+PASS  p2 tick 容差案例 (tol=0 → ①@20)
+PASS  p2 tick 容差案例 (tol=5 → ①@60)
+PASS  p2 tick 容差案例 (tol=7 → 无分歧)
+PASS  p3 深处 val 分歧@62 + 前置 tick 漂移 (tol=0 → 主类仍⑤@62)
+PASS  p3 同上 tol=5 (主类⑤@62, ①计数=0, 诊断首超@60)
+PASS  n1 列数不匹配 → exit 1 指明 line 3
+PASS  n2 ndest 非整数 → exit 1 指明 line 5
+PASS  n2b ndest=3 但只有 2 个四元组 → exit 1 指明 line 7
+PASS  n3 val 非 16 位十六进制 → exit 1 指明 line 10
+PASS  n4 文件不存在 → exit 1
+PASS  n5 seq 不从 0 起 → exit 1 指明 line 1
+PASS  n6 seq 未严格递增 → exit 1 指明 line 4
+PASS  cli --tick-tol -1 → exit 2 (argparse)
+
+== summary: 40 PASS, 0 FAIL ==
+```
+
+### 回归检查（不受影响的现有工具，零连带破坏）
+
+```
+== 回归1: manifest_validate 自测 ==
+SELFTEST OK: v1 p1 + v2 p2 validate, broken manifest rejected (15 errors as expected).
+exit=0
+== 回归2: event_density --help ==
+exit=0
+== 回归3: runner --help ==
+exit=0
+```
+
+另：`python3 -m py_compile tools/commit_diff.py` → OK（无语法/告警问题）。
+
+## 三、五类判定实际输出样本（逐字）
+
+### ②指令流改变（pc 不同 @seq5；指令含 0/1/2 个目的寄存器）
+
+```
+[结论] 主分类: ②指令流改变 (instruction_flow_change)
+[潜伏期] 首分歧 seq = 5
+[首分歧明细]
+  seq 5  分歧层级: pc
+  detail: pc: ref=80014 run=90000
+  ref: 5,0,1500,80014,b,0
+  run: 5,0,1500,90000,b,0
+
+[全程分歧点计数]  (主类 = 首个分歧点; 其余分歧点计入各类)
+  ①执行时间错 (timing_error): 0
+  ②指令流改变 (instruction_flow_change): 1  (首见 seq 5)
+  ③指令替换 (instruction_substitution): 0
+  ④操作数强制切换 (operand_forced_switch): 0
+  ⑤数据损坏 (data_corruption): 0
+  合计分歧点: 1
+```
+
+### ②指令流改变（seq 单侧缺失：run 截断至 10 行）
+
+```
+[结论] 主分类: ②指令流改变 (instruction_flow_change)
+[潜伏期] 首分歧 seq = 10
+[首分歧明细]
+  seq 10  分歧层级: presence
+  detail: seq 10 仅存在于 ref（run 侧缺失）
+  ref: 10,0,2000,80028,ret,0
+  run: &lt;该侧无此 seq 记录&gt;
+  ...
+  ②指令流改变 (instruction_flow_change): 2  (首见 seq 10)
+  合计分歧点: 2
+```
+
+### ③指令替换（同 pc，op madd→msub @seq8）
+
+```
+[结论] 主分类: ③指令替换 (instruction_substitution)
+[潜伏期] 首分歧 seq = 8
+[首分歧明细]
+  seq 8  分歧层级: op
+  detail: op: ref=madd run=msub
+  ref: 8,0,1800,80020,madd,1,1,8,88,0000000000000064
+  run: 8,0,1800,80020,msub,1,1,8,88,0000000000000064
+  ...
+  ③指令替换 (instruction_substitution): 1  (首见 seq 8)
+```
+
+### ④操作数强制切换（dest[1] arch id 7→11 @seq6）
+
+```
+[结论] 主分类: ④操作数强制切换 (operand_forced_switch)
+[潜伏期] 首分歧 seq = 6
+[首分歧明细]
+  seq 6  分歧层级: dest[1].arch
+  detail: dest[1] arch id: ref=(class 1, arch 7) run=(class 1, arch 11)
+  ref: 6,0,1600,80018,mul,2,1,6,86,000000000000000a,1,7,87,0000000000000014
+  run: 6,0,1600,80018,mul,2,1,6,86,000000000000000a,1,11,87,0000000000000014
+  ...
+  ④操作数强制切换 (operand_forced_switch): 1  (首见 seq 6)
+```
+
+（数量变体 t4b：`分歧层级: dest_count / detail: 目的寄存器数量 ndest: ref=2 run=1`，同样判④@6。）
+
+### ⑤数据损坏（gzip 对，dest[0].val @seq9）
+
+```
+[结论] 主分类: ⑤数据损坏 (data_corruption)
+[潜伏期] 首分歧 seq = 9
+[首分歧明细]
+  seq 9  分歧层级: dest[0].val
+  detail: dest[0] val: ref=0000000000000003 run=0000000000000004
+  ref: 9,0,1900,80024,sub,2,1,9,89,0000000000000003,1,10,90,0000000000000001
+  run: 9,0,1900,80024,sub,2,1,9,89,0000000000000004,1,10,90,0000000000000001
+  ...
+  ⑤数据损坏 (data_corruption): 1  (首见 seq 9)
+```
+
+### ①执行时间错（字段全同，tick 漂移；tol=0 首超 @3，tol=10 首超 @11，tol=5000 无分歧）
+
+```
+[结论] 主分类: ①执行时间错 (timing_error)
+[潜伏期] 首分歧 seq = 3
+[首分歧明细]
+  seq 3  分歧层级: tick
+  detail: tick: ref=1300 run=1305（漂移 5 &gt; 容差 0）
+  ref: 3,0,1300,8000c,ldr,1,1,4,84,00000000000000ff
+  run: 3,0,1305,8000c,ldr,1,1,4,84,00000000000000ff
+  ...
+  ①执行时间错 (timing_error): 9  (首见 seq 3)
+  合计分歧点: 9
+[辅助诊断]  (不计入五分类)
+  ...
+  tick 漂移 (仅字段一致对, 共 12 对): max 5000 @ seq 11; 首超容差(&gt;0): seq 3
+```
+
+### 多分歧（先 val@4 后 op@10 → 主类=首个，计数含两类）
+
+```
+[结论] 主分类: ⑤数据损坏 (data_corruption)
+[潜伏期] 首分歧 seq = 4
+[首分歧明细]
+  seq 4  分歧层级: dest[0].val
+  detail: dest[0] val: ref=00000000deadbeef run=00000000deadbeee
+  ...
+  ③指令替换 (instruction_substitution): 1  (首见 seq 10)
+  ⑤数据损坏 (data_corruption): 1  (首见 seq 4)
+  合计分歧点: 2
+```
+
+### 100 行伪 trace 预演：tick 容差案例（p2，gzip，tol=5）
+
+```
+[结论] 主分类: ①执行时间错 (timing_error)
+[潜伏期] 首分歧 seq = 60
+[首分歧明细]
+  seq 60  分歧层级: tick
+  detail: tick: ref=3220 run=3227（漂移 7 &gt; 容差 5）
+  ref: 60,0,3220,800f0,b,0
+  run: 60,0,3227,800f0,b,0
+  ...
+  ①执行时间错 (timing_error): 40  (首见 seq 60)
+```
+
+（同对 tol=0 → ①@20 计数 80；tol=7 → 无分歧——三档容差语义均断言通过。）
+
+### 100 行伪 trace 预演：前置 tick 漂移 + 深处字段分歧混合（p3，tol=0）
+
+```
+[结论] 主分类: ⑤数据损坏 (data_corruption)
+[潜伏期] 首分歧 seq = 62
+[首分歧明细]
+  seq 62  分歧层级: dest[0].val
+  detail: dest[0] val: ref=00000000000013e0 run=00000000000013e1
+  ...
+  ①执行时间错 (timing_error): 0
+  ⑤数据损坏 (data_corruption): 1  (首见 seq 62)
+[辅助诊断]  (不计入五分类)
+  tick 漂移 (仅字段一致对, 共 99 对): max 7 @ seq 60; 首超容差(&gt;0): seq 20
+```
+
+——seq20 起 tick 已漂移，但主类仍是 seq62 的⑤：①只在全程字段全同时成立（计划钉死语义，见偏差 3），前置漂移降级为诊断量。
+
+### 阴性输出（逐字 stderr + exit 码）
+
+```
+commit_diff: ERROR: /tmp/ooo_w22/n1_badcols_run.csv: line 3: 列数不匹配: ndest=2 要求 14 列 (6+4*ndest)，实际 13 列   exit=1
+commit_diff: ERROR: /tmp/ooo_w22/n2_badndest_run.csv: line 5: ndest 字段 'x' 不是无符号整数                                exit=1
+commit_diff: ERROR: /tmp/ooo_w22/n2b_ndest_mismatch_run.csv: line 7: 列数不匹配: ndest=3 要求 18 列 (6+4*ndest)，实际 14 列 exit=1
+commit_diff: ERROR: /tmp/ooo_w22/n3_badval_run.csv: line 10: dest[0].val 字段 '000000000000003' 不是 16 位十六进制（钉死格式: val=16位十六进制） exit=1
+commit_diff: ERROR: /tmp/ooo_w22/n5_seqstart_run.csv: line 1: 首条记录 seq=1，钉死格式要求 seq 从 0 起                    exit=1
+commit_diff: ERROR: /tmp/ooo_w22/n6_nonincreasing_run.csv: line 4: seq=2 未严格递增（前一条 seq=3）                        exit=1
+commit_diff: ERROR: cannot open '/tmp/ooo_w22/NO_SUCH_FILE.csv.gz': No such file or directory                             exit=1
+```
+
+### --json 机器可读样本（t5 gzip 对，全文见 /tmp/ooo_w22/sample.json）
+
+```json
+{
+  "tool": "commit_diff",
+  "trace_format": "seq,tid,tick,pc,op,ndest[,class,arch,phys,val]*",
+  "ref": "/tmp/ooo_w22/d_ref.csv.gz", "ref_instructions": 12,
+  "run": "/tmp/ooo_w22/t5_corrupt_run.csv.gz", "run_instructions": 12,
+  "aligned_pairs": 12, "tick_tol": 0,
+  "verdict": "diverged",
+  "primary_class": "data_corruption", "primary_class_zh": "⑤数据损坏",
+  "latency_seq": 9,
+  "first_divergence": { "seq": 9, "class": "data_corruption", "class_zh": "⑤数据损坏",
+    "level": "dest[0].val", "detail": "dest[0] val: ref=0000000000000003 run=0000000000000004",
+    "ref_line": "9,0,1900,80024,sub,2,1,9,89,0000000000000003,1,10,90,0000000000000001",
+    "run_line": "9,0,1900,80024,sub,2,1,9,89,0000000000000004,1,10,90,0000000000000001" },
+  "divergence_counts": { "timing_error": 0, "instruction_flow_change": 0, "instruction_substitution": 0, "operand_forced_switch": 0, "data_corruption": 1 },
+  "first_seq_per_class": { "timing_error": null, "instruction_flow_change": null, "instruction_substitution": null, "operand_forced_switch": null, "data_corruption": 9 },
+  "total_divergence_points": 1,
+  "aux": { "phys_mismatch": 0, "tid_mismatch": 0, "tick_compared_pairs": 11, "max_tick_drift": 0, "max_tick_drift_seq": 0, "first_tick_over_tol_seq": null }
+}
+```
+
+## 四、偏差与解释性决策说明
+
+1. **行格式按计划文件**：任务提示写 `seq,tid,tid,tick,...`（tid 重复，笔误），按「冲突以计划文件为准」采用计划钉死的 `seq,tid,tick,pc,op,ndest[,class,arch,phys,val]*`（6 基列 + 4×ndest）。
+2. **"dest arch id" 取严格解释 = (RegClass, arch index) 二元组**：寄存器身份由 class+index 共同构成（仅比 index 会把 x5 与 d5 混同）。实际风险为零：同 pc+op ⇒ 同静态指令 ⇒ 目的 class 集合必相同。class 不同同样判④。
+3. **①执行时间错采用两段式（计划原文语义）**：仅当两条 trace **全程**指令字段一致而 tick 漂移超容差时判①并计①分歧点；若全程任何位置存在字段级分歧，主类=首个字段分歧，前置/后置 tick 漂移不抢主类、不进①计数，只进辅助诊断（`first_tick_over_tol_seq`/`max_tick_drift`，且仅在字段一致对上统计）。任务提示的⑤措辞（"首分歧前字段全同但 tick 漂移"）在五个规范案例上与该语义等价，混合案例以计划文为准（p3 已演示）。理由：五分类刻画的是架构层结局，纯时间错=结果全对只差时间。
+4. **phys/tid 不参与五分类**（钉死映射只到 pc/op/arch/val）：仅在字段完全一致的对上统计 phys/tid 不匹配条数作辅助诊断（L1 微架构信号，供 W2.4 交叉）。
+5. **超出字面规范的严格性**：seq 必须从 0 起、严格递增（对齐前提，坏则 exit 1 指明行号，n5/n6 验证）；pc 拒绝 0x 前缀；val 强制恰 16 位十六进制；gzip 按 magic 字节识别（纯文本也能读，容错不损失校验）。
+6. **计划 Step 2②"真实无注入对（smoke 两次跑的 trace）"无法执行**：trace 生成器是并行 W2.1 代理的产物，尚不可用；按任务指示以自造的 100 行钉死格式伪 trace 对（p1/p2/p3）替代预演。W2.1 合入后应补跑该真机对（留给编排者）。
+7. **实现形态**：流式 merge-join 按 seq 对齐，O(1) 内存（branch_mispred 8.6M 指令级的 trace 双读也不会撑爆 29GB 主存）；比对语义与两遍扫描等价。退出码不承载 verdict（0=比对完成），机器接口是 --json 文件——W2.3 接 runner 时用 JSON。
+8. **纪律遵守**：未 git commit/push；仓库内仅新增 `tools/commit_diff.py` 一个文件；未触碰 gem5 源码/configs（git status 中 commit.cc/commit.hh/ooo_proxy.py/CHAOSCommitTrace/ 的改动全部来自并行 W2.1 代理）。</result>
+<usage><subagent_tokens>0</subagent_tokens><tool_uses>24</tool_uses><duration_ms>1579428</duration_ms></usage>
+</task-notification>
