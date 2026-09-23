@@ -31,11 +31,11 @@
 - SimObject：`CHAOSCommitTrace(cpu=, traceFile="commit_trace.csv.gz", writeLog=True)`；self-attach 不行——需 commit.cc 钩子（spike 结论 7）；钩内自持 `uint64_t seq` 计数器。
 - 每条提交指令按钉死格式写一行（simout.create 自动 gzip；纯读：只调 pcState/getName/destRegIdx/renamedDestIdx/physRegFile().getReg，不产生任何事件）。
 
-- [ ] Step 1: 四件套 + commit 钩子（spike 事实 1/2/3/4 全部行号在案）
-- [ ] Step 2: 增量构建零新告警
-- [ ] Step 3: 挂载 ooo_proxy（--chaos_ctrace）
-- [ ] Step 4: 验证：①纯读证明——smoke + branch_mispred 带 trace 跑 FINAL 与无 trace 逐字节一致；②行数自洽——trace 行数 == stats committedInsts（自持计数器交叉验证）；③内容抽查——前 100 行的 PC/op 与 `--debug-flags=Commit` 抽样一致；④减速实测——smoke（308K insts）与 branch_mispred（8.6M）两档 hostSeconds 比值入档；⑤gz 可解（zcat | head）。
-- [ ] Step 5: Commit + push
+- [x] Step 1: 四件套 + commit 钩子（spike 事实 1/2/3/4 全部行号在案）。〔执行注 2026-09-24：commit.hh +12（前置声明/成员/setter 照抄 CHAOSRAS@356-363 模式）；commit.cc +14（钩在 setEntry 循环后=读到注入后 RAT、retireHead 前）；ooo_proxy +25（--chaos_ctrace/--ctrace_file 默认 commit_trace.csv.gz）。**过程中发现并修复真实格式 bug**（首版 MiscReg 分支 phys/val 间漏逗号——被自加的列数契约检查当场抓出，修复后全量重跑 5 个验证运行）。诚实偏差：XZR 目的输出 class=-1/phys=65535（gem5 哨兵，bm 占 5.9%）；MiscReg 目的不读 physRegFile（getReg 会 panic）val 记零；VecPred/Mat 宽度走 regClass().regBytes()（无公开 vecPredRegBytes）；行数按 commitHead 逐 DynInst 含微码 op（309387>simInsts 308057——钉死格式用 committedInstType_0::total 交叉验证正因此）；无 stdout 汇总行（刻意——保 stdout 可逐字节比对）。〕
+- [x] Step 2: 增量构建零新告警（新编译单元零警告；全量构建 4 行既有告警均在未触碰文件）
+- [x] Step 3: 挂载 ooo_proxy（--chaos_ctrace）
+- [x] Step 4: 验证五关全过。〔执行注：①**纯读证明（硬门）**——smoke/branch_mispred 带 trace FINAL 逐字节一致（45737cc9a76c0dce/06e84f119c258fa7）+ simInsts 不变 + 默认关闭回归干净；②行数自洽——trace 行数==committedInstType_0::total（309387/8612678 双 MATCH）；③内容抽查——**与 --debug-flags=Commit 全流 309,387 行 TICK+PC 全等** + op 与 objdump 反汇编一致 + 值语义抽查（adrp→0x400000、bl→x30=返回地址）✓；④减速实测——smoke 2.09×/branch_mispred 1.56×；gz 体积 5.1MB/97.9MB（spike 估计 60-130MB 带内）；⑤格式自检全过（val=16hex/列数契约/seq 单调）。**编排者集成验收（2026-09-24）**：真实双 smoke trace（各 309,387 条）→ commit_diff **no_divergence**（tick-tol=0 全程字段+tick 全同，五类计数全 0，INTEG_EXIT=0 无管道直测）——W2.2 延期集成项闭环；发现并修复 class=-1 哨兵契约缺口（d0b372c3）。〕
+- [x] Step 5: Commit + push
 
 ### Task 2: W2.2 — tools/commit_diff.py（TC'23 五分类 + 潜伏期）
 

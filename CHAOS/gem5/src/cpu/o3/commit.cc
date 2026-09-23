@@ -54,6 +54,11 @@
 #include "cpu/o3/cpu.hh"
 #include "cpu/o3/dyn_inst.hh"
 #include "cpu/o3/limits.hh"
+// gem5-fi W2.1: full definition for the read-only commit tracer called from
+// commitHead below. Non-circular: CHAOSCommitTrace.hh forward-declares
+// o3::CPU/o3::DynInst and does NOT include commit.hh (same rationale as the
+// CHAOSRAS include in commit.hh).
+#include "cpu/o3/CHAOSCommitTrace/CHAOSCommitTrace.hh"
 #include "cpu/o3/thread_state.hh"
 #include "cpu/timebuf.hh"
 #include "debug/Activity.hh"
@@ -1272,6 +1277,15 @@ Commit::commitHead(const DynInstPtr &head_inst, unsigned inst_num)
     for (int i = 0; i < head_inst->numDestRegs(); i++) {
         renameMap[tid]->setEntry(head_inst->flattenedDestIdx(i),
                                  head_inst->renamedDestIdx(i));
+    }
+
+    /* gem5-fi W2.1 */ if (chaosCommitTrace) {
+        // Read-only L2 commit trace, one line per committed instruction.
+        // Placed AFTER the setEntry loop (the map read here is the
+        // POST-INJECTION RAT — setEntry contains the CHAOSRenameMap
+        // post-write hook) and BEFORE rob->retireHead. nullptr = no trace
+        // (zero regression).
+        chaosCommitTrace->traceCommit(tid, head_inst.get());
     }
 
     // hardware transactional memory

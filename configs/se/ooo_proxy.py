@@ -25,7 +25,7 @@
 
 import argparse
 import m5
-from m5.objects import CHAOSReg, CHAOSPhysReg, CHAOSMem, CHAOSLSQFwd, CHAOSRenameMap, CHAOSFreeList, CHAOSROB, CHAOSIQ, CHAOSExec, CHAOSFPU, CHAOSL1DForward, CHAOSBPU, CHAOSAddrPath, CHAOSDecode, CHAOSExMon, CHAOSRAS, CHAOSProbe
+from m5.objects import CHAOSReg, CHAOSPhysReg, CHAOSMem, CHAOSLSQFwd, CHAOSRenameMap, CHAOSFreeList, CHAOSROB, CHAOSIQ, CHAOSExec, CHAOSFPU, CHAOSL1DForward, CHAOSBPU, CHAOSAddrPath, CHAOSDecode, CHAOSExMon, CHAOSRAS, CHAOSProbe, CHAOSCommitTrace
 from gem5.components.boards.simple_board import SimpleBoard
 from gem5.components.cachehierarchies.classic.private_l1_private_l2_cache_hierarchy import (
     PrivateL1PrivateL2CacheHierarchy,
@@ -262,6 +262,16 @@ p.add_argument("--probe_fl_float_le", type=int, default=12,
                help="float PRF freelist low-watermark")
 p.add_argument("--probe_fl_vec_le", type=int, default=6,
                help="vec PRF freelist low-watermark")
+# W2.1 CHAOSCommitTrace (L2 commit-per-instruction trace). READ-ONLY: no
+# injector, no state writes, no events — the workload FINAL checksum must be
+# byte-identical with it attached (hard gate). Writes one pinned-format CSV
+# line per committed instruction (seq,tid,tick,pc,op,ndest[,class,arch,phys,
+# val]*; consumed by tools/commit_diff.py) into the run --outdir.
+p.add_argument("--chaos_ctrace", action="store_true",
+               help="attach CHAOSCommitTrace (L2 commit trace, W2.1)")
+p.add_argument("--ctrace_file", default="commit_trace.csv.gz",
+               help="commit trace output file (relative to --outdir; "
+                    "a .gz suffix is gzip-compressed automatically)")
 args = p.parse_args()
 
 # C3-OOO cache geometry = same as kp920_proxy.py/C0: 64KiB L1 (4-way, 64B),
@@ -606,6 +616,19 @@ if args.chaos_probe:
         writeLog=True,
     )
     board.chaos_probe = probe
+
+if args.chaos_ctrace:
+    # W2.1 CHAOSCommitTrace: O3-only, READ-ONLY L2 commit trace. SELF-ATTACHES
+    # at startup() to cpu.commit.chaosCommitTrace (commitHead calls
+    # traceCommit right after the commit-renameMap setEntry loop — the
+    # POST-INJECTION RAT — and before rob->retireHead). Unlike the probe it
+    # needs that one-line gem5 source hook; attaching changes nothing else.
+    ctr = CHAOSCommitTrace(
+        cpu=cpu0,
+        traceFile=args.ctrace_file,
+        writeLog=True,
+    )
+    board.chaos_ctrace = ctr
 
 if args.maxinsts:
     # W1.5b followup fix: BaseCPU's real param is max_insts_any_thread

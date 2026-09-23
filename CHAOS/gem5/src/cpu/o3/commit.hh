@@ -67,6 +67,8 @@ struct BaseO3CPUParams;
 
 // §2.18 CHAOSRAS: forward decl (gem5 top-level namespace, not o3).
 class CHAOSRAS;
+// W2.1 CHAOSCommitTrace: forward decl (gem5 top-level namespace, not o3).
+class CHAOSCommitTrace;
 
 namespace o3
 {
@@ -361,6 +363,16 @@ class Commit
   public:
     /** §2.18 CHAOSRAS accessor. */
     void setChaosRAS(::gem5::CHAOSRAS *p) { chaosRAS = p; }
+
+  private:
+    // W2.1 CHAOSCommitTrace: raw pointer to the READ-ONLY commit tracer.
+    // Set by the tracer's startup() (cpu->o3Commit().setChaosCommitTrace
+    // (this)). nullptr = no trace (zero regression). Forward-declared above.
+    ::gem5::CHAOSCommitTrace *chaosCommitTrace = nullptr;
+
+  public:
+    /** W2.1 CHAOSCommitTrace accessor. */
+    void setChaosCommitTrace(::gem5::CHAOSCommitTrace *p) { chaosCommitTrace = p; }
 
   private:
     /** Vector of all of the threads. */
