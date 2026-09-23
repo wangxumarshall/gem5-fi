@@ -102,6 +102,12 @@ GOLDEN_IDS = {
     "embenchwikisort-golden-v1": "d2cf29655e3e0f06",  # replaces qlsort (never existed upstream)
     "embenchnbody-golden-v1": "f39b4e8804f279c3",     # FP, from 92da124b
     "embenchminver-golden-v1": "9792f3ee24af3023",    # FP, from 92da124b (replaces qrsolve)
+    # W1.3 PolyBench/C 4.2.1 (mirror MatthiasJReisinger@3e872547, llvm-test-suite
+    # cross-verified; fp32, sizes gemm 88^3 / lu 84 / cholesky 88 / jacobi T=8 N=160):
+    "polybenchgemm-golden-v1": "116849d3adf3227b",
+    "polybenchlu-golden-v1": "74ffe5eb77ea9257",
+    "polybenchcholesky-golden-v1": "ea7e0d0e7c86582d",
+    "polybenchjacobi2d-golden-v1": "dc867b5f02998c1e",
 }
 
 # v1.1 Phase 8.1: golden ARRAY registry — for workloads whose oracle is

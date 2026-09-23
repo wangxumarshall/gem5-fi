@@ -36,7 +36,7 @@
 | rob_fill（int/fp 两版） | W1.5c | int `19eab7d0de27237e` / fp `85085fd5686d173b` | int 43.90 / 40.34；fp 40.75 / 44.25（各两次，编排者终跑） | int 7901621 / fp 8692564 | **robOver80：int 4.91%（275648/5609073）/ fp 7.09%（426601/6013631），原 ≥50% 门未达 → 编排者裁决：门重校准为事件覆盖口径，PASS**（robMax=128 到顶 + 越阈采样 27.5 万/42.7 万每跑 + commit 空转 ~49% + div 静态 192/130、动态 IntDiv=140290/FloatDiv=69120；8 轮诊断证明 ≥50% 持续占用是 gem5 v25 rename skid 平台属性——D75 同类，见下） | done（门重校准裁决） |
 | coremark | W1.1 | `000000000000cf56` | 52.62 / 52.92（s1/s2） | 10808351 | 自带 CRC 校验 PASS（seedcrc 0xe9f5，crclist 0xe714/crcmatrix 0x1fd7/crcstate 0x8e3a 全对 known_id=3；"Errors detected" **仅**来自 EEMBC 10 秒计时报告规则——SE 模拟时钟结构性不可满足，见实测记录）；密度：mispredicts/commits 0.66%、squash 15.1%、flIntLe8 10.6%（flIntMin=0 实压穿）、robOver80 1.3%（robMax=128 到顶） | done |
 | embench | W1.2 | crc32 `b87739d9c40d1798` / md5sum `973ff8cc9018e79f` / matmult-int `e105f98022b761ef` / wikisort `d2cf29655e3e0f06` / nbody `f39b4e8804f279c3` / minver `9792f3ee24af3023` | crc32 39.35/38.87；md5sum 40.04/40.39；matmult-int 42.83/42.73；wikisort 29.85/29.79；nbody 33.40/33.37；minver 53.14/54.04（各两次，全 ≤60s） | 8908567 / 12071108 / 6217780 / 5156577 / 3719230 / 9276668 | 6 程序各自带校验退出码 0（native==gem5==golden FINAL 逐字节一致）；密度三档：wikisort/matmult 误预测 0.61-0.87% + squash 9.7-12.1%，md5sum 中间，nbody/minver（FP）误预测 ~0.01% 循环主导；flIntMin=0 全部 6 程序 | done |
-| polybench | W1.3 | （待实测） | （待实测） | （待实测） | 全数组 array_hash | pending |
+| polybench | W1.3 | gemm `116849d3adf3227b` / lu `74ffe5eb77ea9257` / cholesky `ea7e0d0e7c86582d` / jacobi-2d `dc867b5f02998c1e` | gemm 52.87/53.98；lu 51.43/51.62；cholesky 53.14/51.92；jacobi-2d 51.15/52.04（s1/s2；重建后 s3 复跑 53.30/51.54/51.63/51.51） | 6460912 / 6651537 / 6539248 / 6571463 | 全数组 FNV-1a hash（cholesky 按上游 print_array 口径=下三角含对角）；**flFloatMin=192 全部 4 内核（W1.2「标量 FP→VecRegClass」三重确认）+ flVecMin=0（vec 池压穿，D75 初始 4→0）**；robMax=128/iqMax=64 全部到顶；详见 W1.3 实测记录 | done |
 | gap / libjpeg | W1.4 | （待实测） | （待实测） | （待实测） | 语义代理 checksum / 逐像素 hash | pending |
 
 ## smoke 实测记录（W1.0，2026-09-23）
@@ -304,3 +304,94 @@
   `embenchmatmult-golden-v1 e105f98022b761ef`、`embenchwikisort-golden-v1
   d2cf29655e3e0f06`、`embenchnbody-golden-v1 f39b4e8804f279c3`、
   `embenchminver-golden-v1 9792f3ee24af3023`。
+
+## polybench 实测记录（W1.3，2026-09-23）
+
+- **编排者复核（2026-09-24）**：native×4 亲测 FINAL 全对；gemm 独立 C3×2 跑与
+  子代理零差（FINAL=116849d3adf3227b、simInsts=6460912、samples=10580668 全同）。
+  **跨环境探针计数微差（诚实记录）**：gemm 占用计数子代理环境 robOver80=124829/
+  iqOver80=1009/flIntLe8=124031 vs 编排者环境 124765/834/124016（各自两跑逐位
+  自洽；绝对差 0.0006%，小基数计数相对差较大）——**功能口径（FINAL/simInsts/
+  总周期）跨环境零差，仅周期级占用诊断量存在环境敏感性**（疑 Python 哈希随机
+  化影响 stdlib 初始化顺序→同刻事件序微差）。处置：W3 编排须固定
+  PYTHONHASHSEED；W2 L1 占用类观测按 ~0.001% 噪声带解读；本表数值取子代理
+  环境（完整 4 内核），定性结论不受影响。
+
+- **PROVENANCE（详见 `polybench/PROVENANCE.md`）**：PolyBench/C **4.2.1 beta**
+  （Pouchet/Yuki，2016-05-10 stamp）。净版上游 tarball 分发点全部不可达（netlib
+  404＝W1 计划已记录；OSU 下载 URL 重定向到通用目录页；SourceForge 404）；计划
+  首选 cavazos-lab/PolyBench@70ea4ca9 探测存活，但实测它是 **GPU 变体套件**
+  （CUDA/OpenCL/OpenACC/OpenMP/HMPP），非 plain PolyBench/C，弃用。实际源 =
+  GitHub 镜像 **MatthiasJReisinger/PolyBenchC-4.2.1@3e872547**（2016-06-10，
+  单 commit "Initial commit with PolyBench/C 4.2.1 beta sources"）。**镜像保真度
+  交叉验证**：`utilities/polybench.c`、`utilities/polybench.h`、4 个内核 `.h` 与
+  llvm-test-suite@4eee8855 内嵌副本**逐字节相同**（LLVM 副本的内核 `.c` 带其
+  StrictFP/check_FP 适配，净版不含——取净版）。入库 12 文件（LICENSE.txt/README
+  原样，无 .git）。
+- **唯一源码偏离**：每内核恰好一个 `/* gem5-fi W1.3 */` 标记的
+  `#include <stdint.h>` + main 末尾 FINAL 块（diff 实测 23-27 行/文件，全部在
+  hunk 内；其余 8 文件与上游逐字节相同）。**oracle 口径 = 上游 print_array 的
+  live-out 域全数组 FNV-1a 64 hash**：gemm=全 C(ni×nj)、lu=全 A(n×n)（LU 核
+  上下三角都写）、jacobi-2d=全 A(n×n)（末步结果在 A）、**cholesky=下三角含
+  对角（j≤i）**——其内核只写下三角、上三角 init 后即死数据，按上游 dump 口径
+  取下三角（避免把落进死区的故障误报 SDC）。基准逻辑零改动。
+- **确定性核实（native==gem5 前提）**：全树 grep 无 `rand()/srand()`，4 个
+  init_array 全为固定整数公式；不带 `-DPOLYBENCH_TIME/GFLOPS` 时
+  `polybench_start/stop/print_instruments` 宏**为空**（rtclock 返回 0、不调
+  gettimeofday、无 32MB flush calloc）；print_array 挂在上游 `argc > 40` DCE
+  守卫后（SE 无参不触发）——SE 二进制=纯确定性计算+FINAL 行。
+- **构建**：`make -C workloads/ooo polybench` → MAKE_EXIT=0 **零告警**
+  （`-O2 -static -Wall -Wextra` + 3 个逐一记录的上游代码质量类抑制：
+  -Wno-unknown-pragmas〔scop/endscop 多面体标记〕、-Wno-unused-variable
+  〔polybench.c 分配表仅 INTARRAY_PAD 用〕、-Wno-misleading-indentation
+  〔lu/cholesky init 的 PSD 拷贝循环缩进假阳性——语义已人工核实为「累加完 B
+  再整体拷贝」，C 语义正确〕；新告警类仍失败构建）。`file` 4/4：ELF 64-bit
+  ARM aarch64, statically linked。**规模经 -D 命令行旋钮**（上游 .h 的
+  `#if !defined(...)` 守卫使 -DNI/-DN/-DTSTEPS 完全绕过默认 LARGE_DATASET 块，
+  零 .h 修改）+ `-DDATA_TYPE_IS_FLOAT`（fp32，03-workloads.md 指派 PolyBench
+  覆盖 FP/SIMD 单元 + flFloatMin 交叉确认负载）。
+- **规模校准**：FP 密集内核实测 ~125 KIPS（整型负载 ~200 KIPS），首候选
+  （gemm 96³/lu 92/cholesky 100/jacobi T10N160）实测 62-76s 超预算 → 终值
+  **gemm 88³ / lu 84 / cholesky 88 / jacobi-2d T=8,N=160**（Makefile 变量
+  POLYBENCH_GEMM_N 等，可覆写）。
+- **golden（4/4，native==gem5，s1==s2==s3 逐字节一致，od -c 证实 23 字节
+  `FINAL=<16hex>\n`；config.ini 逐跑身份核实 12/12）**：
+  gemm `116849d3adf3227b`（52.87/53.98/53.30 s，simInsts 6460912）、
+  lu `74ffe5eb77ea9257`（51.43/51.62/51.54 s，6651537）、
+  cholesky `ea7e0d0e7c86582d`（53.14/51.92/51.63 s，6539248）、
+  jacobi-2d `dc867b5f02998c1e`（51.15/52.04/51.51 s，6571463）。
+  s1/s2 验证构建版、s3=clean 重建后复跑（提交版二进制再证）。全部 ≤60 s
+  预算。simInsts s1==s2==s3 精确相同。`tools/classify.py extract_checksum`
+  对 4 份真实 gem5 输出端到端取值正确。native==gem5 同时把 gem5 fplib 位级
+  一致结论扩展到 **fp32 标量 fdiv（lu/cholesky/jacobi init）与 fp32 fsqrt
+  （cholesky）**（此前 W1.5b/W1.5c/W1.2 已证 fp32 FMA、fp64 div/sqrt）。
+- **事件密度实测**（官方聚合 `tools/event_density.py --runs s1 s2 p1
+  --stdout …`，三跑全部计数逐位一致；p1 `--chaos_probe` read-only，FINAL 与
+  s1/s2 相同）：
+  | 内核 | mispred(/commits) | squash(/commits) | robOver80(采样占比) | iqMax/robMax | flIntMin | flFloatMin | flVecMin |
+  |---|---|---|---|---|---|---|---|
+  | gemm | 8604（0.13%） | 22848（0.35%） | 124829/10580668（1.18%） | 64/128 满容 | 0 | **192** | **0** |
+  | lu | 13611（0.19%） | 45493（0.63%） | 113466/8557969（1.32%） | 64/128 | 1 | **192** | **0** |
+  | cholesky | 12060（0.17%） | 41265（0.57%） | 63145/8803460（0.72%） | 64/128 | 4 | **192** | **0** |
+  | jacobi-2d | 3123（0.048%） | 10278（0.16%） | 410241/9886860（4.15%） | 64/128 | 1 | **192** | **0** |
+- **flFloatMin 三重确认（W1.2 结论）**：4 个 fp32 内核 flFloatMin=192 恒满
+  （FloatRegClass 池从未被消耗）而 FP 指令真实在场——committedInstType 动态
+  计数：gemm FloatMult=681472+FloatMultAcc=681472（=88³ 精确）；lu
+  FloatMultAcc=786758+FloatDiv=7056；cholesky FloatMultAcc=795036+FloatDiv=7744
+  +**FloatSqrt=88（=N）**；jacobi FloatAdd=1597696（=4×2×T×(N-2)²
+  精确）+FloatMult/FloatDiv/FloatCvt；**全部 SimdFloat\*=0（纯标量 Float 类）**。
+  标量 FP 走 VecRegClass ⇒ **flVecMin=0**：vec 池（48 项，D75 实测零向量核初始
+  剩 4）被标量 FP 的物理寄存器消耗压穿到 0——「vec 池受压」直接实证。北极星
+  D62-66/D72/73/76 的「标量 FP 行」按自带合并条款并入向量行的结论再添一柱。
+- 回归（**全量重建 native 确定性重放**路线）：`make clean && make`（17 目标
+  含 polybench）幂等零告警；既有 13 个 golden 全部不变（smoke
+  `45737cc9a76c0dce`、branch_mispred `06e84f119c258fa7`、dep_chain int/vec
+  `98e5e31e726e383f`/`b1e661a247b95774`、rob_fill int/fp
+  `19eab7d0de27237e`/`85085fd5686d173b`、coremark `000000000000cf56`、
+  embench 6 程序 `b87739d9c40d1798`/`973ff8cc9018e79f`/`e105f98022b761ef`/
+  `d2cf29655e3e0f06`/`f39b4e8804f279c3`/`9792f3ee24af3023`），polybench 4
+  内核重建后 native 重放同值（17/17 PASS）。
+- **GOLDEN_IDS 候选（待编排者注册 runner.py）**：`polybenchgemm-golden-v1
+  116849d3adf3227b`、`polybenchlu-golden-v1 74ffe5eb77ea9257`、
+  `polybenchcholesky-golden-v1 ea7e0d0e7c86582d`、`polybenchjacobi2d-golden-v1
+  dc867b5f02998c1e`。

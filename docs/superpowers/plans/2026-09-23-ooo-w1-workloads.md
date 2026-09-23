@@ -78,9 +78,9 @@
 ### Task 7: W1.3 — PolyBench（gemm/lu/cholesky/jacobi-2d）
 
 **Files:** Create `workloads/ooo/polybench/`
-- [ ] Step 1: 源获取——netlib 404 则用 GitHub 镜像（如 cavazos-lab/PolyBench 或 polybench-c 镜像，记录实际源与 commit）；四内核 -O2 -static，加 polybench.c 计时桩适配 SE。
-- [ ] Step 2: 验证——全数组 dump 的 array_hash（GOLDEN_ARRAYS，64-hex）每内核一条 + 两次稳定 + SE 预算。
-- [ ] Step 3: Commit + push
+- [x] Step 1: 源获取与构建。〔执行注 2026-09-24：官方分发点全死链（netlib/OSU/SourceForge）；cavazos-lab 探测存活但实为 GPU 变体套件弃用；实际源 = GitHub 镜像 MatthiasJReisinger/PolyBenchC-4.2.1@3e872547，**经 llvm-test-suite@4eee8855 内嵌副本字节级交叉验证**（common+4 内核 .h diff=0）。尺寸 -D 旋钮零 .h 修改：gemm 88³/lu 84/cholesky 88/jacobi T=8,N=160（首候选超预算实测缩定）；fp32；3 个逐一记录的上游告警抑制。〕
+- [x] Step 2: 验证 + GOLDEN_IDS×4。〔执行注：oracle 实现为 FINAL=<16hex>（FNV-1a over print_array live-out 域；cholesky 按上游 dump 口径取下三角含对角——其上三角为 init 后死数据，避免死区故障误报 SDC）而非 GOLDEN_ARRAYS 64-hex——接入 classify.py 现有 exact_hash 链，语义等价（全数组 hash）。4 内核 native×2 + C3×3（含 clean 重建后 s3）全部逐字节一致；config.ini 身份 12/12（逐文件带标签）；simInsts 三跑精确同；52-54s 全 ≤60s；**flFloatMin=192 全 4 内核 + FP 指令动态计数精确吻合（gemm FloatMult+FMultAcc=2×88³、cholesky FloatSqrt=88=N 等，SimdFloat*=0 纯标量）+ flVecMin=0——W1.2「标量 FP→VecRegClass」三重确认**；native==gem5 将 fplib 位级一致扩展到 fp32 标量 fdiv/fsqrt。回归 17/17 golden 全过。**编排者复核发现跨环境探针计数微差**（gemm robOver80 124829 vs 124765，功能口径零差）——W3 须固定 PYTHONHASHSEED，已入 README/findings。GOLDEN_IDS×4 注册 polybenchgemm/lu/cholesky/jacobi2d。〕
+- [x] Step 3: Commit + push
 
 ### Task 8: W1.4 — GAP（bfs/pr）+ libjpeg-turbo（风险最高，允许诚实 blocker）
 

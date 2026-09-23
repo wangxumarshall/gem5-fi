@@ -33,9 +33,9 @@ LDFLAGS :=
 #   gap, libjpeg   W1.4  GAP semantic proxy + libjpeg-turbo      (Task 8)
 WORKLOADS := smoke branch_mispred dep_chain rob_fill
 
-.PHONY: all clean $(WORKLOADS) dep_chain_vec rob_fill_fp coremark embench
+.PHONY: all clean $(WORKLOADS) dep_chain_vec rob_fill_fp coremark embench polybench
 
-all: $(WORKLOADS) dep_chain_vec rob_fill_fp coremark embench
+all: $(WORKLOADS) dep_chain_vec rob_fill_fp coremark embench polybench
 
 # Per-workload pattern, instantiated once per name above: a phony alias
 # target <name> plus the real rule <name>/<name> <- <name>/<name>.c.
@@ -194,7 +194,79 @@ embench/minver/minver: embench/minver/libminver.c $(EMBENCH_SUPPORT)
 	    -DCPU_MHZ=$(EMBENCH_MINVER_MHZ) $(EMBENCH_INC) \
 	    -o $@ embench/minver/libminver.c $(EMBENCH_SUPPORT) -lm
 
+# W1.3 polybench — PolyBench/C 4.2.1 subset (gemm/lu/cholesky/jacobi-2d).
+# PROVENANCE (upstream repo/commit, cross-validation, the gem5-fi FINAL
+# hunks and the -Wno-* rationale) is recorded in polybench/PROVENANCE.md
+# — read it first.
+#
+# Build = upstream's own documented compile-time knobs only (polybench
+# README "How to tune PolyBench"): zero source edits for sizes/types.
+#   -DDATA_TYPE_IS_FLOAT : fp32 data (03-workloads.md assigns PolyBench
+#       to FP/SIMD unit coverage; also the flFloatMin cross-check load).
+#   -DNI/-DNJ/-DNK, -DN, -DTSTEPS+-DN : size knobs.  The kernel headers'
+#       '#if !defined(...)' guards make -D on the command line override
+#       the default dataset block entirely (all of a kernel's size
+#       macros must be defined together), so the upstream LARGE_DATASET
+#       defaults (e.g. gemm 1000x1100x1200, ~700x over budget) are
+#       replaced without touching the vendored .h files.
+#   No -DPOLYBENCH_TIME / -DPOLYBENCH_GFLOPS: polybench.h's
+#   start/stop/print_instruments macros stay EMPTY (no gettimeofday —
+#   gem5 SE returns simulated time), no 32MB cache-flush calloc, and
+#   print_array stays behind the upstream 'argc > 40' DCE guard: the SE
+#   binary is pure deterministic compute + the FINAL line.
+#
+# Size calibration 2026-09-23 for the C3 SE <=60 s hostSeconds budget
+# (W1 Global Constraints): FP-heavy kernels simulate at ~125 KIPS on
+# this host (vs ~200 KIPS for the int workloads), so the target window
+# is ~6.0-7.0M simInsts.  First candidates (gemm 96^3 / lu 92 / cholesky
+# 100 / jacobi T10 N160) measured 62-76 s -> rescaled below.  FINAL is
+# size-dependent (a different problem computes different data); the
+# golden values recorded in README.md are for these exact sizes.
+POLYBENCH_NOWARN := -Wno-unknown-pragmas -Wno-unused-variable \
+                    -Wno-misleading-indentation
+POLYBENCH_INC := -I polybench/utilities
+# polybench.c is a compile input; polybench.h rides along via -I and is
+# a make prerequisite only (passing a .h on the gcc command line would
+# make gcc try to precompile it).
+POLYBENCH_UTIL_SRC := polybench/utilities/polybench.c
+POLYBENCH_UTIL_DEP := polybench/utilities/polybench.h
+
+POLYBENCH_GEMM_N  ?= 88     # NI=NJ=NK; 88^3  -> ~6.5M insts / ~50 s
+POLYBENCH_LU_N    ?= 84     # N=84          -> ~6.6M insts / ~51 s
+POLYBENCH_CHO_N   ?= 88     # N=88          -> ~6.5M insts / ~51 s
+POLYBENCH_JAC_T   ?= 8      # TSTEPS=8
+POLYBENCH_JAC_N   ?= 160    # N=160         -> ~6.4M insts / ~50 s
+
+POLYBENCH_BINS := polybench/gemm/gemm polybench/lu/lu \
+                  polybench/cholesky/cholesky polybench/jacobi-2d/jacobi-2d
+polybench: $(POLYBENCH_BINS)
+
+# Binaries land in flat polybench/<kernel>/ dirs (short runner paths);
+# they are not next to the sources, so create the dir first.
+define POLYBENCH_COMPILE
+@mkdir -p $(@D)
+$(CC) $(CFLAGS) $(POLYBENCH_NOWARN) -DDATA_TYPE_IS_FLOAT $(POLYBENCH_INC) \
+    -o $@ $< $(POLYBENCH_UTIL_SRC) -lm
+endef
+
+polybench/gemm/gemm: polybench/linear-algebra/blas/gemm/gemm.c \
+                     polybench/linear-algebra/blas/gemm/gemm.h $(POLYBENCH_UTIL_SRC) $(POLYBENCH_UTIL_DEP)
+	$(POLYBENCH_COMPILE) -DNI=$(POLYBENCH_GEMM_N) -DNJ=$(POLYBENCH_GEMM_N) -DNK=$(POLYBENCH_GEMM_N)
+
+polybench/lu/lu: polybench/linear-algebra/solvers/lu/lu.c \
+                 polybench/linear-algebra/solvers/lu/lu.h $(POLYBENCH_UTIL_SRC) $(POLYBENCH_UTIL_DEP)
+	$(POLYBENCH_COMPILE) -DN=$(POLYBENCH_LU_N)
+
+polybench/cholesky/cholesky: polybench/linear-algebra/solvers/cholesky/cholesky.c \
+                             polybench/linear-algebra/solvers/cholesky/cholesky.h $(POLYBENCH_UTIL_SRC) $(POLYBENCH_UTIL_DEP)
+	$(POLYBENCH_COMPILE) -DN=$(POLYBENCH_CHO_N)
+
+polybench/jacobi-2d/jacobi-2d: polybench/stencils/jacobi-2d/jacobi-2d.c \
+                               polybench/stencils/jacobi-2d/jacobi-2d.h $(POLYBENCH_UTIL_SRC) $(POLYBENCH_UTIL_DEP)
+	$(POLYBENCH_COMPILE) -DTSTEPS=$(POLYBENCH_JAC_T) -DN=$(POLYBENCH_JAC_N)
+
 clean:
 	rm -f $(foreach w,$(WORKLOADS),$(w)/$(w)) dep_chain/dep_chain_vec rob_fill/rob_fill_fp coremark/coremark coremark/.iterations-*
 	$(MAKE) -C coremark PORT_DIR=posix clean || true
 	rm -f $(EMBENCH_BINS)
+	rm -f $(POLYBENCH_BINS)
