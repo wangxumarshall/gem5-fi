@@ -1,0 +1,35 @@
+{
+  "cli_version": "0.10.2",
+  "checkpoint_id": "01M37C5DRSEPGSQBN8VQPBWJBK",
+  "strategy": "manual-commit",
+  "branch": "fi-ding",
+  "checkpoints_count": 4,
+  "files_touched": [
+    "workloads/ooo/Makefile",
+    "workloads/ooo/gap/gap",
+    "workloads/ooo/gap/gap.c"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 4441064,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 52615552,
+    "output_tokens": 237237,
+    "api_call_count": 175,
+    "subagent_tokens": {
+      "input_tokens": 305342,
+      "cache_creation_tokens": 0,
+      "cache_read_tokens": 9635456,
+      "output_tokens": 37054,
+      "api_call_count": 136
+    }
+  }
+}
