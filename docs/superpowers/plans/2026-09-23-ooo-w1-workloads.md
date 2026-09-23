@@ -49,9 +49,9 @@
 
 **Files:** Create `workloads/ooo/dep_chain/dep_chain.c`（int 版）、`workloads/ooo/dep_chain/dep_chain_vec.c`（NEON 向量累加链版）
 **Spec:** 每条指令依赖前一条结果（链式累乘/累加），长期占用同一小撮物理寄存器，逼迫 Free List 低水位；校验=累计结果自校验。
-- [ ] Step 1: int 版——深度链（如 8 条并行链 × 数千步，每步 `x = x*A + B` 形式真依赖），FreeList 水位靠有限寄存器类压力；vec 版用 NEON `vmlaq` 链。
-- [ ] Step 2: 验证 + 密度门（int 版 flIntLe8 ≥1%，vec 版 flVecLe6 ≥1%；vec 版额外跑 `--phys_reg_class` 无关，用 event_density 的 flVecLe6 列）+ GOLDEN_IDS×2。
-- [ ] Step 3: Commit + push
+- [x] Step 1: int 版——深度链（如 8 条并行链 × 数千步，每步 `x = x*A + B` 形式真依赖），FreeList 水位靠有限寄存器类压力；vec 版用 NEON `vmlaq` 链。〔执行注 2026-09-24：int = 8 条并行 `c=c*K+D` madd 链 × 1,750,000 步（K/D 大奇常数不可强度削减，objdump 74 madd 位点热循环 8 条真链）；vec = 12 条 `vfmaq_laneq_f32` 累加链宏展开 1056 静态 fmla × 4500 轮。规模经首版实测校准（23.9s→45.9s / 62.8s→47.2s）。〕
+- [x] Step 2: 验证 + 密度门 + GOLDEN_IDS×2。〔执行注：golden int `98e5e31e726e383f`（45.86/45.96s，17.5M insts）/ vec `b1e661a247b95774`（47.36/47.00s，6.3M insts），双核各两跑 native==gem5 逐字节一致；int 门 flIntLe8=99.42% PASS（iqOver80=99.4%，iqMax=64 满容=等待中的 madd 塞满 IQ）；**vec 门按加强版执行**（原 flVecLe6 门因平台基线恒 100% 作废）：vecLookups=15,336,251（2.43×simInsts）+ objdump fmla=1056>1000 + 初始 vec freelist 实测=4（零向量无 CRT 测量核 160 万采样恒 4，与源码推导 48−44 arch vec=4 精确吻合，regs/vec.hh:83）。**D75 校准结论：阈值 ≤6 需重定（建议 free==0）**。vec 的 native==gem5 顺带证明 gem5 fplib 单舍入 FMA 与硬件 FMLA 位级一致。GOLDEN_IDS 注册 depchainint/depchainvec。附带发现两条入 findings：flFloatMin=192 恒满（标量 FP 走向待 W7.2 前专测）；ooo_proxy --maxinsts 对 O3 坏（后续小 patch 修）。〕
+- [x] Step 3: Commit + push
 
 ### Task 4: W1.5c — ROB 填满核（rob_fill int + fp 两版）
 

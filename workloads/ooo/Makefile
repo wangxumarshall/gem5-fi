@@ -31,11 +31,11 @@ LDFLAGS :=
 #   embench        W1.2  Embench-Io int+fp subset                (Task 6)
 #   polybench      W1.3  PolyBench gemm/lu/cholesky/jacobi-2d    (Task 7)
 #   gap, libjpeg   W1.4  GAP semantic proxy + libjpeg-turbo      (Task 8)
-WORKLOADS := smoke branch_mispred
+WORKLOADS := smoke branch_mispred dep_chain
 
-.PHONY: all clean $(WORKLOADS)
+.PHONY: all clean $(WORKLOADS) dep_chain_vec
 
-all: $(WORKLOADS)
+all: $(WORKLOADS) dep_chain_vec
 
 # Per-workload pattern, instantiated once per name above: a phony alias
 # target <name> plus the real rule <name>/<name> <- <name>/<name>.c.
@@ -49,5 +49,12 @@ endef
 
 $(foreach w,$(WORKLOADS),$(eval $(call WORKLOAD_template,$(w))))
 
+# W1.5b dep_chain: the int binary comes from the pattern rule above
+# (dep_chain/dep_chain <- dep_chain/dep_chain.c).  The NEON vec variant
+# shares the directory but has its own name -> explicit rule here.
+dep_chain_vec: dep_chain/dep_chain_vec
+dep_chain/dep_chain_vec: dep_chain/dep_chain_vec.c
+	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $<
+
 clean:
-	rm -f $(foreach w,$(WORKLOADS),$(w)/$(w))
+	rm -f $(foreach w,$(WORKLOADS),$(w)/$(w)) dep_chain/dep_chain_vec

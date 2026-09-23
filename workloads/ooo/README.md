@@ -32,7 +32,7 @@
 |---|---|---|---|---|---|---|
 | smoke | W1.0 | `45737cc9a76c0dce` | 1.18 / 1.19（两次） | 308057 | —（框架冒烟核，非探针，无密度门） | done |
 | branch_mispred | W1.5a | `06e84f119c258fa7` | 55.86 / 56.77（s1/p1） | 8611484 | mispredicts/commits = **5.70%** ≥5% PASS；squash 密度 59.1%；mispredicts=490766/运行 | done |
-| dep_chain（int/vec 两版） | W1.5b | （待实测） | （待实测） | （待实测） | flIntLe8 ≥1%（int）/ flVecLe6 ≥1%（vec） | pending |
+| dep_chain（int/vec 两版） | W1.5b | int `98e5e31e726e383f` / vec `b1e661a247b95774` | int 45.86 / 45.96；vec 47.36 / 47.00（各两次） | int 17505782 / vec 6310709 | int：**flIntLe8 = 99.42%** ≥1% PASS（iqOver80=99.4%，iqMax=64 满容）；vec 加强门：**vecLookups=15336251（2.43×simInsts）+ objdump fmla=1056>1000 + 初始 vec freelist=4（D75 校准，见下）** 全 PASS | done |
 | rob_fill（int/fp 两版） | W1.5c | （待实测） | （待实测） | （待实测） | robOver80 ≥50% 且 div>0 | pending |
 | coremark | W1.1 | （待实测） | （待实测） | （待实测） | 自带 CRC 校验 | pending |
 | embench | W1.2 | （待实测） | （待实测） | （待实测） | 每程序自带校验退出码 | pending |
@@ -47,3 +47,37 @@
   FINAL 行逐字节一致（`od -c` 确认 `FINAL=45737cc9a76c0dce\n`），
   hostSeconds 1.18 / 1.19（<5 s 达标，远低于 60 s 预算）。
 - 宿主原生运行一次：EXIT=0，FINAL 与 gem5 一致（native == gem5）。
+
+## dep_chain 实测记录（W1.5b，2026-09-23）
+
+- 构建：`make -C workloads/ooo dep_chain dep_chain_vec` 零 warning；
+  `file` 双确认 aarch64 static ELF。objdump：int 版 74 个 madd/msub 位点
+  （热循环 8 条 `madd x` 真依赖链，`c*K+D` 大奇常数不可强度削减）、0 个 fmla；
+  vec 版 **1056 个静态 fmla**（12 链 × 88 sweep 宏展开；gcc 把 laneq 常量
+  物化为广播向量故为 `fmla v.4s` 向量形，同为 SimdFloatMultAccOp 融合乘加）。
+- golden（native==gem5，s1/s2 逐字节一致 `od -c`）：
+  int `FINAL=98e5e31e726e383f`（STEPS=1750000，hostSeconds 45.86/45.96，
+  simInsts 17505782）；vec `FINAL=b1e661a247b95774`（ROUNDS=4500，
+  hostSeconds 47.36/47.00，simInsts 6310709）。vec 的 native==gem5 同时证明了
+  gem5 fplib `fp32_muladd`（单次舍入融合 FMA）与硬件 FMLA 位级一致。
+- int 密度门：probe 运行 `/tmp/ooo_w15b_int_p1`
+  `CHAOS_PROBE samples=7040858 robOver80=137 iqOver80=7000882 flIntLe8=6999912
+  flFloatLe12=0 flVecLe6=7040858 robMax=120 iqMax=64 flIntMin=0 flFloatMin=192
+  flVecMin=0` → **flIntLe8 占比 99.42% ≥ 1% PASS**（reg_chain 基线 99.5% 同
+  量级；iqMax=64 与 IQ 容量精确吻合 = 等待中的 madd 链指令塞满 IQ）。
+- vec 密度门（加强版，因 flVecLe6 在 vec48 平台平凡 100% 不再单独作门）：
+  a) `rename.vecLookups=15336251` vs `simInsts=6310709`（2.43×，同数量级）
+  ——向量 rename 流量真实发生（对照：int 版 vecLookups=182，纯 CRT NEON）；
+  b) objdump fmla 静态计数 1056 > 1000；c) 见下条 D75 校准。
+- **D75 校准（初始 vec freelist 实测 = 4）**：零向量指令、无 CRT 的
+  `/tmp` 测量核（25 条指令，objdump 向量指令计数=0）跑 `--chaos_probe`：
+  `flVecMin=4`（1600563 个采样恒定，从未分配过 vec 物理寄存器）。
+  与源码推导吻合：`physVec=48 − 44 arch vec`（regs/vec.hh:83，V0-V31 共 32
+  + Special 8 + Intrlv 4，cpu.cc 初始映射逐 arch 消耗）= **4**。
+  结论：C3 vec48 平台**启动即 ≤6**（flVecLe6 恒 100%，含无向量代码负载），
+  D75「向量池剩余 ≤6」阈值无法隔离压力窗口，需重校准（如 free==0 ——
+  int 版 CRT NEON 已瞬时压到 0，vec 版持续 0）。附带发现：flFloatMin=192
+  恒满（AArch64 gem5 v25 浮点走 VecRegClass，FloatRegClass 池初始未被
+  arch 映射消耗）。
+- 回归：`make clean && make` 幂等零告警；smoke `45737cc9a76c0dce`、
+  branch_mispred `06e84f119c258fa7` golden 不变。

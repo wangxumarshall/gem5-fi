@@ -89,6 +89,8 @@ GOLDEN_IDS = {
     "streamtriad-golden-v1": "0a3e17d4e5740000",     # triad N=262144 (6MB)
     # OoO track W1 (docs/gem5-fi/ooo; config family C3, workloads/ooo/):
     "branchmispred-golden-v1": "06e84f119c258fa7",  # W1.5a probe kernel
+    "depchainint-golden-v1": "98e5e31e726e383f",   # W1.5b int probe kernel
+    "depchainvec-golden-v1": "b1e661a247b95774",   # W1.5b NEON probe kernel
 }
 
 # v1.1 Phase 8.1: golden ARRAY registry — for workloads whose oracle is
