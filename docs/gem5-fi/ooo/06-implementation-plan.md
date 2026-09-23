@@ -42,7 +42,7 @@
 |---|---|---|---|
 | N1 | D23/D24「重命名检查点」 | O3 rename **无 checkpoint**，用 history buffer：`rename.cc:1176` `historyBuffer[tid]`（`rename.hh:301` `RenameHistory{instSeqNum, archReg, newPhysReg, prevPhysReg}`）；squash 走 `doSquash` 反向回滚（`rename.cc:935`），commit 后 `removeFromHistory`（`rename.cc:1007`） | D23/D24 注入点 = **historyBuffer 表项字段**；窗口 = push_front → squash 消费/commit 移除 |
 | N2 | D36–D39「ROB 的旧物理寄存器字段」 | ROB 项不存 old-phys；squash 回滚用的 prevPhysReg 同样在 **RenameHistory** | D36–D39 注入点 = `RenameHistory::prevPhysReg`；事件 = commit 阶段 squash 处理（语义与北极星一致）。D40（ROB 项整体旧数据）仍在 rob.cc 槽位复用处 |
-| N3 | D62 系「标量 FP 与向量是否两套寄存器类」 | **是两套**：`rename_map.hh:179` `std::array<SimpleRenameMap, CCRegClass+1>` —— Int/Float/Vec/VecPred 每类独立 RAT + 独立 SimpleFreeList | D62–D71 标量/向量行**不合并**，设计成立；空闲表行天然分池 |
+| N3 | D62 系「标量 FP 与向量是否两套寄存器类」 | **修订（2026-09-24，W1.2/W1.3 实证推翻初判）**：结构上是两套（`rename_map.hh:179` `std::array<SimpleRenameMap, CCRegClass+1>`），**但 AArch64 用法上标量 FP 走 VecRegClass**——三重确认：纯标量 FP 负载 flFloatMin=192 恒满（FloatRegClass 池从未分配）+ 标量 FP 指令在场（objdump + committedInstType 动态计数精确吻合、SimdFloat*=0）+ vec 池压穿到 0（初始 4） | **北极星 D62 行自带合并条款触发**（04 设计理由原文：「如果实际是同一套映射，此行与向量行应合并，不重复跑」）：D62–D66 并入 D67–D71、D72/D73/D76 并入 D74/D75/D77——同挂点 VecRegClass，差异仅指令过滤（opClass Float\* vs SimdFloat\*）；numPhysFloatRegs=192 在 C3 实际闲置（论文口径注明）。原判「不合并」基于结构存在性，被用法证据推翻 |
 | N4 | README §7「向量物理寄存器池未出现」 | 参数已存在：`BaseO3CPU.py` `numPhysVecRegs`（默认 256）/`numPhysVecPredRegs`（默认 32） | **vec48 = config-only 改动**；SVE 谓词池同理 |
 | N5 | D25/D26「ROB 的 PC 字段」 | 现有 CHAOSROB `Field={Result,Done,ExcStatus,DestPhys,Spec}`，**无 PC** | W5.1 需新增 PC 字段模式 |
 | N6 | IQ=64 | v25 O3 `instQueues = VectorParam.IQUnit`（无标量 numIQEntries） | C3 config 用 IQUnit 向量定义 Int/FP IQ，各 64 项 |
@@ -180,7 +180,7 @@
 | # | D 行 | 内容 |
 |---|---|---|
 | W7.1 | D56–D61 | FP Decode（W6 机制 + FP/SIMD 指令过滤；含 D61 指令路由判定位） |
-| W7.2 | D62–D66, D72/D73/D76 | 标量 FP RAT 族（FloatRegClass；freelist 阈值 ≤12） |
+| W7.2 | D62–D66, D72/D73/D76 | 标量 FP RAT 族——**修订（N3，2026-09-24）**：与 W7.3 向量族同挂点 VecRegClass 执行，差异仅指令过滤 opClass Float\*（原 FloatRegClass 落点对 AArch64 惰性、阈值 ≤12 作废；D 行编号保留，结果列按合并口径） |
 | W7.3 | D67–D71, D74/D75/D77 | 向量 RAT 族（VecRegClass；阈值 ≤6；libjpeg-turbo 压力） |
 | W7.4 | D83–D91 | FP Dispatch/ROB（含**三关自检第二/三关** D83–D85：FP 负载重跑 ROB 基线格与高 SDC 格） |
 | W7.5 | D78–D82 | SVE 谓词族（**可选阶段**：C3-SVE 变体 + PolyBench SVE 版；默认 deferred，见 §1.3） |
