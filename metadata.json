@@ -1,0 +1,34 @@
+{
+  "cli_version": "0.10.2",
+  "checkpoint_id": "01M37NAZ4WDZDGPWJK66S6YTB4",
+  "strategy": "manual-commit",
+  "branch": "fi-ding",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "tools/campaign.py",
+    "tools/runner.py"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 8354074,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 85403968,
+    "output_tokens": 292808,
+    "api_call_count": 229,
+    "subagent_tokens": {
+      "input_tokens": 312999,
+      "cache_creation_tokens": 0,
+      "cache_read_tokens": 21479424,
+      "output_tokens": 53721,
+      "api_call_count": 167
+    }
+  }
+}
