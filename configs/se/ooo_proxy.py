@@ -150,7 +150,10 @@ p.add_argument("--freelist_event_threshold", type=lambda x: int(x,0), default=8,
 p.add_argument("--chaos_rob", action="store_true",
                help="attach CHAOSROB (O3 ROB injector, §2.3)")
 p.add_argument("--rob_mode", default="entry_bitflip",
-               choices=["entry_bitflip","exc_suppress"])
+               choices=["entry_bitflip","exc_suppress",
+                        "pc_bitflip","pc_bitflip2","pc_stuck",
+                        "destid_bitflip","destid_bitflip2",
+                        "destid_swap_active","destid_stuck"])
 p.add_argument("--rob_field", default="exc_status",
                choices=["result","done","exc_status","dest_phys","spec"])
 p.add_argument("--rob_distance", type=int, default=0)
@@ -234,7 +237,15 @@ p.add_argument("--addrpath_rng_seed", type=lambda x: int(x,0), default=20260825)
 # F5 (per-inst, safe — _flatDestIdx is per-DynInst, not shared staticInst).
 p.add_argument("--chaos_decode", action="store_true",
                help="attach CHAOSDecode (O3 decode injector, §2.14)")
+# W6 D01-D07 (ooo 04-design-matrix R2-R8): encoding-corruption modes at
+# the FETCH decode output (fetch.cc post-decode hook, AArch64 non-macroop
+# only). dest_reg_sub keeps the legacy §2.14 rename-site semantics.
+p.add_argument("--decode_mode", default="dest_reg_sub",
+               choices=["dest_reg_sub","opcode_bitflip","opcode_bitflip2",
+                        "opcode_swap","reg_bitflip","reg_bitflip2",
+                        "imm_bitflip","imm_bitflip2"])
 p.add_argument("--decode_first_clock", type=lambda x: int(x,0), default=1000)
+p.add_argument("--decode_last_clock", type=lambda x: int(x,0), default=0)
 p.add_argument("--decode_max_faults", type=lambda x: int(x,0), default=1)
 p.add_argument("--decode_rng_seed", type=lambda x: int(x,0), default=20260825)
 # §2.4 CHAOSExMon (ARM exclusive-monitor injector). SELF-ATTACHES to cpu->isa[0].
@@ -582,12 +593,14 @@ if args.chaos_addrpath:
 
 if args.chaos_decode:
     # §2.14 CHAOSDecode: O3-only. SELF-ATTACHES at startup() to
-    # cpu.chaosDecode (rename.cc:1137 calls maybeCorrupt post-flatten).
+    # cpu.chaosDecode (rename.cc:1137 calls maybeCorrupt post-flatten;
+    # W6 D01-D07 encoding modes hook fetch.cc post-decode instead).
     dc = CHAOSDecode(
         cpu=cpu0,
-        mode="dest_reg_sub",
+        mode=args.decode_mode,
         probability=args.probability,
         firstClock=args.decode_first_clock,
+        lastClock=args.decode_last_clock,
         maxFaults=args.decode_max_faults,
         rngSeed=args.decode_rng_seed,
         writeLog=True,

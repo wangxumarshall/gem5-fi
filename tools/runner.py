@@ -850,6 +850,41 @@ def main():
         rm = {"transient_bit_flip": "entry_bitflip",
               "local_mbu": "entry_bitflip",
               "legal_domain_sub": "exc_suppress"}.get(inj["model"], "entry_bitflip")
+        # W5.1-W5.3 (ooo 04-design-matrix D25-D31, Int Dispatch/ROB): the
+        # ROB-entry WRITE-path modes (ROB::insertInst site — the TC'23
+        # site). Selected by the v2 target.sub_field discriminator; plain
+        # models keep the legacy retireHead-site mapping above.
+        #   pc_bitflip/pc_bitflip2 (D25/D26): 1/2 random bits of the
+        #     entry's PC field (transient_bit_flip / local_mbu).
+        #   pc_stuck (D27, F5): one entry's PC bit stuck-at 0/1
+        #     (stuck_at_zero/one + write-path mask + retire readback).
+        #   destid_bitflip/destid_bitflip2 (D28/D29): 1/2 random bits of
+        #     the entry's int dest physReg identifier.
+        #   destid_swap_active (D30): swap it with another ROB-resident
+        #     in-flight dest physReg (legal_domain_sub, bypasses the
+        #     dependency check by design).
+        #   destid_stuck (D31, F5): one entry's dest-id bit stuck-at 0/1.
+        if (inj["model"] == "transient_bit_flip"
+                and str(tgt.get("sub_field", "")) == "pc_bitflip"):
+            rm = "pc_bitflip"
+        if (inj["model"] == "local_mbu"
+                and str(tgt.get("sub_field", "")) == "pc_bitflip2"):
+            rm = "pc_bitflip2"
+        if (inj["model"] in ("stuck_at_zero", "stuck_at_one")
+                and str(tgt.get("sub_field", "")) == "pc_stuck"):
+            rm = "pc_stuck"
+        if (inj["model"] == "transient_bit_flip"
+                and str(tgt.get("sub_field", "")) == "destid_bitflip"):
+            rm = "destid_bitflip"
+        if (inj["model"] == "local_mbu"
+                and str(tgt.get("sub_field", "")) == "destid_bitflip2"):
+            rm = "destid_bitflip2"
+        if (inj["model"] == "legal_domain_sub"
+                and str(tgt.get("sub_field", "")) == "destid_swap_active"):
+            rm = "destid_swap_active"
+        if (inj["model"] in ("stuck_at_zero", "stuck_at_one")
+                and str(tgt.get("sub_field", "")) == "destid_stuck"):
+            rm = "destid_stuck"
         cmd += ["--rob_mode", rm, "--rob_first_clock", str(t["value"]),
                 "--rob_max_faults", str(m["limits"]["max_faults"]),
                 "--rob_rng_seed", str(m["rng"]["selection_seed"])]
@@ -974,7 +1009,34 @@ def main():
                 "--bpu_rng_seed", str(m["rng"]["selection_seed"])]
     elif comp == "decode":
         # §2.14 CHAOSDecode (dest_reg_sub F5, per-inst via _flatDestIdx).
-        cmd += ["--chaos_decode", "--decode_first_clock", str(t["value"]),
+        # W6 D01-D07 (ooo 04-design-matrix R2-R8 Int Decode): the
+        # encoding-corruption modes at the FETCH decode output (flip bits
+        # of the raw A64 encoding, re-decode cache-bypassing, replace the
+        # fetch-local staticInst). Selected by the v2 target.sub_field
+        # discriminator (the W5 ROB pc_bitflip/destid_* pattern); a decode
+        # manifest WITHOUT sub_field keeps the legacy dest_reg_sub mapping
+        # (backward compatible):
+        #   opcode_bitflip/opcode_bitflip2 (D01/D02): 1/2 random bits of
+        #        the opcode region {31,30,29,28-24,21} (transient_bit_flip/
+        #        local_mbu) — may land legal OR illegal (illegal -> Unknown
+        #        -> SIGILL, the expected Crash baseline).
+        #   opcode_swap (D03, legal_domain_sub 换值): format-compatible
+        #        LEGAL opcode pair (ADD<->SUB, AND<->ORR, MOVZ<->MOVN,
+        #        LDR<->STR, ...; GNU-as verified table).
+        #   reg_bitflip/reg_bitflip2 (D04/D05): 1/2 bits of the reg-number
+        #        positions Rd[4:0]/Rn[9:5]/Rm[20:16], semantically
+        #        verified (mnemonic unchanged AND a reg operand moved).
+        #   imm_bitflip/imm_bitflip2 (D06/D07): 1/2 bits of the immediate
+        #        region [21:10], semantically verified (mnemonic and reg
+        #        operands unchanged — value-only change).
+        dm = "dest_reg_sub"
+        dsf = str(tgt.get("sub_field", ""))
+        if dsf in ("opcode_bitflip", "opcode_bitflip2", "opcode_swap",
+                   "reg_bitflip", "reg_bitflip2",
+                   "imm_bitflip", "imm_bitflip2", "dest_reg_sub"):
+            dm = dsf
+        cmd += ["--chaos_decode", "--decode_mode", dm,
+                "--decode_first_clock", str(t["value"]),
                 "--decode_max_faults", str(m["limits"]["max_faults"]),
                 "--decode_rng_seed", str(m["rng"]["selection_seed"])]
     elif comp in ("l1d", "l1i", "l2"):
