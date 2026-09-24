@@ -1732,3 +1732,109 @@ docs/gem5-fi/ooo/05-expanded-matrix.csv: 成功
 5. **验证期发现并修复 5 个真 bug**：ctx 缺 `consistency_issues` 键、layout-(b) artifacts 路径错（`runs/artifacts` 应为父级 `artifacts`）、unmapped 按 rep 泛滥（改为按 campaign-cell 去重带 rep 数）、heatmap 容差浮点边界误报（0.03125 vs 0.0312 恰在 5e-5，放宽至 1e-4）、预过滤 marker 含 `workload:`（每个 v1 manifest 都有，永 skip 不了——已剔除）。</result>
 <usage><subagent_tokens>0</subagent_tokens><tool_uses>65</tool_uses><duration_ms>2838090</duration_ms></usage>
 </task-notification>
+
+---
+
+<task-notification>
+<task-id>ab28bf28daf003554</task-id>
+<tool-use-id>call_983c7e89f8ca4dc3b8807ebb</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi/228a36be-984d-44a8-aac7-02555f4f22df/tasks/ab28bf28daf003554.output</output-file>
+<status>completed</status>
+<summary>Agent "W3.1+W3.2 编排层" came to rest</summary>
+<note>A task-notification fires each time this agent comes to rest with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>W3.1 + W3.2 完成。变更仅落在 `tools/campaign.py`（+709/−28），未 commit/push（按指示），runner.py 未动（层参数经 manifest `trigger.value`/`limits.max_faults` 已可表达，无需增量）。
+
+## 变更摘要（tools/campaign.py）
+
+**W3.1 两阶段编排**
+- campaign yaml 新节 `two_phase: {enabled, tiers(默认 F0-F3), pilot_n(20), formal_n(2000), pick_top(2)}`；无此节走原代码路径，逐字节不变
+- 频率档映射到现有触发参数：**F0**=first_clock 0 全程窗口 + max_faults=1；**F1/F2/F3**=first_clock ~ U[0.5×, 1.5×)×(2.6M/260K/26K cycles)，`chaos_jitter_clock` 是 gem5 `ChaOSTrigger::scheduleNext`（chaos_trigger.hh）的逐位 Python 孪生（单轮 LCG，无 xor——与 C++ 构造一致），max_faults=1
+- 选档：每格每档 pilot 非 Crash 率（SDC+Masked+Timeout+Inactive）排序取 top pick_top，平局按 F0&lt;F1&lt;F2&lt;F3；全算术落盘 `artifacts/&lt;cid&gt;/tier_selection.json`
+- seed 规则（两阶段专用）：`base + cell×10,000,000 + slot×100,000 + rep`（slot：pilot=0-3、formal=10-13 按档序；100,000 步长容纳 16,587 深挖档）；legacy 规则原样保留
+- 产物纪律：`results.jsonl` 只含 formal 记录（带 phase/tier 键），pilot 记录在 `pilot_results.jsonl`（永不入结果列，06 §1.3）；heatmap/summary 只聚合 formal
+
+**W3.2 事件覆盖计数**
+- `counting: {mode: run|event_coverage, target_events, density | density_table+event}`；`--density` CLI 覆盖
+- 密度解析序：CLI &gt; yaml density &gt; density_table（`event_density.py --json` 产物的 `aggregate.mean[event]`）&gt; 大声 exit 1
+- 运行数 = ceil(target/density)；被 `--n_per_cell` 压低时打 WARNING 并在 `coverage.json` 记 `coverage_shortfall=true`（不静默）；coverage.json 注明密度是均值估计
+
+**A6 manifest `ooo` 扩展块**（满足并行代理 backfill_expanded_matrix.py 的既定契约——从其源码读到它消费 `ooo.phase/frequency_tier/counting_basis/design_unit_id/experiment_cell_id/workload`）：两阶段/counting/声明 `ooo:` 的 campaign 的每 rep manifest 携带该块（`phase: pilot|formal`、`frequency_tier`、`counting_basis: 运行计数|事件覆盖计数`），campaign 级 `ooo:` + 同名 grid 轴可携带 D/E id。另支持 `sub_field` grid 轴 → `target.sub_field`（rob pc_bitflip 路由所需，加性，无既有 campaign 受影响）。
+
+**大声早期拒绝**（exit 1，跑任何 gem5 前）：未知档（F9）、F4/F5 入 pilot 档、pick_top&gt;档数、pilot_n/formal_n 越界或 &lt;1、未知 counting.mode、event_coverage 无密度、density_table 缺列、`--n_per_cell`+two_phase、trace 两遍法+two_phase（W8.7 本就独立成遍）、uniform_sampling+two_phase（countOnly 非档感知）、ooo 块未知键/非法 tier。
+
+## 验证输出（全部真机逐字）
+
+**① py_compile**（两次，含最终态）：
+```
+PY_COMPILE OK
+FINAL PY_COMPILE OK
+```
+
+**② 玩具端到端**（rob pc_bitflip D25 模式，C3+smoke，1 cell × tiers [F0,F1] × pilot_n=3，pick_top=1，formal_n=5）：
+```
+[campaign] two_phase: 1 cells | pilot 2 tiers x 3 = 6 runs | formal top 1 x 5 = up to 5 runs
+[campaign] two_phase seed rule: base + cell*10000000 + slot*100000 + rep (slot 0-3 pilot / 10-13 formal by tier)
+[campaign] pilot 6/6 reps done (17s, ~3s/rep)
+[campaign] tier selection cell 0: F0=1.000, F1=1.000 -&gt; selected ['F0']
+[campaign] tier selection written: /home/sdc/gem5-fi/artifacts/ooo_w31_toy_rob_pcbitflip/tier_selection.json
+[campaign] formal: 5 runs (selected tiers ['F0'])
+[campaign] formal 5/5 reps done (14s, ~3s/rep)
+[campaign] DONE — two-phase: 6 pilot + 5 formal reps in 34s
+TOY2_EXIT=0
+```
+pilot 类别：F0→Masked×3（fault=1），F1→Inactive×3（fault=0，smoke 运行约 24 万 cycle &lt; F1 的 ≥1.3M cycle 首注入窗，物理一致）；formal=F0-only Masked×5。非 Crash 率可复算断言：
+```
+RECOMPUTE OK F0: n=3 classes=['Masked', 'Masked', 'Masked'] non_crash=3 rate=1.0 == tier_selection.json
+RECOMPUTE OK F1: n=3 classes=['Inactive', 'Inactive', 'Inactive'] non_crash=3 rate=1.0 == tier_selection.json
+selected_tiers recomputed consistently: tie 1.000/1.000 -&gt; F0 by tier-order tie-break OK
+```
+`results.jsonl` 5 条（全部 `phase:formal, tier:F0, faults_injected:1`），`pilot_results.jsonl` 6 条，formal manifest `ooo: {counting_basis: 运行计数, design_unit_id: D25, frequency_tier: F0, phase: formal}`、master_seed=21260924（=base+slot 10×100000）。跨代理契约实测（并行代理的 W3.3 工具，只读）：
+```
+[backfill] reps read: 5 | included: 0 | pilot-excluded: 0 | unphased-excluded: 0 ...
+[backfill]   ooo_w31_toy_rob_pcbitflip/c0000 (5 rep(s)): ambiguous D x F: D25 x F0 matches 2 matrix rows ['E074', 'E075'] (workload not in manifest -- pass --cell-map or experiment_cell_id)
+[backfill]   ooo_w31_toy_rob_pcbitflip: 1/1 cell(s) consistent with heatmap.csv
+[backfill] 0 cell(s) qualify for writing -- matrix NOT modified (dry-run)
+BACKFILL_DRY_EXIT=0
+```
+（0 unphased 证明 `ooo.phase` 门被消费；D25×F0 歧义是 smoke 负载不在矩阵的诚实报告，按设计要求 cell-map。）
+
+**③ 回归（无新节的既有 yaml --dry 逐字节不变）**——HEAD 版与新版各跑 prf-regchain（2 cells）+ rob-cholesky 两个 legacy campaign 的 `--dry`：
+```
+=== diff runs trees (old vs new) ===
+PRF TREE IDENTICAL
+ROB TREE IDENTICAL
+=== diff stdout ===
+PRF STDOUT IDENTICAL
+ROB STDOUT IDENTICAL
+```
+
+**④ 事件覆盖**（合成 density=100/target=10 → 运行数=1，另加两条路径）：
+```
+[campaign] counting: event_coverage overrides n_per_cell 5 -&gt; 1 (ceil(target_events=10 / density=100) = 1)
+ASSERT (a) density=100 target=10 -&gt; n_runs=1, expected=100, shortfall=False OK
+ASSERT (b) density_table mean[squash]=3412, target=20000 -&gt; n_runs=6, expected=20472 OK   （density_table 是真实产物：event_density.py 聚合 2 个留存 C3 outdir）
+[campaign] counting: event_coverage overrides n_per_cell 5 -&gt; 2 (ceil(target_events=10 / density=7) = 2)
+ASSERT (c) --density 7 target 10 -&gt; n_runs=2, expected=14 OK                              （CLI 覆盖优先）
+[campaign] WARNING: --n_per_cell=2 caps the event-coverage run count below ceil(target/density)=6 — expected coverage 6824 &lt; target 20000 (shortfall recorded in coverage.json)
+ASSERT shortfall: n_actual=2 expected=6824 &lt; target=20000, shortfall=True OK
+```
+
+**⑤ 阴性（two_phase 引用不存在档）**（退出码无管道直测）：
+```
+[campaign] two_phase.tiers ['F9'] not in pilot tiers ['F0', 'F1', 'F2', 'F3'] (F4=event-trigger / F5=permanent are NOT pilot-selectable — 02 doc step 1 pilots F0-F3 only). Aborting.
+NEG_EXIT=1
+```
+（`ls runs/ooo_w31_neg` → No such file or directory，未建任何目录。另测 pick_top 越界、counting.mode 非法均 exit 1。）
+
+## tier_selection.json 样本
+见上文完整 JSON（`/home/sdc/gem5-fi/artifacts/ooo_w31_toy_rob_pcbitflip/tier_selection.json`）：含 two_phase 全配置回显、`non_crash_classes`、`selection_rule`、`seed_rule`、`tier_trigger_approximation`（偏差声明）、每格每档 `n/class_counts/non_crash/non_crash_rate` 与 `selected_tiers`。
+
+## 偏差与说明
+1. **F1-F3 pilot 为单故障近似**：first_clock 取 U[0.5×,1.5×)×档位均值周期（chaos_trigger.hh scheduleNext 的逐位孪生）；精确固定间隔多次注入 F0-F5 接线随注入器批次补（按要求在代码注释、tier_selection.json、summary.md 三处注明）。
+2. **runner.py 零改动**：档位经 manifest `trigger.value`/`limits.max_faults` 表达，无需传参。
+3. **三组组合大声拒绝**（未接线而非半路由）：trace 两遍法+two_phase（W8.7 独立成遍）、uniform_sampling+two_phase（countOnly 非档感知）、`--n_per_cell`+two_phase。
+4. **首次玩具运行遭并行代理重建屠批**：其对 `build/ARM/gem5.opt` 做 `rm -f &amp;&amp; scons` 循环，运行中二进制消失 → 全部 SimulatorError（campaign 按设计打了 WARNING 并诚实记录）；待构建窗口后重跑成功（上文②）。
+5. 玩具 yaml 放 `/tmp`（一次性验证夹具，仓库 manifests/ 归编排者——W5 先例）；玩具产物在 `runs|artifacts/ooo_w31_toy_rob_pcbitflip/`、`artifacts/ooo_w32_toy_coverage{,_tbl}/coverage.json`。F5 非可选 pilot 档（02 文档步骤 1 只 pilot F0-F3），拒绝信息已注明。未动 `schemas/campaign.schema.json`（无 additionalProperties:false，新节天然通过；本机无 jsonschema 走 light 路径）。
+6. 中断保护文件 `/tmp/ooo_w31_progress.txt` 全程维护；未 commit/push。</result>
+<usage><subagent_tokens>0</subagent_tokens><tool_uses>93</tool_uses><duration_ms>3630176</duration_ms></usage>
+</task-notification>
