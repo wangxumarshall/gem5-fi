@@ -1838,3 +1838,68 @@ NEG_EXIT=1
 6. 中断保护文件 `/tmp/ooo_w31_progress.txt` 全程维护；未 commit/push。</result>
 <usage><subagent_tokens>0</subagent_tokens><tool_uses>93</tool_uses><duration_ms>3630176</duration_ms></usage>
 </task-notification>
+
+---
+
+<task-notification>
+<task-id>ad5afef17581fe853</task-id>
+<tool-use-id>call_5ab839eca0c14edf80e9dc0b</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi/228a36be-984d-44a8-aac7-02555f4f22df/tasks/ad5afef17581fe853.output</output-file>
+<status>completed</status>
+<summary>Agent "W6 批次2（D08-D10）" came to rest</summary>
+<note>A task-notification fires each time this agent comes to rest with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>全部完成。W6 批次 2 (D08-D10) 的最终报告：
+
+## 文件清单（仅我的改动，未 commit/push）
+
+| 文件 | 改动 |
+|---|---|
+| `CHAOS/gem5/src/cpu/o3/CHAOSDecode/CHAOSDecode.hh` | 3 个新 Mode 枚举值、`kSignImmFormats[]`（23 行 D08 表）、`kSubfieldFormats[]`（10 行 D09 表）、`countMicroops` 有界计数器、3 个注入 helper 声明（EMI 经 `uint64_t` 传递——ExtMachInst 是 BitUnion **typedef**，不可前置声明，编译期发现并绕过） |
+| `CHAOS/gem5/src/cpu/o3/CHAOSDecode/CHAOSDecode.cc` | D08/D09/D10 三个 helper 实现 + 门后 dispatch；macroop 排除对 crack_ctrl 反转；**maybeCorrupt 增加 `fi_mode != DestRegSub` 守卫（bug fix，见下）** |
+| `CHAOS/gem5/src/cpu/o3/CHAOSDecode/CHAOSDecode.py` | mode 帮助文档 + 3 个新值 |
+| `configs/se/ooo_proxy.py` | `--decode_mode` choices 增量（仅 decode 块） |
+| `tools/runner.py` | decode 块 sub_field 判别增量（未触碰 ROB 块——diff 确认） |
+
+未动 fetch.cc/decoder.hh（批次 1 机制已够用：D10 的 macroop 替换走同一 `decodeChaos`+局部重绑路径）。
+
+## 每模式验证输出（逐字）
+
+**构建**：`scons done building targets`，exit 0，除预存 capstone/png/HDF5/systemc 外零新告警。golden 回归：`FINAL=45737cc9a76c0dce` exit=0（无注入器）；窗口关闭空跑同 golden、日志 0 行。
+
+**D08 sign_ext_bit**（表 23 格式全经主机 gcc+objdump 真编码核验）：
+```
+Tick: 416955, Site: fetch_decode, mode=sign_ext_bit, pc=0x4090a0, format=add_sub_imm12, imm_field=[21:10], sign_bit=21, orig_enc=0x91010063, new_enc=0x91210063, orig_mnemonic=add, new_mnemonic=add, regs_moved=0, faults_injected: 1
+```
+- 地址类 **Crash（页错误）**：`panic: Page table fault when accessing virtual address 0x7fffff0440`，`Program aborted at tick 497420`，exit=134（imm12 符号位 +2048 → 地址越界）。编码 diff 可复算：0x91010063^0x91210063=0x200000=1&lt;&lt;21 ✓。seed 11/66 同型（sub→Crash）；seed 22/33/55 `ldr_imm12` sign_bit=21 → FINAL=golden（Masked）——04 预期的两极分化实测可见。
+- 同 seed 复现：日志 md5 两次全等（`762f18088dd349130958b811d7d6f36c` ×2）、panic 行与 abort tick 完全一致（stdout 差异仅宿主 ASLR/时间戳）。
+
+**D09 imm_subfield_shift**（4 类带名字子字段的格式：logical imm/adr/adrp/mov_wide/add_sub_sh_imm12）：
+```
+Tick: 417725, Site: fetch_decode, mode=imm_subfield_shift, pc=0x40bfb4, format=mov_wide, subfields=A[22:21]&lt;-&gt;B[20:19], field_a=1, field_b=0, orig_enc=0xd2a00022, new_enc=0xd2880022, orig_mnemonic=movz, new_mnemonic=movz, regs_moved=0, faults_injected: 1
+```
+- 手工复算证明错位拼接：hw[22:21]=1 ↔ imm16[15:14](enc 20:19)=0 互换 → 期望 0xd2880022 == 日志 new_enc；diff=0x280000 恰为两个子字段位段（`movz x2,#1,lsl#16`(0x10000) → `movz x2,#0x4001`，碎片装错位置而非随机换值）✓
+- 无子字段格式**诚实跳过+日志**（7 条，有界）：`reason=no_multi_named_subfield_structure, imm_format=ldr_imm12/bcond_imm19/none, orig_mnemonic=ldr/b/ret/dc zva/orr`；`reason=subfield_transpose_is_identity`（add/sub sh==imm12 顶 2 位）。
+- 同 seed 复现：md5 `0cb36e02196640a3c3cd98224200659c` ×2，FINAL=golden（Masked）。
+
+**D10 crack_ctrl** — spike 结论：**可行实现**。gem5 v25 A64 的"裂解"= 译码为 macroop（LDP/STP/LDPSW→`LdpStp`=`PairMemOp:PredMacroOp`, macromem.hh:473；fetch.cc 走 `fetchMicroop(upc)`，upc 0 起、末 µop 带 IsLastMicroop）。**没有运行时裂解锁存位**——判定烘焙在静态译码表里，故按 04"只能用功能级建模"在编码级实现：对 macroop 译码翻寻址模式字段 enc[24:23]（{post=01,offset=10,pre=11}，禁入 00=ldnp）。三个臂全部实测：
+```
+seed=7/9/101/104: addr_mode=offset-&gt;pre, uops_orig=5, uops_new=6, uops_delta=1, arm=crack_forced_extra_uop, orig_mnemonic=stp  (+1 假 writeback µop)
+seed=21:          addr_mode=offset-&gt;pre, uops_orig=2, uops_new=3, uops_delta=1, arm=crack_forced_extra_uop, orig_mnemonic=ldp
+seed=13/31/102…:  addr_mode=offset-&gt;post, uops_orig=2or5, uops_new=同, uops_delta=0, arm=composition_swap, orig_mnemonic=ldp/stp
+```
+µop 数与 PairMemOp 构造公式逐例吻合（int64 ldp: offset=1(addr)+1(pair)=2；fp128 stp: offset=1+4=5）。pre→offset（−1，crack_suppressed"该拆的不拆"）在 smoke 上未动态命中（该二进制 in-window 内只有 offset 形 pair-op；为 +1 的结构逆，公式对称）。**诚实 blocker（已写入日志非静默）**：对非 macroop 指令强制裂解无编码级控制点（plain LDR 结构性单 µop 译码、无可翻位），合成截断 macroop 被共享缓存 µop 对象阻断（无 clone API，改 flags 会污染 ISA 缓存）——日志实证：
+```
+mode=crack_ctrl, event=honest_skip, reason=not_a_macroop_decode (force-crack of a plain instruction has no encoding-level control - recorded blocker), pc=0x409088, orig_enc=0xcb030082, orig_mnemonic=sub
+```
+- 同 seed 复现：md5 `18da20d288a0e1f34b30a33817bd4d50` ×2。
+- **ctrace L2 证据**：runner e2e `crack_ctrl` → Masked（exit=0, checksum==golden, faults_injected=1），`L2RESULT: verdict=diverged, primary_class=instruction_substitution(③指令替换), first_divergence: seq 96, op: ref=addxi_uop run=strqbfpxi_uop, pc=409094, divergence_counts:{instruction_substitution:5}, run_instructions=309396`——裂解流改变在提交迹上逐 µop 可见（addr-gen µop ↔ store µop），总数不变（delta=0）与日志一致。
+
+**runner 路由 e2e ×2**（C3 + v2 sub_field 判别）：`sign_ext_bit` → `classification=Crash faults_injected=1 exit=-6`（gem5 panic 判 DUE）；`crack_ctrl` → `classification=Masked faults_injected=1`。
+
+## 额外发现并修复的 bug（本批次种子扫描暴露的批次 1 潜伏缺陷）
+
+rename.cc:1192 的 legacy `maybeCorrupt` 无模式守卫：**任何** W6 模式（D01-D10）都会与 §2.14 dest_reg_sub 在 rename 站点竞争共享 max_faults 预算 → decode 模式运行可能实际注入 dest_reg_sub 并错误归因。修复：`maybeCorrupt` 首行 `if (fi_mode != Mode::DestRegSub) return false;`。验证：修复前 seed 13/21 注入 `mode=dest_reg_sub, Site: rename_flattenDest`（错），修复后同 seed 注入 `mode=crack_ctrl … ldp offset-&gt;pre uops 2→3` ✓；legacy 回归 `--decode_mode dest_reg_sub` 仍正常注入（`old_dest_reg=2, new_dest_reg=19`）✓。
+
+中断保护文件 `/tmp/ooo_w6b2_progress.txt` 全程更新；按纪律未 commit/push（含共享二进制与并行 W5 代理的 3 次构建竞争，均已等待重链后复验）。</result>
+<usage><subagent_tokens>0</subagent_tokens><tool_uses>130</tool_uses><duration_ms>5480434</duration_ms></usage>
+</task-notification>
