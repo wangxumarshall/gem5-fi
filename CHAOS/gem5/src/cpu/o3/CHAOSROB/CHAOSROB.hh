@@ -98,7 +98,19 @@ class CHAOSROB : public SimObject
         // ROB-array field). CHAOSROB must stay INERT for them — unknown
         // modes must never silently fall back to entry_bitflip (which
         // toggles CanCommit) — hence the explicit inert mode.
-        OldphysInert
+        OldphysInert,
+        // W5.8-W5.9 (D41-D46, ooo 04-design-matrix R42-R47): the ROB
+        // head/tail POINTER family. gem5's ROB is a std::list with no
+        // pointer registers — every mode is an HONEST APPROXIMATION
+        // (approx= on every log line, the W4 head_bitflip precedent):
+        //   head_ptr_*  = commit-side entry-selection misalignment (the
+        //     entry at the flip offset from head contributes its record to
+        //     the next commit — the skip/repeat-commit observable).
+        //   tail_ptr_*  = allocation-side alias (the new entry's record
+        //     lands on the in-use entry at the flip offset behind the tail
+        //     — the "新分配的 ROB 项覆盖仍在用的项" clobber).
+        HeadPtrBitflip, HeadPtrBitflip2, HeadPtrStuck,
+        TailPtrBitflip, TailPtrBitflip2, TailPtrStuck
     };
     static Mode stringToMode(const std::string &s);
     const char *modeToString(Mode m);
@@ -159,6 +171,18 @@ class CHAOSROB : public SimObject
     Addr stale_read_stale_pc = 0;      // the old record's pc (post-copy)
     uint64_t stale_read_old_sn = 0;    // the previous occupant's seqNum
 
+    // W5.8-W5.9 D43/D46 pointer-stuck state (F5, the W4 head_stuck
+    // pattern): ONE armed bit + polarity of the ROB slot-index domain
+    // (128 entries -> 7 bits); the armed offset = 1<<bit is applied at
+    // EVERY subsequent insert (ungated exposures of the one permanent
+    // fault — "同一种错位模式重复出现" / "分配冲突的持续性重复").
+    bool ptr_stuck_armed = false;
+    int ptr_stuck_bit = -1;
+    int ptr_stuck_polarity = 0;
+    int ptr_stuck_offset = 0;          // 1 << ptr_stuck_bit (fixed pattern)
+    uint64_t ptr_stuck_exposures = 0;
+    uint64_t ptr_stuck_noaction = 0;   // exposures with no live target
+
     // shared helpers
     int collectIntDestSlots(const o3::DynInstPtr &inst,
                             std::vector<int> &slots);
@@ -177,6 +201,23 @@ class CHAOSROB : public SimObject
     bool doneBitExcluded(const o3::DynInstPtr &inst, bool early);
     // D40: the insert-site stale-record overwrite.
     bool maybeStaleReadEntry(ThreadID tid, const o3::DynInstPtr &inst);
+
+    // W5.8-W5.9 (D41-D46) helpers: copy one entry's RECORD (pcState + the
+    // first min(dst,src) dest slots' flattened/renamed/prev ids — the D40
+    // field set, bounded by the DESTINATION's array sizes, no OOB) from
+    // src onto dst. Returns the number of dest slots copied.
+    int copyRobRecord(const o3::DynInstPtr &dst, const o3::DynInstPtr &src);
+    // The head/tail pointer family dispatcher (rob_insert site).
+    bool maybePtrCorrupt(ThreadID tid, const o3::DynInstPtr &inst);
+    // D41/D42 head-side one-shot misalignment; D44/D45 tail-side one-shot
+    // allocation alias. stuck=false for the one-shots.
+    bool applyHeadPtrFlip(ThreadID tid, const o3::DynInstPtr &inst,
+                          int offset, bool stuck, int b1, int b2);
+    bool applyTailPtrFlip(ThreadID tid, const o3::DynInstPtr &inst,
+                          int offset, bool stuck, int b1, int b2);
+    // End-of-run evidence for the F5 stuck pointer modes (total exposure
+    // counts, the CHAOSFreeList finalSummary pattern).
+    void ptrStuckFinalSummary();
 };
 
 } // namespace gem5

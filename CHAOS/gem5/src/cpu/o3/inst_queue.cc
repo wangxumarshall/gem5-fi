@@ -687,6 +687,25 @@ InstructionQueue::insert(const DynInstPtr &new_inst)
     assert(iq);
     iq->insert(new_inst);
 
+    // W5.11 CHAOSIQ D50-D54 (ooo 04-design-matrix R51-R55): the entry's
+    // int source-TAG write — the hook sits BEFORE addToDependents so the
+    // dependency graph, the scoreboard check and the issue-time operand
+    // read all follow the corrupted tag. nullptr / other modes = no-op.
+    if (chaosIQ)
+        chaosIQ->maybeCorruptTag(new_inst->threadNumber, new_inst);
+
+    // W5.10 CHAOSIQ D47 (R48, ready位·提前置位): force ONE not-yet-ready
+    // int source slot's ready bit BEFORE addToDependents — the per-slot
+    // bit keeps the entry OFF that slot's dependency chain (no later wake
+    // can re-mark / re-queue it: the scheduleReadyInsts assert(iq)
+    // double-issue artifact is impossible), and the incremented counter
+    // makes a last-unready-slot entry issueable on the normal addIfReady
+    // right below — it issues and reads the pre-writeback physreg cell
+    // (the stale-value silent-SDC path).
+    // nullptr / other modes = no-op.
+    if (chaosIQ)
+        chaosIQ->maybeReadyEarly(new_inst->threadNumber, new_inst);
+
     // Look through its source registers (physical regs), and mark any
     // dependencies.
     addToDependents(new_inst);
@@ -916,8 +935,18 @@ InstructionQueue::scheduleReadyInsts()
         IQUnit *iq = issuing_inst->iq;
         assert(iq);
         auto fu_pool = iq->fuPool();
+        // W5.12 CHAOSIQ D55 (ooo 04-design-matrix R56, 分发端口选择逻辑·
+        // 状态翻转): the FU-SELECTION class for this µop — the injector
+        // may swap it (IntAlu <-> IntMult, the design's binary
+        // ALU-vs-MDU route). Only getUnit/getOpLatency/isPipelined (the
+        // port + latency accounting) see the misrouted class; the value
+        // still comes from inst->execute() (spike C). The queue and
+        // stats keep the TRUE op_class. No injector = fu_class == op_class.
+        OpClass fu_class = op_class;
+        if (chaosIQ && op_class != No_OpClass)
+            chaosIQ->maybeMisrouteFU(issuing_inst, fu_class);
         if (op_class != No_OpClass) {
-            idx = fu_pool->getUnit(op_class);
+            idx = fu_pool->getUnit(fu_class);
             if (issuing_inst->isFloating()) {
                 iqIOStats.fpAluAccesses++;
             } else if (issuing_inst->isVector()) {
@@ -926,7 +955,7 @@ InstructionQueue::scheduleReadyInsts()
                 iqIOStats.intAluAccesses++;
             }
             if (idx > FUPool::NoFreeFU) {
-                op_latency = fu_pool->getOpLatency(op_class);
+                op_latency = fu_pool->getOpLatency(fu_class);
             }
         }
 
@@ -953,7 +982,7 @@ InstructionQueue::scheduleReadyInsts()
                   issuing_inst->setNoCapableFU();
             } else {
                 assert(idx != FUPool::NoCapableFU);
-                bool pipelined = fu_pool->isPipelined(op_class);
+                bool pipelined = fu_pool->isPipelined(fu_class);
                 // Generate completion event for the FU
                 ++wbOutstanding;
                 auto execution =
@@ -1000,6 +1029,11 @@ InstructionQueue::scheduleReadyInsts()
                 // Memory instructions can not be freed from the IQ until they
                 // complete.
                 issuing_inst->clearInIQ();
+                // W5.11 CHAOSIQ D54: record the issue-time IQ departure
+                // into the previous-occupant ring (the tag_stale_read
+                // "slot overwrite" pool; no-op in other modes).
+                if (chaosIQ)
+                    chaosIQ->noteIqDeparture(issuing_inst);
             } else {
                 memDepUnit[tid].issue(issuing_inst);
             }
@@ -1177,17 +1211,43 @@ InstructionQueue::wakeDependents(const DynInstPtr &completed_inst)
         //ready within the waiting instructions.
         DynInstPtr dep_inst = dependGraph.pop(dest_reg->flatIndex());
 
+        // W5.10 CHAOSIQ D48/D49 (R49/R50, ready位·永不置位): the IQ
+        // occupancy for the D49 event gate (>80%, "约 51/64 项") —
+        // computed once per wake; zero cost when no injector is
+        // attached.
+        unsigned chaos_iq_used = 0, chaos_iq_cap = 0;
+        if (chaosIQ) {
+            chaos_iq_used = getCount(tid);
+            for (auto *q : iqs) chaos_iq_cap += q->numEntries();
+        }
+
         while (dep_inst) {
             DPRINTF(IQ, "Waking up a dependent instruction, [sn:%llu] "
                     "PC %s.\n", dep_inst->seqNum, dep_inst->pcState());
+
+            // W5.11 CHAOSIQ D53: wrong-chain consumption evidence for the
+            // armed tag_stuck entry (no-op unless armed).
+            // W5.10 D48/D49: suppress this markSrcRegReady — the operand
+            // IS ready but the entry's ready bit never sets (the pop
+            // consumed the only wake: the entry is permanently
+            // never-ready).
+            bool chaos_suppress_mark = false;
+            if (chaosIQ) {
+                chaosIQ->noteTagWake(dep_inst, dest_reg->flatIndex());
+                chaos_suppress_mark = chaosIQ->shouldSuppressReadyMark(
+                    dep_inst, dest_reg->flatIndex(),
+                    chaos_iq_used, chaos_iq_cap);
+            }
 
             // Might want to give more information to the instruction
             // so that it knows which of its source registers is
             // ready.  However that would mean that the dependency
             // graph entries would need to hold the src_reg_idx.
-            dep_inst->markSrcRegReady();
+            if (!chaos_suppress_mark)
+                dep_inst->markSrcRegReady();
 
-            addIfReady(dep_inst);
+            if (!chaos_suppress_mark)
+                addIfReady(dep_inst);
 
             // §2.5 F5 src_ready_bitflip (Phase 4.3): once this event (ONE
             // dependent) is injected, additionally pop ONE not-ready

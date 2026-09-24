@@ -20,9 +20,16 @@ class CHAOSIQ(SimObject):
     #                   phaseOffset cycles (DelayedWakeEvent; advance not
     #                   modeled — E3 proxy limit).
     mode = Param.String("wake_omit",
-        "wake_omit | src_ready_bitflip | wake_phase")
+        "wake_omit | src_ready_bitflip | wake_phase | ready_early | "
+        "ready_never | ready_never_event | tag_swap | tag_bitflip | "
+        "tag_bitflip2 | tag_stuck | tag_stale_read | dispatch_misroute")
     phaseOffset = Param.Int(0, "F6 wake_phase: cycles to advance(-)/delay(+) — proxy")
-    probability = Param.Float(1.0, "per-wakeDependents injection probability")
+    probability = Param.Float(1.0, "per-event injection probability")
+    # W5.11 (D51-D53): directed bit control for the int-tag index field
+    # (lowest set bit = the bit; two lowest = the bit pair), the
+    # CHAOSROB faultMask convention. 0 = random.
+    faultMask = Param.UInt64(0,
+        "directed bit mask for tag_bitflip/tag_bitflip2/tag_stuck")
     firstClock = Param.UInt64(0, "first clock cycle eligible for injection")
     lastClock = Param.UInt64(0, "last cycle (0 = unrestricted)")
     maxFaults = Param.UInt64(0, "max faults; 0 = unlimited. Use 1.")

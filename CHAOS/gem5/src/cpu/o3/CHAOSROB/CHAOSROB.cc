@@ -8,6 +8,7 @@
 #include "arch/arm/pcstate.hh"     // ArmISA::PCState (pc(Addr) field setter)
 #include "debug/CHAOSROB.hh"
 #include "params/CHAOSROB.hh"
+#include "sim/sim_exit.hh"        // registerExitCallback (W5.8 D43/D46 ptr-stuck summary)
 
 namespace gem5
 {
@@ -31,6 +32,10 @@ namespace gem5
             if (!log_stream || !log_stream->stream())
                 panic("CHAOSROB: Could not open log file");
             rng.seed(rng_seed != 0 ? rng_seed : rd());
+            // W5.8-W5.9 D43/D46 pointer-stuck: total-exposure evidence at
+            // exit (the CHAOSFreeList finalSummary pattern).
+            if (fi_mode == Mode::HeadPtrStuck || fi_mode == Mode::TailPtrStuck)
+                registerExitCallback([this]() { this->ptrStuckFinalSummary(); });
         }
     }
 
@@ -62,6 +67,16 @@ namespace gem5
         if (s == "oldphys_bitflip" || s == "oldphys_bitflip2"
                 || s == "oldphys_swap_active" || s == "oldphys_stuck")
             return Mode::OldphysInert;
+        // W5.8-W5.9 (D41-D46, ooo 04-design-matrix R42-R47): ROB head/tail
+        // pointer family — honest approximations at the rob_insert site
+        // (gem5 ROB = std::list, no pointer registers; head = commit-side
+        // entry-selection misalignment, tail = allocation-side alias).
+        if (s == "head_ptr_bitflip") return Mode::HeadPtrBitflip;
+        if (s == "head_ptr_bitflip2") return Mode::HeadPtrBitflip2;
+        if (s == "head_ptr_stuck") return Mode::HeadPtrStuck;
+        if (s == "tail_ptr_bitflip") return Mode::TailPtrBitflip;
+        if (s == "tail_ptr_bitflip2") return Mode::TailPtrBitflip2;
+        if (s == "tail_ptr_stuck") return Mode::TailPtrStuck;
         return Mode::EntryBitflip;
     }
 
@@ -83,6 +98,12 @@ namespace gem5
             case Mode::DoneDelayEvent: return "done_delay_event";
             case Mode::RobStaleRead: return "rob_stale_read";
             case Mode::OldphysInert: return "oldphys_inert";
+            case Mode::HeadPtrBitflip: return "head_ptr_bitflip";
+            case Mode::HeadPtrBitflip2: return "head_ptr_bitflip2";
+            case Mode::HeadPtrStuck: return "head_ptr_stuck";
+            case Mode::TailPtrBitflip: return "tail_ptr_bitflip";
+            case Mode::TailPtrBitflip2: return "tail_ptr_bitflip2";
+            case Mode::TailPtrStuck: return "tail_ptr_stuck";
         }
         return "entry_bitflip";
     }
@@ -317,6 +338,18 @@ namespace gem5
         // overwrite (before the generic gates — it has its own gates).
         if (fi_mode == Mode::RobStaleRead)
             return maybeStaleReadEntry(tid, inst);
+
+        // W5.8-W5.9 (D41-D46) head/tail pointer family: self-gated (the
+        // one-shot flips apply the generic probability/max_faults/window
+        // gates inside maybePtrCorrupt; the stuck modes use the F5
+        // arming pattern — arming is the counted fault, every later
+        // insert is an ungated exposure).
+        if (fi_mode == Mode::HeadPtrBitflip || fi_mode == Mode::HeadPtrBitflip2
+                || fi_mode == Mode::HeadPtrStuck
+                || fi_mode == Mode::TailPtrBitflip
+                || fi_mode == Mode::TailPtrBitflip2
+                || fi_mode == Mode::TailPtrStuck)
+            return maybePtrCorrupt(tid, inst);
 
         // F5 stuck modes: arming is the counted fault; the application is
         // the write-path mask on the armed entry (f5_rat_stuck precedent —
@@ -1161,6 +1194,366 @@ namespace gem5
                 << std::endl;
         }
         return true;
+    }
+
+    int
+    CHAOSROB::copyRobRecord(const o3::DynInstPtr &dst,
+                            const o3::DynInstPtr &src)
+    {
+        // W5.8-W5.9 shared record copy (the D40 stale_read field set):
+        // pcState + the first min(dst,src) dest slots' flattened/renamed/
+        // prev ids. Bounded by the DESTINATION's array sizes — a dest-count
+        // mismatch leaves the destination's extra slots at their own values
+        // (partial record, honest; no OOB).
+        dst->pcState(src->pcState());
+        int n_dst = (int)dst->numDestRegs();
+        int n_src = (int)src->numDestRegs();
+        int n = n_dst < n_src ? n_dst : n_src;
+        for (int i = 0; i < n; i++) {
+            dst->flattenedDestIdx(i, src->flattenedDestIdx(i));
+            dst->renameDestReg(i, src->renamedDestIdx(i),
+                               src->prevDestIdx(i));
+        }
+        return n;
+    }
+
+    bool
+    CHAOSROB::applyHeadPtrFlip(ThreadID tid, const o3::DynInstPtr &inst,
+                               int offset, bool stuck, int b1, int b2)
+    {
+        // D41/D42 one-shot + D43 stuck application: the commit-side entry
+        // SELECTION misalignment — the entry at the flip offset from the
+        // head contributes its record to the head entry, and the next
+        // commit consumes the misaligned record (the hardware observable:
+        // "跳过提交或重复提交" / commit-order deviation; the true head's
+        // own mapping never lands while the source's mapping is applied
+        // twice — once here, once at the source's own commit).
+        auto *o3cpu = dynamic_cast<o3::CPU *>(cpu);
+        if (!o3cpu) return false;
+        o3::ROB &rob = o3cpu->o3ROB();
+        o3::DynInstPtr head = rob.getEntryAtDistance(tid, 0);
+        o3::DynInstPtr src = rob.getEntryAtDistance(tid, offset);
+        if (!head || !src || src == head || src->seqNum == head->seqNum) {
+            // offset beyond the live window (or single-entry ROB): the
+            // flipped head points outside the allocated entries — honest
+            // skip, no clamp (the map_bitflip2 policy). The fault is NOT
+            // consumed: the mode retries at the next insert (bounded skip
+            // logging, the destid family convention).
+            static thread_local uint64_t head_skip_logs = 0;
+            if (stuck) {
+                ptr_stuck_noaction++;
+            } else if (write_log && head_skip_logs < 32) {
+                head_skip_logs++;
+                *(log_stream->stream()) << "Tick: " << curTick()
+                    << ", Site: rob_insert, mode=" << modeToString(fi_mode)
+                    << ", tid=" << (int)tid
+                    << ", sn=" << inst->seqNum
+                    << ", bits=(" << b1;
+                if (b2 >= 0)
+                    *(log_stream->stream()) << "," << b2;
+                *(log_stream->stream())
+                    << "), offset=" << offset
+                    << " — no entry at that distance from head (live="
+                    << rob.countInsts(tid) << ") (skipped, no clamp)"
+                    << ", faults_injected: " << faults_injected_count
+                    << std::endl;
+            }
+            return false;
+        }
+        Addr head_true_pc =
+            head->pcState().as<ArmISA::PCState>().pc();
+        Addr src_pc = src->pcState().as<ArmISA::PCState>().pc();
+        int copied = copyRobRecord(head, src);
+        if (stuck) {
+            ptr_stuck_exposures++;
+            if (write_log && ptr_stuck_exposures <= 10) {
+                *(log_stream->stream()) << "Tick: " << curTick()
+                    << ", Site: rob_insert, mode=head_ptr_stuck"
+                    << ", tid=" << (int)tid
+                    << ", trigger_sn=" << inst->seqNum
+                    << ", fixed_offset=" << offset
+                    << ", head_sn=" << head->seqNum
+                    << ", head_true_pc=0x" << std::hex << head_true_pc
+                    << std::dec
+                    << ", misaligned_src_sn=" << src->seqNum
+                    << ", src_pc=0x" << std::hex << src_pc << std::dec
+                    << ", src_rob_dist=" << offset
+                    << ", dest_slots_copied=" << copied
+                    << " (SAME fixed-offset misalignment pattern)"
+                    << ", exposure: " << ptr_stuck_exposures
+                    << (ptr_stuck_exposures == 10
+                            ? " (logging capped; total in exit summary)"
+                            : "")
+                    << ", faults_injected: " << faults_injected_count
+                    << std::endl;
+            }
+            return true;
+        }
+        faults_injected_count++;
+        if (write_log) {
+            *(log_stream->stream()) << "Tick: " << curTick()
+                << ", Site: rob_insert, mode=" << modeToString(fi_mode)
+                << ", tid=" << (int)tid
+                << ", trigger_sn=" << inst->seqNum
+                << ", bits=(" << b1;
+            if (b2 >= 0)
+                *(log_stream->stream()) << "," << b2;
+            *(log_stream->stream())
+                << "), offset=" << offset
+                << ", head_sn=" << head->seqNum
+                << ", head_true_pc=0x" << std::hex << head_true_pc
+                << std::dec
+                << ", misaligned_src_sn=" << src->seqNum
+                << ", src_pc=0x" << std::hex << src_pc << std::dec
+                << ", src_rob_dist=" << offset
+                << ", dest_slots_copied=" << copied
+                << ", approx=head_ptr_bitflip_commit_side_misalignment"
+                   " (std::list ROB has no head-pointer register — the"
+                   " corrupted head read realized as the head entry's"
+                   " record replaced by the offset entry's record; the"
+                   " next commit consumes it — skip/repeat-commit"
+                   " semantics, 近似口径)"
+                << ", faults_injected: " << faults_injected_count
+                << std::endl;
+        }
+        return true;
+    }
+
+    bool
+    CHAOSROB::applyTailPtrFlip(ThreadID tid, const o3::DynInstPtr &inst,
+                               int offset, bool stuck, int b1, int b2)
+    {
+        // D44/D45 one-shot + D46 stuck application: the allocation-side
+        // alias — the corrupted tail read hands the new µop a slot that is
+        // STILL IN USE; the new entry's record lands on that live entry
+        // (the "新分配的 ROB 项覆盖仍在用的项" clobber — the D44
+        // free-list-duplicate-allocation analog). The victim keeps its
+        // identity (seqNum/status) but commits the NEW inst's record; the
+        // new inst commits its own record too (double apply), and the
+        // victim's true mapping never lands.
+        auto *o3cpu = dynamic_cast<o3::CPU *>(cpu);
+        if (!o3cpu) return false;
+        o3::ROB &rob = o3cpu->o3ROB();
+        int live = (int)rob.countInsts(tid);   // inst already linked
+        int victim_dist = live - 1 - offset;   // behind the new tail
+        if (victim_dist < 0) {
+            // the flipped tail points outside the live window (past the
+            // head): nothing in-use to alias — honest skip, no clamp. The
+            // fault is NOT consumed: the mode retries at the next insert
+            // (bounded skip logging, the destid family convention).
+            static thread_local uint64_t tail_skip_logs = 0;
+            if (stuck) {
+                ptr_stuck_noaction++;
+            } else if (write_log && tail_skip_logs < 32) {
+                tail_skip_logs++;
+                *(log_stream->stream()) << "Tick: " << curTick()
+                    << ", Site: rob_insert, mode=" << modeToString(fi_mode)
+                    << ", tid=" << (int)tid
+                    << ", sn=" << inst->seqNum
+                    << ", bits=(" << b1;
+                if (b2 >= 0)
+                    *(log_stream->stream()) << "," << b2;
+                *(log_stream->stream())
+                    << "), offset=" << offset
+                    << " — beyond the live window (live=" << live
+                    << "; flipped tail aliases no in-use entry)"
+                    << " (skipped, no clamp)"
+                    << ", faults_injected: " << faults_injected_count
+                    << std::endl;
+            }
+            return false;
+        }
+        o3::DynInstPtr victim = rob.getEntryAtDistance(tid, victim_dist);
+        if (!victim || victim->seqNum == inst->seqNum) return false;
+        Addr victim_true_pc =
+            victim->pcState().as<ArmISA::PCState>().pc();
+        Addr new_pc = inst->pcState().as<ArmISA::PCState>().pc();
+        int copied = copyRobRecord(victim, inst);
+        if (stuck) {
+            ptr_stuck_exposures++;
+            if (write_log && ptr_stuck_exposures <= 10) {
+                *(log_stream->stream()) << "Tick: " << curTick()
+                    << ", Site: rob_insert, mode=tail_ptr_stuck"
+                    << ", tid=" << (int)tid
+                    << ", trigger_sn=" << inst->seqNum
+                    << ", fixed_offset=" << offset
+                    << ", live=" << live
+                    << ", victim_rob_dist=" << victim_dist
+                    << ", victim_sn=" << victim->seqNum
+                    << ", victim_true_pc=0x" << std::hex << victim_true_pc
+                    << std::dec
+                    << ", clobbered_with_pc=0x" << std::hex << new_pc
+                    << std::dec
+                    << ", dest_slots_copied=" << copied
+                    << " (SAME fixed-offset allocation conflict pattern)"
+                    << ", exposure: " << ptr_stuck_exposures
+                    << (ptr_stuck_exposures == 10
+                            ? " (logging capped; total in exit summary)"
+                            : "")
+                    << ", faults_injected: " << faults_injected_count
+                    << std::endl;
+            }
+            return true;
+        }
+        faults_injected_count++;
+        if (write_log) {
+            *(log_stream->stream()) << "Tick: " << curTick()
+                << ", Site: rob_insert, mode=" << modeToString(fi_mode)
+                << ", tid=" << (int)tid
+                << ", sn=" << inst->seqNum
+                << " (the new allocation)"
+                << ", bits=(" << b1;
+            if (b2 >= 0)
+                *(log_stream->stream()) << "," << b2;
+            *(log_stream->stream())
+                << "), offset=" << offset
+                << ", live=" << live
+                << ", victim_rob_dist=" << victim_dist
+                << ", victim_sn=" << victim->seqNum
+                << ", victim_true_pc=0x" << std::hex << victim_true_pc
+                << std::dec
+                << ", clobbered_with_pc=0x" << std::hex << new_pc
+                << std::dec
+                << ", dest_slots_copied=" << copied
+                << ", approx=tail_ptr_bitflip_alloc_alias (std::list ROB"
+                   " has no tail-pointer register — the corrupted tail"
+                   " read realized as the new entry's record overwriting"
+                   " the in-use entry at the flip offset behind the tail,"
+                   " 近似口径)"
+                << ", faults_injected: " << faults_injected_count
+                << std::endl;
+        }
+        return true;
+    }
+
+    bool
+    CHAOSROB::maybePtrCorrupt(ThreadID tid, const o3::DynInstPtr &inst)
+    {
+        // W5.8-W5.9 (D41-D46, ooo 04-design-matrix R42-R47) dispatcher at
+        // the rob_insert site. HONEST APPROXIMATION (gem5 ROB = std::list,
+        // no head/tail pointer registers; every log line carries approx=):
+        //   head_ptr_*  = commit-side entry-selection misalignment
+        //   tail_ptr_*  = allocation-side alias onto an in-use entry
+        // The pointer VALUE domain = the ROB slot count (128 entries ->
+        // 7 bits; taken from getMaxEntries — the per-thread effective
+        // capacity), the flip offset = the positional weight of the
+        // flipped bit(s) = 2^b (single) / 2^b1+2^b2 (double). faultMask's
+        // lowest set bit(s) override the random bit choice (directed
+        // control, the pc_bitflip family convention).
+        if (!cpu || probability <= 0.0f) return false;
+        auto *o3cpu = dynamic_cast<o3::CPU *>(cpu);
+        if (!o3cpu) return false;
+
+        bool is_head = (fi_mode == Mode::HeadPtrBitflip
+                        || fi_mode == Mode::HeadPtrBitflip2
+                        || fi_mode == Mode::HeadPtrStuck);
+        bool is_stuck = (fi_mode == Mode::HeadPtrStuck
+                         || fi_mode == Mode::TailPtrStuck);
+        bool two_bit = (fi_mode == Mode::HeadPtrBitflip2
+                        || fi_mode == Mode::TailPtrBitflip2);
+
+        if (!is_stuck) {
+            // one-shot flips: the generic gates (the D25-D30 pattern).
+            if (max_faults != 0 && faults_injected_count >= max_faults)
+                return false;
+            if (!inWindow()) return false;
+            std::uniform_real_distribution<float> pd(0.0f, 1.0f);
+            if (pd(rng) > probability) return false;
+        } else if (!ptr_stuck_armed) {
+            // F5 arming (the f5_rat_stuck / W4 head_stuck pattern):
+            // probability/max_faults/window gate the FAULT'S CREATION
+            // only; every later insert is an ungated exposure.
+            if (max_faults != 0 && faults_injected_count >= max_faults)
+                return false;
+            if (!inWindow()) return false;
+            std::uniform_real_distribution<float> pd(0.0f, 1.0f);
+            if (pd(rng) > probability) return false;
+        }
+
+        // the slot-index bit domain
+        unsigned max_e = o3cpu->o3ROB().getMaxEntries(tid);
+        int nbits = 0; unsigned tmp = max_e;
+        while (tmp > 1) { nbits++; tmp >>= 1; }
+        if (nbits < 1) nbits = 1;
+        if (two_bit && nbits < 2) return false;
+
+        int b1 = -1, b2 = -1, offset = 0;
+        if (!two_bit) {
+            b1 = fault_mask
+                ? (int)__builtin_ctzll(fault_mask) % nbits
+                : (int)(rng() % (unsigned)nbits);
+            offset = 1 << b1;
+        } else {
+            if (__builtin_popcountll(fault_mask) >= 2) {
+                b1 = (int)__builtin_ctzll(fault_mask);
+                uint64_t rest = fault_mask & ~(1ULL << b1);
+                b2 = (int)__builtin_ctzll(rest);
+            } else {
+                b1 = (int)(rng() % (unsigned)nbits);
+                b2 = (int)(rng() % (unsigned)(nbits - 1));
+                if (b2 >= b1) b2++;
+            }
+            if (b1 == b2 || b1 >= nbits || b2 >= nbits) return false;
+            offset = (1 << b1) | (1 << b2);
+        }
+
+        if (is_stuck && !ptr_stuck_armed) {
+            ptr_stuck_bit = b1;   // the armed stuck bit (b2 unused: F5 is
+                                  // a ONE-bit stuck cell)
+            ptr_stuck_polarity = (int)(rng() % 2);
+            ptr_stuck_offset = 1 << ptr_stuck_bit;
+            ptr_stuck_armed = true;
+            faults_injected_count++;
+            if (write_log) {
+                *(log_stream->stream()) << "Tick: " << curTick()
+                    << ", Site: rob_insert, mode="
+                    << modeToString(fi_mode) << ", ARMED"
+                    << ", tid=" << (int)tid
+                    << ", sn=" << inst->seqNum
+                    << ", bit=" << ptr_stuck_bit
+                    << ", polarity=" << ptr_stuck_polarity
+                    << (ptr_stuck_polarity ? " (stuck_at_one)"
+                                           : " (stuck_at_zero)")
+                    << ", fixed_offset=" << ptr_stuck_offset
+                    << ", write_path=every rob_insert after arming (F5"
+                       " permanent — the pointer bit is stuck for the"
+                       " rest of the run; each insert is an exposure)"
+                    << ", approx=" << (is_head
+                        ? "head_ptr_stuck_fixed_offset_misalignment"
+                          " (std::list ROB has no head-pointer register"
+                          " — every commit-side selection is offset by"
+                          " the same stuck-bit weight, 近似口径)"
+                        : "tail_ptr_stuck_fixed_offset_alloc_conflict"
+                          " (std::list ROB has no tail-pointer register"
+                          " — every allocation aliases the same-pattern"
+                          " in-use entry, 近似口径)")
+                    << ", faults_injected: " << faults_injected_count
+                    << std::endl;
+            }
+            // fall through: THIS insert is the first exposure.
+        }
+        if (is_stuck) offset = ptr_stuck_offset;
+
+        if (is_head)
+            return applyHeadPtrFlip(tid, inst, offset, is_stuck,
+                                    is_stuck ? ptr_stuck_bit : b1, b2);
+        return applyTailPtrFlip(tid, inst, offset, is_stuck,
+                                is_stuck ? ptr_stuck_bit : b1, b2);
+    }
+
+    void
+    CHAOSROB::ptrStuckFinalSummary()
+    {
+        // W5.8 D43/D46 end-of-run evidence: total exposures of the ONE
+        // permanent stuck pointer fault (the CHAOSFreeList finalSummary
+        // pattern) + the no-live-target exposure count.
+        if (!write_log || !log_stream || !log_stream->stream()) return;
+        *(log_stream->stream()) << "Tick: " << curTick()
+            << ", Site: exit_summary, mode=" << modeToString(fi_mode)
+            << ", faults_injected: " << faults_injected_count
+            << ", ptr_stuck_exposures=" << ptr_stuck_exposures
+            << ", ptr_stuck_exposures_no_live_target=" << ptr_stuck_noaction
+            << std::endl;
     }
 
     void
