@@ -1236,3 +1236,97 @@ Int Decode的所有单元做完了先停一下，不着急往下做。
 ---
 
 所以你确实先跑的是int rename是吗
+
+---
+
+<task-notification>
+<task-id>a62a54eb5a7a5f928</task-id>
+<tool-use-id>call_56e3146b93ae466faa599986</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi/986103be-6dae-4d5b-8b58-a5f2abf15cf7/tasks/a62a54eb5a7a5f928.output</output-file>
+<status>completed</status>
+<summary>Agent "实现 W4 批次2（D15/D16/D17-18）" came to rest</summary>
+<note>A task-notification fires each time this agent comes to rest with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>三 Task 全部完成，构建为最新状态，改动文件清单精确匹配授权范围（w2-observation.md 为任务开始前已存在的脏文件，未被我触碰）。最终报告如下。
+
+---
+
+# OoO W4 批次 2（D15/D16/D17/D18）完成报告
+
+三个 Task 串行完成、各自真机验证全过；**未做任何 git commit/push**（按要求留给编排者）；中断保护文件 `/tmp/ooo_w4b2_progress.txt` 全程维护。
+
+## 一、文件清单（按 Task）
+
+**Task 3（W4.3 D15 f5_rat_stuck）**
+- `CHAOS/gem5/src/cpu/o3/CHAOSRenameMap/CHAOSRenameMap.hh` — Mode::F5RatStuck + `maybeStuckWrite`/`maybeFaultRename` 声明 + f5s_* 状态
+- `CHAOS/gem5/src/cpu/o3/CHAOSRenameMap/CHAOSRenameMap.cc` — 模式映射；maybeCorrupt 顶部 F5 分发（squash 恢复写路径）；`maybeStuckWrite`（布防+写路径 mask，G2 语义）；`maybeFaultRename`（rename 直写路径）
+- `CHAOS/gem5/src/cpu/o3/rename_map.hh` — `UnifiedRenameMap::rename` 新增 post-write 钩子（正常 rename 直写不经过 setEntry——W2.4 机制发现，本批补上第二条写路径）
+- `CHAOS/gem5/src/cpu/o3/CHAOSRenameMap/CHAOSRenameMap.py` — 模式文档
+- `configs/se/ooo_proxy.py` — choices += f5_rat_stuck
+- `tools/runner.py` — rat 路由：stuck_at_zero/one + `sub_field=f5_rat_stuck`
+
+**Task 4（W4.4 D16 stale_read）**
+- 同 Task 1/2 文件集：`CHAOSRenameMap.hh`（Mode::StaleRead + prev_phys 参数）、`.cc`（stale_read 分支：一次 rename 写静默失效，保留旧映射）、`.py`、`rename_map.hh`（传 prev_phys）、`ooo_proxy.py`（choices += stale_read）、`runner.py`（delay_omission + `sub_field=stale_read`）
+
+**Task 5（W4.5 D17/D18）**
+- `CHAOS/gem5/src/cpu/o3/CHAOSFreeList/CHAOSFreeList.hh` — Mode::MarkFreeEvent + event_threshold + dup_watch_idx
+- `CHAOS/gem5/src/cpu/o3/CHAOSFreeList/CHAOSFreeList.cc` — dup-watch 证据观察器（置于门控之前，maxFaults 耗尽后仍可触发）；MarkFreeEvent 分支（`numFreeRegs(IntRegClass) &lt;= eventThreshold` post-pop 事件门）；**旧 mark_free 日志行逐字节保持**
+- `CHAOS/gem5/src/cpu/o3/CHAOSFreeList/CHAOSFreeList.py` — 模式文档 + `eventThreshold=8` 参数
+- `configs/se/ooo_proxy.py` — choices += mark_free_event + `--freelist_event_threshold` + 挂载
+- `tools/runner.py` — transient_bit_flip/local_mbu + `sub_field=mark_free_event`
+
+## 二、各 Task 验证输出（逐字）
+
+### Task 3（D15 卡死，写路径 mask）
+构建：`-j126` 增量成功；CHAOSRenameMap.cc 用 compile_commands.json 命令行单独重编 `COMPILE_RC= 0`（零诊断）；构建中仅有的告警（CHAOSPhysReg.cc:548 unused-var、CHAOSIQ -Wreorder）均为**不在本批 diff 中的文件**的既有告警。定向注入（smoke, X1, first_clock 200000, seed 20260825）日志：
+```
+Tick: 77000000, Site: rename_write, mode=f5_rat_stuck, ARMED, tid=0, arch=X1, bit=6, polarity=0 (stuck_at_zero), num_phys=128, faults_injected: 1
+Tick: 89683825, Site: rename_write, mode=f5_rat_stuck, tid=0, arch=X1, write_phys=68, stored_phys=4, bit=6 forced to 0, exposure: 1
+Tick: 89683825, ... write_phys=122, stored_phys=58, bit=6 forced to 0, exposure: 2
+Tick: 89684595, ... write_phys=126, stored_phys=62, ... exposure: 3
+Tick: 89684595, ... write_phys=99, stored_phys=35, ... exposure: 4
+Tick: 89686905, Site: setEntry_restore, ... write_phys=62, stored_phys=62 (bit 6 already at 0, no observable change), exposure: 5
+```
+共 61 行 = 1 ARMED + 60 曝光（37 次强制压位 + 23 次位已一致），**两写路径（rename_write + setEntry_restore）均有证据**，持续性 ≥3 采样成立（68→4、122→58、126→62、99→35，bit6 清零均可复核）。结局 Crash：`src/cpu/o3/inst_queue.cc:1588: panic: Dependency graph 25 (integer) (flat: 25) not empty!`（25 = 被卡死表项指到的双所有权 phys，与 D13 结局同构）。同 seed 复现：`REP_EXIT=134` + `LOGS_IDENTICAL`（diff 为空）。无注入回归：`FINAL=45737cc9a76c0dce`，exit 0。
+
+### Task 4（D16 读旧数据）
+smoke 参照（ctrace）：`FINAL=45737cc9a76c0dce` exit 0，305,387 条。**L2 分歧样本（branch_mispred, X1, first_clock 250000）**注入行：
+```
+Tick: 96250385, Site: rename_write, mode=stale_read, tid=0, arch=X1, attempted_phys=114 (write silently failed, not stored), kept_phys=99 (previous mapping retained), faults_injected: 1
+```
+commit_diff（vs bm 无注入参照 06e84f119c258fa7）：
+```
+[结论] 主分类: ⑤数据损坏 (data_corruption)
+[潜伏期] 首分歧 seq = 271409
+  seq 271409  分歧层级: dest[0].val
+  detail: dest[0] val: ref=00000000019cc85a run=00000000019cb56d
+  ref: 271409,0,96253850,400680,add,1,0,1,117,00000000019cc85a
+  run: 271409,0,96253850,400680,add,1,0,1,117,00000000019cb56d
+  ⑤数据损坏: 68 (首见 seq 271409)；②指令流改变: 2472；合计 2540
+```
+即**旧映射值被下游读者消费并提交（⑤），随后级联②，最终 IQ panic（graph 99 = 保留映射）**——正是 04 预期"SDC 概率最高的几行之一"的首份实证。同 seed 复现：`REP_EXIT=134`、`LOGS_IDENTICAL`、`TRACES_BYTE_IDENTICAL`（94MB ctrace 逐字节相同）。golden 回归：smoke `45737cc9a76c0dce` 与 bm `06e84f119c258fa7` 均在各自二进制上复验通过。
+
+### Task 5（D17/D18 空闲表重复分配）
+构建：`-j126` 干净；CHAOSFreeList.cc 单独重编 `COMPILE_RC= 0` 零诊断。**D17 语义核对**：现有 mark_free = 挑一个 isFree==false 的已分配 int phys 并 addReg 回队——与 04 R18"把某一项强制标记为仍空闲，即使它已被分配出去"逐义吻合，无需改语义；固定间隔即现有 first_clock 机制。D17 定向（smoke）：
+```
+Tick: 77000000, Site: freelist_getReg, mode=mark_free, class=int, readded_allocated_idx=74, faults_injected: 1
+Tick: 77001925, Site: freelist_getReg, mode=mark_free, class=int, DUPLICATE_ALLOCATION: idx 74 re-handed-out (second allocation; first holder still owns it)
+```
+phys 74 两次分配证明成立；结局 Crash：`panic: Dependency graph 74 (integer) (flat: 74) not empty!`（panic 寄存器恰为重复分配的 idx，机制闭环）。**D18 定向（dep_chain, first_clock 20000）**：
+```
+Tick: 9313535, Site: freelist_getReg, mode=mark_free_event, class=int, num_free_int_after_pop=8 (threshold=8), popped_idx=107, readded_allocated_idx=108, faults_injected: 1
+Tick: 9353960, Site: freelist_getReg, mode=mark_free_event, class=int, DUPLICATE_ALLOCATION: idx 108 re-handed-out (second allocation; first holder still owns it)
+```
+触发时刻剩余数 ≤8（=8）证明 + idx 108 两次分配证明；结局 exit 0 且 `FINAL=98e5e31e726e383f` == dep_chain 无注入 golden → **Masked**（两持有者写序按程序序正确消费，恰为 04 预期的掩蔽路径）；复现 `LOGS_IDENTICAL`。golden 回归（最终二进制）：`FINAL=45737cc9a76c0dce` exit 0。**runner e2e（C3 manifest）**：stale_read 路由临时 outdir 日志 `mode=stale_read ... attempted_phys=50 ... kept_phys=114`（RESULT `classification=Crash faults_injected=1`）；mark_free_event 路由 `mode=mark_free_event ... num_free_int_after_pop=4 (threshold=8) ... readded_allocated_idx=24` + `DUPLICATE_ALLOCATION: idx 24`（RESULT `classification=Crash faults_injected=2 exit=-6`）——两条 sub_field 路由端到端打通。
+
+## 三、偏差与发现（诚实记录）
+
+1. **重大平台发现（影响 CHAOSRenameMap 全部模式）**：`--rename_target_arch` 实际比较的是 **flat int 寄存器索引**而非架构 Xn 号。Arm `IntRegClassOps::flatten`（`src/arch/arm/regs/int.cc:55`）经 `ISA::intRegMap` 重映射——实测 flat(X0)=0、flat(X1)=1、flat(X19)=**16**（AArch64 EL0）。smoke 累加器在静态 X19，定向须传 16；本发现由临时仪器化探针 + commit trace 逐 tick 对账定位（探针代码已全部移除并干净重建），`CHAOSRenameMap.py` 的 targetArchReg 文档已如实修正。低位寄存器两空间重合，故既有 W4.1/W4.2 日志的 arch 标注不受影响（但 X3/X19-X28 一类高位定向对照需注意）。
+2. **D15"直到被覆盖为止"的诠释**：按任务指令主句"每次该表项被写都把该位强制回固定值（写路径 mask，仿 G2）"实现为永久 cell 缺陷（每次写都 mask，含 squash 恢复写）；04 原文"直到该表项被下一次重命名覆盖为止"按值级持续性理解（被污染值保持到下次写，下次写再次带缺陷）——两者在写路径 mask 语义下统一。
+3. **D16 结局画像**（6 个不同注入点）：1×⑤分歧 Crash + 2×无分歧 Crash（IQ panic 抢在旧值提交前）+ 3×Masked。rename 直写路径的 RAT 故障普遍先触发 inst_queue 依赖图不变量（与 D13 的 6/6 Crash 同构），"读到旧数据"要提交需赢得与 freelist 回收的竞态——bm X1@fc250000 样本证明可赢且产生 ⑤。SDC 率留待 W8 campaign 定规模。
+4. **方法论发现**：directed target + probability=1.0 下注入点与 rng seed 无关（bm 5 个"seed"实为同一样本）——注入点变化须靠 first_clock/target；对今后所有定向对照设计有效。
+5. D17 旧 mark_free 日志行格式**逐字节保持**（新增字段只进 mark_free_event 行）；dup-watch 观察器只读、不计故障数、maxFaults 耗尽后仍工作。
+6. 探索副产物（未入正式验证、供编排者参考）：f5@X0/stale@X0 探针 run（ARMED+21 次曝光 / 注入后 Crash）进一步佐证 rename 路径钩子与 flat 空间结论。
+
+产物目录：`/tmp/w43_*`、`/tmp/w44_*`、`/tmp/w45_*`（注入日志/trace/.out/manifest 全保留）；进度文件 `/tmp/ooo_w4b2_progress.txt`。计划文件中 Task 3/4/5 的 checkbox 留给编排者勾选（未动授权范围外文件）。</result>
+<usage><subagent_tokens>0</subagent_tokens><tool_uses>161</tool_uses><duration_ms>7589580</duration_ms></usage>
+</task-notification>
