@@ -2070,3 +2070,33 @@ commit 读旧记录证明 ✓；终局 exit=124（真 dest 记分板永不清→
 ---
 
 /goal 调用最多的subagent完成所有后续工作
+
+---
+
+<task-notification>
+<task-id>a5b74af3cc7e90a38</task-id>
+<tool-use-id>call_b667e831ddd5441592e7d978</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi/228a36be-984d-44a8-aac7-02555f4f22df/tasks/a5b74af3cc7e90a38.output</output-file>
+<status>completed</status>
+<summary>Agent "W7.2+7.3 VecRegClass 族" came to rest</summary>
+<note>A task-notification fires each time this agent comes to rest with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>API Error: Request rejected (429) · Budget has been exceeded! Key=00614109 (sk-...XEyw) Current cost: 500.5242770000001, Max budget: 500.0</result>
+<usage><subagent_tokens>0</subagent_tokens><tool_uses>12</tool_uses><duration_ms>246549</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>adae4c1971e18f0d0</task-id>
+<tool-use-id>call_4c8114ea7ac04a55bb1f9654</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi/228a36be-984d-44a8-aac7-02555f4f22df/tasks/adae4c1971e18f0d0.output</output-file>
+<status>completed</status>
+<summary>Agent "W5 收官批（D41-D55）" came to rest</summary>
+<note>A task-notification fires each time this agent comes to rest with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>API Error: Request rejected (429) · Budget has been exceeded! Key=00614109 (sk-...XEyw) Current cost: 500.5242770000001, Max budget: 500.0</result>
+<usage><subagent_tokens>0</subagent_tokens><tool_uses>114</tool_uses><duration_ms>5122832</duration_ms></usage>
+</task-notification>
+
+---
+
+/goal 调用最多的subagent完成所有后续工作，确保功能内容没有丢失
