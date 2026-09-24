@@ -1049,3 +1049,33 @@ REGRESSION_MANIFESTS: 1200/1200 byte-identical (after campaign-id normalization)
 8. 里程碑全程记录于 `/tmp/ooo_w23_progress.txt`。</result>
 <usage><subagent_tokens>0</subagent_tokens><tool_uses>93</tool_uses><duration_ms>4913797</duration_ms></usage>
 </task-notification>
+
+---
+
+<task-notification>
+<task-id>a0df66cee2d2ebb91</task-id>
+<tool-use-id>call_00e34099a4514b5d80584a9d</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi/801d1500-1949-47d1-8f2e-95e2ab568418/tasks/a0df66cee2d2ebb91.output</output-file>
+<status>completed</status>
+<summary>Agent "实现 W2.6 L3 扇出+stats 消费" came to rest</summary>
+<note>A task-notification fires each time this agent comes to rest with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>API Error: Request rejected (429) · Budget has been exceeded! Key=50061609 (sk-...W9EA) Current cost: 500.4780341000005, Max budget: 500.0</result>
+<usage><subagent_tokens>0</subagent_tokens><tool_uses>26</tool_uses><duration_ms>827699</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a4781a685f60fb5dd</task-id>
+<tool-use-id>call_eca9b717b60f461a93237810</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi/801d1500-1949-47d1-8f2e-95e2ab568418/tasks/a4781a685f60fb5dd.output</output-file>
+<status>completed</status>
+<summary>Agent "实现 W2.5 L0 生命周期接口" came to rest</summary>
+<note>A task-notification fires each time this agent comes to rest with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>API Error: Request rejected (429) · Budget has been exceeded! Key=50061609 (sk-...W9EA) Current cost: 500.4780341000005, Max budget: 500.0</result>
+<usage><subagent_tokens>0</subagent_tokens><tool_uses>34</tool_uses><duration_ms>855495</duration_ms></usage>
+</task-notification>
+
+---
+
+继续
