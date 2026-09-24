@@ -936,6 +936,10 @@ Rename::doSquash(const InstSeqNum &squashed_seq_num, ThreadID tid)
 {
     auto hb_it = historyBuffer[tid].begin();
 
+    // W4 final D23/D24: fetch the injector once (may be nullptr — the
+    // consumption-watch notification below is then skipped entirely).
+    auto *chaos_rm = renameMap[tid]->getChaosRenameMap();
+
     // After a syscall squashes everything, the history buffer may be empty
     // but the ROB may still be squashing instructions.
     // Go through the most recent instructions, undoing the mappings
@@ -948,6 +952,18 @@ Rename::doSquash(const InstSeqNum &squashed_seq_num, ThreadID tid)
                 "number %i (archReg: %d, newPhysReg: %d, prevPhysReg: %d).\n",
                 tid, hb_it->instSeqNum, hb_it->archReg.index(),
                 hb_it->newPhysReg->index(), hb_it->prevPhysReg->index());
+
+        // W4 final D23/D24 CHAOSRenameMap consumption watch: read-only
+        // notification — logs the end of the dormancy window when the entry
+        // being squash-consumed is the corrupted checkpoint (the restore
+        // below then setEntry's / queue-frees the WRONG phys).
+        if (chaos_rm) {
+            chaos_rm->notifyHistoryConsumed(tid, hb_it->instSeqNum,
+                                            hb_it->archReg,
+                                            hb_it->newPhysReg,
+                                            hb_it->prevPhysReg,
+                                            "rename_doSquash");
+        }
 
         // Undo the rename mapping only if it was really a change.
         // Special regs that are not really renamed (like misc regs
@@ -1010,6 +1026,10 @@ Rename::removeFromHistory(InstSeqNum inst_seq_num, ThreadID tid)
             "history buffer %u (size=%i), until [sn:%llu].\n",
             tid, tid, historyBuffer[tid].size(), inst_seq_num);
 
+    // W4 final D23/D24: fetch the injector once (may be nullptr — the
+    // consumption-watch notification below is then skipped entirely).
+    auto *chaos_rm = renameMap[tid]->getChaosRenameMap();
+
     auto hb_it = historyBuffer[tid].end();
 
     --hb_it;
@@ -1038,6 +1058,17 @@ Rename::removeFromHistory(InstSeqNum inst_seq_num, ThreadID tid)
                 tid, hb_it->prevPhysReg->index(),
                 hb_it->prevPhysReg->className(),
                 hb_it->instSeqNum);
+
+        // W4 final D23/D24 CHAOSRenameMap consumption watch: read-only
+        // notification — the release below may addReg the WRONG phys when
+        // the committed entry is the corrupted checkpoint.
+        if (chaos_rm) {
+            chaos_rm->notifyHistoryConsumed(tid, hb_it->instSeqNum,
+                                            hb_it->archReg,
+                                            hb_it->newPhysReg,
+                                            hb_it->prevPhysReg,
+                                            "rename_removeFromHistory");
+        }
 
         // Don't free special phys regs like misc and zero regs, which
         // can be recognized because the new mapping is the same as
@@ -1173,9 +1204,23 @@ Rename::renameDestRegs(const DynInstPtr &inst, ThreadID tid)
                 rename_result.first->flatIndex());
 
         // Record the rename information so that a history can be kept.
+        // W4 final D23/D24 CHAOSRenameMap hb_bitflip(_2): the injector may
+        // flip bit(s) of the CHECKPOINT copy's newPhysReg/prevPhysReg field
+        // at creation — the instruction itself keeps its TRUE dest (fed
+        // below from the untouched rename_result), so the corruption stays
+        // dormant in the historyBuffer until doSquash/removeFromHistory
+        // consumes the entry. nullptr / other modes = zero regression.
+        PhysRegIdPtr hb_new_phys = rename_result.first;
+        PhysRegIdPtr hb_prev_phys = rename_result.second;
+        auto *chaos_rm = map->getChaosRenameMap();
+        if (chaos_rm) {
+            chaos_rm->maybeCorruptHistory(tid, inst->seqNum,
+                                          flat_dest_regid,
+                                          hb_new_phys, hb_prev_phys);
+        }
         RenameHistory hb_entry(inst->seqNum, flat_dest_regid,
-                               rename_result.first,
-                               rename_result.second);
+                               hb_new_phys,
+                               hb_prev_phys);
 
         historyBuffer[tid].push_front(hb_entry);
 
@@ -1387,7 +1432,24 @@ Rename::checkSignalsAndUpdate(ThreadID tid)
         DPRINTF(Rename, "[tid:%i] Squashing instructions due to squash from "
                 "commit.\n", tid);
 
-        squash(fromCommit->commitInfo[tid].doneSeqNum, tid);
+        // W4 final D14 CHAOSRenameMap swap_mispred_event: arm the
+        // misprediction-restore context around squash() (which runs
+        // doSquash — and therefore every restore setEntry — to completion
+        // before returning). commitInfo.mispredictInst is non-NULL only for
+        // branch-misprediction squashes (commit.cc:840; traps / order
+        // violations / squashAfter leave it NULL), so the injector can gate
+        // its swap on "this restore window was caused by a misprediction".
+        auto *chaos_rm = renameMap[tid]->getChaosRenameMap();
+        if (chaos_rm) {
+            chaos_rm->notifySquashSignal(
+                static_cast<bool>(
+                    fromCommit->commitInfo[tid].mispredictInst), tid,
+                fromCommit->commitInfo[tid].doneSeqNum);
+            squash(fromCommit->commitInfo[tid].doneSeqNum, tid);
+            chaos_rm->clearSquashSignal();
+        } else {
+            squash(fromCommit->commitInfo[tid].doneSeqNum, tid);
+        }
 
         return true;
     } else if (!fromCommit->commitInfo[tid].robSquashing &&

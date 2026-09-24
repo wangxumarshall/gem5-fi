@@ -125,7 +125,7 @@ p.add_argument("--lsq_lane_skew_k", type=int, default=1)
 p.add_argument("--chaos_rename", action="store_true",
                help="attach CHAOSRenameMap (O3 rename-map injector, §2.2)")
 p.add_argument("--rename_mode", default="map_bitflip",
-               choices=["map_bitflip","map_bitflip2","swap_to_active","f5_substitute","f4_field_stuck","spec_leak","f5_rat_stuck","stale_read"])
+               choices=["map_bitflip","map_bitflip2","swap_to_active","f5_substitute","f4_field_stuck","spec_leak","f5_rat_stuck","stale_read","swap_mispred_event","hb_bitflip","hb_bitflip2"])
 p.add_argument("--rename_target_arch", type=int, default=-1,
                help="arch reg index whose map entry to corrupt (-1=random 0..30)")
 p.add_argument("--rename_first_clock", type=lambda x: int(x,0), default=100000)
@@ -139,7 +139,7 @@ p.add_argument("--rename_rng_seed", type=lambda x: int(x,0), default=20260825)
 p.add_argument("--chaos_freelist", action="store_true",
                help="attach CHAOSFreeList (O3 freelist injector, §2.2)")
 p.add_argument("--freelist_mode", default="mark_free",
-               choices=["mark_free","pop_wrong","mark_free_event"])
+               choices=["mark_free","pop_wrong","mark_free_event","drop_release","head_bitflip","head_bitflip2","head_stuck"])
 p.add_argument("--freelist_first_clock", type=lambda x: int(x,0), default=100000)
 p.add_argument("--freelist_max_faults", type=lambda x: int(x,0), default=1)
 p.add_argument("--freelist_rng_seed", type=lambda x: int(x,0), default=20260825)

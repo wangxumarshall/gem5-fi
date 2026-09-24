@@ -96,9 +96,51 @@ class CHAOSRenameMap : public SimObject
     bool maybeFaultRename(ThreadID tid, const RegId &arch_reg,
                           PhysRegIdPtr prev_phys, PhysRegIdPtr &entry_phys);
 
+    // W4 final D14 swap_mispred_event (ooo 04-design-matrix R15,
+    // RAT映射字段·换值·误预测事件触发): called by Rename around its
+    // squash() handling — records whether the squash currently in flight was
+    // caused by a BRANCH MISPREDICTION (commit.cc sets commitInfo.mispredictInst
+    // only for mispredict squashes; traps/order-violations/squashAfter NULL
+    // it). While the context is active, the doSquash restore writes
+    // (UnifiedRenameMap::setEntry -> maybeCorrupt) are eligible for the
+    // D14 swap. clearSquashSignal() MUST be called after squash() returns
+    // (rename.cc wraps the call). Notify-only for every other mode.
+    void notifySquashSignal(bool mispredict, ThreadID tid, InstSeqNum sn);
+    void clearSquashSignal();
+
+    // W4 final D23/D24 hb_bitflip / hb_bitflip2 (ooo 04-design-matrix
+    // R24/R25, 重命名检查点·单/双比特翻转): gem5 has no RAT-checkpoint
+    // structure — the recovery checkpoint IS the historyBuffer entry
+    // RenameHistory{instSeqNum, archReg, newPhysReg, prevPhysReg}
+    // (rename.hh:301; mechanism-verified N1). Called from
+    // Rename::renameDestRegs at the checkpoint's CREATION (push_front site):
+    // flips 1 bit (D23) / 2 distinct random bits (D24) of ONE randomly
+    // chosen field's physReg index (newPhysReg or prevPhysReg, 50/50). The
+    // instruction itself keeps its TRUE dest (inst->renameDestReg is fed
+    // from the untouched rename_result) — only the checkpoint copy is
+    // corrupted, so the fault stays DORMANT until the entry is consumed by
+    // doSquash (mispred restore: setEntry(free) with the corrupted phys) or
+    // removeFromHistory (commit release: addReg of the corrupted phys).
+    // Out-of-range flip = honest skip (logged, never clamped). Arms a
+    // one-shot consumption watch (see notifyHistoryConsumed).
+    bool maybeCorruptHistory(ThreadID tid, InstSeqNum sn,
+                             const RegId &arch_reg,
+                             PhysRegIdPtr &new_phys, PhysRegIdPtr &prev_phys);
+
+    // W4 final D23/D24 consumption watch: called from Rename::doSquash and
+    // Rename::removeFromHistory for EVERY history entry they process. When
+    // the armed watch's seqNum matches, logs the "squash/commit consumed the
+    // WRONG phys" evidence line and disarms. READ-ONLY (no behavior change,
+    // no fault counting) — the corruption happened at creation.
+    void notifyHistoryConsumed(ThreadID tid, InstSeqNum sn,
+                               const RegId &arch_reg,
+                               PhysRegIdPtr new_phys, PhysRegIdPtr prev_phys,
+                               const char *site);
+
   private:
     enum class Mode { MapBitflip, MapBitflip2, SwapToActive, F5Substitute,
-                      F4FieldStuck, SpecLeak, F5RatStuck, StaleRead };
+                      F4FieldStuck, SpecLeak, F5RatStuck, StaleRead,
+                      SwapMispredEvent, HbBitflip, HbBitflip2 };
     static Mode stringToMode(const std::string &s);
     const char *modeToString(Mode m);
 
@@ -137,6 +179,29 @@ class CHAOSRenameMap : public SimObject
     // spec_leak sampling-bias fix (Phase 3.0 family): geometric(0.1) count
     // of eligible rollbacks to skip before the first suppressed one.
     uint64_t events_to_skip = 0;
+
+    // W4 final D14 swap_mispred_event squash context: set by
+    // notifySquashSignal() for the duration of Rename::squash() (which runs
+    // doSquash to completion in one call), cleared by clearSquashSignal().
+    // sq_mispredict = commitInfo.mispredictInst != NULL (branch-mispred
+    // squash); the D14 injection is eligible ONLY inside a mispredict
+    // restore. sq_sn = doneSeqNum (the mispredicted branch's seqNum) for the
+    // evidence line.
+    bool sq_active = false;
+    bool sq_mispredict = false;
+    InstSeqNum sq_sn = 0;
+    uint64_t sq_signals_logged = 0;
+
+    // W4 final D23/D24 hb_bitflip(_2) consumption watch: armed at the
+    // creation-time corruption; disarmed by the first
+    // notifyHistoryConsumed() whose sn matches (the checkpoint is consumed
+    // exactly once — erased by doSquash/removeFromHistory).
+    bool hb_watch_armed = false;
+    InstSeqNum hb_watch_sn = 0;
+    int hb_watch_arch_idx = -1;
+    int hb_watch_is_new_field = 0;   // 1 = newPhysReg flipped, 0 = prevPhysReg
+    int hb_watch_orig_idx = -1;      // the TRUE phys idx before the flip
+    int hb_watch_corrupt_idx = -1;   // the flipped (wrong) phys idx
 
     bool inWindow();
     // f5_substitute: pick a currently-allocated (not-free) physReg of the same

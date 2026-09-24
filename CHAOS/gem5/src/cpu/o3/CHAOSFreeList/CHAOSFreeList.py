@@ -28,7 +28,37 @@ class CHAOSFreeList(SimObject):
     #                这个窗口. Both mark_free modes log the re-added idx AND
     #                watch for its re-hand-out (the DUPLICATE_ALLOCATION line
     #                = the second allocation evidence).
-    mode = Param.String("mark_free", "mark_free | pop_wrong | mark_free_event")
+    # drop_release (W4 final D19, ooo 04-design-matrix R20, 空闲表·丢失
+    # 释放, F1 "一次性触发持续影响"): a release that should have happened
+    # does not — the freed physReg is NOT pushed back onto the free list
+    # (hook: UnifiedFreeList::addReg, covering BOTH runtime release paths:
+    # commit-time removeFromHistory + post-squash freeingInProgress drain).
+    # One suppression = the int pool permanently shrinks by one for the
+    # rest of the run; the exit-summary line (final_free_int) makes the
+    # shrink provable against a zero-injection control. Expected dominant
+    # outcome per the matrix: Timeout with a rising rename-stall precursor.
+    # head_bitflip / head_bitflip2 (W4 final D20/D21, ooo 04-design-matrix
+    # R21/R22, 空闲表头/尾指针·单/双比特翻转) — HONEST APPROXIMATION (spike
+    # B: gem5 SimpleFreeList is a std::queue with NO explicit head/tail
+    # pointer registers): the popped-front idx has 1 (D20) / 2 distinct
+    # random (D21, F0) bits flipped — the id HANDED OUT is what a corrupted
+    # head read would have returned. The true front is still consumed (the
+    # skipped entries leak) and the flipped-to id may be currently
+    # ALLOCATED (immediate duplicate) or still IN THE QUEUE (future
+    # duplicate) — the two D20 observables. Out-of-range flip = honest
+    # skip (logged, never clamped).
+    # head_stuck (W4 final D22, ooo 04-design-matrix R23, 空闲表头/尾指针·
+    # 卡死, F5) — HONEST APPROXIMATION (same std::queue finding): the
+    # pre-approved "反复返回同项不真正 pop（头卡死）" proxy. Armed once at
+    # the first in-window eligible getReg (stuck id = the then-front idx
+    # with one random bit forced to a fixed polarity, raw freeze if out of
+    # range); from then on EVERY getReg returns that SAME id and the queue
+    # NEVER advances (no pop) — permanent fixed-pattern deviation /
+    # continuous duplicate allocation. Exposure logging capped at the
+    # first 10; the total lands in the exit summary.
+    mode = Param.String("mark_free",
+        "mark_free | pop_wrong | mark_free_event | drop_release | "
+        "head_bitflip | head_bitflip2 | head_stuck")
 
     probability = Param.Float(1.0,
         "per-getReg injection probability (use 1.0 with maxFaults=1)")

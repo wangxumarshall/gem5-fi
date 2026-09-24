@@ -108,6 +108,14 @@ class SimpleFreeList
     {
         assert(!freeRegs.empty());
         PhysRegIdPtr free_reg = freeRegs.front();
+        // W4 final D22 CHAOSFreeList head_stuck: PRE-pop hook — a stuck
+        // head pointer hands out the SAME id every time WITHOUT advancing
+        // (the injector mutates free_reg to the frozen id; true return =
+        // caller must NOT pop). nullptr / other modes = zero regression.
+        if (chaosFreeList
+            && chaosFreeList->maybeStuckHead(classValue, free_reg)) {
+            return free_reg;
+        }
         freeRegs.pop();
         // §2.2 CHAOSFreeList: post-pop hook. NOTE: rename calls
         // SimpleFreeList::getReg() directly (rename_map.cc:91 via
@@ -240,6 +248,19 @@ class UnifiedFreeList
     void
     addReg(PhysRegIdPtr freed_reg)
     {
+        // W4 final D19 CHAOSFreeList drop_release: PRE-push hook — the
+        // injector may SUPPRESS this one release (the freed physReg is NOT
+        // re-added; the free pool permanently shrinks by one). Covers both
+        // runtime release paths (rename.cc removeFromHistory + the
+        // freeingInProgress drain). Init is safe: PhysRegFile::initFreeList
+        // routes through addRegs->addReg, but chaosFreeList is still
+        // nullptr during construction (the injector self-attaches at
+        // startup()). nullptr / other modes = zero regression.
+        if (chaosFreeList
+            && chaosFreeList->maybeDropRelease(
+                   (int)freed_reg->classValue(), freed_reg)) {
+            return;
+        }
         freeLists[freed_reg->classValue()].addReg(freed_reg);
     }
 

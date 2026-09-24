@@ -55,6 +55,9 @@ namespace gem5
         if (s == "spec_leak") return Mode::SpecLeak;
         if (s == "f5_rat_stuck") return Mode::F5RatStuck;
         if (s == "stale_read") return Mode::StaleRead;
+        if (s == "swap_mispred_event") return Mode::SwapMispredEvent;
+        if (s == "hb_bitflip") return Mode::HbBitflip;
+        if (s == "hb_bitflip2") return Mode::HbBitflip2;
         return Mode::MapBitflip;
     }
 
@@ -69,6 +72,9 @@ namespace gem5
             case Mode::SpecLeak: return "spec_leak";
             case Mode::F5RatStuck: return "f5_rat_stuck";
             case Mode::StaleRead: return "stale_read";
+            case Mode::SwapMispredEvent: return "swap_mispred_event";
+            case Mode::HbBitflip: return "hb_bitflip";
+            case Mode::HbBitflip2: return "hb_bitflip2";
         }
         return "map_bitflip";
     }
@@ -161,6 +167,16 @@ namespace gem5
         if (fi_mode == Mode::F5RatStuck)
             return maybeStuckWrite(tid, arch_reg, phys_reg,
                                    "setEntry_restore");
+        // W4 final D14 swap_mispred_event (ooo 04-design-matrix R15,
+        // RAT映射字段·换值·误预测事件触发): the swap model of D13
+        // swap_to_active, but eligible ONLY while a BRANCH-MISPREDICTION
+        // squash-restore is in flight (the context is armed by
+        // notifySquashSignal around Rename::squash — the doSquash restore
+        // setEntry calls land inside it; traps / order violations /
+        // squashAfter carry mispredictInst==NULL and never arm it). Outside
+        // that window this mode is a strict no-op.
+        if (fi_mode == Mode::SwapMispredEvent && !(sq_active && sq_mispredict))
+            return false;
         if (!cpu || probability <= 0.0f) return false;
         if (max_faults != 0 && faults_injected_count >= max_faults) return false;
         if (!inWindow()) return false;
@@ -263,18 +279,20 @@ namespace gem5
             }
             new_idx = flipped;
             log_b1 = b1; log_b2 = b2;
-        } else if (fi_mode == Mode::SwapToActive) {
-            // W4.2a D13 (04-design-matrix R14, 换值·固定间隔): force the
-            // arch reg's mapping to the dest physReg of ANOTHER in-flight
-            // instruction — "从 ROB 里随机挑一个活跃物理寄存器号写入".
-            // The new mapping is legal (allocated + in use), so it is
-            // designed to bypass the dependency-check luck D12 relies on.
-            // ROB empty / no candidate != cur -> honest skip, logged.
+        } else if (fi_mode == Mode::SwapToActive || fi_mode == Mode::SwapMispredEvent) {
+            // W4.2a D13 (04-design-matrix R14, 换值·固定间隔) / W4 final
+            // D14 (R15, 误预测事件触发): force the arch reg's mapping to
+            // the dest physReg of ANOTHER in-flight instruction — "从 ROB
+            // 里随机挑一个活跃物理寄存器号写入". The new mapping is legal
+            // (allocated + in use), so it is designed to bypass the
+            // dependency-check luck D12 relies on. ROB empty / no candidate
+            // != cur -> honest skip, logged.
             int n = collectRobActiveDests(cur_idx, o3cpu, tid, rob_cands);
             if (n == 0) {
                 if (write_log) {
                     *(log_stream->stream()) << "Tick: " << curTick()
-                        << ", Site: rename_setEntry, mode=swap_to_active, "
+                        << ", Site: rename_setEntry, mode="
+                        << modeToString(fi_mode) << ", "
                         << "tid=" << (int)tid
                         << ", arch=X" << arch_idx << ", old_phys=" << cur_idx
                         << " — ROB has no active int dest candidate != cur "
@@ -341,20 +359,34 @@ namespace gem5
                     << ", bits=(" << log_b1 << "," << log_b2 << ")"
                     << ", faults_injected: " << faults_injected_count
                     << std::endl;
-            } else if (fi_mode == Mode::SwapToActive) {
-                // W4.2a D13 plan-mandated evidence line: the swap +
-                // "(active, rob_dist=D)" + the FULL ROB-active dest pool so
-                // "new_phys ∈ ROB active set" is verifiable from the log
-                // alone (pool printed as phys@dist in ROB head->tail order).
+            } else if (fi_mode == Mode::SwapToActive
+                       || fi_mode == Mode::SwapMispredEvent) {
+                // W4.2a D13 / W4 final D14 plan-mandated evidence line: the
+                // swap + "(active, rob_dist=D)" + the FULL ROB-active dest
+                // pool so "new_phys ∈ ROB active set" is verifiable from the
+                // log alone (pool printed as phys@dist in ROB head->tail
+                // order). D14 additionally carries the misprediction-restore
+                // context (squash cause + the mispredicted branch's seqNum)
+                // — the "触发时刻=误预测恢复瞬间" evidence. The Site label
+                // stays "rename_setEntry" for D13 (byte-identical to the
+                // batch-1 log format); D14 tags the restore site.
                 *(log_stream->stream()) << "Tick: " << curTick()
-                    << ", Site: rename_setEntry, mode=swap_to_active"
+                    << ", Site: "
+                    << (fi_mode == Mode::SwapMispredEvent
+                            ? "rename_setEntry_restore" : "rename_setEntry")
+                    << ", mode=" << modeToString(fi_mode)
                     << ", tid=" << (int)tid
                     << ", arch=X" << arch_idx
                     << ", old_phys=" << cur_idx
                     << ", new_phys=" << new_idx << "(active, rob_dist="
                     << log_rob_dist << ")"
-                    << ", chosen_sn=" << log_chosen_sn
-                    << ", rob_active_dests=[";
+                    << ", chosen_sn=" << log_chosen_sn;
+                if (fi_mode == Mode::SwapMispredEvent) {
+                    *(log_stream->stream())
+                        << ", trigger=branch_misprediction_restore"
+                        << ", mispred_squash_sn=" << sq_sn;
+                }
+                *(log_stream->stream()) << ", rob_active_dests=[";
                 for (size_t i = 0; i < rob_cands.size(); i++) {
                     if (i) *(log_stream->stream()) << " ";
                     *(log_stream->stream()) << rob_cands[i].phys_idx
@@ -601,6 +633,217 @@ namespace gem5
             return true;
         }
         return false;
+    }
+
+    void
+    CHAOSRenameMap::notifySquashSignal(bool mispredict, ThreadID tid,
+                                       InstSeqNum sn)
+    {
+        // W4 final D14: context arm — called by Rename::checkSignalsAndUpdate
+        // immediately BEFORE squash() (which runs doSquash, and therefore all
+        // the restore setEntry writes, to completion before returning).
+        // mispredict == commitInfo.mispredictInst != NULL (commit.cc:840 is
+        // the ONLY setter for the mispredict path; squashAll/trap/order-
+        // violation paths leave it NULL) — so sq_mispredict==true means
+        // "this restore window was caused by a branch misprediction".
+        // Signal logging is bounded: only while the D14 fault is still
+        // unspent (maxFaults gate), so a maxFaults=1 directed run logs at
+        // most the squashes that precede the first injection.
+        sq_active = true;
+        sq_mispredict = mispredict;
+        sq_sn = sn;
+        if (fi_mode == Mode::SwapMispredEvent && write_log && log_stream
+            && !(max_faults != 0 && faults_injected_count >= max_faults)
+            && cpu && probability > 0.0f) {
+            ++sq_signals_logged;
+            *(log_stream->stream()) << "Tick: " << curTick()
+                << ", Site: rename_squash_signal, mode=swap_mispred_event"
+                << ", tid=" << (int)tid
+                << ", cause=" << (mispredict ? "branch_mispred" : "other")
+                << ", squash_sn=" << sn
+                << ", signal: " << sq_signals_logged
+                << std::endl;
+        }
+    }
+
+    void
+    CHAOSRenameMap::clearSquashSignal()
+    {
+        // W4 final D14: context disarm — called right after squash()
+        // returns (rename.cc). Outside the window the mode is a no-op again.
+        sq_active = false;
+        sq_mispredict = false;
+    }
+
+    bool
+    CHAOSRenameMap::maybeCorruptHistory(ThreadID tid, InstSeqNum sn,
+                                        const RegId &arch_reg,
+                                        PhysRegIdPtr &new_phys,
+                                        PhysRegIdPtr &prev_phys)
+    {
+        // W4 final D23 (hb_bitflip, 1 bit) / D24 (hb_bitflip2, 2 distinct
+        // random bits), ooo 04-design-matrix R24/R25 重命名检查点·单/双比
+        // 特翻转. Mechanism (verified N1): gem5 has NO separate RAT-checkpoint
+        // array — the recovery checkpoint IS the historyBuffer entry
+        // RenameHistory{instSeqNum, archReg, newPhysReg, prevPhysReg}
+        // (rename.hh:301), created at Rename::renameDestRegs (push_front,
+        // rename.cc) and consumed by doSquash (mispred restore) or
+        // removeFromHistory (commit release). The injection flips bit(s) of
+        // ONE field's physReg index at CREATION; the instruction itself
+        // keeps its TRUE dest (rename.cc feeds inst->renameDestReg from the
+        // untouched rename_result — only the checkpoint copy is corrupted),
+        // so the fault is DORMANT until the checkpoint is consumed:
+        //   - prevPhysReg flip -> doSquash restores the WRONG phys into the
+        //     RAT / removeFromHistory frees the WRONG phys (duplicate free);
+        //   - newPhysReg flip  -> doSquash queues the WRONG phys for the
+        //     post-squash free (leaking the true one / double-freeing).
+        if (fi_mode != Mode::HbBitflip && fi_mode != Mode::HbBitflip2)
+            return false;
+        if (!cpu || probability <= 0.0f) return false;
+        if (max_faults != 0 && faults_injected_count >= max_faults)
+            return false;
+        if (!inWindow()) return false;
+        if (arch_reg.classValue() != IntRegClass) return false;
+        int arch_idx = arch_reg.index();
+        if (arch_idx > 30) return false;  // XZR / banked slots
+        // Only REAL renames: misc/zero regs carry new==prev and are never
+        // restored/freed by the consumers (the newPhysReg != prevPhysReg
+        // guard at both consumption sites) — a flip there would be dead.
+        if (new_phys == prev_phys) return false;
+
+        // directed target or random within 0..30 (the W4.4 flat-index
+        // discipline: target compares the FLATTENED int-reg index).
+        int target = target_arch_reg;
+        if (target < 0) target = (int)(rng() % 31);  // 0..30
+        if (arch_idx != target) return false;
+
+        std::uniform_real_distribution<float> pd(0.0f, 1.0f);
+        if (pd(rng) > probability) return false;
+
+        auto *o3cpu = dynamic_cast<o3::CPU *>(cpu);
+        if (!o3cpu) return false;
+        int num_phys = (int)o3cpu->physRegFile().numIntPhysRegs();
+
+        // pick the field to corrupt: 50/50 newPhysReg / prevPhysReg
+        bool flip_new = ((int)(rng() % 2)) == 0;
+
+        // pick the bit(s): faultMask with enough set bits = directed control
+        // (lowest set bits); otherwise uniform random distinct bits over the
+        // index field. Out-of-range flip = honest skip (NO clamp — a clamped
+        // value would not be the bit-flip fault model; map_bitflip2 policy).
+        int nbits = 0; int tmp = num_phys;
+        while (tmp > 1) { nbits++; tmp >>= 1; }
+        int b1 = -1, b2 = -1;
+        int need = (fi_mode == Mode::HbBitflip) ? 1 : 2;
+        if (nbits < need) return false;  // index field too small
+        if ((int)__builtin_popcountll(fault_mask) >= need) {
+            b1 = __builtin_ctzll(fault_mask);
+            if (need == 2) {
+                uint64_t rest = fault_mask & ~(1ULL << b1);
+                b2 = __builtin_ctzll(rest);
+            }
+        } else if (fi_mode == Mode::HbBitflip) {
+            b1 = (int)(rng() % (unsigned)nbits);
+        } else {
+            b1 = (int)(rng() % (unsigned)nbits);
+            b2 = (int)(rng() % (unsigned)(nbits - 1));
+            if (b2 >= b1) b2++;
+        }
+        if (need == 2 && (b1 == b2 || b1 >= nbits || b2 >= nbits))
+            return false;
+
+        PhysRegIdPtr &field = flip_new ? new_phys : prev_phys;
+        int cur_idx = field->index();
+        int flipped = cur_idx ^ (1 << b1) ^ (need == 2 ? (1 << b2) : 0);
+        if (flipped < 0 || flipped >= num_phys) {
+            if (write_log) {
+                *(log_stream->stream()) << "Tick: " << curTick()
+                    << ", Site: rename_history_push_front, mode="
+                    << modeToString(fi_mode)
+                    << ", tid=" << (int)tid
+                    << ", sn=" << sn
+                    << ", arch=X" << arch_idx
+                    << ", field=" << (flip_new ? "newPhysReg" : "prevPhysReg")
+                    << ", true_phys=" << cur_idx
+                    << ", bits=(" << b1;
+                if (need == 2) *(log_stream->stream()) << "," << b2;
+                *(log_stream->stream())
+                    << ") — flipped idx " << flipped << " out of [0,"
+                    << num_phys << ") (skipped, no clamp)" << std::endl;
+            }
+            return false;
+        }
+
+        // Apply: re-point the checkpoint's field at the flipped physReg.
+        // The caller (rename.cc renameDestRegs) builds the RenameHistory
+        // from these by-ref values while feeding the instruction the TRUE
+        // dest — the checkpoint diverges from the machine state silently.
+        field = o3cpu->physRegFile().intPhysRegId(flipped);
+        faults_injected_count++;
+
+        // Arm the one-shot consumption watch (the evidence that the WRONG
+        // phys was actually restored/freed at consumption time).
+        hb_watch_armed = true;
+        hb_watch_sn = sn;
+        hb_watch_arch_idx = arch_idx;
+        hb_watch_is_new_field = flip_new ? 1 : 0;
+        hb_watch_orig_idx = cur_idx;
+        hb_watch_corrupt_idx = flipped;
+
+        if (write_log) {
+            *(log_stream->stream()) << "Tick: " << curTick()
+                << ", Site: rename_history_push_front, mode="
+                << modeToString(fi_mode)
+                << ", tid=" << (int)tid
+                << ", sn=" << sn
+                << ", arch=X" << arch_idx
+                << ", field=" << (flip_new ? "newPhysReg" : "prevPhysReg")
+                << ", true_phys=" << cur_idx
+                << ", checkpoint_phys=" << flipped
+                << ", bits=(" << b1;
+            if (need == 2) *(log_stream->stream()) << "," << b2;
+            *(log_stream->stream())
+                << ")"
+                << ", dormant_until_consumed (doSquash restore or "
+                "removeFromHistory release)"
+                << ", faults_injected: " << faults_injected_count
+                << std::endl;
+        }
+        return true;
+    }
+
+    void
+    CHAOSRenameMap::notifyHistoryConsumed(ThreadID tid, InstSeqNum sn,
+                                          const RegId &arch_reg,
+                                          PhysRegIdPtr new_phys,
+                                          PhysRegIdPtr prev_phys,
+                                          const char *site)
+    {
+        // W4 final D23/D24 consumption watch: READ-ONLY. Fired from
+        // Rename::doSquash (site="rename_doSquash") and
+        // Rename::removeFromHistory (site="rename_removeFromHistory") for
+        // every history entry they process; logs the end of the dormancy
+        // window when the corrupted checkpoint is the one being consumed.
+        if (!hb_watch_armed || sn != hb_watch_sn) return;
+        hb_watch_armed = false;
+        if (!write_log || !log_stream) return;
+        int consumed_idx = hb_watch_is_new_field
+            ? (new_phys ? new_phys->index() : -1)
+            : (prev_phys ? prev_phys->index() : -1);
+        *(log_stream->stream()) << "Tick: " << curTick()
+            << ", Site: " << site << ", mode=" << modeToString(fi_mode)
+            << ", tid=" << (int)tid
+            << ", HISTORY_CONSUMED: checkpoint sn=" << sn
+            << ", arch=X" << hb_watch_arch_idx
+            << ", corrupted_field="
+            << (hb_watch_is_new_field ? "newPhysReg" : "prevPhysReg")
+            << ", true_phys=" << hb_watch_orig_idx
+            << ", consumed_phys=" << consumed_idx
+            << (consumed_idx == hb_watch_corrupt_idx
+                ? " (the WRONG phys was restored/freed — dormancy ended)"
+                : " (MISMATCH vs armed corruption — consumed value differs)")
+            << ", faults_injected: " << faults_injected_count
+            << std::endl;
     }
 
     // startup() to dynamic_cast and self-attach (the rename map is constructed

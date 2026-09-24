@@ -764,6 +764,32 @@ def main():
         if (inj["model"] == "delay_omission"
                 and str(tgt.get("sub_field", "")) == "stale_read"):
             rm = "stale_read"
+        # W4 final D14 swap_mispred_event (ooo 04-design-matrix R15,
+        # RAT映射字段·换值·误预测事件触发): the D13 swap_to_active model,
+        # but eligible ONLY inside a branch-misprediction squash-restore
+        # window (the event-triggered variant — the fixed-interval vs
+        # event-trigger comparison is the methodology check). Selected by
+        # the v2 target.sub_field discriminator on legal_domain_sub (plain
+        # legal_domain_sub keeps D13 swap_to_active; the §2.2
+        # f5_substitute random-allocated semantics stay on the plain model
+        # via the map above only when sub_field is absent).
+        if (inj["model"] == "legal_domain_sub"
+                and str(tgt.get("sub_field", "")) == "swap_mispred_event"):
+            rm = "swap_mispred_event"
+        # W4 final D23/D24 hb_bitflip(_2) (ooo 04-design-matrix R24/R25,
+        # 重命名检查点·单/双比特翻转): gem5 has no separate RAT-checkpoint
+        # array — the recovery checkpoint IS the historyBuffer entry
+        # (RenameHistory, rename.hh:301, mechanism-verified N1). The
+        # injector flips 1 bit (transient_bit_flip + sub_field) / 2
+        # distinct random bits (local_mbu + sub_field) of one field's
+        # physReg index at the checkpoint's creation; the fault stays
+        # dormant until doSquash/removeFromHistory consumes the WRONG phys.
+        if (inj["model"] == "transient_bit_flip"
+                and str(tgt.get("sub_field", "")) == "hb_bitflip"):
+            rm = "hb_bitflip"
+        if (inj["model"] == "local_mbu"
+                and str(tgt.get("sub_field", "")) == "hb_bitflip2"):
+            rm = "hb_bitflip2"
         cmd += ["--rename_mode", rm, "--rename_first_clock", str(t["value"]),
                 "--rename_max_faults", str(m["limits"]["max_faults"]),
                 "--rename_rng_seed", str(m["rng"]["selection_seed"]),
@@ -784,6 +810,37 @@ def main():
         if (inj["model"] in ("transient_bit_flip", "local_mbu")
                 and str(tgt.get("sub_field", "")) == "mark_free_event"):
             fm = "mark_free_event"
+        # W4 final D19 drop_release (ooo 04-design-matrix R20, 空闲表·丢失
+        # 释放, F1): a release that should have happened does not — the
+        # freed physReg is not pushed back (UnifiedFreeList::addReg hook);
+        # the int pool permanently shrinks by one. Selected by the v2
+        # target.sub_field discriminator on delay_omission (the timing
+        # "lost event" class — plain delay_omission keeps mark_free).
+        if (inj["model"] == "delay_omission"
+                and str(tgt.get("sub_field", "")) == "drop_release"):
+            fm = "drop_release"
+        # W4 final D20/D21 head_bitflip(_2) (ooo 04-design-matrix R21/R22,
+        # 空闲表头/尾指针·单/双比特翻转) — HONEST APPROXIMATION (spike B:
+        # gem5 SimpleFreeList is a std::queue with no explicit head/tail
+        # pointer): the popped-front idx has 1 (D20) / 2 distinct random
+        # (D21, F0) bits flipped — the id handed out is what a corrupted
+        # head read would have returned. Plain transient/local_mbu keep the
+        # D17 mark_free fixed-interval semantics.
+        if (inj["model"] == "transient_bit_flip"
+                and str(tgt.get("sub_field", "")) == "head_bitflip"):
+            fm = "head_bitflip"
+        if (inj["model"] == "local_mbu"
+                and str(tgt.get("sub_field", "")) == "head_bitflip2"):
+            fm = "head_bitflip2"
+        # W4 final D22 head_stuck (ooo 04-design-matrix R23, 空闲表头/尾
+        # 指针·卡死, F5) — HONEST APPROXIMATION (same std::queue finding):
+        # "反复返回同项不真正 pop（头卡死）" — every getReg returns the SAME
+        # stuck id and the queue never advances. Selected by the v2
+        # target.sub_field discriminator on stuck_at_zero/one (plain stuck
+        # models are not otherwise mapped for freelist).
+        if (inj["model"] in ("stuck_at_zero", "stuck_at_one")
+                and str(tgt.get("sub_field", "")) == "head_stuck"):
+            fm = "head_stuck"
         cmd += ["--freelist_mode", fm, "--freelist_first_clock", str(t["value"]),
                 "--freelist_max_faults", str(m["limits"]["max_faults"]),
                 "--freelist_rng_seed", str(m["rng"]["selection_seed"])]

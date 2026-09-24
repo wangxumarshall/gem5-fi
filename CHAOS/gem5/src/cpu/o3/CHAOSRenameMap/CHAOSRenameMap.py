@@ -45,6 +45,24 @@ class CHAOSRenameMap(SimObject):
     # — stores the value with the bit forced (G2 write-path-mask semantics,
     # regfile.hh:360 pattern). Arming is the only fault count increment;
     # applications are logged as exposures (persistence evidence).
+    # swap_mispred_event (W4 final D14, 04-design-matrix R15,
+    # RAT映射字段·换值·误预测事件触发): the D13 swap_to_active model, but
+    # eligible ONLY inside a branch-misprediction squash-restore window
+    # (rename.cc arms the context around Rename::squash when
+    # commitInfo.mispredictInst != NULL — traps/order-violations/
+    # squashAfter never arm it). The event-vs-fixed-interval comparison
+    # against D13 is the methodology check "事件触发是否真的更有效率".
+    # hb_bitflip / hb_bitflip2 (W4 final D23/D24, 04-design-matrix R24/R25,
+    # 重命名检查点·单/双比特翻转): gem5 has NO separate RAT-checkpoint
+    # array — the recovery checkpoint IS the historyBuffer entry
+    # RenameHistory{instSeqNum, archReg, newPhysReg, prevPhysReg}
+    # (rename.hh:301, mechanism-verified N1). The injector flips 1 bit
+    # (hb_bitflip) / 2 distinct random bits (hb_bitflip2) of ONE randomly
+    # chosen field's physReg index at the checkpoint's CREATION
+    # (rename.cc push_front site); the instruction keeps its TRUE dest, so
+    # the fault stays DORMANT until doSquash (mispred restore) or
+    # removeFromHistory (commit release) consumes the WRONG phys. Out-of-
+    # range flip = honest skip (logged, never clamped).
     # stale_read (W4.4 D16, 04-design-matrix R17, event = the next rename
     # overwrite of the entry): that ONE rename write silently fails — the
     # entry keeps the previous occupant's still-legal mapping until the next
@@ -53,7 +71,8 @@ class CHAOSRenameMap(SimObject):
     # value swap (D13), not a stuck bit (D15) — the update never lands.
     mode = Param.String("map_bitflip",
         "map_bitflip | map_bitflip2 | swap_to_active | f5_substitute | "
-        "f4_field_stuck | spec_leak | f5_rat_stuck | stale_read")
+        "f4_field_stuck | spec_leak | f5_rat_stuck | stale_read | "
+        "swap_mispred_event | hb_bitflip | hb_bitflip2")
 
     targetArchReg = Param.Int(-1,
         "which register's map entry to corrupt (-1 = random within the int "

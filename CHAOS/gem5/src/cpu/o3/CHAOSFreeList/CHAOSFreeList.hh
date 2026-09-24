@@ -31,10 +31,38 @@ class CHAOSFreeList : public SimObject
     // history residue). Returns true if an injection happened this call.
     bool maybeCorrupt(int class_value, PhysRegIdPtr &popped);
 
+    // W4 final D19 drop_release (ooo 04-design-matrix R20, 空闲表·丢失释放,
+    // F1 "一次性触发持续影响"): called from UnifiedFreeList::addReg BEFORE
+    // the push. Return true = SUPPRESS this one release — the freed physReg
+    // is NOT re-added, the free pool permanently shrinks by one. Covers BOTH
+    // runtime release paths (rename.cc removeFromHistory commit release +
+    // freeingInProgress post-squash drain); construction-time init is safe
+    // (chaosFreeList is nullptr while PhysRegFile::initFreeList runs).
+    bool maybeDropRelease(int class_value, PhysRegIdPtr freed_reg);
+
+    // W4 final D22 head_stuck (ooo 04-design-matrix R23, 空闲表头/尾指针·
+    // 卡死, F5) — HONEST APPROXIMATION (spike B: gem5 SimpleFreeList is a
+    // std::queue with NO explicit head/tail pointer registers): called from
+    // SimpleFreeList::getReg BEFORE the pop. Armed once at the first
+    // in-window eligible getReg (the ONLY faults_injected_count increment);
+    // from then on EVERY getReg returns the SAME stuck id and the queue
+    // NEVER advances (no pop) — the pre-approved "反复返回同项不真正 pop
+    // （头卡死）" proxy. `front_reg` is in/out: on a true return it holds
+    // the stuck id and the caller MUST NOT pop. Other modes: strict false.
+    bool maybeStuckHead(int class_value, PhysRegIdPtr &front_reg);
+
   private:
-    enum class Mode { MarkFree, PopWrong, MarkFreeEvent };
+    enum class Mode { MarkFree, PopWrong, MarkFreeEvent, DropRelease,
+                      HeadBitflip, HeadBitflip2, HeadStuck };
     static Mode stringToMode(const std::string &s);
     const char *modeToString(Mode m);
+
+    // W4 final D19/D22 end-of-run evidence: final free-pool sizes + (D22)
+    // total head_stuck exposures. Registered via registerExitCallback in
+    // the ctor (the CHAOSPhysReg.cc:77 ReadTraceFinal pattern). Comparing
+    // an injected run against a zero-injection control (same seed, window
+    // never reached) shows the D19 permanent -1 shrink.
+    void finalSummary();
 
     BaseCPU *cpu;
     Mode fi_mode;
@@ -56,6 +84,19 @@ class CHAOSFreeList : public SimObject
     // first subsequent getReg pop of that idx — the SECOND allocation = the
     // duplicate the model creates (两条指令共享同一物理寄存器). -1 = idle.
     int dup_watch_idx = -1;
+
+    // W4 final D22 head_stuck state: armed ONCE at the first in-window
+    // eligible getReg (the fault's creation), permanent until end of run.
+    // Every subsequent getReg hands out hs_stuck_idx without popping.
+    // hs_bit/hs_polarity record the forced bit (the 04-matrix "指针寄存器
+    // 一比特永久固定 0/1" flavor); hs_bit == -1 = raw freeze (forcing left
+    // the valid index range).
+    bool hs_armed = false;
+    int hs_stuck_idx = -1;
+    int hs_bit = -1;
+    int hs_polarity = 0;
+    uint64_t hs_exposures = 0;  // no-pop hand-outs (persistence evidence;
+                                 // detailed logging capped at the first 10)
 
     std::mt19937 rng;
     std::random_device rd;
