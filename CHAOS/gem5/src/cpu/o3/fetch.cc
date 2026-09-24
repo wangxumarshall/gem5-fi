@@ -53,6 +53,7 @@
 #include "cpu/base.hh"
 #include "cpu/exetrace.hh"
 #include "cpu/nop_static_inst.hh"
+#include "cpu/o3/CHAOSDecode/CHAOSDecode.hh"  // W6 full def for maybeCorruptEncoding
 #include "cpu/o3/cpu.hh"
 #include "cpu/o3/dyn_inst.hh"
 #include "cpu/o3/limits.hh"
@@ -1244,6 +1245,22 @@ Fetch::fetch(bool &status_change)
             if (!(curMacroop || inRom)) {
                 if (dec_ptr->instReady()) {
                     staticInst = dec_ptr->decode(this_pc);
+
+                    // CHAOS W6 (D01-D07, ooo 04-design-matrix Int
+                    // Decode): decode-output encoding corruption. The
+                    // injector flips bits of the raw A64 encoding and
+                    // re-decodes (ArmISA::Decoder::decodeChaos, cache-
+                    // bypassing); we only rebind this LOCAL staticInst so
+                    // the macroop/pcOffset bookkeeping below applies to
+                    // the replacement naturally. nullptr = no injection
+                    // (idle path: the null check is the only cost).
+                    if (cpu->chaosDecode) {
+                        StaticInstPtr chaos_repl =
+                            cpu->chaosDecode->maybeCorruptEncoding(
+                                staticInst, decoder[tid], this_pc.instAddr());
+                        if (chaos_repl)
+                            staticInst = chaos_repl;
+                    }
 
                     // Increment stat of fetched instructions.
                     cpu->fetchStats[tid]->numInsts++;

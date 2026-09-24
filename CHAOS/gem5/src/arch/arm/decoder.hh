@@ -172,6 +172,22 @@ class Decoder : public InstDecoder
     {
         smeLen = len;
     }
+
+    // CHAOS W6 (D01-D10, ooo 04-design-matrix Int Decode): re-decode a
+    // (fault-injected) ExtMachInst WITHOUT the defaultCache/instMap path.
+    // Each injected EMI is essentially unique, so the cache would only grow;
+    // decodeInst() is the raw parser dispatch and is normally protected.
+    // Mirrors decode(ExtMachInst, Addr)'s size stamping but derives the
+    // size from the PASSED mach_inst (the decoder's own emi was already
+    // reset to 0 by Decoder::decode(PCStateBase&) before the fetch hook).
+    StaticInstPtr
+    decodeChaos(ExtMachInst mach_inst)
+    {
+        StaticInstPtr si = decodeInst(mach_inst);
+        if (si)
+            si->size((!mach_inst.thumb || mach_inst.bigThumb) ? 4 : 2);
+        return si;
+    }
 };
 
 } // namespace ArmISA
