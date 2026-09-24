@@ -74,9 +74,37 @@ class CHAOSRenameMap(SimObject):
         "f4_field_stuck | spec_leak | f5_rat_stuck | stale_read | "
         "swap_mispred_event | hb_bitflip | hb_bitflip2")
 
+    # W7.2 (ooo 04-design-matrix D62-D71 merged rows, VecRegClass RAT
+    # family): register class whose front-map entries the injector targets.
+    #   int (default): IntRegClass X0-X30 (XZR idx 31 + banked slots >=32
+    #                  excluded) — every W4 mode's original behavior,
+    #                  byte-identical logs.
+    #   vec          : VecRegClass V0-V31 (flattened 0-31; gem5-internal
+    #                  Special-8 + Interleave-4 indices 32-43 excluded as
+    #                  the banked-slot analog; AArch64 has NO zero vector
+    #                  register). Covers map_bitflip / map_bitflip2 /
+    #                  swap_to_active / f5_rat_stuck / stale_read /
+    #                  hb_bitflip / hb_bitflip2 (+ f5_substitute /
+    #                  f4_field_stuck / spec_leak / swap_mispred_event via
+    #                  the same relaxed gates).
+    # Platform fact (W1.2, C3-verified): AArch64 gem5 v25 renames scalar
+    # FP (D/S regs) through VecRegClass — FloatRegClass is inert — so the
+    # north-star's scalar-FP rows D62-66 are MERGED into the vec class
+    # (04-matrix D62's own merge clause); there is deliberately NO "float"
+    # value. ATTRIBUTION DECISION (documented): the rename hooks carry
+    # only the RegId (no opClass) — scalar-FP vs SIMD producer attribution
+    # is POST-HOC via the commit trace; both row families share this one
+    # code path. The W5.6 oldphys_* modes (D36-D39 Int Dispatch/ROB
+    # family) stay int-only: targetClass=vec + oldphys_* warns and stays
+    # inert (the modes are routed via --rob_mode, not here).
+    targetClass = Param.String("int",
+        "int | vec — register class whose RAT entries to corrupt "
+        "(W7.2 VecRegClass family, D62-D71 merged rows)")
+
     targetArchReg = Param.Int(-1,
-        "which register's map entry to corrupt (-1 = random within the int "
-        "class, 0-30). HONEST SEMANTICS (W4.4 finding, 2026-09-24): this is "
+        "which register's map entry to corrupt (-1 = random within the "
+        "target class: int 0-30, vec 0-31 / V0-V31 for targetClass=vec). "
+        "HONEST SEMANTICS (W4.4 finding, 2026-09-24): this is "
         "the FLATTENED int-reg index seen at the rename site (Arm "
         "IntRegClassOps::flatten -> ISA::intRegMap), NOT the architectural "
         "Xn number — empirically flat(X0)=0, flat(X1)=1, flat(X19)=16 on "

@@ -8,8 +8,9 @@
 #include "cpu/o3/free_list.hh"     // UnifiedFreeList::isFree
 #include "cpu/o3/rob.hh"           // o3::ROB::getEntryAtDistance (D13 walk)
 #include "cpu/o3/dyn_inst.hh"      // o3::DynInst: numDestRegs/renamedDestIdx/seqNum
-#include "cpu/reg_class.hh"       // RegId, IntRegClass
+#include "cpu/reg_class.hh"       // RegId, IntRegClass, VecRegClass
 #include "arch/arm/regs/int.hh"   // ARM IntRegClass + numRegs
+#include "arch/arm/regs/vec.hh"   // ArmISA::NumVecV8ArchRegs (W7.2 vec target)
 #include "debug/CHAOSRenameMap.hh"
 #include "params/CHAOSRenameMap.hh"
 
@@ -29,6 +30,35 @@ namespace gem5
           rng_seed(p.rngSeed),
           write_log(p.writeLog)
     {
+        // W7.2 targetClass: int = the W4 default (all legacy behavior
+        // byte-identical); vec = the VecRegClass family (D62-D71 merged
+        // rows — scalar FP renames via VecRegClass on AArch64, so there
+        // is deliberately NO "float" value; see .hh for the merge clause
+        // + the attribution design decision). Unknown values fail loudly
+        // (config author error), never a silent int fallback.
+        const std::string tcls = p.targetClass;
+        if (tcls == "int") {
+            target_class = IntRegClass;
+        } else if (tcls == "vec") {
+            target_class = VecRegClass;
+        } else {
+            panic("CHAOSRenameMap: unknown targetClass '%s' "
+                  "(int|vec; AArch64 scalar FP renames via VecRegClass — "
+                  "the north-star scalar-FP rows are merged into vec, "
+                  "there is no float class)", tcls);
+        }
+        // W5.6 oldphys_* (D36-D39 Int Dispatch/ROB family) stays
+        // int-only by design; a vec request would silently inject nothing
+        // (its own IntRegClass gate) — warn loudly instead.
+        if (target_class == VecRegClass
+                && (fi_mode == Mode::OldphysBitflip
+                    || fi_mode == Mode::OldphysBitflip2
+                    || fi_mode == Mode::OldphysSwapActive
+                    || fi_mode == Mode::OldphysStuck)) {
+            warn("CHAOSRenameMap: targetClass=vec with an oldphys_* mode "
+                 "(W5.6 Int Dispatch/ROB family) is out of scope — the "
+                 "injector stays INERT for this run (zero injections).\n");
+        }
         if (probability > 0.0f) {
             log_stream = simout.create("rename_injections.log", false, true);
             if (!log_stream || !log_stream->stream())
@@ -108,6 +138,56 @@ namespace gem5
         return true;
     }
 
+    // ---- W7.2 class helpers ----
+    int
+    CHAOSRenameMap::numArchTargetRegs() const {
+        // int: X0-X30 (31 targets; XZR=31 + banked >=32 excluded).
+        // vec: V0-V31 (ArmISA::NumVecV8ArchRegs = 32; NO zero reg in the
+        // vector class — the "XZR guard" has no vec analog, only the
+        // gem5-internal Special-8/Interleave-4 exclusion at 32-43).
+        return target_class == VecRegClass
+            ? (int)ArmISA::NumVecV8ArchRegs : 31;
+    }
+
+    bool
+    CHAOSRenameMap::archIdxValid(int idx) const {
+        return target_class == VecRegClass
+            ? idx < numArchTargetRegs()    // V0-V31; 32-43 = Special/Interleave
+            : idx <= 30;                    // X0-X30; 31 = XZR, >=32 banked
+    }
+
+    const char *
+    CHAOSRenameMap::archPrefix() const {
+        return target_class == VecRegClass ? "V" : "X";
+    }
+
+    const char *
+    CHAOSRenameMap::className() const {
+        return target_class == VecRegClass ? "vec" : "int";
+    }
+
+    const char *
+    CHAOSRenameMap::classTag() const {
+        // "" for int keeps every legacy log line byte-identical; the vec
+        // tag makes the class unambiguous in the injection evidence lines
+        // (arch=V<n> + ", class=vec" + vec-pool phys ids).
+        return target_class == VecRegClass ? ", class=vec" : "";
+    }
+
+    int
+    CHAOSRenameMap::numPhysForClass(o3::CPU *o3cpu) const {
+        return target_class == VecRegClass
+            ? (int)o3cpu->physRegFile().numVecPhysRegs()
+            : (int)o3cpu->physRegFile().numIntPhysRegs();
+    }
+
+    PhysRegIdPtr
+    CHAOSRenameMap::physRegIdForClass(o3::CPU *o3cpu, int idx) const {
+        return target_class == VecRegClass
+            ? o3cpu->physRegFile().vecPhysRegId(idx)   // regfile.hh:177
+            : o3cpu->physRegFile().intPhysRegId(idx);
+    }
+
     int
     CHAOSRenameMap::pickAllocatedPhysReg(int class_value, int cur_idx,
                                          int num_phys, o3::CPU *o3cpu) {
@@ -122,10 +202,12 @@ namespace gem5
             PhysRegIdPtr cand_reg = nullptr;
             if (class_value == IntRegClass)
                 cand_reg = o3cpu->physRegFile().intPhysRegId(cand);
+            else if (class_value == VecRegClass)
+                cand_reg = o3cpu->physRegFile().vecPhysRegId(cand);
             else if (class_value == FloatRegClass)
                 cand_reg = o3cpu->physRegFile().floatPhysRegId(cand);
             else
-                continue;  // only int/float for now
+                continue;  // unsupported class
             if (!o3cpu->physFreeList().isFree((RegClassType)class_value, cand_reg)) {
                 return cand;  // allocated = valid substitute target
             }
@@ -134,7 +216,8 @@ namespace gem5
     }
 
     int
-    CHAOSRenameMap::collectRobActiveDests(int cur_idx, o3::CPU *o3cpu,
+    CHAOSRenameMap::collectRobActiveDests(int class_value, int cur_idx,
+                                          o3::CPU *o3cpu,
                                           ThreadID tid,
                                           std::vector<RobCand> &cands) {
         // W4.2a D13 (04-design-matrix R14): the swap pool = dest physRegs of
@@ -156,7 +239,12 @@ namespace gem5
             for (int i = 0; i < (int)inst->numDestRegs(); i++) {
                 PhysRegIdPtr dest = inst->renamedDestIdx(i);
                 if (!dest) continue;
-                if (dest->classValue() != IntRegClass) continue;
+                // W7.2: class-parameterized (int modes collect IntRegClass
+                // dests exactly as before; vec modes collect VecRegClass
+                // dests — the "vec 活跃池" of D69/D71, its phys ids are
+                // the < numVecPhysRegs evidence in the log's pool dump).
+                if (dest->classValue() != (RegClassType)class_value)
+                    continue;
                 int pidx = dest->index();
                 if (pidx == cur_idx) continue;  // must differ from current
                 cands.push_back({pidx, d, inst->seqNum});
@@ -199,20 +287,24 @@ namespace gem5
         auto *o3cpu = dynamic_cast<o3::CPU *>(cpu);
         if (!o3cpu) return false;
 
-        // Only inject on the integer class (aarch64 X0-X30) — the method1
-        // long-lived accumulator target. FP/vector RAT is structurally similar
-        // but out of scope for this first patch (one class, single-thread SE).
+        // W7.2: class gate parameterized — int (X0-X30, the method1
+        // long-lived accumulator target) or vec (V0-V31, the D62-D71
+        // merged rows; scalar FP renames via VecRegClass on AArch64).
         int class_value = arch_reg.classValue();
-        if (class_value != IntRegClass) return false;
+        if (class_value != target_class) return false;
 
         int arch_idx = arch_reg.index();
-        // aarch64 XZR (idx 31) and banked slots: skip (the CHAOSReg discipline).
-        if (arch_idx > 30) return false;
+        // aarch64 XZR (int idx 31) / banked int slots / gem5-internal
+        // Special-8 + Interleave-4 vec slots (32-43): skip (the CHAOSReg
+        // discipline; the vec class has NO zero register — archIdxValid
+        // encodes both classes' exclusion ranges).
+        if (!archIdxValid(arch_idx)) return false;
 
-        // target selection: directed or random within 0..30
+        // target selection: directed or random within the class's arch
+        // range (int 0..30 / vec 0..31)
         int target = target_arch_reg;
         if (target < 0) {
-            target = (int)(rng() % 31);  // 0..30
+            target = (int)(rng() % (unsigned)numArchTargetRegs());
         }
         if (arch_idx != target) return false;  // only inject on the chosen arch reg
 
@@ -221,7 +313,7 @@ namespace gem5
         if (pd(rng) > probability) return false;
 
         int cur_idx = phys_reg->index();
-        int num_phys = (int)o3cpu->physRegFile().numIntPhysRegs();
+        int num_phys = numPhysForClass(o3cpu);
         if (num_phys <= 1) return false;
 
         int new_idx = -1;
@@ -279,9 +371,11 @@ namespace gem5
             if (flipped < 0 || flipped >= num_phys) {
                 if (write_log) {
                     *(log_stream->stream()) << "Tick: " << curTick()
-                        << ", Site: rename_setEntry, mode=map_bitflip2, "
+                        << ", Site: rename_setEntry, mode=map_bitflip2"
+                        << classTag() << ", "
                         << "tid=" << (int)tid
-                        << ", arch=X" << arch_idx << ", old_phys=" << cur_idx
+                        << ", arch=" << archPrefix() << arch_idx
+                        << ", old_phys=" << cur_idx
                         << ", bits=(" << b1 << "," << b2 << ")"
                         << " — flipped idx " << flipped << " out of [0,"
                         << num_phys << ") (skipped, no clamp)"
@@ -299,15 +393,18 @@ namespace gem5
             // (allocated + in use), so it is designed to bypass the
             // dependency-check luck D12 relies on. ROB empty / no candidate
             // != cur -> honest skip, logged.
-            int n = collectRobActiveDests(cur_idx, o3cpu, tid, rob_cands);
+            int n = collectRobActiveDests(target_class, cur_idx, o3cpu, tid,
+                                          rob_cands);
             if (n == 0) {
                 if (write_log) {
                     *(log_stream->stream()) << "Tick: " << curTick()
                         << ", Site: rename_setEntry, mode="
-                        << modeToString(fi_mode) << ", "
+                        << modeToString(fi_mode) << classTag() << ", "
                         << "tid=" << (int)tid
-                        << ", arch=X" << arch_idx << ", old_phys=" << cur_idx
-                        << " — ROB has no active int dest candidate != cur "
+                        << ", arch=" << archPrefix() << arch_idx
+                        << ", old_phys=" << cur_idx
+                        << " — ROB has no active " << className()
+                        << " dest candidate != cur "
                         << "(skipped, no injection)" << std::endl;
                 }
                 return false;
@@ -325,8 +422,10 @@ namespace gem5
             if (new_idx < 0) {
                 if (write_log) {
                     *(log_stream->stream()) << "Tick: " << curTick()
-                        << ", Site: rename_setEntry, mode=f5_substitute, "
-                        << "arch_reg=int[" << arch_idx << "] cur_phys=" << cur_idx
+                        << ", Site: rename_setEntry, mode=f5_substitute"
+                        << classTag() << ", "
+                        << "arch_reg=" << className() << "[" << arch_idx
+                        << "] cur_phys=" << cur_idx
                         << " — NO valid allocated substitute target (skipped, "
                         << "no UB). tid=" << (int)tid << std::endl;
                 }
@@ -353,7 +452,7 @@ namespace gem5
         // by-reference phys_reg so UnifiedRenameMap::setEntry stores the
         // corrupted mapping. (This is a LEGAL-domain remap — the entry points
         // at a real physReg object; no UB. §2.2 f5/mark_free legal-domain.)
-        PhysRegIdPtr new_reg = o3cpu->physRegFile().intPhysRegId(new_idx);
+        PhysRegIdPtr new_reg = physRegIdForClass(o3cpu, new_idx);
         phys_reg = new_reg;
         faults_injected_count++;
 
@@ -364,8 +463,9 @@ namespace gem5
                 // old ^ (1<<b1) ^ (1<<b2) == new).
                 *(log_stream->stream()) << "Tick: " << curTick()
                     << ", Site: rename_setEntry, mode=map_bitflip2"
+                    << classTag()
                     << ", tid=" << (int)tid
-                    << ", arch=X" << arch_idx
+                    << ", arch=" << archPrefix() << arch_idx
                     << ", old_phys=" << cur_idx
                     << ", new_phys=" << new_idx
                     << ", bits=(" << log_b1 << "," << log_b2 << ")"
@@ -382,13 +482,16 @@ namespace gem5
                 // — the "触发时刻=误预测恢复瞬间" evidence. The Site label
                 // stays "rename_setEntry" for D13 (byte-identical to the
                 // batch-1 log format); D14 tags the restore site.
+                // W7.2 vec: arch=V<n> + class=vec + the pool's phys ids are
+                // all VecRegClass dests — the "vec 活跃池" evidence.
                 *(log_stream->stream()) << "Tick: " << curTick()
                     << ", Site: "
                     << (fi_mode == Mode::SwapMispredEvent
                             ? "rename_setEntry_restore" : "rename_setEntry")
                     << ", mode=" << modeToString(fi_mode)
+                    << classTag()
                     << ", tid=" << (int)tid
-                    << ", arch=X" << arch_idx
+                    << ", arch=" << archPrefix() << arch_idx
                     << ", old_phys=" << cur_idx
                     << ", new_phys=" << new_idx << "(active, rob_dist="
                     << log_rob_dist << ")"
@@ -410,8 +513,9 @@ namespace gem5
             } else {
                 *(log_stream->stream()) << "Tick: " << curTick()
                     << ", Site: rename_setEntry, mode=" << modeToString(fi_mode)
+                    << classTag()
                     << ", tid=" << (int)tid
-                    << ", arch_reg=int[" << arch_idx << "]"
+                    << ", arch_reg=" << className() << "[" << arch_idx << "]"
                     << ", old_phys_idx=" << cur_idx
                     << ", new_phys_idx=" << new_idx
                     << ", FaultType: " << modeToString(fi_mode)
@@ -437,14 +541,17 @@ namespace gem5
         if (!inWindow()) return false;
         if (new_phys == prev_phys) return false;  // non-renamed (misc/XZR): skip
 
-        // int class only (same discipline as maybeCorrupt)
-        if (arch_reg.classValue() != IntRegClass) return false;
+        // W7.2: targetClass gate (int default = the §2.3 discipline;
+        // vec = the merged D62-71 family — the hook fires on any class's
+        // rollback, the gate keeps non-target classes untouched).
+        if (arch_reg.classValue() != target_class) return false;
         int arch_idx = arch_reg.index();
-        if (arch_idx > 30) return false;  // XZR / banked
+        if (!archIdxValid(arch_idx)) return false;  // XZR/banked (int) or
+                                                    // Special/Interleave (vec)
 
-        // directed target or random within 0..30
+        // directed target or random within the class's arch range
         int target = target_arch_reg;
-        if (target < 0) target = (int)(rng() % 31);
+        if (target < 0) target = (int)(rng() % (unsigned)numArchTargetRegs());
         if (arch_idx != target) return false;
 
         // sampling-bias fix (Phase 3.0 family): skip a geometric(0.1) number
@@ -456,8 +563,9 @@ namespace gem5
         faults_injected_count++;
         if (write_log) {
             *(log_stream->stream()) << "Tick: " << curTick()
-                << ", Site: rename_doSquash, mode=spec_leak, tid=" << (int)tid
-                << ", arch_reg=X" << arch_idx
+                << ", Site: rename_doSquash, mode=spec_leak" << classTag()
+                << ", tid=" << (int)tid
+                << ", arch_reg=" << archPrefix() << arch_idx
                 << ", kept_new_phys_idx=" << (new_phys ? new_phys->index() : -1)
                 << ", suppressed_prev_phys_idx=" << (prev_phys ? prev_phys->index() : -1)
                 << ", faults_injected: " << faults_injected_count
@@ -480,13 +588,15 @@ namespace gem5
         // lives in the rename-stage (front) RAT — the commitRenameMap copy
         // has no injector attached and is never masked.
         if (!cpu || probability <= 0.0f) return false;
-        if (arch_reg.classValue() != IntRegClass) return false;
+        // W7.2: targetClass gate (D70 vec flavor of the F5 stuck entry).
+        if (arch_reg.classValue() != target_class) return false;
         int arch_idx = arch_reg.index();
-        if (arch_idx > 30) return false;  // XZR / banked slots
+        if (!archIdxValid(arch_idx)) return false;  // XZR/banked (int) or
+                                                    // Special/Interleave (vec)
 
         auto *o3cpu = dynamic_cast<o3::CPU *>(cpu);
         if (!o3cpu) return false;
-        int num_phys = (int)o3cpu->physRegFile().numIntPhysRegs();
+        int num_phys = numPhysForClass(o3cpu);
 
         if (!f5s_armed) {
             // Arming: D15 "运行开始（首个注入窗口到达时）随机选一个 RAT
@@ -499,7 +609,8 @@ namespace gem5
             if (pd(rng) > probability) return false;
 
             int target = target_arch_reg;
-            if (target < 0) target = (int)(rng() % 31);  // 0..30
+            if (target < 0)
+                target = (int)(rng() % (unsigned)numArchTargetRegs());
             int nbits = 0; int tmp = num_phys;
             while (tmp > 1) { nbits++; tmp >>= 1; }
             if (nbits < 1) nbits = 1;
@@ -511,8 +622,9 @@ namespace gem5
             if (write_log) {
                 *(log_stream->stream()) << "Tick: " << curTick()
                     << ", Site: " << site << ", mode=f5_rat_stuck, ARMED"
+                    << classTag()
                     << ", tid=" << (int)tid
-                    << ", arch=X" << f5s_arch_reg
+                    << ", arch=" << archPrefix() << f5s_arch_reg
                     << ", bit=" << f5s_bit
                     << ", polarity=" << f5s_polarity
                     << (f5s_polarity ? " (stuck_at_one)" : " (stuck_at_zero)")
@@ -537,8 +649,9 @@ namespace gem5
             if (write_log) {
                 *(log_stream->stream()) << "Tick: " << curTick()
                     << ", Site: " << site << ", mode=f5_rat_stuck"
+                    << classTag()
                     << ", tid=" << (int)tid
-                    << ", arch=X" << arch_idx
+                    << ", arch=" << archPrefix() << arch_idx
                     << ", write_phys=" << written
                     << ", stored_phys=" << masked
                     << " (bit " << f5s_bit << " already at " << f5s_polarity
@@ -555,8 +668,9 @@ namespace gem5
             if (write_log) {
                 *(log_stream->stream()) << "Tick: " << curTick()
                     << ", Site: " << site << ", mode=f5_rat_stuck"
+                    << classTag()
                     << ", tid=" << (int)tid
-                    << ", arch=X" << arch_idx
+                    << ", arch=" << archPrefix() << arch_idx
                     << ", write_phys=" << written
                     << " — forced idx " << masked << " out of [0,"
                     << num_phys << ") (skipped this write, no clamp)"
@@ -565,12 +679,13 @@ namespace gem5
             }
             return false;
         }
-        phys_reg = o3cpu->physRegFile().intPhysRegId(masked);
+        phys_reg = physRegIdForClass(o3cpu, masked);
         if (write_log) {
             *(log_stream->stream()) << "Tick: " << curTick()
                 << ", Site: " << site << ", mode=f5_rat_stuck"
+                << classTag()
                 << ", tid=" << (int)tid
-                << ", arch=X" << arch_idx
+                << ", arch=" << archPrefix() << arch_idx
                 << ", write_phys=" << written
                 << ", stored_phys=" << masked
                 << ", bit=" << f5s_bit << " forced to " << f5s_polarity
@@ -614,12 +729,16 @@ namespace gem5
             if (max_faults != 0 && faults_injected_count >= max_faults)
                 return false;
             if (!inWindow()) return false;
-            if (arch_reg.classValue() != IntRegClass) return false;
+            // W7.2: targetClass gate (D71 vec flavor — the merged
+            // D66/D71 "读到旧数据" row).
+            if (arch_reg.classValue() != target_class) return false;
             int arch_idx = arch_reg.index();
-            if (arch_idx > 30) return false;  // XZR / banked
+            if (!archIdxValid(arch_idx)) return false;  // XZR/banked (int)
+                                                    // or Special/Interleave (vec)
 
             int target = target_arch_reg;
-            if (target < 0) target = (int)(rng() % 31);  // 0..30
+            if (target < 0)
+                target = (int)(rng() % (unsigned)numArchTargetRegs());
             if (arch_idx != target) return false;
 
             std::uniform_real_distribution<float> pd(0.0f, 1.0f);
@@ -633,8 +752,9 @@ namespace gem5
             if (write_log) {
                 *(log_stream->stream()) << "Tick: " << curTick()
                     << ", Site: rename_write, mode=stale_read"
+                    << classTag()
                     << ", tid=" << (int)tid
-                    << ", arch=X" << arch_idx
+                    << ", arch=" << archPrefix() << arch_idx
                     << ", attempted_phys=" << attempted
                     << " (write silently failed, not stored)"
                     << ", kept_phys=" << kept
@@ -727,18 +847,21 @@ namespace gem5
         if (max_faults != 0 && faults_injected_count >= max_faults)
             return false;
         if (!inWindow()) return false;
-        if (arch_reg.classValue() != IntRegClass) return false;
+        // W7.2: targetClass gate (D68 vec flavors of the checkpoint flip).
+        if (arch_reg.classValue() != target_class) return false;
         int arch_idx = arch_reg.index();
-        if (arch_idx > 30) return false;  // XZR / banked slots
+        if (!archIdxValid(arch_idx)) return false;  // XZR/banked (int) or
+                                                    // Special/Interleave (vec)
         // Only REAL renames: misc/zero regs carry new==prev and are never
         // restored/freed by the consumers (the newPhysReg != prevPhysReg
         // guard at both consumption sites) — a flip there would be dead.
         if (new_phys == prev_phys) return false;
 
-        // directed target or random within 0..30 (the W4.4 flat-index
-        // discipline: target compares the FLATTENED int-reg index).
+        // directed target or random within the class's arch range (the
+        // W4.4 flat-index discipline: target compares the FLATTENED index).
         int target = target_arch_reg;
-        if (target < 0) target = (int)(rng() % 31);  // 0..30
+        if (target < 0)
+            target = (int)(rng() % (unsigned)numArchTargetRegs());
         if (arch_idx != target) return false;
 
         std::uniform_real_distribution<float> pd(0.0f, 1.0f);
@@ -746,7 +869,7 @@ namespace gem5
 
         auto *o3cpu = dynamic_cast<o3::CPU *>(cpu);
         if (!o3cpu) return false;
-        int num_phys = (int)o3cpu->physRegFile().numIntPhysRegs();
+        int num_phys = numPhysForClass(o3cpu);
 
         // pick the field to corrupt: 50/50 newPhysReg / prevPhysReg
         bool flip_new = ((int)(rng() % 2)) == 0;
@@ -784,9 +907,10 @@ namespace gem5
                 *(log_stream->stream()) << "Tick: " << curTick()
                     << ", Site: rename_history_push_front, mode="
                     << modeToString(fi_mode)
+                    << classTag()
                     << ", tid=" << (int)tid
                     << ", sn=" << sn
-                    << ", arch=X" << arch_idx
+                    << ", arch=" << archPrefix() << arch_idx
                     << ", field=" << (flip_new ? "newPhysReg" : "prevPhysReg")
                     << ", true_phys=" << cur_idx
                     << ", bits=(" << b1;
@@ -802,7 +926,7 @@ namespace gem5
         // The caller (rename.cc renameDestRegs) builds the RenameHistory
         // from these by-ref values while feeding the instruction the TRUE
         // dest — the checkpoint diverges from the machine state silently.
-        field = o3cpu->physRegFile().intPhysRegId(flipped);
+        field = physRegIdForClass(o3cpu, flipped);
         faults_injected_count++;
 
         // Arm the one-shot consumption watch (the evidence that the WRONG
@@ -818,9 +942,10 @@ namespace gem5
             *(log_stream->stream()) << "Tick: " << curTick()
                 << ", Site: rename_history_push_front, mode="
                 << modeToString(fi_mode)
+                << classTag()
                 << ", tid=" << (int)tid
                 << ", sn=" << sn
-                << ", arch=X" << arch_idx
+                << ", arch=" << archPrefix() << arch_idx
                 << ", field=" << (flip_new ? "newPhysReg" : "prevPhysReg")
                 << ", true_phys=" << cur_idx
                 << ", checkpoint_phys=" << flipped
@@ -1061,7 +1186,12 @@ namespace gem5
             // restore then re-maps the arch reg onto a physReg that is
             // still in use by another instruction — the designed
             // "squash 会错误释放/覆盖一个正在用的寄存器" SDC path.
-            int nc = collectRobActiveDests(cur_idx, o3cpu, tid, rob_cands);
+            // oldphys family is int-only (D36-D39) — pass IntRegClass
+            // explicitly regardless of target_class (a vec targetClass
+            // with an oldphys mode warned at construction and never
+            // reaches here past the int gate above).
+            int nc = collectRobActiveDests(IntRegClass, cur_idx, o3cpu, tid,
+                                           rob_cands);
             // additionally exclude the entry's own new dest: restoring
             // new_phys would be a degenerate self-referential no-op.
             int new_idx_own = new_phys->index();
@@ -1213,9 +1343,10 @@ namespace gem5
             : (prev_phys ? prev_phys->index() : -1);
         *(log_stream->stream()) << "Tick: " << curTick()
             << ", Site: " << site << ", mode=" << modeToString(fi_mode)
+            << classTag()
             << ", tid=" << (int)tid
             << ", HISTORY_CONSUMED: checkpoint sn=" << sn
-            << ", arch=X" << hb_watch_arch_idx
+            << ", arch=" << archPrefix() << hb_watch_arch_idx
             << ", corrupted_field="
             << (hb_watch_is_new_field ? "newPhysReg" : "prevPhysReg")
             << ", true_phys=" << hb_watch_orig_idx

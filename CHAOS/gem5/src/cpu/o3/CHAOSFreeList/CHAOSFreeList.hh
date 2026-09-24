@@ -9,6 +9,7 @@
 #include "base/output.hh"
 #include "base/types.hh"
 #include "cpu/base.hh"
+#include "cpu/reg_class.hh"      // RegClassType (W7.3 targetClass)
 
 namespace gem5 { namespace o3 { class CPU; } }
 namespace gem5 { namespace o3 { class UnifiedFreeList; } }
@@ -73,11 +74,35 @@ class CHAOSFreeList : public SimObject
     uint64_t rng_seed;
     bool write_log;
 
+    // W7.3 (ooo 04-design-matrix D72-D77 merged rows, VecRegClass freelist
+    // family): the register class whose free list the injector targets.
+    // "int" = IntRegClass (every W4 mode's original behavior, byte-
+    // identical logs); "vec" = VecRegClass (D74 mark_free / D75
+    // mark_free_event / D77 drop_release merged rows — scalar FP
+    // renames via VecRegClass on AArch64, so the north-star's scalar-FP
+    // freelist rows D72/73/76 are merged into the vec class; there is
+    // deliberately NO "float" value, see 04-matrix D62's merge clause).
+    RegClassType target_class = IntRegClass;
+
     // W4.5 D18 mark_free_event: trigger threshold — the injection is only
     // eligible while the INT free-list remaining count (post-pop, i.e. at
     // the getReg moment) is at or below this (04-design-matrix R19: 空闲表
     // 剩余项数低于阈值, 建议 ≤8).
     uint64_t event_threshold;
+
+    // W7.3 D75 (向量空闲表·重复分配·事件触发): the VEC-class threshold,
+    // used instead of event_threshold when target_class == VecRegClass.
+    // DEVIATION FROM 04 (documented): the design row says "建议 ≤6 项，按
+    // 48 项池容量等比例设置" — but that assumed ~32 mapped arch regs; the
+    // actual C3 platform maps 44 arch vec regs (V0-V31 + Special 8 +
+    // Interleave 4, regs/vec.hh:83) out of 48 phys, so the vec free pool
+    // STARTS at 4 and can never exceed it (W1.5b measured, 48-44=4) — a
+    // ≤6 threshold would be ALWAYS true (degenerate to the D74
+    // fixed-interval semantics). Re-derived default 0 = "pool drained"
+    // (post-pop free==0: the pop consumed the last free vec reg — the
+    // W1.5b recommendation for isolating the genuine pressure window);
+    // set 2 for a half-slack window (2 of the initial 4 consumed).
+    uint64_t event_threshold_vec;
 
     // W4.5 D17/D18 evidence watcher: after a mark_free(_event) injection
     // re-adds an ALLOCATED idx to the free list, remember it and log the
@@ -103,6 +128,17 @@ class CHAOSFreeList : public SimObject
     OutputStream *log_stream = nullptr;
 
     bool inWindow();
+
+    // ---- W7.3 class helpers (targetClass; int paths byte-identical) ----
+    const char *className() const;          // "int" / "vec" (log class=)
+    // eventThresholdForClass: event_threshold (int) / event_threshold_vec
+    // (vec — see its member comment for the D75 re-derivation).
+    uint64_t eventThresholdForClass() const;
+    // Pool size / id-table accessor for target_class (numIntPhysRegs vs
+    // numVecPhysRegs; intPhysRegId vs vecPhysRegId, regfile.hh:172-177).
+    int numPhysForClass(o3::CPU *o3cpu) const;
+    PhysRegIdPtr physRegIdForClass(o3::CPU *o3cpu, int idx) const;
+
     // mark_free: pick a currently-allocated (not-free) physReg of the class,
     // return its index or -1 (honest no-op if no candidate). Used to RE-ADD it
     // to the free list so it's re-handed-out while still held.

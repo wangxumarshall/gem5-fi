@@ -11,6 +11,7 @@
 #include "base/output.hh"
 #include "base/types.hh"
 #include "cpu/base.hh"
+#include "cpu/reg_class.hh"      // RegClassType (W7.2 targetClass)
 
 // o3::CPU (C++ class behind ArmO3CPU) is needed to reach renameMap/freeList/
 // regFile. Forward-declare (full definition pulled into the .cc via cpu/o3/cpu.hh).
@@ -159,6 +160,31 @@ class CHAOSRenameMap : public SimObject
     BaseCPU *cpu;  // set from p.cpu; dynamic_cast<o3::CPU*> in startup()
 
     Mode fi_mode;
+
+    // W7.2 (ooo 04-design-matrix D62-D71 merged rows, VecRegClass RAT
+    // family): the register class whose FRONT-map entries the injector
+    // targets. "int" = IntRegClass (X0-X30; XZR idx 31 and banked slots
+    // >=32 excluded — the CHAOSReg discipline), "vec" = VecRegClass
+    // (V0-V31, flattened indices 0-31; gem5-internal Special-8 +
+    // Interleave-4 indices 32-43 excluded as the banked-slot analog;
+    // AArch64 has NO zero vector register). Platform fact (W1.2, verified
+    // on C3): AArch64 gem5 v25 renames scalar FP (D/S regs) through
+    // VecRegClass — FloatRegClass is structurally present but inert — so
+    // the north-star's scalar-FP rows D62-66 are MERGED into the vec
+    // class (D62's own merge clause), not a separate "float" target.
+    //
+    // ATTRIBUTION DESIGN DECISION (documented): the rename hooks receive
+    // only the RegId being written — no opClass — so at injection time a
+    // vec-class entry cannot be attributed to a scalar-FP (D62-66) vs a
+    // SIMD (D67-71) producer. Both row families share this ONE code path
+    // by design; attribution is POST-HOC via the commit trace
+    // (CHAOSCommitTrace opClass column) when the campaign needs the split.
+    //
+    // The W5.6 oldphys_* modes (D36-D39, Int Dispatch/ROB family) stay
+    // int-only: targetClass=vec + oldphys_* warns at construction and the
+    // injector stays inert (their own IntRegClass gate is unchanged).
+    RegClassType target_class = IntRegClass;
+
     int target_arch_reg;       // -1 = random
     double probability;
     uint64_t first_clock, last_clock;
@@ -234,19 +260,39 @@ class CHAOSRenameMap : public SimObject
     std::set<InstSeqNum> ops_masked_sns;
 
     bool inWindow();
+
+    // ---- W7.2 class helpers (targetClass; int paths byte-identical) ----
+    // Number of arch regs the random-target draw may land on: int 31
+    // (X0-X30), vec 32 (V0-V31, ArmISA::NumVecV8ArchRegs).
+    int numArchTargetRegs() const;
+    // Validity guard replacing the int-only "arch_idx > 30" XZR/banked
+    // check: int -> idx <= 30; vec -> idx < 32 (NO zero reg in the vector
+    // class; Special-8/Interleave-4 flattened indices 32-43 excluded).
+    bool archIdxValid(int idx) const;
+    const char *archPrefix() const;   // "X" / "V" (log arch names)
+    const char *className() const;    // "int" / "vec" (log arch_reg=...)
+    // "" for int (byte-identical legacy log lines) / ", class=vec" tag.
+    const char *classTag() const;
+    // Pool size / id-table accessor for target_class: numIntPhysRegs vs
+    // numVecPhysRegs, intPhysRegId vs vecPhysRegId (regfile.hh:172-177).
+    int numPhysForClass(o3::CPU *o3cpu) const;
+    PhysRegIdPtr physRegIdForClass(o3::CPU *o3cpu, int idx) const;
+
     // f5_substitute: pick a currently-allocated (not-free) physReg of the same
     // class as `cur`, return its index or -1 if no valid candidate after K tries.
     int pickAllocatedPhysReg(int class_value, int cur_idx, int num_phys,
                              o3::CPU *o3cpu);
 
-    // W4.2a D13 swap_to_active: one candidate = the int-class dest physReg of
-    // an in-flight (ROB-resident) instruction, != the current mapping.
+    // W4.2a D13 swap_to_active: one candidate = the dest physReg (of
+    // `class_value`'s class) of an in-flight (ROB-resident) instruction,
+    // != the current mapping. W7.2: class parameterized — the vec modes
+    // collect VecRegClass dests (the "vec 活跃池" evidence pool).
     struct RobCand { int phys_idx; int dist; uint64_t sn; };
     // Walk the ROB from head (getEntryAtDistance, the CHAOSROB.cc pattern)
     // and collect all such candidates. Returns the candidate count (0 = ROB
-    // empty or no int dest != cur_idx -> honest skip, caller logs it).
-    int collectRobActiveDests(int cur_idx, o3::CPU *o3cpu, ThreadID tid,
-                              std::vector<RobCand> &cands);
+    // empty or no class-matching dest != cur_idx -> honest skip, logged).
+    int collectRobActiveDests(int class_value, int cur_idx, o3::CPU *o3cpu,
+                              ThreadID tid, std::vector<RobCand> &cands);
 
     // W5.6 D36-D39 oldphys family impl (called from maybeCorruptHistory —
     // the same rename.cc push_front site as hb_bitflip, but the corrupted

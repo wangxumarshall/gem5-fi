@@ -60,6 +60,22 @@ class CHAOSFreeList(SimObject):
         "mark_free | pop_wrong | mark_free_event | drop_release | "
         "head_bitflip | head_bitflip2 | head_stuck")
 
+    # W7.3 (ooo 04-design-matrix D72-D77 merged rows, VecRegClass freelist
+    # family): the register class whose free list the injector targets.
+    #   int (default): IntRegClass — every W4 mode's original behavior,
+    #                  byte-identical logs.
+    #   vec          : VecRegClass — D74 mark_free / D75 mark_free_event /
+    #                  D77 drop_release merged rows (all 7 modes get the
+    #                  class-parameterized pool/id/threshold helpers).
+    # Platform fact (W1.2, C3-verified): AArch64 gem5 v25 renames scalar
+    # FP (D/S regs) through VecRegClass — FloatRegClass is inert — so the
+    # north-star's scalar-FP freelist rows D72/D73/D76 are MERGED into the
+    # vec class (04-matrix D62's own merge clause); there is deliberately
+    # NO "float" value.
+    targetClass = Param.String("int",
+        "int | vec — which class freelist to corrupt (W7.3 VecRegClass "
+        "family, D72-D77 merged rows)")
+
     probability = Param.Float(1.0,
         "per-getReg injection probability (use 1.0 with maxFaults=1)")
     firstClock = Param.UInt64(0, "first clock cycle eligible for injection")
@@ -69,4 +85,19 @@ class CHAOSFreeList(SimObject):
     eventThreshold = Param.UInt64(8,
         "D18 mark_free_event: trigger only while the int freelist remaining "
         "count (post-pop) is <= this (04-design-matrix R19 建议 ≤8)")
+    # W7.3 D75 (向量空闲表·重复分配·事件触发): the VEC-class threshold,
+    # used INSTEAD of eventThreshold when targetClass=vec. DOCUMENTED
+    # DEVIATION from 04's "建议 ≤6 项，按 48 项池容量等比例设置": that
+    # assumed ~32 mapped arch regs, but the actual C3 platform maps 44
+    # arch vec regs (V0-V31 + Special 8 + Interleave 4, regs/vec.hh:83)
+    # out of 48 phys — the vec free pool STARTS at 4 and never exceeds it
+    # (W1.5b measured; 48-44=4), so a ≤6 threshold would be ALWAYS true
+    # (degenerate to the D74 fixed-interval semantics). Re-derived default
+    # 0 = "pool drained" (post-pop free==0, the pop consumed the last free
+    # vec reg — the W1.5b recommendation for isolating the genuine
+    # pressure window); set 2 for a half-slack window (2 of initial 4).
+    eventThresholdVec = Param.UInt64(0,
+        "D75 mark_free_event vec: trigger only while the VEC freelist "
+        "remaining count (post-pop) is <= this (default 0 = pool drained; "
+        "re-derived from 04's ≤6 per the W1.5b initial-free-4 calibration)")
     writeLog = Param.Bool(True, "Write a fault_injections.log file")

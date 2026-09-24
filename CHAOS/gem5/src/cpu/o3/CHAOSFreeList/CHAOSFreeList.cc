@@ -24,8 +24,26 @@ namespace gem5
           max_faults(p.maxFaults),
           rng_seed(p.rngSeed),
           write_log(p.writeLog),
-          event_threshold(p.eventThreshold)
+          event_threshold(p.eventThreshold),
+          event_threshold_vec(p.eventThresholdVec)
     {
+        // W7.3 targetClass: int = the W4 default (all legacy behavior
+        // byte-identical); vec = the VecRegClass family (D72-D77 merged
+        // rows — scalar FP renames via VecRegClass on AArch64, so there
+        // is deliberately NO "float" value; see .hh for the D75 threshold
+        // re-derivation). Unknown values fail loudly, never a silent
+        // int fallback.
+        const std::string tcls = p.targetClass;
+        if (tcls == "int") {
+            target_class = IntRegClass;
+        } else if (tcls == "vec") {
+            target_class = VecRegClass;
+        } else {
+            panic("CHAOSFreeList: unknown targetClass '%s' "
+                  "(int|vec; AArch64 scalar FP renames via VecRegClass — "
+                  "the north-star scalar-FP freelist rows are merged into "
+                  "vec, there is no float class)", tcls);
+        }
         if (probability > 0.0f) {
             log_stream = simout.create("freelist_injections.log", false, true);
             if (!log_stream || !log_stream->stream())
@@ -81,6 +99,32 @@ namespace gem5
         return true;
     }
 
+    // ---- W7.3 class helpers ----
+    const char *
+    CHAOSFreeList::className() const {
+        return target_class == VecRegClass ? "vec" : "int";
+    }
+
+    uint64_t
+    CHAOSFreeList::eventThresholdForClass() const {
+        return target_class == VecRegClass ? event_threshold_vec
+                                           : event_threshold;
+    }
+
+    int
+    CHAOSFreeList::numPhysForClass(o3::CPU *o3cpu) const {
+        return target_class == VecRegClass
+            ? (int)o3cpu->physRegFile().numVecPhysRegs()
+            : (int)o3cpu->physRegFile().numIntPhysRegs();
+    }
+
+    PhysRegIdPtr
+    CHAOSFreeList::physRegIdForClass(o3::CPU *o3cpu, int idx) const {
+        return target_class == VecRegClass
+            ? o3cpu->physRegFile().vecPhysRegId(idx)   // regfile.hh:177
+            : o3cpu->physRegFile().intPhysRegId(idx);
+    }
+
     int
     CHAOSFreeList::pickAllocatedPhysReg(int class_value, int num_phys,
                                         o3::CPU *o3cpu) {
@@ -94,6 +138,8 @@ namespace gem5
             PhysRegIdPtr cand_reg = nullptr;
             if (class_value == IntRegClass)
                 cand_reg = o3cpu->physRegFile().intPhysRegId(cand);
+            else if (class_value == VecRegClass)
+                cand_reg = o3cpu->physRegFile().vecPhysRegId(cand);
             else if (class_value == FloatRegClass)
                 cand_reg = o3cpu->physRegFile().floatPhysRegId(cand);
             else
@@ -123,12 +169,12 @@ namespace gem5
         // set after a real injection, so log_stream exists). One observation
         // per injected duplicate.
         if (dup_watch_idx >= 0 && popped
-            && class_value == IntRegClass
+            && class_value == target_class
             && (int)popped->index() == dup_watch_idx) {
             if (write_log) {
                 *(log_stream->stream()) << "Tick: " << curTick()
                     << ", Site: freelist_getReg, mode="
-                    << modeToString(fi_mode) << ", class=int"
+                    << modeToString(fi_mode) << ", class=" << className()
                     << ", DUPLICATE_ALLOCATION: idx " << dup_watch_idx
                     << " re-handed-out (second allocation; first holder "
                     << "still owns it)" << std::endl;
@@ -138,8 +184,9 @@ namespace gem5
         if (!cpu || probability <= 0.0f) return false;
         if (max_faults != 0 && faults_injected_count >= max_faults) return false;
         if (!inWindow()) return false;
-        // only int class for now (method1 long-lived accumulator target)
-        if (class_value != IntRegClass) return false;
+        // W7.3: targetClass gate (int = the §2.2 method1 long-lived
+        // accumulator target; vec = the D72-D77 merged rows).
+        if (class_value != target_class) return false;
 
         std::uniform_real_distribution<float> pd(0.0f, 1.0f);
         if (pd(rng) > probability) return false;
@@ -147,7 +194,7 @@ namespace gem5
         auto *o3cpu = dynamic_cast<o3::CPU *>(cpu);
         if (!o3cpu) return false;
 
-        int num_phys = (int)o3cpu->physRegFile().numIntPhysRegs();
+        int num_phys = numPhysForClass(o3cpu);
         if (num_phys <= 1) return false;
 
         if (fi_mode == Mode::PopWrong) {
@@ -156,11 +203,12 @@ namespace gem5
             int cur_idx = popped->index();
             int new_idx = (int)(rng() % (unsigned)num_phys);
             if (new_idx == cur_idx) new_idx = (cur_idx + 1) % num_phys;
-            popped = o3cpu->physRegFile().intPhysRegId(new_idx);
+            popped = physRegIdForClass(o3cpu, new_idx);
             faults_injected_count++;
             if (write_log) {
                 *(log_stream->stream()) << "Tick: " << curTick()
-                    << ", Site: freelist_getReg, mode=pop_wrong, class=int"
+                    << ", Site: freelist_getReg, mode=pop_wrong, class="
+                    << className()
                     << ", true_front_idx=" << cur_idx
                     << ", returned_idx=" << new_idx
                     << ", faults_injected: " << faults_injected_count
@@ -199,7 +247,7 @@ namespace gem5
                 if (write_log) {
                     *(log_stream->stream()) << "Tick: " << curTick()
                         << ", Site: freelist_getReg, mode="
-                        << modeToString(fi_mode) << ", class=int"
+                        << modeToString(fi_mode) << ", class=" << className()
                         << ", true_front_idx=" << cur_idx
                         << ", bits=(" << b1;
                     if (need == 2)
@@ -210,12 +258,11 @@ namespace gem5
                 }
                 return false;
             }
-            PhysRegIdPtr flipped_reg =
-                o3cpu->physRegFile().intPhysRegId(flipped);
+            PhysRegIdPtr flipped_reg = physRegIdForClass(o3cpu, flipped);
             // post-pop liveness of the flipped-to target: isFree scans the
             // queue (the contains() helper) — false = allocated elsewhere.
             bool target_in_queue = o3cpu->physFreeList().isFree(
-                IntRegClass, flipped_reg);
+                target_class, flipped_reg);
             popped = flipped_reg;
             faults_injected_count++;
             if (write_log) {
@@ -252,41 +299,50 @@ namespace gem5
             // count is the "空闲表剩余" at the getReg moment).
             unsigned nfree = 0;
             if (fi_mode == Mode::MarkFreeEvent) {
-                nfree = o3cpu->physFreeList().numFreeRegs(IntRegClass);
-                if ((uint64_t)nfree > event_threshold) return false;
+                // W7.3 D75: per-class pool + threshold (int keeps
+                // eventThreshold ≤8 per R19; vec uses eventThresholdVec,
+                // default 0 = pool drained — the documented deviation from
+                // 04's "≤6" which is always-true on the initial-free-4 vec
+                // pool; see .hh for the full derivation).
+                nfree = o3cpu->physFreeList().numFreeRegs(target_class);
+                if ((uint64_t)nfree > eventThresholdForClass()) return false;
             }
             int target = pickAllocatedPhysReg(class_value, num_phys, o3cpu);
             if (target < 0) {
                 if (write_log) {
                     *(log_stream->stream()) << "Tick: " << curTick()
                         << ", Site: freelist_getReg, mode="
-                        << modeToString(fi_mode) << ", class=int"
+                        << modeToString(fi_mode) << ", class=" << className()
                         << " — NO valid allocated target (skipped, no UB)."
                         << std::endl;
                 }
                 return false;
             }
-            PhysRegIdPtr target_reg = o3cpu->physRegFile().intPhysRegId(target);
+            PhysRegIdPtr target_reg = physRegIdForClass(o3cpu, target);
             o3cpu->physFreeList().addReg(target_reg);  // re-add allocated
             dup_watch_idx = target;  // W4.5: watch for the second allocation
             faults_injected_count++;
             if (write_log) {
                 if (fi_mode == Mode::MarkFreeEvent) {
-                    // D18 evidence line: the trigger-time remaining count
-                    // (must be <= threshold) + the re-added idx.
+                    // D18/D75 evidence line: the trigger-time remaining
+                    // count (must be <= the class threshold) + the
+                    // re-added idx.
                     *(log_stream->stream()) << "Tick: " << curTick()
                         << ", Site: freelist_getReg, mode=mark_free_event"
-                        << ", class=int"
-                        << ", num_free_int_after_pop=" << nfree
-                        << " (threshold=" << event_threshold << ")"
+                        << ", class=" << className()
+                        << ", num_free_" << className() << "_after_pop="
+                        << nfree
+                        << " (threshold=" << eventThresholdForClass() << ")"
                         << ", popped_idx=" << popped->index()
                         << ", readded_allocated_idx=" << target
                         << ", faults_injected: " << faults_injected_count
                         << std::endl;
                 } else {
-                    // D17: legacy mark_free line format kept byte-identical.
+                    // D17/D74: legacy mark_free line format, class field
+                    // widened from the literal "int".
                     *(log_stream->stream()) << "Tick: " << curTick()
-                        << ", Site: freelist_getReg, mode=mark_free, class=int"
+                        << ", Site: freelist_getReg, mode=mark_free, class="
+                        << className()
                         << ", readded_allocated_idx=" << target
                         << ", faults_injected: " << faults_injected_count
                         << std::endl;
@@ -316,7 +372,9 @@ namespace gem5
         if (max_faults != 0 && faults_injected_count >= max_faults)
             return false;
         if (!inWindow()) return false;
-        if (class_value != IntRegClass) return false;  // int pool only
+        // W7.3: targetClass gate (int pool = D19 original; vec pool =
+        // D77 向量空闲表·丢失释放 — the merged D76/D77 row).
+        if (class_value != target_class) return false;
 
         auto *o3cpu = dynamic_cast<o3::CPU *>(cpu);
         if (!o3cpu) return false;
@@ -324,13 +382,14 @@ namespace gem5
         std::uniform_real_distribution<float> pd(0.0f, 1.0f);
         if (pd(rng) > probability) return false;
 
-        unsigned before = o3cpu->physFreeList().numFreeRegs(IntRegClass);
+        unsigned before = o3cpu->physFreeList().numFreeRegs(target_class);
         faults_injected_count++;
         if (write_log) {
             *(log_stream->stream()) << "Tick: " << curTick()
-                << ", Site: freelist_addReg, mode=drop_release, class=int"
+                << ", Site: freelist_addReg, mode=drop_release, class="
+                << className()
                 << ", suppressed_release_idx=" << freed_reg->index()
-                << ", num_free_int_at_drop=" << before
+                << ", num_free_" << className() << "_at_drop=" << before
                 << " (release suppressed — queue stays at " << before
                 << "; a normal release would make it " << (before + 1)
                 << "; the pool is permanently -1 for the rest of the run)"
@@ -356,7 +415,9 @@ namespace gem5
         // SAME id and the queue NEVER advances — a permanent fixed-pattern
         // deviation (持续重复分配; the true queue entries are unreachable).
         if (fi_mode != Mode::HeadStuck) return false;
-        if (class_value != IntRegClass) return false;  // int pool only
+        // W7.3: targetClass gate (int = D22 original; vec gets the same
+        // approximation via the class-parameterized helpers).
+        if (class_value != target_class) return false;
         if (!cpu || probability <= 0.0f) return false;
 
         auto *o3cpu = dynamic_cast<o3::CPU *>(cpu);
@@ -372,7 +433,7 @@ namespace gem5
             std::uniform_real_distribution<float> pd(0.0f, 1.0f);
             if (pd(rng) > probability) return false;
 
-            int num_phys = (int)o3cpu->physRegFile().numIntPhysRegs();
+            int num_phys = numPhysForClass(o3cpu);
             int front_idx = front_reg->index();
             int nbits = 0; int tmp = num_phys;
             while (tmp > 1) { nbits++; tmp >>= 1; }
@@ -394,7 +455,7 @@ namespace gem5
             if (write_log) {
                 *(log_stream->stream()) << "Tick: " << curTick()
                     << ", Site: freelist_getReg, mode=head_stuck, ARMED"
-                    << ", class=int"
+                    << ", class=" << className()
                     << ", frozen_front_idx=" << front_idx
                     << ", stuck_idx=" << hs_stuck_idx;
                 if (hs_bit >= 0) {
@@ -421,10 +482,11 @@ namespace gem5
         // in the exit summary.
         hs_exposures++;
         int true_front = front_reg->index();
-        front_reg = o3cpu->physRegFile().intPhysRegId(hs_stuck_idx);
+        front_reg = physRegIdForClass(o3cpu, hs_stuck_idx);
         if (write_log && hs_exposures <= 10) {
             *(log_stream->stream()) << "Tick: " << curTick()
-                << ", Site: freelist_getReg, mode=head_stuck, class=int"
+                << ", Site: freelist_getReg, mode=head_stuck, class="
+                << className()
                 << ", true_front_idx=" << true_front
                 << ", returned_idx=" << hs_stuck_idx
                 << " (same item every time — head never advances, no pop)"
@@ -454,6 +516,9 @@ namespace gem5
             << o3cpu->physFreeList().numFreeRegs(IntRegClass)
             << ", final_free_float="
             << o3cpu->physFreeList().numFreeRegs(FloatRegClass)
+            << ", final_free_vec="
+            << o3cpu->physFreeList().numFreeRegs(VecRegClass)
+            << ", target_class=" << className()
             << ", head_stuck_exposures=" << hs_exposures
             << std::endl;
     }
