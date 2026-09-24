@@ -2591,3 +2591,10 @@ CI 零重叠——**H7 验收断言("ECC-off spurious>0 vs ECC-on≈0")formal �
 - **deferred 裁定**: ledger 全部 deferred 项经审查裁定可延至 09 的 W0–W11 执行期(含 09 store_set.hh 待核实锚点、verify_extraction.py 片段强度与 03-md backstop 等 W0 riders)。
 - **引用真实性**: 审查者对 README §7/09 §2 的全部 grep/file:line 主张做了独立复跑,零捏造引用。
 - **复核**: 修复后 `python3 verify_extraction.py` 重跑 `ALL PASSED`(修复行均非片段覆盖,重跑证明零附带损伤);骑手:计划 Task 7 Step 6 checkbox 闭合随本 commit 入库。
+
+### clangd LSP 排障：已生效确认 + 生成头缺失修复(2026-09-25)
+
+- **判定**: `claude -c` 恢复会话后 clangd LSP 实际**已生效**——documentSymbol(lsq.hh/lsq.cc 全符号树)、hover(构造函数全签名/参数文档)实测全通。"未生效"是感知问题:无 /lsp 命令、无 UI 指示,用法=直接让 Claude 做代码导航(说"找 X 的定义/引用"即可)。
+- **真问题已修**: 本 checkout 从未编译过,scons 只生成了 compile DB(31103 条)而没有构建期头文件——`build/ARM/config/have_deprecated_namespace.hh`、`params/*.hh`、`enums/*.hh` 全缺,clangd 类型解析报 incomplete type 级联错误。修复=subagent 执行 `scons build/ARM/cpu/o3/lsq.o`(单个 .o;实测 45 分钟,超预估——未建树须先生成 ~460 个 SimObject Python 包装件)。修复后 lsq.cc/.hh 诊断零错误;生成头可完整导航(BaseO3CPUParams 全字段含 smtLSQPolicy/LQEntries/SSITSize/LFSTSize——LSU B0 参数面全部可查)。
+- **残余处理**: 后台索引在 45 分钟构建窗口内用过期状态建立了索引,跳转进生成头的落点暂不理想——已删 `build/ARM/.cache/clangd` 强制下次会话全量重建。
+- **注意**: 全量 gem5.opt 构建仍未做(仅 lsq.o + 生成头);LSU W0 跑仿真前需要(clean build 必须 -j16,CLAUDE.md OOM 纪律)。
