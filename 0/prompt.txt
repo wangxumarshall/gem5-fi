@@ -1655,3 +1655,80 @@ FINAL=45737cc9a76c0dce
 **依赖顺序硬约束**：W7.4（D83–D91）的 RAT/IQ 侧可先做，但 done 位族（D32–D40）与 tag 族（D50–D54）在本树尚未实现（`CHAOSROB.cc:41-51`、`CHAOSIQ.hh:52` 为当前全集），W7.4 需排在 W5 T3–T7 之后或并行对齐。</result>
 <usage><subagent_tokens>0</subagent_tokens><tool_uses>67</tool_uses><duration_ms>303219</duration_ms></usage>
 </task-notification>
+
+---
+
+<task-notification>
+<task-id>a5cec101fae754f34</task-id>
+<tool-use-id>call_e0672c639afa4cc1a25bf7c6</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi/228a36be-984d-44a8-aac7-02555f4f22df/tasks/a5cec101fae754f34.output</output-file>
+<status>completed</status>
+<summary>Agent "W3.3 回填工具" came to rest</summary>
+<note>A task-notification fires each time this agent comes to rest with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>所有工作已完成并验证。最终报告：
+
+## W3.3 交付：`tools/backfill_expanded_matrix.py`
+
+**文件**（唯一创建/修改的仓库文件，853 行，未 commit/push，遵守纪律；git status 中其他 M 文件均为并发代理所改）：
+- `/home/sdc/gem5-fi/tools/backfill_expanded_matrix.py` — `py_compile` 通过；进度保护 `/tmp/ooo_w33_progress.txt`（三阶段全记录）；fixture 与验证脚本在 `/tmp/ooo_w33/`（`verify_fixture.py` + `fixture/`）。
+
+**功能**：`--campaign &lt;dir&gt;...`（root 布局 `runs/+artifacts/` 或 `runs/&lt;cid&gt;` 本身，自动识别）+ `--matrix`（默认 `docs/gem5-fi/ooo/05-expanded-matrix.csv`）+ `--dry-run` + `--cell-map cid[/cNNNN]=E-id` + `--min-n-valid/--min-events`（默认 2000）+ `--allow-unphased` + `--force`。逐 rep 读 results.jsonl 的 classification（六类，未知类按 campaign.py 惯例计入 SimulatorError 并报告）/l2 块（verdict/primary_class/latency_seq，兼容直连与 W2.3 replay 包装两种形态）/l3 块（fanout=liveness.mean 上界代理）/stats 块（均值 IPC 入报告）；按 E 格聚合七列（SDC/Crash/Timeout=Hang/Masked 条件于 n_valid、仿真器断言崩溃占比=SimulatorError/n_total、潜伏期=latency_seq 中位数、扇出=均值，前五列带 Wilson 95% CI，复用 `tools/wilson.py` 单一实现）；pilot 永不入列、未标 phase 需 `--allow-unphased`、事件覆盖格按覆盖数（Σfaults_injected）判达标并记录、不达标格留空并列出、已填格默认跳过；写回保持 UTF-8 无 BOM + **CRLF**（实测该 CSV 全 227 行 CRLF）逐字节保持 7 列之外内容，临时文件原子替换；heatmap.csv 作为 campaign.py 独立聚合的交叉校验。
+
+## 验证输出（逐字摘录，真机）
+
+**① 合成 fixture（5 格：E001/E002/E058/E041-pilot/E043-D×F 唯一）— 42 项断言全过：**
+```
+PASS: independent Wilson anchor k=1,n=10 -&gt; [0.0179,0.4042] (got [0.0179,0.4042])
+PASS: hand: E001 SDC 2/5=40.00% (cell reads '40.00 [11.76,76.93]')
+PASS: hand: E002 simerr 1/6=16.67% (cell reads '16.67 [3.01,56.35]')
+PASS: run A: exactly 1 cell would be written (E058 via event coverage)
+PASS: run A: E058 coverage=2100 recorded
+PASS: run A: E041 absent (all 3 reps pilot-excluded)
+PASS: run A: E043 resolved via D x F unique lookup
+PASS: run A: heatmap cross-check 5/5 consistent
+PASS: run A: dry-run left matrix bytes identical (sha equal)
+PASS: run B: wrote exactly 2 cells (E001+E058)
+PASS: E001 written values == hand-computed ['40.00 [11.76,76.93]', '20.00 [3.62,62.45]', '20.00 [3.62,62.45]', '20.00 [3.62,62.45]', '0.00 [0.00,43.45]', '200', '15.00'] (got [...同值...])
+PASS: run B: CRLF line endings preserved (227 lines, no bare LF)
+PASS: run B: exactly E001+E058 rows changed (got ['E001', 'E058'])
+PASS: unit: D11 x F1 without workload is honestly ambiguous (... matches 2 matrix rows ['E043', 'E044'] ...)
+PASS: re-run with --force rewrites identical values (idempotent)
+PASS: run C: nonexistent campaign dir -&gt; exit 1
+ALL FIXTURE VERIFICATIONS PASSED
+```
+（手算锚点：E001 n_valid=5、SDC 2/5、latency median(100,300)=200、fanout mean(10,20)=15.00；E002 n_valid=6−1−1=4；E058 覆盖 600×3+300=2100≥2000 事件达标。）
+
+**② 真实 toy campaign（runs/w23-toy-smoke-prf + artifacts/w23-toy-smoke-prf）`--dry-run`：**
+```
+[backfill] campaign w23-toy-smoke-prf: 1 cell(s), 3 rep(s); heatmap: artifacts/w23-toy-smoke-prf/heatmap.csv
+[backfill]   w23-toy-smoke-prf: 1/1 cell(s) consistent with heatmap.csv
+[backfill]   E001: SDC%=0.00 [0.00,56.15] | Crash%=0.00 [0.00,56.15] | Timeout%=0.00 [0.00,56.15] | Masked%=100.00 [43.85,100.00] | 仿真器断言崩溃占比%=0.00 [0.00,56.15] | 潜伏期（commit序号）=(empty) | 污染扇出数=(empty)
+[backfill] DRY-RUN: /home/sdc/gem5-fi/docs/gem5-fi/ooo/05-expanded-matrix.csv NOT modified
+```
+（3×Masked 与 heatmap n_valid=3/Reach CI [0.4385,1.0] 精确吻合；无 cell-map 时诚实报告 unphased-excluded: 3。）仓库根布局全量扫描：120 campaign/33596 rep/1.4s，**120/120 heatmap 交叉一致、0 MISMATCH**；跨 campaign 聚合（fixture 5 rep + toy 3 rep → E001 n=8, SDC 25.00 [7.15,59.07]）手算吻合。
+
+**③ `--dry-run` 不改文件（sha256 + git 双证）：**
+```
+docs/gem5-fi/ooo/05-expanded-matrix.csv: 成功
+③a PASS: matrix byte-identical after --dry-run
+[backfill] 0 cell(s) qualify for writing -- matrix unchanged
+③b PASS: matrix byte-identical after real run with default bars (nothing qualified)
+（git status 该 CSV 无条目 = 未触碰；最终 sha256 82369c3e...）
+```
+
+**④ 阴性（均 exit 1）：**
+```
+[backfill] ERROR: campaign dir not found: /tmp/ooo_w33/no-such-campaign      -&gt; exit 1
+[backfill] ERROR: not a campaign dir (neither runs/+artifacts/ subdirs...): /tmp -&gt; exit 1
+[backfill] ERROR: --cell-map entry malformed (want cid[/cNNNN]=E001): 'bad syntax' -&gt; exit 1
+```
+
+## 偏差（诚实申报）
+
+1. **D/E 映射字段名**：任务让"读 tools/campaign.py 现有 manifest 生成逻辑确认字段名"——实测 HEAD 的 `manifest_for_cell` 写 `arm-chaos-fi/v1`，**尚无任何 D/E 字段**；故按 06-implementation-plan.md A6 的 v3 `ooo` 扩展块拼写实现（`design_unit_id/experiment_cell_id/frequency_tier/counting_basis/phase[/workload]`）。并发 W3.1/W3.2 代理未提交的 campaign.py 改动恰以**完全相同**的字段名写该块并指名本工具为消费方——已对齐。遗留（v1 无 ooo 块）campaign 只能经显式 `--cell-map` + `--allow-unphased` 回填（映射由操作者声明并打印，绝不猜测）。
+2. **stats/l3 块**：现行 campaign.py 的 results.jsonl 尚未落 stats/l3 块（runner.py 已能打印 `[runner] STATS:`/`L3RESULT:`）；工具按该契约在块存在时消费（IPC 入报告、fanout 入第 7 列），toy 无数据时潜伏期/扇出诚实留空（W8.7 二遍重放补齐）。
+3. **口径决定**（工具文档内已注明）：仿真器断言崩溃占比% = SimulatorError/n_total（分母为全部 rep，非 n_valid）；Timeout% = classify.py 的 Hang；Wilson CI 以 `p [lo,hi]` 形式写在同一 CSV 格内（矩阵仅 7 结果列，06 §1.2 要求"含 CI"）；事件覆盖数记录于报告（CSV 无对应列）。
+4. **toy 映射 E001 纯机械测试**：E001-E226 无 PRF 数据格（toy 是 physreg smoke），dry-run 只验证机制，不构成语义主张，且默认门槛下永不写入。
+5. **验证期发现并修复 5 个真 bug**：ctx 缺 `consistency_issues` 键、layout-(b) artifacts 路径错（`runs/artifacts` 应为父级 `artifacts`）、unmapped 按 rep 泛滥（改为按 campaign-cell 去重带 rep 数）、heatmap 容差浮点边界误报（0.03125 vs 0.0312 恰在 5e-5，放宽至 1e-4）、预过滤 marker 含 `workload:`（每个 v1 manifest 都有，永 skip 不了——已剔除）。</result>
+<usage><subagent_tokens>0</subagent_tokens><tool_uses>65</tool_uses><duration_ms>2838090</duration_ms></usage>
+</task-notification>
