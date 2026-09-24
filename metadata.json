@@ -1,0 +1,36 @@
+{
+  "cli_version": "0.10.2",
+  "checkpoint_id": "01M39P2M3Q2Q3E0PMFV194PVTW",
+  "strategy": "manual-commit",
+  "branch": "fi-ding",
+  "checkpoints_count": 4,
+  "files_touched": [
+    "CHAOS/gem5/src/cpu/o3/CHAOSROB/CHAOSROB.cc",
+    "CHAOS/gem5/src/cpu/o3/CHAOSROB/CHAOSROB.hh",
+    "CHAOS/gem5/src/cpu/o3/CHAOSROB/CHAOSROB.py",
+    "CHAOS/gem5/src/cpu/o3/rob.cc"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 21652876,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 178975872,
+    "output_tokens": 399768,
+    "api_call_count": 364,
+    "subagent_tokens": {
+      "input_tokens": 898138,
+      "cache_creation_tokens": 0,
+      "cache_read_tokens": 47105664,
+      "output_tokens": 88909,
+      "api_call_count": 295
+    }
+  }
+}
