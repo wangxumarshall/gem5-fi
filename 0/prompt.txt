@@ -1334,3 +1334,107 @@ Tick: 9353960, Site: freelist_getReg, mode=mark_free_event, class=int, DUPLICATE
 ---
 
 现在什么进度
+
+---
+
+<task-notification>
+<task-id>a1951e48884efb798</task-id>
+<tool-use-id>call_737ca094ee274e758e1e78e5</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi/986103be-6dae-4d5b-8b58-a5f2abf15cf7/tasks/a1951e48884efb798.output</output-file>
+<status>completed</status>
+<summary>Agent "实现 W4 收官批（最后 7 单元）" came to rest</summary>
+<note>A task-notification fires each time this agent comes to rest with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>W4 收官批全部完成。以下为最终报告。
+
+# W4 收官批（Task 6）完成报告 — Int Rename 14/14 全齐
+
+## 各单元文件清单
+
+| 单元 | 模式 | 文件 |
+|---|---|---|
+| D14 | `swap_mispred_event` | `/home/sdc/gem5-fi/CHAOS/gem5/src/cpu/o3/CHAOSRenameMap/CHAOSRenameMap.hh` `/.cc` `/.py`、`/home/sdc/gem5-fi/CHAOS/gem5/src/cpu/o3/rename.cc`（checkSignalsAndUpdate 误预测判定钩子）、`ooo_proxy.py`、`runner.py` |
+| D19 | `drop_release` | `/home/sdc/gem5-fi/CHAOS/gem5/src/cpu/o3/CHAOSFreeList/CHAOSFreeList.hh` `/.cc` `/.py`、`/home/sdc/gem5-fi/CHAOS/gem5/src/cpu/o3/free_list.hh`（UnifiedFreeList::addReg 预推钩子 + exit callback 终态汇总）、`ooo_proxy.py`、`runner.py` |
+| D20/D21 | `head_bitflip` / `head_bitflip2` | 同 D19 文件集（maybeCorrupt post-pop 位翻转分支） |
+| D22 | `head_stuck` | 同 D19 文件集 + `free_list.hh` SimpleFreeList::getReg **前置 pre-pop 钩子**（返回同项不 pop） |
+| D23/D24 | `hb_bitflip` / `hb_bitflip2` | CHAOSRenameMap 三件 + `rename.cc`（renameDestRegs push_front 建立点钩子 + doSquash/removeFromHistory 只读消费观察器） |
+
+计划文件 Task 6 五个 checkbox 已全部勾选并附执行注（`docs/superpowers/plans/2026-09-24-ooo-w4-intrename-injectors.md`）。**未 commit**（纪律：编排者验证后提交）。
+
+## 构建与回归（逐字）
+
+```
+BUILD_EXIT=0            （增量 -j126，产物=仓库根 build/ARM/gem5.opt，16:05:02 重链接）
+grep "警告" build log → 0 行（零告警；两次编译返工：RefCountingPtr 不接受 !=nullptr/!=NULL(long)，改 static_cast&lt;bool&gt;——commit.cc:799 惯用法）
+GOLDEN_EXIT=0
+FINAL=45737cc9a76c0dce  （无注入 golden 回归）
+```
+既有模式回归（挂载注入器）：`mark_free`（`readded_allocated_idx=74` + DUPLICATE_ALLOCATION 行）与 `map_bitflip`（`old_phys_idx=85, new_phys_idx=69`）legacy 日志格式逐字节不变。
+
+## 每模式验证输出（逐字摘录）
+
+**D14**（bm, `--rename_mode swap_mispred_event --rename_first_clock 200000 --rename_max_faults 1`）：
+```
+Tick: 77013475, Site: rename_squash_signal, mode=swap_mispred_event, tid=0, cause=branch_mispred, squash_sn=415954, signal: 8046
+Tick: 77013475, Site: rename_setEntry_restore, mode=swap_mispred_event, tid=0, arch=X2, old_phys=121, new_phys=43(active, rob_dist=13), chosen_sn=415964, trigger=branch_misprediction_restore, mispred_squash_sn=415954, rob_active_dests=[116@0 44@1 30@2 114@4 38@5 12@6 123@7 97@8 9@10 20@11 63@12 43@13 70@14], faults_injected: 1
+```
+注入 tick 与 branch_mispred 信号同 tick、sn 精确对上（触发时刻=误预测恢复的硬证据）；8046 条信号日志证明 branch_mispred/other 判定正确。结局 `panic: Dependency graph 43 (integer) (flat: 43) not empty!`（exit 134, Crash，与 D13 双所有权同构）。同 seed 复现 `D14_LOGS_IDENTICAL`。
+
+**D19**（smoke, `--freelist_mode drop_release`）：
+```
+Tick: 77000000, Site: freelist_addReg, mode=drop_release, class=int, suppressed_release_idx=85, num_free_int_at_drop=3 (release suppressed — queue stays at 3; a normal release would make it 4; the pool is permanently -1 for the rest of the run), faults_injected: 1
+Tick: 92357265, Site: exit_summary, mode=drop_release, faults_injected: 1, final_free_int=85, final_free_float=192, head_stuck_exposures=0
+```
+零注入对照（first_clock 不可达）：`final_free_int=86` → **恰好 -1 永久缩水**。结局 Masked（FINAL=45737cc9a76c0dce——04 矩阵"前兆"口径成立：价值在空闲池缩水趋势）。同 seed `D19_LOGS_IDENTICAL`。
+
+**D20**（smoke, `head_bitflip`）：
+```
+Tick: 77000000, Site: freelist_getReg, mode=head_bitflip, class=int, true_front_idx=62 (popped-and-consumed: entries below the corrupted head read leak), returned_idx=54, bits=(3), target_status=allocated(immediate duplicate allocation), approx=head_ptr_bitflip_on_queue_front (std::queue has no explicit pointer — 近似口径), faults_injected: 1
+```
+62^8=54 ✓；Crash（graph 54）；`D20_LOGS_IDENTICAL`。
+
+**D21**（smoke, `head_bitflip2`）：
+```
+... true_front_idx=62 ..., returned_idx=50, bits=(3,2), target_status=allocated(immediate duplicate allocation), approx=... , faults_injected: 1
+```
+62^8^4=50 汉明距恰 2 ✓；Crash（graph 50）；`D21_LOGS_IDENTICAL`。
+
+**D22**（smoke, `head_stuck`）：
+```
+Tick: 77000000, Site: freelist_getReg, mode=head_stuck, ARMED, class=int, frozen_front_idx=62, stuck_idx=54, forced_bit=3, polarity=0 (stuck_at_zero), approx=head_ptr_stuck_no_pop (std::queue has no explicit pointer — 近似口径), faults_injected: 1
+Tick: 77000000, Site: freelist_getReg, mode=head_stuck, class=int, true_front_idx=62, returned_idx=54 (same item every time — head never advances, no pop), deviation=-8, exposure: 1
+... exposure: 5（全部 returned_idx=54, true_front_idx=62 冻结, deviation=-8 恒定）
+```
+固定模式偏差 -8 = 04 矩阵 D22 观测项；5 次曝光后 Crash（graph 54，多重分配）。`D22_LOGS_IDENTICAL`。
+
+**D23**（bm, `hb_bitflip`）：
+```
+Tick: 77007700, Site: rename_history_push_front, mode=hb_bitflip, tid=0, sn=415929, arch=X28, field=newPhysReg, true_phys=81, checkpoint_phys=89, bits=(3), dormant_until_consumed (doSquash restore or removeFromHistory release), faults_injected: 1
+Tick: 77009240, Site: rename_doSquash, mode=hb_bitflip, tid=0, HISTORY_CONSUMED: checkpoint sn=415929, arch=X28, corrupted_field=newPhysReg, true_phys=81, consumed_phys=89 (the WRONG phys was restored/freed — dormancy ended), faults_injected: 1
+```
+**潜伏 1540 tick 后 squash 消费错误 phys 89** → `panic: Dependency graph 89 ... not empty!`（Crash）。`D23_LOGS_IDENTICAL`。
+
+**D24**（bm, `hb_bitflip2`）：
+```
+... sn=415929, field=newPhysReg, true_phys=81, checkpoint_phys=121, bits=(3,5) ...
+... HISTORY_CONSUMED: ... consumed_phys=121 (the WRONG phys was restored/freed — dormancy ended)
+```
+81^8^32=121 汉明距 2 ✓；doSquash 消费 121 → Crash（graph 121）。`D24_LOGS_IDENTICAL`。
+
+**Runner e2e 路由**：
+```
+[runner] RESULT: run_id=w4b3-e2e-d14 classification=Crash faults_injected=1 exit=-6 ... （legal_domain_sub+sub_field=swap_mispred_event → bm）
+[runner] RESULT: run_id=w4b3-e2e-d19 classification=Masked faults_injected=1 exit=0 ... reason: completed exit=0, checksum==golden (45737cc9a76c0dce) — fault did not propagate（delay_omission+sub_field=drop_release → smoke）
+```
+7 个新模式 sub_field 路由全接（rat: swap_mispred_event/hb_bitflip/hb_bitflip2；freelist: drop_release/head_bitflip/head_bitflip2/head_stuck）；schema `sub_field` 为自由字符串，无需改 schema。
+
+## 偏差/blocker 说明（诚实记录）
+
+1. **无 blocker**——7 单元全部按计划机制落地。D20-22 按预批准的 spike B 近似口径实现，每条日志带 `approx=` 标注。
+2. D22 崩溃早于 sim 结束 → exit summary 未打印（曝光总数仅在日志前 10 条 + 本批观察 5 条；如实报告）。
+3. 定向单样本结局：D14/D20/D21/D22/D23/D24 皆 Crash、D19 Masked——n=1/seed 定向对照，不做分布结论（stat 纪律）。
+4. D14 事件判定的机制依据：`commitInfo.mispredictInst` 仅误预测 squash 置位（commit.cc:840），trap/order-violation/squashAll 路径为 NULL——已在代码注释与本报告双记录。
+5. 会话开始前 `docs/superpowers/plans/2026-09-24-ooo-w2-observation.md` 已有未提交修改（非本批改动，git status 快照可证）。
+
+**W4 Int Rename 14/14（D11-D24）实现+验证全齐，到达用户暂停点。** 中断保护文件 `/tmp/ooo_w4b3_progress.txt` 已更新为 COMPLETE。</result>
+<usage><subagent_tokens>0</subagent_tokens><tool_uses>117</tool_uses><duration_ms>2374577</duration_ms></usage>
+</task-notification>
