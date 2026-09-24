@@ -224,6 +224,15 @@ ROB::insertInst(const DynInstPtr &inst)
 
     DPRINTF(ROB, "[tid:%i] Now has %d instructions.\n", tid,
             threadEntries[tid]);
+
+    // W5.1-W5.3 CHAOSROB (ooo 04-design-matrix D25-D31, Int Dispatch/ROB):
+    // the ROB-entry WRITE-path hook — the fault lands in the entry's
+    // PC / dest-register-id field as the entry is written into the ROB
+    // (the TC'23 site, before the instruction completes). The legacy
+    // entry_bitflip/exc_suppress modes return immediately here (they live
+    // on the retireHead hook below). nullptr = no injection (zero
+    // regression).
+    if (chaosROB) chaosROB->maybeCorruptEntry(tid, inst);
 }
 
 void
