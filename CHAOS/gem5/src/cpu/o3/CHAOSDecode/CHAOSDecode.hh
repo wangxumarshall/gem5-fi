@@ -16,6 +16,14 @@
 namespace gem5 { namespace o3 { class CPU; } }
 namespace gem5 { namespace o3 { class DynInst; } }
 namespace gem5 { class InstDecoder; }
+// W6 batch 2 (D08-D10) helper signatures (definitions in CHAOSDecode.cc,
+// which includes arch/arm/decoder.hh for the full types). NOTE: the EMI is
+// passed as its raw uint64_t storage — ArmISA::ExtMachInst is a BitUnion
+// TYPEDEF (EndBitUnion), NOT a struct tag, so it cannot be forward-declared
+// here; BitUnionOperators provides the implicit uint64_t conversion both
+// ways (bitunion.hh:267/274), and each helper rebuilds the full EMI via
+// `ExtMachInst emi; emi = emi_raw;` (the proven batch-1 assignment path).
+namespace gem5 { namespace ArmISA { class Decoder; } }
 
 namespace gem5
 {
@@ -78,7 +86,15 @@ class CHAOSDecode : public SimObject
                       RegBitflip,            // D04 reg-number field, 1 bit
                       RegBitflip2,           // D05 reg-number field, 2 bits
                       ImmBitflip,            // D06 immediate field, 1 bit
-                      ImmBitflip2 };         // D07 immediate field, 2 bits
+                      ImmBitflip2,           // D07 immediate field, 2 bits
+                      // ---- W6 batch 2 (D08-D10) ----
+                      SignExtBit,            // D08 sign-extension bit of the
+                                             // format-located immediate
+                      ImmSubfieldShift,      // D09 immediate subfield
+                                             // mis-assembly (transposed)
+                      CrackCtrl };           // D10 macroop crack-control
+                                             // (addressing-mode µop-stream
+                                             // perturbation on LDP/STP)
     Mode fi_mode = Mode::DestRegSub;
     static Mode stringToMode(const std::string &s);
     const char *modeToString(Mode m) const;
@@ -110,6 +126,98 @@ class CHAOSDecode : public SimObject
                       const char *name; };
     static const SwapRule kSwapRules[];
     static const SwapRule *matchSwapRule(uint32_t enc);
+
+    // ---- W6 batch 2 (D08/D09/D10, ooo 04-design-matrix R9-R11) ----
+    //
+    // D08 sign_ext_bit: per-instruction-format location of the immediate's
+    // TOP encoded bit (the bit the decoder's sign-extension logic reads for
+    // sext formats — imm9/imm19/imm26/adrp immhi — and the immediate's
+    // magnitude MSB for unsigned formats per the plan: imm12 bit11,
+    // immr+imms 顶位). NOT a random bit: exactly this one bit is flipped.
+    // Every (mask, match, sign_bit) row was verified against real GNU-as
+    // encodings on this aarch64 host (2026-09-24, /tmp/w6b2/fmt.s):
+    //   add x0,x1,#1     = 0x91000420 (group 100010 imm, imm12[21:10])
+    //   and/orr/eor/ands = 0x92400c20/0xb2400c20/0xd2400c20/0xf2400c20
+    //                      (N[22] immr[15:10] imms[20:16]; top = bit 20)
+    //   ldr x0,[x1,#8]   = 0xf9400420 / str = 0xf9000420 (imm12[21:10])
+    //   ldur x0,[x1,#-8] = 0xf85f8020 / stur = 0xf81f8020 (imm9[20:12],
+    //                      true sign bit = bit 20)
+    //   b.eq = 0x540001c0 (imm19[23:5]) / cbz = 0xb40001a0 / cbnz = 0xb5000180
+    //   tbz  = 0x36180160 / tbnz = 0x37180140 (imm14[18:5], bit 18)
+    //   b    = 0x14000009 / bl = 0x94000008 (imm26[25:0], bit 25)
+    //   adr  = 0x100000e0 / adrp = 0x90000000 (immhi[23:5]+immlo[30:29];
+    //                      21-bit imm's sign = immhi MSB = bit 23)
+    //   ldr x0,lit       = 0x580000a0 (imm19[23:5])
+    //   movz/movn/movk   = 0xd2824680/0x92824680/0xf2a24680 (imm16[20:5])
+    struct SignImmFormat { uint32_t mask; uint32_t match;
+                           uint8_t sign_bit, fhi, flo; const char *name; };
+    static const SignImmFormat kSignImmFormats[];
+
+    // D09 imm_subfield_shift: formats whose immediate is assembled from
+    // MULTIPLE NAMED encoding subfields. The fault transposes two
+    // equal-width subfields (the fragments of the value are placed at the
+    // wrong bit positions — 04: "该放到 imm[19:16] 位置的子字段被错误地
+    // 拼到了 imm[15:12] 的位置"). Field A bits [hi_a:lo_a] swap with field
+    // B bits [hi_b:lo_b] (equal width by construction):
+    //   logical imm  (and/orr/eor/ands imm, "immr/imms 类"):
+    //        imms[20:16] <-> immr[15:10]   (verified: and x0,x1,#0xf =
+    //        0x92400c20 -> N=1, imms=0, immr=3)
+    //   adr/adrp     ("拆装类"): immhi[1:0] (enc 6:5) <-> immlo (enc 30:29)
+    //        (verified: adr x0,.+28 = 0x100000e0 -> immhi=7, immlo=0)
+    //   movz/movn/movk ("移位类"): hw[22:21] <-> imm16[15:14] (enc 20:19)
+    //        (verified: movk x0,#0x1234,lsl#16 = 0xf2a24680 -> hw=1,
+    //        imm16=0x1234)
+    //   add/sub imm12+sh ("移位类"): sh[23:22] <-> imm12[11:10] (enc 21:20)
+    //        (verified: adds x0,x1,#1,lsl#12 = 0xb1400420 -> sh=1, imm12=1)
+    // Formats with a single contiguous immediate (ldr/str imm12, ldur imm9,
+    // b/imm26, b.cond/imm19, ldr-lit) are honestly skipped WITH a log line
+    // (no multi-named-subfield structure to mis-assemble).
+    struct SubfieldFormat { uint32_t mask; uint32_t match;
+                            uint8_t hi_a, lo_a, hi_b, lo_b;
+                            const char *name; };
+    static const SubfieldFormat kSubfieldFormats[];
+
+    // D10 crack_ctrl (exploratory): gem5 v25 A64 "cracking" = decoding to a
+    // macroop (PairMemOp LdpStp for LDP/STP/LDPSW, macromem.hh:473;
+    // fetch.cc walks curMacroop->fetchMicroop(upc), upc 0-based, last µop
+    // flagged IsLastMicroop). There is NO runtime crack-latch bit — the
+    // decision is baked into the static ISA decode table — so the fault is
+    // modeled at the encoding level by flipping the pair-op addressing-mode
+    // field enc[24:23] (type: 00 ldnp/stnp, 01 post, 10 offset, 11 pre;
+    // aarch64.isa:1670-1685) on an instruction that decoded to a MACROOP:
+    //   offset(10) -> pre(11): +1 µop, a spurious writeback µop appears
+    //               ("不该拆的指令被拆": Rn clobbered)
+    //   pre(11) -> offset(10): -1 µop, the writeback µop is lost
+    //               ("该拆的指令不拆": stale base pointer)
+    //   post(01) <-> offset(10): composition swap (writeback µop vs
+    //               addr-generation µop), count unchanged
+    // µop counts are measured at injection time by a bounded
+    // fetchMicroop/isLastMicroop walk and logged (the 04 metric:
+    // "µop 数量与无故障基线的偏差"). BLOCKER (recorded, not silently
+    // dropped): force-cracking a NON-macroop instruction (e.g. plain LDR,
+    // which gem5 decodes as one single-µop StaticInst) has no encoding-
+    // level control — no flippable bit changes macroop-ness — and
+    // synthesizing a truncated macroop is blocked by shared cached µop
+    // objects (no clone API; mutating their flags corrupts the ISA cache).
+    // Non-macroop instructions in crack_ctrl mode get an honest skip log.
+    static uint32_t countMicroops(const StaticInst *mop);
+
+    // The three D08-D10 injection helpers (called after the shared
+    // window/skip/probability gates; each does its own format eligibility,
+    // re-decode, semantic predicate, fault counting and logging, and
+    // returns the replacement StaticInstPtr or nullptr for an honest skip).
+    StaticInstPtr injectSignExtBit(uint64_t emi_raw, uint32_t enc,
+                                   StaticInstPtr orig,
+                                   const std::string &orig_name,
+                                   ArmISA::Decoder *arm_dec, Addr pc);
+    StaticInstPtr injectImmSubfieldShift(uint64_t emi_raw, uint32_t enc,
+                                         StaticInstPtr orig,
+                                         const std::string &orig_name,
+                                         ArmISA::Decoder *arm_dec, Addr pc);
+    StaticInstPtr injectCrackCtrl(uint64_t emi_raw, uint32_t enc,
+                                  StaticInstPtr orig,
+                                  const std::string &orig_name,
+                                  ArmISA::Decoder *arm_dec, Addr pc);
 
     // Reg-operand fingerprint (classValue<<16 | index per operand, dests
     // then srcs) for the semantic verification of reg/imm flips:

@@ -63,6 +63,94 @@ namespace gem5
         return nullptr;
     }
 
+    // ---- W6 batch 2 tables (D08/D09/D10, ooo 04-design-matrix R9-R11) ----
+    // Every row below was verified against real GNU-as encodings on this
+    // aarch64 host (2026-09-24 W6 batch 2 record, /tmp/w6b2/fmt.s + objdump
+    // output quoted in CHAOSDecode.hh). See the .hh block comments for the
+    // per-row derivation and the field maps.
+
+    // D08 sign_ext_bit: (mask, match) pins the format; sign_bit is the
+    // immediate's top ENCODED bit to flip (exactly this bit, never random);
+    // [fhi:flo] documents the immediate field for the log line.
+    const CHAOSDecode::SignImmFormat CHAOSDecode::kSignImmFormats[] = {
+        // add/sub imm12: add x0,x1,#1=0x91000420 adds..lsl#12=0xb1400420
+        {0x1FC00000u, 0x11000000u, 21, 21, 10, "add_sub_imm12"},
+        // logical imm (N immr imms): and=0x92400c20 orr=0xb2400c20
+        // eor=0xd2400c20 ands=0xf2400c20 -> imms[20:16] top = bit 20
+        {0x7FC00000u, 0x12000000u, 20, 20, 16, "and_imm"},
+        {0x7FC00000u, 0x32000000u, 20, 20, 16, "orr_imm"},
+        {0x7FC00000u, 0x52000000u, 20, 20, 16, "eor_imm"},
+        {0x7FC00000u, 0x72000000u, 20, 20, 16, "ands_imm"},
+        // ldr/str unsigned imm12: ldr x0,[x1,#8]=0xf9400420 str=0xf9000420
+        {0x1FC00000u, 0x19000000u, 21, 21, 10, "str_imm12"},
+        {0x1FC00000u, 0x19400000u, 21, 21, 10, "ldr_imm12"},
+        // ldur/stur imm9 (TRUE sign extension): ldur x0,[x1,#-8]=0xf85f8020
+        // stur=0xf81f8020 -> imm9[20:12], sign bit = bit 20
+        {0x3FE00C00u, 0x38000000u, 20, 20, 12, "stur_imm9"},
+        {0x3FE00C00u, 0x38400000u, 20, 20, 12, "ldur_imm9"},
+        // b.cond imm19: b.eq=0x540001c0 (cond bits[15:12] free)
+        {0xFF000010u, 0x54000000u, 23, 23, 5, "bcond_imm19"},
+        // cbz/cbnz imm19: cbz=0xb40001a0 cbnz=0xb5000180
+        {0x7F000000u, 0x34000000u, 23, 23, 5, "cbz_imm19"},
+        {0x7F000000u, 0x35000000u, 23, 23, 5, "cbnz_imm19"},
+        // tbz/tbnz imm14: tbz=0x36180160 tbnz=0x37180140
+        {0x7F000000u, 0x36000000u, 18, 18, 5, "tbz_imm14"},
+        {0x7F000000u, 0x37000000u, 18, 18, 5, "tbnz_imm14"},
+        // b/bl imm26: b=0x14000009 bl=0x94000008
+        {0x7C000000u, 0x14000000u, 25, 25, 0, "b_imm26"},
+        {0x7C000000u, 0x94000000u, 25, 25, 0, "bl_imm26"},
+        // adr/adrp (immhi[23:5] + immlo[30:29]): adr x0,.+28=0x100000e0
+        // adrp=0x90000000 -> 21-bit immediate's MSB = immhi top = bit 23
+        {0x9F000000u, 0x10000000u, 23, 23, 5, "adr_imm21"},
+        {0x9F000000u, 0x90000000u, 23, 23, 5, "adrp_imm21"},
+        // ldr literal imm19: ldr x0,lit=0x580000a0
+        {0xFF000000u, 0x58000000u, 23, 23, 5, "ldr_lit_imm19"},
+        // movz/movn/movk imm16: movz=0xd2824680 movn=0x92824680
+        // movk lsl#16=0xf2a24680 movz w=0x52800020 (sf free)
+        {0x7F800000u, 0x52800000u, 20, 20, 5, "movz_imm16"},
+        {0x7F800000u, 0x92800000u, 20, 20, 5, "movn_imm16"},
+        {0x7F800000u, 0xF2800000u, 20, 20, 5, "movk_imm16"},
+    };
+
+    // D09 imm_subfield_shift: (mask, match) pins the format; the equal-width
+    // subfields [hi_a:lo_a] and [hi_b:lo_b] are TRANSPOSED in the encoding
+    // (each fragment re-assembled at the other's bit position).
+    const CHAOSDecode::SubfieldFormat CHAOSDecode::kSubfieldFormats[] = {
+        // and x0,x1,#0xf = 0x92400c20 (N=1 imms=0 immr=3): imms <-> immr
+        {0x7FC00000u, 0x12000000u, 20, 16, 15, 10, "logical_imm"},
+        {0x7FC00000u, 0x32000000u, 20, 16, 15, 10, "logical_imm"},
+        {0x7FC00000u, 0x52000000u, 20, 16, 15, 10, "logical_imm"},
+        {0x7FC00000u, 0x72000000u, 20, 16, 15, 10, "logical_imm"},
+        // adr x0,.+28 = 0x100000e0 (immhi=7 immlo=0): immhi[1:0](enc 6:5)
+        // <-> immlo(enc 30:29); adrp = 0x90000000
+        {0x9F000000u, 0x10000000u, 30, 29, 6, 5, "adr_immlo_immhi"},
+        {0x9F000000u, 0x90000000u, 30, 29, 6, 5, "adrp_immlo_immhi"},
+        // movz/movn/movk (hw[22:21] <-> imm16[15:14] at enc 20:19):
+        // movk x0,#0x1234,lsl#16 = 0xf2a24680 (hw=1 imm16=0x1234)
+        {0x7F800000u, 0x52800000u, 22, 21, 20, 19, "mov_wide"},
+        {0x7F800000u, 0x92800000u, 22, 21, 20, 19, "mov_wide"},
+        {0x7F800000u, 0xF2800000u, 22, 21, 20, 19, "mov_wide"},
+        // add/sub imm12+sh (sh[23:22] <-> imm12[11:10] at enc 21:20):
+        // adds x0,x1,#1,lsl#12 = 0xb1400420 (sh=1 imm12=1)
+        {0x1FC00000u, 0x11000000u, 23, 22, 21, 20, "add_sub_sh_imm12"},
+    };
+
+    // D10 crack_ctrl: bounded microop counter. Walks fetchMicroop(k) until
+    // IsLastMicroop (ARM macroop ctors flag the final uop, e.g. PairMemOp
+    // macromem.cc:362-363); the 16-step bound guarantees the
+    // fetchMicroop(microPC < numMicroops) assert can never be reached even
+    // for a pathological unflagged macroop (honest floor of 16).
+    uint32_t
+    CHAOSDecode::countMicroops(const StaticInst *mop)
+    {
+        for (uint32_t k = 0; k < 16; k++) {
+            StaticInstPtr u = mop->fetchMicroop(k);
+            if (!u || u->isLastMicroop())
+                return k + 1;
+        }
+        return 16;
+    }
+
     CHAOSDecode::Mode
     CHAOSDecode::stringToMode(const std::string &s)
     {
@@ -74,6 +162,9 @@ namespace gem5
         if (s == "reg_bitflip2")    return Mode::RegBitflip2;
         if (s == "imm_bitflip")     return Mode::ImmBitflip;
         if (s == "imm_bitflip2")    return Mode::ImmBitflip2;
+        if (s == "sign_ext_bit")    return Mode::SignExtBit;
+        if (s == "imm_subfield_shift") return Mode::ImmSubfieldShift;
+        if (s == "crack_ctrl")      return Mode::CrackCtrl;
         panic("CHAOSDecode: unknown mode '%s'\n", s);
     }
 
@@ -89,6 +180,9 @@ namespace gem5
           case Mode::RegBitflip2:   return "reg_bitflip2";
           case Mode::ImmBitflip:    return "imm_bitflip";
           case Mode::ImmBitflip2:   return "imm_bitflip2";
+          case Mode::SignExtBit:    return "sign_ext_bit";
+          case Mode::ImmSubfieldShift: return "imm_subfield_shift";
+          case Mode::CrackCtrl:     return "crack_ctrl";
         }
         return "?";
     }
@@ -154,6 +248,13 @@ namespace gem5
     CHAOSDecode::maybeCorrupt(int dest_idx, RegId &flat_dest_regid,
                               const o3::DynInst *inst)
     {
+        // Mode guard (W6 batch 2 bug fix, found by the crack_ctrl seed
+        // scan): the rename-site §2.14 injection belongs to DestRegSub
+        // ONLY. Without this guard every W6 encoding mode (D01-D10) raced
+        // the legacy rename hook for the shared max_faults budget, so a
+        // decode-mode run could mis-inject dest_reg_sub and the outcome
+        // would be mis-attributed to the selected decode fault model.
+        if (fi_mode != Mode::DestRegSub) return false;
         if (!cpu || probability <= 0.0f) return false;
         if (max_faults != 0 && faults_injected_count >= max_faults) return false;
         if (!inWindow()) return false;
@@ -229,8 +330,12 @@ namespace gem5
         // macroop decodes excluded (their microop stream comes through
         // fetchMicroop, not this hook). isMicroop() is belt-and-braces:
         // dec_ptr->decode() only ever returns top-level instructions.
+        // D10 crack_ctrl is the ONE exception: its eligible population IS
+        // the macroop decodes (gem5-cracked LDP/STP — see .hh spike note),
+        // so for that mode the macroop exclusion is inverted.
         if (emi.thumb || !emi.aarch64) return nullptr;
-        if (orig->isMacroop() || orig->isMicroop()) return nullptr;
+        if (orig->isMicroop()) return nullptr;
+        if (orig->isMacroop() && fi_mode != Mode::CrackCtrl) return nullptr;
 
         auto *arm_dec = dynamic_cast<ArmISA::Decoder *>(dec);
         if (!arm_dec) return nullptr;
@@ -259,6 +364,23 @@ namespace gem5
         if (events_to_skip > 0) { --events_to_skip; return nullptr; }
         std::uniform_real_distribution<float> pd(0.0f, 1.0f);
         if (pd(rng) > probability) return nullptr;
+
+        // ---- W6 batch 2 (D08-D10) dispatch ----
+        // Structured immediate / crack models. These run their own format
+        // eligibility AFTER the gates — a deliberate deviation from the
+        // D01-D07 cheap-eligibility ordering, because the plan REQUIRES an
+        // honest skip log for ineligible formats ("无子字段格式诚实跳过
+        // +日志"), which is only reachable past the gates. The skip log
+        // volume stays bounded by the probability draw.
+        if (fi_mode == Mode::SignExtBit)
+            return injectSignExtBit(emi, enc, orig, orig->getName(),
+                                    arm_dec, pc);
+        if (fi_mode == Mode::ImmSubfieldShift)
+            return injectImmSubfieldShift(emi, enc, orig, orig->getName(),
+                                          arm_dec, pc);
+        if (fi_mode == Mode::CrackCtrl)
+            return injectCrackCtrl(emi, enc, orig, orig->getName(),
+                                   arm_dec, pc);
 
         // ---- bit selection ----
         // Semantic predicate for reg/imm flips (see .hh): the candidate
@@ -375,6 +497,300 @@ namespace gem5
                 << ", faults_injected: " << faults_injected_count
                 << std::endl;
         }
+        return repl;
+    }
+
+    // ---- W6 batch 2 (D08-D10) injection helpers ----
+    // Shared skip-log prefix: "site fetch_decode + honest-skip" lines are
+    // bounded by the probability draw and carry the reason + mnemonic so a
+    // reviewer can see WHY a draw was not injectable.
+
+    // D08 sign_ext_bit: flip EXACTLY the format-located sign/top bit of the
+    // immediate's encoding, then re-decode (the decoder's own sext logic
+    // consumes the flipped bit — no value-level patch needed).
+    StaticInstPtr
+    CHAOSDecode::injectSignExtBit(uint64_t emi_raw, uint32_t enc,
+                                  StaticInstPtr orig,
+                                  const std::string &orig_name,
+                                  ArmISA::Decoder *arm_dec, Addr pc)
+    {
+        ArmISA::ExtMachInst emi;
+        emi = emi_raw;   // rebuild the full EMI (high 32 bits = decode ctx)
+        const SignImmFormat *fmt = nullptr;
+        for (const SignImmFormat &f : kSignImmFormats)
+            if ((enc & f.mask) == f.match) { fmt = &f; break; }
+        if (!fmt) {
+            // honest skip: no immediate whose sign/top bit this model targets
+            if (write_log)
+                *(log_stream->stream()) << "Tick: " << curTick()
+                    << ", Site: fetch_decode, mode=sign_ext_bit"
+                    << ", event=honest_skip"
+                    << ", reason=no_locatable_immediate_format"
+                    << ", pc=0x" << std::hex << pc << std::dec
+                    << ", orig_enc=0x" << std::hex << enc << std::dec
+                    << ", orig_mnemonic=" << orig_name
+                    << std::endl;
+            return nullptr;
+        }
+
+        ArmISA::ExtMachInst new_emi = emi;
+        new_emi.instBits = enc ^ (1u << fmt->sign_bit);
+        StaticInstPtr repl = arm_dec->decodeChaos(new_emi);
+
+        // Semantic predicate (value-only change, the imm_bitflip
+        // discipline): same mnemonic AND same reg operands. Rejection
+        // (e.g. a logical-imm pattern that re-decodes as Unknown) is an
+        // honest skip, not a fault.
+        bool ok = false;
+        if (repl) {
+            std::vector<uint32_t> fp0, fp1;
+            captureRegs(orig.get(), fp0);
+            captureRegs(repl.get(), fp1);
+            ok = (repl->getName() == orig_name) && (fp1 == fp0);
+        }
+        if (!ok) {
+            if (write_log)
+                *(log_stream->stream()) << "Tick: " << curTick()
+                    << ", Site: fetch_decode, mode=sign_ext_bit"
+                    << ", event=honest_skip"
+                    << ", reason=predicate_fail_mnemonic_changed"
+                    << ", format=" << fmt->name
+                    << ", pc=0x" << std::hex << pc << std::dec
+                    << ", orig_enc=0x" << std::hex << enc << std::dec
+                    << ", orig_mnemonic=" << orig_name
+                    << std::endl;
+            return nullptr;
+        }
+
+        faults_injected_count++;
+        if (write_log)
+            *(log_stream->stream()) << "Tick: " << curTick()
+                << ", Site: fetch_decode, mode=sign_ext_bit"
+                << ", pc=0x" << std::hex << pc << std::dec
+                << ", format=" << fmt->name
+                << ", imm_field=[" << int(fmt->fhi) << ":" << int(fmt->flo)
+                << "]"
+                << ", sign_bit=" << int(fmt->sign_bit)
+                << ", orig_enc=0x" << std::hex << enc << std::dec
+                << ", new_enc=0x" << std::hex << new_emi.instBits << std::dec
+                << ", orig_mnemonic=" << orig_name
+                << ", new_mnemonic=" << repl->getName()
+                << ", regs_moved=0"
+                << ", faults_injected: " << faults_injected_count
+                << std::endl;
+        return repl;
+    }
+
+    // D09 imm_subfield_shift: transpose two equal-width named subfields of
+    // the immediate's encoding (the fragments of the value assembled at the
+    // wrong bit positions), then re-decode. Formats without a multi-named-
+    // subfield immediate are honestly skipped WITH a log line.
+    StaticInstPtr
+    CHAOSDecode::injectImmSubfieldShift(uint64_t emi_raw, uint32_t enc,
+                                        StaticInstPtr orig,
+                                        const std::string &orig_name,
+                                        ArmISA::Decoder *arm_dec, Addr pc)
+    {
+        ArmISA::ExtMachInst emi;
+        emi = emi_raw;   // rebuild the full EMI (high 32 bits = decode ctx)
+        const SubfieldFormat *fmt = nullptr;
+        for (const SubfieldFormat &f : kSubfieldFormats)
+            if ((enc & f.mask) == f.match) { fmt = &f; break; }
+        if (!fmt) {
+            // honest skip + log: name the KNOWN immediate format when there
+            // is one (single contiguous field — nothing to transpose).
+            const char *imm_name = "none";
+            for (const SignImmFormat &f : kSignImmFormats)
+                if ((enc & f.mask) == f.match) { imm_name = f.name; break; }
+            if (write_log)
+                *(log_stream->stream()) << "Tick: " << curTick()
+                    << ", Site: fetch_decode, mode=imm_subfield_shift"
+                    << ", event=honest_skip"
+                    << ", reason=no_multi_named_subfield_structure"
+                    << ", imm_format=" << imm_name
+                    << ", pc=0x" << std::hex << pc << std::dec
+                    << ", orig_enc=0x" << std::hex << enc << std::dec
+                    << ", orig_mnemonic=" << orig_name
+                    << std::endl;
+            return nullptr;
+        }
+
+        // Transpose the two equal-width subfields A=[hi_a:lo_a],
+        // B=[hi_b:lo_b]: each fragment lands at the other's position.
+        const uint32_t width = fmt->hi_a - fmt->lo_a + 1;
+        const uint32_t mask_a = ((1u << width) - 1) << fmt->lo_a;
+        const uint32_t mask_b = ((1u << width) - 1) << fmt->lo_b;
+        const uint32_t val_a = (enc & mask_a) >> fmt->lo_a;
+        const uint32_t val_b = (enc & mask_b) >> fmt->lo_b;
+        ArmISA::ExtMachInst new_emi = emi;
+        new_emi.instBits = (enc & ~(mask_a | mask_b))
+                         | (val_a << fmt->lo_b) | (val_b << fmt->lo_a);
+
+        if (new_emi.instBits == enc) {
+            // transposition is the identity (fields held equal values)
+            if (write_log)
+                *(log_stream->stream()) << "Tick: " << curTick()
+                    << ", Site: fetch_decode, mode=imm_subfield_shift"
+                    << ", event=honest_skip"
+                    << ", reason=subfield_transpose_is_identity"
+                    << ", format=" << fmt->name
+                    << ", pc=0x" << std::hex << pc << std::dec
+                    << ", orig_enc=0x" << std::hex << enc << std::dec
+                    << ", orig_mnemonic=" << orig_name
+                    << std::endl;
+            return nullptr;
+        }
+
+        StaticInstPtr repl = arm_dec->decodeChaos(new_emi);
+        // Semantic predicate (value-only change, the imm_bitflip
+        // discipline): same mnemonic AND same reg operands.
+        bool ok = false;
+        if (repl) {
+            std::vector<uint32_t> fp0, fp1;
+            captureRegs(orig.get(), fp0);
+            captureRegs(repl.get(), fp1);
+            ok = (repl->getName() == orig_name) && (fp1 == fp0);
+        }
+        if (!ok) {
+            if (write_log)
+                *(log_stream->stream()) << "Tick: " << curTick()
+                    << ", Site: fetch_decode, mode=imm_subfield_shift"
+                    << ", event=honest_skip"
+                    << ", reason=predicate_fail_mnemonic_changed"
+                    << ", format=" << fmt->name
+                    << ", pc=0x" << std::hex << pc << std::dec
+                    << ", orig_enc=0x" << std::hex << enc << std::dec
+                    << ", new_enc=0x" << std::hex << new_emi.instBits
+                    << std::dec
+                    << ", orig_mnemonic=" << orig_name
+                    << std::endl;
+            return nullptr;
+        }
+
+        faults_injected_count++;
+        if (write_log)
+            *(log_stream->stream()) << "Tick: " << curTick()
+                << ", Site: fetch_decode, mode=imm_subfield_shift"
+                << ", pc=0x" << std::hex << pc << std::dec
+                << ", format=" << fmt->name
+                << ", subfields=A[" << int(fmt->hi_a) << ":"
+                << int(fmt->lo_a) << "]<->B[" << int(fmt->hi_b) << ":"
+                << int(fmt->lo_b) << "]"
+                << ", field_a=" << val_a << ", field_b=" << val_b
+                << ", orig_enc=0x" << std::hex << enc << std::dec
+                << ", new_enc=0x" << std::hex << new_emi.instBits << std::dec
+                << ", orig_mnemonic=" << orig_name
+                << ", new_mnemonic=" << repl->getName()
+                << ", regs_moved=0"
+                << ", faults_injected: " << faults_injected_count
+                << std::endl;
+        return repl;
+    }
+
+    // D10 crack_ctrl (exploratory): on an instruction that gem5 DECODED AS
+    // A MACROOP (cracked), flip the pair-op addressing-mode field
+    // enc[24:23] within {post=01, offset=10, pre=11} (never into 00 =
+    // noAlloc ldnp/stnp — that changes the mnemonic). The re-decoded pair
+    // op carries a different µop stream (writeback µop lost / spurious
+    // writeback µop / composition swap); µop counts are measured and
+    // logged. Non-macroop instructions are honestly skipped (the
+    // force-crack-of-a-plain-instruction arm is a recorded blocker — see
+    // the .hh spike note).
+    StaticInstPtr
+    CHAOSDecode::injectCrackCtrl(uint64_t emi_raw, uint32_t enc,
+                                 StaticInstPtr orig,
+                                 const std::string &orig_name,
+                                 ArmISA::Decoder *arm_dec, Addr pc)
+    {
+        ArmISA::ExtMachInst emi;
+        emi = emi_raw;   // rebuild the full EMI (high 32 bits = decode ctx)
+        if (!orig->isMacroop()) {
+            if (write_log)
+                *(log_stream->stream()) << "Tick: " << curTick()
+                    << ", Site: fetch_decode, mode=crack_ctrl"
+                    << ", event=honest_skip"
+                    << ", reason=not_a_macroop_decode"
+                    << " (force-crack of a plain instruction has no"
+                    << " encoding-level control - recorded blocker)"
+                    << ", pc=0x" << std::hex << pc << std::dec
+                    << ", orig_enc=0x" << std::hex << enc << std::dec
+                    << ", orig_mnemonic=" << orig_name
+                    << std::endl;
+            return nullptr;
+        }
+
+        const uint32_t type = (enc >> 23) & 3;
+        static const char *kTypeNames[4] =
+            {"noalloc", "post", "offset", "pre"};
+        if (type == 0) {
+            // ldnp/stnp: every flip lands on a different mnemonic — skip.
+            if (write_log)
+                *(log_stream->stream()) << "Tick: " << curTick()
+                    << ", Site: fetch_decode, mode=crack_ctrl"
+                    << ", event=honest_skip"
+                    << ", reason=noalloc_pair_op_mnemonic_would_change"
+                    << ", pc=0x" << std::hex << pc << std::dec
+                    << ", orig_enc=0x" << std::hex << enc << std::dec
+                    << ", orig_mnemonic=" << orig_name
+                    << std::endl;
+            return nullptr;
+        }
+
+        // pick the target addressing mode uniformly among the two
+        // non-noAlloc alternatives (seed-deterministic)
+        uint32_t cand[2], ncand = 0;
+        for (uint32_t t = 1; t <= 3; t++)
+            if (t != type) cand[ncand++] = t;
+        const uint32_t new_type = cand[rng() % ncand];
+
+        ArmISA::ExtMachInst new_emi = emi;
+        new_emi.instBits = (enc & ~0x01800000u) | (new_type << 23);
+        StaticInstPtr repl = arm_dec->decodeChaos(new_emi);
+
+        // Predicate: still the SAME cracked pair-op (macroop + mnemonic).
+        if (!repl || !repl->isMacroop() || repl->getName() != orig_name) {
+            if (write_log)
+                *(log_stream->stream()) << "Tick: " << curTick()
+                    << ", Site: fetch_decode, mode=crack_ctrl"
+                    << ", event=honest_skip"
+                    << ", reason=predicate_fail_not_same_macroop"
+                    << ", pc=0x" << std::hex << pc << std::dec
+                    << ", orig_enc=0x" << std::hex << enc << std::dec
+                    << ", new_enc=0x" << std::hex << new_emi.instBits
+                    << std::dec
+                    << ", orig_mnemonic=" << orig_name
+                    << std::endl;
+            return nullptr;
+        }
+
+        // Measured µop counts (the 04 metric: µop-count deviation vs the
+        // fault-free baseline). delta<0 = crack suppressed (writeback µop
+        // lost, "该拆的指令不拆"); delta>0 = extra µop (spurious writeback,
+        // "不该拆的指令被拆"); delta==0 = composition swap (post<->offset).
+        const uint32_t uops_orig = countMicroops(orig.get());
+        const uint32_t uops_new = countMicroops(repl.get());
+        const int32_t delta = int32_t(uops_new) - int32_t(uops_orig);
+        const char *arm =
+            delta < 0 ? "crack_suppressed" :
+            delta > 0 ? "crack_forced_extra_uop" : "composition_swap";
+
+        faults_injected_count++;
+        if (write_log)
+            *(log_stream->stream()) << "Tick: " << curTick()
+                << ", Site: fetch_decode, mode=crack_ctrl"
+                << ", pc=0x" << std::hex << pc << std::dec
+                << ", orig_enc=0x" << std::hex << enc << std::dec
+                << ", new_enc=0x" << std::hex << new_emi.instBits << std::dec
+                << ", addr_mode=" << kTypeNames[type] << "->"
+                << kTypeNames[new_type]
+                << ", uops_orig=" << uops_orig
+                << ", uops_new=" << uops_new
+                << ", uops_delta=" << delta
+                << ", arm=" << arm
+                << ", orig_mnemonic=" << orig_name
+                << ", new_mnemonic=" << repl->getName()
+                << ", faults_injected: " << faults_injected_count
+                << std::endl;
         return repl;
     }
 

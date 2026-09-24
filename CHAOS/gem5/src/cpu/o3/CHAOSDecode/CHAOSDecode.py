@@ -44,9 +44,27 @@ class CHAOSDecode(SimObject):
     #                            mnemonic unchanged AND reg operands
     #                            unchanged (value-only change).
     #   imm_bitflip2    (D07): 2 distinct bits, same region/predicate.
+    # W6 batch 2 (D08-D10, ooo 04-design-matrix R9-R11), same fetch-decode
+    # re-decode-and-replace mechanism:
+    #   sign_ext_bit    (D08): flip EXACTLY the format-located sign/top bit
+    #                            of the immediate's encoding (per-format
+    #                            GNU-as-verified table); the re-decode's
+    #                            own sign extension consumes the flip.
+    #   imm_subfield_shift (D09): transpose two equal-width named subfields
+    #                            of the immediate encoding (imms<->immr,
+    #                            immlo<->immhi[1:0], hw<->imm16[15:14],
+    #                            sh<->imm12[11:10]); single-field formats
+    #                            honestly skipped WITH a log line.
+    #   crack_ctrl      (D10, exploratory): on macroop (cracked) LDP/STP
+    #                            decodes flip the addressing-mode field
+    #                            enc[24:23] within {post,offset,pre} —
+    #                            ±1 µop (spurious/lost writeback µop) or
+    #                            composition swap, µop counts logged;
+    #                            non-macroop honestly skipped (blocker).
     mode = Param.String("dest_reg_sub",
         "dest_reg_sub | opcode_bitflip | opcode_bitflip2 | opcode_swap | "
-        "reg_bitflip | reg_bitflip2 | imm_bitflip | imm_bitflip2")
+        "reg_bitflip | reg_bitflip2 | imm_bitflip | imm_bitflip2 | "
+        "sign_ext_bit | imm_subfield_shift | crack_ctrl")
     probability = Param.Float(1.0, "per-decode injection probability")
     firstClock = Param.UInt64(0, "first clock cycle eligible for injection")
     lastClock = Param.UInt64(0, "last cycle (0 = unrestricted)")
