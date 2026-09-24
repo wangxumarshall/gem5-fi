@@ -2564,3 +2564,9 @@ CI 零重叠——**H7 验收断言("ECC-off spurious>0 vs ECC-on≈0")formal �
 - **提取正确性**:extract.py 内置交叉校验(从设计矩阵重放展开逻辑,226 行×10 列与源表逐格全等)+ verify_extraction.py 全量回比(两份 CSV 逐格 vs xlsx、91 行标签与预期文本、手写文档 55 个关键原文片段空白归一化匹配)——ALL PASSED。校验过程抓出 2 处真实提取偏差(L4 定义多写"边界条件"三字、表头"L1 重点观测点"空格)并已修正。
 - **方案要点**:六单元(Int/FP-SIMD × Decode/Rename/Dispatch-ROB)× 91 设计行 → 226 实验格 × n=2000 ≈ 45.2 万次;核心主张=结构化故障模型(换值/卡死/读到旧数据/状态位)绕过 gem5 依赖检查测真实 SDC 潜力;L0-L4 五层观测(L1 微架构偏差为文献空白点;Crash 双拆分与本仓 v1.4 三分类同构)。
 - **与现有轨道关系**:这是与 KUNPENG920 384 样本轨道**并行的新方案**(平台参数/负载/样本量口径均不同);README §7 给出诚实映射(runner 组件路由可复用,L1 影子比对/commit 级五分类/新故障模型/新负载需新建)。
+
+### clangd LSP 落地 + LSU 北极星 brainstorming 启动(2026-09-24)
+
+- **clangd**: 本机已有 clangd 22.1.1(`/home/sdc/.local/bin`,pip 包;distro 源 clang-tools-extra 17.0.6 勿装=降级)。Claude Code v2.1.185 的 LSP 只能经 plugin 接入:本仓新建 `.claude/lsp-marketplace/`(marketplace 名 `gem5-fi-lsu-local`)+`.claude/settings.json` 注册(`.claude/` 整体在 .gitignore)。三坑:`LC_ALL=C` / `--query-driver=/usr/bin/g++` / 禁 `restartOnCrash`&`shutdownTimeout`。**需重启会话生效**。
+- **构建布局**: 本 checkout 原先无任何 build/;新建仓库根 `build/ARM` 为 canonical 真目录 + `CHAOS/gem5/build/ARM → ../../../build/ARM` 符号链接,使 `cd CHAOS/gem5 && scons build/ARM/...` 产物落在仓库根(CLAUDE.md 纪律,避免 CHAOS/gem5/build 假段错误重复目录)。compile_commands.json 后台生成中。
+- **LSU 北极星**: brainstorming 进行中,范围已裁定=**完整北极星**(忠实提取 9 表 + 09 式实施总纲)。源 xlsx=68 模型(A/T/S/C/O/P/L 前缀,完善版 58→68)×337 展开格×14 负载 W0-W13;L0-L5 六层/F0-F6 七档/自适应样本量(试跑30→筛查≥385→Wilson≤2pp或5000);与 OoO 轨道关键差异已摸清(源表自带 ID、B0 内嵌、FS/多核结构性依赖、《LSU单元参数总表.md》不在仓库)。spec 待写。
