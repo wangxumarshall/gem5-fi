@@ -1521,3 +1521,81 @@ D07 mode=imm_bitflip2,    orig_enc=0xeb010042, new_enc=0xeb012842, bits=[13,11],
 5. 构建期间并行 ROB 代理的 `-j126` 重链曾使 gem5.opt 短暂不可执行（我的 21 次验证跑在其之前完成，未受影响）；当前二进制含双方改动，rob 侧行为不影响本批 decode 验证（未挂 rob 注入器）。</result>
 <usage><subagent_tokens>0</subagent_tokens><tool_uses>125</tool_uses><duration_ms>3156351</duration_ms></usage>
 </task-notification>
+
+---
+
+<task-notification>
+<task-id>a938cbb79b474d1dd</task-id>
+<tool-use-id>call_747b9c5f01e9413fb60f819b</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi/228a36be-984d-44a8-aac7-02555f4f22df/tasks/a938cbb79b474d1dd.output</output-file>
+<status>completed</status>
+<summary>Agent "W5 批次1（ROB D25-D31）" came to rest</summary>
+<note>A task-notification fires each time this agent comes to rest with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>所有验证已完成。最终报告：
+
+## W5 批次 1 (Task 1 + Task 2, D25–D31) — 已完成，未提交（根据纪律，由协调员拥有提交权限）
+
+### 文件清单（均为我的；与 W6 代理的文件集不相交）
+- `/home/sdc/gem5-fi/CHAOS/gem5/src/cpu/o3/CHAOSROB/CHAOSROB.hh` — 7 个新 `Mode` 枚举值，`maybeCorruptEntry` / `maybeStuckEntryWrite` / `checkStuckReadback`，`collectIntDestSlots` / `collectRobActiveDests` 辅助函数，卡死状态
+- `/home/sdc/gem5-fi/CHAOS/gem5/src/cpu/o3/CHAOSROB/CHAOSROB.cc` — 全部 7 种实现；保留原有 `entry_bitflip`/`exc_suppress` 路径（字节级不变）
+- `/home/sdc/gem5-fi/CHAOS/gem5/src/cpu/o3/CHAOSROB/CHAOSROB.py` — 模式文档更新
+- `/home/sdc/gem5-fi/CHAOS/gem5/src/cpu/o3/rob.cc` — `ROB::insertInst` 入口写入钩子（在条目链接后添加了 9 行；`rob.hh` 无需更改 — `chaosROB` 成员 + include 已存在）
+- `/home/sdc/gem5-fi/configs/se/ooo_proxy.py` — 仅 `--rob_mode` choices += 7（行级；W6 代理的解码块未受影响）
+- `/home/sdc/gem5-fi/tools/runner.py` — 仅 rob `elif` 块：附加 `sub_field` 区分器 ×7（W4 模式；普通模型保留原有映射）
+
+**注入位点**：`ROB::insertInst`（计划的“rob insert”选项）— 故障存在于条目的 PC/dest-id 字段中，并在条目写入 ROB 时写入（TC'23 站点；现有的 rob.cc:254 retireHead 钩子对于飞行中的 PC/dest-id 来说太晚了，已确认）。`renameToIEWDelay=1 &lt; renameToROBDelay=2`，因此 dest-id 翻转是在构建 IQ 依赖图之后，但在完成/写回唤醒 (`inst_queue.cc:1151`) 和记分板清除之前进行的 — 这正是 IQ 拦截面。PC 翻转通过分支执行（目标从条目自身的 pcState 计算得出）和 `commit.cc:990 set(pc[tid], head_inst-&gt;pcState())` 向下传播。
+
+### 构建（全部在 repo-root build/ARM/gem5.opt）
+```
+BUILD_EXIT=0        # 最终增量 -j126；scons: 完成构建目标
+```
+只有 4 个预先存在的宿主机配置警告（capstone/png/HDF5/systemc）。任何 TU 中均无编译器警告。注意：我的第一次 `-j126` 链接失败（退出码 2，`undefined reference to gem5::ArmISAInst::decodeMcrMrc14/...`），原因是与 W6 代理并发运行的 `scons -j16`（PID 474384，共享构建目录）产生竞争 — 我的 `rob.o`/`CHAOSROB.o` 始终编译正常；在他们的构建完成后，我的重新运行很干净。已记录在 /tmp/ooo_w5b1_progress.txt 中。
+
+### Golden 回归（无注入）
+```
+RC=0
+FINAL=45737cc9a76c0dce
+```
+原有 `entry_bitflip` 回归：日志行字节一致（`Tick: 77000000, Site: rob_retireHead, mode=entry_bitflip, field=exc_status, tid=0, D=0, target_sn=262651, faults_injected: 1`）；D=0 head-stall (no FINAL) 是已知的 §2.3 遗留行为，未做更改。
+
+### 定向单次注入（smoke, C3, first_clock=200000, max_faults=1, seed=20260825）— 逐字日志行
+- **D25 pc_bitflip** — RC=0, `FINAL=45737cc9a76c0dce` (**Masked**):
+  `Tick: 77000000, Site: rob_insert, mode=pc_bitflip, tid=0, sn=262744, old_pc=0x400578, new_pc=0x400178, bits=(10), hamming=1, faults_injected: 1`
+- **D26 pc_bitflip2** — RC=0, golden FINAL (**Masked**):
+  `... old_pc=0x400578, new_pc=0x1400178, bits=(10,24), hamming=2, faults_injected: 1`
+- **D27 pc_stuck** — RC=0, golden FINAL (**Masked**)，共 3 行：ARMED + 写路径掩码 + 退休回读：
+  `..., mode=pc_stuck, ARMED, tid=0, sn=262744, bit=10, polarity=0 (stuck_at_zero), write_path=rob_insert (...), faults_injected: 1`
+  `..., write_pc=0x400578, stored_pc=0x400178, bit=10 forced to 0, hamming=1, exposure: 1, faults_injected: 1`
+  `Tick: 77024255, Site: rob_retireHead_readback, mode=pc_stuck, sn=262744, readback_pc=0x400178, bit=10 read=0, polarity=0 (STILL STUCK at retire — defect persisted the entry's whole ROB lifetime), exposures: 1, faults_injected: 1`
+- **D28 destid_bitflip** — RC=0, `FINAL=bca4dbb0d0f04622` (**SDC**, n=1 有向样本；M2 门统计数据来自 W8 活动)：
+  `..., dest_slot=0, old_phys=87, new_phys=95, bits=(3), hamming=1, faults_injected: 1`
+- **D29 destid_bitflip2** — RC=134 (**Crash — 设计预期的 IQ 依赖检查拦截**):
+  `src/cpu/o3/inst_queue.cc:1588: panic: Dependency graph 91 (integer) (flat: 91) not empty!` + `..., old_phys=87, new_phys=91, bits=(3,2), hamming=2, faults_injected: 1`
+- **D30 destid_swap_active** — RC=134 (**Crash**, 在此样本上 IQ panic 相同)：
+  `..., old_phys=87, new_phys=44(active, rob_dist=90), chosen_sn=262740, rob_active_dests=[80@0 68@1 ... 44@90 82@91 117@92 7@93], faults_injected: 1` (完整 78 条目 ROB 活跃池打印；new_phys=44 在日志中可验证)
+- **D31 destid_stuck** — RC=0, golden FINAL (**Masked** — 极性 0 落在已为 0 的位上，值屏蔽，精确的卡死单元语义)：
+  ARMED (bit=3, polarity=0) / `write_phys=87, stored_phys=87 (bit 3 already at 0, no observable change), exposure: 1` / 回读 `readback_phys=87, bit=3 read=0 ... (STILL STUCK at retire ...)`
+
+### 同种子复现：7/7 **LOGS_IDENTICAL** (相同种子重复运行，日志字节一致，FINAL 输出完全相同)。
+
+### ctrace L2 证据 (D28，运行器两遍法 vs 无注入参考)：
+```
+[runner] RESULT: run_id=w5b1-rob-smoke-d28 classification=SDC faults_injected=1 exit=0
+[runner] L2RESULT: {... "verdict": "diverged", "primary_class": "data_corruption", "primary_class_zh": "⑤数据损坏", "latency_seq": 257501, "first_divergence": {"seq": 257501, "level": "dest[0].val", "detail": "dest[0] val: ref=653d54000b93546a run=ca0ff2b75c3e0364", ...}, "divergence_counts": {..., "data_corruption": 33298}, "aux": {"phys_mismatch": 1, "max_tick_drift": 22330}}
+```
+309,387 个对齐对，恰好有 1 个物理不匹配（损坏的 dest），33,298 个数据损坏点。
+
+### 运行器 sub_field e2e ×3 (清单在 /tmp/w5b1_d28|d30|d31.yaml, C3 + smoke-golden-v1)：
+- D28 (`transient_bit_flip`+`destid_bitflip`) → `classification=SDC faults_injected=1`
+- D30 (`legal_domain_sub`+`destid_swap_active`) → `classification=Crash faults_injected=1 exit=-6`
+- D31 (`stuck_at_zero`+`destid_stuck`) → `classification=Masked faults_injected=1`
+
+### 偏差说明（诚实记录）
+1. **卡死语义 (D27/D31)**：一个 armed 条目（由 seqNum 选择），在条目写入（插入）时应用写路径掩码 + 退休回读持久性证明。记录近似情况：gem5 从不在插入后重写 ROB 驻留条目的 pcState/renamedDestIdx，因此每个条目的写路径是单次写入；gem5 的列表 ROB 没有可寻址槽，因此不可能进行槽身份存储阵列掩码。已在 ARMED 日志行中记录。
+2. **D28 有向样本 = SDC** (非 Crash)：翻转 (87→95) 落在了另一个运行中的生产者的 dest 上（early-wake/stale-read 路径）。D29/D30 显示了完全的 TC'23 风格拦截 (`InstQueue::insert` 依赖图非空 panic)。M2 门 (SDC≈0% at D25/D28) 是一个活动级别统计数据 — 有向单例不能证实或反驳它。
+3. **无范围外钳位**（对两种位翻转变体进行诚实跳过） — 与 W4 D12 map_bitflip 的钳位略有偏差；在 C3 上无法到达（num_phys=128=2^7，每次 1/2 位翻转都在范围内），因此汉明距离始终精确为 1/2。
+4. **运行中修复的日志格式**：运行器的 G5 计数器计算每个非空日志行，因此多行卡死证据最初被计数为 `faults=3`；每个证据/跳过行现在都带有明确的 `faults_injected: N` 尾部（CHAOSMem G5 先例）。修复后所有模式均已重新验证。跳过行上限为 32。
+5. 无 int-dest 条目（分支/存储）针对 destid 模式进行诚实跳过并记录（该字段在这些条目上不存在）。
+6. W5 计划文件复选框和 /tmp 清单：留给协调员（未修改共享文档；仅进行了最小的增量共享文件编辑）。</result>
+<usage><subagent_tokens>0</subagent_tokens><tool_uses>151</tool_uses><duration_ms>4166666</duration_ms></usage>
+</task-notification>
