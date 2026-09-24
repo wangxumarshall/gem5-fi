@@ -66,12 +66,12 @@ docs/gem5-fi/lsu/
 **Interfaces:**
 - Produces: 仓库内源文件，后续所有任务的唯一数据源；sha256 见 Global Constraints。
 
-- [ ] **Step 1: 校验 sha256 与 spec 一致**
+- [x] **Step 1: 校验 sha256 与 spec 一致**
 
 Run: `sha256sum docs/gem5-fi/lsu/gem5-fi-LSU单元故障注入方案V1.0.xlsx`
 Expected: `2703f81240db0cc71c5fe109a6ff693617907a19c66885019ffe0da350713651  docs/gem5-fi/lsu/gem5-fi-LSU单元故障注入方案V1.0.xlsx`
 
-- [ ] **Step 2: 提交并推送**
+- [x] **Step 2: 提交并推送**
 
 ```bash
 git add docs/gem5-fi/lsu/gem5-fi-LSU单元故障注入方案V1.0.xlsx
@@ -79,7 +79,7 @@ git commit -m "docs(lsu): track source xlsx V1.0 (sha256 2703f812)"
 git push origin fi-ding
 ```
 
-- [ ] **Step 3: 验证入库**
+- [x] **Step 3: 验证入库**
 
 Run: `git show --stat HEAD | tail -3`
 Expected: 显示该 xlsx 1 file changed。
@@ -96,7 +96,7 @@ Expected: 显示该 xlsx 1 file changed。
 - Consumes: 源 xlsx（Task 1）。
 - Produces: 上列 4 产物 + 六项断言（A1–A6，见脚本）；`design-matrix.csv` 表头 `['Excel行'] + 12 源列名`、68 数据行；`07-expanded-matrix.csv` 表头 `['Excel行'] + 27 源列名`、337 数据行；运行成功时 stdout 末行 `EXTRACTION VERIFICATION PASSED`。Task 3 的校验器逐格消费这两份 CSV。
 
-- [ ] **Step 1: 写入 extract.py 全文**
+- [x] **Step 1: 写入 extract.py 全文**
 
 创建 `docs/gem5-fi/lsu/extract.py`，内容如下（完整、可直接运行）：
 
@@ -267,7 +267,7 @@ def main():
                 rebuilt.append([f'{mid}-{f}-{wid}', mid, g.get(2, ''), g.get(3, ''),
                                 g.get(4, ''), g.get(5, ''), f, col8, e, col10,
                                 g.get(8, ''), g.get(9, ''), g.get(10, ''), g.get(11, ''),
-                                g.get(12, '')] + [''] * 9 + ['待执行', ''])
+                                g.get(12, '')] + [''] * 10 + ['待执行', ''])
     actual_rows = [ex[r] for r in sorted(ex)[1:]]
     if len(actual_rows) != 337 or len(rebuilt) != 337:
         die(f'A2: 展开矩阵应为 337 行, 重放 {len(rebuilt)}, 源表 {len(actual_rows)}')
@@ -387,23 +387,23 @@ if __name__ == '__main__':
     main()
 ```
 
-- [ ] **Step 2: 语法检查**
+- [x] **Step 2: 语法检查**
 
 Run: `python3 -m py_compile docs/gem5-fi/lsu/extract.py && echo OK`
 Expected: `OK`
 
-- [ ] **Step 3: 运行生成器（六项断言全过才算数）**
+- [x] **Step 3: 运行生成器（六项断言全过才算数）**
 
 Run: `cd docs/gem5-fi/lsu && python3 extract.py`
 Expected: 末行 `EXTRACTION VERIFICATION PASSED`；之前打印 `design models: 68 (完善版追加 10), expanded runs: 337`。
 若断言失败：**禁止放宽断言**——按报错定位是规则理解错还是转录错，修脚本重跑。
 
-- [ ] **Step 4: 产物规模检查**
+- [x] **Step 4: 产物规模检查**
 
 Run: `wc -l docs/gem5-fi/lsu/design-matrix.csv docs/gem5-fi/lsu/07-expanded-matrix.csv && ls -la docs/gem5-fi/lsu/03-design-matrix.md docs/gem5-fi/lsu/07-expanded-matrix.md`
-Expected: design-matrix.csv 69 行；07-expanded-matrix.csv 338 行；两个 md 非空（03 约 100–200KB）。
+Expected: CSV **记录数** 69 / 338（用 csv 模块计数；物理 `wc -l` 因单元格内嵌换行为 122/675——已裁定 csv 记录为准）；两个 md 非空（03 约 99KB）。
 
-- [ ] **Step 5: 人工抽查 3 格**（防"校验器自己错自己"）
+- [x] **Step 5: 人工抽查 3 格**（防"校验器自己错自己"）
 
 Run: `python3 -c "
 import csv
@@ -413,7 +413,7 @@ for rid in ['A01-F0-W3', 'C07-F5-W6', 'P09-F6-W13']:
     print(rid, '|', r[8][:60])"`
 Expected: 打印的三行 `频率定义` 值与 xlsx 中对应行一致（打开 xlsx 用肉眼比对这三格；A01-F0-W3 应为「每次运行只注入 1 次…」，P09-F6-W13 应为 F6 覆盖文本）。
 
-- [ ] **Step 6: 提交并推送**
+- [x] **Step 6: 提交并推送**
 
 ```bash
 git add docs/gem5-fi/lsu/extract.py docs/gem5-fi/lsu/03-design-matrix.md docs/gem5-fi/lsu/design-matrix.csv docs/gem5-fi/lsu/07-expanded-matrix.csv docs/gem5-fi/lsu/07-expanded-matrix.md
@@ -436,7 +436,7 @@ git push origin fi-ding
 - Consumes: `design-matrix.csv`（69 行）、`07-expanded-matrix.csv`（338 行）、源 xlsx。
 - Produces: 全部通过时 stdout `ALL PASSED`；提供 `check_fragments(path, [(label, text), ...])` 函数供 Task 4/5/6 扩展调用（签名固定：`(str, list[tuple[str, str]]) -> list[str]`，返回未命中片段的 label 列表）。
 
-- [ ] **Step 1: 写入 verify_extraction.py v1**
+- [x] **Step 1: 写入 verify_extraction.py v1**
 
 ```python
 #!/usr/bin/env python3
@@ -574,12 +574,12 @@ if __name__ == '__main__':
     main()
 ```
 
-- [ ] **Step 2: 运行（此时应 ALL PASSED）**
+- [x] **Step 2: 运行（此时应 ALL PASSED）**
 
 Run: `cd docs/gem5-fi/lsu && python3 verify_extraction.py`
 Expected: `ALL PASSED (design 68 cells x13, expanded 337 cells x28, sets ok)`
 
-- [ ] **Step 3: 提交并推送**
+- [x] **Step 3: 提交并推送**
 
 ```bash
 git add docs/gem5-fi/lsu/verify_extraction.py
@@ -601,19 +601,19 @@ git push origin fi-ding
 
 **转录规则（三份文档通用）**：单元格文本逐字转录；表格内 `\n` → `<br>`、`|` → `\|`（与 extract.py 的 `md_cell` 一致）；每张表附 Excel 行号列；文档头部注明源表与规模；**不添加任何源表没有的事实**，提取者注一律用「> 提取注：」引用块。
 
-- [ ] **Step 1: 写 00-overview.md**
+- [x] **Step 1: 写 00-overview.md**
 
 结构（源行号 → 章节）：r1 标题 → H1；r3 范围、r4 统一基线、r5 重要纠正 → 「## 1. 范围与基线」三个小节；r7–r15 工作簿结构 → 「## 2. 工作簿结构」列表 + 「### 源表 → 本目录文件映射」表（9 行：表0→00-overview.md … 表8→08-references.md，表3→03-design-matrix.md+design-matrix.csv，表7→07-expanded-matrix.csv+.md）；r17–r22 → 「## 3. 统计与判定边界（五条原文）」编号列表；r24–r25 → 「## 4. 完善版增量（原文）」。空行 r2/r6/r16/r23 跳过。r4 提到《LSU单元参数总表.md》处加「> 提取注：该文档不在本仓库；B0 定值以内嵌的表2（02-parameter-baseline.md）为准」。
 
-- [ ] **Step 2: 写 01-units-and-research.md**
+- [x] **Step 2: 写 01-units-and-research.md**
 
 H1 + 源说明（8 行×7 列，7 数据行）；7 列全列 markdown 表（列名照源表：单元/作用/现有文章/现有文章结果/指标口径/证据直接性/研究空白·本方案增量），每行附 Excel 行号列。表后加「> 提取注：指标口径纪律（AVF/条件占比/总 AVF/检出率/DelayAVF 严禁混算）为源表对后续全部实验的硬约束」。
 
-- [ ] **Step 3: 写 02-parameter-baseline.md**
+- [x] **Step 3: 写 02-parameter-baseline.md**
 
 H1 + 源说明（20 行×5 列，19 参数）；5 列全列表（结构/参数、B0最终值、处理、依据/合理性判断、敏感性配置）+ Excel 行号列。表后小节「### 敏感性配置一览」：从 `敏感性配置` 列归纳 S1–S5 各自改动点（S1=DTLB 64 项、S2=L1D 64KiB/4-way、S3=LSQDepCheckShift=4、S4=预取器挂 L1D、S5=启用 L1D 保护）——只使用列内已有文字，不引入新值。
 
-- [ ] **Step 4: 扩展 verify_extraction.py**
+- [x] **Step 4: 扩展 verify_extraction.py**
 
 在 `main()` 的集合断言后追加：
 
@@ -648,13 +648,13 @@ H1 + 源说明（20 行×5 列，19 参数）；5 列全列表（结构/参数�
             fail(f'V4: {path} 缺片段 [{label}] {text[:40]}')
 ```
 
-- [ ] **Step 5: 运行校验器**
+- [x] **Step 5: 运行校验器**
 
 Run: `cd docs/gem5-fi/lsu && python3 verify_extraction.py`
 Expected: `ALL PASSED`（打印的计数行可追加 `+ fragments 00/01/02` 字样，同步修改打印行）。
 若报缺片段：先怀疑文档转录漏了原文，回 xlsx 核对，**不改片段迁就文档**。
 
-- [ ] **Step 6: 提交并推送**
+- [x] **Step 6: 提交并推送**
 
 ```bash
 git add docs/gem5-fi/lsu/00-overview.md docs/gem5-fi/lsu/01-units-and-research.md docs/gem5-fi/lsu/02-parameter-baseline.md docs/gem5-fi/lsu/verify_extraction.py
@@ -676,23 +676,23 @@ git push origin fi-ding
 
 转录规则同 Task 4。
 
-- [ ] **Step 1: 写 04-observation-points.md**
+- [x] **Step 1: 写 04-observation-points.md**
 
 H1 + 源说明；6 列全列表（层级/名称/定义/必须采集量/适用范围/判定规则）+ Excel 行号列，L0–L5 六行。表后「> 提取注：L5 守恒式 `Activated = Masked + Detected + SDC + Crash + Timeout` 是后续统计回填的闭合校验式」。
 
-- [ ] **Step 2: 写 05-frequency-and-sampling.md**
+- [x] **Step 2: 写 05-frequency-and-sampling.md**
 
 两个表：①「F0–F6 七档」（源 r2–r8，5 列：档位/名称/定义/适用故障/设计意图）+ Excel 行号；②「统计规则」（源 r12–r20，5 列：统计项/规则·公式/筛查目标/主结果目标/原因/备注——以源表 r11 子表头为准逐列照抄）+ Excel 行号。表后「> 提取注：表5 r9/r10 为源表空行，未转录」。
 
-- [ ] **Step 3: 写 06-workloads.md**
+- [x] **Step 3: 写 06-workloads.md**
 
 H1 + 源说明（15 行×6 列，14 负载）；6 列全列表（负载ID/名称/类型/定义·输入与oracle/主要覆盖单元/模式）+ Excel 行号列。表后「> 提取注：W4/W7/W13 为 FS/多核 FS 结构性依赖；W1 标注 FS 优先、W6 标注 SE+多核 FS 子集」。
 
-- [ ] **Step 4: 写 08-references.md**
+- [x] **Step 4: 写 08-references.md**
 
 H1 + 源说明（12 行×6 列，11 条）；6 列全列表（代码/标题·资源/类型·发表/核对方式/本工作簿用途/定位）+ Excel 行号列。表后「> 提取注：4 条 gem5 源码条目核对的是上游 stable（2026-09-24）；本仓库 vendored gem5 v25.1.0.1（upstream 62c7bf2），实施前机制核实一律以本仓源码为准（见 09-implementation-plan.md §机制核实）」。
 
-- [ ] **Step 5: 扩展 verify_extraction.py（V4b 片段）**
+- [x] **Step 5: 扩展 verify_extraction.py（V4b 片段）**
 
 ```python
     FRAGMENTS_04 = [
@@ -726,12 +726,12 @@ H1 + 源说明（12 行×6 列，11 条）；6 列全列表（代码/标题·资
 
 （循环注册方式与 Task 4 的 V4a 相同。）
 
-- [ ] **Step 6: 运行校验器**
+- [x] **Step 6: 运行校验器**
 
 Run: `cd docs/gem5-fi/lsu && python3 verify_extraction.py`
 Expected: `ALL PASSED`。
 
-- [ ] **Step 7: 提交并推送**
+- [x] **Step 7: 提交并推送**
 
 ```bash
 git add docs/gem5-fi/lsu/04-observation-points.md docs/gem5-fi/lsu/05-frequency-and-sampling.md docs/gem5-fi/lsu/06-workloads.md docs/gem5-fi/lsu/08-references.md docs/gem5-fi/lsu/verify_extraction.py
@@ -751,7 +751,7 @@ git push origin fi-ding
 - Consumes: 全部已交付文档与 CSV（Task 1–5）、仓库工具链（grep 核实对象）、`check_fragments()`。
 - Produces: 北极星入口文档；V4c 片段检查。
 
-- [ ] **Step 1: 基础设施映射的真实 grep（结果如实写入 README §7，不做空头声明）**
+- [x] **Step 1: 基础设施映射的真实 grep（结果如实写入 README §7，不做空头声明）**
 
 Run:
 ```bash
@@ -763,7 +763,7 @@ ls CHAOS/gem5/src/mem/cache/prefetch/ 2>/dev/null | head -5
 ```
 把**实际输出**记入 README §7 的映射表（复用列）；命令未命中/文件不存在的项写入「需要新建」列。§7 表格两列：「方案需要 → 仓库现状（grep 证据）」。
 
-- [ ] **Step 2: 写 README.md**
+- [x] **Step 2: 写 README.md**
 
 章节（按 spec §7）：
 1. `## 1. 北极星目标`——LSU 三问（哪些位置有真实 SDC 潜力 / SDC 前微架构层可观测前兆 / 结构化模型相对随机翻转的增量）；一段话总述 7 单元 × 68 模型 × 337 格。
@@ -776,7 +776,7 @@ ls CHAOS/gem5/src/mem/cache/prefetch/ 2>/dev/null | head -5
 8. `## 8. 诚实声明`——《LSU单元参数总表.md》不在仓库（B0 以 02 为准）/ TLB 注入器 SE-inert / W4/W7/W13 FS 结构性缺口 / 文献核对基于上游 stable 而本仓 vendored v25.1.0.1 / 参数非 920 真值 / 结果槽全空=待执行。
 9. `## 9. 溯源与复现`——sha256、`cd docs/gem5-fi/lsu && python3 extract.py`（预期 `EXTRACTION VERIFICATION PASSED`）、`python3 verify_extraction.py`（预期 `ALL PASSED`）、计划文件指针 `docs/superpowers/plans/2026-09-24-lsu-north-star-extraction.md`。
 
-- [ ] **Step 3: 扩展 verify_extraction.py（V4c）**
+- [x] **Step 3: 扩展 verify_extraction.py（V4c）**
 
 ```python
     FRAGMENTS_README = [
@@ -791,12 +791,12 @@ ls CHAOS/gem5/src/mem/cache/prefetch/ 2>/dev/null | head -5
     ]
 ```
 
-- [ ] **Step 4: 运行校验器**
+- [x] **Step 4: 运行校验器**
 
 Run: `cd docs/gem5-fi/lsu && python3 verify_extraction.py`
 Expected: `ALL PASSED`。
 
-- [ ] **Step 5: 提交并推送**
+- [x] **Step 5: 提交并推送**
 
 ```bash
 git add docs/gem5-fi/lsu/README.md docs/gem5-fi/lsu/verify_extraction.py
@@ -816,7 +816,7 @@ git push origin fi-ding
 - Consumes: 00–08 全部忠实层（裁决基准）、spec §8 的机制核实清单、仓库源码结构。
 - Produces: LSU 故障注入实施总纲（后续所有注入器/campaign 工作包的母计划）。
 
-- [ ] **Step 1: 机制核实对象的真实存在性检查（写进 09 的引用必须指向真实文件）**
+- [x] **Step 1: 机制核实对象的真实存在性检查（写进 09 的引用必须指向真实文件）**
 
 Run:
 ```bash
@@ -827,7 +827,7 @@ grep -rn "exclusiveMonitor\|monitor" CHAOS/gem5/src/arch/arm/tlb.cc 2>/dev/null 
 ```
 09 中每条机制核实项引用的文件路径必须先通过存在性检查；不存在的路径改到真实位置（如实记录）。
 
-- [ ] **Step 2: 写 09-implementation-plan.md**
+- [x] **Step 2: 写 09-implementation-plan.md**
 
 章节（按 spec §8，头部声明「本文件与 00–08 冲突时以 00–08 为准」+ 编写日期 + 依据）：
 1. `## 1. 目标与成功判据`——337 格 × 11 结果列回填（记录状态全部离开「待执行」）；L0–L5 观测数据；自检锚点记录（TC'23 LQ/SQ SDC=0% 复现、TC'22 DTLB Crash AVF≈50% 对照）；元分析报告（三问的回答 + 位置×SDC 潜力排序）。
@@ -837,12 +837,12 @@ grep -rn "exclusiveMonitor\|monitor" CHAOS/gem5/src/arch/arm/tlb.cc 2>/dev/null 
 5. `## 5. 算力预算`——量级估算：筛查下限 337×385 ≈ 13 万次 activated 起、主结果上限 337×5000 ≈ 168 万；遵守 4 并发 gem5 进程硬上限（CLAUDE.md）；试跑 30 activated/格。
 6. `## 6. 裁决规则`——与 00–08 冲突时以 00–08 为准；机制核实结论只修正「落点」不修正「故障语义」（同 ooo 06 的 N 表先例）。
 
-- [ ] **Step 3: 结构自检**
+- [x] **Step 3: 结构自检**
 
 Run: `grep -c '^## ' docs/gem5-fi/lsu/09-implementation-plan.md && grep -c '待核实' docs/gem5-fi/lsu/09-implementation-plan.md`
 Expected: `6`（六个章节）；`≥9`（九个待核实状态）。
 
-- [ ] **Step 4: 人工抽查 ≥10 格（spec §9.3 的第三道防线）**
+- [x] **Step 4: 人工抽查 ≥10 格（spec §9.3 的第三道防线）**
 
 Run: `python3 -c "
 import csv, random
@@ -854,9 +854,9 @@ dms = list(csv.reader(open('docs/gem5-fi/lsu/design-matrix.csv', encoding='utf-8
 for r in random.sample(dms, 4):
     print(r[1], '|', r[3][:50])"`
 打开 xlsx 对应行逐格肉眼比对这 10 行（打印的是锚点列，比对时看整行）；结果记录在本步骤后面：
-`抽查记录（执行时填写）：10/10 一致 / 不一致的格：___`
+`抽查记录（执行时填写，2026-09-24）：10/10 一致（seed=42 抽样：展开矩阵 Excel 行 329/59/14/142/127/116 共 6 行 × 27 格 + 设计矩阵 S01/T06/T04/P05 共 4 行 × 12 格；执行代理无法打开 Excel，改用独立第三方 stdlib 解析器（zipfile+ElementTree+sharedStrings，rels Target 先 lstrip('/')）逐格比对 xlsx vs CSV，不 import extract.py/verify_extraction.py；人眼复核可随时用 xlsx+CSV 进行）`
 
-- [ ] **Step 5: 终验（全链）**
+- [x] **Step 5: 终验（全链）**
 
 Run: `cd docs/gem5-fi/lsu && python3 extract.py && python3 verify_extraction.py && python3 -m py_compile extract.py verify_extraction.py && echo DONE`
 Expected: 依次 `EXTRACTION VERIFICATION PASSED` → `ALL PASSED` → `DONE`。

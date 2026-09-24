@@ -2576,3 +2576,11 @@ CI 零重叠——**H7 验收断言("ECC-off spurious>0 vs ECC-on≈0")formal �
 - **计划**: `docs/superpowers/plans/2026-09-24-lsu-north-star-extraction.md` — 7 任务/7 commit(spec §10 授权的定稿序:verify_extraction.py 前移到文档任务前,TDD)。
 - **规则预验证**: 计划编写前用一次性脚本把全部提取规则实证钉死——展开=适用频率×适用负载全叉积(68/68)、col4/5/6/11-15 逐格 verbatim(337/337)、col8 频率定义有 13 行 F6 覆盖(L02/L03/L04/C15/P09,activated 判据强化版)、col10=col9+'执行定义与 oracle：'+表6定义(除 12 行 W11 全部用扩展 oracle 文本)、col26 记录状态颜色黄集合==完善版 10 模型 77 格(集合相等验证)、RunID 0 不一致、结果槽全空。计划内嵌完整 extract.py(六断言 A1-A6)与 verify_extraction.py v1 代码,零"实现时再猜"。
 - **状态**: spec(4fe4b7dd)+计划已推送;待执行(7 任务,subagent-driven 或 inline 待用户选)。
+
+### LSU 单元故障注入方案 V1.0 北极星提取完成(2026-09-24)
+
+- **交付**: `docs/gem5-fi/lsu/` 整套北极星,16 文件(README 总纲 + 00–08 忠实层 + 09 实施总纲 166 行 + design-matrix 68 模型 CSV/md + 07 展开矩阵 337 格×27 列 CSV/md + extract.py + verify_extraction.py;文本合计 1921 行,源 xlsx 入库 sha256=2703f812…),7 个 commit(spec §10)。
+- **三重验证**: ① extract.py 六断言 A1–A6 → `EXTRACTION VERIFICATION PASSED`(展开重放 337 行逐格全等/行数 68/337/结果槽全空/RunID 自洽/唯一性/颜色语义);② verify_extraction.py → `ALL PASSED`(独立解析 xlsx,逐格回比 68×13 + 337×28 + 集合断言 + 00/01/02/04/05/06/08/README 关键片段);③ 人工抽查 **10/10 一致**(seed=42:展开矩阵 6 行×27 格 + 设计矩阵 4 行×12 格;执行代理无法打开 Excel,改用独立第三方 stdlib 解析器逐格比对 xlsx vs CSV,不 import extract/verify——人眼复核可随时用 xlsx+CSV 进行)。
+- **09 实施总纲要点**: 机制核实九项表(状态全「待核实」;存在性检查已完成并如实修正 brief 引用路径——SSIT/LFST 实际在 store_set.hh/.cc 而非 lsq、DTLB=32 配置点在 ArmTLB.py:74、exclusive monitor 语义在 isa.cc handleLockedRead/Write 而非 tlb.cc、CHAOSAddrPath 为目录四件套)+ WBS 工作包 W0–W11(每包注明依赖)+ 里程碑 M0–M6 + 算力预算(筛查下限 337×385≈13 万 activated 起、主结果上限 168.5 万、4 并发 gem5 进程硬上限)+ 裁决规则(与 00–08 冲突以 00–08 为准;机制核实只修「落点」不修「故障语义」)。
+- **与现有轨道关系**: 与 `docs/gem5-fi/ooo/`(OoO 北极星,2026-09-22)并列的 LSU 北极星轨道——方法论与工具骨架镜像复用,编号/断言体系按 LSU 源表重写,两轨道实验结论不混算。
+- **下一步**: 09 工作包 W0——平台与 B0 参数落地(configs 新 LSU 配置家族;注意当前 C3 `ooo_proxy.py` L1D=64KiB ≠ B0 32KiB/2-way,且 L2 未挂 StridePrefetcher)。
