@@ -1,0 +1,1734 @@
+<task-notification>
+<task-id>a9301c8c44f589180</task-id>
+<tool-use-id>call_64f884ffa7c146e4ac253313</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi/801d1500-1949-47d1-8f2e-95e2ab568418/tasks/a9301c8c44f589180.output</output-file>
+<status>completed</status>
+<summary>Agent "实现 W1.1 CoreMark" came to rest</summary>
+<note>A task-notification fires each time this agent comes to rest with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>全部完成。`make` 是幂等的，全部 16 个文件都已就位。最终报告：
+
+---
+
+# Task 5 (W1.1 CoreMark) — 完成报告
+
+## 文件清单
+
+**新建 `workloads/ooo/coremark/`**（16 个文件）：
+- 上游子集（除 core_main.c 外与上游逐字节一致）：`core_list_join.c core_main.c(+gem5-fi 块) core_matrix.c core_state.c core_util.c coremark.h coremark.md5 LICENSE.md Makefile README.md posix/{core_portme.c, core_portme.h, core_portme.mak, core_portme_posix_overrides.h}` — 无 .git
+- 构建产物：`coremark`（静态 AArch64 ELF, 640KB）+ `.iterations-35` 戳（构建内部产物，可不入库）
+
+**修改**：`workloads/ooo/Makefile`（coremark 目标 + PROVENANCE/适配注释 + clean）、`workloads/ooo/README.md`（台账行 + 完整实测记录）。**未 commit/push**（按纪律留给编排者）。
+
+## 上游源
+
+`git clone https://github.com/eembc/coremark` → HEAD = **1f483d5b8316753a742cbf5590caf5bd0a4e4777**（与预期 1f483d5b 一致），`git log -1`: "Merge pull request #55 from DeflateAwning/main — Fix typo (fixes #52)", Joseph Yiu, 2025-05-01。**上游唯一源码偏离**：core_main.c 末尾 11 行 gem5-fi 块（带 `/* gem5-fi W1.1: FINAL line for oracle chain */` 注释），diff 已核实仅此一块，基准逻辑零改动。
+
+## 验证输出（逐字，关键行）
+
+**构建零告警 + ELF**：`MAKE_EXIT=0`，warning/error 计数 **0**；`file`: `ELF 64-bit LSB executable, ARM aarch64, … statically linked`。编译行（上游 Makefile 委托，保留 FLAGS_STR 引号链）：`gcc -O2 … -DITERATIONS=35 -static -Wall -Wextra -DSEED_METHOD=SEED_VOLATILE -DPERFORMANCE_RUN=1 core_list_join.c core_main.c core_matrix.c core_state.c core_util.c posix/core_portme.c -o ./coremark.exe -lrt`
+
+**C3 SE（ITERATIONS=35）**：
+```
+S1_EXIT=0  hostSeconds=52.62  simInsts=10808351  FINAL=000000000000cf56
+S2_EXIT=0  hostSeconds=52.62→52.92  simInsts=10808351  FINAL=000000000000cf56
+NATIVE_EXIT=0  FINAL=000000000000cf56   （uniq -c: 3×同一行；od -c 23 字节精确）
+classify.extract_checksum(gem5输出)=000000000000cf56 （oracle 链端到端验证）
+```
+
+**自带 CRC 校验（native==gem5 一致）**：`2K performance run parameters` / `seedcrc 0xe9f5` / `crclist 0xe714 / crcmatrix 0x1fd7 / crcstate 0x8e3a` 全部命中 known_id=3 已知值，**无任何 crc ERROR 行**。
+
+**密度（event_density.py，s1/s2/p1 三跑计数逐位一致）**：mispredicts **73348**（/commits=**0.66%**）、squash **1677415**（**15.1%**，squash_bp 783831 主导）、renamed 13209178、rat_writes 15377069、commits 11121427、IPC≈2.14；probe：samples 5039172、robOver80 67194（1.33%，robMax=128 到顶）、iqOver80 309285（6.14%）、flIntLe8 533971（10.6%，**flIntMin=0 实压穿**）、flFloatMin=192 恒满、flVecLe6=100% 平台基线。
+
+**回归**：`make clean &amp;&amp; make`（7 目标）EXIT=0 零告警；6 个既有 golden 全部不变（smoke `45737cc9a76c0dce`、branch_mispred `06e84f119c258fa7`、dep_chain `98e5e31e726e383f`/`b1e661a247b95774`、rob_fill `19eab7d0de27237e`/`85085fd5686d173b`；采用"全部重建+native 确定性重放比对"，强于抽查）。
+
+## 关键数字
+
+| 项 | 值 |
+|---|---|
+| **golden (FINAL)** | `000000000000cf56`（crcfinal=0xcf56 零填充 16 位） |
+| **ITERATIONS 终值** | **35**（20 实测 30.67s/6.19M insts ≈31 万 insts/迭代 → 35 = 52.62/52.92s、10.81M insts，双目标带内） |
+| hostSeconds / simInsts | 52.62 / 52.92；10,808,351 |
+
+## 偏差说明（诚实记录，已写入 README）
+
+1. **端口路径**：该 HEAD 上游端口目录为顶层 `posix/`，非旧布局 `cores/posix`（计划笔误，实证修正）。
+2. **"Correct operation performed / 无 Errors detected" 不可达（结构性）**：EEMBC 10 秒计分规则在 native（35 迭代=1ms）与 gem5 SE（全程模拟时间 1.94ms；`clock_gettime`→curTick 模拟时间）下都不可能 ≥10s（10 模拟秒=2.6e10 周期≈数十主机小时）。输出中 "Errors detected" **仅**来自该计时规则，CRC 校验本身 3/3 全过。故 FINAL 门放 CRC 校验通过路径（`known_id&gt;=0 &amp;&amp; results[0].err==0`）而非 `total_errors==0`（后者会吞掉 oracle 行）。
+3. **ITERATIONS 起试值超 50 倍**：任务提示 2000 ≈ 6.2 亿指令 ≈ 35+ 分钟；按实测校准到 35。
+4. **SEED_VOLATILE 适配**：posix 默认 SEED_ARG 无参运行会在 gem5 里死循环（自校准探针永远到不了 1 模拟秒）；用上游 `#ifndef` 守卫的 `-DSEED_METHOD=SEED_VOLATILE`（零文件修改）+ `-DPERFORMANCE_RUN=1`（官方 0/0/0x66 种子），使二进制无参自含。
+5. **FINAL 为 16 位 CRC 值**（CoreMark crcfinal，随 ITERATIONS 变化：20/2000 恰落同一折叠环态 0x4983，35 为 0xcf56；固定 ITERATIONS 下确定）——oracle 熵 16 位，比自设核的 64 位 hash 粗，此为 "值为 CoreMark 计算 CRC" 指令的固有属性；crcfinal 覆盖全部迭代（比只冻结第 0 迭代的 crclist/matrix/state 更强）。
+6. 上游 `coremark.md5` 在该 commit 对 coremark.h 过期（git 内容为准）；`--maxinsts` 本任务未用到（校准直接用小 ITERATIONS 实测）。
+
+GOLDEN_IDS 注册（建议 key 如 `coremark-golden-v1` → `000000000000cf56`）与 commit/push 留给编排者。里程碑全程追加于 `/tmp/ooo_w11_progress.txt`。</result>
+<usage><subagent_tokens>0</subagent_tokens><tool_uses>79</tool_uses><duration_ms>13428117</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>ad24f26b5a2af3370</task-id>
+<tool-use-id>call_40b853ca13a441ac98a42ea9</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi/801d1500-1949-47d1-8f2e-95e2ab568418/tasks/ad24f26b5a2af3370.output</output-file>
+<status>completed</status>
+<summary>Agent "实现 W1.2 Embench 子集" came to rest</summary>
+<note>A task-notification fires each time this agent comes to rest with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>W1.2 (Task 6) Steps 1–2 完成，未做任何 git commit（Step 3 留给编排者）。以下为最终报告。
+
+## W1.2 Embench 整数+浮点子集 — 完成报告
+
+### 上游与诚实偏差（最重要发现）
+
+- 上游 `github.com/embench/embench-iot`，克隆记录 HEAD = **09c2ed8c3b7008c95d08b038de4a3f6dc103ed70**（I-mikan-I，2024-08-29，"Remove CPU_MHZ references"）。
+- **计划点名的 6 程序中 3 个不可得，实证后替换**：
+  - `qlsort`、`qrsolve`（及候选名单中的 `stoneman`）在 embench-iot **全部 master 历史中从未存在**（unshallow 后 `git log --all -- src/qlsort src/qrsolve` 为空）。
+  - **Embench-IoT 2.0 删除了全部浮点基准**：nbody/cubic/primecount 于 1b2731f（2024-03-08）、minver/st 于 fc72c8d 删除；HEAD 上唯一含 float 字段的 depthconv 实为量化 int8/int32（字段未使用）。HEAD 上**没有任何真浮点基准**。
+  - 替换：qlsort→**wikisort**（排序类语义最近）；qrsolve→**minver**（3×3 float 矩阵求逆，线性代数语义最近）；nbody 保留。nbody/minver 取自其存在的最后一个 commit **92da124bb8da825b2937abaaed2aca9bb9e50fc9**（2024-03-08，"Remove legacy build script"）。03-workloads.md 只要求"22 个小程序、整数/浮点/乘除/哈希、自带校验"，未指定程序名，替换在 spec 内。
+
+### 文件清单（全部实际存在）
+
+- `workloads/ooo/embench/`（19 文件，3.7MB）：`PROVENANCE.md`（双 commit、替换理由、逐文件来源、适配清单）、`COPYING`（上游原样）、`boardsupport.c`、`support/{main,support.h,beebsc.c,beebsc.h}`、`{crc32,md5sum,matmult-int,wikisort,nbody,minver}/`（各含上游源 + 构建产物静态 ELF）。无 .git。
+- `workloads/ooo/Makefile`：`embench` 目标 + 6 条规则 + 规模旋钮（`EMBENCH_*_GSF` / `EMBENCH_*_MHZ`，可覆写）。
+- `workloads/ooo/README.md`：台账行 + W1.2 详录。
+
+### 每程序验证（逐字关键输出）
+
+构建：`make -C workloads/ooo embench` → `MAKE_EXIT=0` **零告警**（gcc 12.3.1 `-O2 -static -Wall -Wextra` + 5 个有记录的上游代码质量类抑制，见下）；`file` 6/6 `ELF 64-bit LSB executable, ARM aarch64, ... statically linked`。
+
+| 程序 | FINAL（golden） | native | SE hostSeconds s1/s2 | simInsts |
+|---|---|---|---|---|
+| crc32 | `b87739d9c40d1798` | EXIT=0 | 39.35 / 38.87 | 8908567 |
+| md5sum | `973ff8cc9018e79f` | EXIT=0 | 40.04 / 40.39 | 12071108 |
+| matmult-int | `e105f98022b761ef` | EXIT=0 | 42.83 / 42.73 | 6217780 |
+| wikisort | `d2cf29655e3e0f06` | EXIT=0 | 29.85 / 29.79 | 5156577 |
+| nbody | `f39b4e8804f279c3` | EXIT=0 | 33.40 / 33.37 | 3719230 |
+| minver | `9792f3ee24af3023` | EXIT=0 | 53.14 / 54.04 | 9276668 |
+
+- 全 6 程序：native==gem5 s1==s2 FINAL **od -c 逐字节一致**；全部 ≤60s 预算（minver 最贴边余量 ~6s，可用 `EMBENCH_MINVER_MHZ=18` 覆写，FINAL 已实证不随规模变化）。
+- **身份核实**：12/12 跑 config.ini 逐跑 `cmd=workloads/ooo/embench/&lt;b&gt;/&lt;b&gt;` 全对（另 clean 重建后 crc32 复跑 EXIT=0 / FINAL 同 / 37.99s，重建二进制与 SE 验证版 md5 相同）。
+- 自带校验：native 6/6 exit 0（上游 verify_benchmark 全过）。nbody/minver 的 native==gem5 将 W1.5b/W1.5c 的 fplib 位级一致结论扩展到 FSQRT。
+
+### 密度实测（每程序一次 `--chaos_probe`，read-only，p1 FINAL 不变；s1/s2/p1 计数逐位一致）
+
+| 程序 | mispredicts(/commits) | squash(/commits) | robOver80 采样 | iqMax/robMax | flIntLe8 |
+|---|---|---|---|---|---|
+| crc32 | 848（0.0095%） | 6714（0.075%） | 4475/3726427 | 44/128 | 4613 |
+| md5sum | 22987（0.19%） | 214830（1.76%） | 435 | 41/128 | 160 |
+| matmult-int | 50346（0.61%） | 801783（9.7%） | 13727/2654161 | **64 满容**/128 | 13331 |
+| wikisort | 49144（0.87%） | 687919（12.1%） | 23119/2682852 | **64 满容**/128 | 21818 |
+| nbody | 504（0.012%） | 5273（0.13%） | 1514/10156448 | 44/128 | 1120 |
+| minver | 482（0.005%） | 5451（0.055%） | 674/7949575 | 44/128 | 165 |
+
+整型 vs 浮点三档格局清晰（wikisort/matmult 分支/squash 密集 → md5sum 中间 → nbody/minver FP 循环主导 ~0.01%），50+15 实验格的 D01/D02/D04 事件供给按程序分层可用；全 6 程序 flIntMin=0；flFloatMin=192/flVecLe6=100% 为 W1.5b 已知平台基线。
+
+### 适配清单（唯一源码偏离）
+
+每基准 1 个 `/* gem5-fi W1.2 */` FINAL 块（verify 成功路径，FNV-1a 64 over 校验数据）+ 4 文件各 2 行 include（同标记）。与上游 git blob diff 逐行核实：support/ 5 文件 0 差异，6 基准差异行 18-36 全在 hunk 内。哈希数据：crc32=r（15 位熵=上游自检同口径，已注明）；md5sum=完整 4 字摘要（强于上游 XOR 折叠）；matmult=ResultArray；wikisort=array1；nbody=solar_bodies；minver=c/d/det（后两者字节级 FP oracle）。verify 失败仍 exit 1 → classify.py Crash/DUE，oracle 链语义与 coremark 先例一致。零告警实现方式：源码原样 + 5 个逐一记录的上游代码质量类告警抑制（`-Wno-unused-variable/-Wunused-parameter/-Wunused-but-set-variable/-Wno-maybe-uninitialized/-Wno-absolute-value`，理由全文在 PROVENANCE.md），新告警类仍会失败构建。
+
+### 回归（用了全量重建 native 重放路线）
+
+`make clean &amp;&amp; make`（13 目标含 embench）幂等零告警；7 个既有 golden 全部不变：smoke `45737cc9a76c0dce`、branch_mispred `06e84f119c258fa7`、dep_chain `98e5e31e726e383f`/`b1e661a247b95774`、rob_fill `19eab7d0de27237e`/`85085fd5686d173b`、coremark `000000000000cf56`。
+
+### GOLDEN_IDS 候选（待编排者注册）
+
+`embenchcrc32-golden-v1 b87739d9c40d1798`、`embenchmd5sum-golden-v1 973ff8cc9018e79f`、`embenchmatmult-golden-v1 e105f98022b761ef`、`embenchwikisort-golden-v1 d2cf29655e3e0f06`、`embenchnbody-golden-v1 f39b4e8804f279c3`、`embenchminver-golden-v1 9792f3ee24af3023`。
+
+里程碑全程追加在 `/tmp/ooo_w12_progress.txt`；变更范围仅 `workloads/ooo/embench/` + Makefile + README（git status 核实）。</result>
+<usage><subagent_tokens>0</subagent_tokens><tool_uses>105</tool_uses><duration_ms>7138587</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a52d1fd065e007dbc</task-id>
+<tool-use-id>call_32456747972142a893e7c868</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi/801d1500-1949-47d1-8f2e-95e2ab568418/tasks/a52d1fd065e007dbc.output</output-file>
+<status>completed</status>
+<summary>Agent "实现 W1.3 PolyBench" came to rest</summary>
+<note>A task-notification fires each time this agent comes to rest with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>所有工作已完成。最终报告：
+
+---
+
+# W1.3 PolyBench 任务报告（Task 7, Step 1–2 完成；Step 3 commit 留给编排者）
+
+## 1. 上游源（实际获取路径，含探测过程）
+
+- 净版 tarball 分发点全部不可达（实证）：netlib 404（计划已记录）、`web.cse.ohio-state.edu/~pouchet.2/.../polybench-c-4.2.1.tar.gz` 重定向到 OSU CSE 通用目录页、SourceForge 404。
+- 计划首选 `cavazos-lab/PolyBench@70ea4ca9` 探测存活，但实测为 **GPU 变体套件**（CUDA/OpenCL/OpenACC/OpenMP/HMPP 内核 + 共享 common/），非 plain PolyBench/C → 弃用。
+- **实际源：`https://github.com/MatthiasJReisinger/PolyBenchC-4.2.1` @ `3e872547cef7e5c9909422ef1e6af03cf4e56072`**（2016-06-10，单 commit "Initial commit with PolyBench/C 4.2.1 beta sources"）。
+- **保真度交叉验证**：`utilities/polybench.c`、`utilities/polybench.h`、4 个内核 `.h` 与 `llvm/llvm-test-suite@4eee8855` 内嵌副本**逐字节相同**（diff 0 行）；LLVM 副本内核 `.c` 带 StrictFP/check_FP 适配，净版不含 → 取净版。
+
+## 2. 文件清单（git status：`M workloads/ooo/Makefile`、`M workloads/ooo/README.md`、`?? workloads/ooo/polybench/`；未 commit）
+
+`workloads/ooo/polybench/`（17 文件，无 .git）：`LICENSE.txt`、`README`（上游原样）、`PROVENANCE.md`（gem5-fi）、`utilities/{polybench.c,polybench.h}`、`linear-algebra/blas/gemm/{gemm.c,gemm.h}`、`linear-algebra/solvers/{lu,cholesky}/*.{{c,h}}`、`stencils/jacobi-2d/{jacobi-2d.c,jacobi-2d.h}` + 4 个静态 ELF（`gemm/gemm`、`lu/lu`、`cholesky/cholesky`、`jacobi-2d/jacobi-2d`）。
+
+**唯一源码偏离**：4 个内核 `.c` 各一个 `/* gem5-fi W1.3 */` 标记的 `#include &lt;stdint.h&gt;` + main 末尾 FINAL 块（diff 实测 23-27 行/文件，全在 hunk 内；其余 8 文件与上游逐字节相同）。oracle = 上游 print_array live-out 域的 FNV-1a 64 全数组 hash；**cholesky 按上游 dump 口径取下三角含对角**（其内核只写下三角，上三角 init 后为死数据——避免把落进死区的故障误报 SDC）。
+
+## 3. 构建验证（逐字）
+
+- `make -C workloads/ooo clean &amp;&amp; make -C workloads/ooo polybench`：**MAKE_EXIT=0，WARN_COUNT=0**（`-O2 -static -Wall -Wextra` + 3 个逐一记录的上游代码质量类抑制：`-Wno-unknown-pragmas`〔scop/endscop〕、`-Wno-unused-variable`〔polybench.c 分配表〕、`-Wno-misleading-indentation`〔lu/cholesky PSD 拷贝循环缩进假阳性，语义已人工核实〕；理由全文在 PROVENANCE.md）。
+- `file` 4/4：`ELF 64-bit LSB executable, ARM aarch64, ... statically linked`。
+- 确定性核实：全树无 `rand()/srand()`；无 `-DPOLYBENCH_TIME` 时 instrument 宏为空（无 gettimeofday、无 32MB flush）；print_array 挂在 `argc &gt; 40` 守卫后 SE 不触发。
+- 尺寸终值（-D 命令行旋钮，零 .h 修改；Makefile 变量可覆写）：**gemm 88³ / lu 84 / cholesky 88 / jacobi-2d T=8,N=160**，`-DDATA_TYPE_IS_FLOAT`（fp32）。首候选（96³/92/100/T10N160）实测 62-76s 超预算（FP 核 ~125 KIPS vs 整型 ~200）→ 缩至终值。
+
+## 4. 每内核验证输出（逐字关键行，逐文件带标签）
+
+**native（各 2 跑 same=YES）**：
+```
+native gemm: run1=[FINAL=116849d3adf3227b] exit=0 run2=[FINAL=116849d3adf3227b] exit=0 same=YES
+native lu: run1=[FINAL=74ffe5eb77ea9257] ... same=YES
+native cholesky: run1=[FINAL=ea7e0d0e7c86582d] ... same=YES
+native jacobi-2d: run1=[FINAL=dc867b5f02998c1e] ... same=YES
+```
+**C3 SE（全部 exit=0；od -c 逐文件证实 23 字节 `FINAL=&lt;16hex&gt;\n`；s1/s2/s3 simInsts 精确相同）**：
+```
+s1 gemm: FINAL=116849d3adf3227b simInsts=6460912 hostSeconds=52.87
+s2 gemm: FINAL=116849d3adf3227b simInsts=6460912 hostSeconds=53.98
+s3 gemm: FINAL=116849d3adf3227b simInsts=6460912 hostSeconds=53.30   ← clean 重建后复跑
+s1 lu: FINAL=74ffe5eb77ea9257 simInsts=6651537 hostSeconds=51.43
+s2 lu: FINAL=74ffe5eb77ea9257 simInsts=6651537 hostSeconds=51.62
+s3 lu: FINAL=74ffe5eb77ea9257 simInsts=6651537 hostSeconds=51.54
+s1 cholesky: FINAL=ea7e0d0e7c86582d simInsts=6539248 hostSeconds=53.14
+s2 cholesky: FINAL=ea7e0d0e7c86582d simInsts=6539248 hostSeconds=51.92
+s3 cholesky: FINAL=ea7e0d0e7c86582d simInsts=6539248 hostSeconds=51.63
+s1 jacobi-2d: FINAL=dc867b5f02998c1e simInsts=6571463 hostSeconds=51.15
+s2 jacobi-2d: FINAL=dc867b5f02998c1e simInsts=6571463 hostSeconds=52.04
+s3 jacobi-2d: FINAL=dc867b5f02998c1e simInsts=6571463 hostSeconds=51.51
+```
+- config.ini 身份核实 **12/12**（s1/s2/s3 × 4，逐文件带标签 grep，`cmd=/home/sdc/gem5-fi/workloads/ooo/polybench/&lt;kernel&gt;/&lt;kernel&gt;` 全对）。
+- `tools/classify.py extract_checksum` 对 4 份 gem5 输出端到端取值正确（oracle 链闭合）。
+- native==gem5 把 fplib 位级一致扩展到 **fp32 标量 fdiv 与 fp32 fsqrt**（此前已证 fp32 FMA、fp64 div/sqrt）。
+
+## 5. 密度表（官方 `tools/event_density.py` s1/s2/p1 三跑聚合，全部计数逐位一致；p1 probe read-only，FINAL 不变）
+
+| 内核 | mispred(/commits) | squash(/commits) | robOver80 | iqMax/robMax | flIntMin | flFloatMin | flVecMin |
+|---|---|---|---|---|---|---|---|
+| gemm | 8604（0.13%） | 22848（0.35%） | 124829/10580668（1.18%） | 64/128 满容 | 0 | **192** | **0** |
+| lu | 13611（0.19%） | 45493（0.63%） | 113466/8557969（1.32%） | 64/128 | 1 | **192** | **0** |
+| cholesky | 12060（0.17%） | 41265（0.57%） | 63145/8803460（0.72%） | 64/128 | 4 | **192** | **0** |
+| jacobi-2d | 3123（0.048%） | 10278（0.16%） | 410241/9886860（4.15%） | 64/128 | 1 | **192** | **0** |
+
+## 6. flFloatMin 交叉确认（triple 确认，结论成立）
+
+4 个 fp32 内核 **flFloatMin=192 恒满**（FloatRegClass 池从未被消耗）且 FP 指令真实在场——committedInstType 动态计数：gemm FloatMult=681472+FloatMultAcc=681472（=88³ 精确）；lu FloatMultAcc=786758+FloatDiv=7056；cholesky …+FloatDiv=7744+**FloatSqrt=88（=N）**；jacobi FloatAdd=1597696（=4×2×T×(N-2)² 精确）；**全部 SimdFloat\*=0（纯标量 Float 类）**。标量 FP 走 VecRegClass 的直接后果：**flVecMin=0**（vec 池 48 项，D75 实测零向量核初始剩 4 → 被标量 FP 物理寄存器消耗压穿到 0）——"vec 池受压"得到直接实证。W1.2 结论三重确认，D62-66/D72/73/76 标量 FP 行并入向量行的合并条款再添一柱。
+
+## 7. 回归（全量重建 native 重放路线，非抽查）
+
+`make clean &amp;&amp; make`（**17 目标** 含 polybench）幂等 **REG_MAKE_EXIT=0 WARN=0**；native golden 重放 **17/17 PASS**：既有 13 个（smoke `45737cc9a76c0dce`、branch_mispred `06e84f119c258fa7`、dep_chain int/vec `98e5e31e726e383f`/`b1e661a247b95774`、rob_fill int/fp `19eab7d0de27237e`/`85085fd5686d173b`、coremark `000000000000cf56`、embench 6 个）全部不变 + polybench 4 个重建后同值；另加 s3 SE 复跑闭环（提交版二进制再证）。
+
+## 8. GOLDEN_IDS 候选 + 偏差说明
+
+- `polybenchgemm-golden-v1 116849d3adf3227b`、`polybenchlu-golden-v1 74ffe5eb77ea9257`、`polybenchcholesky-golden-v1 ea7e0d0e7c86582d`、`polybenchjacobi2d-golden-v1 dc867b5f02998c1e`（待编排者注册 runner.py）。
+- 偏差（全部已入档 PROVENANCE.md/README）：(a) 上游为 GitHub 镜像而非官方 tarball（官方分发点死链，镜像经 llvm-test-suite 交叉验证）；(b) 3 个有记录的上游告警抑制；(c) cholesky oracle 域取下三角（上游 print_array 口径，其余 3 内核全数组）；(d) FINAL 尺寸相关——换 Makefile 尺寸变量需同步换 golden（已在 Makefile/PROVENANCE 注明）；(e) s1/s2 验证版二进制未保留 md5（clean 已删），以 s3 重建复跑 + native 重放双证替代。中断保护里程碑全程追加于 `/tmp/ooo_w13_progress.txt`。未执行 git commit/push（按纪律留给编排者）。</result>
+<usage><subagent_tokens>0</subagent_tokens><tool_uses>102</tool_uses><duration_ms>3504100</duration_ms></usage>
+</task-notification>
+
+---
+
+subagent数量 不超过2个
+
+---
+
+并发subagent数量不超过1个
+
+---
+
+并发subagent数量不超过2个
+
+---
+
+<task-notification>
+<task-id>a6c885a58d38cb63e</task-id>
+<tool-use-id>call_1830a902defa409e9b9ca962</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi/801d1500-1949-47d1-8f2e-95e2ab568418/tasks/a6c885a58d38cb63e.output</output-file>
+<status>completed</status>
+<summary>Agent "重派 W1.4a GAP 续做" came to rest</summary>
+<note>A task-notification fires each time this agent comes to rest with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>W1.4a GAP 任务完成。最终报告：
+
+## 一、遗留物核实（先核实，未盲目信任）
+
+**遗留 FINAL 复现：成功。** 前代理的 ELF（BFS=3/PR=3 规模）native 重跑：
+```
+real 0m0.005s
+EXIT=0
+FINAL=8b3b8f5b90da4c89
+```
+单行 22 字符 + 换行 = 23 字节，与前代理报告一致。gap.c 通读确认符合北极星 03-workloads.md GAP 行口径（固定 seed LCG CSR 图 + FIFO 层序 BFS + scatter PageRank double 累加 + FINAL 自校验；诚实标注为语义代理、非 vendored gapbs）。FMA 零位点独立复检（objdump fmadd/fmsub/fnmadd/fnmsub/fmla 计数=0；FP 清单 4 fadd/2 fmul/2 fsub/2 fdiv，fdiv/fsub 属 CRT）。**注意：该 3/3 规模 ELF 已因超预算被重编译覆盖，8b3b8f5b90da4c89 作废。**
+
+## 二、C3 校准（真机，逐字输出）
+
+**cal1（BFS=3/PR=3，遗留规模）**：EXIT=0，`FINAL=8b3b8f5b90da4c89`（==native），**hostSeconds 78.33 &gt; 60s 超预算**，simInsts 9081190（~116 KIPS），config.ini:2252 `cmd=workloads/ooo/gap/gap`。
+
+**重标定**：图规模不动（NVERT=16384×DEGREE=8，colidx 512KiB 超 L1D/L2 工作集是不规则 miss 设计点），只减 BFS_RUNS 3→2 + PR_ITERS 3→2。重建零告警，native 新值 `FINAL=2ec8c1e59f2808c5`（od -c 23 字节），FMA 复检仍 0。
+
+**cal2（BFS=2/PR=2）**：EXIT=0，`FINAL=2ec8c1e59f2808c5`，**hostSeconds 54.72 入 30-60s 带**，simInsts 6413647，config.ini cmd 核实。此为终版规模。
+
+## 三、终版验证（C3×2，逐字）
+
+```
+=== RUN s1 ===  EXIT=0  FINAL=2ec8c1e59f2808c5  hostSeconds 54.77  simInsts 6413647  config.ini:2252 cmd=workloads/ooo/gap/gap
+=== RUN s2 ===  EXIT=0  FINAL=2ec8c1e59f2808c5  hostSeconds 54.78  simInsts 6413647  config.ini:2252 cmd=workloads/ooo/gap/gap
+```
+od -c 两跑均 `F I N A L = 2 e c 8 c 1 e 5 9 f 2 8 0 8 c 5 \n`；native/cal2/s1/s2 四份 FINAL 行 md5 同为 `1b63503ae07b2047cd5ddb1a3469ed4e`（golden 稳定 + native==gem5）。`tools/classify.py extract_checksum` 对 cal2/s1/s2/native 端到端均取值 `2ec8c1e59f2808c5`。提交版 ELF md5 `7a0c332186c70ec839d4ddd8e774105c`。
+
+## 四、密度（p1 --chaos_probe read-only，FINAL 不变；event_density.py s1/s2/p1 三跑计数逐位一致）
+
+```
+CHAOS_PROBE samples=8190376 robOver80=2800014 iqOver80=2097113 flIntLe8=197571 flFloatLe12=0 flVecLe6=8190376 robMax=128 iqMax=64 flIntMin=0 flFloatMin=192 flVecMin=0
+```
+mispredicts **38936**（/commits 6685109 = **0.58%**）；squash **1276484**（**19.1%**，squash_bp 463014 主导）；**robOver80 34.2%** 采样占比（robMax=128 到顶）；iqOver80 25.6%（iqMax=64 满容）；flIntMin=0（freelist 实压穿）；renamed_insts 8150927、rat_writes 9644477、sim_ticks 3153294760（IPC≈0.78）。D36-D38 old-phys squash 场景事件供给充足。
+
+## 五、注册与回归
+
+- **Makefile**：gap 行已在前代理遗留 diff 中（`WORKLOADS := … rob_fill gap`），模式规则即可构建（本次重编译即走该规则），零告警、幂等。
+- **README**：共享行拆为 gap 行（实测值填入，done）+ libjpeg 占位行（原样保留，并行代理的 `workloads/ooo/libjpeg/` 未触碰）；追加「## gap 实测记录（W1.4a）」完整记录节。git diff 自查确认只含 gap 内容。
+- **回归抽查**：smoke `FINAL=45737cc9a76c0dce` EXIT=0、coremark `FINAL=000000000000cf56` EXIT=0，均不变（未跑全量 make clean，避开并行任务）。
+
+## 六、偏差说明
+
+1. 遗留 3/3 规模超预算（78.33s），FINAL 8b3b8f5b90da4c89 随重标定作废，golden 以 2/2 版 `2ec8c1e59f2808c5` 为准。
+2. 终版 hostSeconds 54.77/54.78 贴 60s 上沿（余量 ~5s），与 embench minver（53.14/54.04）同档，符合先例口径。
+3. GOLDEN_IDS 候选 `gap-golden-v1 2ec8c1e59f2808c5` 留待编排者注册；里程碑已全部追加 /tmp/ooo_w14a_progress.txt。**未做任何 git commit/push**（按纪律）。</result>
+<usage><subagent_tokens>0</subagent_tokens><tool_uses>29</tool_uses><duration_ms>1022530</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a260e1f6fbe10e43e</task-id>
+<tool-use-id>call_62d04e5a3eab458f826abdc5</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi/801d1500-1949-47d1-8f2e-95e2ab568418/tasks/a260e1f6fbe10e43e.output</output-file>
+<status>completed</status>
+<summary>Agent "实现 W1.4b libjpeg-turbo" came to rest</summary>
+<note>A task-notification fires each time this agent comes to rest with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>W1.4b 全部完成。最终报告如下。
+
+---
+
+# W1.4b libjpeg-turbo 负载 — 完成报告（无 blocker）
+
+## 环境预检结果（真实命令输出）
+
+```
+$ which cmake
+/usr/bin/cmake
+cmake version 3.27.9
+gcc (GCC) 12.3.1 (openEuler)  原生 aarch64，126 核
+xxd 2024-05-10（可用）；/tmp 15G 可用
+```
+**cmake blocker 预案未触发**。且最终 in-repo 构建未依赖 cmake（见下）。
+
+## 上游 commit
+
+`https://github.com/libjpeg-turbo/libjpeg-turbo` @ **`2a8bd381b42664e72cfc0f652db6caf4c9e98117`**（2026-09-22，master 最新，v3.2.1）。上游 ctest 在本机 **332/332 全过**（官方 SIMD 校验套件）。
+
+## 文件清单（新建/修改；**未做任何 git commit/push**，未碰 workloads/ooo/gap/）
+
+- **新建 `workloads/ooo/libjpeg/`**（255 文件，3.7MB，未含 build/ 中间产物）：
+  - `src/`（上游全量，除 md5/、spng/）、`simd/` 顶层 + `simd/arm/` 全量（aarch64 NEON = C intrinsics，无 nasm 依赖）、`cfg/`（4 个 cmake 生成头的逐字节拷贝：jconfig.h/jconfigint.h/jversion.h/simd/arm/neon-compat.h）、`LICENSE.md`（原样）
+  - gem5-fi 自有：`gen_img.c`（确定性 PPM 生成）、`jpeg_wl.c`（wrapper，`/* gem5-fi W1.4b */` FINAL 块）、`embedded_jpg.h`（23,980 字节 JPEG 数组）、`libjpeg.mk`（117 对象构建规则，从主 Makefile include）、`PROVENANCE.md`
+  - 构建产物：`jpeg_wl`（静态 aarch64 ELF）、`.rounds-3`
+- **共享文件（最小改动，diff 核实仅 libjpeg 行；GAP 的 gap 注册完好）**：`workloads/ooo/Makefile`（.PHONY/all 各加 `libjpeg` + include 注释块 + clean 2 行）、`workloads/ooo/README.md`（台账 libjpeg 行 + 「libjpeg 实测记录（W1.4b）」节）
+- 编排者提交清单：`workloads/ooo/libjpeg/{src,simd,cfg,LICENSE.md,gen_img.c,jpeg_wl.c,embedded_jpg.h,libjpeg.mk,PROVENANCE.md,jpeg_wl,.rounds-3}`，**不含** `libjpeg/build/`
+
+## 构建方式（诚实记录：一次错误判断已纠正）
+
+手写转录上游 cmake 配方（保持框架纯 gcc/make）：每对象 `gcc -Wall -Wextra -O3 -DNDEBUG -Icfg [-Icfg/simd/arm]`，flags 逐条读自 cmake 生成的 flags.make，无隐藏 flag。**配方验证：归档成员 117/117 与参考 cmake 构建逐成员相同**（`IN_REPO_ARCHIVE_117_of_117_IDENTICAL`）；vendored 文件与上游 `diff -r` 零差。**诚实纠错**：最初"cmake 零告警"判断被中文 locale 遮蔽（gcc 输出「警告」而非 "warning"）——真实清单 285×`-Wunused-parameter` + 2×`-Wsign-compare`，均逐一记录抑制（同 embench/polybench 政策），抑制后残余告警为零。过程中真机修掉 2 个构建 bug（make 内建 `%: %.c` 隐式规则劫持无配方目标；regen 缺 mkdir）。
+
+```
+$ make -C workloads/ooo libjpeg   → MAKE_EXIT=0，零告警，幂等（重跑无动作）
+$ make libjpeg-regen              → "embedded_jpg.h unchanged (deterministic)"
+```
+
+## 验证输出（逐字；逐跑 config.ini 身份核实 3/3）
+
+```
+native:  jpeg_wl: image=256x256 RGB, 196608 bytes/round, rounds=3
+         FINAL=c712f8f6fb9e21ec   EXIT=0
+C3 s1:   FINAL=c712f8f6fb9e21ec   EXIT=0  hostSeconds 45.69  simInsts 8301095
+         cmd=workloads/ooo/libjpeg/jpeg_wl
+C3 s2:   FINAL=c712f8f6fb9e21ec   EXIT=0  hostSeconds 45.70  simInsts 8301095
+         cmd=workloads/ooo/libjpeg/jpeg_wl   （s1==s2 simInsts 精确相同）
+C3 p1:   FINAL=c712f8f6fb9e21ec   EXIT=0（--chaos_probe，read-only）
+         cmd=workloads/ooo/libjpeg/jpeg_wl
+CHAOS_PROBE samples=7273837 robOver80=297706 iqOver80=238328 flIntLe8=295127
+flFloatLe12=0 flVecLe6=7273837 robMax=128 iqMax=64 flIntMin=0 flFloatMin=192
+flVecMin=0
+classify.py extract_checksum 对三份 gem5 输出均取值 c712f8f6fb9e21ec
+smoke 回归（抽查）：FINAL=45737cc9a76c0dce 不变（未跑全量 make clean）
+```
+
+**FINAL = `c712f8f6fb9e21ec`**（golden 候选 `libjpeg-golden-v1`，GOLDEN_IDS 注册留给编排者）。native==gem5 同时证明 gem5 O3 对 libjpeg-turbo 全部 NEON 解码路径与宿主硬件位级一致。
+
+## vec 密度（北极星「向量寄存器堆压力」用途实测确认）
+
+- **vecLookups = 4,612,072 = 0.556×simInsts**（对照 int 负载基线 ~182，高 4 个数量级）
+- **flVecMin = 0**（vec 池 48 项、D75 实测初始剩 4 → 被压穿）；flVecLe6 = 7,273,837/7,273,837 = 100%（D75 平台基线口径，非独立门）
+- **Simd 提交占比 21.3%**（1,898,432/8,906,842；SimdAlu 564,880/SimdAdd 527,724/SimdShift 429,173/SimdMult 357,484/SimdMultAcc 362,256/SimdAddAcc 163,840/SimdMisc 125,758）
+- 二进制级：objdump 向量寄存器指令 14,368 条、jsimd 符号 103 个
+- 其余密度：mispredicts 26,875（0.30%）、squash 941,927（10.6%）、robOver80 4.09%（robMax=128 到顶）、iqOver80 3.28%、flIntMin=0；event_density.py 三跑全部功能计数逐位相同（probe read-only 实证）
+
+## 偏差说明
+
+1. **PGM→PPM**：任务书说 PGM；灰度 PGM 解码会完全绕过 YCbCr→RGB 与色度上采样 NEON 内核（本负载指派用途是向量压力）。仍是程序生成确定性图 + vendored cjpeg 压缩，意图完全保留。
+2. **构建路线**：任务书以 cmake 为主路径；in-repo 用手写转录配方（cmake 仅在 /tmp 参考构建中用了一次以生成 cfg/ 头并验证对象集 117/117 一致）——保持框架纯 gcc，且绕开了"上游构建必须 cmake 生成配置头"的依赖。
+3. **regen cjpeg 为 PPM-only**（上游全读者构建需未入库的 spng/zlib）；**运行时核为纯解码**（压缩发生在构建期，按任务书设计）；12/16-bit 与算术编码对象按上游默认静态库成员集原样编译入库但未被嵌入 JPEG 触发。
+4. **oracle 为词折叠 FNV-1a-64**（8 字节/步，每字节恰覆盖一次）：逐字节串行 FNV 指令量会与解码本身同量级挤爆预算；每轮像素 + round 索引折入单一 running state，任意一轮瞬时故障必然改变 FINAL。
+5. **校准**：rounds=4 实测 61.26s 超预算 → 定格 rounds=3（46.46s 校准跑 / 45.69-45.70s 正式跑）。
+
+中断保护与全部里程碑证据在 `/tmp/ooo_w14b_progress.txt`（M1-M17）；上游参考构建与克隆保留在 `/tmp/ljt-upstream`、原型在 `/tmp/ljt-proto` 供编排者复核。</result>
+<usage><subagent_tokens>0</subagent_tokens><tool_uses>91</tool_uses><duration_ms>2939141</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a9f0fa7890a8fee7a</task-id>
+<tool-use-id>call_0936507680a8490ab71c3672</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi/801d1500-1949-47d1-8f2e-95e2ab568418/tasks/a9f0fa7890a8fee7a.output</output-file>
+<status>completed</status>
+<summary>Agent "W2 观测层设计 spike 重派" came to rest</summary>
+<note>A task-notification fires each time this agent comes to rest with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>## 1. CHAOSCommitTrace（L2 逐提交指令 trace）
+
+**a. Hook 点** — `Commit::commitHead` 内两个候选，按需二选一：
+- 故障检查钩（CHAOSRAS 现挂点）：`CHAOS/gem5/src/cpu/o3/commit.cc:1160-1169`（注释 1163，调用 1166 `chaosRAS-&gt;maybeCorrupt(tid, head_inst.get())`）；RAS 的成员/setter 在 `commit.hh:356-363`，include 在 `commit.hh:55-58`。这是**唯一**现有 commit.cc 钩点。
+- **推荐给 CommitTrace 的落点**：`commit.cc:1274` 之后（rename map 已更新、`rob-&gt;retireHead` 之前，`commit.cc:1271-1274` 是 `renameMap[tid]-&gt;setEntry(flattenedDestIdx(i), renamedDestIdx(i))` 循环，`rob-&gt;retireHead(tid)` 在 `commit.cc:1283`，`commitTick` 在 `:1285`）。另 `updateComInstStats(head_inst)` 在 `commit.cc:1259`；`lastCommitedSeqNum[tid]=head_inst-&gt;seqNum` 在外层 `commit()` 的 `commit.cc:1038`（不是 commitHead 内）。
+
+**b. 字段** — 全部可用 DynInst 公开 API（`dyn_inst.hh`）：
+- PC：`head_inst-&gt;pcState()`（`dyn_inst.hh:952`，override），取址 `pcState().instAddr()`。
+- opcode：`head_inst-&gt;staticInst-&gt;getName()`（commit.cc:1210 已在用）。
+- 目的寄存器：`numDestRegs()`（`dyn_inst.hh:687`）、`destRegIdx(i)`（`:696`）→ **arch RegId**；`flattenedDestIdx(i)`（`:248`）、`renamedDestIdx(i)`（`:264`）→ **phys RegIdPtr**（`-&gt;index()` = phys id）。
+- 源寄存器：`numSrcRegs()`（`:684`）、`srcRegIdx(i)`（`:699`）arch；`renamedSrcIdx(i)`（`:293`）phys。
+- **提交时的目的值**：从物理寄存器堆读，`cpu-&gt;physRegFile().getReg(phys_reg)` → `RegVal`（`cpu/o3/regfile.hh:239`）；向量走 `getReg(phys, void*)`（`regfile.hh:282`）+ `vecRegBytes()`（`regfile.hh:183`）。访问器 `CPU::physRegFile()` 在 `cpu.hh:483`。参考现有读法 `CHAOSPhysReg.cc:336/387`。另一路 `CPU::getWritableReg()`（`cpu.hh:339`）。
+- **RAT 推进序**：`setEntry` 在 `commit.cc:1273`，**晚于** 1259、早于 1283。钩在 1271 前 = 旧 RAT；钩在 1274 后 = 新 RAT。注意 `UnifiedRenameMap::setEntry` 内含 CHAOSRenameMap post-write 钩（`rename_map.hh:289-297`），注入器可**改写**本次映射，故 1274 后读到的是注入后的 RAT（正是 W2 要观测的）。physRegFile 值读取不受影响。
+
+**c. 输出机制** — 用 `simout.create(name, false, no_gz)`（`base/output.hh:222`；`CHAOSProbe.cc:40` 现有用法），`.gz` 后缀自动 gzip（`output.hh:207/218`、`output.cc:231`），zlib 是 gem5 硬依赖（`SConstruct:837-841`）。写用 `*(log_stream-&gt;stream()) &lt;&lt; ...`（`CHAOSProbe.cc:157-158`、`CHAOSIQ.cc:49`）。**现有 CHAOS 组件无逐指令 trace 流**，只有单行 summary。体积：~64B/条 × 10M ≈ 640MB 原始，gzip 后约 60–130MB；减速主要来自格式化+IO，缓冲写估计 2–5×，逐条 flush 会更差（W2.1 验收要求实测减速比，见 `docs/gem5-fi/ooo/06-implementation-plan.md:116`）。
+
+**d. commit 序号** — **无全局 commit 计数器**。可用：`commitStats[tid]-&gt;numInsts`（`commit.cc:1365`，逐线程、跳过 microop）与 `numOps`（`:1372`）；`lastCommitedSeqNum[tid]`（`commit.hh:448`，`:1038` 赋值，逐线程且是 seqNum 非计数）。全局单调 seqNum 在 fetch 分配：`CPU::getAndIncrementInstSeq()`（`cpu.hh:298`）/ `globalSeqNum`（`cpu.hh:601`），**squash 会留空洞**。建议 CommitTrace 自持计数器。
+
+## 2. CHAOSMicroSnap（L1 快照）
+
+**a. RAT 快照** — `SimpleRenameMap` **有公开迭代器**：`begin/end/cbegin/cend`（`rename_map.hh:156-165`）+ `numArchRegs()`（`:152`）+ `lookup(RegId)`（`:130`）。但 `UnifiedRenameMap` 的 `std::array&lt;SimpleRenameMap, CCRegClass+1&gt; renameMaps` 是**私有**（`rename_map.hh:179`），**无 per-class 公开 accessor**（现有 CHAOSRenameMap 指针 `:189-200` 只用于钩子，不可迭代）。**最小 patch 位置**：`rename_map.hh:204` 的 public 块加 `SimpleRenameMap &amp;map(RegClassType c)` 和/或 `forEachArchReg(c, fn)`，内部 `map[c].begin()..end()` 产出 `(arch_idx, PhysRegIdPtr)`。
+
+**b. 可直接复用 CHAOSProbe 的读取代码** — ROB 占用 `o3cpu-&gt;o3ROB().countInsts()`（`CHAOSProbe.cc:99`；`rob.hh:268`）；IQ `o3cpu-&gt;o3IEW().instQueue.getCount(0)`（`CHAOSProbe.cc:101`；`inst_queue.hh:391`）；freelist `o3cpu-&gt;physFreeList().numFreeRegs(class)`（`CHAOSProbe.cc:103-107`；`free_list.hh:255-257`）；容量推导 `CHAOSProbe.cc:64-67`；halt 检测 `anyThreadActive()`（`CHAOSProbe.cc:82-90`）。**ROB head/tail 公开**：`readHeadInst(tid)`（`rob.hh:136`）、`readTailInst(tid)`（`rob.hh:153`）、`getEntryAtDistance(tid,D)`（`rob.hh:309`，`rob.cc:270`，现用法 `CHAOSROB.cc:113`）→ 取 `-&gt;seqNum`。
+
+**c. 采样触发** — 无全局 commit 计数（见 1d），**周期事件+读计数需逐 tid 累加 `commitStats[tid]-&gt;numInsts`**，且与 commit 序号非严格对齐。**推荐 commit 侧计数器**：MicroSnap 暴露 `void sample(uint64_t commit_seq)`，由 commit.cc 钩子（与 CommitTrace 同一落点）每 N 条调用；`curTick()` 在钩子内即可取，无需额外事件（周期事件仅作兜底）。注入器指针挂法照抄 `commit.hh:356-363`。
+
+## 3. 两遍法与对齐
+
+对齐主键 = **commit 序号**（自持计数器），无需 gem5 侧额外输出。每条记录必须含 **tick**（`curTick()`）：既支撑「执行时间错」分类，也用于潜伏期/停顿诊断；另带 `seqNum`（诊断 squash 空洞）、`tid`（SMT 消歧）、PC/opcode。第二遍同 seed 只对 SDC/Crash/Hang 样本开 trace（`06-implementation-plan.md:82/116-118`）。trace 钩子必须纯读、不产生额外事件，保持与无 trace 遍零回归（CHAOSProbe 已证此模式）。
+
+## 4. 现有可复用件
+
+- **CHAOSProbe 四件套骨架**：`.py`（type/cxx_class/cxx_header + `cpu` Param + `writeLog`，`CHAOSProbe.py:29`）、`.hh`（SimObject 子类、`BaseCPU* cpu`、startup 解析的 `o3::CPU* o3cpu`、`EventFunctionWrapper`、`OutputStream* log_stream`、include `params/*.hh`+`base/output.hh`，`CHAOSProbe.hh:20-35/49-69`）、`.cc`（ctor `simout.create` `:39-43`、startup `dynamic_cast`+`registerExitCallback`+`schedule` `:48-79`、tick 只读采样 `:92-125`、report 单行 stdout+日志副本 `:150-159`）、`SConscript`。两件套可整段抄。
+- **自挂载**：startup 里 `dynamic_cast&lt;o3::CPU*&gt;` + `cpu.hh:483-493` 访问器 —— MicroSnap 可零源码钩子；CommitTrace 必须加 commit.cc 钩子 + setter（`commit.hh:356-363` 模式）。
+- **CHAOSIQ 采样模式**（`CHAOSIQ.cc:31-48`、`:84-90`、`:121-126`）：`countOnly` 干跑消费 eligible 事件并打印 `CHAOS_ELIGIBLE_COUNT`（`:46-50`），driver 用 `chaosPickSkip`（`chaos_event_sample.hh:68-73`）算出固定 `eventsToSkip` 回传。**W2.3 可借鉴点** = 「干跑计数 → driver 回传固定参数」这一可审计的两遍编排骨架 + `countOnly`/`eventsToSkip` 式 Param 设计；但 trace 遍不需要 RNG（纯读），核心是 runner 以同 seed 重放 + trace 文件按 (cell, rep) 命名。</result>
+<usage><subagent_tokens>0</subagent_tokens><tool_uses>39</tool_uses><duration_ms>233933</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>aa8ab907204f2569a</task-id>
+<tool-use-id>call_55604ca7c8de45ea892481e8</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi/801d1500-1949-47d1-8f2e-95e2ab568418/tasks/aa8ab907204f2569a.output</output-file>
+<status>completed</status>
+<summary>Agent "实现 W2.2 commit_diff.py" came to rest</summary>
+<note>A task-notification fires each time this agent comes to rest with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>W2.2 完成且全部验证通过。git 状态确认：仓库内我的唯一足迹是新增 `tools/commit_diff.py`（commit.cc/commit.hh/ooo_proxy.py/CHAOSCommitTrace/ 是并行 W2.1 代理的改动，我未触碰）。未做任何 git commit/push（按纪律留给编排者）。
+
+# W2.2 交付报告：tools/commit_diff.py（TC'23 五分类离线比对器）
+
+## 一、文件清单
+
+| 文件 | 性质 | 说明 |
+|---|---|---|
+| `/home/sdc/gem5-fi/tools/commit_diff.py` | **新增（唯一入库文件）** | 507 行，python3 stdlib-only（argparse/gzip/json/re/sys），未 commit/push（按纪律留给编排者） |
+| `/tmp/ooo_w22/gen_traces.py` | 测试输入生成器（不入库） | 手写 12 行定向对（五类+变体）+ 100 行伪 trace 预演对（gzip）+ 阴性坏文件 |
+| `/tmp/ooo_w22/run_tests.py` | 断言驱动（不入库） | 40 项断言（exit 码/主类/潜伏期/计数/分歧层级/辅助诊断） |
+| `/tmp/ooo_w22/*.{csv,csv.gz}` | 测试输入数据（不入库） | 22 个文件 |
+| `/tmp/ooo_w22_progress.txt` | 中断保护里程碑 | 已更新至 DONE |
+
+CLI 与计划 Interface 一致：`python3 tools/commit_diff.py --ref A.csv.gz --run B.csv.gz [--json OUT] [--tick-tol T]`（默认 T=0）。退出码：0=比对完成（分歧与否看输出/JSON 的 verdict）；1=文件不可读/坏行（消息带文件名+行号）；2=CLI 误用。
+
+## 二、验证输出（逐字，真机 python 3.11.6）
+
+### 断言驱动全量输出（40/40 PASS）
+
+```
+PASS  t1 ②指令流改变 (pc diff @5)
+PASS  t2 ②指令流改变 (seq 单侧缺失 @10)
+PASS  t3 ③指令替换 (op @8)
+PASS  t4a ④操作数强制切换 (dest[1].arch @6)
+PASS  t4b ④操作数强制切换 (ndest 数量 @6)
+PASS  t5 ⑤数据损坏 (dest[0].val @9, csv)
+PASS  t5 ⑤数据损坏 (dest[0].val @9, gzip)
+PASS  t6 ①执行时间错 (tick 漂移, tol=0 → 首超 @3)
+PASS  t6 ①执行时间错 (tol=10 → 首超 @11)
+PASS  t6 无分歧 (tol=5000 覆盖全部漂移)
+PASS  t7 多分歧 (先 val@4 后 op@10 → 主类=首个⑤)
+PASS  self-compare 无分歧: d_ref.csv
+PASS  self-compare 无分歧: d_ref.csv.gz
+PASS  self-compare 无分歧: t1_flow_pc_run.csv
+PASS  self-compare 无分歧: t2_flow_missing_run.csv
+PASS  self-compare 无分歧: t3_subst_run.csv
+PASS  self-compare 无分歧: t4a_opnd_arch_run.csv
+PASS  self-compare 无分歧: t4b_opnd_count_run.csv
+PASS  self-compare 无分歧: t5_corrupt_run.csv
+PASS  self-compare 无分歧: t5_corrupt_run.csv.gz
+PASS  self-compare 无分歧: t6_timing_run.csv
+PASS  self-compare 无分歧: t7_multi_run.csv
+PASS  self-compare 无分歧: p_ref.csv.gz
+PASS  self-compare 无分歧: p1_run.csv.gz
+PASS  self-compare 无分歧: p2_run.csv.gz
+PASS  self-compare 无分歧: p3_run.csv.gz
+PASS  p1 100 行伪 trace 完全一致 → 无分歧
+PASS  p2 tick 容差案例 (tol=0 → ①@20)
+PASS  p2 tick 容差案例 (tol=5 → ①@60)
+PASS  p2 tick 容差案例 (tol=7 → 无分歧)
+PASS  p3 深处 val 分歧@62 + 前置 tick 漂移 (tol=0 → 主类仍⑤@62)
+PASS  p3 同上 tol=5 (主类⑤@62, ①计数=0, 诊断首超@60)
+PASS  n1 列数不匹配 → exit 1 指明 line 3
+PASS  n2 ndest 非整数 → exit 1 指明 line 5
+PASS  n2b ndest=3 但只有 2 个四元组 → exit 1 指明 line 7
+PASS  n3 val 非 16 位十六进制 → exit 1 指明 line 10
+PASS  n4 文件不存在 → exit 1
+PASS  n5 seq 不从 0 起 → exit 1 指明 line 1
+PASS  n6 seq 未严格递增 → exit 1 指明 line 4
+PASS  cli --tick-tol -1 → exit 2 (argparse)
+
+== summary: 40 PASS, 0 FAIL ==
+```
+
+### 回归检查（不受影响的现有工具，零连带破坏）
+
+```
+== 回归1: manifest_validate 自测 ==
+SELFTEST OK: v1 p1 + v2 p2 validate, broken manifest rejected (15 errors as expected).
+exit=0
+== 回归2: event_density --help ==
+exit=0
+== 回归3: runner --help ==
+exit=0
+```
+
+另：`python3 -m py_compile tools/commit_diff.py` → OK（无语法/告警问题）。
+
+## 三、五类判定实际输出样本（逐字）
+
+### ②指令流改变（pc 不同 @seq5；指令含 0/1/2 个目的寄存器）
+
+```
+[结论] 主分类: ②指令流改变 (instruction_flow_change)
+[潜伏期] 首分歧 seq = 5
+[首分歧明细]
+  seq 5  分歧层级: pc
+  detail: pc: ref=80014 run=90000
+  ref: 5,0,1500,80014,b,0
+  run: 5,0,1500,90000,b,0
+
+[全程分歧点计数]  (主类 = 首个分歧点; 其余分歧点计入各类)
+  ①执行时间错 (timing_error): 0
+  ②指令流改变 (instruction_flow_change): 1  (首见 seq 5)
+  ③指令替换 (instruction_substitution): 0
+  ④操作数强制切换 (operand_forced_switch): 0
+  ⑤数据损坏 (data_corruption): 0
+  合计分歧点: 1
+```
+
+### ②指令流改变（seq 单侧缺失：run 截断至 10 行）
+
+```
+[结论] 主分类: ②指令流改变 (instruction_flow_change)
+[潜伏期] 首分歧 seq = 10
+[首分歧明细]
+  seq 10  分歧层级: presence
+  detail: seq 10 仅存在于 ref（run 侧缺失）
+  ref: 10,0,2000,80028,ret,0
+  run: &lt;该侧无此 seq 记录&gt;
+  ...
+  ②指令流改变 (instruction_flow_change): 2  (首见 seq 10)
+  合计分歧点: 2
+```
+
+### ③指令替换（同 pc，op madd→msub @seq8）
+
+```
+[结论] 主分类: ③指令替换 (instruction_substitution)
+[潜伏期] 首分歧 seq = 8
+[首分歧明细]
+  seq 8  分歧层级: op
+  detail: op: ref=madd run=msub
+  ref: 8,0,1800,80020,madd,1,1,8,88,0000000000000064
+  run: 8,0,1800,80020,msub,1,1,8,88,0000000000000064
+  ...
+  ③指令替换 (instruction_substitution): 1  (首见 seq 8)
+```
+
+### ④操作数强制切换（dest[1] arch id 7→11 @seq6）
+
+```
+[结论] 主分类: ④操作数强制切换 (operand_forced_switch)
+[潜伏期] 首分歧 seq = 6
+[首分歧明细]
+  seq 6  分歧层级: dest[1].arch
+  detail: dest[1] arch id: ref=(class 1, arch 7) run=(class 1, arch 11)
+  ref: 6,0,1600,80018,mul,2,1,6,86,000000000000000a,1,7,87,0000000000000014
+  run: 6,0,1600,80018,mul,2,1,6,86,000000000000000a,1,11,87,0000000000000014
+  ...
+  ④操作数强制切换 (operand_forced_switch): 1  (首见 seq 6)
+```
+
+（数量变体 t4b：`分歧层级: dest_count / detail: 目的寄存器数量 ndest: ref=2 run=1`，同样判④@6。）
+
+### ⑤数据损坏（gzip 对，dest[0].val @seq9）
+
+```
+[结论] 主分类: ⑤数据损坏 (data_corruption)
+[潜伏期] 首分歧 seq = 9
+[首分歧明细]
+  seq 9  分歧层级: dest[0].val
+  detail: dest[0] val: ref=0000000000000003 run=0000000000000004
+  ref: 9,0,1900,80024,sub,2,1,9,89,0000000000000003,1,10,90,0000000000000001
+  run: 9,0,1900,80024,sub,2,1,9,89,0000000000000004,1,10,90,0000000000000001
+  ...
+  ⑤数据损坏 (data_corruption): 1  (首见 seq 9)
+```
+
+### ①执行时间错（字段全同，tick 漂移；tol=0 首超 @3，tol=10 首超 @11，tol=5000 无分歧）
+
+```
+[结论] 主分类: ①执行时间错 (timing_error)
+[潜伏期] 首分歧 seq = 3
+[首分歧明细]
+  seq 3  分歧层级: tick
+  detail: tick: ref=1300 run=1305（漂移 5 &gt; 容差 0）
+  ref: 3,0,1300,8000c,ldr,1,1,4,84,00000000000000ff
+  run: 3,0,1305,8000c,ldr,1,1,4,84,00000000000000ff
+  ...
+  ①执行时间错 (timing_error): 9  (首见 seq 3)
+  合计分歧点: 9
+[辅助诊断]  (不计入五分类)
+  ...
+  tick 漂移 (仅字段一致对, 共 12 对): max 5000 @ seq 11; 首超容差(&gt;0): seq 3
+```
+
+### 多分歧（先 val@4 后 op@10 → 主类=首个，计数含两类）
+
+```
+[结论] 主分类: ⑤数据损坏 (data_corruption)
+[潜伏期] 首分歧 seq = 4
+[首分歧明细]
+  seq 4  分歧层级: dest[0].val
+  detail: dest[0] val: ref=00000000deadbeef run=00000000deadbeee
+  ...
+  ③指令替换 (instruction_substitution): 1  (首见 seq 10)
+  ⑤数据损坏 (data_corruption): 1  (首见 seq 4)
+  合计分歧点: 2
+```
+
+### 100 行伪 trace 预演：tick 容差案例（p2，gzip，tol=5）
+
+```
+[结论] 主分类: ①执行时间错 (timing_error)
+[潜伏期] 首分歧 seq = 60
+[首分歧明细]
+  seq 60  分歧层级: tick
+  detail: tick: ref=3220 run=3227（漂移 7 &gt; 容差 5）
+  ref: 60,0,3220,800f0,b,0
+  run: 60,0,3227,800f0,b,0
+  ...
+  ①执行时间错 (timing_error): 40  (首见 seq 60)
+```
+
+（同对 tol=0 → ①@20 计数 80；tol=7 → 无分歧——三档容差语义均断言通过。）
+
+### 100 行伪 trace 预演：前置 tick 漂移 + 深处字段分歧混合（p3，tol=0）
+
+```
+[结论] 主分类: ⑤数据损坏 (data_corruption)
+[潜伏期] 首分歧 seq = 62
+[首分歧明细]
+  seq 62  分歧层级: dest[0].val
+  detail: dest[0] val: ref=00000000000013e0 run=00000000000013e1
+  ...
+  ①执行时间错 (timing_error): 0
+  ⑤数据损坏 (data_corruption): 1  (首见 seq 62)
+[辅助诊断]  (不计入五分类)
+  tick 漂移 (仅字段一致对, 共 99 对): max 7 @ seq 60; 首超容差(&gt;0): seq 20
+```
+
+——seq20 起 tick 已漂移，但主类仍是 seq62 的⑤：①只在全程字段全同时成立（计划钉死语义，见偏差 3），前置漂移降级为诊断量。
+
+### 阴性输出（逐字 stderr + exit 码）
+
+```
+commit_diff: ERROR: /tmp/ooo_w22/n1_badcols_run.csv: line 3: 列数不匹配: ndest=2 要求 14 列 (6+4*ndest)，实际 13 列   exit=1
+commit_diff: ERROR: /tmp/ooo_w22/n2_badndest_run.csv: line 5: ndest 字段 'x' 不是无符号整数                                exit=1
+commit_diff: ERROR: /tmp/ooo_w22/n2b_ndest_mismatch_run.csv: line 7: 列数不匹配: ndest=3 要求 18 列 (6+4*ndest)，实际 14 列 exit=1
+commit_diff: ERROR: /tmp/ooo_w22/n3_badval_run.csv: line 10: dest[0].val 字段 '000000000000003' 不是 16 位十六进制（钉死格式: val=16位十六进制） exit=1
+commit_diff: ERROR: /tmp/ooo_w22/n5_seqstart_run.csv: line 1: 首条记录 seq=1，钉死格式要求 seq 从 0 起                    exit=1
+commit_diff: ERROR: /tmp/ooo_w22/n6_nonincreasing_run.csv: line 4: seq=2 未严格递增（前一条 seq=3）                        exit=1
+commit_diff: ERROR: cannot open '/tmp/ooo_w22/NO_SUCH_FILE.csv.gz': No such file or directory                             exit=1
+```
+
+### --json 机器可读样本（t5 gzip 对，全文见 /tmp/ooo_w22/sample.json）
+
+```json
+{
+  "tool": "commit_diff",
+  "trace_format": "seq,tid,tick,pc,op,ndest[,class,arch,phys,val]*",
+  "ref": "/tmp/ooo_w22/d_ref.csv.gz", "ref_instructions": 12,
+  "run": "/tmp/ooo_w22/t5_corrupt_run.csv.gz", "run_instructions": 12,
+  "aligned_pairs": 12, "tick_tol": 0,
+  "verdict": "diverged",
+  "primary_class": "data_corruption", "primary_class_zh": "⑤数据损坏",
+  "latency_seq": 9,
+  "first_divergence": { "seq": 9, "class": "data_corruption", "class_zh": "⑤数据损坏",
+    "level": "dest[0].val", "detail": "dest[0] val: ref=0000000000000003 run=0000000000000004",
+    "ref_line": "9,0,1900,80024,sub,2,1,9,89,0000000000000003,1,10,90,0000000000000001",
+    "run_line": "9,0,1900,80024,sub,2,1,9,89,0000000000000004,1,10,90,0000000000000001" },
+  "divergence_counts": { "timing_error": 0, "instruction_flow_change": 0, "instruction_substitution": 0, "operand_forced_switch": 0, "data_corruption": 1 },
+  "first_seq_per_class": { "timing_error": null, "instruction_flow_change": null, "instruction_substitution": null, "operand_forced_switch": null, "data_corruption": 9 },
+  "total_divergence_points": 1,
+  "aux": { "phys_mismatch": 0, "tid_mismatch": 0, "tick_compared_pairs": 11, "max_tick_drift": 0, "max_tick_drift_seq": 0, "first_tick_over_tol_seq": null }
+}
+```
+
+## 四、偏差与解释性决策说明
+
+1. **行格式按计划文件**：任务提示写 `seq,tid,tid,tick,...`（tid 重复，笔误），按「冲突以计划文件为准」采用计划钉死的 `seq,tid,tick,pc,op,ndest[,class,arch,phys,val]*`（6 基列 + 4×ndest）。
+2. **"dest arch id" 取严格解释 = (RegClass, arch index) 二元组**：寄存器身份由 class+index 共同构成（仅比 index 会把 x5 与 d5 混同）。实际风险为零：同 pc+op ⇒ 同静态指令 ⇒ 目的 class 集合必相同。class 不同同样判④。
+3. **①执行时间错采用两段式（计划原文语义）**：仅当两条 trace **全程**指令字段一致而 tick 漂移超容差时判①并计①分歧点；若全程任何位置存在字段级分歧，主类=首个字段分歧，前置/后置 tick 漂移不抢主类、不进①计数，只进辅助诊断（`first_tick_over_tol_seq`/`max_tick_drift`，且仅在字段一致对上统计）。任务提示的⑤措辞（"首分歧前字段全同但 tick 漂移"）在五个规范案例上与该语义等价，混合案例以计划文为准（p3 已演示）。理由：五分类刻画的是架构层结局，纯时间错=结果全对只差时间。
+4. **phys/tid 不参与五分类**（钉死映射只到 pc/op/arch/val）：仅在字段完全一致的对上统计 phys/tid 不匹配条数作辅助诊断（L1 微架构信号，供 W2.4 交叉）。
+5. **超出字面规范的严格性**：seq 必须从 0 起、严格递增（对齐前提，坏则 exit 1 指明行号，n5/n6 验证）；pc 拒绝 0x 前缀；val 强制恰 16 位十六进制；gzip 按 magic 字节识别（纯文本也能读，容错不损失校验）。
+6. **计划 Step 2②"真实无注入对（smoke 两次跑的 trace）"无法执行**：trace 生成器是并行 W2.1 代理的产物，尚不可用；按任务指示以自造的 100 行钉死格式伪 trace 对（p1/p2/p3）替代预演。W2.1 合入后应补跑该真机对（留给编排者）。
+7. **实现形态**：流式 merge-join 按 seq 对齐，O(1) 内存（branch_mispred 8.6M 指令级的 trace 双读也不会撑爆 29GB 主存）；比对语义与两遍扫描等价。退出码不承载 verdict（0=比对完成），机器接口是 --json 文件——W2.3 接 runner 时用 JSON。
+8. **纪律遵守**：未 git commit/push；仓库内仅新增 `tools/commit_diff.py` 一个文件；未触碰 gem5 源码/configs（git status 中 commit.cc/commit.hh/ooo_proxy.py/CHAOSCommitTrace/ 的改动全部来自并行 W2.1 代理）。</result>
+<usage><subagent_tokens>0</subagent_tokens><tool_uses>24</tool_uses><duration_ms>1579428</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a2c8c1db3ed8dda66</task-id>
+<tool-use-id>call_ceaa1746a30246e289b2a35b</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi/801d1500-1949-47d1-8f2e-95e2ab568418/tasks/a2c8c1db3ed8dda66.output</output-file>
+<status>completed</status>
+<summary>Agent "实现 W2.1 CHAOSCommitTrace" came to rest</summary>
+<note>A task-notification fires each time this agent comes to rest with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>所有关卡均已通过，工作已完成（根据纪律，未提交 —— 由编排器负责提交）。最终报告：
+
+# W2.1 CHAOSCommitTrace — 已完成，所有验证关卡通过
+
+## 文件清单 (7)
+
+**已创建 (4件套, 骨架抄 CHAOSProbe):**
+- `/home/sdc/gem5-fi/CHAOS/gem5/src/cpu/o3/CHAOSCommitTrace/CHAOSCommitTrace.hh`
+- `/home/sdc/gem5-fi/CHAOS/gem5/src/cpu/o3/CHAOSCommitTrace/CHAOSCommitTrace.cc`
+- `/home/sdc/gem5-fi/CHAOS/gem5/src/cpu/o3/CHAOSCommitTrace/CHAOSCommitTrace.py`
+- `/home/sdc/gem5-fi/CHAOS/gem5/src/cpu/o3/CHAOSCommitTrace/SConscript`
+
+**已修改 (最小改动, 50 insertions / 1 deletion):**
+- `commit.hh` (+12): 前置声明 + `chaosCommitTrace` 成员 + `setChaosCommitTrace` setter (CHAOSRAS@356-363 模式)
+- `commit.cc` (+14): include + 钩子 `/* gem5-fi W2.1 */ if (chaosCommitTrace) chaosCommitTrace-&gt;traceCommit(tid, head_inst.get());` — 位于 setEntry 循环之后（读到注入后的 RAT）、`rob-&gt;retireHead` 之前
+- `configs/se/ooo_proxy.py` (+25/-1): import + `--chaos_ctrace` / `--ctrace_file` (默认 `commit_trace.csv.gz`) + 挂载块 (`board.chaos_ctrace`)
+
+## 构建输出尾部（逐字）
+
+```
+ [     CXX] src/cpu/o3/CHAOSCommitTrace/CHAOSCommitTrace.cc -&gt; ARM/cpu/o3/CHAOSCommitTrace/CHAOSCommitTrace.cc.o
+ ...
+ [     LINK]  -&gt; ARM/gem5.opt
+scons: done building targets.
+```
+产物 `/home/sdc/gem5-fi/build/ARM/gem5.opt`（2026-09-23 23:56:47, 1137089992 B）。**我的文件零告警**；第一次全量构建中的 4 行告警（CHAOSIQ -Wreorder ×3、CHAOSPhysReg.cc:534 unused tid）均为未触碰文件的既有告警（因 SimObject 参数重生成而重编）。修复后增量构建 `grep -c 警告 = 0`。
+
+## 验证输出（逐字，全部在修复后二进制上）
+
+**① 纯读证明（硬门）— FINAL 逐字节一致 + golden:**
+```
+--- smoke notrace2: FINAL=45737cc9a76c0dce
+--- smoke trace2:   FINAL=45737cc9a76c0dce
+--- smoke FINAL lines BYTE-IDENTICAL
+--- branch_mispred notrace2: FINAL=06e84f119c258fa7
+--- branch_mispred trace2:   FINAL=06e84f119c258fa7
+--- branch_mispred FINAL lines BYTE-IDENTICAL
+0000000   F   I   N   A   L   =   4   5   7   3   7   c   c   9   a   7
+0000020   6   c   0   d   c   e  \n
+```
+simInsts 不变：smoke 308057 / bm 8611484（notrace==trace）。默认关闭回归：notrace outdir 无 trace 文件，EXIT=0，golden 不变。
+
+**② 行数自洽:**
+```
+smoke: trace_lines=309387 committedInstType_0_total=309387 MATCH
+branch_mispred: trace_lines=8612678 committedInstType_0_total=8612678 MATCH
+```
+
+**③ 内容抽查 — trace 前 20 行:**
+```
+0,0,73535,400640,nop,0
+1,0,74690,400644,movz,1,0,29,42,0000000000000000
+2,0,74690,400648,movz,1,0,30,43,0000000000000000
+3,0,74690,40064c,orr,1,0,5,44,0000000000000000
+4,0,137445,400650,ldr,1,0,1,45,0000000000000001
+5,0,137445,400654,add,1,0,2,46,0000007ffffefe68
+6,0,137445,400658,add,1,0,6,47,0000007ffffefe60
+7,0,137445,40065c,adrp,1,0,0,48,0000000000400000
+8,0,137830,400660,add,1,0,0,49,0000000000400674
+9,0,137830,400664,movz,1,0,3,50,0000000000000000
+10,0,137830,400668,movz,1,0,4,51,0000000000000000
+11,0,137830,40066c,bl,1,0,30,52,0000000000400670
+12,0,138215,400950,addxi_uop,1,0,35,53,0000007ffffefdd0
+13,0,138215,400950,strxi_uop,0
+14,0,138215,400950,strxi_uop,0
+15,0,138215,400950,addxi_uop,1,0,42,54,0000007ffffefdd0
+16,0,138600,400954,add,1,0,29,55,0000007ffffefdd0
+17,0,138600,400958,addxi_uop,1,0,35,56,0000007ffffefde0
+18,0,138600,400958,strxi_uop,0
+19,0,138600,400958,strxi_uop,0
+```
+vs `--debug-flags=Commit`（同一 workload）：
+```
+309387   (= debug "Committing" 行数 = trace 行数)
+TICK+PC STREAMS IDENTICAL (all 309387 lines)
+```
+op 与 objdump 反汇编一致（gem5 基础名 vs objdump 别名）：`400640 nop==nop, 400644 movz=="mov x29,#0", 40064c orr=="mov x5,x0", 400650 ldr==ldr, 40065c adrp==adrp, 40066c bl==bl, 4096fc mrs==mrs`；arch 语义吻合（x29/x30/x5/x1/x0/x3/x4）；值语义抽查：`adrp x0,400000 → 0000000000400000`、`bl → x30=400670 (返回地址)` ✓。
+
+**④ 减速实测:**
+```
+smoke: notrace=1.16s trace=2.43s ratio=2.09x
+branch_mispred: notrace=56.61s trace=88.52s ratio=1.56x
+```
+gz 体积：smoke 5.1MB（309K 行）、bm 97.9MB（8.6M 行，落点在 spike 估计 60-130MB 内）。
+
+**⑤ 格式自检:** 全部 val 字段=16 位十六进制；列数契约 `6+4*ndest` 全行通过；seq 0..N-1 单调通过。
+
+## 偏差说明（全部诚实披露）
+
+1. **过程中发现并修复一个真实格式 bug**：首版 `hex16`/MiscReg 分支漏打 phys 与 val 之间的逗号（phys/val 两列粘连，dest 行 9 列而非 10 列）——被我自己加的列数契约检查当场抓出；修复后**重新构建并重跑了全部 5 个验证运行**（上文全部为修复后输出）。此 bug 直接影响已落地的 W2.2 commit_diff.py（80dd4322）对钉死格式的解析，修复使其对齐。
+2. **class=-1 行**：为 `subs xzr`/`cmp` 类指令的 X31/XZR 目的寄存器——映射到 gem5 哨兵零 PhysRegId（InvalidRegClass, index 65535=0xFFFF），val 全零即零寄存器真值；bm 中 504377 行（5.9%，分支密集负载的 cmp 量）属正常。MiscReg 目的（msr）不读 physRegFile（getReg 会 panic），val 记为零。
+3. **行数口径**：trace 按 commitHead 逐 DynInst（含微码 op，如 addxi_uop/strxi_uop），故 309387 &gt; simInsts 308057——这正是计划钉死用 `committedInstType_0::total` 而非 simInsts 做交叉验证的原因。
+4. **VecPred/Mat 宽度**：regfile 无公开 `vecPredRegBytes()`（只有 `vecRegBytes()`），VecPred/Mat 走 `phys-&gt;regClass().regBytes()`（代码内注明）；本两负载未触达该两类。VecRegClass FNV-1a-64 路径已被真实执行（libc NEON 的 dup/movi/mvni/ldfp16_uop，如 `64,0,308770,408fc4,dup,1,2,0,44,d80ac658736bb725`）。
+5. **无 stdout 汇总行**（与 CHAOS_PROBE 不同，刻意为之）：保证带 trace 运行的 stdout 可与无 trace 逐字节比对（除 gem5 自身输出外零差异）。
+6. **未 commit/push**（按任务纪律，提交归编排者）；里程碑全程追加于 `/tmp/ooo_w21_progress.txt`。</result>
+<usage><subagent_tokens>0</subagent_tokens><tool_uses>80</tool_uses><duration_ms>2689006</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>ab7d5ef8c14b2d19d</task-id>
+<tool-use-id>call_778ee2428f304087b124cfbf</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi/801d1500-1949-47d1-8f2e-95e2ab568418/tasks/ab7d5ef8c14b2d19d.output</output-file>
+<status>completed</status>
+<summary>Agent "实现 W2.4 CHAOSMicroSnap" came to rest</summary>
+<note>A task-notification fires each time this agent comes to rest with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>W2.4 全部完成。最终报告如下。
+
+# W2.4 CHAOSMicroSnap + micro_diff.py 完成报告
+
+## 文件清单
+
+**新建**
+- `/home/sdc/gem5-fi/CHAOS/gem5/src/cpu/o3/CHAOSMicroSnap/CHAOSMicroSnap.hh` — SimObject 头：契约 + 钉死 CSV 格式 + 崩溃持久化设计说明
+- `/home/sdc/gem5-fi/CHAOS/gem5/src/cpu/o3/CHAOSMicroSnap/CHAOSMicroSnap.cc` — 实现：占用读（CHAOSProbe.cc:92-125 读法）、ROB head/tail seqNum、front RAT 三类 FNV-1a-64 hash + 全表、每快照 `gzflush(Z_SYNC_FLUSH)`
+- `/home/sdc/gem5-fi/CHAOS/gem5/src/cpu/o3/CHAOSMicroSnap/CHAOSMicroSnap.py` / `SConscript` — 四件套
+- `/home/sdc/gem5-fi/tools/micro_diff.py` — stdlib-only 比对器 + 11 项自测（`--self-test`）
+
+**修改（最小）**
+- `rename_map.hh` — :204 public 块加 `map(RegClassType)` const/non-const accessor（/* gem5-fi W2.4 */，9 行）
+- `commit.hh` — +13（前置声明/成员/setter，照抄 W2.1 模式）
+- `commit.cc` — +13（W2.1 块后第二钩子 `chaosMicroSnap-&gt;maybeSample(tid, head_inst.get())` + include）
+- `configs/se/ooo_proxy.py` — +29（`--chaos_msnap/--msnap_every/--msnap_file` + 自己的挂载块）
+
+未碰 tools/runner.py、tools/campaign.py（git 确认其为并行 W2.3 代理的改动）。未 commit/push。
+
+## 构建输出尾部（第 4 次构建=最终，逐字）
+
+```
+ [     CXX] src/cpu/o3/CHAOSMicroSnap/CHAOSMicroSnap.cc -&gt; ARM/cpu/o3/CHAOSMicroSnap/CHAOSMicroSnap.o
+ [     CXX] src/cpu/o3/commit.cc -&gt; ARM/cpu/o3/commit.o
+ [     CXX] src/base/date.cc -&gt; ARM/base/date.o
+ [    LINK]  -&gt; ARM/gem5.opt
+...
+BUILD_EXIT=0
+```
+零新告警（既有 capstone/png/HDF5/systemc configure 告警在未触碰代码；CHAOSPhysReg/CHAOSIQ 既有告警仅在首轮全量日志）。第 1 次构建抓出 2 个真实错误（commit.cc 缺全定义 include；`DynInstPtr` 缺 `o3::` 命名空间）后修复。
+
+## 验证输出（逐字）
+
+**b. 纯读硬门（最终二进制）**
+```
+R1F_EXIT=0   R2F_EXIT=0
+/tmp/w24_runs/R1f.out:FINAL=45737cc9a76c0dce
+/tmp/w24_runs/R2f.out:FINAL=45737cc9a76c0dce
+simInsts  308057 (both)
+stdout diff = 仅 3 行 gem5 banner（时间/pid/命令行）；STDOUT_DIFF_EXIT=1
+GZ_STREAM_COMPLETE
+R4F_EXIT=0   R5F_EXIT=0
+FINAL=06e84f119c258fa7 (both)   simInsts 8611484 (both)
+```
+减速实测 bm 57.65/55.58 = **1.037×**（含每快照 gzflush）；体积 smoke 18KB / bm 1.05MB gz（每 1000 commit）。
+
+**c. 快照自洽**：smoke 309 行 == ceil(308057/1000)=309；bm 8612 行 == floor(8612678/1000)==ceil(8611484/1000)；`SELF_CONSISTENCY_PASS`（snap_seq=0..N-1、commit_seq/tick 严格单调、commit_seq 均为 snapEvery 倍数）。
+
+**d. micro_diff**：`self-test: 11/11 checks (10 synthetic cases) PASS`（RAT 分歧/占用偏差/IPC 偏差±阈值边界/长度不匹配/hash-表一致性/畸形行拒绝/截断流抢救/跨周期拒绝）；真实文件自比对与干净双跑（R5 vs R5b 解压后逐字节一致）均 `verdict=no_divergence`。
+
+**e. 定向注入（--chaos_rename map_bitflip target 3 mask 0x1 + snap，--msnap_every 10）**
+```
+rat_int_div: max=1 first_snap=30867 last_snap=30909 nonzero_snaps=2 final=0
+rat_fp_div/rat_vec_div: max=0
+occ_dev_*, max_ipc_dev_pct: 全 0
+verdict=DIVERGENCE
+```
+分歧明细：snap 30867（commit 308680，tick **89981430 == 注入 tick 精确对上**）arch3: ref 8 → run 9；snap 30909 arch1: 8→9（freelist 状态传播的**下游分歧**，随快照演化）；随后愈合（覆盖）。fp/vec=0 与注入器 int-only 设计一致。abort（EXIT=134）为注入器既有 rename-inconsistency 效应——对照 R6b（同注入无 snap）同样 abort，与 MicroSnap 无关；且该样本 FINAL 仍金标、tick 全程一致、占用/IPC 零偏差——**教科书级隐蔽样本：只有 L1 层能看见**。
+
+**f. 回归**：smoke FINAL=45737cc9a76c0dce 不变（R1f/R2f/R2g 三跑 + native 全同）。
+
+## 诚实偏差
+
+1. **快照目标=front rename map（真 RAT）**：机制核实发现 CHAOSRenameMap 只挂 frontRenameMap[0]，SimpleRenameMap::rename() 直写 map 不走 setEntry——注入只经 squash 回滚落进 front 表；commit map 只收 per-inst dest id，永远干净。快照 commit map 会使定向验收恒为 0。
+2. **CSV 列**：按任务自身「定案」，每类 dump hash + 全表（`rat_*_div` 不在 CSV，由 micro_diff 对齐两跑计算）；新增 rob_head/rob_tail 列（定案要求的 head/tail seqNum）。
+3. **表内分隔符 `;`**（非任务示意里的 `,`）：自测抓出表内逗号破坏 16 列契约——列数契约检查又一次当场抓真 bug。
+4. **崩溃持久化（实测驱动的设计修正）**：simout gz 流只走 gzwrite，裸 gzwrite 数据滞留 zlib 内部——abort 后快照 **0 字节**（实测）；改为自管 gzFile + 每快照 `gzflush(Z_SYNC_FLUSH)`，abort 后 309 行全部抢救（缺 trailer 由 micro_diff 截断流抢救路径处理，`truncated` 字段如实标记）。正常退出的 trailer 由 registerExitCallback 写（实测析构在 gem5 退出路径不可靠）。
+5. **默认 snapEvery=1000 采漏定向分歧窗口**：注入愈合窗口 &lt;1000 commits，定向验收用 `--msnap_every 10` 达成（生产默认 1000 时该窗口不可见——对 W2.3 量产的已知边界，如实记录）。
+6. **发现 W2.1 注释失准**（未改动，仅报告）：CHAOSCommitTrace.hh/commit.cc 中“hook 读到 POST-INJECTION RAT（setEntry 含注入钩）”的机制表述不成立——该钩在 front map，commit map 的 setEntry 不含注入；W2.1 trace 读的是 inst 字段故不受影响。
+7. 过程中曾误判 smoke 无窗口内 squash——实际注入在 tick 89.98M 触发（fold-loop 分支误预测），已实证纠正。
+
+里程碑与全部运行产物在 `/tmp/ooo_w24_progress.txt` 与 `/tmp/w24_runs/`（R1f–R6g、micro_diff JSON）。计划文件 Task 4 复选框未动（编排者验收后勾选）。</result>
+<usage><subagent_tokens>0</subagent_tokens><tool_uses>131</tool_uses><duration_ms>3580615</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a15762c3b3df45e33</task-id>
+<tool-use-id>call_3b77594b3cc34244bc2d5e31</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi/801d1500-1949-47d1-8f2e-95e2ab568418/tasks/a15762c3b3df45e33.output</output-file>
+<status>completed</status>
+<summary>Agent "实现 W2.3 两遍法编排" came to rest</summary>
+<note>A task-notification fires each time this agent comes to rest with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>W2.3 全部完成。最终报告如下。
+
+---
+
+# W2.3 两遍法编排（campaign/runner trace 重放遍）— 完成报告
+
+## 1. 文件清单
+
+| 文件 | 变更 |
+|---|---|
+| `/home/sdc/gem5-fi/tools/runner.py` | 修改（+152/-11 行）：trace 重放遍的 runner 侧 |
+| `/home/sdc/gem5-fi/tools/campaign.py` | 修改（+315/-11 行）：两遍法编排 + 守卫 |
+
+**未触碰**任何 gem5 源码/configs（git status 中 `CHAOS/gem5/src/**`、`configs/se/ooo_proxy.py`、`tools/micro_diff.py` 的改动全部来自并行 W2.4 代理）。**未 commit/push**（按纪律留给编排者）。测试 yaml 在 `/tmp/w23_toy_smoke_prf.yaml`、`/tmp/w23_toy_smoke_prf_mb.yaml`、`/tmp/w23_toy_bm_rat.yaml`。
+
+## 2. 变更摘要
+
+**runner.py**
+- `--ctrace &lt;path&gt;`：透传 `--chaos_ctrace --ctrace_file &lt;abspath&gt;`（绝对路径钉死落点）；早期校验 C3-only（其他 family 明确拒绝），`--ctrace-ref` 必须伴随 `--ctrace`。
+- `--ctrace-ref &lt;ref.gz&gt;`：跑完 gem5 后调用 `tools/commit_diff.py --ref --run --json`，五分类结果（`verdict/primary_class/latency_seq/divergence_counts/first_divergence/aux`）以单行 `[runner] L2RESULT: {json}` 打印（含诚实 `{"l2_error":...}` 失败路径，绝不伪造判定）。
+- `--no-inject`：无注入参照遍——manifest 故障块照常校验但不映射任何 `--chaos_*` 旗标（同 workload 同 seed 零注入器）。
+- 跑后打印 `[runner] CTRACE: file=... lines=N bytes=B`（MISSING/unreadable 也有明确形态）。
+- gem5 子进程 env `PYTHONHASHSEED` setdefault 0（W1.3 教训）；`GOLDEN_IDS` 注册 `smoke-golden-v1: 45737cc9a76c0dce`（W1.0 记录值）。
+- 辅助函数 `count_trace_lines`（gzip magic 识别，`(OSError, EOFError)` 都捕获）、`run_commit_diff`（失败→`l2_error`）。
+
+**campaign.py**
+- campaign yaml 新节 `trace: {enabled, replay_for: [SDC,Crash,Hang], ref_run: once}`；早期校验（C3-only、replay_for 合法类、ref_run 仅 once）；jsonschema 的 campaign schema 无 `additionalProperties:false`，新键兼容。
+- 第一遍（量产遍）不变；**参照遍**：每 cell 一次 rep-0 manifest + `--no-inject --ctrace` → `runs/&lt;cid&gt;/ctrace_ref_cNNNN.csv.gz` + 溯源 sidecar（`.provenance.json` 记 gem5 sha256）；**重放遍**：classify ∈ replay_for 的 rep 同 manifest 同 seed + `--ctrace runs/&lt;cid&gt;/cNNNN/ctrace_rRRRR.csv.gz --ctrace-ref &lt;该 cell ref&gt;`，L2RESULT 解析并入 results.jsonl 的 `l2` 块（含 `replay_determinism`，MISMATCH 如实记录并写 bad_runs.log）。
+- `CHILD_ENV`：所有 runner 子进程（及其 gem5/commit_diff 后代）强制 `PYTHONHASHSEED=0`。
+- **参照溯源守卫**（由实测竞态催生，非镀金）：ref 复用时 sidecar sha 不符→警告并重建；每次重放前 gem5.opt sha 与 sidecar 不符→跳过并记 `l2_error`（跨二进制 diff=垃圾）；`gem5_sha256()` 按 (mtime_ns,size) 缓存。
+- results.jsonl 记录仅在 trace 跑时新增 `l2`/`ctrace` 键——**无 trace campaign 的记录逐字节保持旧格式**；summary.md 增 trace 溯源行 + 诚实性注记。
+
+## 3. 验证输出（真机，逐字摘录）
+
+**a. py_compile（改后终态复验）**
+```
+FINAL_PY_COMPILE_OK
+```
+（过程中每次编辑后均 `PY_COMPILE_OK`，EXIT=0 无管道直测）
+
+**单元测试**（合成 stdout 含 L2RESULT/CTRACE/子串陷阱 "RESULT:"⊂"L2RESULT:"、CHILD_ENV、count_trace_lines、run_commit_diff 错误路径）：
+```
+parse_runner_result + CHILD_ENV: ALL ASSERTS PASS
+runner helpers (count_trace_lines/run_commit_diff error paths): ALL ASSERTS PASS
+count_trace_lines(truncated gz from Crash rep) -&gt; None: PASS (no EOFError crash)
+count_trace_lines(healthy smoke ref) -&gt; 309387: PASS
+```
+
+**b. 玩具 campaign 端到端**（三臂，推荐注入 `--chaos_phys --phys_mode arch_frontend --phys_target_arch 3 --fault_mask 0x1 --first_clock 200000` 在 smoke 上如预告全 Masked，故按任务许可**临时把 Masked 加入 replay_for 跑了 B 臂验证重放机制本身**，另跑 A 臂验证「Masked 不触发」路径，并用任务给的备选 branch_mispred+rename 拿到真实非 Masked 样本）：
+
+- **A 臂（smoke，replay_for=[SDC,Crash,Hang]，n=3）**：
+```
+[campaign] trace ref pass cell 0: --no-inject --ctrace -&gt; /home/sdc/gem5-fi/runs/w23-toy-smoke-prf/ctrace_ref_c0000.csv.gz
+[campaign] trace ref cell 0: ref trace OK (309387 committed instructions, 5128836 bytes, classification=Inactive)
+[campaign] trace two-pass cell 0: 0/3 reps replayed
+[campaign] DONE — 3 reps in 15s
+```
+（重跑验证 ref 幂等复用：`[campaign] trace ref cell 0: reusing existing ...`；§1.5 复查不 frozen）
+- **B 臂（smoke，replay_for 加 Masked）**：
+```
+[campaign] trace replay cell 0 rep 0: Masked -&gt; determinism=match commit_diff.verdict=no_divergence
+[campaign] trace replay cell 0 rep 1: Masked -&gt; determinism=match commit_diff.verdict=no_divergence
+[campaign] trace replay cell 0 rep 2: Masked -&gt; determinism=match commit_diff.verdict=no_divergence
+[campaign] trace two-pass cell 0: 3/3 reps replayed
+[campaign] DONE — 3 reps in 49s
+```
+- **C3 臂（branch_mispred + rat map_bitflip bit0@200000，replay_for=[SDC,Crash,Hang]，最终干净产物）**：
+```
+[campaign] trace ref cell 0: ref trace OK (8612678 committed instructions, 97858683 bytes, classification=Inactive)
+[campaign] trace replay cell 0 rep 0: SDC -&gt; determinism=match commit_diff.verdict=diverged
+[campaign] trace replay cell 0 rep 1: Crash -&gt; determinism=match commit_diff.verdict=l2_error
+[campaign] trace two-pass cell 0: 2/2 reps replayed
+[campaign] DONE — 2 reps in 484s
+```
+（C1 探针：`classification=SDC ... reason: completed exit=0, checksum cbe884fe24e18fc9 != golden 06e84f119c258fa7 — silent data corruption`）
+
+**c. 产物断言**
+```
+runs/w23-toy-smoke-prf/ctrace_ref_c0000.csv.gz : EXISTS, 309387 lines, 5128836 bytes
+runs/w23-toy-smoke-prf-mb/ctrace_ref_c0000.csv.gz : EXISTS, 309387 lines, 5128836 bytes
+runs/w23-toy-smoke-prf-mb/c0000/ctrace_r0000.csv.gz : 309387 lines   (r0001/r0002 同)
+runs/w23-toy-bm-rat/ctrace_ref_c0000.csv.gz : 97858683 bytes (8612678 条)
+runs/w23-toy-bm-rat/c0000/ctrace_r0000.csv.gz : 97616294 bytes (8613029 条)
+sidecar: {"gem5_sha256": "290ca3eb150920d8...", "created": "2026-09-24T01:16:30", "lines": 8612678, ...}
+```
+**PYTHONHASHSEED 生效证据**（campaign 运行中抓真实 gem5 子进程）：
+```
+found gem5.opt pid=261721 at iter 1 (00:44:11)
+--- /proc/261721/environ PYTHONHASHSEED:
+PYTHONHASHSEED=0
+--- /proc/261721/cmdline (first 5 tokens):
+/home/sdc/gem5-fi/build/ARM/gem5.opt --quiet -d /tmp/man-16zww0ec /home/sdc/gem5-fi/configs/se/ooo_proxy.py
+```
+
+**d. 回归（无 trace: 节路径不变）**：`git show HEAD:tools/campaign.py` 参照副本 vs 当前版本，对同一无 trace yaml（12 cells × 100 reps）各 `--dry` 展开：
+```
+REGRESSION_MANIFESTS: 1200/1200 byte-identical (after campaign-id normalization)
+```
+加上：A 臂 results.jsonl 与旧格式逐字节同形（无 l2/ctrace 键）、parse_runner_result 对 legacy 输出返回 ctrace/l2=None（单测覆盖）。唯一有意行为差：所有子进程 `PYTHONHASHSEED=0`（任务指定的 W1.3 修复）。
+
+## 4. l2 JSON 样本
+
+**SDC rep（真实五分类回填，C3 rep0）**：
+```json
+"l2": {"replay_triggered_for": "SDC", "replay_classification": "SDC", "replay_determinism": "match",
+  "trace_file": ".../runs/w23-toy-bm-rat/c0000/ctrace_r0000.csv.gz",
+  "ref_file": ".../runs/w23-toy-bm-rat/ctrace_ref_c0000.csv.gz",
+  "replay_ctrace": {"missing": false, "lines": 8613029, "bytes": 97616294},
+  "commit_diff": {"verdict": "diverged", "primary_class": "data_corruption", "primary_class_zh": "⑤数据损坏",
+    "latency_seq": 210665, "ref_instructions": 8612678, "run_instructions": 8613029, "aligned_pairs": 8612678,
+    "first_divergence": {"seq": 210665, "class": "data_corruption", "level": "dest[0].val",
+      "detail": "dest[0] val: ref=000000003ca26881 run=0000000000001eb1",
+      "ref_line": "210665,0,77005775,4006e8,add,1,0,4,13,000000003ca26881",
+      "run_line": "210665,0,77005775,4006e8,add,1,0,4,13,0000000000001eb1"},
+    "divergence_counts": {"timing_error": 0, "instruction_flow_change": 8257869, "instruction_substitution": 0,
+      "operand_forced_switch": 0, "data_corruption": 74948},
+    "total_divergence_points": 8332817,
+    "aux": {"phys_mismatch": 39253, "tid_mismatch": 0, "tick_compared_pairs": 280212, "max_tick_drift": 1844150, ...}}}
+```
+**Crash rep（诚实 l2_error，C3 rep1）**：
+```json
+"l2": {"replay_triggered_for": "Crash", "replay_classification": "Crash", "replay_determinism": "match",
+  "replay_ctrace": {"missing": false, "lines": "unreadable", "bytes": 2342912},
+  "commit_diff": {"l2_error": "commit_diff exit=1",
+    "commit_diff_stderr": "commit_diff: ERROR: .../ctrace_r0001.csv.gz: line 209623 附近读取失败: Compressed file ended before the end-of-stream marker was reached\n"}}
+```
+
+## 5. 偏差与诚实说明
+
+1. **外部竞态（非我代码问题，已实证+已加固）**：C 臂首跑（00:46-00:54）期间并行 W2.4 代理再次重建 gem5.opt，rep1 重放与 §1.5 复查撞上 `PermissionError: [Errno 13] Permission denied: '.../gem5.opt'`（bad_runs.log 两条 traceback 为铁证）→ 产生 `MISMATCH(Crash-&gt;SimulatorError)` 与 frozen=yes。**这不是 gem5 非确定性**。现场保留于 `runs|artifacts/w23-toy-bm-rat.race1/`。由此新增了参照溯源 sidecar + 二进制交换守卫（见变更摘要）。
+2. **真 bug 发现并修复**：`count_trace_lines` 原只 catch `OSError`；Crash rep 的 trace 是 abort 前部分 flush 的截断 gzip，读它抛 `EOFError` → runner 在 RESULT 与 CTRACE 之间崩溃、丢 L2RESULT（C2 rep1 的 `replay_ctrace/commit_diff` 双 null）。修复（catch EOFError + `lines=unreadable`）已用真实截断文件单测验证；C2 现场保留于 `.eofbug`。
+3. **Crash rep 的 trace 截断是 W2.3 管线的真实发现**：gem5 abort 不 flush gzip 流（本例 2.3MB/约 20.96 万条幸存），Crash 类 rep 的 L2 五分类目前只能得 `l2_error`；如需 Crash rep 的完整 trace，CHAOSCommitTrace 需周期性 flush（gem5 侧改动，属后续工作，未越权处理）。
+4. **确定性结论（正面）**：所有重放遍 determinism 全 match（smoke 3/3、bm-rat 2/2）；rep0 的首分歧点 seq=210665 在两次 W2.4 二进制（00:39:57 与 01:01:39 构建）上逐字段复现（同为 `3ca26881→1eb1`）。
+5. 无注入参照遍分类为 **Inactive**（faults=0 路径）而非 Masked——campaign 的预期警告按此修正（Inactive/Masked 皆正常）。
+6. **二进制身份**：smoke A/B 臂及探针跑在 W2.4 WIP#1 二进制（00:39:57 构建，现已不存在，产物自洽）；C3 跑在 W2.4 WIP#2（sha256 `290ca3eb...`，sidecar 在案）。W2.4 的 commit.cc/rename_map.hh 改动包含在这些二进制中（其纯读证明属 W2.4 职责）。
+7. 遗留产物（供编排者裁量，runs/ 已 gitignore，artifacts/ 未忽略）：`artifacts/w23-toy-smoke-prf{,-mb}/`、`artifacts/w23-toy-bm-rat{,.race1,.eofbug}/`（heatmap.csv+summary.md）及对应 `runs/w23-toy-*`（含全部 trace，bm 系列每个 ~98MB）。
+8. 里程碑全程记录于 `/tmp/ooo_w23_progress.txt`。</result>
+<usage><subagent_tokens>0</subagent_tokens><tool_uses>93</tool_uses><duration_ms>4913797</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a0df66cee2d2ebb91</task-id>
+<tool-use-id>call_00e34099a4514b5d80584a9d</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi/801d1500-1949-47d1-8f2e-95e2ab568418/tasks/a0df66cee2d2ebb91.output</output-file>
+<status>completed</status>
+<summary>Agent "实现 W2.6 L3 扇出+stats 消费" came to rest</summary>
+<note>A task-notification fires each time this agent comes to rest with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>API Error: Request rejected (429) · Budget has been exceeded! Key=50061609 (sk-...W9EA) Current cost: 500.4780341000005, Max budget: 500.0</result>
+<usage><subagent_tokens>0</subagent_tokens><tool_uses>26</tool_uses><duration_ms>827699</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a4781a685f60fb5dd</task-id>
+<tool-use-id>call_eca9b717b60f461a93237810</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi/801d1500-1949-47d1-8f2e-95e2ab568418/tasks/a4781a685f60fb5dd.output</output-file>
+<status>completed</status>
+<summary>Agent "实现 W2.5 L0 生命周期接口" came to rest</summary>
+<note>A task-notification fires each time this agent comes to rest with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>API Error: Request rejected (429) · Budget has been exceeded! Key=50061609 (sk-...W9EA) Current cost: 500.4780341000005, Max budget: 500.0</result>
+<usage><subagent_tokens>0</subagent_tokens><tool_uses>34</tool_uses><duration_ms>855495</duration_ms></usage>
+</task-notification>
+
+---
+
+继续
+
+---
+
+汇报进展
+
+---
+
+请对照docs/gem5-fi/ooo/gem5-fi-OoO单元故障注入方案V1.0.xlsx文档，诚实告诉我现在执行完了哪些？
+
+---
+
+所以所以方案核新一个都还没开始做吗，就最早的int deocde单元对译码输出锁存器的opcode字段的单比特翻转都还没开始是吗？也就是第一个单元的第一个位置都还没开始注入？
+
+---
+
+那你之前都一直在做什么
+
+---
+
+没理解，请直白告诉我你一直在做什么，给你的任务安排在做第一个单元的第一个位置之前，要完成哪些任务？还有多少任务才到第一个单元第一个位置？
+
+---
+
+继续
+
+---
+
+你现在在运行是吗
+
+---
+
+<task-notification>
+<task-id>a2d59e780ad7e27b6</task-id>
+<tool-use-id>call_3b2496c8f9e14411943be0a8</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi/986103be-6dae-4d5b-8b58-a5f2abf15cf7/tasks/a2d59e780ad7e27b6.output</output-file>
+<status>completed</status>
+<summary>Agent "实现 W4.1 D12 + W4.2 D13 注入器" came to rest</summary>
+<note>A task-notification fires each time this agent comes to rest with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>所有验证已完成。旧有的 `map_bitflip` 已保留（字节一致的旧日志格式 `arch_reg=int[2] ... FaultType: map_bitflip`，85→84 = 带掩码 0x1 的 bit-0 翻转；其 rng 路径未被改动）。两项任务均已完成。最终报告：
+
+---
+
+# OoO W4 第一批真故障模型 — Task 1 (D12 map_bitflip2) + Task 2 (D13 swap_to_active) 完成报告
+
+## 文件清单（git status 形式，两 Task 合计；未 commit/push，按纪律留给编排者分两笔提交）
+
+```
+ M CHAOS/gem5/src/cpu/o3/CHAOSRenameMap/CHAOSRenameMap.cc
+ M CHAOS/gem5/src/cpu/o3/CHAOSRenameMap/CHAOSRenameMap.hh
+ M CHAOS/gem5/src/cpu/o3/CHAOSRenameMap/CHAOSRenameMap.py
+ M configs/se/ooo_proxy.py
+ M tools/runner.py
+```
+
+（`docs/superpowers/plans/2026-09-24-ooo-w2-observation.md` 的 M 早于本次工作，非我改动。两 Task 可分提交：Task1 = Mode::MapBitflip2 枚举+分支+日志行+`local_mbu`路由+choices；Task2 = Mode::SwapToActive+RobCand/collectRobActiveDests+分支+日志行+`sub_field`路由+choices。注入位点两 Task 相同：`UnifiedRenameMap::setEntry` 写前钩子（rename_map.hh:304-306），经 `Rename::doSquash` 回滚恢复路径落在 thread-0 front 表——与 W2.4 发现一致，以源码为准。）
+
+## Task 1 (W4.1 D12) 验证 — 全部通过
+
+**① 构建**：`scons -j126` 增量，CHAOSRenameMap.cc 单独重编译零编译告警（仅环境级 capstone/png/HDF5 配置提示，先于本工作存在）：
+```
+ [     CXX] src/cpu/o3/CHAOSRenameMap/CHAOSRenameMap.cc -&gt; ARM/cpu/o3/CHAOSRenameMap/CHAOSRenameMap.o
+scons: done building targets.
+```
+
+**② 定向单次注入**（smoke, `--chaos_rename --rename_mode map_bitflip2 --rename_target_arch -1 --rename_first_clock 200000`）：
+```
+Tick: 89981430, Site: rename_setEntry, mode=map_bitflip2, tid=0, arch=X2, old_phys=85, new_phys=71, bits=(4,1), faults_injected: 1
+```
+汉明距离恰为 2 的证明（可复算）：`85^71=18=0b0010010`，popcount=2；`85^(1&lt;&lt;4)^(1&lt;&lt;1)=71==new`；b1≠b2 且均 &lt;7（128 物理寄存器=2^7，全编码合法）。bm 上 seed 扫描出真效果：3×Crash（`inst_queue.cc:1588 panic: Dependency graph ... not empty`）+1×SDC（seed 20260829 `FINAL=fa730bbbdbfb3a49` ≠ golden `06e84f119c258fa7`）——与 W2.3 map_bitflip 证据画像一致。
+
+**③ 同 seed 复现**：重跑 `diff` 注入日志 → `LOGS IDENTICAL`，FINAL 一致。
+
+**④ 无注入回归**：`FINAL=45737cc9a76c0dce`，exit 0。
+
+**⑤ ctrace 抽查**（bm seed 20260829 + `--chaos_ctrace` vs 无注入参照，`commit_diff` exit 0）：
+```
+[结论] 主分类: ⑤数据损坏 (data_corruption)
+[潜伏期] 首分歧 seq = 210665
+  detail: dest[0] val: ref=000000003ca26881 run=0000000000000000
+  ref: 210665,0,77005775,4006e8,add,1,0,4,13,000000003ca26881
+  run: 210665,0,77005775,4006e8,add,1,0,4,13,0000000000000000
+  ②指令流改变: 8224999  ⑤数据损坏: 98518
+```
+
+**加分项 runner 路由 e2e**（manifest rat+`local_mbu`→C3）：`[runner] RESULT: ... classification=Masked faults_injected=1 exit=0`，临时 outdir 注入行与直跑逐字节一致（`Tick: 89681900 ... arch=X0, old_phys=123, new_phys=63, bits=(2,6)`）。
+
+## Task 2 (W4.2a D13 swap_to_active) 验证 — 全部通过
+
+**① 构建**：首轮失败（`ROB` 需 `o3::ROB` + `dyn_inst.hh` 不完整类型）→ 修复后零告警：
+```
+ [     CXX] src/cpu/o3/CHAOSRenameMap/CHAOSRenameMap.cc -&gt; ARM/cpu/o3/CHAOSRenameMap/CHAOSRenameMap.o
+scons: done building targets.
+```
+
+**② 两负载各一次**（`--rename_mode swap_to_active`，退出码无管道直测）：
+- smoke（exit=134，SIGABRT）：
+```
+Tick: 89981430, Site: rename_setEntry, mode=swap_to_active, tid=0, arch=X2, old_phys=85, new_phys=63(active, rob_dist=16), chosen_sn=314044, rob_active_dests=[35@0 0@2 116@3 74@4 103@7 2@10 7@11 62@12 109@13 44@15 63@16 26@17], faults_injected: 1
+```
+  ROB 活跃证据：`63@16` 在池内 == `new_phys=63`，`rob_dist=16` 一致；abort 信息 `panic: Dependency graph 63` 正是换入的 phys。
+- branch_mispred（exit=134）：
+```
+Tick: 77013475, Site: rename_setEntry, mode=swap_to_active, tid=0, arch=X2, old_phys=121, new_phys=43(active, rob_dist=13), chosen_sn=415964, rob_active_dests=[116@0 44@1 30@2 114@4 38@5 12@6 123@7 97@8 9@10 20@11 63@12 43@13 70@14], faults_injected: 1
+```
+  `43@13` 在池内；panic `Dependency graph 43` 同样指向换入寄存器。bm seed 20260826-29 扫描 4/4 Crash。
+
+**③ 同 seed 复现**：smoke 重跑 → `REPRO LOGS IDENTICAL`（exit 134 一致）；bm seed 20260829 ctrace/无 ctrace 两跑注入行逐字一致。
+
+**④ 无注入回归**：`FINAL=45737cc9a76c0dce` exit 0；且最终二进制重生的无注入 bm 参照 trace 与 Task1 二进制产物 **sha256 逐字节相同**（`83d8adab...`）——无注入路径零扰动，两个 commit_diff 均为同二进制参照。
+
+**⑤ 观测链端到端（北极星 D13 第一份真实观测数据）**：bm + swap_to_active（seed 20260829）+ `--chaos_ctrace` → Crash 抢救出截断 trace（2.3MB vs 完整 97.9MB），`commit_diff`（exit 0）：
+```
+[结论] 主分类: 无分歧（可比前缀内）——但 run 侧 trace 被 abort 截断（run）
+[潜伏期] n/a（前缀内无分歧）
+[截断说明] run 侧 gzip 无 trailer（abort 前已周期 gzflush，故前缀完整可解码）
+  对齐指令对: 208896   合计分歧点: 0
+```
+**结论**：结构化换值在数据损坏到达提交流**之前**就以上 IQ 依赖图不一致杀死机器（trace 截断于 208,896 条，早于 map_bitflip2 同 seed 首分歧 seq 210,665）——D13 首观测为 Crash/truncated 型，非 SDC 型。
+
+**⑥ L0 接线**：注入行钉死 (tick, arch, old_phys, new_phys, chosen_sn) 联合键；`fanout.py` 消费 D13 截断 trace 的换入 phys 28（诚实标 truncated）：
+```
+  trace_lines=208896 truncated=True
+  writes=1399 closed_windows=1398 open_windows=1
+  liveness: mean=148.30 median=134.0 min=0 max=699
+  caveat: source-side reads are not recorded ... UPPER-BOUND proxy
+```
+诚实说明：arch reg 精确源读计数需专用 CHAOSPhysReg readtrace 跑（其 readTrace 仅在自身注入后激活，无法只读共挂）；W2.6 fanout 为现有可用的上界代理。
+
+**runner 路由 e2e**（`legal_domain_sub` + `target.sub_field: swap_to_active`）：`[runner] RESULT: ... classification=SimulatorError faults_injected=1 exit=-6`，临时 outdir 注入行与直跑逐字节一致（`63@16, sn 314044`）。
+
+## 偏差说明（诚实记录）
+
+1. **D13 结果画像与 04 设计预期不符（重要发现）**：6/6 单次注入全部 Crash（IQ 依赖图 panic，panic 寄存器=换入寄存器），无 SDC 样本。机制：squash-恢复位点换值使 arch reg 与在飞生产者双持有同一 phys → freelist 双所有权 → IQ 图非空。与已入库 RAT-A 先验（Crash 61.5% 主导）一致；04 的"预期 SDC"假设在 6 样本内不成立，SDC 率是 W8 campaign 规模问题，如实上报、不伪造 SDC。
+2. runner 路由键选择：`local_mbu`→map_bitflip2（1 比特仍可经 `transient_bit_flip`→map_bitflip，无孤儿）；swap_to_active 经 v2 `target.sub_field` 判别（`legal_domain_sub` 不带 sub_field 仍为 f5_substitute，纯增量，未动 schema——符合"只动三处"约束）。
+3. map_bitflip2 越界策略：非 2^n 物理寄存器数时翻转可能越界 → 诚实跳过+日志（不 clamp，保汉明距离=2 契约）；C3 默认 128=2^7 永不触发。faultMask≥2 置位位=定向控制（取最低两位）。
+4. smoke 上 map_bitflip2 单发 6/6 Masked——与 04 D12"SDC 概率略高于单比特但显著低于换值"的预期相容；真 SDC/Crash 在 bm 上复现。
+5. 旧模式回归：legacy `map_bitflip` 日志行格式逐字节保留、注入语义不变（85→84 bit0）；其该 seed 下 teardown abort（exit 134）为该模式自身结果（W2.3 已记录 SDC/Crash 双路径），非本次改动引入（rng 消费序列未变）。
+
+里程碑文件：`/tmp/ooo_w41_progress.txt`、`/tmp/ooo_w42_progress.txt`；全部运行产物保留在 `/tmp/w41_*`、`/tmp/w42_*`、`/tmp/man-*` 供编排者复核。</result>
+<usage><subagent_tokens>0</subagent_tokens><tool_uses>105</tool_uses><duration_ms>3370398</duration_ms></usage>
+</task-notification>
+
+---
+
+现在如何了
+
+---
+
+Int Decode的所有单元做完了先停一下，不着急往下做。
+
+---
+
+如果你先执行int rename的话，那就做完int rename所有单元就停一下
+
+---
+
+所以你确实先跑的是int rename是吗
+
+---
+
+<task-notification>
+<task-id>a62a54eb5a7a5f928</task-id>
+<tool-use-id>call_56e3146b93ae466faa599986</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi/986103be-6dae-4d5b-8b58-a5f2abf15cf7/tasks/a62a54eb5a7a5f928.output</output-file>
+<status>completed</status>
+<summary>Agent "实现 W4 批次2（D15/D16/D17-18）" came to rest</summary>
+<note>A task-notification fires each time this agent comes to rest with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>三 Task 全部完成，构建为最新状态，改动文件清单精确匹配授权范围（w2-observation.md 为任务开始前已存在的脏文件，未被我触碰）。最终报告如下。
+
+---
+
+# OoO W4 批次 2（D15/D16/D17/D18）完成报告
+
+三个 Task 串行完成、各自真机验证全过；**未做任何 git commit/push**（按要求留给编排者）；中断保护文件 `/tmp/ooo_w4b2_progress.txt` 全程维护。
+
+## 一、文件清单（按 Task）
+
+**Task 3（W4.3 D15 f5_rat_stuck）**
+- `CHAOS/gem5/src/cpu/o3/CHAOSRenameMap/CHAOSRenameMap.hh` — Mode::F5RatStuck + `maybeStuckWrite`/`maybeFaultRename` 声明 + f5s_* 状态
+- `CHAOS/gem5/src/cpu/o3/CHAOSRenameMap/CHAOSRenameMap.cc` — 模式映射；maybeCorrupt 顶部 F5 分发（squash 恢复写路径）；`maybeStuckWrite`（布防+写路径 mask，G2 语义）；`maybeFaultRename`（rename 直写路径）
+- `CHAOS/gem5/src/cpu/o3/rename_map.hh` — `UnifiedRenameMap::rename` 新增 post-write 钩子（正常 rename 直写不经过 setEntry——W2.4 机制发现，本批补上第二条写路径）
+- `CHAOS/gem5/src/cpu/o3/CHAOSRenameMap/CHAOSRenameMap.py` — 模式文档
+- `configs/se/ooo_proxy.py` — choices += f5_rat_stuck
+- `tools/runner.py` — rat 路由：stuck_at_zero/one + `sub_field=f5_rat_stuck`
+
+**Task 4（W4.4 D16 stale_read）**
+- 同 Task 1/2 文件集：`CHAOSRenameMap.hh`（Mode::StaleRead + prev_phys 参数）、`.cc`（stale_read 分支：一次 rename 写静默失效，保留旧映射）、`.py`、`rename_map.hh`（传 prev_phys）、`ooo_proxy.py`（choices += stale_read）、`runner.py`（delay_omission + `sub_field=stale_read`）
+
+**Task 5（W4.5 D17/D18）**
+- `CHAOS/gem5/src/cpu/o3/CHAOSFreeList/CHAOSFreeList.hh` — Mode::MarkFreeEvent + event_threshold + dup_watch_idx
+- `CHAOS/gem5/src/cpu/o3/CHAOSFreeList/CHAOSFreeList.cc` — dup-watch 证据观察器（置于门控之前，maxFaults 耗尽后仍可触发）；MarkFreeEvent 分支（`numFreeRegs(IntRegClass) &lt;= eventThreshold` post-pop 事件门）；**旧 mark_free 日志行逐字节保持**
+- `CHAOS/gem5/src/cpu/o3/CHAOSFreeList/CHAOSFreeList.py` — 模式文档 + `eventThreshold=8` 参数
+- `configs/se/ooo_proxy.py` — choices += mark_free_event + `--freelist_event_threshold` + 挂载
+- `tools/runner.py` — transient_bit_flip/local_mbu + `sub_field=mark_free_event`
+
+## 二、各 Task 验证输出（逐字）
+
+### Task 3（D15 卡死，写路径 mask）
+构建：`-j126` 增量成功；CHAOSRenameMap.cc 用 compile_commands.json 命令行单独重编 `COMPILE_RC= 0`（零诊断）；构建中仅有的告警（CHAOSPhysReg.cc:548 unused-var、CHAOSIQ -Wreorder）均为**不在本批 diff 中的文件**的既有告警。定向注入（smoke, X1, first_clock 200000, seed 20260825）日志：
+```
+Tick: 77000000, Site: rename_write, mode=f5_rat_stuck, ARMED, tid=0, arch=X1, bit=6, polarity=0 (stuck_at_zero), num_phys=128, faults_injected: 1
+Tick: 89683825, Site: rename_write, mode=f5_rat_stuck, tid=0, arch=X1, write_phys=68, stored_phys=4, bit=6 forced to 0, exposure: 1
+Tick: 89683825, ... write_phys=122, stored_phys=58, bit=6 forced to 0, exposure: 2
+Tick: 89684595, ... write_phys=126, stored_phys=62, ... exposure: 3
+Tick: 89684595, ... write_phys=99, stored_phys=35, ... exposure: 4
+Tick: 89686905, Site: setEntry_restore, ... write_phys=62, stored_phys=62 (bit 6 already at 0, no observable change), exposure: 5
+```
+共 61 行 = 1 ARMED + 60 曝光（37 次强制压位 + 23 次位已一致），**两写路径（rename_write + setEntry_restore）均有证据**，持续性 ≥3 采样成立（68→4、122→58、126→62、99→35，bit6 清零均可复核）。结局 Crash：`src/cpu/o3/inst_queue.cc:1588: panic: Dependency graph 25 (integer) (flat: 25) not empty!`（25 = 被卡死表项指到的双所有权 phys，与 D13 结局同构）。同 seed 复现：`REP_EXIT=134` + `LOGS_IDENTICAL`（diff 为空）。无注入回归：`FINAL=45737cc9a76c0dce`，exit 0。
+
+### Task 4（D16 读旧数据）
+smoke 参照（ctrace）：`FINAL=45737cc9a76c0dce` exit 0，305,387 条。**L2 分歧样本（branch_mispred, X1, first_clock 250000）**注入行：
+```
+Tick: 96250385, Site: rename_write, mode=stale_read, tid=0, arch=X1, attempted_phys=114 (write silently failed, not stored), kept_phys=99 (previous mapping retained), faults_injected: 1
+```
+commit_diff（vs bm 无注入参照 06e84f119c258fa7）：
+```
+[结论] 主分类: ⑤数据损坏 (data_corruption)
+[潜伏期] 首分歧 seq = 271409
+  seq 271409  分歧层级: dest[0].val
+  detail: dest[0] val: ref=00000000019cc85a run=00000000019cb56d
+  ref: 271409,0,96253850,400680,add,1,0,1,117,00000000019cc85a
+  run: 271409,0,96253850,400680,add,1,0,1,117,00000000019cb56d
+  ⑤数据损坏: 68 (首见 seq 271409)；②指令流改变: 2472；合计 2540
+```
+即**旧映射值被下游读者消费并提交（⑤），随后级联②，最终 IQ panic（graph 99 = 保留映射）**——正是 04 预期"SDC 概率最高的几行之一"的首份实证。同 seed 复现：`REP_EXIT=134`、`LOGS_IDENTICAL`、`TRACES_BYTE_IDENTICAL`（94MB ctrace 逐字节相同）。golden 回归：smoke `45737cc9a76c0dce` 与 bm `06e84f119c258fa7` 均在各自二进制上复验通过。
+
+### Task 5（D17/D18 空闲表重复分配）
+构建：`-j126` 干净；CHAOSFreeList.cc 单独重编 `COMPILE_RC= 0` 零诊断。**D17 语义核对**：现有 mark_free = 挑一个 isFree==false 的已分配 int phys 并 addReg 回队——与 04 R18"把某一项强制标记为仍空闲，即使它已被分配出去"逐义吻合，无需改语义；固定间隔即现有 first_clock 机制。D17 定向（smoke）：
+```
+Tick: 77000000, Site: freelist_getReg, mode=mark_free, class=int, readded_allocated_idx=74, faults_injected: 1
+Tick: 77001925, Site: freelist_getReg, mode=mark_free, class=int, DUPLICATE_ALLOCATION: idx 74 re-handed-out (second allocation; first holder still owns it)
+```
+phys 74 两次分配证明成立；结局 Crash：`panic: Dependency graph 74 (integer) (flat: 74) not empty!`（panic 寄存器恰为重复分配的 idx，机制闭环）。**D18 定向（dep_chain, first_clock 20000）**：
+```
+Tick: 9313535, Site: freelist_getReg, mode=mark_free_event, class=int, num_free_int_after_pop=8 (threshold=8), popped_idx=107, readded_allocated_idx=108, faults_injected: 1
+Tick: 9353960, Site: freelist_getReg, mode=mark_free_event, class=int, DUPLICATE_ALLOCATION: idx 108 re-handed-out (second allocation; first holder still owns it)
+```
+触发时刻剩余数 ≤8（=8）证明 + idx 108 两次分配证明；结局 exit 0 且 `FINAL=98e5e31e726e383f` == dep_chain 无注入 golden → **Masked**（两持有者写序按程序序正确消费，恰为 04 预期的掩蔽路径）；复现 `LOGS_IDENTICAL`。golden 回归（最终二进制）：`FINAL=45737cc9a76c0dce` exit 0。**runner e2e（C3 manifest）**：stale_read 路由临时 outdir 日志 `mode=stale_read ... attempted_phys=50 ... kept_phys=114`（RESULT `classification=Crash faults_injected=1`）；mark_free_event 路由 `mode=mark_free_event ... num_free_int_after_pop=4 (threshold=8) ... readded_allocated_idx=24` + `DUPLICATE_ALLOCATION: idx 24`（RESULT `classification=Crash faults_injected=2 exit=-6`）——两条 sub_field 路由端到端打通。
+
+## 三、偏差与发现（诚实记录）
+
+1. **重大平台发现（影响 CHAOSRenameMap 全部模式）**：`--rename_target_arch` 实际比较的是 **flat int 寄存器索引**而非架构 Xn 号。Arm `IntRegClassOps::flatten`（`src/arch/arm/regs/int.cc:55`）经 `ISA::intRegMap` 重映射——实测 flat(X0)=0、flat(X1)=1、flat(X19)=**16**（AArch64 EL0）。smoke 累加器在静态 X19，定向须传 16；本发现由临时仪器化探针 + commit trace 逐 tick 对账定位（探针代码已全部移除并干净重建），`CHAOSRenameMap.py` 的 targetArchReg 文档已如实修正。低位寄存器两空间重合，故既有 W4.1/W4.2 日志的 arch 标注不受影响（但 X3/X19-X28 一类高位定向对照需注意）。
+2. **D15"直到被覆盖为止"的诠释**：按任务指令主句"每次该表项被写都把该位强制回固定值（写路径 mask，仿 G2）"实现为永久 cell 缺陷（每次写都 mask，含 squash 恢复写）；04 原文"直到该表项被下一次重命名覆盖为止"按值级持续性理解（被污染值保持到下次写，下次写再次带缺陷）——两者在写路径 mask 语义下统一。
+3. **D16 结局画像**（6 个不同注入点）：1×⑤分歧 Crash + 2×无分歧 Crash（IQ panic 抢在旧值提交前）+ 3×Masked。rename 直写路径的 RAT 故障普遍先触发 inst_queue 依赖图不变量（与 D13 的 6/6 Crash 同构），"读到旧数据"要提交需赢得与 freelist 回收的竞态——bm X1@fc250000 样本证明可赢且产生 ⑤。SDC 率留待 W8 campaign 定规模。
+4. **方法论发现**：directed target + probability=1.0 下注入点与 rng seed 无关（bm 5 个"seed"实为同一样本）——注入点变化须靠 first_clock/target；对今后所有定向对照设计有效。
+5. D17 旧 mark_free 日志行格式**逐字节保持**（新增字段只进 mark_free_event 行）；dup-watch 观察器只读、不计故障数、maxFaults 耗尽后仍工作。
+6. 探索副产物（未入正式验证、供编排者参考）：f5@X0/stale@X0 探针 run（ARMED+21 次曝光 / 注入后 Crash）进一步佐证 rename 路径钩子与 flat 空间结论。
+
+产物目录：`/tmp/w43_*`、`/tmp/w44_*`、`/tmp/w45_*`（注入日志/trace/.out/manifest 全保留）；进度文件 `/tmp/ooo_w4b2_progress.txt`。计划文件中 Task 3/4/5 的 checkbox 留给编排者勾选（未动授权范围外文件）。</result>
+<usage><subagent_tokens>0</subagent_tokens><tool_uses>161</tool_uses><duration_ms>7589580</duration_ms></usage>
+</task-notification>
+
+---
+
+现在什么进度
+
+---
+
+<task-notification>
+<task-id>a1951e48884efb798</task-id>
+<tool-use-id>call_737ca094ee274e758e1e78e5</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi/986103be-6dae-4d5b-8b58-a5f2abf15cf7/tasks/a1951e48884efb798.output</output-file>
+<status>completed</status>
+<summary>Agent "实现 W4 收官批（最后 7 单元）" came to rest</summary>
+<note>A task-notification fires each time this agent comes to rest with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>W4 收官批全部完成。以下为最终报告。
+
+# W4 收官批（Task 6）完成报告 — Int Rename 14/14 全齐
+
+## 各单元文件清单
+
+| 单元 | 模式 | 文件 |
+|---|---|---|
+| D14 | `swap_mispred_event` | `/home/sdc/gem5-fi/CHAOS/gem5/src/cpu/o3/CHAOSRenameMap/CHAOSRenameMap.hh` `/.cc` `/.py`、`/home/sdc/gem5-fi/CHAOS/gem5/src/cpu/o3/rename.cc`（checkSignalsAndUpdate 误预测判定钩子）、`ooo_proxy.py`、`runner.py` |
+| D19 | `drop_release` | `/home/sdc/gem5-fi/CHAOS/gem5/src/cpu/o3/CHAOSFreeList/CHAOSFreeList.hh` `/.cc` `/.py`、`/home/sdc/gem5-fi/CHAOS/gem5/src/cpu/o3/free_list.hh`（UnifiedFreeList::addReg 预推钩子 + exit callback 终态汇总）、`ooo_proxy.py`、`runner.py` |
+| D20/D21 | `head_bitflip` / `head_bitflip2` | 同 D19 文件集（maybeCorrupt post-pop 位翻转分支） |
+| D22 | `head_stuck` | 同 D19 文件集 + `free_list.hh` SimpleFreeList::getReg **前置 pre-pop 钩子**（返回同项不 pop） |
+| D23/D24 | `hb_bitflip` / `hb_bitflip2` | CHAOSRenameMap 三件 + `rename.cc`（renameDestRegs push_front 建立点钩子 + doSquash/removeFromHistory 只读消费观察器） |
+
+计划文件 Task 6 五个 checkbox 已全部勾选并附执行注（`docs/superpowers/plans/2026-09-24-ooo-w4-intrename-injectors.md`）。**未 commit**（纪律：编排者验证后提交）。
+
+## 构建与回归（逐字）
+
+```
+BUILD_EXIT=0            （增量 -j126，产物=仓库根 build/ARM/gem5.opt，16:05:02 重链接）
+grep "警告" build log → 0 行（零告警；两次编译返工：RefCountingPtr 不接受 !=nullptr/!=NULL(long)，改 static_cast&lt;bool&gt;——commit.cc:799 惯用法）
+GOLDEN_EXIT=0
+FINAL=45737cc9a76c0dce  （无注入 golden 回归）
+```
+既有模式回归（挂载注入器）：`mark_free`（`readded_allocated_idx=74` + DUPLICATE_ALLOCATION 行）与 `map_bitflip`（`old_phys_idx=85, new_phys_idx=69`）legacy 日志格式逐字节不变。
+
+## 每模式验证输出（逐字摘录）
+
+**D14**（bm, `--rename_mode swap_mispred_event --rename_first_clock 200000 --rename_max_faults 1`）：
+```
+Tick: 77013475, Site: rename_squash_signal, mode=swap_mispred_event, tid=0, cause=branch_mispred, squash_sn=415954, signal: 8046
+Tick: 77013475, Site: rename_setEntry_restore, mode=swap_mispred_event, tid=0, arch=X2, old_phys=121, new_phys=43(active, rob_dist=13), chosen_sn=415964, trigger=branch_misprediction_restore, mispred_squash_sn=415954, rob_active_dests=[116@0 44@1 30@2 114@4 38@5 12@6 123@7 97@8 9@10 20@11 63@12 43@13 70@14], faults_injected: 1
+```
+注入 tick 与 branch_mispred 信号同 tick、sn 精确对上（触发时刻=误预测恢复的硬证据）；8046 条信号日志证明 branch_mispred/other 判定正确。结局 `panic: Dependency graph 43 (integer) (flat: 43) not empty!`（exit 134, Crash，与 D13 双所有权同构）。同 seed 复现 `D14_LOGS_IDENTICAL`。
+
+**D19**（smoke, `--freelist_mode drop_release`）：
+```
+Tick: 77000000, Site: freelist_addReg, mode=drop_release, class=int, suppressed_release_idx=85, num_free_int_at_drop=3 (release suppressed — queue stays at 3; a normal release would make it 4; the pool is permanently -1 for the rest of the run), faults_injected: 1
+Tick: 92357265, Site: exit_summary, mode=drop_release, faults_injected: 1, final_free_int=85, final_free_float=192, head_stuck_exposures=0
+```
+零注入对照（first_clock 不可达）：`final_free_int=86` → **恰好 -1 永久缩水**。结局 Masked（FINAL=45737cc9a76c0dce——04 矩阵"前兆"口径成立：价值在空闲池缩水趋势）。同 seed `D19_LOGS_IDENTICAL`。
+
+**D20**（smoke, `head_bitflip`）：
+```
+Tick: 77000000, Site: freelist_getReg, mode=head_bitflip, class=int, true_front_idx=62 (popped-and-consumed: entries below the corrupted head read leak), returned_idx=54, bits=(3), target_status=allocated(immediate duplicate allocation), approx=head_ptr_bitflip_on_queue_front (std::queue has no explicit pointer — 近似口径), faults_injected: 1
+```
+62^8=54 ✓；Crash（graph 54）；`D20_LOGS_IDENTICAL`。
+
+**D21**（smoke, `head_bitflip2`）：
+```
+... true_front_idx=62 ..., returned_idx=50, bits=(3,2), target_status=allocated(immediate duplicate allocation), approx=... , faults_injected: 1
+```
+62^8^4=50 汉明距恰 2 ✓；Crash（graph 50）；`D21_LOGS_IDENTICAL`。
+
+**D22**（smoke, `head_stuck`）：
+```
+Tick: 77000000, Site: freelist_getReg, mode=head_stuck, ARMED, class=int, frozen_front_idx=62, stuck_idx=54, forced_bit=3, polarity=0 (stuck_at_zero), approx=head_ptr_stuck_no_pop (std::queue has no explicit pointer — 近似口径), faults_injected: 1
+Tick: 77000000, Site: freelist_getReg, mode=head_stuck, class=int, true_front_idx=62, returned_idx=54 (same item every time — head never advances, no pop), deviation=-8, exposure: 1
+... exposure: 5（全部 returned_idx=54, true_front_idx=62 冻结, deviation=-8 恒定）
+```
+固定模式偏差 -8 = 04 矩阵 D22 观测项；5 次曝光后 Crash（graph 54，多重分配）。`D22_LOGS_IDENTICAL`。
+
+**D23**（bm, `hb_bitflip`）：
+```
+Tick: 77007700, Site: rename_history_push_front, mode=hb_bitflip, tid=0, sn=415929, arch=X28, field=newPhysReg, true_phys=81, checkpoint_phys=89, bits=(3), dormant_until_consumed (doSquash restore or removeFromHistory release), faults_injected: 1
+Tick: 77009240, Site: rename_doSquash, mode=hb_bitflip, tid=0, HISTORY_CONSUMED: checkpoint sn=415929, arch=X28, corrupted_field=newPhysReg, true_phys=81, consumed_phys=89 (the WRONG phys was restored/freed — dormancy ended), faults_injected: 1
+```
+**潜伏 1540 tick 后 squash 消费错误 phys 89** → `panic: Dependency graph 89 ... not empty!`（Crash）。`D23_LOGS_IDENTICAL`。
+
+**D24**（bm, `hb_bitflip2`）：
+```
+... sn=415929, field=newPhysReg, true_phys=81, checkpoint_phys=121, bits=(3,5) ...
+... HISTORY_CONSUMED: ... consumed_phys=121 (the WRONG phys was restored/freed — dormancy ended)
+```
+81^8^32=121 汉明距 2 ✓；doSquash 消费 121 → Crash（graph 121）。`D24_LOGS_IDENTICAL`。
+
+**Runner e2e 路由**：
+```
+[runner] RESULT: run_id=w4b3-e2e-d14 classification=Crash faults_injected=1 exit=-6 ... （legal_domain_sub+sub_field=swap_mispred_event → bm）
+[runner] RESULT: run_id=w4b3-e2e-d19 classification=Masked faults_injected=1 exit=0 ... reason: completed exit=0, checksum==golden (45737cc9a76c0dce) — fault did not propagate（delay_omission+sub_field=drop_release → smoke）
+```
+7 个新模式 sub_field 路由全接（rat: swap_mispred_event/hb_bitflip/hb_bitflip2；freelist: drop_release/head_bitflip/head_bitflip2/head_stuck）；schema `sub_field` 为自由字符串，无需改 schema。
+
+## 偏差/blocker 说明（诚实记录）
+
+1. **无 blocker**——7 单元全部按计划机制落地。D20-22 按预批准的 spike B 近似口径实现，每条日志带 `approx=` 标注。
+2. D22 崩溃早于 sim 结束 → exit summary 未打印（曝光总数仅在日志前 10 条 + 本批观察 5 条；如实报告）。
+3. 定向单样本结局：D14/D20/D21/D22/D23/D24 皆 Crash、D19 Masked——n=1/seed 定向对照，不做分布结论（stat 纪律）。
+4. D14 事件判定的机制依据：`commitInfo.mispredictInst` 仅误预测 squash 置位（commit.cc:840），trap/order-violation/squashAll 路径为 NULL——已在代码注释与本报告双记录。
+5. 会话开始前 `docs/superpowers/plans/2026-09-24-ooo-w2-observation.md` 已有未提交修改（非本批改动，git status 快照可证）。
+
+**W4 Int Rename 14/14（D11-D24）实现+验证全齐，到达用户暂停点。** 中断保护文件 `/tmp/ooo_w4b3_progress.txt` 已更新为 COMPLETE。</result>
+<usage><subagent_tokens>0</subagent_tokens><tool_uses>117</tool_uses><duration_ms>2374577</duration_ms></usage>
+</task-notification>
+
+---
+
+汇报进展和todo
+
+---
+
+/goal 调用最多的subagent完成所有后续工作
+
+---
+
+/goal 调用最多的subagent完成所有后续工作
+
+---
+
+<task-notification>
+<task-id>afdea7c4ad2250597</task-id>
+<tool-use-id>call_4151c5499e8e44efabc8b086</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi/228a36be-984d-44a8-aac7-02555f4f22df/tasks/afdea7c4ad2250597.output</output-file>
+<status>completed</status>
+<summary>Agent "W6 批次1（Decode D01-D07）" came to rest</summary>
+<note>A task-notification fires each time this agent comes to rest with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result># W6 批次 1（Task 1 机制原型 + D01-D07）完成报告
+
+机制可行性**成立**，无 blocker。7 个设计单元全部实现并真机验证通过。**未 commit/push**（按指令）。中断保护：`/tmp/ooo_w6b1_progress.txt`（全程记录）。
+
+## 一、文件清单（我改动的，均为绝对路径）
+
+| 文件 | 改动 |
+|---|---|
+| `/home/sdc/gem5-fi/CHAOS/gem5/src/arch/arm/decoder.hh` | +16 行：公有 `decodeChaos(ExtMachInst)` wrapper（调 protected `decodeInst`，绕 defaultCache/instMap，按传入 EMI 的 thumb 位补 size 戳——经核验 `Decoder::decode(PCStateBase)` 返回后 decoder 自身 emi 已清零，不能照抄 protected `decode(emi,addr)` 的读法） |
+| `/home/sdc/gem5-fi/CHAOS/gem5/src/cpu/o3/CHAOSDecode/CHAOSDecode.hh/.cc/.py` | 扩展 7 个编码模式 + `maybeCorruptEncoding(orig, dec, pc)` 入口；legacy `dest_reg_sub`（rename 站点）原样保留 |
+| `/home/sdc/gem5-fi/CHAOS/gem5/src/cpu/o3/fetch.cc` | +17 行：1246 `staticInst = dec_ptr-&gt;decode(this_pc)` 之后、`isMacroop()` 判断之前挂钩，仅重绑**局部** staticInst（计划写 1248 isMacroop，实际 1251，行漂移） |
+| `/home/sdc/gem5-fi/configs/se/ooo_proxy.py` | 仅 decode 块：`--decode_mode`（8 选项）/`--decode_last_clock` + ctor 透传 `mode/lastClock` |
+| `/home/sdc/gem5-fi/tools/runner.py` | 仅 decode 块：`target.sub_field` 判别器 → `--decode_mode`（无 sub_field 保持 legacy dest_reg_sub，向后兼容） |
+
+共享文件中 rob/rename 相关行**一行未动**（并行 ROB 代理的 rob 改动与我的 decode 改动已用 diff 逐块核实互不重叠）。
+
+## 二、机制设计（与计划的偏差均在源码核实后决策）
+
+- **EMI 通路**：`orig-&gt;asBytes(buf,8)` 取回完整 8B ExtMachInst（低 32 位 `instBits` 为真实编码，高 32 位是原译码所带元数据 sveLen/fpscr/itstate——re-decode 必须原样携带）→ 改 instBits → `decodeChaos` → 替换。`BasicDecodeCache` 经核实是纯缓存（无盖章副作用），`decodeInst` 即原始分派。
+- **排除项**：Thumb（emi.thumb）、非 AArch64、macroop/microop 原指令；替换指令若为 macroop 则由 fetch 循环既有 isMacroop 分支自然处理（日志记 `macroop_new`）。predictedBranch 按计划"看原指令"（`this_pc.branching()` 在替换前已由 decoder 设置，无需干预）。
+- **候选位集**：opcode={31,30,29,28-24,21}；reg=Rd[4:0]∪Rn[9:5]∪Rm[20:16]；imm=[21:10]（imm12/immr+imms/imm6 主区间）。
+- **reg/imm 语义验证**（超出计划的强化）：位翻转后 re-decode 须满足 mnemonic 不变且（reg 模式）寄存器操作数指纹改变 /（imm 模式）指纹不变——保证"寄存器号翻转"不混入 opcode/imm 效应。单 bit 在有效位上均匀采样；双 bit 有界拒绝采样（≤16 次），无有效位=诚实放弃本次（不耗 fault 配额）。
+- **D03 互换表**：9 条 (mask,match,xor) 规则**全部用主机 gcc+objdump 真实编码核验**（`/tmp/w6b1_swap/pairs.s`）：ADD↔SUB(imm/reg/ext, bit30)、AND↔ORR/BIC↔ORN/EOR↔ANDS/EON↔BICS(bit29)、AND↔ORR imm(bit29)、MOVN↔MOVZ(bit30)、STR↔LDR uimm(bit22)；非法象限（MOVK、LDRSW 等）用掩码排除，保证换值后必为合法编码。
+
+## 三、验证输出（逐字，退出码均直测）
+
+**1) 增量构建**：`scons -j16 build/ARM/gem5.opt` → `BUILD_RC=0`，`scons: done building targets.`。全程仅 4 条警告，全部为**未触碰文件既有**：`CHAOSIQ.hh:54/55 [-Wreorder]`×2+1、`CHAOSPhysReg.cc:548 [-Wunused-variable]`×1——本批文件零新告警。
+
+**2) 机制空跑**（无注入器）：`RC=0`，`FINAL=45737cc9a76c0dce`（=改前基线=smoke-golden-v1）→ 钩子空闲路径透明。
+
+**3) 7 模式定向验证**（`--chaos_decode --decode_mode &lt;M&gt; --decode_first_clock 10000 --decode_max_faults 1 --decode_rng_seed 20260924 --probability 1.0`，workload=workloads/ooo/smoke/smoke）：7/7 全过——注入日志编码 diff 可复算（orig_enc ^ (1&lt;&lt;b) == new_enc 逐一核算无误）、同 seed 复现 `same=YES`（md5 逐对相等）、prob=0 空闲挂载 `FINAL=45737cc9a76c0dce match=YES`×7。日志逐字样本（全部落在 pc=0x4178c8 `subs 0xeb010042`）：
+```
+D01 mode=opcode_bitflip,  orig_enc=0xeb010042, new_enc=0x6b010042, bits=[31], orig_mnemonic=subs, new_mnemonic=subs
+D02 mode=opcode_bitflip2, orig_enc=0xeb010042, new_enc=0x69010042, bits=[31,25], orig_mnemonic=subs, new_mnemonic=unknown
+D03 mode=opcode_swap,     orig_enc=0xeb010042, new_enc=0xab010042, bits=[30], orig_mnemonic=subs, new_mnemonic=adds, swap_rule=add_sub_reg
+D04 mode=reg_bitflip,     orig_enc=0xeb010042, new_enc=0xeb01004a, bits=[3], regs_moved=1
+D05 mode=reg_bitflip2,    orig_enc=0xeb010042, new_enc=0xeb01024a, bits=[3,9], regs_moved=1
+D06 mode=imm_bitflip,     orig_enc=0xeb010042, new_enc=0xeb010842, bits=[11], regs_moved=0
+D07 mode=imm_bitflip2,    orig_enc=0xeb010042, new_enc=0xeb012842, bits=[13,11], regs_moved=0
+```
+该 seed 下 7 模式均为 Masked（rc=0，FINAL=golden）。
+
+**4) Crash/SDC 证据（异 seed 扫描 24+10 次）**：
+- D02（非法编码→预期 Crash 路径）：seed=4 `src/arch/arm/faults.cc:784: panic: Attempted to execute unknown instruction (inst 0xc9402860)`（0xf9402860^bits[29,28] 可复算），`Program aborted at tick 3923535`，rc=134。
+- D03（合法换值→毒化）：seed=3 直跑 `str→ldr (0xf90007e3→0xf94007e3, bits=[22], swap_rule=str_ldr)` → workload `*** stack smashing detected ***: terminated`（无 FINAL）。
+- D06（立即数→地址计算，与设计矩阵预期一致）：seed=5 `str x3,[sp,#248]` 翻 imm12 位19（0xf90007e3→0xf90807e3）→ 偏移 4344 → `panic: Page table fault when accessing virtual address 0x7fffff0d38`，rc=134。
+- 各模式扫描整体：多数 Masked，少量 Crash（opcode_bitflip2 4/8、opcode_swap 1/8 直跑形式），无 Hang。
+
+**5) ctrace L2 证据**：golden 提交行 `1335,0,3953565,4178c8,subs,...,573/574/575`；7 个注入运行提交行 `1339,0,3894660,4178c8,subs,...,576/577/578`（bitflip2 为 573-575）——证明注入实例是**错误路径 fetch（被 squash）**，正确路径重取提交原指令（解释 Masked），且提交序号/tick/physreg 分配发生位移 = 微架构可见扰动被架构掩蔽；opcode_bitflip2 的 physreg 位移与 golden 不同，各模式扰动可区分。
+
+**6) runner e2e**（manifest+sub_field 路由）：`[runner] RESULT: run_id=r000 classification=Masked faults_injected=1 exit=0`（opcode_bitflip）；runner 形式 seed 扫描中 `seed=1/6 → classification=Crash faults_injected=1 exit=-6`（opcode_bitflip2）。路由真实性用 `/tmp/man-gzgeoros/decode_injections.log` 证实（`mode=opcode_swap` 确实到达注入器，`ldr→str`）。另跑 legacy 回归：`Site: rename_flattenDest, mode=dest_reg_sub, old_dest_reg=0, new_dest_reg=19` 正常。
+
+## 四、偏差与发现说明
+
+1. **同 seed 跨调用形式落点不同**：runner 用相对 `--cmd`、直跑用绝对路径 → SE 初始栈 argv[0] 字符串不同 → 启动指令流微移 → 同 seed 的第 N 个合格事件不同（tick 3868095 vs 3868480）。config.ini diff 仅此一项差异。**同一命令行**的同 seed 复现严格成立（_a/_b md5 相等）。这是 SE 进程设置特性，非注入器不确定性——已如实记录。
+2. **imm 候选位域为 [21:10]**：分支 imm19/imm26、ADRP immhi、MOVZ imm16 的越界部分仅按位置先验覆盖，语义验证兜底（位置之外的位不会误标为 imm 翻转）。日志带实际 bit 序号可供分析分层。
+3. reg/imm 双 bit 用拒绝采样（非全对枚举），对病态格式诚实放弃（不耗 fault 配额）——有界、可复现。
+4. 定向 seed=20260924 的 7 模式全 Masked 是因为几何跳过恰好落在被 squash 的错误路径 fetch 上——已用 ctrace 解释并用异 seed 补齐 Crash 路径，未挑选性报告。
+5. 构建期间并行 ROB 代理的 `-j126` 重链曾使 gem5.opt 短暂不可执行（我的 21 次验证跑在其之前完成，未受影响）；当前二进制含双方改动，rob 侧行为不影响本批 decode 验证（未挂 rob 注入器）。</result>
+<usage><subagent_tokens>0</subagent_tokens><tool_uses>125</tool_uses><duration_ms>3156351</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a938cbb79b474d1dd</task-id>
+<tool-use-id>call_747b9c5f01e9413fb60f819b</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi/228a36be-984d-44a8-aac7-02555f4f22df/tasks/a938cbb79b474d1dd.output</output-file>
+<status>completed</status>
+<summary>Agent "W5 批次1（ROB D25-D31）" came to rest</summary>
+<note>A task-notification fires each time this agent comes to rest with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>所有验证已完成。最终报告：
+
+## W5 批次 1 (Task 1 + Task 2, D25–D31) — 已完成，未提交（根据纪律，由协调员拥有提交权限）
+
+### 文件清单（均为我的；与 W6 代理的文件集不相交）
+- `/home/sdc/gem5-fi/CHAOS/gem5/src/cpu/o3/CHAOSROB/CHAOSROB.hh` — 7 个新 `Mode` 枚举值，`maybeCorruptEntry` / `maybeStuckEntryWrite` / `checkStuckReadback`，`collectIntDestSlots` / `collectRobActiveDests` 辅助函数，卡死状态
+- `/home/sdc/gem5-fi/CHAOS/gem5/src/cpu/o3/CHAOSROB/CHAOSROB.cc` — 全部 7 种实现；保留原有 `entry_bitflip`/`exc_suppress` 路径（字节级不变）
+- `/home/sdc/gem5-fi/CHAOS/gem5/src/cpu/o3/CHAOSROB/CHAOSROB.py` — 模式文档更新
+- `/home/sdc/gem5-fi/CHAOS/gem5/src/cpu/o3/rob.cc` — `ROB::insertInst` 入口写入钩子（在条目链接后添加了 9 行；`rob.hh` 无需更改 — `chaosROB` 成员 + include 已存在）
+- `/home/sdc/gem5-fi/configs/se/ooo_proxy.py` — 仅 `--rob_mode` choices += 7（行级；W6 代理的解码块未受影响）
+- `/home/sdc/gem5-fi/tools/runner.py` — 仅 rob `elif` 块：附加 `sub_field` 区分器 ×7（W4 模式；普通模型保留原有映射）
+
+**注入位点**：`ROB::insertInst`（计划的“rob insert”选项）— 故障存在于条目的 PC/dest-id 字段中，并在条目写入 ROB 时写入（TC'23 站点；现有的 rob.cc:254 retireHead 钩子对于飞行中的 PC/dest-id 来说太晚了，已确认）。`renameToIEWDelay=1 &lt; renameToROBDelay=2`，因此 dest-id 翻转是在构建 IQ 依赖图之后，但在完成/写回唤醒 (`inst_queue.cc:1151`) 和记分板清除之前进行的 — 这正是 IQ 拦截面。PC 翻转通过分支执行（目标从条目自身的 pcState 计算得出）和 `commit.cc:990 set(pc[tid], head_inst-&gt;pcState())` 向下传播。
+
+### 构建（全部在 repo-root build/ARM/gem5.opt）
+```
+BUILD_EXIT=0        # 最终增量 -j126；scons: 完成构建目标
+```
+只有 4 个预先存在的宿主机配置警告（capstone/png/HDF5/systemc）。任何 TU 中均无编译器警告。注意：我的第一次 `-j126` 链接失败（退出码 2，`undefined reference to gem5::ArmISAInst::decodeMcrMrc14/...`），原因是与 W6 代理并发运行的 `scons -j16`（PID 474384，共享构建目录）产生竞争 — 我的 `rob.o`/`CHAOSROB.o` 始终编译正常；在他们的构建完成后，我的重新运行很干净。已记录在 /tmp/ooo_w5b1_progress.txt 中。
+
+### Golden 回归（无注入）
+```
+RC=0
+FINAL=45737cc9a76c0dce
+```
+原有 `entry_bitflip` 回归：日志行字节一致（`Tick: 77000000, Site: rob_retireHead, mode=entry_bitflip, field=exc_status, tid=0, D=0, target_sn=262651, faults_injected: 1`）；D=0 head-stall (no FINAL) 是已知的 §2.3 遗留行为，未做更改。
+
+### 定向单次注入（smoke, C3, first_clock=200000, max_faults=1, seed=20260825）— 逐字日志行
+- **D25 pc_bitflip** — RC=0, `FINAL=45737cc9a76c0dce` (**Masked**):
+  `Tick: 77000000, Site: rob_insert, mode=pc_bitflip, tid=0, sn=262744, old_pc=0x400578, new_pc=0x400178, bits=(10), hamming=1, faults_injected: 1`
+- **D26 pc_bitflip2** — RC=0, golden FINAL (**Masked**):
+  `... old_pc=0x400578, new_pc=0x1400178, bits=(10,24), hamming=2, faults_injected: 1`
+- **D27 pc_stuck** — RC=0, golden FINAL (**Masked**)，共 3 行：ARMED + 写路径掩码 + 退休回读：
+  `..., mode=pc_stuck, ARMED, tid=0, sn=262744, bit=10, polarity=0 (stuck_at_zero), write_path=rob_insert (...), faults_injected: 1`
+  `..., write_pc=0x400578, stored_pc=0x400178, bit=10 forced to 0, hamming=1, exposure: 1, faults_injected: 1`
+  `Tick: 77024255, Site: rob_retireHead_readback, mode=pc_stuck, sn=262744, readback_pc=0x400178, bit=10 read=0, polarity=0 (STILL STUCK at retire — defect persisted the entry's whole ROB lifetime), exposures: 1, faults_injected: 1`
+- **D28 destid_bitflip** — RC=0, `FINAL=bca4dbb0d0f04622` (**SDC**, n=1 有向样本；M2 门统计数据来自 W8 活动)：
+  `..., dest_slot=0, old_phys=87, new_phys=95, bits=(3), hamming=1, faults_injected: 1`
+- **D29 destid_bitflip2** — RC=134 (**Crash — 设计预期的 IQ 依赖检查拦截**):
+  `src/cpu/o3/inst_queue.cc:1588: panic: Dependency graph 91 (integer) (flat: 91) not empty!` + `..., old_phys=87, new_phys=91, bits=(3,2), hamming=2, faults_injected: 1`
+- **D30 destid_swap_active** — RC=134 (**Crash**, 在此样本上 IQ panic 相同)：
+  `..., old_phys=87, new_phys=44(active, rob_dist=90), chosen_sn=262740, rob_active_dests=[80@0 68@1 ... 44@90 82@91 117@92 7@93], faults_injected: 1` (完整 78 条目 ROB 活跃池打印；new_phys=44 在日志中可验证)
+- **D31 destid_stuck** — RC=0, golden FINAL (**Masked** — 极性 0 落在已为 0 的位上，值屏蔽，精确的卡死单元语义)：
+  ARMED (bit=3, polarity=0) / `write_phys=87, stored_phys=87 (bit 3 already at 0, no observable change), exposure: 1` / 回读 `readback_phys=87, bit=3 read=0 ... (STILL STUCK at retire ...)`
+
+### 同种子复现：7/7 **LOGS_IDENTICAL** (相同种子重复运行，日志字节一致，FINAL 输出完全相同)。
+
+### ctrace L2 证据 (D28，运行器两遍法 vs 无注入参考)：
+```
+[runner] RESULT: run_id=w5b1-rob-smoke-d28 classification=SDC faults_injected=1 exit=0
+[runner] L2RESULT: {... "verdict": "diverged", "primary_class": "data_corruption", "primary_class_zh": "⑤数据损坏", "latency_seq": 257501, "first_divergence": {"seq": 257501, "level": "dest[0].val", "detail": "dest[0] val: ref=653d54000b93546a run=ca0ff2b75c3e0364", ...}, "divergence_counts": {..., "data_corruption": 33298}, "aux": {"phys_mismatch": 1, "max_tick_drift": 22330}}
+```
+309,387 个对齐对，恰好有 1 个物理不匹配（损坏的 dest），33,298 个数据损坏点。
+
+### 运行器 sub_field e2e ×3 (清单在 /tmp/w5b1_d28|d30|d31.yaml, C3 + smoke-golden-v1)：
+- D28 (`transient_bit_flip`+`destid_bitflip`) → `classification=SDC faults_injected=1`
+- D30 (`legal_domain_sub`+`destid_swap_active`) → `classification=Crash faults_injected=1 exit=-6`
+- D31 (`stuck_at_zero`+`destid_stuck`) → `classification=Masked faults_injected=1`
+
+### 偏差说明（诚实记录）
+1. **卡死语义 (D27/D31)**：一个 armed 条目（由 seqNum 选择），在条目写入（插入）时应用写路径掩码 + 退休回读持久性证明。记录近似情况：gem5 从不在插入后重写 ROB 驻留条目的 pcState/renamedDestIdx，因此每个条目的写路径是单次写入；gem5 的列表 ROB 没有可寻址槽，因此不可能进行槽身份存储阵列掩码。已在 ARMED 日志行中记录。
+2. **D28 有向样本 = SDC** (非 Crash)：翻转 (87→95) 落在了另一个运行中的生产者的 dest 上（early-wake/stale-read 路径）。D29/D30 显示了完全的 TC'23 风格拦截 (`InstQueue::insert` 依赖图非空 panic)。M2 门 (SDC≈0% at D25/D28) 是一个活动级别统计数据 — 有向单例不能证实或反驳它。
+3. **无范围外钳位**（对两种位翻转变体进行诚实跳过） — 与 W4 D12 map_bitflip 的钳位略有偏差；在 C3 上无法到达（num_phys=128=2^7，每次 1/2 位翻转都在范围内），因此汉明距离始终精确为 1/2。
+4. **运行中修复的日志格式**：运行器的 G5 计数器计算每个非空日志行，因此多行卡死证据最初被计数为 `faults=3`；每个证据/跳过行现在都带有明确的 `faults_injected: N` 尾部（CHAOSMem G5 先例）。修复后所有模式均已重新验证。跳过行上限为 32。
+5. 无 int-dest 条目（分支/存储）针对 destid 模式进行诚实跳过并记录（该字段在这些条目上不存在）。
+6. W5 计划文件复选框和 /tmp 清单：留给协调员（未修改共享文档；仅进行了最小的增量共享文件编辑）。</result>
+<usage><subagent_tokens>0</subagent_tokens><tool_uses>151</tool_uses><duration_ms>4166666</duration_ms></usage>
+</task-notification>
+
+---
+
+多agent并行
+
+---
+
+<task-notification>
+<task-id>a50e4acd96a358ec6</task-id>
+<tool-use-id>call_a1d1a6b4280b46009daedde8</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi/228a36be-984d-44a8-aac7-02555f4f22df/tasks/a50e4acd96a358ec6.output</output-file>
+<status>completed</status>
+<summary>Agent "W7 FP/SIMD 设计 spike" came to rest</summary>
+<note>A task-notification fires each time this agent comes to rest with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result># W7 (D56–D91) FP/SIMD 设计事实调研
+
+## 1. FP/SIMD Decode（D56–D61）
+
+**W6 机制可直接复用（架构无关）**：`fetch.cc:1257-1263` 挂钩在 `dec_ptr-&gt;decode()` 之后，调 `chaosDecode-&gt;maybeCorruptEncoding`；实现 `CHAOSDecode.cc:201-379` 只做三件事——取 8 字节 ExtMachInst（`asBytes`，`:219-225`）、`emi.instBits` 位翻转（`:238`）、`ArmISA::Decoder::decodeChaos` 重解码（`decoder.hh:184-192`，`decodeInst` + size stamp）。唯一过滤器是 `emi.thumb/!aarch64` 与 `!isMacroop/isMicroop`（`CHAOSDecode.cc:232-233`），**无任何寄存器类/opClass 假设**。`decodeChaos` 由 ISA 层提供，对 FP/SIMD 同样生效。
+
+**位段（已实证）**：NEON/向量（含标量 FP 3-same 路径）Vd=`bits(4,0)`、Vn=`bits(9,5)`、Vm=`bits(20,16)`，见 `arch/arm/isa/formats/neon64.isa:107-109`（另 `248-250, 701-703, 806-808, 1380-1381` 等），标量 FP 经同一 vd/vn/vm（`neon64.isa:585` `decodeNeonUThreeFpReg`）。**A64 无 bit5 扩展位**。W6 的 `kRegBits={0..9,16..20}`（`CHAOSDecode.hh:106-108`）恰好覆盖 Vd/Vn/Vm → D59/D60 的寄存器号翻转**零改动即可命中 SIMD**。
+**风险点（需 spike 确认）**：另有一条 `decodeFpVd/Vm/Vn` 路径（`fp.isa:3136-3166`）按 `bit22|bits(15,12)&lt;&lt;1` / `bit5|bits(3,0)&lt;&lt;1` / `bit7|bits(19,16)&lt;&lt;1` 取寄存器（0xFE 前缀 FP 组），kRegBits **不覆盖**这些位置。缓解：现有 `effective()` 语义谓词（`CHAOSDecode.cc:274-283`，要求重解码后 mnemonic 不变且寄存器指纹移动）会把错位置候选自动筛成空集 → honest wasted draw，不会产生假注入。D59/D60 宜照此保留谓词。
+**opcode/imm**：`kOpcodeBits={31..24,21}`、`kImmBits={10..21}`（`CHAOSDecode.hh:104-111`）是整数格式导向；FP/SIMD 的 opcode 空间占 bits 23:10（opc/size/Q/U），D56–D58 需 FP 专用候选集；`kSwapRules`（`CHAOSDecode.cc:45-55`）**全是整数/访存规则**，FP 指令 `matchSwapRule` 必返回 nullptr → D58（opcode 换值）需新增 FP swap 规则表。
+**指令过滤先例**：`CHAOSFPU::isFpOpClass`（`CHAOSFPU.cc:88-98`）= opClass ∈ {FloatAdd/Cmp/Cvt/Mult/MultAcc/Div/Misc/Sqrt} ∪ {SimdFloatAdd…SimdFloatMisc}，加 `has_fp_dest`（dest classValue ∈ VecRegClass/FloatRegClass/VecElemClass，`:112-117`）。注意此表**不含整数 SIMD**（SimdAdd/SimdShift 等）——W7 须先定义「FP/SIMD」口径。
+**D61 路由判定位**：gem5 无独立「路由位」。路由 = opClass → FUPool capability：`inst_queue.cc:184-192`（`numFreeEntries(inst)`，`!_fuPool-&gt;isCapable(op_class)` 返 0）+ `fu_pool.cc:157-163`（capabilityList 由 FUDesc opList 构建，`:106-115`）。opClass 是 StaticInst 构造参数（由生成解码器决定）→ **唯一可注入点就是「决定 opClass 的编码位」，经重解码体现**：D61 = D56/D57 引擎 + 新谓词 `new_opClass != orig_opClass`（或 `isCapable` 差集），观测面 = FU 端口/latency（spike C, findings.md:147：错路由只产时序效应，值仍正确；incapable → `commit.cc:972` panic）。当前配置是**单一统一 IQ + 默认 ArmO3CPU FUPool**（`configs/se/ooo_proxy.py:11-19`，IntALU×6/IntMultDiv×2/FP_ALU×4/FP_MultDiv×2），split-IQ 模板在 `configs/common/cores/arm/neoverse_v2.py:120-198`。
+
+## 2. FP/SIMD Rename（D67–D77，含 D62–66 合并）
+
+**可达性**：钩子在 `UnifiedRenameMap::setEntry` / `rename` 后置（`arch_reg` 自带 classValue），注入器无需触表；类闸门为 `arch_reg.classValue() != IntRegClass`，共 5 处：`CHAOSRenameMap.cc:194`（maybeCorrupt）、`:429`、`:471`、`:605`（stale_read）、`:706`（hb_bitflip）。另有 int 专属 `arch_idx &gt; 30`（XZR/banked，`:196, :607, :710`）——向量架构寄存器无零寄存器约定，该守卫必须改为按类条件化。`rename_map.hh:204-206` 的 `map(RegClassType)` accessor **可达 VecRegClass 的 front 表**（attach 在 `CHAOSRenameMap.cc:859-862`，thread0 `frontRenameMap()[0]`）。
+**池/目标挑选**：`pickAllocatedPhysReg`（`CHAOSRenameMap.cc:101-122`）只处理 Int/Float，`else continue` → 需加 `VecRegClass` + `physRegFile().vecPhysRegId(idx)`（`cpu/o3/regfile.hh:177`）。`CHAOSFreeList.cc:95-99` 同样。
+**swap_to_active 的活跃池收集**：`CHAOSRenameMap::collectRobActiveDests` **确实只收 int**（`CHAOSRenameMap.cc:147` `dest-&gt;classValue() != IntRegClass`）→ D68 需加类参数并放宽该行；ROB 侧同构先例 `CHAOSROB::collectRobActiveDests`（`CHAOSROB.cc:113-145`，过滤在 `:137`）与 `collectIntDestSlots`（`CHAOSROB.cc:96-111`，注释明言「FP/vector dests belong to the W7 FP unit」，`:101-103`）。
+**D74/D75 空闲表阈值现状**：`mark_free_event` 三处 int 硬编码——类闸门 `CHAOSFreeList.cc:142`、阈值读 `numFreeRegs(IntRegClass)`（`:255`）、目标 physRegId 构造 `intPhysRegId`（`:159, :214, :269`）；证据 watcher（`:126`）与 `finalSummary`（`:454-456` 只打印 int/float）也需扩展。`numFreeRegs(RegClassType)` 已按类参数化（`free_list.hh:276-279`），`isFree(RegClassType, PhysRegIdPtr)` 同。扩展所需：类参数 + `vecPhysRegId` + **按类阈值**（`p.eventThreshold` 是单标量；向量池 48、架构 44 → 初始空闲 4，见 `arch/arm/regs/vec.hh:81-83` NumVecRegs=32+8+4=44 与 `ooo_proxy.py:51` phys_vec=48；int 的 ≤8 阈值对 vec 等于整个空闲池，W7.3 的 ≤6 需重导）。
+**D62-66 vs D67-71 剩余差异**：挂点同为 VecRegClass，RAT 族模式按 `arch_reg` 类判据工作、**不看指令**，故 opClass Float* vs SimdFloat* 的过滤在该钩子上**无法实现**（钩子只收到 RegId，没有 DynInst/opClass）。结论：合并后两行是同一代码路径，Float*/SimdFloat* 的归因只能后置从 `CHAOSCommitTrace`（`commit.cc:1286-1294`）或给钩子加 inst 参数取得——这是 W7 需明确的设计决策，不是现成能力。
+
+## 3. FP Dispatch/ROB（D83–D91）
+
+**rob_insert 挂点**：`commit.cc:1352` `rob-&gt;insertInst(inst)` → `rob.cc:235` `chaosROB-&gt;maybeCorruptEntry(tid, inst)`。该入口**无类过滤**（PC 族对 FP 指令已天然生效）；dest-id 族则 int 过滤在 `CHAOSROB.cc:107, :137, :651, :757`，需按类参数化。**注意 W5.4–W5.8（D32–D40：done 提前/延迟、old-phys、ROB stale_read）在本树尚未实现**——`CHAOSROB::stringToMode`（`CHAOSROB.cc:41-51`）只有 D25–D31 九模式，Field::Done 仅作为 retireHead 的 CanCommit 翻转代理（`CHAOSROB.cc:186-206`）。D83–D85（FP 负载重跑 ROB 基线格/高 SDC 格）**零新代码**，但依赖 W5 T3-4 先落地。
+**D86 IQ ready 位**：`CHAOSIQ` 三模式（`CHAOSIQ.hh:52` WakeOmit/SrcReadyBitflip/WakePhase），挂点 `inst_queue.cc:1095-1109`（wakeDependents 入口），**全文件无 classValue/opClass 引用** → 对 FP 指令**直接可用**。IQ 是统一队列（`ooo_proxy.py:11-14`；`inst_queue.cc:227` iqs=params.instQueues），广播同时服务 int/FP（`:1123-1130` 三路统计）。若要 FP 专属归因，可加 `completed_inst-&gt;opClass()`/`isFloating()`/`isVector()`（`static_inst.hh:157-158`）可选过滤——是增强而非阻塞。
+**D87–D91**：tag 族按计划同 W5 D50–D54 机制，同一 `inst_queue.cc` entry 写入点（同样待 W5 T5-7 落地）。
+
+## 4. 去重后的 W7 新建模式清单（含先例）
+
+| # | 新模式 | 先例（W4/W5/W6）+ 需加的参数 |
+|---|---|---|
+| 1 | FP opcode 单/双 bit（D56/D57） | W6 `OpcodeBitflip`/`OpcodeBitflip2`（`CHAOSDecode.hh:76-81`）+ `fpOnly` 过滤 + FP 专用 opcode 位集 |
+| 2 | FP opcode 换值（D58） | W6 `OpcodeSwap`（`CHAOSDecode.cc:246-248, 298-300`）+ **新增 FP kSwapRules**（现表无 FP 项） |
+| 3 | FP/SIMD 寄存器号 单/双 bit（D59/D60） | W6 `RegBitflip`/`RegBitflip2`（`CHAOSDecode.cc:301-341`）+ `fpOnly`；`kRegBits` 已覆盖 Vd/Vn/Vm |
+| 4 | FP 指令路由/opClass 位（D61） | W6 引擎 + 新谓词「opClass 改变」（替换 `getName()` 相等谓词，`CHAOSDecode.cc:279`） |
+| 5 | VecRegClass RAT 族（D62–D77 全部 RAT 行） | W4 CHAOSRenameMap 11 模式（`CHAOSRenameMap.hh:141-143`）统一加 `targetClass` 参数：放宽 `:194/:429/:471/:605/:706` 类闸门、类条件化 XZR 守卫、扩 `pickAllocatedPhysReg`(`:101-122`) 与 `collectRobActiveDests`(`:125-158`) |
+| 6 | VecRegClass 空闲表阈值事件（D74/D75，含 D76/D77） | W4 CHAOSFreeList `MarkFree`/`MarkFreeEvent`（`CHAOSFreeList.hh:55-56`）+ 类参数 + `vecPhysRegId` + 按类阈值（现 `:255` 固定 int） |
+| 7 | VecRegClass ROB dest-id 族（D87–D91） | W5 CHAOSROB `destid_*` 族（`CHAOSROB.hh:52-56`）+ 类参数（`collectIntDestSlots`/`collectRobActiveDests`/`:651/:757` 闸门） |
+| — | D83–D85 | **零新代码**（W5 现有模式 × FP 负载 campaign 重跑）；D86 亦零新代码（CHAOSIQ 直接可用） |
+
+**依赖顺序硬约束**：W7.4（D83–D91）的 RAT/IQ 侧可先做，但 done 位族（D32–D40）与 tag 族（D50–D54）在本树尚未实现（`CHAOSROB.cc:41-51`、`CHAOSIQ.hh:52` 为当前全集），W7.4 需排在 W5 T3–T7 之后或并行对齐。</result>
+<usage><subagent_tokens>0</subagent_tokens><tool_uses>67</tool_uses><duration_ms>303219</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a5cec101fae754f34</task-id>
+<tool-use-id>call_e0672c639afa4cc1a25bf7c6</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi/228a36be-984d-44a8-aac7-02555f4f22df/tasks/a5cec101fae754f34.output</output-file>
+<status>completed</status>
+<summary>Agent "W3.3 回填工具" came to rest</summary>
+<note>A task-notification fires each time this agent comes to rest with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>所有工作已完成并验证。最终报告：
+
+## W3.3 交付：`tools/backfill_expanded_matrix.py`
+
+**文件**（唯一创建/修改的仓库文件，853 行，未 commit/push，遵守纪律；git status 中其他 M 文件均为并发代理所改）：
+- `/home/sdc/gem5-fi/tools/backfill_expanded_matrix.py` — `py_compile` 通过；进度保护 `/tmp/ooo_w33_progress.txt`（三阶段全记录）；fixture 与验证脚本在 `/tmp/ooo_w33/`（`verify_fixture.py` + `fixture/`）。
+
+**功能**：`--campaign &lt;dir&gt;...`（root 布局 `runs/+artifacts/` 或 `runs/&lt;cid&gt;` 本身，自动识别）+ `--matrix`（默认 `docs/gem5-fi/ooo/05-expanded-matrix.csv`）+ `--dry-run` + `--cell-map cid[/cNNNN]=E-id` + `--min-n-valid/--min-events`（默认 2000）+ `--allow-unphased` + `--force`。逐 rep 读 results.jsonl 的 classification（六类，未知类按 campaign.py 惯例计入 SimulatorError 并报告）/l2 块（verdict/primary_class/latency_seq，兼容直连与 W2.3 replay 包装两种形态）/l3 块（fanout=liveness.mean 上界代理）/stats 块（均值 IPC 入报告）；按 E 格聚合七列（SDC/Crash/Timeout=Hang/Masked 条件于 n_valid、仿真器断言崩溃占比=SimulatorError/n_total、潜伏期=latency_seq 中位数、扇出=均值，前五列带 Wilson 95% CI，复用 `tools/wilson.py` 单一实现）；pilot 永不入列、未标 phase 需 `--allow-unphased`、事件覆盖格按覆盖数（Σfaults_injected）判达标并记录、不达标格留空并列出、已填格默认跳过；写回保持 UTF-8 无 BOM + **CRLF**（实测该 CSV 全 227 行 CRLF）逐字节保持 7 列之外内容，临时文件原子替换；heatmap.csv 作为 campaign.py 独立聚合的交叉校验。
+
+## 验证输出（逐字摘录，真机）
+
+**① 合成 fixture（5 格：E001/E002/E058/E041-pilot/E043-D×F 唯一）— 42 项断言全过：**
+```
+PASS: independent Wilson anchor k=1,n=10 -&gt; [0.0179,0.4042] (got [0.0179,0.4042])
+PASS: hand: E001 SDC 2/5=40.00% (cell reads '40.00 [11.76,76.93]')
+PASS: hand: E002 simerr 1/6=16.67% (cell reads '16.67 [3.01,56.35]')
+PASS: run A: exactly 1 cell would be written (E058 via event coverage)
+PASS: run A: E058 coverage=2100 recorded
+PASS: run A: E041 absent (all 3 reps pilot-excluded)
+PASS: run A: E043 resolved via D x F unique lookup
+PASS: run A: heatmap cross-check 5/5 consistent
+PASS: run A: dry-run left matrix bytes identical (sha equal)
+PASS: run B: wrote exactly 2 cells (E001+E058)
+PASS: E001 written values == hand-computed ['40.00 [11.76,76.93]', '20.00 [3.62,62.45]', '20.00 [3.62,62.45]', '20.00 [3.62,62.45]', '0.00 [0.00,43.45]', '200', '15.00'] (got [...同值...])
+PASS: run B: CRLF line endings preserved (227 lines, no bare LF)
+PASS: run B: exactly E001+E058 rows changed (got ['E001', 'E058'])
+PASS: unit: D11 x F1 without workload is honestly ambiguous (... matches 2 matrix rows ['E043', 'E044'] ...)
+PASS: re-run with --force rewrites identical values (idempotent)
+PASS: run C: nonexistent campaign dir -&gt; exit 1
+ALL FIXTURE VERIFICATIONS PASSED
+```
+（手算锚点：E001 n_valid=5、SDC 2/5、latency median(100,300)=200、fanout mean(10,20)=15.00；E002 n_valid=6−1−1=4；E058 覆盖 600×3+300=2100≥2000 事件达标。）
+
+**② 真实 toy campaign（runs/w23-toy-smoke-prf + artifacts/w23-toy-smoke-prf）`--dry-run`：**
+```
+[backfill] campaign w23-toy-smoke-prf: 1 cell(s), 3 rep(s); heatmap: artifacts/w23-toy-smoke-prf/heatmap.csv
+[backfill]   w23-toy-smoke-prf: 1/1 cell(s) consistent with heatmap.csv
+[backfill]   E001: SDC%=0.00 [0.00,56.15] | Crash%=0.00 [0.00,56.15] | Timeout%=0.00 [0.00,56.15] | Masked%=100.00 [43.85,100.00] | 仿真器断言崩溃占比%=0.00 [0.00,56.15] | 潜伏期（commit序号）=(empty) | 污染扇出数=(empty)
+[backfill] DRY-RUN: /home/sdc/gem5-fi/docs/gem5-fi/ooo/05-expanded-matrix.csv NOT modified
+```
+（3×Masked 与 heatmap n_valid=3/Reach CI [0.4385,1.0] 精确吻合；无 cell-map 时诚实报告 unphased-excluded: 3。）仓库根布局全量扫描：120 campaign/33596 rep/1.4s，**120/120 heatmap 交叉一致、0 MISMATCH**；跨 campaign 聚合（fixture 5 rep + toy 3 rep → E001 n=8, SDC 25.00 [7.15,59.07]）手算吻合。
+
+**③ `--dry-run` 不改文件（sha256 + git 双证）：**
+```
+docs/gem5-fi/ooo/05-expanded-matrix.csv: 成功
+③a PASS: matrix byte-identical after --dry-run
+[backfill] 0 cell(s) qualify for writing -- matrix unchanged
+③b PASS: matrix byte-identical after real run with default bars (nothing qualified)
+（git status 该 CSV 无条目 = 未触碰；最终 sha256 82369c3e...）
+```
+
+**④ 阴性（均 exit 1）：**
+```
+[backfill] ERROR: campaign dir not found: /tmp/ooo_w33/no-such-campaign      -&gt; exit 1
+[backfill] ERROR: not a campaign dir (neither runs/+artifacts/ subdirs...): /tmp -&gt; exit 1
+[backfill] ERROR: --cell-map entry malformed (want cid[/cNNNN]=E001): 'bad syntax' -&gt; exit 1
+```
+
+## 偏差（诚实申报）
+
+1. **D/E 映射字段名**：任务让"读 tools/campaign.py 现有 manifest 生成逻辑确认字段名"——实测 HEAD 的 `manifest_for_cell` 写 `arm-chaos-fi/v1`，**尚无任何 D/E 字段**；故按 06-implementation-plan.md A6 的 v3 `ooo` 扩展块拼写实现（`design_unit_id/experiment_cell_id/frequency_tier/counting_basis/phase[/workload]`）。并发 W3.1/W3.2 代理未提交的 campaign.py 改动恰以**完全相同**的字段名写该块并指名本工具为消费方——已对齐。遗留（v1 无 ooo 块）campaign 只能经显式 `--cell-map` + `--allow-unphased` 回填（映射由操作者声明并打印，绝不猜测）。
+2. **stats/l3 块**：现行 campaign.py 的 results.jsonl 尚未落 stats/l3 块（runner.py 已能打印 `[runner] STATS:`/`L3RESULT:`）；工具按该契约在块存在时消费（IPC 入报告、fanout 入第 7 列），toy 无数据时潜伏期/扇出诚实留空（W8.7 二遍重放补齐）。
+3. **口径决定**（工具文档内已注明）：仿真器断言崩溃占比% = SimulatorError/n_total（分母为全部 rep，非 n_valid）；Timeout% = classify.py 的 Hang；Wilson CI 以 `p [lo,hi]` 形式写在同一 CSV 格内（矩阵仅 7 结果列，06 §1.2 要求"含 CI"）；事件覆盖数记录于报告（CSV 无对应列）。
+4. **toy 映射 E001 纯机械测试**：E001-E226 无 PRF 数据格（toy 是 physreg smoke），dry-run 只验证机制，不构成语义主张，且默认门槛下永不写入。
+5. **验证期发现并修复 5 个真 bug**：ctx 缺 `consistency_issues` 键、layout-(b) artifacts 路径错（`runs/artifacts` 应为父级 `artifacts`）、unmapped 按 rep 泛滥（改为按 campaign-cell 去重带 rep 数）、heatmap 容差浮点边界误报（0.03125 vs 0.0312 恰在 5e-5，放宽至 1e-4）、预过滤 marker 含 `workload:`（每个 v1 manifest 都有，永 skip 不了——已剔除）。</result>
+<usage><subagent_tokens>0</subagent_tokens><tool_uses>65</tool_uses><duration_ms>2838090</duration_ms></usage>
+</task-notification>
