@@ -17,7 +17,7 @@
 
 | 源工作表 | 本目录文件 | 规模 |
 |---|---|---|
-| 表0（0.说明与总览） | `00-overview.md` | 24 个非空行 |
+| 表0（0.说明与总览） | `00-overview.md` | 24 行（21 行有文本） |
 | 表1（1.单元与现有研究） | `01-units-and-research.md` | 7 单元 × 7 列 |
 | 表2（2.LSU参数基线） | `02-parameter-baseline.md` | 19 参数 × 5 列 |
 | 表3（3.位置x模型矩阵） | `03-design-matrix.md` + `design-matrix.csv` | 68 模型 × 12 列 |
@@ -60,9 +60,9 @@
 
 从 03 设计理由列归纳（每条注明出处模型 ID；引号为源表设计理由原文摘录）：
 
-1. **结构化合法值替换绕过地址异常**：随机翻转高位多成异常/Crash、非法编码多被拦截；把字段换成「另一个满足对齐、范围、编码和生命周期约束的合法值」专门命中静默路径。A04「专门检验"合法但错误地址"这一随机翻转难命中的路径」、T04「构造合法映射以测静默上限」、S04「绕开地址异常后预期SDC高」、C05「合法false hit…绕开无效地址与自然miss防线」、O07（交换合法 order tag）。
+1. **结构化合法值替换绕过地址异常**：随机翻转高位多成异常/Crash、非法编码多被拦截；把字段换成「另一个满足对齐、范围、编码和生命周期约束的合法值」专门命中静默路径。A04「专门检验“合法但错误地址”这一随机翻转难命中的路径」、T04「构造合法映射以测静默上限」、S04「绕开地址异常后预期SDC高」、C05「合法false hit…绕开无效地址与自然miss防线」、O07（交换合法 order tag）。
 2. **保护链本身是故障面**：T09「验证保护链本身而非只攻击数据」、S12「把保护作为显式故障面…攻击保护链可把DUE变成SDC」、C13「直接评估保护机制自身的单点失效」、O08「为未来保护实现预留，不在B0强行假定存在」；B0 无保护时这些行标不适用，不允许填成零故障率。
-3. **L1 影子比对作为 SDC 前兆观测**：04 L1 定义「与无故障影子副本比较该单元状态，捕获SDC之前的局部偏差」；03 中 SQ 系模型（S01–S13）的传播链列均挂「影子SQ」——在 L4 架构可见之前给出微架构级前兆，直接服务北极星第二问。
+3. **L1 影子比对作为 SDC 前兆观测**：04 L1 定义「与无故障影子副本比较该单元状态，捕获SDC之前的局部偏差」；03 中 SQ 系模型的传播链列 S01–S12 均挂「影子SQ」（S13 为 TC'23 对照行，仅 SQ 地址/age/状态）——在 L4 架构可见之前给出微架构级前兆，直接服务北极星第二问。
 4. **负对照与守恒校验**：C10（replacement「作为负对照验证"只影响性能"的假设」）、P01/P02/P03（预取地址/控制错误不应改变架构结果，检验 TC'23 排除理由的边界——若出现 SDC 优先怀疑注入器污染了 fill 路径）；L5 守恒式 `Activated = Masked + Detected + SDC + Crash + Timeout` 作为每格回填的闭合校验。
 5. **生命周期/时序/事务配对是随机翻转的盲区**：S06（store 生命周期状态）、S11（request/ack 握手）、C12（fill/writeback 事务配对，「tag-data错配是高风险SDC」）、L02/L03/L04（LQ 生命周期、violation/replay、response 配对）、P05（需求-预取竞争配对）。TC'23 的 LQ/SQ SDC=0 恰说明 commit 前依赖检查拦住了随机翻转，而这些模型测试检查之外的路径（S04 设计理由）。
 6. **Crash 双拆分对应 L5 分类**：04 L5「Crash区分gem5断言与架构崩溃」，把模拟器伪影与真实架构崩溃分开统计，避免把 gem5 断言误计为架构脆弱性（预期列如 A01「高位翻转多为异常/Crash」的验证依赖此拆分）。
@@ -92,14 +92,14 @@
 | O3 实验平台配置家族 | `configs/se/ooo_proxy.py`、`configs/se/kp920_proxy.py` 均存在（ls 确认） |
 | B0 预取器代理（P01–P09 的被测对象） | `CHAOS/gem5/configs/common/cores/arm/O3_ARM_v7a.py:246-247`：`# Simple stride prefetcher` / `prefetcher = StridePrefetcher(degree=8, latency=1, prefetch_on_access=True)`；`src/mem/cache/prefetch/`（base.hh 等基类）存在 |
 | F0/F1/F2/F3/F5 触发语义（5/7 档） | `CHAOS/gem5/src/cpu/o3/chaos_trigger.hh:23-26`：`enum class ChaOSTier : uint8_t { F0, F1, F2, F3, F5 };` |
-| Wilson 95% CI 计算（主结果停止规则） | `tools/wilson.py` 存在；`tools/backfill_expanded_matrix.py:93` `from wilson import wilson_ci` |
+| Wilson 95% CI 计算（主结果停止规则） | `tools/wilson.py` 存在；`tools/backfill_expanded_matrix.py:93` `from wilson import wilson_ci, ALL_CLASSES  # noqa: E402  (repo's single Wilson impl)` |
 | FS 单核管线（W4 等 FS 依赖负载） | `configs/fs/kp920_proxy_fs.py` 存在（`:41` `cpu0 = core0.core`，单核 V110 代理） |
 
 ### 需要新建（grep 未命中或不存在）
 
 | 方案需要 | 仓库现状（grep 证据） |
 |---|---|
-| AGU 注入器（A01–A08） | `tools/runner.py` 组件分派共 20 个（gpr/physreg/memory/rat/freelist/rob/iq/lsq_fwd/exec/fsu/l1d_fwd/bpu/decode/l1i/l1_tlb/sysreg/exmon/ras/addr_path/ptw），**无 agu**；`grep -n "prefetch\|agu\|atomic" tools/runner.py` 零命中；`src/cpu/o3/` 无 AGU 类 CHAOS 注入器目录 |
+| AGU 注入器（A01–A08） | `tools/runner.py` 组件分派共 20 个分支、22 个组件名（gpr/physreg/memory/rat/freelist/rob/iq/lsq_fwd/exec/fsu/l1d_fwd/bpu/decode/l1d/l1i/l2/l1_tlb/sysreg/exmon/ras/addr_path/ptw，其中 l1d/l1i/l2 共用一个分支），**无 agu**；`grep -n "prefetch\|agu\|atomic" tools/runner.py` 零命中；`src/cpu/o3/` 无 AGU 类 CHAOS 注入器目录 |
 | 原子与同步注入器（O01–O09） | 同上：无 atomic 组件分支、无对应注入器目录 |
 | 预取器注入器（P01–P09） | 同上：无 prefetch 组件分支（被测对象 StridePrefetcher 已在，缺的是注入器） |
 | LQ 生命周期/响应配对注入器（L01–L04） | `src/cpu/o3/` 仅有 `CHAOSLSQFwd`（forwarding 场景）；`lsq.hh`/`lsq_unit.hh` 是 gem5 基础实现而非注入器；无 LQ 生命周期类注入器 |
