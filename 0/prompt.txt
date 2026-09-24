@@ -2021,3 +2021,48 @@ commit 读旧记录证明 ✓；终局 exit=124（真 dest 记分板永不清→
 8. **环境事故（非代码）**：与并行代理共用构建目录，双 -j126 叠加触发一次 OOM 假汇编错误、两次链接中途二进制被截断；处置=等对方构建静默后低并发重建 + 快照 `/tmp/gem5_w5b2.opt`（含全部最终代码）跑完所有验证；中断保护 `/tmp/ooo_w5b2_progress.txt` 全程维护。</result>
 <usage><subagent_tokens>0</subagent_tokens><tool_uses>122</tool_uses><duration_ms>6335969</duration_ms></usage>
 </task-notification>
+
+---
+
+<task-notification>
+<task-id>ad522717277a7e9f7</task-id>
+<tool-use-id>call_d88447110a6d4dbdba6e3de5</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi/228a36be-984d-44a8-aac7-02555f4f22df/tasks/ad522717277a7e9f7.output</output-file>
+<status>completed</status>
+<summary>Agent "W7.1 FP Decode（D56-D61）" came to rest</summary>
+<note>A task-notification fires each time this agent comes to rest with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>全部完成。最终报告：
+
+## W7.1 FP Decode (D56-D61) — 6 模式实现完成，已验证，未 commit（按纪律）
+
+### 文件清单（工作树修改，HEAD 仍 213a1fd8）
+| 文件 | 改动 |
+|---|---|
+| `/home/sdc/gem5-fi/CHAOS/gem5/src/cpu/o3/CHAOSDecode/CHAOSDecode.hh` | +6 Mode 枚举、`kFpOpcodeBits`(enc[23:10] 14位)、`kFpRouteBits`(enc[28:24])、`kFpSwapRules` 声明、`isFpOpClass`、`matchFpSwapRule`、`injectFpRouteBit`、fpOnly 口径文档 |
+| `/home/sdc/gem5-fi/CHAOS/gem5/src/cpu/o3/CHAOSDecode/CHAOSDecode.cc` | 14 条 FP 互换规则表、fpOnly 闸门、FpOpcodeSwap 规则匹配、FpOpcodeBitflip/2 位选、FpRouteBit 有效位扫描+诚实跳过日志（enums::OpClassStrings 新旧名）、**修复 two_bits 漏 FpRegBitflip2 的 bug** |
+| `/home/sdc/gem5-fi/CHAOS/gem5/src/cpu/o3/CHAOSDecode/CHAOSDecode.py` | mode 参数文档+6 值 |
+| `/home/sdc/gem5-fi/configs/se/ooo_proxy.py` | `--decode_mode` choices +6（**仅 decode 块**，与并行 ROB/IQ 代理无重叠） |
+| `/home/sdc/gem5-fi/tools/runner.py` | decode `dsf` 路由元组 +6（**仅 decode 块**） |
+| `/home/sdc/gem5-fi/docs/superpowers/plans/2026-09-24-ooo-w7-fpsimd-injectors.md` | Task 1 勾选+执行注 |
+
+### FP 互换表核验记录（W6 方法论，主机 gcc+objdump 闭环）
+表含 7 标量对（fadd↔fsub/fmul↔fdiv/fmax↔fmin/fmaxnm↔fminnm/fmadd↔fmsub/fnmadd↔fnmsub/fcmp↔fcmpe，fcmp 含 #0.0 形态）+ 7 向量对（fadd↔fsub/fmax↔fmin/fmaxnm↔fminnm/fmla↔fmls/fcmeq↔fcmge/fmul↔fdiv/fabs↔fneg）。**闭环验证**（`/tmp/w71/verify_rules.py`）：成员编码 320/320 翻转重汇编得伙伴 mnemonic 且寄存器操作数全等（S/D/H × .2s/.4s/.2d × 4 组寄存器）；负例 46 条（fmulx/fabd/fcmgt/facge/frint/fccmp/by-element/FP16-3-same 等）零误匹配。掩码逐位规格程序化生成——手工推导两次算错（bit28/b23 pin），闭环验证当场抓出（fadd 表需 pin bit29=0 排 FABD、fcmeq 需 pin bit23=0 排 FCMGT、fmul 需 pin bit29=1 排 FMULX、fabs 需 pin Rm=0 排 FRINT）。
+
+### 每模式验证输出（nbody，seed 20260924，maxFaults=1，同 seed 双跑 6/6 字节一致）
+- **D56** `fp_opcode_bitflip`: `fmov 0x9e6600a3 → 0x9e2600a3, bits=[22], new_mnemonic=unknown`（非法→Crash 基线形态）
+- **D57** `fp_opcode_bitflip2`: `bits=[22,10] → 0x9e2604a3, unknown`
+- **D58** `fp_opcode_swap`: `fsub 0x1e603820 → fadd 0x1e602820, bits=[12], swap_rule=s_fadd_fsub`
+- **D59** `fp_reg_bitflip`: `bits=[0], fmov→fmov, regs_moved=1`（W6 谓词零改动生效）
+- **D60** `fp_reg_bitflip2`: `bits=[3,9], fmov→fmov, regs_moved=1`（修复后真双比特）
+- **D61** `fp_route_bit`: `bits=[27], 0x9e6600a3→0x966600a3, opclass_old=FloatMisc, opclass_new=IntAlu, fmov→bl`（路由改判定的诚实近似完美演示）
+- 编码 diff 6/6 机械复算 PASS；golden **45737cc9a76c0dce** 精确回归 ×2；构建零警告；runner 端到端路由（C3 manifest `sub_field=fp_opcode_swap` → `classification=Masked faults_injected=1`）；W6 整数模式回归无损（opcode_bitflip Masked；reg_bitflip 该 seed 合法 Crash=vaddr 0 页表故障，证明引擎仍咬合且非 W7 改动路径）。
+
+### 偏差与诚实边界
+1. **验证中发现并修复 1 个真 bug**：W6 `two_bits` 检查未含 FpRegBitflip2 → D60 初版单比特；修复后重验。
+2. fpOnly = Float*∪SimdFloat*（CHAOSFPU.cc:88-98 口径），**整数 SIMD 出 W7.1 范围**（三处文档化）；D61 的 int→FP 方向因闸门不可达（文档化）。
+3. kFpOpcodeBits[23:10] 与 Rm[20:16] 重叠——沿用 W6 kImmBits 口径（日志带位号可复算）。
+4. 采样 seed 内 6 模式 FP 抽签全 Masked（单错命中错误路径比例高）；campaign 级统计归 W8。D58 种子扫描 101-106 六抽六不同（fmul↔fdiv 双向×4、fadd↔fsub 双向×2）。
+5. 向量互换规则未在向量负载上触发演示（nbody 纯标量 FP；规则本身已 objdump 双向核验）——libjpeg 补跑留 W8。
+6. 首次构建撞并行 ROB/IQ 代理 scons 竞态（Error 127），等待后重建通过；全程记录在 `/tmp/ooo_w71_progress.txt`。</result>
+<usage><subagent_tokens>0</subagent_tokens><tool_uses>122</tool_uses><duration_ms>4373605</duration_ms></usage>
+</task-notification>
