@@ -1,0 +1,223 @@
+{
+  "cli_version": "0.10.2",
+  "checkpoint_id": "01M39VE13FGG0PKJWMSN1GC92F",
+  "session_id": "986103be-6dae-4d5b-8b58-a5f2abf15cf7",
+  "strategy": "manual-commit",
+  "created_at": "2026-09-24T13:59:52.065369087Z",
+  "branch": "fi-ding",
+  "checkpoints_count": 1,
+  "save_step_count": 2,
+  "files_touched": [
+    "CHAOS/gem5/src/cpu/o3/CHAOSDecode/CHAOSDecode.cc",
+    "CHAOS/gem5/src/cpu/o3/CHAOSDecode/CHAOSDecode.hh",
+    "CHAOS/gem5/src/cpu/o3/CHAOSDecode/CHAOSDecode.py"
+  ],
+  "agent": "Claude Code",
+  "model": "GLM-5.3[1m]",
+  "turn_id": "dbcef3c6ee2b",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 22666042,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 198928576,
+    "output_tokens": 418457,
+    "api_call_count": 387,
+    "subagent_tokens": {
+      "input_tokens": 311946,
+      "cache_creation_tokens": 0,
+      "cache_read_tokens": 15191360,
+      "output_tokens": 29389,
+      "api_call_count": 65
+    }
+  },
+  "skill_events_version": 1,
+  "skill_events": [
+    {
+      "id": "prompt-skill-claude-code-planning-with-files:planning-with-files-2026-09-22T14:51:20.084795095Z",
+      "event_type": "prompt_invocation",
+      "skill": {
+        "name": "planning-with-files:planning-with-files"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "prompt_slash_command",
+        "confidence": "explicit"
+      },
+      "turn_id": "e303d9da3878",
+      "timestamp": "2026-09-22T14:51:20.084795095Z",
+      "native": {
+        "command": "/planning-with-files:planning-with-files"
+      },
+      "collapse": {
+        "target": "user_message",
+        "label": "/planning-with-files:planning-with-files",
+        "default_collapsed": true
+      }
+    },
+    {
+      "id": "prompt-skill-claude-code-planning-with-files:plan-goal-2026-09-22T15:19:12.899328958Z",
+      "event_type": "prompt_invocation",
+      "skill": {
+        "name": "planning-with-files:plan-goal"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "prompt_slash_command",
+        "confidence": "explicit"
+      },
+      "turn_id": "8b43bf4a8426",
+      "timestamp": "2026-09-22T15:19:12.899328958Z",
+      "native": {
+        "command": "/planning-with-files:plan-goal"
+      },
+      "collapse": {
+        "target": "user_message",
+        "label": "/planning-with-files:plan-goal",
+        "default_collapsed": true
+      }
+    },
+    {
+      "id": "prompt-skill-claude-code-planning-with-files:plan-goal-2026-09-22T15:32:21.578704361Z",
+      "event_type": "prompt_invocation",
+      "skill": {
+        "name": "planning-with-files:plan-goal"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "prompt_slash_command",
+        "confidence": "explicit"
+      },
+      "turn_id": "c932ddb3086f",
+      "timestamp": "2026-09-22T15:32:21.578704361Z",
+      "native": {
+        "command": "/planning-with-files:plan-goal"
+      },
+      "collapse": {
+        "target": "user_message",
+        "label": "/planning-with-files:plan-goal",
+        "default_collapsed": true
+      }
+    },
+    {
+      "id": "prompt-skill-claude-code-goal-2026-09-24T10:48:59.361040377Z",
+      "event_type": "prompt_invocation",
+      "skill": {
+        "name": "goal"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "prompt_slash_command",
+        "confidence": "explicit"
+      },
+      "turn_id": "4dba159c1be4",
+      "timestamp": "2026-09-24T10:48:59.361040377Z",
+      "native": {
+        "command": "/goal"
+      },
+      "collapse": {
+        "target": "user_message",
+        "label": "/goal",
+        "default_collapsed": true
+      }
+    },
+    {
+      "id": "prompt-skill-claude-code-goal-2026-09-24T11:12:26.509517802Z",
+      "event_type": "prompt_invocation",
+      "skill": {
+        "name": "goal"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "prompt_slash_command",
+        "confidence": "explicit"
+      },
+      "turn_id": "19098aa3e063",
+      "timestamp": "2026-09-24T11:12:26.509517802Z",
+      "native": {
+        "command": "/goal"
+      },
+      "collapse": {
+        "target": "user_message",
+        "label": "/goal",
+        "default_collapsed": true
+      }
+    },
+    {
+      "id": "claude-skill-call_2fd9e2cd093047e7be818957",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "superpowers:writing-plans"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "dbcef3c6ee2b",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 423,
+        "end": 424,
+        "entry_ids": [
+          "b6a95cb6-435a-4402-90f8-f3151608a3c1"
+        ],
+        "tool_use_id": "call_2fd9e2cd093047e7be818957"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "call_2fd9e2cd093047e7be818957"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: superpowers:writing-plans",
+        "default_collapsed": true
+      }
+    }
+  ],
+  "session_metrics": {
+    "turn_count": 47
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-09-24T13:59:50.942689602Z",
+    "agent_lines": 545,
+    "agent_removed": 3,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 545,
+    "total_lines_changed": 548,
+    "agent_percentage": 100,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    },
+    {
+      "checkpoint_number": 3,
+      "user_lines_added": 177,
+      "user_lines_removed": 0,
+      "agent_lines_added": 2192,
+      "agent_lines_removed": 17,
+      "user_added_per_file": {
+        ".plan.md": 61,
+        ".planning/.active_plan": 1,
+        ".planning/2026-09-22-ooo-fault-injection-implementation-plan/progress.md": 1,
+        "artifacts/ooo_w32_toy_coverage/coverage.json": 11,
+        "artifacts/ooo_w32_toy_coverage_tbl/coverage.json": 11,
+        "artifacts/w23-toy-bm-rat.eofbug/heatmap.csv": 2,
+        "artifacts/w23-toy-bm-rat.eofbug/summary.md": 21,
+        "artifacts/w23-toy-bm-rat/heatmap.csv": 2,
+        "artifacts/w23-toy-bm-rat/summary.md": 21,
+        "artifacts/w23-toy-smoke-prf-mb/heatmap.csv": 2,
+        "artifacts/w23-toy-smoke-prf-mb/summary.md": 21,
+        "artifacts/w23-toy-smoke-prf/heatmap.csv": 2,
+        "artifacts/w23-toy-smoke-prf/summary.md": 21
+      }
+    }
+  ]
+}

@@ -1,0 +1,35 @@
+{
+  "cli_version": "0.10.2",
+  "checkpoint_id": "01M39VE13FGG0PKJWMSN1GC92F",
+  "strategy": "manual-commit",
+  "branch": "fi-ding",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "CHAOS/gem5/src/cpu/o3/CHAOSDecode/CHAOSDecode.cc",
+    "CHAOS/gem5/src/cpu/o3/CHAOSDecode/CHAOSDecode.hh",
+    "CHAOS/gem5/src/cpu/o3/CHAOSDecode/CHAOSDecode.py"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 22666042,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 198928576,
+    "output_tokens": 418457,
+    "api_call_count": 387,
+    "subagent_tokens": {
+      "input_tokens": 311946,
+      "cache_creation_tokens": 0,
+      "cache_read_tokens": 15191360,
+      "output_tokens": 29389,
+      "api_call_count": 65
+    }
+  }
+}
