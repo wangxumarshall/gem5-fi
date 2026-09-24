@@ -1603,3 +1603,55 @@ FINAL=45737cc9a76c0dce
 ---
 
 多agent并行
+
+---
+
+<task-notification>
+<task-id>a50e4acd96a358ec6</task-id>
+<tool-use-id>call_a1d1a6b4280b46009daedde8</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi/228a36be-984d-44a8-aac7-02555f4f22df/tasks/a50e4acd96a358ec6.output</output-file>
+<status>completed</status>
+<summary>Agent "W7 FP/SIMD 设计 spike" came to rest</summary>
+<note>A task-notification fires each time this agent comes to rest with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result># W7 (D56–D91) FP/SIMD 设计事实调研
+
+## 1. FP/SIMD Decode（D56–D61）
+
+**W6 机制可直接复用（架构无关）**：`fetch.cc:1257-1263` 挂钩在 `dec_ptr-&gt;decode()` 之后，调 `chaosDecode-&gt;maybeCorruptEncoding`；实现 `CHAOSDecode.cc:201-379` 只做三件事——取 8 字节 ExtMachInst（`asBytes`，`:219-225`）、`emi.instBits` 位翻转（`:238`）、`ArmISA::Decoder::decodeChaos` 重解码（`decoder.hh:184-192`，`decodeInst` + size stamp）。唯一过滤器是 `emi.thumb/!aarch64` 与 `!isMacroop/isMicroop`（`CHAOSDecode.cc:232-233`），**无任何寄存器类/opClass 假设**。`decodeChaos` 由 ISA 层提供，对 FP/SIMD 同样生效。
+
+**位段（已实证）**：NEON/向量（含标量 FP 3-same 路径）Vd=`bits(4,0)`、Vn=`bits(9,5)`、Vm=`bits(20,16)`，见 `arch/arm/isa/formats/neon64.isa:107-109`（另 `248-250, 701-703, 806-808, 1380-1381` 等），标量 FP 经同一 vd/vn/vm（`neon64.isa:585` `decodeNeonUThreeFpReg`）。**A64 无 bit5 扩展位**。W6 的 `kRegBits={0..9,16..20}`（`CHAOSDecode.hh:106-108`）恰好覆盖 Vd/Vn/Vm → D59/D60 的寄存器号翻转**零改动即可命中 SIMD**。
+**风险点（需 spike 确认）**：另有一条 `decodeFpVd/Vm/Vn` 路径（`fp.isa:3136-3166`）按 `bit22|bits(15,12)&lt;&lt;1` / `bit5|bits(3,0)&lt;&lt;1` / `bit7|bits(19,16)&lt;&lt;1` 取寄存器（0xFE 前缀 FP 组），kRegBits **不覆盖**这些位置。缓解：现有 `effective()` 语义谓词（`CHAOSDecode.cc:274-283`，要求重解码后 mnemonic 不变且寄存器指纹移动）会把错位置候选自动筛成空集 → honest wasted draw，不会产生假注入。D59/D60 宜照此保留谓词。
+**opcode/imm**：`kOpcodeBits={31..24,21}`、`kImmBits={10..21}`（`CHAOSDecode.hh:104-111`）是整数格式导向；FP/SIMD 的 opcode 空间占 bits 23:10（opc/size/Q/U），D56–D58 需 FP 专用候选集；`kSwapRules`（`CHAOSDecode.cc:45-55`）**全是整数/访存规则**，FP 指令 `matchSwapRule` 必返回 nullptr → D58（opcode 换值）需新增 FP swap 规则表。
+**指令过滤先例**：`CHAOSFPU::isFpOpClass`（`CHAOSFPU.cc:88-98`）= opClass ∈ {FloatAdd/Cmp/Cvt/Mult/MultAcc/Div/Misc/Sqrt} ∪ {SimdFloatAdd…SimdFloatMisc}，加 `has_fp_dest`（dest classValue ∈ VecRegClass/FloatRegClass/VecElemClass，`:112-117`）。注意此表**不含整数 SIMD**（SimdAdd/SimdShift 等）——W7 须先定义「FP/SIMD」口径。
+**D61 路由判定位**：gem5 无独立「路由位」。路由 = opClass → FUPool capability：`inst_queue.cc:184-192`（`numFreeEntries(inst)`，`!_fuPool-&gt;isCapable(op_class)` 返 0）+ `fu_pool.cc:157-163`（capabilityList 由 FUDesc opList 构建，`:106-115`）。opClass 是 StaticInst 构造参数（由生成解码器决定）→ **唯一可注入点就是「决定 opClass 的编码位」，经重解码体现**：D61 = D56/D57 引擎 + 新谓词 `new_opClass != orig_opClass`（或 `isCapable` 差集），观测面 = FU 端口/latency（spike C, findings.md:147：错路由只产时序效应，值仍正确；incapable → `commit.cc:972` panic）。当前配置是**单一统一 IQ + 默认 ArmO3CPU FUPool**（`configs/se/ooo_proxy.py:11-19`，IntALU×6/IntMultDiv×2/FP_ALU×4/FP_MultDiv×2），split-IQ 模板在 `configs/common/cores/arm/neoverse_v2.py:120-198`。
+
+## 2. FP/SIMD Rename（D67–D77，含 D62–66 合并）
+
+**可达性**：钩子在 `UnifiedRenameMap::setEntry` / `rename` 后置（`arch_reg` 自带 classValue），注入器无需触表；类闸门为 `arch_reg.classValue() != IntRegClass`，共 5 处：`CHAOSRenameMap.cc:194`（maybeCorrupt）、`:429`、`:471`、`:605`（stale_read）、`:706`（hb_bitflip）。另有 int 专属 `arch_idx &gt; 30`（XZR/banked，`:196, :607, :710`）——向量架构寄存器无零寄存器约定，该守卫必须改为按类条件化。`rename_map.hh:204-206` 的 `map(RegClassType)` accessor **可达 VecRegClass 的 front 表**（attach 在 `CHAOSRenameMap.cc:859-862`，thread0 `frontRenameMap()[0]`）。
+**池/目标挑选**：`pickAllocatedPhysReg`（`CHAOSRenameMap.cc:101-122`）只处理 Int/Float，`else continue` → 需加 `VecRegClass` + `physRegFile().vecPhysRegId(idx)`（`cpu/o3/regfile.hh:177`）。`CHAOSFreeList.cc:95-99` 同样。
+**swap_to_active 的活跃池收集**：`CHAOSRenameMap::collectRobActiveDests` **确实只收 int**（`CHAOSRenameMap.cc:147` `dest-&gt;classValue() != IntRegClass`）→ D68 需加类参数并放宽该行；ROB 侧同构先例 `CHAOSROB::collectRobActiveDests`（`CHAOSROB.cc:113-145`，过滤在 `:137`）与 `collectIntDestSlots`（`CHAOSROB.cc:96-111`，注释明言「FP/vector dests belong to the W7 FP unit」，`:101-103`）。
+**D74/D75 空闲表阈值现状**：`mark_free_event` 三处 int 硬编码——类闸门 `CHAOSFreeList.cc:142`、阈值读 `numFreeRegs(IntRegClass)`（`:255`）、目标 physRegId 构造 `intPhysRegId`（`:159, :214, :269`）；证据 watcher（`:126`）与 `finalSummary`（`:454-456` 只打印 int/float）也需扩展。`numFreeRegs(RegClassType)` 已按类参数化（`free_list.hh:276-279`），`isFree(RegClassType, PhysRegIdPtr)` 同。扩展所需：类参数 + `vecPhysRegId` + **按类阈值**（`p.eventThreshold` 是单标量；向量池 48、架构 44 → 初始空闲 4，见 `arch/arm/regs/vec.hh:81-83` NumVecRegs=32+8+4=44 与 `ooo_proxy.py:51` phys_vec=48；int 的 ≤8 阈值对 vec 等于整个空闲池，W7.3 的 ≤6 需重导）。
+**D62-66 vs D67-71 剩余差异**：挂点同为 VecRegClass，RAT 族模式按 `arch_reg` 类判据工作、**不看指令**，故 opClass Float* vs SimdFloat* 的过滤在该钩子上**无法实现**（钩子只收到 RegId，没有 DynInst/opClass）。结论：合并后两行是同一代码路径，Float*/SimdFloat* 的归因只能后置从 `CHAOSCommitTrace`（`commit.cc:1286-1294`）或给钩子加 inst 参数取得——这是 W7 需明确的设计决策，不是现成能力。
+
+## 3. FP Dispatch/ROB（D83–D91）
+
+**rob_insert 挂点**：`commit.cc:1352` `rob-&gt;insertInst(inst)` → `rob.cc:235` `chaosROB-&gt;maybeCorruptEntry(tid, inst)`。该入口**无类过滤**（PC 族对 FP 指令已天然生效）；dest-id 族则 int 过滤在 `CHAOSROB.cc:107, :137, :651, :757`，需按类参数化。**注意 W5.4–W5.8（D32–D40：done 提前/延迟、old-phys、ROB stale_read）在本树尚未实现**——`CHAOSROB::stringToMode`（`CHAOSROB.cc:41-51`）只有 D25–D31 九模式，Field::Done 仅作为 retireHead 的 CanCommit 翻转代理（`CHAOSROB.cc:186-206`）。D83–D85（FP 负载重跑 ROB 基线格/高 SDC 格）**零新代码**，但依赖 W5 T3-4 先落地。
+**D86 IQ ready 位**：`CHAOSIQ` 三模式（`CHAOSIQ.hh:52` WakeOmit/SrcReadyBitflip/WakePhase），挂点 `inst_queue.cc:1095-1109`（wakeDependents 入口），**全文件无 classValue/opClass 引用** → 对 FP 指令**直接可用**。IQ 是统一队列（`ooo_proxy.py:11-14`；`inst_queue.cc:227` iqs=params.instQueues），广播同时服务 int/FP（`:1123-1130` 三路统计）。若要 FP 专属归因，可加 `completed_inst-&gt;opClass()`/`isFloating()`/`isVector()`（`static_inst.hh:157-158`）可选过滤——是增强而非阻塞。
+**D87–D91**：tag 族按计划同 W5 D50–D54 机制，同一 `inst_queue.cc` entry 写入点（同样待 W5 T5-7 落地）。
+
+## 4. 去重后的 W7 新建模式清单（含先例）
+
+| # | 新模式 | 先例（W4/W5/W6）+ 需加的参数 |
+|---|---|---|
+| 1 | FP opcode 单/双 bit（D56/D57） | W6 `OpcodeBitflip`/`OpcodeBitflip2`（`CHAOSDecode.hh:76-81`）+ `fpOnly` 过滤 + FP 专用 opcode 位集 |
+| 2 | FP opcode 换值（D58） | W6 `OpcodeSwap`（`CHAOSDecode.cc:246-248, 298-300`）+ **新增 FP kSwapRules**（现表无 FP 项） |
+| 3 | FP/SIMD 寄存器号 单/双 bit（D59/D60） | W6 `RegBitflip`/`RegBitflip2`（`CHAOSDecode.cc:301-341`）+ `fpOnly`；`kRegBits` 已覆盖 Vd/Vn/Vm |
+| 4 | FP 指令路由/opClass 位（D61） | W6 引擎 + 新谓词「opClass 改变」（替换 `getName()` 相等谓词，`CHAOSDecode.cc:279`） |
+| 5 | VecRegClass RAT 族（D62–D77 全部 RAT 行） | W4 CHAOSRenameMap 11 模式（`CHAOSRenameMap.hh:141-143`）统一加 `targetClass` 参数：放宽 `:194/:429/:471/:605/:706` 类闸门、类条件化 XZR 守卫、扩 `pickAllocatedPhysReg`(`:101-122`) 与 `collectRobActiveDests`(`:125-158`) |
+| 6 | VecRegClass 空闲表阈值事件（D74/D75，含 D76/D77） | W4 CHAOSFreeList `MarkFree`/`MarkFreeEvent`（`CHAOSFreeList.hh:55-56`）+ 类参数 + `vecPhysRegId` + 按类阈值（现 `:255` 固定 int） |
+| 7 | VecRegClass ROB dest-id 族（D87–D91） | W5 CHAOSROB `destid_*` 族（`CHAOSROB.hh:52-56`）+ 类参数（`collectIntDestSlots`/`collectRobActiveDests`/`:651/:757` 闸门） |
+| — | D83–D85 | **零新代码**（W5 现有模式 × FP 负载 campaign 重跑）；D86 亦零新代码（CHAOSIQ 直接可用） |
+
+**依赖顺序硬约束**：W7.4（D83–D91）的 RAT/IQ 侧可先做，但 done 位族（D32–D40）与 tag 族（D50–D54）在本树尚未实现（`CHAOSROB.cc:41-51`、`CHAOSIQ.hh:52` 为当前全集），W7.4 需排在 W5 T3–T7 之后或并行对齐。</result>
+<usage><subagent_tokens>0</subagent_tokens><tool_uses>67</tool_uses><duration_ms>303219</duration_ms></usage>
+</task-notification>
