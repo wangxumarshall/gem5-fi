@@ -1903,3 +1903,121 @@ rename.cc:1192 的 legacy `maybeCorrupt` 无模式守卫：**任何** W6 模式�
 中断保护文件 `/tmp/ooo_w6b2_progress.txt` 全程更新；按纪律未 commit/push（含共享二进制与并行 W5 代理的 3 次构建竞争，均已等待重链后复验）。</result>
 <usage><subagent_tokens>0</subagent_tokens><tool_uses>130</tool_uses><duration_ms>5480434</duration_ms></usage>
 </task-notification>
+
+---
+
+<task-notification>
+<task-id>abfcb4afccc82862f</task-id>
+<tool-use-id>call_28a1007cb4c44bec913ffb90</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi/228a36be-984d-44a8-aac7-02555f4f22df/tasks/abfcb4afccc82862f.output</output-file>
+<status>completed</status>
+<summary>Agent "W5 批次2（D32-D40）" came to rest</summary>
+<note>A task-notification fires each time this agent comes to rest with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>所有工作已完成并经过验证。最终报告：
+
+---
+
+# W5 批次 2（Task 3 + Task 4，D32-D40，9 个设计单元）完成报告
+
+未 commit/push（按指令）。工作树含我的 8 个文件改动 + 计划文件勾选；并行代理的 CHAOSDecode/fetch.cc 改动未触碰，共享文件中 decode/rename 块零改动（已 git diff 逐 hunk 核实）。
+
+## 文件清单（我改动的）
+
+| 文件 | 改动 |
+|---|---|
+| `/home/sdc/gem5-fi/CHAOS/gem5/src/cpu/o3/CHAOSROB/CHAOSROB.hh` | +5 模式枚举（DoneEarly/DoneEarlyEvent/DoneDelay/DoneDelayEvent/RobStaleRead + OldphysInert 安全惰性模式）+ `maybeDelayDoneBit`/`maybeEarlyDoneBit` 公有钩子 + stale 撤离环状态 + 辅助方法 |
+| `/home/sdc/gem5-fi/CHAOS/gem5/src/cpu/o3/CHAOSROB/CHAOSROB.cc` | 5 个新方法实现（done 位双钩 + rob_stale_read 记录回写 + retireHead 撤离捕获 + STALE_RECORD_COMMITTED 证据）+ 模式映射 + startup() 增挂 `o3Commit().setChaosROB` |
+| `/home/sdc/gem5-fi/CHAOS/gem5/src/cpu/o3/commit.hh` | chaosROB 成员 + setter（§2.18 CHAOSRAS 模式） |
+| `/home/sdc/gem5-fi/CHAOS/gem5/src/cpu/o3/commit.cc` | `markCompletedInsts` 双钩：delay=true 跳过 `setCanCommit`；循环后每拍一次 `maybeEarlyDoneBit()` |
+| `/home/sdc/gem5-fi/CHAOS/gem5/src/cpu/o3/CHAOSRenameMap/CHAOSRenameMap.hh` | +4 oldphys 模式 + `maybeCorruptOldphys` + ops_*（F5 stuck 状态 + masked-sn 集合） |
+| `/home/sdc/gem5-fi/CHAOS/gem5/src/cpu/o3/CHAOSRenameMap/CHAOSRenameMap.cc` | `maybeCorruptHistory` 顶部派发到 `maybeCorruptOldphys`（复用现有 push_front 钩与消费观察者，**零 rename.cc 改动**）+ stuck 多次消费日志分支 |
+| `/home/sdc/gem5-fi/configs/se/ooo_proxy.py` | 仅 rob 块：`--rob_mode` choices +9；oldphys_* 改挂 CHAOSRenameMap 实例化分支 |
+| `/home/sdc/gem5-fi/tools/runner.py` | 仅 rob 块：sub_field 判别器 +9（delay_omission/transient_bit_flip/local_mbu/legal_domain_sub/stuck_at_zero|one） |
+| `/home/sdc/gem5-fi/docs/superpowers/plans/2026-09-24-ooo-w5-rob-injectors.md` | Task 3/4 勾选 + 验证结论注记 |
+
+**未触碰**：`rob.cc`、`rename.cc`、`fetch.cc`、`CHAOSDecode/*`（并行代理所有）。
+
+## 每模式验证输出（逐字，smoke/O3/C3，退出码无管道直测）
+
+**构建**：`scons -j16`（并行代理同时在建，-j126 双方叠加 OOM 一次后降速）→ `scons: done building targets.`，零新告警。二进制含全部新串（`strings` 验证 oldphys_swap_active/STALE_RECORD_COMMITTED/OLDPHYS_STUCK_CONSUMED 各 1-2 处）。
+
+**golden 回归（无注入）**：`EXIT=0`，`FINAL=45737cc9a76c0dce` — 与 W2 登记完全一致。
+
+**D32 done_early**：
+```
+Tick: 795795, Site: commit_markCompletedInsts, mode=done_early, tid=0, target_sn=966, target_pc=0x40be60, forced done=1 AND executed=1 (setExecuted bypasses the commit.cc:1128 un-executed-head assert), dest_phys=58 (PRF cells still hold the previous occupant's value — silent-SDC potential, spike A), rob_occupancy=8/128, candidates=4, faults_injected: 1
+```
+exit=0，FINAL=45737cc9a76c0dce（Masked）。ctrace 两遍法五分类（golden trace vs 注入 trace，309387 条提交对齐）：`[结论] 主分类: ①执行时间错 (timing_error)`，首分歧 seq=352 **恰为被注入指令**（pc 0x40be60/phys 58 全匹配，commit 提前 770 tick，值一致）。16 个定向样本（smoke×8 seed + rob_fill×4 + dep_chain×4）全部 Masked——见偏差说明①。
+
+**D33 done_early_event**：
+```
+Tick: 4320470, Site: commit_markCompletedInsts, mode=done_early_event, tid=0, target_sn=3133, target_pc=0x4216c4, forced done=1 AND executed=1 (setExecuted bypasses the commit.cc:1128 un-executed-head assert), dest_phys=68 (PRF cells still hold the previous occupant's value — silent-SDC potential, spike A), rob_occupancy=103/128, candidates=22, faults_injected: 1
+```
+exit=0，Masked。`rob_occupancy=103/128` 证明 &gt;80% 事件门生效。
+
+**D34 done_delay**：
+```
+Tick: 796565, Site: commit_markCompletedInsts, mode=done_delay, tid=0, sn=966, pc=0x40be60, setCanCommit SKIPPED (done stays 0 — fromIEW is one-shot, this entry never becomes committable), rob_occupancy=8/128, faults_injected: 1
+```
+`exit=124`（timeout 240s 击杀）——设计预期的资源耗尽型 Timeout（ROB 被该项堵死）。
+
+**D35 done_delay_event**：
+```
+Tick: 4321625, Site: commit_markCompletedInsts, mode=done_delay_event, tid=0, sn=3196, pc=0x421734, setCanCommit SKIPPED (done stays 0 — fromIEW is one-shot, this entry never becomes committable), rob_occupancy=103/128, rob_above_80pct=1, faults_injected: 1
+```
+exit=0，FINAL=45737cc9a76c0dce——事件版命中后被延迟项随后被错误路径 squash 清走，自愈为 Masked（诚实的恢复路径样本）。
+
+**D36 oldphys_bitflip**：
+```
+Tick: 844690, Site: rename_history_push_front, mode=oldphys_bitflip, tid=0, sn=983, arch=X1, field=prevPhysReg, true_oldphys=114, checkpoint_oldphys=82, bits=(5), dormant_until_consumed (doSquash restore or removeFromHistory release), faults_injected: 1
+Tick: 852005, Site: rename_doSquash, mode=oldphys_bitflip, tid=0, HISTORY_CONSUMED: checkpoint sn=983, arch=X1, corrupted_field=prevPhysReg, true_phys=114, consumed_phys=82 (the WRONG phys was restored/freed — dormancy ended), faults_injected: 1
+```
+squash 消费错值证明 ✓，Masked。
+
+**D37 oldphys_bitflip2**：`bits=(5,2)`（hamming 恰 2），`true_oldphys=114, checkpoint_oldphys=86`，doSquash `consumed_phys=86 (the WRONG phys was restored/freed)` ✓，Masked。
+
+**D38 oldphys_swap_active**：
+```
+... true_oldphys=114, checkpoint_oldphys=7(active, rob_dist=4), chosen_sn=976, rob_active_dests=[55@0 7@4], dormant_until_consumed ...
+... HISTORY_CONSUMED: ... consumed_phys=7 (the WRONG phys was restored/freed — dormancy ended) ...
+```
+合法域换值 + D13/D30 证据格式（active+rob_dist+全池）✓，Masked。
+
+**D39 oldphys_stuck**：
+```
+Tick: 795025, Site: rename_history_push_front, mode=oldphys_stuck, ARMED, tid=0, sn=966, bit=1, polarity=1 (stuck_at_one), scope=old-phys FIELD cell (every int-class prevPhysReg write masked; shared-cell reading of D39 "持久缺陷+多次 squash 反复命中"), faults_injected: 1
+Tick: 795025, ... sn=966, arch=X5, write_oldphys=124, stored_oldphys=126, bit=1 forced to 1, exposure: 1, masked_writes: 1 ...
+Tick: 797335, Site: rename_removeFromHistory, mode=oldphys_stuck, OLDPHYS_STUCK_CONSUMED: checkpoint sn=966, tid=0, arch=X5, consumed_oldphys=126, bit=1 polarity=1 (MASKED value restored/freed — repeatable defect, masked-consumption #1 of 4), faults_injected: 1
+```
+24 次写路径曝光（含"already at polarity"值掩蔽行）+ 10 次 OLDPHYS_STUCK_CONSUMED 多次消费 ✓；终局 `panic: Page table fault when accessing virtual address 0x50`（exit=134）——错旧物理释放→freelist 级联→指针变垃圾，分类 Crash（freelist/rename-inconsistency 族）。
+
+**D40 rob_stale_read**：
+```
+Tick: 1164240, Site: rob_insert, mode=rob_stale_read, tid=0, new_sn=1105, true_pc=0x40974c (this entry's record write SILENTLY FAILED), stale_record_sn=1046, stale_pc=0x400a34, stale_dests=21,138,139,140 (previous occupant's record retained; commit reads it — STALE_RECORD_COMMITTED line at retire), rob_occupancy=1/128, faults_injected: 1
+Tick: 1165780, Site: rob_retireHead, mode=rob_stale_read, STALE_RECORD_COMMITTED: commit read the previous occupant's record at new sn=1105, read_pc=0x400a34 (== stale_pc 0x400a34, old record sn=1046; the new inst's true pc was 0x40974c), faults_injected: 1
+```
+commit 读旧记录证明 ✓；终局 exit=124（真 dest 记分板永不清→ROB 堵死，Timeout）。
+
+**同 seed LOGS_IDENTICAL**：9/9 模式两遍 diff 注入日志逐字节一致（done_early_event 首对差异系旧二进制对比守卫修复前——已用现二进制重做成对，`done_early_event: LOGS_IDENTICAL (current binary pair)`）。
+
+**未受影响测试**：legacy `pc_bitflip`（W5 批次 1 模式）回归 `hamming=1, faults_injected: 1`，exit=0 无崩。
+
+**runner sub_field e2e ×2**：
+```
+[runner] RESULT: run_id=w5b2-e2e-D32-done-early classification=Masked faults_injected=1 exit=0 timed_out=False oracle=exact_hash
+[runner] RESULT: run_id=w5b2-e2e-D36-oldphys-bitflip classification=Crash faults_injected=1 exit=-6 timed_out=False oracle=exact_hash
+```
+（第二条经 rob 块 → `--rob_mode oldphys_bitflip` → CHAOSRenameMap 实例化全链路，Crash 走 rename-inconsistency 分类通道。）
+
+## 偏差说明
+
+1. **D32/D33 架构级 SDC 未出现（结构性，非实现缺陷）**：16 个定向样本跨 3 负载全 Masked。机理：gem5 O3 是 PRF 模型——commit 不读/不搬结果值，且记分板（scoreboard）把消费者阻塞到生产者真实写回，"commit 读到旧结果值"的通路在 gem5 时序模型里被结构性掩蔽。L2 证据显示纯时序效应（①执行时间错，被注入指令提前 770 tick 提交）。这是对 04 预期"SDC 概率最高"的重要诚实修正：该 SDC 机制依赖 ROB 项内嵌结果字段的真实机器抽象，gem5 需 W8 campaign 统计确认（或后续在 CHAOSCommitTrace 层做值级影子比对）。
+2. **done_early 须额外 `isInIQ()||isIssued()` 守卫**（计划外发现）：spike A 只要求 setExecuted 规避 commit.cc:1128 assert；实测还撞 `iew.cc:1064 assert(!inst-&gt;isExecuted())`（目标指令尚在 rename→IEW skid buffer、IQ 满回压时）。守卫已加并在注释中记录该实测 tick。
+3. **done_early 候选域显式收窄**（v1 口径，代码注释+日志可见）：排除 store/atomic/分支/屏障/non-speculative/strictly-ordered load（SQ 双提交与 resolve-after-commit squash 交互风险），保留 ALU+普通 load（spike A 旧值群体）；done_delay 排除会经 commitHead nonSpecSeqNum 二次 fromIEW 自愈的类。
+4. **oldphys 事件触发语义近似**：设计行写"squash 时触发"，实现为 W4 hb_bitflip 同点 push_front 注入 + squash 消费时生效（gem5 无独立 ROB old-phys 字段，检查点在 doSquash 中边消费边擦除、不可在 squash 时写入）；"事件触发 vs 固定间隔命中率"问题转化为日志中 consumed/injected 比可测。
+5. **D39 卡死解释为共享字段胞**（每条 int 类 prevPhysReg 写均 mask），非单表项——依据行文"多次 squash 反复命中…累积效应"（对比 f5_rat_stuck 的"随机选一个 RAT 表项"明确无表项限定）；后果激进（本 seed 24 曝光后 Crash），W8 可统计。
+6. **D40 槽位近似**：gem5 ROB 是 `std::list&lt;DynInstPtr&gt;` 无物理槽位阵列；"槽位写入静默失效保留旧记录"实现为 insert 时把最近退休（满占用时恰为本槽位上一占用者）的记录字段（pcState/flat-arch/dest-phys/prev-phys）回写进新 entry，身份（sn/状态）保持新指令——单次提交无断言风险，commit-map 回滚旧映射 + 新映射丢失即 SDC 机制。
+7. **挂载路由**：oldphys 4 模式按设计组件 rob 经 `--rob_mode` 路由，ooo_proxy rob 块内将其实例化为 CHAOSRenameMap（rename 参数块按指令未动）；CHAOSROB 对 oldphys_* 显式惰性（OldphysInert），杜绝未知模式回落 entry_bitflip。
+8. **环境事故（非代码）**：与并行代理共用构建目录，双 -j126 叠加触发一次 OOM 假汇编错误、两次链接中途二进制被截断；处置=等对方构建静默后低并发重建 + 快照 `/tmp/gem5_w5b2.opt`（含全部最终代码）跑完所有验证；中断保护 `/tmp/ooo_w5b2_progress.txt` 全程维护。</result>
+<usage><subagent_tokens>0</subagent_tokens><tool_uses>122</tool_uses><duration_ms>6335969</duration_ms></usage>
+</task-notification>
