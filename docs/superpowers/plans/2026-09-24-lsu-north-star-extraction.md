@@ -861,7 +861,7 @@ for r in random.sample(dms, 4):
 Run: `cd docs/gem5-fi/lsu && python3 extract.py && python3 verify_extraction.py && python3 -m py_compile extract.py verify_extraction.py && echo DONE`
 Expected: 依次 `EXTRACTION VERIFICATION PASSED` → `ALL PASSED` → `DONE`。
 
-- [ ] **Step 6: 更新 progress.md 收尾条目并提交推送**
+- [x] **Step 6: 更新 progress.md 收尾条目并提交推送**
 
 progress.md 追加：交付清单（文件数/行数）、三重验证结果（六断言/ALL PASSED/人工抽查 N/10）、与 ooo 轨道并列关系、下一步指向 09 的 W0。
 

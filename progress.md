@@ -2584,3 +2584,10 @@ CI 零重叠——**H7 验收断言("ECC-off spurious>0 vs ECC-on≈0")formal �
 - **09 实施总纲要点**: 机制核实九项表(状态全「待核实」;存在性检查已完成并如实修正 brief 引用路径——SSIT/LFST 实际在 store_set.hh/.cc 而非 lsq、DTLB=32 配置点在 ArmTLB.py:74、exclusive monitor 语义在 isa.cc handleLockedRead/Write 而非 tlb.cc、CHAOSAddrPath 为目录四件套)+ WBS 工作包 W0–W11(每包注明依赖)+ 里程碑 M0–M6 + 算力预算(筛查下限 337×385≈13 万 activated 起、主结果上限 168.5 万、4 并发 gem5 进程硬上限)+ 裁决规则(与 00–08 冲突以 00–08 为准;机制核实只修「落点」不修「故障语义」)。
 - **与现有轨道关系**: 与 `docs/gem5-fi/ooo/`(OoO 北极星,2026-09-22)并列的 LSU 北极星轨道——方法论与工具骨架镜像复用,编号/断言体系按 LSU 源表重写,两轨道实验结论不混算。
 - **下一步**: 09 工作包 W0——平台与 B0 参数落地(configs 新 LSU 配置家族;注意当前 C3 `ooo_proxy.py` L1D=64KiB ≠ B0 32KiB/2-way,且 L2 未挂 StridePrefetcher)。
+
+### LSU 北极星最终全案审查 + 修复(2026-09-24)
+
+- **审查结论**: 最终全案审查(最强模型,全文档交叉)裁定 **With fixes**——1 Important(README §5.3 对 S13 的影子SQ过度全称声明:实查 design-matrix.csv 为 12/13,S13 为 TC'23 对照行,传播链仅「L1 SQ地址、age和状态」)+ 4 措辞 minor 已全部修复(§7 组件计数 20 分支/22 组件名、§5.1 A04 引号对齐源表弯引号、§7 wilson 导入证据行补全、00/README「24 个非空行」→「24 行(21 行有文本)」)。
+- **deferred 裁定**: ledger 全部 deferred 项经审查裁定可延至 09 的 W0–W11 执行期(含 09 store_set.hh 待核实锚点、verify_extraction.py 片段强度与 03-md backstop 等 W0 riders)。
+- **引用真实性**: 审查者对 README §7/09 §2 的全部 grep/file:line 主张做了独立复跑,零捏造引用。
+- **复核**: 修复后 `python3 verify_extraction.py` 重跑 `ALL PASSED`(修复行均非片段覆盖,重跑证明零附带损伤);骑手:计划 Task 7 Step 6 checkbox 闭合随本 commit 入库。
