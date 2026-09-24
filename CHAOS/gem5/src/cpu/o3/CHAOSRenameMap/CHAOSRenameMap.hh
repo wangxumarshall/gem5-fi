@@ -2,6 +2,7 @@
 #define __CPU_O3_CHAOS_RENAME_MAP_HH__
 
 #include <random>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -131,7 +132,9 @@ class CHAOSRenameMap : public SimObject
     // Rename::removeFromHistory for EVERY history entry they process. When
     // the armed watch's seqNum matches, logs the "squash/commit consumed the
     // WRONG phys" evidence line and disarms. READ-ONLY (no behavior change,
-    // no fault counting) — the corruption happened at creation.
+    // no fault counting) — the corruption happened at creation. W5.6
+    // oldphys_stuck additionally consults the masked-sn set below (the
+    // repeatable-defect multi-consumption evidence).
     void notifyHistoryConsumed(ThreadID tid, InstSeqNum sn,
                                const RegId &arch_reg,
                                PhysRegIdPtr new_phys, PhysRegIdPtr prev_phys,
@@ -140,7 +143,16 @@ class CHAOSRenameMap : public SimObject
   private:
     enum class Mode { MapBitflip, MapBitflip2, SwapToActive, F5Substitute,
                       F4FieldStuck, SpecLeak, F5RatStuck, StaleRead,
-                      SwapMispredEvent, HbBitflip, HbBitflip2 };
+                      SwapMispredEvent, HbBitflip, HbBitflip2,
+                      // W5.6 (ooo 04-design-matrix D36-D39, Int Dispatch/
+                      // ROB old-physical-register field): the old-phys
+                      // value in gem5 lives in the rename historyBuffer's
+                      // prevPhysReg (the W4 N1 finding), so the family is
+                      // implemented here, at the SAME push_front site the
+                      // hb_bitflip modes use — but targeting prevPhysReg
+                      // exclusively (hb_bitflip picks new/prev 50/50).
+                      OldphysBitflip, OldphysBitflip2, OldphysSwapActive,
+                      OldphysStuck };
     static Mode stringToMode(const std::string &s);
     const char *modeToString(Mode m);
 
@@ -203,6 +215,24 @@ class CHAOSRenameMap : public SimObject
     int hb_watch_orig_idx = -1;      // the TRUE phys idx before the flip
     int hb_watch_corrupt_idx = -1;   // the flipped (wrong) phys idx
 
+    // W5.6 D39 oldphys_stuck (F5) state: ONE stuck-at bit in the
+    // old-phys FIELD's storage cell — per the design row ("运行开始时
+    // 随机选一个比特位置，永久固定为 0 或 1 ... 持久缺陷+多次 squash
+    // 反复命中 ... 累积效应") the defect is NOT one entry (contrast
+    // f5_rat_stuck's "随机选一个 RAT 表项") but the shared field cell:
+    // EVERY int-class history push's prevPhysReg write is masked after
+    // arming. ops_masked_sns tracks the entries whose stored value the
+    // mask actually CHANGED (the observable corruptions) so the
+    // consumption watch can log every squash/release that consumes a
+    // masked old-phys — the "同一错误模式在多次 squash 中重复出现"
+    // evidence.
+    bool ops_armed = false;
+    int ops_bit = -1;
+    int ops_polarity = 0;            // 0 = stuck_at_zero, 1 = stuck_at_one
+    uint64_t ops_exposures = 0;      // write-path mask applications
+    uint64_t ops_masked_count = 0;   // writes whose value the mask changed
+    std::set<InstSeqNum> ops_masked_sns;
+
     bool inWindow();
     // f5_substitute: pick a currently-allocated (not-free) physReg of the same
     // class as `cur`, return its index or -1 if no valid candidate after K tries.
@@ -217,6 +247,19 @@ class CHAOSRenameMap : public SimObject
     // empty or no int dest != cur_idx -> honest skip, caller logs it).
     int collectRobActiveDests(int cur_idx, o3::CPU *o3cpu, ThreadID tid,
                               std::vector<RobCand> &cands);
+
+    // W5.6 D36-D39 oldphys family impl (called from maybeCorruptHistory —
+    // the same rename.cc push_front site as hb_bitflip, but the corrupted
+    // field is ALWAYS prevPhysReg, the "ROB old-physical-register field"
+    // of the design, realized as the rename-history checkpoint's old-phys
+    // value). One-shot for bitflip/bitflip2/swap_active (targetArchReg
+    // directed or random 0..30, the W4.4 flat-index discipline); F5
+    // permanent write-path mask for stuck. Dormant until a squash/release
+    // consumes the checkpoint (the hb_watch / ops_masked_sns evidence).
+    bool maybeCorruptOldphys(ThreadID tid, InstSeqNum sn,
+                             const RegId &arch_reg,
+                             PhysRegIdPtr &new_phys,
+                             PhysRegIdPtr &prev_phys);
 };
 
 } // namespace gem5

@@ -1376,10 +1376,28 @@ Commit::markCompletedInsts()
                     fromIEW->insts[inst_num]->pcState(),
                     fromIEW->insts[inst_num]->seqNum);
 
+            // W5.4 CHAOSROB done_delay(_event) (ooo 04-design-matrix
+            // D34/D35, done位·延迟置位): a true return skips THIS
+            // setCanCommit — fromIEW carries each completion exactly
+            // once, so the skip is permanent (the entry never becomes
+            // committable; ROB fills -> Timeout). nullptr / other modes
+            // = zero regression.
+            if (chaosROB && chaosROB->maybeDelayDoneBit(
+                    fromIEW->insts[inst_num])) {
+                continue;
+            }
+
             // Mark the instruction as ready to commit.
             fromIEW->insts[inst_num]->setCanCommit();
         }
     }
+
+    // W5.4 CHAOSROB done_early(_event) (ooo 04-design-matrix D32/D33,
+    // done位·提前置位): once per cycle, force CanCommit+Executed on a
+    // ROB-resident entry whose execution has not finished (the paired
+    // setExecuted bypasses the commitHead un-executed-head assert).
+    // nullptr / other modes = zero regression.
+    if (chaosROB) chaosROB->maybeEarlyDoneBit();
 }
 
 void

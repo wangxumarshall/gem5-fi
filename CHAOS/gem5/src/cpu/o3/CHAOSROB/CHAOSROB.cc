@@ -48,6 +48,20 @@ namespace gem5
         if (s == "destid_bitflip2") return Mode::DestIdBitflip2;
         if (s == "destid_swap_active") return Mode::DestIdSwapActive;
         if (s == "destid_stuck") return Mode::DestIdStuck;
+        // W5.4 (D32-D35): the done/completed (CanCommit) status bit,
+        // hooked at Commit::markCompletedInsts (commit.cc).
+        if (s == "done_early") return Mode::DoneEarly;
+        if (s == "done_early_event") return Mode::DoneEarlyEvent;
+        if (s == "done_delay") return Mode::DoneDelay;
+        if (s == "done_delay_event") return Mode::DoneDelayEvent;
+        // W5.6 (D40): whole-record stale read at the insert site.
+        if (s == "rob_stale_read") return Mode::RobStaleRead;
+        // W5.6 (D36-D39): oldphys_* mount through --rob_mode but live in
+        // CHAOSRenameMap (ooo_proxy routes them); CHAOSROB stays INERT —
+        // never fall back to entry_bitflip for a mode it does not own.
+        if (s == "oldphys_bitflip" || s == "oldphys_bitflip2"
+                || s == "oldphys_swap_active" || s == "oldphys_stuck")
+            return Mode::OldphysInert;
         return Mode::EntryBitflip;
     }
 
@@ -63,6 +77,12 @@ namespace gem5
             case Mode::DestIdBitflip2: return "destid_bitflip2";
             case Mode::DestIdSwapActive: return "destid_swap_active";
             case Mode::DestIdStuck: return "destid_stuck";
+            case Mode::DoneEarly: return "done_early";
+            case Mode::DoneEarlyEvent: return "done_early_event";
+            case Mode::DoneDelay: return "done_delay";
+            case Mode::DoneDelayEvent: return "done_delay_event";
+            case Mode::RobStaleRead: return "rob_stale_read";
+            case Mode::OldphysInert: return "oldphys_inert";
         }
         return "entry_bitflip";
     }
@@ -147,6 +167,42 @@ namespace gem5
     bool
     CHAOSROB::maybeCorrupt(ThreadID tid, o3::DynInstPtr &head_inst)
     {
+        // W5.6 D40 rob_stale_read: (a) capture EVERY retireHead departure
+        // into the bounded ring (the "previous occupant" pool — at full
+        // occupancy the head departure frees exactly the slot the tail is
+        // about to write; retireHead is the commit path, so every captured
+        // record is an "早已提交" fully-processed record, exactly the D40
+        // population); (b) when the entry whose record was staled reaches
+        // commit, emit the STALE_RECORD_COMMITTED evidence line — commit
+        // read the OLD record's PC/dest-ids, the "commit 阶段读到已经
+        // 提交过的旧记录" proof.
+        if (fi_mode == Mode::RobStaleRead) {
+            if (stale_read_armed && !stale_read_committed_logged
+                    && head_inst->seqNum == stale_read_new_sn) {
+                stale_read_committed_logged = true;
+                if (write_log && log_stream) {
+                    Addr pc = head_inst->pcState()
+                                    .as<ArmISA::PCState>().pc();
+                    *(log_stream->stream()) << "Tick: " << curTick()
+                        << ", Site: rob_retireHead, mode=rob_stale_read"
+                        << ", STALE_RECORD_COMMITTED: commit read the"
+                        << " previous occupant's record at new sn="
+                        << stale_read_new_sn
+                        << ", read_pc=0x" << std::hex << pc << std::dec
+                        << " (== stale_pc 0x" << std::hex << stale_read_stale_pc
+                        << std::dec << ", old record sn=" << stale_read_old_sn
+                        << "; the new inst's true pc was 0x" << std::hex
+                        << stale_read_true_pc << std::dec << ")"
+                        << ", faults_injected: " << faults_injected_count
+                        << std::endl;
+                }
+            }
+            // keep the departed DynInst alive + readable (record source)
+            stale_departed.push_back(head_inst);
+            if (stale_departed.size() > 128)  // ROB capacity bound
+                stale_departed.pop_front();
+        }
+
         // W5.2 stuck read-back (D27/D31 "该 ROB 项在整个存活期间是否被
         // 反复读取到同一个错误值" persistence evidence): when the ARMED
         // entry leaves the ROB, read its field back and verify the stuck
@@ -154,6 +210,15 @@ namespace gem5
         if ((fi_mode == Mode::PcStuck || fi_mode == Mode::DestIdStuck)
                 && stuck_armed && !stuck_readback_done)
             checkStuckReadback(head_inst);
+
+        if (fi_mode == Mode::DoneEarly || fi_mode == Mode::DoneEarlyEvent
+                || fi_mode == Mode::DoneDelay || fi_mode == Mode::DoneDelayEvent
+                || fi_mode == Mode::RobStaleRead
+                || fi_mode == Mode::OldphysInert)
+            return false;  // done-bit modes live on the markCompletedInsts
+                           // hook; rob_stale_read on the insert hook;
+                           // oldphys_* live in CHAOSRenameMap — all no-ops
+                           // at the retireHead site.
 
         if (!cpu || probability <= 0.0f) return false;
         if (max_faults != 0 && faults_injected_count >= max_faults) return false;
@@ -239,6 +304,19 @@ namespace gem5
         // swap_active is the designed bypass (legal in-use id).
         if (fi_mode == Mode::EntryBitflip || fi_mode == Mode::ExcSuppress)
             return false;  // legacy modes live on the retireHead site only
+
+        // W5.4 done-bit modes: no insert-site action (they hook
+        // Commit::markCompletedInsts). W5.6 oldphys_* live in
+        // CHAOSRenameMap (mounted via --rob_mode; this object is inert).
+        if (fi_mode == Mode::DoneEarly || fi_mode == Mode::DoneEarlyEvent
+                || fi_mode == Mode::DoneDelay || fi_mode == Mode::DoneDelayEvent
+                || fi_mode == Mode::OldphysInert)
+            return false;
+
+        // W5.6 D40 rob_stale_read: the insert-site whole-record stale
+        // overwrite (before the generic gates — it has its own gates).
+        if (fi_mode == Mode::RobStaleRead)
+            return maybeStaleReadEntry(tid, inst);
 
         // F5 stuck modes: arming is the counted fault; the application is
         // the write-path mask on the armed entry (f5_rat_stuck precedent —
@@ -786,6 +864,305 @@ namespace gem5
         }
     }
 
+    bool
+    CHAOSROB::robAbove80Pct(o3::CPU *o3cpu, ThreadID tid)
+    {
+        // D33/D35 event gate: "ROB 占用超过 80%（约 102/128 项）" — the
+        // design fixes the threshold at 80% of the thread's ROB capacity.
+        // Integer 4/5 compare (countInsts*5 > maxEntries*4).
+        o3::ROB &rob = o3cpu->o3ROB();
+        unsigned max_e = rob.getMaxEntries(tid);
+        if (max_e == 0) return false;
+        return (uint64_t)rob.countInsts(tid) * 5 > (uint64_t)max_e * 4;
+    }
+
+    bool
+    CHAOSROB::doneBitExcluded(const o3::DynInstPtr &inst, bool early)
+    {
+        // Shared exclusion list for the done-bit family.
+        //
+        // done_delay: the self-healing classes are excluded — barriers /
+        // non-speculative / store-conditionals / strictly-ordered loads go
+        // through commitHead's nonSpecSeqNum re-execution path, whose
+        // completion arrives through fromIEW a SECOND time, so skipping
+        // the first setCanCommit would not be the "never marked done"
+        // model (it would silently self-heal).
+        //
+        // done_early additionally excludes stores/atomics (committing a
+        // store that never executed breaks the SQ writeback ordering the
+        // IEW store-drain path relies on) and control transfers (a branch
+        // committed before it resolves interacts with the mispredict
+        // squash machinery) — v1 keeps plain ALU ops and plain loads,
+        // the stale-PRF-value population of spike A. Honest scoping: an
+        // explicitly narrowed fault domain, extendable at W8 if the
+        // branch/store families are needed.
+        if (inst->isNonSpeculative() || inst->isStoreConditional()
+                || inst->isReadBarrier() || inst->isWriteBarrier()
+                || (inst->isLoad() && inst->strictlyOrdered()))
+            return true;
+        if (!early) return false;          // delay keeps stores/branches
+        if (inst->isStore() || inst->isAtomic() || inst->isControl())
+            return true;
+        return false;
+    }
+
+    bool
+    CHAOSROB::maybeDelayDoneBit(const o3::DynInstPtr &inst)
+    {
+        // W5.4 D34 done_delay / D35 done_delay_event (ooo 04-design-matrix
+        // R35/R36, done位·延迟置位). The setCanCommit in
+        // Commit::markCompletedInsts (commit.cc) is the ONLY regular site
+        // that ever sets the done bit; fromIEW carries each completion for
+        // exactly one cycle, so a skip here is permanent — the entry sits
+        // in the ROB with done=0 forever, the in-order commit head blocks,
+        // the ROB fills and the machine wedges (design expectation:
+        // Timeout-dominant, the free-list-leak resource-exhaustion
+        // family; the ROB-occupancy curve is the early-warning signal).
+        if (fi_mode != Mode::DoneDelay && fi_mode != Mode::DoneDelayEvent)
+            return false;
+        if (!cpu || probability <= 0.0f) return false;
+        if (max_faults != 0 && faults_injected_count >= max_faults)
+            return false;
+        if (!inWindow()) return false;
+        ThreadID tid = inst->threadNumber;
+        auto *o3cpu = dynamic_cast<o3::CPU *>(cpu);
+        if (!o3cpu) return false;
+
+        // self-healing classes: see doneBitExcluded
+        if (doneBitExcluded(inst, /*early=*/false)) return false;
+
+        bool above80 = robAbove80Pct(o3cpu, tid);
+        if (fi_mode == Mode::DoneDelayEvent && !above80) return false;
+
+        std::uniform_real_distribution<float> pd(0.0f, 1.0f);
+        if (pd(rng) > probability) return false;
+
+        // The write silently fails: done stays 0 for this entry.
+        faults_injected_count++;
+        if (write_log) {
+            *(log_stream->stream()) << "Tick: " << curTick()
+                << ", Site: commit_markCompletedInsts, mode="
+                << modeToString(fi_mode)
+                << ", tid=" << (int)tid
+                << ", sn=" << inst->seqNum
+                << ", pc=0x" << std::hex
+                << inst->pcState().as<ArmISA::PCState>().pc() << std::dec
+                << ", setCanCommit SKIPPED (done stays 0 — fromIEW is"
+                   " one-shot, this entry never becomes committable)"
+                << ", rob_occupancy=" << o3cpu->o3ROB().countInsts(tid)
+                   << "/" << o3cpu->o3ROB().getMaxEntries(tid)
+                << (fi_mode == Mode::DoneDelayEvent
+                        ? above80 ? ", rob_above_80pct=1" : ""
+                        : "")
+                << ", faults_injected: " << faults_injected_count
+                << std::endl;
+        }
+        return true;
+    }
+
+    void
+    CHAOSROB::maybeEarlyDoneBit()
+    {
+        // W5.4 D32 done_early / D33 done_early_event (ooo 04-design-matrix
+        // R33/R34, done位·提前置位): mark a NOT-yet-executed ROB-resident
+        // entry done AHEAD of its real completion. setCanCommit alone
+        // would panic at commitHead (commit.cc:1128-1134 asserts an
+        // un-executed head must be non-speculative/barrier/...) — the
+        // paired setExecuted() is what makes the early commit flow
+        // through, and the architectural value the committed dest
+        // physRegFile cell carries is then its PREVIOUS OCCUPANT's
+        // residue (spike A) — the "合法但结果错" silent-SDC path the
+        // design expects to dominate this cell. The instruction's real
+        // execution still happens later (IQ issue is untouched); its
+        // late writeback may or may not race the consumers that already
+        // read the stale cell — timing-dependent SDC, honestly reported.
+        if (fi_mode != Mode::DoneEarly && fi_mode != Mode::DoneEarlyEvent)
+            return;
+        if (!cpu || probability <= 0.0f) return;
+        if (max_faults != 0 && faults_injected_count >= max_faults) return;
+        if (!inWindow()) return;
+        auto *o3cpu = dynamic_cast<o3::CPU *>(cpu);
+        if (!o3cpu) return;
+
+        bool any_above80 = false;
+        o3::ROB &rob = o3cpu->o3ROB();
+        // collect candidates across threads: ROB-resident, done still
+        // clear, execution NOT finished, not in the excluded classes.
+        std::vector<o3::DynInstPtr> cands;
+        ThreadID hit_tid = 0;
+        for (ThreadID t = 0; t < cpu->numThreads; t++) {
+            bool above80 = robAbove80Pct(o3cpu, t);
+            any_above80 = any_above80 || above80;
+            if (fi_mode == Mode::DoneEarlyEvent && !above80) continue;
+            for (int d = 0; ; d++) {
+                o3::DynInstPtr ri = rob.getEntryAtDistance(t, d);
+                if (!ri) break;  // past tail / empty
+                if (ri->readyToCommit() || ri->isSquashed()) continue;
+                if (ri->isExecuted()) continue;  // model: not yet finished
+                // MUST have passed the IEW dispatch point: an inst still
+                // in the rename->IEW skid buffer (IQ-full backpressure)
+                // hits iew.cc:1064's assert(!inst->isExecuted()) when it
+                // is finally dispatched into the IQ. isInIQ() = IQ-
+                // resident; isIssued() = issued/in-flight (both clear of
+                // the dispatch assert). Directed-run verified: without
+                // this guard tick-795795 aborted on exactly that assert.
+                if (!ri->isInIQ() && !ri->isIssued()) continue;
+                if (doneBitExcluded(ri, /*early=*/true)) continue;
+                cands.push_back(ri);
+            }
+        }
+        if (fi_mode == Mode::DoneEarlyEvent && !any_above80) return;
+        if (cands.empty()) return;
+
+        std::uniform_real_distribution<float> pd(0.0f, 1.0f);
+        if (pd(rng) > probability) return;
+
+        o3::DynInstPtr target = cands[(int)(rng() % (unsigned)cands.size())];
+        hit_tid = target->threadNumber;
+        Addr tpc = target->pcState().as<ArmISA::PCState>().pc();
+        // The forced early done: BOTH status bits (the assert bypass).
+        target->setExecuted();
+        target->setCanCommit();
+        faults_injected_count++;
+        if (write_log) {
+            *(log_stream->stream()) << "Tick: " << curTick()
+                << ", Site: commit_markCompletedInsts, mode="
+                << modeToString(fi_mode)
+                << ", tid=" << (int)hit_tid
+                << ", target_sn=" << target->seqNum
+                << ", target_pc=0x" << std::hex << tpc << std::dec
+                << ", forced done=1 AND executed=1 (setExecuted bypasses"
+                   " the commit.cc:1128 un-executed-head assert)"
+                << ", dest_phys=";
+            bool first = true;
+            for (int i = 0; i < (int)target->numDestRegs(); i++) {
+                PhysRegIdPtr d = target->renamedDestIdx(i);
+                if (!d) continue;
+                if (!first) *(log_stream->stream()) << ",";
+                *(log_stream->stream()) << d->index();
+                first = false;
+            }
+            *(log_stream->stream())
+                << " (PRF cells still hold the previous occupant's value"
+                   " — silent-SDC potential, spike A)"
+                << ", rob_occupancy=" << rob.countInsts(hit_tid)
+                   << "/" << rob.getMaxEntries(hit_tid)
+                << ", candidates=" << cands.size()
+                << ", faults_injected: " << faults_injected_count
+                << std::endl;
+        }
+    }
+
+    bool
+    CHAOSROB::maybeStaleReadEntry(ThreadID tid, const o3::DynInstPtr &inst)
+    {
+        // W5.6 D40 rob_stale_read (ooo 04-design-matrix R41, ROB项整体·
+        // 读到旧数据, 错位拼接): at the instant the ROB slot is written by
+        // a newly dispatched instruction, that write silently fails — the
+        // slot retains the PREVIOUS occupant's complete record and commit
+        // later reads it ("已经被正确处理过的合法数据，不触发任何依赖
+        // 检查失败" — the mechanism designed to bypass the TC'23-style
+        // dependency check without constructing a swap target).
+        //
+        // gem5 realization (honest approximation, documented): gem5's ROB
+        // is a std::list<DynInstPtr> — there is no physical slot array
+        // whose cells could retain old data. The entry IS the DynInst, so
+        // "the slot keeps the old record" is realized by overwriting the
+        // new entry's RECORD fields (pcState, flattened dest ids, renamed
+        // dest ids, prev dest ids) with the previous occupant's values at
+        // insert time — the same maybeCorruptEntry mutation pattern the
+        // D25-D31 modes use. Identity (seqNum/status/IQ-LSQ membership)
+        // stays the new instruction's, so the entry commits exactly once,
+        // with the OLD record's contents: the commit-map setEntry loop
+        // re-applies the previous occupant's (arch, phys) pairs (stale
+        // rollback) and the new instruction's own mapping never lands.
+        // The "previous occupant" = the most recently retired instruction
+        // with a matching dest count (at full occupancy the head departure
+        // frees exactly the slot the tail writes; the record-shape match
+        // keeps the copy total, no truncation).
+        if (!cpu || probability <= 0.0f) return false;
+        if (max_faults != 0 && faults_injected_count >= max_faults)
+            return false;
+        if (!inWindow()) return false;
+        auto *o3cpu = dynamic_cast<o3::CPU *>(cpu);
+        if (!o3cpu) return false;
+
+        std::uniform_real_distribution<float> pd(0.0f, 1.0f);
+        if (pd(rng) > probability) return false;
+
+        // previous occupant: newest departure with the same dest count
+        // (bounded scan of the ring; the ring only holds committed,
+        // fully-processed records — the D40 population).
+        static thread_local uint64_t skip_logs = 0;
+        o3::DynInstPtr old;
+        for (auto it = stale_departed.rbegin(); it != stale_departed.rend();
+                ++it) {
+            if ((*it)->seqNum == inst->seqNum) continue;
+            if ((*it)->numDestRegs() == inst->numDestRegs()) { old = *it; break; }
+        }
+        if (!old) {
+            if (write_log && skip_logs < 32) {
+                ++skip_logs;
+                *(log_stream->stream()) << "Tick: " << curTick()
+                    << ", Site: rob_insert, mode=rob_stale_read"
+                    << ", tid=" << (int)tid
+                    << ", sn=" << inst->seqNum
+                    << " — no departed record with matching dest count"
+                       " in the ring (skipped, no injection)"
+                    << ", skip_log: " << skip_logs
+                    << ", faults_injected: " << faults_injected_count
+                    << std::endl;
+            }
+            return false;
+        }
+
+        // The write silently fails: restore the old record's fields.
+        Addr true_pc = inst->pcState().as<ArmISA::PCState>().pc();
+        ArmISA::PCState old_ns =
+            old->pcState().as<ArmISA::PCState>();
+        inst->pcState(old_ns);
+        for (int i = 0; i < (int)inst->numDestRegs(); i++) {
+            inst->flattenedDestIdx(i, old->flattenedDestIdx(i));
+            inst->renameDestReg(i, old->renamedDestIdx(i),
+                                old->prevDestIdx(i));
+        }
+        stale_read_armed = true;
+        stale_read_committed_logged = false;
+        stale_read_new_sn = inst->seqNum;
+        stale_read_true_pc = true_pc;
+        stale_read_stale_pc = old_ns.pc();
+        stale_read_old_sn = old->seqNum;
+        faults_injected_count++;
+        if (write_log) {
+            *(log_stream->stream()) << "Tick: " << curTick()
+                << ", Site: rob_insert, mode=rob_stale_read"
+                << ", tid=" << (int)tid
+                << ", new_sn=" << inst->seqNum
+                << ", true_pc=0x" << std::hex << true_pc << std::dec
+                << " (this entry's record write SILENTLY FAILED)"
+                << ", stale_record_sn=" << old->seqNum
+                << ", stale_pc=0x" << std::hex << stale_read_stale_pc
+                << std::dec
+                << ", stale_dests=";
+            bool first = true;
+            for (int i = 0; i < (int)old->numDestRegs(); i++) {
+                PhysRegIdPtr d = old->renamedDestIdx(i);
+                if (!d) continue;
+                if (!first) *(log_stream->stream()) << ",";
+                *(log_stream->stream()) << d->index();
+                first = false;
+            }
+            *(log_stream->stream())
+                << " (previous occupant's record retained; commit reads it"
+                   " — STALE_RECORD_COMMITTED line at retire)"
+                << ", rob_occupancy=" << o3cpu->o3ROB().countInsts(tid)
+                   << "/" << o3cpu->o3ROB().getMaxEntries(tid)
+                << ", faults_injected: " << faults_injected_count
+                << std::endl;
+        }
+        return true;
+    }
+
     void
     CHAOSROB::startup() {
         SimObject::startup();
@@ -795,6 +1172,11 @@ namespace gem5
             return;
         }
         o3cpu->o3ROB().setChaosROB(this);
+        // W5.4 done-bit family (D32-D35): the same injector also hooks
+        // Commit::markCompletedInsts (the setCanCommit site — the ONLY
+        // regular place the done bit is ever set). The commit-side
+        // pointer follows the §2.18 CHAOSRAS pattern (setChaosRAS).
+        o3cpu->o3Commit().setChaosROB(this);
     }
 
 } // namespace gem5

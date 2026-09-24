@@ -58,6 +58,14 @@ namespace gem5
         if (s == "swap_mispred_event") return Mode::SwapMispredEvent;
         if (s == "hb_bitflip") return Mode::HbBitflip;
         if (s == "hb_bitflip2") return Mode::HbBitflip2;
+        // W5.6 (ooo 04-design-matrix D36-D39, Int Dispatch/ROB
+        // old-physical-register field) — mounted via --rob_mode, routed
+        // by ooo_proxy to THIS injector (gem5's old-phys lives in the
+        // rename historyBuffer checkpoint, the W4 N1 finding).
+        if (s == "oldphys_bitflip") return Mode::OldphysBitflip;
+        if (s == "oldphys_bitflip2") return Mode::OldphysBitflip2;
+        if (s == "oldphys_swap_active") return Mode::OldphysSwapActive;
+        if (s == "oldphys_stuck") return Mode::OldphysStuck;
         return Mode::MapBitflip;
     }
 
@@ -75,6 +83,10 @@ namespace gem5
             case Mode::SwapMispredEvent: return "swap_mispred_event";
             case Mode::HbBitflip: return "hb_bitflip";
             case Mode::HbBitflip2: return "hb_bitflip2";
+            case Mode::OldphysBitflip: return "oldphys_bitflip";
+            case Mode::OldphysBitflip2: return "oldphys_bitflip2";
+            case Mode::OldphysSwapActive: return "oldphys_swap_active";
+            case Mode::OldphysStuck: return "oldphys_stuck";
         }
         return "map_bitflip";
     }
@@ -697,8 +709,20 @@ namespace gem5
         //     RAT / removeFromHistory frees the WRONG phys (duplicate free);
         //   - newPhysReg flip  -> doSquash queues the WRONG phys for the
         //     post-squash free (leaking the true one / double-freeing).
-        if (fi_mode != Mode::HbBitflip && fi_mode != Mode::HbBitflip2)
+        if (fi_mode != Mode::HbBitflip && fi_mode != Mode::HbBitflip2) {
+            // W5.6 D36-D39 oldphys family: same push_front site, same
+            // dormancy/consumption model, but the corrupted field is
+            // ALWAYS the old-phys (prevPhysReg) — the design's "ROB的旧
+            // 物理寄存器字段（squash 回滚要用）". Dispatch to its own
+            // implementation (gates mirror hb's).
+            if (fi_mode == Mode::OldphysBitflip
+                    || fi_mode == Mode::OldphysBitflip2
+                    || fi_mode == Mode::OldphysSwapActive
+                    || fi_mode == Mode::OldphysStuck)
+                return maybeCorruptOldphys(tid, sn, arch_reg,
+                                            new_phys, prev_phys);
             return false;
+        }
         if (!cpu || probability <= 0.0f) return false;
         if (max_faults != 0 && faults_injected_count >= max_faults)
             return false;
@@ -812,6 +836,331 @@ namespace gem5
         return true;
     }
 
+    bool
+    CHAOSRenameMap::maybeCorruptOldphys(ThreadID tid, InstSeqNum sn,
+                                        const RegId &arch_reg,
+                                        PhysRegIdPtr &new_phys,
+                                        PhysRegIdPtr &prev_phys)
+    {
+        // W5.6 (ooo 04-design-matrix D36-D39, Int Dispatch/ROB, ROB的旧
+        // 物理寄存器字段): the entry's old-phys — the value a squash
+        // rollback restores into the RAT and a commit release frees. In
+        // gem5 that value is the rename historyBuffer checkpoint's
+        // prevPhysReg (W4 N1 mechanism finding), created HERE at
+        // renameDestRegs push_front and consumed by doSquash
+        // (setEntry(archReg, prevPhysReg) + freeingInProgress of newPhysReg)
+        // or removeFromHistory (freeList->addReg(prevPhysReg)). The
+        // corruption at creation is DORMANT — the design's "平时注入无
+        // 效果（该字段只在 squash 路径上被读取）... 潜伏期最长" — and
+        // the consumption watch (notifyHistoryConsumed) logs the moment
+        // the WRONG phys is actually restored/freed.
+        //
+        // Deviation note (honest, documented): the design rows' trigger
+        // reads "commit 阶段处理异常/分支误预测导致的 squash 时触发";
+        // the gem5 realization injects at the checkpoint's CREATION (the
+        // W4 hb_bitflip mount point — the checkpoint does not exist as a
+        // writable structure at squash time; doSquash consumes and erases
+        // in one pass). The "squash-event" semantics survive as the
+        // dormancy-until-squash-consumption model, and the fixed-interval
+        // vs event-hit-rate question (D36's stated purpose: 检验「按事件
+        // 触发」是否比固定间隔更有效) becomes measurable through the
+        // consumed-vs-injected ratio in the logs.
+        if (!cpu || probability <= 0.0f) return false;
+        if (max_faults != 0 && faults_injected_count >= max_faults
+                && !(fi_mode == Mode::OldphysStuck && ops_armed))
+            return false;  // stuck: maxFaults gates only the ARMING
+        // F5 discipline (the f5_rat_stuck precedent): the window gates the
+        // fault's CREATION (arming / one-shot injection) only — a stuck
+        // defect's write-path applications are permanent-from-existence and
+        // must keep applying after the window closes.
+        if (!(fi_mode == Mode::OldphysStuck && ops_armed) && !inWindow())
+            return false;
+        if (arch_reg.classValue() != IntRegClass) return false;
+        int arch_idx = arch_reg.index();
+        if (arch_idx > 30) return false;  // XZR / banked slots
+        // Only REAL renames: misc/zero regs carry new==prev and both
+        // consumers skip them — a corrupted old-phys there would be dead.
+        if (new_phys == prev_phys) return false;
+
+        auto *o3cpu = dynamic_cast<o3::CPU *>(cpu);
+        if (!o3cpu) return false;
+        int num_phys = (int)o3cpu->physRegFile().numIntPhysRegs();
+        int nbits = 0; int tmp = num_phys;
+        while (tmp > 1) { nbits++; tmp >>= 1; }
+        if (nbits < 1) nbits = 1;
+
+        int cur_idx = prev_phys->index();
+
+        // ---- D39 oldphys_stuck (F5): permanent write-path mask on the
+        // old-phys FIELD cell. Arming = the counted fault (probability/
+        // maxFaults/inWindow gate ONLY this); every later eligible push's
+        // prevPhysReg write is masked — passive, ungated (F5 = permanent
+        // from existence, the f5_rat_stuck/pc_stuck arming pattern).
+        // targetArchReg is deliberately IGNORED here: the defect is the
+        // shared field cell ("随机选一个比特位置" — no 表项 selection in
+        // the D39 text, in contrast to f5_rat_stuck's "随机选一个 RAT
+        // 表项"), so the mask applies to every int-class real rename.
+        if (fi_mode == Mode::OldphysStuck) {
+            if (!ops_armed) {
+                std::uniform_real_distribution<float> pd(0.0f, 1.0f);
+                if (pd(rng) > probability) return false;
+                ops_bit = fault_mask
+                    ? (int)__builtin_ctzll(fault_mask) % nbits
+                    : (int)(rng() % (unsigned)nbits);
+                ops_polarity = (int)(rng() % 2);
+                ops_armed = true;
+                faults_injected_count++;
+                if (write_log) {
+                    *(log_stream->stream()) << "Tick: " << curTick()
+                        << ", Site: rename_history_push_front, mode="
+                           "oldphys_stuck, ARMED"
+                        << ", tid=" << (int)tid
+                        << ", sn=" << sn
+                        << ", bit=" << ops_bit
+                        << ", polarity=" << ops_polarity
+                        << (ops_polarity ? " (stuck_at_one)" :
+                                           " (stuck_at_zero)")
+                        << ", scope=old-phys FIELD cell (every int-class"
+                           " prevPhysReg write masked; shared-cell reading"
+                           " of D39 \"持久缺陷+多次 squash 反复命中\")"
+                        << ", faults_injected: " << faults_injected_count
+                        << std::endl;
+                }
+                // fall through: mask THIS write now
+            }
+            ops_exposures++;
+            int masked = ops_polarity
+                ? (cur_idx | (1 << ops_bit))
+                : (cur_idx & ~(1 << ops_bit));
+            if (masked == cur_idx) {
+                // written value already carries the polarity — the stuck
+                // cell does not change it (present but value-masked)
+                if (write_log) {
+                    *(log_stream->stream()) << "Tick: " << curTick()
+                        << ", Site: rename_history_push_front, mode="
+                           "oldphys_stuck"
+                        << ", tid=" << (int)tid
+                        << ", sn=" << sn
+                        << ", arch=X" << arch_idx
+                        << ", write_oldphys=" << cur_idx
+                        << ", stored_oldphys=" << masked
+                        << " (bit " << ops_bit << " already at "
+                        << ops_polarity << ", no observable change)"
+                        << ", exposure: " << ops_exposures
+                        << ", faults_injected: " << faults_injected_count
+                        << std::endl;
+                }
+                return true;
+            }
+            if (masked < 0 || masked >= num_phys) {
+                // non-power-of-2 pool: forcing the bit can leave the valid
+                // index range — honest skip, THIS write stores unmasked.
+                if (write_log) {
+                    *(log_stream->stream()) << "Tick: " << curTick()
+                        << ", Site: rename_history_push_front, mode="
+                           "oldphys_stuck"
+                        << ", tid=" << (int)tid
+                        << ", sn=" << sn
+                        << ", write_oldphys=" << cur_idx
+                        << " — forced idx " << masked << " out of [0,"
+                        << num_phys << ") (skipped this write, no clamp)"
+                        << ", exposure: " << ops_exposures
+                        << ", faults_injected: " << faults_injected_count
+                        << std::endl;
+                }
+                return false;
+            }
+            prev_phys = o3cpu->physRegFile().intPhysRegId(masked);
+            ops_masked_count++;
+            ops_masked_sns.insert(sn);  // multi-consumption watch key
+            if (write_log) {
+                *(log_stream->stream()) << "Tick: " << curTick()
+                    << ", Site: rename_history_push_front, mode="
+                       "oldphys_stuck"
+                    << ", tid=" << (int)tid
+                    << ", sn=" << sn
+                    << ", arch=X" << arch_idx
+                    << ", write_oldphys=" << cur_idx
+                    << ", stored_oldphys=" << masked
+                    << ", bit=" << ops_bit << " forced to " << ops_polarity
+                    << ", exposure: " << ops_exposures
+                    << ", masked_writes: " << ops_masked_count
+                    << ", dormant_until_consumed (doSquash restore or"
+                       " removeFromHistory release)"
+                    << ", faults_injected: " << faults_injected_count
+                    << std::endl;
+            }
+            return true;
+        }
+
+        // ---- D36/D37/D38 one-shot modes: directed target or random 0..30
+        // (the W4.4 flat-index discipline), probability-gated.
+        int target = target_arch_reg;
+        if (target < 0) target = (int)(rng() % 31);  // 0..30
+        if (arch_idx != target) return false;
+        std::uniform_real_distribution<float> pd(0.0f, 1.0f);
+        if (pd(rng) > probability) return false;
+
+        int new_idx = -1;
+        int log_b1 = -1, log_b2 = -1;
+        int log_rob_dist = -1;
+        uint64_t log_chosen_sn = 0;
+        std::vector<RobCand> rob_cands;
+
+        if (fi_mode == Mode::OldphysBitflip
+                || fi_mode == Mode::OldphysBitflip2) {
+            // D36 (R37, 单比特) / D37 (R38, 双比特): flip 1 / 2 distinct
+            // bits of the old-phys index. faultMask with enough set bits =
+            // directed control (lowest set bits); else uniform random
+            // distinct bits. Out-of-range = honest skip, NO clamp.
+            int need = (fi_mode == Mode::OldphysBitflip) ? 1 : 2;
+            if (nbits < need) return false;
+            int b1 = -1, b2 = -1;
+            if ((int)__builtin_popcountll(fault_mask) >= need) {
+                b1 = __builtin_ctzll(fault_mask);
+                if (need == 2) {
+                    uint64_t rest = fault_mask & ~(1ULL << b1);
+                    b2 = __builtin_ctzll(rest);
+                }
+            } else if (need == 1) {
+                b1 = (int)(rng() % (unsigned)nbits);
+            } else {
+                b1 = (int)(rng() % (unsigned)nbits);
+                b2 = (int)(rng() % (unsigned)(nbits - 1));
+                if (b2 >= b1) b2++;
+            }
+            if (need == 2 && (b1 == b2 || b1 >= nbits || b2 >= nbits))
+                return false;
+            int flipped = cur_idx ^ (1 << b1)
+                ^ (need == 2 ? (1 << b2) : 0);
+            if (flipped < 0 || flipped >= num_phys) {
+                if (write_log) {
+                    *(log_stream->stream()) << "Tick: " << curTick()
+                        << ", Site: rename_history_push_front, mode="
+                        << modeToString(fi_mode)
+                        << ", tid=" << (int)tid
+                        << ", sn=" << sn
+                        << ", arch=X" << arch_idx
+                        << ", field=prevPhysReg"
+                        << ", true_oldphys=" << cur_idx
+                        << ", bits=(" << b1;
+                    if (need == 2) *(log_stream->stream()) << "," << b2;
+                    *(log_stream->stream())
+                        << ") — flipped idx " << flipped << " out of [0,"
+                        << num_phys << ") (skipped, no clamp)" << std::endl;
+                }
+                return false;
+            }
+            new_idx = flipped;
+            log_b1 = b1; log_b2 = b2;
+        } else {
+            // D38 (R39, 换值): replace the old-phys with the dest physReg
+            // of ANOTHER in-flight (ROB-resident) instruction — legal
+            // domain by construction (the D13 swap_to_active / D30
+            // destid_swap_active pattern, old-phys flavor). The squash
+            // restore then re-maps the arch reg onto a physReg that is
+            // still in use by another instruction — the designed
+            // "squash 会错误释放/覆盖一个正在用的寄存器" SDC path.
+            int nc = collectRobActiveDests(cur_idx, o3cpu, tid, rob_cands);
+            // additionally exclude the entry's own new dest: restoring
+            // new_phys would be a degenerate self-referential no-op.
+            int new_idx_own = new_phys->index();
+            int n_ok = 0;
+            for (int i = 0; i < nc; i++) {
+                if (rob_cands[i].phys_idx == new_idx_own) continue;
+                rob_cands[n_ok++] = rob_cands[i];
+            }
+            if (n_ok == 0) {
+                if (write_log) {
+                    *(log_stream->stream()) << "Tick: " << curTick()
+                        << ", Site: rename_history_push_front, mode="
+                           "oldphys_swap_active"
+                        << ", tid=" << (int)tid
+                        << ", sn=" << sn
+                        << ", arch=X" << arch_idx
+                        << ", true_oldphys=" << cur_idx
+                        << " — ROB has no active int dest candidate"
+                           " != cur/new (skipped, no injection)"
+                        << ", faults_injected: " << faults_injected_count
+                        << std::endl;
+                }
+                return false;
+            }
+            int pick = (int)(rng() % (unsigned)n_ok);
+            new_idx = rob_cands[pick].phys_idx;
+            log_rob_dist = rob_cands[pick].dist;
+            log_chosen_sn = rob_cands[pick].sn;
+        }
+
+        if (new_idx < 0 || new_idx == cur_idx || new_idx >= num_phys)
+            return false;
+
+        // Apply: the checkpoint's old-phys field points at the corrupted
+        // physReg; the instruction's OWN renameDestReg(., new, prev) is
+        // fed from the untouched rename_result (rename.cc) — only the
+        // checkpoint diverges, dormant until consumption.
+        prev_phys = o3cpu->physRegFile().intPhysRegId(new_idx);
+        faults_injected_count++;
+
+        // one-shot consumption watch (the W4 hb_bitflip evidence reuse:
+        // logs doSquash/removeFromHistory consuming the WRONG phys).
+        hb_watch_armed = true;
+        hb_watch_sn = sn;
+        hb_watch_arch_idx = arch_idx;
+        hb_watch_is_new_field = 0;       // old-phys = prevPhysReg field
+        hb_watch_orig_idx = cur_idx;
+        hb_watch_corrupt_idx = new_idx;
+
+        if (write_log) {
+            if (fi_mode == Mode::OldphysSwapActive) {
+                // the D13/D30 evidence format: swap + "(active,
+                // rob_dist=D)" + chosen_sn + the full ROB-active pool.
+                *(log_stream->stream()) << "Tick: " << curTick()
+                    << ", Site: rename_history_push_front, mode="
+                       "oldphys_swap_active"
+                    << ", tid=" << (int)tid
+                    << ", sn=" << sn
+                    << ", arch=X" << arch_idx
+                    << ", field=prevPhysReg"
+                    << ", true_oldphys=" << cur_idx
+                    << ", checkpoint_oldphys=" << new_idx
+                    << "(active, rob_dist=" << log_rob_dist << ")"
+                    << ", chosen_sn=" << log_chosen_sn
+                    << ", rob_active_dests=[";
+                for (size_t i = 0; i < rob_cands.size(); i++) {
+                    if (i) *(log_stream->stream()) << " ";
+                    *(log_stream->stream()) << rob_cands[i].phys_idx
+                        << "@" << rob_cands[i].dist;
+                }
+                *(log_stream->stream()) << "]"
+                    << ", dormant_until_consumed (doSquash restore or"
+                       " removeFromHistory release)"
+                    << ", faults_injected: " << faults_injected_count
+                    << std::endl;
+            } else {
+                *(log_stream->stream()) << "Tick: " << curTick()
+                    << ", Site: rename_history_push_front, mode="
+                    << modeToString(fi_mode)
+                    << ", tid=" << (int)tid
+                    << ", sn=" << sn
+                    << ", arch=X" << arch_idx
+                    << ", field=prevPhysReg"
+                    << ", true_oldphys=" << cur_idx
+                    << ", checkpoint_oldphys=" << new_idx
+                    << ", bits=(" << log_b1;
+                if (fi_mode == Mode::OldphysBitflip2)
+                    *(log_stream->stream()) << "," << log_b2;
+                *(log_stream->stream())
+                    << ")"
+                    << ", dormant_until_consumed (doSquash restore or"
+                       " removeFromHistory release)"
+                    << ", faults_injected: " << faults_injected_count
+                    << std::endl;
+            }
+        }
+        return true;
+    }
+
     void
     CHAOSRenameMap::notifyHistoryConsumed(ThreadID tid, InstSeqNum sn,
                                           const RegId &arch_reg,
@@ -824,6 +1173,38 @@ namespace gem5
         // Rename::removeFromHistory (site="rename_removeFromHistory") for
         // every history entry they process; logs the end of the dormancy
         // window when the corrupted checkpoint is the one being consumed.
+        //
+        // W5.6 D39 oldphys_stuck: the repeatable-defect multi-consumption
+        // watch — EVERY entry whose old-phys the stuck mask actually
+        // changed is in ops_masked_sns; each consumption logs the "same
+        // error mode recurring across squashes" evidence line (the
+        // design's 累积效应 metric). The one-shot hb watch below is never
+        // armed in stuck mode.
+        if (fi_mode == Mode::OldphysStuck && ops_armed) {
+            auto it = ops_masked_sns.find(sn);
+            if (it != ops_masked_sns.end()) {
+                ops_masked_sns.erase(it);
+                if (write_log && log_stream) {
+                    int consumed_idx = prev_phys ? prev_phys->index() : -1;
+                    *(log_stream->stream()) << "Tick: " << curTick()
+                        << ", Site: " << site << ", mode=oldphys_stuck"
+                        << ", OLDPHYS_STUCK_CONSUMED: checkpoint sn=" << sn
+                        << ", tid=" << (int)tid
+                        << ", arch=X"
+                        << (arch_reg.classValue() == IntRegClass
+                                ? std::to_string(arch_reg.index()) : "?")
+                        << ", consumed_oldphys=" << consumed_idx
+                        << ", bit=" << ops_bit << " polarity=" << ops_polarity
+                        << " (MASKED value restored/freed — repeatable"
+                           " defect, masked-consumption #"
+                        << (ops_masked_count - ops_masked_sns.size())
+                        << " of " << ops_masked_count << ")"
+                        << ", faults_injected: " << faults_injected_count
+                        << std::endl;
+                }
+            }
+            return;
+        }
         if (!hb_watch_armed || sn != hb_watch_sn) return;
         hb_watch_armed = false;
         if (!write_log || !log_stream) return;

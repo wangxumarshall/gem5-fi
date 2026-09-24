@@ -1,6 +1,7 @@
 #ifndef __CPU_O3_CHAOS_ROB_HH__
 #define __CPU_O3_CHAOS_ROB_HH__
 
+#include <deque>
 #include <random>
 #include <string>
 #include <vector>
@@ -48,11 +49,56 @@ class CHAOSROB : public SimObject
     // to the armed entry's field at its write. Returns true on injection.
     bool maybeCorruptEntry(ThreadID tid, const o3::DynInstPtr &inst);
 
+    // W5.4 D34/D35 done_delay(_event) (ooo 04-design-matrix R35/R36, done位·
+    // 延迟置位): called from Commit::markCompletedInsts for EACH fromIEW
+    // completed inst, BEFORE its setCanCommit. Returning true makes the
+    // caller SKIP that setCanCommit — fromIEW carries each instruction's
+    // completion exactly once (the time-buffer wire only holds the current
+    // cycle's completions), so the skip means the entry is NEVER marked
+    // done: it occupies its ROB slot forever, the in-order commit head
+    // blocks on it and the ROB fills (resource-exhaustion Timeout, the
+    // free-list-leak family). done_delay_event additionally requires ROB
+    // occupancy > 80% at the decision. Excludes the classes that self-heal
+    // (non-speculative/barrier/store-conditional/atomic/strictly-ordered
+    // loads re-arm and complete through fromIEW a second time via the
+    // commitHead nonSpecSeqNum path). Only done_delay modes ever return
+    // true — every other mode is a zero-regression no-op here.
+    bool maybeDelayDoneBit(const o3::DynInstPtr &inst);
+
+    // W5.4 D32/D33 done_early(_event) (ooo 04-design-matrix R33/R34, done位·
+    // 提前置位): called ONCE per Commit::markCompletedInsts (per cycle).
+    // Picks ONE ROB-resident entry whose done bit is still clear and whose
+    // execution has NOT finished, and forces setCanCommit() + setExecuted()
+    // on it — the paired setExecuted is REQUIRED to bypass the
+    // commitHead assert (commit.cc:1128-1134: an un-executed head must be
+    // non-speculative/barrier/... or commit panics). The committed entry's
+    // result value is then whatever the physRegFile cell still holds from
+    // its previous occupant (spike A) — silent-SDC potential, the design's
+    // "预期 Int Dispatch/ROB 里 SDC 概率最高" cell. done_early_event
+    // additionally requires ROB occupancy > 80%. v1 scoping: stores/
+    // atomics/barriers/non-speculative/strictly-ordered loads and control
+    // transfers are excluded (SQ double-commit and resolve-after-commit
+    // squash-machinery hazards); plain ALU ops and plain loads remain —
+    // exactly the stale-PRF-value population. Only done_early modes ever
+    // inject — every other mode is a zero-regression no-op here.
+    void maybeEarlyDoneBit();
+
   private:
     enum class Mode {
         EntryBitflip, ExcSuppress,
         PcBitflip, PcBitflip2, PcStuck,
-        DestIdBitflip, DestIdBitflip2, DestIdSwapActive, DestIdStuck
+        DestIdBitflip, DestIdBitflip2, DestIdSwapActive, DestIdStuck,
+        // W5.4 (D32-D35): the done/completed (CanCommit) status bit.
+        DoneEarly, DoneEarlyEvent, DoneDelay, DoneDelayEvent,
+        // W5.6 D40 (R41): the whole ROB-entry record read stale at commit.
+        RobStaleRead,
+        // W5.6 D36-D39 oldphys_* mount through --rob_mode but live in
+        // CHAOSRenameMap (rename historyBuffer prevPhysReg, the W4 N1
+        // finding: gem5's old-phys lives in the rename checkpoint, not a
+        // ROB-array field). CHAOSROB must stay INERT for them — unknown
+        // modes must never silently fall back to entry_bitflip (which
+        // toggles CanCommit) — hence the explicit inert mode.
+        OldphysInert
     };
     static Mode stringToMode(const std::string &s);
     const char *modeToString(Mode m);
@@ -95,6 +141,24 @@ class CHAOSROB : public SimObject
     int stuck_dest_slot = -1;   // destid_stuck: which renamedDestIdx slot
     uint64_t stuck_exposures = 0;
 
+    // W5.6 D40 rob_stale_read state: gem5's ROB is a std::list of DynInst
+    // (no physical slot array), so "the slot's previous occupant" is
+    // approximated by the most-recently RETIRED instruction (at full
+    // occupancy the head departure frees exactly the slot the tail is
+    // about to write). Every retireHead departure is captured into a
+    // bounded ring (the DynInstPtr keeps the record alive/readable); at
+    // the chosen insert the entry's record fields (pcState, flattened /
+    // renamed dest ids, prev-dest ids) are overwritten with the previous
+    // occupant's — the "slot write silently failed, old record retained"
+    // realization, proven by the retire-time STALE_RECORD_COMMITTED line.
+    std::deque<o3::DynInstPtr> stale_departed;
+    uint64_t stale_read_new_sn = 0;    // the entry whose record was staled
+    bool stale_read_armed = false;
+    bool stale_read_committed_logged = false;
+    Addr stale_read_true_pc = 0;       // the new inst's TRUE pc (pre-copy)
+    Addr stale_read_stale_pc = 0;      // the old record's pc (post-copy)
+    uint64_t stale_read_old_sn = 0;    // the previous occupant's seqNum
+
     // shared helpers
     int collectIntDestSlots(const o3::DynInstPtr &inst,
                             std::vector<int> &slots);
@@ -103,6 +167,16 @@ class CHAOSROB : public SimObject
                               std::vector<RobDestCand> &cands);
     bool maybeStuckEntryWrite(ThreadID tid, const o3::DynInstPtr &inst);
     void checkStuckReadback(const o3::DynInstPtr &head_inst);
+
+    // W5.4/W5.6 helpers
+    // ROB occupancy > 80% (the D33/D35 event gate: countInsts(tid) vs
+    // getMaxEntries(tid), integer 4/5 compare).
+    bool robAbove80Pct(o3::CPU *o3cpu, ThreadID tid);
+    // The classes excluded from done-bit corruption (see the two public
+    // hooks above for why each family is excluded).
+    bool doneBitExcluded(const o3::DynInstPtr &inst, bool early);
+    // D40: the insert-site stale-record overwrite.
+    bool maybeStaleReadEntry(ThreadID tid, const o3::DynInstPtr &inst);
 };
 
 } // namespace gem5

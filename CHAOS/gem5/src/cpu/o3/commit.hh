@@ -388,6 +388,21 @@ class Commit
     void setChaosMicroSnap(::gem5::CHAOSMicroSnap *p) { chaosMicroSnap = p; }
 
   private:
+    // W5.4 CHAOSROB done-bit family (ooo 04-design-matrix D32-D35): raw
+    // pointer for the Commit::markCompletedInsts hooks — done_delay
+    // (_event) conditionally skips one setCanCommit (the entry is never
+    // marked done); done_early(_event) forces CanCommit+Executed on a
+    // not-yet-completed ROB-resident entry. Set by the injector's
+    // startup() (cpu->o3Commit().setChaosROB(this)). nullptr = no
+    // injection (zero regression). The class definition is already
+    // visible here via rob.hh -> CHAOSROB.hh (the §2.3 include).
+    ::gem5::CHAOSROB *chaosROB = nullptr;
+
+  public:
+    /** W5.4 CHAOSROB accessor. */
+    void setChaosROB(::gem5::CHAOSROB *p) { chaosROB = p; }
+
+  private:
     /** Vector of all of the threads. */
     std::vector<ThreadState *> thread;
 
