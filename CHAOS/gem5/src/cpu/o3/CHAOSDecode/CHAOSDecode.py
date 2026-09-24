@@ -61,10 +61,45 @@ class CHAOSDecode(SimObject):
     #                            ±1 µop (spurious/lost writeback µop) or
     #                            composition swap, µop counts logged;
     #                            non-macroop honestly skipped (blocker).
+    # W7 batch 1 (D56-D61, ooo 04-design-matrix R57-R62 FP/SIMD Decode),
+    # same fetch-decode re-decode-and-replace engine, gated by fpOnly
+    # (opClass in scalar Float* ∪ SimdFloat* — the CHAOSFPU.cc:88-98
+    # isFpOpClass scope; integer SIMD is out of scope for W7.1,
+    # documented honesty limitation):
+    #   fp_opcode_bitflip  (D56): 1 random bit of the FP/SIMD opcode
+    #                            region enc[23:10]; may land legal or
+    #                            illegal (illegal -> SIGILL, the expected
+    #                            Crash baseline).
+    #   fp_opcode_bitflip2 (D57): 2 distinct random bits, same region.
+    #   fp_opcode_swap     (D58, legal_domain_sub 换值): format-compatible
+    #                            LEGAL FP pair (FADD<->FSUB, FMUL<->FDIV,
+    #                            FMAX<->FMIN, FMAXNM<->FMINNM,
+    #                            FMADD<->FMSUB, FNMADD<->FNMSUB,
+    #                            FCMP<->FCMPE + the SIMD mirrors
+    #                            FADD/FMAX/FMAXNM/FMLA/FCMEQ/FMUL/FABS
+    #                            pairs; GNU-as closed-loop verified table).
+    #   fp_reg_bitflip     (D59): 1 bit of the V-register-number positions
+    #                            Vd[4:0]/Vn[9:5]/Vm[20:16] — the W6
+    #                            reg_bitflip machinery unchanged (kRegBits
+    #                            already covers the FP formats); verified
+    #                            semantic: mnemonic unchanged AND a reg
+    #                            operand index actually moved.
+    #   fp_reg_bitflip2    (D60): 2 distinct bits, same positions.
+    #   fp_route_bit       (D61): flip 1 bit of the top-level A64
+    #                            instruction-class field enc[28:24] such
+    #                            that the re-decode's opClass DIFFERS from
+    #                            the original — the honest approximation
+    #                            of the int-vs-FP/SIMD dispatch-queue
+    #                            routing bit (gem5 has no separate route
+    #                            latch; opClass selects the FUPool
+    #                            capability, observable = FU/latency
+    #                            effect); no effective bit -> honest skip.
     mode = Param.String("dest_reg_sub",
         "dest_reg_sub | opcode_bitflip | opcode_bitflip2 | opcode_swap | "
         "reg_bitflip | reg_bitflip2 | imm_bitflip | imm_bitflip2 | "
-        "sign_ext_bit | imm_subfield_shift | crack_ctrl")
+        "sign_ext_bit | imm_subfield_shift | crack_ctrl | "
+        "fp_opcode_bitflip | fp_opcode_bitflip2 | fp_opcode_swap | "
+        "fp_reg_bitflip | fp_reg_bitflip2 | fp_route_bit")
     probability = Param.Float(1.0, "per-decode injection probability")
     firstClock = Param.UInt64(0, "first clock cycle eligible for injection")
     lastClock = Param.UInt64(0, "last cycle (0 = unrestricted)")

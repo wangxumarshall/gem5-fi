@@ -92,9 +92,20 @@ class CHAOSDecode : public SimObject
                                              // format-located immediate
                       ImmSubfieldShift,      // D09 immediate subfield
                                              // mis-assembly (transposed)
-                      CrackCtrl };           // D10 macroop crack-control
+                      CrackCtrl,             // D10 macroop crack-control
                                              // (addressing-mode µop-stream
                                              // perturbation on LDP/STP)
+                      // ---- W7 batch 1 (D56-D61, ooo 04-design-matrix
+                      // R57-R62 FP/SIMD Decode) ----
+                      FpOpcodeBitflip,       // D56 FP opcode field, 1 bit
+                      FpOpcodeBitflip2,      // D57 FP opcode field, 2 bits
+                      FpOpcodeSwap,          // D58 FP opcode 换值 (legal
+                                             // operand-format-compatible
+                                             // FP pair table)
+                      FpRegBitflip,          // D59 V-reg-number field, 1 bit
+                      FpRegBitflip2,         // D60 V-reg-number field, 2 bits
+                      FpRouteBit };          // D61 instruction-route bit
+                                             // (opClass-change predicate)
     Mode fi_mode = Mode::DestRegSub;
     static Mode stringToMode(const std::string &s);
     const char *modeToString(Mode m) const;
@@ -126,6 +137,72 @@ class CHAOSDecode : public SimObject
                       const char *name; };
     static const SwapRule kSwapRules[];
     static const SwapRule *matchSwapRule(uint32_t enc);
+
+    // ---- W7 batch 1 (D56-D61, ooo 04-design-matrix R57-R62 FP/SIMD
+    // Decode). Same fetch-decode asBytes/decodeChaos engine as W6 —
+    // architecture-agnostic (findings.md W7 spike item 1). The W7 addition
+    // is a per-mode fpOnly eligibility gate plus FP-specific bit sets. ----
+    //
+    // fpOnly scope (DOCUMENTED DESIGN DECISION, per the W7 plan): an
+    // instruction is FP-eligible iff StaticInst::opClass() is a scalar
+    // Float* or SIMD SimdFloat* class — the exact isFpOpClass set of
+    // CHAOSFPU.cc:88-98. Integer SIMD (SimdAdd/SimdMul/... on V regs) is
+    // OUT of scope for W7.1: it is not in the 04 "FP/SIMD" FP-opclass
+    // reading and its opClass routing belongs to the Int Decode unit
+    // (D04/D05). Honest limitation, not a silent gap.
+    static bool isFpOpClass(OpClass oc);
+
+    // Candidate positional bit sets. kFpOpcodeBits: the FP/SIMD opcode
+    // region enc[23:10] (spike-verified: for the A64 FP formats this window
+    // covers ftype/size[23:22], the fixed-1 bit21, Rm[20:16] and the
+    // op[15:10] field — the operation-discriminating bits of the scalar
+    // single-data-pass / fused / SIMD 3-same formats). NOTE the deliberate
+    // overlap with Rm: like W6's kImmBits, the log line carries the actual
+    // bit so every injection stays recomputable (orig ^ (1<<b) == new).
+    static constexpr uint32_t kFpOpcodeBits[] = {
+        23, 22, 21, 20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10 };
+    // D61 route candidates: the top-level A64 instruction-class field
+    // bits[28:24] (x1110/x1111 = FP/ASIMD vs the integer data-proc /
+    // load-store / branch groups) — the bits the "integer vs FP/SIMD
+    // dispatch queue" routing decision reads. Single bit only (the 04
+    // matrix: 该字段本身为单比特控制位，无多比特版本).
+    static constexpr uint32_t kFpRouteBits[] = { 24, 25, 26, 27, 28 };
+
+    // D58 FP opcode 换值: format-compatible legal FP-opcode swap table.
+    // Every (mask, match, xor_bits) row was CLOSED-LOOP verified against
+    // real GNU-as encodings on this aarch64 host (2026-09-24 W7 record,
+    // /tmp/w71/verify_rules.py): for every real member encoding of the
+    // pair across ALL lane variants (S/D/H, .2s/.4s/.2d) and register
+    // combinations, (enc & mask) == match AND enc^xor re-disassembles to
+    // the partner mnemonic with an IDENTICAL register operand list; a
+    // 46-instruction negative corpus (fmov/fsqrt/fmulx/fabd/fcmgt/facge/
+    // frint/fccmp/fcsel/scvtf/by-element/FP16-3-same/fcvtl/fcvtn) matches
+    // NO rule. Scalar rows (top byte 0x1E/0x1F):
+    //   fadd d0,d1,d2 = 0x1e622820 <-> fsub = 0x1e623820  (xor bit12)
+    //   fmul d0,d1,d2 = 0x1e620820 <-> fdiv = 0x1e621820  (xor bit12)
+    //   fmax d0,d1,d2 = 0x1e624820 <-> fmin = 0x1e625820  (xor bit12)
+    //   fmaxnm         = 0x1e626820 <-> fminnm = 0x1e627820 (xor bit12)
+    //   fmadd d0..d3   = 0x1f420c20 <-> fmsub  = 0x1f428c20 (xor bit15=O2;
+    //                   bit21=O1 pinned — Ra[14:10] is a REGISTER, left free)
+    //   fnmadd         = 0x1f620c20 <-> fnmsub  = 0x1f628c20 (xor bit15)
+    //   fcmp d0,d1     = 0x1e612000 <-> fcmpe   = 0x1e612010 (xor bit4 = E
+    //                   flag; the fcmp #0.0 forms 0x1e602008/0x1e602018
+    //                   share the rule — opcode2[3:0] free)
+    // Vector rows (3-same, bits[28:24]=01110, bit21=1; 2-reg-misc for
+    // fabs/fneg):
+    //   fadd v0.2d     = 0x4e62d420 <-> fsub v  = 0x4ee2d420 (xor bit23=U;
+    //                   bit29 pinned 0 excludes FABD 0x6ea2d420)
+    //   fmax v0.2d     = 0x4e62f420 <-> fmin v  = 0x4ee2f420 (xor bit23)
+    //   fmaxnm v0.2d   = 0x4e62c420 <-> fminnm v= 0x4ee2c420 (xor bit23)
+    //   fmla v0.2d     = 0x4e62cc20 <-> fmls v  = 0x4ea2cc20 (xor bit23)
+    //   fcmeq v0.2d    = 0x4e62e420 <-> fcmge v = 0x6e62e420 (xor bit29;
+    //                   bit23 pinned 0 excludes FCMGT 0x6ee2e420)
+    //   fmul v0.2d     = 0x6e62dc20 <-> fdiv v  = 0x6e62fc20 (xor bit13;
+    //                   bit29 pinned 1 excludes FMULX 0x4e22dc20)
+    //   fabs v0.4s     = 0x4ea0f820 <-> fneg v  = 0x6ea0f820 (xor bit29;
+    //                   Rm pinned 00000 excludes the FRINT/FSQRT family)
+    static const SwapRule kFpSwapRules[];
+    static const SwapRule *matchFpSwapRule(uint32_t enc);
 
     // ---- W6 batch 2 (D08/D09/D10, ooo 04-design-matrix R9-R11) ----
     //
@@ -218,6 +295,23 @@ class CHAOSDecode : public SimObject
                                   StaticInstPtr orig,
                                   const std::string &orig_name,
                                   ArmISA::Decoder *arm_dec, Addr pc);
+
+    // ---- W7 batch 1 (D56-D61) injection helpers ----
+    // D61 fp_route_bit: flip exactly one bit of the top-level A64
+    // instruction-class field enc[28:24] such that the re-decode yields a
+    // REAL (non-"unknown") instruction whose opClass DIFFERS from the
+    // original — the honest gem5 approximation of the int-vs-FP/SIMD
+    // dispatch-queue routing bit (gem5 has no separate route latch; the
+    // opClass is what selects the FUPool capability, inst_queue.cc:184-192
+    // — the observable effect is the FU/latency change). Uniform over the
+    // effective single bits (W6 effective()-scan discipline); no effective
+    // bit = honest skip log. The int->FP mis-judgment direction is NOT
+    // reachable: the fpOnly gate restricts D61 to FP-classified
+    // instructions (documented honesty limitation).
+    StaticInstPtr injectFpRouteBit(uint64_t emi_raw, uint32_t enc,
+                                   StaticInstPtr orig,
+                                   const std::string &orig_name,
+                                   ArmISA::Decoder *arm_dec, Addr pc);
 
     // Reg-operand fingerprint (classValue<<16 | index per operand, dests
     // then srcs) for the semantic verification of reg/imm flips:

@@ -6,6 +6,7 @@
 #include "arch/arm/types.hh"
 #include "cpu/o3/cpu.hh"          // o3::CPU
 #include "cpu/o3/dyn_inst.hh"     // DynInst
+#include "cpu/op_class.hh"        // FloatAddOp/... + enums::OpClassStrings
 #include "cpu/static_inst.hh"     // StaticInst operand/name accessors
 #include "debug/CHAOSDecode.hh"
 #include "params/CHAOSDecode.hh"
@@ -58,6 +59,73 @@ namespace gem5
     CHAOSDecode::matchSwapRule(uint32_t enc)
     {
         for (const SwapRule &r : kSwapRules)
+            if ((enc & r.mask) == r.match)
+                return &r;
+        return nullptr;
+    }
+
+    // ---- W7 batch 1 (D56-D61, ooo 04-design-matrix R57-R62 FP/SIMD
+    // Decode) ----
+    //
+    // fpOnly eligibility: the DOCUMENTED W7 scope — all scalar Float* plus
+    // all SIMD SimdFloat* opClasses (identical set to CHAOSFPU.cc:88-98
+    // isFpOpClass). Integer SIMD (SimdAdd/SimdMult/... over V registers) is
+    // deliberately OUT of scope (Int Decode unit D04/D05 owns its opClass
+    // routing); this is an honesty limitation, not a silent gap.
+    bool
+    CHAOSDecode::isFpOpClass(OpClass oc)
+    {
+        return oc == FloatAddOp || oc == FloatCmpOp || oc == FloatCvtOp ||
+               oc == FloatMultOp || oc == FloatMultAccOp || oc == FloatDivOp ||
+               oc == FloatMiscOp || oc == FloatSqrtOp ||
+               oc == SimdFloatAddOp || oc == SimdFloatAluOp ||
+               oc == SimdFloatCmpOp || oc == SimdFloatCvtOp ||
+               oc == SimdFloatMultOp || oc == SimdFloatMultAccOp ||
+               oc == SimdFloatDivOp || oc == SimdFloatSqrtOp ||
+               oc == SimdFloatMiscOp;
+    }
+
+    // D58 FP opcode 换值 table — closed-loop verified (see .hh block
+    // comment for the per-row derivations and the negative-corpus record).
+    // Masks pin the scalar top byte (0x1E/0x1F) or the SIMD 3-same/2-reg
+    // group bits plus the family's shared opcode bits and the
+    // family-excluding discriminants (FABD/FCMGT/FMULX/FRINT neighbors),
+    // so the xor always lands on the partner operand-format-compatible
+    // opcode. First match wins.
+    const CHAOSDecode::SwapRule CHAOSDecode::kFpSwapRules[] = {
+        // scalar single-data-pass (op[15:10], bit12 = add/sub|mul/div|
+        // max/min|maxnm/minnm discriminant; ftype[23:22] free)
+        {0xFF20EC00u, 0x1E202800u, 0x00001000u, "s_fadd_fsub"},
+        {0xFF20EC00u, 0x1E200800u, 0x00001000u, "s_fmul_fdiv"},
+        {0xFF20EC00u, 0x1E204800u, 0x00001000u, "s_fmax_fmin"},
+        {0xFF20EC00u, 0x1E206800u, 0x00001000u, "s_fmaxnm_fminnm"},
+        // scalar fused (bit21=O1 pinned selects the neg-accumulate pair,
+        // bit15=O2 is the xor; Ra[14:10]/Rm/Rn/Rd/ftype all free)
+        {0xFF200000u, 0x1F000000u, 0x00008000u, "s_fmadd_fmsub"},
+        {0xFF200000u, 0x1F200000u, 0x00008000u, "s_fnmadd_fnmsub"},
+        // scalar compare (op=001000 pinned; bit4 = E flag; the #0.0 forms
+        // share the rule — opcode2[3:0]/Rm free)
+        {0xFF20FC00u, 0x1E202000u, 0x00000010u, "s_fcmp_fcmpe"},
+        // SIMD 3-same (bit31=0, bits[28:24]=01110, bit21=1, bit29 pinned
+        // per family; bit23 = the add/sub-class xor; Q[30]/size[22] free)
+        {0xBF20FC00u, 0x0E20D400u, 0x00800000u, "v_fadd_fsub"},
+        {0xBF20FC00u, 0x0E20F400u, 0x00800000u, "v_fmax_fmin"},
+        {0xBF20FC00u, 0x0E20C400u, 0x00800000u, "v_fmaxnm_fminnm"},
+        {0xBF20FC00u, 0x0E20CC00u, 0x00800000u, "v_fmla_fmls"},
+        // fcmeq<->fcmge: bit29 xor, bit23 pinned 0 (excludes FCMGT)
+        {0x9FA0FC00u, 0x0E20E400u, 0x20000000u, "v_fcmeq_fcmge"},
+        // fmul<->fdiv: op common bits 11?111 pinned, bit13 xor, bit29=1
+        // pinned (excludes FMULX), bit23=0 pinned
+        {0xBFA0DC00u, 0x2E20DC00u, 0x00002000u, "v_fmul_fdiv"},
+        // SIMD 2-reg-misc fabs<->fneg: op=111110, bits[23:22]=10, Rm=00000
+        // pinned (excludes FRINT/FSQRT), bit29 = U xor
+        {0x9FFFFC00u, 0x0EA0F800u, 0x20000000u, "v_fabs_fneg"},
+    };
+
+    const CHAOSDecode::SwapRule *
+    CHAOSDecode::matchFpSwapRule(uint32_t enc)
+    {
+        for (const SwapRule &r : kFpSwapRules)
             if ((enc & r.mask) == r.match)
                 return &r;
         return nullptr;
@@ -165,6 +233,12 @@ namespace gem5
         if (s == "sign_ext_bit")    return Mode::SignExtBit;
         if (s == "imm_subfield_shift") return Mode::ImmSubfieldShift;
         if (s == "crack_ctrl")      return Mode::CrackCtrl;
+        if (s == "fp_opcode_bitflip")  return Mode::FpOpcodeBitflip;
+        if (s == "fp_opcode_bitflip2") return Mode::FpOpcodeBitflip2;
+        if (s == "fp_opcode_swap")     return Mode::FpOpcodeSwap;
+        if (s == "fp_reg_bitflip")     return Mode::FpRegBitflip;
+        if (s == "fp_reg_bitflip2")    return Mode::FpRegBitflip2;
+        if (s == "fp_route_bit")       return Mode::FpRouteBit;
         panic("CHAOSDecode: unknown mode '%s'\n", s);
     }
 
@@ -183,6 +257,12 @@ namespace gem5
           case Mode::SignExtBit:    return "sign_ext_bit";
           case Mode::ImmSubfieldShift: return "imm_subfield_shift";
           case Mode::CrackCtrl:     return "crack_ctrl";
+          case Mode::FpOpcodeBitflip:  return "fp_opcode_bitflip";
+          case Mode::FpOpcodeBitflip2: return "fp_opcode_bitflip2";
+          case Mode::FpOpcodeSwap:     return "fp_opcode_swap";
+          case Mode::FpRegBitflip:     return "fp_reg_bitflip";
+          case Mode::FpRegBitflip2:    return "fp_reg_bitflip2";
+          case Mode::FpRouteBit:       return "fp_route_bit";
         }
         return "?";
     }
@@ -341,16 +421,40 @@ namespace gem5
         if (!arm_dec) return nullptr;
 
         const uint32_t enc = emi.instBits;
+        // W7: fp_reg_bitflip/fp_reg_bitflip2 ride the W6 reg machinery
+        // (kRegBits already covers Vd/Vn/Vm = enc[4:0]/[9:5]/[20:16] for the
+        // FP/SIMD formats) — ZERO selection-side changes, only the fpOnly
+        // gate upstream differs.
         const bool is_reg_mode = (fi_mode == Mode::RegBitflip ||
-                                  fi_mode == Mode::RegBitflip2);
+                                  fi_mode == Mode::RegBitflip2 ||
+                                  fi_mode == Mode::FpRegBitflip ||
+                                  fi_mode == Mode::FpRegBitflip2);
         const bool is_imm_mode = (fi_mode == Mode::ImmBitflip ||
                                   fi_mode == Mode::ImmBitflip2);
+        // W7 batch 1 (D56-D61): all six FP modes gate on fpOnly (see
+        // isFpOpClass for the documented scope).
+        const bool is_fp_mode = (fi_mode == Mode::FpOpcodeBitflip ||
+                                 fi_mode == Mode::FpOpcodeBitflip2 ||
+                                 fi_mode == Mode::FpOpcodeSwap ||
+                                 fi_mode == Mode::FpRegBitflip ||
+                                 fi_mode == Mode::FpRegBitflip2 ||
+                                 fi_mode == Mode::FpRouteBit);
 
         // ---- cheap per-mode eligibility (before skip/probability) ----
         const SwapRule *rule = nullptr;
+        if (is_fp_mode && !isFpOpClass(orig->opClass())) {
+            // fpOnly gate: the W7.1 eligible population is FP-classified
+            // instructions only (scalar Float* / SIMD SimdFloat*).
+            return nullptr;
+        }
         if (fi_mode == Mode::OpcodeSwap) {
             rule = matchSwapRule(enc);
             if (!rule) return nullptr;     // not a swappable opcode
+        } else if (fi_mode == Mode::FpOpcodeSwap) {
+            // D58: the operand-format-compatible FP pair table (the W6
+            // kSwapRules are all-integer — FP encodings match none).
+            rule = matchFpSwapRule(enc);
+            if (!rule) return nullptr;     // not a swappable FP opcode
         } else if (is_reg_mode || is_imm_mode) {
             // Necessary condition for a reg flip: the instruction actually
             // has register operands. (The full semantic check below is the
@@ -381,6 +485,12 @@ namespace gem5
         if (fi_mode == Mode::CrackCtrl)
             return injectCrackCtrl(emi, enc, orig, orig->getName(),
                                    arm_dec, pc);
+        // ---- W7 batch 1 (D56-D61): D61 runs its own effective-bit scan
+        // past the gates (an honest skip log requires reaching here; no
+        // effective route bit = wasted draw, same D08-D10 discipline).
+        if (fi_mode == Mode::FpRouteBit)
+            return injectFpRouteBit(emi, enc, orig, orig->getName(),
+                                    arm_dec, pc);
 
         // ---- bit selection ----
         // Semantic predicate for reg/imm flips (see .hh): the candidate
@@ -417,8 +527,25 @@ namespace gem5
             if (fi_mode == Mode::OpcodeBitflip2) {
                 do { bit_b = kOpcodeBits[rng() % nb]; } while (bit_b == bit_a);
             }
+        } else if (fi_mode == Mode::FpOpcodeBitflip ||
+                   fi_mode == Mode::FpOpcodeBitflip2) {
+            // D56/D57: same no-verification-by-design as D01/D02, but the
+            // candidate bits are the FP/SIMD opcode region enc[23:10]
+            // (spike-verified window; see .hh). The fpOnly gate upstream
+            // already restricted the population to FP-class instructions.
+            constexpr size_t nb =
+                sizeof(kFpOpcodeBits) / sizeof(kFpOpcodeBits[0]);
+            bit_a = kFpOpcodeBits[rng() % nb];
+            if (fi_mode == Mode::FpOpcodeBitflip2) {
+                do { bit_b = kFpOpcodeBits[rng() % nb]; } while (bit_b == bit_a);
+            }
         } else if (fi_mode == Mode::OpcodeSwap) {
             // Single verified opcode bit by construction (see kSwapRules).
+            bit_a = __builtin_ctz(rule->xor_bits);
+        } else if (fi_mode == Mode::FpOpcodeSwap) {
+            // D58: single verified opcode bit by construction — every
+            // kFpSwapRules xor_bits is a verified single-bit power of two
+            // (closed-loop host check, .hh record).
             bit_a = __builtin_ctz(rule->xor_bits);
         } else if (is_reg_mode || is_imm_mode) {
             const uint32_t *cand;
@@ -431,7 +558,8 @@ namespace gem5
                 ncand = sizeof(kImmBits) / sizeof(kImmBits[0]);
             }
             const bool two_bits = (fi_mode == Mode::RegBitflip2 ||
-                                   fi_mode == Mode::ImmBitflip2);
+                                   fi_mode == Mode::ImmBitflip2 ||
+                                   fi_mode == Mode::FpRegBitflip2);
             if (!two_bits) {
                 // Single-bit: scan the positional candidates once, keep
                 // the EFFECTIVE ones (semantic predicate above), pick
@@ -487,7 +615,8 @@ namespace gem5
                 << (bit_b != 32 ? std::to_string(bit_b) : "") << "]"
                 << ", orig_mnemonic=" << orig_name
                 << ", new_mnemonic=" << repl->getName();
-            if (fi_mode == Mode::OpcodeSwap)
+            if (fi_mode == Mode::OpcodeSwap ||
+                fi_mode == Mode::FpOpcodeSwap)
                 *(log_stream->stream()) << ", swap_rule=" << rule->name;
             if (is_reg_mode || is_imm_mode)
                 *(log_stream->stream())
@@ -791,6 +920,99 @@ namespace gem5
                 << ", new_mnemonic=" << repl->getName()
                 << ", faults_injected: " << faults_injected_count
                 << std::endl;
+        return repl;
+    }
+
+    // ---- W7 batch 1 (D56-D61) injection helper ----
+    // D61 fp_route_bit: scan the top-level A64 instruction-class bits
+    // enc[28:24] for a single-bit flip whose re-decode yields a REAL
+    // (non-"unknown") instruction with a DIFFERENT opClass (the honest
+    // gem5 approximation of the int-vs-FP/SIMD queue routing bit: gem5
+    // routes by opClass -> FUPool capability, so the observable effect of
+    // the mis-route is the FU/latency change). Uniform over the effective
+    // bits; no effective bit = honest skip (wasted draw, no fault count).
+    StaticInstPtr
+    CHAOSDecode::injectFpRouteBit(uint64_t emi_raw, uint32_t enc,
+                                  StaticInstPtr orig,
+                                  const std::string &orig_name,
+                                  ArmISA::Decoder *arm_dec, Addr pc)
+    {
+        ArmISA::ExtMachInst emi;
+        emi = emi_raw;   // rebuild the full EMI (high 32 bits = decode ctx)
+
+        const OpClass orig_oc = orig->opClass();
+        // Effective-bit scan (the W6 reg_bitflip discipline): keep the
+        // candidates whose flip re-decodes to a legal instruction routed
+        // to a DIFFERENT opClass. Illegal flips (re-decode "unknown" —
+        // gem5's illegal-decode StaticInst, misc.isa:849 mnemonic
+        // "unknown") are NOT route changes and are excluded.
+        std::vector<uint32_t> eff;
+        for (uint32_t b : kFpRouteBits) {
+            ArmISA::ExtMachInst t = emi;
+            t.instBits = enc ^ (1u << b);
+            StaticInstPtr c = arm_dec->decodeChaos(t);
+            if (!c) continue;
+            if (c->getName() == "unknown") continue;
+            if (c->opClass() == orig_oc) continue;
+            eff.push_back(b);
+        }
+        if (eff.empty()) {
+            if (write_log)
+                *(log_stream->stream()) << "Tick: " << curTick()
+                    << ", Site: fetch_decode, mode=fp_route_bit"
+                    << ", event=honest_skip"
+                    << ", reason=no_effective_route_bit"
+                    << " (no single class-field bit re-decodes to a legal"
+                    << " instruction with a different opClass)"
+                    << ", pc=0x" << std::hex << pc << std::dec
+                    << ", orig_enc=0x" << std::hex << enc << std::dec
+                    << ", orig_mnemonic=" << orig_name
+                    << std::endl;
+            return nullptr;
+        }
+        const uint32_t bit = eff[rng() % eff.size()];
+
+        ArmISA::ExtMachInst new_emi = emi;
+        new_emi.instBits = enc ^ (1u << bit);
+        StaticInstPtr repl = arm_dec->decodeChaos(new_emi);
+        if (!repl || repl->getName() == "unknown" ||
+            repl->opClass() == orig_oc) {
+            // Defensive re-check (decodeChaos is deterministic, so this
+            // cannot diverge from the scan — belt and braces).
+            if (write_log)
+                *(log_stream->stream()) << "Tick: " << curTick()
+                    << ", Site: fetch_decode, mode=fp_route_bit"
+                    << ", event=honest_skip"
+                    << ", reason=predicate_fail_opclass_unchanged"
+                    << ", pc=0x" << std::hex << pc << std::dec
+                    << ", orig_enc=0x" << std::hex << enc << std::dec
+                    << ", new_enc=0x" << std::hex << new_emi.instBits
+                    << std::dec
+                    << ", orig_mnemonic=" << orig_name
+                    << std::endl;
+            return nullptr;
+        }
+
+        faults_injected_count++;
+        if (write_log) {
+            // opclass_old/new names from the generated enums::OpClassStrings
+            // table (base build artifact enums/OpClass.cc); the observable
+            // route effect = the FU/latency change implied by the pair.
+            *(log_stream->stream()) << "Tick: " << curTick()
+                << ", Site: fetch_decode, mode=fp_route_bit"
+                << ", pc=0x" << std::hex << pc << std::dec
+                << ", orig_enc=0x" << std::hex << enc << std::dec
+                << ", new_enc=0x" << std::hex << new_emi.instBits << std::dec
+                << ", bits=[" << bit << "]"
+                << ", opclass_old="
+                << enums::OpClassStrings[static_cast<int>(orig_oc)]
+                << ", opclass_new="
+                << enums::OpClassStrings[static_cast<int>(repl->opClass())]
+                << ", orig_mnemonic=" << orig_name
+                << ", new_mnemonic=" << repl->getName()
+                << ", faults_injected: " << faults_injected_count
+                << std::endl;
+        }
         return repl;
     }
 
