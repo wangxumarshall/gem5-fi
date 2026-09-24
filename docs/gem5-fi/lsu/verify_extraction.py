@@ -3,7 +3,8 @@
 
 v1（Task 3）：CSV 逐格回比 + 集合断言。
 v4a（Task 4）：追加 00/01/02 手写文档片段检查。
-后续任务递增：手写文档片段检查（04/05/06/08 → README）。
+v4b（Task 5）：追加 04/05/06/08 手写文档片段检查。
+后续任务递增：手写文档片段检查（README）。
 用法：python3 verify_extraction.py   → ALL PASSED
 """
 import csv
@@ -151,12 +152,47 @@ def main():
         for label, text in check_fragments(path, frags):
             fail(f'V4: {path} 缺片段 [{label}] {text[:40]}')
 
+    # V4b: 04/05/06/08 片段检查（空白归一化子串）
+    FRAGMENTS_04 = [
+        ('04-L0', '未activated不进入SDC率分母'),
+        ('04-L5守恒', 'Activated = Masked + Detected + SDC + Crash + Timeout'),
+        ('04-L5类', 'Injected-not-activated'),
+        ('04-判定', '与同checkpoint golden run逐事件/逐提交比较'),
+    ]
+    FRAGMENTS_05 = [
+        ('05-F6', '首次出现指定事件时注入一次'),
+        ('05-分母', 'SDC率=SDC/activated；激活率=activated/attempted'),
+        ('05-筛查', '半宽5pp约385个activated'),
+        ('05-停止', 'Wilson 95%区间半宽≤2pp或activated达到5000'),
+        ('05-独立样本', '不得把同一运行内事件直接当独立Bernoulli样本'),
+        ('05-换算', '1ms=2,600,000 cycles'),
+    ]
+    FRAGMENTS_06 = [
+        ('06-W0', 'MiniCheck'),
+        ('06-W1', 'blowfish、patricia、fft、gsm、dijkstra'),
+        ('06-W7', 'MP、SB、LB、IRIW、Dekker'),
+        ('06-W12', 'PRAGMA integrity_check'),
+        ('06-W11', '选择 mcf、omnetpp、xalancbmk、lbm'),
+    ]
+    FRAGMENTS_08 = [
+        ('08-核对', '2026-09-24核对'),
+        ('08-O3', 'O3_ARM_v7a.py'),
+        ('08-TC23', 'Silent Data Corruptions: Microarchitectural Perspectives'),
+        ('08-CHAOS', 'arXiv 2602.02119'),
+    ]
+    for path, frags in [('04-observation-points.md', FRAGMENTS_04),
+                        ('05-frequency-and-sampling.md', FRAGMENTS_05),
+                        ('06-workloads.md', FRAGMENTS_06),
+                        ('08-references.md', FRAGMENTS_08)]:
+        for label, text in check_fragments(path, frags):
+            fail(f'V4: {path} 缺片段 [{label}] {text[:40]}')
+
     if FAILS:
         for m in FAILS[:20]:
             print('FAIL:', m)
         print(f'VERIFICATION FAILED ({len(FAILS)} issues)')
         sys.exit(1)
-    print(f'ALL PASSED (design 68 cells x13, expanded 337 cells x28, sets ok + fragments 00/01/02)')
+    print(f'ALL PASSED (design 68 cells x13, expanded 337 cells x28, sets ok + fragments 00/01/02/04/05/06/08)')
 
 
 if __name__ == '__main__':
