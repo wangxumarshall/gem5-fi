@@ -29,12 +29,39 @@ Outputs:
   artifacts/<campaign_id>/heatmap.csv          (per-cell point + CI)
   artifacts/<campaign_id>/summary.md           (human-readable + honesty notes)
 
+W3.1/W3.2 (OoO north star, docs/gem5-fi/ooo/06-implementation-plan.md §4;
+02-frequency-and-sampling.md six-step flow) — two OPT-IN campaign yaml
+sections, absent = the legacy single-pass behavior byte-for-byte:
+
+  two_phase:            # pilot F0-F3 per cell -> pick top non-Crash tiers
+    enabled: true         # -> formal on the selected tiers only
+    tiers: [F0, F1, F2, F3]   # default; pilot tiers are F0-F3 only (02 doc
+    pilot_n: 20             #   step 1 — F4=event / F5=permanent are not
+    formal_n: 2000          #   pilot-selectable)
+    pick_top: 2
+  counting:             # W3.2 counting basis
+    mode: run | event_coverage
+    target_events: 2000     # event_coverage: n = ceil(target/density)
+    density: 12.5           # events/run — or density_table + event to read
+    density_table: artifacts/x/density.json   # a tools/event_density.py
+    event: squash            # --json product's aggregate.mean column
+
+Two-phase artifacts (additive): artifacts/<cid>/tier_selection.json (auditable
+per-cell per-tier pilot non-Crash rates + the selection), per-cell
+pilot_results.jsonl (audit only — pilot NEVER enters result columns, 06
+§1.3), results.jsonl = formal-phase records only, coverage.json when
+counting.mode=event_coverage. Per-rep manifests carry the schema-v3 `ooo`
+extension block (A6 spelling: phase/frequency_tier/counting_basis/
+design_unit_id/experiment_cell_id/workload) that tools/
+backfill_expanded_matrix.py consumes — the phase gate (pilot vs formal) is
+machine-enforced there via this block.
+
 NOTE (§0.4 honesty): this fault machine (cpu179) takes ~92s/run — formal n=384
 campaigns belong on a healthy 2nd machine. This driver is machine-agnostic; the
 results it produces on cpu179 are PILOT-only and must be replicated before any
 formal claim (§3.1 S6).
 """
-import sys, os, json, argparse, tempfile, subprocess, itertools, time, signal
+import sys, os, json, argparse, tempfile, subprocess, itertools, time, signal, math
 
 REPO = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 sys.path.insert(0, os.path.dirname(os.path.realpath(__file__)))
@@ -157,6 +184,47 @@ def chaos_pick_skip(seed, n_eligible):
     return x % n_eligible
 
 
+# W3.1 two-phase orchestration (ooo 06-implementation-plan.md §4 W3.1;
+# 02-frequency-and-sampling.md frequency tiers + six-step flow). The F0-F3
+# tiers map onto the EXISTING trigger params (first_clock/max_faults) that
+# runner.py already passes to every injector:
+#   F0 = single fault, whole-run window  -> first_clock=0, max_faults=1
+#   F1/F2/F3 = fixed mean interval (2.6M / 260K / 26K cycles @2.6GHz)
+#     ±50% jitter -> ONE fault at first_clock ~ U[interval/2, 3*interval/2)
+# DEVIATION (documented, not silent): cpu/o3/chaos_trigger.hh carries the
+# exact F0-F5 semantics on the gem5 side but the injectors are not wired to
+# it yet — the pilot approximates F1-F3 as a single fault whose clock draws
+# the same ±50% jitter distribution (chaos_jitter_clock is the Python twin
+# of ChaOSTrigger::scheduleNext). Precise fixed-interval multi-injection
+# wiring lands with the injector batches.
+TIER_ORDER = ("F0", "F1", "F2", "F3")
+TIER_INTERVALS = {"F1": 2600000, "F2": 260000, "F3": 26000}
+# tier vocabulary allowed in campaign-level ooo.frequency_tier / grid axes
+# (wider than the pilot tiers: F4/F5 rows exist in the expanded matrix but
+# are NOT pilot-selectable — 02 doc step 1 pilots F0-F3 only)
+TIER_VOCAB = ("F0", "F1", "F2", "F3", "F4", "F5", "事件触发")
+# 02 doc step 1: the non-Crash share used to pick the formal tiers
+NON_CRASH_CLASSES = ("SDC", "Masked", "Timeout", "Inactive")
+COUNTING_BASIS_RUN = "运行计数"
+COUNTING_BASIS_EVENTS = "事件覆盖计数"
+
+
+def chaos_jitter_clock(seed, interval):
+    """Python twin of gem5::ChaOSTrigger::scheduleNext (cpu/o3/
+    chaos_trigger.hh): one LCG round of the seed, then a uniform draw over
+    [interval/2, 3*interval/2) — the ±50% jitter around the tier's mean
+    interval. Used as the F1-F3 pilot first_clock approximation."""
+    x = (seed * 6364136223846793005 + 1442695040888963407) & 0xFFFFFFFFFFFFFFFF
+    return interval // 2 + x % interval
+
+
+def tier_first_clock(tier, seed):
+    """first_clock (CPU cycles) for one two-phase rep: F0 = 0 (whole-run
+    window from cycle 0); F1/F2/F3 = chaos_jitter_clock(seed, interval)."""
+    iv = TIER_INTERVALS.get(tier)
+    return 0 if iv is None else chaos_jitter_clock(seed, iv)
+
+
 # injector component -> (runner resultdir log name with CHAOS_ELIGIBLE_COUNT)
 _ELIGIBLE_LOG = {
     "fsu": "fpu_injections.log", "exec": "exec_injections.log",
@@ -208,19 +276,43 @@ def count_eligible_events(campaign, cell, cell_ordinal, outdir, binary,
     return None
 
 
-def manifest_for_cell(campaign, cell, cell_ordinal, rep, outdir):
+def manifest_for_cell(campaign, cell, cell_ordinal, rep, outdir,
+                      tier=None, phase=None, ooo=None):
     """Build an arm-chaos-fi/v1 manifest (reuses the EXISTING v1 schema that
     runner.py validates) for one (cell, rep), write it to outdir, return path.
 
     Seed rule (§1.5): base_seed + cell_ordinal*1000 + rep -> deterministic,
     reproducible across machines.
+
+    W3.1 two-phase params (tier/phase, all None = the legacy call shape and
+    byte-identical manifests):
+      - seed: base + cell_ordinal*10_000_000 + slot*100_000 + rep, where
+        slot = TIER_ORDER.index(tier) for pilot reps and 10 + that for formal
+        reps. The 100_000 stride keeps pilot and formal rep spaces disjoint
+        (and fits the 16,587 deep-dive n); the legacy base+ord*1000+rep rule
+        above is untouched for non-two-phase campaigns.
+      - trigger.value: the tier's first_clock approximation (tier_first_clock)
+        instead of workload.trigger_value.
+      - `ooo` (dict): base fields of the schema-v3 `ooo` extension block
+        (A6; consumed by tools/backfill_expanded_matrix.py). Per-cell grid
+        axes design_unit_id / experiment_cell_id / frequency_tier / workload
+        override the base; the two-phase tier always wins for
+        frequency_tier; phase defaults to "formal" (a non-two-phase campaign
+        has no pilot phase). None = no block written (legacy manifests
+        unchanged).
     """
     wl = campaign["workload"]
     inj = campaign["injector"]
     limits = campaign.get("limits", {})
     base = campaign["base_seed"]
-    seed = base + cell_ordinal * 1000 + rep
-    run_id = f"{campaign['campaign_id']}-c{cell_ordinal:04d}-r{rep:04d}"
+    if tier is None:
+        seed = base + cell_ordinal * 1000 + rep
+        run_id = f"{campaign['campaign_id']}-c{cell_ordinal:04d}-r{rep:04d}"
+    else:
+        slot = TIER_ORDER.index(tier) + (0 if phase == "pilot" else 10)
+        seed = base + cell_ordinal * 10_000_000 + slot * 100_000 + rep
+        run_id = (f"{campaign['campaign_id']}-c{cell_ordinal:04d}-{tier}-"
+                  f"{'p' if phase == 'pilot' else 'f'}{rep:04d}")
 
     # H2 microarch axes (rob/phys_int/phys_float/lq/sq) live in the grid
     # alongside fault axes but are config knobs, not fault fields. Pull them
@@ -279,7 +371,10 @@ def manifest_for_cell(campaign, cell, cell_ordinal, rep, outdir):
         },
         "trigger": {
             "mode": wl.get("trigger_mode", "cycle"),
-            "value": wl.get("trigger_value", 100000),
+            # W3.1: two-phase reps take the tier's first_clock approximation;
+            # legacy reps keep workload.trigger_value (byte-identical).
+            "value": (tier_first_clock(tier, seed) if tier is not None
+                      else wl.get("trigger_value", 100000)),
         },
         "target": {
             "layer": layer,
@@ -383,6 +478,30 @@ def manifest_for_cell(campaign, cell, cell_ordinal, rep, outdir):
         if manifest["target"][k] is None:
             del manifest["target"][k]
 
+    # W3.1/W3.2: the schema-v3 `ooo` extension block (A6). Written only when
+    # the caller passes base fields (two-phase / counting / declared ooo
+    # campaign) — legacy campaigns get NO block and stay byte-identical.
+    # Grid axes design_unit_id / experiment_cell_id / frequency_tier /
+    # workload override the campaign-level base; the two-phase tier param
+    # always wins for frequency_tier (it is the tier actually run).
+    if ooo is not None or tier is not None:
+        blk = dict(ooo or {})
+        for k in ("design_unit_id", "experiment_cell_id",
+                  "frequency_tier", "workload"):
+            if cell.get(k) is not None:
+                blk[k] = cell[k]
+        if tier is not None:
+            blk["frequency_tier"] = tier
+        blk["phase"] = phase if phase is not None else "formal"
+        manifest["ooo"] = blk
+
+    # W5/W6 injector sub-mode discriminator (e.g. rob pc_bitflip /
+    # destid_bitflip, decode sub-modes): a `sub_field` grid axis flows into
+    # target.sub_field, which runner.py routes on. Additive — no existing
+    # campaign carries a sub_field axis.
+    if cell.get("sub_field") is not None:
+        manifest["target"]["sub_field"] = cell["sub_field"]
+
     # H2 microarch knobs -> platform.config_params (additive; skipped when
     # the campaign has no microarch grid axes)
     if config_params:
@@ -391,7 +510,11 @@ def manifest_for_cell(campaign, cell, cell_ordinal, rep, outdir):
     os.makedirs(outdir, exist_ok=True)
     path = os.path.join(outdir, f"{run_id}.yaml")
     with open(path, "w") as f:
-        yaml.safe_dump(manifest, f, sort_keys=False, default_flow_style=False)
+        # allow_unicode only when the ooo block is present (its counting_basis
+        # 运行计数/事件覆盖计数 then reads as-is instead of \u escapes);
+        # legacy manifests are pure ASCII either way — byte-identical.
+        yaml.safe_dump(manifest, f, sort_keys=False, default_flow_style=False,
+                       allow_unicode=("ooo" in manifest))
     return path, manifest
 
 
@@ -615,8 +738,14 @@ def write_heatmap(cell_results, campaign_id, artifacts_dir):
 
 
 def write_summary(cell_results, campaign, artifacts_dir, wall_s, n_reps_done,
-                  n_cells, runs_skipped, n_l2_replayed=0):
-    """Human-readable summary.md with per-cell table + honesty notes."""
+                  n_cells, runs_skipped, n_l2_replayed=0, two_phase=None,
+                  counting=None):
+    """Human-readable summary.md with per-cell table + honesty notes.
+
+    W3.1/W3.2: two_phase/counting (None = legacy call, byte-identical
+    output). two_phase is the per-cell selection digest built by
+    run_two_phase(); counting is the parse_counting() dict (only
+    event_coverage mode adds lines)."""
     md = os.path.join(artifacts_dir, "summary.md")
     lines = []
     lines.append(f"# Campaign `{campaign['campaign_id']}` — summary\n")
@@ -635,6 +764,26 @@ def write_summary(cell_results, campaign, artifacts_dir, wall_s, n_reps_done,
                      f"results.jsonl; ref traces at runs/<cid>/ctrace_ref_cNNNN.csv.gz)")
     if runs_skipped:
         lines.append(f"- **skipped reps**: {runs_skipped} (see log)")
+    # W3.1 two-phase selection digest (audit pointer + per-cell outcome)
+    if two_phase:
+        lines.append(f"- two_phase (W3.1): tiers={two_phase['tiers']} "
+                     f"pilot_n={two_phase['pilot_n']} pick_top="
+                     f"{two_phase['pick_top']} formal runs/selected tier="
+                     f"{two_phase['formal_count']}; full selection: "
+                     f"artifacts/{campaign['campaign_id']}/tier_selection.json")
+        for ord_s in sorted(two_phase["cells"], key=int):
+            info = two_phase["cells"][ord_s]
+            rates = ", ".join(f"{t}={info['rates'][t]:.3f}"
+                              for t in sorted(info["rates"]))
+            lines.append(f"  - cell {ord_s}: selected {info['selected']} "
+                         f"(pilot non-Crash rates: {rates})")
+    # W3.2 counting basis
+    if counting and counting.get("mode") == "event_coverage":
+        lines.append(f"- counting (W3.2): event_coverage "
+                     f"target_events={counting['target_events']} density="
+                     f"{counting['density']} (source: "
+                     f"{counting['density_source']}) -> n runs = "
+                     f"ceil(target/density) = {counting['n_runs']}")
     lines.append("")
     lines.append("## Per-cell (Wilson 95% CI)\n")
     lines.append("| cell | n | n_valid | P_SDC [CI] | P_DUE [CI] | Reach [CI] | frozen |")
@@ -660,6 +809,24 @@ def write_summary(cell_results, campaign, artifacts_dir, wall_s, n_reps_done,
                      "pass 1 is recorded as replay_determinism=MISMATCH in the "
                      "rep's l2 block — that mismatch is a finding, not noise to "
                      "be dropped. All campaign children ran with PYTHONHASHSEED=0.")
+    if two_phase:
+        lines.append("- Two-phase (W3.1) discipline: PILOT reps never enter "
+                     "the result columns (ooo 06 §1.3) — heatmap/summary "
+                     "aggregate FORMAL-phase runs only; pilot records live in "
+                     "runs/<cid>/cNNNN/pilot_results.jsonl + tier_selection.json.")
+        lines.append("- F1-F3 tiers are SINGLE-fault first_clock approximations "
+                     "(first_clock ~ U[0.5x, 1.5x) of the tier's mean interval "
+                     "2.6M/260K/26K cycles, seed-derived per rep); the exact "
+                     "fixed-interval multi-injection F0-F5 semantics "
+                     "(cpu/o3/chaos_trigger.hh, ready on the gem5 side) land "
+                     "with the injector wiring batches.")
+    if counting and counting.get("mode") == "event_coverage":
+        lines.append("- Event-coverage n is derived from a MEAN density "
+                     "(event_density.py aggregate or operator value); actual "
+                     "covered events are not measured inline — verify from "
+                     "per-run evidence (faults_injected sums in results.jsonl, "
+                     "the W3.3 backfill rule) before quoting a coverage claim. "
+                     "A shortfall is reported in coverage.json, never silent.")
     lines.append("- This fault machine (cpu179) takes ~92s/run; formal n=384 belongs "
                  "on a healthy 2nd machine (§0.4, §3.1 S6).")
     lines.append("- `SimulatorError` counts are runs where the tool/simulator broke "
@@ -674,6 +841,474 @@ def write_summary(cell_results, campaign, artifacts_dir, wall_s, n_reps_done,
     return md
 
 
+# ------------------------------------------------- W3.1/W3.2 two-phase + counting
+
+def parse_two_phase(campaign, args):
+    """Validate the campaign yaml's `two_phase:` block. Returns
+    {"enabled": False} when absent/disabled (legacy path, byte-identical
+    behavior), else {"enabled": True, tiers, pilot_n, formal_n, pick_top}.
+    Every malformed reference (unknown tier/mode, incoherent counts) is an
+    EARLY loud reject — a two_phase campaign referencing a nonexistent
+    pattern must fail before any gem5 run, not half-routed."""
+    cfg = campaign.get("two_phase") or {}
+    if not cfg.get("enabled", False):
+        if cfg:
+            print("[campaign] two_phase block present but enabled!=true — "
+                  "running the legacy single-pass flow")
+        return {"enabled": False}
+    tiers = cfg.get("tiers", list(TIER_ORDER))
+    if not isinstance(tiers, list) or not tiers:
+        sys.exit(f"[campaign] two_phase.tiers must be a non-empty list "
+                 f"(got {tiers!r}). Aborting.")
+    bad = [t for t in tiers if t not in TIER_ORDER]
+    if bad:
+        sys.exit(f"[campaign] two_phase.tiers {bad} not in pilot tiers "
+                 f"{list(TIER_ORDER)} (F4=event-trigger / F5=permanent are "
+                 f"NOT pilot-selectable — 02 doc step 1 pilots F0-F3 only). "
+                 f"Aborting.")
+    if len(set(tiers)) != len(tiers):
+        sys.exit(f"[campaign] two_phase.tiers has duplicates: {tiers}. Aborting.")
+    pilot_n = cfg.get("pilot_n", 20)
+    formal_n = cfg.get("formal_n", 2000)
+    pick_top = cfg.get("pick_top", 2)
+    for name, val in (("pilot_n", pilot_n), ("formal_n", formal_n),
+                      ("pick_top", pick_top)):
+        if not isinstance(val, int) or isinstance(val, bool) or val < 1:
+            sys.exit(f"[campaign] two_phase.{name} must be an integer >= 1 "
+                     f"(got {val!r}). Aborting.")
+    if pick_top > len(tiers):
+        sys.exit(f"[campaign] two_phase.pick_top={pick_top} exceeds the tier "
+                 f"list {tiers}. Aborting.")
+    if pilot_n >= 100_000 or formal_n >= 100_000:
+        sys.exit(f"[campaign] two_phase pilot_n/formal_n must stay below the "
+                 f"seed-slot stride (100000; the deep-dive tier is 16,587). "
+                 f"Aborting.")
+    if args.n_per_cell:
+        sys.exit("[campaign] --n_per_cell cannot override a two_phase "
+                 "campaign (pilot_n / formal_n live in the yaml's two_phase "
+                 "block). Aborting.")
+    return {"enabled": True, "tiers": tiers, "pilot_n": pilot_n,
+            "formal_n": formal_n, "pick_top": pick_top}
+
+
+def parse_counting(campaign, args):
+    """Validate the campaign yaml's `counting:` block (W3.2 counting
+    basis). Returns {"mode": "run"} (legacy) or the event_coverage dict
+    with the resolved density and n_runs = ceil(target_events/density).
+    Density resolution order: --density CLI > counting.density (yaml) >
+    counting.density_table + counting.event (a tools/event_density.py
+    --json product's aggregate.mean column). Unresolvable density is a loud
+    exit 1 — n/a, never a fabricated 0."""
+    cfg = campaign.get("counting") or {}
+    mode = cfg.get("mode", "run")
+    if mode not in ("run", "event_coverage"):
+        sys.exit(f"[campaign] counting.mode '{mode}' not in ['run', "
+                 f"'event_coverage']. Aborting.")
+    if mode == "run":
+        if cfg:
+            print("[campaign] counting.mode=run (运行计数) — legacy "
+                  "per-run counting")
+        return {"mode": "run"}
+    target = cfg.get("target_events")
+    if not isinstance(target, int) or isinstance(target, bool) or target < 1:
+        sys.exit(f"[campaign] counting.target_events must be an integer >= 1 "
+                 f"(got {target!r}). Aborting.")
+    density, source = None, None
+    if args.density is not None:
+        density, source = args.density, "--density CLI override"
+    elif cfg.get("density") is not None:
+        density, source = cfg["density"], "counting.density (yaml)"
+    elif cfg.get("density_table"):
+        tbl, ev = cfg["density_table"], cfg.get("event")
+        if not ev:
+            sys.exit("[campaign] counting.event is required when the density "
+                     "comes from counting.density_table (which column of the "
+                     "event_density.py table?). Aborting.")
+        try:
+            with open(tbl) as f:
+                payload = json.load(f)
+        except (OSError, ValueError) as e:
+            sys.exit(f"[campaign] counting.density_table {tbl} unreadable: "
+                     f"{e}. Aborting.")
+        mean = (payload.get("aggregate") or {}).get("mean") or {}
+        if mean.get(ev) is None:
+            avail = sorted(k for k, v in mean.items() if v is not None)
+            sys.exit(f"[campaign] density_table {tbl} has no mean for event "
+                     f"'{ev}' (available: {avail}). Aborting.")
+        density, source = mean[ev], f"density_table {tbl} aggregate.mean[{ev}]"
+    else:
+        sys.exit("[campaign] counting.mode=event_coverage needs a density: "
+                 "counting.density, or counting.density_table + counting.event "
+                 "(a tools/event_density.py --json product), or the --density "
+                 "CLI override. Aborting.")
+    if not isinstance(density, (int, float)) or isinstance(density, bool) \
+            or density <= 0:
+        sys.exit(f"[campaign] counting density must be a number > 0 (got "
+                 f"{density!r}). Aborting.")
+    n_runs = math.ceil(target / density)
+    return {"mode": "event_coverage", "target_events": target,
+            "density": density, "density_source": source, "n_runs": n_runs}
+
+
+def build_ooo_base(campaign, tp, counting):
+    """Base fields for the per-rep manifest `ooo` extension block (A6
+    spelling, consumed by tools/backfill_expanded_matrix.py). None when the
+    campaign declares nothing ooo-related (legacy manifests unchanged).
+    The campaign-level `ooo:` block carries design_unit_id /
+    experiment_cell_id / frequency_tier / workload defaults; grid axes with
+    the same names override per cell (manifest_for_cell)."""
+    campaign_ooo = campaign.get("ooo") or {}
+    known = ("design_unit_id", "experiment_cell_id", "frequency_tier",
+             "workload")
+    unknown = sorted(set(campaign_ooo) - set(known))
+    if unknown:
+        sys.exit(f"[campaign] ooo block has unknown key(s) {unknown} — known: "
+                 f"{list(known)}. Aborting.")
+    bad_tier = campaign_ooo.get("frequency_tier")
+    if bad_tier is not None and bad_tier not in TIER_VOCAB:
+        sys.exit(f"[campaign] ooo.frequency_tier '{bad_tier}' not in the "
+                 f"matrix vocabulary {list(TIER_VOCAB)}. Aborting.")
+    if tp["enabled"] and bad_tier is not None:
+        sys.exit("[campaign] two_phase sets ooo.frequency_tier per rep from "
+                 "two_phase.tiers — remove the campaign-level "
+                 "ooo.frequency_tier. Aborting.")
+    if not campaign_ooo and not tp["enabled"] and counting["mode"] == "run":
+        return None
+    base = {"counting_basis": (COUNTING_BASIS_EVENTS
+                               if counting["mode"] == "event_coverage"
+                               else COUNTING_BASIS_RUN)}
+    for k in known:
+        if campaign_ooo.get(k) is not None:
+            base[k] = campaign_ooo[k]
+    return base
+
+
+def write_coverage(artifacts_dir, counting):
+    """W3.2: put the event-coverage arithmetic on disk (auditable) and
+    report any shortfall loudly. The density is a MEAN estimate — actual
+    covered events are not measured inline (see the note field)."""
+    n = counting.get("n_runs_actual", counting["n_runs"])
+    expected = n * counting["density"]
+    doc = {
+        "mode": "event_coverage",
+        "target_events": counting["target_events"],
+        "density_events_per_run": counting["density"],
+        "density_source": counting["density_source"],
+        "n_runs_computed": counting["n_runs"],
+        "n_runs_actual": n,
+        "expected_covered_events": expected,
+        "coverage_shortfall": bool(expected < counting["target_events"]),
+        "note": "density is a mean estimate (event_density.py aggregate or "
+                "operator value); verify actual covered events from per-run "
+                "evidence (faults_injected sums in results.jsonl, the W3.3 "
+                "backfill rule) before quoting a coverage claim",
+    }
+    path = os.path.join(artifacts_dir, "coverage.json")
+    with open(path, "w") as f:
+        json.dump(doc, f, indent=2)
+        f.write("\n")
+    if doc["coverage_shortfall"]:
+        print(f"[campaign] WARNING: event coverage SHORTFALL — {n} runs x "
+              f"density {counting['density']} = {expected} < target "
+              f"{counting['target_events']} (recorded in {path})")
+    return path
+
+
+def fs_flags_from_campaign(campaign):
+    """§3.2 FS pipeline (Phase 5.4): the campaign yaml's `fs:` block -> the
+    runner's FS CLI flags. Extracted from main() so the W3.1 two-phase path
+    builds the same flags; the legacy path calls this at the exact same
+    point (stdout order unchanged)."""
+    fs_cfg = campaign.get("fs", {}) or {}
+    fs_extra = []
+    if fs_cfg.get("restore_checkpoint"):
+        fs_extra += ["--restore-checkpoint", str(fs_cfg["restore_checkpoint"])]
+    for key, flag in (("kernel", "--kernel"), ("disk", "--disk"),
+                      ("bootloader", "--bootloader"),
+                      ("root_partition", "--root-partition"),
+                      ("fs_cpu", "--fs-cpu")):
+        if fs_cfg.get(key) is not None:
+            fs_extra += [flag, str(fs_cfg[key])]
+    if fs_extra:
+        print(f"[campaign] FS pipeline flags: {fs_extra}")
+    return fs_extra
+
+
+def run_two_phase(args, campaign, cells, tp, counting, runs_dir,
+                  artifacts_dir, binary, hang_timeout, replay_pct, ooo_base):
+    """W3.1 two-phase orchestration (ooo 06 §4; 02 doc six-step flow):
+
+      phase 1 pilot   — every cell x every tier x pilot_n reps
+      selection       — per cell, rank tiers by pilot non-Crash rate
+                        (SDC+Masked+Timeout+Inactive, 02 doc step 1), pick
+                        the top pick_top (ties broken by tier order
+                        F0<F1<F2<F3); the full arithmetic lands in
+                        artifacts/<cid>/tier_selection.json (auditable)
+      phase 2 formal  — selected tiers x formal_n reps (or
+                        ceil(target_events/density) per selected tier when
+                        counting.mode=event_coverage, W3.2)
+
+    Discipline: results.jsonl holds FORMAL records only (pilot never enters
+    result columns, 06 §1.3 — machine-enforced by the separate files AND by
+    the manifests' ooo.phase gate that backfill_expanded_matrix.py checks).
+    """
+    campaign_id = campaign["campaign_id"]
+    bad_log_path = os.path.join(artifacts_dir, "bad_runs.log")
+    log_bad = _log_bad(bad_log_path)
+    fs_extra = fs_flags_from_campaign(campaign)
+    tiers = tp["tiers"]
+    pilot_n, formal_n, pick_top = tp["pilot_n"], tp["formal_n"], tp["pick_top"]
+    ev = counting["mode"] == "event_coverage"
+    formal_count = counting["n_runs"] if ev else formal_n
+    if formal_count >= 100_000:
+        sys.exit(f"[campaign] two_phase formal count {formal_count} exceeds "
+                 f"the seed-slot stride (100000) — split the campaign. "
+                 f"Aborting.")
+    n_pilot = len(cells) * len(tiers) * pilot_n
+
+    print(f"[campaign] two_phase: {len(cells)} cells | pilot {len(tiers)} "
+          f"tiers x {pilot_n} = {n_pilot} runs | formal top {pick_top} x "
+          f"{formal_count} = up to {len(cells) * pick_top * formal_count} runs")
+    print(f"[campaign] two_phase seed rule: base + cell*10000000 + "
+          f"slot*100000 + rep (slot 0-3 pilot / 10-13 formal by tier)")
+    if ev:
+        print(f"[campaign] counting: event_coverage target_events="
+              f"{counting['target_events']} density={counting['density']} "
+              f"({counting['density_source']}) -> formal runs per selected "
+              f"tier = ceil(target/density) = {formal_count}")
+        write_coverage(artifacts_dir, counting)
+
+    # ---- phase 1: pilot ----
+    cell_of, tier_of = {}, {}
+    pilot_work = []
+    for ord_i, cell in enumerate(cells):
+        outdir = os.path.join(runs_dir, f"c{ord_i:04d}")
+        for tier in tiers:
+            for rep in range(pilot_n):
+                mpath, _ = manifest_for_cell(campaign, cell, ord_i, rep,
+                                             outdir, tier=tier,
+                                             phase="pilot", ooo=ooo_base)
+                pilot_work.append((ord_i, cell, rep, mpath, outdir))
+                cell_of[mpath], tier_of[mpath] = ord_i, tier
+
+    if args.dry:
+        print(f"[campaign] --dry: wrote {len(pilot_work)} PILOT manifests to "
+              f"{runs_dir}/, not running gem5. Formal manifests are "
+              f"generated only after the pilot selects tiers (needs real "
+              f"runs — a dry run cannot select).")
+        return 0
+
+    def _execute(work, phase_label):
+        """Run the phase's reps (serial or pooled), phase-labeled progress.
+        Mirrors the legacy run loop's semantics (same _PoolRep worker, same
+        per-rep timeout policy)."""
+        results, total, done = [], len(work), 0
+        _do = _PoolRep(binary, hang_timeout, args.keep_manifests,
+                       bad_log_path, fs_extra=fs_extra)
+        t0 = time.time()
+        if args.jobs <= 1:
+            for item in work:
+                done += 1
+                mpath, res = _do(item)
+                results.append((mpath, res))
+                if done % 5 == 0 or done == total:
+                    el = time.time() - t0
+                    print(f"[campaign] {phase_label} {done}/{total} reps "
+                          f"done ({el:.0f}s, ~{el / done:.0f}s/rep)")
+        else:
+            from concurrent.futures import ProcessPoolExecutor, as_completed
+            with ProcessPoolExecutor(max_workers=args.jobs) as ex:
+                futs = {ex.submit(_do, item): item for item in work}
+                for fut in as_completed(futs):
+                    done += 1
+                    mpath, res = fut.result()
+                    results.append((mpath, res))
+                    if done % 5 == 0 or done == total:
+                        el = time.time() - t0
+                        print(f"[campaign] {phase_label} {done}/{total} reps "
+                              f"done ({el:.0f}s)")
+        return results
+
+    t_all0 = time.time()
+    pilot_results = _execute(pilot_work, "pilot")
+    pilot_by_cell = {i: [] for i in range(len(cells))}
+    for mpath, res in pilot_results:
+        pilot_by_cell[cell_of[mpath]].append((mpath, res))
+
+    # ---- tier selection (02 doc steps 1-2) ----
+    selection_doc = {
+        "campaign_id": campaign_id,
+        "generated": time.strftime("%Y-%m-%dT%H:%M:%S"),
+        "two_phase": {
+            "tiers": tiers,
+            "pilot_n": pilot_n,
+            "formal_n": formal_n,
+            "formal_count_per_selected_tier": formal_count,
+            "formal_count_basis": ("ceil(target_events/density)"
+                                   if ev else "formal_n"),
+            "pick_top": pick_top,
+            "non_crash_classes": list(NON_CRASH_CLASSES),
+            "selection_rule": "top pick_top tiers by pilot non_crash_rate "
+                              "(non-Crash = SDC+Masked+Timeout+Inactive); "
+                              "ties broken by tier order F0<F1<F2<F3",
+            "seed_rule": "base_seed + cell_ordinal*10000000 + slot*100000 "
+                         "+ rep (slot: pilot=0..3, formal=10..13, by tier "
+                         "index in F0,F1,F2,F3)",
+            "tier_trigger_approximation": "F0: first_clock=0 (whole-run "
+                                          "window), max_faults=1; F1/F2/F3: "
+                                          "first_clock = interval/2 + "
+                                          "lcg(seed)%interval over "
+                                          "U[0.5x,1.5x) of 2600000/260000/"
+                                          "26000 cycles, max_faults=1 — a "
+                                          "SINGLE-fault approximation; the "
+                                          "exact fixed-interval multi-"
+                                          "injection F0-F5 semantics "
+                                          "(cpu/o3/chaos_trigger.hh) land "
+                                          "with the injector wiring batches",
+        },
+        "cells": [],
+    }
+    selected_by_cell = {}
+    for ord_i, cell in enumerate(cells):
+        per_tier = {}
+        for tier in tiers:
+            clss = [res["classification"] for (mp, res)
+                    in pilot_by_cell[ord_i] if tier_of[mp] == tier]
+            counts = {}
+            for c in clss:
+                counts[c] = counts.get(c, 0) + 1
+            non_crash = sum(1 for c in clss if c in NON_CRASH_CLASSES)
+            per_tier[tier] = {
+                "n": len(clss), "class_counts": counts,
+                "non_crash": non_crash,
+                "non_crash_rate": (non_crash / len(clss)) if clss else 0.0,
+            }
+        ranked = sorted(tiers, key=lambda t: (-per_tier[t]["non_crash_rate"],
+                                              TIER_ORDER.index(t)))
+        selected = ranked[:pick_top]
+        selected_by_cell[ord_i] = selected
+        sim_err = sum(per_tier[t]["class_counts"].get("SimulatorError", 0)
+                      for t in tiers)
+        if sim_err:
+            print(f"[campaign] WARNING: cell {ord_i} pilot had {sim_err} "
+                  f"SimulatorError reps — the tool/simulator broke; this "
+                  f"cell's tier rates are unreliable (recorded honestly in "
+                  f"tier_selection.json)")
+        selection_doc["cells"].append({
+            "cell_ordinal": ord_i, "cell": cell, "tiers": per_tier,
+            "selected_tiers": selected,
+        })
+        rates = ", ".join(f"{t}={per_tier[t]['non_crash_rate']:.3f}"
+                          for t in tiers)
+        print(f"[campaign] tier selection cell {ord_i}: {rates} -> "
+              f"selected {selected}")
+    sel_path = os.path.join(artifacts_dir, "tier_selection.json")
+    with open(sel_path, "w") as f:
+        json.dump(selection_doc, f, indent=2, ensure_ascii=False)
+        f.write("\n")
+    print(f"[campaign] tier selection written: {sel_path}")
+
+    # ---- phase 2: formal (selected tiers only) ----
+    formal_work = []
+    for ord_i, cell in enumerate(cells):
+        outdir = os.path.join(runs_dir, f"c{ord_i:04d}")
+        for tier in selected_by_cell[ord_i]:
+            for rep in range(formal_count):
+                mpath, _ = manifest_for_cell(campaign, cell, ord_i, rep,
+                                             outdir, tier=tier,
+                                             phase="formal", ooo=ooo_base)
+                formal_work.append((ord_i, cell, rep, mpath, outdir))
+                cell_of[mpath], tier_of[mpath] = ord_i, tier
+    print(f"[campaign] formal: {len(formal_work)} runs (selected tiers "
+          f"{sorted({tier_of[w[3]] for w in formal_work})})")
+    formal_results = _execute(formal_work, "formal")
+    formal_by_cell = {i: [] for i in range(len(cells))}
+    for mpath, res in formal_results:
+        formal_by_cell[cell_of[mpath]].append((mpath, res))
+
+    # ---- per-cell artifacts: pilot audit trail + formal results ----
+    cell_results = []
+    for ord_i, cell in enumerate(cells):
+        cdir = os.path.join(runs_dir, f"c{ord_i:04d}")
+        # pilot records: audit only, never result columns (06 §1.3)
+        with open(os.path.join(cdir, "pilot_results.jsonl"), "w") as f:
+            for (mpath, res) in sorted(pilot_by_cell[ord_i],
+                                       key=lambda mr: os.path.basename(mr[0])):
+                f.write(json.dumps({
+                    "manifest": os.path.basename(mpath),
+                    "phase": "pilot",
+                    "tier": tier_of[mpath],
+                    "classification": res["classification"],
+                    "faults_injected": res["faults_injected"],
+                    "exit": res["exit"],
+                    "timed_out": res["timed_out"],
+                }) + "\n")
+        # formal records: THE result set for this cell (tier-tagged)
+        formal_sorted = sorted(formal_by_cell[ord_i],
+                               key=lambda mr: os.path.basename(mr[0]))
+        counter = {c: 0 for c in ALL_CLASSES}
+        with open(os.path.join(cdir, "results.jsonl"), "w") as f:
+            for (mpath, res) in formal_sorted:
+                f.write(json.dumps({
+                    "manifest": os.path.basename(mpath),
+                    "phase": "formal",
+                    "tier": tier_of[mpath],
+                    "classification": res["classification"],
+                    "faults_injected": res["faults_injected"],
+                    "exit": res["exit"],
+                    "timed_out": res["timed_out"],
+                }) + "\n")
+                if res["classification"] in counter:
+                    counter[res["classification"]] += 1
+                else:
+                    counter["SimulatorError"] += 1  # unknown class -> tool error
+        # §1.5 replay-consistency check on the formal reps (same rule as the
+        # legacy flow: first max(1, round(replay_pct%)) reps re-run)
+        n_formal = len(formal_sorted)
+        n_replay = max(1, round(replay_pct / 100.0 * n_formal))
+        frozen = False
+        for (mpath, res) in formal_sorted[:n_replay]:
+            r2 = run_one_rep(mpath, binary, hang_timeout,
+                             args.keep_manifests, log_bad)
+            if r2["classification"] != res["classification"]:
+                frozen = True
+                with open(bad_log_path, "a") as f:
+                    f.write(f"[replay-mismatch] {mpath}: "
+                            f"{res['classification']} -> "
+                            f"{r2['classification']}\n")
+        cell_results.append({"ordinal": ord_i, "cell": cell,
+                             "counter": counter, "frozen": frozen})
+
+    # ---- aggregate artifacts (heatmap/summary = FORMAL phase only) ----
+    wall = time.time() - t_all0
+    n_reps_done = len(pilot_results) + len(formal_results)
+    csv = write_heatmap(cell_results, campaign_id, artifacts_dir)
+    tp_digest = {
+        "tiers": tiers, "pilot_n": pilot_n, "formal_n": formal_n,
+        "pick_top": pick_top, "formal_count": formal_count,
+        "cells": {str(c["cell_ordinal"]):
+                  {"selected": c["selected_tiers"],
+                   "rates": {t: c["tiers"][t]["non_crash_rate"]
+                             for t in tiers}}
+                  for c in selection_doc["cells"]},
+    }
+    md = write_summary(cell_results, campaign, artifacts_dir, wall,
+                       n_reps_done, len(cells), 0, two_phase=tp_digest,
+                       counting=(counting if ev else None))
+    print(f"\n[campaign] DONE — two-phase: {len(pilot_results)} pilot + "
+          f"{len(formal_results)} formal reps in {wall:.0f}s")
+    print(f"[campaign] tier selection: {sel_path}")
+    if ev:
+        print(f"[campaign] coverage: "
+              f"{os.path.join(artifacts_dir, 'coverage.json')}")
+    print(f"[campaign] heatmap: {csv}")
+    print(f"[campaign] summary: {md}")
+    print("\n--- summary.md ---")
+    with open(md) as f:
+        print(f.read())
+    return 0
+
+
 # ---------------------------------------------------------------- main
 
 def main():
@@ -686,6 +1321,9 @@ def main():
                     help="override n_per_cell (0 = use campaign.yaml value). Useful for tiny pilot verify.")
     ap.add_argument("--replay_pct", type=float, default=-1,
                     help="override replay_pct (§1.5). -1 = use campaign.yaml (default 5).")
+    ap.add_argument("--density", type=float, default=None, metavar="EV/RUN",
+                    help="W3.2: override the event-coverage density (events "
+                         "per run) of the campaign yaml's counting block.")
     ap.add_argument("--dry", action="store_true",
                     help="expand grid + write manifests only, do NOT run gem5.")
     ap.add_argument("--keep_manifests", action="store_true", default=True,
@@ -746,6 +1384,44 @@ def main():
             print(f"[campaign] trace two-pass ENABLED: ref_run={trace_ref_mode} "
                   f"replay_for={trace_replay_for} "
                   f"(PYTHONHASHSEED=0 pinned for all children)")
+
+    # ---- W3.1/W3.2 (ooo 06 §4): the optional two_phase + counting blocks.
+    # Both absent = the legacy single-pass flow below, byte-identical.
+    tp = parse_two_phase(campaign, args)
+    counting = parse_counting(campaign, args)
+    if tp["enabled"] and trace_enabled:
+        sys.exit("[campaign] trace two-pass + two_phase is not wired inline "
+                 "(the north-star flow runs L2 trace replays as a separate "
+                 "pass over non-Masked samples, W8.7) — run them as separate "
+                 "campaigns. Aborting.")
+    if tp["enabled"] and campaign["workload"].get("uniform_sampling", False):
+        sys.exit("[campaign] two_phase + workload.uniform_sampling is not "
+                 "tier-aware yet (the countOnly dry-run is per-cell; the "
+                 "tier's first_clock changes the eligible window). Aborting.")
+    # W3.2 (no two_phase): event_coverage replaces n_per_cell with
+    # ceil(target_events/density). An explicit --n_per_cell cap below the
+    # computed count is honored but reported as a coverage shortfall —
+    # never silent (write_coverage / summary).
+    if counting["mode"] == "event_coverage" and not tp["enabled"]:
+        n_cov = counting["n_runs"]
+        if args.n_per_cell and args.n_per_cell < n_cov:
+            print(f"[campaign] WARNING: --n_per_cell={args.n_per_cell} caps "
+                  f"the event-coverage run count below "
+                  f"ceil(target/density)={n_cov} — expected coverage "
+                  f"{args.n_per_cell * counting['density']:g} < target "
+                  f"{counting['target_events']} (shortfall recorded in "
+                  f"coverage.json)")
+            n_per_cell = args.n_per_cell
+            counting["n_runs_actual"] = args.n_per_cell
+        else:
+            if n_per_cell != n_cov:
+                print(f"[campaign] counting: event_coverage overrides "
+                      f"n_per_cell {n_per_cell} -> {n_cov} "
+                      f"(ceil(target_events={counting['target_events']} / "
+                      f"density={counting['density']:g}) = {n_cov})")
+            n_per_cell = n_cov
+            counting["n_runs_actual"] = n_cov
+    ooo_base = build_ooo_base(campaign, tp, counting)
     # §2.2 fix: pass the binary path as RELATIVE (not absolute) — gem5's
     # process image layout / readlink emulation behaves differently with
     # absolute paths (rename injection lands at a different PC → different
@@ -754,13 +1430,29 @@ def main():
     binary = campaign["workload"]["binary"]
 
     cells = expand_grid(campaign["grid"])
-    print(f"[campaign] {len(cells)} cells x {n_per_cell} reps = {len(cells)*n_per_cell} runs")
+    if tp["enabled"]:
+        print(f"[campaign] {len(cells)} cells (two_phase — pilot/formal "
+              f"counts printed by the two-phase path below)")
+    else:
+        print(f"[campaign] {len(cells)} cells x {n_per_cell} reps = {len(cells)*n_per_cell} runs")
     print(f"[campaign] jobs={args.jobs}  hang_timeout={hang_timeout}s  replay_pct={replay_pct}")
 
     runs_dir = os.path.join(REPO, "runs", campaign["campaign_id"])
     artifacts_dir = os.path.join(REPO, "artifacts", campaign["campaign_id"])
     os.makedirs(runs_dir, exist_ok=True)
     os.makedirs(artifacts_dir, exist_ok=True)
+
+    # W3.1: two-phase campaigns take their own orchestration path from here
+    # on; everything below stays the LEGACY single-pass flow, byte-identical
+    # for campaigns without the two_phase block.
+    if tp["enabled"]:
+        return run_two_phase(args, campaign, cells, tp, counting, runs_dir,
+                             artifacts_dir, binary, hang_timeout, replay_pct,
+                             ooo_base)
+    # W3.2 (no two_phase): persist the coverage arithmetic (auditable, and
+    # the shortfall flag lives here rather than in anyone's memory)
+    if counting["mode"] == "event_coverage":
+        write_coverage(artifacts_dir, counting)
 
     # bad-run log (runner.py stderr when no RESULT line) for provenance.
     bad_log_path = os.path.join(artifacts_dir, "bad_runs.log")
@@ -800,7 +1492,8 @@ def main():
                 print(f"[campaign] cell {ord_i}: N_eligible={n_eligible} "
                       f"(countOnly dry-run)")
         for rep in range(n_per_cell):
-            mpath, man = manifest_for_cell(campaign, cell, ord_i, rep, outdir)
+            mpath, man = manifest_for_cell(campaign, cell, ord_i, rep, outdir,
+                                           ooo=ooo_base)
             if use_uniform and n_eligible is not None:
                 seed = man["rng"]["selection_seed"]
                 man["sampling"] = {
@@ -831,23 +1524,9 @@ def main():
     # _PoolRep class below carries the run context; the item is the plain
     # (ord_i, cell, rep, mpath, outdir) tuple.
     # §3.2 FS pipeline (Phase 5.4): the campaign yaml's `fs:` block carries
-    # the runner's FS flags. Recognized keys -> runner CLI flags:
-    #   restore_checkpoint -> --restore-checkpoint (REQUIRED for FS campaigns
-    #   that don't want a fresh boot per rep; the one-time boot_ckpt dir)
-    #   kernel/disk/bootloader/root_partition/fs_cpu -> the same-named runner
-    #   flags (defaults live in runner.py).
-    fs_cfg = campaign.get("fs", {}) or {}
-    fs_extra = []
-    if fs_cfg.get("restore_checkpoint"):
-        fs_extra += ["--restore-checkpoint", str(fs_cfg["restore_checkpoint"])]
-    for key, flag in (("kernel", "--kernel"), ("disk", "--disk"),
-                      ("bootloader", "--bootloader"),
-                      ("root_partition", "--root-partition"),
-                      ("fs_cpu", "--fs-cpu")):
-        if fs_cfg.get(key) is not None:
-            fs_extra += [flag, str(fs_cfg[key])]
-    if fs_extra:
-        print(f"[campaign] FS pipeline flags: {fs_extra}")
+    # the runner's FS flags (restore_checkpoint/kernel/disk/bootloader/
+    # root_partition/fs_cpu — see fs_flags_from_campaign).
+    fs_extra = fs_flags_from_campaign(campaign)
 
     _do_rep = _PoolRep(binary, hang_timeout, args.keep_manifests, bad_log_path,
                        fs_extra=fs_extra)
@@ -1063,7 +1742,9 @@ def main():
     wall = time.time() - t0
     csv = write_heatmap(cell_results, campaign["campaign_id"], artifacts_dir)
     md = write_summary(cell_results, campaign, artifacts_dir, wall, runs_done, len(cells), 0,
-                       n_l2_replayed=n_l2_replayed)
+                       n_l2_replayed=n_l2_replayed,
+                       counting=(counting if counting["mode"] == "event_coverage"
+                                 else None))
     print(f"\n[campaign] DONE — {runs_done} reps in {wall:.0f}s")
     print(f"[campaign] heatmap: {csv}")
     print(f"[campaign] summary: {md}")
