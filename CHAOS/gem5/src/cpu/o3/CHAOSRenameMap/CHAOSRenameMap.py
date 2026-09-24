@@ -13,6 +13,21 @@ class CHAOSRenameMap(SimObject):
     #                  valid physReg (XOR a bit of the physReg index — realized
     #                  as a 1-bit remap to another legal physReg, the method1
     #                  "张冠李戴" semantics; §2.2 map_bitflip).
+    #   map_bitflip2 : W4.1 D12 (04-design-matrix R13) — flip TWO distinct
+    #                  random bits of the physReg index (faultMask with >=2
+    #                  set bits = directed control: its two lowest set bits).
+    #                  Out-of-range flip on non-power-of-2 numPhysRegs is an
+    #                  honest skip (logged, never clamped — hamming distance
+    #                  between old/new phys idx is exactly 2 by construction).
+    #   swap_to_active: W4.2a D13 (04-design-matrix R14, 换值·固定间隔) —
+    #                  re-point arch_reg's entry at the dest physReg of a
+    #                  RANDOM in-flight (ROB-resident) instruction (≠ the
+    #                  current mapping): a legal, allocated, in-use physReg,
+    #                  designed to bypass the dependency-check luck of the
+    #                  bit-flip models. ROB empty / no candidate = honest
+    #                  skip (logged). Log line carries new_phys=Z(active,
+    #                  rob_dist=D) + the full ROB-active dest pool as the
+    #                  "new_phys ∈ ROB active set" evidence.
     #   f5_substitute: point arch_reg's entry at ANOTHER CURRENTLY-ALLOCATED
     #                  (= not in the free list) physReg of the same class —
     #                  legal-domain substitution (§2.2 F5).
@@ -24,7 +39,8 @@ class CHAOSRenameMap(SimObject):
     # dest reg stays mapped, its wrong-path value leaks into the correct
     # path (the rollback-suppression, not a value flip).
     mode = Param.String("map_bitflip",
-        "map_bitflip | f5_substitute | f4_field_stuck | spec_leak")
+        "map_bitflip | map_bitflip2 | swap_to_active | f5_substitute | "
+        "f4_field_stuck | spec_leak")
 
     targetArchReg = Param.Int(-1,
         "which architectural reg's map entry to corrupt (-1 = random within "

@@ -115,11 +115,13 @@ p.add_argument("--lsq_struct_mode", default="byte_flip",
 p.add_argument("--lsq_lane_skew_k", type=int, default=1)
 # §2.2 CHAOSRenameMap (O3 rename-map fault injector). SELF-ATTACHES at
 # startup() to thread-0 frontRenameMap.chaosRenameMap. map_bitflip /
-# f5_substitute / f4_field_stuck modes (design doc §2.2).
+# map_bitflip2 (W4.1 D12: 2 distinct random index bits) / swap_to_active
+# (W4.2a D13: swap mapping to a random ROB in-flight dest physReg) /
+# f5_substitute / f4_field_stuck modes (design doc §2.2 + ooo 04 D12/D13).
 p.add_argument("--chaos_rename", action="store_true",
                help="attach CHAOSRenameMap (O3 rename-map injector, §2.2)")
 p.add_argument("--rename_mode", default="map_bitflip",
-               choices=["map_bitflip","f5_substitute","f4_field_stuck","spec_leak"])
+               choices=["map_bitflip","map_bitflip2","swap_to_active","f5_substitute","f4_field_stuck","spec_leak"])
 p.add_argument("--rename_target_arch", type=int, default=-1,
                help="arch reg index whose map entry to corrupt (-1=random 0..30)")
 p.add_argument("--rename_first_clock", type=lambda x: int(x,0), default=100000)

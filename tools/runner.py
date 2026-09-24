@@ -729,12 +729,24 @@ def main():
         # intermittent_burst -> spec_leak (§2.3 Phase 4.1, method1 speculative
         # leak): one squash-rollback suppression — the wrong-path µop's dest
         # stays mapped, its value leaks into the correct path.
+        # local_mbu -> map_bitflip2 (W4.1 D12, ooo 04-design-matrix R13):
+        # MBU = multi-bit upset — the RAT map-field 2-bit flip. The 1-bit
+        # model stays reachable via transient_bit_flip.
         rm = {"transient_bit_flip": "map_bitflip",
-              "local_mbu": "map_bitflip",
+              "local_mbu": "map_bitflip2",
               "intermittent_burst": "spec_leak",
               "legal_domain_sub": "f5_substitute",
               "stuck_at_zero": "f4_field_stuck",
               "stuck_at_one": "f4_field_stuck"}.get(inj["model"], "map_bitflip")
+        # W4.2a D13 swap_to_active (ooo 04-design-matrix R14, 换值·固定间隔):
+        # the structured "swap the mapping to a random ROB in-flight dest
+        # physReg" model. Selected by the v2 target.sub_field discriminator
+        # on legal_domain_sub ("substitute with a legal IN-USE value");
+        # plain legal_domain_sub keeps the §2.2 f5_substitute random-
+        # allocated semantics (nothing orphaned, additive v2 key).
+        if (inj["model"] == "legal_domain_sub"
+                and str(tgt.get("sub_field", "")) == "swap_to_active"):
+            rm = "swap_to_active"
         cmd += ["--rename_mode", rm, "--rename_first_clock", str(t["value"]),
                 "--rename_max_faults", str(m["limits"]["max_faults"]),
                 "--rename_rng_seed", str(m["rng"]["selection_seed"]),

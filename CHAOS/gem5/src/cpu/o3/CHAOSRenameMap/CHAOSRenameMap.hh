@@ -3,6 +3,7 @@
 
 #include <random>
 #include <string>
+#include <vector>
 
 #include "params/CHAOSRenameMap.hh"
 #include "sim/sim_object.hh"
@@ -36,11 +37,15 @@ class CHAOSRenameMap : public SimObject
     // is wired). Sets thread-0 frontRenameMap().chaosRenameMap = this.
     void startup() override;
 
-    // Called from UnifiedRenameMap::setEntry AFTER the map write (the entry
-    // now points at phys_reg). The injector may RE-MAP the entry (map_bitflip:
-    // point at a different valid physReg = 1-bit remap; f5_substitute: point at
+    // Called from UnifiedRenameMap::setEntry BEFORE the real map write (the
+    // injector mutates the by-ref phys_reg so setEntry stores the corrupted
+    // mapping; only thread-0's FRONT rename map is attached — the hook fires
+    // on the squash-rollback restore path Rename::doSquash, since
+    // SimpleRenameMap::rename() writes directly). map_bitflip: point at a
+    // different valid physReg = 1-bit remap; map_bitflip2 (W4.1 D12): flip
+    // TWO distinct random bits of the physReg index; f5_substitute: point at
     // a currently-allocated physReg of the same class; f4_field_stuck: pin to
-    // a wrong physReg every time this arch_reg is setEntry'd). `tid` is the
+    // a wrong physReg every time this arch_reg is setEntry'd. `tid` is the
     // thread (0 for single-thread SE). `arch_reg` is the architectural reg
     // whose entry was just written; `phys_reg` is the value written (by ref —
     // the injector may mutate it so the CALLER's setEntry sees the corrupted
@@ -61,7 +66,8 @@ class CHAOSRenameMap : public SimObject
                                PhysRegIdPtr new_phys, PhysRegIdPtr prev_phys);
 
   private:
-    enum class Mode { MapBitflip, F5Substitute, F4FieldStuck, SpecLeak };
+    enum class Mode { MapBitflip, MapBitflip2, SwapToActive, F5Substitute,
+                      F4FieldStuck, SpecLeak };
     static Mode stringToMode(const std::string &s);
     const char *modeToString(Mode m);
 
@@ -96,6 +102,15 @@ class CHAOSRenameMap : public SimObject
     // class as `cur`, return its index or -1 if no valid candidate after K tries.
     int pickAllocatedPhysReg(int class_value, int cur_idx, int num_phys,
                              o3::CPU *o3cpu);
+
+    // W4.2a D13 swap_to_active: one candidate = the int-class dest physReg of
+    // an in-flight (ROB-resident) instruction, != the current mapping.
+    struct RobCand { int phys_idx; int dist; uint64_t sn; };
+    // Walk the ROB from head (getEntryAtDistance, the CHAOSROB.cc pattern)
+    // and collect all such candidates. Returns the candidate count (0 = ROB
+    // empty or no int dest != cur_idx -> honest skip, caller logs it).
+    int collectRobActiveDests(int cur_idx, o3::CPU *o3cpu, ThreadID tid,
+                              std::vector<RobCand> &cands);
 };
 
 } // namespace gem5

@@ -6,6 +6,8 @@
 #include "cpu/o3/cpu.hh"          // o3::CPU (full def)
 #include "cpu/o3/regfile.hh"       // PhysRegFile, intPhysRegId etc.
 #include "cpu/o3/free_list.hh"     // UnifiedFreeList::isFree
+#include "cpu/o3/rob.hh"           // o3::ROB::getEntryAtDistance (D13 walk)
+#include "cpu/o3/dyn_inst.hh"      // o3::DynInst: numDestRegs/renamedDestIdx/seqNum
 #include "cpu/reg_class.hh"       // RegId, IntRegClass
 #include "arch/arm/regs/int.hh"   // ARM IntRegClass + numRegs
 #include "debug/CHAOSRenameMap.hh"
@@ -46,6 +48,8 @@ namespace gem5
     CHAOSRenameMap::Mode
     CHAOSRenameMap::stringToMode(const std::string &s) {
         if (s == "map_bitflip") return Mode::MapBitflip;
+        if (s == "map_bitflip2") return Mode::MapBitflip2;
+        if (s == "swap_to_active") return Mode::SwapToActive;
         if (s == "f5_substitute") return Mode::F5Substitute;
         if (s == "f4_field_stuck") return Mode::F4FieldStuck;
         if (s == "spec_leak") return Mode::SpecLeak;
@@ -56,6 +60,8 @@ namespace gem5
     CHAOSRenameMap::modeToString(CHAOSRenameMap::Mode m) {
         switch (m) {
             case Mode::MapBitflip: return "map_bitflip";
+            case Mode::MapBitflip2: return "map_bitflip2";
+            case Mode::SwapToActive: return "swap_to_active";
             case Mode::F5Substitute: return "f5_substitute";
             case Mode::F4FieldStuck: return "f4_field_stuck";
             case Mode::SpecLeak: return "spec_leak";
@@ -105,6 +111,38 @@ namespace gem5
         return -1;  // no valid candidate
     }
 
+    int
+    CHAOSRenameMap::collectRobActiveDests(int cur_idx, o3::CPU *o3cpu,
+                                          ThreadID tid,
+                                          std::vector<RobCand> &cands) {
+        // W4.2a D13 (04-design-matrix R14): the swap pool = dest physRegs of
+        // instructions currently in flight (ROB-resident). Each such physReg
+        // is by construction allocated and in use (it was grabbed from the
+        // freelist at rename and is only freed after its owner commits AND
+        // the next definer of that arch reg retires) — a mapping swap onto
+        // it is LEGAL-domain and by design bypasses the "random flip landed
+        // on a free/dead reg" luck of D12. Walk head->tail via
+        // getEntryAtDistance (the CHAOSROB.cc pattern; ROB=128 so the
+        // O(n^2) re-walk is bounded and only runs on injection attempts
+        // that passed every gate). Read-only — safe from Rename::doSquash
+        // (rename stage; the ROB list is not mutated re-entrantly).
+        cands.clear();
+        o3::ROB &rob = o3cpu->o3ROB();
+        for (int d = 0; ; d++) {
+            o3::DynInstPtr inst = rob.getEntryAtDistance(tid, d);
+            if (!inst) break;  // past tail / empty
+            for (int i = 0; i < (int)inst->numDestRegs(); i++) {
+                PhysRegIdPtr dest = inst->renamedDestIdx(i);
+                if (!dest) continue;
+                if (dest->classValue() != IntRegClass) continue;
+                int pidx = dest->index();
+                if (pidx == cur_idx) continue;  // must differ from current
+                cands.push_back({pidx, d, inst->seqNum});
+            }
+        }
+        return (int)cands.size();
+    }
+
     bool
     CHAOSRenameMap::maybeCorrupt(ThreadID tid, const RegId &arch_reg,
                                   PhysRegIdPtr &phys_reg)
@@ -145,6 +183,14 @@ namespace gem5
         if (num_phys <= 1) return false;
 
         int new_idx = -1;
+        // W4.1 D12 map_bitflip2: the two flipped index bits (for the log
+        // line's bits=(b1,b2) — the hamming-distance-2 evidence).
+        int log_b1 = -1, log_b2 = -1;
+        // W4.2a D13 swap_to_active: chosen candidate + the full ROB-active
+        // pool (for the log line's "(active, rob_dist=D)" evidence).
+        int log_rob_dist = -1;
+        uint64_t log_chosen_sn = 0;
+        std::vector<RobCand> rob_cands;
 
         if (fi_mode == Mode::MapBitflip) {
             // 1-bit remap: XOR a bit of the physReg index, realized as pointing
@@ -161,6 +207,71 @@ namespace gem5
                 new_idx = (int)(rng() % (unsigned)num_phys);
             }
             if (new_idx == cur_idx) return false;
+        } else if (fi_mode == Mode::MapBitflip2) {
+            // W4.1 D12 (04-design-matrix R13): flip TWO distinct random bits
+            // of the physReg index at the same site as map_bitflip. On the
+            // C3 north-star config (128 int physRegs = 2^7) the 7-bit index
+            // field is fully covered: any 2-bit flip stays in [0,128) and
+            // always changes the value (b1 != b2 => XOR != 0), so the
+            // hamming distance between old and new phys idx is EXACTLY 2.
+            // On a non-power-of-2 num_phys the flip can land out of range —
+            // honest skip with log (NO clamp: a clamped remap would not be
+            // the 2-bit-flip fault model).
+            int nbits = 0; int tmp = num_phys; while (tmp > 1) { nbits++; tmp >>= 1; }
+            if (nbits < 2) return false;  // index field too small for 2 bits
+            int b1 = 0, b2 = 0;
+            if (__builtin_popcountll(fault_mask) >= 2) {
+                // directed control: the two lowest set bits of fault_mask
+                b1 = __builtin_ctzll(fault_mask);
+                uint64_t rest = fault_mask & ~(1ULL << b1);
+                b2 = __builtin_ctzll(rest);
+            } else {
+                // uniform random DISTINCT pair: b1 uniform, b2 uniform over
+                // the remaining nbits-1 slots (order-statistics trick)
+                b1 = (int)(rng() % (unsigned)nbits);
+                b2 = (int)(rng() % (unsigned)(nbits - 1));
+                if (b2 >= b1) b2++;
+            }
+            if (b1 == b2 || b1 >= nbits || b2 >= nbits) return false;
+            int flipped = cur_idx ^ (1 << b1) ^ (1 << b2);
+            if (flipped < 0 || flipped >= num_phys) {
+                if (write_log) {
+                    *(log_stream->stream()) << "Tick: " << curTick()
+                        << ", Site: rename_setEntry, mode=map_bitflip2, "
+                        << "tid=" << (int)tid
+                        << ", arch=X" << arch_idx << ", old_phys=" << cur_idx
+                        << ", bits=(" << b1 << "," << b2 << ")"
+                        << " — flipped idx " << flipped << " out of [0,"
+                        << num_phys << ") (skipped, no clamp)"
+                        << std::endl;
+                }
+                return false;
+            }
+            new_idx = flipped;
+            log_b1 = b1; log_b2 = b2;
+        } else if (fi_mode == Mode::SwapToActive) {
+            // W4.2a D13 (04-design-matrix R14, 换值·固定间隔): force the
+            // arch reg's mapping to the dest physReg of ANOTHER in-flight
+            // instruction — "从 ROB 里随机挑一个活跃物理寄存器号写入".
+            // The new mapping is legal (allocated + in use), so it is
+            // designed to bypass the dependency-check luck D12 relies on.
+            // ROB empty / no candidate != cur -> honest skip, logged.
+            int n = collectRobActiveDests(cur_idx, o3cpu, tid, rob_cands);
+            if (n == 0) {
+                if (write_log) {
+                    *(log_stream->stream()) << "Tick: " << curTick()
+                        << ", Site: rename_setEntry, mode=swap_to_active, "
+                        << "tid=" << (int)tid
+                        << ", arch=X" << arch_idx << ", old_phys=" << cur_idx
+                        << " — ROB has no active int dest candidate != cur "
+                        << "(skipped, no injection)" << std::endl;
+                }
+                return false;
+            }
+            int pick = (int)(rng() % (unsigned)n);
+            new_idx = rob_cands[pick].phys_idx;
+            log_rob_dist = rob_cands[pick].dist;
+            log_chosen_sn = rob_cands[pick].sn;
         } else if (fi_mode == Mode::F5Substitute) {
             // §2.2 F5: point at another CURRENTLY-ALLOCATED physReg (not free).
             // The §2.2 guard: substitute target MUST be a legal physReg number
@@ -203,15 +314,52 @@ namespace gem5
         faults_injected_count++;
 
         if (write_log) {
-            *(log_stream->stream()) << "Tick: " << curTick()
-                << ", Site: rename_setEntry, mode=" << modeToString(fi_mode)
-                << ", tid=" << (int)tid
-                << ", arch_reg=int[" << arch_idx << "]"
-                << ", old_phys_idx=" << cur_idx
-                << ", new_phys_idx=" << new_idx
-                << ", FaultType: " << modeToString(fi_mode)
-                << ", faults_injected: " << faults_injected_count
-                << std::endl;
+            if (fi_mode == Mode::MapBitflip2) {
+                // W4.1 D12 plan-mandated evidence line: old/new phys idx +
+                // the two flipped bits (verifiable: popcount(old^new)==2 and
+                // old ^ (1<<b1) ^ (1<<b2) == new).
+                *(log_stream->stream()) << "Tick: " << curTick()
+                    << ", Site: rename_setEntry, mode=map_bitflip2"
+                    << ", tid=" << (int)tid
+                    << ", arch=X" << arch_idx
+                    << ", old_phys=" << cur_idx
+                    << ", new_phys=" << new_idx
+                    << ", bits=(" << log_b1 << "," << log_b2 << ")"
+                    << ", faults_injected: " << faults_injected_count
+                    << std::endl;
+            } else if (fi_mode == Mode::SwapToActive) {
+                // W4.2a D13 plan-mandated evidence line: the swap +
+                // "(active, rob_dist=D)" + the FULL ROB-active dest pool so
+                // "new_phys ∈ ROB active set" is verifiable from the log
+                // alone (pool printed as phys@dist in ROB head->tail order).
+                *(log_stream->stream()) << "Tick: " << curTick()
+                    << ", Site: rename_setEntry, mode=swap_to_active"
+                    << ", tid=" << (int)tid
+                    << ", arch=X" << arch_idx
+                    << ", old_phys=" << cur_idx
+                    << ", new_phys=" << new_idx << "(active, rob_dist="
+                    << log_rob_dist << ")"
+                    << ", chosen_sn=" << log_chosen_sn
+                    << ", rob_active_dests=[";
+                for (size_t i = 0; i < rob_cands.size(); i++) {
+                    if (i) *(log_stream->stream()) << " ";
+                    *(log_stream->stream()) << rob_cands[i].phys_idx
+                        << "@" << rob_cands[i].dist;
+                }
+                *(log_stream->stream()) << "]"
+                    << ", faults_injected: " << faults_injected_count
+                    << std::endl;
+            } else {
+                *(log_stream->stream()) << "Tick: " << curTick()
+                    << ", Site: rename_setEntry, mode=" << modeToString(fi_mode)
+                    << ", tid=" << (int)tid
+                    << ", arch_reg=int[" << arch_idx << "]"
+                    << ", old_phys_idx=" << cur_idx
+                    << ", new_phys_idx=" << new_idx
+                    << ", FaultType: " << modeToString(fi_mode)
+                    << ", faults_injected: " << faults_injected_count
+                    << std::endl;
+            }
         }
         return true;
     }
