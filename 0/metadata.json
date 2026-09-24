@@ -1,0 +1,231 @@
+{
+  "cli_version": "0.10.2",
+  "checkpoint_id": "01M3A0JWX66N12ZJZRDKCBXVVJ",
+  "session_id": "986103be-6dae-4d5b-8b58-a5f2abf15cf7",
+  "strategy": "manual-commit",
+  "created_at": "2026-09-24T15:29:54.602215363Z",
+  "branch": "fi-ding",
+  "checkpoints_count": 1,
+  "save_step_count": 2,
+  "files_touched": [],
+  "agent": "Claude Code",
+  "model": "GLM-5.3[1m]",
+  "turn_id": "0deaa00e3606",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 22702106,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 206629696,
+    "output_tokens": 425389,
+    "api_call_count": 395,
+    "subagent_tokens": {
+      "input_tokens": 120359,
+      "cache_creation_tokens": 0,
+      "cache_read_tokens": 4789440,
+      "output_tokens": 10829,
+      "api_call_count": 33
+    }
+  },
+  "skill_events_version": 1,
+  "skill_events": [
+    {
+      "id": "prompt-skill-claude-code-planning-with-files:planning-with-files-2026-09-22T14:51:20.084795095Z",
+      "event_type": "prompt_invocation",
+      "skill": {
+        "name": "planning-with-files:planning-with-files"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "prompt_slash_command",
+        "confidence": "explicit"
+      },
+      "turn_id": "e303d9da3878",
+      "timestamp": "2026-09-22T14:51:20.084795095Z",
+      "native": {
+        "command": "/planning-with-files:planning-with-files"
+      },
+      "collapse": {
+        "target": "user_message",
+        "label": "/planning-with-files:planning-with-files",
+        "default_collapsed": true
+      }
+    },
+    {
+      "id": "prompt-skill-claude-code-planning-with-files:plan-goal-2026-09-22T15:19:12.899328958Z",
+      "event_type": "prompt_invocation",
+      "skill": {
+        "name": "planning-with-files:plan-goal"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "prompt_slash_command",
+        "confidence": "explicit"
+      },
+      "turn_id": "8b43bf4a8426",
+      "timestamp": "2026-09-22T15:19:12.899328958Z",
+      "native": {
+        "command": "/planning-with-files:plan-goal"
+      },
+      "collapse": {
+        "target": "user_message",
+        "label": "/planning-with-files:plan-goal",
+        "default_collapsed": true
+      }
+    },
+    {
+      "id": "prompt-skill-claude-code-planning-with-files:plan-goal-2026-09-22T15:32:21.578704361Z",
+      "event_type": "prompt_invocation",
+      "skill": {
+        "name": "planning-with-files:plan-goal"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "prompt_slash_command",
+        "confidence": "explicit"
+      },
+      "turn_id": "c932ddb3086f",
+      "timestamp": "2026-09-22T15:32:21.578704361Z",
+      "native": {
+        "command": "/planning-with-files:plan-goal"
+      },
+      "collapse": {
+        "target": "user_message",
+        "label": "/planning-with-files:plan-goal",
+        "default_collapsed": true
+      }
+    },
+    {
+      "id": "prompt-skill-claude-code-goal-2026-09-24T10:48:59.361040377Z",
+      "event_type": "prompt_invocation",
+      "skill": {
+        "name": "goal"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "prompt_slash_command",
+        "confidence": "explicit"
+      },
+      "turn_id": "4dba159c1be4",
+      "timestamp": "2026-09-24T10:48:59.361040377Z",
+      "native": {
+        "command": "/goal"
+      },
+      "collapse": {
+        "target": "user_message",
+        "label": "/goal",
+        "default_collapsed": true
+      }
+    },
+    {
+      "id": "prompt-skill-claude-code-goal-2026-09-24T11:12:26.509517802Z",
+      "event_type": "prompt_invocation",
+      "skill": {
+        "name": "goal"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "prompt_slash_command",
+        "confidence": "explicit"
+      },
+      "turn_id": "19098aa3e063",
+      "timestamp": "2026-09-24T11:12:26.509517802Z",
+      "native": {
+        "command": "/goal"
+      },
+      "collapse": {
+        "target": "user_message",
+        "label": "/goal",
+        "default_collapsed": true
+      }
+    },
+    {
+      "id": "claude-skill-call_2fd9e2cd093047e7be818957",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "superpowers:writing-plans"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "0deaa00e3606",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 423,
+        "end": 424,
+        "entry_ids": [
+          "b6a95cb6-435a-4402-90f8-f3151608a3c1"
+        ],
+        "tool_use_id": "call_2fd9e2cd093047e7be818957"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "call_2fd9e2cd093047e7be818957"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: superpowers:writing-plans",
+        "default_collapsed": true
+      }
+    }
+  ],
+  "session_metrics": {
+    "turn_count": 49
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    },
+    {
+      "checkpoint_number": 3,
+      "user_lines_added": 1807,
+      "user_lines_removed": 20,
+      "agent_lines_added": 615,
+      "agent_lines_removed": 5,
+      "user_added_per_file": {
+        ".plan.md": 61,
+        ".planning/.active_plan": 1,
+        ".planning/2026-09-22-ooo-fault-injection-implementation-plan/progress.md": 1,
+        "CHAOS/gem5/src/cpu/o3/CHAOSDecode/CHAOSDecode.cc": 225,
+        "CHAOS/gem5/src/cpu/o3/CHAOSDecode/CHAOSDecode.hh": 95,
+        "CHAOS/gem5/src/cpu/o3/CHAOSDecode/CHAOSDecode.py": 36,
+        "CHAOS/gem5/src/cpu/o3/CHAOSIQ/CHAOSIQ.cc": 552,
+        "CHAOS/gem5/src/cpu/o3/CHAOSIQ/CHAOSIQ.hh": 101,
+        "CHAOS/gem5/src/cpu/o3/CHAOSIQ/CHAOSIQ.py": 9,
+        "CHAOS/gem5/src/cpu/o3/CHAOSROB/CHAOSROB.cc": 393,
+        "CHAOS/gem5/src/cpu/o3/CHAOSROB/CHAOSROB.hh": 42,
+        "CHAOS/gem5/src/cpu/o3/inst_queue.cc": 61,
+        "artifacts/ooo_w32_toy_coverage/coverage.json": 11,
+        "artifacts/ooo_w32_toy_coverage_tbl/coverage.json": 11,
+        "artifacts/w23-toy-bm-rat.eofbug/heatmap.csv": 2,
+        "artifacts/w23-toy-bm-rat.eofbug/summary.md": 21,
+        "artifacts/w23-toy-bm-rat/heatmap.csv": 2,
+        "artifacts/w23-toy-bm-rat/summary.md": 21,
+        "artifacts/w23-toy-smoke-prf-mb/heatmap.csv": 2,
+        "artifacts/w23-toy-smoke-prf-mb/summary.md": 21,
+        "artifacts/w23-toy-smoke-prf/heatmap.csv": 2,
+        "artifacts/w23-toy-smoke-prf/summary.md": 21,
+        "configs/se/ooo_proxy.py": 39,
+        "docs/superpowers/plans/2026-09-24-ooo-w7-fpsimd-injectors.md": 1,
+        "tools/runner.py": 76
+      },
+      "user_removed_per_file": {
+        "CHAOS/gem5/src/cpu/o3/CHAOSDecode/CHAOSDecode.cc": 3,
+        "CHAOS/gem5/src/cpu/o3/CHAOSDecode/CHAOSDecode.hh": 1,
+        "CHAOS/gem5/src/cpu/o3/CHAOSDecode/CHAOSDecode.py": 1,
+        "CHAOS/gem5/src/cpu/o3/CHAOSIQ/CHAOSIQ.hh": 1,
+        "CHAOS/gem5/src/cpu/o3/CHAOSIQ/CHAOSIQ.py": 2,
+        "CHAOS/gem5/src/cpu/o3/CHAOSROB/CHAOSROB.hh": 1,
+        "CHAOS/gem5/src/cpu/o3/inst_queue.cc": 5,
+        "configs/se/ooo_proxy.py": 4,
+        "docs/superpowers/plans/2026-09-24-ooo-w7-fpsimd-injectors.md": 1,
+        "tools/runner.py": 1
+      }
+    }
+  ]
+}
