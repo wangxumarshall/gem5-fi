@@ -35,10 +35,24 @@
 // in Commit::commitHead (commit.cc, right after the commit-renameMap setEntry
 // loop, before rob->retireHead). startup() dynamic_casts p.cpu to o3::CPU and
 // calls cpu->o3Commit().setChaosCommitTrace(this) (CHAOSRAS setter pattern,
-// commit.hh). The hook point reads the POST-INJECTION RAT: UnifiedRenameMap::
-// setEntry contains the CHAOSRenameMap post-write hook, so by the time the
-// loop finishes, the committed mapping is exactly what the injector left —
-// which is what W2 observes.
+// commit.hh). [W2.4 correction 2026-09-24: the commit-side setEntry loop does
+// NOT contain the injection hook — CHAOSRenameMap only hooks the FRONT rename
+// map, and the front map's SimpleRenameMap::rename() writes directly without
+// setEntry. The trace still captures injected mappings, but via the INST's own
+// renamedDestIdx (assigned at rename time from the front map), not via any
+// commit-map post-injection state.]
+//
+// Crash durability (W2.1 follow-up 2026-09-24, CHAOSMicroSnap pattern): the
+// trace file is a raw zlib gzFile at simout.resolve(trace_file) — NOT
+// simout.create's gz streambuf (that path only gzwrite()s; zlib holds data
+// internally until gzclose, so an aborted run's trace came out 0 bytes /
+// truncated — measured in the W2.3 C3-arm Crash rep). Rows are gzwrite()n
+// through a snprintf staging buffer and gzflush(Z_SYNC_FLUSH)ed every
+// FLUSH_EVERY rows, so a Crash keeps everything up to <FLUSH_EVERY rows of
+// the abort point as a decodable truncated stream (commit_diff salvages the
+// prefix). The gzip trailer is written by gzclose in an exit callback.
+
+#include <zlib.h>
 
 #include <cstdint>
 #include <string>
@@ -76,9 +90,16 @@ class CHAOSCommitTrace : public SimObject
 
     BaseCPU *cpu;
     o3::CPU *o3cpu = nullptr;   // resolved at startup(); nullptr = disabled
-    std::string trace_file;     // simout.create target (.gz = auto gzip)
+    std::string trace_file;     // gzopen target (crash-durability note above)
     bool write_log;             // gate the per-instruction line writing
-    OutputStream *trace_stream = nullptr;
+    gzFile gz_file = nullptr;   // raw zlib stream; see crash-durability note
+
+    // Periodic Z_SYNC_FLUSH bookkeeping: rows written since the last flush.
+    // FLUSH_EVERY bounds Crash-trace loss to <FLUSH_EVERY rows (default
+    // 4096 ≈ 0.05% of a smoke-sized trace; per-row flush on 8.6M-row runs
+    // costs measurable wall time, per the MicroSnap per-snapshot precedent).
+    static constexpr uint64_t FLUSH_EVERY = 4096;
+    uint64_t rows_since_flush = 0;
 
     // Self-held global commit counter (W2 spike fact 4): bumped once per
     // committed instruction while attached, independent of write_log, so the

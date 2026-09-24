@@ -214,8 +214,18 @@ def parse_line(path, lineno, line):
     return Rec(seq, tid, tick, pc, op, ndest, dests, line, lineno)
 
 
-def iter_records(path):
-    """Yield Rec objects from `path` in file order (seq strictly increasing)."""
+def iter_records(path, trunc=None):
+    """Yield Rec objects from `path` in file order (seq strictly increasing).
+
+    `trunc` (optional dict) enables the W2.1-followup truncated-stream
+    salvage path: on EOFError (a gzip stream whose trailer never arrived —
+    the signature of an ABORTED gem5 run whose CHAOSCommitTrace had
+    gzflush(Z_SYNC_FLUSH)ed its rows) the generator STOPS gracefully and
+    sets trunc['truncated']=True instead of raising; the caller then treats
+    the parsed prefix as the comparable region. OSError (unreadable file)
+    still raises."""
+    if trunc is not None:
+        trunc['truncated'] = False
     fh = open_text(path)
     lineno = 0
     prev_seq = None
@@ -238,7 +248,17 @@ def iter_records(path):
     except UnicodeDecodeError as e:
         raise TraceError("%s: line %d 附近存在非 UTF-8 字节: %s"
                          % (path, lineno + 1, e))
-    except (OSError, EOFError) as e:  # includes BadGzipFile / truncated gzip
+    except EOFError:
+        # Truncated gzip (aborted run; rows were Z_SYNC_FLUSH-ed so the
+        # prefix is complete lines). Salvage the prefix when the caller
+        # asked for it; otherwise keep the legacy hard error.
+        if trunc is not None and lineno > 0:
+            trunc['truncated'] = True
+            return
+        raise TraceError("%s: line %d 附近读取失败: %s"
+                         % (path, lineno + 1, "Compressed file ended before "
+                            "the end-of-stream marker was reached"))
+    except OSError as e:  # includes BadGzipFile
         raise TraceError("%s: line %d 附近读取失败: %s" % (path, lineno + 1, e))
     finally:
         fh.close()
@@ -276,9 +296,17 @@ def _pair_divergence(r, u):
 
 
 def compare(ref_path, run_path, tick_tol):
-    """Merge-join both traces on seq (streaming, O(1) memory) and classify."""
-    it_ref = iter_records(ref_path)
-    it_run = iter_records(run_path)
+    """Merge-join both traces on seq (streaming, O(1) memory) and classify.
+
+    Truncated-stream salvage (W2.1 followup): a side whose gzip ends without
+    a trailer (ABORTED gem5 run; CHAOSCommitTrace gzflush-ed its rows) is
+    parsed to its prefix and flagged truncated. The merge STOPS when a
+    truncated side runs out — the other side's remaining tail is a
+    measurement artifact, not a fault effect, and is NOT counted as
+    instruction_flow_change."""
+    ref_trunc, run_trunc = {}, {}
+    it_ref = iter_records(ref_path, ref_trunc)
+    it_run = iter_records(run_path, run_trunc)
     r = next(it_ref, None)
     u = next(it_run, None)
 
@@ -318,6 +346,10 @@ def compare(ref_path, run_path, tick_tol):
 
     while (r is not None) or (u is not None):
         if u is None or (r is not None and r.seq < u.seq):
+            if u is None and run_trunc['truncated']:
+                # run trace ended early because the RUN ABORTED (truncated
+                # gzip): ref's tail is uncomparable, not a fault effect.
+                break
             # seq present only in ref
             add_point(r.seq, "instruction_flow_change", "presence",
                       "seq %d 仅存在于 ref（run 侧缺失）" % r.seq, r, None)
@@ -381,11 +413,18 @@ def compare(ref_path, run_path, tick_tol):
         }
 
     verdict = "diverged" if first_point is not None else "no_divergence"
+    if (verdict == "no_divergence"
+            and (ref_trunc['truncated'] or run_trunc['truncated'])):
+        # Prefix clean but one side ended early (aborted run): a clean prefix
+        # is NOT evidence of no divergence — say so instead of over-claiming.
+        verdict = "truncated_no_divergence_in_prefix"
     return {
         "tool": "commit_diff",
         "trace_format": TRACE_FORMAT,
         "ref": ref_path,
         "ref_instructions": n_ref,
+        "ref_truncated": ref_trunc['truncated'],
+        "run_truncated": run_trunc['truncated'],
         "run": run_path,
         "run_instructions": n_run,
         "aligned_pairs": aligned,
@@ -430,6 +469,15 @@ def format_report(res):
         lines.append("[结论] 主分类: %s (no_divergence) —— 全程指令字段一致"
                      "且 tick 漂移 ≤ 容差" % NO_DIVERGENCE_ZH)
         lines.append("[潜伏期] n/a（无分歧）")
+    elif res["verdict"] == "truncated_no_divergence_in_prefix":
+        lines.append("[结论] 主分类: 无分歧（可比前缀内）——但 run 侧 trace "
+                     "被 abort 截断（%s），干净前缀不构成「无分歧」的证据"
+                     % ("run" if res["run_truncated"] else "ref"))
+        lines.append("[潜伏期] n/a（前缀内无分歧）")
+        lines.append("[截断说明] %s 侧 gzip 无 trailer（abort 前已周期 "
+                     "gzflush，故前缀完整可解码）；另一侧尾部未参与比对，"
+                     "不计入指令流改变" % ("run" if res["run_truncated"]
+                                               else "ref"))
     else:
         fd = res["first_divergence"]
         lines.append("[结论] 主分类: %s (%s)" % (fd["class_zh"], fd["class"]))

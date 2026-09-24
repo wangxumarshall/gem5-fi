@@ -1285,10 +1285,12 @@ Commit::commitHead(const DynInstPtr &head_inst, unsigned inst_num)
 
     /* gem5-fi W2.1 */ if (chaosCommitTrace) {
         // Read-only L2 commit trace, one line per committed instruction.
-        // Placed AFTER the setEntry loop (the map read here is the
-        // POST-INJECTION RAT — setEntry contains the CHAOSRenameMap
-        // post-write hook) and BEFORE rob->retireHead. nullptr = no trace
-        // (zero regression).
+        // Placed AFTER the setEntry loop and BEFORE rob->retireHead.
+        // [W2.4 correction 2026-09-24: this commit-side setEntry loop does
+        // NOT contain the injection hook — CHAOSRenameMap only hooks the
+        // FRONT rename map. The trace captures injected mappings via the
+        // inst's own renamedDestIdx, assigned at rename time.] nullptr = no
+        // trace (zero regression).
         chaosCommitTrace->traceCommit(tid, head_inst.get());
     }
 
