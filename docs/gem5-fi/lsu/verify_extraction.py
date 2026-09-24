@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """LSU 北极星提取的独立校验器 — 不 import extract.py，自己解析 xlsx 再比一遍。
 
-v1（本任务）：CSV 逐格回比 + 集合断言。
-后续任务递增：手写文档片段检查（00/01/02 → 04/05/06/08 → README）。
+v1（Task 3）：CSV 逐格回比 + 集合断言。
+v4a（Task 4）：追加 00/01/02 手写文档片段检查。
+后续任务递增：手写文档片段检查（04/05/06/08 → README）。
 用法：python3 verify_extraction.py   → ALL PASSED
 """
 import csv
@@ -121,12 +122,41 @@ def main():
     if not APPENDED_IDS <= dmids:
         fail('V3: 完善版 10 ID 不齐')
 
+    # V4a: 00/01/02 片段检查（空白归一化子串）
+    FRAGMENTS_00 = [
+        ('00-范围', '范围：AGU、L1d-TLB、Load Queue、Store Queue、L1d-Cache、原子与同步、数据预取器'),
+        ('00-纠正', 'B0 是可复现实验模型，不是鲲鹏 920 复刻'),
+        ('00-边界1', 'attempted、eligible、activated分开记录'),
+        ('00-边界3', '每个实验单元先做30个activated样本试跑'),
+        ('00-边界5', '预期结果是可证伪假设，不是实测结论'),
+        ('00-完善版', '原58条模型扩展'),
+    ]
+    FRAGMENTS_01 = [
+        ('01-AGU空白', '本地论文中无直接AGU故障注入'),
+        ('01-口径纪律', '严禁混算'),
+        ('01-LQ', 'LQ SDC概率为0并归因于commit前依赖检查'),
+        ('01-原子', '必须用多核FS和litmus禁出现结果'),
+        ('01-预取', 'DelayAVF与SDC率不同'),
+    ]
+    FRAGMENTS_02 = [
+        ('02-LQ', 'LQEntries'),
+        ('02-DTLB', '32项全相联 LRU'),
+        ('02-ports', '200 / 200'),
+        ('02-预取', 'L2 StridePrefetcher degree=8'),
+        ('02-时钟', '2.6GHz仅用于换算'),
+        ('02-ECC', '关闭'),
+    ]
+    for path, frags in [('00-overview.md', FRAGMENTS_00), ('01-units-and-research.md', FRAGMENTS_01),
+                        ('02-parameter-baseline.md', FRAGMENTS_02)]:
+        for label, text in check_fragments(path, frags):
+            fail(f'V4: {path} 缺片段 [{label}] {text[:40]}')
+
     if FAILS:
         for m in FAILS[:20]:
             print('FAIL:', m)
         print(f'VERIFICATION FAILED ({len(FAILS)} issues)')
         sys.exit(1)
-    print(f'ALL PASSED (design 68 cells x13, expanded 337 cells x28, sets ok)')
+    print(f'ALL PASSED (design 68 cells x13, expanded 337 cells x28, sets ok + fragments 00/01/02)')
 
 
 if __name__ == '__main__':
