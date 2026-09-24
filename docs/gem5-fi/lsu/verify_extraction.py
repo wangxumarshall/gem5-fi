@@ -4,7 +4,7 @@
 v1（Task 3）：CSV 逐格回比 + 集合断言。
 v4a（Task 4）：追加 00/01/02 手写文档片段检查。
 v4b（Task 5）：追加 04/05/06/08 手写文档片段检查。
-后续任务递增：手写文档片段检查（README）。
+v4c（Task 6）：追加 README 总纲片段检查。
 用法：python3 verify_extraction.py   → ALL PASSED
 """
 import csv
@@ -187,12 +187,26 @@ def main():
         for label, text in check_fragments(path, frags):
             fail(f'V4: {path} 缺片段 [{label}] {text[:40]}')
 
+    # V4c: README 总纲片段检查（空白归一化子串）
+    FRAGMENTS_README = [
+        ('RM-sha', '2703f81240db0cc71c5fe109a6ff693617907a19c66885019ffe0da350713651'),
+        ('RM-68', '68'),
+        ('RM-337', '337'),
+        ('RM-复现', 'python3 extract.py'),
+        ('RM-校验', 'python3 verify_extraction.py'),
+        ('RM-诚实-920', '不是鲲鹏 920 复刻'),
+        ('RM-诚实-TLB', 'SE-inert'),
+        ('RM-地图', '09-implementation-plan.md'),
+    ]
+    for label, text in check_fragments('README.md', FRAGMENTS_README):
+        fail(f'V4: README.md 缺片段 [{label}] {text[:40]}')
+
     if FAILS:
         for m in FAILS[:20]:
             print('FAIL:', m)
         print(f'VERIFICATION FAILED ({len(FAILS)} issues)')
         sys.exit(1)
-    print(f'ALL PASSED (design 68 cells x13, expanded 337 cells x28, sets ok + fragments 00/01/02/04/05/06/08)')
+    print(f'ALL PASSED (design 68 cells x13, expanded 337 cells x28, sets ok + fragments 00/01/02/04/05/06/08 + README)')
 
 
 if __name__ == '__main__':
