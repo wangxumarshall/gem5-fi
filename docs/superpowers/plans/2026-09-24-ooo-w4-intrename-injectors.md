@@ -39,10 +39,10 @@ Task 1 → Task 2 串行（同一文件集，避免冲突）。D14（误预测�
 ---
 
 ### Task 3: W4.3 — D15 RAT 卡死（F5 写路径 mask）
-- [ ] CHAOSRenameMap 加 `f5_rat_stuck`：运行开始随机选一个 RAT 表项的一个比特永久固定 0/1（各半），每次该表项被写都带着缺陷（**写路径 mask**，仿 CHAOSPhysReg setStuckTarget/G2 先例）直到被覆盖/结束；F5 语义=从存在起持续生效。验证：注入后多次 rename 该 arch 均带同一位缺陷（日志多次采样证明持续性）+ golden 回归 + 无注入回归。
+- [x] CHAOSRenameMap 加 `f5_rat_stuck`：运行开始随机选一个 RAT 表项的一个比特永久固定 0/1（各半），每次该表项被写都带着缺陷（**写路径 mask**，仿 CHAOSPhysReg setStuckTarget/G2 先例）直到被覆盖/结束；F5 语义=从存在起持续生效。验证：注入后多次 rename 该 arch 均带同一位缺陷（日志多次采样证明持续性）+ golden 回归 + 无注入回归。
 
 ### Task 4: W4.4 — D16 RAT 读到旧数据（stale_read）
-- [ ] CHAOSRenameMap 加 `stale_read`：在表项即将被下一次重命名写入覆盖的瞬间，让这次写入**静默失效一次**（表项保留旧映射直到再下一次写入才生效）——读到旧数据不换值不卡死。验证：定向注入后下游读到旧 phys 的证据（ctrace commit_diff 出 ④操作数强制切换 或 ⑤数据损坏）+ golden 回归。
+- [x] CHAOSRenameMap 加 `stale_read`：在表项即将被下一次重命名写入覆盖的瞬间，让这次写入**静默失效一次**（表项保留旧映射直到再下一次写入才生效）——读到旧数据不换值不卡死。验证：定向注入后下游读到旧 phys 的证据（ctrace commit_diff 出 ④操作数强制切换 或 ⑤数据损坏）+ golden 回归。
 
 ### Task 5: W4.5 — D17/D18 空闲表重复分配（固定间隔 + 事件触发）
 - [ ] CHAOSFreeList 现有 `mark_free`（把已分配项标回空闲=重复分配）语义核对 + `--freelist_mode` 加事件触发版（空闲表剩余 ≤8 时触发——numFreeRegs(RegClassType) 阈值判断，挂 SimpleFreeList::getReg 后）；D17=固定间隔 F1/F2、D18=事件触发。验证：注入日志（重复分配的 phys id + 阈值时刻）+ golden 回归 + 无注入回归。

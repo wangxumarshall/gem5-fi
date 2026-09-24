@@ -747,6 +747,23 @@ def main():
         if (inj["model"] == "legal_domain_sub"
                 and str(tgt.get("sub_field", "")) == "swap_to_active"):
             rm = "swap_to_active"
+        # W4.3 D15 f5_rat_stuck (ooo 04-design-matrix R16, RAT映射字段·卡死,
+        # F5 permanent): ONE RAT entry + ONE physReg-index bit stuck-at-0/1,
+        # write-path mask on every write to that entry. Selected by the v2
+        # target.sub_field discriminator on stuck_at_zero/one (the §2.2
+        # whole-value pin f4_field_stuck keeps the plain models).
+        if (inj["model"] in ("stuck_at_zero", "stuck_at_one")
+                and str(tgt.get("sub_field", "")) == "f5_rat_stuck"):
+            rm = "f5_rat_stuck"
+        # W4.4 D16 stale_read (ooo 04-design-matrix R17, RAT映射字段·读到
+        # 旧数据): the next rename overwrite of the entry silently fails
+        # once — the entry keeps the old (legal) mapping, downstream readers
+        # read stale data. Selected by the v2 target.sub_field discriminator
+        # on delay_omission ("the update that should have happened never
+        # landed"); rat + plain delay_omission is not otherwise mapped.
+        if (inj["model"] == "delay_omission"
+                and str(tgt.get("sub_field", "")) == "stale_read"):
+            rm = "stale_read"
         cmd += ["--rename_mode", rm, "--rename_first_clock", str(t["value"]),
                 "--rename_max_faults", str(m["limits"]["max_faults"]),
                 "--rename_rng_seed", str(m["rng"]["selection_seed"]),
@@ -758,6 +775,15 @@ def main():
         fm = {"transient_bit_flip": "mark_free",
               "local_mbu": "mark_free",
               "legal_domain_sub": "pop_wrong"}.get(inj["model"], "mark_free")
+        # W4.5 D18 mark_free_event (ooo 04-design-matrix R19, 空闲表·重复分配
+        # ·事件触发): same duplicate allocation as D17 mark_free, but fires
+        # only while the int freelist remaining count <= threshold (default
+        # 8). Selected by the v2 target.sub_field discriminator on the
+        # transient models (plain models keep the D17 fixed-interval
+        # mark_free semantics).
+        if (inj["model"] in ("transient_bit_flip", "local_mbu")
+                and str(tgt.get("sub_field", "")) == "mark_free_event"):
+            fm = "mark_free_event"
         cmd += ["--freelist_mode", fm, "--freelist_first_clock", str(t["value"]),
                 "--freelist_max_faults", str(m["limits"]["max_faults"]),
                 "--freelist_rng_seed", str(m["rng"]["selection_seed"])]

@@ -38,14 +38,31 @@ class CHAOSRenameMap(SimObject):
     # ONE history-buffer rollback in Rename::doSquash — the wrong-path µop's
     # dest reg stays mapped, its wrong-path value leaks into the correct
     # path (the rollback-suppression, not a value flip).
+    # f5_rat_stuck (W4.3 D15, 04-design-matrix R16, F5 permanent): ONE
+    # front-map RAT entry + ONE physReg-index bit stuck-at-0/1 (50/50),
+    # armed once at the first in-window eligible write; EVERY subsequent
+    # write to that entry — normal rename write AND squash-rollback restore
+    # — stores the value with the bit forced (G2 write-path-mask semantics,
+    # regfile.hh:360 pattern). Arming is the only fault count increment;
+    # applications are logged as exposures (persistence evidence).
+    # stale_read (W4.4 D16, 04-design-matrix R17, event = the next rename
+    # overwrite of the entry): that ONE rename write silently fails — the
+    # entry keeps the previous occupant's still-legal mapping until the next
+    # rename updates it normally; the renaming inst keeps its allocated dest.
+    # Downstream readers read the OLD phys: stale but legal data. Not a
+    # value swap (D13), not a stuck bit (D15) — the update never lands.
     mode = Param.String("map_bitflip",
         "map_bitflip | map_bitflip2 | swap_to_active | f5_substitute | "
-        "f4_field_stuck | spec_leak")
+        "f4_field_stuck | spec_leak | f5_rat_stuck | stale_read")
 
     targetArchReg = Param.Int(-1,
-        "which architectural reg's map entry to corrupt (-1 = random within "
-        "the integer class, 0-30 on aarch64 X0-X30). The method1 'long-lived "
-        "accumulator' is X3/X19-X28 — target the cross-inner-loop accumulator.")
+        "which register's map entry to corrupt (-1 = random within the int "
+        "class, 0-30). HONEST SEMANTICS (W4.4 finding, 2026-09-24): this is "
+        "the FLATTENED int-reg index seen at the rename site (Arm "
+        "IntRegClassOps::flatten -> ISA::intRegMap), NOT the architectural "
+        "Xn number — empirically flat(X0)=0, flat(X1)=1, flat(X19)=16 on "
+        "AArch64 EL0. Low regs coincide; directed high-reg controls (e.g. "
+        "the smoke xorshift accumulator X19) must pass the FLAT index (16).")
 
     probability = Param.Float(1.0,
         "per-setEntry injection probability (use 1.0 with maxFaults=1 so the "

@@ -117,11 +117,15 @@ p.add_argument("--lsq_lane_skew_k", type=int, default=1)
 # startup() to thread-0 frontRenameMap.chaosRenameMap. map_bitflip /
 # map_bitflip2 (W4.1 D12: 2 distinct random index bits) / swap_to_active
 # (W4.2a D13: swap mapping to a random ROB in-flight dest physReg) /
-# f5_substitute / f4_field_stuck modes (design doc §2.2 + ooo 04 D12/D13).
+# f5_substitute / f4_field_stuck / f5_rat_stuck (W4.3 D15: ONE entry bit
+# stuck-at-0/1, write-path mask on BOTH rename + squash-restore writes) /
+# stale_read (W4.4 D16: the next rename overwrite of the entry silently
+# fails once — readers get the old still-legal mapping)
+# modes (design doc §2.2 + ooo 04 D12/D13/D15/D16).
 p.add_argument("--chaos_rename", action="store_true",
                help="attach CHAOSRenameMap (O3 rename-map injector, §2.2)")
 p.add_argument("--rename_mode", default="map_bitflip",
-               choices=["map_bitflip","map_bitflip2","swap_to_active","f5_substitute","f4_field_stuck","spec_leak"])
+               choices=["map_bitflip","map_bitflip2","swap_to_active","f5_substitute","f4_field_stuck","spec_leak","f5_rat_stuck","stale_read"])
 p.add_argument("--rename_target_arch", type=int, default=-1,
                help="arch reg index whose map entry to corrupt (-1=random 0..30)")
 p.add_argument("--rename_first_clock", type=lambda x: int(x,0), default=100000)
@@ -129,14 +133,18 @@ p.add_argument("--rename_max_faults", type=lambda x: int(x,0), default=1)
 p.add_argument("--rename_fault_mask", type=lambda x: int(x,0), default=0)
 p.add_argument("--rename_rng_seed", type=lambda x: int(x,0), default=20260825)
 # §2.2 CHAOSFreeList (O3 freelist fault injector). SELF-ATTACHES at startup()
-# to physFreeList().chaosFreeList. mark_free / pop_wrong modes (design doc §2.2).
+# to physFreeList().chaosFreeList. mark_free (D17 fixed-interval) /
+# pop_wrong / mark_free_event (W4.5 D18: duplicate allocation triggered when
+# the int freelist remaining <= threshold) modes (§2.2 + ooo 04 D17/D18).
 p.add_argument("--chaos_freelist", action="store_true",
                help="attach CHAOSFreeList (O3 freelist injector, §2.2)")
 p.add_argument("--freelist_mode", default="mark_free",
-               choices=["mark_free","pop_wrong"])
+               choices=["mark_free","pop_wrong","mark_free_event"])
 p.add_argument("--freelist_first_clock", type=lambda x: int(x,0), default=100000)
 p.add_argument("--freelist_max_faults", type=lambda x: int(x,0), default=1)
 p.add_argument("--freelist_rng_seed", type=lambda x: int(x,0), default=20260825)
+p.add_argument("--freelist_event_threshold", type=lambda x: int(x,0), default=8,
+               help="D18 mark_free_event: trigger when int freelist remaining <= N")
 # §2.3 CHAOSROB (O3 ROB fault injector). SELF-ATTACHES at startup() to
 # cpu.rob.chaosROB. entry_bitflip / exc_suppress modes (§2.3).
 p.add_argument("--chaos_rob", action="store_true",
@@ -455,6 +463,7 @@ if args.chaos_freelist:
         firstClock=args.freelist_first_clock,
         maxFaults=args.freelist_max_faults,
         rngSeed=args.freelist_rng_seed,
+        eventThreshold=args.freelist_event_threshold,
         writeLog=True,
     )
     board.chaos_freelist = fl

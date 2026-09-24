@@ -19,7 +19,8 @@ namespace gem5
           last_clock(p.lastClock),
           max_faults(p.maxFaults),
           rng_seed(p.rngSeed),
-          write_log(p.writeLog)
+          write_log(p.writeLog),
+          event_threshold(p.eventThreshold)
     {
         if (probability > 0.0f) {
             log_stream = simout.create("freelist_injections.log", false, true);
@@ -35,6 +36,7 @@ namespace gem5
     CHAOSFreeList::stringToMode(const std::string &s) {
         if (s == "mark_free") return Mode::MarkFree;
         if (s == "pop_wrong") return Mode::PopWrong;
+        if (s == "mark_free_event") return Mode::MarkFreeEvent;
         return Mode::MarkFree;
     }
 
@@ -43,6 +45,7 @@ namespace gem5
         switch (m) {
             case Mode::MarkFree: return "mark_free";
             case Mode::PopWrong: return "pop_wrong";
+            case Mode::MarkFreeEvent: return "mark_free_event";
         }
         return "mark_free";
     }
@@ -90,6 +93,27 @@ namespace gem5
     bool
     CHAOSFreeList::maybeCorrupt(int class_value, PhysRegIdPtr &popped)
     {
+        // W4.5 D17/D18 evidence watcher: after a mark_free(_event) injection
+        // re-adds an ALLOCATED idx to the free list, watch for that idx
+        // being popped again — the SECOND allocation = the duplicate the
+        // model is designed to create ("两条指令共享同一物理寄存器").
+        // Read-only, no fault counting; deliberately BEFORE the gates below
+        // so it still fires after maxFaults is spent (the watch is only ever
+        // set after a real injection, so log_stream exists). One observation
+        // per injected duplicate.
+        if (dup_watch_idx >= 0 && popped
+            && class_value == IntRegClass
+            && (int)popped->index() == dup_watch_idx) {
+            if (write_log) {
+                *(log_stream->stream()) << "Tick: " << curTick()
+                    << ", Site: freelist_getReg, mode="
+                    << modeToString(fi_mode) << ", class=int"
+                    << ", DUPLICATE_ALLOCATION: idx " << dup_watch_idx
+                    << " re-handed-out (second allocation; first holder "
+                    << "still owns it)" << std::endl;
+            }
+            dup_watch_idx = -1;
+        }
         if (!cpu || probability <= 0.0f) return false;
         if (max_faults != 0 && faults_injected_count >= max_faults) return false;
         if (!inWindow()) return false;
@@ -122,16 +146,26 @@ namespace gem5
                     << std::endl;
             }
             return true;
-        } else if (fi_mode == Mode::MarkFree) {
-            // RE-ADD a currently-ALLOCATED physReg to the free list -> it gets
-            // re-handed-out later while still held as a source by an in-flight
-            // inst -> two arch regs share one physReg -> history residue
-            // (method1 '其它计算数据覆盖 x[0]').
+        } else if (fi_mode == Mode::MarkFree || fi_mode == Mode::MarkFreeEvent) {
+            // D17 (04-design-matrix R18, 固定间隔) = MarkFree: re-add a
+            // currently-ALLOCATED physReg to the free list -> it gets
+            // re-handed-out later while still held -> two arch regs share
+            // one physReg -> WAW / history residue. D18 (R19, 事件触发) =
+            // MarkFreeEvent: the SAME action, eligible only when the INT
+            // free-list remaining count is at/below event_threshold
+            // (checked POST-POP — this hook fires after the pop, so the
+            // count is the "空闲表剩余" at the getReg moment).
+            unsigned nfree = 0;
+            if (fi_mode == Mode::MarkFreeEvent) {
+                nfree = o3cpu->physFreeList().numFreeRegs(IntRegClass);
+                if ((uint64_t)nfree > event_threshold) return false;
+            }
             int target = pickAllocatedPhysReg(class_value, num_phys, o3cpu);
             if (target < 0) {
                 if (write_log) {
                     *(log_stream->stream()) << "Tick: " << curTick()
-                        << ", Site: freelist_getReg, mode=mark_free, class=int"
+                        << ", Site: freelist_getReg, mode="
+                        << modeToString(fi_mode) << ", class=int"
                         << " — NO valid allocated target (skipped, no UB)."
                         << std::endl;
                 }
@@ -139,13 +173,29 @@ namespace gem5
             }
             PhysRegIdPtr target_reg = o3cpu->physRegFile().intPhysRegId(target);
             o3cpu->physFreeList().addReg(target_reg);  // re-add allocated
+            dup_watch_idx = target;  // W4.5: watch for the second allocation
             faults_injected_count++;
             if (write_log) {
-                *(log_stream->stream()) << "Tick: " << curTick()
-                    << ", Site: freelist_getReg, mode=mark_free, class=int"
-                    << ", readded_allocated_idx=" << target
-                    << ", faults_injected: " << faults_injected_count
-                    << std::endl;
+                if (fi_mode == Mode::MarkFreeEvent) {
+                    // D18 evidence line: the trigger-time remaining count
+                    // (must be <= threshold) + the re-added idx.
+                    *(log_stream->stream()) << "Tick: " << curTick()
+                        << ", Site: freelist_getReg, mode=mark_free_event"
+                        << ", class=int"
+                        << ", num_free_int_after_pop=" << nfree
+                        << " (threshold=" << event_threshold << ")"
+                        << ", popped_idx=" << popped->index()
+                        << ", readded_allocated_idx=" << target
+                        << ", faults_injected: " << faults_injected_count
+                        << std::endl;
+                } else {
+                    // D17: legacy mark_free line format kept byte-identical.
+                    *(log_stream->stream()) << "Tick: " << curTick()
+                        << ", Site: freelist_getReg, mode=mark_free, class=int"
+                        << ", readded_allocated_idx=" << target
+                        << ", faults_injected: " << faults_injected_count
+                        << std::endl;
+                }
             }
             return true;
         }

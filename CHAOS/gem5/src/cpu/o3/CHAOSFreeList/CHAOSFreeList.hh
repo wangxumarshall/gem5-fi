@@ -32,7 +32,7 @@ class CHAOSFreeList : public SimObject
     bool maybeCorrupt(int class_value, PhysRegIdPtr &popped);
 
   private:
-    enum class Mode { MarkFree, PopWrong };
+    enum class Mode { MarkFree, PopWrong, MarkFreeEvent };
     static Mode stringToMode(const std::string &s);
     const char *modeToString(Mode m);
 
@@ -44,6 +44,18 @@ class CHAOSFreeList : public SimObject
     uint64_t faults_injected_count = 0;
     uint64_t rng_seed;
     bool write_log;
+
+    // W4.5 D18 mark_free_event: trigger threshold — the injection is only
+    // eligible while the INT free-list remaining count (post-pop, i.e. at
+    // the getReg moment) is at or below this (04-design-matrix R19: 空闲表
+    // 剩余项数低于阈值, 建议 ≤8).
+    uint64_t event_threshold;
+
+    // W4.5 D17/D18 evidence watcher: after a mark_free(_event) injection
+    // re-adds an ALLOCATED idx to the free list, remember it and log the
+    // first subsequent getReg pop of that idx — the SECOND allocation = the
+    // duplicate the model creates (两条指令共享同一物理寄存器). -1 = idle.
+    int dup_watch_idx = -1;
 
     std::mt19937 rng;
     std::random_device rd;

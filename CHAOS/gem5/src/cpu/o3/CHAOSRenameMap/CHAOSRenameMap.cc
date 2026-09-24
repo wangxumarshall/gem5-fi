@@ -53,6 +53,8 @@ namespace gem5
         if (s == "f5_substitute") return Mode::F5Substitute;
         if (s == "f4_field_stuck") return Mode::F4FieldStuck;
         if (s == "spec_leak") return Mode::SpecLeak;
+        if (s == "f5_rat_stuck") return Mode::F5RatStuck;
+        if (s == "stale_read") return Mode::StaleRead;
         return Mode::MapBitflip;
     }
 
@@ -65,6 +67,8 @@ namespace gem5
             case Mode::F5Substitute: return "f5_substitute";
             case Mode::F4FieldStuck: return "f4_field_stuck";
             case Mode::SpecLeak: return "spec_leak";
+            case Mode::F5RatStuck: return "f5_rat_stuck";
+            case Mode::StaleRead: return "stale_read";
         }
         return "map_bitflip";
     }
@@ -147,6 +151,16 @@ namespace gem5
     CHAOSRenameMap::maybeCorrupt(ThreadID tid, const RegId &arch_reg,
                                   PhysRegIdPtr &phys_reg)
     {
+        // W4.3 D15 f5_rat_stuck: permanent write-path mask. Dispatch BEFORE
+        // the generic gates below: once armed, applications are exposures of
+        // the ONE permanent fault — max_faults/probability must NOT gate
+        // them (F5 = permanent from existence; the gates live only in the
+        // arming path inside maybeStuckWrite). This call site covers the
+        // squash-rollback restore writes (UnifiedRenameMap::setEntry); the
+        // normal rename writes go through maybeFaultRename below.
+        if (fi_mode == Mode::F5RatStuck)
+            return maybeStuckWrite(tid, arch_reg, phys_reg,
+                                   "setEntry_restore");
         if (!cpu || probability <= 0.0f) return false;
         if (max_faults != 0 && faults_injected_count >= max_faults) return false;
         if (!inWindow()) return false;
@@ -406,6 +420,187 @@ namespace gem5
                 << std::endl;
         }
         return true;
+    }
+
+    bool
+    CHAOSRenameMap::maybeStuckWrite(ThreadID tid, const RegId &arch_reg,
+                                    PhysRegIdPtr &phys_reg, const char *site)
+    {
+        // W4.3 D15 (04-design-matrix R16, RAT映射字段·卡死, F5): a stuck-at
+        // cell in ONE FRONT-map RAT entry — every write to the entry stores
+        // the value with ONE physReg-index bit forced to a fixed polarity.
+        // Arming (the fault's creation, the ONLY faults_injected_count
+        // increment) happens at the first in-window eligible write event;
+        // applications after that are passive and ungated by max_faults /
+        // probability (F5 = permanent from existence). Scope note: the fault
+        // lives in the rename-stage (front) RAT — the commitRenameMap copy
+        // has no injector attached and is never masked.
+        if (!cpu || probability <= 0.0f) return false;
+        if (arch_reg.classValue() != IntRegClass) return false;
+        int arch_idx = arch_reg.index();
+        if (arch_idx > 30) return false;  // XZR / banked slots
+
+        auto *o3cpu = dynamic_cast<o3::CPU *>(cpu);
+        if (!o3cpu) return false;
+        int num_phys = (int)o3cpu->physRegFile().numIntPhysRegs();
+
+        if (!f5s_armed) {
+            // Arming: D15 "运行开始（首个注入窗口到达时）随机选一个 RAT
+            // 表项的一个比特位" — one entry, one bit, polarity 50/50
+            // (directed targetArchReg overrides the entry choice).
+            if (max_faults != 0 && faults_injected_count >= max_faults)
+                return false;
+            if (!inWindow()) return false;
+            std::uniform_real_distribution<float> pd(0.0f, 1.0f);
+            if (pd(rng) > probability) return false;
+
+            int target = target_arch_reg;
+            if (target < 0) target = (int)(rng() % 31);  // 0..30
+            int nbits = 0; int tmp = num_phys;
+            while (tmp > 1) { nbits++; tmp >>= 1; }
+            if (nbits < 1) nbits = 1;
+            f5s_arch_reg = target;
+            f5s_bit = (int)(rng() % (unsigned)nbits);
+            f5s_polarity = (int)(rng() % 2);
+            f5s_armed = true;
+            faults_injected_count++;
+            if (write_log) {
+                *(log_stream->stream()) << "Tick: " << curTick()
+                    << ", Site: " << site << ", mode=f5_rat_stuck, ARMED"
+                    << ", tid=" << (int)tid
+                    << ", arch=X" << f5s_arch_reg
+                    << ", bit=" << f5s_bit
+                    << ", polarity=" << f5s_polarity
+                    << (f5s_polarity ? " (stuck_at_one)" : " (stuck_at_zero)")
+                    << ", num_phys=" << num_phys
+                    << ", faults_injected: " << faults_injected_count
+                    << std::endl;
+            }
+            // fall through: if THIS write targets the armed entry, mask it now
+        }
+        if (f5s_arch_reg != arch_idx) return false;
+
+        // Apply the write-path mask (the G2 regfile.hh:360 pattern): force
+        // the bit on the value being written to the entry.
+        int written = phys_reg->index();
+        int masked = f5s_polarity ? (written | (1 << f5s_bit))
+                                  : (written & ~(1 << f5s_bit));
+        f5s_exposures++;
+        if (masked == written) {
+            // The written value already carries the forced polarity — a
+            // stuck cell does not change it. Log the exposure (persistence
+            // evidence); phys_reg unchanged, caller stores it (no-op).
+            if (write_log) {
+                *(log_stream->stream()) << "Tick: " << curTick()
+                    << ", Site: " << site << ", mode=f5_rat_stuck"
+                    << ", tid=" << (int)tid
+                    << ", arch=X" << arch_idx
+                    << ", write_phys=" << written
+                    << ", stored_phys=" << masked
+                    << " (bit " << f5s_bit << " already at " << f5s_polarity
+                    << ", no observable change)"
+                    << ", exposure: " << f5s_exposures
+                    << std::endl;
+            }
+            return true;
+        }
+        if (masked < 0 || masked >= num_phys) {
+            // Non-power-of-2 numPhys: forcing the bit can leave the valid
+            // index range. Honest skip, no clamp (a clamped value would not
+            // be the stuck-at fault); THIS write stores unmasked.
+            if (write_log) {
+                *(log_stream->stream()) << "Tick: " << curTick()
+                    << ", Site: " << site << ", mode=f5_rat_stuck"
+                    << ", tid=" << (int)tid
+                    << ", arch=X" << arch_idx
+                    << ", write_phys=" << written
+                    << " — forced idx " << masked << " out of [0,"
+                    << num_phys << ") (skipped this write, no clamp)"
+                    << ", exposure: " << f5s_exposures
+                    << std::endl;
+            }
+            return false;
+        }
+        phys_reg = o3cpu->physRegFile().intPhysRegId(masked);
+        if (write_log) {
+            *(log_stream->stream()) << "Tick: " << curTick()
+                << ", Site: " << site << ", mode=f5_rat_stuck"
+                << ", tid=" << (int)tid
+                << ", arch=X" << arch_idx
+                << ", write_phys=" << written
+                << ", stored_phys=" << masked
+                << ", bit=" << f5s_bit << " forced to " << f5s_polarity
+                << ", exposure: " << f5s_exposures
+                << std::endl;
+        }
+        return true;
+    }
+
+    bool
+    CHAOSRenameMap::maybeFaultRename(ThreadID tid, const RegId &arch_reg,
+                                     PhysRegIdPtr prev_phys,
+                                     PhysRegIdPtr &entry_phys)
+    {
+        // W4.3 D15: the NORMAL rename write (SimpleRenameMap::rename,
+        // rename_map.cc — "map[idx] = renamed_reg") bypasses setEntry, so the
+        // pre-existing setEntry pre-store hook cannot mask it. This post-
+        // write hook re-masks the entry: maybeStuckWrite mutates entry_phys
+        // to the masked value and the caller re-stores it. Every other mode
+        // returns false here (zero regression on the rename path).
+        if (fi_mode == Mode::F5RatStuck)
+            return maybeStuckWrite(tid, arch_reg, entry_phys, "rename_write");
+
+        if (fi_mode == Mode::StaleRead) {
+            // W4.4 D16 (04-design-matrix R17, RAT映射字段·读到旧数据,
+            // event = 该表项即将被下一次重命名写入覆盖的瞬间): make THAT
+            // ONE rename write silently fail — the entry keeps the previous
+            // occupant's still-legal mapping until the next rename updates
+            // it normally. NOT a value swap (D13 swap_to_active) and NOT a
+            // stuck bit (D15 f5_rat_stuck): "本该发生的更新没有真正发生".
+            // The renaming instruction KEEPS its freshly allocated physReg as
+            // dest (the getReg pop already happened inside
+            // SimpleRenameMap::rename and its freelist accounting stands);
+            // only the stored entry is rolled back, so downstream readers of
+            // this arch reg read the OLD phys -> stale but legal data (the
+            // model's "读到旧数据"). Fires on the RENAME write path ONLY —
+            // the squash-restore setEntry path is not a rename overwrite and
+            // maybeCorrupt has no StaleRead dispatch (falls through to
+            // return false there).
+            if (!cpu || probability <= 0.0f) return false;
+            if (max_faults != 0 && faults_injected_count >= max_faults)
+                return false;
+            if (!inWindow()) return false;
+            if (arch_reg.classValue() != IntRegClass) return false;
+            int arch_idx = arch_reg.index();
+            if (arch_idx > 30) return false;  // XZR / banked
+
+            int target = target_arch_reg;
+            if (target < 0) target = (int)(rng() % 31);  // 0..30
+            if (arch_idx != target) return false;
+
+            std::uniform_real_distribution<float> pd(0.0f, 1.0f);
+            if (pd(rng) > probability) return false;
+
+            int attempted = entry_phys->index();
+            int kept = prev_phys->index();
+            // The write silently fails once: the entry keeps the old mapping.
+            entry_phys = prev_phys;
+            faults_injected_count++;
+            if (write_log) {
+                *(log_stream->stream()) << "Tick: " << curTick()
+                    << ", Site: rename_write, mode=stale_read"
+                    << ", tid=" << (int)tid
+                    << ", arch=X" << arch_idx
+                    << ", attempted_phys=" << attempted
+                    << " (write silently failed, not stored)"
+                    << ", kept_phys=" << kept
+                    << " (previous mapping retained)"
+                    << ", faults_injected: " << faults_injected_count
+                    << std::endl;
+            }
+            return true;
+        }
+        return false;
     }
 
     // startup() to dynamic_cast and self-attach (the rename map is constructed

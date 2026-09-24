@@ -65,9 +65,40 @@ class CHAOSRenameMap : public SimObject
     bool maybeSuppressRollback(ThreadID tid, const RegId &arch_reg,
                                PhysRegIdPtr new_phys, PhysRegIdPtr prev_phys);
 
+    // W4.3 D15 f5_rat_stuck (04-design-matrix R16, F5 permanent, write-path
+    // mask): ONE int-class FRONT-map RAT entry + ONE physReg-index bit pinned
+    // to a fixed polarity, chosen once at the first in-window eligible write
+    // event ("运行开始（首个注入窗口到达时）随机选一个 RAT 表项的一个比特
+    // 位"). From then on EVERY write to that entry stores the value with that
+    // bit forced — the G2 PhysRegFile::setStuckTarget write-path-mask
+    // semantics (regfile.hh:360), with the state held HERE because
+    // SimpleRenameMap cannot build a masked PhysRegIdPtr (no regFile access).
+    // Applications after arming are exposures of the ONE permanent fault,
+    // NOT new faults: arming is the only faults_injected_count increment and
+    // is NOT re-gated by max_faults/probability afterwards (F5 = permanent
+    // from existence). `site` only names the calling write path in the log
+    // ("rename_write" = SimpleRenameMap::rename normal write;
+    // "setEntry_restore" = squash-rollback restore).
+    bool maybeStuckWrite(ThreadID tid, const RegId &arch_reg,
+                         PhysRegIdPtr &phys_reg, const char *site);
+
+    // W4.3 D15 post-rename hook: called from UnifiedRenameMap::rename AFTER
+    // SimpleRenameMap::rename performed the entry write (the normal rename
+    // write path — it writes the map DIRECTLY and never goes through
+    // UnifiedRenameMap::setEntry, so the pre-existing setEntry hook cannot
+    // mask it). `entry_phys` is in/out: on entry = the just-written phys; on
+    // a true return the caller must re-store entry_phys (the masked value)
+    // via the RAW SimpleRenameMap::setEntry (no recursion into the setEntry
+    // hook). `prev_phys` = the mapping the entry held before this write
+    // (W4.4 D16 stale_read rolls the entry back to it). Returns false for
+    // every other mode (zero regression: the rename path keeps its original
+    // behavior byte-for-byte).
+    bool maybeFaultRename(ThreadID tid, const RegId &arch_reg,
+                          PhysRegIdPtr prev_phys, PhysRegIdPtr &entry_phys);
+
   private:
     enum class Mode { MapBitflip, MapBitflip2, SwapToActive, F5Substitute,
-                      F4FieldStuck, SpecLeak };
+                      F4FieldStuck, SpecLeak, F5RatStuck, StaleRead };
     static Mode stringToMode(const std::string &s);
     const char *modeToString(Mode m);
 
@@ -88,6 +119,16 @@ class CHAOSRenameMap : public SimObject
     bool f4_armed = false;
     int f4_arch_reg = -1;
     int f4_wrong_phys_idx = -1;
+
+    // W4.3 D15 f5_rat_stuck state: armed ONCE at the first in-window eligible
+    // write (the fault's creation), permanent until end of run. Every write
+    // to f5s_arch_reg's FRONT-map entry is masked with the forced bit.
+    bool f5s_armed = false;
+    int f5s_arch_reg = -1;
+    int f5s_bit = -1;
+    int f5s_polarity = 0;      // 0 = stuck_at_zero (force 0), 1 = stuck_at_one
+    uint64_t f5s_exposures = 0;  // write-path mask applications (persistence
+                                 // evidence; NOT fault count)
 
     std::mt19937 rng;
     std::random_device rd;

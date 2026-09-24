@@ -250,7 +250,29 @@ class UnifiedRenameMap
             return RenameInfo(phys_reg, phys_reg);
         }
 
-        return renameMaps[arch_reg.classValue()].rename(arch_reg);
+        // W4.3 D15 CHAOSRenameMap f5_rat_stuck: the NORMAL rename write
+        // (SimpleRenameMap::rename, rename_map.cc — "map[idx] = renamed_reg")
+        // writes the entry DIRECTLY and never goes through
+        // UnifiedRenameMap::setEntry, so the setEntry pre-store hook cannot
+        // mask it. This post-write hook lets the injector re-mask the stored
+        // entry (write-path stuck mask): on a true return the caller
+        // re-stores the (masked) entry_phys via the RAW
+        // SimpleRenameMap::setEntry — no recursion into the setEntry hook.
+        // info.first != info.second = a real map write happened (the pinned
+        // and invalid-class paths store nothing, so the hook is skipped and
+        // the masked-entry invariant is preserved by idempotence). nullptr
+        // injector / other modes = hook returns false, zero regression.
+        RenameInfo info = renameMaps[arch_reg.classValue()].rename(arch_reg);
+        if (chaosRenameMap && info.first != info.second) {
+            PhysRegIdPtr entry_phys = info.first;
+            if (chaosRenameMap->maybeFaultRename(/*tid=*/0, arch_reg,
+                                                 /*prev_phys=*/info.second,
+                                                 entry_phys)) {
+                renameMaps[arch_reg.classValue()].setEntry(arch_reg,
+                                                           entry_phys);
+            }
+        }
+        return info;
     }
 
     /**
