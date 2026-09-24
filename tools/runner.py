@@ -931,6 +931,32 @@ def main():
         if (inj["model"] in ("stuck_at_zero", "stuck_at_one")
                 and str(tgt.get("sub_field", "")) == "oldphys_stuck"):
             rm = "oldphys_stuck"
+        # W5.8-W5.9 (D41-D46, ooo 04-design-matrix R42-R47): ROB head/tail
+        # pointer family — HONEST APPROXIMATIONS at the rob_insert site
+        # (gem5 ROB = std::list, no pointer registers): head_ptr_* =
+        # commit-side entry-selection misalignment (the offset entry's
+        # record lands on the head entry — the skip/repeat-commit
+        # observable), tail_ptr_* = allocation-side alias (the new entry's
+        # record clobbers the in-use entry at the flip offset behind the
+        # tail — the "覆盖仍在用的项" duplicate-allocation analog).
+        if (inj["model"] == "transient_bit_flip"
+                and str(tgt.get("sub_field", "")) == "head_ptr_bitflip"):
+            rm = "head_ptr_bitflip"
+        if (inj["model"] == "local_mbu"
+                and str(tgt.get("sub_field", "")) == "head_ptr_bitflip2"):
+            rm = "head_ptr_bitflip2"
+        if (inj["model"] in ("stuck_at_zero", "stuck_at_one")
+                and str(tgt.get("sub_field", "")) == "head_ptr_stuck"):
+            rm = "head_ptr_stuck"
+        if (inj["model"] == "transient_bit_flip"
+                and str(tgt.get("sub_field", "")) == "tail_ptr_bitflip"):
+            rm = "tail_ptr_bitflip"
+        if (inj["model"] == "local_mbu"
+                and str(tgt.get("sub_field", "")) == "tail_ptr_bitflip2"):
+            rm = "tail_ptr_bitflip2"
+        if (inj["model"] in ("stuck_at_zero", "stuck_at_one")
+                and str(tgt.get("sub_field", "")) == "tail_ptr_stuck"):
+            rm = "tail_ptr_stuck"
         cmd += ["--rob_mode", rm, "--rob_first_clock", str(t["value"]),
                 "--rob_max_faults", str(m["limits"]["max_faults"]),
                 "--rob_rng_seed", str(m["rng"]["selection_seed"])]
@@ -941,6 +967,31 @@ def main():
         cmd += ["--chaos_iq"]
         im = {"legal_domain_sub": "src_ready_bitflip",
               "intermittent_burst": "wake_phase"}.get(inj["model"], "wake_omit")
+        # W5.10-W5.12 (ooo 04-design-matrix D47-D55, Int Dispatch/ROB):
+        # the Int-IQ ready-bit (D47-D49), source-tag (D50-D54) and
+        # dispatch-port FU-misroute (D55) modes — selected by the v2
+        # target.sub_field discriminator (the rob-block pattern); plain
+        # models keep the legacy mappings above.
+        sf = str(tgt.get("sub_field", ""))
+        if (inj["model"] == "delay_omission" and sf == "ready_early"):
+            im = "ready_early"
+        if (inj["model"] == "delay_omission" and sf == "ready_never"):
+            im = "ready_never"
+        if (inj["model"] == "delay_omission" and sf == "ready_never_event"):
+            im = "ready_never_event"
+        if (inj["model"] == "legal_domain_sub" and sf == "tag_swap"):
+            im = "tag_swap"
+        if (inj["model"] == "transient_bit_flip" and sf == "tag_bitflip"):
+            im = "tag_bitflip"
+        if (inj["model"] == "local_mbu" and sf == "tag_bitflip2"):
+            im = "tag_bitflip2"
+        if (inj["model"] in ("stuck_at_zero", "stuck_at_one")
+                and sf == "tag_stuck"):
+            im = "tag_stuck"
+        if (inj["model"] == "delay_omission" and sf == "tag_stale_read"):
+            im = "tag_stale_read"
+        if (inj["model"] == "legal_domain_sub" and sf == "dispatch_misroute"):
+            im = "dispatch_misroute"
         cmd += ["--iq_mode", im]
         if im == "wake_phase":
             offset = bits[0] if bits else 1
@@ -1090,12 +1141,36 @@ def main():
         #        {post,offset,pre} — ±1 µop (spurious/lost writeback µop)
         #        or composition swap, µop counts logged; non-macroop
         #        instructions honestly skipped (force-crack blocker).
+        #   W7 batch 1 (D56-D61, R57-R62 FP/SIMD Decode): same engine
+        #        gated by fpOnly (opClass in scalar Float* ∪ SimdFloat* —
+        #        the CHAOSFPU.cc:88-98 scope; integer SIMD out of scope,
+        #        documented honesty limitation):
+        #   fp_opcode_bitflip/fp_opcode_bitflip2 (D56/D57): 1/2 random bits
+        #        of the FP/SIMD opcode region enc[23:10] — may land legal
+        #        OR illegal (illegal -> Unknown -> SIGILL, Crash baseline).
+        #   fp_opcode_swap (D58, legal_domain_sub 换值): format-compatible
+        #        LEGAL FP pair (FADD<->FSUB, FMUL<->FDIV, FMAX<->FMIN,
+        #        FMAXNM<->FMINNM, FMADD<->FMSUB, FNMADD<->FNMSUB,
+        #        FCMP<->FCMPE + SIMD mirrors; GNU-as closed-loop verified
+        #        table).
+        #   fp_reg_bitflip/fp_reg_bitflip2 (D59/D60): 1/2 bits of the
+        #        V-reg-number positions Vd[4:0]/Vn[9:5]/Vm[20:16] — the W6
+        #        reg_bitflip machinery unchanged, semantically verified
+        #        (mnemonic unchanged AND a reg operand moved).
+        #   fp_route_bit (D61): 1 bit of the top-level A64 class field
+        #        enc[28:24] with an opClass-change predicate (the honest
+        #        gem5 approximation of the int-vs-FP/SIMD queue routing
+        #        bit; observable = FU/latency effect); no effective bit ->
+        #        honest skip.
         dm = "dest_reg_sub"
         dsf = str(tgt.get("sub_field", ""))
         if dsf in ("opcode_bitflip", "opcode_bitflip2", "opcode_swap",
                    "reg_bitflip", "reg_bitflip2",
                    "imm_bitflip", "imm_bitflip2", "dest_reg_sub",
-                   "sign_ext_bit", "imm_subfield_shift", "crack_ctrl"):
+                   "sign_ext_bit", "imm_subfield_shift", "crack_ctrl",
+                   "fp_opcode_bitflip", "fp_opcode_bitflip2",
+                   "fp_opcode_swap", "fp_reg_bitflip",
+                   "fp_reg_bitflip2", "fp_route_bit"):
             dm = dsf
         cmd += ["--chaos_decode", "--decode_mode", dm,
                 "--decode_first_clock", str(t["value"]),

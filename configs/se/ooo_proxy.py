@@ -165,7 +165,16 @@ p.add_argument("--rob_mode", default="entry_bitflip",
                         # gem5 old-phys = rename historyBuffer prevPhysReg,
                         # W4 N1); CHAOSROB itself stays inert for them.
                         "oldphys_bitflip","oldphys_bitflip2",
-                        "oldphys_swap_active","oldphys_stuck"])
+                        "oldphys_swap_active","oldphys_stuck",
+                        # W5.8-W5.9 (D41-D46): ROB head/tail pointer family —
+                        # honest approximations at the rob_insert site
+                        # (gem5 ROB = std::list, no pointer registers; head
+                        # = commit-side entry-selection misalignment, tail
+                        # = allocation-side alias onto an in-use entry).
+                        "head_ptr_bitflip","head_ptr_bitflip2",
+                        "head_ptr_stuck",
+                        "tail_ptr_bitflip","tail_ptr_bitflip2",
+                        "tail_ptr_stuck"])
 p.add_argument("--rob_field", default="exc_status",
                choices=["result","done","exc_status","dest_phys","spec"])
 p.add_argument("--rob_distance", type=int, default=0)
@@ -177,9 +186,21 @@ p.add_argument("--rob_rng_seed", type=lambda x: int(x,0), default=20260825)
 p.add_argument("--chaos_iq", action="store_true",
                help="attach CHAOSIQ (O3 IQ injector, §2.5)")
 p.add_argument("--iq_mode", default="wake_omit",
-               choices=["wake_omit", "src_ready_bitflip", "wake_phase"])
+               choices=["wake_omit", "src_ready_bitflip", "wake_phase",
+                        # W5.10-W5.11 (D47-D54, ooo 04-design-matrix
+                        # R48-R55): the Int-IQ entry's ready bit and
+                        # source-tag field, hooked at InstructionQueue
+                        # insert / wakeDependents / the issue loop.
+                        "ready_early", "ready_never", "ready_never_event",
+                        "tag_swap", "tag_bitflip", "tag_bitflip2",
+                        "tag_stuck", "tag_stale_read",
+                        # W5.12 (D55, R56): FU-class misroute at the issue
+                        # site (IntAlu<->IntMult; timing/port only — spike C).
+                        "dispatch_misroute"])
 p.add_argument("--iq_phase_offset", type=int, default=1,
                help="F6 wake_phase: delay cycles (positive only)")
+p.add_argument("--iq_fault_mask", type=lambda x: int(x,0), default=0,
+               help="W5.11 D51-D53: directed bit mask for the int-tag index")
 p.add_argument("--iq_first_clock", type=lambda x: int(x,0), default=1000)
 p.add_argument("--iq_max_faults", type=lambda x: int(x,0), default=1)
 p.add_argument("--iq_rng_seed", type=lambda x: int(x,0), default=20260825)
@@ -266,7 +287,19 @@ p.add_argument("--decode_mode", default="dest_reg_sub",
                choices=["dest_reg_sub","opcode_bitflip","opcode_bitflip2",
                         "opcode_swap","reg_bitflip","reg_bitflip2",
                         "imm_bitflip","imm_bitflip2",
-                        "sign_ext_bit","imm_subfield_shift","crack_ctrl"])
+                        "sign_ext_bit","imm_subfield_shift","crack_ctrl",
+                        # W7 batch 1 (D56-D61, R57-R62 FP/SIMD Decode): same
+                        # encoding-corruption engine gated by fpOnly (opClass
+                        # in Float* ∪ SimdFloat*, CHAOSFPU.cc:88-98 scope;
+                        # integer SIMD out of scope, documented). fp_opcode_
+                        # swap = GNU-as-verified FP pair table (FADD<->FSUB/
+                        # FMUL<->FDIV/FMADD<->FMSUB/FCMP<->FCMPE + SIMD
+                        # mirrors); fp_reg_bitflip/2 ride W6 kRegBits
+                        # (Vd/Vn/Vm covered); fp_route_bit flips enc[28:24]
+                        # class bits with an opClass-change predicate.
+                        "fp_opcode_bitflip","fp_opcode_bitflip2",
+                        "fp_opcode_swap","fp_reg_bitflip",
+                        "fp_reg_bitflip2","fp_route_bit"])
 p.add_argument("--decode_first_clock", type=lambda x: int(x,0), default=1000)
 p.add_argument("--decode_last_clock", type=lambda x: int(x,0), default=0)
 p.add_argument("--decode_max_faults", type=lambda x: int(x,0), default=1)
@@ -547,7 +580,8 @@ elif args.chaos_rob:
 
 if args.chaos_iq:
     # §2.5 CHAOSIQ: O3-only. SELF-ATTACHES at startup() to
-    # IEW.instQueue.chaosIQ (wakeDependents calls shouldOmitWake).
+    # IEW.instQueue.chaosIQ (wakeDependents calls shouldOmitWake; the
+    # W5.10-12 insert/wake/issue-site hooks likewise).
     iq = CHAOSIQ(
         cpu=cpu0,
         mode=args.iq_mode,
@@ -556,6 +590,7 @@ if args.chaos_iq:
         firstClock=args.iq_first_clock,
         maxFaults=args.iq_max_faults,
         rngSeed=args.iq_rng_seed,
+        faultMask=args.iq_fault_mask,
         writeLog=True,
     )
     board.chaos_iq = iq
