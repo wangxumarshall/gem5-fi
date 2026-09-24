@@ -14,6 +14,7 @@
 #include "cpu/o3/regfile.hh"
 #include "cpu/o3/rename_map.hh"
 #include "arch/generic/isa.hh"
+#include "sim/sim_exit.hh"        // registerExitCallback (W2.5 CHAOS_L0 line)
 
 namespace gem5
 {
@@ -67,6 +68,13 @@ namespace gem5
             unsigned next_fault_cycle_distance = inter_fault_cycles_dist(rng);
             scheduleAttackEvent(first_clock + Cycles(next_fault_cycle_distance));
             scheduleCheckPermanentFault(first_clock + Cycles(1));
+            // W2.5 L0 lifecycle: print the pinned CHAOS_L0 line at end of
+            // sim via an exit callback (CHAOSProbe/CHAOSMicroSnap
+            // precedent). The readTrace poll event canNOT do this on short
+            // workloads: it is scheduled 100000 cycles out and never fires
+            // once the workload halts (observed on smoke — ReadTraceFinal
+            // only appears on runs long enough for one more poll).
+            registerExitCallback([this]() { this->l0Final(); });
         }
     }
 
@@ -454,6 +462,12 @@ namespace gem5
         overwrite_recorded = false;
         overwritten_at_cycle = 0;
         cpu->physRegFile().setReadTraceTarget(target_class, chosen_phys_idx);
+        // W2.5 L0 lifecycle interface (chaos_l0.hh): register the injected
+        // item through the shared registration entry. The read/overwrite
+        // hooks are CONTAINER-owned (PhysRegFile::getReg/setReg count inside
+        // regfile.hh against this key) — this injector mirrors them via
+        // chaosL0Sync at each poll and prints the final line from l0Final.
+        chaosL0Register(l0, (uint64_t)chosen_phys_idx);
         if (!readTraceEvent.scheduled()) {
             schedule(readTraceEvent, cpu->clockEdge(Cycles(100000)));
         }
@@ -561,6 +575,11 @@ namespace gem5
             overwritten_at_cycle = cpu->curCycle();
             overwrite_recorded = true;
         }
+        // W2.5 L0: mirror the container-owned counters into the L0 state
+        // (poll-granular overwrite stamp — tighter than the exit-callback
+        // sync in l0Final; see 07-l0-lifecycle-interface.md §3.3).
+        chaosL0Sync(l0, cpu->physRegFile().getReadsBeforeOverwrite(),
+                    cpu->physRegFile().isTraceOverwritten(), cpu->curCycle());
         if (write_log) {
             *(log_stream->stream())
                 << "ReadTracePoll: cycle " << cpu->curCycle()
@@ -592,6 +611,28 @@ namespace gem5
             cpu->physRegFile().clearReadTraceTarget();
             traced_phys_idx = -1;
         }
+    }
+
+    void
+    CHAOSPhysReg::l0Final()
+    {
+        // W2.5 L0 lifecycle final line (docs/gem5-fi/ooo/
+        // 07-l0-lifecycle-interface.md), printed exactly once at end of
+        // sim from the exit callback registered in the constructor.
+        // Sync the FRESH container counters — PhysRegFile::getReg/setReg
+        // keep counting past the last poll, and the counters survive
+        // clearReadTraceTarget (only the key is cleared) — so reads/...
+        // are exact up to sim end; only at= stays observation-granular
+        // (poll stamp if a poll saw the flip, else this exit cycle).
+        // No injection ever landed (honest skip / F3 trigger miss all
+        // attempts) -> no line. Crash/abort paths run no exit callbacks,
+        // so Crash runs legitimately have no CHAOS_L0 line.
+        if (!l0.active || !write_log)
+            return;
+        chaosL0Sync(l0, cpu->physRegFile().getReadsBeforeOverwrite(),
+                    cpu->physRegFile().isTraceOverwritten(), cpu->curCycle());
+        *(log_stream->stream()) << chaosL0Line("CHAOSPhysReg", l0)
+                                 << std::endl;
     }
 
 } // namespace gem5

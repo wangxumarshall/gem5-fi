@@ -10,6 +10,7 @@
 #include "sim/eventq.hh"
 #include "cpu/base.hh"
 #include "base/output.hh"
+#include "cpu/o3/chaos_l0.hh"  // W2.5 L0 lifecycle interface state
 
 // o3::CPU (C++ class behind ArmO3CPU) is needed to reach regFile/renameMap.
 // We forward-declare it here (full definition pulled into the .cc via
@@ -47,6 +48,9 @@ class CHAOSPhysReg : public SimObject
     uint64_t overwritten_at_cycle = 0;     // cycle at which the injected value was overwritten
     bool overwrite_recorded = false;       // have we recorded overwritten_at_cycle?
     int traced_phys_idx = -1;              // phys idx being traced, or -1
+    ChaOSL0State l0;   // W2.5 L0 lifecycle state (chaos_l0.hh) — mirrors the
+                       // container-side counters; final CHAOS_L0 line from
+                       // an exit callback (l0Final)
 
     // target selection
     int target_phys_idx;     // phys fi_mode; -1 = random
@@ -103,6 +107,7 @@ class CHAOSPhysReg : public SimObject
     void checkPermanent();
     void attackCheck();
     void readTraceCheck();          // poll read_count, reschedule until halt
+    void l0Final();                 // W2.5: exit-callback CHAOS_L0 line
     const char* faultTypeToString(FaultType f);
     static FaultType stringToFaultType(const std::string &s);
     static Mode stringToMode(const std::string &s);
