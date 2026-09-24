@@ -215,6 +215,134 @@ def run_commit_diff(ref_path, run_path):
         except OSError:
             pass
 
+# ------------------------- W2.6 stats / L3-fanout helpers -------------------------
+
+# (stats.txt field, short name) -- the MEASURED gem5 v25.1 stdlib-board key
+# names, identical to tools/event_density.py's STATS_KEYS source (re-grepped
+# live from a real C3/O3 outdir stats.txt 2026-09-24 before writing this).
+# ipc is DERIVED (simInsts / numCycles -- REAL instructions-per-cycle, NOT
+# simInsts/simSeconds which is instructions-per-SIMULATED-second, a value in
+# the billions that no IPC consumer expects; orchestrator caught 2026-09-24);
+# every absent key is listed in the "missing" list -- never fabricated.
+RUNNER_STATS_KEYS = [
+    ("board.processor.cores.core.commit.branchMispredicts", "branch_mispredicts"),
+    ("board.processor.cores.core.commit.commitSquashedInsts", "commit_squashed_insts"),
+    ("board.processor.cores.core.rename.renamedInsts", "rename_renamed_insts"),
+    ("board.processor.cores.core.numCycles", "num_cycles"),
+    ("simInsts", "sim_insts"),
+    ("simSeconds", "sim_seconds"),
+    ("simTicks", "sim_ticks"),
+    ("hostSeconds", "host_seconds"),
+]
+
+
+def _parse_stat_number(tok):
+    """int(tok) if possible, else float(tok), else None (not a stat value)."""
+    try:
+        return int(tok)
+    except ValueError:
+        pass
+    try:
+        return float(tok)
+    except ValueError:
+        return None
+
+
+def extract_stats_summary(outdir):
+    """W2.6 (plan Task 6): parse <outdir>/stats.txt into the runner stats
+    summary block (ipc + the microarch event counters W3's occupancy-weighted
+    ranking consumes). Returns a dict for the '[runner] STATS: {json}' line.
+
+    Honesty contract: a key absent from stats.txt is NOT invented -- its
+    short name goes into "missing" (other families' stats.txt, e.g. C0's
+    system.cpu.* naming, will simply report most keys missing). Duplicate
+    names with conflicting values (multi-section stats, e.g. checkpoint
+    restore) keep the LAST (most recent section) value and are flagged in
+    "ambiguous". A missing/unreadable stats.txt returns {"stats_error": ...}.
+    """
+    if not outdir:
+        return {"stats_error": "gem5 outdir unknown (no -d in cmd)"}
+    spath = os.path.join(outdir, "stats.txt")
+    if not os.path.exists(spath):
+        return {"stats_error": f"stats.txt not found: {spath}"}
+    raw, ambiguous = {}, []
+    try:
+        with open(spath, "r", errors="replace") as f:
+            for line in f:
+                parts = line.split()
+                if len(parts) < 2 or parts[0].startswith("#"):
+                    continue
+                val = _parse_stat_number(parts[1])
+                if val is None:
+                    continue  # e.g. "----- Begin Simulation Statistics -----"
+                name = parts[0]
+                if name in raw and raw[name] != val:
+                    ambiguous.append(name)
+                raw[name] = val
+    except OSError as e:
+        return {"stats_error": f"stats.txt unreadable: {e}"}
+    stats, missing = {}, []
+    for key, short in RUNNER_STATS_KEYS:
+        if key in raw:
+            stats[short] = raw[key]
+        else:
+            missing.append(short)
+    # ipc = simInsts / numCycles (REAL inst-per-cycle). The first cut divided
+    # by simSeconds (inst per SIMULATED second, ~3.3e9 -- a mislabeled MIPS);
+    # orchestrator caught it in end-to-end review 2026-09-24 and switched to
+    # the measured numCycles stat (board.processor.cores.core.numCycles).
+    if ("sim_insts" in stats and "num_cycles" in stats
+            and stats["num_cycles"] > 0):
+        stats["ipc"] = round(stats["sim_insts"] / stats["num_cycles"], 6)
+    else:
+        missing.append("ipc")
+    if missing:
+        stats["missing"] = missing
+    if ambiguous:
+        stats["ambiguous"] = sorted(set(ambiguous))
+    return stats
+
+
+def run_fanout(trace_path, phys_id):
+    """W2.6 (plan Task 6): measure the L3 fanout of phys_id on the run's
+    commit trace via tools/fanout.py (liveness windows + val changes; the
+    honest upper-bound proxy -- source reads are not in the trace). Returns
+    fanout.py's JSON dict, or an honest {'l3_error': ...} on any failure
+    (modeled on run_commit_diff; the caller merges it verbatim into the
+    results.jsonl l3 block)."""
+    if not os.path.exists(trace_path):
+        return {"l3_error": f"trace missing: {trace_path}"}
+    fo = os.path.join(REPO, "tools", "fanout.py")
+    tmpd = tempfile.mkdtemp(prefix="l3fan-")
+    jpath = os.path.join(tmpd, "l3.json")
+    env = dict(os.environ)
+    env.setdefault("PYTHONHASHSEED", "0")
+    try:
+        r = subprocess.run([sys.executable, fo, "--trace", trace_path,
+                            "--phys", str(phys_id), "--json", jpath],
+                           capture_output=True, text=True, timeout=600,
+                           env=env)
+    except subprocess.TimeoutExpired:
+        return {"l3_error": "fanout exceeded 600s"}
+    if r.returncode != 0 or not os.path.exists(jpath):
+        return {"l3_error": f"fanout exit={r.returncode}",
+                "fanout_stderr": (r.stderr or "")[-500:]}
+    try:
+        with open(jpath) as f:
+            return json.load(f)
+    except (OSError, ValueError) as e:
+        return {"l3_error": f"fanout json unreadable: {e}"}
+    finally:
+        try:
+            os.unlink(jpath)
+        except OSError:
+            pass
+        try:
+            os.rmdir(tmpd)
+        except OSError:
+            pass
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("manifest")
@@ -273,6 +401,24 @@ def main():
                          "omitted (the per-cell fault-free trace baseline; "
                          "the manifest's fault block is validated but NOT "
                          "mapped to any --chaos_* flag).")
+    # ---- W2.6 (plan Task 6): stats.txt summary + L3 fanout ----
+    ap.add_argument("--stats", action="store_true",
+                    help="W2.6: after the run, parse <outdir>/stats.txt and "
+                         "print a '[runner] STATS: {json}' summary line "
+                         "(ipc = simInsts/numCycles, branch_mispredicts, "
+                         "commit_squashed_insts, rename_renamed_insts, "
+                         "sim_insts/sim_seconds/sim_ticks, host_seconds). "
+                         "Keys absent from stats.txt are listed in "
+                         "stats.missing — never fabricated.")
+    ap.add_argument("--fanout-phys", type=int, default=None, metavar="ID",
+                    help="W2.6: after the run, measure the L3 fanout of this "
+                         "physical register id on the produced --ctrace via "
+                         "tools/fanout.py (liveness windows until the next "
+                         "overwrite of the same phys id + val change count; "
+                         "source reads are not traced, so the window is an "
+                         "upper-bound proxy) and print it as an "
+                         "'[runner] L3RESULT: {json}' line (requires "
+                         "--ctrace).")
     args = ap.parse_args()
 
     with open(args.manifest) as f:
@@ -298,6 +444,14 @@ def main():
     if args.ctrace_ref and not args.ctrace:
         sys.exit("[runner] --ctrace-ref requires --ctrace (the five-class "
                  "diff compares the trace THIS run produces). Aborting.")
+    # W2.6: --fanout-phys measures the trace THIS run produces, so it is
+    # meaningless without --ctrace; a negative id is a typo, not an id.
+    if args.fanout_phys is not None and not args.ctrace:
+        sys.exit("[runner] --fanout-phys requires --ctrace (the L3 fanout "
+                 "measures the commit trace THIS run produces). Aborting.")
+    if args.fanout_phys is not None and args.fanout_phys < 0:
+        sys.exit("[runner] --fanout-phys must be a non-negative integer. "
+                 "Aborting.")
 
     # platform.config_params (optional dict): microarch knob overrides passed
     # through to the config script (Phase 3 H2 window sweep — ROB/PhysInt
@@ -986,6 +1140,13 @@ def main():
           f"faults_injected={faults} exit={r.returncode} "
           f"timed_out={timed_out} oracle={oracle_kind}")
     print(f"[runner]   reason: {reason}")
+    # ---- W2.6 (plan Task 6): stats.txt summary consumption ----
+    # Parsed by campaign.py's parse_runner_result into the rep's results.jsonl
+    # `stats` block. Opt-in (--stats) so legacy invocations keep their exact
+    # stdout (the W2.3 regression contract: no new flag, no new line).
+    if args.stats:
+        stats = extract_stats_summary(outdir)
+        print("[runner] STATS: " + json.dumps(stats, ensure_ascii=False))
     # ---- W2.3: L2 commit-trace evidence + five-class merge (commit_diff) ----
     # CTRACE prints where the trace landed and how many committed instructions
     # it holds (parsed by campaign.py's parse_runner_result). L2RESULT carries
@@ -1007,6 +1168,14 @@ def main():
             l2 = run_commit_diff(os.path.abspath(args.ctrace_ref),
                                  ctrace_path)
             print("[runner] L2RESULT: " + json.dumps(l2, ensure_ascii=False))
+        # ---- W2.6 (plan Task 6): L3 fanout of --fanout-phys on this run's
+        # trace (tools/fanout.py; liveness windows + val changes). Parsed by
+        # campaign.py into the rep's results.jsonl `l3` block. The honest
+        # metric is documented in fanout.py: source reads are not traced, so
+        # the liveness window is an upper-bound proxy for consumer reads.
+        if args.fanout_phys is not None:
+            l3 = run_fanout(ctrace_path, args.fanout_phys)
+            print("[runner] L3RESULT: " + json.dumps(l3, ensure_ascii=False))
     return 0
 
 if __name__ == "__main__":

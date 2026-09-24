@@ -403,6 +403,11 @@ RESULT_PREFIX = "RESULT:"
 # match (and consume) its line first, and the RESULT branch must never see it.
 L2_PREFIX = "L2RESULT:"
 CTRACE_PREFIX = "CTRACE:"
+# W2.6 (plan Task 6) markers, same convention. "L3RESULT:" also contains
+# "RESULT:" — like L2RESULT it is matched (and consumed) before the RESULT
+# branch. "STATS:" collides with nothing.
+L3_PREFIX = "L3RESULT:"
+STATS_PREFIX = "STATS:"
 
 def parse_runner_result(stdout):
     """Extract (classification, faults, exit_code) from runner.py's
