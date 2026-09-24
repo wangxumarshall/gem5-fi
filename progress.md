@@ -2570,3 +2570,9 @@ CI 零重叠——**H7 验收断言("ECC-off spurious>0 vs ECC-on≈0")formal �
 - **clangd**: 本机已有 clangd 22.1.1(`/home/sdc/.local/bin`,pip 包;distro 源 clang-tools-extra 17.0.6 勿装=降级)。Claude Code v2.1.185 的 LSP 只能经 plugin 接入:本仓新建 `.claude/lsp-marketplace/`(marketplace 名 `gem5-fi-lsu-local`)+`.claude/settings.json` 注册(`.claude/` 整体在 .gitignore)。三坑:`LC_ALL=C` / `--query-driver=/usr/bin/g++` / 禁 `restartOnCrash`&`shutdownTimeout`。**需重启会话生效**。
 - **构建布局**: 本 checkout 原先无任何 build/;新建仓库根 `build/ARM` 为 canonical 真目录 + `CHAOS/gem5/build/ARM → ../../../build/ARM` 符号链接,使 `cd CHAOS/gem5 && scons build/ARM/...` 产物落在仓库根(CLAUDE.md 纪律,避免 CHAOS/gem5/build 假段错误重复目录)。compile_commands.json 后台生成中。
 - **LSU 北极星**: brainstorming 进行中,范围已裁定=**完整北极星**(忠实提取 9 表 + 09 式实施总纲)。源 xlsx=68 模型(A/T/S/C/O/P/L 前缀,完善版 58→68)×337 展开格×14 负载 W0-W13;L0-L5 六层/F0-F6 七档/自适应样本量(试跑30→筛查≥385→Wilson≤2pp或5000);与 OoO 轨道关键差异已摸清(源表自带 ID、B0 内嵌、FS/多核结构性依赖、《LSU单元参数总表.md》不在仓库)。spec 待写。
+
+### LSU 北极星实现计划定稿(2026-09-24)
+
+- **计划**: `docs/superpowers/plans/2026-09-24-lsu-north-star-extraction.md` — 7 任务/7 commit(spec §10 授权的定稿序:verify_extraction.py 前移到文档任务前,TDD)。
+- **规则预验证**: 计划编写前用一次性脚本把全部提取规则实证钉死——展开=适用频率×适用负载全叉积(68/68)、col4/5/6/11-15 逐格 verbatim(337/337)、col8 频率定义有 13 行 F6 覆盖(L02/L03/L04/C15/P09,activated 判据强化版)、col10=col9+'执行定义与 oracle：'+表6定义(除 12 行 W11 全部用扩展 oracle 文本)、col26 记录状态颜色黄集合==完善版 10 模型 77 格(集合相等验证)、RunID 0 不一致、结果槽全空。计划内嵌完整 extract.py(六断言 A1-A6)与 verify_extraction.py v1 代码,零"实现时再猜"。
+- **状态**: spec(4fe4b7dd)+计划已推送;待执行(7 任务,subagent-driven 或 inline 待用户选)。
