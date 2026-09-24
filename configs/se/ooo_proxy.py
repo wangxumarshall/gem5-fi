@@ -153,7 +153,19 @@ p.add_argument("--rob_mode", default="entry_bitflip",
                choices=["entry_bitflip","exc_suppress",
                         "pc_bitflip","pc_bitflip2","pc_stuck",
                         "destid_bitflip","destid_bitflip2",
-                        "destid_swap_active","destid_stuck"])
+                        "destid_swap_active","destid_stuck",
+                        # W5.4 (D32-D35): done/completed bit at the commit
+                        # gate (Commit::markCompletedInsts site).
+                        "done_early","done_early_event",
+                        "done_delay","done_delay_event",
+                        # W5.6 (D40): whole-record stale read at insert.
+                        "rob_stale_read",
+                        # W5.6 (D36-D39): old-phys family — mounted via this
+                        # flag but INSTANTIATED as CHAOSRenameMap below (the
+                        # gem5 old-phys = rename historyBuffer prevPhysReg,
+                        # W4 N1); CHAOSROB itself stays inert for them.
+                        "oldphys_bitflip","oldphys_bitflip2",
+                        "oldphys_swap_active","oldphys_stuck"])
 p.add_argument("--rob_field", default="exc_status",
                choices=["result","done","exc_status","dest_phys","spec"])
 p.add_argument("--rob_distance", type=int, default=0)
@@ -240,10 +252,21 @@ p.add_argument("--chaos_decode", action="store_true",
 # W6 D01-D07 (ooo 04-design-matrix R2-R8): encoding-corruption modes at
 # the FETCH decode output (fetch.cc post-decode hook, AArch64 non-macroop
 # only). dest_reg_sub keeps the legacy §2.14 rename-site semantics.
+# W6 batch 2 (D08-D10, R9-R11): sign_ext_bit flips EXACTLY the format-
+# located sign/top bit of the immediate's encoding (per-format table,
+# GNU-as verified); imm_subfield_shift transposes two equal-width named
+# subfields of the immediate encoding (immr<->imms, immlo<->immhi[1:0],
+# hw<->imm16[15:14], sh<->imm12[11:10]; single-field formats honestly
+# skipped+logged); crack_ctrl flips the LDP/STP addressing-mode field
+# enc[24:23] on macroop (cracked) decodes — the gem5-v25 crack decision is
+# baked into the static ISA decode table (no runtime latch), so the
+# µop-stream perturbation is modeled at the encoding level (+1 spurious
+# writeback µop / -1 lost writeback µop / composition swap, counts logged).
 p.add_argument("--decode_mode", default="dest_reg_sub",
                choices=["dest_reg_sub","opcode_bitflip","opcode_bitflip2",
                         "opcode_swap","reg_bitflip","reg_bitflip2",
-                        "imm_bitflip","imm_bitflip2"])
+                        "imm_bitflip","imm_bitflip2",
+                        "sign_ext_bit","imm_subfield_shift","crack_ctrl"])
 p.add_argument("--decode_first_clock", type=lambda x: int(x,0), default=1000)
 p.add_argument("--decode_last_clock", type=lambda x: int(x,0), default=0)
 p.add_argument("--decode_max_faults", type=lambda x: int(x,0), default=1)
@@ -479,9 +502,20 @@ if args.chaos_freelist:
     )
     board.chaos_freelist = fl
 
-if args.chaos_rob:
+# W5.6 D36-D39 old-phys family: the design's component is the ROB entry's
+# old-physical-register field, but gem5 stores old-phys in the rename
+# historyBuffer checkpoint (W4 N1 mechanism finding) — those modes live in
+# CHAOSRenameMap and are mounted here through the --rob_mode route (the rob
+# block's own increment; the --rename_* args block is left untouched for
+# the parallel W6 batch). CHAOSROB itself is inert for them (C++ side maps
+# oldphys_* to Mode::OldphysInert — never a silent entry_bitflip fallback).
+_W5_OLDPHYS_ROB_MODES = ("oldphys_bitflip", "oldphys_bitflip2",
+                         "oldphys_swap_active", "oldphys_stuck")
+if args.chaos_rob and args.rob_mode not in _W5_OLDPHYS_ROB_MODES:
     # §2.3 CHAOSROB: O3-only. SELF-ATTACHES at startup() to cpu.rob.chaosROB
-    # (ROB::retireHead calls maybeCorrupt on the head inst pre-clearInROB).
+    # (ROB::retireHead calls maybeCorrupt on the head inst pre-clearInROB;
+    # W5.4 done-bit modes also hook Commit::markCompletedInsts via
+    # cpu.o3Commit().setChaosROB).
     rob = CHAOSROB(
         cpu=cpu0,
         mode=args.rob_mode,
@@ -494,6 +528,22 @@ if args.chaos_rob:
         writeLog=True,
     )
     board.chaos_rob = rob
+elif args.chaos_rob:
+    # W5.6: oldphys_* — instantiate the rename-history injector instead
+    # (same push_front site as hb_bitflip; the rob_* knob set drives it:
+    # first_clock / max_faults / rng_seed / probability).
+    rob_oldphys = CHAOSRenameMap(
+        cpu=cpu0,
+        mode=args.rob_mode,
+        targetArchReg=-1,
+        probability=args.probability,
+        firstClock=args.rob_first_clock,
+        maxFaults=args.rob_max_faults,
+        faultMask=0,
+        rngSeed=args.rob_rng_seed,
+        writeLog=True,
+    )
+    board.chaos_rob_oldphys = rob_oldphys
 
 if args.chaos_iq:
     # §2.5 CHAOSIQ: O3-only. SELF-ATTACHES at startup() to

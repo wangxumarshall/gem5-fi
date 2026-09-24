@@ -885,6 +885,52 @@ def main():
         if (inj["model"] in ("stuck_at_zero", "stuck_at_one")
                 and str(tgt.get("sub_field", "")) == "destid_stuck"):
             rm = "destid_stuck"
+        # W5.4 done-bit family (ooo 04-design-matrix D32-D35, Int
+        # Dispatch/ROB — the done/completed CanCommit bit at the
+        # Commit::markCompletedInsts gate): done_early(_event) forces the
+        # bit (plus the required setExecuted assert bypass) on a
+        # not-yet-completed entry; done_delay(_event) skips one
+        # setCanCommit permanently. delay_omission = the timing/state-
+        # update-wrong bucket (the D16 stale_read precedent); the
+        # sub_field discriminator selects the exact model.
+        if (inj["model"] == "delay_omission"
+                and str(tgt.get("sub_field", "")) == "done_early"):
+            rm = "done_early"
+        if (inj["model"] == "delay_omission"
+                and str(tgt.get("sub_field", "")) == "done_early_event"):
+            rm = "done_early_event"
+        if (inj["model"] == "delay_omission"
+                and str(tgt.get("sub_field", "")) == "done_delay"):
+            rm = "done_delay"
+        if (inj["model"] == "delay_omission"
+                and str(tgt.get("sub_field", "")) == "done_delay_event"):
+            rm = "done_delay_event"
+        # W5.6 D40 rob_stale_read (R41, ROB项整体·读到旧数据): the insert-
+        # site whole-record stale overwrite (previous occupant's record
+        # retained; commit reads it — STALE_RECORD_COMMITTED evidence).
+        if (inj["model"] == "delay_omission"
+                and str(tgt.get("sub_field", "")) == "rob_stale_read"):
+            rm = "rob_stale_read"
+        # W5.6 D36-D39 old-phys family (R37-R40, ROB的旧物理寄存器字段):
+        # gem5's old-phys lives in the rename historyBuffer checkpoint
+        # (W4 N1), so the modes are implemented in CHAOSRenameMap and
+        # routed through --rob_mode (ooo_proxy instantiates the rename
+        # injector for oldphys_*). 1-bit / 2-bit flip of prevPhysReg
+        # (transient_bit_flip / local_mbu), swap to another ROB-active
+        # dest physReg (legal_domain_sub, the D13/D30 pattern), F5 stuck
+        # bit on the field cell (stuck_at_zero/one).
+        if (inj["model"] == "transient_bit_flip"
+                and str(tgt.get("sub_field", "")) == "oldphys_bitflip"):
+            rm = "oldphys_bitflip"
+        if (inj["model"] == "local_mbu"
+                and str(tgt.get("sub_field", "")) == "oldphys_bitflip2"):
+            rm = "oldphys_bitflip2"
+        if (inj["model"] == "legal_domain_sub"
+                and str(tgt.get("sub_field", "")) == "oldphys_swap_active"):
+            rm = "oldphys_swap_active"
+        if (inj["model"] in ("stuck_at_zero", "stuck_at_one")
+                and str(tgt.get("sub_field", "")) == "oldphys_stuck"):
+            rm = "oldphys_stuck"
         cmd += ["--rob_mode", rm, "--rob_first_clock", str(t["value"]),
                 "--rob_max_faults", str(m["limits"]["max_faults"]),
                 "--rob_rng_seed", str(m["rng"]["selection_seed"])]
@@ -1029,11 +1075,27 @@ def main():
         #   imm_bitflip/imm_bitflip2 (D06/D07): 1/2 bits of the immediate
         #        region [21:10], semantically verified (mnemonic and reg
         #        operands unchanged — value-only change).
+        #   W6 batch 2 (D08-D10, R9-R11):
+        #   sign_ext_bit (D08): flip EXACTLY the format-located sign/top
+        #        bit of the immediate's encoding (per-format GNU-as-verified
+        #        table: imm12 bit21 / imms bit20 / imm9 bit20 / imm19 bit23 /
+        #        imm14 bit18 / imm26 bit25 / adrp immhi bit23 / imm16 bit20);
+        #        the re-decode's own sign-extension consumes the flip.
+        #   imm_subfield_shift (D09): transpose two equal-width named
+        #        subfields of the immediate encoding (imms<->immr,
+        #        immlo<->immhi[1:0], hw<->imm16[15:14], sh<->imm12[11:10]);
+        #        single-contiguous-field formats honestly skipped + logged.
+        #   crack_ctrl (D10, exploratory): on macroop (cracked) LDP/STP
+        #        decodes, flip the addressing-mode field enc[24:23] within
+        #        {post,offset,pre} — ±1 µop (spurious/lost writeback µop)
+        #        or composition swap, µop counts logged; non-macroop
+        #        instructions honestly skipped (force-crack blocker).
         dm = "dest_reg_sub"
         dsf = str(tgt.get("sub_field", ""))
         if dsf in ("opcode_bitflip", "opcode_bitflip2", "opcode_swap",
                    "reg_bitflip", "reg_bitflip2",
-                   "imm_bitflip", "imm_bitflip2", "dest_reg_sub"):
+                   "imm_bitflip", "imm_bitflip2", "dest_reg_sub",
+                   "sign_ext_bit", "imm_subfield_shift", "crack_ctrl"):
             dm = dsf
         cmd += ["--chaos_decode", "--decode_mode", dm,
                 "--decode_first_clock", str(t["value"]),
