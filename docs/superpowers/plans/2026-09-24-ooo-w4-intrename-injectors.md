@@ -48,3 +48,12 @@ Task 1 → Task 2 串行（同一文件集，避免冲突）。D14（误预测�
 - [ ] CHAOSFreeList 现有 `mark_free`（把已分配项标回空闲=重复分配）语义核对 + `--freelist_mode` 加事件触发版（空闲表剩余 ≤8 时触发——numFreeRegs(RegClassType) 阈值判断，挂 SimpleFreeList::getReg 后）；D17=固定间隔 F1/F2、D18=事件触发。验证：注入日志（重复分配的 phys id + 阈值时刻）+ golden 回归 + 无注入回归。
 
 **批次 2 执行约束**：Task 3→4→5 串行；每 Task 独立验证（三件套+注入证据）；构建一轮做完三 Task 后统一增量构建亦可但每 Task 注入验证须在其代码入二进制后跑；代理不 commit（编排者按 Task 分批提交）。
+
+---
+
+### Task 6: W4 收官批 — D14/D19/D20-22/D23-24（Int Rename 最后 7 单元，完成后 W4 全齐→暂停）
+- [ ] **D14**（swap_mispred_event）：同 swap_to_active 模型，但只在分支误预测恢复瞬间触发（挂 commit/bac squash 路径，复用批次 2 的 setEntry_restore 钩子时机 + 误预测事件判定）。
+- [ ] **D19**（drop_release）：某 phys 该被释放回空闲表时抑制这次释放（一次性触发持续影响；挂 UnifiedFreeList::addReg）。
+- [ ] **D20/D21/D22**（freelist 头/尾指针）：gem5 SimpleFreeList=std::queue 无显式指针——按 spike B 近似：单bit=pop_wrong（返回非 front 索引）、双bit=front 索引 xor 2 位掩码、卡死=反复返回同项不 pop（或 addReg 侧 drop=只出不进）。诚实标注近似口径。
+- [ ] **D23/D24**（重命名检查点=historyBuffer 表项翻转，单/双bit）：gem5 无 checkpoint 用 historyBuffer（机制核实 N1）——挂 rename.cc 的 historyBuffer 写入/消费路径，翻转 RenameHistory 的 newPhysReg/prevPhysReg 字段，窗口=建立→squash 消费。
+- [ ] 每模式验证三件套 + 注入日志证据 + golden 回归；runner/ooo_proxy 路由接全。
