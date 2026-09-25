@@ -27,7 +27,7 @@
 
 import argparse
 import m5
-from m5.objects import CHAOSReg, CHAOSPhysReg, CHAOSMem, CHAOSLSQFwd, CHAOSRenameMap, CHAOSFreeList, CHAOSROB, CHAOSIQ, CHAOSExec, CHAOSFPU, CHAOSL1DForward, CHAOSBPU, CHAOSAddrPath, CHAOSDecode, CHAOSExMon, CHAOSRAS, CHAOSProbe, CHAOSCommitTrace, CHAOSMicroSnap, FUDesc, FUPool, OpDesc, IQUnit, StridePrefetcher, RandomRP, SimpleBTB, BTBSetAssociative, BiModeBP, ReturnAddrStack, BranchPredictor, LRURP, NULL, Parent
+from m5.objects import CHAOSReg, CHAOSPhysReg, CHAOSMem, CHAOSCache, CHAOSLSQFwd, CHAOSRenameMap, CHAOSFreeList, CHAOSROB, CHAOSIQ, CHAOSExec, CHAOSFPU, CHAOSL1DForward, CHAOSBPU, CHAOSAddrPath, CHAOSDecode, CHAOSExMon, CHAOSRAS, CHAOSProbe, CHAOSCommitTrace, CHAOSMicroSnap, FUDesc, FUPool, OpDesc, IQUnit, StridePrefetcher, RandomRP, SimpleBTB, BTBSetAssociative, BiModeBP, ReturnAddrStack, BranchPredictor, LRURP, NULL, Parent
 from gem5.components.boards.simple_board import SimpleBoard
 from gem5.components.cachehierarchies.classic.private_l1_private_l2_cache_hierarchy import (
     PrivateL1PrivateL2CacheHierarchy,
@@ -157,6 +157,22 @@ p.add_argument("--maxinsts", type=int, default=0)
 p.add_argument("--variant", default="B0", choices=["B0", "S1", "S2", "S3", "S4"],
                help="B0 baseline or S1(DTLB=64)/S2(L1D 64KiB/4-way)/"
                     "S3(LSQDepCheckShift=4)/S4(prefetcher@L1D) variant")
+# W6: L1D cache injector (CHAOSCache on l1d-cache-0)
+p.add_argument("--chaos_l1d", action="store_true",
+               help="attach CHAOSCache to l1d-cache-0 (W6, 03 C-series)")
+p.add_argument("--l1d_fault_type", default="bit_flip",
+               choices=["bit_flip","stuck_at_zero","stuck_at_one","random"])
+p.add_argument("--l1d_first_clock", type=lambda x: int(x,0), default=1000)
+p.add_argument("--l1d_max_faults", type=lambda x: int(x,0), default=1)
+p.add_argument("--l1d_rng_seed", type=lambda x: int(x,0), default=20260825)
+p.add_argument("--l1d_target_field", default="data",
+               choices=["data","tag"])
+p.add_argument("--l1d_protection_model", default="none",
+               choices=["none","sed","secded_poison","secded"])
+p.add_argument("--l1d_lsu_tier", default="off",
+               choices=["off","F0","F1","F2","F3","F4","F5","F6"],
+               help="W6: LSU trigger tier on CHAOSCache (05 r2-r8)")
+
 # --- CHAOS injector args (identical surface to arm_chaos.py) ---
 p.add_argument("--chaos_reg", action="store_true")
 p.add_argument("--probability", type=float, default=1.0)
@@ -627,6 +643,25 @@ def _lsu_b0_caches(root):
     else:
         l2.prefetcher = StridePrefetcher(degree=8, latency=1,
                                          prefetch_on_access=True)
+    # W6: CHAOSCache on L1D — mount in the same _pre_instantiate hook
+    # (arm_chaos_cache.py:83-113 precedent: the cache objects only exist
+    # after the original hook runs).
+    if args.chaos_l1d:
+        board.chaos_l1d = CHAOSCache(
+            target_cache=l1d,
+            probability=args.probability,
+            firstClock=args.l1d_first_clock,
+            lastClock=0,
+            faultType=args.l1d_fault_type,
+            bitsToChange=args.bits_to_change,
+            rngSeed=args.l1d_rng_seed,
+            maxFaults=args.l1d_max_faults,
+            targetField=args.l1d_target_field,
+            protectionModel=args.l1d_protection_model,
+            writeLog=True)
+        print(f"[lsu_proxy] CHAOSCache attached to l1d-cache-0 "
+              f"(field={args.l1d_target_field}, protection={args.l1d_protection_model})")
+
     print(f"[lsu_proxy] B0 caches applied (variant={args.variant}): L1D "
           f"{'64KiB/4' if args.variant == 'S2' else '32KiB/2'}-way lat222 "
           f"MSHR6/t8/wb16 + L1I 32KiB/2 lat111 MSHR2 + L2 1MiB/16 lat12 "
