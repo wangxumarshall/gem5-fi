@@ -32,6 +32,36 @@ namespace gem5
           log_stream(nullptr),
           stats(nullptr)
     {
+        // LSU W2/W5: event-normalized trigger (05 r2-r8; off = legacy).
+        if (p.lsuTier != "off") {
+            auto tier = ChaOSLsuTier::F0;
+            if (p.lsuTier == "F1") tier = ChaOSLsuTier::F1;
+            else if (p.lsuTier == "F2") tier = ChaOSLsuTier::F2;
+            else if (p.lsuTier == "F3") tier = ChaOSLsuTier::F3;
+            else if (p.lsuTier == "F4") tier = ChaOSLsuTier::F4;
+            else if (p.lsuTier == "F5") tier = ChaOSLsuTier::F5;
+            else if (p.lsuTier == "F6") tier = ChaOSLsuTier::F6;
+            lsuTrigger = new ChaOSLsuTrigger(tier, rng_seed ? rng_seed : 1,
+                                             p.lsuWarmupEvents, p.lsuSpanEvents);
+        }
+        if (lsuTrigger) {
+            // W5: funnel lines at exit (chaos_l0 discipline: log file, not
+            // stdout). activated = same near-tautological approximation as
+            // CHAOSAddrPath (the forwarded data is consumed by the load's
+            // writeback immediately after this hook).
+            registerExitCallback([this]() {
+                if (lsuTrigger)
+                    lsuTrigger->summary("CHAOSLSQFwd");
+                l0_funnel.attempted = lsuTrigger->attempted;
+                l0_funnel.eligible  = lsuTrigger->eligible;
+                l0_funnel.injected  = faults_injected_count;
+                l0_funnel.activated = faults_injected_count;
+                if (write_log && log_stream && log_stream->stream()) {
+                    *(log_stream->stream()) << l0_funnel.line("CHAOSLSQFwd")
+                                            << std::endl;
+                }
+            });
+        }
         if (!cpu) {
             throw std::runtime_error(
                 "CHAOSLSQFwd: cpu is not an O3CPU. CHAOSLSQFwd only supports "
@@ -161,23 +191,31 @@ namespace gem5
         // (maybeDelayForward) — no data mutation there either.
         if (struct_mode == StructMode::FwdSourceSub) return;
         if (struct_mode == StructMode::PhaseOffset) return;
-        Cycles cur = cpu->curCycle();
-        if (cur < first_clock) return;
-        if (last_clock != Cycles(0) && cur > last_clock) return;
-        if (max_faults != 0 && faults_injected_count >= max_faults) return;
+        if (lsuTrigger) {
+            // LSU W2/W5 path (05 r2-r8): the event-normalized trigger owns
+            // warm-up/repetition semantics; the legacy cycle window,
+            // events_to_skip and the Bernoulli roll do NOT apply here.
+            lsuTrigger->onAttempt();
+            if (!lsuTrigger->onEligible()) return;
+        } else {
+            Cycles cur = cpu->curCycle();
+            if (cur < first_clock) return;
+            if (last_clock != Cycles(0) && cur > last_clock) return;
+            if (max_faults != 0 && faults_injected_count >= max_faults) return;
 
-        // Sampling-bias fix (findings.md Phase 2.2): skip the first N
-        // eligible forwarding events (N ~ geometric(0.1) from the seed) so
-        // the single fault lands on a seed-dependent event.
-        if (count_only) { ++eligible_count; return; }
-        if (events_to_skip > 0) {
-            --events_to_skip;
-            return;
+            // Sampling-bias fix (findings.md Phase 2.2): skip the first N
+            // eligible forwarding events (N ~ geometric(0.1) from the seed)
+            // so the single fault lands on a seed-dependent event.
+            if (count_only) { ++eligible_count; return; }
+            if (events_to_skip > 0) {
+                --events_to_skip;
+                return;
+            }
+
+            // Bernoulli: does this forwarding event get corrupted?
+            std::uniform_real_distribution<float> dist(0.0f, 1.0f);
+            if (dist(rng) >= probability) return;
         }
-
-        // Bernoulli: does this forwarding event get corrupted?
-        std::uniform_real_distribution<float> dist(0.0f, 1.0f);
-        if (dist(rng) >= probability) return;
         if (size == 0) return;
 
         // §2.4 structured fault modes (fi-h6-h7 branch, H5 closed):

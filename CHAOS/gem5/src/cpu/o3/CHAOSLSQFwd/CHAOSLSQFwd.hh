@@ -6,6 +6,8 @@
 #include <memory>
 
 #include "base/output.hh"
+#include "cpu/o3/chaos_l0.hh"           // LSU W3 L0 funnel
+#include "cpu/o3/chaos_lsu_trigger.hh"  // LSU W2 event-normalized tiers
 #include "base/statistics.hh"
 #include "base/types.hh"
 #include "params/CHAOSLSQFwd.hh"
@@ -100,6 +102,13 @@ class CHAOSLSQFwd : public SimObject
     // seed-dependent forwarding event instead of always the first eligible
     // one (which is the same dynamic store->load pair every rep on a
     // deterministic stream).
+    // LSU W2/W5: event-normalized trigger + L0 funnel (same wiring pattern
+    // as CHAOSAddrPath; lsuTier != off routes the injection decision through
+    // the trigger and the funnel prints at exit).
+    ChaOSLsuTrigger *lsuTrigger = nullptr;
+    ChaOSL0Funnel l0_funnel;
+    ChaOSL0State l0_item;
+
     uint64_t events_to_skip = 0;
     // v1.1 Phase 8.2 uniform sampling (chaos_event_sample.hh): FIXED skip
     // from the driver overrides the legacy geometric(0.1) draw.

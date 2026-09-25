@@ -205,6 +205,11 @@ p.add_argument("--lsq_struct_mode", default="byte_flip",
                choices=["byte_flip", "byte_lane_skew", "stale_line_replay",
                         "all_zero", "fwd_source_sub", "phase_offset"])
 p.add_argument("--lsq_lane_skew_k", type=int, default=1)
+# W5: LSU event-normalized trigger on CHAOSLSQFwd (S01/S02/S03 family).
+p.add_argument("--lsqfwd_lsu_tier", default="off",
+               choices=["off","F0","F1","F2","F3","F4","F5","F6"])
+p.add_argument("--lsqfwd_warmup_events", type=lambda x: int(x,0), default=0)
+p.add_argument("--lsqfwd_span_events", type=lambda x: int(x,0), default=1000)
 # §2.2 CHAOSRenameMap (O3 rename-map fault injector). SELF-ATTACHES at
 # startup() to thread-0 frontRenameMap.chaosRenameMap. map_bitflip /
 # map_bitflip2 (W4.1 D12: 2 distinct random index bits) / swap_to_active
@@ -715,6 +720,9 @@ if args.chaos_lsqfwd:
         byteOffset=args.lsq_byte_offset,
         structMode=args.lsq_struct_mode,
         laneSkewK=args.lsq_lane_skew_k,
+        lsuTier=args.lsqfwd_lsu_tier,
+        lsuWarmupEvents=args.lsqfwd_warmup_events,
+        lsuSpanEvents=args.lsqfwd_span_events,
         firstClock=args.first_clock,
         lastClock=args.last_clock,
         maxFaults=args.max_faults,
