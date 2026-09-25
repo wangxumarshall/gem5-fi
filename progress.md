@@ -2685,3 +2685,12 @@ CI 零重叠——**H7 验收断言("ECC-off spurious>0 vs ECC-on≈0")formal �
 - **2 近似**: C05(tag比较)≈C04 C10(PLRU)≈C06
 - **4 事件钩子**: C11(allocateTarget) C12(handleFill) C14(deallocate) C15(mshr_queue free check)
 - 全部通过 CHAOSCache 或 chaosLsuF6Notify 事件通知机制接入
+
+### W7 TLB 注入器(2026-09-26): 参数接线完成, 测试被 FS 阻塞
+
+- CHAOSArmTLB.py 加 LSU 触发参数(lsuTier/lsuWarmupEvents/lsuSpanEvents)。
+- **FS-ONLY 结构性阻塞**: gem5-fs/ 子模块为空(无 kernel/disk images);
+  SE 模式下 TLB::lookup 零调用(W1 ③)。
+- T 模型映射: T01-T04+T10 可由现有 CHAOSArmTLB 模式覆盖(需 FS 测试);
+  T05-T08 需新模式; T09(保护)=B0 不适用。
+- **W7 状态: 注入面参数就位(wire-ready); 测试需 FS 基础设施补齐后进行。**
