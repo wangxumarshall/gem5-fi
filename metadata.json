@@ -1,0 +1,29 @@
+{
+  "cli_version": "0.10.2",
+  "checkpoint_id": "01M3BD1R398SQVCFT1MQ252XS1",
+  "strategy": "manual-commit",
+  "branch": "fi-ding",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "campaigns/ooo-w82-int-rename.yaml",
+    "campaigns/ooo-w83-int-dispatch-rob.yaml",
+    "campaigns/ooo-w84-int-decode.yaml",
+    "campaigns/ooo-w85-fpsimd.yaml"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 434974,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 5724416,
+    "output_tokens": 50455,
+    "api_call_count": 51
+  }
+}
