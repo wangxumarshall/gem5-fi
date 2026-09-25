@@ -509,7 +509,7 @@ git push origin fi-ding
 - Produces: §2 表九行状态 `待核实 → 已核实`（含结论与行号）；⑦ 的 AGU 截获裁定（W4 依赖）；F6 事件映射表（W2 依赖）。
 - Consumes: §2 表的初查锚点（已含路径行号）。
 
-- [ ] **Step 1: 逐项源码核实（九项，每项给出「xlsx 表述 vs v25.1 实际 vs 对模型行的影响」结论 + file:line）**
+- [x] **Step 1: 逐项源码核实（九项，每项给出「xlsx 表述 vs v25.1 实际 vs 对模型行的影响」结论 + file:line）**
 
 核实要点（锚点已在 09 §2 第三列）：
 1. ① LQ/SQ：`lsq.hh/.cc`（:761 起 LQ head、LSQRequest 状态机）+ `lsq_unit.hh/.cc`（:247/:287 violation）——确认表项字段构成、head/tail 语义、violation→replay 路径；确认 16/16 只能配置显式落地（已由 W0 完成）。
@@ -522,15 +522,15 @@ git push origin fi-ding
 8. ⑧ F4/F6 触发差距：`chaos_trigger.hh:23-48`（枚举 F0-F3+F5）——确认 F4/F6 缺失范围与扩展面（W2 的输入）。
 9. ⑨ MSHR/fill/writeback：`mshr.hh/.cc` + `cache.cc`/`base.cc` + `write_queue*.cc`——给出 C11/C12/C14 的落点结论。
 
-- [ ] **Step 2: F6 事件映射表（W2 依赖，05 r8 的事件枚举 → gem5 具体事件点）**
+- [x] **Step 2: F6 事件映射表（W2 依赖，05 r8 的事件枚举 → gem5 具体事件点）**
 
 对 05 r8 列出的 F6 触发事件（TLB hit、SQ forward、dirty eviction、CAS 成功）逐个给出 v25.1 中的具体可挂接点（函数/回调，带 file:line），写进 §2 表后附加小节「F6 事件映射（W2 输入）」。找不到对应物的如实标「无直接对应点，需 W2 造近似事件」。
 
-- [ ] **Step 3: 回填 09 §2 表**
+- [x] **Step 3: 回填 09 §2 表**
 
 把九行「状态」列从「待核实」改为「已核实（N#）」，结论精炼进「v25.1 实际」列（保留初查锚点原文，追加核实结论）；表后新增「W1 核实结论与裁定（2026-09-25）」小节记录 ⑦ 裁定与 F6 映射。**落点修正≠故障语义修正**（09 §6.2）：不得改 00-08 的任何表述。
 
-- [ ] **Step 4: 自检 + 提交**
+- [x] **Step 4: 自检 + 提交**
 
 Run: `grep -c '待核实' docs/gem5-fi/lsu/09-implementation-plan.md`
 Expected: `0`（九项全部回填；若 F6 映射小节保留必要的「待 W2 落地」措辞，不计入「待核实」——措辞区分）。
