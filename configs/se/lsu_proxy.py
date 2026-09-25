@@ -210,6 +210,9 @@ p.add_argument("--lsqfwd_lsu_tier", default="off",
                choices=["off","F0","F1","F2","F3","F4","F5","F6"])
 p.add_argument("--lsqfwd_warmup_events", type=lambda x: int(x,0), default=0)
 p.add_argument("--lsqfwd_span_events", type=lambda x: int(x,0), default=1000)
+# W5 L03: violation-detection corruption (rides lsqfwd LSU trigger)
+p.add_argument("--lsqfwd_l03", action="store_true",
+               help="W5 L03: corrupt violation-check address (lsqfwd trigger)")
 # §2.2 CHAOSRenameMap (O3 rename-map fault injector). SELF-ATTACHES at
 # startup() to thread-0 frontRenameMap.chaosRenameMap. map_bitflip /
 # map_bitflip2 (W4.1 D12: 2 distinct random index bits) / swap_to_active

@@ -399,4 +399,25 @@ namespace gem5
                    "Stuck-at-1 faults on forwarded data")
     {}
 
+    bool
+    CHAOSLSQFwd::violationCorrupt(Addr& cmp_addr)
+    {
+        if (!lsuTrigger) return false;
+        lsuTrigger->onAttempt();
+        if (!lsuTrigger->onEligible()) return false;
+        const uint64_t bit = rng() % 20;
+        cmp_addr ^= (1ULL << bit);
+        ++faults_injected_count;
+        ++l0_funnel.injected;
+        ++l0_funnel.activated;
+        if (write_log && log_stream && log_stream->stream()) {
+            *(log_stream->stream()) << "Cycle: " << cpu->curCycle()
+                << ", Site: checkViolations_L03"
+                << ", FaultType: violation_addr_bitflip"
+                << ", faults_injected: " << faults_injected_count
+                << std::endl;
+        }
+        return true;
+    }
+
 } // namespace gem5

@@ -555,6 +555,17 @@ LSQUnit::checkViolations(typename LoadQueue::iterator& loadIt,
         Addr ld_eff_addr2 =
             (ld_inst->effAddr + ld_inst->effSize - 1) >> depCheckShift;
 
+        // LSU W5 L03: violation-detection metadata corruption — flip a bit
+        // in the comparison address, creating a false violation (extra
+        // squash/replay) or suppressing a real one (missed ordering
+        // violation). The ACTUAL load/store addresses are untouched; only
+        // the violation-check view is corrupted.
+        if (cpu->lsqFwd && cpu->lsqFwd->violationCorrupt(ld_eff_addr1)) {
+            DPRINTF(LSQUnit, "CHAOSLSQFwd L03: violation addr corrupted to "
+                    "%#x (orig view of [sn:%lli])\n",
+                    ld_eff_addr1, ld_inst->seqNum);
+        }
+
         if (inst_eff_addr2 >= ld_eff_addr1 && inst_eff_addr1 <= ld_eff_addr2) {
             if (inst->isLoad()) {
                 // If this load is to the same block as an external snoop

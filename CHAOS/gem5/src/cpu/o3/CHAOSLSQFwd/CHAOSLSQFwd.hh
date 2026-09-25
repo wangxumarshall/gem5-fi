@@ -61,6 +61,12 @@ class CHAOSLSQFwd : public SimObject
     // curTick() as usual). Only active in PhaseOffset mode.
     Cycles maybeDelayForward(Addr vaddr, unsigned size);
 
+    // LSU W5 L03: violation-detection address corruption. Called from
+    // checkViolations before the overlap comparison. Returns true if the
+    // comparison address was corrupted (caller logs it). The corruption
+    // changes ONLY the violation check, not the actual memory access.
+    bool violationCorrupt(Addr& cmp_addr);
+
   private:
     enum class FaultType { BitFlip, StuckAtZero, StuckAtOne, Random };
     static FaultType stringToFaultType(const std::string &s);
