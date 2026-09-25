@@ -287,6 +287,12 @@ namespace gem5
             // line (64B shift), simulating a head/tail misalignment where
             // the wrong entry is selected for writeback.
             addr = (addr & ~(Addr)0x3F) - 0x40;
+        } else if (pre_mode == "s11_store_lost") {
+            // S11 (03): SQ drain handshake — STORES only. Set size=0
+            // (simulating a lost/never-completed write request: the SQ
+            // "thinks" it sent the write but nothing reaches L1D).
+            if (isLoad) return size;
+            size = 0;
         } else if (pre_mode == "l02_load_state") {
             // L02 (03): LQ lifecycle state corruption — LOADS only. Toggle
             // STRICTLY_ORDERED flag, which changes how the load is handled
