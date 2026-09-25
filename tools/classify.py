@@ -208,8 +208,18 @@ def classify_run(stdout, stderr, returncode, faults_injected,
     # which would under-count method1's Crash-dominant outcome. E3 note: real
     # RTL handles rename-inconsistency via an arch trap; gem5 SE models it as
     # a simulator invariant (panic), so the gem5-panic IS the DUE manifestation.
+    # OoO-track fix (2026-09-25, W8.1 Wave B): `not timed_out` guard — a
+    # timeout SIGKILL is definitionally a Hang (rule 2: "Hang = timeout with
+    # no trap; Crash = trap/exit!=0"), but a killed run arrives as
+    # returncode<0 + no checksum + fault landed, so without the guard this
+    # carve-out swallowed EVERY fault-landed timeout as Crash. Found on the
+    # M2-gate D28 cells: destid_bitflip stalls a dependency forever → ROB
+    # fills → no forward progress → 600s kill → mislabeled Crash; correct
+    # outcome is Hang (TC'23 dependency-interception manifests as a stall on
+    # the gem5 PRF model, not a fast architectural trap).
     if (faults_injected and faults_injected >= 1
-            and returncode != 0 and not out_checksum):
+            and returncode != 0 and not out_checksum
+            and not timed_out):
         return ("Crash",
                 f"gem5 panic/abort (exit={returncode}) with a fault landed "
                 f"(faults_injected={faults_injected}) and no program checksum "
