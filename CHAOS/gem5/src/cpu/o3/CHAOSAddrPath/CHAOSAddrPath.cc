@@ -275,6 +275,18 @@ namespace gem5
             const unsigned pick = rng() % 5;
             if (new_sizes[pick] != size) size = new_sizes[pick];
             else size = new_sizes[(pick + 1) % 5];
+        } else if (pre_mode == "s06_store_state") {
+            // S06 (03): SQ lifecycle state corruption — STORES only. Toggle
+            // STRICT_ORDER on the store, which changes how it drains
+            // (strictly-ordered stores bypass normal writeback path).
+            // Honest approximation of the valid/committed/completed state.
+            flags.set(Request::STRICT_ORDER);
+        } else if (pre_mode == "s07_store_ptr") {
+            // S07 (03): SQ head/tail pointer corruption — STORES only.
+            // Honest approximation: alias the store to the PREVIOUS cache
+            // line (64B shift), simulating a head/tail misalignment where
+            // the wrong entry is selected for writeback.
+            addr = (addr & ~(Addr)0x3F) - 0x40;
         } else if (pre_mode == "l02_load_state") {
             // L02 (03): LQ lifecycle state corruption — LOADS only. Toggle
             // STRICTLY_ORDERED flag, which changes how the load is handled
