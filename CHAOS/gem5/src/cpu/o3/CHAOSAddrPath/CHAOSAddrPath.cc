@@ -265,6 +265,15 @@ namespace gem5
             Addr cand;
             do { cand = page | ((Addr)(rng() % 256) << 4); } while (cand == addr);
             addr = cand;
+        } else if (pre_mode == "s05_store_size") {
+            // S05 (03): SQ byte-enable/access-size substitution — STORES
+            // only. Changes the partial-store coverage (which bytes get
+            // written). Address unchanged.
+            if (isLoad) return size;
+            const unsigned new_sizes[] = {1, 2, 4, 8, 16};
+            const unsigned pick = rng() % 5;
+            if (new_sizes[pick] != size) size = new_sizes[pick];
+            else size = new_sizes[(pick + 1) % 5];
         } else if (pre_mode == "l01_load_addr") {
             // L01 (03): LQ entry address/tag single-bit flip — LOADS only.
             // The corrupted address affects the conflict/violation check
