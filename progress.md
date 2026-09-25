@@ -2598,3 +2598,10 @@ CI 零重叠——**H7 验收断言("ECC-off spurious>0 vs ECC-on≈0")formal �
 - **真问题已修**: 本 checkout 从未编译过,scons 只生成了 compile DB(31103 条)而没有构建期头文件——`build/ARM/config/have_deprecated_namespace.hh`、`params/*.hh`、`enums/*.hh` 全缺,clangd 类型解析报 incomplete type 级联错误。修复=subagent 执行 `scons build/ARM/cpu/o3/lsq.o`(单个 .o;实测 45 分钟,超预估——未建树须先生成 ~460 个 SimObject Python 包装件)。修复后 lsq.cc/.hh 诊断零错误;生成头可完整导航(BaseO3CPUParams 全字段含 smtLSQPolicy/LQEntries/SSITSize/LFSTSize——LSU B0 参数面全部可查)。
 - **残余处理**: 后台索引在 45 分钟构建窗口内用过期状态建立了索引,跳转进生成头的落点暂不理想——已删 `build/ARM/.cache/clangd` 强制下次会话全量重建。
 - **注意**: 全量 gem5.opt 构建仍未做(仅 lsq.o + 生成头);LSU W0 跑仿真前需要(clean build 必须 -j16,CLAUDE.md OOM 纪律)。
+
+### LSU 执行层开工：M0 达成 + W9.1 完成(2026-09-25)
+
+- **M0(平台就绪)达成**: ①W0 C4-LSU 配置家族端到端(dbd291e0)——lsu_proxy.py(克隆 ooo_proxy 全 16 注入器面,B0=v7a_3 基线+DTLB32,19 参数显式+S1-S4 变体,_pre_instantiate 钩子覆盖缓存几何/L2预取器/清 stdlib 默认 L1 预取器)+runner/schema/validator 三文件接线;验证=config.ini 断言 B0+S1-S4 全过(~40 项/变体)+golden 七验(B0/S1-S4/C0/C3 全等 f247ef3fe6f02cfd,进程 stdout 口径)+runner 端到端真跑(variant S1 透传+gpr 注入 faults_injected=1 classification=Masked)。全量构建 44 分钟(2103 CXX,-j16)。②W1 九项机制核实回填(639fa290,§2.1)——含 ⑦AGU 裁定(扩展 CHAOSAddrPath 双挂点:sendFragment=A01-A03/A05-A08+pushRequest 入口=A04,不新建 CHAOSAGU)、F6 事件映射表(TLB hit=FS-only)、chaos_l0 无三计数须新建、SE-inert 机理修正(SE 走 translateSe 直查页表)。
+- **W9.1 负载 W0 MiniCheck 完成**(4767acae+本提交): 四检测面(数组校验和/指针链/round-trip/guard page),gem5 golden==native 07568da9f3ad5665;mprotect SE 忽略→guard page Crash 通道在 SE 退化为 SDC 通道(三处如实记录)。
+- **检查方法论教训**(W0 期间三处自坑,已修): grep|head 管道退出码假阳性(golden 检查);gem5-SE guest stdout 只进进程 stdout(outdir 无 simout/console);Explore 引文须 Read 实文再 Edit(vec48/CONFIG_FAMILY 注释行两次失配)。
+- **下一步**: W2 触发语义 F0-F6(chaos_trigger.hh 扩展 F4 突发/F6 确定性事件+三计数统一输出,fire() 当前零消费须接线;W1 §2.1 F6 映射表为输入)→W3 观测层。
