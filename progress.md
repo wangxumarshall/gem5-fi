@@ -2648,3 +2648,9 @@ CI 零重叠——**H7 验收断言("ECC-off spurious>0 vs ECC-on≈0")formal �
 - S01(SQ data 单bit) SDC=0 + S13(SQ addr 单bit) SDC=0 + L01(LQ addr 单bit) SDC=0——**TC'23 LQ/SQ 单bit SDC=0% 完整复现**。
 - L01 全 30 crash(位翻转→未映射页→guest 页故障): l1d_reduce 小地址空间特性; MiBench 级负载到位后需复核(W9 依赖)。
 - M2 出口判据的锚点项(AGU/SQ/LQ 三单元)全部通过; Cache 单元(W6)待做后 M2 完整达成。
+
+### W5 S04 + isLoad 门控(2026-09-26)
+
+- S04 store-addr 同页换值实现(F5 实证 62 store 注入)。isLoad 门控(S04/S13/L01 只向 trigger 呈现匹配类型)防止 F0 空射。
+- 已知残余: F0 的 attempted 计数可能仍含非匹配事件——不阻塞锚点, 下会话核修。
+- **W5 进度**: S01✓ S02✓(已有) S03✓(已有) S04✓ S08-S09✓(已有) S13✓ L01✓ + S05-S07/S10-S11/L02-L04 待做 + S12 不适用(B0)。
