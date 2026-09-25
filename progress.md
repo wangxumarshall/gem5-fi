@@ -2677,3 +2677,4 @@ CI 零重叠——**H7 验收断言("ECC-off spurious>0 vs ECC-on≈0")formal �
 - W6 CHAOSCache targetField choices 扩展(valid/dirty/coh 加入)。8/15 C 模型即刻可用。C06-C08 实证 exit=0。C05/C09/C10/C11/C12/C14/C15 需新模式。
 - C09 data_shift(块数据旋转1字节)完成。C05≈C04 tag重标记、C10≈C06 valid失效为近似覆盖。W6: 9 直接+2 近似=11/15。C11/C14/C15(MSHR族)+C12 timing 需深钩子。
 - C11 MSHR 合并腐蚀完成(allocateTarget 事件钩子)。W6: 12/15。
+- C12 fill时序 + C14 MSHR busy 完成(handleFill/deallocate 事件钩子)。W6: 14/15。余 C15(occupancy)。
