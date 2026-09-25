@@ -256,6 +256,15 @@ namespace gem5
             if (isLoad) return size;   // L01's territory, not ours
             const uint64_t bit = rng() % 48;   // VA 48-bit
             addr = addr ^ (1ULL << bit);
+        } else if (pre_mode == "s04_store_subst") {
+            // S04 (03): SQ addr field substitution to another legal same-page
+            // address — STORES only. Changes both forwarding comparison and
+            // the final writeback destination.
+            if (isLoad) return size;
+            const Addr page = addr & ~(Addr)0xFFF;
+            Addr cand;
+            do { cand = page | ((Addr)(rng() % 256) << 4); } while (cand == addr);
+            addr = cand;
         } else if (pre_mode == "l01_load_addr") {
             // L01 (03): LQ entry address/tag single-bit flip — LOADS only.
             // The corrupted address affects the conflict/violation check

@@ -47,7 +47,7 @@ class CHAOSAddrPath(SimObject):
     # sendFragment pointer.
     preMode = Param.String("off",
         "off | a04_subst | a05_shift | a06_size | a08_subst | "
-        "s13_store_addr (SQ addr single-bit, stores only) | "
+        "s13_store_addr | s04_store_subst (SQ addr same-page, stores) | "
         "l01_load_addr (LQ addr single-bit, loads only)")
     aguSizeTo = Param.UInt64(0,
         "a06_size target size: 1|2|4|8|16 (0 = invalid, no-op)")
