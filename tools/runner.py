@@ -45,6 +45,9 @@ CONFIG_FAMILY = {
     "C2": os.path.join(REPO, "configs/se/kp920_proxy.py"),
     # OoO north-star platform (docs/gem5-fi/ooo): vec48 PRF, ROB128, 2.6GHz
     "C3": os.path.join(REPO, "configs/se/ooo_proxy.py"),
+    # LSU north-star platform (docs/gem5-fi/lsu): B0 = O3_ARM_v7a_3 基线
+    # + DTLB=32 (TC'23), L1D 32KiB/2-way, L2 StridePrefetcher; S1-S4 variants
+    "C4-LSU": os.path.join(REPO, "configs/se/lsu_proxy.py"),
     # §2.7 cache injector harness (CHAOSCache mounts via _pre_instantiate)
     "C0-CACHE": os.path.join(REPO, "configs/se/arm_chaos_cache.py"),
     # §2.10 FS harness (CHAOSArmTLB/CHAOSArmSysReg; needs gem5-fs deps)
@@ -437,10 +440,11 @@ def main():
     # W2.3 trace two-pass: validate the trace flag surface EARLY (before any
     # gem5 run) so a mis-scoped campaign fails loudly at the runner, not
     # silently inside gem5's argparse.
-    if args.ctrace and cfg_family != "C3":
-        sys.exit(f"[runner] --ctrace requires --config C3 (only "
-                 f"configs/se/ooo_proxy.py defines --chaos_ctrace/"
-                 f"--ctrace_file; config_family={cfg_family}). Aborting.")
+    if args.ctrace and cfg_family not in ("C3", "C4-LSU"):
+        sys.exit(f"[runner] --ctrace requires C3/C4-LSU (only "
+                 f"configs/se/ooo_proxy.py and configs/se/lsu_proxy.py define "
+                 f"--chaos_ctrace/--ctrace_file; config_family={cfg_family}). "
+                 f"Aborting.")
     if args.ctrace_ref and not args.ctrace:
         sys.exit("[runner] --ctrace-ref requires --ctrace (the five-class "
                  "diff compares the trace THIS run produces). Aborting.")
@@ -460,15 +464,18 @@ def main():
     # inside gem5 (the lsqfwd argparse lesson, 79f32b1).
     cfg_params = m.get("platform", {}).get("config_params") or {}
     if cfg_params:
-        supported = {"rob", "phys_int", "phys_float", "lq", "sq"}  # kp920_proxy.py knobs
+        if cfg_family == "C4-LSU":
+            supported = {"variant"}  # lsu_proxy.py S-variant knob
+        else:
+            supported = {"rob", "phys_int", "phys_float", "lq", "sq"}  # kp920_proxy.py knobs
         unsupported = set(cfg_params) - supported
         if unsupported:
             sys.exit(f"[runner] platform.config_params keys {sorted(unsupported)} "
                      f"not in supported set {sorted(supported)} for family "
                      f"{cfg_family}. Aborting.")
-        if cfg_family != "C2":
-            sys.exit(f"[runner] platform.config_params is C2-only (kp920_proxy "
-                     f"microarch knobs); config_family={cfg_family}. Aborting.")
+        if cfg_family not in ("C2", "C4-LSU"):
+            sys.exit(f"[runner] platform.config_params is C2/C4-LSU-only "
+                     f"(microarch knobs); config_family={cfg_family}. Aborting.")
 
     # resolve oracle kind + tolerance (v1.1 Phase 8.1): the manifest's
     # oracle.kind selects the comparison; workload.oracle_kind is the

@@ -33,7 +33,7 @@ REPO = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 SCHEMA_VERSIONS = ("arm-chaos-fi/v1", "arm-chaos-fi/v2")
 ISA = ("ARM64",)
 MODES = ("SE", "FS")
-CONFIG_FAMILIES = ("C0", "C1", "C2", "C0-CACHE", "C0-FS", "C2-FS", "C3")
+CONFIG_FAMILIES = ("C0", "C1", "C2", "C0-CACHE", "C0-FS", "C2-FS", "C3", "C4-LSU")
 TRIGGER_MODES = ("tick", "cycle", "pc", "committedInst", "event")
 LAYERS = ("architectural", "physical")
 # components runner.py MAPS today (gpr/physreg/memory/cache->l1d/lsqfwd->physreg):

@@ -53,7 +53,7 @@ docs/gem5-fi/lsu/09-implementation-plan.md  [Modify — W1 回填 §2 表]
 - Produces: 配置家族 `C4-LSU`（manifest `platform.config_family` 枚举新值）；`lsu_proxy.py` CLI 新增 `--variant {B0,S1,S2,S3,S4}`（其余参数面与 ooo_proxy 逐字节相同）；`platform.config_params` 对 C4-LSU 支持 `{"variant"}`。W2+ 的 LSU 注入器将在此家族上挂载。
 - Consumes: `build/ARM/gem5.opt`（构建中）、`workloads/directed/reg_chain`。
 
-- [ ] **Step 0: 提交本计划文件**
+- [x] **Step 0: 提交本计划文件**
 
 ```bash
 git add docs/superpowers/plans/2026-09-25-lsu-w0-w1-platform-mechanism.md
@@ -61,7 +61,7 @@ git commit -m "docs(plans): LSU W0+W1 execution plan (B0 platform + mechanism ve
 git push origin fi-ding   # 被拒则 git pull --rebase --autostash origin fi-ding 后重推
 ```
 
-- [ ] **Step 1: 创建 lsu_proxy.py（克隆 + 七处手术替换）**
+- [x] **Step 1: 创建 lsu_proxy.py（克隆 + 七处手术替换）**
 
 ```bash
 cp configs/se/ooo_proxy.py configs/se/lsu_proxy.py
@@ -306,7 +306,7 @@ cache_hierarchy._pre_instantiate = _lsu_b0_caches
 
 **Edit G（自查）**：`grep -n "OOO\[" configs/se/lsu_proxy.py` 应零命中；`grep -n "ooo_proxy"` 除注释历史引用外应零命中（头部 USAGE 示例路径改为 lsu_proxy.py）。
 
-- [ ] **Step 2: 三文件接线（逐字 diff）**
+- [x] **Step 2: 三文件接线（逐字 diff）**
 
 `tools/runner.py:43-54` CONFIG_FAMILY dict 增加（保持其余行不动）：
 
@@ -351,7 +351,7 @@ cache_hierarchy._pre_instantiate = _lsu_b0_caches
 CONFIG_FAMILIES = ("C0", "C1", "C2", "C0-CACHE", "C0-FS", "C2-FS", "C3", "C4-LSU")
 ```
 
-- [ ] **Step 3: 构建无关检查**
+- [x] **Step 3: 构建无关检查**
 
 Run: `python3 -m py_compile configs/se/lsu_proxy.py tools/runner.py tools/manifest_validate.py && echo OK`
 Expected: `OK`
@@ -370,12 +370,12 @@ errs = mv.validate(m)
 print('C4-LSU manifest validate:', 'PASS' if not errs else errs)"`
 Expected: `C4-LSU manifest validate: PASS`
 
-- [ ] **Step 4: 构建门（等待全量构建完成）**
+- [x] **Step 4: 构建门（等待全量构建完成）**
 
 Run: `tail -2 /tmp/gem5_opt_build.log; ls -la build/ARM/gem5.opt 2>/dev/null`
 Expected: 日志末尾出现 `scons: done building targets.` 且 `build/ARM/gem5.opt` 存在（~百 MB）。构建仍在跑则先做 Task 2，完成后回来自检本步。若日志出现编译错误：**停止，按 CLAUDE.md 系统性排障**，不得继续。
 
-- [ ] **Step 5: B0 冒烟 + config.ini 逐项断言**
+- [x] **Step 5: B0 冒烟 + config.ini 逐项断言**
 
 Run: `build/ARM/gem5.opt --outdir=/tmp/lsu_w0_b0 configs/se/lsu_proxy.py --cmd workloads/directed/reg_chain --cpu O3`
 Expected: 正常退出（exit 0）；stdout 含 `[lsu_proxy] B0 params applied (variant=B0)` 与 `[lsu_proxy] B0 caches applied (variant=B0)` 两行；**Final checksum `f247ef3fe6f02cfd`**（golden 不变）。
@@ -454,7 +454,7 @@ Run: `python3 /tmp/lsu_w0_check.py /tmp/lsu_w0_b0 B0`
 Expected: `LSU W0 config.ini assertions PASSED (variant=B0)`
 （若某断言因 config.ini 命名/格式差异失败：**先怀疑断言脚本的解析假设**，打开 config.ini 对应段核实后再修脚本；若确系参数未生效，回修 lsu_proxy.py——禁止放宽断言迁就错误配置。）
 
-- [ ] **Step 6: 变体断言（S1–S4，短运行）**
+- [x] **Step 6: 变体断言（S1–S4，短运行）**
 
 ```bash
 for V in S1 S2 S3 S4; do
@@ -465,7 +465,7 @@ done
 ```
 Expected: 四行 `... assertions PASSED (variant=S1..S4)`；每个 outdir 的 stdout 末尾 checksum 仍为 `f247ef3fe6f02cfd`（maxinsts 截断时若 checksum 行不出现，以 exit 0 + 断言通过为准并在记录注明）。
 
-- [ ] **Step 7: golden 回归（三家配置 + 全量重建后的 C0）**
+- [x] **Step 7: golden 回归（三家配置 + 全量重建后的 C0）**
 
 ```bash
 build/ARM/gem5.opt --outdir=/tmp/lsu_w0_c0 configs/se/arm_chaos.py --cmd workloads/directed/reg_chain --cpu O3 2>&1 | grep -o 'f247ef3fe6f02cfd' && echo C0-GOLDEN-OK
@@ -473,14 +473,14 @@ build/ARM/gem5.opt --outdir=/tmp/lsu_w0_c3 configs/se/ooo_proxy.py --cmd workloa
 ```
 Expected: `C0-GOLDEN-OK` 与 `C3-GOLDEN-OK`（证明全量重建 + 接线编辑零附带损伤；ooo_proxy/arm_chaos 源码本任务未触碰）。
 
-- [ ] **Step 8: manifest 往返（runner 端到端一次真跑）**
+- [x] **Step 8: manifest 往返（runner 端到端一次真跑）**
 
 从 `manifests/` 挑一个最小 SE manifest 复制为 `/tmp/lsu_w0_manifest.json`，改：`platform.config_family="C4-LSU"`、`platform.config_params={"variant":"S1"}`、workload 指向 reg_chain、注入器段换成最小 lsq_fwd（或该 manifest 已有的任一 SE 组件）。然后：
 
 Run: `python3 tools/manifest_validate.py /tmp/lsu_w0_manifest.json`（PASS）→ `python3 tools/runner.py /tmp/lsu_w0_manifest.json --config C4-LSU`（按 runner 实际 CLI 语法执行——先 `python3 tools/runner.py --help` 确认 manifest 传参方式）
 Expected: runner 打印 `config_family: C4-LSU -> lsu_proxy.py`、运行 exit 0、结果 jsonl 落盘、checksum golden。
 
-- [ ] **Step 9: 提交并推送（1 个 commit，含全部验证证据摘要于 message）**
+- [x] **Step 9: 提交并推送（1 个 commit，含全部验证证据摘要于 message）**
 
 ```bash
 git add configs/se/lsu_proxy.py tools/runner.py schemas/manifest.schema.json tools/manifest_validate.py
