@@ -1,0 +1,40 @@
+{
+  "cli_version": "0.10.2",
+  "checkpoint_id": "01M3C48J0JFRKS1P9K8EM46WBR",
+  "strategy": "manual-commit",
+  "branch": "fi-ding",
+  "checkpoints_count": 3,
+  "files_touched": [
+    "artifacts/ooo_w31_toy_rob_pcbitflip/heatmap.csv",
+    "artifacts/ooo_w31_toy_rob_pcbitflip/summary.md",
+    "artifacts/ooo_w31_toy_rob_pcbitflip/tier_selection.json",
+    "artifacts/ooo_w32_toy_coverage/coverage.json",
+    "artifacts/ooo_w32_toy_coverage_tbl/coverage.json",
+    "artifacts/w23-toy-bm-rat.eofbug/heatmap.csv",
+    "artifacts/w23-toy-bm-rat.eofbug/summary.md",
+    "artifacts/w23-toy-bm-rat.race1/heatmap.csv",
+    "artifacts/w23-toy-bm-rat.race1/summary.md",
+    "artifacts/w23-toy-bm-rat/heatmap.csv",
+    "artifacts/w23-toy-bm-rat/summary.md",
+    "artifacts/w23-toy-smoke-prf-mb/heatmap.csv",
+    "artifacts/w23-toy-smoke-prf-mb/summary.md",
+    "artifacts/w23-toy-smoke-prf/heatmap.csv",
+    "artifacts/w23-toy-smoke-prf/summary.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 1729398,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 19914752,
+    "output_tokens": 122203,
+    "api_call_count": 106
+  }
+}
