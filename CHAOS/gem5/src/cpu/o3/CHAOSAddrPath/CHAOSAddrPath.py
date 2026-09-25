@@ -15,7 +15,10 @@ class CHAOSAddrPath(SimObject):
     # — byte7 zero still lands in range, no fault). FS-only effective.
     mode = Param.String("byte7_zero",
         "byte7_zero: clear vaddr byte7 (canonical->non-canonical) | "
-        "low_bit_flip: XOR a low bit of vaddr")
+        "low_bit_flip: XOR a low bit of vaddr | "
+        "a01_bit: A01 single-bit flip, low/mid/high band (LSU 03) | "
+        "a02_2bit: A02 two-bit flip, 50% adjacent/50% dispersed (LSU 03) | "
+        "a03_stuck0/a03_stuck1: A03 one EA bit stuck-at (LSU 03, F5)")
     probability = Param.Float(1.0, "per-sendFragment injection probability")
     firstClock = Param.UInt64(0, "first clock cycle eligible for injection")
     lastClock = Param.UInt64(0, "last cycle (0 = unrestricted)")
@@ -37,3 +40,14 @@ class CHAOSAddrPath(SimObject):
     lsuF6Event = Param.String("sq_forward",
         "F6 event: tlb_hit (FS-only) | sq_forward | dirty_eviction | "
         "cas_success")
+
+    # LSU W4 PRE-hook family (03-design-matrix A04/A05/A06/A08; hook =
+    # LSQ::pushRequest entry, W1 ⑦ ruling). Exactly one hook per run: a
+    # non-off preMode registers on the pushRequest pointer INSTEAD of the
+    # sendFragment pointer.
+    preMode = Param.String("off",
+        "off | a04_subst (same-4KiB-page legal addr) | a05_shift (low-byte "
+        "rotate, shift submodel) | a06_size (access-size substitution) | "
+        "a08_subst (same-page, no object constraint)")
+    aguSizeTo = Param.UInt64(0,
+        "a06_size target size: 1|2|4|8|16 (0 = invalid, no-op)")

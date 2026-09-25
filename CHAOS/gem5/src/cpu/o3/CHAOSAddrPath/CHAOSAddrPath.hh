@@ -31,8 +31,28 @@ class CHAOSAddrPath : public SimObject
     // HONEST: SE-inert (SE phys mem from 0; byte7 zero still in range).
     bool maybeCorrupt(RequestPtr &req);
 
+    // LSU W4 PRE hook (W1 ⑦ ruling): called at LSQ::pushRequest entry —
+    // the AGU's raw output, BEFORE split decision / Request construction.
+    // Mutates the by-value addr/size copies so every downstream consumer
+    // (split, Request, translation) sees the fault. Returns the (possibly
+    // substituted) access size; the call site rebuilds byte_enable when it
+    // changed (A06). pre_mode selects the
+    // A-series family: a04_subst (same-4KiB-page legal substitution —
+    // "same object" needs the W9 oracle table, documented proxy), a05_shift
+    // (shift-amount submodel: low-byte rotate; the base/index/extend-swap
+    // submodels are NOT expressible from the final addr — deferred, R5),
+    // a06_size (access-size substitution; byte_enable is const at this
+    // hook — size only), a08_subst (same-page, no object constraint).
+    unsigned int maybeCorruptPre(Addr& addr, unsigned int size);
+
   private:
-    enum class Mode { Byte7Zero, LowBitFlip };
+    // LSU W4 A-series (03-design-matrix A01-A03, bit-level family on the
+    // sendFragmentToTranslation hook = DTLB-input semantics, W1 ⑦ ruling):
+    //   A01Bit     single-bit flip, low/mid/high band sampling (A01)
+    //   A02Double  two-bit flip, 50% adjacent / 50% non-adjacent (A02)
+    //   A03Stuck0/1 one EA bit stuck-at, applied on every event (A03, F5)
+    enum class Mode { Byte7Zero, LowBitFlip, A01Bit, A02DoubleBit,
+                      A03Stuck0, A03Stuck1 };
     static Mode stringToMode(const std::string &s);
     static ChaOSLsuTier tierFromString(const std::string &s);
     static ChaOSLsuEvent eventFromString(const std::string &s);
@@ -55,7 +75,7 @@ class CHAOSAddrPath : public SimObject
     // per-unit F6 consumers in W5-W8 inject AT the event instead).
     ChaOSLsuTrigger *lsuTrigger = nullptr;
     bool f6_pending = false;
-    uint64_t f5_bit = 64;   // F5: pinned low-bit index, 64 = not yet chosen
+    uint64_t f5_bit = 64;   // pinned bit index (F5 low-bit / A03 stuck), 64 = not yet chosen
 
     // W3 L0: funnel (attempted/eligible/injected mirrored from the trigger;
     // activated = the read-back verdict — for THIS hook the corrupted vaddr
@@ -66,6 +86,8 @@ class CHAOSAddrPath : public SimObject
     // a genuine read-back judgement).
     ChaOSL0Funnel l0_funnel;
     ChaOSL0State l0_item;
+    std::string pre_mode = "off";   // off | a04_subst | a05_shift | a06_size | a08_subst
+    uint64_t agu_size_to = 0;       // a06_size: target size {1,2,4,8,16}
     static CHAOSAddrPath *f6Consumer;
     static void f6Thunk(ChaOSLsuEvent ev);
 

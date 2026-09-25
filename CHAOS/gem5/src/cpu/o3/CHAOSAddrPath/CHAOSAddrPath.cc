@@ -19,7 +19,9 @@ namespace gem5
           last_clock(p.lastClock),
           max_faults(p.maxFaults),
           rng_seed(p.rngSeed),
-          write_log(p.writeLog)
+          write_log(p.writeLog),
+          pre_mode(p.preMode),
+          agu_size_to(p.aguSizeTo)
     {
         if (p.lsuTier != "off") {
             lsuTrigger = new ChaOSLsuTrigger(tierFromString(p.lsuTier),
@@ -41,6 +43,11 @@ namespace gem5
     CHAOSAddrPath::Mode
     CHAOSAddrPath::stringToMode(const std::string &s) {
         if (s == "low_bit_flip") return Mode::LowBitFlip;
+        // LSU W4 A-series (03-design-matrix A01-A03)
+        if (s == "a01_bit") return Mode::A01Bit;
+        if (s == "a02_2bit") return Mode::A02DoubleBit;
+        if (s == "a03_stuck0") return Mode::A03Stuck0;
+        if (s == "a03_stuck1") return Mode::A03Stuck1;
         return Mode::Byte7Zero;  // default / unknown
     }
 
@@ -127,6 +134,34 @@ namespace gem5
         Addr new_vaddr = vaddr;
         if (fi_mode == Mode::Byte7Zero) {
             new_vaddr = vaddr & ~((Addr)0xff << 56);  // clear byte 7
+        } else if (fi_mode == Mode::A01Bit) {
+            // A01 (03): single-bit flip, low/mid/high band sampling
+            // (VA is 48-bit in SE: low 0-15 / mid 16-39 / high 40-47).
+            const uint64_t band = rng() % 3;
+            const uint64_t bit = (band == 0) ? rng() % 16
+                               : (band == 1) ? 16 + rng() % 24
+                               : 40 + rng() % 8;
+            new_vaddr = vaddr ^ (1ULL << bit);
+        } else if (fi_mode == Mode::A02DoubleBit) {
+            // A02 (03): two bits in the SAME event, 50% adjacent / 50%
+            // non-adjacent (covers both MBU and dispersed error spaces).
+            if (rng() % 2) {
+                const uint64_t b = rng() % 46;
+                new_vaddr = vaddr ^ ((1ULL << b) | (1ULL << (b + 1)));
+            } else {
+                uint64_t b1 = rng() % 48, b2 = rng() % 48;
+                if (b1 == b2) b2 = (b2 + 1) % 48;
+                new_vaddr = vaddr ^ ((1ULL << b1) | (1ULL << b2));
+            }
+        } else if (fi_mode == Mode::A03Stuck0 || fi_mode == Mode::A03Stuck1) {
+            // A03 (03): one EA bit stuck-at-0/1, applied on EVERY event from
+            // warm-up on (F5 semantics). A correct value already equal to
+            // the stuck value is a NO-OP application — logged distinctly so
+            // L5 can subtract it from injected (A03's activated 口径).
+            if (f5_bit == 64) f5_bit = rng() % 48;
+            const Addr mask = 1ULL << f5_bit;
+            new_vaddr = (fi_mode == Mode::A03Stuck0) ? (vaddr & ~mask)
+                                                     : (vaddr | mask);
         } else if (lsuTrigger && lsuTrigger->tier == ChaOSLsuTier::F5) {
             // LSU F5 (05 r8): "每次运行仅选一个 bit/字段" — ONE fixed bit per
             // run, stuck from the first post-warm-up eligible event on. A
@@ -161,6 +196,81 @@ namespace gem5
         return true;
     }
 
+    unsigned int
+    CHAOSAddrPath::maybeCorruptPre(Addr& addr, unsigned int size)
+    {
+        if (probability <= 0.0f) return size;
+
+        if (lsuTrigger) {
+            lsuTrigger->onAttempt();
+            bool go;
+            if (lsuTrigger->tier == ChaOSLsuTier::F6) {
+                go = f6_pending;
+                f6_pending = false;
+            } else {
+                go = lsuTrigger->onEligible();
+            }
+            if (!go) return size;
+        } else {
+            // Legacy gating (same shape as the post hook).
+            if (max_faults != 0 && faults_injected_count >= max_faults) return size;
+            if (!inWindow()) return size;
+            std::uniform_real_distribution<float> pd(0.0f, 1.0f);
+            if (pd(rng) > probability) return size;
+        }
+
+        const Addr old_addr = addr;
+        const unsigned old_size = size;
+
+        if (pre_mode == "a04_subst" || pre_mode == "a08_subst") {
+            // A04/A08 (03): substitute another LEGAL address in the same
+            // 4KiB page (16B-aligned, != original). A04's "same allocated
+            // object" needs the W9 oracle object table — same-page is the
+            // honest decidable proxy (both must map; SE flat space).
+            const Addr page = addr & ~(Addr)0xFFF;
+            Addr cand;
+            do {
+                cand = page | ((Addr)(rng() % 256) << 4);
+            } while (cand == addr);
+            addr = cand;
+        } else if (pre_mode == "a05_shift") {
+            // A05 (03), shift-amount substitution submodel: rotate the low
+            // byte of the EA by d in [1,7] — the observable effect of a
+            // wrong LSL amount on the offset bits.
+            const uint64_t d = 1 + rng() % 7;
+            const Addr lo = addr & 0xFF;
+            addr = (addr & ~(Addr)0xFF) | ((lo << d | lo >> (8 - d)) & 0xFF);
+        } else if (pre_mode == "a06_size") {
+            // A06 (03): access-size substitution to another legal value
+            // {1,2,4,8,16}; address unchanged. byte_enable is const at
+            // this hook — size only (documented, 09 §3-W4).
+            if (agu_size_to == 1 || agu_size_to == 2 || agu_size_to == 4 ||
+                agu_size_to == 8 || agu_size_to == 16)
+                size = (unsigned)agu_size_to;
+            else
+                return size;  // invalid target size — no-op, logged below
+        } else {
+            return size;  // unknown pre_mode — config validated in .py choices
+        }
+
+        chaosL0Register(l0_item, addr ? addr : size);
+        ++l0_funnel.injected;
+        ++l0_funnel.activated;
+        ++faults_injected_count;
+        if (write_log && log_stream && log_stream->stream()) {
+            *(log_stream->stream()) << "Tick: " << curTick()
+                << ", Site: lsq_pushRequest_PRE"
+                << ", mode=" << pre_mode
+                << ", old_addr=0x" << std::hex << old_addr
+                << ", new_addr=0x" << addr
+                << ", old_size=" << std::dec << old_size
+                << ", new_size=" << size
+                << ", faults_injected: " << faults_injected_count
+                << std::endl;
+        }
+        return size;
+    }
+
     void
     CHAOSAddrPath::startup() {
         SimObject::startup();
@@ -169,7 +279,13 @@ namespace gem5
             warn("CHAOSAddrPath: cpu is not an O3CPU; injector disabled.\n");
             return;
         }
-        o3cpu->setChaosAddrPath(this);
+        // W4: exactly one hook per run — the PRE family (A04/A05/A06/A08)
+        // registers on the pushRequest-entry pointer; the post family
+        // (legacy + A01-A03 + LSU tiers) keeps the sendFragment pointer.
+        if (pre_mode != "off")
+            o3cpu->setChaosAddrPathPre(this);
+        else
+            o3cpu->setChaosAddrPath(this);
         if (lsuTrigger) {
             if (lsuTrigger->tier == ChaOSLsuTier::F6) {
                 f6Consumer = this;

@@ -386,7 +386,8 @@ p.add_argument("--bpu_rng_seed", type=lambda x: int(x,0), default=20260825)
 p.add_argument("--chaos_addrpath", action="store_true",
                help="attach CHAOSAddrPath (O3 AGU address-path, §2.4, SE-inert)")
 p.add_argument("--addrpath_mode", default="byte7_zero",
-               choices=["byte7_zero","low_bit_flip"])
+               choices=["byte7_zero","low_bit_flip",
+                        "a01_bit","a02_2bit","a03_stuck0","a03_stuck1"])
 p.add_argument("--addrpath_first_clock", type=lambda x: int(x,0), default=1000)
 p.add_argument("--addrpath_max_faults", type=lambda x: int(x,0), default=1)
 p.add_argument("--addrpath_rng_seed", type=lambda x: int(x,0), default=20260825)
@@ -403,6 +404,15 @@ p.add_argument("--addrpath_span_events", type=lambda x: int(x,0), default=1000,
 p.add_argument("--addrpath_f6_event", default="sq_forward",
                choices=["tlb_hit","sq_forward","dirty_eviction","cas_success"],
                help="W2: F6 event source (tlb_hit is FS-only in SE)")
+# W4: AGU A-series. Bit-level family (A01-A03) rides the sendFragment hook
+# via --addrpath_mode; the PRE family (A04/A05/A06/A08) rides the
+# pushRequest-entry hook — exactly one hook per run (pre_mode != off
+# registers on the PRE pointer instead).
+p.add_argument("--agu_pre_mode", default="off",
+               choices=["off","a04_subst","a05_shift","a06_size","a08_subst"],
+               help="W4: PRE-hook family at LSQ::pushRequest entry (03 A04/A05/A06/A08)")
+p.add_argument("--agu_size_to", type=lambda x: int(x,0), default=0,
+               help="W4 a06_size: target access size 1|2|4|8|16")
 # §2.14 CHAOSDecode (O3 decode-unit injector). SELF-ATTACHES at startup()
 # to cpu.chaosDecode. Hooks rename.cc:1137 post-flattenedDestIdx; dest_reg_sub
 # F5 (per-inst, safe — _flatDestIdx is per-DynInst, not shared staticInst).
@@ -899,6 +909,8 @@ if args.chaos_addrpath:
         lsuWarmupEvents=args.addrpath_warmup_events,
         lsuSpanEvents=args.addrpath_span_events,
         lsuF6Event=args.addrpath_f6_event,
+        preMode=args.agu_pre_mode,
+        aguSizeTo=args.agu_size_to,
     )
     board.chaos_addrpath = ap
 
