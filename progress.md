@@ -2605,3 +2605,10 @@ CI 零重叠——**H7 验收断言("ECC-off spurious>0 vs ECC-on≈0")formal �
 - **W9.1 负载 W0 MiniCheck 完成**(4767acae+本提交): 四检测面(数组校验和/指针链/round-trip/guard page),gem5 golden==native 07568da9f3ad5665;mprotect SE 忽略→guard page Crash 通道在 SE 退化为 SDC 通道(三处如实记录)。
 - **检查方法论教训**(W0 期间三处自坑,已修): grep|head 管道退出码假阳性(golden 检查);gem5-SE guest stdout 只进进程 stdout(outdir 无 simout/console);Explore 引文须 Read 实文再 Edit(vec48/CONFIG_FAMILY 注释行两次失配)。
 - **下一步**: W2 触发语义 F0-F6(chaos_trigger.hh 扩展 F4 突发/F6 确定性事件+三计数统一输出,fire() 当前零消费须接线;W1 §2.1 F6 映射表为输入)→W3 观测层。
+
+### LSU W2 触发层完成(2026-09-26)
+
+- **交付**: chaos_lsu_trigger.hh(事件归一化 F0-F6+漏斗三计数)+四 F6 事件源钩子+CHAOSAddrPath 消费者(legacy 零回归)+单元测试。M1 之触发半达成。
+- **三重验证**: ①单元测试 ALL PASSED(F4 突发九串全[2,4]/F1-F3 比率 0.9-1.1 均值档/F0/F5/F6 契约——tests/chaos_lsu_trigger_test.cc, CLAUDE.md 独立测试先例);②gem5 端到端(F0 单发/F6 首事件单发/F4 133K 事件两串共 6 发/F3+F5 激发后 DUE——后置 vaddr 改写在 misaligned 访存上触发 gem5 断言, W1⑦ 预判的已知语义, 属合法 DUE 结局);③零回归三连(reg_chain+mini_check 双 golden+B0 config 断言, 含 legacy addrpath 路径)。
+- **过程修正**: F5 初版每事件随机位→05 r8"每运行仅选一个 bit"固定位版(教训: 档位语义要逐条对照源表); F4 突发的验证方法修正(tick 聚类错——突发连续的是 eligible 事件序, 单元测试直接证)。
+- **移交 W3**: activated(下游消费)计数归 L0 read-back 层(R2); abort 运行漏斗行缺失→L5 分类器须兼读注入日志; 其余注入器随 W4-W8 各自切 LSU 触发(R3)。
