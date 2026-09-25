@@ -2629,3 +2629,10 @@ CI 零重叠——**H7 验收断言("ECC-off spurious>0 vs ECC-on≈0")formal �
 - **验证**: 七模式定向全发射(注入日志逐模式字段: bit 编号/新旧地址/新旧 size);a01/a03 abort=guest 页故障(位翻转落未映射 VA 0x400004901f8——架构级 Crash 类合法结局);a02 Masked;a06 修复版 exit=0(size 8->1+BE 一致);双 golden 零回归+W2 触发单测不变。
 - **过程修正三处**(全部当场修复复验): a06 BE 失配断言(改返回尺寸契约+调用点重建)/两处裸 return 编译错/lsu_proxy argparse choices 漏扩展。
 - **诚实边界(R4/R5)**: A07 ready 时序需流水级延迟挂点(deferred); A05 互换类子模型不可从最终 addr 表达(deferred); A04 对象级候选随 W9 oracle; A08 同周期双请求交换 deferred。
+
+### LSU W5 T1 进行中(2026-09-26): S01 锚点 SDC=0 + 未解异常
+
+- **CHAOSLSQFwd 触发层接线完成**(lsuTier/l0_funnel/exit 漏斗行; legacy 零回归由默认 off 保证)。
+- **TC'23 锚点第一腿**: S01 单bit × l1d_reduce × 30 seeds → **SDC=0**(24 真注入全 Masked)——与 TC'23 LQ/SQ SDC=0 方向一致。**方法学教训**: 首版参数(warmup=50/span=500)造成 30/30 空洞锚点(eligible 仅 6 事件, 零注入), 被诚实检查(injected 计数)抓出后修正(warmup=0/span=6)——凡"全 Masked"结论必须先证注入非零。
+- **未解异常(阻塞 M2)**: 6/30 reps 零注入却 crash(0x539000 页故障); 同 seed 无注入稳定; 已排除 maybeSubstituteSource 门控/缓冲未 flush。待下会话 systematic-debugging。
+- **W5 剩余**: 异常根因 → S13/L01 新建 → S04-S07/S10/S11/L02-L04 → 全族验证。
