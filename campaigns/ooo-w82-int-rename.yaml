@@ -67,6 +67,20 @@
 # BACKFILL: manifests carry ooo {design_unit_id, workload(<matrix 负载
 # column string>), frequency_tier(per-rep)} — tools/backfill_expanded_
 # matrix.py resolves E-ids via the D x F x workload unique lookup.
+#
+# *** LAUNCH GUARD (orchestrator, 2026-09-25) — DO NOT RUN W8.2+ YET ***
+# The event_coverage counting blocks below carry MEASURED densities
+# (artifacts/ooo_w8_density/, 18 binaries x 2 reps, r1==r2). On probe
+# workloads every density is >= 275,648 events/run, so campaign.py's
+# formula n_runs = ceil(target_events/density) collapses to 1 — valid
+# only in the rare-event regime (density < 1). Per 02-doc statistical
+# intent (n=2000 INDEPENDENT event-anchored injections = 2000 runs x 1
+# firing, same power basis as F0) the correct general form is
+# ceil(target / min(1, density)) = 2000 here. Fixing the formula
+# requires editing tools/campaign.py — FROZEN while the W8.1 Wave B
+# driver live-loads it per campaign. Therefore: this yaml is
+# data-complete but NOT launch-ready; the formula patch + these
+# stanzas' effective n land as one unit AFTER Wave B ends.
 #============================================================================
 batch_id: ooo-w82
 subcampaigns:
@@ -668,9 +682,9 @@ subcampaigns:
   counting:
     mode: event_coverage
     target_events: 2000
-    _TODO_density: 'W8.1 后核实: run tools/event_density.py on this (D,binary) pair and fill `density: <events/run>`
-      (or density_table+event). campaign.py exits loudly on this stanza until then — intentional, never
-      fabricate a count.'
+    # density: events/run, no-fault probe baseline (event=branch_mispred @ branch_mispred, r1==r2 exact);
+    # provenance: artifacts/ooo_w8_density/branch_mispred.json (tools/event_density.py, 2 reps)
+    density: 490766
 - campaign_id: ooo_w82_d15_rat_coremark
   schema_version: arm-chaos-fi/v1
   injector: rat
@@ -898,9 +912,9 @@ subcampaigns:
   counting:
     mode: event_coverage
     target_events: 2000
-    _TODO_density: 'W8.1 后核实: run tools/event_density.py on this (D,binary) pair and fill `density: <events/run>`
-      (or density_table+event). campaign.py exits loudly on this stanza until then — intentional, never
-      fabricate a count.'
+    # density: events/run, no-fault probe baseline (event=rat_writes @ coremark, r1==r2 exact);
+    # provenance: artifacts/ooo_w8_density/coremark.json (tools/event_density.py, 2 reps)
+    density: 15377069
 - campaign_id: ooo_w82_d16_rat_emb_crc32
   schema_version: arm-chaos-fi/v1
   injector: rat
@@ -932,9 +946,9 @@ subcampaigns:
   counting:
     mode: event_coverage
     target_events: 2000
-    _TODO_density: 'W8.1 后核实: run tools/event_density.py on this (D,binary) pair and fill `density: <events/run>`
-      (or density_table+event). campaign.py exits loudly on this stanza until then — intentional, never
-      fabricate a count.'
+    # density: events/run, no-fault probe baseline (event=rat_writes @ crc32, r1==r2 exact);
+    # provenance: artifacts/ooo_w8_density/crc32.json (tools/event_density.py, 2 reps)
+    density: 8919848
 - campaign_id: ooo_w82_d16_rat_emb_matmult
   schema_version: arm-chaos-fi/v1
   injector: rat
@@ -966,9 +980,9 @@ subcampaigns:
   counting:
     mode: event_coverage
     target_events: 2000
-    _TODO_density: 'W8.1 后核实: run tools/event_density.py on this (D,binary) pair and fill `density: <events/run>`
-      (or density_table+event). campaign.py exits loudly on this stanza until then — intentional, never
-      fabricate a count.'
+    # density: events/run, no-fault probe baseline (event=rat_writes @ matmult_int, r1==r2 exact);
+    # provenance: artifacts/ooo_w8_density/matmult_int.json (tools/event_density.py, 2 reps)
+    density: 10601660
 - campaign_id: ooo_w82_d16_rat_emb_md5sum
   schema_version: arm-chaos-fi/v1
   injector: rat
@@ -1000,9 +1014,9 @@ subcampaigns:
   counting:
     mode: event_coverage
     target_events: 2000
-    _TODO_density: 'W8.1 后核实: run tools/event_density.py on this (D,binary) pair and fill `density: <events/run>`
-      (or density_table+event). campaign.py exits loudly on this stanza until then — intentional, never
-      fabricate a count.'
+    # density: events/run, no-fault probe baseline (event=rat_writes @ md5sum, r1==r2 exact);
+    # provenance: artifacts/ooo_w8_density/md5sum.json (tools/event_density.py, 2 reps)
+    density: 14611118
 - campaign_id: ooo_w82_d16_rat_emb_minver
   schema_version: arm-chaos-fi/v1
   injector: rat
@@ -1034,9 +1048,9 @@ subcampaigns:
   counting:
     mode: event_coverage
     target_events: 2000
-    _TODO_density: 'W8.1 后核实: run tools/event_density.py on this (D,binary) pair and fill `density: <events/run>`
-      (or density_table+event). campaign.py exits loudly on this stanza until then — intentional, never
-      fabricate a count.'
+    # density: events/run, no-fault probe baseline (event=rat_writes @ minver, r1==r2 exact);
+    # provenance: artifacts/ooo_w8_density/minver.json (tools/event_density.py, 2 reps)
+    density: 12882538
 - campaign_id: ooo_w82_d16_rat_emb_nbody
   schema_version: arm-chaos-fi/v1
   injector: rat
@@ -1068,9 +1082,9 @@ subcampaigns:
   counting:
     mode: event_coverage
     target_events: 2000
-    _TODO_density: 'W8.1 后核实: run tools/event_density.py on this (D,binary) pair and fill `density: <events/run>`
-      (or density_table+event). campaign.py exits loudly on this stanza until then — intentional, never
-      fabricate a count.'
+    # density: events/run, no-fault probe baseline (event=rat_writes @ nbody, r1==r2 exact);
+    # provenance: artifacts/ooo_w8_density/nbody.json (tools/event_density.py, 2 reps)
+    density: 6229560
 - campaign_id: ooo_w82_d16_rat_emb_wikisort
   schema_version: arm-chaos-fi/v1
   injector: rat
@@ -1102,9 +1116,9 @@ subcampaigns:
   counting:
     mode: event_coverage
     target_events: 2000
-    _TODO_density: 'W8.1 后核实: run tools/event_density.py on this (D,binary) pair and fill `density: <events/run>`
-      (or density_table+event). campaign.py exits loudly on this stanza until then — intentional, never
-      fabricate a count.'
+    # density: events/run, no-fault probe baseline (event=rat_writes @ wikisort, r1==r2 exact);
+    # provenance: artifacts/ooo_w8_density/wikisort.json (tools/event_density.py, 2 reps)
+    density: 8200505
 - campaign_id: ooo_w82_d17_freelist_coremark
   schema_version: arm-chaos-fi/v1
   injector: freelist
@@ -1206,9 +1220,9 @@ subcampaigns:
   counting:
     mode: event_coverage
     target_events: 2000
-    _TODO_density: 'W8.1 后核实: run tools/event_density.py on this (D,binary) pair and fill `density: <events/run>`
-      (or density_table+event). campaign.py exits loudly on this stanza until then — intentional, never
-      fabricate a count.'
+    # density: events/run, no-fault probe baseline (event=flIntLe8 @ dep_chain, r1==r2 exact);
+    # provenance: artifacts/ooo_w8_density/dep_chain.json (tools/event_density.py, 2 reps)
+    density: 6999912
 - campaign_id: ooo_w82_d19_freelist_emb_crc32
   schema_version: arm-chaos-fi/v1
   injector: freelist
@@ -1603,9 +1617,9 @@ subcampaigns:
   counting:
     mode: event_coverage
     target_events: 2000
-    _TODO_density: 'W8.1 后核实: run tools/event_density.py on this (D,binary) pair and fill `density: <events/run>`
-      (or density_table+event). campaign.py exits loudly on this stanza until then — intentional, never
-      fabricate a count.'
+    # density: events/run, no-fault probe baseline (event=branch_mispred @ branch_mispred, r1==r2 exact);
+    # provenance: artifacts/ooo_w8_density/branch_mispred.json (tools/event_density.py, 2 reps)
+    density: 490766
 - campaign_id: ooo_w82_d24_rat_branch_mispred
   schema_version: arm-chaos-fi/v1
   injector: rat
@@ -1637,6 +1651,6 @@ subcampaigns:
   counting:
     mode: event_coverage
     target_events: 2000
-    _TODO_density: 'W8.1 后核实: run tools/event_density.py on this (D,binary) pair and fill `density: <events/run>`
-      (or density_table+event). campaign.py exits loudly on this stanza until then — intentional, never
-      fabricate a count.'
+    # density: events/run, no-fault probe baseline (event=branch_mispred @ branch_mispred, r1==r2 exact);
+    # provenance: artifacts/ooo_w8_density/branch_mispred.json (tools/event_density.py, 2 reps)
+    density: 490766
