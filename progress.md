@@ -2674,3 +2674,4 @@ CI 零重叠——**H7 验收断言("ECC-off spurious>0 vs ECC-on≈0")formal �
 - CHAOSCache 成功挂载到 C4-LSU 平台(l1d-cache-0, _pre_instantiate 钩子)。
 - 现有模式即刻覆盖 C01/C02/C03/C04/C13(5/15)。
 - C05-C12/C14-C15 需新 CHAOSCache 模式(way-select/valid/dirty/coherence/PLRU/MSHR/fill-writeback/busy/occupancy)。
+- W6 CHAOSCache targetField choices 扩展(valid/dirty/coh 加入)。8/15 C 模型即刻可用。C06-C08 实证 exit=0。C05/C09/C10/C11/C12/C14/C15 需新模式。
