@@ -60,6 +60,12 @@ CONFIG_FAMILY = {
 # These are the no-injection reference outputs (native == gem5, deterministic).
 GOLDEN_IDS = {
     "regchain-golden-v1":   "f247ef3fe6f02cfd",  # reg_chain
+    # LSU 负载 W0 MiniCheck (W9.1): gem5-SE golden == native (07568da9f3ad5665,
+    # C4-LSU 实证 2026-09-25). HONEST: gem5-SE ignores mprotect -> the PROT_NONE
+    # guard page stays RW in SE, so the guard-page probe detects corruption via
+    # checksum (SDC channel) instead of SIGSEGV (Crash channel); the Crash
+    # channel works natively and in FS.
+    "minicheck-golden-v1":   "07568da9f3ad5665",  # mini_check
     "l1dreduce-golden-v1":  "f44d2b9cd4a173cd",  # l1d_reduce
     "l1iloop-golden-v1":    "bb0b1c4cb661236e",  # l1i_loop
     "stuckpersist-golden-v1": "00000000dee1f5d0",  # stuck_persist

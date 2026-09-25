@@ -7,8 +7,10 @@
      2. 指针链（数组内置换链）—— 地址/索引腐蚀 -> 错节点或越界 -> SDC/Crash。
      3. load/store round-trip —— store 数据面 + load 读回（volatile 强制真读）。
      4. guard page —— 链表合法 next 指针全留在 page1；被腐蚀的指针落在
-        PROT_NONE page2 上解引用 -> SIGSEGV（native）/ SE fault（gem5）。
-        无故障运行永不触碰 page2（golden 安全）。 */
+        PROT_NONE page2 上解引用 -> SIGSEGV（native）/ FS。HONEST(gem5-SE):
+        SE 仿真忽略 mprotect（syscall_emul.cc warn），page2 保持可写——
+        越界指针在 SE 下走 SDC 检测通道（checksum 变化）而非 Crash 通道；
+        无故障运行永不触碰 page2（golden 安全，native==gem5 已实证）。 */
 #include <unistd.h>
 #include <stdint.h>
 #include <sys/mman.h>
