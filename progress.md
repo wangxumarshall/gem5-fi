@@ -2678,3 +2678,10 @@ CI 零重叠——**H7 验收断言("ECC-off spurious>0 vs ECC-on≈0")formal �
 - C09 data_shift(块数据旋转1字节)完成。C05≈C04 tag重标记、C10≈C06 valid失效为近似覆盖。W6: 9 直接+2 近似=11/15。C11/C14/C15(MSHR族)+C12 timing 需深钩子。
 - C11 MSHR 合并腐蚀完成(allocateTarget 事件钩子)。W6: 12/15。
 - C12 fill时序 + C14 MSHR busy 完成(handleFill/deallocate 事件钩子)。W6: 14/15。余 C15(occupancy)。
+
+### W6 完成(2026-09-26): 15/15 C 模型注入面就位
+
+- **9 直接**: C01(data bit) C02(2bit) C03(stuck) C04(tag) C06(valid) C07(dirty) C08(coh) C09(data_shift) C13(保护)
+- **2 近似**: C05(tag比较)≈C04 C10(PLRU)≈C06
+- **4 事件钩子**: C11(allocateTarget) C12(handleFill) C14(deallocate) C15(mshr_queue free check)
+- 全部通过 CHAOSCache 或 chaosLsuF6Notify 事件通知机制接入
