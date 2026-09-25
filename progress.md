@@ -2622,3 +2622,10 @@ CI 零重叠——**H7 验收断言("ECC-off spurious>0 vs ECC-on≈0")formal �
 ### LSU W4 计划定稿(2026-09-26)
 
 - 2026-09-26-lsu-w4-agu.md: 八模型×双挂点实现矩阵(A01-A03 位级@sendFragment, A04/A05/A06/A08@pushRequest 入口); R4 裁决=A07 时序 deferred(需流水级延迟挂点, 3 格如实 blocked); R5=A05/A08 不可表达子模型逐条近似声明+A04 同页代理(对象级随 W9 oracle)。执行中。
+
+### LSU W4 AGU 注入器完成(2026-09-26)
+
+- **交付**: A01-A08 八模式七实现(A07 时序 R4 deferred, 3 格 blocked-with-reason)——位级族(A01 分层单bit/A02 双bit/A03 卡死)@sendFragment + PRE 族(A04/A08 同页换值/A05 移位子模型/A06 size+BE 一致)@pushRequest 入口新指针。每 run 恰一钩子。
+- **验证**: 七模式定向全发射(注入日志逐模式字段: bit 编号/新旧地址/新旧 size);a01/a03 abort=guest 页故障(位翻转落未映射 VA 0x400004901f8——架构级 Crash 类合法结局);a02 Masked;a06 修复版 exit=0(size 8->1+BE 一致);双 golden 零回归+W2 触发单测不变。
+- **过程修正三处**(全部当场修复复验): a06 BE 失配断言(改返回尺寸契约+调用点重建)/两处裸 return 编译错/lsu_proxy argparse choices 漏扩展。
+- **诚实边界(R4/R5)**: A07 ready 时序需流水级延迟挂点(deferred); A05 互换类子模型不可从最终 addr 表达(deferred); A04 对象级候选随 W9 oracle; A08 同周期双请求交换 deferred。
