@@ -160,6 +160,35 @@ chaosL0Line(const char *injector, const ChaOSL0State &st)
     return line;
 }
 
+/** Per-injector L0 FUNNEL (LSU W3, docs/gem5-fi/lsu/04 L0): the full
+ *  attempted/eligible/injected/activated accounting. The W2 trigger layer
+ *  (chaos_lsu_trigger.hh) owns attempted/eligible/injected at decide time;
+ *  activated is THIS layer's read-back verdict (fault consumed downstream)
+ *  and lands here (W2 R2 ruling). Same output discipline as chaosL0Line:
+ *  the injector prints this from its exit callback into its LOG FILE
+ *  (stdout stays byte-stable for golden compares). Abort paths skip exit
+ *  callbacks — the L5 classifier must fall back to the injection log
+ *  (W2-known). */
+struct ChaOSL0Funnel
+{
+    uint64_t attempted = 0;   // hook invocations (mirror of trigger)
+    uint64_t eligible  = 0;   // passed the injector's eligibility filter
+    uint64_t injected  = 0;   // fault written
+    uint64_t activated = 0;   // fault consumed downstream (read-back verdict)
+
+    /** The pinned funnel line (log file, not stdout). */
+    std::string line(const char *injector) const
+    {
+        std::string s = "CHAOS_L0_FUNNEL: ";
+        s += injector;
+        s += " attempted=" + std::to_string(attempted);
+        s += " eligible=" + std::to_string(eligible);
+        s += " injected=" + std::to_string(injected);
+        s += " activated=" + std::to_string(activated);
+        return s;
+    }
+};
+
 } // namespace gem5
 
 #endif // __CPU_O3_CHAOS_L0_HH__

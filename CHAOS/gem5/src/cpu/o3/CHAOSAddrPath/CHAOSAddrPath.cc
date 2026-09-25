@@ -139,6 +139,14 @@ namespace gem5
         }
         if (new_vaddr == vaddr) return false;
         req->setVaddr(new_vaddr);
+        // W3 L0: register the injected item + local funnel accounting. The
+        // trigger-mirrored counts are taken at EXIT (see the exit callback)
+        // — mirroring at injection time would snapshot mid-run values.
+        // activated: this hook corrupts the request that translateTiming
+        // consumes next — count the item consumed (.hh approximation note).
+        chaosL0Register(l0_item, new_vaddr);
+        ++l0_funnel.injected;
+        ++l0_funnel.activated;
         faults_injected_count++;
         if (write_log) {
             *(log_stream->stream()) << "Tick: " << curTick()
@@ -168,10 +176,26 @@ namespace gem5
                 chaosLsuF6Notify = &CHAOSAddrPath::f6Thunk;
             }
             // W2 funnel summary (attempted/eligible/injected; activated is
-            // the W3 L0 read-back layer's verdict — R2 ruling).
+            // the W3 L0 read-back layer's verdict — R2 ruling) + W3 L0 lines
+            // (chaos_l0 discipline: to the LOG FILE, stdout stays stable).
             registerExitCallback([this]() {
-                if (lsuTrigger)
+                if (lsuTrigger) {
                     lsuTrigger->summary("CHAOSAddrPath");
+                    // Mirror the trigger's FINAL counts here (exit time), so
+                    // the funnel line and the summary line always agree.
+                    l0_funnel.attempted = lsuTrigger->attempted;
+                    l0_funnel.eligible  = lsuTrigger->eligible;
+                } else {
+                    l0_funnel.attempted = l0_funnel.injected;
+                    l0_funnel.eligible  = l0_funnel.injected;
+                }
+                if (write_log && log_stream && log_stream->stream()) {
+                    *(log_stream->stream()) << chaosL0Line("CHAOSAddrPath",
+                                                           l0_item)
+                                            << std::endl
+                                            << l0_funnel.line("CHAOSAddrPath")
+                                            << std::endl;
+                }
             });
         }
     }
