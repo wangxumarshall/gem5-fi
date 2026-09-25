@@ -770,7 +770,7 @@ LSQ::pushRequest(const DynInstPtr& inst, bool isLoad, uint8_t *data,
     // const ref here — BE mutation is NOT offered at this hook (A06 does
     // size only; documented in 09 §3-W4).
     if (cpu->chaosAddrPathPre)
-        size = cpu->chaosAddrPathPre->maybeCorruptPre(addr, size, isLoad);
+        size = cpu->chaosAddrPathPre->maybeCorruptPre(addr, size, isLoad, flags);
 
     ThreadID tid = cpu->contextToThread(inst->contextId());
     auto cacheLineSize = cpu->cacheLineSize();

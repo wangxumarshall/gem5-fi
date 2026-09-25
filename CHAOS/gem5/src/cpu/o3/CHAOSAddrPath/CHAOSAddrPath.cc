@@ -197,7 +197,8 @@ namespace gem5
     }
 
     unsigned int
-    CHAOSAddrPath::maybeCorruptPre(Addr& addr, unsigned int size, bool isLoad)
+    CHAOSAddrPath::maybeCorruptPre(Addr& addr, unsigned int size, bool isLoad,
+                               Request::Flags& flags)
     {
         if (probability <= 0.0f) return size;
 
@@ -274,6 +275,15 @@ namespace gem5
             const unsigned pick = rng() % 5;
             if (new_sizes[pick] != size) size = new_sizes[pick];
             else size = new_sizes[(pick + 1) % 5];
+        } else if (pre_mode == "l02_load_state") {
+            // L02 (03): LQ lifecycle state corruption — LOADS only. Toggle
+            // STRICTLY_ORDERED flag, which changes how the load is handled
+            // (strictly-ordered loads bypass forwarding and go to memory).
+            // Honest approximation: the full valid/issued/completed state
+            // machine is internal to LSQRequest; the flags are the
+            // externally controllable lifecycle proxy at this hook.
+            if (!isLoad) return size;
+            flags.set(Request::STRICT_ORDER);
         } else if (pre_mode == "l01_load_addr") {
             // L01 (03): LQ entry address/tag single-bit flip — LOADS only.
             // The corrupted address affects the conflict/violation check

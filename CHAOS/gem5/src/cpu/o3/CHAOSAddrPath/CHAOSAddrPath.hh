@@ -43,7 +43,8 @@ class CHAOSAddrPath : public SimObject
     // submodels are NOT expressible from the final addr — deferred, R5),
     // a06_size (access-size substitution; byte_enable is const at this
     // hook — size only), a08_subst (same-page, no object constraint).
-    unsigned int maybeCorruptPre(Addr& addr, unsigned int size, bool isLoad);
+    unsigned int maybeCorruptPre(Addr& addr, unsigned int size, bool isLoad,
+                               Request::Flags& flags);
 
   private:
     // LSU W4 A-series (03-design-matrix A01-A03, bit-level family on the
