@@ -40,6 +40,7 @@
 
 #include "arch/arm/tlb.hh"
 #include "arch/arm/CHAOSArmTLB/CHAOSArmTLB.hh"  // Phase 3: TLB-entry injector (maybeCorrupt)
+#include "cpu/o3/chaos_lsu_trigger.hh"  // LSU W2 F6 event source (TlbHit, FS-only: SE never calls TLB::lookup)
 
 #include <memory>
 #include <string>
@@ -166,6 +167,12 @@ TLB::lookup(Lookup lookup_data)
     // cell (address-translation-path fault). nullptr = no injector.
     if (retval && chaosTLB) {
         chaosTLB->maybeCorrupt(retval, lookup_data.va);
+    }
+
+    // LSU W2 F6 event source (09 §2.1 map): TLB hit. FS-only by construction
+    // — SE translates via translateSe and never reaches TLB::lookup.
+    if (retval && chaosLsuF6Notify) {
+        chaosLsuF6Notify(ChaOSLsuEvent::TlbHit);
     }
 
     DPRINTF(TLBVerbose, "Lookup %#x, asn %#x -> %s vmn 0x%x ss %s "

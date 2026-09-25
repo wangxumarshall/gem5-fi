@@ -3,9 +3,12 @@
 #include "cpu/o3/cpu.hh"          // o3::CPU
 #include "debug/CHAOSAddrPath.hh"
 #include "params/CHAOSAddrPath.hh"
+#include "sim/sim_exit.hh"        // registerExitCallback (W2 summary line)
 
 namespace gem5
 {
+
+    CHAOSAddrPath *CHAOSAddrPath::f6Consumer = nullptr;
 
     CHAOSAddrPath::CHAOSAddrPath(const CHAOSAddrPathParams &p)
         : SimObject(p),
@@ -18,6 +21,13 @@ namespace gem5
           rng_seed(p.rngSeed),
           write_log(p.writeLog)
     {
+        if (p.lsuTier != "off") {
+            lsuTrigger = new ChaOSLsuTrigger(tierFromString(p.lsuTier),
+                                             rng_seed ? rng_seed : 1,
+                                             p.lsuWarmupEvents,
+                                             p.lsuSpanEvents,
+                                             eventFromString(p.lsuF6Event));
+        }
         if (probability > 0.0f) {
             log_stream = simout.create("addrpath_injections.log", false, true);
             if (!log_stream || !log_stream->stream())
@@ -32,6 +42,36 @@ namespace gem5
     CHAOSAddrPath::stringToMode(const std::string &s) {
         if (s == "low_bit_flip") return Mode::LowBitFlip;
         return Mode::Byte7Zero;  // default / unknown
+    }
+
+    ChaOSLsuTier
+    CHAOSAddrPath::tierFromString(const std::string &s) {
+        if (s == "F0") return ChaOSLsuTier::F0;
+        if (s == "F1") return ChaOSLsuTier::F1;
+        if (s == "F2") return ChaOSLsuTier::F2;
+        if (s == "F3") return ChaOSLsuTier::F3;
+        if (s == "F4") return ChaOSLsuTier::F4;
+        if (s == "F5") return ChaOSLsuTier::F5;
+        if (s == "F6") return ChaOSLsuTier::F6;
+        panic("CHAOSAddrPath: unknown lsuTier '%s'\n", s);
+    }
+
+    ChaOSLsuEvent
+    CHAOSAddrPath::eventFromString(const std::string &s) {
+        if (s == "tlb_hit") return ChaOSLsuEvent::TlbHit;
+        if (s == "dirty_eviction") return ChaOSLsuEvent::DirtyEviction;
+        if (s == "cas_success") return ChaOSLsuEvent::CasSuccess;
+        return ChaOSLsuEvent::SqForward;  // sq_forward / default
+    }
+
+    void
+    CHAOSAddrPath::f6Thunk(ChaOSLsuEvent ev) {
+        // Single-consumer F6 notify (chaos_lsu_trigger.hh). The trigger's
+        // onF6Event() both filters the event type and enforces once-ever.
+        if (f6Consumer && f6Consumer->lsuTrigger &&
+            f6Consumer->lsuTrigger->f6_event == ev &&
+            f6Consumer->lsuTrigger->onF6Event())
+            f6Consumer->f6_pending = true;  // fire at the next eligible hook
     }
 
     bool
@@ -54,12 +94,29 @@ namespace gem5
     CHAOSAddrPath::maybeCorrupt(RequestPtr &req)
     {
         if (!cpu || probability <= 0.0f) return false;
-        if (max_faults != 0 && faults_injected_count >= max_faults) return false;
-        if (!inWindow()) return false;
         if (!req) return false;
 
-        std::uniform_real_distribution<float> pd(0.0f, 1.0f);
-        if (pd(rng) > probability) return false;
+        if (lsuTrigger) {
+            // LSU W2 path (05 r2-r8): event-normalized trigger owns the
+            // warm-up/repetition/max-faults semantics; the cycle window and
+            // per-event probability roll do NOT apply on this path.
+            lsuTrigger->onAttempt();
+            bool go;
+            if (lsuTrigger->tier == ChaOSLsuTier::F6) {
+                go = f6_pending;
+                f6_pending = false;
+            } else {
+                go = lsuTrigger->onEligible();
+            }
+            if (!go) return false;
+        } else {
+            // Legacy cycle-window path (KP track) — byte-identical.
+            if (max_faults != 0 && faults_injected_count >= max_faults) return false;
+            if (!inWindow()) return false;
+
+            std::uniform_real_distribution<float> pd(0.0f, 1.0f);
+            if (pd(rng) > probability) return false;
+        }
 
         // §2.4 AGU address-path: corrupt the request vaddr BEFORE translateTiming.
         //   byte7_zero: clear byte 7 (canonical -> non-canonical kernel addr).
@@ -70,6 +127,13 @@ namespace gem5
         Addr new_vaddr = vaddr;
         if (fi_mode == Mode::Byte7Zero) {
             new_vaddr = vaddr & ~((Addr)0xff << 56);  // clear byte 7
+        } else if (lsuTrigger && lsuTrigger->tier == ChaOSLsuTier::F5) {
+            // LSU F5 (05 r8): "每次运行仅选一个 bit/字段" — ONE fixed bit per
+            // run, stuck from the first post-warm-up eligible event on. A
+            // per-event random bit (the legacy path) instead aliases each
+            // access unpredictably and trips packet-offset assertions.
+            if (f5_bit == 64) f5_bit = rng() % 16;
+            new_vaddr = vaddr ^ (1ULL << f5_bit);
         } else {
             new_vaddr = vaddr ^ (1ULL << (rng() % 16));  // low-bit flip
         }
@@ -98,6 +162,18 @@ namespace gem5
             return;
         }
         o3cpu->setChaosAddrPath(this);
+        if (lsuTrigger) {
+            if (lsuTrigger->tier == ChaOSLsuTier::F6) {
+                f6Consumer = this;
+                chaosLsuF6Notify = &CHAOSAddrPath::f6Thunk;
+            }
+            // W2 funnel summary (attempted/eligible/injected; activated is
+            // the W3 L0 read-back layer's verdict — R2 ruling).
+            registerExitCallback([this]() {
+                if (lsuTrigger)
+                    lsuTrigger->summary("CHAOSAddrPath");
+            });
+        }
     }
 
 } // namespace gem5

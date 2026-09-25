@@ -22,3 +22,18 @@ class CHAOSAddrPath(SimObject):
     maxFaults = Param.UInt64(0, "max faults; 0 = unlimited. Use 1.")
     rngSeed = Param.UInt64(0, "RNG seed (0 = random_device)")
     writeLog = Param.Bool(True, "Write a fault_injections.log file")
+
+    # LSU W2 (docs/gem5-fi/lsu/05 r2-r8): event-normalized trigger tier.
+    # "off" = legacy cycle-window path (byte-identical, KP track). F0-F6
+    # route the injection decision through ChaOSLsuTrigger
+    # (cpu/o3/chaos_lsu_trigger.hh): warm-up/repetition/max-faults semantics
+    # move to the trigger layer (eligible-event denominator).
+    lsuTier = Param.String("off",
+        "off | F0 | F1 | F2 | F3 | F4 | F5 | F6 (LSU event-normalized tier)")
+    lsuWarmupEvents = Param.UInt64(0,
+        "eligible events skipped before arming (LSU tiers)")
+    lsuSpanEvents = Param.UInt64(1000,
+        "F0 uniform window size in eligible events")
+    lsuF6Event = Param.String("sq_forward",
+        "F6 event: tlb_hit (FS-only) | sq_forward | dirty_eviction | "
+        "cas_success")

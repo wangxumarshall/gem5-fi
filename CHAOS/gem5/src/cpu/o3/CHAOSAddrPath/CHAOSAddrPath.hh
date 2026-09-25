@@ -9,6 +9,7 @@
 #include "base/output.hh"
 #include "base/types.hh"
 #include "cpu/base.hh"
+#include "cpu/o3/chaos_lsu_trigger.hh"  // LSU W2 event-normalized tiers
 #include "mem/request.hh"
 
 namespace gem5 { namespace o3 { class CPU; } }
@@ -32,6 +33,8 @@ class CHAOSAddrPath : public SimObject
   private:
     enum class Mode { Byte7Zero, LowBitFlip };
     static Mode stringToMode(const std::string &s);
+    static ChaOSLsuTier tierFromString(const std::string &s);
+    static ChaOSLsuEvent eventFromString(const std::string &s);
 
     BaseCPU *cpu;
     Mode fi_mode;
@@ -41,6 +44,19 @@ class CHAOSAddrPath : public SimObject
     uint64_t faults_injected_count = 0;
     uint64_t rng_seed;
     bool write_log;
+
+    // LSU W2 (05 r2-r8): when lsuTier != off, the injection decision routes
+    // through the event-normalized trigger (warm-up/repetition semantics move
+    // to the trigger layer; the legacy cycle-window path stays byte-identical
+    // for the KP track). f6_pending: F6 fires at the first configured event,
+    // the corruption itself happens at the next eligible hook call (the
+    // event sites and this injector's hook are different code points —
+    // per-unit F6 consumers in W5-W8 inject AT the event instead).
+    ChaOSLsuTrigger *lsuTrigger = nullptr;
+    bool f6_pending = false;
+    uint64_t f5_bit = 64;   // F5: pinned low-bit index, 64 = not yet chosen
+    static CHAOSAddrPath *f6Consumer;
+    static void f6Thunk(ChaOSLsuEvent ev);
 
     std::mt19937 rng;
     std::random_device rd;

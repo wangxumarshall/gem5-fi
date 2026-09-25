@@ -390,6 +390,19 @@ p.add_argument("--addrpath_mode", default="byte7_zero",
 p.add_argument("--addrpath_first_clock", type=lambda x: int(x,0), default=1000)
 p.add_argument("--addrpath_max_faults", type=lambda x: int(x,0), default=1)
 p.add_argument("--addrpath_rng_seed", type=lambda x: int(x,0), default=20260825)
+# W2: LSU event-normalized trigger tiers on CHAOSAddrPath (05 r2-r8).
+# off = legacy cycle-window path (byte-identical). F0-F6: the trigger layer
+# owns warm-up/repetition semantics (eligible-event denominator).
+p.add_argument("--addrpath_lsu_tier", default="off",
+               choices=["off","F0","F1","F2","F3","F4","F5","F6"],
+               help="W2: LSU event-normalized trigger tier (05 r2-r8)")
+p.add_argument("--addrpath_warmup_events", type=lambda x: int(x,0), default=0,
+               help="W2: eligible events skipped before arming (LSU tiers)")
+p.add_argument("--addrpath_span_events", type=lambda x: int(x,0), default=1000,
+               help="W2: F0 uniform window size in eligible events")
+p.add_argument("--addrpath_f6_event", default="sq_forward",
+               choices=["tlb_hit","sq_forward","dirty_eviction","cas_success"],
+               help="W2: F6 event source (tlb_hit is FS-only in SE)")
 # §2.14 CHAOSDecode (O3 decode-unit injector). SELF-ATTACHES at startup()
 # to cpu.chaosDecode. Hooks rename.cc:1137 post-flattenedDestIdx; dest_reg_sub
 # F5 (per-inst, safe — _flatDestIdx is per-DynInst, not shared staticInst).
@@ -882,6 +895,10 @@ if args.chaos_addrpath:
         maxFaults=args.addrpath_max_faults,
         rngSeed=args.addrpath_rng_seed,
         writeLog=True,
+        lsuTier=args.addrpath_lsu_tier,
+        lsuWarmupEvents=args.addrpath_warmup_events,
+        lsuSpanEvents=args.addrpath_span_events,
+        lsuF6Event=args.addrpath_f6_event,
     )
     board.chaos_addrpath = ap
 

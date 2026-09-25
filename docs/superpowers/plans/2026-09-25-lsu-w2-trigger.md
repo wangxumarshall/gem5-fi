@@ -39,7 +39,7 @@ configs/se/lsu_proxy.py                       [Modify — --freq_tier/--warmup_e
 
 **Files:** Create `CHAOS/gem5/src/cpu/o3/chaos_lsu_trigger.hh`
 
-- [ ] **Step 1: 写入完整头文件**（代码如下，逐字）
+- [x] **Step 1: 写入完整头文件**（代码如下，逐字）
 
 ```cpp
 /*
@@ -219,19 +219,19 @@ struct ChaOSLsuTrigger
 
 （注意：上面 `ChaOSTierLikeDummyRemoveMe;` 一行是笔误占位，写入时**删除**——最终文件不得含此行。）
 
-- [ ] **Step 2: F6 事件源钩子（四处，每处一行守卫调用）**
+- [x] **Step 2: F6 事件源钩子（四处，每处一行守卫调用）**
 
 - `CHAOS/gem5/src/cpu/o3/lsq_unit.cc:1483` 区域（FullAddrRangeCoverage 命中分支）：`CHAOSLSQFwd` 挂点旁加 `if (chaosLsuF6EventSource) chaosLsuF6EventSource(ChaOSLsuEvent::SqForward);` 形式的全局通知（具体机制：在 chaos_lsu_trigger.hh 末尾加 `inline void (*chaosLsuF6Notify)(ChaOSLsuEvent) = nullptr;` 全局函数指针，四源各一行 `if (chaosLsuF6Notify) chaosLsuF6Notify(ChaOSLsuEvent::X);`，消费者注册回调——零 SimObject 接线，单核 SE 单消费者假设如实记录于头注释）。
 - `mem/cache/cache.cc:965` 区域（DirtyBit 判定真分支前）→ `DirtyEviction`
 - `mem/cache/base.cc:1185` 区域（SwapReq/AMO 提交成功分支）→ `CasSuccess`
 - `arch/arm/tlb.cc:158` 区域（TLB 命中）→ `TlbHit`（FS-only；SE 零调用实证，钩子存在但 SE 不达）
 
-- [ ] **Step 3: CHAOSAddrPath 消费路径**
+- [x] **Step 3: CHAOSAddrPath 消费路径**
 
 `CHAOSAddrPath.hh`：加成员 `gem5::ChaOSLsuTrigger *lsuTrigger = nullptr;` + 模式枚举值 `LsuTier`; `CHAOSAddrPath.cc`：`maybeCorrupt` 入口 `if (lsuTrigger) { lsuTrigger->onAttempt(); ... }`——LSU 路径下 eligibility=原 inWindow 判定，注入决定=`onEligible()`（替代原 probability/max_faults 路径，仅当 `--addrpath_lsu_tier` 启用）；`startup()` 注册 F6 回调（tier==F6 时 `chaosLsuF6Notify = myCallback`）；exit 回调加 `lsuTrigger->summary("CHAOSAddrPath")`。`CHAOSAddrPath.py`：新参数 `lsuTier`（string, "off" 默认）、`warmupEvents`、`spanEvents`、`f6Event`。
 **默认 off = 现有 Byte7Zero/LowBitFlip 路径逐字节不变**（零回归的结构保证）。
 
-- [ ] **Step 4: lsu_proxy.py 参数**
+- [x] **Step 4: lsu_proxy.py 参数**
 
 ```python
 p.add_argument("--addrpath_lsu_tier", default="off",
@@ -246,12 +246,12 @@ p.add_argument("--addrpath_f6_event", default="sq_forward",
 
 ### Task 2: 构建与验证
 
-- [ ] **Step 5: 增量构建**：`cd CHAOS/gem5 && scons -j126 build/ARM/gem5.opt`（仅重编 lsq_unit/cache/base/tlb/CHAOSAddrPath 链，预期 <10 分钟）；零警告零错误。
-- [ ] **Step 6: F4 突发实证**：`build/ARM/gem5.opt --outdir=/tmp/lsu_w2_f4 configs/se/lsu_proxy.py --cmd workloads/directed/mini_check --cpu O3 --chaos_addrpath --addrpath_mode low_bit_flip --addrpath_lsu_tier F4 --addrpath_warmup_events 100 --max_faults 0`（max_faults 语义在 LSU 路径下由触发层接管，注入器侧需允许 0=unlimited 当 tier 启用）→ stdout 断言：`CHAOS_LSU_TRIGGER ... injected=N` 且注入器逐次日志中连续注入游程长度 ∈ [2,4]（grep 注入日志行人工核对 ≥3 个游程）。
-- [ ] **Step 7: F6 首事件单发**：`--addrpath_lsu_tier F6 --addrpath_f6_event sq_forward`（mini_check 的指针链产生 forward 机会较少——改用 reg_chain? 它无 store；用 mini_check round-trip 段）→ 断言 injected==1 且发生在首个 sq_forward 事件后；`dirty_eviction` 同理（mini_check working set 小，需 64KiB 变体 S2 或加大数组——若零事件，如实记录并换负载）。
-- [ ] **Step 8: F0-F3 比率 + F5**：F3（每 10K eligible 一次）在 mini_check（约 10^5 eligible 量级）上 injected≈eligible/10K±50% 量级；F5 warmup 后全 eligible 注入。逐档日志为证。
-- [ ] **Step 9: 零回归**：默认参数跑 reg_chain + mini_check（C4-LSU，无 LSU 触发）→ 双 golden 不变；`python3 /tmp/lsu_w0_check.py /tmp/lsu_w2_regress B0`（B0 断言仍过）。
-- [ ] **Step 10: 提交**：`git add` 六个显式路径（chaos_lsu_trigger.hh + CHAOSAddrPath 三件 + lsu_proxy.py + 四个 gem5 源文件）→ `feat(lsu): W2 event-normalized F0-F6 trigger layer (chaos_lsu_trigger.hh + CHAOSAddrPath consumer)` → push。
+- [x] **Step 5: 增量构建**：`cd CHAOS/gem5 && scons -j126 build/ARM/gem5.opt`（仅重编 lsq_unit/cache/base/tlb/CHAOSAddrPath 链，预期 <10 分钟）；零警告零错误。
+- [x] **Step 6: F4 突发实证**：`build/ARM/gem5.opt --outdir=/tmp/lsu_w2_f4 configs/se/lsu_proxy.py --cmd workloads/directed/mini_check --cpu O3 --chaos_addrpath --addrpath_mode low_bit_flip --addrpath_lsu_tier F4 --addrpath_warmup_events 100 --max_faults 0`（max_faults 语义在 LSU 路径下由触发层接管，注入器侧需允许 0=unlimited 当 tier 启用）→ stdout 断言：`CHAOS_LSU_TRIGGER ... injected=N` 且注入器逐次日志中连续注入游程长度 ∈ [2,4]（grep 注入日志行人工核对 ≥3 个游程）。
+- [x] **Step 7: F6 首事件单发**：`--addrpath_lsu_tier F6 --addrpath_f6_event sq_forward`（mini_check 的指针链产生 forward 机会较少——改用 reg_chain? 它无 store；用 mini_check round-trip 段）→ 断言 injected==1 且发生在首个 sq_forward 事件后；`dirty_eviction` 同理（mini_check working set 小，需 64KiB 变体 S2 或加大数组——若零事件，如实记录并换负载）。
+- [x] **Step 8: F0-F3 比率 + F5**：F3（每 10K eligible 一次）在 mini_check（约 10^5 eligible 量级）上 injected≈eligible/10K±50% 量级；F5 warmup 后全 eligible 注入。逐档日志为证。
+- [x] **Step 9: 零回归**：默认参数跑 reg_chain + mini_check（C4-LSU，无 LSU 触发）→ 双 golden 不变；`python3 /tmp/lsu_w0_check.py /tmp/lsu_w2_regress B0`（B0 断言仍过）。
+- [x] **Step 10: 提交**：`git add` 六个显式路径（chaos_lsu_trigger.hh + CHAOSAddrPath 三件 + lsu_proxy.py + 四个 gem5 源文件）→ `feat(lsu): W2 event-normalized F0-F6 trigger layer (chaos_lsu_trigger.hh + CHAOSAddrPath consumer)` → push。
 
 ## Self-Review
 

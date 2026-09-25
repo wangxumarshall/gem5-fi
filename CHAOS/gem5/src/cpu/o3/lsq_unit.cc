@@ -45,6 +45,7 @@
 #include "base/str.hh"
 #include "cpu/checker/cpu.hh"
 #include "cpu/o3/CHAOSLSQFwd/CHAOSLSQFwd.hh"
+#include "cpu/o3/chaos_lsu_trigger.hh"  // LSU W2 F6 event source (SqForward)
 #include "cpu/o3/CHAOSL1DForward/CHAOSL1DForward.hh"  // §2.7 post-check escape
 #include "cpu/o3/dyn_inst.hh"
 #include "cpu/o3/limits.hh"
@@ -1538,6 +1539,12 @@ LSQUnit::read(LSQRequest *request, ssize_t load_idx)
                                          request->mainReq()->getSize(),
                                          request->mainReq()->getVaddr());
                 }
+
+                // LSU W2 F6 event source (09 §2.1 map): a store-to-load
+                // forward just happened. Single-consumer notify; the F6
+                // injector (if any) decides whether to fire at this event.
+                if (chaosLsuF6Notify)
+                    chaosLsuF6Notify(ChaOSLsuEvent::SqForward);
 
                 DPRINTF(LSQUnit, "Forwarding from store idx %i to load to "
                         "addr %#x\n", store_it._idx,
