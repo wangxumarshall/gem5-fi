@@ -2659,3 +2659,4 @@ CI 零重叠——**H7 验收断言("ECC-off spurious>0 vs ECC-on≈0")formal �
 - L02 LQ 生命周期状态完成(STRICT_ORDER 翻转, F0 实证 1 注入)。W5: 12/17。
 - S10 StoreSet 腐蚀完成(SSID 创建/合并路径事件通知)。W5: 13/17。
 - S06 SQ 状态 + S07 SQ 指针完成。W5: 15/17。余 S11(drain)+L04(response)。
+- S11 SQ drain 丢失写完成(size→0, trigger injected=1)。W5: 16/17。余 L04。
