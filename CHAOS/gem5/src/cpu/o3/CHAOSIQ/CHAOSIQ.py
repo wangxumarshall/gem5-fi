@@ -30,6 +30,23 @@ class CHAOSIQ(SimObject):
     # CHAOSROB faultMask convention. 0 = random.
     faultMask = Param.UInt64(0,
         "directed bit mask for tag_bitflip/tag_bitflip2/tag_stuck")
+    # W7.4 (ooo 04-design-matrix D86-D91, FP/SIMD Dispatch/ROB): the
+    # register-class scope of the ready-bit (ready_early) and source-tag
+    # (tag_*) populations. "int" = the W5 Int-IQ scope (default,
+    # byte-identical behavior); "vec" = the FP/SIMD queue — scalar FP,
+    # FP SIMD and integer SIMD sources ALL rename onto VecRegClass on
+    # AArch64 (the W1 platform finding: S/D are the low bits of V,
+    # FloatRegClass is never renamed), so ONE vec class covers the whole
+    # FP/SIMD IQ; the tag domain becomes [0, numVecPhysRegs).
+    targetClass = Param.String("int", "int | vec (register class scope)")
+    # W7.4 D86 optional opClass filter for the three §2.5 wake modes
+    # (wake_omit / src_ready_bitflip / wake_phase): restrict eligibility
+    # to FP/SIMD completed instructions (isFpOpClass = Float* ∪ SimdFloat*,
+    # the CHAOSFPU §2.6 convention) — the D86 "FP/SIMD 队列版" scoping.
+    # Default False = legacy class-agnostic behavior (zero regression).
+    fpOnly = Param.Bool(False,
+        "§2.5 wake modes: only fire on FP/SIMD (Float* ∪ SimdFloat*)"
+        " completed instructions")
     firstClock = Param.UInt64(0, "first clock cycle eligible for injection")
     lastClock = Param.UInt64(0, "last cycle (0 = unrestricted)")
     maxFaults = Param.UInt64(0, "max faults; 0 = unlimited. Use 1.")

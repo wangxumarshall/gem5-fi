@@ -12,6 +12,7 @@
 #include "base/types.hh"
 #include "cpu/base.hh"
 #include "cpu/o3/dyn_inst_ptr.hh"  // DynInstPtr
+#include "cpu/reg_class.hh"        // RegClassType (W7.4 targetClass)
 
 namespace gem5 { namespace o3 { class CPU; } }
 namespace gem5 { namespace o3 { class ROB; } }
@@ -132,6 +133,12 @@ class CHAOSROB : public SimObject
     uint64_t faults_injected_count = 0;
     uint64_t rng_seed;
     bool write_log;
+    // W7.4: register-class scope of the dest-id family. IntRegClass =
+    // the W5 D28-D31 scope (default); VecRegClass = the FP/SIMD twins
+    // (scalar FP + FP SIMD + integer SIMD dests all rename onto
+    // VecRegClass on AArch64 — S/D are the low bits of V; FloatRegClass
+    // is never renamed).
+    RegClassType target_reg_class = IntRegClass;
 
     std::mt19937 rng;
     std::random_device rd;
@@ -184,8 +191,15 @@ class CHAOSROB : public SimObject
     uint64_t ptr_stuck_noaction = 0;   // exposures with no live target
 
     // shared helpers
-    int collectIntDestSlots(const o3::DynInstPtr &inst,
-                            std::vector<int> &slots);
+    // W7.4: dest slots of inst in the TARGET register class (IntRegClass
+    // = the W5 D28-D31 dest-id scope; VecRegClass = the FP/SIMD twins).
+    int collectDestSlots(const o3::DynInstPtr &inst,
+                         std::vector<int> &slots);
+    // W7.4 class helpers: dest-id index domain and PhysRegId factory of
+    // the target class (intPhysRegId / vecPhysRegId, regfile.hh).
+    int numTargetPhysRegs(o3::CPU *o3cpu);
+    PhysRegIdPtr targetPhysRegId(o3::CPU *o3cpu, int idx);
+    const char *targetClassName();
     int collectRobActiveDests(int cur_idx, uint64_t self_sn,
                               o3::CPU *o3cpu, ThreadID tid,
                               std::vector<RobDestCand> &cands);

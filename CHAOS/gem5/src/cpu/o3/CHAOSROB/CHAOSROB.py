@@ -49,3 +49,13 @@ class CHAOSROB(SimObject):
     maxFaults = Param.UInt64(0, "max faults; 0 = unlimited. Use 1.")
     rngSeed = Param.UInt64(0, "RNG seed (0 = random_device)")
     writeLog = Param.Bool(True, "Write a fault_injections.log file")
+    # W7.4 (ooo 04-design-matrix FP/SIMD Dispatch/ROB, the D87-prerequisite
+    # dest-id analog at the rob_insert site): the register-class scope of
+    # the destid family (destid_bitflip/bitflip2/swap_active/stuck).
+    # "int" = the W5 D28-D31 scope (default, byte-identical behavior);
+    # "vec" = the FP/SIMD twins — VecRegClass dest slots (scalar FP, FP
+    # SIMD and integer SIMD dests ALL rename onto VecRegClass on AArch64),
+    # dest-id domain [0, numVecPhysRegs), the swap_active pool collects
+    # vec dests. The PC / done-bit / pointer families stay class-agnostic
+    # (the ROB is a unified structure — TC'23).
+    targetClass = Param.String("int", "int | vec (dest-id class scope)")

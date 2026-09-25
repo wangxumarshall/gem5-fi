@@ -27,6 +27,19 @@ namespace gem5
           rng_seed(p.rngSeed),
           write_log(p.writeLog)
     {
+        // W7.4 (FP/SIMD Dispatch/ROB, the dest-id family at the
+        // rob_insert site): "int" keeps the W5 D28-D31 scope
+        // byte-identical; "vec" extends the same modes to the FP/SIMD
+        // dest domain (VecRegClass). Unknown values are a config error
+        // (loud, never a silent int fallback).
+        if (p.targetClass == "int") {
+            target_reg_class = IntRegClass;
+        } else if (p.targetClass == "vec") {
+            target_reg_class = VecRegClass;
+        } else {
+            panic("CHAOSROB: unknown targetClass '%s' (int|vec)\n",
+                  p.targetClass);
+        }
         if (probability > 0.0f) {
             log_stream = simout.create("rob_injections.log", false, true);
             if (!log_stream || !log_stream->stream())
@@ -134,18 +147,47 @@ namespace gem5
         return true;
     }
 
+    // W7.4 class helpers (the dest-id family): the dest-id index domain
+    // and the PhysRegId factory of the target register class. int = the
+    // W5 [0, numIntPhysRegs) domain / intPhysRegId; vec = [0,
+    // numVecPhysRegs) / vecPhysRegId (regfile.hh:172-177).
     int
-    CHAOSROB::collectIntDestSlots(const o3::DynInstPtr &inst,
-                                  std::vector<int> &slots)
+    CHAOSROB::numTargetPhysRegs(o3::CPU *o3cpu)
     {
-        // Int Dispatch/ROB unit scope (W5): the dest-id field = the INTEGER
-        // dest physReg identifiers of the entry. FP/vector dests belong to
-        // the W7 FP unit. Returns the number of int-class dest slots.
+        return (int)(target_reg_class == IntRegClass
+            ? o3cpu->physRegFile().numIntPhysRegs()
+            : o3cpu->physRegFile().numVecPhysRegs());
+    }
+
+    PhysRegIdPtr
+    CHAOSROB::targetPhysRegId(o3::CPU *o3cpu, int idx)
+    {
+        return target_reg_class == IntRegClass
+            ? o3cpu->physRegFile().intPhysRegId(idx)
+            : o3cpu->physRegFile().vecPhysRegId(idx);
+    }
+
+    const char *
+    CHAOSROB::targetClassName()
+    {
+        return target_reg_class == IntRegClass ? "int" : "vec";
+    }
+
+    int
+    CHAOSROB::collectDestSlots(const o3::DynInstPtr &inst,
+                               std::vector<int> &slots)
+    {
+        // W5 Int Dispatch/ROB scope / W7.4 FP-SIMD twin: the dest-id
+        // field = the TARGET-class dest physReg identifiers of the entry
+        // — IntRegClass ("int", the W5 D28-D31 population) or
+        // VecRegClass ("vec" — scalar FP, FP SIMD AND integer SIMD dests
+        // all rename onto VecRegClass on AArch64, so the one vec class
+        // is the whole FP/SIMD dest population).
         slots.clear();
         for (int i = 0; i < (int)inst->numDestRegs(); i++) {
             PhysRegIdPtr d = inst->renamedDestIdx(i);
             if (!d) continue;
-            if (d->classValue() != IntRegClass) continue;
+            if (d->classValue() != target_reg_class) continue;
             slots.push_back(i);
         }
         return (int)slots.size();
@@ -156,17 +198,18 @@ namespace gem5
                                     o3::CPU *o3cpu, ThreadID tid,
                                     std::vector<RobDestCand> &cands)
     {
-        // W5.2 D30 destid_swap_active: the swap pool = int dest physRegs of
-        // instructions currently ROB-resident (in flight). Each such physReg
-        // is by construction allocated and in use (grabbed from the freelist
-        // at rename, freed only after its owner commits and the next definer
-        // retires) — a swap onto it is LEGAL-domain and bypasses the
-        // random-flip luck of D28/D29 (the W4.2a collectRobActiveDests
-        // precedent in CHAOSRenameMap.cc, reused at the ROB-insert site).
-        // The inserting inst itself is excluded (self_sn): swapping an
-        // entry's own dest for its own dest is a no-op. Read-only walk
-        // head->tail via getEntryAtDistance; called from ROB::insertInst
-        // AFTER the new entry is linked (the list is complete and stable).
+        // W5.2 D30 destid_swap_active: the swap pool = TARGET-class dest
+        // physRegs of instructions currently ROB-resident (in flight).
+        // Each such physReg is by construction allocated and in use
+        // (grabbed from the freelist at rename, freed only after its
+        // owner commits and the next definer retires) — a swap onto it
+        // is LEGAL-domain and bypasses the random-flip luck of D28/D29
+        // (the W4.2a collectRobActiveDests precedent in CHAOSRenameMap.cc,
+        // reused at the ROB-insert site). The inserting inst itself is
+        // excluded (self_sn): swapping an entry's own dest for its own
+        // dest is a no-op. Read-only walk head->tail via
+        // getEntryAtDistance; called from ROB::insertInst AFTER the new
+        // entry is linked (the list is complete and stable).
         cands.clear();
         o3::ROB &rob = o3cpu->o3ROB();
         for (int d = 0; ; d++) {
@@ -176,7 +219,7 @@ namespace gem5
             for (int i = 0; i < (int)ri->numDestRegs(); i++) {
                 PhysRegIdPtr dest = ri->renamedDestIdx(i);
                 if (!dest) continue;
-                if (dest->classValue() != IntRegClass) continue;
+                if (dest->classValue() != target_reg_class) continue;
                 int pidx = dest->index();
                 if (pidx == cur_idx) continue;  // must differ from current
                 cands.push_back({pidx, d, ri->seqNum});
@@ -431,25 +474,27 @@ namespace gem5
         if (fi_mode == Mode::DestIdBitflip || fi_mode == Mode::DestIdBitflip2
                 || fi_mode == Mode::DestIdSwapActive) {
             // D28 (R29, 寄存器标识符·单比特) / D29 (R30, 双比特) / D30
-            // (R31, 换值): corrupt ONE integer dest physReg identifier of
-            // the entry being written. The flip lands after the IQ insert
+            // (R31, 换值) and their W7.4 FP/SIMD twins (targetClass=vec):
+            // corrupt ONE target-class dest physReg identifier of the
+            // entry being written. The flip lands after the IQ insert
             // (renameToIEWDelay=1 < renameToROBDelay=2) but before
             // completion/writeback, so the IQ wake (inst_queue.cc:1151)
             // and the scoreboard clear / result write see the WRONG id
             // while the dependency lists were built on the TRUE one — the
             // gem5 manifestation of the TC'23 dependency-check intercept.
             std::vector<int> slots;
-            int n = collectIntDestSlots(inst, slots);
+            int n = collectDestSlots(inst, slots);
             if (n == 0) {
                 // The field does not exist on this entry (branch/store have
-                // no int dest) — honest skip, nothing to flip.
+                // no target-class dest) — honest skip, nothing to flip.
                 if (write_log && skip_logs < 32) {
                     ++skip_logs;
                     *(log_stream->stream()) << "Tick: " << curTick()
                         << ", Site: rob_insert, mode=" << modeToString(fi_mode)
                         << ", tid=" << (int)tid
                         << ", sn=" << inst->seqNum
-                        << " — entry has no int dest (skipped, no field)"
+                        << " — entry has no " << targetClassName()
+                        << " dest (skipped, no field)"
                         << ", skip_log: " << skip_logs
                         << ", faults_injected: " << faults_injected_count
                         << std::endl;
@@ -459,7 +504,7 @@ namespace gem5
             int slot = slots[(int)(rng() % (unsigned)n)];
             PhysRegIdPtr cur = inst->renamedDestIdx(slot);
             int cur_idx = cur->index();
-            int num_phys = (int)o3cpu->physRegFile().numIntPhysRegs();
+            int num_phys = numTargetPhysRegs(o3cpu);
             if (num_phys <= 1) return false;
 
             int new_idx = -1;
@@ -488,6 +533,7 @@ namespace gem5
                             << ", Site: rob_insert, mode=destid_bitflip"
                             << ", tid=" << (int)tid
                             << ", sn=" << inst->seqNum
+                            << ", class=" << targetClassName()
                             << ", old_phys=" << cur_idx
                             << " — flipped idx " << flipped << " out of [0,"
                             << num_phys << ") (skipped, no clamp)"
@@ -525,6 +571,7 @@ namespace gem5
                             << ", Site: rob_insert, mode=destid_bitflip2"
                             << ", tid=" << (int)tid
                             << ", sn=" << inst->seqNum
+                            << ", class=" << targetClassName()
                             << ", old_phys=" << cur_idx
                             << " — flipped idx " << flipped << " out of [0,"
                             << num_phys << ") (skipped, no clamp)"
@@ -537,11 +584,11 @@ namespace gem5
                 new_idx = flipped;
                 log_b1 = b1; log_b2 = b2;
             } else {
-                // D30 swap_active: replace the dest id with the int dest
-                // physReg of ANOTHER in-flight (ROB-resident) instruction —
-                // legal-domain by construction, designed to bypass the
-                // dependency check (the D13 swap_to_active mechanism at the
-                // ROB layer).
+                // D30 swap_active (and the W7.4 vec twin): replace the dest
+                // id with the target-class dest physReg of ANOTHER
+                // in-flight (ROB-resident) instruction — legal-domain by
+                // construction, designed to bypass the dependency check
+                // (the D13 swap_to_active mechanism at the ROB layer).
                 int nc = collectRobActiveDests(cur_idx, inst->seqNum,
                                                o3cpu, tid, rob_cands);
                 if (nc == 0) {
@@ -551,8 +598,10 @@ namespace gem5
                             << ", Site: rob_insert, mode=destid_swap_active"
                             << ", tid=" << (int)tid
                             << ", sn=" << inst->seqNum
+                            << ", class=" << targetClassName()
                             << ", old_phys=" << cur_idx
-                            << " — ROB has no active int dest candidate"
+                            << " — ROB has no active "
+                            << targetClassName() << " dest candidate"
                             << " != cur (skipped, no injection)"
                             << ", skip_log: " << skip_logs
                             << ", faults_injected: " << faults_injected_count
@@ -572,20 +621,20 @@ namespace gem5
             // Apply: re-point the entry's dest id at the corrupted physReg
             // (a real physRegId object from the regfile — legal domain, no
             // UB; the CHAOSRenameMap setEntry pattern).
-            inst->renamedDestIdx(slot,
-                o3cpu->physRegFile().intPhysRegId(new_idx));
+            inst->renamedDestIdx(slot, targetPhysRegId(o3cpu, new_idx));
             faults_injected_count++;
             if (write_log) {
                 if (fi_mode == Mode::DestIdSwapActive) {
                     // plan-mandated evidence line: the swap + "(active,
-                    // rob_dist=D)" + chosen_sn + the full ROB-active int
-                    // dest pool (phys@dist, head->tail order) so
-                    // "new_phys ∈ ROB active set" is verifiable from the
-                    // log alone (the W4.2a D13 log format, ROB site).
+                    // rob_dist=D)" + chosen_sn + the full ROB-active
+                    // target-class dest pool (phys@dist, head->tail order)
+                    // so "new_phys ∈ ROB active set" is verifiable from
+                    // the log alone (the W4.2a D13 log format, ROB site).
                     *(log_stream->stream()) << "Tick: " << curTick()
                         << ", Site: rob_insert, mode=destid_swap_active"
                         << ", tid=" << (int)tid
                         << ", sn=" << inst->seqNum
+                        << ", class=" << targetClassName()
                         << ", dest_slot=" << slot
                         << ", old_phys=" << cur_idx
                         << ", new_phys=" << new_idx << "(active, rob_dist="
@@ -608,6 +657,7 @@ namespace gem5
                         << ", Site: rob_insert, mode=" << modeToString(fi_mode)
                         << ", tid=" << (int)tid
                         << ", sn=" << inst->seqNum
+                        << ", class=" << targetClassName()
                         << ", dest_slot=" << slot
                         << ", old_phys=" << cur_idx
                         << ", new_phys=" << new_idx
@@ -648,11 +698,12 @@ namespace gem5
         if (!o3cpu) return false;
 
         // For destid_stuck the arming event must be an entry that actually
-        // HAS the field (an int dest) — the cell lives in the dest-id field.
+        // HAS the field (a target-class dest) — the cell lives in the
+        // dest-id field.
         std::vector<int> slots;
         int n_int_dests = 0;
         if (fi_mode == Mode::DestIdStuck) {
-            n_int_dests = collectIntDestSlots(inst, slots);
+            n_int_dests = collectDestSlots(inst, slots);
             if (n_int_dests == 0) return false;  // no field on this entry
         }
 
@@ -672,7 +723,7 @@ namespace gem5
                     ? (int)__builtin_ctzll(fault_mask) % pc_nbits
                     : (int)(rng() % (unsigned)pc_nbits);
             } else {
-                int num_phys = (int)o3cpu->physRegFile().numIntPhysRegs();
+                int num_phys = numTargetPhysRegs(o3cpu);
                 int nbits = 0; int tmp = num_phys;
                 while (tmp > 1) { nbits++; tmp >>= 1; }
                 if (nbits < 1) nbits = 1;
@@ -690,6 +741,7 @@ namespace gem5
                     << ", Site: rob_insert, mode=" << modeToString(fi_mode)
                     << ", ARMED, tid=" << (int)tid
                     << ", sn=" << stuck_sn
+                    << ", class=" << targetClassName()
                     << ", bit=" << stuck_bit
                     << ", polarity=" << stuck_polarity
                     << (stuck_polarity ? " (stuck_at_one)" : " (stuck_at_zero)")
@@ -750,18 +802,18 @@ namespace gem5
             return true;
         }
 
-        // DestIdStuck: mask ONE int dest slot of the armed entry (the
-        // arming entry's first/random slot; multi-int-dest insts are rare
-        // on AArch64).
+        // DestIdStuck: mask ONE target-class dest slot of the armed entry
+        // (the arming entry's first/random slot; multi-dest insts of one
+        // class are rare on AArch64).
         if (n_int_dests == 0) return false;  // armed entry has no field
         if (stuck_dest_slot < 0)
             stuck_dest_slot = slots[(int)(rng() % (unsigned)n_int_dests)];
         // the armed entry's slot count is fixed; re-derive safely
         if (stuck_dest_slot >= (int)inst->numDestRegs()) return false;
         PhysRegIdPtr cur = inst->renamedDestIdx(stuck_dest_slot);
-        if (!cur || cur->classValue() != IntRegClass) return false;
+        if (!cur || cur->classValue() != target_reg_class) return false;
         int written = cur->index();
-        int num_phys = (int)o3cpu->physRegFile().numIntPhysRegs();
+        int num_phys = numTargetPhysRegs(o3cpu);
         int masked = stuck_polarity
             ? (written | (1 << stuck_bit))
             : (written & ~(1 << stuck_bit));
@@ -800,12 +852,13 @@ namespace gem5
             return false;
         }
         inst->renamedDestIdx(stuck_dest_slot,
-            o3cpu->physRegFile().intPhysRegId(masked));
+            targetPhysRegId(o3cpu, masked));
         if (write_log) {
             *(log_stream->stream()) << "Tick: " << curTick()
                 << ", Site: rob_insert, mode=destid_stuck"
                 << ", tid=" << (int)tid
                 << ", sn=" << inst->seqNum
+                << ", class=" << targetClassName()
                 << ", dest_slot=" << stuck_dest_slot
                 << ", write_phys=" << written
                 << ", stored_phys=" << masked
@@ -857,7 +910,8 @@ namespace gem5
                 *(log_stream->stream()) << "Tick: " << curTick()
                     << ", Site: rob_retireHead_readback, mode=destid_stuck"
                     << ", sn=" << stuck_sn
-                    << " — no int dest slot recorded (no field to read back)"
+                    << " — no " << targetClassName()
+                    << " dest slot recorded (no field to read back)"
                     << ", exposures: " << stuck_exposures
                     << ", faults_injected: " << faults_injected_count
                     << std::endl;
@@ -865,12 +919,13 @@ namespace gem5
             return;
         }
         PhysRegIdPtr d = head_inst->renamedDestIdx(stuck_dest_slot);
-        if (!d || d->classValue() != IntRegClass) {
+        if (!d || d->classValue() != target_reg_class) {
             if (write_log) {
                 *(log_stream->stream()) << "Tick: " << curTick()
                     << ", Site: rob_retireHead_readback, mode=destid_stuck"
                     << ", sn=" << stuck_sn
-                    << " — dest slot no longer an int reg (cannot read back)"
+                    << " — dest slot no longer a " << targetClassName()
+                    << " reg (cannot read back)"
                     << ", exposures: " << stuck_exposures
                     << ", faults_injected: " << faults_injected_count
                     << std::endl;
@@ -883,6 +938,7 @@ namespace gem5
             *(log_stream->stream()) << "Tick: " << curTick()
                 << ", Site: rob_retireHead_readback, mode=destid_stuck"
                 << ", sn=" << stuck_sn
+                << ", class=" << targetClassName()
                 << ", readback_phys=" << idx
                 << ", bit=" << stuck_bit
                 << " read=" << bitval

@@ -13,6 +13,7 @@
 #include "cpu/base.hh"
 #include "cpu/o3/dyn_inst_ptr.hh"
 #include "cpu/op_class.hh"          // OpClass (W5.12 D55 fu-class misroute)
+#include "cpu/reg_class.hh"         // RegClassType (W7.4 targetClass)
 
 namespace gem5 { namespace o3 { class CPU; } }
 namespace gem5 { namespace o3 { class InstructionQueue; } }
@@ -53,16 +54,19 @@ class CHAOSIQ : public SimObject
 
     // ------------------------------------------------------------------
     // W5.10-W5.11 (ooo 04-design-matrix D47-D54, Int Dispatch/ROB — the
-    // Int-IQ entry's ready bit / source-tag field). Hooks live in
+    // Int-IQ entry's ready bit / source-tag field) and the W7.4 FP/SIMD
+    // twins (D86-D91 — same fields, targetClass=vec: VecRegClass slots,
+    // [0, numVecPhysRegs) tag domain; scalar FP + FP SIMD + integer SIMD
+    // all rename onto VecRegClass on AArch64). Hooks live in
     // InstructionQueue (insert / wakeDependents / the issue loop); the
     // surgery below is DynInst-level so CHAOSIQ owns it directly.
 
     // Called from InstructionQueue::insert AFTER the entry is linked and
-    // BEFORE addToDependents: corrupt ONE int-class source TAG of the
-    // entry being written (tag_swap D50 / tag_bitflip D51 / tag_bitflip2
-    // D52 / tag_stuck D53 / tag_stale_read D54). The surgery is
-    // renameSrcReg(slot, otherPhysRegId) — the dependency graph, the
-    // scoreboard check and the ISSUE-TIME OPERAND READ
+    // BEFORE addToDependents: corrupt ONE target-class source TAG of the
+    // entry being written (tag_swap D50/D87 / tag_bitflip D51/D88 /
+    // tag_bitflip2 D52/D89 / tag_stuck D53/D90 / tag_stale_read D54/D91).
+    // The surgery is renameSrcReg(slot, otherPhysRegId) — the dependency
+    // graph, the scoreboard check and the ISSUE-TIME OPERAND READ
     // (DynInst::getRegOperand reads renamedSrcIdx, dyn_inst.hh) all
     // follow the corrupted tag: the entry waits for / reads the WRONG
     // physreg, the faithful CAM-tag-mismatch realization.
@@ -70,10 +74,10 @@ class CHAOSIQ : public SimObject
     bool maybeCorruptTag(ThreadID tid, const o3::DynInstPtr &inst);
 
     // Called from InstructionQueue::insert BEFORE addToDependents:
-    // D47 ready_early — force ONE not-yet-ready int-class source slot's
-    // ready bit (markSrcRegReady(idx): per-slot bit + counter). The
-    // per-slot bit keeps the entry OFF that slot's dependency chain (no
-    // later wake can re-mark it — the double-issue assert is
+    // D47/D86 ready_early — force ONE not-yet-ready target-class source
+    // slot's ready bit (markSrcRegReady(idx): per-slot bit + counter).
+    // The per-slot bit keeps the entry OFF that slot's dependency chain
+    // (no later wake can re-mark it — the double-issue assert is
     // impossible); if the counter completes the entry, the normal
     // addIfReady path queues it this very insert and it issues reading a
     // not-yet-written physreg (stale value, the "状态位撒谎" silent-SDC
@@ -138,6 +142,14 @@ class CHAOSIQ : public SimObject
     uint64_t faults_injected_count = 0;
     uint64_t rng_seed;
     bool write_log;
+    // W7.4 (D86-D91): register-class scope of the ready-bit / tag-field
+    // population. IntRegClass = the W5 Int-IQ scope (default); VecRegClass
+    // = the FP/SIMD queue (scalar FP + FP SIMD + integer SIMD all rename
+    // onto VecRegClass on AArch64 — S/D are the low bits of V, the W1
+    // platform finding; FloatRegClass is never renamed).
+    RegClassType target_reg_class = IntRegClass;
+    // W7.4 D86: optional FP/SIMD opClass filter for the §2.5 wake modes.
+    bool fp_only = false;
     // Sampling-bias fix (findings.md Phase 2.2/3.0, same as CHAOSL1DForward
     // 7387649): skip a geometric(p=0.1) number of eligible events before
     // the first injection, so maxFaults=1 lands on a seed-dependent event
@@ -176,9 +188,19 @@ class CHAOSIQ : public SimObject
     // max_faults + probability + the events_to_skip discipline. Returns
     // true when the injection may fire.
     bool gateEligible();
-    // int-class source slots of inst (the Int-IQ tag-field scope).
-    int collectIntSrcSlots(const o3::DynInstPtr &inst,
-                           std::vector<int> &slots);
+    // W7.4: source slots of inst in the TARGET register class (the
+    // tag-field scope — IntRegClass for the W5 Int-IQ modes, VecRegClass
+    // for the W7.4 FP/SIMD twins D86-D91).
+    int collectSrcSlots(const o3::DynInstPtr &inst,
+                        std::vector<int> &slots);
+    // W7.4 class helpers: the tag index domain and the PhysRegId factory
+    // of the target class (intPhysRegId / vecPhysRegId, regfile.hh).
+    int numTargetPhysRegs(o3::CPU *o3cpu);
+    PhysRegIdPtr targetPhysRegId(o3::CPU *o3cpu, int idx);
+    const char *targetClassName();
+    // W7.4 D86: the FP/SIMD opClass filter (Float* ∪ SimdFloat*, the
+    // CHAOSFPU §2.6 isFpOpClass convention) for the §2.5 wake modes.
+    static bool isFpOpClass(OpClass oc);
 };
 
 } // namespace gem5

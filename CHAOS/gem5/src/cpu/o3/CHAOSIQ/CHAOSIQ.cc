@@ -27,6 +27,19 @@ namespace gem5
           rng_seed(p.rngSeed),
           write_log(p.writeLog)
     {
+        // W7.4 (D86-D91): the register-class scope — "int" keeps the W5
+        // Int-IQ modes byte-identical; "vec" extends the same modes to the
+        // FP/SIMD queue (VecRegClass rename domain). Unknown values are a
+        // config error (loud, never a silent int fallback).
+        if (p.targetClass == "int") {
+            target_reg_class = IntRegClass;
+        } else if (p.targetClass == "vec") {
+            target_reg_class = VecRegClass;
+        } else {
+            panic("CHAOSIQ: unknown targetClass '%s' (int|vec)\n",
+                  p.targetClass);
+        }
+        fp_only = p.fpOnly;
         if (probability > 0.0f) {
             log_stream = simout.create("iq_injections.log", false, true);
             if (!log_stream || !log_stream->stream())
@@ -97,6 +110,11 @@ namespace gem5
         if (!cpu || probability <= 0.0f) return false;
         if (max_faults != 0 && faults_injected_count >= max_faults) return false;
         if (!inWindow()) return false;
+        // W7.4 D86 fpOnly: restrict eligibility to FP/SIMD completed
+        // instructions (the "FP/SIMD 队列版" scoping) — placed BEFORE the
+        // skip counter / RNG draw so non-FP events stay invisible to the
+        // sampling discipline.
+        if (fp_only && !isFpOpClass(completed_inst->opClass())) return false;
         // Sampling-bias fix (findings.md Phase 3.0): skip the first N
         // eligible wakeup events (N ~ geometric(0.1) from the seed).
         if (count_only) { ++eligible_count; return false; }
@@ -115,7 +133,12 @@ namespace gem5
             *(log_stream->stream()) << "Tick: " << curTick()
                 << ", Site: iq_wakeDependents, mode=wake_omit, tid=" << (int)tid
                 << ", completed_sn=" << completed_inst->seqNum
-                << ", phase_offset=" << phase_offset
+                << ", phase_offset=" << phase_offset;
+            if (fp_only)
+                *(log_stream->stream()) << ", fp_only=1, op_class="
+                    << enums::OpClassStrings[
+                        static_cast<int>(completed_inst->opClass())];
+            *(log_stream->stream())
                 << ", faults_injected: " << faults_injected_count
                 << std::endl;
         }
@@ -135,6 +158,12 @@ namespace gem5
         if (max_faults != 0 && faults_injected_count >= max_faults) return false;
         if (!inWindow()) return false;
         if (!completed_inst) return false;
+        // W7.4 D86 fpOnly (see shouldOmitWake): the trigger wake is
+        // restricted to FP/SIMD producers. HONEST NOTE: the victim
+        // (the not-ready dependent popped from a different chain by the
+        // inst_queue surgery) is selected class-agnostically — the filter
+        // biases the trigger, it does not guarantee the victim's class.
+        if (fp_only && !isFpOpClass(completed_inst->opClass())) return false;
 
         // sampling-bias fix: skip on eligible completed-inst events
         if (count_only) { ++eligible_count; return false; }
@@ -147,7 +176,12 @@ namespace gem5
             *(log_stream->stream()) << "Tick: " << curTick()
                 << ", Site: iq_wakeDependents, mode=src_ready_bitflip"
                 << ", tid=" << (int)tid
-                << ", completed_sn=" << completed_inst->seqNum
+                << ", completed_sn=" << completed_inst->seqNum;
+            if (fp_only)
+                *(log_stream->stream()) << ", fp_only=1, op_class="
+                    << enums::OpClassStrings[
+                        static_cast<int>(completed_inst->opClass())];
+            *(log_stream->stream())
                 << ", faults_injected: " << faults_injected_count
                 << std::endl;
         }
@@ -167,6 +201,8 @@ namespace gem5
         if (max_faults != 0 && faults_injected_count >= max_faults) return false;
         if (!inWindow()) return false;
         if (!completed_inst) return false;
+        // W7.4 D86 fpOnly (see shouldOmitWake).
+        if (fp_only && !isFpOpClass(completed_inst->opClass())) return false;
 
         if (count_only) { ++eligible_count; return false; }
         if (events_to_skip > 0) { --events_to_skip; return false; }
@@ -179,7 +215,12 @@ namespace gem5
                 << ", Site: iq_wakeDependents, mode=wake_phase"
                 << ", tid=" << (int)tid
                 << ", completed_sn=" << completed_inst->seqNum
-                << ", phase_offset=+" << phase_offset
+                << ", phase_offset=+" << phase_offset;
+            if (fp_only)
+                *(log_stream->stream()) << ", fp_only=1, op_class="
+                    << enums::OpClassStrings[
+                        static_cast<int>(completed_inst->opClass())];
+            *(log_stream->stream())
                 << ", faults_injected: " << faults_injected_count
                 << std::endl;
         }
@@ -206,17 +247,62 @@ namespace gem5
         return true;
     }
 
+    // W7.4 class helpers (D86-D91): the tag-index domain and the
+    // PhysRegId factory of the target register class. int = the W5
+    // [0, numIntPhysRegs) domain / intPhysRegId; vec = [0,
+    // numVecPhysRegs) / vecPhysRegId (regfile.hh:172-177).
     int
-    CHAOSIQ::collectIntSrcSlots(const o3::DynInstPtr &inst,
-                                std::vector<int> &slots)
+    CHAOSIQ::numTargetPhysRegs(o3::CPU *o3cpu)
     {
-        // Int-IQ scope (W5.10-11): the tag/ready fields live on INT-class
-        // source slots; FP/vector sources belong to the W7 FP units.
+        return (int)(target_reg_class == IntRegClass
+            ? o3cpu->physRegFile().numIntPhysRegs()
+            : o3cpu->physRegFile().numVecPhysRegs());
+    }
+
+    PhysRegIdPtr
+    CHAOSIQ::targetPhysRegId(o3::CPU *o3cpu, int idx)
+    {
+        return target_reg_class == IntRegClass
+            ? o3cpu->physRegFile().intPhysRegId(idx)
+            : o3cpu->physRegFile().vecPhysRegId(idx);
+    }
+
+    const char *
+    CHAOSIQ::targetClassName()
+    {
+        return target_reg_class == IntRegClass ? "int" : "vec";
+    }
+
+    // W7.4 D86: the FP/SIMD opClass filter (Float* ∪ SimdFloat*, the
+    // CHAOSFPU §2.6 isFpOpClass convention) — integer SIMD stays out of
+    // the fpOnly scoping (documented, same caliber as W7.1's fpOnly).
+    bool
+    CHAOSIQ::isFpOpClass(OpClass oc)
+    {
+        return oc == FloatAddOp || oc == FloatCmpOp || oc == FloatCvtOp ||
+               oc == FloatMultOp || oc == FloatMultAccOp || oc == FloatDivOp ||
+               oc == FloatMiscOp || oc == FloatSqrtOp ||
+               oc == SimdFloatAddOp || oc == SimdFloatAluOp ||
+               oc == SimdFloatCmpOp || oc == SimdFloatCvtOp ||
+               oc == SimdFloatMultOp || oc == SimdFloatMultAccOp ||
+               oc == SimdFloatDivOp || oc == SimdFloatSqrtOp ||
+               oc == SimdFloatMiscOp;
+    }
+
+    int
+    CHAOSIQ::collectSrcSlots(const o3::DynInstPtr &inst,
+                             std::vector<int> &slots)
+    {
+        // W5.10-11 Int-IQ scope / W7.4 FP-SIMD twin: the tag/ready fields
+        // live on the TARGET-class source slots — IntRegClass ("int", the
+        // W5 population) or VecRegClass ("vec" — scalar FP, FP SIMD AND
+        // integer SIMD sources all rename onto VecRegClass on AArch64, so
+        // the one vec class is the whole FP/SIMD queue population).
         slots.clear();
         for (int i = 0; i < (int)inst->numSrcRegs(); i++) {
             PhysRegIdPtr s = inst->renamedSrcIdx(i);
             if (!s) continue;
-            if (s->classValue() != IntRegClass) continue;
+            if (s->classValue() != target_reg_class) continue;
             slots.push_back(i);
         }
         return (int)slots.size();
@@ -225,14 +311,18 @@ namespace gem5
     bool
     CHAOSIQ::maybeCorruptTag(ThreadID tid, const o3::DynInstPtr &inst)
     {
-        // W5.11 D50-D54 (ooo 04-design-matrix R51-R55): corrupt ONE
-        // int-class source TAG of the IQ entry as it is written (the hook
-        // sits in InstructionQueue::insert BEFORE addToDependents, so the
+        // W5.11 D50-D54 (ooo 04-design-matrix R51-R55) / W7.4 D87-D91
+        // (R88-R92, the FP/SIMD twins): corrupt ONE target-class source
+        // TAG of the IQ entry as it is written (the hook sits in
+        // InstructionQueue::insert BEFORE addToDependents, so the
         // dependency graph, the scoreboard check and the issue-time
         // operand read — DynInst::getRegOperand reads renamedSrcIdx,
         // dyn_inst.hh — all follow the corrupted tag: the entry WAITS FOR
         // and READS the wrong physreg, the faithful CAM-tag-mismatch
-        // realization; no IQ-internal surgery needed).
+        // realization; no IQ-internal surgery needed). targetClass=vec
+        // scopes the population to VecRegClass source tags (the FP/SIMD
+        // queue: scalar FP + FP SIMD + integer SIMD, all renamed onto
+        // VecRegClass) with the [0, numVecPhysRegs) tag domain.
         if (fi_mode != Mode::TagSwap && fi_mode != Mode::TagBitflip
                 && fi_mode != Mode::TagBitflip2 && fi_mode != Mode::TagStuck
                 && fi_mode != Mode::TagStaleRead)
@@ -240,8 +330,16 @@ namespace gem5
         if (!cpu) return false;
         auto *o3cpu = dynamic_cast<o3::CPU *>(cpu);
         if (!o3cpu) return false;
-        // Int-IQ scope: FP/vector entries are not this unit's population.
-        if (inst->isFloating() || inst->isVector()) return false;
+        // W5.10-11 Int-IQ scope / W7.4 FP-SIMD twin (D87-91): "int" keeps
+        // the W5 population gate (FP/vector entries are NOT this unit's
+        // population); "vec" scopes by the SLOT CLASS below instead — the
+        // FP/SIMD queue population is exactly "has a VecRegClass source
+        // tag" (scalar FP, FP SIMD and integer SIMD all rename onto
+        // VecRegClass), so an entry with no vec-class src slot is
+        // honestly skipped (no field), whatever its instruction class.
+        if (target_reg_class == IntRegClass
+                && (inst->isFloating() || inst->isVector()))
+            return false;
 
         // bounded skip logging (an IQ insert fires per inst — a per-skip
         // line would flood the log)
@@ -255,11 +353,10 @@ namespace gem5
         if (fi_mode == Mode::TagStuck) {
             if (!tag_stuck_armed) {
                 std::vector<int> slots;
-                int n = collectIntSrcSlots(inst, slots);
+                int n = collectSrcSlots(inst, slots);
                 if (n == 0) return false;   // arm on an entry WITH the field
                 if (!gateEligible()) return false;
-                int num_phys =
-                    (int)o3cpu->physRegFile().numIntPhysRegs();
+                int num_phys = numTargetPhysRegs(o3cpu);
                 int nbits = 0; int tmp = num_phys;
                 while (tmp > 1) { nbits++; tmp >>= 1; }
                 if (nbits < 1) nbits = 1;
@@ -277,6 +374,7 @@ namespace gem5
                         << ", Site: iq_insert, mode=tag_stuck, ARMED"
                         << ", tid=" << (int)tid
                         << ", sn=" << tag_stuck_sn
+                        << ", class=" << targetClassName()
                         << ", src_slot=" << tag_stuck_slot
                         << ", bit=" << tag_stuck_bit
                         << ", polarity=" << tag_stuck_polarity
@@ -300,11 +398,10 @@ namespace gem5
                 if (tag_stuck_slot >= (int)inst->numSrcRegs())
                     return false;
                 PhysRegIdPtr cur = inst->renamedSrcIdx(tag_stuck_slot);
-                if (!cur || cur->classValue() != IntRegClass)
+                if (!cur || cur->classValue() != target_reg_class)
                     return false;
                 int written = cur->index();
-                int num_phys =
-                    (int)o3cpu->physRegFile().numIntPhysRegs();
+                int num_phys = numTargetPhysRegs(o3cpu);
                 int masked = tag_stuck_polarity
                     ? (written | (1 << tag_stuck_bit))
                     : (written & ~(1 << tag_stuck_bit));
@@ -314,6 +411,7 @@ namespace gem5
                             << ", Site: iq_insert, mode=tag_stuck"
                             << ", tid=" << (int)tid
                             << ", sn=" << inst->seqNum
+                            << ", class=" << targetClassName()
                             << ", src_slot=" << tag_stuck_slot
                             << ", write_tag=" << written
                             << ", stored_tag=" << masked
@@ -331,6 +429,7 @@ namespace gem5
                             << ", Site: iq_insert, mode=tag_stuck"
                             << ", tid=" << (int)tid
                             << ", sn=" << inst->seqNum
+                            << ", class=" << targetClassName()
                             << ", src_slot=" << tag_stuck_slot
                             << ", write_tag=" << written
                             << " — forced idx " << masked << " out of [0,"
@@ -341,12 +440,13 @@ namespace gem5
                     return false;
                 }
                 inst->renameSrcReg(tag_stuck_slot,
-                    o3cpu->physRegFile().intPhysRegId(masked));
+                    targetPhysRegId(o3cpu, masked));
                 if (write_log) {
                     *(log_stream->stream()) << "Tick: " << curTick()
                         << ", Site: iq_insert, mode=tag_stuck"
                         << ", tid=" << (int)tid
                         << ", sn=" << inst->seqNum
+                        << ", class=" << targetClassName()
                         << ", src_slot=" << tag_stuck_slot
                         << ", write_tag=" << written
                         << ", stored_tag=" << masked
@@ -363,14 +463,15 @@ namespace gem5
         }
 
         std::vector<int> slots;
-        int n = collectIntSrcSlots(inst, slots);
+        int n = collectSrcSlots(inst, slots);
         if (n == 0) {
             if (write_log && skip_logs < 32) {
                 ++skip_logs;
                 *(log_stream->stream()) << "Tick: " << curTick()
                     << ", Site: iq_insert, tid=" << (int)tid
                     << ", sn=" << inst->seqNum
-                    << " — entry has no int src tag (skipped, no field)"
+                    << " — entry has no " << targetClassName()
+                    << " src tag (skipped, no field)"
                     << ", skip_log: " << skip_logs
                     << ", faults_injected: " << faults_injected_count
                     << std::endl;
@@ -382,40 +483,56 @@ namespace gem5
         int slot = slots[(int)(rng() % (unsigned)n)];
         PhysRegIdPtr cur = inst->renamedSrcIdx(slot);
         int cur_idx = cur->index();
-        int num_phys = (int)o3cpu->physRegFile().numIntPhysRegs();
+        int num_phys = numTargetPhysRegs(o3cpu);
         if (num_phys <= 1) return false;
 
         if (fi_mode == Mode::TagStaleRead) {
-            // D54 (R55): at the slot-overwrite instant the tag write
-            // silently FAILS — the slot retains the PREVIOUS occupant's
-            // tag; the entry waits for / reads a long-retired, unrelated
-            // physreg ("旧 tag 大概率仍指向一个存在的、有真实数据的
-            // 物理寄存器"). HONEST APPROXIMATION: gem5's IQ has no slot
-            // array — the previous occupant = the newest issue-time
-            // departure (noteIqDeparture ring) with an int-class tag at
-            // the SAME slot index.
-            PhysRegIdPtr stale_tag;
+            // D54 (R55) / D91 (R92): at the slot-overwrite instant the tag
+            // write silently FAILS — the slot retains the PREVIOUS
+            // occupant's tag; the entry waits for / reads a long-retired,
+            // unrelated physreg ("旧 tag 大概率仍指向一个存在的、有
+            // 真实数据的物理寄存器"). HONEST APPROXIMATION: gem5's IQ has
+            // no slot array — the previous occupant = the newest
+            // issue-time departure (noteIqDeparture ring) with a
+            // TARGET-class tag at the SAME slot index.
+            // ROBUSTNESS (W7.4 fix, found by the nbody directed run):
+            // DynInst's _srcIdx entries are POINTERS into array storage
+            // that gem5 RECYCLES through the inst pool — a departed
+            // micro-op's tag storage can be overwritten while our ring
+            // still holds the DynInst ref (observed: a scanned "vec tag"
+            // of index 60128 on the 48-entry vec pool; aliasing it gave a
+            // dangling pointer and a PhysRegFile::getReg panic). Guards:
+            // (1) the candidate index must lie in the legal [0, num_phys)
+            // target domain — a garbage/dangling read is honestly skipped;
+            // (2) the injected id is RECONSTRUCTED from the regfile's
+            // permanent id table (targetPhysRegId) — never aliased from
+            // the departed inst's recyclable pointer storage.
+            int stale_idx = -1;
             uint64_t prev_sn = 0;
             for (auto it = tag_departed.rbegin();
                     it != tag_departed.rend(); ++it) {
                 if ((*it)->seqNum == inst->seqNum) continue;
                 if (slot >= (int)(*it)->numSrcRegs()) continue;
                 PhysRegIdPtr s = (*it)->renamedSrcIdx(slot);
-                if (!s || s->classValue() != IntRegClass) continue;
-                stale_tag = s;
+                if (!s || s->classValue() != target_reg_class) continue;
+                int cand = s->index();
+                if (cand < 0 || cand >= num_phys) continue;  // garbage tag
+                stale_idx = cand;
                 prev_sn = (*it)->seqNum;
                 break;
             }
-            if (!stale_tag || stale_tag->index() == cur_idx) {
+            if (stale_idx < 0 || stale_idx == cur_idx) {
                 if (write_log && skip_logs < 32) {
                     ++skip_logs;
                     *(log_stream->stream()) << "Tick: " << curTick()
                         << ", Site: iq_insert, mode=tag_stale_read"
                         << ", tid=" << (int)tid
                         << ", sn=" << inst->seqNum
+                        << ", class=" << targetClassName()
                         << ", src_slot=" << slot
                         << ", true_tag=" << cur_idx
-                        << " — no departed occupant with an int tag at"
+                        << " — no departed occupant with a legal "
+                        << targetClassName() << " tag at"
                            " this slot in the ring (skipped, no injection)"
                         << ", skip_log: " << skip_logs
                         << ", faults_injected: " << faults_injected_count
@@ -423,22 +540,25 @@ namespace gem5
                 }
                 return false;
             }
-            inst->renameSrcReg(slot, stale_tag);
+            inst->renameSrcReg(slot, targetPhysRegId(o3cpu, stale_idx));
             faults_injected_count++;
             if (write_log) {
                 *(log_stream->stream()) << "Tick: " << curTick()
                     << ", Site: iq_insert, mode=tag_stale_read"
                     << ", tid=" << (int)tid
                     << ", sn=" << inst->seqNum
+                    << ", class=" << targetClassName()
                     << ", src_slot=" << slot
                     << ", true_tag=" << cur_idx
                     << " (this slot's tag write SILENTLY FAILED)"
-                    << ", stale_tag=" << stale_tag->index()
+                    << ", stale_tag=" << stale_idx
                     << ", previous_occupant_sn=" << prev_sn
                     << ", approx=prev_issue_departure_same_slot (gem5 IQ"
                        " has no slot array — previous occupant = newest"
-                       " issue-time departure with an int tag at the same"
-                       " slot index, the D40 stale_departure pattern)"
+                       " issue-time departure with a "
+                    << targetClassName() << " tag at the same"
+                       " slot index, the D40 stale_departure pattern;"
+                       " id reconstructed from the regfile table)"
                     << ", faults_injected: " << faults_injected_count
                     << std::endl;
             }
@@ -448,18 +568,19 @@ namespace gem5
         int new_idx = -1;
         int log_b1 = -1, log_b2 = -1;
         if (fi_mode == Mode::TagSwap) {
-            // D50 (R51): 换值 — the waiting tag becomes ANOTHER int
-            // physreg number (random legal id, the RAT-A setEntry
-            // semantics). The new tag may be in-flight (wrong producer
-            // wait) or already-written (immediate stale read) — both the
-            // designed behaviors.
+            // D50 (R51) / D87 (R88): 换值 — the waiting tag becomes
+            // ANOTHER physreg number of the target class (random legal
+            // id, the RAT-A setEntry semantics). The new tag may be
+            // in-flight (wrong producer wait) or already-written
+            // (immediate stale read) — both the designed behaviors.
             do {
                 new_idx = (int)(rng() % (unsigned)num_phys);
             } while (new_idx == cur_idx);
         } else {
-            // D51/D52: 1 / 2 distinct random bits of the int tag index
-            // (the destid_bitflip domain policy: bits of the INT tag
-            // field, out-of-range = honest skip, never clamped).
+            // D51/D52 / D88/D89: 1 / 2 distinct random bits of the
+            // target-class tag index (the destid_bitflip domain policy:
+            // bits of the tag field, out-of-range = honest skip, never
+            // clamped).
             int nbits = 0; int tmp = num_phys;
             while (tmp > 1) { nbits++; tmp >>= 1; }
             if (nbits < 1) nbits = 1;
@@ -494,6 +615,7 @@ namespace gem5
                                 ? "tag_bitflip" : "tag_bitflip2")
                         << ", tid=" << (int)tid
                         << ", sn=" << inst->seqNum
+                        << ", class=" << targetClassName()
                         << ", old_tag=" << cur_idx
                         << " — flipped idx " << new_idx << " out of [0,"
                         << num_phys << ") (skipped, no clamp)"
@@ -507,8 +629,7 @@ namespace gem5
         if (new_idx < 0 || new_idx == cur_idx || new_idx >= num_phys)
             return false;
 
-        inst->renameSrcReg(slot,
-            o3cpu->physRegFile().intPhysRegId(new_idx));
+        inst->renameSrcReg(slot, targetPhysRegId(o3cpu, new_idx));
         faults_injected_count++;
         if (write_log) {
             *(log_stream->stream()) << "Tick: " << curTick()
@@ -518,6 +639,8 @@ namespace gem5
                     : "tag_bitflip2")
                 << ", tid=" << (int)tid
                 << ", sn=" << inst->seqNum
+                << ", class=" << targetClassName()
+                << ", tag_domain=[0," << num_phys << ")"
                 << ", src_slot=" << slot
                 << ", old_tag=" << cur_idx
                 << ", new_tag=" << new_idx;
@@ -542,24 +665,30 @@ namespace gem5
     void
     CHAOSIQ::maybeReadyEarly(ThreadID tid, const o3::DynInstPtr &inst)
     {
-        // W5.10 D47 (ooo 04-design-matrix R48, ready位·提前置位): force
-        // ONE not-yet-ready int-class source slot's ready bit at IQ entry
-        // — the entry lies about its operand availability. The hook sits
-        // BEFORE addToDependents: the per-slot bit keeps the entry OFF
-        // that slot's dependency chain (no later wake can re-mark it —
-        // the scheduleReadyInsts assert(iq) double-issue artifact is
+        // W5.10 D47 (ooo 04-design-matrix R48, ready位·提前置位) / W7.4
+        // D86 (R87, the FP/SIMD twin): force ONE not-yet-ready
+        // TARGET-class source slot's ready bit at IQ entry — the entry
+        // lies about its operand availability. The hook sits BEFORE
+        // addToDependents: the per-slot bit keeps the entry OFF that
+        // slot's dependency chain (no later wake can re-mark it — the
+        // scheduleReadyInsts assert(iq) double-issue artifact is
         // impossible), while the incremented counter lets a
         // last-unready-slot entry reach the normal addIfReady at the end
         // of insert() THIS cycle — it issues and reads the physreg BEFORE
         // the producer's writeback lands (stale-PRF-value silent-SDC
         // family, same value source as the verified done_early /
-        // src_ready_bitflip modes).
+        // src_ready_bitflip modes). D86's vec scope: the ready bit of a
+        // VecRegClass source slot (scalar FP / SIMD operands).
         if (fi_mode != Mode::ReadyEarly) return;
         if (!cpu) return;
-        if (inst->isFloating() || inst->isVector()) return;
+        // W5 Int-IQ population gate / W7.4 vec twin (see maybeCorruptTag:
+        // "vec" scopes by slot class — the FP/SIMD queue population).
+        if (target_reg_class == IntRegClass
+                && (inst->isFloating() || inst->isVector()))
+            return;
 
         std::vector<int> slots;
-        int n = collectIntSrcSlots(inst, slots);
+        int n = collectSrcSlots(inst, slots);
         if (n == 0) return;
         // only slots that are NOT ready yet (the lie has content)
         std::vector<int> unready;
@@ -578,6 +707,7 @@ namespace gem5
                 << ", Site: iq_insert, mode=ready_early"
                 << ", tid=" << (int)tid
                 << ", sn=" << inst->seqNum
+                << ", class=" << targetClassName()
                 << ", pc=0x" << std::hex
                 << inst->pcState().as<ArmISA::PCState>().pc() << std::dec
                 << ", src_slot=" << slot
