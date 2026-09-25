@@ -1,0 +1,129 @@
+{
+  "cli_version": "0.10.2",
+  "checkpoint_id": "01M3B321T9TZ2Z69DP2AT8GM5F",
+  "session_id": "12997ed0-faf3-4d19-b383-8b11c1b47de5",
+  "strategy": "manual-commit",
+  "created_at": "2026-09-25T01:32:14.197543621Z",
+  "branch": "fi-ding",
+  "checkpoints_count": 1,
+  "save_step_count": 1,
+  "files_touched": [
+    "CHAOS/gem5/src/cpu/o3/CHAOSIQ/CHAOSIQ.cc",
+    "CHAOS/gem5/src/cpu/o3/CHAOSIQ/CHAOSIQ.hh",
+    "CHAOS/gem5/src/cpu/o3/CHAOSIQ/CHAOSIQ.py",
+    "CHAOS/gem5/src/cpu/o3/CHAOSROB/CHAOSROB.cc",
+    "CHAOS/gem5/src/cpu/o3/CHAOSROB/CHAOSROB.hh",
+    "CHAOS/gem5/src/cpu/o3/CHAOSROB/CHAOSROB.py"
+  ],
+  "agent": "Claude Code",
+  "model": "GLM-5.3[1m]",
+  "turn_id": "9d6e5173887f",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 227954,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 3377408,
+    "output_tokens": 29976,
+    "api_call_count": 36
+  },
+  "skill_events_version": 1,
+  "skill_events": [
+    {
+      "id": "prompt-skill-claude-code-superpowers:executing-plans-2026-09-25T01:15:47.524406538Z",
+      "event_type": "prompt_invocation",
+      "skill": {
+        "name": "superpowers:executing-plans"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "prompt_slash_command",
+        "confidence": "explicit"
+      },
+      "turn_id": "9d6e5173887f",
+      "timestamp": "2026-09-25T01:15:47.524406538Z",
+      "native": {
+        "command": "/superpowers:executing-plans"
+      },
+      "collapse": {
+        "target": "user_message",
+        "label": "/superpowers:executing-plans",
+        "default_collapsed": true
+      }
+    }
+  ],
+  "session_metrics": {
+    "turn_count": 1
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-09-25T01:32:14.11415532Z",
+    "agent_lines": 0,
+    "agent_removed": 0,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 123,
+    "total_committed": 0,
+    "total_lines_changed": 123,
+    "agent_percentage": 0,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 1381,
+      "user_lines_removed": 152,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".plan.md": 61,
+        ".planning/.active_plan": 1,
+        ".planning/2026-09-22-ooo-fault-injection-implementation-plan/findings.md": 216,
+        ".planning/2026-09-22-ooo-fault-injection-implementation-plan/progress.md": 139,
+        ".planning/2026-09-22-ooo-fault-injection-implementation-plan/task_plan.md": 154,
+        "CHAOS/gem5/src/cpu/o3/CHAOSIQ/CHAOSIQ.cc": 190,
+        "CHAOS/gem5/src/cpu/o3/CHAOSIQ/CHAOSIQ.hh": 35,
+        "CHAOS/gem5/src/cpu/o3/CHAOSIQ/CHAOSIQ.py": 17,
+        "CHAOS/gem5/src/cpu/o3/CHAOSROB/CHAOSROB.cc": 104,
+        "CHAOS/gem5/src/cpu/o3/CHAOSROB/CHAOSROB.hh": 16,
+        "CHAOS/gem5/src/cpu/o3/CHAOSROB/CHAOSROB.py": 10,
+        "artifacts/ooo_w31_toy_rob_pcbitflip/heatmap.csv": 2,
+        "artifacts/ooo_w31_toy_rob_pcbitflip/summary.md": 23,
+        "artifacts/ooo_w31_toy_rob_pcbitflip/tier_selection.json": 57,
+        "artifacts/ooo_w32_toy_coverage/coverage.json": 11,
+        "artifacts/ooo_w32_toy_coverage_tbl/coverage.json": 11,
+        "artifacts/w23-toy-bm-rat.eofbug/heatmap.csv": 2,
+        "artifacts/w23-toy-bm-rat.eofbug/summary.md": 21,
+        "artifacts/w23-toy-bm-rat.race1/heatmap.csv": 2,
+        "artifacts/w23-toy-bm-rat.race1/summary.md": 21,
+        "artifacts/w23-toy-bm-rat/heatmap.csv": 2,
+        "artifacts/w23-toy-bm-rat/summary.md": 21,
+        "artifacts/w23-toy-smoke-prf-mb/heatmap.csv": 2,
+        "artifacts/w23-toy-smoke-prf-mb/summary.md": 21,
+        "artifacts/w23-toy-smoke-prf/heatmap.csv": 2,
+        "artifacts/w23-toy-smoke-prf/summary.md": 21,
+        "c.s": 46,
+        "configs/se/ooo_proxy.py": 45,
+        "docs/superpowers/plans/2026-09-24-ooo-w2-observation.md": 6,
+        "docs/superpowers/plans/2026-09-24-ooo-w7-fpsimd-injectors.md": 3,
+        "t.s": 16,
+        "tools/runner.py": 103
+      },
+      "user_removed_per_file": {
+        "CHAOS/gem5/src/cpu/o3/CHAOSIQ/CHAOSIQ.cc": 60,
+        "CHAOS/gem5/src/cpu/o3/CHAOSIQ/CHAOSIQ.hh": 13,
+        "CHAOS/gem5/src/cpu/o3/CHAOSROB/CHAOSROB.cc": 48,
+        "CHAOS/gem5/src/cpu/o3/CHAOSROB/CHAOSROB.hh": 2,
+        "configs/se/ooo_proxy.py": 1,
+        "docs/superpowers/plans/2026-09-24-ooo-w2-observation.md": 5,
+        "docs/superpowers/plans/2026-09-24-ooo-w7-fpsimd-injectors.md": 3,
+        "tools/runner.py": 20
+      }
+    },
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 1381,
+      "agent_lines_removed": 152
+    }
+  ]
+}
