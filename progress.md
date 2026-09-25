@@ -2612,3 +2612,9 @@ CI 零重叠——**H7 验收断言("ECC-off spurious>0 vs ECC-on≈0")formal �
 - **三重验证**: ①单元测试 ALL PASSED(F4 突发九串全[2,4]/F1-F3 比率 0.9-1.1 均值档/F0/F5/F6 契约——tests/chaos_lsu_trigger_test.cc, CLAUDE.md 独立测试先例);②gem5 端到端(F0 单发/F6 首事件单发/F4 133K 事件两串共 6 发/F3+F5 激发后 DUE——后置 vaddr 改写在 misaligned 访存上触发 gem5 断言, W1⑦ 预判的已知语义, 属合法 DUE 结局);③零回归三连(reg_chain+mini_check 双 golden+B0 config 断言, 含 legacy addrpath 路径)。
 - **过程修正**: F5 初版每事件随机位→05 r8"每运行仅选一个 bit"固定位版(教训: 档位语义要逐条对照源表); F4 突发的验证方法修正(tick 聚类错——突发连续的是 eligible 事件序, 单元测试直接证)。
 - **移交 W3**: activated(下游消费)计数归 L0 read-back 层(R2); abort 运行漏斗行缺失→L5 分类器须兼读注入日志; 其余注入器随 W4-W8 各自切 LSU 触发(R3)。
+
+### LSU M1 达成: W3 观测层完成(2026-09-26)
+
+- **W3 交付**: L0 四计数漏斗(ChaOSL0Funnel+CHAOSAddrPath 接线, 镜像时序缺陷当场修)+L4 commit_diff 复用验证(C4-LSU 首分歧 seq=1661 timing_error, TC'23 五分类离线产出)+READ-ONLY 硬门(ctrace/msnap 双挂 golden 不变)+L5 闭合分类器(tools/lsu_l5_classify.py, 双用例 conservation OK)。
+- **M0+M1 双里程碑达成**: 平台就绪(W0 B0 落地+W1 九项核实)+触发与观测就绪(W2 F0-F6 事件归一化+W3 L0-L5 全链)。执行层剩余: W4-W8 注入器(AGU/SQ-LQ/Cache/TLB-FS/原子-预取多核FS)+W9 负载 13 个+W10 campaign+W11 元分析。
+- **诚实边界**: L2/L3 专用观测点与 L1 的 LSU 字段(AGU EA/TLB 映射/SQ 守恒等)随 W4-W8 各注入器逐个落地(09 原文同此粒度); activated 在 addrpath hook 为近重言近似(有真实时序余量的 hook 需真 read-back); Detected/Contained 待 W6 保护建模。
