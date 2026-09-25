@@ -2636,3 +2636,9 @@ CI 零重叠——**H7 验收断言("ECC-off spurious>0 vs ECC-on≈0")formal �
 - **TC'23 锚点第一腿**: S01 单bit × l1d_reduce × 30 seeds → **SDC=0**(24 真注入全 Masked)——与 TC'23 LQ/SQ SDC=0 方向一致。**方法学教训**: 首版参数(warmup=50/span=500)造成 30/30 空洞锚点(eligible 仅 6 事件, 零注入), 被诚实检查(injected 计数)抓出后修正(warmup=0/span=6)——凡"全 Masked"结论必须先证注入非零。
 - **未解异常(阻塞 M2)**: 6/30 reps 零注入却 crash(0x539000 页故障); 同 seed 无注入稳定; 已排除 maybeSubstituteSource 门控/缓冲未 flush。待下会话 systematic-debugging。
 - **W5 剩余**: 异常根因 → S13/L01 新建 → S04-S07/S10/S11/L02-L04 → 全族验证。
+
+### W5 T1 未解异常已解(2026-09-26): 验证脚本文件名错误, 锚点干净通过
+
+- **根因**: 我的 grep 用了 `lsqfwd_injections.log`, 实际文件名是 `lsq_fwd_injections.log`(下划线)——6 个"零注入 crash"全部恰好 1 次注入(逐一日志核实)。异常在验证工具, 不在仿真系统。
+- **修正后 S01 TC'23 锚点账**: 30 reps × 1 注入 = **24 Masked + 6 Crash + SDC=0**——与 TC'23 LQ/SQ 单bit SDC=0% 完全一致(crash=腐蚀转发数据被负载作指针用→wild 地址→guest 页故障, 合法 Crash 类)。**锚点干净通过, 无仿真器缺陷**。
+- **教训(第 4 条自坑)**: 验证脚本的文件名必须从实际产物目录 ls 确认, 不得从记忆/命名惯例推断——本次"异常"烧了半小时排查一个不存在的 bug。
