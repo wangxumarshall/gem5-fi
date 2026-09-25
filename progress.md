@@ -2660,3 +2660,11 @@ CI 零重叠——**H7 验收断言("ECC-off spurious>0 vs ECC-on≈0")formal �
 - S10 StoreSet 腐蚀完成(SSID 创建/合并路径事件通知)。W5: 13/17。
 - S06 SQ 状态 + S07 SQ 指针完成。W5: 15/17。余 S11(drain)+L04(response)。
 - S11 SQ drain 丢失写完成(size→0, trigger injected=1)。W5: 16/17。余 L04。
+
+### W5 完成(2026-09-26): 17/17 模型注入面就位
+
+- **S01-S05**(数据/地址/BE/size/状态) + **S06-S07**(生命周期/指针) + **S08-S09**(forwarding 比较器/拼接) + **S10**(StoreSet) + **S11**(drain 丢失写) + **S13**(addr 单bit) — SQ 13 模型全就位
+- **L01**(addr 单bit) + **L02**(生命周期) + **L03**(violation 检测) + **L04**(response 配对) — LQ 4 模型全就位
+- **S12**(保护) 不适用(B0 无保护, 09 §6.4)
+- TC'23 锚点三腿(S01/S13/L01) SDC=0 通过(M2 锚点判据)
+- 诚实近似声明: S06/L02 用 flags 代理(内部状态机不可达)、S07 用地址别名(指针寄存器不存在)、L04 用事件通知(需注入器消费端)、A07 deferred(R4)
