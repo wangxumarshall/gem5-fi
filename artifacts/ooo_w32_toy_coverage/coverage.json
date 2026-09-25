@@ -1,0 +1,11 @@
+{
+  "mode": "event_coverage",
+  "target_events": 10,
+  "density_events_per_run": 100,
+  "density_source": "counting.density (yaml)",
+  "n_runs_computed": 1,
+  "n_runs_actual": 1,
+  "expected_covered_events": 100,
+  "coverage_shortfall": false,
+  "note": "density is a mean estimate (event_density.py aggregate or operator value); verify actual covered events from per-run evidence (faults_injected sums in results.jsonl, the W3.3 backfill rule) before quoting a coverage claim"
+}

@@ -1,0 +1,11 @@
+{
+  "mode": "event_coverage",
+  "target_events": 20000,
+  "density_events_per_run": 3412,
+  "density_source": "density_table /tmp/w31_density.json aggregate.mean[squash]",
+  "n_runs_computed": 6,
+  "n_runs_actual": 2,
+  "expected_covered_events": 6824,
+  "coverage_shortfall": true,
+  "note": "density is a mean estimate (event_density.py aggregate or operator value); verify actual covered events from per-run evidence (faults_injected sums in results.jsonl, the W3.3 backfill rule) before quoting a coverage claim"
+}
