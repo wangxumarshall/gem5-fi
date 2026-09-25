@@ -1,0 +1,3482 @@
+# ============================================================================
+# ooo-w83-int-dispatch-rob.yaml — W8.3 Int Dispatch/ROB 备产 batch umbrella
+#
+# Prepared 2026-09-25 at repo HEAD 6990ef2e (W7.4 mechanism f89f44b6 +
+# wiring 6990ef2e; 91/91 D rows implemented). NOT RUN — M2 gate
+# (W8.1, D25/D28 x CoreMark/Embench x F0 n=2000) must pass before any
+# W8.2+ production launch. This file is PREPARATION ONLY.
+#
+# Scope: D26-D55 (29 D rows). Cell accounting vs
+# docs/gem5-fi/ooo/05-expanded-matrix.csv (226 cells total):
+#   covered by subcampaigns : 59
+#   covered via alias (merge口径): 0
+#   SVE-deferred (D78-D82)  : 0
+#   M2-gate (W8.1, other agent): 4
+#   total in scope          : 63
+#
+# WHY SUBCAMPAIGNS: tools/campaign.py binds ONE injector + ONE workload
+# binary per campaign, and its grid is a Cartesian product (paired axes
+# are not expressible). The minimal honest granularity is therefore
+# (D row x workload binary) — each subcampaign below is a COMPLETE,
+# campaign.py-runnable stanza. To run one:
+#
+#   python3 - <<'EOF'
+#   import yaml
+#   d = yaml.safe_load(open("campaigns/ooo-w83-int-dispatch-rob.yaml"))
+#   for i, sc in enumerate(d["subcampaigns"]):
+#       print(i, sc["campaign_id"])
+#   yaml.safe_dump(d["subcampaigns"][0], open("/tmp/sc.yaml", "w"),
+#                   sort_keys=False)
+#   EOF
+#   python3 tools/campaign.py /tmp/sc.yaml --jobs 4
+#
+# --dry (manifests only, no gem5) is honored on both the two_phase and
+# the legacy path.
+#
+# SEED SCHEME: base_seed = 83 * 1e6 + Dnum * 1000 + wl_idx * 10 —
+# deterministic, collision-free across subcampaigns; the two_phase rule
+# adds slot*100000 + rep (pilot slots 0-3, formal 10-13 by tier).
+#
+# TIER POLICY (02-doc six-step flow):
+#   * F0-F3 cells: two_phase with the MATRIX-PINNED tier set of that
+#     (D row x workload) group (the union of its E-rows' 适用频率 —
+#     the matrix pins F0/F1/F2 per cell; NO E-row anywhere carries F3).
+#     pilot_n 20, pick_top 2 (1 for single-tier), formal_n =
+#     ceil(2000 / n_binaries) per binary (suite 均摊 ruling:
+#     Embench 6 programs -> 334 each (total 2004); PolyBench 4 -> 500;
+#     浮点子集/混合 2 -> 1000; single-binary -> 2000).
+#     AMBIGUITY (documented, gap list): the W8 plan doc §2 words the
+#     pilot as "tiers [F0,F1,F2,F3]x20" (02 doc step 1 generic wording)
+#     while the expanded matrix pins per-cell tier sets and has no F3
+#     rows — an F3 formal selection would be UNBACKFILLABLE (no E-row).
+#     Default here = matrix-pinned set (every pilot/formal rep maps to
+#     exactly one E-row, zero waste). To add the F3 cliff-probing pilot
+#     arm anyway, append F3 to `tiers:` on the affected subcampaigns
+#     (pilot results still land in tier_selection.json).
+#   * F1（持续到运行结束）cells (drop_release): two_phase tiers [F1] —
+#     the model is single-shot with persistent effect; the F1 tier clock
+#     is the arm point. Documented decision.
+#   * F5 cells: LEGACY single-pass (F4/F5 are not pilot-selectable,
+#     campaign.py parse_two_phase), ooo.frequency_tier F5, n_per_cell
+#     = the 均摊 formal count, trigger_value 1000 (standard arm clock).
+#   * 事件触发 cells: LEGACY single-pass + counting block placeholder.
+#     The density is deliberately NOT filled (W8.1 must produce
+#     tools/event_density.py tables first) — campaign.py exits loudly
+#     on those stanzas until `density:` lands. Never fabricate a count.
+#
+# BACKFILL: manifests carry ooo {design_unit_id, workload(<matrix 负载
+# column string>), frequency_tier(per-rep)} — tools/backfill_expanded_
+# matrix.py resolves E-ids via the D x F x workload unique lookup.
+#============================================================================
+batch_id: ooo-w83
+subcampaigns:
+- campaign_id: ooo_w83_d26_rob_coremark
+  schema_version: arm-chaos-fi/v1
+  injector: rob
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: pc
+    width_bits: 64
+    sub_field: pc_bitflip2
+    fault_model: local_mbu
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 83026000
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/coremark/coremark
+    golden_id: coremark-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D26
+    workload: CoreMark
+  two_phase:
+    enabled: true
+    tiers:
+    - F0
+    - F1
+    pilot_n: 20
+    formal_n: 2000
+    pick_top: 2
+- campaign_id: ooo_w83_d26_rob_emb_crc32
+  schema_version: arm-chaos-fi/v1
+  injector: rob
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: pc
+    width_bits: 64
+    sub_field: pc_bitflip2
+    fault_model: local_mbu
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 83026000
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/embench/crc32/crc32
+    golden_id: embenchcrc32-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D26
+    workload: Embench
+  two_phase:
+    enabled: true
+    tiers:
+    - F0
+    - F1
+    pilot_n: 20
+    formal_n: 334
+    pick_top: 2
+- campaign_id: ooo_w83_d26_rob_emb_matmult
+  schema_version: arm-chaos-fi/v1
+  injector: rob
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: pc
+    width_bits: 64
+    sub_field: pc_bitflip2
+    fault_model: local_mbu
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 83026010
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/embench/matmult-int/matmult-int
+    golden_id: embenchmatmult-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D26
+    workload: Embench
+  two_phase:
+    enabled: true
+    tiers:
+    - F0
+    - F1
+    pilot_n: 20
+    formal_n: 334
+    pick_top: 2
+- campaign_id: ooo_w83_d26_rob_emb_md5sum
+  schema_version: arm-chaos-fi/v1
+  injector: rob
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: pc
+    width_bits: 64
+    sub_field: pc_bitflip2
+    fault_model: local_mbu
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 83026020
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/embench/md5sum/md5sum
+    golden_id: embenchmd5sum-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D26
+    workload: Embench
+  two_phase:
+    enabled: true
+    tiers:
+    - F0
+    - F1
+    pilot_n: 20
+    formal_n: 334
+    pick_top: 2
+- campaign_id: ooo_w83_d26_rob_emb_minver
+  schema_version: arm-chaos-fi/v1
+  injector: rob
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: pc
+    width_bits: 64
+    sub_field: pc_bitflip2
+    fault_model: local_mbu
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 83026030
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/embench/minver/minver
+    golden_id: embenchminver-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D26
+    workload: Embench
+  two_phase:
+    enabled: true
+    tiers:
+    - F0
+    - F1
+    pilot_n: 20
+    formal_n: 334
+    pick_top: 2
+- campaign_id: ooo_w83_d26_rob_emb_nbody
+  schema_version: arm-chaos-fi/v1
+  injector: rob
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: pc
+    width_bits: 64
+    sub_field: pc_bitflip2
+    fault_model: local_mbu
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 83026040
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/embench/nbody/nbody
+    golden_id: embenchnbody-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D26
+    workload: Embench
+  two_phase:
+    enabled: true
+    tiers:
+    - F0
+    - F1
+    pilot_n: 20
+    formal_n: 334
+    pick_top: 2
+- campaign_id: ooo_w83_d26_rob_emb_wikisort
+  schema_version: arm-chaos-fi/v1
+  injector: rob
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: pc
+    width_bits: 64
+    sub_field: pc_bitflip2
+    fault_model: local_mbu
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 83026050
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/embench/wikisort/wikisort
+    golden_id: embenchwikisort-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D26
+    workload: Embench
+  two_phase:
+    enabled: true
+    tiers:
+    - F0
+    - F1
+    pilot_n: 20
+    formal_n: 334
+    pick_top: 2
+- campaign_id: ooo_w83_d27_rob_coremark
+  schema_version: arm-chaos-fi/v1
+  injector: rob
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: pc
+    width_bits: 64
+    sub_field: pc_stuck
+    fault_model: stuck_at_zero
+    protection_model: none
+  n_per_cell: 2000
+  base_seed: 83027000
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/coremark/coremark
+    golden_id: coremark-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D27
+    workload: CoreMark
+    frequency_tier: F5
+- campaign_id: ooo_w83_d27_rob_emb_crc32
+  schema_version: arm-chaos-fi/v1
+  injector: rob
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: pc
+    width_bits: 64
+    sub_field: pc_stuck
+    fault_model: stuck_at_zero
+    protection_model: none
+  n_per_cell: 334
+  base_seed: 83027000
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/embench/crc32/crc32
+    golden_id: embenchcrc32-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D27
+    workload: Embench
+    frequency_tier: F5
+- campaign_id: ooo_w83_d27_rob_emb_matmult
+  schema_version: arm-chaos-fi/v1
+  injector: rob
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: pc
+    width_bits: 64
+    sub_field: pc_stuck
+    fault_model: stuck_at_zero
+    protection_model: none
+  n_per_cell: 334
+  base_seed: 83027010
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/embench/matmult-int/matmult-int
+    golden_id: embenchmatmult-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D27
+    workload: Embench
+    frequency_tier: F5
+- campaign_id: ooo_w83_d27_rob_emb_md5sum
+  schema_version: arm-chaos-fi/v1
+  injector: rob
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: pc
+    width_bits: 64
+    sub_field: pc_stuck
+    fault_model: stuck_at_zero
+    protection_model: none
+  n_per_cell: 334
+  base_seed: 83027020
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/embench/md5sum/md5sum
+    golden_id: embenchmd5sum-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D27
+    workload: Embench
+    frequency_tier: F5
+- campaign_id: ooo_w83_d27_rob_emb_minver
+  schema_version: arm-chaos-fi/v1
+  injector: rob
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: pc
+    width_bits: 64
+    sub_field: pc_stuck
+    fault_model: stuck_at_zero
+    protection_model: none
+  n_per_cell: 334
+  base_seed: 83027030
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/embench/minver/minver
+    golden_id: embenchminver-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D27
+    workload: Embench
+    frequency_tier: F5
+- campaign_id: ooo_w83_d27_rob_emb_nbody
+  schema_version: arm-chaos-fi/v1
+  injector: rob
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: pc
+    width_bits: 64
+    sub_field: pc_stuck
+    fault_model: stuck_at_zero
+    protection_model: none
+  n_per_cell: 334
+  base_seed: 83027040
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/embench/nbody/nbody
+    golden_id: embenchnbody-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D27
+    workload: Embench
+    frequency_tier: F5
+- campaign_id: ooo_w83_d27_rob_emb_wikisort
+  schema_version: arm-chaos-fi/v1
+  injector: rob
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: pc
+    width_bits: 64
+    sub_field: pc_stuck
+    fault_model: stuck_at_zero
+    protection_model: none
+  n_per_cell: 334
+  base_seed: 83027050
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/embench/wikisort/wikisort
+    golden_id: embenchwikisort-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D27
+    workload: Embench
+    frequency_tier: F5
+- campaign_id: ooo_w83_d29_rob_coremark
+  schema_version: arm-chaos-fi/v1
+  injector: rob
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: dest_id
+    width_bits: 7
+    sub_field: destid_bitflip2
+    fault_model: local_mbu
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 83029000
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/coremark/coremark
+    golden_id: coremark-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D29
+    workload: CoreMark
+  two_phase:
+    enabled: true
+    tiers:
+    - F0
+    - F1
+    pilot_n: 20
+    formal_n: 2000
+    pick_top: 2
+- campaign_id: ooo_w83_d29_rob_emb_crc32
+  schema_version: arm-chaos-fi/v1
+  injector: rob
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: dest_id
+    width_bits: 7
+    sub_field: destid_bitflip2
+    fault_model: local_mbu
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 83029000
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/embench/crc32/crc32
+    golden_id: embenchcrc32-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D29
+    workload: Embench
+  two_phase:
+    enabled: true
+    tiers:
+    - F0
+    - F1
+    pilot_n: 20
+    formal_n: 334
+    pick_top: 2
+- campaign_id: ooo_w83_d29_rob_emb_matmult
+  schema_version: arm-chaos-fi/v1
+  injector: rob
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: dest_id
+    width_bits: 7
+    sub_field: destid_bitflip2
+    fault_model: local_mbu
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 83029010
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/embench/matmult-int/matmult-int
+    golden_id: embenchmatmult-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D29
+    workload: Embench
+  two_phase:
+    enabled: true
+    tiers:
+    - F0
+    - F1
+    pilot_n: 20
+    formal_n: 334
+    pick_top: 2
+- campaign_id: ooo_w83_d29_rob_emb_md5sum
+  schema_version: arm-chaos-fi/v1
+  injector: rob
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: dest_id
+    width_bits: 7
+    sub_field: destid_bitflip2
+    fault_model: local_mbu
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 83029020
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/embench/md5sum/md5sum
+    golden_id: embenchmd5sum-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D29
+    workload: Embench
+  two_phase:
+    enabled: true
+    tiers:
+    - F0
+    - F1
+    pilot_n: 20
+    formal_n: 334
+    pick_top: 2
+- campaign_id: ooo_w83_d29_rob_emb_minver
+  schema_version: arm-chaos-fi/v1
+  injector: rob
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: dest_id
+    width_bits: 7
+    sub_field: destid_bitflip2
+    fault_model: local_mbu
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 83029030
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/embench/minver/minver
+    golden_id: embenchminver-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D29
+    workload: Embench
+  two_phase:
+    enabled: true
+    tiers:
+    - F0
+    - F1
+    pilot_n: 20
+    formal_n: 334
+    pick_top: 2
+- campaign_id: ooo_w83_d29_rob_emb_nbody
+  schema_version: arm-chaos-fi/v1
+  injector: rob
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: dest_id
+    width_bits: 7
+    sub_field: destid_bitflip2
+    fault_model: local_mbu
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 83029040
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/embench/nbody/nbody
+    golden_id: embenchnbody-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D29
+    workload: Embench
+  two_phase:
+    enabled: true
+    tiers:
+    - F0
+    - F1
+    pilot_n: 20
+    formal_n: 334
+    pick_top: 2
+- campaign_id: ooo_w83_d29_rob_emb_wikisort
+  schema_version: arm-chaos-fi/v1
+  injector: rob
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: dest_id
+    width_bits: 7
+    sub_field: destid_bitflip2
+    fault_model: local_mbu
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 83029050
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/embench/wikisort/wikisort
+    golden_id: embenchwikisort-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D29
+    workload: Embench
+  two_phase:
+    enabled: true
+    tiers:
+    - F0
+    - F1
+    pilot_n: 20
+    formal_n: 334
+    pick_top: 2
+- campaign_id: ooo_w83_d30_rob_coremark
+  schema_version: arm-chaos-fi/v1
+  injector: rob
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: dest_id
+    width_bits: 7
+    sub_field: destid_swap_active
+    fault_model: legal_domain_sub
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 83030000
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/coremark/coremark
+    golden_id: coremark-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D30
+    workload: CoreMark
+  two_phase:
+    enabled: true
+    tiers:
+    - F0
+    - F1
+    pilot_n: 20
+    formal_n: 2000
+    pick_top: 2
+- campaign_id: ooo_w83_d30_rob_gap
+  schema_version: arm-chaos-fi/v1
+  injector: rob
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: dest_id
+    width_bits: 7
+    sub_field: destid_swap_active
+    fault_model: legal_domain_sub
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 83030000
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/gap/gap
+    golden_id: gap-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D30
+    workload: GAP
+  two_phase:
+    enabled: true
+    tiers:
+    - F0
+    - F1
+    pilot_n: 20
+    formal_n: 2000
+    pick_top: 2
+- campaign_id: ooo_w83_d31_rob_coremark
+  schema_version: arm-chaos-fi/v1
+  injector: rob
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: dest_id
+    width_bits: 7
+    sub_field: destid_stuck
+    fault_model: stuck_at_zero
+    protection_model: none
+  n_per_cell: 2000
+  base_seed: 83031000
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/coremark/coremark
+    golden_id: coremark-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D31
+    workload: CoreMark
+    frequency_tier: F5
+- campaign_id: ooo_w83_d31_rob_emb_crc32
+  schema_version: arm-chaos-fi/v1
+  injector: rob
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: dest_id
+    width_bits: 7
+    sub_field: destid_stuck
+    fault_model: stuck_at_zero
+    protection_model: none
+  n_per_cell: 334
+  base_seed: 83031000
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/embench/crc32/crc32
+    golden_id: embenchcrc32-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D31
+    workload: Embench
+    frequency_tier: F5
+- campaign_id: ooo_w83_d31_rob_emb_matmult
+  schema_version: arm-chaos-fi/v1
+  injector: rob
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: dest_id
+    width_bits: 7
+    sub_field: destid_stuck
+    fault_model: stuck_at_zero
+    protection_model: none
+  n_per_cell: 334
+  base_seed: 83031010
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/embench/matmult-int/matmult-int
+    golden_id: embenchmatmult-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D31
+    workload: Embench
+    frequency_tier: F5
+- campaign_id: ooo_w83_d31_rob_emb_md5sum
+  schema_version: arm-chaos-fi/v1
+  injector: rob
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: dest_id
+    width_bits: 7
+    sub_field: destid_stuck
+    fault_model: stuck_at_zero
+    protection_model: none
+  n_per_cell: 334
+  base_seed: 83031020
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/embench/md5sum/md5sum
+    golden_id: embenchmd5sum-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D31
+    workload: Embench
+    frequency_tier: F5
+- campaign_id: ooo_w83_d31_rob_emb_minver
+  schema_version: arm-chaos-fi/v1
+  injector: rob
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: dest_id
+    width_bits: 7
+    sub_field: destid_stuck
+    fault_model: stuck_at_zero
+    protection_model: none
+  n_per_cell: 334
+  base_seed: 83031030
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/embench/minver/minver
+    golden_id: embenchminver-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D31
+    workload: Embench
+    frequency_tier: F5
+- campaign_id: ooo_w83_d31_rob_emb_nbody
+  schema_version: arm-chaos-fi/v1
+  injector: rob
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: dest_id
+    width_bits: 7
+    sub_field: destid_stuck
+    fault_model: stuck_at_zero
+    protection_model: none
+  n_per_cell: 334
+  base_seed: 83031040
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/embench/nbody/nbody
+    golden_id: embenchnbody-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D31
+    workload: Embench
+    frequency_tier: F5
+- campaign_id: ooo_w83_d31_rob_emb_wikisort
+  schema_version: arm-chaos-fi/v1
+  injector: rob
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: dest_id
+    width_bits: 7
+    sub_field: destid_stuck
+    fault_model: stuck_at_zero
+    protection_model: none
+  n_per_cell: 334
+  base_seed: 83031050
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/embench/wikisort/wikisort
+    golden_id: embenchwikisort-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D31
+    workload: Embench
+    frequency_tier: F5
+- campaign_id: ooo_w83_d32_rob_coremark
+  schema_version: arm-chaos-fi/v1
+  injector: rob
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: done_bit
+    width_bits: 1
+    sub_field: done_early
+    fault_model: delay_omission
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 83032000
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/coremark/coremark
+    golden_id: coremark-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D32
+    workload: CoreMark
+  two_phase:
+    enabled: true
+    tiers:
+    - F1
+    - F2
+    pilot_n: 20
+    formal_n: 2000
+    pick_top: 2
+- campaign_id: ooo_w83_d32_rob_rob_fill
+  schema_version: arm-chaos-fi/v1
+  injector: rob
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: done_bit
+    width_bits: 1
+    sub_field: done_early
+    fault_model: delay_omission
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 83032000
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/rob_fill/rob_fill
+    golden_id: robfillint-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D32
+    workload: ROB 填满核
+  two_phase:
+    enabled: true
+    tiers:
+    - F1
+    - F2
+    pilot_n: 20
+    formal_n: 2000
+    pick_top: 2
+- campaign_id: ooo_w83_d33_rob_rob_fill
+  schema_version: arm-chaos-fi/v1
+  injector: rob
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: done_bit
+    width_bits: 1
+    sub_field: done_early_event
+    fault_model: delay_omission
+    protection_model: none
+  n_per_cell: 2000
+  base_seed: 83033000
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/rob_fill/rob_fill
+    golden_id: robfillint-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D33
+    workload: ROB 填满核
+    frequency_tier: 事件触发
+  counting:
+    mode: event_coverage
+    target_events: 2000
+    _TODO_density: 'W8.1 后核实: run tools/event_density.py on this (D,binary) pair and fill `density: <events/run>`
+      (or density_table+event). campaign.py exits loudly on this stanza until then — intentional, never
+      fabricate a count.'
+- campaign_id: ooo_w83_d34_rob_rob_fill
+  schema_version: arm-chaos-fi/v1
+  injector: rob
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: done_bit
+    width_bits: 1
+    sub_field: done_delay
+    fault_model: delay_omission
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 83034000
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/rob_fill/rob_fill
+    golden_id: robfillint-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D34
+    workload: ROB 填满核
+  two_phase:
+    enabled: true
+    tiers:
+    - F1
+    pilot_n: 20
+    formal_n: 2000
+    pick_top: 1
+- campaign_id: ooo_w83_d35_rob_rob_fill
+  schema_version: arm-chaos-fi/v1
+  injector: rob
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: done_bit
+    width_bits: 1
+    sub_field: done_delay_event
+    fault_model: delay_omission
+    protection_model: none
+  n_per_cell: 2000
+  base_seed: 83035000
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/rob_fill/rob_fill
+    golden_id: robfillint-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D35
+    workload: ROB 填满核
+    frequency_tier: 事件触发
+  counting:
+    mode: event_coverage
+    target_events: 2000
+    _TODO_density: 'W8.1 后核实: run tools/event_density.py on this (D,binary) pair and fill `density: <events/run>`
+      (or density_table+event). campaign.py exits loudly on this stanza until then — intentional, never
+      fabricate a count.'
+- campaign_id: ooo_w83_d36_rob_gap
+  schema_version: arm-chaos-fi/v1
+  injector: rob
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: old_phys
+    width_bits: 7
+    sub_field: oldphys_bitflip
+    fault_model: transient_bit_flip
+    protection_model: none
+  n_per_cell: 2000
+  base_seed: 83036000
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/gap/gap
+    golden_id: gap-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D36
+    workload: GAP
+    frequency_tier: 事件触发
+  counting:
+    mode: event_coverage
+    target_events: 2000
+    _TODO_density: 'W8.1 后核实: run tools/event_density.py on this (D,binary) pair and fill `density: <events/run>`
+      (or density_table+event). campaign.py exits loudly on this stanza until then — intentional, never
+      fabricate a count.'
+- campaign_id: ooo_w83_d37_rob_gap
+  schema_version: arm-chaos-fi/v1
+  injector: rob
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: old_phys
+    width_bits: 7
+    sub_field: oldphys_bitflip2
+    fault_model: local_mbu
+    protection_model: none
+  n_per_cell: 2000
+  base_seed: 83037000
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/gap/gap
+    golden_id: gap-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D37
+    workload: GAP
+    frequency_tier: 事件触发
+  counting:
+    mode: event_coverage
+    target_events: 2000
+    _TODO_density: 'W8.1 后核实: run tools/event_density.py on this (D,binary) pair and fill `density: <events/run>`
+      (or density_table+event). campaign.py exits loudly on this stanza until then — intentional, never
+      fabricate a count.'
+- campaign_id: ooo_w83_d38_rob_gap
+  schema_version: arm-chaos-fi/v1
+  injector: rob
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: old_phys
+    width_bits: 7
+    sub_field: oldphys_swap_active
+    fault_model: legal_domain_sub
+    protection_model: none
+  n_per_cell: 2000
+  base_seed: 83038000
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/gap/gap
+    golden_id: gap-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D38
+    workload: GAP
+    frequency_tier: 事件触发
+  counting:
+    mode: event_coverage
+    target_events: 2000
+    _TODO_density: 'W8.1 后核实: run tools/event_density.py on this (D,binary) pair and fill `density: <events/run>`
+      (or density_table+event). campaign.py exits loudly on this stanza until then — intentional, never
+      fabricate a count.'
+- campaign_id: ooo_w83_d39_rob_gap
+  schema_version: arm-chaos-fi/v1
+  injector: rob
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: old_phys
+    width_bits: 7
+    sub_field: oldphys_stuck
+    fault_model: stuck_at_zero
+    protection_model: none
+  n_per_cell: 2000
+  base_seed: 83039000
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/gap/gap
+    golden_id: gap-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D39
+    workload: GAP
+    frequency_tier: F5
+  counting:
+    mode: event_coverage
+    target_events: 2000
+    _TODO_density: 'W8.1 后核实: run tools/event_density.py on this (D,binary) pair and fill `density: <events/run>`
+      (or density_table+event). campaign.py exits loudly on this stanza until then — intentional, never
+      fabricate a count.'
+- campaign_id: ooo_w83_d40_rob_coremark
+  schema_version: arm-chaos-fi/v1
+  injector: rob
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: rob_entry
+    width_bits: 64
+    sub_field: rob_stale_read
+    fault_model: delay_omission
+    protection_model: none
+  n_per_cell: 2000
+  base_seed: 83040000
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/coremark/coremark
+    golden_id: coremark-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D40
+    workload: CoreMark
+    frequency_tier: 事件触发
+  counting:
+    mode: event_coverage
+    target_events: 2000
+    _TODO_density: 'W8.1 后核实: run tools/event_density.py on this (D,binary) pair and fill `density: <events/run>`
+      (or density_table+event). campaign.py exits loudly on this stanza until then — intentional, never
+      fabricate a count.'
+- campaign_id: ooo_w83_d40_rob_emb_crc32
+  schema_version: arm-chaos-fi/v1
+  injector: rob
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: rob_entry
+    width_bits: 64
+    sub_field: rob_stale_read
+    fault_model: delay_omission
+    protection_model: none
+  n_per_cell: 2000
+  base_seed: 83040000
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/embench/crc32/crc32
+    golden_id: embenchcrc32-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D40
+    workload: Embench
+    frequency_tier: 事件触发
+  counting:
+    mode: event_coverage
+    target_events: 2000
+    _TODO_density: 'W8.1 后核实: run tools/event_density.py on this (D,binary) pair and fill `density: <events/run>`
+      (or density_table+event). campaign.py exits loudly on this stanza until then — intentional, never
+      fabricate a count.'
+- campaign_id: ooo_w83_d40_rob_emb_matmult
+  schema_version: arm-chaos-fi/v1
+  injector: rob
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: rob_entry
+    width_bits: 64
+    sub_field: rob_stale_read
+    fault_model: delay_omission
+    protection_model: none
+  n_per_cell: 2000
+  base_seed: 83040010
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/embench/matmult-int/matmult-int
+    golden_id: embenchmatmult-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D40
+    workload: Embench
+    frequency_tier: 事件触发
+  counting:
+    mode: event_coverage
+    target_events: 2000
+    _TODO_density: 'W8.1 后核实: run tools/event_density.py on this (D,binary) pair and fill `density: <events/run>`
+      (or density_table+event). campaign.py exits loudly on this stanza until then — intentional, never
+      fabricate a count.'
+- campaign_id: ooo_w83_d40_rob_emb_md5sum
+  schema_version: arm-chaos-fi/v1
+  injector: rob
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: rob_entry
+    width_bits: 64
+    sub_field: rob_stale_read
+    fault_model: delay_omission
+    protection_model: none
+  n_per_cell: 2000
+  base_seed: 83040020
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/embench/md5sum/md5sum
+    golden_id: embenchmd5sum-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D40
+    workload: Embench
+    frequency_tier: 事件触发
+  counting:
+    mode: event_coverage
+    target_events: 2000
+    _TODO_density: 'W8.1 后核实: run tools/event_density.py on this (D,binary) pair and fill `density: <events/run>`
+      (or density_table+event). campaign.py exits loudly on this stanza until then — intentional, never
+      fabricate a count.'
+- campaign_id: ooo_w83_d40_rob_emb_minver
+  schema_version: arm-chaos-fi/v1
+  injector: rob
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: rob_entry
+    width_bits: 64
+    sub_field: rob_stale_read
+    fault_model: delay_omission
+    protection_model: none
+  n_per_cell: 2000
+  base_seed: 83040030
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/embench/minver/minver
+    golden_id: embenchminver-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D40
+    workload: Embench
+    frequency_tier: 事件触发
+  counting:
+    mode: event_coverage
+    target_events: 2000
+    _TODO_density: 'W8.1 后核实: run tools/event_density.py on this (D,binary) pair and fill `density: <events/run>`
+      (or density_table+event). campaign.py exits loudly on this stanza until then — intentional, never
+      fabricate a count.'
+- campaign_id: ooo_w83_d40_rob_emb_nbody
+  schema_version: arm-chaos-fi/v1
+  injector: rob
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: rob_entry
+    width_bits: 64
+    sub_field: rob_stale_read
+    fault_model: delay_omission
+    protection_model: none
+  n_per_cell: 2000
+  base_seed: 83040040
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/embench/nbody/nbody
+    golden_id: embenchnbody-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D40
+    workload: Embench
+    frequency_tier: 事件触发
+  counting:
+    mode: event_coverage
+    target_events: 2000
+    _TODO_density: 'W8.1 后核实: run tools/event_density.py on this (D,binary) pair and fill `density: <events/run>`
+      (or density_table+event). campaign.py exits loudly on this stanza until then — intentional, never
+      fabricate a count.'
+- campaign_id: ooo_w83_d40_rob_emb_wikisort
+  schema_version: arm-chaos-fi/v1
+  injector: rob
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: rob_entry
+    width_bits: 64
+    sub_field: rob_stale_read
+    fault_model: delay_omission
+    protection_model: none
+  n_per_cell: 2000
+  base_seed: 83040050
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/embench/wikisort/wikisort
+    golden_id: embenchwikisort-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D40
+    workload: Embench
+    frequency_tier: 事件触发
+  counting:
+    mode: event_coverage
+    target_events: 2000
+    _TODO_density: 'W8.1 后核实: run tools/event_density.py on this (D,binary) pair and fill `density: <events/run>`
+      (or density_table+event). campaign.py exits loudly on this stanza until then — intentional, never
+      fabricate a count.'
+- campaign_id: ooo_w83_d41_rob_coremark
+  schema_version: arm-chaos-fi/v1
+  injector: rob
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: head_ptr
+    width_bits: 7
+    sub_field: head_ptr_bitflip
+    fault_model: transient_bit_flip
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 83041000
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/coremark/coremark
+    golden_id: coremark-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D41
+    workload: CoreMark
+  two_phase:
+    enabled: true
+    tiers:
+    - F0
+    pilot_n: 20
+    formal_n: 2000
+    pick_top: 1
+- campaign_id: ooo_w83_d42_rob_coremark
+  schema_version: arm-chaos-fi/v1
+  injector: rob
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: head_ptr
+    width_bits: 7
+    sub_field: head_ptr_bitflip2
+    fault_model: local_mbu
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 83042000
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/coremark/coremark
+    golden_id: coremark-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D42
+    workload: CoreMark
+  two_phase:
+    enabled: true
+    tiers:
+    - F0
+    pilot_n: 20
+    formal_n: 2000
+    pick_top: 1
+- campaign_id: ooo_w83_d43_rob_coremark
+  schema_version: arm-chaos-fi/v1
+  injector: rob
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: head_ptr
+    width_bits: 7
+    sub_field: head_ptr_stuck
+    fault_model: stuck_at_zero
+    protection_model: none
+  n_per_cell: 2000
+  base_seed: 83043000
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/coremark/coremark
+    golden_id: coremark-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D43
+    workload: CoreMark
+    frequency_tier: F5
+- campaign_id: ooo_w83_d44_rob_coremark
+  schema_version: arm-chaos-fi/v1
+  injector: rob
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: tail_ptr
+    width_bits: 7
+    sub_field: tail_ptr_bitflip
+    fault_model: transient_bit_flip
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 83044000
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/coremark/coremark
+    golden_id: coremark-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D44
+    workload: CoreMark
+  two_phase:
+    enabled: true
+    tiers:
+    - F0
+    pilot_n: 20
+    formal_n: 2000
+    pick_top: 1
+- campaign_id: ooo_w83_d45_rob_coremark
+  schema_version: arm-chaos-fi/v1
+  injector: rob
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: tail_ptr
+    width_bits: 7
+    sub_field: tail_ptr_bitflip2
+    fault_model: local_mbu
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 83045000
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/coremark/coremark
+    golden_id: coremark-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D45
+    workload: CoreMark
+  two_phase:
+    enabled: true
+    tiers:
+    - F0
+    pilot_n: 20
+    formal_n: 2000
+    pick_top: 1
+- campaign_id: ooo_w83_d46_rob_coremark
+  schema_version: arm-chaos-fi/v1
+  injector: rob
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: tail_ptr
+    width_bits: 7
+    sub_field: tail_ptr_stuck
+    fault_model: stuck_at_zero
+    protection_model: none
+  n_per_cell: 2000
+  base_seed: 83046000
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/coremark/coremark
+    golden_id: coremark-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D46
+    workload: CoreMark
+    frequency_tier: F5
+- campaign_id: ooo_w83_d47_iq_coremark
+  schema_version: arm-chaos-fi/v1
+  injector: iq
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: ready_bit
+    width_bits: 1
+    sub_field: ready_early
+    fault_model: delay_omission
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 83047000
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/coremark/coremark
+    golden_id: coremark-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D47
+    workload: CoreMark
+  two_phase:
+    enabled: true
+    tiers:
+    - F1
+    - F2
+    pilot_n: 20
+    formal_n: 2000
+    pick_top: 2
+- campaign_id: ooo_w83_d47_iq_emb_crc32
+  schema_version: arm-chaos-fi/v1
+  injector: iq
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: ready_bit
+    width_bits: 1
+    sub_field: ready_early
+    fault_model: delay_omission
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 83047000
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/embench/crc32/crc32
+    golden_id: embenchcrc32-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D47
+    workload: Embench
+  two_phase:
+    enabled: true
+    tiers:
+    - F1
+    - F2
+    pilot_n: 20
+    formal_n: 334
+    pick_top: 2
+- campaign_id: ooo_w83_d47_iq_emb_matmult
+  schema_version: arm-chaos-fi/v1
+  injector: iq
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: ready_bit
+    width_bits: 1
+    sub_field: ready_early
+    fault_model: delay_omission
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 83047010
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/embench/matmult-int/matmult-int
+    golden_id: embenchmatmult-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D47
+    workload: Embench
+  two_phase:
+    enabled: true
+    tiers:
+    - F1
+    - F2
+    pilot_n: 20
+    formal_n: 334
+    pick_top: 2
+- campaign_id: ooo_w83_d47_iq_emb_md5sum
+  schema_version: arm-chaos-fi/v1
+  injector: iq
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: ready_bit
+    width_bits: 1
+    sub_field: ready_early
+    fault_model: delay_omission
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 83047020
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/embench/md5sum/md5sum
+    golden_id: embenchmd5sum-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D47
+    workload: Embench
+  two_phase:
+    enabled: true
+    tiers:
+    - F1
+    - F2
+    pilot_n: 20
+    formal_n: 334
+    pick_top: 2
+- campaign_id: ooo_w83_d47_iq_emb_minver
+  schema_version: arm-chaos-fi/v1
+  injector: iq
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: ready_bit
+    width_bits: 1
+    sub_field: ready_early
+    fault_model: delay_omission
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 83047030
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/embench/minver/minver
+    golden_id: embenchminver-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D47
+    workload: Embench
+  two_phase:
+    enabled: true
+    tiers:
+    - F1
+    - F2
+    pilot_n: 20
+    formal_n: 334
+    pick_top: 2
+- campaign_id: ooo_w83_d47_iq_emb_nbody
+  schema_version: arm-chaos-fi/v1
+  injector: iq
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: ready_bit
+    width_bits: 1
+    sub_field: ready_early
+    fault_model: delay_omission
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 83047040
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/embench/nbody/nbody
+    golden_id: embenchnbody-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D47
+    workload: Embench
+  two_phase:
+    enabled: true
+    tiers:
+    - F1
+    - F2
+    pilot_n: 20
+    formal_n: 334
+    pick_top: 2
+- campaign_id: ooo_w83_d47_iq_emb_wikisort
+  schema_version: arm-chaos-fi/v1
+  injector: iq
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: ready_bit
+    width_bits: 1
+    sub_field: ready_early
+    fault_model: delay_omission
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 83047050
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/embench/wikisort/wikisort
+    golden_id: embenchwikisort-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D47
+    workload: Embench
+  two_phase:
+    enabled: true
+    tiers:
+    - F1
+    - F2
+    pilot_n: 20
+    formal_n: 334
+    pick_top: 2
+- campaign_id: ooo_w83_d48_iq_rob_fill
+  schema_version: arm-chaos-fi/v1
+  injector: iq
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: ready_bit
+    width_bits: 1
+    sub_field: ready_never
+    fault_model: delay_omission
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 83048000
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/rob_fill/rob_fill
+    golden_id: robfillint-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D48
+    workload: ROB 填满核
+  two_phase:
+    enabled: true
+    tiers:
+    - F1
+    pilot_n: 20
+    formal_n: 2000
+    pick_top: 1
+- campaign_id: ooo_w83_d49_iq_rob_fill
+  schema_version: arm-chaos-fi/v1
+  injector: iq
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: ready_bit
+    width_bits: 1
+    sub_field: ready_never_event
+    fault_model: delay_omission
+    protection_model: none
+  n_per_cell: 2000
+  base_seed: 83049000
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/rob_fill/rob_fill
+    golden_id: robfillint-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D49
+    workload: ROB 填满核
+    frequency_tier: 事件触发
+  counting:
+    mode: event_coverage
+    target_events: 2000
+    _TODO_density: 'W8.1 后核实: run tools/event_density.py on this (D,binary) pair and fill `density: <events/run>`
+      (or density_table+event). campaign.py exits loudly on this stanza until then — intentional, never
+      fabricate a count.'
+- campaign_id: ooo_w83_d50_iq_coremark
+  schema_version: arm-chaos-fi/v1
+  injector: iq
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: src_tag
+    width_bits: 7
+    sub_field: tag_swap
+    fault_model: legal_domain_sub
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 83050000
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/coremark/coremark
+    golden_id: coremark-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D50
+    workload: CoreMark
+  two_phase:
+    enabled: true
+    tiers:
+    - F0
+    - F1
+    pilot_n: 20
+    formal_n: 2000
+    pick_top: 2
+- campaign_id: ooo_w83_d50_iq_emb_crc32
+  schema_version: arm-chaos-fi/v1
+  injector: iq
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: src_tag
+    width_bits: 7
+    sub_field: tag_swap
+    fault_model: legal_domain_sub
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 83050000
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/embench/crc32/crc32
+    golden_id: embenchcrc32-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D50
+    workload: Embench
+  two_phase:
+    enabled: true
+    tiers:
+    - F0
+    - F1
+    pilot_n: 20
+    formal_n: 334
+    pick_top: 2
+- campaign_id: ooo_w83_d50_iq_emb_matmult
+  schema_version: arm-chaos-fi/v1
+  injector: iq
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: src_tag
+    width_bits: 7
+    sub_field: tag_swap
+    fault_model: legal_domain_sub
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 83050010
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/embench/matmult-int/matmult-int
+    golden_id: embenchmatmult-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D50
+    workload: Embench
+  two_phase:
+    enabled: true
+    tiers:
+    - F0
+    - F1
+    pilot_n: 20
+    formal_n: 334
+    pick_top: 2
+- campaign_id: ooo_w83_d50_iq_emb_md5sum
+  schema_version: arm-chaos-fi/v1
+  injector: iq
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: src_tag
+    width_bits: 7
+    sub_field: tag_swap
+    fault_model: legal_domain_sub
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 83050020
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/embench/md5sum/md5sum
+    golden_id: embenchmd5sum-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D50
+    workload: Embench
+  two_phase:
+    enabled: true
+    tiers:
+    - F0
+    - F1
+    pilot_n: 20
+    formal_n: 334
+    pick_top: 2
+- campaign_id: ooo_w83_d50_iq_emb_minver
+  schema_version: arm-chaos-fi/v1
+  injector: iq
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: src_tag
+    width_bits: 7
+    sub_field: tag_swap
+    fault_model: legal_domain_sub
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 83050030
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/embench/minver/minver
+    golden_id: embenchminver-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D50
+    workload: Embench
+  two_phase:
+    enabled: true
+    tiers:
+    - F0
+    - F1
+    pilot_n: 20
+    formal_n: 334
+    pick_top: 2
+- campaign_id: ooo_w83_d50_iq_emb_nbody
+  schema_version: arm-chaos-fi/v1
+  injector: iq
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: src_tag
+    width_bits: 7
+    sub_field: tag_swap
+    fault_model: legal_domain_sub
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 83050040
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/embench/nbody/nbody
+    golden_id: embenchnbody-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D50
+    workload: Embench
+  two_phase:
+    enabled: true
+    tiers:
+    - F0
+    - F1
+    pilot_n: 20
+    formal_n: 334
+    pick_top: 2
+- campaign_id: ooo_w83_d50_iq_emb_wikisort
+  schema_version: arm-chaos-fi/v1
+  injector: iq
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: src_tag
+    width_bits: 7
+    sub_field: tag_swap
+    fault_model: legal_domain_sub
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 83050050
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/embench/wikisort/wikisort
+    golden_id: embenchwikisort-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D50
+    workload: Embench
+  two_phase:
+    enabled: true
+    tiers:
+    - F0
+    - F1
+    pilot_n: 20
+    formal_n: 334
+    pick_top: 2
+- campaign_id: ooo_w83_d51_iq_coremark
+  schema_version: arm-chaos-fi/v1
+  injector: iq
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: src_tag
+    width_bits: 7
+    sub_field: tag_bitflip
+    fault_model: transient_bit_flip
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 83051000
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/coremark/coremark
+    golden_id: coremark-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D51
+    workload: CoreMark
+  two_phase:
+    enabled: true
+    tiers:
+    - F0
+    - F1
+    pilot_n: 20
+    formal_n: 2000
+    pick_top: 2
+- campaign_id: ooo_w83_d51_iq_emb_crc32
+  schema_version: arm-chaos-fi/v1
+  injector: iq
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: src_tag
+    width_bits: 7
+    sub_field: tag_bitflip
+    fault_model: transient_bit_flip
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 83051000
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/embench/crc32/crc32
+    golden_id: embenchcrc32-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D51
+    workload: Embench
+  two_phase:
+    enabled: true
+    tiers:
+    - F0
+    - F1
+    pilot_n: 20
+    formal_n: 334
+    pick_top: 2
+- campaign_id: ooo_w83_d51_iq_emb_matmult
+  schema_version: arm-chaos-fi/v1
+  injector: iq
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: src_tag
+    width_bits: 7
+    sub_field: tag_bitflip
+    fault_model: transient_bit_flip
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 83051010
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/embench/matmult-int/matmult-int
+    golden_id: embenchmatmult-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D51
+    workload: Embench
+  two_phase:
+    enabled: true
+    tiers:
+    - F0
+    - F1
+    pilot_n: 20
+    formal_n: 334
+    pick_top: 2
+- campaign_id: ooo_w83_d51_iq_emb_md5sum
+  schema_version: arm-chaos-fi/v1
+  injector: iq
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: src_tag
+    width_bits: 7
+    sub_field: tag_bitflip
+    fault_model: transient_bit_flip
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 83051020
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/embench/md5sum/md5sum
+    golden_id: embenchmd5sum-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D51
+    workload: Embench
+  two_phase:
+    enabled: true
+    tiers:
+    - F0
+    - F1
+    pilot_n: 20
+    formal_n: 334
+    pick_top: 2
+- campaign_id: ooo_w83_d51_iq_emb_minver
+  schema_version: arm-chaos-fi/v1
+  injector: iq
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: src_tag
+    width_bits: 7
+    sub_field: tag_bitflip
+    fault_model: transient_bit_flip
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 83051030
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/embench/minver/minver
+    golden_id: embenchminver-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D51
+    workload: Embench
+  two_phase:
+    enabled: true
+    tiers:
+    - F0
+    - F1
+    pilot_n: 20
+    formal_n: 334
+    pick_top: 2
+- campaign_id: ooo_w83_d51_iq_emb_nbody
+  schema_version: arm-chaos-fi/v1
+  injector: iq
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: src_tag
+    width_bits: 7
+    sub_field: tag_bitflip
+    fault_model: transient_bit_flip
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 83051040
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/embench/nbody/nbody
+    golden_id: embenchnbody-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D51
+    workload: Embench
+  two_phase:
+    enabled: true
+    tiers:
+    - F0
+    - F1
+    pilot_n: 20
+    formal_n: 334
+    pick_top: 2
+- campaign_id: ooo_w83_d51_iq_emb_wikisort
+  schema_version: arm-chaos-fi/v1
+  injector: iq
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: src_tag
+    width_bits: 7
+    sub_field: tag_bitflip
+    fault_model: transient_bit_flip
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 83051050
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/embench/wikisort/wikisort
+    golden_id: embenchwikisort-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D51
+    workload: Embench
+  two_phase:
+    enabled: true
+    tiers:
+    - F0
+    - F1
+    pilot_n: 20
+    formal_n: 334
+    pick_top: 2
+- campaign_id: ooo_w83_d52_iq_coremark
+  schema_version: arm-chaos-fi/v1
+  injector: iq
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: src_tag
+    width_bits: 7
+    sub_field: tag_bitflip2
+    fault_model: local_mbu
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 83052000
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/coremark/coremark
+    golden_id: coremark-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D52
+    workload: CoreMark
+  two_phase:
+    enabled: true
+    tiers:
+    - F0
+    pilot_n: 20
+    formal_n: 2000
+    pick_top: 1
+- campaign_id: ooo_w83_d52_iq_emb_crc32
+  schema_version: arm-chaos-fi/v1
+  injector: iq
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: src_tag
+    width_bits: 7
+    sub_field: tag_bitflip2
+    fault_model: local_mbu
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 83052000
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/embench/crc32/crc32
+    golden_id: embenchcrc32-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D52
+    workload: Embench
+  two_phase:
+    enabled: true
+    tiers:
+    - F0
+    pilot_n: 20
+    formal_n: 334
+    pick_top: 1
+- campaign_id: ooo_w83_d52_iq_emb_matmult
+  schema_version: arm-chaos-fi/v1
+  injector: iq
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: src_tag
+    width_bits: 7
+    sub_field: tag_bitflip2
+    fault_model: local_mbu
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 83052010
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/embench/matmult-int/matmult-int
+    golden_id: embenchmatmult-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D52
+    workload: Embench
+  two_phase:
+    enabled: true
+    tiers:
+    - F0
+    pilot_n: 20
+    formal_n: 334
+    pick_top: 1
+- campaign_id: ooo_w83_d52_iq_emb_md5sum
+  schema_version: arm-chaos-fi/v1
+  injector: iq
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: src_tag
+    width_bits: 7
+    sub_field: tag_bitflip2
+    fault_model: local_mbu
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 83052020
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/embench/md5sum/md5sum
+    golden_id: embenchmd5sum-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D52
+    workload: Embench
+  two_phase:
+    enabled: true
+    tiers:
+    - F0
+    pilot_n: 20
+    formal_n: 334
+    pick_top: 1
+- campaign_id: ooo_w83_d52_iq_emb_minver
+  schema_version: arm-chaos-fi/v1
+  injector: iq
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: src_tag
+    width_bits: 7
+    sub_field: tag_bitflip2
+    fault_model: local_mbu
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 83052030
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/embench/minver/minver
+    golden_id: embenchminver-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D52
+    workload: Embench
+  two_phase:
+    enabled: true
+    tiers:
+    - F0
+    pilot_n: 20
+    formal_n: 334
+    pick_top: 1
+- campaign_id: ooo_w83_d52_iq_emb_nbody
+  schema_version: arm-chaos-fi/v1
+  injector: iq
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: src_tag
+    width_bits: 7
+    sub_field: tag_bitflip2
+    fault_model: local_mbu
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 83052040
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/embench/nbody/nbody
+    golden_id: embenchnbody-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D52
+    workload: Embench
+  two_phase:
+    enabled: true
+    tiers:
+    - F0
+    pilot_n: 20
+    formal_n: 334
+    pick_top: 1
+- campaign_id: ooo_w83_d52_iq_emb_wikisort
+  schema_version: arm-chaos-fi/v1
+  injector: iq
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: src_tag
+    width_bits: 7
+    sub_field: tag_bitflip2
+    fault_model: local_mbu
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 83052050
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/embench/wikisort/wikisort
+    golden_id: embenchwikisort-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D52
+    workload: Embench
+  two_phase:
+    enabled: true
+    tiers:
+    - F0
+    pilot_n: 20
+    formal_n: 334
+    pick_top: 1
+- campaign_id: ooo_w83_d53_iq_coremark
+  schema_version: arm-chaos-fi/v1
+  injector: iq
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: src_tag
+    width_bits: 7
+    sub_field: tag_stuck
+    fault_model: stuck_at_zero
+    protection_model: none
+  n_per_cell: 2000
+  base_seed: 83053000
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/coremark/coremark
+    golden_id: coremark-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D53
+    workload: CoreMark
+    frequency_tier: F5
+- campaign_id: ooo_w83_d53_iq_emb_crc32
+  schema_version: arm-chaos-fi/v1
+  injector: iq
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: src_tag
+    width_bits: 7
+    sub_field: tag_stuck
+    fault_model: stuck_at_zero
+    protection_model: none
+  n_per_cell: 334
+  base_seed: 83053000
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/embench/crc32/crc32
+    golden_id: embenchcrc32-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D53
+    workload: Embench
+    frequency_tier: F5
+- campaign_id: ooo_w83_d53_iq_emb_matmult
+  schema_version: arm-chaos-fi/v1
+  injector: iq
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: src_tag
+    width_bits: 7
+    sub_field: tag_stuck
+    fault_model: stuck_at_zero
+    protection_model: none
+  n_per_cell: 334
+  base_seed: 83053010
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/embench/matmult-int/matmult-int
+    golden_id: embenchmatmult-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D53
+    workload: Embench
+    frequency_tier: F5
+- campaign_id: ooo_w83_d53_iq_emb_md5sum
+  schema_version: arm-chaos-fi/v1
+  injector: iq
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: src_tag
+    width_bits: 7
+    sub_field: tag_stuck
+    fault_model: stuck_at_zero
+    protection_model: none
+  n_per_cell: 334
+  base_seed: 83053020
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/embench/md5sum/md5sum
+    golden_id: embenchmd5sum-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D53
+    workload: Embench
+    frequency_tier: F5
+- campaign_id: ooo_w83_d53_iq_emb_minver
+  schema_version: arm-chaos-fi/v1
+  injector: iq
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: src_tag
+    width_bits: 7
+    sub_field: tag_stuck
+    fault_model: stuck_at_zero
+    protection_model: none
+  n_per_cell: 334
+  base_seed: 83053030
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/embench/minver/minver
+    golden_id: embenchminver-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D53
+    workload: Embench
+    frequency_tier: F5
+- campaign_id: ooo_w83_d53_iq_emb_nbody
+  schema_version: arm-chaos-fi/v1
+  injector: iq
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: src_tag
+    width_bits: 7
+    sub_field: tag_stuck
+    fault_model: stuck_at_zero
+    protection_model: none
+  n_per_cell: 334
+  base_seed: 83053040
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/embench/nbody/nbody
+    golden_id: embenchnbody-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D53
+    workload: Embench
+    frequency_tier: F5
+- campaign_id: ooo_w83_d53_iq_emb_wikisort
+  schema_version: arm-chaos-fi/v1
+  injector: iq
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: src_tag
+    width_bits: 7
+    sub_field: tag_stuck
+    fault_model: stuck_at_zero
+    protection_model: none
+  n_per_cell: 334
+  base_seed: 83053050
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/embench/wikisort/wikisort
+    golden_id: embenchwikisort-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D53
+    workload: Embench
+    frequency_tier: F5
+- campaign_id: ooo_w83_d54_iq_coremark
+  schema_version: arm-chaos-fi/v1
+  injector: iq
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: src_tag
+    width_bits: 7
+    sub_field: tag_stale_read
+    fault_model: delay_omission
+    protection_model: none
+  n_per_cell: 2000
+  base_seed: 83054000
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/coremark/coremark
+    golden_id: coremark-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D54
+    workload: CoreMark
+    frequency_tier: 事件触发
+  counting:
+    mode: event_coverage
+    target_events: 2000
+    _TODO_density: 'W8.1 后核实: run tools/event_density.py on this (D,binary) pair and fill `density: <events/run>`
+      (or density_table+event). campaign.py exits loudly on this stanza until then — intentional, never
+      fabricate a count.'
+- campaign_id: ooo_w83_d54_iq_emb_crc32
+  schema_version: arm-chaos-fi/v1
+  injector: iq
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: src_tag
+    width_bits: 7
+    sub_field: tag_stale_read
+    fault_model: delay_omission
+    protection_model: none
+  n_per_cell: 2000
+  base_seed: 83054000
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/embench/crc32/crc32
+    golden_id: embenchcrc32-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D54
+    workload: Embench
+    frequency_tier: 事件触发
+  counting:
+    mode: event_coverage
+    target_events: 2000
+    _TODO_density: 'W8.1 后核实: run tools/event_density.py on this (D,binary) pair and fill `density: <events/run>`
+      (or density_table+event). campaign.py exits loudly on this stanza until then — intentional, never
+      fabricate a count.'
+- campaign_id: ooo_w83_d54_iq_emb_matmult
+  schema_version: arm-chaos-fi/v1
+  injector: iq
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: src_tag
+    width_bits: 7
+    sub_field: tag_stale_read
+    fault_model: delay_omission
+    protection_model: none
+  n_per_cell: 2000
+  base_seed: 83054010
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/embench/matmult-int/matmult-int
+    golden_id: embenchmatmult-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D54
+    workload: Embench
+    frequency_tier: 事件触发
+  counting:
+    mode: event_coverage
+    target_events: 2000
+    _TODO_density: 'W8.1 后核实: run tools/event_density.py on this (D,binary) pair and fill `density: <events/run>`
+      (or density_table+event). campaign.py exits loudly on this stanza until then — intentional, never
+      fabricate a count.'
+- campaign_id: ooo_w83_d54_iq_emb_md5sum
+  schema_version: arm-chaos-fi/v1
+  injector: iq
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: src_tag
+    width_bits: 7
+    sub_field: tag_stale_read
+    fault_model: delay_omission
+    protection_model: none
+  n_per_cell: 2000
+  base_seed: 83054020
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/embench/md5sum/md5sum
+    golden_id: embenchmd5sum-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D54
+    workload: Embench
+    frequency_tier: 事件触发
+  counting:
+    mode: event_coverage
+    target_events: 2000
+    _TODO_density: 'W8.1 后核实: run tools/event_density.py on this (D,binary) pair and fill `density: <events/run>`
+      (or density_table+event). campaign.py exits loudly on this stanza until then — intentional, never
+      fabricate a count.'
+- campaign_id: ooo_w83_d54_iq_emb_minver
+  schema_version: arm-chaos-fi/v1
+  injector: iq
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: src_tag
+    width_bits: 7
+    sub_field: tag_stale_read
+    fault_model: delay_omission
+    protection_model: none
+  n_per_cell: 2000
+  base_seed: 83054030
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/embench/minver/minver
+    golden_id: embenchminver-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D54
+    workload: Embench
+    frequency_tier: 事件触发
+  counting:
+    mode: event_coverage
+    target_events: 2000
+    _TODO_density: 'W8.1 后核实: run tools/event_density.py on this (D,binary) pair and fill `density: <events/run>`
+      (or density_table+event). campaign.py exits loudly on this stanza until then — intentional, never
+      fabricate a count.'
+- campaign_id: ooo_w83_d54_iq_emb_nbody
+  schema_version: arm-chaos-fi/v1
+  injector: iq
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: src_tag
+    width_bits: 7
+    sub_field: tag_stale_read
+    fault_model: delay_omission
+    protection_model: none
+  n_per_cell: 2000
+  base_seed: 83054040
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/embench/nbody/nbody
+    golden_id: embenchnbody-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D54
+    workload: Embench
+    frequency_tier: 事件触发
+  counting:
+    mode: event_coverage
+    target_events: 2000
+    _TODO_density: 'W8.1 后核实: run tools/event_density.py on this (D,binary) pair and fill `density: <events/run>`
+      (or density_table+event). campaign.py exits loudly on this stanza until then — intentional, never
+      fabricate a count.'
+- campaign_id: ooo_w83_d54_iq_emb_wikisort
+  schema_version: arm-chaos-fi/v1
+  injector: iq
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: src_tag
+    width_bits: 7
+    sub_field: tag_stale_read
+    fault_model: delay_omission
+    protection_model: none
+  n_per_cell: 2000
+  base_seed: 83054050
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/embench/wikisort/wikisort
+    golden_id: embenchwikisort-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D54
+    workload: Embench
+    frequency_tier: 事件触发
+  counting:
+    mode: event_coverage
+    target_events: 2000
+    _TODO_density: 'W8.1 后核实: run tools/event_density.py on this (D,binary) pair and fill `density: <events/run>`
+      (or density_table+event). campaign.py exits loudly on this stanza until then — intentional, never
+      fabricate a count.'
+- campaign_id: ooo_w83_d55_iq_coremark
+  schema_version: arm-chaos-fi/v1
+  injector: iq
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: dispatch_port
+    width_bits: 1
+    sub_field: dispatch_misroute
+    fault_model: legal_domain_sub
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 83055000
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/coremark/coremark
+    golden_id: coremark-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D55
+    workload: CoreMark
+  two_phase:
+    enabled: true
+    tiers:
+    - F1
+    - F2
+    pilot_n: 20
+    formal_n: 2000
+    pick_top: 2
+- campaign_id: ooo_w83_d55_iq_emb_crc32
+  schema_version: arm-chaos-fi/v1
+  injector: iq
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: dispatch_port
+    width_bits: 1
+    sub_field: dispatch_misroute
+    fault_model: legal_domain_sub
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 83055000
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/embench/crc32/crc32
+    golden_id: embenchcrc32-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D55
+    workload: Embench
+  two_phase:
+    enabled: true
+    tiers:
+    - F1
+    - F2
+    pilot_n: 20
+    formal_n: 334
+    pick_top: 2
+- campaign_id: ooo_w83_d55_iq_emb_matmult
+  schema_version: arm-chaos-fi/v1
+  injector: iq
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: dispatch_port
+    width_bits: 1
+    sub_field: dispatch_misroute
+    fault_model: legal_domain_sub
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 83055010
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/embench/matmult-int/matmult-int
+    golden_id: embenchmatmult-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D55
+    workload: Embench
+  two_phase:
+    enabled: true
+    tiers:
+    - F1
+    - F2
+    pilot_n: 20
+    formal_n: 334
+    pick_top: 2
+- campaign_id: ooo_w83_d55_iq_emb_md5sum
+  schema_version: arm-chaos-fi/v1
+  injector: iq
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: dispatch_port
+    width_bits: 1
+    sub_field: dispatch_misroute
+    fault_model: legal_domain_sub
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 83055020
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/embench/md5sum/md5sum
+    golden_id: embenchmd5sum-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D55
+    workload: Embench
+  two_phase:
+    enabled: true
+    tiers:
+    - F1
+    - F2
+    pilot_n: 20
+    formal_n: 334
+    pick_top: 2
+- campaign_id: ooo_w83_d55_iq_emb_minver
+  schema_version: arm-chaos-fi/v1
+  injector: iq
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: dispatch_port
+    width_bits: 1
+    sub_field: dispatch_misroute
+    fault_model: legal_domain_sub
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 83055030
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/embench/minver/minver
+    golden_id: embenchminver-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D55
+    workload: Embench
+  two_phase:
+    enabled: true
+    tiers:
+    - F1
+    - F2
+    pilot_n: 20
+    formal_n: 334
+    pick_top: 2
+- campaign_id: ooo_w83_d55_iq_emb_nbody
+  schema_version: arm-chaos-fi/v1
+  injector: iq
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: dispatch_port
+    width_bits: 1
+    sub_field: dispatch_misroute
+    fault_model: legal_domain_sub
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 83055040
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/embench/nbody/nbody
+    golden_id: embenchnbody-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D55
+    workload: Embench
+  two_phase:
+    enabled: true
+    tiers:
+    - F1
+    - F2
+    pilot_n: 20
+    formal_n: 334
+    pick_top: 2
+- campaign_id: ooo_w83_d55_iq_emb_wikisort
+  schema_version: arm-chaos-fi/v1
+  injector: iq
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: dispatch_port
+    width_bits: 1
+    sub_field: dispatch_misroute
+    fault_model: legal_domain_sub
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 83055050
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/embench/wikisort/wikisort
+    golden_id: embenchwikisort-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D55
+    workload: Embench
+  two_phase:
+    enabled: true
+    tiers:
+    - F1
+    - F2
+    pilot_n: 20
+    formal_n: 334
+    pick_top: 2

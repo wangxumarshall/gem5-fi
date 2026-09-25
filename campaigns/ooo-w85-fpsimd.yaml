@@ -1,0 +1,4089 @@
+# ============================================================================
+# ooo-w85-fpsimd.yaml — W8.5 FP/SIMD 备产 batch umbrella
+#
+# Prepared 2026-09-25 at repo HEAD 6990ef2e (W7.4 mechanism f89f44b6 +
+# wiring 6990ef2e; 91/91 D rows implemented). NOT RUN — M2 gate
+# (W8.1, D25/D28 x CoreMark/Embench x F0 n=2000) must pass before any
+# W8.2+ production launch. This file is PREPARATION ONLY.
+#
+# Scope: D56-D91 (31 D rows). Cell accounting vs
+# docs/gem5-fi/ooo/05-expanded-matrix.csv (226 cells total):
+#   covered by subcampaigns : 76
+#   covered via alias (merge口径): 7
+#   SVE-deferred (D78-D82)  : 7
+#   M2-gate (W8.1, other agent): 0
+#   total in scope          : 90
+#
+# WHY SUBCAMPAIGNS: tools/campaign.py binds ONE injector + ONE workload
+# binary per campaign, and its grid is a Cartesian product (paired axes
+# are not expressible). The minimal honest granularity is therefore
+# (D row x workload binary) — each subcampaign below is a COMPLETE,
+# campaign.py-runnable stanza. To run one:
+#
+#   python3 - <<'EOF'
+#   import yaml
+#   d = yaml.safe_load(open("campaigns/ooo-w85-fpsimd.yaml"))
+#   for i, sc in enumerate(d["subcampaigns"]):
+#       print(i, sc["campaign_id"])
+#   yaml.safe_dump(d["subcampaigns"][0], open("/tmp/sc.yaml", "w"),
+#                   sort_keys=False)
+#   EOF
+#   python3 tools/campaign.py /tmp/sc.yaml --jobs 4
+#
+# --dry (manifests only, no gem5) is honored on both the two_phase and
+# the legacy path.
+#
+# SEED SCHEME: base_seed = 85 * 1e6 + Dnum * 1000 + wl_idx * 10 —
+# deterministic, collision-free across subcampaigns; the two_phase rule
+# adds slot*100000 + rep (pilot slots 0-3, formal 10-13 by tier).
+#
+# TIER POLICY (02-doc six-step flow):
+#   * F0-F3 cells: two_phase with the MATRIX-PINNED tier set of that
+#     (D row x workload) group (the union of its E-rows' 适用频率 —
+#     the matrix pins F0/F1/F2 per cell; NO E-row anywhere carries F3).
+#     pilot_n 20, pick_top 2 (1 for single-tier), formal_n =
+#     ceil(2000 / n_binaries) per binary (suite 均摊 ruling:
+#     Embench 6 programs -> 334 each (total 2004); PolyBench 4 -> 500;
+#     浮点子集/混合 2 -> 1000; single-binary -> 2000).
+#     AMBIGUITY (documented, gap list): the W8 plan doc §2 words the
+#     pilot as "tiers [F0,F1,F2,F3]x20" (02 doc step 1 generic wording)
+#     while the expanded matrix pins per-cell tier sets and has no F3
+#     rows — an F3 formal selection would be UNBACKFILLABLE (no E-row).
+#     Default here = matrix-pinned set (every pilot/formal rep maps to
+#     exactly one E-row, zero waste). To add the F3 cliff-probing pilot
+#     arm anyway, append F3 to `tiers:` on the affected subcampaigns
+#     (pilot results still land in tier_selection.json).
+#   * F1（持续到运行结束）cells (drop_release): two_phase tiers [F1] —
+#     the model is single-shot with persistent effect; the F1 tier clock
+#     is the arm point. Documented decision.
+#   * F5 cells: LEGACY single-pass (F4/F5 are not pilot-selectable,
+#     campaign.py parse_two_phase), ooo.frequency_tier F5, n_per_cell
+#     = the 均摊 formal count, trigger_value 1000 (standard arm clock).
+#   * 事件触发 cells: LEGACY single-pass + counting block placeholder.
+#     The density is deliberately NOT filled (W8.1 must produce
+#     tools/event_density.py tables first) — campaign.py exits loudly
+#     on those stanzas until `density:` lands. Never fabricate a count.
+#
+# BACKFILL: manifests carry ooo {design_unit_id, workload(<matrix 负载
+# column string>), frequency_tier(per-rep)} — tools/backfill_expanded_
+# matrix.py resolves E-ids via the D x F x workload unique lookup.
+#
+# MERGED-ROW ALIAS (W7.2 口径: scalar-FP RAT twins share the
+# VecRegClass path with the vec rows): the PolyBench cells of
+# D62-D66 are the SAME runs as D67-D71's PolyBench subcampaigns
+# (identical component/model/sub_field/tier/binary). They are NOT
+# re-run; alias_map below documents the credit — the backfill side
+# needs an alias rule (gap list), or re-run them as duplicates.
+#============================================================================
+batch_id: ooo-w85
+subcampaigns:
+- campaign_id: ooo_w85_d56_decode_pb_gemm
+  schema_version: arm-chaos-fi/v1
+  injector: decode
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: opcode
+    width_bits: 32
+    sub_field: fp_opcode_bitflip
+    fault_model: transient_bit_flip
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 85056000
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/polybench/gemm/gemm
+    golden_id: polybenchgemm-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D56
+    workload: PolyBench
+  two_phase:
+    enabled: true
+    tiers:
+    - F0
+    - F1
+    pilot_n: 20
+    formal_n: 500
+    pick_top: 2
+- campaign_id: ooo_w85_d56_decode_pb_lu
+  schema_version: arm-chaos-fi/v1
+  injector: decode
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: opcode
+    width_bits: 32
+    sub_field: fp_opcode_bitflip
+    fault_model: transient_bit_flip
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 85056010
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/polybench/lu/lu
+    golden_id: polybenchlu-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D56
+    workload: PolyBench
+  two_phase:
+    enabled: true
+    tiers:
+    - F0
+    - F1
+    pilot_n: 20
+    formal_n: 500
+    pick_top: 2
+- campaign_id: ooo_w85_d56_decode_pb_cholesky
+  schema_version: arm-chaos-fi/v1
+  injector: decode
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: opcode
+    width_bits: 32
+    sub_field: fp_opcode_bitflip
+    fault_model: transient_bit_flip
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 85056020
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/polybench/cholesky/cholesky
+    golden_id: polybenchcholesky-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D56
+    workload: PolyBench
+  two_phase:
+    enabled: true
+    tiers:
+    - F0
+    - F1
+    pilot_n: 20
+    formal_n: 500
+    pick_top: 2
+- campaign_id: ooo_w85_d56_decode_pb_jacobi2d
+  schema_version: arm-chaos-fi/v1
+  injector: decode
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: opcode
+    width_bits: 32
+    sub_field: fp_opcode_bitflip
+    fault_model: transient_bit_flip
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 85056030
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/polybench/jacobi-2d/jacobi-2d
+    golden_id: polybenchjacobi2d-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D56
+    workload: PolyBench
+  two_phase:
+    enabled: true
+    tiers:
+    - F0
+    - F1
+    pilot_n: 20
+    formal_n: 500
+    pick_top: 2
+- campaign_id: ooo_w85_d56_decode_emb_nbody
+  schema_version: arm-chaos-fi/v1
+  injector: decode
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: opcode
+    width_bits: 32
+    sub_field: fp_opcode_bitflip
+    fault_model: transient_bit_flip
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 85056000
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/embench/nbody/nbody
+    golden_id: embenchnbody-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D56
+    workload: Embench（浮点子集）
+  two_phase:
+    enabled: true
+    tiers:
+    - F0
+    - F1
+    pilot_n: 20
+    formal_n: 1000
+    pick_top: 2
+- campaign_id: ooo_w85_d56_decode_emb_minver
+  schema_version: arm-chaos-fi/v1
+  injector: decode
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: opcode
+    width_bits: 32
+    sub_field: fp_opcode_bitflip
+    fault_model: transient_bit_flip
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 85056010
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/embench/minver/minver
+    golden_id: embenchminver-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D56
+    workload: Embench（浮点子集）
+  two_phase:
+    enabled: true
+    tiers:
+    - F0
+    - F1
+    pilot_n: 20
+    formal_n: 1000
+    pick_top: 2
+- campaign_id: ooo_w85_d57_decode_pb_gemm
+  schema_version: arm-chaos-fi/v1
+  injector: decode
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: opcode
+    width_bits: 32
+    sub_field: fp_opcode_bitflip2
+    fault_model: local_mbu
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 85057000
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/polybench/gemm/gemm
+    golden_id: polybenchgemm-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D57
+    workload: PolyBench
+  two_phase:
+    enabled: true
+    tiers:
+    - F0
+    pilot_n: 20
+    formal_n: 500
+    pick_top: 1
+- campaign_id: ooo_w85_d57_decode_pb_lu
+  schema_version: arm-chaos-fi/v1
+  injector: decode
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: opcode
+    width_bits: 32
+    sub_field: fp_opcode_bitflip2
+    fault_model: local_mbu
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 85057010
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/polybench/lu/lu
+    golden_id: polybenchlu-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D57
+    workload: PolyBench
+  two_phase:
+    enabled: true
+    tiers:
+    - F0
+    pilot_n: 20
+    formal_n: 500
+    pick_top: 1
+- campaign_id: ooo_w85_d57_decode_pb_cholesky
+  schema_version: arm-chaos-fi/v1
+  injector: decode
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: opcode
+    width_bits: 32
+    sub_field: fp_opcode_bitflip2
+    fault_model: local_mbu
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 85057020
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/polybench/cholesky/cholesky
+    golden_id: polybenchcholesky-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D57
+    workload: PolyBench
+  two_phase:
+    enabled: true
+    tiers:
+    - F0
+    pilot_n: 20
+    formal_n: 500
+    pick_top: 1
+- campaign_id: ooo_w85_d57_decode_pb_jacobi2d
+  schema_version: arm-chaos-fi/v1
+  injector: decode
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: opcode
+    width_bits: 32
+    sub_field: fp_opcode_bitflip2
+    fault_model: local_mbu
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 85057030
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/polybench/jacobi-2d/jacobi-2d
+    golden_id: polybenchjacobi2d-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D57
+    workload: PolyBench
+  two_phase:
+    enabled: true
+    tiers:
+    - F0
+    pilot_n: 20
+    formal_n: 500
+    pick_top: 1
+- campaign_id: ooo_w85_d57_decode_emb_nbody
+  schema_version: arm-chaos-fi/v1
+  injector: decode
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: opcode
+    width_bits: 32
+    sub_field: fp_opcode_bitflip2
+    fault_model: local_mbu
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 85057000
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/embench/nbody/nbody
+    golden_id: embenchnbody-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D57
+    workload: Embench（浮点子集）
+  two_phase:
+    enabled: true
+    tiers:
+    - F0
+    pilot_n: 20
+    formal_n: 1000
+    pick_top: 1
+- campaign_id: ooo_w85_d57_decode_emb_minver
+  schema_version: arm-chaos-fi/v1
+  injector: decode
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: opcode
+    width_bits: 32
+    sub_field: fp_opcode_bitflip2
+    fault_model: local_mbu
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 85057010
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/embench/minver/minver
+    golden_id: embenchminver-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D57
+    workload: Embench（浮点子集）
+  two_phase:
+    enabled: true
+    tiers:
+    - F0
+    pilot_n: 20
+    formal_n: 1000
+    pick_top: 1
+- campaign_id: ooo_w85_d58_decode_pb_gemm
+  schema_version: arm-chaos-fi/v1
+  injector: decode
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: opcode
+    width_bits: 32
+    sub_field: fp_opcode_swap
+    fault_model: legal_domain_sub
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 85058000
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/polybench/gemm/gemm
+    golden_id: polybenchgemm-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D58
+    workload: PolyBench
+  two_phase:
+    enabled: true
+    tiers:
+    - F0
+    - F1
+    pilot_n: 20
+    formal_n: 500
+    pick_top: 2
+- campaign_id: ooo_w85_d58_decode_pb_lu
+  schema_version: arm-chaos-fi/v1
+  injector: decode
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: opcode
+    width_bits: 32
+    sub_field: fp_opcode_swap
+    fault_model: legal_domain_sub
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 85058010
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/polybench/lu/lu
+    golden_id: polybenchlu-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D58
+    workload: PolyBench
+  two_phase:
+    enabled: true
+    tiers:
+    - F0
+    - F1
+    pilot_n: 20
+    formal_n: 500
+    pick_top: 2
+- campaign_id: ooo_w85_d58_decode_pb_cholesky
+  schema_version: arm-chaos-fi/v1
+  injector: decode
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: opcode
+    width_bits: 32
+    sub_field: fp_opcode_swap
+    fault_model: legal_domain_sub
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 85058020
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/polybench/cholesky/cholesky
+    golden_id: polybenchcholesky-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D58
+    workload: PolyBench
+  two_phase:
+    enabled: true
+    tiers:
+    - F0
+    - F1
+    pilot_n: 20
+    formal_n: 500
+    pick_top: 2
+- campaign_id: ooo_w85_d58_decode_pb_jacobi2d
+  schema_version: arm-chaos-fi/v1
+  injector: decode
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: opcode
+    width_bits: 32
+    sub_field: fp_opcode_swap
+    fault_model: legal_domain_sub
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 85058030
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/polybench/jacobi-2d/jacobi-2d
+    golden_id: polybenchjacobi2d-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D58
+    workload: PolyBench
+  two_phase:
+    enabled: true
+    tiers:
+    - F0
+    - F1
+    pilot_n: 20
+    formal_n: 500
+    pick_top: 2
+- campaign_id: ooo_w85_d58_decode_emb_nbody
+  schema_version: arm-chaos-fi/v1
+  injector: decode
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: opcode
+    width_bits: 32
+    sub_field: fp_opcode_swap
+    fault_model: legal_domain_sub
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 85058000
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/embench/nbody/nbody
+    golden_id: embenchnbody-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D58
+    workload: Embench（浮点子集）
+  two_phase:
+    enabled: true
+    tiers:
+    - F0
+    - F1
+    pilot_n: 20
+    formal_n: 1000
+    pick_top: 2
+- campaign_id: ooo_w85_d58_decode_emb_minver
+  schema_version: arm-chaos-fi/v1
+  injector: decode
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: opcode
+    width_bits: 32
+    sub_field: fp_opcode_swap
+    fault_model: legal_domain_sub
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 85058010
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/embench/minver/minver
+    golden_id: embenchminver-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D58
+    workload: Embench（浮点子集）
+  two_phase:
+    enabled: true
+    tiers:
+    - F0
+    - F1
+    pilot_n: 20
+    formal_n: 1000
+    pick_top: 2
+- campaign_id: ooo_w85_d59_decode_pb_gemm
+  schema_version: arm-chaos-fi/v1
+  injector: decode
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: reg_num
+    width_bits: 5
+    sub_field: fp_reg_bitflip
+    fault_model: transient_bit_flip
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 85059000
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/polybench/gemm/gemm
+    golden_id: polybenchgemm-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D59
+    workload: PolyBench
+  two_phase:
+    enabled: true
+    tiers:
+    - F0
+    - F1
+    - F2
+    pilot_n: 20
+    formal_n: 500
+    pick_top: 2
+- campaign_id: ooo_w85_d59_decode_pb_lu
+  schema_version: arm-chaos-fi/v1
+  injector: decode
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: reg_num
+    width_bits: 5
+    sub_field: fp_reg_bitflip
+    fault_model: transient_bit_flip
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 85059010
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/polybench/lu/lu
+    golden_id: polybenchlu-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D59
+    workload: PolyBench
+  two_phase:
+    enabled: true
+    tiers:
+    - F0
+    - F1
+    - F2
+    pilot_n: 20
+    formal_n: 500
+    pick_top: 2
+- campaign_id: ooo_w85_d59_decode_pb_cholesky
+  schema_version: arm-chaos-fi/v1
+  injector: decode
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: reg_num
+    width_bits: 5
+    sub_field: fp_reg_bitflip
+    fault_model: transient_bit_flip
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 85059020
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/polybench/cholesky/cholesky
+    golden_id: polybenchcholesky-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D59
+    workload: PolyBench
+  two_phase:
+    enabled: true
+    tiers:
+    - F0
+    - F1
+    - F2
+    pilot_n: 20
+    formal_n: 500
+    pick_top: 2
+- campaign_id: ooo_w85_d59_decode_pb_jacobi2d
+  schema_version: arm-chaos-fi/v1
+  injector: decode
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: reg_num
+    width_bits: 5
+    sub_field: fp_reg_bitflip
+    fault_model: transient_bit_flip
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 85059030
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/polybench/jacobi-2d/jacobi-2d
+    golden_id: polybenchjacobi2d-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D59
+    workload: PolyBench
+  two_phase:
+    enabled: true
+    tiers:
+    - F0
+    - F1
+    - F2
+    pilot_n: 20
+    formal_n: 500
+    pick_top: 2
+- campaign_id: ooo_w85_d59_decode_jpeg
+  schema_version: arm-chaos-fi/v1
+  injector: decode
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: reg_num
+    width_bits: 5
+    sub_field: fp_reg_bitflip
+    fault_model: transient_bit_flip
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 85059000
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/libjpeg/jpeg_wl
+    golden_id: libjpeg-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D59
+    workload: libjpeg-turbo
+  two_phase:
+    enabled: true
+    tiers:
+    - F0
+    - F1
+    - F2
+    pilot_n: 20
+    formal_n: 2000
+    pick_top: 2
+- campaign_id: ooo_w85_d60_decode_pb_gemm
+  schema_version: arm-chaos-fi/v1
+  injector: decode
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: reg_num
+    width_bits: 5
+    sub_field: fp_reg_bitflip2
+    fault_model: local_mbu
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 85060000
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/polybench/gemm/gemm
+    golden_id: polybenchgemm-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D60
+    workload: PolyBench
+  two_phase:
+    enabled: true
+    tiers:
+    - F0
+    - F1
+    pilot_n: 20
+    formal_n: 500
+    pick_top: 2
+- campaign_id: ooo_w85_d60_decode_pb_lu
+  schema_version: arm-chaos-fi/v1
+  injector: decode
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: reg_num
+    width_bits: 5
+    sub_field: fp_reg_bitflip2
+    fault_model: local_mbu
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 85060010
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/polybench/lu/lu
+    golden_id: polybenchlu-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D60
+    workload: PolyBench
+  two_phase:
+    enabled: true
+    tiers:
+    - F0
+    - F1
+    pilot_n: 20
+    formal_n: 500
+    pick_top: 2
+- campaign_id: ooo_w85_d60_decode_pb_cholesky
+  schema_version: arm-chaos-fi/v1
+  injector: decode
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: reg_num
+    width_bits: 5
+    sub_field: fp_reg_bitflip2
+    fault_model: local_mbu
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 85060020
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/polybench/cholesky/cholesky
+    golden_id: polybenchcholesky-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D60
+    workload: PolyBench
+  two_phase:
+    enabled: true
+    tiers:
+    - F0
+    - F1
+    pilot_n: 20
+    formal_n: 500
+    pick_top: 2
+- campaign_id: ooo_w85_d60_decode_pb_jacobi2d
+  schema_version: arm-chaos-fi/v1
+  injector: decode
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: reg_num
+    width_bits: 5
+    sub_field: fp_reg_bitflip2
+    fault_model: local_mbu
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 85060030
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/polybench/jacobi-2d/jacobi-2d
+    golden_id: polybenchjacobi2d-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D60
+    workload: PolyBench
+  two_phase:
+    enabled: true
+    tiers:
+    - F0
+    - F1
+    pilot_n: 20
+    formal_n: 500
+    pick_top: 2
+- campaign_id: ooo_w85_d60_decode_jpeg
+  schema_version: arm-chaos-fi/v1
+  injector: decode
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: reg_num
+    width_bits: 5
+    sub_field: fp_reg_bitflip2
+    fault_model: local_mbu
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 85060000
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/libjpeg/jpeg_wl
+    golden_id: libjpeg-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D60
+    workload: libjpeg-turbo
+  two_phase:
+    enabled: true
+    tiers:
+    - F0
+    - F1
+    pilot_n: 20
+    formal_n: 2000
+    pick_top: 2
+- campaign_id: ooo_w85_d61_decode_emb_nbody
+  schema_version: arm-chaos-fi/v1
+  injector: decode
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: route_bit
+    width_bits: 1
+    sub_field: fp_route_bit
+    fault_model: transient_bit_flip
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 85061000
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/embench/nbody/nbody
+    golden_id: embenchnbody-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D61
+    workload: Embench（含整数/浮点混合的程序）
+  two_phase:
+    enabled: true
+    tiers:
+    - F1
+    - F2
+    pilot_n: 20
+    formal_n: 1000
+    pick_top: 2
+- campaign_id: ooo_w85_d61_decode_emb_minver
+  schema_version: arm-chaos-fi/v1
+  injector: decode
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: route_bit
+    width_bits: 1
+    sub_field: fp_route_bit
+    fault_model: transient_bit_flip
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 85061010
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/embench/minver/minver
+    golden_id: embenchminver-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D61
+    workload: Embench（含整数/浮点混合的程序）
+  two_phase:
+    enabled: true
+    tiers:
+    - F1
+    - F2
+    pilot_n: 20
+    formal_n: 1000
+    pick_top: 2
+- campaign_id: ooo_w85_d62_rat_emb_nbody
+  schema_version: arm-chaos-fi/v1
+  injector: rat
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: map
+    width_bits: 6
+    sub_field: map_bitflip_vec
+    fault_model: transient_bit_flip
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 85062000
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/embench/nbody/nbody
+    golden_id: embenchnbody-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D62
+    workload: Embench（浮点子集）
+  two_phase:
+    enabled: true
+    tiers:
+    - F0
+    - F1
+    pilot_n: 20
+    formal_n: 1000
+    pick_top: 2
+- campaign_id: ooo_w85_d62_rat_emb_minver
+  schema_version: arm-chaos-fi/v1
+  injector: rat
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: map
+    width_bits: 6
+    sub_field: map_bitflip_vec
+    fault_model: transient_bit_flip
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 85062010
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/embench/minver/minver
+    golden_id: embenchminver-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D62
+    workload: Embench（浮点子集）
+  two_phase:
+    enabled: true
+    tiers:
+    - F0
+    - F1
+    pilot_n: 20
+    formal_n: 1000
+    pick_top: 2
+- campaign_id: ooo_w85_d63_rat_emb_nbody
+  schema_version: arm-chaos-fi/v1
+  injector: rat
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: map
+    width_bits: 6
+    sub_field: map_bitflip2_vec
+    fault_model: local_mbu
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 85063000
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/embench/nbody/nbody
+    golden_id: embenchnbody-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D63
+    workload: Embench（浮点子集）
+  two_phase:
+    enabled: true
+    tiers:
+    - F0
+    pilot_n: 20
+    formal_n: 1000
+    pick_top: 1
+- campaign_id: ooo_w85_d63_rat_emb_minver
+  schema_version: arm-chaos-fi/v1
+  injector: rat
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: map
+    width_bits: 6
+    sub_field: map_bitflip2_vec
+    fault_model: local_mbu
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 85063010
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/embench/minver/minver
+    golden_id: embenchminver-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D63
+    workload: Embench（浮点子集）
+  two_phase:
+    enabled: true
+    tiers:
+    - F0
+    pilot_n: 20
+    formal_n: 1000
+    pick_top: 1
+- campaign_id: ooo_w85_d64_rat_emb_nbody
+  schema_version: arm-chaos-fi/v1
+  injector: rat
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: map
+    width_bits: 6
+    sub_field: swap_to_active_vec
+    fault_model: legal_domain_sub
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 85064000
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/embench/nbody/nbody
+    golden_id: embenchnbody-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D64
+    workload: Embench（浮点子集）
+  two_phase:
+    enabled: true
+    tiers:
+    - F0
+    - F1
+    pilot_n: 20
+    formal_n: 1000
+    pick_top: 2
+- campaign_id: ooo_w85_d64_rat_emb_minver
+  schema_version: arm-chaos-fi/v1
+  injector: rat
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: map
+    width_bits: 6
+    sub_field: swap_to_active_vec
+    fault_model: legal_domain_sub
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 85064010
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/embench/minver/minver
+    golden_id: embenchminver-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D64
+    workload: Embench（浮点子集）
+  two_phase:
+    enabled: true
+    tiers:
+    - F0
+    - F1
+    pilot_n: 20
+    formal_n: 1000
+    pick_top: 2
+- campaign_id: ooo_w85_d65_rat_emb_nbody
+  schema_version: arm-chaos-fi/v1
+  injector: rat
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: map
+    width_bits: 6
+    sub_field: f5_rat_stuck_vec
+    fault_model: stuck_at_zero
+    protection_model: none
+  n_per_cell: 1000
+  base_seed: 85065000
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/embench/nbody/nbody
+    golden_id: embenchnbody-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D65
+    workload: Embench（浮点子集）
+    frequency_tier: F5
+- campaign_id: ooo_w85_d65_rat_emb_minver
+  schema_version: arm-chaos-fi/v1
+  injector: rat
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: map
+    width_bits: 6
+    sub_field: f5_rat_stuck_vec
+    fault_model: stuck_at_zero
+    protection_model: none
+  n_per_cell: 1000
+  base_seed: 85065010
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/embench/minver/minver
+    golden_id: embenchminver-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D65
+    workload: Embench（浮点子集）
+    frequency_tier: F5
+- campaign_id: ooo_w85_d66_rat_emb_nbody
+  schema_version: arm-chaos-fi/v1
+  injector: rat
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: map
+    width_bits: 6
+    sub_field: stale_read_vec
+    fault_model: delay_omission
+    protection_model: none
+  n_per_cell: 2000
+  base_seed: 85066000
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/embench/nbody/nbody
+    golden_id: embenchnbody-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D66
+    workload: Embench（浮点子集）
+    frequency_tier: 事件触发
+  counting:
+    mode: event_coverage
+    target_events: 2000
+    _TODO_density: 'W8.1 后核实: run tools/event_density.py on this (D,binary) pair and fill `density: <events/run>`
+      (or density_table+event). campaign.py exits loudly on this stanza until then — intentional, never
+      fabricate a count.'
+- campaign_id: ooo_w85_d66_rat_emb_minver
+  schema_version: arm-chaos-fi/v1
+  injector: rat
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: map
+    width_bits: 6
+    sub_field: stale_read_vec
+    fault_model: delay_omission
+    protection_model: none
+  n_per_cell: 2000
+  base_seed: 85066010
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/embench/minver/minver
+    golden_id: embenchminver-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D66
+    workload: Embench（浮点子集）
+    frequency_tier: 事件触发
+  counting:
+    mode: event_coverage
+    target_events: 2000
+    _TODO_density: 'W8.1 后核实: run tools/event_density.py on this (D,binary) pair and fill `density: <events/run>`
+      (or density_table+event). campaign.py exits loudly on this stanza until then — intentional, never
+      fabricate a count.'
+- campaign_id: ooo_w85_d67_rat_pb_gemm
+  schema_version: arm-chaos-fi/v1
+  injector: rat
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: map
+    width_bits: 6
+    sub_field: map_bitflip_vec
+    fault_model: transient_bit_flip
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 85067000
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/polybench/gemm/gemm
+    golden_id: polybenchgemm-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D67
+    workload: PolyBench
+  two_phase:
+    enabled: true
+    tiers:
+    - F0
+    - F1
+    pilot_n: 20
+    formal_n: 500
+    pick_top: 2
+- campaign_id: ooo_w85_d67_rat_pb_lu
+  schema_version: arm-chaos-fi/v1
+  injector: rat
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: map
+    width_bits: 6
+    sub_field: map_bitflip_vec
+    fault_model: transient_bit_flip
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 85067010
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/polybench/lu/lu
+    golden_id: polybenchlu-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D67
+    workload: PolyBench
+  two_phase:
+    enabled: true
+    tiers:
+    - F0
+    - F1
+    pilot_n: 20
+    formal_n: 500
+    pick_top: 2
+- campaign_id: ooo_w85_d67_rat_pb_cholesky
+  schema_version: arm-chaos-fi/v1
+  injector: rat
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: map
+    width_bits: 6
+    sub_field: map_bitflip_vec
+    fault_model: transient_bit_flip
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 85067020
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/polybench/cholesky/cholesky
+    golden_id: polybenchcholesky-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D67
+    workload: PolyBench
+  two_phase:
+    enabled: true
+    tiers:
+    - F0
+    - F1
+    pilot_n: 20
+    formal_n: 500
+    pick_top: 2
+- campaign_id: ooo_w85_d67_rat_pb_jacobi2d
+  schema_version: arm-chaos-fi/v1
+  injector: rat
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: map
+    width_bits: 6
+    sub_field: map_bitflip_vec
+    fault_model: transient_bit_flip
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 85067030
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/polybench/jacobi-2d/jacobi-2d
+    golden_id: polybenchjacobi2d-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D67
+    workload: PolyBench
+  two_phase:
+    enabled: true
+    tiers:
+    - F0
+    - F1
+    pilot_n: 20
+    formal_n: 500
+    pick_top: 2
+- campaign_id: ooo_w85_d67_rat_jpeg
+  schema_version: arm-chaos-fi/v1
+  injector: rat
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: map
+    width_bits: 6
+    sub_field: map_bitflip_vec
+    fault_model: transient_bit_flip
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 85067000
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/libjpeg/jpeg_wl
+    golden_id: libjpeg-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D67
+    workload: libjpeg-turbo
+  two_phase:
+    enabled: true
+    tiers:
+    - F0
+    - F1
+    pilot_n: 20
+    formal_n: 2000
+    pick_top: 2
+- campaign_id: ooo_w85_d68_rat_pb_gemm
+  schema_version: arm-chaos-fi/v1
+  injector: rat
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: map
+    width_bits: 6
+    sub_field: map_bitflip2_vec
+    fault_model: local_mbu
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 85068000
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/polybench/gemm/gemm
+    golden_id: polybenchgemm-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D68
+    workload: PolyBench
+  two_phase:
+    enabled: true
+    tiers:
+    - F0
+    pilot_n: 20
+    formal_n: 500
+    pick_top: 1
+- campaign_id: ooo_w85_d68_rat_pb_lu
+  schema_version: arm-chaos-fi/v1
+  injector: rat
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: map
+    width_bits: 6
+    sub_field: map_bitflip2_vec
+    fault_model: local_mbu
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 85068010
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/polybench/lu/lu
+    golden_id: polybenchlu-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D68
+    workload: PolyBench
+  two_phase:
+    enabled: true
+    tiers:
+    - F0
+    pilot_n: 20
+    formal_n: 500
+    pick_top: 1
+- campaign_id: ooo_w85_d68_rat_pb_cholesky
+  schema_version: arm-chaos-fi/v1
+  injector: rat
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: map
+    width_bits: 6
+    sub_field: map_bitflip2_vec
+    fault_model: local_mbu
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 85068020
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/polybench/cholesky/cholesky
+    golden_id: polybenchcholesky-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D68
+    workload: PolyBench
+  two_phase:
+    enabled: true
+    tiers:
+    - F0
+    pilot_n: 20
+    formal_n: 500
+    pick_top: 1
+- campaign_id: ooo_w85_d68_rat_pb_jacobi2d
+  schema_version: arm-chaos-fi/v1
+  injector: rat
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: map
+    width_bits: 6
+    sub_field: map_bitflip2_vec
+    fault_model: local_mbu
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 85068030
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/polybench/jacobi-2d/jacobi-2d
+    golden_id: polybenchjacobi2d-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D68
+    workload: PolyBench
+  two_phase:
+    enabled: true
+    tiers:
+    - F0
+    pilot_n: 20
+    formal_n: 500
+    pick_top: 1
+- campaign_id: ooo_w85_d68_rat_jpeg
+  schema_version: arm-chaos-fi/v1
+  injector: rat
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: map
+    width_bits: 6
+    sub_field: map_bitflip2_vec
+    fault_model: local_mbu
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 85068000
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/libjpeg/jpeg_wl
+    golden_id: libjpeg-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D68
+    workload: libjpeg-turbo
+  two_phase:
+    enabled: true
+    tiers:
+    - F0
+    pilot_n: 20
+    formal_n: 2000
+    pick_top: 1
+- campaign_id: ooo_w85_d69_rat_pb_gemm
+  schema_version: arm-chaos-fi/v1
+  injector: rat
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: map
+    width_bits: 6
+    sub_field: swap_to_active_vec
+    fault_model: legal_domain_sub
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 85069000
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/polybench/gemm/gemm
+    golden_id: polybenchgemm-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D69
+    workload: PolyBench
+  two_phase:
+    enabled: true
+    tiers:
+    - F0
+    - F1
+    pilot_n: 20
+    formal_n: 500
+    pick_top: 2
+- campaign_id: ooo_w85_d69_rat_pb_lu
+  schema_version: arm-chaos-fi/v1
+  injector: rat
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: map
+    width_bits: 6
+    sub_field: swap_to_active_vec
+    fault_model: legal_domain_sub
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 85069010
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/polybench/lu/lu
+    golden_id: polybenchlu-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D69
+    workload: PolyBench
+  two_phase:
+    enabled: true
+    tiers:
+    - F0
+    - F1
+    pilot_n: 20
+    formal_n: 500
+    pick_top: 2
+- campaign_id: ooo_w85_d69_rat_pb_cholesky
+  schema_version: arm-chaos-fi/v1
+  injector: rat
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: map
+    width_bits: 6
+    sub_field: swap_to_active_vec
+    fault_model: legal_domain_sub
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 85069020
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/polybench/cholesky/cholesky
+    golden_id: polybenchcholesky-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D69
+    workload: PolyBench
+  two_phase:
+    enabled: true
+    tiers:
+    - F0
+    - F1
+    pilot_n: 20
+    formal_n: 500
+    pick_top: 2
+- campaign_id: ooo_w85_d69_rat_pb_jacobi2d
+  schema_version: arm-chaos-fi/v1
+  injector: rat
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: map
+    width_bits: 6
+    sub_field: swap_to_active_vec
+    fault_model: legal_domain_sub
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 85069030
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/polybench/jacobi-2d/jacobi-2d
+    golden_id: polybenchjacobi2d-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D69
+    workload: PolyBench
+  two_phase:
+    enabled: true
+    tiers:
+    - F0
+    - F1
+    pilot_n: 20
+    formal_n: 500
+    pick_top: 2
+- campaign_id: ooo_w85_d69_rat_jpeg
+  schema_version: arm-chaos-fi/v1
+  injector: rat
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: map
+    width_bits: 6
+    sub_field: swap_to_active_vec
+    fault_model: legal_domain_sub
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 85069000
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/libjpeg/jpeg_wl
+    golden_id: libjpeg-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D69
+    workload: libjpeg-turbo
+  two_phase:
+    enabled: true
+    tiers:
+    - F0
+    - F1
+    pilot_n: 20
+    formal_n: 2000
+    pick_top: 2
+- campaign_id: ooo_w85_d70_rat_pb_gemm
+  schema_version: arm-chaos-fi/v1
+  injector: rat
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: map
+    width_bits: 6
+    sub_field: f5_rat_stuck_vec
+    fault_model: stuck_at_zero
+    protection_model: none
+  n_per_cell: 500
+  base_seed: 85070000
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/polybench/gemm/gemm
+    golden_id: polybenchgemm-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D70
+    workload: PolyBench
+    frequency_tier: F5
+- campaign_id: ooo_w85_d70_rat_pb_lu
+  schema_version: arm-chaos-fi/v1
+  injector: rat
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: map
+    width_bits: 6
+    sub_field: f5_rat_stuck_vec
+    fault_model: stuck_at_zero
+    protection_model: none
+  n_per_cell: 500
+  base_seed: 85070010
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/polybench/lu/lu
+    golden_id: polybenchlu-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D70
+    workload: PolyBench
+    frequency_tier: F5
+- campaign_id: ooo_w85_d70_rat_pb_cholesky
+  schema_version: arm-chaos-fi/v1
+  injector: rat
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: map
+    width_bits: 6
+    sub_field: f5_rat_stuck_vec
+    fault_model: stuck_at_zero
+    protection_model: none
+  n_per_cell: 500
+  base_seed: 85070020
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/polybench/cholesky/cholesky
+    golden_id: polybenchcholesky-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D70
+    workload: PolyBench
+    frequency_tier: F5
+- campaign_id: ooo_w85_d70_rat_pb_jacobi2d
+  schema_version: arm-chaos-fi/v1
+  injector: rat
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: map
+    width_bits: 6
+    sub_field: f5_rat_stuck_vec
+    fault_model: stuck_at_zero
+    protection_model: none
+  n_per_cell: 500
+  base_seed: 85070030
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/polybench/jacobi-2d/jacobi-2d
+    golden_id: polybenchjacobi2d-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D70
+    workload: PolyBench
+    frequency_tier: F5
+- campaign_id: ooo_w85_d70_rat_jpeg
+  schema_version: arm-chaos-fi/v1
+  injector: rat
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: map
+    width_bits: 6
+    sub_field: f5_rat_stuck_vec
+    fault_model: stuck_at_zero
+    protection_model: none
+  n_per_cell: 2000
+  base_seed: 85070000
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/libjpeg/jpeg_wl
+    golden_id: libjpeg-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D70
+    workload: libjpeg-turbo
+    frequency_tier: F5
+- campaign_id: ooo_w85_d71_rat_pb_gemm
+  schema_version: arm-chaos-fi/v1
+  injector: rat
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: map
+    width_bits: 6
+    sub_field: stale_read_vec
+    fault_model: delay_omission
+    protection_model: none
+  n_per_cell: 2000
+  base_seed: 85071000
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/polybench/gemm/gemm
+    golden_id: polybenchgemm-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D71
+    workload: PolyBench
+    frequency_tier: 事件触发
+  counting:
+    mode: event_coverage
+    target_events: 2000
+    _TODO_density: 'W8.1 后核实: run tools/event_density.py on this (D,binary) pair and fill `density: <events/run>`
+      (or density_table+event). campaign.py exits loudly on this stanza until then — intentional, never
+      fabricate a count.'
+- campaign_id: ooo_w85_d71_rat_pb_lu
+  schema_version: arm-chaos-fi/v1
+  injector: rat
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: map
+    width_bits: 6
+    sub_field: stale_read_vec
+    fault_model: delay_omission
+    protection_model: none
+  n_per_cell: 2000
+  base_seed: 85071010
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/polybench/lu/lu
+    golden_id: polybenchlu-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D71
+    workload: PolyBench
+    frequency_tier: 事件触发
+  counting:
+    mode: event_coverage
+    target_events: 2000
+    _TODO_density: 'W8.1 后核实: run tools/event_density.py on this (D,binary) pair and fill `density: <events/run>`
+      (or density_table+event). campaign.py exits loudly on this stanza until then — intentional, never
+      fabricate a count.'
+- campaign_id: ooo_w85_d71_rat_pb_cholesky
+  schema_version: arm-chaos-fi/v1
+  injector: rat
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: map
+    width_bits: 6
+    sub_field: stale_read_vec
+    fault_model: delay_omission
+    protection_model: none
+  n_per_cell: 2000
+  base_seed: 85071020
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/polybench/cholesky/cholesky
+    golden_id: polybenchcholesky-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D71
+    workload: PolyBench
+    frequency_tier: 事件触发
+  counting:
+    mode: event_coverage
+    target_events: 2000
+    _TODO_density: 'W8.1 后核实: run tools/event_density.py on this (D,binary) pair and fill `density: <events/run>`
+      (or density_table+event). campaign.py exits loudly on this stanza until then — intentional, never
+      fabricate a count.'
+- campaign_id: ooo_w85_d71_rat_pb_jacobi2d
+  schema_version: arm-chaos-fi/v1
+  injector: rat
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: map
+    width_bits: 6
+    sub_field: stale_read_vec
+    fault_model: delay_omission
+    protection_model: none
+  n_per_cell: 2000
+  base_seed: 85071030
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/polybench/jacobi-2d/jacobi-2d
+    golden_id: polybenchjacobi2d-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D71
+    workload: PolyBench
+    frequency_tier: 事件触发
+  counting:
+    mode: event_coverage
+    target_events: 2000
+    _TODO_density: 'W8.1 后核实: run tools/event_density.py on this (D,binary) pair and fill `density: <events/run>`
+      (or density_table+event). campaign.py exits loudly on this stanza until then — intentional, never
+      fabricate a count.'
+- campaign_id: ooo_w85_d71_rat_jpeg
+  schema_version: arm-chaos-fi/v1
+  injector: rat
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: map
+    width_bits: 6
+    sub_field: stale_read_vec
+    fault_model: delay_omission
+    protection_model: none
+  n_per_cell: 2000
+  base_seed: 85071000
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/libjpeg/jpeg_wl
+    golden_id: libjpeg-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D71
+    workload: libjpeg-turbo
+    frequency_tier: 事件触发
+  counting:
+    mode: event_coverage
+    target_events: 2000
+    _TODO_density: 'W8.1 后核实: run tools/event_density.py on this (D,binary) pair and fill `density: <events/run>`
+      (or density_table+event). campaign.py exits loudly on this stanza until then — intentional, never
+      fabricate a count.'
+- campaign_id: ooo_w85_d72_freelist_dep_chain
+  schema_version: arm-chaos-fi/v1
+  injector: freelist
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: free_list
+    width_bits: 6
+    sub_field: mark_free_vec
+    fault_model: transient_bit_flip
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 85072000
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/dep_chain/dep_chain
+    golden_id: depchainint-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D72
+    workload: 长依赖链压力核
+  two_phase:
+    enabled: true
+    tiers:
+    - F1
+    - F2
+    pilot_n: 20
+    formal_n: 2000
+    pick_top: 2
+- campaign_id: ooo_w85_d73_freelist_dep_chain
+  schema_version: arm-chaos-fi/v1
+  injector: freelist
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: free_list
+    width_bits: 6
+    sub_field: mark_free_event_vec
+    fault_model: transient_bit_flip
+    protection_model: none
+  n_per_cell: 2000
+  base_seed: 85073000
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/dep_chain/dep_chain
+    golden_id: depchainint-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D73
+    workload: 长依赖链压力核
+    frequency_tier: 事件触发
+  counting:
+    mode: event_coverage
+    target_events: 2000
+    _TODO_density: 'W8.1 后核实: run tools/event_density.py on this (D,binary) pair and fill `density: <events/run>`
+      (or density_table+event). campaign.py exits loudly on this stanza until then — intentional, never
+      fabricate a count.'
+- campaign_id: ooo_w85_d74_freelist_dep_chain_vec
+  schema_version: arm-chaos-fi/v1
+  injector: freelist
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: free_list
+    width_bits: 6
+    sub_field: mark_free_vec
+    fault_model: transient_bit_flip
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 85074000
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/dep_chain/dep_chain_vec
+    golden_id: depchainvec-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D74
+    workload: 长依赖链压力核（向量版：用向量累加链）
+  two_phase:
+    enabled: true
+    tiers:
+    - F1
+    - F2
+    pilot_n: 20
+    formal_n: 2000
+    pick_top: 2
+- campaign_id: ooo_w85_d75_freelist_dep_chain_vec
+  schema_version: arm-chaos-fi/v1
+  injector: freelist
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: free_list
+    width_bits: 6
+    sub_field: mark_free_event_vec
+    fault_model: transient_bit_flip
+    protection_model: none
+  n_per_cell: 2000
+  base_seed: 85075000
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/dep_chain/dep_chain_vec
+    golden_id: depchainvec-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D75
+    workload: 长依赖链压力核（向量版：用向量累加链）
+    frequency_tier: 事件触发
+  counting:
+    mode: event_coverage
+    target_events: 2000
+    _TODO_density: 'W8.1 后核实: run tools/event_density.py on this (D,binary) pair and fill `density: <events/run>`
+      (or density_table+event). campaign.py exits loudly on this stanza until then — intentional, never
+      fabricate a count.'
+- campaign_id: ooo_w85_d76_freelist_pb_gemm
+  schema_version: arm-chaos-fi/v1
+  injector: freelist
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: free_list
+    width_bits: 6
+    sub_field: drop_release_vec
+    fault_model: delay_omission
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 85076000
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/polybench/gemm/gemm
+    golden_id: polybenchgemm-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D76
+    workload: PolyBench
+  two_phase:
+    enabled: true
+    tiers:
+    - F1
+    pilot_n: 20
+    formal_n: 500
+    pick_top: 1
+- campaign_id: ooo_w85_d76_freelist_pb_lu
+  schema_version: arm-chaos-fi/v1
+  injector: freelist
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: free_list
+    width_bits: 6
+    sub_field: drop_release_vec
+    fault_model: delay_omission
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 85076010
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/polybench/lu/lu
+    golden_id: polybenchlu-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D76
+    workload: PolyBench
+  two_phase:
+    enabled: true
+    tiers:
+    - F1
+    pilot_n: 20
+    formal_n: 500
+    pick_top: 1
+- campaign_id: ooo_w85_d76_freelist_pb_cholesky
+  schema_version: arm-chaos-fi/v1
+  injector: freelist
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: free_list
+    width_bits: 6
+    sub_field: drop_release_vec
+    fault_model: delay_omission
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 85076020
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/polybench/cholesky/cholesky
+    golden_id: polybenchcholesky-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D76
+    workload: PolyBench
+  two_phase:
+    enabled: true
+    tiers:
+    - F1
+    pilot_n: 20
+    formal_n: 500
+    pick_top: 1
+- campaign_id: ooo_w85_d76_freelist_pb_jacobi2d
+  schema_version: arm-chaos-fi/v1
+  injector: freelist
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: free_list
+    width_bits: 6
+    sub_field: drop_release_vec
+    fault_model: delay_omission
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 85076030
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/polybench/jacobi-2d/jacobi-2d
+    golden_id: polybenchjacobi2d-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D76
+    workload: PolyBench
+  two_phase:
+    enabled: true
+    tiers:
+    - F1
+    pilot_n: 20
+    formal_n: 500
+    pick_top: 1
+- campaign_id: ooo_w85_d77_freelist_dep_chain_vec
+  schema_version: arm-chaos-fi/v1
+  injector: freelist
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: free_list
+    width_bits: 6
+    sub_field: drop_release_vec
+    fault_model: delay_omission
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 85077000
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/dep_chain/dep_chain_vec
+    golden_id: depchainvec-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D77
+    workload: 长依赖链压力核（向量版）
+  two_phase:
+    enabled: true
+    tiers:
+    - F1
+    pilot_n: 20
+    formal_n: 2000
+    pick_top: 1
+- campaign_id: ooo_w85_d83_rob_pb_gemm
+  schema_version: arm-chaos-fi/v1
+  injector: rob
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: pc
+    width_bits: 64
+    sub_field: pc_bitflip
+    fault_model: transient_bit_flip
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 85083000
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/polybench/gemm/gemm
+    golden_id: polybenchgemm-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D83
+    workload: PolyBench
+  two_phase:
+    enabled: true
+    tiers:
+    - F0
+    pilot_n: 20
+    formal_n: 500
+    pick_top: 1
+- campaign_id: ooo_w85_d83_rob_pb_lu
+  schema_version: arm-chaos-fi/v1
+  injector: rob
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: pc
+    width_bits: 64
+    sub_field: pc_bitflip
+    fault_model: transient_bit_flip
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 85083010
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/polybench/lu/lu
+    golden_id: polybenchlu-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D83
+    workload: PolyBench
+  two_phase:
+    enabled: true
+    tiers:
+    - F0
+    pilot_n: 20
+    formal_n: 500
+    pick_top: 1
+- campaign_id: ooo_w85_d83_rob_pb_cholesky
+  schema_version: arm-chaos-fi/v1
+  injector: rob
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: pc
+    width_bits: 64
+    sub_field: pc_bitflip
+    fault_model: transient_bit_flip
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 85083020
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/polybench/cholesky/cholesky
+    golden_id: polybenchcholesky-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D83
+    workload: PolyBench
+  two_phase:
+    enabled: true
+    tiers:
+    - F0
+    pilot_n: 20
+    formal_n: 500
+    pick_top: 1
+- campaign_id: ooo_w85_d83_rob_pb_jacobi2d
+  schema_version: arm-chaos-fi/v1
+  injector: rob
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: pc
+    width_bits: 64
+    sub_field: pc_bitflip
+    fault_model: transient_bit_flip
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 85083030
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/polybench/jacobi-2d/jacobi-2d
+    golden_id: polybenchjacobi2d-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D83
+    workload: PolyBench
+  two_phase:
+    enabled: true
+    tiers:
+    - F0
+    pilot_n: 20
+    formal_n: 500
+    pick_top: 1
+- campaign_id: ooo_w85_d83_rob_emb_nbody
+  schema_version: arm-chaos-fi/v1
+  injector: rob
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: pc
+    width_bits: 64
+    sub_field: pc_bitflip
+    fault_model: transient_bit_flip
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 85083000
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/embench/nbody/nbody
+    golden_id: embenchnbody-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D83
+    workload: Embench（浮点子集）
+  two_phase:
+    enabled: true
+    tiers:
+    - F0
+    pilot_n: 20
+    formal_n: 1000
+    pick_top: 1
+- campaign_id: ooo_w85_d83_rob_emb_minver
+  schema_version: arm-chaos-fi/v1
+  injector: rob
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: pc
+    width_bits: 64
+    sub_field: pc_bitflip
+    fault_model: transient_bit_flip
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 85083010
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/embench/minver/minver
+    golden_id: embenchminver-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D83
+    workload: Embench（浮点子集）
+  two_phase:
+    enabled: true
+    tiers:
+    - F0
+    pilot_n: 20
+    formal_n: 1000
+    pick_top: 1
+- campaign_id: ooo_w85_d84_rob_pb_gemm
+  schema_version: arm-chaos-fi/v1
+  injector: rob
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: done_bit
+    width_bits: 1
+    sub_field: done_early
+    fault_model: delay_omission
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 85084000
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/polybench/gemm/gemm
+    golden_id: polybenchgemm-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D84
+    workload: PolyBench
+  two_phase:
+    enabled: true
+    tiers:
+    - F1
+    - F2
+    pilot_n: 20
+    formal_n: 500
+    pick_top: 2
+- campaign_id: ooo_w85_d84_rob_pb_lu
+  schema_version: arm-chaos-fi/v1
+  injector: rob
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: done_bit
+    width_bits: 1
+    sub_field: done_early
+    fault_model: delay_omission
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 85084010
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/polybench/lu/lu
+    golden_id: polybenchlu-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D84
+    workload: PolyBench
+  two_phase:
+    enabled: true
+    tiers:
+    - F1
+    - F2
+    pilot_n: 20
+    formal_n: 500
+    pick_top: 2
+- campaign_id: ooo_w85_d84_rob_pb_cholesky
+  schema_version: arm-chaos-fi/v1
+  injector: rob
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: done_bit
+    width_bits: 1
+    sub_field: done_early
+    fault_model: delay_omission
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 85084020
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/polybench/cholesky/cholesky
+    golden_id: polybenchcholesky-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D84
+    workload: PolyBench
+  two_phase:
+    enabled: true
+    tiers:
+    - F1
+    - F2
+    pilot_n: 20
+    formal_n: 500
+    pick_top: 2
+- campaign_id: ooo_w85_d84_rob_pb_jacobi2d
+  schema_version: arm-chaos-fi/v1
+  injector: rob
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: done_bit
+    width_bits: 1
+    sub_field: done_early
+    fault_model: delay_omission
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 85084030
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/polybench/jacobi-2d/jacobi-2d
+    golden_id: polybenchjacobi2d-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D84
+    workload: PolyBench
+  two_phase:
+    enabled: true
+    tiers:
+    - F1
+    - F2
+    pilot_n: 20
+    formal_n: 500
+    pick_top: 2
+- campaign_id: ooo_w85_d84_rob_rob_fill_fp
+  schema_version: arm-chaos-fi/v1
+  injector: rob
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: done_bit
+    width_bits: 1
+    sub_field: done_early
+    fault_model: delay_omission
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 85084000
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/rob_fill/rob_fill_fp
+    golden_id: robfillfp-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D84
+    workload: ROB 填满核（浮点版）
+  two_phase:
+    enabled: true
+    tiers:
+    - F1
+    - F2
+    pilot_n: 20
+    formal_n: 2000
+    pick_top: 2
+- campaign_id: ooo_w85_d85_rob_rob_fill_fp
+  schema_version: arm-chaos-fi/v1
+  injector: rob
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: done_bit
+    width_bits: 1
+    sub_field: done_early_event
+    fault_model: delay_omission
+    protection_model: none
+  n_per_cell: 2000
+  base_seed: 85085000
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/rob_fill/rob_fill_fp
+    golden_id: robfillfp-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D85
+    workload: ROB 填满核（浮点版）
+    frequency_tier: 事件触发
+  counting:
+    mode: event_coverage
+    target_events: 2000
+    _TODO_density: 'W8.1 后核实: run tools/event_density.py on this (D,binary) pair and fill `density: <events/run>`
+      (or density_table+event). campaign.py exits loudly on this stanza until then — intentional, never
+      fabricate a count.'
+- campaign_id: ooo_w85_d86_iq_pb_gemm
+  schema_version: arm-chaos-fi/v1
+  injector: iq
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: ready_bit
+    width_bits: 1
+    sub_field: ready_early_vec
+    fault_model: delay_omission
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 85086000
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/polybench/gemm/gemm
+    golden_id: polybenchgemm-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D86
+    workload: PolyBench
+  two_phase:
+    enabled: true
+    tiers:
+    - F1
+    - F2
+    pilot_n: 20
+    formal_n: 500
+    pick_top: 2
+- campaign_id: ooo_w85_d86_iq_pb_lu
+  schema_version: arm-chaos-fi/v1
+  injector: iq
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: ready_bit
+    width_bits: 1
+    sub_field: ready_early_vec
+    fault_model: delay_omission
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 85086010
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/polybench/lu/lu
+    golden_id: polybenchlu-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D86
+    workload: PolyBench
+  two_phase:
+    enabled: true
+    tiers:
+    - F1
+    - F2
+    pilot_n: 20
+    formal_n: 500
+    pick_top: 2
+- campaign_id: ooo_w85_d86_iq_pb_cholesky
+  schema_version: arm-chaos-fi/v1
+  injector: iq
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: ready_bit
+    width_bits: 1
+    sub_field: ready_early_vec
+    fault_model: delay_omission
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 85086020
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/polybench/cholesky/cholesky
+    golden_id: polybenchcholesky-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D86
+    workload: PolyBench
+  two_phase:
+    enabled: true
+    tiers:
+    - F1
+    - F2
+    pilot_n: 20
+    formal_n: 500
+    pick_top: 2
+- campaign_id: ooo_w85_d86_iq_pb_jacobi2d
+  schema_version: arm-chaos-fi/v1
+  injector: iq
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: ready_bit
+    width_bits: 1
+    sub_field: ready_early_vec
+    fault_model: delay_omission
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 85086030
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/polybench/jacobi-2d/jacobi-2d
+    golden_id: polybenchjacobi2d-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D86
+    workload: PolyBench
+  two_phase:
+    enabled: true
+    tiers:
+    - F1
+    - F2
+    pilot_n: 20
+    formal_n: 500
+    pick_top: 2
+- campaign_id: ooo_w85_d86_iq_emb_nbody
+  schema_version: arm-chaos-fi/v1
+  injector: iq
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: ready_bit
+    width_bits: 1
+    sub_field: ready_early_vec
+    fault_model: delay_omission
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 85086000
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/embench/nbody/nbody
+    golden_id: embenchnbody-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D86
+    workload: Embench（浮点子集）
+  two_phase:
+    enabled: true
+    tiers:
+    - F1
+    - F2
+    pilot_n: 20
+    formal_n: 1000
+    pick_top: 2
+- campaign_id: ooo_w85_d86_iq_emb_minver
+  schema_version: arm-chaos-fi/v1
+  injector: iq
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: ready_bit
+    width_bits: 1
+    sub_field: ready_early_vec
+    fault_model: delay_omission
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 85086010
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/embench/minver/minver
+    golden_id: embenchminver-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D86
+    workload: Embench（浮点子集）
+  two_phase:
+    enabled: true
+    tiers:
+    - F1
+    - F2
+    pilot_n: 20
+    formal_n: 1000
+    pick_top: 2
+- campaign_id: ooo_w85_d87_iq_pb_gemm
+  schema_version: arm-chaos-fi/v1
+  injector: iq
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: src_tag
+    width_bits: 6
+    sub_field: tag_swap_vec
+    fault_model: legal_domain_sub
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 85087000
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/polybench/gemm/gemm
+    golden_id: polybenchgemm-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D87
+    workload: PolyBench
+  two_phase:
+    enabled: true
+    tiers:
+    - F0
+    - F1
+    pilot_n: 20
+    formal_n: 500
+    pick_top: 2
+- campaign_id: ooo_w85_d87_iq_pb_lu
+  schema_version: arm-chaos-fi/v1
+  injector: iq
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: src_tag
+    width_bits: 6
+    sub_field: tag_swap_vec
+    fault_model: legal_domain_sub
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 85087010
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/polybench/lu/lu
+    golden_id: polybenchlu-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D87
+    workload: PolyBench
+  two_phase:
+    enabled: true
+    tiers:
+    - F0
+    - F1
+    pilot_n: 20
+    formal_n: 500
+    pick_top: 2
+- campaign_id: ooo_w85_d87_iq_pb_cholesky
+  schema_version: arm-chaos-fi/v1
+  injector: iq
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: src_tag
+    width_bits: 6
+    sub_field: tag_swap_vec
+    fault_model: legal_domain_sub
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 85087020
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/polybench/cholesky/cholesky
+    golden_id: polybenchcholesky-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D87
+    workload: PolyBench
+  two_phase:
+    enabled: true
+    tiers:
+    - F0
+    - F1
+    pilot_n: 20
+    formal_n: 500
+    pick_top: 2
+- campaign_id: ooo_w85_d87_iq_pb_jacobi2d
+  schema_version: arm-chaos-fi/v1
+  injector: iq
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: src_tag
+    width_bits: 6
+    sub_field: tag_swap_vec
+    fault_model: legal_domain_sub
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 85087030
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/polybench/jacobi-2d/jacobi-2d
+    golden_id: polybenchjacobi2d-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D87
+    workload: PolyBench
+  two_phase:
+    enabled: true
+    tiers:
+    - F0
+    - F1
+    pilot_n: 20
+    formal_n: 500
+    pick_top: 2
+- campaign_id: ooo_w85_d87_iq_jpeg
+  schema_version: arm-chaos-fi/v1
+  injector: iq
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: src_tag
+    width_bits: 6
+    sub_field: tag_swap_vec
+    fault_model: legal_domain_sub
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 85087000
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/libjpeg/jpeg_wl
+    golden_id: libjpeg-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D87
+    workload: libjpeg-turbo
+  two_phase:
+    enabled: true
+    tiers:
+    - F0
+    - F1
+    pilot_n: 20
+    formal_n: 2000
+    pick_top: 2
+- campaign_id: ooo_w85_d88_iq_pb_gemm
+  schema_version: arm-chaos-fi/v1
+  injector: iq
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: src_tag
+    width_bits: 6
+    sub_field: tag_bitflip_vec
+    fault_model: transient_bit_flip
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 85088000
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/polybench/gemm/gemm
+    golden_id: polybenchgemm-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D88
+    workload: PolyBench
+  two_phase:
+    enabled: true
+    tiers:
+    - F0
+    - F1
+    pilot_n: 20
+    formal_n: 500
+    pick_top: 2
+- campaign_id: ooo_w85_d88_iq_pb_lu
+  schema_version: arm-chaos-fi/v1
+  injector: iq
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: src_tag
+    width_bits: 6
+    sub_field: tag_bitflip_vec
+    fault_model: transient_bit_flip
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 85088010
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/polybench/lu/lu
+    golden_id: polybenchlu-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D88
+    workload: PolyBench
+  two_phase:
+    enabled: true
+    tiers:
+    - F0
+    - F1
+    pilot_n: 20
+    formal_n: 500
+    pick_top: 2
+- campaign_id: ooo_w85_d88_iq_pb_cholesky
+  schema_version: arm-chaos-fi/v1
+  injector: iq
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: src_tag
+    width_bits: 6
+    sub_field: tag_bitflip_vec
+    fault_model: transient_bit_flip
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 85088020
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/polybench/cholesky/cholesky
+    golden_id: polybenchcholesky-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D88
+    workload: PolyBench
+  two_phase:
+    enabled: true
+    tiers:
+    - F0
+    - F1
+    pilot_n: 20
+    formal_n: 500
+    pick_top: 2
+- campaign_id: ooo_w85_d88_iq_pb_jacobi2d
+  schema_version: arm-chaos-fi/v1
+  injector: iq
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: src_tag
+    width_bits: 6
+    sub_field: tag_bitflip_vec
+    fault_model: transient_bit_flip
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 85088030
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/polybench/jacobi-2d/jacobi-2d
+    golden_id: polybenchjacobi2d-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D88
+    workload: PolyBench
+  two_phase:
+    enabled: true
+    tiers:
+    - F0
+    - F1
+    pilot_n: 20
+    formal_n: 500
+    pick_top: 2
+- campaign_id: ooo_w85_d88_iq_jpeg
+  schema_version: arm-chaos-fi/v1
+  injector: iq
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: src_tag
+    width_bits: 6
+    sub_field: tag_bitflip_vec
+    fault_model: transient_bit_flip
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 85088000
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/libjpeg/jpeg_wl
+    golden_id: libjpeg-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D88
+    workload: libjpeg-turbo
+  two_phase:
+    enabled: true
+    tiers:
+    - F0
+    - F1
+    pilot_n: 20
+    formal_n: 2000
+    pick_top: 2
+- campaign_id: ooo_w85_d89_iq_pb_gemm
+  schema_version: arm-chaos-fi/v1
+  injector: iq
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: src_tag
+    width_bits: 6
+    sub_field: tag_bitflip2_vec
+    fault_model: local_mbu
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 85089000
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/polybench/gemm/gemm
+    golden_id: polybenchgemm-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D89
+    workload: PolyBench
+  two_phase:
+    enabled: true
+    tiers:
+    - F0
+    pilot_n: 20
+    formal_n: 500
+    pick_top: 1
+- campaign_id: ooo_w85_d89_iq_pb_lu
+  schema_version: arm-chaos-fi/v1
+  injector: iq
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: src_tag
+    width_bits: 6
+    sub_field: tag_bitflip2_vec
+    fault_model: local_mbu
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 85089010
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/polybench/lu/lu
+    golden_id: polybenchlu-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D89
+    workload: PolyBench
+  two_phase:
+    enabled: true
+    tiers:
+    - F0
+    pilot_n: 20
+    formal_n: 500
+    pick_top: 1
+- campaign_id: ooo_w85_d89_iq_pb_cholesky
+  schema_version: arm-chaos-fi/v1
+  injector: iq
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: src_tag
+    width_bits: 6
+    sub_field: tag_bitflip2_vec
+    fault_model: local_mbu
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 85089020
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/polybench/cholesky/cholesky
+    golden_id: polybenchcholesky-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D89
+    workload: PolyBench
+  two_phase:
+    enabled: true
+    tiers:
+    - F0
+    pilot_n: 20
+    formal_n: 500
+    pick_top: 1
+- campaign_id: ooo_w85_d89_iq_pb_jacobi2d
+  schema_version: arm-chaos-fi/v1
+  injector: iq
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: src_tag
+    width_bits: 6
+    sub_field: tag_bitflip2_vec
+    fault_model: local_mbu
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 85089030
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/polybench/jacobi-2d/jacobi-2d
+    golden_id: polybenchjacobi2d-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D89
+    workload: PolyBench
+  two_phase:
+    enabled: true
+    tiers:
+    - F0
+    pilot_n: 20
+    formal_n: 500
+    pick_top: 1
+- campaign_id: ooo_w85_d89_iq_jpeg
+  schema_version: arm-chaos-fi/v1
+  injector: iq
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: src_tag
+    width_bits: 6
+    sub_field: tag_bitflip2_vec
+    fault_model: local_mbu
+    protection_model: none
+  n_per_cell: 1
+  base_seed: 85089000
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/libjpeg/jpeg_wl
+    golden_id: libjpeg-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D89
+    workload: libjpeg-turbo
+  two_phase:
+    enabled: true
+    tiers:
+    - F0
+    pilot_n: 20
+    formal_n: 2000
+    pick_top: 1
+- campaign_id: ooo_w85_d90_iq_pb_gemm
+  schema_version: arm-chaos-fi/v1
+  injector: iq
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: src_tag
+    width_bits: 6
+    sub_field: tag_stuck_vec
+    fault_model: stuck_at_zero
+    protection_model: none
+  n_per_cell: 500
+  base_seed: 85090000
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/polybench/gemm/gemm
+    golden_id: polybenchgemm-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D90
+    workload: PolyBench
+    frequency_tier: F5
+- campaign_id: ooo_w85_d90_iq_pb_lu
+  schema_version: arm-chaos-fi/v1
+  injector: iq
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: src_tag
+    width_bits: 6
+    sub_field: tag_stuck_vec
+    fault_model: stuck_at_zero
+    protection_model: none
+  n_per_cell: 500
+  base_seed: 85090010
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/polybench/lu/lu
+    golden_id: polybenchlu-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D90
+    workload: PolyBench
+    frequency_tier: F5
+- campaign_id: ooo_w85_d90_iq_pb_cholesky
+  schema_version: arm-chaos-fi/v1
+  injector: iq
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: src_tag
+    width_bits: 6
+    sub_field: tag_stuck_vec
+    fault_model: stuck_at_zero
+    protection_model: none
+  n_per_cell: 500
+  base_seed: 85090020
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/polybench/cholesky/cholesky
+    golden_id: polybenchcholesky-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D90
+    workload: PolyBench
+    frequency_tier: F5
+- campaign_id: ooo_w85_d90_iq_pb_jacobi2d
+  schema_version: arm-chaos-fi/v1
+  injector: iq
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: src_tag
+    width_bits: 6
+    sub_field: tag_stuck_vec
+    fault_model: stuck_at_zero
+    protection_model: none
+  n_per_cell: 500
+  base_seed: 85090030
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/polybench/jacobi-2d/jacobi-2d
+    golden_id: polybenchjacobi2d-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D90
+    workload: PolyBench
+    frequency_tier: F5
+- campaign_id: ooo_w85_d90_iq_jpeg
+  schema_version: arm-chaos-fi/v1
+  injector: iq
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: src_tag
+    width_bits: 6
+    sub_field: tag_stuck_vec
+    fault_model: stuck_at_zero
+    protection_model: none
+  n_per_cell: 2000
+  base_seed: 85090000
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/libjpeg/jpeg_wl
+    golden_id: libjpeg-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D90
+    workload: libjpeg-turbo
+    frequency_tier: F5
+- campaign_id: ooo_w85_d91_iq_pb_gemm
+  schema_version: arm-chaos-fi/v1
+  injector: iq
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: src_tag
+    width_bits: 6
+    sub_field: tag_stale_read_vec
+    fault_model: delay_omission
+    protection_model: none
+  n_per_cell: 2000
+  base_seed: 85091000
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/polybench/gemm/gemm
+    golden_id: polybenchgemm-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D91
+    workload: PolyBench
+    frequency_tier: 事件触发
+  counting:
+    mode: event_coverage
+    target_events: 2000
+    _TODO_density: 'W8.1 后核实: run tools/event_density.py on this (D,binary) pair and fill `density: <events/run>`
+      (or density_table+event). campaign.py exits loudly on this stanza until then — intentional, never
+      fabricate a count.'
+- campaign_id: ooo_w85_d91_iq_pb_lu
+  schema_version: arm-chaos-fi/v1
+  injector: iq
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: src_tag
+    width_bits: 6
+    sub_field: tag_stale_read_vec
+    fault_model: delay_omission
+    protection_model: none
+  n_per_cell: 2000
+  base_seed: 85091010
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/polybench/lu/lu
+    golden_id: polybenchlu-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D91
+    workload: PolyBench
+    frequency_tier: 事件触发
+  counting:
+    mode: event_coverage
+    target_events: 2000
+    _TODO_density: 'W8.1 后核实: run tools/event_density.py on this (D,binary) pair and fill `density: <events/run>`
+      (or density_table+event). campaign.py exits loudly on this stanza until then — intentional, never
+      fabricate a count.'
+- campaign_id: ooo_w85_d91_iq_pb_cholesky
+  schema_version: arm-chaos-fi/v1
+  injector: iq
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: src_tag
+    width_bits: 6
+    sub_field: tag_stale_read_vec
+    fault_model: delay_omission
+    protection_model: none
+  n_per_cell: 2000
+  base_seed: 85091020
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/polybench/cholesky/cholesky
+    golden_id: polybenchcholesky-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D91
+    workload: PolyBench
+    frequency_tier: 事件触发
+  counting:
+    mode: event_coverage
+    target_events: 2000
+    _TODO_density: 'W8.1 后核实: run tools/event_density.py on this (D,binary) pair and fill `density: <events/run>`
+      (or density_table+event). campaign.py exits loudly on this stanza until then — intentional, never
+      fabricate a count.'
+- campaign_id: ooo_w85_d91_iq_pb_jacobi2d
+  schema_version: arm-chaos-fi/v1
+  injector: iq
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: src_tag
+    width_bits: 6
+    sub_field: tag_stale_read_vec
+    fault_model: delay_omission
+    protection_model: none
+  n_per_cell: 2000
+  base_seed: 85091030
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/polybench/jacobi-2d/jacobi-2d
+    golden_id: polybenchjacobi2d-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D91
+    workload: PolyBench
+    frequency_tier: 事件触发
+  counting:
+    mode: event_coverage
+    target_events: 2000
+    _TODO_density: 'W8.1 后核实: run tools/event_density.py on this (D,binary) pair and fill `density: <events/run>`
+      (or density_table+event). campaign.py exits loudly on this stanza until then — intentional, never
+      fabricate a count.'
+- campaign_id: ooo_w85_d91_iq_jpeg
+  schema_version: arm-chaos-fi/v1
+  injector: iq
+  config: C3
+  mode: SE
+  cpu_model: ArmO3CPU
+  grid:
+    target_index: -1
+    field: src_tag
+    width_bits: 6
+    sub_field: tag_stale_read_vec
+    fault_model: delay_omission
+    protection_model: none
+  n_per_cell: 2000
+  base_seed: 85091000
+  replay_pct: 5
+  workload:
+    binary: workloads/ooo/libjpeg/jpeg_wl
+    golden_id: libjpeg-golden-v1
+    trigger_mode: cycle
+    trigger_value: 1000
+  limits:
+    max_faults: 1
+  hang_timeout: 600
+  ooo:
+    design_unit_id: D91
+    workload: libjpeg-turbo
+    frequency_tier: 事件触发
+  counting:
+    mode: event_coverage
+    target_events: 2000
+    _TODO_density: 'W8.1 后核实: run tools/event_density.py on this (D,binary) pair and fill `density: <events/run>`
+      (or density_table+event). campaign.py exits loudly on this stanza until then — intentional, never
+      fabricate a count.'
+alias_map:
+- design_unit_id: D62
+  workload: PolyBench
+  covered_by: D67
+  experiment_cell_ids:
+  - E159
+  - E161
+  note: 'merged-row口径: identical runs to the covered_by row (same component/model/sub_field/class/tier/binary);
+    credit at backfill (see gap list)'
+- design_unit_id: D63
+  workload: PolyBench
+  covered_by: D68
+  experiment_cell_ids:
+  - E163
+  note: 'merged-row口径: identical runs to the covered_by row (same component/model/sub_field/class/tier/binary);
+    credit at backfill (see gap list)'
+- design_unit_id: D64
+  workload: PolyBench
+  covered_by: D69
+  experiment_cell_ids:
+  - E165
+  - E167
+  note: 'merged-row口径: identical runs to the covered_by row (same component/model/sub_field/class/tier/binary);
+    credit at backfill (see gap list)'
+- design_unit_id: D65
+  workload: PolyBench
+  covered_by: D70
+  experiment_cell_ids:
+  - E169
+  note: 'merged-row口径: identical runs to the covered_by row (same component/model/sub_field/class/tier/binary);
+    credit at backfill (see gap list)'
+- design_unit_id: D66
+  workload: PolyBench
+  covered_by: D71
+  experiment_cell_ids:
+  - E171
+  note: 'merged-row口径: identical runs to the covered_by row (same component/model/sub_field/class/tier/binary);
+    credit at backfill (see gap list)'
