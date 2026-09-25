@@ -61,14 +61,15 @@
 
 ### Task 5: W2.5 — L0 注入项生命周期接口
 
-- [ ] 接口规范文档（reads_before_overwrite/overwritten/overwritten_at_cycle 三字段 + 注入器登记/读取/覆写钩点模板）+ 第一个接线示范（选 CHAOSPhysReg 现有 readTrace 对齐接口）。
-- [ ] Commit + push
+- [x] 接口规范文档 + 第一个接线示范。〔执行注 2026-09-24：chaos_l0.hh（三钩契约）+ docs/gem5-fi/ooo/07-l0-lifecycle-interface.md（规范：容器归属/exit-callback 时机——短负载轮询不触发为实测发现/Crash 无 callback 合法无行/W4-W7 接线清单）+ CHAOSPhysReg 接线（l0Final exit callback，既有 ReadTrace 行保留）。**交付背景**：实现代理死于 API 预算超限（429，遗留 chaos_l0.hh+diff+实测发现「ReadTraceFinal 在 smoke 不打印」），编排者接管补文档并完成验证链。〕
+- [x] 验证。〔执行注（编排者亲测）：构建零新告警；CHAOS_L0 行端到端（hit=0 无效注入案例）；**96 idx 全扫描 → 11 个 hit=1**（idx=90 reads=8250/idx=75 reads=2/其余 reads=1——正案例闭环）+ 85 个 hit=0 诚实报告 + 1 idx Abort（预期 Crash 类）；reads 多为 0-1=**转发旁路平台属性 OoO 轨道复证**（KP920 已知发现）；回归 golden 不变。〕
+- [x] Commit + push（6a0a30f5）
 
 ### Task 6: W2.6 — L3 扇出 + stats 消费
 
-- [ ] 污染 PRF 读踪计数复用（rat/rob/iq 换值类注入记录目标 phys id）；runner 从 stats.txt 提取 IPC/占用摘要进 results.jsonl。
-- [ ] 验证：定向注入后扇出数>0；results.jsonl 含 stats 块。
-- [ ] Commit + push
+- [x] 污染 PRF 读踪计数复用 + stats 消费。〔执行注 2026-09-24：tools/fanout.py（L3 存活窗口=同 phys 相邻两写之间的提交指令数 + val 变化数——诚实上界代理口径：trace 只含 dest 侧，源读取不可见；XZR 哨兵 65535=整族已知；open window 单列）；runner --stats（[runner] STATS: {json}）+ --fanout-phys（L3RESULT 并入 l3 块，失败诚实 l3_error）；campaign L3RESULT/STATS 前缀。**交付背景**：实现代理死于 API 预算超限（429，遗留三文件 diff），编排者接管完成验证并修复真 bug——**ipc 语义修复**：原 ipc=simInsts/simSeconds=33 亿（mislabeled MIPS）→ 改 numCycles 实测键。〕
+- [x] 验证。〔执行注（编排者亲测）：fanout 合成对语义精确（窗口/val 变化/arch 计数）+ 真实 trace 双 phys（65535 哨兵族 1053 写 class=-1 / 44 常规 3158 写 liveness mean=96.98 arch 跨 18 个=OoO 复用语义）；runner --stats 端到端真 manifest：STATS 行与 stats.txt 原值精确一致 + **ipc=1.284159（=308057/239890 真值）**；无 --fanout-phys 无 L3RESULT。〕
+- [x] Commit + push（4f591544）
 
 ## 执行序与并发
 - **Task 1 + Task 2 并行**（文件集不相交：gem5 src+config vs tools/；格式已钉死）。

@@ -127,7 +127,14 @@ p.add_argument("--chaos_rename", action="store_true",
 p.add_argument("--rename_mode", default="map_bitflip",
                choices=["map_bitflip","map_bitflip2","swap_to_active","f5_substitute","f4_field_stuck","spec_leak","f5_rat_stuck","stale_read","swap_mispred_event","hb_bitflip","hb_bitflip2"])
 p.add_argument("--rename_target_arch", type=int, default=-1,
-               help="arch reg index whose map entry to corrupt (-1=random 0..30)")
+               help="arch reg index whose map entry to corrupt (-1=random 0..30 int / 0..31 vec)")
+# W7.2 (ooo 04 D62-D71 merged rows): register-class axis for the RAT
+# injector — vec = VecRegClass V0-V31 (scalar FP renames via VecRegClass
+# on AArch64, so the north-star scalar-FP rows D62-66 are merged into the
+# vec class; attribution of scalar-FP vs SIMD producers is post-hoc via
+# the commit trace — documented in CHAOSRenameMap.hh).
+p.add_argument("--rename_target_class", default="int", choices=["int","vec"],
+               help="W7.2: register class whose RAT entries to corrupt (vec = VecRegClass V0-V31)")
 p.add_argument("--rename_first_clock", type=lambda x: int(x,0), default=100000)
 p.add_argument("--rename_max_faults", type=lambda x: int(x,0), default=1)
 p.add_argument("--rename_fault_mask", type=lambda x: int(x,0), default=0)
@@ -140,11 +147,19 @@ p.add_argument("--chaos_freelist", action="store_true",
                help="attach CHAOSFreeList (O3 freelist injector, §2.2)")
 p.add_argument("--freelist_mode", default="mark_free",
                choices=["mark_free","pop_wrong","mark_free_event","drop_release","head_bitflip","head_bitflip2","head_stuck"])
+# W7.3 (ooo 04 D72-D77 merged rows): register-class axis for the freelist
+# injector — vec = VecRegClass pool (scalar FP rows D72/73/76 merged into
+# D74/75/77).
+p.add_argument("--freelist_target_class", default="int", choices=["int","vec"],
+               help="W7.3: which class freelist to corrupt (vec = VecRegClass pool)")
 p.add_argument("--freelist_first_clock", type=lambda x: int(x,0), default=100000)
 p.add_argument("--freelist_max_faults", type=lambda x: int(x,0), default=1)
 p.add_argument("--freelist_rng_seed", type=lambda x: int(x,0), default=20260825)
 p.add_argument("--freelist_event_threshold", type=lambda x: int(x,0), default=8,
                help="D18 mark_free_event: trigger when int freelist remaining <= N")
+p.add_argument("--freelist_event_threshold_vec", type=lambda x: int(x,0), default=0,
+               help="W7.3 D75 mark_free_event vec threshold (default 0 = pool drained; "
+                    "04's <=6 re-derived per the W1.5b initial-free-4 calibration)")
 # §2.3 CHAOSROB (O3 ROB fault injector). SELF-ATTACHES at startup() to
 # cpu.rob.chaosROB. entry_bitflip / exc_suppress modes (§2.3).
 p.add_argument("--chaos_rob", action="store_true",
@@ -181,6 +196,13 @@ p.add_argument("--rob_distance", type=int, default=0)
 p.add_argument("--rob_first_clock", type=lambda x: int(x,0), default=1000)
 p.add_argument("--rob_max_faults", type=lambda x: int(x,0), default=1)
 p.add_argument("--rob_rng_seed", type=lambda x: int(x,0), default=20260825)
+# W7.4 (FP/SIMD Dispatch/ROB): register-class scope of the ROB dest-id
+# family at the rob_insert site — "int" = the W5 D28-D31 scope (default,
+# byte-identical); "vec" = the FP/SIMD twins (VecRegClass dests, domain
+# [0, numVecPhysRegs), swap_active pool collects vec dests). PC/done/ptr
+# families stay class-agnostic (unified ROB — TC'23).
+p.add_argument("--rob_target_class", default="int", choices=["int","vec"],
+               help="W7.4: ROB destid family register class")
 # §2.5 CHAOSIQ (O3 instruction-queue injector). SELF-ATTACHES at startup()
 # to IEW.instQueue.chaosIQ. wake_omit (F6) mode (§2.5).
 p.add_argument("--chaos_iq", action="store_true",
@@ -204,6 +226,17 @@ p.add_argument("--iq_fault_mask", type=lambda x: int(x,0), default=0,
 p.add_argument("--iq_first_clock", type=lambda x: int(x,0), default=1000)
 p.add_argument("--iq_max_faults", type=lambda x: int(x,0), default=1)
 p.add_argument("--iq_rng_seed", type=lambda x: int(x,0), default=20260825)
+# W7.4 (ooo 04-design-matrix D86-D91, FP/SIMD Dispatch/ROB): register-class
+# scope of the IQ ready-bit / tag-field family — "int" = the W5 Int-IQ
+# modes (default, byte-identical); "vec" = the FP/SIMD twins (VecRegClass
+# rename domain: scalar FP + FP SIMD + integer SIMD all rename onto
+# VecRegClass; tag domain [0, numVecPhysRegs)). fpOnly: the three §2.5
+# wake modes restrict eligibility to FP/SIMD (Float* ∪ SimdFloat*)
+# completed instructions — the D86 "FP/SIMD 队列版" opClass scoping.
+p.add_argument("--iq_target_class", default="int", choices=["int","vec"],
+               help="W7.4 D86-D91: IQ ready/tag family register class")
+p.add_argument("--iq_fp_only", action="store_true",
+               help="W7.4 D86: §2.5 wake modes fire only on FP/SIMD ops")
 # §2.12 CHAOSExec (O3 integer execution-unit injector). SELF-ATTACHES at
 # startup() to cpu.chaosExec. Hooks DynInst::execute() post-staticInst->execute;
 # filters opClass IntAlu/IntMult/IntDiv; XORs integer result.
@@ -511,6 +544,7 @@ if args.chaos_rename:
         cpu=cpu0,
         mode=args.rename_mode,
         targetArchReg=args.rename_target_arch,
+        targetClass=args.rename_target_class,
         probability=args.probability,
         firstClock=args.rename_first_clock,
         maxFaults=args.rename_max_faults,
@@ -526,11 +560,13 @@ if args.chaos_freelist:
     fl = CHAOSFreeList(
         cpu=cpu0,
         mode=args.freelist_mode,
+        targetClass=args.freelist_target_class,
         probability=args.probability,
         firstClock=args.freelist_first_clock,
         maxFaults=args.freelist_max_faults,
         rngSeed=args.freelist_rng_seed,
         eventThreshold=args.freelist_event_threshold,
+        eventThresholdVec=args.freelist_event_threshold_vec,
         writeLog=True,
     )
     board.chaos_freelist = fl
@@ -559,6 +595,9 @@ if args.chaos_rob and args.rob_mode not in _W5_OLDPHYS_ROB_MODES:
         maxFaults=args.rob_max_faults,
         rngSeed=args.rob_rng_seed,
         writeLog=True,
+        # W7.4: destid-family register class (int = W5 default; vec = the
+        # FP/SIMD twins at the same rob_insert site).
+        targetClass=args.rob_target_class,
     )
     board.chaos_rob = rob
 elif args.chaos_rob:
@@ -592,6 +631,11 @@ if args.chaos_iq:
         rngSeed=args.iq_rng_seed,
         faultMask=args.iq_fault_mask,
         writeLog=True,
+        # W7.4 D86-D91: ready/tag family register class (int = W5 default;
+        # vec = the FP/SIMD twins) + the D86 fpOnly opClass filter for the
+        # §2.5 wake modes.
+        targetClass=args.iq_target_class,
+        fpOnly=args.iq_fp_only,
     )
     board.chaos_iq = iq
 

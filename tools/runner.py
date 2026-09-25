@@ -725,6 +725,22 @@ def main():
         # --rename_mode (map_bitflip / f5_substitute / f4_field_stuck). The
         # v2 schema's fault.model enum has legal_domain_sub for F5; map it.
         cmd += ["--chaos_rename"]
+        # W7.2 (ooo 04-design-matrix D62-D71 merged rows): register-class
+        # axis. The v2 target.sub_field carries the class via a "_vec"
+        # suffix (free-form string per schema — e.g. "map_bitflip_vec",
+        # "swap_to_active_vec", "hb_bitflip2_vec"): the suffix is stripped
+        # for the mode discriminator below and routes
+        # --rename_target_class vec. Plain sub_field (no suffix) keeps
+        # targetClass=int — every pre-W7 manifest is unaffected. Platform
+        # fact (W1.2): AArch64 scalar FP renames via VecRegClass, so the
+        # scalar-FP rows D62-66 are merged into the vec class (there is no
+        # "float" route); scalar-FP vs SIMD producer attribution is post-hoc
+        # via the commit trace (documented in CHAOSRenameMap.hh).
+        rcls = "int"
+        rsf = str(tgt.get("sub_field", ""))
+        if rsf.endswith("_vec"):
+            rcls = "vec"
+            rsf = rsf[:-len("_vec")]
         # fault model -> rename_mode
         # intermittent_burst -> spec_leak (§2.3 Phase 4.1, method1 speculative
         # leak): one squash-rollback suppression — the wrong-path µop's dest
@@ -745,7 +761,7 @@ def main():
         # plain legal_domain_sub keeps the §2.2 f5_substitute random-
         # allocated semantics (nothing orphaned, additive v2 key).
         if (inj["model"] == "legal_domain_sub"
-                and str(tgt.get("sub_field", "")) == "swap_to_active"):
+                and rsf == "swap_to_active"):
             rm = "swap_to_active"
         # W4.3 D15 f5_rat_stuck (ooo 04-design-matrix R16, RAT映射字段·卡死,
         # F5 permanent): ONE RAT entry + ONE physReg-index bit stuck-at-0/1,
@@ -753,7 +769,7 @@ def main():
         # target.sub_field discriminator on stuck_at_zero/one (the §2.2
         # whole-value pin f4_field_stuck keeps the plain models).
         if (inj["model"] in ("stuck_at_zero", "stuck_at_one")
-                and str(tgt.get("sub_field", "")) == "f5_rat_stuck"):
+                and rsf == "f5_rat_stuck"):
             rm = "f5_rat_stuck"
         # W4.4 D16 stale_read (ooo 04-design-matrix R17, RAT映射字段·读到
         # 旧数据): the next rename overwrite of the entry silently fails
@@ -762,7 +778,7 @@ def main():
         # on delay_omission ("the update that should have happened never
         # landed"); rat + plain delay_omission is not otherwise mapped.
         if (inj["model"] == "delay_omission"
-                and str(tgt.get("sub_field", "")) == "stale_read"):
+                and rsf == "stale_read"):
             rm = "stale_read"
         # W4 final D14 swap_mispred_event (ooo 04-design-matrix R15,
         # RAT映射字段·换值·误预测事件触发): the D13 swap_to_active model,
@@ -774,7 +790,7 @@ def main():
         # f5_substitute random-allocated semantics stay on the plain model
         # via the map above only when sub_field is absent).
         if (inj["model"] == "legal_domain_sub"
-                and str(tgt.get("sub_field", "")) == "swap_mispred_event"):
+                and rsf == "swap_mispred_event"):
             rm = "swap_mispred_event"
         # W4 final D23/D24 hb_bitflip(_2) (ooo 04-design-matrix R24/R25,
         # 重命名检查点·单/双比特翻转): gem5 has no separate RAT-checkpoint
@@ -785,19 +801,34 @@ def main():
         # physReg index at the checkpoint's creation; the fault stays
         # dormant until doSquash/removeFromHistory consumes the WRONG phys.
         if (inj["model"] == "transient_bit_flip"
-                and str(tgt.get("sub_field", "")) == "hb_bitflip"):
+                and rsf == "hb_bitflip"):
             rm = "hb_bitflip"
         if (inj["model"] == "local_mbu"
-                and str(tgt.get("sub_field", "")) == "hb_bitflip2"):
+                and rsf == "hb_bitflip2"):
             rm = "hb_bitflip2"
         cmd += ["--rename_mode", rm, "--rename_first_clock", str(t["value"]),
                 "--rename_max_faults", str(m["limits"]["max_faults"]),
                 "--rename_rng_seed", str(m["rng"]["selection_seed"]),
                 "--rename_fault_mask", fault_mask, "--rename_target_arch",
-                str(idx) if idx is not None else "-1"]
+                str(idx) if idx is not None else "-1",
+                "--rename_target_class", rcls]
     elif comp == "freelist":
         # §2.2 CHAOSFreeList (S1 patch 2). mark_free / pop_wrong via fault.model.
         cmd += ["--chaos_freelist"]
+        # W7.3 (ooo 04-design-matrix D72-D77 merged rows): register-class
+        # axis, same "_vec" sub_field suffix convention as the rat block
+        # (e.g. "mark_free_vec", "mark_free_event_vec", "drop_release_vec")
+        # — suffix stripped for the mode discriminator, remainder routes
+        # --freelist_target_class vec. Plain sub_field keeps targetClass=
+        # int. Scalar-FP rows D72/73/76 are merged into D74/75/77 (W1.2:
+        # AArch64 scalar FP renames via VecRegClass). D75's vec threshold
+        # re-derivation (≤6 -> 0, the initial-free-4 calibration) lives in
+        # CHAOSFreeList.hh/.py + ooo_proxy's default.
+        fcls = "int"
+        fsf = str(tgt.get("sub_field", ""))
+        if fsf.endswith("_vec"):
+            fcls = "vec"
+            fsf = fsf[:-len("_vec")]
         fm = {"transient_bit_flip": "mark_free",
               "local_mbu": "mark_free",
               "legal_domain_sub": "pop_wrong"}.get(inj["model"], "mark_free")
@@ -808,7 +839,7 @@ def main():
         # transient models (plain models keep the D17 fixed-interval
         # mark_free semantics).
         if (inj["model"] in ("transient_bit_flip", "local_mbu")
-                and str(tgt.get("sub_field", "")) == "mark_free_event"):
+                and fsf == "mark_free_event"):
             fm = "mark_free_event"
         # W4 final D19 drop_release (ooo 04-design-matrix R20, 空闲表·丢失
         # 释放, F1): a release that should have happened does not — the
@@ -817,7 +848,7 @@ def main():
         # target.sub_field discriminator on delay_omission (the timing
         # "lost event" class — plain delay_omission keeps mark_free).
         if (inj["model"] == "delay_omission"
-                and str(tgt.get("sub_field", "")) == "drop_release"):
+                and fsf == "drop_release"):
             fm = "drop_release"
         # W4 final D20/D21 head_bitflip(_2) (ooo 04-design-matrix R21/R22,
         # 空闲表头/尾指针·单/双比特翻转) — HONEST APPROXIMATION (spike B:
@@ -827,10 +858,10 @@ def main():
         # head read would have returned. Plain transient/local_mbu keep the
         # D17 mark_free fixed-interval semantics.
         if (inj["model"] == "transient_bit_flip"
-                and str(tgt.get("sub_field", "")) == "head_bitflip"):
+                and fsf == "head_bitflip"):
             fm = "head_bitflip"
         if (inj["model"] == "local_mbu"
-                and str(tgt.get("sub_field", "")) == "head_bitflip2"):
+                and fsf == "head_bitflip2"):
             fm = "head_bitflip2"
         # W4 final D22 head_stuck (ooo 04-design-matrix R23, 空闲表头/尾
         # 指针·卡死, F5) — HONEST APPROXIMATION (same std::queue finding):
@@ -839,17 +870,33 @@ def main():
         # target.sub_field discriminator on stuck_at_zero/one (plain stuck
         # models are not otherwise mapped for freelist).
         if (inj["model"] in ("stuck_at_zero", "stuck_at_one")
-                and str(tgt.get("sub_field", "")) == "head_stuck"):
+                and fsf == "head_stuck"):
             fm = "head_stuck"
         cmd += ["--freelist_mode", fm, "--freelist_first_clock", str(t["value"]),
                 "--freelist_max_faults", str(m["limits"]["max_faults"]),
-                "--freelist_rng_seed", str(m["rng"]["selection_seed"])]
+                "--freelist_rng_seed", str(m["rng"]["selection_seed"]),
+                "--freelist_target_class", fcls]
     elif comp == "rob":
         # §2.3 CHAOSROB (S1 patch 1). entry_bitflip/exc_suppress via fault.model.
         cmd += ["--chaos_rob"]
         rm = {"transient_bit_flip": "entry_bitflip",
               "local_mbu": "entry_bitflip",
               "legal_domain_sub": "exc_suppress"}.get(inj["model"], "entry_bitflip")
+        # W7.4 (ooo 04-design-matrix FP/SIMD Dispatch/ROB, the D87-
+        # prerequisite dest-id twins at the rob_insert site): register-class
+        # axis, the rat-block "_vec" suffix convention — sub_field
+        # "destid_bitflip_vec" etc. strips the suffix for the
+        # discriminators below and routes --rob_target_class vec
+        # (VecRegClass dest domain [0, numVecPhysRegs); the swap_active
+        # pool collects vec dests). Only meaningful for the destid_*
+        # sub_fields; PC / done / pointer families stay class-agnostic
+        # (unified ROB — TC'23). Plain sub_field keeps targetClass=int —
+        # every pre-W7 manifest is unaffected.
+        rbcls = "int"
+        rsf = str(tgt.get("sub_field", ""))
+        if rsf.endswith("_vec"):
+            rbcls = "vec"
+            rsf = rsf[:-len("_vec")]
         # W5.1-W5.3 (ooo 04-design-matrix D25-D31, Int Dispatch/ROB): the
         # ROB-entry WRITE-path modes (ROB::insertInst site — the TC'23
         # site). Selected by the v2 target.sub_field discriminator; plain
@@ -873,17 +920,15 @@ def main():
         if (inj["model"] in ("stuck_at_zero", "stuck_at_one")
                 and str(tgt.get("sub_field", "")) == "pc_stuck"):
             rm = "pc_stuck"
-        if (inj["model"] == "transient_bit_flip"
-                and str(tgt.get("sub_field", "")) == "destid_bitflip"):
+        if (inj["model"] == "transient_bit_flip" and rsf == "destid_bitflip"):
             rm = "destid_bitflip"
-        if (inj["model"] == "local_mbu"
-                and str(tgt.get("sub_field", "")) == "destid_bitflip2"):
+        if (inj["model"] == "local_mbu" and rsf == "destid_bitflip2"):
             rm = "destid_bitflip2"
         if (inj["model"] == "legal_domain_sub"
-                and str(tgt.get("sub_field", "")) == "destid_swap_active"):
+                and rsf == "destid_swap_active"):
             rm = "destid_swap_active"
         if (inj["model"] in ("stuck_at_zero", "stuck_at_one")
-                and str(tgt.get("sub_field", "")) == "destid_stuck"):
+                and rsf == "destid_stuck"):
             rm = "destid_stuck"
         # W5.4 done-bit family (ooo 04-design-matrix D32-D35, Int
         # Dispatch/ROB — the done/completed CanCommit bit at the
@@ -959,7 +1004,9 @@ def main():
             rm = "tail_ptr_stuck"
         cmd += ["--rob_mode", rm, "--rob_first_clock", str(t["value"]),
                 "--rob_max_faults", str(m["limits"]["max_faults"]),
-                "--rob_rng_seed", str(m["rng"]["selection_seed"])]
+                "--rob_rng_seed", str(m["rng"]["selection_seed"]),
+                # W7.4: destid-family register class (_vec suffix above).
+                "--rob_target_class", rbcls]
     elif comp == "iq":
         # §2.5 CHAOSIQ. wake_omit (F6, default) / src_ready_bitflip (F5,
         # wrong-source wakeup — legal_domain_sub) / wake_phase (F6 phase
@@ -973,6 +1020,27 @@ def main():
         # target.sub_field discriminator (the rob-block pattern); plain
         # models keep the legacy mappings above.
         sf = str(tgt.get("sub_field", ""))
+        # W7.4 (ooo 04-design-matrix D86-D91, FP/SIMD Dispatch/ROB):
+        # register-class axis + the D86 opClass scoping, the rat-block
+        # suffix convention. "_vec" (e.g. "tag_swap_vec", "tag_bitflip_vec",
+        # "tag_bitflip2_vec", "tag_stuck_vec", "tag_stale_read_vec",
+        # "ready_early_vec") strips the suffix for the discriminators below
+        # and routes --iq_target_class vec — the FP/SIMD twins on the
+        # VecRegClass rename domain (scalar FP + FP SIMD + integer SIMD all
+        # rename onto VecRegClass, W1.2; tag domain [0, numVecPhysRegs)).
+        # "_fp" (the three §2.5 wake modes only: "wake_omit_fp" /
+        # "src_ready_bitflip_fp" / "wake_phase_fp") keeps the class-agnostic
+        # mode and adds --iq_fp_only — the D86 "FP/SIMD 队列版" opClass
+        # filter (Float* ∪ SimdFloat*). Plain sub_field keeps
+        # targetClass=int + fpOnly off — every pre-W7 manifest unaffected.
+        icls = "int"
+        ifp = False
+        if sf.endswith("_vec"):
+            icls = "vec"
+            sf = sf[:-len("_vec")]
+        elif sf.endswith("_fp"):
+            ifp = True
+            sf = sf[:-len("_fp")]
         if (inj["model"] == "delay_omission" and sf == "ready_early"):
             im = "ready_early"
         if (inj["model"] == "delay_omission" and sf == "ready_never"):
@@ -999,6 +1067,11 @@ def main():
         cmd += ["--iq_first_clock", str(t["value"]),
                 "--iq_max_faults", str(m["limits"]["max_faults"]),
                 "--iq_rng_seed", str(m["rng"]["selection_seed"])]
+        # W7.4: class axis + D86 fpOnly (suffix convention above).
+        if icls == "vec":
+            cmd += ["--iq_target_class", "vec"]
+        if ifp:
+            cmd += ["--iq_fp_only"]
         # v1.1 Phase 8.2: fixed uniform skip / countOnly dry-run.
         if s_skip is not None:
             cmd += ["--iq_events_to_skip", str(s_skip)]
@@ -1407,6 +1480,16 @@ def main():
                     # faults=2 — classification unaffected (classify uses
                     # faults>=1 boolean) but the G5 evidence value was wrong.
                     if line.lstrip().startswith("protection:"):
+                        continue
+                    # CHAOSFreeList D17/D18/D74/D75: the DUPLICATE_ALLOCATION
+                    # watcher line is the EVIDENCE that the re-added idx was
+                    # re-handed-out (the second allocation of the ONE injected
+                    # duplicate) — not a second injection. Counting it
+                    # double-reported every mark_free(_event) run whose
+                    # duplicate re-fired within the run as faults=2 (found in
+                    # the W7.3 vec E2E; same class as the "protection:" fix
+                    # above — classification unaffected, G5 evidence wrong).
+                    if "DUPLICATE_ALLOCATION:" in line:
                         continue
                     # count valid injection lines: exclude Inactive/Error
                     if ("Inactive" in line) or line.startswith("Error"):
