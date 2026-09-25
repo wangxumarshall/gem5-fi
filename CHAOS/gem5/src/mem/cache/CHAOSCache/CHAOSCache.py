@@ -48,7 +48,7 @@ class CHAOSCache(SimObject):
     targetField = Param.String("data",
         "§2.7/§2.11 field-level fault: data (default, byteOffset/mask) | "
         "valid (invalidate block) | dirty (toggle dirty bit) | coh (toggle "
-        "coherence bit). tag(F5) + repl deferred.")
+        "coherence bit) | data_shift (C09 rotate) | tag(F5)")
     pairedSector = Param.Bool(False,
         "Phase 5 §7.7 paired-sector 128B fault-domain proxy: when set, the "
         "fault is applied to BOTH the target 64B block AND its 128B-aligned "

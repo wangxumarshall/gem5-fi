@@ -166,7 +166,7 @@ p.add_argument("--l1d_first_clock", type=lambda x: int(x,0), default=1000)
 p.add_argument("--l1d_max_faults", type=lambda x: int(x,0), default=1)
 p.add_argument("--l1d_rng_seed", type=lambda x: int(x,0), default=20260825)
 p.add_argument("--l1d_target_field", default="data",
-               choices=["data","tag","valid","dirty","coh"])
+               choices=["data","tag","valid","dirty","coh","data_shift"])
 p.add_argument("--l1d_protection_model", default="none",
                choices=["none","sed","secded_poison","secded"])
 p.add_argument("--l1d_lsu_tier", default="off",
