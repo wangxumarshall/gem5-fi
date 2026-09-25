@@ -2657,3 +2657,4 @@ CI 零重叠——**H7 验收断言("ECC-off spurious>0 vs ECC-on≈0")formal �
 - S05 SQ size/BE 替换完成(F5 实证 87 注入 size 8→1)。W5 进度: 10/17。
 - L03 violation 检测腐蚀完成(F5 实证 343 注入)。W5 进度: 11/17。
 - L02 LQ 生命周期状态完成(STRICT_ORDER 翻转, F0 实证 1 注入)。W5: 12/17。
+- S10 StoreSet 腐蚀完成(SSID 创建/合并路径事件通知)。W5: 13/17。
