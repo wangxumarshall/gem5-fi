@@ -446,6 +446,12 @@ LSQ::sendRetryResp()
 bool
 LSQ::recvTimingResp(PacketPtr pkt)
 {
+    // LSU W5 L04: response-pairing corruption — when a cache response
+    // arrives and the F6 CAS-success event notify fires (proxy), redirect
+    // the response to the WRONG LSQ unit (simulating a transaction-ID
+    // mismatch where the response goes to the wrong load).
+    if (chaosLsuF6Notify) chaosLsuF6Notify(ChaOSLsuEvent::CasSuccess);
+
     if (pkt->isError())
         DPRINTF(LSQ, "Got error packet back for address: %#X\n",
                 pkt->getAddr());
