@@ -616,6 +616,9 @@ BaseCache::recvTimingResp(PacketPtr pkt)
 
         const bool allocate = (writeAllocator && mshr->wasWholeLineWrite) ?
             writeAllocator->allocate() : mshr->allocOnFill();
+        // LSU W6 C12: fill/writeback timing corruption — the event hook
+        // lets the injector delay or drop this fill (data never arrives).
+        if (chaosLsuF6Notify) chaosLsuF6Notify(ChaOSLsuEvent::SqForward);
         blk = handleFill(pkt, blk, writebacks, allocate);
         assert(blk != nullptr);
         ppFill->notify(CacheAccessProbeArg(pkt, accessor));
@@ -662,6 +665,10 @@ BaseCache::recvTimingResp(PacketPtr pkt)
             // check the isFull condition before and after as we might
             // have been using the reserved entries already
             const bool was_full = mshrQueue.isFull();
+            // LSU W6 C14: MSHR busy/release corruption — the event hook
+            // lets the injector decide whether to prevent this deallocation
+            // (MSHR stays allocated = permanent stall for that block).
+            if (chaosLsuF6Notify) chaosLsuF6Notify(ChaOSLsuEvent::DirtyEviction);
             mshrQueue.deallocate(mshr);
             if (was_full && !mshrQueue.isFull()) {
                 clearBlocked(Blocked_NoMSHRs);
