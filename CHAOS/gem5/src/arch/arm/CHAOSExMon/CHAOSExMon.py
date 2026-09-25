@@ -24,3 +24,9 @@ class CHAOSExMon(SimObject):
     maxFaults = Param.UInt64(0, "max faults; 0 = unlimited. Use 1.")
     rngSeed = Param.UInt64(0, "RNG seed (0 = random_device)")
     writeLog = Param.Bool(True, "Write a fault_injections.log file")
+    # LSU W8 (05 r2-r8): event-normalized trigger tier; "off" = legacy.
+    # O-series (exclusive monitor/atomic) — works in SE (unlike TLB).
+    # Multi-core semantics (O05-O07) require FS multi-core infrastructure.
+    lsuTier = Param.String("off", "off | F0 | F1 | F2 | F3 | F4 | F5 | F6")
+    lsuWarmupEvents = Param.UInt64(0, "eligible events skipped before arming")
+    lsuSpanEvents = Param.UInt64(1000, "F0 uniform window size")
