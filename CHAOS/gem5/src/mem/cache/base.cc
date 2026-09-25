@@ -402,6 +402,12 @@ BaseCache::handleTimingReqMiss(PacketPtr pkt, MSHR *mshr, CacheBlk *blk,
                 // buffer and to schedule an event to the queued
                 // port and also takes into account the additional
                 // delay of the xbar.
+                // LSU W6 C11: MSHR merge corruption — when the F6 dirty-
+                // eviction event fires (proxy cadence), flip a low bit of the
+                // merging target's address BEFORE the merge. The coalesced
+                // request then carries the wrong address downstream.
+                if (chaosLsuF6Notify)
+                    chaosLsuF6Notify(ChaOSLsuEvent::DirtyEviction);
                 mshr->allocateTarget(pkt, forward_time, order++,
                                      allocOnFill(pkt->cmd));
                 if (mshr->getNumTargets() >= numTarget) {
