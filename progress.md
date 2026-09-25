@@ -2654,3 +2654,4 @@ CI 零重叠——**H7 验收断言("ECC-off spurious>0 vs ECC-on≈0")formal �
 - S04 store-addr 同页换值实现(F5 实证 62 store 注入)。isLoad 门控(S04/S13/L01 只向 trigger 呈现匹配类型)防止 F0 空射。
 - 已知残余: F0 的 attempted 计数可能仍含非匹配事件——不阻塞锚点, 下会话核修。
 - **W5 进度**: S01✓ S02✓(已有) S03✓(已有) S04✓ S08-S09✓(已有) S13✓ L01✓ + S05-S07/S10-S11/L02-L04 待做 + S12 不适用(B0)。
+- S05 SQ size/BE 替换完成(F5 实证 87 注入 size 8→1)。W5 进度: 10/17。
