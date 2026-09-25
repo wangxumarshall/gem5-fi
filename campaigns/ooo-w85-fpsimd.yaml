@@ -8,8 +8,8 @@
 #
 # Scope: D56-D91 (31 D rows). Cell accounting vs
 # docs/gem5-fi/ooo/05-expanded-matrix.csv (226 cells total):
-#   covered by subcampaigns : 76
-#   covered via alias (merge口径): 7
+#   covered by subcampaigns : 73
+#   covered via alias (merge口径): 10
 #   SVE-deferred (D78-D82)  : 7
 #   M2-gate (W8.1, other agent): 0
 #   total in scope          : 90
@@ -74,6 +74,21 @@
 # (identical component/model/sub_field/tier/binary). They are NOT
 # re-run; alias_map below documents the credit — the backfill side
 # needs an alias rule (gap list), or re-run them as duplicates.
+#
+# ORCHESTRATOR RULING 2026-09-25 (D72/D73): the scalar-FP freelist
+# twins E187/E188 (D72) and E189 (D73) alias to D74/D75's
+# dep_chain_vec subcampaigns. Grounds: (a) 04 merge clause verbatim
+# 「如果实际是同一套映射，此行与向量行应合并，不重复跑」; (b) 03-workloads
+# assigns the VEC version of 长依赖链压力核 to FP/SIMD Rename cells
+# (the matrix's unqualified label + 03's rule => dep_chain_vec);
+# (c) N3: AArch64 scalar FP renames onto VecRegClass — the scalar-FP
+# freelist IS the vec freelist on this platform (FloatRegClass never
+# renamed, flFloatMin=192 always), so D72/D73's fault semantics land
+# on the identical config as D74/D75. The literalist int-kernel
+# reading would inject into a near-static vec pool (design-void,
+# Inactive-by-construction) and D73's pool-drained event would
+# likely never fire — not a real result. Same merged-row treatment
+# as the W7.2/3 commit 09cc506e ("merged rows").
 #============================================================================
 batch_id: ooo-w85
 subcampaigns:
@@ -2288,75 +2303,6 @@ subcampaigns:
     _TODO_density: 'W8.1 后核实: run tools/event_density.py on this (D,binary) pair and fill `density: <events/run>`
       (or density_table+event). campaign.py exits loudly on this stanza until then — intentional, never
       fabricate a count.'
-- campaign_id: ooo_w85_d72_freelist_dep_chain
-  schema_version: arm-chaos-fi/v1
-  injector: freelist
-  config: C3
-  mode: SE
-  cpu_model: ArmO3CPU
-  grid:
-    target_index: -1
-    field: free_list
-    width_bits: 6
-    sub_field: mark_free_vec
-    fault_model: transient_bit_flip
-    protection_model: none
-  n_per_cell: 1
-  base_seed: 85072000
-  replay_pct: 5
-  workload:
-    binary: workloads/ooo/dep_chain/dep_chain
-    golden_id: depchainint-golden-v1
-    trigger_mode: cycle
-    trigger_value: 1000
-  limits:
-    max_faults: 1
-  hang_timeout: 600
-  ooo:
-    design_unit_id: D72
-    workload: 长依赖链压力核
-  two_phase:
-    enabled: true
-    tiers:
-    - F1
-    - F2
-    pilot_n: 20
-    formal_n: 2000
-    pick_top: 2
-- campaign_id: ooo_w85_d73_freelist_dep_chain
-  schema_version: arm-chaos-fi/v1
-  injector: freelist
-  config: C3
-  mode: SE
-  cpu_model: ArmO3CPU
-  grid:
-    target_index: -1
-    field: free_list
-    width_bits: 6
-    sub_field: mark_free_event_vec
-    fault_model: transient_bit_flip
-    protection_model: none
-  n_per_cell: 2000
-  base_seed: 85073000
-  replay_pct: 5
-  workload:
-    binary: workloads/ooo/dep_chain/dep_chain
-    golden_id: depchainint-golden-v1
-    trigger_mode: cycle
-    trigger_value: 1000
-  limits:
-    max_faults: 1
-  hang_timeout: 600
-  ooo:
-    design_unit_id: D73
-    workload: 长依赖链压力核
-    frequency_tier: 事件触发
-  counting:
-    mode: event_coverage
-    target_events: 2000
-    _TODO_density: 'W8.1 后核实: run tools/event_density.py on this (D,binary) pair and fill `density: <events/run>`
-      (or density_table+event). campaign.py exits loudly on this stanza until then — intentional, never
-      fabricate a count.'
 - campaign_id: ooo_w85_d74_freelist_dep_chain_vec
   schema_version: arm-chaos-fi/v1
   injector: freelist
@@ -4087,3 +4033,22 @@ alias_map:
   - E171
   note: 'merged-row口径: identical runs to the covered_by row (same component/model/sub_field/class/tier/binary);
     credit at backfill (see gap list)'
+- design_unit_id: D72
+  workload: 长依赖链压力核
+  covered_by: D74
+  experiment_cell_ids:
+  - E187
+  - E188
+  note: 'orchestrator ruling 2026-09-25: merged-row alias — 04 merge clause 「不重复跑」
+    + 03-workloads FP/SIMD Rename => dep_chain_vec + N3 (scalar-FP freelist ≡ vec freelist
+    on AArch64). E187/E188 credit from E190/E191 runs; attribution granularity (opClass
+    Float* vs SimdFloat*) is post-hoc from commit trace, same as the W7.2 RAT ruling.'
+- design_unit_id: D73
+  workload: 长依赖链压力核
+  covered_by: D75
+  experiment_cell_ids:
+  - E189
+  note: 'orchestrator ruling 2026-09-25: merged-row alias — same grounds as D72. E189
+    (event-coverage cell) credits from E192; the density TODO lives on the D75 stanza
+    only. The literalist int-kernel reading would starve the pool-drained event
+    (vec pool near-static on dep_chain int) — design-void, not a real result.'
