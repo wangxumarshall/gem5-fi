@@ -2694,3 +2694,12 @@ CI 零重叠——**H7 验收断言("ECC-off spurious>0 vs ECC-on≈0")formal �
 - T 模型映射: T01-T04+T10 可由现有 CHAOSArmTLB 模式覆盖(需 FS 测试);
   T05-T08 需新模式; T09(保护)=B0 不适用。
 - **W7 状态: 注入面参数就位(wire-ready); 测试需 FS 基础设施补齐后进行。**
+
+### W8 原子/预取注入器(2026-09-26): 参数接线完成
+
+- CHAOSExMon.py 加 LSU 触发参数。O01-O04(单核 SE 可测): exclusive
+  monitor/原子操作状态码/返回MUX。O05-O07(多核): 需 FS 多核基础设施。
+  O08(保护)=B0 N/A。O09(单bit)=复用 CHAOSExMon。
+- P01-P09(预取器): 被测对象=L2 StridePrefetcher(W0 挂载 degree=8);
+  注入面=现有 F6 事件机制(chaosLsuF6Notify)+CHAOSCache(若预取数据
+  进 cache 后被腐蚀)。
