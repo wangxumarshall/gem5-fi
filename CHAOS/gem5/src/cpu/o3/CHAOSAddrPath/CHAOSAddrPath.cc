@@ -197,7 +197,7 @@ namespace gem5
     }
 
     unsigned int
-    CHAOSAddrPath::maybeCorruptPre(Addr& addr, unsigned int size)
+    CHAOSAddrPath::maybeCorruptPre(Addr& addr, unsigned int size, bool isLoad)
     {
         if (probability <= 0.0f) return size;
 
@@ -249,6 +249,20 @@ namespace gem5
                 size = (unsigned)agu_size_to;
             else
                 return size;  // invalid target size — no-op, logged below
+        } else if (pre_mode == "s13_store_addr") {
+            // S13 (03): SQ entry address/tag single-bit flip — STORES only.
+            // The corrupted address affects forwarding comparison AND the
+            // final writeback destination (both consume the SQ addr field).
+            if (isLoad) return size;   // L01's territory, not ours
+            const uint64_t bit = rng() % 48;   // VA 48-bit
+            addr = addr ^ (1ULL << bit);
+        } else if (pre_mode == "l01_load_addr") {
+            // L01 (03): LQ entry address/tag single-bit flip — LOADS only.
+            // The corrupted address affects the conflict/violation check
+            // against older stores AND the actual memory access.
+            if (!isLoad) return size;  // S13's territory, not ours
+            const uint64_t bit = rng() % 48;
+            addr = addr ^ (1ULL << bit);
         } else {
             return size;  // unknown pre_mode — config validated in .py choices
         }

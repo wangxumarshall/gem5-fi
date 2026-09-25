@@ -414,7 +414,7 @@ p.add_argument("--addrpath_f6_event", default="sq_forward",
 # pushRequest-entry hook — exactly one hook per run (pre_mode != off
 # registers on the PRE pointer instead).
 p.add_argument("--agu_pre_mode", default="off",
-               choices=["off","a04_subst","a05_shift","a06_size","a08_subst"],
+               choices=["off","a04_subst","a05_shift","a06_size","a08_subst","s13_store_addr","l01_load_addr"],
                help="W4: PRE-hook family at LSQ::pushRequest entry (03 A04/A05/A06/A08)")
 p.add_argument("--agu_size_to", type=lambda x: int(x,0), default=0,
                help="W4 a06_size: target access size 1|2|4|8|16")

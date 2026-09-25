@@ -43,7 +43,7 @@ class CHAOSAddrPath : public SimObject
     // submodels are NOT expressible from the final addr — deferred, R5),
     // a06_size (access-size substitution; byte_enable is const at this
     // hook — size only), a08_subst (same-page, no object constraint).
-    unsigned int maybeCorruptPre(Addr& addr, unsigned int size);
+    unsigned int maybeCorruptPre(Addr& addr, unsigned int size, bool isLoad);
 
   private:
     // LSU W4 A-series (03-design-matrix A01-A03, bit-level family on the
@@ -86,7 +86,7 @@ class CHAOSAddrPath : public SimObject
     // a genuine read-back judgement).
     ChaOSL0Funnel l0_funnel;
     ChaOSL0State l0_item;
-    std::string pre_mode = "off";   // off | a04_subst | a05_shift | a06_size | a08_subst
+    std::string pre_mode = "off";   // off | a04_subst | a05_shift | a06_size | a08_subst | s13_store_addr | l01_load_addr
     uint64_t agu_size_to = 0;       // a06_size: target size {1,2,4,8,16}
     static CHAOSAddrPath *f6Consumer;
     static void f6Thunk(ChaOSLsuEvent ev);
