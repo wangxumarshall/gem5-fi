@@ -2668,3 +2668,9 @@ CI 零重叠——**H7 验收断言("ECC-off spurious>0 vs ECC-on≈0")formal �
 - **S12**(保护) 不适用(B0 无保护, 09 §6.4)
 - TC'23 锚点三腿(S01/S13/L01) SDC=0 通过(M2 锚点判据)
 - 诚实近似声明: S06/L02 用 flags 代理(内部状态机不可达)、S07 用地址别名(指针寄存器不存在)、L04 用事件通知(需注入器消费端)、A07 deferred(R4)
+
+### W6 Cache 注入器启动(2026-09-26)
+
+- CHAOSCache 成功挂载到 C4-LSU 平台(l1d-cache-0, _pre_instantiate 钩子)。
+- 现有模式即刻覆盖 C01/C02/C03/C04/C13(5/15)。
+- C05-C12/C14-C15 需新 CHAOSCache 模式(way-select/valid/dirty/coherence/PLRU/MSHR/fill-writeback/busy/occupancy)。
