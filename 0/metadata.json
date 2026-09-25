@@ -1,0 +1,88 @@
+{
+  "cli_version": "0.10.2",
+  "checkpoint_id": "01M3C47AG64A7N0C2NK5VJSXV3",
+  "session_id": "12997ed0-faf3-4d19-b383-8b11c1b47de5",
+  "strategy": "manual-commit",
+  "created_at": "2026-09-25T11:11:51.052404779Z",
+  "branch": "fi-ding",
+  "checkpoints_count": 3,
+  "save_step_count": 1,
+  "files_touched": [
+    "artifacts/ooo_w8_density/backfill.py",
+    "artifacts/ooo_w8_density/backfill_result.json",
+    "artifacts/ooo_w8_density/branch_mispred.json",
+    "artifacts/ooo_w8_density/cholesky.json",
+    "artifacts/ooo_w8_density/coremark.json",
+    "artifacts/ooo_w8_density/crc32.json",
+    "artifacts/ooo_w8_density/density_table.md",
+    "artifacts/ooo_w8_density/dep_chain.json",
+    "artifacts/ooo_w8_density/dep_chain_vec.json",
+    "artifacts/ooo_w8_density/driver.sh",
+    "artifacts/ooo_w8_density/gap.json",
+    "artifacts/ooo_w8_density/gemm.json",
+    "artifacts/ooo_w8_density/jacobi2d.json",
+    "artifacts/ooo_w8_density/jpeg_wl.json",
+    "artifacts/ooo_w8_density/lu.json",
+    "artifacts/ooo_w8_density/matmult_int.json",
+    "artifacts/ooo_w8_density/md5sum.json",
+    "artifacts/ooo_w8_density/minver.json",
+    "artifacts/ooo_w8_density/nbody.json",
+    "artifacts/ooo_w8_density/rob_fill.json",
+    "artifacts/ooo_w8_density/rob_fill_fp.json",
+    "artifacts/ooo_w8_density/wikisort.json",
+    "campaigns/ooo-w82-int-rename.yaml",
+    "campaigns/ooo-w83-int-dispatch-rob.yaml",
+    "campaigns/ooo-w85-fpsimd.yaml"
+  ],
+  "agent": "Claude Code",
+  "model": "GLM-5.3[1m]",
+  "turn_id": "568d53a1dcc0",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 1723158,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 19198976,
+    "output_tokens": 120028,
+    "api_call_count": 104
+  },
+  "skill_events_version": 1,
+  "skill_events": [
+    {
+      "id": "prompt-skill-claude-code-superpowers:executing-plans-2026-09-25T01:15:47.524406538Z",
+      "event_type": "prompt_invocation",
+      "skill": {
+        "name": "superpowers:executing-plans"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "prompt_slash_command",
+        "confidence": "explicit"
+      },
+      "turn_id": "9d6e5173887f",
+      "timestamp": "2026-09-25T01:15:47.524406538Z",
+      "native": {
+        "command": "/superpowers:executing-plans"
+      },
+      "collapse": {
+        "target": "user_message",
+        "label": "/superpowers:executing-plans",
+        "default_collapsed": true
+      }
+    }
+  ],
+  "session_metrics": {
+    "turn_count": 6
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-09-25T11:11:50.850531662Z",
+    "agent_lines": 3681,
+    "agent_removed": 138,
+    "human_added": 45,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 3726,
+    "total_lines_changed": 3864,
+    "agent_percentage": 98.83540372670807,
+    "metric_version": 2
+  }
+}

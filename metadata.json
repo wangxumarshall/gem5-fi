@@ -1,0 +1,50 @@
+{
+  "cli_version": "0.10.2",
+  "checkpoint_id": "01M3C47AG64A7N0C2NK5VJSXV3",
+  "strategy": "manual-commit",
+  "branch": "fi-ding",
+  "checkpoints_count": 3,
+  "files_touched": [
+    "artifacts/ooo_w8_density/backfill.py",
+    "artifacts/ooo_w8_density/backfill_result.json",
+    "artifacts/ooo_w8_density/branch_mispred.json",
+    "artifacts/ooo_w8_density/cholesky.json",
+    "artifacts/ooo_w8_density/coremark.json",
+    "artifacts/ooo_w8_density/crc32.json",
+    "artifacts/ooo_w8_density/density_table.md",
+    "artifacts/ooo_w8_density/dep_chain.json",
+    "artifacts/ooo_w8_density/dep_chain_vec.json",
+    "artifacts/ooo_w8_density/driver.sh",
+    "artifacts/ooo_w8_density/gap.json",
+    "artifacts/ooo_w8_density/gemm.json",
+    "artifacts/ooo_w8_density/jacobi2d.json",
+    "artifacts/ooo_w8_density/jpeg_wl.json",
+    "artifacts/ooo_w8_density/lu.json",
+    "artifacts/ooo_w8_density/matmult_int.json",
+    "artifacts/ooo_w8_density/md5sum.json",
+    "artifacts/ooo_w8_density/minver.json",
+    "artifacts/ooo_w8_density/nbody.json",
+    "artifacts/ooo_w8_density/rob_fill.json",
+    "artifacts/ooo_w8_density/rob_fill_fp.json",
+    "artifacts/ooo_w8_density/wikisort.json",
+    "campaigns/ooo-w82-int-rename.yaml",
+    "campaigns/ooo-w83-int-dispatch-rob.yaml",
+    "campaigns/ooo-w85-fpsimd.yaml"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 1723158,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 19198976,
+    "output_tokens": 120028,
+    "api_call_count": 104
+  }
+}
