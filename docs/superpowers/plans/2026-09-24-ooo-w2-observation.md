@@ -79,3 +79,6 @@
 - 格式钉死使 Task 1/2 可并行（类型一致性由双方共守本文件 Interface 块保证）。
 - 五分类映射覆盖 01-observation-points.md 全部五类，无遗漏；潜伏期=首分歧 seq（01 的「提交指令数」口径）。
 - 纯读零事件是两个 SimObject 的共同硬门（CHAOSProbe 先例模式）。
+
+## 已知边界补记（2026-09-25，W7.4 ctrace L2 补跑实证）
+- **极早 Crash 的 0 字节 trace**：W2.1 后续的周期 gzflush（每 4096 行）抢救路径覆盖「≥1 次 flush 后 abort」的截断流（`truncated_no_divergence_in_prefix`，合成检验 1689204 前缀对齐通过）；但 panic 发生在首次 flush 之前的极早 Crash（实例：W5 int tag_bitflip@nbody，sn=157，注入后极快 panic）run 侧 trace 为 **0 字节**——L2 退化为 presence 级②指令流改变（run_instructions=0，ref 全量 4083949 行仅在 ref 侧）。这是「损失<4096 行」设计包络的边界端点，非缺陷；W8.7 重放遍对此类样本的 L2 报告口径=presence 级，五分类细分不适用（诚实记录，不假装有前缀）。
