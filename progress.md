@@ -2642,3 +2642,9 @@ CI 零重叠——**H7 验收断言("ECC-off spurious>0 vs ECC-on≈0")formal �
 - **根因**: 我的 grep 用了 `lsqfwd_injections.log`, 实际文件名是 `lsq_fwd_injections.log`(下划线)——6 个"零注入 crash"全部恰好 1 次注入(逐一日志核实)。异常在验证工具, 不在仿真系统。
 - **修正后 S01 TC'23 锚点账**: 30 reps × 1 注入 = **24 Masked + 6 Crash + SDC=0**——与 TC'23 LQ/SQ 单bit SDC=0% 完全一致(crash=腐蚀转发数据被负载作指针用→wild 地址→guest 页故障, 合法 Crash 类)。**锚点干净通过, 无仿真器缺陷**。
 - **教训(第 4 条自坑)**: 验证脚本的文件名必须从实际产物目录 ls 确认, 不得从记忆/命名惯例推断——本次"异常"烧了半小时排查一个不存在的 bug。
+
+### W5 TC'23 锚点三腿全过(2026-09-26): M2 门锚点判据通过
+
+- S01(SQ data 单bit) SDC=0 + S13(SQ addr 单bit) SDC=0 + L01(LQ addr 单bit) SDC=0——**TC'23 LQ/SQ 单bit SDC=0% 完整复现**。
+- L01 全 30 crash(位翻转→未映射页→guest 页故障): l1d_reduce 小地址空间特性; MiBench 级负载到位后需复核(W9 依赖)。
+- M2 出口判据的锚点项(AGU/SQ/LQ 三单元)全部通过; Cache 单元(W6)待做后 M2 完整达成。
