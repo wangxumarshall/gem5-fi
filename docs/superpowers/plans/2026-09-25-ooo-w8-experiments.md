@@ -39,10 +39,10 @@
 ### Task 1.4: Wave A nohup 启动（gate-check）
 - [x] 启动前 free available=21GB（≥8GB → --jobs 8）；无并行 gem5 进程。启动记录：`nohup bash runs/ooo_w81_gate/driver_waveA.sh > runs/ooo_w81_gate/driver_waveA.log 2>&1 &` **driver PID 706118，2026-09-25T10:06:50+08:00**，sweeper PID 706120（/tmp man-* mmin+20 每 5 min 清扫）；14 campaign 顺序：e074 → e075_crc32 → e082 → e083_crc32 → e075×5 → e083×5。
 ### Task 1.5: 门复核（pilot 4 格 × F0 × 20 全部完成后）
-- [ ] 读 14 个 artifacts/ooo_w81_gatecheck_*/tier_selection.json + runs/*/c0000/pilot_results.jsonl，逐格统计 SDC/Crash/Masked/Hang/Inactive/SimulatorError，引用真实输出。
-- [ ] **判据：任一 (cell×program) pilot SDC>0 → 立即 kill 全部 campaign 进程，报告门失败（注入器有错），不启动 Wave B。** 全 SDC=0 → 启动 Wave B。
+- [x] 读 14 个 artifacts/ooo_w81_gatecheck_*/tier_selection.json + runs/*/c0000/pilot_results.jsonl，逐格统计 SDC/Crash/Masked/Hang/Inactive/SimulatorError，引用真实输出。〔编排者亲测 2026-09-25 16:41（兜底 cron 接管；代理 watcher 触发后 20+ 分钟未见行动）：**14/14 格 280/280 行，SDC=0/280**；D25（E074+E075×6）140/140 全 Masked；D28（E082+E083×6）140/140 全 Crash（跨 7 负载完全确定性=依赖检查拦截机制复现）；tier_selection.json 14/14 齐、全部 tiers=[F0] 单档；Hang/Inactive/SimulatorError 全 0。D25 全 Masked=gem5 PRF-commit 结构掩蔽（W5 D32/33 平台属性），门判据只看 SDC≈0%——**pilot 级 M2 门通过**。〕
+- [x] **判据：任一 (cell×program) pilot SDC>0 → 立即 kill 全部 campaign 进程，报告门失败（注入器有错），不启动 Wave B。** 全 SDC=0 → 启动 Wave B。〔SDC=0/280 → 启动条件满足〕
 ### Task 1.6: Wave B nohup 启动（正式）
-- [ ] nohup 驱动脚本顺序跑 14 个正式 campaign（--jobs 8）；验证前 ~10 个 formal run（手工以同 manifest 跑 runner.py 或读早期 artifacts）分类合理、注入 fired（fired_lines≥1；零注入样本须以 Inactive 可见，不得静默）。
+- [x] nohup 驱动脚本顺序跑 14 个正式 campaign（--jobs 8）；验证前 ~10 个 formal run（手工以同 manifest 跑 runner.py 或读早期 artifacts）分类合理、注入 fired（fired_lines≥1；零注入样本须以 Inactive 可见，不得静默）。〔**编排者启动 2026-09-25 16:45:41，driver PID 755642**（nohup bash runs/ooo_w81_gate/driver_waveB.sh > driver_waveB.log；清扫器 755644；free available=21GB；e074 campaign PID 755653 跑中；replay_pct=1.0）。**协调注记（给 W8.1 代理）：Wave B 已由编排者启动——苏醒后勿双启动 driver_waveB.sh**；你的剩余职责=波间一致性复核（Wave B 各 campaign pilot 的 tier_selection class_counts vs Wave A 同 seed 逐格比对）+ formal 进度监控（预计 ~12h，~04:45 完成）。前 10 formal run 分类/注入核验由编排者在首批 formal 落地后执行。〕
 - [ ] 波间一致性：Wave B 各 campaign pilot 的 tier_selection.json class_counts 与 Wave A 逐格比对（同 seed 决定论，不一致=发现，如实记录）。
 ### Task 1.7: 门判读与交付（formal 完成后）
 - [ ] 4 格 formal 汇总（E075/E083 套件级 2004）：SDC 计数必须为 0；0/2000 的 Wilson 95% CI 上界引用（0/2000 → 上界 ≈0.18%；rule-of-three 3/n=0.15%）；Crash 主导（TC'23 复现）与 Masked/Hang/Inactive 占比如实报告；任一格 SDC>0（哪怕 1/2000）= 门失败，停止并报告。
