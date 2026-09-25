@@ -1,0 +1,13 @@
+继续
+
+---
+
+W8.1 M2 门 campaign 兜底检查（编排者职责）：检查 runs/ooo_w81_gate/driver_waveA.log 尾部与 14 个 runs/ooo_w81_gatecheck_*/c0000/pilot_results.jsonl 行数。若 Wave A（14×20 pilot）已全部完成但 W8.1 代理（ae4d45a1bb22f4d36）未行动（无 runs/ooo_w81_gate/driver_waveB.log 或无 Wave B campaign 进程），则编排者亲自接管：①统计 14 格分类分布（SDC 必须=0/280，否则门失败处置）②核验 tier_selection.json ③启动 Wave B formal（campaigns/ooo-w81-gate-*.yaml 顺序 driver，nohup，--jobs 8，参照 driver_waveA.sh 结构）④更新 PWF task_plan/progress。若代理A 已在行动则只记录不动。
+
+---
+
+汇报todo
+
+---
+
+OK
