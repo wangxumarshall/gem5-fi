@@ -1,0 +1,5 @@
+读取 986103be-6dae-4d5b-8b58-a5f2abf15cf7 session中断时的内容，
+
+---
+
+/superpowers:executing-plans 按计划完成后续所有工作，读取 @docs/gem5-fi/ooo/、@docs/superpowers/plans/ ooo相关
