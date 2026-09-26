@@ -1237,6 +1237,48 @@ def run_two_phase(args, campaign, cells, tp, counting, runs_dir,
 
     # ---- per-cell artifacts: pilot audit trail + formal results ----
     cell_results = []
+    # §1.5 replay pre-pass, pooled (2026-09-27): the serial per-cell
+    # replay loop below ran the 5% re-run pass at 1/args.jobs of the
+    # machine — measured on W8.2's first stanza (D11 x CoreMark): formal
+    # 4000 reps took ~1.5h at 96-way, then ~1.5-2h of SERIAL 300s-stall
+    # replays on one core. Same selection rule (first
+    # max(1, round(replay_pct% * n_formal)) formal reps per cell, same
+    # order), same _PoolRep worker, same per-rep timeout policy; only the
+    # execution is pooled across all cells. Replay reps are same-seed
+    # deterministic and independent, so execution order does not matter.
+    replay_expected = {}
+    for _ord_pre in range(len(cells)):
+        _fsorted = sorted(formal_by_cell[_ord_pre],
+                          key=lambda mr: os.path.basename(mr[0]))
+        _n_rep = max(1, round(replay_pct / 100.0 * len(_fsorted)))
+        for (_mpath, _res) in _fsorted[:_n_rep]:
+            replay_expected[_mpath] = _res["classification"]
+    replay_r2 = {}
+    if replay_expected:
+        print(f"[campaign] replay: {len(replay_expected)} reps "
+              f"(pooled x{max(1, args.jobs)})")
+        _do = _PoolRep(binary, hang_timeout, args.keep_manifests,
+                       bad_log_path, fs_extra=fs_extra)
+        if args.jobs <= 1:
+            for _m in sorted(replay_expected):
+                _mm, _r2 = _do((0, None, 0, _m, None))
+                replay_r2[_mm] = _r2
+        else:
+            from concurrent.futures import (ProcessPoolExecutor,
+                                            as_completed)
+            with ProcessPoolExecutor(max_workers=args.jobs) as ex:
+                _work = [(0, None, 0, _m, None)
+                         for _m in sorted(replay_expected)]
+                _futs = {ex.submit(_do, _it): _it for _it in _work}
+                _done = 0
+                for _fut in as_completed(_futs):
+                    _done += 1
+                    _mm, _r2 = _fut.result()
+                    replay_r2[_mm] = _r2
+                    if _done % 5 == 0 or _done == len(_work):
+                        print(f"[campaign] replay {_done}/{len(_work)} "
+                              f"reps done")
+
     for ord_i, cell in enumerate(cells):
         cdir = os.path.join(runs_dir, f"c{ord_i:04d}")
         # pilot records: audit only, never result columns (06 §1.3)
@@ -1277,8 +1319,7 @@ def run_two_phase(args, campaign, cells, tp, counting, runs_dir,
         n_replay = max(1, round(replay_pct / 100.0 * n_formal))
         frozen = False
         for (mpath, res) in formal_sorted[:n_replay]:
-            r2 = run_one_rep(mpath, binary, hang_timeout,
-                             args.keep_manifests, log_bad)
+            r2 = replay_r2[mpath]  # pooled pre-pass above; same manifest
             if r2["classification"] != res["classification"]:
                 frozen = True
                 with open(bad_log_path, "a") as f:
