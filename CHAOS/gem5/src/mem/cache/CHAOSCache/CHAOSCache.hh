@@ -4,10 +4,14 @@
 #include <random>
 
 #include "mem/cache/cache.hh"
+#include "cpu/o3/chaos_l0.hh"           // LSU W3 L0
+#include "cpu/o3/chaos_lsu_trigger.hh"  // LSU W2 trigger
 #include "params/CHAOSCache.hh"
 #include "sim/sim_object.hh"
 
 #include "mem/cache/cache.hh"
+#include "cpu/o3/chaos_l0.hh"           // LSU W3 L0
+#include "cpu/o3/chaos_lsu_trigger.hh"  // LSU W2 trigger
 #include "params/CHAOSCache.hh"
 #include <bitset>
 #include <string>
@@ -91,8 +95,12 @@ class CHAOSCache : public SimObject
     std::mt19937 rng;
     std::random_device rd;
     uint64_t rng_seed;  // 0 = random_device (orig, non-reproducible); else fixed
-    uint64_t max_faults;            // G5: 0 = unlimited; else cap
+    uint64_t max_faults;            // G6: 0 = unlimited; else cap
     uint64_t faults_injected_count; // G5: running count
+
+    // LSU W6/W10: event-normalized trigger + L0 funnel
+    ChaOSLsuTrigger *lsuTrigger = nullptr;
+    ChaOSL0Funnel l0_funnel;
     OutputStream *log_stream;
     // v1.2 Phase 14 (plan item 2): victim/writeback-path fault mode.
     bool victim_fault = false;

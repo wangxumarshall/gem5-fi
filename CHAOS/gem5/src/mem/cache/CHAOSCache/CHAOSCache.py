@@ -73,4 +73,8 @@ class CHAOSCache(SimObject):
         "DetectedContained, >=3-bit -> silent false-hit). Each cell should "
         "run 'none' (raw sensitivity) vs the proxy value "
         "(protection-aware escape rate). Does NOT convert to product FIT.")
+    # LSU W2/W6 (05 r2-r8): event-normalized trigger tier; "off" = legacy.
+    lsuTier = Param.String("off", "off | F0 | F1 | F2 | F3 | F4 | F5 | F6")
+    lsuWarmupEvents = Param.UInt64(0, "eligible events skipped before arming")
+    lsuSpanEvents = Param.UInt64(1000, "F0 uniform window size")
     writeLog = Param.Bool(True, "Write a log file")
