@@ -131,6 +131,15 @@ def run_single_cell(cell, args, seed, outdir):
     stdout_file.write_text(proc.stdout)
     stderr_file.write_text(proc.stderr)
 
+    # C-series: CHAOSCache logs to its own file, not stdout — read it
+    # for the injection count (L5 classifier only reads stdout).
+    cache_log = outdir / "cache_injections.log"
+    cache_inj = 0
+    if cache_log.exists():
+        for line in cache_log.read_text(errors="replace").splitlines():
+            if "Tick: " in line or "Cycle: " in line:
+                cache_inj += 1
+
     # Extract golden from no-inject run (simplified: use known goldens)
     goldens = {
         "mini_check": "07568da9f3ad5665",
@@ -144,7 +153,11 @@ def run_single_cell(cell, args, seed, outdir):
     }
     golden = goldens.get(binary.name, "")
 
-    return classify_run(outdir, stdout_file, golden, proc.returncode, stderr_file)
+    result = classify_run(outdir, stdout_file, golden, proc.returncode, stderr_file)
+    if cache_inj > 0 and result.get("injected", 0) == 0:
+        result["injected"] = cache_inj
+        result["injection_source"] = "cache_injections.log"
+    return result
 
 
 def main():
