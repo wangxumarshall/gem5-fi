@@ -2792,3 +2792,14 @@ Cache-DirtyEvict + Prefetch-Stride (全部 gem5==native)
 - 诚实发现: S10/L04/C11/C12/C14/C15 是 notify-only 事件源接线, 消费端腐蚀未实现→deferred(46格); 全部blocked格标原因不伪造
 - 全SE格trial campaign后台运行中(177格×5 seeds×4槽); 外来进程(gem5-fi ooo轨道 embench)负载93拖慢
 - A03 cmd构造bug(seed旗标被吞)已修, 待campaign结束重跑A03两格
+
+### LSU W8-W11 收尾完成(2026-09-26 晚, 12 commits 911628d8..本提交)
+
+**8/8 任务全部完成**:
+- 6955e634 trial campaign: 177 SE 格全跑+回填, 337/337 离开待执行(M5 诚实口径), 2624 activated=1583 Masked+1041 Crash+0 SDC, 守恒 177/177
+- trial 抓到并修复 3 个真 bug: golden 手误(28e405cc)/cache 族 activated 记账(6e0dcd52)/A03 seed 旗标(35a57ab3) — 全部重跑受影响格
+- 族谱: A 86% Crash(EA翻转未映射) / S 88% Crash(S03-F5 stuck 725) / L 100% Masked(TC'23锚点) / C 80% Masked / P 98% Masked(负对照全域)
+- 零激活 53 格分诊(F1/F2/F3 间隔>流 / F6 事件缺失 — 非工具错误)
+- 11-meta-analysis.md: 337 审计+守恒+三问(trial级)+配对对照+边界声明
+- 交付物: docs/gem5-fi/lsu/{10-trial-results.md, 11-meta-analysis.md} + artifacts/lsu-trial/(回填CSV+177 cell_results)
+- 剩余: 筛查档(≥385 activated/格, 数周计算)+FS 管线(T/O 系 154 格)+deferred 46 格消费端实现 — 全部如实标注非静默

@@ -534,16 +534,16 @@ python3 tools/lsu_campaign.py --matrix docs/gem5-fi/lsu/07-expanded-matrix.csv \
 - Modify: `tools/lsu_meta_analysis.py`（若 trial 数据暴露缺口：配对对照 S01 vs S04（bitflip vs 合法换值）、F6 vs F1/F2 同模型行配对——读 backfilled CSV 支持这两组配对输出）
 - Create: `docs/gem5-fi/lsu/11-meta-analysis.md`（最终报告）
 
-- [ ] **Step 1: 跑元分析**：
+- [x] **Step 1: 跑元分析**：
 
 ```bash
 python3 tools/lsu_meta_analysis.py --matrix runs/lsu/07-expanded-matrix-backfilled.csv \
   --output docs/gem5-fi/lsu/11-meta-analysis.md
 ```
-- [ ] **Step 2: 337×11 完整性审计断言**（报告内嵌审计表：每格状态 ∈ {试跑,已筛查,主结果,blocked(原因),不适用,deferred,待执行}；非 blocked 格无空值；守恒逐格闭合；CI 齐——trial 阶段 CI 半宽必然 >2pp，如实呈现不粉饰）。
-- [ ] **Step 3: 三问回答（trial 级，预注册边界）**——Q1 位置×SDC 潜力（trial 数据排序 + 文献锚点对照：TC'23 SDC=0 复现格）；Q2 前兆（L0 漏斗 attempted/eligible/activated 差异最大的格）；Q3 结构化 vs 随机（S01 vs S04、S13 vs S04 配对差——trial 级若有数据先出方向，无数据标待筛查）。**每条结论带 RunID + n + Wilson CI 或明确标注 trial 级局限**。
-- [ ] **Step 4: 边界声明**（B0 实验模型非 920 复刻；SE 233 格 trial 级 vs FS/多核 104 格 blocked 明细；O04/O09/P06 deferred 明细；下一步 = 筛查档 ≥385 activated/cell）。
-- [ ] **Step 5: Commit + push**（`feat(lsu): W11 meta-analysis — trial-level three-question report + 337-cell audit`）。
+- [x] **Step 2: 337×11 完整性审计断言**（报告内嵌审计表：每格状态 ∈ {试跑,已筛查,主结果,blocked(原因),不适用,deferred,待执行}；非 blocked 格无空值；守恒逐格闭合；CI 齐——trial 阶段 CI 半宽必然 >2pp，如实呈现不粉饰）。
+- [x] **Step 3: 三问回答（trial 级，预注册边界）**——Q1 位置×SDC 潜力（trial 数据排序 + 文献锚点对照：TC'23 SDC=0 复现格）；Q2 前兆（L0 漏斗 attempted/eligible/activated 差异最大的格）；Q3 结构化 vs 随机（S01 vs S04、S13 vs S04 配对差——trial 级若有数据先出方向，无数据标待筛查）。**每条结论带 RunID + n + Wilson CI 或明确标注 trial 级局限**。
+- [x] **Step 4: 边界声明**（B0 实验模型非 920 复刻；SE 233 格 trial 级 vs FS/多核 104 格 blocked 明细；O04/O09/P06 deferred 明细；下一步 = 筛查档 ≥385 activated/cell）。
+- [x] **Step 5: Commit + push**（`feat(lsu): W11 meta-analysis — trial-level three-question report + 337-cell audit`）。
 
 ---
 
