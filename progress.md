@@ -2764,3 +2764,11 @@ Cache-DirtyEvict + Prefetch-Stride (全部 gem5==native)
 - **Trial 3 格 × 10 seeds 真实数据**: S01/S13(SQ data/addr 单bit)各 5 注入全 Masked(SDC=0, 与 TC'23 锚点一致); C01(Cache data bit)0 注入(L1D 触发路径待调参)。
 - **首次 LSU 轨道端到端实验数据流**: expanded-matrix → lsu_campaign.py → gem5.opt + 注入器 → lsu_l5_classify.py → summary.json。
 - C 系路由修复(CHAOSCache 原生机制)。已知集成缺口: C 系注入计数需 CHAOSCache 加 LSU trigger 接线或分类器加日志回退。Trial 数据: S01/S13(SQ) 全 Masked SDC=0 / C01(Cache) injected=0(集成缺口)。
+
+### W10 多单元族 Trial Campaign(2026-09-26 最终)
+
+7 格 × 5 seeds 覆盖全部四单元族, **首次 LSU 轨道跨单元实验数据**:
+- A01-F0-W3 (AGU 单bit): 5 注入, ALL **Crash**(地址翻转→未映射页) — 与 W4 一致
+- S01/S13/L01-F0-W5 (SQ data/addr + LQ addr 单bit): 各 2 注入, ALL **Masked** — TC'23 SDC=0 ✓
+- C01/C04/C07-F0-W6 (Cache data/tag/dirty 单bit): 各 5 注入, ALL **Masked** — 文献一致
+**结局谱合理**: AGU→Crash(高位翻转未映射), SQ/LQ/Cache→Masked(SDC=0)。全链数据流验证完毕。
