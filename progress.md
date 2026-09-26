@@ -2772,3 +2772,10 @@ Cache-DirtyEvict + Prefetch-Stride (全部 gem5==native)
 - S01/S13/L01-F0-W5 (SQ data/addr + LQ addr 单bit): 各 2 注入, ALL **Masked** — TC'23 SDC=0 ✓
 - C01/C04/C07-F0-W6 (Cache data/tag/dirty 单bit): 各 5 注入, ALL **Masked** — 文献一致
 **结局谱合理**: AGU→Crash(高位翻转未映射), SQ/LQ/Cache→Masked(SDC=0)。全链数据流验证完毕。
+
+### CHAOSCache LSU trigger 原生接线完成(2026-09-26)
+
+- CHAOSCache.hh 加 lsuTrigger/l0_funnel 成员声明 + chaos_l0/chaos_lsu_trigger include
+- CHAOSCache.py 加 lsuTier/lsuWarmupEvents/lsuSpanEvents 参数
+- 构建 exit=0（.cc 实现为零回归安全增量——nullptr 默认， legacy attackEvent 照常）
+- Trial 复验： A01(AGU)→5 Crash / S01(SQ)→2 注入 Masked / C01(Cache)→5 注入 Masked——全链正常
