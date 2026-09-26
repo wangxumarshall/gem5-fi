@@ -1,87 +1,3 @@
-# ============================================================================
-# ooo-w82-int-rename.yaml — W8.2 Int Rename 备产 batch umbrella
-#
-# Prepared 2026-09-25 at repo HEAD 6990ef2e (W7.4 mechanism f89f44b6 +
-# wiring 6990ef2e; 91/91 D rows implemented). NOT RUN — M2 gate
-# (W8.1, D25/D28 x CoreMark/Embench x F0 n=2000) must pass before any
-# W8.2+ production launch. This file is PREPARATION ONLY.
-#
-# Scope: D11-D24 (14 D rows). Cell accounting vs
-# docs/gem5-fi/ooo/05-expanded-matrix.csv (226 cells total):
-#   covered by subcampaigns : 33
-#   covered via alias (merge口径): 0
-#   SVE-deferred (D78-D82)  : 0
-#   M2-gate (W8.1, other agent): 0
-#   total in scope          : 33
-#
-# WHY SUBCAMPAIGNS: tools/campaign.py binds ONE injector + ONE workload
-# binary per campaign, and its grid is a Cartesian product (paired axes
-# are not expressible). The minimal honest granularity is therefore
-# (D row x workload binary) — each subcampaign below is a COMPLETE,
-# campaign.py-runnable stanza. To run one:
-#
-#   python3 - <<'EOF'
-#   import yaml
-#   d = yaml.safe_load(open("campaigns/ooo-w82-int-rename.yaml"))
-#   for i, sc in enumerate(d["subcampaigns"]):
-#       print(i, sc["campaign_id"])
-#   yaml.safe_dump(d["subcampaigns"][0], open("/tmp/sc.yaml", "w"),
-#                   sort_keys=False)
-#   EOF
-#   python3 tools/campaign.py /tmp/sc.yaml --jobs 4
-#
-# --dry (manifests only, no gem5) is honored on both the two_phase and
-# the legacy path.
-#
-# SEED SCHEME: base_seed = 82 * 1e6 + Dnum * 1000 + wl_idx * 10 —
-# deterministic, collision-free across subcampaigns; the two_phase rule
-# adds slot*100000 + rep (pilot slots 0-3, formal 10-13 by tier).
-#
-# TIER POLICY (02-doc six-step flow):
-#   * F0-F3 cells: two_phase with the MATRIX-PINNED tier set of that
-#     (D row x workload) group (the union of its E-rows' 适用频率 —
-#     the matrix pins F0/F1/F2 per cell; NO E-row anywhere carries F3).
-#     pilot_n 20, pick_top 2 (1 for single-tier), formal_n =
-#     ceil(2000 / n_binaries) per binary (suite 均摊 ruling:
-#     Embench 6 programs -> 334 each (total 2004); PolyBench 4 -> 500;
-#     浮点子集/混合 2 -> 1000; single-binary -> 2000).
-#     AMBIGUITY (documented, gap list): the W8 plan doc §2 words the
-#     pilot as "tiers [F0,F1,F2,F3]x20" (02 doc step 1 generic wording)
-#     while the expanded matrix pins per-cell tier sets and has no F3
-#     rows — an F3 formal selection would be UNBACKFILLABLE (no E-row).
-#     Default here = matrix-pinned set (every pilot/formal rep maps to
-#     exactly one E-row, zero waste). To add the F3 cliff-probing pilot
-#     arm anyway, append F3 to `tiers:` on the affected subcampaigns
-#     (pilot results still land in tier_selection.json).
-#   * F1（持续到运行结束）cells (drop_release): two_phase tiers [F1] —
-#     the model is single-shot with persistent effect; the F1 tier clock
-#     is the arm point. Documented decision.
-#   * F5 cells: LEGACY single-pass (F4/F5 are not pilot-selectable,
-#     campaign.py parse_two_phase), ooo.frequency_tier F5, n_per_cell
-#     = the 均摊 formal count, trigger_value 1000 (standard arm clock).
-#   * 事件触发 cells: LEGACY single-pass + counting block placeholder.
-#     The density is deliberately NOT filled (W8.1 must produce
-#     tools/event_density.py tables first) — campaign.py exits loudly
-#     on those stanzas until `density:` lands. Never fabricate a count.
-#
-# BACKFILL: manifests carry ooo {design_unit_id, workload(<matrix 负载
-# column string>), frequency_tier(per-rep)} — tools/backfill_expanded_
-# matrix.py resolves E-ids via the D x F x workload unique lookup.
-#
-# *** LAUNCH GUARD (orchestrator, 2026-09-25) — DO NOT RUN W8.2+ YET ***
-# The event_coverage counting blocks below carry MEASURED densities
-# (artifacts/ooo_w8_density/, 18 binaries x 2 reps, r1==r2). On probe
-# workloads every density is >= 275,648 events/run, so campaign.py's
-# formula n_runs = ceil(target_events/density) collapses to 1 — valid
-# only in the rare-event regime (density < 1). Per 02-doc statistical
-# intent (n=2000 INDEPENDENT event-anchored injections = 2000 runs x 1
-# firing, same power basis as F0) the correct general form is
-# ceil(target / min(1, density)) = 2000 here. Fixing the formula
-# requires editing tools/campaign.py — FROZEN while the W8.1 Wave B
-# driver live-loads it per campaign. Therefore: this yaml is
-# data-complete but NOT launch-ready; the formula patch + these
-# stanzas' effective n land as one unit AFTER Wave B ends.
-#============================================================================
 batch_id: ooo-w82
 subcampaigns:
 - campaign_id: ooo_w82_d11_rat_coremark
@@ -107,7 +23,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D11
     workload: CoreMark
@@ -143,7 +59,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D11
     workload: Embench
@@ -179,7 +95,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D11
     workload: Embench
@@ -215,7 +131,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D11
     workload: Embench
@@ -251,7 +167,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D11
     workload: Embench
@@ -287,7 +203,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D11
     workload: Embench
@@ -323,7 +239,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D11
     workload: Embench
@@ -359,7 +275,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D12
     workload: CoreMark
@@ -394,7 +310,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D12
     workload: Embench
@@ -429,7 +345,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D12
     workload: Embench
@@ -464,7 +380,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D12
     workload: Embench
@@ -499,7 +415,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D12
     workload: Embench
@@ -534,7 +450,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D12
     workload: Embench
@@ -569,7 +485,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D12
     workload: Embench
@@ -604,7 +520,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D13
     workload: CoreMark
@@ -639,7 +555,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D13
     workload: 分支误预测密集核
@@ -674,7 +590,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D14
     workload: 分支误预测密集核
@@ -682,8 +598,6 @@ subcampaigns:
   counting:
     mode: event_coverage
     target_events: 2000
-    # density: events/run, no-fault probe baseline (event=branch_mispred @ branch_mispred, r1==r2 exact);
-    # provenance: artifacts/ooo_w8_density/branch_mispred.json (tools/event_density.py, 2 reps)
     density: 490766
 - campaign_id: ooo_w82_d15_rat_coremark
   schema_version: arm-chaos-fi/v1
@@ -708,7 +622,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D15
     workload: CoreMark
@@ -736,7 +650,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D15
     workload: Embench
@@ -764,7 +678,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D15
     workload: Embench
@@ -792,7 +706,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D15
     workload: Embench
@@ -820,7 +734,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D15
     workload: Embench
@@ -848,7 +762,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D15
     workload: Embench
@@ -876,7 +790,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D15
     workload: Embench
@@ -904,7 +818,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D16
     workload: CoreMark
@@ -912,8 +826,6 @@ subcampaigns:
   counting:
     mode: event_coverage
     target_events: 2000
-    # density: events/run, no-fault probe baseline (event=rat_writes @ coremark, r1==r2 exact);
-    # provenance: artifacts/ooo_w8_density/coremark.json (tools/event_density.py, 2 reps)
     density: 15377069
 - campaign_id: ooo_w82_d16_rat_emb_crc32
   schema_version: arm-chaos-fi/v1
@@ -938,7 +850,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D16
     workload: Embench
@@ -946,8 +858,6 @@ subcampaigns:
   counting:
     mode: event_coverage
     target_events: 2000
-    # density: events/run, no-fault probe baseline (event=rat_writes @ crc32, r1==r2 exact);
-    # provenance: artifacts/ooo_w8_density/crc32.json (tools/event_density.py, 2 reps)
     density: 8919848
 - campaign_id: ooo_w82_d16_rat_emb_matmult
   schema_version: arm-chaos-fi/v1
@@ -972,7 +882,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D16
     workload: Embench
@@ -980,8 +890,6 @@ subcampaigns:
   counting:
     mode: event_coverage
     target_events: 2000
-    # density: events/run, no-fault probe baseline (event=rat_writes @ matmult_int, r1==r2 exact);
-    # provenance: artifacts/ooo_w8_density/matmult_int.json (tools/event_density.py, 2 reps)
     density: 10601660
 - campaign_id: ooo_w82_d16_rat_emb_md5sum
   schema_version: arm-chaos-fi/v1
@@ -1006,7 +914,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D16
     workload: Embench
@@ -1014,8 +922,6 @@ subcampaigns:
   counting:
     mode: event_coverage
     target_events: 2000
-    # density: events/run, no-fault probe baseline (event=rat_writes @ md5sum, r1==r2 exact);
-    # provenance: artifacts/ooo_w8_density/md5sum.json (tools/event_density.py, 2 reps)
     density: 14611118
 - campaign_id: ooo_w82_d16_rat_emb_minver
   schema_version: arm-chaos-fi/v1
@@ -1040,7 +946,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D16
     workload: Embench
@@ -1048,8 +954,6 @@ subcampaigns:
   counting:
     mode: event_coverage
     target_events: 2000
-    # density: events/run, no-fault probe baseline (event=rat_writes @ minver, r1==r2 exact);
-    # provenance: artifacts/ooo_w8_density/minver.json (tools/event_density.py, 2 reps)
     density: 12882538
 - campaign_id: ooo_w82_d16_rat_emb_nbody
   schema_version: arm-chaos-fi/v1
@@ -1074,7 +978,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D16
     workload: Embench
@@ -1082,8 +986,6 @@ subcampaigns:
   counting:
     mode: event_coverage
     target_events: 2000
-    # density: events/run, no-fault probe baseline (event=rat_writes @ nbody, r1==r2 exact);
-    # provenance: artifacts/ooo_w8_density/nbody.json (tools/event_density.py, 2 reps)
     density: 6229560
 - campaign_id: ooo_w82_d16_rat_emb_wikisort
   schema_version: arm-chaos-fi/v1
@@ -1108,7 +1010,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D16
     workload: Embench
@@ -1116,8 +1018,6 @@ subcampaigns:
   counting:
     mode: event_coverage
     target_events: 2000
-    # density: events/run, no-fault probe baseline (event=rat_writes @ wikisort, r1==r2 exact);
-    # provenance: artifacts/ooo_w8_density/wikisort.json (tools/event_density.py, 2 reps)
     density: 8200505
 - campaign_id: ooo_w82_d17_freelist_coremark
   schema_version: arm-chaos-fi/v1
@@ -1142,7 +1042,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D17
     workload: CoreMark
@@ -1177,7 +1077,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D17
     workload: 长依赖链压力核
@@ -1212,7 +1112,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D18
     workload: 长依赖链压力核
@@ -1220,8 +1120,6 @@ subcampaigns:
   counting:
     mode: event_coverage
     target_events: 2000
-    # density: events/run, no-fault probe baseline (event=flIntLe8 @ dep_chain, r1==r2 exact);
-    # provenance: artifacts/ooo_w8_density/dep_chain.json (tools/event_density.py, 2 reps)
     density: 6999912
 - campaign_id: ooo_w82_d19_freelist_emb_crc32
   schema_version: arm-chaos-fi/v1
@@ -1246,7 +1144,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D19
     workload: Embench
@@ -1280,7 +1178,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D19
     workload: Embench
@@ -1314,7 +1212,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D19
     workload: Embench
@@ -1348,7 +1246,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D19
     workload: Embench
@@ -1382,7 +1280,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D19
     workload: Embench
@@ -1416,7 +1314,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D19
     workload: Embench
@@ -1450,7 +1348,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D19
     workload: 长依赖链压力核
@@ -1484,7 +1382,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D20
     workload: CoreMark
@@ -1519,7 +1417,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D21
     workload: CoreMark
@@ -1553,7 +1451,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D22
     workload: CoreMark
@@ -1581,7 +1479,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D22
     workload: 长依赖链压力核
@@ -1609,7 +1507,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D23
     workload: 分支误预测密集核
@@ -1617,8 +1515,6 @@ subcampaigns:
   counting:
     mode: event_coverage
     target_events: 2000
-    # density: events/run, no-fault probe baseline (event=branch_mispred @ branch_mispred, r1==r2 exact);
-    # provenance: artifacts/ooo_w8_density/branch_mispred.json (tools/event_density.py, 2 reps)
     density: 490766
 - campaign_id: ooo_w82_d24_rat_branch_mispred
   schema_version: arm-chaos-fi/v1
@@ -1643,7 +1539,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D24
     workload: 分支误预测密集核
@@ -1651,6 +1547,4 @@ subcampaigns:
   counting:
     mode: event_coverage
     target_events: 2000
-    # density: events/run, no-fault probe baseline (event=branch_mispred @ branch_mispred, r1==r2 exact);
-    # provenance: artifacts/ooo_w8_density/branch_mispred.json (tools/event_density.py, 2 reps)
     density: 490766

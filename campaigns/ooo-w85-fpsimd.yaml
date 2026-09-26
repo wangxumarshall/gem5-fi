@@ -1,109 +1,3 @@
-# ============================================================================
-# ooo-w85-fpsimd.yaml — W8.5 FP/SIMD 备产 batch umbrella
-#
-# Prepared 2026-09-25 at repo HEAD 6990ef2e (W7.4 mechanism f89f44b6 +
-# wiring 6990ef2e; 91/91 D rows implemented). NOT RUN — M2 gate
-# (W8.1, D25/D28 x CoreMark/Embench x F0 n=2000) must pass before any
-# W8.2+ production launch. This file is PREPARATION ONLY.
-#
-# Scope: D56-D91 (31 D rows). Cell accounting vs
-# docs/gem5-fi/ooo/05-expanded-matrix.csv (226 cells total):
-#   covered by subcampaigns : 73
-#   covered via alias (merge口径): 10
-#   SVE-deferred (D78-D82)  : 7
-#   M2-gate (W8.1, other agent): 0
-#   total in scope          : 90
-#
-# WHY SUBCAMPAIGNS: tools/campaign.py binds ONE injector + ONE workload
-# binary per campaign, and its grid is a Cartesian product (paired axes
-# are not expressible). The minimal honest granularity is therefore
-# (D row x workload binary) — each subcampaign below is a COMPLETE,
-# campaign.py-runnable stanza. To run one:
-#
-#   python3 - <<'EOF'
-#   import yaml
-#   d = yaml.safe_load(open("campaigns/ooo-w85-fpsimd.yaml"))
-#   for i, sc in enumerate(d["subcampaigns"]):
-#       print(i, sc["campaign_id"])
-#   yaml.safe_dump(d["subcampaigns"][0], open("/tmp/sc.yaml", "w"),
-#                   sort_keys=False)
-#   EOF
-#   python3 tools/campaign.py /tmp/sc.yaml --jobs 4
-#
-# --dry (manifests only, no gem5) is honored on both the two_phase and
-# the legacy path.
-#
-# SEED SCHEME: base_seed = 85 * 1e6 + Dnum * 1000 + wl_idx * 10 —
-# deterministic, collision-free across subcampaigns; the two_phase rule
-# adds slot*100000 + rep (pilot slots 0-3, formal 10-13 by tier).
-#
-# TIER POLICY (02-doc six-step flow):
-#   * F0-F3 cells: two_phase with the MATRIX-PINNED tier set of that
-#     (D row x workload) group (the union of its E-rows' 适用频率 —
-#     the matrix pins F0/F1/F2 per cell; NO E-row anywhere carries F3).
-#     pilot_n 20, pick_top 2 (1 for single-tier), formal_n =
-#     ceil(2000 / n_binaries) per binary (suite 均摊 ruling:
-#     Embench 6 programs -> 334 each (total 2004); PolyBench 4 -> 500;
-#     浮点子集/混合 2 -> 1000; single-binary -> 2000).
-#     AMBIGUITY (documented, gap list): the W8 plan doc §2 words the
-#     pilot as "tiers [F0,F1,F2,F3]x20" (02 doc step 1 generic wording)
-#     while the expanded matrix pins per-cell tier sets and has no F3
-#     rows — an F3 formal selection would be UNBACKFILLABLE (no E-row).
-#     Default here = matrix-pinned set (every pilot/formal rep maps to
-#     exactly one E-row, zero waste). To add the F3 cliff-probing pilot
-#     arm anyway, append F3 to `tiers:` on the affected subcampaigns
-#     (pilot results still land in tier_selection.json).
-#   * F1（持续到运行结束）cells (drop_release): two_phase tiers [F1] —
-#     the model is single-shot with persistent effect; the F1 tier clock
-#     is the arm point. Documented decision.
-#   * F5 cells: LEGACY single-pass (F4/F5 are not pilot-selectable,
-#     campaign.py parse_two_phase), ooo.frequency_tier F5, n_per_cell
-#     = the 均摊 formal count, trigger_value 1000 (standard arm clock).
-#   * 事件触发 cells: LEGACY single-pass + counting block placeholder.
-#     The density is deliberately NOT filled (W8.1 must produce
-#     tools/event_density.py tables first) — campaign.py exits loudly
-#     on those stanzas until `density:` lands. Never fabricate a count.
-#
-# BACKFILL: manifests carry ooo {design_unit_id, workload(<matrix 负载
-# column string>), frequency_tier(per-rep)} — tools/backfill_expanded_
-# matrix.py resolves E-ids via the D x F x workload unique lookup.
-#
-# MERGED-ROW ALIAS (W7.2 口径: scalar-FP RAT twins share the
-# VecRegClass path with the vec rows): the PolyBench cells of
-# D62-D66 are the SAME runs as D67-D71's PolyBench subcampaigns
-# (identical component/model/sub_field/tier/binary). They are NOT
-# re-run; alias_map below documents the credit — the backfill side
-# needs an alias rule (gap list), or re-run them as duplicates.
-#
-# ORCHESTRATOR RULING 2026-09-25 (D72/D73): the scalar-FP freelist
-# twins E187/E188 (D72) and E189 (D73) alias to D74/D75's
-# dep_chain_vec subcampaigns. Grounds: (a) 04 merge clause verbatim
-# 「如果实际是同一套映射，此行与向量行应合并，不重复跑」; (b) 03-workloads
-# assigns the VEC version of 长依赖链压力核 to FP/SIMD Rename cells
-# (the matrix's unqualified label + 03's rule => dep_chain_vec);
-# (c) N3: AArch64 scalar FP renames onto VecRegClass — the scalar-FP
-# freelist IS the vec freelist on this platform (FloatRegClass never
-# renamed, flFloatMin=192 always), so D72/D73's fault semantics land
-# on the identical config as D74/D75. The literalist int-kernel
-# reading would inject into a near-static vec pool (design-void,
-# Inactive-by-construction) and D73's pool-drained event would
-# likely never fire — not a real result. Same merged-row treatment
-# as the W7.2/3 commit 09cc506e ("merged rows").
-#
-# *** LAUNCH GUARD (orchestrator, 2026-09-25) — DO NOT RUN W8.2+ YET ***
-# The event_coverage counting blocks below carry MEASURED densities
-# (artifacts/ooo_w8_density/, 18 binaries x 2 reps, r1==r2). On probe
-# workloads every density is >= 275,648 events/run, so campaign.py's
-# formula n_runs = ceil(target_events/density) collapses to 1 — valid
-# only in the rare-event regime (density < 1). Per 02-doc statistical
-# intent (n=2000 INDEPENDENT event-anchored injections = 2000 runs x 1
-# firing, same power basis as F0) the correct general form is
-# ceil(target / min(1, density)) = 2000 here. Fixing the formula
-# requires editing tools/campaign.py — FROZEN while the W8.1 Wave B
-# driver live-loads it per campaign. Therefore: this yaml is
-# data-complete but NOT launch-ready; the formula patch + these
-# stanzas' effective n land as one unit AFTER Wave B ends.
-#============================================================================
 batch_id: ooo-w85
 subcampaigns:
 - campaign_id: ooo_w85_d56_decode_pb_gemm
@@ -129,7 +23,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D56
     workload: PolyBench
@@ -164,7 +58,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D56
     workload: PolyBench
@@ -199,7 +93,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D56
     workload: PolyBench
@@ -234,7 +128,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D56
     workload: PolyBench
@@ -269,7 +163,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D56
     workload: Embench（浮点子集）
@@ -304,7 +198,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D56
     workload: Embench（浮点子集）
@@ -339,7 +233,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D57
     workload: PolyBench
@@ -373,7 +267,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D57
     workload: PolyBench
@@ -407,7 +301,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D57
     workload: PolyBench
@@ -441,7 +335,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D57
     workload: PolyBench
@@ -475,7 +369,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D57
     workload: Embench（浮点子集）
@@ -509,7 +403,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D57
     workload: Embench（浮点子集）
@@ -543,7 +437,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D58
     workload: PolyBench
@@ -578,7 +472,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D58
     workload: PolyBench
@@ -613,7 +507,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D58
     workload: PolyBench
@@ -648,7 +542,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D58
     workload: PolyBench
@@ -683,7 +577,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D58
     workload: Embench（浮点子集）
@@ -718,7 +612,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D58
     workload: Embench（浮点子集）
@@ -753,7 +647,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D59
     workload: PolyBench
@@ -789,7 +683,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D59
     workload: PolyBench
@@ -825,7 +719,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D59
     workload: PolyBench
@@ -861,7 +755,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D59
     workload: PolyBench
@@ -897,7 +791,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D59
     workload: libjpeg-turbo
@@ -933,7 +827,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D60
     workload: PolyBench
@@ -968,7 +862,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D60
     workload: PolyBench
@@ -1003,7 +897,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D60
     workload: PolyBench
@@ -1038,7 +932,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D60
     workload: PolyBench
@@ -1073,7 +967,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D60
     workload: libjpeg-turbo
@@ -1108,7 +1002,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D61
     workload: Embench（含整数/浮点混合的程序）
@@ -1143,7 +1037,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D61
     workload: Embench（含整数/浮点混合的程序）
@@ -1178,7 +1072,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D62
     workload: Embench（浮点子集）
@@ -1213,7 +1107,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D62
     workload: Embench（浮点子集）
@@ -1248,7 +1142,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D63
     workload: Embench（浮点子集）
@@ -1282,7 +1176,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D63
     workload: Embench（浮点子集）
@@ -1316,7 +1210,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D64
     workload: Embench（浮点子集）
@@ -1351,7 +1245,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D64
     workload: Embench（浮点子集）
@@ -1386,7 +1280,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D65
     workload: Embench（浮点子集）
@@ -1414,7 +1308,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D65
     workload: Embench（浮点子集）
@@ -1442,7 +1336,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D66
     workload: Embench（浮点子集）
@@ -1450,8 +1344,6 @@ subcampaigns:
   counting:
     mode: event_coverage
     target_events: 2000
-    # density: events/run, no-fault probe baseline (event=rat_writes @ nbody, r1==r2 exact);
-    # provenance: artifacts/ooo_w8_density/nbody.json (tools/event_density.py, 2 reps)
     density: 6229560
 - campaign_id: ooo_w85_d66_rat_emb_minver
   schema_version: arm-chaos-fi/v1
@@ -1476,7 +1368,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D66
     workload: Embench（浮点子集）
@@ -1484,8 +1376,6 @@ subcampaigns:
   counting:
     mode: event_coverage
     target_events: 2000
-    # density: events/run, no-fault probe baseline (event=rat_writes @ minver, r1==r2 exact);
-    # provenance: artifacts/ooo_w8_density/minver.json (tools/event_density.py, 2 reps)
     density: 12882538
 - campaign_id: ooo_w85_d67_rat_pb_gemm
   schema_version: arm-chaos-fi/v1
@@ -1510,7 +1400,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D67
     workload: PolyBench
@@ -1545,7 +1435,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D67
     workload: PolyBench
@@ -1580,7 +1470,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D67
     workload: PolyBench
@@ -1615,7 +1505,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D67
     workload: PolyBench
@@ -1650,7 +1540,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D67
     workload: libjpeg-turbo
@@ -1685,7 +1575,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D68
     workload: PolyBench
@@ -1719,7 +1609,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D68
     workload: PolyBench
@@ -1753,7 +1643,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D68
     workload: PolyBench
@@ -1787,7 +1677,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D68
     workload: PolyBench
@@ -1821,7 +1711,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D68
     workload: libjpeg-turbo
@@ -1855,7 +1745,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D69
     workload: PolyBench
@@ -1890,7 +1780,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D69
     workload: PolyBench
@@ -1925,7 +1815,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D69
     workload: PolyBench
@@ -1960,7 +1850,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D69
     workload: PolyBench
@@ -1995,7 +1885,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D69
     workload: libjpeg-turbo
@@ -2030,7 +1920,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D70
     workload: PolyBench
@@ -2058,7 +1948,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D70
     workload: PolyBench
@@ -2086,7 +1976,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D70
     workload: PolyBench
@@ -2114,7 +2004,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D70
     workload: PolyBench
@@ -2142,7 +2032,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D70
     workload: libjpeg-turbo
@@ -2170,7 +2060,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D71
     workload: PolyBench
@@ -2178,8 +2068,6 @@ subcampaigns:
   counting:
     mode: event_coverage
     target_events: 2000
-    # density: events/run, no-fault probe baseline (event=rat_writes @ gemm, r1==r2 exact);
-    # provenance: artifacts/ooo_w8_density/gemm.json (tools/event_density.py, 2 reps)
     density: 8646629
 - campaign_id: ooo_w85_d71_rat_pb_lu
   schema_version: arm-chaos-fi/v1
@@ -2204,7 +2092,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D71
     workload: PolyBench
@@ -2212,8 +2100,6 @@ subcampaigns:
   counting:
     mode: event_coverage
     target_events: 2000
-    # density: events/run, no-fault probe baseline (event=rat_writes @ lu, r1==r2 exact);
-    # provenance: artifacts/ooo_w8_density/lu.json (tools/event_density.py, 2 reps)
     density: 8975735
 - campaign_id: ooo_w85_d71_rat_pb_cholesky
   schema_version: arm-chaos-fi/v1
@@ -2238,7 +2124,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D71
     workload: PolyBench
@@ -2246,8 +2132,6 @@ subcampaigns:
   counting:
     mode: event_coverage
     target_events: 2000
-    # density: events/run, no-fault probe baseline (event=rat_writes @ cholesky, r1==r2 exact);
-    # provenance: artifacts/ooo_w8_density/cholesky.json (tools/event_density.py, 2 reps)
     density: 8951076
 - campaign_id: ooo_w85_d71_rat_pb_jacobi2d
   schema_version: arm-chaos-fi/v1
@@ -2272,7 +2156,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D71
     workload: PolyBench
@@ -2280,8 +2164,6 @@ subcampaigns:
   counting:
     mode: event_coverage
     target_events: 2000
-    # density: events/run, no-fault probe baseline (event=rat_writes @ jacobi2d, r1==r2 exact);
-    # provenance: artifacts/ooo_w8_density/jacobi2d.json (tools/event_density.py, 2 reps)
     density: 9347917
 - campaign_id: ooo_w85_d71_rat_jpeg
   schema_version: arm-chaos-fi/v1
@@ -2306,7 +2188,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D71
     workload: libjpeg-turbo
@@ -2314,8 +2196,6 @@ subcampaigns:
   counting:
     mode: event_coverage
     target_events: 2000
-    # density: events/run, no-fault probe baseline (event=rat_writes @ jpeg_wl, r1==r2 exact);
-    # provenance: artifacts/ooo_w8_density/jpeg_wl.json (tools/event_density.py, 2 reps)
     density: 11702335
 - campaign_id: ooo_w85_d74_freelist_dep_chain_vec
   schema_version: arm-chaos-fi/v1
@@ -2340,7 +2220,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D74
     workload: 长依赖链压力核（向量版：用向量累加链）
@@ -2375,7 +2255,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D75
     workload: 长依赖链压力核（向量版：用向量累加链）
@@ -2383,8 +2263,6 @@ subcampaigns:
   counting:
     mode: event_coverage
     target_events: 2000
-    # density: events/run, no-fault probe baseline (event=flVecLe0 @ dep_chain_vec_le0, r1==r2 exact);
-    # provenance: artifacts/ooo_w8_density/dep_chain_vec_le0.json (tools/event_density.py, 2 reps)
     density: 4954038
 - campaign_id: ooo_w85_d76_freelist_pb_gemm
   schema_version: arm-chaos-fi/v1
@@ -2409,7 +2287,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D76
     workload: PolyBench
@@ -2443,7 +2321,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D76
     workload: PolyBench
@@ -2477,7 +2355,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D76
     workload: PolyBench
@@ -2511,7 +2389,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D76
     workload: PolyBench
@@ -2545,7 +2423,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D77
     workload: 长依赖链压力核（向量版）
@@ -2579,7 +2457,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D83
     workload: PolyBench
@@ -2613,7 +2491,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D83
     workload: PolyBench
@@ -2647,7 +2525,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D83
     workload: PolyBench
@@ -2681,7 +2559,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D83
     workload: PolyBench
@@ -2715,7 +2593,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D83
     workload: Embench（浮点子集）
@@ -2749,7 +2627,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D83
     workload: Embench（浮点子集）
@@ -2783,7 +2661,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D84
     workload: PolyBench
@@ -2818,7 +2696,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D84
     workload: PolyBench
@@ -2853,7 +2731,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D84
     workload: PolyBench
@@ -2888,7 +2766,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D84
     workload: PolyBench
@@ -2923,7 +2801,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D84
     workload: ROB 填满核（浮点版）
@@ -2958,7 +2836,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D85
     workload: ROB 填满核（浮点版）
@@ -2966,8 +2844,6 @@ subcampaigns:
   counting:
     mode: event_coverage
     target_events: 2000
-    # density: events/run, no-fault probe baseline (event=robOver80 @ rob_fill_fp, r1==r2 exact);
-    # provenance: artifacts/ooo_w8_density/rob_fill_fp.json (tools/event_density.py, 2 reps)
     density: 275648
 - campaign_id: ooo_w85_d86_iq_pb_gemm
   schema_version: arm-chaos-fi/v1
@@ -2992,7 +2868,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D86
     workload: PolyBench
@@ -3027,7 +2903,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D86
     workload: PolyBench
@@ -3062,7 +2938,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D86
     workload: PolyBench
@@ -3097,7 +2973,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D86
     workload: PolyBench
@@ -3132,7 +3008,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D86
     workload: Embench（浮点子集）
@@ -3167,7 +3043,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D86
     workload: Embench（浮点子集）
@@ -3202,7 +3078,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D87
     workload: PolyBench
@@ -3237,7 +3113,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D87
     workload: PolyBench
@@ -3272,7 +3148,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D87
     workload: PolyBench
@@ -3307,7 +3183,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D87
     workload: PolyBench
@@ -3342,7 +3218,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D87
     workload: libjpeg-turbo
@@ -3377,7 +3253,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D88
     workload: PolyBench
@@ -3412,7 +3288,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D88
     workload: PolyBench
@@ -3447,7 +3323,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D88
     workload: PolyBench
@@ -3482,7 +3358,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D88
     workload: PolyBench
@@ -3517,7 +3393,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D88
     workload: libjpeg-turbo
@@ -3552,7 +3428,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D89
     workload: PolyBench
@@ -3586,7 +3462,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D89
     workload: PolyBench
@@ -3620,7 +3496,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D89
     workload: PolyBench
@@ -3654,7 +3530,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D89
     workload: PolyBench
@@ -3688,7 +3564,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D89
     workload: libjpeg-turbo
@@ -3722,7 +3598,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D90
     workload: PolyBench
@@ -3750,7 +3626,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D90
     workload: PolyBench
@@ -3778,7 +3654,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D90
     workload: PolyBench
@@ -3806,7 +3682,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D90
     workload: PolyBench
@@ -3834,7 +3710,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D90
     workload: libjpeg-turbo
@@ -3862,7 +3738,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D91
     workload: PolyBench
@@ -3870,8 +3746,6 @@ subcampaigns:
   counting:
     mode: event_coverage
     target_events: 2000
-    # density: events/run, no-fault probe baseline (event=renamed_insts @ gemm, r1==r2 exact);
-    # provenance: artifacts/ooo_w8_density/gemm.json (tools/event_density.py, 2 reps)
     density: 6518760
 - campaign_id: ooo_w85_d91_iq_pb_lu
   schema_version: arm-chaos-fi/v1
@@ -3896,7 +3770,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D91
     workload: PolyBench
@@ -3904,8 +3778,6 @@ subcampaigns:
   counting:
     mode: event_coverage
     target_events: 2000
-    # density: events/run, no-fault probe baseline (event=renamed_insts @ lu, r1==r2 exact);
-    # provenance: artifacts/ooo_w8_density/lu.json (tools/event_density.py, 2 reps)
     density: 7303641
 - campaign_id: ooo_w85_d91_iq_pb_cholesky
   schema_version: arm-chaos-fi/v1
@@ -3930,7 +3802,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D91
     workload: PolyBench
@@ -3938,8 +3810,6 @@ subcampaigns:
   counting:
     mode: event_coverage
     target_events: 2000
-    # density: events/run, no-fault probe baseline (event=renamed_insts @ cholesky, r1==r2 exact);
-    # provenance: artifacts/ooo_w8_density/cholesky.json (tools/event_density.py, 2 reps)
     density: 7272095
 - campaign_id: ooo_w85_d91_iq_pb_jacobi2d
   schema_version: arm-chaos-fi/v1
@@ -3964,7 +3834,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D91
     workload: PolyBench
@@ -3972,8 +3842,6 @@ subcampaigns:
   counting:
     mode: event_coverage
     target_events: 2000
-    # density: events/run, no-fault probe baseline (event=renamed_insts @ jacobi2d, r1==r2 exact);
-    # provenance: artifacts/ooo_w8_density/jacobi2d.json (tools/event_density.py, 2 reps)
     density: 6587383
 - campaign_id: ooo_w85_d91_iq_jpeg
   schema_version: arm-chaos-fi/v1
@@ -3998,7 +3866,7 @@ subcampaigns:
     trigger_value: 1000
   limits:
     max_faults: 1
-  hang_timeout: 600
+  hang_timeout: 300
   ooo:
     design_unit_id: D91
     workload: libjpeg-turbo
@@ -4006,8 +3874,6 @@ subcampaigns:
   counting:
     mode: event_coverage
     target_events: 2000
-    # density: events/run, no-fault probe baseline (event=renamed_insts @ jpeg_wl, r1==r2 exact);
-    # provenance: artifacts/ooo_w8_density/jpeg_wl.json (tools/event_density.py, 2 reps)
     density: 10017746
 alias_map:
 - design_unit_id: D62
@@ -4054,9 +3920,10 @@ alias_map:
   - E187
   - E188
   note: 'orchestrator ruling 2026-09-25: merged-row alias — 04 merge clause 「不重复跑」
-    + 03-workloads FP/SIMD Rename => dep_chain_vec + N3 (scalar-FP freelist ≡ vec freelist
-    on AArch64). E187/E188 credit from E190/E191 runs; attribution granularity (opClass
-    Float* vs SimdFloat*) is post-hoc from commit trace, same as the W7.2 RAT ruling.'
+    + 03-workloads FP/SIMD Rename => dep_chain_vec + N3 (scalar-FP freelist ≡ vec
+    freelist on AArch64). E187/E188 credit from E190/E191 runs; attribution granularity
+    (opClass Float* vs SimdFloat*) is post-hoc from commit trace, same as the W7.2
+    RAT ruling.'
 - design_unit_id: D73
   workload: 长依赖链压力核
   covered_by: D75
@@ -4064,5 +3931,5 @@ alias_map:
   - E189
   note: 'orchestrator ruling 2026-09-25: merged-row alias — same grounds as D72. E189
     (event-coverage cell) credits from E192; the density TODO lives on the D75 stanza
-    only. The literalist int-kernel reading would starve the pool-drained event
-    (vec pool near-static on dep_chain int) — design-void, not a real result.'
+    only. The literalist int-kernel reading would starve the pool-drained event (vec
+    pool near-static on dep_chain int) — design-void, not a real result.'
