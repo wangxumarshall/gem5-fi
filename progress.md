@@ -2745,3 +2745,7 @@ Cache-DirtyEvict + Prefetch-Stride (全部 gem5==native)
 - W10 STREAM+PointerChase 完成(gem5==native 50ab96a7fe8f6ec2)。W9: 6/14。SE 可测=6/9(W0/W3/W5/W6/W8/W10); 余 3 SE(W2 BEEBS/W9 GAP/W12 SQLite)+4 FS+1 SPEC。
 - W2 BEEBS-DelayAVIT 完成(gem5==native)。W9: 7/14。
 - W9 GAP-BFS 完成(修复循环变量笔误, gem5==native)。W9: 8/14。
+
+### W10 campaign 编排器就绪(2026-09-26)
+
+- tools/lsu_campaign.py 端到端验证通过(matrix 读取→cell 过滤→gem5 执行→L5 分类→summary)。三阶段自适应框架就绪(trial/screening/main)。337 格×自适应采样执行需数周计算时间。
