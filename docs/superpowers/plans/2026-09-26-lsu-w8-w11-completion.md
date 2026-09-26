@@ -327,7 +327,7 @@ done
 - Produces: `MODEL_FLAGS: dict[str, list[str] | None]`（68 模型 → gem5 旗标组或 None+原因）；`resolve_cell(cell) -> (flags, blocked_reason)`；blocked 原因枚举 `fs-infra`（T 系/W1/W4 负载）、`multicore-fs`（O05-O07/W7/W13）、`spec-license`（W11）、`b0-na`（S12/T09/C13/O08 保护行）、`deferred`（A07 R4、O04/O09、P06）。
 - 映射数据源（实现时逐条核对，不许臆造）：`git show 9fbec314`（A 系双钩 7 模式）、`git show c7743989..c8d6fa6b`（W5/W6 各 commit 的 argparse choices 增量）、`lsu_proxy.py:413-484` choices 现值。
 
-- [ ] **Step 1: 提取 W5/W6 diff 中的模式名**（`git show c7743989 25d3b37b cdee55f4 7af6eed4 1beea50d d8051157 754b048e a0ecfd20 2b967a9b fcb919f8 067c31c7 c8d6fa6b -- '*lsu_proxy.py' '*CHAOSLSQFwd*' '*CHAOSCache*'`），与下表骨架合并：
+- [x] **Step 1: 提取 W5/W6 diff 中的模式名**（`git show c7743989 25d3b37b cdee55f4 7af6eed4 1beea50d d8051157 754b048e a0ecfd20 2b967a9b fcb919f8 067c31c7 c8d6fa6b -- '*lsu_proxy.py' '*CHAOSLSQFwd*' '*CHAOSCache*'`），与下表骨架合并：
 
 ```python
 # 骨架 — 每行实现时以 diff + lsu_proxy choices 为准, 标 ※ 的需 Step 3 真机复核
@@ -398,8 +398,8 @@ MODEL_FLAGS = {
 }
 ```
 
-- [ ] **Step 2: 频率/触发参数生成**——`resolve_cell` 按单元格 F 档生成触发旗标：A 系→`--addrpath_lsu_tier F# --addrpath_warmup_events 0 --addrpath_span_events 1000`；S/L 系→`--lsqfwd_lsu_tier`；C 系→`--l1d_lsu_tier`（若 F 档在 C 系走 legacy firstClock——以 0f967a10 C 系路由 commit 为准）；P 系→`--prefetch_lsu_tier`；O 系→exmon lsuTier。F5/F6 语义由触发层内部实现（chaos_lsu_trigger.hh），campaign 只传档位。
-- [ ] **Step 3: 真机复核每个映射族**（每族 ≥1 次真实运行断言 `faults_injected ≥ 1`；injected=0 的映射 = 错误映射，修到对——A01/S01/S13/L01/C01/C04/C07 七格已有 trial 数据可直接引用 84c863d5）
+- [x] **Step 2: 频率/触发参数生成**——`resolve_cell` 按单元格 F 档生成触发旗标：A 系→`--addrpath_lsu_tier F# --addrpath_warmup_events 0 --addrpath_span_events 1000`；S/L 系→`--lsqfwd_lsu_tier`；C 系→`--l1d_lsu_tier`（若 F 档在 C 系走 legacy firstClock——以 0f967a10 C 系路由 commit 为准）；P 系→`--prefetch_lsu_tier`；O 系→exmon lsuTier。F5/F6 语义由触发层内部实现（chaos_lsu_trigger.hh），campaign 只传档位。
+- [x] **Step 3: 真机复核每个映射族**（每族 ≥1 次真实运行断言 `faults_injected ≥ 1`；injected=0 的映射 = 错误映射，修到对——A01/S01/S13/L01/C01/C04/C07 七格已有 trial 数据可直接引用 84c863d5）
 
 ```bash
 python3 tools/lsu_campaign.py --matrix docs/gem5-fi/lsu/07-expanded-matrix.csv \
@@ -408,14 +408,14 @@ python3 tools/lsu_campaign.py --matrix docs/gem5-fi/lsu/07-expanded-matrix.csv \
 # 逐格核对 summary.json: total_injected ≥ 1
 ```
 
-- [ ] **Step 4: blocked 完备性断言**（`--dry-run` 全 337 格 → 每格要么 flags 要么 blocked 原因；脚本内断言零 "not mapped" 残留）：
+- [x] **Step 4: blocked 完备性断言**（`--dry-run` 全 337 格 → 每格要么 flags 要么 blocked 原因；脚本内断言零 "not mapped" 残留）：
 
 ```bash
 python3 tools/lsu_campaign.py --matrix docs/gem5-fi/lsu/07-expanded-matrix.csv --dry-run 2>&1 | tail -5
 # 预期: runnable=约183 blocked=约136 na=9 deferred=9 (以实际矩阵分布为准, 打印分原因计数)
 ```
 
-- [ ] **Step 5: Commit + push**（`feat(lsu): W10 campaign complete 68-model mapping + honest blocked classification`）
+- [x] **Step 5: Commit + push**（`feat(lsu): W10 campaign complete 68-model mapping + honest blocked classification`）
 
 ---
 
