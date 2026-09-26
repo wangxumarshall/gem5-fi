@@ -513,7 +513,7 @@ EOF
 - Create: `runs/lsu/`（campaign 产物——按仓库纪律 runs/ 不入 git，summary JSON 入 `artifacts/lsu-trial/`）
 - Create: `docs/gem5-fi/lsu/10-trial-results.md`（trial 阶段结果记录 + 诚实边界）
 
-- [ ] **Step 1: 全 SE 格 trial**（约 183 可跑格 × seed 批次 1（trial 首批；30-activated 目标受 max_seeds 限制时如实记录 stop_reason=seed-cap）：
+- [x] **Step 1: 全 SE 格 trial**（约 183 可跑格 × seed 批次 1（trial 首批；30-activated 目标受 max_seeds 限制时如实记录 stop_reason=seed-cap）：
 
 ```bash
 python3 tools/lsu_campaign.py --matrix docs/gem5-fi/lsu/07-expanded-matrix.csv \
@@ -521,10 +521,10 @@ python3 tools/lsu_campaign.py --matrix docs/gem5-fi/lsu/07-expanded-matrix.csv \
   2>&1 | tee /tmp/lsu_trial.log | tail -20
 ```
 （预计 183 格 × 5 seeds × ~20s ÷ 4 并行 ≈ 1.5–2h——后台 `run_in_background` 跑，期间做 Task 8 的工具准备；OOM 纪律：并发 ≤4 硬顶。）
-- [ ] **Step 2: 回填**（Task 6 工具，产物 `runs/lsu/07-expanded-matrix-backfilled.csv`，col26=试跑/blocked 按原因）。
-- [ ] **Step 3: 诚实性抽查**——分族抽 8 格（A/S/L/C/P 各 ≥1）人工核对：cell_results.json 的 classes 与 backfilled CSV 数字一致；全 Crash/零激活格按 05 r13 记 injector-suspect 标注（trial 阶段职责就是发现这类）。
-- [ ] **Step 4: 10-trial-results.md 撰写**（每单元族汇总表 + 异常格清单 + 「trial 只用于发现注入器错误/全 Crash/零激活，不用于最终窄置信区间」口径声明）。
-- [ ] **Step 5: Commit + push**（artifacts + 文档；**不 commit runs/ 与 m5out**——显式路径纪律）。
+- [x] **Step 2: 回填**（Task 6 工具，产物 `runs/lsu/07-expanded-matrix-backfilled.csv`，col26=试跑/blocked 按原因）。
+- [x] **Step 3: 诚实性抽查**——分族抽 8 格（A/S/L/C/P 各 ≥1）人工核对：cell_results.json 的 classes 与 backfilled CSV 数字一致；全 Crash/零激活格按 05 r13 记 injector-suspect 标注（trial 阶段职责就是发现这类）。
+- [x] **Step 4: 10-trial-results.md 撰写**（每单元族汇总表 + 异常格清单 + 「trial 只用于发现注入器错误/全 Crash/零激活，不用于最终窄置信区间」口径声明）。
+- [x] **Step 5: Commit + push**（artifacts + 文档；**不 commit runs/ 与 m5out**——显式路径纪律）。
 
 ---
 

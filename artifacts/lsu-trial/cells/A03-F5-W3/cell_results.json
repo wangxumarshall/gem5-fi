@@ -1,0 +1,44 @@
+{
+ "runid": "A03-F5-W3",
+ "phase": "trial",
+ "seed_batches": 3,
+ "clustered": false,
+ "n_runs": 3,
+ "attempted": 0,
+ "activated": 79,
+ "classes": {
+  "Masked": 0,
+  "Detected/Contained": 0,
+  "SDC": 0,
+  "Crash": 79,
+  "Timeout": 0
+ },
+ "sdc_rate": 0.0,
+ "activation_rate": 0.0,
+ "wilson": {
+  "lo": 0.0,
+  "hi": 0.0464
+ },
+ "stop_reason": "trial-target-met",
+ "conservation": "OK",
+ "runs": [
+  {
+   "seed": 1,
+   "cluster_id": "A03-F5-W3#1",
+   "activated": 1,
+   "outcome": "Crash"
+  },
+  {
+   "seed": 2,
+   "cluster_id": "A03-F5-W3#2",
+   "activated": 2,
+   "outcome": "Crash"
+  },
+  {
+   "seed": 3,
+   "cluster_id": "A03-F5-W3#3",
+   "activated": 76,
+   "outcome": "Crash"
+  }
+ ]
+}
