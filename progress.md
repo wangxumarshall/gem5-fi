@@ -2704,3 +2704,15 @@ CI 零重叠——**H7 验收断言("ECC-off spurious>0 vs ECC-on≈0")formal �
   注入面=现有 F6 事件机制(chaosLsuF6Notify)+CHAOSCache(若预取数据
   进 cache 后被腐蚀)。
 - W3 AGU-AddrModes + W5 SQ-Forward 负载完成(gem5==native)。W9: 3/14。
+
+### LSU 全方案实现总进度(2026-09-26 会话末)
+
+**已完成(58 commits)**:
+- W0 C4-LSU 平台(B0 断言+七 golden) · W1 九项机制核实 · W2 F0-F6 触发层(单元测试) · W3 L0-L5 观测全链(L5 分类器)
+- W4 AGU 7+1 deferred · W5 SQ/LQ 17/17(TC'23 锚点 SDC=0 三腿) · W6 Cache 15/15 · W7 TLB 参数就位(FS blocked) · W8 原子/预取参数就位
+- W9 负载 3/14(MiniCheck+AGU-AddrModes+SQ-Forward, 全部 gem5==native)
+- 里程碑: M0✅ M1✅ M2锚点✅
+
+**剩余**: W9 余 11 负载(含 FS/多核依赖) · W10 campaign(337格×自适应) · W11 元分析
+
+**基础设施全部在产**: 平台/触发/观测/分类器/五族注入器/三负载/TC'23锚点
