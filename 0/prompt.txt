@@ -64,3 +64,13 @@ W8.1 Wave B formal 周期检查（编排者职责，ETA ≈9/29 午后；M2 判�
 ---
 
 W8.1 Wave B4（96 路）完成检查（编排者职责，ETA ~18:00-18:30；M2 判读语义按 W8 计划文档裁决 13）。检查 runs/ooo_w81_gate/driver_waveB.log 尾部：(A) 若 "Wave B formal DONE"（driverB4 标记）已出现——执行完成协议（与 cron 8fca9f8d 相同）：①14 格统计（E074/E082 n=2000、E075/E083 套件 2004；SDC 逐格计数，>0 走调查协议）②波间一致性 ③回填 dry-run（只传 runs/ooo_w81_gate_* 目录）→ 正式回填 05-expanded-matrix.csv ④tools/audit_expanded_matrix.py 复核（注意核验潜伏期/扇出列的实际写入值非空——彩排发现 dry-run 显示 (empty)，audit G1 要求显式 n/a）⑤用 /tmp/w8prep/w81_batch_summary_DRAFT.md 填 D28 数据 → W8.1 数据单元提交（artifacts+CSV+小结含 propagated% 传播轴）→ M2 基线判读 ⑥固定队列：/tmp/w8prep/formula_patch_READY.py 公式补丁落地提交（campaign.py 已无活跑批加载）→ /tmp/w8prep/ooo_proxy_patched.py 的 iq sampling 修复落地提交 → w82 yaml 备产就绪（46 stanza hang_timeout 300+解除 LAUNCH GUARD+两处修复纳入）→ driver_w82.sh 启动（守卫自动放行）→ W8.2 吞吐预算报告。(B) 未完成——确认 driver_waveB4 PID 976848 存活、无 INCOMPLETE/CAMPAIGN FAILED 行、记录进度与外推 ETA（17:41 的周期 cron 也会再查）。(C) 异常（INCOMPLETE/exit 2/进程死）——诊断：两车道独立，单 campaign 失败可单独补跑同 yaml（确定性重跑无害）。全程更新 PWF。
+
+---
+
+<task-notification>
+<task-id>bt9yzkg5p</task-id>
+<tool-use-id>call_90f2052a07614cb9a2813b01</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi/12997ed0-faf3-4d19-b383-8b11c1b47de5/tasks/bt9yzkg5p.output</output-file>
+<status>completed</status>
+<summary>Background command "Relaunch Wave B sentinel watchdog" completed (exit code 0)</summary>
+</task-notification>
