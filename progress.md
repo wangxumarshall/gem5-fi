@@ -2703,3 +2703,4 @@ CI 零重叠——**H7 验收断言("ECC-off spurious>0 vs ECC-on≈0")formal �
 - P01-P09(预取器): 被测对象=L2 StridePrefetcher(W0 挂载 degree=8);
   注入面=现有 F6 事件机制(chaosLsuF6Notify)+CHAOSCache(若预取数据
   进 cache 后被腐蚀)。
+- W3 AGU-AddrModes + W5 SQ-Forward 负载完成(gem5==native)。W9: 3/14。
