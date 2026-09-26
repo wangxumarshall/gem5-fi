@@ -101,7 +101,7 @@ def run_single_cell(cell, args, seed, outdir):
 
     cmd = [str(G5), "--outdir", str(outdir), str(LSU_PROXY),
            "--cmd", str(binary), "--cpu", "O3",
-           "--rng-seed", str(seed)]
+           "--rng_seed", str(seed)]
 
     # Add model-specific injector flags (simplified mapping by model prefix)
     if model.startswith("A"):
