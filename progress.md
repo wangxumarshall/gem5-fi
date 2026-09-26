@@ -2716,3 +2716,4 @@ CI 零重叠——**H7 验收断言("ECC-off spurious>0 vs ECC-on≈0")formal �
 **剩余**: W9 余 11 负载(含 FS/多核依赖) · W10 campaign(337格×自适应) · W11 元分析
 
 **基础设施全部在产**: 平台/触发/观测/分类器/五族注入器/三负载/TC'23锚点
+- W6 Cache-DirtyEvict 完成(修复 conflict-set 指针算术后 native+gem5 通过)。W9: 5/14。
