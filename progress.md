@@ -2749,3 +2749,9 @@ Cache-DirtyEvict + Prefetch-Stride (全部 gem5==native)
 ### W10 campaign 编排器就绪(2026-09-26)
 
 - tools/lsu_campaign.py 端到端验证通过(matrix 读取→cell 过滤→gem5 执行→L5 分类→summary)。三阶段自适应框架就绪(trial/screening/main)。337 格×自适应采样执行需数周计算时间。
+
+### W11 元分析工具完成(2026-09-26): W0-W11 代码工具链全部就位
+
+- tools/lsu_meta_analysis.py: 三问框架 + 守恒 + 排序 + 边界。空矩阵 ZDI 修复。
+- **W0-W11 全部工作包的代码与工具链完成**: 平台(W0) → 机制(W1) → 触发(W2) → 观测(W3) → 五族注入器(W4-W8) → 8 负载(W9) → campaign 编排(W10) → 元分析(W11)。
+- 337 格实际执行(W10 运行时)需数周计算——工具已就绪, 计算是部署问题。
