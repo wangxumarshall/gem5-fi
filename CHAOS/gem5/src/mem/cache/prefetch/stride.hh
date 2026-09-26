@@ -64,6 +64,8 @@
 namespace gem5
 {
 
+class CHAOSPrefetch;  // LSU W8 P-series injector (registry hook, stride.cc)
+
 namespace replacement_policy
 {
     class Base;
@@ -94,6 +96,11 @@ class StridePrefetcherHashedSetAssociative : public TaggedSetAssociative
 
 class Stride : public Queued
 {
+    // LSU W8: the P-series injector reaches the protected StrideEntry
+    // (stride/confidence fields) through this friendship — same pre-
+    // patched-vendored-tree pattern as cpu.hh/free_list.hh accessors.
+    friend class ::gem5::CHAOSPrefetch;
+
   protected:
     /** Initial confidence counter value for the pc tables. */
     const SatCounter8 initConfidence;
@@ -173,6 +180,11 @@ class Stride : public Queued
 
   public:
     Stride(const StridePrefetcherParams &p);
+
+    // LSU W8 P-series: single-consumer registry (same pattern as
+    // BaseCache::chaosVictimHook). CHAOSPrefetch::startup() sets this;
+    // nullptr = no injector (legacy behavior byte-identical).
+    static CHAOSPrefetch *chaosPrefetchHook;
 
     void calculatePrefetch(const PrefetchInfo &pfi,
                            std::vector<AddrPriority> &addresses,

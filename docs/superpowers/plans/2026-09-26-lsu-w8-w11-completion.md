@@ -42,14 +42,14 @@
 - 模式集（03 设计矩阵 P 行语义）：`p01_stride_bitflip`（训练项 stride 1-bit XOR）/ `p02_confidence_corrupt`（confidence 清零/置满，各 50%）/ `p03_addr_subst`（生成地址替换为同 4KiB 页内另一对齐行——合法换值，负对照核心）/ `p05_drop_dup`（丢弃/复制一条预取，各 50%；P04 队列 valid/指针族的诚实近似，实测备注注明）/ `p08_stride_stuck`（stride 固定 0——F5 类持续故障，每次训练后重施加）。
 - 诚实边界（写入 .hh 头注释 + 回填实测备注）：P06（预取标 demand/权限赋予——无干净钩子，deferred）、P07（fill way/tag 错配→CHAOSCache tag 近似）、P09（预取致 dirty 逐出写回丢失→CHAOSCache victimFault 近似）——由 campaign 路由到 CHAOSCache，不在本注入器。
 
-- [ ] **Step 1: 读参照实现**（模式骨架复制的三个先例）
+- [x] **Step 1: 读参照实现**（模式骨架复制的三个先例）
   - `CHAOS/gem5/src/mem/cache/CHAOSCache/CHAOSCache.py`（Param 声明风格 + lsuTier/lsuWarmupEvents/lsuSpanEvents 三参数——fb81ac97 刚加的）。
   - `CHAOS/gem5/src/mem/cache/base.cc:73-74`（`BaseCache::chaosVictimHook` static registry 模式）。
   - `CHAOS/gem5/src/cpu/o3/CHAOSAddrPath/CHAOSAddrPath.cc`（LSU 触发层消费者的接线：tier!=off 走 trigger、tier=off 走 legacy firstClock/lastClock 窗口；exit callback 打 summary）。
   - `CHAOS/gem5/src/mem/cache/prefetch/stride.cc:128-210`（calculatePrefetch 全文——确认 entry 指针在函数尾部的存活状态与 addresses 的填充点）。
   - `CHAOS/gem5/src/mem/cache/prefetch/SConscript` + `CHAOS/gem5/src/mem/cache/SConscript`（子目录如何进构建——CHAOSCache 的先例在 `src/mem/cache/CHAOSCache/SConscript`，核对父 SConscript 的列出方式）。
 
-- [ ] **Step 2: 写 CHAOSPrefetch.hh**（核心结构，复制 CHAOSAddrPath 的触发接线风格）
+- [x] **Step 2: 写 CHAOSPrefetch.hh**（核心结构，复制 CHAOSAddrPath 的触发接线风格）
 
 ```cpp
 // CHAOSPrefetch.hh — W8 P-series prefetcher injector (09 §3 W8).
@@ -108,7 +108,7 @@ class CHAOSPrefetch : public SimObject
 #endif
 ```
 
-- [ ] **Step 3: 写 CHAOSPrefetch.cc**（语义骨架——`trigger.onAttempt()` 每次 hook、`onEligible()` 通过模式判定后调用、`injected` 计数在 trigger 内）
+- [x] **Step 3: 写 CHAOSPrefetch.cc**（语义骨架——`trigger.onAttempt()` 每次 hook、`onEligible()` 通过模式判定后调用、`injected` 计数在 trigger 内）
 
 ```cpp
 // 关键路径 (完整实现照此骨架展开):
@@ -165,7 +165,7 @@ CHAOSPrefetch::maybeCorrupt(prefetch::Stride::StrideEntry *entry,
 //               : printf legacy 漏斗行 (同 CHAOS_LSU_TRIGGER 格式)
 ```
 
-- [ ] **Step 4: stride.hh/.cc 钩子**（base.cc:73-74 registry 先例）
+- [x] **Step 4: stride.hh/.cc 钩子**（base.cc:73-74 registry 先例）
 
 ```cpp
 // stride.hh class Stride 内 (public: 供 CHAOSPrefetch startup() 赋值):
@@ -181,16 +181,16 @@ if (chaosPrefetchHook)
 // 若某分支 entry 未定义, 传 nullptr — 实现时以 Step 1 通读的代码流为准.
 ```
 
-- [ ] **Step 5: CHAOSPrefetch.py + SConscript**（四件套；Param 表照抄 fb81ac97 的 CHAOSCache lsuTier 三参数 + mode/probability/firstClock/lastClock/maxFaults/rngSeed/writeLog）
+- [x] **Step 5: CHAOSPrefetch.py + SConscript**（四件套；Param 表照抄 fb81ac97 的 CHAOSCache lsuTier 三参数 + mode/probability/firstClock/lastClock/maxFaults/rngSeed/writeLog）
 
-- [ ] **Step 6: 构建**（增量）
+- [x] **Step 6: 构建**（增量）
 
 ```bash
 cd CHAOS/gem5 && scons -j126 build/ARM/gem5.opt 2>&1 | tail -5
 ```
 预期 exit=0 零警告。失败则修到干净（CLAUDE.md：引入的警告即失败）。
 
-- [ ] **Step 7: 定向验证 — 负对照 P01–P03（README §5.4：预取错误不得改变架构结果；SDC>0 = 注入器污染 fill 路径，先回修）**
+- [x] **Step 7: 定向验证 — 负对照 P01–P03（README §5.4：预取错误不得改变架构结果；SDC>0 = 注入器污染 fill 路径，先回修）**
 
 ```bash
 cd /home/sdc/gem5-fi-lsu
@@ -204,7 +204,7 @@ done
 ```
 预期（逐模式核对）：① 每模式 stdout 有 `CHAOS_LSU_TRIGGER: injector=prefetch` 行且 `injected=1`；② `prefetch_injections.log` 有 "Site: " 行；③ checksum == golden `629727c0ad9ca8ef`（P01/P02/P03 负对照 = Masked；P05/P08 允许非 SDC 结局但记录实际值）。
 
-- [ ] **Step 8: 回归**（零侵入证明：钩子 nullptr 时字节等价）
+- [x] **Step 8: 回归**（零侵入证明：钩子 nullptr 时字节等价）
 
 ```bash
 build/ARM/gem5.opt --outdir=/tmp/reg_pf configs/se/lsu_proxy.py \
@@ -212,7 +212,7 @@ build/ARM/gem5.opt --outdir=/tmp/reg_pf configs/se/lsu_proxy.py \
 ```
 预期 checksum = `f247ef3fe6c02cfd`。
 
-- [ ] **Step 9: Commit + push**
+- [x] **Step 9: Commit + push**
 
 ```bash
 git add CHAOS/gem5/src/mem/cache/prefetch/CHAOSPrefetch/ \

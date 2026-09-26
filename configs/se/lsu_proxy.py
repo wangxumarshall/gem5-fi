@@ -27,7 +27,7 @@
 
 import argparse
 import m5
-from m5.objects import CHAOSReg, CHAOSPhysReg, CHAOSMem, CHAOSCache, CHAOSLSQFwd, CHAOSRenameMap, CHAOSFreeList, CHAOSROB, CHAOSIQ, CHAOSExec, CHAOSFPU, CHAOSL1DForward, CHAOSBPU, CHAOSAddrPath, CHAOSDecode, CHAOSExMon, CHAOSRAS, CHAOSProbe, CHAOSCommitTrace, CHAOSMicroSnap, FUDesc, FUPool, OpDesc, IQUnit, StridePrefetcher, RandomRP, SimpleBTB, BTBSetAssociative, BiModeBP, ReturnAddrStack, BranchPredictor, LRURP, NULL, Parent
+from m5.objects import CHAOSReg, CHAOSPhysReg, CHAOSMem, CHAOSCache, CHAOSLSQFwd, CHAOSRenameMap, CHAOSFreeList, CHAOSROB, CHAOSIQ, CHAOSExec, CHAOSFPU, CHAOSL1DForward, CHAOSBPU, CHAOSAddrPath, CHAOSDecode, CHAOSExMon, CHAOSRAS, CHAOSProbe, CHAOSCommitTrace, CHAOSMicroSnap, CHAOSPrefetch, FUDesc, FUPool, OpDesc, IQUnit, StridePrefetcher, RandomRP, SimpleBTB, BTBSetAssociative, BiModeBP, ReturnAddrStack, BranchPredictor, LRURP, NULL, Parent
 from gem5.components.boards.simple_board import SimpleBoard
 from gem5.components.cachehierarchies.classic.private_l1_private_l2_cache_hierarchy import (
     PrivateL1PrivateL2CacheHierarchy,
@@ -172,6 +172,30 @@ p.add_argument("--l1d_protection_model", default="none",
 p.add_argument("--l1d_lsu_tier", default="off",
                choices=["off","F0","F1","F2","F3","F4","F5","F6"],
                help="W6: LSU trigger tier on CHAOSCache (05 r2-r8)")
+# W8: P-series prefetcher injector (CHAOSPrefetch hooks the L2
+# StridePrefetcher via the Stride registry — self-attaching, no target
+# param; 03-design-matrix P-rows. A tier is REQUIRED: this injector is
+# LSU-track-native, no legacy cycle-window path).
+p.add_argument("--chaos_prefetch", action="store_true",
+               help="attach CHAOSPrefetch (W8 P-series, 03 P-rows)")
+p.add_argument("--prefetch_mode", default="p01_stride_bitflip",
+               choices=["p01_stride_bitflip","p02_confidence_corrupt",
+                        "p03_addr_subst","p05_drop_dup","p08_stride_stuck"],
+               help="W8 P-series fault mode")
+p.add_argument("--prefetch_lsu_tier", default="F0",
+               choices=["F0","F1","F2","F3","F4","F5","F6"],
+               help="W8: LSU event-normalized trigger tier (05 r2-r8)")
+p.add_argument("--prefetch_warmup_events", type=lambda x: int(x,0), default=0,
+               help="W8: eligible events skipped before arming")
+p.add_argument("--prefetch_span_events", type=lambda x: int(x,0), default=1000,
+               help="W8: F0 uniform window size in eligible events")
+p.add_argument("--prefetch_f6_event", default="dirty_eviction",
+               choices=["tlb_hit","sq_forward","dirty_eviction","cas_success"],
+               help="W8: F6 event source (tlb_hit is FS-only in SE)")
+p.add_argument("--prefetch_max_faults", type=lambda x: int(x,0), default=1,
+               help="W8: max faults (0 = unlimited)")
+p.add_argument("--prefetch_rng_seed", type=lambda x: int(x,0), default=20260825,
+               help="W8: RNG seed for reproducible bit/index selection")
 
 # --- CHAOS injector args (identical surface to arm_chaos.py) ---
 p.add_argument("--chaos_reg", action="store_true")
@@ -671,6 +695,23 @@ cache_hierarchy._pre_instantiate = _lsu_b0_caches
 # CHAOS injector mount blocks — identical to arm_chaos.py / kp920_proxy.py
 # (same 16 injectors, same arg mapping) so runner.py-style command lines work
 # unchanged on C3-OOO.
+# W8 P-series: CHAOSPrefetch self-attaches to the Stride registry (no target
+# param — hooks Stride::calculatePrefetch tail wherever a StridePrefetcher
+# runs; B0 = L2, S4 variant = L1D, both are the same Stride class).
+if args.chaos_prefetch:
+    board.chaos_prefetch = CHAOSPrefetch(
+        mode=args.prefetch_mode,
+        lsuTier=args.prefetch_lsu_tier,
+        lsuWarmupEvents=args.prefetch_warmup_events,
+        lsuSpanEvents=args.prefetch_span_events,
+        lsuF6Event=args.prefetch_f6_event,
+        maxFaults=args.prefetch_max_faults,
+        rngSeed=args.prefetch_rng_seed,
+        lineSize=64,   # B0 L1D/L2 cacheline (both 64B)
+        writeLog=True)
+    print(f"[lsu_proxy] CHAOSPrefetch attached "
+          f"(mode={args.prefetch_mode}, tier={args.prefetch_lsu_tier})")
+
 if args.chaos_reg:
     chaos = CHAOSReg(
         cpu=cpu0,
