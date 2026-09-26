@@ -66,6 +66,14 @@ GOLDEN_IDS = {
     # checksum (SDC channel) instead of SIGSEGV (Crash channel); the Crash
     # channel works natively and in FS.
     "minicheck-golden-v1":   "07568da9f3ad5665",  # mini_check
+    # LSU W9 SE workloads (all gem5==native, 2026-09-26 verified)
+    "agu-addmodes-golden-v1": "728e604ffcec539d",  # agu_addrmodes
+    "sq-forward-golden-v1":   "1f4cbf14327717df",  # sq_forward
+    "cache-dirtyevict-golden-v1": "062e5124df3667f9",  # cache_dirtyevict
+    "prefetch-stride-golden-v1": "629727c0ad9ca8ef",  # prefetch_stride
+    "stream-chase-golden-v1": "50ab96a7fe8f6ec2",  # stream_chase
+    "beebs-kernels-golden-v1": "a10b9827edd8a9fb",  # beebs_kernels
+    "gap-bfs-golden-v1":     "030921682b3731f2",  # gap_bfs
     "l1dreduce-golden-v1":  "f44d2b9cd4a173cd",  # l1d_reduce
     "l1iloop-golden-v1":    "bb0b1c4cb661236e",  # l1i_loop
     "stuckpersist-golden-v1": "00000000dee1f5d0",  # stuck_persist
