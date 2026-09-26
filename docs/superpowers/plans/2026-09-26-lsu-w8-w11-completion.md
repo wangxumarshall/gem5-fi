@@ -299,11 +299,11 @@ build/ARM/gem5.opt --outdir=/tmp/ap configs/se/lsu_proxy.py \
 - Produces: `--exmon_mode {stxr_force_success,stxr_force_fail,o01_monitor_addr_bitflip,o02_monitor_state_corrupt}`；O03（状态码翻转）= 现有 stxr_force_* 语义（campaign 映射注明）；O05–O07 多核 blocked；O08 B0 N/A；O04/O09（RMW 数据通路）deferred——需 cache 侧 SwapResp 钩子，超出总纲 W8 "isa.cc handleLocked 路径" 范围，实测备注注明。
 - 方法：`void maybeCorruptMonitor(const RequestPtr &req)`（handleLockedRead 尾部调用；O01 = LOCKADDR XOR 1 bit；O02 = LOCKFLAG 清零 50%/置位 50%——gem5 monitor 模型仅 flag+addr，无 version/granule，诚实边界写头注释）。
 
-- [ ] **Step 1: 读 isa.cc handleLockedRead/handleLockedWrite 现状**（W1 ⑥：1871-1960；CHAOSExMon 现挂 1953-1955——确认 handleLockedRead 的 monitor 置位点与 misc reg 写法）
-- [ ] **Step 2: 实现两模式**（结构照 stxr_force_* 的 maybeCorrupt：inWindow + max_faults + events_to_skip 几何采样防御 + logInjection "Site: " 行）
-- [ ] **Step 3: isa.cc 钩子**（handleLockedRead 置 monitor 后：`if (chaosExMon) chaosExMon->maybeCorruptMonitor(req);`——注入器判模式，非 O01/O02 模式直接 return）
-- [ ] **Step 4: 构建**（同 Task 1 Step 6；零警告）
-- [ ] **Step 5: 定向验证**（atomics_probe 载体）
+- [x] **Step 1: 读 isa.cc handleLockedRead/handleLockedWrite 现状**（W1 ⑥：1871-1960；CHAOSExMon 现挂 1953-1955——确认 handleLockedRead 的 monitor 置位点与 misc reg 写法）
+- [x] **Step 2: 实现两模式**（结构照 stxr_force_* 的 maybeCorrupt：inWindow + max_faults + events_to_skip 几何采样防御 + logInjection "Site: " 行）
+- [x] **Step 3: isa.cc 钩子**（handleLockedRead 置 monitor 后：`if (chaosExMon) chaosExMon->maybeCorruptMonitor(req);`——注入器判模式，非 O01/O02 模式直接 return）
+- [x] **Step 4: 构建**（同 Task 1 Step 6；零警告）
+- [x] **Step 5: 定向验证**（atomics_probe 载体）
 
 ```bash
 for m in o01_monitor_addr_bitflip o02_monitor_state_corrupt; do
@@ -314,7 +314,7 @@ for m in o01_monitor_addr_bitflip o02_monitor_state_corrupt; do
 done
 ```
 预期：① `exmon_injections.log` 各 ≥1 行；② O01/O02 结局 = Masked（瞬时 reservation 失效被重试环吸收——探针设计使然）或 livelock→超时；**不得 SDC**（monitor 故障不写数据）。若 SDC 出现先回修（可能误触 store 数据路径）。
-- [ ] **Step 6: 回归 reg_chain + mini_check golden + Commit + push**
+- [x] **Step 6: 回归 reg_chain + mini_check golden + Commit + push**
 
 ---
 

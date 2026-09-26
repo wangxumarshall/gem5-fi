@@ -1,6 +1,7 @@
 #ifndef __ARCH_ARM_CHAOS_EX_MON_HH__
 #define __ARCH_ARM_CHAOS_EX_MON_HH__
 
+#include <optional>
 #include <random>
 #include <string>
 
@@ -28,8 +29,27 @@ class CHAOSExMon : public SimObject
     // required here — handleLockedWrite fires in SE too (LDXR/STXR in SE).
     bool maybeCorrupt(const RequestPtr &req, bool would_succeed);
 
+    // W8 O-series (03-design-matrix O01/O02), called from ISA::
+    // handleLockedRead AFTER the monitor is placed. Returns the corrupted
+    // monitor value when the fault fires (the call site writes LOCKADDR/
+    // LOCKFLAG), nullopt otherwise:
+    //   O01MonitorAddrBitflip  one architecturally-visible bit (>= 6:
+    //     lockedWriteHandler masks both sides with cacheBlockMask, so bits
+    //     <6 are don't-care and excluded from sampling) of the monitor
+    //     address XORed — the reservation now mismatches the STXR block.
+    //     Data untouched; a retry loop absorbs the transient failure =>
+    //     Masked on a well-formed probe, livelock => Timeout.
+    //   O02MonitorStateCorrupt 50% clear the flag (valid清零 — monitor
+    //     lost), 50% repoint the reservation at the neighboring 64B block
+    //     (伪造/version-旧值 proxy). HONEST: gem5 models the monitor as
+    //     flag+addr misc regs only — the xlsx row's version/granule
+    //     sub-fields do not exist in this host structure (documented).
+    struct MonitorVal { Addr addr; bool flag; };
+    std::optional<MonitorVal> maybeCorruptMonitor(const RequestPtr &req);
+
   private:
-    enum class Mode { StxrForceSuccess, StxrForceFail };
+    enum class Mode { StxrForceSuccess, StxrForceFail,
+                      O01MonitorAddrBitflip, O02MonitorStateCorrupt };
     static Mode stringToMode(const std::string &s);
 
     // isa (raw; SELF-ATTACH: ctor sets isa->chaosExMon = this, same pattern

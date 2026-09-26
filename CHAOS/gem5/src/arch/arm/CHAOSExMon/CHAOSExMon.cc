@@ -48,6 +48,10 @@ namespace gem5
     CHAOSExMon::Mode
     CHAOSExMon::stringToMode(const std::string &s) {
         if (s == "stxr_force_fail") return Mode::StxrForceFail;
+        // W8 O-series (03-design-matrix O01/O02) — monitor-side faults on
+        // the handleLockedRead path; the STXR verdict path passes through.
+        if (s == "o01_monitor_addr_bitflip") return Mode::O01MonitorAddrBitflip;
+        if (s == "o02_monitor_state_corrupt") return Mode::O02MonitorStateCorrupt;
         return Mode::StxrForceSuccess;
     }
 
@@ -69,6 +73,11 @@ namespace gem5
     bool
     CHAOSExMon::maybeCorrupt(const RequestPtr &req, bool would_succeed)
     {
+        // W8 O01/O02 are monitor-side (handleLockedRead) faults — the STXR
+        // verdict must pass through untouched on these modes.
+        if (fi_mode == Mode::O01MonitorAddrBitflip ||
+            fi_mode == Mode::O02MonitorStateCorrupt)
+            return would_succeed;
         if (probability <= 0.0f) return would_succeed;
         if (max_faults != 0 && faults_injected_count >= max_faults) return would_succeed;
         if (!inWindow()) return would_succeed;
@@ -128,6 +137,66 @@ namespace gem5
             }
         }
         return result;
+    }
+
+    std::optional<CHAOSExMon::MonitorVal>
+    CHAOSExMon::maybeCorruptMonitor(const RequestPtr &req)
+    {
+        // W8 O-series: only the monitor-side modes act here; the stxr
+        // modes leave the read side alone.
+        if (fi_mode != Mode::O01MonitorAddrBitflip &&
+            fi_mode != Mode::O02MonitorStateCorrupt)
+            return std::nullopt;
+        if (!req) return std::nullopt;
+        if (probability <= 0.0f) return std::nullopt;
+        if (max_faults != 0 && faults_injected_count >= max_faults)
+            return std::nullopt;
+        if (!inWindow()) return std::nullopt;
+
+        // Every LDXR that placed a monitor is eligible. Sampling-bias fix
+        // (same defense as the stxr modes): skip a geometric(0.1) number of
+        // eligible events so maxFaults=1 lands on a seed-dependent event.
+        if (events_to_skip > 0) {
+            --events_to_skip;
+            return std::nullopt;
+        }
+        std::uniform_real_distribution<float> pd(0.0f, 1.0f);
+        if (pd(rng) > probability) return std::nullopt;
+
+        const Addr paddr = req->getPaddr();
+        MonitorVal mv{paddr, true};
+        const char *site = "";
+        if (fi_mode == Mode::O01MonitorAddrBitflip) {
+            // O01: one architecturally-visible monitor-address bit XORed.
+            // Bits [6,47] only — lockedWriteHandler masks both sides with
+            // cacheBlockMask (64B lines), so bits <6 are don't-care and are
+            // excluded from sampling (injected == activated semantics).
+            const unsigned bit = 6 + rng() % 42;
+            mv.addr = paddr ^ (Addr(1) << bit);
+            site = "o01_monitor_addr_bitflip";
+        } else {
+            // O02: 50% clear the flag (valid清零), 50% repoint the
+            // reservation at the neighboring 64B block (伪造/version-旧值
+            // proxy — gem5 monitor = flag+addr only, documented in .hh).
+            if (rng() % 2) {
+                mv.flag = false;
+                site = "o02_monitor_state_clear";
+            } else {
+                mv.addr = paddr ^ Addr(0x40);
+                site = "o02_monitor_state_fake";
+            }
+        }
+        ++faults_injected_count;
+        if (write_log) {
+            *(log_stream->stream()) << "Tick: " << curTick()
+                << ", Site: isa_handleLockedRead, mode=" << site
+                << ", addr=0x" << std::hex << paddr << std::dec
+                << " -> monitor addr=0x" << std::hex << mv.addr << std::dec
+                << ", flag=" << (mv.flag ? 1 : 0)
+                << ", faults_injected: " << faults_injected_count
+                << std::endl;
+        }
+        return mv;
     }
 
 } // namespace gem5

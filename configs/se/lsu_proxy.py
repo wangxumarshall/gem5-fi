@@ -505,7 +505,8 @@ p.add_argument("--decode_rng_seed", type=lambda x: int(x,0), default=20260825)
 p.add_argument("--chaos_exmon", action="store_true",
                help="attach CHAOSExMon (ARM exclusive-monitor, §2.4)")
 p.add_argument("--exmon_mode", default="stxr_force_success",
-               choices=["stxr_force_success","stxr_force_fail"])
+               choices=["stxr_force_success","stxr_force_fail",
+                        "o01_monitor_addr_bitflip","o02_monitor_state_corrupt"])
 p.add_argument("--exmon_first_clock", type=lambda x: int(x,0), default=1000)
 p.add_argument("--exmon_max_faults", type=lambda x: int(x,0), default=1)
 p.add_argument("--exmon_rng_seed", type=lambda x: int(x,0), default=20260825)

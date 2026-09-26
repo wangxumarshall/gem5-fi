@@ -1872,6 +1872,15 @@ ISA::handleLockedRead(const RequestPtr &req)
 {
     tc->setMiscReg(MISCREG_LOCKADDR, req->getPaddr());
     tc->setMiscReg(MISCREG_LOCKFLAG, true);
+    // W8 O-series CHAOSExMon (O01/O02): monitor-side corruption at the
+    // read (reservation placement). nullptr / non-O mode = zero change.
+    if (chaosExMon) {
+        const auto mon = chaosExMon->maybeCorruptMonitor(req);
+        if (mon) {
+            tc->setMiscReg(MISCREG_LOCKADDR, mon->addr);
+            tc->setMiscReg(MISCREG_LOCKFLAG, mon->flag);
+        }
+    }
     DPRINTF(LLSC, "%s: Placing address %#x in monitor\n",
             tc->getCpuPtr()->name(), req->getPaddr());
 }
@@ -1881,6 +1890,15 @@ ISA::handleLockedRead(ExecContext *xc, const RequestPtr &req)
 {
     xc->setMiscReg(MISCREG_LOCKADDR, req->getPaddr());
     xc->setMiscReg(MISCREG_LOCKFLAG, true);
+    // W8 O-series CHAOSExMon (O01/O02) — this is the overload the O3 LSQ
+    // path takes (same shape as the handleLockedWrite hooks below).
+    if (chaosExMon) {
+        const auto mon = chaosExMon->maybeCorruptMonitor(req);
+        if (mon) {
+            xc->setMiscReg(MISCREG_LOCKADDR, mon->addr);
+            xc->setMiscReg(MISCREG_LOCKFLAG, mon->flag);
+        }
+    }
     DPRINTF(LLSC, "%s: Placing address %#x in monitor\n",
             xc->tcBase()->getCpuPtr()->name(), req->getPaddr());
 }
