@@ -945,7 +945,16 @@ def parse_counting(campaign, args):
             or density <= 0:
         sys.exit(f"[campaign] counting density must be a number > 0 (got "
                  f"{density!r}). Aborting.")
-    n_runs = math.ceil(target / density)
+    # OoO-track fix (2026-09-26, ruling 9 in the W8 plan doc): the 02-doc
+    # event-coverage intent is n INDEPENDENT event-anchored injections
+    # (2000 runs x 1 firing, same power basis as F0's 'n = injection
+    # instances'). ceil(target/density) is valid only in the rare-event
+    # regime (density < 1 event/run, where P(fire per run) ~ density);
+    # on probe-dense workloads (density >= 275,648 here) it collapsed to
+    # n_runs=1 — statistically vacuous. General form: runs needed to
+    # accumulate `target` fired events at <=1 firing per run is
+    # ceil(target / min(1, density)).
+    n_runs = math.ceil(target / min(1, density))
     return {"mode": "event_coverage", "target_events": target,
             "density": density, "density_source": source, "n_runs": n_runs}
 
