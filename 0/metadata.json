@@ -1,0 +1,323 @@
+{
+  "cli_version": "0.10.2",
+  "checkpoint_id": "01M3EWYZ054YTTKXG35BZ4V9VH",
+  "session_id": "12997ed0-faf3-4d19-b383-8b11c1b47de5",
+  "strategy": "manual-commit",
+  "created_at": "2026-09-26T13:02:41.884272822Z",
+  "branch": "fi-ding",
+  "checkpoints_count": 13,
+  "save_step_count": 14,
+  "files_touched": [
+    "artifacts/ooo_w81_gate/batch-summary.md",
+    "artifacts/ooo_w81_gate/driver_waveA.sh",
+    "artifacts/ooo_w81_gate/driver_waveB.sh",
+    "artifacts/ooo_w81_gate/driver_waveB2.sh",
+    "artifacts/ooo_w81_gate/driver_waveB3.sh",
+    "artifacts/ooo_w81_gate/driver_waveB4.sh",
+    "artifacts/ooo_w81_gate/watchdog_waveB.sh",
+    "artifacts/ooo_w81_gate_e074/heatmap.csv",
+    "artifacts/ooo_w81_gate_e074/summary.md",
+    "artifacts/ooo_w81_gate_e074/tier_selection.json",
+    "artifacts/ooo_w81_gate_e075_crc32/heatmap.csv",
+    "artifacts/ooo_w81_gate_e075_crc32/summary.md",
+    "artifacts/ooo_w81_gate_e075_crc32/tier_selection.json",
+    "artifacts/ooo_w81_gate_e075_matmult-int/heatmap.csv",
+    "artifacts/ooo_w81_gate_e075_matmult-int/summary.md",
+    "artifacts/ooo_w81_gate_e075_matmult-int/tier_selection.json",
+    "artifacts/ooo_w81_gate_e075_md5sum/heatmap.csv",
+    "artifacts/ooo_w81_gate_e075_md5sum/summary.md",
+    "artifacts/ooo_w81_gate_e075_md5sum/tier_selection.json",
+    "artifacts/ooo_w81_gate_e075_minver/heatmap.csv",
+    "artifacts/ooo_w81_gate_e075_minver/summary.md",
+    "artifacts/ooo_w81_gate_e075_minver/tier_selection.json",
+    "artifacts/ooo_w81_gate_e075_nbody/heatmap.csv",
+    "artifacts/ooo_w81_gate_e075_nbody/summary.md",
+    "artifacts/ooo_w81_gate_e075_nbody/tier_selection.json",
+    "artifacts/ooo_w81_gate_e075_wikisort/heatmap.csv",
+    "artifacts/ooo_w81_gate_e075_wikisort/summary.md",
+    "artifacts/ooo_w81_gate_e075_wikisort/tier_selection.json",
+    "artifacts/ooo_w81_gate_e082/tier_selection.json",
+    "artifacts/ooo_w81_gate_e083_crc32/tier_selection.json",
+    "artifacts/ooo_w81_gate_e083_matmult-int/tier_selection.json",
+    "artifacts/ooo_w81_gate_e083_nbody/heatmap.csv",
+    "artifacts/ooo_w81_gate_e083_nbody/summary.md",
+    "artifacts/ooo_w81_gate_e083_wikisort/heatmap.csv",
+    "artifacts/ooo_w81_gate_e083_wikisort/summary.md",
+    "docs/gem5-fi/ooo/05-expanded-matrix.csv",
+    "tools/backfill_expanded_matrix.py"
+  ],
+  "agent": "Claude Code",
+  "model": "GLM-5.3[1m]",
+  "turn_id": "bc27e59c8808",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 5724281,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 96362432,
+    "output_tokens": 258659,
+    "api_call_count": 253,
+    "subagent_tokens": {
+      "input_tokens": 0,
+      "cache_creation_tokens": 0,
+      "cache_read_tokens": 0,
+      "output_tokens": 0,
+      "api_call_count": 0
+    }
+  },
+  "skill_events_version": 1,
+  "skill_events": [
+    {
+      "id": "prompt-skill-claude-code-superpowers:executing-plans-2026-09-25T01:15:47.524406538Z",
+      "event_type": "prompt_invocation",
+      "skill": {
+        "name": "superpowers:executing-plans"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "prompt_slash_command",
+        "confidence": "explicit"
+      },
+      "turn_id": "9d6e5173887f",
+      "timestamp": "2026-09-25T01:15:47.524406538Z",
+      "native": {
+        "command": "/superpowers:executing-plans"
+      },
+      "collapse": {
+        "target": "user_message",
+        "label": "/superpowers:executing-plans",
+        "default_collapsed": true
+      }
+    },
+    {
+      "id": "prompt-skill-claude-code-goal-2026-09-26T01:38:39.622443851Z",
+      "event_type": "prompt_invocation",
+      "skill": {
+        "name": "goal"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "prompt_slash_command",
+        "confidence": "explicit"
+      },
+      "turn_id": "465b5779f22f",
+      "timestamp": "2026-09-26T01:38:39.622443851Z",
+      "native": {
+        "command": "/goal"
+      },
+      "collapse": {
+        "target": "user_message",
+        "label": "/goal",
+        "default_collapsed": true
+      }
+    }
+  ],
+  "session_metrics": {
+    "turn_count": 21
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-09-26T13:02:41.472338584Z",
+    "agent_lines": 140,
+    "agent_removed": 5,
+    "human_added": 1923,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 2063,
+    "total_lines_changed": 2068,
+    "agent_percentage": 7.011605415860735,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    },
+    {
+      "checkpoint_number": 3,
+      "user_lines_added": 511,
+      "user_lines_removed": 0,
+      "agent_lines_added": 281212,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        "artifacts/ooo_w81_gate_e074/heatmap.csv": 2,
+        "artifacts/ooo_w81_gate_e074/summary.md": 23,
+        "artifacts/ooo_w81_gate_e075_crc32/heatmap.csv": 2,
+        "artifacts/ooo_w81_gate_e075_crc32/summary.md": 23,
+        "artifacts/ooo_w81_gate_e075_crc32/tier_selection.json": 48,
+        "artifacts/ooo_w81_gate_e075_matmult-int/heatmap.csv": 2,
+        "artifacts/ooo_w81_gate_e075_matmult-int/summary.md": 23,
+        "artifacts/ooo_w81_gate_e075_matmult-int/tier_selection.json": 48,
+        "artifacts/ooo_w81_gate_e075_md5sum/heatmap.csv": 2,
+        "artifacts/ooo_w81_gate_e075_md5sum/summary.md": 23,
+        "artifacts/ooo_w81_gate_e075_md5sum/tier_selection.json": 48,
+        "artifacts/ooo_w81_gate_e075_minver/heatmap.csv": 2,
+        "artifacts/ooo_w81_gate_e075_minver/summary.md": 23,
+        "artifacts/ooo_w81_gate_e075_minver/tier_selection.json": 48,
+        "artifacts/ooo_w81_gate_e075_nbody/heatmap.csv": 2,
+        "artifacts/ooo_w81_gate_e075_nbody/summary.md": 23,
+        "artifacts/ooo_w81_gate_e075_nbody/tier_selection.json": 48,
+        "artifacts/ooo_w81_gate_e075_wikisort/heatmap.csv": 2,
+        "artifacts/ooo_w81_gate_e075_wikisort/summary.md": 23,
+        "artifacts/ooo_w81_gate_e075_wikisort/tier_selection.json": 48,
+        "artifacts/ooo_w81_gate_e082/tier_selection.json": 48
+      }
+    },
+    {
+      "checkpoint_number": 4,
+      "user_lines_added": 512,
+      "user_lines_removed": 0,
+      "agent_lines_added": 281212,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".planning/2026-09-22-ooo-fault-injection-implementation-plan/progress.md": 1,
+        "artifacts/ooo_w81_gate_e074/heatmap.csv": 2,
+        "artifacts/ooo_w81_gate_e074/summary.md": 23,
+        "artifacts/ooo_w81_gate_e075_crc32/heatmap.csv": 2,
+        "artifacts/ooo_w81_gate_e075_crc32/summary.md": 23,
+        "artifacts/ooo_w81_gate_e075_crc32/tier_selection.json": 48,
+        "artifacts/ooo_w81_gate_e075_matmult-int/heatmap.csv": 2,
+        "artifacts/ooo_w81_gate_e075_matmult-int/summary.md": 23,
+        "artifacts/ooo_w81_gate_e075_matmult-int/tier_selection.json": 48,
+        "artifacts/ooo_w81_gate_e075_md5sum/heatmap.csv": 2,
+        "artifacts/ooo_w81_gate_e075_md5sum/summary.md": 23,
+        "artifacts/ooo_w81_gate_e075_md5sum/tier_selection.json": 48,
+        "artifacts/ooo_w81_gate_e075_minver/heatmap.csv": 2,
+        "artifacts/ooo_w81_gate_e075_minver/summary.md": 23,
+        "artifacts/ooo_w81_gate_e075_minver/tier_selection.json": 48,
+        "artifacts/ooo_w81_gate_e075_nbody/heatmap.csv": 2,
+        "artifacts/ooo_w81_gate_e075_nbody/summary.md": 23,
+        "artifacts/ooo_w81_gate_e075_nbody/tier_selection.json": 48,
+        "artifacts/ooo_w81_gate_e075_wikisort/heatmap.csv": 2,
+        "artifacts/ooo_w81_gate_e075_wikisort/summary.md": 23,
+        "artifacts/ooo_w81_gate_e075_wikisort/tier_selection.json": 48,
+        "artifacts/ooo_w81_gate_e082/tier_selection.json": 48
+      }
+    },
+    {
+      "checkpoint_number": 5,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    },
+    {
+      "checkpoint_number": 6,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    },
+    {
+      "checkpoint_number": 7,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    },
+    {
+      "checkpoint_number": 8,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    },
+    {
+      "checkpoint_number": 9,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    },
+    {
+      "checkpoint_number": 10,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    },
+    {
+      "checkpoint_number": 11,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 281829,
+      "agent_lines_removed": 0
+    },
+    {
+      "checkpoint_number": 12,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 281829,
+      "agent_lines_removed": 0
+    },
+    {
+      "checkpoint_number": 13,
+      "user_lines_added": 293,
+      "user_lines_removed": 0,
+      "agent_lines_added": 281829,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".planning/2026-09-22-ooo-fault-injection-implementation-plan/progress.md": 1,
+        "artifacts/ooo_w81_gate_e083_crc32/heatmap.csv": 2,
+        "artifacts/ooo_w81_gate_e083_crc32/summary.md": 23,
+        "artifacts/ooo_w81_gate_e083_matmult-int/heatmap.csv": 2,
+        "artifacts/ooo_w81_gate_e083_matmult-int/summary.md": 23,
+        "artifacts/ooo_w81_gate_e083_md5sum/heatmap.csv": 2,
+        "artifacts/ooo_w81_gate_e083_md5sum/summary.md": 23,
+        "artifacts/ooo_w81_gate_e083_md5sum/tier_selection.json": 48,
+        "artifacts/ooo_w81_gate_e083_minver/heatmap.csv": 2,
+        "artifacts/ooo_w81_gate_e083_minver/summary.md": 23,
+        "artifacts/ooo_w81_gate_e083_minver/tier_selection.json": 48,
+        "artifacts/ooo_w81_gate_e083_nbody/tier_selection.json": 48,
+        "artifacts/ooo_w81_gate_e083_wikisort/tier_selection.json": 48
+      }
+    },
+    {
+      "checkpoint_number": 14,
+      "user_lines_added": 295,
+      "user_lines_removed": 0,
+      "agent_lines_added": 282336,
+      "agent_lines_removed": 5,
+      "user_added_per_file": {
+        ".planning/2026-09-22-ooo-fault-injection-implementation-plan/progress.md": 3,
+        "artifacts/ooo_w81_gate_e083_crc32/heatmap.csv": 2,
+        "artifacts/ooo_w81_gate_e083_crc32/summary.md": 23,
+        "artifacts/ooo_w81_gate_e083_matmult-int/heatmap.csv": 2,
+        "artifacts/ooo_w81_gate_e083_matmult-int/summary.md": 23,
+        "artifacts/ooo_w81_gate_e083_md5sum/heatmap.csv": 2,
+        "artifacts/ooo_w81_gate_e083_md5sum/summary.md": 23,
+        "artifacts/ooo_w81_gate_e083_md5sum/tier_selection.json": 48,
+        "artifacts/ooo_w81_gate_e083_minver/heatmap.csv": 2,
+        "artifacts/ooo_w81_gate_e083_minver/summary.md": 23,
+        "artifacts/ooo_w81_gate_e083_minver/tier_selection.json": 48,
+        "artifacts/ooo_w81_gate_e083_nbody/tier_selection.json": 48,
+        "artifacts/ooo_w81_gate_e083_wikisort/tier_selection.json": 48
+      }
+    },
+    {
+      "checkpoint_number": 15,
+      "user_lines_added": 321,
+      "user_lines_removed": 0,
+      "agent_lines_added": 282336,
+      "agent_lines_removed": 5,
+      "user_added_per_file": {
+        ".planning/2026-09-22-ooo-fault-injection-implementation-plan/progress.md": 4,
+        "artifacts/ooo_w81_gate_e082/heatmap.csv": 2,
+        "artifacts/ooo_w81_gate_e082/summary.md": 23,
+        "artifacts/ooo_w81_gate_e083_crc32/heatmap.csv": 2,
+        "artifacts/ooo_w81_gate_e083_crc32/summary.md": 23,
+        "artifacts/ooo_w81_gate_e083_matmult-int/heatmap.csv": 2,
+        "artifacts/ooo_w81_gate_e083_matmult-int/summary.md": 23,
+        "artifacts/ooo_w81_gate_e083_md5sum/heatmap.csv": 2,
+        "artifacts/ooo_w81_gate_e083_md5sum/summary.md": 23,
+        "artifacts/ooo_w81_gate_e083_md5sum/tier_selection.json": 48,
+        "artifacts/ooo_w81_gate_e083_minver/heatmap.csv": 2,
+        "artifacts/ooo_w81_gate_e083_minver/summary.md": 23,
+        "artifacts/ooo_w81_gate_e083_minver/tier_selection.json": 48,
+        "artifacts/ooo_w81_gate_e083_nbody/tier_selection.json": 48,
+        "artifacts/ooo_w81_gate_e083_wikisort/tier_selection.json": 48
+      }
+    }
+  ]
+}

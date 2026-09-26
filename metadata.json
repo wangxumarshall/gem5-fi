@@ -1,0 +1,69 @@
+{
+  "cli_version": "0.10.2",
+  "checkpoint_id": "01M3EWYZ054YTTKXG35BZ4V9VH",
+  "strategy": "manual-commit",
+  "branch": "fi-ding",
+  "checkpoints_count": 13,
+  "files_touched": [
+    "artifacts/ooo_w81_gate/batch-summary.md",
+    "artifacts/ooo_w81_gate/driver_waveA.sh",
+    "artifacts/ooo_w81_gate/driver_waveB.sh",
+    "artifacts/ooo_w81_gate/driver_waveB2.sh",
+    "artifacts/ooo_w81_gate/driver_waveB3.sh",
+    "artifacts/ooo_w81_gate/driver_waveB4.sh",
+    "artifacts/ooo_w81_gate/watchdog_waveB.sh",
+    "artifacts/ooo_w81_gate_e074/heatmap.csv",
+    "artifacts/ooo_w81_gate_e074/summary.md",
+    "artifacts/ooo_w81_gate_e074/tier_selection.json",
+    "artifacts/ooo_w81_gate_e075_crc32/heatmap.csv",
+    "artifacts/ooo_w81_gate_e075_crc32/summary.md",
+    "artifacts/ooo_w81_gate_e075_crc32/tier_selection.json",
+    "artifacts/ooo_w81_gate_e075_matmult-int/heatmap.csv",
+    "artifacts/ooo_w81_gate_e075_matmult-int/summary.md",
+    "artifacts/ooo_w81_gate_e075_matmult-int/tier_selection.json",
+    "artifacts/ooo_w81_gate_e075_md5sum/heatmap.csv",
+    "artifacts/ooo_w81_gate_e075_md5sum/summary.md",
+    "artifacts/ooo_w81_gate_e075_md5sum/tier_selection.json",
+    "artifacts/ooo_w81_gate_e075_minver/heatmap.csv",
+    "artifacts/ooo_w81_gate_e075_minver/summary.md",
+    "artifacts/ooo_w81_gate_e075_minver/tier_selection.json",
+    "artifacts/ooo_w81_gate_e075_nbody/heatmap.csv",
+    "artifacts/ooo_w81_gate_e075_nbody/summary.md",
+    "artifacts/ooo_w81_gate_e075_nbody/tier_selection.json",
+    "artifacts/ooo_w81_gate_e075_wikisort/heatmap.csv",
+    "artifacts/ooo_w81_gate_e075_wikisort/summary.md",
+    "artifacts/ooo_w81_gate_e075_wikisort/tier_selection.json",
+    "artifacts/ooo_w81_gate_e082/tier_selection.json",
+    "artifacts/ooo_w81_gate_e083_crc32/tier_selection.json",
+    "artifacts/ooo_w81_gate_e083_matmult-int/tier_selection.json",
+    "artifacts/ooo_w81_gate_e083_nbody/heatmap.csv",
+    "artifacts/ooo_w81_gate_e083_nbody/summary.md",
+    "artifacts/ooo_w81_gate_e083_wikisort/heatmap.csv",
+    "artifacts/ooo_w81_gate_e083_wikisort/summary.md",
+    "docs/gem5-fi/ooo/05-expanded-matrix.csv",
+    "tools/backfill_expanded_matrix.py"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 5724281,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 96362432,
+    "output_tokens": 258659,
+    "api_call_count": 253,
+    "subagent_tokens": {
+      "input_tokens": 0,
+      "cache_creation_tokens": 0,
+      "cache_read_tokens": 0,
+      "output_tokens": 0,
+      "api_call_count": 0
+    }
+  }
+}

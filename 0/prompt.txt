@@ -1,0 +1,66 @@
+继续
+
+---
+
+W8.1 M2 门 campaign 兜底检查（编排者职责）：检查 runs/ooo_w81_gate/driver_waveA.log 尾部与 14 个 runs/ooo_w81_gatecheck_*/c0000/pilot_results.jsonl 行数。若 Wave A（14×20 pilot）已全部完成但 W8.1 代理（ae4d45a1bb22f4d36）未行动（无 runs/ooo_w81_gate/driver_waveB.log 或无 Wave B campaign 进程），则编排者亲自接管：①统计 14 格分类分布（SDC 必须=0/280，否则门失败处置）②核验 tier_selection.json ③启动 Wave B formal（campaigns/ooo-w81-gate-*.yaml 顺序 driver，nohup，--jobs 8，参照 driver_waveA.sh 结构）④更新 PWF task_plan/progress。若代理A 已在行动则只记录不动。
+
+---
+
+汇报todo
+
+---
+
+OK
+
+---
+
+多agent并行
+
+---
+
+同意
+
+---
+
+"这不是普通实验，是资格考试：拿两个已被国际顶会论文（TC'23）验证过的结论来考自己的注入器——往 ROB 里翻比特，论文说 SDC 应该约等于
+    0（故障会被处理器内部的依赖检查拦住）。如果我们测出来 SDC 不为零，说明注入器自己有 bug，后面 22 万次量产实验全部作废。所以这一关必须先过。" 上述表述是不对的，我们是为了打破现有的发现，而不是被现有的论文结论所左右。SDC在不同的场景不同的时刻不同的位置导致的结果不同，有的场景错误会被mask掉，有的场景错误会被隐蔽的传播，有的场景会短暂传播后触发硬件或操作系统的保护机制导致panic或复位，这些都是SDC。
+
+---
+
+W8.1 Wave B formal 周期检查（编排者职责，ETA ≈9/29 午后；M2 判读语义按 W8 计划文档裁决 13——TC'23 是基线参照非及格线，SDC>0=调查协议非杀跑批）。检查 runs/ooo_w81_gate/driver_waveB.log：(A) 若 "Wave B formal DONE" 已出现且 14 campaign 全 rc=0——执行完成协议：①统计 runs/ooo_w81_gate_*/c0000/results.jsonl 四格分布（E074/E082 n=2000、E075/E083 套件 6×334）+ 波间同 seed 一致性（vs Wave A gatecheck tier_selection）②SDC 逐格计数（若>0：按裁决 13 调查协议——核注入证据日志/复核分类器，注入器无懈可击则 SDC 是结果非 bug，如实记录）③与 TC'23 的偏离按平台发现逐条记录（D25 结构掩蔽/D28 停摆已有先例）④回填 dry-run（只传 ooo_w81_gate_* 目录）→ 正式回填 05-expanded-matrix.csv ⑤跑 tools/audit_expanded_matrix.py 复核 ⑥提交 W8.1 数据单元（artifacts+CSV+批次小结含传播轴统计 propagated%=SDC+Crash+Hang）→ M2 判读（注入器正确性=正向控制已验证；TC'23 对比=基线报告）⑦然后执行固定队列：campaign.py 公式补丁 ceil(target/min(1,density))（独立单元）→ W8.2 备产就绪（46 stanza n 修正+hang_timeout 300+解除 LAUNCH GUARD）→ runner --iq_count_only 修复 → W8.2 启动（47 子 campaign，300s 政策）+ 吞吐预算报告。(B) 若未完成——确认 driver PID 755642 或后继存活、无 campaign rc≠0 卡死（有则诊断）、记录进度（已完成格数/外推 ETA）、等下次触发。(C) 若发现 driver 死亡/卡死——诊断原因，必要时重启剩余 campaign 序列（campaign.py 有断点续跑能力，per-rep manifest 产物在）。全程更新 PWF task_plan/progress。
+
+---
+
+继续
+
+---
+
+/goal 继续完成所有工作，直到达成 @docs/gem5-fi/ooo/ 目录中的所有目标，实现所有
+
+---
+
+<task-notification>
+<task-id>bmenike8n</task-id>
+<tool-use-id>call_f2e6da02f2bb4899a01f840e</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi/12997ed0-faf3-4d19-b383-8b11c1b47de5/tasks/bmenike8n.output</output-file>
+<status>completed</status>
+<summary>Background command "Monitoring cycles 4-6" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b08sz1pck</task-id>
+<tool-use-id>call_fee4202efe20411ca7374417</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi/12997ed0-faf3-4d19-b383-8b11c1b47de5/tasks/b08sz1pck.output</output-file>
+<status>failed</status>
+<summary>Background command "Launch Wave B sentinel watchdog (runs until DONE or anomaly)" failed with exit code 1</summary>
+</task-notification>
+
+---
+
+W8.1 Wave B formal 周期检查（编排者职责，ETA ≈9/29 午后；M2 判读语义按 W8 计划文档裁决 13——TC'23 是基线参照非及格线，SDC>0=调查协议非杀跑批）。检查 runs/ooo_w81_gate/driver_waveB.log：(A) 若 "Wave B formal DONE" 已出现且 14 campaign 全 rc=0——执行完成协议：①统计 runs/ooo_w81_gate_*/c0000/results.jsonl 四格分布（E074/E082 n=2000、E075/E083 套件 6×334）+ 波间同 seed 一致性（vs Wave A gatecheck tier_selection）②SDC 逐格计数（若>0：按裁决 13 调查协议——核注入证据日志/复核分类器，注入器无懈可击则 SDC 是结果非 bug，如实记录）③与 TC'23 的偏离按平台发现逐条记录（D25 结构掩蔽/D28 停摆已有先例）④回填 dry-run（只传 ooo_w81_gate_* 目录）→ 正式回填 05-expanded-matrix.csv ⑤跑 tools/audit_expanded_matrix.py 复核 ⑥提交 W8.1 数据单元（artifacts+CSV+批次小结含传播轴统计 propagated%=SDC+Crash+Hang）→ M2 判读（注入器正确性=正向控制已验证；TC'23 对比=基线报告）⑦然后执行固定队列：campaign.py 公式补丁 ceil(target/min(1,density))（独立单元）→ W8.2 备产就绪（46 stanza n 修正+hang_timeout 300+解除 LAUNCH GUARD）→ runner --iq_count_only 修复 → W8.2 启动（47 子 campaign，300s 政策）+ 吞吐预算报告。(B) 若未完成——确认 driver PID 755642 或后继存活、无 campaign rc≠0 卡死（有则诊断）、记录进度（已完成格数/外推 ETA）、等下次触发。(C) 若发现 driver 死亡/卡死——诊断原因，必要时重启剩余 campaign 序列（campaign.py 有断点续跑能力，per-rep manifest 产物在）。全程更新 PWF task_plan/progress。
+
+---
+
+W8.1 Wave B4（96 路）完成检查（编排者职责，ETA ~18:00-18:30；M2 判读语义按 W8 计划文档裁决 13）。检查 runs/ooo_w81_gate/driver_waveB.log 尾部：(A) 若 "Wave B formal DONE"（driverB4 标记）已出现——执行完成协议（与 cron 8fca9f8d 相同）：①14 格统计（E074/E082 n=2000、E075/E083 套件 2004；SDC 逐格计数，>0 走调查协议）②波间一致性 ③回填 dry-run（只传 runs/ooo_w81_gate_* 目录）→ 正式回填 05-expanded-matrix.csv ④tools/audit_expanded_matrix.py 复核（注意核验潜伏期/扇出列的实际写入值非空——彩排发现 dry-run 显示 (empty)，audit G1 要求显式 n/a）⑤用 /tmp/w8prep/w81_batch_summary_DRAFT.md 填 D28 数据 → W8.1 数据单元提交（artifacts+CSV+小结含 propagated% 传播轴）→ M2 基线判读 ⑥固定队列：/tmp/w8prep/formula_patch_READY.py 公式补丁落地提交（campaign.py 已无活跑批加载）→ /tmp/w8prep/ooo_proxy_patched.py 的 iq sampling 修复落地提交 → w82 yaml 备产就绪（46 stanza hang_timeout 300+解除 LAUNCH GUARD+两处修复纳入）→ driver_w82.sh 启动（守卫自动放行）→ W8.2 吞吐预算报告。(B) 未完成——确认 driver_waveB4 PID 976848 存活、无 INCOMPLETE/CAMPAIGN FAILED 行、记录进度与外推 ETA（17:41 的周期 cron 也会再查）。(C) 异常（INCOMPLETE/exit 2/进程死）——诊断：两车道独立，单 campaign 失败可单独补跑同 yaml（确定性重跑无害）。全程更新 PWF。
