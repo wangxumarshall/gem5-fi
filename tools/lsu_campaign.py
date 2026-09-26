@@ -337,7 +337,18 @@ def run_single_cell(cell, args, seed, outdir):
 
     result = classify_run(outdir, stdout_file, golden, exit_code, stderr_file)
     if cache_inj > 0 and result.get("injected", 0) == 0:
+        # CHAOSCache logs "Tick:"/"Cycle:" lines (no "Site: " lines and no
+        # CHAOS_LSU_TRIGGER stdout funnel — the legacy firstClock mechanism),
+        # so the classifier's fallback misses it. Recover the FULL L0/L5
+        # record from the log count: injected = activated (near-tautological
+        # activation, same documented approximation as the other injectors)
+        # and the whole run's outcome lands in one class (04 L5 single-run
+        # verdict) so the conservation identity holds.
         result["injected"] = cache_inj
+        result["activated"] = cache_inj
+        oc = result.get("outcome", "Masked")
+        if isinstance(result.get("classes"), dict):
+            result["classes"][oc] = cache_inj
         result["injection_source"] = "cache_injections.log"
     return result
 
