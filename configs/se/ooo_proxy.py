@@ -237,6 +237,14 @@ p.add_argument("--iq_target_class", default="int", choices=["int","vec"],
                help="W7.4 D86-D91: IQ ready/tag family register class")
 p.add_argument("--iq_fp_only", action="store_true",
                help="W7.4 D86: §2.5 wake modes fire only on FP/SIMD ops")
+# v1.1 Phase 8.2 sampling (iq): fixed uniform skip / countOnly dry-run —
+# runner.py:1076-1079 passes these; the missing pair was a latent argparse
+# crash (exit 2 "unrecognized arguments") found by the W8 density agent
+# 2026-09-25 and confirmed on the live file.
+p.add_argument("--iq_events_to_skip", type=lambda x: int(x,0), default=-1,
+               help="iq sampling: skip the first N eligible events (default -1 = all)")
+p.add_argument("--iq_count_only", action="store_true",
+               help="iq sampling: countOnly dry-run (consume events, no injection)")
 # §2.12 CHAOSExec (O3 integer execution-unit injector). SELF-ATTACHES at
 # startup() to cpu.chaosExec. Hooks DynInst::execute() post-staticInst->execute;
 # filters opClass IntAlu/IntMult/IntDiv; XORs integer result.
@@ -636,6 +644,10 @@ if args.chaos_iq:
         # §2.5 wake modes.
         targetClass=args.iq_target_class,
         fpOnly=args.iq_fp_only,
+        # v1.1 Phase 8.2 sampling wiring (FPU-pattern; see argparse note).
+        eventsToSkip=(0xFFFFFFFFFFFFFFFF if args.iq_events_to_skip < 0
+                      else args.iq_events_to_skip),
+        countOnly=args.iq_count_only,
     )
     board.chaos_iq = iq
 
