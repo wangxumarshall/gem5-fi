@@ -75,6 +75,12 @@ GOLDEN_IDS = {
     "beebs-kernels-golden-v1": "a10b9827edd8a9fb",  # beebs_kernels
     "gap-bfs-golden-v1":     "030921682b3731f2",  # gap_bfs
     "sqlite-like-golden-v1": "33f836327a416d35",  # sqlite_like
+    # LSU W8 O-series SE verification probe (gem5==native, 2026-09-26).
+    # NOT a grid workload — O-cells run on Atomic-Litmus/PARSEC (multicore
+    # FS, blocked); this probe is the functional-verification vehicle for
+    # the CHAOSExMon O01/O02 modes. Final-data-state checksum by design:
+    # monitor faults => transient reservation loss => Masked, not fake-SDC.
+    "atomics-probe-golden-v1": "40f6ec03d95241ca",  # atomics_probe
     "l1dreduce-golden-v1":  "f44d2b9cd4a173cd",  # l1d_reduce
     "l1iloop-golden-v1":    "bb0b1c4cb661236e",  # l1i_loop
     "stuckpersist-golden-v1": "00000000dee1f5d0",  # stuck_persist

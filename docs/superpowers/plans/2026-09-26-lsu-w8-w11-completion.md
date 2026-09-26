@@ -236,10 +236,10 @@ git push origin fi-ding
 - Produces: `--chaos_prefetch --prefetch_mode {off,p01_stride_bitflip,p02_confidence_corrupt,p03_addr_subst,p05_drop_dup,p08_stride_stuck} --prefetch_lsu_tier {off,F0..F6} --prefetch_warmup_events --prefetch_span_events --prefetch_first_clock --prefetch_max_faults --prefetch_rng_seed`。
 - Produces: atomics_probe golden（native==gem5 校验后入 lsu_campaign goldens 表——Task 4 消费）。
 
-- [ ] **Step 1: lsu_proxy.py 参数 + mount**（照 CHAOSCache mount 的 `_pre_instantiate` 钩子模式——W6 65e5d022 先例：CHAOSCache 挂 l1d-cache-0；CHAOSPrefetch 挂 L2 的 prefetcher 对象；`lsu_proxy.py` 中 L2 在 B0 挂 StridePrefetcher(degree=8)——找到该实例化点，`Stride::chaosPrefetchHook` 由 SimObject startup 自连，py 侧只需实例化 CHAOSPrefetch 一次）
+- [x] **Step 1: lsu_proxy.py 参数 + mount**（照 CHAOSCache mount 的 `_pre_instantiate` 钩子模式——W6 65e5d022 先例：CHAOSCache 挂 l1d-cache-0；CHAOSPrefetch 挂 L2 的 prefetcher 对象；`lsu_proxy.py` 中 L2 在 B0 挂 StridePrefetcher(degree=8)——找到该实例化点，`Stride::chaosPrefetchHook` 由 SimObject startup 自连，py 侧只需实例化 CHAOSPrefetch 一次）
   - 核对 `chaosPrefetch` 的实例化不依赖目标对象引用（registry 模式 → 无 target Param 也可；若加 `Param.StridePrefetcher target` 更明确则加）。
 
-- [ ] **Step 2: atomics_probe.c**（LDXR/STXR 定向探针——**校验和只覆盖最终数据态**，不含重试计数，使 O01/O02 的瞬时 reservation 失效表现为 Masked 而非伪 SDC）
+- [x] **Step 2: atomics_probe.c**（LDXR/STXR 定向探针——**校验和只覆盖最终数据态**，不含重试计数，使 O01/O02 的瞬时 reservation 失效表现为 Masked 而非伪 SDC）
 
 ```c
 #include <stdint.h>
@@ -270,7 +270,7 @@ int main(void)
 }
 ```
 
-- [ ] **Step 3: 编译 + native==gem5 校验**
+- [x] **Step 3: 编译 + native==gem5 校验**
 
 ```bash
 gcc -O2 -static -o workloads/directed/atomics_probe workloads/src/atomics_probe.c
@@ -280,9 +280,9 @@ build/ARM/gem5.opt --outdir=/tmp/ap configs/se/lsu_proxy.py \
 # 两 checksum 必须一致 → 记为 golden
 ```
 
-- [ ] **Step 4: P 系端到端冒烟**（Task 1 Step 7 的命令改走 lsu_proxy 新参数，确认 argparse 无 exit=2——鲲鹏轨道 lsqfwd argparse 事故的同型防御）
+- [x] **Step 4: P 系端到端冒烟**（Task 1 Step 7 的命令改走 lsu_proxy 新参数，确认 argparse 无 exit=2——鲲鹏轨道 lsqfwd argparse 事故的同型防御）
 
-- [ ] **Step 5: 回归 + Commit + push**（同 Task 1 Step 8/9 模式；commit 信息含真实 golden 值）
+- [x] **Step 5: 回归 + Commit + push**（同 Task 1 Step 8/9 模式；commit 信息含真实 golden 值）
 
 ---
 
