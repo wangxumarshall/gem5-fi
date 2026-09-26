@@ -2757,3 +2757,9 @@ Cache-DirtyEvict + Prefetch-Stride (全部 gem5==native)
 - 337 格实际执行(W10 运行时)需数周计算——工具已就绪, 计算是部署问题。
 - W12 SQLite-like 代理完成(gem5==native)。**W9 SE 可测负载 9/9 全部完成**。W9: 9/14(余 5 个 FS/多核/SPEC 许可证)。
 - W12 sqlite-like golden 注册(33f836327a416d35)。W9 SE 可测 9/9 全 golden 入 runner。
+
+### W10 Trial Campaign 首次真实数据(2026-09-26)
+
+- 修复 --rng_seed 参数名 bug(首版 trial 全因 argparse exit 2 误分类为 Crash)。
+- **Trial 3 格 × 10 seeds 真实数据**: S01/S13(SQ data/addr 单bit)各 5 注入全 Masked(SDC=0, 与 TC'23 锚点一致); C01(Cache data bit)0 注入(L1D 触发路径待调参)。
+- **首次 LSU 轨道端到端实验数据流**: expanded-matrix → lsu_campaign.py → gem5.opt + 注入器 → lsu_l5_classify.py → summary.json。
