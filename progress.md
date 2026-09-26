@@ -2763,3 +2763,4 @@ Cache-DirtyEvict + Prefetch-Stride (全部 gem5==native)
 - 修复 --rng_seed 参数名 bug(首版 trial 全因 argparse exit 2 误分类为 Crash)。
 - **Trial 3 格 × 10 seeds 真实数据**: S01/S13(SQ data/addr 单bit)各 5 注入全 Masked(SDC=0, 与 TC'23 锚点一致); C01(Cache data bit)0 注入(L1D 触发路径待调参)。
 - **首次 LSU 轨道端到端实验数据流**: expanded-matrix → lsu_campaign.py → gem5.opt + 注入器 → lsu_l5_classify.py → summary.json。
+- C 系路由修复(CHAOSCache 原生机制)。已知集成缺口: C 系注入计数需 CHAOSCache 加 LSU trigger 接线或分类器加日志回退。Trial 数据: S01/S13(SQ) 全 Masked SDC=0 / C01(Cache) injected=0(集成缺口)。
