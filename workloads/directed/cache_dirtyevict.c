@@ -45,11 +45,12 @@ int main(void)
     for (i = 0; i < HALF/8; ++i) acc = fnv(acc, buf[i]);
 
     /* 5. conflict set: same cache index (stride = 16KiB = set stride) */
-    for (i = 0; i < 8; ++i) {
-        unsigned long *p = (unsigned long *)((char *)buf + i * L1D);
-        *p = i * 0x1111;
-        acc = fnv(acc, *p);
-    }
+    { char *cp = (char *)buf;
+      for (i = 0; i < 4; ++i) {
+          unsigned long *p = (unsigned long *)(cp + i * (L1D/2));
+          *p = i * 0x1111;
+          acc = fnv(acc, *p);
+      } }
 
     /* 6. false sharing pattern: writes to adjacent 8B words (same line) */
     for (i = 0; i < 64; ++i) buf[i] = 0xF000 + i;
