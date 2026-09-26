@@ -2785,3 +2785,10 @@ Cache-DirtyEvict + Prefetch-Stride (全部 gem5==native)
 - 审计结论: W8 P系预取器注入器不存在(总纲要求新建, P系50个SE格被锁); O系仅2模式; W10 campaign为trial骨架(映射不全/无自适应/无回填); backfill工具仍ooo专用。
 - 计划: docs/superpowers/plans/2026-09-26-lsu-w8-w11-completion.md (8 tasks: CHAOSPrefetch四件套→lsu_proxy挂载+atomics探针→ExMon O01/O02→campaign 68模型映射+blocked→三阶段自适应→backfill LSU扩展→SE格trial实跑→W11元分析)。
 - T05-T08 决定不写不可验证死代码(FS子模块空, CLAUDE.md自验证纪律), 维持wire-ready+blocked诚实标注。
+
+### LSU W8-W11 收尾会话执行中(2026-09-26 下午)
+
+- 911628d8 计划 → f76f5632 CHAOSPrefetch(5模式+负对照全过) → f9a8f8e7 atomics_probe(golden 40f6ec03d95241ca) → 1b97b714 ExMon O01/O02(Masked验证) → 28e405cc campaign 68模型映射(golden手误被真机复核抓住: prefetch_stride 18字符错值→假SDC) → 758602b7 回填LSU模式 → ce1767bc 三阶段自适应(Wilson停止规则玩具验证触发) → d4ca74a9 元分析升级+回填blocked标记修复
+- 诚实发现: S10/L04/C11/C12/C14/C15 是 notify-only 事件源接线, 消费端腐蚀未实现→deferred(46格); 全部blocked格标原因不伪造
+- 全SE格trial campaign后台运行中(177格×5 seeds×4槽); 外来进程(gem5-fi ooo轨道 embench)负载93拖慢
+- A03 cmd构造bug(seed旗标被吞)已修, 待campaign结束重跑A03两格

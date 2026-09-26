@@ -304,10 +304,13 @@ def run_single_cell(cell, args, seed, outdir):
     cmd = [str(G5), "--outdir", str(outdir), str(LSU_PROXY)]
     cmd += flags
     cmd += [FAMILY_SEED[family], str(seed)]
-    # A03 stuck0/stuck1 alternate by seed parity (both sub-modes sampled)
+    # A03 stuck0/stuck1 alternate by seed parity (both sub-modes sampled);
+    # swap the mode VALUE in place — the flag sits mid-list, before the
+    # seed flag (the first version clobbered --addrpath_rng_seed by writing
+    # cmd[-2], losing per-seed variation for A03; caught in code review).
     if model == "A03":
-        cmd[-2] = "--addrpath_mode"
-        cmd[-1] = "a03_stuck0" if seed % 2 else "a03_stuck1"
+        i = cmd.index("--addrpath_mode")
+        cmd[i + 1] = "a03_stuck0" if seed % 2 else "a03_stuck1"
 
     outdir.mkdir(parents=True, exist_ok=True)
     stdout_file = outdir / "run.out"
