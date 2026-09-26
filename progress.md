@@ -2815,3 +2815,9 @@ Cache-DirtyEvict + Prefetch-Stride (全部 gem5==native)
 - Atomic boot 到 userspace 成功(board.terminal: "booted to userspace; taking checkpoint" → "checkpoint taken; exiting")
 - checkpoint: runs/fs_lsu/boot/cpt.237933688473(本仓二进制自建, 未跨二进制复用)
 - O3 restore 冒烟进行中(m2_ptrchase.rcS)
+
+### 结合ooo 确认 + 新缺口(2026-09-26 晚)
+
+- 用户确认 ooo = docs/gem5-fi/ooo 项目(226 格网格); T13 收割(149 campaign)理解正确
+- **新发现缺口**: ooo 05-expanded-matrix.csv 仅 4/226 行有结果值(其 W9 回填交付未完成); manifest 无 design_unit_id/experiment_cell_id(grep 零命中) → 回填需显式 cell-map(由收割 CSV × 矩阵 join 构建); 全姊妹仓扫描 300s 超时 → 须定向传 149 个 campaign 目录
+- 登记为 T16: ooo 226 格回填 + 元分析(M3 关键路径之后)
