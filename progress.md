@@ -2809,3 +2809,9 @@ Cache-DirtyEvict + Prefetch-Stride (全部 gem5==native)
 - gem5-fs 子模块 aa234b94 检出; zst 分片解压(restore.sh): vmlinux 237716656B + ubuntu.img 2361393152B(与 readme 实测尺寸一致, md5 03bd04c4/56cb88c9)
 - git 状态干净(解压产物被子模块 .gitignore)
 - boot 命令形状核实: arm_chaos_fs.py --kernel/--disk/--bootloader 显式传参, root-partition 默认 /dev/vda1(header 的 sda2 是陈旧注释), platform=V1
+
+### M3-T2 Step1 完成: FS boot + checkpoint(2026-09-26 晚)
+
+- Atomic boot 到 userspace 成功(board.terminal: "booted to userspace; taking checkpoint" → "checkpoint taken; exiting")
+- checkpoint: runs/fs_lsu/boot/cpt.237933688473(本仓二进制自建, 未跨二进制复用)
+- O3 restore 冒烟进行中(m2_ptrchase.rcS)
