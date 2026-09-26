@@ -484,9 +484,9 @@ python3 tools/lsu_campaign.py --matrix docs/gem5-fi/lsu/07-expanded-matrix.csv \
 - Produces: `--matrix docs/gem5-fi/lsu/07-expanded-matrix.csv --campaign runs/lsu [--dry-run]` → 写回 col17–27（Seed/注入索引、Attempted、Activated、Masked、Detected/Contained、SDC、Crash、Timeout、SDC率(activated)、激活率、记录状态）+ col27 实测备注（近似/deferred 原因落此列）；col26 状态机 `待执行 → 试跑 → 已筛查 → 主结果`，blocked 格写 `blocked(fs-infra)` 等带原因值（**不伪造完成**——M5 里程碑口径）。
 - 守恒断言：逐格 `Activated == Masked+Detected+SDC+Crash+Timeout`（04 L5），违例格拒写并报错。
 
-- [ ] **Step 1: 读现有工具结构**（853 行 ooo 版：`--matrix`/`--campaign`/`--dry-run` 参数与 CSV 读写骨架保留，新增 LSU 列布局分支——ooo 是 7 列、LSU 是 11 列+状态机）。
-- [ ] **Step 2: LSU 分支实现**（读 `runs/lsu/*/cell_results.json` 按 RunID 聚合 → 算 SDC率=SDC/activated、激活率=activated/attempted → 状态机按 phase 字段映射 trial→试跑/screening→已筛查/main→主结果）。
-- [ ] **Step 3: 玩具回填验证**（Task 5 产物回填到矩阵 **scratch 副本**——07-expanded-matrix.csv 是源表忠实提取，回填产物写到 `runs/lsu/07-expanded-matrix-backfilled.csv`，不覆盖源文件；`extract.py`/`verify_extraction.py` 的源表完整性不受影响）：
+- [x] **Step 1: 读现有工具结构**（853 行 ooo 版：`--matrix`/`--campaign`/`--dry-run` 参数与 CSV 读写骨架保留，新增 LSU 列布局分支——ooo 是 7 列、LSU 是 11 列+状态机）。
+- [x] **Step 2: LSU 分支实现**（读 `runs/lsu/*/cell_results.json` 按 RunID 聚合 → 算 SDC率=SDC/activated、激活率=activated/attempted → 状态机按 phase 字段映射 trial→试跑/screening→已筛查/main→主结果）。
+- [x] **Step 3: 玩具回填验证**（Task 5 产物回填到矩阵 **scratch 副本**——07-expanded-matrix.csv 是源表忠实提取，回填产物写到 `runs/lsu/07-expanded-matrix-backfilled.csv`，不覆盖源文件；`extract.py`/`verify_extraction.py` 的源表完整性不受影响）：
 
 ```bash
 python3 tools/backfill_expanded_matrix.py --matrix docs/gem5-fi/lsu/07-expanded-matrix.csv \
@@ -503,7 +503,7 @@ print(f"BACKFILL CHECK PASSED: {len(done)} cells, conservation OK")
 EOF
 ```
 
-- [ ] **Step 4: Commit + push**
+- [x] **Step 4: Commit + push**
 
 ---
 
