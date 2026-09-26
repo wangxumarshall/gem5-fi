@@ -42,15 +42,15 @@
 
 | # | xlsx 表述（02/03 源） | v25.1 实际（源码:行号；初查锚点，待 W1 回填核实结论） | 对模型行的影响 | 状态 |
 |---|---|---|---|---|
-| ① | LQ/SQ 16/16 项；表项字段、head/tail、violation/replay 路径 | `src/cpu/o3/lsq.hh`（LSQ/LSQRequest 类；:761 起 LQ head 访问）+ `lsq.cc`（v25 实现已并入，无 lsq_impl.hh）+ `lsq_unit.hh/.cc`（:80 起职责注释、:247/:287 ordering violation）；16/16 定值在 `configs/common/cores/arm/O3_ARM_v7a.py:164-165`（`src/cpu/o3/BaseO3CPU.py:142-143` 默认为 32/32，故 16/16 须由配置显式落地） | L01–L04、S01–S13 全部落点；TC'23 自检锚点的宿主结构 | 待核实 |
-| ② | SSIT/LFST（store set）落点与 1024/1024 配置 | `src/cpu/o3/store_set.hh/.cc`（SSIT/LFST 类定义，store_set.hh:70-105）+ 消费方 `src/cpu/o3/mem_dep_unit.cc`；容量参数 `src/cpu/o3/BaseO3CPU.py:157-158`（SSITSize/LFSTSize 默认即 1024/1024） | SQ 内存序预测相关模型行（S05/S07 等）的落点 | 待核实 |
-| ③ | DTLB=32 项全相联（gem5 默认 64） | `src/arch/arm/ArmTLB.py:74`（`size = Param.Int(64, ...)`，默认 64 与 02 r11 表述一致）+ `src/arch/arm/tlb.hh/.cc`；B0 须显式配 32（S1 敏感性=64 回默认） | T01–T10 全部 + TC'22 对照锚点的宿主 | 待核实 |
-| ④ | L1D 32KiB/2-way、tag/data/response latency 2/2/2、MSHR 6/targets 8、write buffer 16 | `configs/common/cores/arm/O3_ARM_v7a.py:222-232`（O3_ARM_v7a_DCache：size 32KiB、assoc 2、lat 2/2/2、mshrs 6、tgts_per_mshr 8、write_buffers 16——逐项与 02 r13/r15/r16/r17 吻合）。**注意**：当前 C3 平台 `configs/se/ooo_proxy.py:337-339` 用 stdlib 层级 64KiB L1D/512KiB L2，≠ B0 → 工作包 W0 必须新建 LSU 配置家族而非沿用 | C01–C15 落点基准；负载 W6 的 working set 标定（0.5×/1×/2×L1D） | 待核实 |
-| ⑤ | L2 StridePrefetcher degree=8、latency=1、prefetch_on_access=True（B0 预取器在 L2 而非 L1D） | `configs/common/cores/arm/O3_ARM_v7a.py:236-247`（O3_ARM_v7aL2 挂 `prefetcher = StridePrefetcher(degree=8, latency=1, prefetch_on_access=True)`）+ 实现 `src/mem/cache/prefetch/stride.hh`；当前 ooo_proxy L2 未挂预取器，W0 须补 | P01–P09 的被测对象挂接点（S4 敏感性=挂 L1D） | 待核实 |
-| ⑥ | exclusive monitor / 原子 RMW 的多核语义（SE 单核平台的差距） | `src/arch/arm/isa.cc:1871-1960`（handleLockedRead/handleLockedWrite，LLSC 监视器置位/清除）+ `src/arch/arm/insts/macromem.cc`（LDXR/STXR 等宏指令）；本仓已有注入器 `src/arch/arm/CHAOSExMon/`（`tools/runner.py:1193` `exmon` 分派，stxr_force_fail 模式）；单核 SE 与多核 FS 语义差距待 W1 核实 | O01–O09 全部 + 负载 W7（Atomic-Litmus，多核 FS） | 待核实 |
-| ⑦ | AGU 有效地址生成的截获点与现有 CHAOSAddrPath 的关系 | `src/cpu/o3/CHAOSAddrPath/CHAOSAddrPath.hh`（四件套目录；挂 `LSQ::LSQRequest::sendFragmentToTranslation`、translateTiming 前改 vaddr；现有 Byte7Zero/LowBitFlip 两模式；头注释自述 SE-inert——SE 物理内存从 0 起，byte7 清零仍在范围内）；EA 计算本体在 `src/cpu/o3/lsq_unit.cc`（executeAddrCalc 路径，行号待 W1 核实） | A01–A08 落点：现有 addr_path 是 vaddr 观测/污染，AGU EA 注入是否新挂点由 W1 定 | 待核实 |
-| ⑧ | F4 短突发（每 100K eligible 触发一次、连续污染 2–4 个 eligible events）/ F6 确定性事件触发（首次出现指定事件注入一次） | `src/cpu/o3/chaos_trigger.hh:25` 枚举仅 `{ F0, F1, F2, F3, F5 }`（:46-48 F1/F2/F3 = 2.6M/260K/26K cycle 固定均值间隔）——**F4/F6 均缺失**，而展开矩阵 F4=26 格、F6=68 格（共 94 格）依赖这两档；F6 事件枚举（TLB hit、SQ forward、dirty eviction、CAS 成功，05 r8 原文）在触发层尚无对应物 | 94 个 F4/F6 格的可执行性；工作包 W2 的扩展范围 | 待核实 |
-| ⑨ | MSHR merge、fill/writeback、dirty eviction 路径 | `src/mem/cache/mshr.hh/.cc`（MSHR/merge）+ `mshr_queue.cc` + `cache.cc` + `base.cc`（fill/writeback/dirty 路径）+ `write_queue.cc` + `write_queue_entry.cc`；本仓已有注入器 `src/mem/cache/CHAOSCache/`（四件套）与 `src/cpu/o3/CHAOSL1DForward/` | C 系 fill/writeback/dirty 模型行（C11/C12/C14 等）落点 | 待核实 |
+| ① | LQ/SQ 16/16 项；表项字段、head/tail、violation/replay 路径 | `src/cpu/o3/lsq.hh`（LSQ/LSQRequest 类；:761 起 LQ head 访问）+ `lsq.cc`（v25 实现已并入，无 lsq_impl.hh）+ `lsq_unit.hh/.cc`（:80 起职责注释、:247/:287 ordering violation）；16/16 定值在 `configs/common/cores/arm/O3_ARM_v7a.py:164-165`（`src/cpu/o3/BaseO3CPU.py:142-143` 默认为 32/32，故 16/16 须由配置显式落地） | L01–L04、S01–S13 全部落点；TC'23 自检锚点的宿主结构 | 已核实（2026-09-25 W1，结论见 §2.1） |
+| ② | SSIT/LFST（store set）落点与 1024/1024 配置 | `src/cpu/o3/store_set.hh/.cc`（SSIT/LFST 类定义，store_set.hh:70-105）+ 消费方 `src/cpu/o3/mem_dep_unit.cc`；容量参数 `src/cpu/o3/BaseO3CPU.py:157-158`（SSITSize/LFSTSize 默认即 1024/1024） | SQ 内存序预测相关模型行（S05/S07 等）的落点 | 已核实（2026-09-25 W1，结论见 §2.1） |
+| ③ | DTLB=32 项全相联（gem5 默认 64） | `src/arch/arm/ArmTLB.py:74`（`size = Param.Int(64, ...)`，默认 64 与 02 r11 表述一致）+ `src/arch/arm/tlb.hh/.cc`；B0 须显式配 32（S1 敏感性=64 回默认） | T01–T10 全部 + TC'22 对照锚点的宿主 | 已核实（2026-09-25 W1，结论见 §2.1） |
+| ④ | L1D 32KiB/2-way、tag/data/response latency 2/2/2、MSHR 6/targets 8、write buffer 16 | `configs/common/cores/arm/O3_ARM_v7a.py:222-232`（O3_ARM_v7a_DCache：size 32KiB、assoc 2、lat 2/2/2、mshrs 6、tgts_per_mshr 8、write_buffers 16——逐项与 02 r13/r15/r16/r17 吻合）。**注意**：当前 C3 平台 `configs/se/ooo_proxy.py:337-339` 用 stdlib 层级 64KiB L1D/512KiB L2，≠ B0 → 工作包 W0 必须新建 LSU 配置家族而非沿用 | C01–C15 落点基准；负载 W6 的 working set 标定（0.5×/1×/2×L1D） | 已核实（2026-09-25 W1，结论见 §2.1） |
+| ⑤ | L2 StridePrefetcher degree=8、latency=1、prefetch_on_access=True（B0 预取器在 L2 而非 L1D） | `configs/common/cores/arm/O3_ARM_v7a.py:236-247`（O3_ARM_v7aL2 挂 `prefetcher = StridePrefetcher(degree=8, latency=1, prefetch_on_access=True)`）+ 实现 `src/mem/cache/prefetch/stride.hh`；当前 ooo_proxy L2 未挂预取器，W0 须补 | P01–P09 的被测对象挂接点（S4 敏感性=挂 L1D） | 已核实（2026-09-25 W1，结论见 §2.1） |
+| ⑥ | exclusive monitor / 原子 RMW 的多核语义（SE 单核平台的差距） | `src/arch/arm/isa.cc:1871-1960`（handleLockedRead/handleLockedWrite，LLSC 监视器置位/清除）+ `src/arch/arm/insts/macromem.cc`（LDXR/STXR 等宏指令）；本仓已有注入器 `src/arch/arm/CHAOSExMon/`（`tools/runner.py:1193` `exmon` 分派，stxr_force_fail 模式）；单核 SE 与多核 FS 语义差距待 W1 核实 | O01–O09 全部 + 负载 W7（Atomic-Litmus，多核 FS） | 已核实（2026-09-25 W1，结论见 §2.1） |
+| ⑦ | AGU 有效地址生成的截获点与现有 CHAOSAddrPath 的关系 | `src/cpu/o3/CHAOSAddrPath/CHAOSAddrPath.hh`（四件套目录；挂 `LSQ::LSQRequest::sendFragmentToTranslation`、translateTiming 前改 vaddr；现有 Byte7Zero/LowBitFlip 两模式；头注释自述 SE-inert——SE 物理内存从 0 起，byte7 清零仍在范围内）；EA 计算本体在 `src/cpu/o3/lsq_unit.cc`（executeAddrCalc 路径，行号待 W1 核实） | A01–A08 落点：现有 addr_path 是 vaddr 观测/污染，AGU EA 注入是否新挂点由 W1 定 | 已核实（2026-09-25 W1，结论见 §2.1） |
+| ⑧ | F4 短突发（每 100K eligible 触发一次、连续污染 2–4 个 eligible events）/ F6 确定性事件触发（首次出现指定事件注入一次） | `src/cpu/o3/chaos_trigger.hh:25` 枚举仅 `{ F0, F1, F2, F3, F5 }`（:46-48 F1/F2/F3 = 2.6M/260K/26K cycle 固定均值间隔）——**F4/F6 均缺失**，而展开矩阵 F4=26 格、F6=68 格（共 94 格）依赖这两档；F6 事件枚举（TLB hit、SQ forward、dirty eviction、CAS 成功，05 r8 原文）在触发层尚无对应物 | 94 个 F4/F6 格的可执行性；工作包 W2 的扩展范围 | 已核实（2026-09-25 W1，结论见 §2.1） |
+| ⑨ | MSHR merge、fill/writeback、dirty eviction 路径 | `src/mem/cache/mshr.hh/.cc`（MSHR/merge）+ `mshr_queue.cc` + `cache.cc` + `base.cc`（fill/writeback/dirty 路径）+ `write_queue.cc` + `write_queue_entry.cc`；本仓已有注入器 `src/mem/cache/CHAOSCache/`（四件套）与 `src/cpu/o3/CHAOSL1DForward/` | C 系 fill/writeback/dirty 模型行（C11/C12/C14 等）落点 | 已核实（2026-09-25 W1，结论见 §2.1） |
 
 > **路径调整记录（2026-09-24 存在性检查，brief 原引 → 真实位置）**：
 > 1. ② brief 引 `lsq_impl.hh`——该文件在 v25 **不存在**（实现并入 `lsq.cc`），且 `lsq.hh` 中 grep SSIT/LFST 零命中；真实落点 `store_set.hh/.cc`。
@@ -58,6 +58,33 @@
 > 3. ⑥ brief 引 `tlb.cc` 的 exclusiveMonitor——grep 零命中；真实语义在 `isa.cc` handleLockedRead/handleLockedWrite + `insts/macromem.cc`。
 > 4. ⑦ CHAOSAddrPath 为**目录**（`src/cpu/o3/CHAOSAddrPath/` 四件套），非单文件。
 > 5. ④⑤ 补充事实：`configs/common/caches/O3_ARM_v7a.py` 路径不存在，真实位置 `configs/common/cores/arm/O3_ARM_v7a.py`。
+
+### 2.1 W1 核实结论与裁定（2026-09-25 源码行号级核实；状态列已全部回填）
+
+九项结论（对应 §2 表 ①–⑨，路径相对 `CHAOS/gem5/`）：
+
+1. **① LQ/SQ**：LQEntry 仅 inst/request/size/valid（lsq_unit.hh:95-147），SQEntry 加 data/canWB/committed/completed/isAllZeros（:149-196）；violation→replay 链 = `checkViolations`(lsq_unit.cc:535)→`IEW::execute`(iew.cc:1318-1337)→`instQueue.violation`(inst_queue.cc:1401)→`squashDueToMemOrder`+`MemDepUnit::violation`(mem_dep_unit.cc:573)；16/16 已由 W0 显式落地（BaseO3CPU.py:142-143 默认 32/32）。SQ 注入数据目标 = SQEntry::_data（lsq_unit.cc:1719 memcpy 写入点）。
+2. **② SSIT/LFST**：默认 1024/1024（BaseO3CPU.py:157-158）、SSIT 1-way LRU SetAssociative（:159-169）；S05/S07 落点 = `StoreSet::violation/checkInst/insertStore`（store_set.cc:112/:231/:201）。
+3. **③ DTLB**：默认 64（ArmTLB.py:74）、无第二容量入口、组织默认全相联+LRU；**SE-inert 机理修正**：SE 走 `translateSe` 直查进程页表（arm/mmu.cc:323-365），`TLB::lookup` 在 SE 零调用（TLB 查询仅 FS `getTE` mmu.cc:1703）——不是「translateMmuOff 时是否查 TLB」的问题（那是 FS 专属分支）。
+4. **④ L1D**：v7a:222-232 与 02 表逐项吻合（W0 已落地并 config.ini 断言证实）；`writeback_clean=True` = evictBlock 对 clean 行也写回（cache.cc:965）——**C14 dirty 事件须锚 `CacheBlk::DirtyBit`**；C3 现状 64KiB L1D 在 ooo_proxy.py:400-404（行号自 §2 初查的 :337 漂移）。
+5. **⑤ 预取器**：参数名 degree/latency/prefetch_on_access 均在（Prefetcher.py:203/:138/:80，默认 4/1/False）；prefetch_on_access 触发点 = classic cache ppHit/ppMiss probe（base.cc:505/:517）→ `Base::observeAccess` 门（prefetch/base.cc:175-176）；预取器观测可零侵入走 probe。
+6. **⑥ exclusive monitor**：monitor = per-ThreadContext misc 寄存器（MISCREG_LOCKADDR/LOCKFLAG，isa.cc:1873-1874）；清除 = snoop 命中（:1888-1905）/CLREX（:1972-1998）/异常（faults.cc:560）/STXR 失败（:1921-1925）；单核 SE **可测**判定反转与 monitor 状态污染、**不可测**跨核可见性/snoop 竞态/多核原子性（负载 W7 依赖 FS 多核）；CHAOSExMon 挂 isa.cc:1953-1955（SE 也触发）；**落点修正**：单寄存器 LDXR/STXR 非宏指令（mem.hh:249 ISA 模板），pair 变体才在 macromem.cc:244。
+7. **⑦ AGU 截获裁定（W4 输入）**：v25.1 **无** `executeAddrCalc`（EA 在 ISA 模板 initiateAcc 内计算，按值经 `DynInst::writeMem`(dyn_inst.cc:444)→`LSQ::pushRequest`(lsq.cc:757) 传入，无「EA 流水寄存器」实体）。**裁定：扩展 CHAOSAddrPath 双挂点，不新建 CHAOSAGU**——A01-A03/A05-A08（vaddr 位级）复用现有 `sendFragmentToTranslation` 挂点（lsq.cc:1137，= DTLB 输入语义，同链 0 流水级差）；A04 合法换值在 `LSQ::pushRequest` 入口（lsq.cc:757，AGU 输出直通、先于 split/Request 构建）加第二挂点。差异如实记录：sendFragment 改的是 Request vaddr 副本且回填 inst->effAddr（影响面比 EA 寄存器更大），pushRequest 是最贴近「AGU 原始输出」的点。
+8. **⑧ F4/F6 触发**：枚举仅 {F0,F1,F2,F3,F5}（chaos_trigger.hh:23-26），F1/F2/F3=2.6M/260K/26K cycles ±50%（:46-48/:80-87）；F4 需 eligible 计数器+burst 剩余（2-4 连发），F6 需事件枚举+spent 标志；**当前无任何注入器消费 fire()**（各注入器自带 inWindow+probability）——W2 统一触发层须把 fire() 接进各 maybeCorrupt 入口，不能假设已有接线。
+9. **⑨ MSHR/fill/writeback**：MSHR merge = `MSHR::allocateTarget`（base.cc:404；`allocateFromMissRRR` 不存在）；fill = `BaseCache::handleFill`（base.cc:1575）→`serviceMSHRTargets`（:641）；dirty eviction 判定 = `Cache::evictBlock` 的 DirtyBit（cache.cc:965，writeback_clean 会扩张写回面——与 ④ 同一注意）。
+
+#### F6 事件映射表（W2 输入；05 r8 事件 → v25.1 挂接点）
+
+| 05 r8 事件 | v25.1 挂接点 | file:line | SE 可用性 |
+|---|---|---|---|
+| TLB hit | `TLB::lookup`（CHAOSArmTLB 已挂 :167-169） | arch/arm/tlb.cc:150 | **FS-only**（SE 走 translateSe 不查 TLB；无 SE 近似点，如实标注） |
+| SQ forward | `LSQUnit::read` 的 FullAddrRangeCoverage 分支（CHAOSLSQFwd 已挂 :1536） | cpu/o3/lsq_unit.cc:1483 | SE/FS 均有效 |
+| dirty eviction | `Cache::evictBlock` 的 DirtyBit 判定（双条件：DirtyBit 为真） | mem/cache/cache.cc:962-971 | SE/FS 均有效 |
+| CAS 成功 | `BaseCache::satisfyRequest` SwapReq 分支（:1185/:1198，零侵入 probe=`ppDataUpdate` :1170）；LLSC 变体 = `lockedWriteHandler` 返回 true（isa.cc:1944，CHAOSExMon 已挂） | mem/cache/base.cc:1150-1199 | SE/FS 均有效 |
+
+#### chaos_l0.hh 现状（W2 输入）
+
+`src/cpu/o3/chaos_l0.hh`（header-only，165 行）跟踪 per-item 注入后生命周期（read-back 口径），**没有** attempted/eligible/activated 三计数——三计数现状散落各注入器（CHAOSLSQFwd.hh:106-107、CHAOSExMon.hh:46-49、CHAOSAddrPath.hh:41）。W2 统一输出需**新增**三计数结构（与 chaos_l0.hh 并列），不能复用 ChaOSL0State。
 
 ## 3. WBS（工作包 W0–W11，每个 W = 一个 patch 单元序列）
 

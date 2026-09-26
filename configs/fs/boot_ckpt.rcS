@@ -1,17 +1,43 @@
 #!/bin/sh
-# boot_ckpt.rcS — §3.2 FS checkpoint pipeline step 1 (Phase 5.2).
+# BOOTCKPT-SELF
+# boot_ckpt.rcS — §3.2 FS checkpoint pipeline step 1 (Phase 5.2; M3 v3).
+#
 # Runs via `m5 readfile` after the Atomic boot reaches userspace.
 # Takes a checkpoint at the booted-bash point, then exits the sim so the
 # checkpoint directory is complete and reusable.
 #
-# Pipeline (design doc §3.2 / risk table row 'FS 启动慢 / virtio_blk 挂起'):
+# M3 v3 (2026-09-26): payload dispatch by READFILE CONTENT, not by marker.
+# v2's /tmp/ckpt_done marker was logically inert — at the decision point
+# (right after `m5 checkpoint` returns) NEITHER pass has touched the marker
+# yet, so the restored guest fell into the same "boot pass" branch and
+# exited (verified: runs/fs_lsu/restore_smoke_v2, 24s exit, terminal shows
+# "boot pass: checkpoint taken; exiting").
+#
+# v3 mechanism: after `m5 checkpoint`, the script calls `m5 readfile` again.
+# The simulator serves the --readfile of the CURRENT run:
+#   - BOOT run   (--readfile boot_ckpt.rcS): serves THIS script, whose line
+#     2 is the BOOTCKPT-SELF marker -> grep hits -> exit (no recursion).
+#   - RESTORE run (--readfile <payload>.rcS): serves the PAYLOAD rcS (no
+#     marker) -> dispatch `sh` on it -> the payload runs and exits.
+# The two passes are distinguished by WHAT THE HOST SERVES, which differs
+# by construction — no guest-visible state comparison needed.
+#
+# Pipeline (design doc §3.2):
 #   1. Atomic boot:  kp920_proxy_fs.py --cpu Atomic --readfile boot_ckpt.rcS
-#      (this script) -> m5 checkpoint -> m5 exit
-#   2. Restore:      --restore-checkpoint cpt.<tick> --cpu O3 (or Atomic)
-#      injectors mount at restore; firstClock is relative to the checkpoint
-#      tick (the config re-bases it — see arm_chaos_fs.py --ckpt_first_clock).
+#      (this script) -> m5 checkpoint -> re-readfile sees SELF -> m5 exit
+#   2. Restore:      --restore-checkpoint cpt.<tick> --cpu O3 \
+#                    --readfile <payload>.rcS [--ckpt-first-clock]
+#      resumes post-checkpoint -> re-readfile serves <payload>.rcS -> runs.
 #   3. ROI single fault -> collect -> classify (FS Crash = kernel panic/Oops).
 echo "[boot_ckpt.rcS] booted to userspace; taking checkpoint"
 m5 checkpoint
-echo "[boot_ckpt.rcS] checkpoint taken; exiting"
+m5 readfile > /tmp/next.sh
+if grep -q "BOOTCKPT-SELF" /tmp/next.sh 2>/dev/null; then
+    echo "[boot_ckpt.rcS] boot pass: checkpoint taken; exiting"
+    m5 exit
+fi
+echo "[boot_ckpt.rcS] restore pass: dispatching payload"
+echo "[boot_ckpt.rcS] payload head: $(head -c 100 /tmp/next.sh | head -2 | tail -1)"
+sh /tmp/next.sh
+echo "[boot_ckpt.rcS] payload finished; exiting"
 m5 exit

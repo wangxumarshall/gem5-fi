@@ -430,6 +430,27 @@ namespace gem5
                     }
                     faults_injected_count++;
                     continue;  // skip byte mutation
+                } else if (target_field == "data_shift") {
+                    // LSU W6 C09: way-select MUX / alignment corruption —
+                    // rotate the block's data by 1 byte (misaligned readout
+                    // from the wrong way/offset in the data array).
+                    int blkSize = targetCache->getBlockSize();
+                    uint8_t *data = targetBlk->data;
+                    if (data && blkSize > 1) {
+                        uint8_t tmp = data[0];
+                        for (int i = 0; i < blkSize - 1; ++i)
+                            data[i] = data[i + 1];
+                        data[blkSize - 1] = tmp;
+                    }
+                    stats->numFaultsInjected++;
+                    faults_injected_count++;
+                    if (write_log) {
+                        *(log_stream->stream()) << "Tick: " << curTick()
+                            << ", Cache Block Addr: " << blockAddr
+                            << ", Field: data_shift (C09 rotate by 1 byte)"
+                            << std::endl;
+                    }
+                    continue;
                 } else if (target_field == "dirty" || target_field == "coh") {
                     // Force-set a coherence bit (dirty is a coherence bit in
                     // gem5). honest: a true toggle needs a getter (none public);

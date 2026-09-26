@@ -46,3 +46,10 @@ class CHAOSArmTLB(SimObject):
         "SilentEscape. Keyed on popcount(mask) (64-bit pfn). Does NOT "
         "convert to product FIT.")
     writeLog = Param.Bool(True, "Write a fault_injections.log file")
+    # LSU W7 (05 r2-r8): event-normalized trigger tier; "off" = legacy.
+    # HONEST: this injector is FS-ONLY (SE goes through translateSe and
+    # never calls TLB::lookup — W1 ③ finding). Testing requires FS
+    # infrastructure (kernel + disk images) not present in this checkout.
+    lsuTier = Param.String("off", "off | F0 | F1 | F2 | F3 | F4 | F5 | F6")
+    lsuWarmupEvents = Param.UInt64(0, "eligible events skipped before arming")
+    lsuSpanEvents = Param.UInt64(1000, "F0 uniform window size")

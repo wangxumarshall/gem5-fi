@@ -50,6 +50,7 @@
 
 #include "base/compiler.hh"
 #include "base/logging.hh"
+#include "cpu/o3/chaos_lsu_trigger.hh"  // LSU W2 F6 event source (DirtyEviction)
 #include "base/trace.hh"
 #include "base/types.hh"
 #include "debug/Cache.hh"
@@ -962,6 +963,11 @@ Cache::serviceMSHRTargets(MSHR *mshr, const PacketPtr pkt, CacheBlk *blk)
 PacketPtr
 Cache::evictBlock(CacheBlk *blk)
 {
+    // LSU W2 F6 event source (09 §2.1 map): dirty eviction = DirtyBit set
+    // (writebackClean-driven writebacks of clean lines do NOT count — W1 ④).
+    if (blk->isSet(CacheBlk::DirtyBit) && chaosLsuF6Notify)
+        chaosLsuF6Notify(ChaOSLsuEvent::DirtyEviction);
+
     PacketPtr pkt = (blk->isSet(CacheBlk::DirtyBit) || writebackClean) ?
         writebackBlk(blk) : cleanEvictBlk(blk);
 

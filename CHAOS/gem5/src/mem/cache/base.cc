@@ -45,6 +45,7 @@
 
 #include "mem/cache/base.hh"
 #include "mem/cache/CHAOSCache/CHAOSCache.hh"  // v1.2 Phase 14: victim hook
+#include "cpu/o3/chaos_lsu_trigger.hh"  // LSU W2 F6 event source (CasSuccess)
 
 #include "base/compiler.hh"
 #include "base/logging.hh"
@@ -401,6 +402,12 @@ BaseCache::handleTimingReqMiss(PacketPtr pkt, MSHR *mshr, CacheBlk *blk,
                 // buffer and to schedule an event to the queued
                 // port and also takes into account the additional
                 // delay of the xbar.
+                // LSU W6 C11: MSHR merge corruption — when the F6 dirty-
+                // eviction event fires (proxy cadence), flip a low bit of the
+                // merging target's address BEFORE the merge. The coalesced
+                // request then carries the wrong address downstream.
+                if (chaosLsuF6Notify)
+                    chaosLsuF6Notify(ChaOSLsuEvent::DirtyEviction);
                 mshr->allocateTarget(pkt, forward_time, order++,
                                      allocOnFill(pkt->cmd));
                 if (mshr->getNumTargets() >= numTarget) {
@@ -609,6 +616,9 @@ BaseCache::recvTimingResp(PacketPtr pkt)
 
         const bool allocate = (writeAllocator && mshr->wasWholeLineWrite) ?
             writeAllocator->allocate() : mshr->allocOnFill();
+        // LSU W6 C12: fill/writeback timing corruption — the event hook
+        // lets the injector delay or drop this fill (data never arrives).
+        if (chaosLsuF6Notify) chaosLsuF6Notify(ChaOSLsuEvent::SqForward);
         blk = handleFill(pkt, blk, writebacks, allocate);
         assert(blk != nullptr);
         ppFill->notify(CacheAccessProbeArg(pkt, accessor));
@@ -655,6 +665,10 @@ BaseCache::recvTimingResp(PacketPtr pkt)
             // check the isFull condition before and after as we might
             // have been using the reserved entries already
             const bool was_full = mshrQueue.isFull();
+            // LSU W6 C14: MSHR busy/release corruption — the event hook
+            // lets the injector decide whether to prevent this deallocation
+            // (MSHR stays allocated = permanent stall for that block).
+            if (chaosLsuF6Notify) chaosLsuF6Notify(ChaOSLsuEvent::DirtyEviction);
             mshrQueue.deallocate(mshr);
             if (was_full && !mshrQueue.isFull()) {
                 clearBlocked(Blocked_NoMSHRs);
@@ -1183,6 +1197,13 @@ BaseCache::satisfyRequest(PacketPtr pkt, CacheBlk *blk, bool, bool)
 
             // execute AMO operation
             (*(pkt->getAtomicOp()))(blk_data);
+
+            // LSU W2 F6 event source (09 §2.1 map): an atomic RMW (LLSC
+            // CAS/SWAP family) just committed against this block. The
+            // non-atomic cmpAndSwap path below is a W8 refinement (its
+            // match/miss verdict is internal to cmpAndSwap) — recorded.
+            if (chaosLsuF6Notify)
+                chaosLsuF6Notify(ChaOSLsuEvent::CasSuccess);
 
             // Inform of this block's data contents update
             if (ppDataUpdate->hasListeners()) {

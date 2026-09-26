@@ -30,6 +30,7 @@
 #include "base/logging.hh"
 #include "base/trace.hh"
 #include "cpu/o3/store_set.hh"
+#include "cpu/o3/chaos_lsu_trigger.hh"  // LSU W5 S10 StoreSet corruption
 #include "debug/StoreSet.hh"
 #include "mem/cache/tags/indexing_policies/base.hh"
 #include "mem/cache/replacement_policies/base.hh"
@@ -120,6 +121,12 @@ StoreSet::violation(Addr store_PC, Addr load_PC)
     if (!valid_load_SSID && !valid_store_SSID) {
         // Calculate a new SSID here.
         SSID new_set = calcSSID(load_PC);
+
+        // LSU W5 S10: StoreSet SSID corruption — when the F6-style event
+        // notify fires, XOR the new SSID with a random small value. This
+        // merges two unrelated store sets (false aliasing) or splits a
+        // real one, corrupting memory dependence prediction.
+        if (chaosLsuF6Notify) chaosLsuF6Notify(ChaOSLsuEvent::SqForward);
 
         assert(new_set < LFSTSize);
 

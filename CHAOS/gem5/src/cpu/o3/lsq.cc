@@ -446,6 +446,12 @@ LSQ::sendRetryResp()
 bool
 LSQ::recvTimingResp(PacketPtr pkt)
 {
+    // LSU W5 L04: response-pairing corruption — when a cache response
+    // arrives and the F6 CAS-success event notify fires (proxy), redirect
+    // the response to the WRONG LSQ unit (simulating a transaction-ID
+    // mismatch where the response goes to the wrong load).
+    if (chaosLsuF6Notify) chaosLsuF6Notify(ChaOSLsuEvent::CasSuccess);
+
     if (pkt->isError())
         DPRINTF(LSQ, "Got error packet back for address: %#X\n",
                 pkt->getAddr());
@@ -763,6 +769,15 @@ LSQ::pushRequest(const DynInstPtr& inst, bool isLoad, uint8_t *data,
     // operation
     [[maybe_unused]] bool isAtomic = !isLoad && amo_op;
 
+    // LSU W4 A-series PRE hook (W1 ⑦ ruling): pushRequest entry = the AGU's
+    // raw output, the single mandatory pass-through point BEFORE split
+    // decision and Request construction. Mutates the by-value addr/size
+    // copies so every downstream consumer sees the fault. byte_enable is a
+    // const ref here — BE mutation is NOT offered at this hook (A06 does
+    // size only; documented in 09 §3-W4).
+    if (cpu->chaosAddrPathPre)
+        size = cpu->chaosAddrPathPre->maybeCorruptPre(addr, size, isLoad, flags);
+
     ThreadID tid = cpu->contextToThread(inst->contextId());
     auto cacheLineSize = cpu->cacheLineSize();
     bool needs_burst = transferNeedsBurst(addr, size, cacheLineSize);
@@ -795,7 +810,11 @@ LSQ::pushRequest(const DynInstPtr& inst, bool isLoad, uint8_t *data,
                     size, flags, data, res, std::move(amo_op));
         }
         assert(request);
-        request->_byteEnable = byte_enable;
+        // W4 A06: the PRE hook may substitute the access size; keep the
+        // byte-enable consistent (all-true at the new size) or the
+        // Request::setByteEnable assert fires downstream.
+        request->_byteEnable = (byte_enable.size() == size)
+            ? byte_enable : std::vector<bool>(size, true);
         inst->setRequest();
         request->taskId(cpu->taskId());
 

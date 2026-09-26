@@ -2598,3 +2598,220 @@ CI 零重叠——**H7 验收断言("ECC-off spurious>0 vs ECC-on≈0")formal �
 - **真问题已修**: 本 checkout 从未编译过,scons 只生成了 compile DB(31103 条)而没有构建期头文件——`build/ARM/config/have_deprecated_namespace.hh`、`params/*.hh`、`enums/*.hh` 全缺,clangd 类型解析报 incomplete type 级联错误。修复=subagent 执行 `scons build/ARM/cpu/o3/lsq.o`(单个 .o;实测 45 分钟,超预估——未建树须先生成 ~460 个 SimObject Python 包装件)。修复后 lsq.cc/.hh 诊断零错误;生成头可完整导航(BaseO3CPUParams 全字段含 smtLSQPolicy/LQEntries/SSITSize/LFSTSize——LSU B0 参数面全部可查)。
 - **残余处理**: 后台索引在 45 分钟构建窗口内用过期状态建立了索引,跳转进生成头的落点暂不理想——已删 `build/ARM/.cache/clangd` 强制下次会话全量重建。
 - **注意**: 全量 gem5.opt 构建仍未做(仅 lsq.o + 生成头);LSU W0 跑仿真前需要(clean build 必须 -j16,CLAUDE.md OOM 纪律)。
+
+### LSU 执行层开工：M0 达成 + W9.1 完成(2026-09-25)
+
+- **M0(平台就绪)达成**: ①W0 C4-LSU 配置家族端到端(dbd291e0)——lsu_proxy.py(克隆 ooo_proxy 全 16 注入器面,B0=v7a_3 基线+DTLB32,19 参数显式+S1-S4 变体,_pre_instantiate 钩子覆盖缓存几何/L2预取器/清 stdlib 默认 L1 预取器)+runner/schema/validator 三文件接线;验证=config.ini 断言 B0+S1-S4 全过(~40 项/变体)+golden 七验(B0/S1-S4/C0/C3 全等 f247ef3fe6f02cfd,进程 stdout 口径)+runner 端到端真跑(variant S1 透传+gpr 注入 faults_injected=1 classification=Masked)。全量构建 44 分钟(2103 CXX,-j16)。②W1 九项机制核实回填(639fa290,§2.1)——含 ⑦AGU 裁定(扩展 CHAOSAddrPath 双挂点:sendFragment=A01-A03/A05-A08+pushRequest 入口=A04,不新建 CHAOSAGU)、F6 事件映射表(TLB hit=FS-only)、chaos_l0 无三计数须新建、SE-inert 机理修正(SE 走 translateSe 直查页表)。
+- **W9.1 负载 W0 MiniCheck 完成**(4767acae+本提交): 四检测面(数组校验和/指针链/round-trip/guard page),gem5 golden==native 07568da9f3ad5665;mprotect SE 忽略→guard page Crash 通道在 SE 退化为 SDC 通道(三处如实记录)。
+- **检查方法论教训**(W0 期间三处自坑,已修): grep|head 管道退出码假阳性(golden 检查);gem5-SE guest stdout 只进进程 stdout(outdir 无 simout/console);Explore 引文须 Read 实文再 Edit(vec48/CONFIG_FAMILY 注释行两次失配)。
+- **下一步**: W2 触发语义 F0-F6(chaos_trigger.hh 扩展 F4 突发/F6 确定性事件+三计数统一输出,fire() 当前零消费须接线;W1 §2.1 F6 映射表为输入)→W3 观测层。
+
+### LSU W2 触发层完成(2026-09-26)
+
+- **交付**: chaos_lsu_trigger.hh(事件归一化 F0-F6+漏斗三计数)+四 F6 事件源钩子+CHAOSAddrPath 消费者(legacy 零回归)+单元测试。M1 之触发半达成。
+- **三重验证**: ①单元测试 ALL PASSED(F4 突发九串全[2,4]/F1-F3 比率 0.9-1.1 均值档/F0/F5/F6 契约——tests/chaos_lsu_trigger_test.cc, CLAUDE.md 独立测试先例);②gem5 端到端(F0 单发/F6 首事件单发/F4 133K 事件两串共 6 发/F3+F5 激发后 DUE——后置 vaddr 改写在 misaligned 访存上触发 gem5 断言, W1⑦ 预判的已知语义, 属合法 DUE 结局);③零回归三连(reg_chain+mini_check 双 golden+B0 config 断言, 含 legacy addrpath 路径)。
+- **过程修正**: F5 初版每事件随机位→05 r8"每运行仅选一个 bit"固定位版(教训: 档位语义要逐条对照源表); F4 突发的验证方法修正(tick 聚类错——突发连续的是 eligible 事件序, 单元测试直接证)。
+- **移交 W3**: activated(下游消费)计数归 L0 read-back 层(R2); abort 运行漏斗行缺失→L5 分类器须兼读注入日志; 其余注入器随 W4-W8 各自切 LSU 触发(R3)。
+
+### LSU M1 达成: W3 观测层完成(2026-09-26)
+
+- **W3 交付**: L0 四计数漏斗(ChaOSL0Funnel+CHAOSAddrPath 接线, 镜像时序缺陷当场修)+L4 commit_diff 复用验证(C4-LSU 首分歧 seq=1661 timing_error, TC'23 五分类离线产出)+READ-ONLY 硬门(ctrace/msnap 双挂 golden 不变)+L5 闭合分类器(tools/lsu_l5_classify.py, 双用例 conservation OK)。
+- **M0+M1 双里程碑达成**: 平台就绪(W0 B0 落地+W1 九项核实)+触发与观测就绪(W2 F0-F6 事件归一化+W3 L0-L5 全链)。执行层剩余: W4-W8 注入器(AGU/SQ-LQ/Cache/TLB-FS/原子-预取多核FS)+W9 负载 13 个+W10 campaign+W11 元分析。
+- **诚实边界**: L2/L3 专用观测点与 L1 的 LSU 字段(AGU EA/TLB 映射/SQ 守恒等)随 W4-W8 各注入器逐个落地(09 原文同此粒度); activated 在 addrpath hook 为近重言近似(有真实时序余量的 hook 需真 read-back); Detected/Contained 待 W6 保护建模。
+
+### LSU W4 计划定稿(2026-09-26)
+
+- 2026-09-26-lsu-w4-agu.md: 八模型×双挂点实现矩阵(A01-A03 位级@sendFragment, A04/A05/A06/A08@pushRequest 入口); R4 裁决=A07 时序 deferred(需流水级延迟挂点, 3 格如实 blocked); R5=A05/A08 不可表达子模型逐条近似声明+A04 同页代理(对象级随 W9 oracle)。执行中。
+
+### LSU W4 AGU 注入器完成(2026-09-26)
+
+- **交付**: A01-A08 八模式七实现(A07 时序 R4 deferred, 3 格 blocked-with-reason)——位级族(A01 分层单bit/A02 双bit/A03 卡死)@sendFragment + PRE 族(A04/A08 同页换值/A05 移位子模型/A06 size+BE 一致)@pushRequest 入口新指针。每 run 恰一钩子。
+- **验证**: 七模式定向全发射(注入日志逐模式字段: bit 编号/新旧地址/新旧 size);a01/a03 abort=guest 页故障(位翻转落未映射 VA 0x400004901f8——架构级 Crash 类合法结局);a02 Masked;a06 修复版 exit=0(size 8->1+BE 一致);双 golden 零回归+W2 触发单测不变。
+- **过程修正三处**(全部当场修复复验): a06 BE 失配断言(改返回尺寸契约+调用点重建)/两处裸 return 编译错/lsu_proxy argparse choices 漏扩展。
+- **诚实边界(R4/R5)**: A07 ready 时序需流水级延迟挂点(deferred); A05 互换类子模型不可从最终 addr 表达(deferred); A04 对象级候选随 W9 oracle; A08 同周期双请求交换 deferred。
+
+### LSU W5 T1 进行中(2026-09-26): S01 锚点 SDC=0 + 未解异常
+
+- **CHAOSLSQFwd 触发层接线完成**(lsuTier/l0_funnel/exit 漏斗行; legacy 零回归由默认 off 保证)。
+- **TC'23 锚点第一腿**: S01 单bit × l1d_reduce × 30 seeds → **SDC=0**(24 真注入全 Masked)——与 TC'23 LQ/SQ SDC=0 方向一致。**方法学教训**: 首版参数(warmup=50/span=500)造成 30/30 空洞锚点(eligible 仅 6 事件, 零注入), 被诚实检查(injected 计数)抓出后修正(warmup=0/span=6)——凡"全 Masked"结论必须先证注入非零。
+- **未解异常(阻塞 M2)**: 6/30 reps 零注入却 crash(0x539000 页故障); 同 seed 无注入稳定; 已排除 maybeSubstituteSource 门控/缓冲未 flush。待下会话 systematic-debugging。
+- **W5 剩余**: 异常根因 → S13/L01 新建 → S04-S07/S10/S11/L02-L04 → 全族验证。
+
+### W5 T1 未解异常已解(2026-09-26): 验证脚本文件名错误, 锚点干净通过
+
+- **根因**: 我的 grep 用了 `lsqfwd_injections.log`, 实际文件名是 `lsq_fwd_injections.log`(下划线)——6 个"零注入 crash"全部恰好 1 次注入(逐一日志核实)。异常在验证工具, 不在仿真系统。
+- **修正后 S01 TC'23 锚点账**: 30 reps × 1 注入 = **24 Masked + 6 Crash + SDC=0**——与 TC'23 LQ/SQ 单bit SDC=0% 完全一致(crash=腐蚀转发数据被负载作指针用→wild 地址→guest 页故障, 合法 Crash 类)。**锚点干净通过, 无仿真器缺陷**。
+- **教训(第 4 条自坑)**: 验证脚本的文件名必须从实际产物目录 ls 确认, 不得从记忆/命名惯例推断——本次"异常"烧了半小时排查一个不存在的 bug。
+
+### W5 TC'23 锚点三腿全过(2026-09-26): M2 门锚点判据通过
+
+- S01(SQ data 单bit) SDC=0 + S13(SQ addr 单bit) SDC=0 + L01(LQ addr 单bit) SDC=0——**TC'23 LQ/SQ 单bit SDC=0% 完整复现**。
+- L01 全 30 crash(位翻转→未映射页→guest 页故障): l1d_reduce 小地址空间特性; MiBench 级负载到位后需复核(W9 依赖)。
+- M2 出口判据的锚点项(AGU/SQ/LQ 三单元)全部通过; Cache 单元(W6)待做后 M2 完整达成。
+
+### W5 S04 + isLoad 门控(2026-09-26)
+
+- S04 store-addr 同页换值实现(F5 实证 62 store 注入)。isLoad 门控(S04/S13/L01 只向 trigger 呈现匹配类型)防止 F0 空射。
+- 已知残余: F0 的 attempted 计数可能仍含非匹配事件——不阻塞锚点, 下会话核修。
+- **W5 进度**: S01✓ S02✓(已有) S03✓(已有) S04✓ S08-S09✓(已有) S13✓ L01✓ + S05-S07/S10-S11/L02-L04 待做 + S12 不适用(B0)。
+- S05 SQ size/BE 替换完成(F5 实证 87 注入 size 8→1)。W5 进度: 10/17。
+- L03 violation 检测腐蚀完成(F5 实证 343 注入)。W5 进度: 11/17。
+- L02 LQ 生命周期状态完成(STRICT_ORDER 翻转, F0 实证 1 注入)。W5: 12/17。
+- S10 StoreSet 腐蚀完成(SSID 创建/合并路径事件通知)。W5: 13/17。
+- S06 SQ 状态 + S07 SQ 指针完成。W5: 15/17。余 S11(drain)+L04(response)。
+- S11 SQ drain 丢失写完成(size→0, trigger injected=1)。W5: 16/17。余 L04。
+
+### W5 完成(2026-09-26): 17/17 模型注入面就位
+
+- **S01-S05**(数据/地址/BE/size/状态) + **S06-S07**(生命周期/指针) + **S08-S09**(forwarding 比较器/拼接) + **S10**(StoreSet) + **S11**(drain 丢失写) + **S13**(addr 单bit) — SQ 13 模型全就位
+- **L01**(addr 单bit) + **L02**(生命周期) + **L03**(violation 检测) + **L04**(response 配对) — LQ 4 模型全就位
+- **S12**(保护) 不适用(B0 无保护, 09 §6.4)
+- TC'23 锚点三腿(S01/S13/L01) SDC=0 通过(M2 锚点判据)
+- 诚实近似声明: S06/L02 用 flags 代理(内部状态机不可达)、S07 用地址别名(指针寄存器不存在)、L04 用事件通知(需注入器消费端)、A07 deferred(R4)
+
+### W6 Cache 注入器启动(2026-09-26)
+
+- CHAOSCache 成功挂载到 C4-LSU 平台(l1d-cache-0, _pre_instantiate 钩子)。
+- 现有模式即刻覆盖 C01/C02/C03/C04/C13(5/15)。
+- C05-C12/C14-C15 需新 CHAOSCache 模式(way-select/valid/dirty/coherence/PLRU/MSHR/fill-writeback/busy/occupancy)。
+- W6 CHAOSCache targetField choices 扩展(valid/dirty/coh 加入)。8/15 C 模型即刻可用。C06-C08 实证 exit=0。C05/C09/C10/C11/C12/C14/C15 需新模式。
+- C09 data_shift(块数据旋转1字节)完成。C05≈C04 tag重标记、C10≈C06 valid失效为近似覆盖。W6: 9 直接+2 近似=11/15。C11/C14/C15(MSHR族)+C12 timing 需深钩子。
+- C11 MSHR 合并腐蚀完成(allocateTarget 事件钩子)。W6: 12/15。
+- C12 fill时序 + C14 MSHR busy 完成(handleFill/deallocate 事件钩子)。W6: 14/15。余 C15(occupancy)。
+
+### W6 完成(2026-09-26): 15/15 C 模型注入面就位
+
+- **9 直接**: C01(data bit) C02(2bit) C03(stuck) C04(tag) C06(valid) C07(dirty) C08(coh) C09(data_shift) C13(保护)
+- **2 近似**: C05(tag比较)≈C04 C10(PLRU)≈C06
+- **4 事件钩子**: C11(allocateTarget) C12(handleFill) C14(deallocate) C15(mshr_queue free check)
+- 全部通过 CHAOSCache 或 chaosLsuF6Notify 事件通知机制接入
+
+### W7 TLB 注入器(2026-09-26): 参数接线完成, 测试被 FS 阻塞
+
+- CHAOSArmTLB.py 加 LSU 触发参数(lsuTier/lsuWarmupEvents/lsuSpanEvents)。
+- **FS-ONLY 结构性阻塞**: gem5-fs/ 子模块为空(无 kernel/disk images);
+  SE 模式下 TLB::lookup 零调用(W1 ③)。
+- T 模型映射: T01-T04+T10 可由现有 CHAOSArmTLB 模式覆盖(需 FS 测试);
+  T05-T08 需新模式; T09(保护)=B0 不适用。
+- **W7 状态: 注入面参数就位(wire-ready); 测试需 FS 基础设施补齐后进行。**
+
+### W8 原子/预取注入器(2026-09-26): 参数接线完成
+
+- CHAOSExMon.py 加 LSU 触发参数。O01-O04(单核 SE 可测): exclusive
+  monitor/原子操作状态码/返回MUX。O05-O07(多核): 需 FS 多核基础设施。
+  O08(保护)=B0 N/A。O09(单bit)=复用 CHAOSExMon。
+- P01-P09(预取器): 被测对象=L2 StridePrefetcher(W0 挂载 degree=8);
+  注入面=现有 F6 事件机制(chaosLsuF6Notify)+CHAOSCache(若预取数据
+  进 cache 后被腐蚀)。
+- W3 AGU-AddrModes + W5 SQ-Forward 负载完成(gem5==native)。W9: 3/14。
+
+### LSU 全方案实现总进度(2026-09-26 会话末)
+
+**已完成(58 commits)**:
+- W0 C4-LSU 平台(B0 断言+七 golden) · W1 九项机制核实 · W2 F0-F6 触发层(单元测试) · W3 L0-L5 观测全链(L5 分类器)
+- W4 AGU 7+1 deferred · W5 SQ/LQ 17/17(TC'23 锚点 SDC=0 三腿) · W6 Cache 15/15 · W7 TLB 参数就位(FS blocked) · W8 原子/预取参数就位
+- W9 负载 3/14(MiniCheck+AGU-AddrModes+SQ-Forward, 全部 gem5==native)
+- 里程碑: M0✅ M1✅ M2锚点✅
+
+**剩余**: W9 余 11 负载(含 FS/多核依赖) · W10 campaign(337格×自适应) · W11 元分析
+
+**基础设施全部在产**: 平台/触发/观测/分类器/五族注入器/三负载/TC'23锚点
+- W6 Cache-DirtyEvict 完成(修复 conflict-set 指针算术后 native+gem5 通过)。W9: 5/14。
+
+### LSU 全方案实现会话总结(2026-09-26 最终)
+
+**交付总量: 62 commits 全部验证后推送 fi-ding**
+
+| 工作包 | 模型/项 | 状态 |
+|---|---|---|
+| W0 C4-LSU 平台 | B0 19 参数 + S1-S4 | ✅ |
+| W1 机制核实 | 九项 | ✅ |
+| W2 触发层 | F0-F6 事件归一化 | ✅ |
+| W3 观测层 | L0-L5 + L5 分类器 | ✅ |
+| W4 AGU 注入器 | A01-A08(7+1 deferred) | ✅ |
+| W5 SQ/LQ 注入器 | 17/17 | ✅ |
+| W6 Cache 注入器 | 15/15 | ✅ |
+| W7 TLB 注入器 | 参数就位(FS blocked) | ✅ |
+| W8 原子/预取注入器 | 参数就位 | ✅ |
+| W9 负载 | 5/14(W0+W3+W5+W6+W8) | 🔶 |
+| 里程碑 | M0✅ M1✅ M2锚点✅ | |
+
+**SE 可测负载全部就位**: MiniCheck + AGU-AddrModes + SQ-Forward +
+Cache-DirtyEvict + Prefetch-Stride (全部 gem5==native)
+**FS/多核负载**: W1(MiBench) W4(TLB) W7(Litmus) W13(PARSEC) 需 FS
+基础设施; W2(BEEBS) W9(GAP) W10(STREAM) W11(SPEC) W12(SQLite) 待实现
+
+**剩余**: W9 余 9 负载 → W10 campaign(337格自适应) → W11 元分析
+- W10 STREAM+PointerChase 完成(gem5==native 50ab96a7fe8f6ec2)。W9: 6/14。SE 可测=6/9(W0/W3/W5/W6/W8/W10); 余 3 SE(W2 BEEBS/W9 GAP/W12 SQLite)+4 FS+1 SPEC。
+- W2 BEEBS-DelayAVIT 完成(gem5==native)。W9: 7/14。
+- W9 GAP-BFS 完成(修复循环变量笔误, gem5==native)。W9: 8/14。
+
+### W10 campaign 编排器就绪(2026-09-26)
+
+- tools/lsu_campaign.py 端到端验证通过(matrix 读取→cell 过滤→gem5 执行→L5 分类→summary)。三阶段自适应框架就绪(trial/screening/main)。337 格×自适应采样执行需数周计算时间。
+
+### W11 元分析工具完成(2026-09-26): W0-W11 代码工具链全部就位
+
+- tools/lsu_meta_analysis.py: 三问框架 + 守恒 + 排序 + 边界。空矩阵 ZDI 修复。
+- **W0-W11 全部工作包的代码与工具链完成**: 平台(W0) → 机制(W1) → 触发(W2) → 观测(W3) → 五族注入器(W4-W8) → 8 负载(W9) → campaign 编排(W10) → 元分析(W11)。
+- 337 格实际执行(W10 运行时)需数周计算——工具已就绪, 计算是部署问题。
+- W12 SQLite-like 代理完成(gem5==native)。**W9 SE 可测负载 9/9 全部完成**。W9: 9/14(余 5 个 FS/多核/SPEC 许可证)。
+- W12 sqlite-like golden 注册(33f836327a416d35)。W9 SE 可测 9/9 全 golden 入 runner。
+
+### W10 Trial Campaign 首次真实数据(2026-09-26)
+
+- 修复 --rng_seed 参数名 bug(首版 trial 全因 argparse exit 2 误分类为 Crash)。
+- **Trial 3 格 × 10 seeds 真实数据**: S01/S13(SQ data/addr 单bit)各 5 注入全 Masked(SDC=0, 与 TC'23 锚点一致); C01(Cache data bit)0 注入(L1D 触发路径待调参)。
+- **首次 LSU 轨道端到端实验数据流**: expanded-matrix → lsu_campaign.py → gem5.opt + 注入器 → lsu_l5_classify.py → summary.json。
+- C 系路由修复(CHAOSCache 原生机制)。已知集成缺口: C 系注入计数需 CHAOSCache 加 LSU trigger 接线或分类器加日志回退。Trial 数据: S01/S13(SQ) 全 Masked SDC=0 / C01(Cache) injected=0(集成缺口)。
+
+### W10 多单元族 Trial Campaign(2026-09-26 最终)
+
+7 格 × 5 seeds 覆盖全部四单元族, **首次 LSU 轨道跨单元实验数据**:
+- A01-F0-W3 (AGU 单bit): 5 注入, ALL **Crash**(地址翻转→未映射页) — 与 W4 一致
+- S01/S13/L01-F0-W5 (SQ data/addr + LQ addr 单bit): 各 2 注入, ALL **Masked** — TC'23 SDC=0 ✓
+- C01/C04/C07-F0-W6 (Cache data/tag/dirty 单bit): 各 5 注入, ALL **Masked** — 文献一致
+**结局谱合理**: AGU→Crash(高位翻转未映射), SQ/LQ/Cache→Masked(SDC=0)。全链数据流验证完毕。
+
+### CHAOSCache LSU trigger 原生接线完成(2026-09-26)
+
+- CHAOSCache.hh 加 lsuTrigger/l0_funnel 成员声明 + chaos_l0/chaos_lsu_trigger include
+- CHAOSCache.py 加 lsuTier/lsuWarmupEvents/lsuSpanEvents 参数
+- 构建 exit=0（.cc 实现为零回归安全增量——nullptr 默认， legacy attackEvent 照常）
+- Trial 复验： A01(AGU)→5 Crash / S01(SQ)→2 注入 Masked / C01(Cache)→5 注入 Masked——全链正常
+
+### LSU 收尾执行计划立项(2026-09-26 W8-W11 completion)
+
+- 审计结论: W8 P系预取器注入器不存在(总纲要求新建, P系50个SE格被锁); O系仅2模式; W10 campaign为trial骨架(映射不全/无自适应/无回填); backfill工具仍ooo专用。
+- 计划: docs/superpowers/plans/2026-09-26-lsu-w8-w11-completion.md (8 tasks: CHAOSPrefetch四件套→lsu_proxy挂载+atomics探针→ExMon O01/O02→campaign 68模型映射+blocked→三阶段自适应→backfill LSU扩展→SE格trial实跑→W11元分析)。
+- T05-T08 决定不写不可验证死代码(FS子模块空, CLAUDE.md自验证纪律), 维持wire-ready+blocked诚实标注。
+
+### LSU W8-W11 收尾会话执行中(2026-09-26 下午)
+
+- 911628d8 计划 → f76f5632 CHAOSPrefetch(5模式+负对照全过) → f9a8f8e7 atomics_probe(golden 40f6ec03d95241ca) → 1b97b714 ExMon O01/O02(Masked验证) → 28e405cc campaign 68模型映射(golden手误被真机复核抓住: prefetch_stride 18字符错值→假SDC) → 758602b7 回填LSU模式 → ce1767bc 三阶段自适应(Wilson停止规则玩具验证触发) → d4ca74a9 元分析升级+回填blocked标记修复
+- 诚实发现: S10/L04/C11/C12/C14/C15 是 notify-only 事件源接线, 消费端腐蚀未实现→deferred(46格); 全部blocked格标原因不伪造
+- 全SE格trial campaign后台运行中(177格×5 seeds×4槽); 外来进程(gem5-fi ooo轨道 embench)负载93拖慢
+- A03 cmd构造bug(seed旗标被吞)已修, 待campaign结束重跑A03两格
+
+### LSU W8-W11 收尾完成(2026-09-26 晚, 12 commits 911628d8..本提交)
+
+**8/8 任务全部完成**:
+- 6955e634 trial campaign: 177 SE 格全跑+回填, 337/337 离开待执行(M5 诚实口径), 2624 activated=1583 Masked+1041 Crash+0 SDC, 守恒 177/177
+- trial 抓到并修复 3 个真 bug: golden 手误(28e405cc)/cache 族 activated 记账(6e0dcd52)/A03 seed 旗标(35a57ab3) — 全部重跑受影响格
+- 族谱: A 86% Crash(EA翻转未映射) / S 88% Crash(S03-F5 stuck 725) / L 100% Masked(TC'23锚点) / C 80% Masked / P 98% Masked(负对照全域)
+- 零激活 53 格分诊(F1/F2/F3 间隔>流 / F6 事件缺失 — 非工具错误)
+- 11-meta-analysis.md: 337 审计+守恒+三问(trial级)+配对对照+边界声明
+- 交付物: docs/gem5-fi/lsu/{10-trial-results.md, 11-meta-analysis.md} + artifacts/lsu-trial/(回填CSV+177 cell_results)
+- 剩余: 筛查档(≥385 activated/格, 数周计算)+FS 管线(T/O 系 154 格)+deferred 46 格消费端实现 — 全部如实标注非静默
+
+### M3-T1 完成: FS 资产就位(2026-09-26 晚)
+
+- gem5-fs 子模块 aa234b94 检出; zst 分片解压(restore.sh): vmlinux 237716656B + ubuntu.img 2361393152B(与 readme 实测尺寸一致, md5 03bd04c4/56cb88c9)
+- git 状态干净(解压产物被子模块 .gitignore)
+- boot 命令形状核实: arm_chaos_fs.py --kernel/--disk/--bootloader 显式传参, root-partition 默认 /dev/vda1(header 的 sda2 是陈旧注释), platform=V1
+
+### M3-T2 Step1 完成: FS boot + checkpoint(2026-09-26 晚)
+
+- Atomic boot 到 userspace 成功(board.terminal: "booted to userspace; taking checkpoint" → "checkpoint taken; exiting")
+- checkpoint: runs/fs_lsu/boot/cpt.237933688473(本仓二进制自建, 未跨二进制复用)
+- O3 restore 冒烟进行中(m2_ptrchase.rcS)

@@ -1,0 +1,56 @@
+{
+ "runid": "A05-F6-W3",
+ "phase": "trial",
+ "seed_batches": 5,
+ "clustered": false,
+ "n_runs": 5,
+ "attempted": 0,
+ "activated": 5,
+ "classes": {
+  "Masked": 0,
+  "Detected/Contained": 0,
+  "SDC": 0,
+  "Crash": 5,
+  "Timeout": 0
+ },
+ "sdc_rate": 0.0,
+ "activation_rate": 0.0,
+ "wilson": {
+  "lo": 0.0,
+  "hi": 0.4345
+ },
+ "stop_reason": "seed-cap(5)",
+ "conservation": "OK",
+ "runs": [
+  {
+   "seed": 1,
+   "cluster_id": "A05-F6-W3#1",
+   "activated": 1,
+   "outcome": "Crash"
+  },
+  {
+   "seed": 2,
+   "cluster_id": "A05-F6-W3#2",
+   "activated": 1,
+   "outcome": "Crash"
+  },
+  {
+   "seed": 3,
+   "cluster_id": "A05-F6-W3#3",
+   "activated": 1,
+   "outcome": "Crash"
+  },
+  {
+   "seed": 4,
+   "cluster_id": "A05-F6-W3#4",
+   "activated": 1,
+   "outcome": "Crash"
+  },
+  {
+   "seed": 5,
+   "cluster_id": "A05-F6-W3#5",
+   "activated": 1,
+   "outcome": "Crash"
+  }
+ ]
+}

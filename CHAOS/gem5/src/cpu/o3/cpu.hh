@@ -506,6 +506,10 @@ class CPU : public BaseCPU
     // §2.4 CHAOSAddrPath: raw pointer to the AGU address-path injector.
     CHAOSAddrPath *chaosAddrPath = nullptr;
     void setChaosAddrPath(CHAOSAddrPath *p) { chaosAddrPath = p; }
+    // LSU W4 PRE hook (W1 ⑦): pushRequest entry = AGU raw output, before
+    // split/Request construction (A04/A05/A06/A08 family).
+    CHAOSAddrPath *chaosAddrPathPre = nullptr;
+    void setChaosAddrPathPre(CHAOSAddrPath *p) { chaosAddrPathPre = p; }
     // §2.14 CHAOSDecode: raw pointer to the decode-unit injector.
     CHAOSDecode *chaosDecode = nullptr;
     void setChaosDecode(CHAOSDecode *p) { chaosDecode = p; }

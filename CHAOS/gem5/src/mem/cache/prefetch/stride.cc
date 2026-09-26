@@ -53,11 +53,15 @@
 #include "base/random.hh"
 #include "base/trace.hh"
 #include "debug/HWPrefetch.hh"
+#include "mem/cache/prefetch/CHAOSPrefetch/CHAOSPrefetch.hh"  // LSU W8 hook
 #include "mem/cache/replacement_policies/base.hh"
 #include "params/StridePrefetcher.hh"
 
 namespace gem5
 {
+
+// LSU W8 P-series single-consumer registry (declared in stride.hh).
+CHAOSPrefetch *prefetch::Stride::chaosPrefetchHook = nullptr;
 
 namespace prefetch
 {
@@ -200,12 +204,22 @@ Stride::calculatePrefetch(const PrefetchInfo &pfi,
         DPRINTF(HWPrefetch, "Miss: PC %x pkt_addr %x (%s)\n", pc, pf_addr,
                 is_secure ? "s" : "ns");
 
-        StrideEntry* entry = pc_table.findVictim(key);
+        // LSU W8: assign to the OUTER entry (the upstream gem5 code shadowed
+        // it with a local here) so the tail hook below sees the live entry
+        // in both branches — behavior-identical (outer entry is nullptr in
+        // this branch by construction).
+        entry = pc_table.findVictim(key);
 
         // Insert new entry's data
         entry->lastAddr = pf_addr;
         pc_table.insertEntry(key, entry);
     }
+
+    // LSU W8 P-series: single tail hook covering both branches (confident
+    // hit with generated addresses / miss with freshly-inserted entry).
+    // Byte-identical when no CHAOSPrefetch is instantiated.
+    if (chaosPrefetchHook)
+        chaosPrefetchHook->maybeCorrupt(entry, addresses, pf_addr);
 }
 
 uint32_t

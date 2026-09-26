@@ -1,0 +1,32 @@
+{
+ "runid": "P08-F5-W8",
+ "phase": "trial",
+ "seed_batches": 1,
+ "clustered": false,
+ "n_runs": 1,
+ "attempted": 134,
+ "activated": 134,
+ "classes": {
+  "Masked": 134,
+  "Detected/Contained": 0,
+  "SDC": 0,
+  "Crash": 0,
+  "Timeout": 0
+ },
+ "sdc_rate": 0.0,
+ "activation_rate": 1.0,
+ "wilson": {
+  "lo": 0.0,
+  "hi": 0.0279
+ },
+ "stop_reason": "trial-target-met",
+ "conservation": "OK",
+ "runs": [
+  {
+   "seed": 1,
+   "cluster_id": "P08-F5-W8#1",
+   "activated": 134,
+   "outcome": "Masked"
+  }
+ ]
+}

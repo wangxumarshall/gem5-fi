@@ -641,7 +641,23 @@ def main(argv=None):
     ap.add_argument("--dry-run", action="store_true",
                     help="print the cells and values that would be written; "
                          "do not touch the matrix file")
+    # ---- LSU mode (09 W10): dispatched by matrix header, ooo path untouched ----
+    ap.add_argument("--lsu-phase", default="trial",
+                    choices=["trial", "screening", "main"],
+                    help="LSU mode: phase label written to col26 记录状态 "
+                         "(试跑/已筛查/主结果; advance-only)")
+    ap.add_argument("--out",
+                    help="LSU mode: output copy (default: "
+                         "<campaign>/07-expanded-matrix-backfilled.csv — "
+                         "the source matrix is NEVER overwritten)")
     args = ap.parse_args(argv)
+
+    # LSU matrix dispatch: 07-expanded-matrix.csv (RunID + 记录状态 header)
+    # vs ooo 05-expanded-matrix.csv (ID + 设计单元ID header).
+    with open(args.matrix, encoding="utf-8", newline="") as f:
+        _probe_header = next(csv.reader(f), [])
+    if "RunID" in _probe_header and "记录状态" in _probe_header:
+        return lsu_backfill(args)
 
     header, rows, ridx = load_matrix(args.matrix)
     h_res = [header.index(c) for c in RESULT_COL_NAMES]
@@ -853,6 +869,146 @@ def main(argv=None):
     note("wrote %d cell(s) to %s (result cells filled: %d -> %d; "
          "everything outside the 7 result columns preserved)"
          % (len(writable), args.matrix, n_filled_now, n_filled_after))
+    return 0
+
+
+# ==========================================================================
+# LSU mode (09 W10) — 07-expanded-matrix.csv backfill.
+#
+# 11 result columns (col16-27, 0-based) + the col26 记录状态 state machine
+# (待执行 -> 试跑 -> 已筛查 -> 主结果, advance-only) + the 04-L5 conservation
+# assertion per data cell (Activated == Masked+Detected+SDC+Crash+Timeout).
+# Blocked/deferred/N-A classifications are IMPORTED from lsu_campaign's
+# resolver (single source of truth — no drift between runner and backfill).
+# The output is a COPY (--out / <campaign>/07-expanded-matrix-backfilled.csv);
+# the source matrix is never modified (extract.py/verify_extraction.py own it).
+# ==========================================================================
+LSU_COL = {  # 0-based indices into 07-expanded-matrix.csv
+    "seed": 16, "attempted": 17, "activated": 18, "masked": 19,
+    "detected": 20, "sdc": 21, "crash": 22, "timeout": 23,
+    "sdc_rate": 24, "act_rate": 25, "status": 26, "note": 27,
+}
+LSU_STATUS_RANK = {"待执行": 0, "试跑": 1, "已筛查": 2, "主结果": 3}
+LSU_PHASE_LABEL = {"trial": "试跑", "screening": "已筛查", "main": "主结果"}
+
+
+def _lsu_cell_agg(cell_dir):
+    """Aggregate one RunID dir -> dict or None (no data).
+
+    Accepts cell_results.json (W10 adaptive engine aggregate) or falls back
+    to summary.json (per-seed results list, batch-mode format).
+    """
+    cr = os.path.join(cell_dir, "cell_results.json")
+    if os.path.exists(cr):
+        d = json.load(open(cr, encoding="utf-8"))
+        return {
+            "attempted": int(d.get("attempted", 0)),
+            "activated": int(d.get("activated", 0)),
+            "classes": dict(d.get("classes", {})),
+            "seeds": d.get("seed_batches", d.get("n_runs", 0)),
+            "phase": d.get("phase", "trial"),
+        }
+    sm = os.path.join(cell_dir, "summary.json")
+    if not os.path.exists(sm):
+        return None
+    d = json.load(open(sm, encoding="utf-8"))
+    classes = {k: 0 for k in ("Masked", "Detected/Contained", "SDC",
+                              "Crash", "Timeout")}
+    attempted = activated = 0
+    for r in d.get("results", []):
+        attempted += int(r.get("attempted") or 0)
+        activated += int(r.get("activated") or 0)
+        oc = r.get("outcome")
+        n = int(r.get("activated") or 0)
+        if oc in classes:
+            classes[oc] += n
+    return {"attempted": attempted, "activated": activated,
+            "classes": classes, "seeds": d.get("n_seeds", 0),
+            "phase": "trial"}
+
+
+def lsu_backfill(args):
+    from lsu_campaign import load_matrix, resolve_cell  # shared resolver
+
+    camp = args.campaign[0]  # LSU mode: one campaign root (RunID subdirs)
+    if not os.path.isdir(camp):
+        die("LSU mode: --campaign must be the RunID-dir root, got %s" % camp)
+    header, rows = load_matrix(args.matrix)[:2]
+    for col in LSU_COL.values():
+        if col >= len(header):
+            die("LSU matrix has no col%d (header %d cols) — wrong matrix?"
+                % (col, len(header)))
+    by_runid = {r[1]: r for r in rows if len(r) > 1 and r[1].strip()}
+
+    phase_label = LSU_PHASE_LABEL[args.lsu_phase]
+    n_data = n_blocked = n_violation = n_downgrade = 0
+    violations = []
+    for runid, row in by_runid.items():
+        flags, _g, reason = resolve_cell(row)
+        cell_dir = os.path.join(camp, runid)
+        agg = _lsu_cell_agg(cell_dir) if flags is not None else None
+
+        cur_status = row[LSU_COL["status"]].strip()
+        if agg is not None and (agg["activated"] > 0 or agg["attempted"] > 0):
+            # ---- data cell: conservation assertion then 11 columns ----
+            c = agg["classes"]
+            s = sum(int(c.get(k, 0)) for k in
+                    ("Masked", "Detected/Contained", "SDC", "Crash", "Timeout"))
+            if s != agg["activated"]:
+                n_violation += 1
+                violations.append("%s: sum=%d != activated=%d"
+                                  % (runid, s, agg["activated"]))
+                continue
+            n_data += 1
+            row[LSU_COL["seed"]] = ("1-%d" % agg["seeds"]) if agg["seeds"] else "1-N"
+            row[LSU_COL["attempted"]] = str(agg["attempted"])
+            row[LSU_COL["activated"]] = str(agg["activated"])
+            for key, col in (("Masked", "masked"),
+                             ("Detected/Contained", "detected"),
+                             ("SDC", "sdc"), ("Crash", "crash"),
+                             ("Timeout", "timeout")):
+                row[LSU_COL[col]] = str(int(c.get(key, 0)))
+            sdc_rate = (agg["classes"].get("SDC", 0) / agg["activated"]
+                        if agg["activated"] else 0.0)
+            act_rate = (agg["activated"] / agg["attempted"]
+                        if agg["attempted"] else 0.0)
+            row[LSU_COL["sdc_rate"]] = "%.4f" % sdc_rate
+            row[LSU_COL["act_rate"]] = "%.4f" % act_rate
+            lo, hi, _p = wilson_ci(int(c.get("SDC", 0)), agg["activated"])
+            # status: advance-only state machine (never downgrade a cell
+            # that already reached a later phase)
+            if LSU_STATUS_RANK.get(cur_status, 0) < LSU_STATUS_RANK[phase_label]:
+                row[LSU_COL["status"]] = phase_label
+            row[LSU_COL["note"]] = ("phase=%s; Wilson95=[%.4f,%.4f]"
+                                    % (args.lsu_phase, lo, hi))
+        else:
+            # ---- blocked / deferred / N-A cell: resolver reason to col26 ----
+            # (runnable cells with no campaign data yet stay 待执行 — honest:
+            #  they were not run in this pass; resolve_cell's third value is
+            #  the BINARY name for runnable cells, not a block reason)
+            if flags is None and cur_status in ("", "待执行"):
+                row[LSU_COL["status"]] = reason
+                n_blocked += 1
+
+    if violations:
+        for v in violations[:20]:
+            note("CONSERVATION VIOLATION %s" % v)
+        die("L5 conservation violated on %d cell(s) — refused"
+            % n_violation)
+
+    out = args.out or os.path.join(camp, "07-expanded-matrix-backfilled.csv")
+    if args.dry_run:
+        note("dry-run: data=%d blocked-marked=%d -> would write %s"
+             % (n_data, n_blocked, out))
+        return 0
+    with open(out, "w", encoding="utf-8", newline="") as f:
+        w = csv.writer(f)
+        w.writerow(header)
+        w.writerows(rows)
+    n_left = sum(1 for r in rows
+                 if r[LSU_COL["status"]].strip() in ("", "待执行"))
+    note("wrote %s: data=%d blocked/deferred/na=%d; status still 待执行: %d"
+         % (out, n_data, n_blocked, n_left))
     return 0
 
 

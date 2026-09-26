@@ -45,6 +45,9 @@ CONFIG_FAMILY = {
     "C2": os.path.join(REPO, "configs/se/kp920_proxy.py"),
     # OoO north-star platform (docs/gem5-fi/ooo): vec48 PRF, ROB128, 2.6GHz
     "C3": os.path.join(REPO, "configs/se/ooo_proxy.py"),
+    # LSU north-star platform (docs/gem5-fi/lsu): B0 = O3_ARM_v7a_3 基线
+    # + DTLB=32 (TC'23), L1D 32KiB/2-way, L2 StridePrefetcher; S1-S4 variants
+    "C4-LSU": os.path.join(REPO, "configs/se/lsu_proxy.py"),
     # §2.7 cache injector harness (CHAOSCache mounts via _pre_instantiate)
     "C0-CACHE": os.path.join(REPO, "configs/se/arm_chaos_cache.py"),
     # §2.10 FS harness (CHAOSArmTLB/CHAOSArmSysReg; needs gem5-fs deps)
@@ -57,6 +60,27 @@ CONFIG_FAMILY = {
 # These are the no-injection reference outputs (native == gem5, deterministic).
 GOLDEN_IDS = {
     "regchain-golden-v1":   "f247ef3fe6f02cfd",  # reg_chain
+    # LSU 负载 W0 MiniCheck (W9.1): gem5-SE golden == native (07568da9f3ad5665,
+    # C4-LSU 实证 2026-09-25). HONEST: gem5-SE ignores mprotect -> the PROT_NONE
+    # guard page stays RW in SE, so the guard-page probe detects corruption via
+    # checksum (SDC channel) instead of SIGSEGV (Crash channel); the Crash
+    # channel works natively and in FS.
+    "minicheck-golden-v1":   "07568da9f3ad5665",  # mini_check
+    # LSU W9 SE workloads (all gem5==native, 2026-09-26 verified)
+    "agu-addmodes-golden-v1": "728e604ffcec539d",  # agu_addrmodes
+    "sq-forward-golden-v1":   "1f4cbf14327717df",  # sq_forward
+    "cache-dirtyevict-golden-v1": "062e5124df3667f9",  # cache_dirtyevict
+    "prefetch-stride-golden-v1": "629727c0ad9ca8ef",  # prefetch_stride
+    "stream-chase-golden-v1": "50ab96a7fe8f6ec2",  # stream_chase
+    "beebs-kernels-golden-v1": "a10b9827edd8a9fb",  # beebs_kernels
+    "gap-bfs-golden-v1":     "030921682b3731f2",  # gap_bfs
+    "sqlite-like-golden-v1": "33f836327a416d35",  # sqlite_like
+    # LSU W8 O-series SE verification probe (gem5==native, 2026-09-26).
+    # NOT a grid workload — O-cells run on Atomic-Litmus/PARSEC (multicore
+    # FS, blocked); this probe is the functional-verification vehicle for
+    # the CHAOSExMon O01/O02 modes. Final-data-state checksum by design:
+    # monitor faults => transient reservation loss => Masked, not fake-SDC.
+    "atomics-probe-golden-v1": "40f6ec03d95241ca",  # atomics_probe
     "l1dreduce-golden-v1":  "f44d2b9cd4a173cd",  # l1d_reduce
     "l1iloop-golden-v1":    "bb0b1c4cb661236e",  # l1i_loop
     "stuckpersist-golden-v1": "00000000dee1f5d0",  # stuck_persist
@@ -437,10 +461,11 @@ def main():
     # W2.3 trace two-pass: validate the trace flag surface EARLY (before any
     # gem5 run) so a mis-scoped campaign fails loudly at the runner, not
     # silently inside gem5's argparse.
-    if args.ctrace and cfg_family != "C3":
-        sys.exit(f"[runner] --ctrace requires --config C3 (only "
-                 f"configs/se/ooo_proxy.py defines --chaos_ctrace/"
-                 f"--ctrace_file; config_family={cfg_family}). Aborting.")
+    if args.ctrace and cfg_family not in ("C3", "C4-LSU"):
+        sys.exit(f"[runner] --ctrace requires C3/C4-LSU (only "
+                 f"configs/se/ooo_proxy.py and configs/se/lsu_proxy.py define "
+                 f"--chaos_ctrace/--ctrace_file; config_family={cfg_family}). "
+                 f"Aborting.")
     if args.ctrace_ref and not args.ctrace:
         sys.exit("[runner] --ctrace-ref requires --ctrace (the five-class "
                  "diff compares the trace THIS run produces). Aborting.")
@@ -460,15 +485,18 @@ def main():
     # inside gem5 (the lsqfwd argparse lesson, 79f32b1).
     cfg_params = m.get("platform", {}).get("config_params") or {}
     if cfg_params:
-        supported = {"rob", "phys_int", "phys_float", "lq", "sq"}  # kp920_proxy.py knobs
+        if cfg_family == "C4-LSU":
+            supported = {"variant"}  # lsu_proxy.py S-variant knob
+        else:
+            supported = {"rob", "phys_int", "phys_float", "lq", "sq"}  # kp920_proxy.py knobs
         unsupported = set(cfg_params) - supported
         if unsupported:
             sys.exit(f"[runner] platform.config_params keys {sorted(unsupported)} "
                      f"not in supported set {sorted(supported)} for family "
                      f"{cfg_family}. Aborting.")
-        if cfg_family != "C2":
-            sys.exit(f"[runner] platform.config_params is C2-only (kp920_proxy "
-                     f"microarch knobs); config_family={cfg_family}. Aborting.")
+        if cfg_family not in ("C2", "C4-LSU"):
+            sys.exit(f"[runner] platform.config_params is C2/C4-LSU-only "
+                     f"(microarch knobs); config_family={cfg_family}. Aborting.")
 
     # resolve oracle kind + tolerance (v1.1 Phase 8.1): the manifest's
     # oracle.kind selects the comparison; workload.oracle_kind is the

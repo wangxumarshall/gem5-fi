@@ -59,4 +59,9 @@ class CHAOSLSQFwd(SimObject):
     countOnly = Param.Bool(False,
         "v1.1 Phase 8.2 countOnlyMode: consume eligible events and print "
         "CHAOS_ELIGIBLE_COUNT=<n> at teardown, never corrupt.")
+    # LSU W2/W5 (05 r2-r8): event-normalized trigger tier; "off" = legacy
+    # cycle-window + geometric-skip path (byte-identical).
+    lsuTier = Param.String("off", "off | F0 | F1 | F2 | F3 | F4 | F5 | F6")
+    lsuWarmupEvents = Param.UInt64(0, "eligible events skipped before arming")
+    lsuSpanEvents = Param.UInt64(1000, "F0 uniform window size")
     writeLog = Param.Bool(True, "Write a fault_injections.log file")

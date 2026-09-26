@@ -45,6 +45,7 @@
 #include "base/str.hh"
 #include "cpu/checker/cpu.hh"
 #include "cpu/o3/CHAOSLSQFwd/CHAOSLSQFwd.hh"
+#include "cpu/o3/chaos_lsu_trigger.hh"  // LSU W2 F6 event source (SqForward)
 #include "cpu/o3/CHAOSL1DForward/CHAOSL1DForward.hh"  // §2.7 post-check escape
 #include "cpu/o3/dyn_inst.hh"
 #include "cpu/o3/limits.hh"
@@ -553,6 +554,17 @@ LSQUnit::checkViolations(typename LoadQueue::iterator& loadIt,
         Addr ld_eff_addr1 = ld_inst->effAddr >> depCheckShift;
         Addr ld_eff_addr2 =
             (ld_inst->effAddr + ld_inst->effSize - 1) >> depCheckShift;
+
+        // LSU W5 L03: violation-detection metadata corruption — flip a bit
+        // in the comparison address, creating a false violation (extra
+        // squash/replay) or suppressing a real one (missed ordering
+        // violation). The ACTUAL load/store addresses are untouched; only
+        // the violation-check view is corrupted.
+        if (cpu->lsqFwd && cpu->lsqFwd->violationCorrupt(ld_eff_addr1)) {
+            DPRINTF(LSQUnit, "CHAOSLSQFwd L03: violation addr corrupted to "
+                    "%#x (orig view of [sn:%lli])\n",
+                    ld_eff_addr1, ld_inst->seqNum);
+        }
 
         if (inst_eff_addr2 >= ld_eff_addr1 && inst_eff_addr1 <= ld_eff_addr2) {
             if (inst->isLoad()) {
@@ -1538,6 +1550,12 @@ LSQUnit::read(LSQRequest *request, ssize_t load_idx)
                                          request->mainReq()->getSize(),
                                          request->mainReq()->getVaddr());
                 }
+
+                // LSU W2 F6 event source (09 §2.1 map): a store-to-load
+                // forward just happened. Single-consumer notify; the F6
+                // injector (if any) decides whether to fire at this event.
+                if (chaosLsuF6Notify)
+                    chaosLsuF6Notify(ChaOSLsuEvent::SqForward);
 
                 DPRINTF(LSQUnit, "Forwarding from store idx %i to load to "
                         "addr %#x\n", store_it._idx,

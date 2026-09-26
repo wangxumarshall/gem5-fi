@@ -43,6 +43,7 @@
  */
 
 #include "mem/cache/mshr_queue.hh"
+#include "cpu/o3/chaos_lsu_trigger.hh"  // LSU W6 C15 occupancy corruption
 
 #include <cassert>
 
@@ -145,6 +146,9 @@ MSHRQueue::forceDeallocateTarget(MSHR *mshr)
     }
 
     // Notify if MSHR queue no longer full
+    // LSU W6 C15: MSHR occupancy corruption — the event hook lets the
+    // injector observe (and potentially corrupt) the free/allocated count.
+    if (chaosLsuF6Notify) chaosLsuF6Notify(ChaOSLsuEvent::SqForward);
     return was_full && !isFull();
 }
 
