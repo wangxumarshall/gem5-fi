@@ -2744,3 +2744,4 @@ Cache-DirtyEvict + Prefetch-Stride (全部 gem5==native)
 **剩余**: W9 余 9 负载 → W10 campaign(337格自适应) → W11 元分析
 - W10 STREAM+PointerChase 完成(gem5==native 50ab96a7fe8f6ec2)。W9: 6/14。SE 可测=6/9(W0/W3/W5/W6/W8/W10); 余 3 SE(W2 BEEBS/W9 GAP/W12 SQLite)+4 FS+1 SPEC。
 - W2 BEEBS-DelayAVIT 完成(gem5==native)。W9: 7/14。
+- W9 GAP-BFS 完成(修复循环变量笔误, gem5==native)。W9: 8/14。
