@@ -2779,3 +2779,9 @@ Cache-DirtyEvict + Prefetch-Stride (全部 gem5==native)
 - CHAOSCache.py 加 lsuTier/lsuWarmupEvents/lsuSpanEvents 参数
 - 构建 exit=0（.cc 实现为零回归安全增量——nullptr 默认， legacy attackEvent 照常）
 - Trial 复验： A01(AGU)→5 Crash / S01(SQ)→2 注入 Masked / C01(Cache)→5 注入 Masked——全链正常
+
+### LSU 收尾执行计划立项(2026-09-26 W8-W11 completion)
+
+- 审计结论: W8 P系预取器注入器不存在(总纲要求新建, P系50个SE格被锁); O系仅2模式; W10 campaign为trial骨架(映射不全/无自适应/无回填); backfill工具仍ooo专用。
+- 计划: docs/superpowers/plans/2026-09-26-lsu-w8-w11-completion.md (8 tasks: CHAOSPrefetch四件套→lsu_proxy挂载+atomics探针→ExMon O01/O02→campaign 68模型映射+blocked→三阶段自适应→backfill LSU扩展→SE格trial实跑→W11元分析)。
+- T05-T08 决定不写不可验证死代码(FS子模块空, CLAUDE.md自验证纪律), 维持wire-ready+blocked诚实标注。
