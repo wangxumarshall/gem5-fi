@@ -122,7 +122,10 @@ def run_single_cell(cell, args, seed, outdir):
         cmd += ["--chaos_lsqfwd", "--lsqfwd_lsu_tier", freq,
                 "--lsqfwd_warmup_events", "0", "--lsqfwd_span_events", "1000"]
     elif model.startswith("C"):
-        cmd += ["--chaos_l1d", "--l1d_lsu_tier", freq]
+        # CHAOSCache uses its own firstClock+probability+maxFaults mechanism
+        # (attackEvent scheduling), NOT the LSU event-normalized trigger
+        cmd += ["--chaos_l1d", "--l1d_first_clock", "1000",
+                "--l1d_max_faults", "1", "--l1d_rng_seed", str(seed)]
 
     proc = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
     stdout_file.write_text(proc.stdout)
