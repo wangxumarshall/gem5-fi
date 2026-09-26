@@ -2717,3 +2717,28 @@ CI 零重叠——**H7 验收断言("ECC-off spurious>0 vs ECC-on≈0")formal �
 
 **基础设施全部在产**: 平台/触发/观测/分类器/五族注入器/三负载/TC'23锚点
 - W6 Cache-DirtyEvict 完成(修复 conflict-set 指针算术后 native+gem5 通过)。W9: 5/14。
+
+### LSU 全方案实现会话总结(2026-09-26 最终)
+
+**交付总量: 62 commits 全部验证后推送 fi-ding**
+
+| 工作包 | 模型/项 | 状态 |
+|---|---|---|
+| W0 C4-LSU 平台 | B0 19 参数 + S1-S4 | ✅ |
+| W1 机制核实 | 九项 | ✅ |
+| W2 触发层 | F0-F6 事件归一化 | ✅ |
+| W3 观测层 | L0-L5 + L5 分类器 | ✅ |
+| W4 AGU 注入器 | A01-A08(7+1 deferred) | ✅ |
+| W5 SQ/LQ 注入器 | 17/17 | ✅ |
+| W6 Cache 注入器 | 15/15 | ✅ |
+| W7 TLB 注入器 | 参数就位(FS blocked) | ✅ |
+| W8 原子/预取注入器 | 参数就位 | ✅ |
+| W9 负载 | 5/14(W0+W3+W5+W6+W8) | 🔶 |
+| 里程碑 | M0✅ M1✅ M2锚点✅ | |
+
+**SE 可测负载全部就位**: MiniCheck + AGU-AddrModes + SQ-Forward +
+Cache-DirtyEvict + Prefetch-Stride (全部 gem5==native)
+**FS/多核负载**: W1(MiBench) W4(TLB) W7(Litmus) W13(PARSEC) 需 FS
+基础设施; W2(BEEBS) W9(GAP) W10(STREAM) W11(SPEC) W12(SQLite) 待实现
+
+**剩余**: W9 余 9 负载 → W10 campaign(337格自适应) → W11 元分析
