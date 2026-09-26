@@ -1,0 +1,48 @@
+{
+  "campaign_id": "ooo_w81_gate_e083_wikisort",
+  "generated": "2026-09-26T16:36:50",
+  "two_phase": {
+    "tiers": [
+      "F0"
+    ],
+    "pilot_n": 20,
+    "formal_n": 334,
+    "formal_count_per_selected_tier": 334,
+    "formal_count_basis": "formal_n",
+    "pick_top": 1,
+    "non_crash_classes": [
+      "SDC",
+      "Masked",
+      "Timeout",
+      "Inactive"
+    ],
+    "selection_rule": "top pick_top tiers by pilot non_crash_rate (non-Crash = SDC+Masked+Timeout+Inactive); ties broken by tier order F0<F1<F2<F3",
+    "seed_rule": "base_seed + cell_ordinal*10000000 + slot*100000 + rep (slot: pilot=0..3, formal=10..13, by tier index in F0,F1,F2,F3)",
+    "tier_trigger_approximation": "F0: first_clock=0 (whole-run window), max_faults=1; F1/F2/F3: first_clock = interval/2 + lcg(seed)%interval over U[0.5x,1.5x) of 2600000/260000/26000 cycles, max_faults=1 — a SINGLE-fault approximation; the exact fixed-interval multi-injection F0-F5 semantics (cpu/o3/chaos_trigger.hh) land with the injector wiring batches"
+  },
+  "cells": [
+    {
+      "cell_ordinal": 0,
+      "cell": {
+        "target_index": -1,
+        "field": "destid",
+        "sub_field": "destid_bitflip",
+        "fault_model": "transient_bit_flip",
+        "protection_model": "none"
+      },
+      "tiers": {
+        "F0": {
+          "n": 20,
+          "class_counts": {
+            "Hang": 20
+          },
+          "non_crash": 0,
+          "non_crash_rate": 0.0
+        }
+      },
+      "selected_tiers": [
+        "F0"
+      ]
+    }
+  ]
+}

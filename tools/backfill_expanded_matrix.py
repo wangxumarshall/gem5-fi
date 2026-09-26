@@ -826,7 +826,14 @@ def main(argv=None):
     for e_id, vals in writable:
         row = rows[ridx[e_id]]
         for i, v in zip(h_res, vals):
-            row[i] = v
+            # W8.1 fix (2026-09-26): an empty result value becomes an
+            # EXPLICIT "n/a", never a silent empty cell — the delivery
+            # audit (tools/audit_expanded_matrix.py G1) treats empty as a
+            # violation while explicit n/a is legal-but-loud. In practice
+            # this is 潜伏期/污染扇出 on all-Masked/all-Hang cells (no
+            # L2 divergence → no latency; no L3 replay → no fanout):
+            # permanently n/a for such cells, honestly stated.
+            row[i] = v if v else "n/a"
     # utf-8 (no BOM) + CRLF: byte-identical outside the filled cells
     buf = io.StringIO()
     csv.writer(buf, lineterminator="\r\n").writerows([header] + rows)
