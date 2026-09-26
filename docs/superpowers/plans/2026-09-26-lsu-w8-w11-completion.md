@@ -438,7 +438,7 @@ python3 tools/lsu_campaign.py --matrix docs/gem5-fi/lsu/07-expanded-matrix.csv -
  "runs": [{"seed": 1, "cluster_id": "A01-F0-W3#1", "activated": 5, "outcome": "Masked"}]}
 ```
 
-- [ ] **Step 1: 三阶段循环**（05 r13-r15 逐字实现）
+- [x] **Step 1: 三阶段循环**（05 r13-r15 逐字实现）
 
 ```python
 def run_cell_adaptive(cell, outdir, args, golden_runtime_s):
@@ -458,10 +458,10 @@ def run_cell_adaptive(cell, outdir, args, golden_runtime_s):
     ...
 ```
 
-- [ ] **Step 2: 并发槽位 ≤4 + 超时**——`subprocess.Popen` + 槽位信号量（`threading.Semaphore(4)` + ThreadPoolExecutor(max_workers=4)）；超时 = `max(10 × golden_runtime_s, 300)` 秒（05 r17；golden_runtime 由首次 no-inject 运行实测，缓存到 `runs/lsu/.golden_runtime.json`）。
-- [ ] **Step 3: 聚类区间**（F1–F4 格）：SDC 率 = SDC_runs/total_runs（按运行聚类）；F0/F5/F6 = SDC_activated/activated。Wilson 用 `tools/wilson.py`。
-- [ ] **Step 4: seed 批次 ≥5 + CRN**——每格 seed 集 = `{batch*1000 + k}`（batch=1..5）；同 workload 的格共享 seed 基（CRN，05 r16）。
-- [ ] **Step 5: 玩具网格端到端验证**（总纲 W10 验收原文："试跑→筛查→停止规则触发→回填"全链）：
+- [x] **Step 2: 并发槽位 ≤4 + 超时**——`subprocess.Popen` + 槽位信号量（`threading.Semaphore(4)` + ThreadPoolExecutor(max_workers=4)）；超时 = `max(10 × golden_runtime_s, 300)` 秒（05 r17；golden_runtime 由首次 no-inject 运行实测，缓存到 `runs/lsu/.golden_runtime.json`）。
+- [x] **Step 3: 聚类区间**（F1–F4 格）：SDC 率 = SDC_runs/total_runs（按运行聚类）；F0/F5/F6 = SDC_activated/activated。Wilson 用 `tools/wilson.py`。
+- [x] **Step 4: seed 批次 ≥5 + CRN**——每格 seed 集 = `{batch*1000 + k}`（batch=1..5）；同 workload 的格共享 seed 基（CRN，05 r16）。
+- [x] **Step 5: 玩具网格端到端验证**（总纲 W10 验收原文："试跑→筛查→停止规则触发→回填"全链）：
 
 ```bash
 python3 tools/lsu_campaign.py --matrix docs/gem5-fi/lsu/07-expanded-matrix.csv \
@@ -471,7 +471,7 @@ python3 tools/lsu_campaign.py --matrix docs/gem5-fi/lsu/07-expanded-matrix.csv \
 # 筛查档同理用 --screening-target 10 缩小跑一遍; main 档用 --wilson-stop-hw 0.30 触发停止规则
 ```
 
-- [ ] **Step 6: 回归 + Commit + push**
+- [x] **Step 6: 回归 + Commit + push**
 
 ---
 

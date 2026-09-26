@@ -36,12 +36,15 @@ import os
 import subprocess
 import sys
 import time
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
 G5 = REPO / "build/ARM/gem5.opt"
 LSU_PROXY = REPO / "configs/se/lsu_proxy.py"
 L5 = REPO / "tools/lsu_l5_classify.py"
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from wilson import wilson_ci  # repo's single Wilson impl (no drift)
 
 # Expanded matrix column indices (0-based; col 0 = "Excel行")
 COL_RUNID = 1     # RunID like A01-F0-W3
@@ -344,12 +347,27 @@ def main():
     p.add_argument("--cells", help="comma-separated RunIDs to run (default: all)")
     p.add_argument("--dry-run", action="store_true")
     p.add_argument("--phase", default="trial", choices=["trial", "screening", "main"])
-    p.add_argument("--n-seeds", type=int, default=5,
-                   help="seeds per cell this invocation (adaptive stop rules land "
-                        "with the W10 engine; this remains the batch knob)")
+    p.add_argument("--max-seeds-per-cell", type=int, default=10,
+                   help="seed cap per cell (05 r13-r15: adaptive targets govern; "
+                        "the cap bounds compute when activation is sparse)")
+    p.add_argument("--n-seeds", type=int, default=None,
+                   help="[deprecated alias] sets --max-seeds-per-cell")
+    # Adaptive-sampling knobs (05 r13-r15). Defaults are the spec values;
+    # toy-grid verification lowers them explicitly.
+    p.add_argument("--trial-target", type=int, default=30,
+                   help="trial-phase activated target (05 r13)")
+    p.add_argument("--screening-target", type=int, default=385,
+                   help="screening-phase activated target (05 r14)")
+    p.add_argument("--main-target", type=int, default=5000,
+                   help="main-phase activated cap (05 r15)")
+    p.add_argument("--wilson-stop-hw", type=float, default=0.02,
+                   help="main-phase Wilson 95%% half-width stop (05 r15)")
     p.add_argument("--timeout", type=int, default=300,
-                   help="per-run wall-clock seconds (05 r17)")
+                   help="per-run wall-clock seconds — absolute cap (05 r17; all "
+                         "SE workloads run 10-40s, so 300s > 10x any golden)")
     a = p.parse_args()
+    if a.n_seeds is not None:
+        a.max_seeds_per_cell = a.n_seeds
 
     header, cells = load_matrix(a.matrix)
     print(f"Loaded {len(cells)} cells from {a.matrix}")
@@ -385,31 +403,102 @@ def main():
         return
 
     outroot = Path(a.outdir)
-    for cell in runnable:
-        runid = cell[COL_RUNID]
-        cell_out = outroot / runid
-        results = []
-        for seed in range(1, a.n_seeds + 1):
-            run_out = cell_out / f"seed{seed}"
-            result = run_single_cell(cell, a, seed, run_out)
-            results.append(result)
-            outcome = result.get("outcome", "?")
 
-        # Summarize
-        outcomes = {}
-        for r in results:
-            oc = r.get("outcome", "Unclassified")
-            outcomes[oc] = outcomes.get(oc, 0) + 1
-        total_injected = sum(r.get("injected", 0) or 0 for r in results)
-        print(f"  {runid}: n={len(results)} injected={total_injected} "
-              f"outcomes={outcomes}")
+    def work(cell):
+        return run_cell_adaptive(cell, a, outroot)
 
-        # Save cell summary (W10 engine consumes/upgrades this format)
-        summary = {"runid": runid, "n_seeds": a.n_seeds,
-                   "total_injected": total_injected, "outcomes": outcomes,
-                   "results": results}
-        (cell_out / "summary.json").parent.mkdir(parents=True, exist_ok=True)
-        (cell_out / "summary.json").write_text(json.dumps(summary, indent=1))
+    # Parallel slots: CLAUDE.md hard cap 4 concurrent gem5 processes (29GB
+    # host OOM discipline). Cells run in parallel; the adaptive loop within
+    # a cell is sequential (each seed's stop-rule check needs prior results).
+    slots = max(1, min(4, a.max_parallel))
+    with ThreadPoolExecutor(max_workers=slots) as pool:
+        for _runid, line in pool.map(work, runnable):
+            print(line)
+
+
+def run_cell_adaptive(cell, args, outroot):
+    """Three-phase adaptive sampling for one cell (05 r13-r15, r16, r19/r20).
+
+    trial:      stop at --trial-target activated (injector-error discovery)
+    screening:  stop at --screening-target activated (cell pass/fail)
+    main:       stop at Wilson 95% half-width <= --wilson-stop-hw or the
+                --main-target activated cap
+    All phases additionally respect --max-seeds-per-cell (compute bound;
+    stop_reason records which bound fired — never silent).
+    F1-F4 cells: multi-activated runs are one cluster (05 r19/r20) — the
+    Wilson interval is computed per-RUN (runs-with-SDC / runs); F0/F5/F6
+    are per-activated (SDC/activated, 05 r12).
+    Seeds are 1..N per cell — common random numbers across cells by
+    construction (same seed = same injection-point RNG draws, 05 r16).
+    """
+    runid = cell[COL_RUNID]
+    freq = cell[COL_FREQ].strip()
+    clustered = freq in ("F1", "F2", "F3", "F4")
+    target = {"trial": args.trial_target,
+              "screening": args.screening_target,
+              "main": args.main_target}[args.phase]
+    classes = {k: 0 for k in ("Masked", "Detected/Contained", "SDC",
+                              "Crash", "Timeout")}
+    runs, attempted, activated = [], 0, 0
+    seed, stop_reason = 0, None
+    cell_out = outroot / runid
+
+    while True:
+        if activated >= target:
+            stop_reason = "%s-target-met" % args.phase
+            break
+        if seed >= args.max_seeds_per_cell:
+            stop_reason = "seed-cap(%d)" % args.max_seeds_per_cell
+            break
+        if args.phase == "main" and activated > 0:
+            hw, _lo, _hi = _wilson_stats(classes, activated, runs, clustered)
+            if hw <= args.wilson_stop_hw:
+                stop_reason = "wilson-halfwidth(%.4f<=%.2f)" % (hw,
+                                                            args.wilson_stop_hw)
+                break
+        seed += 1
+        r = run_single_cell(cell, args, seed, cell_out / f"seed{seed}")
+        act = int(r.get("activated", 0) or 0)
+        runs.append({"seed": seed, "cluster_id": "%s#%d" % (runid, seed),
+                     "activated": act,
+                     "outcome": r.get("outcome", "Unclassified")})
+        attempted += int(r.get("attempted", 0) or 0)
+        activated += act
+        oc = r.get("outcome")
+        if oc in classes:
+            classes[oc] += act
+
+    hw, lo, hi = _wilson_stats(classes, activated, runs, clustered)
+    sdc_rate = (classes["SDC"] / activated) if activated else 0.0
+    act_rate = (activated / attempted) if attempted else 0.0
+    cons = (activated == sum(classes.values()))
+    result = {
+        "runid": runid, "phase": args.phase, "seed_batches": seed,
+        "clustered": clustered, "n_runs": len(runs),
+        "attempted": attempted, "activated": activated,
+        "classes": classes, "sdc_rate": round(sdc_rate, 4),
+        "activation_rate": round(act_rate, 4),
+        "wilson": {"lo": round(lo, 4), "hi": round(hi, 4)},
+        "stop_reason": stop_reason, "conservation": "OK" if cons else "VIOLATION",
+        "runs": runs,
+    }
+    cell_out.mkdir(parents=True, exist_ok=True)
+    (cell_out / "cell_results.json").write_text(json.dumps(result, indent=1))
+    return runid, ("  %s: phase=%s n_runs=%d activated=%d sdc=%d "
+                   "stop=%s cons=%s" %
+                   (runid, args.phase, len(runs), activated, classes["SDC"],
+                    stop_reason, result["conservation"]))
+
+
+def _wilson_stats(classes, activated, runs, clustered):
+    """Wilson 95% on the SDC rate; F1-F4 clusters per-run (05 r19/r20)."""
+    if clustered:
+        k = sum(1 for r in runs if r["outcome"] == "SDC")
+        n = len(runs)
+    else:
+        k, n = classes["SDC"], activated
+    lo, hi, _p = wilson_ci(k, n)
+    return (hi - lo) / 2, lo, hi
 
 
 if __name__ == "__main__":
