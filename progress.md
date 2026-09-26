@@ -2756,3 +2756,4 @@ Cache-DirtyEvict + Prefetch-Stride (全部 gem5==native)
 - **W0-W11 全部工作包的代码与工具链完成**: 平台(W0) → 机制(W1) → 触发(W2) → 观测(W3) → 五族注入器(W4-W8) → 8 负载(W9) → campaign 编排(W10) → 元分析(W11)。
 - 337 格实际执行(W10 运行时)需数周计算——工具已就绪, 计算是部署问题。
 - W12 SQLite-like 代理完成(gem5==native)。**W9 SE 可测负载 9/9 全部完成**。W9: 9/14(余 5 个 FS/多核/SPEC 许可证)。
+- W12 sqlite-like golden 注册(33f836327a416d35)。W9 SE 可测 9/9 全 golden 入 runner。
