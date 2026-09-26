@@ -75,6 +75,10 @@ namespace gem5
 void harp_cov_on_cache_write(void *cache, void *blk);
 void harp_cov_on_cache_read(void *cache, void *blk);
 void harp_cov_on_cache_evict(void *cache, void *blk);
+// SDC-ED Task 3.3: tag-face event — fired once per CPU-side access whose
+// tag comparison was performed in this cache (hit or miss). Owner-filtered
+// inside CHAOSCov (untracked caches are ignored).
+void harp_cov_on_cache_tag_access(void *cache);
 extern bool harp_enabled;
 
 BaseCache::CacheResponsePort::CacheResponsePort(const std::string &_name,
@@ -1319,6 +1323,16 @@ BaseCache::access(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
     // Access block in the tags
     Cycles tag_latency(0);
     blk = tags->accessBlock(pkt, tag_latency);
+
+    // SDC-ED Task 3.3: the tag comparison just happened for this CPU-side
+    // access (accessBlock is the lookup path — hit or miss, the tag array
+    // was read and compared). One tag-face event per access; the collector
+    // counts it as tag-plane coverage (ECC-blind face), never as an ACE
+    // interval. Uncacheable/eviction/writeback packets reaching access()
+    // also paid a tag lookup, so they count too — any tag array read is
+    // tag-plane exposure.
+    if (harp_enabled)
+        harp_cov_on_cache_tag_access(this);
 
     DPRINTF(Cache, "%s for %s %s\n", __func__, pkt->print(),
             blk ? "hit " + blk->print() : "miss");

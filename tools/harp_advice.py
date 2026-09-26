@@ -31,6 +31,13 @@ STAT_KEYS = [
     "ibrIntAdd", "ibrIntMul", "ibrFpAdd", "ibrFpMul",
     "l1dReads", "l1dWrites", "l1dEvicts",
     "sqWrites", "sqConsumes", "sqFrees",
+    # SDC-ED Task 5.3 新信号（规则引擎扩展）
+    "irfAvfSdc", "irfAvfSdcInt", "sdcGap", "sdcOnPathReads",
+    "sdcTotalReads", "fpValueEntropy", "gateSensRatio", "gateSensSamples",
+    "mulSensRatio", "mulSensSamples", "l2cReads", "l2cWrites",
+    "l2cTagReads", "l2cTagFaceRatio", "l2cAvf",
+    "ibrIssues::IntAdd", "ibrIssues::IntMul",
+    "ibrIssues::FPAdd", "ibrIssues::FPMul",
 ]
 
 
@@ -39,7 +46,10 @@ def parse_stats(path):
     if not os.path.exists(path):
         return d
     for line in open(path, errors="replace"):
-        m = re.match(r"system\.CHAOSCov\.harp\.(\w+)\s+([\d.eE+-]+)", line)
+        # ::subname form for Vector stats (ibrIssues::FPAdd etc.) —
+        # \w+ alone truncates at the colons (measured).
+        m = re.match(r"system\.CHAOSCov\.harp\.(\w+(?:::\w+)*)\s+([\d.eE+-]+)",
+                     line)
         if m and m.group(1) in STAT_KEYS:
             try:
                 d[m.group(1)] = float(m.group(2))
@@ -160,6 +170,62 @@ def build_advice(stats, detail, top_k=10):
                 "high（mix 直接决定分子）")
 
     # --- ACE-detection gap（若有 SFI 数据则用；advice 阶段无则跳过）---
+
+    # --- SDC-ED 新信号规则（Task 5.3：covUnits/SDC-ACE/值类/敏感度）---
+    # sdcGap：读而不达（dead-chain）证据——动态切片已把「被读但从不
+    # 到达校验输出」的驻留从 SDC-ACE 剔除，gap 就是序列设计缺陷的
+    # 直接度量。
+    sdc_gap = stats.get("sdcGap", None)
+    if sdc_gap is not None and sdc_gap > 0.10:
+        add("IRF-SDC",
+            f"sdcGap={sdc_gap:.4f}（commit 读流中 {sdc_gap:.0%} 的消费"
+            f"不在到达校验输出的数据流切片上）",
+            "死链改造：把「读后丢弃」的消费者改为把结果串到序列末尾"
+            "仍存回的寄存器（或删除中间死写），让每次读都落在"
+            "store-back 可达的链上",
+            "SDC-ACE 是 ED 的 OoO 轴分量——gap 每降 1 个点，"
+            "irfAvfSdc 同比例上升（区间算术不变、分母不变）",
+            "high（负对照 dead_read gap=0.196 vs 直达 0 实测）")
+    # FSU 值类熵：值域覆盖不足（软件掩蔽是值依赖的）。
+    fp_ent = stats.get("fpValueEntropy", None)
+    fp_issues = (stats.get("ibrIssues::FPAdd", 0)
+                 + stats.get("ibrIssues::FPMul", 0))
+    if fp_ent is not None and fp_issues > 0 and fp_ent < 0.30:
+        add("FSU-value",
+            f"fpValueEntropy={fp_ent:.4f}（FP 源操作数值类集中在少数"
+            f" IEEE754 类；{fp_issues} 条 FP issue）",
+            "值域扩展：序列中加入产生 subnormal/NaN/Inf 的操作数源"
+            "（ldr 随机位模式 d 寄存器天然覆盖五类；或对大数 fadd "
+            "制造溢出 Inf、对 Inf×0 制造 NaN）",
+            "CHAOSFPU 全 Masked 证明 FP 软件掩蔽值依赖——值类熵是"
+            "IBR 之外的 FSU 覆盖轴",
+            "high（randbits_seq 熵 0.392 vs rand_fp 0.351 实测分化）")
+    # IEX 乘法敏感度：操作数掩蔽（0×anything 全掩蔽）。
+    mul_ratio = stats.get("mulSensRatio", None)
+    mul_samples = stats.get("mulSensSamples", 0)
+    if mul_ratio is not None and mul_samples > 0 and mul_ratio < 0.9:
+        add("IEX-mul",
+            f"mulSensRatio={mul_ratio:.4f}（乘法输入位 "
+            f"{1-mul_ratio:.0%} 被逻辑掩蔽；{mul_samples} 采样）",
+            "非零密集操作数：把乘法源改成全 64 位都非零/非一的值"
+            "（ldr 随机位模式源），避开 0×x / 1×x / 高位零重叠",
+            "乘法器真实掩蔽在 Task 4.3 实测（0×0→0.000，随机对"
+            "→1.000）；敏感度即检测位面",
+            "medium（加法器零掩蔽为 1.000 结构值，无需 advice）")
+    # L2C tag-face：ECC 盲平面的触达。
+    tag_ratio = stats.get("l2cTagFaceRatio", None)
+    l2c_reads = stats.get("l2cReads", 0)
+    if tag_ratio is not None and l2c_reads == 0 and tag_ratio == 0:
+        add("L2C-tag",
+            "l2cReads=0（L2 数据面零触达——工作集全部 L1 命中或"
+            " targetCache 未含 L2）",
+            "扩大工作集越过 L1D 容量（64KiB）迫使 L2 读写："
+            "stride 访问 >128KiB 区域；再构造同 tag 不同 set 的冲突"
+            "对触发 tag 比较路径",
+            "ρ_L2C(tag)=0.45 是 ECC 盲高危面（39-47% 实测线），"
+            "tag-face 触达是 L2C 单元的主要覆盖缺口",
+            "high（w_L2C=0.525 最大翻转份额）")
+
     # 排序：confidence high > medium，然后按影响结构数量
     conf_rank = {"high": 0, "medium": 1, "low": 2}
     adv.sort(key=lambda a: (conf_rank.get(a["confidence"], 3),

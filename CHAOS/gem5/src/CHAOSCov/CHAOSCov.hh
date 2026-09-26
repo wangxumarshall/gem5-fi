@@ -25,10 +25,12 @@
 #include "base/output.hh"
 #include "base/statistics.hh"
 #include "base/types.hh"
+#include "cpu/o3/dyn_inst_ptr.hh"
 
 #include <cstdint>
 #include <string>
 #include <unordered_map>
+#include <vector>
 
 namespace gem5
 {
@@ -53,6 +55,60 @@ void harp_cov_on_prf_alloc(int class_type, int idx);   // freeList getReg
 void harp_cov_on_prf_free(int class_type, int idx);    // freeList addReg
 bool harp_cov_prf_enabled();  // fast guard for inline hot paths
 
+// --- SDC-ED Task 3.1: SQ per-slot forward + load-use distance hooks ---
+// Called from cpu/o3/lsq_unit.cc (forwarding hit / load writeback) and
+// cpu/o3/commit.cc (commit-confirmed use). No-ops unless mounted. The
+// first three hooks gained a slot_idx parameter (per-slot ledger); their
+// legacy aggregate accounting is unchanged.
+void harp_cov_on_sq_write(unsigned slot_idx);    // store data → SQ slot
+void harp_cov_on_sq_consume(unsigned slot_idx);  // SQ data → memory writeback
+void harp_cov_on_sq_free(unsigned slot_idx);     // SQ slot released
+void harp_cov_on_sq_forward(unsigned slot_idx);  // store→load forward hit
+void harp_cov_on_load_wb(int class_type, int idx);  // load data → PRF write
+void harp_cov_on_load_use(int class_type, int idx); // committed consumption
+
+// SDC-ED Task 4.1: dynamic-slice node from the commit point (dsts/srcs
+// phys regs + store flag). The slice is solved at finishStats.
+void harp_cov_on_slice_commit(const o3::DynInstPtr &inst);
+
+// --- Cache block-ACE ledger types (Task 3.1; SDC-ED Task 2.2 multi-cache) ---
+// Block-granular interval state, keyed by CacheBlk pointer (stable for the
+// lifetime of the tags store). Same Fig.3 semantics as the IRF: fill/store
+// opens an interval, demand read extends it, evict/overwrite closes it
+// (unread tail un-ACE).
+struct HarpBlkState
+{
+    uint64_t birth = 0;
+    uint64_t last_read = 0;
+    bool has_value = false;
+    bool ever_read = false;
+};
+// One ledger per tracked cache. Slot 0 = the legacy targetCache (L1D,
+// reported via the l1d* stats, unchanged); slots 1.. = the
+// extraTargetCaches list (L2 etc., reported via l2c* stats — the SDC-ED
+// L2C-unit collector).
+//
+// SDC-ED Task 3.3 — data-face/tag-face dual ledger: the ACE interval
+// state below stays DATA-FACE only (reads/fills of block data). The tag
+// face is a separate counter (tag_reads): how many tag comparisons this
+// cache performed. Honest boundary: a tag lookup is NOT an ACE interval
+// — reading a tag does not prolong any data bit's required residency —
+// so tag_reads is a coverage signal for the ECC-blind tag plane (the
+// ρ_L2C(tag)=0.45 vs data-face-SECDED ρ=0 split), never mixed into
+// ace_cycles.
+struct CacheLedger
+{
+    const void *cache = nullptr;
+    unsigned num_blocks = 0;           // AVF denominator (config-passed)
+    unsigned block_size = 0;
+    std::unordered_map<const void *, HarpBlkState> state;
+    uint64_t ace_cycles = 0;
+    uint64_t reads = 0, writes = 0, evicts = 0;
+    // SDC-ED Task 3.3: tag-plane lookup counter (one per CPU-side access's
+    // tag comparison, hit or miss). Coverage signal only — see above.
+    uint64_t tag_reads = 0;
+};
+
 class CHAOSCov : public SimObject
 {
   public:
@@ -71,7 +127,8 @@ class CHAOSCov : public SimObject
     static CHAOSCov *instance;
 
     // Target-cache identity for the L1D collector's owner filter.
-    static const void *cacheTarget() { return instance ? instance->target_cache : nullptr; }
+    // SDC-ED Task 2.2: multi-cache dispatch lives in ledgerFor(); this
+    // accessor remains for the first (L1D) ledger.
 
     // Notification from the global hooks (pseudo_inst workbegin/workend).
     void onWorkBegin();
@@ -83,24 +140,84 @@ class CHAOSCov : public SimObject
     void irfOnAlloc(int class_type, int idx);
     void irfOnFree(int class_type, int idx);
     void irfSampleOccupancy();   // per-ROI-cycle histogram sampling
+    // SDC-ED Task 3.4: ROB occupancy-band sample (band = in-flight*8/max,
+    // 0..7) and the rename-distance histogram sample point. Rename
+    // distance = cycles from a value's producing write (birth) to its
+    // first (optimistic) read — sampled where the interval closes in
+    // irfOnRead, no extra hook. Long-chain sequences must skew this
+    // right vs dead-write sequences (direction check in the plan).
+    void robOccSample(unsigned band) { rob_occ_hist[band]++; }
+    void renameDistSample(uint64_t dist);
     // Task 2.2 commit-confirmed read: called from Commit per committed
     // instruction per physical source register. Accumulates a second,
     // wrong-path-free ACE ledger (reads by squashed instructions never
     // commit, so they never enter this counter).
     void irfOnCommitRead(int class_type, int idx);
+    // SDC-ED Task 4.1/4.2: dynamic-slice collector. Called from the same
+    // commit point with the full instruction record (dst/src phys regs,
+    // store flag, effective address). The slice is solved at finishStats:
+    // sinks = committed stores (their data+addr sources are on the path to
+    // the checkable output — the wrapper CRC-hashes all of mem and the
+    // epilogue hashes g_reg which the store-back wrote), then backward
+    // propagation over the in-ROI dataflow edges to a fixed point. The
+    // resulting per-phys-reg on_path marks close the SDC-ACE ledgers
+    // (reads logged at execute time are re-classified post hoc).
+    void sliceOnCommit(const o3::DynInstPtr &inst);    // SDC-ED Task 4.1: wrapper-emitted reachability manifest path
+    // (.reach.json). Empty/unread → slice sinks stay store-based only.
+    void setReachManifest(const std::string &path);
 
     // --- L1D ACE collector (Task 3.1) ---
     void cacheOnWrite(void *cache, void *blk);
     void cacheOnRead(void *cache, void *blk);
     void cacheOnEvict(void *cache, void *blk);
+    // SDC-ED Task 3.3: tag-face event — a tag comparison was performed for
+    // a CPU-side access (hit or miss; blk may be nullptr on miss). Counts
+    // into the ledger's tag_reads; no ACE-interval effect.
+    void cacheOnTagAccess(void *cache);
+    // SDC-ED Task 2.2: dispatch to the ledger owning this cache instance
+    // (nullptr = untracked). Public: the file-level owner-filter hooks in
+    // CHAOSCov.cc call it before invoking the handlers.
+    CacheLedger *ledgerFor(void *cache);
 
-    // --- LSQ SQ-data ACE collector (Task 3.2) ---
-    void sqOnWrite();
-    void sqOnConsume();
-    void sqOnFree();
+    // --- LSQ SQ-data ACE collector (Task 3.2; SDC-ED Task 3.1 adds the
+    // slot index — the legacy aggregate interval ledger inside these
+    // handlers is unchanged, the per-slot forward/wb ledgers are new) ---
+    void sqOnWrite(unsigned slot_idx);
+    void sqOnConsume(unsigned slot_idx);
+    void sqOnFree(unsigned slot_idx);
+    // SDC-ED Task 3.1: per-slot forward + load-use-distance collectors.
+    // sqOnForward(slot): a load consumed this SQ slot's data IN THE QUEUE
+    //   (store→load forwarding) — read-type consumption, kept in a separate
+    //   ledger from the writeback consumption (sqOnConsume) so the forward
+    //   face and writeback face of SQ-data ACE can be reported apart.
+    // loadOnWriteback(class, idx): a load result was written back to the
+    //   PRF (birth of the load-use interval). loadOnUse(class, idx): first
+    //   commit-confirmed consumption — closes the interval, feeding the
+    //   load-use distance histogram.
+    void sqOnForward(unsigned slot_idx);
+    void loadOnWriteback(int class_type, int idx);
+    void loadOnUse(int class_type, int idx);
 
     // --- IBR collector (Task 4.1) ---
     void fuOnIssue(int fu_class, uint64_t src_bits);
+    // SDC-ED Task 4.3: IEX gate-sensitivity coverage. At the issue
+    // point (same as IBR): per input bit, flip and recompute — the
+    // logical-masking function of the operand pair (closed-form, no
+    // netlist dependency; adder zero-masking / multiplier real masking
+    // — see the .cc implementation comment).
+    void iexOnAddIssue(uint64_t a, uint64_t b);
+    void iexOnMulIssue(uint64_t a, uint64_t b);
+    // fuOnIssue, but the caller (inst_queue.cc, which can safely read the
+    // PRF at issue — values are written at execute, wake happens at
+    // writeback, so by issue time every source value is resident) also
+    // classifies each FP source operand's 64-bit lanes per IEEE754:
+    //   0=normal 1=subnormal 2=NaN 3=Inf 4=zero
+    // Per-FU-class histogram + normalized Shannon entropy over the five
+    // classes. Motivation: CHAOSFPU N=20 all-Masked showed FP software
+    // masking is VALUE-dependent — structural coverage (IBR) alone can't
+    // distinguish a sequence exercising only normal-normal adds from one
+    // that also drives NaN/subnormal/Inf propagation paths.
+    void fuOnIssueValue(int fu_class, int n_lanes, const int *lane_class);
 
     // Per-cycle poll from collectors (cycle-granular ROI bookkeeping).
     void tickROICycles() { if (roi_active) roi_cycles++; }
@@ -160,25 +277,22 @@ class CHAOSCov : public SimObject
     static constexpr int OCC_BUCKETS = 33;  // 0..32+ live-value regs
     std::vector<uint64_t> irf_occ_hist;     // per-bucket cycle counts
     uint64_t irf_occ_samples = 0;
+    // SDC-ED Task 3.4: ROB occupancy bands (8 bands of capacity/8) and
+    // the rename-distance histogram (same bucket scheme as load-use:
+    // 0,1,2,4,...,32768,>32768 — 17 buckets).
+    uint64_t rob_occ_hist[8] = {0, 0, 0, 0, 0, 0, 0, 0};
+    static constexpr int RD_BUCKETS = 17;
+    uint64_t rd_hist[RD_BUCKETS] = {0};
 
-    // --- L1D ACE state (Task 3.1) ---
-    // Block-granular interval ledger keyed by CacheBlk pointer (stable
-    // for the lifetime of the tags store). The same Fig.3 semantics as
-    // the IRF: fill/store opens an interval, demand read extends it,
-    // evict or overwrite closes it (unread tail un-ACE).
-    struct BlkState
-    {
-        uint64_t birth = 0;
-        uint64_t last_read = 0;
-        bool has_value = false;
-        bool ever_read = false;
-    };
-    const void *target_cache = nullptr;    // filter: only this cache
+    // --- L1D/L2 ACE state (Task 3.1; SDC-ED Task 2.2 multi-cache) ---
+    // Per-cache ledgers (types defined above the class): slot 0 = legacy
+    // targetCache (l1d* stats), slots 1.. = extraTargetCaches (l2c*).
+    std::vector<CacheLedger> cache_ledgers;   // [0]=L1D, [1+]=L2/...
+    // Legacy single-cache scalars (kept for the constructor's L1D sizing
+    // bookkeeping; the live ledgers are cache_ledgers).
+    const void *target_cache = nullptr;    // filter: only tracked caches
     unsigned cache_num_blocks = 0;         // sizing for AVF denominator
     unsigned cache_block_size = 0;
-    std::unordered_map<const void *, BlkState> cache_state;
-    uint64_t cache_ace_cycles = 0;
-    uint64_t cache_reads = 0, cache_writes = 0, cache_evicts = 0;
 
     // --- LSQ SQ-data ACE state (Task 3.2) ---
     // Interval ledger keyed by SQ slot index (0..SQEntries-1). The same
@@ -191,23 +305,127 @@ class CHAOSCov : public SimObject
         uint64_t last_consume = 0;
         bool has_data = false;
         bool ever_consumed = false;
+        // SDC-ED Task 3.1: forward-consumption mirror of the Task 3.2
+        // aggregate event stream — the per-slot ledger that eliminates the
+        // "close the oldest open interval" approximation for the
+        // forwarding face. ever_forwarded marks that this value was read
+        // inside the SQ (store→load forwarding), independently of the
+        // writeback consumption.
+        uint64_t last_forward = 0;
+        bool ever_forwarded = false;
     };
     std::vector<SqState> sq_state;
     unsigned sq_entries = 0;
     uint64_t sq_ace_cycles = 0;
     uint64_t sq_writes = 0, sq_consumes = 0, sq_frees = 0;
+    // SDC-ED Task 3.1 per-slot forward ledger: forwarding is a read-type
+    // consumption of the SQ data (the load reads the store's data IN the
+    // queue). ACE split:
+    //   sq_fwd_ace_cycles  — intervals closed/extended by forwards
+    //   sq_wb_ace_cycles   — intervals closed/extended by writebacks
+    // (sq_ace_cycles above remains the legacy aggregate — unchanged stats.)
+    uint64_t sq_fwd_ace_cycles = 0;
+    uint64_t sq_wb_ace_cycles = 0;
+    uint64_t sq_forwards = 0;
+    // --- load-use distance state (SDC-ED Task 3.1) ---
+    // Birth marks: phys reg slots whose current value was produced by a
+    // LOAD writeback and not yet consumed by a committed instruction.
+    // loadOnWriteback sets the birth cycle; the first commit-confirmed
+    // read of the slot (loadOnUse) closes the interval and buckets
+    // (cycle_now - birth). Any intervening producer write clears the mark
+    // (the load value was overwritten — interval dead, not counted).
+    // Mirrors the irf_state spaces [0]=int [1]=float [2]=vector.
+    std::vector<uint64_t> lu_state[3];
+    uint64_t lu_samples = 0, lu_dead = 0;
+    // Histogram buckets: powers of two up to 2^16, then an open last
+    // bucket (16 buckets total: 0,1,2,4,...,32768,>32768).
+    static constexpr int LU_BUCKETS = 17;
+    uint64_t lu_hist[LU_BUCKETS] = {0};
 
-    // --- IBR state (Task 4.1) ---
+    // --- IBR state (Task 4.1; SDC-ED Task 2.1 parameterized) ---
     // Numerators per FU class (input bits actually delivered), plus issue
     // counts for the advice engine's instruction-mix evidence.
     static constexpr int NUM_FU_CLASSES = 4;  // IntAdd IntMul FPAdd FPMul
+    // SDC-ED Task 2.3: unit-axis size for the covUnits merge vector.
+    static constexpr int NUM_ED_UNITS = 7;    // IFU OoO IEX LSU FSU MMU L2C
     uint64_t ibr_input_bits[NUM_FU_CLASSES] = {0, 0, 0, 0};
     uint64_t ibr_issues[NUM_FU_CLASSES]     = {0, 0, 0, 0};
     // Denominator widths per FU class (paper: theoretical max input bits
-    // per cycle): IntAdd 2x64, IntMul 2x64, FPAdd 2x128 (NEON lanes),
-    // FPMul 2x128. Aggregate and per-instance (FU counts) both reported.
-    unsigned ibr_fu_count[NUM_FU_CLASSES]   = {3, 1, 2, 2};  // TaiShan v110
+    // per cycle). Parameterized from the CPU profile (SDC-ED Layer C:
+    // configs/cpu-profiles/*.yaml → CHAOSCov.py → here). Defaults are the
+    // TaiShan v110 implementation-calibre values (fu_pool.py): FU counts
+    // 3/1/2/2, widths IntAdd/IntMul 2x64, FPAdd/FPMul 2x128 (NEON lanes).
+    unsigned ibr_fu_count[NUM_FU_CLASSES]   = {3, 1, 2, 2};
     unsigned ibr_full_width[NUM_FU_CLASSES] = {128, 128, 256, 256};
+
+    // --- FP value-class state (SDC-ED Task 3.2) ---
+    // [fu_class][value_class] lane counts; only FP classes (2=FPAdd,
+    // 3=FPMul) are ever touched. Entropy computed at finishStats.
+    static constexpr int NUM_FU_CLASSES_ = 4;
+    static constexpr int NUM_VALUE_CLASSES = 5;  // normal subnorm NaN Inf zero
+    uint64_t fp_value_hist[NUM_FU_CLASSES][NUM_VALUE_CLASSES] = {};
+    uint64_t fp_lanes_sampled = 0;
+
+    // --- IEX gate-sensitivity state (SDC-ED Task 4.3) ---
+    // Closed-form datapath differential per sampled issue. Adder:
+    // zero masking (see .cc comment — brute-force verified); kept as
+    // the structural-confirmation signal. Multiplier: real masking.
+    uint64_t iex_add_issues = 0, iex_add_sampled = 0;
+    uint64_t iex_sens_bits = 0;
+    uint64_t iex_mul_issues = 0, iex_mul_sampled = 0;
+    uint64_t iex_mul_sens_bits = 0;
+    static constexpr int SENS_SAMPLE = 16;
+
+    // --- Dynamic-slice state (SDC-ED Task 4.1/4.2) ---
+    // Per committed in-ROI instruction: phys dsts/srcs (class,idx pairs)
+    // + store flag. Program order (commit order). Sinks = stores (the
+    // wrapper CRCs all of mem and hashes g_reg after the store-back; a
+    // store's data AND address sources sit on the path to the checkable
+    // output). Solve at finishStats:
+    //   forward pass  — snapshot each node's src→producer pointer
+    //                   (last earlier node writing that slot)
+    //   backward sweep — stores on-path; an on-path node marks its
+    //                   recorded producers (indices < i, so one
+    //                   newest→oldest sweep reaches the transitive
+    //                   closure). Node-level marks (NOT slot-level):
+    //                   a read is on-path iff its reading instruction
+    //                   is — this keeps overwritten-dead-chain intervals
+    //                   out of SDC-ACE even when the slot's FINAL value
+    //                   is stored back (the slot-OR would lose them).
+    struct SliceNode
+    {
+        static constexpr int MAX_REGS = 8;
+        int n_dst = 0, n_src = 0;
+        int8_t dst_cls[MAX_REGS]; int dst_idx[MAX_REGS];
+        int8_t src_cls[MAX_REGS]; int src_idx[MAX_REGS];
+        int src_prod[MAX_REGS];   // producer node index (-1 = pre-ROI)
+        bool is_store = false;
+        bool on_path = false;
+    };
+    std::vector<SliceNode> slice_nodes;
+    // Merged SDC event stream, chronological: writes (execute-time,
+    // interval births, node=-1) + reads (commit-time, node-tagged).
+    // SDC-ACE therefore rides the COMMIT-CONFIRMED read stream —
+    // wrong-path reads never commit, so they are excluded from SDC-ACE
+    // by construction (stricter than the optimistic ledger).
+    struct SdcEvent
+    {
+        bool is_write;
+        int8_t cls;
+        int idx;
+        int node;         // slice_nodes index for reads; -1 for writes
+        uint64_t cycle;
+    };
+    std::vector<SdcEvent> sdc_events;
+    // SDC-ACE ledgers (int/float/vec) + raw counts for the gap stat.
+    uint64_t irf_ace_sdc_cycles[3] = {0, 0, 0};
+    uint64_t sdc_on_path_reads = 0, sdc_total_reads = 0;
+    // Forward producer map for sliceOnCommit snapshots: [cls][phys idx]
+    // -> most recent earlier node index writing that slot.
+    std::vector<int> slice_producer[3];
+    // Task 4.1: optional reachability manifest (unused reserved hook —
+    // store-based sinks cover the wrapper's epilogue by construction).
+    std::string reach_manifest_path;
 
   protected:
     struct HarpStats : public statistics::Group
@@ -234,12 +452,34 @@ class CHAOSCov : public SimObject
         statistics::Scalar l1dWrites;
         statistics::Scalar l1dEvicts;
         statistics::Scalar l1dAvf;
+        // --- L2C ACE (SDC-ED Task 2.2: extra caches ledger) ---
+        statistics::Scalar l2cAceCycles;
+        statistics::Scalar l2cReads;
+        statistics::Scalar l2cWrites;
+        statistics::Scalar l2cEvicts;
+        statistics::Scalar l2cAvf;
+        // SDC-ED Task 3.3: data-face/tag-face dual ledger. tagReads counts
+        // tag comparisons (tag-plane coverage — the ECC-blind face);
+        // tagFaceRatio = tagReads / (reads+writes) normalizes against the
+        // data-face event stream. Both are coverage signals, NOT ACE
+        // intervals (see CacheLedger for the honest boundary).
+        statistics::Scalar l2cTagReads;
+        statistics::Scalar l2cTagFaceRatio;
         // --- LSQ SQ-data ACE (Task 3.2) ---
         statistics::Scalar sqAceCycles;
         statistics::Scalar sqWrites;
         statistics::Scalar sqConsumes;
         statistics::Scalar sqFrees;
         statistics::Scalar sqAvf;
+        // SDC-ED Task 3.1: forward/writeback face split + load-use distance
+        statistics::Scalar sqForwards;
+        statistics::Scalar sqForwardAceCycles;
+        statistics::Scalar sqWritebackAceCycles;
+        statistics::Scalar sqForwardAvf;
+        statistics::Vector loadUseDist;
+        // --- SDC-ED Task 3.4: OoO rename distance + ROB occupancy bands ---
+        statistics::Vector renameDist;
+        statistics::Vector robOccBands;
         // --- IBR (Task 4.1) ---
         statistics::Vector ibrInputBits;
         statistics::Vector ibrIssues;
@@ -247,9 +487,51 @@ class CHAOSCov : public SimObject
         statistics::Scalar ibrIntMul;
         statistics::Scalar ibrFpAdd;
         statistics::Scalar ibrFpMul;
+        // --- SDC-ACE + gap (SDC-ED Task 4.2) ---
+        statistics::Scalar irfAvfSdc;
+        statistics::Scalar irfAvfSdcInt;
+        statistics::Scalar sdcGap;
+        statistics::Scalar sdcOnPathReads;
+        statistics::Scalar sdcTotalReads;
+        // --- FP value-class profile (SDC-ED Task 3.2) ---
+        // Per-FU-class 5-bin histogram of FP source-operand lanes
+        // (normal/subnormal/NaN/Inf/zero) + the normalized Shannon
+        // entropy over the merged distribution. Value-class coverage is
+        // the FSU axis the IBR can't see (software masking is
+        // value-dependent — CHAOSFPU all-Masked evidence).
+        statistics::Vector fpValueHist;
+        statistics::Scalar fpValueEntropy;
+        // --- IEX gate sensitivity (SDC-ED Task 4.3) ---
+        statistics::Scalar gateSensRatio;   // adder: sens/128/sample (≈1)
+        statistics::Scalar gateSensSamples; // sampled IntAdd issues
+        statistics::Scalar mulSensRatio;    // multiplier: real masking
+        statistics::Scalar mulSensSamples;
+        // --- SDC-ED Task 2.3: 7-unit coverage vector ---
+        // Per-unit activation coverage A_u, merged from the collectors
+        // above for tools/ed_score.py (ED = Σ w_u·ρ_u·q_u·A_u). The unit
+        // decomposition is Layer A (CPU-independent); which collector
+        // feeds which unit is fixed here, the weights live in the CPU
+        // profile (Layer B/C):
+        //   [0] IFU  = 0 placeholder (ρ=0 SDC axis per Phase 16; the
+        //              predictor-plane signal goes to the Crash axis —
+        //              SDC-ED Phase 7/8 may add a BPU collector)
+        //   [1] OoO  = irfAvf (width-weighted PRF ACE across the three
+        //              register spaces)
+        //   [2] IEX  = max(ibrIntAdd, ibrIntMul) — integer FU classes
+        //   [3] LSU  = sqAvf (SQ-data ACE; L1D sits on the cache axis)
+        //   [4] FSU  = max(ibrFpAdd, ibrFpMul) — FP FU classes
+        //   [5] MMU  = 0 placeholder (SE userspace ceiling; FS arm TBD)
+        //   [6] L2C  = max(l1dAvf, l2cAvf) — cache hierarchy: the most
+        //              activated level's block-ACE AVF
+        // Legacy scalar stats above are all kept (harp_eval.py compat).
+        statistics::Vector covUnits;
     } harpStats;
 
     void irfFinish();   // close open intervals at ROI end / sim end
+    // SDC-ED Task 4.2: forward producer snapshots + backward on-path
+    // sweep + SDC-ACE replay over the merged event stream. Fills
+    // irf_ace_sdc_cycles and the on/total read counters.
+    void solveSliceAndSdc();
 };
 
 } // namespace gem5

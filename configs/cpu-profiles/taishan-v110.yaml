@@ -1,0 +1,100 @@
+# taishan-v110.yaml — 鲲鹏920 TaiShan v110 核（首期标定实例）
+#
+# 溯源：与 smoke_test/configs/two_level_taishan.py + caches.py + fu_pool.py
+# 实配逐参数对齐（gem5 仿真模型即按此实例化）。本文件是 ED 评估的
+# Layer C 声明式描述（docs/sdc-ed/method.md §2）。
+#
+# 字段语义见 schema.md。未披露字段写 null + uncertainty: true（不猜值）。
+
+cpu: taishan-v110
+derived_from: smoke_test/configs/{two_level_taishan,caches,fu_pool}.py
+
+units:
+  IFU:
+    fetch_width: 4                 # 条/周期（底表：4 条/周期）
+    btb:  {entries: 2048, width: 64, prot: none}       # L2 BTB ~2048 项（底表）
+    btb_l1: {entries: 64, width: 64, prot: none}       # L1 BTB 64 项
+    ras:  {entries: 32, width: 64, prot: none}         # 31–32 项
+    l1i:  {size: 64KiB, assoc: 4, prot: ecc_claimed_no_evidence}
+    l1i_tlb: {entries: 32, assoc: 64, prot: none}      # 32 项全相联
+    # µop/MOP cache：无（底表：无 MOP）
+
+  OoO:
+    decode_width: 4
+    rob:  {entries: 97, prot: none}                    # 实配（ROB ~128 公开、实测有效 108-110；gem5 模型 97）
+    prf_int:   {regs: 125, width: 64}                  # 实配 93+32
+    prf_float: {regs: 96, width: 64}                   # legacy FP 空间（AArch64 实际走 vec）
+    prf_vec:   {regs: 96, width: 128}                  # NEON 128b（FP/SIMD 实际驻留）
+    rename_map_int: {entries: 31, width: 12, prot: none}
+    issue_queues: {kind: unified_per_class, total_entries: 99}  # ALU/LS/FP 三类各~33
+    protection: none                                   # RAS=0（底表：无架构化保护）
+
+  IEX:
+    fus:
+      int_add: {count: 3, width: 128, op_lat: 1}       # IntAlu×3
+      int_mul: {count: 1, width: 128, op_lat: 3}       # IntMult opLat=3（IntDiv 20 不流水）
+    mdu: {mul_lat: 3, div_lat: 20, prot: none}         # 乘 4/除 19（公开）；gem5 实配 3/20
+    gate_model: {int_add: kogge_stone_1154g, int_mul: shift_add_44418g}  # CHAOSGateFU 合成网表
+    protection: none
+
+  FSU:
+    prf_vec: {regs: 96, width: 128, prot: none}        # 与 OoO.prf_vec 同一物理结构
+    fus:
+      fp_add: {count: 2, width: 256, op_lat: 2}        # FloatAdd 2；width=2×128b NEON
+      fp_mul: {count: 2, width: 256, op_lat: 4}        # FloatMult 4（FMA 5）
+      fp_div: {count: 2, width: 256, op_lat: 12, pipelined: false}
+      simd:   {count: 2, width: 256, op_lat: 1}        # NEON 整类（SimdFloatMultAcc 5）
+    protection: none                                   # 向量数据面无披露
+
+  LSU:
+    l1d: {size: 64KiB, assoc: 4, blk: 64, prot: none}  # load-to-use 4 cyc（tag/data/resp=1）
+    l1d_tlb: {entries: 32, assoc: 64, prot: none}      # 32 项全相联
+    lq: {entries: 65, prot: none}                      # 疑点注释见 two_level_taishan.py
+    sq: {entries: 47, prot: none}
+    forwarding: true                                   # store→load 前转 6-7 cyc
+    agu: {load_ports: 2, store_ports: 2}
+
+  MMU:
+    l2_tlb: {entries: 1024, prot: none}                # 1024 项共用（命中 +11 cyc）
+    protection: none                                   # RAS=0（无 MMUTC 保护披露）
+
+  L2C:
+    l2: {size: 512KiB, assoc: 8, lat: 8, prot: none}   # 私有 10 cyc（公开）；gem5 延迟 8
+    l3_slc: {size: 32MiB, assoc: 15, prot: none, modeled: false}  # 每 die SLC，簇侧 tag——未建模
+    protection: ecc_claimed_no_evidence                # 底表：声称 ECC 无架构化证据
+
+# 可达性上限覆盖（缺省见 ed_profile.py DEFAULT_CEILINGS；此处显式化留痕）
+ceilings:
+  IFU: 0.0    # Phase 16：三预测面 0% SDC（squash 自愈），SDC 轴封顶
+  MMU: 0.2    # SE 用户态可达（addr_map_sub 384/384 Masked）
+
+rho_overrides: {}       # 标定战役（Phase 6）回填 rho_measured，不覆盖此表
+
+# rho_measured — Task 6.1 ρ_u 标定战役实测回填（2026-09-19）。
+# 口径 = detection | active = (SDC+Crash)/(N−Inactive−SimErr)，与
+# ed_profile.py DEFAULT_RHO 初值口径一致（初值表 OoO 0.05 即
+# readwrite_seq detection 0.04）。SDC/Crash 拆分与全部诚实边界见
+# docs/sdc-ed/calibration-report.md §4。与 rho_overrides 并列；
+# rho_initial() 优先级仍是 overrides > 保护矩阵 > DEFAULT（本表
+# 供 ed_score/报告消费，不改变 rho_initial 推导）。
+rho_measured:
+  IFU:  {value: 0.00, ci: null, arm: "deferred（引用 Phase 16 三面 0%）",
+         detail: "dir_flip 384/384 Masked + target_flip/ras_flip n=100 各 0.0%"}
+  OoO:  {value: 0.05, ci: [0.0215, 0.1118], arm: "irf x readwrite_seq, N=100",
+         detail: "5 Crash/95 Masked；SDC=0（全 Crash 承担）"}
+  IEX:  {value: 1.00, ci: [0.9630, 1.0000], arm: "intadd x sample_seq, N=100",
+         detail: "permanent FU-mask 协议语义（上界）；intmul 0.82 [0.72,0.88]；SDC=0"}
+  LSU:  {value: 0.69, ci: [0.5937, 0.7722], arm: "lsq x rand_mem, N=100",
+         detail: "69 Crash/31 Masked；l1d 数据面另臂 0.04；SDC=0；负载依赖见报告 §4.1"}
+  FSU:  {value: 0.00, ci: [0.0000, 0.0370], arm: "fpadd+fpmul x rand_fp, N=100x2",
+         detail: "200/200 Masked；值依赖（t3-1: float 60-66% vs double 14-18%）"}
+  MMU:  {value: 0.00, ci: null, arm: "deferred（引用 addrmap_formal_fwd）",
+         detail: "SE 384/384 Masked；FS 臂镜像不可用，deferred 登记"}
+  L2C:  {value: 0.50, ci: [0.3639, 0.6361], arm: "l2c_tag x stencil, N=100",
+         detail: "tag 面（双面账本取 tag）；data-none 0.41 [0.28,0.55]；data-secded 0.00（SECDED 全纠，tag 面 ECC 盲——2x2 CI 无重叠）"}
+
+residuals:
+  - l1i_prot_claim_unverified      # I$ "声称 ECC" 无架构化证据
+  - l2_prot_claim_unverified       # L2 同上
+  - l3_slc_unmodeled               # 簇侧 SLC 未建模
+  - gate_model_synthetic_not_rtl   # CHAOSGateFU 合成网表非真实 RTL

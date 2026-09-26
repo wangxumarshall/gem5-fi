@@ -1,0 +1,72 @@
+# neoverse-n2.yaml — Arm Neoverse N2 公开披露版（第二标定实例，跨 CPU 迁移测试用）
+#
+# 溯源：docs/cpu/arm64/microarchitecture-sdc-sensitivity.md §2 总表 + 分表
+# 机械转写。N2 与 920 的结构差异将驱动 ED 权重分化（SVE2、MOP cache、
+# L2 tag+data+TQ SECDED、MMUTC SED）——同一序列在两份 profile 下的 ED
+# 排序差异即「配置驱动」有效性的检验对象（计划 Task 6.3）。
+
+cpu: neoverse-n2
+derived_from: docs/cpu/arm64/microarchitecture-sdc-sensitivity.md
+
+units:
+  IFU:
+    fetch_width: null                                  # 超标量（宽度未披露）
+    btb: {entries: null, width: 64, prot: none, uncertainty: true}
+    ras: {entries: null, width: 64, prot: none, uncertainty: true}   # 有 RAS，容量未披露
+    l1i: {size: 64KiB, assoc: 4, prot: tag_parity_data_sed}
+    l1i_tlb: {entries: 48, assoc: 64, prot: none}      # 48 项全相联
+    mop_cache: {entries: 1536, assoc: 4, prot: data_sed, modeled: false}
+    # ★ L0 MOP 1536 项 4-way skewed（data SED）——920 无此结构，独立靶点
+
+  OoO:
+    decode_width: null                                 # 未披露（A32/T32/A64）
+    rob: {entries: null, prot: none, uncertainty: true}
+    prf_int: {regs: null, width: 64, uncertainty: true}
+    prf_float: {regs: null, width: 64, uncertainty: true}
+    prf_vec: {regs: null, width: 128, uncertainty: true}   # SVE 128b
+    issue_queues: {kind: per_class, total_entries: null, uncertainty: true}
+    protection: none                                   # 无披露
+
+  IEX:
+    fus:
+      int_add: {count: null, width: 128, uncertainty: true}
+      int_mul: {count: null, width: 128, uncertainty: true}
+    gate_model: {int_add: kogge_stone_1154g, int_mul: shift_add_44418g}
+    protection: none
+
+  FSU:
+    fus:
+      fp_add: {count: null, width: 256, uncertainty: true}   # SVE2 128b 管线
+      fp_mul: {count: null, width: 256, uncertainty: true}
+    prf_vec: {regs: null, width: 128, prot: none, uncertainty: true}
+    protection: none
+
+  LSU:
+    l1d: {size: 64KiB, assoc: 4, blk: 64, prot: secded}    # D$ SECDED
+    l1d_tlb: {entries: 44, assoc: 64, prot: none}          # 44 项全相联
+    lq: {entries: null, prot: none, uncertainty: true}
+    sq: {entries: null, prot: none, uncertainty: true}
+    forwarding: true
+    agu: {load_ports: null, store_ports: null, uncertainty: true}
+
+  MMU:
+    l2_tlb: {entries: 1280, assoc: 5, prot: mmutc_sed}     # 1280 项 5-way；MMUTC SED
+    protection: mmutc_sed
+
+  L2C:
+    l2: {size: 512KiB, assoc: 8, prot: tag_data_tq_secded} # 512/1024KB 可配，取 512
+    l3: {size: null, assoc: null, prot: null, modeled: false, uncertainty: true}  # DSU-110 L3
+    protection: tag_data_tq_secded
+
+ceilings:
+  IFU: 0.0    # Phase 16 锚（squash 自愈；N2 预测面同理，验收时 FS/SE 实测复核）
+  MMU: 0.2    # SE 用户态可达（与 920 同口径）
+
+rho_overrides: {}
+
+residuals:
+  - fetch_decode_width_undisclosed
+  - rob_prf_iq_undisclosed
+  - mop_cache_unmodeled           # ★ N2 独立靶点未建模（1536 项 data SED）
+  - l3_dsu_unmodeled
+  - gate_model_synthetic_not_rtl

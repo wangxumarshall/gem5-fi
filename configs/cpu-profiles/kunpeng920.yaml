@@ -1,0 +1,76 @@
+# kunpeng920.yaml — 鲲鹏920（Kunpeng 920, TSV110 核）公开披露版
+#
+# 溯源：docs/cpu/arm64/microarchitecture-sdc-sensitivity.md §2 总表 + §3-§8
+# 分表机械转写。与 taishan-v110.yaml 的区别：本文件是**公开披露口径**
+# （ROB ~128、MDU 乘 4/除 19、L2 10 cyc 等），后者是 **gem5 实配口径**
+# （ROB 97、mul 3、L2 8 等）。两份并存用于：披露口径定 w_u，实配口径
+# 跑仿真——差异即模型保真度 residual。
+
+cpu: kunpeng920
+derived_from: docs/cpu/arm64/microarchitecture-sdc-sensitivity.md
+
+units:
+  IFU:
+    fetch_width: 4
+    btb: {entries: 2048, width: 64, prot: none}        # L2 BTB ~2048 项
+    btb_l1: {entries: 64, width: 64, prot: none}
+    ras: {entries: 32, width: 64, prot: none}          # 31–32 项
+    l1i: {size: 64KiB, assoc: 4, prot: ecc_claimed_no_evidence}  # AIVIVT
+    l1i_tlb: {entries: 32, assoc: 64, prot: none}
+    mop_cache: {entries: 0, prot: none}                # 无 MOP
+
+  OoO:
+    decode_width: 4
+    rob: {entries: 128, prot: none}                    # ~128（实测有效 108–110）
+    prf_int: {regs: 128, width: 64, uncertainty: true} # ~128 项（近似）
+    prf_float: {regs: null, width: 64, uncertainty: true}   # 偏小，未披露
+    prf_vec: {regs: null, width: 128, uncertainty: true}    # 未披露
+    rename_map_int: {entries: 31, width: 12, prot: none}    # Flag rename ~31
+    issue_queues: {kind: unified_per_class, total_entries: 99}  # ALU/LS/FP 各~33
+    protection: none                                   # RAS=0
+
+  IEX:
+    fus:
+      int_add: {count: 3, width: 128}                  # ALU×3（分支可占 2）
+      int_mul: {count: 1, width: 128}                  # MDU
+    mdu: {mul_lat: 4, div_lat: 19, prot: none}         # 乘 4/除 19（udiv 早退 6.2）
+    gate_model: {int_add: kogge_stone_1154g, int_mul: shift_add_44418g}
+    protection: none                                   # 无公开信息
+
+  FSU:
+    fus:
+      fp_add: {count: 2, width: 256}                   # FP32 FMA 2/cyc；FP64 1/4 rate
+      fp_mul: {count: 2, width: 256}
+    prf_vec: {regs: null, width: 128, prot: none, uncertainty: true}  # 偏小未披露
+    protection: none                                   # 向量数据面无披露
+
+  LSU:
+    l1d: {size: 64KiB, assoc: 4, blk: 64, prot: ecc_claimed_no_evidence}  # load-to-use 4
+    l1d_tlb: {entries: 32, assoc: 64, prot: none}
+    lq: {entries: null, prot: none, uncertainty: true}      # 未披露
+    sq: {entries: null, prot: none, uncertainty: true}
+    forwarding: true                                   # store→load 6–7 cyc
+    agu: {load_ports: 2, store_ports: 2}               # 2 load 或 1L+1S /cyc
+
+  MMU:
+    l2_tlb: {entries: 1024, prot: none}                # 1024 项共用（+11 cyc）
+    protection: none
+
+  L2C:
+    l2: {size: 512KiB, assoc: 8, lat: 10, prot: ecc_claimed_no_evidence}
+    l3_slc: {size: 32MiB, assoc: 15, prot: none, modeled: false}   # 每 die SLC 三模式
+    protection: ecc_claimed_no_evidence
+
+ceilings:
+  IFU: 0.0    # Phase 16 锚（squash 自愈）
+  MMU: 0.2    # SE 用户态可达
+
+rho_overrides: {}
+
+residuals:
+  - prf_float_undisclosed
+  - prf_vec_undisclosed
+  - lq_sq_undisclosed
+  - l1i_l2_prot_claim_unverified
+  - l3_slc_unmodeled
+  - gate_model_synthetic_not_rtl

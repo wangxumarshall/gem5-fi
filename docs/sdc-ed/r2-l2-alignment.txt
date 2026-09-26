@@ -1,0 +1,51 @@
+SDC-ED Round 2 Task 0.1: l2c 注入臂-采集器 L2 配置一致性核对表
+================================================================
+采集侧（smoke_test/configs/two_level_taishan.py --cov-l2 → caches.py L2Cache）
+注入侧（configs/se/arm_chaos_cache.py → stdlib PrivateL1PrivateL2CacheHierarchy）
+
+参数          采集侧(对齐目标)   注入侧(修正前)          注入侧(修正后,实测)
+size          512KiB             512KiB ✓               512KiB ✓ (config.ini size=524288)
+assoc         8                  16 ✗ (类默认;_Base声明的        8 ✓ (config.ini assoc=8)
+                                  l2_assoc=4 未传,hierarchy:138)
+tag_latency   8                  10 ✗ (类默认)           8 ✓
+data_latency  8                  10 ✗                   8 ✓
+response_lat  8                  1 ✗                    8 ✓
+block_size    64                 64 ✓                   64 ✓
+
+修正:_pre_instantiate hook 内直接覆写 ch.l2-cache-0 参数
+(该 hook 在 hierarchy setattr 之后、m5.instantiate 之前——与
+ CHAOSCache 挂载同点,文件既有机制)
+实测命令: arm_chaos_cache.py --target l2 --target_field tag
+  → simout "[arm_chaos_cache] L2 aligned to collector side:
+    512KiB/8-way/tag=data=response=8"
+  → config.ini l2-cache-0: assoc=8 size=524288 tag/data/response=8 ✓
+
+剩余差异(如实登记,不修正):
+- L1d assoc: 注入臂 8(stdlib) vs 采集臂 4(caches.py)——L1d 不在
+  l2c 臂的注入路径上(CHAOSCache 只挂 l2-cache-0),对 tag 别名/数据
+  翻转的注入面无影响;但 L1d assoc 影响到达 L2 的 miss 流量模式,
+  列为已知残差(方向:H 组足迹>128KiB 时 L1d assoc 4/8 的 miss 率
+  差异 ~2x,对两组对称,不影响组间比较)
+- 内存: DDR3_1600 vs TS_CFG 默认——注入发生在 cache 命中周期内,
+  内存时序不在注入因果链上(登记不修正)
+
+================================================================
+Task 1.2/1.3 组定义修正登记（2026-09-20，实测驱动）
+================================================================
+现象：L 组定向反例（l_short/l_dead/l_local，序列零访存）ED 仍达
+0.62-0.70e-3，高于 H 组（0.19-0.47e-3）——分解显示 l1dReads=3586
+全部来自 wrapper 的 g_reg 载入/存回（20×2×200 iters），sqAvf=0.085
+由 wrapper store 流驱动；covUnits::L2C=max(l1dAvf,l2cAvf) 被 wrapper
+底噪的 L1D 轨迹主导。
+
+含义：ED 的 L2C 轴（w=0.525）在 wrapper 协议下的绝对值受底噪限制
+（Round 1 method.md "wrapper 稀释"边界的强化证据）。**L2 激活度的
+干净分离变量是 l2cReads/l2cTagReads 绝对值**：
+  H 组 l2cReads 9-37 / tagReads 43-152
+  L 组 l2cReads 3-4  / tagReads 同量级低
+裁决实验修正：
+  - 组定义按 L2 激活度（H=足迹>128KiB 定向序列，L=旧池+零访存反例）
+  - J2 AUC 仍在 12 序列的 ED 连续值上算（组内 ED 有方差即可检验
+    ED 与 detection 的单调关系）
+  - wrapper 底噪对 ED 绝对分离的限制登记为诚实边界（不修改指标
+    定义——那是计划外变更）

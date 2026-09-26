@@ -606,9 +606,12 @@ Commit::tick()
     // Harpocrates coverage (harp plan Task 2.1): per-cycle ROI bookkeeping
     // (roi_cycles++ while inside the ROI window) + IRF occupancy sampling
     // for the advice engine. Single predictable branch when no CHAOSCov is
-    // mounted.
+    // mounted. SDC-ED Task 3.4: also feeds the ROB occupancy-band
+    // histogram (numInstsInROB is a public ROB member; read before any
+    // commit retires this cycle, so the sample is the steady-state band).
     if (harp_enabled)
-        harp_cov_on_cycle();
+        harp_cov_on_cycle(cpu->robAccess().numInstsInROB,
+                          cpu->robAccess().getMaxEntries(0));
 
     if (activeThreads->empty())
         return;
@@ -1001,16 +1004,27 @@ Commit::commitInsts()
                 // Harpocrates IRF-ACE (Task 2.2): commit-confirmed read —
                 // each physical source register of a COMMITTED instruction
                 // is a consumption that no squash can retract.
+                // SDC-ED Task 3.1: the same commit-confirmed read closes
+                // any load-use birth mark on the slot (first consumption
+                // of load data → load-use distance histogram).
                 if (harp_enabled && gem5::CHAOSCov::roiActive()) {
+                    // SDC-ED Task 4.1: dynamic-slice node FIRST — the
+                    // commit-read hook below tags its logged events
+                    // with this node's index (slice_nodes.size()-1).
+                    harp_cov_on_slice_commit(head_inst);
                     for (size_t sr = 0; sr < head_inst->numSrcRegs(); ++sr) {
                         const PhysRegIdPtr reg = head_inst->renamedSrcIdx(sr);
                         const auto cls = reg->classValue();
-                        if (cls == IntRegClass)
+                        if (cls == IntRegClass) {
                             harp_cov_on_prf_commit_read(0, reg->index());
-                        else if (cls == FloatRegClass)
+                            harp_cov_on_load_use(0, reg->index());
+                        } else if (cls == FloatRegClass) {
                             harp_cov_on_prf_commit_read(1, reg->index());
-                        else if (cls == VecRegClass)
+                            harp_cov_on_load_use(1, reg->index());
+                        } else if (cls == VecRegClass) {
                             harp_cov_on_prf_commit_read(2, reg->index());
+                            harp_cov_on_load_use(2, reg->index());
+                        }
                     }
                 }
 

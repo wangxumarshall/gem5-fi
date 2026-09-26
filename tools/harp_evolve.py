@@ -55,6 +55,12 @@ TARGETS = {
     "fu-fpadd": ("ibrFpAdd", "fadd d8, d9, d10", True),
     "fu-fpmul": ("ibrFpMul", "fmul d11, d12, d13", True),
     "irf": ("irfAvfInt", None, False),
+    # SDC-ED Round 2 Task 1.1: L2C gap 定向目标——advice L2C-tag 规则的
+    # 进化形态。覆盖信号是「足迹越过 L1D 64KiB 迫使 L2 读写 + 同 tag
+    # 冲突」：每步插入一个 4KiB 步进窗口（add x8,x8,4096 + str/ldr 对，
+    # conflict_seq 模板派生）。定向序列必须配 --mem-bytes ≥ 256KB
+    # （measure() 侧已同步传 262144）。
+    "l2c": ("l2cReads", None, True),
 }
 
 
@@ -64,18 +70,27 @@ def measure(lines, tmpdir, iters=200):
     with open(seq_path, "w") as f:
         f.write("\n".join(lines) + "\n")
     out = os.path.join(tmpdir, "cur")
+    # SDC-ED Round 2 Task 1.1: L2C 定向需要足迹 > L1D 64KiB（默认
+    # 32KB 全在 L1 命中，l2cReads 恒 0——findings.md 实测）。262144
+    # = 64 个 4KiB 步进窗口的上界，对非 l2c 目标同样安全（足迹只影响
+    # L2 激活，不改指令语义）。
     r = subprocess.run([sys.executable, WRAP, "--seq", seq_path,
-                        "--out", out, "--iters", str(iters)],
+                        "--out", out, "--iters", str(iters),
+                        "--mem-bytes", "262144"],
                        capture_output=True, text=True, timeout=120)
     if r.returncode != 0:
         sys.exit(f"wrap failed: {r.stderr}")
     d = os.path.join(tmpdir, "m5out")
     subprocess.run([GEM5, "-r", "-e", "--silent-redirect", "-d", d, SCRIPT,
-                    "--binary", out, "--mode", "baseline", "--cov"],
+                    "--binary", out, "--mode", "baseline", "--cov",
+                    "--cov-l2"],
                    capture_output=True, timeout=300)
     stats = {}
     for line in open(os.path.join(d, "stats.txt"), errors="replace"):
-        m = re.match(r"system\.CHAOSCov\.harp\.(\w+)\s+([\d.eE+-]+)", line)
+        # Vector stats carry ::subname (covUnits::IFU etc.) — \w+ alone
+        # would truncate at the colons and lose the subname (measured).
+        m = re.match(r"system\.CHAOSCov\.harp\.(\w+(?:::\w+)*)\s+([\d.eE+-]+)",
+                     line)
         if m:
             try:
                 stats[m.group(1)] = float(m.group(2))
@@ -84,9 +99,46 @@ def measure(lines, tmpdir, iters=200):
     return stats
 
 
+def ed_of_stats(stats, profile_path):
+    """SDC-ED Task 5.3：从 measure() 的 stats 字典直接算 ED（复用
+    ed_score 的推导：covUnits 7 维 + profile 的 w/ρ/ceiling）。"""
+    sys.path.insert(0, os.path.dirname(os.path.realpath(__file__)))
+    from ed_profile import load_profile, UNITS
+    prof = load_profile(profile_path)
+    w = prof.weights()
+    rho = prof.rho_initial()
+    cov = {u: stats.get(f"covUnits::{u}", 0.0) for u in UNITS}
+    ed = 0.0
+    for u in UNITS:
+        a_eff = min(cov[u], prof.ceiling(u))
+        ed += w[u] * rho.get(u, 0.0) * a_eff
+    return ed
+
+
 def advice_step(lines, target, rng):
     """建议驱动的一步：按规则直接改写。"""
     key, repl, is_mem = TARGETS[target]
+    if target == "l2c":
+        # SDC-ED Round 2 Task 1.1: L2C gap 定向——每步插入一个 4KiB
+        # 步进窗口（conflict_seq 模板派生）：基址步进保持 bits[11:0]=0
+        # （同 set 同 tag 低位），str+ldr 对制造「写后读」+ tag 比较流。
+        # 窗口末尾把 x8 复位（sub 与 add 对称）——measure 的 iters=200
+        # 下每轮步进必须幂等，否则累计越出 mem 区域（实测 VA 0x4f9a80
+        # Page fault——conflict_seq 模板用 iters=1 无此问题，evolve 协议
+        # 有）。序列长度上界守卫（wrapper asm 块约束）。
+        if len(lines) > 400:
+            return lines
+        out = list(lines)
+        window = [
+            "add x8, x8, 4096",
+            "str x9, [x8]",
+            "ldr x10, [x8]",
+            "add x8, x8, 4096",
+            "str x11, [x8]",
+            "ldr x12, [x8]",
+            "sub x8, x8, 8192",
+        ]
+        return window + out
     if target == "irf":
         # 策略 A（并行链化）：串行自依赖 (a xN,xN,xN) → 独立三操作数。
         # 策略 B（冷目的寄存器）：dest 在近期已被写过（即将覆写一个
@@ -147,11 +199,24 @@ def main():
     ap.add_argument("--iters", type=int, default=200)
     ap.add_argument("--seed", type=int, default=20260916)
     ap.add_argument("--out", default=None)
+    # SDC-ED Task 5.3: ED fitness mode (legacy = the original single-stat
+    # scalar; ed = Σ w·ρ·A_eff from the cpu profile — kept side by side
+    # for the comparison protocol).
+    ap.add_argument("--fitness", choices=["legacy", "ed"], default="legacy")
+    ap.add_argument("--profile",
+                    default=os.path.join(REPO, "configs/cpu-profiles",
+                                         "taishan-v110.yaml"),
+                    help="cpu profile for --fitness ed")
     args = ap.parse_args()
 
     out = args.out or os.path.join(REPO, "artifacts", "harp-advice-vs-random")
     os.makedirs(out, exist_ok=True)
     key = TARGETS[args.target][0]
+
+    def fitness(stats):
+        if args.fitness == "ed":
+            return ed_of_stats(stats, args.profile)
+        return stats.get(key, 0)
 
     lines = [l.strip() for l in open(args.seq)
              if l.strip() and not l.startswith("#")]
@@ -167,17 +232,17 @@ def main():
     rows = []
     # step 0
     s0 = measure(seq_a, tmp_a, args.iters)
-    rows.append((0, s0.get(key, 0), s0.get(key, 0)))
-    print(f"step 0: advice={s0.get(key, 0):.4f} blind={s0.get(key, 0):.4f}")
+    rows.append((0, fitness(s0), fitness(s0)))
+    print(f"step 0: advice={rows[0][1]:.6f} blind={rows[0][2]:.6f}")
 
     for step in range(1, args.steps + 1):
         seq_a = advice_step(seq_a, args.target, rng_a)
         seq_b = blind_step(seq_b, rng_b)
         sa = measure(seq_a, tmp_a, args.iters)
         sb = measure(seq_b, tmp_b, args.iters)
-        rows.append((step, sa.get(key, 0), sb.get(key, 0)))
-        print(f"step {step}: advice={sa.get(key, 0):.4f} "
-              f"blind={sb.get(key, 0):.4f}")
+        rows.append((step, fitness(sa), fitness(sb)))
+        print(f"step {step}: advice={rows[-1][1]:.6f} "
+              f"blind={rows[-1][2]:.6f}")
 
     csv = os.path.join(out, f"curve-{args.target}.csv")
     with open(csv, "w") as f:

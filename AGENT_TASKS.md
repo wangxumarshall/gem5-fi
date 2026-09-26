@@ -43,6 +43,32 @@ T5-1..T5-6-建议产出    | depends=[T3-*]      | agent | done     | §8 CHAOSR
 T6-1..T6-3-论文收尾    | depends=[T3,T4,T5]  | agent | done     | 五贡献点+诚实边界+终态收尾（d2d111ab/d7646210/本提交）
 T7-1..T7-7-环境门控    | depends=[]          | agent | done     | 全 7 项显式登记（2df8e9a5）
 
+## SDC-ED 评估计划任务（docs/superpowers/plans/2026-09-19-cpu-profile-driven-sdc-ed.md，feat/sdc-ed-eval 分支）
+
+SDCED-0.1-构建双锚      | depends=[]          | agent | done     | gem5 重建 + caches/fu_pool 恢复 + reg_chain f247ef3fe6f02cfd / sample_seq SUM=17994817166615565002 双锚（b882cb24/6eef63bd）
+SDCED-0.2-method骨架    | depends=[SDCED-0.1] | agent | done     | docs/sdc-ed/method.md 指标定义+三层架构+诚实边界 7 项（f503e047）
+SDCED-1.1-ed_profile    | depends=[SDCED-0.2] | agent | done     | YAML 解析 + w/ceiling/ρ初值 推导库，pytest 13/13（da560e02）
+SDCED-1.2-CPU描述YAML   | depends=[SDCED-1.1] | agent | done     | taishan-v110/kunpeng920/neoverse-n2 + schema.md，Σw=1.0，10 字段底表抽查一致（1ceffd45）
+SDCED-1.3-profile入口   | depends=[SDCED-1.2] | agent | done     | configs/se/profile_taishan.py --profile 描述驱动实例化（bf24913f）
+SDCED-2.1-IBR参数化     | depends=[SDCED-0.1] | agent | done     | ibrFuCounts/Widths/cacheNumBlocks/sqEntries 全参数化，8 stat 逐位一致（6eef63bd）
+SDCED-2.2-双cache账本   | depends=[SDCED-2.1] | agent | done     | targetCache 列表化 L1D+L2 独立 block-ACE（7913f11b）
+SDCED-2.3-7维归并       | depends=[SDCED-2.2] | agent | done     | harp.covUnits 7 维向量（OoO=irfAvf/IEX/LSU/FSU/L2C 归并，IFU/MMU 占位），OoO/IEX/LSU 分量与旧标量一致（9274f1e3）
+SDCED-3.1-LSU前转hook   | depends=[SDCED-2.2] | agent | done     | SQ per-slot 前转/写回双账本 + load-use 距离直方图（b8ac04eb）
+SDCED-3.2-FSU值类剖面   | depends=[]          | agent | done     | IEEE754 五类直方图+归一化熵 fpValueHist/fpValueEntropy，randbits_seq rare-bin 端到端命中（7c27f2f2）
+SDCED-3.3-L2C双面账本   | depends=[SDCED-2.2] | agent | done     | data-face/tag-face 双账本 + conflict_seq 别名臂（0759eb58）
+SDCED-3.4-rename距离    | depends=[]          | agent | done     | renameDist 17 桶+robOccBands 8 带；方向验证 sample 86% 在 0-12% 带 vs readwrite 25-37%（c379f1bd）
+SDCED-4.1-可达集分析    | depends=[SDCED-2.3] | agent | done     | 静态清单改动态反向切片（wrapper 全存回→静态零区分度，实测弃用）（c0e8b329）
+SDCED-4.2-SDC-ACE账本   | depends=[SDCED-4.1] | agent | done     | IRF 账本 SDC-ACE+gap；负对照 0.196/正 0.062/直达 0；L1D/SQ 按需补（c0e8b329）
+SDCED-4.3-gate敏感覆盖  | depends=[SDCED-2.3] | agent | done     | 闭式加/乘差分；加法器零掩蔽判据证伪（0/1024 穷举）；乘法 0.98（7c0bd77c）
+SDCED-5.1-ed_score      | depends=[SDCED-2.3] | agent | done     | ED+7 维分解+gap 配额；ED==Σ分解逐位自检；10 负载全覆盖（76d0a5ab）
+SDCED-5.2-次模选择器    | depends=[SDCED-5.1] | agent | done     | 贪心恰中穷举最优（1.0000≥1-1/e）；真实池覆盖 2-3 倍单序列（d53fd2c0）
+SDCED-5.3-evolve替换    | depends=[SDCED-5.1] | agent | done     | --fitness ed|legacy 双模式+4 新 advice 规则；ED 2 步未升如实登记（ea8d3949）
+SDCED-6.1-ρ标定战役     | depends=[SDCED-1.2] | agent | done     | 11 臂×N=100 实测回填 rho_measured；IFU/MMU deferred 引既有证据（271425de）
+SDCED-6.2-lift主实验    | depends=[SDCED-5.2] | agent | done     | 聚焦版 K=3×2臂×N=50；预注册判据未达成（负结果如实入档）；归因三条+功效预算（b16cd02f）
+SDCED-6.3-负对照迁移    | depends=[SDCED-6.1] | agent | done     | 迁移 ρ=0.8182 通过；负对照 N=50 方向反不显著（需 N≥400）（b16cd02f）
+SDCED-7.1-部署检测臂    | depends=[]          | agent | done     | harp_wrap --checker 双通道自比对；0.10 vs golden 0.05 落盘（协议差登记）；permanent 分臂 deferred（b16cd02f）
+SDCED-7.2-定稿收尾      | depends=[SDCED-6.1] | agent | done     | method.md 定稿+本登记+计划勾选核对+双锚回归（本提交）
+
 ## Deferred（环境门控，显式不遗漏）
 
 D-S4-系统级            | depends=[T3-*]      | agent | deferred | CHAOSCHI/NoC/HCCS ~20 补丁独立子项目；解锁：独立排期立项
@@ -52,3 +78,16 @@ D-D10-G7-sanitizer     | depends=[]          | agent | deferred | SConstruct soc
 D-ExMon-多核           | depends=[]          | agent | deferred | stale_reservation 多核场景；解锁：多核 SE/FS 配置
 D-Decode-P4            | depends=[]          | agent | skipped  | 方案 §5.11 明示"可跳过"
 D-FS-O3-switch         | depends=[S0-02]     | agent | deferred | checkpoint restore 后切 O3（stdlib 无 clean switchCpus）；解锁：CPU 切换路径落地或 atomic-only 分类验证失败
+
+SDCEDR2-0.1-臂采集对齐   | depends=[]          | agent | done     | stdlib l2_assoc 不传实测 16→对齐 8-way/8·8·8（e2285f01）
+SDCEDR2-1.1-evolve定向    | depends=[SDCEDR2-0.1] | agent | done     | l2c 目标+幂等窗口；tagFaceRatio 虚假值/步进越界两坑（50134a8e）
+SDCEDR2-1.2/1.3-H6L6组   | depends=[SDCEDR2-1.1] | agent | done     | 模板展开 H6 激活 L2；wrapper 底噪边界登记（076131bc）
+SDCEDR2-2.1-批量断点核对  | depends=[SDCEDR2-1.3] | agent | done     | simTicks 末值修复 19/20 Inactive（f2a2b487）
+SDCEDR2-2.2-2.4-N400战役  | depends=[SDCEDR2-2.1] | agent | done     | 12 序列×3 臂×N=400=14,400 runs（本提交）
+SDCEDR2-3.1/3.2-裁决报告  | depends=[SDCEDR2-2.4] | agent | done     | J1/J3 PASS、J2 FAIL（剔底噪 0.7639）；lift-report-round2.md（本提交）
+HARPCMP-清单复核   | depends=[]          | agent | done     | P1 6+P2 8 实验零丢失登记；口径修正（P1 剔 ineffective/P2 raw）（56f81afe 后）
+HARPCMP-CE1度量对比 | depends=[HARPCMP-清单复核] | agent | done     | 18 序列×3 臂；ED FAIL（AUC 0.51-0.55 < ACE 0.60-0.67）；足迹盲区新发现（27238030）
+HARPCMP-CE2进化对比 | depends=[HARPCMP-CE1度量对比] | agent | done     | 三路径曲线；ED-fitness 分母耦合第四缺陷；判据无法裁决如实（27238030）
+HARPCMP-CE3剖面组合 | depends=[HARPCMP-CE1度量对比] | agent | done     | 互补性 FAIL（ρ 0.86-0.92）；portfolio 上限 0.9917；BPU 臂引用收口（286ca79e）
+HARPCMP-CE4/5/6分析 | depends=[]          | agent | done     | oracle 严格性表+transferability 声明+口径换算表（56f81afe/27238030）
+HARPCMP-报告终稿    | depends=[all]       | agent | done     | harpocrates-comparison-report.md 三方对照+总结论（本提交）
