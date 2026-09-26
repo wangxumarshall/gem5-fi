@@ -1,17 +1,40 @@
 #!/bin/sh
-# boot_ckpt.rcS — §3.2 FS checkpoint pipeline step 1 (Phase 5.2).
+# boot_ckpt.rcS — §3.2 FS checkpoint pipeline step 1 (Phase 5.2; M3 v2).
+#
 # Runs via `m5 readfile` after the Atomic boot reaches userspace.
 # Takes a checkpoint at the booted-bash point, then exits the sim so the
 # checkpoint directory is complete and reusable.
 #
+# M3 v2 (2026-09-26): the ORIGINAL version ended with `m5 exit` right after
+# the checkpoint — a restore from that checkpoint resumed INSIDE this script
+# and immediately hit `m5 exit`, so the restore run's --readfile (the
+# workload rcS) was never served and no payload ever ran (verified on
+# runs/fs_lsu/restore_smoke: terminal shows only "checkpoint taken; exiting"
+# with --readfile m2_ptrchase.rcS never dispatched).
+# Fix: a marker-guarded payload branch. The boot pass touches /tmp/ckpt_done
+# AFTER `m5 checkpoint` and exits; the checkpoint itself is taken BEFORE the
+# touch, so a restored guest sees NO marker and falls through to a fresh
+# `m5 readfile` — which serves the RESTORE run's --readfile (the payload
+# rcS), runs it, and exits. /tmp is tmpfs (serialized into the checkpoint),
+# so the marker correctly distinguishes the two passes.
+#
 # Pipeline (design doc §3.2 / risk table row 'FS 启动慢 / virtio_blk 挂起'):
 #   1. Atomic boot:  kp920_proxy_fs.py --cpu Atomic --readfile boot_ckpt.rcS
-#      (this script) -> m5 checkpoint -> m5 exit
-#   2. Restore:      --restore-checkpoint cpt.<tick> --cpu O3 (or Atomic)
-#      injectors mount at restore; firstClock is relative to the checkpoint
-#      tick (the config re-bases it — see arm_chaos_fs.py --ckpt_first_clock).
+#      (this script) -> m5 checkpoint -> marker -> m5 exit
+#   2. Restore:      --restore-checkpoint cpt.<tick> --cpu O3 \
+#                    --readfile <payload>.rcS [--ckpt-first-clock]
+#      resumes post-checkpoint, no marker -> serves <payload>.rcS -> runs it.
 #   3. ROI single fault -> collect -> classify (FS Crash = kernel panic/Oops).
 echo "[boot_ckpt.rcS] booted to userspace; taking checkpoint"
 m5 checkpoint
-echo "[boot_ckpt.rcS] checkpoint taken; exiting"
+if [ -f /tmp/ckpt_done ]; then
+    echo "[boot_ckpt.rcS] restore pass: dispatching payload"
+    m5 readfile > /tmp/payload.sh
+    echo "[boot_ckpt.rcS] payload: $(head -c 120 /tmp/payload.sh | head -1)"
+    sh /tmp/payload.sh
+    echo "[boot_ckpt.rcS] payload finished; exiting"
+    m5 exit
+fi
+touch /tmp/ckpt_done
+echo "[boot_ckpt.rcS] boot pass: checkpoint taken; exiting"
 m5 exit
