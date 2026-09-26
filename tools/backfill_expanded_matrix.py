@@ -976,7 +976,10 @@ def lsu_backfill(args):
                                     % (args.lsu_phase, lo, hi))
         else:
             # ---- blocked / deferred / N-A cell: resolver reason to col26 ----
-            if cur_status in ("", "待执行"):
+            # (runnable cells with no campaign data yet stay 待执行 — honest:
+            #  they were not run in this pass; resolve_cell's third value is
+            #  the BINARY name for runnable cells, not a block reason)
+            if flags is None and cur_status in ("", "待执行"):
                 row[LSU_COL["status"]] = reason
                 n_blocked += 1
 
