@@ -78,3 +78,13 @@ W8.1 Wave B4（96 路）完成检查（编排者职责，ETA ~18:00-18:30；M2 �
 ---
 
 W8.2 Int Rename 量产周期检查（编排者职责；47 子 campaign，96 路 300s，driver PID 1103502，log=runs/ooo_w82/driver_w82.log）。(A) 若 "W8.2 DONE" 已出现且 failed_campaigns=0——完成协议：①47 campaign results.jsonl 统计（33 格：每格 Masked/SDC/Crash/Hang/Inactive 分布 + Wilson CI；SDC>0 按裁决 13 调查协议：核注入证据日志→复核分类器→无懈可击即结果）②§5.5 完整性：OOM 污染检查（dmesg + 各格 Crash 与该 D 行机制预期比对）③回填 w82 全部格（tools/backfill_expanded_matrix.py --campaign runs/ooo_w82_d*各目录）→ tools/audit_expanded_matrix.py（G1 应从 205 降）④W8.2 数据单元提交（artifacts/ooo_w82_d* + CSV + 批次小结含 propagated% 传播轴）⑤启动 driver_w83.sh（守卫 P1=W8.2 DONE 自动放行）→ W8.3 燃烧⑥更新 PWF/记忆。(B) 未完成——driver 1103502 存活检查、无 CAMPAIGN FAILED 行、记录进度（已完成 stanza 数/外推 ETA）⑦注意 W8.2 的 F5 卡死行（D15/D22 等）与事件覆盖行（D14/D16/D18/D23/D24 等，n=2000 via 公式补丁）的吞吐差。(C) 异常——单 stanza 失败可确定性重跑（无断点续跑）；driver 死则重启剩余序列。全程更新 PWF。
+
+---
+
+<task-notification>
+<task-id>b47a3bszf</task-id>
+<tool-use-id>call_29b14108986442ea9d3bed5a</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi/12997ed0-faf3-4d19-b383-8b11c1b47de5/tasks/b47a3bszf.output</output-file>
+<status>completed</status>
+<summary>Background command "Relaunch fixed W8.2 watchdog" completed (exit code 0)</summary>
+</task-notification>
