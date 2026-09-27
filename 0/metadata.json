@@ -1,0 +1,164 @@
+{
+  "cli_version": "0.10.2",
+  "checkpoint_id": "01M3JB30H3Q7VXEBD5FFAGTKC4",
+  "session_id": "12997ed0-faf3-4d19-b383-8b11c1b47de5",
+  "strategy": "manual-commit",
+  "created_at": "2026-09-27T21:07:18.369140784Z",
+  "branch": "fi-ding",
+  "checkpoints_count": 2,
+  "save_step_count": 3,
+  "files_touched": [],
+  "agent": "Claude Code",
+  "model": "GLM-5.3[1m]",
+  "turn_id": "9ecf85fca59b",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 9725772,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 130793664,
+    "output_tokens": 298076,
+    "api_call_count": 302,
+    "subagent_tokens": {
+      "input_tokens": 0,
+      "cache_creation_tokens": 0,
+      "cache_read_tokens": 0,
+      "output_tokens": 0,
+      "api_call_count": 0
+    }
+  },
+  "skill_events_version": 1,
+  "skill_events": [
+    {
+      "id": "prompt-skill-claude-code-superpowers:executing-plans-2026-09-25T01:15:47.524406538Z",
+      "event_type": "prompt_invocation",
+      "skill": {
+        "name": "superpowers:executing-plans"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "prompt_slash_command",
+        "confidence": "explicit"
+      },
+      "turn_id": "9d6e5173887f",
+      "timestamp": "2026-09-25T01:15:47.524406538Z",
+      "native": {
+        "command": "/superpowers:executing-plans"
+      },
+      "collapse": {
+        "target": "user_message",
+        "label": "/superpowers:executing-plans",
+        "default_collapsed": true
+      }
+    },
+    {
+      "id": "prompt-skill-claude-code-goal-2026-09-26T01:38:39.622443851Z",
+      "event_type": "prompt_invocation",
+      "skill": {
+        "name": "goal"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "prompt_slash_command",
+        "confidence": "explicit"
+      },
+      "turn_id": "465b5779f22f",
+      "timestamp": "2026-09-26T01:38:39.622443851Z",
+      "native": {
+        "command": "/goal"
+      },
+      "collapse": {
+        "target": "user_message",
+        "label": "/goal",
+        "default_collapsed": true
+      }
+    }
+  ],
+  "session_metrics": {
+    "turn_count": 26
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    },
+    {
+      "checkpoint_number": 3,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    },
+    {
+      "checkpoint_number": 4,
+      "user_lines_added": 1123,
+      "user_lines_removed": 3,
+      "agent_lines_added": 282977,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        "artifacts/ooo_w82_d16_rat_emb_md5sum/heatmap.csv": 2,
+        "artifacts/ooo_w82_d16_rat_emb_md5sum/summary.md": 21,
+        "artifacts/ooo_w82_d16_rat_emb_minver/coverage.json": 11,
+        "artifacts/ooo_w82_d16_rat_emb_minver/heatmap.csv": 2,
+        "artifacts/ooo_w82_d16_rat_emb_minver/summary.md": 21,
+        "artifacts/ooo_w82_d16_rat_emb_nbody/coverage.json": 11,
+        "artifacts/ooo_w82_d16_rat_emb_nbody/heatmap.csv": 2,
+        "artifacts/ooo_w82_d16_rat_emb_nbody/summary.md": 21,
+        "artifacts/ooo_w82_d16_rat_emb_wikisort/coverage.json": 11,
+        "artifacts/ooo_w82_d16_rat_emb_wikisort/heatmap.csv": 2,
+        "artifacts/ooo_w82_d16_rat_emb_wikisort/summary.md": 21,
+        "artifacts/ooo_w82_d17_freelist_coremark/heatmap.csv": 2,
+        "artifacts/ooo_w82_d17_freelist_coremark/summary.md": 23,
+        "artifacts/ooo_w82_d17_freelist_coremark/tier_selection.json": 62,
+        "artifacts/ooo_w82_d17_freelist_dep_chain/heatmap.csv": 2,
+        "artifacts/ooo_w82_d17_freelist_dep_chain/summary.md": 23,
+        "artifacts/ooo_w82_d17_freelist_dep_chain/tier_selection.json": 64,
+        "artifacts/ooo_w82_d18_freelist_dep_chain/coverage.json": 3,
+        "artifacts/ooo_w82_d18_freelist_dep_chain/heatmap.csv": 2,
+        "artifacts/ooo_w82_d18_freelist_dep_chain/summary.md": 21,
+        "artifacts/ooo_w82_d19_freelist_dep_chain/heatmap.csv": 2,
+        "artifacts/ooo_w82_d19_freelist_dep_chain/summary.md": 23,
+        "artifacts/ooo_w82_d19_freelist_dep_chain/tier_selection.json": 49,
+        "artifacts/ooo_w82_d19_freelist_emb_crc32/heatmap.csv": 2,
+        "artifacts/ooo_w82_d19_freelist_emb_crc32/summary.md": 23,
+        "artifacts/ooo_w82_d19_freelist_emb_crc32/tier_selection.json": 50,
+        "artifacts/ooo_w82_d19_freelist_emb_matmult/heatmap.csv": 2,
+        "artifacts/ooo_w82_d19_freelist_emb_matmult/summary.md": 23,
+        "artifacts/ooo_w82_d19_freelist_emb_matmult/tier_selection.json": 50,
+        "artifacts/ooo_w82_d19_freelist_emb_md5sum/heatmap.csv": 2,
+        "artifacts/ooo_w82_d19_freelist_emb_md5sum/summary.md": 23,
+        "artifacts/ooo_w82_d19_freelist_emb_md5sum/tier_selection.json": 49,
+        "artifacts/ooo_w82_d19_freelist_emb_minver/heatmap.csv": 2,
+        "artifacts/ooo_w82_d19_freelist_emb_minver/summary.md": 23,
+        "artifacts/ooo_w82_d19_freelist_emb_minver/tier_selection.json": 49,
+        "artifacts/ooo_w82_d19_freelist_emb_nbody/heatmap.csv": 2,
+        "artifacts/ooo_w82_d19_freelist_emb_nbody/summary.md": 23,
+        "artifacts/ooo_w82_d19_freelist_emb_nbody/tier_selection.json": 49,
+        "artifacts/ooo_w82_d19_freelist_emb_wikisort/heatmap.csv": 2,
+        "artifacts/ooo_w82_d19_freelist_emb_wikisort/summary.md": 23,
+        "artifacts/ooo_w82_d19_freelist_emb_wikisort/tier_selection.json": 50,
+        "artifacts/ooo_w82_d20_freelist_coremark/heatmap.csv": 2,
+        "artifacts/ooo_w82_d20_freelist_coremark/summary.md": 23,
+        "artifacts/ooo_w82_d20_freelist_coremark/tier_selection.json": 63,
+        "artifacts/ooo_w82_d21_freelist_coremark/heatmap.csv": 2,
+        "artifacts/ooo_w82_d21_freelist_coremark/summary.md": 23,
+        "artifacts/ooo_w82_d21_freelist_coremark/tier_selection.json": 52,
+        "artifacts/ooo_w82_d22_freelist_coremark/heatmap.csv": 2,
+        "artifacts/ooo_w82_d22_freelist_coremark/summary.md": 19,
+        "artifacts/ooo_w82_d22_freelist_dep_chain/heatmap.csv": 2,
+        "artifacts/ooo_w82_d22_freelist_dep_chain/summary.md": 19,
+        "artifacts/ooo_w82_d23_rat_branch_mispred/coverage.json": 11,
+        "artifacts/ooo_w82_d23_rat_branch_mispred/heatmap.csv": 2,
+        "artifacts/ooo_w82_d23_rat_branch_mispred/summary.md": 21,
+        "artifacts/ooo_w82_d24_rat_branch_mispred/coverage.json": 11,
+        "artifacts/ooo_w82_d24_rat_branch_mispred/heatmap.csv": 2,
+        "artifacts/ooo_w82_d24_rat_branch_mispred/summary.md": 21
+      },
+      "user_removed_per_file": {
+        "artifacts/ooo_w82_d18_freelist_dep_chain/coverage.json": 3
+      }
+    }
+  ]
+}
