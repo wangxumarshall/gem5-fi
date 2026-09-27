@@ -2829,3 +2829,11 @@ Cache-DirtyEvict + Prefetch-Stride (全部 gem5==native)
 - **时效教训**: m2_ptrchase 2000 轮 fork/exec 在 O3 restore 上耗时 ~12h (每 fork ~20s) — 不可用于 trial 规模
 - **oracle 缺口**: /proc/schedstat 在该内核不可用(m2_ptrchase rounds ok=0/2000, 无 SDC 判别信号)
 - 对策: tlb_probe.rcS(T 系负载) — md5sum 1MiB 零页 x 10 轮(drop_caches 强制 re-fault), fork 预算 ~2/轮(~10min/run), md5 为 oracle, TLB lookup 压力天然
+
+### M3-T3 完成: TLB FS 注入冒烟三证齐全(2026-09-27 晨, ~4min/run)
+
+- 注入: armtlb_injections.log "Site: arm_tlb_lookup_hit VA:0xffffffc009483eb0(内核页) old_pfn:0x81d75->new_pfn:0x85d75 Mask:0x4000"
+- 结局: "Internal error: Oops: 86000004" — pfn bit_flip→错页→内核 Oops = Crash 通道(物理预期一致, 与姊妹仓 method2 TLB 内核活跃 regime 100% Oops 同构)
+- FS 分类链: Kernel-oops-in-guest 退出事件 → dmesg dump → arm_chaos_fs "classify: Crash/DUE per fs_mode" 全链工作
+- 时效: ~4min/restore+payload(tlb_probe fork 预算生效) → T 系 42 格 x 5 seeds ÷ 2 槽 ≈ 7h 可行
+- checkpoint: runs/fs_lsu/boot/cpt.237949797015 为 T 系正式基线
