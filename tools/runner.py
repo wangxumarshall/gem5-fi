@@ -217,7 +217,7 @@ def run_commit_diff(ref_path, run_path):
     try:
         r = subprocess.run([sys.executable, cd, "--ref", ref_path,
                             "--run", run_path, "--json", jpath],
-                           capture_output=True, text=True, timeout=600,
+                           capture_output=True, text=True, errors="replace", timeout=600,
                            env=env)
     except subprocess.TimeoutExpired:
         return {"l2_error": "commit_diff exceeded 600s"}
@@ -344,7 +344,7 @@ def run_fanout(trace_path, phys_id):
     try:
         r = subprocess.run([sys.executable, fo, "--trace", trace_path,
                             "--phys", str(phys_id), "--json", jpath],
-                           capture_output=True, text=True, timeout=600,
+                           capture_output=True, text=True, errors="replace", timeout=600,
                            env=env)
     except subprocess.TimeoutExpired:
         return {"l3_error": "fanout exceeded 600s"}
@@ -1455,7 +1455,7 @@ def main():
     child_env = dict(os.environ)
     child_env.setdefault("PYTHONHASHSEED", "0")
     try:
-        r = subprocess.run(cmd, capture_output=True, text=True,
+        r = subprocess.run(cmd, capture_output=True, text=True, errors="replace",
                            timeout=HANG_TIMEOUT, env=child_env)
     except subprocess.TimeoutExpired as e:
         timed_out = True
