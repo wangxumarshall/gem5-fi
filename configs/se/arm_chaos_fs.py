@@ -94,6 +94,10 @@ p.add_argument("--tlb_max_faults", type=lambda x:int(x,0), default=1,
                help="CHAOSArmTLB max faults; 1 for single-fault")
 p.add_argument("--tlb_fault_mask", type=lambda x:int(x,0), default=0,
                help="CHAOSArmTLB 64-bit pfn mask; 0=random")
+# M3 W7 (T02, 02 r3): number of pfn bits to flip when faultMask=0 — the
+# mount previously hardcoded bitsToChange=1, so 2-bit models were unreachable.
+p.add_argument("--tlb_bits_to_change", type=lambda x:int(x,0), default=1,
+               help="CHAOSArmTLB pfn bits to flip when faultMask=0 (T02=2)")
 p.add_argument("--tlb_rng_seed", type=lambda x:int(x,0), default=20260825)
 p.add_argument("--tlb_protection_model", default="none",
                choices=["none","parity_interleaved"],
@@ -237,7 +241,7 @@ if args.chaos_armtlb or args.chaos_sysreg or args.chaos_ptw or args.chaos_phys o
             firstClock=args.tlb_first_clock,
             faultType=args.tlb_fault_type,
             faultMask=args.tlb_fault_mask,
-            bitsToChange=1,
+            bitsToChange=args.tlb_bits_to_change,
             maxFaults=args.tlb_max_faults,
             rngSeed=args.tlb_rng_seed,
             protectionModel=args.tlb_protection_model,

@@ -151,7 +151,30 @@ MODEL_FLAGS = {
     "O01": ("exmon", ["--exmon_mode", "o01_monitor_addr_bitflip"]),
     "O02": ("exmon", ["--exmon_mode", "o02_monitor_state_corrupt"]),
     "O03": ("exmon", ["--exmon_mode", "stxr_force_fail"]),  # status-flip semantics
+    # --- TLB (W7 / M3 plan Task 5): FS-only family on lsu_b0_fs + B0 cpt.
+    # faultType surface verified on arm_chaos_fs.py:81-100 (T3 smoke real run).
+    # HONEST approximations: T10's low/mid/high pfn-bit banding submodel is
+    # NOT parameterized in CHAOSArmTLB (random-bit only) — T10 rides T01's
+    # bit_flip with the campaign seed driving bit choice (noted per-cell).
+    "T01": ("armtlb", ["--tlb_fault_type", "bit_flip"]),
+    "T02": ("armtlb", ["--tlb_fault_type", "bit_flip",
+                       "--tlb_bits_to_change", "2"]),
+    "T03": ("armtlb", ["--tlb_fault_type", "stuck_at_zero"]),  # stuck1 by seed parity
+    "T04": ("armtlb", ["--tlb_fault_type", "pfn_to_mapped_page"]),
+    "T10": ("armtlb", ["--tlb_fault_type", "bit_flip"]),  # approx: no banding submodel
 }
+
+# ---- FS carrier (M3 plan Task 5/6 decision tree) ----
+# T-cell design workloads (MiBench/TLB-AliasPerm/GAP) have no binaries on the
+# stock ubuntu image; SPEC stays license-blocked. Runnable T-cells execute on
+# the tlb_probe.rcS carrier (kernel/user mixed TLB pressure + md5 oracle) —
+# the substitution is recorded in the backfill note, never silent.
+FS_CONFIG = REPO / "configs/fs/lsu_b0_fs.py"
+FS_CARRIER_RC = REPO / "configs/fs/tlb_probe.rcS"
+FS_KERNEL = REPO / "gem5-fs/vmlinux"
+FS_DISK = REPO / "gem5-fs/ubuntu.img"
+FS_BOOTLOADER = REPO / "gem5-fs/boot.arm64"
+TLB_PROBE_GOLDEN = "b6d81b360a5672d80c27430f39153e2c"  # md5 of 1 MiB zeros (host-computed)
 # Model-level blocks (never silently skipped; the reason lands in col26/27).
 MODEL_BLOCKED = {
     # notify-only event sources — consumer-side corruption NOT implemented
@@ -172,12 +195,14 @@ MODEL_BLOCKED = {
     "T09": "不适用(B0无保护)",
     "C13": "不适用(B0无保护)",
     "O08": "不适用(B0无保护)",
-    # TLB models: SE-inert by construction (W1 ③: SE translateSe never
-    # calls TLB::lookup) — every T cell is workload-blocked anyway; the
-    # model-level block makes the classification robust even if a T cell
-    # ever appeared on an SE workload.
-    **{f"T{i:02d}": "blocked(fs-infra: TLB::lookup zero-call in SE, W1 ③)"
-       for i in range(1, 11)},
+    # TLB models: T05-T08 modes NOT yet implemented in CHAOSArmTLB (W7
+    # follow-up — M3 plan Task 7 Step 3); T01-T04/T10 are mapped (armtlb
+    # family above), T09 is B0-N/A below. The old blanket T01-T10 block
+    # fired before MODEL_FLAGS and masked the new FS routing (dry-run caught).
+    "T05": "deferred(mode unimplemented: valid/global/ASID state)",
+    "T06": "deferred(mode unimplemented: permission legal-substitution)",
+    "T07": "deferred(mode unimplemented: hit fabrication/way select)",
+    "T08": "deferred(mode unimplemented: walk pairing)",
 }
 # O05-O07 are multicore-semantic models — their cells sit on Atomic-Litmus/
 # PARSEC (workload-blocked); add the model-level reason for robustness.
@@ -239,14 +264,24 @@ def resolve_cell(cell):
     Every cell resolves to exactly one of: runnable flags, or a blocked/
     deferred/N-A reason string. No cell may resolve to 'not mapped' —
     main() asserts this (CLAUDE.md: half-routed components are rejected).
+    FS families (armtlb) resolve to an FS flag set with the tlb_probe
+    carrier; their golden is the host-computed payload oracle.
     """
     model = cell[COL_MODEL].strip()
     freq = cell[COL_FREQ].strip()
     workload = cell[COL_WORKLOAD].strip()
 
-    # 1. workload-level block (FS / multicore-FS / SPEC license)
+    # 1. workload-level block (FS / multicore-FS / SPEC license). SPEC stays
+    #    blocked even for FS-family models — the license gap is workload-real
+    #    and a carrier substitution cannot honor it (T6 decision, honest).
     for key, reason in WL_BLOCKED.items():
         if key in workload:
+            if model in MODEL_FLAGS and MODEL_FLAGS[model][0] == "armtlb" \
+                    and key == "SPEC":
+                return None, None, reason
+            if model in MODEL_FLAGS and MODEL_FLAGS[model][0] == "armtlb":
+                # MiBench / TLB-AliasPerm / GAP carriers: runnable via FS
+                continue
             return None, None, reason
     # 2. model-level block / deferral / N-A
     if model in MODEL_BLOCKED:
@@ -254,6 +289,18 @@ def resolve_cell(cell):
     # 3. model must have a mapping
     if model not in MODEL_FLAGS:
         return None, None, f"NOT-MAPPED(model {model})"
+    family, extra = MODEL_FLAGS[model]
+
+    # 3a. FS family: B0 platform + checkpoint restore + tlb_probe carrier
+    if family == "armtlb":
+        flags = ["--kernel", str(FS_KERNEL), "--disk", str(FS_DISK),
+                 "--bootloader", str(FS_BOOTLOADER), "--cpu", "O3",
+                 "--readfile", str(FS_CARRIER_RC), "--ckpt-first-clock",
+                 "--chaos_armtlb", "--tlb_first_clock", "1000",
+                 "--tlb_probability", "1.0",
+                 "--tlb_max_faults", "1"] + extra
+        return flags, TLB_PROBE_GOLDEN, "fs:tlb_probe"
+
     # 4. workload must have an SE binary + golden
     binary = None
     for key, bin_name in WL_BINARY.items():
@@ -264,7 +311,6 @@ def resolve_cell(cell):
         return None, None, f"NOT-MAPPED(workload {workload[:40]})"
     golden = GOLDENS[binary]
 
-    family, extra = MODEL_FLAGS[model]
     flags = ["--cmd", str(REPO / "workloads/directed" / binary), "--cpu", "O3"]
     flags += FAMILY_MOUNT[family]
     flags += FAMILY_TIER_FLAGS[family](freq)
@@ -291,6 +337,61 @@ def classify_run(outdir, stdout_file, golden, exit_code, stderr_file=None):
     return {"outcome": "Unclassified", "error": r.stderr[:200] if r.stderr else "unknown"}
 
 
+def classify_fs_run(outdir, run_stdout, exit_code):
+    """L5 classification for one FS (armtlb) run.
+
+    Channels (T3 smoke-verified physics):
+      Crash: kernel Oops — guest terminal 'Internal error: Oops' or the gem5
+             log 'Kernel oops in guest' (crash_kind=kernel_oops)
+      SDC:   tlb_probe oracle line present but wrong — md5 != host-computed
+             golden (b6d81...) or rounds ok<10 (some round mismatched)
+      Masked: oracle line with golden md5 AND ok==10
+      Timeout: driver-killed (handled by caller)
+    Injected: armtlb_injections.log 'Site: ' lines (the injector logs
+    'Tick: ..., Site: arm_tlb_lookup_hit, ...'); activated=injected
+    (near-tautological proxy, same documented class as other injectors).
+    """
+    import re as _re
+    terminal = ""
+    tf = outdir / "board.terminal"
+    if tf.exists():
+        terminal = tf.read_text(errors="replace")
+    injected = 0
+    ilog = outdir / "armtlb_injections.log"
+    if ilog.exists():
+        injected = sum(1 for ln in ilog.read_text(errors="replace").splitlines()
+                       if "Site: " in ln)
+    out = {"injected": injected, "activated": injected,
+           "attempted": None, "eligible": None, "checksum": None}
+    if "Oops" in terminal or "Kernel oops in guest" in run_stdout:
+        out.update(outcome="Crash", crash_kind="kernel_oops")
+    else:
+        m = _re.findall(r"\[tlb_probe\.rcS\] ([0-9a-f]{32}) rounds ok=(\d+)/10",
+                        terminal)
+        if m:
+            md5, ok = m[-1]
+            out["checksum"] = md5
+            out["rounds_ok"] = int(ok)
+            if md5 != TLB_PROBE_GOLDEN or int(ok) < 10:
+                out["outcome"] = "SDC"
+            else:
+                out["outcome"] = "Masked"
+        elif exit_code != 0:
+            out.update(outcome="Crash", crash_kind="guest_or_unknown")
+        else:
+            # clean exit but no oracle line — the guest died between restore
+            # and payload (unclassifiable without more evidence; honest)
+            out["outcome"] = "Unclassified"
+    oc = out["outcome"]
+    classes = {k: 0 for k in ("Masked", "Detected/Contained", "SDC",
+                              "Crash", "Timeout")}
+    if oc in classes and injected:
+        classes[oc] = injected
+    out["classes"] = classes
+    out["mode"] = "FS"
+    return out
+
+
 def run_single_cell(cell, args, seed, outdir):
     """Run one gem5 invocation for a single cell×seed. Returns classification dict."""
     runid = cell[COL_RUNID]
@@ -301,6 +402,34 @@ def run_single_cell(cell, args, seed, outdir):
         return {"outcome": "Blocked", "error": golden}
 
     family = MODEL_FLAGS[model][0]
+    outdir.mkdir(parents=True, exist_ok=True)
+
+    # ---- FS family (armtlb): lsu_b0_fs + checkpoint restore + carrier ----
+    if family == "armtlb":
+        if not args.fs_checkpoint:
+            return {"outcome": "Blocked",
+                    "error": "FS cells need --fs-checkpoint (B0 cpt)"}
+        cmd = [str(G5), "--outdir", str(outdir), str(FS_CONFIG)]
+        cmd += ["--restore-checkpoint", args.fs_checkpoint]
+        cmd += flags
+        cmd += ["--tlb_rng_seed", str(seed)]
+        # T03 stuck0/stuck1 alternate by seed parity (both sub-modes sampled)
+        if model == "T03":
+            i = cmd.index("--tlb_fault_type")
+            cmd[i + 1] = "stuck_at_zero" if seed % 2 else "stuck_at_one"
+        try:
+            proc = subprocess.run(cmd, capture_output=True, text=True,
+                                  timeout=args.fs_timeout)
+            (outdir / "run.out").write_text(proc.stdout)
+            (outdir / "run.err").write_text(proc.stderr)
+            exit_code = proc.returncode
+        except subprocess.TimeoutExpired:
+            (outdir / "run.out").write_text("")
+            (outdir / "run.err").write_text("TIMEOUT")
+            return {"outcome": "Timeout", "injected": 0, "activated": 0}
+        return classify_fs_run(outdir, proc.stdout, exit_code)
+
+    # ---- SE families ----
     cmd = [str(G5), "--outdir", str(outdir), str(LSU_PROXY)]
     cmd += flags
     cmd += [FAMILY_SEED[family], str(seed)]
@@ -312,7 +441,6 @@ def run_single_cell(cell, args, seed, outdir):
         i = cmd.index("--addrpath_mode")
         cmd[i + 1] = "a03_stuck0" if seed % 2 else "a03_stuck1"
 
-    outdir.mkdir(parents=True, exist_ok=True)
     stdout_file = outdir / "run.out"
     stderr_file = outdir / "run.err"
     try:
@@ -379,6 +507,13 @@ def main():
     p.add_argument("--timeout", type=int, default=300,
                    help="per-run wall-clock seconds — absolute cap (05 r17; all "
                          "SE workloads run 10-40s, so 300s > 10x any golden)")
+    # ---- FS (armtlb family / M3) ----
+    p.add_argument("--fs-checkpoint", default=None,
+                   help="B0 checkpoint dir (runs/fs_lsu/boot_b0/cpt.*) — "
+                        "required for T-cell runs")
+    p.add_argument("--fs-timeout", type=int, default=1800,
+                   help="FS per-run wall-clock cap (05 r17 FS: restore+payload "
+                        "~4 min measured, 30 min absolute cap)")
     a = p.parse_args()
     if a.n_seeds is not None:
         a.max_seeds_per_cell = a.n_seeds
