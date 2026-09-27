@@ -1,0 +1,2 @@
+target_index,field,width_bits,sub_field,fault_model,protection_model,n_total,n_valid,n_inactive,n_simerror,P_SDC,P_SDC_lo,P_SDC_hi,P_DUE,P_DUE_lo,P_DUE_hi,Reach,Reach_lo,Reach_hi,frozen
+-1,map,7,swap_to_active,legal_domain_sub,none,4000,3954,0,46,0.0020,0.0010,0.0040,0.4201,0.4048,0.4355,1.0000,0.9990,1.0000,0

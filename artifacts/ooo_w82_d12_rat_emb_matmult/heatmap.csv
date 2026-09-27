@@ -1,0 +1,2 @@
+target_index,field,width_bits,sub_field,fault_model,protection_model,n_total,n_valid,n_inactive,n_simerror,P_SDC,P_SDC_lo,P_SDC_hi,P_DUE,P_DUE_lo,P_DUE_hi,Reach,Reach_lo,Reach_hi,frozen
+-1,map,7,map_bitflip2,local_mbu,none,668,504,164,0,0.0000,0.0000,0.0076,0.5079,0.4644,0.5514,0.7545,0.7205,0.7856,0

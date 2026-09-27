@@ -1,0 +1,2 @@
+target_index,field,width_bits,sub_field,fault_model,protection_model,n_total,n_valid,n_inactive,n_simerror,P_SDC,P_SDC_lo,P_SDC_hi,P_DUE,P_DUE_lo,P_DUE_hi,Reach,Reach_lo,Reach_hi,frozen
+-1,free_list,7,drop_release,delay_omission,none,334,181,153,0,0.0000,0.0000,0.0208,0.0000,0.0000,0.0208,0.5419,0.4883,0.5946,0
