@@ -1,0 +1,35 @@
+#!/bin/sh
+# tlb_probe.rcS — T-series FS payload (M3 plan Task 3/6): TLB page-walk
+# pressure + checksum oracle, fork-budgeted for O3 restore runs.
+#
+# Design notes (informed by the m2_ptrchase measurement, 2026-09-27):
+#   - m2_ptrchase.rcS took ~12h on the O3 restore (2000 x fork/exec of cat
+#     ~= 20s each on gem5 O3). THIS payload caps forks at ~2/round:
+#     drop_caches echo + md5sum. 10 rounds ~= 20 forks ~= 10 min.
+#   - TLB eligibility: md5sum streams 1 MiB (256 x 4KiB pages) per round —
+#     every page read goes through TLB::lookup (hits AND misses; the
+#     CHAOSArmTLB hook fires on lookup). drop_caches evicts the page cache
+#     so rounds re-fault pages (walk-heavy); if unavailable (non-root or
+#     procfs restricted) the reads are still lookup-heavy — honest either way.
+#   - Oracle: md5 of 1 MiB of zeros is deterministic; GOLD is computed once
+#     in-guest, each round re-computes and must match. Final line carries
+#     both values for the FS classifier:
+#       "[tlb_probe.rcS] md5=<hex> rounds ok=<N>/10"
+#     SDC channel: a corrupted round yields ok<N with the same md5 line
+#     (or a wrong md5 if the GOLD computation itself was corrupted);
+#     Crash channel: TLB pfn corruption -> wrong page -> kernel Oops/panic.
+echo "[tlb_probe.rcS] starting TLB page-walk probe"
+head -c 1048576 /dev/zero > /tmp/pg
+GOLD=$(md5sum /tmp/pg)
+ok=0
+i=0
+while [ $i -lt 10 ]; do
+    echo 3 > /proc/sys/vm/drop_caches 2>/dev/null
+    H=$(md5sum /tmp/pg)
+    case "$H" in
+        "$GOLD") ok=$((ok+1)) ;;
+    esac
+    i=$((i+1))
+done
+echo "[tlb_probe.rcS] ${GOLD%% *} rounds ok=$ok/10"
+m5 exit

@@ -2821,3 +2821,11 @@ Cache-DirtyEvict + Prefetch-Stride (全部 gem5==native)
 - 用户确认 ooo = docs/gem5-fi/ooo 项目(226 格网格); T13 收割(149 campaign)理解正确
 - **新发现缺口**: ooo 05-expanded-matrix.csv 仅 4/226 行有结果值(其 W9 回填交付未完成); manifest 无 design_unit_id/experiment_cell_id(grep 零命中) → 回填需显式 cell-map(由收割 CSV × 矩阵 join 构建); 全姊妹仓扫描 300s 超时 → 须定向传 149 个 campaign 目录
 - 登记为 T16: ooo 226 格回填 + 元分析(M3 关键路径之后)
+
+### M3-T2 机制验证通过 + 负载时效教训(2026-09-27 晨)
+
+- v3 内容分派闭环: restore 遍终端 "restore pass: dispatching payload" -> "payload head: # m2_ptrchase.rcS" -> 负载执行 -> exit=0 (runs/fs_lsu/restore_v3)
+- checkpoint: runs/fs_lsu/boot/cpt.237949797015 (v3, 内容分派版)
+- **时效教训**: m2_ptrchase 2000 轮 fork/exec 在 O3 restore 上耗时 ~12h (每 fork ~20s) — 不可用于 trial 规模
+- **oracle 缺口**: /proc/schedstat 在该内核不可用(m2_ptrchase rounds ok=0/2000, 无 SDC 判别信号)
+- 对策: tlb_probe.rcS(T 系负载) — md5sum 1MiB 零页 x 10 轮(drop_caches 强制 re-fault), fork 预算 ~2/轮(~10min/run), md5 为 oracle, TLB lookup 压力天然
