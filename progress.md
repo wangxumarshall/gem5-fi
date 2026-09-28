@@ -2861,3 +2861,14 @@ Cache-DirtyEvict + Prefetch-Stride (全部 gem5==native)
 - **bug 2**: CHAOSArmTLB 无 events_to_skip(采样偏差家族第 9 员, 姊妹仓 Phase 3.0 修 8 个时的 FS-only 漏网) — 全 seed 命中同一确定 entry
 - 真实画面: 5/5 注入, ~60% Crash + ~40% Timeout/Hang + 0 SDC(TC'22: Crash~50%+Hang~10%+SDC<1%)
 - 修复 9187ef28: 超时读 log 保留证据 + geometric(0.1) skip; 构建零警告; skip 验证(2 seed 注入点应分散)进行中
+
+### 暂停: 方案升级 V1.0 -> V2.0(2026-09-28, 用户指令)
+
+**暂停点状态**（V2.0 就绪面, 恢复时从这里继续）:
+
+- skip 修复验证通过(最后一个在跑项的决定性结果): seed1 VA=0xffffffc009483fa8 vs seed2 VA=0xffffffc009483eb8 — 注入点已按 seed 分散(旧: 全部固定 0xffffffc009483eb0); 2 个验证 gem5 进程自行跑完, 无后续依赖
+- M3 进度: T1-T6 完成(FS 管线/真 B0 平台/campaign FS 路由); T7 锚点第一轮完成+两个工具 bug 修复(9187ef28: 超时证据保留+TLB 几何 skip) — **锚点第二轮重跑是恢复后的第一个动作**(命令: 同第一轮, --fs-checkpoint runs/fs_lsu/boot_b0/cpt.237949797015)
+- M4 未开始(双核/litmus/O05-O07); T05-T08 模式未实现(deferred); T16 ooo 226 格回填未开始
+- 已交付且不受 V2.0 影响的资产: SE 侧 177 格 trial + 元分析(10/11 文档)、ooo 收割 149 campaign、竞争矩阵 28 篇、论文骨架、FS checkpoint 流水线(v3 内容分派)、真 B0 平台(assoc=32 三证)、CHAOSPrefetch/ExMon O 模式
+- **V2.0 升级需要重新对照的点**: 337 格网格规格(模型/负载/频率档是否变化)、B0 参数、锚点判据、milestone 定义 — V2.0 文档到位后先做差异审计再续跑
+- 活跃 goal(完成 M3/M4+ooo 综合)随暂停挂起, 待 V2.0 基准重设
