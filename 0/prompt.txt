@@ -1,0 +1,1 @@
+/planning-with-files:planning-with-files 深刻理解本项目源码，调用excel skill，深度理解 @docs/gem5-fi/ooo/gem5-fi-OoO单元故障注入方案V2.0.xlsx 目录中内容(要实现CPU的乱序执行OoO微架构的故障注入，该目录是ooo实现的北极星和完整的实现方案)，要求你制定实现OOO故障注入研究与实验的宏伟计划。有实现最终以 @docs/gem5-fi/ooo/gem5-fi-OoO单元故障注入方案V2.0.xlsx 为准，如果遇到冲突。如果V1.0有冲突，要以V2.0为准。要求你调用subagent加速运行
