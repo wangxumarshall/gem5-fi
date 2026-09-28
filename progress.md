@@ -2852,3 +2852,12 @@ Cache-DirtyEvict + Prefetch-Stride (全部 gem5==native)
 - restore+tlb_probe oracle 通过: b6d81b360a5672d80c27430f39153e2c rounds ok=10/10 (真 B0 平台)
 - checkpoint tick 237949797015 与默认配置相同 — 预期物理: Atomic 模式页表走查为功能性访问(零 tick), TLB 大小不影响 boot 时序; 权威证据是 config.ini/print("MUST DIFFER" 启发式判断错误, 如实修正)
 - 真 B0 checkpoint: runs/fs_lsu/boot_b0/cpt.237949797015 — T 系正式基线
+
+### M3-T7 锚点第一轮: 表面 Crash=100% 实为两个工具 bug 的伪影(2026-09-28)
+
+- T01 trial 6 格 x 5 seeds(真 B0 平台): 表面 18/18 Crash=100%, SDC=0
+- 逐 seed 诊断: 每格 5/5 都注入(inj=1 x5, 同 VA 0xffffffc009483eb0 kernel 页只变 bit) — 3/5 快速 Oops(bit11 类), 2/5 存活慢进(bit63 类, guest 0.28s/30min wall 翻译错误循环)
+- **bug 1**: campaign FS 超时路径硬编码 injected=0 丢弃注入证据(6e0dcd52 家族) — Timeout 通道被清空
+- **bug 2**: CHAOSArmTLB 无 events_to_skip(采样偏差家族第 9 员, 姊妹仓 Phase 3.0 修 8 个时的 FS-only 漏网) — 全 seed 命中同一确定 entry
+- 真实画面: 5/5 注入, ~60% Crash + ~40% Timeout/Hang + 0 SDC(TC'22: Crash~50%+Hang~10%+SDC<1%)
+- 修复 9187ef28: 超时读 log 保留证据 + geometric(0.1) skip; 构建零警告; skip 验证(2 seed 注入点应分散)进行中
