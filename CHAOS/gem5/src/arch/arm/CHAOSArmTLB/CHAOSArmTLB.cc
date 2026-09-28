@@ -30,6 +30,12 @@ namespace gem5
             }
             stats = std::make_unique<CHAOSArmTLBStats>(this);
             rng.seed(rng_seed != 0 ? rng_seed : rd());
+            // Sampling-bias fix (9th member of the geometric-skip family,
+            // see CHAOSArmTLB.hh): skip a seed-dependent number of eligible
+            // events so maxFaults=1 lands on a VARIED lookup, not the
+            // deterministic first post-window hit.
+            std::geometric_distribution<uint64_t> skip_dist(0.1);
+            events_to_skip = skip_dist(rng);
             random_fault_distribution = std::discrete_distribution<int>(
                 {0.9, 0.05, 0.05});  // bit_flip / stuck0 / stuck1
             // SELF-ATTACH to the target TLB (same pattern as CHAOSLSQFwd:
@@ -150,6 +156,11 @@ namespace gem5
         // Probability gate: per-lookup Bernoulli.
         std::uniform_real_distribution<float> probDist(0.0f, 1.0f);
         if (probDist(rng) > probability) return;
+
+        // Sampling-bias fix (see .hh): consume the skip budget on ELIGIBLE
+        // events (past the entry + probability gates) before the first
+        // fault, so distinct seeds inject at distinct lookup sites.
+        if (events_to_skip > 0) { --events_to_skip; return; }
 
         FaultType chosen = fault_type_enum;
         if (fault_type_enum == FaultType::Random) {

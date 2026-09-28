@@ -56,6 +56,15 @@ class CHAOSArmTLB : public SimObject
     Cycles first_clock, last_clock;
     uint64_t max_faults, faults_injected_count;
     uint64_t rng_seed;
+    // Sampling-bias fix (the 9th member of the geometric-skip family —
+    // the sister track fixed 8 SE injectors in Phase 3.0; this FS-only
+    // injector was deferred to the FS pipeline round, which is now).
+    // Without it, maxFaults=1 lands on the DETERMINISTIC first eligible
+    // lookup after the window opens — the T01 anchor trial showed all 5
+    // seeds hitting the same kernel VA (0xffffffc009483eb0), varying only
+    // the bit. Drawn geometric(0.1) from rngSeed in the ctor; consumed
+    // on eligible events (post probability-gate) before the first fault.
+    uint64_t events_to_skip = 0;
     bool write_log;
     std::string protection_model;  // §1.2 protection-aware layer
 

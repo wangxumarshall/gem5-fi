@@ -426,7 +426,23 @@ def run_single_cell(cell, args, seed, outdir):
         except subprocess.TimeoutExpired:
             (outdir / "run.out").write_text("")
             (outdir / "run.err").write_text("TIMEOUT")
-            return {"outcome": "Timeout", "injected": 0, "activated": 0}
+            # Evidence-preserving timeout (the 6e0dcd52 family): a killed
+            # run may already carry injections — read the log and classify
+            # Timeout WITH the activated count. The T01 anchor trial hid
+            # 2/5 runs per cell this way (injected bit-63 corruptions that
+            # survived as slow-progress runs; killed at the 30-min cap with
+            # injected=0 — the Timeout channel was silently empty).
+            inj = 0
+            ilog = outdir / "armtlb_injections.log"
+            if ilog.exists():
+                inj = sum(1 for ln in
+                          ilog.read_text(errors="replace").splitlines()
+                          if "Site: " in ln)
+            classes = {k: 0 for k in ("Masked", "Detected/Contained", "SDC",
+                                      "Crash", "Timeout")}
+            classes["Timeout"] = inj
+            return {"outcome": "Timeout", "injected": inj, "activated": inj,
+                    "classes": classes, "mode": "FS"}
         return classify_fs_run(outdir, proc.stdout, exit_code)
 
     # ---- SE families ----
