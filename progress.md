@@ -2845,3 +2845,10 @@ Cache-DirtyEvict + Prefetch-Stride (全部 gem5==native)
 - **波及(诚实)**: 姊妹仓 /home/sdc/gem5-fi 的全部经 kp920_proxy_fs.py 跑的 FS 结果(method2 三臂/AGU 100% DUE/TLB formal/tlbf5)实际运行在 gem5 默认 O3 参数上, 平台标注 "C2-KP V110" 不成立 — 注入机理与分类结论不受影响, 平台标签需修正
 - **修复**: 平台参数移入 arm_chaos_fs.py 主体(--v110_params/--lsu_b0, Simulator 构建前应用); 两包装改 argv 垫片(注入旗标后 exec); B0 checkpoint 作废重采
 - tlb_probe oracle 已验证: b0_restore_smoke "b6d81b36... rounds ok=10/10"(in-guest md5 == host golden)
+
+### M3-T4 完成: 真 B0 平台验证(2026-09-28, 修复后第4次boot)
+
+- 三证: ①boot 遍 print "[arm_chaos_fs] LSU-B0 applied: DTLB=32 (boot CPU: no LQ/SQ)" ②config.ini dtb assoc=32(修复前64) ③restore 遍 "LSU-B0 applied: DTLB=32 LQ=16 SQ=16" + config.ini LQEntries=16
+- restore+tlb_probe oracle 通过: b6d81b360a5672d80c27430f39153e2c rounds ok=10/10 (真 B0 平台)
+- checkpoint tick 237949797015 与默认配置相同 — 预期物理: Atomic 模式页表走查为功能性访问(零 tick), TLB 大小不影响 boot 时序; 权威证据是 config.ini/print("MUST DIFFER" 启发式判断错误, 如实修正)
+- 真 B0 checkpoint: runs/fs_lsu/boot_b0/cpt.237949797015 — T 系正式基线
