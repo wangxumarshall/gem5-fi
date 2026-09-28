@@ -78,6 +78,22 @@ p.add_argument("--ckpt-first-clock", action="store_true", default=False,
                help="rebase --tlb_first_clock/--sysreg_first_clock to be "
                     "RELATIVE to the checkpoint tick (read from the ckpt's "
                     "m5out/tick file)")
+# ---- Platform parameter presets (M3 T4 fix, 2026-09-28) ----
+# HONEST FIX: the V110/B0 deltas were previously applied by
+# kp920_proxy_fs.py / lsu_b0_fs.py AFTER exec'ing this script — but this
+# script ends with simulator.run(), so those post-exec hook assignments
+# were DEAD CODE (never executed; evidence: V110/B0 prints absent from all
+# logs, both boots produced identical ticks, config.ini shows dtb
+# assoc=64). Platform params now live HERE, applied in-body BEFORE the
+# Simulator is constructed. Every FS run made through the old wrappers ran
+# with DEFAULT gem5 params despite the wrapper labels.
+p.add_argument("--v110_params", action="store_true",
+               help="apply TaiShan V110 O3 params (C2-KP point): width=4, "
+                    "ROB=128, physInt=160, physFloat=192, LQ=48, SQ=42 "
+                    "(docs/kunpeng.md §3)")
+p.add_argument("--lsu_b0", action="store_true",
+               help="apply LSU-B0 params (09 §3 W7 / 02 table): DTLB=32 "
+                    "(S1 sensitivity restores 64), LQ=16, SQ=16")
 # Phase 3 §六.4 item 3: CHAOSArmTLB TLB-entry injector (FS only).
 p.add_argument("--chaos_armtlb", action="store_true",
                help="attach CHAOSArmTLB (ARM TLB-entry pfn corruptor)")
@@ -416,6 +432,47 @@ def _kernel_oops_exit():
     print("[arm_chaos_fs] KERNEL OOPS under fault — exiting (classify: "
           "Crash/DUE per fs_mode)")
     return True  # exit the simulation loop
+
+# ---- Platform preset application (M3 T4 fix, 2026-09-28) ----
+# In-body, BEFORE the Simulator is constructed (the only window where CPU/
+# TLB params provably reach instantiate — see the --v110_params/--lsu_b0
+# arg block above for the dead-code history this replaces).
+if args.v110_params or args.lsu_b0:
+    _core0 = processor.get_cores()[0]
+    _cpu0 = _core0.core
+    if args.lsu_b0:
+        # 02 table: DTLB=32 (ArmTLB.size, fully-assoc via Self.size;
+        # default 64 = W1 ③), LQ/SQ=16/16 (O3 only — the Atomic boot CPU
+        # has no LSQ params; they apply on the O3 restore run's fresh CPU).
+        _cpu0.mmu.dtb.size = 32
+        try:
+            _cpu0.LQEntries = 16
+            _cpu0.SQEntries = 16
+            print("[arm_chaos_fs] LSU-B0 applied: DTLB=32 LQ=16 SQ=16")
+        except AttributeError:
+            print("[arm_chaos_fs] LSU-B0 applied: DTLB=32 (boot CPU: no "
+                  "LQ/SQ — they apply on the O3 restore)")
+    if args.v110_params:
+        # docs/kunpeng.md §3 (same dict the old kp920_proxy_fs.py dead hook
+        # carried): width=4-wide, ROB=128, physInt=160, physFloat=192,
+        # LQ=48, SQ=42.
+        try:
+            _cpu0.fetchWidth = 4
+            _cpu0.decodeWidth = 4
+            _cpu0.renameWidth = 4
+            _cpu0.issueWidth = 4
+            _cpu0.dispatchWidth = 4
+            _cpu0.commitWidth = 4
+            _cpu0.numROBEntries = 128
+            _cpu0.numPhysIntRegs = 160
+            _cpu0.numPhysFloatRegs = 192
+            _cpu0.LQEntries = 48
+            _cpu0.SQEntries = 42
+            print("[arm_chaos_fs] C2-KP V110 applied: width=4 ROB=128 "
+                  "physInt=160 physFloat=192 LQ=48 SQ=42")
+        except AttributeError:
+            print("[arm_chaos_fs] C2-KP V110 skipped (boot CPU: params "
+                  "apply on the O3 restore)")
 
 simulator = Simulator(
     board=board, full_system=True,

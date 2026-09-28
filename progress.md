@@ -2837,3 +2837,11 @@ Cache-DirtyEvict + Prefetch-Stride (全部 gem5==native)
 - FS 分类链: Kernel-oops-in-guest 退出事件 → dmesg dump → arm_chaos_fs "classify: Crash/DUE per fs_mode" 全链工作
 - 时效: ~4min/restore+payload(tlb_probe fork 预算生效) → T 系 42 格 x 5 seeds ÷ 2 槽 ≈ 7h 可行
 - checkpoint: runs/fs_lsu/boot/cpt.237949797015 为 T 系正式基线
+
+### 重大发现: exec-后链钩死代码 — V110/B0 FS 平台参数从未生效(2026-09-28)
+
+- **根因**: arm_chaos_fs.py 以 simulator.run() 结尾(完整可运行脚本); kp920_proxy_fs.py/lsu_b0_fs.py v1 的 exec-后 _pre_instantiate 链钩在仿真已跑完后才赋值 = 死代码
+- **证据**: ①"V110 applied"/"B0 applied" print 在所有日志(含姊妹仓路径共享的 T3 O3 restore)零出现 ②B0 boot 与 V110 boot checkpoint tick 完全相同(237949797015, 同一确定性默认配置) ③config.ini dtb assoc=64(B0 意图 32)
+- **波及(诚实)**: 姊妹仓 /home/sdc/gem5-fi 的全部经 kp920_proxy_fs.py 跑的 FS 结果(method2 三臂/AGU 100% DUE/TLB formal/tlbf5)实际运行在 gem5 默认 O3 参数上, 平台标注 "C2-KP V110" 不成立 — 注入机理与分类结论不受影响, 平台标签需修正
+- **修复**: 平台参数移入 arm_chaos_fs.py 主体(--v110_params/--lsu_b0, Simulator 构建前应用); 两包装改 argv 垫片(注入旗标后 exec); B0 checkpoint 作废重采
+- tlb_probe oracle 已验证: b0_restore_smoke "b6d81b36... rounds ok=10/10"(in-guest md5 == host golden)
