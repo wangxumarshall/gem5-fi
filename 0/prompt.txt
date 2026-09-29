@@ -1,0 +1,9 @@
+/superpowers:executing-plans 继续 P1 的确定性验证，保持 ENGINEERING_ONLY，且一次只运行一个受守卫管理的任务。
+
+对 A01-F0-W3 的双跑测试：
+1. 先生成并冻结同一份不可变 manifest；两次运行必须使用相同 commit、patch、二进制、checkpoint、workload 输入、seed、注入参数和 timeout。
+2. 两次运行串行执行，不得并发。
+3. 不只比较最终 stdout；必须比较规范化后的 manifest、实际注入目标/bit/时刻、L0–L5 关键记录、oracle 结论和结果摘要。
+4. 输出目录和时间戳允许不同，但任何会影响实验语义的字段不同都必须标为 FAIL 或 BLOCKED。
+5. 若 F0 的随机抽样在相同 seed 下不能稳定复现，立即停止把它用于后续实验，记录为 G0-02 FAIL，并定位随机源。
+6. 测试结束后更新 G0-02 状态、证据路径、资源日志和唯一下一动作；不得因为两次 exit 0 就宣称注入器确定性通过。
