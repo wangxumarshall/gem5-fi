@@ -1,0 +1,117 @@
+v1_id,v2_model_id,v2_submodels,relation,note
+D01,D01,a/b/c/d,merged,opcode 单翻 → D01-a 子模型
+D02,D02,a/b/c,merged,opcode 双翻 → D02（与 D05/D07 三处双翻合并；跨字段子模型为新增）
+D03,D03,a/b/c,merged,opcode 换值保留 → D03-a/b/c
+D04,D01,a/b/c/d,merged,寄存器号单翻 → D01-b
+D05,D02,a/b/c,merged,寄存器号双翻 → D02
+D06,D01,a/b/c/d,merged,立即数单翻 → D01-c
+D07,D02,a/b/c,merged,立即数双翻 → D02
+D08,D05,a/b/c/d,merged,符号扩展位定向翻转 → D05-c，并入错位拼接族
+D09,D05,a/b/c/d,merged,子字段拼接错位 → D05-a/b/d
+D10,D06,a/b/c/d/e,merged,裂解控制位状态翻转 → D06-e 及扩展（控制位换值族，扩展 sf/S/shift/extend）
+D11,R01,a/b,merged,RAT 映射单翻 → R01-a/b（拆源/目的子模型）
+D12,R02,a/b,merged,RAT 映射双翻 → R02
+D13,R03,a/b/c,merged,RAT 映射换值（固定间隔）→ R03
+D14,R03,a/b/c,merged,RAT 映射换值（误预测事件触发）→ R03+F6（触发语义改为确定性事件）
+D15,R09,a/b/c/d,merged,RAT 映射卡死 → R09-a/b
+D16,R03,a/b/c,merged,"RAT 读到旧数据 → 并入 R03 合法换值到活跃 tag 族（""读到旧数据""独立行取消）"
+D17,R05,a/b/c,merged,空闲表重复分配（固定）→ R05-c
+D18,R05,a/b/c,merged,空闲表重复分配（事件）→ R05-c+F6
+D19,R05,a/b/c,merged,空闲表丢失释放 → R05-a 泄漏子模型
+D20,R05,a/b/c,merged,空闲表头指针单翻 → R05-c head 跳
+D21,R05,a/b/c,merged,空闲表头指针双翻 → R05-c
+D22,R09,a/b/c/d,merged,空闲表头/尾指针卡死 → R09-c/d
+D23,R06,a/b,merged,重命名检查点单翻 → R06（故障类型改为换值/恢复错误）
+D24,R06,a/b,merged,重命名检查点双翻 → R06
+D25,B01,a/b/c,merged,ROB PC 字段单翻 → B01-a
+D26,B02,a/b,merged,ROB PC 字段双翻 → B02
+D27,B10,a/b/c/d,merged,ROB PC 字段卡死 → B10-a
+D28,B01,a/b/c,merged,ROB 寄存器标识符单翻 → B01-b
+D29,B02,a/b,merged,ROB 寄存器标识符双翻 → B02
+D30,B03,a/b/c,merged,ROB 寄存器标识符换值 → B03-a
+D31,B10,a/b/c/d,merged,ROB 寄存器标识符卡死 → B10-b
+D32,B04,a/b/c/d,merged,done 位提前置位（固定）→ B04-a
+D33,B04,a/b/c/d,merged,done 位提前置位（事件）→ B04-a+F6
+D34,B04,a/b/c/d,merged,done 位延迟置位（固定）→ B04-c 延后清除族
+D35,B04,a/b/c/d,merged,done 位延迟置位（事件）→ B04-c+F6
+D36,B01,a/b/c,merged,旧物理寄存器字段单翻 → B01-b tag 字段（squash 触发语义取消）
+D37,B02,a/b,merged,旧物理寄存器字段双翻 → B02
+D38,B03,a/b/c,merged,旧物理寄存器字段换值 → B03-a
+D39,B10,a/b/c/d,merged,旧物理寄存器字段卡死 → B10-b
+D40,,,cancelled,"""ROB 项读到旧数据""——""读到旧数据""独立故障族取消（V1.0 共 7 行全取消；旧值读取语义并入换值/提前 ready/lane 拼接等子模型机制）"
+D41,B06,a/b/c/d,merged,ROB 头指针单翻 → B06-a
+D42,B02,a/b,merged,"ROB 头指针双翻 → B02（与其他双翻行合并；头/尾指针单翻与尾指针双翻 → B06 合法索引换值。注：diff_v1_v2.py 该行 note 误写 ""→ B06""，目标 B02 以 delta 报告 §3.7.4 表为准）"
+D43,B10,a/b/c/d,merged,ROB 头指针卡死 → B10（slot 卡死族）
+D44,B06,a/b/c/d,merged,ROB 尾指针单翻 → B06-b
+D45,B06,a/b/c/d,merged,ROB 尾指针双翻 → B06
+D46,B10,a/b/c/d,merged,ROB 尾指针卡死 → B10
+D47,R07,a/b/c,migrated,IQ ready 位提前置位 → R07-a（跨单元迁移：Int Dispatch/ROB → Int Rename，ready/busy scoreboard）
+D48,R07,a/b/c,migrated,IQ ready 位永不置位（固定）→ R07-b 丢失 ready（跨单元迁移同 D47）
+D49,R07,a/b/c,migrated,IQ ready 位永不置位（事件）→ R07-b+F6（跨单元迁移同 D47）
+D50,,,cancelled,Int IQ tag 字段换值——Int IQ entry tag 独立注入族整体取消（V2.0 dispatch 侧只保留 B07 steering）
+D51,,,cancelled,Int IQ tag 字段单翻——Int IQ entry tag 族取消
+D52,,,cancelled,Int IQ tag 字段双翻——Int IQ entry tag 族取消
+D53,,,cancelled,Int IQ tag 字段卡死——Int IQ entry tag 族取消
+D54,,,cancelled,"Int IQ tag 字段读到旧数据——""读到旧数据""族取消"
+D55,B07,a/b/c/d,merged,分发端口选择 → B07-c dispatch lane
+D56,FD01,a/b/c/d,merged,FP opcode 单翻 → FD01-a
+D57,FD02,a/b/c,merged,FP opcode 双翻 → FD02
+D58,FD03,a/b/c/d,merged,FP opcode 换值 → FD03
+D59,FD01,a/b/c/d,merged,V 寄存器号单翻 → FD01-b
+D60,FD02,a/b/c,merged,V 寄存器号双翻 → FD02
+D61,FD05,a/b/c,merged,指令路由判定位 → FD05 scalar/vector 模式/元素宽度
+D62,FR01,a/b/c,merged,标量 FP RAT 单翻 → FR01-a
+D63,FR02,a/b,merged,标量 FP RAT 双翻 → FR02
+D64,FR03,a/b/c,merged,标量 FP RAT 换值 → FR03-a
+D65,FR10,a/b/c/d,merged,标量 FP RAT 卡死 → FR10-a/b
+D66,,,cancelled,"标量 FP RAT 读到旧数据——""读到旧数据""族取消"
+D67,FR01,a/b/c,merged,向量 RAT 单翻 → FR01-b
+D68,FR02,a/b,merged,向量 RAT 双翻 → FR02
+D69,FR03,a/b/c,merged,向量 RAT 换值 → FR03-b
+D70,FR10,a/b/c/d,merged,向量 RAT 卡死 → FR10
+D71,,,cancelled,"向量 RAT 读到旧数据——""读到旧数据""族取消"
+D72,FR05,a/b/c/d,merged,标量 FP 空闲表重复分配（固定）→ FR05-c
+D73,FR05,a/b/c/d,merged,标量 FP 空闲表重复分配（事件）→ FR05-c+F6
+D74,FR05,a/b/c/d,merged,向量空闲表重复分配（固定）→ FR05-c
+D75,FR05,a/b/c/d,merged,向量空闲表重复分配（事件）→ FR05-c+F6
+D76,FR05,a/b/c/d,merged,标量 FP 空闲表丢失释放 → FR05-a/b 泄漏
+D77,FR05,a/b/c/d,merged,向量空闲表丢失释放 → FR05-a/b
+D78,,,cancelled,SVE 谓词 RAT 单翻——SVE 从 B0 剔除（sheet3 R16/R21：SVE 仅单独扩展 campaign；负载清单无 SVE 负载）
+D79,,,cancelled,SVE 谓词 RAT 双翻——SVE 取消
+D80,,,cancelled,SVE 谓词 RAT 换值——SVE 取消
+D81,,,cancelled,SVE 谓词 RAT 卡死——SVE 取消
+D82,,,cancelled,SVE 谓词 RAT 读到旧数据——SVE 取消
+D83,FB01,a/b/c,merged,ROB PC 字段（FP 自检）单翻 → FB01-a
+D84,FB05,a/b/c/d,merged,ROB done 位（FP 自检，固定）→ FB05-a 提前 complete
+D85,FB05,a/b/c/d,merged,ROB done 位（FP 自检，事件）→ FB05-a+F6
+D86,FB04,a/b/c,merged,FP/SIMD IQ ready 位提前置位 → FB04-a（仍在 FP/SIMD Dispatch/ROB；位置语义改为 operand-ready/issued/replay）
+D87,,,cancelled,FP/SIMD IQ tag 换值——IQ tag 族取消
+D88,,,cancelled,FP/SIMD IQ tag 单翻——IQ tag 族取消
+D89,,,cancelled,FP/SIMD IQ tag 双翻——IQ tag 族取消
+D90,FB10,a/b/c/d,merged,FP/SIMD IQ tag 卡死 ≈ FB10（位置从 IQ 移到 ROB slot，语义近似）
+D91,,,cancelled,"FP/SIMD IQ tag 读到旧数据——""读到旧数据""族取消"
+,D04,a/b/c/d/e,new,V2.0 全新行（无 V1.0 祖先）：寄存器号换值；单元=Int Decode；故障类型=换值
+,D07,a/b/c/d,new,V2.0 全新行（无 V1.0 祖先）：decode 时序；单元=Int Decode；故障类型=时序
+,D08,a/b/c/d,new,V2.0 全新行（无 V1.0 祖先）：uop 序列；单元=Int Decode；故障类型=状态/时序
+,D09,a/b/c/d,new,V2.0 全新行（无 V1.0 祖先）：decode 卡死；单元=Int Decode；故障类型=卡死
+,R04,a/b,new,V2.0 全新行（无 V1.0 祖先）：new-dest/old-dest 换值；单元=Int Rename；故障类型=换值
+,R08,a/b/c,new,V2.0 全新行（无 V1.0 祖先）：rename 事务原子性；单元=Int Rename；故障类型=时序
+,B05,a/b/c/d,new,V2.0 全新行（无 V1.0 祖先）：exception/mispredict/serialize 控制状态；单元=Int Dispatch / ROB；故障类型=状态
+,B08,a/b/c/d,new,V2.0 全新行（无 V1.0 祖先）：squash 时序；单元=Int Dispatch / ROB；故障类型=时序
+,B09,a/b/c/d,new,V2.0 全新行（无 V1.0 祖先）：commit 事务时序；单元=Int Dispatch / ROB；故障类型=时序
+,FD04,a/b/c,new,V2.0 全新行（无 V1.0 祖先）：V 寄存器/lane 换值；单元=FP/SIMD Decode；故障类型=换值
+,FD06,a/b/c/d,new,V2.0 全新行（无 V1.0 祖先）：rounding/FPCR；单元=FP/SIMD Decode；故障类型=状态
+,FD07,a/b/c/d,new,V2.0 全新行（无 V1.0 祖先）：shuffle/lane 掩码拼接；单元=FP/SIMD Decode；故障类型=错位拼接
+,FD08,a/b/c/d,new,V2.0 全新行（无 V1.0 祖先）：FP uop 拆分；单元=FP/SIMD Decode；故障类型=状态/时序
+,FD09,a/b/c/d,new,V2.0 全新行（无 V1.0 祖先）：FP decode 时序；单元=FP/SIMD Decode；故障类型=时序
+,FR04,a/b,new,V2.0 全新行（无 V1.0 祖先）：FP new/old-dest 换值；单元=FP/SIMD Rename；故障类型=换值
+,FR06,a/b,new,V2.0 全新行（无 V1.0 祖先）：FP checkpoint；单元=FP/SIMD Rename；故障类型=换值
+,FR07,a/b/c,new,V2.0 全新行（无 V1.0 祖先）：FP ready/busy；单元=FP/SIMD Rename；故障类型=状态
+,FR08,a/b/c/d,new,V2.0 全新行（无 V1.0 祖先）：partial-write 语义；单元=FP/SIMD Rename；故障类型=错位拼接
+,FR09,a/b/c,new,V2.0 全新行（无 V1.0 祖先）：FP rename 事务；单元=FP/SIMD Rename；故障类型=时序
+,FB02,a/b,new,V2.0 全新行（无 V1.0 祖先）：FP ROB 双翻；单元=FP/SIMD Dispatch/ROB；故障类型=双比特翻转
+,FB03,a/b/c,new,V2.0 全新行（无 V1.0 祖先）：FU steering；单元=FP/SIMD Dispatch/ROB；故障类型=换值
+,FB06,a/b/c,new,V2.0 全新行（无 V1.0 祖先）：完成事件配对；单元=FP/SIMD Dispatch/ROB；故障类型=换值
+,FB07,a/b/c/d,new,V2.0 全新行（无 V1.0 祖先）：writeback lane mask；单元=FP/SIMD Dispatch/ROB；故障类型=错位拼接
+,FB08,a/b/c/d,new,V2.0 全新行（无 V1.0 祖先）：FP squash 时序；单元=FP/SIMD Dispatch/ROB；故障类型=时序
+,FB09,a/b/c/d,new,V2.0 全新行（无 V1.0 祖先）：FP commit 事务；单元=FP/SIMD Dispatch/ROB；故障类型=时序
