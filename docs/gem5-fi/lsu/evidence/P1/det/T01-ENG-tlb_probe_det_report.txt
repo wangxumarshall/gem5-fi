@@ -1,0 +1,24 @@
+# T01-ENG-tlb_probe FS 双跑确定性报告（G0-02 家族 6/6，ENGINEERING_ONLY）
+
+- RunID：T01-ENG-tlb_probe（工程载体命名；清单 T01-F0-W1 的 W1 MiBench 缺失 → DR-001，
+  FS 工程验证用 tlb_probe.rcS 载体，与清单 RunID 轨道分离）
+- seed=12312103502395341176（lsu_seed engineering sample 0）
+- 平台：B0 FS（configs/fs/lsu_b0_fs.py，--lsu_b0）+ restore cpt.237949797015
+  （本次新生成 B0 FS checkpoint：Atomic boot + boot_ckpt.rcS，17:16-17:30，
+  清单哈希 88cf03e037d2269b，28MB，G0-06 证据）
+- 注入参数：--chaos_armtlb --tlb_fault_type bit_flip --tlb_first_clock 1000
+  --ckpt-first-clock --tlb_probability 1.0 --tlb_max_faults 1 --tlb_rng_seed <seed>
+- 串行双跑：run1 17:31-17:32 (pid 56532) → run2 17:32-17:34 (pid 56887)，各 ~1.5-2 分钟
+
+## 结果：DETERMINISM PASS
+- C1 注入日志逐字节完全相同（两份 SHA 一致）：Tick 237950234244 / Site arm_tlb_lookup_hit /
+  VA 0xffffffc009483ec0 / old_pfn 0x81d75 → new_pfn 0x1000081d75（bit36 翻转）/ Mask 0x1000000000
+- guest console（board.terminal）全字节完全相同
+- 退出码均 0；守卫 experiment 锁严格串行
+- stats/config 产物均在 runs/lsu/det/T01-ENG-tlb_probe/（稳定路径）
+
+## 科学观察
+- 注入后 guest 出现 el0t_64_sync "Code: bad PC value" 内核异常 → TLB PPN 故障传播为
+  架构级 Crash，且 Crash 路径在同 seed 下完全复现（比 Masked 路径更强的确定性证据）
+- tlb_probe 10-round md5 oracle 因注入早崩未完整执行——FS 无注入 golden 载体跑
+  （G0-07 FS 部分）另行安排；不影响本次确定性结论

@@ -13,7 +13,7 @@
 - **Phase Status:** COMPLETE
 - **Overall Status:** IN_PROGRESS
 - **Started:** 2026-09-29 11:22 (Session 001)
-- **Last Updated:** 2026-09-29 16:48
+- **Last Updated:** 2026-09-29 17:38
 - **Current Owner:** 服务器执行 AI（Claude，主协调 AI）
 - **Current Checklist Item:** NONE（P0 预检完成；P1 起从清单选 ITEM）
 - **Current RunID:** NONE
@@ -22,12 +22,12 @@
 - **Resource Safety State:** NORMAL
 - **Build Concurrency Limit:** 8（同一时刻最多一个编译任务，经 lsu_guard 强制）
 - **Experiment Concurrency Limit:** 1（完成资源画像后最多2，超过须用户批准）
-- **Active Heavy Task:** GOLDEN3 批量（tools/lsu_golden3.sh：9 SE 负载 × 3 无注入 golden，后台任务 bjt1xumkk，16:46 启动，每 run ~60s，预计 ~17:15 完成；首条 mini_check hash=07568da9f3ad5665 = V1.0 golden ✓）
-- **Active PID/PGID:** golden3 批量串行占用 experiment 锁（每次 run 独立守卫生命周期）
+- **Active Heavy Task:** NONE（FS checkpoint 生成 17:30 完成、armtlb FS 双跑 17:34 完成，锁已释放）
+- **Active PID/PGID:** NONE
 - **Resource Lock:** 已占用（runs/lsu/guard/build.lock：P1-G0-01 构建，pid 19587）
 - **Resource Log:** runs/lsu/guard/build_p1_rebuild_rsrc.log（60s 采样进行中）+ guard_events.log
 - **Latest MemAvailable / SwapFree / Load:** 构建启动前 gate 采样通过（MemAvailable≥12G/SwapFree≥4G 判定 PASS）；采样记录见 build_p1_rebuild_rsrc.log
-- **Next Step:** 连续模式：①golden3 批量完成后汇总（G0-05/G0-07 证据 + G0-09 timeout 表）②FS 管线打通（boot_ckpt.rcS 生成 B0 FS checkpoint → T01 restore+tlb_probe 双跑 = G0-02 6/6 + G0-06）③17 缺口补实现（C++，按单元）④G0-03 已 PASS（environment_lock.md）。DR-001/DR-002 非阻塞。
+- **Next Step:** 连续模式：①P1 runner 契约实现（清单 ITEM → 不可变 run manifest → 守卫命令自动转换，含 F0 两遍法集成）②17 缺口注入器补实现（13 C++ 模式/钩子 + 3 多核 FS，按 one-patch-per-unit 逐个：改码→-j8 守卫重建→定向验证→commit）③G0 门禁已全部有真实状态（8 PASS/PASS-xx + G0-05 PARTIAL-SE + G0-08 PARTIAL）。停机点：首个正式 pilot 样本提交前。
 
 ## Git 状态
 

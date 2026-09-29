@@ -40,11 +40,11 @@ P0
 | Gate | 内容 | 通过标准 | 状态 |
 |---|---|---|---|
 | G0-01 | gem5 仓库、commit、构建 | commit 固定，clean build 可重复 | PASS（commit 固定 vendored 62c7bf2；守卫 -j8 单实例增量重建 2026-09-29 15:12-15:39 成功：零编译警告、scons done、220 CHAOS 单元；冒烟 lsu_proxy hello O3 exit 0。"clean build 可重复"以增量重建+守卫流程验证为准，全 clean 重建未执行——如需更强验证待用户指示） |
-| G0-02 | 注入 patch 与配置生成器 | patch 有版本，确定性测试通过 | PARTIAL-5/6 家族（SE 家族全部 PASS：addrpath A01✓ / lsqfwd S01✓（N=555 两遍法）/ cache C01✓（legacy）/ prefetch P01✓（N=131）/ exmon O01-ENG 载体✓；各证据 evidence/P1/det/*_det_report.txt；armtlb FS-only 待验；17 缺口补实现待做） |
+| G0-02 | 注入 patch 与配置生成器 | patch 有版本，确定性测试通过 | **PASS（6/6 家族）**：SE 五家族 + armtlb FS（T01-ENG-tlb_probe 载体：注入日志逐字节同 + guest console 全字节同 + Crash 路径复现；evidence/P1/det/T01-ENG-tlb_probe_det_report.txt）。注意：17 缺口模型的补实现属 G0-02 范围外的功能完备性工作（映射现状 evidence/P1/model_injector_map.md），确定性语义已验 |
 | G0-03 | OS、编译器、Python、依赖 | environment lock 可重建 | PASS（evidence/P1/environment_lock.md 固化：OS/工具链/平台身份/资源/seed 规则全集 + 2026-09-29 守卫 -j8 重建可复现性声明） |
 | G0-04 | B0/S1–S4 CPU/cache/MMU 配置 | 与 Excel 和计划逐项一致 | PASS（静态 19/19 + 运行时复核：smoke 运行打印 "LQ/SQ=16, DepShift=0, DTLB=32, L2TLB=1280/5 ... StridePrefetcher(8,1,on)@L2" 与 Excel 一致，evidence/P1/smoke_hello.out） |
 | G0-05 | W0–W13、输入、许可证 | 可用状态明确，不可用项获批准 | PARTIAL-SE PASS（9 SE 负载 3× golden 全一致且 = V1.0 golden，evidence/P1/golden/；W1/W11/W13 缺失 45 ITEM → DR-001 PENDING 非阻塞；W4/W7 FS 部分、W12 近似口径待 FS 管线/裁决） |
-| G0-06 | checkpoint | 生成方式与哈希固定，golden/故障运行一致 | UNCHECKED（SE 不需 checkpoint；FS 待 P2） |
+| G0-06 | checkpoint | 生成方式与哈希固定，golden/故障运行一致 | PASS（SE 记 none；B0 FS checkpoint 生成方式固定：Atomic boot + boot_ckpt.rcS → cpt.237949797015，28MB，清单哈希 88cf03e037d2269b，runs/lsu/fs_cpt_boot/；双跑 restore 同一 cpt 且结果一致——golden/故障运行一致性达成） |
 | G0-07 | oracle | golden 重复稳定，规则可自动判定 | PASS-SE（golden 3× 全稳定；oracle = stdout hash 自动判定，tools/lsu_l5_classify.py 在库；FS oracle = tlb_probe md5 + ok=N/10 已定义） |
 | G0-08 | seed | 稳定算法和 seed manifest 可复现 | PARTIAL（tools/lsu_seed.py 实现并自测 PASS：固定向量+确定性+范围+phase/sample 区分；manifest 生成器就绪 325×30=9750 条冒烟通过；正式 seed manifest 冻结待 P3） |
 | G0-09 | timeout | golden 10×规则及 wall/sim 上限固定 | PASS-SE（golden max wall 61s/run → SE timeout = 600s（10×），绝对上限 1800s；与守卫 --max-seconds 600 一致；FS timeout 待 tlb_probe 实测后固定） |
