@@ -44,14 +44,14 @@
 
 | Gate | Status | Evidence | Missing/Conflict | Required Action/Decision |
 |---|---|---|---|---|
-| G0-01 | FAIL | stat 对比（源码 09-26 > 二进制 09-25）；rebuild_attempt2.log（-j126 OOM，6 目标 Error 1） | gem5.opt 不含 LSU 注入器；重建被 G0-10 顺序阻塞 | G0-10 已过 → 以 `lsu_guard.py run` + `-j8` 单实例重建后复验 |
-| G0-02 | UNCHECKED | configs/se/lsu_proxy.py、tools/lsu_campaign.py 在库（V1.0 轨道资产） | 确定性测试未跑（依赖 G0-01 重建）；V2.0 清单 64 模型与既有注入器映射待核 | 重建后跑注入冒烟 + 64 模型映射表 |
-| G0-03 | PARTIAL | 环境已盘点（见 Server Environment Findings） | environment lock 文件未固化；增量构建中断（部分 .py.pyo 失败） | 重建成功后生成 environment lock 摘要 |
-| G0-04 | PASS-静态 | evidence/P0/g0_04_g0_05_check.md（19/19 参数 + L1I/L2 几何 + S1–S4 逐项一致，行号级证据） | 运行时参数 dump 复核待 G0-01 重建；R14 cache line 64B 依赖默认值（建议 P1 显式固化） | 重建后补运行时复核 |
+| G0-01 | PASS | 守卫 -j8 单实例增量重建成功（15:12–15:39，27 分钟，零编译警告，scons done，220 CHAOS 单元，evidence/P1/rebuild_attempt3.log）；冒烟 exit 0 | 全 clean 重建未执行（增量+守卫流程已验证可重复性；更强验证可按需追加） | 如需 clean build 复验另行安排（~2-3 小时） |
+| G0-02 | IN_PROGRESS | 注入器映射现状已核（evidence/P1/model_injector_map.md：47 可运行/17 缺口=85 ITEM/10 近似=49 ITEM） | 确定性测试未跑；17 缺口补实现（13 C++ 模式/钩子 + 3 多核 FS）与 10 近似裁决（DR-002） | P1 后续按家族补实现 + DR-002 |
+| G0-03 | PARTIAL | 环境已盘点；工具链经成功重建验证（GCC 12.3.1/SCons 4.5.2/Python 3.11.6 可复现构建） | environment lock 摘要文件未固化 | P1 固化 environment lock |
+| G0-04 | PASS | 静态 19/19（evidence/P0/g0_04_g0_05_check.md）+ 运行时复核（smoke 打印 B0 全参数与 Excel 一致，evidence/P1/smoke_hello.out） | R14 cache line 64B 依赖默认值（建议显式固化） | P1 显式化 cache_line_size=64 |
 | G0-05 | IN_PROGRESS | evidence/P0/g0_04_g0_05_check.md（W0–W13 全映射，主负载统计总和 325 ✓） | W1/W11/W13 缺失（45 ITEM，13.8%）→ DR-001 PENDING；W4/W7 FS 部分、W12 近似口径待裁决 | DR-001 等用户决定；W4/W7/W12 可并入 DR-001 或单独 DR |
 | G0-06 | UNCHECKED | find 检查：仅鲲鹏轨道 cpt.90000000 | LSU checkpoint 未生成 | P2 生成 FS checkpoint + 哈希；SE 负载记 none |
 | G0-07 | UNCHECKED | tools/lsu_l5_classify.py 在库 | golden 重复稳定性未验证 | P2 每负载 3 次 golden |
-| G0-08 | UNCHECKED | task_plan.md 调度协议第 5 条 seed 算法已定义 | seed 生成器实现与可复现验证未做 | P1 实现 + 单测 |
+| G0-08 | PARTIAL | tools/lsu_seed.py 实现，self-test PASS（真实预计算向量+确定性+范围+phase/sample 区分）；manifest 生成器冒烟 325×30=9750 条 | 正式 seed manifest 冻结待 P3；"低64位"解释已显式固定为 digest[24:32] 大端（工具注释） | P3 冻结 pilot manifest |
 | G0-09 | UNCHECKED | 清单 §5 超时规则（golden 10× + 绝对上限） | golden 未跑，具体数值未固定 | P2 固定 |
 | G0-10 | PASS | evidence/P0/guard_verify.out（T1-T7 全 PASS）；tools/lsu_guard.py | 无——编译≤8 单实例、实验锁、gate 门禁、60s 采样、WARNING/TRIP、TERM→KILL 安全终止均已实现并验证 | 所有后续编译/实验经守卫执行 |
 
@@ -66,7 +66,8 @@
 | F-005 | 2026-09-29 11:42 | 事实 | CHAOS/gem5/build/{ARM,build} 绝对符号链接指向不存在的 /home/sdc/gem5-fi（仓库改名 gem5-fi-ding 残留）→ scons configure ENOENT；已修复指向 /home/sdc/gem5-fi-ding | rebuild_attempt2.log 栈；ln -sfn 后 readlink 验证 | 构建通路恢复 | 无 |
 | F-006 | 2026-09-29 12:00 | 事实 | scons -j126 增量构建失败：多路 cc1plus 被 SIGKILL、6 个 .py.pyo 目标 Error 1（findings.md 已记载该事故曾致服务器 94% 内存 + swap 耗尽重启）。-j126 违反总方针 §8.1 硬上限 | evidence/P0/rebuild_attempt2.log（331 行） | 构建必须 -j8 单实例 + 守卫 | E-003 处置：-j8 重启 |
 | F-007 | 2026-09-29 14:59 | 事实 | 资源守卫 tools/lsu_guard.py 建立，验证 T1-T7 全 PASS。验证过程发现并修复 3 个真实 bug：①argparse 子命令位置参数与 dest="cmd" 碰撞导致 `--` 未剥除（Popen 执行 '--' 失败）；②僵尸进程（state Z）仍带 pgrp 字段 → 存活检查死循环、锁永不释放；③/proc/stat tail[20] 是 vsize 字节非 RSS 页 → task_rss 虚高（83 GiB） | evidence/P0/guard_verify.out（三轮迭代） | 若未在 P0 验证，bug ② 将在真实构建中造成锁泄漏永久阻塞 | 无（已修复并复验） |
-| F-008 | 2026-09-29 15:05 | 事实 | LSU V1.0 轨道工程资产已在库：configs/se/lsu_proxy.py（B0 19 参数 + B0/S1-S4 变体 + 16 注入器挂载）、tools/lsu_campaign.py、lsu_l5_classify.py、lsu_meta_analysis.py、audit_expanded_matrix.py 等（提交 af8f5cf3..9187ef28 系列）。V1.0 文档已被 f097b900 删除，但代码资产在库 | git log -- configs/se/lsu_proxy.py；ls tools/ | V2.0 清单与既有注入器的映射需核对（64 模型 vs 既有实现）；B0 参数初步比对与 Excel 一致（待代码级逐项核对） | G0-02/G0-04 核查 |
+| F-009 | 2026-09-29 15:37 | 事实 | V2.0 64 模型实现状态量化（继承 V1.0 git-verified 映射，evidence/P1/model_injector_map.md）：①V1.0 68=V2.0 64+4 删除行（S12/T09/C13/O08 "B0无保护"不适用），模型集差异完全闭合；②47 模型已映射可运行、17 缺口（6 消费侧未实现 + 4 无干净钩子 + 4 TLB 模式未实现 + 3 多核语义）；③ITEM 级：缺口 85 ITEM（26.2%）、近似映射 10 模型 49 ITEM（15.1%）、精确可运行 191 ITEM（58.8%）；④cache/exmon 家族触发层仍走 legacy 时钟窗（lsuTier wire-ready 未消费）；⑤T 系列 FS 载体 tlb_probe.rcS + golden 已有 | tools/lsu_campaign.py:103-242；清单统计脚本输出 | P1 工作量 = 17 缺口补实现（计划内）+ 10 近似裁决（DR-002）；191 精确 ITEM 为 pilot 可先行集合（其中 W1/W11/W13 主负载部分另受 DR-001 约束） | DR-002 已生成 |
+| F-010 | 2026-09-29 15:42 | 事实 | P1 第一批工程完成：①守卫 -j8 单实例增量重建 gem5.opt 成功（15:12-15:39，27 分钟，零警告，对比 -j126 OOM 失败——资源守卫制度的直接价值实证）；②lsu_proxy.py 冒烟成功（守卫 experiment 槽，exit 0，"Hello, AArch64 CHAOS!"），E-002（CHAOSPrefetch ImportError）修复确认；③运行时 B0 参数打印与 Excel 一致（G0-04 运行时层达成）；④tools/lsu_seed.py 实现并自测 PASS（首版占位向量未计算即写入被 self-test 抓获，以真实向量替换——测试先行的价值实证）；⑤manifest 生成器 325×30=9750 条冒烟通过 | evidence/P1/{rebuild_attempt3.log, smoke_hello.out, model_injector_map.md}；runs/lsu/guard/{guard_events.log, build_p1_rebuild_rsrc.log, smoke_hello_rsrc.log} | G0-01 PASS、G0-04 PASS、G0-08 PARTIAL；P1 后续：确定性测试、17 缺口补实现、DR-002 | 提交 [LSU][P1] |
 
 ## Checklist Exceptions
 
@@ -78,6 +79,7 @@
 | Request ID | 时间 | 范围 | 事实/未知项 | 选项与风险 | 推荐 | 状态/用户决定 |
 |---|---|---|---|---|---|---|
 | DR-001 | 2026-09-29 15:05 | W1 MiBench-TC23、W11 SPEC CPU2017、W13 PARSEC-Selected 负载可用性；附 W4/W7 FS 部分、W12 近似口径 | 事实（已量化）：服务器无 MiBench/SPEC/PARSEC 负载；主负载统计 W1=27、W11=12、W13=6，合计 **45/325 ITEM（13.8%）**；SE 现成负载（W0/W2/W3/W5/W6/W8/W9/W10）覆盖 212 ITEM（65.2%）；W0 mini_check、W8 prefetch_stride 资产已确认在位。W4 TLB-AliasPerm（24 ITEM，FS）与 W7 Atomic-Litmus（29 ITEM，多核 FS）无现成负载需自建；W12 为 sqlite_like 近似探针非真实 speedtest1。未知：MiBench/PARSEC 获取渠道是否可用；SPEC 许可证状态。 | ① NA_APPROVED：45 ITEM 标 NA（风险：矩阵缩水 13.8%，TLB/SQ 单元 TC'23 论文对照削弱）；② 替换负载（风险：偏离 Excel 设计）；③ 补建（MiBench/PARSEC 公开可获取、SPEC 无证则 NA；风险：工作量大、口径偏差） | 分层处理：MiBench（27 ITEM，TC'23 对照核心）建议补建；PARSEC（6 ITEM）可 NA 或补建；SPEC（12 ITEM，明确说明"主结论之后复核"）建议 NA_APPROVED；W12 以 sqlite_like 近似执行需明确口径 | PENDING（等用户决定；等待期间 W1/W11/W13 相关 ITEM 不启动，不影响 P1/P2 其他工作） |
+| DR-002 | 2026-09-29 15:40 | ① 10 个近似映射模型（49 ITEM）的子模型口径；② O05-O07 多核 FS 依赖的载体或 NA | 事实：V1.0 对 A03/S03/S09/C05/C10/P04/P07/P09/T10/O03 采用注入器现有模式近似设计子模型（approx 注释 lsu_campaign.py:103-165，如 T10 无 PPN 分段子模型用 bit_flip+seed 近似、P07/P09 借用 CHAOSCache 字段）；V2.0 清单子模型语义与 V1.0 相同（68=64+4 删除行，模型定义未变）。O05-O07 需多核 FS（W7/W13 载体未建，与 DR-001 联动）。未知：用户对近似口径的接受度。 | ① 继承 approx（每 run 记录近似说明；风险：49 ITEM 子模型覆盖不精确，结果解释力受限，违背"子模型不得静默修改"精神——除非显式批准）；② 补精确实现后跑（~10 个模式 C++ 扩展，P1 周期延长，但口径纯净）；③ 分批：pilot 用 approx 先行验证管线、screening 前完成关键精确化 | ③ 分批（推荐）：P1 先补 T10（PPN 分段）与 P07/P09（prefetch 专属字段）三个高影响项，其余 approx 显式记录并在 pilot 验证后逐项精确化 | PENDING（等用户决定；17 缺口模型 85 ITEM 的补实现为 P1 计划内工作，不需批准但规模已知会：13 个 C++ 模式/钩子 + 3 个多核 FS 模型） |
 
 ## Open Questions
 

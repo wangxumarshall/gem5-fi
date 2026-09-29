@@ -13,7 +13,7 @@
 - **Phase Status:** COMPLETE
 - **Overall Status:** IN_PROGRESS
 - **Started:** 2026-09-29 11:22 (Session 001)
-- **Last Updated:** 2026-09-29 15:30
+- **Last Updated:** 2026-09-29 15:42
 - **Current Owner:** 服务器执行 AI（Claude，主协调 AI）
 - **Current Checklist Item:** NONE（P0 预检完成；P1 起从清单选 ITEM）
 - **Current RunID:** NONE
@@ -22,12 +22,18 @@
 - **Resource Safety State:** NORMAL
 - **Build Concurrency Limit:** 8（同一时刻最多一个编译任务，经 lsu_guard 强制）
 - **Experiment Concurrency Limit:** 1（完成资源画像后最多2，超过须用户批准）
-- **Active Heavy Task:** NONE
+- **Active Heavy Task:** NONE（守卫构建 15:39 完成、冒烟 15:41 完成，均已正常释放锁）
 - **Active PID/PGID:** NONE
-- **Resource Lock:** 守卫已建立（tools/lsu_guard.py；锁目录 runs/lsu/guard/；当前无活动锁）
-- **Resource Log:** runs/lsu/guard/guard_events.log（守卫事件流；任务专属采样日志按任务建立）
-- **Latest MemAvailable / SwapFree / Load:** 27.1 GiB / 15.6 GiB / 0.21,0.24,0.18，blocked=0（2026-09-29 14:59 守卫采样）
-- **Next Step:** 提交 [LSU][P0] 并 push origin HEAD:fi-ding；随后启动 P1 第一项——守卫下 `-j8` 单实例增量重建 gem5.opt（修复 G0-01/E-002/E-003），成功后重跑 lsu_proxy.py 冒烟。
+- **Resource Lock:** 已占用（runs/lsu/guard/build.lock：P1-G0-01 构建，pid 19587）
+- **Resource Log:** runs/lsu/guard/build_p1_rebuild_rsrc.log（60s 采样进行中）+ guard_events.log
+- **Latest MemAvailable / SwapFree / Load:** 构建启动前 gate 采样通过（MemAvailable≥12G/SwapFree≥4G 判定 PASS）；采样记录见 build_p1_rebuild_rsrc.log
+- **Next Step:** 提交 [LSU][P1] 第一批（守卫重建+冒烟+seed 生成器+模型映射，G0-01/G0-04 转 PASS）；随后 P1 后续：①注入确定性测试（同 seed 双跑 diff）②17 缺口注入器补实现（T05-T08/A07/P06/O04/O09 C++ 模式 + S10/L04/C11/C12/C14/C15 消费侧，evidence/P1/model_injector_map.md）③DR-001/DR-002 等用户裁决。
+
+## Git 状态
+
+- **最新 commit SHA:** b64455816429f68276ed69ff1fb68c026eb5
+- **推送状态:** 已推送 origin/fi-ding（3f67df4b..b6445581，PUSH_EXIT=0；commit 时间 2026-09-29 15:10:20，push 在其之后、15:12:22 构建启动之前完成）
+- **提交信息:** [LSU][P0] 预检完成：清单核验、环境资产盘点、B0参数对照、资源守卫建立（G0-10 PASS）（17 文件，xlsx 识别为 100% rename）
 
 ## Phase Summary
 
@@ -88,13 +94,15 @@
 | 2026-09-29 12:05 | NORMAL | 28.4 GiB | 16.3 GiB | 0.26/0.09/0.07 | 0 | 无（ps 全查：无 scons/gcc/cc1plus/gem5） | 无（守卫待建） | 会话恢复后首次采样；构建尝试2已失败终止 |
 | 2026-09-29 14:53–15:00 | NORMAL | 27.1 GiB | 15.6 GiB | 0.2/0.24/0.18 | 0 | 守卫验证 T7（sleep 8，pgid 16006） | build.lock（验证用，已正常释放） | G0-10 验证：T1–T7 全 PASS（evidence/P0/guard_verify.out） |
 | 2026-09-29 15:25 | NORMAL | ~27 GiB | ~15.6 GiB | 低 | 0 | 无（守卫验证完成，锁已释放） | 无 | P0 收尾：G0 门禁填写完毕，准备 [LSU][P0] 提交 |
+| 2026-09-29 15:12–15:42 | NORMAL | 23.4–24.3 GiB | 15.59 GiB | 8.2/7.9/5.3 | 0 | P1-G0-01 构建 sdc/19587/19587 | build.lock（守卫采样 60s） | -j8 增量重建成功（27 分钟，零警告，scons done）；随后冒烟 experiment 槽 sdc/34025/34025 exit 0；全程无 WARNING/TRIP |
+| 2026-09-29 15:41 | NORMAL | ~25 GiB（构建释放后） | 15.59 GiB | 回落 | 0 | 冒烟 lsu_proxy hello（34025，已完成） | experiment.lock（已释放） | E-002 修复验证 PASS；B0 参数运行时打印与 Excel 一致 |
 
 ## Errors and Retries
 
 | Error ID | 时间 | 范围 | 错误签名 | Attempt | 改变的策略 | Resolution/Decision Request | Evidence |
 |---|---|---|---|---|---|---|---|
 | E-001 | 2026-09-29 11:42 | gem5 构建 | scons configure ENOENT：CHAOS/gem5/build/{ARM,build} 绝对符号链接指向不存在的 /home/sdc/gem5-fi（仓库改名残留） | 1 | 修复：ln -sfn 重新指向 /home/sdc/gem5-fi-ding | RESOLVED（readlink 验证通过） | rebuild_attempt2.log 头部 Mkdir 失败栈 |
-| E-002 | 2026-09-29 11:40 | lsu_proxy.py 冒烟 | ImportError: cannot import name 'CHAOSPrefetch' from 'm5.objects'（gem5.opt 09-25 构建，早于 LSU 注入器源码提交 46e912b5 09-26） | 1 | 根因=二进制过期，需重建 | PENDING（被 G0-10 门禁阻塞：总方针 §8.5 禁止在 G0-10 通过前正式编译） | /tmp/p0_smoke_hello 输出（ImportError 栈） |
+| E-002 | 2026-09-29 11:40 | lsu_proxy.py 冒烟 | ImportError: cannot import name 'CHAOSPrefetch' from 'm5.objects'（gem5.opt 09-25 构建，早于 LSU 注入器源码提交 46e912b5 09-26） | 2 | 根因=二进制过期 → 守卫 -j8 重建（E-003 处置）后复测 | RESOLVED（2026-09-29 15:41：重建成功后冒烟 exit 0，"Hello, AArch64 CHAOS!"，CHAOSPrefetch 导入正常；evidence/P1/smoke_hello.out） | /tmp/p0_smoke_hello（失败）；evidence/P1/smoke_hello.out（成功） |
 | E-003 | 2026-09-29 11:48 起 | gem5 构建 | scons -j126：多个 cc1plus 被 SIGKILL、6 个 .py.pyo 目标 Error 1；findings.md 记载该事故曾致服务器内存 94%+swap 耗尽并重启 | 2 | 违反总方针 §8.1（-j8 硬上限）；第 3 次尝试必须 -j8 单实例+锁+60秒监控 | BLOCKED on G0-10：守卫验证通过后以 -j8 重启构建 | evidence/P0/rebuild_attempt2.log（331 行，6 个 scons error） |
 
 ## Periodic Update Template

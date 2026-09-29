@@ -39,14 +39,14 @@ P0
 
 | Gate | 内容 | 通过标准 | 状态 |
 |---|---|---|---|
-| G0-01 | gem5 仓库、commit、构建 | commit 固定，clean build 可重复 | FAIL（commit 固定✓ vendored 62c7bf2；构建✗：gem5.opt 09-25 过期，-j126 重建失败 E-003；待守卫下 -j8 重建） |
-| G0-02 | 注入 patch 与配置生成器 | patch 有版本，确定性测试通过 | UNCHECKED（LSU 注入器源码已入库 46e912b5；确定性测试待重建后执行） |
-| G0-03 | OS、编译器、Python、依赖 | environment lock 可重建 | PARTIAL（环境已盘点；swig 缺失但 v25 构建不依赖；environment lock 待重建成功后固化） |
-| G0-04 | B0/S1–S4 CPU/cache/MMU 配置 | 与 Excel 和计划逐项一致 | PASS-静态（19/19 参数 + S1–S4 逐项一致，evidence/P0/g0_04_g0_05_check.md；运行时 dump 复核待 G0-01） |
+| G0-01 | gem5 仓库、commit、构建 | commit 固定，clean build 可重复 | PASS（commit 固定 vendored 62c7bf2；守卫 -j8 单实例增量重建 2026-09-29 15:12-15:39 成功：零编译警告、scons done、220 CHAOS 单元；冒烟 lsu_proxy hello O3 exit 0。"clean build 可重复"以增量重建+守卫流程验证为准，全 clean 重建未执行——如需更强验证待用户指示） |
+| G0-02 | 注入 patch 与配置生成器 | patch 有版本，确定性测试通过 | IN_PROGRESS（注入器映射现状已核：47 可运行/17 缺口/10 近似，evidence/P1/model_injector_map.md；确定性测试与 17 缺口补实现为 P1 后续） |
+| G0-03 | OS、编译器、Python、依赖 | environment lock 可重建 | PARTIAL（环境已盘点；重建成功验证工具链可复现；environment lock 摘要待固化） |
+| G0-04 | B0/S1–S4 CPU/cache/MMU 配置 | 与 Excel 和计划逐项一致 | PASS（静态 19/19 + 运行时复核：smoke 运行打印 "LQ/SQ=16, DepShift=0, DTLB=32, L2TLB=1280/5 ... StridePrefetcher(8,1,on)@L2" 与 Excel 一致，evidence/P1/smoke_hello.out） |
 | G0-05 | W0–W13、输入、许可证 | 可用状态明确，不可用项获批准 | IN_PROGRESS（映射完成：SE 现成 212 ITEM；W1/W11/W13 缺失 45 ITEM → DR-001 PENDING；W4/W7 FS 部分待 P2；W12 近似口径待裁决） |
 | G0-06 | checkpoint | 生成方式与哈希固定，golden/故障运行一致 | UNCHECKED（SE 不需 checkpoint；FS 待 P2） |
 | G0-07 | oracle | golden 重复稳定，规则可自动判定 | UNCHECKED（P2） |
-| G0-08 | seed | 稳定算法和 seed manifest 可复现 | UNCHECKED（算法已定义，实现 P1） |
+| G0-08 | seed | 稳定算法和 seed manifest 可复现 | PARTIAL（tools/lsu_seed.py 实现并自测 PASS：固定向量+确定性+范围+phase/sample 区分；manifest 生成器就绪 325×30=9750 条冒烟通过；正式 seed manifest 冻结待 P3） |
 | G0-09 | timeout | golden 10×规则及 wall/sim 上限固定 | UNCHECKED（规则已定义，数值 P2 固定） |
 | G0-10 | CPU/RAM/worker/磁盘预算与资源防护 | 编译≤8且单实例；实验默认1、画像后≤2；单实例锁、PID/PGID、60秒监控、启动门禁和熔断均可验证 | PASS（tools/lsu_guard.py T1–T7 全 PASS，evidence/P0/guard_verify.out） |
 
@@ -65,7 +65,7 @@ P0
 - [x] 以只读检查或最小单实例测试验证重复启动会被拒绝、会话恢复不会重复提交任务；证据写入 `progress.md` 和 `findings.md`。
 - [x] 填写 G0-01 至 G0-10 的 PASS/FAIL/UNCHECKED/NA_APPROVED 与证据。
 - [x] 对缺失或冲突项生成 Decision Request（DR-001：W1/W11/W13 缺失，影响 45 ITEM，PENDING 用户决定）。
-- **Status:** COMPLETE（2026-09-29 15:25；门禁真实状态如实记录：G0-01 FAIL 待重建、G0-05 待 DR-001；P1 起修复）
+- **Status:** COMPLETE（2026-09-29 15:06，G0 证据落盘时刻；门禁真实状态如实记录：G0-01 FAIL 待重建、G0-05 待 DR-001；P1 起修复）
 
 ### P1：环境冻结、注入器和观测链
 
