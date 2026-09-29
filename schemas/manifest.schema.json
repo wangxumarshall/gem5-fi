@@ -171,7 +171,13 @@
             "l3",
             "noc",
             "coherence",
-            "memctrl"
+            "memctrl",
+            "bpu",
+            "decode",
+            "exmon",
+            "ras",
+            "addr_path",
+            "prefetch"
           ]
         },
         "instance": {
