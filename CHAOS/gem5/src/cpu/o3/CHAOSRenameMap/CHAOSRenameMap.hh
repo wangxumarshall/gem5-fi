@@ -12,6 +12,7 @@
 #include "base/types.hh"
 #include "cpu/base.hh"
 #include "cpu/reg_class.hh"      // RegClassType (W7.2 targetClass)
+#include "cpu/o3/chaos_event_trigger.hh"  // WS4.3 event-normalized tier
 
 // o3::CPU (C++ class behind ArmO3CPU) is needed to reach renameMap/freeList/
 // regFile. Forward-declare (full definition pulled into the .cc via cpu/o3/cpu.hh).
@@ -213,6 +214,21 @@ class CHAOSRenameMap : public SimObject
     std::mt19937 rng;
     std::random_device rd;
     OutputStream *log_stream = nullptr;
+
+    // ---- WS4.3: event-normalized F0-F6 trigger (chaos_event_trigger.hh,
+    // the aliased LSU implementation — ooo 05 r2-r8). tier != off replaces
+    // the cycle window / probability draw with the eligible-event-normalized
+    // semantics; the legacy path stays byte-identical. eligible stream =
+    // valid rename-cycle mapping allocations (setEntry / getReg / release /
+    // checkpoint-creation, per the active mode's hook). ----
+    ChaOSEventTrigger *eventTrigger = nullptr;
+    ChaOSOooEvent f6_ooo_event = ChaOSOooEvent::BranchMispredict;
+    bool f6_pending = false;     // F6 fires at the configured event, the
+                                 // next eligible hook consumes it
+    static CHAOSRenameMap *f6Consumer;   // single-consumer F6 discipline
+    static void f6Thunk(ChaOSOooEvent ev);
+    static ChaOSEventTier tierFromString(const std::string &s);
+    static ChaOSOooEvent oooEventFromString(const std::string &s);
 
     // spec_leak sampling-bias fix (Phase 3.0 family): geometric(0.1) count
     // of eligible rollbacks to skip before the first suppressed one.

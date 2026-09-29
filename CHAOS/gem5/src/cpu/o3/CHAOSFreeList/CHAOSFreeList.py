@@ -101,3 +101,13 @@ class CHAOSFreeList(SimObject):
         "remaining count (post-pop) is <= this (default 0 = pool drained; "
         "re-derived from 04's ≤6 per the W1.5b initial-free-4 calibration)")
     writeLog = Param.Bool(True, "Write a fault_injections.log file")
+
+    # WS4.3: event-normalized F0-F6 trigger tier (ooo 05 r2-r8; aliased
+    # chaos_lsu_trigger.hh semantics). "off" (default) = legacy cycle-window
+    # path, byte-identical. F6 event sources: branch_mispredict (d-bridge
+    # D14), rename_squash (D18), commit_squash (reserved for the WB1 audit).
+    tier = Param.String("off", "off | F0 | F1 | F2 | F3 | F4 | F5 | F6")
+    warmupEvents = Param.UInt64(0, "eligible events skipped before arming")
+    spanEvents = Param.UInt64(1000, "F0 uniform window size in eligible events")
+    f6Event = Param.String("branch_mispredict",
+        "branch_mispredict | rename_squash | commit_squash")

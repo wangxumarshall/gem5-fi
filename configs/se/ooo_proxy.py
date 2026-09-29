@@ -160,6 +160,33 @@ p.add_argument("--freelist_event_threshold", type=lambda x: int(x,0), default=8,
 p.add_argument("--freelist_event_threshold_vec", type=lambda x: int(x,0), default=0,
                help="W7.3 D75 mark_free_event vec threshold (default 0 = pool drained; "
                     "04's <=6 re-derived per the W1.5b initial-free-4 calibration)")
+# WS4.3: event-normalized trigger tiers on CHAOSRenameMap / CHAOSFreeList
+# (ooo 05 r2-r8). off = legacy cycle-window path (byte-identical). F0-F6:
+# the trigger layer owns warm-up/repetition semantics (eligible-event
+# denominator = rename-cycle mapping allocations: setEntry for the rename
+# hook, getReg/addReg/stuck for the freelist hook). NOTE the W5.6
+# oldphys_* modes ride the legacy path (their rob_* knob set mounts a
+# second CHAOSRenameMap without a tier).
+p.add_argument("--rename_tier", default="off",
+               choices=["off","F0","F1","F2","F3","F4","F5","F6"],
+               help="WS4.3: event-normalized trigger tier on CHAOSRenameMap")
+p.add_argument("--rename_warmup_events", type=lambda x: int(x,0), default=0,
+               help="WS4.3: eligible events skipped before arming")
+p.add_argument("--rename_span_events", type=lambda x: int(x,0), default=1000,
+               help="WS4.3: F0 uniform window size in eligible events")
+p.add_argument("--rename_f6_event", default="rename_squash",
+               choices=["branch_mispredict","rename_squash","commit_squash"],
+               help="WS4.3: F6 event source (rename_squash=D18 default)")
+p.add_argument("--freelist_tier", default="off",
+               choices=["off","F0","F1","F2","F3","F4","F5","F6"],
+               help="WS4.3: event-normalized trigger tier on CHAOSFreeList")
+p.add_argument("--freelist_warmup_events", type=lambda x: int(x,0), default=0,
+               help="WS4.3: eligible events skipped before arming")
+p.add_argument("--freelist_span_events", type=lambda x: int(x,0), default=1000,
+               help="WS4.3: F0 uniform window size in eligible events")
+p.add_argument("--freelist_f6_event", default="rename_squash",
+               choices=["branch_mispredict","rename_squash","commit_squash"],
+               help="WS4.3: F6 event source (rename_squash=D18 default)")
 # §2.3 CHAOSROB (O3 ROB fault injector). SELF-ATTACHES at startup() to
 # cpu.rob.chaosROB. entry_bitflip / exc_suppress modes (§2.3).
 p.add_argument("--chaos_rob", action="store_true",
@@ -575,6 +602,10 @@ if args.chaos_rename:
         faultMask=args.rename_fault_mask,
         rngSeed=args.rename_rng_seed,
         writeLog=True,
+        tier=args.rename_tier,
+        warmupEvents=args.rename_warmup_events,
+        spanEvents=args.rename_span_events,
+        f6Event=args.rename_f6_event,
     )
     board.chaos_rename = ren
 
@@ -592,6 +623,10 @@ if args.chaos_freelist:
         eventThreshold=args.freelist_event_threshold,
         eventThresholdVec=args.freelist_event_threshold_vec,
         writeLog=True,
+        tier=args.freelist_tier,
+        warmupEvents=args.freelist_warmup_events,
+        spanEvents=args.freelist_span_events,
+        f6Event=args.freelist_f6_event,
     )
     board.chaos_freelist = fl
 

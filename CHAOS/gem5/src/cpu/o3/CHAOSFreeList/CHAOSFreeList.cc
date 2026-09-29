@@ -44,6 +44,14 @@ namespace gem5
                   "the north-star scalar-FP freelist rows are merged into "
                   "vec, there is no float class)", tcls);
         }
+        // WS4.3: event-normalized tier (off = legacy cycle-window path).
+        if (p.tier != "off") {
+            eventTrigger = new ChaOSEventTrigger(tierFromString(p.tier),
+                                                 rng_seed ? rng_seed : 1,
+                                                 p.warmupEvents,
+                                                 p.spanEvents);
+            f6_ooo_event = oooEventFromString(p.f6Event);
+        }
         if (probability > 0.0f) {
             log_stream = simout.create("freelist_injections.log", false, true);
             if (!log_stream || !log_stream->stream())
@@ -56,6 +64,38 @@ namespace gem5
     }
 
     CHAOSFreeList::~CHAOSFreeList() {}
+
+    CHAOSFreeList *CHAOSFreeList::f6Consumer = nullptr;
+
+    ChaOSEventTier
+    CHAOSFreeList::tierFromString(const std::string &s) {
+        if (s == "F0") return ChaOSEventTier::F0;
+        if (s == "F1") return ChaOSEventTier::F1;
+        if (s == "F2") return ChaOSEventTier::F2;
+        if (s == "F3") return ChaOSEventTier::F3;
+        if (s == "F4") return ChaOSEventTier::F4;
+        if (s == "F5") return ChaOSEventTier::F5;
+        if (s == "F6") return ChaOSEventTier::F6;
+        panic("CHAOSFreeList: unknown tier '%s'\n", s);
+    }
+
+    ChaOSOooEvent
+    CHAOSFreeList::oooEventFromString(const std::string &s) {
+        if (s == "rename_squash") return ChaOSOooEvent::RenameSquash;
+        if (s == "commit_squash") return ChaOSOooEvent::CommitSquash;
+        return ChaOSOooEvent::BranchMispredict;  // branch_mispredict/default
+    }
+
+    void
+    CHAOSFreeList::f6Thunk(ChaOSOooEvent ev) {
+        // Single-consumer F6 notify (chaos_event_trigger.hh). The trigger's
+        // onF6Event() enforces once-ever; the injection lands at the next
+        // eligible freelist hook (f6_pending).
+        if (f6Consumer && f6Consumer->eventTrigger &&
+            f6Consumer->f6_ooo_event == ev &&
+            f6Consumer->eventTrigger->onF6Event())
+            f6Consumer->f6_pending = true;
+    }
 
     CHAOSFreeList::Mode
     CHAOSFreeList::stringToMode(const std::string &s) {
@@ -182,14 +222,32 @@ namespace gem5
             dup_watch_idx = -1;
         }
         if (!cpu || probability <= 0.0f) return false;
-        if (max_faults != 0 && faults_injected_count >= max_faults) return false;
-        if (!inWindow()) return false;
+        if (eventTrigger) {
+            // WS4.3 event-normalized path: funnel counts this hook's
+            // stream (eligible after the class filter below).
+            eventTrigger->onAttempt();
+        } else {
+            if (max_faults != 0 && faults_injected_count >= max_faults) return false;
+            if (!inWindow()) return false;
+        }
         // W7.3: targetClass gate (int = the §2.2 method1 long-lived
         // accumulator target; vec = the D72-D77 merged rows).
         if (class_value != target_class) return false;
 
-        std::uniform_real_distribution<float> pd(0.0f, 1.0f);
-        if (pd(rng) > probability) return false;
+        if (eventTrigger) {
+            // WS4.3 tier verdict (F6 = the pending flag set by the source).
+            bool go;
+            if (eventTrigger->tier == ChaOSEventTier::F6) {
+                go = f6_pending;
+                f6_pending = false;
+            } else {
+                go = eventTrigger->onEligible();
+            }
+            if (!go) return false;
+        } else {
+            std::uniform_real_distribution<float> pd(0.0f, 1.0f);
+            if (pd(rng) > probability) return false;
+        }
 
         auto *o3cpu = dynamic_cast<o3::CPU *>(cpu);
         if (!o3cpu) return false;
@@ -369,9 +427,13 @@ namespace gem5
         // startup()).
         if (fi_mode != Mode::DropRelease) return false;
         if (!cpu || probability <= 0.0f) return false;
-        if (max_faults != 0 && faults_injected_count >= max_faults)
-            return false;
-        if (!inWindow()) return false;
+        if (eventTrigger) {
+            eventTrigger->onAttempt();
+        } else {
+            if (max_faults != 0 && faults_injected_count >= max_faults)
+                return false;
+            if (!inWindow()) return false;
+        }
         // W7.3: targetClass gate (int pool = D19 original; vec pool =
         // D77 向量空闲表·丢失释放 — the merged D76/D77 row).
         if (class_value != target_class) return false;
@@ -379,8 +441,19 @@ namespace gem5
         auto *o3cpu = dynamic_cast<o3::CPU *>(cpu);
         if (!o3cpu) return false;
 
-        std::uniform_real_distribution<float> pd(0.0f, 1.0f);
-        if (pd(rng) > probability) return false;
+        if (eventTrigger) {
+            bool go;
+            if (eventTrigger->tier == ChaOSEventTier::F6) {
+                go = f6_pending;
+                f6_pending = false;
+            } else {
+                go = eventTrigger->onEligible();
+            }
+            if (!go) return false;
+        } else {
+            std::uniform_real_distribution<float> pd(0.0f, 1.0f);
+            if (pd(rng) > probability) return false;
+        }
 
         unsigned before = o3cpu->physFreeList().numFreeRegs(target_class);
         faults_injected_count++;
@@ -419,6 +492,7 @@ namespace gem5
         // approximation via the class-parameterized helpers).
         if (class_value != target_class) return false;
         if (!cpu || probability <= 0.0f) return false;
+        if (eventTrigger) eventTrigger->onAttempt();
 
         auto *o3cpu = dynamic_cast<o3::CPU *>(cpu);
         if (!o3cpu) return false;
@@ -427,11 +501,24 @@ namespace gem5
             // F5 arming: max_faults/probability/window gate the CREATION
             // only (the f5_rat_stuck arming pattern); applications after
             // arming are exposures of the ONE permanent fault.
-            if (max_faults != 0 && faults_injected_count >= max_faults)
-                return false;
-            if (!inWindow()) return false;
-            std::uniform_real_distribution<float> pd(0.0f, 1.0f);
-            if (pd(rng) > probability) return false;
+            // WS4.3: on the event-normalized path the tier verdict gates
+            // the arming (F5: first eligible event after warm-up).
+            if (eventTrigger) {
+                bool go;
+                if (eventTrigger->tier == ChaOSEventTier::F6) {
+                    go = f6_pending;
+                    f6_pending = false;
+                } else {
+                    go = eventTrigger->onEligible();
+                }
+                if (!go) return false;
+            } else {
+                if (max_faults != 0 && faults_injected_count >= max_faults)
+                    return false;
+                if (!inWindow()) return false;
+                std::uniform_real_distribution<float> pd(0.0f, 1.0f);
+                if (pd(rng) > probability) return false;
+            }
 
             int num_phys = numPhysForClass(o3cpu);
             int front_idx = front_reg->index();
@@ -533,6 +620,18 @@ namespace gem5
         }
         // SELF-ATTACH: set the UnifiedFreeList's chaosFreeList pointer.
         o3cpu->physFreeList().setChaosFreeList(this);
+        if (eventTrigger) {
+            if (eventTrigger->tier == ChaOSEventTier::F6) {
+                f6Consumer = this;
+                chaosOooF6Notify = &CHAOSFreeList::f6Thunk;
+            }
+            // WS4.3 funnel summary (attempted/eligible/injected).
+            registerExitCallback([this]() {
+                if (eventTrigger)
+                    chaosEventTriggerSummary(*eventTrigger,
+                                             "CHAOSFreeList");
+            });
+        }
     }
 
 } // namespace gem5

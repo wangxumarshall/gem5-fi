@@ -40,6 +40,7 @@
  */
 
 #include "cpu/o3/rename.hh"
+#include "cpu/o3/chaos_event_trigger.hh"  // WS4.3 RenameSquash F6 source
 
 #include <list>
 
@@ -375,6 +376,15 @@ Rename::squash(const InstSeqNum &squash_seq_num, ThreadID tid)
 {
     DPRINTF(Rename, "[tid:%i] [squash sn:%llu] Squashing instructions.\n",
         tid,squash_seq_num);
+
+    // WS4.3: OoO F6 event source (chaos_event_trigger.hh; d-bridge D18
+    // anchor). One notify per rename squash — mispredict restores, trap
+    // squashes and serialize-stall squashes alike (the consumer's tier=F6
+    // injector filters its configured event type; the D14
+    // swap_mispred_event mode keeps its own mispredict-only context via
+    // notifySquashSignal at the call site above).
+    if (chaosOooF6Notify)
+        chaosOooF6Notify(ChaOSOooEvent::RenameSquash);
 
     // Clear the stall signal if rename was blocked or unblocking before.
     // If it still needs to block, the blocking should happen the next

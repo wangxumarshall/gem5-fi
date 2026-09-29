@@ -59,6 +59,14 @@ namespace gem5
                  "(W5.6 Int Dispatch/ROB family) is out of scope — the "
                  "injector stays INERT for this run (zero injections).\n");
         }
+        // WS4.3: event-normalized tier (off = legacy cycle-window path).
+        if (p.tier != "off") {
+            eventTrigger = new ChaOSEventTrigger(tierFromString(p.tier),
+                                                 rng_seed ? rng_seed : 1,
+                                                 p.warmupEvents,
+                                                 p.spanEvents);
+            f6_ooo_event = oooEventFromString(p.f6Event);
+        }
         if (probability > 0.0f) {
             log_stream = simout.create("rename_injections.log", false, true);
             if (!log_stream || !log_stream->stream())
@@ -74,6 +82,38 @@ namespace gem5
     }
 
     CHAOSRenameMap::~CHAOSRenameMap() {}
+
+    CHAOSRenameMap *CHAOSRenameMap::f6Consumer = nullptr;
+
+    ChaOSEventTier
+    CHAOSRenameMap::tierFromString(const std::string &s) {
+        if (s == "F0") return ChaOSEventTier::F0;
+        if (s == "F1") return ChaOSEventTier::F1;
+        if (s == "F2") return ChaOSEventTier::F2;
+        if (s == "F3") return ChaOSEventTier::F3;
+        if (s == "F4") return ChaOSEventTier::F4;
+        if (s == "F5") return ChaOSEventTier::F5;
+        if (s == "F6") return ChaOSEventTier::F6;
+        panic("CHAOSRenameMap: unknown tier '%s'\n", s);
+    }
+
+    ChaOSOooEvent
+    CHAOSRenameMap::oooEventFromString(const std::string &s) {
+        if (s == "rename_squash") return ChaOSOooEvent::RenameSquash;
+        if (s == "commit_squash") return ChaOSOooEvent::CommitSquash;
+        return ChaOSOooEvent::BranchMispredict;  // branch_mispredict/default
+    }
+
+    void
+    CHAOSRenameMap::f6Thunk(ChaOSOooEvent ev) {
+        // Single-consumer F6 notify (chaos_event_trigger.hh). The trigger's
+        // onF6Event() enforces once-ever; the injection lands at the next
+        // eligible rename hook (f6_pending).
+        if (f6Consumer && f6Consumer->eventTrigger &&
+            f6Consumer->f6_ooo_event == ev &&
+            f6Consumer->eventTrigger->onF6Event())
+            f6Consumer->f6_pending = true;
+    }
 
     CHAOSRenameMap::Mode
     CHAOSRenameMap::stringToMode(const std::string &s) {
@@ -278,8 +318,14 @@ namespace gem5
         if (fi_mode == Mode::SwapMispredEvent && !(sq_active && sq_mispredict))
             return false;
         if (!cpu || probability <= 0.0f) return false;
-        if (max_faults != 0 && faults_injected_count >= max_faults) return false;
-        if (!inWindow()) return false;
+        if (eventTrigger) {
+            // WS4.3 event-normalized path: funnel counts this hook's
+            // stream (eligible after the class/idx/target filters below).
+            eventTrigger->onAttempt();
+        } else {
+            if (max_faults != 0 && faults_injected_count >= max_faults) return false;
+            if (!inWindow()) return false;
+        }
 
         // dynamic_cast to O3CPU once per call (physRegFile/physFreeList are
         // o3::CPU members, not BaseCPU). Cheap: maybeCorrupt fires at most once
@@ -308,9 +354,21 @@ namespace gem5
         }
         if (arch_idx != target) return false;  // only inject on the chosen arch reg
 
-        // probability gate
-        std::uniform_real_distribution<float> pd(0.0f, 1.0f);
-        if (pd(rng) > probability) return false;
+        // probability gate (WS4.3: tier verdict on the event-normalized
+        // path — the tier owns warm-up/repetition; F6 = the pending flag)
+        if (eventTrigger) {
+            bool go;
+            if (eventTrigger->tier == ChaOSEventTier::F6) {
+                go = f6_pending;
+                f6_pending = false;
+            } else {
+                go = eventTrigger->onEligible();
+            }
+            if (!go) return false;
+        } else {
+            std::uniform_real_distribution<float> pd(0.0f, 1.0f);
+            if (pd(rng) > probability) return false;
+        }
 
         int cur_idx = phys_reg->index();
         int num_phys = numPhysForClass(o3cpu);
@@ -588,6 +646,7 @@ namespace gem5
         // lives in the rename-stage (front) RAT — the commitRenameMap copy
         // has no injector attached and is never masked.
         if (!cpu || probability <= 0.0f) return false;
+        if (eventTrigger) eventTrigger->onAttempt();
         // W7.2: targetClass gate (D70 vec flavor of the F5 stuck entry).
         if (arch_reg.classValue() != target_class) return false;
         int arch_idx = arch_reg.index();
@@ -602,11 +661,24 @@ namespace gem5
             // Arming: D15 "运行开始（首个注入窗口到达时）随机选一个 RAT
             // 表项的一个比特位" — one entry, one bit, polarity 50/50
             // (directed targetArchReg overrides the entry choice).
-            if (max_faults != 0 && faults_injected_count >= max_faults)
-                return false;
-            if (!inWindow()) return false;
-            std::uniform_real_distribution<float> pd(0.0f, 1.0f);
-            if (pd(rng) > probability) return false;
+            // WS4.3: on the event-normalized path the tier verdict gates
+            // the arming (F5: first eligible event after warm-up).
+            if (eventTrigger) {
+                bool go;
+                if (eventTrigger->tier == ChaOSEventTier::F6) {
+                    go = f6_pending;
+                    f6_pending = false;
+                } else {
+                    go = eventTrigger->onEligible();
+                }
+                if (!go) return false;
+            } else {
+                if (max_faults != 0 && faults_injected_count >= max_faults)
+                    return false;
+                if (!inWindow()) return false;
+                std::uniform_real_distribution<float> pd(0.0f, 1.0f);
+                if (pd(rng) > probability) return false;
+            }
 
             int target = target_arch_reg;
             if (target < 0)
@@ -844,9 +916,14 @@ namespace gem5
             return false;
         }
         if (!cpu || probability <= 0.0f) return false;
-        if (max_faults != 0 && faults_injected_count >= max_faults)
-            return false;
-        if (!inWindow()) return false;
+        if (eventTrigger) {
+            // WS4.3: funnel counts the checkpoint-creation stream.
+            eventTrigger->onAttempt();
+        } else {
+            if (max_faults != 0 && faults_injected_count >= max_faults)
+                return false;
+            if (!inWindow()) return false;
+        }
         // W7.2: targetClass gate (D68 vec flavors of the checkpoint flip).
         if (arch_reg.classValue() != target_class) return false;
         int arch_idx = arch_reg.index();
@@ -864,8 +941,20 @@ namespace gem5
             target = (int)(rng() % (unsigned)numArchTargetRegs());
         if (arch_idx != target) return false;
 
-        std::uniform_real_distribution<float> pd(0.0f, 1.0f);
-        if (pd(rng) > probability) return false;
+        if (eventTrigger) {
+            // WS4.3 tier verdict (F6 = the pending flag set by the source).
+            bool go;
+            if (eventTrigger->tier == ChaOSEventTier::F6) {
+                go = f6_pending;
+                f6_pending = false;
+            } else {
+                go = eventTrigger->onEligible();
+            }
+            if (!go) return false;
+        } else {
+            std::uniform_real_distribution<float> pd(0.0f, 1.0f);
+            if (pd(rng) > probability) return false;
+        }
 
         auto *o3cpu = dynamic_cast<o3::CPU *>(cpu);
         if (!o3cpu) return false;
@@ -1372,6 +1461,18 @@ namespace gem5
         // PerThreadUnifiedRenameMap = std::array<UnifiedRenameMap, MaxThreads>.
         if (!o3cpu->frontRenameMap().empty()) {
             o3cpu->frontRenameMap()[0].setChaosRenameMap(this);
+        }
+        if (eventTrigger) {
+            if (eventTrigger->tier == ChaOSEventTier::F6) {
+                f6Consumer = this;
+                chaosOooF6Notify = &CHAOSRenameMap::f6Thunk;
+            }
+            // WS4.3 funnel summary (attempted/eligible/injected).
+            registerExitCallback([this]() {
+                if (eventTrigger)
+                    chaosEventTriggerSummary(*eventTrigger,
+                                             "CHAOSRenameMap");
+            });
         }
     }
 
