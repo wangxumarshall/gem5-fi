@@ -30,6 +30,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import lsu_campaign as LC  # 家族映射唯一来源（no drift）
 from lsu_seed import lsu_seed
 
+L5 = REPO / "tools/lsu_l5_classify.py"
+
 CHECKLIST = REPO / "docs/gem5-fi/lsu/完整任务执行清单.md"
 LSU_PROXY = REPO / "configs/se/lsu_proxy.py"
 GUARD = REPO / "tools/lsu_guard.py"
@@ -240,12 +242,29 @@ def main():
         print(f"[two-pass] 全流 eligible N={span} → 正式 span={span}")
 
     cfg, c = build_guard_cmd(m, outdir, span=span)
-    r = subprocess.run(["python3", str(GUARD), "run", "--type", "experiment",
-                        "--desc", f"RUN {tag}", "--log",
-                        str(outdir.parent / (tag + "_rsrc.log")),
-                        "--interval", "60", "--max-seconds", str(m["timeout_seconds"]),
-                        "--", str(REPO / "build/ARM/gem5.opt"),
-                        "--outdir", str(outdir), cfg] + c)
+    guard_out = outdir.parent / (tag + "_guard.out")
+    with open(guard_out, "w") as gf:
+        r = subprocess.run(["python3", str(GUARD), "run", "--type", "experiment",
+                            "--desc", f"RUN {tag}", "--log",
+                            str(outdir.parent / (tag + "_rsrc.log")),
+                            "--interval", "60", "--max-seconds", str(m["timeout_seconds"]),
+                            "--", str(REPO / "build/ARM/gem5.opt"),
+                            "--outdir", str(outdir), cfg] + c,
+                           stdout=gf, stderr=subprocess.STDOUT)
+    # L5 分类（P1 收尾集成）：守卫合并流同时作 stdout/stderr（panic 栈在合并流中）
+    gtxt = guard_out.read_text(errors="replace")
+    ec = re.search(r'"exit_code": (-?\d+)', gtxt)
+    gem5_exit = int(ec.group(1)) if ec else r.returncode
+    cls = subprocess.run(["python3", str(L5), "--run-dir", str(outdir),
+                          "--stdout", str(guard_out), "--stderr", str(guard_out),
+                          "--golden", str(m["golden"]), "--exit", str(gem5_exit)],
+                         capture_output=True, text=True)
+    jm = re.search(r"LSU_L5: (\{.*\})", cls.stdout)
+    verdict = json.loads(jm.group(1)) if jm else {"error": f"classifier failed: {cls.stderr[-300:]}"}
+    verdict["gem5_exit"] = gem5_exit
+    (outdir / "l5_verdict.json").write_text(json.dumps(verdict, ensure_ascii=False, indent=1))
+    print(f"L5: outcome={verdict.get('outcome')} crash_kind={verdict.get('crash_kind')} "
+          f"activated={verdict.get('activated')} ({outdir.name}/l5_verdict.json)")
     sys.exit(r.returncode)
 
 

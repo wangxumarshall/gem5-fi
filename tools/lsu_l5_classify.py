@@ -46,6 +46,13 @@ def _read(path, out, label):
 
 def classify(args):
     out = {"conservation": None, "error": None}
+    # 输入完整性（P1 收尾加固，2026-09-29）：stdout 是 checksum 判定的唯一依据，
+    # 给了路径但文件缺失时拒绝分类（此前会落入 checksum=None→Crash 的猜测路径，
+    # 违反"未知必须写未知"——样本实测该缺陷由 A01 双跑重验暴露）。
+    if args.stdout and not Path(args.stdout).exists():
+        out["error"] = f"stdout file missing: {args.stdout} — 输入不完整，拒绝猜测结局"
+        out["outcome"] = "INCONCLUSIVE"
+        return out
     stdout = _read(args.stdout, out, "stdout")
     stderr = _read(args.stderr, out, "stderr")
 
