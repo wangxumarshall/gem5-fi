@@ -1,0 +1,50 @@
+{
+  "cli_version": "0.10.2",
+  "checkpoint_id": "01M3NC8PBQ81QAC4918H9BFSMT",
+  "session_id": "9a14192c-ae71-437a-8172-57d05afc9c5a",
+  "strategy": "manual-commit",
+  "created_at": "2026-09-29T01:25:34.367325122Z",
+  "branch": "fi-ding",
+  "checkpoints_count": 3,
+  "save_step_count": 1,
+  "files_touched": [],
+  "agent": "Claude Code",
+  "model": "GLM-5.3[1m]",
+  "turn_id": "2ce05a2f31ae",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 607154,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 10011520,
+    "output_tokens": 119497,
+    "api_call_count": 50
+  },
+  "skill_events_version": 1,
+  "skill_events": [
+    {
+      "id": "prompt-skill-claude-code-planning-with-files:planning-with-files-2026-09-28T14:37:20.26227519Z",
+      "event_type": "prompt_invocation",
+      "skill": {
+        "name": "planning-with-files:planning-with-files"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "prompt_slash_command",
+        "confidence": "explicit"
+      },
+      "turn_id": "16ea3b042d38",
+      "timestamp": "2026-09-28T14:37:20.26227519Z",
+      "native": {
+        "command": "/planning-with-files:planning-with-files"
+      },
+      "collapse": {
+        "target": "user_message",
+        "label": "/planning-with-files:planning-with-files",
+        "default_collapsed": true
+      }
+    }
+  ],
+  "session_metrics": {
+    "turn_count": 3
+  }
+}

@@ -1,0 +1,98 @@
+/planning-with-files:planning-with-files 深刻理解本项目源码，调用excel skill，深度理解 @docs/gem5-fi/ooo/gem5-fi-OoO单元故障注入方案V2.0.xlsx 目录中内容(要实现CPU的乱序执行OoO微架构的故障注入，该目录是ooo实现的北极星和完整的实现方案)，要求你制定实现OOO故障注入研究与实验的宏伟计划。有实现最终以 @docs/gem5-fi/ooo/gem5-fi-OoO单元故障注入方案V2.0.xlsx 为准，如果遇到冲突。如果V1.0有冲突，要以V2.0为准。要求你调用subagent加速运行
+
+---
+
+汇报进展
+
+---
+
+确保  @docs/gem5-fi/ooo/gem5-fi-OoO单元故障注入方案V2.0.xlsx  已被完整的提取到 @docs
+
+---
+
+批判性研究，并确保  @docs/gem5-fi/ooo/gem5-fi-OoO单元故障注入方案V2.0.xlsx  已被完整的提取到 @docs/gem5-fi/ooo/ 中，且所有内存以V2.0为准
+
+---
+
+<task-notification>
+<task-id>a03ebd5394115265e</task-id>
+<tool-use-id>call_976dd724d6cb4d6ba05146a1</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi/9a14192c-ae71-437a-8172-57d05afc9c5a/tasks/a03ebd5394115265e.output</output-file>
+<status>completed</status>
+<summary>Agent "实现 V2 忠实层与桥接表" came to rest</summary>
+<note>A task-notification fires each time this agent comes to rest with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>Both deliverables complete and verified. Final report for the orchestrator:
+
+## 1. Files created (all new, under `/home/sdc/gem5-fi/docs/gem5-fi/ooo/v2/`)
+
+**V2-W0.1 (extract_v2.py + 11 generated faithful-layer files):**
+- `/home/sdc/gem5-fi/docs/gem5-fi/ooo/v2/extract_v2.py` — generator + 21 assertions (source path relative to script: `../gem5-fi-OoO单元故障注入方案V2.0.xlsx`; parsing core copied/adapted from the proven `.planning` dumper: WPS absolute rels, inlineStr, formulas, empty-cell semantics identical to the read-back-verified dump)
+- `00-overview.md` (sheet1, R1–R25 verbatim + 提取注 at R15), `01-units-and-research.md` (sheet2), `02-ooo-params-baseline.md` (sheet3: B0 R2–R24 + 保护机制核验 R25–R31), `03-design-matrix.md` (all 57×14, per-unit sections, full text), `design-matrix.csv` (模型ID+Excel行+14 cols, 57 rows), `04-observation-points.md` (L0–L5), `05-frequency-and-statistics.md` (F0–F6 + 8 统计规则), `06-workloads.md` (W0–W13 + wiring note: 11 wired, W0/W2/W12 unwired), `07-expanded-matrix.csv` (Excel行+43 cols, 310 rows), `07-expanded-matrix.md` (column doc + tallies + per-model template), `08-references.md` (11 sources), `README.md` (navigation + method + quoted assertion output + sha256 + honesty notes (a)–(e))
+
+**V2-W0.2 (separate script, separate commit):**
+- `/home/sdc/gem5-fi/docs/gem5-fi/ooo/v2/bridge_v1_v2.py` — encodes the complete 91↔57 mapping (source of truth: v2-delta-report.md §3.7.4, cross-checked against `diff_v1_v2.py`'s M dict)
+- `/home/sdc/gem5-fi/docs/gem5-fi/ooo/v2/d-bridge-v1-v2.csv` — 116 data rows (91 V1.0 ids each exactly once + 25 new), columns `v1_id,v2_model_id,v2_submodels,relation,note`; relations: merged=71, migrated=3 (D47/D48/D49→R07), cancelled=17, new=25
+
+Constraints honored: pure stdlib, no gem5 runs/builds, no git add/commit, no existing tracked file touched (`git status` shows only `?? docs/gem5-fi/ooo/v2/`; `git diff` empty). Determinism verified: re-runs of both scripts produce byte-identical outputs (sha256-compared).
+
+## 2. Real assertion output (run from `docs/gem5-fi/ooo/v2/`)
+
+`python3 extract_v2.py` → EXIT=0:
+```
+[source] gem5-fi-OoO单元故障注入方案V2.0.xlsx sha256=b73b6304005e507f5e8a1f41f0fc979f3d6439e6dda875ec4d2be961b867ae75
+[sheets] PASS — 9 sheets: 0.说明与总览 / 1.单元与现有研究 / 2.OOO参数基线 / 3.位置x模型矩阵 / 4.观测点定义 / 5.频率与统计 / 6.负载清单 / 7.展开执行矩阵 / 8.文献与来源
+[cell-counts] PASS — non-empty cells per sheet: 22/49/151/812/42/102/90/5338/72 (total 6678)
+[design-header] PASS — sheet4 R1 = 14 expected column names
+[design-rows] PASS — sheet4 R2-R58 = 57 non-empty design rows x 14 cols
+[design-units] PASS — Int Decode=9, Int Rename=9, Int Dispatch / ROB=10, FP/SIMD Decode=9, FP/SIMD Rename=10, FP/SIMD Dispatch/ROB=10 (sum 57)
+[design-ids] PASS — model IDs == D01-D09/R01-R09/B01-B10/FD01-FD09/FR01-FR10/FB01-FB10 in order
+[submodels] PASS — total sub-model entries = 193 (per-model 2-5)
+[expanded-header] PASS — sheet8 R1 = 43 expected column names
+[expanded-rows] PASS — sheet8 R2-R311 = 310 non-empty rows x 43 cols
+[runid] PASS — unique 310/310; RunID == 模型ID-频率-负载ID for all rows
+[replay] PASS — design 适用频率x适用负载 replay == sheet8 (模型ID,频率,负载名) 310/310 rows, order included
+[cross-freq] PASS — sheet8 频率定义 vs sheet6 定义 (keyed by 档位): 0 mismatches / 310
+[cross-load] PASS — sheet8 负载（真实名称） vs sheet7 负载ID+名称: 0 mismatches / 310
+[cross-loaddef] PASS — sheet8 负载定义/oracle == sheet7 名称+（类型）+执行定义与oracle：0 mismatches / 310
+[result-slots] PASS — value slots P..AP (excl. Z) all empty in 310 rows; 记录状态(Z)=待执行 310/310
+[formulas] PASS — 25 formula cells exactly at Excel rows [2, 66, 130, 194, 258] x cols ['X', 'Y', 'AL', 'AM', 'AN'], no cached values
+[dist-freq] PASS — F0=104, F1=12, F2=76, F3=0, F4=28, F5=10, F6=80 (sum 310)
+[dist-unit] PASS — Int Decode=48, Int Rename=48, Int Dispatch / ROB=54, FP/SIMD Decode=52, FP/SIMD Rename=54, FP/SIMD Dispatch/ROB=54 (sum 310)
+[dist-load] PASS — W9 NEON-LaneProbe=48 / W5 ROB-Recovery=42 / W10 PolyBench=42 / W8 FP-ScalarProbe=38 / W4 Rename-Dependency=27 / W6 CoreMark+Embench=25 / W3 A64-DecodeProbe=24 / W7 GAP-Selected=21 / W13 FP-ExceptionRecovery=20 / W11 libjpeg-turbo-NEON=12 / W1 MiBench-TC23=11 (sum 310)
+[template] PASS — per-model cells by fault type: 单比特翻转=6, 双比特翻转=4, 换值=6, 错位拼接=6, 状态=6, 时序=6, 状态/时序=6, 卡死=2, 状态/换值=6
+[submodel-bound] PASS — full 子模型 expansion bound = Σ(子模型数x格数) = 1050 (derived; sheet8 enumerates 310)
+[outputs] 12 files written under v2/: 00-overview.md, 01-units-and-research.md, 02-ooo-params-baseline.md, 03-design-matrix.md, design-matrix.csv, 04-observation-points.md, 05-frequency-and-statistics.md, 06-workloads.md, 07-expanded-matrix.csv, 07-expanded-matrix.md, 08-references.md, README.md
+
+EXTRACTION VERIFICATION PASSED
+```
+
+`python3 bridge_v1_v2.py` → EXIT=0:
+```
+[source] V1.0: design-matrix.csv (91 ids); V2.0: gem5-fi-OoO单元故障注入方案V2.0.xlsx (57 models)
+[v1-coverage] PASS — 91 v1 ids from design-matrix.csv, each mapped exactly once (91/91)
+[cancelled-17] PASS — 17 cancelled ids match the delta report list
+[migrated-r07] PASS — D47/D48/D49 (Int Dispatch/ROB) -&gt; R07 (Int Rename), relation=migrated
+[absorption] PASS — inverted mapping == delta report table: 74 v1 rows -&gt; 32 v2 models (74 -&gt; 32)
+[v2-coverage] PASS — all 57 V2.0 models covered: 32 by ancestry + 25 new; every id exists in the design matrix sheet
+[rows] PASS — CSV = 117 lines (header + 91 + 25)
+[deterministic] PASS — regenerated d-bridge-v1-v2.csv byte-identical
+[outputs] d-bridge-v1-v2.csv (91 v1 rows + 25 new rows = 116 data rows)
+
+BRIDGE VERIFICATION PASSED
+```
+
+## 3. Discrepancies vs the verified facts
+
+**None in the data** — every verified fact reproduced exactly (9 sheets/names, 57 rows + 9/9/10/9/10/10, 193 sub-models, 310×43, RunID 310/310 unique, replay 310/310 incl. order, 0 cross-table mismatches, result columns empty, cell counts 22/49/151/812/42/102/90/5338/72=6678, all distribution tallies, formula rows 2/66/130/194/258, 1050 bound). Three honest process notes:
+
+1. **Transient FAIL during development, not a data issue**: my first run failed `[dist-freq]` because the computed tally omits the `F3` key entirely (0 occurrences → absent key), so dict equality against the expected `{F3:0,...}` failed despite identical values. Fixed to per-key `.get()` comparison; all runs since pass.
+2. **Bug found in `.planning/.../v2-extract/diff_v1_v2.py` (not in this repo's deliverables)**: its M-dict note for D42 says `'D42': ('B02', 'ROB头指针双翻 → B06（换值语义）')` — the note prose names B06 while the target is B02. The delta report §3.7.4 table confirms **D42 → B02** (B02 ← D26,D29,D37,D42; B06 ← D41,D44,D45). The bridge CSV maps D42→B02 and documents this correction in its note.
+3. **Design decision on `v2_submodels`**: the delta report adjudicates sub-model attribution only for some rows (e.g. D01→D01-a, D04→D01-b); mixing specific letters with full sets in one column would be ambiguous. The column therefore carries the target model's **full sub-model letter set** (parsed from the xlsx design matrix, script-verified), and the note column carries the specific attributions where the report names them.
+
+Also confirmed for honesty note (d): no docProps; zip inner timestamp 2026-09-28 16:50:36 (all 16 entries uniform).
+
+## 4. Source xlsx sha256
+
+`b73b6304005e507f5e8a1f41f0fc979f3d6439e6dda875ec4d2be961b867ae75` (matches the verified delta report and the `.planning` dump inventory).</result>
+<usage><subagent_tokens>0</subagent_tokens><tool_uses>42</tool_uses><duration_ms>788212</duration_ms></usage>
+</task-notification>
