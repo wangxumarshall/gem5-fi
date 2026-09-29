@@ -13,7 +13,7 @@
 - **Phase Status:** IN_PROGRESS
 - **Overall Status:** IN_PROGRESS
 - **Started:** 2026-09-29 11:22 (Session 001)
-- **Last Updated:** 2026-09-29 19:19（监控周期 #2：**ITEM-001 COMPLETE** 30/30 activated（Masked 13 + sim_fail 17，守恒 OK，commit 27bf1e1b 已推送）；ITEM-002 A01-F0-W9 自动接续；资源 NORMAL）
+- **Last Updated:** 2026-09-29 20:18（监控周期 #4：波次2健康——AGU ITEM-002 s23/30 运行中（结局混合 Crash/Masked 正常），资源 NORMAL 27.18G，无新终态）
 - **Current Owner:** 服务器执行 AI（Claude，主协调 AI）
 - **Current Checklist Item:** AGU ITEM-002（A01-F0-W9）运行中；ITEM-001 已 COMPLETE（1/31）
 - **Current RunID:** A01-F0-W9
@@ -22,8 +22,8 @@
 - **Resource Safety State:** NORMAL（守卫 experiment 锁串行 + 60s 采样）
 - **Build Concurrency Limit:** 8（同一时刻最多一个编译任务，经 lsu_guard 强制）
 - **Experiment Concurrency Limit:** 1（完成资源画像后最多2，超过须用户批准）
-- **Active Heavy Task:** NONE（FS checkpoint 生成 17:30 完成、armtlb FS 双跑 17:34 完成，锁已释放）
-- **Active PID/PGID:** NONE
+- **Active Heavy Task:** P3 pilot 波次 2（AGU ITEM-002 断点续跑起，WAVE2_PID 81524，bash nohup 串行 AGU→L1d-TLB→Load Queue；F-018 修复后 -u 无缓冲日志）
+- **Active PID/PGID:** 81524（bash 链）/ unit_pilot 子进程逐 run 经守卫
 - **Resource Lock:** 已占用（runs/lsu/guard/build.lock：P1-G0-01 构建，pid 19587）
 - **Resource Log:** runs/lsu/guard/build_p1_rebuild_rsrc.log（60s 采样进行中）+ guard_events.log
 - **Latest MemAvailable / SwapFree / Load:** 27.18 GiB / 15.59 GiB / 低，blocked=0（2026-09-29 18:42 pilot 采样，无 WARNING/TRIP）
