@@ -1,0 +1,62 @@
+warn: Setting the full_system parameter via the Simulator constructor is deprecated and will be removed in future releases of gem5. The board determines if the simulation is full system or not via it's `is_fullsystem` method.
+Global frequency set at 1000000000000 ticks per second
+warn: No dot file generated. Please install pydot to generate the dot file and pdf.
+src/mem/dram_interface.cc:690: warn: DRAM device capacity (8192 Mbytes) does not match the address range assigned (1024 Mbytes)
+src/base/statistics.hh:279: warn: One of the stats is a legacy stat. Legacy stat is a stat that does not belong to any statistics::Group. Legacy stat is deprecated.
+src/base/stats/storage.hh:278: warn: Bucket size (4) does not divide range [1:32] into equal-sized buckets. Rounding up.
+src/base/stats/storage.hh:278: warn: Bucket size (4) does not divide range [1:8] into equal-sized buckets. Rounding up.
+src/base/remote_gdb.cc:418: warn: Sockets disabled, not accepting gdb connections
+gem5 Simulator System.  https://www.gem5.org
+gem5 is copyrighted software; use the --copyright option for details.
+
+gem5 version 25.1.0.1
+gem5 compiled Sep 29 2026 15:34:47
+gem5 started Sep 29 2026 17:39:52
+gem5 executing on localhost0101, pid 58320
+command line: /home/sdc/gem5-fi-ding/build/ARM/gem5.opt --outdir runs/lsu/engineering/ITEM-001_engineering_s0 /home/sdc/gem5-fi-ding/configs/se/lsu_proxy.py --cmd /home/sdc/gem5-fi-ding/workloads/directed/agu_addrmodes --cpu O3 --variant B0 --chaos_addrpath --addrpath_lsu_tier F0 --addrpath_warmup_events 0 --addrpath_span_events 2772 --addrpath_mode a01_bit --addrpath_rng_seed 11036927240874655837
+
+info: Standard input is not a terminal, disabling listeners.
+[lsu_proxy] B0 params applied (variant=B0): LQ/SQ=16, DepShift=0, DTLB=32, L2TLB=1280/5, ROB=40, PRF 128/192/48, IQ=32(1L+1S FU opLat=2), width 3/6/8
+[lsu_proxy] B0 caches applied (variant=B0): L1D 32KiB/2-way lat222 MSHR6/t8/wb16 + L1I 32KiB/2 lat111 MSHR2 + L2 1MiB/16 lat12 MSHR16 + StridePrefetcher(8,1,on)@L2
+src/sim/faults.cc:103: panic: panic condition !handled && !tc->getSystemPtr()->trapToGdb(GDBSignal::SEGV, tc->contextId()) occurred: Page table fault when accessing virtual address 0x1000048ffd8
+Memory Usage: 1247060 KBytes
+Program aborted at tick 2727725
+--- BEGIN LIBC BACKTRACE ---
+/home/sdc/gem5-fi-ding/build/ARM/gem5.opt(_ZN4gem515print_backtraceEv+0x18)[0x335ae28]
+/home/sdc/gem5-fi-ding/build/ARM/gem5.opt(_ZN4gem512abortHandlerEi+0x48)[0x337cf2c]
+linux-vdso.so.1(__kernel_rt_sigreturn+0x0)[0xffff81fd57e0]
+/usr/lib64/libc.so.6(+0x812c0)[0xffff80e912c0]
+/usr/lib64/libc.so.6(raise+0x1c)[0xffff80e49f2c]
+/usr/lib64/libc.so.6(abort+0xf0)[0xffff80e3703c]
+/home/sdc/gem5-fi-ding/build/ARM/gem5.opt[0xf43be8]
+/home/sdc/gem5-fi-ding/build/ARM/gem5.opt(_ZN4gem521GenericPageTableFault6invokeEPNS_13ThreadContextERKNS_14RefCountingPtrINS_10StaticInstEEE+0xdc)[0x33df27c]
+/home/sdc/gem5-fi-ding/build/ARM/gem5.opt(_ZN4gem52o36Commit10commitHeadERKNS_14RefCountingPtrINS0_7DynInstEEEj+0x518)[0x1096b9c]
+/home/sdc/gem5-fi-ding/build/ARM/gem5.opt(_ZN4gem52o36Commit11commitInstsEv+0x25c)[0x1097770]
+/home/sdc/gem5-fi-ding/build/ARM/gem5.opt(_ZN4gem52o36Commit6commitEv+0x6b8)[0x1098a38]
+/home/sdc/gem5-fi-ding/build/ARM/gem5.opt(_ZN4gem52o36Commit4tickEv+0xa4)[0x1098e28]
+/home/sdc/gem5-fi-ding/build/ARM/gem5.opt(_ZN4gem52o33CPU4tickEv+0x13c)[0x10a1c0c]
+/home/sdc/gem5-fi-ding/build/ARM/gem5.opt(_ZN4gem510EventQueue10serviceOneEv+0xbc)[0x336d910]
+/home/sdc/gem5-fi-ding/build/ARM/gem5.opt(_ZN4gem59doSimLoopEPNS_10EventQueueE+0x78)[0x3396038]
+/home/sdc/gem5-fi-ding/build/ARM/gem5.opt(_ZN4gem58simulateEm+0x220)[0x3396740]
+/home/sdc/gem5-fi-ding/build/ARM/gem5.opt[0x32ab994]
+/home/sdc/gem5-fi-ding/build/ARM/gem5.opt[0xf2a184]
+/usr/lib64/libpython3.11.so.1.0(+0x17c500)[0xffff81bdc500]
+/usr/lib64/libpython3.11.so.1.0(_PyObject_Call+0x7c)[0xffff81bf3000]
+/usr/lib64/libpython3.11.so.1.0(_PyEval_EvalFrameDefault+0x4974)[0xffff81bc7ca4]
+/usr/lib64/libpython3.11.so.1.0(+0x15e114)[0xffff81bbe114]
+/usr/lib64/libpython3.11.so.1.0(PyEval_EvalCode+0x9c)[0xffff81c609dc]
+/usr/lib64/libpython3.11.so.1.0(+0x220a1c)[0xffff81c80a1c]
+/usr/lib64/libpython3.11.so.1.0(+0x173880)[0xffff81bd3880]
+/usr/lib64/libpython3.11.so.1.0(PyObject_Vectorcall+0x48)[0xffff81bd37e8]
+/usr/lib64/libpython3.11.so.1.0(_PyEval_EvalFrameDefault+0x754)[0xffff81bc3a84]
+/usr/lib64/libpython3.11.so.1.0(+0x15e114)[0xffff81bbe114]
+/home/sdc/gem5-fi-ding/build/ARM/gem5.opt[0x32934a4]
+/home/sdc/gem5-fi-ding/build/ARM/gem5.opt(main+0x16c)[0xf15cdc]
+/usr/lib64/libc.so.6(+0x276c4)[0xffff80e376c4]
+/usr/lib64/libc.so.6(__libc_start_main+0x98)[0xffff80e377a8]
+--- END LIBC BACKTRACE ---
+For more info on how to address this issue, please visit https://www.gem5.org/documentation/general_docs/common-errors/ 
+
+SPAWNED pid=58320 pgid=58320 log=runs/lsu/engineering/ITEM-001_engineering_s0_rsrc.log
+{"action": "run-finish", "cmd": ["/home/sdc/gem5-fi-ding/build/ARM/gem5.opt", "--outdir", "runs/lsu/engineering/ITEM-001_engineering_s0", "/home/sdc/gem5-fi-ding/configs/se/lsu_proxy.py", "--cmd", "/home/sdc/gem5-fi-ding/workloads/directed/agu_addrmodes", "--cpu", "O3", "--variant", "B0", "--chaos_addrpath", "--addrpath_lsu_tier", "F0", "--addrpath_warmup_events", "0", "--addrpath_span_events", "2772", "--addrpath_mode", "a01_bit", "--addrpath_rng_seed", "11036927240874655837"], "pgid": 58320, "exit_code": -6, "monitor_reason": "target-exited", "time": "2026-09-29 17:40:52"}
+[two-pass] 全流 eligible N=2772 → 正式 span=2772
