@@ -2872,3 +2872,11 @@ Cache-DirtyEvict + Prefetch-Stride (全部 gem5==native)
 - 已交付且不受 V2.0 影响的资产: SE 侧 177 格 trial + 元分析(10/11 文档)、ooo 收割 149 campaign、竞争矩阵 28 篇、论文骨架、FS checkpoint 流水线(v3 内容分派)、真 B0 平台(assoc=32 三证)、CHAOSPrefetch/ExMon O 模式
 - **V2.0 升级需要重新对照的点**: 337 格网格规格(模型/负载/频率档是否变化)、B0 参数、锚点判据、milestone 定义 — V2.0 文档到位后先做差异审计再续跑
 - 活跃 goal(完成 M3/M4+ooo 综合)随暂停挂起, 待 V2.0 基准重设
+
+### LSU V2.0 原位重锚启动（2026-09-29, 本会话）
+
+- 用户指令: V2.0 是 V1.0 重大更新, 一切以 V2.0 为准; 批判性研究 + 确保 V2.0 完整提取到 docs/gem5-fi/lsu/
+- spec: docs/superpowers/specs/2026-09-29-lsu-v2-reanchor-design.md (824e5285+ff597230, 五决策 D1-D5, D5=对齐 OoO 先例 3412c1bc)
+- 实现计划: docs/superpowers/plans/2026-09-29-lsu-v2-reanchor.md (ae7e767b, 7 任务: extract.py 64/325/43列 + 00/02/04/05 重转录 + verify V2.0 + 10/11 历史标注 + NORTH-STAR + 09-v2+旧09横幅 + README+全局审计)
+- 关键事实(已亲探): 64 模型 r2-r65 追加10模型散布非表尾; 表7 43列/col26黄65/col43浅蓝FFD9E2F3; AGU 39格 col12 D4豁免; 表1/6/8 零变化→01/06/08 逐字节不变量
+- 执行方式: subagent-driven, 逐任务 commit+push 到 fi-ding
