@@ -9,17 +9,17 @@
 
 ## Current Status
 
-- **Current Phase:** P0（已完成，待提交；下一步 P1）
-- **Phase Status:** COMPLETE
+- **Current Phase:** P3（前三单元连续 pilot 波次，用户指令 2026-09-29 晚）
+- **Phase Status:** IN_PROGRESS
 - **Overall Status:** IN_PROGRESS
 - **Started:** 2026-09-29 11:22 (Session 001)
-- **Last Updated:** 2026-09-29 17:46（连续基础环境建设模式：停机点到达——P1/P2 基础环境、全部可完成 G0 门禁与工程冒烟完成；首个正式 pilot 样本未提交，等待用户确认）
+- **Last Updated:** 2026-09-29 18:35（P3 前三单元连续 pilot 波次启动：AGU→L1d-TLB→Load Queue，WAVE_PID 68134）
 - **Current Owner:** 服务器执行 AI（Claude，主协调 AI）
-- **Current Checklist Item:** NONE（P0 预检完成；P1 起从清单选 ITEM）
-- **Current RunID:** NONE
-- **Excel Location:** NONE（P0 阶段；来源 Excel SHA-256 已校验通过）
-- **Current Experiment Stage:** preflight（P0 预检；尚未进入 engineering/pilot）
-- **Resource Safety State:** NORMAL
+- **Current Checklist Item:** AGU 单元 ITEM-001 起（31 ELIGIBLE 串行；波次日志 /tmp/pilot_wave.log）
+- **Current RunID:** A01-F0-W3（AGU 首项）
+- **Excel Location:** 7.展开执行矩阵!A2:AQ2（行 2）
+- **Current Experiment Stage:** pilot（正式，30 activated/ITEM，attempted 上限 300）
+- **Resource Safety State:** NORMAL（守卫 experiment 锁串行 + 60s 采样）
 - **Build Concurrency Limit:** 8（同一时刻最多一个编译任务，经 lsu_guard 强制）
 - **Experiment Concurrency Limit:** 1（完成资源画像后最多2，超过须用户批准）
 - **Active Heavy Task:** NONE（FS checkpoint 生成 17:30 完成、armtlb FS 双跑 17:34 完成，锁已释放）
