@@ -314,6 +314,14 @@ def main(argv=None):
         epilog="Exit codes: 0 pass (warnings allowed) | 1 violations | "
                "2 bad input.",
         formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--v2-matrix", metavar="CSV",
+                    help="WS6/WV6 V2.0 mode: coverage ledger for the V2.0 "
+                         "43-column expanded matrix (325 LSU / 310 OoO). "
+                         "Every cell -> executed / trial / pending / "
+                         "BLOCKED(reason); --require-complete gates delivery.")
+    ap.add_argument("--require-complete", action="store_true",
+                    help="V2 mode: exit 1 if any cell is pending (the WV6 "
+                         "delivery gate)")
     ap.add_argument("--matrix", default=DEFAULT_MATRIX,
                     help="05-expanded-matrix.csv (default: %(default)s)")
     ap.add_argument("--alias-yaml", default=DEFAULT_ALIAS_YAML,
@@ -324,6 +332,9 @@ def main(argv=None):
                          "(default: %(default)s; only enforced when the "
                          "matrix has an n/n_valid column)")
     args = ap.parse_args(argv)
+
+    if args.v2_matrix:
+        return v2_audit(args)
 
     header, rows = load_matrix(args.matrix)
     h = {c: header.index(c) for c in REQUIRED_COLS}
@@ -447,6 +458,72 @@ def main(argv=None):
         return 1
     note("AUDIT PASS: matrix is delivery-complete under the documented "
          "boundaries (G3 warning, G5 boundary).")
+    return 0
+
+
+
+# ==========================================================================
+# WS6/WV6: V2.0 coverage ledger (--v2-matrix).
+# Terminal status per cell (docs/gem5-fi/{lsu,ooo}/07-expanded-matrix.csv,
+# loaded+validated by tools/v2_matrix.py):
+#   executed  - 记录状态 advanced past 待执行/试跑 AND >=1 of the 21 empty
+#               value slots carries data (an advanced status with zero data
+#               is reported as a loud anomaly, not executed)
+#   trial     - 记录状态 == 试跑 (phase gate: no value columns by design)
+#   pending   - 记录状态 == 待执行, no data (never a silent zero)
+#   BLOCKED(r)- 记录状态 carries a blocked reason (the lsu_campaign V1.0
+#               precedent: "blocked(...)"), reported verbatim
+# WV6: the OoO book's unwired workloads (W0/W2/W12) have NO cells in the
+# matrix by construction (11/14 wired) — reported as a book-level note.
+# ==========================================================================
+def v2_audit(args):
+    from v2_matrix import (load_v2_matrix, EMPTY_SLOTS, STATUS_COL)
+
+    cells = load_v2_matrix(args.v2_matrix, strict=False)
+    book = "lsu" if any(c.model_id[0] in "ATSLCOP" for c in cells) else "ooo"
+    n_exec = n_trial = n_pend = n_blocked = n_anom = 0
+    blocked_reasons, anomalies = {}, []
+    for c in cells:
+        status = c.raw[STATUS_COL].strip()
+        n_filled = sum(1 for col in EMPTY_SLOTS if c.raw[col].strip())
+        if status.startswith("blocked") or status.startswith("BLOCKED"):
+            n_blocked += 1
+            blocked_reasons[status] = blocked_reasons.get(status, 0) + 1
+        elif status in ("已筛查", "主结果"):
+            if n_filled:
+                n_exec += 1
+            else:
+                n_anom += 1
+                anomalies.append("%s: status=%s but 0 value slots" %
+                                 (c.run_id, status))
+        elif status == "试跑":
+            n_trial += 1
+        elif status in ("", "待执行"):
+            n_pend += 1
+        else:
+            n_anom += 1
+            anomalies.append("%s: unknown 记录状态 %r" % (c.run_id, status))
+    note("V2 coverage ledger (%s book, %s): executed=%d trial=%d "
+         "pending=%d BLOCKED=%d anomaly=%d"
+         % (book, args.v2_matrix, n_exec, n_trial, n_pend, n_blocked,
+            n_anom))
+    for r, n in sorted(blocked_reasons.items()):
+        note("  BLOCKED %s x%d" % (r, n))
+    for a in anomalies[:20]:
+        note("  ANOMALY %s" % a)
+    if book == "ooo":
+        wl = sorted({c.workload_id for c in cells})
+        note("  workloads wired: %s (W0/W2/W12 defined-unwired have no "
+             "cells by construction)" % ",".join(wl))
+    if anomalies:
+        note("AUDIT FAIL: %d status/value anomaly(ies)" % n_anom)
+        return 1
+    if args.require_complete and n_pend:
+        note("AUDIT FAIL: %d pending cell(s) (delivery gate)" % n_pend)
+        return 1
+    note("AUDIT PASS (coverage ledger; %s)"
+         % ("delivery complete" if n_pend == 0 else
+            "in progress — pending %d" % n_pend))
     return 0
 
 

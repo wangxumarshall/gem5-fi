@@ -146,11 +146,15 @@ def _detect_book(units):
     raise MatrixError(f"mixed LSU/OoO units in one matrix: {sorted(units)}")
 
 
-def load_v2_matrix(csv_path):
+def load_v2_matrix(csv_path, strict=True):
     """装载并自校验一个 V2.0 展开矩阵，返回 list[V2Cell]。
 
     任何自校验失败抛 MatrixError（调用方退出非零）——本模块是唯一矩阵入口，
     口径错误必须当场暴露，不许静默吞掉。
+
+    strict=False（WS6 回填后读回）：保留全部结构断言（表头/行数/RunID 唯一/
+    频率分布/负载集合），跳过「设计期值槽全空 + 记录状态==待执行」两条——
+    回填副本的值槽/状态是执行数据，不是设计期状态。
     """
     path = Path(csv_path)
     if not path.is_file():
@@ -212,14 +216,15 @@ def load_v2_matrix(csv_path):
     if not wl <= {f"W{n}" for n in range(TOTAL_DEFINED_WORKLOADS)}:
         raise MatrixError(f"{book}: workload ids outside W0..W13: "
                           f"{sorted(wl - {f'W{n}' for n in range(14)})}")
-    for c in cells:
-        for col in EMPTY_SLOTS:
-            if c.raw[col].strip():
-                raise MatrixError(f"{c.run_id}: value slot {col!r} non-empty at "
-                                  f"design time: {c.raw[col][:40]!r}")
-        if c.raw[STATUS_COL].strip() != "待执行":
-            raise MatrixError(f"{c.run_id}: {STATUS_COL} != 待执行: "
-                              f"{c.raw[STATUS_COL]!r}")
+    if strict:
+        for c in cells:
+            for col in EMPTY_SLOTS:
+                if c.raw[col].strip():
+                    raise MatrixError(f"{c.run_id}: value slot {col!r} non-empty "
+                                      f"at design time: {c.raw[col][:40]!r}")
+            if c.raw[STATUS_COL].strip() != "待执行":
+                raise MatrixError(f"{c.run_id}: {STATUS_COL} != 待执行: "
+                                  f"{c.raw[STATUS_COL]!r}")
     return cells
 
 

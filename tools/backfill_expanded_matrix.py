@@ -642,6 +642,11 @@ def main(argv=None):
                     help="print the cells and values that would be written; "
                          "do not touch the matrix file")
     # ---- LSU mode (09 W10): dispatched by matrix header, ooo path untouched ----
+    ap.add_argument("--v2-matrix", metavar="CSV",
+                    help="WS6 V2.0 mode: the V2.0 43-column expanded "
+                         "matrix (docs/gem5-fi/{lsu,ooo}/07-expanded-matrix."
+                         "csv, loaded+validated by tools/v2_matrix.py). "
+                         "Key = RunID; --campaign is the RunID-dir root.")
     ap.add_argument("--lsu-phase", default="trial",
                     choices=["trial", "screening", "main"],
                     help="LSU mode: phase label written to col26 记录状态 "
@@ -651,6 +656,10 @@ def main(argv=None):
                          "<campaign>/07-expanded-matrix-backfilled.csv — "
                          "the source matrix is NEVER overwritten)")
     args = ap.parse_args(argv)
+
+    # WS6 V2.0 43-column mode dispatch.
+    if args.v2_matrix:
+        return v2_backfill(args)
 
     # LSU matrix dispatch: 07-expanded-matrix.csv (RunID + 记录状态 header)
     # vs ooo 05-expanded-matrix.csv (ID + 设计单元ID header).
@@ -1009,6 +1018,179 @@ def lsu_backfill(args):
                  if r[LSU_COL["status"]].strip() in ("", "待执行"))
     note("wrote %s: data=%d blocked/deferred/na=%d; status still 待执行: %d"
          % (out, n_data, n_blocked, n_left))
+    return 0
+
+
+
+# ==========================================================================
+# WS6: V2.0 43-column matrix mode (--v2-matrix).
+# Key = RunID (模型ID-频率-W#). The matrix is loaded and self-checked by
+# tools/v2_matrix.py (WS1 — the only matrix entry; 325 LSU / 310 OoO cells).
+# Aggregation reuses _lsu_cell_agg (cell_results.json / summary.json).
+#
+# Column writes (the campaign-derivable subset of the 22 value slots):
+#   Seed/注入索引, Attempted, Activated, Masked, Detected-contained,
+#   Data Corruption, SDC, Crash, Timeout, RAS-silent Crash/Timeout (SE B0:
+#   every Crash/Timeout is RAS-silent — 02 表逐单元保护核验行：无 ECC/
+#   parity), 首检四类, Hardware RAS检测（任意时点）, Simulator failure,
+#   记录状态 (advance-only), 实测备注 (phase/stop/Wilson provenance).
+#   Structural zeros (SE B0): HW_RAS首检=0, OS首检=0, Hardware RAS检测
+#   （任意时点）=0 — known-impossible detectors (02 protection rows), not
+#   unknown values. Per-run evidence absent -> "n/a" (Application/None 首检,
+#   检测/告警证据), NEVER 0 (honesty rule, plan §0.6).
+#
+# Machine-recomputed xlsx difference self-checks (formula columns AM/AN
+# semantics, README 注记 (e)/(b); asserted per data cell, violation refuses
+# the write):
+#   检测计数差额 = SUM(首检四类) − (Activated − Simulator failure) == 0
+#   结局计数差额 = SUM(五类结局) + Simulator failure − Activated == 0
+#
+# Phase gate (hard rule): trial/pilot records NEVER enter the value columns
+# (status advances to 试跑 only); screening/main write values.
+# ==========================================================================
+V2_STATUS_RANK = {"待执行": 0, "试跑": 1, "已筛查": 2, "主结果": 3}
+V2_PHASE_LABEL = {"trial": "试跑", "pilot": "试跑",
+                  "screening": "已筛查", "main": "主结果"}
+V2_CLASS_MAP = [  # cell_results.json class -> CSV column name
+    ("Masked", "Masked"),
+    ("Detected/Contained", "Detected-contained"),
+    ("SDC", "Data Corruption"),
+    ("Crash", "Crash"),
+    ("Timeout", "Timeout"),
+]
+
+
+def _v2_cell_agg(cell_dir):
+    """_lsu_cell_agg + the V2-only evidence fields (simulator_failure /
+    first_detection / stop_reason pass-through from cell_results.json)."""
+    agg = _lsu_cell_agg(cell_dir)
+    if agg is None:
+        return None
+    cr = os.path.join(cell_dir, "cell_results.json")
+    if os.path.exists(cr):
+        d = json.load(open(cr, encoding="utf-8"))
+        if "simulator_failure" in d:
+            agg["simulator_failure"] = d["simulator_failure"]
+        if "first_detection" in d:
+            agg["first_detection"] = d["first_detection"]
+        agg["stop_reason"] = d.get("stop_reason")
+    return agg
+
+
+def v2_backfill(args):
+    from v2_matrix import (load_v2_matrix, HEADER, MGMT_COL, STATUS_COL,
+                           SUBMODEL_COL)
+
+    camp = args.campaign[0]  # V2 mode: one campaign root (RunID subdirs)
+    if not os.path.isdir(camp):
+        die("V2 mode: --campaign must be the RunID-dir root, got %s" % camp)
+    cells = load_v2_matrix(args.v2_matrix)  # self-checked 325/310
+    n_data = n_trial = n_flagged = n_empty = 0
+    flagged, det_na = [], []
+    for cell in cells:
+        runid = cell.run_id
+        row = cell.raw
+        agg = _v2_cell_agg(os.path.join(camp, runid))
+        cur_status = row[STATUS_COL].strip()
+        if agg is None or not (agg["attempted"] or agg["activated"]):
+            n_empty += 1
+            continue
+        phase = str(agg.get("phase", "trial")).strip().lower()
+        if phase in ("trial", "pilot"):
+            # Phase gate: no value columns, status advances to 试跑 only.
+            n_trial += 1
+            if V2_STATUS_RANK.get(cur_status, 0) < V2_STATUS_RANK["试跑"]:
+                row[STATUS_COL] = "试跑"
+            continue
+        c = agg["classes"]
+        five = {dst: int(c.get(src, 0)) for src, dst in V2_CLASS_MAP}
+        activated, attempted = agg["activated"], agg["attempted"]
+        simfail = int(agg.get("simulator_failure", 0) or 0)
+        five_sum = sum(five.values())
+        # ---- xlsx 结局计数差额 assertion (formula col AN semantics) ----
+        outcome_diff = five_sum + simfail - activated
+        if outcome_diff != 0:
+            n_flagged += 1
+            flagged.append("%s: 结局计数差额=%d (five=%d simfail=%d "
+                           "activated=%d)" % (runid, outcome_diff, five_sum,
+                                              simfail, activated))
+            continue
+        # ---- first-detection four (xlsx 检测计数差额, formula col AM) ----
+        fd = agg.get("first_detection")
+        if isinstance(fd, dict) and all(
+                k in fd for k in ("HW_RAS", "OS", "Application", "None")):
+            fd_vals = {k: int(fd[k]) for k in
+                       ("HW_RAS", "OS", "Application", "None")}
+            det_diff = sum(fd_vals.values()) - (activated - simfail)
+            if det_diff != 0:
+                n_flagged += 1
+                flagged.append("%s: 检测计数差额=%d" % (runid, det_diff))
+                continue
+            fd_complete = fd_vals
+        else:
+            fd_complete = None
+            det_na.append(runid)
+
+        n_data += 1
+        row["Seed/注入索引"] = ("1-%d" % agg["seeds"]
+                                     if agg["seeds"] else "1-N")
+        row["Attempted"] = str(attempted)
+        row["Activated"] = str(activated)
+        row["Masked"] = str(five["Masked"])
+        row["Detected-contained"] = str(five["Detected-contained"])
+        row["Data Corruption"] = str(five["Data Corruption"])
+        row["SDC"] = str(five["Data Corruption"])  # SE B0: SDC==DC
+        row["Crash"] = str(five["Crash"])
+        row["Timeout"] = str(five["Timeout"])
+        row["RAS-silent Crash"] = str(five["Crash"])   # SE: no HW RAS
+        row["RAS-silent Timeout"] = str(five["Timeout"])
+        row["Hardware RAS首检（互斥）"] = str(fd_complete["HW_RAS"]) if \
+            fd_complete else "0"     # structural zero (02 protection rows)
+        row["OS首检（互斥）"] = str(fd_complete["OS"]) if \
+            fd_complete else "0"     # structural zero (SE: no OS)
+        if fd_complete:
+            row["Application首检（互斥）"] = str(fd_complete["Application"])
+            row["None首检（互斥）"] = str(fd_complete["None"])
+        else:
+            row["Application首检（互斥）"] = "n/a"
+            row["None首检（互斥）"] = "n/a"
+        row["Hardware RAS检测（任意时点）"] = "0"  # structural (B0)
+        row["检测/告警证据"] = "n/a"
+        row["Simulator failure"] = (str(simfail)
+                                         if "simulator_failure" in agg
+                                         else "n/a")
+        label = V2_PHASE_LABEL.get(phase, "已筛查")
+        if V2_STATUS_RANK.get(cur_status, 0) < V2_STATUS_RANK[label]:
+            row[STATUS_COL] = label
+        row["实测备注"] = ("phase=%s; stop=%s; n_runs=%s"
+                                % (phase, agg.get("stop_reason", "n/a"),
+                                   agg.get("seeds", "n/a")))
+
+    if flagged:
+        for v in flagged[:20]:
+            note("DIFF SELF-CHECK VIOLATION %s" % v)
+        die("xlsx 差额自检违例 %d cell(s) — refused" % n_flagged)
+    note("V2 cells: %d total, data=%d, trial(status-only)=%d, no-data=%d"
+         % (len(cells), n_data, n_trial, n_empty))
+    if det_na:
+        note("检测计数差额 n/a(数据缺 first_detection) on %d cell(s): %s%s"
+             % (len(det_na), ", ".join(det_na[:8]),
+                " ..." if len(det_na) > 8 else ""))
+    if n_data == 0 and n_trial == 0:
+        note("no backfillable data — every value slot stays EMPTY (不填 0)")
+
+    out = args.out or os.path.join(camp, "07-expanded-matrix-v2-backfilled.csv")
+    if args.dry_run:
+        note("dry-run: would write %s (data=%d trial=%d empty=%d)"
+             % (out, n_data, n_trial, n_empty))
+        return 0
+    with open(out, "w", encoding="utf-8", newline="") as f:
+        w = csv.writer(f)   # extract.py dialect: byte-stable round-trip
+        w.writerow([MGMT_COL] + HEADER)
+        for cell in cells:
+            w.writerow([cell.raw[c] for c in [MGMT_COL] + HEADER])
+    note("wrote %s (data=%d trial=%d empty=%d)" % (out, n_data, n_trial,
+                                                   n_empty))
     return 0
 
 
