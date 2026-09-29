@@ -13,7 +13,7 @@
 - **Phase Status:** COMPLETE
 - **Overall Status:** IN_PROGRESS
 - **Started:** 2026-09-29 11:22 (Session 001)
-- **Last Updated:** 2026-09-29 17:38
+- **Last Updated:** 2026-09-29 17:46（连续基础环境建设模式：停机点到达——P1/P2 基础环境、全部可完成 G0 门禁与工程冒烟完成；首个正式 pilot 样本未提交，等待用户确认）
 - **Current Owner:** 服务器执行 AI（Claude，主协调 AI）
 - **Current Checklist Item:** NONE（P0 预检完成；P1 起从清单选 ITEM）
 - **Current RunID:** NONE
@@ -27,11 +27,11 @@
 - **Resource Lock:** 已占用（runs/lsu/guard/build.lock：P1-G0-01 构建，pid 19587）
 - **Resource Log:** runs/lsu/guard/build_p1_rebuild_rsrc.log（60s 采样进行中）+ guard_events.log
 - **Latest MemAvailable / SwapFree / Load:** 构建启动前 gate 采样通过（MemAvailable≥12G/SwapFree≥4G 判定 PASS）；采样记录见 build_p1_rebuild_rsrc.log
-- **Next Step:** 连续模式：①P1 runner 契约实现（清单 ITEM → 不可变 run manifest → 守卫命令自动转换，含 F0 两遍法集成）②17 缺口注入器补实现（13 C++ 模式/钩子 + 3 多核 FS，按 one-patch-per-unit 逐个：改码→-j8 守卫重建→定向验证→commit）③G0 门禁已全部有真实状态（8 PASS/PASS-xx + G0-05 PARTIAL-SE + G0-08 PARTIAL）。停机点：首个正式 pilot 样本提交前。
+- **Next Step:** 停机点（用户连续模式指令 §7/§8）：基础环境建设完成——等待用户确认后再提交首个正式 pilot 样本（预计 ITEM-001/A01-F0-W3）。剩余工程：17 缺口注入器补实现（13 C++ 模式/钩子 + 3 多核 FS，每单元 one-patch-per-unit：改码→守卫 -j8 重建→定向验证→commit，约 1-2 小时/单元）；DR-001/DR-002 裁决待用户。
 
 ## Git 状态
 
-- **最新 commit SHA:** e83d0695（[LSU][P1] A01-F0-W3 双跑确定性 PASS（G0-02=1/6 家族），6 文件，16:05 推送 ee77b992..e83d0695）
+- **最新 commit SHA:** f54d22fd（[LSU][P1] runner 契约端到端验证 + SE 越界结局口径发现（F-016），17:44 推送 d74f01d1..f54d22fd）。连续模式会话累计 7 个 commit：b6445581（P0）→ ee77b992（重建+冒烟+seed+映射）→ e83d0695（A01 确定性）→ ed6323e6（五家族+F0 两遍法）→ 989f7853（GOLDEN3+env lock）→ d74f01d1（armtlb FS+G0-06）→ f54d22fd（runner 契约）
 - **推送状态:** 已推送 origin/fi-ding（最新 ee77b992；上一 b6445581 = [LSU][P0] 17 文件 15:10:20）
 - **提交信息:** [LSU][P0] 预检完成：清单核验、环境资产盘点、B0参数对照、资源守卫建立（G0-10 PASS）（17 文件，xlsx 识别为 100% rename）
 
