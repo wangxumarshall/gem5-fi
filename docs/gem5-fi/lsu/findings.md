@@ -59,6 +59,7 @@
 
 | Finding ID | 时间 | 类型：事实/推断 | 发现 | 证据 | 影响 | 后续动作 |
 |---|---|---|---|---|---|---|
+| F-017 | 2026-09-29 19:11 | 事实 | **首个正式 pilot ITEM 结果（ITEM-001 / A01-F0-W3，Excel 行 2）**：attempted 30 / activated 30（激活率 100%）；五类主结局：Masked 13、DC 0、SDC 0、Crash 0、Timeout 0；post_activation_simulator_failure 17（F-016 口径：SE 平台 EA 高位翻转越界 → Page-table-fault panic，真实硬件/FS 应为同步异常通道）；守恒 OK（13+17=30）；分类器 0 失败。科学解读：A01 单 bit EA 翻转 F0 在 agu_addrmodes 上 43% Masked / 57% 越界 abort；可分析 activated=13（SDC 分母）；注入 bit 位置由 F0 两遍法全流均匀抽样（N=2772） | runs/lsu/pilot/AGU/ITEM-001_result.json + ITEM-001_s{0..29}/l5_verdict.json + unit_status.json | AGU 首项 COMPLETE；SE 平台对 EA 高位注入的结局解释受 F-016 限制（57% 落入 sim_fail 单列）——FS 复核为后续敏感性方向 | 引擎自动继续 ITEM-002 |
 | F-001 | 2026-09-29 11:22 | 事实 | Git 状态：本地 fi-ding = origin/fi-ding = 3f67df4b；工作树不干净（LSU docs 未跟踪 + V2.0.xlsx 未暂存删除），但当前已在 fi-ding 分支，无分支切换需求 | git status/ls-remote 输出 | 无阻塞；不动非本任务文件 | 无 |
 | F-002 | 2026-09-29 11:30 | 事实 | HEAD 中 gem5-fi-LSU单元故障注入方案V2.0.xlsx 的 blob SHA-256 = 1f652936...（与工作树改名文件 gem5-fi-LSU单元故障注入方案.xlsx 完全相同）——纯改名，内容零变化 | git cat-file + sha256sum | Excel 来源核验通过；git 工作树的删除+新增待随 P0 提交一并整理（属本任务文件） | P0 commit 中一并处理改名 |
 | F-003 | 2026-09-29 11:35 | 事实 | 完整清单核验 C1-C7 全 PASS：325 ITEM 连续、325 唯一 RunID、64 唯一模型、Excel 行 2..326 一一映射、频率分布（F0:105/F1:24/F2:77/F3:4/F4:26/F5:25/F6:64）与单元分布同头表一致、必填字段 0 缺失 | evidence/P0/verify_checklist.out | 清单可作唯一调度依据 | 无 |

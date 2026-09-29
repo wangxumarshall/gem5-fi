@@ -13,7 +13,7 @@
 - **Phase Status:** IN_PROGRESS
 - **Overall Status:** IN_PROGRESS
 - **Started:** 2026-09-29 11:22 (Session 001)
-- **Last Updated:** 2026-09-29 18:35（P3 前三单元连续 pilot 波次启动：AGU→L1d-TLB→Load Queue，WAVE_PID 68134）
+- **Last Updated:** 2026-09-29 18:43（监控周期 #1：AGU ITEM-001 进行中 14/30 samples，s0=Crash/sim_assert s1-s4=Masked，资源 NORMAL MemAvail 27.2G，WAVE 进程健康）
 - **Current Owner:** 服务器执行 AI（Claude，主协调 AI）
 - **Current Checklist Item:** AGU 单元 ITEM-001 起（31 ELIGIBLE 串行；波次日志 /tmp/pilot_wave.log）
 - **Current RunID:** A01-F0-W3（AGU 首项）
@@ -26,7 +26,7 @@
 - **Active PID/PGID:** NONE
 - **Resource Lock:** 已占用（runs/lsu/guard/build.lock：P1-G0-01 构建，pid 19587）
 - **Resource Log:** runs/lsu/guard/build_p1_rebuild_rsrc.log（60s 采样进行中）+ guard_events.log
-- **Latest MemAvailable / SwapFree / Load:** 构建启动前 gate 采样通过（MemAvailable≥12G/SwapFree≥4G 判定 PASS）；采样记录见 build_p1_rebuild_rsrc.log
+- **Latest MemAvailable / SwapFree / Load:** 27.18 GiB / 15.59 GiB / 低，blocked=0（2026-09-29 18:42 pilot 采样，无 WARNING/TRIP）
 - **Next Step:** 停机点（用户连续模式指令 §7/§8）：基础环境建设完成——等待用户确认后再提交首个正式 pilot 样本（预计 ITEM-001/A01-F0-W3）。剩余工程：17 缺口注入器补实现（13 C++ 模式/钩子 + 3 多核 FS，每单元 one-patch-per-unit：改码→守卫 -j8 重建→定向验证→commit，约 1-2 小时/单元）；DR-001/DR-002 裁决待用户。
 
 ## Git 状态
