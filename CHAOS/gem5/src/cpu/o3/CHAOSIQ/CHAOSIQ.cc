@@ -40,6 +40,14 @@ namespace gem5
                   p.targetClass);
         }
         fp_only = p.fpOnly;
+        // WS4.4: event-normalized tier (off = legacy cycle-window path).
+        if (p.tier != "off") {
+            eventTrigger = new ChaOSEventTrigger(tierFromString(p.tier),
+                                                 rng_seed ? rng_seed : 1,
+                                                 p.warmupEvents,
+                                                 p.spanEvents);
+            f6_ooo_event = oooEventFromString(p.f6Event);
+        }
         if (probability > 0.0f) {
             log_stream = simout.create("iq_injections.log", false, true);
             if (!log_stream || !log_stream->stream())
@@ -67,6 +75,38 @@ namespace gem5
                 << std::endl;
         }
     }
+    CHAOSIQ *CHAOSIQ::f6Consumer = nullptr;
+
+    ChaOSEventTier
+    CHAOSIQ::tierFromString(const std::string &s) {
+        if (s == "F0") return ChaOSEventTier::F0;
+        if (s == "F1") return ChaOSEventTier::F1;
+        if (s == "F2") return ChaOSEventTier::F2;
+        if (s == "F3") return ChaOSEventTier::F3;
+        if (s == "F4") return ChaOSEventTier::F4;
+        if (s == "F5") return ChaOSEventTier::F5;
+        if (s == "F6") return ChaOSEventTier::F6;
+        panic("CHAOSIQ: unknown tier '%s'\n", s);
+    }
+
+    ChaOSOooEvent
+    CHAOSIQ::oooEventFromString(const std::string &s) {
+        if (s == "rename_squash") return ChaOSOooEvent::RenameSquash;
+        if (s == "commit_squash") return ChaOSOooEvent::CommitSquash;
+        return ChaOSOooEvent::BranchMispredict;  // branch_mispredict/default
+    }
+
+    void
+    CHAOSIQ::f6Thunk(ChaOSOooEvent ev) {
+        // Single-consumer F6 notify (chaos_event_trigger.hh). The trigger's
+        // onF6Event() enforces once-ever; the injection lands at the next
+        // eligible IQ hook (f6_pending).
+        if (f6Consumer && f6Consumer->eventTrigger &&
+            f6Consumer->f6_ooo_event == ev &&
+            f6Consumer->eventTrigger->onF6Event())
+            f6Consumer->f6_pending = true;
+    }
+
 
     CHAOSIQ::Mode
     CHAOSIQ::stringToMode(const std::string &s) {
@@ -108,22 +148,34 @@ namespace gem5
     {
         if (fi_mode != Mode::WakeOmit) return false;
         if (!cpu || probability <= 0.0f) return false;
-        if (max_faults != 0 && faults_injected_count >= max_faults) return false;
-        if (!inWindow()) return false;
         // W7.4 D86 fpOnly: restrict eligibility to FP/SIMD completed
         // instructions (the "FP/SIMD 队列版" scoping) — placed BEFORE the
-        // skip counter / RNG draw so non-FP events stay invisible to the
-        // sampling discipline.
+        // tier verdict so non-FP events stay invisible to the funnel.
         if (fp_only && !isFpOpClass(completed_inst->opClass())) return false;
-        // Sampling-bias fix (findings.md Phase 3.0): skip the first N
-        // eligible wakeup events (N ~ geometric(0.1) from the seed).
-        if (count_only) { ++eligible_count; return false; }
-        if (events_to_skip > 0) {
-            --events_to_skip;
-            return false;
+        if (eventTrigger) {
+            // WS4.4 event-normalized path (F6 = the pending flag).
+            eventTrigger->onAttempt();
+            bool go;
+            if (eventTrigger->tier == ChaOSEventTier::F6) {
+                go = f6_pending;
+                f6_pending = false;
+            } else {
+                go = eventTrigger->onEligible();
+            }
+            if (!go) return false;
+        } else {
+            if (max_faults != 0 && faults_injected_count >= max_faults) return false;
+            if (!inWindow()) return false;
+            // Sampling-bias fix (findings.md Phase 3.0): skip the first N
+            // eligible wakeup events (N ~ geometric(0.1) from the seed).
+            if (count_only) { ++eligible_count; return false; }
+            if (events_to_skip > 0) {
+                --events_to_skip;
+                return false;
+            }
+            std::uniform_real_distribution<float> pd(0.0f, 1.0f);
+            if (pd(rng) > probability) return false;
         }
-        std::uniform_real_distribution<float> pd(0.0f, 1.0f);
-        if (pd(rng) > probability) return false;
 
         // §2.5 wake_omit (F6): drop this wakeup broadcast. Dependents of the
         // completed inst stay not-ready (one missed wake) — models method3
@@ -155,8 +207,12 @@ namespace gem5
         // dependGraph/addIfReady/scoreboard and we don't want to expose them.
         if (fi_mode != Mode::SrcReadyBitflip) return false;
         if (!cpu || probability <= 0.0f) return false;
-        if (max_faults != 0 && faults_injected_count >= max_faults) return false;
-        if (!inWindow()) return false;
+        if (eventTrigger) {
+            eventTrigger->onAttempt();
+        } else {
+            if (max_faults != 0 && faults_injected_count >= max_faults) return false;
+            if (!inWindow()) return false;
+        }
         if (!completed_inst) return false;
         // W7.4 D86 fpOnly (see shouldOmitWake): the trigger wake is
         // restricted to FP/SIMD producers. HONEST NOTE: the victim
@@ -166,10 +222,21 @@ namespace gem5
         if (fp_only && !isFpOpClass(completed_inst->opClass())) return false;
 
         // sampling-bias fix: skip on eligible completed-inst events
-        if (count_only) { ++eligible_count; return false; }
-        if (events_to_skip > 0) { --events_to_skip; return false; }
-        std::uniform_real_distribution<float> pd(0.0f, 1.0f);
-        if (pd(rng) > probability) return false;
+        if (eventTrigger) {
+            bool go;
+            if (eventTrigger->tier == ChaOSEventTier::F6) {
+                go = f6_pending;
+                f6_pending = false;
+            } else {
+                go = eventTrigger->onEligible();
+            }
+            if (!go) return false;
+        } else {
+            if (count_only) { ++eligible_count; return false; }
+            if (events_to_skip > 0) { --events_to_skip; return false; }
+            std::uniform_real_distribution<float> pd(0.0f, 1.0f);
+            if (pd(rng) > probability) return false;
+        }
 
         faults_injected_count++;
         if (write_log) {
@@ -198,16 +265,31 @@ namespace gem5
         if (fi_mode != Mode::WakePhase) return false;
         if (!cpu || probability <= 0.0f) return false;
         if (phase_offset <= 0) return false;  // delay only; advance not modeled
-        if (max_faults != 0 && faults_injected_count >= max_faults) return false;
-        if (!inWindow()) return false;
+        if (eventTrigger) {
+            eventTrigger->onAttempt();
+        } else {
+            if (max_faults != 0 && faults_injected_count >= max_faults) return false;
+            if (!inWindow()) return false;
+        }
         if (!completed_inst) return false;
         // W7.4 D86 fpOnly (see shouldOmitWake).
         if (fp_only && !isFpOpClass(completed_inst->opClass())) return false;
 
-        if (count_only) { ++eligible_count; return false; }
-        if (events_to_skip > 0) { --events_to_skip; return false; }
-        std::uniform_real_distribution<float> pd(0.0f, 1.0f);
-        if (pd(rng) > probability) return false;
+        if (eventTrigger) {
+            bool go;
+            if (eventTrigger->tier == ChaOSEventTier::F6) {
+                go = f6_pending;
+                f6_pending = false;
+            } else {
+                go = eventTrigger->onEligible();
+            }
+            if (!go) return false;
+        } else {
+            if (count_only) { ++eligible_count; return false; }
+            if (events_to_skip > 0) { --events_to_skip; return false; }
+            std::uniform_real_distribution<float> pd(0.0f, 1.0f);
+            if (pd(rng) > probability) return false;
+        }
 
         faults_injected_count++;
         if (write_log) {
@@ -237,6 +319,20 @@ namespace gem5
         // window + max_faults + the events_to_skip sampling discipline +
         // the probability draw (the existing CHAOSIQ house style).
         if (!cpu || probability <= 0.0f) return false;
+        if (eventTrigger) {
+            // WS4.4 event-normalized path: the tier owns warm-up/repetition
+            // (F6 = the pending flag set by the notify source). count_only
+            // keeps its evidence role on the legacy path only.
+            eventTrigger->onAttempt();
+            bool go;
+            if (eventTrigger->tier == ChaOSEventTier::F6) {
+                go = f6_pending;
+                f6_pending = false;
+            } else {
+                go = eventTrigger->onEligible();
+            }
+            return go;
+        }
         if (max_faults != 0 && faults_injected_count >= max_faults)
             return false;
         if (!inWindow()) return false;
@@ -866,6 +962,17 @@ namespace gem5
         }
         // SELF-ATTACH: IEW.instQueue.chaosIQ = this.
         o3cpu->o3IEW().instQueue.setChaosIQ(this);
+        if (eventTrigger) {
+            if (eventTrigger->tier == ChaOSEventTier::F6) {
+                f6Consumer = this;
+                chaosOooF6Notify = &CHAOSIQ::f6Thunk;
+            }
+            // WS4.4 funnel summary (attempted/eligible/injected).
+            registerExitCallback([this]() {
+                if (eventTrigger)
+                    chaosEventTriggerSummary(*eventTrigger, "CHAOSIQ");
+            });
+        }
         // v1.1 Phase 8.2: print CHAOS_ELIGIBLE_COUNT at sim exit (the
         // destructor may not run before gem5's exit path tears everything
         // down; the exit callback always fires).

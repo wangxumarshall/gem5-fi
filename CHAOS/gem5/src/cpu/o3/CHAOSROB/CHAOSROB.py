@@ -49,6 +49,16 @@ class CHAOSROB(SimObject):
     maxFaults = Param.UInt64(0, "max faults; 0 = unlimited. Use 1.")
     rngSeed = Param.UInt64(0, "RNG seed (0 = random_device)")
     writeLog = Param.Bool(True, "Write a fault_injections.log file")
+
+    # WS4.4: event-normalized F0-F6 trigger tier (ooo 05 r2-r8; aliased
+    # chaos_lsu_trigger.hh semantics). "off" (default) = legacy cycle-window
+    # path, byte-identical. F6 event sources: branch_mispredict (d-bridge
+    # D14), rename_squash (D18), commit_squash (reserved for the WB1 audit).
+    tier = Param.String("off", "off | F0 | F1 | F2 | F3 | F4 | F5 | F6")
+    warmupEvents = Param.UInt64(0, "eligible events skipped before arming")
+    spanEvents = Param.UInt64(1000, "F0 uniform window size in eligible events")
+    f6Event = Param.String("branch_mispredict",
+        "branch_mispredict | rename_squash | commit_squash")
     # W7.4 (ooo 04-design-matrix FP/SIMD Dispatch/ROB, the D87-prerequisite
     # dest-id analog at the rob_insert site): the register-class scope of
     # the destid family (destid_bitflip/bitflip2/swap_active/stuck).

@@ -221,6 +221,32 @@ p.add_argument("--rob_field", default="exc_status",
                choices=["result","done","exc_status","dest_phys","spec"])
 p.add_argument("--rob_distance", type=int, default=0)
 p.add_argument("--rob_first_clock", type=lambda x: int(x,0), default=1000)
+# WS4.4: event-normalized trigger tiers on CHAOSROB / CHAOSIQ (ooo 05
+# r2-r8). off = legacy cycle-window path (byte-identical). F0-F6: the
+# trigger layer owns warm-up/repetition semantics (eligible-event
+# denominator = dispatch-enqueue events: rob_insert / retireHead for the
+# ROB family, insert/wake/issue sites for the IQ family). NOTE the W5.6
+# oldphys_* branch mounts a CHAOSRenameMap without a tier (legacy path).
+p.add_argument("--rob_tier", default="off",
+               choices=["off","F0","F1","F2","F3","F4","F5","F6"],
+               help="WS4.4: event-normalized trigger tier on CHAOSROB")
+p.add_argument("--rob_warmup_events", type=lambda x: int(x,0), default=0,
+               help="WS4.4: eligible events skipped before arming")
+p.add_argument("--rob_span_events", type=lambda x: int(x,0), default=1000,
+               help="WS4.4: F0 uniform window size in eligible events")
+p.add_argument("--rob_f6_event", default="branch_mispredict",
+               choices=["branch_mispredict","rename_squash","commit_squash"],
+               help="WS4.4: F6 event source (branch_mispredict=D14)")
+p.add_argument("--iq_tier", default="off",
+               choices=["off","F0","F1","F2","F3","F4","F5","F6"],
+               help="WS4.4: event-normalized trigger tier on CHAOSIQ")
+p.add_argument("--iq_warmup_events", type=lambda x: int(x,0), default=0,
+               help="WS4.4: eligible events skipped before arming")
+p.add_argument("--iq_span_events", type=lambda x: int(x,0), default=1000,
+               help="WS4.4: F0 uniform window size in eligible events")
+p.add_argument("--iq_f6_event", default="branch_mispredict",
+               choices=["branch_mispredict","rename_squash","commit_squash"],
+               help="WS4.4: F6 event source (branch_mispredict=D14)")
 p.add_argument("--rob_max_faults", type=lambda x: int(x,0), default=1)
 p.add_argument("--rob_rng_seed", type=lambda x: int(x,0), default=20260825)
 # W7.4 (FP/SIMD Dispatch/ROB): register-class scope of the ROB dest-id
@@ -657,6 +683,10 @@ if args.chaos_rob and args.rob_mode not in _W5_OLDPHYS_ROB_MODES:
         # W7.4: destid-family register class (int = W5 default; vec = the
         # FP/SIMD twins at the same rob_insert site).
         targetClass=args.rob_target_class,
+        tier=args.rob_tier,
+        warmupEvents=args.rob_warmup_events,
+        spanEvents=args.rob_span_events,
+        f6Event=args.rob_f6_event,
     )
     board.chaos_rob = rob
 elif args.chaos_rob:
@@ -699,6 +729,10 @@ if args.chaos_iq:
         eventsToSkip=(0xFFFFFFFFFFFFFFFF if args.iq_events_to_skip < 0
                       else args.iq_events_to_skip),
         countOnly=args.iq_count_only,
+        tier=args.iq_tier,
+        warmupEvents=args.iq_warmup_events,
+        spanEvents=args.iq_span_events,
+        f6Event=args.iq_f6_event,
     )
     board.chaos_iq = iq
 

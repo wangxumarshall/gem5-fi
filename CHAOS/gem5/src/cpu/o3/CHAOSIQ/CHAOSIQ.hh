@@ -14,6 +14,7 @@
 #include "cpu/o3/dyn_inst_ptr.hh"
 #include "cpu/op_class.hh"          // OpClass (W5.12 D55 fu-class misroute)
 #include "cpu/reg_class.hh"         // RegClassType (W7.4 targetClass)
+#include "cpu/o3/chaos_event_trigger.hh"  // WS4.4 event-normalized tier
 
 namespace gem5 { namespace o3 { class CPU; } }
 namespace gem5 { namespace o3 { class InstructionQueue; } }
@@ -182,6 +183,24 @@ class CHAOSIQ : public SimObject
     std::mt19937 rng;
     std::random_device rd;
     OutputStream *log_stream = nullptr;
+
+    // ---- WS4.4: event-normalized F0-F6 trigger (chaos_event_trigger.hh,
+    // the aliased LSU implementation — ooo 05 r2-r8). tier != off replaces
+    // the cycle window / probability draw with the eligible-event-normalized
+    // semantics; the legacy path stays byte-identical. eligible stream =
+    // dispatch-enqueue events per the active mode's hook (insert / wake /
+    // issue sites). FUNNEL NOTE: on this injector `attempted` counts the
+    // events that reached the shared sampling gate (post population
+    // filter) — the funnel stays monotone attempted >= eligible >=
+    // injected. ----
+    ChaOSEventTrigger *eventTrigger = nullptr;
+    ChaOSOooEvent f6_ooo_event = ChaOSOooEvent::BranchMispredict;
+    bool f6_pending = false;     // F6 fires at the configured event, the
+                                 // next eligible hook consumes it
+    static CHAOSIQ *f6Consumer;   // single-consumer F6 discipline
+    static void f6Thunk(ChaOSOooEvent ev);
+    static ChaOSEventTier tierFromString(const std::string &s);
+    static ChaOSOooEvent oooEventFromString(const std::string &s);
 
     bool inWindow();
     // shared gates for the insert/wake/issue-site hooks: window +

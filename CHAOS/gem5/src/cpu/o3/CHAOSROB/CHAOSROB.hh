@@ -13,6 +13,7 @@
 #include "cpu/base.hh"
 #include "cpu/o3/dyn_inst_ptr.hh"  // DynInstPtr
 #include "cpu/reg_class.hh"        // RegClassType (W7.4 targetClass)
+#include "cpu/o3/chaos_event_trigger.hh"  // WS4.4 event-normalized tier
 
 namespace gem5 { namespace o3 { class CPU; } }
 namespace gem5 { namespace o3 { class ROB; } }
@@ -143,6 +144,21 @@ class CHAOSROB : public SimObject
     std::mt19937 rng;
     std::random_device rd;
     OutputStream *log_stream = nullptr;
+
+    // ---- WS4.4: event-normalized F0-F6 trigger (chaos_event_trigger.hh,
+    // the aliased LSU implementation — ooo 05 r2-r8). tier != off replaces
+    // the cycle window / probability draw with the eligible-event-normalized
+    // semantics; the legacy path stays byte-identical. eligible stream =
+    // dispatch-enqueue events (rob_insert for the entry family, retireHead
+    // for the exc/pc head family, per the active mode's hook). ----
+    ChaOSEventTrigger *eventTrigger = nullptr;
+    ChaOSOooEvent f6_ooo_event = ChaOSOooEvent::BranchMispredict;
+    bool f6_pending = false;     // F6 fires at the configured event, the
+                                 // next eligible hook consumes it
+    static CHAOSROB *f6Consumer;   // single-consumer F6 discipline
+    static void f6Thunk(ChaOSOooEvent ev);
+    static ChaOSEventTier tierFromString(const std::string &s);
+    static ChaOSOooEvent oooEventFromString(const std::string &s);
 
     bool inWindow();
 

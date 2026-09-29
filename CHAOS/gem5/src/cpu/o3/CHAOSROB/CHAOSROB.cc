@@ -40,6 +40,14 @@ namespace gem5
             panic("CHAOSROB: unknown targetClass '%s' (int|vec)\n",
                   p.targetClass);
         }
+        // WS4.4: event-normalized tier (off = legacy cycle-window path).
+        if (p.tier != "off") {
+            eventTrigger = new ChaOSEventTrigger(tierFromString(p.tier),
+                                                 rng_seed ? rng_seed : 1,
+                                                 p.warmupEvents,
+                                                 p.spanEvents);
+            f6_ooo_event = oooEventFromString(p.f6Event);
+        }
         if (probability > 0.0f) {
             log_stream = simout.create("rob_injections.log", false, true);
             if (!log_stream || !log_stream->stream())
@@ -53,6 +61,38 @@ namespace gem5
     }
 
     CHAOSROB::~CHAOSROB() {}
+
+    CHAOSROB *CHAOSROB::f6Consumer = nullptr;
+
+    ChaOSEventTier
+    CHAOSROB::tierFromString(const std::string &s) {
+        if (s == "F0") return ChaOSEventTier::F0;
+        if (s == "F1") return ChaOSEventTier::F1;
+        if (s == "F2") return ChaOSEventTier::F2;
+        if (s == "F3") return ChaOSEventTier::F3;
+        if (s == "F4") return ChaOSEventTier::F4;
+        if (s == "F5") return ChaOSEventTier::F5;
+        if (s == "F6") return ChaOSEventTier::F6;
+        panic("CHAOSROB: unknown tier '%s'\n", s);
+    }
+
+    ChaOSOooEvent
+    CHAOSROB::oooEventFromString(const std::string &s) {
+        if (s == "rename_squash") return ChaOSOooEvent::RenameSquash;
+        if (s == "commit_squash") return ChaOSOooEvent::CommitSquash;
+        return ChaOSOooEvent::BranchMispredict;  // branch_mispredict/default
+    }
+
+    void
+    CHAOSROB::f6Thunk(ChaOSOooEvent ev) {
+        // Single-consumer F6 notify (chaos_event_trigger.hh). The trigger's
+        // onF6Event() enforces once-ever; the injection lands at the next
+        // eligible ROB hook (f6_pending).
+        if (f6Consumer && f6Consumer->eventTrigger &&
+            f6Consumer->f6_ooo_event == ev &&
+            f6Consumer->eventTrigger->onF6Event())
+            f6Consumer->f6_pending = true;
+    }
 
     CHAOSROB::Mode
     CHAOSROB::stringToMode(const std::string &s) {
@@ -285,11 +325,25 @@ namespace gem5
                            // at the retireHead site.
 
         if (!cpu || probability <= 0.0f) return false;
-        if (max_faults != 0 && faults_injected_count >= max_faults) return false;
-        if (!inWindow()) return false;
+        if (eventTrigger) {
+            // WS4.4 event-normalized path: the tier owns warm-up/repetition
+            // (F6 = the pending flag set by the notify source).
+            eventTrigger->onAttempt();
+            bool go;
+            if (eventTrigger->tier == ChaOSEventTier::F6) {
+                go = f6_pending;
+                f6_pending = false;
+            } else {
+                go = eventTrigger->onEligible();
+            }
+            if (!go) return false;
+        } else {
+            if (max_faults != 0 && faults_injected_count >= max_faults) return false;
+            if (!inWindow()) return false;
 
-        std::uniform_real_distribution<float> pd(0.0f, 1.0f);
-        if (pd(rng) > probability) return false;
+            std::uniform_real_distribution<float> pd(0.0f, 1.0f);
+            if (pd(rng) > probability) return false;
+        }
 
         auto *o3cpu = dynamic_cast<o3::CPU *>(cpu);
         if (!o3cpu) return false;
@@ -402,11 +456,25 @@ namespace gem5
             return maybeStuckEntryWrite(tid, inst);
 
         if (!cpu || probability <= 0.0f) return false;
-        if (max_faults != 0 && faults_injected_count >= max_faults) return false;
-        if (!inWindow()) return false;
+        if (eventTrigger) {
+            // WS4.4 event-normalized path: the tier owns warm-up/repetition
+            // (F6 = the pending flag set by the notify source).
+            eventTrigger->onAttempt();
+            bool go;
+            if (eventTrigger->tier == ChaOSEventTier::F6) {
+                go = f6_pending;
+                f6_pending = false;
+            } else {
+                go = eventTrigger->onEligible();
+            }
+            if (!go) return false;
+        } else {
+            if (max_faults != 0 && faults_injected_count >= max_faults) return false;
+            if (!inWindow()) return false;
 
-        std::uniform_real_distribution<float> pd(0.0f, 1.0f);
-        if (pd(rng) > probability) return false;
+            std::uniform_real_distribution<float> pd(0.0f, 1.0f);
+            if (pd(rng) > probability) return false;
+        }
 
         auto *o3cpu = dynamic_cast<o3::CPU *>(cpu);
         if (!o3cpu) return false;
@@ -1626,6 +1694,17 @@ namespace gem5
         // regular place the done bit is ever set). The commit-side
         // pointer follows the §2.18 CHAOSRAS pattern (setChaosRAS).
         o3cpu->o3Commit().setChaosROB(this);
+        if (eventTrigger) {
+            if (eventTrigger->tier == ChaOSEventTier::F6) {
+                f6Consumer = this;
+                chaosOooF6Notify = &CHAOSROB::f6Thunk;
+            }
+            // WS4.4 funnel summary (attempted/eligible/injected).
+            registerExitCallback([this]() {
+                if (eventTrigger)
+                    chaosEventTriggerSummary(*eventTrigger, "CHAOSROB");
+            });
+        }
     }
 
 } // namespace gem5
