@@ -1,0 +1,16 @@
+{
+  "frozen": true,
+  "purpose": "ENGINEERING_ONLY 家族确定性双跑（G0-02）——不进入正式统计",
+  "item": "ITEM-122", "run_id": "C01-F0-W6",
+  "phase": "engineering", "sample_index": 0, "seed": 76643724545708453,
+  "seed_rule": "sha256('lsu-fi-v1|C01-F0-W6|engineering|0') 低64位 digest[24:32] 大端（tools/lsu_seed.py）",
+  "identity": {"git_commit": "e83d0695597abd333a1b0b36a562e8554f09053f", "gem5_opt_sha256": "b64c808d449d0d63e369513671ffc222de99e2f9d29ca9cab33042ad879f3214",
+               "lsu_proxy_sha256": "4001eba155ed9ee0d932986393299184167a79af508eb6ed0cb7b20dac53ec93",
+               "workload": "workloads/directed/cache_dirtyevict", "workload_sha256": "655360f61c43f679f5d0d086619842051bf4d4384ae4630add8eaa85a61b3415"},
+  "config": {"cpu": "O3", "variant": "B0", "checkpoint": "none (SE)"},
+  "f0_span_rule": "legacy 时钟窗机制（lsuTier 参数 wire-ready 未消费），无 span/计数 pass",
+  "injector_args": ["--chaos_l1d", "--l1d_target_field", "data", "--l1d_fault_type", "bit_flip", "--l1d_first_clock", "1000", "--l1d_max_faults", "1", "--l1d_rng_seed", "76643724545708453"],
+  "timeout": {"wall_seconds_per_run": 600, "mechanism": "lsu_guard --max-seconds"},
+  "runs": {"count": "runs/lsu/det/C01-F0-W6/count", "run1": "runs/lsu/det/C01-F0-W6/run1", "run2": "runs/lsu/det/C01-F0-W6/run2"},
+  "serial_execution": "守卫 experiment 锁严格串行（count→run1→run2）"
+}

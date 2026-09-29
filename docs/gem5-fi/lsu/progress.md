@@ -13,7 +13,7 @@
 - **Phase Status:** COMPLETE
 - **Overall Status:** IN_PROGRESS
 - **Started:** 2026-09-29 11:22 (Session 001)
-- **Last Updated:** 2026-09-29 15:42
+- **Last Updated:** 2026-09-29 16:45
 - **Current Owner:** 服务器执行 AI（Claude，主协调 AI）
 - **Current Checklist Item:** NONE（P0 预检完成；P1 起从清单选 ITEM）
 - **Current RunID:** NONE
@@ -27,11 +27,11 @@
 - **Resource Lock:** 已占用（runs/lsu/guard/build.lock：P1-G0-01 构建，pid 19587）
 - **Resource Log:** runs/lsu/guard/build_p1_rebuild_rsrc.log（60s 采样进行中）+ guard_events.log
 - **Latest MemAvailable / SwapFree / Load:** 构建启动前 gate 采样通过（MemAvailable≥12G/SwapFree≥4G 判定 PASS）；采样记录见 build_p1_rebuild_rsrc.log
-- **Next Step:** 提交 [LSU][P1] 第二批（A01-F0-W3 双跑确定性 PASS，G0-02=PARTIAL-1/6 家族）；随后 P1 继续：①其余 5 注入器家族同法双跑（lsqfwd/cache/prefetch/exmon/armtlb）②17 缺口补实现 ③DR-001/DR-002 等用户裁决。
+- **Next Step:** 连续模式：①提交 SE 五家族确定性成果（G0-02=5/6）②armtlb FS 家族验证（configs/fs/lsu_b0_fs.py + tlb_probe 载体）③9 SE 负载 golden 3×（G0-05/G0-07/G0-09）④G0-03 environment lock 固化 ⑤17 缺口补实现。DR-001/DR-002 非阻塞。
 
 ## Git 状态
 
-- **最新 commit SHA:** ee77b992（[LSU][P1] 守卫-j8重建成功 + lsu_proxy冒烟通过 + seed生成器 + 64模型映射现状，7 文件，15:45 推送 b6445581..ee77b992）
+- **最新 commit SHA:** e83d0695（[LSU][P1] A01-F0-W3 双跑确定性 PASS（G0-02=1/6 家族），6 文件，16:05 推送 ee77b992..e83d0695）
 - **推送状态:** 已推送 origin/fi-ding（最新 ee77b992；上一 b6445581 = [LSU][P0] 17 文件 15:10:20）
 - **提交信息:** [LSU][P0] 预检完成：清单核验、环境资产盘点、B0参数对照、资源守卫建立（G0-10 PASS）（17 文件，xlsx 识别为 100% rename）
 

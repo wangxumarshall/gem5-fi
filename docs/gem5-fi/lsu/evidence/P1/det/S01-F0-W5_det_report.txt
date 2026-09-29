@@ -1,0 +1,13 @@
+[PASS] C1 注入日志逐字节（lsq_fwd_injections.log）
+[INFO] 注入发生性: injected=1 确认
+[PASS] C2 stdout 规范化
+[PASS] C2b stdout 非空守卫（非 vacuous）
+    规范化行数=22
+[INFO] oracle 相关行 1 条: ['1f4cbf14327717df']
+[PASS] C3 stats.txt 语义字段（剔除 host*）
+    字段数 run1=1170 run2=1170；仅run1:[] 仅run2:[] 值差异:[]
+[PASS] C4 config.ini 逐字节
+[PASS] C5 退出码均 0
+    run1=0 run2=0
+
+OVERALL: DETERMINISM PASS — S01-F0-W5 C1-C5 语义字段完全复现

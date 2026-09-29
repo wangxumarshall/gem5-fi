@@ -1,0 +1,16 @@
+{
+  "frozen": true,
+  "purpose": "ENGINEERING_ONLY 家族确定性双跑（G0-02）——不进入正式统计",
+  "item": "ITEM-071", "run_id": "S01-F0-W5",
+  "phase": "engineering", "sample_index": 0, "seed": 1576294484665195303,
+  "seed_rule": "sha256('lsu-fi-v1|S01-F0-W5|engineering|0') 低64位 digest[24:32] 大端（tools/lsu_seed.py）",
+  "identity": {"git_commit": "e83d0695597abd333a1b0b36a562e8554f09053f", "gem5_opt_sha256": "b64c808d449d0d63e369513671ffc222de99e2f9d29ca9cab33042ad879f3214",
+               "lsu_proxy_sha256": "4001eba155ed9ee0d932986393299184167a79af508eb6ed0cb7b20dac53ec93",
+               "workload": "workloads/directed/sq_forward", "workload_sha256": "132a84f7f21be052bc1f2c9baf1c12d5bd3462aae03b1d42778c94e69b0af297"},
+  "config": {"cpu": "O3", "variant": "B0", "checkpoint": "none (SE)"},
+  "f0_span_rule": "两遍法（F-012）：计数 pass（span=INT64_MAX）实测全流 eligible=555，正式 span=555 == Excel F0 全流均匀语义",
+  "injector_args": ["--chaos_lsqfwd", "--lsq_struct_mode", "byte_flip", "--lsqfwd_lsu_tier", "F0", "--lsqfwd_warmup_events", "0", "--lsqfwd_span_events", "555", "--max_faults", "1", "--rng_seed", "1576294484665195303"],
+  "timeout": {"wall_seconds_per_run": 600, "mechanism": "lsu_guard --max-seconds"},
+  "runs": {"count": "runs/lsu/det/S01-F0-W5/count", "run1": "runs/lsu/det/S01-F0-W5/run1", "run2": "runs/lsu/det/S01-F0-W5/run2"},
+  "serial_execution": "守卫 experiment 锁严格串行（count→run1→run2）"
+}

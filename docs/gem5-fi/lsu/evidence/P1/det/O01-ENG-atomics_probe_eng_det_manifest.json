@@ -1,0 +1,16 @@
+{
+  "frozen": true,
+  "purpose": "ENGINEERING_ONLY 家族确定性双跑（G0-02）——不进入正式统计",
+  "item": "ENG-EXMON", "run_id": "O01-ENG-atomics_probe",
+  "phase": "engineering", "sample_index": 0, "seed": 10527281160544586615,
+  "seed_rule": "sha256('lsu-fi-v1|O01-ENG-atomics_probe|engineering|0') 低64位 digest[24:32] 大端（tools/lsu_seed.py）",
+  "identity": {"git_commit": "e83d0695597abd333a1b0b36a562e8554f09053f", "gem5_opt_sha256": "b64c808d449d0d63e369513671ffc222de99e2f9d29ca9cab33042ad879f3214",
+               "lsu_proxy_sha256": "4001eba155ed9ee0d932986393299184167a79af508eb6ed0cb7b20dac53ec93",
+               "workload": "workloads/directed/atomics_probe", "workload_sha256": "682431b4e0cad91ec4781414f3688c703ee45f1b326ccba9cf61c01470f76877"},
+  "config": {"cpu": "O3", "variant": "B0", "checkpoint": "none (SE)"},
+  "f0_span_rule": "legacy 时钟窗机制（lsuTier 参数 wire-ready 未消费），无 span/计数 pass",
+  "injector_args": ["--chaos_exmon", "--exmon_mode", "o01_monitor_addr_bitflip", "--exmon_first_clock", "1000", "--exmon_max_faults", "1", "--exmon_rng_seed", "10527281160544586615"],
+  "timeout": {"wall_seconds_per_run": 600, "mechanism": "lsu_guard --max-seconds"},
+  "runs": {"count": "runs/lsu/det/O01-ENG-atomics_probe/count", "run1": "runs/lsu/det/O01-ENG-atomics_probe/run1", "run2": "runs/lsu/det/O01-ENG-atomics_probe/run2"},
+  "serial_execution": "守卫 experiment 锁严格串行（count→run1→run2）"
+}

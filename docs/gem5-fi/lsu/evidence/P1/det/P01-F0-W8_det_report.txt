@@ -1,0 +1,13 @@
+[PASS] C1 注入日志逐字节（prefetch_injections.log）
+[INFO] 注入发生性: 1 条注入记录确认
+[PASS] C2 stdout 规范化
+[PASS] C2b stdout 非空守卫（非 vacuous）
+    规范化行数=23
+[INFO] oracle 相关行 1 条: ['629727c0ad9ca8ef']
+[PASS] C3 stats.txt 语义字段（剔除 host*）
+    字段数 run1=1176 run2=1176；仅run1:[] 仅run2:[] 值差异:[]
+[PASS] C4 config.ini 逐字节
+[PASS] C5 退出码均 0
+    run1=0 run2=0
+
+OVERALL: DETERMINISM PASS — P01-F0-W8 C1-C5 语义字段完全复现

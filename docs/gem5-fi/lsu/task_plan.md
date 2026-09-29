@@ -40,7 +40,7 @@ P0
 | Gate | 内容 | 通过标准 | 状态 |
 |---|---|---|---|
 | G0-01 | gem5 仓库、commit、构建 | commit 固定，clean build 可重复 | PASS（commit 固定 vendored 62c7bf2；守卫 -j8 单实例增量重建 2026-09-29 15:12-15:39 成功：零编译警告、scons done、220 CHAOS 单元；冒烟 lsu_proxy hello O3 exit 0。"clean build 可重复"以增量重建+守卫流程验证为准，全 clean 重建未执行——如需更强验证待用户指示） |
-| G0-02 | 注入 patch 与配置生成器 | patch 有版本，确定性测试通过 | PARTIAL-1/6 家族（**addrpath×F0 双跑确定性 PASS**：A01-F0-W3 同 seed 串行双跑，注入日志逐字节相同（SHA256 同 09a47c17）、Tick/bit/目标/L0 funnel/oracle hash/stats 1175 字段全复现，evidence/P1/det/；lsqfwd/cache/prefetch/exmon/armtlb 家族待同法验证；17 缺口补实现待做） |
+| G0-02 | 注入 patch 与配置生成器 | patch 有版本，确定性测试通过 | PARTIAL-5/6 家族（SE 家族全部 PASS：addrpath A01✓ / lsqfwd S01✓（N=555 两遍法）/ cache C01✓（legacy）/ prefetch P01✓（N=131）/ exmon O01-ENG 载体✓；各证据 evidence/P1/det/*_det_report.txt；armtlb FS-only 待验；17 缺口补实现待做） |
 | G0-03 | OS、编译器、Python、依赖 | environment lock 可重建 | PARTIAL（环境已盘点；重建成功验证工具链可复现；environment lock 摘要待固化） |
 | G0-04 | B0/S1–S4 CPU/cache/MMU 配置 | 与 Excel 和计划逐项一致 | PASS（静态 19/19 + 运行时复核：smoke 运行打印 "LQ/SQ=16, DepShift=0, DTLB=32, L2TLB=1280/5 ... StridePrefetcher(8,1,on)@L2" 与 Excel 一致，evidence/P1/smoke_hello.out） |
 | G0-05 | W0–W13、输入、许可证 | 可用状态明确，不可用项获批准 | IN_PROGRESS（映射完成：SE 现成 212 ITEM；W1/W11/W13 缺失 45 ITEM → DR-001 PENDING；W4/W7 FS 部分待 P2；W12 近似口径待裁决） |
