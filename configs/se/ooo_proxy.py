@@ -81,6 +81,31 @@ p.add_argument("--bits_to_change", type=int, default=1)
 p.add_argument("--reg_class", default="integer",
                choices=["integer", "floating_point", "both"])
 p.add_argument("--chaos_phys", action="store_true")
+# WS4.5: event-normalized trigger tiers on CHAOSPhysReg / CHAOSFPU
+# (ooo 05 r2-r8). off = legacy path (byte-identical: PhysReg keeps its
+# periodic attack-event scheduling; FPU keeps the cycle window). F0-F6:
+# PhysReg is driven by the PRF writeback event stream (regfile write
+# hook); FPU by FP-op completion events.
+p.add_argument("--phys_tier", default="off",
+               choices=["off","F0","F1","F2","F3","F4","F5","F6"],
+               help="WS4.5: event-normalized trigger tier on CHAOSPhysReg")
+p.add_argument("--phys_warmup_events", type=lambda x: int(x,0), default=0,
+               help="WS4.5: eligible events skipped before arming")
+p.add_argument("--phys_span_events", type=lambda x: int(x,0), default=1000,
+               help="WS4.5: F0 uniform window size in eligible events")
+p.add_argument("--phys_f6_event", default="branch_mispredict",
+               choices=["branch_mispredict","rename_squash","commit_squash"],
+               help="WS4.5: F6 event source (branch_mispredict=D14)")
+p.add_argument("--fpu_tier", default="off",
+               choices=["off","F0","F1","F2","F3","F4","F5","F6"],
+               help="WS4.5: event-normalized trigger tier on CHAOSFPU")
+p.add_argument("--fpu_warmup_events", type=lambda x: int(x,0), default=0,
+               help="WS4.5: eligible events skipped before arming")
+p.add_argument("--fpu_span_events", type=lambda x: int(x,0), default=1000,
+               help="WS4.5: F0 uniform window size in eligible events")
+p.add_argument("--fpu_f6_event", default="branch_mispredict",
+               choices=["branch_mispredict","rename_squash","commit_squash"],
+               help="WS4.5: F6 event source (branch_mispredict=D14)")
 p.add_argument("--phys_mode", default="phys",
                choices=["phys", "arch_frontend", "arch_commit"])
 p.add_argument("--phys_target_idx", type=int, default=-1)
@@ -553,6 +578,10 @@ if args.chaos_phys:
         maxFaults=args.max_faults,
         rngSeed=args.rng_seed,
         writeLog=True,
+        tier=args.phys_tier,
+        warmupEvents=args.phys_warmup_events,
+        spanEvents=args.phys_span_events,
+        f6Event=args.phys_f6_event,
     )
     board.chaos_phys = chaos_p
 
@@ -771,6 +800,10 @@ if args.chaos_fpu:
         expHi=int(args.fpu_exp_range.split(",")[1]),
         fpsrSuppress=args.fpu_fpsr_suppress,
         writeLog=True,
+        tier=args.fpu_tier,
+        warmupEvents=args.fpu_warmup_events,
+        spanEvents=args.fpu_span_events,
+        f6Event=args.fpu_f6_event,
     )
     board.chaos_fpu = fpu
 

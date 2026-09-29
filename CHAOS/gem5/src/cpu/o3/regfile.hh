@@ -198,6 +198,15 @@ class PhysRegFile
     int trace_idx = -1;                          // phys idx within that class
     mutable uint64_t reads_before_overwrite = 0;  // reads of the injected value
     mutable bool trace_overwritten = false;      // set true when target slot is written
+
+    /** WS4.5 write-event hook for CHAOSPhysReg's event-normalized tier
+     *  (ooo 05 r2-r8): fires on every int/float/vec PRF VALUE write
+     *  (setReg) — the writeback event stream. Null when unused; the
+     *  guarded call is the only hot-path cost. The injector's OWN
+     *  injection writes also pass setReg; the injector's thunk carries a
+     *  reentrancy guard so those neither count nor re-fire. */
+    void (*chaos_write_event_cb)() = nullptr;
+    void setChaosWriteEventCb(void (*cb)()) { chaos_write_event_cb = cb; }
     void setReadTraceTarget(RegClassType type, int idx) {
         trace_type = type; trace_idx = idx;
         reads_before_overwrite = 0; trace_overwritten = false;
@@ -350,6 +359,8 @@ class PhysRegFile
           case InvalidRegClass:
             break;
           case IntRegClass:
+            // WS4.5: PRF write event (writeback stream, ooo 05).
+            if (chaos_write_event_cb) chaos_write_event_cb();
             // CHAOSPhysReg read-trace: a write to the traced slot destroys
             // the injected value → stop counting reads from this point.
             // (NOT the CHAOSPhysReg's own injection write — that goes through
@@ -369,6 +380,8 @@ class PhysRegFile
                     idx, val);
             break;
           case FloatRegClass:
+            // WS4.5: PRF write event (writeback stream, ooo 05).
+            if (chaos_write_event_cb) chaos_write_event_cb();
             // CHAOSPhysReg read-trace (float): symmetric overwrite detection.
             if (trace_type == FloatRegClass && (int)idx == trace_idx)
                 trace_overwritten = true;
@@ -410,6 +423,8 @@ class PhysRegFile
             setReg(phys_reg, *(RegVal *)val);
             break;
           case VecRegClass:
+            // WS4.5: PRF write event (writeback stream, ooo 05).
+            if (chaos_write_event_cb) chaos_write_event_cb();
             // CHAOSPhysReg read-trace (vector): a write to the traced cell
             // destroys the injected value → stop counting reads from here.
             if (trace_type == VecRegClass && (int)idx == trace_idx)

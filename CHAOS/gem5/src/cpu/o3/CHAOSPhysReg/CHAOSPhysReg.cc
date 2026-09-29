@@ -53,6 +53,14 @@ namespace gem5
                 "CHAOSPhysReg: cpu is not an O3CPU. CHAOSPhysReg only supports "
                 "O3CPU (it needs regFile/renameMap). Cast failed.");
         }
+        // WS4.5: event-normalized tier (off = legacy periodic attack path).
+        if (p.tier != "off") {
+            eventTrigger = new ChaOSEventTrigger(tierFromString(p.tier),
+                                                 rng_seed ? rng_seed : 1,
+                                                 p.warmupEvents,
+                                                 p.spanEvents);
+            f6_ooo_event = oooEventFromString(p.f6Event);
+        }
         if (probability > 0.0) {
             log_stream = simout.create("fault_injections.log", false, true);
             if (!log_stream || !log_stream->stream()) {
@@ -66,8 +74,12 @@ namespace gem5
             }
             inter_fault_cycles_dist = std::geometric_distribution<unsigned>(probability);
             unsigned next_fault_cycle_distance = inter_fault_cycles_dist(rng);
-            scheduleAttackEvent(first_clock + Cycles(next_fault_cycle_distance));
-            scheduleCheckPermanentFault(first_clock + Cycles(1));
+            if (!eventTrigger) {
+                // Legacy periodic attack scheduling only — the tier path
+                // is driven by the PRF write-event stream (writeThunk).
+                scheduleAttackEvent(first_clock + Cycles(next_fault_cycle_distance));
+                scheduleCheckPermanentFault(first_clock + Cycles(1));
+            }
             // W2.5 L0 lifecycle: print the pinned CHAOS_L0 line at end of
             // sim via an exit callback (CHAOSProbe/CHAOSMicroSnap
             // precedent). The readTrace poll event canNOT do this on short
@@ -93,6 +105,92 @@ namespace gem5
     {}
 
     CHAOSPhysReg::~CHAOSPhysReg() {}
+
+    CHAOSPhysReg *CHAOSPhysReg::f6Consumer = nullptr;
+
+    ChaOSEventTier
+    CHAOSPhysReg::tierFromString(const std::string &s) {
+        if (s == "F0") return ChaOSEventTier::F0;
+        if (s == "F1") return ChaOSEventTier::F1;
+        if (s == "F2") return ChaOSEventTier::F2;
+        if (s == "F3") return ChaOSEventTier::F3;
+        if (s == "F4") return ChaOSEventTier::F4;
+        if (s == "F5") return ChaOSEventTier::F5;
+        if (s == "F6") return ChaOSEventTier::F6;
+        panic("CHAOSPhysReg: unknown tier '%s'\n", s);
+    }
+
+    ChaOSOooEvent
+    CHAOSPhysReg::oooEventFromString(const std::string &s) {
+        if (s == "rename_squash") return ChaOSOooEvent::RenameSquash;
+        if (s == "commit_squash") return ChaOSOooEvent::CommitSquash;
+        return ChaOSOooEvent::BranchMispredict;  // branch_mispredict/default
+    }
+
+    void
+    CHAOSPhysReg::f6Thunk(ChaOSOooEvent ev) {
+        // Single-consumer F6 notify (chaos_event_trigger.hh). The trigger's
+        // onF6Event() enforces once-ever; the injection lands at the next
+        // PRF write event (f6_pending, consumed in writeThunk).
+        if (f6Consumer && f6Consumer->eventTrigger &&
+            f6Consumer->f6_ooo_event == ev &&
+            f6Consumer->eventTrigger->onF6Event())
+            f6Consumer->f6_pending = true;
+    }
+
+    void
+    CHAOSPhysReg::writeThunk() {
+        // The regfile write-event callback (PhysRegFile::setReg int/float/
+        // vec value writes — the writeback stream). Reentrancy guard: the
+        // injector's OWN injection writes also pass setReg and must neither
+        // count as events nor re-fire the tier.
+        static bool in_flight = false;
+        if (in_flight) return;
+        CHAOSPhysReg *self = f6Consumer;
+        if (!self || !self->eventTrigger) return;
+        self->eventTrigger->onAttempt();
+        bool go;
+        if (self->eventTrigger->tier == ChaOSEventTier::F6) {
+            go = self->f6_pending;
+            self->f6_pending = false;
+        } else {
+            go = self->eventTrigger->onEligible();
+        }
+        if (!go) return;
+        in_flight = true;
+        // Same per-active-thread loop as the legacy attackCheck.
+        for (ThreadID tid = 0; tid < self->cpu->numThreads; ++tid) {
+            gem5::ThreadContext *tc = self->cpu->getContext(tid);
+            if (tc && tc->status() != ThreadContext::Halted)
+                self->processFault(tid);
+        }
+        in_flight = false;
+    }
+
+    void
+    CHAOSPhysReg::startup() {
+        SimObject::startup();
+        auto *o3cpu = dynamic_cast<o3::CPU *>(cpu);
+        if (!o3cpu) {
+            warn("CHAOSPhysReg: cpu is not an O3CPU; injector disabled.\n");
+            return;
+        }
+        if (eventTrigger) {
+            // Register the write-event callback (the writeback stream) and,
+            // for F6, the single-consumer notify hook.
+            f6Consumer = this;
+            o3cpu->physRegFile().setChaosWriteEventCb(
+                &CHAOSPhysReg::writeThunk);
+            if (eventTrigger->tier == ChaOSEventTier::F6)
+                chaosOooF6Notify = &CHAOSPhysReg::f6Thunk;
+            // WS4.5 funnel summary (attempted/eligible/injected).
+            registerExitCallback([this]() {
+                if (eventTrigger)
+                    chaosEventTriggerSummary(*eventTrigger,
+                                             "CHAOSPhysReg");
+            });
+        }
+    }
 
     CHAOSPhysReg::FaultType
     CHAOSPhysReg::stringToFaultType(const std::string &s) {

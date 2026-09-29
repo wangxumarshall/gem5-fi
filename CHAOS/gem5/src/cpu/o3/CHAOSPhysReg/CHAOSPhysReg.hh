@@ -11,6 +11,7 @@
 #include "cpu/base.hh"
 #include "base/output.hh"
 #include "cpu/o3/chaos_l0.hh"  // W2.5 L0 lifecycle interface state
+#include "cpu/o3/chaos_event_trigger.hh"  // WS4.5 event-normalized tier
 
 // o3::CPU (C++ class behind ArmO3CPU) is needed to reach regFile/renameMap.
 // We forward-declare it here (full definition pulled into the .cc via
@@ -27,6 +28,8 @@ class CHAOSPhysReg : public SimObject
   public:
     CHAOSPhysReg(const CHAOSPhysRegParams &p);
     ~CHAOSPhysReg();
+
+    void startup() override;  // WS4.5: write-event cb + F6 registration
 
   private:
     enum class FaultType { BitFlip, StuckAtZero, StuckAtOne, Random };
@@ -97,6 +100,21 @@ class CHAOSPhysReg : public SimObject
     std::map<std::pair<ThreadID, int>, PermanentFault> permanent_faults;
 
     OutputStream *log_stream;
+
+    // ---- WS4.5: event-normalized F0-F6 trigger (chaos_event_trigger.hh,
+    // the aliased LSU implementation — ooo 05 r2-r8). tier != off replaces
+    // the periodic attack-event scheduling with the writeback event stream
+    // (PhysRegFile::setReg int/float/vec value writes, via the guarded
+    // chaos_write_event_cb hook); the legacy path stays byte-identical. ----
+    ChaOSEventTrigger *eventTrigger = nullptr;
+    ChaOSOooEvent f6_ooo_event = ChaOSOooEvent::BranchMispredict;
+    bool f6_pending = false;     // F6 fires at the configured event, the
+                                 // next write event consumes it
+    static CHAOSPhysReg *f6Consumer;   // single-consumer F6 + write-cb self
+    static void f6Thunk(ChaOSOooEvent ev);
+    static void writeThunk();    // the regfile write-event callback
+    static ChaOSEventTier tierFromString(const std::string &s);
+    static ChaOSOooEvent oooEventFromString(const std::string &s);
 
     // helpers
     uint64_t generateRandomMask(std::mt19937 &gen, int bits_to_change, int len);

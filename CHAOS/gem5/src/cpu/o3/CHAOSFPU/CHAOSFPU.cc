@@ -35,6 +35,14 @@ namespace gem5
           exp_hi(p.expHi),
           fpsr_suppress(p.fpsrSuppress)
     {
+        // WS4.5: event-normalized tier (off = legacy cycle-window path).
+        if (p.tier != "off") {
+            eventTrigger = new ChaOSEventTrigger(tierFromString(p.tier),
+                                                 rng_seed ? rng_seed : 1,
+                                                 p.warmupEvents,
+                                                 p.spanEvents);
+            f6_ooo_event = oooEventFromString(p.f6Event);
+        }
         if (probability > 0.0f) {
             log_stream = simout.create("fpu_injections.log", false, true);
             if (!log_stream || !log_stream->stream())
@@ -68,6 +76,38 @@ namespace gem5
         }
     }
 
+    CHAOSFPU *CHAOSFPU::f6Consumer = nullptr;
+
+    ChaOSEventTier
+    CHAOSFPU::tierFromString(const std::string &s) {
+        if (s == "F0") return ChaOSEventTier::F0;
+        if (s == "F1") return ChaOSEventTier::F1;
+        if (s == "F2") return ChaOSEventTier::F2;
+        if (s == "F3") return ChaOSEventTier::F3;
+        if (s == "F4") return ChaOSEventTier::F4;
+        if (s == "F5") return ChaOSEventTier::F5;
+        if (s == "F6") return ChaOSEventTier::F6;
+        panic("CHAOSFPU: unknown tier '%s'\n", s);
+    }
+
+    ChaOSOooEvent
+    CHAOSFPU::oooEventFromString(const std::string &s) {
+        if (s == "rename_squash") return ChaOSOooEvent::RenameSquash;
+        if (s == "commit_squash") return ChaOSOooEvent::CommitSquash;
+        return ChaOSOooEvent::BranchMispredict;  // branch_mispredict/default
+    }
+
+    void
+    CHAOSFPU::f6Thunk(ChaOSOooEvent ev) {
+        // Single-consumer F6 notify (chaos_event_trigger.hh). The trigger's
+        // onF6Event() enforces once-ever; the injection lands at the next
+        // eligible FP completion (f6_pending).
+        if (f6Consumer && f6Consumer->eventTrigger &&
+            f6Consumer->f6_ooo_event == ev &&
+            f6Consumer->eventTrigger->onF6Event())
+            f6Consumer->f6_pending = true;
+    }
+
     bool
     CHAOSFPU::inWindow() {
         // Frequency-correct: use the CPU's actual clock period for the
@@ -98,9 +138,15 @@ namespace gem5
     CHAOSFPU::maybeCorrupt(o3::DynInst *dyn_inst)
     {
         if (!cpu || probability <= 0.0f) return false;
-        if (!count_only && max_faults != 0 && faults_injected_count >= max_faults)
-            return false;
-        if (!inWindow()) return false;
+        if (eventTrigger) {
+            // WS4.5 event-normalized path: funnel counts this hook's
+            // stream (eligible after the FP-class/FP-dest filters below).
+            eventTrigger->onAttempt();
+        } else {
+            if (!count_only && max_faults != 0 && faults_injected_count >= max_faults)
+                return false;
+            if (!inWindow()) return false;
+        }
         OpClass oc = dyn_inst->opClass();
         if (!isFpOpClass(oc)) return false;
 
@@ -123,27 +169,43 @@ namespace gem5
         // events (no FP/vector dest = can never take the fault); never
         // corrupt. The counted stream is identical to the stream the
         // fixed-skip draw indexes into.
-        if (count_only) {
-            if (has_fp_dest) ++eligible_count;
-            return false;
+        if (eventTrigger) {
+            // WS4.5 tier verdict (F6 = the pending flag set by the source).
+            // has_fp_dest above is the eligibility filter (no FP/vector
+            // dest = can never take the fault — stays invisible to the
+            // funnel, the countOnly stream discipline).
+            if (!has_fp_dest) return false;
+            bool go;
+            if (eventTrigger->tier == ChaOSEventTier::F6) {
+                go = f6_pending;
+                f6_pending = false;
+            } else {
+                go = eventTrigger->onEligible();
+            }
+            if (!go) return false;
+        } else {
+            if (count_only) {
+                if (has_fp_dest) ++eligible_count;
+                return false;
+            }
+
+            // v1.1 Phase 8.2 fixed-skip mode: consume the skip ONLY on
+            // corruptible events so skip indexes the same stream countOnly
+            // counted. Legacy geometric mode keeps the old consume-on-eligible
+            // behavior (byte-identical replays for existing campaigns).
+            if (fixed_skip_mode && !has_fp_dest) return false;
+
+            // Sampling-bias fix (findings.md Phase 3.0): skip the first N
+            // eligible events (N ~ geometric(0.1) from the seed) so the
+            // single fault lands on a seed-dependent event.
+            if (events_to_skip > 0) {
+                --events_to_skip;
+                return false;
+            }
+
+            std::uniform_real_distribution<float> pd(0.0f, 1.0f);
+            if (pd(rng) > probability) return false;
         }
-
-        // v1.1 Phase 8.2 fixed-skip mode: consume the skip ONLY on
-        // corruptible events so skip indexes the same stream countOnly
-        // counted. Legacy geometric mode keeps the old consume-on-eligible
-        // behavior (byte-identical replays for existing campaigns).
-        if (fixed_skip_mode && !has_fp_dest) return false;
-
-        // Sampling-bias fix (findings.md Phase 3.0): skip the first N
-        // eligible events (N ~ geometric(0.1) from the seed) so the
-        // single fault lands on a seed-dependent event.
-        if (events_to_skip > 0) {
-            --events_to_skip;
-            return false;
-        }
-
-        std::uniform_real_distribution<float> pd(0.0f, 1.0f);
-        if (pd(rng) > probability) return false;
 
         // v1.1 Phase 9 patch 1a-0 — PRF-DEST REWRITE. The old path XORed
         // the DynInst::instResult queue, whose ONLY consumer is the checker
@@ -326,6 +388,17 @@ namespace gem5
             return;
         }
                 o3cpu->setChaosFPU(this);
+        if (eventTrigger) {
+            if (eventTrigger->tier == ChaOSEventTier::F6) {
+                f6Consumer = this;
+                chaosOooF6Notify = &CHAOSFPU::f6Thunk;
+            }
+            // WS4.5 funnel summary (attempted/eligible/injected).
+            registerExitCallback([this]() {
+                if (eventTrigger)
+                    chaosEventTriggerSummary(*eventTrigger, "CHAOSFPU");
+            });
+        }
         // v1.1 Phase 8.2: print CHAOS_ELIGIBLE_COUNT at sim exit (the
         // destructor may not run before gem5's exit path tears everything
         // down; the exit callback always fires).
