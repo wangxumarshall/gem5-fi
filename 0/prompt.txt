@@ -1,0 +1,48 @@
+/superpowers:executing-plans 执行范围调整为“前三个 LSU 单元连续 pilot 波次”，按既定单元顺序执行：
+
+1. AGU；
+2. L1d-TLB；
+3. Load Queue。
+
+先完成分类器接入 runner 的最后一个 P1 工程验证。只有该验证通过，才可开始正式 P3 pilot；之后不需要在第一个 ITEM、每个单元、每次提交、每份报告或普通 ITEM 失败处等待我。
+
+一、单元级执行顺序
+
+1. 先建立 AGU 的不可变 unit manifest：从完整任务执行清单中选出所有同时满足“精确映射、workload 已 golden 验证、checkpoint/oracle/timeout/观测链/分类器均就绪”的 AGU ITEM。
+2. 对 AGU 的入选 ITEM 按清单顺序串行执行 pilot。每个 ITEM 目标为 30 个独立 activated runs/clusters；attempted 达到 300 仍不足 30 个 activated 时，标记该 ITEM BLOCKED，保存证据后继续本单元下一个合格 ITEM。
+3. 只有当 AGU 中每个 ITEM 都处于 COMPLETE、BLOCKED 或 NA_APPROVED，并且状态、原因和证据完整记录后，才进入 L1d-TLB。
+4. L1d-TLB 完成后，按完全相同规则进入 Load Queue。
+5. 不得因某单元存在 BLOCKED ITEM 而跳过整个单元；应继续该单元中其余合格 ITEM。
+6. 不得为了加快进度跳到 Store Queue 或之后的单元；今晚仅处理前三个单元。
+
+二、正式 pilot 准入规则
+
+仅允许以下 ITEM 进入正式 pilot：
+
+- 精确映射，不能是 DR-002 中的近似映射；
+- workload 已可用、已完成 golden 验证；
+- checkpoint、oracle、timeout、seed、不可变 manifest、L0–L5 观测链和分类器均已验证；
+- 不属于 DR-001 的缺失 workload；
+- 不依赖未确定的多核 FS 载体；
+- 资源 gate、锁、PID/PGID 和工作树状态均通过。
+
+近似映射、缺失 workload、未验证 FS 载体、未接入分类器、激活不足或守恒失败的 ITEM 必须单独 BLOCKED，不得进入正式统计，也不得阻止同单元其他合格 ITEM。
+
+三、运行方式
+
+- 所有 pilot 严格串行；始终仅允许一个受资源守卫管理的编译或实验重任务。
+- 每个 ITEM 完成后，自动执行 L0–L5、分类、分母和守恒审计。
+- 审计通过才可标记 COMPLETE；随后更新 progress.md/findings.md，提交并推送，再继续当前单元的下一个 ITEM。
+- 不得启动 screening、confirmatory、sensitivity 或 reproduction。
+- DR-001、DR-002、17 个缺口模型均非阻塞事项：如实记录受影响 ITEM，继续前三个单元中不受影响的工作。
+- planning-with-files 的“Task in progress”只要求更新 progress.md；更新后继续，不得作为停止理由。
+
+四、唯一停机条件
+
+仅在以下情况停止并等待我：
+
+- 资源 WARNING/TRIP、工作树/Git/checkpoint/oracle/分类器/统计守恒的全局风险；
+- 需要改动正式实验设计、workload、参数、样本量、停止规则或统计口径；
+- AGU、L1d-TLB、Load Queue 三个单元的合格 ITEM 都已完成或有明确 BLOCKED/NA_APPROVED 状态。
+
+明早汇报时，按单元分别列出：已完成 ITEM、BLOCKED ITEM、attempted/eligible/activated、结局分布、证据路径、commit/push 状态，以及下一个应继续的单元或补实现任务。
