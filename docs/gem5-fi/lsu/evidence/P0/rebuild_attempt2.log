@@ -1,0 +1,331 @@
+scons: Reading SConscript files ...
+Mkdir("/home/sdc/gem5-fi-ding/CHAOS/gem5/build/ARM/gem5.build")
+Checking for linker -Wl,--as-needed support... (cached) yes
+Checking for compiler -gz support... (cached) yes
+Checking for linker -gz support... (cached) yes
+Info: Using Python config: python3-config
+Checking for C header file Python.h... (cached) yes
+Checking Python version... (cached) 3.11.6
+Checking for accept(0,0,0) in C++ library None... (cached) yes
+Checking for zlibVersion() in C++ library z... (cached) yes
+Checking for C library tcmalloc_minimal... (cached) yes
+Building in /home/sdc/gem5-fi-ding/CHAOS/gem5/build/ARM
+"build_tools/kconfig_base.py" "/home/sdc/gem5-fi-ding/CHAOS/gem5/build/ARM/gem5.build/Kconfig" "/home/sdc/gem5-fi-ding/CHAOS/gem5/src/Kconfig"
+Checking for C header file capstone/capstone.h... (cached) no
+Warning: Header file <capstone/capstone.h> not found.
+         This host has no capstone library installed.
+Checking for C header file linux/kvm.h... (cached) yes
+Checking for timer_create(CLOCK_MONOTONIC, NULL, NULL) in C library None... (cached) yes
+Checking for member exclude_host in struct perf_event_attr...(cached) yes
+Checking for shm_open("/test", 0, 0) in C library None... (cached) yes
+Checking for C header file fenv.h... (cached) yes
+Checking for C header file png.h... (cached) no
+Warning: Header file <png.h> not found.
+         This host has no libpng library.
+         Disabling support for PNG framebuffers.
+Checking for clock_nanosleep(0,0,NULL,NULL) in C library None... (cached) yes
+Checking for C header file valgrind/valgrind.h... (cached) yes
+Checking for pkg-config package hdf5-serial... (cached) no
+Checking for pkg-config package hdf5... (cached) no
+Checking for H5Fcreate("", 0, 0, 0) in C library hdf5... (cached) no
+Warning: Couldn't find HDF5 C++ libraries. Disabling HDF5 support.
+Checking for pkg-config package protobuf... (cached) yes
+Checking for C header file linux/if_tun.h... (cached) yes
+Checking for backtrace_symbols_fd((void *)1, 0, 0) in C library None... (cached) yes
+Checking whether __i386__ is declared... (cached) no
+Checking whether __x86_64__ is declared... (cached) no
+Warning: Unrecognized architecture for systemc.
+BUILD_TLM not set, not building CHI-TLM integration
+
+Checking for compiler -Wno-self-assign-overloaded support... (cached) yes
+Checking for linker -Wno-free-nonheap-object support... (cached) yes
+scons: done reading SConscript files.
+scons: Building targets ...
+ [EMBED PY] src/CHAOSReg/CHAOSReg.py -> ARM/CHAOSReg/CHAOSReg.py.cc
+ [EMBED PY] src/cpu/FuncUnit.py -> ARM/cpu/FuncUnit.py.cc
+ [EMBED PY] src/cpu/StaticInstFlags.py -> ARM/cpu/StaticInstFlags.py.cc
+ [EMBED PY] src/cpu/InstPBTrace.py -> ARM/cpu/InstPBTrace.py.cc
+ [EMBED PY] src/cpu/BaseCPU.py -> ARM/cpu/BaseCPU.py.cc
+ [EMBED PY] src/cpu/CpuCluster.py -> ARM/cpu/CpuCluster.py.cc
+ [EMBED PY] src/cpu/CPUTracers.py -> ARM/cpu/CPUTracers.py.cc
+ [EMBED PY] src/cpu/TimingExpr.py -> ARM/cpu/TimingExpr.py.cc
+ [EMBED PY] src/cpu/DummyChecker.py -> ARM/cpu/DummyChecker.py.cc
+ [EMBED PY] src/cpu/probes/PcCountTracker.py -> ARM/cpu/probes/PcCountTracker.py.cc
+ [EMBED PY] src/cpu/probes/InstTracker.py -> ARM/cpu/probes/InstTracker.py.cc
+ [EMBED PY] src/cpu/trace/TraceCPU.py -> ARM/cpu/trace/TraceCPU.py.cc
+ [EMBED PY] src/cpu/checker/CheckerCPU.py -> ARM/cpu/checker/CheckerCPU.py.cc
+ [EMBED PY] src/cpu/kvm/KvmVM.py -> ARM/cpu/kvm/KvmVM.py.cc
+ [EMBED PY] src/cpu/kvm/BaseKvmCPU.py -> ARM/cpu/kvm/BaseKvmCPU.py.cc
+ [EMBED PY] src/cpu/o3/FUPool.py -> ARM/cpu/o3/FUPool.py.cc
+ [EMBED PY] src/cpu/o3/FuncUnitConfig.py -> ARM/cpu/o3/FuncUnitConfig.py.cc
+ [EMBED PY] src/cpu/o3/BaseO3CPU.py -> ARM/cpu/o3/BaseO3CPU.py.cc
+ [EMBED PY] src/cpu/o3/IQUnit.py -> ARM/cpu/o3/IQUnit.py.cc
+ [EMBED PY] src/cpu/o3/SMT.py -> ARM/cpu/o3/SMT.py.cc
+ [EMBED PY] src/cpu/o3/BaseO3Checker.py -> ARM/cpu/o3/BaseO3Checker.py.cc
+ [EMBED PY] src/cpu/o3/O3CPU.py -> ARM/cpu/o3/O3CPU.py.cc
+ [EMBED PY] src/cpu/o3/O3Checker.py -> ARM/cpu/o3/O3Checker.py.cc
+ [EMBED PY] src/cpu/o3/CHAOSCommitTrace/CHAOSCommitTrace.py -> ARM/cpu/o3/CHAOSCommitTrace/CHAOSCommitTrace.py.cc
+ [EMBED PY] src/cpu/o3/CHAOSAddrPath/CHAOSAddrPath.py -> ARM/cpu/o3/CHAOSAddrPath/CHAOSAddrPath.py.cc
+ [EMBED PY] src/cpu/o3/CHAOSDecode/CHAOSDecode.py -> ARM/cpu/o3/CHAOSDecode/CHAOSDecode.py.cc
+ [EMBED PY] src/cpu/o3/CHAOSMicroSnap/CHAOSMicroSnap.py -> ARM/cpu/o3/CHAOSMicroSnap/CHAOSMicroSnap.py.cc
+ [EMBED PY] src/cpu/o3/CHAOSFreeList/CHAOSFreeList.py -> ARM/cpu/o3/CHAOSFreeList/CHAOSFreeList.py.cc
+ [EMBED PY] src/cpu/o3/CHAOSLSQFwd/CHAOSLSQFwd.py -> ARM/cpu/o3/CHAOSLSQFwd/CHAOSLSQFwd.py.cc
+ [EMBED PY] src/cpu/o3/CHAOSRAS/CHAOSRAS.py -> ARM/cpu/o3/CHAOSRAS/CHAOSRAS.py.cc
+ [EMBED PY] src/cpu/o3/CHAOSPhysReg/CHAOSPhysReg.py -> ARM/cpu/o3/CHAOSPhysReg/CHAOSPhysReg.py.cc
+ [EMBED PY] src/cpu/o3/CHAOSL1DForward/CHAOSL1DForward.py -> ARM/cpu/o3/CHAOSL1DForward/CHAOSL1DForward.py.cc
+ [EMBED PY] src/cpu/o3/CHAOSProbe/CHAOSProbe.py -> ARM/cpu/o3/CHAOSProbe/CHAOSProbe.py.cc
+ [EMBED PY] src/cpu/o3/CHAOSBPU/CHAOSBPU.py -> ARM/cpu/o3/CHAOSBPU/CHAOSBPU.py.cc
+ [EMBED PY] src/cpu/o3/CHAOSExec/CHAOSExec.py -> ARM/cpu/o3/CHAOSExec/CHAOSExec.py.cc
+ [EMBED PY] src/cpu/o3/CHAOSRenameMap/CHAOSRenameMap.py -> ARM/cpu/o3/CHAOSRenameMap/CHAOSRenameMap.py.cc
+ [EMBED PY] src/cpu/o3/CHAOSIQ/CHAOSIQ.py -> ARM/cpu/o3/CHAOSIQ/CHAOSIQ.py.cc
+ [EMBED PY] src/cpu/o3/CHAOSROB/CHAOSROB.py -> ARM/cpu/o3/CHAOSROB/CHAOSROB.py.cc
+ [EMBED PY] src/cpu/o3/CHAOSFPU/CHAOSFPU.py -> ARM/cpu/o3/CHAOSFPU/CHAOSFPU.py.cc
+ [EMBED PY] src/cpu/o3/probe/SimpleTrace.py -> ARM/cpu/o3/probe/SimpleTrace.py.cc
+ [EMBED PY] src/cpu/o3/probe/ElasticTrace.py -> ARM/cpu/o3/probe/ElasticTrace.py.cc
+ [EMBED PY] src/cpu/simple/BaseAtomicSimpleCPU.py -> ARM/cpu/simple/BaseAtomicSimpleCPU.py.cc
+ [EMBED PY] src/cpu/simple/BaseNonCachingSimpleCPU.py -> ARM/cpu/simple/BaseNonCachingSimpleCPU.py.cc
+ [EMBED PY] src/cpu/simple/BaseTimingSimpleCPU.py -> ARM/cpu/simple/BaseTimingSimpleCPU.py.cc
+ [EMBED PY] src/cpu/simple/BaseSimpleCPU.py -> ARM/cpu/simple/BaseSimpleCPU.py.cc
+ [EMBED PY] src/cpu/simple/AtomicSimpleCPU.py -> ARM/cpu/simple/AtomicSimpleCPU.py.cc
+ [EMBED PY] src/cpu/simple/NonCachingSimpleCPU.py -> ARM/cpu/simple/NonCachingSimpleCPU.py.cc
+ [EMBED PY] src/cpu/simple/TimingSimpleCPU.py -> ARM/cpu/simple/TimingSimpleCPU.py.cc
+ [EMBED PY] src/cpu/simple/probes/SimPoint.py -> ARM/cpu/simple/probes/SimPoint.py.cc
+ [EMBED PY] src/cpu/simple/probes/LooppointAnalysis.py -> ARM/cpu/simple/probes/LooppointAnalysis.py.cc
+ [EMBED PY] src/cpu/pred/BranchPredictor.py -> ARM/cpu/pred/BranchPredictor.py.cc
+ [EMBED PY] src/cpu/minor/BaseMinorCPU.py -> ARM/cpu/minor/BaseMinorCPU.py.cc
+ [EMBED PY] src/cpu/minor/MinorCPU.py -> ARM/cpu/minor/MinorCPU.py.cc
+ [EMBED PY] src/cpu/testers/memtest/MemTest.py -> ARM/cpu/testers/memtest/MemTest.py.cc
+ [EMBED PY] src/cpu/testers/rubytest/RubyTester.py -> ARM/cpu/testers/rubytest/RubyTester.py.cc
+ [EMBED PY] src/cpu/testers/spatter_gen/SpatterGen.py -> ARM/cpu/testers/spatter_gen/SpatterGen.py.cc
+ [EMBED PY] src/cpu/testers/directedtest/RubyDirectedTester.py -> ARM/cpu/testers/directedtest/RubyDirectedTester.py.cc
+ [EMBED PY] src/cpu/testers/traffic_gen/BaseTrafficGen.py -> ARM/cpu/testers/traffic_gen/BaseTrafficGen.py.cc
+ [EMBED PY] src/cpu/testers/traffic_gen/GUPSGen.py -> ARM/cpu/testers/traffic_gen/GUPSGen.py.cc
+ [EMBED PY] src/cpu/testers/traffic_gen/PyTrafficGen.py -> ARM/cpu/testers/traffic_gen/PyTrafficGen.py.cc
+ [EMBED PY] src/cpu/testers/traffic_gen/TrafficGen.py -> ARM/cpu/testers/traffic_gen/TrafficGen.py.cc
+ [EMBED PY] src/cpu/testers/garnet_synthetic_traffic/GarnetSyntheticTraffic.py -> ARM/cpu/testers/garnet_synthetic_traffic/GarnetSyntheticTraffic.py.cc
+ [EMBED PY] src/mem/CommMonitor.py -> ARM/mem/CommMonitor.py.cc
+ [EMBED PY] src/mem/AbstractMemory.py -> ARM/mem/AbstractMemory.py.cc
+ [EMBED PY] src/mem/AddrMapper.py -> ARM/mem/AddrMapper.py.cc
+ [EMBED PY] src/mem/Bridge.py -> ARM/mem/Bridge.py.cc
+ [EMBED PY] src/mem/SysBridge.py -> ARM/mem/SysBridge.py.cc
+ [EMBED PY] src/mem/MemCtrl.py -> ARM/mem/MemCtrl.py.cc
+ [EMBED PY] src/mem/HeteroMemCtrl.py -> ARM/mem/HeteroMemCtrl.py.cc
+ [EMBED PY] src/mem/HBMCtrl.py -> ARM/mem/HBMCtrl.py.cc
+ [EMBED PY] src/mem/MemInterface.py -> ARM/mem/MemInterface.py.cc
+ [EMBED PY] src/mem/DRAMInterface.py -> ARM/mem/DRAMInterface.py.cc
+ [EMBED PY] src/mem/NVMInterface.py -> ARM/mem/NVMInterface.py.cc
+ [EMBED PY] src/mem/ExternalMaster.py -> ARM/mem/ExternalMaster.py.cc
+ [EMBED PY] src/mem/ExternalSlave.py -> ARM/mem/ExternalSlave.py.cc
+ [EMBED PY] src/mem/CfiMemory.py -> ARM/mem/CfiMemory.py.cc
+ [EMBED PY] src/mem/SharedMemoryServer.py -> ARM/mem/SharedMemoryServer.py.cc
+ [EMBED PY] src/mem/SimpleMemory.py -> ARM/mem/SimpleMemory.py.cc
+ [EMBED PY] src/mem/XBar.py -> ARM/mem/XBar.py.cc
+ [EMBED PY] src/mem/HMCController.py -> ARM/mem/HMCController.py.cc
+ [EMBED PY] src/mem/SerialLink.py -> ARM/mem/SerialLink.py.cc
+ [EMBED PY] src/mem/MemDelay.py -> ARM/mem/MemDelay.py.cc
+ [EMBED PY] src/mem/PortTerminator.py -> ARM/mem/PortTerminator.py.cc
+ [EMBED PY] src/mem/ThreadBridge.py -> ARM/mem/ThreadBridge.py.cc
+ [EMBED PY] src/mem/MemChecker.py -> ARM/mem/MemChecker.py.cc
+ [EMBED PY] src/mem/probes/BaseMemProbe.py -> ARM/mem/probes/BaseMemProbe.py.cc
+ [EMBED PY] src/mem/probes/StackDistProbe.py -> ARM/mem/probes/StackDistProbe.py.cc
+ [EMBED PY] src/mem/probes/MemFootprintProbe.py -> ARM/mem/probes/MemFootprintProbe.py.cc
+ [EMBED PY] src/mem/probes/MemTraceProbe.py -> ARM/mem/probes/MemTraceProbe.py.cc
+ [EMBED PY] src/mem/cache/Cache.py -> ARM/mem/cache/Cache.py.cc
+ [EMBED PY] src/mem/cache/tags/Tags.py -> ARM/mem/cache/tags/Tags.py.cc
+ [EMBED PY] src/mem/cache/tags/partitioning_policies/PartitioningPolicies.py -> ARM/mem/cache/tags/partitioning_policies/PartitioningPolicies.py.cc
+ [EMBED PY] src/mem/cache/tags/indexing_policies/IndexingPolicies.py -> ARM/mem/cache/tags/indexing_policies/IndexingPolicies.py.cc
+ [EMBED PY] src/mem/cache/compressors/Compressors.py -> ARM/mem/cache/compressors/Compressors.py.cc
+ [EMBED PY] src/mem/cache/replacement_policies/ReplacementPolicies.py -> ARM/mem/cache/replacement_policies/ReplacementPolicies.py.cc
+ [EMBED PY] src/mem/cache/CHAOSCache/CHAOSCache.py -> ARM/mem/cache/CHAOSCache/CHAOSCache.py.cc
+ [EMBED PY] src/mem/cache/prefetch/Prefetcher.py -> ARM/mem/cache/prefetch/Prefetcher.py.cc
+ [EMBED PY] src/mem/cache/prefetch/CHAOSPrefetch/CHAOSPrefetch.py -> ARM/mem/cache/prefetch/CHAOSPrefetch/CHAOSPrefetch.py.cc
+ [EMBED PY] src/mem/ruby/slicc_interface/Controller.py -> ARM/mem/ruby/slicc_interface/Controller.py.cc
+ [EMBED PY] src/mem/ruby/system/RubySystem.py -> ARM/mem/ruby/system/RubySystem.py.cc
+ [EMBED PY] src/mem/ruby/system/Sequencer.py -> ARM/mem/ruby/system/Sequencer.py.cc
+ [EMBED PY] src/mem/ruby/structures/RubyCache.py -> ARM/mem/ruby/structures/RubyCache.py.cc
+ [EMBED PY] src/mem/ruby/structures/DirectoryMemory.py -> ARM/mem/ruby/structures/DirectoryMemory.py.cc
+ [EMBED PY] src/mem/ruby/structures/RubyPrefetcher.py -> ARM/mem/ruby/structures/RubyPrefetcher.py.cc
+ [EMBED PY] src/mem/ruby/structures/WireBuffer.py -> ARM/mem/ruby/structures/WireBuffer.py.cc
+ [EMBED PY] src/mem/ruby/network/BasicLink.py -> ARM/mem/ruby/network/BasicLink.py.cc
+ [EMBED PY] src/mem/ruby/network/BasicRouter.py -> ARM/mem/ruby/network/BasicRouter.py.cc
+ [EMBED PY] src/mem/ruby/network/MessageBuffer.py -> ARM/mem/ruby/network/MessageBuffer.py.cc
+ [EMBED PY] src/mem/ruby/network/Network.py -> ARM/mem/ruby/network/Network.py.cc
+ [EMBED PY] src/mem/ruby/network/garnet/GarnetLink.py -> ARM/mem/ruby/network/garnet/GarnetLink.py.cc
+ [EMBED PY] src/mem/ruby/network/garnet/GarnetNetwork.py -> ARM/mem/ruby/network/garnet/GarnetNetwork.py.cc
+ [EMBED PY] src/mem/ruby/network/garnet/CHAOSNoC/CHAOSNoC.py -> ARM/mem/ruby/network/garnet/CHAOSNoC/CHAOSNoC.py.cc
+ [EMBED PY] src/mem/ruby/network/fault_model/FaultModel.py -> ARM/mem/ruby/network/fault_model/FaultModel.py.cc
+ [EMBED PY] src/mem/ruby/network/simple/SimpleLink.py -> ARM/mem/ruby/network/simple/SimpleLink.py.cc
+ [EMBED PY] src/mem/ruby/network/simple/SimpleNetwork.py -> ARM/mem/ruby/network/simple/SimpleNetwork.py.cc
+ [EMBED PY] ARM/mem/ruby/protocol/CHI/CHI_Cache_Controller.py -> .cc
+ [EMBED PY] ARM/mem/ruby/protocol/CHI/CHI_Memory_Controller.py -> .cc
+ [EMBED PY] ARM/mem/ruby/protocol/CHI/CHI_MiscNode_Controller.py -> .cc
+ [EMBED PY] src/mem/ruby/protocol/chi/generic/CHIGeneric.py -> ARM/mem/ruby/protocol/chi/generic/CHIGeneric.py.cc
+ [EMBED PY] src/mem/ruby/CHAOSCHI/CHAOSCHI.py -> ARM/mem/ruby/CHAOSCHI/CHAOSCHI.py.cc
+ [EMBED PY] src/mem/CHAOSMem/CHAOSMem.py -> ARM/mem/CHAOSMem/CHAOSMem.py.cc
+ [EMBED PY] src/mem/qos/QoSMemCtrl.py -> ARM/mem/qos/QoSMemCtrl.py.cc
+ [EMBED PY] src/mem/qos/QoSMemSinkCtrl.py -> ARM/mem/qos/QoSMemSinkCtrl.py.cc
+ [EMBED PY] src/mem/qos/QoSMemSinkInterface.py -> ARM/mem/qos/QoSMemSinkInterface.py.cc
+ [EMBED PY] src/mem/qos/QoSPolicy.py -> ARM/mem/qos/QoSPolicy.py.cc
+ [EMBED PY] src/mem/qos/QoSTurnaround.py -> ARM/mem/qos/QoSTurnaround.py.cc
+ [     CXX] ARM/mem/qos/QoSTurnaround.py.cc -> .pyo
+ [     CXX] ARM/mem/qos/QoSMemCtrl.py.cc -> .pyo
+ [     CXX] ARM/mem/qos/QoSMemSinkCtrl.py.cc -> .pyo
+ [     CXX] ARM/mem/CHAOSMem/CHAOSMem.py.cc -> .pyo
+ [     CXX] ARM/mem/ruby/protocol/chi/generic/CHIGeneric.py.cc -> .pyo
+ [     CXX] ARM/mem/ruby/CHAOSCHI/CHAOSCHI.py.cc -> .pyo
+ [     CXX] ARM/mem/ruby/protocol/CHI/CHI_Cache_Controller.py.cc -> .pyo
+ [     CXX] ARM/mem/ruby/protocol/CHI/CHI_MiscNode_Controller.py.cc -> .pyo
+ [     CXX] ARM/mem/ruby/protocol/CHI/CHI_Memory_Controller.py.cc -> .pyo
+ [     CXX] ARM/mem/ruby/network/fault_model/FaultModel.py.cc -> .pyo
+ [     CXX] ARM/mem/ruby/network/simple/SimpleNetwork.py.cc -> .pyo
+ [     CXX] ARM/mem/ruby/network/garnet/CHAOSNoC/CHAOSNoC.py.cc -> .pyo
+ [     CXX] ARM/mem/ruby/network/garnet/GarnetNetwork.py.cc -> .pyo
+ [     CXX] ARM/mem/ruby/network/simple/SimpleLink.py.cc -> .pyo
+ [     CXX] ARM/mem/ruby/network/garnet/GarnetLink.py.cc -> .pyo
+ [     CXX] ARM/mem/ruby/network/BasicRouter.py.cc -> .pyo
+ [     CXX] ARM/mem/ruby/network/MessageBuffer.py.cc -> .pyo
+ [     CXX] ARM/mem/ruby/network/Network.py.cc -> .pyo
+ [     CXX] ARM/mem/ruby/structures/RubyPrefetcher.py.cc -> .pyo
+ [     CXX] ARM/mem/ruby/structures/WireBuffer.py.cc -> .pyo
+ [     CXX] ARM/mem/ruby/structures/RubyCache.py.cc -> .pyo
+ [     CXX] ARM/mem/ruby/network/BasicLink.py.cc -> .pyo
+ [     CXX] ARM/mem/ruby/system/RubySystem.py.cc -> .pyo
+ [     CXX] ARM/mem/ruby/structures/DirectoryMemory.py.cc -> .pyo
+ [     CXX] ARM/mem/ruby/system/Sequencer.py.cc -> .pyo
+ [     CXX] ARM/mem/ruby/slicc_interface/Controller.py.cc -> .pyo
+ [     CXX] ARM/mem/cache/prefetch/Prefetcher.py.cc -> .pyo
+ [     CXX] ARM/mem/cache/prefetch/CHAOSPrefetch/CHAOSPrefetch.py.cc -> .pyo
+ [     CXX] ARM/mem/cache/CHAOSCache/CHAOSCache.py.cc -> .pyo
+ [     CXX] ARM/mem/cache/compressors/Compressors.py.cc -> .pyo
+ [     CXX] ARM/mem/cache/replacement_policies/ReplacementPolicies.py.cc -> .pyo
+ [     CXX] ARM/mem/cache/tags/Tags.py.cc -> .pyo
+ [     CXX] ARM/mem/cache/tags/partitioning_policies/PartitioningPolicies.py.cc -> .pyo
+ [     CXX] ARM/mem/cache/tags/indexing_policies/IndexingPolicies.py.cc -> .pyo
+ [     CXX] ARM/mem/probes/MemTraceProbe.py.cc -> .pyo
+ [     CXX] ARM/mem/cache/Cache.py.cc -> .pyo
+ [     CXX] ARM/mem/probes/BaseMemProbe.py.cc -> .pyo
+ [     CXX] ARM/mem/probes/StackDistProbe.py.cc -> .pyo
+ [     CXX] ARM/mem/probes/MemFootprintProbe.py.cc -> .pyo
+ [     CXX] ARM/mem/MemChecker.py.cc -> .pyo
+ [     CXX] ARM/mem/PortTerminator.py.cc -> .pyo
+ [     CXX] ARM/mem/ThreadBridge.py.cc -> .pyo
+ [     CXX] ARM/mem/MemDelay.py.cc -> .pyo
+ [     CXX] ARM/mem/SerialLink.py.cc -> .pyo
+ [     CXX] ARM/mem/SimpleMemory.py.cc -> .pyo
+ [     CXX] ARM/mem/HMCController.py.cc -> .pyo
+ [     CXX] ARM/mem/XBar.py.cc -> .pyo
+ [     CXX] ARM/mem/SharedMemoryServer.py.cc -> .pyo
+ [     CXX] ARM/mem/CfiMemory.py.cc -> .pyo
+ [     CXX] ARM/mem/ExternalSlave.py.cc -> .pyo
+ [     CXX] ARM/mem/NVMInterface.py.cc -> .pyo
+ [     CXX] ARM/mem/DRAMInterface.py.cc -> .pyo
+ [     CXX] ARM/mem/ExternalMaster.py.cc -> .pyo
+ [     CXX] ARM/mem/HBMCtrl.py.cc -> .pyo
+ [     CXX] ARM/mem/MemInterface.py.cc -> .pyo
+ [     CXX] ARM/mem/CommMonitor.py.cc -> .pyo
+ [     CXX] ARM/mem/SysBridge.py.cc -> .pyo
+ [     CXX] ARM/mem/HeteroMemCtrl.py.cc -> .pyo
+ [     CXX] ARM/mem/MemCtrl.py.cc -> .pyo
+ [     CXX] ARM/mem/AbstractMemory.py.cc -> .pyo
+ [     CXX] ARM/cpu/testers/garnet_synthetic_traffic/GarnetSyntheticTraffic.py.cc -> .pyo
+ [     CXX] ARM/mem/Bridge.py.cc -> .pyo
+ [     CXX] ARM/mem/AddrMapper.py.cc -> .pyo
+ [     CXX] ARM/cpu/testers/traffic_gen/GUPSGen.py.cc -> .pyo
+ [     CXX] ARM/cpu/testers/traffic_gen/TrafficGen.py.cc -> .pyo
+ [     CXX] ARM/cpu/testers/traffic_gen/PyTrafficGen.py.cc -> .pyo
+ [     CXX] ARM/cpu/testers/traffic_gen/BaseTrafficGen.py.cc -> .pyo
+ [     CXX] ARM/cpu/pred/BranchPredictor.py.cc -> .pyo
+ [     CXX] ARM/cpu/testers/spatter_gen/SpatterGen.py.cc -> .pyo
+ [     CXX] ARM/cpu/testers/directedtest/RubyDirectedTester.py.cc -> .pyo
+ [     CXX] ARM/cpu/testers/rubytest/RubyTester.py.cc -> .pyo
+ [     CXX] ARM/cpu/minor/BaseMinorCPU.py.cc -> .pyo
+ [     CXX] ARM/cpu/testers/memtest/MemTest.py.cc -> .pyo
+ [     CXX] ARM/cpu/simple/probes/LooppointAnalysis.py.cc -> .pyo
+ [     CXX] ARM/cpu/minor/MinorCPU.py.cc -> .pyo
+ [     CXX] ARM/cpu/simple/probes/SimPoint.py.cc -> .pyo
+ [     CXX] ARM/cpu/simple/NonCachingSimpleCPU.py.cc -> .pyo
+ [     CXX] ARM/cpu/simple/AtomicSimpleCPU.py.cc -> .pyo
+ [     CXX] ARM/cpu/simple/TimingSimpleCPU.py.cc -> .pyo
+ [     CXX] ARM/cpu/simple/BaseSimpleCPU.py.cc -> .pyo
+ [     CXX] ARM/cpu/o3/probe/SimpleTrace.py.cc -> .pyo
+ [     CXX] ARM/cpu/o3/probe/ElasticTrace.py.cc -> .pyo
+ [     CXX] ARM/cpu/simple/BaseAtomicSimpleCPU.py.cc -> .pyo
+ [     CXX] ARM/cpu/simple/BaseTimingSimpleCPU.py.cc -> .pyo
+ [     CXX] ARM/cpu/simple/BaseNonCachingSimpleCPU.py.cc -> .pyo
+ [     CXX] ARM/cpu/o3/CHAOSIQ/CHAOSIQ.py.cc -> .pyo
+ [     CXX] ARM/cpu/o3/CHAOSFPU/CHAOSFPU.py.cc -> .pyo
+ [     CXX] ARM/cpu/o3/CHAOSROB/CHAOSROB.py.cc -> .pyo
+ [     CXX] ARM/cpu/o3/CHAOSRenameMap/CHAOSRenameMap.py.cc -> .pyo
+ [     CXX] ARM/cpu/o3/CHAOSExec/CHAOSExec.py.cc -> .pyo
+ [     CXX] ARM/cpu/o3/CHAOSProbe/CHAOSProbe.py.cc -> .pyo
+ [     CXX] ARM/cpu/o3/CHAOSBPU/CHAOSBPU.py.cc -> .pyo
+ [     CXX] ARM/cpu/o3/CHAOSL1DForward/CHAOSL1DForward.py.cc -> .pyo
+ [     CXX] ARM/cpu/o3/CHAOSPhysReg/CHAOSPhysReg.py.cc -> .pyo
+ [     CXX] ARM/cpu/o3/CHAOSLSQFwd/CHAOSLSQFwd.py.cc -> .pyo
+ [     CXX] ARM/cpu/o3/CHAOSFreeList/CHAOSFreeList.py.cc -> .pyo
+ [     CXX] ARM/cpu/o3/CHAOSRAS/CHAOSRAS.py.cc -> .pyo
+ [     CXX] ARM/cpu/o3/CHAOSMicroSnap/CHAOSMicroSnap.py.cc -> .pyo
+ [     CXX] ARM/cpu/o3/CHAOSDecode/CHAOSDecode.py.cc -> .pyo
+ [     CXX] ARM/cpu/o3/CHAOSAddrPath/CHAOSAddrPath.py.cc -> .pyo
+ [     CXX] ARM/cpu/o3/O3CPU.py.cc -> .pyo
+ [     CXX] ARM/cpu/o3/CHAOSCommitTrace/CHAOSCommitTrace.py.cc -> .pyo
+ [     CXX] ARM/cpu/o3/O3Checker.py.cc -> .pyo
+ [     CXX] ARM/cpu/o3/SMT.py.cc -> .pyo
+ [     CXX] ARM/cpu/o3/BaseO3Checker.py.cc -> .pyo
+ [     CXX] ARM/cpu/o3/BaseO3CPU.py.cc -> .pyo
+ [     CXX] ARM/cpu/o3/IQUnit.py.cc -> .pyo
+ [     CXX] ARM/cpu/o3/FuncUnitConfig.py.cc -> .pyo
+ [     CXX] ARM/cpu/o3/FUPool.py.cc -> .pyo
+ [     CXX] ARM/cpu/kvm/BaseKvmCPU.py.cc -> .pyo
+ [     CXX] ARM/cpu/kvm/KvmVM.py.cc -> .pyo
+ [     CXX] ARM/cpu/trace/TraceCPU.py.cc -> .pyo
+ [     CXX] ARM/cpu/BaseCPU.py.cc -> .pyo
+ [     CXX] ARM/cpu/DummyChecker.py.cc -> .pyo
+ [     CXX] ARM/cpu/probes/InstTracker.py.cc -> .pyo
+ [     CXX] ARM/cpu/checker/CheckerCPU.py.cc -> .pyo
+ [     CXX] ARM/cpu/CPUTracers.py.cc -> .pyo
+ [     CXX] ARM/cpu/probes/PcCountTracker.py.cc -> .pyo
+ [     CXX] ARM/cpu/InstPBTrace.py.cc -> .pyo
+ [     CXX] ARM/cpu/TimingExpr.py.cc -> .pyo
+ [     CXX] ARM/cpu/CpuCluster.py.cc -> .pyo
+ [     CXX] ARM/cpu/StaticInstFlags.py.cc -> .pyo
+ [     CXX] ARM/cpu/FuncUnit.py.cc -> .pyo
+ [     CXX] ARM/CHAOSReg/CHAOSReg.py.cc -> .o
+ [     CXX] ARM/mem/qos/QoSPolicy.py.cc -> .pyo
+ [     CXX] ARM/mem/qos/QoSMemSinkInterface.py.cc -> .pyo
+{standard input}: Assembler messages:
+{standard input}:13891: 警告：end of file not at end of a line; newline inserted
+{standard input}:14305: 错误：unknown pseudo-op: `.ali'
+g++: 致命错误：Killed signal terminated program cc1plus
+编译中断。
+scons: *** [build/ARM/mem/AbstractMemory.py.pyo] Error 1
+{standard input}: Assembler messages:
+{standard input}:25963: 警告：end of file not at end of a line; newline inserted
+g++: 致命错误：Killed signal terminated program cc1plus
+编译中断。
+scons: *** [build/ARM/mem/CommMonitor.py.pyo] Error 1
+{standard input}: Assembler messages:
+{standard input}:29651: 警告：end of file not at end of a line; newline inserted
+{standard input}:30191: 错误：comma expected between operands at operand 2 -- `add x2'
+{standard input}: 错误：open CFI at the end of file; missing .cfi_endproc directive
+g++: 致命错误：Killed signal terminated program cc1plus
+编译中断。
+scons: *** [build/ARM/mem/ruby/slicc_interface/Controller.py.pyo] Error 1
+{standard input}: Assembler messages:
+{standard input}:41941: 警告：end of file not at end of a line; newline inserted
+{standard input}:42057: 错误：expected comma after name `_ZN8pybind1112ssize_t_cas' in .size directive
+g++: 致命错误：Killed signal terminated program cc1plus
+编译中断。
+scons: *** [build/ARM/mem/ruby/network/MessageBuffer.py.pyo] Error 1
+{standard input}: Assembler messages:
+{standard input}:34447: 警告：end of file not at end of a line; newline inserted
+{standard input}:35243: 错误：unknown pseudo-op: `.le'
+{standard input}: 错误：open CFI at the end of file; missing .cfi_endproc directive
+g++: 致命错误：Killed signal terminated program cc1plus
+编译中断。
+scons: *** [build/ARM/mem/ruby/protocol/CHI/CHI_MiscNode_Controller.py.pyo] Error 1
+{standard input}: Assembler messages:
+{standard input}: 错误：open CFI at the end of file; missing .cfi_endproc directive
+g++: 致命错误：Killed signal terminated program cc1plus
+编译中断。
+scons: *** [build/ARM/mem/ruby/network/fault_model/FaultModel.py.pyo] Error 1

@@ -1,0 +1,66 @@
+===== T1: gate（期望 exit 0, ok=true） =====
+    "blocked": [],
+    "compile_processes": [],
+    "disk_free_gib": 170.8
+  }
+}
+T1_EXIT=0
+===== T2: acquire build 锁（期望 exit 0） =====
+{"owner": "sdc", "pid": 15991, "pgid": 15984, "task_type": "build", "desc": "guard-verify-T2", "item": null, "runid": null, "log": null, "started": "2026-09-29 14:59:50", "acquire_host_pid_tree_note": "run 子命令会在派生子进程后更新 pid/pgid"}
+T2_EXIT=0
+===== T3: 重复 acquire（期望 REFUSED, exit 3=陈旧锁） =====
+REFUSED: 陈旧锁（pid=15991 已退出但未记录处置）；先 clear-stale 显式处置
+T3_EXIT=3
+锁内 PID=15991
+===== T4: clear-stale 错误 PID（期望 REFUSED, exit 2） =====
+REFUSED: --confirm-dead-pid 999999 与锁内 pid 15991 不符
+T4_EXIT=2
+===== T5: clear-stale 正确 PID（期望 CLEARED, exit 0） =====
+CLEARED stale lock (pid 15991 confirmed dead): /home/sdc/gem5-fi-ding/runs/lsu/guard/build.lock
+T5_EXIT=0
+===== T6: acquire → release 周期（期望 exit 0, 0） =====
+T6a_EXIT=0
+RELEASED: /home/sdc/gem5-fi-ding/runs/lsu/guard/build.lock
+T6b_EXIT=0
+===== T7: run 守卫执行 + 并发重复启动拒绝 =====
+--- T7a: 守卫运行中的锁内容 ---
+{
+  "owner": "sdc",
+  "pid": 16006,
+  "pgid": 16006,
+  "task_type": "build",
+  "desc": "guard-verify-T7",
+  "item": null,
+  "runid": null,
+  "log": "/home/sdc/gem5-fi-ding/docs/gem5-fi/lsu/evidence/P0/guard_verify_t7.log",
+  "started": "2026-09-29 14:59:50",
+  "acquire_host_pid_tree_note": "run 子命令会在派生子进程后更新 pid/pgid",
+  "cmd": [
+    "sleep",
+    "8"
+  ]
+}--- T7b: 并发第二个 run（期望 GATE BLOCKED/ACQUIRE REFUSED, 非零退出） ---
+      0.18
+    ],
+    "blocked": [],
+    "compile_processes": [],
+    "disk_free_gib": 170.8
+  }
+}
+
+T7b_EXIT=1
+T7_run_EXIT=0
+--- T7c: 守卫事件日志尾部 ---
+{"action": "sample", "pgid": 16006, "warning": false, "trip": null, "mem_available_gib": 27.1}
+{"action": "sample", "pgid": 16006, "warning": false, "trip": null, "mem_available_gib": 27.11}
+{"action": "sample", "pgid": 16006, "warning": false, "trip": null, "mem_available_gib": 27.11}
+{"action": "run-finish", "cmd": ["sleep", "8"], "pgid": 16006, "exit_code": 0, "monitor_reason": "target-exited", "time": "2026-09-29 14:59:59"}
+{"action": "release", "released_lock": {"owner": "sdc", "pid": 16006, "pgid": 16006, "task_type": "build", "desc": "guard-verify-T7", "item": null, "runid": null, "log": "/home/sdc/gem5-fi-ding/docs/gem5-fi/lsu/evidence/P0/guard_verify_t7.log", "started": "2026-09-29 14:59:50", "acquire_host_pid_tree_note": "run 子命令会在派生子进程后更新 pid/pgid", "cmd": ["sleep", "8"]}, "time": "2026-09-29 14:59:59"}
+--- T7d: 采样日志（前2条+末1条） ---
+{"time": "2026-09-29 14:59:51", "mem_available_gib": 27.09, "swap_free_gib": 15.59, "swap_total_gib": 15.59, "committed_as_gib": 2.64, "load_1_5_15": [0.25, 0.25, 0.18], "blocked": [], "compile_processes": [], "disk_free_gib": 170.8, "task_rss_gib": 0.0, "elapsed_s": 0.1, "warning": false, "trip": null}
+{"time": "2026-09-29 14:59:53", "mem_available_gib": 27.09, "swap_free_gib": 15.59, "swap_total_gib": 15.59, "committed_as_gib": 2.64, "load_1_5_15": [0.23, 0.24, 0.18], "blocked": [], "compile_processes": [], "disk_free_gib": 170.8, "task_rss_gib": 0.0, "elapsed_s": 2.2, "warning": false, "trip": null}
+{"time": "2026-09-29 14:59:59", "mem_available_gib": 27.11, "swap_free_gib": 15.59, "swap_total_gib": 15.59, "committed_as_gib": 2.64, "load_1_5_15": [0.21, 0.24, 0.18], "blocked": [], "compile_processes": [], "disk_free_gib": 170.8, "task_rss_gib": 0.0, "elapsed_s": 8.5, "warning": false, "trip": null}
+--- T7e: 锁应已释放 ---
+ls: 无法访问 'runs/lsu/guard/build.lock': No such file or directory
+build.lock 已释放（符合预期）
+===== 验证脚本结束 =====

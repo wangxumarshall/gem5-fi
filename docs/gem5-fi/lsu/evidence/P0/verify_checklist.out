@@ -1,0 +1,18 @@
+ITEM 总数: 325
+唯一 RunID: 325
+唯一模型数: 64
+Excel 行映射范围: 2..326
+频率分布(按ITEM): {'F0': 105, 'F1': 24, 'F2': 77, 'F3': 4, 'F4': 26, 'F5': 25, 'F6': 64}
+ITEM按单元分布: {'AGU': 39, 'L1d-Cache': 73, 'L1d-TLB': 39, 'Load Queue': 30, 'Store Queue': 63, '原子与同步': 28, '数据预取器': 53}
+模型按单元分布: {'AGU': 8, 'L1d-Cache': 14, 'L1d-TLB': 9, 'Load Queue': 4, 'Store Queue': 12, '原子与同步': 8, '数据预取器': 9}
+缺失字段/异常: 0
+
+C1: PASS
+C2: PASS
+C3: PASS
+C4: PASS
+C5: PASS
+C6: PASS
+C7(必需字段): PASS
+
+OVERALL: PASS — 64 模型 / 325 ITEM / 325 唯一 RunID / Excel 行 2..326 映射全部核验通过
