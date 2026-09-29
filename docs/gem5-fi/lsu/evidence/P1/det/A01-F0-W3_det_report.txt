@@ -1,0 +1,13 @@
+[PASS] C1 注入日志逐字节（目标/bit/原值/故障值/时刻/L0/funnel）
+[INFO] 注入发生性: run1 injected=1 确认
+[PASS] C2 stdout 规范化（负载 oracle + B0 参数打印）
+[PASS] C2b 负载 oracle 结论行存在（非 vacuous）
+    oracle 行 1 条: ['728e604ffcec539d']
+[PASS] C3 stats.txt 语义字段（剔除 host_*）
+    仅run1字段:[] 仅run2:[] 值差异:[]
+[INFO] stats 语义字段数: run1=1175 run2=1175；关键值 sim_ticks=None sim_insts=None
+[PASS] C4 config.ini 逐字节（实验语义配置）
+[PASS] C5 守卫退出码（两次均 0）
+    run1=0 run2=0
+
+OVERALL: DETERMINISM PASS — C1-C5 全部一致，注入语义字段完全复现

@@ -1,0 +1,63 @@
+{
+  "frozen": true,
+  "purpose": "ENGINEERING_ONLY 确定性双跑验证（G0-02）：同一 manifest 串行执行两次，比较注入语义字段。不进入正式统计。",
+  "item": "ITEM-001",
+  "run_id": "A01-F0-W3",
+  "excel_location": "7.展开执行矩阵!A2:AQ2（行 2）",
+  "model_id": "A01",
+  "unit": "AGU",
+  "fault_type": "单比特翻转",
+  "submodels": "A01-a EA低位单bit；A01-b EA中位单bit；A01-c EA高位单bit（F0 单次注入按 RNG 抽取一个 bit）",
+  "frequency": "F0",
+  "trigger_condition": "任一已完成地址生成（事件归一化 F0：warmup 0 + span 1000 eligible events 均匀窗内单次注入）",
+  "workload": {
+    "name": "AGU-AddrModes（W3）",
+    "binary": "workloads/directed/agu_addrmodes",
+    "sha256": "90a1900377d2499625bf401c6b8ce1a7d4a22c8327aeef98f11dc842b406b49b"
+  },
+  "phase": "engineering",
+  "sample_index": 0,
+  "seed": 11036927240874655837,
+  "seed_rule": "sha256('lsu-fi-v1|A01-F0-W3|engineering|0') 低64位 = digest[24:32] 大端（tools/lsu_seed.py，--self-test PASS）",
+  "identity": {
+    "git_commit": "ee77b9926884c9c9ffa29ea6e729c0499e1291ce",
+    "gem5_opt_sha256": "b64c808d449d0d63e369513671ffc222de99e2f9d29ca9cab33042ad879f3214",
+    "lsu_proxy_sha256": "4001eba155ed9ee0d932986393299184167a79af508eb6ed0cb7b20dac53ec93",
+    "gem5_base": "vendored 62c7bf2 (v25.1.0.1-6) + LSU 注入器（46e912b5 起，二进制 2026-09-29 15:38 守卫 -j8 重建）"
+  },
+  "config": {
+    "cpu": "O3",
+    "variant": "B0",
+    "checkpoint": "none（SE 模式）",
+    "maxinsts": 0
+  },
+  "injector_args": {
+    "mount": "--chaos_addrpath",
+    "addrpath_mode": "a01_bit",
+    "addrpath_lsu_tier": "F0",
+    "addrpath_warmup_events": 0,
+    "addrpath_span_events": 1000,
+    "addrpath_max_faults": 1,
+    "addrpath_first_clock": 1000,
+    "addrpath_rng_seed": 11036927240874655837,
+    "probability": 1.0
+  },
+  "timeout": {
+    "wall_seconds_per_run": 600,
+    "mechanism": "lsu_guard.py run --max-seconds（TERM；超时记为 TIMEOUT 证据，不作通过依据）"
+  },
+  "oracle": "agu_addrmodes 负载逐地址软件 oracle（stdout）+ addrpath_injections.log（注入目标/bit/原值/故障值/时刻）+ L0 funnel 计数 + stats.txt 语义字段 + 退出码",
+  "runs": {
+    "run1": {"output_dir": "runs/lsu/det/A01-F0-W3/run1"},
+    "run2": {"output_dir": "runs/lsu/det/A01-F0-W3/run2"}
+  },
+  "compare_fields": [
+    "注入日志逐字段：目标 vaddr/bit/原值/故障值/注入时刻（必须完全一致）",
+    "L0 计数：injected/activated/eligible（必须完全一致）",
+    "负载 oracle stdout（banner/路径/时间戳行剔除后必须完全一致）",
+    "stats.txt 语义字段（sim_ticks/sim_insts 等；host 时间类字段允许不同）",
+    "退出码（必须一致且为 0）"
+  ],
+  "serial_execution": "run1 与 run2 经 lsu_guard experiment 锁严格串行，禁止并发",
+  "fail_rule": "任何影响实验语义的字段不一致 → 该测试 FAIL；若为注入随机性 → G0-02 FAIL 并定位随机源，F0 停用于后续实验"
+}

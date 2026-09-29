@@ -27,12 +27,12 @@
 - **Resource Lock:** 已占用（runs/lsu/guard/build.lock：P1-G0-01 构建，pid 19587）
 - **Resource Log:** runs/lsu/guard/build_p1_rebuild_rsrc.log（60s 采样进行中）+ guard_events.log
 - **Latest MemAvailable / SwapFree / Load:** 构建启动前 gate 采样通过（MemAvailable≥12G/SwapFree≥4G 判定 PASS）；采样记录见 build_p1_rebuild_rsrc.log
-- **Next Step:** 提交 [LSU][P1] 第一批（守卫重建+冒烟+seed 生成器+模型映射，G0-01/G0-04 转 PASS）；随后 P1 后续：①注入确定性测试（同 seed 双跑 diff）②17 缺口注入器补实现（T05-T08/A07/P06/O04/O09 C++ 模式 + S10/L04/C11/C12/C14/C15 消费侧，evidence/P1/model_injector_map.md）③DR-001/DR-002 等用户裁决。
+- **Next Step:** 提交 [LSU][P1] 第二批（A01-F0-W3 双跑确定性 PASS，G0-02=PARTIAL-1/6 家族）；随后 P1 继续：①其余 5 注入器家族同法双跑（lsqfwd/cache/prefetch/exmon/armtlb）②17 缺口补实现 ③DR-001/DR-002 等用户裁决。
 
 ## Git 状态
 
-- **最新 commit SHA:** b64455816429f68276ed69ff1fb68c026eb5
-- **推送状态:** 已推送 origin/fi-ding（3f67df4b..b6445581，PUSH_EXIT=0；commit 时间 2026-09-29 15:10:20，push 在其之后、15:12:22 构建启动之前完成）
+- **最新 commit SHA:** ee77b992（[LSU][P1] 守卫-j8重建成功 + lsu_proxy冒烟通过 + seed生成器 + 64模型映射现状，7 文件，15:45 推送 b6445581..ee77b992）
+- **推送状态:** 已推送 origin/fi-ding（最新 ee77b992；上一 b6445581 = [LSU][P0] 17 文件 15:10:20）
 - **提交信息:** [LSU][P0] 预检完成：清单核验、环境资产盘点、B0参数对照、资源守卫建立（G0-10 PASS）（17 文件，xlsx 识别为 100% rename）
 
 ## Phase Summary
@@ -96,6 +96,7 @@
 | 2026-09-29 15:25 | NORMAL | ~27 GiB | ~15.6 GiB | 低 | 0 | 无（守卫验证完成，锁已释放） | 无 | P0 收尾：G0 门禁填写完毕，准备 [LSU][P0] 提交 |
 | 2026-09-29 15:12–15:42 | NORMAL | 23.4–24.3 GiB | 15.59 GiB | 8.2/7.9/5.3 | 0 | P1-G0-01 构建 sdc/19587/19587 | build.lock（守卫采样 60s） | -j8 增量重建成功（27 分钟，零警告，scons done）；随后冒烟 experiment 槽 sdc/34025/34025 exit 0；全程无 WARNING/TRIP |
 | 2026-09-29 15:41 | NORMAL | ~25 GiB（构建释放后） | 15.59 GiB | 回落 | 0 | 冒烟 lsu_proxy hello（34025，已完成） | experiment.lock（已释放） | E-002 修复验证 PASS；B0 参数运行时打印与 Excel 一致 |
+| 2026-09-29 15:58–16:00 | NORMAL | 充足（gate 两次 PASS） | 15.59 GiB | 低 | 0 | DET 双跑：run1(38091)→run2(38469) 严格串行 | experiment.lock（逐次获取/释放） | A01-F0-W3 确定性 PASS（C1-C5）；采样 runs/lsu/guard/det_a01_run{1,2}_rsrc.log |
 
 ## Errors and Retries
 
