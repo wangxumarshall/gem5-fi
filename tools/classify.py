@@ -378,3 +378,158 @@ def _trap_reason(stderr, stdout):
         if mk in text:
             return f"trap:{mk}"
     return ""
+
+
+# ---------------------------------------------------------------------------
+# V2.0 L5 分类学层（implementation-plan.md Task WS3；两簿 04 表 L5 行）。
+#
+# 双轨期裁决（plan R10）：classify_run() 既有行为一字不动（V1.0 结果可复算，
+# 九类 = tools/wilson.py:57-58 的有序全集）；classify_run_v2() 是其上的增量
+# 映射层，两轨结果永不混表。
+#
+# V1.0 九类 → V2.0 L5 结局（SE 轨道）：
+#   SimulatorError    → Simulator failure        不入任何架构结局分母
+#   Inactive          → Injected-not-activated   不入 SDC 率分母（L0 口径：
+#                                                reads_before_overwrite==0）
+#   Masked            → Masked                   ─┐
+#   Corrected         → Detected-contained        │ 五类结局（L5 守恒式右侧：
+#   DetectedContained → Detected-contained        │ Activated = Masked +
+#   SDC               → Data Corruption           │   Detected-contained + SDC +
+#   Crash             → RAS-silent Crash          │   Crash + Timeout）
+#   Hang              → RAS-silent Timeout       ─┘
+#   Latent            → Latent                    报告列，不进结局五类
+#   （无 V1 对应）     → Detected-uncontained      预留：检测到但未遏制——
+#                                                V1 九类无法产生，只能由
+#                                                检测器证据直接判定
+#
+# SE 轨道诚实取值：Crash/Hang 全部为 RAS-silent（SE 无硬件 RAS）；首检四类
+# 无保护模型时为 "None"（程序正常完成、oracle 离线发现 SDC）或 "Application"
+# （程序自检退出非零，归 Crash 之前）；ras_any 恒 False（B0 无 ECC/parity，
+# 两簿 02 表「保护机制核验」行原文）。
+V2_FIVE_OUTCOMES = ("Masked", "Detected-contained", "Data Corruption",
+                    "RAS-silent Crash", "RAS-silent Timeout")
+V2_OUTCOME_MAP = {
+    "SimulatorError":    "Simulator failure",
+    "Inactive":          "Injected-not-activated",
+    "Masked":            "Masked",
+    "Corrected":         "Detected-contained",
+    "DetectedContained": "Detected-contained",
+    "SDC":               "Data Corruption",
+    "Crash":             "RAS-silent Crash",
+    "Hang":              "RAS-silent Timeout",
+    "Latent":            "Latent",
+}
+V2_FIRST_DETECTIONS = ("HW_RAS", "OS", "Application", "None")
+
+
+def classify_run_v2(result_v1, *, first_detection=None, ras_any=False):
+    """Map one V1.0 classify_run() result onto the V2.0 L5 taxonomy (SE track).
+
+    result_v1: dict with at least {"category": <V1.0 九类之一>} — e.g.
+      {"category": cat, "reason": reason} from wrapping classify_run()'s
+      (category, reason) tuple. Anything else in the dict is carried
+      untouched (the caller's per-run record stays whole).
+
+    first_detection: the first detector of the fault, one of
+      "HW_RAS" / "OS" / "Application"; None means no detector fired before
+      the outcome was reached and maps to "None" (the honest SE value when
+      the program completes and the offline oracle finds the SDC). Semantic
+      consistency with the outcome is the CALLER's judgement; this layer
+      only validates the enum (loud on typos).
+
+    ras_any: whether a hardware RAS detected the fault at ANY point (not
+      necessarily first). On the SE B0 track this is constantly False (no
+      ECC/parity — both books' 02 protection-verification rows).
+
+    Returns {"outcome", "first_detection", "ras_any", "in_denominator"}:
+      in_denominator is True only for the five L5 outcome classes (the
+      conservation-summands); Simulator failure / Injected-not-activated /
+      Latent are excluded, matching the xlsx 结局计数差额 column semantics.
+    """
+    try:
+        category = result_v1["category"]
+    except (TypeError, KeyError):
+        raise ValueError(
+            f"result_v1 must be a dict with a 'category' key (wrap "
+            f"classify_run()'s tuple), got: {result_v1!r}")
+    if category not in V2_OUTCOME_MAP:
+        raise ValueError(
+            f"unknown V1.0 category {category!r} (expected one of "
+            f"{sorted(V2_OUTCOME_MAP)}; Detected-uncontained has no V1 "
+            f"counterpart — it needs detector evidence, not a mapping)")
+    if first_detection is None:
+        fd = "None"
+    elif first_detection in V2_FIRST_DETECTIONS[:3]:  # HW_RAS / OS / Application
+        fd = first_detection
+    else:
+        raise ValueError(
+            f"first_detection must be one of {V2_FIRST_DETECTIONS[:3]} or "
+            f"None, got {first_detection!r}")
+    outcome = V2_OUTCOME_MAP[category]
+    return {
+        "outcome": outcome,
+        "first_detection": fd,
+        "ras_any": bool(ras_any),
+        "in_denominator": outcome in V2_FIVE_OUTCOMES,
+    }
+
+
+def _selftest_v2():
+    """--selftest-v2: 9 input classes × 1 case each + denominator gate."""
+    cases = [
+        ("SimulatorError", "gem5 panic (tool failure)"),
+        ("Inactive", "0 valid injections"),
+        ("Masked", "checksum==golden"),
+        ("Corrected", "ECC-caught (protection model)"),
+        ("DetectedContained", "detector contained the fault"),
+        ("SDC", "checksum != golden"),
+        ("Crash", "workload trapped"),
+        ("Hang", "timeout, no completion"),
+        ("Latent", "latent, reported outside the five"),
+    ]
+    assert len(cases) == 9 and {c for c, _ in cases} == set(V2_OUTCOME_MAP)
+    seen_outcomes = set()
+    for cat, reason in cases:
+        r = classify_run_v2({"category": cat, "reason": reason})
+        assert r["outcome"] == V2_OUTCOME_MAP[cat], (cat, r)
+        assert r["outcome"] not in seen_outcomes or cat in (
+            "Corrected", "DetectedContained"), cat  # only the pair may share
+        seen_outcomes.add(r["outcome"])
+        # 首检默认与 ras_any 默认（SE 诚实取值）
+        assert r["first_detection"] == "None" and r["ras_any"] is False, r
+        # denominator gate: 只对五类结局为真
+        expect = V2_OUTCOME_MAP[cat] in V2_FIVE_OUTCOMES
+        assert r["in_denominator"] is expect, (cat, r)
+    # Detected-uncontained：V1 九类不可达（预留，需检测器证据）
+    assert "Detected-uncontained" not in V2_OUTCOME_MAP.values()
+    assert "Detected-uncontained" not in V2_FIVE_OUTCOMES
+    # 未知类必须响亮报错（不得静默归类）
+    for bad in ("Detected-uncontained", "sdc", ""):
+        try:
+            classify_run_v2({"category": bad})
+            raise AssertionError(f"unknown category {bad!r} not rejected")
+        except ValueError:
+            pass
+    # 非法首检值必须响亮报错；合法三值 + None 全通
+    try:
+        classify_run_v2({"category": "SDC"}, first_detection="hw_ras")
+        raise AssertionError("bad first_detection not rejected")
+    except ValueError:
+        pass
+    for fd in ("HW_RAS", "OS", "Application"):
+        r = classify_run_v2({"category": "Crash"}, first_detection=fd,
+                            ras_any=(fd == "HW_RAS"))
+        assert r["first_detection"] == fd and r["ras_any"] == (fd == "HW_RAS")
+    # reason 等额外字段不丢（调用方记录保持完整）
+    r = classify_run_v2({"category": "SDC", "reason": "x", "run_id": "A01-F0-W3"})
+    assert r["outcome"] == "Data Corruption"
+    print("V2 taxonomy selftest PASS (9 mappings, denominator gate OK)")
+
+
+if __name__ == "__main__":
+    import sys
+    if len(sys.argv) == 2 and sys.argv[1] == "--selftest-v2":
+        _selftest_v2()
+    else:
+        print("usage: classify.py --selftest-v2", file=sys.stderr)
+        sys.exit(2)
