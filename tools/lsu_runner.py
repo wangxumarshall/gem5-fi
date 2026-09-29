@@ -91,13 +91,18 @@ def build_manifest(item_id, phase, sample_index, extra=None):
         wl_binary = None
         golden = LC.TLB_PROBE_GOLDEN
     else:
+        # 完整负载文本匹配（与 unit_pilot.eligible 同口径）。此前用提取键
+        # `key in wl_key` 方向反了："GAP/Graph500" in "GAP" 恒 False →
+        # ITEM-002(A01-F0-W9) sys.exit(BLOCKED) 杀死整个 AGU unit_pilot
+        # （事故 F-018，2026-09-29 19:48）。
+        wl_text = fields.get("负载", "") + " " + fields.get("负载/oracle", "")
         wl_binary = None
         for key, bin_name in LC.WL_BINARY.items():
-            if wl_key and key in wl_key:
+            if key in wl_text:
                 wl_binary = bin_name
                 break
         if wl_binary is None:
-            sys.exit(f"BLOCKED: workload '{wl_key}' 无 SE 二进制（W1/W4/W7/W11/W13 → "
+            sys.exit(f"BLOCKED: workload '{wl_text[:40]}' 无 SE 二进制（W1/W4/W7/W11/W13 → "
                      f"DR-001，BLOCKED 不替换）")
         golden = LC.GOLDENS[wl_binary]
         carrier = f"se:{wl_binary}"

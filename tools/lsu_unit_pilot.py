@@ -175,6 +175,10 @@ def main():
               "items": {}, "updated": time.strftime("%F %T")}
     if status_path.exists():  # 断点续跑
         status = json.loads(status_path.read_text())
+    else:
+        # 0-eligible 单元（如 L1d-TLB）也要有终态文件（F-018 附带修复：
+        # 此前仅在 ITEM 循环内写，0 eligible 时 unit_status.json 永不生成）
+        status_path.write_text(json.dumps(status, ensure_ascii=False, indent=1))
 
     for e in elig:
         it = e["item"]
@@ -182,7 +186,18 @@ def main():
             continue
         runs = []
         span = None
-        m0 = LR.build_manifest(it, args.phase, 0)
+        # SystemExit 防护（F-018）：准入判定与 build_manifest 之间若出现
+        # 分歧（如 workload 匹配边界），单 ITEM 记 BLOCKED 继续本单元，
+        # 不得让 sys.exit 杀死整个 unit_pilot（2026-09-29 AGU 1/31 中断教训）。
+        try:
+            m0 = LR.build_manifest(it, args.phase, 0)
+        except SystemExit as ex:
+            status["items"][it] = {"status": "BLOCKED",
+                                   "reason": f"build_manifest exit: {ex}"}
+            status["updated"] = time.strftime("%F %T")
+            status_path.write_text(json.dumps(status, ensure_ascii=False, indent=1))
+            print(f"[{it}] BLOCKED (build_manifest): {ex}")
+            continue
         if m0["frequency"] == "F0" and m0["family"] in ("addrpath", "lsqfwd", "prefetch"):
             cnt = udir / (it + "_census")
             cnt.mkdir(parents=True, exist_ok=True)

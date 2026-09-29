@@ -13,10 +13,10 @@
 - **Phase Status:** IN_PROGRESS
 - **Overall Status:** IN_PROGRESS
 - **Started:** 2026-09-29 11:22 (Session 001)
-- **Last Updated:** 2026-09-29 18:43（监控周期 #1：AGU ITEM-001 进行中 14/30 samples，s0=Crash/sim_assert s1-s4=Masked，资源 NORMAL MemAvail 27.2G，WAVE 进程健康）
+- **Last Updated:** 2026-09-29 19:19（监控周期 #2：**ITEM-001 COMPLETE** 30/30 activated（Masked 13 + sim_fail 17，守恒 OK，commit 27bf1e1b 已推送）；ITEM-002 A01-F0-W9 自动接续；资源 NORMAL）
 - **Current Owner:** 服务器执行 AI（Claude，主协调 AI）
-- **Current Checklist Item:** AGU 单元 ITEM-001 起（31 ELIGIBLE 串行；波次日志 /tmp/pilot_wave.log）
-- **Current RunID:** A01-F0-W3（AGU 首项）
+- **Current Checklist Item:** AGU ITEM-002（A01-F0-W9）运行中；ITEM-001 已 COMPLETE（1/31）
+- **Current RunID:** A01-F0-W9
 - **Excel Location:** 7.展开执行矩阵!A2:AQ2（行 2）
 - **Current Experiment Stage:** pilot（正式，30 activated/ITEM，attempted 上限 300）
 - **Resource Safety State:** NORMAL（守卫 experiment 锁串行 + 60s 采样）
