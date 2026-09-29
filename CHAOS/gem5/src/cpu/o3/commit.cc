@@ -74,6 +74,7 @@
 #include "params/BaseO3CPU.hh"
 #include "sim/faults.hh"
 #include "sim/full_system.hh"
+#include "cpu/o3/chaos_event_trigger.hh"  // WS4.2 BranchMispredict F6 source
 
 namespace gem5
 {
@@ -848,6 +849,12 @@ Commit::commit()
                      toIEW->commitInfo[tid].branchTaken = true;
                 }
                 ++stats.branchMispredicts;
+                // WS4.2: OoO F6 event source (chaos_event_trigger.hh;
+                // d-bridge D14 anchor). One notify per mispredict squash
+                // processed at commit — the single registered consumer
+                // (tier=F6 injector) filters the event type.
+                if (chaosOooF6Notify)
+                    chaosOooF6Notify(ChaOSOooEvent::BranchMispredict);
             }
 
             set(toIEW->commitInfo[tid].pc, fromIEW->pc[tid]);

@@ -293,6 +293,14 @@ namespace gem5
           write_log(p.writeLog),
           fi_mode(stringToMode(p.mode))
     {
+        // WS4.2: event-normalized tier (off = legacy cycle-window path).
+        if (p.tier != "off") {
+            eventTrigger = new ChaOSEventTrigger(tierFromString(p.tier),
+                                                 rng_seed ? rng_seed : 1,
+                                                 p.warmupEvents,
+                                                 p.spanEvents);
+            f6_ooo_event = oooEventFromString(p.f6Event);
+        }
         if (probability > 0.0f) {
             log_stream = simout.create("decode_injections.log", false, true);
             if (!log_stream || !log_stream->stream())
@@ -307,6 +315,38 @@ namespace gem5
     }
 
     CHAOSDecode::~CHAOSDecode() {}
+
+    CHAOSDecode *CHAOSDecode::f6Consumer = nullptr;
+
+    ChaOSEventTier
+    CHAOSDecode::tierFromString(const std::string &s) {
+        if (s == "F0") return ChaOSEventTier::F0;
+        if (s == "F1") return ChaOSEventTier::F1;
+        if (s == "F2") return ChaOSEventTier::F2;
+        if (s == "F3") return ChaOSEventTier::F3;
+        if (s == "F4") return ChaOSEventTier::F4;
+        if (s == "F5") return ChaOSEventTier::F5;
+        if (s == "F6") return ChaOSEventTier::F6;
+        panic("CHAOSDecode: unknown tier '%s'\n", s);
+    }
+
+    ChaOSOooEvent
+    CHAOSDecode::oooEventFromString(const std::string &s) {
+        if (s == "rename_squash") return ChaOSOooEvent::RenameSquash;
+        if (s == "commit_squash") return ChaOSOooEvent::CommitSquash;
+        return ChaOSOooEvent::BranchMispredict;  // branch_mispredict/default
+    }
+
+    void
+    CHAOSDecode::f6Thunk(ChaOSOooEvent ev) {
+        // Single-consumer F6 notify (chaos_event_trigger.hh). The trigger's
+        // onF6Event() enforces once-ever; the injection lands at the next
+        // eligible decode hook (f6_pending).
+        if (f6Consumer && f6Consumer->eventTrigger &&
+            f6Consumer->f6_ooo_event == ev &&
+            f6Consumer->eventTrigger->onF6Event())
+            f6Consumer->f6_pending = true;
+    }
 
     bool
     CHAOSDecode::inWindow() {
@@ -336,22 +376,37 @@ namespace gem5
         // would be mis-attributed to the selected decode fault model.
         if (fi_mode != Mode::DestRegSub) return false;
         if (!cpu || probability <= 0.0f) return false;
-        if (max_faults != 0 && faults_injected_count >= max_faults) return false;
-        if (!inWindow()) return false;
+        if (eventTrigger) eventTrigger->onAttempt();
         // only integer class dest regs (aarch64 X0-X30 = index 0-30)
         if (flat_dest_regid.classValue() != IntRegClass) return false;
 
-        // Sampling-bias fix (findings.md Phase 3.0): skip the first N
-        // eligible events (N ~ geometric(0.1) from the seed) so the
-        // single fault lands on a seed-dependent event.
-        if (events_to_skip > 0) {
-            --events_to_skip;
-            return false;
+        if (eventTrigger) {
+            // WS4.2 event-normalized path: the tier owns warm-up/repetition
+            // (F6 = the pending flag set by the notify source).
+            bool go;
+            if (eventTrigger->tier == ChaOSEventTier::F6) {
+                go = f6_pending;
+                f6_pending = false;
+            } else {
+                go = eventTrigger->onEligible();
+            }
+            if (!go) return false;
+        } else {
+            // Legacy cycle-window path — byte-identical.
+            if (max_faults != 0 && faults_injected_count >= max_faults) return false;
+            if (!inWindow()) return false;
+
+            // Sampling-bias fix (findings.md Phase 3.0): skip the first N
+            // eligible events (N ~ geometric(0.1) from the seed) so the
+            // single fault lands on a seed-dependent event.
+            if (events_to_skip > 0) {
+                --events_to_skip;
+                return false;
+            }
+
+            std::uniform_real_distribution<float> pd(0.0f, 1.0f);
+            if (pd(rng) > probability) return false;
         }
-
-
-        std::uniform_real_distribution<float> pd(0.0f, 1.0f);
-        if (pd(rng) > probability) return false;
 
         // §2.14 dest_reg_sub F5: replace the dest arch reg index with another
         // legal 0-30 integer reg (per-inst, safe — _flatDestIdx is per-DynInst,
@@ -387,9 +442,15 @@ namespace gem5
         if (!cpu || probability <= 0.0f) return nullptr;
         if (fi_mode == Mode::DestRegSub) return nullptr;
         if (!orig) return nullptr;
-        if (max_faults != 0 && faults_injected_count >= max_faults)
-            return nullptr;
-        if (!inWindow()) return nullptr;
+        if (eventTrigger) {
+            // WS4.2: the funnel counts this hook's stream (attempted here,
+            // eligible after the cheap per-mode filters below).
+            eventTrigger->onAttempt();
+        } else {
+            if (max_faults != 0 && faults_injected_count >= max_faults)
+                return nullptr;
+            if (!inWindow()) return nullptr;
+        }
 
         // Pull the full 8-byte ExtMachInst back out of the decoded
         // StaticInst (ArmStaticInst::asBytes -> simpleAsBytes(machInst);
@@ -464,10 +525,24 @@ namespace gem5
                 return nullptr;
         }
 
-        // ---- sampling: geometric skip, then probability draw ----
-        if (events_to_skip > 0) { --events_to_skip; return nullptr; }
-        std::uniform_real_distribution<float> pd(0.0f, 1.0f);
-        if (pd(rng) > probability) return nullptr;
+        // ---- sampling: WS4.2 tier verdict, or legacy geometric skip +
+        // probability draw ----
+        if (eventTrigger) {
+            // Event-normalized path: the tier owns warm-up/repetition
+            // (F6 = the pending flag set by the notify source).
+            bool go;
+            if (eventTrigger->tier == ChaOSEventTier::F6) {
+                go = f6_pending;
+                f6_pending = false;
+            } else {
+                go = eventTrigger->onEligible();
+            }
+            if (!go) return nullptr;
+        } else {
+            if (events_to_skip > 0) { --events_to_skip; return nullptr; }
+            std::uniform_real_distribution<float> pd(0.0f, 1.0f);
+            if (pd(rng) > probability) return nullptr;
+        }
 
         // ---- W6 batch 2 (D08-D10) dispatch ----
         // Structured immediate / crack models. These run their own format
@@ -1025,6 +1100,22 @@ namespace gem5
             return;
         }
         o3cpu->setChaosDecode(this);
+        if (eventTrigger) {
+            if (eventTrigger->tier == ChaOSEventTier::F6) {
+                // Single-consumer F6 discipline (chaos_event_trigger.hh):
+                // BranchMispredict/RenameSquash/CommitSquash sources call
+                // chaosOooF6Notify; only this injector listens per run.
+                f6Consumer = this;
+                chaosOooF6Notify = &CHAOSDecode::f6Thunk;
+            }
+            // WS4.2 funnel summary (attempted/eligible/injected) on the
+            // CHAOS_EVENT_TRIGGER: line (LSU's CHAOS_LSU_TRIGGER: stays
+            // byte-identical; runner/lsu_l5_classify regexes widened).
+            registerExitCallback([this]() {
+                if (eventTrigger)
+                    chaosEventTriggerSummary(*eventTrigger, "CHAOSDecode");
+            });
+        }
     }
 
 } // namespace gem5

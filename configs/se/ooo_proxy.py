@@ -345,6 +345,22 @@ p.add_argument("--decode_first_clock", type=lambda x: int(x,0), default=1000)
 p.add_argument("--decode_last_clock", type=lambda x: int(x,0), default=0)
 p.add_argument("--decode_max_faults", type=lambda x: int(x,0), default=1)
 p.add_argument("--decode_rng_seed", type=lambda x: int(x,0), default=20260825)
+# WS4.2: event-normalized trigger tier on CHAOSDecode (ooo 05 r2-r8).
+# off = legacy cycle-window path (byte-identical). F0-F6: the trigger layer
+# owns warm-up/repetition semantics (eligible-event denominator = valid
+# decoded instructions: rename hook for dest_reg_sub, fetch-decode hook for
+# the W6/W7 encoding modes).
+p.add_argument("--decode_tier", default="off",
+               choices=["off","F0","F1","F2","F3","F4","F5","F6"],
+               help="WS4.2: event-normalized trigger tier on CHAOSDecode")
+p.add_argument("--decode_warmup_events", type=lambda x: int(x,0), default=0,
+               help="WS4.2: eligible events skipped before arming")
+p.add_argument("--decode_span_events", type=lambda x: int(x,0), default=1000,
+               help="WS4.2: F0 uniform window size in eligible events")
+p.add_argument("--decode_f6_event", default="branch_mispredict",
+               choices=["branch_mispredict","rename_squash","commit_squash"],
+               help="WS4.2: F6 event source (branch_mispredict=D14, "
+                    "rename_squash=D18)")
 # §2.4 CHAOSExMon (ARM exclusive-monitor injector). SELF-ATTACHES to cpu->isa[0].
 # Hooks ISA::handleLockedWrite (STXR verdict); stxr_force_success/fail.
 p.add_argument("--chaos_exmon", action="store_true",
@@ -745,6 +761,10 @@ if args.chaos_decode:
         maxFaults=args.decode_max_faults,
         rngSeed=args.decode_rng_seed,
         writeLog=True,
+        tier=args.decode_tier,
+        warmupEvents=args.decode_warmup_events,
+        spanEvents=args.decode_span_events,
+        f6Event=args.decode_f6_event,
     )
     board.chaos_decode = dc
 
