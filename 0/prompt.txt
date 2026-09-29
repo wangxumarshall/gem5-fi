@@ -1,0 +1,14 @@
+/superpowers:executing-plans 执行策略调整：从现在起进入“连续基础环境建设模式”。
+
+你必须持续自主推进 P1 和 P2 的基础环境、注入器、观测链、资源守卫、确定性验证、manifest、workload/checkpoint/oracle 准备与工程冒烟；不要因为阶段性报告、普通错误、planning-with-files 的“Task in progress”提示、DR-001、DR-002 或部分 ITEM/负载 BLOCKED 而停止等待我。
+
+规则如下：
+
+1. 阶段性报告、commit、push、progress.md/findings.md 更新后，继续执行唯一下一动作；它们不是停机点。
+2. DR-001 和 DR-002 均为非阻塞决策：记录受影响 ITEM 为 BLOCKED，不得自行替换 workload、不得让近似映射进入正式统计，但继续推进所有不受影响的 P1/P2 工作。
+3. 当前继续完成 G0-02 的其余确定性家族验证、G0-01/G0-04 运行时复核、G0-03/G0-05 至 G0-09 的环境/负载/checkpoint/oracle/timeout 准备，以及 P1/P2 的工程实现和冒烟验证。
+4. 所有工程运行保持 ENGINEERING_ONLY；不得启动任何 pilot、screening、confirmatory 或正式 ITEM 样本。
+5. 继续遵守资源守卫：编译最多 -j8、单实例、实验单实例、60 秒监控。只有 WARNING/TRIP、数据/工作树安全风险、需要改变科学基线，或无法继续的关键依赖问题，才可以暂停并要求我决定。
+6. planning-with-files 提示“Task in progress”时，先更新 progress.md，然后继续执行；不要把该提示当作停止理由。
+7. 明确停机点：完成 P1 和 P2 的基础环境建设、所有可完成 G0 门禁和工程冒烟后，在准备提交第一个 LSU 单元的正式 pilot 前停止。
+8. “第一个单元的正式执行”定义为：P3 中 AGU 单元的首个正式 pilot（预计 ITEM-001 / A01-F0-W3）的第一条正式样本提交之前。到达该点时不得提交该样本，只需报告完整环境状态、已通过门禁、仍 BLOCKED 范围、建议的首个正式执行计划，并等待我的确认。
