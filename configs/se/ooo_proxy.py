@@ -65,6 +65,16 @@ p.add_argument("--phys_float", type=int, default=OOO["phys_float"],
                help=f"numPhysFloatRegs (north star fp={OOO['phys_float']})")
 p.add_argument("--phys_vec", type=int, default=OOO["phys_vec"],
                help=f"numPhysVecRegs (north star vec48={OOO['phys_vec']})")
+# WS5: V2.0 B0 preset (implementation-plan.md WS5; docs/gem5-fi/ooo/02-ooo-
+# params-baseline R2-R24 == O3_ARM_v7a.py:163-204 逐项): widths 3/6/8,
+# ROB=40, PRF 128/192/48, IQ=32 with the official O3_ARM_v7a FU pool.
+# DEFAULTS ARE NOT CHANGED (R7: the 4-wide/rob128 north-star default stays
+# for V1.0 reproducibility — V2.0 B0 runs pass --b0_v2 explicitly).
+p.add_argument("--b0_v2", action="store_true",
+               help="WS5: apply the V2.0 B0 preset (O3_ARM_v7a_3 line by "
+                    "line: fetch/decode/rename=3, dispatch=6, issue/wb/"
+                    "commit=8, ROB=40, PRF 128/192/48, IQ=32 + official "
+                    "v7a FU pool). Default OOO dict unchanged.")
 # --- CHAOS injector args (identical surface to arm_chaos.py) ---
 p.add_argument("--chaos_reg", action="store_true")
 p.add_argument("--probability", type=float, default=1.0)
@@ -515,6 +525,53 @@ cpu0 = core0.core  # the underlying BaseCPU SimObject
 # ArmO3CPU SimObject before m5.instantiate() is the standard gem5 pattern
 # (cf. fi_research/probes/o3_chaos_smoke.py:68 on a bare ArmO3CPU).
 if args.cpu == "O3":
+  if args.b0_v2:
+    # ---- WS5: V2.0 B0 = O3_ARM_v7a_3 逐项 (02-ooo-params-baseline B0) ----
+    # The class scalars are read from gem5's own O3_ARM_v7a_3 definition
+    # (drift-proof: the source of truth is the class, not a hand copy).
+    # branchPred deliberately NOT replaced: the 02 table (the V2.0
+    # authority) has no branch-predictor row — the stdlib board's default
+    # BP stays; the FINAL checksum is µarch-invariant either way.
+    import sys as _sys, os as _os
+    # The classic configs tree (common/cores/arm/O3_ARM_v7a.py) lives in the
+    # vendored gem5 root, NOT this script's configs/ (repo-root family dir).
+    _gem5_root = _os.path.join(
+        _os.path.dirname(_os.path.dirname(_os.path.dirname(
+            _os.path.abspath(__file__)))), "CHAOS", "gem5")
+    if not _os.path.isdir(_os.path.join(_gem5_root, "configs", "common")):
+        raise RuntimeError(f"--b0_v2: vendored gem5 configs not found at "
+                           f"{_gem5_root}/configs (repo layout changed?)")
+    if _gem5_root not in _sys.path:
+        _sys.path.insert(0, _gem5_root)
+    from configs.common.cores.arm.O3_ARM_v7a import O3_ARM_v7a_3, O3_ARM_v7a_IQ
+    _B0_SCALARS = ("LQEntries", "SQEntries", "LSQDepCheckShift", "LFSTSize",
+                   "SSITSize", "decodeToFetchDelay", "renameToFetchDelay",
+                   "iewToFetchDelay", "commitToFetchDelay",
+                   "renameToDecodeDelay", "iewToDecodeDelay",
+                   "commitToDecodeDelay", "iewToRenameDelay",
+                   "commitToRenameDelay", "commitToIEWDelay", "fetchWidth",
+                   "fetchBufferSize", "fetchToDecodeDelay", "decodeWidth",
+                   "decodeToRenameDelay", "renameWidth", "renameToIEWDelay",
+                   "issueToExecuteDelay", "dispatchWidth", "issueWidth",
+                   "wbWidth", "iewToCommitDelay", "renameToROBDelay",
+                   "commitWidth", "squashWidth", "trapLatency", "backComSize",
+                   "forwardComSize", "numPhysIntRegs", "numPhysFloatRegs",
+                   "numPhysVecRegs", "numROBEntries")
+    for _n in _B0_SCALARS:
+        setattr(cpu0, _n, getattr(O3_ARM_v7a_3, _n))
+    # IQ=32 with the official O3_ARM_v7a FU pool (02: "O3_ARM_v7a_IQ.
+    # numEntries" + the integer/FP FU rows both cite the official pool).
+    cpu0.instQueues = [O3_ARM_v7a_IQ()]
+    print(f"[ooo_proxy] V2.0 B0 (--b0_v2): O3_ARM_v7a_3 逐项 — "
+          f"fetch/decode/rename={cpu0.fetchWidth}, dispatch="
+          f"{cpu0.dispatchWidth}, issue/wb/commit={cpu0.issueWidth}/"
+          f"{cpu0.wbWidth}/{cpu0.commitWidth}, ROB={cpu0.numROBEntries}, "
+          f"PRF {cpu0.numPhysIntRegs}/{cpu0.numPhysFloatRegs}/"
+          f"{cpu0.numPhysVecRegs}, IQ={O3_ARM_v7a_IQ.numEntries} "
+          f"(O3_ARM_v7a_IQ + official v7a FU pool), squash="
+          f"{cpu0.squashWidth}, trap={cpu0.trapLatency}, "
+          f"LQ/SQ={cpu0.LQEntries}/{cpu0.SQEntries}")
+  else:
     cpu0.fetchWidth = OOO["fetch_width"]
     cpu0.decodeWidth = OOO["decode_width"]
     cpu0.renameWidth = OOO["rename_width"]
