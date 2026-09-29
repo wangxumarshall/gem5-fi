@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 """LSU campaign orchestrator (09 W10) — model resolution + adaptive-sampling engine.
 
-Reads 07-expanded-matrix.csv (337 cells), resolves every cell to either a
-runnable gem5 command or an honest BLOCKED/DEFERRED/N-A classification
+Reads the V2.0 expanded matrix (325 cells; WA5.1 re-anchor — WS1
+tools/v2_matrix.py is the ONLY matrix entry, self-checked 325/freq-dist/
+workloads), resolves every cell to either a runnable gem5 command or an
+honest BLOCKED/DEFERRED/N-A classification
 (README §8.3: blocked is marked, never silently skipped), runs each runnable
 cell with the three-phase adaptive sampling from 05 r12-r15:
   Phase 1 (trial): 30 activated — discover injector errors / all-Crash /
@@ -45,6 +47,7 @@ LSU_PROXY = REPO / "configs/se/lsu_proxy.py"
 L5 = REPO / "tools/lsu_l5_classify.py"
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from wilson import wilson_ci  # repo's single Wilson impl (no drift)
+from classify import classify_run_v2  # WS3 V2.0 L5 taxonomy layer (WA5.1)
 
 # Expanded matrix column indices (0-based; col 0 = "Excel行")
 COL_RUNID = 1     # RunID like A01-F0-W3
@@ -249,13 +252,14 @@ FAMILY_SEED = {
 
 
 def load_matrix(path):
-    rows = list(csv.reader(open(path, encoding="utf-8")))
-    header = rows[0]
-    cells = []
-    for r in rows[1:]:
-        if len(r) > COL_RUNID and r[COL_RUNID].strip():
-            cells.append(r)
-    return header, cells
+    """WA5.1: WS1 load_v2_matrix is the ONLY matrix entry (self-checked:
+    325 rows / freq dist / workload set / value slots). Rows are adapted to
+    this module's COL_* list interface (raw dict -> FULL_HEADER-ordered
+    list, byte-equal to the CSV row)."""
+    from v2_matrix import load_v2_matrix, FULL_HEADER
+    v2cells = load_v2_matrix(path)
+    cells = [[c.raw[col] for col in FULL_HEADER] for c in v2cells]
+    return list(FULL_HEADER), cells
 
 
 def resolve_cell(cell):
@@ -480,6 +484,16 @@ def run_single_cell(cell, args, seed, outdir):
                 cache_inj += 1
 
     result = classify_run(outdir, stdout_file, golden, exit_code, stderr_file)
+    # WA5.1: attach the V2.0 L5 taxonomy view (WS3 classify_run_v2; the V1
+    # lsu_l5 five-class verdict maps onto the V1 nine-class input, then the
+    # v2 layer adds outcome/first_detection/ras_any/in_denominator). The
+    # legacy fields stay (dual-track, R10: two taxonomies never mix).
+    _oc = result.get("outcome")
+    _oc_v1 = {"Masked": "Masked", "SDC": "SDC", "Crash": "Crash",
+              "Timeout": "Hang",
+              "Detected/Contained": "DetectedContained"}.get(_oc)
+    if _oc_v1:
+        result["v2"] = classify_run_v2({"category": _oc_v1})
     if cache_inj > 0 and result.get("injected", 0) == 0:
         # CHAOSCache logs "Tick:"/"Cycle:" lines (no "Site: " lines and no
         # CHAOS_LSU_TRIGGER stdout funnel — the legacy firstClock mechanism),
@@ -626,7 +640,11 @@ def run_cell_adaptive(cell, args, outroot):
         act = int(r.get("activated", 0) or 0)
         runs.append({"seed": seed, "cluster_id": "%s#%d" % (runid, seed),
                      "activated": act,
-                     "outcome": r.get("outcome", "Unclassified")})
+                     "outcome": r.get("outcome", "Unclassified"),
+                     # WA5.1: the V2.0 L5 taxonomy view (WS3) rides the
+                     # per-run record — dual-track, never mixed into the
+                     # legacy five-class aggregation above.
+                     "v2": r.get("v2")})
         attempted += int(r.get("attempted", 0) or 0)
         activated += act
         oc = r.get("outcome")
