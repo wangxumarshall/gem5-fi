@@ -367,6 +367,21 @@ def run_fanout(trace_path, phys_id):
             pass
 
 
+# WS4.6: OoO event-tier flag roots — component (manifest) -> proxy flag
+# root (ooo_proxy.py WS4.2-WS4.5: --<root>_tier/_warmup_events/_span_events/
+# _f6_event). The V2.0 campaign's ooo block (campaign.py schema-v3 spelling)
+# carries frequency_tier; these seven components have tier-wired injectors.
+OOO_TIER_ROOT = {
+    "decode": "decode",        # CHAOSDecode (WS4.2)
+    "rat": "rename",           # CHAOSRenameMap (WS4.3)
+    "freelist": "freelist",    # CHAOSFreeList (WS4.3)
+    "rob": "rob",              # CHAOSROB (WS4.4)
+    "iq": "iq",                # CHAOSIQ (WS4.4)
+    "physreg": "phys",         # CHAOSPhysReg (WS4.5)
+    "fsu": "fpu",              # CHAOSFPU (WS4.5)
+}
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("manifest")
@@ -610,15 +625,37 @@ def main():
     bits = inj.get("bit_indices") or []  # explicit bit positions, e.g. [20]
     field = tgt.get("field", "value")
 
-    # trigger mode: only 'cycle'/'tick' are honored by the current config
-    # (first_clock). pc/committedInst/event need G6 work (deferred) — reject
-    # with a clear error so a manifest isn't silently mis-triggered.
+    # trigger mode: 'cycle'/'tick' map to first_clock; 'event' (WS4.6) maps
+    # to the OoO event-normalized tier knobs (chaos_event_trigger.hh alias
+    # of the LSU semantics; ooo_proxy.py WS4.2-WS4.5 flag surface). pc/
+    # committedInst remain G6 work (deferred) — reject with a clear error so
+    # a manifest isn't silently mis-triggered.
     tmode = t.get("mode", "cycle")
-    if tmode not in ("cycle", "tick"):
+    if tmode not in ("cycle", "tick", "event"):
         sys.exit(f"[runner] trigger.mode='{tmode}' not supported yet "
-                 f"(needs G6 pc/committedInst/event hooks). Use 'cycle' "
-                 f"with value = first_clock. Aborting — not silently "
+                 f"(needs G6 pc/committedInst hooks). Use 'cycle' "
+                 f"with value = first_clock, or 'event' with the ooo "
+                 f"block's frequency_tier. Aborting — not silently "
                  f"mis-triggering.")
+    # WS4.6: the ooo extension block (campaign.py schema-v3 spelling) carries
+    # the V2.0 frequency tier. Read once here; the tier args append after the
+    # component dispatch below.
+    ooo = m.get("ooo", {}) or {}
+    tier = str(ooo.get("frequency_tier", "")).strip()
+    if tmode == "event":
+        root = OOO_TIER_ROOT.get(comp)
+        if root is None:
+            sys.exit(f"[runner] trigger.mode='event' needs a tier-capable "
+                     f"OoO component ({sorted(OOO_TIER_ROOT)}); got "
+                     f"'{comp}'. Aborting — not silently mis-triggering.")
+        if cfg_family != "C3":
+            sys.exit(f"[runner] trigger.mode='event' requires "
+                     f"platform.config_family='C3' (ooo_proxy.py tier "
+                     f"knobs); got '{cfg_family}'. Aborting.")
+        if tier not in ("F0", "F1", "F2", "F3", "F4", "F5", "F6"):
+            sys.exit(f"[runner] trigger.mode='event' requires "
+                     f"ooo.frequency_tier in F0-F6; got {tier!r}. "
+                     f"Aborting — not silently mis-triggering.")
 
     # v1.1 Phase 8.2 uniform event sampling: the manifest's optional
     # `sampling` block carries the driver-computed fixed skip (from
@@ -1426,6 +1463,17 @@ def main():
                  f"l3->CHAOSCHI §2.9, etc. — all S1/S2/S4 patches). Aborting "
                  f"— not silently mis-running an unmapped component.")
 
+    # WS4.6: event-normalized tier args (C3 ooo_proxy knob surface). The
+    # legacy first_clock args above stay (the tier path bypasses the window;
+    # harmless) so the same dispatch serves both trigger modes.
+    if tmode == "event":
+        root = OOO_TIER_ROOT[comp]
+        f6ev = str(ooo.get("f6_event", "branch_mispredict"))
+        cmd += [f"--{root}_tier", tier,
+                f"--{root}_warmup_events", str(ooo.get("warmup_events", 0)),
+                f"--{root}_span_events", str(ooo.get("span_events", 1000)),
+                f"--{root}_f6_event", f6ev]
+        print(f"[runner] event tier: {root}_tier={tier} f6_event={f6ev}")
     print(f"[runner] manifest target: layer={layer} comp={comp} idx={idx} "
           f"bits={bits} width={width} field={field}")
     # platform.config_params -> config-script microarch knobs (H2 sweep)

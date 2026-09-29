@@ -453,6 +453,56 @@
           "description": "v1.1 Phase 8.2 countOnlyMode dry-run: count eligible events (CHAOS_ELIGIBLE_COUNT in the injector log), never corrupt."
         }
       }
+    },
+    "ooo": {
+      "type": "object",
+      "description": "WS4.6 / campaign schema-v3 ooo extension block: the V2.0 frequency tier and cell identity (implementation-plan.md WS4.6; tools/campaign.py writes design_unit_id/experiment_cell_id/frequency_tier/workload/counting_basis/phase; runner.py consumes frequency_tier + the tier companions for trigger.mode=event on the seven tier-wired OoO components — decode/rat/freelist/rob/iq/physreg/fsu). All fields optional; ADDITIVE (v2 manifests without this block validate unchanged).",
+      "properties": {
+        "design_unit_id": {
+          "type": "string"
+        },
+        "experiment_cell_id": {
+          "type": "string"
+        },
+        "frequency_tier": {
+          "type": "string",
+          "enum": [
+            "F0",
+            "F1",
+            "F2",
+            "F3",
+            "F4",
+            "F5",
+            "F6"
+          ]
+        },
+        "workload": {
+          "type": "string"
+        },
+        "counting_basis": {
+          "type": "string"
+        },
+        "phase": {
+          "type": "string"
+        },
+        "warmup_events": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "span_events": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "f6_event": {
+          "type": "string",
+          "enum": [
+            "branch_mispredict",
+            "rename_squash",
+            "commit_squash"
+          ]
+        }
+      },
+      "additionalProperties": false
     }
   }
 }
