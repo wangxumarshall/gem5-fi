@@ -1,0 +1,41 @@
+[16:46:29] mini_check g1: rc=0 hash=07568da9f3ad5665 ticks=19686975 wall=61s
+[16:47:29] mini_check g2: rc=0 hash=07568da9f3ad5665 ticks=19686975 wall=60s
+[16:48:30] mini_check g3: rc=0 hash=07568da9f3ad5665 ticks=19686975 wall=61s
+[16:49:30] agu_addrmodes g1: rc=0 hash=728e604ffcec539d ticks=19395530 wall=60s
+[16:50:31] agu_addrmodes g2: rc=0 hash=728e604ffcec539d ticks=19395530 wall=61s
+[16:51:31] agu_addrmodes g3: rc=0 hash=728e604ffcec539d ticks=19395530 wall=60s
+[16:52:32] sq_forward g1: rc=0 hash=1f4cbf14327717df ticks=18895415 wall=61s
+[16:53:32] sq_forward g2: rc=0 hash=1f4cbf14327717df ticks=18895415 wall=60s
+[16:54:32] sq_forward g3: rc=0 hash=1f4cbf14327717df ticks=18895415 wall=60s
+[16:55:33] cache_dirtyevict g1: rc=0 hash=062e5124df3667f9 ticks=58307480 wall=61s
+[16:56:33] cache_dirtyevict g2: rc=0 hash=062e5124df3667f9 ticks=58307480 wall=60s
+[16:57:34] cache_dirtyevict g3: rc=0 hash=062e5124df3667f9 ticks=58307480 wall=61s
+[16:58:34] prefetch_stride g1: rc=0 hash=629727c0ad9ca8ef ticks=108040240 wall=60s
+[16:59:35] prefetch_stride g2: rc=0 hash=629727c0ad9ca8ef ticks=108040240 wall=61s
+[17:00:35] prefetch_stride g3: rc=0 hash=629727c0ad9ca8ef ticks=108040240 wall=60s
+[17:01:36] stream_chase g1: rc=0 hash=50ab96a7fe8f6ec2 ticks=249966255 wall=61s
+[17:02:36] stream_chase g2: rc=0 hash=50ab96a7fe8f6ec2 ticks=249966255 wall=60s
+[17:03:36] stream_chase g3: rc=0 hash=50ab96a7fe8f6ec2 ticks=249966255 wall=60s
+[17:04:37] beebs_kernels g1: rc=0 hash=a10b9827edd8a9fb ticks=149402715 wall=61s
+[17:05:37] beebs_kernels g2: rc=0 hash=a10b9827edd8a9fb ticks=149402715 wall=60s
+[17:06:38] beebs_kernels g3: rc=0 hash=a10b9827edd8a9fb ticks=149402715 wall=61s
+[17:07:38] gap_bfs g1: rc=0 hash=030921682b3731f2 ticks=320101705 wall=60s
+[17:08:39] gap_bfs g2: rc=0 hash=030921682b3731f2 ticks=320101705 wall=61s
+[17:09:39] gap_bfs g3: rc=0 hash=030921682b3731f2 ticks=320101705 wall=60s
+[17:10:40] sqlite_like g1: rc=0 hash=33f836327a416d35 ticks=79221450 wall=61s
+[17:11:40] sqlite_like g2: rc=0 hash=33f836327a416d35 ticks=79221450 wall=60s
+[17:12:41] sqlite_like g3: rc=0 hash=33f836327a416d35 ticks=79221450 wall=61s
+=== golden 3× 一致性汇总 ===
+workload          3x一致    =V1.0   hash              maxwall(s)
+mini_check        PASS    PASS    07568da9f3ad5665  61        
+agu_addrmodes     PASS    PASS    728e604ffcec539d  61        
+sq_forward        PASS    PASS    1f4cbf14327717df  61        
+cache_dirtyevict  PASS    PASS    062e5124df3667f9  61        
+prefetch_stride   PASS    PASS    629727c0ad9ca8ef  61        
+stream_chase      PASS    PASS    50ab96a7fe8f6ec2  61        
+beebs_kernels     PASS    PASS    a10b9827edd8a9fb  61        
+gap_bfs           PASS    PASS    030921682b3731f2  61        
+sqlite_like       PASS    PASS    33f836327a416d35  61        
+
+GOLDEN3 OVERALL: PASS — 9 负载 × 3 全一致且等于 V1.0 golden
+GOLDEN3_EXIT=0
