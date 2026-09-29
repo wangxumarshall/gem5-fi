@@ -1,7 +1,7 @@
 # LSU 故障注入方案 V2.0 原位重锚 — 设计文档（spec）
 
 - **日期**：2026-09-29
-- **状态**：设计已经用户逐节确认（四项决策见 §2.2）
+- **状态**：设计已经用户逐节确认（五项决策见 §2.2；D5 为 2026-09-29 对齐 OoO 先例增补）
 - **落地分支**：`fi-ding`（非 main），逐单元提交 + 推送，绝不 `git add -A`
 - **本文作用**：定义"如何把 `docs/gem5-fi/lsu/` 从 V1.0 口径重锚到 V2.0"——它是后续 `superpowers:writing-plans` 实现计划的唯一输入；重锚完成后仓库内容的权威链见 §2.1
 
@@ -13,7 +13,7 @@
 
 **目标**：以 V2.0 为唯一权威，原位重锚整个目录为——面向 ARM LSU 微架构单元故障注入的**项目北极星 + 完整实现方案 + 研究与实验宏伟计划**。
 
-**本交付边界**：文档层（含提取机器 extract.py / verify_extraction.py 自身的 V2.0 化）。源码与工具改动（lsu_campaign 325 格、classify 新分类学、子模型上报等）是 09-v2 宏伟计划 W0–W9 各工作包的**执行内容**，另行计划，不在本交付内。
+**本交付边界**：文档层（含提取机器 extract.py / verify_extraction.py 自身的 V2.0 化）。源码与工具改动（lsu_campaign 325 格、classify 新分类学、子模型上报等）是 09-v2 宏伟计划 V2-W0..V2-W9 各工作包的**执行内容**，另行计划，不在本交付内。
 
 ## 2. 裁决规则
 
@@ -29,14 +29,15 @@
 |---|---|---|
 | D1 | 交付形式 | **原位重锚**（git 历史保全 V1.0；无版本并存漂移） |
 | D2 | 北极星形态 | **新建 NORTH-STAR.md**（顶层文档，README 首链） |
-| D3 | 09 W 系列重排 | **全新 W0–W9 编号 + V1.0 遗产映射表**（V2.0 语义重心从"建注入器"转向"新分类学+完整网格回填"） |
+| D3 | 09 W 系列重排 | **全新编号 + V1.0 遗产映射表**（V2.0 语义重心从"建注入器"转向"新分类学+完整网格回填"） |
 | D4 | V2.0 内部不一致（表3 col10 vs 表7 col12，AGU 系 8 模型 39 格措辞不同步） | **表7 为执行权威**；表3 照实转录旧文 + 提取注记标明差异与裁决理由，不替作者改源表 |
+| D5 | 跨轨约定（2026-09-29 增补） | **对齐 OoO 轨道 V2.0 先例（3412c1bc）**：新建 `09-implementation-plan-v2.md` 为现行计划、旧 09 加"已被 V2.0 接替"横幅封存；编号 `V2-W0..V2-W9`、里程碑 `M0'–M6'`；转录层 00–08 仍机器再生不变 |
 
 ### 2.3 沿用规则（自 09 v1 §6 继承，未被 V2.0 推翻）
 
 - 机制核实一律以本仓 vendored gem5 v25.1.0.1 为准（xlsx 核对基于上游 stable）；
 - 预期结果是可证伪假设；blocked/不适用格如实标注，**不填零**；
-- 统一用模型 ID / RunID，不发明新编号；工作包 W# 与负载 W#（06 表 W0–W13）同形，沿用"工作包 W#"限定语；
+- 统一用模型 ID / RunID，不发明新编号；工作包编号带 `V2-` 前缀（与负载 W#（06 表 W0–W13）的同形冲突由前缀消解）；
 - 三轨道（LSU / OoO / 鲲鹏920）口径严禁混算。
 
 ## 3. 总体架构：五层文档体系
@@ -47,7 +48,8 @@ docs/gem5-fi/lsu/
 ├── NORTH-STAR.md              北极星层（新建）：使命/口径/现状/目标/路线/裁决链
 ├── 00-overview.md … 08-references.md + design-matrix.csv + 07-expanded-matrix.csv
 │                              转录层：V2.0 机械重提取（sha 钉死、逐格可验）
-├── 09-implementation-plan.md  计划层：V2.0 宏伟计划（W0–W9 + M0–M6，完全重写）
+├── 09-implementation-plan-v2.md  计划层（现行）：V2.0 宏伟计划（V2-W0..V2-W9 + M0'–M6'，新建）
+├── 09-implementation-plan.md     计划层（封存）：V1.0 轮计划，顶部加"已被 V2.0 接替"横幅
 └── 10-trial-results.md / 11-meta-analysis.md
                                历史层：V1.0 试跑轮遗产，顶部加历史标注保留
 ```
@@ -123,7 +125,7 @@ A01–A08（8）· T01–T08+T10（9，T09 删）· S01–S11+S13（12，S12 删
 - 07-expanded-matrix：表7 col12 新措辞（"L5检测层级、控制情况与最终结局"）**照实转录**；
 - 两个文件的提取注记各自标明：V2.0 内部此 39 格（AGU 系 8 模型）不同步，裁决为表7 执行权威，理由 = 表7 是 campaign 直接消费的执行矩阵且为作者更新过的一份；
 - extract.py 的 A1 重放校验（表3 叉积 == 表7 col1–15）对这 39 格**显式豁免并计数**（39），其余 286 格仍强一致；
-- 09-v2 的 W4/W5 消费表7 措辞。
+- 09-v2 的 V2-W4/V2-W5 消费表7 措辞。
 
 ### 4.7 校验链（verify_extraction.py 同步重写）
 
@@ -144,33 +146,33 @@ A01–A08（8）· T01–T08+T10（9，T09 删）· S01–S11+S13（12，S12 删
 2. **不可妥协口径（V2.0 版）**——可分析 activated 分母；统计单位（F0/F5/F6 独立样本 vs F1–F4 cluster）；首检来源互斥；Simulator failure 分栏；两条守恒；三轨道不混算；B0 非鲲鹏 920 复刻；指标口径 AVF/条件占比/检出率严禁混算（表1 硬约束）；
 3. **我们现在在哪**——V1.0 轮遗产清单：177 格试跑/2624 activated（1583 Masked + 1041 Crash + 0 SDC + 0 Timeout + 0 Detected，旧口径）、11 个 LSU 相关注入器、chaos_lsu_trigger.hh F0–F6 事件归一化触发层、FS 管线（真 B0 平台 + tlb_probe oracle + checkpoint）、已修一系列工具正确性 bug（采样偏差家族 9 员、超时证据丢弃、runner decode 崩溃等）、仓库暂停点 c6e07fa6；
 4. **要去哪**——325 格 × 新 16 结果列全回填 + 两条守恒逐格闭合 + 子模型记录覆盖 + 首检×结局矩阵；
-5. **怎么去**——指向 09-v2（W0–W9 一览表）；
+5. **怎么去**——指向 09-implementation-plan-v2.md（V2-W0..V2-W9 一览表）；
 6. **裁决规则链**——§2.1 + D4。
 
-## 6. 09-implementation-plan.md v2 规格（计划层，完全重写）
+## 6. 09-implementation-plan-v2.md 规格（计划层，新建为现行计划；旧 09 加"已被 V2.0 接替"横幅封存——对齐 OoO 先例 3412c1bc）
 
 ### 6.1 结构
 
-§0 裁决规则（§2 全文收录）→ §1 目标与成功判据（三问 + 最终交付物：325 格 × 16 结果列回填 + 守恒逐格闭合 + 元分析报告）→ §2 机制核实（V1.0 轮九项核实的继承声明 + 表2 新增保护核验节带来的新核实项 + 39 格裁决记录）→ §3 WBS（W0–W9）→ §4 里程碑（M0–M6）→ §5 算力预算 → §6 V1.0 遗产映射表 → §7 诚实边界。
+§0 裁决规则（§2 全文收录）→ §1 目标与成功判据（三问 + 最终交付物：325 格 × 16 结果列回填 + 守恒逐格闭合 + 元分析报告）→ §2 机制核实（V1.0 轮九项核实的继承声明 + 表2 新增保护核验节带来的新核实项 + 39 格裁决记录）→ §3 WBS（V2-W0..V2-W9）→ §4 里程碑（M0'–M6'）→ §5 算力预算 → §6 V1.0 遗产映射表 → §7 诚实边界 → §8 风险登记（R1'–Rn'，对齐 OoO 先例）。
 
-### 6.2 W0–W9 工作包（目标 / 依赖 / 验收 / 遗产映射）
+### 6.2 V2-W0..V2-W9 工作包（目标 / 依赖 / 验收 / 遗产映射）
 
-| W | 名称 | 目标与验收 | 依赖 | V1.0 遗产映射 |
+| V2-W | 名称 | 目标与验收 | 依赖 | V1.0 遗产映射 |
 |---|---|---|---|---|
-| W0 | 网格与工具重锚 | lsu_campaign.py 消费 325 格新 CSV；MODEL_FLAGS 删 T09/S12/C13/O08；manifest/schema 适配。验收：`--dry-run` 输出 RunID 集合 == CSV col1 集合（325） | 本交付（文档重锚） | W0(v1) 平台 + W10(v1) campaign 骨架 |
-| W1 | **分类学工具链**（最大工作包） | classify.py / lsu_l5_classify.py 适配 V2.0 结局分类学（六结局 + 首检四分 + SimFail 分栏 + 两守恒）；FS 侧 RAS/OS 首检证据通道（Oops/panic 解析 → OS 首检；gem5 内部错误 → Simulator failure）；旧→新映射器（供历史数据有损对照）。验收：单元测试 + 守恒 0 违规 + 映射器损失面如实文档化 | W0 | 新增 |
-| W2 | 子模型记录 | 注入器上报实际命中子模型（AddrPath 位带、Cache 字节位置等）→ col43 回填；分层分析脚本。验收：试跑格 col43 非空且 ∈ 该模型菜单 | W0 | 新增 |
-| W3 | 观测层 L0–L5 对齐 | 表4 重写版逐层落点核实：每行给出 vendored gem5 file:line 落点或诚实"无实现"。验收：表4 全行覆盖 | W0 | W3(v1) 重定义 |
-| W4 | SE 侧 trial 重基线 | 325 格中 SE 可跑格按 V2.0 口径重跑试跑（30 activated/格目标）。验收：SE 格结果列回填 + 守恒闭合 + col43 记录 | W1–W3 | W4–W6、W8(v1) SE 部分 |
-| W5 | FS 侧 T 系列 | T05–T08 模式实现（valid/global/ASID 状态、permission 合法替换、hit 伪造/way 选择、walk pairing）；T10 位带参数化（摆脱退化为 T01）；TLB 锚点第二轮（skip-fix 后）；PTW 通路。验收：多 seed 注入点分散 + TC'22 谱 | W1 | W7(v1) + M3-T 系列 |
-| W6 | 锚点复验 | TC'23 LQ（SDC=0 锚点）+ TC'22 T01（Crash/Hang/SDC 谱）在 V2.0 口径下复验。验收：锚点断言通过或差异如实报告 | W4/W5 | M2/M3 门(v1) |
-| W7 | screening | ≥385 activated/格（325×385≈125,125）。验收：全格达标或 blocked 如实标注 | W4–W6 | W10(v1) 后半 |
-| W8 | main | Wilson 95% 半宽 ≤2pp 或 5000 activated/格上限（≤325×5000≈162.5 万）。验收：同上 | W7 | W10(v1) 后半 |
-| W9 | 元分析与报告 | 首检×结局矩阵、子模型分层、三问重答（V2.0 口径）、与 V1.0 历史轮的有损对照。验收：11(v2) 报告 + 守恒全闭合 | W8 | W11(v1) |
+| V2-W0 | 网格与工具重锚 | lsu_campaign.py 消费 325 格新 CSV；MODEL_FLAGS 删 T09/S12/C13/O08；manifest/schema 适配。验收：`--dry-run` 输出 RunID 集合 == CSV col1 集合（325） | 本交付（文档重锚） | W0(v1) 平台 + W10(v1) campaign 骨架 |
+| V2-W1 | **分类学工具链**（最大工作包） | classify.py / lsu_l5_classify.py 适配 V2.0 结局分类学（六结局 + 首检四分 + SimFail 分栏 + 两守恒）；FS 侧 RAS/OS 首检证据通道（Oops/panic 解析 → OS 首检；gem5 内部错误 → Simulator failure）；旧→新映射器（供历史数据有损对照）。验收：单元测试 + 守恒 0 违规 + 映射器损失面如实文档化 | V2-W0 | 新增 |
+| V2-W2 | 子模型记录 | 注入器上报实际命中子模型（AddrPath 位带、Cache 字节位置等）→ col43 回填；分层分析脚本。验收：试跑格 col43 非空且 ∈ 该模型菜单 | V2-W0 | 新增 |
+| V2-W3 | 观测层 L0–L5 对齐 | 表4 重写版逐层落点核实：每行给出 vendored gem5 file:line 落点或诚实"无实现"。验收：表4 全行覆盖 | V2-W0 | W3(v1) 重定义 |
+| V2-W4 | SE 侧 trial 重基线 | 325 格中 SE 可跑格按 V2.0 口径重跑试跑（30 activated/格目标）。验收：SE 格结果列回填 + 守恒闭合 + col43 记录 | V2-W1–V2-W3 | W4–W6、W8(v1) SE 部分 |
+| V2-W5 | FS 侧 T 系列 | T05–T08 模式实现（valid/global/ASID 状态、permission 合法替换、hit 伪造/way 选择、walk pairing）；T10 位带参数化（摆脱退化为 T01）；TLB 锚点第二轮（skip-fix 后）；PTW 通路。验收：多 seed 注入点分散 + TC'22 谱 | V2-W1 | W7(v1) + M3-T 系列 |
+| V2-W6 | 锚点复验 | TC'23 LQ（SDC=0 锚点）+ TC'22 T01（Crash/Hang/SDC 谱）在 V2.0 口径下复验。验收：锚点断言通过或差异如实报告 | V2-W4/V2-W5 | M2/M3 门(v1) |
+| V2-W7 | screening | ≥385 activated/格（325×385≈125,125）。验收：全格达标或 blocked 如实标注 | V2-W4–V2-W6 | W10(v1) 后半 |
+| V2-W8 | main | Wilson 95% 半宽 ≤2pp 或 5000 activated/格上限（≤325×5000≈162.5 万）。验收：同上 | V2-W7 | W10(v1) 后半 |
+| V2-W9 | 元分析与报告 | 首检×结局矩阵、子模型分层、三问重答（V2.0 口径）、与 V1.0 历史轮的有损对照。验收：11(v2) 报告 + 守恒全闭合 | V2-W8 | W11(v1) |
 
 ### 6.3 里程碑
 
-M0 重锚完成（本交付 + W0）→ M1 分类学就绪（W1–W3）→ M2 SE 重基线 + 锚点（W4、W6 SE 部分）→ M3 FS T 系列锚点（W5、W6 FS 部分）→ M4 screening（W7）→ M5 main（W8）→ M6 元分析（W9）。
+M0' 重锚完成（本交付 + V2-W0）→ M1' 分类学就绪（V2-W1–V2-W3）→ M2' SE 重基线 + 锚点（V2-W4、V2-W6 SE 部分）→ M3' FS T 系列锚点（V2-W5、V2-W6 FS 部分）→ M4' screening（V2-W7）→ M5' main（V2-W8）→ M6' 元分析（V2-W9）。
 
 ### 6.4 算力预算（325 格口径）
 
@@ -182,9 +184,9 @@ M0 重锚完成（本交付 + W0）→ M1 分类学就绪（W1–W3）→ M2 SE 
 - 多单元联合注入不在 V2.0 网格内（显式声明，不偷偷扩范围）；
 - V1.0 历史数据 → 新分类学的映射是**有损的**（旧 Crash/Timeout 无法回溯判定 RAS/OS 检出状态），只能做方向性对照；
 - B0 非鲲鹏 920 复刻；TLB/PTW/SysReg 注入器 FS-only（SE-inert by construction）；
-- F6 消费端腐蚀对 S10/L04/C11/C12/C14/C15 仍 deferred（W0 重锚后清单以 lsu_campaign 实际为准）；
-- CHAOSAddrPath 的 .py preMode 枚举缺 s05/s06/s07/s11/l02（.cc 已实现）——配置面与实现面不同步，W4 前修复；
-- cache/exmon 族 tier 未消费（legacy firstClock）——W3 一并核实落点。
+- F6 消费端腐蚀对 S10/L04/C11/C12/C14/C15 仍 deferred（V2-W0 重锚后清单以 lsu_campaign 实际为准）；
+- CHAOSAddrPath 的 .py preMode 枚举缺 s05/s06/s07/s11/l02（.cc 已实现）——配置面与实现面不同步，V2-W4 前修复；
+- cache/exmon 族 tier 未消费（legacy firstClock）——V2-W3 一并核实落点。
 
 ## 7. 历史层处理（10/11）
 
@@ -192,13 +194,13 @@ M0 重锚完成（本交付 + W0）→ M1 分类学就绪（W1–W3）→ M2 SE 
 
 - 数据口径：V1.0（337 格、旧五分类、旧守恒式 `Activated = Masked+Detected+SDC+Crash+Timeout`）；
 - 地位：V1.0 轮试跑证据，数据不作废、不与新轮直接比较；
-- 与 V2.0 的关系：网格 12 格已删（T09/S12/C13/O08 × F0/F5/F6，试跑轮"不适用"结论的形式化）；试跑数据格只能经 W1 映射器做**有损**对照——删除的 12 格在试跑轮本就多为"不适用/blocked"（"不适用 6 格"正是删除这 4 模型的经验依据），177 试跑格与 325 格的精确交集以 W0 重算为准，本 spec 不预编数字；
+- 与 V2.0 的关系：网格 12 格已删（T09/S12/C13/O08 × F0/F5/F6，试跑轮"不适用"结论的形式化）；试跑数据格只能经 V2-W1 映射器做**有损**对照——删除的 12 格在试跑轮本就多为"不适用/blocked"（"不适用 6 格"正是删除这 4 模型的经验依据），177 试跑格与 325 格的精确交集以 W0 重算为准，本 spec 不预编数字；
 - 新轮结果将写入 V2.0 版 07 CSV 的 col16–25/col27–42，不覆盖本文件。
 
 ## 8. README 更新规格
 
 - §数字总账：68/337 → 64/325，新增"16 结果列 / 两条守恒 / 可分析 activated"口径条目；
-- §文档地图：加 NORTH-STAR.md 首链、历史层标注；
+- §文档地图：加 NORTH-STAR.md 首链、09-implementation-plan-v2.md 现行计划行 + 09 封存横幅说明、历史层标注；
 - §溯源与复现：两命令验证链不变（extract.py → `EXTRACTION VERIFICATION PASSED`；verify_extraction.py → `ALL PASSED`），源文件条目改为 V2.0 xlsx + sha256，V1.0 xlsx 留档说明；
 - §诚实声明：V2.0 版（含 39 格裁决、子模型轴语义、历史层关系）。
 
@@ -208,19 +210,19 @@ M0 重锚完成（本交付 + W0）→ M1 分类学就绪（W1–W3）→ M2 SE 
 |---|---|---|
 | P1：extract.py V2.0 化 + 00–08/2CSV 再生（原子提交） | `cd docs/gem5-fi/lsu && python3 extract.py`；`git diff` 逐文件审查 | 末行 `EXTRACTION VERIFICATION PASSED`（断言 64/325/65/326/65 黄格/39 豁免）；01/06/08 与 HEAD 逐字节相同；03/07/00/02/04/05 差异与 §4.3 一一对应 |
 | P2：verify_extraction.py V2.0 化 | `python3 verify_extraction.py` | 末行 `ALL PASSED`（含 §4.7 新断言组） |
-| 10/11 标注 | `git diff` | 仅顶部插入标注块，正文零改动 |
-| NORTH-STAR.md | 人工审阅 + 数字与 10/11/09 交叉核对 | 六节齐、无编造数字 |
-| 09-v2 | 人工审阅 + W 表与源码缺口清单核对 | W0–W9/M0–M6/遗产映射/预算/诚实边界齐 |
-| README | 片段检查（verify V4c） | `ALL PASSED` 覆盖 |
+| P3：10/11 历史标注 | `git diff` | 仅顶部插入标注块，正文零改动 |
+| P4：NORTH-STAR.md | 人工审阅 + 数字与 10/11/09 交叉核对 | 六节齐、无编造数字 |
+| P5：09-implementation-plan-v2.md + 旧 09 接替横幅 | 人工审阅 + W 表与源码缺口清单核对 | V2-W0..V2-W9/M0'–M6'/遗产映射/预算/诚实边界/风险登记齐；旧 09 顶部横幅 |
+| P6：README 更新 | 片段检查（verify V4c） | `ALL PASSED` 覆盖 |
 | 全局隔离与回归 | `git status --porcelain`（仅 docs/ 下预期文件）；canonical SE golden reg_chain（golden `f247ef3fe6f02cfd`，具体命令从 task_plan.md / progress.md 检索既有用法落实） | 源码/工具零触碰；golden 一致（CLAUDE.md 不受影响测试） |
 
 ## 10. 实施顺序（writing-plans 的分解骨架，one-patch-per-unit）
 
-P1 extract.py V2.0 化 + 00–08/2CSV 再生（原子提交：机器 + 输出，与 V1.0 史 c96825bf 同构）→ P2 verify_extraction.py V2.0 化（独立校验器，与 V1.0 史 8aac96d8 同构）→ P3 10/11 历史标注 → P4 NORTH-STAR.md → P5 09-v2 重写 → P6 README 更新。每 P 一个 commit，验证通过才提交，提交即推送。此后按 09-v2 的 W0–W9 逐包另行计划执行。
+P1 extract.py V2.0 化 + 00–08/2CSV 再生（原子提交：机器 + 输出，与 V1.0 史 c96825bf 同构）→ P2 verify_extraction.py V2.0 化（独立校验器，与 V1.0 史 8aac96d8 同构）→ P3 10/11 历史标注 → P4 NORTH-STAR.md → P5 新建 09-implementation-plan-v2.md（现行计划）+ 旧 09 加"已被 V2.0 接替"横幅（一个单元：接替声明与新计划同生）→ P6 README 更新。每 P 一个 commit，验证通过才提交，提交即推送。此后按 09-v2 的 V2-W0..V2-W9 逐包另行计划执行。
 
 ## 11. 范围外（显式排除）
 
-- 源码与工具改动（lsu_campaign/classify/注入器上报等）——W0–W9 执行内容；
+- 源码与工具改动（lsu_campaign/classify/注入器上报等）——V2-W0..V2-W9 执行内容；
 - 多单元联合注入——V2.0 网格不含；
 - 多核 FS 负载格的解锁——继续 blocked；
 - 鲲鹏 920 轨道、OoO 轨道的任何改动——不同 scope，严禁混算；
@@ -237,7 +239,7 @@ P1 extract.py V2.0 化 + 00–08/2CSV 再生（原子提交：机器 + 输出，
 - 颜色：col26 黄格 77→65（T10 全部 9 格 + S13 的 3 个 F0 格黄→蓝）；新浅蓝 FFD9E2F3 col43；
 - 内部不一致：表3 col10 vs 表7 col12 在 AGU 系 8 模型 39 运行不同步（表7 新措辞，表3 旧文）。
 
-### 12.2 源码缺口清单（W1/W2/W5 的输入，2026-09-28 盘点）
+### 12.2 源码缺口清单（V2-W1/V2-W2/V2-W5 的输入，2026-09-28 盘点）
 
 - 分类学：classify.py 五分类（Masked/Detected/SDC/Crash/Timeout）与 V2.0 六结局+首检四分不对应；无 RAS/OS 首检证据通道；
 - 子模型：无任何注入器上报实际命中子模型；
