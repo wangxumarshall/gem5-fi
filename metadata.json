@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.10.2",
+  "checkpoint_id": "01M3PG2DGFXP3FP6VFNJX05BPS",
+  "strategy": "manual-commit",
+  "branch": "fi-ding",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "docs/gem5-fi/lsu/progress.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 39707,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 7745536,
+    "output_tokens": 10442,
+    "api_call_count": 11
+  }
+}
