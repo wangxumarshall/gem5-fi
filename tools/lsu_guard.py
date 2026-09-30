@@ -4,9 +4,13 @@
 子命令：
   gate    [--json]                启动前资源门禁采样与判定（§8.3）
   acquire --type build|experiment --desc <str> [--item ID] [--runid ID] [--log PATH]
-                                  获取单实例锁（§8.2；锁含 owner/PID/PGID/日志路径）
-  release [--type build|experiment]  释放锁并记录
-  clear-stale --type ... --confirm-dead-pid <PID>  处置陈旧锁（须显式确认 PID 已死）
+                                  获取锁（build 单实例；experiment 4 槽位，F-022
+                                  用户指令 2026-09-30：实验并发硬上限 4）
+  release --type build|experiment [--slot N --confirm-pid PID]
+                                  释放锁并记录（experiment 须按槽位+PID 确认，
+                                  防并行误删他人槽）
+  clear-stale --type ... --confirm-dead-pid <PID>  处置陈旧锁（须显式确认 PID 已死；
+                                  experiment 扫描全部槽位）
   status                          锁状态 + 当前资源快照
   run --type build --desc <str> --log <PATH> [--max-seconds N] -- <cmd...>
                                   全流程守卫执行：gate → acquire → 新 PGID 派生 →
@@ -20,7 +24,8 @@
   TRIP     : MemAvailable < 8 连续两次，或任一次 < 6，或 SwapFree < 2
   TRIP 处置: 仅对锁内记录、经存活性核实的本任务 PGID 先 TERM 后 KILL（§8.4）
 
-锁目录: runs/lsu/guard/（build.lock / experiment.lock / guard_events.log）
+锁目录: runs/lsu/guard/（build.lock / experiment_slot_0..3.lock / guard_events.log；
+可经 LSU_GUARD_DIR 环境变量覆盖——隔离测试用）
 纯标准库实现，直接读 /proc，不依赖 psutil。
 """
 import argparse
@@ -32,9 +37,14 @@ import subprocess
 import sys
 import time
 
-GUARD_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                         "runs", "lsu", "guard")
+GUARD_DIR = os.environ.get(
+    "LSU_GUARD_DIR",
+    os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                 "runs", "lsu", "guard"))
 GIB = 1024 * 1024 * 1024.0
+# F-022（用户指令 2026-09-30 14:30）：gem5 实验并发硬上限 4。
+# experiment 锁为 4 槽位 experiment_slot_{0..3}.lock；build 锁保持单实例。
+EXPERIMENT_SLOTS = 4
 GATE_MEM_MIN_GIB = 12.0
 GATE_SWAP_MIN_GIB = 4.0
 WARN_MEM_GIB = 10.0
@@ -120,12 +130,17 @@ def _log_event(evt):
         f.write(json.dumps(evt, ensure_ascii=False) + "\n")
 
 
-def _lock_path(task_type):
+def _lock_path(task_type, slot=None):
+    """锁文件路径。experiment 为 4 槽位：slot 必须显式给定（或用 _slots_state 遍历）。"""
+    if task_type == "experiment":
+        if slot is None:
+            raise ValueError("experiment 锁需要显式 slot（0..%d）" % (EXPERIMENT_SLOTS - 1))
+        return os.path.join(GUARD_DIR, f"experiment_slot_{slot}.lock")
     return os.path.join(GUARD_DIR, f"{task_type}.lock")
 
 
-def _read_lock(task_type):
-    p = _lock_path(task_type)
+def _read_lock(task_type, slot=None):
+    p = _lock_path(task_type, slot)
     if not os.path.exists(p):
         return None
     try:
@@ -135,14 +150,39 @@ def _read_lock(task_type):
         return {"corrupt": True, "path": p}
 
 
+def _slots_state():
+    """experiment 4 槽位状态：{slot: lock|None}。"""
+    return {i: _read_lock("experiment", i) for i in range(EXPERIMENT_SLOTS)}
+
+
+def _slot_holders():
+    """占用/异常槽摘要（诊断信息用）：[(slot, pid, desc, live)]。"""
+    out = []
+    for i, lock in _slots_state().items():
+        if lock is None:
+            continue
+        if lock.get("corrupt"):
+            out.append((i, None, "corrupt", False))
+        else:
+            out.append((i, lock.get("pid"), lock.get("desc", "?"),
+                        _pid_alive(lock.get("pid", -1))))
+    return out
+
+
 def _pid_alive(pid):
     return os.path.exists(f"/proc/{pid}")
 
 
-def cmd_gate(args):
+def _gate_result():
+    """启动门禁判定（进程内，供 cmd_gate 与 cmd_run 复用）。"""
     snap = snapshot()
     build_lock = _read_lock("build")
-    exp_lock = _read_lock("experiment")
+    slots = _slots_state()
+    occupied = [i for i, lk in slots.items()
+                if lk is not None and not lk.get("corrupt")]
+    stale = [i for i, lk in slots.items()
+             if lk is not None and not lk.get("corrupt")
+             and not _pid_alive(lk.get("pid", -1))]
     reasons = []
     if snap["mem_available_gib"] < GATE_MEM_MIN_GIB:
         reasons.append(f"MemAvailable {snap['mem_available_gib']} GiB < {GATE_MEM_MIN_GIB} GiB")
@@ -154,63 +194,165 @@ def cmd_gate(args):
         reasons.append(f"blocked 进程过多: {snap['blocked']}")
     if build_lock and not build_lock.get("corrupt"):
         reasons.append(f"build 锁被占: pid={build_lock.get('pid')}")
-    result = {"action": "gate", "ok": not reasons, "reasons": reasons, "snapshot": snap}
+    if stale:
+        # 陈旧槽本身由 acquire 拒绝并提示 clear-stale；gate 一并提示便于诊断
+        reasons.append(f"experiment 存在陈旧槽 {stale}（clear-stale 处置前 acquire 将拒绝）")
+    return {"action": "gate", "ok": not reasons, "reasons": reasons, "snapshot": snap,
+            "experiment_slots_occupied": len(occupied),
+            "experiment_slots_total": EXPERIMENT_SLOTS}
+
+
+def cmd_gate(args):
+    result = _gate_result()
     _log_event(result)
     print(json.dumps(result, ensure_ascii=False, indent=2))
-    return 0 if not reasons else 1
+    return 0 if result["ok"] else 1
 
 
-def cmd_acquire(args):
+def _try_acquire(task_type, desc, item=None, runid=None, log=None):
+    """进程内获取锁（cmd_run 与 CLI acquire 共用）。返回 (lock, None) 或 (None, reason)。
+
+    锁 pid = 调用进程 pid（cmd_run 进程内调用时存活至 run 结束，消除
+    acquire 子进程短命 pid 被并行者误判陈旧的竞态——F-022 重构要点）。
+    """
     os.makedirs(GUARD_DIR, exist_ok=True)
-    path = _lock_path(args.type)
-    old = _read_lock(args.type)
-    if old is not None:
-        if old.get("corrupt"):
-            print(f"REFUSED: 锁文件损坏 {path}，用 clear-stale 处置", file=sys.stderr)
-            return 2
-        if _pid_alive(old.get("pid", -1)):
-            print(f"REFUSED: {args.type} 锁被 pid={old['pid']} pgid={old.get('pgid')} "
-                  f"({old.get('desc','?')}) 持有", file=sys.stderr)
-            return 2
-        print(f"REFUSED: 陈旧锁（pid={old.get('pid')} 已退出但未记录处置）；"
-              f"先 clear-stale 显式处置", file=sys.stderr)
-        return 3
-    lock = {
+    base_lock = {
         "owner": os.environ.get("USER")
         or (os.getlogin() if hasattr(os, "getlogin") else "unknown"),
         "pid": os.getpid(),
         "pgid": os.getpgid(0),
-        "task_type": args.type,
-        "desc": args.desc,
-        "item": args.item,
-        "runid": args.runid,
-        "log": os.path.abspath(args.log) if args.log else None,
+        "task_type": task_type,
+        "desc": desc,
+        "item": item,
+        "runid": runid,
+        "log": os.path.abspath(log) if log else None,
         "started": time.strftime("%Y-%m-%d %H:%M:%S"),
         "acquire_host_pid_tree_note": "run 子命令会在派生子进程后更新 pid/pgid",
     }
-    # O_EXCL 原子创建，防并发双取
-    fd = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o644)
-    with os.fdopen(fd, "w") as f:
-        json.dump(lock, f, ensure_ascii=False, indent=2)
-    _log_event({"action": "acquire", **lock})
+    # 候选路径：build 单锁；experiment 4 槽位（F-022）
+    if task_type == "build":
+        candidates = [(None, _lock_path("build"))]
+    else:
+        candidates = [(i, _lock_path("experiment", i))
+                      for i in range(EXPERIMENT_SLOTS)]
+    # 诊断既有锁：corrupt 立即拒；陈旧锁须 clear-stale 显式处置（F-023 语义：
+    # 不静默绕过异常中断的守卫周期）；存活占用只是跳过（并行语义）
+    holders = []
+    for slot, path in candidates:
+        if not os.path.exists(path):
+            continue
+        old = _read_lock(task_type, slot)
+        if old is None:
+            continue
+        if old.get("corrupt"):
+            return None, f"REFUSED: 锁文件损坏 {path}，用 clear-stale 处置"
+        if _pid_alive(old.get("pid", -1)):
+            holders.append((slot, old))
+        else:
+            return None, (f"REFUSED: {task_type} "
+                          f"{'slot ' + str(slot) + ' ' if slot is not None else ''}"
+                          f"陈旧锁（pid={old.get('pid')} 已退出但未记录处置）；"
+                          f"先 clear-stale 显式处置")
+    # 抢空槽：O_EXCL 原子创建防并发双取；撞槽（EEXIST）自动试下一候选
+    for slot, path in candidates:
+        if os.path.exists(path):
+            continue
+        try:
+            fd = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o644)
+        except FileExistsError:
+            continue
+        lock = {**base_lock, "slot": slot} if slot is not None else base_lock
+        with os.fdopen(fd, "w") as f:
+            json.dump(lock, f, ensure_ascii=False, indent=2)
+        _log_event({"action": "acquire", **lock})
+        return lock, None
+    detail = "\n".join(
+        f"  {'slot ' + str(s) + ': ' if s is not None else ''}pid={o.get('pid')} "
+        f"({o.get('desc', '?')})" for s, o in holders) or "  （锁文件在诊断后被外部创建）"
+    return None, (f"REFUSED: {task_type} 锁全部被占"
+                  f"（experiment 上限 {EXPERIMENT_SLOTS} 槽；资源压力下可降 3/2/1，见总方针 §8.1）：\n"
+                  + detail)
+
+
+def cmd_acquire(args):
+    lock, reason = _try_acquire(args.type, args.desc, args.item, args.runid, args.log)
+    if lock is None:
+        print(reason, file=sys.stderr)
+        return 3 if "陈旧锁" in reason else 2
     print(json.dumps(lock, ensure_ascii=False))
     return 0
 
 
-def cmd_release(args):
-    path = _lock_path(args.type)
-    lock = _read_lock(args.type)
-    if lock is None:
-        print(f"NOTE: {args.type} 锁不存在，无需释放")
-        return 0
+def _release(task_type, slot=None, confirm_pid=None):
+    """进程内释放锁（cmd_run 与 CLI release 共用）。返回 (ok, msg, path)。"""
+    if task_type == "experiment":
+        if slot is None or confirm_pid is None:
+            return False, ("REFUSED: experiment 释放须 --slot N --confirm-pid PID"
+                           "（防并行误删他人槽）"), None
+        path = _lock_path("experiment", slot)
+        lock = _read_lock("experiment", slot)
+        if lock is None:
+            return True, f"NOTE: experiment slot {slot} 锁不存在，无需释放", None
+        if lock.get("corrupt"):
+            return False, f"REFUSED: 槽 {slot} 锁损坏，用 clear-stale 处置", path
+        if str(lock.get("pid")) != str(confirm_pid):
+            return False, (f"REFUSED: --confirm-pid {confirm_pid} 与槽 {slot} 锁内 pid "
+                           f"{lock.get('pid')} 不符（不得释放他人槽）"), path
+    else:
+        path = _lock_path(task_type)
+        lock = _read_lock(task_type)
+        if lock is None:
+            return True, f"NOTE: {task_type} 锁不存在，无需释放", None
     os.unlink(path)
     _log_event({"action": "release", "released_lock": lock,
                 "time": time.strftime("%Y-%m-%d %H:%M:%S")})
-    print(f"RELEASED: {path}")
+    return True, f"RELEASED: {path}", path
+
+
+def cmd_release(args):
+    ok, msg, _path = _release(args.type, args.slot, args.confirm_pid)
+    if not ok:
+        print(msg, file=sys.stderr)
+        return 2
+    print(msg)
     return 0
 
 
 def cmd_clear_stale(args):
+    if args.type == "experiment":
+        # F-022：扫描全部槽，清除 pid 匹配且已死的槽；报告其余槽状态
+        cleared, refused, remaining = [], [], []
+        for slot in range(EXPERIMENT_SLOTS):
+            path = _lock_path("experiment", slot)
+            if not os.path.exists(path):
+                continue
+            lock = _read_lock("experiment", slot)
+            if lock is None:
+                continue
+            if lock.get("corrupt"):
+                os.unlink(path)
+                _log_event({"action": "clear-stale-corrupt", "path": path})
+                cleared.append((slot, "corrupt", path))
+                continue
+            if _pid_alive(lock.get("pid", -1)):
+                refused.append((slot, lock.get("pid")))
+                continue
+            if str(lock.get("pid")) != str(args.confirm_dead_pid):
+                remaining.append((slot, lock.get("pid")))
+                continue
+            os.unlink(path)
+            _log_event({"action": "clear-stale", "cleared": lock,
+                        "time": time.strftime("%Y-%m-%d %H:%M:%S")})
+            cleared.append((slot, lock.get("pid"), path))
+        for slot, pid, path in cleared:
+            print(f"CLEARED stale lock (pid {pid} confirmed dead): {path}")
+        for slot, pid in refused:
+            print(f"REFUSED: slot {slot} pid={pid} 仍存活，不是陈旧锁", file=sys.stderr)
+        for slot, pid in remaining:
+            print(f"NOTE: slot {slot} 陈旧 pid={pid} 与 --confirm-dead-pid 不符，未处置")
+        if not (cleared or refused or remaining):
+            print("NOTE: experiment 槽位无锁")
+        return 0 if not refused else 2
     path = _lock_path(args.type)
     lock = _read_lock(args.type)
     if lock is None:
@@ -236,7 +378,9 @@ def cmd_clear_stale(args):
 
 
 def cmd_status(args):
-    out = {"build_lock": _read_lock("build"), "experiment_lock": _read_lock("experiment"),
+    out = {"build_lock": _read_lock("build"),
+           "experiment_slots": {f"slot_{i}": _read_lock("experiment", i)
+                                for i in range(EXPERIMENT_SLOTS)},
            "snapshot": snapshot()}
     print(json.dumps(out, ensure_ascii=False, indent=2))
     return 0
@@ -320,31 +464,34 @@ def monitor(pgid, log_path, interval, max_seconds=None):
 
 
 def cmd_run(args):
+    # F-022/F-023 重构：gate/acquire/release 全部进程内调用——锁 pid 即本进程 pid
+    # （存活至 run 结束，消除 acquire 短命子进程 pid 被并行者误判陈旧的竞态），
+    # 且 run 周期不再子进程重载本脚本（F-023 中 release 子进程撞损坏脚本的事故面根除）。
     # 1) 启动门禁
-    gate = subprocess.run([sys.executable, __file__, "gate"], capture_output=True, text=True)
-    if gate.returncode != 0:
-        print("GATE BLOCKED:\n" + gate.stdout, file=sys.stderr)
+    gate = _gate_result()
+    _log_event(gate)
+    if not gate["ok"]:
+        print("GATE BLOCKED:\n" + json.dumps(gate, ensure_ascii=False), file=sys.stderr)
         return 1
-    # 2) 获取锁
-    acq = subprocess.run([sys.executable, __file__, "acquire", "--type", args.type,
-                          "--desc", args.desc, "--log", args.log] +
-                         (["--item", args.item] if args.item else []) +
-                         (["--runid", args.runid] if args.runid else []),
-                         capture_output=True, text=True)
-    if acq.returncode != 0:
-        print("ACQUIRE REFUSED:\n" + acq.stderr, file=sys.stderr)
+    # 2) 获取锁（experiment 返回锁含 slot）
+    lock, reason = _try_acquire(args.type, args.desc, args.item, args.runid, args.log)
+    if lock is None:
+        print("ACQUIRE REFUSED:\n" + reason, file=sys.stderr)
         return 2
+    slot = lock.get("slot")  # build 锁为 None
+    proc = None
     try:
         # 3) 新进程组派生命令
         proc = subprocess.Popen(args.command, start_new_session=True)
         pgid = os.getpgid(proc.pid)
-        # 锁内更新真实 pid/pgid
-        lock = _read_lock(args.type)
+        # 锁内更新真实 pid/pgid（按 slot 定位锁文件）
         lock["pid"], lock["pgid"], lock["cmd"] = proc.pid, pgid, args.command
-        with open(_lock_path(args.type), "w") as f:
+        with open(_lock_path(args.type, slot), "w") as f:
             json.dump(lock, f, ensure_ascii=False, indent=2)
-        _log_event({"action": "spawn", "pid": proc.pid, "pgid": pgid, "cmd": args.cmd})
-        print(f"SPAWNED pid={proc.pid} pgid={pgid} log={args.log}")
+        _log_event({"action": "spawn", "pid": proc.pid, "pgid": pgid,
+                    "slot": slot, "cmd": args.cmd})
+        print(f"SPAWNED pid={proc.pid} pgid={pgid}"
+              f"{' slot=' + str(slot) if slot is not None else ''} log={args.log}")
         # 4) 采样监控
         reason = monitor(pgid, args.log, args.interval, args.max_seconds)
         # 5) 收割与总结
@@ -356,10 +503,15 @@ def cmd_run(args):
         print(json.dumps(summary, ensure_ascii=False))
         return rc
     finally:
-        rel = subprocess.run([sys.executable, __file__, "release", "--type", args.type],
-                             capture_output=True, text=True)
-        if rel.returncode != 0:
-            print(f"WARNING: 锁释放异常: {rel.stderr}", file=sys.stderr)
+        try:
+            # experiment：按本 run 的槽位 + 派生 pid 精确释放（防并行误删他人槽）；
+            # Popen 未及执行时用 acquire 记录的本进程 pid
+            confirm_pid = proc.pid if proc is not None else lock.get("pid")
+            ok, msg, _p = _release(args.type, slot, confirm_pid)
+            if not ok:
+                print(f"WARNING: 锁释放异常: {msg}", file=sys.stderr)
+        except Exception as exc:  # 释放路径异常不得掩盖 run 的原始异常
+            print(f"WARNING: 锁释放异常: {exc}", file=sys.stderr)
 
 
 def cmd_sample(args):
@@ -387,6 +539,10 @@ def main():
 
     r = sub.add_parser("release")
     r.add_argument("--type", choices=["build", "experiment"], default="build")
+    r.add_argument("--slot", type=int, default=None,
+                   help="experiment 槽位号（experiment 必填）")
+    r.add_argument("--confirm-pid", dest="confirm_pid", default=None,
+                   help="锁内记录的派生 pid（experiment 必填，防误删他人槽）")
     r.set_defaults(func=cmd_release)
 
     cs = sub.add_parser("clear-stale")
