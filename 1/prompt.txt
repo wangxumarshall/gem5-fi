@@ -1,0 +1,5 @@
+[LSU pilot 监控周期] 执行以下检查并继续 pilot 波次管理：(1) tail /tmp/pilot_wave.log 和 runs/lsu/pilot/*/unit_status.json 检查三单元 pilot 进度（AGU→L1d-TLB→Load Queue，WAVE_PID 68134）；(2) 检查最新守卫资源采样（runs/lsu/guard/ 下最新 rsrc.log 与 guard_events.log）确认无 WARNING/TRIP——若 TRIP 立即按总方针 §8.4 处置并停止；(3) 检查 WAVE 进程树存活（ps -p 68134 或 pgrep -f lsu_unit_pilot）；若进程死且未到三单元完成，诊断原因并按断点续跑重启（python3 tools/lsu_unit_pilot.py --unit <当前单元>）；(4) 更新 docs/gem5-fi/lsu/progress.md（当前 ITEM/RunID/Excel行/完成数/资源状态/唯一下一动作）；(5) 若某 ITEM 完成（unit_status.json 有新终态），把该 ITEM 的 result 摘要记入 findings.md；(6) 若三单元全部完成（WAVE_DONE 出现在日志），做单元级汇总并 commit+push，然后按用户指定的明早汇报格式生成报告。所有动作遵守资源守卫与串行规则，不得并发启动第二个 pilot。
+
+---
+
+继续
