@@ -1,0 +1,27 @@
+F-022 Patch A（draft/lsu_guard.py 4 槽位实验锁）测试记录 2026-09-30 15:45-15:56
+隔离环境：LSU_GUARD_DIR=/tmp/f022_guard_test（不触碰真实锁目录）
+================================================================
+
+[T1] status 空槽显示
+slots: {'slot_0': None, 'slot_1': None, 'slot_2': None, 'slot_3': None}; build: None  → PASS
+
+[T2] 6 并发守卫 run（4 槽，sleep 4，真实进程）
+run1-6 exit: 0 0 0 2 0 2 —— 4 个成功（各占一槽 0-3，无双取），2 个 ACQUIRE REFUSED → PASS
+SPAWNED pid=355800 slot=0 / 355801 slot=1 / 355802 slot=2 / 355803 slot=3
+
+[T3] release 确认语义
+--confirm-pid 不符 → REFUSED exit=2（不得释放他人槽）；槽空 → NOTE；匹配 → RELEASED → PASS
+
+[T4] 陈旧槽语义
+acquire vs 陈旧槽（pid 999997 已死）→ REFUSED exit=3（须 clear-stale 显式处置）
+clear-stale --confirm-dead-pid 999997 → CLEARED；不匹配 pid → NOTE 不处置 → PASS
+
+[T6] 完整 run 周期 + 槽复用
+run sleep 1 → SPAWNED slot=0 → run-finish exit_code 0 → release → status 全空 → PASS
+
+[T-额外] 退出码语义
+acquire-vs-stale=3 / clear-stale=0 / release-mismatch=2 / release-缺参=2 / gate 空闲=0 → PASS
+
+核心重构（F-023 根因根除）：cmd_run 进程内调用 gate/acquire/release（不再子进程
+重载本脚本）——锁 pid=长命 run 进程 pid，消除并行误判陈旧竞态 + 脚本运行中被
+编辑的事故面。

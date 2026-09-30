@@ -13,7 +13,7 @@
 - **Phase Status:** IN_PROGRESS
 - **Overall Status:** IN_PROGRESS（事故恢复中，见 F-023）
 - **Started:** 2026-09-29 11:22 (Session 001)
-- **Last Updated:** 2026-09-30 15:38（F-023 事故处置：14:37–15:26 守卫中断致 AGU 约 2,670 个空转 run / 9 个无效 result.json / 5 个无效 census；15:26 有序停止波次 bash 81524/unit_pilot 81526；15:33 clear-stale 陈旧锁 pid 325615；下一步=污染数据隔离 → 引擎 fail-fast 加固 → 重启波次）
+- **Last Updated:** 2026-09-30 16:20（**F-022 引擎升级交付，波次 4 以 4 并发运行**：①Patch A 守卫 4 槽位（commit 7a61df86）+ Patch B 引擎并行/resume/census 持久化（f2af9fe8）已推送——全部经 tools/draft/ 隔离开发 + 隔离测试（T1-T6/B-T1..T4 全 PASS，evidence/P3/f022_patch_{a,b}_test.txt）+ 停波次一次性切换（波次 3 于 16:0x 停止，在飞 s19 独立跑完自释放）；②波次 4（WAVE4 bash PID/PGID 360275，--workers 4）16:10 启动：**"resume: 75 valid samples reused"**（F-023 前 ITEM-009 s0-s74 全部保留）+ 4 槽并行（s75-s78）+ 4 gem5 进程 + MemAvailable 26.9 GiB；③cmd_run 进程内化重构根除 F-023 两事故面。G0-10 已按 4 槽口径复验 PASS（findings F-024））
 - **Current Owner:** 服务器执行 AI（Claude，主协调 AI；前会话于 15:06 guard 还原后终止，本会话 15:07 起接管）
 - **Current Checklist Item:** AGU ITEM-009（A02-F2-W3，有效 s0–s75=76 runs 全 act=0，未达终态）及其后 ITEM-010..025 全部因 F-023 污染需重跑；ITEM-001..008 有效（5 COMPLETE + 3 真实 BLOCKED）
 - **Current RunID:** A02-F2-W3（中断于 s75；s76–s299 为无效空转）
@@ -22,9 +22,9 @@
 - **Resource Safety State:** NORMAL（波次已停止，实验锁空闲，无重任务）
 - **Build Concurrency Limit:** 8（同一时刻最多一个编译任务，经 lsu_guard 强制）
 - **Experiment Concurrency Limit:** 4（硬上限；2026-09-30 14:30 用户指令。**注意：F-022 要求的 4 槽位引擎升级未落地**——前会话 14:37 实施中途放弃（guard 语法损坏 28 分钟），tools/ 已还原=HEAD 单实例版本；升级列为本会话待办，隔离开发验证后切换）
-- **Active Heavy Task:** 无（波次 15:26 停止，等待引擎加固后重启）
-- **Active PID/PGID:** 无
-- **Resource Lock:** 空闲（experiment.lock 陈旧锁已 clear-stale 处置 15:33）
+- **Active Heavy Task:** P3 pilot 波次 4（F-022 升级版引擎 --workers 4；bash 链串行 AGU→L1d-TLB→Load Queue；AGU 自 ITEM-009 s75 起 4 并发续跑，75 个有效样本已 resume）
+- **Active PID/PGID:** 360275（bash 链，WAVE4）/ 360277（AGU unit_pilot）/ 每 run 独立 guard 槽位进程（experiment_slot_{0..3}）
+- **Resource Lock:** 4 槽位 experiment_slot_{0..3}.lock，逐 run 获取/精确释放（--slot+--confirm-pid），60s 采样到各 ITEM-XXX_sN_rsrc.log
 - **Resource Log:** runs/lsu/guard/guard_events.log（14:36:37 最后正常 acquire 后中断；重启后继续）
 - **Latest MemAvailable / SwapFree / Load:** 28.5 GiB / 16.3 GiB / 1.97，blocked=0（2026-09-30 15:22 采样，无 WARNING/TRIP）
 - **Next Step:** ①隔离 F-023 污染数据到 quarantine_20260930_guard_outage/ 并修正 unit_status.json；②lsu_unit_pilot.py fail-fast 加固（guard 失败≠样本）+定向验证；③commit+push 后重启波次（AGU 断点续跑→L1d-TLB→Load Queue）；④F-022 4 并发引擎升级（隔离开发）。
@@ -102,6 +102,8 @@ AGU pilot 细分（39 ITEM）：ELIGIBLE 28 / admission BLOCKED 11（ITEM-011/01
 | 2026-09-29 15:58–16:00 | NORMAL | 充足（gate 两次 PASS） | 15.59 GiB | 低 | 0 | DET 双跑：run1(38091)→run2(38469) 严格串行 | experiment.lock（逐次获取/释放） | A01-F0-W3 确定性 PASS（C1-C5）；采样 runs/lsu/guard/det_a01_run{1,2}_rsrc.log |
 | 2026-09-30 15:21–15:26 | NORMAL（事故期资源无压力） | 28.5 GiB | 16.3 GiB | 1.6–2.0 | 0 | F-023 空转期（无 gem5 实际运行）；15:26 TERM 波次 bash 81524/unit_pilot 81526 | experiment.lock 陈旧（15:33 已 clear-stale） | 事故不涉及资源越限——守卫中断是代码/流程缺陷非资源问题；guard_events gate 采样持续正常 |
 | 2026-09-30 15:33 | NORMAL | ~28.5 GiB | 16.3 GiB | 低 | 0 | 无（波次停止，恢复准备中） | 空闲（陈旧锁已处置） | clear-stale pid 325615 确认死亡后清除；工具三件（guard/pilot/runner）与 HEAD 全等 |
+| 2026-09-30 15:41–16:05 | NORMAL | 28.4 GiB（gate PASS） | 16.3 GiB | 0.16–0.28 | 0 | 波次 3（WAVE3 bash 352745，单实例引擎 F-023 加固版）；16:0x 停止，在飞 s19 独立跑完自释放 | experiment.lock 逐 run 获取/释放 | 停机切换窗口：Patch A/B 开发于 tools/draft/（隔离 LSU_GUARD_DIR 测试），波次运行期间 tools/ 零编辑（F-023 教训执行） |
+| 2026-09-30 16:10–16:20 | NORMAL | 26.9 GiB（4 并发 gem5） | 16.3 GiB | 0.38 | 0 | 波次 4（WAVE4 bash 360275，--workers 4）：4 槽并行（s75-s78）+ 75 样本 resume | experiment_slot_{0..3}.lock 全占用（逐 run --slot+--confirm-pid 精确释放） | F-022 交付实机验证：MemAvail 26.9 GiB 远高于 WARNING 10 GiB；4×gem5 仅耗 ~1.5 GiB；G0-10 复验 PASS-4 槽口径（findings F-024） |
 
 ## Errors and Retries
 

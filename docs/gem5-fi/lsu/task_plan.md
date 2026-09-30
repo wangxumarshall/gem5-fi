@@ -48,7 +48,7 @@ P0
 | G0-07 | oracle | golden 重复稳定，规则可自动判定 | PASS-SE（golden 3× 全稳定；oracle = stdout hash 自动判定，tools/lsu_l5_classify.py 在库；FS oracle = tlb_probe md5 + ok=N/10 已定义） |
 | G0-08 | seed | 稳定算法和 seed manifest 可复现 | PARTIAL（tools/lsu_seed.py 实现并自测 PASS：固定向量+确定性+范围+phase/sample 区分；manifest 生成器就绪 325×30=9750 条冒烟通过；正式 seed manifest 冻结待 P3） |
 | G0-09 | timeout | golden 10×规则及 wall/sim 上限固定 | PASS-SE（golden max wall 61s/run → SE timeout = 600s（10×），绝对上限 1800s；与守卫 --max-seconds 600 一致；FS timeout 待 tlb_probe 实测后固定） |
-| G0-10 | CPU/RAM/worker/磁盘预算与资源防护 | 编译≤8且单实例；实验硬上限4（压力降3/2/1、恢复回4）；槽锁、PID/PGID、60秒监控、启动门禁和熔断均可验证 | PASS-旧口径（单实例锁 T1–T7 全 PASS，evidence/P0/guard_verify.out）；4 槽位实验锁机制于引擎升级后复验 |
+| G0-10 | CPU/RAM/worker/磁盘预算与资源防护 | 编译≤8且单实例；实验硬上限4（压力降3/2/1、恢复回4）；槽锁、PID/PGID、60秒监控、启动门禁和熔断均可验证 | **PASS-4 槽口径（2026-09-30 16:20 复验）**：守卫 4 槽位（commit 7a61df86）——隔离测试 T1-T6 全 PASS（6 并发 4 成功 2 拒绝零双取、release --slot+--confirm-pid 防误删、陈旧槽 clear-stale、run 周期槽复用，evidence/P3/f022_patch_a_test.txt）+ 实机验证（波次 4：4 槽并行占用、75 样本 resume、MemAvailable 26.9 GiB）；build 锁仍单实例；F-023 fail-fast（GUARD_FAILURE 不记账）保持。旧口径 T1-T7 见 evidence/P0/guard_verify.out |
 
 ## Phases
 

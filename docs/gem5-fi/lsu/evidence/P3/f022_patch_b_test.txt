@@ -1,0 +1,23 @@
+F-022 Patch B（draft/lsu_unit_pilot.py 并行样本 + resume）测试记录 2026-09-30 16:0x
+================================================================
+
+[B-T1] py_compile + dry-run 与现行为一致
+[AGU] ITEM 总数 39：ELIGIBLE 31 / BLOCKED 8（准入不变） → PASS
+
+[B-T2] 样本级 resume（mock run_one）
+构造 s0/s1 有效 + s2 F-023 残留（verdict 有效但 guard.out 无 run-finish）：
+"resume: 2 valid samples reused, next s=2"；s2 重跑；act=0 路径跑满 300 上限
+（2 resumed + 298 new，与真实 BLOCKED ITEM 语义一致） → PASS
+
+[B-T3] workers=2 线程池派发停止（mock run_one activated=1）
+stopped at 31 activated / 31 runs（30 目标 + 在飞超采 1，audit 诚实记录） → PASS
+
+[B-T3b] resumed activated 计入目标
+2 个 resumed activated=1 + 28 新 run = 30 停止（不浪费已有有效样本） → PASS
+
+[B-T4] GuardFailure 并行路径传播（fail-fast 保持）
+workers=3 下 mock 抛 GuardFailure → run_item_samples 向上抛出
+→ main 记 GUARD_FAILURE 并中止单元（F-023 语义不变） → PASS
+
+切换流程：停波次 3 → draft→tools 替换 → Patch A/B 两个独立 commit →
+波次 4（--workers 4）→ 实机验证（4 槽占用 + ITEM-009 resume + 守恒）。
