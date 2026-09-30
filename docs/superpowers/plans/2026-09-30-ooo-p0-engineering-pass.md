@@ -25,9 +25,11 @@ P0 要求"建立并测试编译单实例锁、实验 worker lease 注册表、�
 - 验证（真实命令，2026-09-30 login01 实测引用，f0a5b249 4 槽版）：gate ok=False（编译进程在跑=正确阻断）+swap_exempt_note+slots 字段；4 存活槽→第 5 次 acquire REFUSED（列出全部持有者）；错误 --confirm-pid 释放 REFUSED（不得释放他人槽）；陈旧槽存在时 acquire REFUSED（F-023 显式处置语义）；clear-stale 按槽清除+不匹配 NOTE；清后 re-acquire 成功入槽；status 4 槽归零。**待补（build 完成后）**：`run` 全流程（gate 通过后的真实命令，含采样/TRIP/释放收尾）。
 
 ### Unit 2：`tools/ooo_recover.py` — 原子 COMPLETE 标记 + 恢复扫描（原 Unit 3）
-- [ ] mark-complete：结果目录内 `COMPLETE.json`（tmp 写入 + rename 原子落位，含 run_key、exit、分类、证据路径、sha256）。
-- [ ] scan：遍历 `runs/ooo/`，输出每 run_key 状态 COMPLETE/INTERRUPTED(有 lease 无 COMPLETE)/MISSING(无 lease 无 COMPLETE)/ORPHAN(有 COMPLETE 无记录)，--json 可机读；只报告不修改（恢复动作由 campaign 决策）。
-- 验证：在 runs/ooo/selftest/ 下构造 COMPLETE/陈旧 lease/空目录三态 → scan 输出与构造一致。
+- [x] mark-complete：结果目录内 `COMPLETE.json`（tmp 写入 + os.replace 原子落位，含 run_key、exit、classification、evidence、created_utc、sha256 自校验）；标记不可变（已存在即拒绝覆盖）；manifest run_key 不一致即拒绝；`--allow-no-manifest` 显式豁免并在标记内留 note。
+- [x] scan：遍历运行根目录，逐样本输出状态，`--json` 可机读；只报告不修改（恢复动作由 campaign 决策）：
+  COMPLETE（有效标记）/ RUNNING（manifest 在、心跳新鲜）/ INTERRUPTED（已启动但无有效标记：心跳陈旧/缺失、标记篡改、run_key 冲突）/ MISSING（清单有而磁盘无，或 sample_* 空目录）/ ORPHAN（磁盘有而不在清单）；无 `--expected` 时 ORPHAN 显式注明不可判定，不臆测。
+  - 修订（2026-09-30）：Unit 1 并入 4 槽实验锁后无每样本 lease 文件，"已启动"改由 manifest.json+heartbeat 判定，并细分 RUNNING/INTERRUPTED——状态语义强于原计划三态。
+- 验证（真实命令，2026-09-30 login01）：`python3 tools/ooo_recover.py selftest` → **10/10 PASS**（陈旧心跳→INTERRUPTED、新鲜心跳→RUNNING、正常标记→COMPLETE、标记篡改→sha256 检出、run_key 不一致→拒绝、--allow-no-manifest→COMPLETE+note、清单外→ORPHAN、清单幽灵→MISSING、空目录→MISSING、汇总计数 total=9 全对）；CLI 端到端 `mark-complete` → `scan`（human 与 --json）实测一致；回归 `tools/ooo_guard.py status` 正常（4 槽全空、swap_exempt=true）。
 
 ### Unit 3：文档与 G0 填表（[OOO][P0] 收口提交；原 Unit 4）
 - [ ] task_plan.md G0 表：G0-01（build 证据）、G0-03（环境锁定）、G0-05（负载盘点+W1 缺口）、G0-08（seed/run_key 规则落地确认）、G0-10（本计划三单元测试输出）填状态与证据；G0-02/04/06/07/09 保持 UNCHECKED 并注明归属 P1/P2 的缺失项。
