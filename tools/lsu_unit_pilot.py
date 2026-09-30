@@ -16,6 +16,11 @@
   审计（每 ITEM）：五类 + post_activation_simulator_failure + injected_not_activated
     守恒：五类之和 + sim_failure = activated_runs；activated + not_activated = attempted
 
+  F-023 加固（2026-09-30）：guard 周期未完成（acquire 拒绝/脚本损坏/无 run-finish 标记）
+  → GuardFailure 异常，该 run 不记账；ITEM 记 GUARD_FAILURE（非终态）并中止本单元——
+  守卫基础设施失败是系统性的，继续只会空转产生伪样本（2026-09-30 14:37–15:26
+  约 2,670 个空转 run 被误记为 attempted 的事故教训，见 findings.md F-023）。
+
 用法：
   python3 tools/lsu_unit_pilot.py --unit AGU --dry-run     # 准入判定 + unit manifest
   python3 tools/lsu_unit_pilot.py --unit AGU               # 执行（可断点续跑）
@@ -77,8 +82,29 @@ def classify_run(outdir, guard_out, golden, gem5_exit):
     return json.loads(m.group(1)) if m else {"error": f"cls: {r.stderr[-200:]}"}
 
 
+class GuardFailure(RuntimeError):
+    """守卫未完成 run 周期（F-023）：acquire 拒绝 / 守卫脚本损坏 / 无 run-finish 标记。
+
+    guard_out 无 '"action": "run-finish"' 即 gem5 从未在守卫管辖下执行完一个周期，
+    该 run 不产生任何实验数据——绝不作为样本记账。
+    """
+
+
+def _guard_fail(gtxt, guard_out):
+    if "ACQUIRE REFUSED" in gtxt:
+        hint = "acquire refused (stale lock or slots full) — run lsu_guard.py clear-stale"
+    elif "SyntaxError" in gtxt or "Traceback" in gtxt:
+        hint = "guard script itself errored (editing guard.py while wave runs?)"
+    else:
+        hint = "no run-finish marker in guard output"
+    return GuardFailure(f"{hint}; guard_out={guard_out}; tail={gtxt[-200:]!r}")
+
+
 def run_one(manifest, outdir, span):
-    """单 run：守卫执行 + L5 分类。返回 (verdict, gem5_exit)。"""
+    """单 run：守卫执行 + L5 分类。返回 (verdict, gem5_exit)。
+
+    F-023 加固：guard_out 必须含 run-finish 标记，否则抛 GuardFailure（不记账）。
+    """
     cfg, args = LR.build_guard_cmd(manifest, outdir, span=span)
     guard_out = outdir.parent / (outdir.name + "_guard.out")
     with open(guard_out, "w") as gf:
@@ -91,7 +117,9 @@ def run_one(manifest, outdir, span):
                            stdout=gf, stderr=subprocess.STDOUT)
     gtxt = guard_out.read_text(errors="replace")
     ec = re.search(r'"exit_code": (-?\d+)', gtxt)
-    gem5_exit = int(ec.group(1)) if ec else r.returncode
+    if '"action": "run-finish"' not in gtxt or ec is None:
+        raise _guard_fail(gtxt, guard_out)
+    gem5_exit = int(ec.group(1))
     v = classify_run(outdir, guard_out, manifest["golden"], gem5_exit)
     v["gem5_exit"] = gem5_exit
     (outdir / "l5_verdict.json").write_text(json.dumps(v, ensure_ascii=False, indent=1))
@@ -99,7 +127,11 @@ def run_one(manifest, outdir, span):
 
 
 def census(manifest, cnt_dir):
-    """F0 计数 pass（每 ITEM 一次）。返回 N。"""
+    """F0 计数 pass（每 ITEM 一次）。返回 N。
+
+    F-023 加固：guard 周期未完成或无 eligible 行 → GuardFailure；
+    不得把基础设施失败误判为"census=0（无 eligible 事件）"。
+    """
     cfg, args = LR.build_guard_cmd(manifest, cnt_dir, span=2**63 - 1)
     g_out = cnt_dir.parent / (cnt_dir.name + "_guard.out")
     with open(g_out, "w") as gf:
@@ -110,8 +142,14 @@ def census(manifest, cnt_dir):
                         "--", str(REPO / "build/ARM/gem5.opt"),
                         "--outdir", str(cnt_dir), cfg] + args,
                        stdout=gf, stderr=subprocess.STDOUT)
-    n = re.search(r"CHAOS_LSU_TRIGGER: .*?eligible=(\d+)", g_out.read_text(errors="replace"))
-    return int(n.group(1)) if n else 0
+    gtxt = g_out.read_text(errors="replace")
+    if '"action": "run-finish"' not in gtxt:
+        raise _guard_fail(gtxt, g_out)
+    n = re.search(r"CHAOS_LSU_TRIGGER: .*?eligible=(\d+)", gtxt)
+    if n is None:
+        raise GuardFailure(f"census cycle finished but no CHAOS_LSU_TRIGGER eligible line "
+                           f"(injector logging broken?); guard_out={g_out}")
+    return int(n.group(1))
 
 
 def audit(runs):
@@ -198,28 +236,41 @@ def main():
             status_path.write_text(json.dumps(status, ensure_ascii=False, indent=1))
             print(f"[{it}] BLOCKED (build_manifest): {ex}")
             continue
-        if m0["frequency"] == "F0" and m0["family"] in ("addrpath", "lsqfwd", "prefetch"):
-            cnt = udir / (it + "_census")
-            cnt.mkdir(parents=True, exist_ok=True)
-            span = census(m0, cnt)
-            print(f"[{it}] F0 census N={span}")
-            if span <= 0:
-                status["items"][it] = {"status": "BLOCKED", "reason": "census=0（无 eligible 事件）"}
-                status["updated"] = time.strftime("%F %T")
-                status_path.write_text(json.dumps(status, ensure_ascii=False, indent=1))
-                continue
-        for s in range(ATTEMPTED_CAP):
-            if len([r for r in runs if not r.get("error")
-                    and r.get("activated", 0) >= 1]) >= SAMPLES_TARGET:
-                break
-            m = LR.build_manifest(it, args.phase, s)
-            od = udir / f"{it}_s{s}"
-            od.mkdir(parents=True, exist_ok=True)
-            v, _ = run_one(m, od, span)
-            runs.append(v)
-            if s % 5 == 0 or v.get("activated", 0) >= 1:
-                print(f"[{it}] s{s}: {v.get('outcome')}/{v.get('crash_kind','-')} "
-                      f"act={v.get('activated')}")
+        # GuardFailure 防护（F-023）：守卫基础设施失败（stale 锁/脚本损坏/无
+        # run-finish）是系统性的——该 run 不记账，ITEM 记 GUARD_FAILURE（非
+        # 终态，断点续跑自动重试），并立即中止本单元防止空转伪样本。
+        try:
+            if m0["frequency"] == "F0" and m0["family"] in ("addrpath", "lsqfwd", "prefetch"):
+                cnt = udir / (it + "_census")
+                cnt.mkdir(parents=True, exist_ok=True)
+                span = census(m0, cnt)
+                print(f"[{it}] F0 census N={span}")
+                if span <= 0:
+                    status["items"][it] = {"status": "BLOCKED", "reason": "census=0（无 eligible 事件）"}
+                    status["updated"] = time.strftime("%F %T")
+                    status_path.write_text(json.dumps(status, ensure_ascii=False, indent=1))
+                    continue
+            for s in range(ATTEMPTED_CAP):
+                if len([r for r in runs if not r.get("error")
+                        and r.get("activated", 0) >= 1]) >= SAMPLES_TARGET:
+                    break
+                m = LR.build_manifest(it, args.phase, s)
+                od = udir / f"{it}_s{s}"
+                od.mkdir(parents=True, exist_ok=True)
+                v, _ = run_one(m, od, span)
+                runs.append(v)
+                if s % 5 == 0 or v.get("activated", 0) >= 1:
+                    print(f"[{it}] s{s}: {v.get('outcome')}/{v.get('crash_kind','-')} "
+                          f"act={v.get('activated')}")
+        except GuardFailure as gf:
+            status["items"][it] = {"status": "GUARD_FAILURE",
+                                   "reason": f"infra: {gf}"[:500]}
+            status["updated"] = time.strftime("%F %T")
+            status_path.write_text(json.dumps(status, ensure_ascii=False, indent=1))
+            print(f"[{it}] GUARD_FAILURE: {gf}")
+            print(f"[{args.unit}] UNIT ABORTED (guard infrastructure failure, F-023 "
+                  f"fail-fast; diagnose + clear-stale/fix, then resume)")
+            return
         res = audit(runs)
         res.update({"status": "COMPLETE" if res["activated_runs"] >= SAMPLES_TARGET
                     else "BLOCKED",

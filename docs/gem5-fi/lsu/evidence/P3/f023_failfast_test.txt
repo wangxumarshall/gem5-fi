@@ -1,0 +1,24 @@
+F-023 引擎 fail-fast 加固验证（2026-09-30 15:5x，真实命令输出）
+================================================================
+
+[1] 语法 + dry-run（准入不变性）
+$ python3 -m py_compile tools/lsu_unit_pilot.py && python3 tools/lsu_unit_pilot.py --unit AGU --dry-run | head -3
+COMPILE OK
+[AGU] ITEM 总数 39：ELIGIBLE 31 / BLOCKED 8
+  ITEM-001 A01-F0-W3      ELIGIBLE   se:agu_addrmodes golden=728e604ffcec539d
+
+[2] fail-fast 触发（构造 stale 锁 pid=999999 → 调 run_one/census，gem5 不启动）
+PASS run_one GuardFailure: acquire refused (stale lock or slots full) — run lsu_guard.py clear-stale; guard_out=/tmp/f023_test/f023_probe_s0_guard.out; tail='ACQUIRE REFUSED:\nREFUSED: 陈旧锁...'
+verdict file written?  False
+PASS census GuardFailure: acquire refused (stale lock or slots full) — run lsu_guard.py clear-stale; guard_out=/tmp/f023_test/f023_census_guard.out; tail='ACQUIRE REFUSED:\nREFUSED: 陈旧锁...'
+
+[3] 测试锁清理
+$ python3 tools/lsu_guard.py clear-stale --type experiment --confirm-dead-pid 999999
+CLEARED stale lock (pid 999999 confirmed dead): /home/sdc/gem5-fi-ding/runs/lsu/guard/experiment.lock
+(no locks)
+
+[4] s75 场景不误伤（静态核验）：ITEM-009_s75_guard.out 含 run-finish 行 + "锁释放异常" SyntaxError 警告并存——
+    加固逻辑只以 '"action": "run-finish"' 缺失为失败条件，SyntaxError 警告在有 run-finish 时不触发 GuardFailure。
+    （该 s75 原件保留于 quarantine_20260930_guard_outage/；ITEM-009 断点续跑时幂等重执行。）
+
+结论：guard 基础设施失败（stale 锁/脚本损坏）不再可能被记为实验样本；单元将在首个失败 run 即中止。
