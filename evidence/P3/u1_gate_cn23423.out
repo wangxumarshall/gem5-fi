@@ -1,0 +1,8 @@
+# U1 验证：守卫无 swap N/A 语义 — cn23423（真实无 swap 节点，keeper 1773102）
+# 命令（经 dattach）：cd repo && python3 tools/lsu_guard.py gate
+# 日期：2026-09-30 17:47
+ok= True
+reasons= []
+notes= ['swap_na: SwapTotal=0，SwapFree 门禁 N/A（F-024）']
+mem_avail= 526.11 swap_na= True swap_total= 0.0 compile= [] blocked_n= 3
+# 结论：无 swap 节点门禁放行（swap 判据 N/A 显式记录），MemAvailable 526 GiB 充裕

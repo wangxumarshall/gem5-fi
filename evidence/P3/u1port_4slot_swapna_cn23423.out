@@ -1,0 +1,18 @@
+# U1-port 验证：合并版守卫（旧会话 F-022 Patch A 4 槽位 + 本会话 swap_na 移植）
+# 节点：cn23423（真实无 swap，keeper 1773102）；隔离：LSU_GUARD_DIR=/tmp/u1port_guard_test
+# 命令：bash /home/share/suke/wangxu/lsu_keeper/u1port_test.sh（脚本随证据保留于 lsu_keeper）
+# 日期：2026-09-30 18:1x
+== [T0] gate ==
+ok= True | notes= ['swap_na: SwapTotal=0，SwapFree 门禁 N/A（F-027）'] | swap_na= True | slots= 0 / 4
+== [T1] status 空槽 ==
+slots= {'slot_0': None, 'slot_1': None, 'slot_2': None, 'slot_3': None} | build= None
+== [T2] 6 并发 run --type experiment（sleep 4） ==
+run1 rc=0 / run2 rc=0 / run5 rc=0 / run6 rc=0（各占 slot 0-3，SPAWNED pid 3935832-3935835）
+run3 rc=2 / run4 rc=2（ACQUIRE REFUSED: experiment 锁全部被占（上限 4 槽））
+== [T3] 结束后槽位全空 ==
+slots= {'slot_0': None, 'slot_1': None, 'slot_2': None, 'slot_3': None}
+== [T4] 采样记录 ==
+trip= None | warning= False | swap_na= True（无 swap 节点不误熔断）
+# 结论：4 槽并发语义（旧会话 Patch A）+ swap_na 语义（本会话 U1 移植）在集群节点实测全 PASS
+# 注：u1_gate_{cn23423,login01}.out 为移植前单实例守卫版本的验证（历史保留）；
+#     本文件为合并后权威验证。

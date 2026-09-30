@@ -20,6 +20,8 @@
 
 阈值（总方针 §8.3/§8.4，GiB=2^30）：
   GATE 阻断: MemAvailable < 12 或 SwapFree < 4 或存在编译进程或锁被占
+          （SwapTotal=0 的无 swap 节点：swap 判据 N/A，内存安全由 MemAvailable
+            判据全权承担——F-027，快照 swap_na=true 显式记录，非静默跳过）
   WARNING  : MemAvailable < 10
   TRIP     : MemAvailable < 8 连续两次，或任一次 < 6，或 SwapFree < 2
   TRIP 处置: 仅对锁内记录、经存活性核实的本任务 PGID 先 TERM 后 KILL（§8.4）
@@ -115,6 +117,7 @@ def snapshot():
         "mem_available_gib": round(mi.get("MemAvailable", 0) / GIB, 2),
         "swap_free_gib": round(mi.get("SwapFree", 0) / GIB, 2),
         "swap_total_gib": round(mi.get("SwapTotal", 0) / GIB, 2),
+        "swap_na": mi.get("SwapTotal", 0) == 0,
         "committed_as_gib": round(mi.get("Committed_AS", 0) / GIB, 2),
         "load_1_5_15": [l1, l5, l15],
         "blocked": blocked,
@@ -184,9 +187,14 @@ def _gate_result():
              if lk is not None and not lk.get("corrupt")
              and not _pid_alive(lk.get("pid", -1))]
     reasons = []
+    notes = []
     if snap["mem_available_gib"] < GATE_MEM_MIN_GIB:
         reasons.append(f"MemAvailable {snap['mem_available_gib']} GiB < {GATE_MEM_MIN_GIB} GiB")
-    if snap["swap_free_gib"] < GATE_SWAP_MIN_GIB:
+    if snap["swap_na"]:
+        # F-027：无 swap 节点（SwapTotal=0）——换页物理不可能，swap 门禁 N/A；
+        # 显式记录而非静默（MemAvailable 门禁仍全权生效）
+        notes.append("swap_na: SwapTotal=0，SwapFree 门禁 N/A（F-027）")
+    elif snap["swap_free_gib"] < GATE_SWAP_MIN_GIB:
         reasons.append(f"SwapFree {snap['swap_free_gib']} GiB < {GATE_SWAP_MIN_GIB} GiB")
     if snap["compile_processes"]:
         reasons.append(f"存在编译进程: {snap['compile_processes']}")
@@ -197,7 +205,8 @@ def _gate_result():
     if stale:
         # 陈旧槽本身由 acquire 拒绝并提示 clear-stale；gate 一并提示便于诊断
         reasons.append(f"experiment 存在陈旧槽 {stale}（clear-stale 处置前 acquire 将拒绝）")
-    return {"action": "gate", "ok": not reasons, "reasons": reasons, "snapshot": snap,
+    return {"action": "gate", "ok": not reasons, "reasons": reasons, "notes": notes,
+            "snapshot": snap,
             "experiment_slots_occupied": len(occupied),
             "experiment_slots_total": EXPERIMENT_SLOTS}
 
@@ -418,7 +427,8 @@ def monitor(pgid, log_path, interval, max_seconds=None):
             trip = f"MemAvailable<8GiB x{low_mem_streak}"
         if snap["mem_available_gib"] < TRIP_MEM_HARD_GIB:
             trip = f"MemAvailable<6GiB ({snap['mem_available_gib']})"
-        if snap["swap_free_gib"] < TRIP_SWAP_GIB:
+        if snap["swap_free_gib"] < TRIP_SWAP_GIB and not snap["swap_na"]:
+            # F-027：无 swap 节点跳过 swap TRIP（SwapFree 恒 0，否则永久误熔断）
             trip = f"SwapFree<2GiB ({snap['swap_free_gib']})"
         rec["warning"] = snap["mem_available_gib"] < WARN_MEM_GIB
         rec["trip"] = trip
