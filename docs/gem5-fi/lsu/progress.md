@@ -13,7 +13,7 @@
 - **Phase Status:** IN_PROGRESS
 - **Overall Status:** IN_PROGRESS
 - **Started:** 2026-09-29 11:22 (Session 001)
-- **Last Updated:** 2026-09-30 12:48（监控周期 #37：例行——AGU 6 终态（C3/B3），ITEM-007(A02-F0-W9) s28/30 运行中（F0 档快完成，样本正常激活）；波次存活，资源 NORMAL，无新终态）
+- **Last Updated:** 2026-09-30 13:27（监控周期 #38：F-021 更正已提交——ITEM-006 实际 = A01-F2-W9/gap_bfs、ITEM-007 实际 = A02-F0-W3/agu_addrmodes（此前两条提交信息标签有误，结果数据正确，commit 874a6c76 已推送）；F-020 收窄：F2 在长流负载 gap_bfs 265k 上正常激活。AGU 7 终态（C4/B3），ITEM-008(A02-F0-W9/gap_bfs) 运行中；波次存活，资源 NORMAL）
 - **Current Owner:** 服务器执行 AI（Claude，主协调 AI）
 - **Current Checklist Item:** AGU ITEM-002（A01-F0-W9）运行中；ITEM-001 已 COMPLETE（1/31）
 - **Current RunID:** A01-F0-W9
