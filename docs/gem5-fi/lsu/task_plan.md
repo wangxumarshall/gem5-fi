@@ -32,7 +32,7 @@ P0
 5. 固定 seed 规则：`seed = SHA256("lsu-fi-v1|" + RunID + "|" + phase + "|" + sample_index)` 的低64位，按无符号大端整数解释。B0/S1–S4 配对实验必须显式复用 B0 的 seed 清单。
 6. 每个 ITEM 分阶段记录 engineering、pilot、screening、confirmatory/sensitivity/reproduction 状态。工程数据禁止进入正式统计。
 7. `progress.md` 始终记录当前 ITEM；完成一个 ITEM 的一个阶段后再选择下一个 ITEM，除非已建立带 owner 的并发 batch manifest。
-8. 所有编译和实验必须服从 `总方针.md` 的资源安全硬限制：编译最多 `-j8` 且单实例；实验默认单实例、画像后最多并发 2；所有 Agent 共享统一资源槽。
+8. 所有编译和实验必须服从 `总方针.md` 的资源安全硬限制：编译最多 `-j8` 且单实例；gem5 实验并发硬上限 4（不同 ITEM/RunID/sample 可并行；资源压力或 WARNING 可降 3/2/1，恢复后回 4，不得超 4；2026-09-30 14:30 用户指令）；不得为满足上限杀死健康实验；每个并行实验独立 run_key/manifest/输出目录/日志/lease/PID-PGID/心跳；所有 Agent 共享统一资源槽。
 9. 后台重任务必须具有单实例锁、PID/PGID、日志路径、60 秒资源采样和可审计完成标记。会话恢复后必须先核查现有进程，禁止重复启动。
 
 ## 门禁
@@ -48,7 +48,7 @@ P0
 | G0-07 | oracle | golden 重复稳定，规则可自动判定 | PASS-SE（golden 3× 全稳定；oracle = stdout hash 自动判定，tools/lsu_l5_classify.py 在库；FS oracle = tlb_probe md5 + ok=N/10 已定义） |
 | G0-08 | seed | 稳定算法和 seed manifest 可复现 | PARTIAL（tools/lsu_seed.py 实现并自测 PASS：固定向量+确定性+范围+phase/sample 区分；manifest 生成器就绪 325×30=9750 条冒烟通过；正式 seed manifest 冻结待 P3） |
 | G0-09 | timeout | golden 10×规则及 wall/sim 上限固定 | PASS-SE（golden max wall 61s/run → SE timeout = 600s（10×），绝对上限 1800s；与守卫 --max-seconds 600 一致；FS timeout 待 tlb_probe 实测后固定） |
-| G0-10 | CPU/RAM/worker/磁盘预算与资源防护 | 编译≤8且单实例；实验默认1、画像后≤2；单实例锁、PID/PGID、60秒监控、启动门禁和熔断均可验证 | PASS（tools/lsu_guard.py T1–T7 全 PASS，evidence/P0/guard_verify.out） |
+| G0-10 | CPU/RAM/worker/磁盘预算与资源防护 | 编译≤8且单实例；实验硬上限4（压力降3/2/1、恢复回4）；槽锁、PID/PGID、60秒监控、启动门禁和熔断均可验证 | PASS-旧口径（单实例锁 T1–T7 全 PASS，evidence/P0/guard_verify.out）；4 槽位实验锁机制于引擎升级后复验 |
 
 ## Phases
 
@@ -152,6 +152,7 @@ P0
 
 | ID | 时间 | 决定 | 理由 | 影响范围 | 批准/证据 |
 |---|---|---|---|---|---|
+| D-2026-09-30-并发 | 2026-09-30 14:30 | gem5 实验并发硬上限由 1（画像后 2）调整为 **4**；编译规则不变；不得为满足上限杀死健康实验；每个并行实验独立 run_key/manifest/输出目录/日志/lease/PID-PGID/心跳 | 用户明确指令（2026-09-30 14:30） | 全部实验执行、守卫锁机制、unit_pilot 引擎 | 用户指令原文记录于 findings.md F-022 |
 
 ## Errors Encountered
 

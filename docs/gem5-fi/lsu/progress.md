@@ -13,7 +13,7 @@
 - **Phase Status:** IN_PROGRESS
 - **Overall Status:** IN_PROGRESS
 - **Started:** 2026-09-29 11:22 (Session 001)
-- **Last Updated:** 2026-09-30 13:27（监控周期 #38：F-021 更正已提交——ITEM-006 实际 = A01-F2-W9/gap_bfs、ITEM-007 实际 = A02-F0-W3/agu_addrmodes（此前两条提交信息标签有误，结果数据正确，commit 874a6c76 已推送）；F-020 收窄：F2 在长流负载 gap_bfs 265k 上正常激活。AGU 7 终态（C4/B3），ITEM-008(A02-F0-W9/gap_bfs) 运行中；波次存活，资源 NORMAL）
+- **Last Updated:** 2026-09-30 14:18（监控周期 #40：例行——AGU 8 终态（C5/B3），ITEM-009(A02-F2-W3) s55/300 act=0 持续（F2 短流预期 BLOCKED，预计 ~19:30 达上限）；波次存活，资源 NORMAL，无新终态）
 - **Current Owner:** 服务器执行 AI（Claude，主协调 AI）
 - **Current Checklist Item:** AGU ITEM-002（A01-F0-W9）运行中；ITEM-001 已 COMPLETE（1/31）
 - **Current RunID:** A01-F0-W9
@@ -21,7 +21,7 @@
 - **Current Experiment Stage:** pilot（正式，30 activated/ITEM，attempted 上限 300）
 - **Resource Safety State:** NORMAL（守卫 experiment 锁串行 + 60s 采样）
 - **Build Concurrency Limit:** 8（同一时刻最多一个编译任务，经 lsu_guard 强制）
-- **Experiment Concurrency Limit:** 1（完成资源画像后最多2，超过须用户批准）
+- **Experiment Concurrency Limit:** 4（硬上限；资源压力或 WARNING 可降 3/2/1，恢复后回 4，不得超 4；2026-09-30 14:30 用户指令）
 - **Active Heavy Task:** P3 pilot 波次 2（AGU ITEM-002 断点续跑起，WAVE2_PID 81524，bash nohup 串行 AGU→L1d-TLB→Load Queue；F-018 修复后 -u 无缓冲日志）
 - **Active PID/PGID:** 81524（bash 链）/ unit_pilot 子进程逐 run 经守卫
 - **Resource Lock:** 已占用（runs/lsu/guard/build.lock：P1-G0-01 构建，pid 19587）
