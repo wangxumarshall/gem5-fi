@@ -83,6 +83,15 @@ WORKLOADS = {
 # opcode field single-bit flip (03-design-matrix D01a; campaign yaml
 # grid.sub_field=opcode_bitflip; runner.py decode dispatch consumes exactly
 # these flags).
+#
+# U2 (plan Step-2 note, 2026-10-08): the pipeline-timing family D07/R08/
+# FD09/FR09. Base entries carry the component/layer plumbing; the ARM
+# (提前/延后/丢失/重复 — the 03 table's own arm vocabulary) lives in
+# MODEL_SUBMODES and --submode selects it (required, never defaulted for a
+# multi-arm model — silently picking an arm would merge four distinct
+# experiments into one seed space). impl_status stays unimplemented in
+# ooo_models until U2 Step-5 flips it after the two-state verification, so
+# campaign runs of these models are still loudly rejected here — expected.
 MODEL_DISPATCH = {
     "D01": {
         "mode": "opcode_bitflip",
@@ -92,6 +101,106 @@ MODEL_DISPATCH = {
         "layer": "physical",       # decode latch is microarchitectural state
         "component": "decode",
         "fault_model": "transient_bit_flip",
+        "flag": "--chaos_decode",
+    },
+    "D07": {
+        "field": "timing",
+        "width_bits": 1,
+        "layer": "physical",
+        "component": "decode",
+        "flag": "--chaos_decode",
+    },
+    "FD09": {
+        "field": "timing",
+        "width_bits": 1,
+        "layer": "physical",
+        "component": "decode",
+        "flag": "--chaos_decode",
+    },
+    "R08": {
+        "field": "timing",
+        "width_bits": 1,
+        "layer": "physical",
+        "component": "rat",
+        "flag": "--chaos_rename",
+    },
+    "FR09": {
+        "field": "timing",
+        "width_bits": 1,
+        "layer": "physical",
+        "component": "rat",
+        "flag": "--chaos_rename",
+    },
+}
+
+# U2 arm tables. Registry-letter cross-reference (03 子模型列 vs arm keys):
+#   D07/FD09: a/b/c/d = early/late/drop/dup, 1:1.
+#   R08/FR09: the registry letters are a/b/c with c = "丢失/重复" BOTH arms
+#     — drop and dup are the two independently-run arms of letter c;
+#     rename_timing_early realizes the a axis under the plan Step-1 honesty
+#     mapping (tick-atomic gem5 has no observable "one full beat early"
+#     write surface; defer + tick-start replay is the wired realization).
+# FR09 routes the W7.2 class axis: sub_field carries the "_vec" suffix so
+# runner.py emits --rename_target_class vec (AArch64 scalar FP + SIMD rename
+# via VecRegClass); R08 stays plain int. fault_model is per-arm v2 metadata:
+# early(decode)=legal_domain_sub (the delivered payload is the previous
+# LEGAL tuple), rename-early/late/drop=delay_omission, dup=recurring_result_stuck.
+MODEL_SUBMODES = {
+    "D07": {
+        "early": {"mode": "decode_timing_early",
+                  "sub_field": "decode_timing_early",
+                  "fault_model": "legal_domain_sub"},
+        "late": {"mode": "decode_timing_late",
+                 "sub_field": "decode_timing_late",
+                 "fault_model": "delay_omission"},
+        "drop": {"mode": "decode_timing_drop",
+                 "sub_field": "decode_timing_drop",
+                 "fault_model": "delay_omission"},
+        "dup": {"mode": "decode_timing_dup",
+                "sub_field": "decode_timing_dup",
+                "fault_model": "recurring_result_stuck"},
+    },
+    "FD09": {
+        "early": {"mode": "fp_decode_timing_early",
+                  "sub_field": "fp_decode_timing_early",
+                  "fault_model": "legal_domain_sub"},
+        "late": {"mode": "fp_decode_timing_late",
+                 "sub_field": "fp_decode_timing_late",
+                 "fault_model": "delay_omission"},
+        "drop": {"mode": "fp_decode_timing_drop",
+                 "sub_field": "fp_decode_timing_drop",
+                 "fault_model": "delay_omission"},
+        "dup": {"mode": "fp_decode_timing_dup",
+                "sub_field": "fp_decode_timing_dup",
+                "fault_model": "recurring_result_stuck"},
+    },
+    "R08": {
+        "early": {"mode": "rename_timing_early",
+                  "sub_field": "rename_timing_early",
+                  "fault_model": "delay_omission"},
+        "late": {"mode": "rename_timing_late",
+                 "sub_field": "rename_timing_late",
+                 "fault_model": "delay_omission"},
+        "drop": {"mode": "rename_timing_drop",
+                 "sub_field": "rename_timing_drop",
+                 "fault_model": "delay_omission"},
+        "dup": {"mode": "rename_timing_dup",
+                "sub_field": "rename_timing_dup",
+                "fault_model": "recurring_result_stuck"},
+    },
+    "FR09": {
+        "early": {"mode": "rename_timing_early",
+                  "sub_field": "rename_timing_early_vec",
+                  "fault_model": "delay_omission"},
+        "late": {"mode": "rename_timing_late",
+                 "sub_field": "rename_timing_late_vec",
+                 "fault_model": "delay_omission"},
+        "drop": {"mode": "rename_timing_drop",
+                 "sub_field": "rename_timing_drop_vec",
+                 "fault_model": "delay_omission"},
+        "dup": {"mode": "rename_timing_dup",
+                "sub_field": "rename_timing_dup_vec",
+                "fault_model": "recurring_result_stuck"},
     },
 }
 
@@ -138,12 +247,31 @@ def resolve_item(item_spec):
     return model_id, freq, wl
 
 
-def check_dispatchable(model_id, freq, workload):
-    """Loud gate before anything runs: model wired? tier wired? workload
-    golden verified? Dies (exit 2) on any 'no'."""
+def resolve_dispatch(model_id, submode=None):
+    """Merge MODEL_DISPATCH[base] with the selected MODEL_SUBMODES arm.
+    Dies loudly if a multi-arm model is requested without a valid arm."""
+    d = dict(MODEL_DISPATCH[model_id])
+    if model_id in MODEL_SUBMODES:
+        arms = MODEL_SUBMODES[model_id]
+        if submode not in arms:
+            _die("model %s requires --submode {%s} (03 时序四臂 "
+                 "提前/延后/丢失/重复 — refusing to silently pick or "
+                 "merge arms; got %r)"
+                 % (model_id, "|".join(sorted(arms)), submode))
+        d.update(arms[submode])
+    return d
+
+
+def check_dispatchable(model_id, freq, workload, submode=None):
+    """Loud gate before anything runs: model wired? arm selected? tier
+    wired? workload golden verified? Dies (exit 2) on any 'no'."""
     if model_id not in MODEL_DISPATCH:
         _die("model %s not wired in MODEL_DISPATCH — its injector family "
              "lands in U2-U9; refusing to run an unwired model" % model_id)
+    if model_id not in MODEL_SUBMODES and submode is not None:
+        _die("model %s has no submode family; --submode %s refused"
+             % (model_id, submode))
+    d = resolve_dispatch(model_id, submode)   # dies on a bad arm (U2)
     if freq != "F0":
         _die("tier %s not wired: CHAOSDecode py params expose only "
              "first/last/max/seed (F0 single-shot). F1/F2 need the U2/U3 "
@@ -159,9 +287,10 @@ def check_dispatchable(model_id, freq, workload):
     if freq not in m["freqs"]:
         _die("tier %s not in model %s freqs %s"
              % (freq, model_id, m["freqs"]))
-    if INJECTOR_TO_FLAG[m["injector"]] != "--chaos_decode":
-        _die("model %s injector %s maps to %s, not --chaos_decode"
-             % (model_id, m["injector"], INJECTOR_TO_FLAG[m["injector"]]))
+    if INJECTOR_TO_FLAG[m["injector"]] != d["flag"]:
+        _die("model %s injector %s maps to %s, but dispatch wires %s"
+             % (model_id, m["injector"],
+                INJECTOR_TO_FLAG[m["injector"]], d["flag"]))
 
 
 # --------------------------------------------------------------- manifest
@@ -194,8 +323,8 @@ def _gem5_base_commit():
 
 
 def build_manifest(run_id, run_key, model_id, freq, workload, seed,
-                   first_clock, chaos_commit, gem5_commit):
-    d = MODEL_DISPATCH[model_id]
+                   first_clock, chaos_commit, gem5_commit, submode=None):
+    d = resolve_dispatch(model_id, submode)   # dies on a bad arm (U2)
     w = WORKLOADS[workload]
     return {
         "schema_version": "arm-chaos-fi/v1",
@@ -418,7 +547,8 @@ def run_one_sample(ctx, sample_index, execute_fn=None):
 
     manifest = build_manifest(
         ctx["run_id"], run_key, ctx["model"], ctx["freq"], ctx["workload"],
-        seed, ctx["first_clock"], ctx["chaos_commit"], ctx["gem5_commit"])
+        seed, ctx["first_clock"], ctx["chaos_commit"], ctx["gem5_commit"],
+        submode=ctx.get("submode"))
     with open(os.path.join(stage_dir, "manifest.json"), "w",
               encoding="utf-8") as f:
         json.dump(manifest, f, ensure_ascii=False, indent=1, sort_keys=True)
@@ -684,6 +814,49 @@ def cmd_selftest(args):
         check("bogus item rejected",
               expect_die(lambda: resolve_item("ITEM-999"), "999"))
 
+        # T5b U2 submode gates (D07/R08/FD09/FR09 timing arms):
+        # a missing/bogus arm must die loudly; merged dispatch + manifest
+        # must validate against the v2 schema (component rat + the _vec
+        # sub_field + recurring_result_stuck all pass manifest_validate).
+        check("D07 without --submode loudly rejected",
+              expect_die(lambda: check_dispatchable("D07", "F0", "W6"),
+                         "submode"))
+        check("D07 with bogus arm loudly rejected",
+              expect_die(lambda: check_dispatchable("D07", "F0", "W6",
+                                                    "bogus"), "submode"))
+        check("D01 with --submode refused (no submode family)",
+              expect_die(lambda: check_dispatchable("D01", "F0", "W6",
+                                                    "early"), "no submode"))
+        d07 = resolve_dispatch("D07", "drop")
+        check("D07 drop arm -> decode_timing_drop",
+              d07["mode"] == "decode_timing_drop"
+              and d07["sub_field"] == "decode_timing_drop")
+        fr09 = resolve_dispatch("FR09", "early")
+        check("FR09 early arm -> rename_timing_early + _vec sub_field",
+              fr09["mode"] == "rename_timing_early"
+              and fr09["sub_field"] == "rename_timing_early_vec")
+        man07 = build_manifest("D07-early-F0-W6", "st", "D07", "F0", "W6",
+                               12345, 1000, "(selftest)", "(selftest)",
+                               "early")
+        ok07, errs07 = manifest_validate.validate(man07)
+        check("D07-early manifest validates (v2 schema)",
+              ok07, "; ".join(errs07))
+        check("D07-early manifest carries the arm",
+              man07["target"]["sub_field"] == "decode_timing_early"
+              and man07["target"]["component"] == "decode")
+        man9 = build_manifest("FR09-dup-F0-W6", "st", "FR09", "F0", "W6",
+                              12345, 1000, "(selftest)", "(selftest)",
+                              "dup")
+        ok9, errs9 = manifest_validate.validate(man9)
+        check("FR09-dup manifest validates (rat + _vec + recurring)",
+              ok9, "; ".join(errs9))
+        check("FR09-dup manifest routes the vec class axis",
+              man9["target"]["sub_field"] == "rename_timing_dup_vec"
+              and man9["target"]["component"] == "rat")
+        check("arm run_ids keep seed spaces disjoint",
+              sample_seed("D07-early-F0-W3", "pilot", 0)
+              != sample_seed("D07-late-F0-W3", "pilot", 0))
+
         # T6 full lifecycle with fake gem5: staging -> atomic placement ->
         # COMPLETE marker; legacy L0 evidence scanned; verdict Masked
         # (fault landed, checksum unchanged).
@@ -792,8 +965,12 @@ def _clean_stale_staging(staging_root):
 
 def cmd_run(args):
     model_id, freq, wl = resolve_item(args.item)
-    check_dispatchable(model_id, freq, wl)
-    run_id = "%s-%s-%s" % (model_id, freq, wl)
+    submode = getattr(args, "submode", None)
+    check_dispatchable(model_id, freq, wl, submode)
+    # U2: run_id embeds the arm for submode families — run_key/seed spaces
+    # stay disjoint per arm (sample seeds derive from run_id); single-mode
+    # models keep the legacy id (existing COMPLETE dirs stay addressable).
+    run_id = "%s-%s-%s-%s" % (model_id, submode, freq, wl)         if model_id in MODEL_SUBMODES else "%s-%s-%s" % (model_id, freq, wl)
     cfg_sha = config_sha256()
     gem5_bin = (args.gem5_bin or os.environ.get("OOO_GEM5_BIN")
                 or DEFAULT_GEM5_BIN)
@@ -804,6 +981,7 @@ def cmd_run(args):
     ctx = {
         "campaign": args.campaign, "phase": args.phase, "run_id": run_id,
         "item": args.item, "model": model_id, "freq": freq, "workload": wl,
+        "submode": submode,
         "golden": WORKLOADS[wl]["golden"], "config_sha": cfg_sha,
         "chaos_commit": _git_head(), "gem5_commit": _gem5_base_commit(),
         "first_clock": args.first_clock, "hang_timeout": args.hang_timeout,
@@ -844,7 +1022,8 @@ def cmd_run(args):
             print("  sample %d: seed=%d run_key=%s" % (i, s, rk))
         man = build_manifest(run_id, "dry-run", model_id, freq, wl,
                              sample_seed(run_id, args.phase, 0),
-                             args.first_clock, "(dry-run)", "(dry-run)")
+                             args.first_clock, "(dry-run)", "(dry-run)",
+                             submode)
         print("  gem5 args: %s" % " ".join(build_config_args(man)))
         return 0
 
@@ -888,6 +1067,10 @@ def main(argv=None):
     ap.add_argument("--selftest", action="store_true",
                     help="fixture tests (no gem5, no real run_root)")
     ap.add_argument("--item", help="checklist item, e.g. ITEM-002")
+    ap.add_argument("--submode", default=None,
+                    help="U2 timing-family arm: early|late|drop|dup "
+                         "(required for D07/R08/FD09/FR09 — the 03 table "
+                         "runs 提前/延后/丢失/重复 as separate experiments)")
     ap.add_argument("--phase", choices=PHASES)
     ap.add_argument("--samples", type=int, default=1,
                     help="sample count (indices 0..N-1)")

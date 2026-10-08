@@ -134,8 +134,8 @@ MODELS = {
         "freqs": ['F0', 'F4', 'F6'],
         "workloads": "W3 A64-DecodeProbe<br>W5 ROB-Recovery",
         "n_submodels": 4,
-        "impl_status": "unimplemented",
-        "injector": None,
+        "impl_status": "implemented",
+        "injector": "CHAOSDecode",
         "submodels": ['a', 'b', 'c', 'd'],
     },
     "D08": {
@@ -244,8 +244,8 @@ MODELS = {
         "freqs": ['F0', 'F4', 'F6'],
         "workloads": "W4 Rename-Dependency<br>W5 ROB-Recovery",
         "n_submodels": 3,
-        "impl_status": "unimplemented",
-        "injector": None,
+        "impl_status": "implemented",
+        "injector": "CHAOSRenameMap",
         "submodels": ['a', 'b', 'c'],
     },
     "R09": {
@@ -464,8 +464,8 @@ MODELS = {
         "freqs": ['F0', 'F4', 'F6'],
         "workloads": "W8 FP-ScalarProbe<br>W9 NEON-LaneProbe",
         "n_submodels": 4,
-        "impl_status": "unimplemented",
-        "injector": None,
+        "impl_status": "implemented",
+        "injector": "CHAOSDecode",
         "submodels": ['a', 'b', 'c', 'd'],
     },
     "FR01": {
@@ -563,8 +563,8 @@ MODELS = {
         "freqs": ['F0', 'F4', 'F6'],
         "workloads": "W9 NEON-LaneProbe<br>W10 PolyBench",
         "n_submodels": 3,
-        "impl_status": "unimplemented",
-        "injector": None,
+        "impl_status": "implemented",
+        "injector": "CHAOSRenameMap",
         "submodels": ['a', 'b', 'c'],
     },
     "FR10": {

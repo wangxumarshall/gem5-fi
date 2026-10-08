@@ -9,9 +9,9 @@
 
 | 判定 | 模型数 | 模型 |
 |---|---|---|
-| 已实现 | 9 | D01, FD01, FD03, FR01, FR05, FR07, R01, R05, R07 |
+| 已实现 | 13 | D01, D07, FD01, FD03, FD09, FR01, FR05, FR07, FR09, R01, R05, R07, R08 |
 | 部分 | 0 |  |
-| 未实现 | 14 | B08, B09, D06, D07, D09, FB06, FB08, FB09, FD05, FD07, FD09, FR08, FR09, R08 |
+| 未实现 | 10 | B08, B09, D06, D09, FB06, FB08, FB09, FD05, FD07, FR08 |
 
 合计 57 模型（== 03 设计矩阵行数，机器断言见文末）。
 
@@ -25,7 +25,7 @@
 | D04 | Int Decode | 换值 | CHAOSDecode: reg_bitflip（bit 级近似）+ dest_reg_sub（dst） | 部分 | D04-c src0/src1 互换、D04-e x0 注入未实现；自由换值以 bit 翻转近似（W6 验证语义：寄存器号实际移动） | 新(new) |
 | D05 | Int Decode | 错位拼接 | CHAOSDecode: imm_subfield_shift（片段互换）+ sign_ext_bit（符号位近似） | 部分 | D05-b 循环移位、D05-d 读取上一条立即数未实现；符号↔零扩展以符号位翻转运近似 | D08(merged), D09(merged) |
 | D06 | Int Decode | 状态 | —（无控制位换值模式） | 未实现 | 全部：sf/S/shift/extend/signed 控制换值（opcode_bitflip 仅覆盖 sf/S 的 bit 翻转，非合法组合换值） | D10(merged) |
-| D07 | Int Decode | 时序 | —（无 decode 握手时序模式） | 未实现 | 全部：提前/延后/丢失/重复 decode tuple | 新(new) |
+| D07 | Int Decode | 时序 | CHAOSDecode: decode_timing_early/late/drop/dup | 已实现 | 四臂全实现并两态实测（early=fetch 侧 stale-tuple 重绑、late/drop/dup=decode_emit 点；U2 第 4 轮 22/22）；W3/W5 探针负载属 P2 | 新(new) |
 | D08 | Int Decode | 状态/时序 | CHAOSDecode: crack_ctrl（±1 µop 近似，探索性） | 部分 | D08-c 互换 uop 顺序、D08-d 提前伪造 last-uop 未实现；且 gem5 A64 macroop 仅 LDP/STP 族 | 新(new) |
 | D09 | Int Decode | 卡死 | —（无 decode 输出 stuck 模式） | 未实现 | 全部：opcode/寄存器/控制字段输出位 stuck-at | 新(new) |
 | R01 | Int Rename | 单比特翻转 | CHAOSRenameMap: map_bitflip | 已实现 | — | D11(merged) |
@@ -35,7 +35,7 @@
 | R05 | Int Rename | 状态 | CHAOSFreeList: drop_release（泄漏）/ mark_free（重复分配）/ head_bitflip（head 跳槽） | 已实现 | —（head 跳槽以 head 指针 bit 翻转运近似——gem5 队列无指针寄存器，spike B） | D17(merged), D18(merged), D19(merged), D20(merged), D21(merged) |
 | R06 | Int Rename | 换值 | CHAOSRenameMap: hb_bitflip/2 + swap_mispred_event | 部分 | R06-a 选错 checkpoint 在 gem5 单一 historyBuffer 机制下不可达（W4 N1 机制发现）；恢复旧 tag 以 bit 翻转运近似 | D23(merged), D24(merged) |
 | R07 | Int Rename | 状态 | CHAOSIQ: src_ready_bitflip（提前 ready）/ wake_omit（丢失 ready）/ ready_early/ready_never | 已实现 | R07-c 错误清除 busy 以 wrong-chain markSrcRegReady 近似 | D47(migrated), D48(migrated), D49(migrated) |
-| R08 | Int Rename | 时序 | —（无 rename 流水时序模式） | 未实现 | 全部：RAT 更新/free-list 弹出/ROB-IQ 分配的提前/延后/丢失/重复 | 新(new) |
+| R08 | Int Rename | 时序 | CHAOSRenameMap: rename_timing_early/late/drop/dup (target_class=int) | 已实现 | a/b/c 三轴全实现并两态实测（early=RAT 回滚-挂起条件回放、late=free-list 弹出延后、c 丢失=rob_insert drop、重复=rename 历史条目复制）；W4/W5 探针负载属 P2 | 新(new) |
 | R09 | Int Rename | 卡死 | CHAOSRenameMap: f5_rat_stuck（RAT bit）+ CHAOSFreeList: head_stuck（free-list 近似） | 部分 | free-list 为队列无 bitmap——bit stuck 以 head 卡死近似（spike B 诚实近似） | D15(merged), D22(merged) |
 | B01 | Int Dispatch / ROB | 单比特翻转 | CHAOSROB: pc_bitflip（PC）/ destid_bitflip（dst tag） | 部分 | B01-b 的 src tag、B01-c seq 字段未实现 | D25(merged), D28(merged), D36(merged) |
 | B02 | Int Dispatch / ROB | 双比特翻转 | CHAOSROB: pc_bitflip2 / destid_bitflip2 | 部分 | 相邻/非相邻分层未实现；src/seq 字段缺 | D26(merged), D29(merged), D37(merged), D42(merged) |
@@ -55,7 +55,7 @@
 | FD06 | FP/SIMD Decode | 状态 | CHAOSFPU: rounding_sub（舍入模式替换）+ fpsr_suppress（FP 异常抑制） | 部分 | FD06-b FPCR 快照选择、FD06-c FTZ/DN 丢失未实现 | 新(new) |
 | FD07 | FP/SIMD Decode | 错位拼接 | —（无 shuffle/permute/lane 掩码拼接模式） | 未实现 | 全部：向量立即数片段/lane 选择/shuffle selector 掩码拼接 | 新(new) |
 | FD08 | FP/SIMD Decode | 状态/时序 | CHAOSDecode: crack_ctrl（仅 INT LDP/STP macroop） | 部分 | FP/SIMD macroop 面 gem5 A64 基本单 µop——诚实边界：FP µop 拆分扰动不可达（同 D10 blocker） | 新(new) |
-| FD09 | FP/SIMD Decode | 时序 | —（无 FP decode 时序模式） | 未实现 | 全部：FP decode 提前/延后/丢失/重复 | 新(new) |
+| FD09 | FP/SIMD Decode | 时序 | CHAOSDecode: fp_decode_timing_early/late/drop/dup | 已实现 | 四臂全实现（gemm 激活级实测 fmul→fmadd；dep_chain 无合格 FP 元组系负载侧非模型侧）；W8/W9 探针负载属 P2 | 新(new) |
 | FR01 | FP/SIMD Rename | 单比特翻转 | CHAOSRenameMap: map_bitflip targetClass=vec | 已实现 | —（标量 FP 经 VecRegClass 重命名归 vec 面，W1.2 三重确认） | D62(merged), D67(merged) |
 | FR02 | FP/SIMD Rename | 双比特翻转 | CHAOSRenameMap: map_bitflip2 vec | 部分 | 分层未实现 | D63(merged), D68(merged) |
 | FR03 | FP/SIMD Rename | 换值 | CHAOSRenameMap: swap_to_active vec | 部分 | FR03-c FP↔Vec 跨类别换值未实现 | D64(merged), D69(merged) |
@@ -64,7 +64,7 @@
 | FR06 | FP/SIMD Rename | 换值 | CHAOSRenameMap: hb_bitflip vec（D68） | 部分 | checkpoint 选择同 R06 不可达 | 新(new) |
 | FR07 | FP/SIMD Rename | 状态 | CHAOSIQ: ready/tag 家族 fpOnly（D86-D91） | 已实现 | — | 新(new) |
 | FR08 | FP/SIMD Rename | 错位拼接 | —（无 preserve/zero/merge 元数据拼接模式） | 未实现 | 全部：窄写保留/清零/合并语义元数据 | 新(new) |
-| FR09 | FP/SIMD Rename | 时序 | —（无 FP rename 时序模式） | 未实现 | 全部 | 新(new) |
+| FR09 | FP/SIMD Rename | 时序 | CHAOSRenameMap: rename_timing_early/late/drop/dup (target_class=vec) | 已实现 | 三轴全实现并两态实测（vec 类 victim V1 实测）；W9/W10 探针负载属 P2 | 新(new) |
 | FR10 | FP/SIMD Rename | 卡死 | CHAOSRenameMap: f5_rat_stuck vec + CHAOSFreeList: head_stuck vec | 部分 | free-list bit stuck 以 head 卡死近似（同 R09） | D65(merged), D70(merged) |
 | FB01 | FP/SIMD Dispatch/ROB | 单比特翻转 | CHAOSROB: destid_bitflip vec（W7.4 dest 面） | 部分 | PC/seq 字段无 vec 门（int 群体面）；FB01-a/c 未覆盖 FP/SIMD 限定 | D83(merged) |
 | FB02 | FP/SIMD Dispatch/ROB | 双比特翻转 | CHAOSROB: destid_bitflip2 vec | 部分 | 分层缺；PC 面无 vec 门 | 新(new) |
