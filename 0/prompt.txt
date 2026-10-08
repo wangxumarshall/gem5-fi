@@ -1,0 +1,6 @@
+/superpowers:executing-plans 请依次读取按以下顺序读取并核验：
+1. /home/sdc/gem5-fi-ding/docs/gem5-fi/lsu/总方针.md
+2. /home/sdc/gem5-fi-ding/docs/gem5-fi/lsu//task_plan.md
+3. /home/sdc/gem5-fi-ding/docs/gem5-fi/lsu//progress.md
+4. /home/sdc/gem5-fi-ding/docs/gem5-fi/lsu//findings.md
+5. 当前 git status、最近提交、活动进程/guard PID、run manifest、lease、心跳、日志及已有 evidence。，之后决定恢复点后继续按照task_plan、总方针执行

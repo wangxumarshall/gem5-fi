@@ -1,0 +1,47 @@
+{
+  "cli_version": "0.10.2",
+  "checkpoint_id": "01M4CP8TFNCQF5NKBFDSTKC04Q",
+  "session_id": "2eed6261-d1ab-4500-a179-1c869976cad1",
+  "strategy": "manual-commit",
+  "created_at": "2026-10-08T02:42:56.652034662Z",
+  "branch": "fi-ding",
+  "checkpoints_count": 1,
+  "save_step_count": 1,
+  "files_touched": [],
+  "agent": "Claude Code",
+  "model": "GLM-5.3",
+  "turn_id": "86943654c60d",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 1637590,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 33015936,
+    "output_tokens": 146532,
+    "api_call_count": 157
+  },
+  "skill_events_version": 1,
+  "skill_events": [
+    {
+      "id": "prompt-skill-claude-code-superpowers:executing-plans-2026-10-08T01:48:39.049817258Z",
+      "event_type": "prompt_invocation",
+      "skill": {
+        "name": "superpowers:executing-plans"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "prompt_slash_command",
+        "confidence": "explicit"
+      },
+      "turn_id": "86943654c60d",
+      "timestamp": "2026-10-08T01:48:39.049817258Z",
+      "native": {
+        "command": "/superpowers:executing-plans"
+      },
+      "collapse": {
+        "target": "user_message",
+        "label": "/superpowers:executing-plans",
+        "default_collapsed": true
+      }
+    }
+  ]
+}
