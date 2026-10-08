@@ -11,13 +11,10 @@
 
 - **Current Phase:** P3（前三单元连续 pilot 波次，用户指令 2026-09-29 晚）
 - **Phase Status:** IN_PROGRESS
-- **Overall Status:** IN_PROGRESS（**DR-003 已裁决 A：旧机续跑 + 并发 4**，集群侧不跑波次；F-025/F-027 已合并入库；Session 002 集群平台工程继续——U3b 二进制身份恢复进行中）
-- **Started:** Session 001 2026-09-29 11:22（旧机）；Session 002 2026-09-30 16:43（集群 cn23423，**持续运行未停**——10-07/08 E-005 中断期转 Windows 本地取证，10-08 10:40 恢复直连；此前 Session 003 记录的停于 09-30 18:05 不确）；Session 003 2026-10-08 09:49（旧机恢复）
-- **Last Updated:** 2026-10-08 11:09（Session 002 融合修正：F-030 平台二进制身份取证定稿；修正 Session 003 记录的三处集群侧事实——Session 002 未停/U3 已实现未提交/keeper 1773102 存活（11:09 djob 复核 RUNNING）；集群遵守 DR-003-A 仅平台工程）
-- **Current Owner:** 服务器执行 AI（Claude，主协调 AI；Session 003 旧机 localhost0101——波次 5 运行中；Session 002 集群 cn23423 keeper 1773102——平台工程（U3b→U3→U6），不跑波次）
-- **Current Checklist Item:** AGU ITEM-009（A02-F2-W3，旧机 resume s115 起波次 5 运行中，115 有效样本复用）→ 其后 ITEM-010..039；Load Queue ITEM-274（L01-F1-W5，旧机有效 s0–s95=96）→ ITEM-277+；ITEM-001..008 与 ITEM-271 有效终态不受影响
-- **Current RunID:** A02-F2-W3（旧机波次 5 自 s115 续跑，10:49 启动 bash 654696，F-025 修复实机验证通过）
-- **Excel Location:** 7.展开执行矩阵!A11（行 11 = ITEM-009 待闭合）
+- **Overall Status:** IN_PROGRESS（DR-003 裁决 A：旧机续跑 + 并发 4；波次 5 运行中；集群 Session 002 平台工程（U3b 二进制身份恢复），遵守 DR-003-A 不跑波次；F-025/F-027 已合并）
+- **Started:** Session 001 2026-09-29 11:22（旧机）；Session 002 2026-09-30 16:43（集群 cn23423，持续运行——10-07/08 E-005 中断期转 Windows 取证，10-08 10:40 恢复直连）；Session 003 2026-10-08 09:49（旧机恢复）
+- **Last Updated:** 2026-10-08 11:50（**波次 5 首个终态：ITEM-009（A02-F2-W3）BLOCKED 300/0 守恒 OK**（F-031；resume 115 跨事故复用实战验证；波次 5 全程 gate ok:false 零新增）；**ITEM-010（A02-F2-W9 gap_bfs）运行中正常激活**（act≥1，激活后 simulator_assert 单列——F-016 口径）；本条 rebase 融合远端 11:09 Session 002 修正（F-030 平台二进制身份 + Session 002 未停/U3 已实现未提交/keeper 存活三处事实修正已接受））
+- **Excel Location:** 7.展开执行矩阵!A12（行 11 ITEM-009 已闭合 BLOCKED；行 12 = ITEM-010 运行中）
 - **Current Experiment Stage:** pilot（正式，30 activated/ITEM，attempted 上限 300）
 - **Resource Safety State:** NORMAL（旧机无重任务、锁目录无锁文件；集群侧 idle 无实验/编译任务（DR-003-A）——keeper 1773102 存活（11:09 djob 复核 RUNNING，10-10 16:43 到期，续期待办））
 - **Build Concurrency Limit:** 8（同一时刻最多一个编译任务，经 lsu_guard 强制）
