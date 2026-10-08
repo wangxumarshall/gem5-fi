@@ -17,6 +17,14 @@ labeled):
   T6 (bonus)  : determinism cross-check: funnel activated=0 injected=1,
                 FINAL!=golden, rc=0 -> verdict=Inactive (fixed classify
                 order) BUT conservation flags checksum!=golden
+  T7 (U10b)   : legacy-only Masked (decode_injections.log
+                faults_injected:1, FINAL==golden, rc=0) -> Masked and
+                NOT a violation (legacy log itself says the fault landed)
+  T8 (U10b)   : pure-function pin: verdict Inactive but
+                legacy_injected_total=1 -> MUST flag (unreachable via
+                classify_ooo_run same-source feed; future callers)
+  T9 (U10b)   : l0-hit-only Masked (CHAOS_L0 hit=1, no funnel) ->
+                landed=l0_hit_total, NOT a violation
 
 Standalone (no pytest), mirrors tools/tests/test_ooo_guard_f025.py style.
 """
@@ -117,6 +125,48 @@ def main():
         ck("T6 determinism violation flagged", r6["conservation_ok"] is False, r6["violations"])
         v6 = " ".join(r6["violations"])
         ck("T6 violation names checksum!=golden", "checksum" in v6, v6)
+
+        # ---- T7 (U10b) legacy-only Masked: real campaign shape (decode
+        #      opcode_bitflip log line, FINAL==golden, rc=0) -> Masked and
+        #      NO violation: the legacy log itself says the fault landed;
+        #      the old check read funnel-only totals.activated=0 and
+        #      false-positived "Masked verdict but L0 activated=0"
+        #      (empirical: 2026-10-08 seed 6566880900823253577)
+        f7 = _mk_outdir(root, "t7-legacy-masked",
+                        simout="FINAL=%s\n" % GOLDEN, rc=0,
+                        logs={"decode_injections.log": [
+                            "Tick: 473935, Site: fetch_decode, mode=opcode_bitflip, "
+                            "pc=0x415744, orig_enc=0x927ae403, new_enc=0xb27ae403, "
+                            "bits=[29], faults_injected: 1"]})
+        r7 = O.classify_ooo_run(f7, golden=GOLDEN)
+        ck("T7 verdict Masked (legacy)", r7["L5"]["verdict"] == "Masked", r7["L5"]["reason"])
+        ck("T7 L0 evidence legacy", r7["L0"]["evidence"] == "legacy", r7["L0"]["evidence"])
+        ck("T7 legacy_injected_total 1", r7["L0"]["legacy_injected_total"] == 1)
+        ck("T7 legacy Masked not a violation", r7["conservation_ok"] is True, r7["violations"])
+
+        # ---- T8 (U10b) pure-function false negative: verdict Inactive but
+        #      legacy evidence says 1 landed -> MUST flag. Unreachable
+        #      through classify_ooo_run (verdict feed is same-source), so
+        #      the public pure check is pinned directly for future callers
+        #      (e.g. recovery re-classification).
+        import classify as C
+        l0t8 = {"evidence": "legacy", "injectors": {},
+                "totals": {"attempted": 0, "eligible": 0, "injected": 0,
+                           "activated": 0},
+                "l0_hit_total": 0, "legacy_injected_total": 1}
+        ok8, viol8 = C.check_verdict_l0_consistency("Inactive", l0t8, GOLDEN, GOLDEN)
+        v8 = " ".join(viol8)
+        ck("T8 Inactive+legacy_injected=1 flagged", (not ok8) and "Inactive" in v8, viol8)
+
+        # ---- T9 (U10b) l0-hit-only Masked: CHAOS_L0 readback hit=1, no
+        #      funnel lines -> landed=l0_hit_total, no violation
+        f9 = _mk_outdir(root, "t9-l0hit-masked",
+                        simout="FINAL=%s\n" % GOLDEN, rc=0,
+                        logs={"decode_injections.log": [
+                            "CHAOS_L0: CHAOSPhysReg target=7 reads=3 overwritten=0 at=1000 hit=1"]})
+        r9 = O.classify_ooo_run(f9, golden=GOLDEN)
+        ck("T9 verdict Masked (l0 hit)", r9["L5"]["verdict"] == "Masked", r9["L5"]["reason"])
+        ck("T9 l0-hit Masked not a violation", r9["conservation_ok"] is True, r9["violations"])
     finally:
         shutil.rmtree(root, ignore_errors=True)
 

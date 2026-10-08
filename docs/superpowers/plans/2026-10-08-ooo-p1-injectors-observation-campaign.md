@@ -115,7 +115,7 @@ impl_status: implemented=9 partial=34 unimplemented=14
 - [x] **Step 2:** 打补丁：simulator.py line 104 `outdir: Optional[str | Path] = None` → `outdir: Optional[Union[str, Path]] = None`（等价改写、注解仍求值、语义不变；Union 已导入）。——实测：grep 确认 line 104 已为 Union 形。
 - [x] **Step 3:** 静态复验：全树 AST 注解位扫描 = 0 站点；patched simulator.py py3.9 compile CLEAN。——实测：4 根（src/python/gem5、src/python/m5、configs、build/ARM/python）注解位 total=0、SyntaxError=0，STEP3: PASS。
 - [x] **Step 4:** 保全 sdc 证物（rebuild 覆写 gem5.opt 前必做）：`ln build/ARM/gem5.opt build/ARM/gem5.opt.sdc-py311`（同 inode 加一链接）。——实测：ls -li 双文件同 inode 135108174027414400。
-- [ ] **Step 5:** 等 LSU CP4 scons（pid 3323664，-T 14400）退出且 gate 无编译进程后，guard 包裹增量重建：`python3 tools/ooo_guard.py run --type build --desc u1c-shim-rebuild --log /tmp/u1c-build.log -- bash -c 'cd CHAOS/gem5 && scons -j8 build/ARM/gem5.opt'` → 预期 `scons: done`（引用尾行）。
+- [x] **Step 5:** 等 LSU CP4 scons（pid 3323664，-T 14400）退出且 gate 无编译进程后，guard 包裹增量重建：`python3 tools/ooo_guard.py run --type build --desc u1c-shim-rebuild --log /tmp/u1c-build.log -- bash -c 'cd CHAOS/gem5 && scons -j8 build/ARM/gem5.opt'` → 预期 `scons: done`（引用尾行）。——实测：LSU CP4 12:37:40 完成后 12:51:36 启动（guard 4037686 / scons 4037691，python3 绝对路径 scons -j8）；末次心跳 13:41:49 elapsed_s=3012.7 warning=false trip=null；产物 build/ARM/gem5.opt 1,227,788,056B @ 13:40；build_lock 释放（guard status 实测 null）。env 切换 compat-py311→native-py39 触发全量重链，全程 50 分钟。
 - [ ] **Step 6:** 原生两态 × 四 golden（系统 py3.9 直跑，无 loader/无 PYTHONHOME）：
 ```bash
 cd /home/share/suke/wangxu/gem5-fi-ooo
@@ -124,8 +124,8 @@ build/ARM/gem5.opt --outdir=/tmp/u1c-di configs/se/ooo_proxy.py --cmd workloads/
 build/ARM/gem5.opt --outdir=/tmp/u1c-dv configs/se/ooo_proxy.py --cmd workloads/ooo/dep_chain/dep_chain_vec --cpu O3 # FINAL=b1e661a247b95774
 build/ARM/gem5.opt --outdir=/tmp/u1c-rf configs/se/ooo_proxy.py --cmd workloads/ooo/rob_fill/rob_fill --cpu O3     # FINAL=19eab7d0de27237e
 ```
-  回归对照：同四命令以 `gem5.opt.sdc-py311` + compat loader 复跑，FINAL 全一致（平台切换不改变仿真确定性）。
-- [ ] **Step 7:** F-008 修订（「结构性不可用」→「单行 PEP604 shim 后可用」）+ progress Session 004 + 提交 `[OOO][P1][U1c] login01 原生 py3.9 平台复活：simulator.py 单行 shim + 四 golden 原生实测（F-008 修订 + F-011）` + bundle 推送。
+  回归对照：同四命令以 `gem5.opt.sdc-py311` + compat loader 复跑，FINAL 全一致（平台切换不改变仿真确定性）。——实测：/tmp/u1c-verify.log 原生 5 跑全 PASS——smoke1=smoke2=45737cc9a76c0dce（rc=0，确定性复现逐字节一致）、dep_chain_int=98e5e31e726e383f（50s）、dep_chain_vec=b1e661a247b95774（49s）、rob_fill_int=19eab7d0de27237e（46s）；compat 回归（sdc-py311 + loader + PYTHONHOME）：smoke=45737cc9a76c0dce、dep_chain_int/vec、rob_fill_int 全 PASS（compat-sdc 行）。
+- [x] **Step 7:** F-008 修订（「结构性不可用」→「单行 PEP604 shim 后可用」）+ progress Session 004 + 提交 `[OOO][P1][U1c] login01 原生 py3.9 平台复活：simulator.py 单行 shim + 四 golden 原生实测（F-008 修订 + F-011）` + bundle 推送。——实测：本提交（F-008 修订行/F-011 结果已落 findings.md；Session 004 已落 progress.md；bundle 推送见 Session 004 证据）。
 - 失败处置：原生运行暴露进一步 3.10+ 运行时错误 → 逐站点同法迭代（同单元内）；不可收敛 → findings 记 BLOCKED + 转 DR-003（python3.11 bin+include 供给申请）。
 
 **对 U2+ 的效力：** U1c 落地前 U2–U9 全部阻塞（新 C++ 必须重建、重建产物仅原生可跑）；落地后运行命令原生直跑（U2 Step 4 已随本修订改原生形态）。
@@ -286,23 +286,42 @@ build/ARM/gem5.opt --outdir=/tmp/u2-on configs/se/ooo_proxy.py --cmd workloads/o
 - [x] **Step 3:** 实现 `tools/ooo_observe.py` + `tools/classify.py` 扩展。——实测：ooo_observe.py 334 行（collect_l0：21 个 runner 已知日志名 × 3 正则（CHAOS_L0_FUNNEL/CHAOS_L0/faults_injected）+ faults_for_classify 严格活性证据优先级 funnel_activated>l0_hit>legacy_injected>none；observe_run：exit.rc 缺失即 verdict=None 诚实拒判；ref 门控 L1-L4 组装 commit_diff/micro_diff；CLI --json）。classify.py +81 行：check_conservation（attempted≥eligible≥injected≥activated，逐注入器+TOTALS，对齐 chaos_l0.hh 四计数 pinned 格式）+ check_verdict_l0_consistency（Inactive/activated 与 checksum!=golden 交叉、abort 合法性）。单向 import ooo_observe→classify 无环。
 - [x] **Step 4:** 测试通过（4/4 PASS，输出引用）。——实测：`SELFTEST PASS (19 checks, 0 failed)` RC=0（F1 Inactive/F2 Masked/F3 SDC/F4 守恒破坏命名注入器+关系/T5 SimulatorError+absent 合法/T6 Inactive+checksum!=golden 违规）。回归：test_ooo_guard_f025.py `SELFTEST PASS (12 checks, 0 failed)`、micro_diff --self-test `11/11 checks PASS`、classify+ooo_observe 导入 OK；`import runner` 失败系 login01 无 pyyaml（环境既有，非本改动引入）。
 - [x] **Step 5:** 实机端到端（off-state 真实版 + 开启态诚实延期至 U2 Step 4b）：sdc+compat 双跑 `/tmp/u10-e2e-{a,b}`（smoke/O3，`--chaos_ctrace --chaos_msnap`，各 rc=0，FINAL=45737cc9a76c0dce==golden）。实测①：`python3 tools/ooo_observe.py /tmp/u10-e2e-a --golden 45737cc9a76c0dce` → L0 evidence=absent（off 态无注入日志，与 F1 语义一致）、L5 verdict=Inactive、conservation OK、RC=0。实测②：加 `--ref-outdir /tmp/u10-e2e-b` → L1 no_divergence=True、L2 hash_table_consistent=True、L3 commit_verdict=no_divergence（五类分歧全 0、tick_max_drift=0、无截断）、L4 无首检（同构确定性）。**开启态 L0 计数核对因 U2 未实现（gated on U1c 重建）延期**，已作为 U2 Step 4b 交接项落计划。
-- [ ] **Step 6:** 提交 `[OOO][P1][U10] L0–L5 观测链 + 守恒分类器 + 4 fixture 单测`。
+- [x] **Step 6:** 提交 `[OOO][P1][U10] L0–L5 观测链 + 守恒分类器 + 4 fixture 单测`。——2026-10-08 补勾（记录修正）：commit `9f4a6946`，提交时复选框漏勾。
+
+### Task U10b：legacy 证据一致性修正（U11 冒烟暴露的 U10 缺陷）
+
+**Files:**
+- Modify: `tools/classify.py`（`check_verdict_l0_consistency`：「已落位故障数」按 collect_l0 同源严格优先级取数——funnel→`totals.activated` / l0→`l0_hit_total` / legacy→`legacy_injected_total` / absent→0；现实现恒读 funnel 专用 `totals.activated`，legacy/l0 路径全错）
+- Test: `tools/tests/test_ooo_classify.py`（新增 legacy-only fixture：Masked+legacy 无违规【现红：假阳性】、Inactive+legacy_injected=1 有违规【现红：对称假阴性漏报】）
+
+**Interfaces:**
+- Consumes: `ooo_observe.collect_l0` 的 l0 dict（`evidence`/`totals`/`l0_hit_total`/`legacy_injected_total`——classify.py 顶部 shape 注释同步扩展两键）。
+- Produces: 同签名 `check_verdict_l0_consistency(verdict, l0, checksum, golden)`；funnel 路径行为不变（既有 6 fixture / 19 断言全数保持为回归锚）。
+
+**背景（2026-10-08 U11 Step 3 实机冒烟实证）:** 样本 seed 6566880900823253577（D01-F0-W6，decode opcode_bitflip，ret→hint bit25，rc=0，checksum==golden）verdict=Masked、l0 evidence=legacy、`legacy_injected_total=1`，却被记 `conservation_ok=false` + 违规 "Masked verdict (fault landed) but L0 activated=0"——legacy 日志（decode_injections.log `faults_injected: 1`）语义即「已施加」，分类器 feed（`faults_for_classify` 用 legacy_injected_total）与一致性检查读数（funnel activated）不同源 → 假阳性。对称假阴性：Inactive + legacy_injected=1（注入器说注入了、分类器却判 Inactive——真撒谎）现漏报。同批冒烟另有两处 U11 引擎自身缺陷（`&& echo` 短路丢 exit.rc；`--outdir` 多套一层 m5out/ 致 L0 证据错位）——属未提交的 U11 新代码，修在 U11 内，不立单元。
+
+- [x] **Step 1:** 写失败测试：test_ooo_classify.py 加 legacy-only 2 fixture → 运行确认红（引用输出）。——实测红：`FAIL T7 legacy Masked not a violation | ['Masked verdict (fault landed) but L0 activated=0']`、`FAIL T8 Inactive+legacy_injected=1 flagged`、`FAIL T9 l0-hit Masked not a violation`，`SELFTEST FAIL (26 checks, 3 failed)`（T7 精确复现实机假阳性；T8 复现漏报）。（实际加了 3 fixture：T7 走 classify_ooo_run 真实链、T8 纯函数直调钉对称假阴性、T9 钉 l0-hit 路径。）
+- [x] **Step 2:** 修 `check_verdict_l0_consistency` 按证据源取数 + shape 注释扩展 → 测试绿 + 既有 19 断言回归（引用输出）。——实测绿：`SELFTEST PASS (26 checks, 0 failed)`（新增 `_landed_faults()`：funnel→totals.activated / l0→l0_hit_total / legacy→legacy_injected_total，与分类器 feed 同源）；回归 `test_ooo_guard_f025.py SELFTEST PASS (12 checks, 0 failed)`、`ooo_campaign --selftest SELFTEST PASS (23 checks, 0 failed)`、micro_diff 11/11、classify+ooo_observe 导入 OK。
+- [x] **Step 3:** 实机复验：显式删除缺陷观测产物 `sample_000001_5b223f62efde0249_acda5eee5b0d`（DELETED 留痕文件追加记），`--resume --samples 2` 只重跑该样本 → Masked、conservation_ok=true、violations=[]（引用输出）。——实测：`CAMPAIGN SUMMARY ooo-p1 engineering D01-F0-W6: ran=1 skipped-complete=1 verdicts={"Masked": 1}`；新 observation.json：`verdict=Masked`、`conservation_ok=True`、`violations=[]`、checksum==golden 确定性复现；样本 0（Crash，旧代码下观测即正确）保留跳过。
+- [x] **Step 4:** 提交 `[OOO][P1][U10b] legacy 证据一致性修正：verdict/L0 交叉检查按证据源取数（U11 冒烟实证假阳/假阴对称修复）`。——commit `3a142d0c`。
 
 ### Task U11：Campaign 引擎 `tools/ooo_campaign.py`
 
 **Files:**
 - Create: `tools/ooo_campaign.py`
+- Modify: `schemas/manifest.schema.json`（component enum 补 `"decode"`——`manifest_validate.py` COMPONENTS_MAPPED 已于 2f4d364a 含 decode，schema JSON 文件落后 6 项，本单元只补 decode 一项，其余漂移另行记录）
+- Modify: `tools/manifest_validate.py`（顶层 `import os, sys, json, yaml` 拆懒加载——login01 无 pyyaml 而 yaml 仅 `_selftest` 样例加载用；campaign 引擎必须在 login01 import 此模块，否则其"stdlib-only"docstring 是谎言）
 - Test: 内置 `--selftest`（fixture 模式）+ 实机冒烟
 
 **Interfaces:**
 - Consumes: `tools/ooo_models.py`（U1）· `tools/ooo_guard.py`（4 槽 + guard_pid U1b）· `tools/ooo_recover.py`（mark_complete/scan）· `tools/ooo_observe.py`（U10）· 完整任务执行清单.md。
 - Produces: CLI——`--item ITEM-xxx --phase {engineering,pilot,screening,confirmatory} --samples N [--sample-index i] [--resume]`；每样本：seed=`SHA256("ooo-fi-v1|"+RunID+"|"+phase+"|"+sample_index)` 低 64 位；run_key=`campaign/phase/RunID/sample_index/seed/config_sha`；manifest 不可变（写后即校验）；输出 `tmp/<run_key>/` → 原子移入 `runs/ooo/<run_key>/` + COMPLETE.json；心跳；资源日志。
-- **F-008 硬约束：gem5 调用一律经兼容 loader 封装**（`OOO_GEM5_BIN` 环境变量缺省 `build/ARM/gem5.opt`，实际执行 `PYTHONHOME=$COMPAT $COMPAT/lib/ld-linux-aarch64.so.1 --library-path $COMPAT/lib64:/usr/lib64 $OOO_GEM5_BIN ...`；参考 LSU 轨道 U3' LSU_GEM5_BIN 已验证实现，读其 `tools/lsu_runner.py` 未提交 WIP 可借鉴但不抄代码）。
+- **F-008/F-011 硬约束（2026-10-08 U1c 修订）：gem5 调用经 loader 自动探测**——`OOO_GEM5_BIN`（缺省 `build/ARM/gem5.opt`）：先探测原生（`<bin> --help` 且清掉 PYTHONHOME → rc==0 即原生直执行，U1c 重建完成后应为常态；gem5 v25 无 --version 选项，rc=2，实证）；失败回退兼容 loader（`OOO_COMPAT_DIR` 缺省 lsu_keeper/compat：`PYTHONHOME=$C $C/lib/ld-linux-aarch64.so.1 --library-path $C/lib64:/usr/lib64 <bin>`）；两者皆败 → 显式 BLOCKED 退出，绝不静默降级。原生探测必须显式 unset PYTHONHOME（F-011：3.9 二进制 + 3.11 PYTHONHOME 崩溃）。
 
-- [ ] **Step 1:** 写 `--selftest`：fixture manifest 生成（seed 公式断言：`int(sha256("ooo-fi-v1|D01-F0-W3|pilot|7").hexdigest()[:16],16)` 与引擎输出一致）、run_key 唯一性、tmp→原子落位、mark_complete 拒绝篡改。
-- [ ] **Step 2:** 运行 `python3 tools/ooo_campaign.py --selftest` → 全 PASS（输出引用）。
-- [ ] **Step 3:** 实机冒烟：`--item ITEM-002（D01-F0-W6，coremark 已实现模型） --phase engineering --samples 2`，经 guard 4 槽之一执行，产出 2 个 COMPLETE 目录 + L0 证据。预期：2/2 COMPLETE，resume 重跑 0 新增（跳过已完成）。
-- [ ] **Step 4:** 人为中断恢复实测：启动 `--samples 4`，中途 kill（TERM 自身 PGID），`python3 tools/ooo_recover.py` 确认 RUNNING→INTERRUPTED，`--resume` 后 4/4 COMPLETE 且已 COMPLETE 样本未重跑。
+- [x] **Step 1:** 写 `--selftest`：fixture manifest 生成（seed 公式断言：`int(sha256("ooo-fi-v1|D01-F0-W3|pilot|7").hexdigest()[:16],16)` 与引擎输出一致）、run_key 唯一性、tmp→原子落位、mark_complete 拒绝篡改。——ooo_campaign.py 854+ 行：T1-T24（seed 公式 3 常量、run_key 唯一性+config 漂移敏感、manifest 经真实 manifest_validate 校验（component=decode）、loud-reject F1/D02/W3/bogus item、假 gem5 全生命周期（staging→原子落位→COMPLETE 绑定→legacy L0）、write-once 跳过+非 COMPLETE 替换+mark_complete 拒绝、命令镜像 runner.py:1276 decode 分发、guard 拒绝→blocked-guard 不落位【T21，缺陷③修复后加】）。
+- [x] **Step 2:** 运行 `python3 tools/ooo_campaign.py --selftest` → 全 PASS（输出引用）。——`SELFTEST PASS (24 checks, 0 failed)`（缺陷③修复前 23/23；修复后含 T21 blocked-guard 共 24/24）。
+- [x] **Step 3:** 实机冒烟：`--item ITEM-002（D01-F0-W6，coremark 已实现模型） --phase engineering --samples 2`，经 guard 4 槽之一执行，产出 2 个 COMPLETE 目录 + L0 证据。预期：2/2 COMPLETE，resume 重跑 0 新增（跳过已完成）。——首轮冒烟暴露 3 真实缺陷并修复：①inner script `&& echo` 短路丢 abort 的 exit.rc（改 `;` 恒记录）；②`--outdir` 多套 m5out/ 致 L0 证据错位（改直指 run 目录，对齐 runner 惯例）；③guard 门禁拒绝被误记 verdict=None COMPLETE（run-finish 正向证据判定，blocked-guard 大声中止 exit 2——实机复验：陈旧槽下 `campaign exit=2`、无落位）。缺陷产物样本已按 write-once 惯例显式删除并留痕（DELETED-DEFECTIVE-2026-10-08.md 三段）。修复后 2/2 COMPLETE：sample 0 `verdict=Crash rc=134 l0=legacy`（and→orr bit29 传播→Page table fault @0，OOO 轨首例架构级 Crash）、sample 1 `verdict=Masked rc=0 l0=legacy`（ret→hint bit25，checksum==golden）；resume 复跑 `ran=0 skipped-complete=2` ✓。U10b 插曲：样本 1 旧观测带 legacy 假阳性（conservation_ok=false），U10b 修复后删除重跑→`conservation_ok=True violations=[]`。后续中断测试顺带产出样本 2-6（Masked×3 + Crash×1 + Masked，全部 COMPLETE、violations=[]）——超出计划最小样本数，系中断测试需新鲜样本所致，engineering 阶段合法数据。
+- [x] **Step 4:** 人为中断恢复实测：启动 `--samples 4`，中途 kill（TERM 自身 PGID），`python3 tools/ooo_recover.py` 确认 RUNNING→INTERRUPTED，`--resume` 后 4/4 COMPLETE 且已 COMPLETE 样本未重跑。——以 `--samples 8 --resume`（7 已 COMPLETE + 样本 7 新跑）等价执行，全链实测：①launch 后 33s 心跳在位；②TERM campaign PGID 902005 + 孤儿目标组 902282（guard 拓扑：目标自成 pgid，须单独清）；③scan 即时 `[RUNNING] ... heartbeat_age=7s 共 1 项: RUNNING=1`（14:36:46）；④心跳冻结 14:36:39.596，600s 阈值后 scan `[INTERRUPTED] ... heartbeat_stale(610s > 600s) 共 1 项: INTERRUPTED=1`（14:46:49，/tmp/u11-interrupted-scan.log）；⑤kill 遗留 guard 陈旧槽按设计处置：验证 902279/902282/902005 死透 → `clear-stale --confirm-dead-pid 902279` → 4 槽全空；⑥`--resume` → `COMPLETE sample_000007 verdict=Masked rc=0 l0=legacy` + `CAMPAIGN SUMMARY ran=1 skipped-complete=7 verdicts={"Masked": 1}`（/tmp/u11-resume.log）；⑦落盘 8/8 COMPLETE（sample_000000..000007 逐目录核验），样本 7 observation：L5.verdict=Masked（checksum==golden 000000000000cf56）、L0 evidence=legacy legacy_injected_total=1、conservation_ok=true violations=[]；⑧被中断 staging 902005 由 resume 自动替换清除（剩余 1008380 为本次 campaign staging，已清空）。附：首次演练 pgrep -f 经 reach 匹配包装进程自杀（F-012），改 staging 目录名定位后干净双杀。
 - [ ] **Step 5:** 提交 `[OOO][P1][U11] campaign 引擎：seed/manifest/run_key/原子落位/guard/recover 全链 + 中断恢复实测`。
 
 ### Task U12：P1 收口

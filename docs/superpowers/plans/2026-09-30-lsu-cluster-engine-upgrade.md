@@ -59,7 +59,7 @@
   替换 4 处守卫调用引用（runner 计数/RUN 2 处、unit_pilot run_one/census 2 处）+ docstring
   更新（F-026 wrapper 已被 U3b 原生平台取代，E-011）。manifest 的 `gem5_opt_sha256` 仍对
   真实二进制计算，另增 `gem5_invocation` 字段记录实际调用路径（审计分离）。
-  验证中发现的假阳性修复（F-036/E-012）：`--item` 与 `--dry-run/--execute` 组合响亮报错
+  验证中发现的假阳性修复（F-039/E-012）：`--item` 与 `--dry-run/--execute` 组合响亮报错
   （原静默忽略致 5 秒假"端到端 exit 0"）；dry-run 打印守卫命令由硬编码 `gem5.opt` 改为
   `gem5_bin()` 真实路径。
 - 验证（2026-10-08，u3_verify.log + u3_verify2.log）：
@@ -70,7 +70,7 @@
         pass `eligible N=2767`（与 CP5 census 逐位一致），L5 verdict conservation OK
         （outcome=Crash/simulator_assert activated=1）——与旧机 P1 E2E（同 seed 同
         ITEM-001 s0，evidence/P1/runner_e2e_ITEM-001.out）结构级一致：同 faults.cc:103
-        Page table fault → -6，仅 span 2772→2767（F-035）
+        Page table fault → -6，仅 span 2772→2767（F-038）
   - [x] 不设 env 时不变性（13:15）：dry-run 输出仅 `--output` 文件名一行不同
         （/tmp/u3_dryrun_{old,new}.txt）；manifest 差异 = 恰好新增 1 行
         `"gem5_invocation": "<默认路径>"`（diff /tmp/u3_{old,new}_man.json）
@@ -130,21 +130,21 @@
   - [x] 工具链核查（**2026-10-08 完成，见下方场地决策**；原计划：（login01/cn23423））：gcc/g++/scons/swig/python3 dev/protobuf/
         libpng 可得性 → 记录，选定重建场地（倾向 cn23423：608 核/440 GB，编译仍按
         用户规则 -j8 单实例）
-  - [x] 重建（**2026-10-08 完成**：CP4 attempt2 12:37 exit 0（5b2cd26f）→ CP4v 冒烟暴露 py3.9 PEP604 崩溃（E-009/F-034，
+  - [x] 重建（**2026-10-08 完成**：CP4 attempt2 12:37 exit 0（5b2cd26f）→ CP4v 冒烟暴露 py3.9 PEP604 崩溃（E-009/F-037，
         simulator.py:104 单行 Union 补丁，与 OOO 会话交叉验证）→ CP4r 13:42:35-13:52:37 守卫增量重建 exit 0 = **af0d784f386ef1e3**
         （1,229,169,568B）→ CP4v PASS：banner（--help，E-008）/ldd 无缺库/守卫冒烟 exit 0（agu_addrmodes golden 全流，强于 hello）
         + golden oracle **728e604ffcec539d 复现**；E-007 dattach 后台化教训 → 客户端 login01 nohup 模式）
-  - [x] census 两遍法（**2026-10-08 完成：2767×2 ≠ 2772 → 按设计 fail-fast 停下分析，未启动 pilot**；分析结论 = **F-035**：
+  - [x] census 两遍法（**2026-10-08 完成：2767×2 ≠ 2772 → 按设计 fail-fast 停下分析，未启动 pilot**；分析结论 = **F-038**：
         2767 为平台 B 属性（af0d784f 两遍 2767 自身确立；63f50c40 亦实测 2767 但构建源/工具链未确证早于 ee77b992，仅旁证；workload/lsu_proxy/cpu 配置逐字节相同排除输入差异）；
         机制 = O3 LSQ 执行路径（含错误路径）发射计数对微时序敏感（dispatched 11509 vs committed 6710、mispredict 417）；
         平台内确定性 + golden oracle 连续成立；**集群样本与旧机样本即使同 seed 也不可交换 → DR-003-A 隔离升格为技术必需**；
         后续平台重建的 census 门禁应比对同平台前驱基线而非跨机 2772）
   - [x] A01-F0-W3 det 双跑重执行（**2026-10-08 CP6 DETERMINISM PASS**：span=1000 seed=manifest 规则，C1-C5 全 PASS——
         注入日志逐字节、1175 stats 字段（剔 host_*）、config.ini 逐字节、退出码 0/0；注入 run oracle=728e604ffcec539d
-        与旧机一致；attempted=2767（L0 计数与旧机 2772 不同——跨平台等价未成立，正是 CP5 fail-fast 所指，F-035）；
+        与旧机一致；attempted=2767（L0 计数与旧机 2772 不同——跨平台等价未成立，正是 CP5 fail-fast 所指，F-038）；
         新报告归档 evidence/P3/u3b_cp6_A01-F0-W3_{det_report,eng_det_manifest}，P1 冻结还原；E-010 exec 位教训）
   - [x] F-030 终稿（**2026-10-08 完成**：集群平台身份 B = af0d784f（login01 gcc10.3.1/py3.9.9/glibc2.34/HAVE_PROTOBUF=0）
-        + F-034（py3.9 PEP604 补丁）+ F-035（census 基线 2767 跨平台口径）定稿；progress E-007..E-010 收口；
+        + F-037（py3.9 PEP604 补丁）+ F-038（census 基线 2767 跨平台口径）定稿；progress E-007..E-010 收口；
         manifest gem5_opt_sha256 自 CP4r 起记录 af0d784f…（CP6 manifest 已验证）
 - 附注：集群中断期间节点本地 /tmp（u3_exec、lsu_smoke_*）若因重启丢失，恢复后重跑
   U3 实跑验证再提交 U3。

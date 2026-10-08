@@ -85,10 +85,27 @@
 - **Results / Evidence / Errors:** tools/ooo_models.py --check 实测输出（本 Session 第 4/5 条引用）；/tmp/ck-corrupt.md 等副本 exit=1 证据；/tmp/ooo-guard-reg 回归输出；SELFTEST PASS (12 checks, 0 failed)；无 BLOCKED；错误 0（T1 静默跳过为自测发现并当日修复的缺陷，非遗留；R7c 一行脚本槽位假设错误为测试脚本笔误，非被测件缺陷）。
 - **Next Step:** U2 时序族A（D07/R08/FD09/FR09 子模式实现 + 两态验证，dep_chain int golden 98e5e31e726e383f）。
 
+### Session 004
+
+- **Start:** 2026-10-08 11:55–13:55+08:00
+- **Phase:** P1（U10 观测链 + U1c 原生平台复活；U11 引擎在飞）
+- **Actions:**
+  1. **U10 L0–L5 观测链（commit 9f4a6946）**：tools/ooo_observe.py（334 行：collect_l0 21 日志名×3 正则、faults_for_classify 优先级 funnel_activated>l0_hit>legacy_injected>none、ref 门控 L1–L4）+ classify.py 守恒/一致性双检（check_conservation：attempted≥eligible≥injected≥activated 逐注入器+TOTALS，None=unknown 跳过；check_verdict_l0_consistency：Inactive×activated>0 / checksum≠golden / Masked·SDC×activated=0 三类违规，Crash/Hang/SimulatorError 无 L0 合法）+ tools/tests/test_ooo_classify.py 6 夹具 TDD（19/19）+ 真实 off-state E2E（compat loader gem5.opt.sdc-py311，smoke 双跑，commit_trace/micro_snap 真实 gz 走 L1–L4）。
+  2. **远程前进处置（第 4 次）**：推送窗口 fi-ding 96f25eb4（LSU ITEM-013/014 pilot）→ 反向 bundle 中转 → stash/rebase/stash-pop 零冲突 → 推送 9f4a6946。
+  3. **U1c sdc 证物三重保全**：/tmp/gem5.opt.sdc-py311.copy（inode 564）+ build/ARM/gem5.opt.sdc-py311 独立 inode 36028989067229568（links=1，防重链截断毁备份）+ 原 gem5.opt inode（可牺牲重链）。
+  4. **U1c 增量重建**：guard 4037686 / scons 4037691，12:51:36–13:41（50 分钟，env 切换 compat-py311→native-py39 全量重链，warning=false trip=null，build_lock 干净释放）；产物 build/ARM/gem5.opt 1,227,788,056B。
+  5. **U1c Step 6 两态验证（/tmp/u1c-verify.log 9/9 PASS）**：原生（无 loader/无 PYTHONHOME）smoke×2=45737cc9a76c0dce、dep_chain_int=98e5e31e726e383f、dep_chain_vec=b1e661a247b95774、rob_fill_int=19eab7d0de27237e；sdc-py311+compat 同四命令 FINAL 全一致——平台切换不改变仿真确定性。
+  6. **F-008 修订 + F-011 收口**：「结构性不可用」作废（单行 PEP604 shim 即解）；「一律经兼容 loader」降级为「原生优先/compat 回退」；F-011 保留为 py39+3.11-PYTHONHOME 组合禁令。
+  7. **U11 campaign 引擎（本提交时在飞，自测已绿）**：tools/ooo_campaign.py（854 行）SELFTEST PASS（23 checks，0 failed）——seed 公式三常量、run_key 唯一性+config 漂移、manifest 走 manifest_validate（decode 组件）、F1/F2·未接线模型·未验 golden 三类 loud-reject、假 gem5 全生命周期（staging→原子落位→COMPLETE 不可变）、写一次拒绝+非 COMPLETE 同 seed 重放、命令构造镜像 runner.py:1276 decode 分派；schema enum 补 decode + manifest_validate yaml 懒加载（login01 可 import）。实机冒烟（ITEM-002 engineering×2）待本提交后执行。
+- **Results / Evidence / Errors:** U10=9f4a6946（已推送）；U1c=本提交（simulator.py 单行 shim + findings + 本 Session + 计划勾选）；/tmp/u1c-verify.log（9/9）；/tmp/u1c-build.log（51 心跳行）；无 BLOCKED；错误 0（gem5 v25 无 --version 选项 rc=2 为探测命令选型问题，改 --help 即解，已记入 U11 代码注释）。
+- **Next Step:** U11 Step 3 实机冒烟（baseline golden 门 + ITEM-002 engineering 2 样本 COMPLETE）→ Step 4 中断恢复实测 → 提交推送；随后 U2 时序族 A（原生平台已就绪）。
+
 ## Active Work
 
 | Work ID | ITEM | RunID | Excel行 | campaign/phase | sample_index/seed | 状态 | owner/PID/PGID/锁 | 心跳 | 输出/证据 |
 |---|---|---|---|---|---|---|---|---|---|
+| W-U11 | ITEM-002 | D01-F0-W6 | 4 | ooo-p1/engineering | 7/7415807299993716095 | COMPLETE（中断演练→resume 补跑：verdict=Masked rc=0 l0=legacy；8/8 全 COMPLETE） | — | — | runs/ooo/ooo-p1/engineering/D01-F0-W6/sample_000007_66ea3d72dedfc57f_acda5eee5b0d |
+| W-U11-prev | ITEM-002 | D01-F0-W6 | 4 | ooo-p1/engineering | 0-6/各自种子 | COMPLETE×7（Crash×2 Masked×5，violations=[]） | — | — | runs/ooo/ooo-p1/engineering/D01-F0-W6/sample_00000{0..6}_*_acda5eee5b0d |
 
 ## Checklist Status Summary
 
@@ -120,6 +137,11 @@
 
 | Error ID | 时间 | ITEM/RunID | 错误签名 | Attempt | 改变的策略 | Resolution/Decision Request | Evidence |
 |---|---|---|---|---:|---|---|---|
+| E-001 | 2026-10-08 | ITEM-002/D01-F0-W6 | reach 下 pgrep -f 匹配包装 bash 自身 → 属主检查假通过 → kill 自杀（status 255） | 1 | 弃 pgrep -f：PID 以 staging 目录名为准 + ps -p 锚定 cmd + pgid==pid 双确认；TERM campaign 组后再清孤儿目标组 | RESOLVED：TERM 902005+902282 双杀干净，campaign 死亡无残留；入 F-012 | /tmp/u11-interrupt*.log；findings.md F-012 |
+| E-002 | 2026-10-08 | ITEM-002/D01-F0-W6 | 缺陷①：inner script 尾部 && echo 短路，abort 样本（rc=134）丢 exit.rc | 1 | 最后一段改 ; 连接恒记录 | RESOLVED：重跑 Crash 样本 rc=134 实录；defect 产物显式删除留痕 | DELETED-DEFECTIVE-2026-10-08.md |
+| E-003 | 2026-10-08 | ITEM-002/D01-F0-W6 | 缺陷②：--outdir 多套 m5out/ 子目录，L0 证据错位（collect_l0 找不到 decode_injections.log） | 1 | --outdir 直指 run 目录（对齐 runner 惯例） | RESOLVED：decode_injections.log 落 run 目录，l0=legacy 全通 | 同上 |
+| E-004 | 2026-10-08 | ITEM-002/D01-F0-W6 | 缺陷③（诚实性关键）：guard 门禁拒绝（陈旧槽）被记 verdict=None rc=None COMPLETE | 1 | _guard_execute 改 (rc, ran) 返回，run-finish 正向证据判定；未运行→blocked-guard 大声中止 exit 2 | RESOLVED：实机复验 BLOCKED+exit=2+无落位；selftest T21；campaign 810397 的假 COMPLETE 已删 | /tmp/u11-blocked-proof.log；DELETED-DEFECTIVE |
+| E-005 | 2026-10-08 | ITEM-002/D01-F0-W6 | U10b 前样本 1 旧观测 conservation_ok=false（legacy 证据被当 funnel 口径假阳性） | 1 | classify.py 按 L0 证据源取数（funnel/l0-hit/legacy 三态） | RESOLVED：commit 3a142d0c；样本 1 删除重跑 violations=[] | tools/tests/test_ooo_classify.py T7-T9 |
 
 ## Periodic Update Template
 
