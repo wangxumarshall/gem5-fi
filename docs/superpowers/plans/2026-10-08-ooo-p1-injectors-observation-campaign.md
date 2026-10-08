@@ -219,7 +219,7 @@ build/ARM/gem5.opt --outdir=/tmp/u2-on configs/se/ooo_proxy.py --cmd workloads/o
   - 环境注记：ad-hoc 验证脚本不落 `exit.rc`/`simout`（campaign runner 原生会写）——事后按日志实测 rc 写入 exit.rc、按 .out 控制台捕获重建 simout（内容=该次运行 gem5 真实输出），观测链随后 verdict 正常；未来轮次脚本补 `echo $rc > exit.rc` 即免重建。
 - [x] **Step 4b（U10 交接）:** 首个 on-state outdir 跑 `python3 tools/ooo_observe.py <outdir> --golden <golden> --ref-outdir <同模型 off 态 outdir>` → L0 计数与注入器日志一致、faults_source 与 verdict 如实收口——U10 的开启态验证在此收口（实测见上方第 4 轮注记：Masked/Crash/Crash 三态相符、legacy 档对账 1==1、原词 funnel_activated 修正为 legacy_injected）。
 - [x] **Step 5:** ooo_models.py impl_status 更新四模型 + `--check` 仍 310/310。——实测（2026-10-08）：静态翻 D07/R08→(implemented, CHAOSDecode/CHAOSRenameMap)、FD09/FR09 同构；09 审计表同步四行（注入器/模式面 + 判定 已实现 + 缺口改实测注记）+ 总账（已实现 9→13、未实现 14→10）。`--check`：`models: 57 | items_scanned: 310 | item_refs_resolved: 310 | unresolved: 0`、`impl_status: implemented=13 partial=34 unimplemented=10`、无 CHECK FAILED。
-- [ ] **Step 6:** 提交 `[OOO][P1][U2] 流水时序族A：D07/R08/FD09/FR09 子模式 + 两态实测`。
+- [x] **Step 6:** 提交 `[OOO][P1][U2] 流水时序族A：D07/R08/FD09/FR09 子模式 + 两态实测`。——实测：commit `107de592`（18 文件，+1029/−49，ooo-exec）。中继推送（login01 无外网，bundle 通道）：`/tmp/u2-oct8.bundle`（32524 B，sha256 `bace010c…d7694`，基 6505d9b1）→ Windows `reach fs read` 字节级落地（sha256 复核一致）→ 本地 fi-ding 集成。**远端两次移动均按规分析后合并（绝不 force）**：① ae6e151e（LSU ITEM-018..026+F-037/F-038，10 提交）→ merge a2cd14d2（progress.md 冲突：pilot 状态取远端较新、集群平台状态取本地较新 U3b+U3 完成，两流事实保留于 merge 注记）；② 01008446（ITEM-026/027 A06 闭合）→ merge 3c9677f6（同规则）。U2 merge 7e19e41e 干净（18 文件 +1029/−49 与原提交一致）。push `01008446..3c9677f6 fi-ding -> fi-ding` ✓，远端 tip `3c9677f6` 复核一致。
 
 ### Task U3：流水时序族 B（B08 B09 FB08 FB09）
 
