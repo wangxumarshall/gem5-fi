@@ -1,0 +1,29 @@
+{
+  "cli_version": "0.10.2",
+  "checkpoint_id": "01M4CNHBDMDVAFS74JEX1YTVJP",
+  "strategy": "manual-commit",
+  "branch": "fi-ding",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "docs/gem5-fi/lsu/evidence/P3/f025_guard_pid_fix_test.txt",
+    "docs/gem5-fi/lsu/findings.md",
+    "docs/gem5-fi/lsu/progress.md",
+    "tools/lsu_guard.py"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 1264803,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 29899712,
+    "output_tokens": 132135,
+    "api_call_count": 146
+  }
+}
