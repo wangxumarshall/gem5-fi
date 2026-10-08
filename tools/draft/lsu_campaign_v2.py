@@ -34,6 +34,7 @@ Usage:
 """
 import argparse
 import csv
+import hashlib
 import json
 import os
 import subprocess
@@ -103,6 +104,94 @@ def resolve_main_target(runid, args):
     """M3/M5: main 阶段目标按 RunID 解析——KEY_RUNIDS→2401，其余→
     screening 目标（不扩样）。--main-target 已废弃，不参与解析。"""
     return MAIN_TARGET_KEY if runid in KEY_RUNIDS else args.screening_target
+
+
+_FP_CACHE = {}
+
+
+def _sha256_file(path):
+    """文件 sha256，进程内缓存（F-023 教训：单次运行内脚本不改动）。"""
+    path = Path(path)
+    key = str(path)
+    if key not in _FP_CACHE:
+        h = hashlib.sha256()
+        with open(path, "rb") as f:
+            for chunk in iter(lambda: f.read(1 << 20), b""):
+                h.update(chunk)
+        _FP_CACHE[key] = h.hexdigest()
+    return _FP_CACHE[key]
+
+
+def config_fp_for(cell, args):
+    """六项版本指纹（M2/M10，sha256[:16]）：注入器/配置/workload/
+    checkpoint/oracle/分类规则。pilot 样本计入累计前必须一致——不一致
+    → 分层隔离标记，绝不静默混合。"""
+    workload = cell[COL_WORKLOAD].strip()
+    binary = None
+    for key, bin_name in WL_BINARY.items():
+        if key in workload:
+            binary = bin_name
+            break
+    wl_fp = (_sha256_file(REPO / "workloads" / "directed" / binary)
+             if binary else workload)
+    comp = [
+        ("injector", _sha256_file(G5)),
+        ("config", _sha256_file(LSU_PROXY)),
+        ("workload", wl_fp),
+        ("checkpoint", (str(Path(args.fs_checkpoint).resolve())
+                        if getattr(args, "fs_checkpoint", None) else "SE")),
+        ("oracle", GOLDENS.get(binary, "none") if binary else "none"),
+        ("classify", _sha256_file(L5)),
+    ]
+    return hashlib.sha256("|".join("%s=%s" % kv for kv in comp)
+                          .encode()).hexdigest()[:16]
+
+
+def _resume_prefix(cell_out, config_fp):
+    """M11 样本级 resume（对齐 unit_pilot._valid_resumed 前缀语义）：
+    seed1..k 的 l5_verdict.json 存在、可解析、无 error、且 config_fp 一致
+    → 复用；首个失效/不一致即停止（旧轮证据不复活、不静默混合）。
+    返回 (verdicts, next_seed)，next_seed = k+1。"""
+    resumed, s = [], 1
+    while True:
+        vj = cell_out / ("seed%d" % s) / "l5_verdict.json"
+        if not vj.exists():
+            break
+        try:
+            v = json.loads(vj.read_text())
+        except json.JSONDecodeError:
+            break
+        if v.get("error") or v.get("config_fp") != config_fp:
+            break
+        resumed.append(v)
+        s += 1
+    return resumed, s
+
+
+def _write_verdict(seed_dir, verdict, config_fp):
+    """落盘 per-seed verdict（resume 依据）。旧轮 fp 不一致 → 改名保留
+    （D3），不覆盖不删除。"""
+    seed_dir.mkdir(parents=True, exist_ok=True)
+    vj = seed_dir / "l5_verdict.json"
+    if vj.exists():
+        try:
+            old_fp = json.loads(vj.read_text()).get("config_fp")
+        except json.JSONDecodeError:
+            old_fp = "unreadable"
+        if old_fp != config_fp:
+            vj.rename(seed_dir / ("l5_verdict.fp_%s.json" % old_fp))
+    vj.write_text(json.dumps(verdict, indent=1))
+
+
+def _prior_results_fp(cell_out):
+    """上一轮聚合结果的 fp（无文件→None；不可解析→"unreadable"）。"""
+    cr = cell_out / "cell_results.json"
+    if not cr.exists():
+        return None
+    try:
+        return json.loads(cr.read_text()).get("config_fp")
+    except json.JSONDecodeError:
+        return "unreadable"
 
 
 # Workload-level structural blocks (README §8.3 — 65 cells on W1/W4/W7/W13,
@@ -643,20 +732,16 @@ def run_cell_adaptive(cell, args, outroot):
                               "Crash", "Timeout")}
     runs, attempted, eligible = [], 0, 0
     activated = sim_fail = funnel_missing = 0
-    seed, stop_reason = 0, None
     cell_out = outroot / runid
+    fp = config_fp_for(cell, args)                     # M2/M10
+    prior_fp = _prior_results_fp(cell_out)             # M10 分层隔离
+    resumed, next_seed = _resume_prefix(cell_out, fp)  # M11
 
-    while True:
-        if activated >= target:
-            stop_reason = "%s-target-met" % args.phase
-            break
-        if seed >= args.max_seeds_per_cell:
-            stop_reason = "seed-cap(%d)" % args.max_seeds_per_cell
-            break
-        seed += 1
-        r = run_single_cell(cell, args, seed, cell_out / f"seed{seed}")
+    def _acc(r):
+        nonlocal attempted, eligible, activated, sim_fail, funnel_missing
         act = int(r.get("activated", 0) or 0)
-        runs.append({"seed": seed, "cluster_id": "%s#%d" % (runid, seed),
+        runs.append({"seed": r.get("seed"),
+                     "cluster_id": "%s#%s" % (runid, r.get("seed")),
                      "activated": act,
                      "outcome": r.get("outcome", "Unclassified"),
                      "crash_kind": r.get("crash_kind"),
@@ -674,6 +759,26 @@ def run_cell_adaptive(cell, args, outroot):
         elif oc in classes:
             classes[oc] += act
 
+    for v in resumed:
+        _acc(v)
+
+    stop_reason = None
+    while True:
+        if activated >= target:
+            stop_reason = "%s-target-met" % args.phase
+            break
+        if next_seed > args.max_seeds_per_cell:
+            stop_reason = "seed-cap(%d)" % args.max_seeds_per_cell
+            break
+        r = run_single_cell(cell, args, next_seed,
+                            cell_out / ("seed%d" % next_seed))
+        r = dict(r)
+        r["seed"] = next_seed
+        r["config_fp"] = fp
+        _write_verdict(cell_out / ("seed%d" % next_seed), r, fp)
+        _acc(r)
+        next_seed += 1
+
     hw, lo, hi = _wilson_stats(classes, activated, runs, clustered)
     denom = activated - sim_fail                       # M8
     sdc_rate = (classes["SDC"] / denom) if denom > 0 else None
@@ -681,7 +786,8 @@ def run_cell_adaptive(cell, args, outroot):
     activation_rate = (activated / eligible) if eligible > 0 else None  # M9
     cons = (activated == sum(classes.values()) + sim_fail)
     result = {
-        "runid": runid, "phase": args.phase, "seed_batches": seed,
+        "runid": runid, "phase": args.phase,
+        "seed_batches": next_seed - 1,
         "clustered": clustered, "n_runs": len(runs),
         "attempted": attempted, "eligible": eligible,
         "activated": activated, "sim_fail": sim_fail,
@@ -694,6 +800,13 @@ def run_cell_adaptive(cell, args, outroot):
         "stop_reason": stop_reason, "conservation": "OK" if cons else "VIOLATION",
         "runs": runs,
     }
+    if prior_fp not in (None, fp, "unreadable"):
+        # D3: 旧轮聚合结果改名保留，不静默混合
+        (cell_out / "cell_results.json").rename(
+            cell_out / ("cell_results.fp_%s.json" % prior_fp))
+    result["config_fp"] = fp
+    result["prior_config_fp"] = prior_fp
+    result["config_fp_isolated"] = (prior_fp not in (None, fp))
     cell_out.mkdir(parents=True, exist_ok=True)
     (cell_out / "cell_results.json").write_text(json.dumps(result, indent=1))
     return runid, ("  %s: phase=%s n_runs=%d activated=%d sdc=%d "

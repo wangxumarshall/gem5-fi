@@ -155,5 +155,88 @@ class AccountingTests(unittest.TestCase):
         self.assertIsNone(r["activation_rate"])
 
 
+class ResumeTests(unittest.TestCase):
+    def setUp(self):
+        self.m = load_draft()
+        # 封闭 fp：小文件替身（不哈希真实 1.2GB gem5.opt）
+        self.tmp = tempfile.TemporaryDirectory()
+        tp = Path(self.tmp.name)
+        for name in ("g5", "proxy", "l5"):
+            (tp / name).write_bytes(b"pad-" + name.encode())
+        self.m.G5 = tp / "g5"
+        self.m.LSU_PROXY = tp / "proxy"
+        self.m.L5 = tp / "l5"
+        self.m._FP_CACHE.clear()
+        self.out = tp / "runs"
+        self.calls = []
+        self.m.run_single_cell = self._mock
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def _mock(self, cell, args, seed, outdir):
+        self.calls.append(seed)
+        return {"outcome": "Masked", "activated": 5, "attempted": 6,
+                "eligible": 5, "injected": 5}
+
+    def _args(self, target):
+        a = Args()
+        a.phase = "trial"
+        a.trial_target = target
+        return a
+
+    def test_T4_no_double_count_on_rerun(self):
+        m = self.m
+        m.run_cell_adaptive(make_cell(), self._args(30), self.out)  # 6 runs
+        self.assertEqual(len(self.calls), 6)
+        self.calls.clear()
+        m.run_cell_adaptive(make_cell(), self._args(30), self.out)  # 全复用
+        self.assertEqual(len(self.calls), 0)
+        cell = self.out / "A01-F0-W3"
+        self.assertEqual(len(list(cell.glob("seed*/l5_verdict.json"))), 6)
+        r = json.loads((cell / "cell_results.json").read_text())
+        self.assertEqual(r["n_runs"], 6)
+        self.assertEqual(r["activated"], 30)
+
+    def test_T9_resume_extends_without_seed_duplication(self):
+        m = self.m
+        m.run_cell_adaptive(make_cell(), self._args(30), self.out)  # 6 seeds
+        self.calls.clear()
+        m.run_cell_adaptive(make_cell(), self._args(40), self.out)  # +2 seeds
+        self.assertEqual(self.calls, [7, 8])
+        seeds = sorted(json.loads(p.read_text())["seed"] for p in
+                       (self.out / "A01-F0-W3").glob("seed*/l5_verdict.json"))
+        self.assertEqual(seeds, [1, 2, 3, 4, 5, 6, 7, 8])
+
+    def test_fp_mismatch_stratifies_not_mixes(self):
+        m = self.m
+        cell = self.out / "A01-F0-W3"
+        m.run_cell_adaptive(make_cell(), self._args(30), self.out)
+        # 篡改 seed3 的 fp → 前缀止于 2 → 重跑 3..6
+        v3 = cell / "seed3" / "l5_verdict.json"
+        v = json.loads(v3.read_text())
+        v["config_fp"] = "deadbeef00000000"
+        v3.write_text(json.dumps(v))
+        self.calls.clear()
+        m.run_cell_adaptive(make_cell(), self._args(30), self.out)
+        self.assertEqual(self.calls, [3, 4, 5, 6])
+        self.assertTrue((cell / "seed3" /
+                         "l5_verdict.fp_deadbeef00000000.json").exists())
+        cur = json.loads((cell / "cell_results.json").read_text())["config_fp"]
+        for p in cell.glob("seed*/l5_verdict.json"):
+            self.assertEqual(json.loads(p.read_text())["config_fp"], cur)
+        # 篡改聚合结果 fp → 下轮分层标记 + 旧文件改名保留
+        cr = cell / "cell_results.json"
+        r = json.loads(cr.read_text())
+        r["config_fp"] = "cafe000000000000"
+        cr.write_text(json.dumps(r))
+        m.run_cell_adaptive(make_cell(), self._args(30), self.out)
+        r2 = json.loads(cr.read_text())
+        self.assertTrue(r2["config_fp_isolated"])
+        self.assertEqual(r2["prior_config_fp"], "cafe000000000000")
+        self.assertTrue(
+            (cell / "cell_results.fp_cafe000000000000.json").exists())
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
