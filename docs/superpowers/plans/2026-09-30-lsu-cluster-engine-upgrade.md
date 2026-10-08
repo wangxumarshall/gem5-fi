@@ -12,6 +12,12 @@
 > 二进制身份恢复**；U3 提交与 pilot 波次顺延至 U3b 之后。login01 SSH 中断（E-005）
 > 期间，本修订与全部取证在 Windows 本地克隆（d2b7e885）完成。10-08 补记：旧机 10-03 16:32 已恢复且 pilot 数据完好（F-029，Session 003）；DR-003 裁决 A（旧机续跑波次）后，U3b 转为集群备用平台身份恢复——集群不跑波次。
 
+> **2026-10-08 22:2x 收口：** U1（移植 4 槽守卫，已并入 F-022 交付线）/ U3b（平台 B
+> 二进制身份恢复 af0d784f）/ U3（LSU_GEM5_BIN 接线 + 响亮化）/ U6（G0-10 集群复验）
+> 全部完成并推送 origin/fi-ding；U2/U4/U5 superseded（旧会话 F-022 已交付）。集群
+> 平台工程（DR-003-A 范围）至此全部完成——后续集群侧仅 keeper 续期监控与并行会话
+> git 整合中继，不启动实验。
+
 - **日期：** 2026-09-30
 - **背景（为什么）：** 平台已迁移至集群节点 cn23423（keeper job 1773102）。gem5 二进制在
   glibc-2.38 主机上构建，集群为 Kylin glibc-2.34，经 compat loader 运行时（F-023）冒烟
@@ -169,7 +175,11 @@
     999997 → CLEARED exit=0）；swap_na（F-027）在快照如实呈现）
   - [x] task_plan G0-10 行更新且有证据路径（追加集群平台 B 复验注记 +
     evidence/P3/guard_slots_verify.out）
-  - [ ] git log 每单元一 commit、均已推送 origin/fi-ding（本提交推送后另行勾选）
+  - [x] git log 每单元一 commit、均已推送 origin/fi-ding（2026-10-08 22:2x
+    核验：单元提交 297cd78d（simulator.py py3.9）/ ba4ec84c（U3b）/
+    9571b2a5（U3）/ 97b7f4c0（E-013 F 编号修复）/ d4392a74（U6）全部
+    `git merge-base --is-ancestor <sha> origin/fi-ding` = true；整合合并
+    76e9b208/28c4e6dd/fb811065 为并行会话集成提交，非工作单元）
 
 ## 提交与推送
 - 每单元：实现 → 自验证（真实命令+引用输出）→ commit（[LSU][P3] 前缀，不含
