@@ -115,7 +115,7 @@ impl_status: implemented=9 partial=34 unimplemented=14
 - [x] **Step 2:** 打补丁：simulator.py line 104 `outdir: Optional[str | Path] = None` → `outdir: Optional[Union[str, Path]] = None`（等价改写、注解仍求值、语义不变；Union 已导入）。——实测：grep 确认 line 104 已为 Union 形。
 - [x] **Step 3:** 静态复验：全树 AST 注解位扫描 = 0 站点；patched simulator.py py3.9 compile CLEAN。——实测：4 根（src/python/gem5、src/python/m5、configs、build/ARM/python）注解位 total=0、SyntaxError=0，STEP3: PASS。
 - [x] **Step 4:** 保全 sdc 证物（rebuild 覆写 gem5.opt 前必做）：`ln build/ARM/gem5.opt build/ARM/gem5.opt.sdc-py311`（同 inode 加一链接）。——实测：ls -li 双文件同 inode 135108174027414400。
-- [ ] **Step 5:** 等 LSU CP4 scons（pid 3323664，-T 14400）退出且 gate 无编译进程后，guard 包裹增量重建：`python3 tools/ooo_guard.py run --type build --desc u1c-shim-rebuild --log /tmp/u1c-build.log -- bash -c 'cd CHAOS/gem5 && scons -j8 build/ARM/gem5.opt'` → 预期 `scons: done`（引用尾行）。
+- [x] **Step 5:** 等 LSU CP4 scons（pid 3323664，-T 14400）退出且 gate 无编译进程后，guard 包裹增量重建：`python3 tools/ooo_guard.py run --type build --desc u1c-shim-rebuild --log /tmp/u1c-build.log -- bash -c 'cd CHAOS/gem5 && scons -j8 build/ARM/gem5.opt'` → 预期 `scons: done`（引用尾行）。——实测：LSU CP4 12:37:40 完成后 12:51:36 启动（guard 4037686 / scons 4037691，python3 绝对路径 scons -j8）；末次心跳 13:41:49 elapsed_s=3012.7 warning=false trip=null；产物 build/ARM/gem5.opt 1,227,788,056B @ 13:40；build_lock 释放（guard status 实测 null）。env 切换 compat-py311→native-py39 触发全量重链，全程 50 分钟。
 - [ ] **Step 6:** 原生两态 × 四 golden（系统 py3.9 直跑，无 loader/无 PYTHONHOME）：
 ```bash
 cd /home/share/suke/wangxu/gem5-fi-ooo
@@ -124,8 +124,8 @@ build/ARM/gem5.opt --outdir=/tmp/u1c-di configs/se/ooo_proxy.py --cmd workloads/
 build/ARM/gem5.opt --outdir=/tmp/u1c-dv configs/se/ooo_proxy.py --cmd workloads/ooo/dep_chain/dep_chain_vec --cpu O3 # FINAL=b1e661a247b95774
 build/ARM/gem5.opt --outdir=/tmp/u1c-rf configs/se/ooo_proxy.py --cmd workloads/ooo/rob_fill/rob_fill --cpu O3     # FINAL=19eab7d0de27237e
 ```
-  回归对照：同四命令以 `gem5.opt.sdc-py311` + compat loader 复跑，FINAL 全一致（平台切换不改变仿真确定性）。
-- [ ] **Step 7:** F-008 修订（「结构性不可用」→「单行 PEP604 shim 后可用」）+ progress Session 004 + 提交 `[OOO][P1][U1c] login01 原生 py3.9 平台复活：simulator.py 单行 shim + 四 golden 原生实测（F-008 修订 + F-011）` + bundle 推送。
+  回归对照：同四命令以 `gem5.opt.sdc-py311` + compat loader 复跑，FINAL 全一致（平台切换不改变仿真确定性）。——实测：/tmp/u1c-verify.log 原生 5 跑全 PASS——smoke1=smoke2=45737cc9a76c0dce（rc=0，确定性复现逐字节一致）、dep_chain_int=98e5e31e726e383f（50s）、dep_chain_vec=b1e661a247b95774（49s）、rob_fill_int=19eab7d0de27237e（46s）；compat 回归（sdc-py311 + loader + PYTHONHOME）：smoke=45737cc9a76c0dce、dep_chain_int/vec、rob_fill_int 全 PASS（compat-sdc 行）。
+- [x] **Step 7:** F-008 修订（「结构性不可用」→「单行 PEP604 shim 后可用」）+ progress Session 004 + 提交 `[OOO][P1][U1c] login01 原生 py3.9 平台复活：simulator.py 单行 shim + 四 golden 原生实测（F-008 修订 + F-011）` + bundle 推送。——实测：本提交（F-008 修订行/F-011 结果已落 findings.md；Session 004 已落 progress.md；bundle 推送见 Session 004 证据）。
 - 失败处置：原生运行暴露进一步 3.10+ 运行时错误 → 逐站点同法迭代（同单元内）；不可收敛 → findings 记 BLOCKED + 转 DR-003（python3.11 bin+include 供给申请）。
 
 **对 U2+ 的效力：** U1c 落地前 U2–U9 全部阻塞（新 C++ 必须重建、重建产物仅原生可跑）；落地后运行命令原生直跑（U2 Step 4 已随本修订改原生形态）。
