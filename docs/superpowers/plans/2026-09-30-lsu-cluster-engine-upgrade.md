@@ -118,13 +118,22 @@
   - [x] 工具链核查（**2026-10-08 完成，见下方场地决策**；原计划：（login01/cn23423））：gcc/g++/scons/swig/python3 dev/protobuf/
         libpng 可得性 → 记录，选定重建场地（倾向 cn23423：608 核/440 GB，编译仍按
         用户规则 -j8 单实例）
-  - [ ] 重建（**场地=login01**，见下方场地决策；cn23423 无 g++ 已排除）：启动门禁 + build 锁 + `scons -j8 build/ARM/gem5.opt` 单编译任务 →
-        banner/sha256/原生冒烟（lsu_proxy --cmd workloads/directed/hello）
-  - [ ] census 两遍法 agu_addrmodes eligible == **2772**（不符则停下分析，禁止启动 pilot）
-  - [ ] A01-F0-W3 engineering det 双跑重执行：语义字段（注入日志/L0 计数/oracle
-        stdout/退出码）与 evidence/P1/det/A01-F0-W3_det_report.txt 一致
-  - [ ] F-030 终稿（集群平台身份 B + 跨平台口径）+ progress 更新；此后 manifest
-        gem5_opt_sha256 记录新值
+  - [x] 重建（**2026-10-08 完成**：CP4 attempt2 12:37 exit 0（5b2cd26f）→ CP4v 冒烟暴露 py3.9 PEP604 崩溃（E-009/F-034，
+        simulator.py:104 单行 Union 补丁，与 OOO 会话交叉验证）→ CP4r 13:42:35-13:52:37 守卫增量重建 exit 0 = **af0d784f386ef1e3**
+        （1,229,169,568B）→ CP4v PASS：banner（--help，E-008）/ldd 无缺库/守卫冒烟 exit 0（agu_addrmodes golden 全流，强于 hello）
+        + golden oracle **728e604ffcec539d 复现**；E-007 dattach 后台化教训 → 客户端 login01 nohup 模式）
+  - [x] census 两遍法（**2026-10-08 完成：2767×2 ≠ 2772 → 按设计 fail-fast 停下分析，未启动 pilot**；分析结论 = **F-035**：
+        2767 为平台 B 属性（af0d784f 两遍 2767 自身确立；63f50c40 亦实测 2767 但构建源/工具链未确证早于 ee77b992，仅旁证；workload/lsu_proxy/cpu 配置逐字节相同排除输入差异）；
+        机制 = O3 LSQ 执行路径（含错误路径）发射计数对微时序敏感（dispatched 11509 vs committed 6710、mispredict 417）；
+        平台内确定性 + golden oracle 连续成立；**集群样本与旧机样本即使同 seed 也不可交换 → DR-003-A 隔离升格为技术必需**；
+        后续平台重建的 census 门禁应比对同平台前驱基线而非跨机 2772）
+  - [x] A01-F0-W3 det 双跑重执行（**2026-10-08 CP6 DETERMINISM PASS**：span=1000 seed=manifest 规则，C1-C5 全 PASS——
+        注入日志逐字节、1175 stats 字段（剔 host_*）、config.ini 逐字节、退出码 0/0；注入 run oracle=728e604ffcec539d
+        与旧机一致；attempted=2767（L0 计数与旧机 2772 不同——跨平台等价未成立，正是 CP5 fail-fast 所指，F-035）；
+        新报告归档 evidence/P3/u3b_cp6_A01-F0-W3_{det_report,eng_det_manifest}，P1 冻结还原；E-010 exec 位教训）
+  - [x] F-030 终稿（**2026-10-08 完成**：集群平台身份 B = af0d784f（login01 gcc10.3.1/py3.9.9/glibc2.34/HAVE_PROTOBUF=0）
+        + F-034（py3.9 PEP604 补丁）+ F-035（census 基线 2767 跨平台口径）定稿；progress E-007..E-010 收口；
+        manifest gem5_opt_sha256 自 CP4r 起记录 af0d784f…（CP6 manifest 已验证）
 - 附注：集群中断期间节点本地 /tmp（u3_exec、lsu_smoke_*）若因重启丢失，恢复后重跑
   U3 实跑验证再提交 U3。
 

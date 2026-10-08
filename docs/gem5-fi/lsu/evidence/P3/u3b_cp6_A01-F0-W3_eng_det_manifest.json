@@ -1,0 +1,16 @@
+{
+  "frozen": true,
+  "purpose": "ENGINEERING_ONLY 家族确定性双跑（G0-02）——不进入正式统计",
+  "item": "ITEM-001", "run_id": "A01-F0-W3",
+  "phase": "engineering", "sample_index": 0, "seed": 11036927240874655837,
+  "seed_rule": "sha256('lsu-fi-v1|A01-F0-W3|engineering|0') 低64位 digest[24:32] 大端（tools/lsu_seed.py）",
+  "identity": {"git_commit": "9f4a6946b61cffb82943dbeafe5d8af321ca9dcd", "gem5_opt_sha256": "af0d784f386ef1e328d04b062841ced459cfdd471f9e6dccf84b02b1d06ca8f9",
+               "lsu_proxy_sha256": "4001eba155ed9ee0d932986393299184167a79af508eb6ed0cb7b20dac53ec93",
+               "workload": "workloads/directed/agu_addrmodes", "workload_sha256": "90a1900377d2499625bf401c6b8ce1a7d4a22c8327aeef98f11dc842b406b49b"},
+  "config": {"cpu": "O3", "variant": "B0", "checkpoint": "none (SE)"},
+  "f0_span_rule": "legacy 时钟窗机制（lsuTier 参数 wire-ready 未消费），无 span/计数 pass",
+  "injector_args": ["--chaos_addrpath", "--addrpath_mode", "a01_bit", "--addrpath_lsu_tier", "F0", "--addrpath_warmup_events", "0", "--addrpath_span_events", "1000", "--addrpath_rng_seed", "11036927240874655837"],
+  "timeout": {"wall_seconds_per_run": 600, "mechanism": "lsu_guard --max-seconds"},
+  "runs": {"count": "runs/lsu/det/A01-F0-W3/count", "run1": "runs/lsu/det/A01-F0-W3/run1", "run2": "runs/lsu/det/A01-F0-W3/run2"},
+  "serial_execution": "守卫 experiment 锁严格串行（count→run1→run2）"
+}
