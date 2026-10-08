@@ -13,7 +13,7 @@
 ## Global Constraints（每单元隐含遵守）
 
 - gem5 C++ 增量编译：`scons -j8` + flock 单实例（`tools/ooo_guard.py run --type build` 包裹），仓根 `build/ARM/gem5.opt`（经 `CHAOS/gem5/build/ARM → ../../../build/ARM` 符号链接）。
-- 一切 gem5 运行经兼容 loader（F-008）：`C=/home/share/suke/wangxu/lsu_keeper/compat; PYTHONHOME=$C $C/lib/ld-linux-aarch64.so.1 --library-path $C/lib64:/usr/lib64 build/ARM/gem5.opt ...`
+- gem5 运行双轨（U1c 落地后生效，此前维持 compat 单轨）：sdc 构建（sha 63f50c40…，`build/ARM/gem5.opt.sdc-py311`）一律经兼容 loader（`C=/home/share/suke/wangxu/lsu_keeper/compat; PYTHONHOME=$C $C/lib/ld-linux-aarch64.so.1 --library-path $C/lib64:/usr/lib64 build/ARM/gem5.opt.sdc-py311 ...`）；login01 原生 py3.9 重建产物（U1c 后一切增量构建）**原生直跑，禁止套 compat loader/PYTHONHOME**（3.9 二进制错配 3.11 stdlib 必炸，见 F-011）。
 - 触发语义只用 `src/cpu/o3/chaos_trigger.hh`（F0–F5）；`lastClock=0`（不受限）；`maxFaults` 控数；`rngSeed` 复现。
 - ARM64：整数寄存器 index ≥32 为 banked（31=XZR 排除）；NEON/向量寄存器故障掩码必须 64 位。
 - 新组件全链接线：注入器四件套 → `configs/se/ooo_proxy.py` 挂载 flag → `tools/runner.py` dispatch → `schemas/manifest.schema.json` 枚举 → `tools/manifest_validate.py`。未全链接线 = 拒绝，不半路由。
@@ -97,6 +97,39 @@ impl_status: implemented=9 partial=34 unimplemented=14
 - [x] **Step 5:** 回归：隔离 GUARD_DIR 下重跑 T1–T6 精简版（gate/acquire/release/status/clear-stale/run 快命令），输出与 Unit1 记录一致。——实测（OOO_GUARD_DIR=/tmp/ooo-guard-reg）：R1 空态 4 槽 null；R2 acquire 入 slot 0 且锁含 guard_pid；R3 status 持有；R4 错 confirm REFUSED（guard_pid 不符）；R5 正确 confirm RELEASED；R6 陈旧 A 锁 acquire REFUSED（guard_pid=999003）；R7a 错 pid NOTE 未处置→R7b 对 pid CLEARED→re-acquire 成功→释放；R8 gate ok=false 仅因 LSU CP4 重建编译进程在跑（正确阻断，同 P0 Unit1 原始观察；MemAvailable 303.5GiB、无陈旧槽误报、slots 0/4）。**run 快命令无法当跑**（gate 正确阻断）——cmd_run 释放路径变更（confirm=os.getpid()）已由 T5a/b 单元级覆盖（即 cmd_run finally 的同一 _release 调用），全路径 E2E 待 login01 无编译进程时复验（U2 构建守卫周期必然复跑该路径）。
 - [x] **Step 6:** 提交 `[OOO][P1][U1b] ooo_guard guard_pid 竞态移植（F-025，对齐 LSU 6d1662ee）`。
 
+### Task U1c：login01 原生 py3.9 构建平台复活（F-008 修订；U2–U9 前置门）
+
+**Files:**
+- Modify: `CHAOS/gem5/src/python/gem5/simulate/simulator.py`（仅 1 行：line 104 `Optional[str | Path]` → `Optional[Union[str, Path]]`；`Union` 已在 line 38 导入）
+- Modify: `docs/gem5-fi/ooo/findings.md`（新增 F-011；F-008 修订注记）
+- Modify: `docs/gem5-fi/ooo/progress.md`（Session 004）
+- Test: 静态三重探针（全树 AST 注解位扫描 / py3.9 compile / PYTHONVERBOSE import 审计）+ 实机四 golden 原生两态
+
+**Interfaces:**
+- Consumes: F-008 证物 `build/ARM/gem5.opt.login01-py39-broken`（G0-01 clean build，src 与 sdc 构建逐字节一致）；PYTHONVERBOSE 探针 `/tmp/pyv.err`（sdc+compat 实跑 RC=0 FINAL=45737cc9a76c0dce，104 个 stdlib 文件来源全清单）。
+- Produces: login01 原生 py3.9 `build/ARM/gem5.opt`（shim 后）原生直跑 stdlib board 配置；`build/ARM/gem5.opt.sdc-py311`（sdc 证物硬链接保全）；U2–U9 全部 C++ 单元的构建平台（改码→guard 增量重建→原生直跑）。
+
+**背景（必须先读）:** F-008 判「任何 login01 原生构建对 stdlib board 配置结构性不可用」，实证失败点仅 `simulator.py:104` 签名注解 PEP 604（def 时求值）。2026-10-08 全树量化（AST 扫描 + PYTHONVERBOSE 实测）：①244 文件（src/python/gem5 + m5 + configs）py3.9 语法零违例；②AST 注解位 PEP 604 全树（含 build/ARM/python 生成件）= **恰 1 站点 1 文件**（simulator.py:104）；③运行时 3.10+ API（with_stem/hardlink_to/zip strict/TypeAlias/slots=True/isinstance-|）全树零命中；④import 链 104 个 stdlib 模块在系统 py3.9 全部可解析（re/importlib.resources 系 3.9↔3.11 布局差异、解释器内部自理；importlib._abc 为 3.11 stdlib 内部依赖、gem5 代码零直接引用；零 C 扩展模块依赖）。DT_NEEDED 文件名欺骗已证死路（F-011：getpath 按编译期版本号推 sys.path=lib64/python3.9/*，compat 无此树 → encodings 缺失 → RC=134 SIGABRT）。
+
+- [x] **Step 1:** findings.md 落 F-011（pylie 负结果：根因 sys.path 版本推导 + 证据 /tmp/pylie-smoke.log）。——实测：F-011 行已插（F-010 后），含 sys.path 三行推导 + encodings 缺失 + RC=134 全链。
+- [x] **Step 2:** 打补丁：simulator.py line 104 `outdir: Optional[str | Path] = None` → `outdir: Optional[Union[str, Path]] = None`（等价改写、注解仍求值、语义不变；Union 已导入）。——实测：grep 确认 line 104 已为 Union 形。
+- [x] **Step 3:** 静态复验：全树 AST 注解位扫描 = 0 站点；patched simulator.py py3.9 compile CLEAN。——实测：4 根（src/python/gem5、src/python/m5、configs、build/ARM/python）注解位 total=0、SyntaxError=0，STEP3: PASS。
+- [x] **Step 4:** 保全 sdc 证物（rebuild 覆写 gem5.opt 前必做）：`ln build/ARM/gem5.opt build/ARM/gem5.opt.sdc-py311`（同 inode 加一链接）。——实测：ls -li 双文件同 inode 135108174027414400。
+- [ ] **Step 5:** 等 LSU CP4 scons（pid 3323664，-T 14400）退出且 gate 无编译进程后，guard 包裹增量重建：`python3 tools/ooo_guard.py run --type build --desc u1c-shim-rebuild --log /tmp/u1c-build.log -- bash -c 'cd CHAOS/gem5 && scons -j8 build/ARM/gem5.opt'` → 预期 `scons: done`（引用尾行）。
+- [ ] **Step 6:** 原生两态 × 四 golden（系统 py3.9 直跑，无 loader/无 PYTHONHOME）：
+```bash
+cd /home/share/suke/wangxu/gem5-fi-ooo
+build/ARM/gem5.opt --outdir=/tmp/u1c-s1 configs/se/ooo_proxy.py --cmd workloads/ooo/smoke/smoke --cpu O3        # FINAL=45737cc9a76c0dce（s2 复跑逐字节一致）
+build/ARM/gem5.opt --outdir=/tmp/u1c-di configs/se/ooo_proxy.py --cmd workloads/ooo/dep_chain/dep_chain --cpu O3   # FINAL=98e5e31e726e383f
+build/ARM/gem5.opt --outdir=/tmp/u1c-dv configs/se/ooo_proxy.py --cmd workloads/ooo/dep_chain/dep_chain_vec --cpu O3 # FINAL=b1e661a247b95774
+build/ARM/gem5.opt --outdir=/tmp/u1c-rf configs/se/ooo_proxy.py --cmd workloads/ooo/rob_fill/rob_fill --cpu O3     # FINAL=19eab7d0de27237e
+```
+  回归对照：同四命令以 `gem5.opt.sdc-py311` + compat loader 复跑，FINAL 全一致（平台切换不改变仿真确定性）。
+- [ ] **Step 7:** F-008 修订（「结构性不可用」→「单行 PEP604 shim 后可用」）+ progress Session 004 + 提交 `[OOO][P1][U1c] login01 原生 py3.9 平台复活：simulator.py 单行 shim + 四 golden 原生实测（F-008 修订 + F-011）` + bundle 推送。
+- 失败处置：原生运行暴露进一步 3.10+ 运行时错误 → 逐站点同法迭代（同单元内）；不可收敛 → findings 记 BLOCKED + 转 DR-003（python3.11 bin+include 供给申请）。
+
+**对 U2+ 的效力：** U1c 落地前 U2–U9 全部阻塞（新 C++ 必须重建、重建产物仅原生可跑）；落地后运行命令原生直跑（U2 Step 4 已随本修订改原生形态）。
+
 ### Task U2：流水时序族 A（D07 R08 FD09 FR09）
 
 **Files:**
@@ -116,17 +149,17 @@ impl_status: implemented=9 partial=34 unimplemented=14
 - [ ] **Step 1:** 读 03 表四模型条目 + CHAOSDecode/CHAOSRenameMap 现有源码，列出每子模式的挂点与数据流（写入本任务执行注记，提交附）。
 - [ ] **Step 2:** 实现四模型子模式（每模型独立可关）。
 - [ ] **Step 3:** 增量编译（guard 包裹）：`python3 tools/ooo_guard.py run --type build --desc u2-build --log /tmp/u2-build.log -- bash -c 'cd CHAOS/gem5 && scons -j8 build/ARM/gem5.opt'` → 预期 `scons: done`（引用尾行）。
-- [ ] **Step 4:** 两态验证（每模型 × 注入关闭/开启，dep_chain int，golden=98e5e31e726e383f）：
+- [ ] **Step 4:** 两态验证（每模型 × 注入关闭/开启，dep_chain int，golden=98e5e31e726e383f）。**前置 U1c：重建产物原生直跑（无 loader 前缀）**：
 ```bash
-C=/home/share/suke/wangxu/lsu_keeper/compat; cd /home/share/suke/wangxu/gem5-fi-ooo
+cd /home/share/suke/wangxu/gem5-fi-ooo
 # 关闭态（不带注入 flag）→ FINAL=98e5e31e726e383f（golden 匹配）
-PYTHONHOME=$C $C/lib/ld-linux-aarch64.so.1 --library-path $C/lib64:/usr/lib64 build/ARM/gem5.opt \
-  --outdir=/tmp/u2-off configs/se/ooo_proxy.py --cmd workloads/ooo/dep_chain/dep_chain --cpu O3
+build/ARM/gem5.opt --outdir=/tmp/u2-off configs/se/ooo_proxy.py --cmd workloads/ooo/dep_chain/dep_chain --cpu O3
 # 开启态（示例 D07-early）→ 证据日志含 attempted/eligible/activated 计数，FINAL 偏离或 Masked
-PYTHONHOME=$C ... --outdir=/tmp/u2-on configs/se/ooo_proxy.py --cmd ... --cpu O3 \
+build/ARM/gem5.opt --outdir=/tmp/u2-on configs/se/ooo_proxy.py --cmd workloads/ooo/dep_chain/dep_chain --cpu O3 \
   --chaos_decode --decode_timing early --decode_max_faults 1 --decode_rng_seed 42
 ```
 预期：关闭态 FINAL 与 golden 一致；开启态 simout/注入器 summary 含 `attempted>=1` 且分类非 clean（或显式 activated=0 时记录 eligible 不足，不得伪造激活）。
+- [ ] **Step 4b（U10 交接）:** 首个 on-state outdir 跑 `python3 tools/ooo_observe.py <outdir> --golden <golden> --ref-outdir <同模型 off 态 outdir>` → L0 funnel 计数与注入器 summary 行一致、faults_source=funnel_activated、verdict 与实测结局相符——U10 的开启态验证在此收口。
 - [ ] **Step 5:** ooo_models.py impl_status 更新四模型 + `--check` 仍 310/310。
 - [ ] **Step 6:** 提交 `[OOO][P1][U2] 流水时序族A：D07/R08/FD09/FR09 子模式 + 两态实测`。
 
@@ -248,11 +281,11 @@ PYTHONHOME=$C ... --outdir=/tmp/u2-on configs/se/ooo_proxy.py --cmd ... --cpu O3
 
 **规格:** 总方针 §4 统一观测链——L0 触发面（eligible/activated）；L1 单元内部状态（与无故障影子逐事件比较）；L2 rename 合法性；L3 执行结果；L4 首个错误 commit；L5 检测层级与结局。守恒：分类计数与 gem5 证据一致（G5 证据口径）；首检=首个 L4 偏差；主结局∈{Masked, SDC, Crash/Detected, Timeout}。
 
-- [ ] **Step 1:** 写失败测试：`tools/tests/test_ooo_classify.py` 构造 4 个 fixture 目录（clean/Masked/SDC/守恒破坏），断言分类与守恒检测。
-- [ ] **Step 2:** 运行确认失败（classify_ooo_run 不存在）。
-- [ ] **Step 3:** 实现 `tools/ooo_observe.py` + `tools/classify.py` 扩展。
-- [ ] **Step 4:** 测试通过（4/4 PASS，输出引用）。
-- [ ] **Step 5:** 实机端到端：取 U2 的一个开启态 outdir 跑 `python3 tools/ooo_observe.py /tmp/u2-on` → L0 计数与注入器 summary 一致。
+- [x] **Step 1:** 写失败测试：`tools/tests/test_ooo_classify.py` 构造 4 个 fixture 目录（clean/Masked/SDC/守恒破坏），断言分类与守恒检测。——2026-10-08 实测：130 行独立脚本，6 fixture（4 必需 + 诚实加测 T5 abort 合法性、T6 确定性交叉），共 19 断言。
+- [x] **Step 2:** 运行确认失败（classify_ooo_run 不存在）。——实测：`ModuleNotFoundError: No module named 'ooo_observe'` RC=1（红态）。
+- [x] **Step 3:** 实现 `tools/ooo_observe.py` + `tools/classify.py` 扩展。——实测：ooo_observe.py 334 行（collect_l0：21 个 runner 已知日志名 × 3 正则（CHAOS_L0_FUNNEL/CHAOS_L0/faults_injected）+ faults_for_classify 严格活性证据优先级 funnel_activated>l0_hit>legacy_injected>none；observe_run：exit.rc 缺失即 verdict=None 诚实拒判；ref 门控 L1-L4 组装 commit_diff/micro_diff；CLI --json）。classify.py +81 行：check_conservation（attempted≥eligible≥injected≥activated，逐注入器+TOTALS，对齐 chaos_l0.hh 四计数 pinned 格式）+ check_verdict_l0_consistency（Inactive/activated 与 checksum!=golden 交叉、abort 合法性）。单向 import ooo_observe→classify 无环。
+- [x] **Step 4:** 测试通过（4/4 PASS，输出引用）。——实测：`SELFTEST PASS (19 checks, 0 failed)` RC=0（F1 Inactive/F2 Masked/F3 SDC/F4 守恒破坏命名注入器+关系/T5 SimulatorError+absent 合法/T6 Inactive+checksum!=golden 违规）。回归：test_ooo_guard_f025.py `SELFTEST PASS (12 checks, 0 failed)`、micro_diff --self-test `11/11 checks PASS`、classify+ooo_observe 导入 OK；`import runner` 失败系 login01 无 pyyaml（环境既有，非本改动引入）。
+- [x] **Step 5:** 实机端到端（off-state 真实版 + 开启态诚实延期至 U2 Step 4b）：sdc+compat 双跑 `/tmp/u10-e2e-{a,b}`（smoke/O3，`--chaos_ctrace --chaos_msnap`，各 rc=0，FINAL=45737cc9a76c0dce==golden）。实测①：`python3 tools/ooo_observe.py /tmp/u10-e2e-a --golden 45737cc9a76c0dce` → L0 evidence=absent（off 态无注入日志，与 F1 语义一致）、L5 verdict=Inactive、conservation OK、RC=0。实测②：加 `--ref-outdir /tmp/u10-e2e-b` → L1 no_divergence=True、L2 hash_table_consistent=True、L3 commit_verdict=no_divergence（五类分歧全 0、tick_max_drift=0、无截断）、L4 无首检（同构确定性）。**开启态 L0 计数核对因 U2 未实现（gated on U1c 重建）延期**，已作为 U2 Step 4b 交接项落计划。
 - [ ] **Step 6:** 提交 `[OOO][P1][U10] L0–L5 观测链 + 守恒分类器 + 4 fixture 单测`。
 
 ### Task U11：Campaign 引擎 `tools/ooo_campaign.py`
