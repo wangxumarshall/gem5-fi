@@ -7,6 +7,11 @@
 > 守卫"；U3/U6 保留。合并经 rebase，F 编号让位：本会话发现重编为 F-026/027/028。
 > superseded 证据：docs/gem5-fi/lsu/evidence/P3/f022_patch_{a,b}_test.txt。
 
+> **2026-10-08 修订（集群口径；Windows 中继时区 -0400 vs 集群 +0800，同瞬不同区，本地钟曾示 10-07 22:37）：** 集群 repo-root 二进制 63f50c40 与
+> 全部已记录结果的 b64c808d 不一致（census 2767 vs 2772，F-029）→ 新增 **U3b 平台
+> 二进制身份恢复**；U3 提交与 pilot 波次顺延至 U3b 之后。login01 SSH 中断（E-005）
+> 期间，本修订与全部取证在 Windows 本地克隆（d2b7e885）完成。10-08 补记：旧机 10-03 16:32 已恢复且 pilot 数据完好（F-029，Session 003）；DR-003 裁决 A（旧机续跑波次）后，U3b 转为集群备用平台身份恢复——集群不跑波次。
+
 - **日期：** 2026-09-30
 - **背景（为什么）：** 平台已迁移至集群节点 cn23423（keeper job 1773102）。gem5 二进制在
   glibc-2.38 主机上构建，集群为 Kylin glibc-2.34，经 compat loader 运行时（F-023）冒烟
@@ -84,6 +89,43 @@
   - [ ] `--parallel 1` 与升级前串行结果逐样本一致（确定性：l5_verdict outcome 序列相同）
   - [ ] py_compile RC 0
 - 回归：`--dry-run` 准入输出与改前一致。
+
+### U3b 平台二进制身份恢复（U3 验证发现的阻断问题；先于 U3 提交解决）
+- **事实（F-030，2026-10-08 取证）：** 集群 repo-root `build/ARM/gem5.opt` =
+  63f50c40…（banner "Sep 28 2026 19:08:28"）≠ 全部已记录 P1 证据的
+  `gem5_opt_sha256` = b64c808d…（ee77b992，2026-09-29 15:38 守卫 -j8 重建产物）；
+  行为分歧实证：agu_addrmodes census eligible N=2767（集群实测 /tmp/u3_exec）vs
+  N=2772（F-016/F-021，b64c808d）。
+- **身份链已闭合（Windows 克隆 d2b7e885 取证，与记录逐项吻合）：**
+  `HEAD:CHAOS/gem5/src` == `9187ef28:` == `ee77b992:` 树 6c336109（git rev-parse）；
+  `configs/se/lsu_proxy.py` blob sha256 = 4001eba1…（== manifest 记录；工作树差异仅
+  Windows autocrlf）；`workloads/directed/agu_addrmodes` sha256 = 90a19003…（== 记录）；
+  `build/` 不入 git。⇒ **当前 HEAD 源码+配置+负载与产生全部已记录结果者逐字节相同**，
+  仅缺 gem5 二进制本身。b64c808d 副本搜索：Windows 全盘/sdc1-01-02（maxdepth 7）均无；
+  集群侧（10-08 复核）：build/ARM 与 CHAOS/gem5/build/ARM 为同一目录（均 63f50c40，Sep 28 19:08）；/home、/tmp 深搜在 U3b 检查点 1 执行。
+- 决策：集群确认无副本 → 从 HEAD 守卫 -j8 单实例重建；新 sha256 = 集群平台身份；
+  行为等价验证 = census eligible == 2772 + A01-F0-W3 det 语义双跑与已存报告一致；
+  跨平台（旧机 b64c808d = 平台 A vs 集群重建 = 平台 B）对比显式标注。**DR-003 已裁决 A（2026-10-08 11:0x 用户：旧机续跑 + 并发 4 + 集群侧 idle）：波次由 Session 003 旧机执行；本节产物为集群已验证备用平台，不跑 pilot 矩阵。**集群构建产物
+  链接本机 glibc-2.34 原生运行（不经 compat loader）；U3 的 LSU_GEM5_BIN 接线仍有效
+  （env 缺省 = repo-root 二进制）。
+- 验证（真实命令；login01 恢复后执行）：
+  - [ ] 集群 b64c808d 搜索：`ls -la build/ARM/ CHAOS/gem5/build/ARM/` + `find
+        /home/share/suke/wangxu /home/suke /tmp -maxdepth 5 -name gem5.opt -size +50M`
+        逐个 sha256（含 CLAUDE.md 警告过的 CHAOS/gem5/build 重复副本）→ 如实记录
+  - [ ] 集群侧身份复核：`sha256sum configs/se/lsu_proxy.py`（== 4001eba1…）、
+        `sha256sum workloads/directed/agu_addrmodes`（== 90a19003…）
+  - [ ] 工具链核查（login01/cn23423）：gcc/g++/scons/swig/python3 dev/protobuf/
+        libpng 可得性 → 记录，选定重建场地（倾向 cn23423：608 核/440 GB，编译仍按
+        用户规则 -j8 单实例）
+  - [ ] 重建：启动门禁 + build 锁 + `scons -j8 build/ARM/gem5.opt` 单编译任务 →
+        banner/sha256/原生冒烟（lsu_proxy --cmd workloads/directed/hello）
+  - [ ] census 两遍法 agu_addrmodes eligible == **2772**（不符则停下分析，禁止启动 pilot）
+  - [ ] A01-F0-W3 engineering det 双跑重执行：语义字段（注入日志/L0 计数/oracle
+        stdout/退出码）与 evidence/P1/det/A01-F0-W3_det_report.txt 一致
+  - [ ] F-030 终稿（集群平台身份 B + 跨平台口径）+ progress 更新；此后 manifest
+        gem5_opt_sha256 记录新值
+- 附注：集群中断期间节点本地 /tmp（u3_exec、lsu_smoke_*）若因重启丢失，恢复后重跑
+  U3 实跑验证再提交 U3。
 
 ### U6 G0-10 复验 + 文档
 - 文件：`evidence/P3/*`、`docs/gem5-fi/lsu/{findings,progress,task_plan}.md`

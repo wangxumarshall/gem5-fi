@@ -11,15 +11,15 @@
 
 - **Current Phase:** P3（前三单元连续 pilot 波次，用户指令 2026-09-29 晚）
 - **Phase Status:** IN_PROGRESS
-- **Overall Status:** IN_PROGRESS（**DR-003 已裁决：旧机续跑 + 并发 4**；集群侧 idle；F-025/F-027 已合并入库）
-- **Started:** Session 001 2026-09-29 11:22（旧机）；Session 002 2026-09-30 16:43（集群 cn23423，最后更新 09-30 18:05）；Session 003 2026-10-08 09:49（旧机恢复）
-- **Last Updated:** 2026-10-08 10:45（Session 003 融合合并：①**旧机实况推翻 F-028 预判**——旧机 10-03 16:32 重启后恢复，runs/lsu/pilot/ 数据完好（ITEM-009 有效前缀 115、ITEM-274 有效前缀 96，10-08 取证）；②**F-025 根因定论**（修正 Session 002 的"波次 4 死于宿主失联"记载）：波次 4 实际于失联前 16:14:55/16:36:27 两次因 gate"陈旧槽"误报竞态 fail-fast 自终止（锁内 pid 被 spawn 覆盖为 gem5 pid，正常收尾 0-60s 窗口被误判泄漏；零数据污染）；③F-025 修复（guard_pid 判定字段）隔离测试 T1-T4 全 PASS，rebase 到集群侧 F-027 swap_na 之上（guard 双语义合并：guard_pid 陈旧判定 + swap_na 门禁/熔断豁免）；④集群 Session 002 交付在库：compat 运行时（F-026）+ swap_na（F-027）；其波次从未启动、U3'（LSU_GEM5_BIN 接线）未做。**平台决策 DECISION REQUEST 待用户**）
-- **Current Owner:** 服务器执行 AI（Claude，主协调 AI；Session 003，2026-10-08 09:49 起于旧机 localhost0101）
-- **Current Checklist Item:** AGU ITEM-009（A02-F2-W3，旧机有效 s0–s114=115 runs 全 act=0，GUARD_FAILURE 非终态）→ 其后 ITEM-010..039；Load Queue ITEM-274（L01-F1-W5，旧机有效 s0–s95=96）→ ITEM-277+；ITEM-001..008 与 ITEM-271 有效终态不受影响（**在哪个平台续跑待用户裁决**）
-- **Current RunID:** A02-F2-W3（中断于 s115——gate 误报，非数据问题）
+- **Overall Status:** IN_PROGRESS（**DR-003 已裁决 A：旧机续跑 + 并发 4**，集群侧不跑波次；F-025/F-027 已合并入库；Session 002 集群平台工程继续——U3b 二进制身份恢复进行中）
+- **Started:** Session 001 2026-09-29 11:22（旧机）；Session 002 2026-09-30 16:43（集群 cn23423，**持续运行未停**——10-07/08 E-005 中断期转 Windows 本地取证，10-08 10:40 恢复直连；此前 Session 003 记录的停于 09-30 18:05 不确）；Session 003 2026-10-08 09:49（旧机恢复）
+- **Last Updated:** 2026-10-08 11:09（Session 002 融合修正：F-030 平台二进制身份取证定稿；修正 Session 003 记录的三处集群侧事实——Session 002 未停/U3 已实现未提交/keeper 1773102 存活（11:09 djob 复核 RUNNING）；集群遵守 DR-003-A 仅平台工程）
+- **Current Owner:** 服务器执行 AI（Claude，主协调 AI；Session 003 旧机 localhost0101——波次 5 运行中；Session 002 集群 cn23423 keeper 1773102——平台工程（U3b→U3→U6），不跑波次）
+- **Current Checklist Item:** AGU ITEM-009（A02-F2-W3，旧机 resume s115 起波次 5 运行中，115 有效样本复用）→ 其后 ITEM-010..039；Load Queue ITEM-274（L01-F1-W5，旧机有效 s0–s95=96）→ ITEM-277+；ITEM-001..008 与 ITEM-271 有效终态不受影响
+- **Current RunID:** A02-F2-W3（旧机波次 5 自 s115 续跑，10:49 启动 bash 654696，F-025 修复实机验证通过）
 - **Excel Location:** 7.展开执行矩阵!A11（行 11 = ITEM-009 待闭合）
 - **Current Experiment Stage:** pilot（正式，30 activated/ITEM，attempted 上限 300）
-- **Resource Safety State:** NORMAL（旧机无重任务、锁目录无锁文件；集群侧状态未知——Session 002 keeper 1773102 存活性待查）
+- **Resource Safety State:** NORMAL（旧机无重任务、锁目录无锁文件；集群侧 idle 无实验/编译任务（DR-003-A）——keeper 1773102 存活（11:09 djob 复核 RUNNING，10-10 16:43 到期，续期待办））
 - **Build Concurrency Limit:** 8（同一时刻最多一个编译任务，经 lsu_guard 强制）
 - **Experiment Concurrency Limit:** 4（硬上限；2026-09-30 14:30 用户指令；F-022 Patch A/B + F-025 guard_pid + F-027 swap_na 均已合并）
 - **Active Heavy Task:** P3 pilot 波次 5（DR-003 裁决 A：旧机续跑；bash 链串行 AGU→L1d-TLB→Load Queue，--workers 4；AGU 自 ITEM-009 s115 续跑，115 个有效样本已 resume）
@@ -99,7 +99,19 @@ AGU pilot 细分（39 ITEM）：ELIGIBLE 28 / admission BLOCKED 11（ITEM-011/01
 - **错误/重试：** 中继 tar 悬空符号链接 3 例（补真实文件重传）；cn23423 缺
   libtcmalloc_minimal.so.4（login01 拷入 compat）；export LD_LIBRARY_PATH 污染系统工具
   （改用 loader --list 定向检查）。
-- **唯一下一动作：** 将 swap_na 移植到 4 槽守卫（rebase 冲突解决中）并自验证。
+- **10-06/07（compaction 前后会话）完成：** ①U1 swap_na 移植到 4 槽守卫并节点验证
+  （d2b7e885，evidence/P3/u1port_4slot_swapna_cn23423.out 全 PASS）；②U3 LSU_GEM5_BIN
+  接线实现 + 验证（gem5_bin() + runner/unit_pilot 引用替换 + manifest gem5_invocation
+  字段；dry-run 切换与 sha/seed 稳定 + 真跑两遍法 census N=2767→s0 L5
+  Crash/simulator_assert EXEC_RC=0）——**未提交**：真跑发现集群二进制 63f50c40 ≠
+  记录结果 b64c808d（F-030）。
+- **2026-10-08 10:37（集群口径；Windows 中继时区 -0400 vs 集群 +0800，同瞬不同区，本地钟曾示 10-07 22:37；集群中断期 Windows 本地取证）：** login01（10.39.0.1）SSH/ping 中断
+  （E-005）→ 转本地取证：F-030 身份链闭合（src 树 6c336109 三方一致、lsu_proxy blob
+  4001eba1、agu_addrmodes 90a19003 均与 manifest 记录吻合；b64c808d 在 Windows 全盘与
+  sdc1-01-02 无副本）；计划新增 U3b（二进制身份恢复：集群搜索→工具链核查→守卫 -j8
+  重建→census 2772 + det 语义连续性验证）。
+- **2026-10-08 11:09（恢复后复核）：** keeper 1773102 RUNNING（djob，cn23423 未丢）；集群树 d2b7e885 + 未提交 U3 编辑完好；旧机访问：候选 172.168.177.97 SSH 存活但全部可用密钥 Permission denied（sdc@/root@ × 0102 键与 Windows 中继键）——不猜测口令，放弃该路径；origin c2dbee1d：**DR-003 已由用户裁决 A**（旧机续跑 + 并发 4 + 集群侧 idle）→ Session 002 遵守裁决：集群不跑波次，仅平台工程。
+- **唯一下一动作：** U3b 执行（集群：/home 与 /tmp 的 b64c808d 深搜收尾 → 工具链核查 → 守卫 -j8 重建 → census eligible==2772 → A01-F0-W3 det 语义双跑比对）→ 提交 U3（tools/lsu_runner.py + tools/lsu_unit_pilot.py）→ U6 集群实机复验 → keeper 续期（10-10 16:43 到期前）。波次 5 由 Session 003 旧机执行，集群不双跑同一矩阵（DR-003-A）。
 
 ## Test and Gate Results
 
@@ -135,6 +147,7 @@ AGU pilot 细分（39 ITEM）：ELIGIBLE 28 / admission BLOCKED 11（ITEM-011/01
 | E-002 | 2026-09-29 11:40 | lsu_proxy.py 冒烟 | ImportError: cannot import name 'CHAOSPrefetch' from 'm5.objects'（gem5.opt 09-25 构建，早于 LSU 注入器源码提交 46e912b5 09-26） | 2 | 根因=二进制过期 → 守卫 -j8 重建（E-003 处置）后复测 | RESOLVED（2026-09-29 15:41：重建成功后冒烟 exit 0，"Hello, AArch64 CHAOS!"，CHAOSPrefetch 导入正常；evidence/P1/smoke_hello.out） | /tmp/p0_smoke_hello（失败）；evidence/P1/smoke_hello.out（成功） |
 | E-003 | 2026-09-29 11:48 起 | gem5 构建 | scons -j126：多个 cc1plus 被 SIGKILL、6 个 .py.pyo 目标 Error 1；findings.md 记载该事故曾致服务器内存 94%+swap 耗尽并重启 | 2 | 违反总方针 §8.1（-j8 硬上限）；第 3 次尝试必须 -j8 单实例+锁+60秒监控 | BLOCKED on G0-10：守卫验证通过后以 -j8 重启构建 | evidence/P0/rebuild_attempt2.log（331 行，6 个 scons error） |
 | E-004 | 2026-09-30 14:37–15:26 | AGU pilot 波次 | F-023 守卫中断事故：guard 进程死亡未 release（陈旧锁）+ guard.py 被编辑为语法损坏 28 分钟 + 引擎忽略 guard 失败 → 约 2,670 个空转 run 被记为 attempted、9 个无效 result.json、5 个无效 census | 1 | 15:26 有序 TERM 波次链（bash 81524/unit_pilot 81526）；15:33 clear-stale 陈旧锁 | 处置中：污染数据隔离 quarantine_20260930_guard_outage/ → 引擎 fail-fast 加固 → 重启波次断点续跑（详见 findings F-023 与会话任务清单） | findings.md F-023；ITEM-009_s100/021_s0/018_s271_guard.out；guard_events.log |
+| E-005 | 2026-10-08 10:40:48 恢复（集群口径；起始未知——发现前已中断；Windows 中继时区 -0400 vs 集群 +0800，同瞬不同区） | 集群接入 | login01（10.39.0.1）SSH/TCP 22 与 ping 均不通；tracert 第 3 跳 10.39.1.1 后无响应；Windows 中继、sdc1-01-02、github 均正常；Topsec SV-Connection VPN 适配器断开>14h，但中断前集群在同样断开状态下可达 → 判定集群侧故障，非本机侧；候选 10.39.0.2-6/10.39.0.11/10.39.1.2-3 端口 22 均不通 | 1 | 后台 30s 轮询 TCP 22（25 分钟一轮，到期重布）；中断期转 Windows 本地推进：F-029 取证、计划修订 U3b、文档更新与推送 | OPEN：恢复后核查 keeper job 1773102（cn23423）存续；若集群整体重启作业丢失，按目标规则重占最空闲节点（节点名最大→最小遍历） | Windows Test-NetConnection/tracert 输出；轮询任务 bbav582dx；会话工具记录 |
 
 ## Periodic Update Template
 
