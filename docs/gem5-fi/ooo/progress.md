@@ -68,6 +68,21 @@
 - **Results / Evidence / Errors:** 冒烟证据 /tmp/ooo-smoke-00{2,3,4}.log；guard runpath /tmp/ooo-guard-runpath.log + status 输出；无 BLOCKED；错误 0（F-008 属判定性发现而非错误）。
 - **Next Step:** W1 上传+构建（DR-001）；holder 续占（10-10 16:54 到期前）；P1 计划落盘并启动 U0/U1。
 
+### Session 003
+
+- **Start:** 2026-10-08 11:20–11:50+08:00
+- **Phase:** P1（启动：U0 桥接 + U1 机读映射）
+- **Actions:**
+  1. **P1 计划落盘**：`docs/superpowers/plans/2026-10-08-ooo-p1-injectors-observation-campaign.md`（14 单元，26,818B）commit c10dfd13。
+  2. **U0 设计文档桥接**：03-design-matrix.md（158 行）/09-v2-coverage-audit.md（98 行）/d-bridge-v1-v2.csv（117 行）自共享对象库（源 e3217105）取入，git hash-object 三文件全 MATCH——commit bde8ee94（原 31c1494c→4af1d51a→bde8ee94，两次重放均文件零差异：c10dfd13→127b54a3→72278a27）。
+  3. **U1 tools/ooo_models.py**（896 行）：MODELS 57 模型静态表（unit/excel_row/fault_type/freqs/workloads/n_submodels/impl_status/injector/mount_flag/submodels）+ `--check` 五组校验 + `--item` 双形态查询。静态表由 03/09 重解析生成后逐字段核对（非手抄）。
+  4. **--check 首跑即过**：`models: 57 | items_scanned: 310 | item_refs_resolved: 310 | unresolved: 0`；`impl_status: implemented=9 partial=34 unimplemented=14`；三方一致 OK（exit=0）。
+  5. **边界自测暴露并修复真实缺陷**：T1（ITEM 头格式损坏 D01→DX1）首跑**静默跳过**（items_scanned=309 仍判 OK）——违反诚实规约的假校验路径 → 加「头行全解析 + 条目数=310 + 编号连续 001..310」三断言修复 → T1–T4 全部翻红 exit=1（T4 未知模型 unresolved=1 精确报错），T5 原件复验 exit=0、清单 sha256 f520d42a…30c91 前后不变（hash 锁定原件全程未动，损坏测试全在 /tmp 副本）。
+  6. **F-010**：09 审计总账表「部分=0」与逐模型表 34 行「部分」矛盾（9+0+14≠57）；逐模型表为权威，--check 内置 9/34/14 断言；桥接件不静默改史。
+  7. **回归**：tools/ooo_recover.py selftest → SELFTEST PASS（9 夹具五状态全覆盖，无 collateral 破坏）。
+- **Results / Evidence / Errors:** tools/ooo_models.py --check 实测输出（本 Session 第 4/5 条引用）；/tmp/ck-corrupt.md、/tmp/ck2.md、/tmp/au-corrupt.md、/tmp/ix-corrupt.md 副本测试 exit=1 证据；无 BLOCKED；错误 0（T1 静默跳过为自测发现并当日修复的缺陷，非遗留）。
+- **Next Step:** U1b guard_pid 竞态移植（TDD：失败测试→修复→T1–T6 回归）；随后 U2 时序族A。
+
 ## Active Work
 
 | Work ID | ITEM | RunID | Excel行 | campaign/phase | sample_index/seed | 状态 | owner/PID/PGID/锁 | 心跳 | 输出/证据 |

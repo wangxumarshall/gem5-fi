@@ -55,7 +55,7 @@ grep -c "已实现\|未实现\|部分" docs/gem5-fi/ooo/09-v2-coverage-audit.md 
 tail -1 docs/gem5-fi/ooo/d-bridge-v1-v2.csv                                # 预期 116 行数据的最后一行
 ```
 - [x] **Step 3:** findings.md 环境表加一行"设计规格"（来源 e3217105、桥接日期、哈希），并注明与本工作树 HEAD 的差异仅为 P0 三提交（3b7a0854/ce8d6d8a/362e01c3，不触 docs/gem5-fi/ooo 设计文件）。
-- [ ] **Step 4:** 提交 `[OOO][P1][U0] 设计文档桥接：03-design-matrix/09-audit/d-bridge 入库（源 e3217105）`。
+- [x] **Step 4:** 提交 `[OOO][P1][U0] 设计文档桥接：03-design-matrix/09-audit/d-bridge 入库（源 e3217105）`。——实测：commit bde8ee94（原 31c1494c，2026-10-08 11:32:17 +0800 原始提交；因 LSU 连续前进 3671113c/127b54a3/72278a27 两次重放，均文件零差异），含三文件 + findings 设计规格行。
 
 ### Task U1：`tools/ooo_models.py` 机读映射表
 
@@ -65,17 +65,18 @@ tail -1 docs/gem5-fi/ooo/d-bridge-v1-v2.csv                                # 预
 
 **Interfaces:**
 - Consumes: U0 的 03 表 + `docs/gem5-fi/ooo/完整任务执行清单.md`（310 ITEM）。
-- Produces: `MODELS: dict[model_id -> {unit, family, impl_status, injector, mount_flag, submodels: {sid -> {field, mode, notes}}}]`；CLI `python3 tools/ooo_models.py --check`（校验 310 ITEM 模型引用全命中 + 57 模型全覆盖）与 `--item ITEM-xxx`（打印单项映射）。U11 campaign 引擎 import 此表生成 manifest 的 model 元数据。
+- Produces: `MODELS: dict[model_id -> {unit, excel_row, fault_type, freqs, workloads, n_submodels, impl_status, injector, mount_flag, submodels: [letters]}]`（**2026-10-08 修订**：unit 即 family——03 表唯一分类轴；submodels 为字母表+数量断言——03 详表子模型列是自由文本「FD01-a opcode字段单bit；…」，不存在结构化 field/mode 列，结构化详情由 U2–U8 实现单元直接读 03 详表；excel_row/freqs/workloads 为 U11 manifest 必需元数据）；CLI `python3 tools/ooo_models.py --check`（校验 310 ITEM 模型引用全命中 + 57 模型全覆盖 + 头行无静默跳过 + 编号连续 001..310）与 `--item ITEM-xxx`（打印单项映射，也接受模型 ID）。U11 campaign 引擎 import 此表生成 manifest 的 model 元数据。
 
-- [ ] **Step 1:** 写 `tools/ooo_models.py`：57 模型静态表（数据从 03 表转录，impl_status 三态 initial 从 09 审计抄录），`--check` 模式解析完整任务执行清单.md 的 ITEM 头（`### ITEM-xxx — <model>-<freq>-W<n>`）并交叉校验。
-- [ ] **Step 2:** 运行校验，预期输出：
+- [x] **Step 1:** 写 `tools/ooo_models.py`：57 模型静态表（数据从 03 表转录，impl_status 三态 initial 从 09 审计抄录），`--check` 模式解析完整任务执行清单.md 的 ITEM 头（`### ITEM-xxx — <model>-<freq>-W<n>`）并交叉校验。——实测：896 行；静态表由 03/09 重解析生成后逐字段核对；--check 五组校验（索引字段/审计判定/子模型字母/注入器布线/清单 ITEM 交叉）。
+- [x] **Step 2:** 运行校验，预期输出：
 ```
 $ python3 tools/ooo_models.py --check
 models: 57 | items_scanned: 310 | item_refs_resolved: 310 | unresolved: 0
 impl_status: implemented=9 partial=34 unimplemented=14
 ```
-- [ ] **Step 3:** 边界自测：临时把一个 ITEM 引用改成不存在的模型（sed 备份/还原），确认 `--check` 报 unresolved>0 且 exit≠0（防"永远通过"假校验）。
-- [ ] **Step 4:** 提交 `[OOO][P1][U1] tools/ooo_models.py 57 模型机读映射 + 310 ITEM 交叉校验`。
+实测一致（exit=0），另输出 `OK: 静态表 ↔ 03 索引/详表 ↔ 09 逐模型判定 ↔ 清单 ITEM 三方一致`。
+- [x] **Step 3:** 边界自测：临时把一个 ITEM 引用改成不存在的模型（sed 备份/还原），确认 `--check` 报 unresolved>0 且 exit≠0（防"永远通过"假校验）。——实测（/tmp 副本，hash 锁定原件不动）：T1 头格式损坏（D01→DX1）首跑暴露**静默跳过缺陷**（items_scanned=309 仍 OK）→ 修复加「头行全解析/条目数=310/编号连续 001..310」三断言 → 复测 T1 exit=1（`清单条目数 309 != 预期 310`）；T2 审计注入器损坏 exit=1；T3 索引 freqs 损坏 exit=1；T4 未知模型 D91 exit=1 unresolved=1；T5 原件复验 exit=0 且清单 sha256 f520d42a…30c91 前后不变。
+- [x] **Step 4:** 提交 `[OOO][P1][U1] tools/ooo_models.py 57 模型机读映射 + 310 ITEM 交叉校验`。
 
 ### Task U1b：`ooo_guard.py` guard_pid 竞态移植（F-025）
 
