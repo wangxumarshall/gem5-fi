@@ -124,7 +124,7 @@ def run_one(manifest, outdir, span):
                             "--desc", f"PILOT {manifest['run_id']} s{manifest['sample_index']}",
                             "--log", str(outdir.parent / (outdir.name + "_rsrc.log")),
                             "--interval", "60", "--max-seconds", str(manifest["timeout_seconds"]),
-                            "--", str(REPO / "build/ARM/gem5.opt"),
+                            "--", LR.gem5_bin(),
                             "--outdir", str(outdir), cfg] + args,
                            stdout=gf, stderr=subprocess.STDOUT)
     gtxt = guard_out.read_text(errors="replace")
@@ -151,7 +151,7 @@ def census(manifest, cnt_dir):
                         "--desc", f"CENSUS {manifest['run_id']}",
                         "--log", str(cnt_dir.parent / (cnt_dir.name + "_rsrc.log")),
                         "--interval", "60", "--max-seconds", str(manifest["timeout_seconds"]),
-                        "--", str(REPO / "build/ARM/gem5.opt"),
+                        "--", LR.gem5_bin(),
                         "--outdir", str(cnt_dir), cfg] + args,
                        stdout=gf, stderr=subprocess.STDOUT)
     gtxt = g_out.read_text(errors="replace")

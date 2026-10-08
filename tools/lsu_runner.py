@@ -20,12 +20,25 @@
 """
 import argparse
 import json
+import os
 import re
 import subprocess
 import sys
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
+
+
+def gem5_bin():
+    """实际调用的 gem5 命令路径。
+
+    LSU_GEM5_BIN 环境变量可覆盖实际调用路径（如按 sha 固定的符号链接或
+    wrapper 脚本）；默认仓库内 build/ARM/gem5.opt（U3b 起为 login01 原生
+    构建，F-026 compat wrapper 已被取代——其 PYTHONHOME py3.11 与内嵌
+    py3.9.9 不兼容，E-011）。manifest 的 gem5_opt_sha256 始终对真实二进制
+    计算，与调用路径解耦（审计分离）。
+    """
+    return os.environ.get("LSU_GEM5_BIN") or str(REPO / "build/ARM/gem5.opt")
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import lsu_campaign as LC  # 家族映射唯一来源（no drift）
 from lsu_seed import lsu_seed
@@ -129,6 +142,7 @@ def build_manifest(item_id, phase, sample_index, extra=None):
             "git_commit": subprocess.run(["git", "-C", str(REPO), "rev-parse", "HEAD"],
                                          capture_output=True, text=True).stdout.strip(),
             "gem5_opt_sha256": _sha(REPO / "build/ARM/gem5.opt"),
+            "gem5_invocation": gem5_bin(),
             "lsu_proxy_sha256": _sha(LSU_PROXY),
             "lsu_campaign_sha256": _sha(REPO / "tools/lsu_campaign.py"),
             "workload_sha256": _sha(REPO / "workloads/directed" / wl_binary) if wl_binary else None,
@@ -203,6 +217,8 @@ def main():
     if args.item:
         if not (args.phase and args.sample_index is not None and args.output):
             ap.error("--item 需要 --phase --sample-index --output")
+        if args.execute or args.dry_run:
+            ap.error("--item 仅冻结 manifest；--dry-run/--execute 需与 --manifest 连用")
         m = build_manifest(args.item, args.phase, args.sample_index)
         Path(args.output).parent.mkdir(parents=True, exist_ok=True)
         Path(args.output).write_text(json.dumps(m, ensure_ascii=False, indent=1))
@@ -222,7 +238,7 @@ def main():
               f"golden={m['golden']} timeout={m['timeout_seconds']}s "
               f"two_pass={two_pass}")
         cfg, c = build_guard_cmd(m, outdir, span="<N:计数pass实测>" if two_pass else None)
-        print(f"[dry-run] 守卫命令: gem5.opt --outdir={outdir} {cfg} " + " ".join(c))
+        print(f"[dry-run] 守卫命令: {gem5_bin()} --outdir={outdir} {cfg} " + " ".join(c))
         return
 
     if not args.execute:
@@ -237,7 +253,7 @@ def main():
                             "--desc", f"COUNT {tag}", "--log",
                             str(outdir.parent / (tag + "_count_rsrc.log")),
                             "--interval", "60", "--max-seconds", str(m["timeout_seconds"]),
-                            "--", str(REPO / "build/ARM/gem5.opt"),
+                            "--", gem5_bin(),
                             "--outdir", str(cnt_dir), cfg] + c,
                            capture_output=True, text=True)
         n = re.search(r"CHAOS_LSU_TRIGGER: .*eligible=(\d+)", r.stdout)
@@ -253,7 +269,7 @@ def main():
                             "--desc", f"RUN {tag}", "--log",
                             str(outdir.parent / (tag + "_rsrc.log")),
                             "--interval", "60", "--max-seconds", str(m["timeout_seconds"]),
-                            "--", str(REPO / "build/ARM/gem5.opt"),
+                            "--", gem5_bin(),
                             "--outdir", str(outdir), cfg] + c,
                            stdout=gf, stderr=subprocess.STDOUT)
     # L5 分类（P1 收尾集成）：守卫合并流同时作 stdout/stderr（panic 栈在合并流中）

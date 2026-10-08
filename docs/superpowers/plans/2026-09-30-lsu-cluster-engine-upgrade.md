@@ -56,14 +56,26 @@
 ### U3 gem5 调用路径可配置（compat 运行时接线）
 - 文件：`tools/lsu_runner.py`、`tools/lsu_unit_pilot.py`
 - 改动：`lsu_runner.gem5_bin()` = env `LSU_GEM5_BIN`（默认 `REPO/build/ARM/gem5.opt`）；
-  替换 5 处直接引用（runner 2 处、unit_pilot run_one/census 2 处 + 文档串）。manifest 的
-  `gem5_opt_sha256` 仍对真实二进制计算，另增 `gem5_invocation` 字段记录实际调用路径
-  （审计：wrapper 与二进制分离可见）。
-- 验证：
-  - [ ] `LSU_GEM5_BIN=/home/share/suke/wangxu/lsu_keeper/gem5.sh` 下于 cn23423 真实跑
-        `guard run --type experiment -- lsu_keeper/gem5.sh ... hello` 冒烟 exit 0
-  - [ ] 不设 env 时 dry-run 命令串不变（默认路径）→ `python3 tools/lsu_runner.py ... --dry-run`
-- 回归：py_compile 两文件 RC 0；dry-run 输出与改前逐字节一致（除新增字段）。
+  替换 4 处守卫调用引用（runner 计数/RUN 2 处、unit_pilot run_one/census 2 处）+ docstring
+  更新（F-026 wrapper 已被 U3b 原生平台取代，E-011）。manifest 的 `gem5_opt_sha256` 仍对
+  真实二进制计算，另增 `gem5_invocation` 字段记录实际调用路径（审计分离）。
+  验证中发现的假阳性修复（F-036/E-012）：`--item` 与 `--dry-run/--execute` 组合响亮报错
+  （原静默忽略致 5 秒假"端到端 exit 0"）；dry-run 打印守卫命令由硬编码 `gem5.opt` 改为
+  `gem5_bin()` 真实路径。
+- 验证（2026-10-08，u3_verify.log + u3_verify2.log）：
+  - [x] override 真实到达守卫调用。字面项 gem5.sh wrapper 冒烟**失败 exit -6（E-011：
+        compat PYTHONHOME py3.11 × af0d784f 内嵌 py3.9.9 构造性不兼容；wrapper 被 U3b
+        原生平台取代，弃用不修）**；等价意图由符号链接端到端证明——[T-S4] 两步法
+        `--manifest --execute` 真跑：guard run-finish `cmd[0]`=gem5_af0d784f.link，计数
+        pass `eligible N=2767`（与 CP5 census 逐位一致），L5 verdict conservation OK
+        （outcome=Crash/simulator_assert activated=1）——与旧机 P1 E2E（同 seed 同
+        ITEM-001 s0，evidence/P1/runner_e2e_ITEM-001.out）结构级一致：同 faults.cc:103
+        Page table fault → -6，仅 span 2772→2767（F-035）
+  - [x] 不设 env 时不变性（13:15）：dry-run 输出仅 `--output` 文件名一行不同
+        （/tmp/u3_dryrun_{old,new}.txt）；manifest 差异 = 恰好新增 1 行
+        `"gem5_invocation": "<默认路径>"`（diff /tmp/u3_{old,new}_man.json）
+- 回归：py_compile 两文件 RC 0（修复后复跑输出 `PY_COMPILE_OK_RC=0`）；[T-S1]
+  响亮报错回归：`--item --execute` → exit 2（usage error 实证）。
 
 ### U4 unit_pilot 样本级 resume + census 持久化
 - 文件：`tools/lsu_unit_pilot.py`
