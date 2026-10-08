@@ -11,14 +11,14 @@
 
 - 源设计包含 7 类 LSU 单元、64 个故障模型、325 个唯一 RunID、14 类负载和 F0–F6 七档频率。
 - `完整任务执行清单.md` 已将 325 个 RunID 展开为 ITEM-001 至 ITEM-325；每项包含 Excel 行、模型、频率、负载、注入步骤、激活口径、传播监控、oracle 和命令参数。
-- 完整清单 SHA-256 为 `790d280d61d94e919c3c91c01abeb46264c528748ed46a51567cf50a6c58cee5`；来源 Excel SHA-256 为 `1f65293669a6bf8a1bcc678555d4a5f2f56193e94fa90e453396c6fbc512441c`。
+- 2026-10-08 采样政策迁移后的完整清单 SHA-256 为 `4232b0839e827a1cb1ab5a4ac4fa8096eca479457249054afddfb6dc9c460f8e`；来源 Excel SHA-256 为 `1af33366d61644feb9d2c080ff6a38664ecdb064f7091d57890d2e1fb0f13c18`。旧哈希保留在历史记录中，仅用于追溯迁移前基线。
 - 日常调度以完整清单为准；Excel 只用于审计与人工核查，服务器不得临场重新解释 Excel。
 - 单元包括 AGU、L1d-TLB、Load Queue、Store Queue、L1d-Cache、原子与同步、数据预取器。
 - attempted、eligible、activated 必须分开；未 activated 的注入不进入结果率分母。
 - pre_activation_infra_failure 与 post_activation_simulator_failure 分开记录，均不属于架构级 Crash/Timeout/SDC。
 - F1–F4 按独立运行聚类；单次运行内多个事件不增加独立样本数。
 - Pilot 为每个有效 RunID 30 个独立 activated runs/clusters；正式筛查至少 385 个。
-- P5 确认性扩样使用新的 holdout runs，并在预注册检查点执行同时校正。
+- P5 仅对 21 个固定重点 RunID 扩样到累计 2401；其余 304 个维持累计至少 385，不再采用旧 holdout/5000 序贯停止方案。
 - B0 是可复现实验模型，不是鲲鹏 920 的精确复刻。
 - Excel 中的预期结果是待验证假设，不是必须得到的结论。
 - 已发生资源事故：同一 AI 会话曾在后台连续启动两个 `scons -j126`；随后服务器约 30 GiB 内存占用达到约 94%、16 GiB swap 几乎耗尽、进程/线程数显著增加并出现严重换页，最终重启。该事实用于资源安全设计，不作为实验结果。
@@ -104,7 +104,7 @@
 
 | Request ID | 时间 | 范围 | 事实/未知项 | 选项与风险 | 推荐 | 状态/用户决定 |
 |---|---|---|---|---|---|---|
-| DR-001 | 2026-09-29 15:05 | W1 MiBench-TC23、W11 SPEC CPU2017、W13 PARSEC-Selected 负载可用性；附 W4/W7 FS 部分、W12 近似口径 | 事实（已量化）：服务器无 MiBench/SPEC/PARSEC 负载；主负载统计 W1=27、W11=12、W13=6，合计 **45/325 ITEM（13.8%）**；SE 现成负载（W0/W2/W3/W5/W6/W8/W9/W10）覆盖 212 ITEM（65.2%）；W0 mini_check、W8 prefetch_stride 资产已确认在位。W4 TLB-AliasPerm（24 ITEM，FS）与 W7 Atomic-Litmus（29 ITEM，多核 FS）无现成负载需自建；W12 为 sqlite_like 近似探针非真实 speedtest1。未知：MiBench/PARSEC 获取渠道是否可用；SPEC 许可证状态。 | ① NA_APPROVED：45 ITEM 标 NA（风险：矩阵缩水 13.8%，TLB/SQ 单元 TC'23 论文对照削弱）；② 替换负载（风险：偏离 Excel 设计）；③ 补建（MiBench/PARSEC 公开可获取、SPEC 无证则 NA；风险：工作量大、口径偏差） | 分层处理：MiBench（27 ITEM，TC'23 对照核心）建议补建；PARSEC（6 ITEM）可 NA 或补建；SPEC（12 ITEM，明确说明"主结论之后复核"）建议 NA_APPROVED；W12 以 sqlite_like 近似执行需明确口径 | PENDING（等用户决定；等待期间 W1/W11/W13 相关 ITEM 不启动，不影响 P1/P2 其他工作） |
+| DR-001 | 2026-09-29 15:05 | W1 MiBench-TC23、W11 SPEC CPU2017、W13 PARSEC-Selected 负载可用性；附 W4/W7 FS 部分、W12 近似口径 | 事实（已量化）：服务器无 MiBench/SPEC/PARSEC 负载；主负载统计 W1=27、W11=12、W13=6，合计 **45/325 ITEM（13.8%）**；SE 现成负载（W0/W2/W3/W5/W6/W8/W9/W10）覆盖 212 ITEM（65.2%）；W0 mini_check、W8 prefetch_stride 资产已确认在位。W4 TLB-AliasPerm（24 ITEM，FS）与 W7 Atomic-Litmus（29 ITEM，多核 FS）无现成负载需自建；W12 为 sqlite_like 近似探针非真实 speedtest1。未知：MiBench/PARSEC 获取渠道是否可用；SPEC 许可证状态。 | ① NA_APPROVED：45 ITEM 标 NA（风险：矩阵缩水 13.8%，TLB/SQ 单元 TC'23 论文对照削弱）；② 替换负载（风险：偏离 Excel 设计）；③ 补建（MiBench/PARSEC 公开可获取、SPEC 无证则 NA；风险：工作量大、口径偏差） | 分层处理：MiBench（27 ITEM，TC'23 对照核心）建议补建；PARSEC（6 ITEM）可 NA 或补建；SPEC（12 ITEM，明确说明"主结论之后复核"）建议 NA_APPROVED；W12 以 sqlite_like 近似执行需明确口径 | **DECIDED D+A（2026-10-08 15:4x 用户裁决）**：①SE pilot 继续（不阻塞）；②补建 W1 MiBench（27 ITEM，公开可获取）+ W13 PARSEC（6 ITEM）——aarch64 静态交叉编译 + golden×3 重确立后解锁相关 ITEM；③W11 SPEC 无许可证则 NA_APPROVED（12 ITEM）；④补建期间 F1–F3 档 SE 短流 300/0 结论如实保留（F-020）。执行排程见 progress Next Step |
 | DR-002 | 2026-09-29 15:40 | ① 10 个近似映射模型（49 ITEM）的子模型口径；② O05-O07 多核 FS 依赖的载体或 NA | 事实：V1.0 对 A03/S03/S09/C05/C10/P04/P07/P09/T10/O03 采用注入器现有模式近似设计子模型（approx 注释 lsu_campaign.py:103-165，如 T10 无 PPN 分段子模型用 bit_flip+seed 近似、P07/P09 借用 CHAOSCache 字段）；V2.0 清单子模型语义与 V1.0 相同（68=64+4 删除行，模型定义未变）。O05-O07 需多核 FS（W7/W13 载体未建，与 DR-001 联动）。未知：用户对近似口径的接受度。 | ① 继承 approx（每 run 记录近似说明；风险：49 ITEM 子模型覆盖不精确，结果解释力受限，违背"子模型不得静默修改"精神——除非显式批准）；② 补精确实现后跑（~10 个模式 C++ 扩展，P1 周期延长，但口径纯净）；③ 分批：pilot 用 approx 先行验证管线、screening 前完成关键精确化 | ③ 分批（推荐）：P1 先补 T10（PPN 分段）与 P07/P09（prefetch 专属字段）三个高影响项，其余 approx 显式记录并在 pilot 验证后逐项精确化 | PENDING（等用户决定；17 缺口模型 85 ITEM 的补实现为 P1 计划内工作，不需批准但规模已知会：13 个 C++ 模式/钩子 + 3 个多核 FS 模型） |
 | DR-003 | 2026-10-08 10:50 | P3 pilot 续跑平台（双平台局面） | 事实：①旧机已恢复，pilot 数据完好（ITEM-009 前缀 115 + ITEM-274 前缀 96 + 9 个已闭合终态 + quarantine），工具链/G0 门禁/环境 lock（G0-03）全部为旧机口径且现成；②集群 cn23423 空白（runs/lsu/pilot 空），需完成 U3'（LSU_GEM5_BIN compat 接线）+ 集群侧 G0 环境复验（environment lock 为旧机版）方可跑；Session 002 停于 09-30 18:05，keeper 1773102 存活性未知；③**并发 4 硬上限下两平台吞吐等价**（F-029③）；④旧机曾于 09-30 失联、10-03 重启——稳定性存疑但现已恢复。未知：用户对平台的意图（10-08 在旧机启动本会话；09-30 曾指令集群十天长任务）；集群 keeper/会话现状态 | **A（推荐）旧机续跑**：resume 保留 211 个有效样本（约 4 小时 4 并发当量不浪费），即刻可启动（F-025 已就位）；风险：旧机再失联（对策：周期监控 + 数据在盘不丢 + git 提交链）。**B 集群续跑**：完成 U3' + 集群 G0 复验后从 s0 重跑 ITEM-009/274（旧机样本作废——seed 确定性保证等价可复现，仅损失算力）；风险：准备周期长（小时级）、跨平台环境口径需重建、旧机 211 样本弃用。**C 数据迁移**：打包旧机 runs/lsu/pilot 至集群 resume（保留样本）；风险：跨平台样本混合口径需用户认可（环境不同/B0 配置相同/seed 相同→结果应等价但属环境混合）+ B 的全部准备工作 | A（旧机续跑）：吞吐等价下保留数据+零准备成本最优先；若用户意在集群长跑（避免旧机失联风险）且接受重跑，则 B；C 仅在用户明确接受混合口径时 | **DECIDED-A（2026-10-08 11:0x 用户裁决：旧机续跑 + 并发保持 4）**——旧机 resume 波次 5 启动；集群侧保持 idle（keeper 释放建议用户顺手处理） |
 
@@ -116,3 +116,13 @@
 - W0–W13 哪些已准备？——部分回答（W3/W5/W6/W8/W9/W10/W12 类负载在 workloads/directed；W0 MiniCheck 类探针待确认；W1/W11/W13 缺失 → DR-001）；SPEC 许可证：未知
 - checkpoint、warm-up、oracle 与绝对 timeout 的现状？——未回答（P2 范围；SE 负载不需 checkpoint，FS 需要）
 - Hardware RAS 信号和 ECC/parity 实现情况？——部分回答（Excel 参数基线 R23-R29 保护机制核验表已转录：B0 未配置 ECC/parity，各单元机制按传播结果分类；CHAOSCache protectionModel 已实现 per CLAUDE.md）
+
+## 2026-10-08 采样政策迁移
+
+- **事实：** 本地最新权威文件将样本量统一为 30 个 activated pilot、所有有效 RunID 固定累计至少 385、仅固定的 21 个重点 RunID 累计到 2401；2401 包含前 385，不是额外样本，也不是所有 325 个 RunID 的要求。
+- **统计依据：** 在最坏比例 `p=0.5`、95% 置信水平下，固定样本量近似式 `n=z²p(1-p)/e²` 分别给出 `n=384.16→385`（约 ±5 个百分点）与 `n=2401`（约 ±2 个百分点）。正式报告采用 Wilson 95% 置信区间；固定样本量近似只用于事前预算，不作为中途停止规则。
+- **执行决定：** 删除旧的独立 holdout、n=500…5000 检查点、Bonferroni/Clopper–Pearson 同时校正与“区间半宽≤2pp或 n=5000 停止”方案，避免和当前固定 2401 规则冲突。P3 的 30-sample pilot 目标未改变，正在运行的波次不需要中断。
+- **重点集合：** 21 个 RunID 的完整名单以 `task_plan.md` 和新版 XLSX 为准；其余 304 个 RunID 维持累计至少 385。
+- **独立性与分母：** F0/F5/F6 通常一运行一独立样本；F1–F4 同一运行中的多个事件只能作为一个 run-level cluster。合法目标出现率=`eligible/attempted`，激活率=`activated/eligible`，结果率分母为可分析 activated。
+- **科学解释限制：** 服务器在本政策写入前已经观察了部分 AGU pilot 结果，因此涉及这些已观察组合的 2401 扩样只能称为“2026-10-08 固定政策下的精度扩展，并带有先前探索性信息”，不能追溯性地宣称为完全事前预注册的确认性实验。
+- **当前文件基线：** 完整清单 SHA-256=`4232b0839e827a1cb1ab5a4ac4fa8096eca479457249054afddfb6dc9c460f8e`；XLSX SHA-256=`1af33366d61644feb9d2c080ff6a38664ecdb064f7091d57890d2e1fb0f13c18`。
