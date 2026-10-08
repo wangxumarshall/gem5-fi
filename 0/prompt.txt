@@ -1,0 +1,435 @@
+/superpowers:executing-plans 请依次读取按以下顺序读取并核验：
+1. /home/sdc/gem5-fi-ding/docs/gem5-fi/lsu/总方针.md
+2. /home/sdc/gem5-fi-ding/docs/gem5-fi/lsu//task_plan.md
+3. /home/sdc/gem5-fi-ding/docs/gem5-fi/lsu//progress.md
+4. /home/sdc/gem5-fi-ding/docs/gem5-fi/lsu//findings.md
+5. 当前 git status、最近提交、活动进程/guard PID、run manifest、lease、心跳、日志及已有 evidence。，之后决定恢复点后继续按照task_plan、总方针执行
+
+---
+
+[LSU P3 周期监控] 检查波次 5（旧机，bash PID 654696，--workers 4）健康状态：①ps 确认 654696/654698 存活；②tail /tmp/pilot_wave.log 看最新 ITEM/样本推进；③runs/lsu/guard/guard_events.log 中 gate ok:false 是否新增（基线 5 次，10:51 采样）；④python3 tools/lsu_guard.py status 看 4 槽占用 + MemAvailable（WARNING<10GiB 则按总方针 §8.4 处置）。正常：若距上次 progress.md 更新超 30 分钟则更新 Last Updated 行（简要：当前 ITEM/样本号/资源）。异常（波次死亡/GUARD_FAILURE/WARNING+）：按总方针诊断处置并立即更新 progress.md + findings.md。注意：lsu_guard.py/tools/ 严禁在波次运行期间编辑（F-023 教训）；ITEM 完成时查看 result.json 并做记录提交。
+
+---
+
+[LSU P3 周期监控] 检查波次 5（旧机，bash PID 654696，--workers 4）健康状态：①ps 确认 654696/654698 存活；②tail /tmp/pilot_wave.log 看最新 ITEM/样本推进；③runs/lsu/guard/guard_events.log 中 gate ok:false 是否新增（基线 5 次，10:51 采样）；④python3 tools/lsu_guard.py status 看 4 槽占用 + MemAvailable（WARNING<10GiB 则按总方针 §8.4 处置）。正常：若距上次 progress.md 更新超 30 分钟则更新 Last Updated 行（简要：当前 ITEM/样本号/资源）。异常（波次死亡/GUARD_FAILURE/WARNING+）：按总方针诊断处置并立即更新 progress.md + findings.md。注意：lsu_guard.py/tools/ 严禁在波次运行期间编辑（F-023 教训）；ITEM 完成时查看 result.json 并做记录提交。
+
+---
+
+[LSU P3 周期监控] 检查波次 5（旧机，bash PID 654696，--workers 4）健康状态：①ps 确认 654696/654698 存活；②tail /tmp/pilot_wave.log 看最新 ITEM/样本推进；③runs/lsu/guard/guard_events.log 中 gate ok:false 是否新增（基线 5 次，10:51 采样）；④python3 tools/lsu_guard.py status 看 4 槽占用 + MemAvailable（WARNING<10GiB 则按总方针 §8.4 处置）。正常：若距上次 progress.md 更新超 30 分钟则更新 Last Updated 行（简要：当前 ITEM/样本号/资源）。异常（波次死亡/GUARD_FAILURE/WARNING+）：按总方针诊断处置并立即更新 progress.md + findings.md。注意：lsu_guard.py/tools/ 严禁在波次运行期间编辑（F-023 教训）；ITEM 完成时查看 result.json 并做记录提交。
+
+---
+
+[LSU P3 周期监控] 检查波次 5（旧机，bash PID 654696，--workers 4）健康状态：①ps 确认 654696/654698 存活；②tail /tmp/pilot_wave.log 看最新 ITEM/样本推进；③runs/lsu/guard/guard_events.log 中 gate ok:false 是否新增（基线 5 次，10:51 采样）；④python3 tools/lsu_guard.py status 看 4 槽占用 + MemAvailable（WARNING<10GiB 则按总方针 §8.4 处置）。正常：若距上次 progress.md 更新超 30 分钟则更新 Last Updated 行（简要：当前 ITEM/样本号/资源）。异常（波次死亡/GUARD_FAILURE/WARNING+）：按总方针诊断处置并立即更新 progress.md + findings.md。注意：lsu_guard.py/tools/ 严禁在波次运行期间编辑（F-023 教训）；ITEM 完成时查看 result.json 并做记录提交。
+
+---
+
+[LSU P3 周期监控] 检查波次 5（旧机，bash PID 654696，--workers 4）健康状态：①ps 确认 654696/654698 存活；②tail /tmp/pilot_wave.log 看最新 ITEM/样本推进；③runs/lsu/guard/guard_events.log 中 gate ok:false 是否新增（基线 5 次，10:51 采样）；④python3 tools/lsu_guard.py status 看 4 槽占用 + MemAvailable（WARNING<10GiB 则按总方针 §8.4 处置）。正常：若距上次 progress.md 更新超 30 分钟则更新 Last Updated 行（简要：当前 ITEM/样本号/资源）。异常（波次死亡/GUARD_FAILURE/WARNING+）：按总方针诊断处置并立即更新 progress.md + findings.md。注意：lsu_guard.py/tools/ 严禁在波次运行期间编辑（F-023 教训）；ITEM 完成时查看 result.json 并做记录提交。
+
+---
+
+[LSU P3 周期监控] 检查波次 5（旧机，bash PID 654696，--workers 4）健康状态：①ps 确认 654696/654698 存活；②tail /tmp/pilot_wave.log 看最新 ITEM/样本推进；③runs/lsu/guard/guard_events.log 中 gate ok:false 是否新增（基线 5 次，10:51 采样）；④python3 tools/lsu_guard.py status 看 4 槽占用 + MemAvailable（WARNING<10GiB 则按总方针 §8.4 处置）。正常：若距上次 progress.md 更新超 30 分钟则更新 Last Updated 行（简要：当前 ITEM/样本号/资源）。异常（波次死亡/GUARD_FAILURE/WARNING+）：按总方针诊断处置并立即更新 progress.md + findings.md。注意：lsu_guard.py/tools/ 严禁在波次运行期间编辑（F-023 教训）；ITEM 完成时查看 result.json 并做记录提交。
+
+---
+
+[LSU P3 周期监控] 检查波次 5（旧机，bash PID 654696，--workers 4）健康状态：①ps 确认 654696/654698 存活；②tail /tmp/pilot_wave.log 看最新 ITEM/样本推进；③runs/lsu/guard/guard_events.log 中 gate ok:false 是否新增（基线 5 次，10:51 采样）；④python3 tools/lsu_guard.py status 看 4 槽占用 + MemAvailable（WARNING<10GiB 则按总方针 §8.4 处置）。正常：若距上次 progress.md 更新超 30 分钟则更新 Last Updated 行（简要：当前 ITEM/样本号/资源）。异常（波次死亡/GUARD_FAILURE/WARNING+）：按总方针诊断处置并立即更新 progress.md + findings.md。注意：lsu_guard.py/tools/ 严禁在波次运行期间编辑（F-023 教训）；ITEM 完成时查看 result.json 并做记录提交。
+
+---
+
+[LSU P3 周期监控] 检查波次 5（旧机，bash PID 654696，--workers 4）健康状态：①ps 确认 654696/654698 存活；②tail /tmp/pilot_wave.log 看最新 ITEM/样本推进；③runs/lsu/guard/guard_events.log 中 gate ok:false 是否新增（基线 5 次，10:51 采样）；④python3 tools/lsu_guard.py status 看 4 槽占用 + MemAvailable（WARNING<10GiB 则按总方针 §8.4 处置）。正常：若距上次 progress.md 更新超 30 分钟则更新 Last Updated 行（简要：当前 ITEM/样本号/资源）。异常（波次死亡/GUARD_FAILURE/WARNING+）：按总方针诊断处置并立即更新 progress.md + findings.md。注意：lsu_guard.py/tools/ 严禁在波次运行期间编辑（F-023 教训）；ITEM 完成时查看 result.json 并做记录提交。
+
+---
+
+[LSU P3 周期监控] 检查波次 5（旧机，bash PID 654696，--workers 4）健康状态：①ps 确认 654696/654698 存活；②tail /tmp/pilot_wave.log 看最新 ITEM/样本推进；③runs/lsu/guard/guard_events.log 中 gate ok:false 是否新增（基线 5 次，10:51 采样）；④python3 tools/lsu_guard.py status 看 4 槽占用 + MemAvailable（WARNING<10GiB 则按总方针 §8.4 处置）。正常：若距上次 progress.md 更新超 30 分钟则更新 Last Updated 行（简要：当前 ITEM/样本号/资源）。异常（波次死亡/GUARD_FAILURE/WARNING+）：按总方针诊断处置并立即更新 progress.md + findings.md。注意：lsu_guard.py/tools/ 严禁在波次运行期间编辑（F-023 教训）；ITEM 完成时查看 result.json 并做记录提交。
+
+---
+
+[LSU P3 周期监控] 检查波次 5（旧机，bash PID 654696，--workers 4）健康状态：①ps 确认 654696/654698 存活；②tail /tmp/pilot_wave.log 看最新 ITEM/样本推进；③runs/lsu/guard/guard_events.log 中 gate ok:false 是否新增（基线 5 次，10:51 采样）；④python3 tools/lsu_guard.py status 看 4 槽占用 + MemAvailable（WARNING<10GiB 则按总方针 §8.4 处置）。正常：若距上次 progress.md 更新超 30 分钟则更新 Last Updated 行（简要：当前 ITEM/样本号/资源）。异常（波次死亡/GUARD_FAILURE/WARNING+）：按总方针诊断处置并立即更新 progress.md + findings.md。注意：lsu_guard.py/tools/ 严禁在波次运行期间编辑（F-023 教训）；ITEM 完成时查看 result.json 并做记录提交。
+
+---
+
+[LSU P3 周期监控] 检查波次 5（旧机，bash PID 654696，--workers 4）健康状态：①ps 确认 654696/654698 存活；②tail /tmp/pilot_wave.log 看最新 ITEM/样本推进；③runs/lsu/guard/guard_events.log 中 gate ok:false 是否新增（基线 5 次，10:51 采样）；④python3 tools/lsu_guard.py status 看 4 槽占用 + MemAvailable（WARNING<10GiB 则按总方针 §8.4 处置）。正常：若距上次 progress.md 更新超 30 分钟则更新 Last Updated 行（简要：当前 ITEM/样本号/资源）。异常（波次死亡/GUARD_FAILURE/WARNING+）：按总方针诊断处置并立即更新 progress.md + findings.md。注意：lsu_guard.py/tools/ 严禁在波次运行期间编辑（F-023 教训）；ITEM 完成时查看 result.json 并做记录提交。
+
+---
+
+[LSU P3 周期监控] 检查波次 5（旧机，bash PID 654696，--workers 4）健康状态：①ps 确认 654696/654698 存活；②tail /tmp/pilot_wave.log 看最新 ITEM/样本推进；③runs/lsu/guard/guard_events.log 中 gate ok:false 是否新增（基线 5 次，10:51 采样）；④python3 tools/lsu_guard.py status 看 4 槽占用 + MemAvailable（WARNING<10GiB 则按总方针 §8.4 处置）。正常：若距上次 progress.md 更新超 30 分钟则更新 Last Updated 行（简要：当前 ITEM/样本号/资源）。异常（波次死亡/GUARD_FAILURE/WARNING+）：按总方针诊断处置并立即更新 progress.md + findings.md。注意：lsu_guard.py/tools/ 严禁在波次运行期间编辑（F-023 教训）；ITEM 完成时查看 result.json 并做记录提交。
+
+---
+
+[LSU P3 周期监控] 检查波次 5（旧机，bash PID 654696，--workers 4）健康状态：①ps 确认 654696/654698 存活；②tail /tmp/pilot_wave.log 看最新 ITEM/样本推进；③runs/lsu/guard/guard_events.log 中 gate ok:false 是否新增（基线 5 次，10:51 采样）；④python3 tools/lsu_guard.py status 看 4 槽占用 + MemAvailable（WARNING<10GiB 则按总方针 §8.4 处置）。正常：若距上次 progress.md 更新超 30 分钟则更新 Last Updated 行（简要：当前 ITEM/样本号/资源）。异常（波次死亡/GUARD_FAILURE/WARNING+）：按总方针诊断处置并立即更新 progress.md + findings.md。注意：lsu_guard.py/tools/ 严禁在波次运行期间编辑（F-023 教训）；ITEM 完成时查看 result.json 并做记录提交。
+
+---
+
+[LSU P3 周期监控] 检查波次 5（旧机，bash PID 654696，--workers 4）健康状态：①ps 确认 654696/654698 存活；②tail /tmp/pilot_wave.log 看最新 ITEM/样本推进；③runs/lsu/guard/guard_events.log 中 gate ok:false 是否新增（基线 5 次，10:51 采样）；④python3 tools/lsu_guard.py status 看 4 槽占用 + MemAvailable（WARNING<10GiB 则按总方针 §8.4 处置）。正常：若距上次 progress.md 更新超 30 分钟则更新 Last Updated 行（简要：当前 ITEM/样本号/资源）。异常（波次死亡/GUARD_FAILURE/WARNING+）：按总方针诊断处置并立即更新 progress.md + findings.md。注意：lsu_guard.py/tools/ 严禁在波次运行期间编辑（F-023 教训）；ITEM 完成时查看 result.json 并做记录提交。
+
+---
+
+[LSU P3 周期监控] 检查波次 5（旧机，bash PID 654696，--workers 4）健康状态：①ps 确认 654696/654698 存活；②tail /tmp/pilot_wave.log 看最新 ITEM/样本推进；③runs/lsu/guard/guard_events.log 中 gate ok:false 是否新增（基线 5 次，10:51 采样）；④python3 tools/lsu_guard.py status 看 4 槽占用 + MemAvailable（WARNING<10GiB 则按总方针 §8.4 处置）。正常：若距上次 progress.md 更新超 30 分钟则更新 Last Updated 行（简要：当前 ITEM/样本号/资源）。异常（波次死亡/GUARD_FAILURE/WARNING+）：按总方针诊断处置并立即更新 progress.md + findings.md。注意：lsu_guard.py/tools/ 严禁在波次运行期间编辑（F-023 教训）；ITEM 完成时查看 result.json 并做记录提交。
+
+---
+
+请问现有进度如何，执行了excel中哪几个单元的哪几行？得到了什么结果？
+
+---
+
+blocked是什么意思
+
+---
+
+那这一直都not activated是不行的把，该如何解决？以及为什么会出现这种情况。
+
+---
+
+你现在在做什么，因为我修改了lsu的几个文件，需要结合你现有进度设计提示词
+
+---
+
+[LSU P3 周期监控] 检查波次 5（旧机，bash PID 654696，--workers 4）健康状态：①ps 确认 654696/654698 存活；②tail /tmp/pilot_wave.log 看最新 ITEM/样本推进；③runs/lsu/guard/guard_events.log 中 gate ok:false 是否新增（基线 5 次，10:51 采样）；④python3 tools/lsu_guard.py status 看 4 槽占用 + MemAvailable（WARNING<10GiB 则按总方针 §8.4 处置）。正常：若距上次 progress.md 更新超 30 分钟则更新 Last Updated 行（简要：当前 ITEM/样本号/资源）。异常（波次死亡/GUARD_FAILURE/WARNING+）：按总方针诊断处置并立即更新 progress.md + findings.md。注意：lsu_guard.py/tools/ 严禁在波次运行期间编辑（F-023 教训）；ITEM 完成时查看 result.json 并做记录提交。
+
+---
+
+这是一次 LSU 文档同步后的规则纠偏与采样政策迁移指令。请严格按顺序执行。
+
+一、立即采用的用户决定
+
+1. gem5 故障注入实验的当前并发硬上限仍为 4。
+2. 该决定来自用户 2026-09-30 14:30 的明确批准，对《总方针》中早期的“完成资源画像后最多 2”具有覆盖效力。
+3. 当前波次 5 已经完成 4 并发资源画像和实机验证，因此继续使用 `--workers 4`。
+4. 不要把当前波次降为 2，不要终止、重启、清空或重新提交正在健康运行的波次 5。
+5. `experiment_slots_occupied=2` 仅表示某一时刻有两个槽位处于样本完成与下一批启动之间，不表示并发上限变成 2。
+6. 只有出现以下情况之一时，才允许临时降为 3、2 或 1：
+   - 资源守卫进入 WARNING 或 TRIP；
+   - 启动门禁失败；
+   - 出现持续换页、blocked 进程或明显资源增长；
+   - 出现能够证明与并发有关的正确性或稳定性问题。
+7. 临时降级必须在 `progress.md` 中记录时间、原因、证据、临时并发数和恢复条件；资源恢复正常后允许回到 4。
+8. 任何时候不得超过 4，也不得为了立即凑满 4 个槽位而终止或重启健康任务。
+9. 编译规则不变：最多 `-j8`，同一时刻只允许一个编译任务。
+
+当前已知健康证据包括：
+- 波次 5 使用 `--workers 4`；
+- 4 个实验槽位已经过互斥、释放、陈旧锁和断点续跑验证；
+- 当前 MemAvailable 约 26 GiB、swap 未使用、load 很低；
+- `gate ok:false` 历史累计值为 5，但波次 5 已累计 2000+ runs 且零新增；
+- 以前的 F-023 事故是运行过程中修改守卫脚本造成的语法错误和陈旧锁，不是 4 并发本身造成的资源问题。
+
+二、首先重新读取的文件
+
+请完整重新读取：
+
+1. `/home/sdc/gem5-fi-ding/docs/gem5-fi/lsu/总方针.md`
+2. `/home/sdc/gem5-fi-ding/docs/gem5-fi/lsu/task_plan.md`
+3. `/home/sdc/gem5-fi-ding/docs/gem5-fi/lsu/完整任务执行清单.md`
+4. `/home/sdc/gem5-fi-ding/docs/gem5-fi/lsu/progress.md`
+5. `/home/sdc/gem5-fi-ding/docs/gem5-fi/lsu/findings.md`
+6. `/home/sdc/gem5-fi-ding/docs/gem5-fi/lsu/服务器AI完整提示语.txt`
+7. `/home/sdc/gem5-fi-ding/docs/gem5-fi/lsu/gem5-fi-LSU单元故障注入方案.xlsx`
+
+同时只读核查：
+
+- 当前波次 PID/PGID；
+- `lsu_unit_pilot.py` 实际 `--workers`；
+- 4 个实验槽位；
+- 当前 ITEM、RunID 和 sample_index；
+- `MemAvailable`、SwapFree、load、blocked；
+- 最近是否出现新的 WARNING、TRIP 或 `gate ok:false`；
+- Git 工作树中 LSU 文档的现有修改。
+
+不得使用 `git reset`、`git checkout --` 或其他方式撤销刚同步的 LSU 文件。
+
+三、修正文档中的并发冲突
+
+确认当前波次健康后，修正以下静态文档，但不得修改运行中的守卫、runner 或 pilot 脚本。
+
+1. 修改《总方针》§8.1：
+
+将早期规则：
+
+“未完成资源画像的实验默认并发度为1；完成资源画像后也不得超过2，除非用户明确批准新的上限。”
+
+改为表达以下完整含义：
+
+- 未完成资源画像的新 workload、新 checkpoint 或新实验类型，默认并发为 1；
+- 已完成当前 LSU pilot 资源画像的 gem5 故障注入实验，经用户 2026-09-30 14:30 明确批准，并发硬上限为 4；
+- 资源压力或 WARNING 时可临时降为 3、2、1，恢复正常后可回到 4；
+- 不得超过 4，也不得为了调整并发而终止健康任务。
+
+2. 修改《总方针》§8.5：
+
+将“实验并发超过2必须获得用户明确批准”改为：
+
+- 当前 LSU gem5 实验的 4 并发已经获得用户批准；
+- 任何超过 4 的并发必须再次获得用户明确批准；
+- 新实验类型仍须从单实例画像开始。
+
+3. 修正 `findings.md` 顶部仍写着“画像后最多2”的旧固定事实。
+
+不得删除历史记录 F-022。应把顶部当前规则改为“当前批准上限为4”，并注明早期 1/2 规则已经由 F-022 和用户决定取代。
+
+4. 检查并修正：
+
+- `服务器AI完整提示语.txt`
+- `progress.md` 的 G0-10 摘要
+- `task_plan.md`
+- 其他当前规则摘要
+
+确保“当前正式并发上限”为 4。
+
+历史日志中描述旧规则、旧事故或规则演化的内容必须保留，不要追溯性改写历史。
+
+5. 将 `progress.md` 的 Phase Summary 中 P3 状态改为 `IN_PROGRESS`，与 Current Status 保持一致；不要把 P1/P2 的历史状态擅自伪造为已完成。
+
+四、新采样政策
+
+最新采样规则为：
+
+1. 每个有效 RunID 先取得 30 个独立 activated pilot runs/clusters。
+2. 如果注入器、配置、workload、checkpoint、oracle 和分类规则均未改变，这些 pilot 样本可以计入后续累计。
+3. 如果上述任一关键条件改变，旧样本必须分层、隔离或重采，不得静默混合。
+4. 每个有效 RunID 固定累计至少取得 385 个独立 activated runs/clusters。
+5. 只有 `task_plan.md` 中固定列出的 21 个重点 RunID 扩展到累计 2401 个。
+6. 2401 包含此前满足条件的 pilot 和 screening 样本，不是完成 385 后再额外增加 2401。
+7. 其余 304 个 RunID 不机械扩展到 2401。
+8. 删除旧的独立 holdout、5000 上限、n=500/1000/...检查点和“区间半宽达到2个百分点后停止”等序贯停止规则。
+9. 统一报告 Wilson 95% 置信区间。
+10. F1–F4 同一次运行中的多个故障事件属于一个 run-level cluster，不能当成多个独立样本。
+11. 合法目标出现率为 `eligible/attempted`。
+12. 故障激活率为 `activated/eligible`。
+13. 条件结果率的分母为：
+    `activated - post_activation_simulator_failure`。
+14. 对 2026-10-08 政策冻结前已经查看过 pilot 结果的重点组合，必须标记为“政策冻结前已有探索性信息”，不得称为完全事前预注册的独立确认性结果。
+
+五、对当前 P3 波次的处理
+
+当前 P3 pilot 目标仍然是每个有效 RunID 取得 30 个独立 activated 样本，因此：
+
+1. 继续当前波次 5，不要因为采样政策更新中断它。
+2. 当前 AGU ITEM-020/A05-F2-W3 若仍在运行，继续到既定终态：
+   - 获得 30 个独立 activated；或者
+   - attempted 达到既定上限后按规则 BLOCKED。
+3. 当前 ITEM/RunID/sample_index 必须重新从实时进程、manifest 和结果目录读取，不要机械沿用消息中的 s95 或其他旧快照。
+4. 继续现有顺序：
+   - AGU 剩余项目；
+   - L1d-TLB；
+   - Load Queue，并保留 ITEM-274 已有的有效 resume 样本。
+5. 已通过配置一致性和质量检查的既有 pilot 样本继续有效，不得因本次文档迁移整体作废或重跑。
+6. P4、P5 和任何 385/2401 扩样暂不得启动，直到新版 manifest 目标和样本范围冻结完成。
+7. DR-001 的 MiBench/PARSEC 补建可以保持“已探路、待安排”状态；在本轮规则核对完成前，不启动新的重型构建或批量实验。
+8. DR-002 继续保持 PENDING，不得自行选择近似实现方案。
+
+六、检查脚本和 manifest，但不要热修改运行中代码
+
+检查服务器代码、配置和 manifest 生成器中是否硬编码以下旧规则：
+
+- 并发上限 2；
+- 独立 holdout；
+- 5000 上限；
+- n=500、1000……检查点；
+- Clopper–Pearson/Bonferroni 序贯方案；
+- 根据区间半宽停止；
+- 所有组合都扩展到 2401；
+- 将同一次 F1–F4 运行中的多个事件当作独立样本；
+- 使用 attempted 或 eligible 作为 SDC 率分母。
+
+要求：
+
+1. 先只读检查并列出文件、行号和影响范围。
+2. 不得在波次 5 运行期间直接修改会被当前进程重复加载的守卫、runner、pilot 或调度脚本。
+3. 如果 P3 只使用固定 30-sample 目标且不受旧 P4/P5 逻辑影响，则允许当前波次继续。
+4. 对确需修改的运行脚本，先准备补丁和测试方案，等自然安全边界再实施。
+5. 特别避免重演 F-023“运行中修改守卫脚本”的事故。
+
+七、记录与验证
+
+完成检查和静态文档纠偏后：
+
+1. 在 `progress.md` 追加一次“并发规则纠偏与采样政策迁移”记录。
+2. 在 `findings.md` 记录：
+   - 本次冲突由同步后的旧通用规则与服务器既有 F-022 决定不一致造成；
+   - 当前批准上限为4；
+   - 4并发资源证据；
+   - 本次没有中断当前波次；
+   - 哪些旧规则只属于历史记录。
+3. 验证以下一致性：
+   - 《总方针》当前规则为4；
+   - task_plan 当前规则为4；
+   - progress 当前规则为4；
+   - findings 顶部当前规则为4；
+   - 完整提示语当前规则为4；
+   - 历史 F-022 保留；
+   - P3 状态为 IN_PROGRESS；
+   - 采样规则为30/385/仅21项到2401；
+   - 不存在仍会实际执行的旧5000/holdout/区间半宽停止规则。
+4. 不要修改 XLSX 的结构、公式或数据；它只用于核对新采样政策。
+5. 不要修改、删除或重分类既有实验结果，除非发现明确证据证明样本无效。
+6. 文档修改完成后，仅提交本次 LSU 文档纠偏涉及的文件，不夹带其他项目或实验结果；提交前展示 `git diff --stat` 和关键 diff。
+7. 如果现有仓库流程要求推送，可在验证通过后推送当前 `fi-ding` 分支；不得强制推送。
+
+八、完成后向我汇报
+
+请给出一份简洁但完整的结果，包括：
+
+1. 当前实时 ITEM、RunID 和 sample_index；
+2. 当前实际并发数和配置上限；
+3. 当前 MemAvailable、SwapFree、load、blocked；
+4. 是否出现新的 WARNING、TRIP 或 gate 失败；
+5. 修改了哪些文档及具体规则；
+6. 哪些旧规则仅保留为历史记录；
+7. 是否发现代码或 manifest 中的旧硬编码；
+8. 已有 pilot 样本是否继续有效；
+9. P4/P5 开始前还需要修改哪些文件；
+10. Git commit/push 状态；
+11. 唯一下一动作。
+
+若没有资源异常，唯一下一动作应保持为：
+“以4并发继续监控并推进当前 P3 波次，同时等待自然安全边界处理不影响当前 P3 的后续脚本迁移；不启动 P4/P5。”
+
+---
+
+对刚才的执行报告做两点事实更正，并安排后续安全迁移。
+
+一、事实更正
+
+1. `task_plan.md` 当前 P5 已经是新版“固定重点组合扩样”规则：
+   - 所有有效 RunID 累计至少 385；
+   - 仅固定的 21 个重点 RunID 累计到 2401；
+   - 2401 包含前 385；
+   - 不使用独立 holdout、5000 上限或区间半宽序贯停止。
+   
+   因此，不要再把 `task_plan.md` 的当前 P5 描述为保留旧序贯规则。旧规则只允许出现在明确标记为历史的 findings、日志和 Git 历史中。
+
+2. 21 个重点 RunID 已经在 `task_plan.md` 的“全局实验口径”中明确列出，不存在“无明确定义则向用户请求”的问题。名单为：
+
+A01-F0-W3
+A04-F0-W3
+T10-F0-W4
+T04-F0-W4
+S13-F0-W5
+S04-F0-W5
+L01-F0-W5
+L03-F0-W5
+C04-F0-W6
+C05-F0-W6
+C10-F0-W6
+C12-F0-W6
+O01-F0-W7
+O05-F0-W7
+P03-F0-W8
+P07-F0-W8
+P09-F0-W6
+T10-F0-W11
+S13-F0-W12
+O09-F0-W13
+P09-F0-W13
+
+以该名单为唯一重点扩样集合，不得依据当前或后续实验结果增删组合。对政策冻结前已经查看过 pilot 结果的组合，继续标记为“政策冻结前已有探索性信息”。
+
+二、当前波次处理
+
+1. 当前 P3 波次 5 继续以 `--workers 4` 运行。
+2. 不停止、不重启、不降并发，也不要修改当前进程可能导入或重新读取的脚本。
+3. 当前 P3 仍只执行每个 RunID 的 30 activated pilot 或 attempted 上限，因此 `tools/lsu_campaign.py` 中的旧 P4/P5 逻辑暂不影响当前结果。
+4. 继续每23分钟监控资源和进度。
+5. 不启动 P4、P5、385样本筛查或2401样本扩样。
+
+三、lsu_campaign.py 的安全迁移安排
+
+已经确认 `tools/lsu_campaign.py` 至少有以下旧实现：
+
+- 顶部 docstring：仍写“Wilson半宽≤2pp或5000”；
+- `--main-target` 默认值为5000；
+- `--wilson-stop-hw` 仍控制序贯停止；
+- SDC率使用 `SDC/activated`，未扣除 post_activation_simulator_failure。
+
+该文件是运行中 `lsu_unit_pilot.py` 的 import 依赖，因此：
+
+1. 波次 5 运行期间只允许读取、分析和在隔离目录准备补丁。
+2. 不得直接修改工作树中的 `tools/lsu_campaign.py`。
+3. 在 `tools/draft/` 或其他独立暂存位置准备迁移版本和测试。
+4. 只有波次 5 整条 bash 链自然结束、相关 Python/gem5/guard 进程全部退出、4个实验槽位全部释放后，才允许把验证后的修改应用到正式脚本。
+5. 应用前再次确认没有其他会话正在使用该脚本。
+
+四、迁移后的执行语义
+
+新版 campaign 必须实现：
+
+1. Pilot目标：每个有效RunID先取得30个独立activated runs/clusters。
+2. 常规正式目标：累计至少385。
+3. 重点目标：仅上述21个RunID累计到固定2401。
+4. 其余304个RunID不得自动扩展到2401。
+5. 不再按Wilson区间半宽或中途结果停止。
+6. 不再使用5000作为默认上限。
+7. 如果为CLI兼容性暂时保留 `--wilson-stop-hw`，必须标记deprecated且不得参与停止判断。
+8. 不允许简单把 `--main-target` 默认值从5000改成2401，因为这会错误地让全部RunID扩展到2401；目标必须根据RunID是否属于固定21项进行选择。
+9. 分别统计：
+   - 合法目标出现率 = eligible/attempted；
+   - 故障激活率 = activated/eligible；
+   - 可分析activated = activated-post_activation_simulator_failure；
+   - SDC率 = SDC/可分析activated。
+10. 可分析activated为0时，SDC率应报告为NA/undefined并保留计数，不得伪造为0%。
+11. F1–F4的事件级记录必须按run-level cluster聚合。
+12. Pilot能否计入385/2401，必须检查注入器、配置、workload、checkpoint、oracle和分类规则版本一致性。
+
+五、迁移前测试要求
+
+至少增加并通过以下测试：
+
+1. 21个重点RunID全部识别为2401；
+2. 其余304个RunID全部识别为385；
+3. 不能出现325项全部2401；
+4. pilot 30计入累计时不重复计数；
+5. post_activation_simulator_failure正确从结果率分母扣除；
+6. 可分析activated为0时返回NA而不是0；
+7. F1–F4同一运行内多个事件只算一个cluster；
+8. 旧5000和区间半宽参数不再影响停止；
+9. resume后sample_index/seed不重复；
+10. 与当前P3的30/300执行行为保持兼容。
+
+六、现在应做的事情
+
+当前只做以下工作：
+
+1. 继续4并发推进和监控P3波次5；
+2. 在隔离目录准备 `lsu_campaign.py` 迁移设计和测试，不应用到运行中的正式文件；
+3. 在 `progress.md` 和 `findings.md` 更正刚才报告中的两处表述：
+   - task_plan当前P5已经是新版规则；
+   - 21个重点RunID已经明确冻结；
+4. 告诉我：
+   - 隔离补丁准备在哪个路径；
+   - 预计修改哪些函数和参数；
+   - 测试清单；
+   - 判定波次5“自然安全边界”的具体条件。
+
+唯一下一动作仍然是：
+以4并发继续当前P3波次；并行准备但不应用P4/P5采样引擎迁移补丁，等待波次5自然结束后再切换。
+
+---
+
+[LSU P3 周期监控] 检查波次 5（旧机，bash PID 654696，--workers 4）健康状态：①ps 确认 654696/654698 存活；②tail /tmp/pilot_wave.log 看最新 ITEM/样本推进；③runs/lsu/guard/guard_events.log 中 gate ok:false 是否新增（基线 5 次，10:51 采样）；④python3 tools/lsu_guard.py status 看 4 槽占用 + MemAvailable（WARNING<10GiB 则按总方针 §8.4 处置）。正常：若距上次 progress.md 更新超 30 分钟则更新 Last Updated 行（简要：当前 ITEM/样本号/资源）。异常（波次死亡/GUARD_FAILURE/WARNING+）：按总方针诊断处置并立即更新 progress.md + findings.md。注意：lsu_guard.py/tools/ 严禁在波次运行期间编辑（F-023 教训）；ITEM 完成时查看 result.json 并做记录提交。
+
+---
+
+[LSU P3 周期监控] 检查波次 5（旧机，bash PID 654696，--workers 4）健康状态：①ps 确认 654696/654698 存活；②tail /tmp/pilot_wave.log 看最新 ITEM/样本推进；③runs/lsu/guard/guard_events.log 中 gate ok:false 是否新增（基线 5 次，10:51 采样）；④python3 tools/lsu_guard.py status 看 4 槽占用 + MemAvailable（WARNING<10GiB 则按总方针 §8.4 处置）。正常：若距上次 progress.md 更新超 30 分钟则更新 Last Updated 行（简要：当前 ITEM/样本号/资源）。异常（波次死亡/GUARD_FAILURE/WARNING+）：按总方针诊断处置并立即更新 progress.md + findings.md。注意：lsu_guard.py/tools/ 严禁在波次运行期间编辑（F-023 教训）；ITEM 完成时查看 result.json 并做记录提交。
+
+---
+
+[LSU P3 周期监控] 检查波次 5（旧机，bash PID 654696，--workers 4）健康状态：①ps 确认 654696/654698 存活；②tail /tmp/pilot_wave.log 看最新 ITEM/样本推进；③runs/lsu/guard/guard_events.log 中 gate ok:false 是否新增（基线 5 次，10:51 采样）；④python3 tools/lsu_guard.py status 看 4 槽占用 + MemAvailable（WARNING<10GiB 则按总方针 §8.4 处置）。正常：若距上次 progress.md 更新超 30 分钟则更新 Last Updated 行（简要：当前 ITEM/样本号/资源）。异常（波次死亡/GUARD_FAILURE/WARNING+）：按总方针诊断处置并立即更新 progress.md + findings.md。注意：lsu_guard.py/tools/ 严禁在波次运行期间编辑（F-023 教训）；ITEM 完成时查看 result.json 并做记录提交。
+
+---
+
+你还是一直在运行然后阶段性汇报是吗
+
+---
+
+[LSU P3 周期监控] 检查波次 5（旧机，bash PID 654696，--workers 4）健康状态：①ps 确认 654696/654698 存活；②tail /tmp/pilot_wave.log 看最新 ITEM/样本推进；③runs/lsu/guard/guard_events.log 中 gate ok:false 是否新增（基线 5 次，10:51 采样）；④python3 tools/lsu_guard.py status 看 4 槽占用 + MemAvailable（WARNING<10GiB 则按总方针 §8.4 处置）。正常：若距上次 progress.md 更新超 30 分钟则更新 Last Updated 行（简要：当前 ITEM/样本号/资源）。异常（波次死亡/GUARD_FAILURE/WARNING+）：按总方针诊断处置并立即更新 progress.md + findings.md。注意：lsu_guard.py/tools/ 严禁在波次运行期间编辑（F-023 教训）；ITEM 完成时查看 result.json 并做记录提交。
+
+---
+
+[LSU P3 周期监控] 检查波次 5（旧机，bash PID 654696，--workers 4）健康状态：①ps 确认 654696/654698 存活；②tail /tmp/pilot_wave.log 看最新 ITEM/样本推进；③runs/lsu/guard/guard_events.log 中 gate ok:false 是否新增（基线 5 次，10:51 采样）；④python3 tools/lsu_guard.py status 看 4 槽占用 + MemAvailable（WARNING<10GiB 则按总方针 §8.4 处置）。正常：若距上次 progress.md 更新超 30 分钟则更新 Last Updated 行（简要：当前 ITEM/样本号/资源）。异常（波次死亡/GUARD_FAILURE/WARNING+）：按总方针诊断处置并立即更新 progress.md + findings.md。注意：lsu_guard.py/tools/ 严禁在波次运行期间编辑（F-023 教训）；ITEM 完成时查看 result.json 并做记录提交。
+
+---
+
+[LSU P3 周期监控] 检查波次 5（旧机，bash PID 654696，--workers 4）健康状态：①ps 确认 654696/654698 存活；②tail /tmp/pilot_wave.log 看最新 ITEM/样本推进；③runs/lsu/guard/guard_events.log 中 gate ok:false 是否新增（基线 5 次，10:51 采样）；④python3 tools/lsu_guard.py status 看 4 槽占用 + MemAvailable（WARNING<10GiB 则按总方针 §8.4 处置）。正常：若距上次 progress.md 更新超 30 分钟则更新 Last Updated 行（简要：当前 ITEM/样本号/资源）。异常（波次死亡/GUARD_FAILURE/WARNING+）：按总方针诊断处置并立即更新 progress.md + findings.md。注意：lsu_guard.py/tools/ 严禁在波次运行期间编辑（F-023 教训）；ITEM 完成时查看 result.json 并做记录提交。
+
+---
+
+[LSU P3 周期监控] 检查波次 5（旧机，bash PID 654696，--workers 4）健康状态：①ps 确认 654696/654698 存活；②tail /tmp/pilot_wave.log 看最新 ITEM/样本推进；③runs/lsu/guard/guard_events.log 中 gate ok:false 是否新增（基线 5 次，10:51 采样）；④python3 tools/lsu_guard.py status 看 4 槽占用 + MemAvailable（WARNING<10GiB 则按总方针 §8.4 处置）。正常：若距上次 progress.md 更新超 30 分钟则更新 Last Updated 行（简要：当前 ITEM/样本号/资源）。异常（波次死亡/GUARD_FAILURE/WARNING+）：按总方针诊断处置并立即更新 progress.md + findings.md。注意：lsu_guard.py/tools/ 严禁在波次运行期间编辑（F-023 教训）；ITEM 完成时查看 result.json 并做记录提交。
