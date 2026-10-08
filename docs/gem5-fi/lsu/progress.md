@@ -13,11 +13,11 @@
 - **Phase Status:** IN_PROGRESS
 - **Overall Status:** IN_PROGRESS（DR-003 裁决 A：旧机续跑 + 并发 4；波次 5 运行中；集群 Session 002 平台工程（U3b 二进制身份恢复），遵守 DR-003-A 不跑波次；F-025/F-027 已合并）
 - **Started:** Session 001 2026-09-29 11:22（旧机）；Session 002 2026-09-30 16:43（集群 cn23423，持续运行——10-07/08 E-005 中断期转 Windows 取证，10-08 10:40 恢复直连）；Session 003 2026-10-08 09:49（旧机恢复）
-- **Last Updated:** 2026-10-08 11:55（**ITEM-010（A02-F2-W9）COMPLETE：33/33 activated 全 sim_fail 零可分析结局**（F-032，A01/A02 子模型对比数据点）；**ITEM-013（A04-F0-W3）运行中**（激活 + 真实架构级结局 Masked/Crash 混合，F-023 隔离的无效 census 已被正确重做）；gate ok:false 持续零新增；ITEM-009 已闭合 BLOCKED 300/0（F-031，resume 115 复用实战验证））
-- **Excel Location:** 7.展开执行矩阵!A14（行 11/12 已闭合；行 13 ITEM-011 admission BLOCKED；行 14 = ITEM-013 运行中）
+- **Last Updated:** 2026-10-08 12:10（**ITEM-013/014（A04-F0-W3/W0）双双 COMPLETE：首批真实五类结局**（F-033）——ITEM-013 Masked 21+SDC 5+首个真实 Crash 1、ITEM-014 Masked 22+SDC 8（率 26.7%）；A01/A02/A04 可分析性梯度 0%→13%→85%+ 建立；ITEM-015（A04-F2-W3）运行中；gate ok:false 持续零新增（波次 5 已 500+ run）。前记：ITEM-010（A02-F2-W9）COMPLETE：33/33 activated 全 sim_fail 零可分析结局**（F-032，A01/A02 子模型对比数据点）；**ITEM-013（A04-F0-W3）运行中**（激活 + 真实架构级结局 Masked/Crash 混合，F-023 隔离的无效 census 已被正确重做）；gate ok:false 持续零新增；ITEM-009 已闭合 BLOCKED 300/0（F-031，resume 115 复用实战验证））
+- **Excel Location:** 7.展开执行矩阵!A16（行 11-15 已闭合；行 16 = ITEM-015 运行中）
 - **Current Owner:** 服务器执行 AI（Claude，主协调 AI；Session 003 旧机 localhost0101——波次 5 运行中；Session 002 集群 cn23423 keeper 1773102——平台工程（U3b CP4 重建编译中 → U3 → U6），不跑波次）
-- **Current Checklist Item:** AGU ITEM-013（A04-F0-W3，agu_addrmodes）运行中（激活 + 真实架构级结局）；ITEM-009 BLOCKED（F-031）+ ITEM-010 COMPLETE 33/33 全 sim_fail（F-032）已闭合；其后 ITEM-014..039；Load Queue ITEM-274（旧机有效 s0–s95=96）→ ITEM-277+
-- **Current RunID:** A04-F0-W3（ITEM-013 运行中；前置 A02 系列 W3/W9 均已闭合）
+- **Current Checklist Item:** AGU ITEM-015（A04-F2-W3）运行中（F2 短流，预期 F-020 模式 BLOCKED）；ITEM-009 BLOCKED / ITEM-010 全 sim_fail / ITEM-013+014 **真实五类结局**（F-033：首个真实 Crash + SDC 5/8）已闭合；其后 ITEM-016..039；Load Queue ITEM-274（有效 96）→ ITEM-277+
+- **Current RunID:** A04-F2-W3（ITEM-015 运行中；A04-F0 档 W3/W0 已闭合）
 - **Current Experiment Stage:** pilot（正式，30 activated/ITEM，attempted 上限 300）
 - **Resource Safety State:** NORMAL（旧机无重任务、锁目录无锁文件；集群侧 idle 无实验/编译任务（DR-003-A）——keeper 1773102 存活（11:09 djob 复核 RUNNING，10-10 16:43 到期，续期待办））
 - **Build Concurrency Limit:** 8（同一时刻最多一个编译任务，经 lsu_guard 强制）
