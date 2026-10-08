@@ -1344,16 +1344,37 @@ Commit::getInsts()
         if (!inst->isSquashed() &&
             commitStatus[tid] != ROBSquashing &&
             commitStatus[tid] != TrapPending) {
-            changedROBNumEntries[tid] = true;
+            // U2 (R08-c/d, FR09-c/d, ooo 03-matrix R8/R38 ROB 分配时序):
+            // 0 = normal; 2 = 丢失 (skip the insert — the inst executes
+            // but never retires: dest phys leaks, commit count loses
+            // one → Timeout 或静默跳过 per plan); 3 = 重复 (insert twice
+            // — 双提交/计数翻倍 downstream). v25 fact: ROB insertion
+            // lives HERE in the Commit tick (not iew) — plan honesty
+            // note. Injector reached via thread-0 front-map attachment
+            // (SE single-thread); real tid passed for the log.
+            int chaos_alloc = 0;
+            if (!cpu->frontRenameMap().empty()) {
+                CHAOSRenameMap *chaos_rat =
+                    cpu->frontRenameMap()[0].getChaosRenameMap();
+                if (chaos_rat)
+                    chaos_alloc = chaos_rat->maybeTimingAlloc(inst.get(),
+                                                              tid);
+            }
+            if (chaos_alloc != 2) {
+                changedROBNumEntries[tid] = true;
 
-            DPRINTF(Commit, "[tid:%i] [sn:%llu] Inserting PC %s into ROB.\n",
-                    tid, inst->seqNum, inst->pcState());
+                DPRINTF(Commit, "[tid:%i] [sn:%llu] Inserting PC %s into ROB.\n",
+                        tid, inst->seqNum, inst->pcState());
 
-            rob->insertInst(inst);
+                rob->insertInst(inst);
+                // (U2 round-2 revision: the dup arm no longer lives here —
+                // the double-ROB-insert aborted at readHeadInst isInROB;
+                // dup is realized at the rename history site instead.)
 
-            assert(rob->getThreadEntries(tid) <= rob->getMaxEntries(tid));
+                assert(rob->getThreadEntries(tid) <= rob->getMaxEntries(tid));
 
-            youngestSeqNum[tid] = inst->seqNum;
+                youngestSeqNum[tid] = inst->seqNum;
+            }
         } else {
             DPRINTF(Commit, "[tid:%i] [sn:%llu] "
                     "Instruction PC %s was squashed, skipping.\n",

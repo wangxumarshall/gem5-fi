@@ -1224,6 +1224,21 @@ Rename::renameDestRegs(const DynInstPtr &inst, ThreadID tid)
 
         historyBuffer[tid].push_front(hb_entry);
 
+        // U2 R08-d/FR09-d 重复 (rename_timing_dup, round-2 revision):
+        // duplicate the history entry — the commit-side removeFromHistory
+        // walk consumes both same-sn entries in one pass, freeing
+        // prevPhysReg TWICE into the freelist (duplicate phys → later
+        // double-pop → phys aliasing = silent SDC; committedMaps +2 =
+        // 计数翻倍). Sound where the double-ROB-insert was not
+        // (readHeadInst isInROB assert, round-2 r08/fr09-dup rc=134).
+        if (chaos_rm
+            && chaos_rm->maybeDupRenameHistory(tid, inst->seqNum,
+                                               flat_dest_regid,
+                                               hb_new_phys,
+                                               hb_prev_phys)) {
+            historyBuffer[tid].push_front(hb_entry);
+        }
+
         DPRINTF(Rename, "[tid:%i] [sn:%llu] "
                 "Adding instruction to history buffer (size=%i).\n",
                 tid,(*historyBuffer[tid].begin()).instSeqNum,

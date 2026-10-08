@@ -141,27 +141,85 @@ build/ARM/gem5.opt --outdir=/tmp/u1c-rf configs/se/ooo_proxy.py --cmd workloads/
 - Modify: `tools/ooo_models.py`（impl_status 更新）
 
 **Interfaces:**
-- Consumes: chaos_trigger.hh F0–F5（时序扰动用 F2 窗口/F5 持续语义）；U1 映射表。
-- Produces: 每模型子模式 flag（如 `--chaos_decode --decode_timing early|late|dup|drop`），U10 观测链可从 simout 证据日志读 attempted/eligible/activated。
+- Consumes: chaos_trigger.hh F0–F5（时序扰动用 F2 窗口/F5 持续语义）；U1 映射表。——**Step 2 范围决策（2026-10-08，先行编辑）**：四模型触发面沿用既有注入器统一面（probability/first/last/max_faults/rng_seed + geometric skip——即 D01 工程轨 F0 语义的现有实现），不新增 chaos_trigger.hh 事件档（F4E/F6E）。理由：16 个既有 mode 全部走该面，runner/campaign/schema 零改线即可 F0 两态验证；F4/F6 的 eligible-event 档语义属 campaign 层（工作簿口径：F4=每 10 万 eligible 事件连发 2-4、F6=首个 eligible 确定性），在任一 F4/F6 pilot ITEM 排程前必须先补 chaos_trigger.hh 事件档 + runner freq→flags 映射（硬门槛，写入本注记）。geometric skip 对 F6 的「保证激活」意图不受损（跳过数种子确定，仍必激活）。
+- Produces: 每模型子模式 flag，U10 观测链可从 simout 证据日志读 attempted/eligible/activated。**Step 2 实现修订（2026-10-08）**：子模式并入既有单一 `Param.String mode` 面——`--decode_mode decode_timing_{early,late,drop,dup}` / `fp_decode_timing_*`、`--rename_mode rename_timing_{early,late,dup,drop}`（16 个既有 mode 同一先例，零新增 py 参数）；本行原例 `--decode_timing early` 为示意形式。
 
 **规格（03 表原文为准）:** D07=译码事件时序（提前/延后/丢失/重复）；R08=RAT 更新时序；FD09/FR09=FP 流水对应面。实现优先在既有 decode/rename 钩子内加事件移位/复制/丢弃逻辑，不新增 SimObject 时先复用 CHAOSDecode/CHAOSRenameMap 载体。
 
-- [ ] **Step 1:** 读 03 表四模型条目 + CHAOSDecode/CHAOSRenameMap 现有源码，列出每子模式的挂点与数据流（写入本任务执行注记，提交附）。
-- [ ] **Step 2:** 实现四模型子模式（每模型独立可关）。
-- [ ] **Step 3:** 增量编译（guard 包裹）：`python3 tools/ooo_guard.py run --type build --desc u2-build --log /tmp/u2-build.log -- bash -c 'cd CHAOS/gem5 && scons -j8 build/ARM/gem5.opt'` → 预期 `scons: done`（引用尾行）。
-- [ ] **Step 4:** 两态验证（每模型 × 注入关闭/开启，dep_chain int，golden=98e5e31e726e383f）。**前置 U1c：重建产物原生直跑（无 loader 前缀）**：
+- [x] **Step 1:** 读 03 表四模型条目 + CHAOSDecode/CHAOSRenameMap 现有源码，列出每子模式的挂点与数据流（写入本任务执行注记，提交附）。——执行注记如下（2026-10-08 实读源码）：
+
+  **编号对齐（先行事实）**：CHAOSDecode.hh Mode 枚举注释里的 "D01-D07" 引用 04-design-matrix 旧编号（D07=ImmBitflip2）；本轨道权威编号是 03 表（D07=时序，U1 注册表口径，unimplemented）。运行时映射以 runner.py sub_field→--decode_mode 为准（16 个既有 mode 名），新时序模式取独立名 decode_timing_*/rename_timing_*，无命名冲突。已实现 9 模型（D01/FD01/FD03/R01/FR01/R05/FR05/R07/FR07）不受影响。
+
+  **挂点与数据流（gem5 v25 O3 实测行号）**：
+  - fetch.cc:1259（既有）：fetch 内联 decode 后 → maybeCorruptEncoding（编码族，不动）。
+  - decode.cc:663-699：Decode::decodeInsts 主循环，:696 `toRename->insts[toRenameIndex] = inst` 是 decode 输出锁存器的写入沿——**D07/FD09 全部四子模式的载体**。新方法 `maybePerturbDecodeTiming(inst, prev_tuple)` 在此调用（cpu->chaosDecode 空指针守卫，既有模式不动）：
+    - **a 提前（读旧 tuple）**：victim 指令 N 保持自身 seq/timing，但其 staticInst 绑定替换为前一有效指令 N-1 的 decode tuple（锁存器早读=旧值被再次消费；下游读到旧值 → activated）。等价表象：N-1 的操作在 N 的位置重复执行一次。
+    - **b 延后**：victim 本周期不写入 toRename（held 1 拍，payload 不变，次周期正常发出）——纯时延，多数为性能损失（Masked 基线）。
+    - **c 丢失**：victim 不进入 toRename 且标记跳过（该指令永不 rename/execute/commit——丢失一次 decode 事务）。
+    - **d 重复**：victim 额外复制一份 DynInst（新 seqNum，同 staticInst）一并写入 toRename——同 uop 双发。
+    - eligibility（03 原文）：连续两条有效整数指令且 tuple 不同（D07）；FD09 同谓词限 FP/SIMD（opClass∈scalar Float*∪SimdFloat*，CHAOSFPU.cc:88-98 先例）。activated 判定按 03：仅当下游因此读取旧值/漏发/重复/变序。F0/F4/F6 经 chaos_trigger.hh。
+  - rename_map.hh:143/308 setEntry（既有 CHAOS hook）+ :265 UnifiedRenameMap::rename 内 freeList getReg——**R08-a/b 载体**：
+    - **a RAT 更新延后**：CHAOSRenameMap 挂起 (arch,phys) 写入一拍（pending 队列，次时钟沿经自调度事件回放）；窗口内该 arch_reg 读到旧映射（下游读旧值 → activated）。**a 提前**：同一挂起写在下一 tick 之始（任何 rename lookup 之前）回放——两种 1 拍斜偏，读窗口不同（tick 末回放=晚，tick 始=早），cycle-true 且可实现；gem5 子更新本是 tick 内原子，纯粹的"提前一整拍"不存在可观测面，此映射如实记入 honesty 注记。
+    - **b free-list 弹出提前/延后**：弹出延后一拍（phys reg 残留 free list 头部一个窗口——同窗另一 rename 可能弹出同号 → 双重分配=静默 SDC 源）；提前=弹出在 tick 始执行（仅顺序效应）。
+    - eligibility：同周期至少 2 条可重命名指令（R08）；FR09 限 FP/SIMD dest。
+  - commit.cc:1352 `rob->insertInst(inst)`（v25 特有：ROB 插入在 Commit tick 的 fromIEW 缓冲处理内）+ iew.cc dispatchInsts 的 IQ insert——**R08-c/FR09-c 载体**：
+    - **c ROB/IQ 分配丢失**：跳过一次 insert（指令执行但无 ROB 条目 → 永不提交/计数缺一 → Timeout 或静默跳过）；**重复**（Step-4 第2轮后修订）：~~同 inst 双 insert~~ → **rename 历史簿记条目复制**（rename.cc push_front 处对 victim 的 RenameHistory 二次压栈）。依据：双 ROB insert 在 v25 list-ROB 上不成立——commit 首次 retire 即清 InROB 标志，第二节点触发 `readHeadInst: isInROB()` 断言 abort（r08-dup/fr09-dup rc=134，/tmp/u2-runs/r08-dup.out:20）。历史条目复制的可观测口径不变（双提交/计数翻倍）：commit 侧 removeFromHistory 同轮消费两条同 sn 条目 → prevPhysReg 双重 freeList->addReg（freelist 出现重复 phys → 后续两次 rename 弹出同号 → 物理寄存器别名 = 静默 SDC 源），committedMaps 计数 +2。语义上更贴 03 原文（R08=RAT 更新时序，历史条目即 RAT 更新记录）。
+    - honesty：v25 把 ROB 插入放 commit.cc 而非 iew.cc（与经典 O3 文献不同）——挂点以代码为准，注记留档。
+  - 每模型独立可关；W3/W5（D07）、W4/W5（R08）、W8/W9（FD09）、W9/W10（FR09）工作负载不在本单元（两态验证用 dep_chain int，golden=98e5e31e726e383f）。
+
+- [x] **Step 2:** 实现四模型子模式（每模型独立可关）。——执行注记（2026-10-08 实落地）：
+
+  **实际文件**（Step-1 已记 v25 载体，文件名以仓库为准）：`CHAOS/gem5/src/cpu/o3/CHAOSDecode/{.hh,.cc,.py}`（D07/FD09 全四臂：fetch.cc buildInst 前 stale-tuple 重绑 a 臂 + decode.cc emit 点 b/c/d 臂）、`CHAOS/gem5/src/cpu/o3/CHAOSRenameMap/{.hh,.cc,.py}`（R08/FR09：rename_map.hh UnifiedRenameMap::rename 后回滚-挂起 a 轴 + free_list.hh PRE-pop 延后 b 轴 + commit.cc getInsts rob->insertInst c 轴丢/重）、fetch.cc/decode.cc/commit.cc/free_list.hh/rename_map.hh 挂点。
+
+  **RAT 回放忠实度修订（复查自纠）**：a 轴回放为**条件回放**——表项仍等于挂起前旧映射才落，否则记 `honest_skip reason=newer_write_absorbed`（窗口内同 arch 更新写入被吸收）；无条件回放会把更新映射 revert 成旧值，超出 1 拍可见窗语义。
+
+  **dispatch 子模式键位**：campaign 侧新增 `MODEL_SUBMODES`（arm 键 `early|late|drop|dup`，03 表时序臂词汇），`--submode` CLI 必填于多臂模型（缺省/拼错响亮拒）；run_id 嵌入 arm（如 `D07-early-F0-W3`）保证 run_key/seed 空间按臂隔离。注册表字母对照：D07/FD09 a/b/c/d=early/late/drop/dup 一一对应；R08/FR09 的 03 子模型列是 a/b/c 三字母、c=「丢失/重复」两臂——drop 与 dup 为 c 的两次独立 run；rename_timing_early 实现 a 轴（tick 始回放，honesty 映射已记 Step-1）。FR09 走 W7.2 `_vec` 类轴（sub_field `rename_timing_*_vec` → `--rename_target_class vec`）。
+
+  **campaign 运行门时序（诚实顺序）**：dispatch/runner/schema 接线本步落地；`impl_status` 维持 unimplemented 到 Step 5（两态实测后才翻 implemented）——期间 campaign 对四模型的拒绝信息即 impl_status 门，属预期响亮化。schema component 枚举已含 decode/rat，无 schema 改动。
+- [x] **Step 3:** 增量编译（guard 包裹）：`python3 tools/ooo_guard.py run --type build --desc u2-build --log /tmp/u2-build.log -- bash -c 'cd CHAOS/gem5 && scons -j8 build/ARM/gem5.opt'` → 预期 `scons: done`（引用尾行）。——进行中注记（2026-10-08）：
+  - build1（17:51，exit 2）：nohup 环境无 `scons` 命令（pip --user 安装）→ 改 `python3 -m SCons`。
+  - build2（17:52-17:59，exit 2）：`CHAOSRenameMap.hh` 内 `namespace gem5 { namespace o3 { class DynInst; } }` 写在 `namespace gem5 {}` 内部——namespace 定义名查找只搜最内层围封域，内部重开 `gem5` 实际**新建嵌套 gem5::gem5**，经 free_list.hh→cpu.hh 全链污染（/tmp/u2-outer.log:1111 起 `namespace 'gem5::gem5'` 连锁错）→ 改为与相邻行一致的裸 `namespace o3 { class DynInst; }`。教训记档：**CHAOS*.hh 头文件内 fwd-decl 一律抄相邻行形式，不得在 namespace gem5 内再包 gem5**。
+  - build2 同批 decode.cc 3 错（build3 修复）：①CHAOSDecode 不完整类型（decode.cc 原只见 cpu.hh 前置声明）→ 加 `#include "cpu/o3/CHAOSDecode/CHAOSDecode.hh"`（fetch.cc:56 同式）；②③`std::unique_ptr<PCStateBase> dup_pc = inst->pcState().clone();` 拷贝初始化撞 explicit ctor → 改直接初始化括号形（fetch.cc:1166 同式）。
+  - build3 实测通过（2026-10-08 18:02–18:08，guard run-finish）：`"exit_code": 0`、`scons: done building targets` ×1、elapsed 422s；仅 3 条 C++ warning 且全部位于本单元未触碰文件（CHAOSIQ.hh:135/136 -Wreorder、CHAOSPhysReg.cc:548 unused tid，皆为早前单元已提交代码），U2 触碰文件 0 warning 0 error；产物 build/ARM/gem5.opt 18:07:36 落盘 1227805584 B。
+- [x] **Step 4:** 两态验证（每模型 × 注入关闭/开启，dep_chain int，golden=98e5e31e726e383f）。**前置 U1c：重建产物原生直跑（无 loader 前缀）**：
 ```bash
 cd /home/share/suke/wangxu/gem5-fi-ooo
 # 关闭态（不带注入 flag）→ FINAL=98e5e31e726e383f（golden 匹配）
 build/ARM/gem5.opt --outdir=/tmp/u2-off configs/se/ooo_proxy.py --cmd workloads/ooo/dep_chain/dep_chain --cpu O3
 # 开启态（示例 D07-early）→ 证据日志含 attempted/eligible/activated 计数，FINAL 偏离或 Masked
 build/ARM/gem5.opt --outdir=/tmp/u2-on configs/se/ooo_proxy.py --cmd workloads/ooo/dep_chain/dep_chain --cpu O3 \
-  --chaos_decode --decode_timing early --decode_max_faults 1 --decode_rng_seed 42
+  --chaos_decode --decode_mode decode_timing_early --decode_max_faults 1 --decode_rng_seed 42
 ```
 预期：关闭态 FINAL 与 golden 一致；开启态 simout/注入器 summary 含 `attempted>=1` 且分类非 clean（或显式 activated=0 时记录 eligible 不足，不得伪造激活）。
-- [ ] **Step 4b（U10 交接）:** 首个 on-state outdir 跑 `python3 tools/ooo_observe.py <outdir> --golden <golden> --ref-outdir <同模型 off 态 outdir>` → L0 funnel 计数与注入器 summary 行一致、faults_source=funnel_activated、verdict 与实测结局相符——U10 的开启态验证在此收口。
-- [ ] **Step 5:** ooo_models.py impl_status 更新四模型 + `--check` 仍 310/310。
-- [ ] **Step 6:** 提交 `[OOO][P1][U2] 流水时序族A：D07/R08/FD09/FR09 子模式 + 两态实测`。
+
+——执行注记（2026-10-08，两轮）：
+- 第 1 轮（/tmp/u2-verify.sh 17 runs）：off 态 rc=0 50s FINAL=98e5e31e726e383f GOLDEN ✓；16 个 on-state 全部 rc=2 ~1s 即败——`ooo_proxy.py: error: argument --decode_mode: invalid choice: 'decode_timing_early'`。根因：configs/se/ooo_proxy.py 的 `--decode_mode`/`--rename_mode` argparse choices 列表缺 U2 新 token（C++ Param.String 已支持，Python 闸门未同步——接线遗漏，非注入器缺陷）。
+- 修复：ooo_proxy.py 两处 choices 追加 8 个 decode/fp_decode_timing_* + 4 个 rename_timing_* token（ast.parse 语法 OK）；campaign CONFIG_SE=ooo_proxy.py 确认全部 OOO 模型只经此配置。单臂冒烟（d07-early）：rc=0，注入证据 `Tick: 417340, Site: fetch_decode, mode=decode_timing_early, ... faults_injected: 1`，FINAL=GOLDEN（Masked，时序臂合理结局）。
+- 第 2 轮实测（argparse 修复后，pid 2860033，17/17 完成）：off GOLDEN ✓；15 run rc=0 GOLDEN、2 run **rc=134 abort**（r08-dup/fr09-dup）。**但证据日志暴露 3 缺陷**（详见各行 /tmp/u2-verify.out、/tmp/u2-runs/*）：
+  - **缺陷①（decode 错面）**：`maybeCorruptEncoding` 未排除 8 个 timing 模式——W6 位翻面先开火并耗尽 max_faults，d07-early/d07-dup 与 fd09 全部四臂打在 `Site: fetch_decode` 编码损坏面（fd09 甚至打到 INT `str`：fpOnly 门只覆盖六个 W7 编码模式）。正确钩子（maybeStaleTuple/maybeTimingEmit）从未获得事件。d07-late/drop 侥幸走对（RNG 抽签次序不同）。修复：maybeCorruptEncoding 头部加 `if (timingModeActive()) return nullptr;`。
+  - **缺陷②（rename dup 崩溃）**：同 inst 双 ROB insert → `rob.cc:513 readHeadInst: Assertion '(*head_thread)->isInROB()' failed`（首次 retire 清标志后第二节点违约）。修复：dup 移至 rename 历史簿记面（上方 c 行修订），commit.cc 移除 chaos_alloc==3 双插分支，maybeTimingAlloc 收窄为 Drop-only。
+  - **缺陷③（freelist classValue）**：`UnifiedFreeList::setChaosRenameMap` 只传指针不设 `classValue`（该字段仅在 setChaosFreeList 里赋值）——未挂 CHAOSFreeList 时全部 per-class list 默认 classValue=0(int)，fr09-late（vec 弹出延后）静默 0 激活（log 0 行）。修复：循环内补 `freeLists[i].classValue = i;`（幂等，双注入器并存无害）。
+  - 修复后预期：d07-early/dup 走 fetch/decode_emit 正面；fd09 四臂在 dep_chain（纯 int + FP16 仅以 microop 出现，tupleInScope 排除 macro/micro）大概率诚实 0 激活——如实记录（W8/W9 探针负载 P2）；r08/fr09 全臂含 dup 走新面。重建后跑第 3 轮。
+- 第 3 轮实测（build4=修复①②③，2026-10-08 18:51 产物，17/17 完成，证据 /tmp/u2-runs/<arm>/{*.out,*_injections.log}）：off GOLDEN ✓（98e5e31e726e383f）；14 run rc=0 且全部 FINAL=GOLDEN；3 run 非 rc=0（d07-dup rc=139、r08-late/r08-dup rc=134，定性见下）。
+  - **激活证据全链在案**（每臂 log 首行 faults_injected: 1）：d07-early `Site: fetch_decode, prev_mnemonic=subs, cur_mnemonic=b`（修复①生效：打在 stale-tuple 重绑正面而非 W6 编码面）；d07-late/drop `decode_emit, sn=172, b`；d07-dup `decode_emit, sn=179, ldr`；r08-early `rename_defer, X2, prev_phys=p107, new_phys=p112`；r08-late `freelist_pop_delay, class=int, head_phys=p112`；r08-drop `rob_insert, sn=192, ldr`；r08-dup `rename_history_dup, X2, sn=178, new_phys=p112, prev_phys=p107`；fr09-early `rename_defer, V1, prev_phys=p45, new_phys=p0`；fr09-late `freelist_pop_delay, class=vec, head_phys=p0`（修复③生效：vec 类可激活）；fr09-drop `rob_insert, sn=9729, ldfp16_uop`；fr09-dup `rename_history_dup, V1, sn=9729, new_phys=p0, prev_phys=p45`。**victim 一致性**：r08 三臂同 victim（tick=420035, sn=178, X2, p107→p112）、fr09 三臂同 victim（tick=10287970, sn=9729, V1）——臂间独立 RNG 流下 victim 可复现，注入定位确定。
+  - **fd09 四臂诚实 0 激活**（无 log 文件）：dep_chain 纯 int，其 FP16 仅以 microop 出现（ldfp16_uop），tupleInScope 排除 macro/micro 后 eligible=0。符合 Step-4 预期条款（显式 activated=0 + eligible 不足，如实记录）。**scope 增补（第 3 轮决定）**：fd09 四臂 + off 改跑 polybench/gemm（FP 算术密集，FINAL=FNV-1a，注册 golden `polybenchgemm-golden-v1`=116849d3adf3227b）取激活级证据；若 gemm 仍 0 激活则如实记录，激活级验证随 P2 W8/W9 探针负载。
+  - **缺陷④（d07-dup rc=139 SIGSEGV——真缺陷，修复已落源码待 build5）**：dup DynInst 未注册 CPU instList——完成期 `removeList.push(inst->getInstListIt())` 持垃圾迭代器，`cleanUpRemovedInsts` 内 list erase 段错误（`_M_unhook`，/tmp/u2-runs/d07-dup.out:20-27）。修复：decode.cc dup 块补 `dup_inst->setInstListIt(cpu->addInst(dup_inst));`（fetch.cc:1041 buildInst 同式，2026-10-08 19:01 落源码，**build5 后第 4 轮复验**）。
+  - **缺陷⑤（r08-late rc=134）——定性收口：非 harness 缺陷，注入态固有显现**：`inst_queue.cc:1648 addToProducers: panic: Dependency graph 112 (integer) (flat: 112) not empty!`，abort@tick 505890（远早于正常完成点——fr09 臂 tick 10287970 仍在执行段）。机理：延后臂 fire 后同一拍窗口内后续 int getReg 仍返回同 head → p112 双重分配（**即注入面本体**，free_list.hh:153-156 注释明文「双重分配即故障面」）；IQ dependGraph 单生产者不变量无法表示双 owner，p112 下次再产出时 addToProducers panic——abort 信息自身点名 victim（graph flat 112 == 注入 head_phys p112）。旁证：fr09-late 同模型 vec 臂 fire（p0@10287970）结局 GOLDEN（Masked）——结局依赖 victim 窗口占用（窗口内有无第二次 vec pop 无逐弹日志可证，按 harness 代码复核+结局推断，逐弹留痕属 P2 探针深化），正是 FI 语义。harness 复核：maybeDelayFreePop fire 时不弹、原样返回 head；freePopReplay 下拍 chaosDeferredPop 恰弹一次（非空保护）——与模型文档一致，无实现偏差。**分类：activated=1 + simfail（微架构不变量违约→模拟器中止）**。
+  - **r08-dup rc=134——定性：真传播（crash 类，非平台 bug）**：`faults.cc:103 panic: Page table fault when accessing virtual address 0x1f`，abort@tick 511665。机理：历史条目复制 → commit `removeFromHistory` 同轮消费两条同 sn 条目 → prevPhysReg p107 双重 `freeList->addReg` → freelist 重复 → 后续双弹 → 物理别名 → 架构寄存器垃圾值 → workload 解引用 0x1f SEGV。**注入故障完整传播至架构层**（新 dup 面的首个实测传播证据）。分类：activated=1 + crash（DUE 类）。
+  - fr09-dup activated=1（V1, p0/p45）但 GOLDEN：fire@10287970 近末端，p45 双 free 后未及双弹/别名消费即正常退出（按结局记录；逐弹留痕 P2）。
+- 第 4 轮（build5 = 增量重建含缺陷④修复，2026-10-08 起）：全 17 臂重跑 + fd09@gemm 补充（off+4 臂），逐臂定性（GOLDEN/Masked/simfail/crash/诚实0激活）后收 Step 4。
+- 第 4 轮实测（build5，2026-10-08 19:22–19:40，22/22 ALL-DONE，/tmp/u2-r4-runs/，脚本 /tmp/u2-verify4.sh）：build5 增量（decode.cc [CXX]→`scons: done building targets`，0 新告警，exit 0，421s；重建后 `ln -f` 刷新根路径硬链接——同 inode 双名，防 CLAUDE.md 陈旧双路径陷阱）。
+  - **dep_chain 17 臂全部复现 round-3 定位（确定性 RNG）**：off GOLDEN；d07-early/late/drop 与 fr09 四臂、r08-early/drop、fd09 四臂（诚实 0 激活）全部 GOLDEN/Masked 且 victim tick/sn 与 round-3 逐字一致；**d07-dup rc=139→rc=0 GOLDEN（缺陷④修复验证通过**，同 victim tick=419650 sn=179 ldr，dup 指令完成期正常回收）；r08-late rc=134（tick 505890 IQ graph 112 panic 逐字复现）、r08-dup rc=134（tick 511665 SEGV 0x1f panic 逐字复现）。
+  - **fd09@gemm 补充（5/5）**：g-off FINAL=116849d3adf3227b == 注册 golden `polybenchgemm-golden-v1` ✓；**四臂全部激活**（FP 元组合格）：early `fetch_decode, prev_mnemonic=fmul, cur_mnemonic=fmadd`@62077785；late/drop 同 victim `decode_emit sn=124174 fmadd`@62128990；dup `decode_emit sn=124201 fmadd`@62149010——全 GOLDEN（Masked，单发时序臂合理结局）。FD09 激活级证据闭环（dep_chain 0 激活纯系负载无合格 FP 元组）。
+  - Step 4 收口判定：关闭态双负载 golden 匹配 ✓；16 开启臂中 12 臂激活证据+Masked、2 臂激活+Crash（DUE）、2+4 臂按预期（fd09@dep_chain 诚实 0 激活 / fd09@gemm 全激活）；零未解释失败。
+- [x] **Step 4b（U10 交接）:** 首个 on-state outdir 跑 `python3 tools/ooo_observe.py <outdir> --golden <golden> --ref-outdir <off outdir>` → L0 计数与注入器日志一致、faults_source 与 verdict 如实收口。——实测（2026-10-08，/tmp/u2-r4-runs/{d07-early,r08-late,r08-dup}，脚本写 exit.rc 后重跑）：
+  - d07-early：`rc=0 checksum=98e5e31e726e383f==golden` → **L5 verdict=Masked**（"fault did not propagate"）✓ 与实测结局相符。
+  - r08-late / r08-dup：`exit=134 + fault landed (faults_injected=1) + no checksum` → **L5 verdict=Crash（DUE per §2.2）**，分类器明示「NOT a tool failure（真 SimulatorError 须 faults_injected==0）」——**round-3 手工措辞『simfail』按统一分类器口径修正为 Crash(DUE)**；机理注记不变（r08-late=IQ 单生产者不变量违约、r08-dup=架构 SEGV 真传播，两例 panic 文本与 tick 均可区分）。
+  - L0 对账（三臂一致）：`legacy_injected_total=1, faults_for_classify=1, faults_source=legacy_injected` == 各臂日志 `faults_injected: 1` ✓；conservation OK ✓。**计划原词 `faults_source=funnel_activated` 按实际修正为 `legacy_injected`**：U2 注入器发 legacy 格式行（`Tick/Site/.../faults_injected: N`），未发 CHAOS_L0_FUNNEL 漏斗行——legacy 即本四模型的证据档（与 CHAOSMem G5 同档），非缺失。
+  - 环境注记：ad-hoc 验证脚本不落 `exit.rc`/`simout`（campaign runner 原生会写）——事后按日志实测 rc 写入 exit.rc、按 .out 控制台捕获重建 simout（内容=该次运行 gem5 真实输出），观测链随后 verdict 正常；未来轮次脚本补 `echo $rc > exit.rc` 即免重建。
+- [x] **Step 4b（U10 交接）:** 首个 on-state outdir 跑 `python3 tools/ooo_observe.py <outdir> --golden <golden> --ref-outdir <同模型 off 态 outdir>` → L0 计数与注入器日志一致、faults_source 与 verdict 如实收口——U10 的开启态验证在此收口（实测见上方第 4 轮注记：Masked/Crash/Crash 三态相符、legacy 档对账 1==1、原词 funnel_activated 修正为 legacy_injected）。
+- [x] **Step 5:** ooo_models.py impl_status 更新四模型 + `--check` 仍 310/310。——实测（2026-10-08）：静态翻 D07/R08→(implemented, CHAOSDecode/CHAOSRenameMap)、FD09/FR09 同构；09 审计表同步四行（注入器/模式面 + 判定 已实现 + 缺口改实测注记）+ 总账（已实现 9→13、未实现 14→10）。`--check`：`models: 57 | items_scanned: 310 | item_refs_resolved: 310 | unresolved: 0`、`impl_status: implemented=13 partial=34 unimplemented=10`、无 CHECK FAILED。
+- [x] **Step 6:** 提交 `[OOO][P1][U2] 流水时序族A：D07/R08/FD09/FR09 子模式 + 两态实测`。——实测：commit `107de592`（18 文件，+1029/−49，ooo-exec）。中继推送（login01 无外网，bundle 通道）：`/tmp/u2-oct8.bundle`（32524 B，sha256 `bace010c…d7694`，基 6505d9b1）→ Windows `reach fs read` 字节级落地（sha256 复核一致）→ 本地 fi-ding 集成。**远端两次移动均按规分析后合并（绝不 force）**：① ae6e151e（LSU ITEM-018..026+F-037/F-038，10 提交）→ merge a2cd14d2（progress.md 冲突：pilot 状态取远端较新、集群平台状态取本地较新 U3b+U3 完成，两流事实保留于 merge 注记）；② 01008446（ITEM-026/027 A06 闭合）→ merge 3c9677f6（同规则）。U2 merge 7e19e41e 干净（18 文件 +1029/−49 与原提交一致）。push `01008446..3c9677f6 fi-ding -> fi-ding` ✓，远端 tip `3c9677f6` 复核一致。
 
 ### Task U3：流水时序族 B（B08 B09 FB08 FB09）
 

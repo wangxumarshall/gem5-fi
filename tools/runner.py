@@ -834,6 +834,13 @@ def main():
         if (inj["model"] == "local_mbu"
                 and rsf == "hb_bitflip2"):
             rm = "hb_bitflip2"
+        # U2 (R08/FR09, ooo 03-matrix R18/R47 Rename 时序): the timing arms
+        # ride the same sub_field discriminator — after the "_vec" strip the
+        # arm token IS the mode name (FR09 arrives as rename_timing_*_vec ->
+        # rcls=vec, the W7.2 class axis; R08 plain -> int).
+        if rsf in ("rename_timing_early", "rename_timing_late",
+                   "rename_timing_drop", "rename_timing_dup"):
+            rm = rsf
         cmd += ["--rename_mode", rm, "--rename_first_clock", str(t["value"]),
                 "--rename_max_faults", str(m["limits"]["max_faults"]),
                 "--rename_rng_seed", str(m["rng"]["selection_seed"]),
@@ -1271,7 +1278,16 @@ def main():
                    "sign_ext_bit", "imm_subfield_shift", "crack_ctrl",
                    "fp_opcode_bitflip", "fp_opcode_bitflip2",
                    "fp_opcode_swap", "fp_reg_bitflip",
-                   "fp_reg_bitflip2", "fp_route_bit"):
+                   "fp_reg_bitflip2", "fp_route_bit",
+                   # U2 (D07/FD09, ooo 03-matrix R8/R38 decode 时序): the
+                   # four timing arms ride the SAME sub_field -> --decode_mode
+                   # discriminator. The FP scope lives INSIDE the mode name
+                   # (fp_decode_timing_* — the CHAOSFPU.cc isFpOpClass
+                   # boundary); no extra flags.
+                   "decode_timing_early", "decode_timing_late",
+                   "decode_timing_drop", "decode_timing_dup",
+                   "fp_decode_timing_early", "fp_decode_timing_late",
+                   "fp_decode_timing_drop", "fp_decode_timing_dup"):
             dm = dsf
         cmd += ["--chaos_decode", "--decode_mode", dm,
                 "--decode_first_clock", str(t["value"]),
