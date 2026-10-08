@@ -108,16 +108,17 @@
   跨平台（旧机 b64c808d = 平台 A vs 集群重建 = 平台 B）对比显式标注。**DR-003 已裁决 A（2026-10-08 11:0x 用户：旧机续跑 + 并发 4 + 集群侧 idle）：波次由 Session 003 旧机执行；本节产物为集群已验证备用平台，不跑 pilot 矩阵。**集群构建产物
   链接本机 glibc-2.34 原生运行（不经 compat loader）；U3 的 LSU_GEM5_BIN 接线仍有效
   （env 缺省 = repo-root 二进制）。
+- **2026-10-08 11:40 场地决策（CP3 结论）：** ①login01：gcc/g++ 10.3.1（低于 v25.1 支持范围 11–14.2，SConstruct 检查为 warning 非致命）、python3.9.9+dev ✓、scons 4.11.1（~/.local，Sep 30 已存在）✓、protoc/libprotobuf 缺 → HAVE_PROTOBUF 将为 0（记录平台为 1——物证 build/ARM/config/have_protobuf.hh（旧机迁移物）#define HAVE_PROTOBUF 1，且 proto/*.pb.o 在旧构建产物中）——配置维度差异显式记录，行为等效由 CP5/CP6 把关；②cn23423：无 g++，排除；③sdc1-01-02：工具链与记录平台同族（gcc 12.3.1-105 vs 旧机 -111、scons 4.5.2 精确同版、protoc 25.1+libprotobuf ✓）但 (a) SwapFree=3 GiB < 4 GiB 门禁（诚实执行不绕过），(b) 另一会话 opendcdiag 192 核 campaign 运行中（10:49 起，负载 184，归属不明 → 不启动），(c) 机上另有 Claude 会话——本轮排除。**决定：CP4 在 login01 守卫 -j8 尝试集群原生重建**（gcc 10.3.1 编译能力实测裁决；若编译失败 → 回 sdc1-01-02 路径：等其 campaign 结束且 SwapFree 门禁满足，或提 Decision Request）。构建产物链接 glibc-2.34 原生运行；HAVE_PROTOBUF=0 差异入 F-030 终稿。
 - 验证（真实命令；login01 恢复后执行）：
-  - [ ] 集群 b64c808d 搜索：`ls -la build/ARM/ CHAOS/gem5/build/ARM/` + `find
+  - [x] 集群 b64c808d 搜索（**2026-10-08 完成：未获**——集群仅 2 个 gem5.opt（本仓与 gem5-fi-ooo，均 63f50c40）；/tmp/u3_exec 已失（节点本地清理））：`ls -la build/ARM/ CHAOS/gem5/build/ARM/` + `find
         /home/share/suke/wangxu /home/suke /tmp -maxdepth 5 -name gem5.opt -size +50M`
         逐个 sha256（含 CLAUDE.md 警告过的 CHAOS/gem5/build 重复副本）→ 如实记录
-  - [ ] 集群侧身份复核：`sha256sum configs/se/lsu_proxy.py`（== 4001eba1…）、
+  - [x] 集群侧身份复核（**2026-10-08 PASS**：lsu_proxy 4001eba1 ✓、agu_addrmodes 90a19003 ✓，与 manifest 逐项吻合）：`sha256sum configs/se/lsu_proxy.py`（== 4001eba1…）、
         `sha256sum workloads/directed/agu_addrmodes`（== 90a19003…）
-  - [ ] 工具链核查（login01/cn23423）：gcc/g++/scons/swig/python3 dev/protobuf/
+  - [x] 工具链核查（**2026-10-08 完成，见下方场地决策**；原计划：（login01/cn23423））：gcc/g++/scons/swig/python3 dev/protobuf/
         libpng 可得性 → 记录，选定重建场地（倾向 cn23423：608 核/440 GB，编译仍按
         用户规则 -j8 单实例）
-  - [ ] 重建：启动门禁 + build 锁 + `scons -j8 build/ARM/gem5.opt` 单编译任务 →
+  - [ ] 重建（**场地=login01**，见下方场地决策；cn23423 无 g++ 已排除）：启动门禁 + build 锁 + `scons -j8 build/ARM/gem5.opt` 单编译任务 →
         banner/sha256/原生冒烟（lsu_proxy --cmd workloads/directed/hello）
   - [ ] census 两遍法 agu_addrmodes eligible == **2772**（不符则停下分析，禁止启动 pilot）
   - [ ] A01-F0-W3 engineering det 双跑重执行：语义字段（注入日志/L0 计数/oracle
