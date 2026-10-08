@@ -102,7 +102,7 @@ P3
 - [ ] 325 个 ITEM/RunID 均 COMPLETE，或有批准的 BLOCKED/NA_APPROVED；状态能回溯到 Excel 行。
 - **Status:** IN_PROGRESS（服务器 `progress.md` 显示自 2026-09-29 起执行；2026-10-08 同步时继续运行，具体 ITEM 以 Current Status 为准）
 
-### P4：正式筛查
+### P4：正式筛查（2026-10-08 采样政策迁移：本节旧定义为历史口径，新口径 = 全部有效 RunID 累计 ≥385 activated，pilot 30 在配置全不变时计入；扩样前须冻结新版 manifest 目标与样本范围——findings F-037；下同）
 
 - [ ] 冻结正式 campaign、代码、配置、workload、checkpoint、oracle 和 seed manifest。
 - [ ] 每个有效 RunID 累计至少 385 个独立 activated runs/clusters。
