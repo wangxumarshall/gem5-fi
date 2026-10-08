@@ -11,7 +11,7 @@
 
 - **Current Phase:** P3（前三单元连续 pilot 波次，用户指令 2026-09-29 晚）
 - **Phase Status:** IN_PROGRESS
-- **Overall Status:** IN_PROGRESS（**双平台局面待用户裁决**：旧机已恢复且 pilot 数据完好；集群 Session 002 停于 09-30 18:05；F-025 修复已 rebase 合并 F-027）
+- **Overall Status:** IN_PROGRESS（**DR-003 已裁决：旧机续跑 + 并发 4**；集群侧 idle；F-025/F-027 已合并入库）
 - **Started:** Session 001 2026-09-29 11:22（旧机）；Session 002 2026-09-30 16:43（集群 cn23423，最后更新 09-30 18:05）；Session 003 2026-10-08 09:49（旧机恢复）
 - **Last Updated:** 2026-10-08 10:45（Session 003 融合合并：①**旧机实况推翻 F-028 预判**——旧机 10-03 16:32 重启后恢复，runs/lsu/pilot/ 数据完好（ITEM-009 有效前缀 115、ITEM-274 有效前缀 96，10-08 取证）；②**F-025 根因定论**（修正 Session 002 的"波次 4 死于宿主失联"记载）：波次 4 实际于失联前 16:14:55/16:36:27 两次因 gate"陈旧槽"误报竞态 fail-fast 自终止（锁内 pid 被 spawn 覆盖为 gem5 pid，正常收尾 0-60s 窗口被误判泄漏；零数据污染）；③F-025 修复（guard_pid 判定字段）隔离测试 T1-T4 全 PASS，rebase 到集群侧 F-027 swap_na 之上（guard 双语义合并：guard_pid 陈旧判定 + swap_na 门禁/熔断豁免）；④集群 Session 002 交付在库：compat 运行时（F-026）+ swap_na（F-027）；其波次从未启动、U3'（LSU_GEM5_BIN 接线）未做。**平台决策 DECISION REQUEST 待用户**）
 - **Current Owner:** 服务器执行 AI（Claude，主协调 AI；Session 003，2026-10-08 09:49 起于旧机 localhost0101）
@@ -22,12 +22,12 @@
 - **Resource Safety State:** NORMAL（旧机无重任务、锁目录无锁文件；集群侧状态未知——Session 002 keeper 1773102 存活性待查）
 - **Build Concurrency Limit:** 8（同一时刻最多一个编译任务，经 lsu_guard 强制）
 - **Experiment Concurrency Limit:** 4（硬上限；2026-09-30 14:30 用户指令；F-022 Patch A/B + F-025 guard_pid + F-027 swap_na 均已合并）
-- **Active Heavy Task:** 无（旧机波次 4 已于 09-30 16:36 自终止；集群波次从未启动）
-- **Active PID/PGID:** 无（旧机）
-- **Resource Lock:** 空闲（旧机 runs/lsu/guard/ 无锁文件）
-- **Resource Log:** runs/lsu/guard/guard_events.log（旧机最后事件 09-30 16:36:27 s95 release；集群侧新起点）
+- **Active Heavy Task:** P3 pilot 波次 5（DR-003 裁决 A：旧机续跑；bash 链串行 AGU→L1d-TLB→Load Queue，--workers 4；AGU 自 ITEM-009 s115 续跑，115 个有效样本已 resume）
+- **Active PID/PGID:** 654696（bash 链，WAVE5）/ 654698（AGU unit_pilot）/ 每 run 独立 guard 槽位进程
+- **Resource Lock:** 4 槽位 experiment_slot_{0..3}.lock 逐 run 获取/精确释放（guard_pid 确认）
+- **Resource Log:** runs/lsu/guard/guard_events.log（波次 5 运行中；gate ok:false 基线 5 次，10:51 复核零新增）
 - **Latest MemAvailable / SwapFree / Load:** 28.1 GiB / 16.3 GiB / 0.21，blocked=0（2026-10-08 09:5x 旧机采样，无 WARNING/TRIP；集群 cn23423 参考：526 GiB / 无 swap / 608 核，Session 002 17:47 采样）
-- **Next Step:** ①完成 rebase 合并（progress 冲突融合 + push）；②向用户 DECISION REQUEST：pilot 续跑平台（旧机 resume 115+96 样本 vs 集群 s0 重跑+完成 U3' 接线）+ 双会话协调（Session 002 集群 keeper 状态）；③裁决前不启动任何波次（防双平台双跑同一矩阵）。
+- **Next Step:** 波次 5 已启动并验证通过（10:49 WAVE5 bash 654696：**"resume: 115 valid samples reused"** + 4 槽并行 s123-s126 + MemAvailable 26.3 GiB + **gate ok:false 零新增（F-025 修复实机生效，12 run/3 轮槽位轮转无误报）**）。周期监控已设置（会话内 cron，每 23 分钟：进程/推进/槽位/资源/gate 失败核查）。唯一下一动作：按监控周期推进 AGU（ITEM-009 预计 ~46 分钟达 300 上限 BLOCKED）→ ITEM-010..039 → L1d-TLB → Load Queue（ITEM-274 resume 96 样本）。
 
 ## Git 状态
 
