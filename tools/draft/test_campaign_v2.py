@@ -238,5 +238,64 @@ class ResumeTests(unittest.TestCase):
             (cell / "cell_results.fp_cafe000000000000.json").exists())
 
 
+class RegressionTests(unittest.TestCase):
+    def _run_cell(self, m, runid, freq, results, trial_target):
+        seq = list(results)
+
+        def mock(cell, args, seed, outdir):
+            return seq[min(seed - 1, len(seq) - 1)]
+
+        m.run_single_cell = mock
+        a = Args()
+        a.phase = "trial"
+        a.trial_target = trial_target
+        a.max_seeds_per_cell = 100
+        with tempfile.TemporaryDirectory() as td:
+            m.run_cell_adaptive(make_cell(runid=runid, freq=freq), a, Path(td))
+            return json.loads((Path(td) / runid / "cell_results.json")
+                              .read_text())
+
+    def test_T7_clustered_wilson_per_run(self):
+        m = load_draft()
+        # F2（clustered）：单 run SDC → per-run k=1, n=1
+        r = self._run_cell(m, "S02-F2-W0", "F2", [
+            {"outcome": "SDC", "activated": 3, "attempted": 3,
+             "eligible": 3, "injected": 3}], trial_target=3)
+        lo, hi, _p = m.wilson_ci(1, 1)
+        self.assertEqual(r["wilson"], {"lo": round(lo, 4), "hi": round(hi, 4)})
+        # F0（非 cluster）：per-activated k=2, n=5
+        r = self._run_cell(m, "A02-F0-W0", "F0", [
+            {"outcome": "SDC", "activated": 2, "attempted": 2,
+             "eligible": 2, "injected": 2},
+            {"outcome": "Masked", "activated": 3, "attempted": 3,
+             "eligible": 3, "injected": 3}], trial_target=5)
+        lo, hi, _p = m.wilson_ci(2, 5)
+        self.assertEqual(r["wilson"], {"lo": round(lo, 4), "hi": round(hi, 4)})
+
+    def test_T10_constant_interface_zero_regression(self):
+        m = load_draft()
+        spec = importlib.util.spec_from_file_location(
+            "lc_formal", TOOLS / "lsu_campaign.py")
+        f = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(f)
+        for name in ("WL_BINARY", "GOLDENS", "WL_BLOCKED", "MODEL_FLAGS",
+                     "FAMILY_SEED", "COL_RUNID", "COL_MODEL", "COL_UNIT",
+                     "COL_FREQ", "COL_WORKLOAD", "G5", "LSU_PROXY", "L5",
+                     "REPO"):
+            self.assertEqual(getattr(m, name, "<missing>"),
+                             getattr(f, name, "<missing>"), name)
+        # swap 模拟：unit_pilot 的 `import lsu_campaign as LC` 取到 draft
+        sys.path.insert(0, str(TOOLS))
+        sys.modules["lsu_campaign"] = m
+        try:
+            import lsu_unit_pilot as UP
+            self.assertIs(UP.LC, m)
+            self.assertEqual(UP.SAMPLES_TARGET, 30)
+            self.assertEqual(UP.ATTEMPTED_CAP, 300)
+        finally:
+            sys.modules.pop("lsu_campaign", None)
+            sys.path.remove(str(TOOLS))
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

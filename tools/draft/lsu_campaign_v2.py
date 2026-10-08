@@ -54,7 +54,18 @@ G5 = REPO / "build/ARM/gem5.opt"
 LSU_PROXY = REPO / "configs/se/lsu_proxy.py"
 L5 = REPO / "tools/lsu_l5_classify.py"
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from wilson import wilson_ci  # repo's single Wilson impl (no drift)
+try:
+    from wilson import wilson_ci  # repo's single Wilson impl (no drift)
+except ImportError:
+    # M12 配套：draft 位于 tools/draft/，作为 __main__ 运行时 sys.path[0]
+    # 不含 tools/，兄弟模块 wilson 需按路径加载。复制回 tools/ 后首分支
+    # 生效，行为与正式文件一致。
+    import importlib.util as _ilu
+    _spec = _ilu.spec_from_file_location(
+        "wilson", Path(__file__).resolve().parent.parent / "wilson.py")
+    _w = _ilu.module_from_spec(_spec)
+    _spec.loader.exec_module(_w)
+    wilson_ci = _w.wilson_ci
 
 # Expanded matrix column indices (0-based; col 0 = "Excel行")
 COL_RUNID = 1     # RunID like A01-F0-W3
