@@ -22,7 +22,7 @@
 - **Active Heavy Task / PID / PGID / Lock / Resource Log:** NONE（gem5 clean build 已于 09-30 18:13 COMPLETE：SCONS RC=0，见 `runs/ooo-node/logs/gem5-build-001.out`）；节点占用 job 1773145 @ cn22986（holder.sh，心跳 `runs/ooo-node/state/heartbeat`，60s 资源采样 `runs/ooo-node/state/resources.log`；**到期 2026-10-10 16:54:45，须提前提交续占作业**）
 - **Latest MemAvailable / SwapFree / Load / blocked:** login01（2026-10-08 重连实测）: ~306GiB MemAvailable / 0 swap / 负载正常；cn22986: 见 runs/ooo-node/state/resources.log
 - **Checklist SHA-256:** `f520d42a53ae2e44e76af5771dd1bcbdb9545082458e7996b1d306f1bbc30c91`（2026-10-08 重连复验一致）；Excel `b73b6304005e507f5e8a1f41f0fc979f3d6439e6dda875ec4d2be961b867ae75`（同）
-- **Next Step:** ①Unit3 提交 [OOO][P0] + bundle 推送（G0 填表/F-008/F-009/DR-001/DR-002）；②W1 tarball 上传 + login01 构建（DR-001 方案A）；③holder 续占作业（10-10 到期前）；④P1 计划落盘（13 单元）并启动 U0/U1。
+- **Next Step:** ①✅Unit3 提交+推送（362e01c3，远程 9d32d412→362e01c3 实证）；②✅W1 tarball+PROVENANCE 上传校验一致（sha256 7bc51c7d…/43e555e3…，login01 构建=W1 单元属 P2）；③✅holder 续占 1823682 PENDING（-nl cn22986，10-10 到期自动接续，-T 864000）；④✅P1 计划落盘 docs/superpowers/plans/2026-10-08-ooo-p1-injectors-observation-campaign.md（14 单元 U0–U12+U1b）；⑤执行 P1：U0 文档桥接 → U1 映射表 → U1b guard_pid 移植 → U2 起。
 
 ## Phase Summary
 
