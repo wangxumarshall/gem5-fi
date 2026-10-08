@@ -82,11 +82,13 @@ import unittest
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
-DRAFT = Path(__file__).resolve().parent / "lsu_campaign_v2.py"
-MATRIX = REPO_ROOT / "docs/gem5-fi/lsu/07-expanded-matrix.csv"
+TOOLS = REPO_ROOT / "tools"
+DRAFT = TOOLS / "draft" / "lsu_campaign_v2.py"
+MATRIX = REPO_ROOT / "runs/lsu/07-expanded-matrix-backfilled.csv"
 
 
 def load_draft():
+    sys.path.insert(0, str(TOOLS))  # draft 依赖 `from wilson import wilson_ci`
     spec = importlib.util.spec_from_file_location("lsu_campaign_v2", DRAFT)
     m = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(m)
@@ -826,8 +828,8 @@ python3 tools/draft/test_campaign_v2.py -v
 - [ ] **Step 3: dry-run 冒烟比对（draft vs 正式，只读，不跑 gem5）**
 
 ```bash
-python3 tools/lsu_campaign.py --matrix docs/gem5-fi/lsu/07-expanded-matrix.csv --dry-run > /tmp/dry_formal.txt 2>&1
-python3 tools/draft/lsu_campaign_v2.py --matrix docs/gem5-fi/lsu/07-expanded-matrix.csv --dry-run > /tmp/dry_draft.txt 2>&1
+python3 tools/lsu_campaign.py --matrix runs/lsu/07-expanded-matrix-backfilled.csv --dry-run > /tmp/dry_formal.txt 2>&1
+python3 tools/draft/lsu_campaign_v2.py --matrix runs/lsu/07-expanded-matrix-backfilled.csv --dry-run > /tmp/dry_draft.txt 2>&1
 diff /tmp/dry_formal.txt /tmp/dry_draft.txt && echo "DRY-RUN IDENTICAL"
 ```
 预期：`DRY-RUN IDENTICAL`（M1-M11 不触碰 resolve_cell/加载路径；差异即回归，必须归零）。注意正式文件作为 `__main__` 运行 dry-run 是只读操作（加载矩阵→解析→打印→return），不影响波次 5 的 import。
@@ -869,6 +871,12 @@ git commit -m "[LSU][P3] campaign v2 draft 收口：plan 全勾选 + F-0XX M12 �
 1. **Spec 覆盖**：M1→Task1-3b、M2→Task1-3c+Task3-3b、M3→Task1-3d、M4→Task1-3d、M5→Task1-3e、M6→Task1-3f、M7→Task2-3b、M8→Task2-3c、M9→Task2-3c、M10→Task3-3b/3f、M11→Task3-3b/3e；T1-T10 全部有测试（T1/T2/T3/T8→PolicyTests、T5/T6→AccountingTests、T4/T9→ResumeTests、T7/T10→RegressionTests）+ 计划外补充 D1/fp 隔离两测。无遗漏。
 2. **占位符扫描**：无 TBD/TODO/"稍后实现"；所有代码块完整可执行。
 3. **类型一致性**：`resolve_main_target(runid, args)->int`、`_sha256_file(path)->str`、`config_fp_for(cell, args)->str`、`_resume_prefix(cell_out, fp)->(list,int)`、`_write_verdict(seed_dir, verdict, fp)`、`_prior_results_fp(cell_out)` 各任务引用一致；result 键名（sim_fail/funnel_missing_runs/eligible_rate/activation_rate/sdc_rate/config_fp/prior_config_fp/config_fp_isolated）Task 2/3/4 一致；verdict 键 `seed`/`config_fp` 读写一致。
+
+## 实施期计划修正（2026-10-08，实施前核实时发现）
+
+1. **矩阵路径**：计划初稿写 `docs/gem5-fi/lsu/07-expanded-matrix.csv`——实际不存在。真实矩阵为 `runs/lsu/07-expanded-matrix-backfilled.csv`（675 行；与 `artifacts/lsu-trial/` 副本 diff 相同；backfill_expanded_matrix.py 的输出即 campaign 实际使用版）。测试 MATRIX 常量与 Task 4 冒烟命令同步改用该路径。
+2. **wilson 依赖**：draft 模块顶部 `from wilson import wilson_ci`（tools/wilson.py）——importlib 加载前必须 `sys.path.insert(0, str(TOOLS))`，否则 ModuleNotFoundError。已加入 load_draft() helper。
+3. **M12 实证**：未修复的 draft 加载后 `REPO` 实测解析为 `<repo>/tools`（错误）——M12 修复的必要性已用真实命令验证（python3 importlib 探针）。
 
 ## 执行模式说明
 

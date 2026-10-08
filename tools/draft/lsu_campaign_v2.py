@@ -8,8 +8,11 @@ cell with the three-phase adaptive sampling from 05 r12-r15:
   Phase 1 (trial): 30 activated — discover injector errors / all-Crash /
                    zero-activation units (05 r13)
   Phase 2 (screening): >=385 activated (95% CI, ±5pp) — cell pass/fail
-  Phase 3 (main): sequential until Wilson 95% half-width <=2pp or 5000
-                   activated (05 r14/r15)
+  Phase 3 (main): fixed-sample — the 21 frozen KEY_RUNIDS (task_plan
+                   D-2026-10-08-采样) accumulate to MAIN_TARGET_KEY=2401;
+                   every other RunID stays at the screening target (385,
+                   no expansion). No sequential stop — Wilson 95% is
+                   reported, never a stop condition (2026-10-08 policy).
 
 Per-run classification via tools/lsu_l5_classify.py (L5 conservation).
 
@@ -39,7 +42,13 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
-REPO = Path(__file__).resolve().parent.parent
+# M12: 深度无关 repo 根——draft 位于 tools/draft/（比正式文件深一层），
+# parent.parent 会错解析到 tools/。向上查找标记目录；复制回 tools/ 后
+# 解析结果与原式一致（T10 REPO 相等断言守护）。
+_REPO = Path(__file__).resolve()
+while not (_REPO / "configs" / "se").is_dir() and _REPO.parent != _REPO:
+    _REPO = _REPO.parent
+REPO = _REPO
 G5 = REPO / "build/ARM/gem5.opt"
 LSU_PROXY = REPO / "configs/se/lsu_proxy.py"
 L5 = REPO / "tools/lsu_l5_classify.py"
@@ -77,6 +86,25 @@ GOLDENS = {
     "gap_bfs": "030921682b3731f2",
     "sqlite_like": "33f836327a416d35",
 }
+# ---- 2026-10-08 sampling policy (task_plan 全局实验口径,
+# D-2026-10-08-采样; tools/draft/MIGRATION_DESIGN.md M2) ----
+KEY_RUNIDS = frozenset({
+    "A01-F0-W3", "A04-F0-W3", "T10-F0-W4", "T04-F0-W4",
+    "S13-F0-W5", "S04-F0-W5", "L01-F0-W5", "L03-F0-W5",
+    "C04-F0-W6", "C05-F0-W6", "C10-F0-W6", "C12-F0-W6",
+    "O01-F0-W7", "O05-F0-W7", "P03-F0-W8", "P07-F0-W8", "P09-F0-W6",
+    "T10-F0-W11", "S13-F0-W12", "O09-F0-W13", "P09-F0-W13",
+})
+SCREENING_TARGET = 385   # 全部有效 RunID 累计 activated 目标
+MAIN_TARGET_KEY = 2401   # 仅 KEY_RUNIDS 累计 activated 目标
+
+
+def resolve_main_target(runid, args):
+    """M3/M5: main 阶段目标按 RunID 解析——KEY_RUNIDS→2401，其余→
+    screening 目标（不扩样）。--main-target 已废弃，不参与解析。"""
+    return MAIN_TARGET_KEY if runid in KEY_RUNIDS else args.screening_target
+
+
 # Workload-level structural blocks (README §8.3 — 65 cells on W1/W4/W7/W13,
 # plus SPEC-license W11). Matched by keyword on the workload column.
 WL_BLOCKED = {
@@ -516,10 +544,13 @@ def main():
                    help="trial-phase activated target (05 r13)")
     p.add_argument("--screening-target", type=int, default=385,
                    help="screening-phase activated target (05 r14)")
-    p.add_argument("--main-target", type=int, default=5000,
-                   help="main-phase activated cap (05 r15)")
+    p.add_argument("--main-target", type=int, default=None,
+                   help="[deprecated 2026-10-08] ignored — main-phase target "
+                        "resolves per RunID (KEY_RUNIDS→2401, others→"
+                        "screening-target)")
     p.add_argument("--wilson-stop-hw", type=float, default=0.02,
-                   help="main-phase Wilson 95%% half-width stop (05 r15)")
+                   help="[deprecated 2026-10-08] ignored — fixed-sample "
+                        "policy; Wilson 95% is reported, never a stop")
     p.add_argument("--timeout", type=int, default=300,
                    help="per-run wall-clock seconds — absolute cap (05 r17; all "
                          "SE workloads run 10-40s, so 300s > 10x any golden)")
@@ -533,6 +564,10 @@ def main():
     a = p.parse_args()
     if a.n_seeds is not None:
         a.max_seeds_per_cell = a.n_seeds
+    if a.main_target is not None:
+        print("warning: --main-target is deprecated (2026-10-08 sampling "
+              "policy) and ignored; main target = 2401 for KEY_RUNIDS, "
+              "else screening-target", file=sys.stderr)
 
     header, cells = load_matrix(a.matrix)
     print(f"Loaded {len(cells)} cells from {a.matrix}")
@@ -586,8 +621,8 @@ def run_cell_adaptive(cell, args, outroot):
 
     trial:      stop at --trial-target activated (injector-error discovery)
     screening:  stop at --screening-target activated (cell pass/fail)
-    main:       stop at Wilson 95% half-width <= --wilson-stop-hw or the
-                --main-target activated cap
+    main:       fixed-sample — KEY_RUNIDS→2401, others→screening target;
+                no sequential stop (2026-10-08 policy)
     All phases additionally respect --max-seeds-per-cell (compute bound;
     stop_reason records which bound fired — never silent).
     F1-F4 cells: multi-activated runs are one cluster (05 r19/r20) — the
@@ -599,9 +634,11 @@ def run_cell_adaptive(cell, args, outroot):
     runid = cell[COL_RUNID]
     freq = cell[COL_FREQ].strip()
     clustered = freq in ("F1", "F2", "F3", "F4")
-    target = {"trial": args.trial_target,
-              "screening": args.screening_target,
-              "main": args.main_target}[args.phase]
+    if args.phase == "main":
+        target = resolve_main_target(runid, args)   # M5: KEY→2401 其余→385
+    else:
+        target = {"trial": args.trial_target,
+                  "screening": args.screening_target}[args.phase]
     classes = {k: 0 for k in ("Masked", "Detected/Contained", "SDC",
                               "Crash", "Timeout")}
     runs, attempted, activated = [], 0, 0
@@ -615,12 +652,6 @@ def run_cell_adaptive(cell, args, outroot):
         if seed >= args.max_seeds_per_cell:
             stop_reason = "seed-cap(%d)" % args.max_seeds_per_cell
             break
-        if args.phase == "main" and activated > 0:
-            hw, _lo, _hi = _wilson_stats(classes, activated, runs, clustered)
-            if hw <= args.wilson_stop_hw:
-                stop_reason = "wilson-halfwidth(%.4f<=%.2f)" % (hw,
-                                                            args.wilson_stop_hw)
-                break
         seed += 1
         r = run_single_cell(cell, args, seed, cell_out / f"seed{seed}")
         act = int(r.get("activated", 0) or 0)
