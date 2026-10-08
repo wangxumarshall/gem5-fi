@@ -13,11 +13,11 @@
 - **Phase Status:** IN_PROGRESS
 - **Overall Status:** IN_PROGRESS（DR-003 裁决 A：旧机续跑 + 并发 4；波次 5 运行中；集群 Session 002 平台工程——**U3b 完成：平台 B af0d784f 平台内确定性 + oracle 连续 + census 基线 2767≠旧机 2772（F-038，样本不可交换→隔离为技术必需）**，不跑波次；F-025/F-027 已合并）
 - **Started:** Session 001 2026-09-29 11:22（旧机）；Session 002 2026-09-30 16:43（集群 cn23423，持续运行——10-07/08 E-005 中断期转 Windows 取证，10-08 10:40 恢复直连）；Session 003 2026-10-08 09:49（旧机恢复）
-- **Last Updated:** 2026-10-08 15:00（双线并行：**集群 Session 002：U3b 平台 B 全链收口 + U3 LSU_GEM5_BIN 接线验证完成（含 E-011/E-012 假阳性修复）**——CP4r 重建 af0d784f（py3.9 PEP604 补丁后）+ CP4v 冒烟/golden oracle 728e604ffcec539d 复现 + CP5 census 2767×2≠2772 fail-fast（**F-038 平台基线差**，门禁正确触发未启动 pilot）+ CP6 det 双跑 DETERMINISM PASS；集群=确定性备用平台 B。**旧机 Session 003（14:55）：ITEM-017（A04-F6-W3）COMPLETE 33/33 全 sim_fail**（F-034：F0/F2/F6 三档结局结构全谱——注入位置分布决定可分析性）；ITEM-018（A04-F6-W0）运行中（同模式）；gate ok:false 持续零新增（波次 5 累计 1700+ run）。前记：ITEM-016（A04-F2-W0）BLOCKED 300/0——F-020 模式第 6 例，守恒 OK；ITEM-015（A04-F2-W3）BLOCKED 300/0——F-020 模式第 5 例（F2 短流结构性不可激活）；ITEM-013/014（A04-F0-W3/W0）双双 COMPLETE：首批真实五类结局（F-033）——首个真实架构级 Crash + SDC 5/8，可分析性梯度 0%→13%→85%+ 建立）
-- **Excel Location:** 7.展开执行矩阵!A19（行 11-18 已闭合；行 19 = ITEM-018 运行中）
-- **Current Owner:** 服务器执行 AI（Claude，主协调 AI；Session 003 旧机 localhost0101——波次 5 运行中（ITEM-018）；Session 002 集群 cn23423 keeper 1773102——平台工程（**U3b CP1-CP6 + U3 LSU_GEM5_BIN 接线完成**；下一步 U6 守卫复验），不跑波次）
-- **Current Checklist Item:** AGU ITEM-018（A04-F6-W0，mini_check）运行中（act=1 simulator_assert，同 ITEM-017 模式）；已闭合：ITEM-013/014 真实五类（F-033）+ ITEM-010/017 全 sim_fail（F-034）+ ITEM-009/015/016 BLOCKED（F-020）；其后 ITEM-019..039；Load Queue ITEM-274（有效 96）→ ITEM-277+
-- **Current RunID:** A04-F6-W0（ITEM-018 运行中；A04 系列 W3 侧 F0/F2/F6 全谱闭合）
+- **Last Updated:** 2026-10-08 15:12（双线并行：**集群 Session 002（15:00）：U3b 平台 B 全链收口 + U3 LSU_GEM5_BIN 接线验证完成（含 E-011/E-012 假阳性修复）**——CP4r 重建 af0d784f（py3.9 PEP604 补丁后）+ CP4v 冒烟/golden oracle 728e604ffcec539d 复现 + CP5 census 2767×2≠2772 fail-fast（**F-038 平台基线差**，门禁正确触发未启动 pilot）+ CP6 det 双跑 DETERMINISM PASS；集群=确定性备用平台 B。**旧机 Session 003（15:12）：**ITEM-018 COMPLETE + ITEM-019 COMPLETE（F-035）：A04 系列 6/6 整体闭合**（W3/W0 × F0/F2/F6 对称全谱）；**ITEM-019（A05-F0-W3）开张即真实五类**（M23+SDC3，79% 可分析；F-023 污染 census 重做成功）；ITEM-020（A05-F2-W3）运行中；gate ok:false 持续零新增（波次 5 累计 1850+ run）。前记：**ITEM-017（A04-F6-W3）COMPLETE 33/33 全 sim_fail**（F-034：F0/F2/F6 三档结局结构全谱——注入位置分布决定可分析性）；ITEM-018（A04-F6-W0）运行中（同模式）；gate ok:false 持续零新增（波次 5 累计 1700+ run）。前记：**ITEM-016（A04-F2-W0）BLOCKED 300/0**——F-020 模式第 6 例，守恒 OK；**ITEM-017（A04-F6-W3）运行中**（F6 确定性路径档，激活中 act=1，激活后 simulator_assert）；gate ok:false 持续零新增（波次 5 累计 1600+ run）；4 槽并行 MemAvail ~26.5 GiB。前记：**ITEM-015（A04-F2-W3）BLOCKED 300/0**——F-020 模式第 5 例（F2 短流结构性不可激活），守恒 OK；**ITEM-016（A04-F2-W0，mini_check）运行中**（act=0 起步，同预期）；gate ok:false 持续零新增（波次 5 累计 1100+ run）；4 槽并行 MemAvail 26.43 GiB。前记：ITEM-013/014（A04-F0-W3/W0）双双 COMPLETE：首批真实五类结局**（F-033）——ITEM-013 Masked 21+SDC 5+首个真实 Crash 1、ITEM-014 Masked 22+SDC 8（率 26.7%）；A01/A02/A04 可分析性梯度 0%→13%→85%+ 建立；ITEM-015（A04-F2-W3）运行中；gate ok:false 持续零新增（波次 5 已 500+ run）。前记：ITEM-010（A02-F2-W9）COMPLETE：33/33 activated 全 sim_fail 零可分析结局**（F-032，A01/A02 子模型对比数据点）；**ITEM-013（A04-F0-W3）运行中**（激活 + 真实架构级结局 Masked/Crash 混合，F-023 隔离的无效 census 已被正确重做）；gate ok:false 持续零新增；ITEM-009 已闭合 BLOCKED 300/0（F-031，resume 115 复用实战验证））
+- **Excel Location:** 7.展开执行矩阵!A21（行 11-20 已闭合；行 21 = ITEM-020 运行中）
+- **Current Owner:** 服务器执行 AI（Claude，主协调 AI；Session 003 旧机 localhost0101——波次 5 运行中（ITEM-020）；Session 002 集群 cn23423 keeper 1773102——平台工程（**U3b CP1-CP6 + U3 LSU_GEM5_BIN 接线完成**；下一步 U6 守卫复验），不跑波次）
+- **Current Checklist Item:** AGU ITEM-020（A05-F2-W3）运行中（F2 短流预期 BLOCKED）；已闭合：A01/A02/A04 三系列全部 + A05-F0-W3（真实五类）；其后 ITEM-021..039；Load Queue ITEM-274（有效 96）→ ITEM-277+
+- **Current RunID:** A05-F2-W3（ITEM-020 运行中；A01/A02/A04/A05-F0 已闭合）
 - **Current Experiment Stage:** pilot（正式，30 activated/ITEM，attempted 上限 300）
 - **Resource Safety State:** NORMAL（旧机无重任务、锁目录无锁文件；集群侧 idle 无实验/编译任务（DR-003-A）——keeper 1773102 存活（11:09 djob 复核 RUNNING，10-10 16:43 到期，续期待办））
 - **Build Concurrency Limit:** 8（同一时刻最多一个编译任务，经 lsu_guard 强制）
@@ -27,7 +27,7 @@
 - **Resource Lock:** 4 槽位 experiment_slot_{0..3}.lock 逐 run 获取/精确释放（guard_pid 确认）
 - **Resource Log:** runs/lsu/guard/guard_events.log（波次 5 运行中；gate ok:false 基线 5 次，10:51 复核零新增）
 - **Latest MemAvailable / SwapFree / Load:** 28.1 GiB / 16.3 GiB / 0.21，blocked=0（2026-10-08 09:5x 旧机采样，无 WARNING/TRIP；集群 cn23423 参考：526 GiB / 无 swap / 608 核，Session 002 17:47 采样）
-- **Next Step:** 波次 5 已启动并验证通过（10:49 WAVE5 bash 654696：**"resume: 115 valid samples reused"** + 4 槽并行 s123-s126 + MemAvailable 26.3 GiB + **gate ok:false 零新增（F-025 修复实机生效，12 run/3 轮槽位轮转无误报）**）。周期监控已设置（会话内 cron，每 23 分钟：进程/推进/槽位/资源/gate 失败核查）。唯一下一动作：按监控周期推进 AGU（ITEM-009 预计 ~46 分钟达 300 上限 BLOCKED）→ ITEM-010..039 → L1d-TLB → Load Queue（ITEM-274 resume 96 样本）。
+- **Next Step:** 波次 5 已启动并验证通过（10:49 WAVE5 bash 654696：**"resume: 115 valid samples reused"** + 4 槽并行 s123-s126 + MemAvailable 26.3 GiB + **gate ok:false 零新增（F-025 修复实机生效，12 run/3 轮槽位轮转无误报）**）。周期监控已设置（会话内 cron，每 23 分钟：进程/推进/槽位/资源/gate 失败核查）。唯一下一动作：按监控周期推进 AGU（当前 ITEM-020）→ ITEM-021..039 → L1d-TLB → Load Queue（ITEM-274 resume 96 样本）。**新增并行工作流（DR-001 裁决 D+A，2026-10-08）**：W1 MiBench + W13 PARSEC 负载补建（探路→获取→aarch64 静态交叉编译→golden×3→负载注册→W1/W13 ITEM 准入解锁），不阻塞波次 5。
 
 ## Git 状态
 
@@ -178,3 +178,12 @@ MemAvailable / SwapFree / Load / blocked：
 唯一下一动作：
 证据路径：
 ```
+
+## 2026-10-08 采样政策迁移
+
+- **同步方式：** 保留服务器既有 P0–P3 状态、证据、错误、Decision Request 和正在运行的波次；只同步本地最新版静态文件，并在远端动态文件上合并新规则，未用本地模板覆盖服务器记录。
+- **生效规则：** 每个有效 RunID 先取得 30 个独立 activated pilot；若注入器、配置、workload、checkpoint 与 oracle 不变，可计入后续累计，否则作废重采。每个有效 RunID 固定累计至少 385；仅 `task_plan.md` 固定的 21 个重点 RunID 累计到 2401，且 2401 包含前 385。
+- **对当前 P3 的影响：** pilot 目标仍为 30，因此 ITEM-020 及波次 5 无需中断；已有合规样本全部保留。P4/P5 启动前必须按新版清单重新冻结 manifest、sample_index/seed 范围和目标样本数。
+- **统计口径：** 合法目标出现率=`eligible/attempted`，故障激活率=`activated/eligible`，条件结果率分母=`activated-post_activation_simulator_failure`；统一报告 Wilson 95% 置信区间，不按中途结果或区间半宽序贯停止。
+- **新文档基线：** 完整清单 SHA-256=`4232b0839e827a1cb1ab5a4ac4fa8096eca479457249054afddfb6dc9c460f8e`；XLSX SHA-256=`1af33366d61644feb9d2c080ff6a38664ecdb064f7091d57890d2e1fb0f13c18`。
+- **可比性说明：** 2026-10-08 前已经查看过 pilot 结果的重点组合属于“政策冻结前已有探索性信息”，不得宣称为完全事前预注册的独立确认性结果。
