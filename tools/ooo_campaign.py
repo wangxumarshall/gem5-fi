@@ -131,6 +131,38 @@ MODEL_DISPATCH = {
         "component": "rat",
         "flag": "--chaos_rename",
     },
+    # U3 pipeline timing family B (B08/B09/FB08/FB09): squash/commit
+    # timing on CHAOSROB — all ride the existing --chaos_rob flag family
+    # (no new config flags; FP binding is the injector-side opClass
+    # predicate, not --rob_target_class).
+    "B08": {
+        "field": "timing",
+        "width_bits": 1,
+        "layer": "physical",
+        "component": "rob",
+        "flag": "--chaos_rob",
+    },
+    "B09": {
+        "field": "timing",
+        "width_bits": 1,
+        "layer": "physical",
+        "component": "rob",
+        "flag": "--chaos_rob",
+    },
+    "FB08": {
+        "field": "timing",
+        "width_bits": 1,
+        "layer": "physical",
+        "component": "rob",
+        "flag": "--chaos_rob",
+    },
+    "FB09": {
+        "field": "timing",
+        "width_bits": 1,
+        "layer": "physical",
+        "component": "rob",
+        "flag": "--chaos_rob",
+    },
 }
 
 # U2 arm tables. Registry-letter cross-reference (03 子模型列 vs arm keys):
@@ -200,6 +232,76 @@ MODEL_SUBMODES = {
                  "fault_model": "delay_omission"},
         "dup": {"mode": "rename_timing_dup",
                 "sub_field": "rename_timing_dup_vec",
+                "fault_model": "recurring_result_stuck"},
+    },    # U3 arm tables (B08/B09/FB08/FB09). Registry-letter cross-reference
+    # (03 子模型列 vs arm keys — the plan U3 Step-1 note):
+    #   B08: a/b/c/d = early/late/drop/dup, 1:1 (early=a same-tick drain,
+    #     late=b walk deferred, drop=c walk lost, dup=d replayed squash).
+    #   B09: early=a (width grant), late=c (doneSeqNum suppress),
+    #     drop=d (updateMiscRegs skip), dup=b (extra retireHead) — the
+    #     03 table's own letter order.
+    #   FB08: early/late/dup = B08 + FP/SIMD window gate; drop (FB08-c) =
+    #     the IEW execute-skip bypass (result-write pollution); FB08-b
+    #     (FU-cancel lost) is arch-n/a in gem5 — audit row records it.
+    #   FB09: = B09 arms + FP binding of the inst at the hook; FB09-c
+    #     FPSR face shares updateMiscRegs suppression; FB09-b V-mapping
+    #     and FB09-d old-dest faces are covered by the U2 FR09 neighbors.
+    # fault_model per the U2 convention: early/late/drop=delay_omission,
+    # dup=recurring_result_stuck.
+    "B08": {
+        "early": {"mode": "squash_timing_early",
+                  "sub_field": "squash_timing_early",
+                  "fault_model": "delay_omission"},
+        "late": {"mode": "squash_timing_late",
+                 "sub_field": "squash_timing_late",
+                 "fault_model": "delay_omission"},
+        "drop": {"mode": "squash_timing_drop",
+                 "sub_field": "squash_timing_drop",
+                 "fault_model": "delay_omission"},
+        "dup": {"mode": "squash_timing_dup",
+                "sub_field": "squash_timing_dup",
+                "fault_model": "recurring_result_stuck"},
+    },
+    "B09": {
+        "early": {"mode": "commit_timing_early",
+                  "sub_field": "commit_timing_early",
+                  "fault_model": "delay_omission"},
+        "late": {"mode": "commit_timing_late",
+                 "sub_field": "commit_timing_late",
+                 "fault_model": "delay_omission"},
+        "drop": {"mode": "commit_timing_drop",
+                 "sub_field": "commit_timing_drop",
+                 "fault_model": "delay_omission"},
+        "dup": {"mode": "commit_timing_dup",
+                "sub_field": "commit_timing_dup",
+                "fault_model": "recurring_result_stuck"},
+    },
+    "FB08": {
+        "early": {"mode": "fp_squash_timing_early",
+                  "sub_field": "fp_squash_timing_early",
+                  "fault_model": "delay_omission"},
+        "late": {"mode": "fp_squash_timing_late",
+                 "sub_field": "fp_squash_timing_late",
+                 "fault_model": "delay_omission"},
+        "drop": {"mode": "fp_squash_timing_drop",
+                 "sub_field": "fp_squash_timing_drop",
+                 "fault_model": "delay_omission"},
+        "dup": {"mode": "fp_squash_timing_dup",
+                "sub_field": "fp_squash_timing_dup",
+                "fault_model": "recurring_result_stuck"},
+    },
+    "FB09": {
+        "early": {"mode": "fp_commit_timing_early",
+                  "sub_field": "fp_commit_timing_early",
+                  "fault_model": "delay_omission"},
+        "late": {"mode": "fp_commit_timing_late",
+                 "sub_field": "fp_commit_timing_late",
+                 "fault_model": "delay_omission"},
+        "drop": {"mode": "fp_commit_timing_drop",
+                 "sub_field": "fp_commit_timing_drop",
+                 "fault_model": "delay_omission"},
+        "dup": {"mode": "fp_commit_timing_dup",
+                "sub_field": "fp_commit_timing_dup",
                 "fault_model": "recurring_result_stuck"},
     },
 }

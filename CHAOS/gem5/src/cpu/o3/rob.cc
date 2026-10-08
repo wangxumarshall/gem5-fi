@@ -500,8 +500,46 @@ ROB::squash(InstSeqNum squash_num, ThreadID tid)
 
         squashIt[tid] = tail_thread;
 
+        // U3 CHAOSROB: squash-timing hooks (B08/FB08). late defers the
+        // walk one cycle (Commit::tick's ROBSquashing branch re-enters
+        // doSquash); drop loses the walk outright (wrong-path insts
+        // stay unmarked and reach commitHead -- timeout-guarded); dup
+        // walks normally and the injector's clockEdge(+1) event re-
+        // enters here with the replay guard set (normal walk again).
+        if (chaosROB) {
+            bool fp_in_window = false;
+            if (chaosROB->needsSquashWindowScan())
+                fp_in_window = chaosWindowHasFP(squash_num, tid);
+            switch (chaosROB->maybeSquashTiming(tid, squash_num,
+                                                fp_in_window)) {
+              case CHAOSROB::SquashAction::DelayWalk:
+                return;
+              case CHAOSROB::SquashAction::DropSquash:
+                doneSquashing[tid] = true;
+                return;
+              case CHAOSROB::SquashAction::DupWalk:
+              case CHAOSROB::SquashAction::None:
+              default:
+                break;
+            }
+        }
+
         doSquash(tid);
     }
+}
+
+bool
+ROB::chaosWindowHasFP(InstSeqNum squash_num, ThreadID tid)
+{
+    // The same set doSquash walks (from the list tail while
+    // seqNum >= squashedSeqNum); forward scan is equivalent. The FP
+    // predicate is CHAOSROB::isFpOpClass -- single source, no drift.
+    for (const auto &inst : instList[tid]) {
+        if (inst->seqNum >= squash_num &&
+            CHAOSROB::isFpOpClass(inst->opClass()))
+            return true;
+    }
+    return false;
 }
 
 const DynInstPtr&

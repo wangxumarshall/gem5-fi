@@ -44,8 +44,8 @@
 | B05 | Int Dispatch / ROB | 状态 | CHAOSROB: exc_suppress（丢失 exception） | 部分 | B05-b 丢失 mispredict、B05-c 伪造标记、B05-d serialize 误置未实现 | 新(new) |
 | B06 | Int Dispatch / ROB | 状态/换值 | CHAOSROB: head_ptr_bitflip / tail_ptr_bitflip（指针 bit 级） | 部分 | 换值为『另一合法索引』以 bit 翻转运近似；wrap bit/occupancy 计数翻转未实现 | D41(merged), D44(merged), D45(merged) |
 | B07 | Int Dispatch / ROB | 换值 | CHAOSIQ: dispatch_misroute（FU 类别错路） | 部分 | B07-a IQ 类别、B07-c lane、B07-d ROB slot 换值未实现 | D55(merged) |
-| B08 | Int Dispatch / ROB | 时序 | —（无 squash 时序模式） | 未实现 | 全部：squash 提前/延后/丢失/重复 | 新(new) |
-| B09 | Int Dispatch / ROB | 时序 | —（无 commit 事件时序模式） | 未实现 | 全部：grant/pop/old-dest 释放/架构更新的时序扰动 | 新(new) |
+| B08 | Int Dispatch / ROB | 时序 | CHAOSROB: squash_timing_early/late/drop/dup | 已实现 | a/b/c/d 四臂全实现并两态实测（a early=同拍 drain 起步：commitStatus 翻转+getInsts 单拍抑制——无抑制则错路径指令入 ROB 成僵尸头死锁，实证修复；b late=walk 延后 1 拍；c drop=walk 丢失；d dup=同边界次拍重走）；rob_fill 两态 4/4 激活：Masked×3 + Timeout×1（c 走丢失） | 新(new) |
+| B09 | Int Dispatch / ROB | 时序 | CHAOSROB: commit_timing_early/late/drop/dup | 已实现 | 四臂全实现并两态实测（a early=commitWidth 外加 1 笔；b dup=bound 提交后多弹一条 head——下一 head 未就绪即 retireHead readyToCommit 断言 Crash DUE；c late=doneSeqNum 晚发 1 拍（P_prev 释放/门店提交滞后，自愈）；d drop=updateMiscRegs 跳过（陈旧 NZCV））；rob_fill 两态 4/4 激活：Masked×3 + Crash DUE×1（b） | 新(new) |
 | B10 | Int Dispatch / ROB | 卡死 | CHAOSROB: pc_stuck / destid_stuck | 部分 | B10-c complete bit、B10-d valid bit stuck 未实现 | D27(merged), D31(merged), D39(merged), D43(merged), D46(merged) |
 | FD01 | FP/SIMD Decode | 单比特翻转 | CHAOSDecode: fp_opcode_bitflip / fp_reg_bitflip（fpOnly 门） | 已实现 | lane 字段以 kFpOpcodeBits 的 size/ftype 位近似覆盖 | D56(merged), D59(merged) |
 | FD02 | FP/SIMD Decode | 双比特翻转 | CHAOSDecode: fp_opcode_bitflip2 | 部分 | 分层未实现；跨字段双翻缺 | D57(merged), D60(merged) |
@@ -73,8 +73,8 @@
 | FB05 | FP/SIMD Dispatch/ROB | 状态 | CHAOSROB: done_early/done_delay + CHAOSFPU: fpsr_suppress | 部分 | done 家族无 FP 限定门；FB05-a 提前 complete 的 FP 面未覆盖 | D84(merged), D85(merged) |
 | FB06 | FP/SIMD Dispatch/ROB | 换值 | —（无完成事件配对换值模式） | 未实现 | 全部：ROB index/目的 tag/动态指令 ID 配对换值 | 新(new) |
 | FB07 | FP/SIMD Dispatch/ROB | 错位拼接 | CHAOSPhysReg: vec lane（vec_lane_width/offset——PRF 侧 lane 级翻转） | 部分 | writeback lane mask 移位/互换/element-enable 未实现；PRF lane 翻转为不同站点近似 | 新(new) |
-| FB08 | FP/SIMD Dispatch/ROB | 时序 | —（无 FP squash/取消时序模式） | 未实现 | 全部 | 新(new) |
-| FB09 | FP/SIMD Dispatch/ROB | 时序 | —（无 FP commit 时序模式） | 未实现 | 全部 | 新(new) |
+| FB08 | FP/SIMD Dispatch/ROB | 时序 | CHAOSROB: fp_squash_timing_early/late/drop/dup | 已实现 | a/c/d 三面全实现并两态实测（a early/late=B08 语义+squash 窗口 FP 门控（窗口须含 Float*/SimdFloat*）；c drop=IEW execute 跳过旁路——squashed FP 结果写回已回收 vec physreg（alias 污染面）；d dup=同边界重走+FP 门）；b（FU-cancel 丢失）gem5 无独立 FU-cancel 事件=arch-n/a；rob_fill_fp 两态 4/4 激活全 Masked，rob_fill（int）squash 窗口无 FP=诚实 0 激活 | 新(new) |
+| FB09 | FP/SIMD Dispatch/ROB | 时序 | CHAOSROB: fp_commit_timing_early/late/drop/dup | 已实现 | 四臂全实现并两态实测（a early=FP 门控 commitWidth 外加 1 笔；c late=FP 门控 doneSeqNum 晚发；d drop=FPSR 面 misc 跳过——FP misc 写者稀少可 0 激活；dup=FP 门控额外弹头）；b V-mapping 面与 d old-dest 面由 U2 FR09 邻面覆盖；rob_fill_fp 两态 4/4 激活：Masked×3 + Crash DUE×1（dup）；rob_fill（int）sparse FloatMiscOp(fmov) 3/4 激活 | 新(new) |
 | FB10 | FP/SIMD Dispatch/ROB | 卡死 | CHAOSROB: destid_stuck vec | 部分 | complete/exception/lane-mask bit stuck 未实现 | D90(merged) |
 
 ## WB3 工作面（未实现 14 模型 + 部分模型的缺口清单）

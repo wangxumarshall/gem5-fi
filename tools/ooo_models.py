@@ -343,8 +343,8 @@ MODELS = {
         "freqs": ['F0', 'F4', 'F6'],
         "workloads": "W5 ROB-Recovery<br>W7 GAP-Selected",
         "n_submodels": 4,
-        "impl_status": "unimplemented",
-        "injector": None,
+        "impl_status": "implemented",
+        "injector": 'CHAOSROB',
         "submodels": ['a', 'b', 'c', 'd'],
     },
     "B09": {
@@ -354,8 +354,8 @@ MODELS = {
         "freqs": ['F0', 'F4', 'F6'],
         "workloads": "W5 ROB-Recovery<br>W1 MiBench-TC23",
         "n_submodels": 4,
-        "impl_status": "unimplemented",
-        "injector": None,
+        "impl_status": "implemented",
+        "injector": 'CHAOSROB',
         "submodels": ['a', 'b', 'c', 'd'],
     },
     "B10": {
@@ -662,8 +662,8 @@ MODELS = {
         "freqs": ['F0', 'F4', 'F6'],
         "workloads": "W10 PolyBench<br>W13 FP-ExceptionRecovery",
         "n_submodels": 4,
-        "impl_status": "unimplemented",
-        "injector": None,
+        "impl_status": "implemented",
+        "injector": 'CHAOSROB',
         "submodels": ['a', 'b', 'c', 'd'],
     },
     "FB09": {
@@ -673,8 +673,8 @@ MODELS = {
         "freqs": ['F0', 'F4', 'F6'],
         "workloads": "W8 FP-ScalarProbe<br>W13 FP-ExceptionRecovery",
         "n_submodels": 4,
-        "impl_status": "unimplemented",
-        "injector": None,
+        "impl_status": "implemented",
+        "injector": 'CHAOSROB',
         "submodels": ['a', 'b', 'c', 'd'],
     },
     "FB10": {

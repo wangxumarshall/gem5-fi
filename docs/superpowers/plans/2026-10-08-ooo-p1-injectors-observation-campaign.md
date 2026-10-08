@@ -229,12 +229,31 @@ build/ARM/gem5.opt --outdir=/tmp/u2-on configs/se/ooo_proxy.py --cmd workloads/o
 
 **规格:** B08=ROB squash 时序（提前 squash/延迟 squash/squash 丢失导致的假活）；B09=commit 时序；FB08/FB09=FP 对应面。验证负载用 rob_fill int（golden=19eab7d0de27237e，深 ROB/连续 mispredict 特性对口）。
 
-- [ ] **Step 1:** 读 03 表四模型 + CHAOSROB 源码，列挂点注记。
-- [ ] **Step 2:** 实现四模型子模式。
-- [ ] **Step 3:** guard 包裹增量编译 → `scons: done`。
-- [ ] **Step 4:** 两态验证（rob_fill int，关闭态 FINAL=19eab7d0de27237e；开启态 attempted>=1 证据）。
-- [ ] **Step 5:** ooo_models.py 更新 + `--check` 310/310。
-- [ ] **Step 6:** 提交 `[OOO][P1][U3] 流水时序族B：B08/B09/FB08/FB09 子模式 + 两态实测`。
+**Step-1 挂点注记（2026-10-08 实读 ooo-exec 源码；文件:行号为 build5 后现状）:**
+
+03 表四模型（03-design-matrix.md L111/L112/L155/L156）→ gem5 v25 载体映射，四臂均为 03 表"提前/延后/丢失/重复"时序扰动、数据载荷保持正确：
+
+- **B08 squash 时序** — 载体 `CHAOSROB` 新增 `squash_timing_{early,late,drop,dup}`。挂点：`ROB::squash()`（rob.cc:476）——mispredict/order-violation（commit.cc:829）与 squashAll 家族（commit.cc:526）的单一漏斗。实证：v25 默认 squashWidth 未设 → doSquash 单拍全量（rob.cc:345），squash 是 ROB 侧点事件；commit 侧下一拍起以 commitWidth 分拍排空 isSquashed 项（commit.cc:953-977）。四臂：
+  - `early`(B08-a)=触发拍内标记+当拍启动排空：commit.cc:829 块 rob->squash 后把 commitStatus[tid] 直翻 Running（绕过 ROBSquashing 一拍往返；仅绑 mispredict 块——526 squashAll 各调用方随后自设 ROBSquashing 会覆盖，不作为该臂绑定面）——approx=squash_drain_advanced_1c；
+  - `late`(B08-b)=走表延后一拍：ROB::squash 跳过立即 doSquash（squashIt/squashedSeqNum/doneSquashing=false 照设），下一拍由 Commit::tick 既有 doSquash 续走（commit.cc:634）——ROBSquashing 状态门使错误路径不进提交窗（gem5 实现下该 03 危害面不可达，诚实记 perf-only）；
+  - `drop`(B08-c)=squash 对 ROB 丢失：不走表、直置 doneSquashing=true——错误路径指令留存 ROB，完成者经 commitHead 错误提交（03 预期"错误路径结果进入完成/提交窗口"）→ SDC/Crash 面；须配 timeout 防 hang；
+  - `dup`(B08-d)=同一 squash 二次走表：自然走表 + clockEdge(+1) 事件重放 rob->squash(同界)（重放挂 replay 守卫防递归）——标记幂等，03 自述"重复多为性能损失"，预期多为 Masked/perf。
+- **B09 commit 时序** — 载体 `CHAOSROB` 新增 `commit_timing_{early,late,drop,dup}`。挂点：`Commit::commitInsts()`（commit.cc:927 循环）。gem5 提交事务 = {commitHead 判定(993) / ROB pop(retireHead) / doneSeqNum→IEW(1022)——同时驱动 rename 历史走查释放 old-dest（rename.cc:459-463）与 store 落存（iew.cc:1494，均 doneSeqNum 语义）/ updateMiscRegs(1034，AArch64 NZCV 等杂项态提交时落盘)}。四臂各绑一子事件：
+  - `early`(B09-a)=grant 提前：commitWidth 用尽当拍额外放行 1 条（循环条件扩展）——按序提交下架构不可见，诚实预期 not-activated/Masked；
+  - `late`(B09-c)=old-dest 释放延后一拍：抑制当拍 doneSeqNum 写入（1022 包裹）→ rename 走查+store 落存滞后一拍，下一拍新 doneSeqNum≥界自愈；
+  - `drop`(B09-d)=架构状态更新丢失：绑定指令跳过 updateMiscRegs（1034 包裹；资格=numMiscDestRegs>0 即 NZCV/FPSR 写者）→ 陈旧标志位 SDC 面；
+  - `dup`(B09-b)=ROB pop 重复：绑定指令成功提交后额外 retireHead 一次——次头未就绪则 readyToCommit 断言中止（Crash DUE 面）；就绪则次头指令从提交流消失（probe/杂项更新丢失；doneSeqNum 累计语义下其 old-dest 仍随后拍释放——"消失"多 Masked、断言面 Crash，如实两态记录）。
+- **FB08 FP/SIMD squash 时序** — 载体 `CHAOSROB` 新增 `fp_squash_timing_{early,late,drop,dup}`。early/late/dup=B08 同机制 + 资格门（squash 窗口内含 FP/SIMD 指令；Float*/SimdFloat* opClass 集=CHAOSDecode.cc:78-84 同一谓词；窗口扫描由 ROB::squash 入口预扫 instList 传入注入器）。`drop`(FB08-c)=**结果抑制丢失**：挂点 iew.cc:1169 Execute 侧 squash 跳过块——绑定一条 FP/SIMD 指令不跳过、照常执行回写，错误路径 FP 结果落入已被 squash 释放的 vec 物理寄存器 → 别名污染 SDC 面（回写链 iew.cc:1405 isSquashed 门的旁路实现时一并核查）。FB08-b（FU 取消丢失）=gem5 无独立 FU-cancel 事件（发射自 IQ，squash 即 IQ 摘除）——arch-n/a 诚实记录于审计行。
+- **FB09 FP/SIMD commit 时序** — 载体 `CHAOSROB` 新增 `fp_commit_timing_{early,late,drop,dup}`。=B09 四臂 + FP 绑定（early/drop/dup 绑定指令须 FP/SIMD；late 资格=当拍提交含 FP/SIMD）。FB09-c FPSR 面=updateMiscRegs 抑制（FP 杂项写者稀少——rob_fill_fp/gemm 或诚实 0 激活，如实记录，FD09@dep_chain 先例）；FB09-b V 映射面由 U2 FR09-dup(vec) 邻面覆盖、FB09-d old-dest 面由 late 臂+FR09 族邻面覆盖——审计行如实注明。
+
+配置/调度：复用既有 `--chaos_rob --rob_mode --rob_first_clock --rob_max_faults --rob_rng_seed`（ooo_proxy.py:170-203,616+），无新 flag；FP 判定在注入器内（opClass 谓词），不涉 `--rob_target_class`。runner.py rob 块（1040）+ ooo_campaign.py MODEL_DISPATCH/MODEL_SUBMODES 增 B08/B09/FB08/FB09（component=rob, flag=--chaos_rob）四表项，fault_model 元数据循 U2 惯例（early/late/drop=delay_omission、dup=recurring_result_stuck）。验证负载：rob_fill（int，golden 19eab7d0de27237e；二进制 7334 条条件分支→mispredict 面；循环 cmp/adds→NZCV 写者面）+ rob_fill_fp（fp，golden 85085fd5686d173b，FDIV/浮点流）；两态判定 off 对表 FINAL、on 分层记 attempted/激活（L0 funnel/legacy 双源）。
+
+- [x] **Step 1:** 读 03 表四模型 + CHAOSROB 源码，列挂点注记。——实测：上方 Step-1 注记（commit.cc:818 mispredict 块/rob.cc:476 squash 入口/doSquash 单拍全量走表/commit.cc:927·1022·1034/iew.cc:1169·1405 全部实读行号）。
+- [x] **Step 2:** 实现四模型子模式。——实测：CHAOSROB.hh/.cc 增 squash 族（maybeSquashTiming：DelayWalk/DropSquash/DupWalk + 重放守卫 + arm/consumeSquashEarlyDrain）与 commit 族（grantExtraCommit/suppressDoneSeqNum/suppressUpdateMiscRegs/extraRetireHead/bypassSquashSkip）+ isFpOpClass 谓词 + chaosWindowHasFP 窗口预扫（rob.cc）；rob.hh/.cc squash 尾挂点；commit.cc mispredict 块 arm/consume + 宽度门 + doneSeqNum/updateMiscRegs 包裹 + 成功块尾 extraRetireHead；iew.cc Execute squash 跳过旁路；ooo_proxy.py --rob_mode choices +16（发现并补上此前缺失的挂载层）；runner.py 16 子模式链；ooo_campaign.py 4 dispatch + 4 submode 表。
+- [x] **Step 3:** guard 包裹增量编译 → `scons: done`。——实测：build002 失败（CHAOSROB.cc DynInstPtr 未限定 → 补 o3:: 限定）；build003 编至 18 分钟 mem_footprint.o EIO 中止——根因 /home/share 配额满（并发会话清 4.8G tarball 后解除）；build005 `SCONS RC=0 BUILD COMPLETE`（23:38:49）；b08-early 修复后 build006 `BUILD COMPLETE`（00:15:33，gem5.opt sha256 24bcb506…）零新增告警（6 条全为既有：5 环境类 + 1 CHAOSIQ -Wreorder）。
+- [x] **Step 4:** 两态验证（rob_fill int，关闭态 FINAL=19eab7d0de27237e；开启态 attempted>=1 证据）。——实测三轮（/tmp/u3-verify.out 终证）：pass1 24 臂全 rc=2（ooo_proxy.py choices 漏 16 模式→补齐，无重建）；pass2（build5）int-b08-early rc=124 死锁——2.5GB Commit 调试日志定位：commitStatus 同拍翻 Running 使 getInsts（commit.cc:1398 插入门）在错路径指令尚未被 backward squash 标记时入 ROB，sn=173 僵尸头 + ROB 128/128 永久阻塞→commit.hh/cc 增 chaosSkipGetInsts 单拍抑制；pass3（build6）26/26：off 两态 GOLDEN（19eab7d0de27237e / rob_fill_fp 85085fd5686d173b），on 24 臂 20 激活/4 诚实 0 激活（int-fb08×4 squash 窗口无 FP、int-fb09-drop fmov 无 misc dest），结果 20 GOLDEN(Masked) + int-b08-drop rc=124 Timeout（walk 丢失面）+ 3×rc=134 Crash DUE（b09-dup/fb09-dup(int/fp) retireHead 断言）；int-fb09-early/late 在静态库 sparse FloatMiscOp(fmov) 上激活（sn 10045/535381）。
+- [x] **Step 5:** ooo_models.py 更新 + `--check` 310/310。——实测：B08(R27)/B09(R28)/FB08(R56)/FB09(R57) impl_status→implemented + injector→CHAOSROB；`python3 tools/ooo_models.py --check` → `models: 57 | items_scanned: 310 | item_refs_resolved: 310 | unresolved: 0 | impl_status: implemented=17 partial=34 unimplemented=6 | OK: 静态表 ↔ 03 索引/详表 ↔ 09 逐模型判定 ↔ 清单 ITEM 三方一致`；09 审计行 47/48/76/77 同步翻已实现（含两态实测注记）；回归 test_ooo_classify 26/26 + test_ooo_guard_f025 12/12 PASS。
+- [x] **Step 6:** 提交 `[OOO][P1][U3] 流水时序族B：B08/B09/FB08/FB09 子模式 + 两态实测`。——实测：本提交即该 patch（单 commit，13 文件：CHAOSROB.hh/.cc/.py、commit.hh/.cc、rob.hh/.cc、iew.hh/.cc、configs/se/ooo_proxy.py、tools/runner.py、tools/ooo_campaign.py、tools/ooo_models.py、09 审计、本计划；hash 见 git log，push 经 bundle 中继至 fi-ding）。
 
 ### Task U4：控制状态换值族（D06 FD05）
 
