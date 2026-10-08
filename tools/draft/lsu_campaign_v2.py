@@ -641,7 +641,8 @@ def run_cell_adaptive(cell, args, outroot):
                   "screening": args.screening_target}[args.phase]
     classes = {k: 0 for k in ("Masked", "Detected/Contained", "SDC",
                               "Crash", "Timeout")}
-    runs, attempted, activated = [], 0, 0
+    runs, attempted, eligible = [], 0, 0
+    activated = sim_fail = funnel_missing = 0
     seed, stop_reason = 0, None
     cell_out = outroot / runid
 
@@ -657,23 +658,38 @@ def run_cell_adaptive(cell, args, outroot):
         act = int(r.get("activated", 0) or 0)
         runs.append({"seed": seed, "cluster_id": "%s#%d" % (runid, seed),
                      "activated": act,
-                     "outcome": r.get("outcome", "Unclassified")})
-        attempted += int(r.get("attempted", 0) or 0)
+                     "outcome": r.get("outcome", "Unclassified"),
+                     "crash_kind": r.get("crash_kind"),
+                     "attempted": r.get("attempted"),
+                     "eligible": r.get("eligible")})
+        if r.get("attempted") is None or r.get("eligible") is None:
+            funnel_missing += 1          # D1: legacy/FS/Timeout 无 funnel 行
+        else:
+            attempted += int(r["attempted"])
+            eligible += int(r["eligible"])
         activated += act
         oc = r.get("outcome")
-        if oc in classes:
+        if oc == "Crash" and r.get("crash_kind") == "simulator_assert":
+            sim_fail += act              # M7: post_activation_simulator_failure
+        elif oc in classes:
             classes[oc] += act
 
     hw, lo, hi = _wilson_stats(classes, activated, runs, clustered)
-    sdc_rate = (classes["SDC"] / activated) if activated else 0.0
-    act_rate = (activated / attempted) if attempted else 0.0
-    cons = (activated == sum(classes.values()))
+    denom = activated - sim_fail                       # M8
+    sdc_rate = (classes["SDC"] / denom) if denom > 0 else None
+    eligible_rate = (eligible / attempted) if attempted > 0 else None   # M9
+    activation_rate = (activated / eligible) if eligible > 0 else None  # M9
+    cons = (activated == sum(classes.values()) + sim_fail)
     result = {
         "runid": runid, "phase": args.phase, "seed_batches": seed,
         "clustered": clustered, "n_runs": len(runs),
-        "attempted": attempted, "activated": activated,
-        "classes": classes, "sdc_rate": round(sdc_rate, 4),
-        "activation_rate": round(act_rate, 4),
+        "attempted": attempted, "eligible": eligible,
+        "activated": activated, "sim_fail": sim_fail,
+        "funnel_missing_runs": funnel_missing,
+        "classes": classes,
+        "eligible_rate": None if eligible_rate is None else round(eligible_rate, 4),
+        "activation_rate": None if activation_rate is None else round(activation_rate, 4),
+        "sdc_rate": None if sdc_rate is None else round(sdc_rate, 4),
         "wilson": {"lo": round(lo, 4), "hi": round(hi, 4)},
         "stop_reason": stop_reason, "conservation": "OK" if cons else "VIOLATION",
         "runs": runs,
@@ -681,9 +697,9 @@ def run_cell_adaptive(cell, args, outroot):
     cell_out.mkdir(parents=True, exist_ok=True)
     (cell_out / "cell_results.json").write_text(json.dumps(result, indent=1))
     return runid, ("  %s: phase=%s n_runs=%d activated=%d sdc=%d "
-                   "stop=%s cons=%s" %
+                   "simfail=%d stop=%s cons=%s" %
                    (runid, args.phase, len(runs), activated, classes["SDC"],
-                    stop_reason, result["conservation"]))
+                    sim_fail, stop_reason, result["conservation"]))
 
 
 def _wilson_stats(classes, activated, runs, clustered):

@@ -97,5 +97,63 @@ class PolicyTests(unittest.TestCase):
             self.assertEqual(len(calls), 49)   # 2401/50 → 49 runs
 
 
+class AccountingTests(unittest.TestCase):
+    def _run(self, m, mock_results, runid="A01-F0-W3", freq="F0",
+             trial_target=15):
+        seq = list(mock_results)
+
+        def mock(cell, args, seed, outdir):
+            return seq[seed - 1] if seed <= len(seq) else seq[-1]
+
+        m.run_single_cell = mock
+        a = Args()
+        a.phase = "trial"
+        a.trial_target = trial_target
+        a.max_seeds_per_cell = 3   # 小 cap 保测试秒级
+        with tempfile.TemporaryDirectory() as td:
+            m.run_cell_adaptive(make_cell(runid=runid, freq=freq), a, Path(td))
+            return json.loads((Path(td) / runid / "cell_results.json")
+                              .read_text())
+
+    def test_T5_simfail_excluded_from_sdc_denominator(self):
+        m = load_draft()
+        r = self._run(m, [
+            {"outcome": "SDC", "activated": 5, "attempted": 6,
+             "eligible": 5, "injected": 5},
+            {"outcome": "Crash", "crash_kind": "simulator_assert",
+             "activated": 10, "attempted": 10, "eligible": 10,
+             "injected": 10},
+        ])  # 5+10=15 ≥ trial_target=15 → 恰好 2 runs
+        self.assertEqual(r["activated"], 15)
+        self.assertEqual(r["sim_fail"], 10)
+        self.assertEqual(r["classes"]["SDC"], 5)
+        self.assertEqual(r["classes"]["Crash"], 0)      # sim_fail 单列
+        self.assertEqual(r["sdc_rate"], 1.0)            # 5/(15-10)
+        self.assertEqual(r["eligible"], 15)
+        self.assertEqual(r["eligible_rate"], 0.9375)    # 15/16
+        self.assertEqual(r["activation_rate"], 1.0)     # 15/15
+        self.assertEqual(r["conservation"], "OK")       # 5+10 == 15
+
+    def test_T6_zero_denominator_rates_none_not_zero(self):
+        m = load_draft()
+        r = self._run(m, [
+            {"outcome": "Masked", "activated": 0, "attempted": 0,
+             "eligible": 0, "injected": 0},
+        ], trial_target=5)
+        self.assertIsNone(r["sdc_rate"])      # 分母 0 → None，不是 0.0
+        self.assertEqual(r["classes"]["Masked"], 0)    # 计数保留
+        self.assertEqual(r["stop_reason"], "seed-cap(3)")
+
+    def test_D1_funnel_missing_counts_separately(self):
+        m = load_draft()
+        r = self._run(m, [
+            {"outcome": "Timeout", "activated": 0, "attempted": None,
+             "eligible": None, "injected": None},
+        ], trial_target=5)
+        self.assertEqual(r["funnel_missing_runs"], 3)
+        self.assertIsNone(r["eligible_rate"])
+        self.assertIsNone(r["activation_rate"])
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
