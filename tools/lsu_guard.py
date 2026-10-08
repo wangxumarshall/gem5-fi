@@ -167,13 +167,26 @@ def _slot_holders():
         if lock.get("corrupt"):
             out.append((i, None, "corrupt", False))
         else:
-            out.append((i, lock.get("pid"), lock.get("desc", "?"),
-                        _pid_alive(lock.get("pid", -1))))
+            out.append((i, _lock_owner_pid(lock), lock.get("desc", "?"),
+                        _pid_alive(_lock_owner_pid(lock))))
     return out
 
 
 def _pid_alive(pid):
     return os.path.exists(f"/proc/{pid}")
+
+
+def _lock_owner_pid(lock):
+    """锁的真正持有者 pid（F-025 修复）。
+
+    guard_pid = 获取锁的守卫进程 pid——run 周期内必然存活，是陈旧判定的
+    唯一可靠依据。pid 字段在 spawn 后会被覆盖为 gem5 子进程 pid（为 TRIP
+    熔断定位进程树），gem5 正常退出→release 之间存在 0-60s 窗口（monitor
+    60s 采样延迟）其间 pid 为死 pid——若用 pid 判活，正常收尾中的槽会被
+    并发 gate/acquire 误判为泄漏槽（2026-09-30 波次 4 两次 fail-fast 自
+    终止的根因，见 findings.md F-025）。老格式锁（无 guard_pid）回退 pid。
+    """
+    return lock.get("guard_pid", lock.get("pid", -1))
 
 
 def _gate_result():
@@ -185,7 +198,7 @@ def _gate_result():
                 if lk is not None and not lk.get("corrupt")]
     stale = [i for i, lk in slots.items()
              if lk is not None and not lk.get("corrupt")
-             and not _pid_alive(lk.get("pid", -1))]
+             and not _pid_alive(_lock_owner_pid(lk))]
     reasons = []
     notes = []
     if snap["mem_available_gib"] < GATE_MEM_MIN_GIB:
@@ -221,8 +234,9 @@ def cmd_gate(args):
 def _try_acquire(task_type, desc, item=None, runid=None, log=None):
     """进程内获取锁（cmd_run 与 CLI acquire 共用）。返回 (lock, None) 或 (None, reason)。
 
-    锁 pid = 调用进程 pid（cmd_run 进程内调用时存活至 run 结束，消除
-    acquire 子进程短命 pid 被并行者误判陈旧的竞态——F-022 重构要点）。
+    锁 guard_pid = 调用进程 pid（cmd_run 进程内调用时存活至 run 结束）；
+    pid 字段在 cmd_run spawn 后被覆盖为 gem5 pid（TRIP 熔断定位用）——
+    陈旧判定只认 guard_pid（F-022/F-025 两轮竞态修复要点）。
     """
     os.makedirs(GUARD_DIR, exist_ok=True)
     base_lock = {
@@ -230,6 +244,7 @@ def _try_acquire(task_type, desc, item=None, runid=None, log=None):
         or (os.getlogin() if hasattr(os, "getlogin") else "unknown"),
         "pid": os.getpid(),
         "pgid": os.getpgid(0),
+        "guard_pid": os.getpid(),
         "task_type": task_type,
         "desc": desc,
         "item": item,
@@ -255,12 +270,12 @@ def _try_acquire(task_type, desc, item=None, runid=None, log=None):
             continue
         if old.get("corrupt"):
             return None, f"REFUSED: 锁文件损坏 {path}，用 clear-stale 处置"
-        if _pid_alive(old.get("pid", -1)):
+        if _pid_alive(_lock_owner_pid(old)):
             holders.append((slot, old))
         else:
             return None, (f"REFUSED: {task_type} "
                           f"{'slot ' + str(slot) + ' ' if slot is not None else ''}"
-                          f"陈旧锁（pid={old.get('pid')} 已退出但未记录处置）；"
+                          f"陈旧锁（guard_pid={_lock_owner_pid(old)} 已退出但未记录处置）；"
                           f"先 clear-stale 显式处置")
     # 抢空槽：O_EXCL 原子创建防并发双取；撞槽（EEXIST）自动试下一候选
     for slot, path in candidates:
@@ -304,9 +319,9 @@ def _release(task_type, slot=None, confirm_pid=None):
             return True, f"NOTE: experiment slot {slot} 锁不存在，无需释放", None
         if lock.get("corrupt"):
             return False, f"REFUSED: 槽 {slot} 锁损坏，用 clear-stale 处置", path
-        if str(lock.get("pid")) != str(confirm_pid):
-            return False, (f"REFUSED: --confirm-pid {confirm_pid} 与槽 {slot} 锁内 pid "
-                           f"{lock.get('pid')} 不符（不得释放他人槽）"), path
+        if str(_lock_owner_pid(lock)) != str(confirm_pid):
+            return False, (f"REFUSED: --confirm-pid {confirm_pid} 与槽 {slot} 锁内 "
+                           f"guard_pid {_lock_owner_pid(lock)} 不符（不得释放他人槽）"), path
     else:
         path = _lock_path(task_type)
         lock = _read_lock(task_type)
@@ -343,22 +358,25 @@ def cmd_clear_stale(args):
                 _log_event({"action": "clear-stale-corrupt", "path": path})
                 cleared.append((slot, "corrupt", path))
                 continue
-            if _pid_alive(lock.get("pid", -1)):
-                refused.append((slot, lock.get("pid")))
+            if _pid_alive(_lock_owner_pid(lock)):
+                refused.append((slot, _lock_owner_pid(lock)))
                 continue
-            if str(lock.get("pid")) != str(args.confirm_dead_pid):
-                remaining.append((slot, lock.get("pid")))
+            # F-025：真泄漏时 guard_pid 必死；--confirm-dead-pid 接受 guard_pid
+            # 或 pid（老格式/被 spawn 覆盖的字段）任一匹配
+            if str(args.confirm_dead_pid) not in (str(_lock_owner_pid(lock)),
+                                                  str(lock.get("pid"))):
+                remaining.append((slot, _lock_owner_pid(lock)))
                 continue
             os.unlink(path)
             _log_event({"action": "clear-stale", "cleared": lock,
                         "time": time.strftime("%Y-%m-%d %H:%M:%S")})
-            cleared.append((slot, lock.get("pid"), path))
+            cleared.append((slot, _lock_owner_pid(lock), path))
         for slot, pid, path in cleared:
             print(f"CLEARED stale lock (pid {pid} confirmed dead): {path}")
         for slot, pid in refused:
-            print(f"REFUSED: slot {slot} pid={pid} 仍存活，不是陈旧锁", file=sys.stderr)
+            print(f"REFUSED: slot {slot} guard_pid={pid} 仍存活，不是陈旧锁", file=sys.stderr)
         for slot, pid in remaining:
-            print(f"NOTE: slot {slot} 陈旧 pid={pid} 与 --confirm-dead-pid 不符，未处置")
+            print(f"NOTE: slot {slot} 陈旧 guard_pid={pid} 与 --confirm-dead-pid 不符，未处置")
         if not (cleared or refused or remaining):
             print("NOTE: experiment 槽位无锁")
         return 0 if not refused else 2
@@ -372,12 +390,13 @@ def cmd_clear_stale(args):
         _log_event({"action": "clear-stale-corrupt", "path": path})
         print(f"CLEARED corrupt lock: {path}")
         return 0
-    if _pid_alive(lock.get("pid", -1)):
-        print(f"REFUSED: pid={lock['pid']} 仍存活，不是陈旧锁", file=sys.stderr)
+    if _pid_alive(_lock_owner_pid(lock)):
+        print(f"REFUSED: guard_pid={_lock_owner_pid(lock)} 仍存活，不是陈旧锁", file=sys.stderr)
         return 2
-    if str(lock.get("pid")) != str(args.confirm_dead_pid):
-        print(f"REFUSED: --confirm-dead-pid {args.confirm_dead_pid} 与锁内 pid "
-              f"{lock.get('pid')} 不符", file=sys.stderr)
+    if str(args.confirm_dead_pid) not in (str(_lock_owner_pid(lock)),
+                                          str(lock.get("pid"))):
+        print(f"REFUSED: --confirm-dead-pid {args.confirm_dead_pid} 与锁内 "
+              f"guard_pid {_lock_owner_pid(lock)} / pid {lock.get('pid')} 均不符", file=sys.stderr)
         return 2
     os.unlink(path)
     _log_event({"action": "clear-stale", "cleared": lock,
@@ -514,9 +533,10 @@ def cmd_run(args):
         return rc
     finally:
         try:
-            # experiment：按本 run 的槽位 + 派生 pid 精确释放（防并行误删他人槽）；
-            # Popen 未及执行时用 acquire 记录的本进程 pid
-            confirm_pid = proc.pid if proc is not None else lock.get("pid")
+            # experiment：按本 run 的槽位精确释放——confirm_pid 用本进程 pid
+            # （= 锁内 guard_pid；F-025：勿用 gem5 pid，其退出后死 pid 不得
+            # 再作为锁归属依据），防并行误删他人槽
+            confirm_pid = os.getpid()
             ok, msg, _p = _release(args.type, slot, confirm_pid)
             if not ok:
                 print(f"WARNING: 锁释放异常: {msg}", file=sys.stderr)

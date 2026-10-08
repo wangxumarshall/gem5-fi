@@ -11,23 +11,23 @@
 
 - **Current Phase:** P3（前三单元连续 pilot 波次，用户指令 2026-09-29 晚）
 - **Phase Status:** IN_PROGRESS
-- **Overall Status:** IN_PROGRESS（平台已迁移集群；F-022 引擎升级（Patch A/B）自 origin 恢复合并；集群复验中）
-- **Started:** 2026-09-29 11:22 (Session 001)；Session 002 起于 2026-09-30 16:43（集群 cn23423）
-- **Last Updated:** 2026-09-30 18:05（Session 002 rebase 合并：旧会话失联前已交付 F-022 引擎升级 4 提交（4e16c701..f0a5b249，origin 上）——Patch A 守卫 4 槽位 + Patch B 并行/resume/census 持久化 + G0-10 复验（其 F-024）+ F-023 守卫中断事故处置（fail-fast + 污染隔离）；波次 4 于 16:10 启动（75 样本 resume + 4 槽并行）后宿主机失联，pilot 状态未随迁移 tarball 进入集群（runs/lsu/pilot/ 空，F-028）。本会话已将 4 提交中继至集群并 rebase 合并；剩余：swap_na 语义移植（全集群节点无 swap，F-027）+ LSU_GEM5_BIN 接线（compat 运行时）+ 集群实机复验 → 波次重启）
-- **Current Owner:** 服务器执行 AI（Claude，主协调 AI；Session 002 运行于集群 cn23423 经 dattach）
-- **Current Checklist Item:** AGU ITEM-009（A02-F2-W3）集群从 s0 重跑（旧机 s0–s74 有效样本丢失，确定性 seed 保证重跑逐样本等价，仅损失算力）→ ITEM-010/013..025（F-023 污染重跑）→ ITEM-026..039；ITEM-001..008 有效（5 COMPLETE + 3 真实 BLOCKED）
-- **Current RunID:** A02-F2-W3（集群重跑，自 s0）
-- **Excel Location:** 7.展开执行矩阵!A2:AQ10（行 2–10 对应 ITEM-001..008 已闭合；行 11 起 ITEM-009 待续跑）
+- **Overall Status:** IN_PROGRESS（**双平台局面待用户裁决**：旧机已恢复且 pilot 数据完好；集群 Session 002 停于 09-30 18:05；F-025 修复已 rebase 合并 F-027）
+- **Started:** Session 001 2026-09-29 11:22（旧机）；Session 002 2026-09-30 16:43（集群 cn23423，最后更新 09-30 18:05）；Session 003 2026-10-08 09:49（旧机恢复）
+- **Last Updated:** 2026-10-08 10:45（Session 003 融合合并：①**旧机实况推翻 F-028 预判**——旧机 10-03 16:32 重启后恢复，runs/lsu/pilot/ 数据完好（ITEM-009 有效前缀 115、ITEM-274 有效前缀 96，10-08 取证）；②**F-025 根因定论**（修正 Session 002 的"波次 4 死于宿主失联"记载）：波次 4 实际于失联前 16:14:55/16:36:27 两次因 gate"陈旧槽"误报竞态 fail-fast 自终止（锁内 pid 被 spawn 覆盖为 gem5 pid，正常收尾 0-60s 窗口被误判泄漏；零数据污染）；③F-025 修复（guard_pid 判定字段）隔离测试 T1-T4 全 PASS，rebase 到集群侧 F-027 swap_na 之上（guard 双语义合并：guard_pid 陈旧判定 + swap_na 门禁/熔断豁免）；④集群 Session 002 交付在库：compat 运行时（F-026）+ swap_na（F-027）；其波次从未启动、U3'（LSU_GEM5_BIN 接线）未做。**平台决策 DECISION REQUEST 待用户**）
+- **Current Owner:** 服务器执行 AI（Claude，主协调 AI；Session 003，2026-10-08 09:49 起于旧机 localhost0101）
+- **Current Checklist Item:** AGU ITEM-009（A02-F2-W3，旧机有效 s0–s114=115 runs 全 act=0，GUARD_FAILURE 非终态）→ 其后 ITEM-010..039；Load Queue ITEM-274（L01-F1-W5，旧机有效 s0–s95=96）→ ITEM-277+；ITEM-001..008 与 ITEM-271 有效终态不受影响（**在哪个平台续跑待用户裁决**）
+- **Current RunID:** A02-F2-W3（中断于 s115——gate 误报，非数据问题）
+- **Excel Location:** 7.展开执行矩阵!A11（行 11 = ITEM-009 待闭合）
 - **Current Experiment Stage:** pilot（正式，30 activated/ITEM，attempted 上限 300）
-- **Resource Safety State:** NORMAL（波次已停止，实验锁空闲，无重任务）
+- **Resource Safety State:** NORMAL（旧机无重任务、锁目录无锁文件；集群侧状态未知——Session 002 keeper 1773102 存活性待查）
 - **Build Concurrency Limit:** 8（同一时刻最多一个编译任务，经 lsu_guard 强制）
-- **Experiment Concurrency Limit:** 4（硬上限；资源压力或 WARNING 可降 3/2/1，恢复后回 4，不得超 4；2026-09-30 14:30 用户指令；F-022 Patch A 4 槽位已合并）
-- **Active Heavy Task:** 无（旧机波次 4（WAVE4 PID 360275）随宿主失联；集群波次待 swap_na/GEM5_BIN 移植 + 复验后启动）
-- **Active PID/PGID:** 无（keeper 作业 1773102 = sleep infinity 占位，cn23423；实验将经守卫槽位逐 run 派生）
-- **Resource Lock:** 无（集群 runs/lsu/guard/ 新起点：4 槽位 experiment_slot_{0..3}.lock 空闲）
-- **Resource Log:** runs/lsu/guard/guard_events.log（集群新起点）
-- **Latest MemAvailable / SwapFree / Load:** 526.11 GiB / 0 GiB（全集群节点无 swap，SwapTotal=0——F-027 swap_na 语义待移植）/ load 7.5/7.6/8.3（608 核）（2026-09-30 17:47 cn23423 gate）
-- **Next Step:** ①U1' swap_na 移植到 4 槽守卫（gate+monitor，F-027）；②U3' LSU_GEM5_BIN 接线（unit_pilot/runner，compat wrapper）；③集群实机复验（隔离槽位测试 + py_compile + dry-run 准入）；④波次重启（AGU ITEM-009 s0 起 --workers 4）。
+- **Experiment Concurrency Limit:** 4（硬上限；2026-09-30 14:30 用户指令；F-022 Patch A/B + F-025 guard_pid + F-027 swap_na 均已合并）
+- **Active Heavy Task:** 无（旧机波次 4 已于 09-30 16:36 自终止；集群波次从未启动）
+- **Active PID/PGID:** 无（旧机）
+- **Resource Lock:** 空闲（旧机 runs/lsu/guard/ 无锁文件）
+- **Resource Log:** runs/lsu/guard/guard_events.log（旧机最后事件 09-30 16:36:27 s95 release；集群侧新起点）
+- **Latest MemAvailable / SwapFree / Load:** 28.1 GiB / 16.3 GiB / 0.21，blocked=0（2026-10-08 09:5x 旧机采样，无 WARNING/TRIP；集群 cn23423 参考：526 GiB / 无 swap / 608 核，Session 002 17:47 采样）
+- **Next Step:** ①完成 rebase 合并（progress 冲突融合 + push）；②向用户 DECISION REQUEST：pilot 续跑平台（旧机 resume 115+96 样本 vs 集群 s0 重跑+完成 U3' 接线）+ 双会话协调（Session 002 集群 keeper 状态）；③裁决前不启动任何波次（防双平台双跑同一矩阵）。
 
 ## Git 状态
 
