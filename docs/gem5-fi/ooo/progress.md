@@ -80,8 +80,10 @@
   5. **边界自测暴露并修复真实缺陷**：T1（ITEM 头格式损坏 D01→DX1）首跑**静默跳过**（items_scanned=309 仍判 OK）——违反诚实规约的假校验路径 → 加「头行全解析 + 条目数=310 + 编号连续 001..310」三断言修复 → T1–T4 全部翻红 exit=1（T4 未知模型 unresolved=1 精确报错），T5 原件复验 exit=0、清单 sha256 f520d42a…30c91 前后不变（hash 锁定原件全程未动，损坏测试全在 /tmp 副本）。
   6. **F-010**：09 审计总账表「部分=0」与逐模型表 34 行「部分」矛盾（9+0+14≠57）；逐模型表为权威，--check 内置 9/34/14 断言；桥接件不静默改史。
   7. **回归**：tools/ooo_recover.py selftest → SELFTEST PASS（9 夹具五状态全覆盖，无 collateral 破坏）。
-- **Results / Evidence / Errors:** tools/ooo_models.py --check 实测输出（本 Session 第 4/5 条引用）；/tmp/ck-corrupt.md、/tmp/ck2.md、/tmp/au-corrupt.md、/tmp/ix-corrupt.md 副本测试 exit=1 证据；无 BLOCKED；错误 0（T1 静默跳过为自测发现并当日修复的缺陷，非遗留）。
-- **Next Step:** U1b guard_pid 竞态移植（TDD：失败测试→修复→T1–T6 回归）；随后 U2 时序族A。
+  8. **U0/U1 推送（bundle 通道，两次远程前进处置）**：远程 fi-ding 在推送窗口内连续前进两次（3671113c+127b54a3、再 72278a27，均 LSU 轨、仅 docs/gem5-fi/lsu/*，零文件重叠）→ 127b54a3/72278a27 对象经 Windows bundle 中转入库 → ooo-exec 两提交两次重放（我方文件 diff 均为空）→ 推送成功 **fi-ding=4c56bce6**（U0=bde8ee94、U1=4c56bce6；bundle sha256 d258669b/bca11830/c7eebb47 逐次校验，中转残留 ref/文件全清）。
+  9. **U1b guard_pid 竞态移植（F-025 对齐 LSU 6d1662ee，TDD）**：①失败测试 tools/tests/test_ooo_guard_f025.py（12 检查点）→ 红态实测 `AttributeError: _lock_owner_pid 不存在`；②11 处补丁移植（guard_pid 字段/_lock_owner_pid helper/陈旧判定/release confirm/clear-stale 双字段接受与判活/cmd_run finally confirm=os.getpid()）；③转绿 `SELFTEST PASS (12 checks, 0 failed)`；④回归 lite（隔离 GUARD_DIR）R1–R8 全符合 Unit1 语义（gate ok=false 仅因 LSU CP4 编译进程在跑=正确阻断；run 快命令同因无法当跑，释放路径变更已由 T5a/b 单元级覆盖，全路径 E2E 待无编译期复验）；⑤无关件回归 ooo_recover selftest PASS。
+- **Results / Evidence / Errors:** tools/ooo_models.py --check 实测输出（本 Session 第 4/5 条引用）；/tmp/ck-corrupt.md 等副本 exit=1 证据；/tmp/ooo-guard-reg 回归输出；SELFTEST PASS (12 checks, 0 failed)；无 BLOCKED；错误 0（T1 静默跳过为自测发现并当日修复的缺陷，非遗留；R7c 一行脚本槽位假设错误为测试脚本笔误，非被测件缺陷）。
+- **Next Step:** U2 时序族A（D07/R08/FD09/FR09 子模式实现 + 两态验证，dep_chain int golden 98e5e31e726e383f）。
 
 ## Active Work
 

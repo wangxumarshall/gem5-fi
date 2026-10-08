@@ -90,12 +90,12 @@ impl_status: implemented=9 partial=34 unimplemented=14
 
 **背景（必须先读）:** F-025 事故——cmd_run spawn 后锁内 `pid` 更新为 gem5 子进程 pid；gem5 正常退出→release 间有 0-60s（monitor 60s 采样延迟）死 pid 窗口；并发 gate 按 pid 判活 → 把正常收尾中的槽误判为泄漏槽 → GATE BLOCKED。4 并发下每槽 ~30s 假陈旧暴露/轮转，LSU 波次 4 于 26 分钟内两次 fail-fast。`tools/ooo_guard.py`（自 lsu_guard@f0a5b249 适配）同病：`lock["pid"], lock["pgid"], lock["cmd"] = proc.pid, ...`（cmd_run 内）+ 判活走 `lock.get("pid")`。参考实现：`git show 6d1662ee -- tools/lsu_guard.py`。
 
-- [ ] **Step 1:** 写失败测试 `tools/tests/test_ooo_guard_f025.py`：构造锁文件 A{guard_pid: 死pid, pid: 死pid}（老格式→判陈旧，预期 stale=True）与 B{guard_pid: 本进程pid, pid: 死pid}（新格式正常收尾窗口→预期 stale=False），断言 `_lock_owner_pid` 回退语义与判活结果。
-- [ ] **Step 2:** 运行确认失败：`python3 tools/tests/test_ooo_guard_f025.py` → FAIL（`_lock_owner_pid` 不存在）。
-- [ ] **Step 3:** 移植修复：cmd_run acquire 时写 `guard_pid: os.getpid()`；spawn 覆盖仅 `pid/pgid/cmd`；`_lock_owner_pid(lock)` helper；陈旧判定、release confirm、clear-stale 判活全部改走 `_lock_owner_pid`。
-- [ ] **Step 4:** 运行测试通过：`python3 tools/tests/test_ooo_guard_f025.py` → PASS（输出引用进提交信息）。
-- [ ] **Step 5:** 回归：隔离 GUARD_DIR 下重跑 T1–T6 精简版（gate/acquire/release/status/clear-stale/run 快命令），输出与 Unit1 记录一致。
-- [ ] **Step 6:** 提交 `[OOO][P1][U1b] ooo_guard guard_pid 竞态移植（F-025，对齐 LSU 6d1662ee）`。
+- [x] **Step 1:** 写失败测试 `tools/tests/test_ooo_guard_f025.py`：构造锁文件 A{guard_pid: 死pid, pid: 死pid}（老格式→判陈旧，预期 stale=True）与 B{guard_pid: 本进程pid, pid: 死pid}（新格式正常收尾窗口→预期 stale=False），断言 `_lock_owner_pid` 回退语义与判活结果。——实测：12 检查点（T1a-d 回退语义 / T2 判活 / T3 收尾窗口不误报 / T4 真泄漏拒入 / T5a-b release 确认 / T6a-c clear-stale 双字段+存活拒清）。
+- [x] **Step 2:** 运行确认失败：`python3 tools/tests/test_ooo_guard_f025.py` → FAIL（`_lock_owner_pid` 不存在）。——实测：`AttributeError: module 'ooo_guard' has no attribute '_lock_owner_pid'` exit=1（红态证据）。
+- [x] **Step 3:** 移植修复：cmd_run acquire 时写 `guard_pid: os.getpid()`；spawn 覆盖仅 `pid/pgid/cmd`；`_lock_owner_pid(lock)` helper；陈旧判定、release confirm、clear-stale 判活全部改走 `_lock_owner_pid`。——实测：11 处替换（_slot_holders/_gate_result/_try_acquire 字段+判活+拒因文案/_release/clear-stale 双分支判活+双字段接受+文案/cmd_run finally confirm=os.getpid()），py_compile CLEAN。
+- [x] **Step 4:** 运行测试通过：`python3 tools/tests/test_ooo_guard_f025.py` → PASS。——实测：`SELFTEST PASS (12 checks, 0 failed)` exit=0（含 T4 拒因原文 `guard_pid=999001 已退出但未记录处置`、T5b `confirm-pid 999001 与锁内 guard_pid <本进程> 不符`）。
+- [x] **Step 5:** 回归：隔离 GUARD_DIR 下重跑 T1–T6 精简版（gate/acquire/release/status/clear-stale/run 快命令），输出与 Unit1 记录一致。——实测（OOO_GUARD_DIR=/tmp/ooo-guard-reg）：R1 空态 4 槽 null；R2 acquire 入 slot 0 且锁含 guard_pid；R3 status 持有；R4 错 confirm REFUSED（guard_pid 不符）；R5 正确 confirm RELEASED；R6 陈旧 A 锁 acquire REFUSED（guard_pid=999003）；R7a 错 pid NOTE 未处置→R7b 对 pid CLEARED→re-acquire 成功→释放；R8 gate ok=false 仅因 LSU CP4 重建编译进程在跑（正确阻断，同 P0 Unit1 原始观察；MemAvailable 303.5GiB、无陈旧槽误报、slots 0/4）。**run 快命令无法当跑**（gate 正确阻断）——cmd_run 释放路径变更（confirm=os.getpid()）已由 T5a/b 单元级覆盖（即 cmd_run finally 的同一 _release 调用），全路径 E2E 待 login01 无编译进程时复验（U2 构建守卫周期必然复跑该路径）。
+- [x] **Step 6:** 提交 `[OOO][P1][U1b] ooo_guard guard_pid 竞态移植（F-025，对齐 LSU 6d1662ee）`。
 
 ### Task U2：流水时序族 A（D07 R08 FD09 FR09）
 
