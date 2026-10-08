@@ -32,9 +32,9 @@ P0 要求"建立并测试编译单实例锁、实验 worker lease 注册表、�
 - 验证（真实命令，2026-09-30 login01）：`python3 tools/ooo_recover.py selftest` → **10/10 PASS**（陈旧心跳→INTERRUPTED、新鲜心跳→RUNNING、正常标记→COMPLETE、标记篡改→sha256 检出、run_key 不一致→拒绝、--allow-no-manifest→COMPLETE+note、清单外→ORPHAN、清单幽灵→MISSING、空目录→MISSING、汇总计数 total=9 全对）；CLI 端到端 `mark-complete` → `scan`（human 与 --json）实测一致；回归 `tools/ooo_guard.py status` 正常（4 槽全空、swap_exempt=true）。
 
 ### Unit 3：文档与 G0 填表（[OOO][P0] 收口提交；原 Unit 4）
-- [ ] task_plan.md G0 表：G0-01（build 证据）、G0-03（环境锁定）、G0-05（负载盘点+W1 缺口）、G0-08（seed/run_key 规则落地确认）、G0-10（本计划三单元测试输出）填状态与证据；G0-02/04/06/07/09 保持 UNCHECKED 并注明归属 P1/P2 的缺失项。
-- [ ] findings/progress 同步；W1 MiBench 源缺失 + "FS优先" vs SE 基线 → Decision Request 记录。
-- [ ] 提交：Unit 1/2/3 各一个 commit，Unit 4 一个 commit，格式 `[OOO][P0] …`。
+- [x] task_plan.md G0 表：G0-01（build 证据）、G0-03（环境锁定）、G0-05（负载盘点+W1 缺口）、G0-08（seed/run_key 规则落地确认）、G0-10（本计划三单元测试输出）填状态与证据；G0-02/04/06/07/09 保持 UNCHECKED 并注明归属 P1/P2 的缺失项。（2026-10-08 完成——G0 表全 10 行已填：G0-01/03/10 PASS，G0-05/07/08 PARTIAL，G0-02/04/09 PENDING→P1，G0-06 PENDING→DR-002；超出原计划的更新：G0-01 补运行时兼容性判定 F-008——login01 原生构建 py3.9 结构性不可用，采用源等价二进制 63f50c40…（两树 src diff=0，硬链接同 inode）+ LSU 兼容运行时，冒烟 ×2 `FINAL=45737cc9a76c0dce RC=0`；G0-10 补 run 全路径实测 `SPAWNED pid=2909412 slot=0 → exit_code=0 → 槽位全释放`）
+- [x] findings/progress 同步；W1 MiBench 源缺失 + "FS优先" vs SE 基线 → Decision Request 记录。（DR-001：W1 已供给待上传（embecosm/mibench@0f3cbcf6 tarball sha256 7bc51c7d…，方案A 自主推进）；DR-002：FS vs SE 基线，推荐 A=SE 基线 pilot，FS 子集 P5/P7 扩展；另 F-002 修订/F-007 实证/F-008/F-009 新增；progress.md Session 002 落盘）
+- [x] 提交：Unit 1/2/3 各一个 commit，Unit 4 一个 commit，格式 `[OOO][P0] …`。（Unit1=3b7a0854、Unit2=ce8d6d8a 已推送 origin/fi-ding；Unit3=本提交；原 Unit 4（P1 落盘）改入 P1 计划 13 单元方案，见 docs/superpowers/plans/ 后续 P1 计划文件）
 
 ## 验证总则
 每个 Unit 的验证命令必须在 login01 真实执行并引用实际输出；不通过不得 commit。构建中 gem5.opt（gem5-build-001.out）完成前，本计划三单元可并行开发但按序提交。

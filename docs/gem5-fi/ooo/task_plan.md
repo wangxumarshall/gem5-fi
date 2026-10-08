@@ -39,31 +39,31 @@ P0
 
 | Gate | 内容 | 通过标准 | 状态 |
 |---|---|---|---|
-| G0-01 | gem5 仓库、commit、分支、工作树 | commit 固定，工作树归属清楚，clean build 可重复 | UNCHECKED |
-| G0-02 | OOO 注入 patch 与配置生成器 | 57 模型均有唯一实现映射，确定性测试通过 | UNCHECKED |
-| G0-03 | OS、编译器、Python、依赖 | environment lock 可重建 | UNCHECKED |
-| G0-04 | B0/S0–S6 CPU/OOO 参数 | 与 Excel 逐项一致，单因素配置只改变预注册参数 | UNCHECKED |
-| G0-05 | W0–W13、输入、许可证 | 清单实际使用的负载可用；不可用项获批准 | UNCHECKED |
-| G0-06 | checkpoint | 生成方式与哈希固定，golden/故障运行一致 | UNCHECKED |
-| G0-07 | golden、commit trace、oracle | 重复稳定，整数与 FP/SIMD 规则可自动判定 | UNCHECKED |
-| G0-08 | seed、run_key、manifest | 稳定生成、唯一、可复现、可恢复 | UNCHECKED |
-| G0-09 | timeout、分类和守恒 | golden 10×规则与绝对上限固定，分类器测试通过 | UNCHECKED |
-| G0-10 | 资源防护与长任务守护 | 编译≤8且单实例；实验并发≤4、worker lease、run_key去重、PID/PGID、60秒监控、30分钟心跳、启动门禁、TRIP和恢复扫描可验证 | UNCHECKED |
+| G0-01 | gem5 仓库、commit、分支、工作树 | commit 固定，工作树归属清楚，clean build 可重复 | **PASS**（运行时须兼容 loader，见 F-008；证据：gem5-build-001.out + 冒烟 FINAL=45737cc9a76c0dce ×2） |
+| G0-02 | OOO 注入 patch 与配置生成器 | 57 模型均有唯一实现映射，确定性测试通过 | PENDING→P1（U0 映射表落地 + U1 确定性测试） |
+| G0-03 | OS、编译器、Python、依赖 | environment lock 可重建 | **PASS**（F-003/F-004 供给链实测可重建；+兼容运行时 F-008） |
+| G0-04 | B0/S0–S6 CPU/OOO 参数 | 与 Excel 逐项一致，单因素配置只改变预注册参数 | PENDING→P1（参数基线表转录 + ooo_proxy.py 逐项核对） |
+| G0-05 | W0–W13、输入、许可证 | 清单实际使用的负载可用；不可用项获批准 | **PARTIAL**（在库 7/11；W1 已供给待上传 DR-001；W3/W8/W9/W13 为 P1 定向探针开发项） |
+| G0-06 | checkpoint | 生成方式与哈希固定，golden/故障运行一致 | PENDING→DR-002（W1 规格标 FS优先、W5 标 SE+FS子集；gem5-fs 3.0G 资产在位；SE 基线则无 checkpoint 依赖） |
+| G0-07 | golden、commit trace、oracle | 重复稳定，整数与 FP/SIMD 规则可自动判定 | **PARTIAL**（9 负载族 golden 台账在库 workloads/ooo/README.md；重复稳定性复验与 oracle 全量接线 → P1/P2） |
+| G0-08 | seed、run_key、manifest | 稳定生成、唯一、可复现、可恢复 | **PARTIAL**（run_key/manifest/原子 COMPLETE/恢复扫描 PASS：ooo_recover selftest 10/10；seed 生成器 → P1 U11） |
+| G0-09 | timeout、分类和守恒 | golden 10×规则与绝对上限固定，分类器测试通过 | PENDING→P1（U10 分类器/守恒规则实现 + 测试） |
+| G0-10 | 资源防护与长任务守护 | 编译≤8且单实例；实验并发≤4、worker lease、run_key去重、PID/PGID、60秒监控、30分钟心跳、启动门禁、TRIP和恢复扫描可验证 | **PASS**（Unit1 T1–T6 + run 全路径实测 2026-10-08 + ooo_recover 10/10） |
 
 ## Phases
 
 ### P0：环境、输入与恢复预检
 
-- [ ] 启动时将本阶段设为 IN_PROGRESS，同步更新 `progress.md`。
-- [ ] 读取全部执行文件，核验 Excel 与完整清单 SHA-256。
-- [ ] 核验 57 模型、310 唯一 ITEM、310 唯一 RunID、Excel 第 2–311 行映射。
-- [ ] 盘点 OS、CPU/RAM/swap、磁盘/配额、调度器、Python、编译器、依赖和长期存储。
-- [ ] 核查 gem5 仓库、origin、目标分支、commit、工作树、patch 和构建状态；不覆盖用户修改。
-- [ ] 核查编译、gem5、测试和实验进程的 owner/PID/PGID、锁、临时结果和 COMPLETE 标记。
-- [ ] 盘点 workload、镜像、checkpoint、golden、oracle、seed、已有脚本和已有结果。
-- [ ] 建立并测试编译单实例锁、实验 worker lease 注册表、并发上限4、资源守卫、任务心跳、30分钟状态更新、原子 COMPLETE 标记和恢复扫描。
-- [ ] 填写 G0-01 至 G0-10；缺失或冲突项生成 Decision Request。
-- **Status:** PENDING
+- [x] 启动时将本阶段设为 IN_PROGRESS，同步更新 `progress.md`。（Session 001 起）
+- [x] 读取全部执行文件，核验 Excel 与完整清单 SHA-256。（`f520d42a…30c91` / `b73b630…7ae75`，2026-10-08 重连后复验一致）
+- [x] 核验 57 模型、310 唯一 ITEM、310 唯一 RunID、Excel 第 2–311 行映射。（Session 001 结构核验）
+- [x] 盘点 OS、CPU/RAM/swap、磁盘/配额、调度器、Python、编译器、依赖和长期存储。（findings 环境表 + F-001..F-005）
+- [x] 核查 gem5 仓库、origin、目标分支、commit、工作树、patch 和构建状态；不覆盖用户修改。（worktree ooo-exec 独立分支；主树 LSU WIP 未触碰）
+- [x] 核查编译、gem5、测试和实验进程的 owner/PID/PGID、锁、临时结果和 COMPLETE 标记。（Session 001 预检零残留；`tools/ooo_recover.py` 提供常态化对账）
+- [x] 盘点 workload、镜像、checkpoint、golden、oracle、seed、已有脚本和已有结果。（findings 环境表：9 负载族 golden 台账 / tools/classify.py+manifest_validate.py / gem5-fs 3.0G / runs/ 无既往结果；checkpoint 挂 DR-002）
+- [x] 建立并测试编译单实例锁、实验 worker lease 注册表、并发上限4、资源守卫、任务心跳、30分钟状态更新、原子 COMPLETE 标记和恢复扫描。（Unit1 `ooo_guard.py` T1–T6 + run 全路径；Unit2 `ooo_recover.py` 10/10；holder 心跳/60s 资源采样运行中；worker 状态模型=manifest+heartbeat，见 Unit2 修订注记）
+- [x] 填写 G0-01 至 G0-10；缺失或冲突项生成 Decision Request。（G0 表已填；DR-001 W1 供给、DR-002 FS/SE 基线，见 findings.md）
+- **Status:** COMPLETED（2026-10-08 工程收口。G0-02/04/09 与 G0-06/07/08 余项归属 P1 单元，批量实验启动前须全部关闭复验）
 
 ### P1：环境冻结、57 模型注入器与 L0–L5 观测链
 
