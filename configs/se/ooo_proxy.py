@@ -194,7 +194,22 @@ p.add_argument("--rob_mode", default="entry_bitflip",
                         "head_ptr_bitflip","head_ptr_bitflip2",
                         "head_ptr_stuck",
                         "tail_ptr_bitflip","tail_ptr_bitflip2",
-                        "tail_ptr_stuck"])
+                        "tail_ptr_stuck",
+                        # U3 (B08/B09/FB08/FB09 时序臂): squash/commit
+                        # event timing via CHAOSROB maybeSquashTiming +
+                        # the commit-hook family (rob.hh squash tail /
+                        # commit.cc width-grant·doneSeqNum·miscRegs·
+                        # retireHead / iew.cc execute-skip); FP arms bind
+                        # the fault to FP/SIMD ops injector-side (opClass
+                        # gate), NOT via --rob_target_class.
+                        "squash_timing_early","squash_timing_late",
+                        "squash_timing_drop","squash_timing_dup",
+                        "fp_squash_timing_early","fp_squash_timing_late",
+                        "fp_squash_timing_drop","fp_squash_timing_dup",
+                        "commit_timing_early","commit_timing_late",
+                        "commit_timing_drop","commit_timing_dup",
+                        "fp_commit_timing_early","fp_commit_timing_late",
+                        "fp_commit_timing_drop","fp_commit_timing_dup"])
 p.add_argument("--rob_field", default="exc_status",
                choices=["result","done","exc_status","dest_phys","spec"])
 p.add_argument("--rob_distance", type=int, default=0)

@@ -60,6 +60,10 @@ namespace gem5
 
 struct BaseO3CPUParams;
 
+// U3 CHAOSROB (FP squash-skip bypass, FB08-c): forward decl -- the
+// member is just a pointer; iew.cc includes the full header.
+class CHAOSROB;
+
 namespace o3
 {
 
@@ -476,6 +480,16 @@ class IEW
         /** Average number of woken instructions per writeback. */
         statistics::Formula wbFanout;
     } iewStats;
+
+  private:
+    // U3 CHAOSROB: the execute-stage squash-skip bypass hook target
+    // (FB08-c fp_squash_timing_drop). Set by the injector's startup()
+    // (cpu->o3IEW().setChaosROB(this)). nullptr = no injection (zero
+    // regression).
+    ::gem5::CHAOSROB *chaosROB = nullptr;
+
+  public:
+    void setChaosROB(::gem5::CHAOSROB *p) { chaosROB = p; }
 };
 
 } // namespace o3

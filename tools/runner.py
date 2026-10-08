@@ -1037,6 +1037,20 @@ def main():
         if (inj["model"] in ("stuck_at_zero", "stuck_at_one")
                 and str(tgt.get("sub_field", "")) == "tail_ptr_stuck"):
             rm = "tail_ptr_stuck"
+        # U3 (B08/B09/FB08/FB09, ooo 03-matrix L111/L112/L155/L156 —
+        # pipeline timing family B): squash/commit timing arms on
+        # CHAOSROB. The sub_field token IS the mode name; fault_model
+        # metadata follows the U2 convention (early/late/drop =
+        # delay_omission, dup = recurring_result_stuck).
+        if rsf in ("squash_timing_early", "squash_timing_late",
+                   "squash_timing_drop", "squash_timing_dup",
+                   "fp_squash_timing_early", "fp_squash_timing_late",
+                   "fp_squash_timing_drop", "fp_squash_timing_dup",
+                   "commit_timing_early", "commit_timing_late",
+                   "commit_timing_drop", "commit_timing_dup",
+                   "fp_commit_timing_early", "fp_commit_timing_late",
+                   "fp_commit_timing_drop", "fp_commit_timing_dup"):
+            rm = rsf
         cmd += ["--rob_mode", rm, "--rob_first_clock", str(t["value"]),
                 "--rob_max_faults", str(m["limits"]["max_faults"]),
                 "--rob_rng_seed", str(m["rng"]["selection_seed"]),

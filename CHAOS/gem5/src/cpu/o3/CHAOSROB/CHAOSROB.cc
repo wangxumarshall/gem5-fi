@@ -25,7 +25,10 @@ namespace gem5
           fault_mask(p.faultMask),
           max_faults(p.maxFaults),
           rng_seed(p.rngSeed),
-          write_log(p.writeLog)
+          write_log(p.writeLog),
+          // U3 B08-d: the one-cycle-later squash re-walk event.
+          squashReplayEvent([this]{ squashReplayHandler(); },
+                            "CHAOSROB.squashReplayEvent", false)
     {
         // W7.4 (FP/SIMD Dispatch/ROB, the dest-id family at the
         // rob_insert site): "int" keeps the W5 D28-D31 scope
@@ -90,6 +93,24 @@ namespace gem5
         if (s == "tail_ptr_bitflip") return Mode::TailPtrBitflip;
         if (s == "tail_ptr_bitflip2") return Mode::TailPtrBitflip2;
         if (s == "tail_ptr_stuck") return Mode::TailPtrStuck;
+        // U3 (ooo 03-matrix R27/R28/R56/R57, B08/B09/FB08/FB09): the
+        // squash/commit timing family (see CHAOSROB.hh hook docs).
+        if (s == "squash_timing_early")  return Mode::SquashTimingEarly;
+        if (s == "squash_timing_late")   return Mode::SquashTimingLate;
+        if (s == "squash_timing_drop")   return Mode::SquashTimingDrop;
+        if (s == "squash_timing_dup")    return Mode::SquashTimingDup;
+        if (s == "fp_squash_timing_early") return Mode::FpSquashTimingEarly;
+        if (s == "fp_squash_timing_late")  return Mode::FpSquashTimingLate;
+        if (s == "fp_squash_timing_drop")  return Mode::FpSquashTimingDrop;
+        if (s == "fp_squash_timing_dup")   return Mode::FpSquashTimingDup;
+        if (s == "commit_timing_early")  return Mode::CommitTimingEarly;
+        if (s == "commit_timing_late")   return Mode::CommitTimingLate;
+        if (s == "commit_timing_drop")   return Mode::CommitTimingDrop;
+        if (s == "commit_timing_dup")    return Mode::CommitTimingDup;
+        if (s == "fp_commit_timing_early") return Mode::FpCommitTimingEarly;
+        if (s == "fp_commit_timing_late")  return Mode::FpCommitTimingLate;
+        if (s == "fp_commit_timing_drop")  return Mode::FpCommitTimingDrop;
+        if (s == "fp_commit_timing_dup")   return Mode::FpCommitTimingDup;
         return Mode::EntryBitflip;
     }
 
@@ -117,6 +138,23 @@ namespace gem5
             case Mode::TailPtrBitflip: return "tail_ptr_bitflip";
             case Mode::TailPtrBitflip2: return "tail_ptr_bitflip2";
             case Mode::TailPtrStuck: return "tail_ptr_stuck";
+            // U3 squash/commit timing family
+            case Mode::SquashTimingEarly:  return "squash_timing_early";
+            case Mode::SquashTimingLate:   return "squash_timing_late";
+            case Mode::SquashTimingDrop:   return "squash_timing_drop";
+            case Mode::SquashTimingDup:    return "squash_timing_dup";
+            case Mode::FpSquashTimingEarly: return "fp_squash_timing_early";
+            case Mode::FpSquashTimingLate:  return "fp_squash_timing_late";
+            case Mode::FpSquashTimingDrop:  return "fp_squash_timing_drop";
+            case Mode::FpSquashTimingDup:   return "fp_squash_timing_dup";
+            case Mode::CommitTimingEarly:  return "commit_timing_early";
+            case Mode::CommitTimingLate:   return "commit_timing_late";
+            case Mode::CommitTimingDrop:   return "commit_timing_drop";
+            case Mode::CommitTimingDup:    return "commit_timing_dup";
+            case Mode::FpCommitTimingEarly: return "fp_commit_timing_early";
+            case Mode::FpCommitTimingLate:  return "fp_commit_timing_late";
+            case Mode::FpCommitTimingDrop:  return "fp_commit_timing_drop";
+            case Mode::FpCommitTimingDup:   return "fp_commit_timing_dup";
         }
         return "entry_bitflip";
     }
@@ -283,6 +321,10 @@ namespace gem5
                            // hook; rob_stale_read on the insert hook;
                            // oldphys_* live in CHAOSRenameMap — all no-ops
                            // at the retireHead site.
+        // U3: the 16 squash/commit timing modes act on their own hooks
+        // (rob.cc squash funnel / commit.cc commitInsts / iew.cc execute
+        // squash skip) — never here; also avoids per-retireHead RNG draws.
+        if (timingModeActive()) return false;
 
         if (!cpu || probability <= 0.0f) return false;
         if (max_faults != 0 && faults_injected_count >= max_faults) return false;
@@ -350,6 +392,10 @@ namespace gem5
     bool
     CHAOSROB::maybeCorruptEntry(ThreadID tid, const o3::DynInstPtr &inst)
     {
+        // U3: the squash/commit timing modes are inert at the insert
+        // site (their hooks are the ROB squash funnel, commitInsts and
+        // the IEW execute squash skip).
+        if (timingModeActive()) return false;
         // W5.1-W5.3 (ooo 04-design-matrix D25-D31, Int Dispatch/ROB), the
         // ROB-entry WRITE path: ROB::insertInst calls this right after the
         // entry is linked, i.e. the fault is in the entry's field as the
@@ -1626,6 +1672,324 @@ namespace gem5
         // regular place the done bit is ever set). The commit-side
         // pointer follows the §2.18 CHAOSRAS pattern (setChaosRAS).
         o3cpu->o3Commit().setChaosROB(this);
+        // U3 FB08-c (fp_squash_timing_drop): the Execute-stage squash
+        // skip lives in IEW — the same self-attach pattern.
+        o3cpu->o3IEW().setChaosROB(this);
+    }
+
+    // ---- U3 (ooo 03-matrix R27/R28/R56/R57): squash/commit timing ----
+
+    bool
+    CHAOSROB::timingModeActive() const
+    {
+        switch (fi_mode) {
+            case Mode::SquashTimingEarly: case Mode::SquashTimingLate:
+            case Mode::SquashTimingDrop:  case Mode::SquashTimingDup:
+            case Mode::FpSquashTimingEarly: case Mode::FpSquashTimingLate:
+            case Mode::FpSquashTimingDrop:  case Mode::FpSquashTimingDup:
+            case Mode::CommitTimingEarly: case Mode::CommitTimingLate:
+            case Mode::CommitTimingDrop:  case Mode::CommitTimingDup:
+            case Mode::FpCommitTimingEarly: case Mode::FpCommitTimingLate:
+            case Mode::FpCommitTimingDrop:  case Mode::FpCommitTimingDup:
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    bool
+    CHAOSROB::isFpOpClass(OpClass oc)
+    {
+        // The CHAOSDecode.cc fpOnly / CHAOSFPU.cc scope, verbatim: all
+        // scalar Float* plus all SIMD SimdFloat* opClasses.
+        return oc == FloatAddOp || oc == FloatCmpOp || oc == FloatCvtOp ||
+               oc == FloatMultOp || oc == FloatMultAccOp || oc == FloatDivOp ||
+               oc == FloatMiscOp || oc == FloatSqrtOp ||
+               oc == SimdFloatAddOp || oc == SimdFloatAluOp ||
+               oc == SimdFloatCmpOp || oc == SimdFloatCvtOp ||
+               oc == SimdFloatMultOp || oc == SimdFloatMultAccOp ||
+               oc == SimdFloatDivOp || oc == SimdFloatSqrtOp;
+    }
+
+    bool
+    CHAOSROB::fireGate()
+    {
+        // The maybeStuckEntryWrite gate order: probability armed, then
+        // max_faults, then the window, then the draw.
+        if (!cpu || probability <= 0.0f) return false;
+        if (max_faults != 0 && faults_injected_count >= max_faults)
+            return false;
+        if (!inWindow()) return false;
+        std::uniform_real_distribution<float> pd(0.0f, 1.0f);
+        if (pd(rng) > probability) return false;
+        return true;
+    }
+
+    bool
+    CHAOSROB::needsSquashWindowScan() const
+    {
+        // The FP squash arms gate on the window content (FB08-a/b/d);
+        // fp_squash_timing_drop binds at the IEW execute skip instead.
+        return fi_mode == Mode::FpSquashTimingEarly ||
+               fi_mode == Mode::FpSquashTimingLate ||
+               fi_mode == Mode::FpSquashTimingDup;
+    }
+
+    CHAOSROB::SquashAction
+    CHAOSROB::maybeSquashTiming(ThreadID tid, InstSeqNum squash_num,
+                                bool fp_in_window)
+    {
+        if (squash_replay_guard) return SquashAction::None;  // dup replay
+        SquashAction act;
+        bool fp_mode;
+        switch (fi_mode) {
+            case Mode::SquashTimingLate:
+            case Mode::FpSquashTimingLate:
+                act = SquashAction::DelayWalk;
+                fp_mode = (fi_mode == Mode::FpSquashTimingLate);
+                break;
+            case Mode::SquashTimingDrop:
+                act = SquashAction::DropSquash;
+                fp_mode = false;   // FB08-c drop binds at IEW, not here
+                break;
+            case Mode::SquashTimingDup:
+            case Mode::FpSquashTimingDup:
+                act = SquashAction::DupWalk;
+                fp_mode = (fi_mode == Mode::FpSquashTimingDup);
+                break;
+            default:
+                return SquashAction::None;  // not this hook's family
+        }
+        if (fp_mode && !fp_in_window) return SquashAction::None;
+        if (!fireGate()) return SquashAction::None;
+
+        faults_injected_count++;
+        const char *act_name =
+            act == SquashAction::DelayWalk ? "delay_walk_1c" :
+            act == SquashAction::DropSquash ? "squash_lost" :
+                                              "replay_walk_+1c";
+        if (write_log && log_stream) {
+            *(log_stream->stream()) << "Tick: " << curTick()
+                << ", Site: rob_squash, mode=" << modeToString(fi_mode)
+                << ", tid=" << (int)tid
+                << ", squash_boundary_sn=" << squash_num
+                << ", action=" << act_name
+                << ", fp_in_window=" << (fp_in_window ? 1 : 0)
+                << ", faults_injected: " << faults_injected_count
+                << std::endl;
+        }
+        if (act == SquashAction::DupWalk) {
+            // Same boundary, next cycle. ROB-local (no redirect re-send)
+            // — the CHAOSROB.hh state comment on the honest divergence.
+            squash_replay_sn = squash_num;
+            squash_replay_tid = tid;
+            if (!squashReplayEvent.scheduled())
+                cpu->schedule(squashReplayEvent, cpu->clockEdge(Cycles(1)));
+        }
+        return act;
+    }
+
+    void
+    CHAOSROB::squashReplayHandler()
+    {
+        auto *o3cpu = dynamic_cast<o3::CPU *>(cpu);
+        if (!o3cpu) return;
+        squash_replay_guard = true;
+        o3cpu->o3ROB().squash(squash_replay_sn, squash_replay_tid);
+        squash_replay_guard = false;
+    }
+
+    bool
+    CHAOSROB::armSquashEarlyDrain(ThreadID tid, InstSeqNum squash_num,
+                                  o3::ROB *rob)
+    {
+        if (fi_mode != Mode::SquashTimingEarly &&
+            fi_mode != Mode::FpSquashTimingEarly)
+            return false;
+        if (!rob || rob->isEmpty(tid)) return false;  // not a real squash
+        if (fi_mode == Mode::FpSquashTimingEarly &&
+            !rob->chaosWindowHasFP(squash_num, tid))
+            return false;
+        if (!fireGate()) return false;
+
+        faults_injected_count++;
+        early_drain_armed = true;
+        if (write_log && log_stream) {
+            *(log_stream->stream()) << "Tick: " << curTick()
+                << ", Site: commit_mispredict_squash, mode="
+                << modeToString(fi_mode)
+                << ", tid=" << (int)tid
+                << ", squash_boundary_sn=" << squash_num
+                << ", action=drain_start_same_tick"
+                << ", approx=squash_drain_advanced_1c"
+                << ", faults_injected: " << faults_injected_count
+                << std::endl;
+        }
+        return true;
+    }
+
+    bool
+    CHAOSROB::consumeSquashEarlyDrain(ThreadID tid)
+    {
+        if (!early_drain_armed) return false;
+        early_drain_armed = false;   // one-shot
+        return true;
+    }
+
+    bool
+    CHAOSROB::grantExtraCommit(ThreadID tid)
+    {
+        // B09-a/FB09-a commit_timing_early: the commitWidth limit would
+        // defer the next head to next cycle; grant it THIS cycle (the
+        // bound inst's grant arrives one cycle early).
+        if (fi_mode != Mode::CommitTimingEarly &&
+            fi_mode != Mode::FpCommitTimingEarly)
+            return false;
+        if (tid == -1) return false;
+        auto *o3cpu = dynamic_cast<o3::CPU *>(cpu);
+        if (!o3cpu || o3cpu->o3ROB().isEmpty(tid)) return false;
+        const o3::DynInstPtr &head = o3cpu->o3ROB().readHeadInst(tid);
+        if (!head) return false;
+        if (fi_mode == Mode::FpCommitTimingEarly &&
+            !isFpOpClass(head->opClass()))
+            return false;
+        if (!fireGate()) return false;
+
+        faults_injected_count++;
+        if (write_log && log_stream) {
+            *(log_stream->stream()) << "Tick: " << curTick()
+                << ", Site: commit_width_gate, mode=" << modeToString(fi_mode)
+                << ", tid=" << (int)tid
+                << ", head_sn=" << head->seqNum
+                << ", action=extra_commit_granted_1c"
+                << ", faults_injected: " << faults_injected_count
+                << std::endl;
+        }
+        return true;
+    }
+
+    bool
+    CHAOSROB::suppressDoneSeqNum(ThreadID tid, const o3::DynInstPtr &head_inst)
+    {
+        // B09-c/FB09 commit_timing_late: skip this cycle's doneSeqNum
+        // write for the bound inst. The rename history walk (P_prev
+        // frees) AND the store memory commits (iew.cc
+        // ldstQueue.commitStores) are both doneSeqNum-driven: both lag
+        // one cycle; the next commit's fresh doneSeqNum (>= this sn)
+        // self-heals both.
+        if (fi_mode != Mode::CommitTimingLate &&
+            fi_mode != Mode::FpCommitTimingLate)
+            return false;
+        if (!head_inst) return false;
+        if (fi_mode == Mode::FpCommitTimingLate &&
+            !isFpOpClass(head_inst->opClass()))
+            return false;
+        if (!fireGate()) return false;
+
+        faults_injected_count++;
+        if (write_log && log_stream) {
+            *(log_stream->stream()) << "Tick: " << curTick()
+                << ", Site: commit_done_seqnum, mode=" << modeToString(fi_mode)
+                << ", tid=" << (int)tid
+                << ", head_sn=" << head_inst->seqNum
+                << ", action=done_seqnum_write_suppressed_1c"
+                << ", faults_injected: " << faults_injected_count
+                << std::endl;
+        }
+        return true;
+    }
+
+    bool
+    CHAOSROB::suppressUpdateMiscRegs(const o3::DynInstPtr &head_inst)
+    {
+        // B09-d/FB09-c-FPSR-face commit_timing_drop: the bound inst's
+        // commit-time misc-reg application (AArch64 NZCV/FPSR delayed
+        // writes) is skipped -- stale architectural flags. Eligibility:
+        // the inst actually has a misc-reg dest (numDestRegs(
+        // MiscRegClass) > 0 -- the arch-update surface).
+        if (fi_mode != Mode::CommitTimingDrop &&
+            fi_mode != Mode::FpCommitTimingDrop)
+            return false;
+        if (!head_inst) return false;
+        if (head_inst->numDestRegs(MiscRegClass) == 0) return false;
+        if (fi_mode == Mode::FpCommitTimingDrop &&
+            !isFpOpClass(head_inst->opClass()))
+            return false;
+        if (!fireGate()) return false;
+
+        faults_injected_count++;
+        if (write_log && log_stream) {
+            *(log_stream->stream()) << "Tick: " << curTick()
+                << ", Site: commit_update_misc_regs, mode="
+                << modeToString(fi_mode)
+                << ", head_sn=" << head_inst->seqNum
+                << ", action=misc_reg_update_dropped"
+                << ", faults_injected: " << faults_injected_count
+                << std::endl;
+        }
+        return true;
+    }
+
+    bool
+    CHAOSROB::extraRetireHead(ThreadID tid, const o3::DynInstPtr &head_inst)
+    {
+        // B09-b/FB09 commit_timing_dup: after the bound inst commits,
+        // the caller retires the NEXT head once more. If that next
+        // head is not ready, the retireHead readyToCommit assertion
+        // aborts (Crash DUE face); if ready, the next inst leaves the
+        // commit stream without commit processing (probe / misc
+        // update lost; under doneSeqNum's watermark semantics its
+        // old-dest still frees on a later doneSeqNum -- mostly Masked,
+        // honestly recorded both ways).
+        if (fi_mode != Mode::CommitTimingDup &&
+            fi_mode != Mode::FpCommitTimingDup)
+            return false;
+        if (!head_inst) return false;
+        if (fi_mode == Mode::FpCommitTimingDup &&
+            !isFpOpClass(head_inst->opClass()))
+            return false;
+        if (!fireGate()) return false;
+
+        faults_injected_count++;
+        if (write_log && log_stream) {
+            *(log_stream->stream()) << "Tick: " << curTick()
+                << ", Site: commit_rob_pop, mode=" << modeToString(fi_mode)
+                << ", tid=" << (int)tid
+                << ", bound_sn=" << head_inst->seqNum
+                << ", action=extra_retire_head"
+                << ", faults_injected: " << faults_injected_count
+                << std::endl;
+        }
+        return true;
+    }
+
+    bool
+    CHAOSROB::bypassSquashSkip(const o3::DynInstPtr &inst)
+    {
+        // FB08-c fp_squash_timing_drop: the squashed FP/SIMD inst does
+        // NOT skip the execute. Its result write lands inside execute()
+        // (DynInst::setRegOperand -> cpu->setReg), after the squash
+        // already returned the dest physreg to the freelist -- a
+        // recycled cell takes the wrong-path value (alias pollution
+        // SDC face). The writeback isSquashed gate (iew.cc
+        // wakeDependents/scoreboard) stays intact on purpose: marking
+        // the recycled reg ready early would be a different fault.
+        if (fi_mode != Mode::FpSquashTimingDrop)
+            return false;
+        if (!inst) return false;
+        if (!isFpOpClass(inst->opClass())) return false;
+        if (!fireGate()) return false;
+
+        faults_injected_count++;
+        if (write_log && log_stream) {
+            *(log_stream->stream()) << "Tick: " << curTick()
+                << ", Site: iew_execute, mode=" << modeToString(fi_mode)
+                << ", sn=" << inst->seqNum
+                << ", action=squash_skip_bypassed_result_write"
+                << ", faults_injected: " << faults_injected_count
+                << std::endl;
+        }
+        return true;
     }
 
 } // namespace gem5
