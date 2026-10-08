@@ -152,11 +152,24 @@
 ### U6 G0-10 复验 + 文档
 - 文件：`evidence/P3/*`、`docs/gem5-fi/lsu/{findings,progress,task_plan}.md`
 - 改动：汇总 U1-U5 证据，G0-10 门禁重验记录（守卫升级后资源防护仍成立），更新
-  findings（F-023..F-026）与 progress Session 002。
+  findings（F-023..F-026）与 progress Session 002。（注：F-023..F-026 为本计划
+  草稿期编号，历经多次重编号——集群侧两代发现现为 F-026/027/028（U1/U2 期）
+  与 F-040/041/042（U3b/U3 期）；findings 更新已随各单元提交完成，本节补齐
+  守卫复验记录。）
 - 验证：
-  - [ ] evidence/P3/guard_slots_verify.out 全 PASS
-  - [ ] task_plan G0-10 行更新且有证据路径
-  - [ ] git log 每单元一 commit、均已推送 origin/fi-ding
+  - [x] evidence/P3/guard_slots_verify.out 全 PASS（2026-10-08 22:14-22:15，
+    login01，git=97b7f4c0，隔离 LSU_GUARD_DIR：T1 空槽快照 / T2 6 并发
+    "成功=4 拒绝(exit2)=2 → PASS" / T5 guard_pid=807163 alive + 错误 PID
+    release 拒绝 exit=2 + holder exit=0 / T6 槽复用 SPAWNED slot=0 →
+    run-finish exit_code=0 + 终态四槽全 null——全 PASS；T4 陈旧槽语义
+    PASS：实际 exit=1（gate-blocked）而非脚本预期 3（**期望修正**，行为
+    正确——GATE BLOCKED reason="experiment 存在陈旧槽 [3]（clear-stale
+    处置前 acquire 将拒绝）"；且陈旧槽存在时 acquire 全拒绝（含其他空
+    槽），比"仅拒本槽"更强的保守策略；clear-stale --confirm-dead-pid
+    999997 → CLEARED exit=0）；swap_na（F-027）在快照如实呈现）
+  - [x] task_plan G0-10 行更新且有证据路径（追加集群平台 B 复验注记 +
+    evidence/P3/guard_slots_verify.out）
+  - [ ] git log 每单元一 commit、均已推送 origin/fi-ding（本提交推送后另行勾选）
 
 ## 提交与推送
 - 每单元：实现 → 自验证（真实命令+引用输出）→ commit（[LSU][P3] 前缀，不含

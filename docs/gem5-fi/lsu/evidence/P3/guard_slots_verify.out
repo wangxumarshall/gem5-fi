@@ -1,0 +1,111 @@
+U6 guard slots verify  2026-10-08 22:14:31  host=login01  git=97b7f4c
+isolated guard dir: /tmp/u6_guard_slots_805244
+
+=== [T1] status: 空槽显示 ===
+{
+  "build_lock": null,
+  "experiment_slots": {
+    "slot_0": null,
+    "slot_1": null,
+    "slot_2": null,
+    "slot_3": null
+  },
+  "snapshot": {
+    "time": "2026-10-08 22:14:31",
+    "mem_available_gib": 315.33,
+    "swap_free_gib": 0.0,
+    "swap_total_gib": 0.0,
+    "swap_na": true,
+    "committed_as_gib": 142.55,
+    "load_1_5_15": [
+      5.86,
+      6.11,
+      6.25
+    ],
+    "blocked": [
+      2050,
+      6118,
+      6119,
+      6185
+    ],
+    "compile_processes": [],
+    "disk_free_gib": 90.6
+  }
+}
+
+=== [T2] 6 并发实验守卫 run（4 槽 + 2 必拒）===
+run1=0 run2=0 run3=0 run4=2 run5=0 run6=2 
+成功=4 拒绝(exit2)=2（期望 4/2）→ PASS
+
+=== [T5] 运行中槽位 guard_pid 存活（F-025）+ release 不符拒绝（F-022 T3）===
+live lock: /tmp/u6_guard_slots_805244/experiment_slot_0.lock
+{
+  "owner": "suke",
+  "pid": 807166,
+  "pgid": 807166,
+  "guard_pid": 807163,
+  "task_type": "experiment",
+  "desc": "U6-T5-holder",
+  "item": null,
+  "runid": null,
+  "log": "/tmp/u6_guard_slots_805244/t5_rsrc.log",
+  "started": "2026-10-08 22:14:42",
+  "acquire_host_pid_tree_note": "run 子命令会在派生子进程后更新 pid/pgid",
+  "slot": 0,
+  "cmd": [
+    "sleep",
+    "25"
+  ]
+}
+guard_pid=807163 alive → PASS
+REFUSED: --confirm-pid 999999 与槽 0 锁内 guard_pid 807163 不符（不得释放他人槽）
+wrong-pid release exit=2（期望 2=拒绝）
+holder exit=0（期望 0）
+
+=== [T4] 陈旧槽：拒绝占用 + clear-stale 显式处置 ===
+stale fixture written: /tmp/u6_guard_slots_805244/experiment_slot_3.lock
+vs-stale run exit=1（期望 3=须 clear-stale）
+GATE BLOCKED:
+{"action": "gate", "ok": false, "reasons": ["experiment 存在陈旧槽 [3]（clear-stale 处置前 acquire 将拒绝）"], "notes": ["swap_na: SwapTotal=0，SwapFree 门禁 N/A（F-027）"], "snapshot": {"time": "2026-10-08 22:15:13", "mem_available_gib": 315.35, "swap_free_gib": 0.0, "swap_total_gib": 0.0, "swap_na": true, "committed_as_gib": 142.54, "load_1_5_15": [5.2, 5.92, 6.18], "blocked": [2050, 6118, 6119, 6185], "compile_processes": [], "disk_free_gib": 90.6}, "experiment_slots_occupied": 1, "experiment_slots_total": 4}
+fill3=1
+fill1=1
+fill2=1
+CLEARED stale lock (pid 999997 confirmed dead): /tmp/u6_guard_slots_805244/experiment_slot_3.lock
+clear-stale exit=0
+
+=== [T6] 槽复用 + 终态 status ===
+SPAWNED pid=812331 pgid=812331 slot=0 log=/tmp/u6_guard_slots_805244/t6_rsrc.log
+{"action": "run-finish", "cmd": ["sleep", "3"], "pgid": 812331, "exit_code": 0, "monitor_reason": "target-exited", "time": "2026-10-08 22:15:19"}
+reuse run exit=0
+{
+  "build_lock": null,
+  "experiment_slots": {
+    "slot_0": null,
+    "slot_1": null,
+    "slot_2": null,
+    "slot_3": null
+  },
+  "snapshot": {
+    "time": "2026-10-08 22:15:19",
+    "mem_available_gib": 315.32,
+    "swap_free_gib": 0.0,
+    "swap_total_gib": 0.0,
+    "swap_na": true,
+    "committed_as_gib": 142.65,
+    "load_1_5_15": [
+      5.41,
+      5.94,
+      6.18
+    ],
+    "blocked": [
+      2050,
+      6118,
+      6119,
+      6185
+    ],
+    "compile_processes": [],
+    "disk_free_gib": 90.6
+  }
+}
+
+=== U6 guard slots verify END 2026-10-08 22:15:19 ===
