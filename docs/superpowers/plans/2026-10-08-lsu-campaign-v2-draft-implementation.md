@@ -1,6 +1,6 @@
 # LSU Campaign v2 Draft 实施计划（F-038 采样政策迁移，隔离实施）
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** 在隔离副本 `tools/draft/lsu_campaign_v2.py` 上实施 MIGRATION_DESIGN.md 冻结的修改点（M1-M11 + 本计划论证新增的 M12）与测试 T1-T10，使 P4 正式筛查引擎就绪——波次 5 运行期间**绝不触碰** `tools/lsu_campaign.py`。
 
@@ -40,7 +40,7 @@
 - Produces: 本计划（Task 1-4 的依据）；progress.md 中集群会话对 F-038 draft 实施的所有权声明（并行会话可见，防撞车）。
 
 - [x] **Step 1: 写本计划文件**（本文件即产物）
-- [ ] **Step 2: progress.md 所有权声明**
+- [x] **Step 2: progress.md 所有权声明**
 
 在 Session 002 的唯一下一动作（line ~118）末尾插入：
 ```
@@ -48,7 +48,7 @@
 ```
 并将 dashboard Current Owner 行中 Session 002 括号内"U3 LSU_GEM5_BIN 接线完成；下一步 U6 守卫复验"更新为"U1/U3b/U3/U6 全部完成；现承接 F-038 campaign v2 draft 实施（tools/draft/ 隔离）"。
 
-- [ ] **Step 3: 提交 + 中继**
+- [x] **Step 3: 提交 + 中继**
 
 ```bash
 git add docs/superpowers/plans/2026-10-08-lsu-campaign-v2-draft-implementation.md docs/gem5-fi/lsu/progress.md
@@ -67,7 +67,7 @@ git commit -m "[LSU][P3] F-038 draft 实施计划：集群承接 campaign v2 采
 - Consumes: MIGRATION_DESIGN.md M1-M6 定义；KEY_RUNIDS 21 项名单（冻结，不得依结果增删）。
 - Produces: 模块常量 `KEY_RUNIDS`（frozenset, 21 项）、`SCREENING_TARGET=385`、`MAIN_TARGET_KEY=2401`；函数 `resolve_main_target(runid, args) -> int`（KEY→2401，否则 `args.screening_target`）；`--main-target` default=None（deprecated、传入即 stderr 警告、不参与解析）；`--wilson-stop-hw` 保留形参（deprecated，不参与任何停止判断）；main 阶段 Wilson 停止块删除；`REPO` 深度无关解析。Task 2/3 依赖 `resolve_main_target` 与这些常量；测试 helpers（`load_draft`/`make_cell`/`Args`/`MATRIX`）供 Task 2-4 复用。
 
-- [ ] **Step 1: 写失败测试（test_campaign_v2.py 首建）**
+- [x] **Step 1: 写失败测试（test_campaign_v2.py 首建）**
 
 ```python
 #!/usr/bin/env python3
@@ -173,7 +173,7 @@ if __name__ == "__main__":
     unittest.main(verbosity=2)
 ```
 
-- [ ] **Step 2: 运行确认失败**
+- [x] **Step 2: 运行确认失败**
 
 ```bash
 python3 tools/draft/test_campaign_v2.py PolicyTests -v
@@ -181,7 +181,7 @@ python3 tools/draft/test_campaign_v2.py PolicyTests -v
 预期：FAIL/ERROR——`AttributeError: module 'lsu_campaign_v2' has no attribute 'KEY_RUNIDS'`（或 resolve_main_target 不存在）。
 
 ---
-- [ ] **Step 3: 实现 M1-M6 + M12（全部在 tools/draft/lsu_campaign_v2.py）**
+- [x] **Step 3: 实现 M1-M6 + M12（全部在 tools/draft/lsu_campaign_v2.py）**
 
 3a. **M12 REPO**——替换 `REPO = Path(__file__).resolve().parent.parent` 为：
 ```python
@@ -268,14 +268,14 @@ def resolve_main_target(runid, args):
 ```
 并将 run_cell_adaptive docstring 中 main 停止描述行替换为：`main: fixed-sample — KEY_RUNIDS→2401, others→screening target; no sequential stop (2026-10-08 policy)`。
 
-- [ ] **Step 4: 运行确认通过**
+- [x] **Step 4: 运行确认通过**
 
 ```bash
 python3 tools/draft/test_campaign_v2.py PolicyTests -v
 ```
 预期：4 tests OK（T1/T2/T3/T8），T2 打印实际 runids/non_key 计数。
 
-- [ ] **Step 5: 验证三件套 + 提交 + 中继**
+- [x] **Step 5: 验证三件套 + 提交 + 中继**
 
 ```bash
 python3 -m py_compile tools/draft/lsu_campaign_v2.py tools/draft/test_campaign_v2.py
@@ -296,7 +296,7 @@ git commit -m "[LSU][P3] campaign v2 draft M1-M6+M12：固定样本政策核心�
 - Consumes: Task 1 的 helpers（`load_draft`/`make_cell`/`Args`）；`run_single_cell` 返回 dict 的既有键（`outcome`/`activated`/`attempted`/`eligible`/`injected`/`crash_kind`）。
 - Produces: run_cell_adaptive 累计器（attempted/eligible 只从有 funnel 的 run 累计；`sim_fail` = outcome==Crash 且 crash_kind==simulator_assert 的 activated 之和，单列不计入五类）；result 新增键：`eligible`、`sim_fail`、`funnel_missing_runs`、`eligible_rate`（eligible/attempted）、`activation_rate`（activated/eligible）、`sdc_rate`（SDC/(activated−sim_fail)）——三者分母为 0 时 **None**（禁止 0.0）；runs 记录增 `crash_kind`/`attempted`/`eligible`（可 null）。conservation 判定变为 `activated == sum(classes) + sim_fail`。Task 3 在此结构上叠加 resume（`_acc` 闭包化）。
 
-- [ ] **Step 1: 写失败测试（追加到 test_campaign_v2.py，`if __name__` 块之前）**
+- [x] **Step 1: 写失败测试（追加到 test_campaign_v2.py，`if __name__` 块之前）**
 
 ```python
 class AccountingTests(unittest.TestCase):
@@ -359,14 +359,14 @@ class AccountingTests(unittest.TestCase):
 
 注意 test_T6/test_D1 用 `max_seeds_per_cell=100` 会跑 100 个 mock run（快，纯内存）——若嫌慢可把 `a.max_seeds_per_cell = 3`，对应 stop_reason 断言改 `"seed-cap(3)"`、funnel_missing 断言改 3。实现时选小 cap 版本（3 runs）以保持测试秒级。
 
-- [ ] **Step 2: 运行确认失败**
+- [x] **Step 2: 运行确认失败**
 
 ```bash
 python3 tools/draft/test_campaign_v2.py AccountingTests -v
 ```
 预期：KeyError/AssertionError——result 无 `sim_fail`/`sdc_rate` 新语义（旧 sdc_rate=SDC/activated 或 0.0）。
 
-- [ ] **Step 3: 实现 M7-M9 + D1**
+- [x] **Step 3: 实现 M7-M9 + D1**
 
 3a. run_cell_adaptive 计数器初始化段替换为：
 ```python
@@ -427,14 +427,14 @@ python3 tools/draft/test_campaign_v2.py AccountingTests -v
                     sim_fail, stop_reason, result["conservation"]))
 ```
 
-- [ ] **Step 4: 运行确认通过**
+- [x] **Step 4: 运行确认通过**
 
 ```bash
 python3 tools/draft/test_campaign_v2.py PolicyTests AccountingTests -v
 ```
 预期：7 tests OK（Task 1 的 4 个 + Task 2 的 3 个）——证明无回归。
 
-- [ ] **Step 5: 验证三件套 + 提交 + 中继**
+- [x] **Step 5: 验证三件套 + 提交 + 中继**
 
 ```bash
 python3 -m py_compile tools/draft/lsu_campaign_v2.py tools/draft/test_campaign_v2.py
@@ -462,7 +462,7 @@ git commit -m "[LSU][P3] campaign v2 draft M7-M9+D1：事件账目两层率（el
   - cell_results.json 新增：`config_fp`、`prior_config_fp`（上一轮聚合结果的 fp；无→null）、`config_fp_isolated`（bool）；上一轮聚合 fp 不一致→改名 `cell_results.fp_<old>.json` 保留
   - run_cell_adaptive 新行为：先 resume 再补跑；`seed_batches`=next_seed-1
 
-- [ ] **Step 1: 写失败测试（追加到 test_campaign_v2.py，`if __name__` 块之前）**
+- [x] **Step 1: 写失败测试（追加到 test_campaign_v2.py，`if __name__` 块之前）**
 
 ```python
 class ResumeTests(unittest.TestCase):
@@ -548,7 +548,7 @@ class ResumeTests(unittest.TestCase):
             (cell / "cell_results.fp_cafe000000000000.json").exists())
 ```
 
-- [ ] **Step 2: 运行确认失败**
+- [x] **Step 2: 运行确认失败**
 
 ```bash
 python3 tools/draft/test_campaign_v2.py ResumeTests -v
@@ -556,7 +556,7 @@ python3 tools/draft/test_campaign_v2.py ResumeTests -v
 预期：AttributeError——模块无 `_FP_CACHE`/`config_fp_for`；或 run_cell_adaptive 重跑重复计数（T4 第二次 6 calls 而非 0）。
 
 ---
-- [ ] **Step 3: 实现（tools/draft/lsu_campaign_v2.py）**
+- [x] **Step 3: 实现（tools/draft/lsu_campaign_v2.py）**
 
 3a. 模块顶部 import 区加 `import hashlib`。
 
@@ -724,14 +724,14 @@ result 中 `"seed_batches": seed` 改为 `"seed_batches": next_seed - 1`。
     result["config_fp_isolated"] = (prior_fp not in (None, fp))
 ```
 
-- [ ] **Step 4: 运行确认通过**
+- [x] **Step 4: 运行确认通过**
 
 ```bash
 python3 tools/draft/test_campaign_v2.py PolicyTests AccountingTests ResumeTests -v
 ```
 预期：10 tests OK（Task 1 的 4 + Task 2 的 3 + Task 3 的 3）——无回归。
 
-- [ ] **Step 5: 验证三件套 + 提交 + 中继**
+- [x] **Step 5: 验证三件套 + 提交 + 中继**
 
 ```bash
 python3 -m py_compile tools/draft/lsu_campaign_v2.py tools/draft/test_campaign_v2.py
@@ -754,7 +754,7 @@ git commit -m "[LSU][P3] campaign v2 draft M10/M11+D3：config_fp 六项版本�
 - Consumes: Task 1-3 全部产物；正式文件 `tools/lsu_campaign.py`（只读对比，绝不修改）；`tools/lsu_unit_pilot.py`（T10 swap 导入，只读）。
 - Produces: 完整测试套件（T1-T10 + D1 + fp 隔离，共 13 test）全 PASS；draft 与正式文件 dry-run 输出逐字节一致证明；F 编号新行；plan 全勾选；progress 收口。
 
-- [ ] **Step 1: 写测试（追加到 test_campaign_v2.py，`if __name__` 块之前）**
+- [x] **Step 1: 写测试（追加到 test_campaign_v2.py，`if __name__` 块之前）**
 
 ```python
 class RegressionTests(unittest.TestCase):
@@ -818,14 +818,14 @@ class RegressionTests(unittest.TestCase):
             sys.path.remove(tools_dir)
 ```
 
-- [ ] **Step 2: 运行全套确认通过**
+- [x] **Step 2: 运行全套确认通过**
 
 ```bash
 python3 tools/draft/test_campaign_v2.py -v
 ```
-预期：13 tests OK（4+3+3+3）。若 T10 的 FAMILY_SEED 等常量名在任一文件缺失，两侧 getattr 默认值相等即通过；若一侧独有则 FAIL——此时以正式文件为准核对拼写，修正测试名单（不改正式文件）。
+预期：12 tests OK（4+3+3+2；计划初稿误计 13——实施期修正，实测 Ran 12 tests OK）。若 T10 的 FAMILY_SEED 等常量名在任一文件缺失，两侧 getattr 默认值相等即通过；若一侧独有则 FAIL——此时以正式文件为准核对拼写，修正测试名单（不改正式文件）。
 
-- [ ] **Step 3: dry-run 冒烟比对（draft vs 正式，只读，不跑 gem5）**
+- [x] **Step 3: dry-run 冒烟比对（draft vs 正式，只读，不跑 gem5）**
 
 ```bash
 python3 tools/lsu_campaign.py --matrix runs/lsu/07-expanded-matrix-backfilled.csv --dry-run > /tmp/dry_formal.txt 2>&1
@@ -834,7 +834,7 @@ diff /tmp/dry_formal.txt /tmp/dry_draft.txt && echo "DRY-RUN IDENTICAL"
 ```
 预期：`DRY-RUN IDENTICAL`（M1-M11 不触碰 resolve_cell/加载路径；差异即回归，必须归零）。注意正式文件作为 `__main__` 运行 dry-run 是只读操作（加载矩阵→解析→打印→return），不影响波次 5 的 import。
 
-- [ ] **Step 4: 验证三件套 + 提交**
+- [x] **Step 4: 验证三件套 + 提交**
 
 ```bash
 python3 -m py_compile tools/draft/lsu_campaign_v2.py tools/draft/test_campaign_v2.py
@@ -843,7 +843,7 @@ git add tools/draft/test_campaign_v2.py
 git commit -m "[LSU][P3] campaign v2 draft T7/T10 回归门：per-run Wilson 语义 + 常量接口零变更（含 unit_pilot swap 模拟 30/300）+ 全套 13 test PASS"
 ```
 
-- [ ] **Step 5: findings.md F 编号新行（先 fetch origin 防撞号）**
+- [x] **Step 5: findings.md F 编号新行（先 fetch origin 防撞号）**
 
 ```bash
 git fetch origin 2>/dev/null; grep -oE '^- F-[0-9]+' docs/gem5-fi/lsu/findings.md | sort -t- -k2 -n | tail -1
@@ -853,9 +853,9 @@ git fetch origin 2>/dev/null; grep -oE '^- F-[0-9]+' docs/gem5-fi/lsu/findings.m
 - F-0XX（2026-10-08 HH:MM，集群）draft 副本 REPO 陷阱：`lsu_campaign_v2.py` 若原样保留 `REPO = Path(__file__).resolve().parent.parent`，在 tools/draft/ 深度下解析到 tools/（G5/LSU_PROXY/L5/workloads 全部失效）——任何"复制脚本到子目录做隔离开发"的操作都会静默改变 `__file__` 相对路径语义。修复：深度无关向上查找标记目录（configs/se 存在），T10 的 REPO 相等断言守护未来复制回 tools/ 时不回退。附带：磁盘配额事件（10-08 晚，用户配额 ~1T 触顶，根因 sdcshield-sve-repro 913G）→ 删除冗余传输快照 gem5-fi-wx-paper.tar.gz（4.8G，Sep 30 建仓种子，活性 repo 为超集且 git 同步、Windows 源在），写入恢复。
 ```
 
-- [ ] **Step 6: plan 全勾选 + progress 收口 + 提交 + 中继**
+- [x] **Step 6: plan 全勾选 + progress 收口 + 提交 + 中继**
 
-plan 文件所有 `- [ ]` 改 `- [x]`（Task 0 Step 1 已是 [x]）。
+plan 文件所有 `- [x]` 改 `- [x]`（Task 0 Step 1 已是 [x]）。
 progress.md：Session 002 条目追加 ⑩（quota 事件 + 应对）；唯一下一动作刷新为：①push、②keeper 监控（1830226 + crons）、③DR-003-A 待命、④draft 已完成——待六条安全边界满足后应用（应用流程独立执行，不在本计划）。
 
 ```bash
@@ -877,6 +877,9 @@ git commit -m "[LSU][P3] campaign v2 draft 收口：plan 全勾选 + F-0XX M12 �
 1. **矩阵路径**：计划初稿写 `docs/gem5-fi/lsu/07-expanded-matrix.csv`——实际不存在。真实矩阵为 `runs/lsu/07-expanded-matrix-backfilled.csv`（675 行；与 `artifacts/lsu-trial/` 副本 diff 相同；backfill_expanded_matrix.py 的输出即 campaign 实际使用版）。测试 MATRIX 常量与 Task 4 冒烟命令同步改用该路径。
 2. **wilson 依赖**：draft 模块顶部 `from wilson import wilson_ci`（tools/wilson.py）——importlib 加载前必须 `sys.path.insert(0, str(TOOLS))`，否则 ModuleNotFoundError。已加入 load_draft() helper。
 3. **M12 实证**：未修复的 draft 加载后 `REPO` 实测解析为 `<repo>/tools`（错误）——M12 修复的必要性已用真实命令验证（python3 importlib 探针）。
+
+4. **M12b（实施期新增）**：draft 作为 `__main__` 运行时 `from wilson import wilson_ci` 失败（sys.path[0]=tools/draft/ 不含 tools/）——首跑 dry-run 冒烟 ModuleNotFoundError 现场。修复：try/except 按路径加载 `tools/wilson.py`（复制回 tools/ 后首分支生效）。冒烟比对因此从"直接一致"变为"修复后一致"，最终 diff 逐字节相同（337 cells，runnable=198）。
+5. **测试计数修正**：全套为 **12** 个 test（Policy 4 + Accounting 3 + Resume 3 + Regression 2），计划初稿 Task 4 Step 2 误写 13（4+3+3+3）——按实测修正。
 
 ## 执行模式说明
 
