@@ -286,7 +286,24 @@ build/ARM/gem5.opt --outdir=/tmp/u2-on configs/se/ooo_proxy.py --cmd workloads/o
 - [x] **Step 3:** 实现 `tools/ooo_observe.py` + `tools/classify.py` 扩展。——实测：ooo_observe.py 334 行（collect_l0：21 个 runner 已知日志名 × 3 正则（CHAOS_L0_FUNNEL/CHAOS_L0/faults_injected）+ faults_for_classify 严格活性证据优先级 funnel_activated>l0_hit>legacy_injected>none；observe_run：exit.rc 缺失即 verdict=None 诚实拒判；ref 门控 L1-L4 组装 commit_diff/micro_diff；CLI --json）。classify.py +81 行：check_conservation（attempted≥eligible≥injected≥activated，逐注入器+TOTALS，对齐 chaos_l0.hh 四计数 pinned 格式）+ check_verdict_l0_consistency（Inactive/activated 与 checksum!=golden 交叉、abort 合法性）。单向 import ooo_observe→classify 无环。
 - [x] **Step 4:** 测试通过（4/4 PASS，输出引用）。——实测：`SELFTEST PASS (19 checks, 0 failed)` RC=0（F1 Inactive/F2 Masked/F3 SDC/F4 守恒破坏命名注入器+关系/T5 SimulatorError+absent 合法/T6 Inactive+checksum!=golden 违规）。回归：test_ooo_guard_f025.py `SELFTEST PASS (12 checks, 0 failed)`、micro_diff --self-test `11/11 checks PASS`、classify+ooo_observe 导入 OK；`import runner` 失败系 login01 无 pyyaml（环境既有，非本改动引入）。
 - [x] **Step 5:** 实机端到端（off-state 真实版 + 开启态诚实延期至 U2 Step 4b）：sdc+compat 双跑 `/tmp/u10-e2e-{a,b}`（smoke/O3，`--chaos_ctrace --chaos_msnap`，各 rc=0，FINAL=45737cc9a76c0dce==golden）。实测①：`python3 tools/ooo_observe.py /tmp/u10-e2e-a --golden 45737cc9a76c0dce` → L0 evidence=absent（off 态无注入日志，与 F1 语义一致）、L5 verdict=Inactive、conservation OK、RC=0。实测②：加 `--ref-outdir /tmp/u10-e2e-b` → L1 no_divergence=True、L2 hash_table_consistent=True、L3 commit_verdict=no_divergence（五类分歧全 0、tick_max_drift=0、无截断）、L4 无首检（同构确定性）。**开启态 L0 计数核对因 U2 未实现（gated on U1c 重建）延期**，已作为 U2 Step 4b 交接项落计划。
-- [ ] **Step 6:** 提交 `[OOO][P1][U10] L0–L5 观测链 + 守恒分类器 + 4 fixture 单测`。
+- [x] **Step 6:** 提交 `[OOO][P1][U10] L0–L5 观测链 + 守恒分类器 + 4 fixture 单测`。——2026-10-08 补勾（记录修正）：commit `9f4a6946`，提交时复选框漏勾。
+
+### Task U10b：legacy 证据一致性修正（U11 冒烟暴露的 U10 缺陷）
+
+**Files:**
+- Modify: `tools/classify.py`（`check_verdict_l0_consistency`：「已落位故障数」按 collect_l0 同源严格优先级取数——funnel→`totals.activated` / l0→`l0_hit_total` / legacy→`legacy_injected_total` / absent→0；现实现恒读 funnel 专用 `totals.activated`，legacy/l0 路径全错）
+- Test: `tools/tests/test_ooo_classify.py`（新增 legacy-only fixture：Masked+legacy 无违规【现红：假阳性】、Inactive+legacy_injected=1 有违规【现红：对称假阴性漏报】）
+
+**Interfaces:**
+- Consumes: `ooo_observe.collect_l0` 的 l0 dict（`evidence`/`totals`/`l0_hit_total`/`legacy_injected_total`——classify.py 顶部 shape 注释同步扩展两键）。
+- Produces: 同签名 `check_verdict_l0_consistency(verdict, l0, checksum, golden)`；funnel 路径行为不变（既有 6 fixture / 19 断言全数保持为回归锚）。
+
+**背景（2026-10-08 U11 Step 3 实机冒烟实证）:** 样本 seed 6566880900823253577（D01-F0-W6，decode opcode_bitflip，ret→hint bit25，rc=0，checksum==golden）verdict=Masked、l0 evidence=legacy、`legacy_injected_total=1`，却被记 `conservation_ok=false` + 违规 "Masked verdict (fault landed) but L0 activated=0"——legacy 日志（decode_injections.log `faults_injected: 1`）语义即「已施加」，分类器 feed（`faults_for_classify` 用 legacy_injected_total）与一致性检查读数（funnel activated）不同源 → 假阳性。对称假阴性：Inactive + legacy_injected=1（注入器说注入了、分类器却判 Inactive——真撒谎）现漏报。同批冒烟另有两处 U11 引擎自身缺陷（`&& echo` 短路丢 exit.rc；`--outdir` 多套一层 m5out/ 致 L0 证据错位）——属未提交的 U11 新代码，修在 U11 内，不立单元。
+
+- [x] **Step 1:** 写失败测试：test_ooo_classify.py 加 legacy-only 2 fixture → 运行确认红（引用输出）。——实测红：`FAIL T7 legacy Masked not a violation | ['Masked verdict (fault landed) but L0 activated=0']`、`FAIL T8 Inactive+legacy_injected=1 flagged`、`FAIL T9 l0-hit Masked not a violation`，`SELFTEST FAIL (26 checks, 3 failed)`（T7 精确复现实机假阳性；T8 复现漏报）。（实际加了 3 fixture：T7 走 classify_ooo_run 真实链、T8 纯函数直调钉对称假阴性、T9 钉 l0-hit 路径。）
+- [x] **Step 2:** 修 `check_verdict_l0_consistency` 按证据源取数 + shape 注释扩展 → 测试绿 + 既有 19 断言回归（引用输出）。——实测绿：`SELFTEST PASS (26 checks, 0 failed)`（新增 `_landed_faults()`：funnel→totals.activated / l0→l0_hit_total / legacy→legacy_injected_total，与分类器 feed 同源）；回归 `test_ooo_guard_f025.py SELFTEST PASS (12 checks, 0 failed)`、`ooo_campaign --selftest SELFTEST PASS (23 checks, 0 failed)`、micro_diff 11/11、classify+ooo_observe 导入 OK。
+- [x] **Step 3:** 实机复验：显式删除缺陷观测产物 `sample_000001_5b223f62efde0249_acda5eee5b0d`（DELETED 留痕文件追加记），`--resume --samples 2` 只重跑该样本 → Masked、conservation_ok=true、violations=[]（引用输出）。——实测：`CAMPAIGN SUMMARY ooo-p1 engineering D01-F0-W6: ran=1 skipped-complete=1 verdicts={"Masked": 1}`；新 observation.json：`verdict=Masked`、`conservation_ok=True`、`violations=[]`、checksum==golden 确定性复现；样本 0（Crash，旧代码下观测即正确）保留跳过。
+- [x] **Step 4:** 提交 `[OOO][P1][U10b] legacy 证据一致性修正：verdict/L0 交叉检查按证据源取数（U11 冒烟实证假阳/假阴对称修复）`。——本提交即 Step 4。
 
 ### Task U11：Campaign 引擎 `tools/ooo_campaign.py`
 

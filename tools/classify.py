@@ -343,7 +343,10 @@ def classify_run(stdout, stderr, returncode, faults_injected,
 #   {"evidence": "funnel"|"l0"|"legacy"|"absent",
 #    "injectors": {name: {"attempted":N|None, "eligible":N|None,
 #                         "injected":N|None, "activated":N|None, "hit":N, ...}},
-#    "totals": {"attempted":N, "eligible":N, "injected":N, "activated":N}}
+#    "totals": {"attempted":N, "eligible":N, "injected":N, "activated":N},
+#    "l0_hit_total": N, "legacy_injected_total": N}
+# (U10b: the two totals keys are part of the contract — the verdict/L0
+#  consistency check reads them for l0-hit / legacy evidence.)
 # ---------------------------------------------------------------------------
 
 
@@ -382,8 +385,32 @@ def check_conservation(l0):
     return (not violations, violations)
 
 
+def _landed_faults(l0):
+    """Faults the L0 evidence says actually landed, using collect_l0's
+    strictest-live-evidence precedence (funnel activated > l0 hit >
+    legacy injected > 0) — the SAME source the classifier feed uses, so
+    the consistency check compares like with like. U10b (2026-10-08):
+    reading the funnel-only totals.activated for legacy/l0-hit evidence
+    false-positived "Masked but activated=0" (empirical: decode
+    opcode_bitflip smoke, legacy_injected_total=1) and missed the
+    Inactive-with-legacy-injection mismatch."""
+    ev = l0.get("evidence", "absent")
+    if ev == "funnel":
+        return l0.get("totals", {}).get("activated", 0)
+    if ev == "l0":
+        return l0.get("l0_hit_total", 0)
+    if ev == "legacy":
+        return l0.get("legacy_injected_total", 0)
+    return 0
+
+
 def check_verdict_l0_consistency(verdict, l0, checksum, golden):
     """Cross-check the classify_run verdict against L0 evidence.
+
+    The landed-fault count follows the evidence source (funnel activated /
+    l0 hit / legacy injected — see _landed_faults), mirroring the
+    classifier feed: a Masked/SDC verdict backed by a legacy log that
+    says faults_injected: 1 is consistent, not a violation.
 
     Legitimate states (no violation):
       - Crash/Hang/SimulatorError with L0 absent: abort paths run no exit
@@ -392,27 +419,27 @@ def check_verdict_l0_consistency(verdict, l0, checksum, golden):
       - verdict None (no exit.rc): the caller's honest refusal; the missing
         verdict itself is reported by the caller, nothing to assert here.
     Violations (the run is lying somewhere):
-      - Inactive but activated>0 in the evidence.
-      - Inactive (activated==0) but checksum != golden: determinism broken
+      - Inactive but landed>0 in the evidence.
+      - Inactive (landed==0) but checksum != golden: determinism broken
         or L0 miscount.
-      - Masked/SDC (fault landed) but activated==0 in the evidence.
+      - Masked/SDC (fault landed) but landed==0 in the evidence.
     """
     violations = []
     ev = l0.get("evidence", "absent")
-    act = l0.get("totals", {}).get("activated", 0)
+    landed = _landed_faults(l0)
     if verdict == "Inactive":
-        if ev != "absent" and act > 0:
+        if ev != "absent" and landed > 0:
             violations.append(
-                "Inactive verdict but L0 activated=%d — verdict/L0 mismatch" % act)
+                "Inactive verdict but L0 landed=%d — verdict/L0 mismatch" % landed)
         if checksum and golden and checksum != golden:
             violations.append(
-                "Inactive (activated=0) yet checksum %s != golden %s — "
+                "Inactive (landed=0) yet checksum %s != golden %s — "
                 "determinism broken or L0 miscount (checksum!=golden)"
                 % (checksum, golden))
     elif verdict in ("Masked", "SDC"):
-        if ev != "absent" and act == 0:
+        if ev != "absent" and landed == 0:
             violations.append(
-                "%s verdict (fault landed) but L0 activated=0" % verdict)
+                "%s verdict (fault landed) but L0 landed=0" % verdict)
     return (not violations, violations)
 
 
