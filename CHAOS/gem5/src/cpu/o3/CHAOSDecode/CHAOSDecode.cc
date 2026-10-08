@@ -239,6 +239,14 @@ namespace gem5
         if (s == "fp_reg_bitflip")     return Mode::FpRegBitflip;
         if (s == "fp_reg_bitflip2")    return Mode::FpRegBitflip2;
         if (s == "fp_route_bit")       return Mode::FpRouteBit;
+        if (s == "decode_timing_early")      return Mode::TimingEarly;
+        if (s == "decode_timing_late")       return Mode::TimingLate;
+        if (s == "decode_timing_drop")       return Mode::TimingDrop;
+        if (s == "decode_timing_dup")        return Mode::TimingDup;
+        if (s == "fp_decode_timing_early")   return Mode::FpTimingEarly;
+        if (s == "fp_decode_timing_late")    return Mode::FpTimingLate;
+        if (s == "fp_decode_timing_drop")    return Mode::FpTimingDrop;
+        if (s == "fp_decode_timing_dup")     return Mode::FpTimingDup;
         panic("CHAOSDecode: unknown mode '%s'\n", s);
     }
 
@@ -263,6 +271,14 @@ namespace gem5
           case Mode::FpRegBitflip:     return "fp_reg_bitflip";
           case Mode::FpRegBitflip2:    return "fp_reg_bitflip2";
           case Mode::FpRouteBit:       return "fp_route_bit";
+          case Mode::TimingEarly:      return "decode_timing_early";
+          case Mode::TimingLate:       return "decode_timing_late";
+          case Mode::TimingDrop:       return "decode_timing_drop";
+          case Mode::TimingDup:        return "decode_timing_dup";
+          case Mode::FpTimingEarly:    return "fp_decode_timing_early";
+          case Mode::FpTimingLate:     return "fp_decode_timing_late";
+          case Mode::FpTimingDrop:     return "fp_decode_timing_drop";
+          case Mode::FpTimingDup:      return "fp_decode_timing_dup";
         }
         return "?";
     }
@@ -386,6 +402,15 @@ namespace gem5
         // in rename.cc, not here) — zero work, zero regression.
         if (!cpu || probability <= 0.0f) return nullptr;
         if (fi_mode == Mode::DestRegSub) return nullptr;
+        // U2: the eight timing modes are NOT encoding-corruption models —
+        // their hooks are maybeStaleTuple (fetch-side early) and
+        // maybeTimingEmit (decode-emit late/drop/dup). Without this gate
+        // the W6 bitflip surface fired INSTEAD and consumed max_faults
+        // before the timing hook ever ran (round-2: d07-early/dup and all
+        // four fd09 arms bit-flipped at fetch_decode; the fp timing modes
+        // reached the INT population — the fpOnly gate below only covers
+        // the six W7 encoding modes).
+        if (timingModeActive()) return nullptr;
         if (!orig) return nullptr;
         if (max_faults != 0 && faults_injected_count >= max_faults)
             return nullptr;
@@ -1016,6 +1041,129 @@ namespace gem5
         return repl;
     }
 
+    // ---- U2 (D07/FD09, ooo 03-design-matrix R8/R38) timing modes ----
+
+    bool
+    CHAOSDecode::timingModeActive() const
+    {
+        switch (fi_mode) {
+          case Mode::TimingEarly: case Mode::TimingLate:
+          case Mode::TimingDrop:  case Mode::TimingDup:
+          case Mode::FpTimingEarly: case Mode::FpTimingLate:
+          case Mode::FpTimingDrop:  case Mode::FpTimingDup:
+            return true;
+          default:
+            return false;
+        }
+    }
+
+    bool
+    CHAOSDecode::tupleInScope(const StaticInst *si, bool fp) const
+    {
+        // D07 (int): NOT an FP/SIMD opClass. FD09: isFpOpClass — the
+        // exact CHAOSFPU.cc scope (the W7 documented boundary; integer
+        // SIMD stays in the Int Decode family). Macroop and microop
+        // decodes are excluded from BOTH sides of the timing pair (the
+        // W6 exclusion — the fetch-side macroop/pcOffset bookkeeping
+        // must not see a tuple-kind switch mid-pair).
+        if (si->isMacroop() || si->isMicroop()) return false;
+        const OpClass oc = si->opClass();
+        return fp ? isFpOpClass(oc) : !isFpOpClass(oc);
+    }
+
+    StaticInstPtr
+    CHAOSDecode::maybeStaleTuple(StaticInstPtr orig, ThreadID tid)
+    {
+        // R8-a/R38-a 提前(读旧 tuple) — fetch-side hook. Eligibility
+        // (03 原文): 连续两条有效整数指令且 tuple 不同 (D07) / 连续
+        // 两条 FP/SIMD 指令且 tuple 不同 (FD09). The tracker updates on
+        // EVERY call so the pair window is the real decode stream.
+        if (!cpu || probability <= 0.0f) return nullptr;
+        if (fi_mode != Mode::TimingEarly && fi_mode != Mode::FpTimingEarly)
+            return nullptr;
+        if (!orig) return nullptr;
+        const bool fp = (fi_mode == Mode::FpTimingEarly);
+        if (tid >= last_tuple.size()) return nullptr;
+        StaticInstPtr prev = last_tuple[tid];
+        last_tuple[tid] = orig;
+        if (max_faults != 0 && faults_injected_count >= max_faults)
+            return nullptr;
+        if (!prev || prev == orig) return nullptr;
+        if (!tupleInScope(prev.get(), fp) || !tupleInScope(orig.get(), fp))
+            return nullptr;
+        if (!inWindow()) return nullptr;
+        if (events_to_skip > 0) { --events_to_skip; return nullptr; }
+        std::uniform_real_distribution<float> pd(0.0f, 1.0f);
+        if (pd(rng) > probability) return nullptr;
+
+        faults_injected_count++;
+        if (write_log && log_stream) {
+            *(log_stream->stream()) << "Tick: " << curTick()
+                << ", Site: fetch_decode, mode=" << modeToString(fi_mode)
+                << ", prev_mnemonic=" << prev->getName()
+                << ", cur_mnemonic=" << orig->getName()
+                << ", faults_injected: " << faults_injected_count
+                << std::endl;
+        }
+        return prev;
+    }
+
+    int
+    CHAOSDecode::maybeTimingEmit(const o3::DynInst *inst, ThreadID tid,
+                                 int slots_left)
+    {
+        // R8/R38 b-d — decode.cc emit-point hook (queue FRONT, pre-pop).
+        if (!cpu || probability <= 0.0f) return 0;
+        if (!timingModeActive()) return 0;
+        if (fi_mode == Mode::TimingEarly || fi_mode == Mode::FpTimingEarly)
+            return 0;   // early is the fetch hook, not this one
+        if (!inst) return 0;
+        if (inst->isSquashed()) return 0;
+        // release guard: the held inst emits normally this cycle
+        if (held_seq != 0 && inst->seqNum == held_seq) {
+            held_seq = 0;
+            return 0;
+        }
+        const bool fp = (fi_mode == Mode::FpTimingLate ||
+                         fi_mode == Mode::FpTimingDrop ||
+                         fi_mode == Mode::FpTimingDup);
+        if (tid >= last_emitted.size()) return 0;
+        StaticInstPtr si = inst->staticInst;
+        StaticInstPtr prev = last_emitted[tid];
+        last_emitted[tid] = si;
+        if (max_faults != 0 && faults_injected_count >= max_faults)
+            return 0;
+        // dup needs TWO slots this cycle; without room it is an honest
+        // no-op THIS event (checked before the skip/draw are consumed)
+        if (fi_mode == Mode::TimingDup || fi_mode == Mode::FpTimingDup) {
+            if (slots_left < 2) return 0;
+        }
+        if (!prev || prev == si) return 0;
+        if (!tupleInScope(prev.get(), fp) || !tupleInScope(si.get(), fp))
+            return 0;
+        if (!inWindow()) return 0;
+        if (events_to_skip > 0) { --events_to_skip; return 0; }
+        std::uniform_real_distribution<float> pd(0.0f, 1.0f);
+        if (pd(rng) > probability) return 0;
+
+        faults_injected_count++;
+        if (fi_mode == Mode::TimingLate || fi_mode == Mode::FpTimingLate)
+            held_seq = inst->seqNum;
+        if (write_log && log_stream) {
+            *(log_stream->stream()) << "Tick: " << curTick()
+                << ", Site: decode_emit, mode=" << modeToString(fi_mode)
+                << ", sn=" << inst->seqNum
+                << ", mnemonic=" << si->getName()
+                << ", faults_injected: " << faults_injected_count
+                << std::endl;
+        }
+        if (fi_mode == Mode::TimingLate || fi_mode == Mode::FpTimingLate)
+            return 1;
+        if (fi_mode == Mode::TimingDrop || fi_mode == Mode::FpTimingDrop)
+            return 2;
+        return 3;
+    }
+
     void
     CHAOSDecode::startup() {
         SimObject::startup();
@@ -1025,6 +1173,9 @@ namespace gem5
             return;
         }
         o3cpu->setChaosDecode(this);
+        // U2: per-thread tuple trackers sized to the real context count
+        last_tuple.resize(o3cpu->numContexts());
+        last_emitted.resize(o3cpu->numContexts());
     }
 
 } // namespace gem5
