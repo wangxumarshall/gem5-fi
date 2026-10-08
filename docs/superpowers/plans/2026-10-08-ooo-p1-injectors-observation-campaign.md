@@ -41,20 +41,20 @@
 **Interfaces:**
 - Produces: 后续所有单元的权威规格文件（03 表=57 模型逐条定义；09 表=工作面缺口清单；d-bridge=v1→v2 血统 116 行）。
 
-- [ ] **Step 1:** 从共享对象库取三文件（worktree 与主树同库）：
+- [x] **Step 1:** 从共享对象库取三文件（worktree 与主树同库）：
 ```bash
 cd /home/share/suke/wangxu/gem5-fi-ooo
 git show e3217105:docs/gem5-fi/ooo/03-design-matrix.md > docs/gem5-fi/ooo/03-design-matrix.md
 git show e3217105:docs/gem5-fi/ooo/09-v2-coverage-audit.md > docs/gem5-fi/ooo/09-v2-coverage-audit.md
 git show e3217105:docs/gem5-fi/ooo/d-bridge-v1-v2.csv > docs/gem5-fi/ooo/d-bridge-v1-v2.csv
 ```
-- [ ] **Step 2:** 完整性断言（行数与来源 commit 记录进 findings）：
+- [x] **Step 2:** 完整性断言（行数与来源 commit 记录进 findings）——实测：03=158 行/09=98 行/d-bridge=117 行（116 数据行 ✓）。：
 ```bash
 wc -l docs/gem5-fi/ooo/03-design-matrix.md docs/gem5-fi/ooo/09-v2-coverage-audit.md docs/gem5-fi/ooo/d-bridge-v1-v2.csv
 grep -c "已实现\|未实现\|部分" docs/gem5-fi/ooo/09-v2-coverage-audit.md   # 预期 >0（审计状态行）
 tail -1 docs/gem5-fi/ooo/d-bridge-v1-v2.csv                                # 预期 116 行数据的最后一行
 ```
-- [ ] **Step 3:** findings.md 环境表加一行"设计规格"（来源 e3217105、桥接日期、哈希），并注明与本工作树 HEAD 的差异仅为 P0 三提交（3b7a0854/ce8d6d8a/362e01c3，不触 docs/gem5-fi/ooo 设计文件）。
+- [x] **Step 3:** findings.md 环境表加一行"设计规格"（来源 e3217105、桥接日期、哈希），并注明与本工作树 HEAD 的差异仅为 P0 三提交（3b7a0854/ce8d6d8a/362e01c3，不触 docs/gem5-fi/ooo 设计文件）。
 - [ ] **Step 4:** 提交 `[OOO][P1][U0] 设计文档桥接：03-design-matrix/09-audit/d-bridge 入库（源 e3217105）`。
 
 ### Task U1：`tools/ooo_models.py` 机读映射表
