@@ -24,7 +24,12 @@ Usage:
   ok, errs = validate(manifest_dict)
   if not ok: sys.exit("manifest validation FAILED: " + "; ".join(errs))
 """
-import os, sys, json, yaml
+import os, sys, json
+# yaml is OPTIONAL at import time: it is only used by _selftest
+# to load the sample manifests. login01 has no pyyaml, and the
+# campaign engine (tools/ooo_campaign.py) must import THIS module
+# there to validate manifests — a hard import would make the
+# "stdlib-only" claim above a lie and block the whole U11 chain.
 
 REPO = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 
@@ -186,6 +191,7 @@ def _selftest():
     """Assert the validator accepts the sample manifests and rejects a broken
     one. Run via `python3 -m tools.manifest_validate`. Keeps this module in
     sync with schemas/manifest.schema.json + the sample manifests."""
+    import yaml  # deferred: absent on login01 (no pyyaml)
     failures = []
     for rel in ("manifests/p1-gpr-regchain-000384.yaml",
                 "manifests/p2-rob-directed-v2.yaml"):

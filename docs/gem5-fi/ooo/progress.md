@@ -104,6 +104,8 @@
 
 | Work ID | ITEM | RunID | Excel行 | campaign/phase | sample_index/seed | 状态 | owner/PID/PGID/锁 | 心跳 | 输出/证据 |
 |---|---|---|---|---|---|---|---|---|---|
+| W-U11 | ITEM-002 | D01-F0-W6 | 4 | ooo-p1/engineering | 7/7415807299993716095 | COMPLETE（中断演练→resume 补跑：verdict=Masked rc=0 l0=legacy；8/8 全 COMPLETE） | — | — | runs/ooo/ooo-p1/engineering/D01-F0-W6/sample_000007_66ea3d72dedfc57f_acda5eee5b0d |
+| W-U11-prev | ITEM-002 | D01-F0-W6 | 4 | ooo-p1/engineering | 0-6/各自种子 | COMPLETE×7（Crash×2 Masked×5，violations=[]） | — | — | runs/ooo/ooo-p1/engineering/D01-F0-W6/sample_00000{0..6}_*_acda5eee5b0d |
 
 ## Checklist Status Summary
 
@@ -135,6 +137,11 @@
 
 | Error ID | 时间 | ITEM/RunID | 错误签名 | Attempt | 改变的策略 | Resolution/Decision Request | Evidence |
 |---|---|---|---|---:|---|---|---|
+| E-001 | 2026-10-08 | ITEM-002/D01-F0-W6 | reach 下 pgrep -f 匹配包装 bash 自身 → 属主检查假通过 → kill 自杀（status 255） | 1 | 弃 pgrep -f：PID 以 staging 目录名为准 + ps -p 锚定 cmd + pgid==pid 双确认；TERM campaign 组后再清孤儿目标组 | RESOLVED：TERM 902005+902282 双杀干净，campaign 死亡无残留；入 F-012 | /tmp/u11-interrupt*.log；findings.md F-012 |
+| E-002 | 2026-10-08 | ITEM-002/D01-F0-W6 | 缺陷①：inner script 尾部 && echo 短路，abort 样本（rc=134）丢 exit.rc | 1 | 最后一段改 ; 连接恒记录 | RESOLVED：重跑 Crash 样本 rc=134 实录；defect 产物显式删除留痕 | DELETED-DEFECTIVE-2026-10-08.md |
+| E-003 | 2026-10-08 | ITEM-002/D01-F0-W6 | 缺陷②：--outdir 多套 m5out/ 子目录，L0 证据错位（collect_l0 找不到 decode_injections.log） | 1 | --outdir 直指 run 目录（对齐 runner 惯例） | RESOLVED：decode_injections.log 落 run 目录，l0=legacy 全通 | 同上 |
+| E-004 | 2026-10-08 | ITEM-002/D01-F0-W6 | 缺陷③（诚实性关键）：guard 门禁拒绝（陈旧槽）被记 verdict=None rc=None COMPLETE | 1 | _guard_execute 改 (rc, ran) 返回，run-finish 正向证据判定；未运行→blocked-guard 大声中止 exit 2 | RESOLVED：实机复验 BLOCKED+exit=2+无落位；selftest T21；campaign 810397 的假 COMPLETE 已删 | /tmp/u11-blocked-proof.log；DELETED-DEFECTIVE |
+| E-005 | 2026-10-08 | ITEM-002/D01-F0-W6 | U10b 前样本 1 旧观测 conservation_ok=false（legacy 证据被当 funnel 口径假阳性） | 1 | classify.py 按 L0 证据源取数（funnel/l0-hit/legacy 三态） | RESOLVED：commit 3a142d0c；样本 1 删除重跑 violations=[] | tools/tests/test_ooo_classify.py T7-T9 |
 
 ## Periodic Update Template
 
