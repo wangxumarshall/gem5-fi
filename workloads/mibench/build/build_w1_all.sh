@@ -28,7 +28,9 @@ GSMF="-DSASR -DSTUPID_COMPILER -DNeedFunctionPrototypes=1 -I$P/telecomm/gsm/inc"
 for f in $P/telecomm/gsm/src/*.c; do
     b=$(basename $f .c)
     if [ "$b" = "toast" ]; then
-        $CC $GSMF -Dmain=bm_gsm_main -c -o $B/gsm_toast.o $f
+        # 2026-10-09 gem5-SE 补丁版（F-044）：禁用 update_times/update_mode
+        # （utimensat #88 / fchmod #52 在 gem5 v25.1 AArch64 SE 表无 handler）
+        $CC $GSMF -Dmain=bm_gsm_main -c -o $B/gsm_toast.o $W/build/gsm/toast.c
     else
         $CC $GSMF -c -o $B/gsm_$b.o $f
     fi
