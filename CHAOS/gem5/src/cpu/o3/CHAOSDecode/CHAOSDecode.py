@@ -136,7 +136,7 @@ class CHAOSDecode(SimObject):
         "fp_reg_bitflip | fp_reg_bitflip2 | fp_route_bit | "
         "bitflip2_adj | bitflip2_nonadj | bitflip2_cross | "
         "fp_bitflip2_adj | fp_bitflip2_nonadj | fp_bitflip2_cross | "
-        "src_swap")
+        "src_swap | x0_sub")
     probability = Param.Float(1.0, "per-decode injection probability")
     firstClock = Param.UInt64(0, "first clock cycle eligible for injection")
     lastClock = Param.UInt64(0, "last cycle (0 = unrestricted)")

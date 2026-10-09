@@ -125,12 +125,20 @@ class CHAOSDecode : public SimObject
                       FpBitflip2Cross,       // FD02-c opcode x lane/operand
                       // ---- V2.0 D04-c (ooo 03-design-matrix R5, 09-audit
                       // WB3 gap: src0/src1互换) ----
-                      SrcSwap };             // D04-c swap the DECODED-OUTPUT
-                                             // src register numbers — the
-                                             // encoding-layer Rn[9:5] <->
-                                             // Rm[20:16] exchange, re-decoded
-                                             // so the decoded tuple's srcs
-                                             // come out swapped
+                      SrcSwap,              // D04-c swap the DECODED-OUTPUT
+                                            // src register numbers — the
+                                            // encoding-layer Rn[9:5] <->
+                                            // Rm[20:16] exchange, re-decoded
+                                            // so the decoded tuple's srcs
+                                            // come out swapped
+                      // ---- V2.0 D04-e (same row: x0注入) ----
+                      X0Sub };              // D04-e replace ONE int register
+                                            // operand slot (src0 Rn / src1
+                                            // Rm / dst Rd, sampled
+                                            // uniformly) with X0 — register
+                                            // NUMBER 0 (NOT XZR=31, NOT a
+                                            // data-value zeroing); slot
+                                            // already X0 = honest skip
     Mode fi_mode = Mode::DestRegSub;
     static Mode stringToMode(const std::string &s);
     const char *modeToString(Mode m) const;
@@ -398,6 +406,17 @@ class CHAOSDecode : public SimObject
                                 StaticInstPtr orig,
                                 const std::string &orig_name,
                                 ArmISA::Decoder *arm_dec, Addr pc);
+
+    // D04-e x0_sub: replace one int register operand slot with X0 (the
+    // register NUMBER 0). Same families as D04-c (Rn/Rm/Rd are all
+    // register fields there); the slot (src0/src1/dst) is sampled
+    // uniformly — the 03 row's expected-outcome column names BOTH
+    // "dst=x0可能掩蔽" and "src=x0可能稳定偏差", so the submodel covers
+    // all three slots with the slot recorded per injection.
+    StaticInstPtr injectX0Sub(uint64_t emi_raw, uint32_t enc,
+                              StaticInstPtr orig,
+                              const std::string &orig_name,
+                              ArmISA::Decoder *arm_dec, Addr pc);
 
     // The three D08-D10 injection helpers (called after the shared
     // window/skip/probability gates; each does its own format eligibility,

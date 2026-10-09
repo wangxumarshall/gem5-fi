@@ -247,6 +247,7 @@ namespace gem5
         if (s == "fp_bitflip2_nonadj") return Mode::FpBitflip2Nonadj;
         if (s == "fp_bitflip2_cross")  return Mode::FpBitflip2Cross;
         if (s == "src_swap")           return Mode::SrcSwap;
+        if (s == "x0_sub")             return Mode::X0Sub;
         panic("CHAOSDecode: unknown mode '%s'\n", s);
     }
 
@@ -278,6 +279,7 @@ namespace gem5
           case Mode::FpBitflip2Nonadj: return "fp_bitflip2_nonadj";
           case Mode::FpBitflip2Cross:  return "fp_bitflip2_cross";
           case Mode::SrcSwap:          return "src_swap";
+          case Mode::X0Sub:            return "x0_sub";
         }
         return "?";
     }
@@ -544,6 +546,11 @@ namespace gem5
         if (fi_mode == Mode::SrcSwap)
             return injectSrcSwap(emi, enc, orig, orig->getName(),
                                  arm_dec, pc);
+        // ---- V2.0 D04-e x0_sub (ooo 03-design-matrix R5): one int
+        // register operand slot -> X0 (register number 0).
+        if (fi_mode == Mode::X0Sub)
+            return injectX0Sub(emi, enc, orig, orig->getName(),
+                               arm_dec, pc);
 
         // ---- bit selection ----
         // Semantic predicate for reg/imm flips (see .hh): the candidate
@@ -991,6 +998,105 @@ namespace gem5
                 << ", new_enc=0x" << new_enc << std::dec
                 << ", rn=" << rn << "->" << rm
                 << ", rm=" << rm << "->" << rn
+                << ", orig_mnemonic=" << orig_name
+                << ", new_mnemonic=" << repl->getName()
+                << ", faults_injected: " << faults_injected_count
+                << std::endl;
+        }
+        return repl;
+    }
+
+    // D04-e x0_sub: replace ONE int register operand slot with X0 (the
+    // register NUMBER 0 — not XZR=31, not a data-value zeroing). Slot
+    // (src0=Rn / src1=Rm / dst=Rd) sampled uniformly; the 03 row's
+    // expected-outcome column names both "dst=x0可能掩蔽" and
+    // "src=x0可能稳定偏差", so the submodel covers all three slots with
+    // the slot recorded per injection. Same families as D04-c (Rn/Rm/Rd
+    // are all register fields there). Slot already X0 = honest skip.
+    StaticInstPtr
+    CHAOSDecode::injectX0Sub(uint64_t emi_raw, uint32_t enc,
+                             StaticInstPtr orig,
+                             const std::string &orig_name,
+                             ArmISA::Decoder *arm_dec, Addr pc)
+    {
+        if (!isD04SwapFamily(enc)) {
+            if (write_log) {
+                *(log_stream->stream()) << "Tick: " << curTick()
+                    << ", Site: fetch_decode, mode=x0_sub"
+                    << ", pc=0x" << std::hex << pc << std::dec
+                    << ", orig_mnemonic=" << orig_name
+                    << " — not an int data-proc register format (skipped, "
+                    << "no injection)" << std::endl;
+            }
+            return nullptr;
+        }
+        // slot: 0=src0(Rn[9:5]) 1=src1(Rm[20:16]) 2=dst(Rd[4:0])
+        const uint32_t slot = rng() % 3;
+        uint32_t shift;
+        const char *slot_name;
+        if (slot == 0)      { shift = 5;  slot_name = "src0"; }
+        else if (slot == 1) { shift = 16; slot_name = "src1"; }
+        else                { shift = 0;  slot_name = "dst"; }
+        const uint32_t cur = (enc >> shift) & 0x1Fu;
+        if (cur == 0) {
+            if (write_log) {
+                *(log_stream->stream()) << "Tick: " << curTick()
+                    << ", Site: fetch_decode, mode=x0_sub"
+                    << ", pc=0x" << std::hex << pc << std::dec
+                    << ", orig_mnemonic=" << orig_name
+                    << " — " << slot_name << " already X0 (skipped, no "
+                    << "injection)" << std::endl;
+            }
+            return nullptr;
+        }
+        // Zero the selected 5-bit field; every other bit preserved by
+        // construction (asserted in the structural pilot).
+        const uint32_t new_enc = enc & ~(0x1Fu << shift);
+        ArmISA::ExtMachInst new_emi;
+        new_emi = emi_raw;
+        new_emi.instBits = new_enc;
+        StaticInstPtr repl = arm_dec->decodeChaos(new_emi);
+        if (!repl) return nullptr;
+        // Semantic predicate: mnemonic kept AND register fingerprint
+        // moved (the slot's register number changed 0<->nonzero).
+        if (repl->getName() != orig_name) {
+            if (write_log) {
+                *(log_stream->stream()) << "Tick: " << curTick()
+                    << ", Site: fetch_decode, mode=x0_sub"
+                    << ", pc=0x" << std::hex << pc << std::dec
+                    << ", orig_mnemonic=" << orig_name
+                    << ", new_mnemonic=" << repl->getName()
+                    << " — mnemonic changed (skipped, no injection)"
+                    << std::endl;
+            }
+            return nullptr;
+        }
+        std::vector<uint32_t> fp0, fpc;
+        captureRegs(orig.get(), fp0);
+        captureRegs(repl.get(), fpc);
+        if (fpc == fp0) {
+            if (write_log) {
+                *(log_stream->stream()) << "Tick: " << curTick()
+                    << ", Site: fetch_decode, mode=x0_sub"
+                    << ", pc=0x" << std::hex << pc << std::dec
+                    << ", orig_mnemonic=" << orig_name
+                    << " — fingerprint unchanged (skipped, no injection)"
+                    << std::endl;
+            }
+            return nullptr;
+        }
+        faults_injected_count++;
+        if (write_log) {
+            // Verifiable: new_enc == enc with the slot field zeroed;
+            // slot, old number, both encodings and mnemonics logged.
+            *(log_stream->stream()) << "Tick: " << curTick()
+                << ", Site: fetch_decode, mode=x0_sub"
+                << ", pc=0x" << std::hex << pc << std::dec
+                << ", orig_enc=0x" << std::hex << enc
+                << ", new_enc=0x" << new_enc << std::dec
+                << ", slot=" << slot_name
+                << ", old_reg=x" << cur
+                << ", new_reg=x0"
                 << ", orig_mnemonic=" << orig_name
                 << ", new_mnemonic=" << repl->getName()
                 << ", faults_injected: " << faults_injected_count

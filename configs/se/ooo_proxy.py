@@ -358,7 +358,7 @@ p.add_argument("--decode_mode", default="dest_reg_sub",
                         # gated; cross = opcode x lane/reg.
                         "bitflip2_adj","bitflip2_nonadj","bitflip2_cross",
                         "fp_bitflip2_adj","fp_bitflip2_nonadj",
-                        "fp_bitflip2_cross","src_swap"])
+                        "fp_bitflip2_cross","src_swap","x0_sub"])
 p.add_argument("--decode_first_clock", type=lambda x: int(x,0), default=1000)
 p.add_argument("--decode_last_clock", type=lambda x: int(x,0), default=0)
 p.add_argument("--decode_max_faults", type=lambda x: int(x,0), default=1)
