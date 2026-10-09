@@ -103,6 +103,24 @@ MODEL_DISPATCH = {
         "fault_model": "transient_bit_flip",
         "flag": "--chaos_decode",
     },
+    # U4 (D06 R7 / FD05 R34, ooo 03-matrix 控制状态换值): the control
+    # field is swapped to ANOTHER LEGAL VALUE — mode/sub_field come from
+    # MODEL_SUBMODES (D06 five arms, FD05 three arms); the GNU-closed-
+    # loop-verified rule tables live in CHAOSDecode.cc.
+    "D06": {
+        "field": "control",
+        "width_bits": 32,
+        "layer": "physical",
+        "component": "decode",
+        "flag": "--chaos_decode",
+    },
+    "FD05": {
+        "field": "control",
+        "width_bits": 32,
+        "layer": "physical",
+        "component": "decode",
+        "flag": "--chaos_decode",
+    },
     "D07": {
         "field": "timing",
         "width_bits": 1,
@@ -205,6 +223,36 @@ MODEL_SUBMODES = {
         "dup": {"mode": "fp_decode_timing_dup",
                 "sub_field": "fp_decode_timing_dup",
                 "fault_model": "recurring_result_stuck"},
+    },
+    # U4: D06-a..e = sf / setflags / shift type / extend type /
+    # signedness; FD05-a..c = scalar<->vector / element width / lane
+    # count. fault_model legal_domain_sub: the delivered payload is
+    # another LEGAL control tuple (never an illegal encoding).
+    "D06": {
+        "a": {"mode": "ctl_swap_sf", "sub_field": "ctl_swap_sf",
+              "fault_model": "legal_domain_sub"},
+        "b": {"mode": "ctl_swap_setflags", "sub_field": "ctl_swap_setflags",
+              "fault_model": "legal_domain_sub"},
+        "c": {"mode": "ctl_swap_shift_type",
+              "sub_field": "ctl_swap_shift_type",
+              "fault_model": "legal_domain_sub"},
+        "d": {"mode": "ctl_swap_extend_type",
+              "sub_field": "ctl_swap_extend_type",
+              "fault_model": "legal_domain_sub"},
+        "e": {"mode": "ctl_swap_signedness",
+              "sub_field": "ctl_swap_signedness",
+              "fault_model": "legal_domain_sub"},
+    },
+    "FD05": {
+        "a": {"mode": "fp_ctl_swap_scalar_vector",
+              "sub_field": "fp_ctl_swap_scalar_vector",
+              "fault_model": "legal_domain_sub"},
+        "b": {"mode": "fp_ctl_swap_elem_width",
+              "sub_field": "fp_ctl_swap_elem_width",
+              "fault_model": "legal_domain_sub"},
+        "c": {"mode": "fp_ctl_swap_lane_count",
+              "sub_field": "fp_ctl_swap_lane_count",
+              "fault_model": "legal_domain_sub"},
     },
     "R08": {
         "early": {"mode": "rename_timing_early",

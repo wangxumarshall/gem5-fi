@@ -102,7 +102,11 @@ class CHAOSDecode(SimObject):
         "fp_reg_bitflip | fp_reg_bitflip2 | fp_route_bit | "
         "decode_timing_early | decode_timing_late | decode_timing_drop | decode_timing_dup | "
         "fp_decode_timing_early | fp_decode_timing_late | fp_decode_timing_drop | "
-        "fp_decode_timing_dup")
+        "fp_decode_timing_dup | "
+        "ctl_swap_sf | ctl_swap_setflags | ctl_swap_shift_type | "
+        "ctl_swap_extend_type | ctl_swap_signedness | "
+        "fp_ctl_swap_scalar_vector | fp_ctl_swap_elem_width | "
+        "fp_ctl_swap_lane_count")
     probability = Param.Float(1.0, "per-decode injection probability")
     firstClock = Param.UInt64(0, "first clock cycle eligible for injection")
     lastClock = Param.UInt64(0, "last cycle (0 = unrestricted)")

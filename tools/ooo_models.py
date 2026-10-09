@@ -20,7 +20,8 @@
   --item    ITEM-NNN -> 单条映射；模型 ID（如 D01）-> 模型档案 + 其全部 ITEM。
 
 已知文档缺陷（F-010，如实记录不静默）：09 审计总账表「部分 | 0」与其逐模型表
-34 行「部分」矛盾（9+0+14≠57）；本工具以逐模型表为权威。
+34 行「部分」矛盾（总账仅列已实现+未实现，19+0+4≠57，部分 34 模型未入账）；
+本工具以逐模型表为权威（--check 只比对逐模型行）。
 
 独立于 gem5 构建；python3.9（login01）可运行。
 计划：docs/superpowers/plans/2026-10-08-ooo-p1-injectors-observation-campaign.md U1。
@@ -123,8 +124,8 @@ MODELS = {
         "freqs": ['F0', 'F2', 'F6'],
         "workloads": "W3 A64-DecodeProbe<br>W6 CoreMark+Embench",
         "n_submodels": 5,
-        "impl_status": "unimplemented",
-        "injector": None,
+        "impl_status": "implemented",
+        "injector": 'CHAOSDecode',
         "submodels": ['a', 'b', 'c', 'd', 'e'],
     },
     "D07": {
@@ -420,8 +421,8 @@ MODELS = {
         "freqs": ['F0', 'F2', 'F6'],
         "workloads": "W9 NEON-LaneProbe<br>W10 PolyBench",
         "n_submodels": 3,
-        "impl_status": "unimplemented",
-        "injector": None,
+        "impl_status": "implemented",
+        "injector": 'CHAOSDecode',
         "submodels": ['a', 'b', 'c'],
     },
     "FD06": {
