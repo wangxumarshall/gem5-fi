@@ -280,7 +280,8 @@ build/ARM/gem5.opt --outdir=/tmp/u2-on configs/se/ooo_proxy.py --cmd workloads/o
   - 2026-10-09 完成。——实测：静态翻 D06(R7)/FD05(R34) → (implemented, CHAOSDecode)；`python3 tools/ooo_models.py --check` → `models: 57 | items_scanned: 310 | item_refs_resolved: 310 | unresolved: 0`、`impl_status: implemented=19 partial=34 unimplemented=4`、`OK: 静态表 ↔ 03 索引/详表 ↔ 09 逐模型判定 ↔ 清单 ITEM 三方一致`（翻转前 CHECK FAILED 拦 4 项 = D06/FD05 静态↔文档差，即门在工作）。
   - 09 审计同步：D06/FD05 逐模型行翻已实现（含 GNU 对表 + 两态实测注记）；总账修真 已实现 13→19（补 U3 漏更的 B08/B09/FB08/FB09 + 本单元 D06/FD05）、未实现 10→4（D09, FB06, FD07, FR08）；WB3 段头 14→4 + 族表加状态列（流水时序 U2/U3 已实现、控制状态换值 U4 已实现、拼接/配对=U5 工作面、decode 卡死 D09 未实现）；F-010 注记算术更新（19+0+4≠57，逐模型表权威不变）。
   - 回归：test_ooo_classify 26/26 PASS（SELFTEST PASS (26 checks, 0 failed)）+ test_ooo_guard_f025 12/12 PASS（SELFTEST PASS (12 checks, 0 failed)）。
-- [ ] **Step 6:** 提交 `[OOO][P1][U4] D06/FD05 控制状态合法换值 + GNU 对表`。
+- [x] **Step 6:** 提交 `[OOO][P1][U4] D06/FD05 控制状态合法换值 + GNU 对表`。
+  - 2026-10-09 完成。——实测：commit `1927018e`（9 文件，+460/−25，ooo-exec：CHAOSDecode.hh/.cc/.py、ooo_proxy.py、runner.py、ooo_campaign.py、ooo_models.py、09 审计、本计划）。中继推送（login01 无外网，bundle 通道）：`/tmp/u4-relay.bundle`（18429 B，sha256 `512c0998…06465`，基 d8ed7271，含 8a0c7b50+1927018e）→ Windows `reach fs read` 字节级落地（sha256 复核一致）→ 本地 fi-ding 集成：远端未移动（origin/fi-ding = d5464fdc），重叠恰 2 提交、merge-base d8ed7271 符合设计，merge `c148f141` 干净零冲突（9 文件 +461/−26 = 8a0c7b50 勘误 +1/−1 与 1927018e +460/−25 之和）。push `d5464fdc..c148f141 fi-ding -> fi-ding` ✓，远端 tip `c148f141` fetch 复核一致。
 
 ### Task U5：拼接/配对族（FD07 FR08 FB06）
 
