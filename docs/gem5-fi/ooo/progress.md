@@ -160,3 +160,10 @@ owner / PID / PGID / 锁 / 日志：
 唯一下一动作：
 证据路径：
 ```
+
+## Pause Entry（2026-10-09 用户指令暂停）
+
+- 动作：dkill 1773145（cn22986 RUNNING）+ 1823682（PENDING）→ djob 复核 0 残留；取消 session cron 9177bcc2；U5 Step-2 冻结至 runs/ooo-node/evidence/u5-step2-frozen/；复盘报告 docs/gem5-fi/ooo/10-p1-pause-retrospective.md。
+- 状态：U0–U4/U10/U10b/U11 完成（10 单元，19/57 模型，--check 310/310 三方一致）；U5 冻结于 Step-2 推导 80%（五族编码规则全实证）；U6–U9/U12 未开始。
+- 唯一下一动作（恢复时）：完成 u5verify.py 闭环 → C++ VecStitchRule 表 → 三模型实现。
+- 证据路径：runs/ooo-node/evidence/u5-step2-frozen/FREEZE-NOTES.md。
