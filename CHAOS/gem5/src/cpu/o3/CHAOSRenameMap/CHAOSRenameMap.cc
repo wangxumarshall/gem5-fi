@@ -98,6 +98,7 @@ namespace gem5
         if (s == "oldphys_bitflip2") return Mode::OldphysBitflip2;
         if (s == "oldphys_swap_active") return Mode::OldphysSwapActive;
         if (s == "oldphys_stuck") return Mode::OldphysStuck;
+        if (s == "src_tag_swap") return Mode::SrcTagSwap;
         return Mode::MapBitflip;
     }
 
@@ -121,6 +122,7 @@ namespace gem5
             case Mode::OldphysBitflip2: return "oldphys_bitflip2";
             case Mode::OldphysSwapActive: return "oldphys_swap_active";
             case Mode::OldphysStuck: return "oldphys_stuck";
+            case Mode::SrcTagSwap: return "src_tag_swap";
         }
         return "map_bitflip";
     }
@@ -255,6 +257,89 @@ namespace gem5
             }
         }
         return (int)cands.size();
+    }
+
+    // V2.0 R03-c src_tag_swap (ooo 03-design-matrix R13, 09-audit WB3
+    // gap): swap THE INSTRUCTION's two int source phys tags after both
+    // are renamed (per-DynInst _srcIdx), together with the per-slot
+    // ready bits (the ready state belongs to the phys reg and crosses
+    // with the tag). The speculative RAT entries themselves are
+    // untouched — the 03 row's 注入位置 is "speculative RAT读出的源物
+    // 理tag" (the READ-OUT result consumed by this instruction), a
+    // per-instruction operand-mapping fault; a persistent RAT-entry
+    // swap would be a different (corrupting) model.
+    void
+    CHAOSRenameMap::maybeSwapSrcTags(const o3::DynInstPtr &inst)
+    {
+        // Mode guard (the §2.2/W4/W5 map-entry modes never enter here —
+        // same discipline as the maybeCorrupt dest_reg_sub guard).
+        if (fi_mode != Mode::SrcTagSwap) return;
+        if (!cpu || probability <= 0.0f) return;
+        if (max_faults != 0 && faults_injected_count >= max_faults) return;
+        if (!inWindow()) return;
+        // Need >= 2 source registers, both integer class (R03 is the Int
+        // Rename row; the src operands must be X-domain for a class-
+        // consistent swap).
+        if (inst->numSrcRegs() < 2) return;
+        const RegId &s0 = inst->srcRegIdx(0);
+        const RegId &s1 = inst->srcRegIdx(1);
+        if (s0.classValue() != IntRegClass ||
+            s1.classValue() != IntRegClass)
+            return;
+        // CHAOSReg discipline: R03's domain is the architectural X0-X30
+        // (XZR=31 excluded; gem5-internal/banked slots >=32 excluded —
+        // the first pilot hit an internal-reg src (X42, a micro-op
+        // intermediate), which is outside the 03 row's scope).
+        if (!archIdxValid(s0.index()) || !archIdxValid(s1.index()))
+            return;
+        // Sampling-bias fix (same as the other sites): geometric skip
+        // before the first injection, then the probability draw.
+        if (events_to_skip > 0) { --events_to_skip; return; }
+        std::uniform_real_distribution<float> pd(0.0f, 1.0f);
+        if (pd(rng) > probability) return;
+
+        PhysRegIdPtr p0 = inst->renamedSrcIdx(0);
+        PhysRegIdPtr p1 = inst->renamedSrcIdx(1);
+        // Same phys tag behind both srcs: the swap is the identity —
+        // honest skip, no fault (03: 至少两个活跃候选tag).
+        if (!p0 || !p1 || p0 == p1) {
+            if (write_log) {
+                *(log_stream->stream()) << "Tick: " << curTick()
+                    << ", Site: rename_srcTags, mode=src_tag_swap"
+                    << ", tid=" << (int)inst->threadNumber
+                    << ", sn=" << inst->seqNum
+                    << " — srcs share the same phys tag (skipped, no "
+                    << "injection)" << std::endl;
+            }
+            return;
+        }
+        const int idx0 = p0->index(), idx1 = p1->index();
+        const bool r0 = inst->readySrcIdx(0), r1 = inst->readySrcIdx(1);
+        // Swap tags + ready bits (per-slot ready belongs to the phys
+        // reg, so it crosses with the tag).
+        inst->renamedSrcIdx(0, p1);
+        inst->renamedSrcIdx(1, p0);
+        if (r0 != r1) {
+            inst->readySrcIdx(0, r1);
+            inst->readySrcIdx(1, r0);
+        }
+        faults_injected_count++;
+        if (write_log) {
+            // Verifiable: the two tags exchanged slots; arch srcs, both
+            // phys indices (before -> after) and the ready cross all
+            // logged.
+            *(log_stream->stream()) << "Tick: " << curTick()
+                << ", Site: rename_srcTags, mode=src_tag_swap"
+                << ", tid=" << (int)inst->threadNumber
+                << ", sn=" << inst->seqNum
+                << ", arch0=X" << s0.index()
+                << ", arch1=X" << s1.index()
+                << ", phys0=" << idx0 << "->" << idx1
+                << ", phys1=" << idx1 << "->" << idx0
+                << ", ready_cross=" << ((r0 != r1) ? 1 : 0)
+                << ", faults_injected: " << faults_injected_count
+                << std::endl;
+        }
     }
 
     bool

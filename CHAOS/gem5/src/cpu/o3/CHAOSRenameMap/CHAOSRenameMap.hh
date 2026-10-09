@@ -19,6 +19,8 @@
 // otherwise — same pattern as CHAOSPhysReg.
 namespace gem5 { namespace o3 { class CPU; } }
 
+#include "cpu/o3/dyn_inst_ptr.hh"  // V2.0 R03-c: o3::DynInstPtr (RefCountingPtr fwd)
+
 namespace gem5
 {
 
@@ -54,6 +56,16 @@ class CHAOSRenameMap : public SimObject
     // mapping). Returns true if an injection happened this call.
     bool maybeCorrupt(ThreadID tid, const RegId &arch_reg,
                       PhysRegIdPtr &phys_reg);
+
+    // V2.0 R03-c src_tag_swap: called from Rename::renameInsts right
+    // AFTER renameSrcRegs — both int source phys tags are set in the
+    // per-DynInst _srcIdx. Swaps slot0<->slot1 (tags + per-slot ready
+    // bits, which belong to the phys reg and cross with it); the RAT
+    // entries themselves are untouched (03: 注入位置 = "speculative RAT
+    // 读出的源物理tag" — the READ-OUT result, a per-instruction
+    // operand-mapping fault). Gates: mode/cpu/window/budget + >=2 int
+    // srcs + distinct tags; same tag = identity = honest skip, no fault.
+    void maybeSwapSrcTags(const o3::DynInstPtr &inst);
 
     // §2.3 spec_leak (method1 speculative-state leak, Phase 4.1): called from
     // Rename::doSquash BEFORE the history-buffer rollback undoes a mapping.
@@ -158,7 +170,13 @@ class CHAOSRenameMap : public SimObject
                       // hb_bitflip modes use — but targeting prevPhysReg
                       // exclusively (hb_bitflip picks new/prev 50/50).
                       OldphysBitflip, OldphysBitflip2, OldphysSwapActive,
-                      OldphysStuck };
+                      OldphysStuck,
+                      // V2.0 R03-c (ooo 03-design-matrix R13, 09-audit
+                      // WB3 gap: src0/src1互换): swap THE INSTRUCTION's
+                      // two int source phys tags — a per-inst operand-
+                      // mapping fault (03: 注入位置 = "speculative RAT读出
+                      // 的源物理tag"), NOT a persistent RAT-entry change.
+                      SrcTagSwap };
     static Mode stringToMode(const std::string &s);
     const char *modeToString(Mode m);
 

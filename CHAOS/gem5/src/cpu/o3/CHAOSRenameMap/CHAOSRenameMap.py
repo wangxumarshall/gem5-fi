@@ -75,11 +75,16 @@ class CHAOSRenameMap(SimObject):
     # directed fault_mask control must satisfy the layering (violating
     # mask = honest skip). Plain map_bitflip2 keeps the uniform distinct
     # pair and the exact legacy log format.
+    # V2.0 R03-c (ooo 03-design-matrix R13, 09-audit WB3 gap): src_tag_swap
+    # — swap THE INSTRUCTION's two int source phys tags after rename
+    # (per-inst _srcIdx + ready bits; the RAT itself is untouched — 03:
+    # 注入位置 = "speculative RAT读出的源物理tag", the READ-OUT result).
+    # >=2 int srcs + distinct tags required; same tag = identity skip.
     mode = Param.String("map_bitflip",
         "map_bitflip | map_bitflip2 | map_bitflip2_adj | map_bitflip2_nonadj"
         " | swap_to_active | f5_substitute | "
         "f4_field_stuck | spec_leak | f5_rat_stuck | stale_read | "
-        "swap_mispred_event | hb_bitflip | hb_bitflip2")
+        "swap_mispred_event | hb_bitflip | hb_bitflip2 | src_tag_swap")
 
     # W7.2 (ooo 04-design-matrix D62-D71 merged rows, VecRegClass RAT
     # family): register class whose front-map entries the injector targets.
