@@ -352,7 +352,13 @@ p.add_argument("--decode_mode", default="dest_reg_sub",
                         # non-adjacent dual-bit (field sampled uniformly
                         # over opcode/reg/imm) and opcode x operand
                         # cross-field dual-bit; log carries field=/dist=.
-                        "bitflip2_adj","bitflip2_nonadj","bitflip2_cross"])
+                        # V2.0 FD02 layering (R31, FP/SIMD Decode): same
+                        # split over the FP word's own fields (fp_opcode
+                        # enc[23:10] / lane {Q30,size23:22} / reg), fpOnly
+                        # gated; cross = opcode x lane/reg.
+                        "bitflip2_adj","bitflip2_nonadj","bitflip2_cross",
+                        "fp_bitflip2_adj","fp_bitflip2_nonadj",
+                        "fp_bitflip2_cross"])
 p.add_argument("--decode_first_clock", type=lambda x: int(x,0), default=1000)
 p.add_argument("--decode_last_clock", type=lambda x: int(x,0), default=0)
 p.add_argument("--decode_max_faults", type=lambda x: int(x,0), default=1)

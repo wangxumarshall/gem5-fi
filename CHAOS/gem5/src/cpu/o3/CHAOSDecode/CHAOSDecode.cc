@@ -243,6 +243,9 @@ namespace gem5
         if (s == "bitflip2_adj")       return Mode::Bitflip2Adj;
         if (s == "bitflip2_nonadj")    return Mode::Bitflip2Nonadj;
         if (s == "bitflip2_cross")     return Mode::Bitflip2Cross;
+        if (s == "fp_bitflip2_adj")    return Mode::FpBitflip2Adj;
+        if (s == "fp_bitflip2_nonadj") return Mode::FpBitflip2Nonadj;
+        if (s == "fp_bitflip2_cross")  return Mode::FpBitflip2Cross;
         panic("CHAOSDecode: unknown mode '%s'\n", s);
     }
 
@@ -270,6 +273,9 @@ namespace gem5
           case Mode::Bitflip2Adj:      return "bitflip2_adj";
           case Mode::Bitflip2Nonadj:   return "bitflip2_nonadj";
           case Mode::Bitflip2Cross:    return "bitflip2_cross";
+          case Mode::FpBitflip2Adj:    return "fp_bitflip2_adj";
+          case Mode::FpBitflip2Nonadj: return "fp_bitflip2_nonadj";
+          case Mode::FpBitflip2Cross:  return "fp_bitflip2_cross";
         }
         return "?";
     }
@@ -439,13 +445,18 @@ namespace gem5
         const bool is_imm_mode = (fi_mode == Mode::ImmBitflip ||
                                   fi_mode == Mode::ImmBitflip2);
         // W7 batch 1 (D56-D61): all six FP modes gate on fpOnly (see
-        // isFpOpClass for the documented scope).
+        // isFpOpClass for the documented scope). The V2.0 FD02 layered
+        // modes gate on fpOnly too (FD02's trigger: 有效FP或AdvSIMD指令
+        // 进入decode).
         const bool is_fp_mode = (fi_mode == Mode::FpOpcodeBitflip ||
                                  fi_mode == Mode::FpOpcodeBitflip2 ||
                                  fi_mode == Mode::FpOpcodeSwap ||
                                  fi_mode == Mode::FpRegBitflip ||
                                  fi_mode == Mode::FpRegBitflip2 ||
-                                 fi_mode == Mode::FpRouteBit);
+                                 fi_mode == Mode::FpRouteBit ||
+                                 fi_mode == Mode::FpBitflip2Adj ||
+                                 fi_mode == Mode::FpBitflip2Nonadj ||
+                                 fi_mode == Mode::FpBitflip2Cross);
 
         // ---- cheap per-mode eligibility (before skip/probability) ----
         const SwapRule *rule = nullptr;
@@ -512,10 +523,13 @@ namespace gem5
         const bool is_d02_layered = (fi_mode == Mode::Bitflip2Adj ||
                                      fi_mode == Mode::Bitflip2Nonadj ||
                                      fi_mode == Mode::Bitflip2Cross);
-        const char *d02_field = nullptr;  // set by the layered branch
+        const bool is_fd02_layered = (fi_mode == Mode::FpBitflip2Adj ||
+                                      fi_mode == Mode::FpBitflip2Nonadj ||
+                                      fi_mode == Mode::FpBitflip2Cross);
+        const char *d02_field = nullptr;  // set by the layered branches
         const std::string orig_name = orig->getName();
         std::vector<uint32_t> fp0;
-        if (is_reg_mode || is_imm_mode || is_d02_layered)
+        if (is_reg_mode || is_imm_mode || is_d02_layered || is_fd02_layered)
             captureRegs(orig.get(), fp0);
         auto effective = [&](uint32_t xor_mask, bool reg_pred) -> bool {
             ArmISA::ExtMachInst t = emi;
@@ -686,6 +700,93 @@ namespace gem5
                 while (bit_b == bit_a);
                 d02_field = "cross";
             }
+        } else if (is_fd02_layered) {
+            // ---- V2.0 FD02 layering (ooo 03-design-matrix R31, FP/SIMD
+            // Decode). Same adjacency split as D02 but over the FP/SIMD
+            // instruction word's OWN field structure (derived from real
+            // AArch64 encodings — see kFpLaneBits in .hh; deliberately
+            // NOT D02's int-field sets): fp_opcode = the W7.1 spike window
+            // enc[23:10]; lane = {Q(30), size/ftype(23:22)}; reg = the
+            // Vd/Vn/Vm positions (kRegBits). FD02-a/b: field sampled
+            // uniformly over {fp_opcode, lane, reg}, adjacent (|dpos|==1)
+            // resp. non-adjacent (|dpos|>=2) pair within the field.
+            // fp_opcode/lane: NO verification by design (legal and illegal
+            // landings are both the fault model — the fpOnly gate already
+            // restricted the population). reg: the D02 reg predicate
+            // (mnemonic kept AND fingerprint moved) via rejection over a
+            // shuffled constrained-pair list. FD02-c: 1 bit of
+            // kFpOpcodeBits + 1 distinct bit of kFpOperandSideBits (lane
+            // UNION reg — the lane/register-operand side) — positional
+            // selection only ("opcode/lane跨字段"; the documented 23:22
+            // overlap with the opcode window is handled by bit_a !=
+            // bit_b).
+            const bool fd02_cross = (fi_mode == Mode::FpBitflip2Cross);
+            const bool fd02_adj = (fi_mode == Mode::FpBitflip2Adj);
+            if (!fd02_cross) {
+                const uint32_t f = rng() % 3;  // 0=fp_opcode 1=lane 2=reg
+                const uint32_t *cand;
+                size_t ncand;
+                const char *fname;
+                bool reg_pred;
+                bool verify;
+                if (f == 0) {
+                    cand = kFpOpcodeBits;
+                    ncand = sizeof(kFpOpcodeBits) / sizeof(kFpOpcodeBits[0]);
+                    fname = "fp_opcode";
+                    reg_pred = false;
+                    verify = false;
+                } else if (f == 1) {
+                    cand = kFpLaneBits;
+                    ncand = sizeof(kFpLaneBits) / sizeof(kFpLaneBits[0]);
+                    fname = "lane";
+                    reg_pred = false;
+                    verify = false;
+                } else {
+                    cand = kRegBits;
+                    ncand = sizeof(kRegBits) / sizeof(kRegBits[0]);
+                    fname = "reg";
+                    reg_pred = true;
+                    verify = true;
+                }
+                std::vector<std::pair<uint32_t, uint32_t>> pairs;
+                for (size_t i = 0; i < ncand; i++)
+                    for (size_t j = i + 1; j < ncand; j++) {
+                        const uint32_t d = cand[i] > cand[j]
+                            ? cand[i] - cand[j] : cand[j] - cand[i];
+                        if (fd02_adj ? (d == 1) : (d >= 2))
+                            pairs.emplace_back(cand[i], cand[j]);
+                    }
+                if (pairs.empty())
+                    return nullptr;   // defensive: no constrained pair in
+                                      // the field set (unreachable for the
+                                      // three FP fields today)
+                for (size_t i = pairs.size(); i > 1; i--) {
+                    const size_t j = rng() % i;
+                    std::swap(pairs[i - 1], pairs[j]);
+                }
+                for (const auto &pr : pairs) {
+                    const uint32_t mask =
+                        (1u << pr.first) | (1u << pr.second);
+                    if (!verify || effective(mask, reg_pred)) {
+                        bit_a = pr.first;
+                        bit_b = pr.second;
+                        break;
+                    }
+                }
+                if (bit_b == 32)
+                    return nullptr;   // honest wasted draw: no constrained
+                                      // pair passes the field predicate
+                d02_field = fname;
+            } else {
+                constexpr size_t n_op =
+                    sizeof(kFpOpcodeBits) / sizeof(kFpOpcodeBits[0]);
+                constexpr size_t n_od =
+                    sizeof(kFpOperandSideBits) / sizeof(kFpOperandSideBits[0]);
+                bit_a = kFpOpcodeBits[rng() % n_op];
+                do { bit_b = kFpOperandSideBits[rng() % n_od]; }
+                while (bit_b == bit_a);
+                d02_field = "cross";
+            }
         }
 
         // ---- apply the flip, re-decode, replace ----
@@ -710,9 +811,9 @@ namespace gem5
                 << ", bits=[" << bit_a
                 << (bit_b != 32 ? "," : "")
                 << (bit_b != 32 ? std::to_string(bit_b) : "") << "]";
-            // V2.0 D02 layering: 03 spec "保存bit距离和原/故障值" —
+            // V2.0 D02/FD02 layering: 03 spec "保存bit距离和原/故障值" —
             // dist = |bit_a - bit_b|; field = the sampled field.
-            if (is_d02_layered)
+            if (is_d02_layered || is_fd02_layered)
                 *(log_stream->stream())
                     << ", field=" << d02_field
                     << ", dist=" << (bit_a > bit_b ? bit_a - bit_b

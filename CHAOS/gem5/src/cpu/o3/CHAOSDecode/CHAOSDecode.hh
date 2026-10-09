@@ -114,8 +114,15 @@ class CHAOSDecode : public SimObject
                                              // dual bit (|dpos| == 1)
                       Bitflip2Nonadj,        // D02-b same-field NON-adjacent
                                              // dual bit (|dpos| >= 2)
-                      Bitflip2Cross };       // D02-c opcode x operand
+                      Bitflip2Cross,         // D02-c opcode x operand
                                              // cross-field dual bit
+                      // ---- V2.0 FD02 layering (ooo 03-design-matrix R31;
+                      // same adjacency split for the FP/SIMD instruction
+                      // word; field sampled uniformly over fp_opcode/lane/
+                      // reg; cross = opcode x lane/register-operand) ----
+                      FpBitflip2Adj,         // FD02-a same-field ADJACENT
+                      FpBitflip2Nonadj,      // FD02-b same-field NON-adjacent
+                      FpBitflip2Cross };     // FD02-c opcode x lane/operand
     Mode fi_mode = Mode::DestRegSub;
     static Mode stringToMode(const std::string &s);
     const char *modeToString(Mode m) const;
@@ -179,6 +186,29 @@ class CHAOSDecode : public SimObject
     // bit so every injection stays recomputable (orig ^ (1<<b) == new).
     static constexpr uint32_t kFpOpcodeBits[] = {
         23, 22, 21, 20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10 };
+    // V2.0 FD02 lane field: the lane-STRUCTURE control bits of the AArch64
+    // FP/SIMD encodings, derived from real instruction encodings on this
+    // host (ARM DDI 0487 AdvSIMD layout):
+    //   fadd d0,d1,d2 = 0x1e622820 (Q=0, size/ftype[23:22]=01 → 1 lane of
+    //                             64b — scalar double)
+    //   fadd s0,s1,s2 = 0x1e222820 (size=00 → 1 lane of 32b)
+    //   fadd v0.2d    = 0x4e62d420 (Q=1, size=01 → 2 lanes of 64b)
+    //   fadd v0.4s    = 0x4e22d420 (Q=1, size=00 → 4 lanes of 32b)
+    // i.e. bit 30 = Q (64/128-bit vector length → lane count) and
+    // bits[23:22] = size/ftype (element width). These are ACTIVE control
+    // bits in every FP/AdvSIMD encoding — not reserved. NOTE the
+    // documented overlap with kFpOpcodeBits: the W7.1 opcode window
+    // includes size[23:22] (it discriminates FP formats); the cross mode
+    // enforces bit_a != bit_b so a "cross" flip never degenerates to a
+    // single-bit double-flip.
+    static constexpr uint32_t kFpLaneBits[] = { 30, 23, 22 };
+    // V2.0 FD02-c operand side: kFpLaneBits UNION kRegBits (the lane +
+    // Vd/Vn/Vm register-operand positions — the non-opcode side of the
+    // FP/SIMD instruction word; the FP-immediate window is deliberately
+    // NOT included: FD02's submodels name opcode/lane/register only).
+    static constexpr uint32_t kFpOperandSideBits[] = {
+        30, 23, 22,
+        0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 16, 17, 18, 19, 20 };
     // D61 route candidates: the top-level A64 instruction-class field
     // bits[28:24] (x1110/x1111 = FP/ASIMD vs the integer data-proc /
     // load-store / branch groups) — the bits the "integer vs FP/SIMD
