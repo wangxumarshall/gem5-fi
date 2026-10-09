@@ -603,3 +603,7 @@ P09-F0-W13
 <status>completed</status>
 <summary>Background command "Full W1 run 1 in background (6h budget, profile + golden candidate)" completed (exit code 0)</summary>
 </task-notification>
+
+---
+
+[W1 golden 资源恢复探测] LSU 轨道因外部会话（OoO 轨道）压力处于 BLOCKED-外部资源（2026-10-09 11:29 MemAvail 6.9 GiB / load 118）。执行：①采样 /proc/meminfo 的 MemAvailable 与 /proc/loadavg——若 MemAvailable ≥ 12 GiB 且 load1 < 20 且 runs/lsu/guard/ 无他人锁：以守卫后台重启 W1 运行 #1（python3 tools/lsu_guard.py run --type experiment --desc "W1 w1_all full run #1 relaunch" --log runs/lsu/guard/w1_full1_rsrc.log --interval 60 --max-seconds 21600 -- build/ARM/gem5.opt --outdir /tmp/w1_full1 configs/se/lsu_proxy.py --cmd workloads/mibench/bin/w1_all --cpu O3 --variant B0 > /tmp/w1_full1.out 2>&1），成功后用 CronDelete 删除本任务（id 见 CronList）并向用户简报；②资源仍不足：仅记录数字继续等；③若 /tmp/w1_full1.out 已有 [w1] blowfish-e 行且 gem5 进程在跑（说明已重启）：删除本 cron。绝不启动其他重任务、不动外部进程、MemAvailable < 12 GiB 时不得启动。
