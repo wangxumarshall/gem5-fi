@@ -152,6 +152,7 @@
           "type": "string",
           "enum": [
             "gpr",
+            "decode",
             "l1i",
             "l1d",
             "l2",

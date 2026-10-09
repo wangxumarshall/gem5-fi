@@ -1271,7 +1271,11 @@ def main():
                    "sign_ext_bit", "imm_subfield_shift", "crack_ctrl",
                    "fp_opcode_bitflip", "fp_opcode_bitflip2",
                    "fp_opcode_swap", "fp_reg_bitflip",
-                   "fp_reg_bitflip2", "fp_route_bit"):
+                   "fp_reg_bitflip2", "fp_route_bit",
+                   # V2.0 D02 layering (ooo 03-design-matrix R3): same-field
+                   # adjacent / non-adjacent dual-bit (field sampled over
+                   # opcode/reg/imm) + opcode x operand cross-field dual-bit.
+                   "bitflip2_adj", "bitflip2_nonadj", "bitflip2_cross"):
             dm = dsf
         cmd += ["--chaos_decode", "--decode_mode", dm,
                 "--decode_first_clock", str(t["value"]),
