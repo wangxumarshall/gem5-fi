@@ -1,0 +1,39 @@
+{
+  "required_files_present": true,
+  "required_files": [
+    "总方针.md",
+    "task_plan.md",
+    "完整任务执行清单.md",
+    "progress.md",
+    "findings.md",
+    "gem5-fi-OOO单元故障注入方案.xlsx",
+    "服务器AI完整提示语.txt"
+  ],
+  "item_count": 310,
+  "unique_run_id_count": 310,
+  "key_run_id_count": 18,
+  "regular_run_id_count": 292,
+  "sequential_item_ids": true,
+  "run_id_order_matches_workbook": true,
+  "formula_count": 1860,
+  "formula_pattern_mismatch_count": 0,
+  "detail_field_counts": {
+    "Excel定位": 310,
+    "模型ID": 310,
+    "触发条件": 310,
+    "传播监控": 310,
+    "子模型": 310,
+    "命令参数": 310
+  },
+  "core_documents_have_fixed_counts": true,
+  "core_documents_have_all_units": true,
+  "package_has_no_lsu_leftover": true,
+  "package_has_recovery_controls": true,
+  "first_item": "### ITEM-001 — D01-F0-W3",
+  "last_item": "### ITEM-310 — FB10-F5-W10",
+  "source_xlsx_sha256": "0f386de7c275d0ded7e679012d91c0804194d52f32e18d1cc43830a563f62b90",
+  "output_xlsx_sha256": "0f386de7c275d0ded7e679012d91c0804194d52f32e18d1cc43830a563f62b90",
+  "xlsx_byte_identical": true,
+  "checklist_sha256": "d200d15c10907de8377d779ba477f0a72a1d302e2f8368deba2bf6d02ab9ec09",
+  "pass": true
+}
