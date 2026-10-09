@@ -45,6 +45,7 @@
 
 #include "cpu/o3/cpu.hh"
 #include "cpu/o3/CHAOSDecode/CHAOSDecode.hh"  // §2.14 full def for maybeCorrupt
+#include "cpu/o3/CHAOSRenameMap/CHAOSRenameMap.hh"  // V2.0 R03-c maybeSwapSrcTags
 #include "cpu/o3/dyn_inst.hh"
 #include "cpu/o3/limits.hh"
 #include "cpu/reg_class.hh"
@@ -743,6 +744,17 @@ Rename::renameInsts(ThreadID tid)
         }
 
         renameSrcRegs(inst, inst->threadNumber);
+
+        // V2.0 R03-c (ooo 03-design-matrix R13, src0/src1互换): after
+        // this instruction's source physical tags are renamed (the
+        // per-DynInst _srcIdx), give the rename injector a chance to
+        // swap the two int source tags — a per-instruction operand-
+        // mapping fault; the RAT entries themselves are untouched. The
+        // injector's own gates (mode/window/budget/class/distinct tags)
+        // decide; null injector = zero cost, zero regression.
+        if (renameMap[inst->threadNumber]->getChaosRenameMap())
+            renameMap[inst->threadNumber]->getChaosRenameMap()
+                ->maybeSwapSrcTags(inst);
 
         renameDestRegs(inst, inst->threadNumber);
 
