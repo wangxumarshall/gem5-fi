@@ -1,0 +1,189 @@
+{
+  "cli_version": "0.10.2",
+  "checkpoint_id": "01M4H3Y2T669M93DK0QV442EEP",
+  "session_id": "dad48cda-ef62-411b-9c2f-3992891a8017",
+  "strategy": "manual-commit",
+  "created_at": "2026-10-09T19:58:48.258768959Z",
+  "branch": "fi-ding",
+  "checkpoints_count": 3,
+  "save_step_count": 4,
+  "files_touched": [],
+  "agent": "Claude Code",
+  "model": "GLM-5.3[1m]",
+  "turn_id": "9a2a4250cb96",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 1695723,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 15744064,
+    "output_tokens": 85919,
+    "api_call_count": 91
+  },
+  "skill_events_version": 1,
+  "skill_events": [
+    {
+      "id": "claude-skill-call_90a8180b52804e6696d9f555",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "planning-with-files:status"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "9a2a4250cb96",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 20,
+        "end": 21,
+        "entry_ids": [
+          "bbdf16d6-6934-44b7-801e-248adb961e20"
+        ],
+        "tool_use_id": "call_90a8180b52804e6696d9f555"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "call_90a8180b52804e6696d9f555"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: planning-with-files:status",
+        "default_collapsed": true
+      }
+    },
+    {
+      "id": "claude-skill-call_d1e363716dd342bf9c473172",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "superpowers:systematic-debugging"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "9a2a4250cb96",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 545,
+        "end": 546,
+        "entry_ids": [
+          "75a4f2e3-5013-4045-9fea-c4e6782c28a6"
+        ],
+        "tool_use_id": "call_d1e363716dd342bf9c473172"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "call_d1e363716dd342bf9c473172"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: superpowers:systematic-debugging",
+        "default_collapsed": true
+      }
+    }
+  ],
+  "session_metrics": {
+    "turn_count": 8
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    },
+    {
+      "checkpoint_number": 3,
+      "user_lines_added": 26841,
+      "user_lines_removed": 0,
+      "agent_lines_added": 408861,
+      "agent_lines_removed": 995,
+      "user_added_per_file": {
+        "docs/gem5-fi/.migration-backups/ooo-before-sampling-merge-20261008-163431/03-design-matrix.md": 158,
+        "docs/gem5-fi/.migration-backups/ooo-before-sampling-merge-20261008-163431/09-v2-coverage-audit.md": 98,
+        "docs/gem5-fi/.migration-backups/ooo-before-sampling-merge-20261008-163431/d-bridge-v1-v2.csv": 117,
+        "docs/gem5-fi/.migration-backups/ooo-before-sampling-merge-20261008-163431/findings.md": 89,
+        "docs/gem5-fi/.migration-backups/ooo-before-sampling-merge-20261008-163431/progress.md": 162,
+        "docs/gem5-fi/.migration-backups/ooo-before-sampling-merge-20261008-163431/task_plan.md": 156,
+        "docs/gem5-fi/.migration-backups/ooo-before-sampling-merge-20261008-163431/完整任务执行清单.md": 12277,
+        "docs/gem5-fi/.migration-backups/ooo-before-sampling-merge-20261008-163431/总方针.md": 141,
+        "docs/gem5-fi/.migration-backups/ooo-before-sampling-merge-20261008-163431/服务器AI完整提示语.txt": 91,
+        "docs/gem5-fi/.migration-backups/ooo-before-sampling-merge-20261008-163431/生成校验报告.json": 37,
+        "docs/gem5-fi/.migration-backups/ooo-live-pre-switch-20261008-163431/03-design-matrix.md": 158,
+        "docs/gem5-fi/.migration-backups/ooo-live-pre-switch-20261008-163431/09-v2-coverage-audit.md": 98,
+        "docs/gem5-fi/.migration-backups/ooo-live-pre-switch-20261008-163431/d-bridge-v1-v2.csv": 117,
+        "docs/gem5-fi/.migration-backups/ooo-live-pre-switch-20261008-163431/findings.md": 89,
+        "docs/gem5-fi/.migration-backups/ooo-live-pre-switch-20261008-163431/progress.md": 162,
+        "docs/gem5-fi/.migration-backups/ooo-live-pre-switch-20261008-163431/task_plan.md": 156,
+        "docs/gem5-fi/.migration-backups/ooo-live-pre-switch-20261008-163431/完整任务执行清单.md": 12277,
+        "docs/gem5-fi/.migration-backups/ooo-live-pre-switch-20261008-163431/总方针.md": 141,
+        "docs/gem5-fi/.migration-backups/ooo-live-pre-switch-20261008-163431/服务器AI完整提示语.txt": 91,
+        "docs/gem5-fi/.migration-backups/ooo-live-pre-switch-20261008-163431/生成校验报告.json": 37,
+        "tools/draft/test_campaign_v2.py": 189
+      }
+    },
+    {
+      "checkpoint_number": 4,
+      "user_lines_added": 26841,
+      "user_lines_removed": 0,
+      "agent_lines_added": 408861,
+      "agent_lines_removed": 995,
+      "user_added_per_file": {
+        "docs/gem5-fi/.migration-backups/ooo-before-sampling-merge-20261008-163431/03-design-matrix.md": 158,
+        "docs/gem5-fi/.migration-backups/ooo-before-sampling-merge-20261008-163431/09-v2-coverage-audit.md": 98,
+        "docs/gem5-fi/.migration-backups/ooo-before-sampling-merge-20261008-163431/d-bridge-v1-v2.csv": 117,
+        "docs/gem5-fi/.migration-backups/ooo-before-sampling-merge-20261008-163431/findings.md": 89,
+        "docs/gem5-fi/.migration-backups/ooo-before-sampling-merge-20261008-163431/progress.md": 162,
+        "docs/gem5-fi/.migration-backups/ooo-before-sampling-merge-20261008-163431/task_plan.md": 156,
+        "docs/gem5-fi/.migration-backups/ooo-before-sampling-merge-20261008-163431/完整任务执行清单.md": 12277,
+        "docs/gem5-fi/.migration-backups/ooo-before-sampling-merge-20261008-163431/总方针.md": 141,
+        "docs/gem5-fi/.migration-backups/ooo-before-sampling-merge-20261008-163431/服务器AI完整提示语.txt": 91,
+        "docs/gem5-fi/.migration-backups/ooo-before-sampling-merge-20261008-163431/生成校验报告.json": 37,
+        "docs/gem5-fi/.migration-backups/ooo-live-pre-switch-20261008-163431/03-design-matrix.md": 158,
+        "docs/gem5-fi/.migration-backups/ooo-live-pre-switch-20261008-163431/09-v2-coverage-audit.md": 98,
+        "docs/gem5-fi/.migration-backups/ooo-live-pre-switch-20261008-163431/d-bridge-v1-v2.csv": 117,
+        "docs/gem5-fi/.migration-backups/ooo-live-pre-switch-20261008-163431/findings.md": 89,
+        "docs/gem5-fi/.migration-backups/ooo-live-pre-switch-20261008-163431/progress.md": 162,
+        "docs/gem5-fi/.migration-backups/ooo-live-pre-switch-20261008-163431/task_plan.md": 156,
+        "docs/gem5-fi/.migration-backups/ooo-live-pre-switch-20261008-163431/完整任务执行清单.md": 12277,
+        "docs/gem5-fi/.migration-backups/ooo-live-pre-switch-20261008-163431/总方针.md": 141,
+        "docs/gem5-fi/.migration-backups/ooo-live-pre-switch-20261008-163431/服务器AI完整提示语.txt": 91,
+        "docs/gem5-fi/.migration-backups/ooo-live-pre-switch-20261008-163431/生成校验报告.json": 37,
+        "tools/draft/test_campaign_v2.py": 189
+      }
+    },
+    {
+      "checkpoint_number": 5,
+      "user_lines_added": 26841,
+      "user_lines_removed": 0,
+      "agent_lines_added": 408861,
+      "agent_lines_removed": 995,
+      "user_added_per_file": {
+        "docs/gem5-fi/.migration-backups/ooo-before-sampling-merge-20261008-163431/03-design-matrix.md": 158,
+        "docs/gem5-fi/.migration-backups/ooo-before-sampling-merge-20261008-163431/09-v2-coverage-audit.md": 98,
+        "docs/gem5-fi/.migration-backups/ooo-before-sampling-merge-20261008-163431/d-bridge-v1-v2.csv": 117,
+        "docs/gem5-fi/.migration-backups/ooo-before-sampling-merge-20261008-163431/findings.md": 89,
+        "docs/gem5-fi/.migration-backups/ooo-before-sampling-merge-20261008-163431/progress.md": 162,
+        "docs/gem5-fi/.migration-backups/ooo-before-sampling-merge-20261008-163431/task_plan.md": 156,
+        "docs/gem5-fi/.migration-backups/ooo-before-sampling-merge-20261008-163431/完整任务执行清单.md": 12277,
+        "docs/gem5-fi/.migration-backups/ooo-before-sampling-merge-20261008-163431/总方针.md": 141,
+        "docs/gem5-fi/.migration-backups/ooo-before-sampling-merge-20261008-163431/服务器AI完整提示语.txt": 91,
+        "docs/gem5-fi/.migration-backups/ooo-before-sampling-merge-20261008-163431/生成校验报告.json": 37,
+        "docs/gem5-fi/.migration-backups/ooo-live-pre-switch-20261008-163431/03-design-matrix.md": 158,
+        "docs/gem5-fi/.migration-backups/ooo-live-pre-switch-20261008-163431/09-v2-coverage-audit.md": 98,
+        "docs/gem5-fi/.migration-backups/ooo-live-pre-switch-20261008-163431/d-bridge-v1-v2.csv": 117,
+        "docs/gem5-fi/.migration-backups/ooo-live-pre-switch-20261008-163431/findings.md": 89,
+        "docs/gem5-fi/.migration-backups/ooo-live-pre-switch-20261008-163431/progress.md": 162,
+        "docs/gem5-fi/.migration-backups/ooo-live-pre-switch-20261008-163431/task_plan.md": 156,
+        "docs/gem5-fi/.migration-backups/ooo-live-pre-switch-20261008-163431/完整任务执行清单.md": 12277,
+        "docs/gem5-fi/.migration-backups/ooo-live-pre-switch-20261008-163431/总方针.md": 141,
+        "docs/gem5-fi/.migration-backups/ooo-live-pre-switch-20261008-163431/服务器AI完整提示语.txt": 91,
+        "docs/gem5-fi/.migration-backups/ooo-live-pre-switch-20261008-163431/生成校验报告.json": 37,
+        "tools/draft/test_campaign_v2.py": 189
+      }
+    }
+  ]
+}

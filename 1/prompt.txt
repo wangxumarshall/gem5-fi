@@ -1,0 +1,115 @@
+请准备 huawei0101 当前 LSU工作的集成就绪报告。
+
+要求：
+
+1. 继续完成当前正在执行的 LSU最小工作单元及其真实验证；不要扩展新任务。
+2. 不执行 git pull、git rebase、git reset、git push 或 force push。
+3. 不切换分支。
+4. 禁止 git add -A。
+5. 禁止暂存 build、artifacts、runs、m5out、实验输出和临时文件。
+6. 如有仍在运行的 campaign，等待当前安全单元完成后停止调度新任务。
+7. 可以按仓库规范在本地 fi-ding 创建已经验证的普通提交，但不要推送。
+
+完成后报告：
+
+- git status --short --branch
+- git rev-parse HEAD
+- git log --oneline origin/fi-ding..HEAD
+- git log --oneline HEAD..origin/fi-ding
+- 所有未提交的已跟踪文件
+- 所有与 LSU任务有关的未跟踪源码、配置和文档
+- 本地新增提交及每个提交修改的文件
+- 当前运行中的 gem5、campaign、cron、tmux或后台进程
+- 最新 LSU构建、功能验证和不受影响回归结果
+- 哪些 artifacts 是实验结果、不得提交
+- 是否已达到“可以由主协调助手处理同步和冲突”的状态
+
+不要自行解决与 origin/fi-ding 的分叉，也不要推送。报告完成后停止并等待。
+
+---
+
+请准备 huawei0101 当前 LSU工作的集成就绪报告。
+
+要求：
+
+1. 继续完成当前正在执行的 LSU最小工作单元及其真实验证；不要扩展新任务。
+2. 不执行 git pull、git rebase、git reset、git push 或 force push。
+3. 不切换分支。
+4. 禁止 git add -A。
+5. 禁止暂存 build、artifacts、runs、m5out、实验输出和临时文件。
+6. 如有仍在运行的 campaign，等待当前安全单元完成后停止调度新任务。
+7. 可以按仓库规范在本地 fi-ding 创建已经验证的普通提交，但不要推送。
+
+完成后报告：
+
+- git status --short --branch
+- git rev-parse HEAD
+- git log --oneline origin/fi-ding..HEAD
+- git log --oneline HEAD..origin/fi-ding
+- 所有未提交的已跟踪文件
+- 所有与 LSU任务有关的未跟踪源码、配置和文档
+- 本地新增提交及每个提交修改的文件
+- 当前运行中的 gem5、campaign、cron、tmux或后台进程
+- 最新 LSU构建、功能验证和不受影响回归结果
+- 哪些 artifacts 是实验结果、不得提交
+- 是否已达到“可以由主协调助手处理同步和冲突”的状态
+
+不要自行解决与 origin/fi-ding 的分叉，也不要推送。报告完成后停止并等待。
+
+---
+
+等任务做完你会自动汇报是吗
+
+---
+
+<task-notification>
+<task-id>b7soq6h2f</task-id>
+<tool-use-id>call_0b6a2a198052434895169266</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi-ding/f251d83f-ce2a-4d5b-851a-5d6937dd4ed6/tasks/b7soq6h2f.output</output-file>
+<status>completed</status>
+<summary>Background command "Interim check of W1 run in 2 hours" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bj5as110r</task-id>
+<tool-use-id>call_abb07d8590b6418fa5a810f6</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi-ding/f251d83f-ce2a-4d5b-851a-5d6937dd4ed6/tasks/bj5as110r.output</output-file>
+<status>completed</status>
+<summary>Background command "Next interim check of W1 run in 90 minutes" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+什么进度了
+
+---
+
+<task-notification>
+<task-id>bp62ldwt2</task-id>
+<tool-use-id>call_ce0aaa52e9244840bb75a54f</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi-ding/f251d83f-ce2a-4d5b-851a-5d6937dd4ed6/tasks/bp62ldwt2.output</output-file>
+<status>completed</status>
+<summary>Background command "Watch for W1 run completion marker" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bxmv5n7f8</task-id>
+<tool-use-id>call_c3c261579eba4ea8ac433a44</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi-ding/f251d83f-ce2a-4d5b-851a-5d6937dd4ed6/tasks/bxmv5n7f8.output</output-file>
+<status>completed</status>
+<summary>Background command "Interim check of attempt-4 in 2.5 hours" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b629pwh8g</task-id>
+<tool-use-id>call_62676c9c8dea48579d4a392f</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi-ding/f251d83f-ce2a-4d5b-851a-5d6937dd4ed6/tasks/b629pwh8g.output</output-file>
+<status>completed</status>
+<summary>Background command "Interim check A4-2 of attempt-4 in 2.5 hours" completed (exit code 0)</summary>
+</task-notification>
