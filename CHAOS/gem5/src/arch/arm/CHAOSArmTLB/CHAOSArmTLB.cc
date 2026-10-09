@@ -57,6 +57,10 @@ namespace gem5
         if (s == "stuck_at_zero") return FaultType::StuckAtZero;
         if (s == "stuck_at_one") return FaultType::StuckAtOne;
         if (s == "pfn_to_mapped_page") return FaultType::PfnToMappedPage;
+        if (s == "t05_valid_clear") return FaultType::T05ValidClear;
+        if (s == "t05_valid_fake_set") return FaultType::T05ValidFakeSet;
+        if (s == "t05_global_flip") return FaultType::T05GlobalFlip;
+        if (s == "t05_asid_subst") return FaultType::T05AsidSubst;
         return FaultType::Random;
     }
 
@@ -67,6 +71,10 @@ namespace gem5
             case FaultType::StuckAtZero: return "stuck_at_zero";
             case FaultType::StuckAtOne: return "stuck_at_one";
             case FaultType::PfnToMappedPage: return "pfn_to_mapped_page";
+            case FaultType::T05ValidClear: return "t05_valid_clear";
+            case FaultType::T05ValidFakeSet: return "t05_valid_fake_set";
+            case FaultType::T05GlobalFlip: return "t05_global_flip";
+            case FaultType::T05AsidSubst: return "t05_asid_subst";
             case FaultType::Random: return "random";  // G7: clear -Wswitch
         }
         return "random";
@@ -201,6 +209,78 @@ namespace gem5
             return;
         }
 
+        // ---- T05 (L1d-TLB entry identity/lifecycle state, gap1): mutate
+        // the HIT entry's state fields. The current translation proceeds
+        // (retval is already resolved); the corrupted state bites on
+        // SUBSEQUENT lookups (extra walk / cross-ASID hazard). T05-a..d.
+        switch (chosen) {
+        case FaultType::T05ValidClear: {
+            entry->valid = false;                      // T05-a
+            stats->numT05State++; stats->numFaultsInjected++;
+            ++faults_injected_count;
+            if (write_log) *(log_stream->stream())
+                << "Tick: " << curTick() << ", Site: arm_tlb_lookup_hit"
+                << ", VA: 0x" << std::hex << va
+                << ", FaultType: t05_valid_clear (T05-a) valid 1->0"
+                << std::dec << std::endl;
+            return;
+        }
+        case FaultType::T05ValidFakeSet: {
+            if (!tlb) return;                          // T05-b resurrect
+            std::vector<const ArmISA::TlbEntry*> dead;
+            const auto &tbl = tlb->entryTable();
+            for (auto it = tbl.begin(); it != tbl.end(); ++it)
+                if (&(*it) != entry && !it->valid) dead.push_back(&(*it));
+            if (dead.empty()) return;                  // honest no-op
+            // entryTable() only exposes a const view; the table itself is
+            // mutable state of the non-const tlb we hold, so casting the
+            // view's const away here is sound (we exist to corrupt it).
+            ArmISA::TlbEntry *target =
+                const_cast<ArmISA::TlbEntry*>(dead[rng() % dead.size()]);
+            target->valid = true;                      // stale goes live
+            stats->numT05State++; stats->numFaultsInjected++;
+            ++faults_injected_count;
+            if (write_log) *(log_stream->stream())
+                << "Tick: " << curTick() << ", Site: arm_tlb_lookup_hit"
+                << ", VA: 0x" << std::hex << va
+                << ", FaultType: t05_valid_fake_set (T05-b) slot vpn 0x"
+                << target->vpn << std::dec << std::endl;
+            return;
+        }
+        case FaultType::T05GlobalFlip: {
+            entry->global = !entry->global;            // T05-c
+            stats->numT05State++; stats->numFaultsInjected++;
+            ++faults_injected_count;
+            if (write_log) *(log_stream->stream())
+                << "Tick: " << curTick() << ", Site: arm_tlb_lookup_hit"
+                << ", VA: 0x" << std::hex << va
+                << ", FaultType: t05_global_flip (T05-c) global -> "
+                << entry->global << std::dec << std::endl;
+            return;
+        }
+        case FaultType::T05AsidSubst: {
+            if (!tlb) return;                          // T05-d asid subst
+            std::vector<uint16_t> cand;
+            const auto &tbl = tlb->entryTable();
+            for (auto it = tbl.begin(); it != tbl.end(); ++it)
+                if (&(*it) != entry && it->valid && it->asid != entry->asid)
+                    cand.push_back(it->asid);
+            if (cand.empty()) return;                  // honest no-op
+            uint16_t old_asid = entry->asid;
+            entry->asid = cand[rng() % cand.size()];
+            stats->numT05State++; stats->numFaultsInjected++;
+            ++faults_injected_count;
+            if (write_log) *(log_stream->stream())
+                << "Tick: " << curTick() << ", Site: arm_tlb_lookup_hit"
+                << ", VA: 0x" << std::hex << va
+                << ", FaultType: t05_asid_subst (T05-d) asid "
+                << (int)old_asid << "->" << (int)entry->asid
+                << std::dec << std::endl;
+            return;
+        }
+        default: break;
+        }
+
         uint64_t mask = fault_mask ? fault_mask : generateRandomMask(
             num_bits_to_change);
         if (mask == 0) return;
@@ -253,7 +333,9 @@ namespace gem5
           ADD_STAT(numStuckAtZero, statistics::units::Count::get(),
                    "TLB pfn stuck-at-zero faults"),
           ADD_STAT(numStuckAtOne, statistics::units::Count::get(),
-                   "TLB pfn stuck-at-one faults")
+                   "TLB pfn stuck-at-one faults"),
+          ADD_STAT(numT05State, statistics::units::Count::get(),
+                   "T05 entry-state faults (valid/global/asid)")
     {}
 
 } // namespace gem5

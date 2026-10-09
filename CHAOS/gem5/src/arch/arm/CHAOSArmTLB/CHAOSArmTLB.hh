@@ -44,7 +44,9 @@ class CHAOSArmTLB : public SimObject
     // entry's pfn with another MAPPED entry's pfn (legal domain -> silent
     // wrong-page access, method2's silent-SDC pathway).
     enum class FaultType { BitFlip, StuckAtZero, StuckAtOne, Random,
-                           PfnToMappedPage };
+                           PfnToMappedPage,
+                           T05ValidClear, T05ValidFakeSet, T05GlobalFlip,
+                           T05AsidSubst };
     static FaultType stringToFaultType(const std::string &s);
     const char *faultTypeToString(FaultType f);
 
@@ -91,6 +93,7 @@ class CHAOSArmTLB : public SimObject
         statistics::Scalar numBitFlips;
         statistics::Scalar numStuckAtZero;
         statistics::Scalar numStuckAtOne;
+        statistics::Scalar numT05State;
         CHAOSArmTLBStats(statistics::Group *parent);
     };
     std::unique_ptr<CHAOSArmTLBStats> stats;

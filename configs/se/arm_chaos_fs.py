@@ -103,7 +103,9 @@ p.add_argument("--tlb_probability", type=float, default=0.0,
                help="CHAOSArmTLB per-lookup injection probability")
 p.add_argument("--tlb_fault_type", default="bit_flip",
                choices=["bit_flip", "stuck_at_zero", "stuck_at_one",
-                        "random", "pfn_to_mapped_page"],
+                        "random", "pfn_to_mapped_page",
+                        "t05_valid_clear", "t05_valid_fake_set",
+                        "t05_global_flip", "t05_asid_subst"],
                help="CHAOSArmTLB fault type; pfn_to_mapped_page = §2.10 F5 "
                     "(substitute with another mapped entry's pfn)")
 p.add_argument("--tlb_max_faults", type=lambda x:int(x,0), default=1,

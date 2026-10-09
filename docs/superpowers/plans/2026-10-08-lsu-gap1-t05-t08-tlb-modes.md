@@ -97,9 +97,9 @@ diff /tmp/gap1/t0_t01/armtlb_injections.log /tmp/gap1/<tag>/armtlb_injections.lo
 **Interfaces:**
 - Produces: T01 基线注入日志 `/tmp/gap1/t0_t01/armtlb_injections.log`（全部后续 Task 的回归比对基准）；集群 FS 单 run 实测时长；golden oracle 复现证据。
 
-- [ ] **Step 0.1: golden run（无注入）**——公共模板 tag=t0_golden，INJ 为空。预期：console.txt 出现 `[tlb_probe.rcS] b6d81b360a5672d80c27430f39153e2c rounds ok=10/10`；记录 wall 时长。若 md5 不符或 ok<10：**停止**，诊断（checkpoint/disk/rcS 路径、py3.9 面），修复后重跑——FS 管线不通则整个计划不开始。
-- [ ] **Step 0.2: T01 注入基线 run**——tag=t0_t01，fault_type=bit_flip。预期：armtlb_injections.log 恰 1 行注入记录（Tick/Site/VA/old_pfn/new_pfn/FaultType: bit_flip/Mask）+ 1 行 protection（model=none→Raw）；oracle 行可分类（Masked/SDC/Crash 均合法，如实记录）。
-- [ ] **Step 0.3: 记录**——实测时长与 oracle 结果记 progress.md（随 Task 1 commit 入库；Task 0 自身无 commit）。
+- [x] **Step 0.1: golden run（无注入）**——公共模板 tag=t0_golden，INJ 为空。预期：console.txt 出现 `[tlb_probe.rcS] b6d81b360a5672d80c27430f39153e2c rounds ok=10/10`；记录 wall 时长。若 md5 不符或 ok<10：**停止**，诊断（checkpoint/disk/rcS 路径、py3.9 面），修复后重跑——FS 管线不通则整个计划不开始。
+- [x] **Step 0.2: T01 注入基线 run**——tag=t0_t01，fault_type=bit_flip。预期：armtlb_injections.log 恰 1 行注入记录（Tick/Site/VA/old_pfn/new_pfn/FaultType: bit_flip/Mask）+ 1 行 protection（model=none→Raw）；oracle 行可分类（Masked/SDC/Crash 均合法，如实记录）。
+- [x] **Step 0.3: 记录**——实测时长与 oracle 结果记 progress.md（随 Task 1 commit 入库；Task 0 自身无 commit）。
 
 ### Task 1: T05 状态模式（4 个 fault_type，纯 lookup 钩子）
 
@@ -112,7 +112,7 @@ diff /tmp/gap1/t0_t01/armtlb_injections.log /tmp/gap1/<tag>/armtlb_injections.lo
 - Consumes: 既有 maybeCorrupt(entry, va) 钩子（tlb.cc:167-171 不变）、tlb->entryTable()（PfnToMappedPage 同款）、TlbEntry 字段 valid/global/asid。
 - Produces: fault_type ∈ {t05_valid_clear, t05_valid_fake_set, t05_global_flip, t05_asid_subst}；stats 标量 numT05State。
 
-- [ ] **Step 1.1: .hh 枚举与 stats**——FaultType **只追加**（在 PfnToMappedPage 之后，不重排）：
+- [x] **Step 1.1: .hh 枚举与 stats**——FaultType **只追加**（在 PfnToMappedPage 之后，不重排）：
 
 ```cpp
 enum class FaultType { BitFlip, StuckAtZero, StuckAtOne, Random,
@@ -122,7 +122,7 @@ enum class FaultType { BitFlip, StuckAtZero, StuckAtOne, Random,
 
 stats 结构体追加 `statistics::Scalar numT05State;`（与 numBitFlips 同款）。
 
-- [ ] **Step 1.2: .cc 三处**——stringToFaultType 追加 4 if；faultTypeToString 追加 4 case（-Wswitch 全覆盖）；stats ctor ADD_STAT(numT05State,...)。maybeCorrupt 在 PfnToMappedPage 块后、pfn-mask 块前插入（各分支自增 stats->numT05State 与 faults_injected_count、写日志、return）：
+- [x] **Step 1.2: .cc 三处**——stringToFaultType 追加 4 if；faultTypeToString 追加 4 case（-Wswitch 全覆盖）；stats ctor ADD_STAT(numT05State,...)。maybeCorrupt 在 PfnToMappedPage 块后、pfn-mask 块前插入（各分支自增 stats->numT05State 与 faults_injected_count、写日志、return）：
 
 ```cpp
 // ---- T05 (L1d-TLB entry identity/lifecycle state): mutate the HIT
@@ -172,11 +172,11 @@ default: break;
 
 （T05AsidSubst 分支同型：候选 = entryTable 中 asid 不同的他表项，`entry->asid = cand[rng() % cand.size()]`，日志记 old→new asid；无候选=诚实 no-op return。）
 
-- [ ] **Step 1.3: 配置 choices**——arm_chaos_fs.py:104 choices 追加 `"t05_valid_clear","t05_valid_fake_set","t05_global_flip","t05_asid_subst"`。
-- [ ] **Step 1.4: 守卫增量重建**——公共模板；预期 scons exit 0、**零新增 warning**（有则修完再继续）。
-- [ ] **Step 1.5: 功能验证 ×4**——公共模板 tag=t05_a/t05_b/t05_c/t05_d；每个断言：armtlb_injections.log 含本模式签名行（`(T05-x)`）且 console.txt 含 oracle 行；如实记录（含诚实 no-op：日志无注入行时标注 no-candidate）。
-- [ ] **Step 1.6: T01 回归比对**——tag=t1_reg（bit_flip 同 seed）+ diff 基线 → `T01-REGRESSION-IDENTICAL`。
-- [ ] **Step 1.7: Commit + relay 推送**——`git add` 显式三文件 + 本计划；消息 `[LSU][P1] gap1-T05：CHAOSArmTLB 状态四子模型（valid清零/伪置位/global翻转/ASID替换）+ numT05State + FS 冒烟×4 + T01 回归字节一致`（无 Co-Authored-By 尾注）。
+- [x] **Step 1.3: 配置 choices**——arm_chaos_fs.py:104 choices 追加 `"t05_valid_clear","t05_valid_fake_set","t05_global_flip","t05_asid_subst"`。
+- [x] **Step 1.4: 守卫增量重建**——公共模板；预期 scons exit 0、**零新增 warning**（有则修完再继续）。
+- [x] **Step 1.5: 功能验证 ×4**——公共模板 tag=t05_a/t05_b/t05_c/t05_d；每个断言：armtlb_injections.log 含本模式签名行（`(T05-x)`）且 console.txt 含 oracle 行；如实记录（含诚实 no-op：日志无注入行时标注 no-candidate）。
+- [x] **Step 1.6: T01 回归比对**——tag=t1_reg（bit_flip 同 seed）+ diff 基线 → `T01-REGRESSION-IDENTICAL`。
+- [x] **Step 1.7: Commit + relay 推送**——`git add` 显式三文件 + 本计划；消息 `[LSU][P1] gap1-T05：CHAOSArmTLB 状态四子模型（valid清零/伪置位/global翻转/ASID替换）+ numT05State + FS 冒烟×4 + T01 回归字节一致`（无 Co-Authored-By 尾注）。
 
 ### Task 2: T06 换值模式（3 个 fault_type，纯 lookup 钩子）
 
