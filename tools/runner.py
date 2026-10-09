@@ -782,6 +782,14 @@ def main():
               "legal_domain_sub": "f5_substitute",
               "stuck_at_zero": "f4_field_stuck",
               "stuck_at_one": "f4_field_stuck"}.get(inj["model"], "map_bitflip")
+        # V2.0 R02 layering (ooo 03-design-matrix R12): adjacent /
+        # non-adjacent dual-bit variants of the RAT map-field 2-bit flip
+        # (map_bitflip2_adj / map_bitflip2_nonadj), selected by the v2
+        # target.sub_field discriminator on local_mbu (the plain local_mbu
+        # keeps the uniform distinct pair).
+        if (inj["model"] == "local_mbu"
+                and rsf in ("map_bitflip2_adj", "map_bitflip2_nonadj")):
+            rm = rsf
         # W4.2a D13 swap_to_active (ooo 04-design-matrix R14, 换值·固定间隔):
         # the structured "swap the mapping to a random ROB in-flight dest
         # physReg" model. Selected by the v2 target.sub_field discriminator
