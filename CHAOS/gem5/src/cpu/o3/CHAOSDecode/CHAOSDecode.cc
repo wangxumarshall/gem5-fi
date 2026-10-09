@@ -248,6 +248,7 @@ namespace gem5
         if (s == "fp_bitflip2_cross")  return Mode::FpBitflip2Cross;
         if (s == "src_swap")           return Mode::SrcSwap;
         if (s == "x0_sub")             return Mode::X0Sub;
+        if (s == "imm_rotate")         return Mode::ImmRotate;
         panic("CHAOSDecode: unknown mode '%s'\n", s);
     }
 
@@ -280,6 +281,7 @@ namespace gem5
           case Mode::FpBitflip2Cross:  return "fp_bitflip2_cross";
           case Mode::SrcSwap:          return "src_swap";
           case Mode::X0Sub:            return "x0_sub";
+          case Mode::ImmRotate:        return "imm_rotate";
         }
         return "?";
     }
@@ -551,6 +553,12 @@ namespace gem5
         if (fi_mode == Mode::X0Sub)
             return injectX0Sub(emi, enc, orig, orig->getName(),
                                arm_dec, pc);
+        // ---- V2.0 D05-b imm_rotate (ooo 03-design-matrix R6): rotate
+        // the LOGICAL immediate value (split-encoded imms assembled
+        // first), preserving every non-immediate bit.
+        if (fi_mode == Mode::ImmRotate)
+            return injectImmRotate(emi, enc, orig, orig->getName(),
+                                   arm_dec, pc);
 
         // ---- bit selection ----
         // Semantic predicate for reg/imm flips (see .hh): the candidate
@@ -1097,6 +1105,189 @@ namespace gem5
                 << ", slot=" << slot_name
                 << ", old_reg=x" << cur
                 << ", new_reg=x0"
+                << ", orig_mnemonic=" << orig_name
+                << ", new_mnemonic=" << repl->getName()
+                << ", faults_injected: " << faults_injected_count
+                << std::endl;
+        }
+        return repl;
+    }
+
+    // ---- V2.0 D05-b imm_rotate (ooo 03-design-matrix R6, 09-audit WB3
+    // gap) ----
+    // Mask/match rows are the GNU-as-verified kSignImmFormats values (see
+    // the .hh record); the bitmask-immediate family is EXCLUDED (see .hh).
+    // Segments are MSB-first; width = sum of segment widths.
+    const CHAOSDecode::ImmRotFormat CHAOSDecode::kImmRotFormats[] = {
+        // add/sub imm12: add x0,x1,#1=0x91000420 lsl#12=0xb1400420
+        {0x1FC00000u, 0x11000000u, 1, {21,0}, {10,0}, 12,
+         "add_sub_imm12"},
+        // ldr/str unsigned imm12: str=0xf9000420 ldr=0xf9400420
+        {0x1FC00000u, 0x19000000u, 1, {21,0}, {10,0}, 12,
+         "str_imm12"},
+        {0x1FC00000u, 0x19400000u, 1, {21,0}, {10,0}, 12,
+         "ldr_imm12"},
+        // ldur/stur imm9: ldur=0xf85f8020 stur=0xf81f8020
+        {0x3FE00C00u, 0x38000000u, 1, {20,0}, {12,0}, 9,
+         "stur_imm9"},
+        {0x3FE00C00u, 0x38400000u, 1, {20,0}, {12,0}, 9,
+         "ldur_imm9"},
+        // b.cond imm19: b.eq=0x540001c0
+        {0xFF000010u, 0x54000000u, 1, {23,0}, {5,0}, 19,
+         "bcond_imm19"},
+        // cbz/cbnz imm19: cbz=0xb40001a0 cbnz=0xb5000180
+        {0x7F000000u, 0x34000000u, 1, {23,0}, {5,0}, 19,
+         "cbz_imm19"},
+        {0x7F000000u, 0x35000000u, 1, {23,0}, {5,0}, 19,
+         "cbnz_imm19"},
+        // tbz/tbnz imm14: tbz=0x36180160 tbnz=0x37180140
+        {0x7F000000u, 0x36000000u, 1, {18,0}, {5,0}, 14,
+         "tbz_imm14"},
+        {0x7F000000u, 0x37000000u, 1, {18,0}, {5,0}, 14,
+         "tbnz_imm14"},
+        // b/bl imm26: b=0x14000009 bl=0x94000008
+        {0x7C000000u, 0x14000000u, 1, {25,0}, {0,0}, 26,
+         "b_imm26"},
+        {0x7C000000u, 0x94000000u, 1, {25,0}, {0,0}, 26,
+         "bl_imm26"},
+        // adr/adrp: immhi[23:5] (MSB, 19 bits) + immlo[30:29] (LSB, 2)
+        {0x9F000000u, 0x10000000u, 2, {23,30}, {5,29}, 21,
+         "adr_imm21"},
+        {0x9F000000u, 0x90000000u, 2, {23,30}, {5,29}, 21,
+         "adrp_imm21"},
+        // ldr literal imm19: ldr x0,lit=0x580000a0
+        {0xFF000000u, 0x58000000u, 1, {23,0}, {5,0}, 19,
+         "ldr_lit_imm19"},
+        // movz/movn/movk imm16: movz=0xd2824680 movn=0x92824680
+        // movk lsl#16=0xf2a24680
+        {0x7F800000u, 0x52800000u, 1, {20,0}, {5,0}, 16,
+         "movz_imm16"},
+        {0x7F800000u, 0x92800000u, 1, {20,0}, {5,0}, 16,
+         "movn_imm16"},
+        {0x7F800000u, 0xF2800000u, 1, {20,0}, {5,0}, 16,
+         "movk_imm16"},
+    };
+
+    const CHAOSDecode::ImmRotFormat *
+    CHAOSDecode::matchImmRotFormat(uint32_t enc)
+    {
+        for (const ImmRotFormat &f : kImmRotFormats)
+            if ((enc & f.mask) == f.match)
+                return &f;
+        return nullptr;
+    }
+
+    StaticInstPtr
+    CHAOSDecode::injectImmRotate(uint64_t emi_raw, uint32_t enc,
+                                 StaticInstPtr orig,
+                                 const std::string &orig_name,
+                                 ArmISA::Decoder *arm_dec, Addr pc)
+    {
+        const ImmRotFormat *fmt = matchImmRotFormat(enc);
+        if (!fmt) {
+            if (write_log) {
+                *(log_stream->stream()) << "Tick: " << curTick()
+                    << ", Site: fetch_decode, mode=imm_rotate"
+                    << ", pc=0x" << std::hex << pc << std::dec
+                    << ", orig_mnemonic=" << orig_name
+                    << " — no supported immediate format (bitmask-imm "
+                    << "and imm-less encodings are honest skips; no "
+                    << "injection)" << std::endl;
+            }
+            return nullptr;
+        }
+        // Assemble the LOGICAL immediate value from the (possibly split)
+        // segments, MSB-first.
+        uint32_t old_val = 0;
+        for (int s = 0; s < fmt->nsegs; s++) {
+            const uint8_t hi = fmt->hi[s], lo = fmt->lo[s];
+            const uint8_t w = hi - lo + 1;
+            old_val = (old_val << w) | ((enc >> lo) & ((1u << w) - 1));
+        }
+        // Sample direction and amount; rotate the logical value.
+        const bool left = (rng() % 2) == 0;
+        const uint32_t amount = 1 + (rng() % (fmt->width - 1));
+        const uint32_t mask_w = (1u << fmt->width) - 1;
+        const uint32_t new_val = left
+            ? ((old_val << amount) | (old_val >> (fmt->width - amount)))
+              & mask_w
+            : ((old_val >> amount) | (old_val << (fmt->width - amount)))
+              & mask_w;
+        // Rotation identity (all-0, all-1, or amount==width): no actual
+        // value change — honest skip, no fault.
+        if (new_val == old_val) {
+            if (write_log) {
+                *(log_stream->stream()) << "Tick: " << curTick()
+                    << ", Site: fetch_decode, mode=imm_rotate"
+                    << ", pc=0x" << std::hex << pc << std::dec
+                    << ", orig_mnemonic=" << orig_name
+                    << ", fmt=" << fmt->name
+                    << " — rotation identity (value unchanged; skipped, "
+                    << "no injection)" << std::endl;
+            }
+            return nullptr;
+        }
+        // Disperse the rotated value back into the segments (LSB segment
+        // first when peeling bits off), preserving every other bit.
+        uint32_t new_enc = enc;
+        uint32_t rest = new_val;
+        for (int s = fmt->nsegs - 1; s >= 0; s--) {
+            const uint8_t hi = fmt->hi[s], lo = fmt->lo[s];
+            const uint8_t w = hi - lo + 1;
+            const uint32_t seg = rest & ((1u << w) - 1);
+            rest >>= w;
+            new_enc = (new_enc & ~(((1u << w) - 1) << lo)) | (seg << lo);
+        }
+        ArmISA::ExtMachInst new_emi;
+        new_emi = emi_raw;
+        new_emi.instBits = new_enc;
+        StaticInstPtr repl = arm_dec->decodeChaos(new_emi);
+        if (!repl) return nullptr;
+        // Value-only predicate (the imm-family discipline): mnemonic
+        // kept AND register fingerprint UNCHANGED — only the immediate
+        // moved.
+        if (repl->getName() != orig_name) {
+            if (write_log) {
+                *(log_stream->stream()) << "Tick: " << curTick()
+                    << ", Site: fetch_decode, mode=imm_rotate"
+                    << ", pc=0x" << std::hex << pc << std::dec
+                    << ", orig_mnemonic=" << orig_name
+                    << ", new_mnemonic=" << repl->getName()
+                    << " — mnemonic changed (skipped, no injection)"
+                    << std::endl;
+            }
+            return nullptr;
+        }
+        std::vector<uint32_t> fp0, fpc;
+        captureRegs(orig.get(), fp0);
+        captureRegs(repl.get(), fpc);
+        if (fpc != fp0) {
+            if (write_log) {
+                *(log_stream->stream()) << "Tick: " << curTick()
+                    << ", Site: fetch_decode, mode=imm_rotate"
+                    << ", pc=0x" << std::hex << pc << std::dec
+                    << ", orig_mnemonic=" << orig_name
+                    << " — register fingerprint changed (skipped, no "
+                    << "injection)" << std::endl;
+            }
+            return nullptr;
+        }
+        faults_injected_count++;
+        if (write_log) {
+            // Verifiable: orig/new logical values, direction+amount,
+            // format, both encodings and mnemonics all logged; the
+            // encoding diff is confined to the format's imm segments.
+            *(log_stream->stream()) << "Tick: " << curTick()
+                << ", Site: fetch_decode, mode=imm_rotate"
+                << ", pc=0x" << std::hex << pc << std::dec
+                << ", orig_enc=0x" << std::hex << enc
+                << ", new_enc=0x" << new_enc << std::dec
+                << ", fmt=" << fmt->name
+                << ", width=" << (int)fmt->width
+                << ", rot=" << (left ? "left" : "right")
+                << ", amount=" << amount
+                << ", orig_imm=0x" << std::hex << old_val
+                << ", new_imm=0x" << new_val << std::dec
                 << ", orig_mnemonic=" << orig_name
                 << ", new_mnemonic=" << repl->getName()
                 << ", faults_injected: " << faults_injected_count

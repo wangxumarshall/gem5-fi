@@ -132,13 +132,20 @@ class CHAOSDecode : public SimObject
                                             // so the decoded tuple's srcs
                                             // come out swapped
                       // ---- V2.0 D04-e (same row: x0注入) ----
-                      X0Sub };              // D04-e replace ONE int register
+                      X0Sub,                // D04-e replace ONE int register
                                             // operand slot (src0 Rn / src1
                                             // Rm / dst Rd, sampled
                                             // uniformly) with X0 — register
                                             // NUMBER 0 (NOT XZR=31, NOT a
                                             // data-value zeroing); slot
                                             // already X0 = honest skip
+                      // ---- V2.0 D05-b (ooo 03-design-matrix R6, 09-audit
+                      // WB3 gap: immediate rotation) ----
+                      ImmRotate };          // D05-b rotate the LOGICAL
+                                            // immediate value (split-encoded
+                                            // imms are assembled first,
+                                            // rotated, then re-dispersed);
+                                            // all non-imm bits preserved
     Mode fi_mode = Mode::DestRegSub;
     static Mode stringToMode(const std::string &s);
     const char *modeToString(Mode m) const;
@@ -417,6 +424,39 @@ class CHAOSDecode : public SimObject
                               StaticInstPtr orig,
                               const std::string &orig_name,
                               ArmISA::Decoder *arm_dec, Addr pc);
+
+    // ---- V2.0 D05-b imm_rotate (ooo 03-design-matrix R6, 09-audit WB3
+    // gap) ----
+    // Supported immediate formats (mask/match from the GNU-as-verified
+    // kSignImmFormats rows; the bitmask-immediate N:immr:imms family is
+    // DELIBERATELY EXCLUDED — its logical value is an expanded bit
+    // pattern that does not round-trip through an immr/imms rotation;
+    // matched instructions fall through to "no supported family" honest
+    // skip). Segments are MSB-first: the logical value is assembled
+    // seg0..segN, rotated as a width-bit integer, then re-dispersed.
+    //  family             | segments (enc bits)         | width
+    //  add/sub imm12      | [21:10]                     | 12
+    //  ldr/str imm12      | [21:10]                     | 12
+    //  ldur/stur imm9     | [20:12]                     | 9
+    //  movz/n/k imm16     | [20:5]                      | 16
+    //  b/bl imm26         | [25:0]                      | 26
+    //  b.cond/cbz imm19   | [23:5]                      | 19
+    //  tbz/tbnz imm14     | [18:5]                      | 14
+    //  adr/adrp 21-bit    | immhi[23:5] + immlo[30:29]  | 21 (split)
+    //  ldr-lit imm19      | [23:5]                      | 19
+    struct ImmRotFormat { uint32_t mask, match; uint8_t nsegs;
+                          uint8_t hi[2]; uint8_t lo[2]; uint8_t width;
+                          const char *name; };
+    static const ImmRotFormat kImmRotFormats[];
+    static const ImmRotFormat *matchImmRotFormat(uint32_t enc);
+
+    // The D05-b injection helper (own format eligibility with honest
+    // skip log, logical-value assembly/rotation/dispersal, re-decode,
+    // value-only predicate, fault counting and logging).
+    StaticInstPtr injectImmRotate(uint64_t emi_raw, uint32_t enc,
+                                  StaticInstPtr orig,
+                                  const std::string &orig_name,
+                                  ArmISA::Decoder *arm_dec, Addr pc);
 
     // The three D08-D10 injection helpers (called after the shared
     // window/skip/probability gates; each does its own format eligibility,
