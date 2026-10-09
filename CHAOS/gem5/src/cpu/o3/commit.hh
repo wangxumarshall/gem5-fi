@@ -398,6 +398,15 @@ class Commit
     // visible here via rob.hh -> CHAOSROB.hh (the §2.3 include).
     ::gem5::CHAOSROB *chaosROB = nullptr;
 
+    // U3 B08-a/FB08-a (squash_timing_early): one-shot, set when the
+    // same-tick commitStatus flip fires. The flip lets commitInsts run
+    // this tick, but getInsts must NOT: wrong-path insts still in the
+    // rename buffer are not yet squash-marked (the backward squash
+    // lands next tick); inserting them this tick leaves zombie ROB
+    // heads that never complete and deadlock a full ROB (empirical:
+    // u3-dbg debug run, head sn=173 "not ready" forever, 128/128).
+    bool chaosSkipGetInsts = false;
+
   public:
     /** W5.4 CHAOSROB accessor. */
     void setChaosROB(::gem5::CHAOSROB *p) { chaosROB = p; }

@@ -13,6 +13,8 @@
 #include "cpu/base.hh"
 #include "cpu/o3/dyn_inst_ptr.hh"  // DynInstPtr
 #include "cpu/reg_class.hh"        // RegClassType (W7.4 targetClass)
+#include "cpu/op_class.hh"        // U3: OpClass (FP/SIMD predicate)
+#include "sim/eventq.hh"           // U3: EventFunctionWrapper (squash dup replay)
 
 namespace gem5 { namespace o3 { class CPU; } }
 namespace gem5 { namespace o3 { class ROB; } }
@@ -84,6 +86,74 @@ class CHAOSROB : public SimObject
     // inject — every other mode is a zero-regression no-op here.
     void maybeEarlyDoneBit();
 
+    // ---- U3 (ooo 03-design-matrix R27/R28/R56/R57, B08/B09/FB08/FB09
+    // 流水时序族 B): the squash/commit TIMING family. Four mode values
+    // per model = the 03 spec 提前/延后/丢失/重复 quartet applied to
+    // (a) the ROB squash event (the ROB::squash funnel — every squash
+    // call site's single entry) and (b) the commit-transaction
+    // sub-events at Commit::commitInsts (commit grant / ROB pop /
+    // doneSeqNum-driven old-dest release + store commit /
+    // updateMiscRegs arch-state application). FB08/FB09 = the same
+    // perturbations with FP/SIMD binding (opClass predicate, the
+    // CHAOSDecode.cc fpOnly scope). Per-arm honest-approximation
+    // mapping: the U3 Step-1 挂点注记 in the P1 plan file.
+    enum class SquashAction { None, DelayWalk, DropSquash, DupWalk };
+    // ROB::squash entry hook (after ROB::squash's own isEmpty guard —
+    // only ever sees a real squash). fp_in_window = the window
+    // (ROB-resident entries with sn > squash_num) holds an FP/SIMD inst
+    // (ROB::chaosWindowHasFP pre-scan, run only when
+    // needsSquashWindowScan() says the armed mode needs it).
+    SquashAction maybeSquashTiming(ThreadID tid, InstSeqNum squash_num,
+                                   bool fp_in_window);
+    bool needsSquashWindowScan() const;
+    // B08-a/FB08-a squash_timing_early: armed at the commit mispredict
+    // block BEFORE rob->squash (the squashAll callers re-set
+    // commitStatus right after their rob->squash — not this arm's
+    // binding surface); consumeSquashEarlyDrain() flips commitStatus
+    // back to Running so the SAME-tick commitInsts starts draining —
+    // the squash pipeline-visible completion advances one cycle
+    // (approx=squash_drain_advanced_1c).
+    bool armSquashEarlyDrain(ThreadID tid, InstSeqNum squash_num,
+                             o3::ROB *rob);
+    bool consumeSquashEarlyDrain(ThreadID tid);
+    // B09-a/FB09-a commit_timing_early: one EXTRA commit granted in the
+    // cycle the commitWidth limit would defer the next head to (the
+    // bound inst grant arrives one cycle early). tid = the thread
+    // getCommittingThread() would pick (-1 = none).
+    bool grantExtraCommit(ThreadID tid);
+    // B09-c commit_timing_late: suppress this cycle doneSeqNum write —
+    // the rename history walk (P_prev frees) AND the store memory
+    // commits (iew.cc ldstQueue.commitStores — both doneSeqNum-driven)
+    // lag one cycle; the next commit fresh doneSeqNum (>= this sn)
+    // self-heals both.
+    bool suppressDoneSeqNum(ThreadID tid, const o3::DynInstPtr &head_inst);
+    // B09-d/FB09-c-FPSR-face commit_timing_drop: the bound inst
+    // updateMiscRegs (commit-time NZCV/FPSR application) is skipped —
+    // stale architectural flags. Eligibility: the inst actually writes
+    // misc regs (numMiscDestRegs > 0 — the arch-update surface).
+    bool suppressUpdateMiscRegs(const o3::DynInstPtr &head_inst);
+    // B09-b commit_timing_dup: one extra retireHead after the bound
+    // inst commit — the next head either pops un-committed (vanishes
+    // from the commit stream) or trips retireHead readyToCommit assert
+    // (the Crash-DUE face).
+    bool extraRetireHead(ThreadID tid, const o3::DynInstPtr &head_inst);
+    // FB08-c fp_squash_timing_drop 结果抑制丢失: ONE bound FP/SIMD inst
+    // bypasses the Execute-stage squash skip (iew.cc) and executes +
+    // writes back — the wrong-path FP value lands in a squash-freed
+    // vec physreg (the dest value write is inside execute():
+    // DynInst::setRegOperand -> cpu->setReg, NOT gated by the WB-stage
+    // squash check — verified U3 Step-1). FB08-b (FU 取消丢失) has no
+    // gem5 realization (issue is from the IQ; squash removes IQ
+    // entries — no separate FU-cancel event to lose): arch-n/a,
+    // recorded in the audit row.
+    bool bypassSquashSkip(const o3::DynInstPtr &inst);
+    // The Float*/SimdFloat* opClass set — identical scope to
+    // CHAOSDecode.cc fpOnly (W7 scope, the CHAOSFPU.cc set).
+    static bool isFpOpClass(OpClass oc);
+    // True when fi_mode is one of the 16 U3 timing modes (the legacy
+    // retireHead/insert hooks early-return false for them).
+    bool timingModeActive() const;
+
   private:
     enum class Mode {
         EntryBitflip, ExcSuppress,
@@ -111,7 +181,20 @@ class CHAOSROB : public SimObject
         //     lands on the in-use entry at the flip offset behind the tail
         //     — the "新分配的 ROB 项覆盖仍在用的项" clobber).
         HeadPtrBitflip, HeadPtrBitflip2, HeadPtrStuck,
-        TailPtrBitflip, TailPtrBitflip2, TailPtrStuck
+        TailPtrBitflip, TailPtrBitflip2, TailPtrStuck,
+        // U3 (ooo 03-matrix R27/R28/R56/R57, B08/B09/FB08/FB09): the
+        // squash/commit timing family. squash_* = the ROB squash event
+        // (ROB::squash funnel); commit_* = the commit-transaction
+        // sub-events (Commit::commitInsts); fp_ prefix = FP/SIMD
+        // binding (opClass predicate, not the rename targetClass axis).
+        SquashTimingEarly, SquashTimingLate, SquashTimingDrop,
+        SquashTimingDup,
+        FpSquashTimingEarly, FpSquashTimingLate, FpSquashTimingDrop,
+        FpSquashTimingDup,
+        CommitTimingEarly, CommitTimingLate, CommitTimingDrop,
+        CommitTimingDup,
+        FpCommitTimingEarly, FpCommitTimingLate, FpCommitTimingDrop,
+        FpCommitTimingDup
     };
     static Mode stringToMode(const std::string &s);
     const char *modeToString(Mode m);
@@ -189,6 +272,23 @@ class CHAOSROB : public SimObject
     int ptr_stuck_offset = 0;          // 1 << ptr_stuck_bit (fixed pattern)
     uint64_t ptr_stuck_exposures = 0;
     uint64_t ptr_stuck_noaction = 0;   // exposures with no live target
+
+    // U3 squash/commit timing state
+    bool squash_replay_guard = false;   // dup replay re-entry guard
+    bool early_drain_armed = false;     // B08-a pending status flip
+    InstSeqNum squash_replay_sn = 0;    // the dup replay boundary
+    ThreadID squash_replay_tid = 0;
+    // The one-cycle-later re-walk of the SAME squash boundary (B08-d).
+    // ROB-local: does NOT re-send the redirect — if post-recovery
+    // refills (fresh, larger sns) entered the window by the replay
+    // tick they are squashed with no refetch (a STRONGER effect than a
+    // real machine repeated squash broadcast, which carries the
+    // redirect; honest divergence — outcome classified as observed).
+    EventFunctionWrapper squashReplayEvent;
+    void squashReplayHandler();
+    // Shared fire gate for the timing hooks (probability>0 +
+    // max_faults + inWindow + pd(rng) — the maybeStuckEntryWrite order).
+    bool fireGate();
 
     // shared helpers
     // W7.4: dest slots of inst in the TARGET register class (IntRegClass

@@ -303,6 +303,11 @@ class ROB
   public:
     /** §2.3 CHAOSROB accessor (injector sets it at startup). */
     void setChaosROB(CHAOSROB *p) { chaosROB = p; }
+
+    // U3 CHAOSROB: does the about-to-be-squashed window (insts with
+    // seqNum >= squash_num -- the same set doSquash walks from the
+    // list tail) contain an FP/SIMD inst? (FB08/FB09 window gate.)
+    bool chaosWindowHasFP(InstSeqNum squash_num, ThreadID tid);
     /** §2.3 CHAOSROB: the entry D slots from the head (D=0 = head). nullptr
      *  if ROB empty / D out of range. Defined in rob.cc (returns by value —
      *  needs DynInst complete, which rob.cc has via dyn_inst.hh). */

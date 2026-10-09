@@ -44,6 +44,7 @@
 // communication happens simultaneously.
 
 #include "cpu/o3/iew.hh"
+#include "cpu/o3/CHAOSROB/CHAOSROB.hh"  // U3: FB08-c squash-skip bypass
 
 #include <queue>
 
@@ -1166,7 +1167,14 @@ IEW::executeInsts()
         ppExecute->notify(inst);
 
         // Check if the instruction is squashed; if so then skip it
-        if (inst->isSquashed()) {
+        // U3 CHAOSROB FB08-c (fp_squash_timing_drop): a squashed FP/
+        // SIMD inst may be granted a bypass -- it executes anyway, so
+        // its result write lands in the already-freed (possibly
+        // recycled) dest physreg: wrong-path value pollution. The
+        // writeback isSquashed gate stays intact on purpose (marking
+        // the recycled reg ready early would be a different fault).
+        if (inst->isSquashed() &&
+            !(chaosROB && chaosROB->bypassSquashSkip(inst))) {
             DPRINTF(IEW, "Execute: Instruction was squashed. PC: %s, [tid:%i]"
                          " [sn:%llu]\n", inst->pcState(), inst->threadNumber,
                          inst->seqNum);

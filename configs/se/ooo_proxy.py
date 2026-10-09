@@ -194,7 +194,22 @@ p.add_argument("--rob_mode", default="entry_bitflip",
                         "head_ptr_bitflip","head_ptr_bitflip2",
                         "head_ptr_stuck",
                         "tail_ptr_bitflip","tail_ptr_bitflip2",
-                        "tail_ptr_stuck"])
+                        "tail_ptr_stuck",
+                        # U3 (B08/B09/FB08/FB09 时序臂): squash/commit
+                        # event timing via CHAOSROB maybeSquashTiming +
+                        # the commit-hook family (rob.hh squash tail /
+                        # commit.cc width-grant·doneSeqNum·miscRegs·
+                        # retireHead / iew.cc execute-skip); FP arms bind
+                        # the fault to FP/SIMD ops injector-side (opClass
+                        # gate), NOT via --rob_target_class.
+                        "squash_timing_early","squash_timing_late",
+                        "squash_timing_drop","squash_timing_dup",
+                        "fp_squash_timing_early","fp_squash_timing_late",
+                        "fp_squash_timing_drop","fp_squash_timing_dup",
+                        "commit_timing_early","commit_timing_late",
+                        "commit_timing_drop","commit_timing_dup",
+                        "fp_commit_timing_early","fp_commit_timing_late",
+                        "fp_commit_timing_drop","fp_commit_timing_dup"])
 p.add_argument("--rob_field", default="exc_status",
                choices=["result","done","exc_status","dest_phys","spec"])
 p.add_argument("--rob_distance", type=int, default=0)
@@ -353,7 +368,18 @@ p.add_argument("--decode_mode", default="dest_reg_sub",
                         "decode_timing_early","decode_timing_late",
                         "decode_timing_drop","decode_timing_dup",
                         "fp_decode_timing_early","fp_decode_timing_late",
-                        "fp_decode_timing_drop","fp_decode_timing_dup"])
+                        "fp_decode_timing_drop","fp_decode_timing_dup",
+                        # U4 (D06/FD05 控制状态合法换值): control field
+                        # swapped to ANOTHER LEGAL VALUE via GNU-closed-
+                        # loop-verified rule tables; D06 = integer ALU
+                        # control bits, FD05 = FP/SIMD decode control
+                        # bits. Expected SDC-leaning.
+                        "ctl_swap_sf","ctl_swap_setflags",
+                        "ctl_swap_shift_type","ctl_swap_extend_type",
+                        "ctl_swap_signedness",
+                        "fp_ctl_swap_scalar_vector",
+                        "fp_ctl_swap_elem_width",
+                        "fp_ctl_swap_lane_count"])
 p.add_argument("--decode_first_clock", type=lambda x: int(x,0), default=1000)
 p.add_argument("--decode_last_clock", type=lambda x: int(x,0), default=0)
 p.add_argument("--decode_max_faults", type=lambda x: int(x,0), default=1)
