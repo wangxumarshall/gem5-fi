@@ -61,9 +61,13 @@ namespace gem5
         // W5.1-W5.3 (ooo 04-design-matrix D25-D31, Int Dispatch/ROB)
         if (s == "pc_bitflip") return Mode::PcBitflip;
         if (s == "pc_bitflip2") return Mode::PcBitflip2;
+        if (s == "pc_bitflip2_adj") return Mode::PcBitflip2Adj;
+        if (s == "pc_bitflip2_nonadj") return Mode::PcBitflip2Nonadj;
         if (s == "pc_stuck") return Mode::PcStuck;
         if (s == "destid_bitflip") return Mode::DestIdBitflip;
         if (s == "destid_bitflip2") return Mode::DestIdBitflip2;
+        if (s == "destid_bitflip2_adj") return Mode::DestIdBitflip2Adj;
+        if (s == "destid_bitflip2_nonadj") return Mode::DestIdBitflip2Nonadj;
         if (s == "destid_swap_active") return Mode::DestIdSwapActive;
         if (s == "destid_stuck") return Mode::DestIdStuck;
         // W5.4 (D32-D35): the done/completed (CanCommit) status bit,
@@ -100,9 +104,13 @@ namespace gem5
             case Mode::ExcSuppress: return "exc_suppress";
             case Mode::PcBitflip: return "pc_bitflip";
             case Mode::PcBitflip2: return "pc_bitflip2";
+            case Mode::PcBitflip2Adj: return "pc_bitflip2_adj";
+            case Mode::PcBitflip2Nonadj: return "pc_bitflip2_nonadj";
             case Mode::PcStuck: return "pc_stuck";
             case Mode::DestIdBitflip: return "destid_bitflip";
             case Mode::DestIdBitflip2: return "destid_bitflip2";
+            case Mode::DestIdBitflip2Adj: return "destid_bitflip2_adj";
+            case Mode::DestIdBitflip2Nonadj: return "destid_bitflip2_nonadj";
             case Mode::DestIdSwapActive: return "destid_swap_active";
             case Mode::DestIdStuck: return "destid_stuck";
             case Mode::DoneEarly: return "done_early";
@@ -415,7 +423,8 @@ namespace gem5
         // otherwise emit a skip line per ineligible insert)
         static thread_local uint64_t skip_logs = 0;
 
-        if (fi_mode == Mode::PcBitflip || fi_mode == Mode::PcBitflip2) {
+        if (fi_mode == Mode::PcBitflip || fi_mode == Mode::PcBitflip2 ||
+            fi_mode == Mode::PcBitflip2Adj || fi_mode == Mode::PcBitflip2Nonadj) {
             // D25 (R26, PC字段·单比特翻转) / D26 (R27, 双比特翻转): flip
             // 1 / 2 distinct random bits of the entry's PC field (the
             // pcState pc address; ~48-bit address space per the design
@@ -424,6 +433,10 @@ namespace gem5
             // ROB-resident entry's PC: branch execute (target computed
             // from the entry's own pcState) and commit.cc:990
             // set(pc[tid], head_inst->pcState()).
+            // V2.0 B02 layering (ooo 03-design-matrix R21): the Adj/Nonadj
+            // variants constrain the two bits to |b1-b2|==1 resp. >=2
+            // ("同字段相邻/非相邻双bit", PC field); the directed fault_mask
+            // control must satisfy the layering too — else honest skip.
             const int pc_nbits = 48;
             ArmISA::PCState ns = inst->pcState().as<ArmISA::PCState>();
             Addr old_pc = ns.pc();
@@ -438,6 +451,24 @@ namespace gem5
                     b1 = __builtin_ctzll(fault_mask);
                     uint64_t rest = fault_mask & ~(1ULL << b1);
                     b2 = __builtin_ctzll(rest);
+                    const int dd = b1 > b2 ? b1 - b2 : b2 - b1;
+                    if ((fi_mode == Mode::PcBitflip2Adj && dd != 1) ||
+                        (fi_mode == Mode::PcBitflip2Nonadj && dd < 2))
+                        return false;  // directed mask violates the layering
+                } else if (fi_mode == Mode::PcBitflip2Adj) {
+                    // uniform adjacent pair: (b1, b1+1), b1 in [0, 47)
+                    b1 = (int)(rng() % (unsigned)(pc_nbits - 1));
+                    b2 = b1 + 1;
+                } else if (fi_mode == Mode::PcBitflip2Nonadj) {
+                    // rejection over the uniform distinct-pair draw
+                    // (non-adjacent dominates in 48 bits; bounded 16 tries)
+                    for (int tries = 0; tries < 16; tries++) {
+                        b1 = (int)(rng() % (unsigned)pc_nbits);
+                        b2 = (int)(rng() % (unsigned)(pc_nbits - 1));
+                        if (b2 >= b1) b2++;
+                        if ((b1 > b2 ? b1 - b2 : b2 - b1) >= 2) break;
+                    }
+                    if ((b1 > b2 ? b1 - b2 : b2 - b1) < 2) return false;
                 } else {
                     // uniform random DISTINCT pair (order-statistics trick)
                     b1 = (int)(rng() % (unsigned)pc_nbits);
@@ -446,8 +477,7 @@ namespace gem5
                 }
                 if (b1 == b2 || b1 >= pc_nbits || b2 >= pc_nbits) return false;
             }
-            Addr xor_mask = (1ULL << b1)
-                | (fi_mode == Mode::PcBitflip2 ? (1ULL << b2) : 0);
+            Addr xor_mask = (1ULL << b1) | (1ULL << b2);
             Addr new_pc = old_pc ^ xor_mask;
             ns.pc(new_pc);
             inst->pcState(ns);
@@ -460,10 +490,12 @@ namespace gem5
                     << ", sn=" << inst->seqNum
                     << ", old_pc=0x" << std::hex << old_pc
                     << ", new_pc=0x" << new_pc << std::dec
-                    << ", bits=(" << b1;
-                if (fi_mode == Mode::PcBitflip2)
-                    *(log_stream->stream()) << "," << b2;
-                *(log_stream->stream()) << ")"
+                    << ", bits=(" << b1 << "," << b2 << ")";
+                if (fi_mode == Mode::PcBitflip2Adj ||
+                    fi_mode == Mode::PcBitflip2Nonadj)
+                    *(log_stream->stream())
+                        << ", dist=" << (b1 > b2 ? b1 - b2 : b2 - b1);
+                *(log_stream->stream())
                     << ", hamming=" << hamming
                     << ", faults_injected: " << faults_injected_count
                     << std::endl;
@@ -472,6 +504,8 @@ namespace gem5
         }
 
         if (fi_mode == Mode::DestIdBitflip || fi_mode == Mode::DestIdBitflip2
+                || fi_mode == Mode::DestIdBitflip2Adj
+                || fi_mode == Mode::DestIdBitflip2Nonadj
                 || fi_mode == Mode::DestIdSwapActive) {
             // D28 (R29, 寄存器标识符·单比特) / D29 (R30, 双比特) / D30
             // (R31, 换值) and their W7.4 FP/SIMD twins (targetClass=vec):
@@ -545,18 +579,46 @@ namespace gem5
                 }
                 new_idx = flipped;
                 log_b1 = bit;
-            } else if (fi_mode == Mode::DestIdBitflip2) {
+            } else if (fi_mode == Mode::DestIdBitflip2 ||
+                       fi_mode == Mode::DestIdBitflip2Adj ||
+                       fi_mode == Mode::DestIdBitflip2Nonadj) {
                 // 2 distinct random bits of the physReg index (D29: the
                 // narrow-field twin of D26 — on 128 physRegs any 2-bit flip
                 // stays in range and changes the value, hamming exactly 2).
+                // V2.0 B02 layering (ooo 03-design-matrix R21): the Adj/
+                // Nonadj variants constrain the pair to |b1-b2|==1 resp.
+                // >=2 ("同字段相邻/非相邻双bit", dest-tag field); the
+                // directed fault_mask control must satisfy the layering
+                // too — else honest skip.
                 int nbits = 0; int tmp = num_phys;
                 while (tmp > 1) { nbits++; tmp >>= 1; }
                 if (nbits < 2) return false;
+                if (fi_mode == Mode::DestIdBitflip2Nonadj && nbits < 3)
+                    return false;  // no non-adjacent pair below 3 bits
                 int b1 = 0, b2 = 0;
                 if (__builtin_popcountll(fault_mask) >= 2) {
                     b1 = __builtin_ctzll(fault_mask);
                     uint64_t rest = fault_mask & ~(1ULL << b1);
                     b2 = __builtin_ctzll(rest);
+                    const int dd = b1 > b2 ? b1 - b2 : b2 - b1;
+                    if ((fi_mode == Mode::DestIdBitflip2Adj && dd != 1) ||
+                        (fi_mode == Mode::DestIdBitflip2Nonadj && dd < 2))
+                        return false;  // directed mask violates the layering
+                } else if (fi_mode == Mode::DestIdBitflip2Adj) {
+                    // uniform adjacent pair: (b1, b1+1), b1 in [0, nbits-1)
+                    b1 = (int)(rng() % (unsigned)(nbits - 1));
+                    b2 = b1 + 1;
+                } else if (fi_mode == Mode::DestIdBitflip2Nonadj) {
+                    // rejection over the uniform distinct-pair draw
+                    // (non-adjacent pairs dominate for nbits >= 4; bounded
+                    // 16 tries, then an honest skip)
+                    for (int tries = 0; tries < 16; tries++) {
+                        b1 = (int)(rng() % (unsigned)nbits);
+                        b2 = (int)(rng() % (unsigned)(nbits - 1));
+                        if (b2 >= b1) b2++;
+                        if ((b1 > b2 ? b1 - b2 : b2 - b1) >= 2) break;
+                    }
+                    if ((b1 > b2 ? b1 - b2 : b2 - b1) < 2) return false;
                 } else {
                     b1 = (int)(rng() % (unsigned)nbits);
                     b2 = (int)(rng() % (unsigned)(nbits - 1));
@@ -568,7 +630,8 @@ namespace gem5
                     if (write_log && skip_logs < 32) {
                         ++skip_logs;
                         *(log_stream->stream()) << "Tick: " << curTick()
-                            << ", Site: rob_insert, mode=destid_bitflip2"
+                            << ", Site: rob_insert, mode="
+                            << modeToString(fi_mode)
                             << ", tid=" << (int)tid
                             << ", sn=" << inst->seqNum
                             << ", class=" << targetClassName()
@@ -662,9 +725,17 @@ namespace gem5
                         << ", old_phys=" << cur_idx
                         << ", new_phys=" << new_idx
                         << ", bits=(" << log_b1;
-                    if (fi_mode == Mode::DestIdBitflip2)
+                    if (fi_mode == Mode::DestIdBitflip2 ||
+                        fi_mode == Mode::DestIdBitflip2Adj ||
+                        fi_mode == Mode::DestIdBitflip2Nonadj)
                         *(log_stream->stream()) << "," << log_b2;
-                    *(log_stream->stream()) << ")"
+                    *(log_stream->stream()) << ")";
+                    if (fi_mode == Mode::DestIdBitflip2Adj ||
+                        fi_mode == Mode::DestIdBitflip2Nonadj)
+                        *(log_stream->stream())
+                            << ", dist=" << (log_b1 > log_b2 ? log_b1 - log_b2
+                                                             : log_b2 - log_b1);
+                    *(log_stream->stream())
                         << ", hamming="
                         << __builtin_popcountll((uint64_t)cur_idx
                                                 ^ (uint64_t)new_idx)

@@ -171,7 +171,9 @@ p.add_argument("--chaos_rob", action="store_true",
 p.add_argument("--rob_mode", default="entry_bitflip",
                choices=["entry_bitflip","exc_suppress",
                         "pc_bitflip","pc_bitflip2","pc_stuck",
+                        "pc_bitflip2_adj","pc_bitflip2_nonadj",
                         "destid_bitflip","destid_bitflip2",
+                        "destid_bitflip2_adj","destid_bitflip2_nonadj",
                         "destid_swap_active","destid_stuck",
                         # W5.4 (D32-D35): done/completed bit at the commit
                         # gate (Commit::markCompletedInsts site).

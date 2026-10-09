@@ -88,7 +88,13 @@ class CHAOSROB : public SimObject
     enum class Mode {
         EntryBitflip, ExcSuppress,
         PcBitflip, PcBitflip2, PcStuck,
+        // V2.0 B02 layering (ooo 03-design-matrix R21): adjacent /
+        // non-adjacent dual-bit variants of pc_bitflip2 (B02-a/b on the
+        // PC field, |db|==1 resp. >=2).
+        PcBitflip2Adj, PcBitflip2Nonadj,
         DestIdBitflip, DestIdBitflip2, DestIdSwapActive, DestIdStuck,
+        // V2.0 B02 layering: the same variants on the dest-tag field.
+        DestIdBitflip2Adj, DestIdBitflip2Nonadj,
         // W5.4 (D32-D35): the done/completed (CanCommit) status bit.
         DoneEarly, DoneEarlyEvent, DoneDelay, DoneDelayEvent,
         // W5.6 D40 (R41): the whole ROB-entry record read stale at commit.
