@@ -202,6 +202,23 @@ class CHAOSDecode : public SimObject
     // enforces bit_a != bit_b so a "cross" flip never degenerates to a
     // single-bit double-flip.
     static constexpr uint32_t kFpLaneBits[] = { 30, 23, 22 };
+    // V2.0 FD02 physical opcode field (overlap-audit fix): the W7.1
+    // kFpOpcodeBits window [23:10] deliberately SPANS four physical fields
+    // (ftype/size, fixed-1, Rm, op) — correct for the legacy random-flip
+    // modes ("the operation-discriminating bits"), but WRONG as the
+    // FD02-a/b "fp_opcode" field and the FD02-c opcode side: it let a
+    // "cross-field" draw pick two size bits (23,22) or two Rm register
+    // bits (observed in the first pilot: cross bits=[16,19] = two Rm bits,
+    // and fp_opcode-labeled pairs [17,16] = two Rm bits). Per the ARM DDI
+    // field decomposition the PHYSICAL opcode bits are op[15:10] plus the
+    // fixed-1 format bit 21 (part of the format identification, not size,
+    // not a register) — this set is pairwise disjoint from kFpLaneBits
+    // and kRegBits (static_asserts below prove it at compile time).
+    // The legacy fp_opcode_bitflip/_bitflip2 modes keep the W7.1 window
+    // unchanged (their documented semantics is the window, and their
+    // committed behavior must not change).
+    static constexpr uint32_t kFpOpFieldBits[] = {
+        21, 15, 14, 13, 12, 11, 10 };
     // V2.0 FD02-c operand side: kFpLaneBits UNION kRegBits (the lane +
     // Vd/Vn/Vm register-operand positions — the non-opcode side of the
     // FP/SIMD instruction word; the FP-immediate window is deliberately
@@ -209,6 +226,27 @@ class CHAOSDecode : public SimObject
     static constexpr uint32_t kFpOperandSideBits[] = {
         30, 23, 22,
         0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 16, 17, 18, 19, 20 };
+
+    // ---- FD02 physical-field disjointness (compile-time proof) ----
+    // "跨字段" (cross-FIELD) is only meaningful if the two drawn bits come
+    // from two DIFFERENT physical fields. Plain-integer masks per set
+    // (member-template instantiation in in-class static_asserts is not
+    // portable) — the three masks are asserted pairwise disjoint, so a
+    // cross draw (opcode mask vs lane|reg union) can never pick two bits
+    // of one physical field, and a same-field draw is homogeneous by
+    // construction. The constructor cross-checks each mask against its
+    // array's union so the two representations can never silently diverge.
+    static constexpr uint32_t kFpOpFieldMask  = (1u << 21) | 0xFC00u;
+    static constexpr uint32_t kFpLaneMask =
+        (1u << 30) | (1u << 23) | (1u << 22);
+    static constexpr uint32_t kRegFieldMask  = 0x1F03FFu;
+    static_assert((kFpOpFieldMask & kFpLaneMask) == 0,
+                  "FD02: opcode field must not overlap the lane field");
+    static_assert((kFpOpFieldMask & kRegFieldMask) == 0,
+                  "FD02: opcode field must not overlap the reg field");
+    static_assert((kFpLaneMask & kRegFieldMask) == 0,
+                  "FD02: lane field must not overlap the reg field");
+    static void checkFd02Masks();
     // D61 route candidates: the top-level A64 instruction-class field
     // bits[28:24] (x1110/x1111 = FP/ASIMD vs the integer data-proc /
     // load-store / branch groups) — the bits the "integer vs FP/SIMD

@@ -295,6 +295,30 @@ namespace gem5
         }
     }
 
+    // FD02 disjointness: mask == array-union consistency (once per
+    // construction; the compile-time asserts prove the MASKS disjoint,
+    // this proves the arrays the sampler actually uses are the same sets).
+    void
+    CHAOSDecode::checkFd02Masks()
+    {
+        auto union_of = [](const uint32_t *bits, size_t n) {
+            uint32_t m = 0;
+            for (size_t i = 0; i < n; i++) m |= 1u << bits[i];
+            return m;
+        };
+        panic_if(union_of(kFpOpFieldBits,
+                          sizeof(kFpOpFieldBits) / sizeof(kFpOpFieldBits[0]))
+                 != kFpOpFieldMask,
+                 "CHAOSDecode: kFpOpFieldBits/mask diverged\n");
+        panic_if(union_of(kFpLaneBits,
+                          sizeof(kFpLaneBits) / sizeof(kFpLaneBits[0]))
+                 != kFpLaneMask,
+                 "CHAOSDecode: kFpLaneBits/mask diverged\n");
+        panic_if(union_of(kRegBits, sizeof(kRegBits) / sizeof(kRegBits[0]))
+                 != kRegFieldMask,
+                 "CHAOSDecode: kRegBits/kRegFieldMask diverged\n");
+    }
+
     CHAOSDecode::CHAOSDecode(const CHAOSDecodeParams &p)
         : SimObject(p),
           cpu(p.cpu),
@@ -311,6 +335,7 @@ namespace gem5
             if (!log_stream || !log_stream->stream())
                 panic("CHAOSDecode: Could not open log file");
             rng.seed(rng_seed != 0 ? rng_seed : rd());
+            checkFd02Masks();
         // Sampling-bias fix (findings.md Phase 2.2/3.0): skip a
         // geometric(p=0.1) number of eligible events before the first
         // injection so maxFaults=1 lands on a seed-dependent event.
@@ -527,6 +552,9 @@ namespace gem5
                                       fi_mode == Mode::FpBitflip2Nonadj ||
                                       fi_mode == Mode::FpBitflip2Cross);
         const char *d02_field = nullptr;  // set by the layered branches
+        // FD02-c physical attribution of bit_b (lane vs reg) — the
+        // overlap-audit fix's per-line cross-field verifiability.
+        const char *fd02_phys_b = nullptr;
         const std::string orig_name = orig->getName();
         std::vector<uint32_t> fp0;
         if (is_reg_mode || is_imm_mode || is_d02_layered || is_fd02_layered)
@@ -703,23 +731,29 @@ namespace gem5
         } else if (is_fd02_layered) {
             // ---- V2.0 FD02 layering (ooo 03-design-matrix R31, FP/SIMD
             // Decode). Same adjacency split as D02 but over the FP/SIMD
-            // instruction word's OWN field structure (derived from real
-            // AArch64 encodings — see kFpLaneBits in .hh; deliberately
-            // NOT D02's int-field sets): fp_opcode = the W7.1 spike window
-            // enc[23:10]; lane = {Q(30), size/ftype(23:22)}; reg = the
-            // Vd/Vn/Vm positions (kRegBits). FD02-a/b: field sampled
-            // uniformly over {fp_opcode, lane, reg}, adjacent (|dpos|==1)
-            // resp. non-adjacent (|dpos|>=2) pair within the field.
-            // fp_opcode/lane: NO verification by design (legal and illegal
-            // landings are both the fault model — the fpOnly gate already
-            // restricted the population). reg: the D02 reg predicate
-            // (mnemonic kept AND fingerprint moved) via rejection over a
-            // shuffled constrained-pair list. FD02-c: 1 bit of
-            // kFpOpcodeBits + 1 distinct bit of kFpOperandSideBits (lane
-            // UNION reg — the lane/register-operand side) — positional
-            // selection only ("opcode/lane跨字段"; the documented 23:22
-            // overlap with the opcode window is handled by bit_a !=
-            // bit_b).
+            // instruction word's OWN PHYSICAL field structure (derived
+            // from the ARM DDI field decomposition — see kFpOpFieldBits /
+            // kFpLaneBits in .hh; deliberately NOT D02's int-field sets,
+            // and NOT the W7.1 legacy window which spans four physical
+            // fields): fp_opcode = op[15:10] + the fixed-1 format bit 21
+            // (kFpOpFieldBits); lane = {Q(30), size/ftype(23:22)}; reg =
+            // the Vd/Vn/Vm positions (kRegBits, which owns Rm[20:16]).
+            // The three sets are pairwise DISJOINT (static_asserts in .hh)
+            // — the overlap-audit fix: the first implementation reused the
+            // W7.1 window as "fp_opcode", letting a cross draw pick two
+            // size bits (23,22) or two Rm bits (pilot: [16,19]) and
+            // mislabel them cross-field.
+            // FD02-a/b: field sampled uniformly over {fp_opcode, lane,
+            // reg}, adjacent (|dpos|==1) resp. non-adjacent (|dpos|>=2)
+            // pair within the field. fp_opcode/lane: NO verification by
+            // design (legal and illegal landings are both the fault model
+            // — the fpOnly gate already restricted the population). reg:
+            // the D02 reg predicate (mnemonic kept AND fingerprint moved)
+            // via rejection over a shuffled constrained-pair list.
+            // FD02-c: 1 bit of kFpOpFieldBits + 1 distinct bit of
+            // kFpOperandSideBits (lane UNION reg) — physically disjoint
+            // sides by construction; the log carries phys_a/phys_b so the
+            // cross-field claim is verifiable per line.
             const bool fd02_cross = (fi_mode == Mode::FpBitflip2Cross);
             const bool fd02_adj = (fi_mode == Mode::FpBitflip2Adj);
             if (!fd02_cross) {
@@ -730,8 +764,8 @@ namespace gem5
                 bool reg_pred;
                 bool verify;
                 if (f == 0) {
-                    cand = kFpOpcodeBits;
-                    ncand = sizeof(kFpOpcodeBits) / sizeof(kFpOpcodeBits[0]);
+                    cand = kFpOpFieldBits;
+                    ncand = sizeof(kFpOpFieldBits) / sizeof(kFpOpFieldBits[0]);
                     fname = "fp_opcode";
                     reg_pred = false;
                     verify = false;
@@ -779,12 +813,16 @@ namespace gem5
                 d02_field = fname;
             } else {
                 constexpr size_t n_op =
-                    sizeof(kFpOpcodeBits) / sizeof(kFpOpcodeBits[0]);
+                    sizeof(kFpOpFieldBits) / sizeof(kFpOpFieldBits[0]);
                 constexpr size_t n_od =
                     sizeof(kFpOperandSideBits) / sizeof(kFpOperandSideBits[0]);
-                bit_a = kFpOpcodeBits[rng() % n_op];
+                bit_a = kFpOpFieldBits[rng() % n_op];
                 do { bit_b = kFpOperandSideBits[rng() % n_od]; }
                 while (bit_b == bit_a);
+                // physical attribution of bit_b for the cross log line:
+                // lane (Q/size/ftype) vs reg (Vd/Vn/Vm position)
+                fd02_phys_b = (bit_b == 30 || bit_b == 23 || bit_b == 22)
+                    ? "lane" : "reg";
                 d02_field = "cross";
             }
         }
@@ -812,12 +850,17 @@ namespace gem5
                 << (bit_b != 32 ? "," : "")
                 << (bit_b != 32 ? std::to_string(bit_b) : "") << "]";
             // V2.0 D02/FD02 layering: 03 spec "保存bit距离和原/故障值" —
-            // dist = |bit_a - bit_b|; field = the sampled field.
+            // dist = |bit_a - bit_b|; field = the sampled field. FD02-c
+            // additionally carries the PHYSICAL field of each bit so the
+            // cross-field claim is verifiable per line (overlap-audit fix).
             if (is_d02_layered || is_fd02_layered)
                 *(log_stream->stream())
                     << ", field=" << d02_field
                     << ", dist=" << (bit_a > bit_b ? bit_a - bit_b
                                                    : bit_b - bit_a);
+            if (fi_mode == Mode::FpBitflip2Cross)
+                *(log_stream->stream())
+                    << ", phys_a=opcode, phys_b=" << fd02_phys_b;
             *(log_stream->stream())
                 << ", orig_mnemonic=" << orig_name
                 << ", new_mnemonic=" << repl->getName();
