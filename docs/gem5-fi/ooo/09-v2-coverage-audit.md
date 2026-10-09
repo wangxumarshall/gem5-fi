@@ -9,9 +9,9 @@
 
 | 判定 | 模型数 | 模型 |
 |---|---|---|
-| 已实现 | 13 | D01, D07, FD01, FD03, FD09, FR01, FR05, FR07, FR09, R01, R05, R07, R08 |
+| 已实现 | 19 | B08, B09, D01, D06, D07, FB08, FB09, FD01, FD03, FD05, FD09, FR01, FR05, FR07, FR09, R01, R05, R07, R08 |
 | 部分 | 0 |  |
-| 未实现 | 10 | B08, B09, D06, D09, FB06, FB08, FB09, FD05, FD07, FR08 |
+| 未实现 | 4 | D09, FB06, FD07, FR08 |
 
 合计 57 模型（== 03 设计矩阵行数，机器断言见文末）。
 
@@ -24,7 +24,7 @@
 | D03 | Int Decode | 换值 | CHAOSDecode: opcode_swap（GNU-as 验证对表） | 部分 | D03-c 跨 FU 合法类别换值未实现（对表仅同族 ADD↔SUB/AND↔ORR/LDR↔STR 等） | D03(merged) |
 | D04 | Int Decode | 换值 | CHAOSDecode: reg_bitflip（bit 级近似）+ dest_reg_sub（dst） | 部分 | D04-c src0/src1 互换、D04-e x0 注入未实现；自由换值以 bit 翻转近似（W6 验证语义：寄存器号实际移动） | 新(new) |
 | D05 | Int Decode | 错位拼接 | CHAOSDecode: imm_subfield_shift（片段互换）+ sign_ext_bit（符号位近似） | 部分 | D05-b 循环移位、D05-d 读取上一条立即数未实现；符号↔零扩展以符号位翻转运近似 | D08(merged), D09(merged) |
-| D06 | Int Decode | 状态 | —（无控制位换值模式） | 未实现 | 全部：sf/S/shift/extend/signed 控制换值（opcode_bitflip 仅覆盖 sf/S 的 bit 翻转，非合法组合换值） | D10(merged) |
+| D06 | Int Decode | 状态 | CHAOSDecode: ctl_swap_sf / ctl_swap_setflags / ctl_swap_shift_type / ctl_swap_extend_type / ctl_swap_signedness | 已实现 | a–e 五臂全实现并两态实测（U4：GNU-as 闭环对表 70 行 8 表 ALL-PASS，表由 u4rules.py 程序化生成；换值=控制字段翻至**合法另一值**（a sf 宽窄、b bit29 setflags、c shift type lsl↔lsr/asr/ror、d extend type bit13、e 符号位 bit15），xor 后 decodeChaos 重译码 + 非法/unknown 拒绝 + 寄存器序号判定（CC/Misc 过滤、顺序敏感）双门）；dep_chain 两态 5/5 激活全 Masked/GOLDEN、rc=0 合法提交 | D10(merged) |
 | D07 | Int Decode | 时序 | CHAOSDecode: decode_timing_early/late/drop/dup | 已实现 | 四臂全实现并两态实测（early=fetch 侧 stale-tuple 重绑、late/drop/dup=decode_emit 点；U2 第 4 轮 22/22）；W3/W5 探针负载属 P2 | 新(new) |
 | D08 | Int Decode | 状态/时序 | CHAOSDecode: crack_ctrl（±1 µop 近似，探索性） | 部分 | D08-c 互换 uop 顺序、D08-d 提前伪造 last-uop 未实现；且 gem5 A64 macroop 仅 LDP/STP 族 | 新(new) |
 | D09 | Int Decode | 卡死 | —（无 decode 输出 stuck 模式） | 未实现 | 全部：opcode/寄存器/控制字段输出位 stuck-at | 新(new) |
@@ -51,7 +51,7 @@
 | FD02 | FP/SIMD Decode | 双比特翻转 | CHAOSDecode: fp_opcode_bitflip2 | 部分 | 分层未实现；跨字段双翻缺 | D57(merged), D60(merged) |
 | FD03 | FP/SIMD Decode | 换值 | CHAOSDecode: fp_opcode_swap（闭环验证 FP 对表） | 已实现 | FD03-d 跨延迟 opClass 换值未实现 | D58(merged) |
 | FD04 | FP/SIMD Decode | 换值 | CHAOSDecode: fp_reg_bitflip / fp_reg_bitflip2 | 部分 | FD04-c lane index 替换未实现；bit 级近似 | 新(new) |
-| FD05 | FP/SIMD Decode | 状态 | —（无 scalar/vector 模式与 element width 换值模式） | 未实现 | 全部：scalar↔vector/element width/lane count 控制换值 | D61(merged) |
+| FD05 | FP/SIMD Decode | 状态 | CHAOSDecode: fp_ctl_swap_scalar_vector / fp_ctl_swap_elem_width / fp_ctl_swap_lane_count | 已实现 | a–c 三臂全实现并两态实测（U4：a 标量↔向量 d↔v（xor 0x5000fc00 类）、b element width size 位（FD05b_add_q1 行覆盖 .2d/.4s→.16b 等，整数 SIMD 面无 fpOnly 门——表即门）、c lane count Q 位（.4s↔.2s））；两态实测：rob_fill_fp b 臂 add v2.2d→v2.16b **SDC/WRONG**（FINAL 095b9bccf5a979a4）；gap a 臂 fadd d0,d0,d1→fadd v0.2d Masked、b 臂 add v1.4s→v1.16b Masked、c 臂 add v1.4s→v1.2s **SDC/WRONG**（FINAL 913fd8766684d963）；rob_fill_fp 上 a/c 合格位点位于永不执行的 libc 路径（种子 42/7/123 共 6 轮 0 激活，如实记录） | D61(merged) |
 | FD06 | FP/SIMD Decode | 状态 | CHAOSFPU: rounding_sub（舍入模式替换）+ fpsr_suppress（FP 异常抑制） | 部分 | FD06-b FPCR 快照选择、FD06-c FTZ/DN 丢失未实现 | 新(new) |
 | FD07 | FP/SIMD Decode | 错位拼接 | —（无 shuffle/permute/lane 掩码拼接模式） | 未实现 | 全部：向量立即数片段/lane 选择/shuffle selector 掩码拼接 | 新(new) |
 | FD08 | FP/SIMD Decode | 状态/时序 | CHAOSDecode: crack_ctrl（仅 INT LDP/STP macroop） | 部分 | FP/SIMD macroop 面 gem5 A64 基本单 µop——诚实边界：FP µop 拆分扰动不可达（同 D10 blocker） | 新(new) |
@@ -77,16 +77,16 @@
 | FB09 | FP/SIMD Dispatch/ROB | 时序 | CHAOSROB: fp_commit_timing_early/late/drop/dup | 已实现 | 四臂全实现并两态实测（a early=FP 门控 commitWidth 外加 1 笔；c late=FP 门控 doneSeqNum 晚发；d drop=FPSR 面 misc 跳过——FP misc 写者稀少可 0 激活；dup=FP 门控额外弹头）；b V-mapping 面与 d old-dest 面由 U2 FR09 邻面覆盖；rob_fill_fp 两态 4/4 激活：Masked×3 + Crash DUE×1（dup）；rob_fill（int）sparse FloatMiscOp(fmov) 3/4 激活 | 新(new) |
 | FB10 | FP/SIMD Dispatch/ROB | 卡死 | CHAOSROB: destid_stuck vec | 部分 | complete/exception/lane-mask bit stuck 未实现 | D90(merged) |
 
-## WB3 工作面（未实现 14 模型 + 部分模型的缺口清单）
+## WB3 工作面（未实现模型滚动清零：14 → 4；+ 部分模型的缺口清单）
 
 未实现模型按族聚合（WB3 逐模型一 commit 的任务列表）：
 
-| 族 | 模型 | 共性机制缺口 |
-|---|---|---|
-| 流水时序 | D07, R08, B08, B09, FD09, FR09, FB08, FB09 | decode/rename/squash/commit 的 提前/延后/丢失/重复 事件扰动——需各流水级 valid/ready 或事件队列钩子 |
-| 控制状态换值 | D06, FD05 | sf/S/shift/extend/signed、scalar↔vector/element-width 控制位合法组合换值 |
-| 拼接/配对 | FD07, FR08, FB06 | shuffle/lane-mask/preserve-zero-merge 元数据拼接、完成事件配对换值 |
-| decode 卡死 | D09 | decode 输出位 stuck-at（跨译码事件持续） |
+| 族 | 模型 | 共性机制缺口 | 状态 |
+|---|---|---|---|
+| 流水时序 | D07, R08, B08, B09, FD09, FR09, FB08, FB09 | decode/rename/squash/commit 的 提前/延后/丢失/重复 事件扰动——需各流水级 valid/ready 或事件队列钩子 | 已实现（U2: D07/R08/FD09/FR09；U3: B08/B09/FB08/FB09） |
+| 控制状态换值 | D06, FD05 | sf/S/shift/extend/signed、scalar↔vector/element-width 控制位合法组合换值 | 已实现（U4） |
+| 拼接/配对 | FD07, FR08, FB06 | shuffle/lane-mask/preserve-zero-merge 元数据拼接、完成事件配对换值 | 未实现（U5 工作面） |
+| decode 卡死 | D09 | decode 输出位 stuck-at（跨译码事件持续） | 未实现 |
 
 部分模型的子模型缺口（WB3 按缺口补模式或按 03 表原文裁决 BLOCKED-no-hook）：相邻/非相邻双翻分层（D02/R02/B02/FD02/FR02/FB02 等 6 模型）、src 互换（D04-c/R03-c）、x0 注入（D04-e）、跨字段双翻（D02-c）、imm 循环移位/上一条（D05-b/d）、跨 FU 换值（D03-c/FD03-d/FR03-c）、清除 valid/提前释放（B04-b/d）、mispredict/serialize 控制（B05-b/d）、wrap/occupancy（B06-c/d）、steering 换值（B07/FB03）、FPCR/FTZ（FD06-b/c）、lane index 替换（FD04-c）、replay 伪造（FB04-c）、oldphys vec 面（FR04-b）、complete/valid stuck（B10-c/d、FB10）。
 

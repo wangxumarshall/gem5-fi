@@ -131,6 +131,141 @@ namespace gem5
         return nullptr;
     }
 
+    // ---- U4 (D06/FD05, ooo 03-design-matrix R7/R34) control-state
+    // swap tables ----
+    // kCtlSwapSfRules: D06-a sf (32<->64): bit31 swap. add-imm (imm12 width-safe both ways), add shifted w->x unconditional / x->w CONDITIONAL (imm6>=32 lands illegal -> decodeChaos rejects -> honest skip), add extended both ways (all 8 extends legal on w), logical-imm N=0-pinned (sf=0 requires N=0; N=1 sources excluded), logical shifted w/x same conditional split.
+    const CHAOSDecode::SwapRule CHAOSDecode::kCtlSwapSfRules[] = {
+        {0x1F000000u, 0x11000000u, 0x80000000u, "D06a_add_imm"},
+        {0x9FE00000u, 0x0B000000u, 0x80000000u, "D06a_add_sh_w"},
+        {0x9FE00000u, 0x8B000000u, 0x80000000u, "D06a_add_sh_x"},
+        {0x9FE00000u, 0x0B200000u, 0x80000000u, "D06a_add_ext_w"},
+        {0x9FE00000u, 0x8B200000u, 0x80000000u, "D06a_add_ext_x"},
+        {0x1FC00000u, 0x12000000u, 0x80000000u, "D06a_log_imm"},
+        {0x9FE00000u, 0x0A000000u, 0x80000000u, "D06a_log_sh_w"},
+        {0x9FE00000u, 0x8A000000u, 0x80000000u, "D06a_log_sh_x"},
+    };
+
+    // kCtlSwapSetflagsRules: D06-b setflags: bit29 (add/sub S) and opc 00<->11 (AND<->ANDS, both imm and shifted forms). Pure control-bit flip: sf/imm6/N/regs all preserved -> unconditionally legal both ways.
+    const CHAOSDecode::SwapRule CHAOSDecode::kCtlSwapSetflagsRules[] = {
+        {0x1F000000u, 0x11000000u, 0x20000000u, "D06b_add_imm"},
+        {0x1F000000u, 0x0B000000u, 0x20000000u, "D06b_add_exsh"},
+        {0x7FC00000u, 0x12000000u, 0x60000000u, "D06b_and_imm"},
+        {0x7FC00000u, 0x72000000u, 0x60000000u, "D06b_ands_imm"},
+        {0x7F000000u, 0x0A000000u, 0x60000000u, "D06b_and_sh"},
+        {0x7F000000u, 0x6A000000u, 0x60000000u, "D06b_ands_sh"},
+    };
+
+    // kCtlSwapShiftRules: D06-c shift type [23:22]. ADD/SUB rows pin sf=1 + bit21=0 (shifted form; extended alias imm6 reaches 32..63 -> lsr/asr #>=32 illegal on w; ROR illegal on add -> lsl<->lsr, asr->lsl). Logical row leaves sf/N free, full lsl<->ror rotation.
+    const CHAOSDecode::SwapRule CHAOSDecode::kCtlSwapShiftRules[] = {
+        {0x9FE00000u, 0x8B000000u, 0x00400000u, "D06c_add_lsl"},
+        {0x9FE00000u, 0x8B400000u, 0x00400000u, "D06c_add_lsr"},
+        {0x9FE00000u, 0x8B800000u, 0x00800000u, "D06c_add_asr"},
+        {0x1F000000u, 0x0A000000u, 0x00C00000u, "D06c_log_rot"},
+    };
+
+    // kCtlSwapExtendRules: D06-d extend type: option LSB bit13 on the EXTENDED form (bit21=1, opt[23:22]=00). uxtb<->uxth, uxtw<->uxtx, sxtb<->sxth, sxtw<->sxtx — every pair member legal in both sf.
+    const CHAOSDecode::SwapRule CHAOSDecode::kCtlSwapExtendRules[] = {
+        {0x1FE00000u, 0x0B200000u, 0x00002000u, "D06d_ext_type"},
+    };
+
+    // kCtlSwapSignRules: D06-e signedness: option MSB bit15 (uxtw<->sxtw etc. on the extended form) and SDIV<->UDIV bit10.
+    const CHAOSDecode::SwapRule CHAOSDecode::kCtlSwapSignRules[] = {
+        {0x1FE00000u, 0x0B200000u, 0x00008000u, "D06e_ext_sign"},
+        {0x7FE0F800u, 0x1AC00800u, 0x00000400u, "D06e_div_sign"},
+    };
+
+    // kFpCtlSvRules: FD05-a scalar<->vector: fmul/fadd/fsub d/s <-> .2d/.2s explicit pair rows (directional: xor touches pinned bits, each direction its own row). Reg CLASS d<->v changes, reg NUMBERS preserved.
+    const CHAOSDecode::SwapRule CHAOSDecode::kFpCtlSvRules[] = {
+        {0xFFE0FC00u, 0x1E600800u, 0x7000D400u, "FD05a_fmul_d0"},
+        {0xFFE0FC00u, 0x6E60DC00u, 0x7000D400u, "FD05a_fmul_d1"},
+        {0xFFE0FC00u, 0x1E200800u, 0x3000D400u, "FD05a_fmul_s0"},
+        {0xFFE0FC00u, 0x2E20DC00u, 0x3000D400u, "FD05a_fmul_s1"},
+        {0xFFE0FC00u, 0x1E602800u, 0x5000FC00u, "FD05a_fadd_d0"},
+        {0xFFE0FC00u, 0x4E60D400u, 0x5000FC00u, "FD05a_fadd_d1"},
+        {0xFFE0FC00u, 0x1E202800u, 0x1000FC00u, "FD05a_fadd_s0"},
+        {0xFFE0FC00u, 0x0E20D400u, 0x1000FC00u, "FD05a_fadd_s1"},
+        {0xFFE0FC00u, 0x1E203800u, 0x1080EC00u, "FD05a_fsub_s0"},
+        {0xFFE0FC00u, 0x0EA0D400u, 0x1080EC00u, "FD05a_fsub_s1"},
+        {0xFFE0FC00u, 0x1E603800u, 0x5080EC00u, "FD05a_fsub_d0"},
+        {0xFFE0FC00u, 0x4EE0D400u, 0x5080EC00u, "FD05a_fsub_d1"},
+    };
+
+    // kFpCtlEwRules: FD05-b element width [23:22]. Q=1 add/sub: one symmetric row per opcode (all four widths legal, size free). Q=0 and mul: size pinned, directional rows (.8b<->.4h etc.; MUL has no .2d). FP fadd/fmul .4s<->.2d ftype swap.
+    const CHAOSDecode::SwapRule CHAOSDecode::kFpCtlEwRules[] = {
+        {0xFF20FC00u, 0x4E208400u, 0x00C00000u, "FD05b_add_q1"},
+        {0xFF20FC00u, 0x6E208400u, 0x00C00000u, "FD05b_sub_q1"},
+        {0xFFE0FC00u, 0x4E609C00u, 0x00C00000u, "FD05b_mul_q1h"},
+        {0xFFE0FC00u, 0x4EA09C00u, 0x00C00000u, "FD05b_mul_q1s"},
+        {0xFFE0FC00u, 0x0E208400u, 0x00400000u, "FD05b_add_q0b"},
+        {0xFFE0FC00u, 0x0E608400u, 0x00400000u, "FD05b_add_q0h"},
+        {0xFFE0FC00u, 0x0EA08400u, 0x00800000u, "FD05b_add_q0s"},
+        {0xFFE0FC00u, 0x2E208400u, 0x00400000u, "FD05b_sub_q0b"},
+        {0xFFE0FC00u, 0x2E608400u, 0x00400000u, "FD05b_sub_q0h"},
+        {0xFFE0FC00u, 0x2EA08400u, 0x00800000u, "FD05b_sub_q0s"},
+        {0xFFE0FC00u, 0x0E209C00u, 0x00400000u, "FD05b_mul_q0b"},
+        {0xFFE0FC00u, 0x0E609C00u, 0x00400000u, "FD05b_mul_q0h"},
+        {0xFFE0FC00u, 0x0EA09C00u, 0x00800000u, "FD05b_mul_q0s"},
+        {0xFF20FC00u, 0x4E20D400u, 0x00400000u, "FD05b_fadd_sd"},
+        {0xFF20FC00u, 0x6E20DC00u, 0x00400000u, "FD05b_fmul_sd"},
+    };
+
+    // kFpCtlLcRules: FD05-c lane count: Q bit30 per size+direction (directional — bit30 is pinned by the mask). .8b<->.16b, .4h<->.8h, .2s<->.4s and FP .2s<->.4s/.2d mirrors.
+    const CHAOSDecode::SwapRule CHAOSDecode::kFpCtlLcRules[] = {
+        {0xFFE0FC00u, 0x0E208400u, 0x40000000u, "FD05c_add_b0"},
+        {0xFFE0FC00u, 0x4E208400u, 0x40000000u, "FD05c_add_b1"},
+        {0xFFE0FC00u, 0x0E608400u, 0x40000000u, "FD05c_add_h0"},
+        {0xFFE0FC00u, 0x4E608400u, 0x40000000u, "FD05c_add_h1"},
+        {0xFFE0FC00u, 0x0EA08400u, 0x40000000u, "FD05c_add_s0"},
+        {0xFFE0FC00u, 0x4EA08400u, 0x40000000u, "FD05c_add_s1"},
+        {0xFFE0FC00u, 0x2E208400u, 0x40000000u, "FD05c_sub_b0"},
+        {0xFFE0FC00u, 0x6E208400u, 0x40000000u, "FD05c_sub_b1"},
+        {0xFFE0FC00u, 0x2E608400u, 0x40000000u, "FD05c_sub_h0"},
+        {0xFFE0FC00u, 0x6E608400u, 0x40000000u, "FD05c_sub_h1"},
+        {0xFFE0FC00u, 0x2EA08400u, 0x40000000u, "FD05c_sub_s0"},
+        {0xFFE0FC00u, 0x6EA08400u, 0x40000000u, "FD05c_sub_s1"},
+        {0xFFE0FC00u, 0x0E209C00u, 0x40000000u, "FD05c_mul_b0"},
+        {0xFFE0FC00u, 0x4E209C00u, 0x40000000u, "FD05c_mul_b1"},
+        {0xFFE0FC00u, 0x0E609C00u, 0x40000000u, "FD05c_mul_h0"},
+        {0xFFE0FC00u, 0x4E609C00u, 0x40000000u, "FD05c_mul_h1"},
+        {0xFFE0FC00u, 0x0EA09C00u, 0x40000000u, "FD05c_mul_s0"},
+        {0xFFE0FC00u, 0x4EA09C00u, 0x40000000u, "FD05c_mul_s1"},
+        {0xFFE0FC00u, 0x0E20D400u, 0x40000000u, "FD05c_fadd_s0"},
+        {0xFFE0FC00u, 0x4E20D400u, 0x40000000u, "FD05c_fadd_s1"},
+        {0xFFE0FC00u, 0x2E20DC00u, 0x40000000u, "FD05c_fmul_s0"},
+        {0xFFE0FC00u, 0x6E20DC00u, 0x40000000u, "FD05c_fmul_s1"},
+    };
+
+    // Per-mode first-match lookup (matchFpSwapRule first-match-wins).
+    const CHAOSDecode::SwapRule *
+    CHAOSDecode::matchCtlSwapRule(CHAOSDecode::Mode m, uint32_t enc)
+    {
+        const SwapRule *tbl; size_t n;
+        switch (m) {
+          case Mode::CtlSwapSf:
+            tbl = kCtlSwapSfRules; n = 8; break;
+          case Mode::CtlSwapSetflags:
+            tbl = kCtlSwapSetflagsRules; n = 6; break;
+          case Mode::CtlSwapShiftType:
+            tbl = kCtlSwapShiftRules; n = 4; break;
+          case Mode::CtlSwapExtendType:
+            tbl = kCtlSwapExtendRules; n = 1; break;
+          case Mode::CtlSwapSignedness:
+            tbl = kCtlSwapSignRules; n = 2; break;
+          case Mode::FpCtlSwapScalarVector:
+            tbl = kFpCtlSvRules; n = 12; break;
+          case Mode::FpCtlSwapElemWidth:
+            tbl = kFpCtlEwRules; n = 15; break;
+          case Mode::FpCtlSwapLaneCount:
+            tbl = kFpCtlLcRules; n = 22; break;
+          default:
+            return nullptr;
+        }
+        for (size_t i = 0; i < n; i++)
+            if ((enc & tbl[i].mask) == tbl[i].match)
+                return &tbl[i];
+        return nullptr;
+    }
+
     // ---- W6 batch 2 tables (D08/D09/D10, ooo 04-design-matrix R9-R11) ----
     // Every row below was verified against real GNU-as encodings on this
     // aarch64 host (2026-09-24 W6 batch 2 record, /tmp/w6b2/fmt.s + objdump
@@ -247,6 +382,14 @@ namespace gem5
         if (s == "fp_decode_timing_late")    return Mode::FpTimingLate;
         if (s == "fp_decode_timing_drop")    return Mode::FpTimingDrop;
         if (s == "fp_decode_timing_dup")     return Mode::FpTimingDup;
+        if (s == "ctl_swap_sf")        return Mode::CtlSwapSf;
+        if (s == "ctl_swap_setflags")  return Mode::CtlSwapSetflags;
+        if (s == "ctl_swap_shift_type")   return Mode::CtlSwapShiftType;
+        if (s == "ctl_swap_extend_type")  return Mode::CtlSwapExtendType;
+        if (s == "ctl_swap_signedness")   return Mode::CtlSwapSignedness;
+        if (s == "fp_ctl_swap_scalar_vector") return Mode::FpCtlSwapScalarVector;
+        if (s == "fp_ctl_swap_elem_width")    return Mode::FpCtlSwapElemWidth;
+        if (s == "fp_ctl_swap_lane_count")    return Mode::FpCtlSwapLaneCount;
         panic("CHAOSDecode: unknown mode '%s'\n", s);
     }
 
@@ -279,6 +422,14 @@ namespace gem5
           case Mode::FpTimingLate:     return "fp_decode_timing_late";
           case Mode::FpTimingDrop:     return "fp_decode_timing_drop";
           case Mode::FpTimingDup:      return "fp_decode_timing_dup";
+          case Mode::CtlSwapSf:    return "ctl_swap_sf";
+          case Mode::CtlSwapSetflags:  return "ctl_swap_setflags";
+          case Mode::CtlSwapShiftType:   return "ctl_swap_shift_type";
+          case Mode::CtlSwapExtendType:  return "ctl_swap_extend_type";
+          case Mode::CtlSwapSignedness:  return "ctl_swap_signedness";
+          case Mode::FpCtlSwapScalarVector: return "fp_ctl_swap_scalar_vector";
+          case Mode::FpCtlSwapElemWidth:    return "fp_ctl_swap_elem_width";
+          case Mode::FpCtlSwapLaneCount:    return "fp_ctl_swap_lane_count";
         }
         return "?";
     }
@@ -464,6 +615,19 @@ namespace gem5
                                  fi_mode == Mode::FpRegBitflip ||
                                  fi_mode == Mode::FpRegBitflip2 ||
                                  fi_mode == Mode::FpRouteBit);
+        // U4 (D06/FD05): control-state legal-value swap family. NO fpOnly
+        // gate — the per-mode rule table IS the gate (FD05-b/c element
+        // width and lane count legitimately cover integer SIMD lanes;
+        // D06 targets the integer ALU control fields).
+        const bool is_ctlswap_mode =
+            (fi_mode == Mode::CtlSwapSf ||
+             fi_mode == Mode::CtlSwapSetflags ||
+             fi_mode == Mode::CtlSwapShiftType ||
+             fi_mode == Mode::CtlSwapExtendType ||
+             fi_mode == Mode::CtlSwapSignedness ||
+             fi_mode == Mode::FpCtlSwapScalarVector ||
+             fi_mode == Mode::FpCtlSwapElemWidth ||
+             fi_mode == Mode::FpCtlSwapLaneCount);
 
         // ---- cheap per-mode eligibility (before skip/probability) ----
         const SwapRule *rule = nullptr;
@@ -480,6 +644,12 @@ namespace gem5
             // kSwapRules are all-integer — FP encodings match none).
             rule = matchFpSwapRule(enc);
             if (!rule) return nullptr;     // not a swappable FP opcode
+        } else if (is_ctlswap_mode) {
+            // U4: control-field legal-value swap. First-match rule table
+            // per mode; a non-matching encoding is simply outside this
+            // submode's format family (quiet skip, OpcodeSwap discipline).
+            rule = matchCtlSwapRule(fi_mode, enc);
+            if (!rule) return nullptr;
         } else if (is_reg_mode || is_imm_mode) {
             // Necessary condition for a reg flip: the instruction actually
             // has register operands. (The full semantic check below is the
@@ -516,6 +686,14 @@ namespace gem5
         if (fi_mode == Mode::FpRouteBit)
             return injectFpRouteBit(emi, enc, orig, orig->getName(),
                                     arm_dec, pc);
+
+        // ---- U4 (D06/FD05): control-state legal-value swap. The rule
+        // was resolved by the cheap-eligibility branch; injectCtlSwap
+        // applies the (possibly multi-bit) xor, re-decodes, and enforces
+        // the legal-value + reg-index predicate.
+        if (is_ctlswap_mode)
+            return injectCtlSwap(emi, enc, orig, orig->getName(),
+                                 arm_dec, pc, rule);
 
         // ---- bit selection ----
         // Semantic predicate for reg/imm flips (see .hh): the candidate
@@ -1033,6 +1211,90 @@ namespace gem5
                 << enums::OpClassStrings[static_cast<int>(orig_oc)]
                 << ", opclass_new="
                 << enums::OpClassStrings[static_cast<int>(repl->opClass())]
+                << ", orig_mnemonic=" << orig_name
+                << ", new_mnemonic=" << repl->getName()
+                << ", faults_injected: " << faults_injected_count
+                << std::endl;
+        }
+        return repl;
+    }
+
+    // ---- U4 (D06/FD05, ooo 03-design-matrix R7/R34) control-state swap ----
+    // The control field is swapped to ANOTHER LEGAL VALUE, never an
+    // illegal/reserved one: every rule row was closed-loop verified
+    // against real GNU-as encodings on the host (see the .hh provenance
+    // block). Predicate here: the swapped encoding must re-decode to a
+    // real instruction (decodeChaos non-null and not gem5's illegal
+    // decode StaticInst "unknown") AND preserve the register-operand
+    // index sequence. The conditional D06-a shifted x->w rows (imm6 >=
+    // 32 land a reserved encoding) fail exactly at the re-decode gate
+    // -> honest skip, never a SIGILL in the guest.
+    StaticInstPtr
+    CHAOSDecode::injectCtlSwap(uint64_t emi_raw, uint32_t enc,
+                               StaticInstPtr orig,
+                               const std::string &orig_name,
+                               ArmISA::Decoder *arm_dec, Addr pc,
+                               const SwapRule *rule)
+    {
+        ArmISA::ExtMachInst emi;
+        emi = emi_raw;   // rebuild the full EMI (high 32 bits = decode ctx)
+
+        const uint32_t new_enc = enc ^ rule->xor_bits;
+        ArmISA::ExtMachInst new_emi = emi;
+        new_emi.instBits = new_enc;
+        StaticInstPtr repl = arm_dec->decodeChaos(new_emi);
+
+        // Belt-and-braces reg guard: the operand register INDEX sequence
+        // (dest then src, low 16 bits of the captureRegs fingerprint)
+        // must be preserved, order-sensitively. Flag dests (CCRegClass —
+        // e.g. the NZCV the setflags rows legitimately add/drop) and
+        // control regs (MiscRegClass) are not operands and are filtered
+        // out; FD05-a legitimately changes reg CLASS d<->v, so only the
+        // index is compared.
+        std::vector<uint32_t> fp0, fp1;
+        const bool legal = repl && repl->getName() != "unknown";
+        if (legal) {
+            captureRegs(orig.get(), fp0);
+            captureRegs(repl.get(), fp1);
+            auto keep_operands = [](std::vector<uint32_t> &v) {
+                size_t w = 0;
+                for (size_t i = 0; i < v.size(); i++) {
+                    const uint32_t cls = v[i] >> 16;
+                    if (cls == uint32_t(CCRegClass) ||
+                        cls == uint32_t(MiscRegClass))
+                        continue;
+                    v[w++] = v[i] & 0xFFFFu;
+                }
+                v.resize(w);
+            };
+            keep_operands(fp0);
+            keep_operands(fp1);
+        }
+        if (!legal || fp0 != fp1) {
+            // Honest skip: the draw is consumed, no fault is counted.
+            if (write_log)
+                *(log_stream->stream()) << "Tick: " << curTick()
+                    << ", Site: fetch_decode, mode=" << modeToString(fi_mode)
+                    << ", event=honest_skip"
+                    << ", reason=swap_lands_illegal_or_regs_moved"
+                    << ", pc=0x" << std::hex << pc << std::dec
+                    << ", orig_enc=0x" << std::hex << enc << std::dec
+                    << ", new_enc=0x" << std::hex << new_enc << std::dec
+                    << ", swap_rule=" << rule->name
+                    << ", orig_mnemonic=" << orig_name
+                    << std::endl;
+            return nullptr;
+        }
+
+        faults_injected_count++;
+        if (write_log) {
+            *(log_stream->stream()) << "Tick: " << curTick()
+                << ", Site: fetch_decode, mode=" << modeToString(fi_mode)
+                << ", pc=0x" << std::hex << pc << std::dec
+                << ", orig_enc=0x" << std::hex << enc << std::dec
+                << ", new_enc=0x" << std::hex << new_enc << std::dec
+                << ", xor_bits=0x" << std::hex << rule->xor_bits << std::dec
+                << ", swap_rule=" << rule->name
                 << ", orig_mnemonic=" << orig_name
                 << ", new_mnemonic=" << repl->getName()
                 << ", faults_injected: " << faults_injected_count
