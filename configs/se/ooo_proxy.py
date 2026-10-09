@@ -125,7 +125,11 @@ p.add_argument("--lsq_lane_skew_k", type=int, default=1)
 p.add_argument("--chaos_rename", action="store_true",
                help="attach CHAOSRenameMap (O3 rename-map injector, §2.2)")
 p.add_argument("--rename_mode", default="map_bitflip",
-               choices=["map_bitflip","map_bitflip2","swap_to_active","f5_substitute","f4_field_stuck","spec_leak","f5_rat_stuck","stale_read","swap_mispred_event","hb_bitflip","hb_bitflip2"])
+               choices=["map_bitflip","map_bitflip2","map_bitflip2_adj",
+                        "map_bitflip2_nonadj","swap_to_active",
+                        "f5_substitute","f4_field_stuck","spec_leak",
+                        "f5_rat_stuck","stale_read","swap_mispred_event",
+                        "hb_bitflip","hb_bitflip2"])
 p.add_argument("--rename_target_arch", type=int, default=-1,
                help="arch reg index whose map entry to corrupt (-1=random 0..30 int / 0..31 vec)")
 # W7.2 (ooo 04 D62-D71 merged rows): register-class axis for the RAT

@@ -142,7 +142,12 @@ class CHAOSRenameMap : public SimObject
                                const char *site);
 
   private:
-    enum class Mode { MapBitflip, MapBitflip2, SwapToActive, F5Substitute,
+    enum class Mode { MapBitflip, MapBitflip2,
+                      // V2.0 R02 layering (ooo 03-design-matrix R12):
+                      // same-tag adjacent / non-adjacent dual-bit
+                      // variants of map_bitflip2 (|db|==1 resp. >=2).
+                      MapBitflip2Adj, MapBitflip2Nonadj,
+                      SwapToActive, F5Substitute,
                       F4FieldStuck, SpecLeak, F5RatStuck, StaleRead,
                       SwapMispredEvent, HbBitflip, HbBitflip2,
                       // W5.6 (ooo 04-design-matrix D36-D39, Int Dispatch/

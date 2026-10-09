@@ -79,6 +79,8 @@ namespace gem5
     CHAOSRenameMap::stringToMode(const std::string &s) {
         if (s == "map_bitflip") return Mode::MapBitflip;
         if (s == "map_bitflip2") return Mode::MapBitflip2;
+        if (s == "map_bitflip2_adj") return Mode::MapBitflip2Adj;
+        if (s == "map_bitflip2_nonadj") return Mode::MapBitflip2Nonadj;
         if (s == "swap_to_active") return Mode::SwapToActive;
         if (s == "f5_substitute") return Mode::F5Substitute;
         if (s == "f4_field_stuck") return Mode::F4FieldStuck;
@@ -104,6 +106,8 @@ namespace gem5
         switch (m) {
             case Mode::MapBitflip: return "map_bitflip";
             case Mode::MapBitflip2: return "map_bitflip2";
+            case Mode::MapBitflip2Adj: return "map_bitflip2_adj";
+            case Mode::MapBitflip2Nonadj: return "map_bitflip2_nonadj";
             case Mode::SwapToActive: return "swap_to_active";
             case Mode::F5Substitute: return "f5_substitute";
             case Mode::F4FieldStuck: return "f4_field_stuck";
@@ -341,7 +345,9 @@ namespace gem5
                 new_idx = (int)(rng() % (unsigned)num_phys);
             }
             if (new_idx == cur_idx) return false;
-        } else if (fi_mode == Mode::MapBitflip2) {
+        } else if (fi_mode == Mode::MapBitflip2 ||
+                   fi_mode == Mode::MapBitflip2Adj ||
+                   fi_mode == Mode::MapBitflip2Nonadj) {
             // W4.1 D12 (04-design-matrix R13): flip TWO distinct random bits
             // of the physReg index at the same site as map_bitflip. On the
             // C3 north-star config (128 int physRegs = 2^7) the 7-bit index
@@ -351,14 +357,40 @@ namespace gem5
             // On a non-power-of-2 num_phys the flip can land out of range —
             // honest skip with log (NO clamp: a clamped remap would not be
             // the 2-bit-flip fault model).
+            // V2.0 R02 layering (ooo 03-design-matrix R12): the Adj/Nonadj
+            // variants constrain the pair to |b1-b2|==1 resp. >= 2
+            // ("同tag相邻/非相邻双bit"); the plain mode keeps the uniform
+            // distinct pair. The directed fault_mask control must satisfy
+            // the layering too — a violating mask is an honest skip.
             int nbits = 0; int tmp = num_phys; while (tmp > 1) { nbits++; tmp >>= 1; }
             if (nbits < 2) return false;  // index field too small for 2 bits
+            if (fi_mode == Mode::MapBitflip2Nonadj && nbits < 3)
+                return false;  // no non-adjacent pair exists below 3 bits
             int b1 = 0, b2 = 0;
             if (__builtin_popcountll(fault_mask) >= 2) {
                 // directed control: the two lowest set bits of fault_mask
                 b1 = __builtin_ctzll(fault_mask);
                 uint64_t rest = fault_mask & ~(1ULL << b1);
                 b2 = __builtin_ctzll(rest);
+                const int dd = b1 > b2 ? b1 - b2 : b2 - b1;
+                if ((fi_mode == Mode::MapBitflip2Adj && dd != 1) ||
+                    (fi_mode == Mode::MapBitflip2Nonadj && dd < 2))
+                    return false;  // directed mask violates the layering
+            } else if (fi_mode == Mode::MapBitflip2Adj) {
+                // uniform adjacent pair: (b1, b1+1), b1 in [0, nbits-1)
+                b1 = (int)(rng() % (unsigned)(nbits - 1));
+                b2 = b1 + 1;
+            } else if (fi_mode == Mode::MapBitflip2Nonadj) {
+                // rejection over the uniform distinct-pair draw (non-
+                // adjacent pairs dominate for nbits >= 4; bounded 16 tries,
+                // then an honest skip — mirrors the out-of-range policy)
+                for (int tries = 0; tries < 16; tries++) {
+                    b1 = (int)(rng() % (unsigned)nbits);
+                    b2 = (int)(rng() % (unsigned)(nbits - 1));
+                    if (b2 >= b1) b2++;
+                    if ((b1 > b2 ? b1 - b2 : b2 - b1) >= 2) break;
+                }
+                if ((b1 > b2 ? b1 - b2 : b2 - b1) < 2) return false;
             } else {
                 // uniform random DISTINCT pair: b1 uniform, b2 uniform over
                 // the remaining nbits-1 slots (order-statistics trick)
@@ -371,7 +403,8 @@ namespace gem5
             if (flipped < 0 || flipped >= num_phys) {
                 if (write_log) {
                     *(log_stream->stream()) << "Tick: " << curTick()
-                        << ", Site: rename_setEntry, mode=map_bitflip2"
+                        << ", Site: rename_setEntry, mode="
+                        << modeToString(fi_mode)
                         << classTag() << ", "
                         << "tid=" << (int)tid
                         << ", arch=" << archPrefix() << arch_idx
@@ -457,18 +490,28 @@ namespace gem5
         faults_injected_count++;
 
         if (write_log) {
-            if (fi_mode == Mode::MapBitflip2) {
+            if (fi_mode == Mode::MapBitflip2 ||
+                fi_mode == Mode::MapBitflip2Adj ||
+                fi_mode == Mode::MapBitflip2Nonadj) {
                 // W4.1 D12 plan-mandated evidence line: old/new phys idx +
                 // the two flipped bits (verifiable: popcount(old^new)==2 and
-                // old ^ (1<<b1) ^ (1<<b2) == new).
+                // old ^ (1<<b1) ^ (1<<b2) == new). V2.0 R02 layering adds
+                // dist=|b1-b2| for the Adj/Nonadj submodes (03 spec
+                // "保存bit距离和原/故障值"; the plain mode keeps the exact
+                // legacy byte format).
                 *(log_stream->stream()) << "Tick: " << curTick()
-                    << ", Site: rename_setEntry, mode=map_bitflip2"
+                    << ", Site: rename_setEntry, mode=" << modeToString(fi_mode)
                     << classTag()
                     << ", tid=" << (int)tid
                     << ", arch=" << archPrefix() << arch_idx
                     << ", old_phys=" << cur_idx
                     << ", new_phys=" << new_idx
-                    << ", bits=(" << log_b1 << "," << log_b2 << ")"
+                    << ", bits=(" << log_b1 << "," << log_b2 << ")";
+                if (fi_mode != Mode::MapBitflip2)
+                    *(log_stream->stream())
+                        << ", dist=" << (log_b1 > log_b2 ? log_b1 - log_b2
+                                                         : log_b2 - log_b1);
+                *(log_stream->stream())
                     << ", faults_injected: " << faults_injected_count
                     << std::endl;
             } else if (fi_mode == Mode::SwapToActive

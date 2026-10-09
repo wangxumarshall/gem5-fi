@@ -69,8 +69,15 @@ class CHAOSRenameMap(SimObject):
     # rename updates it normally; the renaming inst keeps its allocated dest.
     # Downstream readers read the OLD phys: stale but legal data. Not a
     # value swap (D13), not a stuck bit (D15) — the update never lands.
+    # V2.0 R02 layering (ooo 03-design-matrix R12): map_bitflip2_adj /
+    # map_bitflip2_nonadj constrain the two flipped physReg-index bits to
+    # |db|==1 resp. >=2 ("同tag相邻/非相邻双bit"); the log adds dist=. The
+    # directed fault_mask control must satisfy the layering (violating
+    # mask = honest skip). Plain map_bitflip2 keeps the uniform distinct
+    # pair and the exact legacy log format.
     mode = Param.String("map_bitflip",
-        "map_bitflip | map_bitflip2 | swap_to_active | f5_substitute | "
+        "map_bitflip | map_bitflip2 | map_bitflip2_adj | map_bitflip2_nonadj"
+        " | swap_to_active | f5_substitute | "
         "f4_field_stuck | spec_leak | f5_rat_stuck | stale_read | "
         "swap_mispred_event | hb_bitflip | hb_bitflip2")
 
