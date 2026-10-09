@@ -953,6 +953,14 @@ def main():
         if (inj["model"] == "local_mbu"
                 and str(tgt.get("sub_field", "")) == "pc_bitflip2"):
             rm = "pc_bitflip2"
+        # V2.0 B02 layering (ooo 03-design-matrix R21): adjacent /
+        # non-adjacent dual-bit variants on the PC resp. dest-tag field.
+        if (inj["model"] == "local_mbu"
+                and str(tgt.get("sub_field", "")) == "pc_bitflip2_adj"):
+            rm = "pc_bitflip2_adj"
+        if (inj["model"] == "local_mbu"
+                and str(tgt.get("sub_field", "")) == "pc_bitflip2_nonadj"):
+            rm = "pc_bitflip2_nonadj"
         if (inj["model"] in ("stuck_at_zero", "stuck_at_one")
                 and str(tgt.get("sub_field", "")) == "pc_stuck"):
             rm = "pc_stuck"
@@ -960,6 +968,12 @@ def main():
             rm = "destid_bitflip"
         if (inj["model"] == "local_mbu" and rsf == "destid_bitflip2"):
             rm = "destid_bitflip2"
+        # V2.0 B02 layering (dest-tag field; _vec suffix routes vec class
+        # via the convention above).
+        if (inj["model"] == "local_mbu" and rsf == "destid_bitflip2_adj"):
+            rm = "destid_bitflip2_adj"
+        if (inj["model"] == "local_mbu" and rsf == "destid_bitflip2_nonadj"):
+            rm = "destid_bitflip2_nonadj"
         if (inj["model"] == "legal_domain_sub"
                 and rsf == "destid_swap_active"):
             rm = "destid_swap_active"
