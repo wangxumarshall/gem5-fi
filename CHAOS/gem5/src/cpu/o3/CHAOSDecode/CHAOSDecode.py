@@ -122,6 +122,12 @@ class CHAOSDecode(SimObject):
     #   fp_bitflip2_cross  (FD02-c): 1 bit of kFpOpcodeBits + 1 distinct
     #     bit of kFpOperandSideBits (lane UNION reg). Log carries field=
     #     and dist=.
+    # V2.0 D04-c (ooo 03-design-matrix R5, 09-audit WB3 gap): src_swap —
+    # exchange the DECODED-OUTPUT src0/src1 register numbers at the
+    # encoding layer (Rn[9:5] <-> Rm[20:16], re-decoded). Only the
+    # two-int-src data-proc families (bits[28:24]==01011/11011, GNU-as
+    # verified); Rn==Rm = identity = honest skip; mnemonic must be kept
+    # and the register fingerprint must move.
     mode = Param.String("dest_reg_sub",
         "dest_reg_sub | opcode_bitflip | opcode_bitflip2 | opcode_swap | "
         "reg_bitflip | reg_bitflip2 | imm_bitflip | imm_bitflip2 | "
@@ -129,7 +135,8 @@ class CHAOSDecode(SimObject):
         "fp_opcode_bitflip | fp_opcode_bitflip2 | fp_opcode_swap | "
         "fp_reg_bitflip | fp_reg_bitflip2 | fp_route_bit | "
         "bitflip2_adj | bitflip2_nonadj | bitflip2_cross | "
-        "fp_bitflip2_adj | fp_bitflip2_nonadj | fp_bitflip2_cross")
+        "fp_bitflip2_adj | fp_bitflip2_nonadj | fp_bitflip2_cross | "
+        "src_swap")
     probability = Param.Float(1.0, "per-decode injection probability")
     firstClock = Param.UInt64(0, "first clock cycle eligible for injection")
     lastClock = Param.UInt64(0, "last cycle (0 = unrestricted)")

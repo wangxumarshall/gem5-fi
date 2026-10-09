@@ -246,6 +246,7 @@ namespace gem5
         if (s == "fp_bitflip2_adj")    return Mode::FpBitflip2Adj;
         if (s == "fp_bitflip2_nonadj") return Mode::FpBitflip2Nonadj;
         if (s == "fp_bitflip2_cross")  return Mode::FpBitflip2Cross;
+        if (s == "src_swap")           return Mode::SrcSwap;
         panic("CHAOSDecode: unknown mode '%s'\n", s);
     }
 
@@ -276,6 +277,7 @@ namespace gem5
           case Mode::FpBitflip2Adj:    return "fp_bitflip2_adj";
           case Mode::FpBitflip2Nonadj: return "fp_bitflip2_nonadj";
           case Mode::FpBitflip2Cross:  return "fp_bitflip2_cross";
+          case Mode::SrcSwap:          return "src_swap";
         }
         return "?";
     }
@@ -534,6 +536,14 @@ namespace gem5
         if (fi_mode == Mode::FpRouteBit)
             return injectFpRouteBit(emi, enc, orig, orig->getName(),
                                     arm_dec, pc);
+        // ---- V2.0 D04-c src_swap (ooo 03-design-matrix R5): the
+        // DECODED-OUTPUT src0/src1 register-number exchange at the
+        // encoding layer (the 03 row's 注入位置 is the decode OUTPUT's
+        // src numbers — the re-decode of the Rn/Rm-exchanged encoding
+        // produces exactly that).
+        if (fi_mode == Mode::SrcSwap)
+            return injectSrcSwap(emi, enc, orig, orig->getName(),
+                                 arm_dec, pc);
 
         // ---- bit selection ----
         // Semantic predicate for reg/imm flips (see .hh): the candidate
@@ -882,6 +892,112 @@ namespace gem5
     // Shared skip-log prefix: "site fetch_decode + honest-skip" lines are
     // bounded by the probability draw and carry the reason + mnemonic so a
     // reviewer can see WHY a draw was not injectable.
+
+    // ---- V2.0 D04-c src_swap (ooo 03-design-matrix R5, 09-audit WB3
+    // gap) ----
+    bool
+    CHAOSDecode::isD04SwapFamily(uint32_t enc)
+    {
+        const uint32_t grp = (enc >> 24) & 0x1F;
+        return grp == 0x0B ||   // add/sub shifted/extended register
+               grp == 0x0A ||   // logical shifted register
+               grp == 0x1B;     // data-proc three-source
+    }
+
+    StaticInstPtr
+    CHAOSDecode::injectSrcSwap(uint64_t emi_raw, uint32_t enc,
+                               StaticInstPtr orig,
+                               const std::string &orig_name,
+                               ArmISA::Decoder *arm_dec, Addr pc)
+    {
+        // Family eligibility: only formats where BOTH Rn[9:5] and
+        // Rm[20:16] are source register fields (see .hh for the GNU-as
+        // verified encodings). Others: honest skip with log.
+        if (!isD04SwapFamily(enc)) {
+            if (write_log) {
+                *(log_stream->stream()) << "Tick: " << curTick()
+                    << ", Site: fetch_decode, mode=src_swap"
+                    << ", pc=0x" << std::hex << pc << std::dec
+                    << ", orig_mnemonic=" << orig_name
+                    << " — not a two-int-src data-proc format (skipped, "
+                    << "no injection)" << std::endl;
+            }
+            return nullptr;
+        }
+        const uint32_t rn = (enc >> 5) & 0x1Fu;
+        const uint32_t rm = (enc >> 16) & 0x1Fu;
+        // Rn == Rm: the swap is the identity — no actual field change,
+        // NOT a valid injection (03 spec: 至少两个可选架构寄存器).
+        if (rn == rm) {
+            if (write_log) {
+                *(log_stream->stream()) << "Tick: " << curTick()
+                    << ", Site: fetch_decode, mode=src_swap"
+                    << ", pc=0x" << std::hex << pc << std::dec
+                    << ", orig_mnemonic=" << orig_name
+                    << " — Rn==Rm (" << rn << "), swap is identity "
+                    << "(skipped, no injection)" << std::endl;
+            }
+            return nullptr;
+        }
+        // Exchange the two 5-bit fields; every other bit is preserved by
+        // construction (asserted in the structural pilot: enc ^ new_enc
+        // has bits ONLY inside [20:16] | [9:5]).
+        const uint32_t new_enc =
+            (enc & ~((0x1Fu << 16) | (0x1Fu << 5))) | (rn << 16) | (rm << 5);
+        ArmISA::ExtMachInst new_emi;
+        new_emi = emi_raw;
+        new_emi.instBits = new_enc;
+        StaticInstPtr repl = arm_dec->decodeChaos(new_emi);
+        if (!repl) return nullptr;
+        // Semantic predicate (the W6 reg-family discipline): the mnemonic
+        // must be unchanged AND the register-operand fingerprint must MOVE
+        // (with Rn != Rm the positional src order differs, so the swap
+        // always moves it; the check guards against pathological
+        // format-decoder surprises).
+        if (repl->getName() != orig_name) {
+            if (write_log) {
+                *(log_stream->stream()) << "Tick: " << curTick()
+                    << ", Site: fetch_decode, mode=src_swap"
+                    << ", pc=0x" << std::hex << pc << std::dec
+                    << ", orig_mnemonic=" << orig_name
+                    << ", new_mnemonic=" << repl->getName()
+                    << " — mnemonic changed (skipped, no injection)"
+                    << std::endl;
+            }
+            return nullptr;
+        }
+        std::vector<uint32_t> fp0, fpc;
+        captureRegs(orig.get(), fp0);
+        captureRegs(repl.get(), fpc);
+        if (fpc == fp0) {
+            if (write_log) {
+                *(log_stream->stream()) << "Tick: " << curTick()
+                    << ", Site: fetch_decode, mode=src_swap"
+                    << ", pc=0x" << std::hex << pc << std::dec
+                    << ", orig_mnemonic=" << orig_name
+                    << " — fingerprint unchanged (skipped, no injection)"
+                    << std::endl;
+            }
+            return nullptr;
+        }
+        faults_injected_count++;
+        if (write_log) {
+            // Verifiable: new_enc == (enc with Rn/Rm fields exchanged);
+            // rn/rm values + both encodings + mnemonics all logged.
+            *(log_stream->stream()) << "Tick: " << curTick()
+                << ", Site: fetch_decode, mode=src_swap"
+                << ", pc=0x" << std::hex << pc << std::dec
+                << ", orig_enc=0x" << std::hex << enc
+                << ", new_enc=0x" << new_enc << std::dec
+                << ", rn=" << rn << "->" << rm
+                << ", rm=" << rm << "->" << rn
+                << ", orig_mnemonic=" << orig_name
+                << ", new_mnemonic=" << repl->getName()
+                << ", faults_injected: " << faults_injected_count
+                << std::endl;
+        }
+        return repl;
+    }
 
     // D08 sign_ext_bit: flip EXACTLY the format-located sign/top bit of the
     // immediate's encoding, then re-decode (the decoder's own sext logic

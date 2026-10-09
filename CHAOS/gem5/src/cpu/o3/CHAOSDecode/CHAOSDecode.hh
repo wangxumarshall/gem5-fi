@@ -122,7 +122,15 @@ class CHAOSDecode : public SimObject
                       // reg; cross = opcode x lane/register-operand) ----
                       FpBitflip2Adj,         // FD02-a same-field ADJACENT
                       FpBitflip2Nonadj,      // FD02-b same-field NON-adjacent
-                      FpBitflip2Cross };     // FD02-c opcode x lane/operand
+                      FpBitflip2Cross,       // FD02-c opcode x lane/operand
+                      // ---- V2.0 D04-c (ooo 03-design-matrix R5, 09-audit
+                      // WB3 gap: src0/src1互换) ----
+                      SrcSwap };             // D04-c swap the DECODED-OUTPUT
+                                             // src register numbers — the
+                                             // encoding-layer Rn[9:5] <->
+                                             // Rm[20:16] exchange, re-decoded
+                                             // so the decoded tuple's srcs
+                                             // come out swapped
     Mode fi_mode = Mode::DestRegSub;
     static Mode stringToMode(const std::string &s);
     const char *modeToString(Mode m) const;
@@ -364,6 +372,32 @@ class CHAOSDecode : public SimObject
     // objects (no clone API; mutating their flags corrupts the ISA cache).
     // Non-macroop instructions in crack_ctrl mode get an honest skip log.
     static uint32_t countMicroops(const StaticInst *mop);
+
+    // ---- V2.0 D04-c src_swap (ooo 03-design-matrix R5, 09-audit WB3
+    // gap) ----
+    // Eligible families: the A64 data-processing formats where BOTH
+    // Rn[9:5] and Rm[20:16] are source register fields (GNU-as verified
+    // on this aarch64 host, 2026-10-09):
+    //   add/sub shifted/extended register: bits[28:24]==01011
+    //     add x0,x1,x2      = 0x8b020020   add,lsl#3 = 0x8b020c20
+    //     add x0,x1,w2,sxtw = 0x8b22c020   sub       = 0xcb020020
+    //   logical shifted register:         bits[28:24]==01010
+    //     and               = 0x8a020020   orr       = 0xaa020020
+    //     eor               = 0xca020020
+    //   three-source:                    bits[28:24]==11011
+    //     madd              = 0x9b020c20   smulh     = 0x9b427c20
+    // Other two-source families (e.g. ldr x0,[x1,x2] register-offset
+    // 0xf8626820, [28:24]=11000) are HONEST SKIPS for now — the boundary
+    // is documented, not silently mis-swapped.
+    static bool isD04SwapFamily(uint32_t enc);
+
+    // The D04-c injection helper (called after the shared window/skip/
+    // probability gates; own family eligibility with honest skip log,
+    // re-decode, semantic predicate, fault counting and logging).
+    StaticInstPtr injectSrcSwap(uint64_t emi_raw, uint32_t enc,
+                                StaticInstPtr orig,
+                                const std::string &orig_name,
+                                ArmISA::Decoder *arm_dec, Addr pc);
 
     // The three D08-D10 injection helpers (called after the shared
     // window/skip/probability gates; each does its own format eligibility,
