@@ -790,6 +790,13 @@ def main():
         if (inj["model"] == "local_mbu"
                 and rsf in ("map_bitflip2_adj", "map_bitflip2_nonadj")):
             rm = rsf
+        # V2.0 R03-c (ooo 03-design-matrix R13, src0/src1互换): swap THE
+        # INSTRUCTION's two int source phys tags after rename — the v2
+        # target.sub_field discriminator on legal_domain_sub (the plain
+        # model keeps f5_substitute's random-allocated semantics).
+        if (inj["model"] == "legal_domain_sub"
+                and rsf == "src_tag_swap"):
+            rm = "src_tag_swap"
         # W4.2a D13 swap_to_active (ooo 04-design-matrix R14, 换值·固定间隔):
         # the structured "swap the mapping to a random ROB in-flight dest
         # physReg" model. Selected by the v2 target.sub_field discriminator
@@ -1302,7 +1309,11 @@ def main():
                    # over the FP word's own fields (fp_opcode/lane/reg,
                    # fpOnly gated); cross = opcode x lane/register-operand.
                    "fp_bitflip2_adj", "fp_bitflip2_nonadj",
-                   "fp_bitflip2_cross"):
+                   "fp_bitflip2_cross",
+                   # V2.0 D04-c/D04-e/D05-b (R5/R6): src_swap (encoding-
+                   # layer Rn<->Rm exchange), x0_sub (one int reg operand
+                   # slot -> X0), imm_rotate (logical immediate rotation).
+                   "src_swap", "x0_sub", "imm_rotate"):
             dm = dsf
         cmd += ["--chaos_decode", "--decode_mode", dm,
                 "--decode_first_clock", str(t["value"]),
