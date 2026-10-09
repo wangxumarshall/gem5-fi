@@ -280,20 +280,27 @@ build/ARM/gem5.opt --outdir=/tmp/u2-on configs/se/ooo_proxy.py --cmd workloads/o
   - 2026-10-09 完成。——实测：静态翻 D06(R7)/FD05(R34) → (implemented, CHAOSDecode)；`python3 tools/ooo_models.py --check` → `models: 57 | items_scanned: 310 | item_refs_resolved: 310 | unresolved: 0`、`impl_status: implemented=19 partial=34 unimplemented=4`、`OK: 静态表 ↔ 03 索引/详表 ↔ 09 逐模型判定 ↔ 清单 ITEM 三方一致`（翻转前 CHECK FAILED 拦 4 项 = D06/FD05 静态↔文档差，即门在工作）。
   - 09 审计同步：D06/FD05 逐模型行翻已实现（含 GNU 对表 + 两态实测注记）；总账修真 已实现 13→19（补 U3 漏更的 B08/B09/FB08/FB09 + 本单元 D06/FD05）、未实现 10→4（D09, FB06, FD07, FR08）；WB3 段头 14→4 + 族表加状态列（流水时序 U2/U3 已实现、控制状态换值 U4 已实现、拼接/配对=U5 工作面、decode 卡死 D09 未实现）；F-010 注记算术更新（19+0+4≠57，逐模型表权威不变）。
   - 回归：test_ooo_classify 26/26 PASS（SELFTEST PASS (26 checks, 0 failed)）+ test_ooo_guard_f025 12/12 PASS（SELFTEST PASS (12 checks, 0 failed)）。
-- [ ] **Step 6:** 提交 `[OOO][P1][U4] D06/FD05 控制状态合法换值 + GNU 对表`。
+- [x] **Step 6:** 提交 `[OOO][P1][U4] D06/FD05 控制状态合法换值 + GNU 对表`。
+  - 2026-10-09 完成。——实测：commit `1927018e`（9 文件，+460/−25，ooo-exec：CHAOSDecode.hh/.cc/.py、ooo_proxy.py、runner.py、ooo_campaign.py、ooo_models.py、09 审计、本计划）。中继推送（login01 无外网，bundle 通道）：`/tmp/u4-relay.bundle`（18429 B，sha256 `512c0998…06465`，基 d8ed7271，含 8a0c7b50+1927018e）→ Windows `reach fs read` 字节级落地（sha256 复核一致）→ 本地 fi-ding 集成：远端未移动（origin/fi-ding = d5464fdc），重叠恰 2 提交、merge-base d8ed7271 符合设计，merge `c148f141` 干净零冲突（9 文件 +461/−26 = 8a0c7b50 勘误 +1/−1 与 1927018e +460/−25 之和）。push `d5464fdc..c148f141 fi-ding -> fi-ding` ✓，远端 tip `c148f141` fetch 复核一致。
 
 ### Task U5：拼接/配对族（FD07 FR08 FB06）
 
-**Files:** 载体 NEON/shuffle 路径（FD07：shuffle/lane-mask 元数据）+ FP 完成事件（FR08）+ BPU/分支面（FB06：preserve-zero-merge 配对）；配置/dispatch/schema/validate/models 同步。
+**Files:** 载体 CHAOSDecode（FD07：shuffle/permute/lane-select 编码表）+ 新钩子 DynInst::setRegOperand（FR08：preserve/zero/merge 换值；FB06-b：dest tag 互换）+ inst_queue.cc processFUCompletion（FB06-c：完成事件配对交换）；配置/dispatch/schema/validate/models 同步。
 
 **Interfaces:** Consumes U1 表；Produces lane 元数据与完成事件配对子模式 flag。
 
-**规格:** FD07=向量 shuffle/lane-mask 拼接元数据故障；FR08=FP 完成事件配对（source/dest 配对断裂）；FB06=分支融合 preserve-zero-merge 语义。NEON 掩码一律 64 位（Global Constraints）。
+**规格（03-design-matrix 权威）:** FD07(R36)=向量立即数/shuffle/permute/lane-mask 拼接元数据（a imm 片段交换、b lane 选择循环移位、c shuffle selector 互换、d 上一条 lane mask）；FR08(R46)=标量写/窄 lane 写/全宽写的 preserve/zero/merge 语义换值（a/b/c）+ 新旧 lane 错误拼接（d）；FB06(R54)=FU 完成事件配对换值（a ROB index〔gem5 恒等=alias-of-c〕、b 目的 tag、c 动态指令 ID）。NEON 掩码一律 64 位（Global Constraints）。
 
-- [ ] **Step 1:** 读 03 表三模型 + 现有 FPU/向量路径源码，列挂点注记。
+- [x] **Step 1:** 读 03 表三模型 + 现有 FPU/向量路径源码，列挂点注记。
+  - 2026-10-09 完成。三模型挂点注记（源码实证）：
+  - **FD07（R36，Decode，4 臂）→ CHAOSDecode 扩展**（U4 表驱动同构）。app 代码指令面普查（objdump 0x40xxxx）：gap/dep_chain 近同构——**EXT 121 位点**（0x400d08 `ext v0.16b,v0,v0,#8` + 0x408c94 簇 `ext v.16b,vN,vM,#15`）、MOVI 9、DUP 6、UZP1 2；INS/TBL/ZIP 仅在 libc 静态区。四臂映射：a=MOVI/MVNI imm 片段交换；b=EXT #imm（bits[14:11]，16b 域 0-15/8b 域 0-7）±1 旋转 + DUP lane index 旋转；c=EXT/UZP/ZIP/TRN/TBL 的 Rn↔Rm 互换（bits[20:16]↔bits[9:5]）；d=上一条 lane mask（CHAOSDecode 1-entry 历史槽）——app 面无 INS/lane-mask 指令，预期诚实 0 激活（W9 NEON-LaneProbe 属 P2）。**谓词设计点**：c 臂纯源互换改变序号序列顺序，U4 顺序敏感谓词会误拒——c 臂用排序后（multiset）比较，a/b/d 保持序列比较。表照 U4 惯例 GNU-as 闭环对表后再进 .cc。
+  - **FR08（R46，Rename，4 臂）→ 新钩子 `DynInst::setRegOperand`（void* 重载，dyn_inst.hh:1235）**：dest VecRegClass 时 prevDestIdx(idx)→cpu->getReg(prev_phys) 可取旧版本容器（实证该写点 = 结果→PRF 唯一路径，cpu->setReg→physRegFile）。A64 语义事实：S/D 标量 FP 写零扩展未写位（zero 语义）、INS 读改写保留（preserve 语义）——两语义并存可换值。四臂：a=preserve→zero（INS 族未写 lane 清零）；b=zero→preserve（标量 FP 写上 64/96 位换旧值）；c=merge 换值（全宽写部分 lane 保留旧值）；d=新旧 lane 错误拼接（未写 lane 取旧值但旋转错位）。载体：cpu.hh 加 chaosVecMerge 式指针+setter（lsqFwd 自挂惯例）；部分宽度判定经 opClass/StaticInst。工作负载面：gap app d 形 FMUL/FADD 4 位点已证执行（FD05a 用的 0x400814 同面）；rob_fill_fp 3 位点在未执行 libc 区。
+  - **FB06（R54，Dispatch/ROB，3 臂）→ CHAOSROB 扩展 + 两钩子**：c=动态指令ID 配对换值挂 inst_queue.cc:842 processFUCompletion（FUCompletion 是"放行执行"信号，值在 executeInsts:1274 才算——实证）+ 完成事件登记表（:989 创建时记录 seqNum→DynInst、process 注销）：X 的事件放行 Y、Y 的事件欠账放行 X（真交换：双完成错序，无死锁无双发，对应 03 表"早完成/永不完成"与"静默交换"两面）；b=目的 tag 配对换值挂同一 setRegOperand 钩子——X 的结果写 Y 的 dest physreg（Y=ROB instList 在飞 FP/SIMD 有有效 dest 非squashed，经 cpu->chaosROB 扫描）→ X 自己 physreg 陈旧+Y 静默换值双面；**a=ROB index 配对换值恒等问题**：gem5 DynInst 无 robIdx 字段（identity=seqNum 与 ROB 槽位 1:1），a 与 c 同一钩子——如实注记 a=arch-alias-of-c（审计行注明，不造假模式；U3 FB08-b arch-n/a 先例）。触发条件 ≥2 FP/SIMD 在飞（候选集空=诚实跳过）。
+  - **Step 4 工作负载修正（计划即事实）**：dep_chain_vec 全 FMLA（1056 位点普查）对 FD07 零合格位点、对 FR08 无部分宽度写——两态验证改用 **gap**（FD07 EXT app 位点 + FR08 d 形标量 FP 已证执行）+ **rob_fill_fp**（FB06 FP 密集在飞≥2 常态）；下文 Step 4 原文的 dep_chain vec golden 说明按此替换，gap golden=2ec8c1e59f2808c5（已复核）。
 - [ ] **Step 2:** 实现三模型子模式。
+  - **2026-10-09 用户指令暂停冻结（恢复点在此）**：GNU-as 闭环推导完成约 80%——FD07 五族编码规则**全部实证推导完毕**（EXT/UZP+ZIP 合并行/TBL+TBX/DUP/MOVI 掩码+字段位+域，见 `runs/ooo-node/evidence/u5-step2-frozen/FREEZE-NOTES.md`，含 u5derive.py/u5rules.py 草稿/u5verify.py 脚手架/probe 语料）。恢复顺序：完成 u5verify.py 闭环 ALL-PASS → 程序化生成 C++ VecStitchRule 表 → 三模型实现（挂点见 Step-1 注记）→ 本步收尾。节点已释放（dkill 1773145/1823682，cn22986）、session cron 已取消。
 - [ ] **Step 3:** guard 包裹增量编译 → `scons: done`。
-- [ ] **Step 4:** 两态验证（dep_chain vec 关闭态 golden=b1e661a247b95774；开启态逐 lane 证据）。W9 NEON-LaneProbe 深验证属 P2（探针负载未开发，本单元用 dep_chain vec 的向量段）。
+- [ ] **Step 4:** 两态验证（工作负载按 Step-1 修正：gap（FD07 EXT/FR08 标量 FP）+ rob_fill_fp（FB06 在飞密集）；gap golden=2ec8c1e59f2808c5、rob_fill_fp golden=85085fd5686d173b 均已复核；开启态逐臂证据）。W9 NEON-LaneProbe 深验证属 P2（探针负载未开发）。
 - [ ] **Step 5:** ooo_models.py 更新 + `--check`。
 - [ ] **Step 6:** 提交 `[OOO][P1][U5] FD07/FR08/FB06 拼接配对族 + 向量两态实测`。
 
@@ -411,7 +418,7 @@ build/ARM/gem5.opt --outdir=/tmp/u2-on configs/se/ooo_proxy.py --cmd workloads/o
 - [x] **Step 2:** 运行 `python3 tools/ooo_campaign.py --selftest` → 全 PASS（输出引用）。——`SELFTEST PASS (24 checks, 0 failed)`（缺陷③修复前 23/23；修复后含 T21 blocked-guard 共 24/24）。
 - [x] **Step 3:** 实机冒烟：`--item ITEM-002（D01-F0-W6，coremark 已实现模型） --phase engineering --samples 2`，经 guard 4 槽之一执行，产出 2 个 COMPLETE 目录 + L0 证据。预期：2/2 COMPLETE，resume 重跑 0 新增（跳过已完成）。——首轮冒烟暴露 3 真实缺陷并修复：①inner script `&& echo` 短路丢 abort 的 exit.rc（改 `;` 恒记录）；②`--outdir` 多套 m5out/ 致 L0 证据错位（改直指 run 目录，对齐 runner 惯例）；③guard 门禁拒绝被误记 verdict=None COMPLETE（run-finish 正向证据判定，blocked-guard 大声中止 exit 2——实机复验：陈旧槽下 `campaign exit=2`、无落位）。缺陷产物样本已按 write-once 惯例显式删除并留痕（DELETED-DEFECTIVE-2026-10-08.md 三段）。修复后 2/2 COMPLETE：sample 0 `verdict=Crash rc=134 l0=legacy`（and→orr bit29 传播→Page table fault @0，OOO 轨首例架构级 Crash）、sample 1 `verdict=Masked rc=0 l0=legacy`（ret→hint bit25，checksum==golden）；resume 复跑 `ran=0 skipped-complete=2` ✓。U10b 插曲：样本 1 旧观测带 legacy 假阳性（conservation_ok=false），U10b 修复后删除重跑→`conservation_ok=True violations=[]`。后续中断测试顺带产出样本 2-6（Masked×3 + Crash×1 + Masked，全部 COMPLETE、violations=[]）——超出计划最小样本数，系中断测试需新鲜样本所致，engineering 阶段合法数据。
 - [x] **Step 4:** 人为中断恢复实测：启动 `--samples 4`，中途 kill（TERM 自身 PGID），`python3 tools/ooo_recover.py` 确认 RUNNING→INTERRUPTED，`--resume` 后 4/4 COMPLETE 且已 COMPLETE 样本未重跑。——以 `--samples 8 --resume`（7 已 COMPLETE + 样本 7 新跑）等价执行，全链实测：①launch 后 33s 心跳在位；②TERM campaign PGID 902005 + 孤儿目标组 902282（guard 拓扑：目标自成 pgid，须单独清）；③scan 即时 `[RUNNING] ... heartbeat_age=7s 共 1 项: RUNNING=1`（14:36:46）；④心跳冻结 14:36:39.596，600s 阈值后 scan `[INTERRUPTED] ... heartbeat_stale(610s > 600s) 共 1 项: INTERRUPTED=1`（14:46:49，/tmp/u11-interrupted-scan.log）；⑤kill 遗留 guard 陈旧槽按设计处置：验证 902279/902282/902005 死透 → `clear-stale --confirm-dead-pid 902279` → 4 槽全空；⑥`--resume` → `COMPLETE sample_000007 verdict=Masked rc=0 l0=legacy` + `CAMPAIGN SUMMARY ran=1 skipped-complete=7 verdicts={"Masked": 1}`（/tmp/u11-resume.log）；⑦落盘 8/8 COMPLETE（sample_000000..000007 逐目录核验），样本 7 observation：L5.verdict=Masked（checksum==golden 000000000000cf56）、L0 evidence=legacy legacy_injected_total=1、conservation_ok=true violations=[]；⑧被中断 staging 902005 由 resume 自动替换清除（剩余 1008380 为本次 campaign staging，已清空）。附：首次演练 pgrep -f 经 reach 匹配包装进程自杀（F-012），改 staging 目录名定位后干净双杀。
-- [ ] **Step 5:** 提交 `[OOO][P1][U11] campaign 引擎：seed/manifest/run_key/原子落位/guard/recover 全链 + 中断恢复实测`。
+- [x] **Step 5:** 提交 `[OOO][P1][U11] campaign 引擎：seed/manifest/run_key/原子落位/guard/recover 全链 + 中断恢复实测`。——commit `6505d9b1`（2026-10-09 暂停清点时补勾：提交时复选框漏勾，U10 Step-5 先例；U3/U4 均在其后提交故不构成顺序问题）。
 
 ### Task U12：P1 收口
 
