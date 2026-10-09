@@ -1297,7 +1297,12 @@ def main():
                    # V2.0 D02 layering (ooo 03-design-matrix R3): same-field
                    # adjacent / non-adjacent dual-bit (field sampled over
                    # opcode/reg/imm) + opcode x operand cross-field dual-bit.
-                   "bitflip2_adj", "bitflip2_nonadj", "bitflip2_cross"):
+                   "bitflip2_adj", "bitflip2_nonadj", "bitflip2_cross",
+                   # V2.0 FD02 layering (R31, FP/SIMD Decode): same split
+                   # over the FP word's own fields (fp_opcode/lane/reg,
+                   # fpOnly gated); cross = opcode x lane/register-operand.
+                   "fp_bitflip2_adj", "fp_bitflip2_nonadj",
+                   "fp_bitflip2_cross"):
             dm = dsf
         cmd += ["--chaos_decode", "--decode_mode", dm,
                 "--decode_first_clock", str(t["value"]),
