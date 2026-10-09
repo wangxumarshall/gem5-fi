@@ -104,8 +104,18 @@ class CHAOSDecode : public SimObject
                                              // FP pair table)
                       FpRegBitflip,          // D59 V-reg-number field, 1 bit
                       FpRegBitflip2,         // D60 V-reg-number field, 2 bits
-                      FpRouteBit };          // D61 instruction-route bit
+                      FpRouteBit,            // D61 instruction-route bit
                                              // (opClass-change predicate)
+                      // ---- V2.0 D02 layering (ooo 03-design-matrix R3;
+                      // 09-audit WB3 gap: adjacent/non-adjacent split +
+                      // cross-field dual flip; field sampled uniformly over
+                      // opcode/reg/imm per event) ----
+                      Bitflip2Adj,           // D02-a same-field ADJACENT
+                                             // dual bit (|dpos| == 1)
+                      Bitflip2Nonadj,        // D02-b same-field NON-adjacent
+                                             // dual bit (|dpos| >= 2)
+                      Bitflip2Cross };       // D02-c opcode x operand
+                                             // cross-field dual bit
     Mode fi_mode = Mode::DestRegSub;
     static Mode stringToMode(const std::string &s);
     const char *modeToString(Mode m) const;
@@ -128,6 +138,14 @@ class CHAOSDecode : public SimObject
     static constexpr uint32_t kImmBits[]    = {10, 11, 12, 13, 14,
                                                15, 16, 17, 18, 19,
                                                20, 21};
+    // V2.0 D02-c operand bit set: kRegBits UNION kImmBits == enc[21:0]
+    // (every operand-region position — the Rd/Rn/Rm register numbers and
+    // the imm12/immr+imms/imm6 window; bit 21 sits in BOTH the imm window
+    // and the opcode region, kept here so the union is complete — the
+    // cross mode enforces bit_a != bit_b).
+    static constexpr uint32_t kOperandBits[] = {
+        0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
+        10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21};
 
     // D03 opcode 换值: format-compatible legal-opcode swap table. Every
     // rule was verified against real GNU-as encodings (see the W6 plan

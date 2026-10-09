@@ -1,6 +1,7 @@
 #include "cpu/o3/CHAOSDecode/CHAOSDecode.hh"
 
 #include <cstring>
+#include <utility>
 
 #include "arch/arm/decoder.hh"
 #include "arch/arm/types.hh"
@@ -239,6 +240,9 @@ namespace gem5
         if (s == "fp_reg_bitflip")     return Mode::FpRegBitflip;
         if (s == "fp_reg_bitflip2")    return Mode::FpRegBitflip2;
         if (s == "fp_route_bit")       return Mode::FpRouteBit;
+        if (s == "bitflip2_adj")       return Mode::Bitflip2Adj;
+        if (s == "bitflip2_nonadj")    return Mode::Bitflip2Nonadj;
+        if (s == "bitflip2_cross")     return Mode::Bitflip2Cross;
         panic("CHAOSDecode: unknown mode '%s'\n", s);
     }
 
@@ -263,6 +267,9 @@ namespace gem5
           case Mode::FpRegBitflip:     return "fp_reg_bitflip";
           case Mode::FpRegBitflip2:    return "fp_reg_bitflip2";
           case Mode::FpRouteBit:       return "fp_route_bit";
+          case Mode::Bitflip2Adj:      return "bitflip2_adj";
+          case Mode::Bitflip2Nonadj:   return "bitflip2_nonadj";
+          case Mode::Bitflip2Cross:    return "bitflip2_cross";
         }
         return "?";
     }
@@ -499,11 +506,18 @@ namespace gem5
         //             (a register NUMBER changed — not an opcode bit)
         //   imm mode: the fingerprint must be UNCHANGED
         //             (a value-only change: immediate/constant bits)
+        // V2.0 D02 layered modes parameterize the predicate by the SAMPLED
+        // field (reg_pred=true for the reg field, false for imm), so the
+        // same lambda serves the field-specific modes and the layered ones.
+        const bool is_d02_layered = (fi_mode == Mode::Bitflip2Adj ||
+                                     fi_mode == Mode::Bitflip2Nonadj ||
+                                     fi_mode == Mode::Bitflip2Cross);
+        const char *d02_field = nullptr;  // set by the layered branch
         const std::string orig_name = orig->getName();
         std::vector<uint32_t> fp0;
-        if (is_reg_mode || is_imm_mode)
+        if (is_reg_mode || is_imm_mode || is_d02_layered)
             captureRegs(orig.get(), fp0);
-        auto effective = [&](uint32_t xor_mask) -> bool {
+        auto effective = [&](uint32_t xor_mask, bool reg_pred) -> bool {
             ArmISA::ExtMachInst t = emi;
             t.instBits = enc ^ xor_mask;
             StaticInstPtr c = arm_dec->decodeChaos(t);
@@ -511,7 +525,7 @@ namespace gem5
             if (c->getName() != orig_name) return false;
             std::vector<uint32_t> fpc;
             captureRegs(c.get(), fpc);
-            return is_reg_mode ? (fpc != fp0) : (fpc == fp0);
+            return reg_pred ? (fpc != fp0) : (fpc == fp0);
         };
 
         uint32_t bit_a = 32, bit_b = 32;    // 32 = unset
@@ -567,7 +581,7 @@ namespace gem5
                 // bits, deterministic under the seed.
                 std::vector<uint32_t> eff;
                 for (size_t i = 0; i < ncand; i++)
-                    if (effective(1u << cand[i]))
+                    if (effective(1u << cand[i], is_reg_mode))
                         eff.push_back(cand[i]);
                 if (eff.empty())
                     return nullptr;   // honest wasted draw, no fault count
@@ -581,13 +595,96 @@ namespace gem5
                     uint32_t b1 = cand[rng() % ncand];
                     uint32_t b2;
                     do { b2 = cand[rng() % ncand]; } while (b2 == b1);
-                    if (effective((1u << b1) | (1u << b2))) {
+                    if (effective((1u << b1) | (1u << b2), is_reg_mode)) {
                         bit_a = b1;
                         bit_b = b2;
                     }
                 }
                 if (bit_b == 32)
                     return nullptr;   // honest wasted draw, no fault count
+            }
+        } else if (is_d02_layered) {
+            // ---- V2.0 D02 layering (ooo 03-design-matrix R3, 09-audit
+            // WB3 gap). D02-a/b: field drawn uniformly over {opcode, reg,
+            // imm} ("同字段" fixes the RELATION of the two bits, not the
+            // field), then an adjacent (|dpos|==1) resp. non-adjacent
+            // (|dpos|>=2) pair within the field's bit set. opcode field:
+            // NO verification by design (opcode_bitflip2 semantics — a
+            // legal or an illegal landing are both the fault model).
+            // reg/imm fields: the field's own predicate via rejection over
+            // a Fisher-Yates-shuffled constrained-pair list (first
+            // effective hit in shuffled order = uniform over effective
+            // constrained pairs; empty result = honest wasted draw).
+            // D02-c: 1 bit of kOpcodeBits + 1 distinct bit of kOperandBits
+            // (kRegBits UNION kImmBits = enc[21:0]) — positional selection
+            // only ("各区 bit 集内选取"); the opcode half is unverified by
+            // design and the operand half is position-guaranteed.
+            const bool d02_cross = (fi_mode == Mode::Bitflip2Cross);
+            const bool d02_adj = (fi_mode == Mode::Bitflip2Adj);
+            if (!d02_cross) {
+                const uint32_t f = rng() % 3;   // 0=opcode 1=reg 2=imm
+                const uint32_t *cand;
+                size_t ncand;
+                const char *fname;
+                bool reg_pred;
+                bool verify;
+                if (f == 0) {
+                    cand = kOpcodeBits;
+                    ncand = sizeof(kOpcodeBits) / sizeof(kOpcodeBits[0]);
+                    fname = "opcode";
+                    reg_pred = false;
+                    verify = false;
+                } else if (f == 1) {
+                    cand = kRegBits;
+                    ncand = sizeof(kRegBits) / sizeof(kRegBits[0]);
+                    fname = "reg";
+                    reg_pred = true;
+                    verify = true;
+                } else {
+                    cand = kImmBits;
+                    ncand = sizeof(kImmBits) / sizeof(kImmBits[0]);
+                    fname = "imm";
+                    reg_pred = false;
+                    verify = true;
+                }
+                std::vector<std::pair<uint32_t, uint32_t>> pairs;
+                for (size_t i = 0; i < ncand; i++)
+                    for (size_t j = i + 1; j < ncand; j++) {
+                        const uint32_t d = cand[i] > cand[j]
+                            ? cand[i] - cand[j] : cand[j] - cand[i];
+                        if (d02_adj ? (d == 1) : (d >= 2))
+                            pairs.emplace_back(cand[i], cand[j]);
+                    }
+                if (pairs.empty())
+                    return nullptr;   // defensive: no constrained pair in
+                                      // the field set (unreachable for the
+                                      // three int sets today)
+                for (size_t i = pairs.size(); i > 1; i--) {
+                    const size_t j = rng() % i;
+                    std::swap(pairs[i - 1], pairs[j]);
+                }
+                for (const auto &pr : pairs) {
+                    const uint32_t mask =
+                        (1u << pr.first) | (1u << pr.second);
+                    if (!verify || effective(mask, reg_pred)) {
+                        bit_a = pr.first;
+                        bit_b = pr.second;
+                        break;
+                    }
+                }
+                if (bit_b == 32)
+                    return nullptr;   // honest wasted draw: no constrained
+                                      // pair passes the field predicate
+                d02_field = fname;
+            } else {
+                constexpr size_t n_op =
+                    sizeof(kOpcodeBits) / sizeof(kOpcodeBits[0]);
+                constexpr size_t n_od =
+                    sizeof(kOperandBits) / sizeof(kOperandBits[0]);
+                bit_a = kOpcodeBits[rng() % n_op];
+                do { bit_b = kOperandBits[rng() % n_od]; }
+                while (bit_b == bit_a);
+                d02_field = "cross";
             }
         }
 
@@ -612,7 +709,15 @@ namespace gem5
                 << ", new_enc=0x" << std::hex << new_emi.instBits << std::dec
                 << ", bits=[" << bit_a
                 << (bit_b != 32 ? "," : "")
-                << (bit_b != 32 ? std::to_string(bit_b) : "") << "]"
+                << (bit_b != 32 ? std::to_string(bit_b) : "") << "]";
+            // V2.0 D02 layering: 03 spec "保存bit距离和原/故障值" —
+            // dist = |bit_a - bit_b|; field = the sampled field.
+            if (is_d02_layered)
+                *(log_stream->stream())
+                    << ", field=" << d02_field
+                    << ", dist=" << (bit_a > bit_b ? bit_a - bit_b
+                                                   : bit_b - bit_a);
+            *(log_stream->stream())
                 << ", orig_mnemonic=" << orig_name
                 << ", new_mnemonic=" << repl->getName();
             if (fi_mode == Mode::OpcodeSwap ||

@@ -340,7 +340,13 @@ p.add_argument("--decode_mode", default="dest_reg_sub",
                         # class bits with an opClass-change predicate.
                         "fp_opcode_bitflip","fp_opcode_bitflip2",
                         "fp_opcode_swap","fp_reg_bitflip",
-                        "fp_reg_bitflip2","fp_route_bit"])
+                        "fp_reg_bitflip2","fp_route_bit",
+                        # V2.0 D02 layering (ooo 03-design-matrix R3,
+                        # 09-audit WB3 gap): same-field adjacent /
+                        # non-adjacent dual-bit (field sampled uniformly
+                        # over opcode/reg/imm) and opcode x operand
+                        # cross-field dual-bit; log carries field=/dist=.
+                        "bitflip2_adj","bitflip2_nonadj","bitflip2_cross"])
 p.add_argument("--decode_first_clock", type=lambda x: int(x,0), default=1000)
 p.add_argument("--decode_last_clock", type=lambda x: int(x,0), default=0)
 p.add_argument("--decode_max_faults", type=lambda x: int(x,0), default=1)
