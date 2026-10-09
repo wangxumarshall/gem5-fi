@@ -56,10 +56,6 @@
 // call chaosFreeList->maybeCorrupt(). Non-circular: CHAOSFreeList.hh only
 // forward-declares o3::UnifiedFreeList (does NOT include free_list.hh).
 #include "cpu/o3/CHAOSFreeList/CHAOSFreeList.hh"
-// U2 (R08-b/FR09-b, ooo 03-design-matrix R8/R38 free-list 弹出时序): the
-// PRE-pop delay hook reaches CHAOSRenameMap the same way. Non-circular:
-// CHAOSRenameMap.hh does NOT include free_list.hh.
-#include "cpu/o3/CHAOSRenameMap/CHAOSRenameMap.hh"
 
 namespace gem5
 {
@@ -92,9 +88,6 @@ class SimpleFreeList
     // (chaosFreeList=nullptr = no injection; classValue=0 = IntRegClass).
     int classValue = 0;
     CHAOSFreeList *chaosFreeList = nullptr;
-    // U2 R08-b/FR09-b: the rename-map timing injector's PRE-pop hook.
-    // Set by UnifiedFreeList::setChaosRenameMap (injector startup).
-    CHAOSRenameMap *chaosRenameMap = nullptr;
 
     SimpleFreeList() {};
 
@@ -123,16 +116,6 @@ class SimpleFreeList
             && chaosFreeList->maybeStuckHead(classValue, free_reg)) {
             return free_reg;
         }
-        // U2 (R08-b/FR09-b 弹出延后一拍): on fire the caller does NOT pop
-        // — the phys reg stays at the freelist head for the rest of this
-        // cycle (同窗另一 rename 可能弹出同号 → 双重分配=静默 SDC 源,
-        // 03 原文口径); the injector's next-tick-start event performs the
-        // deferred pop (Default_Pri < CPU_Tick_Pri=50 -> before the CPU
-        // tick). nullptr / other modes = zero regression.
-        if (chaosRenameMap
-            && chaosRenameMap->maybeDelayFreePop(classValue, free_reg)) {
-            return free_reg;
-        }
         freeRegs.pop();
         // §2.2 CHAOSFreeList: post-pop hook. NOTE: rename calls
         // SimpleFreeList::getReg() directly (rename_map.cc:91 via
@@ -147,13 +130,6 @@ class SimpleFreeList
 
     /** Return the number of free registers on the list. */
     unsigned numFreeRegs() const { return freeRegs.size(); }
-
-    /** U2 (R08-b/FR09-b): the deferred-pop replay — pop ONE entry from
-     *  the head. Called only by the injector's next-tick-start event
-     *  (via UnifiedFreeList::chaosDeferredPop); guarded on non-empty
-     *  (if the double-alloc already consumed the head, the deferred pop
-     *  absorbs the next one — the propagated corruption is the fault). */
-    void chaosDeferredPop() { if (!freeRegs.empty()) freeRegs.pop(); }
 
     /** True iff there are free registers on the list. */
     bool hasFreeRegs() const { return !freeRegs.empty(); }
@@ -224,29 +200,6 @@ class UnifiedFreeList
             freeLists[i].chaosFreeList = p;
             freeLists[i].classValue = i;
         }
-    }
-
-    /** U2 (R08-b/FR09-b): CHAOSRenameMap's freelist-timing hook — the
-     *  same propagation shape as setChaosFreeList (the PRE-pop delay
-     *  gate lives in SimpleFreeList::getReg, called directly by
-     *  SimpleRenameMap::rename). */
-    void setChaosRenameMap(CHAOSRenameMap *p) {
-        for (int i = 0; i < (int)(sizeof(freeLists)/sizeof(freeLists[0])); i++) {
-            freeLists[i].chaosRenameMap = p;
-            // U2 round-2 fix: classValue was only assigned inside
-            // setChaosFreeList — without a CHAOSFreeList attached every
-            // per-class list defaulted to classValue=0 (IntRegClass), so
-            // the vec pop-delay gate (fr09-late) never matched and the
-            // arm silently never fired (round-2: 0 log lines). Idempotent
-            // when both injectors are attached.
-            freeLists[i].classValue = i;
-        }
-    }
-
-    /** U2 (R08-b/FR09-b): the deferred-pop replay for class_value's
-     *  per-class list (the injector's next-tick-start event). */
-    void chaosDeferredPop(int class_value) {
-        freeLists[class_value].chaosDeferredPop();
     }
 
   private:

@@ -72,9 +72,7 @@ class CHAOSRenameMap(SimObject):
     mode = Param.String("map_bitflip",
         "map_bitflip | map_bitflip2 | swap_to_active | f5_substitute | "
         "f4_field_stuck | spec_leak | f5_rat_stuck | stale_read | "
-        "swap_mispred_event | hb_bitflip | hb_bitflip2 | "
-        "rename_timing_early | rename_timing_late | rename_timing_drop | "
-        "rename_timing_dup")
+        "swap_mispred_event | hb_bitflip | hb_bitflip2")
 
     # W7.2 (ooo 04-design-matrix D62-D71 merged rows, VecRegClass RAT
     # family): register class whose front-map entries the injector targets.

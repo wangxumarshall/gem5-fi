@@ -28,11 +28,7 @@ namespace gem5
           fault_mask(p.faultMask),
           max_faults(p.maxFaults),
           rng_seed(p.rngSeed),
-          write_log(p.writeLog),
-          ratReplayEvent([this]{ ratReplay(); },
-                         "CHAOSRenameMap RAT replay"),
-          freePopEvent([this]{ freePopReplay(); },
-                       "CHAOSRenameMap freelist pop")
+          write_log(p.writeLog)
     {
         // W7.2 targetClass: int = the W4 default (all legacy behavior
         // byte-identical); vec = the VecRegClass family (D62-D71 merged
@@ -100,11 +96,6 @@ namespace gem5
         if (s == "oldphys_bitflip2") return Mode::OldphysBitflip2;
         if (s == "oldphys_swap_active") return Mode::OldphysSwapActive;
         if (s == "oldphys_stuck") return Mode::OldphysStuck;
-        // U2 (R08/FR09, ooo 03-design-matrix R8/R38 Rename 时序)
-        if (s == "rename_timing_early") return Mode::RenameTimingEarly;
-        if (s == "rename_timing_late") return Mode::RenameTimingLate;
-        if (s == "rename_timing_drop") return Mode::RenameTimingDrop;
-        if (s == "rename_timing_dup") return Mode::RenameTimingDup;
         return Mode::MapBitflip;
     }
 
@@ -126,10 +117,6 @@ namespace gem5
             case Mode::OldphysBitflip2: return "oldphys_bitflip2";
             case Mode::OldphysSwapActive: return "oldphys_swap_active";
             case Mode::OldphysStuck: return "oldphys_stuck";
-            case Mode::RenameTimingEarly: return "rename_timing_early";
-            case Mode::RenameTimingLate: return "rename_timing_late";
-            case Mode::RenameTimingDrop: return "rename_timing_drop";
-            case Mode::RenameTimingDup: return "rename_timing_dup";
         }
         return "map_bitflip";
     }
@@ -1371,207 +1358,6 @@ namespace gem5
             << std::endl;
     }
 
-    // ---- U2 (R08/FR09, ooo 03-design-matrix R8/R38 Rename 时序) ----
-
-    bool
-    CHAOSRenameMap::maybeDeferRatWrite(const RegId &arch_reg,
-                                       PhysRegIdPtr prev_phys,
-                                       PhysRegIdPtr new_phys)
-    {
-        // R08-a/FR09-a 提前 (RAT 更新延后一拍, tick 始回放) — the
-        // rollback-and-defer position in UnifiedRenameMap::rename.
-        // Eligibility (03): the write changes the mapping (caller guards
-        // first != second) and the arch reg is in target_class (int=R08
-        // / vec=FR09, the W7.2 class gate).
-        if (!cpu || probability <= 0.0f) return false;
-        if (fi_mode != Mode::RenameTimingEarly) return false;
-        if (arch_reg.classValue() != target_class) return false;
-        if (!prev_phys || !new_phys || prev_phys == new_phys) return false;
-        if (max_faults != 0 && faults_injected_count >= max_faults)
-            return false;
-        if (!inWindow()) return false;
-        if (events_to_skip > 0) { --events_to_skip; return false; }
-        std::uniform_real_distribution<float> pd(0.0f, 1.0f);
-        if (pd(rng) > probability) return false;
-
-        faults_injected_count++;
-        pending_rat_writes.push_back({arch_reg, new_phys, prev_phys});
-        if (!ratReplayEvent.scheduled())
-            cpu->schedule(ratReplayEvent, cpu->clockEdge(Cycles(1)));
-        if (write_log && log_stream) {
-            *(log_stream->stream()) << "Tick: " << curTick()
-                << ", Site: rename_defer, mode=rename_timing_early"
-                << ", class=" << className()
-                << ", arch=" << archPrefix() << arch_reg.index()
-                << ", prev_phys=p" << prev_phys->index()
-                << ", new_phys=p" << new_phys->index()
-                << ", faults_injected: " << faults_injected_count
-                << std::endl;
-        }
-        return true;
-    }
-
-    void
-    CHAOSRenameMap::ratReplay()
-    {
-        // The next-tick-start replay (Default_Pri < CPU_Tick_Pri=50 ->
-        // ran BEFORE the CPU tick, i.e. before any rename lookup of the
-        // new cycle). Re-applies the deferred writes through the RAW
-        // SimpleRenameMap::setEntry (no hook recursion). Honesty note:
-        // if a squash happened inside the window, the replay still lands
-        // — the deferred write escapes the recovery window (a real
-        // timing fault's wrong-path escape, recorded in the plan).
-        if (!o3cpu || o3cpu->frontRenameMap().empty()) {
-            pending_rat_writes.clear();
-            return;
-        }
-        o3::UnifiedRenameMap &urm = o3cpu->frontRenameMap()[0];
-        for (const PendingRatWrite &w : pending_rat_writes) {
-            // Conditional replay (the .hh honesty note): only land if
-            // the entry still holds the pre-write mapping.
-            if (urm.map(w.arch.classValue()).lookup(w.arch) == w.prev) {
-                urm.map(w.arch.classValue()).setEntry(w.arch, w.phys);
-            } else if (write_log && log_stream) {
-                *(log_stream->stream()) << "Tick: " << curTick()
-                    << ", Site: rename_defer_replay"
-                    << ", mode=rename_timing_early, event=honest_skip"
-                    << ", reason=newer_write_absorbed"
-                    << ", arch=" << archPrefix() << w.arch.index()
-                    << std::endl;
-            }
-        }
-        pending_rat_writes.clear();
-    }
-
-    bool
-    CHAOSRenameMap::maybeDelayFreePop(int class_value, PhysRegIdPtr free_reg)
-    {
-        // R08-b/FR09-b 延后 (free-list 弹出延后一拍) — PRE-pop position in
-        // SimpleFreeList::getReg. On fire the caller does NOT pop; the
-        // next-tick-start event performs the deferred pop.
-        if (!cpu || probability <= 0.0f) return false;
-        if (fi_mode != Mode::RenameTimingLate) return false;
-        if (class_value != (int)target_class) return false;
-        if (!free_reg) return false;
-        if (max_faults != 0 && faults_injected_count >= max_faults)
-            return false;
-        if (!inWindow()) return false;
-        if (events_to_skip > 0) { --events_to_skip; return false; }
-        std::uniform_real_distribution<float> pd(0.0f, 1.0f);
-        if (pd(rng) > probability) return false;
-
-        faults_injected_count++;
-        pending_pops.push_back(class_value);
-        if (!freePopEvent.scheduled())
-            cpu->schedule(freePopEvent, cpu->clockEdge(Cycles(1)));
-        if (write_log && log_stream) {
-            *(log_stream->stream()) << "Tick: " << curTick()
-                << ", Site: freelist_pop_delay, mode=rename_timing_late"
-                << ", class=" << className()
-                << ", head_phys=p" << free_reg->index()
-                << ", faults_injected: " << faults_injected_count
-                << std::endl;
-        }
-        return true;
-    }
-
-    void
-    CHAOSRenameMap::freePopReplay()
-    {
-        // The deferred pop itself (next tick start). If the double-alloc
-        // already consumed the head inside the window, this pop absorbs
-        // the NEXT entry — the propagated freelist corruption IS the
-        // fault surface (plan honesty note).
-        if (!o3cpu) {
-            pending_pops.clear();
-            return;
-        }
-        for (int c : pending_pops)
-            o3cpu->physFreeList().chaosDeferredPop(c);
-        pending_pops.clear();
-    }
-
-    int
-    CHAOSRenameMap::maybeTimingAlloc(const o3::DynInst *inst, ThreadID tid)
-    {
-        // R08-c/FR09-c 丢失 — commit.cc getInsts
-        // rob->insertInst site (v25: ROB insertion lives in the Commit
-        // tick). Eligibility: the inst has >=1 dest reg in target_class
-        // (int=R08 / vec=FR09). Dup moved to the rename-history surface
-        // (maybeDupRenameHistory, round-2 revision) — see .hh note.
-        if (!cpu || probability <= 0.0f) return 0;
-        if (fi_mode != Mode::RenameTimingDrop)
-            return 0;
-        if (!inst || inst->isSquashed()) return 0;
-        bool in_scope = false;
-        for (int i = 0; i < (int)inst->numDestRegs(); ++i) {
-            PhysRegIdPtr d = inst->renamedDestIdx(i);
-            if (d && d->classValue() == target_class) {
-                in_scope = true;
-                break;
-            }
-        }
-        if (!in_scope) return 0;
-        if (max_faults != 0 && faults_injected_count >= max_faults) return 0;
-        if (!inWindow()) return 0;
-        if (events_to_skip > 0) { --events_to_skip; return 0; }
-        std::uniform_real_distribution<float> pd(0.0f, 1.0f);
-        if (pd(rng) > probability) return 0;
-
-        faults_injected_count++;
-        if (write_log && log_stream) {
-            *(log_stream->stream()) << "Tick: " << curTick()
-                << ", Site: rob_insert, mode=" << modeToString(fi_mode)
-                << ", class=" << className()
-                << ", tid=" << (int)tid
-                << ", sn=" << inst->seqNum
-                << ", mnemonic=" << inst->staticInst->getName()
-                << ", faults_injected: " << faults_injected_count
-                << std::endl;
-        }
-        return 2;
-    }
-
-    bool
-    CHAOSRenameMap::maybeDupRenameHistory(ThreadID tid,
-                                          InstSeqNum inst_seq_num,
-                                          const RegId &arch,
-                                          PhysRegIdPtr new_phys,
-                                          PhysRegIdPtr prev_phys)
-    {
-        // U2 R08-d/FR09-d 重复 (round-2 revision) — rename.cc history
-        // push_front site. Fires per dest-reg rename in target_class.
-        // The duplicate entry makes the commit-side removeFromHistory
-        // walk free prev_phys TWICE (freelist duplicate → phys aliasing
-        // downstream = silent SDC source); committedMaps +2.
-        if (!cpu || probability <= 0.0f) return false;
-        if (fi_mode != Mode::RenameTimingDup) return false;
-        if (!new_phys || !prev_phys) return false;
-        if (new_phys->classValue() != target_class) return false;
-        if (new_phys == prev_phys) return false;   // misc/zero: no prev free
-        if (max_faults != 0 && faults_injected_count >= max_faults)
-            return false;
-        if (!inWindow()) return false;
-        if (events_to_skip > 0) { --events_to_skip; return false; }
-        std::uniform_real_distribution<float> pd(0.0f, 1.0f);
-        if (pd(rng) > probability) return false;
-
-        faults_injected_count++;
-        if (write_log && log_stream) {
-            *(log_stream->stream()) << "Tick: " << curTick()
-                << ", Site: rename_history_dup, mode=rename_timing_dup"
-                << ", class=" << className()
-                << ", tid=" << (int)tid
-                << ", sn=" << inst_seq_num
-                << ", arch=" << archPrefix() << arch.index()
-                << ", new_phys=p" << new_phys->index()
-                << ", prev_phys=p" << prev_phys->index()
-                << ", faults_injected: " << faults_injected_count
-                << std::endl;
-        }
-        return true;
-    }
-
     // startup() to dynamic_cast and self-attach (the rename map is constructed
     // before the CPU SimObject hierarchy is fully wired, so do it at startup).
     void
@@ -1587,13 +1373,6 @@ namespace gem5
         if (!o3cpu->frontRenameMap().empty()) {
             o3cpu->frontRenameMap()[0].setChaosRenameMap(this);
         }
-        // U2 R08-b/FR09-b: the freelist PRE-pop delay hook reaches this
-        // injector through the per-class SimpleFreeLists (the same
-        // propagation shape as CHAOSFreeList's). Harmless for every
-        // non-timing mode (the hook gates on fi_mode).
-        o3cpu->physFreeList().setChaosRenameMap(this);
-        // U2: cache the cast for the replay/deferred-pop event handlers.
-        this->o3cpu = o3cpu;
     }
 
 } // namespace gem5

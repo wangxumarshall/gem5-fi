@@ -1262,19 +1262,6 @@ Fetch::fetch(bool &status_change)
                             staticInst = chaos_repl;
                     }
 
-                    // U2 (D07-a/FD09-a, 03-matrix R8/R38 提前): stale-
-                    // latch read — rebind to the PREVIOUS decode tuple
-                    // before the DynInst is built (DynInst::staticInst
-                    // is const, so this fetch-local rebind is the only
-                    // carrier; same idle-path cost shape as W6 above).
-                    if (cpu->chaosDecode) {
-                        StaticInstPtr chaos_stale =
-                            cpu->chaosDecode->maybeStaleTuple(
-                                staticInst, tid);
-                        if (chaos_stale)
-                            staticInst = chaos_stale;
-                    }
-
                     // Increment stat of fetched instructions.
                     cpu->fetchStats[tid]->numInsts++;
 

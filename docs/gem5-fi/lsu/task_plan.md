@@ -6,11 +6,11 @@
 
 ## Next Step
 
-继续 P3 全矩阵 pilot；当前 ITEM、RunID、PID、资源状态和唯一下一动作以 `progress.md` 的 Current Status 为准。现有 pilot 仍以 30 个独立 activated runs/clusters 为目标，不因本次采样政策迁移中断或重跑。
+执行 P0：读取总方针、计划、完整清单和状态文件，核验清单规模与 Excel SHA-256，盘点服务器环境和已有资产，填写 G0-01 至 G0-10 状态，并更新 `progress.md` 与 `findings.md`。不得直接启动大规模实验。
 
 ## Current Phase
 
-P3
+P0
 
 ## 全局实验口径
 
@@ -18,11 +18,10 @@ P3
 - 故障频率：F0 单次瞬态；F1–F4 重复/突发；F5 永久；F6 确定性路径/矩阵规定层。
 - 负载：按 Excel 的 W0–W13 执行；不可用项必须记录并请求批准，不得自行替换。
 - B0 是可复现实验基线，不是鲲鹏 920 的精确复刻；S1–S4 每次只改变一个因素。
-- Pilot：每个有效 RunID 先取得 30 个独立 activated runs/clusters，用于检查注入器、负载、日志和 oracle；注入器、配置、workload、checkpoint 与 oracle 均未改变时，这 30 个可计入后续累计，否则作废重采。
-- 正式筛查：每个有效 RunID 固定累计至少 385 个独立 activated runs/clusters；统一报告 Wilson 95% 置信区间。
-- 重点扩样：仅以下 21 个固定 RunID 累计到 2401，且 2401 包含前 385 个，不是额外再取 2401 个，也不适用于其余 304 个 RunID：`A01-F0-W3`、`A04-F0-W3`、`T10-F0-W4`、`T04-F0-W4`、`S13-F0-W5`、`S04-F0-W5`、`L01-F0-W5`、`L03-F0-W5`、`C04-F0-W6`、`C05-F0-W6`、`C10-F0-W6`、`C12-F0-W6`、`O01-F0-W7`、`O05-F0-W7`、`P03-F0-W8`、`P07-F0-W8`、`P09-F0-W6`、`T10-F0-W11`、`S13-F0-W12`、`O09-F0-W13`、`P09-F0-W13`。
-- 采样数量在 campaign 开始前按本清单固定，不依据中途点估计或普通置信区间半宽序贯停止；本政策版本自 2026-10-08 起生效。
+- Pilot：每个有效 RunID 取得 30 个独立 activated runs/clusters。
+- 正式筛查：每个有效 RunID 至少 385 个独立 activated runs/clusters。
 - F1–F4 以一次运行为独立 cluster；单次运行内多个事件只用于传播分析。
+- P6 确认性扩样使用新的 holdout runs，不与筛查样本混成未校正的确认性结果。
 
 ## 清单调度协议
 
@@ -44,12 +43,12 @@ P3
 | G0-02 | 注入 patch 与配置生成器 | patch 有版本，确定性测试通过 | **PASS（6/6 家族）**：SE 五家族 + armtlb FS（T01-ENG-tlb_probe 载体：注入日志逐字节同 + guest console 全字节同 + Crash 路径复现；evidence/P1/det/T01-ENG-tlb_probe_det_report.txt）。注意：17 缺口模型的补实现属 G0-02 范围外的功能完备性工作（映射现状 evidence/P1/model_injector_map.md），确定性语义已验 |
 | G0-03 | OS、编译器、Python、依赖 | environment lock 可重建 | PASS（evidence/P1/environment_lock.md 固化：OS/工具链/平台身份/资源/seed 规则全集 + 2026-09-29 守卫 -j8 重建可复现性声明） |
 | G0-04 | B0/S1–S4 CPU/cache/MMU 配置 | 与 Excel 和计划逐项一致 | PASS（静态 19/19 + 运行时复核：smoke 运行打印 "LQ/SQ=16, DepShift=0, DTLB=32, L2TLB=1280/5 ... StridePrefetcher(8,1,on)@L2" 与 Excel 一致，evidence/P1/smoke_hello.out） |
-| G0-05 | W0–W13、输入、许可证 | 可用状态明确，不可用项获批准 | PARTIAL-SE PASS（9 SE 负载 3× golden 全一致且 = V1.0 golden，evidence/P1/golden/；**DR-001 已裁决 D+A（2026-10-08）**：补建 W1 MiBench + W13 PARSEC（aarch64 静态 + golden 重确立后解锁 33 ITEM），W11 SPEC 无证则 NA_APPROVED；W4/W7 FS 部分、W12 近似口径待 FS 管线/DR-002） |
+| G0-05 | W0–W13、输入、许可证 | 可用状态明确，不可用项获批准 | PARTIAL-SE PASS（9 SE 负载 3× golden 全一致且 = V1.0 golden，evidence/P1/golden/；W1/W11/W13 缺失 45 ITEM → DR-001 PENDING 非阻塞；W4/W7 FS 部分、W12 近似口径待 FS 管线/裁决） |
 | G0-06 | checkpoint | 生成方式与哈希固定，golden/故障运行一致 | PASS（SE 记 none；B0 FS checkpoint 生成方式固定：Atomic boot + boot_ckpt.rcS → cpt.237949797015，28MB，清单哈希 88cf03e037d2269b，runs/lsu/fs_cpt_boot/；双跑 restore 同一 cpt 且结果一致——golden/故障运行一致性达成） |
 | G0-07 | oracle | golden 重复稳定，规则可自动判定 | PASS-SE（golden 3× 全稳定；oracle = stdout hash 自动判定，tools/lsu_l5_classify.py 在库；FS oracle = tlb_probe md5 + ok=N/10 已定义） |
 | G0-08 | seed | 稳定算法和 seed manifest 可复现 | PARTIAL（tools/lsu_seed.py 实现并自测 PASS：固定向量+确定性+范围+phase/sample 区分；manifest 生成器就绪 325×30=9750 条冒烟通过；正式 seed manifest 冻结待 P3） |
 | G0-09 | timeout | golden 10×规则及 wall/sim 上限固定 | PASS-SE（golden max wall 61s/run → SE timeout = 600s（10×），绝对上限 1800s；与守卫 --max-seconds 600 一致；FS timeout 待 tlb_probe 实测后固定） |
-| G0-10 | CPU/RAM/worker/磁盘预算与资源防护 | 编译≤8且单实例；实验硬上限4（压力降3/2/1、恢复回4）；槽锁、PID/PGID、60秒监控、启动门禁和熔断均可验证 | **PASS-4 槽口径（2026-09-30 16:20 复验）**：守卫 4 槽位（commit 7a61df86）——隔离测试 T1-T6 全 PASS（6 并发 4 成功 2 拒绝零双取、release --slot+--confirm-pid 防误删、陈旧槽 clear-stale、run 周期槽复用，evidence/P3/f022_patch_a_test.txt）+ 实机验证（波次 4：4 槽并行占用、75 样本 resume、MemAvailable 26.9 GiB）；build 锁仍单实例；F-023 fail-fast（GUARD_FAILURE 不记账）保持。旧口径 T1-T7 见 evidence/P0/guard_verify.out；**集群平台 B 复验（2026-10-08 22:14，login01，git 97b7f4c0，DR-003-A 隔离口径）**：隔离 LSU_GUARD_DIR 实测 T1/T2/T5/T6 全 PASS + T4 陈旧槽语义 PASS（exit=1 gate-blocked 而非脚本预期 3——期望修正；陈旧槽存在时 acquire 全拒绝直至 clear-stale --confirm-dead-pid 显式处置），evidence/P3/guard_slots_verify.out |
+| G0-10 | CPU/RAM/worker/磁盘预算与资源防护 | 编译≤8且单实例；实验硬上限4（压力降3/2/1、恢复回4）；槽锁、PID/PGID、60秒监控、启动门禁和熔断均可验证 | **PASS-4 槽口径（2026-09-30 16:20 复验）**：守卫 4 槽位（commit 7a61df86）——隔离测试 T1-T6 全 PASS（6 并发 4 成功 2 拒绝零双取、release --slot+--confirm-pid 防误删、陈旧槽 clear-stale、run 周期槽复用，evidence/P3/f022_patch_a_test.txt）+ 实机验证（波次 4：4 槽并行占用、75 样本 resume、MemAvailable 26.9 GiB）；build 锁仍单实例；F-023 fail-fast（GUARD_FAILURE 不记账）保持。旧口径 T1-T7 见 evidence/P0/guard_verify.out |
 
 ## Phases
 
@@ -57,7 +56,7 @@ P3
 
 - [x] 启动时将本阶段状态改为 IN_PROGRESS，并同步更新 `progress.md`。
 - [x] 读取总方针、计划、完整清单和状态文件；Excel 仅做来源哈希与争议核查。
-- [x] 核验完整清单 SHA-256；2026-10-08 采样政策迁移后的当前值为 `4232b0839e827a1cb1ab5a4ac4fa8096eca479457249054afddfb6dc9c460f8e`，并包含64个模型、325个唯一ITEM、325个唯一RunID和Excel第2–326行映射。
+- [x] 核验完整清单 SHA-256 为 `790d280d61d94e919c3c91c01abeb46264c528748ed46a51567cf50a6c58cee5`，并包含64个模型、325个唯一ITEM、325个唯一RunID和Excel第2–326行映射。
 - [x] 盘点 OS、CPU、RAM、磁盘、调度器、Python、编译器和依赖。
 - [x] 核查当前编译、gem5、测试和实验进程的 owner/PID/PGID，确认不存在归属不明的遗留重任务。
 - [x] 检查 gem5 仓库、commit、工作树、现有 patch 和构建状态。
@@ -100,9 +99,9 @@ P3
 - [ ] 分开处理 pre_activation_infra_failure 与 post_activation_simulator_failure。
 - [ ] 检查 L0–L5 可追溯、计数守恒、日志完整与资源预算。
 - [ ] 325 个 ITEM/RunID 均 COMPLETE，或有批准的 BLOCKED/NA_APPROVED；状态能回溯到 Excel 行。
-- **Status:** IN_PROGRESS（服务器 `progress.md` 显示自 2026-09-29 起执行；2026-10-08 同步时继续运行，具体 ITEM 以 Current Status 为准）
+- **Status:** PENDING
 
-### P4：正式筛查（2026-10-08 采样政策迁移：本节旧定义为历史口径，新口径 = 全部有效 RunID 累计 ≥385 activated，pilot 30 在配置全不变时计入；扩样前须冻结新版 manifest 目标与样本范围——findings F-037；下同）
+### P4：正式筛查
 
 - [ ] 冻结正式 campaign、代码、配置、workload、checkpoint、oracle 和 seed manifest。
 - [ ] 每个有效 RunID 累计至少 385 个独立 activated runs/clusters。
@@ -111,13 +110,13 @@ P3
 - [ ] 所有分母、守恒、排除、重试和异常可由原始日志重算。
 - **Status:** PENDING
 
-### P5：固定重点组合扩样
+### P5：主结果确认性扩样
 
-- [ ] 冻结上述 21 个重点 RunID 的 selection manifest、sample_index/seed 范围和每组合主要二项 estimand。
-- [ ] 每个重点 RunID 从累计 385 继续到固定累计 2401；其余 304 个 RunID 保持累计至少 385。
-- [ ] 2401 中可包含满足同一冻结配置与质量门禁的 pilot/screening 样本；任何配置、workload、checkpoint 或 oracle 改变都必须分层或重采。
-- [ ] 全程报告 Wilson 95% 置信区间；不得因中途结果、区间半宽或达到旧的 5000 上限而序贯停止。
-- [ ] 对 2026-10-08 前已经查看过 pilot 结果的组合，明确标为“政策冻结前已有探索性信息”，不得表述为事前预注册的独立确认性结果。
+- [ ] 在查看新样本前冻结 selection manifest、入选组合数 K 和每组合主要二项 estimand。
+- [ ] 使用全新的 holdout runs，不与 P4 筛查样本混作未校正的确认性估计。
+- [ ] 只在 n=500、1000、…、5000 十个检查点查看结果。
+- [ ] 每个组合使用双侧 `100×(1-0.05/(10K))%` Clopper–Pearson 区间。
+- [ ] 区间半宽≤2个百分点或 n=5000 时停止；普通 Wilson 95% 区间仅作描述。
 - **Status:** PENDING
 
 ### P6：B0 单因素敏感性
@@ -154,7 +153,6 @@ P3
 | ID | 时间 | 决定 | 理由 | 影响范围 | 批准/证据 |
 |---|---|---|---|---|---|
 | D-2026-09-30-并发 | 2026-09-30 14:30 | gem5 实验并发硬上限由 1（画像后 2）调整为 **4**；编译规则不变；不得为满足上限杀死健康实验；每个并行实验独立 run_key/manifest/输出目录/日志/lease/PID-PGID/心跳 | 用户明确指令（2026-09-30 14:30） | 全部实验执行、守卫锁机制、unit_pilot 引擎 | 用户指令原文记录于 findings.md F-022 |
-| D-2026-10-08-采样 | 2026-10-08 | 每个有效 RunID 先 30 个 pilot、固定累计至少 385；仅固定清单中的 21 个重点 RunID 累计到 2401；取消旧 holdout/5000/区间半宽序贯停止规则 | 385 与 2401 分别对应最坏比例 p=0.5、95% 置信水平下约 ±5pp 与 ±2pp 的固定样本量；统一固定规则便于解释和审计 | P3 pilot 目标不变；P4/P5 manifest、调度、统计与文档基线更新 | 用户 2026-10-08 本地修订；见 findings.md“2026-10-08 采样政策迁移” |
 
 ## Errors Encountered
 

@@ -834,13 +834,6 @@ def main():
         if (inj["model"] == "local_mbu"
                 and rsf == "hb_bitflip2"):
             rm = "hb_bitflip2"
-        # U2 (R08/FR09, ooo 03-matrix R18/R47 Rename 时序): the timing arms
-        # ride the same sub_field discriminator — after the "_vec" strip the
-        # arm token IS the mode name (FR09 arrives as rename_timing_*_vec ->
-        # rcls=vec, the W7.2 class axis; R08 plain -> int).
-        if rsf in ("rename_timing_early", "rename_timing_late",
-                   "rename_timing_drop", "rename_timing_dup"):
-            rm = rsf
         cmd += ["--rename_mode", rm, "--rename_first_clock", str(t["value"]),
                 "--rename_max_faults", str(m["limits"]["max_faults"]),
                 "--rename_rng_seed", str(m["rng"]["selection_seed"]),
@@ -1037,20 +1030,6 @@ def main():
         if (inj["model"] in ("stuck_at_zero", "stuck_at_one")
                 and str(tgt.get("sub_field", "")) == "tail_ptr_stuck"):
             rm = "tail_ptr_stuck"
-        # U3 (B08/B09/FB08/FB09, ooo 03-matrix L111/L112/L155/L156 —
-        # pipeline timing family B): squash/commit timing arms on
-        # CHAOSROB. The sub_field token IS the mode name; fault_model
-        # metadata follows the U2 convention (early/late/drop =
-        # delay_omission, dup = recurring_result_stuck).
-        if rsf in ("squash_timing_early", "squash_timing_late",
-                   "squash_timing_drop", "squash_timing_dup",
-                   "fp_squash_timing_early", "fp_squash_timing_late",
-                   "fp_squash_timing_drop", "fp_squash_timing_dup",
-                   "commit_timing_early", "commit_timing_late",
-                   "commit_timing_drop", "commit_timing_dup",
-                   "fp_commit_timing_early", "fp_commit_timing_late",
-                   "fp_commit_timing_drop", "fp_commit_timing_dup"):
-            rm = rsf
         cmd += ["--rob_mode", rm, "--rob_first_clock", str(t["value"]),
                 "--rob_max_faults", str(m["limits"]["max_faults"]),
                 "--rob_rng_seed", str(m["rng"]["selection_seed"]),
@@ -1284,15 +1263,6 @@ def main():
         #        gem5 approximation of the int-vs-FP/SIMD queue routing
         #        bit; observable = FU/latency effect); no effective bit ->
         #        honest skip.
-        #   ctl_swap_* (D06 R7, Int Decode 状态类五子模式 a-e): sf /
-        #        setflags / shift type / extend type / signedness swapped
-        #        to another LEGAL value (GNU-as closed-loop verified
-        #        21-row table; conditional shifted x->w rows land the
-        #        re-decode gate -> honest skip).
-        #   fp_ctl_swap_* (FD05 R34, FP/SIMD Decode 三子模式 a-c):
-        #        scalar<->vector / element width / lane count, another
-        #        LEGAL value (49-row table; integer SIMD lanes are in
-        #        FD05-b/c scope — no fpOnly gate).
         dm = "dest_reg_sub"
         dsf = str(tgt.get("sub_field", ""))
         if dsf in ("opcode_bitflip", "opcode_bitflip2", "opcode_swap",
@@ -1301,24 +1271,7 @@ def main():
                    "sign_ext_bit", "imm_subfield_shift", "crack_ctrl",
                    "fp_opcode_bitflip", "fp_opcode_bitflip2",
                    "fp_opcode_swap", "fp_reg_bitflip",
-                   "fp_reg_bitflip2", "fp_route_bit",
-                   # U2 (D07/FD09, ooo 03-matrix R8/R38 decode 时序): the
-                   # four timing arms ride the SAME sub_field -> --decode_mode
-                   # discriminator. The FP scope lives INSIDE the mode name
-                   # (fp_decode_timing_* — the CHAOSFPU.cc isFpOpClass
-                   # boundary); no extra flags.
-                   "decode_timing_early", "decode_timing_late",
-                   "decode_timing_drop", "decode_timing_dup",
-                   "fp_decode_timing_early", "fp_decode_timing_late",
-                   "fp_decode_timing_drop", "fp_decode_timing_dup",
-                   # U4 (D06/FD05 控制状态合法换值): control field -> another
-                   # legal value; same --decode_mode discriminator.
-                   "ctl_swap_sf", "ctl_swap_setflags",
-                   "ctl_swap_shift_type", "ctl_swap_extend_type",
-                   "ctl_swap_signedness",
-                   "fp_ctl_swap_scalar_vector",
-                   "fp_ctl_swap_elem_width",
-                   "fp_ctl_swap_lane_count"):
+                   "fp_reg_bitflip2", "fp_route_bit"):
             dm = dsf
         cmd += ["--chaos_decode", "--decode_mode", dm,
                 "--decode_first_clock", str(t["value"]),

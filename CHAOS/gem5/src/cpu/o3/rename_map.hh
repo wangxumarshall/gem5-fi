@@ -272,21 +272,6 @@ class UnifiedRenameMap
                                                            entry_phys);
             }
         }
-        // U2 (R08-a/FR09-a, ooo 03-matrix R8/R38 RAT 更新时序·提前):
-        // rollback-and-defer — the just-written entry is rolled back to
-        // prev_phys and queued; the injector's next-tick-start event
-        // (Default_Pri < CPU_Tick_Pri=50 at clockEdge(1) -> BEFORE any
-        // rename lookup of the new cycle: the recorded "下一 tick 之始
-        // 回放" point) re-applies map[arch]=new. In the window the arch
-        // reg reads the OLD mapping. Only RenameTimingEarly fires here;
-        // every other mode returns false (zero regression).
-        if (chaosRenameMap && info.first != info.second) {
-            if (chaosRenameMap->maybeDeferRatWrite(arch_reg, info.second,
-                                                   info.first)) {
-                renameMaps[arch_reg.classValue()].setEntry(arch_reg,
-                                                           info.second);
-            }
-        }
         return info;
     }
 

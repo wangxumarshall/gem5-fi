@@ -164,7 +164,6 @@
             "exec",
             "fsu",
             "lsq_fwd",
-            "decode",
             "l1_tlb",
             "l2_tlb",
             "sysreg",

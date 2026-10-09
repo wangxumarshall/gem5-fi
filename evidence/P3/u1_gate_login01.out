@@ -1,9 +1,0 @@
-# U1 回归：login01（亦无 swap——全集群无 swap，F-024 语义普适）
-# 命令：python3 tools/lsu_guard.py gate    日期：2026-09-30 17:46
-ok= False
-reasons= ["存在编译进程: [scons/g++/cc1plus/as x22（他人构建，非本任务）]"]
-notes= ['swap_na: SwapTotal=0，SwapFree 门禁 N/A（F-024）']
-swap_na= True swap_free= 0.0
-# 结论：编译进程门禁照常拦截（回归通过）；swap_na 路径正确触发
-# 诚实备注：本集群无任何有 swap 的机器，"swap_total>0 时 SwapFree 门禁仍生效" 的正路径
-# 无法在真机验证，仅由代码路径审查 + py_compile 覆盖（改动为 if/elif 分支，正路径未变）

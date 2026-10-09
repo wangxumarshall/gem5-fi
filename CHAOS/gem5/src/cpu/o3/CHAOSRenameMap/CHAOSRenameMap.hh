@@ -8,8 +8,6 @@
 
 #include "params/CHAOSRenameMap.hh"
 #include "sim/sim_object.hh"
-#include "sim/eventq.hh"          // U2: EventFunctionWrapper (RAT replay /
-                                  // deferred freelist pop next-tick events)
 #include "base/output.hh"
 #include "base/types.hh"
 #include "cpu/base.hh"
@@ -27,12 +25,6 @@ namespace gem5
 // forward-decl of the rename map entry id (pointer type used by rename_map.hh)
 namespace o3 { class UnifiedRenameMap; }
 namespace o3 { class UnifiedFreeList; }
-namespace o3 { class DynInst; }   // U2 R08-c/d arg type (bare o3 — a
-                                     // re-opened 'namespace gem5' INSIDE
-                                     // gem5 declares a NESTED gem5::gem5:
-                                     // namespace-def lookup only searches the
-                                     // innermost enclosing scope; empirically
-                                     // hit, build log /tmp/u2-outer.log:1111)
 struct RegId;
 class PhysRegId;
 using PhysRegIdPtr = PhysRegId *;
@@ -149,56 +141,6 @@ class CHAOSRenameMap : public SimObject
                                PhysRegIdPtr new_phys, PhysRegIdPtr prev_phys,
                                const char *site);
 
-    // ---- U2 (R08/FR09, ooo 03-design-matrix R8/R38 Rename 时序) ----
-    // Four sub-modes, one SimObject (per plan: 复用 CHAOSRenameMap 载体,
-    // target_class int=R08 / vec=FR09 via the W7.2 class axis):
-    //
-    // a 提前 (RenameTimingEarly) — RAT 更新延后一拍·tick 始回放: called
-    // from UnifiedRenameMap::rename AFTER SimpleRenameMap::rename wrote
-    // the entry (rollback-and-defer: on true the caller re-stores
-    // prev_phys, the injector queues (arch,new) and its next-tick-start
-    // event re-applies map[arch]=new BEFORE any rename lookup of the
-    // new cycle). In the window the arch reg reads the OLD mapping.
-    // Honesty note (plan Step-1): gem5's sub-updates are tick-atomic —
-    // a pure "write a full beat EARLY" has no observable surface; the
-    // two 1-beat skews differ by replay point (tick-start vs tick-end);
-    // only the tick-start variant is wired as sub-mode a (the tick-end
-    // variant and the RAT-延后/freelist-提前 alternates stay recorded,
-    // unwired, in the plan honesty note).
-    bool maybeDeferRatWrite(const RegId &arch_reg, PhysRegIdPtr prev_phys,
-                            PhysRegIdPtr new_phys);
-    //
-    // b 延后 (RenameTimingLate) — free-list 弹出延后一拍: PRE-pop hook in
-    // SimpleFreeList::getReg. On true the caller does NOT pop: the phys
-    // reg stays at the freelist head for the rest of this cycle (同窗另
-    // 一 rename 可能弹出同号 → 双重分配 = 静默 SDC 源, 03 原文口径);
-    // the injector's next-tick-start event performs the deferred pop.
-    bool maybeDelayFreePop(int class_value, PhysRegIdPtr free_reg);
-    //
-    // c 丢失 (RenameTimingDrop) — ROB 分配时序 at commit.cc getInsts
-    // rob->insertInst (v25: ROB insertion lives in the Commit tick —
-    // plan honesty note). Returns 0 normal / 2 skip-insert (丢失:
-    // executes, never retires — dest phys leaks, commit count loses
-    // one). Eligibility: the inst has >=1 dest reg in target_class.
-    int maybeTimingAlloc(const o3::DynInst *inst, ThreadID tid);
-    //
-    // d 重复 (RenameTimingDup) — U2 round-2 revision: the double-ROB-
-    // insert realization aborted at rob.cc:513 readHeadInst isInROB
-    // (first retire clears the flag; the second node violates it —
-    // r08-dup/fr09-dup rc=134 evidence), so dup moved to the RENAME
-    // HISTORY-BOOKKEEPING surface (rename.cc push_front site): the
-    // victim's RenameHistory entry is pushed TWICE. The commit-side
-    // removeFromHistory walk consumes both same-sn entries in one
-    // pass → prevPhysReg is freeList->addReg'd TWICE (freelist gains
-    // a duplicate phys reg → two later renames pop the same reg →
-    // phys aliasing = silent SDC source) and committedMaps counts +2
-    // (双提交/计数翻倍 observably preserved). Eligibility: the dest
-    // rename's new phys is in target_class and differs from prev.
-    bool maybeDupRenameHistory(ThreadID tid, InstSeqNum inst_seq_num,
-                               const RegId &arch,
-                               PhysRegIdPtr new_phys,
-                               PhysRegIdPtr prev_phys);
-
   private:
     enum class Mode { MapBitflip, MapBitflip2, SwapToActive, F5Substitute,
                       F4FieldStuck, SpecLeak, F5RatStuck, StaleRead,
@@ -211,18 +153,7 @@ class CHAOSRenameMap : public SimObject
                       // hb_bitflip modes use — but targeting prevPhysReg
                       // exclusively (hb_bitflip picks new/prev 50/50).
                       OldphysBitflip, OldphysBitflip2, OldphysSwapActive,
-                      OldphysStuck,
-                      // ---- U2 (R08/FR09, ooo 03-design-matrix R8/R38
-                      // Rename 时序; 04-matrix numbering does NOT have
-                      // these — the 03 registry is authoritative) ----
-                      RenameTimingEarly,   // R08-a/FR09-a 提前: RAT 更新
-                                           // 延后一拍, tick 始回放
-                      RenameTimingLate,    // R08-b/FR09-b 延后: free-list
-                                           // 弹出延后一拍 (双重分配窗口)
-                      RenameTimingDrop,    // R08-c/FR09-c 丢失: ROB 分配
-                                           // 丢失 (insert skipped)
-                      RenameTimingDup };   // R08-d/FR09-d 重复: ROB 双
-                                           // insert (双提交/计数翻倍)
+                      OldphysStuck };
     static Mode stringToMode(const std::string &s);
     const char *modeToString(Mode m);
 
@@ -286,30 +217,6 @@ class CHAOSRenameMap : public SimObject
     // spec_leak sampling-bias fix (Phase 3.0 family): geometric(0.1) count
     // of eligible rollbacks to skip before the first suppressed one.
     uint64_t events_to_skip = 0;
-
-    // ---- U2 (R08/FR09) timing-mode state ----
-    // R08-a: pending deferred RAT writes + the next-tick-start replay
-    // event (Default_Pri < CPU_Tick_Pri=50 -> fires BEFORE the CPU tick:
-    // the recorded "任何 rename lookup 之前" replay point).
-    // prev = the pre-write mapping: the replay is CONDITIONAL (only
-    // lands if the entry still equals prev — an intervening newer write
-    // of the same arch reg inside the window stands, the deferred write
-    // is absorbed and logged honest_skip; otherwise a blind replay would
-    // revert a newer mapping, a corruption stronger than the 1-beat
-    // visibility window the model specifies).
-    struct PendingRatWrite { RegId arch; PhysRegIdPtr phys;
-                             PhysRegIdPtr prev; };
-    std::vector<PendingRatWrite> pending_rat_writes;
-    EventFunctionWrapper ratReplayEvent;
-    // R08-b: deferred freelist pops (per class value) + the same
-    // next-tick-start event shape.
-    std::vector<int> pending_pops;
-    EventFunctionWrapper freePopEvent;
-    // cached dynamic_cast<o3::CPU*>(cpu) from startup() (the replay
-    // handlers need it without re-casting inside the event).
-    o3::CPU *o3cpu = nullptr;
-    void ratReplay();
-    void freePopReplay();
 
     // W4 final D14 swap_mispred_event squash context: set by
     // notifySquashSignal() for the duration of Rename::squash() (which runs

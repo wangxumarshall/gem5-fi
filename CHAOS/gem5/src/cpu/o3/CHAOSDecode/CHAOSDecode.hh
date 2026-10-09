@@ -57,38 +57,6 @@ class CHAOSDecode : public SimObject
     StaticInstPtr maybeCorruptEncoding(StaticInstPtr orig,
                                        InstDecoder *dec, Addr pc);
 
-    // U2 (R8-a/R38-a 提前): fetch-side stale-tuple read. Called from
-    // fetch.cc at the same site as maybeCorruptEncoding, AFTER
-    // dec_ptr->decode() and BEFORE the DynInst is built (staticInst is
-    // const on DynInst — the fetch-local variable is the only safe
-    // rebind point). Returns the PREVIOUS valid instruction's
-    // StaticInstPtr when the fault fires: the victim is then built with
-    // tuple(N-1) in its own seq/timing slot — the fault is the TIMING
-    // (the latch delivered the old value), the payload itself is a
-    // legal instruction. nullptr = no injection.
-    StaticInstPtr maybeStaleTuple(StaticInstPtr orig, ThreadID tid);
-
-    // U2 (R8/R38 b-d): decode-stage emit-point action. Called from
-    // decode.cc's decodeInsts loop on the queue FRONT, BEFORE the pop
-    // (the hold path must not consume the victim). slots_left is the
-    // remaining toRename bandwidth this cycle. Returns:
-    //   0 = emit normally (no fault / budget spent / ineligible)
-    //   1 = HOLD this cycle (b: leave at queue head and stop emitting
-    //       for this thread this tick — stage-output latch semantics;
-    //       followers stall too, documented deviation from victim-only
-    //       delay: std::queue has no push_front, and reordering the
-    //       victim behind followers would be a DIFFERENT fault (变序),
-    //       not 延后)
-    //   2 = DROP (c: caller pops it, marks it squashed, emits nothing —
-    //       it never renames/executes/commits)
-    //   3 = DUP (d: 同 uop 双发 — the caller builds a NEW DynInst (new
-    //       seqNum via cpu->getAndIncrementInstSeq, same staticInst/
-    //       macroop/pc) and emits it into a second toRename slot; it
-    //       renames/executes/commits independently — plan Step-1 记录
-    //       口径「额外复制一份 DynInst（新 seqNum，同 staticInst）」)
-    int maybeTimingEmit(const o3::DynInst *inst, ThreadID tid,
-                        int slots_left);
-
   private:
     BaseCPU *cpu;
     double probability;
@@ -103,18 +71,6 @@ class CHAOSDecode : public SimObject
     // instead of always the first eligible one (same dynamic instruction
     // every rep on a deterministic stream).
     uint64_t events_to_skip = 0;
-
-    // U2 timing modes: per-thread tuple trackers — fetch-side last
-    // decoded tuple (maybeStaleTuple) and decode-side last emitted tuple
-    // (maybeTimingEmit). Sized to cpu->numContexts() at startup().
-    std::vector<StaticInstPtr> last_tuple;
-    std::vector<StaticInstPtr> last_emitted;
-    // R8-b release guard: the seqNum currently held (an inst kept at the
-    // queue head last cycle must emit normally this cycle — without
-    // this, unlimited-budget configs could hold the same inst forever).
-    uint64_t held_seq = 0;
-    bool timingModeActive() const;
-    bool tupleInScope(const StaticInst *si, bool fp) const;
 
     std::mt19937 rng;
     std::random_device rd;
@@ -148,39 +104,8 @@ class CHAOSDecode : public SimObject
                                              // FP pair table)
                       FpRegBitflip,          // D59 V-reg-number field, 1 bit
                       FpRegBitflip2,         // D60 V-reg-number field, 2 bits
-                      FpRouteBit,           // D61 instruction-route bit
+                      FpRouteBit };          // D61 instruction-route bit
                                              // (opClass-change predicate)
-                      // ---- U2 (D07/FD09 = ooo 03-design-matrix R8/R38
-                      // Int/FP Decode 时序; the "D07" ImmBitflip2 label
-                      // above is the OLD 04-matrix numbering, the 03
-                      // registry is authoritative — these are NEW modes,
-                      // no existing mode is touched) ----
-                      TimingEarly,           // R8-a: stale-latch read —
-                                             // victim binds the previous
-                                             // decode tuple (fetch hook)
-                      TimingLate,            // R8-b: hold one cycle at the
-                                             // decode emit point
-                      TimingDrop,            // R8-c: lose the decode
-                                             // transaction (never renames)
-                      TimingDup,             // R8-d: duplicate the decode
-                                             // transaction (emit twice)
-                      FpTimingEarly,         // R38-a..d: the same four,
-                      FpTimingLate,          // FP/SIMD-scoped via
-                      FpTimingDrop,          // isFpOpClass (the W7 scope)
-                      FpTimingDup,
-                      // ---- U4 (D06/FD05 = ooo 03-design-matrix R7/R34
-                      // Int/FP Decode control-state LEGAL-VALUE swap; every
-                      // rule-table row GNU-as closed-loop verified on this
-                      // aarch64 host 2026-10-09 — see the kCtlSwapRules
-                      // note below) ----
-                      CtlSwapSf,            // D06-a sf (32<->64)
-                      CtlSwapSetflags,      // D06-b S/opc setflags
-                      CtlSwapShiftType,     // D06-c shift type
-                      CtlSwapExtendType,    // D06-d extend type
-                      CtlSwapSignedness,    // D06-e signed/unsigned
-                      FpCtlSwapScalarVector,// FD05-a scalar<->vector
-                      FpCtlSwapElemWidth,   // FD05-b element width
-                      FpCtlSwapLaneCount }; // FD05-c lane count (Q)
     Mode fi_mode = Mode::DestRegSub;
     static Mode stringToMode(const std::string &s);
     const char *modeToString(Mode m) const;
@@ -278,58 +203,6 @@ class CHAOSDecode : public SimObject
     //                   Rm pinned 00000 excludes the FRINT/FSQRT family)
     static const SwapRule kFpSwapRules[];
     static const SwapRule *matchFpSwapRule(uint32_t enc);
-    // ---- U4 (D06/FD05 = ooo 03-design-matrix R7/R34 Int/FP Decode
-    // control-state legal-value swap). Same fetch-decode
-    // asBytes/decodeChaos engine; the U4 addition is per-mode legal-value
-    // swap tables (每控制字段的合法值枚举 + 换值映射, the plan's
-    // table-driven spec). EVERY (mask, match, xor_bits) row was
-    // CLOSED-LOOP verified against real GNU-as encodings on this aarch64
-    // host (2026-10-09 U4 Step-1 record,
-    // runs/ooo-node/evidence/u4-step1/u4-verify.out): a 97-instruction
-    // positive corpus + 22-instruction negative corpus (branches,
-    // loads/stores, moves, csel/ccmp, ldxr/stxr, FP compares/converts
-    // match NOTHING), 56 designated pairs checked
-    // src&mask==match && src^xor==dst (round-trip for the symmetric rows,
-    // directionality for the one-way rows), and ALL 213 rule x corpus
-    // re-decodes (via `.inst` re-assembly, not `.word` — the aarch64
-    // mapping-symbol trap) re-disassemble to REAL instructions with an
-    // IDENTICAL register-number sequence. ALL-PASS (corpus=97 neg=22
-    // rules=70 pairs=56 mod_checks=213).
-    //
-    // A64 facts baked into the constants (each an assembler finding):
-    //   * bit21=1 in ALL 3-same SIMD rows (match byte2 |= 0x20) and
-    //     bit21=1 marks the ADD/SUB EXTENDED form (option[15:13]+imm3
-    //     [12:10] alias imm6 and reach 32..63): D06-c pins bit21=0
-    //     (shifted form only, sf=1 — lsr/asr #>=32 illegal on w regs),
-    //     D06-a splits shifted x->w into a CONDITIONAL row (legal iff
-    //     imm6<32; the decodeChaos re-decode rejects the rest — honest
-    //     skip, no fault) while both extended directions are
-    //     unconditional (all 8 extends are legal on w regs).
-    //   * ROR is ILLEGAL on ADD/SUB shifted (LSL/LSR/ASR only): the
-    //     D06-c add rows swap lsl<->lsr and asr->lsl; the logical rows
-    //     (bit21=N there, left free) rotate the full lsl<->ror pair.
-    //   * Logical-immediate N (bit22) follows sf (sf=0 requires N=0):
-    //     the D06-a/b logical-imm rows pin bit23=0 (bit23 distinguishes
-    //     logical-imm from MOVZ/MOVN/MOVK — the negative corpus caught
-    //     `movz x0,#1` matching before the pin) and pin N=0.
-    //   * MUL 3-same has NO .2d variant: the FD05-b mul width swap is
-    //     .8h<->.4s (q1 rows) plus the q0 rows; add/sub take all four
-    //     widths; FP16 unsupported on this host's assembler — .h FP
-    //     forms out of scope (honest limitation, no .h rows).
-    // FD05 does NOT gate on isFpOpClass: its eligible population is the
-    // 3-same SIMD encodings themselves (integer SimdAdd/SimdMul lanes
-    // included — FD05-b/c are lane-INTERPRETATION swaps, which is the
-    // model's point); the rule tables ARE the eligibility gate (the
-    // negative corpus + int-scalar zero-leak check prove no overreach).
-    static const SwapRule kCtlSwapSfRules[];        // D06-a (8 rows)
-    static const SwapRule kCtlSwapSetflagsRules[];  // D06-b (6 rows)
-    static const SwapRule kCtlSwapShiftRules[];     // D06-c (4 rows)
-    static const SwapRule kCtlSwapExtendRules[];    // D06-d (1 row)
-    static const SwapRule kCtlSwapSignRules[];      // D06-e (2 rows)
-    static const SwapRule kFpCtlSvRules[];          // FD05-a (12 rows)
-    static const SwapRule kFpCtlEwRules[];          // FD05-b (15 rows)
-    static const SwapRule kFpCtlLcRules[];          // FD05-c (22 rows)
-    static const SwapRule *matchCtlSwapRule(Mode m, uint32_t enc);
 
     // ---- W6 batch 2 (D08/D09/D10, ooo 04-design-matrix R9-R11) ----
     //
@@ -439,21 +312,6 @@ class CHAOSDecode : public SimObject
                                    StaticInstPtr orig,
                                    const std::string &orig_name,
                                    ArmISA::Decoder *arm_dec, Addr pc);
-    // ---- U4 (D06/FD05, ooo 03-design-matrix R7/R34) control-state
-    // legal-value swap. `rule` was matched in the cheap-eligibility phase
-    // (matchCtlSwapRule); this applies enc^xor_bits, re-decodes, and
-    // gates on the re-decode being a REAL instruction (name != "unknown"):
-    // the conditional D06-a shifted x->w rows land illegal when imm6>=32
-    // — such draws are honest skips (the model swaps to another LEGAL
-    // value; no legal value = not eligible), never SIGILL crashes. The
-    // register-number sequence preservation is table-guaranteed (the
-    // closed-loop record) and re-checked here as belt and braces (index
-    // bits only — FD05-a legitimately changes the reg CLASS d<->v). ----
-    StaticInstPtr injectCtlSwap(uint64_t emi_raw, uint32_t enc,
-                                StaticInstPtr orig,
-                                const std::string &orig_name,
-                                ArmISA::Decoder *arm_dec, Addr pc,
-                                const SwapRule *rule);
 
     // Reg-operand fingerprint (classValue<<16 | index per operand, dests
     // then srcs) for the semantic verification of reg/imm flips:

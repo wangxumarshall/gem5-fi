@@ -40,7 +40,6 @@
  */
 
 #include "cpu/o3/decode.hh"
-#include "cpu/o3/CHAOSDecode/CHAOSDecode.hh"  // U2: full def for maybeTimingEmit (fetch.cc:56 pattern)
 
 #include "arch/generic/pcstate.hh"
 #include "base/trace.hh"
@@ -664,37 +663,6 @@ Decode::decodeInsts(ThreadID tid)
     while (insts_available > 0 && toRenameIndex < decodeWidth) {
         assert(!insts_to_decode.empty());
 
-        // U2 (D07/FD09 b-d, 03-matrix R8/R38): decode emit-point timing
-        // hook. Acts on the queue FRONT BEFORE the pop — the hold path
-        // must not consume the victim. Returns 0 normal / 1 hold /
-        // 2 drop / 3 dup; slots_left is the remaining toRename
-        // bandwidth (dup needs two).
-        int chaos_timing = 0;
-        bool chaos_dup = false;
-        if (cpu->chaosDecode) {
-            chaos_timing = cpu->chaosDecode->maybeTimingEmit(
-                insts_to_decode.front().get(), tid,
-                decodeWidth - toRenameIndex);
-            if (chaos_timing == 1) {
-                // late (延后): leave at the queue head and stop emitting
-                // this tick — stage-output latch semantics.
-                break;
-            }
-            if (chaos_timing == 2) {
-                // drop (丢失): the decode transaction is lost — consume,
-                // squash, emit nothing. It never renames/executes/
-                // commits. Same bookkeeping shape as the squashed path
-                // below.
-                DynInstPtr dropped = std::move(insts_to_decode.front());
-                insts_to_decode.pop();
-                dropped->setSquashed();
-                ++stats.squashedInsts;
-                --insts_available;
-                continue;
-            }
-            chaos_dup = (chaos_timing == 3);
-        }
-
         DynInstPtr inst = std::move(insts_to_decode.front());
 
         insts_to_decode.pop();
@@ -733,41 +701,6 @@ Decode::decodeInsts(ThreadID tid)
         --insts_available;
 
         inst->decodeTick = curTick() - inst->fetchTick;
-
-        if (chaos_dup) {
-            // U2 (R8-d/R38-d 复制, plan Step-1 口径): 同 uop 双发 — a NEW
-            // DynInst (new seqNum, same staticInst/macroop/pc) follows the
-            // victim into toRename and renames/executes/commits
-            // independently. Built with the fetch.cc buildInst pattern
-            // (Arrays placement-new); next_pc = the natural successor via
-            // advancePC (the mispredicted()-computed fall-through). The
-            // queue item was counted once by insts_available, so only the
-            // slot bookkeeping advances; slots_left>=2 was pre-checked by
-            // the injector, so toRenameIndex stays < decodeWidth.
-            DynInst::Arrays dup_arrays;
-            dup_arrays.numSrcs = inst->staticInst->numSrcRegs();
-            dup_arrays.numDests = inst->staticInst->numDestRegs();
-            std::unique_ptr<PCStateBase> dup_pc(inst->pcState().clone());
-            std::unique_ptr<PCStateBase> dup_next(
-                inst->pcState().clone());
-            inst->staticInst->advancePC(*dup_next);
-            DynInstPtr dup_inst = new (dup_arrays) DynInst(
-                dup_arrays, inst->staticInst, inst->macroop,
-                *dup_pc, *dup_next, cpu->getAndIncrementInstSeq(), cpu);
-            dup_inst->setTid(tid);
-            dup_inst->setThreadState(cpu->thread[tid]);
-            // Round-3 fix: every DynInst must be registered in the CPU's
-            // instList exactly as fetch.cc buildInst does — without an
-            // instListIt, the first removeList.push(getInstListIt()) at
-            // completion erases a garbage iterator (SIGSEGV in
-            // cleanUpRemovedInsts _M_unhook; round-3 d07-dup rc=139,
-            // /tmp/u2-runs/d07-dup.out:20-27).
-            dup_inst->setInstListIt(cpu->addInst(dup_inst));
-            toRename->insts[toRenameIndex] = dup_inst;
-            ++(toRename->size);
-            ++toRenameIndex;
-            ++stats.decodedInsts;
-        }
 
         // Ensure that if it was predicted as a branch, it really is a
         // branch.

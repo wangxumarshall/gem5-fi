@@ -826,33 +826,7 @@ Commit::commit()
             // number as the youngest instruction in the ROB.
             youngestSeqNum[tid] = squashed_inst;
 
-            // U3 CHAOSROB B08-a/FB08-a (squash_timing_early): arm
-            // BEFORE rob->squash -- the FP window gate needs the
-            // pre-squash ROB content. The squashAll callers re-set
-            // commitStatus right after their rob->squash, so the
-            // mispredict block is this arm's only binding face.
-            bool chaos_early_drain = false;
-            if (chaosROB)
-                chaos_early_drain = chaosROB->armSquashEarlyDrain(
-                    tid, squashed_inst, rob);
-
             rob->squash(squashed_inst, tid);
-
-            // Consume the arm: flip the status straight back to Running
-            // so THIS tick's commitInsts commits survivors / drains the
-            // marked-squashed insts (squash pipeline-visible completion
-            // advanced one cycle; approx=squash_drain_advanced_1c).
-            // getInsts stays suppressed this tick (chaosSkipGetInsts):
-            // the naive flip alone deadlocks -- unmarked wrong-path
-            // insts from the rename buffer enter the ROB and become
-            // zombie heads (empirical u3-dbg, run 1 of the two-state).
-            if (chaos_early_drain &&
-                chaosROB->consumeSquashEarlyDrain(tid)) {
-                commitStatus[tid] = Running;
-                // Same-tick commit resume, but the getInsts insert
-                // guard must survive one more tick (see commit.hh).
-                chaosSkipGetInsts = true;
-            }
             changedROBNumEntries[tid] = true;
 
             toIEW->commitInfo[tid].doneSeqNum = squashed_inst;
@@ -892,15 +866,7 @@ Commit::commit()
 
     if (num_squashing_threads != numThreads) {
         // If we're not currently squashing, then get instructions.
-        // U3 B08-a/FB08-a: the same-tick status flip above made this
-        // gate pass on the squash tick itself; suppress ONLY getInsts
-        // for that one tick (the rename buffer still holds unmarked
-        // wrong-path insts -- the backward squash marks them next
-        // tick; vanilla's ROBSquashing status was doing this gating).
-        if (!chaosSkipGetInsts)
-            getInsts();
-        else
-            chaosSkipGetInsts = false;
+        getInsts();
 
         // Try to commit any instructions.
         commitInsts();
@@ -954,22 +920,11 @@ Commit::commitInsts()
 
     unsigned num_committed = 0;
 
-    // U3 CHAOSROB B09-a/FB09-a (commit_timing_early): the one-shot
-    // width grant. Evaluated exactly when the commitWidth limit would
-    // defer the next head; a drain-only (squashed-head) iteration
-    // consumes the grant without allowing a further one this cycle.
-    bool chaos_width_grant = false;
-
     DynInstPtr head_inst;
 
     // Commit as many instructions as possible until the commit bandwidth
     // limit is reached, or it becomes impossible to commit any more.
-    // U3: the second clause grants ONE extra commit past commitWidth.
-    while (num_committed < commitWidth ||
-           (num_committed == commitWidth && !chaos_width_grant &&
-            chaosROB &&
-            (chaos_width_grant =
-                 chaosROB->grantExtraCommit(getCommittingThread())))) {
+    while (num_committed < commitWidth) {
         // hardware transactionally memory
         // If executing within a transaction,
         // need to handle interrupts specially
@@ -1064,15 +1019,7 @@ Commit::commitInsts()
                 changedROBNumEntries[tid] = true;
 
                 // Set the doneSeqNum to the youngest committed instruction.
-                // U3 CHAOSROB B09-c/FB09 (commit_timing_late): suppress
-                // this cycle's doneSeqNum publish -- the rename history
-                // walk (P_prev frees) AND the store commits (iew.cc
-                // ldstQueue.commitStores) both lag one cycle; the next
-                // commit's fresh doneSeqNum (>= this sn) self-heals both.
-                if (!chaosROB ||
-                    !chaosROB->suppressDoneSeqNum(tid, head_inst))
-                    toIEW->commitInfo[tid].doneSeqNum =
-                        head_inst->seqNum;
+                toIEW->commitInfo[tid].doneSeqNum = head_inst->seqNum;
 
                 if (tid == 0)
                     canHandleInterrupts = !head_inst->isDelayedCommit();
@@ -1084,13 +1031,7 @@ Commit::commitInsts()
                        !head_inst->readPredicate());
 
                 // Updates misc. registers.
-                // U3 CHAOSROB B09-d/FB09-c-FPSR-face
-                // (commit_timing_drop): the bound inst's commit-time
-                // misc-reg application (AArch64 NZCV/FPSR delayed
-                // writes) is skipped -- stale architectural flags.
-                if (!chaosROB ||
-                    !chaosROB->suppressUpdateMiscRegs(head_inst))
-                    head_inst->updateMiscRegs();
+                head_inst->updateMiscRegs();
 
                 // Check instruction execution if it successfully commits and
                 // is not carrying a fault.
@@ -1158,17 +1099,6 @@ Commit::commitInsts()
                 if (!interrupt && avoidQuiesceLiveLock &&
                     onInstBoundary && cpu->checkInterrupts(0))
                     squashAfter(tid, head_inst);
-
-                // U3 CHAOSROB B09-b/FB09 (commit_timing_dup): the bound
-                // inst just committed -- retire the NEXT head once more.
-                // If that head is not ready, retireHead's readyToCommit
-                // assert aborts (Crash DUE face); if ready, the next
-                // inst leaves the commit stream without commit
-                // processing (probe/misc update lost -- mostly Masked,
-                // honestly recorded both ways).
-                if (chaosROB && chaosROB->extraRetireHead(tid, head_inst)
-                    && !rob->isEmpty(tid))
-                    rob->retireHead(tid);
             } else {
                 DPRINTF(Commit, "Unable to commit head instruction PC:%s "
                         "[tid:%i] [sn:%llu].\n",
@@ -1414,37 +1344,16 @@ Commit::getInsts()
         if (!inst->isSquashed() &&
             commitStatus[tid] != ROBSquashing &&
             commitStatus[tid] != TrapPending) {
-            // U2 (R08-c/d, FR09-c/d, ooo 03-matrix R8/R38 ROB 分配时序):
-            // 0 = normal; 2 = 丢失 (skip the insert — the inst executes
-            // but never retires: dest phys leaks, commit count loses
-            // one → Timeout 或静默跳过 per plan); 3 = 重复 (insert twice
-            // — 双提交/计数翻倍 downstream). v25 fact: ROB insertion
-            // lives HERE in the Commit tick (not iew) — plan honesty
-            // note. Injector reached via thread-0 front-map attachment
-            // (SE single-thread); real tid passed for the log.
-            int chaos_alloc = 0;
-            if (!cpu->frontRenameMap().empty()) {
-                CHAOSRenameMap *chaos_rat =
-                    cpu->frontRenameMap()[0].getChaosRenameMap();
-                if (chaos_rat)
-                    chaos_alloc = chaos_rat->maybeTimingAlloc(inst.get(),
-                                                              tid);
-            }
-            if (chaos_alloc != 2) {
-                changedROBNumEntries[tid] = true;
+            changedROBNumEntries[tid] = true;
 
-                DPRINTF(Commit, "[tid:%i] [sn:%llu] Inserting PC %s into ROB.\n",
-                        tid, inst->seqNum, inst->pcState());
+            DPRINTF(Commit, "[tid:%i] [sn:%llu] Inserting PC %s into ROB.\n",
+                    tid, inst->seqNum, inst->pcState());
 
-                rob->insertInst(inst);
-                // (U2 round-2 revision: the dup arm no longer lives here —
-                // the double-ROB-insert aborted at readHeadInst isInROB;
-                // dup is realized at the rename history site instead.)
+            rob->insertInst(inst);
 
-                assert(rob->getThreadEntries(tid) <= rob->getMaxEntries(tid));
+            assert(rob->getThreadEntries(tid) <= rob->getMaxEntries(tid));
 
-                youngestSeqNum[tid] = inst->seqNum;
-            }
+            youngestSeqNum[tid] = inst->seqNum;
         } else {
             DPRINTF(Commit, "[tid:%i] [sn:%llu] "
                     "Instruction PC %s was squashed, skipping.\n",
