@@ -1,0 +1,109 @@
+裁决如下。
+
+一、决策点1：不扩充L5终类
+
+保持L5五类闭集不变：
+
+- Masked
+- SDC
+- Crash
+- Timeout
+- sim_fail
+
+NoInjection、InvalidInjection、NoEffect不属于程序执行终态，而属于“注入是否有效”的资格维度。不得把它们添加成第六种L5结果，否则会混淆注入有效性与注入后的架构结果，并破坏既有统计口径。
+
+采用正交的注入有效性字段。correction overlay至少记录：
+
+- raw_class：原始分类，永久保留；
+- trigger_observed：是否触发；
+- fault_write_attempted：是否执行故障写入；
+- fault_effective：目标状态是否实际改变；
+- valid_for_l5：是否有资格进入L5分类及其统计分母；
+- exclusion_reason：无效原因；
+- evidence_path：判定证据；
+- corrected_class：仅valid_for_l5=true时填写，否则为null。
+
+exclusion_reason至少区分：
+
+- pre_filter_rejected_after_trigger
+- fault_write_not_applied
+- fault_write_noop
+- missing_effective_write_evidence
+- other_invalid_injection
+
+统计规则：
+
+1. 只有fault_effective=true且证据闭环的样本才计入activated；
+2. 只有valid_for_l5=true的样本才进入L5五类分母；
+3. invalid样本不设置新的L5终类，corrected_class=null；
+4. 原始raw_class不得删除或覆盖；
+5. 报告同时给出：
+   attempted / triggered / write_attempted / effective_activated /
+   invalid_excluded / valid_L5_denominator。
+6. 不得把幻影样本从Masked改成Inactive来绕过schema限制；
+7. 不得把noop写入继续算作有效Masked。
+
+因此当前暂定口径为：
+
+- ITEM-271：effective_activated暂定16/30；
+- ITEM-279：effective_activated暂定19/33；
+- ITEM-019：31/33；
+- ITEM-022：32/33。
+
+“暂定”只有在逐样本证据确认后才能转为最终值。
+
+如果中央共享schema目前无法承载上述字段：
+
+- 本轮先在correction overlay中实现；
+- 不要在golden运行期间修改共享schema；
+- oracle冻结后，单独提交最小、向后兼容、只增字段的schema变更方案；
+- 旧记录读取必须保持兼容；
+- 在修改共享runner/campaign/classify/schema之前再次汇报变更范围。
+
+[LSU][DATA]提交不得修改原始runs/results.jsonl，只能增加overlay、审计报告、勘误和离线汇总工具。
+
+二、决策点2：ITEM-285撤销L03模型身份
+
+ITEM-285的33个样本虽然可能发生了真实byte_flip写入，但由于--lsqfwd_l03参数未接线，实际执行模型与声明的L03模型不一致。
+
+裁决：
+
+1. 33/33全部不得继续作为“L03-F0”科学结果；
+2. 将项目状态标记为：
+   model_identity_invalid / quarantined / rerun_required；
+3. 不得仅修改标签后继续纳入原L03结果；
+4. 原始结果和日志保留，用于证明接线缺陷和工程调试；
+5. 只有在能够精确证明其实际配置对应另一个已定义模型时，才可以在独立审计中讨论是否作为该模型的辅助工程证据；不得自动转归正式数据；
+6. 全库搜索所有使用--lsqfwd_l03的历史运行，检查是否存在同类身份失真，不限ITEM-285。
+
+SEM-B修复后，ITEM-285必须重新走完整准入：
+
+- config.ini确认l03参数实际传入；
+- count-only > 0；
+- 正/负对照；
+- n=5至少出现真实有效注入；
+- pilot 30；
+- 至少一个样本确定性重放；
+- golden和不受影响回归通过；
+- 之后才决定是否进入formal。
+
+三、MemoryOrderViolation设计
+
+F-048方向批准，但仍按独立语义变更管理：
+
+- ITEM-289继续保持capability-gap/design-blocked；
+- 在新事件源通过守恒、count-only、正负对照、n=5、pilot和重放前，不得宣称已解决；
+- 不得用该事件源挽救F4或ITEM-287；
+- ITEM-287等待W1 census实测结果后再裁决。
+
+四、当前执行约束
+
+- golden #2/#3继续严格串行；
+- oracle冻结前禁止C++修改和重建；
+- 可以继续完成只读审计、overlay草案和设计文档；
+- 不得修改运行中的golden环境；
+- golden #3完成并确认三次一致后再落地DATA/OBS/SEM提交及重建。
+
+另外请核对“领先6个提交”与汇报中列出的5个SHA是否一致，使用只读命令列出完整提交链，防止阶段报告漏记提交；不要因此执行任何git同步操作。
+
+将本次裁决和进度写入progress.md后继续golden流程。
