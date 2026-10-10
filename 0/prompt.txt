@@ -1,0 +1,95 @@
+裁决如下，请按此继续。
+
+一、ITEM-289（L03-F6）
+
+禁止将“内存序违规”近似映射到 SqForward。
+
+原因：
+- SqForward 与内存序违规不是同一微架构事件；
+- 近似映射会改变模型语义，使结果不可解释；
+- 不能为了让项目产生激活而把现有事件冒充目标事件。
+
+当前处理：
+
+1. 将 ITEM-289 正式标记为：
+   capability-gap / design-blocked / 当前实现不可激活。
+
+2. 本轮16项中：
+   - 15项按载体事件供给不足路线继续；
+   - ITEM-289不得进入现有重跑批次；
+   - 不得计入“已修复并完成重跑”的项目。
+
+3. 后续采用独立的 MemoryOrderViolation 事件源解决：
+   - 不修改现有四种F6事件源的含义；
+   - 不复用 SqForward 名称或统计；
+   - 明确定义事件产生条件、触发位置、eligibility、故障写入点和守恒关系；
+   - 能区分 event_seen、eligible、triggered、fault_applied、faults_injected；
+   - 必须提供正对照、负对照、count-only、最小注入和确定性重放；
+   - 作为模型语义变更单独提交，不能夹在OBS补丁或普通接线修复中。
+
+建议提交标题：
+[LSU][SEM-F6] Add explicit memory-order-violation event source
+
+在该设计和验证完成前，ITEM-289保持capability-gap，不得用替代事件生成结果。
+
+二、ITEM-271幻影激活
+
+数据更正单独先行，不等待正式重跑，但不得修改、覆盖或删除原始runs/results.jsonl。
+
+立即执行只读扩大审计：
+
+1. 审计所有使用PRE钩子的历史项目，不限于ITEM-271；
+2. 对每个声称activated的样本核对：
+   - trigger是否发生；
+   - eligibility是否通过；
+   - 是否真正执行故障写入；
+   - faults_injected统计；
+   - 注入前后目标值或等价写入证据；
+   - injector日志、stats和分类结果是否一致。
+3. 建立受污染样本清单，至少包含：
+   ITEM、seed、run目录、原分类、原faults_injected、
+   是否存在实际故障写入、建议更正分类、证据路径。
+4. 原始记录永久保留，只新增correction overlay/manifest。
+5. 14个幻影样本不得继续计入activated或有效注入分母。
+6. 其余16个样本只有在逐样本确认存在实际故障写入后，才能记为effective activated；
+   在审计完成前只能写“暂定16/30”，不能直接冻结为最终结论。
+7. 幻影样本的最终类别按现有schema处理：
+   - 若支持NoEffect/NoInjection/InvalidInjection，使用准确类别；
+   - 不得仅因为faults_injected字段曾为1就判为Masked；
+   - 也不得未经schema依据直接伪装成Inactive。
+8. 若现有schema无法表达“triggered但未施加故障”，先报告，不要擅自修改共享schema。
+
+单独提交数据更正及污染范围报告，建议标题：
+[LSU][DATA] Quarantine phantom activations from PRE-hook filtering
+
+该提交只能包含：
+- 审计报告；
+- correction manifest/overlay；
+- 权威文档勘误；
+- 必要的离线审计工具。
+
+不得包含C++语义修复、重建产物、runs、artifacts或原始结果改写。
+
+三、执行顺序保持
+
+golden #2
+→ golden #3
+→ 三次一致后冻结W1 oracle
+→ ITEM-271全范围数据审计/更正可先形成提交
+→ OBS补丁
+→ 修复PRE钩子顺序和l03参数接线
+→ 独立设计并验证MemoryOrderViolation事件源
+→ 重建并验证golden/无注入行为
+→ count-only census
+→ n=5
+→ pilot 30
+→ 15项分批重跑
+→ ITEM-289仅在新事件源通过全部准入门后单独重跑
+
+golden #2/#3完成前继续禁止C++修改和重建；不要为了提高资源利用率并行启动golden。可以继续进行只读审计、污染清单整理和设计文档工作。
+
+同时把本次阶段进度写入progress.md，明确：
+- F-047已提交dbd3f226；
+- ITEM-289裁决为capability-gap，等待独立Violation事件源；
+- ITEM-271进入全PRE-hook污染审计；
+- 当前golden #2仍是唯一运行中的gem5任务。
