@@ -205,6 +205,22 @@ namespace gem5
 
         if (lsuTrigger) {
             lsuTrigger->onAttempt();
+            // [LSU][SEM-PRE] op-class filter BEFORE the trigger decision (F-049
+            // phantom fix, user step 8 2026-10-10): the model's op class is part
+            // of ELIGIBILITY (checklist 激活口径) — a trigger fire the mode
+            // cannot write is not an injection. L01/L02 = loads only; S13/S04/
+            // S05/S11 = stores only; eligible streams now exclude the opposite
+            // class, so interval tiers (F1/F2/F4) count against the op-filtered
+            // stream. The in-switch checks stay as belt-and-braces; OBS-2's
+            // pre_opclass counter is the regression detector (must stay 0).
+            const bool pre_load_only  = (pre_mode == "l01_load_addr" ||
+                                         pre_mode == "l02_load_state");
+            const bool pre_store_only = (pre_mode == "s13_store_addr" ||
+                                         pre_mode == "s04_store_subst" ||
+                                         pre_mode == "s05_store_size" ||
+                                         pre_mode == "s11_store_lost");
+            if ((pre_load_only && !isLoad) || (pre_store_only && isLoad))
+                return size;   // op class not eligible for this model
             bool go;
             if (lsuTrigger->tier == ChaOSLsuTier::F6) {
                 go = f6_pending;
