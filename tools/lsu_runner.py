@@ -38,7 +38,12 @@ GUARD = REPO / "tools/lsu_guard.py"
 FS_CONFIG = LC.FS_CONFIG
 FS_CARRIER_RC = LC.FS_CARRIER_RC
 CPT = REPO / "runs/lsu/fs_cpt_boot/cpt.237949797015"  # G0-06 固化的 B0 FS checkpoint
-TIMEOUTS = {"SE": 600, "FS": 1800}  # G0-09：SE=golden10×，FS 绝对上限
+# G0-09 分级口径（2026-10-11 W1 timeout 修复，无人值守决策树步骤 10）：
+#   SE 短流（W0/W2/W3/W5/W9 等）golden ≤61s → 600s（10×）不变；
+#   W1 w1_all 长流 golden 实测 7.44-7.51h（F-050 三副本，规范哈希五方全等）
+#   → 600s 会把每个 W1 运行判为伪 Timeout——SE_W1=43200s（12h 预算，
+#   与 golden 链式控制器 --max-seconds 一致）；FS 1800s 不变。
+TIMEOUTS = {"SE": 600, "SE_W1": 43200, "FS": 1800}
 PHASES = ["engineering", "pilot", "screening", "confirmatory", "sensitivity", "reproduction"]
 
 ITEM_RE = re.compile(r"^### (ITEM-\d{3}) — (\S+)$", re.M)
@@ -138,7 +143,10 @@ def build_manifest(item_id, phase, sample_index, extra=None):
         "family": family,
         "injector_flags": list(extra_flags),
         "golden": golden,
-        "timeout_seconds": TIMEOUTS["FS" if family == "armtlb" else "SE"],
+        "timeout_seconds": TIMEOUTS[
+            "FS" if family == "armtlb"
+            else ("SE_W1" if wl_binary and str(wl_binary).endswith("w1_all")
+                  else "SE")],
         "f0_span_rule": ("两遍法（F-012）：计数 pass 定 N，正式 span=N" if freq == "F0"
                          and family in ("addrpath", "lsqfwd", "prefetch") else
                          ("legacy 机制（无 span）" if family in ("cache", "exmon", "armtlb")
