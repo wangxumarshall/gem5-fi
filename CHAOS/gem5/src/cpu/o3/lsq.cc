@@ -450,7 +450,7 @@ LSQ::recvTimingResp(PacketPtr pkt)
     // arrives and the F6 CAS-success event notify fires (proxy), redirect
     // the response to the WRONG LSQ unit (simulating a transaction-ID
     // mismatch where the response goes to the wrong load).
-    if (chaosLsuF6Notify) chaosLsuF6Notify(ChaOSLsuEvent::CasSuccess);
+    chaosLsuF6Observe(ChaOSLsuEvent::CasSuccess);
 
     if (pkt->isError())
         DPRINTF(LSQ, "Got error packet back for address: %#X\n",

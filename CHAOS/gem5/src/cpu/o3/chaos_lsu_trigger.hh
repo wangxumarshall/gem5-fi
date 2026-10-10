@@ -55,6 +55,36 @@ enum class ChaOSLsuEvent : uint8_t { TlbHit, SqForward, DirtyEviction,
 // single consumer registers at startup, deregisters at exit.
 inline void (*chaosLsuF6Notify)(ChaOSLsuEvent) = nullptr;
 
+// [LSU][OBS-1] Per-type F6 event-source observation counters (F-047 C-class
+// count-only gate): count at EVERY notify site regardless of consumer
+// registration, so count-only runs quantify F6 event supply even when the
+// mounted injector never registered a consumer (CHAOSLSQFwd pre-SEM-A:
+// injected was structurally 0 under ANY workload). Observation only — the
+// dispatch below is byte-for-byte the old null-checked call, so injection
+// semantics are unchanged.
+inline uint64_t chaosLsuF6EventsSeen[4] = {0, 0, 0, 0};
+
+inline void
+chaosLsuF6Observe(ChaOSLsuEvent e)
+{
+    ++chaosLsuF6EventsSeen[static_cast<unsigned>(e)];
+    if (chaosLsuF6Notify)
+        chaosLsuF6Notify(e);
+}
+
+// [LSU][OBS-1] End-of-run report line (called from the trigger summary so it
+// prints whenever any injector+trigger is mounted — census and rerun cases).
+inline void
+chaosLsuF6EventsReport()
+{
+    printf("CHAOS_LSU_F6_EVENTS: TlbHit=%lu SqForward=%lu DirtyEviction=%lu "
+           "CasSuccess=%lu\n",
+           (unsigned long)chaosLsuF6EventsSeen[0],
+           (unsigned long)chaosLsuF6EventsSeen[1],
+           (unsigned long)chaosLsuF6EventsSeen[2],
+           (unsigned long)chaosLsuF6EventsSeen[3]);
+}
+
 struct ChaOSLsuTrigger
 {
     ChaOSLsuTier tier;
@@ -178,6 +208,7 @@ struct ChaOSLsuTrigger
                injector, static_cast<int>(tier),
                (unsigned long)attempted, (unsigned long)eligible,
                (unsigned long)injected);
+        chaosLsuF6EventsReport();   // [LSU][OBS-1] event-supply observation
     }
 };
 

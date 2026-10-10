@@ -406,8 +406,7 @@ BaseCache::handleTimingReqMiss(PacketPtr pkt, MSHR *mshr, CacheBlk *blk,
                 // eviction event fires (proxy cadence), flip a low bit of the
                 // merging target's address BEFORE the merge. The coalesced
                 // request then carries the wrong address downstream.
-                if (chaosLsuF6Notify)
-                    chaosLsuF6Notify(ChaOSLsuEvent::DirtyEviction);
+                chaosLsuF6Observe(ChaOSLsuEvent::DirtyEviction);
                 mshr->allocateTarget(pkt, forward_time, order++,
                                      allocOnFill(pkt->cmd));
                 if (mshr->getNumTargets() >= numTarget) {
@@ -618,7 +617,7 @@ BaseCache::recvTimingResp(PacketPtr pkt)
             writeAllocator->allocate() : mshr->allocOnFill();
         // LSU W6 C12: fill/writeback timing corruption — the event hook
         // lets the injector delay or drop this fill (data never arrives).
-        if (chaosLsuF6Notify) chaosLsuF6Notify(ChaOSLsuEvent::SqForward);
+        chaosLsuF6Observe(ChaOSLsuEvent::SqForward);
         blk = handleFill(pkt, blk, writebacks, allocate);
         assert(blk != nullptr);
         ppFill->notify(CacheAccessProbeArg(pkt, accessor));
@@ -668,7 +667,7 @@ BaseCache::recvTimingResp(PacketPtr pkt)
             // LSU W6 C14: MSHR busy/release corruption — the event hook
             // lets the injector decide whether to prevent this deallocation
             // (MSHR stays allocated = permanent stall for that block).
-            if (chaosLsuF6Notify) chaosLsuF6Notify(ChaOSLsuEvent::DirtyEviction);
+            chaosLsuF6Observe(ChaOSLsuEvent::DirtyEviction);
             mshrQueue.deallocate(mshr);
             if (was_full && !mshrQueue.isFull()) {
                 clearBlocked(Blocked_NoMSHRs);
@@ -1202,8 +1201,7 @@ BaseCache::satisfyRequest(PacketPtr pkt, CacheBlk *blk, bool, bool)
             // CAS/SWAP family) just committed against this block. The
             // non-atomic cmpAndSwap path below is a W8 refinement (its
             // match/miss verdict is internal to cmpAndSwap) — recorded.
-            if (chaosLsuF6Notify)
-                chaosLsuF6Notify(ChaOSLsuEvent::CasSuccess);
+            chaosLsuF6Observe(ChaOSLsuEvent::CasSuccess);
 
             // Inform of this block's data contents update
             if (ppDataUpdate->hasListeners()) {

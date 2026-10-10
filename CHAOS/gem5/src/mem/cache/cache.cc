@@ -965,8 +965,8 @@ Cache::evictBlock(CacheBlk *blk)
 {
     // LSU W2 F6 event source (09 §2.1 map): dirty eviction = DirtyBit set
     // (writebackClean-driven writebacks of clean lines do NOT count — W1 ④).
-    if (blk->isSet(CacheBlk::DirtyBit) && chaosLsuF6Notify)
-        chaosLsuF6Notify(ChaOSLsuEvent::DirtyEviction);
+    if (blk->isSet(CacheBlk::DirtyBit))
+        chaosLsuF6Observe(ChaOSLsuEvent::DirtyEviction);
 
     PacketPtr pkt = (blk->isSet(CacheBlk::DirtyBit) || writebackClean) ?
         writebackBlk(blk) : cleanEvictBlk(blk);

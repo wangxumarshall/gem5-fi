@@ -126,7 +126,7 @@ StoreSet::violation(Addr store_PC, Addr load_PC)
         // notify fires, XOR the new SSID with a random small value. This
         // merges two unrelated store sets (false aliasing) or splits a
         // real one, corrupting memory dependence prediction.
-        if (chaosLsuF6Notify) chaosLsuF6Notify(ChaOSLsuEvent::SqForward);
+        chaosLsuF6Observe(ChaOSLsuEvent::SqForward);
 
         assert(new_set < LFSTSize);
 

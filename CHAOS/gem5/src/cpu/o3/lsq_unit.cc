@@ -1554,8 +1554,7 @@ LSQUnit::read(LSQRequest *request, ssize_t load_idx)
                 // LSU W2 F6 event source (09 §2.1 map): a store-to-load
                 // forward just happened. Single-consumer notify; the F6
                 // injector (if any) decides whether to fire at this event.
-                if (chaosLsuF6Notify)
-                    chaosLsuF6Notify(ChaOSLsuEvent::SqForward);
+                chaosLsuF6Observe(ChaOSLsuEvent::SqForward);
 
                 DPRINTF(LSQUnit, "Forwarding from store idx %i to load to "
                         "addr %#x\n", store_it._idx,

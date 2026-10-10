@@ -171,8 +171,8 @@ TLB::lookup(Lookup lookup_data)
 
     // LSU W2 F6 event source (09 §2.1 map): TLB hit. FS-only by construction
     // — SE translates via translateSe and never reaches TLB::lookup.
-    if (retval && chaosLsuF6Notify) {
-        chaosLsuF6Notify(ChaOSLsuEvent::TlbHit);
+    if (retval) {
+        chaosLsuF6Observe(ChaOSLsuEvent::TlbHit);
     }
 
     DPRINTF(TLBVerbose, "Lookup %#x, asn %#x -> %s vmn 0x%x ss %s "
