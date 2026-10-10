@@ -11,23 +11,23 @@
 
 - **Current Phase:** P3（前三单元连续 pilot 波次，用户指令 2026-09-29 晚）
 - **Phase Status:** IN_PROGRESS
-- **Overall Status:** IN_PROGRESS（事故恢复中，见 F-023）
-- **Started:** 2026-09-29 11:22 (Session 001)
-- **Last Updated:** 2026-09-30 16:20（**F-022 引擎升级交付，波次 4 以 4 并发运行**：①Patch A 守卫 4 槽位（commit 7a61df86）+ Patch B 引擎并行/resume/census 持久化（f2af9fe8）已推送——全部经 tools/draft/ 隔离开发 + 隔离测试（T1-T6/B-T1..T4 全 PASS，evidence/P3/f022_patch_{a,b}_test.txt）+ 停波次一次性切换（波次 3 于 16:0x 停止，在飞 s19 独立跑完自释放）；②波次 4（WAVE4 bash PID/PGID 360275，--workers 4）16:10 启动：**"resume: 75 valid samples reused"**（F-023 前 ITEM-009 s0-s74 全部保留）+ 4 槽并行（s75-s78）+ 4 gem5 进程 + MemAvailable 26.9 GiB；③cmd_run 进程内化重构根除 F-023 两事故面。G0-10 已按 4 槽口径复验 PASS（findings F-024））
-- **Current Owner:** 服务器执行 AI（Claude，主协调 AI；前会话于 15:06 guard 还原后终止，本会话 15:07 起接管）
-- **Current Checklist Item:** AGU ITEM-009（A02-F2-W3，有效 s0–s75=76 runs 全 act=0，未达终态）及其后 ITEM-010..025 全部因 F-023 污染需重跑；ITEM-001..008 有效（5 COMPLETE + 3 真实 BLOCKED）
-- **Current RunID:** A02-F2-W3（中断于 s75；s76–s299 为无效空转）
-- **Excel Location:** 7.展开执行矩阵!A2:AQ10（行 2–10 对应 ITEM-001..008 已闭合；行 11 起 ITEM-009 待续跑）
+- **Overall Status:** IN_PROGRESS（DR-003 裁决 A：旧机续跑 + 并发 4；波次 5 运行中；集群 Session 002 平台工程（U3b 二进制身份恢复），遵守 DR-003-A 不跑波次；F-025/F-027 已合并）
+- **Started:** Session 001 2026-09-29 11:22（旧机）；Session 002 2026-09-30 16:43（集群 cn23423，持续运行——10-07/08 E-005 中断期转 Windows 取证，10-08 10:40 恢复直连）；Session 003 2026-10-08 09:49（旧机恢复）
+- **Last Updated:** 2026-10-08 20:09（**A08 F0 档双负载闭合**：ITEM-034（A08-F0-W3）COMPLETE 33/33——Masked 25 + SDC 3（可分析 85%，AGU F0 档最高）；ITEM-035（A08-F0-W5）COMPLETE 33/33——Masked 27 纯 Masked（同 A06-F0-W5 模式）；**ITEM-036（A08-F2-W3）运行中**（act=0 预期 BLOCKED）——AGU 仅剩 4 项（F2×2 + F6×2）；gate ok:false 持续零新增（波次 5 累计 3780+ run）。前记：**A06 系列整体闭合 6/6**：ITEM-026/027（A06-F6-W3/W5）COMPLETE 33/33 全 sim_fail——F0×2 真实五类 + F2×2 BLOCKED + F6×2 全 sim_fail，与 A04/A05 同构三档模式；**A07 六项 admission BLOCKED 秒过（缺口模型 R4）**；**ITEM-034（A08-F0-W3）运行中**——A08 开张即见 SDC（s8，Masked/SDC/sim_assert 混合）；AGU 五系列闭合（A01/A02/A04/A05/A06），仅剩 A08 系列；gate ok:false 持续零新增（波次 5 累计 3700+ run）。前记：**ITEM-025（A06-F2-W5，sq_forward，F-023 重跑项之二）BLOCKED 300/0**——F-020 模式第 9 例，守恒 OK，**F-023 污染重跑范围（AGU 侧）全部闭合**；**ITEM-026（A06-F6-W3）运行中**——F6 激活档（act=1 simulator_assert），预期同 A04/A05-F6 全 sim_fail 模式；gate ok:false 持续零新增（波次 5 累计 3620+ run）；4 槽并行 MemAvail 26.03 GiB。前记：**ITEM-024（A06-F2-W3，F-023 重跑项）BLOCKED 300/0**——F-020 模式第 8 例，守恒 OK；**ITEM-025（A06-F2-W5，sq_forward，F-023 重跑项之二）运行中**（act=0 起步预期 BLOCKED，sq_forward 流长 555 << F2 间隔）；gate ok:false 持续零新增（波次 5 累计 3300+ run）；4 槽并行 MemAvail ~26.1 GiB。前记：**ITEM-023（A06-F0-W5，sq_forward）COMPLETE 33/33：Masked 19 + simfail 14**——A06 F0 档 W5 纯 Masked+sim_fail（可分析 58%，无 SDC/Crash，与 W3 的 M15+SDC1+C1 形成负载对比）；**ITEM-024（A06-F2-W3）运行中**——F-023 污染重跑项（原空转数据已隔离），act=0 起步预期 BLOCKED；gate ok:false 持续零新增（波次 5 累计 2850+ run）。前记：**ITEM-021（A05-F6-W3）COMPLETE 33/33 全 sim_fail——A05 系列整体闭合 3/3**（F0 真实五类/F2 BLOCKED/F6 全 sim_fail，与 A04 同构三档模式）；**ITEM-022（A06-F0-W3）COMPLETE 33/33：Masked 15 + SDC 1 + Crash 1**（A06 开张即真实五类，可分析 52%）；ITEM-023（A06-F0-W5，sq_forward）运行中激活；gate ok:false 持续零新增（波次 5 累计 2750+ run）；blocked=0。前记：**ITEM-020（A05-F2-W3）BLOCKED 300/0**——F-020 模式第 7 例，守恒 OK；**ITEM-021（A05-F6-W3）运行中**（act=1 simulator_assert，预期同 A04-F6 全 sim_fail 模式）；上轮 blocked=1 复查已消失（瞬时 I/O 确认）；gate ok:false 持续零新增（波次 5 累计 2650+ run）。前记：**两处报告更正 + 隔离迁移启动（用户指令，F-038）**：①task_plan 当前 P5 已是新版固定扩样规则（21 项名单已在全局实验口径冻结 + D-2026-10-08-采样）——上轮"待预登记"表述作废；②lsu_campaign.py 迁移在 tools/draft/ 隔离进行（MIGRATION_DESIGN.md：11 修改点 + 10 测试 + 6 应用条件），波次 5 运行期间不碰正式文件；波次 5 继续 4 并发（实时 s143+）。前记：**并发规则纠偏与采样政策迁移（用户指令）**：①当前并发硬上限再确认为 **4**（F-022 2026-09-30 批准覆盖总方针早期"画像后 2"通用规则；F-037）——波次 5 不中断不降级；②采样政策冻结：30 pilot（配置全不变计入累计）→ 全 RunID ≥385 → 仅 21 个重点 RunID 至 2401；删除 holdout/5000/n=500 检查点/半宽停止等序贯规则；Wilson 95%；eligible 分母口径确立；③静态文档已纠偏（总方针 §8.1/§8.5、findings 顶部、提示语并发节、本文件 P3=IN_PROGRESS）；④P4/P5 冻结前不启动；⑤实时核查：ITEM-020 s123、--workers 4、4 槽全占、MemAvail 26.23 GiB、gate/WARNING/TRIP 零新增。前记：**ITEM-018 COMPLETE + ITEM-019 COMPLETE（F-035）：A04 系列 6/6 整体闭合**（W3/W0 × F0/F2/F6 对称全谱）；**ITEM-019（A05-F0-W3）开张即真实五类**（M23+SDC3，79% 可分析；F-023 污染 census 重做成功）；ITEM-020（A05-F2-W3）运行中；gate ok:false 持续零新增（波次 5 累计 1850+ run）。前记：**ITEM-017（A04-F6-W3）COMPLETE 33/33 全 sim_fail**（F-034：F0/F2/F6 三档结局结构全谱——注入位置分布决定可分析性）；ITEM-018（A04-F6-W0）运行中（同模式）；gate ok:false 持续零新增（波次 5 累计 1700+ run）。前记：**ITEM-016（A04-F2-W0）BLOCKED 300/0**——F-020 模式第 6 例，守恒 OK；**ITEM-017（A04-F6-W3）运行中**（F6 确定性路径档，激活中 act=1，激活后 simulator_assert）；gate ok:false 持续零新增（波次 5 累计 1600+ run）；4 槽并行 MemAvail ~26.5 GiB。前记：**ITEM-015（A04-F2-W3）BLOCKED 300/0**——F-020 模式第 5 例（F2 短流结构性不可激活），守恒 OK；**ITEM-016（A04-F2-W0，mini_check）运行中**（act=0 起步，同预期）；gate ok:false 持续零新增（波次 5 累计 1100+ run）；4 槽并行 MemAvail 26.43 GiB。前记：ITEM-013/014（A04-F0-W3/W0）双双 COMPLETE：首批真实五类结局**（F-033）——ITEM-013 Masked 21+SDC 5+首个真实 Crash 1、ITEM-014 Masked 22+SDC 8（率 26.7%）；A01/A02/A04 可分析性梯度 0%→13%→85%+ 建立；ITEM-015（A04-F2-W3）运行中；gate ok:false 持续零新增（波次 5 已 500+ run）。前记：ITEM-010（A02-F2-W9）COMPLETE：33/33 activated 全 sim_fail 零可分析结局**（F-032，A01/A02 子模型对比数据点）；**ITEM-013（A04-F0-W3）运行中**（激活 + 真实架构级结局 Masked/Crash 混合，F-023 隔离的无效 census 已被正确重做）；gate ok:false 持续零新增；ITEM-009 已闭合 BLOCKED 300/0（F-031，resume 115 复用实战验证））
+- **Excel Location:** 7.展开执行矩阵!A37（行 11-36 已闭合或 BLOCKED；行 37 = ITEM-036 运行中）
+- **Current Owner:** 服务器执行 AI（Claude，主协调 AI；Session 003 旧机 localhost0101——波次 5 运行中；Session 002 集群 cn23423 keeper 1773102——平台工程（U3b CP4 重建编译中 → U3 → U6），不跑波次）
+- **Current Checklist Item:** AGU ITEM-036（A08-F2-W3）运行中（F2 短流预期 BLOCKED）；已闭合：A01/A02/A04/A05/A06 五系列 + A08-F0×2；其后 ITEM-037..039（F2×1 + F6×2）→ AGU 单元闭合 → L1d-TLB → Load Queue（ITEM-274 resume 96）
+- **Current RunID:** A08-F2-W3（ITEM-036 运行中；A08-F0 双负载已闭合）
 - **Current Experiment Stage:** pilot（正式，30 activated/ITEM，attempted 上限 300）
-- **Resource Safety State:** NORMAL（波次已停止，实验锁空闲，无重任务）
+- **Resource Safety State:** NORMAL（旧机无重任务、锁目录无锁文件；集群侧 idle 无实验/编译任务（DR-003-A）——keeper 1773102 存活（11:09 djob 复核 RUNNING，10-10 16:43 到期，续期待办））
 - **Build Concurrency Limit:** 8（同一时刻最多一个编译任务，经 lsu_guard 强制）
-- **Experiment Concurrency Limit:** 4（硬上限；2026-09-30 14:30 用户指令。**注意：F-022 要求的 4 槽位引擎升级未落地**——前会话 14:37 实施中途放弃（guard 语法损坏 28 分钟），tools/ 已还原=HEAD 单实例版本；升级列为本会话待办，隔离开发验证后切换）
-- **Active Heavy Task:** P3 pilot 波次 4（F-022 升级版引擎 --workers 4；bash 链串行 AGU→L1d-TLB→Load Queue；AGU 自 ITEM-009 s75 起 4 并发续跑，75 个有效样本已 resume）
-- **Active PID/PGID:** 360275（bash 链，WAVE4）/ 360277（AGU unit_pilot）/ 每 run 独立 guard 槽位进程（experiment_slot_{0..3}）
-- **Resource Lock:** 4 槽位 experiment_slot_{0..3}.lock，逐 run 获取/精确释放（--slot+--confirm-pid），60s 采样到各 ITEM-XXX_sN_rsrc.log
-- **Resource Log:** runs/lsu/guard/guard_events.log（14:36:37 最后正常 acquire 后中断；重启后继续）
-- **Latest MemAvailable / SwapFree / Load:** 28.5 GiB / 16.3 GiB / 1.97，blocked=0（2026-09-30 15:22 采样，无 WARNING/TRIP）
-- **Next Step:** ①隔离 F-023 污染数据到 quarantine_20260930_guard_outage/ 并修正 unit_status.json；②lsu_unit_pilot.py fail-fast 加固（guard 失败≠样本）+定向验证；③commit+push 后重启波次（AGU 断点续跑→L1d-TLB→Load Queue）；④F-022 4 并发引擎升级（隔离开发）。
+- **Experiment Concurrency Limit:** 4（硬上限；2026-09-30 14:30 用户指令；F-022 Patch A/B + F-025 guard_pid + F-027 swap_na 均已合并）
+- **Active Heavy Task:** P3 pilot 波次 5（DR-003 裁决 A：旧机续跑；bash 链串行 AGU→L1d-TLB→Load Queue，--workers 4；AGU 自 ITEM-009 s115 续跑，115 个有效样本已 resume）
+- **Active PID/PGID:** 654696（bash 链，WAVE5）/ 654698（AGU unit_pilot）/ 每 run 独立 guard 槽位进程
+- **Resource Lock:** 4 槽位 experiment_slot_{0..3}.lock 逐 run 获取/精确释放（guard_pid 确认）
+- **Resource Log:** runs/lsu/guard/guard_events.log（波次 5 运行中；gate ok:false 基线 5 次，10:51 复核零新增）
+- **Latest MemAvailable / SwapFree / Load:** 28.1 GiB / 16.3 GiB / 0.21，blocked=0（2026-10-08 09:5x 旧机采样，无 WARNING/TRIP；集群 cn23423 参考：526 GiB / 无 swap / 608 核，Session 002 17:47 采样）
+- **Next Step:** 波次 5 已启动并验证通过（10:49 WAVE5 bash 654696：**"resume: 115 valid samples reused"** + 4 槽并行 s123-s126 + MemAvailable 26.3 GiB + **gate ok:false 零新增（F-025 修复实机生效，12 run/3 轮槽位轮转无误报）**）。周期监控已设置（会话内 cron，每 23 分钟：进程/推进/槽位/资源/gate 失败核查）。唯一下一动作：按监控周期推进 AGU（当前 ITEM-020）→ ITEM-021..039 → L1d-TLB → Load Queue（ITEM-274 resume 96 样本）。**新增并行工作流（DR-001 裁决 D+A，2026-10-08）**：W1 MiBench + W13 PARSEC 负载补建（探路→获取→aarch64 静态交叉编译→golden×3→负载注册→W1/W13 ITEM 准入解锁），不阻塞波次 5。
 
 ## Git 状态
 
@@ -43,7 +43,7 @@
 | P0 环境与资产预检 | COMPLETE | 2026-09-29 11:22 | 2026-09-29 15:25 | evidence/P0/（verify_checklist.out、xlsx_param_baseline.out、guard_verify.out、g0_04_g0_05_check.md、rebuild_attempt2.log） |
 | P1 环境/注入器/观测链 | PENDING | | | |
 | P2 负载/golden/冒烟 | PENDING | | | |
-| P3 全矩阵 Pilot | PENDING | | | |
+| P3 全矩阵 Pilot | IN_PROGRESS | 2026-09-29 19:04（首个正式样本） | | runs/lsu/pilot/{AGU,Load_Queue}/（unit_status.json + result.json + 样本目录）；波次 5 运行中 |
 | P4 正式筛查 | PENDING | | | |
 | P5 主结果扩样 | PENDING | | | |
 | P6 单因素敏感性 | PENDING | | | |
@@ -77,7 +77,42 @@
 | Screening | 325 | 0 | 0 | 0 | 0 | 0 | 325 |
 | Confirmatory/Sensitivity/Reproduction | 0 | 0 | 0 | 0 | 0 | 325 | 325 |
 
-AGU pilot 细分（39 ITEM）：ELIGIBLE 28 / admission BLOCKED 11（ITEM-011/012 DR-002、ITEM-028..033 A07 缺口等）；已闭合有效终态 8（5 COMPLETE + 3 BLOCKED）；ITEM-009 部分完成（76/300 有效）；ITEM-010/013..025 因 F-023 待重跑；ITEM-026..039 未开始。
+AGU pilot 细分（39 ITEM）：ELIGIBLE 28 / admission BLOCKED 11（ITEM-011/012 DR-002、ITEM-028..033 A07 缺口等）；已闭合有效终态 8（5 COMPLETE + 3 BLOCKED）；ITEM-009 集群重跑中（自 s0；旧机 76/300 有效现场丢失）；ITEM-010/013..025 因 F-023 污染待重跑；ITEM-026..039 未开始。
+
+
+### Session 002（2026-09-30 16:43 起，集群 cn23423 / keeper 1773102）
+
+- **背景：** 用户 /goal 十天长任务（占最空闲节点、dattach 执行、按清单推进直至完成）。
+  正序从节点名最大值遍历：cn23423 为最大全空闲 OK 节点（q_Test 标签仅 cn23154 且被
+  1766034 占用；q_hpcapp -R cpu=608,mem=440000MB 排他 -T 864000）。
+- **16:43-17:30 完成：** ①gem5 兼容运行时（compat loader + sdc1→Windows→nscc 中继依赖库，
+  修复悬空链接/PYTHONHOME 布局/OpenSSL3/tcmalloc，F-026）双端冒烟 PASS；②工具 py_compile
+  全过（Python 3.9.9）；③guard status 节点运行正常；④发现全集群节点无 swap 门禁阻断
+  （F-027）与 pilot 状态未迁移（F-028）；⑤引擎升级计划落盘
+  docs/superpowers/plans/2026-09-30-lsu-cluster-engine-upgrade.md。
+- **17:30-18:05 完成：** U1 swap_na（对当时单实例守卫）+ 双端验证 + 2 提交；推送时发现
+  origin 已有旧会话失联前交付的 F-022 引擎升级 4 提交（Patch A/B 完整实现 4 槽位/并行/
+  resume，evidence 齐全）→ 中继回集群 rebase 合并；U2/U4/U5 被其覆盖（计划改标
+  superseded），U1 需移植到 4 槽守卫，U3/U6 仍需实施。
+- **证据：** evidence/P3/u1_gate_{cn23423,login01}.out；/tmp/lsu_smoke_*（冒烟）；
+  docs/gem5-fi/lsu/evidence/P3/f022_patch_{a,b}_test.txt（旧会话）。
+- **错误/重试：** 中继 tar 悬空符号链接 3 例（补真实文件重传）；cn23423 缺
+  libtcmalloc_minimal.so.4（login01 拷入 compat）；export LD_LIBRARY_PATH 污染系统工具
+  （改用 loader --list 定向检查）。
+- **10-06/07（compaction 前后会话）完成：** ①U1 swap_na 移植到 4 槽守卫并节点验证
+  （d2b7e885，evidence/P3/u1port_4slot_swapna_cn23423.out 全 PASS）；②U3 LSU_GEM5_BIN
+  接线实现 + 验证（gem5_bin() + runner/unit_pilot 引用替换 + manifest gem5_invocation
+  字段；dry-run 切换与 sha/seed 稳定 + 真跑两遍法 census N=2767→s0 L5
+  Crash/simulator_assert EXEC_RC=0）——**未提交**：真跑发现集群二进制 63f50c40 ≠
+  记录结果 b64c808d（F-030）。
+- **2026-10-08 10:37（集群口径；Windows 中继时区 -0400 vs 集群 +0800，同瞬不同区，本地钟曾示 10-07 22:37；集群中断期 Windows 本地取证）：** login01（10.39.0.1）SSH/ping 中断
+  （E-005）→ 转本地取证：F-030 身份链闭合（src 树 6c336109 三方一致、lsu_proxy blob
+  4001eba1、agu_addrmodes 90a19003 均与 manifest 记录吻合；b64c808d 在 Windows 全盘与
+  sdc1-01-02 无副本）；计划新增 U3b（二进制身份恢复：集群搜索→工具链核查→守卫 -j8
+  重建→census 2772 + det 语义连续性验证）。
+- **2026-10-08 11:09（恢复后复核）：** keeper 1773102 RUNNING（djob，cn23423 未丢）；集群树 d2b7e885 + 未提交 U3 编辑完好；旧机访问：候选 172.168.177.97 SSH 存活但全部可用密钥 Permission denied（sdc@/root@ × 0102 键与 Windows 中继键）——不猜测口令，放弃该路径；origin c2dbee1d：**DR-003 已由用户裁决 A**（旧机续跑 + 并发 4 + 集群侧 idle）→ Session 002 遵守裁决：集群不跑波次，仅平台工程。
+- **2026-10-08 11:41-11:47（U3b CP4 重建）：** CP1-CP3 收口（证据 evidence/P3/u3b_cp1_*.out、u3b_oldmachine_build_config.tar.gz——旧机配置物证 HAVE_PROTOBUF=1/HAVE_PNG=0）；CP4 attempt 1 因悬空符号链接失败（E-006），attempt 2 于 11:42 经守卫启动（bash 3323552 → scons 3323664，-j8 单编译任务，login01 gcc 10.3.1（低于 v25.1 支持范围 11-14.2，warning 非致命）、python 3.9.9、HAVE_PROTOBUF 预期 0（login01 无 protoc，与记录平台差异显式记录）、无 tcmalloc（仅性能差异）——配置差异由 CP5/CP6 行为等效把关）。
+- **唯一下一动作：** 等 CP4 编译结果 →（成功）banner/sha256/原生冒烟 + CP5 census eligible==2772 两遍法 + CP6 A01-F0-W3 det 语义双跑比对 → U3 提交 → U6；（编译失败）评估 /opt/compiler/BiShengCompiler-3.1.0（clang 族）或回 sdc1-01-02 场地（等 opendcdiag campaign 结束且 SwapFree≥4 GiB）/提 Decision Request。keeper 续期（10-10 16:43 到期前）。波次 5 由 Session 003 旧机执行，集群不双跑（DR-003-A）。
 
 ## Test and Gate Results
 
@@ -113,6 +148,8 @@ AGU pilot 细分（39 ITEM）：ELIGIBLE 28 / admission BLOCKED 11（ITEM-011/01
 | E-002 | 2026-09-29 11:40 | lsu_proxy.py 冒烟 | ImportError: cannot import name 'CHAOSPrefetch' from 'm5.objects'（gem5.opt 09-25 构建，早于 LSU 注入器源码提交 46e912b5 09-26） | 2 | 根因=二进制过期 → 守卫 -j8 重建（E-003 处置）后复测 | RESOLVED（2026-09-29 15:41：重建成功后冒烟 exit 0，"Hello, AArch64 CHAOS!"，CHAOSPrefetch 导入正常；evidence/P1/smoke_hello.out） | /tmp/p0_smoke_hello（失败）；evidence/P1/smoke_hello.out（成功） |
 | E-003 | 2026-09-29 11:48 起 | gem5 构建 | scons -j126：多个 cc1plus 被 SIGKILL、6 个 .py.pyo 目标 Error 1；findings.md 记载该事故曾致服务器内存 94%+swap 耗尽并重启 | 2 | 违反总方针 §8.1（-j8 硬上限）；第 3 次尝试必须 -j8 单实例+锁+60秒监控 | BLOCKED on G0-10：守卫验证通过后以 -j8 重启构建 | evidence/P0/rebuild_attempt2.log（331 行，6 个 scons error） |
 | E-004 | 2026-09-30 14:37–15:26 | AGU pilot 波次 | F-023 守卫中断事故：guard 进程死亡未 release（陈旧锁）+ guard.py 被编辑为语法损坏 28 分钟 + 引擎忽略 guard 失败 → 约 2,670 个空转 run 被记为 attempted、9 个无效 result.json、5 个无效 census | 1 | 15:26 有序 TERM 波次链（bash 81524/unit_pilot 81526）；15:33 clear-stale 陈旧锁 | 处置中：污染数据隔离 quarantine_20260930_guard_outage/ → 引擎 fail-fast 加固 → 重启波次断点续跑（详见 findings F-023 与会话任务清单） | findings.md F-023；ITEM-009_s100/021_s0/018_s271_guard.out；guard_events.log |
+| E-005 | 2026-10-08 10:40:48 恢复（集群口径；起始未知——发现前已中断；Windows 中继时区 -0400 vs 集群 +0800，同瞬不同区） | 集群接入 | login01（10.39.0.1）SSH/TCP 22 与 ping 均不通；tracert 第 3 跳 10.39.1.1 后无响应；Windows 中继、sdc1-01-02、github 均正常；Topsec SV-Connection VPN 适配器断开>14h，但中断前集群在同样断开状态下可达 → 判定集群侧故障，非本机侧；候选 10.39.0.2-6/10.39.0.11/10.39.1.2-3 端口 22 均不通 | 1 | 后台 30s 轮询 TCP 22（25 分钟一轮，到期重布）；中断期转 Windows 本地推进：F-029 取证、计划修订 U3b、文档更新与推送 | OPEN：恢复后核查 keeper job 1773102（cn23423）存续；若集群整体重启作业丢失，按目标规则重占最空闲节点（节点名最大→最小遍历） | Windows Test-NetConnection/tracert 输出；轮询任务 bbav582dx；会话工具记录 |
+| E-006 | 2026-10-08 11:41 | gem5 构建 | U3b CP4 attempt 1：scons Mkdir(CHAOS/gem5/build/ARM/gem5.build) ENOENT——rm -rf build/ARM 后 CHAOS/gem5/build/ARM 符号链接（→ ../../../build/ARM）悬空 | 1 | 修复：scons 前预建 mkdir -p build/ARM | RESOLVED（attempt 2 过配置进入编译） | runs/lsu/guard/u3b_cp4_build_login01.log；lsu_keeper/u3b_cp4_outer*.log |
 
 ## Periodic Update Template
 
@@ -133,3 +170,12 @@ MemAvailable / SwapFree / Load / blocked：
 唯一下一动作：
 证据路径：
 ```
+
+## 2026-10-08 采样政策迁移
+
+- **同步方式：** 保留服务器既有 P0–P3 状态、证据、错误、Decision Request 和正在运行的波次；只同步本地最新版静态文件，并在远端动态文件上合并新规则，未用本地模板覆盖服务器记录。
+- **生效规则：** 每个有效 RunID 先取得 30 个独立 activated pilot；若注入器、配置、workload、checkpoint 与 oracle 不变，可计入后续累计，否则作废重采。每个有效 RunID 固定累计至少 385；仅 `task_plan.md` 固定的 21 个重点 RunID 累计到 2401，且 2401 包含前 385。
+- **对当前 P3 的影响：** pilot 目标仍为 30，因此 ITEM-020 及波次 5 无需中断；已有合规样本全部保留。P4/P5 启动前必须按新版清单重新冻结 manifest、sample_index/seed 范围和目标样本数。
+- **统计口径：** 合法目标出现率=`eligible/attempted`，故障激活率=`activated/eligible`，条件结果率分母=`activated-post_activation_simulator_failure`；统一报告 Wilson 95% 置信区间，不按中途结果或区间半宽序贯停止。
+- **新文档基线：** 完整清单 SHA-256=`4232b0839e827a1cb1ab5a4ac4fa8096eca479457249054afddfb6dc9c460f8e`；XLSX SHA-256=`1af33366d61644feb9d2c080ff6a38664ecdb064f7091d57890d2e1fb0f13c18`。
+- **可比性说明：** 2026-10-08 前已经查看过 pilot 结果的重点组合属于“政策冻结前已有探索性信息”，不得宣称为完全事前预注册的独立确认性结果。
