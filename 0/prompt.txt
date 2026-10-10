@@ -1,0 +1,650 @@
+请准备 huawei0101 当前 LSU工作的集成就绪报告。
+
+要求：
+
+1. 继续完成当前正在执行的 LSU最小工作单元及其真实验证；不要扩展新任务。
+2. 不执行 git pull、git rebase、git reset、git push 或 force push。
+3. 不切换分支。
+4. 禁止 git add -A。
+5. 禁止暂存 build、artifacts、runs、m5out、实验输出和临时文件。
+6. 如有仍在运行的 campaign，等待当前安全单元完成后停止调度新任务。
+7. 可以按仓库规范在本地 fi-ding 创建已经验证的普通提交，但不要推送。
+
+完成后报告：
+
+- git status --short --branch
+- git rev-parse HEAD
+- git log --oneline origin/fi-ding..HEAD
+- git log --oneline HEAD..origin/fi-ding
+- 所有未提交的已跟踪文件
+- 所有与 LSU任务有关的未跟踪源码、配置和文档
+- 本地新增提交及每个提交修改的文件
+- 当前运行中的 gem5、campaign、cron、tmux或后台进程
+- 最新 LSU构建、功能验证和不受影响回归结果
+- 哪些 artifacts 是实验结果、不得提交
+- 是否已达到“可以由主协调助手处理同步和冲突”的状态
+
+不要自行解决与 origin/fi-ding 的分叉，也不要推送。报告完成后停止并等待。
+
+---
+
+请准备 huawei0101 当前 LSU工作的集成就绪报告。
+
+要求：
+
+1. 继续完成当前正在执行的 LSU最小工作单元及其真实验证；不要扩展新任务。
+2. 不执行 git pull、git rebase、git reset、git push 或 force push。
+3. 不切换分支。
+4. 禁止 git add -A。
+5. 禁止暂存 build、artifacts、runs、m5out、实验输出和临时文件。
+6. 如有仍在运行的 campaign，等待当前安全单元完成后停止调度新任务。
+7. 可以按仓库规范在本地 fi-ding 创建已经验证的普通提交，但不要推送。
+
+完成后报告：
+
+- git status --short --branch
+- git rev-parse HEAD
+- git log --oneline origin/fi-ding..HEAD
+- git log --oneline HEAD..origin/fi-ding
+- 所有未提交的已跟踪文件
+- 所有与 LSU任务有关的未跟踪源码、配置和文档
+- 本地新增提交及每个提交修改的文件
+- 当前运行中的 gem5、campaign、cron、tmux或后台进程
+- 最新 LSU构建、功能验证和不受影响回归结果
+- 哪些 artifacts 是实验结果、不得提交
+- 是否已达到“可以由主协调助手处理同步和冲突”的状态
+
+不要自行解决与 origin/fi-ding 的分叉，也不要推送。报告完成后停止并等待。
+
+---
+
+等任务做完你会自动汇报是吗
+
+---
+
+<task-notification>
+<task-id>b7soq6h2f</task-id>
+<tool-use-id>call_0b6a2a198052434895169266</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi-ding/f251d83f-ce2a-4d5b-851a-5d6937dd4ed6/tasks/b7soq6h2f.output</output-file>
+<status>completed</status>
+<summary>Background command "Interim check of W1 run in 2 hours" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bj5as110r</task-id>
+<tool-use-id>call_abb07d8590b6418fa5a810f6</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi-ding/f251d83f-ce2a-4d5b-851a-5d6937dd4ed6/tasks/bj5as110r.output</output-file>
+<status>completed</status>
+<summary>Background command "Next interim check of W1 run in 90 minutes" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+什么进度了
+
+---
+
+<task-notification>
+<task-id>bp62ldwt2</task-id>
+<tool-use-id>call_ce0aaa52e9244840bb75a54f</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi-ding/f251d83f-ce2a-4d5b-851a-5d6937dd4ed6/tasks/bp62ldwt2.output</output-file>
+<status>completed</status>
+<summary>Background command "Watch for W1 run completion marker" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bxmv5n7f8</task-id>
+<tool-use-id>call_c3c261579eba4ea8ac433a44</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi-ding/f251d83f-ce2a-4d5b-851a-5d6937dd4ed6/tasks/bxmv5n7f8.output</output-file>
+<status>completed</status>
+<summary>Background command "Interim check of attempt-4 in 2.5 hours" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b629pwh8g</task-id>
+<tool-use-id>call_62676c9c8dea48579d4a392f</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi-ding/f251d83f-ce2a-4d5b-851a-5d6937dd4ed6/tasks/b629pwh8g.output</output-file>
+<status>completed</status>
+<summary>Background command "Interim check A4-2 of attempt-4 in 2.5 hours" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bl4wrtqiw</task-id>
+<tool-use-id>call_b2036f8b0565460984a52d70</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi-ding/f251d83f-ce2a-4d5b-851a-5d6937dd4ed6/tasks/bl4wrtqiw.output</output-file>
+<status>completed</status>
+<summary>Background command "Watch for W1 attempt-4 completion marker" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+所以哪些blocked是否都解决了？
+
+---
+
+所以哪些blocked是否都解决了？
+
+---
+
+保持当前集成就绪状态，不再启动golden #2/#3或新campaign。
+
+禁止：
+- pull、fetch、merge、rebase、push；
+- 修改、提交或清理当前9个已跟踪脏文件；
+- 删除任何未跟踪文件、runs、artifacts或/tmp证据；
+- 切换当前工作区历史。
+
+主协调助手将使用独立的干净临时克隆整合你的23个LSU提交。
+当前工作区只作为源和证据保留。
+
+---
+
+第一次LSU集成和fi-ding推送完成后，继续负责LSU轨道。
+
+核心目标：
+解决现有多个LSU单元“300 attempts / 0 activated / BLOCKED”的系统性问题，
+使这些单元产生真实、可审计的有效注入，然后重跑被阻塞的16项。
+
+不要简单增加attempt数量。300/0说明触发模型、事件供给、采样窗口、
+配置接线或观测链存在系统性问题，继续盲跑没有意义。
+
+一、开始前确认
+
+先确认主协调助手已完成：
+
+- 23个LSU提交已整合进最新fi-ding；
+- 远端push成功；
+- 当前0101工作目录已安全同步到该fi-ding；
+- 旧工作区的脏文件、draft、runs和证据均已备份；
+- git status和当前HEAD明确；
+- 不再存在未处理的历史冲突。
+
+若以上任一项未确认，不要自行pull/rebase/reset，立即停止报告。
+
+二、先完成W1 golden闭环
+
+当前只有W1 golden候选 #1。
+
+按仓库P2三次确定性要求继续：
+
+1. 运行golden #2；
+2. 运行golden #3；
+3. 三次均必须：
+   - 14/14 ok；
+   - EXIT_RC=0；
+   - 8个fnv1a64完全一致；
+   - 与原生all_A/all_B参考一致；
+   - 无guard TRIP；
+   - 无未实现syscall fatal；
+   - workload、gem5 binary、配置和环境身份一致。
+
+每次约7.5小时，禁止同时启动多个W1 golden。运行前检查资源和守卫锁。
+
+若三次结果完全一致：
+
+- 冻结W1 golden/oracle；
+- 注册W1 workload；
+- 完成runner/campaign/schema需要的最小接线；
+- 独立提交；
+- 运行一个最小无注入闭环确认分类器能读取W1 oracle。
+
+如果golden #2/#3不一致，停止，不得注册。
+
+三、建立BLOCKED清单
+
+从权威文档和结果中列出全部需要重跑的16项：
+
+ITEM ID
+单元
+故障模式
+workload
+原attempt数
+activated数
+BLOCKED原因
+injector
+trigger类型
+eligible事件定义
+first/last window
+sampling策略
+配置族
+原始commit SHA
+证据路径
+
+不要只复制“BLOCKED”标签；必须定位每项为什么是0 activated。
+
+四、按根因聚类
+
+将16项分成以下类别，不要逐项盲修：
+
+A. workload没有目标事件；
+B. 有事件，但trigger窗口错误；
+C. injector没有挂载或runner参数未传递；
+D. eligibility过滤条件过严或错误；
+E. sampling/skip范围超过真实事件数；
+F. firstClock/lastClock单位或基线错误；
+G. 事件发生但faults_injected统计/日志丢失；
+H. 注入后基础设施失败被错误归为Inactive；
+I. 其他，经证据说明。
+
+每一类必须给出：
+
+- 源码调用链；
+- config.ini实际参数；
+- count-only或事件密度证据；
+- 一条最小复现命令；
+- 根因置信度。
+
+五、先做count-only/dry-run
+
+对每类选择一个代表ITEM。
+
+在不注入的count-only/dry-run模式下统计：
+
+- 总 eligible事件数；
+- 首个/最后一个 eligible事件的tick；
+- 事件按ROI/phase分布；
+- 每个过滤条件剔除数量；
+- 目标结构占用或事件密度；
+- 预计可采样skip范围。
+
+如果现有注入器缺少count-only：
+
+- 先做最小观测补丁；
+- 不改变故障语义；
+- 观测补丁单独提交；
+- 提交标题使用 `[LSU][OBS]`；
+- 验证观测模式不会注入、不会改变golden。
+
+count-only为0时，不允许进入正式重跑。
+
+六、修复纪律
+
+优先修根因，不要靠以下方式伪造激活：
+
+- 无限扩大窗口；
+- 取消关键eligibility条件；
+- 把任意访存事件当目标事件；
+- 把faults_injected=0改记为1；
+- 将基础设施失败改分类为有效注入；
+- 反复增加attempt；
+- 改动golden迁就结果。
+
+若工作负载确实无目标事件：
+
+- 使用权威计划指定的W1；
+- 或按文档选择具有目标事件的替代负载；
+- 必须记录为什么旧负载无法覆盖该单元；
+- 不得悄悄更换workload。
+
+七、代表项准入门
+
+每个根因类别修复后，先对代表ITEM执行：
+
+1. count-only > 0；
+2. 小样本n=5，至少有真实注入；
+3. pilot n=30；
+4. 30个调度有明确分类；
+5. activated达到文档准入标准；
+6. faults_injected符合F0/F1/F2/F6定义；
+7. 无unknown；
+8. 至少一个样本可确定性重放；
+9. golden和不受影响回归通过。
+
+代表项未通过，不得批量重跑同类其他ITEM。
+
+八、重跑16项
+
+代表根因修复并通过后，按类别逐批重跑：
+
+- gem5总并发≤4；
+- campaign期间编译≤-j8；
+- 每批开始前检查MemAvailable、SwapFree、load和锁；
+- 每个实验记录commit SHA、binary SHA、workload SHA和manifest；
+- Inactive不得计入有效样本；
+- 先pilot，再按计划晋级formal；
+- 一类失败不阻塞其他已验证类别。
+
+九、Git纪律
+
+继续使用本地fi-ding，但在下一集成窗口前：
+
+- 可以本地提交；
+- 不得自行push；
+- 不得pull/rebase/merge；
+- 禁止git add -A、git add .和git commit -a；
+- 每个根因修复一个提交；
+- 观测补丁、工具接线、workload注册分别独立提交；
+- artifacts、runs、build和/tmp不得提交。
+
+十、阶段汇报点
+
+出现以下任一条件时汇报：
+
+- W1三次golden闭环完成；
+- 某个BLOCKED根因被实证定位；
+- 首个代表项从300/0变成有效pilot；
+- 发现设计上不可激活的模型；
+- 必须修改与OOO共享的runner/campaign/classify/schema；
+- 资源异常；
+- 需要Git同步。
+
+否则持续推进，不要每完成一条命令就停。
+
+---
+
+主协调确认：
+
+1. GitHub fi-ding 已通过普通快进推送，从 142c2a40 更新到：
+
+778592aa132efc70155216a4e3b4b79e7d14ed13
+
+2. 现在授权你执行一次：
+
+git fetch origin fi-ding
+
+仍然禁止：
+
+- git pull
+- git rebase
+- git merge
+- git reset
+- git clean
+- git push
+
+fetch 后必须确认：
+
+origin/fi-ding = 778592aa132efc70155216a4e3b4b79e7d14ed13
+
+如果不一致，立即停止报告，不得继续同步。
+
+一、同步前完整备份
+
+先检查磁盘空间，然后在仓库外创建带时间戳的可恢复备份目录。
+
+备份必须包括：
+
+- 当前 b34a407c 的 Git bundle；
+- 指向 b34a407c 的安全分支；
+- git status 完整输出；
+- git diff --binary --full-index；
+- 已跟踪脏文件清单；
+- 9 个已跟踪脏文件的完整副本；
+- 所有备份文件的 SHA-256；
+- .planning；
+- tools/draft；
+- runs/lsu；
+- artifacts；
+- W1 attempt-2、attempt-3、attempt-4 的输出和事故现场；
+- W1 完成标记；
+- 相关 /tmp 证据；
+- 备份内容清单和 SHA-256 manifest。
+
+备份完成后必须验证：
+
+- 备份目录位于仓库外；
+- 关键文件可以读取；
+- manifest 中的 SHA-256 可重新计算并一致；
+- 原 runs、artifacts 和 /tmp 证据没有被删除或移动。
+
+如果磁盘空间不足，立即停止，不得删除任何现有文件腾空间。
+
+二、重要冲突说明
+
+主协调已经离线比较 b34a407c 和新 fi-ding。
+
+新 fi-ding 会删除旧的：
+
+- docs/gem5-fi/ooo/* 文件集；
+- tools/draft/lsu_campaign_v2.py。
+
+因此，旧工作区的脏状态不能在同步后整体自动回放。
+
+禁止在同步后直接执行：
+
+git stash pop
+git stash apply
+
+否则可能重新引入0101和0201之间已经处理过的冲突。
+
+旧脏文件、OOO文件和draft只保存在：
+
+- 仓库外备份；
+- Git stash；
+- 安全分支或bundle。
+
+后续确实需要 tools/draft/lsu_campaign_v2.py 时，只能按具体LSU任务从备份中单独恢复、审查并独立提交，不得整体恢复旧OOO文件。
+
+三、安全同步流程
+
+在所有备份验证通过后执行：
+
+1. 创建指向当前 b34a407c 的安全分支，例如：
+
+backup/fi-ding-pre-sync-b34a
+
+2. 仅stash已跟踪修改。
+
+不得使用 -u 或 --include-untracked。
+
+不得把 runs、artifacts、build、.planning 或 /tmp 内容放入stash。
+
+3. 保留stash，不得删除。
+
+记录完整stash编号和stash commit SHA。
+
+4. 切换到 origin/fi-ding 的 detached HEAD。
+
+5. 将本地 fi-ding 分支指向 origin/fi-ding。
+
+6. 切回本地 fi-ding。
+
+7. 不自动恢复stash。
+
+8. 如果任何切换命令提示会覆盖未跟踪文件，立即停止。
+
+禁止使用：
+
+- -f
+- git clean
+- 删除冲突文件
+- 移动或覆盖runs/artifacts
+- reset --hard
+
+四、同步后验收
+
+同步完成后逐项确认：
+
+- 当前分支为 fi-ding；
+- HEAD 为 778592aa132efc70155216a4e3b4b79e7d14ed13；
+- origin/fi-ding 为 778592aa132efc70155216a4e3b4b79e7d14ed13；
+- HEAD 与 origin/fi-ding 的 ahead/behind 为 0/0；
+- git ls-files -u 无输出；
+- 已跟踪工作树干净；
+- 不存在未处理的merge/rebase/cherry-pick状态；
+- backup/fi-ding-pre-sync-b34a 存在并指向 b34a407c；
+- Git stash仍存在；
+- 仓库外备份存在且SHA-256复验通过；
+- runs/lsu仍在；
+- artifacts仍在；
+- .planning仍在；
+- /tmp中的W1证据仍在；
+- 四个guard槽均空闲；
+- 无gem5、guard、campaign遗留运行进程。
+
+任何一项不通过都立即停止并报告，不得启动W1。
+
+五、继续LSU任务
+
+以上验收全部通过后，在progress.md和findings.md中记录：
+
+- 同步前HEAD；
+- 同步后HEAD；
+- origin/fi-ding SHA；
+- 备份目录；
+- 备份manifest SHA-256；
+- safety branch；
+- stash编号和stash commit SHA；
+- runs/artifacts/.planning和/tmp证据复核结果；
+- 同步期间是否出现冲突；
+- 唯一下一动作。
+
+随后直接继续原任务中的W1 golden闭环：
+
+1. 串行运行golden #2；
+2. golden #2完全通过后再运行golden #3；
+3. 禁止同时运行多个W1 golden；
+4. 每次启动前检查资源、守卫锁和环境身份；
+5. 若golden #2或#3与候选#1不一致，立即停止，不得注册W1；
+6. 三次完全一致后，冻结W1 golden/oracle、注册W1 workload，并运行最小无注入分类闭环。
+
+同步完成且验收通过后无需再次等待确认，持续推进到原提示词规定的阶段汇报点。
+
+---
+
+<task-notification>
+<task-id>b6rrd62kj</task-id>
+<tool-use-id>call_3e71be235be643e49274151d</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi-ding/f251d83f-ce2a-4d5b-851a-5d6937dd4ed6/tasks/b6rrd62kj.output</output-file>
+<status>completed</status>
+<summary>Background command "Interim check of golden #2 in 2.5 hours" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b7frd7vwz</task-id>
+<tool-use-id>call_ccb94a89169940bb881d465e</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi-ding/f251d83f-ce2a-4d5b-851a-5d6937dd4ed6/tasks/b7frd7vwz.output</output-file>
+<status>completed</status>
+<summary>Background command "Interim check 2 of golden #2 in 2.5 hours" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+当前0101资源充足，可以使用subagent并行推进分析工作，但必须保持一个唯一实验调度负责人。
+
+核心纪律：
+
+1. W1 golden #2和#3继续严格串行：
+   - 禁止同时启动；
+   - 禁止改变workload、binary、配置、环境和资源守卫；
+   - 每次必须完成14/14、EXIT_RC=0、8个fnv1a64一致等既定判据；
+   - 不得为了提高CPU利用率破坏P2三次确定性要求。
+
+2. 允许建立最多3个subagent，但职责必须分离：
+
+   Subagent A：BLOCKED证据审计
+   - 只读梳理16项300/0；
+   - 建立ITEM清单；
+   - 从结果、日志、config.ini和权威文档定位0 activated原因；
+   - 不启动gem5、不修改文件、不提交。
+
+   Subagent B：源码与接线审计
+   - 只读检查injector、trigger、eligibility、runner、campaign、classifier调用链；
+   - 标出参数未传递、窗口单位、skip范围、统计丢失等嫌疑；
+   - 给出最小复现和建议观测点；
+   - 不直接修改共享代码。
+
+   Subagent C：count-only设计与结果处理
+   - 设计各根因类别的count-only/dry-run方案；
+   - 准备事件计数、first/last tick、过滤条件剔除量等输出格式；
+   - 可离线解析已有日志和结果；
+   - golden #2/#3完成前，不得擅自启动正式注入。
+
+3. 主agent是唯一调度者：
+   - 只有主agent可以启动/停止gem5、campaign和编译；
+   - subagent不得自行启动后台任务；
+   - 所有建议先汇总给主agent，避免重复运行和端口/锁冲突。
+
+4. 资源利用策略：
+   - golden运行期间可以并行进行只读分析、日志解析和文档整理；
+   - 若这些分析需要运行轻量脚本，必须确认不会修改runs/artifacts和golden现场；
+   - 编译不得与golden关键阶段争用资源；
+   - 禁止同时运行第二个W1 golden。
+
+5. Git纪律保持不变：
+   - 不得push、pull、merge、rebase、reset、clean；
+   - 不得git add -A、git add .、git commit -a；
+   - 不触碰已备份的脏文件、runs、artifacts和/tmp证据；
+   - 需要改共享runner/campaign/classify/schema时先汇报。
+
+现在立即执行：
+- 保持当前golden调度不变；
+- 创建并协调上述只读subagent；
+- 在等待golden的时间内完成16项BLOCKED初步清单和根因聚类；
+- 不要因为subagent分析结束而中断正在运行的golden；
+- 到既定阶段汇报点再统一报告。
+
+---
+
+<task-notification>
+<task-id>a644a870df99e0439</task-id>
+<tool-use-id>call_3fbf48ce80d04212a640d439</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi-ding/f251d83f-ce2a-4d5b-851a-5d6937dd4ed6/tasks/a644a870df99e0439.output</output-file>
+<status>completed</status>
+<summary>Agent "BLOCKED 证据审计（Subagent A）" came to rest</summary>
+<note>A task-notification fires each time this agent comes to rest with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>审计完成，完整报告已写入 /tmp/lsu_analysis_A.md。以下为最终结论。
+
+## (a) 16 项完整表格
+
+统一事实（16 项 × 300 样本逐项核实）：每项恰好 300 个样本目录（s0–s299）；(eligible, injected, activated) 三元组在全部 300 样本中完全一致且 injected=0/activated=0；gem5_exit 全部为 0、golden 校验和正常打印、守恒 OK、classifier_failures=0；注入器在 config.ini 中均正确实例化（tier/mode/preMode/seed 与清单和 lsu_campaign.py MODEL_FLAGS 一致）；attempted==eligible（资格过滤零剔除）。16 项均无 census 目录（间隔档不做 census，属设计使然）。
+
+| ITEM | RunID | 注入器 | 故障模式 | 档 | 实际 --cmd | eligible | att/act | 根因 |
+|---|---|---|---|---|---|---|---|---|
+| 003 | A01-F1-W3 | CHAOSAddrPath a01_bit | EA 单bit | F1 | agu_addrmodes | 2,772 | 300/0 | A |
+| 004 | A01-F1-W9 | CHAOSAddrPath a01_bit | EA 单bit | F1 | gap_bfs | 265,016 | 300/0 | A |
+| 005 | A01-F2-W3 | CHAOSAddrPath a01_bit | EA 单bit | F2 | agu_addrmodes | 2,772 | 300/0 | A |
+| 009 | A02-F2-W3 | CHAOSAddrPath a02_2bit | EA 双bit | F2 | agu_addrmodes | 2,772 | 300/0 | A |
+| 015 | A04-F2-W3 | AddrPath a04_subst | 同对象/同页地址替换 | F2 | agu_addrmodes | 2,786 | 300/0 | A |
+| 016 | A04-F2-W0 | AddrPath a04_subst | 同上 | F2 | mini_check | 3,192 | 300/0 | A |
+| 020 | A05-F2-W3 | AddrPath a05_shift | 寻址操作数/扩展/移位 | F2 | agu_addrmodes | 2,786 | 300/0 | A |
+| 024 | A06-F2-W3 | AddrPath a06_size | access-size/byte-enable | F2 | agu_addrmodes | 2,786 | 300/0 | A |
+| 025 | A06-F2-W5 | AddrPath a06_size | 同上 | F2 | sq_forward | 2,570 | 300/0 | A |
+| 036 | A08-F2-W3 | AddrPath a08_subst | load/store 通道/EA 互换 | F2 | agu_addrmodes | 2,786 | 300/0 | A |
+| 037 | A08-F2-W5 | AddrPath a08_subst | 同上 | F2 | sq_forward | 2,570 | 300/0 | A |
+| 274 | L01-F1-W5 | AddrPath l01_load_addr | LQ address/tag bit | F1 | sq_forward | 2,570 | 300/0 | A |
+| 277 | L01-F2-W5 | AddrPath l01_load_addr | 同上 | F2 | sq_forward | 2,570 | 300/0 | A |
+| 281 | L02-F2-W5 | AddrPath l02_load_state | LQ 生命周期状态 | F2 | sq_forward | 2,570 | 300/0 | A |
+| 287 | L03-F4-W5 | CHAOSLSQFwd --lsqfwd_l03 | violation 比较地址 bitflip | F4 | sq_forward | 531 | 300/0 | A |
+| 289 | L03-F6-W5 | CHAOSLSQFwd --lsqfwd_l03 | 同上 | F6 | sq_forward | 531 | 300/0 | **C**（+I） |
+
+证据路径模式：`runs/lsu/pilot/{AGU|Load_Queue}/ITEM-XXX_result.json`（含 300 条 runs[]）+ `ITEM-XXX_s0/`（config.ini、`_s0_guard.out` 的 CHAOS_LSU_TRIGGER 行与完整命令行、l5_verdict.json、addrpath_injections.log / lsq_fwd_injections.log）。
+
+## (b) 根因聚类
+
+- **A（事件流 &lt;&lt; 触发间隔）：15 项**（全部 F1/F2/F4 项）
+- **C（注入器 F6 接线缺口）：1 项**（ITEM-289，附带 I：清单规定的违规事件不在 F6 事件源枚举内）
+- B/D/E/F/G/H：0 项（逐项排除：tier 语义与清单一致；注入器挂载与参数正确；attempted==eligible；warmup=0 且 skip 在 LSU 路径不生效；事件归一化不走周期窗；日志三方一致；exit 0 无基础设施失败）
+
+## (c) 各类证据摘要
+
+**类 A（15 项）**：chaos_lsu_trigger.hh:94 `next_fire = from + iv/2 + rng%iv` → 首发事件序号 ∈ [iv/2, 3iv/2)，即 F1 首发需 ≥500,000 个 eligible 事件、F2/F4 需 ≥50,000。实测流长 531–265,016 全部低于所属档下限（最大者 gap_bfs 265,016 仅为 F1 下限的 53%），故 injected=0 是与 seed 无关的确定性结果。代表证据：ITEM-003_s0_guard.out `CHAOS_LSU_TRIGGER: injector=CHAOSAddrPath tier=F1 attempted=2772 eligible=2772 injected=0`；ITEM-287_s0 `injector=CHAOSLSQFwd tier=F4 attempted=531 eligible=531 injected=0`。同负载 F0 档对照（ITEM-001/271/285 均 100% 激活）排除注入器缺陷。
+
+**类 C（ITEM-289）**：三层证据。(1) chaos_lsu_trigger.hh:155-156 对 F6 的 onEligible 恒返 false，F6 只能经 onF6Event 触发；(2) 全库 grep 证实 chaosLsuF6Notify 仅 CHAOSAddrPath.cc:347-351 与 CHAOSPrefetch.cc:35-38 注册，**CHAOSLSQFwd 无任何注册**，且 CHAOSLSQFwd.py 连 lsuF6Event 参数都没有（lsu_proxy.py:803 只传 lsuTier）——该 run 只挂 chaos_lsqfwd，通知指针为 null，onF6Event 不可达，**任何负载下 injected 恒 0**；(3) 同负载反例 ITEM-283（L02-F6-W5，CHAOSAddrPath tier=F6，同一 sq_forward 负载）`attempted=2572 eligible=1 injected=1` 33/33 激活——证明 SqForward 事件在流中确实出现，缺的是 LSQFwd 侧消费者。附带语义错配：L03 清单触发条件（内存序违规）不在 4 种 F6 事件源（TlbHit/SqForward/DirtyEviction/CasSuccess）之内。**F-040 的“F6 触发事件在 sq_forward 事件流中不出现”表述与 ITEM-283 实测矛盾，应更正为接线缺口**。
+
+## (d) 对 F-041 假设的判断
+
+- **15 项间隔类：支持。** 每项 300 样本流长实测 531–265,016，全部低于档位首发下限；注入器挂载/参数/运行完整性全部正常，唯一解释就是短流载体。改指 w1_all（4.455B committed 指令，F-045）方向正确；旁证 ITEM-006（F2×gap_bfs 265k）30/30 激活。
+- **ITEM-289：不支持其“诚实不确定项”定性。** 代码证据表明这是确定性的注入器接线缺口，与负载无关——不改造 CHAOSLSQFwd（补 F6 消费者注册 + 裁决 L03 的 F6 事件语义映射）直接重跑 w1_all 将必然复现 300/0，纯耗 ~300 run 机时。建议改列为“注入器改造前置项”。
+- 两处文档勘误：F-041“事件流 555–265k”应为 **531**–265,016（555 与任何被审项不符）；F-020“ITEM-004 gap_bfs 流长更小”有误（265,016 是 agu_addrmodes 2,772 的约 96 倍，更大）。
+
+## (e) 数据缺口
+
+1. **w1_all 各注入器钩子的 eligible 流长未实测**（F-041 的 10^8–10^9 是估计）——W1 golden 冻结后跑 census/countOnly 干跑（lsqfwd 有 countOnly 模式打印 CHAOS_ELIGIBLE_COUNT），或直接用重跑首样本 s0 的 L0 漏斗行。
+2. **ITEM-289 缺运行时直接证据**（本审计为代码级 + ITEM-283 反例）——改造后 1 次 ENGINEERING_ONLY 单跑即可判定。
+3. **L03 的 F6 事件语义未定义**（违规事件不在事件源枚举内）——需设计层裁决映射到 SqForward 或新增 Violation 源。
+4. 16 项无 census 目录（设计使然，L0 漏斗 + result.json 双源已交叉一致，已抽查 s150/s299）。
+5. per-run verdict 在 injected=0 时 outcome 仍标 "Masked"（checksum 一致所致）——自动化审计应先判 runs[].injected==0，避免误读。
+
+报告全文（含完整表格、机制引文、文件行号索引）：/tmp/lsu_analysis_A.md</result>
+<usage><subagent_tokens>0</subagent_tokens><tool_uses>39</tool_uses><duration_ms>878533</duration_ms></usage>
+</task-notification>
