@@ -36,6 +36,7 @@
 #include <cstdio>
 
 #include "cpu/o3/chaos_event_sample.hh"
+#include "sim/cur_tick.hh"     // curTick() [LSU][OBS-3]
 
 namespace gem5
 {
@@ -98,6 +99,11 @@ struct ChaOSLsuTrigger
     uint64_t eligible  = 0;
     uint64_t injected  = 0;
 
+    // [LSU][OBS-3] eligible-event window diagnostics (B/E-class): tick of the
+    // first / last eligible event — observation only, no semantic effect.
+    uint64_t first_eligible_tick = 0;
+    uint64_t last_eligible_tick  = 0;
+
   private:
     uint64_t next_fire = 0;       // eligible-count threshold (F1-F4)
     uint64_t burst_left = 0;      // F4: remaining burst shots (this shot incl.)
@@ -144,6 +150,8 @@ struct ChaOSLsuTrigger
     onEligible()
     {
         ++eligible;
+        if (!first_eligible_tick) first_eligible_tick = curTick();
+        last_eligible_tick = curTick();   // [LSU][OBS-3]
         switch (tier) {
           case ChaOSLsuTier::F5: {
               if (!armed && eligible > warmup_events) armed = true;
@@ -196,6 +204,8 @@ struct ChaOSLsuTrigger
         if (tier != ChaOSLsuTier::F6 || spent) return false;
         spent = true;
         ++attempted; ++eligible; ++injected;
+        if (!first_eligible_tick) first_eligible_tick = curTick();
+        last_eligible_tick = curTick();   // [LSU][OBS-3]
         return true;
     }
 
@@ -204,10 +214,13 @@ struct ChaOSLsuTrigger
     summary(const char *injector) const
     {
         printf("CHAOS_LSU_TRIGGER: injector=%s tier=F%d attempted=%lu "
-               "eligible=%lu injected=%lu (activated=W3-L0-layer)\n",
+               "eligible=%lu injected=%lu first_eligible_tick=%lu "
+               "last_eligible_tick=%lu (activated=W3-L0-layer)\n",
                injector, static_cast<int>(tier),
                (unsigned long)attempted, (unsigned long)eligible,
-               (unsigned long)injected);
+               (unsigned long)injected,
+               (unsigned long)first_eligible_tick,
+               (unsigned long)last_eligible_tick);
         chaosLsuF6EventsReport();   // [LSU][OBS-1] event-supply observation
     }
 };
