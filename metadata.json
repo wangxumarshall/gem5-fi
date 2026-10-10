@@ -3,8 +3,11 @@
   "checkpoint_id": "01M4KCTV9DM2VFBTKD555B1H9G",
   "strategy": "manual-commit",
   "branch": "fi-ding",
-  "checkpoints_count": 2,
+  "checkpoints_count": 5,
   "files_touched": [
+    "docs/gem5-fi/lsu/evidence/golden_w1_all_manifest.json",
+    "docs/gem5-fi/lsu/findings.md",
+    "docs/gem5-fi/lsu/progress.md",
     "workloads/mibench/testout/all_A.txt",
     "workloads/mibench/testout/all_B.txt"
   ],
@@ -15,13 +18,20 @@
       "compact_transcript": "/0/transcript.jsonl",
       "content_hash": "/0/content_hash.txt",
       "prompt": "/0/prompt.txt"
+    },
+    {
+      "metadata": "/1/metadata.json",
+      "transcript": "/1/full.jsonl",
+      "compact_transcript": "/1/transcript.jsonl",
+      "content_hash": "/1/content_hash.txt",
+      "prompt": "/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 35938206,
+    "input_tokens": 37728793,
     "cache_creation_tokens": 0,
-    "cache_read_tokens": 230304256,
-    "output_tokens": 468601,
-    "api_call_count": 509
+    "cache_read_tokens": 236440320,
+    "output_tokens": 479582,
+    "api_call_count": 522
   }
 }
