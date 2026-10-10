@@ -1,0 +1,48 @@
+<task-notification>
+<task-id>a7754cfe46f91ce3d</task-id>
+<tool-use-id>call_0559a991d62d40bfa930ea1a</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi-ding/f251d83f-ce2a-4d5b-851a-5d6937dd4ed6/tasks/a7754cfe46f91ce3d.output</output-file>
+<status>completed</status>
+<summary>Agent "Violation 事件源设计（Subagent E）" came to rest</summary>
+<note>A task-notification fires each time this agent comes to rest with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>设计文档已写入 `/tmp/lsu_analysis_E/MemoryOrderViolation_DESIGN.md`（零仓库变更、未运行 gem5、未触碰 /tmp/w1_*）。以下为要点汇报。
+
+## (a) 事件定义与源码依据
+
+**事件 = gem5 O3 LSQ store-path load-store violation 检测**：`LSQUnit::checkViolations`（lsq_unit.cc:535-621）在 store（含 atomic，经 executeStore:756）执行后扫描更年轻的已执行 load，区间重叠（lsq_unit.cc:569）即内存序违规 → 置 memDepViolator（:607）、`++stats.memOrderViolation`（:609）；IEW 侧 `ldstQueue.violation(tid)`（iew.cc:1318）消费 → `squashDueToMemOrder`（iew.cc:1337）+ `memOrderViolationEvents` stat（iew.cc:1339）。忠实性：这是 gem5 自名 "memory ordering violations" 的事件，与 L03 清单触发条件“年轻load先执行且更老store地址在后续周期解析”（清单：11142 起）逐字对应；与 SqForward（lsq_unit.cc:1557，正常转发快路径）是不同微架构事件——正是裁决禁近似映射的根据。范围：SE 单线程只做 store-path（load-path 分支 lsq_unit.cc:570-596 依赖外部 snoop，SE 无事件）；TSO/snoop 变体留 FS。
+
+**频率实证（关键）**：LSU 轨道自己的 golden——**W5（sq_forward）三副本均 4 个事件**（runs/lsu/golden/sq_forward/g{1,2,3}/stats.txt:1595/1608，iew 与 lsq 双 stat 一致）；9 个 SE 载体全部 4-5 个，无一为零。“B0 全零 violation”的最大科学风险被本轨道 golden 直接否定。跨轨道旁证（OoO artifacts，仅作微架构频率旁证不混数）：coremark=29、wikisort=17、rob_fill=1723。
+
+## (b) 五阶段口径
+
+集中在唯一钩子 `violationPairHook`（checkViolations 重叠测试前逐对调用，替换现有缺陷钩子 violationCorrupt）：
+- **event_seen**：金视图重叠的 store-path 对（新增计数 movEventsSeen；golden 下 == lsq0.memOrderViolation==4）
+- **eligible**：event_seen 过注入器资格（默认无额外过滤 = 清单“仅当真实或潜在地址冲突”；**只对重叠对消耗 onEligible——修复 F-047 的流混合**）
+- **triggered**：tier 判定开火（F6 = 首事件经 chaosLsuF6Notify(MemoryOrderViolation)→f6Thunk→onF6Event，同位点消费）
+- **fault_applied**：视图实际 XOR 且**比较结果反演经代码内验证**（有效位约束，防 ITEM-271 式幻影激活）
+- **faults_injected**：落账（日志+stats+funnel）；单同步写点 ⇒ 恒等
+- 守恒：`attempted ≥ event_seen ≥ eligible ≥ triggered ≥ fault_applied == faults_injected`，exit 审计。
+
+## (c) 故障写入点
+
+比较地址 = checkViolations 栈上局部视图 `ld_eff_addr1/2`（源 DynInst::effAddr/effSize，B0 下 DepCheckShift=0 逐字节）。bitflip 施加于 load 侧 `ld_eff_addr1`（by-ref，沿 lsq_unit.cc:563 模式），**绝不碰 DynInst::effAddr 本体**——单比较器周期故障，重放仍用真地址。位从“有效位集合”抽取（翻转必使重叠判定翻转；≤8 次重抽后回退 bit 63 必然漏检），无效位翻转按构造不可观测、不进故障总体。影响路径：比较失配→不置 violator→不 squash→陈旧 load 值直接提交（SDC 潜路径经 W5 FNV 累加器）。部分掩蔽情形（同 store 第二重叠 load）：计数不降但 violator 转移——被腐蚀对的 load 仍逃过重放，SDC 路径依旧成立，日志记 sn 以区分两结局。L03-b/c 写入点在重放消费侧（iew.cc:1324/1337），不在本提交。
+
+## (d) 验证方案
+
+- **正对照**：W5 golden 现成实证 4 事件（零新负载即过门）；辅以可选 violation 定向探针草案（store 地址长依赖链晚解析 + 年轻 load 立即发射）。
+- **负对照**：(1) 隔离反混数——F6 配 sq_forward 事件：SqForward 通知被枚举过滤，injected=0 输出=golden；(2) 模式惰性——structMode=byte_flip 时钩子零行为零回归。
+- **count-only**：tier=F0+span=INT64_MAX 复用 census，门 = eligible(4) **==** golden lsq0.memOrderViolation(4)（两独立代码路径交叉验证事件谓词）。
+- **最小注入**：F6+maxFaults=1+rngSeed≠0；主信号 memOrderViolation 4→3（或 violator sn 转移）+ 日志行（bit/orig/flipped/sn/addr）+ funnel injected=1。
+- **确定性重放**：golden 三副本已证事件流无 RNG；同 seed 双跑逐字节同（须 lsu_seed 强制 rngSeed≠0）。
+
+## (e) 提交清单与依赖
+
+单提交 `[LSU][SEM-F6]`，8 文件：chaos_lsu_trigger.hh（枚举尾追加）、lsq_unit.cc（钩子替换）、CHAOSLSQFwd.hh/.cc/.py（ViolationAddr 模式 + f6Thunk 注册 + lsuF6Event 参数）、lsu_proxy.py（--lsqfwd_f6_event，删死参数 --lsqfwd_l03）、lsu_campaign.py（MODEL_FLAGS L03）、docs 记录。无新文件。依赖序（F-047 时序约束）：**golden #2/#3 冻结 → OBS-1..4 → SEM-F6（取代 SEM-A、吸收 SEM-B 的 L03 接线）→ TIMEOUTS 修复 → census → G1-G7 门 → ITEM-289 单独重跑**。
+
+## (f) 可行性置信度与如实风险
+
+**置信度 0.85（高）**。依据：(1) 事件流在目标载体上实测存在且确定（4 个，三副本）；(2) 钩子位点已有先例（violationCorrupt 就在 :563，是重设计非绿地）；(3) f6Thunk 消费者模式有 CHAOSAddrPath/CHAOSPrefetch 双先例。剩余 0.15：有效位集合多样性未知（影响 pilot 30 run 的簇分布）、部分掩蔽下主信号退化为 violator 转移（次信号可判，不影响 SDC 路径）——均待 G5/G6 实跑确认。
+
+**必须向用户摆明的边界**：此事件源**只解决 ITEM-289（F6）**并条件性解决 ITEM-285（F0，须 census 驱动 span=4）；**救不了 ITEM-287/288（F4）**——F4 首发需 ≥5×10^4 eligible，W5/W12（sqlite_like golden=4）差 4 个数量级，即使 rob_fill 级定向载体（~1.7×10^3）也差 30 倍，需新载体立项或档位重裁决，属用户决策点。</result>
+<usage><subagent_tokens>0</subagent_tokens><tool_uses>44</tool_uses><duration_ms>1432932</duration_ms></usage>
+</task-notification>
