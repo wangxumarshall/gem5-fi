@@ -935,7 +935,8 @@ namespace gem5
                     << ", pc=0x" << std::hex << pc << std::dec
                     << ", orig_mnemonic=" << orig_name
                     << " — not a two-int-src data-proc format (skipped, "
-                    << "no injection)" << std::endl;
+                    << ", faults_injected: " << faults_injected_count
+                    << std::endl;
             }
             return nullptr;
         }
@@ -950,7 +951,8 @@ namespace gem5
                     << ", pc=0x" << std::hex << pc << std::dec
                     << ", orig_mnemonic=" << orig_name
                     << " — Rn==Rm (" << rn << "), swap is identity "
-                    << "(skipped, no injection)" << std::endl;
+                    << ", faults_injected: " << faults_injected_count
+                    << std::endl;
             }
             return nullptr;
         }
@@ -977,6 +979,7 @@ namespace gem5
                     << ", orig_mnemonic=" << orig_name
                     << ", new_mnemonic=" << repl->getName()
                     << " — mnemonic changed (skipped, no injection)"
+                    << ", faults_injected: " << faults_injected_count
                     << std::endl;
             }
             return nullptr;
@@ -991,6 +994,7 @@ namespace gem5
                     << ", pc=0x" << std::hex << pc << std::dec
                     << ", orig_mnemonic=" << orig_name
                     << " — fingerprint unchanged (skipped, no injection)"
+                    << ", faults_injected: " << faults_injected_count
                     << std::endl;
             }
             return nullptr;
@@ -1034,7 +1038,8 @@ namespace gem5
                     << ", pc=0x" << std::hex << pc << std::dec
                     << ", orig_mnemonic=" << orig_name
                     << " — not an int data-proc register format (skipped, "
-                    << "no injection)" << std::endl;
+                    << ", faults_injected: " << faults_injected_count
+                    << std::endl;
             }
             return nullptr;
         }
@@ -1053,7 +1058,8 @@ namespace gem5
                     << ", pc=0x" << std::hex << pc << std::dec
                     << ", orig_mnemonic=" << orig_name
                     << " — " << slot_name << " already X0 (skipped, no "
-                    << "injection)" << std::endl;
+                    << ", faults_injected: " << faults_injected_count
+                    << std::endl;
             }
             return nullptr;
         }
@@ -1075,6 +1081,7 @@ namespace gem5
                     << ", orig_mnemonic=" << orig_name
                     << ", new_mnemonic=" << repl->getName()
                     << " — mnemonic changed (skipped, no injection)"
+                    << ", faults_injected: " << faults_injected_count
                     << std::endl;
             }
             return nullptr;
@@ -1089,6 +1096,7 @@ namespace gem5
                     << ", pc=0x" << std::hex << pc << std::dec
                     << ", orig_mnemonic=" << orig_name
                     << " — fingerprint unchanged (skipped, no injection)"
+                    << ", faults_injected: " << faults_injected_count
                     << std::endl;
             }
             return nullptr;
@@ -1192,7 +1200,8 @@ namespace gem5
                     << ", orig_mnemonic=" << orig_name
                     << " — no supported immediate format (bitmask-imm "
                     << "and imm-less encodings are honest skips; no "
-                    << "injection)" << std::endl;
+                    << ", faults_injected: " << faults_injected_count
+                    << std::endl;
             }
             return nullptr;
         }
@@ -1223,7 +1232,8 @@ namespace gem5
                     << ", orig_mnemonic=" << orig_name
                     << ", fmt=" << fmt->name
                     << " — rotation identity (value unchanged; skipped, "
-                    << "no injection)" << std::endl;
+                    << ", faults_injected: " << faults_injected_count
+                    << std::endl;
             }
             return nullptr;
         }
@@ -1254,6 +1264,7 @@ namespace gem5
                     << ", orig_mnemonic=" << orig_name
                     << ", new_mnemonic=" << repl->getName()
                     << " — mnemonic changed (skipped, no injection)"
+                    << ", faults_injected: " << faults_injected_count
                     << std::endl;
             }
             return nullptr;
@@ -1268,7 +1279,8 @@ namespace gem5
                     << ", pc=0x" << std::hex << pc << std::dec
                     << ", orig_mnemonic=" << orig_name
                     << " — register fingerprint changed (skipped, no "
-                    << "injection)" << std::endl;
+                    << ", faults_injected: " << faults_injected_count
+                    << std::endl;
             }
             return nullptr;
         }
@@ -1320,6 +1332,7 @@ namespace gem5
                     << ", pc=0x" << std::hex << pc << std::dec
                     << ", orig_enc=0x" << std::hex << enc << std::dec
                     << ", orig_mnemonic=" << orig_name
+                    << ", faults_injected: " << faults_injected_count
                     << std::endl;
             return nullptr;
         }
@@ -1349,6 +1362,7 @@ namespace gem5
                     << ", pc=0x" << std::hex << pc << std::dec
                     << ", orig_enc=0x" << std::hex << enc << std::dec
                     << ", orig_mnemonic=" << orig_name
+                    << ", faults_injected: " << faults_injected_count
                     << std::endl;
             return nullptr;
         }
@@ -1402,6 +1416,7 @@ namespace gem5
                     << ", pc=0x" << std::hex << pc << std::dec
                     << ", orig_enc=0x" << std::hex << enc << std::dec
                     << ", orig_mnemonic=" << orig_name
+                    << ", faults_injected: " << faults_injected_count
                     << std::endl;
             return nullptr;
         }
@@ -1428,6 +1443,7 @@ namespace gem5
                     << ", pc=0x" << std::hex << pc << std::dec
                     << ", orig_enc=0x" << std::hex << enc << std::dec
                     << ", orig_mnemonic=" << orig_name
+                    << ", faults_injected: " << faults_injected_count
                     << std::endl;
             return nullptr;
         }
@@ -1454,6 +1470,7 @@ namespace gem5
                     << ", new_enc=0x" << std::hex << new_emi.instBits
                     << std::dec
                     << ", orig_mnemonic=" << orig_name
+                    << ", faults_injected: " << faults_injected_count
                     << std::endl;
             return nullptr;
         }
@@ -1506,6 +1523,7 @@ namespace gem5
                     << ", pc=0x" << std::hex << pc << std::dec
                     << ", orig_enc=0x" << std::hex << enc << std::dec
                     << ", orig_mnemonic=" << orig_name
+                    << ", faults_injected: " << faults_injected_count
                     << std::endl;
             return nullptr;
         }
@@ -1523,6 +1541,7 @@ namespace gem5
                     << ", pc=0x" << std::hex << pc << std::dec
                     << ", orig_enc=0x" << std::hex << enc << std::dec
                     << ", orig_mnemonic=" << orig_name
+                    << ", faults_injected: " << faults_injected_count
                     << std::endl;
             return nullptr;
         }
@@ -1550,6 +1569,7 @@ namespace gem5
                     << ", new_enc=0x" << std::hex << new_emi.instBits
                     << std::dec
                     << ", orig_mnemonic=" << orig_name
+                    << ", faults_injected: " << faults_injected_count
                     << std::endl;
             return nullptr;
         }
@@ -1629,6 +1649,7 @@ namespace gem5
                     << ", pc=0x" << std::hex << pc << std::dec
                     << ", orig_enc=0x" << std::hex << enc << std::dec
                     << ", orig_mnemonic=" << orig_name
+                    << ", faults_injected: " << faults_injected_count
                     << std::endl;
             return nullptr;
         }
@@ -1651,6 +1672,7 @@ namespace gem5
                     << ", new_enc=0x" << std::hex << new_emi.instBits
                     << std::dec
                     << ", orig_mnemonic=" << orig_name
+                    << ", faults_injected: " << faults_injected_count
                     << std::endl;
             return nullptr;
         }

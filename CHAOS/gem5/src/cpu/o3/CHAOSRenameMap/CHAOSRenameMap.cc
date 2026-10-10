@@ -309,7 +309,8 @@ namespace gem5
                     << ", tid=" << (int)inst->threadNumber
                     << ", sn=" << inst->seqNum
                     << " — srcs share the same phys tag (skipped, no "
-                    << "injection)" << std::endl;
+                    << ", faults_injected: " << faults_injected_count
+                    << std::endl;
             }
             return;
         }
@@ -497,6 +498,7 @@ namespace gem5
                         << ", bits=(" << b1 << "," << b2 << ")"
                         << " — flipped idx " << flipped << " out of [0,"
                         << num_phys << ") (skipped, no clamp)"
+                        << ", faults_injected: " << faults_injected_count
                         << std::endl;
                 }
                 return false;
@@ -523,7 +525,8 @@ namespace gem5
                         << ", old_phys=" << cur_idx
                         << " — ROB has no active " << className()
                         << " dest candidate != cur "
-                        << "(skipped, no injection)" << std::endl;
+                        << ", faults_injected: " << faults_injected_count
+                        << std::endl;
                 }
                 return false;
             }
@@ -545,7 +548,8 @@ namespace gem5
                         << "arch_reg=" << className() << "[" << arch_idx
                         << "] cur_phys=" << cur_idx
                         << " — NO valid allocated substitute target (skipped, "
-                        << "no UB). tid=" << (int)tid << std::endl;
+                        << ", faults_injected: " << faults_injected_count
+                        << std::endl;
                 }
                 return false;
             }
@@ -785,6 +789,7 @@ namespace gem5
                     << " (bit " << f5s_bit << " already at " << f5s_polarity
                     << ", no observable change)"
                     << ", exposure: " << f5s_exposures
+                    << ", faults_injected: " << faults_injected_count
                     << std::endl;
             }
             return true;
@@ -803,6 +808,7 @@ namespace gem5
                     << " — forced idx " << masked << " out of [0,"
                     << num_phys << ") (skipped this write, no clamp)"
                     << ", exposure: " << f5s_exposures
+                    << ", faults_injected: " << faults_injected_count
                     << std::endl;
             }
             return false;
@@ -818,6 +824,7 @@ namespace gem5
                 << ", stored_phys=" << masked
                 << ", bit=" << f5s_bit << " forced to " << f5s_polarity
                 << ", exposure: " << f5s_exposures
+                << ", faults_injected: " << faults_injected_count
                 << std::endl;
         }
         return true;
@@ -922,6 +929,7 @@ namespace gem5
                 << ", cause=" << (mispredict ? "branch_mispred" : "other")
                 << ", squash_sn=" << sn
                 << ", signal: " << sq_signals_logged
+                << ", faults_injected: " << faults_injected_count
                 << std::endl;
         }
     }
@@ -1045,7 +1053,8 @@ namespace gem5
                 if (need == 2) *(log_stream->stream()) << "," << b2;
                 *(log_stream->stream())
                     << ") — flipped idx " << flipped << " out of [0,"
-                    << num_phys << ") (skipped, no clamp)" << std::endl;
+                    << ", faults_injected: " << faults_injected_count
+                    << std::endl;
             }
             return false;
         }
@@ -1300,7 +1309,8 @@ namespace gem5
                     if (need == 2) *(log_stream->stream()) << "," << b2;
                     *(log_stream->stream())
                         << ") — flipped idx " << flipped << " out of [0,"
-                        << num_phys << ") (skipped, no clamp)" << std::endl;
+                        << ", faults_injected: " << faults_injected_count
+                        << std::endl;
                 }
                 return false;
             }
