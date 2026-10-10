@@ -1,0 +1,40 @@
+{
+  "cli_version": "0.10.2",
+  "checkpoint_id": "01M4KE837SE7TTH3DB5WC3MDF3",
+  "strategy": "manual-commit",
+  "branch": "fi-ding",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "CHAOS/gem5/src/arch/arm/tlb.cc",
+    "CHAOS/gem5/src/cpu/o3/chaos_lsu_trigger.hh",
+    "CHAOS/gem5/src/cpu/o3/lsq.cc",
+    "CHAOS/gem5/src/cpu/o3/lsq_unit.cc",
+    "CHAOS/gem5/src/cpu/o3/store_set.cc",
+    "CHAOS/gem5/src/mem/cache/base.cc",
+    "CHAOS/gem5/src/mem/cache/cache.cc",
+    "CHAOS/gem5/src/mem/cache/mshr_queue.cc"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 162617,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 18199808,
+    "output_tokens": 40540,
+    "api_call_count": 27,
+    "subagent_tokens": {
+      "input_tokens": 134020,
+      "cache_creation_tokens": 0,
+      "cache_read_tokens": 3384896,
+      "output_tokens": 11523,
+      "api_call_count": 80
+    }
+  }
+}

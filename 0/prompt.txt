@@ -1,0 +1,7 @@
+<task-notification>
+<task-id>bnq8xv52t</task-id>
+<tool-use-id>call_11f1f12df9b14c8692373358</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi-ding/f251d83f-ce2a-4d5b-851a-5d6937dd4ed6/tasks/bnq8xv52t.output</output-file>
+<status>completed</status>
+<summary>Background command "Watch for OBS-1 build completion" completed (exit code 0)</summary>
+</task-notification>
