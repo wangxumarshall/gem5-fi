@@ -1,0 +1,3765 @@
+{
+ "meta": {
+  "title": "FR02 (rat map_bitflip2_adj_vec, dep_chain_vec) recount correction overlay",
+  "date": "2026-10-10",
+  "repo_head": "297694f821dee6a87a1083a9cba7aa0727742cda",
+  "bug": "tools/runner.py:1524-1568 counted marker-less honest-skip log lines as +1 injections; fixed in commit 297694f by appending ', faults_injected: <count>' to every CHAOSRenameMap/CHAOSDecode log line. Injection behavior unchanged; only faults_injected accounting is corrected here.",
+  "recount_binary_sha256_prefix": "1a618953",
+  "recount_worker": "/tmp/recount-worker.sh",
+  "task_lists": {
+   "half-aa": 198,
+   "half-ab": 197
+  },
+  "task_universe": "formal_FR02_dcv non-Inactive non-Hang (377) + topup_FR02_dcv non-Inactive (18) = 395; old-Inactive rows need no recount (old f=0 is impossible to fake under either binary); 3 formal Hangs (f=null) excluded from the task by design",
+  "rows_recounted": 394,
+  "rows_lost": 1,
+  "change_type_counts": {
+   "confirmed": 328,
+   "fake-activation-flip": 49,
+   "excluded-topup": 17,
+   "lost-timeout": 1
+  },
+  "old_artifact": "artifacts/formal_FR02_dcv/summary.md (n=650, n_valid=380, P_SDC 11.8% [9.0,15.5], P_DUE 2.9% [1.6,5.1], Reach 58.5% [54.6,62.2])"
+ },
+ "summary": {
+  "formal": {
+   "n_total": 650,
+   "old": {
+    "Inactive": 270,
+    "Masked": 324,
+    "SDC": 45,
+    "Crash": 8,
+    "Hang": 3,
+    "faults": {
+     "0": 270,
+     "1": 373,
+     "2": 4,
+     "null": 3
+    },
+    "n_valid": 380,
+    "P_SDC": 0.1184,
+    "P_DUE": 0.0289,
+    "Reach": 0.5846
+   },
+   "new_corrected": {
+    "Inactive": 319,
+    "Masked": 275,
+    "SDC": 45,
+    "Crash": 8,
+    "Hang": 3,
+    "faults": {
+     "0": 319,
+     "1": 328,
+     "2": 0,
+     "null": 3
+    },
+    "activated_f_ge_1": 328,
+    "n_valid_sec1_4": 331,
+    "P_SDC": 0.136,
+    "P_SDC_CI95": [
+     0.1032,
+     0.1771
+    ],
+    "P_SDC_activated_denominator": 0.1372,
+    "P_SDC_activated_CI95": [
+     0.1041,
+     0.1787
+    ],
+    "P_DUE": 0.0332,
+    "P_DUE_CI95": [
+     0.0187,
+     0.0585
+    ],
+    "Reach": 0.5092,
+    "Reach_CI95": [
+     0.4709,
+     0.5475
+    ]
+   },
+   "flip_matrix": [
+    {
+     "old": "Masked/f=1",
+     "new": "Masked/f=1",
+     "count": 275
+    },
+    {
+     "old": "SDC/f=1",
+     "new": "SDC/f=1",
+     "count": 45
+    },
+    {
+     "old": "Masked/f=1",
+     "new": "Inactive/f=0",
+     "count": 45
+    },
+    {
+     "old": "Crash/f=1",
+     "new": "Crash/f=1",
+     "count": 8
+    },
+    {
+     "old": "Masked/f=2",
+     "new": "Inactive/f=0",
+     "count": 4
+    }
+   ],
+   "fake_activation_rate_among_old_masked_f1": 0.1406,
+   "fake_activation_rate_among_recounted": 0.13,
+   "zero_flip_classes": [
+    "SDC (45/45)",
+    "Crash (8/8)"
+   ],
+   "f2_rows_all_fake": "4/4 (r0068, r0426, r0545, r0625) -> Inactive/f=0"
+  },
+  "topup": {
+   "n_total": 40,
+   "old": {
+    "Inactive": 22,
+    "Masked": 18,
+    "faults": {
+     "0": 22,
+     "1": 17,
+     "2": 1
+    }
+   },
+   "recount_status": "17 recounted rows INVALID (excluded-topup: VEC binary replay of INT-workload manifests = deterministic duplicates of formal r0200-r0239 + INT-golden mismatch forcing SDC); 1 lost (r0021). The 18 old topup 'valid' samples remain UNVERIFIED — no legitimate recount exists for them.",
+   "recount_observed_invalid": {
+    "SDC/f=1": 11,
+    "Inactive/f=0": 5,
+    "Crash/f=1": 1
+   },
+   "determinism_check": "17/17 replayed topup rows exactly mirror their formal counterpart r(200+N): f identical; cls follows the golden-mismatch map (formal Masked->topup SDC, Inactive->Inactive, SDC->SDC, Crash->Crash). 0 mismatches.",
+   "seed_anomaly": "topup base_seed 20261800 lies inside the formal seed domain [20261600, 20261600+649]; topup r0000-r0039 seeds == formal r0200-r0239 seeds (40/40 verified). The original topup runs used the INT dep_chain binary, so they were NOT literal duplicates as-run — but any VEC-binary replay (as the recount did) is one.",
+   "lost_row": {
+    "manifest": "runs/topup_FR02_dcv/c0000/topup_FR02_dcv-c0000-r0021.yaml",
+    "reason": "timeout-300 kill, no RESULT line; seed 20261821 == formal r0221 (a Hang) — deterministic hang replay"
+   }
+  },
+  "method_note": "Wilson 95% score intervals per tools/wilson.py (Z=1.959963984540054). Old artifact numbers reproduce exactly under the same formula (45/380 -> 11.84% [8.97,15.48]). L5 classification field: n/a — these SE runs have no L0-L5 observation-chain data.",
+  "watcher_note": "Recount watcher PID 911837 loops until A>=198 AND B>=197; final B=196 (one lost row) means it will never exit on its own. Left untouched per read-only discipline; owner should kill it manually."
+ },
+ "records": [
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0000",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0000.yaml",
+   "old_classification": "SDC",
+   "old_faults_injected": 1,
+   "new_classification": "SDC",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0006",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0006.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0005",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0005.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0008",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0008.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0011",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0011.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0010",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0010.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0012",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0012.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0013",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0013.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Inactive",
+   "new_faults_injected": 0,
+   "change_type": "fake-activation-flip",
+   "note": "old binary counted marker-less honest-skip log lines as injections (commit 297694f); the fixed binary shows zero real injections — the run was never activated."
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0018",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0018.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Inactive",
+   "new_faults_injected": 0,
+   "change_type": "fake-activation-flip",
+   "note": "old binary counted marker-less honest-skip log lines as injections (commit 297694f); the fixed binary shows zero real injections — the run was never activated."
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0019",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0019.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0020",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0020.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Inactive",
+   "new_faults_injected": 0,
+   "change_type": "fake-activation-flip",
+   "note": "old binary counted marker-less honest-skip log lines as injections (commit 297694f); the fixed binary shows zero real injections — the run was never activated."
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0021",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0021.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0022",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0022.yaml",
+   "old_classification": "SDC",
+   "old_faults_injected": 1,
+   "new_classification": "SDC",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0023",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0023.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0024",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0024.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0025",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0025.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0026",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0026.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0028",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0028.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Inactive",
+   "new_faults_injected": 0,
+   "change_type": "fake-activation-flip",
+   "note": "old binary counted marker-less honest-skip log lines as injections (commit 297694f); the fixed binary shows zero real injections — the run was never activated."
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0033",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0033.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0035",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0035.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0037",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0037.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0039",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0039.yaml",
+   "old_classification": "SDC",
+   "old_faults_injected": 1,
+   "new_classification": "SDC",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0045",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0045.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0047",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0047.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0048",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0048.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0049",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0049.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Inactive",
+   "new_faults_injected": 0,
+   "change_type": "fake-activation-flip",
+   "note": "old binary counted marker-less honest-skip log lines as injections (commit 297694f); the fixed binary shows zero real injections — the run was never activated."
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0051",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0051.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Inactive",
+   "new_faults_injected": 0,
+   "change_type": "fake-activation-flip",
+   "note": "old binary counted marker-less honest-skip log lines as injections (commit 297694f); the fixed binary shows zero real injections — the run was never activated."
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0053",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0053.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0055",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0055.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0054",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0054.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0056",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0056.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0057",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0057.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0063",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0063.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0062",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0062.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0065",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0065.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0066",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0066.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0067",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0067.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0068",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0068.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 2,
+   "new_classification": "Inactive",
+   "new_faults_injected": 0,
+   "change_type": "fake-activation-flip",
+   "note": "old binary counted marker-less honest-skip log lines as injections (commit 297694f); the fixed binary shows zero real injections — the run was never activated."
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0069",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0069.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0070",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0070.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Inactive",
+   "new_faults_injected": 0,
+   "change_type": "fake-activation-flip",
+   "note": "old binary counted marker-less honest-skip log lines as injections (commit 297694f); the fixed binary shows zero real injections — the run was never activated."
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0071",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0071.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0074",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0074.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0076",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0076.yaml",
+   "old_classification": "SDC",
+   "old_faults_injected": 1,
+   "new_classification": "SDC",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0079",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0079.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0080",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0080.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0082",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0082.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0083",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0083.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0084",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0084.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0086",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0086.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0085",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0085.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0088",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0088.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0089",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0089.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0091",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0091.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0094",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0094.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0099",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0099.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0098",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0098.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0100",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0100.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0101",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0101.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0102",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0102.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0103",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0103.yaml",
+   "old_classification": "SDC",
+   "old_faults_injected": 1,
+   "new_classification": "SDC",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0106",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0106.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0110",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0110.yaml",
+   "old_classification": "SDC",
+   "old_faults_injected": 1,
+   "new_classification": "SDC",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0109",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0109.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0112",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0112.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0114",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0114.yaml",
+   "old_classification": "SDC",
+   "old_faults_injected": 1,
+   "new_classification": "SDC",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0115",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0115.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0118",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0118.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Inactive",
+   "new_faults_injected": 0,
+   "change_type": "fake-activation-flip",
+   "note": "old binary counted marker-less honest-skip log lines as injections (commit 297694f); the fixed binary shows zero real injections — the run was never activated."
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0119",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0119.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0121",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0121.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0123",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0123.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0125",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0125.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0126",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0126.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0124",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0124.yaml",
+   "old_classification": "SDC",
+   "old_faults_injected": 1,
+   "new_classification": "SDC",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0127",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0127.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0130",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0130.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0131",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0131.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0135",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0135.yaml",
+   "old_classification": "Crash",
+   "old_faults_injected": 1,
+   "new_classification": "Crash",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0132",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0132.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0134",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0134.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Inactive",
+   "new_faults_injected": 0,
+   "change_type": "fake-activation-flip",
+   "note": "old binary counted marker-less honest-skip log lines as injections (commit 297694f); the fixed binary shows zero real injections — the run was never activated."
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0137",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0137.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0141",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0141.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0142",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0142.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0143",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0143.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0146",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0146.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0148",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0148.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Inactive",
+   "new_faults_injected": 0,
+   "change_type": "fake-activation-flip",
+   "note": "old binary counted marker-less honest-skip log lines as injections (commit 297694f); the fixed binary shows zero real injections — the run was never activated."
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0150",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0150.yaml",
+   "old_classification": "SDC",
+   "old_faults_injected": 1,
+   "new_classification": "SDC",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0152",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0152.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0153",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0153.yaml",
+   "old_classification": "SDC",
+   "old_faults_injected": 1,
+   "new_classification": "SDC",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0154",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0154.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0156",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0156.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Inactive",
+   "new_faults_injected": 0,
+   "change_type": "fake-activation-flip",
+   "note": "old binary counted marker-less honest-skip log lines as injections (commit 297694f); the fixed binary shows zero real injections — the run was never activated."
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0158",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0158.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0159",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0159.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0161",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0161.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0162",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0162.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0163",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0163.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0165",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0165.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0167",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0167.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Inactive",
+   "new_faults_injected": 0,
+   "change_type": "fake-activation-flip",
+   "note": "old binary counted marker-less honest-skip log lines as injections (commit 297694f); the fixed binary shows zero real injections — the run was never activated."
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0168",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0168.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0169",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0169.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0171",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0171.yaml",
+   "old_classification": "SDC",
+   "old_faults_injected": 1,
+   "new_classification": "SDC",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0176",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0176.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Inactive",
+   "new_faults_injected": 0,
+   "change_type": "fake-activation-flip",
+   "note": "old binary counted marker-less honest-skip log lines as injections (commit 297694f); the fixed binary shows zero real injections — the run was never activated."
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0178",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0178.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Inactive",
+   "new_faults_injected": 0,
+   "change_type": "fake-activation-flip",
+   "note": "old binary counted marker-less honest-skip log lines as injections (commit 297694f); the fixed binary shows zero real injections — the run was never activated."
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0184",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0184.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0185",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0185.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0187",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0187.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0186",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0186.yaml",
+   "old_classification": "SDC",
+   "old_faults_injected": 1,
+   "new_classification": "SDC",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0189",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0189.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0191",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0191.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0194",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0194.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0195",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0195.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0196",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0196.yaml",
+   "old_classification": "SDC",
+   "old_faults_injected": 1,
+   "new_classification": "SDC",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0197",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0197.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0198",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0198.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0199",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0199.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0200",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0200.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Inactive",
+   "new_faults_injected": 0,
+   "change_type": "fake-activation-flip",
+   "note": "old binary counted marker-less honest-skip log lines as injections (commit 297694f); the fixed binary shows zero real injections — the run was never activated."
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0201",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0201.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0202",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0202.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Inactive",
+   "new_faults_injected": 0,
+   "change_type": "fake-activation-flip",
+   "note": "old binary counted marker-less honest-skip log lines as injections (commit 297694f); the fixed binary shows zero real injections — the run was never activated."
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0203",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0203.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0204",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0204.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0205",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0205.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0206",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0206.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Inactive",
+   "new_faults_injected": 0,
+   "change_type": "fake-activation-flip",
+   "note": "old binary counted marker-less honest-skip log lines as injections (commit 297694f); the fixed binary shows zero real injections — the run was never activated."
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0207",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0207.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Inactive",
+   "new_faults_injected": 0,
+   "change_type": "fake-activation-flip",
+   "note": "old binary counted marker-less honest-skip log lines as injections (commit 297694f); the fixed binary shows zero real injections — the run was never activated."
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0208",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0208.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0209",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0209.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0213",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0213.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0214",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0214.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0217",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0217.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0219",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0219.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0220",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0220.yaml",
+   "old_classification": "SDC",
+   "old_faults_injected": 1,
+   "new_classification": "SDC",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0222",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0222.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0223",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0223.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0225",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0225.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Inactive",
+   "new_faults_injected": 0,
+   "change_type": "fake-activation-flip",
+   "note": "old binary counted marker-less honest-skip log lines as injections (commit 297694f); the fixed binary shows zero real injections — the run was never activated."
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0226",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0226.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0228",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0228.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Inactive",
+   "new_faults_injected": 0,
+   "change_type": "fake-activation-flip",
+   "note": "old binary counted marker-less honest-skip log lines as injections (commit 297694f); the fixed binary shows zero real injections — the run was never activated."
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0229",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0229.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0230",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0230.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Inactive",
+   "new_faults_injected": 0,
+   "change_type": "fake-activation-flip",
+   "note": "old binary counted marker-less honest-skip log lines as injections (commit 297694f); the fixed binary shows zero real injections — the run was never activated."
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0231",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0231.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0232",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0232.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0234",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0234.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0235",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0235.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Inactive",
+   "new_faults_injected": 0,
+   "change_type": "fake-activation-flip",
+   "note": "old binary counted marker-less honest-skip log lines as injections (commit 297694f); the fixed binary shows zero real injections — the run was never activated."
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0239",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0239.yaml",
+   "old_classification": "Crash",
+   "old_faults_injected": 1,
+   "new_classification": "Crash",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0238",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0238.yaml",
+   "old_classification": "SDC",
+   "old_faults_injected": 1,
+   "new_classification": "SDC",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0240",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0240.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0241",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0241.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0243",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0243.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0245",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0245.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0246",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0246.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0247",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0247.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0248",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0248.yaml",
+   "old_classification": "SDC",
+   "old_faults_injected": 1,
+   "new_classification": "SDC",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0250",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0250.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0251",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0251.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Inactive",
+   "new_faults_injected": 0,
+   "change_type": "fake-activation-flip",
+   "note": "old binary counted marker-less honest-skip log lines as injections (commit 297694f); the fixed binary shows zero real injections — the run was never activated."
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0252",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0252.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0254",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0254.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Inactive",
+   "new_faults_injected": 0,
+   "change_type": "fake-activation-flip",
+   "note": "old binary counted marker-less honest-skip log lines as injections (commit 297694f); the fixed binary shows zero real injections — the run was never activated."
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0255",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0255.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0257",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0257.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0258",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0258.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0259",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0259.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Inactive",
+   "new_faults_injected": 0,
+   "change_type": "fake-activation-flip",
+   "note": "old binary counted marker-less honest-skip log lines as injections (commit 297694f); the fixed binary shows zero real injections — the run was never activated."
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0260",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0260.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0261",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0261.yaml",
+   "old_classification": "SDC",
+   "old_faults_injected": 1,
+   "new_classification": "SDC",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0263",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0263.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0264",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0264.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0265",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0265.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0266",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0266.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Inactive",
+   "new_faults_injected": 0,
+   "change_type": "fake-activation-flip",
+   "note": "old binary counted marker-less honest-skip log lines as injections (commit 297694f); the fixed binary shows zero real injections — the run was never activated."
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0268",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0268.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0270",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0270.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0273",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0273.yaml",
+   "old_classification": "SDC",
+   "old_faults_injected": 1,
+   "new_classification": "SDC",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0277",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0277.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0282",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0282.yaml",
+   "old_classification": "SDC",
+   "old_faults_injected": 1,
+   "new_classification": "SDC",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0281",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0281.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0284",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0284.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0285",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0285.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0287",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0287.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0291",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0291.yaml",
+   "old_classification": "Crash",
+   "old_faults_injected": 1,
+   "new_classification": "Crash",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0288",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0288.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0289",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0289.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0290",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0290.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0293",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0293.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0294",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0294.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0296",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0296.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Inactive",
+   "new_faults_injected": 0,
+   "change_type": "fake-activation-flip",
+   "note": "old binary counted marker-less honest-skip log lines as injections (commit 297694f); the fixed binary shows zero real injections — the run was never activated."
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0298",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0298.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0308",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0308.yaml",
+   "old_classification": "Crash",
+   "old_faults_injected": 1,
+   "new_classification": "Crash",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0305",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0305.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0310",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0310.yaml",
+   "old_classification": "Crash",
+   "old_faults_injected": 1,
+   "new_classification": "Crash",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0307",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0307.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0314",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0314.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0315",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0315.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0317",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0317.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0318",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0318.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0320",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0320.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0323",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0323.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0324",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0324.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0328",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0328.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0333",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0333.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0332",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0332.yaml",
+   "old_classification": "SDC",
+   "old_faults_injected": 1,
+   "new_classification": "SDC",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0334",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0334.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0335",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0335.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0336",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0336.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0339",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0339.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0342",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0342.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0344",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0344.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0345",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0345.yaml",
+   "old_classification": "SDC",
+   "old_faults_injected": 1,
+   "new_classification": "SDC",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0346",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0346.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0347",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0347.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0348",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0348.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0350",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0350.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Inactive",
+   "new_faults_injected": 0,
+   "change_type": "fake-activation-flip",
+   "note": "old binary counted marker-less honest-skip log lines as injections (commit 297694f); the fixed binary shows zero real injections — the run was never activated."
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0351",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0351.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0352",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0352.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0356",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0356.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0357",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0357.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0360",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0360.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0361",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0361.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0363",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0363.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0367",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0367.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0368",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0368.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Inactive",
+   "new_faults_injected": 0,
+   "change_type": "fake-activation-flip",
+   "note": "old binary counted marker-less honest-skip log lines as injections (commit 297694f); the fixed binary shows zero real injections — the run was never activated."
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0369",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0369.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0371",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0371.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0376",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0376.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0375",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0375.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0377",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0377.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0378",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0378.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Inactive",
+   "new_faults_injected": 0,
+   "change_type": "fake-activation-flip",
+   "note": "old binary counted marker-less honest-skip log lines as injections (commit 297694f); the fixed binary shows zero real injections — the run was never activated."
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0380",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0380.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0379",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0379.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0383",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0383.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0387",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0387.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0388",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0388.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0389",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0389.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0390",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0390.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0391",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0391.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Inactive",
+   "new_faults_injected": 0,
+   "change_type": "fake-activation-flip",
+   "note": "old binary counted marker-less honest-skip log lines as injections (commit 297694f); the fixed binary shows zero real injections — the run was never activated."
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0392",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0392.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0394",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0394.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0395",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0395.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0397",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0397.yaml",
+   "old_classification": "SDC",
+   "old_faults_injected": 1,
+   "new_classification": "SDC",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0398",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0398.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0400",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0400.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0401",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0401.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0404",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0404.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0403",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0403.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0402",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0402.yaml",
+   "old_classification": "SDC",
+   "old_faults_injected": 1,
+   "new_classification": "SDC",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0405",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0405.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0407",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0407.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0409",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0409.yaml",
+   "old_classification": "SDC",
+   "old_faults_injected": 1,
+   "new_classification": "SDC",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0410",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0410.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0411",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0411.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0416",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0416.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Inactive",
+   "new_faults_injected": 0,
+   "change_type": "fake-activation-flip",
+   "note": "old binary counted marker-less honest-skip log lines as injections (commit 297694f); the fixed binary shows zero real injections — the run was never activated."
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0417",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0417.yaml",
+   "old_classification": "SDC",
+   "old_faults_injected": 1,
+   "new_classification": "SDC",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0420",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0420.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0418",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0418.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Inactive",
+   "new_faults_injected": 0,
+   "change_type": "fake-activation-flip",
+   "note": "old binary counted marker-less honest-skip log lines as injections (commit 297694f); the fixed binary shows zero real injections — the run was never activated."
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0425",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0425.yaml",
+   "old_classification": "Crash",
+   "old_faults_injected": 1,
+   "new_classification": "Crash",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0423",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0423.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0424",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0424.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0426",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0426.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 2,
+   "new_classification": "Inactive",
+   "new_faults_injected": 0,
+   "change_type": "fake-activation-flip",
+   "note": "old binary counted marker-less honest-skip log lines as injections (commit 297694f); the fixed binary shows zero real injections — the run was never activated."
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0428",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0428.yaml",
+   "old_classification": "SDC",
+   "old_faults_injected": 1,
+   "new_classification": "SDC",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0430",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0430.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0431",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0431.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0432",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0432.yaml",
+   "old_classification": "SDC",
+   "old_faults_injected": 1,
+   "new_classification": "SDC",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0433",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0433.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Inactive",
+   "new_faults_injected": 0,
+   "change_type": "fake-activation-flip",
+   "note": "old binary counted marker-less honest-skip log lines as injections (commit 297694f); the fixed binary shows zero real injections — the run was never activated."
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0437",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0437.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0436",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0436.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0438",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0438.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0439",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0439.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0441",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0441.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0442",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0442.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0444",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0444.yaml",
+   "old_classification": "SDC",
+   "old_faults_injected": 1,
+   "new_classification": "SDC",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0443",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0443.yaml",
+   "old_classification": "SDC",
+   "old_faults_injected": 1,
+   "new_classification": "SDC",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0448",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0448.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0450",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0450.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0451",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0451.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0452",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0452.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0454",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0454.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0455",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0455.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0457",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0457.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0458",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0458.yaml",
+   "old_classification": "SDC",
+   "old_faults_injected": 1,
+   "new_classification": "SDC",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0461",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0461.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0465",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0465.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0463",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0463.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0464",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0464.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0468",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0468.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0469",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0469.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0470",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0470.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0472",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0472.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0471",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0471.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0473",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0473.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Inactive",
+   "new_faults_injected": 0,
+   "change_type": "fake-activation-flip",
+   "note": "old binary counted marker-less honest-skip log lines as injections (commit 297694f); the fixed binary shows zero real injections — the run was never activated."
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0474",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0474.yaml",
+   "old_classification": "SDC",
+   "old_faults_injected": 1,
+   "new_classification": "SDC",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0477",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0477.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Inactive",
+   "new_faults_injected": 0,
+   "change_type": "fake-activation-flip",
+   "note": "old binary counted marker-less honest-skip log lines as injections (commit 297694f); the fixed binary shows zero real injections — the run was never activated."
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0478",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0478.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Inactive",
+   "new_faults_injected": 0,
+   "change_type": "fake-activation-flip",
+   "note": "old binary counted marker-less honest-skip log lines as injections (commit 297694f); the fixed binary shows zero real injections — the run was never activated."
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0483",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0483.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0484",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0484.yaml",
+   "old_classification": "SDC",
+   "old_faults_injected": 1,
+   "new_classification": "SDC",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0485",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0485.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0486",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0486.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0487",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0487.yaml",
+   "old_classification": "SDC",
+   "old_faults_injected": 1,
+   "new_classification": "SDC",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0490",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0490.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0491",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0491.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0493",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0493.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Inactive",
+   "new_faults_injected": 0,
+   "change_type": "fake-activation-flip",
+   "note": "old binary counted marker-less honest-skip log lines as injections (commit 297694f); the fixed binary shows zero real injections — the run was never activated."
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0497",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0497.yaml",
+   "old_classification": "SDC",
+   "old_faults_injected": 1,
+   "new_classification": "SDC",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0499",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0499.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0500",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0500.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0501",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0501.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0504",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0504.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0506",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0506.yaml",
+   "old_classification": "SDC",
+   "old_faults_injected": 1,
+   "new_classification": "SDC",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0508",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0508.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0509",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0509.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0515",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0515.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0514",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0514.yaml",
+   "old_classification": "SDC",
+   "old_faults_injected": 1,
+   "new_classification": "SDC",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0516",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0516.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0517",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0517.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0519",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0519.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0521",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0521.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Inactive",
+   "new_faults_injected": 0,
+   "change_type": "fake-activation-flip",
+   "note": "old binary counted marker-less honest-skip log lines as injections (commit 297694f); the fixed binary shows zero real injections — the run was never activated."
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0523",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0523.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0525",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0525.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0528",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0528.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0529",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0529.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0531",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0531.yaml",
+   "old_classification": "SDC",
+   "old_faults_injected": 1,
+   "new_classification": "SDC",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0532",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0532.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0533",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0533.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Inactive",
+   "new_faults_injected": 0,
+   "change_type": "fake-activation-flip",
+   "note": "old binary counted marker-less honest-skip log lines as injections (commit 297694f); the fixed binary shows zero real injections — the run was never activated."
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0534",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0534.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0536",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0536.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0538",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0538.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0541",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0541.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0542",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0542.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0544",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0544.yaml",
+   "old_classification": "SDC",
+   "old_faults_injected": 1,
+   "new_classification": "SDC",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0545",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0545.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 2,
+   "new_classification": "Inactive",
+   "new_faults_injected": 0,
+   "change_type": "fake-activation-flip",
+   "note": "old binary counted marker-less honest-skip log lines as injections (commit 297694f); the fixed binary shows zero real injections — the run was never activated."
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0548",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0548.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Inactive",
+   "new_faults_injected": 0,
+   "change_type": "fake-activation-flip",
+   "note": "old binary counted marker-less honest-skip log lines as injections (commit 297694f); the fixed binary shows zero real injections — the run was never activated."
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0550",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0550.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0552",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0552.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0554",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0554.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0564",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0564.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0565",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0565.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0566",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0566.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Inactive",
+   "new_faults_injected": 0,
+   "change_type": "fake-activation-flip",
+   "note": "old binary counted marker-less honest-skip log lines as injections (commit 297694f); the fixed binary shows zero real injections — the run was never activated."
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0568",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0568.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0569",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0569.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0571",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0571.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0572",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0572.yaml",
+   "old_classification": "SDC",
+   "old_faults_injected": 1,
+   "new_classification": "SDC",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0575",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0575.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0577",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0577.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0582",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0582.yaml",
+   "old_classification": "Crash",
+   "old_faults_injected": 1,
+   "new_classification": "Crash",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0580",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0580.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0584",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0584.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0586",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0586.yaml",
+   "old_classification": "SDC",
+   "old_faults_injected": 1,
+   "new_classification": "SDC",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0587",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0587.yaml",
+   "old_classification": "SDC",
+   "old_faults_injected": 1,
+   "new_classification": "SDC",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0588",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0588.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0589",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0589.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0590",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0590.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0591",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0591.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Inactive",
+   "new_faults_injected": 0,
+   "change_type": "fake-activation-flip",
+   "note": "old binary counted marker-less honest-skip log lines as injections (commit 297694f); the fixed binary shows zero real injections — the run was never activated."
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0595",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0595.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0597",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0597.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0598",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0598.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0599",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0599.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0600",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0600.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0602",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0602.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0604",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0604.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0605",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0605.yaml",
+   "old_classification": "SDC",
+   "old_faults_injected": 1,
+   "new_classification": "SDC",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0611",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0611.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0612",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0612.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0613",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0613.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0614",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0614.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0615",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0615.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0616",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0616.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0620",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0620.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0624",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0624.yaml",
+   "old_classification": "Crash",
+   "old_faults_injected": 1,
+   "new_classification": "Crash",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0621",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0621.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Inactive",
+   "new_faults_injected": 0,
+   "change_type": "fake-activation-flip",
+   "note": "old binary counted marker-less honest-skip log lines as injections (commit 297694f); the fixed binary shows zero real injections — the run was never activated."
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0623",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0623.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0625",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0625.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 2,
+   "new_classification": "Inactive",
+   "new_faults_injected": 0,
+   "change_type": "fake-activation-flip",
+   "note": "old binary counted marker-less honest-skip log lines as injections (commit 297694f); the fixed binary shows zero real injections — the run was never activated."
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0626",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0626.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0628",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0628.yaml",
+   "old_classification": "SDC",
+   "old_faults_injected": 1,
+   "new_classification": "SDC",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0629",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0629.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0630",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0630.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0631",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0631.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Inactive",
+   "new_faults_injected": 0,
+   "change_type": "fake-activation-flip",
+   "note": "old binary counted marker-less honest-skip log lines as injections (commit 297694f); the fixed binary shows zero real injections — the run was never activated."
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0634",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0634.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0635",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0635.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0637",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0637.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0638",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0638.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0639",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0639.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0640",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0640.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0641",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0641.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0643",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0643.yaml",
+   "old_classification": "SDC",
+   "old_faults_injected": 1,
+   "new_classification": "SDC",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0645",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0645.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Masked",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "formal_FR02_dcv-c0000-r0646",
+   "manifest": "runs/formal_FR02_dcv/c0000/formal_FR02_dcv-c0000-r0646.yaml",
+   "old_classification": "SDC",
+   "old_faults_injected": 1,
+   "new_classification": "SDC",
+   "new_faults_injected": 1,
+   "change_type": "confirmed"
+  },
+  {
+   "run_id": "topup_FR02_dcv-c0000-r0000",
+   "manifest": "runs/topup_FR02_dcv/c0000/topup_FR02_dcv-c0000-r0000.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Inactive",
+   "new_faults_injected": 0,
+   "change_type": "excluded-topup",
+   "note": "INVALID recount: manifest carries golden_id=depchainint-golden-v1 and was originally run with the INT binary (artifacts/topup_FR02_dcv/summary.md), but the recount worker fed --binary dep_chain_vec. The execution is a deterministic duplicate of formal r0200 (seed 20261800); every activated outcome is force-classified SDC by the INT-vs-VEC golden mismatch (runner.py:524-552, classify.py exact_hash). Excluded from all statistics."
+  },
+  {
+   "run_id": "topup_FR02_dcv-c0000-r0003",
+   "manifest": "runs/topup_FR02_dcv/c0000/topup_FR02_dcv-c0000-r0003.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "SDC",
+   "new_faults_injected": 1,
+   "change_type": "excluded-topup",
+   "note": "INVALID recount: manifest carries golden_id=depchainint-golden-v1 and was originally run with the INT binary (artifacts/topup_FR02_dcv/summary.md), but the recount worker fed --binary dep_chain_vec. The execution is a deterministic duplicate of formal r0203 (seed 20261803); every activated outcome is force-classified SDC by the INT-vs-VEC golden mismatch (runner.py:524-552, classify.py exact_hash). Excluded from all statistics."
+  },
+  {
+   "run_id": "topup_FR02_dcv-c0000-r0001",
+   "manifest": "runs/topup_FR02_dcv/c0000/topup_FR02_dcv-c0000-r0001.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "SDC",
+   "new_faults_injected": 1,
+   "change_type": "excluded-topup",
+   "note": "INVALID recount: manifest carries golden_id=depchainint-golden-v1 and was originally run with the INT binary (artifacts/topup_FR02_dcv/summary.md), but the recount worker fed --binary dep_chain_vec. The execution is a deterministic duplicate of formal r0201 (seed 20261801); every activated outcome is force-classified SDC by the INT-vs-VEC golden mismatch (runner.py:524-552, classify.py exact_hash). Excluded from all statistics."
+  },
+  {
+   "run_id": "topup_FR02_dcv-c0000-r0006",
+   "manifest": "runs/topup_FR02_dcv/c0000/topup_FR02_dcv-c0000-r0006.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Inactive",
+   "new_faults_injected": 0,
+   "change_type": "excluded-topup",
+   "note": "INVALID recount: manifest carries golden_id=depchainint-golden-v1 and was originally run with the INT binary (artifacts/topup_FR02_dcv/summary.md), but the recount worker fed --binary dep_chain_vec. The execution is a deterministic duplicate of formal r0206 (seed 20261806); every activated outcome is force-classified SDC by the INT-vs-VEC golden mismatch (runner.py:524-552, classify.py exact_hash). Excluded from all statistics."
+  },
+  {
+   "run_id": "topup_FR02_dcv-c0000-r0004",
+   "manifest": "runs/topup_FR02_dcv/c0000/topup_FR02_dcv-c0000-r0004.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "SDC",
+   "new_faults_injected": 1,
+   "change_type": "excluded-topup",
+   "note": "INVALID recount: manifest carries golden_id=depchainint-golden-v1 and was originally run with the INT binary (artifacts/topup_FR02_dcv/summary.md), but the recount worker fed --binary dep_chain_vec. The execution is a deterministic duplicate of formal r0204 (seed 20261804); every activated outcome is force-classified SDC by the INT-vs-VEC golden mismatch (runner.py:524-552, classify.py exact_hash). Excluded from all statistics."
+  },
+  {
+   "run_id": "topup_FR02_dcv-c0000-r0009",
+   "manifest": "runs/topup_FR02_dcv/c0000/topup_FR02_dcv-c0000-r0009.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "SDC",
+   "new_faults_injected": 1,
+   "change_type": "excluded-topup",
+   "note": "INVALID recount: manifest carries golden_id=depchainint-golden-v1 and was originally run with the INT binary (artifacts/topup_FR02_dcv/summary.md), but the recount worker fed --binary dep_chain_vec. The execution is a deterministic duplicate of formal r0209 (seed 20261809); every activated outcome is force-classified SDC by the INT-vs-VEC golden mismatch (runner.py:524-552, classify.py exact_hash). Excluded from all statistics."
+  },
+  {
+   "run_id": "topup_FR02_dcv-c0000-r0008",
+   "manifest": "runs/topup_FR02_dcv/c0000/topup_FR02_dcv-c0000-r0008.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "SDC",
+   "new_faults_injected": 1,
+   "change_type": "excluded-topup",
+   "note": "INVALID recount: manifest carries golden_id=depchainint-golden-v1 and was originally run with the INT binary (artifacts/topup_FR02_dcv/summary.md), but the recount worker fed --binary dep_chain_vec. The execution is a deterministic duplicate of formal r0208 (seed 20261808); every activated outcome is force-classified SDC by the INT-vs-VEC golden mismatch (runner.py:524-552, classify.py exact_hash). Excluded from all statistics."
+  },
+  {
+   "run_id": "topup_FR02_dcv-c0000-r0014",
+   "manifest": "runs/topup_FR02_dcv/c0000/topup_FR02_dcv-c0000-r0014.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 2,
+   "new_classification": "SDC",
+   "new_faults_injected": 1,
+   "change_type": "excluded-topup",
+   "note": "INVALID recount: manifest carries golden_id=depchainint-golden-v1 and was originally run with the INT binary (artifacts/topup_FR02_dcv/summary.md), but the recount worker fed --binary dep_chain_vec. The execution is a deterministic duplicate of formal r0214 (seed 20261814); every activated outcome is force-classified SDC by the INT-vs-VEC golden mismatch (runner.py:524-552, classify.py exact_hash). Excluded from all statistics."
+  },
+  {
+   "run_id": "topup_FR02_dcv-c0000-r0019",
+   "manifest": "runs/topup_FR02_dcv/c0000/topup_FR02_dcv-c0000-r0019.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "SDC",
+   "new_faults_injected": 1,
+   "change_type": "excluded-topup",
+   "note": "INVALID recount: manifest carries golden_id=depchainint-golden-v1 and was originally run with the INT binary (artifacts/topup_FR02_dcv/summary.md), but the recount worker fed --binary dep_chain_vec. The execution is a deterministic duplicate of formal r0219 (seed 20261819); every activated outcome is force-classified SDC by the INT-vs-VEC golden mismatch (runner.py:524-552, classify.py exact_hash). Excluded from all statistics."
+  },
+  {
+   "run_id": "topup_FR02_dcv-c0000-r0021",
+   "manifest": "runs/topup_FR02_dcv/c0000/topup_FR02_dcv-c0000-r0021.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": null,
+   "new_faults_injected": null,
+   "change_type": "lost-timeout",
+   "note": "recount worker `timeout 300` killed the run before runner.py printed RESULT (no CSV row). Deterministically explained: seed 20261821 == formal_FR02_dcv-c0000-r0221's seed, and formal r0221 was a Hang under the same VEC binary; the replay hangs identically and is killed at 300s. Classification NOT guessed; treat as pending/lost."
+  },
+  {
+   "run_id": "topup_FR02_dcv-c0000-r0026",
+   "manifest": "runs/topup_FR02_dcv/c0000/topup_FR02_dcv-c0000-r0026.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "SDC",
+   "new_faults_injected": 1,
+   "change_type": "excluded-topup",
+   "note": "INVALID recount: manifest carries golden_id=depchainint-golden-v1 and was originally run with the INT binary (artifacts/topup_FR02_dcv/summary.md), but the recount worker fed --binary dep_chain_vec. The execution is a deterministic duplicate of formal r0226 (seed 20261826); every activated outcome is force-classified SDC by the INT-vs-VEC golden mismatch (runner.py:524-552, classify.py exact_hash). Excluded from all statistics."
+  },
+  {
+   "run_id": "topup_FR02_dcv-c0000-r0025",
+   "manifest": "runs/topup_FR02_dcv/c0000/topup_FR02_dcv-c0000-r0025.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Inactive",
+   "new_faults_injected": 0,
+   "change_type": "excluded-topup",
+   "note": "INVALID recount: manifest carries golden_id=depchainint-golden-v1 and was originally run with the INT binary (artifacts/topup_FR02_dcv/summary.md), but the recount worker fed --binary dep_chain_vec. The execution is a deterministic duplicate of formal r0225 (seed 20261825); every activated outcome is force-classified SDC by the INT-vs-VEC golden mismatch (runner.py:524-552, classify.py exact_hash). Excluded from all statistics."
+  },
+  {
+   "run_id": "topup_FR02_dcv-c0000-r0028",
+   "manifest": "runs/topup_FR02_dcv/c0000/topup_FR02_dcv-c0000-r0028.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Inactive",
+   "new_faults_injected": 0,
+   "change_type": "excluded-topup",
+   "note": "INVALID recount: manifest carries golden_id=depchainint-golden-v1 and was originally run with the INT binary (artifacts/topup_FR02_dcv/summary.md), but the recount worker fed --binary dep_chain_vec. The execution is a deterministic duplicate of formal r0228 (seed 20261828); every activated outcome is force-classified SDC by the INT-vs-VEC golden mismatch (runner.py:524-552, classify.py exact_hash). Excluded from all statistics."
+  },
+  {
+   "run_id": "topup_FR02_dcv-c0000-r0030",
+   "manifest": "runs/topup_FR02_dcv/c0000/topup_FR02_dcv-c0000-r0030.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Inactive",
+   "new_faults_injected": 0,
+   "change_type": "excluded-topup",
+   "note": "INVALID recount: manifest carries golden_id=depchainint-golden-v1 and was originally run with the INT binary (artifacts/topup_FR02_dcv/summary.md), but the recount worker fed --binary dep_chain_vec. The execution is a deterministic duplicate of formal r0230 (seed 20261830); every activated outcome is force-classified SDC by the INT-vs-VEC golden mismatch (runner.py:524-552, classify.py exact_hash). Excluded from all statistics."
+  },
+  {
+   "run_id": "topup_FR02_dcv-c0000-r0031",
+   "manifest": "runs/topup_FR02_dcv/c0000/topup_FR02_dcv-c0000-r0031.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "SDC",
+   "new_faults_injected": 1,
+   "change_type": "excluded-topup",
+   "note": "INVALID recount: manifest carries golden_id=depchainint-golden-v1 and was originally run with the INT binary (artifacts/topup_FR02_dcv/summary.md), but the recount worker fed --binary dep_chain_vec. The execution is a deterministic duplicate of formal r0231 (seed 20261831); every activated outcome is force-classified SDC by the INT-vs-VEC golden mismatch (runner.py:524-552, classify.py exact_hash). Excluded from all statistics."
+  },
+  {
+   "run_id": "topup_FR02_dcv-c0000-r0032",
+   "manifest": "runs/topup_FR02_dcv/c0000/topup_FR02_dcv-c0000-r0032.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "SDC",
+   "new_faults_injected": 1,
+   "change_type": "excluded-topup",
+   "note": "INVALID recount: manifest carries golden_id=depchainint-golden-v1 and was originally run with the INT binary (artifacts/topup_FR02_dcv/summary.md), but the recount worker fed --binary dep_chain_vec. The execution is a deterministic duplicate of formal r0232 (seed 20261832); every activated outcome is force-classified SDC by the INT-vs-VEC golden mismatch (runner.py:524-552, classify.py exact_hash). Excluded from all statistics."
+  },
+  {
+   "run_id": "topup_FR02_dcv-c0000-r0038",
+   "manifest": "runs/topup_FR02_dcv/c0000/topup_FR02_dcv-c0000-r0038.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "SDC",
+   "new_faults_injected": 1,
+   "change_type": "excluded-topup",
+   "note": "INVALID recount: manifest carries golden_id=depchainint-golden-v1 and was originally run with the INT binary (artifacts/topup_FR02_dcv/summary.md), but the recount worker fed --binary dep_chain_vec. The execution is a deterministic duplicate of formal r0238 (seed 20261838); every activated outcome is force-classified SDC by the INT-vs-VEC golden mismatch (runner.py:524-552, classify.py exact_hash). Excluded from all statistics."
+  },
+  {
+   "run_id": "topup_FR02_dcv-c0000-r0039",
+   "manifest": "runs/topup_FR02_dcv/c0000/topup_FR02_dcv-c0000-r0039.yaml",
+   "old_classification": "Masked",
+   "old_faults_injected": 1,
+   "new_classification": "Crash",
+   "new_faults_injected": 1,
+   "change_type": "excluded-topup",
+   "note": "INVALID recount: manifest carries golden_id=depchainint-golden-v1 and was originally run with the INT binary (artifacts/topup_FR02_dcv/summary.md), but the recount worker fed --binary dep_chain_vec. The execution is a deterministic duplicate of formal r0239 (seed 20261839); every activated outcome is force-classified SDC by the INT-vs-VEC golden mismatch (runner.py:524-552, classify.py exact_hash). Excluded from all statistics."
+  }
+ ]
+}
