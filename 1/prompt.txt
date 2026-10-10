@@ -337,3 +337,172 @@ count-only为0时，不允许进入正式重跑。
 - 需要Git同步。
 
 否则持续推进，不要每完成一条命令就停。
+
+---
+
+主协调确认：
+
+1. GitHub fi-ding 已通过普通快进推送，从 142c2a40 更新到：
+
+778592aa132efc70155216a4e3b4b79e7d14ed13
+
+2. 现在授权你执行一次：
+
+git fetch origin fi-ding
+
+仍然禁止：
+
+- git pull
+- git rebase
+- git merge
+- git reset
+- git clean
+- git push
+
+fetch 后必须确认：
+
+origin/fi-ding = 778592aa132efc70155216a4e3b4b79e7d14ed13
+
+如果不一致，立即停止报告，不得继续同步。
+
+一、同步前完整备份
+
+先检查磁盘空间，然后在仓库外创建带时间戳的可恢复备份目录。
+
+备份必须包括：
+
+- 当前 b34a407c 的 Git bundle；
+- 指向 b34a407c 的安全分支；
+- git status 完整输出；
+- git diff --binary --full-index；
+- 已跟踪脏文件清单；
+- 9 个已跟踪脏文件的完整副本；
+- 所有备份文件的 SHA-256；
+- .planning；
+- tools/draft；
+- runs/lsu；
+- artifacts；
+- W1 attempt-2、attempt-3、attempt-4 的输出和事故现场；
+- W1 完成标记；
+- 相关 /tmp 证据；
+- 备份内容清单和 SHA-256 manifest。
+
+备份完成后必须验证：
+
+- 备份目录位于仓库外；
+- 关键文件可以读取；
+- manifest 中的 SHA-256 可重新计算并一致；
+- 原 runs、artifacts 和 /tmp 证据没有被删除或移动。
+
+如果磁盘空间不足，立即停止，不得删除任何现有文件腾空间。
+
+二、重要冲突说明
+
+主协调已经离线比较 b34a407c 和新 fi-ding。
+
+新 fi-ding 会删除旧的：
+
+- docs/gem5-fi/ooo/* 文件集；
+- tools/draft/lsu_campaign_v2.py。
+
+因此，旧工作区的脏状态不能在同步后整体自动回放。
+
+禁止在同步后直接执行：
+
+git stash pop
+git stash apply
+
+否则可能重新引入0101和0201之间已经处理过的冲突。
+
+旧脏文件、OOO文件和draft只保存在：
+
+- 仓库外备份；
+- Git stash；
+- 安全分支或bundle。
+
+后续确实需要 tools/draft/lsu_campaign_v2.py 时，只能按具体LSU任务从备份中单独恢复、审查并独立提交，不得整体恢复旧OOO文件。
+
+三、安全同步流程
+
+在所有备份验证通过后执行：
+
+1. 创建指向当前 b34a407c 的安全分支，例如：
+
+backup/fi-ding-pre-sync-b34a
+
+2. 仅stash已跟踪修改。
+
+不得使用 -u 或 --include-untracked。
+
+不得把 runs、artifacts、build、.planning 或 /tmp 内容放入stash。
+
+3. 保留stash，不得删除。
+
+记录完整stash编号和stash commit SHA。
+
+4. 切换到 origin/fi-ding 的 detached HEAD。
+
+5. 将本地 fi-ding 分支指向 origin/fi-ding。
+
+6. 切回本地 fi-ding。
+
+7. 不自动恢复stash。
+
+8. 如果任何切换命令提示会覆盖未跟踪文件，立即停止。
+
+禁止使用：
+
+- -f
+- git clean
+- 删除冲突文件
+- 移动或覆盖runs/artifacts
+- reset --hard
+
+四、同步后验收
+
+同步完成后逐项确认：
+
+- 当前分支为 fi-ding；
+- HEAD 为 778592aa132efc70155216a4e3b4b79e7d14ed13；
+- origin/fi-ding 为 778592aa132efc70155216a4e3b4b79e7d14ed13；
+- HEAD 与 origin/fi-ding 的 ahead/behind 为 0/0；
+- git ls-files -u 无输出；
+- 已跟踪工作树干净；
+- 不存在未处理的merge/rebase/cherry-pick状态；
+- backup/fi-ding-pre-sync-b34a 存在并指向 b34a407c；
+- Git stash仍存在；
+- 仓库外备份存在且SHA-256复验通过；
+- runs/lsu仍在；
+- artifacts仍在；
+- .planning仍在；
+- /tmp中的W1证据仍在；
+- 四个guard槽均空闲；
+- 无gem5、guard、campaign遗留运行进程。
+
+任何一项不通过都立即停止并报告，不得启动W1。
+
+五、继续LSU任务
+
+以上验收全部通过后，在progress.md和findings.md中记录：
+
+- 同步前HEAD；
+- 同步后HEAD；
+- origin/fi-ding SHA；
+- 备份目录；
+- 备份manifest SHA-256；
+- safety branch；
+- stash编号和stash commit SHA；
+- runs/artifacts/.planning和/tmp证据复核结果；
+- 同步期间是否出现冲突；
+- 唯一下一动作。
+
+随后直接继续原任务中的W1 golden闭环：
+
+1. 串行运行golden #2；
+2. golden #2完全通过后再运行golden #3；
+3. 禁止同时运行多个W1 golden；
+4. 每次启动前检查资源、守卫锁和环境身份；
+5. 若golden #2或#3与候选#1不一致，立即停止，不得注册W1；
+6. 三次完全一致后，冻结W1 golden/oracle、注册W1 workload，并运行最小无注入分类闭环。
+
+同步完成且验收通过后无需再次等待确认，持续推进到原提示词规定的阶段汇报点。
