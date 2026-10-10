@@ -1,0 +1,92 @@
+{
+  "oracle": "W1 / w1_all（MiBench-TC23 十件套单进程载体 v2，F-044 修复版）",
+  "frozen_at": "2026-10-11 01:20",
+  "decision_basis": "P2 三次确定性要求；用户无人值守决策树一.4（冻结内容清单）",
+  "canonical_hash_sha256": "5bb9298aa1100edd08532c7494039c864d6556125c7645ed5d9d29a88875245b",
+  "canonical_hash_definition": "sha256(全部 [w1] 标记行，剔除含 'workdir' 的 mkdtemp 随机路径行)——g1/g2/g3/原生 all_A/原生 all_B 五方全等",
+  "fnv_lines_fingerprint": "6dab8ec221c46677",
+  "fnv1a64_values": {
+    "bf.enc": "49f821fd27d18026",
+    "bf.dec": "f98bb31699284f00",
+    "large.au.gsm": "dd073db0a365d0a9",
+    "large.au": "ec0cd1422676c3dd",
+    "rnd.enc": "ceed960192f822a9",
+    "rnd.dec": "864b30de6cac98bb",
+    "susan_edge.pgm": "090bc05c2150bfec",
+    "susan_smooth.pgm": "e2ab1a593b7b03b5"
+  },
+  "golden_runs": {
+    "g1": {
+      "window": "2026-10-09 20:30 → 2026-10-10 03:55",
+      "wall_hours": 7.44,
+      "exit_rc": 0,
+      "suite_done": "14/14 ok",
+      "committed_insts": 4455249285,
+      "sim_ticks": 1271044614070,
+      "out": "runs/lsu/golden/w1_all/g1/w1_all.out",
+      "stats": "runs/lsu/golden/w1_all/g1/stats.txt",
+      "rsrc_log": "runs/lsu/guard/w1_full1_rsrc.log",
+      "done_marker": "runs/lsu/golden/w1_all/w1_full1.done",
+      "tree_commit": "b34a407c（内容 = 778592aa 血统，主协调整合前后同源）",
+      "finding": "F-045"
+    },
+    "g2": {
+      "window": "2026-10-10 10:25 → 17:39",
+      "wall_hours": 7.51,
+      "exit_rc": 0,
+      "suite_done": "14/14 ok",
+      "committed_insts": 4455249442,
+      "sim_ticks": 1271057598580,
+      "out": "runs/lsu/golden/w1_all/g2/w1_all.out",
+      "stats": "runs/lsu/golden/w1_all/g2/stats.txt",
+      "rsrc_log": "runs/lsu/guard/w1_full2_rsrc.log",
+      "done_marker": "runs/lsu/golden/w1_all/w1_full2.done",
+      "tree_commit": "778592aa",
+      "finding": "本 manifest（c79324f2 记录）"
+    },
+    "g3": {
+      "window": "2026-10-10 17:40 → 2026-10-11 01:07（链式控制器启动）",
+      "wall_hours": 7.44,
+      "exit_rc": 0,
+      "suite_done": "14/14 ok",
+      "committed_insts": 4455249853,
+      "sim_ticks": 1271057874240,
+      "out": "runs/lsu/golden/w1_all/g3/w1_all.out",
+      "stats": "runs/lsu/golden/w1_all/g3/stats.txt",
+      "rsrc_log": "runs/lsu/guard/w1_full3_rsrc.log",
+      "done_marker": "runs/lsu/golden/w1_all/w1_full3.done",
+      "tree_commit": "778592aa 血统（本地 docs 提交链）",
+      "finding": "本 manifest"
+    }
+  },
+  "identity_chain": {
+    "gem5_opt_sha256": "b64c808d449d0d63e369513671ffc222de99e2f9d29ca9cab33042ad879f3214",
+    "gem5_opt_build_date": "2026-09-29 15:38（三次运行期间未重建）",
+    "w1_all_sha256": "adf23d2cd1257fed96a02dc9a55d3ac759bc78a3e56a8771a54bd9fd4f4d8d49",
+    "w1_all_git_blob": "c9bdcaf990f9a3ce1e601753cf2691dcb8d9babd",
+    "config": "configs/se/lsu_proxy.py --cpu O3 --variant B0",
+    "command_contract": "build/ARM/gem5.opt --outdir <独立目录> configs/se/lsu_proxy.py --cmd workloads/mibench/bin/w1_all --cpu O3 --variant B0",
+    "guard": "tools/lsu_guard.py run --type experiment（12h 预算，四槽制）"
+  },
+  "native_reference": {
+    "all_A": "workloads/mibench/testout/all_A.txt（2026-10-09 09:32 原生跑）",
+    "all_B": "workloads/mibench/testout/all_B.txt（原生双跑，[w1] 与 all_A 逐行一致）",
+    "comparison": "三次 gem5 [w1] 输出与原生逐行一致，唯一差异 = mkdtemp 随机 workdir 路径行（非 oracle 内容）"
+  },
+  "guard_and_syscall": {
+    "trip_or_warning": "三次 golden 全程零 WARNING / 零 TRIP",
+    "syscall_fatal": "零（utimensat/fchmod 双地雷已由 F-044 修复，三次全量通过原 fatal 点）",
+    "chain_controller": "/tmp/w1_golden_chain.sh（PID 1490359 独立会话）执行 #2→#3 接力与终态判定，日志 /tmp/w1_golden_chain.log，终态 TRIPLE_CONSISTENT_READY 2026-10-11 01:07:00"
+  },
+  "determinism_note": "三次 committed 指令数相差 ≤568 条（0.00001%，mkdtemp 时钟熵致 __gen_tempname 重试路径差异）；oracle 判定口径 = 输出级确定性（[w1] 内容逐字节），与 G0-02 det 语义一致",
+  "criteria_pass": {
+    "14/14_ok_x3": true,
+    "exit_rc_0_x3": true,
+    "fnv1a64_identical_x3": true,
+    "vs_native_all_A_all_B": true,
+    "no_guard_trip": true,
+    "no_unimplemented_syscall_fatal": true,
+    "binary_config_env_identity_consistent": true
+  },
+  "next_steps_unlocked": "[LSU][DATA] overlay 落地 → OBS-1..4 → PRE 顺序修复 → l03 接线 → W1 timeout 口径 → -j8 重建 → 无注入/golden/零扰动回归 → 3× census → 代表项 n=5 → pilot 30 → 分批重跑"
+}
