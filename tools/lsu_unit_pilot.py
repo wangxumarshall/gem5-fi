@@ -345,17 +345,26 @@ def main():
         try:
             span = None
             if m0["frequency"] == "F0" and m0["family"] in ("addrpath", "lsqfwd", "prefetch"):
-                # census 持久化（F-022）：断点续跑复用（N 与 seed 无关——F-013）
-                prev_n = status["items"].get(it, {}).get("census_n")
-                if prev_n:
-                    span = prev_n
-                    print(f"[{it}] F0 census N={span} (persisted)")
+                # census 持久化（F-022）：断点续跑复用（N 与 seed 无关——F-013）。
+                # [LSU][OBS-4] 复用键加载体（workload+sha256）：RunID 换载体重跑
+                # （D-2026-10-09-重跑 短流→W1）时旧 census_n 不再被误用（E 类防线）；
+                # 旧状态文件无 census_workload 键 → 走保守的重新 census 分支。
+                prev = status["items"].get(it, {})
+                prev_key = (prev.get("census_workload"), prev.get("census_workload_sha256"))
+                cur_key = (m0.get("workload"), m0.get("workload_sha256"))
+                if prev.get("census_n") and prev_key == cur_key:
+                    span = prev["census_n"]
+                    print(f"[{it}] F0 census N={span} (persisted, workload={cur_key[0]})")
                 else:
+                    if prev.get("census_n"):
+                        print(f"[{it}] census_n 属旧载体 {prev_key} != 当前 {cur_key}，重新 census")
                     cnt = udir / (it + "_census")
                     cnt.mkdir(parents=True, exist_ok=True)
                     span = census(m0, cnt)
                     print(f"[{it}] F0 census N={span}")
-                    status["items"][it] = {"status": "IN_PROGRESS", "census_n": span}
+                    status["items"][it] = {"status": "IN_PROGRESS", "census_n": span,
+                                           "census_workload": cur_key[0],
+                                           "census_workload_sha256": cur_key[1]}
                     status["updated"] = time.strftime("%F %T")
                     status_path.write_text(json.dumps(status, ensure_ascii=False, indent=1))
                 if span <= 0:
