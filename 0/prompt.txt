@@ -1,0 +1,27 @@
+<task-notification>
+<task-id>b24pqvgrd</task-id>
+<tool-use-id>call_eb813a3af04044ab9783e1c7</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi-ding/f251d83f-ce2a-4d5b-851a-5d6937dd4ed6/tasks/b24pqvgrd.output</output-file>
+<status>completed</status>
+<summary>Background command "Interim check 3 of golden #2 in ~2 hours" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+离开前只做最后一次持久性核验，不改变任何实验：
+
+请确认golden #2完成后执行“验证并启动golden #3”的接力控制器本身已经在服务器端通过setsid/tmux或等价机制持久运行，不依赖当前AI会话、SSH连接或本地电脑保持在线。
+
+请记录并核验：
+
+- 接力控制器PID/PGID；
+- 当前golden #2 PID/PGID；
+- 控制器和runner的ps状态；
+- 完成标记路径；
+- 控制器日志路径；
+- golden #3预置命令、独立输出路径和锁；
+- SSH断开后进程仍会继续；
+- #2失败或验证不通过时不会错误启动#3；
+- #3完成后后续流程同样由服务器端持久任务接力，或有明确可恢复点。
+
+若当前接力依赖AI会话，请立即改成服务器端持久的单一顺序控制器；不得重启或干扰正在运行的golden #2。核验完成后只回复持久性状态，不要停止运行。
