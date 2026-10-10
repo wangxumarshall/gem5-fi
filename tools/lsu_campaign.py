@@ -65,6 +65,11 @@ WL_BINARY = {
     "BEEBS-DelayAVF": "beebs_kernels",
     "GAP/Graph500": "gap_bfs",
     "SQLite": "sqlite_like",
+    # [LSU][W1-REG] DR-001 D+A（2026-10-11 注册）：MiBench-TC23 十件套单进程
+    # 载体（F-050 三次 golden 闭环，oracle 规范哈希 5bb9298a…75245b）。
+    # golden = sha256(8 个 fnv1a64 行 join+尾换行)[:16]——g1/g2/g3/原生 all_A
+    # 四方实证恒等 6dab8ec221c46677（分类器 W1 派生回退同算法）。
+    "MiBench-TC23": "mibench/bin/w1_all",
 }
 GOLDENS = {
     "mini_check": "07568da9f3ad5665",
@@ -76,6 +81,7 @@ GOLDENS = {
     "beebs_kernels": "a10b9827edd8a9fb",
     "gap_bfs": "030921682b3731f2",
     "sqlite_like": "33f836327a416d35",
+    "mibench/bin/w1_all": "6dab8ec221c46677",
 }
 # Workload-level structural blocks (README §8.3 — 65 cells on W1/W4/W7/W13,
 # plus SPEC-license W11). Matched by keyword on the workload column.

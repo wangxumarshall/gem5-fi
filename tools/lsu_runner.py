@@ -44,6 +44,12 @@ CPT = REPO / "runs/lsu/fs_cpt_boot/cpt.237949797015"  # G0-06 固化的 B0 FS ch
 #   → 600s 会把每个 W1 运行判为伪 Timeout——SE_W1=43200s（12h 预算，
 #   与 golden 链式控制器 --max-seconds 一致）；FS 1800s 不变。
 TIMEOUTS = {"SE": 600, "SE_W1": 43200, "FS": 1800}
+
+def _wl_path(wl_binary):
+    """[LSU][W1-REG] 负载二进制路径：9 个 directed 载体在 workloads/directed/，
+    W1 w1_all 在 workloads/mibench/bin/——directed 优先、workloads 根回退。"""
+    p = REPO / "workloads/directed" / wl_binary
+    return p if p.exists() else REPO / "workloads" / wl_binary
 PHASES = ["engineering", "pilot", "screening", "confirmatory", "sensitivity", "reproduction"]
 
 ITEM_RE = re.compile(r"^### (ITEM-\d{3}) — (\S+)$", re.M)
@@ -136,7 +142,7 @@ def build_manifest(item_id, phase, sample_index, extra=None):
             "gem5_opt_sha256": _sha(REPO / "build/ARM/gem5.opt"),
             "lsu_proxy_sha256": _sha(LSU_PROXY),
             "lsu_campaign_sha256": _sha(REPO / "tools/lsu_campaign.py"),
-            "workload_sha256": _sha(REPO / "workloads/directed" / wl_binary) if wl_binary else None,
+            "workload_sha256": _sha(_wl_path(wl_binary)) if wl_binary else None,
             "checkpoint": str(CPT) if family == "armtlb" else "none (SE)",
         },
         "config": {"cpu": "O3", "variant": "B0", "maxinsts": 0},
@@ -180,7 +186,7 @@ def build_guard_cmd(manifest, outdir, span=None):
         args += ["--tlb_rng_seed", str(manifest["seed"])]
         config = str(FS_CONFIG)
     else:
-        args = ["--cmd", str(REPO / "workloads/directed" / manifest["carrier"].split(":")[1]),
+        args = ["--cmd", str(_wl_path(manifest["carrier"].split(":")[1])),
                 "--cpu", "O3", "--variant", "B0"]
         args += LC.FAMILY_MOUNT[fam]
         tier = LC.FAMILY_TIER_FLAGS[fam](freq)

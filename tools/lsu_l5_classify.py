@@ -75,6 +75,15 @@ def classify(args):
     cm = re.findall(r"^[0-9a-f]{16}$", stdout, re.M)
     if cm:
         checksum = cm[-1]
+    else:
+        # [LSU][W1-REG] w1_all 不自打 checksum 行——从 8 个 fnv1a64 行派生：
+        # sha256(行 join + 尾换行)[:16]，golden=6dab8ec221c46677（g1/g2/g3/
+        # 原生 all_A 四方实证恒等；非 W1 负载无 fnv1a64 行，回退不触发）。
+        import hashlib
+        fv = [l for l in stdout.splitlines() if "fnv1a64=" in l]
+        if len(fv) == 8:
+            checksum = hashlib.sha256(("\n".join(fv) + "\n").encode()).hexdigest()[:16]
+            out["checksum_source"] = "w1_fnv_derived"
     sim_assert = bool(re.search(r"Assertion .* failed|panic|abort", stderr))
     exit_code = args.exit
 
