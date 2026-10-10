@@ -1,0 +1,339 @@
+请准备 huawei0101 当前 LSU工作的集成就绪报告。
+
+要求：
+
+1. 继续完成当前正在执行的 LSU最小工作单元及其真实验证；不要扩展新任务。
+2. 不执行 git pull、git rebase、git reset、git push 或 force push。
+3. 不切换分支。
+4. 禁止 git add -A。
+5. 禁止暂存 build、artifacts、runs、m5out、实验输出和临时文件。
+6. 如有仍在运行的 campaign，等待当前安全单元完成后停止调度新任务。
+7. 可以按仓库规范在本地 fi-ding 创建已经验证的普通提交，但不要推送。
+
+完成后报告：
+
+- git status --short --branch
+- git rev-parse HEAD
+- git log --oneline origin/fi-ding..HEAD
+- git log --oneline HEAD..origin/fi-ding
+- 所有未提交的已跟踪文件
+- 所有与 LSU任务有关的未跟踪源码、配置和文档
+- 本地新增提交及每个提交修改的文件
+- 当前运行中的 gem5、campaign、cron、tmux或后台进程
+- 最新 LSU构建、功能验证和不受影响回归结果
+- 哪些 artifacts 是实验结果、不得提交
+- 是否已达到“可以由主协调助手处理同步和冲突”的状态
+
+不要自行解决与 origin/fi-ding 的分叉，也不要推送。报告完成后停止并等待。
+
+---
+
+请准备 huawei0101 当前 LSU工作的集成就绪报告。
+
+要求：
+
+1. 继续完成当前正在执行的 LSU最小工作单元及其真实验证；不要扩展新任务。
+2. 不执行 git pull、git rebase、git reset、git push 或 force push。
+3. 不切换分支。
+4. 禁止 git add -A。
+5. 禁止暂存 build、artifacts、runs、m5out、实验输出和临时文件。
+6. 如有仍在运行的 campaign，等待当前安全单元完成后停止调度新任务。
+7. 可以按仓库规范在本地 fi-ding 创建已经验证的普通提交，但不要推送。
+
+完成后报告：
+
+- git status --short --branch
+- git rev-parse HEAD
+- git log --oneline origin/fi-ding..HEAD
+- git log --oneline HEAD..origin/fi-ding
+- 所有未提交的已跟踪文件
+- 所有与 LSU任务有关的未跟踪源码、配置和文档
+- 本地新增提交及每个提交修改的文件
+- 当前运行中的 gem5、campaign、cron、tmux或后台进程
+- 最新 LSU构建、功能验证和不受影响回归结果
+- 哪些 artifacts 是实验结果、不得提交
+- 是否已达到“可以由主协调助手处理同步和冲突”的状态
+
+不要自行解决与 origin/fi-ding 的分叉，也不要推送。报告完成后停止并等待。
+
+---
+
+等任务做完你会自动汇报是吗
+
+---
+
+<task-notification>
+<task-id>b7soq6h2f</task-id>
+<tool-use-id>call_0b6a2a198052434895169266</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi-ding/f251d83f-ce2a-4d5b-851a-5d6937dd4ed6/tasks/b7soq6h2f.output</output-file>
+<status>completed</status>
+<summary>Background command "Interim check of W1 run in 2 hours" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bj5as110r</task-id>
+<tool-use-id>call_abb07d8590b6418fa5a810f6</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi-ding/f251d83f-ce2a-4d5b-851a-5d6937dd4ed6/tasks/bj5as110r.output</output-file>
+<status>completed</status>
+<summary>Background command "Next interim check of W1 run in 90 minutes" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+什么进度了
+
+---
+
+<task-notification>
+<task-id>bp62ldwt2</task-id>
+<tool-use-id>call_ce0aaa52e9244840bb75a54f</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi-ding/f251d83f-ce2a-4d5b-851a-5d6937dd4ed6/tasks/bp62ldwt2.output</output-file>
+<status>completed</status>
+<summary>Background command "Watch for W1 run completion marker" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bxmv5n7f8</task-id>
+<tool-use-id>call_c3c261579eba4ea8ac433a44</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi-ding/f251d83f-ce2a-4d5b-851a-5d6937dd4ed6/tasks/bxmv5n7f8.output</output-file>
+<status>completed</status>
+<summary>Background command "Interim check of attempt-4 in 2.5 hours" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b629pwh8g</task-id>
+<tool-use-id>call_62676c9c8dea48579d4a392f</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi-ding/f251d83f-ce2a-4d5b-851a-5d6937dd4ed6/tasks/b629pwh8g.output</output-file>
+<status>completed</status>
+<summary>Background command "Interim check A4-2 of attempt-4 in 2.5 hours" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bl4wrtqiw</task-id>
+<tool-use-id>call_b2036f8b0565460984a52d70</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi-ding/f251d83f-ce2a-4d5b-851a-5d6937dd4ed6/tasks/bl4wrtqiw.output</output-file>
+<status>completed</status>
+<summary>Background command "Watch for W1 attempt-4 completion marker" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+所以哪些blocked是否都解决了？
+
+---
+
+所以哪些blocked是否都解决了？
+
+---
+
+保持当前集成就绪状态，不再启动golden #2/#3或新campaign。
+
+禁止：
+- pull、fetch、merge、rebase、push；
+- 修改、提交或清理当前9个已跟踪脏文件；
+- 删除任何未跟踪文件、runs、artifacts或/tmp证据；
+- 切换当前工作区历史。
+
+主协调助手将使用独立的干净临时克隆整合你的23个LSU提交。
+当前工作区只作为源和证据保留。
+
+---
+
+第一次LSU集成和fi-ding推送完成后，继续负责LSU轨道。
+
+核心目标：
+解决现有多个LSU单元“300 attempts / 0 activated / BLOCKED”的系统性问题，
+使这些单元产生真实、可审计的有效注入，然后重跑被阻塞的16项。
+
+不要简单增加attempt数量。300/0说明触发模型、事件供给、采样窗口、
+配置接线或观测链存在系统性问题，继续盲跑没有意义。
+
+一、开始前确认
+
+先确认主协调助手已完成：
+
+- 23个LSU提交已整合进最新fi-ding；
+- 远端push成功；
+- 当前0101工作目录已安全同步到该fi-ding；
+- 旧工作区的脏文件、draft、runs和证据均已备份；
+- git status和当前HEAD明确；
+- 不再存在未处理的历史冲突。
+
+若以上任一项未确认，不要自行pull/rebase/reset，立即停止报告。
+
+二、先完成W1 golden闭环
+
+当前只有W1 golden候选 #1。
+
+按仓库P2三次确定性要求继续：
+
+1. 运行golden #2；
+2. 运行golden #3；
+3. 三次均必须：
+   - 14/14 ok；
+   - EXIT_RC=0；
+   - 8个fnv1a64完全一致；
+   - 与原生all_A/all_B参考一致；
+   - 无guard TRIP；
+   - 无未实现syscall fatal；
+   - workload、gem5 binary、配置和环境身份一致。
+
+每次约7.5小时，禁止同时启动多个W1 golden。运行前检查资源和守卫锁。
+
+若三次结果完全一致：
+
+- 冻结W1 golden/oracle；
+- 注册W1 workload；
+- 完成runner/campaign/schema需要的最小接线；
+- 独立提交；
+- 运行一个最小无注入闭环确认分类器能读取W1 oracle。
+
+如果golden #2/#3不一致，停止，不得注册。
+
+三、建立BLOCKED清单
+
+从权威文档和结果中列出全部需要重跑的16项：
+
+ITEM ID
+单元
+故障模式
+workload
+原attempt数
+activated数
+BLOCKED原因
+injector
+trigger类型
+eligible事件定义
+first/last window
+sampling策略
+配置族
+原始commit SHA
+证据路径
+
+不要只复制“BLOCKED”标签；必须定位每项为什么是0 activated。
+
+四、按根因聚类
+
+将16项分成以下类别，不要逐项盲修：
+
+A. workload没有目标事件；
+B. 有事件，但trigger窗口错误；
+C. injector没有挂载或runner参数未传递；
+D. eligibility过滤条件过严或错误；
+E. sampling/skip范围超过真实事件数；
+F. firstClock/lastClock单位或基线错误；
+G. 事件发生但faults_injected统计/日志丢失；
+H. 注入后基础设施失败被错误归为Inactive；
+I. 其他，经证据说明。
+
+每一类必须给出：
+
+- 源码调用链；
+- config.ini实际参数；
+- count-only或事件密度证据；
+- 一条最小复现命令；
+- 根因置信度。
+
+五、先做count-only/dry-run
+
+对每类选择一个代表ITEM。
+
+在不注入的count-only/dry-run模式下统计：
+
+- 总 eligible事件数；
+- 首个/最后一个 eligible事件的tick；
+- 事件按ROI/phase分布；
+- 每个过滤条件剔除数量；
+- 目标结构占用或事件密度；
+- 预计可采样skip范围。
+
+如果现有注入器缺少count-only：
+
+- 先做最小观测补丁；
+- 不改变故障语义；
+- 观测补丁单独提交；
+- 提交标题使用 `[LSU][OBS]`；
+- 验证观测模式不会注入、不会改变golden。
+
+count-only为0时，不允许进入正式重跑。
+
+六、修复纪律
+
+优先修根因，不要靠以下方式伪造激活：
+
+- 无限扩大窗口；
+- 取消关键eligibility条件；
+- 把任意访存事件当目标事件；
+- 把faults_injected=0改记为1；
+- 将基础设施失败改分类为有效注入；
+- 反复增加attempt；
+- 改动golden迁就结果。
+
+若工作负载确实无目标事件：
+
+- 使用权威计划指定的W1；
+- 或按文档选择具有目标事件的替代负载；
+- 必须记录为什么旧负载无法覆盖该单元；
+- 不得悄悄更换workload。
+
+七、代表项准入门
+
+每个根因类别修复后，先对代表ITEM执行：
+
+1. count-only > 0；
+2. 小样本n=5，至少有真实注入；
+3. pilot n=30；
+4. 30个调度有明确分类；
+5. activated达到文档准入标准；
+6. faults_injected符合F0/F1/F2/F6定义；
+7. 无unknown；
+8. 至少一个样本可确定性重放；
+9. golden和不受影响回归通过。
+
+代表项未通过，不得批量重跑同类其他ITEM。
+
+八、重跑16项
+
+代表根因修复并通过后，按类别逐批重跑：
+
+- gem5总并发≤4；
+- campaign期间编译≤-j8；
+- 每批开始前检查MemAvailable、SwapFree、load和锁；
+- 每个实验记录commit SHA、binary SHA、workload SHA和manifest；
+- Inactive不得计入有效样本；
+- 先pilot，再按计划晋级formal；
+- 一类失败不阻塞其他已验证类别。
+
+九、Git纪律
+
+继续使用本地fi-ding，但在下一集成窗口前：
+
+- 可以本地提交；
+- 不得自行push；
+- 不得pull/rebase/merge；
+- 禁止git add -A、git add .和git commit -a；
+- 每个根因修复一个提交；
+- 观测补丁、工具接线、workload注册分别独立提交；
+- artifacts、runs、build和/tmp不得提交。
+
+十、阶段汇报点
+
+出现以下任一条件时汇报：
+
+- W1三次golden闭环完成；
+- 某个BLOCKED根因被实证定位；
+- 首个代表项从300/0变成有效pilot；
+- 发现设计上不可激活的模型；
+- 必须修改与OOO共享的runner/campaign/classify/schema；
+- 资源异常；
+- 需要Git同步。
+
+否则持续推进，不要每完成一条命令就停。
