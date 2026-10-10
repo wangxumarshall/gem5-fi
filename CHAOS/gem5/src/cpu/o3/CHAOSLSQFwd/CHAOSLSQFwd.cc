@@ -28,6 +28,7 @@ namespace gem5
           faults_injected_count(0),
           rng_seed(p.rngSeed),
           write_log(p.writeLog),
+          l03_mode(p.l03Mode),   // [LSU][SEM-B]
           rng(rng_seed != 0 ? rng_seed : rd()),
           log_stream(nullptr),
           stats(nullptr)
@@ -191,6 +192,10 @@ namespace gem5
         // (maybeDelayForward) — no data mutation there either.
         if (struct_mode == StructMode::FwdSourceSub) return;
         if (struct_mode == StructMode::PhaseOffset) return;
+        // [LSU][SEM-B] L03 hook split: with --lsqfwd_l03 the SQ-forward
+        // data path is NOT L03's event source — the trigger stream must be
+        // violation checks only (checkViolations site), not the mixed stream.
+        if (l03_mode) return;
         if (lsuTrigger) {
             // LSU W2/W5 path (05 r2-r8): the event-normalized trigger owns
             // warm-up/repetition semantics; the legacy cycle window,
@@ -402,7 +407,9 @@ namespace gem5
     bool
     CHAOSLSQFwd::violationCorrupt(Addr& cmp_addr)
     {
-        if (!lsuTrigger) return false;
+        // [LSU][SEM-B] the violation site is L03's ONLY injection point;
+        // non-L03 runs must not inject here (was: mixed into any lsqfwd run).
+        if (!lsuTrigger || !l03_mode) return false;
         lsuTrigger->onAttempt();
         if (!lsuTrigger->onEligible()) return false;
         const uint64_t bit = rng() % 20;

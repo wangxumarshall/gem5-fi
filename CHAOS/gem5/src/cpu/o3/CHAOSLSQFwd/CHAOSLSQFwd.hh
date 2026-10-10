@@ -102,6 +102,7 @@ class CHAOSLSQFwd : public SimObject
     uint64_t max_faults, faults_injected_count;
     uint64_t rng_seed;
     bool write_log;
+    bool l03_mode = false;   // [LSU][SEM-B] W5 L03: violation-site only
     // Sampling-bias fix (same as CHAOSL1DForward, findings.md Phase 2.2):
     // number of eligible forwarding events to skip before the first
     // injection — geometric(p=0.1) from the seed, so maxFaults=1 lands on a

@@ -44,6 +44,10 @@ class CHAOSLSQFwd(SimObject):
         "fwd_source_sub (F5 Phase 4.2: forward from the WRONG older SQ "
         "entry — method1 wrong-source store->load forwarding)")
     laneSkewK = Param.Int(1, "§2.4 byte_lane_skew: rotate by k bytes (default 1)")
+    l03Mode = Param.Bool(False,
+        "[LSU][SEM-B] W5 L03: violation-check-address corruption — the SQ-forward "
+        "data-path hook is excluded from the trigger stream (hook split); without "
+        "it, the violation hook stays silent (data-path structMode models only)")
 
     firstClock = Param.UInt64(0, "First clock cycle eligible for injection")
     lastClock = Param.UInt64(0, "Last cycle (0 = unrestricted)")

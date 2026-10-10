@@ -803,6 +803,7 @@ if args.chaos_lsqfwd:
         lsuTier=args.lsqfwd_lsu_tier,
         lsuWarmupEvents=args.lsqfwd_warmup_events,
         lsuSpanEvents=args.lsqfwd_span_events,
+        l03Mode=args.lsqfwd_l03,   # [LSU][SEM-B] W5 L03 接线
         firstClock=args.first_clock,
         lastClock=args.last_clock,
         maxFaults=args.max_faults,
