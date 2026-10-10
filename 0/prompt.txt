@@ -1,0 +1,146 @@
+从现在起进入“休息日无人值守推进模式”。在收到新指示前，不要在普通阶段节点停下来等我选择；按照以下预授权决策树持续推进。
+
+总原则：
+
+- 科学正确性、证据完整性优先；
+- 允许本地修改和分项提交；
+- 禁止push、pull、merge、rebase、reset、clean；
+- 禁止git add -A、git add .、git commit -a；
+- runs、artifacts、build和/tmp不得提交；
+- 原始结果不得覆盖或删除；
+- 长任务必须使用可恢复的tmux或正式runner，保存PID、锁、manifest和日志；
+- 主agent是唯一实验调度者；
+- subagent只能进行只读审计、日志分析和代码建议；
+- 正常成功、预期失败、单项样本不足均不需要等我裁决，按下述规则自动推进。
+
+一、W1 golden自动闭环
+
+1. 继续等待golden #2完成；
+2. #2通过全部既定门禁后，自动验证结果并串行启动golden #3；
+3. 禁止#2/#3并行；
+4. #3通过后，自动完成三次一致性核验并冻结W1 oracle；
+5. 冻结内容至少包括：
+   - 三次14/14结果；
+   - EXIT_RC；
+   - 8个fnv1a64；
+   - native all_A/all_B对照；
+   - commit、binary、workload、config、environment身份；
+   - guard和syscall检查；
+   - manifest及证据路径。
+
+如果#2或#3不一致：
+
+- 停止继续启动新的golden；
+- 保留全部现场；
+- 不修改golden迁就结果；
+- 转而继续所有不依赖oracle的只读审计、DATA overlay和设计工作；
+- 不要让整台机器闲置；
+- 最终统一报告，不必立即等待我回复。
+
+二、oracle冻结后的自动执行顺序
+
+三次golden一致后，按顺序自动推进：
+
+1. 落地[LSU][DATA] correction overlay；
+2. 保持L5五类不变；
+3. 用正交有效性字段表达triggered/write_attempted/fault_effective/valid_for_l5；
+4. 隔离ITEM-271、279、019、022污染样本；
+5. 隔离所有--lsqfwd_l03身份失真的历史数据；
+6. 每项独立提交，原始results.jsonl零修改；
+7. 落地OBS补丁，每个逻辑补丁独立提交；
+8. 修复PRE钩子“先计injected、后过滤”的顺序；
+9. 修复--lsqfwd_l03参数接线；
+10. 修复W1 timeout口径；
+11. 以-j8或更低重建；
+12. 执行无注入回归、golden回归和观测零扰动验证；
+13. 执行三组count-only census；
+14. 进入代表项n=5、pilot 30；
+15. 代表项通过后，按根因类别批量重跑。
+
+提交必须拆分：
+
+- DATA修正；
+- OBS观测；
+- PRE语义修复；
+- l03参数接线；
+- timeout工具修复；
+- MemoryOrderViolation事件源；
+- workload/runner注册。
+
+不得混成一个提交。
+
+三、已预授权的科学决策
+
+1. L5不新增第六终类；
+2. 无效注入通过正交validity字段记录；
+3. ITEM-285原33个样本撤销L03身份并隔离；
+4. ITEM-289保持capability-gap，直到独立MemoryOrderViolation事件源通过准入；
+5. 禁止将MemoryOrderViolation近似映射到SqForward；
+6. ITEM-287如果W1 census仍低于F4门槛：
+   - 标记carrier-insufficient；
+   - 不盲目增加attempt；
+   - 跳过该项，继续其他可运行项目；
+7. 单个ITEM失败不得阻塞其他已验证类别。
+
+四、无人值守准入树
+
+每个代表项自动执行：
+
+count-only > 0
+→ n=5至少一次真实有效注入
+→ pilot 30
+→ 分类完整且无unknown
+→ faults_injected符合模型定义
+→ 至少一个样本可重放
+→ golden及不受影响回归通过
+→ 自动进入同类批量重跑。
+
+任一门禁失败：
+
+- 隔离该ITEM或该类别；
+- 保存证据；
+- 不增加attempt硬跑；
+- 自动继续下一个独立ITEM或类别。
+
+count-only为0的项目禁止进入正式重跑。
+
+五、资源调度
+
+- 全机同时gem5≤4；
+- campaign编译≤-j8；
+- golden仍按严格串行要求；
+- golden闭环结束后，可将独立count-only或campaign调度到最多4个gem5槽；
+- 每个任务使用独立目录、seed区间、manifest和日志；
+- 每批前检查MemAvailable、SwapFree、load、磁盘和锁；
+- 不得让多个subagent自行占用槽位。
+
+资源异常时自动降级：
+
+- MemAvailable < 8GB、出现持续swap、iowait持续>10%或load异常：
+  停止派发新样本，将并发降至2；
+- 稳定15分钟后可按2→4逐级恢复；
+- 不得粗暴杀死仍可正常收尾的样本；
+- OOM、磁盘不足或结果目录冲突时停止新调度并保留现场。
+
+六、真正需要停止的条件
+
+只有以下情况才停止相关路径：
+
+- 需要覆盖或删除原始数据；
+- 需要push或破坏性Git操作；
+- golden三次身份不一致；
+- 发现无法隔离的数据串写；
+- 需要改变F0/F1/F2/F4/F6科学定义；
+- 同一故障连续三次复现且无安全替代路径；
+- 磁盘、OOM或硬件异常可能损坏证据。
+
+即便某一路径停止，也继续所有互不依赖的安全工作。
+
+七、持续性要求
+
+- 所有长任务进入tmux或正式runner；
+- 写明恢复命令、PID、锁和日志路径；
+- 每完成一个阶段更新progress.md；
+- 不要因输出阶段报告就停止后续已授权工作；
+- 阶段报告写入文件后继续执行下一阶段；
+- 最终到达全部安全可推进工作的边界后，再统一汇报。
