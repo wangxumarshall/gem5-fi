@@ -78,6 +78,16 @@ class CHAOSAddrPath : public SimObject
     bool f6_pending = false;
     uint64_t f5_bit = 64;   // pinned bit index (F5 low-bit / A03 stuck), 64 = not yet chosen
 
+    // [LSU][OBS-2] post-trigger decline counters (F-049 D-class diagnosis):
+    // count trigger-fired-but-no-fault-write outcomes per reason. Observation
+    // only — every increment sits on a path that already returned without
+    // writing, so injection semantics are unchanged.
+    uint64_t obs_pre_fired = 0;      // PRE hook: trigger said "inject now"
+    uint64_t obs_pre_opclass = 0;    // PRE: op-class filter declined (phantom)
+    uint64_t obs_pre_invalid = 0;    // PRE: invalid target / unknown pre_mode
+    uint64_t obs_post_fired = 0;     // POST hook: trigger said "inject now"
+    uint64_t obs_post_nochange = 0;  // POST: corruption produced identical vaddr
+
     // W3 L0: funnel (attempted/eligible/injected mirrored from the trigger;
     // activated = the read-back verdict — for THIS hook the corrupted vaddr
     // is consumed by the very next pipeline step (translateTiming consumes

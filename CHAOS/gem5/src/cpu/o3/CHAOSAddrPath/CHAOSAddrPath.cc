@@ -116,6 +116,7 @@ namespace gem5
                 go = lsuTrigger->onEligible();
             }
             if (!go) return false;
+            ++obs_post_fired;   // [LSU][OBS-2]
         } else {
             // Legacy cycle-window path (KP track) — byte-identical.
             if (max_faults != 0 && faults_injected_count >= max_faults) return false;
@@ -172,7 +173,7 @@ namespace gem5
         } else {
             new_vaddr = vaddr ^ (1ULL << (rng() % 16));  // low-bit flip
         }
-        if (new_vaddr == vaddr) return false;
+        if (new_vaddr == vaddr) { ++obs_post_nochange; return false; }   // [LSU][OBS-2]
         req->setVaddr(new_vaddr);
         // W3 L0: register the injected item + local funnel accounting. The
         // trigger-mirrored counts are taken at EXIT (see the exit callback)
@@ -212,6 +213,7 @@ namespace gem5
                 go = lsuTrigger->onEligible();
             }
             if (!go) return size;
+            ++obs_pre_fired;   // [LSU][OBS-2]
         } else {
             // Legacy gating (same shape as the post hook).
             if (max_faults != 0 && faults_injected_count >= max_faults) return size;
@@ -249,19 +251,19 @@ namespace gem5
                 agu_size_to == 8 || agu_size_to == 16)
                 size = (unsigned)agu_size_to;
             else
-                return size;  // invalid target size — no-op, logged below
+                { ++obs_pre_invalid; return size; }  // [LSU][OBS-2] invalid target size — no-op, logged below
         } else if (pre_mode == "s13_store_addr") {
             // S13 (03): SQ entry address/tag single-bit flip — STORES only.
             // The corrupted address affects forwarding comparison AND the
             // final writeback destination (both consume the SQ addr field).
-            if (isLoad) return size;   // L01's territory, not ours
+            if (isLoad) { ++obs_pre_opclass; return size; }   // [LSU][OBS-2]   // L01's territory, not ours
             const uint64_t bit = rng() % 48;   // VA 48-bit
             addr = addr ^ (1ULL << bit);
         } else if (pre_mode == "s04_store_subst") {
             // S04 (03): SQ addr field substitution to another legal same-page
             // address — STORES only. Changes both forwarding comparison and
             // the final writeback destination.
-            if (isLoad) return size;
+            if (isLoad) { ++obs_pre_opclass; return size; }   // [LSU][OBS-2]
             const Addr page = addr & ~(Addr)0xFFF;
             Addr cand;
             do { cand = page | ((Addr)(rng() % 256) << 4); } while (cand == addr);
@@ -270,7 +272,7 @@ namespace gem5
             // S05 (03): SQ byte-enable/access-size substitution — STORES
             // only. Changes the partial-store coverage (which bytes get
             // written). Address unchanged.
-            if (isLoad) return size;
+            if (isLoad) { ++obs_pre_opclass; return size; }   // [LSU][OBS-2]
             const unsigned new_sizes[] = {1, 2, 4, 8, 16};
             const unsigned pick = rng() % 5;
             if (new_sizes[pick] != size) size = new_sizes[pick];
@@ -291,7 +293,7 @@ namespace gem5
             // S11 (03): SQ drain handshake — STORES only. Set size=0
             // (simulating a lost/never-completed write request: the SQ
             // "thinks" it sent the write but nothing reaches L1D).
-            if (isLoad) return size;
+            if (isLoad) { ++obs_pre_opclass; return size; }   // [LSU][OBS-2]
             size = 0;
         } else if (pre_mode == "l02_load_state") {
             // L02 (03): LQ lifecycle state corruption — LOADS only. Toggle
@@ -300,17 +302,17 @@ namespace gem5
             // Honest approximation: the full valid/issued/completed state
             // machine is internal to LSQRequest; the flags are the
             // externally controllable lifecycle proxy at this hook.
-            if (!isLoad) return size;
+            if (!isLoad) { ++obs_pre_opclass; return size; }   // [LSU][OBS-2]
             flags.set(Request::STRICT_ORDER);
         } else if (pre_mode == "l01_load_addr") {
             // L01 (03): LQ entry address/tag single-bit flip — LOADS only.
             // The corrupted address affects the conflict/violation check
             // against older stores AND the actual memory access.
-            if (!isLoad) return size;  // S13's territory, not ours
+            if (!isLoad) { ++obs_pre_opclass; return size; }   // [LSU][OBS-2]  // S13's territory, not ours
             const uint64_t bit = rng() % 48;
             addr = addr ^ (1ULL << bit);
         } else {
-            return size;  // unknown pre_mode — config validated in .py choices
+            { ++obs_pre_invalid; return size; }  // [LSU][OBS-2] unknown pre_mode — config validated in .py choices
         }
 
         chaosL0Register(l0_item, addr ? addr : size);
@@ -357,6 +359,18 @@ namespace gem5
             registerExitCallback([this]() {
                 if (lsuTrigger) {
                     lsuTrigger->summary("CHAOSAddrPath");
+                    // [LSU][OBS-2] post-trigger decline report (D-class):
+                    // pre_opclass>0 with fault writes < trigger.injected is
+                    // the phantom-activation signature (F-049).
+                    printf("CHAOS_L0_DECLINE: pre_fired=%lu pre_opclass=%lu "
+                           "pre_invalid=%lu post_fired=%lu post_nochange=%lu "
+                           "trigger_injected=%lu\n",
+                           (unsigned long)obs_pre_fired,
+                           (unsigned long)obs_pre_opclass,
+                           (unsigned long)obs_pre_invalid,
+                           (unsigned long)obs_post_fired,
+                           (unsigned long)obs_post_nochange,
+                           (unsigned long)lsuTrigger->injected);
                     // Mirror the trigger's FINAL counts here (exit time), so
                     // the funnel line and the summary line always agree.
                     l0_funnel.attempted = lsuTrigger->attempted;
