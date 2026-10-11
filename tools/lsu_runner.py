@@ -76,7 +76,7 @@ def detect_workload_key(fields):
     return m.group(1) if m else None
 
 
-def build_manifest(item_id, phase, sample_index, extra=None):
+def build_manifest(item_id, phase, sample_index, extra=None, carrier_text=None):
     blocks = parse_items()
     hit = [b for b in blocks if b[0] == item_id]
     if not hit:
@@ -107,6 +107,10 @@ def build_manifest(item_id, phase, sample_index, extra=None):
         # ITEM-002(A01-F0-W9) sys.exit(BLOCKED) 杀死整个 AGU unit_pilot
         # （事故 F-018，2026-09-29 19:48）。
         wl_text = fields.get("负载", "") + " " + fields.get("负载/oracle", "")
+        if carrier_text:
+            # [LSU][W1-RERUN] D-2026-10-09-重跑：RunID 不变、载体改指（清单负载
+            # 字段保持原样归档，campaign 记录改指事实——不篡改权威清单）。
+            wl_text = carrier_text
         wl_binary = None
         for key, bin_name in LC.WL_BINARY.items():
             if key in wl_text:
