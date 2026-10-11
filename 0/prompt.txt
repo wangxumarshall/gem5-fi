@@ -1,0 +1,7 @@
+<task-notification>
+<task-id>b8z2cjrz4</task-id>
+<tool-use-id>call_b8821b3193b94285a7a886a0</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi-ding/f251d83f-ce2a-4d5b-851a-5d6937dd4ed6/tasks/b8z2cjrz4.output</output-file>
+<status>completed</status>
+<summary>Background command "Watch for golden regression completion with oracle hash comparison" completed (exit code 0)</summary>
+</task-notification>
