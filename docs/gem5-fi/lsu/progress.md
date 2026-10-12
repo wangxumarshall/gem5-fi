@@ -9,6 +9,8 @@
 
 ## Current Status
 
+- **服务器身份（第零节身份锁，2026-10-12 10:20 实测）:** hostname=`localhost0101`；IP=`172.168.177.97`（+docker0 172.17.0.1）；仓库根=`/home/sdc/gem5-fi-ding`；分支=`fi-ding`；HEAD=`5503427029d9998ed96022489e98deb10f3141a2`；LSU Excel=`docs/gem5-fi/lsu/gem5-fi-LSU单元故障注入方案.xlsx` 存在✓；OOO Excel 本机不存在（他轨文件在 0201）。**身份判据通过**：hostname/IP 与既有 LSU 记录（Session 001/003 旧机）唯一吻合——本机 = 0101 LSU 执行服务器。**轨道锁**：本会话只主动维护 docs/gem5-fi/lsu/、LSU 专用 campaign/runner/工具/证据；不修改 OOO Excel 或 docs/gem5-fi/ooo/ 动态状态；共享文件（runner/campaign/classify/schema/gem5 C++）修改前须在本文件登记（文件/目的/范围/共享状态），已知 0201 在改同一文件时停写只做草案。
+- **执行方式（2026-10-12 用户指令）:** 逐单元调度（AGU→L1d-TLB→Store Queue→L1d-Cache→原子与同步→数据预取器→Load Queue；当前新调度单元=AGU）、逐实验增量记录（每阶段完成立即更新 progress.md+Excel）、单元结束统一冻结；Subagent 可并行只读审计/矩阵核对/结果统计/回填草案，主 Agent 为唯一调度者与唯一写入协调者（Excel/progress/task_plan/Git 串行写入）；跨服务器 Git 纪律：本地提交允许、禁自行 push/fetch/pull/merge/rebase/reset/clean、禁 add ./-A/commit -a、每提交一个逻辑主题、runs/artifacts/build//tmp 不提交、等主协调端统一集成。
 - **Current Phase:** P3（前三单元连续 pilot 波次，用户指令 2026-09-29 晚）
 - **Phase Status:** IN_PROGRESS
 - **Overall Status:** IN_PROGRESS（DR-003 裁决 A：旧机续跑 + 并发 4；P3 三单元闭合（F-040）；**DR-001 W1 载体工程核心验证达成**——golden 候选 #1 取得（F-045），golden #2/#3 待启动；集群 Session 002 平台工程（U3b 二进制身份恢复），遵守 DR-003-A 不跑波次；F-025/F-027 已合并）
