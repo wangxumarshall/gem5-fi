@@ -35,17 +35,11 @@ ROOT = LR.REPO / "runs/lsu/pilot_w1"
 
 
 def summarize(runs):
-    five = {"Masked": 0, "Detected/Contained": 0, "SDC": 0, "Crash": 0, "Timeout": 0}
-    simfail = 0
-    for v in runs:
-        oc = v.get("outcome")
-        if oc in five:
-            five[oc] += 1
-        else:
-            simfail += 1
-    return {"attempted_runs": len(runs),
-            "activated_runs": UP._activated_count(runs),
-            "five_class": five, "simfail_or_other": simfail}
+    """复用 unit_pilot.audit（权威聚合口径）：simulator_assert 单列
+    post_activation_simulator_failure、五类只收架构结局、守恒校验——
+    与旧波次 result.json 完全同构（本驱动初版误将 simulator_assert 计入
+    five_class.Crash，2026-10-12 对账时发现并修正）。"""
+    return UP.audit(runs)
 
 
 def run_item(it, phase):
