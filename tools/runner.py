@@ -443,6 +443,19 @@ def main():
                          "upper-bound proxy) and print it as an "
                          "'[runner] L3RESULT: {json}' line (requires "
                          "--ctrace).")
+    # ---- L0-L5 (2026-10-12 plan Task 2): L1 µarch snapshot plumbing ----
+    # Same shape as --ctrace: C3/C4-LSU only, absolute path pins the file,
+    # evidence line after the run. Without the flag NOTHING changes (the
+    # legacy stdout contract is byte-identical).
+    ap.add_argument("--msnap", default=None, metavar="PATH",
+                    help="L1: enable the CHAOSMicroSnap µarch snapshot — "
+                         "passes --chaos_msnap --msnap_file PATH "
+                         "--msnap_every N to the config (C3/C4-LSU only; "
+                         "absolute path recommended so the snapshot lands "
+                         "exactly here).")
+    ap.add_argument("--msnap-every", type=int, default=1000, metavar="N",
+                    help="L1: snapshot period in committed instructions "
+                         "(default 1000, ooo_proxy.py's own default).")
     args = ap.parse_args()
 
     with open(args.manifest) as f:
@@ -476,6 +489,17 @@ def main():
                  "measures the commit trace THIS run produces). Aborting.")
     if args.fanout_phys is not None and args.fanout_phys < 0:
         sys.exit("[runner] --fanout-phys must be a non-negative integer. "
+                 "Aborting.")
+    # L0-L5 (plan Task 2): validate the msnap flag surface EARLY, mirroring
+    # the --ctrace pattern above (a mis-scoped invocation fails loudly at
+    # the runner, never inside gem5's argparse).
+    if args.msnap and cfg_family not in ("C3", "C4-LSU"):
+        sys.exit(f"[runner] --msnap requires C3/C4-LSU (only "
+                 f"configs/se/ooo_proxy.py and configs/se/lsu_proxy.py define "
+                 f"--chaos_msnap/--msnap_file; config_family={cfg_family}). "
+                 f"Aborting.")
+    if args.msnap and args.msnap_every < 1:
+        sys.exit("[runner] --msnap-every must be >= 1 committed instruction. "
                  "Aborting.")
 
     # platform.config_params (optional dict): microarch knob overrides passed
@@ -1484,6 +1508,14 @@ def main():
         cmd += ["--chaos_ctrace", "--ctrace_file", ctrace_path]
         note = f" (diff vs ref {os.path.abspath(args.ctrace_ref)})" if args.ctrace_ref else ""
         print(f"[runner] ctrace: {ctrace_path}{note}")
+    # L0-L5 (plan Task 2): L1 µarch snapshot — same absolute-path pinning as
+    # the ctrace block above (ooo_proxy resolves a RELATIVE --msnap_file
+    # against its own --outdir, which is the runner's private man-* tempdir).
+    if args.msnap:
+        msnap_path = os.path.abspath(args.msnap)
+        cmd += ["--chaos_msnap", "--msnap_file", msnap_path,
+                "--msnap_every", str(args.msnap_every)]
+        print(f"[runner] msnap: {msnap_path} every={args.msnap_every}")
     print("[runner] running:", " ".join(cmd[:4]), "...")
     # Hang timeout (plan §13.2): a normal sim completes in well under the
     # wall budget; a Hang = no completion within this. Default 600s; the
@@ -1615,6 +1647,20 @@ def main():
             l2 = run_commit_diff(os.path.abspath(args.ctrace_ref),
                                  ctrace_path)
             print("[runner] L2RESULT: " + json.dumps(l2, ensure_ascii=False))
+    # ---- L0-L5 (plan Task 2): L1 µarch snapshot evidence line. Same
+    # honesty contract as the CTRACE line: count_trace_lines returns
+    # None on an unreadable/truncated stream (a crashed run's msnap
+    # lacks its gzip trailer) — that is reported as 'unreadable', never
+    # fabricated as a count. Independent of --ctrace.
+    if args.msnap:
+        msnap_path = os.path.abspath(args.msnap)
+        if os.path.exists(msnap_path):
+            n = count_trace_lines(msnap_path)
+            print(f"[runner] MSNAP: file={msnap_path} "
+                  f"lines={n if n is not None else 'unreadable'} "
+                  f"bytes={os.path.getsize(msnap_path)}")
+        else:
+            print(f"[runner] MSNAP: file={msnap_path} MISSING")
         # ---- W2.6 (plan Task 6): L3 fanout of --fanout-phys on this run's
         # trace (tools/fanout.py; liveness windows + val changes). Parsed by
         # campaign.py into the rep's results.jsonl `l3` block. The honest
