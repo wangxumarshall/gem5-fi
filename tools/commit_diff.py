@@ -295,8 +295,17 @@ def _pair_divergence(r, u):
     return None
 
 
-def compare(ref_path, run_path, tick_tol):
+def compare(ref_path, run_path, tick_tol, seq_range=None):
     """Merge-join both traces on seq (streaming, O(1) memory) and classify.
+
+    seq_range (L0-L5 plan Task 3): optional (lo, hi) INCLUSIVE seq window.
+    Records with seq < lo are dropped, and the first record with seq > hi
+    ENDS that side (an early stop — the rest of that file is never read,
+    which is the point for multi-hundred-MB coremark traces). A windowed
+    comparison NEVER claims whole-trace evidence: the result carries
+    seq_range + coverage_note, and the caller (observation builder) records
+    coverage_scope accordingly. None = the legacy whole-trace comparison,
+    byte-identical output.
 
     Truncated-stream salvage (W2.1 followup): a side whose gzip ends without
     a trailer (ABORTED gem5 run; CHAOSCommitTrace gzflush-ed its rows) is
@@ -305,8 +314,28 @@ def compare(ref_path, run_path, tick_tol):
     measurement artifact, not a fault effect, and is NOT counted as
     instruction_flow_change."""
     ref_trunc, run_trunc = {}, {}
-    it_ref = iter_records(ref_path, ref_trunc)
-    it_run = iter_records(run_path, run_trunc)
+
+    if seq_range is None:
+        # legacy whole-trace path: the RAW generators (byte-identical
+        # behavior; a generator-function wrapper would swallow them).
+        it_ref = iter_records(ref_path, ref_trunc)
+        it_run = iter_records(run_path, run_trunc)
+    else:
+        lo, hi = seq_range
+
+        def _windowed(it):
+            """Filter one record stream to [lo, hi]: drop seq < lo, stop
+            at the first seq > hi (early stop = the file tail is never
+            decompressed -- the point for hundred-MB coremark traces)."""
+            for rec in it:
+                if rec.seq < lo:
+                    continue
+                if rec.seq > hi:
+                    return
+                yield rec
+
+        it_ref = _windowed(iter_records(ref_path, ref_trunc))
+        it_run = _windowed(iter_records(run_path, run_trunc))
     r = next(it_ref, None)
     u = next(it_run, None)
 
@@ -429,6 +458,14 @@ def compare(ref_path, run_path, tick_tol):
         "run_instructions": n_run,
         "aligned_pairs": aligned,
         "tick_tol": tick_tol,
+        # L0-L5 plan Task 3: windowed-diff provenance. Keys exist ONLY when
+        # a --seq-range was given, so the legacy JSON stays byte-identical.
+        **({"seq_range": {"lo": seq_range[0], "hi": seq_range[1]}}
+           if seq_range is not None else {}),
+        **({"coverage_note": "diff restricted to seq [%d,%d]; divergence "
+                            "outside window unobserved"
+                           % (seq_range[0], seq_range[1])}
+           if seq_range is not None else {}),
         "verdict": verdict,
         "primary_class": first_point["class"] if first_point else None,
         "primary_class_zh": (first_point["class_zh"] if first_point
@@ -464,6 +501,10 @@ def format_report(res):
                  % (res["run"], res["run_instructions"]))
     lines.append("对齐指令对: %d    tick 容差: %d"
                  % (res["aligned_pairs"], res["tick_tol"]))
+    if "seq_range" in res:
+        lines.append("[窗口] 比对范围 seq [%d, %d]；窗口外未观测（%s）"
+                     % (res["seq_range"]["lo"], res["seq_range"]["hi"],
+                        res["coverage_note"]))
     lines.append("")
     if res["verdict"] == "no_divergence":
         lines.append("[结论] 主分类: %s (no_divergence) —— 全程指令字段一致"
@@ -526,6 +567,22 @@ def _nonneg_int(s):
     return v
 
 
+def _seq_range(s):
+    """Parse 'LO:HI' (inclusive seq window, LO <= HI) for --seq-range."""
+    try:
+        lo_s, hi_s = s.split(":", 1)
+        lo, hi = int(lo_s, 10), int(hi_s, 10)
+    except ValueError:
+        raise argparse.ArgumentTypeError(
+            "invalid --seq-range %r (expected LO:HI integers)" % s)
+    if lo < 0 or hi < 0:
+        raise argparse.ArgumentTypeError("--seq-range bounds must be >= 0")
+    if lo > hi:
+        raise argparse.ArgumentTypeError(
+            "--seq-range LO (%d) must be <= HI (%d)" % (lo, hi))
+    return (lo, hi)
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(
         prog="commit_diff.py",
@@ -540,10 +597,18 @@ def main(argv=None):
                          "（人读报告仍打印到 stdout）")
     ap.add_argument("--tick-tol", type=_nonneg_int, default=0, metavar="T",
                     help="tick 漂移容差，默认 0（tick 必须完全一致）")
+    ap.add_argument("--seq-range", type=_seq_range, default=None,
+                    metavar="LO:HI",
+                    help="L0-L5 窗口差分：仅比对 seq ∈ [LO, HI]（闭区间），"
+                         "两侧越过 HI 即早停（长流控时控盘）。窗口内的"
+                         "no_divergence 不是全程证据——JSON 带 coverage_note，"
+                         "由观测层记录 coverage_scope。缺省 = 全程比对"
+                         "（字节不变）。")
     args = ap.parse_args(argv)
 
     try:
-        res = compare(args.ref, args.run, args.tick_tol)
+        res = compare(args.ref, args.run, args.tick_tol,
+                      seq_range=args.seq_range)
     except TraceError as e:
         sys.stderr.write("commit_diff: ERROR: %s\n" % e)
         return 1
