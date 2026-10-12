@@ -1,0 +1,37 @@
+{
+  "freeze_id": "P4-AGU-formal-20261012",
+  "decision_basis": "D-2026-10-08-采样（P4 冻结前不启动）+ 2026-10-12 逐单元调度协议（当前单元=AGU，pilot 级出口已达标）",
+  "frozen_at": "2026-10-12 11:00",
+  "unit": "AGU",
+  "stage": "formal（正式筛查，screening 相位）",
+  "targets": {
+    "default_runid_target": 385,
+    "key_runid_target": 2401,
+    "key_runids": ["A01-F0-W3", "A04-F0-W3"],
+    "attempted_cap_rule": "max(300, 10×target)（防死循环护栏；D-2026-10-08 未定正式上限，10× 为本冻结声明值，如实记录）"
+  },
+  "cumulative_rule": "pilot-30（phase=pilot，s0-s29）在配置不变前提下计入 385/2401 累计（D-2026-10-08）；formal 新样本 s30+ 使用 phase=screening seed 族（lsu_seed(RunID,'screening',idx)），seed 规则不变",
+  "runids": {
+    "carrier_w1": ["A01-F1-W3","A01-F1-W9","A01-F2-W3","A02-F2-W3","A04-F2-W3","A04-F2-W0",
+                   "A05-F2-W3","A06-F2-W3","A06-F2-W5","A08-F2-W3","A08-F2-W5"],
+    "carrier_checklist": ["A01-F0-W3(K)","A01-F0-W9","A02-F0-W3","A02-F0-W9","A01-F2-W9",
+                          "A04-F0-W3(K)","A04-F0-W0","A05-F0-W3","A06-F0-W3","A06-F0-W5",
+                          "A04-F6-W3","A04-F6-W0","A05-F6-W3","A06-F6-W3","A06-F6-W5",
+                          "A08-F0-W3","A08-F0-W5","A08-F6-W3","A08-F6-W5","A02-F2-W9"],
+    "counts": "31 RunID = 11 W1 载体改指（D-2026-10-09-重跑延续）+ 20 清单原载体（含 2 个重点项 K）",
+    "excluded": "A03×2/A07×6（admission BLOCKED 注入器缺口，不在 formal 范围）"
+  },
+  "identity": {
+    "gem5_opt_sha256": "10590f6295bc4dec09fc51c538dd85ababaf2efb9（OBS/SEM 重建后平台，W1 golden 回归 PASS）",
+    "oracle": "清单原载体项 = LC.GOLDENS 各自 golden；W1 改指针 = 6dab8ec221c46677（F-050 冻结）",
+    "config": "B0 / O3 / lsu_proxy.py（与 pilot 完全一致，累计有效前提）",
+    "seed_rule": "tools/lsu_seed.py sha256('lsu-fi-v1|RunID|phase|sample_index') 低64位大端"
+  },
+  "execution": {
+    "driver": "tools/lsu_w1_rerun.py 扩展（--target/--phase/--carrier/--unit-dir）",
+    "slots": "全机 gem5 ≤4（每实例 1 槽串行样本，4 实例并行）",
+    "resume": "样本级 resume 复用 pilot 有效 verdict（F-022 机制）",
+    "output": "与 pilot 同目录（pilot_w1/ITEM-XXX 或 pilot/AGU/ITEM-XXX_s*）——同一 sample 序列的延续"
+  },
+  "stop_rule": "activated ≥ target（385/2401）或 attempted ≥ cap；BLOCKED 记录原因证据后不混入"
+}

@@ -42,9 +42,11 @@ def summarize(runs):
     return UP.audit(runs)
 
 
-def run_item(it, phase):
-    udir = ROOT / it
+def run_item(it, args):
+    udir = ROOT / it if args.carrier == "w1" else Path(args.unit_dir)
     udir.mkdir(parents=True, exist_ok=True)
+    phase, target = args.phase, args.target
+    cap = max(300, 10 * target)   # P4 冻结：护栏 cap=10×target
     runs = []
     s = 0
     while True:                      # 样本级 resume（F-022 同款）
@@ -57,9 +59,10 @@ def run_item(it, phase):
         print(f"[{it}] resume: {len(runs)} valid samples reused", flush=True)
     status = "IN_PROGRESS"
     try:
-        while (UP._activated_count(runs) < UP.SAMPLES_TARGET
-               and len(runs) < UP.ATTEMPTED_CAP):
-            m = LR.build_manifest(it, phase, s, carrier_text=W1_TEXT)
+        while (UP._activated_count(runs) < target
+               and len(runs) < cap):
+            m = LR.build_manifest(it, phase, s,
+                                  carrier_text=(W1_TEXT if args.carrier == "w1" else None))
             od = udir / f"{it}_s{s}"
             od.mkdir(parents=True, exist_ok=True)
             try:
@@ -72,17 +75,21 @@ def run_item(it, phase):
             runs.append(v)
             print(f"[{it}] s{s}: {v.get('outcome')}/{v.get('crash_kind', '-')} "
                   f"inj={v.get('injected')} act={UP._activated_count(runs)}"
-                  f"/{UP.SAMPLES_TARGET}", flush=True)
+                  f"/{target}", flush=True)
             s += 1
         else:
-            status = ("COMPLETE" if UP._activated_count(runs) >= UP.SAMPLES_TARGET
+            status = ("COMPLETE" if UP._activated_count(runs) >= target
                       else "BLOCKED_ATTEMPT_CAP")
     finally:
         rj = udir / f"{it}_result.json"
         rj.write_text(json.dumps(
-            {"item": it, "campaign": "w1_rerun_20261011", "status": status,
-             "carrier_override": "MiBench-TC23 -> mibench/bin/w1_all",
-             "runid_unchanged": True, "decision": "D-2026-10-09-重跑",
+            {"item": it, "campaign": args.campaign, "status": status,
+             "carrier_override": ("MiBench-TC23 -> mibench/bin/w1_all"
+                                  if args.carrier == "w1" else None),
+             "phase": phase, "target": target,
+             "runid_unchanged": True,
+             "decision": ("D-2026-10-09-重跑" if args.carrier == "w1"
+                          else "P4-AGU-formal-20261012 冻结"),
              **summarize(runs), "runs": runs},
             ensure_ascii=False, indent=1))
         print(f"[{it}] => {status} {summarize(runs)}", flush=True)
@@ -92,13 +99,21 @@ def run_item(it, phase):
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--items", nargs="+", default=ITEMS)
-    ap.add_argument("--phase", default="pilot")
+    ap.add_argument("--phase", default="pilot",
+                    help="pilot=30 门禁段；screening=formal-385/2401（P4 冻结）")
+    ap.add_argument("--target", type=int, default=30)
+    ap.add_argument("--carrier", choices=["w1", "checklist"], default="w1",
+                    help="w1=载体改指（D-2026-10-09）；checklist=原载体（P4 formal）")
+    ap.add_argument("--unit-dir", default="runs/lsu/pilot/AGU",
+                    help="checklist 模式的样本根目录（unit_pilot 布局）")
+    ap.add_argument("--campaign", default="w1_rerun_20261011")
     args = ap.parse_args()
     ROOT.mkdir(parents=True, exist_ok=True)
-    print(f"W1-RERUN campaign start {time.strftime('%F %T')} items={args.items}",
-          flush=True)
+    print(f"W1-RERUN campaign start {time.strftime('%F %T')} items={args.items} "
+          f"phase={args.phase} target={args.target} carrier={args.carrier} "
+          f"unit_dir={args.unit_dir}", flush=True)
     for it in args.items:
-        run_item(it, args.phase)
+        run_item(it, args)
     print(f"W1-RERUN campaign end {time.strftime('%F %T')}", flush=True)
 
 
