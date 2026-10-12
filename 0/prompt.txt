@@ -1,0 +1,44 @@
+<task-notification>
+<task-id>ab81694f02923b24b</task-id>
+<tool-use-id>call_73548f6edefb407387734730</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi-ding/b4a716f5-efa8-4551-9db6-d4bc451a13b9/tasks/ab81694f02923b24b.output</output-file>
+<status>completed</status>
+<summary>Agent "回填草案生成（Subagent F）" came to rest</summary>
+<note>A task-notification fires each time this agent comes to rest with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>任务完成。全部产物已生成，仓库零改动（`git status docs/gem5-fi/lsu/` 干净，所有脚本与输出仅在 /tmp）。
+
+## 产物
+
+- **/tmp/lsu_backfill_draft.json** — 40 条逐 RunID 草案（每条含 runid/item/excel_row/attempted/activated/Masked/DC/SDC/Crash/Timeout/simfail/not_activated/classifier_failures/conservation/激活率/SDC率/记录状态/实测备注/证据路径/backfill/identity_ok/identity_detail 及 wave/model_id 辅助字段）
+- **/tmp/lsu_backfill_draft_report.md** — 汇总表 + 每类计数 + 身份核验 + 待核对清单 + 新旧波次分布
+
+## 1. 草案条数
+
+- 总 **40 条**，Excel 行 2–40、272–290，全部唯一无重复（覆盖 AGU 39 RunID 中的 31 + LQ 9）
+- **backfill=true：37 条**（W1 重跑 14 + 旧波次正常 19 + 旧波次修正暂定 4〔019/022/271/279〕）
+- **backfill=false：3 条**（数值列留空，仅记录状态+实测备注）：ITEM-285「已阻塞(模型身份失真,待重跑)」、ITEM-287「进行中(准入s0完成)」、ITEM-289「已阻塞(capability-gap)」
+
+## 2. 身份核验结果（identity_ok）
+
+- **true 38 条 / false 2 条（285、289，均 backfill=false，无数值计入）**
+- 方法：每项抽查 s0 config.ini 注入器段（mode/preMode/lsuTier/lsuF6Event/structMode）+ cmd 载体，比对清单 RunID 模型/频率，并做同 W 指数载体组一致性检查
+- W1 14 项：全 CHAOSAddrPath，lsuTier=F1/F2 全对，mode/preMode 全对（a01_bit/a02_2bit/a04_subst/a05_shift/a06_size/a08_subst/l01_load_addr/l02_load_state），载体全=w1_all
+- 旧波次 23 项（回填数值的）：lsuTier/mode/preMode 全对；载体组内零分歧：W0=mini_check、W3=agu_addrmodes、W5=sq_forward、W9=gap_bfs
+- 285：config.ini 实证 structMode=byte_flip 非 l03（F-047(b)）→ 身份失真
+- 287：条目事实出自准入新证据 i287_s0（l03Mode=true、lsuTier=F4、w1_all、checkViolations_L03 站点 12,843 次真实注入，progress.md 2026-10-12 11:00 确认 PASS）
+- **平台身份**（findings.md F-030/F-050/F-052 + 当前 gem5.opt sha 实测）：旧波次=**b64c808d** 平台，W1 重跑=**10590f62** 平台（OBS/SEM 重建后）——两波次不同二进制+不同载体，已在每条实测备注注明，不混数
+
+## 3. 待核对清单
+
+1. **幻影修正暂定值 4 条**（overlay 状态 TENTATIVE，逐样本确认后方可转最终）：271 暂定 16/30（M 23→9，14 例 pre_filter 剔除，simfail 7 保留）；279 暂定 19/33（M 33→19，14 例剔除）；019 暂定 31/33（M 23→21，2 例 fault_write_noop）；022 暂定 32/33（M 15→14，1 例剔除）——每条 overlay 均附 run_dir/seed/evidence_path 可复核
+2. **ITEM-287** pilot 数值未采（准入 s0 已 PASS，pilot 待跑），本条仅状态回填
+3. 无「无法唯一映射」项：40 条 ITEM→RunID→Excel 行映射全部唯一
+
+## 4. 旧波次 24 项分布汇总
+
+- **原始口径（24 项 result.json 原值，含 285）**：attempted=activated=774；五类 M/DC/SDC/Cr/To = 324/0/26/2/0（合计 352）；simfail=422；352+422=774 守恒闭合
+- **回填口径（23 项，285 隔离 + 4 项修正后）**：attempted=741、activated=710、M=260、DC=0、SDC=26、Cr=2、To=0、simfail=422、未激活=31；五类可分析 288，288+422+31=741 守恒闭合（脚本断言全过）
+- 修正净效应：Masked 324→260（285 隔离 33 + 幻影剔除 31）；simfail 完全不变（422）；overlay 修正本身不改 attempted（774→741 仅因 285 隔离）
+- 对照 W1 14 项：attempted=activated=420，Crash=1（仅 ITEM-020，guest_or_unknown，s22，5 次注入全激活）+ simfail=419（SE page-table fault panic：故障地址越出映射区，guard.out 实证），13 项 SDC率=n/a(全simfail)</result>
+<usage><subagent_tokens>0</subagent_tokens><tool_uses>38</tool_uses><duration_ms>1192377</duration_ms></usage>
+</task-notification>
