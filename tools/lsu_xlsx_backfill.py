@@ -44,15 +44,12 @@ def col_letter(n):
         s = chr(65 + r) + s
     return s
 
-COLNUM = {name: n for n, name in [
-    (17, "Attempted"), (18, "Activated"), (19, "Masked"), (20, "DC"),
-    (21, "SDC"), (22, "Crash"), (23, "Timeout"), (24, "SDC率"),
-    (25, "激活率"), (26, "记录状态"), (27, "实测备注"), (28, "SDC_n"),
-    (42, "SimulatorFailure"),
-]}
-NUM_COLS = ["Attempted", "Activated", "Masked", "DC", "SDC", "Crash",
-            "Timeout", "SDC_n", "SimulatorFailure"]
+NUM_COL_ORDER = [17, 18, 19, 20, 21, 22, 23, 42]   # attempted..simfail 对应列
+# 草案键名（Subagent F 约定：attempted/activated 小写、simfail、五类大写驼峰）
+DRAFT_NUM_KEYS = ["attempted", "activated", "Masked", "DC", "SDC", "Crash",
+                  "Timeout", "simfail"]   # 依次写入列 17,18,19,20,21,22,23,42
 TXT_COLS = ["SDC率", "激活率", "记录状态", "实测备注"]
+TXT_COL_ORDER = {"SDC率": 24, "激活率": 25, "记录状态": 26, "实测备注": 27}
 
 
 def cell_ref(col, row):
@@ -76,8 +73,12 @@ def read_rows(zf, sheet=SHEET):
         r = int(m.group(2))
         t = c.get("t")
         v = c.find(f"{{{NS}}}v")
-        val = "" if v is None or v.text is None else (
-            shared[int(v.text)] if t == "s" else v.text)
+        if v is None or v.text is None:
+            is_ = c.find(f"{{{NS}}}is")          # inlineStr（本工具写入格式）
+            val = "" if is_ is None else "".join(
+                tt.text or "" for tt in is_.iter(f"{{{NS}}}t"))
+        else:
+            val = shared[int(v.text)] if t == "s" else v.text
         rows.setdefault(r, {})[col] = val
     return rows
 
@@ -118,12 +119,12 @@ def apply_draft(draft, apply=False):
             errors.append(f"{rid}: 矩阵无此 RunID")
             continue
         if rec.get("backfill"):
-            for key in NUM_COLS:
+            for i, key in enumerate(DRAFT_NUM_KEYS):
                 if rec.get(key) is not None:
-                    plan.append((row, COLNUM[key], rec[key], True))
+                    plan.append((row, NUM_COL_ORDER[i], rec[key], True))
         for key in TXT_COLS:
             if rec.get(key) is not None:
-                plan.append((row, COLNUM[key], rec[key], False))
+                plan.append((row, TXT_COL_ORDER[key], rec[key], False))
     if errors:
         print("❌ 草案定位核验失败：")
         for e in errors:
@@ -233,11 +234,12 @@ def verify(path, draft, plan):
         want = str(val) if num else str(val)
         if got != want:
             errs.append(f"{cell_ref(col, row)} 期望 {want!r} 实得 {got!r}")
-    # ⑥ 未计划的目标行 RunID 列未被触碰
+    # ⑥ 未计划的目标行 RunID 列未被触碰（行号取矩阵实际解析值）
+    rid_row = {rows[r].get(1, ""): r for r in rows if rows.get(r, {}).get(1)}
     for rec in draft:
-        r = rec["excel_row"]
-        if rows.get(r, {}).get(1) != rec["runid"]:
-            errs.append(f"行 {r} RunID 被改动: {rows.get(r, {}).get(1)!r}")
+        r = rid_row.get(rec["runid"])
+        if r is None or rows.get(r, {}).get(1) != rec["runid"]:
+            errs.append(f"{rec['runid']}: 校验文件中 RunID 行缺失/被改动")
     return errs
 
 
