@@ -26,9 +26,10 @@ Layout: <runs_root>/ooo-l0l5/goldens/<key>/
   ctrace_ref.csv.gz  micro_snap_ref.csv.gz  stats_ref.txt
   manifest.yaml  runner.stdout  runner.stderr
   provenance.json  COMPLETE.json
-Staging builds in <dir>/.staging/ and os.rename()s into place; COMPLETE.json
-is written INSIDE staging right before the rename so a half-built golden can
-never be mistaken for a complete one.
+Staging builds in <key>.staging/ (a SIBLING of the final dir) and
+os.rename()s into place; COMPLETE.json is written INSIDE staging right
+before the rename so a half-built golden can never be mistaken for a
+complete one.
 """
 
 import argparse
@@ -47,7 +48,6 @@ sys.path.insert(0, HERE)
 
 import ooo_guard  # noqa: E402
 import campaign as campaign_mod  # noqa: E402  (one manifest builder, no drift)
-from classify import extract_checksum  # noqa: E402
 
 try:
     import yaml
@@ -186,7 +186,8 @@ def _run_reference(spec, key, staging, hang_timeout):
            "--ctrace", ctrace,
            "--msnap", msnap,
            "--msnap-every", str(spec["msnap_every"]),
-           "--stats"]
+           "--stats",
+           "--echo-checksum"]  # observed FINAL surfaces as [runner] CHECKSUM
     env = dict(os.environ)
     env["PYTHONHASHSEED"] = "0"  # forced, not setdefault (task-book §二.4)
     env["TMPDIR"] = os.path.join(staging, "tmp")
@@ -253,9 +254,19 @@ def build_golden(spec, runs_root, guard_dir, hang_timeout=650,
         time.sleep(5)
 
     try:
-        staging = os.path.join(gdir, ".staging")
+        # staging is a SIBLING of the final dir, not a child: publishing is
+        # a same-parent os.rename(staging, final_dir) which cannot hit the
+        # "target is the source's own non-empty parent" wall. (Found by the
+        # first real golden build 2026-10-12: with staging at gdir/.staging
+        # the primary publish os.rename(gdir/.staging, gdir) is impossible —
+        # gdir exists and is non-empty — and the force-branch rmtree(gdir)
+        # deleted the fresh staging right before the rename.)
+        staging = gdir + ".staging"
         if os.path.isdir(staging):
             shutil.rmtree(staging)  # never resumes a half-build
+        legacy = os.path.join(gdir, ".staging")
+        if os.path.isdir(legacy):  # old-layout half-build remnant
+            shutil.rmtree(legacy)
         os.makedirs(staging)
         res = _run_reference(spec, key, staging, hang_timeout)
 
@@ -268,7 +279,18 @@ def build_golden(spec, runs_root, guard_dir, hang_timeout=650,
         if res["rc"] != 0:
             raise GoldenError(f"golden {key}: runner rc={res['rc']}; "
                               f"stderr tail: {res['stderr'][-400:]}")
-        observed = extract_checksum(res["stdout"] + "\n" + res["stderr"])
+        # the observed FINAL checksum arrives via runner.py's opt-in
+        # --echo-checksum evidence line (runner captures gem5's stdout
+        # internally and never forwards the raw FINAL= line - found by the
+        # first real golden build 2026-10-12)
+        m = re.search(r"^\[runner\] CHECKSUM: ([0-9a-f]{16}|none)$",
+                      res["stdout"], re.M)
+        observed = m.group(1) if m else ""
+        if not observed:
+            raise GoldenError(
+                f"golden {key}: no observed FINAL checksum in runner output "
+                f"(--echo-checksum line missing or 'none') - cannot "
+                f"cross-check against the registry")
         # registry cross-check (task-book: golden 不一致 = 立即停止)
         from runner import GOLDEN_IDS
         registered = GOLDEN_IDS.get(spec["golden_id"])
@@ -343,8 +365,12 @@ def build_golden(spec, runs_root, guard_dir, hang_timeout=650,
             shutil.rmtree(md, ignore_errors=True)
 
         # --- atomic publish ------------------------------------------------
+        # final_dir may hold an old COMPLETE copy (force/verify2) or a
+        # failed attempt's leftovers (primary path: gdir without
+        # COMPLETE.json) — both are safe to replace. The fresh staging is a
+        # SIBLING of final_dir, so this rmtree can never delete it.
         if os.path.isdir(final_dir):
-            shutil.rmtree(final_dir)  # only reachable with force/verify2
+            shutil.rmtree(final_dir)  # old copy (force/verify2) or leftovers
         os.rename(staging, final_dir)
         print(f"[golden] {key}: BUILT final={observed} wall={res['wall_s']:.0f}s")
         return _handle(key, final_dir, observed, prov)
