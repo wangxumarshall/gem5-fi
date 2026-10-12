@@ -154,14 +154,23 @@ def run_gem5_sample(manifest_path, binary, staging, hang_timeout,
     try:
         out, err = p.communicate(timeout=hang_timeout + 30)
         timed_out = False
-    except subprocess.TimeoutExpired:
+    except subprocess.TimeoutExpired as e:
         try:
             os.killpg(os.getpgid(p.pid), signal.SIGKILL)
         except Exception:
             p.kill()
         p.wait()
-        out, err = "", "sample-runner: killed after %ss wall budget" % (
-            hang_timeout + 30)
+        # preserve the PARTIAL output (the runner may already have printed
+        # its RESULT line before the driver's budget kill -- found live on
+        # eng2 D01-c rep0 where discarding it misclassified a fault-induced
+        # hang as SimulatorError)
+        def _to_str(x):
+            if isinstance(x, bytes):
+                return x.decode("utf-8", errors="replace")
+            return x or ""
+        out = _to_str(e.stdout)
+        err = (_to_str(e.stderr) + "\nsample-runner: killed after %ss "
+               "wall budget (process group SIGKILL)" % (hang_timeout + 30))
         timed_out = True
     return dict(rc=p.returncode, stdout=out or "", stderr=err or "",
                 timed_out=timed_out, wall_s=time.time() - t0, cmd=cmd)
@@ -189,9 +198,38 @@ def parse_sample_result(res):
     r = _REASON_RE.search(res["stdout"])
     parsed["checksum_observed"] = checksum
     parsed["reason"] = r.group(1) if r else ""
-    if parsed["classification"] is None:
-        # runner.py died before RESULT (tool failure) -- honest
+    if parsed["classification"] is None and not res.get("timed_out"):
+        # runner.py died before RESULT with NO timeout involved (tool
+        # failure) -- honest SimulatorError. The timed_out case is resolved
+        # by resolve_budget_kill() once the L0 injection log is parsed
+        # (fault-landed budget kill = Hang/DUE, not a tool failure).
         parsed["classification"] = "SimulatorError"
+    return parsed
+
+
+def resolve_budget_kill(parsed, res, injected):
+    """Classify a driver-budget kill with no runner RESULT line, using the
+    L0 funnel (found live on eng2 D01-c rep0: decode fault on coremark
+    hangs the workload; the 630s process-group kill used to fall through
+    to a blanket SimulatorError, miscounting a DUE as a tool failure):
+      fault landed (injected>=1)  -> Hang (timeout, no completion) / DUE
+      no fault landed             -> SimulatorError (pre-activation infra
+                                    failure; not a valid FI outcome)"""
+    if parsed.get("classification") is not None or not res.get("timed_out"):
+        return parsed
+    if (injected or 0) >= 1:
+        parsed["classification"] = "Hang"
+        parsed["reason"] = ("exceeded wall budget with a fault landed and "
+                            "no program completion (driver process-group "
+                            "kill) -- control-flow corruption DUE")
+        parsed["timed_out"] = True
+        if parsed.get("exit") is None:
+            parsed["exit"] = -9
+    else:
+        parsed["classification"] = "SimulatorError"
+        parsed["reason"] = ("runner produced no RESULT within the wall "
+                            "budget and no injection landed (pre-activation "
+                            "infrastructure failure)")
     return parsed
 
 
@@ -719,6 +757,9 @@ def cmd_run(args):
                 shutil.rmtree(man_dir, ignore_errors=True)
             l0 = ooo_observation.l0_block_from(
                 os.path.join(staging, "evidence"), component)
+            # budget-kill resolution needs the L0 funnel (fault landed?)
+            parsed = resolve_budget_kill(parsed, res, l0.get("injected"))
+            classification = parsed["classification"]
             activated = 1 if (l0["injected"] or 0) >= 1 else 0
             if activated:
                 l1_blk, _md = do_l1(staging, golden["msnap_path"])
@@ -921,6 +962,9 @@ def cmd_replay(args):
     finally:
         ooo_guard.slot_release(slot)
     parsed = parse_sample_result(res)
+    # budget-kill resolution mirrors pass 1 (same funnel, same L0 evidence)
+    parsed = resolve_budget_kill(
+        parsed, res, (obs.get("l0") or {}).get("injected"))
     # L2 pass2 with the SAME window policy (the same seed reproduces the
     # same injection point, so the anchor is identical) — and the same
     # INACTIVE policy as pass 1: when the original observation ran no L2
