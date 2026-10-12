@@ -25,8 +25,8 @@ workload:
 limits:
   max_faults: 1
 hang_timeout: 600
-chaos_commit: __FREEZE_COMMIT__
-patchset_sha256: __FREEZE_COMMIT__
+chaos_commit: b2571491be50435fcbe78847698cf5a487fcde0e
+patchset_sha256: b2571491be50435fcbe78847698cf5a487fcde0e
 trace:
   enabled: true
   l2_mode: window
