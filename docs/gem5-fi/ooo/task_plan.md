@@ -57,6 +57,7 @@ P1
 12. **检测层级 SE 推定口径**（Excel AC–AF/AO 列）：Masked→None 首检；SDC→Application 首检（oracle 校验和）；Crash/Hang→OS 首检（abort/timeout 看门狗）；硬件 RAS=0（B0 无 ECC/parity）。f=null 的 Hang 不计 activated（AN 差额如实记录）。
 13. **W6 全集口径（开放项，待用户裁定）**：W6 = CoreMark+Embench 全集（7 binary）。现阶段以 CoreMark 为主 stratum 计数（沿用 D02-a 先例），行状态保持「部分证据/待核对」直至 Embench strata 补齐或用户批准单 binary 口径。
 14. **身份锁**：每会话开始执行 §零 服务器身份核验，实测 hostname/IP/根目录/分支/HEAD 写入 progress.md「服务器身份」字段；不一致即停止。
+15. **持续运行与停止条件（2026-10-12 §七）**：普通阶段边界（count-only/pilot-30/formal-385/单元完成）不是停止点——更新 Excel+progress+本地提交后自动继续；单元完成或剩余项均 BLOCKED/NA_APPROVED 后自动进入下一单元。仅以下情况停止新调度并汇报：①golden/确定性基线不一致；②身份无法确认；③Excel 损坏/映射不唯一/归属不可靠；④资源 TRIP/磁盘不足/严重内存异常；⑤归属不明进程/重复 campaign/同 sample 多 owner；⑥需改变故障语义/eligibility/workload/oracle/统计口径；⑦需修改共享 runner/campaign/classify/schema/gem5 C++；⑧发现另一服务器修改相同共享文件；⑨需 fetch/pull/merge/rebase/push/reset/clean；⑩同一阻塞条件安全排查后连续 3 次无法推进；⑪本轨道剩余 RunID 全 BLOCKED 且无其他安全工作；⑫用户明确要求暂停。正常最终停止：全部 RunID COMPLETE/批准 BLOCKED/NA_APPROVED + 目标全达 + 文档/证据/报告齐备 + 本地提交完成——不自行 push，停止调度等待主协调端统一集成。
 
 ## 门禁
 
