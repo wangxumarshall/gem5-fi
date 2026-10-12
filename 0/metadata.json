@@ -1,0 +1,59 @@
+{
+  "cli_version": "0.10.2",
+  "checkpoint_id": "01M4QZ41SKJ8DV7EGDWZ505VZM",
+  "session_id": "34133f86-d1e6-417f-b2ec-ea8da16cb1db",
+  "strategy": "manual-commit",
+  "created_at": "2026-10-12T11:49:17.715233969Z",
+  "branch": "lsu-obs-20261012",
+  "checkpoints_count": 1,
+  "save_step_count": 1,
+  "files_touched": [],
+  "agent": "Claude Code",
+  "model": "GLM-5.3[1m]",
+  "turn_id": "31b4f7e638ae",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 3225137,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 52834944,
+    "output_tokens": 259749,
+    "api_call_count": 140
+  },
+  "skill_events_version": 1,
+  "skill_events": [
+    {
+      "id": "claude-skill-call_384904d11d204168ba6a7302",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "superpowers:writing-plans"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "31b4f7e638ae",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 19,
+        "end": 20,
+        "entry_ids": [
+          "d79d7277-7afa-4c63-902f-1dade1bc1fd0"
+        ],
+        "tool_use_id": "call_384904d11d204168ba6a7302"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "call_384904d11d204168ba6a7302"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: superpowers:writing-plans",
+        "default_collapsed": true
+      }
+    }
+  ],
+  "session_metrics": {
+    "turn_count": 6
+  }
+}
