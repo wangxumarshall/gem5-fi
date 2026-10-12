@@ -79,6 +79,14 @@
 - **Results / Evidence:** runs/pilot_{D01-F0-W6-a,b,c, D02-F0-W6-b,c, D04-F0-W4-d}/（各 30 行 results.jsonl）。
 - **Next Step:** formal 完成审计（385 行/r0000-r0384 完整/act 口径）→ 合格子模型 Excel 六步回填（[OOO][DATA]）→ D05-F0-W6-b/c 准入门。
 
+### Session 005d（2026-10-12 13:31–13:55+08:00，⚠ 并发写入冲突事故——冻结等待用户裁决）
+
+- **事故**: formal_D01-F0-W6-a 完成审计全过（385/385、385×f=1、r0000–r0384 完整、Masked 243/Crash 142/SDC 0、P_DUE 36.9%[32.2,41.8]）。Excel 六步回填执行中, 内建核验报 FAIL（4 处意外差异 R9/R19/R60/R210 的 X 列公式变成字面值 + formulas-intact=no）, 但我的脚本存在 `&&` 链缺陷（heredoc python exit 1 后 `cp` 仍在独立行无条件执行）→ 未通过核验的文件被替换并提交 `0e41a86`。
+- **根因（复现实验定位）**: 不是 openpyxl bug（同逻辑复现两次公式完好）。工作文件在 10:24（ea88017 提交）至 13:31 之间被**另一会话外部修改**（+57KB 重算保存特征, 67 处单元格变更, 时间窗与另一 claude 会话 PID 1790962 09:17 启动吻合）: 对我过渡回填行的**SDC 口径语义修正**——AB(SDC列) 重定义为 U+AI+AJ（Data Corruption + RAS-silent Crash + RAS-silent Timeout, 例: D02-a AB=0→73=73 RAS-silent Crash）, AK 首检口径改"离线 oracle→None（非运行时检测层）/架构 Crash·归因 Timeout→OS", AE/AF 相应搬家（R02-a SDC 4 由 App→None）, AA 追加"[2026-10-12 SDC口径修正]"标记, 4.观测点定义/5.频率与统计表同步改文案, X/AL/AM 公式在 4 个数据行被保存机制冻结为字面值。我的事故脚本忠实地加载了外部修改后的文件再叠加 D01-a 行——0e41a86 实际内容 = 外部语义修正 + 我的 D01-a 行（两套口径混居: 行9/19/56/60/105/210/264 为对方口径, 行3 为我口径）。
+- **处置（已完成）**: ① formal 编排器已杀（轮2/3 不再自动派发; 在跑的 formal_D01-F0-W6-b 不动, ETA≈14:00, 完成后仅审计登记 progress.md, 不回填 Excel）; ② 权威 Excel 写入全面冻结; ③ 证据保全: bak-20261012-133146（外部修改后的工作文件快照）、bak-20261012-101817（回填前原始）、/tmp/ooo-xlsx-d01a-*.xlsx（事故 TMP）、git ea88017（我方口径干净版）; ④ 无外来 campaign/gem5 进程; ⑤ 脚本缺陷修复承诺: 后续一切 Excel 写入改为单一 python 进程内联完成 edit→save→verify→原子替换, 核验失败即中止, 杜绝 shell 链式 cp。
+- **待用户裁决**: (a) SDC 口径归属——对方"AB=U+RAS-silent(Crash+Timeout)"广义静默损坏 vs 我方"AB=校验和失配窄义 SDC"; (b) 0e41a86 混居版本如何收敛（回退到 ea88017 重放我方口径 / 保留对方口径并按其重写全部行 / 列级合并）; (c) 另一会话是否经授权继续写本 Excel; (d) formal 轮2/3 何时恢复派发。
+- **Results / Evidence:** runs/formal_D01-F0-W6-a/c0000/results.jsonl（有效）; findings.md F-013; 本 Session 为事故完整记录。
+
 ## Phase Summary
 
 | Phase | Status | Started | Completed | Evidence/Output |
