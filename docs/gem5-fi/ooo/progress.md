@@ -87,6 +87,12 @@
 - **待用户裁决**: (a) SDC 口径归属——对方"AB=U+RAS-silent(Crash+Timeout)"广义静默损坏 vs 我方"AB=校验和失配窄义 SDC"; (b) 0e41a86 混居版本如何收敛（回退到 ea88017 重放我方口径 / 保留对方口径并按其重写全部行 / 列级合并）; (c) 另一会话是否经授权继续写本 Excel; (d) formal 轮2/3 何时恢复派发。
 - **Results / Evidence:** runs/formal_D01-F0-W6-a/c0000/results.jsonl（有效）; findings.md F-013; 本 Session 为事故完整记录。
 
+### Session 005e（2026-10-12 14:10+08:00，冻结期 D01-b 完成——登记不回填）
+
+- **formal_D01-F0-W6-b（reg_bitflip/transient_bit_flip@coremark）完成并审计全过**（14:09:26 驱动退出）：385/385 行、385 distinct、r0000–r0384 完整、385×f=1（100% 激活）、**Masked 325 + Crash 60 = 385 valid**、零 SDC/Inactive/SimulatorError/Hang/unknown/重复。P_DUE = 60/385 = **15.6%**（pilot 20% [20.0%→CI 内一致]）。证据: runs/formal_D01-F0-W6-b/c0000/results.jsonl; artifacts/formal_D01-F0-W6-b/summary.md。**按冻结纪律未回填 Excel**（数据已就绪，待 F-013 裁决后按裁定口径一并回填）。
+- **Int Decode formal 阶段状态**: 2/6 完成（D01-a 243M+142C/P_DUE 36.9%、D01-b 325M+60C/P_DUE 15.6%）；轮2（D01-c/D02-b）+ 轮3（D02-c/D04-d）编排器已被杀待恢复；D05 准入门未启动。全部 6 个 yaml + 编排器脚本在 /tmp/ooo-unit/ 随时可重启。
+- 机器干净: gem5=0、无 campaign 驱动、无编排器。监视 cron 已删除，会话空闲等待用户对 F-013 四项裁决。
+
 ## Phase Summary
 
 | Phase | Status | Started | Completed | Evidence/Output |
