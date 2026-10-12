@@ -255,21 +255,28 @@ def find_inj_seq(ctrace_path, l0_events):
 
 def window_slice(ctrace_path, lo, hi, out_path):
     """Stream-filter seq in [lo, hi] into out_path; returns (full_lines,
-    kept_lines). Truncated input streams are sliced over their readable
-    prefix (the differs already handle truncation honestly)."""
+    kept_lines, truncated). Truncated input streams (a Crash run's gz
+    missing its trailer — found live on eng2 D01-c rep0, a mid-stream
+    coremark crash with a NON-empty prefix) are sliced over their readable
+    prefix instead of raising EOFError out of the driver (the differs
+    already handle truncation honestly)."""
     full = kept = 0
+    truncated = False
     with gzip.open(ctrace_path, "rt", errors="replace") as fin:
         with gzip.open(out_path, "wt") as fout:
-            for line in fin:
-                full += 1
-                try:
-                    seq = int(line.split(",", 1)[0])
-                except ValueError:
-                    continue
-                if lo <= seq <= hi:
-                    fout.write(line)
-                    kept += 1
-    return full, kept
+            try:
+                for line in fin:
+                    full += 1
+                    try:
+                        seq = int(line.split(",", 1)[0])
+                    except ValueError:
+                        continue
+                    if lo <= seq <= hi:
+                        fout.write(line)
+                        kept += 1
+            except (OSError, EOFError):
+                truncated = True
+    return full, kept, truncated
 
 
 def do_l1(staging, golden_msnap):
@@ -411,12 +418,18 @@ def retain_traces(staging, mode, cov, l2_blk):
         lo = cov.get("seq_lo") or 0
         hi = cov.get("seq_hi") or 0
         out = os.path.join(ev, "ctrace_window.csv.gz")
-        full_lines, kept_lines = window_slice(ctrace, lo, hi, out)
+        full_lines, kept_lines, wtrunc = window_slice(ctrace, lo, hi, out)
         os.remove(ctrace)
         retained = out
         note = ("window retention: full run trace pruned; kept seq "
-                "[%d,%d] (%d of %d lines)" % (lo, hi, kept_lines,
-                                              full_lines))
+                "[%d,%d] (%d of %d lines)%s" % (lo, hi, kept_lines,
+                                                 full_lines,
+                                                 " [INPUT TRUNCATED: "
+                                                 "run trace lacked its "
+                                                 "gzip trailer (crash "
+                                                 "mid-run); sliced over "
+                                                 "the readable prefix]"
+                                                 if wtrunc else ""))
         pruned = True
     else:
         out = os.path.join(ev, "ctrace.csv.gz")
