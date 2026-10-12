@@ -909,11 +909,21 @@ def cmd_replay(args):
         ooo_guard.slot_release(slot)
     parsed = parse_sample_result(res)
     # L2 pass2 with the SAME window policy (the same seed reproduces the
-    # same injection point, so the anchor is identical)
-    _l2_blk, cd, _cov = do_l2(staging, rcfg["golden_ctrace"],
-                              rcfg["l2_mode"], int(rcfg["window_pre_seq"]),
-                              int(rcfg["window_post_seq"]),
-                              parsed["classification"], [])
+    # same injection point, so the anchor is identical) — and the same
+    # INACTIVE policy as pass 1: when the original observation ran no L2
+    # diff (l2.commit_diff is None, e.g. inactive_no_activation), pass 2
+    # must not produce a comparable verdict either. Found live on the
+    # E2E normal-class sample: pass1 verdict None vs pass2
+    # no_divergence was a category-error MISMATCH, not a determinism
+    # failure (integration fix 2026-10-12).
+    if isinstance(obs.get("l2", dict).get("commit_diff"), dict):
+        _l2_blk, cd, _cov = do_l2(staging, rcfg["golden_ctrace"],
+                                  rcfg["l2_mode"],
+                                  int(rcfg["window_pre_seq"]),
+                                  int(rcfg["window_post_seq"]),
+                                  parsed["classification"], [])
+    else:
+        cd = None  # pass-1 ran no diff: mirror the policy, compare nothing
     p2_cls = parsed["classification"]
     p2_verdict = cd.get("verdict") if isinstance(cd, dict) else None
     p2_checksum = parsed["checksum_observed"]

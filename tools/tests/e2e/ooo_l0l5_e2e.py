@@ -103,7 +103,13 @@ def gzip_prefix_readable(path):
     """Line-wise read with the truncated-gzip rescue semantics of
     micro_diff/commit_diff: a crashed run's .gz lacks the trailer; the
     complete rows before the EOFError are the honest readable prefix.
-    Returns (n_data_lines, truncated)."""
+    A ZERO-BYTE file is the extreme of that case — the run aborted
+    before even the first gzip flush — and is reported as (0, True),
+    never as an unreadable empty file (integration adjudication
+    2026-10-12; the crash-before-first-flush E2E sample is exactly
+    this). Returns (n_data_lines, truncated)."""
+    if os.path.getsize(path) == 0:
+        return 0, True
     rows, truncated = 0, False
     with gzip.open(path, "rt", errors="replace") as f:
         try:
@@ -687,10 +693,16 @@ def _self_test_body(tmp):
     check("crash-negative-false-no-divergence",
           assert_crash(crash_obs("ok", "no_divergence"), sd4) != [])
     sd5 = _make_trace_sample_dir(tmp, "crash-empty-trace", empty=True)
+    check("crash-zero-byte-is-honest-truncated",
+          assert_crash(crash_obs("truncated",
+                                 "truncated_no_divergence_in_prefix"),
+                       sd5) == [])
+    sd6 = _make_trace_sample_dir(tmp, "crash-comments-only",
+                                 comments_only=True)
     check("crash-negative-unreadable-trace",
           assert_crash(crash_obs("truncated",
                                  "truncated_no_divergence_in_prefix"),
-                       sd5) != [])
+                       sd6) != [])
 
     print("[self-test] assert_sdc")
     sdc_obs = _obs_min(
@@ -780,11 +792,19 @@ def _self_test_body(tmp):
     return 1 if n else 0
 
 
-def _make_trace_sample_dir(tmp, name, empty=False):
+def _make_trace_sample_dir(tmp, name, empty=False, comments_only=False):
     sd = os.path.join(tmp, "sd-" + name)
     os.makedirs(os.path.join(sd, "evidence"), exist_ok=True)
     if empty:
+        # 0-byte: crashed before the FIRST gzip flush -> honest
+        # truncated-empty (adjudication 2026-10-12) -> must PASS
         open(os.path.join(sd, "evidence", "ctrace.csv.gz"), "wb").close()
+    elif comments_only:
+        # non-empty, well-formed, but ZERO data rows and NO truncation:
+        # nothing explains the absence of data -> must be flagged
+        with gzip.open(os.path.join(sd, "evidence", "ctrace.csv.gz"),
+                       "wt") as f:
+            f.write("# header only, no rows\n")
     else:
         with gzip.open(os.path.join(sd, "evidence", "ctrace.csv.gz"),
                        "wt") as f:
