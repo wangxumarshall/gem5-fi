@@ -660,7 +660,7 @@ def _apply_crash_override(args, sel):
         raise SystemExit(f"--crash-sample 格式须为 ITEM-XXX:sNNN，得到 {cs!r}")
     sel = dict(sel or {})
     sel["crash"] = {
-        "item": item, "sample": f"s{s}", "outcome": None,
+        "item": item, "sample": int(s), "outcome": None,
         "selection_note": ("v2 主负责人覆盖（--crash-sample）：obs 环境探针"
                            "候选；跨环境结局不可复现（同 seed 注入位点不同，"
                            "2026-10-12 实证），历史结局仅先验，确定论以管线"

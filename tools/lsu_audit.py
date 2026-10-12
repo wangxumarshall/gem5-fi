@@ -201,9 +201,21 @@ def audit_sample_dir(d):
                     reasons.append(f"{lv}_fault_file_missing: {p}")
                     continue
             rp = OC.gz_probe(fp)
+            # 空/不可读 fault trace 的合法情形（2026-10-12 E2E s416 实证）：
+            # 层级状态为 not_observed_before_crash/_timeout 时，0 字节
+            # ctrace 是 W2.1 生产者 FLUSH_EVERY 批量刷盘契约的诚实结果
+            # （abort 早于首个刷盘点；lsu_obs_core.build_l2 前置守卫同步
+            # 修复）——记 note 不判 FAIL。其余状态（complete 等）仍 FAIL。
+            lv_status = (obs.get(lv) or {}).get("status")
             if rp["error"] in ("file missing", "empty file") \
                     or (rp["error"] or "").startswith("unreadable"):
-                reasons.append(f"{lv}_fault_unreadable: {rp['error']}")
+                if lv_status in ("not_observed_before_crash",
+                                 "not_observed_before_timeout"):
+                    notes.append(f"{lv}_fault_empty_under_not_observed: "
+                                 f"{rp['error']}（生产者批量 flush 契约的"
+                                 f"诚实结果，见层级 note）")
+                else:
+                    reasons.append(f"{lv}_fault_unreadable: {rp['error']}")
             if lv == "L2" and rp["truncated"]:
                 cd = (obs.get("L2") or {}).get("commit_diff") or {}
                 if cd.get("verdict") == "no_divergence":

@@ -300,6 +300,24 @@ def build_l2(ref_path, fault_path, l5=None, tick_tol=0, inactive=False):
     probe_ref, probe_run = gz_probe(ref_path), gz_probe(fault_path)
     entry = {"status": None, "ref": probe_ref, "fault": probe_run,
              "commit_diff": None}
+    # 空 trace 前置守卫（2026-10-12 E2E s416 实测发现，必须在 compare 之前
+    # ——commit_diff 会把空 run 误判为全量 instruction_flow_change）：
+    # fault ctrace 0 完整行 + Crash/Timeout → not_observed_before_*。
+    # 根因是 W2.1 生产者契约：ctrace 每 FLUSH_EVERY 行批量 gzflush，abort
+    # 早于首个刷盘点 → 0 字节文件（指令实际已提交，只是未被刷出）；msnap
+    # 每行 flush 不受影响。绝不把空 trace 判成 diverged/no_divergence。
+    outcome_pre = (l5 or {}).get("outcome")
+    if (probe_run.get("rows") == 0 and outcome_pre in ("Crash", "Timeout")):
+        entry["status"] = ("not_observed_before_crash"
+                           if outcome_pre == "Crash"
+                           else "not_observed_before_timeout")
+        entry["note"] = (f"空 trace（0 完整行"
+                         f"{'，截断' if probe_run.get('truncated') else '，未截断'}）"
+                         f"：abort 早于 ctrace 首个 FLUSH_EVERY 刷盘点"
+                         f"（W2.1 生产者批量 flush 契约；run 实际提交数见 "
+                         f"msnap/commit 计数）；诚实记 not_observed，"
+                         f"绝不判 diverged")
+        return entry
     try:
         res = commit_diff.compare(str(ref_path), str(fault_path), tick_tol)
     except commit_diff.TraceError as e:

@@ -165,7 +165,18 @@ def main():
     check("l2_early_abort_zero_prefix",
           l2_early["status"] == "not_observed_before_crash"
           and l2_early["commit_diff"] is None
-          and "空前缀" in l2_early.get("note", ""), str(l2_early))
+          and "空 trace" in l2_early.get("note", "")
+          and "截断" in l2_early.get("note", ""), str(l2_early))
+    # 空 fault ctrace（0 字节、未截断）+ Crash → not_observed_before_crash
+    # （W2.1 生产者 FLUSH_EVERY 批量 flush：abort 早于首个刷盘点；msnap 每
+    # 行 flush 不受影响——2026-10-12 E2E s416 实证，绝不判 diverged）
+    (tmp / "ctr_empty.csv.gz").write_bytes(b"")
+    l2_empty = C.build_l2(tmp / "ctr_big.csv.gz", tmp / "ctr_empty.csv.gz",
+                          l5=make_l5("Crash", crash_kind="simulator_assert"))
+    check("l2_empty_trace_crash_not_observed",
+          l2_empty["status"] == "not_observed_before_crash"
+          and l2_empty["commit_diff"] is None
+          and "FLUSH_EVERY" in l2_empty.get("note", ""), str(l2_empty))
 
     # ---- 5) L1 比对：无分歧 / RAT 分歧 ----
     rows_ref = [micro_diff._synth_row(i, (i + 1) * 1000, 1000 + i * 500)
