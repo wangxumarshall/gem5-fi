@@ -1,0 +1,572 @@
+#!/usr/bin/env python3
+"""[OOO][P1] ooo_chain_audit — per-sample L0-L5 chain integrity auditor
+(L0-L5 run, 2026-10-12; plan Task 8, Subagent-C).
+
+Independent audit of a finished campaign directory: every
+samples/<run_id>/observation.json is checked against the frozen
+`ooo-observation/v1` contract. The auditor NEVER relaxes a check to make
+a campaign pass — a missing key, a wrong type, a drifted file sha, a
+false "no_divergence" claim on a Crash sample are all violations.
+
+Per sample:
+  * parsability (json + required keys) -> else missing_layers=["ALL"],
+    violations=["observation_unparseable"];
+  * L0 (injected/activated/events funnel sanity), L1 (status+micro_diff),
+    L2 (status in the legal vocabulary + commit_diff.verdict; Crash/Hang
+    with status==ok and verdict==no_divergence is the false-report
+    violation "crash_claimed_no_divergence"), L3 (status; unsupported
+    requires a reason; PRF submodels must carry the proxy fanout),
+    L4 (first_detection detector vocabulary None|Application|OS|
+    Hardware RAS|n/a), L5 (nine-class vocabulary + conservation.ok);
+  * identity: every required identity key present; gem5_sha256 must equal
+    --frozen-gem5-sha when given;
+  * files manifest: EVERY referenced file re-hashed (no spot checks),
+    path-escape refused;
+  * chain flag consistency (chain_complete <=> chain_gaps empty; an L3
+    gap must be recorded when l3.status is unsupported).
+
+Campaign level: run_id and seed uniqueness, nine-class counts, the
+conservation ledger (five outcome classes + post-activation simulator
+failures == activated total), gaps by level, and the honest-vs-invalid
+split (chain_gaps==["L3"] from an unsupported L3 is an honest record,
+NOT invalid).
+
+Outputs <campaign_dir>/chain_audit.json + chain_audit.md. Exit codes:
+  * campaign dir missing / no sample dirs -> 1;
+  * --require-complete: any sample with violations (incl. missing
+    observation) -> 1; honest L3 gaps alone -> 0.
+
+CLI: audit --campaign-dir <d> [--require-complete] [--frozen-gem5-sha S]
+"""
+
+import argparse
+import hashlib
+import json
+import os
+import sys
+from collections import Counter
+
+SCHEMA_VERSION = "ooo-observation/v1"
+
+# The five post-activation outcome classes of the conservation ledger
+# (task letter: 五类和 + post_activation_simulator_failure == activated).
+FIVE_OUTCOME_CLASSES = ("Crash", "Hang", "SDC", "Latent", "Masked")
+
+L2_STATUSES = ("ok", "inactive_no_activation", "not_observed_before_crash",
+               "truncated", "error")
+L3_STATUSES = ("ok", "unsupported", "inactive_no_activation", "error")
+COMMIT_VERDICTS = ("diverged", "no_divergence",
+                   "truncated_no_divergence_in_prefix")
+DETECTOR_VOCAB = (None, "None", "n/a", "Application", "OS", "Hardware RAS")
+PRF_SUBMODELS = ("physreg", "prf", "phys_reg")
+
+REQUIRED_TOP = ("schema_version", "identity", "l0", "l1", "l2", "l3",
+                "l4", "l5", "violations", "chain_complete", "chain_gaps",
+                "files", "coverage_scope", "audit")
+LAYER_KEYS = ("l0", "l1", "l2", "l3", "l4", "l5")
+
+IDENTITY_KEYS = ("run_id", "campaign_id", "runid_row", "submodel",
+                 "sample_index", "phase", "seed", "manifest_sha256",
+                 "gem5_sha256", "config", "workload", "golden_key",
+                 "chaos_commit", "patchset_sha256", "pythonhashseed",
+                 "host", "started", "finished", "wall_s")
+
+LAYER_SUBKEYS = {
+    "l0": ("injected", "activated", "events", "skip_lines",
+           "eligible_count", "attempted", "log_sha256"),
+    "l1": ("status", "micro_diff", "first_divergence", "files"),
+    "l2": ("status", "coverage", "commit_diff", "first_divergent_commit",
+           "replay", "files"),
+    "l3": ("status", "method", "fanout", "caveat", "reason"),
+    "l4": ("status", "first_detection", "latency_from_l0", "oracle"),
+    "l5": ("classification", "reason", "exit", "timed_out",
+           "faults_injected", "checksum_observed", "checksum_golden",
+           "detector", "conservation"),
+}
+
+NINE_CLASSES = ("SimulatorError", "Inactive", "Corrected",
+                "DetectedContained", "Crash", "Hang", "SDC", "Latent",
+                "Masked")
+
+
+class AuditError(Exception):
+    """Loud, user-facing audit error (bad invocation, unreadable tree)."""
+
+
+def sha256_file(path, _buf=1024 * 1024):
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        while True:
+            b = f.read(_buf)
+            if not b:
+                break
+            h.update(b)
+    return h.hexdigest()
+
+
+# ------------------------------------------------------------- per-sample
+
+def _check_files(obs, sample_dir, violations):
+    """Re-hash EVERY file in the files manifest (not a spot check)."""
+    files = obs.get("files")
+    if not isinstance(files, dict):
+        violations.append("files_manifest_malformed")
+        return
+    base = os.path.realpath(sample_dir)
+    for rel in sorted(files):
+        want = files[rel]
+        p = os.path.join(sample_dir, rel)
+        rp = os.path.realpath(p)
+        if not (rp == base or rp.startswith(base + os.sep)):
+            violations.append("file_path_escape:%s" % rel)
+            continue
+        if not os.path.isfile(p):
+            violations.append("file_missing:%s" % rel)
+            continue
+        if not isinstance(want, str) or len(want) != 64:
+            violations.append("file_sha_malformed:%s" % rel)
+            continue
+        got = sha256_file(p)
+        if got != want:
+            violations.append("file_sha_mismatch:%s" % rel)
+
+
+def _check_identity(obs, frozen_gem5_sha, violations):
+    ident = obs.get("identity")
+    if not isinstance(ident, dict):
+        violations.append("identity_malformed")
+        return None
+    for k in IDENTITY_KEYS:
+        if k not in ident:
+            violations.append("identity_missing_key:%s" % k)
+    if "seed" in ident and not isinstance(ident["seed"], int):
+        violations.append("identity_seed_not_int")
+    for sub, keys in (("config", ("path", "sha256")),
+                      ("workload", ("path", "sha256", "golden_id"))):
+        d = ident.get(sub)
+        if not isinstance(d, dict):
+            violations.append("identity_%s_malformed" % sub)
+            continue
+        for k in keys:
+            if k not in d:
+                violations.append("identity_%s_missing_key:%s" % (sub, k))
+    if frozen_gem5_sha:
+        got = ident.get("gem5_sha256")
+        if got != frozen_gem5_sha:
+            violations.append("gem5_sha_mismatch")
+    return ident
+
+
+def _check_layers(obs, submodel, violations):
+    """Per-layer status/consistency checks. Returns the observed
+    classification (or None) for campaign-level accounting."""
+    classification = None
+    for lk in LAYER_KEYS:
+        if not isinstance(obs.get(lk), dict):
+            violations.append("layer_%s_malformed" % lk)
+            continue
+        for sk in LAYER_SUBKEYS[lk]:
+            if sk not in obs[lk]:
+                violations.append("missing_key:%s.%s" % (lk, sk))
+
+    l0 = obs.get("l0") if isinstance(obs.get("l0"), dict) else {}
+    l1 = obs.get("l1") if isinstance(obs.get("l1"), dict) else {}
+    l2 = obs.get("l2") if isinstance(obs.get("l2"), dict) else {}
+    l3 = obs.get("l3") if isinstance(obs.get("l3"), dict) else {}
+    l4 = obs.get("l4") if isinstance(obs.get("l4"), dict) else {}
+    l5 = obs.get("l5") if isinstance(obs.get("l5"), dict) else {}
+
+    # ---- L0: injection funnel -------------------------------------
+    injected, activated = l0.get("injected"), l0.get("activated")
+    if not isinstance(injected, int) or injected < 0:
+        violations.append("l0_injected_malformed")
+    if not isinstance(activated, int) or activated < 0:
+        violations.append("l0_activated_malformed")
+    elif isinstance(injected, int) and activated > injected:
+        violations.append("l0_activated_exceeds_injected")
+    if not isinstance(l0.get("events"), list):
+        violations.append("l0_events_not_list")
+
+    # ---- L1 --------------------------------------------------------
+    if l1 and not isinstance(l1.get("status"), str):
+        violations.append("l1_status_malformed")
+    elif l1.get("status") == "ok" and "micro_diff" in l1 \
+            and not isinstance(l1.get("micro_diff"), (dict, type(None))):
+        violations.append("l1_micro_diff_unreadable")
+
+    # ---- L2 --------------------------------------------------------
+    l2s = l2.get("status")
+    cd = l2.get("commit_diff")
+    if l2s not in L2_STATUSES:
+        violations.append("l2_status_invalid")
+    if l2s == "ok":
+        if not isinstance(cd, dict):
+            violations.append("l2_commit_diff_missing")
+        elif cd.get("verdict") not in COMMIT_VERDICTS:
+            violations.append("l2_verdict_invalid")
+
+    # ---- L3 --------------------------------------------------------
+    l3s = l3.get("status")
+    if l3s not in L3_STATUSES:
+        violations.append("l3_status_invalid")
+    else:
+        if l3s == "unsupported" and not (isinstance(l3.get("reason"), str)
+                                         and l3["reason"].strip()):
+            violations.append("l3_unsupported_without_reason")
+        if l3s == "ok" and not (isinstance(l3.get("method"), str)
+                                and l3["method"].strip()):
+            violations.append("l3_ok_without_method")
+        if submodel and str(submodel).lower() in PRF_SUBMODELS \
+                and l3s != "ok":
+            # PRF carries the (proxy) fanout — an unsupported L3 on a PRF
+            # sample is a chain hole that must not exist, not an honest gap.
+            violations.append("l3_physreg_missing_fanout")
+
+    # ---- L4 --------------------------------------------------------
+    fd = l4.get("first_detection")
+    if fd is not None:
+        if not isinstance(fd, dict):
+            violations.append("l4_first_detection_malformed")
+        else:
+            for k in ("kind", "detector", "tick", "seq", "note"):
+                if k not in fd:
+                    violations.append("l4_first_detection_missing:%s" % k)
+            if fd.get("detector") not in DETECTOR_VOCAB:
+                violations.append("l4_detector_invalid")
+
+    # ---- L5 --------------------------------------------------------
+    classification = l5.get("classification")
+    if classification not in NINE_CLASSES:
+        violations.append("l5_classification_invalid")
+        classification = None
+    cons = l5.get("conservation")
+    if not isinstance(cons, dict) or "ok" not in cons:
+        violations.append("l5_conservation_missing")
+    elif cons.get("ok") is not True:
+        violations.append("conservation_not_ok")
+
+    # ---- cross-layer consistency ------------------------------------
+    if classification:
+        cksum_obs = l5.get("checksum_observed")
+        cksum_gold = l5.get("checksum_golden")
+        if classification == "Inactive" and isinstance(activated, int) \
+                and activated > 0:
+            violations.append("conservation_inactive_with_activation")
+        if classification in FIVE_OUTCOME_CLASSES \
+                and isinstance(activated, int) and activated == 0:
+            violations.append("conservation_outcome_without_activation")
+        if classification == "Masked":
+            if cksum_obs is None or cksum_gold is None:
+                violations.append("masked_checksum_missing")
+            elif cksum_obs != cksum_gold:
+                violations.append("masked_checksum_mismatch")
+        if classification == "SDC":
+            if cksum_obs is None or cksum_gold is None:
+                violations.append("sdc_checksum_missing")
+            elif cksum_obs == cksum_gold:
+                violations.append("sdc_checksum_matches_golden")
+        # the false-report rule: a crashed/hung run with a "clean" L2 must
+        # be recorded as not_observed_before_crash / truncated — NEVER as
+        # a completed no-divergence comparison.
+        if classification in ("Crash", "Hang") and l2s == "ok" \
+                and isinstance(cd, dict):
+            verdict = cd.get("verdict")
+            if verdict == "no_divergence":
+                violations.append("crash_claimed_no_divergence")
+            elif verdict != "diverged":
+                violations.append("crash_l2_status_ok_without_divergence")
+    return classification
+
+
+def _check_chain_flags(obs, violations):
+    cc = obs.get("chain_complete")
+    gaps = obs.get("chain_gaps")
+    if not isinstance(cc, bool):
+        violations.append("chain_complete_not_bool")
+    if not isinstance(gaps, list) or any(not isinstance(g, str)
+                                         for g in gaps):
+        violations.append("chain_gaps_malformed")
+        return cc, gaps
+    if isinstance(cc, bool) and cc != (len(gaps) == 0):
+        violations.append("chain_flag_gap_mismatch")
+    l3 = obs.get("l3") if isinstance(obs.get("l3"), dict) else {}
+    l3s = l3.get("status")
+    if l3s == "unsupported" and "L3" not in gaps:
+        violations.append("l3_gap_not_recorded")
+    if "L3" in gaps and l3s not in ("unsupported", "error"):
+        violations.append("gap_l3_without_basis")
+    return cc, gaps
+
+
+def audit_observation(obs, sample_dir, frozen_gem5_sha=None):
+    """Audit one parsed observation dict. Returns the per-sample result
+    record (run_id, classification, missing_layers, violations,
+    chain_complete, chain_gaps + accounting extras)."""
+    violations = []
+    missing_layers = []
+    if not isinstance(obs, dict):
+        return {"run_id": os.path.basename(sample_dir),
+                "classification": None, "missing_layers": ["ALL"],
+                "violations": ["observation_unparseable"],
+                "chain_complete": None, "chain_gaps": [], "seed": None,
+                "activated": None, "submodel": None}
+    if obs.get("schema_version") != SCHEMA_VERSION:
+        violations.append("schema_version_mismatch")
+    for k in REQUIRED_TOP:
+        if k not in obs:
+            violations.append("missing_key:%s" % k)
+    for lk in LAYER_KEYS:
+        if lk not in obs or not isinstance(obs.get(lk), dict):
+            missing_layers.append(lk.upper())
+            if lk in obs:
+                violations.append("layer_%s_malformed" % lk)
+            else:
+                violations.append("missing_layer_%s" % lk.upper())
+    if not isinstance(obs.get("violations"), list):
+        violations.append("violations_field_malformed")
+    elif obs["violations"]:
+        violations.append("observation_self_reported_violations")
+    aud = obs.get("audit")
+    if not isinstance(aud, dict) or "built_at" not in aud \
+            or "builder_sha256" not in aud:
+        violations.append("audit_block_malformed")
+    if "coverage_scope" not in obs:
+        violations.append("missing_key:coverage_scope")
+
+    ident = _check_identity(obs, frozen_gem5_sha, violations)
+    submodel = ident.get("submodel") if ident else None
+    classification = _check_layers(obs, submodel, violations)
+    cc, gaps = _check_chain_flags(obs, violations)
+    _check_files(obs, sample_dir, violations)
+
+    l0 = obs.get("l0") if isinstance(obs.get("l0"), dict) else {}
+    l5 = obs.get("l5") if isinstance(obs.get("l5"), dict) else {}
+    return {
+        "run_id": (ident or {}).get("run_id")
+        or os.path.basename(sample_dir),
+        "classification": classification or l5.get("classification"),
+        "missing_layers": missing_layers,
+        "violations": violations,
+        "chain_complete": cc,
+        "chain_gaps": gaps if isinstance(gaps, list) else [],
+        "seed": (ident or {}).get("seed"),
+        "activated": l0.get("activated"),
+        "submodel": submodel,
+    }
+
+
+# ---------------------------------------------------------- campaign level
+
+def discover_samples(campaign_dir):
+    """samples/<run_id> dirs, skipping dot-dirs (staging) and the
+    QUARANTINE evidence area (honestly excluded, reported separately)."""
+    sdir = os.path.join(campaign_dir, "samples")
+    if not os.path.isdir(sdir):
+        return [], 0
+    out = []
+    n_quarantine = 0
+    for name in sorted(os.listdir(sdir)):
+        if name.startswith("."):
+            continue
+        if name == "QUARANTINE":
+            n_quarantine += 1
+            continue
+        p = os.path.join(sdir, name)
+        if os.path.isdir(p):
+            out.append(p)
+    return out, n_quarantine
+
+
+def audit_campaign(campaign_dir, frozen_gem5_sha=None):
+    """Full campaign audit. Returns the rollup dict (also the payload
+    written to chain_audit.json)."""
+    if not os.path.isdir(campaign_dir):
+        raise AuditError("campaign dir not found: %s" % campaign_dir)
+    sample_dirs, n_quarantine = discover_samples(campaign_dir)
+    if not sample_dirs:
+        raise AuditError("no sample dirs under %s/samples" % campaign_dir)
+
+    samples = []
+    seen_run_ids = {}
+    seen_seeds = {}
+    dup_run_ids, dup_seeds = [], []
+    for sdir in sample_dirs:
+        opath = os.path.join(sdir, "observation.json")
+        obs = None
+        if os.path.isfile(opath):
+            try:
+                with open(opath) as f:
+                    obs = json.load(f)
+            except (ValueError, OSError):
+                obs = None
+        if obs is None:
+            rec = {"run_id": os.path.basename(sdir),
+                   "classification": None, "missing_layers": ["ALL"],
+                   "violations": ["observation_unparseable"],
+                   "chain_complete": None, "chain_gaps": [], "seed": None,
+                   "activated": None, "submodel": None}
+        else:
+            rec = audit_observation(obs, sdir, frozen_gem5_sha)
+        # campaign-level uniqueness (flag every occurrence after the 1st)
+        rid, seed = rec["run_id"], rec["seed"]
+        if rid in seen_run_ids:
+            rec["violations"] = rec["violations"] + ["duplicate_run_id"]
+            if rid not in dup_run_ids:
+                dup_run_ids.append(rid)
+        seen_run_ids[rid] = seen_run_ids.get(rid, 0) + 1
+        if isinstance(seed, int):
+            if seed in seen_seeds:
+                rec["violations"] = rec["violations"] + ["duplicate_seed"]
+                if seed not in dup_seeds:
+                    dup_seeds.append(seed)
+            seen_seeds[seed] = seen_seeds.get(seed, 0) + 1
+        samples.append(rec)
+
+    cls_counts = Counter(s["classification"] for s in samples
+                         if s["classification"])
+    gaps_by_level = Counter()
+    missing_counts = Counter()
+    for s in samples:
+        for g in s["chain_gaps"]:
+            gaps_by_level[g] += 1
+        for m in s["missing_layers"]:
+            missing_counts[m] += 1
+
+    activated_total = sum(s["activated"] for s in samples
+                          if isinstance(s["activated"], int))
+    five_sum = sum(cls_counts[c] for c in FIVE_OUTCOME_CLASSES)
+    post_sim_fail = sum(1 for s in samples
+                        if s["classification"] == "SimulatorError"
+                        and isinstance(s["activated"], int)
+                        and s["activated"] > 0)
+    other_activated = sum(1 for s in samples
+                          if s["classification"] in ("Corrected",
+                                                     "DetectedContained")
+                          and isinstance(s["activated"], int)
+                          and s["activated"] > 0)
+    n_invalid = sum(1 for s in samples if s["violations"])
+    n_l3_gap = sum(1 for s in samples
+                   if s["chain_gaps"] == ["L3"]
+                   and not s["violations"])
+    rollup = {
+        "tool": "ooo_chain_audit",
+        "schema_version": SCHEMA_VERSION,
+        "campaign_dir": os.path.abspath(campaign_dir),
+        "frozen_gem5_sha": frozen_gem5_sha,
+        "n_samples": len(samples),
+        "n_chain_complete": sum(1 for s in samples
+                                if s["chain_complete"] is True),
+        "n_invalid": n_invalid,
+        "n_l3_unsupported_gap": n_l3_gap,
+        "gaps_by_level": dict(gaps_by_level),
+        "missing_layers_counts": dict(missing_counts),
+        "classification_counts": {c: cls_counts[c] for c in NINE_CLASSES
+                                  if cls_counts[c]},
+        "conservation": {
+            "activated_total": activated_total,
+            "five_outcome_sum": five_sum,
+            "post_activation_simulator_failure": post_sim_fail,
+            "other_activated_outcome_classes": other_activated,
+            "conserved": (five_sum + post_sim_fail == activated_total
+                          and other_activated == 0),
+            "note": "five outcome classes = Crash+Hang+SDC+Latent+Masked; "
+                    "post-activation simulator failures are derived as "
+                    "SimulatorError samples with l0.activated>=1",
+        },
+        "duplicate_run_ids": dup_run_ids,
+        "duplicate_seeds": dup_seeds,
+        "n_quarantine_dirs": n_quarantine,
+        "samples": samples,
+    }
+    return rollup
+
+
+# ---------------------------------------------------------------- reports
+
+def write_reports(campaign_dir, rollup):
+    jpath = os.path.join(campaign_dir, "chain_audit.json")
+    mpath = os.path.join(campaign_dir, "chain_audit.md")
+    with open(jpath, "w") as f:
+        json.dump(rollup, f, indent=1, ensure_ascii=False)
+    lines = [
+        "# chain_audit — %s" % rollup["campaign_dir"],
+        "",
+        "- n_samples: %d" % rollup["n_samples"],
+        "- n_chain_complete: %d" % rollup["n_chain_complete"],
+        "- n_invalid (violations non-empty): %d" % rollup["n_invalid"],
+        "- n_l3_unsupported_gap (honest L3 gap, not invalid): %d"
+        % rollup["n_l3_unsupported_gap"],
+        "- gaps_by_level: %s" % json.dumps(rollup["gaps_by_level"]),
+        "- missing_layers: %s"
+        % json.dumps(rollup["missing_layers_counts"]),
+        "- classification_counts: %s"
+        % json.dumps(rollup["classification_counts"]),
+        "- conservation: %s" % json.dumps(rollup["conservation"]),
+        "- duplicate_run_ids: %s" % (rollup["duplicate_run_ids"] or "none"),
+        "- duplicate_seeds: %s" % (rollup["duplicate_seeds"] or "none"),
+        "- quarantine dirs: %d" % rollup["n_quarantine_dirs"],
+        "",
+        "| run_id | classification | chain_complete | gaps | "
+        "missing_layers | violations |",
+        "|---|---|---|---|---|---|",
+    ]
+    for s in rollup["samples"]:
+        lines.append("| %s | %s | %s | %s | %s | %s |" % (
+            s["run_id"], s["classification"], s["chain_complete"],
+            ",".join(s["chain_gaps"]) or "-",
+            ",".join(s["missing_layers"]) or "-",
+            ";".join(s["violations"]) or "-"))
+    with open(mpath, "w") as f:
+        f.write("\n".join(lines) + "\n")
+    return jpath, mpath
+
+
+def main(argv=None):
+    ap = argparse.ArgumentParser(
+        description="L0-L5 observation-chain integrity auditor")
+    sub = ap.add_subparsers(dest="cmd", required=True)
+    a = sub.add_parser("audit", help="audit one campaign directory")
+    a.add_argument("--campaign-dir", required=True)
+    a.add_argument("--require-complete", action="store_true",
+                   help="exit 1 if any sample has violations (incl. "
+                        "missing observation); honest L3 gaps alone "
+                        "do not fail")
+    a.add_argument("--frozen-gem5-sha", default=None,
+                   help="expected sha256 of build/ARM/gem5.opt; every "
+                        "sample's identity.gem5_sha256 must match")
+    args = ap.parse_args(argv)
+
+    try:
+        rollup = audit_campaign(args.campaign_dir,
+                                frozen_gem5_sha=args.frozen_gem5_sha)
+    except AuditError as e:
+        print("[chain_audit] ERROR: %s" % e, file=sys.stderr)
+        return 1
+    try:
+        jpath, mpath = write_reports(args.campaign_dir, rollup)
+    except OSError as e:
+        print("[chain_audit] WARNING: could not write reports: %s" % e,
+              file=sys.stderr)
+        jpath = mpath = None
+
+    print("[chain_audit] campaign=%s n_samples=%d n_chain_complete=%d "
+          "n_invalid=%d n_l3_unsupported_gap=%d conserved=%s"
+          % (rollup["campaign_dir"], rollup["n_samples"],
+             rollup["n_chain_complete"], rollup["n_invalid"],
+             rollup["n_l3_unsupported_gap"],
+             rollup["conservation"]["conserved"]))
+    for s in rollup["samples"]:
+        if s["violations"]:
+            print("[chain_audit] INVALID %s: %s"
+                  % (s["run_id"], ";".join(s["violations"])))
+    if jpath:
+        print("[chain_audit] wrote %s and %s" % (jpath, mpath))
+    if args.require_complete and rollup["n_invalid"] > 0:
+        print("[chain_audit] FAIL (--require-complete): %d sample(s) with "
+              "violations" % rollup["n_invalid"])
+        return 1
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
