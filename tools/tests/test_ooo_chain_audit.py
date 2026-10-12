@@ -150,8 +150,6 @@ def make_obs(run_id, seed, classification="Masked", activated=1,
             "commit_diff": commit_diff,
             "first_divergent_commit": (commit_diff or {}).get(
                 "first_divergence"),
-            "replay": {"determinism": "match", "pass2_classification":
-                       classification},
             "files": ["evidence/commit_diff.json"],
         },
         "l3": {
@@ -187,6 +185,12 @@ def make_obs(run_id, seed, classification="Masked", activated=1,
         "violations": [],
         "chain_complete": inactive or l3s != "unsupported",
         "chain_gaps": [] if (inactive or l3s != "unsupported") else ["L3"],
+        # canonical replay position: TOP-LEVEL (integration adjudication
+        # 2026-10-12; see ooo_chain_audit.REQUIRED_TOP)
+        "replay": {"performed": True, "determinism": "match",
+                   "pass2_classification": classification,
+                   "verdict_pass2": None, "checksum_pass2": None,
+                   "performed_at": "2026-10-12T10:00:42"},
         "files": {},
         "coverage_scope": {"mode": "full", "seq_lo": None, "seq_hi": None,
                            "pruned": False, "note": "fixture"},

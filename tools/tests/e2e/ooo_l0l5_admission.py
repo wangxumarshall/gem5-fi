@@ -392,7 +392,7 @@ def _mk_eng2_obs(run_id, seed, cfg_sha, wl_sha, chaos="frozencommithash",
                inactive else {"verdict": "no_divergence",
                               "primary_class": None},
                "first_divergent_commit": None,
-               "replay": {"determinism": "match"}, "files": []},
+               "files": []},
         "l3": {"status": "inactive_no_activation" if inactive
                else "unsupported", "method": None, "fanout": None,
                "caveat": None, "reason": None if inactive else
@@ -409,6 +409,10 @@ def _mk_eng2_obs(run_id, seed, cfg_sha, wl_sha, chaos="frozencommithash",
         "violations": [],
         "chain_complete": inactive,
         "chain_gaps": [] if inactive else ["L3"],
+        # canonical top-level replay (integration adjudication 2026-10-12)
+        "replay": {"performed": True, "determinism": "match",
+                   "pass2_classification": None, "verdict_pass2": None,
+                   "checksum_pass2": None, "performed_at": "t1"},
         "files": {},
         "coverage_scope": {"mode": "full"},
         "audit": {"built_at": "t1", "builder_sha256": "22" * 32},
@@ -423,7 +427,8 @@ def _install_eng2_sample(eng2_dir, obs, cfg_sha, wl_sha, drift=False,
     files = {"evidence/decode_chaos.log": "Tick: 1, faults_injected: 1\n",
              "evidence/micro.json": "{}\n", "runner.stdout": "R\n"}
     if replay:
-        obs["l2"]["replay"] = {"determinism": replay}
+        # canonical top-level position (integration adjudication)
+        obs["replay"] = {"determinism": replay}
     manifest = {}
     for rel, content in files.items():
         p = os.path.join(sdir, rel)

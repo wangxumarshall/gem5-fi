@@ -62,6 +62,11 @@ PRF_SUBMODELS = ("physreg", "prf", "phys_reg")
 
 REQUIRED_TOP = ("schema_version", "identity", "l0", "l1", "l2", "l3",
                 "l4", "l5", "violations", "chain_complete", "chain_gaps",
+                # integration adjudication 2026-10-12 (lead): the canonical
+                # replay position is TOP-LEVEL observation.replay (the
+                # Subagent-A contract after the lead's disambiguation);
+                # l2.replay is NOT required and not rejected.
+                "replay",
                 "files", "coverage_scope", "audit")
 LAYER_KEYS = ("l0", "l1", "l2", "l3", "l4", "l5")
 
@@ -76,7 +81,7 @@ LAYER_SUBKEYS = {
            "eligible_count", "attempted", "log_sha256"),
     "l1": ("status", "micro_diff", "first_divergence", "files"),
     "l2": ("status", "coverage", "commit_diff", "first_divergent_commit",
-           "replay", "files"),
+           "files"),
     "l3": ("status", "method", "fanout", "caveat", "reason"),
     "l4": ("status", "first_detection", "latency_from_l0", "oracle"),
     "l5": ("classification", "reason", "exit", "timed_out",

@@ -284,7 +284,13 @@ def campaign_dict(campaign_id, injector, grid, base_seed, workload,
         trace["window_post_seq"] = window_post
     return {
         "campaign_id": campaign_id,
-        "schema_version": "arm-chaos-fi/v1",
+        # integration fix 2026-10-12 (lead): the sample_runner campaign gate
+        # requires the L0-L5 campaign schema (Subagent-A contract); these
+        # are E2E validation campaigns, phase=engineering (never formal).
+        "schema_version": "arm-chaos-fi/l0l5-campaign/v1",
+        "runid_row": "E2E-L0L5",
+        "submodel": injector,
+        "phase": "engineering",
         "injector": injector,
         "config": "C3",
         "mode": "SE",
@@ -301,6 +307,7 @@ def campaign_dict(campaign_id, injector, grid, base_seed, workload,
         "chaos_commit": "e2e-2026-10-12",
         "patchset_sha256": "e2e-2026-10-12",
         "trace": trace,
+        "topup": {"seed_offset": 1000000, "rounds_max": 0},
         "ooo": {"design_unit_id": "E2E-L0L5",
                 "submodel": injector},
     }
