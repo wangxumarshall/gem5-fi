@@ -1,0 +1,98 @@
+<task-notification>
+<task-id>b1h77sf9k</task-id>
+<tool-use-id>call_44c1920d592c4385ab9b16d1</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi-ding/2702ef5b-192a-4428-8da9-36d90f3d2295/tasks/b1h77sf9k.output</output-file>
+<status>killed</status>
+<summary>Background command "Watch for n=5 first batch completion" was stopped</summary>
+</task-notification>
+
+---
+
+从现在起采用“逐单元调度、逐实验增量记录、单元结束统一冻结”的执行方式。
+
+权威范围：
+- 工作目录：/home/sdc/gem5-fi-ding
+- 权威Excel：docs/gem5-fi/lsu/gem5-fi-LSU单元故障注入方案.xlsx
+- 权威矩阵：7.展开执行矩阵
+- 动态计划：docs/gem5-fi/lsu/task_plan.md
+- 动态状态：docs/gem5-fi/lsu/progress.md
+- 根因记录：docs/gem5-fi/lsu/findings.md
+
+一、开始前只读核验
+
+先核验：
+- 当前HEAD、git status和本地未推送提交；
+- 是否存在运行中的gem5、campaign、guard或编译；
+- 当前binary、oracle、workload和manifest身份；
+- 已完成结果目录及COMPLETE标记；
+- Excel、完整任务执行清单和矩阵的RunID映射。
+
+不得pull、fetch、merge、rebase、reset、clean或push。
+不得删除、覆盖或重分类原始runs/results.jsonl。
+如发现其他会话正在运行，不得重复启动。
+
+二、一次性过渡回填
+
+先不要启动新实验。将已经存在的有效结果与LSU展开执行矩阵逐项对账。
+
+重点核对：
+- 14项pilot-30：
+  ITEM-003、004、005、009、015、016、020、024、025、036、037、274、277、281
+- ITEM-287：仅完成n=5准入，不能写成pilot完成；
+- ITEM-289：保持capability-gap/design-blocked，不能写成已完成；
+- ITEM-271/279等幻影修正继续使用现有correction overlay，不覆盖原始结果。
+
+只有commit、binary、workload、频率、子模型、oracle、seed和激活口径完全一致的结果才能回填相应RunID。
+不能唯一映射的结果写入实测备注并标为待核对，不得强行计入。
+
+Excel按现有字段和状态枚举增量填写：
+Attempted、Activated、分类结果、激活率、SDC率、检测字段、记录状态、实测备注和证据路径。
+不要自行新增或改名Excel列。
+
+修改Excel前：
+1. 创建带时间戳的备份；
+2. 保证只有一个写入者；
+3. 先保存到临时文件；
+4. 重新打开并核验9个工作表、325条矩阵记录、公式和格式；
+5. 通过后再原子替换；
+6. Excel回填单独提交，标题使用[LSU][DATA]。
+
+三、建立逐单元调度协议
+
+更新docs/gem5-fi/lsu/task_plan.md和progress.md，加入：
+
+- 新实验按以下顺序推进：
+  AGU → L1d-TLB → Store Queue → L1d-Cache → 原子与同步 → 数据预取器 → Load Queue。
+- 已完成的跨单元结果保留并提前回填，但其所属单元未轮到时不继续扩展调度。
+- 当前新调度单元设为AGU。
+- 单元内允许不同RunID并行，但全机gem5总并发≤4。
+- 每个RunID按count-only/工程门禁 → pilot-30 → formal累计385 → 指定重点项累计2401推进。
+- 完成一个阶段立即更新progress.md和Excel，不等待整个单元结束。
+- 某项BLOCKED时立即记录原因和证据，继续同单元其他可运行项。
+- BLOCKED不得伪造完成，也不得通过更换故障语义、负载或放宽eligibility绕过。
+- 单元只有在所有RunID均为COMPLETE、批准的BLOCKED或NA_APPROVED，且计数守恒、证据路径和Excel回填校验通过后，才允许进入下一单元。
+
+四、当前执行动作
+
+过渡回填和计划更新完成并单独提交后，开始AGU单元：
+
+1. 列出AGU全部39个RunID及其当前阶段；
+2. 识别已有有效样本，禁止重复运行；
+3. 对未通过准入的RunID先完成count-only和n=5；
+4. 通过后完成pilot-30；
+5. pilot合格后累计到formal-385；
+6. 重点RunID按计划累计到2401；
+7. 每个RunID阶段完成后立即回填Excel并更新progress.md；
+8. 每批启动前检查资源、锁和现有进程，全机gem5≤4、编译≤-j8且单实例。
+
+五、Git与汇报纪律
+
+- 允许本地分文件精确提交；
+- 禁止git add .、git add -A、git commit -a；
+- 不提交runs、artifacts、build或/tmp；
+- 不得自行push/fetch/pull/merge/rebase；
+- Excel回填、计划变更、工具变更分别提交；
+- 普通RunID切换不需要等待用户决定；
+- 只有科学语义改变、共享schema/runner修改、资源TRIP、无法判定的历史数据或需要Git同步时才停止汇报。
+
+先完成只读核验、过渡回填和调度计划提交，然后自动推进AGU，不要在每条命令后停下来询问。
