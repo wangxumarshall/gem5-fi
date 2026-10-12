@@ -59,7 +59,12 @@ RAMP8_SWAP_STREAK_MAX = 5      # 连续 >5 拍 (si_ps>0 或 so_ps>0) → 否决�
 RAMP8_HOME_10MIN_GIB = 1.0     # 任意 10 分钟 /home 增量 ≥1GiB → 否决升 8
 RAMP8_HOME_WINDOW_TICKS = 10   # 60s 拍距下 10 拍 = 10 分钟
 RAMP6_MEM_GIB = 12.0
-RAMP6_IDLE_STREAK = 3           # 连续 ≥3 拍 slots_held<cap 才升 6（单拍闪断=换样间隙）
+RAMP6_IDLE_STREAK = 15          # 连续 ≥15 拍 slots_held<cap 才升 6（OBS-4e：3 拍
+                                # 区分不了换样/item 边界间隙与 driver 退出——
+                                # 2026-10-13 05:56-05:58 三连拍 slots_held=3
+                                # 全部来自存活 driver 的换样间隙，误触 4→6→8；
+                                # 任何 item 边界间隙实测 <3 分钟，15 分钟连续
+                                # 闲置只有真退出能造成）
 TRIP_MEM_GIB = 8.0
 TRIP_MEM_HARD_GIB = 6.0
 TRIP_SWAP_GIB = 2.0
@@ -516,8 +521,10 @@ def _self_test_cases():
          [_mk() for _ in range(29)] + [_mk(swap=1.9)], (4, "TRIP_DOWN")),
         ("trip_floor_4", 4, [_mk(mem=7.9), _mk(mem=7.9)], (4, "TRIP_DOWN")),
         ("never_above_8", 8, ok30, (8, "HOLD8")),
-        ("ramp6_sustained_3ticks", 4, [_mk(slots=3) for _ in range(3)],
+        ("ramp6_sustained_15ticks", 4, [_mk(slots=3) for _ in range(15)],
          (6, "RAMP6")),
+        ("ramp6_item_gap_5ticks_no_trigger", 4,
+         [_mk(slots=3) for _ in range(5)], (4, "HOLD4")),
         ("ramp6_transient_dip", 4, [_mk(slots=4), _mk(slots=3)], (4, "HOLD4")),
         ("ramp6_dip_recovered", 4,
          [_mk(slots=4), _mk(slots=3), _mk(slots=4)], (4, "HOLD4")),

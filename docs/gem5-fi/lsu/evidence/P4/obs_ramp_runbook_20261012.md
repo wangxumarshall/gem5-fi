@@ -4,7 +4,7 @@
 - 执行人：**服务器总负责人**（本 runbook 只描述操作，不起 gem5）。
 - 判据来源：用户指令 2026-10-12 三.2-3（30 分钟连续资源门 + TRIP 降档 + 0101 磁盘
   红线），实现于 `tools/lsu_hostmon.py::decide_cap`（提交 `[LSU][OBS-4]`，本分支）；
-  RAMP6 判据于 `[LSU][OBS-4c]` 收紧为**连续 ≥3 拍槽闲置**（2026-10-12 17:35:29
+  RAMP6 判据于 `[LSU][OBS-4c]` 收紧为连续槽闲置、`[LSU][OBS-4e]` 收紧为**连续 ≥15 拍**（2026-10-12 17:35:29
   换样间隙单拍 slots_held=3 误触发 cap4→6，实证修正）。
 - 并发竞争验收（阶段一验收 G）已通过：`tests/test_claim_concurrency.py` 19/19
   PASS（提交 `[LSU][OBS-4b]`）：claim 唯一性 / 槽竞争（SLOTS=2 恰好 2 成功）/
@@ -38,7 +38,7 @@
 ## 2. 槽位策略机制：hostmon 自动判定 + 手动 seed 合规途径
 
 - **自动（首选）**：hostmon 每拍跑 `decide_cap`。RAMP6 判据（OBS-4c 收紧）=
-  `cap==4` 且**连续 ≥3 拍** `slots_held < 4`（持续闲置=driver 退出；生产换样
+  `cap==4` 且**连续 ≥15 拍** `slots_held < 4`（持续闲置=driver 退出；OBS-4e 2026-10-13：3 拍区分不了换样/item 间隙（实测 05:56-05:58 三连拍全为存活 driver 换样间隙，误触 4→6→8），15 分钟连续闲置只有真退出能造成；生产换样
   间隙 <60s 只闪断 1 拍，不触发——2026-10-12 17:35:29 单拍闪断误触发实证）
   且最新拍 `mem_available_gib ≥ 12` → `slot_policy.json` 翻为
   `{"cap":6,"state":"RAMP6"}`。

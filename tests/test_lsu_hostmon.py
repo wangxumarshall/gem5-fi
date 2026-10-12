@@ -80,9 +80,15 @@ def main():
     got = HM.decide_cap([mk(slots_held=4), mk(slots_held=3), mk(slots_held=4)], 4)
     check("decide_ramp6_dip_recovered_no_trigger",
           (got[0], got[1]) == (4, "HOLD4"), f"got={got}")
-    got = HM.decide_cap([mk(slots_held=3) for _ in range(3)], 4)
-    check("decide_ramp6_sustained_3ticks_trigger",
+    got = HM.decide_cap([mk(slots_held=3) for _ in range(15)], 4)
+    check("decide_ramp6_sustained_15ticks_trigger",
           (got[0], got[1]) == (6, "RAMP6"), f"got={got}")
+    # OBS-4e（2026-10-13 05:56-05:58 实测）：存活 driver 的换样/item 边界
+    # 间隙可被 60s 采样连拍 3-5 拍 slots_held=3——不得升档（真退出=永久闲置，
+    # 15 拍连续才可信）
+    got = HM.decide_cap([mk(slots_held=3) for _ in range(5)], 4)
+    check("decide_ramp6_item_gap_5ticks_no_trigger",
+          (got[0], got[1]) == (4, "HOLD4"), f"got={got}")
     got = HM.decide_cap([mk(slots_held=4), mk(slots_held=3), mk(slots_held=3)], 4)
     check("decide_ramp6_two_idle_ticks_not_enough",
           (got[0], got[1]) == (4, "HOLD4"), f"got={got}")
