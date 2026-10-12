@@ -51,6 +51,18 @@ P3
 | G0-09 | timeout | golden 10×规则及 wall/sim 上限固定 | PASS-SE（golden max wall 61s/run → SE timeout = 600s（10×），绝对上限 1800s；与守卫 --max-seconds 600 一致；FS timeout 待 tlb_probe 实测后固定） |
 | G0-10 | CPU/RAM/worker/磁盘预算与资源防护 | 编译≤8且单实例；实验硬上限4（压力降3/2/1、恢复回4）；槽锁、PID/PGID、60秒监控、启动门禁和熔断均可验证 | **PASS-4 槽口径（2026-09-30 16:20 复验）**：守卫 4 槽位（commit 7a61df86）——隔离测试 T1-T6 全 PASS（6 并发 4 成功 2 拒绝零双取、release --slot+--confirm-pid 防误删、陈旧槽 clear-stale、run 周期槽复用，evidence/P3/f022_patch_a_test.txt）+ 实机验证（波次 4：4 槽并行占用、75 样本 resume、MemAvailable 26.9 GiB）；build 锁仍单实例；F-023 fail-fast（GUARD_FAILURE 不记账）保持。旧口径 T1-T7 见 evidence/P0/guard_verify.out |
 
+## 逐单元调度协议（2026-10-12 用户指令，自此取代"三单元连续波次"模式）
+
+1. **单元顺序**：新实验按 `AGU → L1d-TLB → Store Queue → L1d-Cache → 原子与同步 → 数据预取器 → Load Queue` 推进；**当前新调度单元 = AGU**。
+2. **跨单元既有结果**：已完成的跨单元结果（如 W1 重跑已闭合的 LQ 274/277/281 与旧波次各单元项）保留并**提前回填**矩阵，但其所属单元未轮到时**不继续扩展该单元调度**（LQ 剩余工作如 ITEM-287 pilot/重跑等排队至 LQ 单元轮次）。
+3. **单元内并行**：不同 RunID 可并行；**全机 gem5 总并发 ≤4**、编译单实例且 ≤-j8；每个实验独立 manifest/run_key/输出目录/PID-PGID/锁/心跳/恢复命令；每批启动前检查 MemAvailable/SwapFree/load/磁盘/锁/现有进程。
+4. **RunID 阶梯**：count-only/工程门禁 → n=5 准入 → pilot-30 → formal 累计 385 → 指定重点 RunID（全局实验口径 21 项名单）累计 2401；30/385/2401 与 seed 规则按全局实验口径，pilot-30 在配置不变时计入 385 累计。
+5. **增量记录**：完成一个阶段立即更新 progress.md 与权威 Excel（tools/lsu_xlsx_backfill.py 备份/临时/校验/原子替换协议），**不等待整个单元结束**；Excel 回填单独 [LSU][DATA] 提交。
+6. **BLOCKED 纪律**：某项 BLOCKED 立即记录原因与证据路径，继续同单元其他可运行项；BLOCKED 不得伪造完成，不得通过更换故障语义、负载或放宽 eligibility 绕过；载体改指须有用户裁决先例（如 D-2026-10-09-重跑）。
+7. **单元出口**：该单元全部 RunID 均为 COMPLETE、批准的 BLOCKED 或 NA_APPROVED，且计数守恒、证据路径齐全、Excel 回填校验通过后，方可进入下一单元。
+8. **Subagent 协调**（2026-10-12 第六节）：主 Agent 为唯一调度者与唯一写入协调者（Excel/progress/task_plan/Git 串行写入）；subagent 可并行只读审计/矩阵核对/结果统计/回填草案生成，或执行主 Agent 明确分配的独立实验任务；不得自选 RunID/启动未分配 campaign/改实验口径；同一 RunID/sample 唯一 owner。
+9. **服务器身份锁**（2026-10-12 第零节）：本机 = localhost0101/172.168.177.97（0101 LSU 执行服务器，progress.md 服务器身份字段实测记录）；只维护 docs/gem5-fi/lsu/ 与 LSU 专用工具；共享文件（runner/campaign/classify/schema/gem5 C++）修改前在 progress.md 登记，已知 0201 修改同一文件时停写只出草案；等主协调端独立干净克隆统一集成，本地提交不自行 push。
+
 ## Phases
 
 ### P0：环境与资产预检
