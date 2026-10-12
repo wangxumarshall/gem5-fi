@@ -432,7 +432,10 @@ def build_l4(l0, l1, l2, l5, fault_msnap_path=None, inactive=False):
     }
     inj_tick = (l0["injections"][0]["tick"] if l0.get("injections") else None)
     candidates = []
-    l2f = (l2 or {}).get("commit_diff", {}).get("first_errant_commit")
+    # BUG-6 修复（BUG-4 修复引入）：not_observed 条目的 commit_diff=None——
+    # dict.get(k, {}) 的默认值只在键缺失时生效，键存在且为 None 时返回 None
+    # → 必须 or {} 兜底（2026-10-12 恢复链 s416 重跑实测 AttributeError）
+    l2f = ((l2 or {}).get("commit_diff") or {}).get("first_errant_commit")
     if l2f:
         candidates.append({"source": "L2", "tick": l2f.get("tick"),
                            "seq": l2f.get("seq")})

@@ -177,6 +177,16 @@ def main():
           l2_empty["status"] == "not_observed_before_crash"
           and l2_empty["commit_diff"] is None
           and "FLUSH_EVERY" in l2_empty.get("note", ""), str(l2_empty))
+    # BUG-6 回归：build_l4 必须容忍 commit_diff=None（BUG-4 修复引入的
+    # AttributeError——dict.get(k, {}) 对"键存在值为 None"不取默认值）。
+    # 自包含输入（本节在 L1 测试之前，不依赖后续变量）
+    l0_local = {"injections": [{"tick": 50, "site": "s", "mode": "m",
+                                "raw": "r"}], "violations": []}
+    l4_noobs = C.build_l4(l0_local, {}, l2_empty,
+                          make_l5("Crash", crash_kind="simulator_assert"))
+    check("l4_with_not_observed_l2_no_crash",
+          l4_noobs["status"] == "complete"
+          and l4_noobs["first_anomaly"] is None, str(l4_noobs))
 
     # ---- 5) L1 比对：无分歧 / RAT 分歧 ----
     rows_ref = [micro_diff._synth_row(i, (i + 1) * 1000, 1000 + i * 500)

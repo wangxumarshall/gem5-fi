@@ -760,9 +760,11 @@ def report(campaign, outdir_root, expect_gem5_sha, selection=None):
                        ("crash", "Crash/simulator_assert（验收 E）")):
         c = (sel or {}).get(key)
         md.append(f"- **{label}**: " + (
-            f"`{c['item']}` s{c['sample']} outcome={c['outcome']} "
-            f"activated={c['activated']}；verdict=`{c['verdict_path']}`；"
-            f"载体={c['carrier']}；理由: {c['reason']}" if c else "（缺失）"))
+            f"`{c['item']}` s{c['sample']} outcome={c.get('outcome')} "
+            f"activated={c.get('activated')}；verdict=`{c.get('verdict_path')}`；"
+            f"载体={c.get('carrier')}；理由: {c.get('reason', '—')}"
+            + (f"；注: {c['selection_note']}" if c.get("selection_note") else "")
+            if c else "（缺失）"))
     md.append("- **正常（验收 B）**: driver no-fault golden ref（自动先跑）")
     md += ["", "## 逐样本摘要", ""]
     for key, s in doc["samples"].items():
