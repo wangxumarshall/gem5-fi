@@ -545,10 +545,17 @@ def validate_campaign(campaign, outdir_root, expect_gem5_sha, selection):
         l2 = obs.get("L2") or {}
         outcome = (obs.get("L5") or {}).get("outcome")
         hist = ((selection or {}).get("crash") or {}).get("outcome")
-        if outcome != "Crash" or (hist and outcome != hist):
+        if outcome != "Crash":
             e_ok = False
-            e_detail.append(f"L5.outcome={outcome}（须 Crash 且与历史 "
-                            f"verdict {hist} 一致）")
+            e_detail.append(
+                f"L5.outcome={outcome}（须经 obs 管线真实产出 Crash。历史 "
+                f"verdict {hist} 仅作候选先验——2026-10-12 实证：历史批次"
+                f"（PYTHONHASHSEED 未固定、无 ctrace 对象）与 obs 管线"
+                f"（PYTHONHASHSEED=0 + ctrace/msnap）同 seed 注入位点不同，"
+                f"跨环境结局不可复现；确定论以管线内 replay 为准）")
+        elif hist and outcome != hist:
+            e_detail.append(f"finding: 历史 {hist} vs obs 环境 {outcome}"
+                            f"（跨环境 RNG 流分歧，管线内 replay 为准）")
         if l2.get("status") not in ("not_observed_before_crash", "complete"):
             e_ok = False
             e_detail.append(f"L2.status={l2.get('status')}（须 "
@@ -636,12 +643,39 @@ def load_selection(campaign, outdir_root):
     return None
 
 
+def _apply_crash_override(args, sel):
+    """--crash-sample ITEM:sNNN：主负责人覆盖 crash 候选（v2 语义）。
+
+    2026-10-12 实证：跨环境（PYTHONHASHSEED/ctrace 对象集）同 seed 注入
+    位点不同 → 历史 Crash 结局不可跨环境复现。crash 候选 = obs 环境探针
+    真实产出 Crash 的样本（历史结局仅先验）；覆盖事实与理由随 selection
+    记录，绝不静默。
+    """
+    cs = getattr(args, "crash_sample", None)
+    if not cs:
+        return sel
+    item, _, s = cs.partition(":")
+    s = s.lstrip("s")
+    if not item.startswith("ITEM-") or not s.isdigit():
+        raise SystemExit(f"--crash-sample 格式须为 ITEM-XXX:sNNN，得到 {cs!r}")
+    sel = dict(sel or {})
+    sel["crash"] = {
+        "item": item, "sample": f"s{s}", "outcome": None,
+        "selection_note": ("v2 主负责人覆盖（--crash-sample）：obs 环境探针"
+                           "候选；跨环境结局不可复现（同 seed 注入位点不同，"
+                           "2026-10-12 实证），历史结局仅先验，确定论以管线"
+                           "内 replay 为准"),
+    }
+    return sel
+
+
 def cmd_validate(args):
     sel = load_selection(args.campaign, args.outdir_root)
     if sel is None:
         print(f"ERROR: {Path(args.outdir_root) / args.campaign / 'selection.json'}"
               f" 缺失（先 --select）", file=sys.stderr)
         return 2
+    sel = _apply_crash_override(args, sel)
     return 0 if validate_and_print(args.campaign, args.outdir_root,
                                    args.expect_gem5_sha, sel) else 1
 
@@ -766,7 +800,10 @@ def report(campaign, outdir_root, expect_gem5_sha, selection=None):
 
 
 def cmd_report(args):
-    report(args.campaign, args.outdir_root, args.expect_gem5_sha)
+    sel = _apply_crash_override(
+        args, load_selection(args.campaign, args.outdir_root))
+    report(args.campaign, args.outdir_root, args.expect_gem5_sha,
+           selection=sel)
     return 0
 
 
@@ -926,6 +963,9 @@ def main():
     ap.add_argument("--outdir-root", default=str(OUTDIR_ROOT))
     ap.add_argument("--record-out", default=None,
                     help="--select 的 selection.json 输出路径覆盖（测试用）")
+    ap.add_argument("--crash-sample", dest="crash_sample", default=None,
+                    help="ITEM-XXX:sNNN 覆盖 crash 候选（v2：obs 环境探针"
+                         "产物；历史结局仅先验——跨环境不可复现）")
     ap.add_argument("--expect-gem5-sha", dest="expect_gem5_sha",
                     default=FROZEN_GEM5_SHA)
     args = ap.parse_args()
