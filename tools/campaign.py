@@ -1414,10 +1414,12 @@ def main():
     trace_replay_for = list(trace_cfg.get("replay_for", ["SDC", "Crash", "Hang"]))
     trace_ref_mode = str(trace_cfg.get("ref_run", "once"))
     if trace_enabled:
-        if campaign.get("config", "C0") != "C3":
-            sys.exit("[campaign] trace.enabled requires config: C3 (only "
-                     "configs/se/ooo_proxy.py defines --chaos_ctrace/"
-                     "--ctrace_file). Aborting.")
+        # OBS-3b：C4-LSU（configs/se/lsu_proxy.py）与 C3 同样定义
+        # --chaos_ctrace/--chaos_msnap（runner.py W2.3 早门已允许 C3/C4-LSU）
+        if campaign.get("config", "C0") not in ("C3", "C4-LSU"):
+            sys.exit("[campaign] trace.enabled requires config: C3 or C4-LSU "
+                     "(only configs/se/ooo_proxy.py and configs/se/lsu_proxy.py "
+                     "define --chaos_ctrace/--ctrace_file). Aborting.")
         if trace_ref_mode != "once":
             sys.exit(f"[campaign] trace.ref_run='{trace_ref_mode}' not "
                      f"supported (only 'once' = one no-injection ref run per "

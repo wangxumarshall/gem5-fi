@@ -19,6 +19,18 @@ W2.2/W2.4 契约零漂移），产出 observation.json v1，staging→原子落�
 冻结二进制；fault/ref 一律 PYTHONHASHSEED=0；numactl --cpunodebind=1
 --membind=1（内存全在 node1，实测拓扑 2026-10-12）。
 
+OBS-8a（样本级并行 + slot_policy + acquire 重试，用户指令 2026-10-12）：
+  * --workers 1..2：ThreadPoolExecutor 样本级并行（仿 lsu_unit_pilot
+    F-022 模式）；派发条件 = activated<target 且 在飞+完成<cap 且
+    在飞<workers（--samples 清单模式跑全清单）；任一线程 GuardFailure →
+    停止派发、在飞样本自然完成（verdict 落盘，resume 可复活）
+  * 每次派发前读 hostmon slot_policy.json 的 cap（--slots 优先；缺失/
+    损坏/非法→4；合法 int clamp [1,8]）作为 guard 子进程 LSU_GUARD_SLOTS
+    ——显式传子进程 env，不写 os.environ（多线程竞态）
+  * guard ACQUIRE REFUSED 且原因非"陈旧/损坏"（槽满/STOP_DISPATCH）→
+    自动重试（默认 5 次 × 60s，等槽位/内存回升）；陈旧/损坏仍立即
+    GuardFailure（F-023 语义不变）
+
 用法：
   # 观测 campaign（screening 语义，activated 目标）
   python3 tools/lsu_obs_driver.py --items ITEM-002 --phase screening \
@@ -26,6 +38,8 @@ W2.2/W2.4 契约零漂移），产出 observation.json v1，staging→原子落�
   # 指定样本（E2E/n=2 准入）
   python3 tools/lsu_obs_driver.py --items ITEM-002 --phase screening \
       --campaign e2e --samples 315 321 --replay-policy per_sample
+  # 样本级并行（OBS-8a；本阶段上限 2 worker；--samples 清单模式同样支持）
+  ... --workers 2 --target 8 --cap 40
   # 命令构造检查（不起 gem5）
   ... --dry-run
 """
@@ -37,7 +51,9 @@ import re
 import shutil
 import subprocess
 import sys
+import threading
 import time
+from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
@@ -49,6 +65,32 @@ import lsu_unit_pilot as UP
 GIB = 1024 ** 3
 MS_EVERY = 1000           # CHAOSMicroSnap snapEvery（与 lsu_proxy 默认一致）
 DIFF_WORKERS = 2          # 后处理池上限（与 gem5 槽位分离，用户指令 三.4）
+
+# ---- OBS-8a：样本级并行 + slot_policy + acquire 重试 ------------------------
+DEFAULT_SLOTS = 4         # slot_policy 缺失/损坏/非法的回退（= guard v2 默认）
+SLOTS_MIN, SLOTS_MAX = 1, 8
+ACQUIRE_RETRIES = 5       # ACQUIRE REFUSED（槽满/STOP_DISPATCH）重试上限
+ACQUIRE_RETRY_SLEEP_S = 60.0   # 重试间隔：等槽位/内存回升
+
+
+def read_slot_cap():
+    """hostmon slot_policy.json 的 cap（每次派发样本前读，OBS-8a）。
+
+    路径 = Path(LSU_GUARD_DIR).parent / "obs" / "hostmon" / "slot_policy.json"。
+    缺失/损坏/非法（无 cap 键 / 非 int，含 bool）→ 回退 DEFAULT_SLOTS；
+    合法 int → clamp 到 [SLOTS_MIN, SLOTS_MAX]（cap=99 → 8）。
+    """
+    try:
+        gd = os.environ["LSU_GUARD_DIR"]
+        policy = json.loads(
+            (Path(gd).parent / "obs" / "hostmon" / "slot_policy.json")
+            .read_text(encoding="utf-8"))
+        cap = policy["cap"]
+        if not isinstance(cap, int) or isinstance(cap, bool):
+            return DEFAULT_SLOTS
+    except (KeyError, TypeError, OSError, ValueError):
+        return DEFAULT_SLOTS
+    return max(SLOTS_MIN, min(SLOTS_MAX, cap))
 
 
 def _numactl_prefix():
@@ -64,32 +106,83 @@ def _obs_args(ctrace_file, msnap_file):
             "--msnap_file", str(msnap_file)]
 
 
-def _guard_run(cmd_argv, desc, log, max_seconds, campaign, runid, sample,
-               out_path):
-    """guard v2 run 包装：env 固定 PYTHONHASHSEED=0；输出落 out_path。"""
+def _guard_env(slots=None):
+    """guard 子进程 env：PYTHONHASHSEED=0 固定 + LSU_GUARD_SLOTS 显式注入。
+
+    OBS-8a：绝不写 os.environ（多 worker 线程竞态）；slots=None → 继承
+    调用方环境（--slots 在 main() 启动时已落 os.environ，或 guard 默认 4）。
+    """
     env = {**os.environ, "PYTHONHASHSEED": "0"}
-    with open(out_path, "w") as gf:
-        r = subprocess.run(
-            ["python3", str(LR.GUARD), "run", "--type", "experiment",
-             "--desc", desc, "--log", log, "--interval", "60",
-             "--max-seconds", str(max_seconds),
-             "--campaign", campaign, "--runid", runid, "--sample", sample,
-             "--"] + cmd_argv,
-            stdout=gf, stderr=subprocess.STDOUT, env=env)
-    gtxt = Path(out_path).read_text(errors="replace")
-    ec = re.search(r'"exit_code": (-?\d+)', gtxt)
-    if '"action": "run-finish"' not in gtxt or ec is None:
+    if slots is not None:
+        env["LSU_GUARD_SLOTS"] = str(slots)
+    return env
+
+
+def _guard_run(cmd_argv, desc, log, max_seconds, campaign, runid, sample,
+               out_path, slots=None, acquire_retries=None, retry_sleep=None):
+    """guard v2 run 包装：env 固定 PYTHONHASHSEED=0；输出落 out_path。
+
+    OBS-8a acquire 重试：guard 输出含 ACQUIRE REFUSED 且原因非"陈旧/损坏"
+    （槽满 / STOP_DISPATCH）→ 至多 acquire_retries 次（默认 5）、间隔
+    retry_sleep 秒（默认 60s，等槽位/内存回升）后重试；"陈旧锁/损坏"仍
+    立即 GuardFailure（F-023 语义不变）。run-finish 判定先行（防 gem5
+    自身输出偶含拒绝字样被误判为 acquire 失败）。
+    """
+    retries = ACQUIRE_RETRIES if acquire_retries is None else acquire_retries
+    sleep_s = ACQUIRE_RETRY_SLEEP_S if retry_sleep is None else retry_sleep
+    env = _guard_env(slots)
+    attempt = 0
+    while True:
+        with open(out_path, "w") as gf:
+            subprocess.run(
+                ["python3", str(LR.GUARD), "run", "--type", "experiment",
+                 "--desc", desc, "--log", log, "--interval", "60",
+                 "--max-seconds", str(max_seconds),
+                 "--campaign", campaign, "--runid", runid, "--sample", sample,
+                 "--"] + cmd_argv,
+                stdout=gf, stderr=subprocess.STDOUT, env=env)
+        gtxt = Path(out_path).read_text(errors="replace")
+        ec = re.search(r'"exit_code": (-?\d+)', gtxt)
+        if '"action": "run-finish"' in gtxt and ec is not None:
+            return int(ec.group(1)), gtxt
+        if "ACQUIRE REFUSED" in gtxt:
+            if "陈旧" in gtxt or "损坏" in gtxt:
+                raise UP.GuardFailure(
+                    f"guard acquire 拒绝（陈旧/损坏，F-023 立即失败）；"
+                    f"guard_out={out_path}; tail={gtxt[-200:]!r}")
+            if attempt < retries:
+                attempt += 1
+                print(f"[guard] ACQUIRE REFUSED（槽满/STOP_DISPATCH）→ "
+                      f"{sleep_s}s 后重试 {attempt}/{retries}: {desc}",
+                      flush=True)
+                time.sleep(sleep_s)
+                continue
+            raise UP.GuardFailure(
+                f"guard acquire 重试 {retries} 次仍被拒（槽满/STOP_DISPATCH，"
+                f"共 {retries + 1} 次尝试）；guard_out={out_path}; "
+                f"tail={gtxt[-200:]!r}")
         raise UP.GuardFailure(
             f"guard 周期未完成（F-023 同款）；guard_out={out_path}; "
             f"tail={gtxt[-200:]!r}")
-    return int(ec.group(1)), gtxt
 
 
 class ObsDriver:
+    # OBS-8a 修复：模块级 _guard_run 此前从未绑定到类——self._guard_run 是
+    # 潜在 AttributeError（任何非 dry 运行在 ensure_golden/run_fault 即崩）。
+    # staticmethod 绑定后模块函数 / self. 两种调用形态都可用（签名不含 self）。
+    _guard_run = staticmethod(_guard_run)
+
     def __init__(self, args):
         self.args = args
         self.root = Path(args.outdir_root).resolve()
         self.golden_root = self.root / "golden"
+        # OBS-8a：并行/重试参数（CLI 之外直接构造 Namespace 时取默认）
+        self.workers = int(getattr(args, "workers", 1) or 1)
+        self.acquire_retries = getattr(args, "acquire_retries", None)
+        self.acquire_retry_sleep = getattr(args, "acquire_retry_sleep", None)
+        # OBS-8a：并发 worker 同 baseline_key 的 golden 双跑防护（per-key 锁）
+        self._golden_mu = threading.Lock()
+        self._golden_locks = {}
         # 环境先于 import lsu_guard（模块常量在 import 时读 env）
         os.environ.setdefault("LSU_GUARD_DIR", "")
         self.guard_env = {
@@ -122,37 +215,55 @@ class ObsDriver:
             "checkpoint": m["identity"]["checkpoint"],
         }
 
-    def ensure_golden(self, m, dry=False):
-        """no-fault golden：每 baseline_key 一次，缓存只读复用；漂移拒用。"""
+    def ensure_golden(self, m, dry=False, slots=None):
+        """no-fault golden：每 baseline_key 一次，缓存只读复用；漂移拒用。
+
+        OBS-8a：并发 worker 同 key 双跑防护——per-key 串行锁 + 双检（后到
+        线程等待后直接复用先到线程产物，绝不隔离他人进行中的 staging）。
+        """
         ident = self.baseline_ident(m)
         key = OC.baseline_key(ident)
         gdir = self.golden_root / key
         ctr, msn = gdir / "commit_trace.csv.gz", gdir / "micro_snap.csv.gz"
-        if (gdir / OC.COMPLETE).exists():
+
+        def _cached():
             ok, reason = OC.verify_complete(
                 gdir, {"gem5_opt_sha256": ident["gem5_opt_sha256"],
                        "baseline_key": key})
             if ok:
-                return key, gdir, ident, True   # 缓存复用
+                return True
             print(f"[golden] {key} 身份漂移/核验失败（{reason}）→ 新 key 重跑",
                   flush=True)
             OC.quarantine(gdir)
-        staging = Path(str(gdir) + ".staging")
-        if staging.exists():
-            OC.quarantine(staging)
-        if dry:
-            print(f"[golden-dry] {key} → {gdir}")
-            return key, gdir, ident, False
-        staging.mkdir(parents=True, exist_ok=True)
-        wl = LR._wl_path(m["carrier"].split(":")[1])
-        cmd = _numactl_prefix() + [str(LR.g5_path()), "--outdir", str(staging),
-              str(LR.LSU_PROXY), "--cmd", str(wl), "--cpu", "O3",
-              "--variant", "B0"] + _obs_args(staging / "commit_trace.csv.gz",
-                                             staging / "micro_snap.csv.gz")
-        self._guard_run(cmd, f"OBSREF {m['run_id']} {key[:8]}",
-                        str(staging.parent / f"golden_{key[:8]}_rsrc.log"),
-                        m["timeout_seconds"], self.args.campaign,
-                        m["run_id"], "golden", staging / "gem5.out")
+            return False
+
+        if (gdir / OC.COMPLETE).exists() and _cached():
+            return key, gdir, ident, True   # 缓存复用
+        with self._golden_mu:
+            glock = self._golden_locks.setdefault(key, threading.Lock())
+        with glock:
+            # 双检：并行 worker 可能已在此期间完成 golden → 直接复用
+            if (gdir / OC.COMPLETE).exists() and _cached():
+                return key, gdir, ident, True
+            staging = Path(str(gdir) + ".staging")
+            if staging.exists():
+                OC.quarantine(staging)
+            if dry:
+                print(f"[golden-dry] {key} → {gdir}")
+                return key, gdir, ident, False
+            staging.mkdir(parents=True, exist_ok=True)
+            wl = LR._wl_path(m["carrier"].split(":")[1])
+            cmd = _numactl_prefix() + [str(LR.g5_path()), "--outdir", str(staging),
+                  str(LR.LSU_PROXY), "--cmd", str(wl), "--cpu", "O3",
+                  "--variant", "B0"] + _obs_args(staging / "commit_trace.csv.gz",
+                                                 staging / "micro_snap.csv.gz")
+            self._guard_run(cmd, f"OBSREF {m['run_id']} {key[:8]}",
+                            str(staging.parent / f"golden_{key[:8]}_rsrc.log"),
+                            m["timeout_seconds"], self.args.campaign,
+                            m["run_id"], "golden", staging / "gem5.out",
+                            slots=slots,
+                            acquire_retries=self.acquire_retries,
+                            retry_sleep=self.acquire_retry_sleep)
         files = []
         for name in ("commit_trace.csv.gz", "micro_snap.csv.gz", "gem5.out"):
             p = staging / name
@@ -187,7 +298,7 @@ class ObsDriver:
             return "l0l5", self.degraded_carriers[carrier]
         return "full", None
 
-    def run_fault(self, m, s, staging, mode):
+    def run_fault(self, m, s, staging, mode, slots=None):
         cfg, args = LR.build_guard_cmd(m, staging, span=None)
         cmd = [str(LR.g5_path()), "--outdir", str(staging), cfg] + args
         if mode == "full":
@@ -199,7 +310,9 @@ class ObsDriver:
             cmd, f"OBS {m['run_id']} {sample}",
             str(staging.parent / f"{m['item']}_{sample}_rsrc.log"),
             m["timeout_seconds"], self.args.campaign, m["run_id"], sample,
-            staging / "gem5.out")
+            staging / "gem5.out", slots=slots,
+            acquire_retries=self.acquire_retries,
+            retry_sleep=self.acquire_retry_sleep)
         # L5 分类（与 run_one 同口径：guard 合并流同时作 stdout/stderr）
         v = UP.classify_run(staging, staging / "gem5.out", m["golden"],
                             gem5_exit)
@@ -267,13 +380,13 @@ class ObsDriver:
         return obs
 
     # ------------------------------------------------------------- replay
-    def replay_check(self, m, s, mode):
+    def replay_check(self, m, s, mode, slots=None):
         """同 seed 重跑一次，比对 L0 注入明细 + L5 结局 + （full 时）ctrace sha。"""
         staging = Path(str(self._sample_dir(m, s)) + ".replay")
         if staging.exists():
             OC.quarantine(staging)
         staging.mkdir(parents=True, exist_ok=True)
-        v, _ = self.run_fault(m, s, staging, mode)
+        v, _ = self.run_fault(m, s, staging, mode, slots=slots)
         inj = sorted(staging.glob("*injections.log"))
         inj_text = inj[0].read_text(errors="replace") if inj else ""
         l0 = OC.parse_l0((staging / "gem5.out").read_text(errors="replace"),
@@ -310,7 +423,7 @@ class ObsDriver:
         return self.root / self.args.campaign / m["item"] / f"{m['item']}_s{s}"
 
     # ------------------------------------------------------------- sample
-    def run_sample(self, m, s):
+    def run_sample(self, m, s, slots=None):
         od = self._sample_dir(m, s)
         sample = f"s{s}"
         if (od / OC.COMPLETE).exists():
@@ -321,7 +434,8 @@ class ObsDriver:
                   f"{'OK' if ok else 'REFUSED: ' + reason}，跳过", flush=True)
             return ("skipped" if ok else "verify_refused")
         mode, mode_reason = self.obs_mode_for(m)
-        key, gdir, _ident, cached = self.ensure_golden(m, self.args.dry_run)
+        key, gdir, _ident, cached = self.ensure_golden(
+            m, self.args.dry_run, slots=slots)
         if mode == "full" and (gdir / "commit_trace.csv.gz").exists():
             gb = (gdir / "commit_trace.csv.gz").stat().st_size / GIB
             if gb > self.args.trace_budget_gib:
@@ -361,13 +475,13 @@ class ObsDriver:
                       flush=True)
             od.parent.mkdir(parents=True, exist_ok=True)
             staging.mkdir(parents=True, exist_ok=True)
-            v, _cmd = self.run_fault(m, s, staging, mode)
+            v, _cmd = self.run_fault(m, s, staging, mode, slots=slots)
             # replay 策略
             if self.args.replay_policy == "per_sample":
-                ev = self.replay_check(m, s, mode)
+                ev = self.replay_check(m, s, mode, slots=slots)
             elif (self.args.replay_policy == "per_runid_first"
                   and m["run_id"] not in self.replay_done):
-                ev = self.replay_check(m, s, mode)
+                ev = self.replay_check(m, s, mode, slots=slots)
                 self.replay_done[m["run_id"]] = ev
             elif self.args.replay_policy == "per_runid_first":
                 ev = {"policy": "per_runid_first", "verified": True,
@@ -391,24 +505,44 @@ class ObsDriver:
                 print(f"WARNING: claim 释放异常: {msg}", file=sys.stderr)
 
     # ------------------------------------------------------------- items
+    def _dispatch_slots(self):
+        """每次派发样本前的有效槽位数（OBS-8a）：--slots 优先，否则读
+        hostmon slot_policy.json 的 cap（缺失/损坏/非法→4；clamp [1,8]）。"""
+        if self.args.slots:
+            return self.args.slots
+        return read_slot_cap()
+
+    def _manifest_for(self, it, s):
+        """每样本独立 manifest（seed = lsu_seed(RunID, phase, s)）。
+
+        OBS-8a 修复：OBS-3 的 run_item 曾对全部样本复用 sample_index=0 的
+        manifest——所有样本同 seed（同故障配置），screening 序贯与
+        --samples resume 语义双双失效。lsu_unit_pilot.run_item_samples 的
+        per-sample build_manifest 才是既定口径。
+        """
+        return LR.build_manifest(it, self.args.phase, s)
+
     def run_item(self, it):
-        m0 = LR.build_manifest(it, self.args.phase, 0)
         if self.args.samples:
             plan = list(self.args.samples)
         else:
             plan = list(range(0, self.args.cap))
+        # dry-run 走串行（零副作用打印，无需并行）；workers>1 走并行路径
+        if self.workers > 1 and not self.args.dry_run:
+            return self._run_item_parallel(it, plan)
         done = activated = 0
         for s in plan:
             if (not self.args.samples) and activated >= self.args.target:
                 break
+            m = self._manifest_for(it, s)
             try:
-                r = self.run_sample(m0, s)
+                r = self.run_sample(m, s, slots=self._dispatch_slots())
             except UP.GuardFailure as gf:
                 print(f"[{it}] s{s}: GUARD_FAILURE {gf}"[:300], flush=True)
                 return "GUARD_FAILURE"
             if r == "complete":
                 done += 1
-                v = json.loads((self._sample_dir(m0, s) / "l5_verdict.json")
+                v = json.loads((self._sample_dir(m, s) / "l5_verdict.json")
                                .read_text())
                 activated += 1 if (v.get("activated") or 0) else 0
             elif r == "verify_refused":
@@ -417,15 +551,87 @@ class ObsDriver:
                   else "BLOCKED_ATTEMPT_CAP")
         return status
 
+    def _run_item_parallel(self, it, plan):
+        """OBS-8a：样本级并行（F-022 模式，仿 lsu_unit_pilot.run_item_samples）。
+
+        派发条件 = activated<target 且 在飞+完成<cap 且 在飞<workers
+        （--samples 显式清单模式不受 target/cap 门限，跑全清单）；
+        每样本完整跑 run_sample（claim 防同样本双跑；golden per-key 锁防
+        并发双建）。manifest 构建在 worker 内做（build_manifest 含 gem5.opt
+        sha256 ~秒级——放派发循环会让 Python 3.11 的 idle-permit 复用把
+        池退化成单线程；放 worker 内还顺带并行化了这笔开销）。
+        任一线程 GuardFailure → 停止派发，在飞样本由 executor 退出时自然
+        完成（verdict 落盘可被 resume 复活）；verify_refused 同理（串行
+        路径是立即返回，此处是停止派发+等在飞）。
+        """
+        workers = self.workers
+        activated = dispatched = 0
+        guard_failure = None
+        verify_refused = False
+
+        def _run_one(s, slots):
+            m = self._manifest_for(it, s)
+            return self.run_sample(m, s, slots=slots)
+
+        with ThreadPoolExecutor(max_workers=workers) as ex:
+            futures, nxt = {}, 0   # future -> sample 号
+            while True:
+                # 派发（dispatched = 在飞 + 已完成，即 attempt 计数）
+                while (guard_failure is None and not verify_refused
+                       and len(futures) < workers
+                       and nxt < len(plan)
+                       and (self.args.samples
+                            or (activated < self.args.target
+                                and dispatched < self.args.cap))):
+                    s = plan[nxt]
+                    nxt += 1
+                    dispatched += 1
+                    fut = ex.submit(_run_one, s, self._dispatch_slots())
+                    futures[fut] = s
+                if not futures:
+                    break
+                fin, _ = wait(set(futures), return_when=FIRST_COMPLETED)
+                for f in fin:
+                    s = futures.pop(f)
+                    try:
+                        r = f.result()
+                    except UP.GuardFailure as gf:
+                        # 停止派发；在飞样本自然完成——verdict 有效落盘，
+                        # 断点续跑经 resume 复活，不浪费
+                        guard_failure = gf
+                        print(f"[{it}] s{s}: GUARD_FAILURE {gf}"[:300],
+                              flush=True)
+                        continue
+                    if r == "complete":
+                        # 同 _sample_dir 的路径公式（m["item"] == it）
+                        od = self.root / self.args.campaign / it / f"{it}_s{s}"
+                        v = json.loads((od / "l5_verdict.json").read_text())
+                        activated += 1 if (v.get("activated") or 0) else 0
+                    elif r == "verify_refused":
+                        verify_refused = True
+            # executor.__exit__ 等待全部在飞样本完成
+        if guard_failure is not None:
+            return "GUARD_FAILURE"
+        if verify_refused:
+            return "VERIFY_REFUSED"
+        status = ("COMPLETE" if (self.args.samples or activated >= self.args.target)
+                  else "BLOCKED_ATTEMPT_CAP")
+        return status
+
     def main(self):
         args = self.args
         if not args.dry_run:
             self.root.mkdir(parents=True, exist_ok=True)
+        slots_hdr = (f"slots={args.slots}" if args.slots else
+                     "slots=slot_policy(每次派发读取，缺失/损坏回退 4)")
         print(f"OBS campaign start {time.strftime('%F %T')} campaign={args.campaign} "
               f"items={args.items} phase={args.phase} mode={args.obs_mode} "
               f"replay={args.replay_policy} outdir={self.root} "
-              f"guard_dir={os.environ['LSU_GUARD_DIR']} "
-              f"slots={os.environ.get('LSU_GUARD_SLOTS', '4(默认)')}", flush=True)
+              f"guard_dir={os.environ['LSU_GUARD_DIR']} workers={self.workers} "
+              f"{slots_hdr} "
+              f"acquire_retries={self.acquire_retries if self.acquire_retries is not None else ACQUIRE_RETRIES}"
+              f"x{self.acquire_retry_sleep if self.acquire_retry_sleep is not None else ACQUIRE_RETRY_SLEEP_S}s",
+              flush=True)
         results = {}
         for it in args.items:
             results[it] = self.run_item(it)
@@ -433,6 +639,13 @@ class ObsDriver:
         if not args.dry_run:
             (self.root / args.campaign / "driver_summary.json").write_text(
                 json.dumps({"campaign": args.campaign, "items": results,
+                            "workers": self.workers,
+                            "acquire_retries": (self.acquire_retries
+                                                if self.acquire_retries is not None
+                                                else ACQUIRE_RETRIES),
+                            "acquire_retry_sleep_s": (self.acquire_retry_sleep
+                                                      if self.acquire_retry_sleep is not None
+                                                      else ACQUIRE_RETRY_SLEEP_S),
                             "started_env": {k: os.environ.get(k)
                                             for k in ("LSU_GUARD_DIR",
                                                       "LSU_GUARD_SLOTS",
@@ -467,6 +680,14 @@ def main():
                     help="冻结 gem5.opt 绝对路径（默认主树 repo 根）")
     ap.add_argument("--slots", type=int, default=None,
                     help="LSU_GUARD_SLOTS 覆盖（≤8；默认 4 或 slot_policy）")
+    ap.add_argument("--workers", type=int, choices=[1, 2], default=1,
+                    help="样本级并行 worker 数（OBS-8a；本阶段上限 2；"
+                         "--samples 清单模式同样支持；dry-run 恒串行打印）")
+    ap.add_argument("--acquire-retries", type=int, default=None,
+                    help="guard ACQUIRE REFUSED（槽满/STOP_DISPATCH）重试次数"
+                         "（默认 5；陈旧/损坏不重试，F-023 立即失败）")
+    ap.add_argument("--acquire-retry-sleep", type=float, default=None,
+                    help="acquire 重试间隔秒（默认 60；等槽位/内存回升）")
     ap.add_argument("--dry-run", action="store_true")
     args = ap.parse_args()
     if args.slots:
