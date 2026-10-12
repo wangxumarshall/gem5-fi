@@ -10,7 +10,13 @@
 
 **Spec:** 用户指令（2026-10-12 会话，任务书全文见本计划附录 A 摘要）；`docs/gem5-fi/ooo/总方针.md`（科学规则与资源纪律，其中并发≤4 的旧上限被用户最新指令 6→8 覆盖，以用户指令为准）；`CLAUDE.md` patch discipline。
 
-## Global Constraints（每个任务默认遵守）
+## 执行状态（2026-10-12 18:00 起实时更新；两阶段 subagent 模式）
+
+- **模式切换**：按用户新指令改为两阶段并行。Task 1-4 的代码部分已由总负责人直接完成并提交（70eb582 计划、0f7029d guard、63be59f runner --msnap、7a06677 commit_diff --seq-range、58d26fe ooo_golden、c577d26 ooo_handoff）；Task 4 的真 golden 生成、Task 5/6（observation/sample_runner）转 Subagent-A；Task 9（scheduler+竞争/降档测试）转 Subagent-B；Task 7/8（E2E/审计）转 Subagent-C。三 subagent 各自 worktree/分支（ooo/l0l5-{A,B,C} @ .claude/worktrees/ooo-l0l5-{a,b,c}），文件所有权互斥，由总负责人审查合并。
+- **Task 状态**：T0 ✅ / T1 ✅（26 检查 ALL PASS + selftest + monitor 实测）/ T2 ✅（16 检查 ALL PASS，含截断诚实路径与 no-inject 309 行×16 列完整快照；共享文件回归 PASS）/ T3 ✅（16 检查 ALL PASS；TDD 抓出生成器函数吞迭代器真 bug 并修复）/ T4 代码 ✅ 单测 ALL PASS，**四个真 golden 生成 + verify2 → Subagent-A** / T5-T9 → subagent 进行中 / campaign 规格（eng2×4+formal×4+batch）已按冻结面草拟于 runs/ooo-l0l5/specs/（chaos_commit 与 coremark l2_mode 待准入门定值）。
+- 阶段一验收屏障 A-J 见用户指令；全部 PASS 后自动进入阶段二（RunAgent-A/B/C/D，6→8 槽）。
+
+
 
 1. **binary 冻结**：全部运行使用 `build/ARM/gem5.opt` sha256 `1a618953b014514713c0ad98c7f3d69a48171d81f0463d934bccdfcfc0070bf3`；任何代码不得改 `CHAOS/gem5/src/**`（验收：`git diff f2ee885 -- CHAOS/gem5/src` 为空）。运行期间禁止替换 binary。
 2. **基点**：开发分支 `ooo/l0l5-chain` 自 `f2ee885853abd19e1f05f5fa7fe094804d0640ce` 创建；运行冻结 commit = 准入门（Task 10）PASS 后的分支 HEAD，记入每样本 observation。
@@ -91,11 +97,11 @@
 - Produces: `runner.py <manifest> --binary B --msnap <PATH> [--msnap-every N]`：`PATH` 转绝对路径 → gem5 cmd 追加 `--chaos_msnap --msnap_file <ABS> --msnap_every N`（默认 1000）；运行后打印一行证据 `[runner] MSNAP: file=<ABS> lines=<N|unreadable> bytes=<B>`（lines 用既有 `count_trace_lines`；无 `--msnap` 时**字节零新增**）。
 - Consumes: `configs/se/ooo_proxy.py` 既有 `--chaos_msnap/--msnap_every/--msnap_file`（L419-423，无需改）。
 
-- [ ] **Step 1: 写失败测试** `tools/tests/test_runner_msnap_flag.py`：
+- [x] **Step 1: 写失败测试** `tools/tests/test_runner_msnap_flag.py`：
   1. `test_flag_absent_no_msnap_line`：手工构造 smoke manifest（workloads/ooo/smoke/smoke, golden_id=smoke-golden-v1, config_family C3, injector decode+sub_field=imm_bitflip, trigger cycle 1000, seed 20261012, max_faults 1）→ 实跑 `python3 tools/runner.py <m.yaml> --binary workloads/ooo/smoke/smoke`，断言 stdout 有 `RESULT:` 行、classification=Masked 或 Inactive（smoke 308K insts，decode 首钟 1000 必激活→期望 Masked/Crash 之一，记录实测）、**无 `MSNAP:` 行**。
   2. `test_flag_present_msnap_line`：同 manifest 加 `--msnap /home/sdc/gem5-fi-ding/runs/ooo-l0l5/selftest/msnap.csv.gz` → 断言有 `MSNAP: file=...` 行且 `lines>=1`、文件存在、`zcat | head -2` 首行 `#` 注释 + 表头符合 micro_diff 16 列契约；**且 RESULT classification 与无旗标运行一致**（msnap 只读契约——ooo_proxy L415 注释的硬门）。
   3. `test_msnap_requires_c3`：构造 config_family C0 的 manifest（binary_sha256 留空），`--msnap` → 退出非 0 且 stderr 含 "C3/C4-LSU"（镜像 --ctrace 的早失败模式）。
-- [ ] **Step 2: 跑测试确认失败**：`python3 tools/tests/test_runner_msnap_flag.py` → 用例 2/3 FAIL（unrecognized arguments）。
+- [x] **Step 2: 跑测试确认失败**：实测 run2 `unrecognized arguments: --msnap`（红态），run1 传统路径正常。
 - [ ] **Step 3: 实现**：argparse 加 `--msnap/--msnap-every`；在 `if args.ctrace and cfg_family not in ("C3","C4-LSU")` 早验证旁加同款 msnap 校验；cmd 构造段（ctrace 追加点后）加：
 ```python
 if args.msnap:
