@@ -239,18 +239,21 @@ class ObsDriver:
 
         if (gdir / OC.COMPLETE).exists() and _cached():
             return key, gdir, ident, True   # 缓存复用
+        if dry:
+            # dry 零副作用（OBS-3 契约）：不建锁文件/不建目录/不隔离残留
+            print(f"[golden-dry] {key} → {gdir}")
+            return key, gdir, ident, False
         with self._golden_mu:
             glock = self._golden_locks.setdefault(key, threading.Lock())
-        with glock:
-            # 双检：并行 worker 可能已在此期间完成 golden → 直接复用
+        # 跨进程互斥（Subagent-A 上抛 → 主负责人实现）：多 driver 进程共享
+        # golden 根目录时，进程内锁不够；flock 覆盖"运行+finalize"全程
+        with glock, OC.file_lock(self.golden_root / f"{key}.golden.lock"):
+            # 双检：并行 worker 或另一 driver 进程可能已在此期间完成 golden
             if (gdir / OC.COMPLETE).exists() and _cached():
                 return key, gdir, ident, True
             staging = Path(str(gdir) + ".staging")
             if staging.exists():
                 OC.quarantine(staging)
-            if dry:
-                print(f"[golden-dry] {key} → {gdir}")
-                return key, gdir, ident, False
             staging.mkdir(parents=True, exist_ok=True)
             wl = LR._wl_path(m["carrier"].split(":")[1])
             cmd = _numactl_prefix() + [str(LR.g5_path()), "--outdir", str(staging),
@@ -264,24 +267,24 @@ class ObsDriver:
                             slots=slots,
                             acquire_retries=self.acquire_retries,
                             retry_sleep=self.acquire_retry_sleep)
-        files = []
-        for name in ("commit_trace.csv.gz", "micro_snap.csv.gz", "gem5.out"):
-            p = staging / name
-            if p.exists():
-                files.append({"name": name, "path": name,
-                              "sha256": OC.sha256_file(p),
-                              "bytes": p.stat().st_size})
-        obs = {"schema": OC.SCHEMA,
-               "identity": {**ident, "baseline_key": key,
-                            "kind": "no_fault_golden",
-                            "campaign": self.args.campaign,
-                            "git_commit": m["identity"]["git_commit"]},
-               "files": files, "violations": [], "degradations": [],
-               "note": "no-fault golden ref（L1/L2 比对基线）"}
-        (staging / "observation.json").write_text(
-            json.dumps(obs, ensure_ascii=False, indent=1))
-        OC.finalize_sample(staging, gdir)
-        return key, gdir, ident, False
+            files = []
+            for name in ("commit_trace.csv.gz", "micro_snap.csv.gz", "gem5.out"):
+                p = staging / name
+                if p.exists():
+                    files.append({"name": name, "path": name,
+                                  "sha256": OC.sha256_file(p),
+                                  "bytes": p.stat().st_size})
+            obs = {"schema": OC.SCHEMA,
+                   "identity": {**ident, "baseline_key": key,
+                                "kind": "no_fault_golden",
+                                "campaign": self.args.campaign,
+                                "git_commit": m["identity"]["git_commit"]},
+                   "files": files, "violations": [], "degradations": [],
+                   "note": "no-fault golden ref（L1/L2 比对基线）"}
+            (staging / "observation.json").write_text(
+                json.dumps(obs, ensure_ascii=False, indent=1))
+            OC.finalize_sample(staging, gdir)
+            return key, gdir, ident, False
 
     # ------------------------------------------------------------- one run
     def obs_mode_for(self, m):
@@ -343,6 +346,14 @@ class ObsDriver:
             if mode == "full" else \
             {"status": "not_collected(l0l5_mode)",
              "reason": self.obs_mode_for(m)[1]}
+        # BUG-2 修复（Subagent-C 发现）：fault 侧探针路径在 staging→正式目录
+        # 原子改名后失效——改记样本目录内相对名（ref 侧 golden 目录稳定，
+        # 绝对路径保留）
+        for entry in (l1, l2):
+            fprobe = entry.get("fault")
+            if isinstance(fprobe, dict) and fprobe.get("path"):
+                fprobe["path"] = Path(fprobe["path"]).name
+                fprobe["path_note"] = "样本目录内相对名（staging 改名后仍有效）"
         l3 = OC.build_l3(m["family"], l2, inactive=inactive)
         l4 = OC.build_l4(l0, l1, l2, l5,
                          fault_msnap_path=staging / "micro_snap.csv.gz",

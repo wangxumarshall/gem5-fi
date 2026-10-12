@@ -12,6 +12,7 @@ import gzip
 import json
 import os
 import shutil
+import subprocess
 import sys
 import tempfile
 from pathlib import Path
@@ -326,6 +327,25 @@ def main():
     q = C.quarantine(tmp / "residue")
     check("quarantine_preserves", q is not None and q.exists()
           and (q / "junk").exists() and not (tmp / "residue").exists(), str(q))
+
+    # ---- 11) file_lock 跨进程互斥（golden 跨进程防护的核心） ----
+    lock_path = tmp / "golden_x.golden.lock"
+    child_code = (
+        "import sys, time; sys.path.insert(0, %r); import lsu_obs_core as C\n"
+        "try:\n"
+        "    with C.file_lock(%r, timeout_s=0.5, poll_s=0.1):\n"
+        "        pass\n"
+        "except TimeoutError:\n"
+        "    sys.exit(42)\n"
+        "sys.exit(0)" % (str(HERE.parent / "tools"), str(lock_path)))
+    with C.file_lock(lock_path, timeout_s=5, poll_s=0.1):
+        r = subprocess.run([sys.executable, "-c", child_code],
+                           capture_output=True)
+        check("file_lock_blocks_other_process", r.returncode == 42,
+              f"rc={r.returncode}")
+    r2 = subprocess.run([sys.executable, "-c", child_code], capture_output=True)
+    check("file_lock_released_after_scope", r2.returncode == 0,
+          f"rc={r2.returncode}")
 
     print(f"\nFAILURES: {fails if fails else '无'}")
     return 1 if fails else 0

@@ -24,6 +24,7 @@
 正式目录并写 COMPLETE；已有 COMPLETE 的目录只读核验（verify_complete），
 绝不覆盖；无 COMPLETE 的残留目录 quarantine 改名保留证据。
 """
+import fcntl
 import gzip
 import hashlib
 import json
@@ -32,6 +33,7 @@ import re
 import shutil
 import sys
 import time
+from contextlib import contextmanager
 from pathlib import Path
 
 _HERE = Path(__file__).resolve().parent
@@ -71,6 +73,37 @@ def write_json_atomic(path, obj):
         json.dump(obj, f, ensure_ascii=False, indent=1)
         f.write("\n")
     os.replace(tmp, path)
+
+
+@contextmanager
+def file_lock(path, timeout_s=7200.0, poll_s=5.0):
+    """跨进程 advisory 锁（flock；Linux stdlib）。
+
+    用途（Subagent-A 上抛，主负责人裁决后实现）：多个 obs driver **进程**
+    共享同一 outdir_root/golden 时，per-key golden 生成必须跨进程互斥——
+    进程内 threading.Lock 只防同进程 worker。超时抛 TimeoutError（绝不
+    无声永久等待）。锁文件本身残留无害（advisory，flock 随 fd 关闭释放）。
+    """
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fh = open(path, "a+")
+    deadline = time.time() + timeout_s
+    while True:
+        try:
+            fcntl.flock(fh, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            break
+        except OSError:
+            if time.time() > deadline:
+                fh.close()
+                raise TimeoutError(f"file_lock 超时（{timeout_s}s）: {path}")
+            time.sleep(poll_s)
+    try:
+        yield
+    finally:
+        try:
+            fcntl.flock(fh, fcntl.LOCK_UN)
+        finally:
+            fh.close()
 
 
 def baseline_key(ident):
