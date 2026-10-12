@@ -41,7 +41,26 @@
    与实验批次的互斥（CLAUDE.md -j16 纪律仅约束本仓构建）。
 5. hostmon TRIP_DOWN 状态保持（cap=4），30 分钟窗口无异常后自然回到 HOLD4。
 
-## 4. 恢复命令（E2E 通过后执行，主树 cwd，与原始启动完全一致）
+## 5. 递发与后续（2026-10-12 19:14 追记）
+
+- **风暴复发**：19:14 再现 ninja+cc1plus（本次 3 进程，MemAvailable 19.6GiB——
+  远弱于 18:31 的 129 进程/4.57GiB）。外部构建呈**多波次**特征，归属仍不明
+  （产物不在本仓）。再次印证 §3-4 呈请：协调方须约束外部构建与实验批次互斥。
+- **E2E 重跑（18:49-18:57，干净窗口）结果**：B（golden 正常例）/D（Masked 样本
+  五层全链 complete+replay verified）/F（审计+identity+hash）**PASS**；E（crash
+  样本）暴露两个真 bug 并当场修复：
+  - **跨环境不可复现（科学发现，非 bug）**：同 seed 下历史（PYTHONHASHSEED
+    未固定+无 ctrace）与 obs 管线（PYTHONHASHSEED=0+ctrace）注入位点不同
+    （s414: 0x48ff08@2799335 vs 0x7ffffefd30@2718100）→ 结局不可跨环境复现；
+    管线内 replay 完全确定。E 判据修订 v2（`a5f23b67`）：crash 样本以 obs
+    管线真实产出为准。**推论：AGU 历史样本补链必须用 obs 环境新样本。**
+  - **BUG-4（`9da24486`）**：crash 早于 ctrace 首个 FLUSH_EVERY 刷盘点 → 0 字节
+    trace → commit_diff 误判全量 instruction_flow_change（diverged/8039 点）。
+    build_l2 前置守卫 + 审计器配套修复；s416/418/419 误导记录已隔离
+    （`.quarantine.BUG4_misleading_diverged.*`，保留为证据），待修复版重生成。
+- **自动恢复链**（`runs/lsu/obs/recovery_chain_20261012.sh`，PID 2139251）：
+  等风暴清（≤120min）→ 内存门槛复核 → 重跑 3 crash 样本 → validate v2 →
+  report → 原命令恢复 4 个 AGU driver。逐步留痕 `recovery_chain.log`。
 
 ```bash
 cd /home/sdc/gem5-fi-ding
