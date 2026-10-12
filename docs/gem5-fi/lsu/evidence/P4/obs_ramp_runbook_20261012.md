@@ -3,7 +3,9 @@
 - 起草：Subagent-B（OBS-4/4b/8b，worktree `lsu-obs-b` 分支 `obs-sub-b`）。
 - 执行人：**服务器总负责人**（本 runbook 只描述操作，不起 gem5）。
 - 判据来源：用户指令 2026-10-12 三.2-3（30 分钟连续资源门 + TRIP 降档 + 0101 磁盘
-  红线），实现于 `tools/lsu_hostmon.py::decide_cap`（提交 `[LSU][OBS-4]`，本分支）。
+  红线），实现于 `tools/lsu_hostmon.py::decide_cap`（提交 `[LSU][OBS-4]`，本分支）；
+  RAMP6 判据于 `[LSU][OBS-4c]` 收紧为**连续 ≥3 拍槽闲置**（2026-10-12 17:35:29
+  换样间隙单拍 slots_held=3 误触发 cap4→6，实证修正）。
 - 并发竞争验收（阶段一验收 G）已通过：`tests/test_claim_concurrency.py` 19/19
   PASS（提交 `[LSU][OBS-4b]`）：claim 唯一性 / 槽竞争（SLOTS=2 恰好 2 成功）/
   run 并发上限（SLOTS=3 峰值=3、15 次竞争拒绝零突破）/ 心跳 5s 更新。
@@ -17,7 +19,7 @@
 | /home | 354 GiB 总量，free ≈ 153.6 GiB；guard 磁盘红线 = max(50, 20%) = **70.8 GiB** |
 | /tmp | tmpfs 15 GiB，free ≈ 12 GiB（**低于磁盘红线**：guard 目录不得放 /tmp） |
 | 槽位 | 4/4 被 `p4_agu_formal_20261012` 四实例 driver 占用（python3 PID **1995570 / 1995598 / 1995622 / 1995696**，勿动）；锁目录 `runs/lsu/guard` |
-| hostmon | 常驻 python3 PID **2094537**（nohup，输出 `runs/lsu/obs/hostmon/`） |
+| hostmon | 常驻 python3 PID **2107378**（nohup，OBS-4c 重启，输出 `runs/lsu/obs/hostmon/`） |
 | W1 Masked 种子 | **不存在**：`runs/lsu/pilot_w1` 已有 1124 份 l5_verdict 全部 outcome=Crash（2026-10-12 17:15 扫描）→ §3 首选路径当前不可用，走回退路径 |
 
 ## 1. 前置条件（全部满足才可升 6）
@@ -31,17 +33,19 @@
    # slots_held 同步 <4（hostmon 与 guard 双源一致）
    ```
 3. **hostmon 常驻在跑**：`slot_policy.json` 的 `updated` 距今 <2 分钟，JSONL 每分钟
-   追加一行；`ps -p 2094537` 存活（若已死：§附录 A 重启，历史窗口从 JSONL 自动续）。
+   追加一行；`ps -p 2107378` 存活（若已死：§附录 A 重启，历史窗口从 JSONL 自动续）。
 
 ## 2. 槽位策略机制：hostmon 自动判定 + 手动 seed 合规途径
 
-- **自动（首选）**：hostmon 每拍跑 `decide_cap`。RAMP6 判据 = `cap==4` 且**最新拍**
-  `slots_held < 4`（有 driver 退出、槽真闲置）且 `mem_available_gib ≥ 12` →
-  `slot_policy.json` 翻为 `{"cap":6,"state":"RAMP6"}`。
+- **自动（首选）**：hostmon 每拍跑 `decide_cap`。RAMP6 判据（OBS-4c 收紧）=
+  `cap==4` 且**连续 ≥3 拍** `slots_held < 4`（持续闲置=driver 退出；生产换样
+  间隙 <60s 只闪断 1 拍，不触发——2026-10-12 17:35:29 单拍闪断误触发实证）
+  且最新拍 `mem_available_gib ≥ 12` → `slot_policy.json` 翻为
+  `{"cap":6,"state":"RAMP6"}`。
 - **手动 seed（合规途径，全程留痕）**：hostmon **只在启动时**读 `slot_policy.json`
   的 `cap` 作初值，运行中每拍重写该文件——因此手动改值必须走"停→改→重启"：
   ```bash
-  kill 2094537                                # 1) 停 hostmon（记录停机时刻）
+  kill 2107378                                # 1) 停 hostmon（记录停机时刻）
   python3 - <<'EOF'                           # 2) 改 cap（reason 必须写授权与证据）
   import json, time
   p = "/home/sdc/gem5-fi-ding/runs/lsu/obs/hostmon/slot_policy.json"

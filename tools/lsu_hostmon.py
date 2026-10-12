@@ -23,11 +23,13 @@
       RAMP8  : cap==6 且最近连续 ≥30 拍 mem≥16、swap≥8、无连续 >5 拍
                (si_ps>0 或 so_ps>0)、blocked_n 全 0、/home 任意 10 拍（60s
                拍距=10 分钟）增量 <1GiB → cap=8
-      RAMP6  : cap==4 且最新拍 slots_held<cap（有槽闲置=有 driver 退出）且
+      RAMP6  : cap==4 且连续 ≥3 拍 slots_held<cap（持续闲置=driver 退出；
+               换样间隙 <60s 单拍闪断不触发，OBS-4c 误触发修复）且最新拍
                mem≥12 → cap=6
       HOLD   : 其余 → HOLD{cap}；cap 恒 ∈ [4,8]（本阶段硬上限 8）
     评估窗口 = 传入 history 全体（时间升序 旧→新）：TRIP 扫全窗（保守，事件
-    滚出窗口前持续压制）；RAMP8 只看尾部 30 拍；RAMP6 只看最新拍。
+    滚出窗口前持续压制）；RAMP8 只看尾部 30 拍；RAMP6 看尾部连续闲置拍数
+    （从最新拍往回数，null 缺测断链；≥3 拍才升）。
   * 每拍后原子写 <out>/slot_policy.json（tmp+os.replace）：
     {"cap","state","reason","updated","evidence":{"window_ticks","mem_min_gib",
      "swap_min_gib","sustained_swap","blocked_events","home_delta_gib_10min"}}
@@ -57,6 +59,7 @@ RAMP8_SWAP_STREAK_MAX = 5      # 连续 >5 拍 (si_ps>0 或 so_ps>0) → 否决�
 RAMP8_HOME_10MIN_GIB = 1.0     # 任意 10 分钟 /home 增量 ≥1GiB → 否决升 8
 RAMP8_HOME_WINDOW_TICKS = 10   # 60s 拍距下 10 拍 = 10 分钟
 RAMP6_MEM_GIB = 12.0
+RAMP6_IDLE_STREAK = 3           # 连续 ≥3 拍 slots_held<cap 才升 6（单拍闪断=换样间隙）
 TRIP_MEM_GIB = 8.0
 TRIP_MEM_HARD_GIB = 6.0
 TRIP_SWAP_GIB = 2.0
@@ -136,6 +139,20 @@ def _home_10min_max(ticks):
     return best
 
 
+def _trailing_idle_streak(history, cap):
+    """从最新拍往回数连续 slots_held<cap 的拍数（OBS-4c）。
+
+    null（缺测）或 ≥cap（占用）即断链：换样间隙的单拍闪断最多数到 1，
+    真 driver 退出的持续闲置才会累积 ≥3。"""
+    n = 0
+    for t in reversed(history):
+        sh = _f(t.get("slots_held"))
+        if sh is None or sh >= cap:
+            break
+        n += 1
+    return n
+
+
 def _trip_reason(mems, swaps):
     for i in range(len(mems) - 1):
         if (mems[i] is not None and mems[i] < TRIP_MEM_GIB
@@ -209,19 +226,23 @@ def decide_cap(history, current_cap):
                                 f"<{RAMP8_HOME_10MIN_GIB:g} GiB")
         return cap, "HOLD6", "RAMP8 否决：" + "；".join(blockers)
 
-    # ---- RAMP6（cap==4；最新拍有槽闲置且 mem≥12） ----
+    # ---- RAMP6（cap==4；连续 ≥3 拍槽闲置且最新拍 mem≥12，OBS-4c 收紧） ----
     if cap == 4 and h:
         last = h[-1]
         sh, m = _f(last.get("slots_held")), _f(last.get("mem_available_gib"))
-        if sh is not None and sh < cap and m is not None and m >= RAMP6_MEM_GIB:
-            return 6, "RAMP6", (f"cap4→6：最新拍 slots_held={int(sh)}<cap={cap}"
-                                f"（有槽闲置=有 driver 退出）且 "
-                                f"mem={m:g}≥{RAMP6_MEM_GIB:g} GiB")
+        streak = _trailing_idle_streak(h, cap)
+        if streak >= RAMP6_IDLE_STREAK and m is not None and m >= RAMP6_MEM_GIB:
+            return 6, "RAMP6", (f"cap4→6：连续 {streak} 拍 slots_held<cap={cap}"
+                                f"（≥{RAMP6_IDLE_STREAK}，持续闲置=driver 退出）"
+                                f"且 mem={m:g}≥{RAMP6_MEM_GIB:g} GiB")
         why = []
         if sh is None:
             why.append("slots_held 缺测")
-        elif sh >= cap:
-            why.append(f"槽全忙（slots_held={int(sh)}≥cap={cap}，无 driver 退出证据）")
+        elif streak == 0:
+            why.append(f"槽全忙（最新拍 slots_held={int(sh)}≥cap={cap}，无 driver 退出证据）")
+        else:
+            why.append(f"槽闲置不连续（尾部仅 {streak}<{RAMP6_IDLE_STREAK} 拍，"
+                       f"疑似换样间隙闪断，不升）")
         if m is None:
             why.append("mem 缺测")
         elif m < RAMP6_MEM_GIB:
@@ -488,7 +509,13 @@ def _self_test_cases():
          [_mk() for _ in range(29)] + [_mk(swap=1.9)], (4, "TRIP_DOWN")),
         ("trip_floor_4", 4, [_mk(mem=7.9), _mk(mem=7.9)], (4, "TRIP_DOWN")),
         ("never_above_8", 8, ok30, (8, "HOLD8")),
-        ("ramp6", 4, [_mk(slots=3)], (6, "RAMP6")),
+        ("ramp6_sustained_3ticks", 4, [_mk(slots=3) for _ in range(3)],
+         (6, "RAMP6")),
+        ("ramp6_transient_dip", 4, [_mk(slots=4), _mk(slots=3)], (4, "HOLD4")),
+        ("ramp6_dip_recovered", 4,
+         [_mk(slots=4), _mk(slots=3), _mk(slots=4)], (4, "HOLD4")),
+        ("ramp6_two_idle_not_enough", 4,
+         [_mk(slots=4), _mk(slots=3), _mk(slots=3)], (4, "HOLD4")),
         ("ramp6_no_idle_slot", 4, [_mk(slots=4)], (4, "HOLD4")),
         ("trip_priority_over_ramp6", 4, [_mk(swap=1.9, slots=3)],
          (4, "TRIP_DOWN")),

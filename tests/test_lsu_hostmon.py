@@ -5,7 +5,8 @@
   1  decide_cap 五条必测路径：升 8 通过 / 窗口不足否决 / TRIP 降档 /
      降档下限 4 / 永不超过 8
   2  附加路径（独立构造，不复用 lsu_hostmon._self_test_cases，防同源假通过）：
-     RAMP6（槽闲置+mem≥12）/ 槽全忙否决 / TRIP 优先级高于 RAMP6 /
+     RAMP6（连续 ≥3 拍槽闲置+mem≥12，OBS-4c 收紧：单拍闪断=换样间隙不触发）/
+     槽全忙否决 / TRIP 优先级高于 RAMP6 /
      si-so 连续>5 拍否决 / home 10 分钟增量否决 / blocked 否决 / cap 钳制
   3  真跑一次 --once --out <tmp>（隔离 LSU_GUARD_DIR：伪造 4 个活锁在高位槽
      4..7 + 1 个死锁在槽 0）→ JSONL 首拍字段齐全、差分字段首拍 null（诚实
@@ -71,8 +72,20 @@ def main():
           (got[0], got[1]) == (8, "HOLD8"), f"got={got}")
 
     # ---- 2) 附加路径（独立构造） ----
-    got = HM.decide_cap([mk(slots_held=3)], 4)
-    check("decide_ramp6", (got[0], got[1]) == (6, "RAMP6"), f"got={got}")
+    # RAMP6（OBS-4c 收紧：连续 ≥3 拍 slots_held<cap 才升；生产换样间隙 <60s
+    # 单拍闪断不允许触发——2026-10-12 17:35:29 实测误触发 cap4→6 的回归防御）
+    got = HM.decide_cap([mk(slots_held=4), mk(slots_held=3)], 4)
+    check("decide_ramp6_transient_dip_no_trigger",
+          (got[0], got[1]) == (4, "HOLD4"), f"got={got}")
+    got = HM.decide_cap([mk(slots_held=4), mk(slots_held=3), mk(slots_held=4)], 4)
+    check("decide_ramp6_dip_recovered_no_trigger",
+          (got[0], got[1]) == (4, "HOLD4"), f"got={got}")
+    got = HM.decide_cap([mk(slots_held=3) for _ in range(3)], 4)
+    check("decide_ramp6_sustained_3ticks_trigger",
+          (got[0], got[1]) == (6, "RAMP6"), f"got={got}")
+    got = HM.decide_cap([mk(slots_held=4), mk(slots_held=3), mk(slots_held=3)], 4)
+    check("decide_ramp6_two_idle_ticks_not_enough",
+          (got[0], got[1]) == (4, "HOLD4"), f"got={got}")
     got = HM.decide_cap([mk(slots_held=4)], 4)
     check("decide_ramp6_no_idle_slot",
           (got[0], got[1]) == (4, "HOLD4"), f"got={got}")
