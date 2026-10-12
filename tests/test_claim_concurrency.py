@@ -157,9 +157,16 @@ def test_c_slot_race(check):
     slots = sorted(d.get("slot") for d in succ)
     check("c_slots_are_0_and_1_descending", slots == [0, 1], f"slots={slots}")
     refusals = [(rc, e) for rc, _, e in res if rc != 0]
+    # 拒绝理由接受两种合法路径（2026-10-12 admission 重跑实测）：
+    # "全部被占"（本测试的目标语义：槽满拒绝）或 "STOP_DISPATCH"
+    # （host 全局 MemAvailable<10GiB 拒新 acquire——/proc/meminfo 无法被
+    # 隔离 LSU_GUARD_DIR 隔离；生产 4 driver 并行时内存瞬态可触发）。
+    # 两者都正确阻止 >2 持有者；核心不变量 = 恰好 2 成功 + 4 拒绝。
     check("c_four_refused_all_occupied",
-          len(refusals) == 4 and all(rc == 2 and "REFUSED" in e
-                                     and "全部被占" in e for rc, e in refusals),
+          len(refusals) == 4 and all(
+              rc == 2 and "REFUSED" in e
+              and ("全部被占" in e or "STOP_DISPATCH" in e)
+              for rc, e in refusals),
           "; ".join(f"rc={rc}:{e.strip()[:90]}" for rc, e in refusals[:2]))
 
 

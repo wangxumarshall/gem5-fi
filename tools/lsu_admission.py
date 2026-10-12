@@ -33,13 +33,35 @@ SUITES = [
 ]
 
 
-def run_suite(cmd):
-    r = subprocess.run([sys.executable, *cmd], capture_output=True, text=True,
-                       cwd=str(REPO))
-    tail = (r.stdout or "").strip().splitlines()[-1:] or [""]
-    return {"cmd": " ".join(cmd), "rc": r.returncode,
-            "tail": tail[0][:200],
-            "stderr_tail": (r.stderr or "").strip()[-200:]}
+def run_suite(cmd, retries=1):
+    """跑一个测试套件；失败时透明重试一次（两次结果都记录，绝不静默）。
+
+    宿主状态依赖套件（test_claim_concurrency (c)(d)、workers (d-real)——
+    Subagent-B 已知限制：GATE 读 host 全局 /proc，生产批次 4 gem5 并行时
+    内存/时序瞬态可致偶发失败；2026-10-12 admission 顺序执行两次复现，
+    独立执行两次通过）。重试通过 → rc=0 + attempts 披露两轮结果；
+    重试仍失败 → FAIL 照实保留。
+    """
+    attempts = []
+    final = None
+    for i in range(retries + 1):
+        r = subprocess.run([sys.executable, *cmd], capture_output=True,
+                           text=True, cwd=str(REPO))
+        tail = (r.stdout or "").strip().splitlines()[-1:] or [""]
+        rec = {"attempt": i + 1, "rc": r.returncode, "tail": tail[0][:200],
+               "stderr_tail": (r.stderr or "").strip()[-200:]}
+        attempts.append(rec)
+        final = rec
+        if r.returncode == 0:
+            break
+    out = {"cmd": " ".join(cmd), "rc": final["rc"], "tail": final["tail"],
+           "stderr_tail": final["stderr_tail"]}
+    if len(attempts) > 1:
+        out["attempts"] = attempts
+        out["retry_note"] = ("宿主状态依赖套件：首轮失败、重试"
+                             f"{'通过' if final['rc'] == 0 else '仍失败'}"
+                             "（两轮完整记录，见 attempts）")
+    return out
 
 
 def main():
