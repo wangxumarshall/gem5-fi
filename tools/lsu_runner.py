@@ -20,6 +20,7 @@
 """
 import argparse
 import json
+import os
 import re
 import subprocess
 import sys
@@ -38,6 +39,15 @@ GUARD = REPO / "tools/lsu_guard.py"
 FS_CONFIG = LC.FS_CONFIG
 FS_CARRIER_RC = LC.FS_CARRIER_RC
 CPT = REPO / "runs/lsu/fs_cpt_boot/cpt.237949797015"  # G0-06 固化的 B0 FS checkpoint
+
+
+def g5_path():
+    """[LSU][OBS-3] gem5 二进制路径：LSU_GEM5_BIN 覆盖（默认 repo 根冻结件）。
+
+    worktree 运行（build/ 不在 checkout 里）必须设 LSU_GEM5_BIN 指向主树
+    冻结二进制；冻结 sha256 记入 manifest identity，绝不重编/替换。
+    """
+    return Path(os.environ.get("LSU_GEM5_BIN", str(REPO / "build/ARM/gem5.opt")))
 # G0-09 分级口径（2026-10-11 W1 timeout 修复，无人值守决策树步骤 10）：
 #   SE 短流（W0/W2/W3/W5/W9 等）golden ≤61s → 600s（10×）不变；
 #   W1 w1_all 长流 golden 实测 7.44-7.51h（F-050 三副本，规范哈希五方全等）
@@ -143,7 +153,7 @@ def build_manifest(item_id, phase, sample_index, extra=None, carrier_text=None):
         "identity": {
             "git_commit": subprocess.run(["git", "-C", str(REPO), "rev-parse", "HEAD"],
                                          capture_output=True, text=True).stdout.strip(),
-            "gem5_opt_sha256": _sha(REPO / "build/ARM/gem5.opt"),
+            "gem5_opt_sha256": _sha(g5_path()),
             "lsu_proxy_sha256": _sha(LSU_PROXY),
             "lsu_campaign_sha256": _sha(REPO / "tools/lsu_campaign.py"),
             "workload_sha256": _sha(_wl_path(wl_binary)) if wl_binary else None,
