@@ -71,6 +71,14 @@
 - **Results / Evidence:** runs/pilot_D01-F0-W6-{a,b,c}/、pilot_D02-F0-W6-b/（各 30 行）；/tmp/ooo-unit/。
 - **Next Step:** 轮B 审计 → 6 formal 启动（≈7.2h，3 轮）→ 期间排 D05-F0-W6-b/c 准入门（槽位空闲时）。
 
+### Session 005c（2026-10-12 11:18+08:00，pilot 6/6 全 PASS，formal 阶段启动）
+
+- **轮B pilot-30×2 全 PASS**：pilot_D02-F0-W6-c（bitflip2_cross）：30/30 act，12 Crash+18 Masked；pilot_D04-F0-W4-d（dest_reg_sub）：30/30 act，8 Crash+22 Masked。**6/6 pilot 全部达 30 activated 目标，零 SimErr/unknown/重复**；pilot P_DUE 谱：D01-a 30%、D01-b 20%、D01-c 23.3%、D02-b 20%、D02-c 40%、D04-d 26.7%。
+- **6 个 formal-385 已启动**（编排器后台 bc2lbt9du，3 轮 2×jobs=2，全机 gem5≤4，全程约 7.2h）：轮1 D01-a/D01-b → 轮2 D01-c/D02-b → 轮3 D02-c/D04-d。seed：47505301/46074531/44072336/41211122/47470573/42729898（formal phase 派生）。
+- pilot 编排器正常退出（exit 0）；监控 cron 切至 formal 阶段（c29b3e78）。
+- **Results / Evidence:** runs/pilot_{D01-F0-W6-a,b,c, D02-F0-W6-b,c, D04-F0-W4-d}/（各 30 行 results.jsonl）。
+- **Next Step:** formal 完成审计（385 行/r0000-r0384 完整/act 口径）→ 合格子模型 Excel 六步回填（[OOO][DATA]）→ D05-F0-W6-b/c 准入门。
+
 ## Phase Summary
 
 | Phase | Status | Started | Completed | Evidence/Output |
