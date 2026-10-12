@@ -39,6 +39,24 @@
 - **Errors / Retries:** 0（Excel 哈希疑似差异为 echo 笔误，实测与 git 一致）。
 - **Next Step:** Int Decode 首批：D01-F0-W6-a/b/c（重点行）、D02-F0-W6-b/c、D04-F0-W4-d 的工程 smoke（n=2）→ pilot-30；全机 gem5≤4。
 
+### Session 005a（2026-10-12 10:35–11:15+08:00，Int Decode 准入门 + pilot 启动）
+
+- **Actions:**
+  1. **工程准入门 smoke×6 全部 PASS**（eng_<RunID>-<子模型>, n=2, 12/12 rep 全部 f=1 激活、分类 sane、零 SimErr/unknown）：
+     | campaign | 结果 | seed |
+     |---|---|---|
+     | eng_D01-F0-W6-a (opcode_bitflip/transient_bit_flip@coremark) | 2 Crash | 44608300 |
+     | eng_D01-F0-W6-b (reg_bitflip) | 1 Crash+1 Masked | 49213565 |
+     | eng_D01-F0-W6-c (imm_bitflip) | 2 Masked | 40251295 |
+     | eng_D02-F0-W6-b (bitflip2_nonadj/local_mbu) | 1 Crash+1 Masked | 45162890 |
+     | eng_D02-F0-W6-c (bitflip2_cross) | 2 Masked | 47418027 |
+     | eng_D04-F0-W4-d (dest_reg_sub/legal_domain_sub@dep_chain) | 1 Crash+1 Masked | 42808491 |
+     工程数据不入正式统计（协议第 8 条）；证据 runs/eng_*/c0000/results.jsonl。
+  2. **pilot-30×6 已启动**（pilot phase seed 派生：D01-a=44733814, D01-b=47074890, D01-c=47716051, D02-b=45687320, D02-c=47674779, D04-d=42372737）：编排器 /tmp/ooo-unit/pilot_orchestrator.sh 后台运行（轮A: 4×jobs=1 → 轮B: 2×jobs=2，全机 gem5≤4）；监控 cron 每 9 分钟。yaml/日志在 /tmp/ooo-unit/。
+  3. 命名/seed/审计均按 task_plan「逐单元调度协议」第 10/11 条执行；Excel 回填将在对应子模型 formal-385 完成时按六步协议单独进行。
+- **Results / Evidence:** runs/eng_D01-F0-W6-{a,b,c}/、eng_D02-F0-W6-{b,c}/、eng_D04-F0-W4-d/（各 2 行 results.jsonl）；/tmp/ooo-unit/*.yaml+*.out。
+- **Next Step:** pilot 完成审计（30 activated 目标）→ 合格子模型 formal-385；D05-F0-W6-b/c 准入门排下一批。
+
 ## Phase Summary
 
 | Phase | Status | Started | Completed | Evidence/Output |
