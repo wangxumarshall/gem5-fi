@@ -11,10 +11,11 @@
 - **Current Phase:** P1
 - **Phase Status:** IN_PROGRESS
 - **Overall Status:** IN_PROGRESS
-- **Started / Last Updated / Owner:** 2026-09-30 16:30+08:00 / 2026-10-08 11:15+08:00 / 服务器 AI（Claude @ NSCC login01, reach nscc）
+- **Started / Last Updated / Owner:** 2026-09-30 16:30+08:00 / 2026-10-12 10:30+08:00 / 服务器 AI（Claude @ huawei0201, 本机直连）
+- **服务器身份（2026-10-12 身份锁实测）:** hostname=`localhost.localdomain`（部署名 huawei0201）/ IP=`172.168.178.81`（enp125s0f0）/ 仓库根=`/home/sdc/gem5-fi-ding` / 分支=`fi-ding` / HEAD=`ea88017`（回填提交；身份核验时为 bf3d284）/ 权威 Excel=`docs/gem5-fi/ooo/gem5-fi-OOO单元故障注入方案.xlsx`（存在✓，sha 与 findings.md 记录及 git HEAD 版本一致）。身份确认依据：用户指令指派 0201 OOO 轨道 + 本机 huawei0201 部署记忆（~/gem5-fi-ding, 2026-10-09 部署）+ 全部执行历史（runs/artifacts//tmp/ooo-pipeline）在本机；progress.md 此前无任何服务器身份记录（无冲突）。LSU Excel 存在于本机但属 0101 轨道，不触碰。
 - **Current Checklist Item / RunID / Excel Location:** NONE / NONE / NONE
-- **Current Experiment Stage:** P1 注入器/观测链进行中；P0 工程收口已完成，U11 engineering/恢复演练证据已落盘
-- **Campaign:** NONE（P0 无实验；工程 campaign 待 P2 冒烟建立）
+- **Current Experiment Stage:** 逐单元调度模式（2026-10-12 生效）；当前单元 Int Decode；过渡回填已完成并提交（ea88017）
+- **Campaign:** 首批 Int Decode 准入门 smoke + pilot-30（D01-F0-W6 a/b/c、D02-F0-W6 b/c、D04-F0-W4-d 等，见 Session 005）
 - **Completed ITEM Stages:** 0
 - **Resource Safety State:** NORMAL（无活跃编译/实验进程；4 实验槽位全空——2026-10-08 guard status 实测；login01 无 swap 属主机配置，F-005）
 - **Build Limit:** `-j8`，全局单实例
@@ -22,7 +23,21 @@
 - **Active Heavy Task / PID / PGID / Lock / Resource Log:** NONE（gem5 clean build 已于 09-30 18:13 COMPLETE：SCONS RC=0，见 `runs/ooo-node/logs/gem5-build-001.out`）；节点占用 job 1773145 @ cn22986（holder.sh，心跳 `runs/ooo-node/state/heartbeat`，60s 资源采样 `runs/ooo-node/state/resources.log`；**到期 2026-10-10 16:54:45，须提前提交续占作业**）
 - **Latest MemAvailable / SwapFree / Load / blocked:** login01（2026-10-08 重连实测）: ~306GiB MemAvailable / 0 swap / 负载正常；cn22986: 见 runs/ooo-node/state/resources.log
 - **Checklist SHA-256:** `d200d15c10907de8377d779ba477f0a72a1d302e2f8368deba2bf6d02ab9ec09`（2026-10-08 采样政策迁移后复验）；Excel `0f386de7c275d0ded7e679012d91c0804194d52f32e18d1cc43830a563f62b90`（同）
-- **Next Step:** 继续 P1；先按最新 worktree、锁、PID/PGID、U11 证据和 P1 计划对账，再执行尚未完成的下一 U 单元。P3/P4/P5 在新版 manifest、sample_index/seed 范围和目标样本数冻结前不得启动。
+- **Next Step:** Int Decode 单元推进：24 个 W3 行 BLOCKED（探针未开发）已登记；对就绪子模型（D01-a/b/c、D02-b/c、D04-d、D05-b/c）先工程 smoke 准入门，再 pilot-30，合格后 formal-385；每阶段立即回填 Excel 与本文件。FR02 补量待 FP/SIMD Rename 轮到（activated 328，差 57）。
+
+### Session 005（2026-10-12，0201 逐单元调度模式启动）
+
+- **Start:** 2026-10-12 10:07–10:35+08:00（huawei0201）
+- **Phase:** 模式切换（用户指令）+ 过渡回填 + 逐单元调度协议建立
+- **Actions:**
+  1. **§零 服务器身份锁核验**：hostname/IP/根目录/分支/HEAD/OOO Excel 实测并写入上方「服务器身份」字段；三证确认（用户指派 + 部署记忆 + 执行历史），无冲突记录；LSU 文件不触碰。
+  2. **只读核验（启动前）**：HEAD bf3d284、tracked 工作树 0 脏、5 笔未推送本地提交；无 gem5/campaign/guard/编译进程（仅归属其他会话的历史 waiter PID 911837 轮询，不动）；binary 1a618953/dep_chain 991d556a 身份不变；10 个 formal results.jsonl 完好；Excel 与清单 sha256 与 findings.md 记录及 git HEAD 版本逐字一致（此前一次 2 字符差异为本方 echo 笔误，已用 git show HEAD 版本哈希排除）。
+  3. **过渡回填（提交 `ea88017`，[OOO][DATA]）**：10 个既有 campaign → 矩阵 12 行（7 行数据列+Z=部分证据/待核对+AA 分子模型统计+AK 检测口径；5 行仅 AA 跨负载备注）。六步写协议全程执行：时间戳备份（docs/gem5-fi/ooo/backups/*.bak-20261012-101817）→ 主 agent 唯一写入者 → 临时文件 → 核验 ALL PASS（9 工作表集合一致/全表逐格 diff 仅 124 预期变更/310 RunID 不变/公式列 X,Y,AL,AM,AN,AS 完整/7 行 AM 守恒=R-AP）→ 原子替换 → 单独提交。FR02 使用 recount 修正口径 activated=328（差 57），旧 390 作废；D04-F0-W4 为 c+e 合计（AA 分列）；D02/FB02 负载部分对应（CoreMark-only/gemm 1/5 内核）如实标注。检测层级为 SE 口径推定（AK 列）：Masked→None、SDC→Application、Crash/Hang→OS、RAS=0。
+  4. **逐单元调度协议建立（本提交，[OOO][PLAN]）**：task_plan.md 新增 14 条协议（单元顺序/RunID 阶梯/子模型口径/并发/增量记录/BLOCKED/冻结条件/seed 派生/命名/检测口径/W6 开放项/身份锁）。
+  5. **Int Decode 就绪面盘点（48 RunID）**：W3 探针未开发 → 24 行 BLOCKED（含重点 D03-F6-W3）；W4×3（D04）/W5×6（D07/D08）/W6×15 可跑。子模型模式就绪：D01-a/b/c（opcode/reg/imm_bitflip）、D02-a/b/c（bitflip2_adj/nonadj/cross）、D04-c/d/e（src_swap/dest_reg_sub/x0_sub）、D05-b/c（imm_rotate/sign_ext_bit）✓；D01-d、D03-a/b/c、D04-a/b、D05-a/d、D06 全部、D07 全部（时序族）、D08 全部（uop 族）、D09 全部（stuck-at 族）→ 待实现/待核对。已有行内证据：D02-F0-W6（a）、D04-F0-W4（c+e）。
+- **Results / Evidence:** Excel 回填=ea88017；备份=docs/gem5-fi/ooo/backups/；脚本=/tmp/backfill_ooo_20261012.py；FR02 修正依据=fr02-recount-audit-2026-10-10.md（0244e9c）；无 BLOCKED 新增（W3 行为既有缺口首次正式登记）。
+- **Errors / Retries:** 0（Excel 哈希疑似差异为 echo 笔误，实测与 git 一致）。
+- **Next Step:** Int Decode 首批：D01-F0-W6-a/b/c（重点行）、D02-F0-W6-b/c、D04-F0-W4-d 的工程 smoke（n=2）→ pilot-30；全机 gem5≤4。
 
 ## Phase Summary
 

@@ -39,6 +39,25 @@ P1
 8. 工程、pilot、screening、key-extension、sensitivity、reproduction 使用不同 campaign/phase；工程数据禁止进入正式统计；配置一致且经核查合格的 pilot 可计入累计样本。
 9. 所有重任务服从 `总方针.md`：编译≤8且单实例；实验并发硬上限4，允许不同 ITEM/RunID 并行，资源不足时降并发；60秒资源日志和30分钟进度心跳。
 
+## 逐单元调度协议（2026-10-12 生效，0201 执行）
+
+用户 2026-10-12 指令确立「逐单元调度、逐实验增量记录、单元结束统一冻结」：
+
+1. **单元推进顺序**：Int Decode → Int Rename → Int Dispatch/ROB → FP/SIMD Decode → FP/SIMD Rename → FP/SIMD Dispatch/ROB。当前调度单元：**Int Decode**。
+2. **回填优先**：已完成的跨单元结果保留并提前回填（2026-10-12 已将 10 个 campaign 回填 12 个矩阵行，提交 `ea88017`）；未轮到的单元不扩展（FR02 补量待 FP/SIMD Rename 轮到）。
+3. **RunID 阶梯**：工程准入门（1–2 rep smoke：模式命中 + 激活 + 分类 sane）→ count-only（需要 eligible 口径时）→ pilot-30（30 个独立 activated；attempted 达 300 仍不足则暂停诊断）→ formal 累计 385 activated → 预登记重点 RunID 累计 2401。
+4. **子模型口径**：一个 campaign 覆盖一个 RunID 的一个子模型；行 COMPLETE 需该行全部子模型达标。部分子模型完成时，Excel 行内计数列 = 已覆盖子模型合计，AA 列分开列明各子模型统计；记录状态用「部分证据/待核对」，不得合并掩盖未运行子模型。
+5. **并发与资源**：单元内不同 RunID 可并行；全机 gem5 ≤4；编译 ≤-j8 且单实例；每批启动前检查 MemAvailable/SwapFree/load/锁/已有进程；资源阶梯：<10GB 或持续 swap → 停新派发降至 4→2，稳定 15 分钟后 2→4。
+6. **增量记录**：每完成一个阶段立即回填 Excel（六步写协议：时间戳备份 → 主 agent 唯一写入者 → 临时文件 → 全工作表/310 记录/公式核验 → 原子替换 → 单独 `[OOO][DATA]` 提交）与 progress.md，不等整单元完成。
+7. **BLOCKED 处理**：某 RunID/子模型 BLOCKED（如 W3 探针未开发、注入模式未实现）时记录原因并继续同单元其他 RunID。
+8. **禁止伪造完成**：不得更换负载、放宽 eligibility、修改分类器或增加无意义 attempt。
+9. **单元冻结条件**：该单元全部 RunID 均为 COMPLETE / 批准 BLOCKED / NA_APPROVED，且统计守恒（AM=0；AN 差额如实记录并解释）、证据路径齐备、Excel 校验通过，方可进入下一单元。
+10. **0201 seed 派生（campaign.py 实现）**：`base_seed = 40000000 + int(SHA256("ooo-fi-v1|<RunID>|<phase>|<子模型>|base").hexdigest()[:8], 16) % 9999999`；rep seed = base + rep（campaign.py 既有公式）。与历史 20261xxx/2026xxxx seed 区间不相交；每个 campaign 的 base_seed 登记于运行清单。
+11. **campaign 命名**：`eng_<RunID>-<子模型>`（工程 smoke）/ `pilot_<RunID>-<子模型>` / `formal_<RunID>-<子模型>`（如 `pilot_D01-F0-W6-a`）。
+12. **检测层级 SE 推定口径**（Excel AC–AF/AO 列）：Masked→None 首检；SDC→Application 首检（oracle 校验和）；Crash/Hang→OS 首检（abort/timeout 看门狗）；硬件 RAS=0（B0 无 ECC/parity）。f=null 的 Hang 不计 activated（AN 差额如实记录）。
+13. **W6 全集口径（开放项，待用户裁定）**：W6 = CoreMark+Embench 全集（7 binary）。现阶段以 CoreMark 为主 stratum 计数（沿用 D02-a 先例），行状态保持「部分证据/待核对」直至 Embench strata 补齐或用户批准单 binary 口径。
+14. **身份锁**：每会话开始执行 §零 服务器身份核验，实测 hostname/IP/根目录/分支/HEAD 写入 progress.md「服务器身份」字段；不一致即停止。
+
 ## 门禁
 
 | Gate | 内容 | 通过标准 | 状态 |
