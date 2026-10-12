@@ -1,0 +1,33 @@
+七、持续运行与停止条件
+
+本任务采用持续推进模式。
+
+普通阶段边界不是停止点：
+- 完成count-only、n=5、pilot-30或formal-385后，更新Excel、progress.md并本地提交，然后继续；
+- 完成一个单元后，生成单元报告、校验Excel并本地提交，然后自动进入下一个单元；
+- 单个RunID BLOCKED时记录原因和证据，继续当前单元其他RunID；
+- 当前单元完成或其剩余项目均已正式标记BLOCKED/NA_APPROVED后，自动进入下一单元；
+- 不得因为需要普通调度选择、启动下一批、切换RunID、回填Excel或创建本地提交而等待用户。
+
+只有以下情况才停止所有新调度并汇报：
+1. golden/oracle或确定性基线不一致；
+2. 服务器身份、仓库或轨道身份无法确认；
+3. Excel损坏、RunID映射不唯一或结果无法可靠归属；
+4. 资源守卫TRIP、磁盘不足、严重内存/Swap异常；
+5. 发现归属不明进程、重复campaign或同一sample存在多个owner；
+6. 必须改变故障语义、eligibility、workload、oracle或统计口径；
+7. 必须修改共享runner、campaign、classify、schema或gem5共享C++；
+8. 发现另一服务器正在修改相同共享文件；
+9. 需要执行fetch、pull、merge、rebase、push、reset或clean；
+10. 同一阻塞条件经过安全排查后连续出现3次且无法继续推进；
+11. 当前轨道所有剩余RunID均BLOCKED，没有其他安全工作；
+12. 用户明确要求暂停。
+
+正常最终停止条件：
+- 本轨道全部RunID均为COMPLETE、批准的BLOCKED或NA_APPROVED；
+- 所有有效RunID达到矩阵规定的pilot、formal和重点扩样目标；
+- Excel、progress.md、findings.md、证据索引和最终报告全部完成；
+- 所有本地提交完成且工作区状态明确；
+- 不自行push，停止调度并等待主协调助手统一集成。
+
+在达到最终停止条件前，只要仍有安全、已定义、无需科学裁决的RunID，就持续推进。
