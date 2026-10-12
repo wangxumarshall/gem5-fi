@@ -79,7 +79,12 @@ def main():
 
     unit_names = [n for n, _ in SUITES if n != "e2e_self_check"]
     e2e_criteria = {}
-    if isinstance(e2e, dict) and e2e.get("criteria"):
+    if isinstance(e2e, dict) and e2e.get("acceptance_BDEF"):
+        # handoff_e2e.json 实际结构（OBS-5a）：acceptance_BDEF =
+        # [{class: B/D/E/F, pass: bool, detail}] + acceptance_all_pass
+        e2e_criteria = {c["class"]: {"pass": c["pass"], "detail": c["detail"]}
+                        for c in e2e["acceptance_BDEF"]}
+    elif isinstance(e2e, dict) and e2e.get("criteria"):
         e2e_criteria = e2e["criteria"]
     elif e2e is not None and e2e.get("error"):
         e2e_criteria = {"error": e2e["error"]}
@@ -90,8 +95,11 @@ def main():
                                "触发后本工具重跑即得结论）")
         ok = all(v.get("pass") for v in e2e_criteria.values()
                  if isinstance(v, dict) and "pass" in v)
-        return ("PASS" if ok else "FAIL", f"handoff_e2e.json criteria: "
-                + json.dumps(e2e_criteria, ensure_ascii=False)[:300])
+        detail = "; ".join(f"{k}:{'PASS' if v.get('pass') else 'FAIL'}"
+                           for k, v in sorted(e2e_criteria.items())
+                           if isinstance(v, dict))
+        return ("PASS" if ok else "FAIL",
+                f"handoff_e2e.json acceptance_BDEF: {detail}"[:300])
 
     crit = {
         "A_单元测试全部通过": (
@@ -102,16 +110,16 @@ def main():
             "PENDING", "阶段二启动前对每个入选 RunID 先跑 n=2 engineering "
                        "（runid_assignment 生成后执行；未获中央 PASS 不启动 formal）"),
         "D_activated样本五层可读": (
-            e2e_criteria.get("D", {}).get("pass") if e2e_criteria else None
-            or "PENDING",
+            ("PASS" if (e2e_criteria or {}).get("D", {}).get("pass")
+             else "PENDING"),
             "E2E handoff D 判定（watcher 触发后填充）"),
         "E_observation可审计": (
             "PASS" if results["test_lsu_audit"]["rc"] == 0 and
             results["e2e_self_check"]["rc"] == 0 else "FAIL",
             "审计器 28 用例 + self-check（sha/chain 篡改必拒）"),
         "F_Crash截断语义": (
-            (e2e_criteria.get("F", {}).get("pass") if e2e_criteria else None)
-            or "PENDING",
+            ("PASS" if (e2e_criteria or {}).get("F", {}).get("pass")
+             else "PENDING"),
             "E2E handoff F 判定；单测侧 l2_crash/timeout/early_abort 已覆盖"),
         "G_防重锁并发竞争": (
             "PASS" if results["test_claim_concurrency"]["rc"] == 0 else "FAIL",
