@@ -92,6 +92,11 @@ def main():
     got = HM.decide_cap([mk(swap_free_gib=1.5, slots_held=3)], 4)
     check("decide_trip_priority_over_ramp6",
           (got[0], got[1]) == (4, "TRIP_DOWN"), f"got={got}")
+    # OBS-4d（2026-10-12 空载空真实证）：全机空闲（slots_held=0）连续多拍
+    # 不得升档——"释放槽"语义要求有在跑工作（1≤slots_held<cap）
+    got = HM.decide_cap([mk(slots_held=0) for _ in range(30)], 4)
+    check("decide_ramp6_idle_host_no_trigger",
+          (got[0], got[1]) == (4, "HOLD4") and "空载" in got[2], f"got={got}")
     streak = [mk() for _ in range(12)] + [mk(si_ps=2.0) for _ in range(6)] \
         + [mk() for _ in range(12)]
     got = HM.decide_cap(streak, 6)

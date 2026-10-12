@@ -227,17 +227,24 @@ def decide_cap(history, current_cap):
         return cap, "HOLD6", "RAMP8 否决：" + "；".join(blockers)
 
     # ---- RAMP6（cap==4；连续 ≥3 拍槽闲置且最新拍 mem≥12，OBS-4c 收紧） ----
+    # OBS-4d（2026-10-12 空载空真实证）：全机空闲（slots_held=0）时"连续闲置"
+    # 恒真——但"释放槽"语义要求有在跑工作（1≤slots_held<cap）。批次未跑=无
+    # 代表性负载，用户 ramp 判据不满足，空载期不得升档。
     if cap == 4 and h:
         last = h[-1]
         sh, m = _f(last.get("slots_held")), _f(last.get("mem_available_gib"))
         streak = _trailing_idle_streak(h, cap)
-        if streak >= RAMP6_IDLE_STREAK and m is not None and m >= RAMP6_MEM_GIB:
-            return 6, "RAMP6", (f"cap4→6：连续 {streak} 拍 slots_held<cap={cap}"
-                                f"（≥{RAMP6_IDLE_STREAK}，持续闲置=driver 退出）"
+        if (streak >= RAMP6_IDLE_STREAK and m is not None
+                and m >= RAMP6_MEM_GIB and sh is not None and sh >= 1):
+            return 6, "RAMP6", (f"cap4→6：连续 {streak} 拍 1≤slots_held<cap={cap}"
+                                f"（≥{RAMP6_IDLE_STREAK}，在跑工作释放槽）"
                                 f"且 mem={m:g}≥{RAMP6_MEM_GIB:g} GiB")
         why = []
         if sh is None:
             why.append("slots_held 缺测")
+        elif sh == 0:
+            why.append("全机空闲（slots_held=0）——无在跑工作即无释放槽证据，"
+                       "空载期不升档（OBS-4d）")
         elif streak == 0:
             why.append(f"槽全忙（最新拍 slots_held={int(sh)}≥cap={cap}，无 driver 退出证据）")
         else:
