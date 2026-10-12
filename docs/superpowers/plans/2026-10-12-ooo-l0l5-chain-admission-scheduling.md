@@ -69,18 +69,18 @@
   - CLI：`status` / `monitor --interval 60 --log <path>`（追加 CSV 行）/ `reclaim-stale` / `selftest`。
 - Consumes: 无。
 
-- [ ] **Step 1: 写失败测试** `tools/tests/test_ooo_guard_l0l5.py`：临时 `GUARD_DIR=tempfile.mkdtemp()`；用例：
+- [x] **Step 1: 写失败测试** `tools/tests/test_ooo_guard_l0l5.py`：临时 `GUARD_DIR=tempfile.mkdtemp()`；用例：
   1. `test_slot_acquire_release`：max_slots=2，两个不同 owner 各拿 1 槽成功，第 3 个 `GuardError`；release 后可再拿。
   2. `test_slot_no_steal`：进程 A（用 subprocess 拿锁后退出）… 简化：锁文件伪造 pid=999999（不存在）→ `slot_reclaim_stale` 回收；伪造 pid=1（存在）但 starttime 不匹配 → 回收；pid=1 且 starttime=真实 /proc/1 starttime → **不回收**。
   3. `test_slot_release_foreign`：锁属 pid=1/starttime=真 → 本进程 release 必须 raise（不放他人锁）。
   4. `test_claim_exclusive`：同 key 二次 acquire=False；不同 key 互不影响。
   5. `test_resources_shape`：`sample_resources()` 返回 dict 含全部键且 `mem_available_kib>0`。
   6. `test_slot_json_fields`：锁 JSON 含 owner/pid/pgid/starttime/heartbeat/campaign/run_id。
-- [ ] **Step 2: 跑测试确认失败**：`python3 tools/tests/test_ooo_guard_l0l5.py` → `ModuleNotFoundError: No module named 'ooo_guard'`。
-- [ ] **Step 3: 实现 `tools/ooo_guard.py`**（约 380 行，模块 docstring 说明协议；心跳由持有者线程/外部按 ≤30s 更新）。
-- [ ] **Step 4: 跑测试通过**：`python3 tools/tests/test_ooo_guard_l0l5.py` → 输出 `ALL PASS (6 tests)`。
-- [ ] **Step 5: 实机验证**：`python3 tools/ooo_guard.py selftest`（真实 GUARD_DIR 下 acquire/heartbeat/status/reclaim/release 全周期）；`python3 tools/ooo_guard.py monitor --interval 1 --log /home/sdc/gem5-fi-ding/runs/ooo-l0l5/guard/monitor/selftest.log` 后台 3 秒杀掉，确认 CSV 有 ≥3 行。
-- [ ] **Step 6: Commit**：`git add tools/ooo_guard.py tools/tests/test_ooo_guard_l0l5.py && git commit -m "[OOO][P1] host-global slot/claim guard with PID+starttime stale reclamation and 60s resource monitor"`。
+- [x] **Step 2: 跑测试确认失败**：`python3 tools/tests/test_ooo_guard_l0l5.py` → `ModuleNotFoundError: No module named 'ooo_guard'`（实测红态）。
+- [x] **Step 3: 实现 `tools/ooo_guard.py`**（~470 行；TDD 抓出 slot_release mine 分支漏 unlink 的真 bug 并修复）。
+- [x] **Step 4: 跑测试通过**：`python3 tools/tests/test_ooo_guard_l0l5.py` → 实测 `ALL PASS`（26 检查项）。
+- [x] **Step 5: 实机验证**：`python3 tools/ooo_guard.py selftest` → 实测 `[selftest] PASS`（MemAvail=26719MiB gem5=0）；monitor --interval 1 后台 3.2s → resources.log 实测 5 行（表头+4 采样）。
+- [x] **Step 6: Commit**：`git add tools/ooo_guard.py tools/tests/test_ooo_guard_l0l5.py && git commit -m "[OOO][P1] host-global slot/claim guard with PID+starttime stale reclamation and 60s resource monitor"`。
 
 ### Task 2: `tools/runner.py` 增加 `--msnap`（L1 观测旗标，向后兼容）
 
