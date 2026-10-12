@@ -1,0 +1,176 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://gem5-fi/lsu/schemas/observation-v1.json",
+  "title": "LSU observation.json v1",
+  "description": "LSU 轨道每样本 L0-L5 观测记录（OBS 计划 T2，用户指令 2026-10-12 二.2 钉死字段）。九分类 = 五类结局 + 首检四类（Hardware RAS/OS/Application/None）。chain_complete 诚实规则见 tools/lsu_obs_core.py chain_complete()。",
+  "type": "object",
+  "required": [
+    "schema", "identity", "L0", "L1", "L2", "L3", "L4", "L5",
+    "replay_determinism", "violations", "files", "chain_complete",
+    "chain_status_reason"
+  ],
+  "additionalProperties": true,
+  "properties": {
+    "schema": {"const": "lsu-observation-v1"},
+    "identity": {
+      "type": "object",
+      "required": ["campaign", "runid", "sample", "seed", "git_commit",
+                    "gem5_opt_sha256", "workload", "workload_sha256",
+                    "baseline_key", "pythonhashseed"],
+      "properties": {
+        "campaign": {"type": "string"},
+        "item": {"type": "string"},
+        "runid": {"type": "string"},
+        "sample": {"type": "string"},
+        "seed": {"type": "integer"},
+        "phase": {"type": "string"},
+        "git_commit": {"type": "string"},
+        "gem5_opt_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "lsu_proxy_sha256": {"type": "string"},
+        "workload": {"type": "string"},
+        "workload_sha256": {"type": "string"},
+        "config_family": {"type": "string"},
+        "argv_hash": {"type": "string"},
+        "pythonhashseed": {"type": "integer"},
+        "numa_binding": {"type": ["string", "null"]},
+        "baseline_key": {"type": "string", "pattern": "^[0-9a-f]{32}$"}
+      }
+    },
+    "L0": {
+      "type": "object",
+      "required": ["attempted", "eligible", "injected", "activated",
+                    "injections", "funnel_source"],
+      "properties": {
+        "attempted": {"type": ["integer", "null"]},
+        "eligible": {"type": ["integer", "null"]},
+        "injected": {"type": ["integer", "null"]},
+        "activated": {"type": ["integer", "null"]},
+        "funnel_source": {"type": ["string", "null"]},
+        "injections": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["tick", "site", "mode", "raw"],
+            "properties": {
+              "tick": {"type": "integer"},
+              "site": {"type": "string"},
+              "mode": {"type": "string"},
+              "field": {"type": ["string", "null"]},
+              "old": {"type": ["string", "null"]},
+              "new": {"type": ["string", "null"]},
+              "dynamic_target": {"type": ["string", "null"]},
+              "faults": {"type": "integer"}
+            }
+          }
+        }
+      }
+    },
+    "L1": {"$ref": "#/definitions/level"},
+    "L2": {
+      "allOf": [{"$ref": "#/definitions/level"}],
+      "properties": {
+        "commit_diff": {
+          "type": "object",
+          "properties": {
+            "verdict": {"enum": ["diverged", "no_divergence",
+                                  "truncated_no_divergence_in_prefix"]},
+            "first_errant_commit": {
+              "type": ["object", "null"],
+              "properties": {
+                "seq": {"type": "integer"},
+                "tick": {"type": ["integer", "null"]},
+                "pc": {"type": ["string", "null"]},
+                "class": {"type": "string"}
+              }
+            }
+          }
+        }
+      }
+    },
+    "L3": {
+      "type": "object",
+      "required": ["status"],
+      "properties": {
+        "status": {"enum": ["complete", "unsupported",
+                             "N/A(inactive_no_activation)", "error"]},
+        "method": {"enum": ["proxy", null]},
+        "caveat": {"type": "string"},
+        "reason": {"type": "string"},
+        "auxiliary_commit_footprint": {"type": "object"}
+      }
+    },
+    "L4": {
+      "type": "object",
+      "required": ["detector", "detected", "detected_na"],
+      "properties": {
+        "detector": {"type": "string"},
+        "detected": {"type": "boolean"},
+        "detected_na": {"type": "boolean"},
+        "first_anomaly": {
+          "type": ["object", "null"],
+          "properties": {
+            "source": {"enum": ["L1", "L2"]},
+            "tick": {"type": ["integer", "null"]},
+            "latency_ticks_from_first_injection": {"type": ["integer", "null"]}
+          }
+        }
+      }
+    },
+    "L5": {
+      "type": "object",
+      "required": ["outcome", "first_detection_source"],
+      "properties": {
+        "outcome": {"enum": ["Masked", "Detected/Contained", "SDC", "Crash",
+                              "Timeout", "INCONCLUSIVE"]},
+        "crash_kind": {"type": ["string", "null"]},
+        "checksum": {"type": ["string", "null"]},
+        "golden": {"type": ["string", "null"]},
+        "exit": {"type": ["integer", "null"]},
+        "timed_out": {"type": "boolean"},
+        "detected_na": {"type": "boolean"},
+        "conservation": {"type": ["string", "null"]},
+        "first_detection_source": {"enum": ["Hardware RAS", "OS", "Application",
+                                             "None"]}
+      }
+    },
+    "replay_determinism": {
+      "type": "object",
+      "required": ["policy", "verified"],
+      "properties": {
+        "policy": {"type": "string"},
+        "verified": {"type": "boolean"},
+        "evidence": {"type": "object"}
+      }
+    },
+    "violations": {"type": "array", "items": {"type": "string"}},
+    "degradations": {"type": "array", "items": {"type": "string"}},
+    "files": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "path", "sha256", "bytes"],
+        "properties": {
+          "name": {"type": "string"},
+          "path": {"type": "string"},
+          "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+          "bytes": {"type": "integer"}
+        }
+      }
+    },
+    "chain_complete": {"type": "boolean"},
+    "chain_status_reason": {"type": "string"}
+  },
+  "definitions": {
+    "level": {
+      "type": "object",
+      "required": ["status"],
+      "properties": {
+        "status": {"type": "string"},
+        "reason": {"type": "string"},
+        "error": {"type": "string"},
+        "ref": {"type": "object"},
+        "fault": {"type": "object"}
+      }
+    }
+  }
+}
