@@ -1,0 +1,5 @@
+[LSU-OBS 巡检] 检查并按需行动（保持两阶段协议，不打断 AGU driver）：1) ps -p 1995570,1995598,1995622,1995696 检查 AGU driver 存活与 runs/lsu/pilot_w1/formal_logs/driver_{A,B,C,D}.log 尾部进度；2) runs/lsu/obs/hostmon/ 的 slot_policy.json 与最新 JSONL（si/so、MemAvailable、磁盘红线）；3) runs/lsu/obs/e2e_watcher.nohup.log 与 obs_e2e_* 目录（E2E 是否已触发/完成）；4) 若 E2E 完成→执行 T10（合并 subagent 分支若未合、跑 lsu_audit、生成 admission_handoff.json 并向中央报告）；5) 若全部 driver 退出→按 runbook 启动阶段二（runid_assignment.json + RunAgent 6 槽）；6) 任何 TRIP/漂移/覆盖迹象→停止新派发并报告。
+
+---
+
+[LSU-OBS 巡检] 检查并按需行动（保持两阶段协议，不打断 AGU driver）：1) ps -p 1995570,1995598,1995622,1995696 检查 AGU driver 存活与 runs/lsu/pilot_w1/formal_logs/driver_{A,B,C,D}.log 尾部进度；2) runs/lsu/obs/hostmon/ 的 slot_policy.json 与最新 JSONL（si/so、MemAvailable、磁盘红线）；3) runs/lsu/obs/e2e_watcher.nohup.log 与 obs_e2e_* 目录（E2E 是否已触发/完成）；4) 若 E2E 完成→执行 T10（合并 subagent 分支若未合、跑 lsu_audit、生成 admission_handoff.json 并向中央报告）；5) 若全部 driver 退出→按 runbook 启动阶段二（runid_assignment.json + RunAgent 6 槽）；6) 任何 TRIP/漂移/覆盖迹象→停止新派发并报告。
