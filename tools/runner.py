@@ -16,7 +16,7 @@ import sys, os, json, subprocess, hashlib, argparse, tempfile, gzip
 
 # Shared honest classifier (plan §9.1; report issue #4 fix).
 sys.path.insert(0, os.path.dirname(os.path.realpath(__file__)))
-from classify import classify_run  # noqa: E402
+from classify import classify_run, extract_checksum  # noqa: E402
 
 try:
     import yaml
@@ -456,6 +456,19 @@ def main():
     ap.add_argument("--msnap-every", type=int, default=1000, metavar="N",
                     help="L1: snapshot period in committed instructions "
                          "(default 1000, ooo_proxy.py's own default).")
+    # L0-L5 golden plumbing (plan Task 4; found by the FIRST real golden
+    # build 2026-10-12): runner.py captures gem5 stdout INTERNALLY for
+    # classify_run and never forwards it, so a caller (tools/ooo_golden.py)
+    # could not observe the workload FINAL checksum to cross-check against
+    # the GOLDEN_IDS registry. Opt-in evidence line; flag absent = stdout
+    # byte-identical (the W2.3 regression contract: no new flag, no new
+    # line).
+    ap.add_argument("--echo-checksum", action="store_true",
+                    help="echo the workload observed oracle checksum as "
+                         "`[runner] CHECKSUM: <16hex>` (or none) after the "
+                         "RESULT line - opt-in evidence for ooo_golden.py "
+                         "registry cross-check; absent = byte-identical "
+                         "stdout.")
     args = ap.parse_args()
 
     with open(args.manifest) as f:
@@ -1619,6 +1632,11 @@ def main():
           f"faults_injected={faults} exit={r.returncode} "
           f"timed_out={timed_out} oracle={oracle_kind}")
     print(f"[runner]   reason: {reason}")
+    # L0-L5 golden plumbing: surface the observed checksum the classifier
+    # already extracted (see the --echo-checksum argparse note above).
+    if args.echo_checksum:
+        obs_cs = extract_checksum(stdout_text + "\n" + (r.stderr or ""))
+        print(f"[runner] CHECKSUM: {obs_cs if obs_cs else 'none'}")
     # ---- W2.6 (plan Task 6): stats.txt summary consumption ----
     # Parsed by campaign.py's parse_runner_result into the rep's results.jsonl
     # `stats` block. Opt-in (--stats) so legacy invocations keep their exact
