@@ -57,6 +57,20 @@
 - **Results / Evidence:** runs/eng_D01-F0-W6-{a,b,c}/、eng_D02-F0-W6-{b,c}/、eng_D04-F0-W4-d/（各 2 行 results.jsonl）；/tmp/ooo-unit/*.yaml+*.out。
 - **Next Step:** pilot 完成审计（30 activated 目标）→ 合格子模型 formal-385；D05-F0-W6-b/c 准入门排下一批。
 
+### Session 005b（2026-10-12 11:10+08:00，Int Decode pilot 轮A 全 PASS）
+
+- **轮A pilot-30×4 全部 PASS**（各 30/30 行、act=30/30、零 SimErr/unknown/重复）：
+  | campaign | Crash | Masked | pilot P_DUE | seed |
+  |---|---|---|---|---|
+  | pilot_D01-F0-W6-a (opcode_bitflip) | 9 | 21 | 30.0% | 44733814 |
+  | pilot_D01-F0-W6-b (reg_bitflip) | 6 | 24 | 20.0% | 47074890 |
+  | pilot_D01-F0-W6-c (imm_bitflip) | 7 | 23 | 23.3% | 47716051 |
+  | pilot_D02-F0-W6-b (bitflip2_nonadj) | 6 | 24 | 20.0% | 45687320 |
+- 编排器自动接力轮B（pilot_D02-F0-W6-c + pilot_D04-F0-W4-d，jobs=2，ETA ≈11:21）；§七 已并入协议（d888d05）。
+- **6 个 formal yaml + 编排器已就绪**（formal phase seed：D01-a=47505301, D01-b=46074531, D01-c=44072336, D02-b=41211122, D02-c=47470573, D04-d=42729898；n_per_cell=385；3 轮 2×jobs=2，全机 ≤4）——轮B 审计通过后启动。
+- **Results / Evidence:** runs/pilot_D01-F0-W6-{a,b,c}/、pilot_D02-F0-W6-b/（各 30 行）；/tmp/ooo-unit/。
+- **Next Step:** 轮B 审计 → 6 formal 启动（≈7.2h，3 轮）→ 期间排 D05-F0-W6-b/c 准入门（槽位空闲时）。
+
 ## Phase Summary
 
 | Phase | Status | Started | Completed | Evidence/Output |
