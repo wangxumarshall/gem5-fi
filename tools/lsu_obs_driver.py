@@ -391,8 +391,12 @@ class ObsDriver:
         return obs
 
     # ------------------------------------------------------------- replay
-    def replay_check(self, m, s, mode, slots=None):
-        """同 seed 重跑一次，比对 L0 注入明细 + L5 结局 + （full 时）ctrace sha。"""
+    def replay_check(self, m, s, mode, slots=None, first_staging=None):
+        """同 seed 重跑一次，比对 L0 注入明细 + L5 结局 + （full 时）ctrace sha。
+
+        BUG-3 修复（E2E 重跑实测发现）：首跑此刻仍在 staging（finalize 在
+        replay 之后才发生）——比对必须读 first_staging，绝不能读最终目录。
+        """
         staging = Path(str(self._sample_dir(m, s)) + ".replay")
         if staging.exists():
             OC.quarantine(staging)
@@ -402,8 +406,9 @@ class ObsDriver:
         inj_text = inj[0].read_text(errors="replace") if inj else ""
         l0 = OC.parse_l0((staging / "gem5.out").read_text(errors="replace"),
                          inj_text)
-        # 与首跑比对
-        first = self._sample_dir(m, s)
+        # 与首跑比对（首跑产物在 first_staging；不传则回退最终目录=已完成
+        # 样本的补验场景）
+        first = Path(first_staging) if first_staging else self._sample_dir(m, s)
         f_inj = sorted(first.glob("*injections.log"))
         f_text = f_inj[0].read_text(errors="replace") if f_inj else ""
         f_l0 = OC.parse_l0((first / "gem5.out").read_text(errors="replace"),
@@ -489,10 +494,12 @@ class ObsDriver:
             v, _cmd = self.run_fault(m, s, staging, mode, slots=slots)
             # replay 策略
             if self.args.replay_policy == "per_sample":
-                ev = self.replay_check(m, s, mode, slots=slots)
+                ev = self.replay_check(m, s, mode, slots=slots,
+                                       first_staging=staging)
             elif (self.args.replay_policy == "per_runid_first"
                   and m["run_id"] not in self.replay_done):
-                ev = self.replay_check(m, s, mode, slots=slots)
+                ev = self.replay_check(m, s, mode, slots=slots,
+                                       first_staging=staging)
                 self.replay_done[m["run_id"]] = ev
             elif self.args.replay_policy == "per_runid_first":
                 ev = {"policy": "per_runid_first", "verified": True,
