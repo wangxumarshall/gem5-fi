@@ -196,6 +196,10 @@ def test_conservation():
     c = om.conservation_for(1, "Masked")
     check("cons-masked-ok", c["activated"] == 1 and c["masked"] == 1
           and c["conserved"] is True, c)
+    # plan-schema keys (C audit reads .ok); per-class counts kept
+    check("cons-schema-ok-key", c["ok"] is True, c)
+    check("cons-schema-five-sum", c["five_primary_sum"] == 1, c)
+    check("cons-schema-notes", isinstance(c["notes"], str), c)
     # negative: activated=1 but classification Inactive (five-outcome sum 0)
     c = om.conservation_for(1, "Inactive")
     check("cons-inactive-bad", c["activated"] == 1 and c["conserved"] is False
@@ -223,6 +227,10 @@ def test_conservation():
     # vocabulary drift is loud
     c = om.conservation_for(1, "NotAClass")
     check("cons-unknown-loud", c["conserved"] is False, c)
+    check("cons-unknown-ok-false", c["ok"] is False, c)
+    # SimulatorError-with-activation notes the exclusion from the 385
+    c = om.conservation_for(1, "SimulatorError")
+    check("cons-simerr-note", "385" in c["notes"], c["notes"])
 
 
 def make_identity():
@@ -258,6 +266,7 @@ def make_ctx(classification, injected, component="decode",
     l0 = dict(status="ok", component=component,
               log_name=om.LOG_FOR_COMPONENT.get(component, "n/a"),
               log_sha256="0" * 64, injected=injected,
+              activated=injected,
               eligible_count=None, attempted=None, events=[], skips=[],
               skip_lines=0, truncated=False)
     l1 = dict(status=l1_status, micro_diff=dict(no_divergence=True),
@@ -269,7 +278,8 @@ def make_ctx(classification, injected, component="decode",
                                first_divergence=None),
               first_divergent_commit=None, files=dict())
     if l3 is None:
-        l3 = dict(status="unsupported",
+        l3 = dict(status="unsupported", method=None, fanout=None,
+                  caveat=None,
                   reason="commit trace records dest regs only; "
                          "source-read association not implemented for "
                          + component)
@@ -413,6 +423,23 @@ def test_observation_top_level_shape():
     check("l0-shape", obs["l0"]["component"] == "decode"
           and obs["l0"]["log_name"] == "decode_injections.log"
           and obs["l0"]["skip_lines"] == 0, obs["l0"])
+    # contract keys: l0.activated; l3 five keys always; conservation
+    # schema keys with activated consistent
+    check("l0-activated-key",
+          obs["l0"]["activated"] == obs["l0"]["injected"], obs["l0"])
+    check("l3-five-keys",
+          all(k in obs["l3"] for k in
+              ("status", "method", "fanout", "caveat", "reason")),
+          sorted(obs["l3"].keys()))
+    check("l3-unsupported-nulls",
+          obs["l3"]["method"] is None and obs["l3"]["fanout"] is None
+          and obs["l3"]["caveat"] is None, obs["l3"])
+    cons = obs["l5"]["conservation"]
+    check("cons-consistency-l0",
+          cons["activated"] == obs["l0"]["activated"], cons)
+    check("cons-schema-in-obs",
+          cons["ok"] is True and cons["five_primary_sum"] == 1
+          and isinstance(cons["notes"], str), cons)
     # coordinator replay contract: TOP-LEVEL replay, all keys present,
     # honest nulls when not performed, and NOTHING inside l2
     check("replay-top-level-default",

@@ -87,6 +87,15 @@ def test_crash_sample():
     check("crash-l2-not-fake-no-divergence",
           obs["l2"]["commit_diff"]["verdict"] != "no_divergence")
     check("crash-l3-unsupported", obs["l3"]["status"] == "unsupported")
+    check("crash-l0-activated", obs["l0"]["activated"] == 1, obs["l0"])
+    check("crash-l3-null-keys",
+          obs["l3"]["method"] is None and obs["l3"]["fanout"] is None
+          and obs["l3"]["caveat"] is None and bool(obs["l3"]["reason"]),
+          obs["l3"])
+    ccons = obs["l5"]["conservation"]
+    check("crash-conservation-schema",
+          ccons["ok"] is True and ccons["five_primary_sum"] == 1
+          and ccons["activated"] == obs["l0"]["activated"], ccons)
     check("crash-chain-false", obs["chain_complete"] is False)
     check("crash-gaps-l3-only", obs["chain_gaps"] == ["L3"],
           obs["chain_gaps"])
@@ -106,8 +115,22 @@ def test_crash_sample():
           and lines[0]["classification"] == "Crash"
           and lines[0]["seed"] == 20261012
           and lines[0]["chain_gaps"] == ["L3"], lines[0])
+    # files BACKFILL (contract fix 4): observation.files lists the
+    # evidence (incl. the kept 0-line ctrace window of this
+    # crash-before-first-flush sample); observation.json itself excluded
+    fkeys = obs["files"]
+    check("crash-files-backfilled", len(fkeys) >= 5, sorted(fkeys))
+    check("crash-files-ctrace-window",
+          "evidence/ctrace_window.csv.gz" in fkeys, sorted(fkeys))
+    check("crash-files-msnap", "evidence/msnap.csv.gz" in fkeys)
+    check("crash-files-exclude-self", "observation.json" not in fkeys)
     # files sha256 spot-check (3 files) against the disk
     comp = json.load(open(os.path.join(d, "COMPLETE.json")))
+    obs_sha = hashlib.sha256(
+        open(os.path.join(d, "observation.json"), "rb").read()).hexdigest()
+    check("crash-complete-sha-final-obs",
+          comp["observation_sha256"] == obs_sha,
+          (comp["observation_sha256"], obs_sha))
     names = sorted(comp["files"])
     picked = [n for n in names if n.endswith(".json")][:2] + \
              [n for n in names if n.endswith(".log")][:1]
@@ -162,6 +185,13 @@ def test_masked_sample():
     check("masked-full-retention",
           obs["coverage_scope"]["pruned"] is False
           and os.path.exists(os.path.join(d, "evidence", "ctrace.csv.gz")))
+    check("masked-l0-activated", obs["l0"]["activated"] == 1)
+    check("masked-files-backfilled",
+          "evidence/ctrace.csv.gz" in obs["files"]
+          and "evidence/msnap.csv.gz" in obs["files"], sorted(obs["files"]))
+    check("masked-conservation-ok-key",
+          obs["l5"]["conservation"]["ok"] is True
+          and obs["l5"]["conservation"]["five_primary_sum"] == 1)
     check("masked-replay-default",
           obs["replay"]["performed"] is False
           and obs["replay"]["determinism"] is None)
@@ -186,6 +216,15 @@ def test_replay():
         # the replay must NOT append to results.jsonl
         rl = os.path.join(RUNS, cid, "results.jsonl")
         check("replay-%s-no-jsonl" % cid, sum(1 for _ in open(rl)) == 1)
+        # post-replay invariant: COMPLETE's sha pin follows the mutated
+        # observation.json (refreshed by the replay itself)
+        comp = json.load(open(os.path.join(d, "COMPLETE.json")))
+        cur_sha = hashlib.sha256(
+            open(os.path.join(d, "observation.json"), "rb").read()
+        ).hexdigest()
+        check("replay-%s-sha-pin-refreshed" % cid,
+              comp["observation_sha256"] == cur_sha,
+              (comp["observation_sha256"], cur_sha))
 
 
 def test_fake_runner_hook():
@@ -202,6 +241,12 @@ def test_fake_runner_hook():
     check("fake-chain-complete-inactive",
           obs["chain_complete"] is True and obs["chain_gaps"] == [],
           (obs["chain_complete"], obs["chain_gaps"]))
+    check("fake-l0-activated-zero", obs["l0"]["activated"] == 0, obs["l0"])
+    check("fake-l3-five-keys",
+          all(k in obs["l3"] for k in
+              ("status", "method", "fanout", "caveat", "reason")))
+    check("fake-files-backfilled", len(obs["files"]) >= 3,
+          sorted(obs["files"]))
     check("fake-complete-json",
           os.path.exists(os.path.join(d, "COMPLETE.json")))
     rl = os.path.join(RUNS, "selftest-ooo-crash", "results.jsonl")

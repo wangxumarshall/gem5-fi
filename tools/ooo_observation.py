@@ -237,7 +237,7 @@ def conservation_for(activated, classification):
     + post_activation_simulator_failure, per sample (each bucket is a 0/1
     indicator). Vocabulary drift (a class outside wilson.ALL_CLASSES) is
     conserved=False -- loud, never waved through."""
-    activated = 1 if activated else 0
+    activated = int(activated or 0)
     cons = dict(activated=activated)
     for k in FIVE_MAIN_OUTCOMES + EXTRA_OUTCOMES:
         cons[k] = 0
@@ -253,7 +253,20 @@ def conservation_for(activated, classification):
     total += cons["post_activation_simulator_failure"]
     known = outcome is not None or classification in ("Inactive",
                                                       "SimulatorError")
+    cons["five_primary_sum"] = sum(cons[k] for k in FIVE_MAIN_OUTCOMES)
     cons["conserved"] = bool(known and activated == total)
+    # plan Task 5 schema keys (the C-domain audit reads .ok); the
+    # per-class indicator counts above are a kept superset
+    cons["ok"] = cons["conserved"]
+    if not known:
+        cons["notes"] = ("classification outside the 9-class vocabulary "
+                         "(wilson.ALL_CLASSES)")
+    elif classification == "SimulatorError" and activated:
+        cons["notes"] = ("tool failure AFTER activation: counted in "
+                         "post_activation_simulator_failure, excluded "
+                         "from the 385 valid denominator")
+    else:
+        cons["notes"] = ""
     return cons
 
 
@@ -339,11 +352,13 @@ def build_observation(ctx):
     ctx = dict(ctx or {})
     identity = ctx.get("identity") or dict()
     l0 = dict(ctx.get("l0") or _err("l0 missing"))
+    if "activated" not in l0:
+        inj = l0.get("injected")
+        l0["activated"] = inj if isinstance(inj, int) else 0
     l5 = dict(ctx.get("l5") or _err("l5 missing"))
     cls = l5.get("classification")
     if not l5.get("conservation"):
-        activated = 1 if (l0.get("injected") or 0) >= 1 else 0
-        l5["conservation"] = conservation_for(activated, cls)
+        l5["conservation"] = conservation_for(l0["activated"], cls)
     if not l5.get("detector"):
         l5["detector"] = DETECTOR_FOR_CLASS.get(cls, "n/a")
     l4 = dict(ctx.get("l4") or _err("l4 missing"))
@@ -368,6 +383,10 @@ def build_observation(ctx):
     if "files" not in l1:
         l1["files"] = dict()
     l3 = dict(ctx.get("l3") or _err("l3 missing"))
+    # contract: the five l3 keys are ALWAYS present (null when not
+    # applicable) -- consumers must never see a missing key
+    for k in ("method", "fanout", "caveat", "reason"):
+        l3.setdefault(k, None)
     files = ctx.get("files") or dict()
     coverage_scope = ctx.get("coverage_scope") or dict(
         mode="n/a", note="not provided")
@@ -421,6 +440,10 @@ def validate_observation(obs):
              "identity.%s incomplete" % sub)
     l0 = obs.get("l0") or dict()
     need(isinstance(l0.get("injected"), int), "l0.injected must be int")
+    need(isinstance(l0.get("activated"), int),
+         "l0.activated must be int (landed injection count)")
+    need(0 <= (l0.get("activated") or 0) <= (l0.get("injected") or 0),
+         "l0.activated must be within [0, l0.injected]")
     l5 = obs.get("l5") or dict()
     cls = l5.get("classification")
     need(cls in KNOWN_CLASSES,
@@ -429,6 +452,8 @@ def validate_observation(obs):
     need(cons.get("conserved") is True,
          "conservation not satisfied: %s" % json.dumps(cons, sort_keys=True))
     activated = cons.get("activated", 0)
+    need(activated == l0.get("activated"),
+         "l5.conservation.activated != l0.activated")
     if cls == "Inactive":
         need(activated == 0,
              "Inactive classification but conservation.activated != 0")
@@ -454,6 +479,9 @@ def validate_observation(obs):
         need(blk.get("status") in allowed,
              "%s.status %r not in %s" % (lvl, blk.get("status"), allowed))
     l3 = obs.get("l3") or dict()
+    need(all(k in l3 for k in ("status", "method", "fanout", "caveat",
+                               "reason")),
+         "l3 must always carry status/method/fanout/caveat/reason")
     if l3.get("status") == "unsupported":
         need(bool(l3.get("reason")),
              "l3 unsupported without a reason (honesty contract)")
@@ -538,6 +566,10 @@ def l0_block_from(path, component):
         status=status, component=component,
         log_name=os.path.basename(funnel["log_path"]),
         log_sha256=log_sha, injected=funnel["injected"],
+        # landed injection count (single-fault decode/rat track:
+        # activated := injected; Inactive -> 0). l5.conservation.
+        # activated MUST equal this value (checked by validate).
+        activated=funnel["injected"],
         eligible_count=funnel["eligible_count"],
         attempted=funnel["attempted"], events=funnel["events"],
         skips=funnel["skips"], skip_lines=len(funnel["skips"]),

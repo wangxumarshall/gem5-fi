@@ -361,7 +361,8 @@ def do_l3(component, l0_block, retained_trace):
     """L3 fanout exists ONLY for the PRF (proxy + caveat); every other
     component is honestly unsupported (task-book 2.3)."""
     if component != "physreg":
-        return dict(status="unsupported",
+        return dict(status="unsupported", method=None, fanout=None,
+                    caveat=None,
                     reason="commit trace records dest regs only; "
                            "source-read/dynamic-instruction association "
                            "not implemented for %s; PRF liveness proxy "
@@ -373,7 +374,8 @@ def do_l3(component, l0_block, retained_trace):
             phys = int(m.group(1))
             break
     if phys is None:
-        return dict(status="unsupported",
+        return dict(status="unsupported", method=None, fanout=None,
+                    caveat=None,
                     reason="physreg campaign but no PhysReg[N] id in the "
                            "L0 event log -- cannot anchor the fanout")
     out = os.path.join(os.path.dirname(retained_trace), "fanout.json")
@@ -381,7 +383,7 @@ def do_l3(component, l0_block, retained_trace):
                        "--trace", retained_trace, "--phys", str(phys),
                        "--json", out])
     if r.returncode != 0 or not os.path.exists(out):
-        return dict(status="error",
+        return dict(status="error", method=None, fanout=None, caveat=None,
                     reason="fanout failed: %s" % r.stderr[-200:])
     fo = json.load(open(out))
     return dict(status="ok", method="proxy", fanout=fo,
@@ -458,13 +460,19 @@ def build_identity(camp, man, rep, seed_note, manifest_path, gem5_sha,
     return ident
 
 
-def hash_tree(root):
-    """relpath -> sha256 for every file under root (evidence index)."""
+def hash_tree(root, exclude=None):
+    """relpath -> sha256 for every file under root (evidence index).
+    `exclude` is a set of root-relative paths to skip (used for
+    observation.json: a file cannot contain its own sha256)."""
+    excl = set(exclude or ())
     out = dict()
     for dirpath, _dirs, names in os.walk(root):
         for n in sorted(names):
             p = os.path.join(dirpath, n)
-            out[os.path.relpath(p, root)] = sha256_file(p)
+            rel = os.path.relpath(p, root)
+            if rel in excl:
+                continue
+            out[rel] = sha256_file(p)
     return out
 
 
@@ -722,11 +730,15 @@ def cmd_run(args):
             retained, coverage_scope = retain_traces(staging, mode, cov,
                                                      l2_blk)
             if not activated:
-                l3_blk = dict(status="inactive_no_activation")
+                l3_blk = dict(status="inactive_no_activation", method=None,
+                              fanout=None, caveat=None,
+                              reason="no injection landed -- L3 not "
+                                     "attempted (n/a, honest)")
             elif retained:
                 l3_blk = do_l3(component, l0, retained)
             else:
-                l3_blk = dict(status="error",
+                l3_blk = dict(status="error", method=None, fanout=None,
+                              caveat=None,
                               reason="no retained run trace for L3")
 
         # ---- L4 (first detection + latency from the L0 anchor) --------
@@ -817,13 +829,22 @@ def cmd_run(args):
                              % (run_id, final_dir))
         write_json_atomic(os.path.join(staging, "observation.json"), obs)
         os.rename(staging, final_dir)
-        files = hash_tree(final_dir)
+        # files-manifest BACKFILL: hash every file in the published dir
+        # EXCEPT observation.json itself (a file cannot contain its own
+        # sha256 -- the exclusion is deliberate and auditable), then
+        # atomically rewrite observation.json carrying the manifest, and
+        # only then write COMPLETE.json whose observation_sha256 is the
+        # sha of the FINAL backfilled observation. The 0-byte ctrace of
+        # a crash-before-first-flush sample is kept and listed -- it IS
+        # the honest evidence of where the crash happened.
+        obs_p = os.path.join(final_dir, "observation.json")
+        files = hash_tree(final_dir, exclude=("observation.json",))
+        obs["files"] = files
+        write_json_atomic(obs_p, obs)
         write_json_atomic(os.path.join(final_dir, "COMPLETE.json"),
                           dict(run_id=run_id,
                                gem5_sha256=gem5_sha,
-                               observation_sha256=sha256_file(
-                                   os.path.join(final_dir,
-                                                "observation.json")),
+                               observation_sha256=sha256_file(obs_p),
                                files=files,
                                completed=time.strftime(
                                    "%Y-%m-%dT%H:%M:%S")))
@@ -924,6 +945,16 @@ def cmd_replay(args):
                          checksum_pass2=p2_checksum,
                          performed_at=time.strftime("%Y-%m-%dT%H:%M:%S"))
     write_json_atomic(obs_p, obs)
+    # replay legitimately MUTATES observation.json (that is its purpose);
+    # refresh COMPLETE.json's sha pin so the invariant
+    # "COMPLETE.observation_sha256 == sha(current observation.json)"
+    # holds for verifiers at ALL times, before and after replay
+    comp_p = os.path.join(sample_dir, "COMPLETE.json")
+    if os.path.exists(comp_p):
+        comp = json.load(open(comp_p))
+        comp["observation_sha256"] = sha256_file(obs_p)
+        comp["replay_refreshed"] = time.strftime("%Y-%m-%dT%H:%M:%S")
+        write_json_atomic(comp_p, comp)
     print("[replay] %s: %s" % (run_id, determinism))
     return 0 if determinism == "match" else 1
 
