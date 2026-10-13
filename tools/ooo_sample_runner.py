@@ -18,8 +18,15 @@ sample).
 Honesty contract: a truncated (crashed-run) trace is salvaged by the
 differs and the truncation is passed through; l2 becomes
 not_observed_before_crash for a Crash/Hang with a clean prefix -- never
-a fake no_divergence. L3 is unsupported outside the PRF (gap L3). An
-inactive sample records L1-L4 as inactive_no_activation.
+a fake no_divergence. [FIX-A Task 2] a Crash/Hang run with ZERO
+readable trace lines (0 bytes: crash before the first commit flush) or
+ZERO msnap data rows has NO observation possible: the differs are not
+called, l2 is not_observed_before_crash with commit_diff=null and l1 is
+no_snapshots_before_crash -- "no observation" is never dressed up as
+"divergence observed" (the pre-fix commit_diff fabricated a seq-0
+instruction_flow_change from every empty trace). L3 is unsupported
+outside the PRF (gap L3). An inactive sample records L1-L4 as
+inactive_no_activation.
 
 Test hook: OOO_FAKE_RUNNER=1 skips gem5 and synthesizes a structurally
 complete sample (classification from --rep) so the scheduler (B domain)
@@ -317,8 +324,48 @@ def window_slice(ctrace_path, lo, hi, out_path):
     return full, kept, truncated
 
 
-def do_l1(staging, golden_msnap):
-    """micro_diff on the msnap pair; honest statuses."""
+def count_lines_salvage(path, comment=None):
+    """[FIX-A Task 2] Truncation-salvage readable-line count: stream the
+    file (gzip by magic bytes, else plain text), count non-blank lines --
+    skipping lines starting with `comment` (msnap data rows exclude the
+    '#' header) -- and on a truncated stream (EOFError/OSError mid-read:
+    a crashed run's gzip without its trailer) keep the readable-prefix
+    count and mark truncated=True instead of raising. A 0-byte file is 0
+    lines (verified live: the crash-before-first-flush runs leave a
+    0-byte ctrace, e.g. all 147 Crash samples of formal_D02-F0-W6-c).
+    Returns (lines, truncated)."""
+    n, trunc = 0, False
+    try:
+        with open(path, "rb") as f:
+            magic = f.read(2)
+        if magic == b"\x1f\x8b":
+            fh = gzip.open(path, "rt", encoding="utf-8", errors="replace")
+        else:
+            fh = open(path, "rt", encoding="utf-8", errors="replace")
+        with fh:
+            try:
+                for line in fh:
+                    s = line.strip()
+                    if not s or (comment and s.startswith(comment)):
+                        continue
+                    n += 1
+            except (OSError, EOFError):
+                trunc = True
+    except (OSError, EOFError):
+        trunc = True
+    return n, trunc
+
+
+def do_l1(staging, golden_msnap, classification=None):
+    """micro_diff on the msnap pair; honest statuses.
+
+    [FIX-A Task 2] zero-data-row semantics: a Crash/Hang run whose msnap
+    has ZERO data rows (the 116-byte header-only truncated gzip of a
+    crash before the first snapshot flush) has NO observation to diff --
+    micro_diff is NOT called (an empty-set "no_divergence" would
+    over-claim) and the honest block is status=no_snapshots_before_crash
+    with micro_diff=None. A non-Crash/Hang run with 0 data rows is an
+    error (a completed run writes snapshots)."""
     msnap = os.path.join(staging, "msnap.csv.gz")
     ev = os.path.join(staging, "evidence")
     os.makedirs(ev, exist_ok=True)
@@ -326,6 +373,22 @@ def do_l1(staging, golden_msnap):
     if not os.path.exists(msnap):
         return dict(status="error",
                     reason="msnap missing (gem5 never wrote it)"), None
+    rows, mtrunc = count_lines_salvage(msnap, comment="#")
+    if rows == 0:
+        if classification in ("Crash", "Hang"):
+            return dict(status="no_snapshots_before_crash",
+                        micro_diff=None, first_divergence=None,
+                        files=dict(msnap_run="evidence/msnap.csv.gz"),
+                        msnap_data_rows=0, msnap_truncated=mtrunc,
+                        reason="run msnap 0 data rows - no snapshots "
+                               "before crash"), None
+        return dict(status="error",
+                    reason="run msnap has 0 data rows but "
+                           "classification=%s (a completed run writes "
+                           "snapshots)" % classification,
+                    micro_diff=None, first_divergence=None,
+                    files=dict(msnap_run="evidence/msnap.csv.gz"),
+                    msnap_data_rows=0, msnap_truncated=mtrunc), None
     r = run_tool_json([sys.executable, os.path.join(HERE, "micro_diff.py"),
                        "--ref", golden_msnap, "--run", msnap,
                        "--json", out])
@@ -343,14 +406,32 @@ def do_l1(staging, golden_msnap):
                   or md.get("occ_dev_first_snap")
                   or md.get("ipc_dev_first_snap"))
     blk = dict(status=status, micro_diff=md, first_divergence=fd,
-               files=dict(msnap_run="evidence/msnap.csv.gz"))
+               files=dict(msnap_run="evidence/msnap.csv.gz"),
+               msnap_data_rows=rows, msnap_truncated=mtrunc)
     return blk, md
 
 
 def do_l2(staging, golden_ctrace, mode, pre, post, classification,
           l0_events):
     """commit_diff full or window; the truncation semantics live in
-    ooo_observation.l2_status_from."""
+    ooo_observation.l2_status_from.
+
+    [FIX-A Task 2] zero-line semantics: the run ctrace's readable lines
+    are counted FIRST (truncation-salvage counting; 0 bytes = 0 lines).
+    With 0 lines there is NOTHING to diff -- commit_diff's merge would
+    report every ref seq as one-sided and fabricate a seq-0
+    instruction_flow_change (found live: all 147 Crash samples of
+    formal_D02-F0-W6-c carried verdict=diverged with 3,000,001 fabricated
+    divergence points from empty traces). The honest blocks instead:
+      Crash/Hang -> not_observed_before_crash, commit_diff=null,
+                    first_divergent_commit=null ("no observation
+                    possible" is never dressed up as "divergence
+                    observed")
+      other class -> error (a completed run finalizes its trace)
+    With >0 lines the diff runs as before (its own salvage stops inside
+    the prefix, so first_divergent_commit can only be inside the
+    prefix) and coverage records the observable range: readable prefix
+    line count + truncation flag + byte size (+ window seq bounds)."""
     ctrace = os.path.join(staging, "ctrace.csv.gz")
     ev = os.path.join(staging, "evidence")
     os.makedirs(ev, exist_ok=True)
@@ -362,7 +443,40 @@ def do_l2(staging, golden_ctrace, mode, pre, post, classification,
                    commit_diff=None, first_divergent_commit=None,
                    files=dict())
         return blk, None, dict(mode=mode, seq_lo=None, seq_hi=None,
-                               full_trace_lines=0, kept_lines=0)
+                               full_trace_lines=0, kept_lines=0,
+                               run_trace_lines=0)
+    lines, ttrunc = count_lines_salvage(ctrace)
+    tbytes = os.path.getsize(ctrace)
+    if lines == 0:
+        if classification in ("Crash", "Hang"):
+            blk = dict(
+                status="not_observed_before_crash",
+                coverage=dict(mode=mode, seq_lo=None, seq_hi=None,
+                              note="run trace 0 lines - no observation "
+                                   "possible",
+                              run_trace_lines=0,
+                              run_trace_truncated=ttrunc,
+                              run_trace_bytes=tbytes),
+                commit_diff=None, first_divergent_commit=None,
+                files=dict())
+        else:
+            blk = dict(
+                status="error",
+                reason="run trace 0 lines but classification=%s (a "
+                       "completed run finalizes its gzip; only a "
+                       "Crash/Hang may die before the first flush)"
+                       % classification,
+                coverage=dict(mode=mode, seq_lo=None, seq_hi=None,
+                              note="run trace 0 lines - no observation "
+                                   "possible",
+                              run_trace_lines=0,
+                              run_trace_truncated=ttrunc,
+                              run_trace_bytes=tbytes),
+                commit_diff=None, first_divergent_commit=None,
+                files=dict())
+        return blk, None, dict(mode=mode, seq_lo=None, seq_hi=None,
+                               full_trace_lines=0, kept_lines=0,
+                               run_trace_lines=0)
     args = [sys.executable, os.path.join(HERE, "commit_diff.py"),
             "--ref", golden_ctrace, "--run", ctrace,
             "--json", out]
@@ -384,19 +498,32 @@ def do_l2(staging, golden_ctrace, mode, pre, post, classification,
     if r.returncode != 0 or not os.path.exists(out):
         blk = dict(status="error", reason="commit_diff failed: %s"
                    % r.stderr[-200:],
-                   coverage=dict(mode=mode, seq_lo=lo, seq_hi=hi, note=note),
+                   coverage=dict(mode=mode, seq_lo=lo, seq_hi=hi, note=note,
+                                 run_trace_lines=lines,
+                                 run_trace_truncated=ttrunc,
+                                 run_trace_bytes=tbytes),
                    commit_diff=None, first_divergent_commit=None,
                    files=dict())
         return blk, None, dict(mode=mode, seq_lo=lo, seq_hi=hi,
-                               full_trace_lines=0, kept_lines=0)
+                               full_trace_lines=0, kept_lines=0,
+                               run_trace_lines=lines)
     cd = json.load(open(out))
     status = ooo_observation.l2_status_from(cd, classification)
+    note_full = ("%s; observable range: %d readable run-trace lines%s"
+                 % (note, lines,
+                    " (truncated prefix - run trace lacked its gzip "
+                     "trailer)" if ttrunc else ""))
     blk = dict(status=status,
-               coverage=dict(mode=mode, seq_lo=lo, seq_hi=hi, note=note),
+               coverage=dict(mode=mode, seq_lo=lo, seq_hi=hi,
+                             note=note_full,
+                             run_trace_lines=lines,
+                             run_trace_truncated=ttrunc,
+                             run_trace_bytes=tbytes),
                commit_diff=cd,
                first_divergent_commit=cd.get("first_divergence"),
                files=dict(commit_diff="evidence/commit_diff.json"))
-    return blk, cd, dict(mode=mode, seq_lo=lo, seq_hi=hi)
+    return blk, cd, dict(mode=mode, seq_lo=lo, seq_hi=hi,
+                         run_trace_lines=lines)
 
 
 _PHYS_RE = re.compile(r"PhysReg\[(\d+)\]")
@@ -449,7 +576,7 @@ def retain_traces(staging, mode, cov, l2_blk):
     if not os.path.exists(ctrace):
         scope = dict(mode=mode, seq_lo=cov.get("seq_lo"),
                      seq_hi=cov.get("seq_hi"), full_trace_lines=0,
-                     kept_lines=0, pruned=False,
+                     kept_lines=0, run_trace_lines=0, pruned=False,
                      note="no run trace to retain")
         return None, scope
     if mode == "window":
@@ -475,9 +602,14 @@ def retain_traces(staging, mode, cov, l2_blk):
         retained = out
         note = "full retention: whole run ctrace kept"
         pruned = False
+    # [FIX-A Task 2] the observable range carries do_l2's readable-line
+    # count for BOTH modes (full mode has no window_slice count of its
+    # own); seq_lo/seq_hi give the window bounds when windowed
     scope = dict(mode=mode, seq_lo=cov.get("seq_lo"),
                  seq_hi=cov.get("seq_hi"), full_trace_lines=full_lines,
-                 kept_lines=kept_lines, pruned=pruned, note=note)
+                 kept_lines=kept_lines,
+                 run_trace_lines=cov.get("run_trace_lines"),
+                 pruned=pruned, note=note)
     return retained, scope
 
 
@@ -762,7 +894,8 @@ def cmd_run(args):
             classification = parsed["classification"]
             activated = 1 if (l0["injected"] or 0) >= 1 else 0
             if activated:
-                l1_blk, _md = do_l1(staging, golden["msnap_path"])
+                l1_blk, _md = do_l1(staging, golden["msnap_path"],
+                                    classification)
                 l2_blk, cd, cov = do_l2(
                     staging, golden["ctrace_path"], mode, pre, post,
                     classification, l0["events"])

@@ -11,22 +11,34 @@ outcome rate is claimed from them.
 
 Cases: (1) crash sample full chain; (2) idempotent COMPLETE re-run;
 (3) replay determinism; (4) Masked sample (full L2 mode + full
-retention); (5) OOO_FAKE_RUNNER test hook; (6) no staging residue.
+retention); (5) OOO_FAKE_RUNNER test hook; (6) no staging residue;
+(7) [FIX-A Task 2] OFFLINE do_l1/do_l2 zero-line Crash semantics
+(fixtures only, no gem5): a 0-line run ctrace / 0-data-row msnap on a
+Crash/Hang run is "no observation possible" -- the differs are NOT
+called and no divergence is fabricated.
+
+[FIX-A] TOOLS is derived from THIS file's location so the test always
+exercises the worktree it lives in (the old hardcoded
+worktrees/ooo-l0l5-a path silently tested another session's code).
 Run: python3 tools/tests/test_ooo_sample_runner.py
 """
+import gzip
 import hashlib
 import json
 import os
 import shutil
 import subprocess
 import sys
+import tempfile
 import time
 
-TOOLS = "/home/sdc/gem5-fi-ding/.claude/worktrees/ooo-l0l5-a/tools"
+HERE = os.path.dirname(os.path.realpath(__file__))
+TOOLS = os.path.dirname(HERE)   # this worktree's tools/ dir
 RUNS = "/home/sdc/gem5-fi-ding/runs"
 SELFTEST = os.path.join(RUNS, "ooo-l0l5", "selftest", "sample-runner")
 CRASH_YAML = os.path.join(SELFTEST, "selftest_crash.yaml")
 MASKED_YAML = os.path.join(SELFTEST, "selftest_masked.yaml")
+sys.path.insert(0, TOOLS)
 
 FAILURES = []
 CHECKS = []
@@ -74,18 +86,34 @@ def test_crash_sample():
     obs = json.load(open(os.path.join(d, "observation.json")))
     check("crash-l0-injected-1", obs["l0"]["injected"] == 1, obs["l0"])
     check("crash-l0-log", obs["l0"]["log_name"] == "decode_injections.log")
-    # Crash semantics: the run died before ANY commit was flushed (the
-    # CTRACE line says lines=0 bytes=0), so the L2 verdict is an honest
-    # instruction_flow_change divergence at seq 0 -- NEVER no_divergence
-    check("crash-l1-truncated", obs["l1"]["status"] == "truncated",
+    # [FIX-A Task 2] Crash semantics for a run that died before ANY
+    # commit was flushed (the CTRACE line says lines=0 bytes=0, the msnap
+    # has 0 data rows): NO observation was possible, so the differs are
+    # NOT run and NO divergence is fabricated. The old behavior (call
+    # commit_diff on the empty trace -> "diverged", first divergence
+    # seq=0 instruction_flow_change, 3,000,001 fabricated points on the
+    # formal campaigns) masqueraded "no observation" as "divergence
+    # observed" and is superseded by the central fix-A mandate.
+    check("crash-l1-no-snapshots",
+          obs["l1"]["status"] == "no_snapshots_before_crash",
           obs["l1"]["status"])
-    check("crash-l2-status", obs["l2"]["status"] in
-          ("ok", "not_observed_before_crash"), obs["l2"]["status"])
-    check("crash-l2-verdict-diverged",
-          obs["l2"]["commit_diff"]["verdict"] == "diverged",
-          obs["l2"]["commit_diff"]["verdict"])
-    check("crash-l2-not-fake-no-divergence",
-          obs["l2"]["commit_diff"]["verdict"] != "no_divergence")
+    check("crash-l1-micro-diff-null",
+          obs["l1"]["micro_diff"] is None, obs["l1"].get("micro_diff"))
+    check("crash-l2-status",
+          obs["l2"]["status"] == "not_observed_before_crash",
+          obs["l2"]["status"])
+    check("crash-l2-commit-diff-null",
+          obs["l2"]["commit_diff"] is None,
+          obs["l2"].get("commit_diff"))
+    check("crash-l2-fdc-null",
+          obs["l2"]["first_divergent_commit"] is None,
+          obs["l2"].get("first_divergent_commit"))
+    check("crash-l2-zero-line-note",
+          "run trace 0 lines" in obs["l2"]["coverage"]["note"],
+          obs["l2"]["coverage"]["note"])
+    check("crash-l4-first-detection-no-fabricated-seq",
+          obs["l4"]["first_detection"]["seq"] is None,
+          obs["l4"]["first_detection"])
     check("crash-l3-unsupported", obs["l3"]["status"] == "unsupported")
     check("crash-l0-activated", obs["l0"]["activated"] == 1, obs["l0"])
     check("crash-l3-null-keys",
@@ -97,7 +125,10 @@ def test_crash_sample():
           ccons["ok"] is True and ccons["five_primary_sum"] == 1
           and ccons["activated"] == obs["l0"]["activated"], ccons)
     check("crash-chain-false", obs["chain_complete"] is False)
-    check("crash-gaps-l3-only", obs["chain_gaps"] == ["L3"],
+    # [FIX-A Task 2] the two zero-observation statuses are honest (NOT
+    # violations) but are absence-of-observation: they cost gaps L1/L2
+    # on top of the L3 rule
+    check("crash-gaps-l1-l2-l3", obs["chain_gaps"] == ["L1", "L2", "L3"],
           obs["chain_gaps"])
     check("crash-l5", obs["l5"]["classification"] == "Crash"
           and obs["l5"]["exit"] == -6
@@ -114,7 +145,7 @@ def test_crash_sample():
           lines[0]["run_id"] == "selftest-ooo-crash-c0000-r0000"
           and lines[0]["classification"] == "Crash"
           and lines[0]["seed"] == 20261012
-          and lines[0]["chain_gaps"] == ["L3"], lines[0])
+          and lines[0]["chain_gaps"] == ["L1", "L2", "L3"], lines[0])
     # files BACKFILL (contract fix 4): observation.files lists the
     # evidence (incl. the kept 0-line ctrace window of this
     # crash-before-first-flush sample); observation.json itself excluded
@@ -260,7 +291,186 @@ def test_no_staging_residue():
         check("no-residue-%s" % cid, residue == [], residue)
 
 
+# ---- [FIX-A Task 2] OFFLINE fixtures (no gem5) --------------------------
+
+MSNAP_HDR = ("# micro_snap v1: snap_seq,commit_seq,tick,rob_occ,iq_occ,"
+             "fl_int,fl_fp,fl_vec,rob_head,rob_tail,rat_int_hash,"
+             "rat_fp_hash,rat_vec_hash,rat_int_table,rat_fp_table,"
+             "rat_vec_table\n")
+
+
+def _msnap_row(snap, commit, tick):
+    return ("%d,%d,%d,1,2,3,4,5,0,1,11,22,33,0:1,1:2,2:3\n"
+            % (snap, commit, tick))
+
+
+def _ctrace_line(seq, tick, val="0000000000000000"):
+    return "%d,0,%d,4195f0,add,1,1,5,12,%s" % (seq, tick, val)
+
+
+def _mk_goldens(td):
+    """Golden ref pair: 50-line ctrace + 2-row msnap (both clean gz)."""
+    gctrace = os.path.join(td, "golden_ctrace.csv.gz")
+    with gzip.open(gctrace, "wt") as f:
+        f.write("\n".join(_ctrace_line(i, 1000 + i) for i in range(50))
+                + "\n")
+    gmsnap = os.path.join(td, "golden_msnap.csv.gz")
+    with gzip.open(gmsnap, "wt") as f:
+        f.write(MSNAP_HDR)
+        f.write(_msnap_row(0, 0, 100))
+        f.write(_msnap_row(1000, 1000, 1100))
+    return gctrace, gmsnap
+
+
+def _mk_staging(td, name):
+    st = os.path.join(td, name)
+    os.makedirs(st)
+    return st
+
+
+def test_do_l1_do_l2_zero_line_crash_semantics():
+    """[FIX-A Task 2] zero-observation Crash semantics, OFFLINE (no gem5):
+    a Crash/Hang run whose ctrace has 0 readable lines (0 bytes or an
+    empty gzip) or whose msnap has 0 data rows crashed BEFORE any
+    observation was flushed -- calling the differs would fabricate
+    divergences (commit_diff reports every ref seq as one-sided), so
+    do_l2/do_l1 must return honest no-observation blocks instead."""
+    import ooo_sample_runner as sr
+    td = tempfile.mkdtemp(prefix="fixa-zero-")
+    gctrace, gmsnap = _mk_goldens(td)
+
+    # (1) 0-byte ctrace + Crash: no commit_diff call, honest block
+    st = _mk_staging(td, "st1")
+    open(os.path.join(st, "ctrace.csv.gz"), "wb").close()
+    blk, cd, cov = sr.do_l2(st, gctrace, "full", 100, 1000, "Crash", [])
+    check("z1-l2-status", blk["status"] == "not_observed_before_crash",
+          blk["status"])
+    check("z1-l2-cd-null", blk["commit_diff"] is None and cd is None,
+          (blk.get("commit_diff"), cd))
+    check("z1-l2-fdc-null", blk["first_divergent_commit"] is None,
+          blk.get("first_divergent_commit"))
+    check("z1-l2-note", "run trace 0 lines" in blk["coverage"]["note"],
+          blk["coverage"]["note"])
+    check("z1-no-commit-diff-json",
+          not os.path.exists(os.path.join(st, "evidence",
+                                          "commit_diff.json")))
+    # (2) 0-byte ctrace + Hang: same honest state
+    st = _mk_staging(td, "st2")
+    open(os.path.join(st, "ctrace.csv.gz"), "wb").close()
+    blk, cd, _ = sr.do_l2(st, gctrace, "full", 100, 1000, "Hang", [])
+    check("z2-hang-status", blk["status"] == "not_observed_before_crash",
+          blk["status"])
+    # (3) 0-byte ctrace + Masked: error (a completed run finalizes its
+    # trace; a 0-line trace with a non-crash class is unexpected)
+    st = _mk_staging(td, "st3")
+    open(os.path.join(st, "ctrace.csv.gz"), "wb").close()
+    blk, cd, _ = sr.do_l2(st, gctrace, "full", 100, 1000, "Masked", [])
+    check("z3-masked-error", blk["status"] == "error", blk["status"])
+    check("z3-masked-cd-null", blk["commit_diff"] is None,
+          blk.get("commit_diff"))
+    # (4) header-only msnap (0 data rows, truncated gz like the real
+    # 116-byte crash msnap) + Crash: no micro_diff call
+    st = _mk_staging(td, "st4")
+    blob = MSNAP_HDR.encode()
+    gz = gzip.compress(blob)
+    with open(os.path.join(st, "msnap.csv.gz"), "wb") as f:
+        f.write(gz[: int(len(gz) * 0.7)])   # crash mid-write: no trailer
+    l1 = sr.do_l1(st, gmsnap, "Crash")
+    check("z4-l1-status", l1[0]["status"] == "no_snapshots_before_crash",
+          l1[0]["status"])
+    check("z4-l1-md-null", l1[0]["micro_diff"] is None and l1[1] is None,
+          l1[0].get("micro_diff"))
+    check("z4-no-micro-diff-json",
+          not os.path.exists(os.path.join(st, "evidence",
+                                          "micro_diff.json")))
+    # (5) 0-data-row msnap + Masked: error (unexpected for a completed
+    # run)
+    st = _mk_staging(td, "st5")
+    with gzip.open(os.path.join(st, "msnap.csv.gz"), "wt") as f:
+        f.write(MSNAP_HDR)
+    l1 = sr.do_l1(st, gmsnap, "Masked")
+    check("z5-l1-error", l1[0]["status"] == "error", l1[0]["status"])
+    # (6) prefix-truncated ctrace (NON-empty prefix) + Crash: commit_diff
+    # IS called, salvages the prefix, stops at the truncation -- verdict
+    # truncated_no_divergence_in_prefix, fdc null, coverage records the
+    # readable prefix line count
+    st = _mk_staging(td, "st6")
+    full = ("\n".join(_ctrace_line(i, 1000 + i) for i in range(50))
+            + "\n").encode()
+    gz = gzip.compress(full)
+    with open(os.path.join(st, "ctrace.csv.gz"), "wb") as f:
+        f.write(gz[: int(len(gz) * 0.7)])
+    blk, cd, cov = sr.do_l2(st, gctrace, "full", 100, 1000, "Crash", [])
+    check("z6-prefix-status",
+          blk["status"] == "not_observed_before_crash", blk["status"])
+    check("z6-prefix-verdict",
+          cd["verdict"] == "truncated_no_divergence_in_prefix",
+          cd["verdict"])
+    check("z6-prefix-fdc-null", blk["first_divergent_commit"] is None,
+          blk.get("first_divergent_commit"))
+    check("z6-prefix-coverage-lines",
+          blk["coverage"]["run_trace_lines"] > 0
+          and blk["coverage"]["run_trace_lines"] <= 50,
+          blk["coverage"])
+    check("z6-prefix-coverage-truncated",
+          blk["coverage"]["run_trace_truncated"] is True,
+          blk["coverage"])
+    check("z6-commit-diff-json-exists",
+          os.path.exists(os.path.join(st, "evidence",
+                                      "commit_diff.json")))
+    # (7) prefix WITH a real divergence + Crash: status ok, fdc INSIDE
+    # the prefix (observation happened before the crash)
+    st = _mk_staging(td, "st7")
+    bad = [_ctrace_line(i, 1000 + i,
+                        "deadbeefdeadbeef" if i == 5 else
+                        "0000000000000000") for i in range(50)]
+    gz = gzip.compress(("\n".join(bad) + "\n").encode())
+    with open(os.path.join(st, "ctrace.csv.gz"), "wb") as f:
+        f.write(gz[: int(len(gz) * 0.7)])
+    blk, cd, _ = sr.do_l2(st, gctrace, "full", 100, 1000, "Crash", [])
+    check("z7-div-status-ok", blk["status"] == "ok", blk["status"])
+    check("z7-div-fdc-in-prefix",
+          blk["first_divergent_commit"] is not None
+          and blk["first_divergent_commit"]["seq"] == 5,
+          blk["first_divergent_commit"])
+    # (8) clean full ctrace + Masked: unchanged legacy behavior (diff
+    # runs, verdict no_divergence, coverage records 50 lines)
+    st = _mk_staging(td, "st8")
+    with gzip.open(os.path.join(st, "ctrace.csv.gz"), "wt") as f:
+        f.write("\n".join(_ctrace_line(i, 1000 + i) for i in range(50))
+                + "\n")
+    blk, cd, _ = sr.do_l2(st, gctrace, "full", 100, 1000, "Masked", [])
+    check("z8-clean-ok", blk["status"] == "ok", blk["status"])
+    check("z8-clean-no-div", cd["verdict"] == "no_divergence", cd["verdict"])
+    check("z8-clean-lines", blk["coverage"]["run_trace_lines"] == 50,
+          blk["coverage"])
+    # (9) >0-data-row msnap + Masked: micro_diff still runs (legacy path)
+    st = _mk_staging(td, "st9")
+    with gzip.open(os.path.join(st, "msnap.csv.gz"), "wt") as f:
+        f.write(MSNAP_HDR)
+        f.write(_msnap_row(0, 0, 100))
+        f.write(_msnap_row(1000, 1000, 1100))
+    l1 = sr.do_l1(st, gmsnap, "Masked")
+    check("z9-l1-ok", l1[0]["status"] == "ok", l1[0]["status"])
+    check("z9-md-ran", isinstance(l1[1], dict)
+          and l1[1]["no_divergence"] is True, l1[1] if l1[1] else None)
+    # (10) count_lines_salvage contract: 0-byte file = 0 lines, comment
+    # lines excluded for msnap data rows
+    zpath = os.path.join(td, "zero")
+    open(zpath, "wb").close()
+    check("z10-zero-bytes",
+          sr.count_lines_salvage(zpath) == (0, False))
+    cpath = os.path.join(td, "clean.gz")
+    with gzip.open(cpath, "wt") as f:
+        f.write(MSNAP_HDR)
+        f.write(_msnap_row(0, 0, 100))
+    check("z10-msnap-rows",
+          sr.count_lines_salvage(cpath, comment="#") == (1, False))
+
+
 def main():
+    print("test_do_l1_do_l2_zero_line_crash_semantics:")
+    test_do_l1_do_l2_zero_line_crash_semantics()
     print("test_crash_sample:")
     test_crash_sample()
     print("test_idempotent_rerun:")

@@ -86,7 +86,8 @@ FIRST_DETECTION_KIND = dict(SDC="checksum_mismatch",
                             Crash="abnormal_termination",
                             Hang="timeout")
 
-L1_STATUSES = ("ok", "truncated", "error", "inactive_no_activation")
+L1_STATUSES = ("ok", "truncated", "error", "inactive_no_activation",
+               "no_snapshots_before_crash")
 L2_STATUSES = ("ok", "not_observed_before_crash", "error",
                "inactive_no_activation")
 L3_STATUSES = ("ok", "unsupported", "error", "inactive_no_activation")
@@ -526,6 +527,17 @@ def validate_observation(obs):
     if l3.get("status") == "unsupported":
         need(bool(l3.get("reason")),
              "l3 unsupported without a reason (honesty contract)")
+    # fix-A Task 2: "no observation possible" must never masquerade as
+    # "divergence observed" -- with a 0-line run trace (crash before the
+    # first commit flush) no commit_diff is run at all, so a
+    # not_observed_before_crash L2 carrying a first_divergent_commit is
+    # a fabrication and a hard violation
+    l2blk = obs.get("l2") or dict()
+    if l2blk.get("status") == "not_observed_before_crash":
+        need(l2blk.get("first_divergent_commit") is None,
+             "l2.status not_observed_before_crash but "
+             "first_divergent_commit is not null (no observation was "
+             "possible -- a divergence claim here is fabricated)")
     return (len(v) == 0, v)
 
 # ----------------------------------------------------- chain completeness
@@ -538,12 +550,18 @@ def chain_completeness(obs):
     chain is COMPLETE (L0+L5 suffice -- no real observation gap).
 
     activated>=1: L1 ok (truncated accepted for Crash/Hang -- the sim
-    dying is the observation, not a chain failure), L2 in
-    ok/not_observed_before_crash, L4 in ok/none_detected, L5 classified
-    with conservation satisfied, no violations, and the L3 rule:
-    physreg -> status ok + method proxy (chain_complete may be true);
-    every other component -> status unsupported -> gap L3 (task-book:
-    never faked).
+    dying is the observation, not a chain failure), L2 ok, L4 in
+    ok/none_detected, L5 classified with conservation satisfied, no
+    violations, and the L3 rule: physreg -> status ok + method proxy
+    (chain_complete may be true); every other component -> status
+    unsupported -> gap L3 (task-book: never faked).
+
+    fix-A Task 2 (central mandate): l2 not_observed_before_crash and l1
+    no_snapshots_before_crash are HONEST states -- never violations --
+    but they are ABSENCE of observation, not completed links: they do
+    not constitute chain-completeness evidence and cost gaps L2/L1.
+    (Only l1 "truncated" stays Crash-acceptable: a salvaged snapshot
+    prefix is partial but real observation.)
     """
     gaps = []
     l0 = obs.get("l0") or dict()
@@ -570,7 +588,7 @@ def chain_completeness(obs):
         if l1s != "ok" and not (cls_crash and l1s == "truncated"):
             gaps.append("L1")
         l2s = (obs.get("l2") or dict()).get("status")
-        if l2s not in ("ok", "not_observed_before_crash"):
+        if l2s != "ok":
             gaps.append("L2")
         l3 = obs.get("l3") or dict()
         if l3.get("status") == "ok":

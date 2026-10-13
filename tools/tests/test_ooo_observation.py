@@ -357,18 +357,24 @@ def test_chain_completeness_three_states():
     obs = om.build_observation(obs)
     check("chain-inactive-complete", obs["chain_complete"] is True,
           obs["chain_gaps"])
-    # (d) crash sample: l1 truncated + l2 not_observed_before_crash are
-    # chain-acceptable for Crash (the only gap is the L3 rule)
+    # (d) crash sample: l1 truncated (PARTIAL observation -- some snaps
+    # were taken before the crash) stays chain-acceptable for Crash, but
+    # l2 not_observed_before_crash is NOT chain-completeness evidence
+    # ([FIX-A Task 2] central mandate: the status is honest -- it is not
+    # a violation -- yet absence of observation must not count as a
+    # completed L2 link), so the gaps are L2 + the L3 rule
     l3crash = dict(status="unsupported", reason="decode has no L3")
     obs = om.build_observation(
         make_ctx("Crash", 1, component="decode", l1_status="truncated",
                  l2_status="not_observed_before_crash", l3=l3crash,
                  l4_status="ok"))
-    check("chain-crash-gap-l3-only", obs["chain_gaps"] == ["L3"],
+    check("chain-crash-gaps-l2-l3", obs["chain_gaps"] == ["L2", "L3"],
           obs["chain_gaps"])
     check("chain-crash-incomplete", obs["chain_complete"] is False)
     check("chain-crash-l2-passthrough",
           obs["l2"]["status"] == "not_observed_before_crash")
+    check("chain-crash-not-a-violation", obs["violations"] == [],
+          obs["violations"])
 
 
 def test_validate_rules():
@@ -538,6 +544,84 @@ def test_l0_funnel_invariant_and_limited():
     check("l0blk-nolog-eligible-none", blk["eligible"] is None, blk)
 
 
+def test_zero_observation_crash_semantics():
+    """[FIX-A Task 2] zero-line-trace Crash semantics in the observation
+    layer: l2 not_observed_before_crash requires first_divergent_commit
+    null (a non-null one is a violation -- "no observation" must never
+    masquerade as "divergence observed"); the status and the new l1
+    no_snapshots_before_crash are honest states (never violations) but
+    are NOT chain-completeness evidence (they cost gaps L2/L1)."""
+    # (a) the new l1 status is in the vocabulary
+    check("l1-status-vocab-no-snapshots",
+          "no_snapshots_before_crash" in om.L1_STATUSES, om.L1_STATUSES)
+    # (b) validate: not_observed_before_crash + null fdc -> NO violation
+    l3crash = dict(status="unsupported", reason="decode has no L3")
+    obs = om.build_observation(
+        make_ctx("Crash", 1, component="decode",
+                 l1_status="no_snapshots_before_crash",
+                 l2_status="not_observed_before_crash", l3=l3crash,
+                 l4_status="ok"))
+    check("zero-obs-validate-clean", obs["violations"] == [],
+          obs["violations"])
+    # (c) validate: not_observed_before_crash + NON-null fdc -> violation
+    ctx = make_ctx("Crash", 1, component="decode",
+                   l1_status="no_snapshots_before_crash",
+                   l2_status="not_observed_before_crash", l3=l3crash,
+                   l4_status="ok")
+    ctx["l2"]["first_divergent_commit"] = dict(seq=0,
+                                               class_="instruction_flow_change")
+    obs = om.build_observation(ctx)
+    check("zero-obs-fdc-nonnull-violation",
+          any("first_divergent_commit" in v for v in obs["violations"]),
+          obs["violations"])
+    # (d) chain: both zero-observation statuses cost their level's gap
+    # (honest absence of observation, not a violation)
+    obs = om.build_observation(
+        make_ctx("Crash", 1, component="decode",
+                 l1_status="no_snapshots_before_crash",
+                 l2_status="not_observed_before_crash", l3=l3crash,
+                 l4_status="ok"))
+    check("zero-obs-chain-gaps-l1-l2-l3",
+          obs["chain_gaps"] == ["L1", "L2", "L3"], obs["chain_gaps"])
+    check("zero-obs-chain-incomplete", obs["chain_complete"] is False)
+    # (e) contrast: a REAL divergence in the salvaged prefix is status ok
+    # (observation happened) and no L2 gap
+    ctx = make_ctx("Crash", 1, component="decode", l3=l3crash,
+                   l4_status="ok")
+    ctx["l2"]["commit_diff"] = dict(
+        verdict="diverged", run_truncated=True,
+        first_divergence=dict(seq=5, class_="data_corruption",
+                              run_line="5,0,1005,4195f0,add,1,1,5,12,"
+                                       "deadbeefdeadbeef"))
+    ctx["l2"]["first_divergent_commit"] = ctx["l2"]["commit_diff"][
+        "first_divergence"]
+    obs = om.build_observation(ctx)
+    check("prefix-divergence-l2-ok", obs["l2"]["status"] == "ok",
+          obs["l2"]["status"])
+    check("prefix-divergence-no-l2-gap",
+          "L2" not in obs["chain_gaps"], obs["chain_gaps"])
+    # (f) l2 status derivation still maps a salvaged clean prefix to
+    # not_observed_before_crash (fixture-level: prefix truncation)
+    import commit_diff as cdmod
+    import tempfile as _tf
+    d = _tf.mkdtemp(prefix="obs-zero-")
+    ref = os.path.join(d, "ref.csv.gz")
+    lines = [_ctrace_line(i, 1000 + i) for i in range(50)]
+    with gzip.open(ref, "wt") as f:
+        f.write("\n".join(lines) + "\n")
+    # 0-byte run trace: the crash-before-first-flush signature
+    run = os.path.join(d, "run.csv.gz")
+    open(run, "wb").close()
+    cd = cdmod.compare(ref, run, 0)
+    # the raw differ fabricates 50 one-sided divergences -- this is WHY
+    # the sample runner must not call it on a 0-line trace (do_l2 fix)
+    check("zero-line-raw-differ-fabricates",
+          cd["verdict"] == "diverged"
+          and cd["first_divergence"]["seq"] == 0
+          and cd["divergence_counts"]["instruction_flow_change"] == 50,
+          (cd["verdict"], cd["divergence_counts"]))
+
+
 def main():
     print("test_parse_injection_log:")
     test_parse_injection_log()
@@ -551,6 +635,8 @@ def main():
     test_validate_rules()
     print("test_l0_funnel_invariant_and_limited:")
     test_l0_funnel_invariant_and_limited()
+    print("test_zero_observation_crash_semantics:")
+    test_zero_observation_crash_semantics()
     print("test_build_observation_missing_block:")
     test_build_observation_missing_block()
     print("test_observation_top_level_shape:")
