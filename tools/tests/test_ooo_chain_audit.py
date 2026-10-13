@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
-"""[OOO][P1] unit test for tools/ooo_chain_audit.py (L0-L5 run, 2026-10-12).
+"""[OOO][P1] unit test for tools/ooo_chain_audit.py (L0-L5 run, 2026-10-12;
+semantic-gate hardening 2026-10-13, Fix-C Task 1/3).
 
-Eight hand-built fixtures against the ooo-observation/v1 contract (the
+Twelve hand-built fixtures against the ooo-observation/v1 contract (the
 audit object). No gem5, no network — synthetic campaign dirs under the
 sanctioned selftest area (NEVER /tmp).
 
-  1. legal decode-activated Masked sample (l3 unsupported, chain_complete
-     false, gaps=["L3"]) -> audits clean, NOT invalid (the L3 gap is an
-     honest record, counted separately, never "invalid");
+  1. legal activated Masked sample with a FULL chain (l3 ok + proxy
+     fanout, funnel recorded, snaps recorded) -> audits clean;
   2. missing l1 key -> missing_layers contains L1 (+ violation, exit 1
      under --require-complete);
   3. Crash sample with l2.status==ok AND commit_diff.verdict==no_divergence
@@ -18,7 +18,19 @@ sanctioned selftest area (NEVER /tmp).
   6. identity.gem5_sha256 != --frozen-gem5-sha -> violation gem5_sha_mismatch;
   7. inactive sample (L1-L4 = inactive_no_activation) -> audits clean;
   8. SDC sample (detector=Application, l2 first divergence ⑤data_corruption)
-     -> audits clean; campaign rollup nine-class counts correct.
+     -> audits clean; campaign rollup nine-class counts correct;
+  9. activated>0 + l3.status=unsupported -> semantic-gate violation
+     l3_unsupported_with_activation (the admission-view chain hole the
+     four formal campaigns carry 100%); activated==0 must NOT fire;
+ 10. l0.attempted/eligible_count null without a limited reason ->
+     l0_funnel_missing; a documented funnel_limited_reason is the legal
+     escape hatch (no violation);
+ 11. verdict=diverged + run_instructions=0 -> the empty-trace FAKE
+     divergence (l2_diverged_zero_instructions +
+     first_divergence_from_empty_trace); run_instructions>0 with the same
+     shape stays clean (honest partial trace);
+ 12. l1.status=ok + snaps_run=0 -> l1_valid_zero_snaps; l1.status=
+     truncated + snaps_run=0 (honest crash record) stays clean.
 
 Plus CLI edge cases: nonexistent dir -> exit 1; empty samples/ -> exit 1;
 --require-complete exit codes per fixture class.
@@ -63,11 +75,15 @@ def check(name, cond, detail=""):
 def make_obs(run_id, seed, classification="Masked", activated=1,
              gem5_sha=FROZEN_GEM5,
              l2_status="ok", l2_verdict="no_divergence",
-             l2_primary_class=None, l3_status="unsupported",
+             l2_primary_class=None, l3_status="ok",
              l4_detector=None, checksum_observed=SMOKE_GOLDEN,
              exit_code=0, submodel="decode"):
-    """A schema-conformant ooo-observation/v1 dict (the happy path for the
-    given classification); fixtures mutate single fields afterwards."""
+    """A schema-conformant ooo-observation/v1 dict under the STRICT
+    contract (Fix-C 2026-10-13): the default happy path carries a full
+    chain — l3 ok + proxy fanout, a recorded L0 funnel (attempted and
+    eligible_count are ints), l1 ok with snaps_run>0, and a commit_diff
+    that records run_instructions. Fixtures mutate single fields
+    afterwards to build the negatives."""
     inactive = classification == "Inactive"
     if inactive:
         activated = 0
@@ -97,6 +113,8 @@ def make_obs(run_id, seed, classification="Masked", activated=1,
             "seq": 4102, "class": l2_primary_class,
             "class_zh": "⑤数据损坏"} if l2_primary_class else None),
         "divergence_counts": {},
+        "run_instructions": 3000071,
+        "aligned_pairs": 3000071,
         "run_truncated": classification in ("Crash", "Hang"),
     }
     obs = {
@@ -132,13 +150,14 @@ def make_obs(run_id, seed, classification="Masked", activated=1,
                          "faults_injected": 1}] if activated else []),
             "skip_lines": 0 if activated else 2,
             "eligible_count": 17,
-            "attempted": None,
+            "attempted": 17 if activated else 0,
             "log_sha256": "11" * 32,
         },
         "l1": {
             "status": l1_status,
             "micro_diff": ({"first_divergence_snap": None,
-                            "rat_divergences": 0}
+                            "rat_divergences": 0,
+                            "snaps_run": 11121}
                            if not inactive else None),
             "first_divergence": None,
             "files": ["evidence/micro_diff.json"],
@@ -251,7 +270,8 @@ def run_cli(campaign_dir, require_complete=False, frozen=None):
 # ------------------------------------------------------------------ tests
 
 def test_fixture1_legal_decode_masked():
-    print("[fixture 1] legal decode-activated Masked (L3 unsupported gap)")
+    print("[fixture 1] legal activated Masked with a FULL chain (strict "
+          "contract: l3 ok, funnel recorded, snaps recorded)")
     d = fresh_campaign("f1-legal")
     obs = make_obs("e2e_fixture-c0000-r0000", 20261013)
     install_sample(d, obs)
@@ -259,11 +279,11 @@ def test_fixture1_legal_decode_masked():
     s = res["samples"][0]
     check("f1-not-invalid", s["violations"] == [], repr(s["violations"]))
     check("f1-classification", s["classification"] == "Masked")
-    check("f1-chain-complete-false", s["chain_complete"] is False)
-    check("f1-gaps-L3", s["chain_gaps"] == ["L3"])
-    check("f1-rollup-gaps-L3", res["gaps_by_level"].get("L3") == 1)
+    check("f1-chain-complete-true", s["chain_complete"] is True)
+    check("f1-no-gaps", s["chain_gaps"] == [])
+    check("f1-rollup-no-gaps", res["gaps_by_level"] == {})
     check("f1-rollout-n-invalid", res["n_invalid"] == 0)
-    check("f1-l3-unsupported-count", res["n_l3_unsupported_gap"] == 1)
+    check("f1-l3-unsupported-count", res["n_l3_unsupported_gap"] == 0)
     r = run_cli(d, require_complete=True)
     check("f1-cli-require-complete-exit0", r.returncode == 0,
           f"rc={r.returncode} {r.stdout[-200:]} {r.stderr[-200:]}")
@@ -452,6 +472,125 @@ def test_fixture8_sdc_rollup():
           repr(res2["samples"][0]["violations"]))
 
 
+def test_fixture9_l3_unsupported_with_activation():
+    print("[fixture 9] activated>0 + l3 unsupported -> admission-view "
+          "chain-hole violation")
+    d = fresh_campaign("f9-l3-gap")
+    obs = make_obs("e2e_fixture-c0000-r0000", 20261013,
+                   l3_status="unsupported")
+    install_sample(d, obs)
+    res = audit.audit_campaign(d)
+    v = res["samples"][0]["violations"]
+    check("f9-l3-unsupported-with-activation",
+          "l3_unsupported_with_activation" in v, repr(v))
+    check("f9-gaps-still-counted", res["gaps_by_level"].get("L3") == 1)
+    check("f9-not-honest-only", res["n_l3_unsupported_gap"] == 0)
+    check("f9-invalid", res["n_invalid"] == 1)
+    r = run_cli(d, require_complete=True)
+    check("f9-cli-require-complete-exit1", r.returncode == 1,
+          f"rc={r.returncode}")
+    # scope: activated==0 must NOT fire the gate (Inactive samples are
+    # not in the admission gate's scope)
+    obs2 = make_obs("e2e_fixture-c0000-r0001", 20261014,
+                    classification="Inactive")
+    obs2["l3"]["status"] = "unsupported"
+    obs2["l3"]["reason"] = "no source-read association (scope fixture)"
+    obs2["chain_complete"] = False
+    obs2["chain_gaps"] = ["L3"]
+    d2 = fresh_campaign("f9-scope")
+    install_sample(d2, obs2)
+    v2 = audit.audit_campaign(d2)["samples"][0]["violations"]
+    check("f9-activated0-not-gated",
+          "l3_unsupported_with_activation" not in v2, repr(v2))
+
+
+def test_fixture10_l0_funnel_missing():
+    print("[fixture 10] attempted/eligible null -> l0_funnel_missing")
+    d = fresh_campaign("f10-funnel")
+    obs = make_obs("e2e_fixture-c0000-r0000", 20261013)
+    obs["l0"]["attempted"] = None  # eligible_count stays 17
+    install_sample(d, obs)
+    v = audit.audit_campaign(d)["samples"][0]["violations"]
+    check("f10-attempted-null-flagged", "l0_funnel_missing" in v, repr(v))
+    # legal limited reason (documented forward path) must NOT fire
+    obs2 = make_obs("e2e_fixture-c0000-r0000", 20261013)
+    obs2["l0"]["attempted"] = None
+    obs2["l0"]["eligible_count"] = None
+    obs2["l0"]["funnel_limited_reason"] = (
+        "injector has no eligible/attempted counter source (documented)")
+    d2 = fresh_campaign("f10-limited")
+    install_sample(d2, obs2)
+    v2 = audit.audit_campaign(d2)["samples"][0]["violations"]
+    check("f10-limited-reason-clean", "l0_funnel_missing" not in v2,
+          repr(v2))
+
+
+def test_fixture11_fake_divergence():
+    print("[fixture 11] diverged + run_instructions=0 -> empty-trace "
+          "FAKE divergence")
+    d = fresh_campaign("f11-fake-div")
+    obs = make_obs("e2e_fixture-c0000-r0000", 20261013,
+                   classification="Crash", l2_status="ok",
+                   l2_verdict="diverged",
+                   l2_primary_class="instruction_flow_change")
+    obs["l2"]["commit_diff"]["run_instructions"] = 0
+    obs["l2"]["commit_diff"]["aligned_pairs"] = 0
+    obs["l2"]["commit_diff"]["first_divergence"] = {
+        "seq": 0, "class": "instruction_flow_change", "level": "presence",
+        "detail": "seq 0 only in ref (run side missing)",
+        "ref_line": "0,0,73535,400d00,nop,0", "run_line": None}
+    obs["l2"]["first_divergent_commit"] = \
+        obs["l2"]["commit_diff"]["first_divergence"]
+    install_sample(d, obs)
+    v = audit.audit_campaign(d)["samples"][0]["violations"]
+    check("f11-zero-instr-diverged-flagged",
+          "l2_diverged_zero_instructions" in v
+          and "first_divergence_from_empty_trace" in v, repr(v))
+    r = run_cli(d, require_complete=True)
+    check("f11-cli-require-complete-exit1", r.returncode == 1,
+          f"rc={r.returncode}")
+    # control: same shape but a REAL partial trace (run_instructions>0)
+    # is the honest pre-crash observation and must stay clean
+    obs2 = make_obs("e2e_fixture-c0000-r0000", 20261013,
+                    classification="Crash", l2_status="ok",
+                    l2_verdict="diverged",
+                    l2_primary_class="instruction_flow_change")
+    obs2["l2"]["commit_diff"]["run_instructions"] = 2297
+    obs2["l2"]["commit_diff"]["aligned_pairs"] = 2297
+    obs2["l2"]["commit_diff"]["first_divergence"] = {
+        "seq": 5, "class": "instruction_flow_change", "level": "presence",
+        "detail": "real prefix divergence", "ref_line": "x", "run_line": "y"}
+    obs2["l2"]["first_divergent_commit"] = \
+        obs2["l2"]["commit_diff"]["first_divergence"]
+    d2 = fresh_campaign("f11-real-partial")
+    install_sample(d2, obs2)
+    v2 = audit.audit_campaign(d2)["samples"][0]["violations"]
+    check("f11-real-partial-clean",
+          "l2_diverged_zero_instructions" not in v2
+          and "first_divergence_from_empty_trace" not in v2, repr(v2))
+
+
+def test_fixture12_l1_zero_snaps():
+    print("[fixture 12] l1 ok + snaps_run=0 -> l1_valid_zero_snaps")
+    d = fresh_campaign("f12-zero-snaps")
+    obs = make_obs("e2e_fixture-c0000-r0000", 20261013)
+    obs["l1"]["micro_diff"]["snaps_run"] = 0
+    install_sample(d, obs)
+    v = audit.audit_campaign(d)["samples"][0]["violations"]
+    check("f12-ok-zero-snaps-flagged", "l1_valid_zero_snaps" in v, repr(v))
+    # honest truncated crash record with zero snaps must stay clean
+    obs2 = make_obs("e2e_fixture-c0000-r0000", 20261013,
+                    classification="Crash", l2_status="truncated",
+                    l2_verdict="truncated_no_divergence_in_prefix")
+    obs2["l1"]["status"] = "truncated"
+    obs2["l1"]["micro_diff"]["snaps_run"] = 0
+    d2 = fresh_campaign("f12-honest-truncated")
+    install_sample(d2, obs2)
+    v2 = audit.audit_campaign(d2)["samples"][0]["violations"]
+    check("f12-truncated-zero-snaps-clean", "l1_valid_zero_snaps" not in v2,
+          repr(v2))
+
+
 def test_cli_edges():
     print("[CLI edges] missing dir / no samples / unparseable observation")
     r = run_cli("/nonexistent/dir/for/audit")
@@ -498,6 +637,10 @@ def main():
         test_fixture6_gem5_sha_mismatch()
         test_fixture7_inactive()
         test_fixture8_sdc_rollup()
+        test_fixture9_l3_unsupported_with_activation()
+        test_fixture10_l0_funnel_missing()
+        test_fixture11_fake_divergence()
+        test_fixture12_l1_zero_snaps()
         test_cli_edges()
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
