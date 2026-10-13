@@ -888,3 +888,41 @@ git push origin ooo/l0l5-chain
 - Placeholder scan: code blocks carry real implementations; command tasks quote expected outputs measured in Ground Truth. The `<...>` markers in Task 14's JSON skeleton are fill-from-output instructions, explicitly closed by Step 2's rule. ✓
 - Type consistency: `limited_reason` key matches gate reader (ooo_chain_audit.py:162); `source_map_entry` fields match Task 7 test; `via_src` dict shape `{"class","arch","phys"}` consistent between builder and asserts; `not_observed_before_crash` consistent with l1/l2 vocabulary. ✓
 - Review Focus: all five classes pinned by named tests in Tasks 5-9. ✓
+
+---
+
+# Round 2 — 中央语义加固指令（2026-10-13，v4c PASS 判为 provisional）
+
+> 中央指令：v4c E2E 的 PASS 为 provisional；完成以下语义修复 + 正反测试 + 完整 E2E 重跑之前，禁止合并 fi-ding、禁止启动正式 RunID。
+
+**Ground truth（v4c 实测违规）**：
+- masked: l4.first_detection={kind:null, detector:null, tick:0, seq:103}（无检测事件却带数值）+ latency ticks=-416955（tick_from_ctrace_raw 用 v1 列位解析 v2 行，取到 tid=0 → 0-416955<0）；
+- sdc: latency ticks=-9933770（同一 v2 解析 bug；真实应为 12669580-9933770=+2731810）；
+- masked: l3 rows_scanned_after_source=0 + hops=0 但 chain_complete=true（fdc==source seq 时窗口立即截止，未扫描 source 之后的行——seq 107 的真实 consumer 存在但未记录）。
+
+### Task R2-1 (Fix H): L4 无检测事件语义 + v2-aware tick 解析
+- `ooo_observation.tick_from_ctrace_raw`: v2 行 tick 在第 4 列（index 3）——按行内列数/seqenc 判别。
+- `first_detection_for`: 仅当存在真实检测事件（kind 非 null：SDC checksum_mismatch / Crash abnormal_termination / Hang timeout）才填 seq/tick；Masked/Inactive → tick=null, seq=null。
+- `ooo_sample_runner` latency: 仅在真实检测事件时计算；结果 <0（因果上不可能）→ null + note，绝不落负值。
+- 测试：observation 套件正反用例。
+
+### Task R2-2 (Fix I): 审计强制规则（正反测试）
+- semantic gates 增加：`l4_latency_without_detection`（无检测事件却数值延迟）、`l4_negative_latency`（任意延迟<0）。
+- chain_audit fixture 14/15。
+
+### Task R2-3 (Fix J): L3 必须真实扫描 source 之后
+- `ooo_l3.build_l3`: fdc <= source.seq（源行即首个发散）时窗口退化——扫描继续过 source（到 trace 尾/预算），记录真实 hops；无 consumer 时结果带 scanned_rows>0、scan_range（seq 区间）、terminal_reason。
+- 结果 schema 增加 scan_range/terminal_reason；masked 案例应产出 seq 107+ 的真实 hop。
+
+### Task R2-4 (Fix K): chain_complete 语义 + 审计规则
+- activated 样本 l3 ok + source_read + hops 空 + rows_scanned_after_source∈{None,0} → 记 L3 gap（chain_complete=false）。
+- semantic gate: `l3_zero_scan_masquerade`（0 扫描冒充完整链）→ FAIL。正反测试。
+
+### Task R2-5: 全电池重跑（14 套件全绿）。
+
+### Task R2-6: 完整 E2E 重跑（新目录 v4d）+ 四类样本硬校验：
+Decode activated 真实链（masked 带真 hops）/ RAT activated 含真实 hop（sdc）/ 早期 Crash 空 trace（crash）/ Inactive（normal）；L4 无负延迟、无无事件数值延迟。
+
+### Task R2-7: eng3 4×n=2 准入（D01-F0-W6-c, D02-F0-W6-b, D02-F0-W6-c, D04-F0-W4-d）。
+
+### Task R2-8: admission_handoff_eng3.json + 报告，停在等待中央合并。不修改 Excel，不合并 fi-ding，不启动正式 385 RunID。
