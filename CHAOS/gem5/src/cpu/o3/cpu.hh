@@ -93,6 +93,8 @@ class CHAOSFPU;  // §2.6 FP/vector execution-unit injector (forward decl)
 class CHAOSL1DForward;  // §2.7 post-check-escape injector (forward decl)
 class CHAOSAddrPath;    // §2.4 AGU address-path injector (forward decl)
 class CHAOSDecode;      // §2.14 decode-unit injector (forward decl)
+// [LSU][OBS-L3] real L3 propagation tracer (observation-only, forward decl)
+class CHAOSPropagation;
 
 namespace o3
 {
@@ -510,6 +512,14 @@ class CPU : public BaseCPU
     // split/Request construction (A04/A05/A06/A08 family).
     CHAOSAddrPath *chaosAddrPathPre = nullptr;
     void setChaosAddrPathPre(CHAOSAddrPath *p) { chaosAddrPathPre = p; }
+    // [LSU][OBS-L3] CHAOSPropagation: raw pointer to the READ-ONLY L3
+    // propagation tracer. Set by the tracer's startup()
+    // (setChaosPropagation(this)); the LSQ-side hooks (lsq.cc pushRequest /
+    // sendFragmentToTranslation, lsq_unit.cc completeDataAccess) reach it
+    // through the cpu pointer they already hold. nullptr = no tracer
+    // (zero regression).
+    CHAOSPropagation *chaosPropagation = nullptr;
+    void setChaosPropagation(CHAOSPropagation *p) { chaosPropagation = p; }
     // §2.14 CHAOSDecode: raw pointer to the decode-unit injector.
     CHAOSDecode *chaosDecode = nullptr;
     void setChaosDecode(CHAOSDecode *p) { chaosDecode = p; }

@@ -71,6 +71,8 @@ class CHAOSRAS;
 class CHAOSCommitTrace;
 // W2.4 CHAOSMicroSnap: forward decl (gem5 top-level namespace, not o3).
 class CHAOSMicroSnap;
+// [LSU][OBS-L3] CHAOSPropagation: forward decl (gem5 top-level, not o3).
+class CHAOSPropagation;
 
 namespace o3
 {
@@ -386,6 +388,17 @@ class Commit
   public:
     /** W2.4 CHAOSMicroSnap accessor. */
     void setChaosMicroSnap(::gem5::CHAOSMicroSnap *p) { chaosMicroSnap = p; }
+
+  private:
+    // [LSU][OBS-L3] CHAOSPropagation: raw pointer to the READ-ONLY L3
+    // propagation tracer. Set by the tracer's startup()
+    // (cpu->o3Commit().setChaosPropagation(this)). nullptr = no tracer
+    // (zero regression). Forward-declared above.
+    ::gem5::CHAOSPropagation *chaosPropagation = nullptr;
+
+  public:
+    /** [LSU][OBS-L3] CHAOSPropagation accessor. */
+    void setChaosPropagation(::gem5::CHAOSPropagation *p) { chaosPropagation = p; }
 
   private:
     // W5.4 CHAOSROB done-bit family (ooo 04-design-matrix D32-D35): raw
