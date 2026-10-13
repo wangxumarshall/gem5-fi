@@ -2,6 +2,7 @@
 #define __CPU_O3_CHAOS_DECODE_HH__
 
 #include <random>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -57,6 +58,15 @@ class CHAOSDecode : public SimObject
     StaticInstPtr maybeCorruptEncoding(StaticInstPtr orig,
                                        InstDecoder *dec, Addr pc);
 
+    // FIX-B unit 3 (sn join): fetch.cc calls this right after buildInst()
+    // wrapped a StaticInst into a DynInst. At DECODE time the DynInst (and
+    // its seqNum) does NOT exist yet — the decode hook runs before
+    // buildInst in the same fetch do-while iteration (fetch.cc has no
+    // break between them), so the injection-success log line is DEFERRED
+    // until this join fires on the wrapping DynInst, then completed with
+    // the REAL seqNum (sn=). READ-ONLY (reads staticInst/macroop/seqNum).
+    void noteBuildInst(const o3::DynInst *inst);
+
   private:
     BaseCPU *cpu;
     double probability;
@@ -75,6 +85,26 @@ class CHAOSDecode : public SimObject
     std::mt19937 rng;
     std::random_device rd;
     OutputStream *log_stream = nullptr;
+
+    // ---- FIX-B unit 3: deferred injection-success line (sn join) ----
+    // The success line is streamed into pending_line (NOT the log) and
+    // only written when noteBuildInst sees the wrapping DynInst; the
+    // line-final "faults_injected: N" marker is appended by the completer
+    // so the L0 log contract (ooo_observation marker-wins parsing) holds
+    // and the event dict gains rec["sn"] for the L3 join. A pending line
+    // that never meets its join (should be unreachable per the fetch.cc
+    // flow) is flushed with an explicit sn=na marker — never lost
+    // silently. pending_repl matches by StaticInstPtr identity: the
+    // replacement is a fresh decodeChaos product, so exactly the one
+    // DynInst built from it in this same iteration can match (for a
+    // macroop replacement — crack_ctrl — the first microop's macroop
+    // matches and its seqNum is logged).
+    StaticInstPtr pending_repl;
+    std::ostringstream pending_line;
+    uint64_t pending_count = 0;
+    std::ostream &deferLogLine(const StaticInstPtr &repl);
+    void completePendingLine(InstSeqNum sn);
+    void flushPendingLineUnmatched();
 
     bool inWindow();
 

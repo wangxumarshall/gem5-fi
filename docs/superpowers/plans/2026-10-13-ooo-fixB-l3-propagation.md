@@ -110,8 +110,16 @@ Files: `CHAOSDecode.{hh,cc}`, `fetch.cc` (one-line hook after buildInst).
   decode log line ends with `, sn=N, faults_injected: 1` and N appears
   as seqencNum of a v2 ctrace row (join proof); FINAL identical to the
   same run on the old binary (RNG stream untouched).
-- [ ] implemented  [ ] built  [ ] sn join proven against real ctrace
-- [ ] FINAL identical  [ ] committed
+- [x] implemented (8 fetch_decode success paths deferred-joined; rename
+      dest_reg_sub path already carried sn)  [x] built clean
+- [x] sn join proven on real data: log line ends `, sn=161,
+      faults_injected: 1`; ctrace row `105,161,0,430430,4090a8,subs,...`
+      (seqencNum 161 == sn, pc matches) — smoke imm_bitflip seed 20260825
+- [x] FINAL identical (45737cc9a76c0dce); v1 ctrace byte-identical;
+      real-log diff vs old binary = ONLY the sn=161 segment appended
+- [x] frozen L0 parser compat on the REAL log:
+      ooo_observation.parse_injection_log -> injected=1, event sn=161
+- [x] committed
 
 ### Unit 4 — commit_diff.py v2-aware parsing (backward compatible)
 Files: `tools/commit_diff.py`.

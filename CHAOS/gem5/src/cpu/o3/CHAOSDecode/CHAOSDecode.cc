@@ -11,6 +11,7 @@
 #include "cpu/static_inst.hh"     // StaticInst operand/name accessors
 #include "debug/CHAOSDecode.hh"
 #include "params/CHAOSDecode.hh"
+#include "sim/sim_exit.hh"        // registerExitCallback (FIX-B flush)
 
 namespace gem5
 {
@@ -347,10 +348,80 @@ namespace gem5
         // injection so maxFaults=1 lands on a seed-dependent event.
         std::geometric_distribution<uint64_t> skip_dist(0.1);
         events_to_skip = skip_dist(rng);
+        // FIX-B unit 3: never leave a deferred injection line unwritten —
+        // an exit callback flushes any still-pending line (sn=na marker).
+        registerExitCallback([this]() { flushPendingLineUnmatched(); });
         }
     }
 
-    CHAOSDecode::~CHAOSDecode() {}
+    CHAOSDecode::~CHAOSDecode()
+    {
+        // Backstop for the exit callback above (same CHAOSCommitTrace
+        // destructor discipline).
+        flushPendingLineUnmatched();
+    }
+
+    // ---- FIX-B unit 3: deferred injection-success line (sn join) ----
+
+    std::ostream &
+    CHAOSDecode::deferLogLine(const StaticInstPtr &repl)
+    {
+        // A previous pending line that never met its build join (should
+        // be unreachable — fetch.cc builds the DynInst in the same
+        // do-while iteration as the decode hook): flush it honestly with
+        // an sn=na marker instead of losing the injection record.
+        flushPendingLineUnmatched();
+        pending_repl = repl;
+        pending_count = faults_injected_count;
+        pending_line.str("");
+        pending_line.clear();
+        return pending_line;
+    }
+
+    void
+    CHAOSDecode::completePendingLine(InstSeqNum sn)
+    {
+        // sn= BEFORE the line-final marker: the frozen L0 parser
+        // (ooo_observation) keys events on "faults_injected: N" and
+        // parses every other k=v token into the event dict, so the line
+        // gains rec["sn"] = sn — the L3 join key.
+        *(log_stream->stream()) << pending_line.str()
+            << ", sn=" << sn
+            << ", faults_injected: " << pending_count
+            << std::endl;
+        pending_repl = nullptr;
+        pending_line.str("");
+        pending_line.clear();
+    }
+
+    void
+    CHAOSDecode::flushPendingLineUnmatched()
+    {
+        if (!pending_repl)
+            return;
+        if (log_stream && log_stream->stream()) {
+            *(log_stream->stream()) << pending_line.str()
+                << ", sn=na (no build join before the next event)"
+                << ", faults_injected: " << pending_count
+                << std::endl;
+        }
+        pending_repl = nullptr;
+        pending_line.str("");
+        pending_line.clear();
+    }
+
+    void
+    CHAOSDecode::noteBuildInst(const o3::DynInst *inst)
+    {
+        if (!pending_repl || !inst)
+            return;
+        // Plain instruction: the wrapping DynInst's own staticInst IS the
+        // replacement. Macroop replacement (crack_ctrl): the first
+        // microop's macroop is the replacement; its seqNum is logged (the
+        // honest per-µop granularity — one join line per injection).
+        if (inst->staticInst == pending_repl || inst->macroop == pending_repl)
+            completePendingLine(inst->seqNum);
+    }
 
     bool
     CHAOSDecode::inWindow() {
@@ -866,7 +937,11 @@ namespace gem5
             // == new_enc. regs_moved carries the semantic verification
             // verdict for reg/imm modes (reg: 1 = a register number
             // moved; imm: 0 = value-only change).
-            *(log_stream->stream()) << "Tick: " << curTick()
+            // FIX-B unit 3: deferred line — completed with sn= by
+            // noteBuildInst when the fetch loop wraps `repl` into a
+            // DynInst (same iteration), then flushed with the
+            // line-final faults_injected marker.
+            deferLogLine(repl) << "Tick: " << curTick()
                 << ", Site: fetch_decode, mode=" << modeToString(fi_mode)
                 << ", pc=0x" << std::hex << pc << std::dec
                 << ", orig_enc=0x" << std::hex << enc << std::dec
@@ -879,26 +954,24 @@ namespace gem5
             // additionally carries the PHYSICAL field of each bit so the
             // cross-field claim is verifiable per line (overlap-audit fix).
             if (is_d02_layered || is_fd02_layered)
-                *(log_stream->stream())
+                pending_line
                     << ", field=" << d02_field
                     << ", dist=" << (bit_a > bit_b ? bit_a - bit_b
                                                    : bit_b - bit_a);
             if (fi_mode == Mode::FpBitflip2Cross)
-                *(log_stream->stream())
+                pending_line
                     << ", phys_a=opcode, phys_b=" << fd02_phys_b;
-            *(log_stream->stream())
+            pending_line
                 << ", orig_mnemonic=" << orig_name
                 << ", new_mnemonic=" << repl->getName();
             if (fi_mode == Mode::OpcodeSwap ||
                 fi_mode == Mode::FpOpcodeSwap)
-                *(log_stream->stream()) << ", swap_rule=" << rule->name;
+                pending_line << ", swap_rule=" << rule->name;
             if (is_reg_mode || is_imm_mode)
-                *(log_stream->stream())
+                pending_line
                     << ", regs_moved=" << (is_reg_mode ? 1 : 0);
-            *(log_stream->stream())
-                << ", macroop_new=" << (repl->isMacroop() ? 1 : 0)
-                << ", faults_injected: " << faults_injected_count
-                << std::endl;
+            pending_line
+                << ", macroop_new=" << (repl->isMacroop() ? 1 : 0);
         }
         return repl;
     }
@@ -1003,7 +1076,8 @@ namespace gem5
         if (write_log) {
             // Verifiable: new_enc == (enc with Rn/Rm fields exchanged);
             // rn/rm values + both encodings + mnemonics all logged.
-            *(log_stream->stream()) << "Tick: " << curTick()
+            // FIX-B unit 3: deferred line (sn join at build).
+            deferLogLine(repl) << "Tick: " << curTick()
                 << ", Site: fetch_decode, mode=src_swap"
                 << ", pc=0x" << std::hex << pc << std::dec
                 << ", orig_enc=0x" << std::hex << enc
@@ -1011,9 +1085,7 @@ namespace gem5
                 << ", rn=" << rn << "->" << rm
                 << ", rm=" << rm << "->" << rn
                 << ", orig_mnemonic=" << orig_name
-                << ", new_mnemonic=" << repl->getName()
-                << ", faults_injected: " << faults_injected_count
-                << std::endl;
+                << ", new_mnemonic=" << repl->getName();
         }
         return repl;
     }
@@ -1105,7 +1177,8 @@ namespace gem5
         if (write_log) {
             // Verifiable: new_enc == enc with the slot field zeroed;
             // slot, old number, both encodings and mnemonics logged.
-            *(log_stream->stream()) << "Tick: " << curTick()
+            // FIX-B unit 3: deferred line (sn join at build).
+            deferLogLine(repl) << "Tick: " << curTick()
                 << ", Site: fetch_decode, mode=x0_sub"
                 << ", pc=0x" << std::hex << pc << std::dec
                 << ", orig_enc=0x" << std::hex << enc
@@ -1114,9 +1187,7 @@ namespace gem5
                 << ", old_reg=x" << cur
                 << ", new_reg=x0"
                 << ", orig_mnemonic=" << orig_name
-                << ", new_mnemonic=" << repl->getName()
-                << ", faults_injected: " << faults_injected_count
-                << std::endl;
+                << ", new_mnemonic=" << repl->getName();
         }
         return repl;
     }
@@ -1289,7 +1360,8 @@ namespace gem5
             // Verifiable: orig/new logical values, direction+amount,
             // format, both encodings and mnemonics all logged; the
             // encoding diff is confined to the format's imm segments.
-            *(log_stream->stream()) << "Tick: " << curTick()
+            // FIX-B unit 3: deferred line (sn join at build).
+            deferLogLine(repl) << "Tick: " << curTick()
                 << ", Site: fetch_decode, mode=imm_rotate"
                 << ", pc=0x" << std::hex << pc << std::dec
                 << ", orig_enc=0x" << std::hex << enc
@@ -1301,9 +1373,7 @@ namespace gem5
                 << ", orig_imm=0x" << std::hex << old_val
                 << ", new_imm=0x" << new_val << std::dec
                 << ", orig_mnemonic=" << orig_name
-                << ", new_mnemonic=" << repl->getName()
-                << ", faults_injected: " << faults_injected_count
-                << std::endl;
+                << ", new_mnemonic=" << repl->getName();
         }
         return repl;
     }
@@ -1369,7 +1439,8 @@ namespace gem5
 
         faults_injected_count++;
         if (write_log)
-            *(log_stream->stream()) << "Tick: " << curTick()
+            // FIX-B unit 3: deferred line (sn join at build).
+            deferLogLine(repl) << "Tick: " << curTick()
                 << ", Site: fetch_decode, mode=sign_ext_bit"
                 << ", pc=0x" << std::hex << pc << std::dec
                 << ", format=" << fmt->name
@@ -1380,9 +1451,7 @@ namespace gem5
                 << ", new_enc=0x" << std::hex << new_emi.instBits << std::dec
                 << ", orig_mnemonic=" << orig_name
                 << ", new_mnemonic=" << repl->getName()
-                << ", regs_moved=0"
-                << ", faults_injected: " << faults_injected_count
-                << std::endl;
+                << ", regs_moved=0";
         return repl;
     }
 
@@ -1477,7 +1546,8 @@ namespace gem5
 
         faults_injected_count++;
         if (write_log)
-            *(log_stream->stream()) << "Tick: " << curTick()
+            // FIX-B unit 3: deferred line (sn join at build).
+            deferLogLine(repl) << "Tick: " << curTick()
                 << ", Site: fetch_decode, mode=imm_subfield_shift"
                 << ", pc=0x" << std::hex << pc << std::dec
                 << ", format=" << fmt->name
@@ -1489,9 +1559,7 @@ namespace gem5
                 << ", new_enc=0x" << std::hex << new_emi.instBits << std::dec
                 << ", orig_mnemonic=" << orig_name
                 << ", new_mnemonic=" << repl->getName()
-                << ", regs_moved=0"
-                << ", faults_injected: " << faults_injected_count
-                << std::endl;
+                << ", regs_moved=0";
         return repl;
     }
 
@@ -1587,7 +1655,10 @@ namespace gem5
 
         faults_injected_count++;
         if (write_log)
-            *(log_stream->stream()) << "Tick: " << curTick()
+            // FIX-B unit 3: deferred line (sn join at build — for a
+            // macroop replacement the FIRST microop's macroop matches and
+            // that µop's seqNum is logged).
+            deferLogLine(repl) << "Tick: " << curTick()
                 << ", Site: fetch_decode, mode=crack_ctrl"
                 << ", pc=0x" << std::hex << pc << std::dec
                 << ", orig_enc=0x" << std::hex << enc << std::dec
@@ -1599,9 +1670,7 @@ namespace gem5
                 << ", uops_delta=" << delta
                 << ", arm=" << arm
                 << ", orig_mnemonic=" << orig_name
-                << ", new_mnemonic=" << repl->getName()
-                << ", faults_injected: " << faults_injected_count
-                << std::endl;
+                << ", new_mnemonic=" << repl->getName();
         return repl;
     }
 
@@ -1682,7 +1751,8 @@ namespace gem5
             // opclass_old/new names from the generated enums::OpClassStrings
             // table (base build artifact enums/OpClass.cc); the observable
             // route effect = the FU/latency change implied by the pair.
-            *(log_stream->stream()) << "Tick: " << curTick()
+            // FIX-B unit 3: deferred line (sn join at build).
+            deferLogLine(repl) << "Tick: " << curTick()
                 << ", Site: fetch_decode, mode=fp_route_bit"
                 << ", pc=0x" << std::hex << pc << std::dec
                 << ", orig_enc=0x" << std::hex << enc << std::dec
@@ -1693,9 +1763,7 @@ namespace gem5
                 << ", opclass_new="
                 << enums::OpClassStrings[static_cast<int>(repl->opClass())]
                 << ", orig_mnemonic=" << orig_name
-                << ", new_mnemonic=" << repl->getName()
-                << ", faults_injected: " << faults_injected_count
-                << std::endl;
+                << ", new_mnemonic=" << repl->getName();
         }
         return repl;
     }
