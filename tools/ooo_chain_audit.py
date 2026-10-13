@@ -66,7 +66,13 @@ FIVE_OUTCOME_CLASSES = ("Crash", "Hang", "SDC", "Latent", "Masked")
 
 L2_STATUSES = ("ok", "inactive_no_activation", "not_observed_before_crash",
                "truncated", "error")
-L3_STATUSES = ("ok", "unsupported", "inactive_no_activation", "error")
+# Deliberately NOT imported from ooo_observation: the audit pins the
+# observation schema independently so producer-side vocabulary drift is
+# caught, never silently accepted. Keep in sync BY HAND with
+# ooo_observation.L3_STATUSES (FIX-RB: + not_observed_before_crash, the
+# zero-byte crash-trace marker; chain gap L3 still recorded).
+L3_STATUSES = ("ok", "unsupported", "inactive_no_activation", "error",
+               "not_observed_before_crash")
 COMMIT_VERDICTS = ("diverged", "no_divergence",
                    "truncated_no_divergence_in_prefix")
 DETECTOR_VOCAB = (None, "None", "n/a", "Application", "OS", "Hardware RAS")
@@ -309,6 +315,10 @@ def _check_layers(obs, submodel, violations):
         if l3s == "unsupported" and not (isinstance(l3.get("reason"), str)
                                          and l3["reason"].strip()):
             violations.append("l3_unsupported_without_reason")
+        if l3s == "not_observed_before_crash" and not (
+                isinstance(l3.get("reason"), str)
+                and l3["reason"].strip()):
+            violations.append("l3_not_observed_without_reason")
         if l3s == "ok" and not (isinstance(l3.get("method"), str)
                                 and l3["method"].strip()):
             violations.append("l3_ok_without_method")
@@ -387,9 +397,11 @@ def _check_chain_flags(obs, violations):
         violations.append("chain_flag_gap_mismatch")
     l3 = obs.get("l3") if isinstance(obs.get("l3"), dict) else {}
     l3s = l3.get("status")
-    if l3s == "unsupported" and "L3" not in gaps:
+    if l3s in ("unsupported", "not_observed_before_crash") \
+            and "L3" not in gaps:
         violations.append("l3_gap_not_recorded")
-    if "L3" in gaps and l3s not in ("unsupported", "error"):
+    if "L3" in gaps and l3s not in ("unsupported", "error",
+                                    "not_observed_before_crash"):
         violations.append("gap_l3_without_basis")
     return cc, gaps
 

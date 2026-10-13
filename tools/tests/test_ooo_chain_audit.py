@@ -593,6 +593,52 @@ def test_fixture12_l1_zero_snaps():
           repr(v2))
 
 
+def test_fixture13_l3_not_observed_before_crash():
+    """[FIX-RB] the zero-byte crash-trace L3 marker: a legal status, an
+    honest gap-L3 basis ONLY with a non-empty reason, and the gap must
+    be recorded (the must-record rule extends to the new status -- the
+    gate gets stricter, never looser)."""
+    print("[fixture 13] l3 not_observed_before_crash semantics")
+    d = fresh_campaign("f13-l3-nob")
+    obs = make_obs("e2e_fixture-c0000-r0000", 20261013,
+                   classification="Crash",
+                   l2_status="not_observed_before_crash",
+                   l2_verdict="truncated_no_divergence_in_prefix",
+                   l3_status="not_observed_before_crash")
+    obs["l3"]["method"] = None
+    obs["l3"]["fanout"] = None
+    obs["l3"]["caveat"] = None
+    obs["l3"]["reason"] = ("retained commit trace is zero bytes: the run "
+                           "crashed before the first trace flush")
+    obs["l1"]["status"] = "no_snapshots_before_crash"
+    obs["chain_complete"] = False
+    obs["chain_gaps"] = ["L1", "L2", "L3"]
+    install_sample(d, obs)
+    v = audit.audit_campaign(d)["samples"][0]["violations"]
+    check("f13-nob-with-reason-clean",
+          "l3_status_invalid" not in v
+          and "gap_l3_without_basis" not in v
+          and "l3_not_observed_without_reason" not in v
+          and "l3_gap_not_recorded" not in v, repr(v))
+    # without a reason -> the basis rule fires
+    obs2 = json.loads(json.dumps(obs))
+    obs2["l3"]["reason"] = None
+    d2 = fresh_campaign("f13-nob-noreason")
+    install_sample(d2, obs2)
+    v2 = audit.audit_campaign(d2)["samples"][0]["violations"]
+    check("f13-nob-without-reason-flagged",
+          "l3_not_observed_without_reason" in v2, repr(v2))
+    # gap L3 not recorded -> the must-record rule fires
+    obs3 = json.loads(json.dumps(obs))
+    obs3["chain_gaps"] = ["L1", "L2"]
+    obs3["chain_complete"] = False
+    d3 = fresh_campaign("f13-nob-nogap")
+    install_sample(d3, obs3)
+    v3 = audit.audit_campaign(d3)["samples"][0]["violations"]
+    check("f13-nob-gap-not-recorded-flagged",
+          "l3_gap_not_recorded" in v3, repr(v3))
+
+
 def test_correction_audit():
     print("[correction-audit] legacy-shaped campaign -> quantified "
           "correction report")
@@ -722,6 +768,7 @@ def main():
         test_fixture10_l0_funnel_missing()
         test_fixture11_fake_divergence()
         test_fixture12_l1_zero_snaps()
+        test_fixture13_l3_not_observed_before_crash()
         test_correction_audit()
         test_cli_edges()
     finally:
