@@ -43,6 +43,11 @@ Outputs <campaign_dir>/chain_audit.json + chain_audit.md. Exit codes:
     observation) -> 1; honest L3 gaps alone -> 0.
 
 CLI: audit --campaign-dir <d> [--require-complete] [--frozen-gem5-sha S]
+           [--correction-mode]
+      correction-audit --campaign-dir <d> [--frozen-gem5-sha S]
+        offline re-audit of a FINISHED campaign under the current strict
+        rules; writes only <campaign_dir>/correction_audit.json and never
+        touches the original evidence.
 """
 
 import argparse
@@ -50,6 +55,7 @@ import hashlib
 import json
 import os
 import sys
+import time
 from collections import Counter
 
 SCHEMA_VERSION = "ooo-observation/v1"
@@ -626,6 +632,132 @@ def write_reports(campaign_dir, rollup):
     return jpath, mpath
 
 
+# ------------------------------------------------- offline correction audit
+
+def _execution_rows(campaign_dir):
+    """Parsed results.jsonl rows carrying a run_id (the runner's
+    execution ledger). Unparseable lines are skipped (they fail louder
+    audits); a missing file is an honest zero, not an error."""
+    p = os.path.join(campaign_dir, "results.jsonl")
+    rows = []
+    if not os.path.isfile(p):
+        return rows
+    with open(p) as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                r = json.loads(line)
+            except ValueError:
+                continue
+            if isinstance(r, dict) and r.get("run_id"):
+                rows.append(r)
+    return rows
+
+
+def correction_audit(campaign_dir, frozen_gem5_sha=None):
+    """Offline re-audit of a FINISHED campaign's observations under the
+    CURRENT strict rules (Fix-C Task 3, 2026-10-13). Never re-runs a
+    sample and never rewrites any original evidence: the only artifact
+    is <campaign_dir>/correction_audit.json. Every observation is fully
+    audited via audit_observation (files manifest re-hashed); the
+    summary quantifies the correction backlog:
+
+      n                    samples audited
+      semantic_invalid     samples with any violations
+      fake_divergence_count  empty-trace fake divergences
+      l3_unsupported       l3_unsupported_with_activation count
+      l0_funnel_missing    l0_funnel_missing count
+      chain_backfill_required  chain_complete_count <
+                           execution_complete_count
+    """
+    if not os.path.isdir(campaign_dir):
+        raise AuditError("campaign dir not found: %s" % campaign_dir)
+    sample_dirs, n_quarantine = discover_samples(campaign_dir)
+    if not sample_dirs:
+        raise AuditError("no sample dirs under %s/samples" % campaign_dir)
+
+    per_sample = []
+    n_unparseable = 0
+    evidence_readable = 0
+    chain_complete_count = 0
+    for sdir in sample_dirs:
+        opath = os.path.join(sdir, "observation.json")
+        obs = None
+        if os.path.isfile(opath):
+            try:
+                with open(opath) as f:
+                    obs = json.load(f)
+            except (ValueError, OSError):
+                obs = None
+        if obs is None:
+            n_unparseable += 1
+            rec = {"run_id": os.path.basename(sdir), "classification": None,
+                   "violations": ["observation_unparseable"]}
+        else:
+            rec = audit_observation(obs, sdir, frozen_gem5_sha)
+            if not any(v.startswith(("file_missing", "file_sha_malformed",
+                                     "file_sha_mismatch",
+                                     "files_manifest_malformed",
+                                     "file_path_escape"))
+                       for v in rec["violations"]):
+                evidence_readable += 1
+            if rec["chain_complete"] is True:
+                chain_complete_count += 1
+        violations = rec["violations"]
+        per_sample.append({
+            "run_id": rec["run_id"],
+            "classification": rec["classification"],
+            "violations": violations,
+            "l2_zero_trace_fake_divergence": bool(
+                "l2_diverged_zero_instructions" in violations
+                or "first_divergence_from_empty_trace" in violations),
+        })
+
+    def count_v(name):
+        return sum(1 for p in per_sample if name in p["violations"])
+
+    execution_complete_count = len(_execution_rows(campaign_dir))
+    summary = {
+        "n": len(per_sample),
+        "semantic_invalid": sum(1 for p in per_sample if p["violations"]),
+        "fake_divergence_count": sum(
+            1 for p in per_sample if p["l2_zero_trace_fake_divergence"]),
+        "l3_unsupported": count_v("l3_unsupported_with_activation"),
+        "l0_funnel_missing": count_v("l0_funnel_missing"),
+        "chain_backfill_required": (chain_complete_count
+                                    < execution_complete_count),
+        "l1_valid_zero_snaps": count_v("l1_valid_zero_snaps"),
+        "first_divergence_from_empty_trace": count_v(
+            "first_divergence_from_empty_trace"),
+        "chain_complete_count": chain_complete_count,
+        "execution_complete_count": execution_complete_count,
+        "evidence_readable_count": evidence_readable,
+        "observations_unparseable": n_unparseable,
+        "n_quarantine_dirs": n_quarantine,
+        "note": "offline re-audit of finished evidence under the current "
+                "strict rules; original samples/observations are never "
+                "modified, this file is the only artifact",
+    }
+    return {
+        "tool": "ooo_chain_audit.correction-audit",
+        "schema_version": "ooo-correction-audit/v1",
+        "campaign_dir": os.path.abspath(campaign_dir),
+        "frozen_gem5_sha": frozen_gem5_sha,
+        "generated_at": time.strftime("%Y-%m-%dT%H:%M:%S"),
+        "per_sample": per_sample,
+        "summary": summary,
+    }
+
+
+def write_correction_report(campaign_dir, report):
+    jpath = os.path.join(campaign_dir, "correction_audit.json")
+    with open(jpath, "w") as f:
+        json.dump(report, f, indent=1, ensure_ascii=False)
+    return jpath
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(
         description="L0-L5 observation-chain integrity auditor")
@@ -644,7 +776,39 @@ def main(argv=None):
                         "data under the CURRENT strict rules (tone "
                         "only -- the rules and exit codes are "
                         "identical in both modes)")
+    c = sub.add_parser("correction-audit",
+                       help="offline re-audit of a FINISHED campaign "
+                            "under the current strict rules; writes only "
+                            "<campaign_dir>/correction_audit.json, never "
+                            "touches the original evidence")
+    c.add_argument("--campaign-dir", required=True)
+    c.add_argument("--frozen-gem5-sha", default=None,
+                   help="expected sha256 of build/ARM/gem5.opt; every "
+                        "sample's identity.gem5_sha256 must match")
     args = ap.parse_args(argv)
+
+    if args.cmd == "correction-audit":
+        try:
+            report = correction_audit(args.campaign_dir,
+                                       frozen_gem5_sha=args.frozen_gem5_sha)
+        except AuditError as e:
+            print("[correction-audit] ERROR: %s" % e, file=sys.stderr)
+            return 1
+        try:
+            jpath = write_correction_report(args.campaign_dir, report)
+        except OSError as e:
+            print("[correction-audit] ERROR: cannot write report: %s" % e,
+                  file=sys.stderr)
+            return 1
+        s = report["summary"]
+        print("[correction-audit] campaign=%s n=%d semantic_invalid=%d "
+              "fake_divergence=%d l3_unsupported=%d l0_funnel_missing=%d "
+              "chain_backfill_required=%s -> %s"
+              % (report["campaign_dir"], s["n"], s["semantic_invalid"],
+                 s["fake_divergence_count"], s["l3_unsupported"],
+                 s["l0_funnel_missing"], s["chain_backfill_required"],
+                 jpath))
+        return 0
 
     try:
         rollup = audit_campaign(args.campaign_dir,

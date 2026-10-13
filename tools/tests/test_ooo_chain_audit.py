@@ -32,7 +32,9 @@ sanctioned selftest area (NEVER /tmp).
  12. l1.status=ok + snaps_run=0 -> l1_valid_zero_snaps; l1.status=
      truncated + snaps_run=0 (honest crash record) stays clean.
 
-Plus CLI edge cases: nonexistent dir -> exit 1; empty samples/ -> exit 1;
+Plus the offline correction-audit subcommand fixture (legacy-shaped
+campaign -> quantified correction summary in correction_audit.json) and
+CLI edge cases: nonexistent dir -> exit 1; empty samples/ -> exit 1;
 --require-complete exit codes per fixture class.
 
 Run: python3 tools/tests/test_ooo_chain_audit.py
@@ -591,6 +593,85 @@ def test_fixture12_l1_zero_snaps():
           repr(v2))
 
 
+def test_correction_audit():
+    print("[correction-audit] legacy-shaped campaign -> quantified "
+          "correction report")
+    d = fresh_campaign("corr-audit")
+    # one legacy Masked sample (l3 unsupported, funnel null) + one
+    # fake-divergence Crash (empty run trace): the exact shapes the
+    # four formal campaigns carry
+    obs1 = make_obs("e2e_fixture-c0000-r0000", 20261013,
+                    l3_status="unsupported")
+    obs1["l0"]["attempted"] = None
+    install_sample(d, obs1)
+    obs2 = make_obs("e2e_fixture-c0000-r0001", 20261014,
+                    classification="Crash", l2_status="ok",
+                    l2_verdict="diverged",
+                    l2_primary_class="instruction_flow_change",
+                    l3_status="unsupported")
+    obs2["l0"]["attempted"] = None  # legacy funnel hole, same as obs1
+    obs2["l2"]["commit_diff"]["run_instructions"] = 0
+    obs2["l2"]["commit_diff"]["first_divergence"] = {
+        "seq": 0, "class": "instruction_flow_change", "level": "presence",
+        "detail": "seq 0 only in ref (run side missing)",
+        "ref_line": "0,0,73535,400d00,nop,0", "run_line": None}
+    obs2["l2"]["first_divergent_commit"] = \
+        obs2["l2"]["commit_diff"]["first_divergence"]
+    install_sample(d, obs2)
+    with open(os.path.join(d, "results.jsonl"), "w") as f:
+        f.write(json.dumps({"run_id": "e2e_fixture-c0000-r0000"}) + "\n")
+        f.write(json.dumps({"run_id": "e2e_fixture-c0000-r0001"}) + "\n")
+    out = os.path.join(d, "correction_audit.json")
+    r = subprocess.run([sys.executable, TOOL, "correction-audit",
+                        "--campaign-dir", d], capture_output=True,
+                       text=True, errors="replace", timeout=120)
+    check("corr-cli-exit0", r.returncode == 0,
+          f"rc={r.returncode} {r.stdout[-200:]}{r.stderr[-200:]}")
+    with open(out) as f:
+        rep = json.load(f)
+    s = rep["summary"]
+    check("corr-summary-counts",
+          s["n"] == 2 and s["semantic_invalid"] == 2
+          and s["l3_unsupported"] == 2 and s["l0_funnel_missing"] == 2
+          and s["fake_divergence_count"] == 1
+          and s["first_divergence_from_empty_trace"] == 1,
+          json.dumps(s))
+    check("corr-backfill-required",
+          s["chain_backfill_required"] is True
+          and s["chain_complete_count"] == 0
+          and s["execution_complete_count"] == 2
+          and s["evidence_readable_count"] == 2, json.dumps(s))
+    ps = {p["run_id"]: p for p in rep["per_sample"]}
+    check("corr-per-sample-flag",
+          ps["e2e_fixture-c0000-r0001"]["l2_zero_trace_fake_divergence"]
+          is True
+          and ps["e2e_fixture-c0000-r0000"]
+          ["l2_zero_trace_fake_divergence"] is False,
+          json.dumps(rep["per_sample"], ensure_ascii=False))
+    check("corr-classifications-recorded",
+          ps["e2e_fixture-c0000-r0001"]["classification"] == "Crash")
+    # originals untouched: the only artifact is correction_audit.json
+    check("corr-originals-untouched",
+          os.path.exists(os.path.join(d, "samples", "e2e_fixture-c0000"
+                                      "-r0000", "observation.json"))
+          and sorted(x for x in os.listdir(d) if x != "samples")
+          == ["correction_audit.json", "results.jsonl"],
+          str(os.listdir(d)))
+    # a campaign with a full chain must report backfill NOT required
+    d2 = fresh_campaign("corr-clean")
+    install_sample(d2, make_obs("e2e_fixture-c0000-r0000", 20261013))
+    with open(os.path.join(d2, "results.jsonl"), "w") as f:
+        f.write(json.dumps({"run_id": "e2e_fixture-c0000-r0000"}) + "\n")
+    r2 = subprocess.run([sys.executable, TOOL, "correction-audit",
+                         "--campaign-dir", d2], capture_output=True,
+                        text=True, errors="replace", timeout=120)
+    with open(os.path.join(d2, "correction_audit.json")) as f:
+        s2 = json.load(f)["summary"]
+    check("corr-clean-no-backfill",
+          r2.returncode == 0 and s2["chain_backfill_required"] is False
+          and s2["semantic_invalid"] == 0 and s2["n"] == 1, json.dumps(s2))
+
+
 def test_cli_edges():
     print("[CLI edges] missing dir / no samples / unparseable observation")
     r = run_cli("/nonexistent/dir/for/audit")
@@ -641,6 +722,7 @@ def main():
         test_fixture10_l0_funnel_missing()
         test_fixture11_fake_divergence()
         test_fixture12_l1_zero_snaps()
+        test_correction_audit()
         test_cli_edges()
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
