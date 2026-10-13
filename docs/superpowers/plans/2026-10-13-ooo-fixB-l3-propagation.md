@@ -135,8 +135,21 @@ Files: `tools/commit_diff.py`.
 - Verification: real v1 pair (regression: byte-identical report vs
   pre-change tool output on same inputs); real v2 pair from smoke
   no-inj vs inj; tools/tests/test_commit_diff_seqrange.py still passes.
-- [ ] implemented  [ ] v1 regression identical  [ ] v2 pair parses
-- [ ] seqrange test passes  [ ] committed
+- [x] implemented — INCLUDING a real-data bug fix: the first draft
+      rejected both-fit lines as ambiguous; real v1 traces DO contain
+      v1 rows that satisfy the v2 column equation (old_no_inj line 275:
+      14 cols, ndest=2, dest0=0/2/all-digits -> 8+4*0+3*2). Both-fit now
+      resolves to v1 (a genuine v2 row can never fit v1: v1's ndest
+      column holds the v2 op mnemonic, never a uint). Caught by running
+      the regression BEFORE committing, fixed + re-verified.
+- [x] v1 regression identical: real no-inj-vs-inj pair, JSON byte-
+      identical to the pre-change tool (git show 2a25073 copy)
+- [x] v2 pair parses: real v2 no-inj vs v2 inj -> diverged /
+      data_corruption / latency 105 (same verdict as the v1 pair — v2
+      extra fields never classified); ref_format/run_format keys appear
+      only for v2 files
+- [x] seqrange test passes; test_ooo_l3.py 46 checks pass
+- [x] committed
 
 ### Unit 5 — tools/ooo_l3.py (offline L3 builder) + tools/tests/test_ooo_l3.py
 - API: `build_l3(component, l0_events, run_ctrace_path, coverage,
