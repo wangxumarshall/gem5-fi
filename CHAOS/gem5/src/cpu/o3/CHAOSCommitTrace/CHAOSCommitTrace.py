@@ -24,3 +24,12 @@ class CHAOSCommitTrace(SimObject):
         "a .gz suffix is gzip-compressed automatically)")
     writeLog = Param.Bool(True,
         "write the trace lines (False = attach but write nothing)")
+    # FIX-B (2026-10-13) L3 propagation v2: append the DynInst sequence
+    # number (seqencNum) and per-source (class,arch,phys) triples to every
+    # row (header marker line first) so tools/ooo_l3.py can build a real
+    # source->consumer chain. DEFAULT False = pinned v1 row format,
+    # byte-identical to the pre-v2 producer (frozen campaign consumers
+    # depend on that).
+    v2 = Param.Bool(False,
+        "v2 rows: seq,seqencNum,tid,tick,pc,op,ndest[,c,a,p,v]*,"
+        "nsrc[,c,a,p]* (default False = v1 pinned format)")

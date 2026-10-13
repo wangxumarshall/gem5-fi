@@ -43,6 +43,7 @@
 #include <list>
 
 #include "base/logging.hh"
+#include "cpu/o3/CHAOSCommitTrace/CHAOSCommitTrace.hh"  // FIX-B squash obs
 #include "cpu/o3/dyn_inst.hh"
 #include "cpu/o3/limits.hh"
 #include "debug/Fetch.hh"
@@ -368,6 +369,15 @@ ROB::doSquash(ThreadID tid)
         (*squashIt[tid])->setSquashed();
 
         (*squashIt[tid])->setCanCommit();
+
+        /* gem5-fi FIX-B (L3 squash observation): read-only v2-ctrace hook —
+           emits one '# squash' event line per squashed instruction
+           (sn + tick + src triples) so tools/ooo_l3.py can see consumers
+           that died on the squash path. nullptr = no v2 tracer = zero
+           cost. All squash origins (trap/TC/squashAfter/mispredict)
+           converge on this loop via ROB::squash. */
+        if (cpu->chaosCommitTraceV2)
+            cpu->chaosCommitTraceV2->traceSquash((*squashIt[tid]).get());
 
 
         if (squashIt[tid] == instList[tid].begin()) {
