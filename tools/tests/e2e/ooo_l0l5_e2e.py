@@ -64,8 +64,8 @@ FR02_RESULTS = ("/home/sdc/gem5-fi-ding/runs/formal_FR02_dcv/c0000/"
                 "results.jsonl")
 FR02_MANIFEST_DIR = "/home/sdc/gem5-fi-ding/runs/formal_FR02_dcv/c0000"
 
-FROZEN_GEM5_SHA = ("1a618953b014514713c0ad98c7f3d69a48171d81f0463d934b"
-                   "ccdfcfc0070bf3")
+FROZEN_GEM5_SHA = ("beb5d6b7a254049c5388734abd5889f362d72caf93e24cfe2"
+                   "ccfae7a2a39e6a4")
 SMOKE_SHA = ("30cd303815735206e697df0163887bceecec2388a26d22cfc27a4dc8cb"
              "98e85d")
 DCV_SHA = ("1016473f55bdfb1227c9bc7ab334d95f71bdb1fb5703d99bab08e87fe54b"
@@ -284,7 +284,10 @@ def assert_sdc(obs):
 def campaign_dict(campaign_id, injector, grid, base_seed, workload,
                   trigger_value, binary_sha, l2_mode="full",
                   window_pre=None, window_post=None):
-    trace = {"enabled": True, "l2_mode": l2_mode, "msnap_every": 1000}
+    trace = {"enabled": True, "l2_mode": l2_mode, "msnap_every": 1000,
+             # FIX-B re-admission: the v2 ctrace (seqencNum + src triples)
+             # is the input for the real L3 source->consumer chain
+             "ctrace_v2": True}
     if l2_mode == "window":
         trace["window_pre_seq"] = window_pre
         trace["window_post_seq"] = window_post
