@@ -201,3 +201,16 @@ SME 矩阵路径（FMOPA 写 ZA 不走 FP 写回 hook）——注入器覆盖边
 - kernel 总周期：fpu_special fixed 932k/random 2146k（2.3x=12³→16³）、stencil 207k、
   fmopa 60k、za 53k——跨 mode 对比必须周期对齐窗（Task 7 混淆教训）；
 - 分类协议：Detected(FAILS>0 或 checksum≠per-seed 基线)/Masked/Inactive/Hang。
+
+### 全规格化（2026-10-13 晚，feat/sve-sme-all-vl 分支，承接用户指令）
+
+三个 dual kernel（fmopa/za_tileview/stencil）几何全规格化（n/bt = 运行时
+SVL/VL 缩放，元素大小立即数恒定不变式），四档（128/256/512/1024-bit）×
+{fixed, random×3} 共 48 run 全绿，各 kernel 512-bit checksum 与规格化前
+逐位一致（回归锚）。配套 za_semantics 探针实证 gem5 的 za0h.d[r,0]/[r,1]/
+za0v.d[r,0] 三视图语义 SVL 无关。sdcshield 侧三个测试（sme_fmopa_stress_
+arm/sme_za_tileview_arm/sve512_stencil_axis_arm）以同源 asm 模式落地于
+sdcshield 仓 feat/sve-sme-all-vl 分支（6024d5d7/d420656d/4763c584），本机
+构建零警告 + skip 路径不变 + zstd19 回归——真机 SVE/SME 行为由 gem5
+kernel 等价实证背书（诚实边界：SE 单线程 kernel 与框架测试的 fork/多线程
+形态不同，数值契约与 asm 语义同源）。
