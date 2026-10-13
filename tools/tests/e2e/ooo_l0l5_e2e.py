@@ -56,7 +56,9 @@ TOOLS = os.path.join(REPO, "tools")
 SAMPLE_RUNNER = os.path.join(TOOLS, "ooo_sample_runner.py")
 GEM5_OPT = os.path.join(REPO, "build", "ARM", "gem5.opt")
 
-E2E_ROOT = "/home/sdc/gem5-fi-ding/runs/ooo-l0l5/e2e"
+E2E_ROOT = os.environ.get(
+    "OOO_E2E_ROOT",
+    "/home/sdc/gem5-fi-ding/runs/ooo-l0l5/e2e")
 SELFTEST_ROOT = os.environ.get(
     "OOO_E2E_SELFTEST_ROOT",
     "/home/sdc/gem5-fi-ding/runs/ooo-l0l5/selftest/e2e-selftest")
