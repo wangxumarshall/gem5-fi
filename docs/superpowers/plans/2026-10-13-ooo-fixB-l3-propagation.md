@@ -176,7 +176,26 @@ Files: `tools/commit_diff.py`.
 - End-to-end: real smoke v2 trace + real decode_injections.log →
   build_l3 returns ok with a real chain; every hop's via_src triple is
   grep-verifiable in the trace file.
-- [ ] tool  [ ] tests green  [ ] end-to-end on real smoke trace  [ ] committed
+- [x] tool  [x] tests green (46 checks)
+- [x] end-to-end on real smoke trace (final binary
+      beb5d6b7a254049c5388734abd5889f362d72caf93e24cfe2ccfae7a2a39e6a4):
+      L0 event sn=161 (imm_bitflip pc=0x4090a8) -> source row seq=105
+      -> 11 committed hops (loop-carried int reg 104→121→5→35→21→66
+      through successive subs iterations + per-iteration CC-flag branch
+      consumers) + 5 squashed consumers; hop via_src triples
+      grep-verified in the raw trace (row 109's src (0,2,104); squash
+      line 4743's src (6,2,34)); honest caveats (200k-row scan budget
+      hit — the corrupted loop-carried register outlives the budget;
+      no fdc given)
+- [x] committed (units 4+5 in one commit: the v2 parser and its only
+      consumer/tests are one functional unit; the both-fit bug fix is
+      documented above)
+
+FINAL GATE (all units, final binary): no-inj FINAL=45737cc9a76c0dce
+byte-identical old-vs-new; v1 ctrace byte-identical; inj FINAL identical;
+new binary sha256
+beb5d6b7a254049c5388734abd5889f362d72caf93e24cfe2ccfae7a2a39e6a4
+(the candidate re-freeze hash; old frozen: 1a618953b0145147…).
 
 ## Cross-unit honesty gates
 - Every C++ change is read-only w.r.t. simulation state; proof = FINAL
