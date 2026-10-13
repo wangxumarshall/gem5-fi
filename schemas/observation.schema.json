@@ -1,17 +1,18 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://gem5-fi/lsu/schemas/observation-v1.json",
-  "title": "LSU observation.json v1",
-  "description": "LSU 轨道每样本 L0-L5 观测记录（OBS 计划 T2，用户指令 2026-10-12 二.2 钉死字段）。九分类 = 五类结局 + 首检四类（Hardware RAS/OS/Application/None）。chain_complete 诚实规则见 tools/lsu_obs_core.py chain_complete()。",
+  "$id": "https://gem5-fi/lsu/schemas/observation-v2.json",
+  "title": "LSU observation.json v2",
+  "description": "LSU 轨道每样本 L0-L5 观测记录（OBS 计划 T2，用户指令 2026-10-12 二.2 钉死字段；纠偏轮 v2，中央指令 2026-10-13）。九分类 = 五类结局 + 首检四类（Hardware RAS/OS/Application/None）。v2 顶层四状态拆分：execution_complete（guard run-finish 周期完整 且 L5 结局有效）/ evidence_complete（violations 空 + L0 四字段齐 + activated>0 时 L1/L2 fault trace 可读 + L4 有首异常或诚实终态）/ chain_complete（activated>0 时 L1/L2/L4 complete 且 L3 complete 且 method=propagation_trace——proxy 不再计入）/ needs_backfill（missing_levels 非空）。campaign 执行完成 ≠ chain_complete。规则实现见 tools/lsu_obs_core.py。v1 兼容：v1 样本（lsu-observation-v1，如 obs_e2e_20261012 批次）不含 v2 字段，属纠偏前历史证据；按 v2 规则审计/重算会如实 FAIL/得出不同结论（中央知情，统一重标见 lsu_handoff 台账）。",
   "type": "object",
   "required": [
     "schema", "identity", "L0", "L1", "L2", "L3", "L4", "L5",
     "replay_determinism", "violations", "files", "chain_complete",
-    "chain_status_reason"
+    "chain_status_reason", "execution_complete", "evidence_complete",
+    "needs_backfill", "missing_levels"
   ],
   "additionalProperties": true,
   "properties": {
-    "schema": {"const": "lsu-observation-v1"},
+    "schema": {"const": "lsu-observation-v2"},
     "identity": {
       "type": "object",
       "required": ["campaign", "runid", "sample", "seed", "git_commit",
@@ -93,9 +94,19 @@
       "properties": {
         "status": {"enum": ["complete", "unsupported",
                              "N/A(inactive_no_activation)", "error"]},
-        "method": {"enum": ["proxy", null]},
+        "method": {"enum": ["proxy", "propagation_trace", null]},
         "caveat": {"type": "string"},
         "reason": {"type": "string"},
+        "correlation_keys": {"type": "array"},
+        "evidence": {
+          "type": "object",
+          "properties": {
+            "first_errant_commit": {"type": ["object", "null"]},
+            "path_complete": {"type": "boolean"}
+          }
+        },
+        "caveats": {"type": "array", "items": {"type": "string"}},
+        "prop_trace_path": {"type": "string"},
         "auxiliary_commit_footprint": {"type": "object"}
       }
     },
@@ -103,13 +114,14 @@
       "type": "object",
       "required": ["detector", "detected", "detected_na"],
       "properties": {
-        "detector": {"type": "string"},
+        "detector": {"enum": ["not_present"]},
         "detected": {"type": "boolean"},
         "detected_na": {"type": "boolean"},
+        "l4_source": {"enum": ["first_verifiable_anomaly"]},
         "first_anomaly": {
           "type": ["object", "null"],
           "properties": {
-            "source": {"enum": ["L1", "L2"]},
+            "source": {"enum": ["L1", "L2", "L3"]},
             "tick": {"type": ["integer", "null"]},
             "latency_ticks_from_first_injection": {"type": ["integer", "null"]}
           }
@@ -126,6 +138,7 @@
         "checksum": {"type": ["string", "null"]},
         "golden": {"type": ["string", "null"]},
         "exit": {"type": ["integer", "null"]},
+        "gem5_exit": {"type": "integer"},
         "timed_out": {"type": "boolean"},
         "detected_na": {"type": "boolean"},
         "conservation": {"type": ["string", "null"]},
@@ -158,7 +171,14 @@
       }
     },
     "chain_complete": {"type": "boolean"},
-    "chain_status_reason": {"type": "string"}
+    "chain_status_reason": {"type": "string"},
+    "execution_complete": {"type": "boolean"},
+    "evidence_complete": {"type": "boolean"},
+    "needs_backfill": {"type": "boolean"},
+    "missing_levels": {
+      "type": "array",
+      "items": {"enum": ["L1", "L2", "L3", "L4", "L5"]}
+    }
   },
   "definitions": {
     "level": {

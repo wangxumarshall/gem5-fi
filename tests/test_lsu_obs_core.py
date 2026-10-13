@@ -1,9 +1,13 @@
 #!/usr/bin/env python3
-"""test_lsu_obs_core.py — 观测核心单测（OBS 计划 T2）。
+"""test_lsu_obs_core.py — 观测核心单测（OBS 计划 T2；纠偏轮契约 v2，中央指令 2026-10-13）。
 
 合成 fixture（ctrace=W2.1 契约 / msnap=W2.4 契约 / 注入行=s319 实测格式），
-覆盖：baseline_key 漂移、gz 探针截断、L0 解析与 abort 回退、L1/L2 比对、
-L3 unsupported 诚实规则、L4 延迟、九分类映射、chain_complete 判定、
+覆盖：baseline_key 漂移、gz 探针截断、L0 解析（stdout funnel / 注入日志
+FUNNEL 行 / abort 回退 + l0_incomplete violation）、L1/L2 比对、L3
+unsupported 诚实规则 + prop_trace 委托（A 模块缺失优雅回退 + stub 签名
+锁定）、L4 not_present/l4_source/优先级 L3>L2>L1、九分类映射（note 含
+no hardware detector present）、四状态拆分各分支（execution/evidence/
+chain/needs_backfill/missing_levels）、chain_complete 拒 proxy、
 staging→COMPLETE 协议（含 fatal 拒绝、identity 漂移拒绝、quarantine）。
 
 用法：python3 tests/test_lsu_obs_core.py   （退出码 0=全 PASS）
@@ -64,8 +68,11 @@ def base_ident(**over):
 
 
 def make_l5(outcome, activated=1, crash_kind=None, timed_out=False):
+    # gem5_exit：guard run-finish 周期完整标记（runner/driver 在 verdict 写入；
+    # 纠偏 v2 execution_complete 依据之一——缺失即执行不完整）
     return {"outcome": outcome, "activated": activated, "injected": activated,
             "crash_kind": crash_kind, "timed_out": timed_out,
+            "gem5_exit": 0,
             "detected_na": True, "checksum": "0123456789abcdef",
             "classes": {"Masked": 0, "Detected/Contained": 0, "SDC": 0,
                         "Crash": 0, "Timeout": 0},
@@ -112,7 +119,7 @@ def main():
           p_tr["truncated"] and p_tr["rows"] > 0, str(p_tr))
     check("gz_probe_missing", not p_ms["readable"] and p_ms["error"])
 
-    # ---- 3) parse_l0：funnel+日志 / abort 回退 / 双缺失 ----
+    # ---- 3) parse_l0：funnel+日志 / 日志 FUNNEL 行 / abort 回退 / 双缺失 ----
     l0 = C.parse_l0(FUNNEL + "\n030921682b3731f2\n", real_inj_line() + "\n")
     check("l0_funnel", l0["attempted"] == 1 and l0["eligible"] == 265143
           and l0["injected"] == 1 and l0["funnel_source"] == "stdout", str(l0))
@@ -123,10 +130,27 @@ def main():
           and l0["injections"][0]["old"] == "0x7ffffefd00"
           and l0["injections"][0]["new"] == "0x87ffffefd00"
           and l0["injections"][0]["dynamic_target"] == "vaddr", str(l0))
+    # 纠偏 v2：注入日志 FUNNEL 行（abort 样本补全路径——stdout 无
+    # CHAOS_LSU_TRIGGER 时 attempted/eligible 由此补全，无 violation）
+    l0_logfun = C.parse_l0(
+        "... panic (stdout 无 funnel 行) ...\n",
+        "FUNNEL: attempted=3 eligible=9 injected=1\n" + real_inj_line() + "\n")
+    check("l0_log_funnel_source",
+          l0_logfun["attempted"] == 3 and l0_logfun["eligible"] == 9
+          and l0_logfun["injected"] == 1
+          and l0_logfun["funnel_source"] == "injections.log:FUNNEL"
+          and l0_logfun["violations"] == [], str(l0_logfun))
     l0_abort = C.parse_l0("... panic ...\n", real_inj_line() + "\n")
     check("l0_abort_fallback",
           l0_abort["injected"] == 1 and l0_abort["attempted"] is None
           and "fallback" in l0_abort["funnel_source"], str(l0_abort))
+    # 纠偏 v2：abort 回退只有 injected 不再放行——attempted/eligible 缺
+    # 即 l0_incomplete violation（真缺就是 violation，审计 FAIL）
+    check("l0_abort_fallback_incomplete_violation",
+          sorted(v for v in l0_abort["violations"]
+                 if v.startswith("l0_incomplete"))
+          == ["l0_incomplete: attempted", "l0_incomplete: eligible"],
+          str(l0_abort["violations"]))
     l0_none = C.parse_l0("nothing here\n", "")
     check("l0_both_missing_violation",
           any(v.startswith("funnel_missing") for v in l0_none["violations"]),
@@ -208,7 +232,7 @@ def main():
           and l1_div["micro_diff"]["rat_div_max_by_class"]["int"] == 1,
           str(l1_div.get("micro_diff")))
 
-    # ---- 6) L3 unsupported 诚实规则 ----
+    # ---- 6) L3 unsupported 诚实规则 + 传播委托（纠偏 v2） ----
     l3 = C.build_l3("addrpath", l2_div)
     check("l3_unsupported_non_prf",
           l3["status"] == "unsupported" and l3["method"] is None
@@ -219,8 +243,46 @@ def main():
     check("l3_prf_proxy_caveat",
           l3_prf["status"] == "complete" and l3_prf["method"] == "proxy"
           and "upper-bound" in l3_prf["caveat"], str(l3_prf))
+    # 纠偏 v2：prop_trace_path 委托——A 模块（lsu_l3_propagation）不在本仓
+    # 时优雅回退 unsupported+原因（绝不伪造 complete）
+    l3_del = C.build_l3("addrpath", l2_div,
+                        prop_trace_path=str(tmp / "nope.trace"))
+    check("l3_delegation_fallback_unsupported",
+          l3_del["status"] == "unsupported" and l3_del["method"] is None
+          and "lsu_l3_propagation" in l3_del["reason"]
+          and "propagation_trace" in l3_del["reason"], str(l3_del))
+    l3_del_inact = C.build_l3("addrpath", None, inactive=True,
+                              prop_trace_path=str(tmp / "nope.trace"))
+    check("l3_delegation_fallback_inactive_na",
+          l3_del_inact["status"] == "N/A(inactive_no_activation)",
+          str(l3_del_inact))
+    # 委托成功路径：stub 注入 sys.modules 锁定调用签名
+    # L3P.build_l3(family, l2, prop_trace_path, inactive)（A 到位后同入口）
+    import types
+    calls = {}
+    stub = types.ModuleType("lsu_l3_propagation")
 
-    # ---- 7) L4：首异常（L2 优先）与延迟 ----
+    def _stub_build_l3(family, l2, path, inactive):
+        calls.update(family=family, path=path, inactive=inactive)
+        return {"status": "complete", "method": "propagation_trace",
+                "correlation_keys": ["seq"], "evidence": {
+                    "first_errant_commit": {"seq": 4, "tick": 90},
+                    "path_complete": True}, "caveats": []}
+    stub.build_l3 = _stub_build_l3
+    sys.modules["lsu_l3_propagation"] = stub
+    try:
+        l3_stub = C.build_l3("addrpath", l2_div, inactive=False,
+                             prop_trace_path="/tmp/x.trace")
+    finally:
+        del sys.modules["lsu_l3_propagation"]
+    check("l3_delegation_signature_passthrough",
+          calls == {"family": "addrpath", "path": "/tmp/x.trace",
+                    "inactive": False}
+          and l3_stub["method"] == "propagation_trace"
+          and l3_stub["evidence"]["first_errant_commit"]["tick"] == 90,
+          str((calls, l3_stub)))
+
+    # ---- 7) L4：首异常（优先级 L3 > L2 > L1）与延迟（纠偏 v2） ----
     # 注入 tick=50 < 首错误提交 tick=105（连贯 fixture；延迟=55 ticks）
     inj_early = ("Tick: 50, Site: lsq_sendFragmentToTranslation, "
                  "mode=low_bit_flip, old_vaddr=0x1000, new_vaddr=0x2000, "
@@ -229,14 +291,51 @@ def main():
     l4 = C.build_l4(l0v, l1_div, l2_div, make_l5("SDC"),
                     fault_msnap_path=tmp / "ms_div.csv.gz")
     fa = l4["first_anomaly"]
+    # L1 分歧（snap 2，tick 2000）早于 L2 首错提交（tick 105）之外的
+    # 候选也存在，但 L2 commit 级证据优先于 L1 µarch 分歧
     check("l4_first_anomaly_l2",
           fa["source"] == "L2" and fa["tick"] == 105
           and fa["latency_ticks_from_first_injection"] == 55, str(fa))
     check("l4_detected_na_never_detected",
           l4["detected_na"] is True and l4["detected"] is False
-          and l4["detector"] == "none_wired")
+          and l4["detector"] == "not_present"
+          and l4["l4_source"] == "first_verifiable_anomaly", str(l4))
+    # 纠偏 v2：L3 传播证据优先级最高（tick 90 < L2 的 105 亦然，但取 L3
+    # 是因为优先级而非因为最早 tick）
+    l3_prop = {"status": "complete", "method": "propagation_trace",
+               "correlation_keys": ["seq"],
+               "evidence": {"first_errant_commit": {"seq": 4, "tick": 90},
+                            "path_complete": True}, "caveats": []}
+    l4_prio = C.build_l4(l0v, l1_div, l2_div, make_l5("SDC"), l3=l3_prop,
+                         fault_msnap_path=tmp / "ms_div.csv.gz")
+    check("l4_priority_l3_over_l2_l1",
+          l4_prio["first_anomaly"]["source"] == "L3"
+          and l4_prio["first_anomaly"]["tick"] == 90
+          and l4_prio["first_anomaly"]["seq"] == 4
+          and l4_prio["first_anomaly"]
+          ["latency_ticks_from_first_injection"] == 40,
+          str(l4_prio["first_anomaly"]))
+    # L3 缺 first_errant（如 A 模块 path_complete=False）→ 回落 L2
+    l4_noev = C.build_l4(l0v, l1_div, l2_div, make_l5("SDC"),
+                         l3={"status": "complete",
+                             "method": "propagation_trace",
+                             "evidence": {"path_complete": False}},
+                         fault_msnap_path=tmp / "ms_div.csv.gz")
+    check("l4_falls_back_to_l2_without_l3_evidence",
+          l4_noev["first_anomaly"]["source"] == "L2", str(l4_noev))
+    # 无 L2 首错提交（not_observed，commit_diff=None）→ L1 µarch 分歧兜底
+    # （ms_div snap 2 的 tick=2000，延迟=2000-50）
+    l4_l1only = C.build_l4(l0v, l1_div, l2_empty, make_l5("SDC"),
+                           fault_msnap_path=tmp / "ms_div.csv.gz")
+    check("l4_l1_fallback_when_no_l2_errant",
+          l4_l1only["first_anomaly"]["source"] == "L1"
+          and l4_l1only["first_anomaly"]["snap_seq"] == 2
+          and l4_l1only["first_anomaly"]["tick"] == 2000
+          and l4_l1only["first_anomaly"]
+          ["latency_ticks_from_first_injection"] == 1950,
+          str(l4_l1only["first_anomaly"]))
 
-    # ---- 8) 九分类映射 ----
+    # ---- 8) 九分类映射（纠偏 v2：note 含 no hardware detector present） ----
     check("fds_masked_none",
           C.first_detection_source(make_l5("Masked"))[0] == "None")
     check("fds_sdc_none", C.first_detection_source(make_l5("SDC"))[0] == "None")
@@ -248,8 +347,12 @@ def main():
           C.first_detection_source(make_l5("Crash",
                                            crash_kind="simulator_assert"))[0]
           == "None")
+    check("fds_note_no_hw_detector",
+          "no hardware detector present"
+          in (C.first_detection_source(make_l5("SDC"))[1] or ""),
+          str(C.first_detection_source(make_l5("SDC"))))
 
-    # ---- 9) build_observation + chain_complete ----
+    # ---- 9) build_observation + chain_complete + 四状态拆分（纠偏 v2） ----
     ident = {"campaign": "t", "runid": "A01-F0-W9", "sample": "s0",
              "seed": 1, "git_commit": "x" * 40, "gem5_opt_sha256": "a" * 64,
              "workload": "gap_bfs", "workload_sha256": "c" * 64,
@@ -269,7 +372,125 @@ def main():
     check("obs_nine_class_fields",
           obs_act["L5"]["first_detection_source"] == "None"
           and obs_act["L5"]["outcome"] == "SDC")
-    # inactive：activated=0 → L1-L4 全 N/A + chain_complete True
+    # 四状态：full SDC 样本——执行/证据齐，链缺 L3（unsupported）→ 待补跑
+    check("four_status_full_sdc",
+          obs_act["schema"] == "lsu-observation-v2"
+          and obs_act["execution_complete"] is True
+          and obs_act["evidence_complete"] is True
+          and obs_act["chain_complete"] is False
+          and obs_act["missing_levels"] == ["L3"]
+          and obs_act["needs_backfill"] is True,
+          str({k: obs_act.get(k) for k in (
+              "execution_complete", "evidence_complete", "chain_complete",
+              "missing_levels", "needs_backfill")}))
+    # chain_complete 拒 proxy L3（PRF fanout 上界口径不再计入——中央 2026-10-13）
+    obs_prf = C.build_observation(
+        ident, l0v, l1_div, l2_div, l3_prf,
+        C.build_l4(l0v, l1_div, l2_div, make_l5("SDC")),
+        make_l5("SDC"), replay_ok, files)
+    check("chain_rejects_proxy_l3",
+          obs_prf["chain_complete"] is False
+          and "proxy" in obs_prf["chain_status_reason"]
+          and obs_prf["missing_levels"] == ["L3"]
+          and obs_prf["needs_backfill"] is True,
+          obs_prf["chain_status_reason"])
+    # chain_complete 接受 A 口径 L3（complete + propagation_trace）；
+    # prop_trace_path 透传如实记入 L3
+    obs_prop = C.build_observation(
+        ident, l0v, l1_div, l2_div, l3_prop,
+        C.build_l4(l0v, l1_div, l2_div, make_l5("SDC"), l3=l3_prop),
+        make_l5("SDC"), replay_ok, files, prop_trace_path="/tmp/prop.trace")
+    check("chain_accepts_propagation_l3",
+          obs_prop["chain_complete"] is True
+          and obs_prop["missing_levels"] == []
+          and obs_prop["needs_backfill"] is False
+          and obs_prop["L3"]["prop_trace_path"] == "/tmp/prop.trace"
+          and obs_prop["L4"]["first_anomaly"]["source"] == "L3",
+          obs_prop["chain_status_reason"])
+    # execution_complete 分支：gem5_exit 缺失 / INCONCLUSIVE / L5 error
+    l5_noexit = make_l5("SDC")
+    del l5_noexit["gem5_exit"]
+    obs_noexit = C.build_observation(
+        ident, l0v, l1_div, l2_div, l3,
+        C.build_l4(l0v, l1_div, l2_div, make_l5("SDC")),
+        l5_noexit, replay_ok, files)
+    check("exec_false_missing_gem5_exit",
+          obs_noexit["execution_complete"] is False, str(obs_noexit["L5"]))
+    l5_inc = make_l5("INCONCLUSIVE")
+    obs_inc = C.build_observation(
+        ident, l0v, l1_div, l2_div, l3,
+        C.build_l4(l0v, l1_div, l2_div, make_l5("SDC")),
+        l5_inc, replay_ok, files)
+    check("exec_false_inconclusive_l5_missing",
+          obs_inc["execution_complete"] is False
+          and obs_inc["chain_complete"] is False
+          and "L5" in obs_inc["missing_levels"]
+          and obs_inc["needs_backfill"] is True,
+          str({k: obs_inc.get(k) for k in (
+              "execution_complete", "chain_complete", "missing_levels")}))
+    l5_err = make_l5("SDC")
+    l5_err["error"] = "cls: classifier failure"
+    obs_l5err = C.build_observation(
+        ident, l0v, l1_div, l2_div, l3,
+        C.build_l4(l0v, l1_div, l2_div, make_l5("SDC")),
+        l5_err, replay_ok, files)
+    check("exec_false_l5_error",
+          obs_l5err["execution_complete"] is False
+          and any(v.startswith("l5_error") for v in obs_l5err["violations"]),
+          str(obs_l5err["violations"]))
+    # evidence_complete 分支：l0l5 降级（L1/L2 无 fault 探针）→ 证据不齐，
+    # missing_levels=[L1..L4]（AGU outcome-only 批次同形态）
+    not_collected = {"status": "not_collected(l0l5_mode)",
+                     "reason": "cli(l0l5)"}
+    obs_l0l5 = C.build_observation(
+        ident, l0v, dict(not_collected), dict(not_collected),
+        C.build_l3("addrpath", l2_div), dict(not_collected),
+        make_l5("SDC"), replay_ok, files)
+    check("evidence_false_l0l5_missing_levels_all",
+          obs_l0l5["execution_complete"] is True
+          and obs_l0l5["evidence_complete"] is False
+          and obs_l0l5["chain_complete"] is False
+          and obs_l0l5["missing_levels"] == ["L1", "L2", "L3", "L4"]
+          and obs_l0l5["needs_backfill"] is True,
+          str({k: obs_l0l5.get(k) for k in (
+              "execution_complete", "evidence_complete", "chain_complete",
+              "missing_levels")}))
+    # evidence_complete 分支：Crash 空 ctrace（W2.1 批量 flush 契约）→ L2
+    # fault 探针 error → 证据不齐；但 not_observed_before_crash 是诚实终态
+    # → L2 不入 missing_levels（补跑无法改变）
+    obs_crash = C.build_observation(
+        ident, l0v, l1_div, l2_empty, C.build_l3("addrpath", l2_empty),
+        C.build_l4(l0v, l1_div, l2_empty,
+                   make_l5("Crash", crash_kind="simulator_assert")),
+        make_l5("Crash", crash_kind="simulator_assert"), replay_ok, files)
+    check("evidence_false_crash_empty_trace_honest_na",
+          obs_crash["execution_complete"] is True
+          and obs_crash["evidence_complete"] is False
+          and obs_crash["chain_complete"] is False
+          and obs_crash["missing_levels"] == ["L3"]
+          and "L2" not in obs_crash["missing_levels"],
+          str({k: obs_crash.get(k) for k in (
+              "execution_complete", "evidence_complete", "chain_complete",
+              "missing_levels")}))
+    # L0 四字段缺（abort 回退只有 injected）→ violation 阻断 chain/evidence
+    obs_abort = C.build_observation(
+        ident, l0_abort, l1_div, l2_div, l3,
+        C.build_l4(l0_abort, l1_div, l2_div, make_l5("SDC")),
+        make_l5("SDC"), replay_ok, files)
+    check("l0_incomplete_blocks_chain_and_evidence",
+          any(v.startswith("l0_incomplete") for v in obs_abort["violations"])
+          and obs_abort["chain_complete"] is False
+          and obs_abort["evidence_complete"] is False,
+          str(obs_abort["violations"]))
+    # missing_levels：L4 error 状态也计缺失
+    obs_l4err = C.build_observation(
+        ident, l0v, l1_div, l2_div, l3,
+        {"status": "error", "error": "boom"}, make_l5("SDC"),
+        replay_ok, files)
+    check("missing_levels_counts_error_status",
+          obs_l4err["missing_levels"] == ["L3", "L4"],
+          str(obs_l4err["missing_levels"]))
+    # inactive：activated=0 → L1-L4 全 N/A + chain_complete True + 无待补
     l5_inact = make_l5("Masked", activated=0)
     l0_inact = C.parse_l0(
         "CHAOS_LSU_TRIGGER: attempted=1 eligible=0 injected=0\n", "")
@@ -287,6 +508,14 @@ def main():
           and all(obs_inact[lv]["status"] == "N/A(inactive_no_activation)"
                   for lv in ("L1", "L2", "L3", "L4")),
           obs_inact["chain_status_reason"])
+    check("four_status_inactive_all_clear",
+          obs_inact["execution_complete"] is True
+          and obs_inact["evidence_complete"] is True
+          and obs_inact["missing_levels"] == []
+          and obs_inact["needs_backfill"] is False,
+          str({k: obs_inact.get(k) for k in (
+              "execution_complete", "evidence_complete", "missing_levels",
+              "needs_backfill")}))
     # replay 未验证 → False
     obs_norep = C.build_observation(
         ident, l0v, l1_div, l2_div, l3, C.build_l4(l0v, l1_div, l2_div,
