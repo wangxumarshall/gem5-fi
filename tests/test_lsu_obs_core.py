@@ -243,14 +243,17 @@ def main():
     check("l3_prf_proxy_caveat",
           l3_prf["status"] == "complete" and l3_prf["method"] == "proxy"
           and "upper-bound" in l3_prf["caveat"], str(l3_prf))
-    # 纠偏 v2：prop_trace_path 委托——A 模块（lsu_l3_propagation）不在本仓
-    # 时优雅回退 unsupported+原因（绝不伪造 complete）
+    # 纠偏 v2：prop_trace_path 委托——两条合法 unsupported 路径（集成 2026-10-13：
+    # A 模块（lsu_l3_propagation）已合入主干，回退分支只剩"模块缺席"场景；
+    # 模块在场 + trace 文件缺失 → A 的"prop_trace 缺失"原因）。两路都不伪造 complete。
     l3_del = C.build_l3("addrpath", l2_div,
                         prop_trace_path=str(tmp / "nope.trace"))
     check("l3_delegation_fallback_unsupported",
           l3_del["status"] == "unsupported" and l3_del["method"] is None
-          and "lsu_l3_propagation" in l3_del["reason"]
-          and "propagation_trace" in l3_del["reason"], str(l3_del))
+          and (("lsu_l3_propagation" in l3_del["reason"]      # 模块缺席回退
+                and "propagation_trace" in l3_del["reason"])
+               or "prop_trace 缺失" in l3_del["reason"]),     # 模块在场+文件缺失
+          str(l3_del))
     l3_del_inact = C.build_l3("addrpath", None, inactive=True,
                               prop_trace_path=str(tmp / "nope.trace"))
     check("l3_delegation_fallback_inactive_na",
