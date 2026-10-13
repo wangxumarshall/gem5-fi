@@ -138,7 +138,8 @@ def main():
     check("l0_log_funnel_source",
           l0_logfun["attempted"] == 3 and l0_logfun["eligible"] == 9
           and l0_logfun["injected"] == 1
-          and l0_logfun["funnel_source"] == "injections.log:FUNNEL"
+          and l0_logfun["funnel_source"].startswith(
+              "injections.log:FUNNEL(last-of-")
           and l0_logfun["violations"] == [], str(l0_logfun))
     l0_abort = C.parse_l0("... panic ...\n", real_inj_line() + "\n")
     check("l0_abort_fallback",

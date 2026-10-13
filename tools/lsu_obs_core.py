@@ -180,6 +180,12 @@ _FUNNEL_RE = re.compile(
 # CHAOS_LSU_TRIGGER 行），此行可存活 → attempted/eligible 由此补全。
 _FUNNEL_LOG_RE = re.compile(
     r"FUNNEL: attempted=(\d+) eligible=(\d+) injected=(\d+)")
+# cache 家族注入明细行（CHAOSCache.cc 实测格式，2026-10-13 探测实证）：
+#   Tick: 1000000, Cache Block Addr: 576576, Byte Offset: 58,
+#   FaultType: bit_flip, Mask: 10000000
+_CACHE_INJ_RE = re.compile(
+    r"Tick:\s*(\d+),\s*Cache Block Addr:\s*([0-9a-fA-F]+),"
+    r"\s*Byte Offset:\s*(\d+),\s*FaultType:\s*(\w+),\s*Mask:\s*([0-9a-fA-F]+)")
 # 注入行契约（addrpath/lsqfwd 等家族共用日志格式，见 s319 实测行）：
 #   Tick: 887040, Site: lsq_sendFragmentToTranslation, mode=low_bit_flip,
 #   old_vaddr=0x7ffffefd00, new_vaddr=0x87ffffefd00, faults_injected: 1 ...
@@ -204,33 +210,54 @@ def parse_l0(stdout_text, injlog_text, source_names=("stdout", "injections.log")
            "activated": None, "funnel_source": None,
            "injections": [], "violations": []}
     for line in (injlog_text or "").splitlines():
-        if "Site: " not in line:
-            continue
-        im = _INJ_RE.search(line)
-        if not im:
-            out["violations"].append(
-                f"injection_line_unparsed: {line[:120]}")
-            continue
-        tick, site, mode = int(im.group(1)), im.group(2).strip(), im.group(3)
-        old_f, old_v, new_f, new_v = im.group(4), im.group(5), im.group(6), im.group(7)
-        n = int(im.group(8))
-        out["injections"].append({
-            "tick": tick, "site": site, "mode": mode, "faults": n,
-            "field": (f"{old_f}->{new_f}" if old_f else None),
-            "old": old_v, "new": new_v,
-            "dynamic_target": old_f.replace("_vaddr", "") if old_f else None,
-            "raw": line,
-        })
+        if "Site: " in line:
+            im = _INJ_RE.search(line)
+            if not im:
+                out["violations"].append(
+                    f"injection_line_unparsed: {line[:120]}")
+                continue
+            tick, site, mode = int(im.group(1)), im.group(2).strip(), im.group(3)
+            old_f, old_v, new_f, new_v = im.group(4), im.group(5), im.group(6), im.group(7)
+            n = int(im.group(8))
+            out["injections"].append({
+                "tick": tick, "site": site, "mode": mode, "faults": n,
+                "field": (f"{old_f}->{new_f}" if old_f else None),
+                "old": old_v, "new": new_v,
+                "dynamic_target": old_f.replace("_vaddr", "") if old_f else None,
+                "raw": line,
+            })
+        elif "Cache Block Addr:" in line:
+            # cache 家族明细行（2026-10-13 探测实证：注入确实发生但旧解析
+            # 读不到 → 误判 inactive——本分支修复）
+            cm = _CACHE_INJ_RE.search(line)
+            if cm:
+                out["injections"].append({
+                    "tick": int(cm.group(1)),
+                    "site": f"cache_block:0x{cm.group(2)}+{cm.group(3)}",
+                    "mode": cm.group(4), "faults": 1,
+                    "field": f"mask:{cm.group(5)}",
+                    "old": None, "new": None,
+                    "dynamic_target": "cache_block",
+                    "raw": line,
+                })
+            else:
+                out["violations"].append(
+                    f"injection_line_unparsed: {line[:120]}")
     m = _FUNNEL_RE.search(stdout_text or "")
-    ml = _FUNNEL_LOG_RE.search(injlog_text or "")
+    # FUNNEL 行取**最后一行**（终态计数）：CHAOSCache 写两行 FUNNEL——
+    # 攻击进行中一行（injected=0 中途态）+ exit 回调终态行（injected=1）。
+    # 旧代码 search 取首行 → cache 家族全部误读 injected=0 → 误判 inactive
+    # （2026-10-13 探测实证修复）。
+    ml_all = _FUNNEL_LOG_RE.findall(injlog_text or "")
+    ml = ml_all[-1] if ml_all else None
     if m:
         out["attempted"], out["eligible"], out["injected"] = \
             (int(x) for x in m.groups())
         out["funnel_source"] = source_names[0]
     elif ml:
         out["attempted"], out["eligible"], out["injected"] = \
-            (int(x) for x in ml.groups())
-        out["funnel_source"] = f"{source_names[1]}:FUNNEL"
+            (int(x) for x in ml)
+        out["funnel_source"] = f"{source_names[1]}:FUNNEL(last-of-{len(ml_all)})"
     elif out["injections"]:
         # Site 行计数回退（lsu_l5_classify 同款）：injected 如实计数，
         # attempted/eligible 保持 None → 下方 l0_incomplete violation。

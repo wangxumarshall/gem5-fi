@@ -66,9 +66,22 @@ def classify(args):
         logs = list(Path(args.run_dir).glob("*injections.log")) if args.run_dir else []
         if logs:
             text = logs[0].read_text(errors="replace")
-            n = len(re.findall(r"Site: ", text))
-            injected = n
-            out["funnel_source"] = f"injection-log-fallback({logs[0].name})"
+            # FUNNEL 行优先（取最后一行=终态计数——cache 家族两行 FUNNEL：
+            # 中途态 injected=0 + exit 终态 injected=1；旧代码取 Site 计数
+            # 对 cache 格式恒 0 → 全部误判 inactive，2026-10-13 探测实证修复）
+            funnels = re.findall(
+                r"FUNNEL: attempted=(\d+) eligible=(\d+) injected=(\d+)",
+                text)
+            if funnels:
+                attempted, eligible, injected = \
+                    (int(x) for x in funnels[-1])
+                out["funnel_source"] = (
+                    f"injection-log-FUNNEL-last({logs[0].name},"
+                    f"of-{len(funnels)})")
+            else:
+                n = len(re.findall(r"Site: ", text))
+                injected = n
+                out["funnel_source"] = f"injection-log-fallback({logs[0].name})"
 
     # ---- outcome ----
     checksum = None
