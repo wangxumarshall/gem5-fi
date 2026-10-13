@@ -556,10 +556,14 @@ _PHYS_RE = re.compile(r"PhysReg\[(\d+)\]")
 def do_l3(component, l0_block, retained_trace, coverage=None,
           first_divergent_commit=None):
     """L3: the PRF keeps the liveness-window proxy (task-book 2.3);
-    decode/rename use the REAL source->consumer chain from a v2 ctrace
-    (FIX-B ooo_l3.build_l3) when the retained trace is v2; a v1 trace
-    (no source triples) or any other component is honestly unsupported."""
-    if component in ("decode", "rename"):
+    decode/rename/rat use the REAL source->consumer chain from a v2
+    ctrace (FIX-B ooo_l3.build_l3; FIX-RB adds "rat" -- the manifest
+    target.component name of the CHAOSRenameMap injector, whose
+    map_bitflip family joins via the corrupted (class,arch,new_phys)
+    mapping instead of sn) when the retained trace is v2; a v1 trace
+    (no source triples) or any other component is honestly
+    unsupported."""
+    if component in ("decode", "rename", "rat"):
         # Crash-truncation honesty (fix-A semantics, applied to L3): a
         # retained trace of 0 bytes (or missing entirely) means the run
         # died before the first gz flush -- nothing to join, and

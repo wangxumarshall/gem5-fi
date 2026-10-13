@@ -83,7 +83,10 @@ from commit_diff import (  # noqa: E402
     TraceError, open_text, parse_line,
 )
 
-SUPPORTED_COMPONENTS = ("decode", "rename")
+# "rat" is the manifest target.component name of the CHAOSRenameMap
+# injector; "rename" is the same family's library name (kept for the
+# FIX-B docstring/CLI vocabulary).
+SUPPORTED_COMPONENTS = ("decode", "rename", "rat")
 
 # Circuit breakers (honest truncation, never silent):
 MAX_HOPS = 1000            # chain fanout bound
@@ -172,6 +175,43 @@ def _pick_source_event(events):
     return with_sn[0], n, len(with_sn)
 
 
+# RegClassType int values as written into ctrace v2 (class,arch,phys)
+# triples (src/cpu/reg_class.hh: IntRegClass=0, FloatRegClass=1,
+# VecRegClass=2). CHAOSRenameMap targets only the vec ("V<n>",
+# ", class=vec") and int ("X<n>", no tag) pools.
+_REG_CLASS_TAG = {"vec": 2, "int": 0}
+_RE_ARCH_NAME = re.compile(r"^[VX](\d+)$")
+
+
+def _map_seed_from(event):
+    """RAT map-corruption seed for a rename_setEntry map_bitflip-family
+    event: the arch reg's mapping was corrupted old_phys -> new_phys, so
+    the first reader RENAMED AFTER the fault carries the src triple
+    (class, arch, new_phys) -- the wrong phys. Returns
+    (class, arch, phys, tick, old_phys) or None when the tags are
+    absent or not ints (no fabrication: no tags -> no join)."""
+    if not isinstance(event, dict):
+        return None
+    cls = event.get("class")
+    if isinstance(cls, str):
+        cls = _REG_CLASS_TAG.get(cls.strip().lower())
+    elif isinstance(cls, bool):
+        cls = None
+    arch = event.get("arch")
+    if isinstance(arch, str):
+        m = _RE_ARCH_NAME.match(arch.strip())
+        arch = int(m.group(1)) if m else None
+    phys = event.get("new_phys")
+    tick = event.get("tick")
+    old = event.get("old_phys")
+    if not all(isinstance(x, int) and not isinstance(x, bool)
+               for x in (cls, arch, phys, tick)):
+        return None
+    return cls, arch, phys, tick, \
+        (old if isinstance(old, int) and not isinstance(old, bool)
+         else None)
+
+
 # ------------------------------------------------------------- chain builder
 
 def build_l3(component, l0_events, run_ctrace_path, coverage=None,
@@ -202,30 +242,58 @@ def build_l3(component, l0_events, run_ctrace_path, coverage=None,
     else:
         fdc_seq = None
 
-    src_event, n_events, n_with_sn = _pick_source_event(
-        load_l0_events(l0_events))
+    l0_events = load_l0_events(l0_events)
+    src_event, n_events, n_with_sn = _pick_source_event(l0_events)
     if n_events == 0:
         return _unsupported(
             component, coverage, first_divergent_commit,
             "no L0 injection events in the log (nothing activated)")
+    # RAT map-corruption family (rename/rat, map_bitflip* sub-modes): the
+    # L0 event carries no sn (only the dest_reg_sub path logs one) but
+    # carries the corrupted mapping tags (class/arch/old_phys/new_phys).
+    # Join = the first committed reader of the WRONG phys triple.
+    map_seed = None
     if n_with_sn == 0:
-        return _unsupported(
-            component, coverage, first_divergent_commit,
-            "L0 events carry no sn= join key (pre-FIX-B decode log): the "
-            "injected DynInst is not identifiable in the commit trace")
+        if component in ("rename", "rat"):
+            for e in l0_events:
+                seed = _map_seed_from(e)
+                if seed is not None:
+                    src_event = e
+                    map_seed = seed
+                    break
+        if map_seed is None:
+            return _unsupported(
+                component, coverage, first_divergent_commit,
+                "L0 events carry no sn= join key and no rename map tags "
+                "(class/arch/new_phys): the injected DynInst / corrupted "
+                "mapping is not identifiable in the commit trace "
+                "(pre-FIX-B decode log, or an untagged rename event)")
 
-    sn = src_event["sn"]
-    injected = {
-        "seqencNum": sn,
-        "pc": src_event.get("pc"),
-        "tick": src_event.get("tick"),
-        "field": src_event.get("mode") or src_event.get("site"),
-        "bit": src_event.get("bits"),
-        "orig": src_event.get("orig_enc"),
-        "new": src_event.get("new_enc"),
-    }
+    if map_seed is not None:
+        cls0, arch0, phys0, tick0, old0 = map_seed
+        sn = None
+        # a map-entry source has no seqencNum/pc -- those are DynInst
+        # fields; the honest fields are the corrupted mapping itself
+        injected = {
+            "tick": src_event.get("tick"),
+            "field": src_event.get("mode") or src_event.get("site"),
+            "class": cls0, "arch": arch0,
+            "old_phys": old0, "new_phys": phys0,
+        }
+    else:
+        sn = src_event["sn"]
+        injected = {
+            "seqencNum": sn,
+            "pc": src_event.get("pc"),
+            "tick": src_event.get("tick"),
+            "field": src_event.get("mode") or src_event.get("site"),
+            "bit": src_event.get("bits"),
+            "orig": src_event.get("orig_enc"),
+            "new": src_event.get("new_enc"),
+        }
 
-    # ---- single pass: locate the source row, then BFS in file order ----
+    # ---- single pass: locate the source (sn row or map-entry reader),
+    # then BFS in file order ----
     hops = []
     squashed_consumers = []
     squash_events_seen = 0
@@ -233,10 +301,17 @@ def build_l3(component, l0_events, run_ctrace_path, coverage=None,
     saw_v1_row = False
     source_row = None
     source_squashed = False
+    # RAT map-entry mode: the seed (cls0, arch0, phys0) is live from
+    # tick0 until the first committed reader (seed_consumed) or until a
+    # later same-(class,arch) dest re-points the map entry (seed_killed).
+    seed_triple = (cls0, arch0, phys0) if map_seed is not None else None
+    seed_consumed = False
+    seed_killed = False
     # live keys: (class, phys) -> dest triple of the chain node that most
     # recently defined it (kill-on-redef, see module docstring).
     live = {}
     rows_scanned_after_source = 0
+    rows_seen = 0
     truncated = []
     fdc = fdc_seq
 
@@ -247,8 +322,31 @@ def build_l3(component, l0_events, run_ctrace_path, coverage=None,
                 continue
             if kind == "squash":
                 squash_events_seen += 1
+                if seed_triple is not None and not seed_consumed:
+                    # pre-consumer map window: a squashed instruction
+                    # whose OWN src triple equals the corrupted mapping
+                    # read the wrong phys but never commits -- an
+                    # uncommitted terminal consumer (squash does NOT
+                    # re-point the map entry; the seed stays live).
+                    if len(squashed_consumers) < MAX_SQUASH_CONSUMERS:
+                        for t in payload["srcs"]:
+                            if (t[0], t[1], t[2]) == seed_triple:
+                                squashed_consumers.append({
+                                    "seqencNum": payload["sn"],
+                                    "tick": payload["tick"],
+                                    "via_src": {"class": t[0],
+                                                "arch": t[1],
+                                                "phys": t[2]},
+                                    "committed": False,
+                                })
+                                break
+                    elif len(squashed_consumers) >= \
+                            MAX_SQUASH_CONSUMERS:
+                        truncated.append("squash-consumer budget (%d) "
+                                         "exhausted" % MAX_SQUASH_CONSUMERS)
+                    continue
                 if source_row is None:
-                    if payload["sn"] == sn:
+                    if sn is not None and payload["sn"] == sn:
                         source_squashed = True
                     continue
                 if len(squashed_consumers) >= MAX_SQUASH_CONSUMERS:
@@ -273,11 +371,40 @@ def build_l3(component, l0_events, run_ctrace_path, coverage=None,
                 continue
 
             rec = payload  # a committed row
-            if source_row is None:
+            rows_seen += 1
+            if seed_triple is not None and source_row is None:
+                # ---- RAT map-entry join: the corruption mutated the
+                # by-reference phys_reg of the DEFINING instruction's
+                # setEntry (CHAOSRenameMap.cc "Apply" block), so the
+                # corrupted definer's own commit row carries the dest
+                # triple (class, arch, new_phys) -- locate THAT row (the
+                # first at/after the injection tick; rows renamed before
+                # the corruption cannot carry it, and the freelist cannot
+                # hand the same phys to two in-flight allocations), then
+                # the standard dest->src BFS below takes over. The
+                # standard kill rule already encodes the map semantics:
+                # a later dest re-definition of the same (class, phys)
+                # ends the window -- phys-reuse readers after a re-point
+                # are never counted (verified on the retained FR02 SDC
+                # sample: source seq 5268 dest (2,1,13), first reader
+                # 5269, phys-reuse re-definition 5326/reader 5327).
+                if rec.tick < tick0:
+                    continue
+                if any(tuple(t) == seed_triple
+                       for t in _dest_triples(rec)):
+                    source_row = rec
+                    seed_consumed = True   # downstream BFS is now live
+                    for t in _dest_triples(rec):
+                        live[(t[0], t[2])] = tuple(t)
+                continue
+            if source_row is None and not seed_consumed:
+                # sn mode only: locate the source row (map mode reaches
+                # the downstream BFS directly once its first consumer
+                # seeded the live set)
                 if rec.seqenc is None:
                     saw_v1_row = True
                     continue
-                if rec.seqenc == sn:
+                if sn is not None and rec.seqenc == sn:
                     source_row = rec
                     for t in _dest_triples(rec):
                         live[(t[0], t[2])] = tuple(t)
@@ -339,8 +466,52 @@ def build_l3(component, l0_events, run_ctrace_path, coverage=None,
         return _error(component, coverage, first_divergent_commit,
                       injected, str(e))
 
-    if source_row is None:
-        if saw_v1_row or not saw_marker:
+    if map_seed is not None and not seed_consumed:
+        # The corrupted mapping was re-pointed (or the window ended)
+        # before any committed reader: an honest completed observation
+        # with an empty propagation set -- never a fabricated hop.
+        if saw_v1_row:
+            return _unsupported(
+                component, coverage, first_divergent_commit,
+                "commit trace has no seqencNum column (v1 format): rerun "
+                "the faulted run with --ctrace_v2 to make the map-entry "
+                "join possible", injected=injected, n_events=n_events,
+                n_with_sn=n_with_sn)
+        caveat = ("the corrupted defining DynInst (dest class=%d, arch=%d, "
+                  "phys=%d) never committed in the retained trace (squashed "
+                  "in flight, or outside the window): no propagation row "
+                  "exists to anchor the chain"
+                  % (cls0, arch0, phys0))
+        if truncated:
+            caveat += "; " + "; ".join(truncated)
+        return {
+            "status": "ok",
+            "method": "source_read",
+            "component": component,
+            "injected": injected,
+            "source_row": None,
+            "source_map_entry": {"class": cls0, "arch": arch0,
+                                 "old_phys": old0, "new_phys": phys0,
+                                 "tick": tick0},
+            "source_committed": False,
+            "source_squashed": False,
+            "hops": [],
+            "squashed_consumers": (squashed_consumers
+                                   if squash_events_seen or
+                                   squashed_consumers
+                                   else "n/a (no squash events in this "
+                                        "trace)"),
+            "squash_events_observed": squash_events_seen,
+            "n_l0_events": n_events,
+            "n_l0_events_with_sn": n_with_sn,
+            "rows_scanned_after_source": rows_scanned_after_source,
+            "first_divergent_commit": fdc_in,
+            "coverage": coverage,
+            "caveat": caveat,
+        }
+
+    if source_row is None and map_seed is None:
+        if saw_v1_row or (rows_seen == 0 and not saw_marker):
             return _unsupported(
                 component, coverage, first_divergent_commit,
                 "commit trace has no seqencNum column (v1 format): rerun "
@@ -353,11 +524,15 @@ def build_l3(component, l0_events, run_ctrace_path, coverage=None,
                       "reached the architectural state via this "
                       "instruction; no committed propagation exists"
                       % sn)
+        elif rows_seen == 0:
+            caveat = ("retained trace carries no committed rows at all: "
+                      "nothing to join (honest n/a)")
         else:
             caveat = ("injected DynInst sn=%d never committed and no "
                       "squash event carries it either: it was still in "
                       "flight when the simulation ended (or squashed "
-                      "before entering the ROB). No committed propagation "
+                      "before entering the ROB, or it committed outside "
+                      "the retained window). No committed propagation "
                       "exists to trace." % sn)
         return {
             "status": "ok",
@@ -399,14 +574,18 @@ def build_l3(component, l0_events, run_ctrace_path, coverage=None,
         "method": "source_read",
         "component": component,
         "injected": injected,
-        "source_row": {
+        "source_row": ({
             "seq": source_row.seq, "seqencNum": source_row.seqenc,
             "tick": source_row.tick, "pc": source_row.pc,
             "op": source_row.op,
             "dests": [dict(zip(("class", "arch", "phys", "val"), d))
                       for d in source_row.dests],
-        },
-        "source_committed": True,
+        } if source_row is not None else None),
+        **({"source_map_entry": {"class": cls0, "arch": arch0,
+                                 "old_phys": old0, "new_phys": phys0,
+                                 "tick": tick0}}
+           if map_seed is not None else {}),
+        "source_committed": source_row is not None,
         "source_squashed": False,
         "hops": hops,
         "squashed_consumers": (squashed_consumers

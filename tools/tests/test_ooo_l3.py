@@ -431,6 +431,141 @@ def test_l0_log_contract():
                   and res["source_row"]["seqencNum"] == 4321)
 
 
+def test_build_l3_rename_map_join():
+    print("[9] rename/rat map-entry join (map_bitflip family, no sn)")
+    with tempfile.TemporaryDirectory() as td:
+        # L0 event shape: parse_injection_log of a rename_injections.log
+        # map_bitflip2_adj line (class/arch are STRINGS; no sn exists).
+        ev = {"tick": 100, "site": "rename_setEntry",
+              "mode": "map_bitflip2_adj", "class": "vec", "arch": "V1",
+              "old_phys": 1, "new_phys": 13, "bits": "(2,3)",
+              "faults_injected": 1,
+              "raw": "Tick: 100, Site: rename_setEntry, "
+                     "mode=map_bitflip2_adj, class=vec, arch=V1, "
+                     "old_phys=1, new_phys=13, faults_injected: 1"}
+        lines = [HDR,
+                 # pre-injection row (tick < seed tick): the corrupted
+                 # definer cannot commit before its own rename
+                 v2row(0, 9, 50, "401000", "mov", [(2, 1, 1, V16)],
+                       [(2, 1, 1)]),
+                 # THE CORRUPTED DEFINER: the injector mutates the
+                 # by-ref phys_reg of setEntry, so this row's dest IS
+                 # the corrupted mapping (2,1,13) -> the join anchor
+                 v2row(1, 10, 150, "401004", "fadd", [(2, 1, 13, V16)],
+                       []),
+                 # hop1: reader of the corrupted mapping (src 2,1,13)
+                 v2row(2, 11, 200, "401008", "cmeq", [(2, 2, 20, V16)],
+                       [(2, 1, 13)]),
+                 # hop2: downstream consumer of hop1's dest
+                 v2row(3, 12, 250, "40100c", "fmla", [(2, 3, 21, V16)],
+                       [(2, 2, 20)]),
+                 # V1 re-pointed (dest 2,1,30): ends nothing of ours
+                 v2row(4, 13, 300, "401010", "mov", [(2, 1, 30, V16)], []),
+                 # phys reuse: a LATER legit re-allocation of phys 13 as
+                 # V1's dest KILLS the live key (2,13) ...
+                 v2row(5, 14, 350, "401014", "mov", [(2, 1, 13, V16)], []),
+                 # ... so this later (2,1,13) reader is a reader of the
+                 # NEW legitimate value, NOT a consumer of ours
+                 v2row(6, 15, 400, "401018", "cmeq", [(2, 4, 40, V16)],
+                       [(2, 1, 13)]),
+                 # CONSUMER re-definition (the real-data 5326 pattern):
+                 # a chain consumer of hop2's dest that also re-defines
+                 # (2,1,13) -- its dest re-seeds live[(2,13)] with ITS
+                 # (corrupted-derived) output, so the NEXT (2,1,13)
+                 # reader IS a real hop (consumer test runs BEFORE the
+                 # kill; the kill only fires for non-consumer rows)
+                 v2row(7, 16, 450, "40101c", "fmla", [(2, 1, 13, V16)],
+                       [(2, 3, 21)]),
+                 v2row(8, 17, 500, "401020", "cmeq", [(2, 5, 60, V16)],
+                       [(2, 1, 13)]),
+                 ]
+        p = write_ctrace(td, "rat_join.csv", lines)
+        r = ooo_l3.build_l3("rat", [ev], p)
+
+        def _seqs(res):
+            hops = res.get("hops")
+            return [h["seq"] for h in hops] if isinstance(hops, list) \
+                else None
+
+        check("rat join: status ok source_read",
+              r["status"] == "ok" and r["method"] == "source_read",
+              "%r %r" % (r.get("status"), r.get("method")))
+        check("rat join: hops 2,3,7,8 (non-consumer kill excludes 6; "
+              "consumer-redef re-seed includes 8)",
+              _seqs(r) == [2, 3, 7, 8],
+              json.dumps(r.get("hops"), default=str))
+        check("rat join: hop3 via hop2's dest (consumer redef)",
+              r["hops"][2]["via_src"] == {"class": 2, "arch": 3,
+                                          "phys": 21},
+              repr(r["hops"][2].get("via_src")))
+        _via0 = (r["hops"][0].get("via_src")
+                 if isinstance(r.get("hops"), list) and r["hops"]
+                 and isinstance(r["hops"][0], dict) else None)
+        check("rat join: hop1 via_src == corrupted mapping",
+              _via0 == {"class": 2, "arch": 1, "phys": 13},
+              repr(_via0))
+        check("rat join: source_map_entry recorded",
+              r.get("source_map_entry") == {"class": 2, "arch": 1,
+                                            "old_phys": 1, "new_phys": 13,
+                                            "tick": 100},
+              repr(r.get("source_map_entry")))
+        check("rat join: source_row IS the corrupted definer",
+              isinstance(r.get("source_row"), dict)
+              and r["source_row"]["seqencNum"] == 10
+              and r["source_row"]["seq"] == 1,
+              repr(r.get("source_row")))
+        # int-typed tags join identically (hand-built event dicts)
+        ev_int = dict(ev)
+        ev_int["class"], ev_int["arch"] = 2, 1
+        r_int = ooo_l3.build_l3("rename", [ev_int], p)
+        check("rat join: int tags + 'rename' component identical",
+              _seqs(r_int) == [2, 3, 7, 8],
+              json.dumps(r_int.get("hops"), default=str))
+        # zero-reader: the corrupted definer never commits (no dest
+        # (2,1,13) row at/after the injection tick at all)
+        lines_b = [l for l in lines if not l.startswith("1,10,")
+                   and not l.startswith("2,11,") and not l.startswith("3,12,")
+                   and not l.startswith("5,14,") and not l.startswith("6,15,")
+                   and not l.startswith("7,16,") and not l.startswith("8,17,")]
+        p_b = write_ctrace(td, "rat_noreader.csv", lines_b)
+        r_b = ooo_l3.build_l3("rat", [ev], p_b)
+        check("rat zero-reader: ok + empty hops + honest caveat",
+              r_b["status"] == "ok"
+              and (r_b.get("hops") == [] or r_b.get("hops") is None)
+              and "never committed" in (r_b.get("caveat") or ""),
+              "status=%r caveat=%r" % (r_b.get("status"),
+                                       r_b.get("caveat")))
+        # neither sn nor map tags -> honest unsupported
+        r_c = ooo_l3.build_l3("rat", [{"tick": 100, "mode": "map_bitflip"}],
+                              p)
+        check("rat no join keys: unsupported with both keys named",
+              r_c["status"] == "unsupported"
+              and "sn" in r_c["reason"] and "new_phys" in r_c["reason"],
+              repr(r_c.get("reason")))
+        # sn still wins when present (rename dest_reg_sub family)
+        r_d = ooo_l3.build_l3("rat", [dict(ev, sn=11)], p)
+        check("rat sn priority: sn join used when present",
+              r_d.get("source_row") is not None
+              and r_d["source_row"]["seqencNum"] == 11,
+              repr(r_d.get("source_row")))
+        # int-class ("X"-family) seeds map class 0
+        ev_x = dict(ev, arch="X5", old_phys=7, new_phys=9)
+        ev_x["class"] = "int"
+        lines_x = [HDR,
+                   v2row(7, 70, 400, "402000", "add", [(0, 5, 9, V16)],
+                         []),
+                   v2row(8, 71, 450, "402004", "sub", [(0, 3, 50, V16)],
+                         [(0, 5, 9)])]
+        p_x = write_ctrace(td, "rat_int.csv", lines_x)
+        r_x = ooo_l3.build_l3("rat", [ev_x], p_x)
+        check("rat int-class join: class 0 via X-arch",
+              r_x["status"] == "ok" and _seqs(r_x) == [8]
+              and isinstance(r_x.get("hops"), list) and r_x["hops"]
+              and r_x["hops"][0]["via_src"]["phys"] == 9
+              and r_x["source_row"]["seqencNum"] == 70,
+              json.dumps(r_x.get("hops"), default=str))
+
+
 def main():
     test_parse_line()
     test_compare()
@@ -439,6 +574,7 @@ def main():
     test_build_l3_unsupported()
     test_build_l3_fdc()
     test_l0_log_contract()
+    test_build_l3_rename_map_join()
     print()
     if FAILURES:
         print("FAILED: %d checks: %s" % (len(FAILURES), ", ".join(FAILURES)))
