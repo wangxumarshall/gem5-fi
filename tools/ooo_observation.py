@@ -331,11 +331,23 @@ def l2_status_from(commit_diff, classification):
 
 
 def tick_from_ctrace_raw(raw):
-    """3rd CSV field of a ctrace line is the commit tick; None otherwise."""
+    """Commit tick of a raw ctrace line; None otherwise. [FIX-RB] v2-
+    aware: a v2 row carries seqencNum as field 2, so the tick moves from
+    field 3 (v1: seq,tid,tick,...) to field 4 (v2: seq,seqenc,tid,tick).
+    Discriminator: field 2 is the tid (always 0 in this single-thread SE
+    track) in v1 and the seqNum (>= 1) in v2 -- the old v1-only parse
+    read the v2 tid column as the tick (0), producing impossible
+    negative latencies downstream."""
     if not raw:
         return None
+    parts = raw.split(",")
     try:
-        return int(raw.split(",")[2])
+        second = int(parts[1])
+    except (IndexError, ValueError):
+        return None
+    tick_col = 3 if second > 0 else 2
+    try:
+        return int(parts[tick_col])
     except (IndexError, ValueError):
         return None
 
@@ -350,7 +362,13 @@ def first_detection_for(classification, commit_diff=None):
     div = None
     if isinstance(commit_diff, dict):
         div = commit_diff.get("first_divergence")
-    if div:
+    # [FIX-RB central directive] first_detection carries a tick/seq ONLY
+    # when a real detection event exists (kind != None: SDC checksum,
+    # Crash abnormal_termination, Hang timeout). Masked/Inactive have NO
+    # detection event -- the L2 divergence (if any) lives in l2 where it
+    # belongs; putting its seq/tick into L4 dressed "no detection" up as
+    # a located event.
+    if div and fd["kind"] is not None:
         fd["seq"] = div.get("seq")
         # RUN-side tick only: a one-sided divergence (the run trace ended
         # early) has no run line, and the ref-side tick would predate the
@@ -603,6 +621,24 @@ def chain_completeness(obs):
             # method) is a gap.
             if l3.get("method") not in ("proxy", "source_read"):
                 gaps.append("L3")
+            elif l3.get("method") == "source_read":
+                # [FIX-RB round 2, central directive] an ok source_read
+                # chain on an ACTIVATED sample needs scan evidence to
+                # count as complete: either a real consumer hop, or a
+                # genuinely scanned window (rows_scanned_after_source>0
+                # -- no consumer found IS a real finding then), or the
+                # honest never-committed terminal state (source_row
+                # null: the faulted DynInst never reached commit, so no
+                # propagation chain exists to scan). Zero rows scanned
+                # with a located source and zero hops is "did not scan"
+                # masquerading as "scanned, no consumers" -- a gap.
+                hops = l3.get("hops")
+                scanned = l3.get("rows_scanned_after_source")
+                if (l3.get("source_row") is not None
+                        and not hops
+                        and not (isinstance(scanned, int)
+                                 and scanned > 0)):
+                    gaps.append("L3")
         else:
             gaps.append("L3")
         l4s = (obs.get("l4") or dict()).get("status")

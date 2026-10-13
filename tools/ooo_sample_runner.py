@@ -1047,7 +1047,16 @@ def cmd_run(args):
         first_detection = ooo_observation.first_detection_for(
             classification, cd)
         latency = dict(ticks=None, committed_insts=None, note="")
-        if (l0.get("events") and isinstance(cd, dict)
+        # [FIX-RB central directive] latency exists ONLY under a real
+        # detection event (kind != None). A Masked sample has no
+        # detection -- numeric latency there dressed "nothing detected"
+        # up as a located event. And a latency < 0 is causally
+        # impossible (the divergence cannot precede the fault that
+        # caused it): it is suppressed to null with a note, never
+        # emitted -- the audit gate FAILs any negative that still
+        # appears.
+        if (first_detection.get("kind") is not None
+                and l0.get("events") and isinstance(cd, dict)
                 and cd.get("first_divergence")):
             div = cd["first_divergence"]
             tick0 = l0["events"][0].get("tick")
@@ -1056,11 +1065,26 @@ def cmd_run(args):
             dtick = ooo_observation.tick_from_ctrace_raw(
                 div.get("run_line"))
             if dtick is not None and tick0 is not None:
-                latency["ticks"] = dtick - tick0
+                _dt = dtick - tick0
+                if _dt < 0:
+                    latency["note"] = ("suppressed causally-impossible "
+                                       "negative tick latency "
+                                       "(%d): parse/anchor bug" % _dt)
+                else:
+                    latency["ticks"] = _dt
             if retained:
                 inj_seq = find_inj_seq(retained, l0["events"])
                 if inj_seq is not None and div.get("seq") is not None:
-                    latency["committed_insts"] = div["seq"] - inj_seq
+                    _di = div["seq"] - inj_seq
+                    if _di < 0:
+                        latency["note"] = (
+                            (latency["note"] + "; "
+                             if latency["note"] else "")
+                            + "suppressed causally-impossible negative "
+                              "committed-inst latency (%d): anchor bug"
+                            % _di)
+                    else:
+                        latency["committed_insts"] = _di
         if (l0.get("injected") or 0) >= 1 or fake:
             if classification in ("SimulatorError", "Inactive"):
                 l4_status = "ok" if (l0.get("injected") or 0) >= 1 \

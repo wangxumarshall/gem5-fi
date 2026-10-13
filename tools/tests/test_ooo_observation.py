@@ -585,6 +585,38 @@ def test_l0_funnel_invariant_and_limited():
     check("l3-not-observed-status-legal",
           "not_observed_before_crash" in om.L3_STATUSES,
           om.L3_STATUSES)
+    # [FIX-RB round 2] v2-aware tick extraction: a v2 row carries
+    # seqencNum as field 2 (>=1), moving tick from field 3 to field 4;
+    # the old v1-only parse read the v2 tid (0) as the tick
+    check("tick-v1-line", om.tick_from_ctrace_raw(
+        "103,0,430815,4090a0,add,1,0,3,103,0000000000000000") == 430815)
+    check("tick-v2-line", om.tick_from_ctrace_raw(
+        "103,159,0,430815,4090a0,add,1,0,3,103,0000000000000000,1,0,3,98")
+        == 430815)
+    check("tick-garbage-none", om.tick_from_ctrace_raw(None) is None
+          and om.tick_from_ctrace_raw("x,y,z") is None)
+    # [FIX-RB round 2] NO detection event -> first_detection carries no
+    # tick/seq even when an L2 divergence exists (Masked: the divergence
+    # lives in l2, not in L4)
+    cd_masked = {"first_divergence": {
+        "seq": 103, "class": "data_corruption",
+        "run_line": "103,159,0,430815,4090a0,add,1,0,3,103,"
+                    "0000000000000000,1,0,3,98"}}
+    fd_masked = om.first_detection_for("Masked", cd_masked)
+    check("fd-masked-no-event-nulls",
+          fd_masked["kind"] is None and fd_masked["tick"] is None
+          and fd_masked["seq"] is None, fd_masked)
+    # a REAL detection event (SDC) still anchors seq + the v2-parsed tick
+    fd_sdc = om.first_detection_for("SDC", cd_masked)
+    check("fd-sdc-event-anchored",
+          fd_sdc["kind"] == "checksum_mismatch" and fd_sdc["seq"] == 103
+          and fd_sdc["tick"] == 430815, fd_sdc)
+    # Crash: real event but no run line -> tick/seq stay null (honest)
+    fd_crash = om.first_detection_for("Crash", {"first_divergence": {
+        "seq": 7, "class": "x", "run_line": None}})
+    check("fd-crash-no-runline-nulls",
+          fd_crash["kind"] == "abnormal_termination"
+          and fd_crash["tick"] is None and fd_crash["seq"] == 7, fd_crash)
 
 
 def test_zero_observation_crash_semantics():
