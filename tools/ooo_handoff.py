@@ -27,6 +27,7 @@ REPO = os.path.dirname(HERE)
 sys.path.insert(0, HERE)
 
 from wilson import cell_stats, ALL_CLASSES  # noqa: E402  (one stats source)
+import ooo_chain_audit  # noqa: E402  (semantic gates, Fix-C 2026-10-13)
 
 try:
     import yaml
@@ -224,6 +225,49 @@ def build_campaign_handoff(campaign_dir, campaign_yaml, guard_dir):
     wall_s = (t_hi - t_lo) if (t_lo is not None and t_hi is not None) else None
     peaks = _resource_peaks(guard_dir, t_lo, t_hi)
 
+    # --- execution/chain split (Fix-C Task 2, 2026-10-13) ------------------
+    # The legacy top-level "status" says COMPLETE when n_valid reached
+    # n_per_cell -- an EXECUTION statement. It must never be readable as
+    # "the observation chain is complete". The split fields below make
+    # the chain state explicit and unfakeable:
+    #   execution_complete_count: parsed results.jsonl rows with a run_id
+    #     (the runner's execution ledger; SimulatorError rows count as
+    #     finished executions, unparseable lines do not);
+    #   evidence_readable_count: observations that parse AND whose files
+    #     manifest entries all exist on disk (existence only -- sha
+    #     verification stays ooo_chain_audit's job);
+    #   chain_complete_count / chain_incomplete_count: from the
+    #     observations (an unreadable observation counts as incomplete);
+    #   chain_backfill_required: chain_complete_count <
+    #     execution_complete_count;
+    #   semantic_invalid_count: observations carrying any of the five
+    #     admission-view semantic-gate violations (ooo_chain_audit.
+    #     semantic_gate_violations).
+    execution_complete_count = sum(
+        1 for r in rows if isinstance(r, dict) and r.get("run_id"))
+    evidence_readable_count = 0
+    semantic_invalid_count = 0
+    for name, o in sorted(obs.items()):
+        if not isinstance(o, dict):
+            continue
+        readable = True
+        for rel in (o.get("files") or {}):
+            if not os.path.isfile(os.path.join(campaign_dir, "samples",
+                                               name, rel)):
+                readable = False
+                break
+        if readable:
+            evidence_readable_count += 1
+        if ooo_chain_audit.semantic_gate_violations(o):
+            semantic_invalid_count += 1
+    chain_complete_count = chain_complete_n
+    chain_incomplete_count = n_obs_ok - chain_complete_n
+    execution_status = ("COMPLETE"
+                        if n_valid >= cy.get("n_per_cell", 10**9)
+                        else "PARTIAL")
+    chain_backfill_required = (chain_complete_count
+                               < execution_complete_count)
+
     # an observation identity sample for the hash block
     ident_sample = None
     for o in obs.values():
@@ -238,9 +282,18 @@ def build_campaign_handoff(campaign_dir, campaign_yaml, guard_dir):
         "runid_row": cy.get("runid_row"),
         "submodel": cy.get("submodel"),
         "phase": cy.get("phase"),
-        "status": ("COMPLETE"
-                   if n_valid >= cy.get("n_per_cell", 10**9)
-                   else "PARTIAL"),
+        "status": execution_status,  # legacy alias of execution_status
+        # --- execution/chain split (Fix-C Task 2, 2026-10-13): status
+        # COMPLETE is an EXECUTION statement only; the fields below make
+        # the chain state explicit and cannot be faked by status. ---
+        "execution_status": execution_status,
+        "execution_complete_count": execution_complete_count,
+        "evidence_readable_count": evidence_readable_count,
+        "chain_complete_count": chain_complete_count,
+        "chain_incomplete_count": chain_incomplete_count,
+        "chain_gap_histogram": gap_hist,
+        "chain_backfill_required": chain_backfill_required,
+        "semantic_invalid_count": semantic_invalid_count,
         "identity": {
             "chaos_commit": cy.get("chaos_commit"),
             "patchset_sha256": cy.get("patchset_sha256"),
@@ -335,6 +388,16 @@ def write_campaign_handoff(campaign_dir, campaign_yaml, guard_dir):
                 f"({h['runid_row']}-{h['submodel']}, {h['phase']})\n\n")
         f.write(f"- status: **{h['status']}**  rows: {h['counts']['n_rows']}  "
                 f"valid: {h['counts']['n_valid']}\n")
+        f.write(f"- execution_status: **{h['execution_status']}**  "
+                f"executed: {h['execution_complete_count']}  "
+                f"evidence_readable: {h['evidence_readable_count']}  "
+                f"semantic_invalid: {h['semantic_invalid_count']}\n")
+        f.write(f"- chain_backfill_required: "
+                f"**{h['chain_backfill_required']}** "
+                f"(complete {h['chain_complete_count']} / executed "
+                f"{h['execution_complete_count']}; gap histogram "
+                f"{h['chain_gap_histogram']}) — execution COMPLETE is NOT "
+                f"a complete observation chain\n")
         f.write(f"- identity: chaos_commit `{h['identity']['chaos_commit']}` "
                 f"gem5 `{str(h['identity']['gem5_sha256'])[:12]}...` "
                 f"golden_key `{h['identity']['golden_key']}`\n")
@@ -396,6 +459,15 @@ def build_master_handoff(campaign_dirs, batch_yaml, guard_dir, runs_root):
                                     for p in per),
             "n_chain_incomplete": sum(p["chain"]["n_chain_incomplete"]
                                       for p in per),
+            # Fix-C Task 2: execution/chain split at master level too
+            "execution_complete_count": sum(p["execution_complete_count"]
+                                            for p in per),
+            "evidence_readable_count": sum(p["evidence_readable_count"]
+                                           for p in per),
+            "chain_backfill_required": any(p["chain_backfill_required"]
+                                           for p in per),
+            "semantic_invalid_count": sum(p["semantic_invalid_count"]
+                                          for p in per),
         },
         "paths": [p["paths"] for p in per],
     }
