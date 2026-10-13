@@ -326,6 +326,17 @@ def window_slice(ctrace_path, lo, hi, out_path):
         with gzip.open(out_path, "wt") as fout:
             try:
                 for line in fin:
+                    if line.startswith("#"):
+                        # '#' annotations are carried into the window
+                        # verbatim: the v2 header (a window WITHOUT it
+                        # is indistinguishable from v1 at the door --
+                        # this broke do_l3's is_v2 precheck on every
+                        # window-mode sample) and the '# squash' events
+                        # (they carry no commit-seq column to filter on;
+                        # they join the window unfiltered and the L3
+                        # builder ignores non-matching ones by key).
+                        fout.write(line)
+                        continue
                     full += 1
                     try:
                         seq = int(line.split(",", 1)[0])
@@ -585,12 +596,36 @@ def do_l3(component, l0_block, retained_trace, coverage=None,
                                "trace flush; no L3 join is possible "
                                "(honest n/a, not an unsupported-method "
                                "claim)")
+        head = ""
         try:
             with gzip.open(retained_trace, "rt", errors="replace") as f:
-                head = f.read(256)
-            is_v2 = "# ctrace v2" in head
+                head = f.read(4096)
         except (OSError, EOFError):
-            is_v2 = False
+            # a size-read on a truncated gz raises mid-way and discards
+            # the partial buffer -- the row-format fallback below re-opens
+            # and reads LINE-wise (the readable prefix survives)
+            head = ""
+        is_v2 = "# ctrace v2" in head
+        if not is_v2:
+            # headerless but possibly v2: pre-FIX-RB window slices
+            # dropped the '# ctrace v2' header line. Detect the row
+            # format instead (commit_diff.parse_line's one-fit
+            # auto-detection; a v2 row always carries seqencNum).
+            try:
+                import commit_diff as _cd
+                with gzip.open(retained_trace, "rt",
+                               errors="replace") as f:
+                    for _ln in f:
+                        if _ln.strip() and not _ln.startswith("#"):
+                            try:
+                                _rec = _cd.parse_line(
+                                    retained_trace, 0, _ln.rstrip("\n"))
+                                is_v2 = _rec.seqenc is not None
+                            except Exception:
+                                is_v2 = False
+                            break
+            except (OSError, EOFError):
+                is_v2 = False
         if not is_v2:
             return dict(status="unsupported", method=None, fanout=None,
                         caveat=None,

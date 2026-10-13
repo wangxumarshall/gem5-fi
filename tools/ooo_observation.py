@@ -90,7 +90,11 @@ L1_STATUSES = ("ok", "truncated", "error", "inactive_no_activation",
                "no_snapshots_before_crash")
 L2_STATUSES = ("ok", "not_observed_before_crash", "error",
                "inactive_no_activation")
-L3_STATUSES = ("ok", "unsupported", "error", "inactive_no_activation")
+# not_observed_before_crash: the run died before the first trace flush
+# (zero-byte retained ctrace) -- honest n/a matching the l1/l2 crash
+# vocabulary; a chain gap L3 is still recorded, never a violation.
+L3_STATUSES = ("ok", "unsupported", "error", "inactive_no_activation",
+               "not_observed_before_crash")
 L4_STATUSES = ("ok", "none_detected", "error", "inactive_no_activation")
 
 IDENTITY_FIELDS = ("run_id", "campaign_id", "runid_row", "submodel",

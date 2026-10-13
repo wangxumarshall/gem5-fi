@@ -580,6 +580,11 @@ def test_l0_funnel_invariant_and_limited():
     check("l0blk-nolog-status", blk["status"] == "no_log", blk)
     check("l0blk-nolog-attempted-none", blk["attempted"] is None, blk)
     check("l0blk-nolog-eligible-none", blk["eligible"] is None, blk)
+    # [FIX-RB] not_observed_before_crash is a legal l3 status (the
+    # zero-byte crash-trace marker; chain gap L3, never a violation)
+    check("l3-not-observed-status-legal",
+          "not_observed_before_crash" in om.L3_STATUSES,
+          om.L3_STATUSES)
 
 
 def test_zero_observation_crash_semantics():

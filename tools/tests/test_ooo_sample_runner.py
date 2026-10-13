@@ -367,6 +367,44 @@ def test_do_l3_zero_byte_and_truncated_crash_semantics():
     v = oca.semantic_gate_violations(obs)
     check("l3 zero-byte no semantic violation",
           "l3_unsupported_with_activation" not in v, repr(v))
+    # (3b) HEADERLESS v2 window slice (pre-FIX-RB window_slice dropped
+    #     the '# ctrace v2' header): do_l3 must detect the v2 row format
+    #     and proceed to build_l3, NOT claim "retained trace is v1"
+    hdrless = os.path.join(td, "hdrless.csv.gz")
+    hdr = ("# ctrace v2 seq,seqencNum,tid,tick,pc,op,ndest"
+           "[,class,arch,phys,val]*,nsrc[,class,arch,phys]*")
+    with gzip.open(hdrless, "wt") as f:
+        f.write("10,401,0,500,1000,add,1,1,5,80,0000000000000000,0\n")
+        f.write("11,402,0,510,1004,sub,1,1,6,81,0000000000000000,1,1,5,80\n")
+    r_h = sr.do_l3("decode", l0, hdrless)
+    check("l3 headerless-v2 not mislabeled v1",
+          (r_h.get("status") != "unsupported"
+           or "v1" not in (r_h.get("reason") or "")),
+          repr(r_h.get("reason") or r_h.get("status")))
+    # (3c) window_slice keeps '#' annotations (v2 header + squash events)
+    import tempfile as _tf
+    with _tf.TemporaryDirectory() as wtd:
+        src_gz = os.path.join(wtd, "full.csv.gz")
+        with gzip.open(src_gz, "wt") as f:
+            f.write(hdr + "\n")
+            f.write("# squash 77 900 1 5 80\n")
+            f.write("10,401,0,500,1000,add,1,1,5,80,0000000000000000,0\n")
+            f.write("11,402,0,510,1004,sub,1,1,6,81,0000000000000000,"
+                    "1,1,5,80\n")
+            f.write("50,450,0,700,1008,orr,1,1,7,82,0000000000000000,0\n")
+        out_gz = os.path.join(wtd, "win.csv.gz")
+        full, kept, wtr = sr.window_slice(src_gz, 10, 11, out_gz)
+        with gzip.open(out_gz, "rt") as f:
+            out_lines = f.read().splitlines()
+        check("window_slice keeps v2 header + squash + in-window rows",
+              out_lines == [hdr, "# squash 77 900 1 5 80",
+                            "10,401,0,500,1000,add,1,1,5,80,"
+                            "0000000000000000,0",
+                            "11,402,0,510,1004,sub,1,1,6,81,"
+                            "0000000000000000,1,1,5,80"],
+              repr(out_lines))
+        check("window_slice seq filter intact", kept == 2 and full == 3,
+              (full, kept))
     # (4) truncated-but-nonempty v2 gz (crash mid-flush): header + rows
     #     readable, tail chopped -- must never raise out of do_l3
     trunc = os.path.join(td, "trunc.csv.gz")
