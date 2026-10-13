@@ -67,22 +67,35 @@ def run_suite(cmd, retries=1):
 
 
 def scan_admission_samples(e2e_campaign):
-    """直接扫 admission 样本集（E2E campaign + p5_admission_* 准入 campaign）
-    的 observation.json——纠偏新判据（中央指令 2026-10-13）所需计数不经
-    handoff 二手转述。v1 样本（schema=lsu-observation-v1）单列为历史证据，
-    不计入 v2 计数。
+    """审计门控的 admission 样本扫描（二轮纠偏后必须：PASS 判据只能计
+    audit-PASS 样本——旧 observation.json 的过期 chain_complete=true 存储值
+    会被新规则 FAIL，绝不能计入 K/L）。
+
+    规则：
+      * 每 COMPLETE 样本先经 lsu_audit.audit_sample_dir（v2 规则集）——
+        FAIL 样本计入 audit_fail 列表，不进任何分子
+      * 含 SUPERSEDED 标记文件的 campaign 整体跳过（如 p5_admission_*
+        首轮——解析 bug 时代产物，被 _v2 重跑取代，保留不覆盖）
+      * v1 schema 样本单列历史证据，不计入 v2 计数
     """
+    import lsu_audit as A
     root = MT / "runs/lsu/obs"
     dirs = [root / e2e_campaign] + sorted(root.glob("p5_admission_*"))
-    stats = {"campaigns": [str(d) for d in dirs if d.is_dir()],
+    stats = {"campaigns": [str(d) for d in dirs
+                           if d.is_dir()
+                           and not (d / "SUPERSEDED").exists()],
+             "superseded": [d.name for d in dirs
+                            if d.is_dir() and (d / "SUPERSEDED").exists()],
              "v1_samples": 0, "v2_samples": 0, "chain_complete_count": 0,
              "activated_positive": 0, "activated_chain_complete": 0,
-             "l3_method": {}, "n2_campaigns": {}}
+             "l3_method": {}, "n2_campaigns": {}, "audit_fail": []}
     for d in dirs:
-        if not d.is_dir():
+        if not d.is_dir() or (d / "SUPERSEDED").exists():
             continue
         n_complete = 0
         for oj in sorted(d.glob("*/**/observation.json")):
+            if ".quarantine." in str(oj) or ".replay" in str(oj):
+                continue  # 隔离/重放证据目录非正式样本，不入任何计数
             try:
                 o = json.loads(oj.read_text(encoding="utf-8"))
             except (OSError, json.JSONDecodeError):
@@ -92,6 +105,13 @@ def scan_admission_samples(e2e_campaign):
                 n_complete += 1
             if o.get("schema") != "lsu-observation-v2":
                 stats["v1_samples"] += 1
+                continue
+            # 审计门控（二轮）：FAIL 样本绝不进入任何 PASS 判据分子
+            rec = A.audit_sample_dir(oj.parent)
+            if rec.get("audit") != "PASS":
+                stats["audit_fail"].append({
+                    "campaign": d.name, "sample": oj.parent.name,
+                    "reasons": (rec.get("reasons") or [])[:2]})
                 continue
             stats["v2_samples"] += 1
             act = (o.get("L0") or {}).get("activated") or 0
@@ -163,6 +183,16 @@ def main():
         if not e2e_criteria:
             return ("PENDING", "E2E 未执行（watcher 等待 driver 退出；"
                                "触发后本工具重跑即得结论）")
+        # 二轮门控：handoff_e2e.json 的 acceptance 是生成时刻的判定——若
+        # 该 campaign 样本在新审计下有 FAIL（语义升级后过期值），handoff
+        # 结论作废，须重跑 E2E + 重生成 handoff
+        e2e_fails = [f for f in adm.get("audit_fail", [])
+                     if f.get("campaign") == args.e2e_campaign]
+        if e2e_fails:
+            return ("PENDING",
+                    f"E2E campaign 样本在新审计下 FAIL（{len(e2e_fails)} 个："
+                    f"{[f['sample'] for f in e2e_fails][:3]}）——旧 handoff "
+                    f"acceptance 作废，须重跑 E2E（新语义）后再生")
         ok = all(v.get("pass") for v in e2e_criteria.values()
                  if isinstance(v, dict) and "pass" in v)
         detail = "; ".join(f"{k}:{'PASS' if v.get('pass') else 'FAIL'}"
