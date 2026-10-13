@@ -26,7 +26,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define N_D 8     /* tile side: SVL=512bit => 8 f64 slices */
+#define N_D_MAX 16  /* upper bound: SVL=1024bit => 16 f64 slices */
 
 static uint64_t xs_state;
 static uint64_t xs64(void)
@@ -51,61 +51,66 @@ static void fnv_u64(uint64_t v)
  * three output tiles (row-major [r*n + c]). Registers follow the test's
  * kernel shape: w12 slice select, x1 base of the source row. */
 static void za_tileview_kernel(const double *a, double *id_a, double *tr_a,
-                               double *rot_a)
+                               double *rot_a, int n)
 {
     asm volatile(
         "mov x0, %0\n\t"               /* a              */
         "mov x1, %1\n\t"               /* id_a           */
         "mov x2, %2\n\t"               /* tr_a           */
         "mov x3, %3\n\t"               /* rot_a          */
+        "mov x4, %4\n\t"               /* n (runtime)    */
         "smstart sm\n\t"
         "smstart za\n\t"
         "zero {za}\n\t"
         "ptrue p0.d\n\t"
         "mov x9, #0\n"                  /* row = 0        */
         "1:\n\t"
-        "cmp x9, #8\n\t"
+        "cmp x9, x4\n\t"
         "b.ge 2f\n\t"
         "mov w12, w9\n\t"
-        "add x10, x0, x9, lsl #6\n\t"   /* &a[r*8]        */
+        "mul x14, x9, x4\n\t"
+        "add x10, x0, x14, lsl #3\n\t"   /* &a[r*n] */
         "ld1d {za0h.d[w12, 0]}, p0/z, [x10]\n\t"
         "add x9, x9, #1\n\t"
         "b 1b\n"
         "2:\n\t"
         "mov x9, #0\n"                  /* horizontal readout */
         "3:\n\t"
-        "cmp x9, #8\n\t"
+        "cmp x9, x4\n\t"
         "b.ge 4f\n\t"
         "mov w12, w9\n\t"
-        "add x13, x1, x9, lsl #6\n\t"
+        "mul x14, x9, x4\n\t"
+        "add x13, x1, x14, lsl #3\n\t"
         "st1d {za0h.d[w12, 0]}, p0, [x13]\n\t"
         "add x9, x9, #1\n\t"
         "b 3b\n"
         "4:\n\t"
         "mov x9, #0\n"                  /* vertical (transpose) readout */
         "5:\n\t"
-        "cmp x9, #8\n\t"
+        "cmp x9, x4\n\t"
         "b.ge 6f\n\t"
         "mov w12, w9\n\t"
-        "add x13, x2, x9, lsl #6\n\t"
+        "mul x14, x9, x4\n\t"
+        "add x13, x2, x14, lsl #3\n\t"
         "st1d {za0v.d[w12, 0]}, p0, [x13]\n\t"
         "add x9, x9, #1\n\t"
         "b 5b\n"
         "6:\n\t"
         "mov x9, #0\n"                  /* slice-shift readout: za0h.d[r,1] */
         "7:\n\t"
-        "cmp x9, #8\n\t"
+        "cmp x9, x4\n\t"
         "b.ge 8f\n\t"
         "mov w12, w9\n\t"
-        "add x13, x3, x9, lsl #6\n\t"
+        "mul x14, x9, x4\n\t"
+        "add x13, x3, x14, lsl #3\n\t"
         "st1d {za0h.d[w12, 1]}, p0, [x13]\n\t"
         "add x9, x9, #1\n\t"
         "b 7b\n"
         "8:\n\t"
         "smstop za\n\t"
         "smstop sm\n\t"
-        : : "r"(a), "r"(id_a), "r"(tr_a), "r"(rot_a)
-        : "x9", "x10", "x13", "w12", "p0", "memory");
+        : : "r"(a), "r"(id_a), "r"(tr_a), "r"(rot_a), "r"((long)n)
+        : "x4", "x9", "x10", "x13", "x14", "w12", "w14", "w15", "p0", "memory");
 }
 
 int main(int argc, char **argv)
@@ -115,25 +120,36 @@ int main(int argc, char **argv)
     const int randomize = (strcmp(mode, "random") == 0);
     xs_state = seed ? seed : 1;
 
-    static double a[N_D * N_D], id_a[N_D * N_D], tr_a[N_D * N_D],
-                  rot_a[N_D * N_D];
-    for (int i = 0; i < N_D; ++i)
-        for (int j = 0; j < N_D; ++j) {
-            const size_t ij = (size_t)i * N_D + j;
+    /* Full-SVL support: n = f64 slices of the runtime SVL (128..1024-bit
+     * -> 2..16). The element-size shift #3 (8 bytes/f64) is
+     * SVL-independent and stays an immediate. */
+    int64_t svl_bytes = 0;
+    asm volatile("rdsvl %0, #1" : "=r"(svl_bytes));
+    const int n = (int)(svl_bytes / 8);
+    if (n < 2 || n > N_D_MAX) {
+        fprintf(stderr, "unsupported SVL %ld bytes\n", (long)svl_bytes);
+        return 3;
+    }
+
+    static double a[N_D_MAX * N_D_MAX], id_a[N_D_MAX * N_D_MAX],
+                  tr_a[N_D_MAX * N_D_MAX], rot_a[N_D_MAX * N_D_MAX];
+    for (int i = 0; i < n; ++i)
+        for (int j = 0; j < n; ++j) {
+            const size_t ij = (size_t)i * n + j;
             if (randomize)
-                a[ij] = (double)((xs64() % 1024) * 64 + (i * N_D + j));
+                a[ij] = (double)((xs64() % 1024) * 64 + (i * n + j));
             else
                 a[ij] = (double)((i * 131 + j) % 977) + 0.5 * (i + 1);
         }
 
-    za_tileview_kernel(a, id_a, tr_a, rot_a);
+    za_tileview_kernel(a, id_a, tr_a, rot_a, n);
 
     /* Channel A: permutation goldens, byte-exact. */
-    for (int i = 0; i < N_D; ++i)
-        for (int j = 0; j < N_D; ++j) {
-            const size_t ij = (size_t)i * N_D + j;
-            const size_t ji = (size_t)j * N_D + i;
-            const size_t rot = (size_t)((i + 1) % N_D) * N_D + j;
+    for (int i = 0; i < n; ++i)
+        for (int j = 0; j < n; ++j) {
+            const size_t ij = (size_t)i * n + j;
+            const size_t ji = (size_t)j * n + i;
+            const size_t rot = (size_t)((i + 1) % n) * n + j;
             fnv_u64(*(uint64_t *)&id_a[ij]);
             fnv_u64(*(uint64_t *)&tr_a[ij]);
             fnv_u64(*(uint64_t *)&rot_a[ij]);
