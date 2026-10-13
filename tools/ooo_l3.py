@@ -312,6 +312,15 @@ def build_l3(component, l0_events, run_ctrace_path, coverage=None,
     live = {}
     rows_scanned_after_source = 0
     rows_seen = 0
+    # [FIX-RB round 2] scan evidence (central directive): the range the
+    # scan actually covered past the source, and why it ended -- "did
+    # not scan" must never masquerade as "scanned, no consumers".
+    scan_first_seq = None
+    scan_last_seq = None
+    scan_first_tick = None
+    scan_last_tick = None
+    terminal_reason = None
+    _fdc_degenerate = False
     truncated = []
     fdc = fdc_seq
 
@@ -390,12 +399,17 @@ def build_l3(component, l0_events, run_ctrace_path, coverage=None,
                 # 5269, phys-reuse re-definition 5326/reader 5327).
                 if rec.tick < tick0:
                     continue
+                rows_scanned_after_source += 1
+                if scan_first_seq is None:
+                    scan_first_seq, scan_first_tick = rec.seq, rec.tick
+                scan_last_seq, scan_last_tick = rec.seq, rec.tick
                 if any(tuple(t) == seed_triple
                        for t in _dest_triples(rec)):
                     source_row = rec
                     seed_consumed = True   # downstream BFS is now live
                     for t in _dest_triples(rec):
                         live[(t[0], t[2])] = tuple(t)
+                    terminal_reason = "source located (corrupted definer)"
                 continue
             if source_row is None and not seed_consumed:
                 # sn mode only: locate the source row (map mode reaches
@@ -410,14 +424,28 @@ def build_l3(component, l0_events, run_ctrace_path, coverage=None,
                         live[(t[0], t[2])] = tuple(t)
                 continue
 
-            # past the source row: window bounds first
-            if fdc is not None and rec.seq > fdc:
+            # past the source row: window bounds first. [FIX-RB round 2]
+            # The fdc bound applies only when it lies PAST the source
+            # row; fdc <= source seq means the SOURCE ITSELF is the first
+            # divergence -- the scan continues (run-side dataflow past
+            # the divergent source is real propagation evidence) with a
+            # caveat, instead of stopping at zero rows scanned.
+            if fdc is not None and fdc > source_row.seq \
+                    and rec.seq > fdc:
+                terminal_reason = ("fdc window: committed stream already "
+                                   "divergent past seq %d" % fdc)
                 break  # window end: committed stream already divergent
+            if fdc is not None and fdc <= source_row.seq:
+                _fdc_degenerate = True
             rows_scanned_after_source += 1
+            if scan_first_seq is None:
+                scan_first_seq, scan_first_tick = rec.seq, rec.tick
+            scan_last_seq, scan_last_tick = rec.seq, rec.tick
             if rows_scanned_after_source > max_rows:
                 truncated.append(
                     "row-scan budget (%d rows after the source) exhausted; "
                     "chain truncated at seq %d" % (max_rows, rec.seq))
+                terminal_reason = "row-scan budget exhausted"
                 break
 
             # consumer test BEFORE kill: a row may read the old value and
@@ -505,6 +533,15 @@ def build_l3(component, l0_events, run_ctrace_path, coverage=None,
             "n_l0_events": n_events,
             "n_l0_events_with_sn": n_with_sn,
             "rows_scanned_after_source": rows_scanned_after_source,
+            "scan_range": (None if scan_first_seq is None else
+                           {"first_seq": scan_first_seq,
+                            "last_seq": scan_last_seq,
+                            "first_tick": scan_first_tick,
+                            "last_tick": scan_last_tick}),
+            "terminal_reason": (terminal_reason or
+                                "map-entry scan ended before the corrupted "
+                                "definer committed (re-pointed, window "
+                                "end, or trace end)"),
             "first_divergent_commit": fdc_in,
             "coverage": coverage,
             "caveat": caveat,
@@ -552,7 +589,22 @@ def build_l3(component, l0_events, run_ctrace_path, coverage=None,
             "caveat": caveat,
         }
 
+    if terminal_reason is None:
+        terminal_reason = ("trace ended: no further committed rows past "
+                           "the source" if rows_scanned_after_source > 0
+                           else "no committed rows exist past the source")
+    if not hops and rows_scanned_after_source > 0 \
+            and terminal_reason.startswith("source located"):
+        terminal_reason = ("scanned %d rows past the source: every live "
+                           "key was killed by redefinition before any "
+                           "consumer read it"
+                           % rows_scanned_after_source)
     caveats = []
+    if _fdc_degenerate:
+        caveats.append("first_divergence seq %d <= source seq %d: the "
+                       "source row itself is the first divergence; the "
+                       "chain records the run-side dataflow past it"
+                       % (fdc, source_row.seq))
     if squash_events_seen == 0:
         caveats.append("no squash events in this trace: consumers that "
                        "were squashed before commit are invisible here "
@@ -595,6 +647,12 @@ def build_l3(component, l0_events, run_ctrace_path, coverage=None,
         "n_l0_events": n_events,
         "n_l0_events_with_sn": n_with_sn,
         "rows_scanned_after_source": rows_scanned_after_source,
+        "scan_range": (None if scan_first_seq is None else
+                       {"first_seq": scan_first_seq,
+                        "last_seq": scan_last_seq,
+                        "first_tick": scan_first_tick,
+                        "last_tick": scan_last_tick}),
+        "terminal_reason": terminal_reason,
         "first_divergent_commit": fdc_in,
         "coverage": coverage,
         "caveat": "; ".join(caveats) if caveats else "none",
