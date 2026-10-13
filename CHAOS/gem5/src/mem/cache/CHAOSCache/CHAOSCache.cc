@@ -3,6 +3,7 @@
 #include <random>
 #include <vector>
 
+#include "cpu/o3/CHAOSPropagation/CHAOSPropagation.hh"  // [LSU][OBS-L3] L3 registration
 #include "debug/CHAOSCache.hh"
 #include "mem/cache/base.hh"
 #include "mem/cache/cache_blk.hh"
@@ -45,6 +46,10 @@ namespace gem5
         if (victim_fault) {
             BaseCache::chaosVictimHook = this;
         }
+        // [LSU][OBS-L3] final funnel row (final counts; runs only on normal
+        // exit — aborts keep the last per-attack injection-time node, which
+        // is exactly why the per-attack rows exist).
+        registerExitCallback([this]() { noteFunnelAtInjection(); });
         if (probability != 0.0) {
             log_stream = simout.create("cache_injections.log", false, true);
             if (!log_stream || !log_stream->stream()) {
@@ -268,22 +273,48 @@ namespace gem5
     }
 
     void
+    CHAOSCache::noteFunnelAtInjection()
+    {
+        // [LSU][OBS-L3] funnel row with the counts as of NOW (legacy attack
+        // funnel: attempted = attack-event firings, eligible = firings that
+        // found >=1 valid block, injected = faults_injected_count). stdout
+        // stays untouched (W2.1 discipline) — the FUNNEL line goes to the
+        // injection log only; the abort-survivable copy is the prop-trace
+        // node (per-node gzflush).
+        if (CHAOSPropagation::instance())
+            CHAOSPropagation::instance()->noteFunnel(
+                "CHAOSCache", attack_attempts, attack_eligible,
+                faults_injected_count);
+        if (write_log && log_stream && log_stream->stream()) {
+            *(log_stream->stream()) << "FUNNEL: attempted=" << attack_attempts
+                << " eligible=" << attack_eligible
+                << " injected=" << faults_injected_count << std::endl;
+        }
+    }
+
+    void
     CHAOSCache::injectFault()
-    {   
+    {
+        // [LSU][OBS-L3] legacy attack funnel: this firing attempted an
+        // injection (attempted); eligible is counted below when a valid
+        // block was found.
+        ++attack_attempts;
         BaseTags* tags = getTags();
         unsigned blockSize = targetCache->getBlockSize();
-        
+
         std::vector<CacheBlk*> validBlocks;
-        
+
         tags->forEachBlk([&validBlocks](CacheBlk &blk) {
             if (blk.isValid()) {
                 validBlocks.push_back(&blk);
             }
         });
-        
+
         if (validBlocks.empty()) {
             warn("No valid block found\n");
         } else{
+            // [LSU][OBS-L3] this firing found >=1 valid block (eligible).
+            ++attack_eligible;
             // Directed target (report §六.3 'fixed-to'): if target_block_addr
             // is set, find the VALID block whose regenerated address matches
             // the block-aligned target. If not resident at injection time,
@@ -411,6 +442,11 @@ namespace gem5
                     targetBlk->insert({partner->getTag(), was_secure});
                     stats->numFaultsInjected++;
                     faults_injected_count++;
+                    // [LSU][OBS-L3] tag fault: inj node only (alias target
+                    // unknowable from the CPU side — chain honestly stops).
+                    if (CHAOSPropagation::instance())
+                        CHAOSPropagation::instance()->registerCacheFault(
+                            blockAddr, -2, blockSize, "tag");
                     if (write_log) {
                         *(log_stream->stream()) << "Tick: " << curTick()
                             << ", Cache Block Addr: " << blockAddr
@@ -423,6 +459,10 @@ namespace gem5
                 if (target_field == "valid") {
                     targetBlk->invalidate();
                     stats->numFaultsInjected++;
+                    // [LSU][OBS-L3] metadata fault: inj node only.
+                    if (CHAOSPropagation::instance())
+                        CHAOSPropagation::instance()->registerCacheFault(
+                            blockAddr, -2, blockSize, "valid");
                     if (write_log) {
                         *(log_stream->stream()) << "Tick: " << curTick()
                             << ", Cache Block Addr: " << blockAddr
@@ -444,6 +484,11 @@ namespace gem5
                     }
                     stats->numFaultsInjected++;
                     faults_injected_count++;
+                    // [LSU][OBS-L3] whole-block fault: every byte corrupt —
+                    // register the full block range (delivery tracking ON).
+                    if (CHAOSPropagation::instance())
+                        CHAOSPropagation::instance()->registerCacheFault(
+                            blockAddr, -1, blockSize, "data_shift");
                     if (write_log) {
                         *(log_stream->stream()) << "Tick: " << curTick()
                             << ", Cache Block Addr: " << blockAddr
@@ -459,6 +504,10 @@ namespace gem5
                     unsigned bit = (target_field == "dirty") ? 0x4 : 0x1;
                     targetBlk->setCoherenceBits(bit);
                     stats->numFaultsInjected++;
+                    // [LSU][OBS-L3] metadata fault: inj node only.
+                    if (CHAOSPropagation::instance())
+                        CHAOSPropagation::instance()->registerCacheFault(
+                            blockAddr, -2, blockSize, target_field.c_str());
                     if (write_log) {
                         *(log_stream->stream()) << "Tick: " << curTick()
                             << ", Cache Block Addr: " << blockAddr
@@ -516,6 +565,14 @@ namespace gem5
                 // uint8_t newValue = data[byteOffset];
                 stats->numFaultsInjected++;
 
+                // [LSU][OBS-L3] data fault on one byte: register the faulted
+                // byte with the propagation tracer (inj node + faulted-byte
+                // registry — delivery tracking ON; a later load/store whose
+                // range covers this byte gets mem_req/resp nodes).
+                if (CHAOSPropagation::instance())
+                    CHAOSPropagation::instance()->registerCacheFault(
+                        blockAddr, byteOffset, blockSize, "data");
+
                 if (write_log){
                     *(log_stream->stream())  << "Tick: " << curTick()
                         << ", Cache Block Addr: " << blockAddr
@@ -551,6 +608,10 @@ namespace gem5
                         default: break;
                     }
                     stats->numFaultsInjected++;  // count the paired fault too
+                    // [LSU][OBS-L3] paired-sector partner byte (own chain).
+                    if (CHAOSPropagation::instance())
+                        CHAOSPropagation::instance()->registerCacheFault(
+                            partnerAddr, byteOffset, blockSize, "data_paired");
                     if (write_log) {
                         *(log_stream->stream()) << "Tick: " << curTick()
                             << ", PAIRED Cache Block Addr: " << partnerAddr
@@ -566,6 +627,10 @@ namespace gem5
                                      chosen_fault_type_enum, /*is_paired=*/true);
                 }
             }
+
+            // [LSU][OBS-L3] one funnel row per attack that ran (log line is
+            // best-effort — lost on abort; the prop-trace node is durable).
+            noteFunnelAtInjection();
 
             // targetBlk->setCoherenceBits(CacheBlk::DirtyBit);
         }
@@ -652,6 +717,14 @@ namespace gem5
         if (mask == 0) mask = 0x80;
         data[off] ^= mask;
         faults_injected_count++;
+        // [LSU][OBS-L3] victim-path fault: inj node only — the corruption
+        // lives in the in-flight writeback payload (block_addr recorded for
+        // the chain bookkeeping; no delivery tracking, the chain honestly
+        // stops at inj). Attempted/eligible are not attack-event counters
+        // on this path — the funnel row uses the real legacy counters.
+        if (CHAOSPropagation::instance())
+            CHAOSPropagation::instance()->registerCacheFault(
+                pkt->getAddr(), -2, 0, "victim");
         if (write_log) {
             *(log_stream->stream()) << "Tick: " << curTick()
                 << ", Site: writebackBlk (victim path), pkt_addr=0x" << std::hex

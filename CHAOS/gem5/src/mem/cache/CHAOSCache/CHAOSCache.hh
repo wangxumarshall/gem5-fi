@@ -101,9 +101,25 @@ class CHAOSCache : public SimObject
     // LSU W6/W10: event-normalized trigger + L0 funnel
     ChaOSLsuTrigger *lsuTrigger = nullptr;
     ChaOSL0Funnel l0_funnel;
-    OutputStream *log_stream;
+    // [LSU][OBS-L3] nullptr default: the ctor only assigns log_stream when
+    // probability != 0, and the [OBS-L3] funnel helper reads it on every
+    // injection — the default-init makes that read defined (defensive; the
+    // write_log uses inside injectFault keep their existing guards).
+    OutputStream *log_stream = nullptr;
     // v1.2 Phase 14 (plan item 2): victim/writeback-path fault mode.
     bool victim_fault = false;
+
+    // [LSU][OBS-L3] real funnel counters for the legacy attack path
+    // (attempted = attack-event firings, eligible = firings that found
+    // >=1 valid block, injected = the existing faults_injected_count) +
+    // the funnel-row helper: one prop-trace funnel node (abort-survivable,
+    // per-node gzflush) + one best-effort FUNNEL line in the injection log
+    // (the log is a simout stream and is LOST on abort; the prop-trace node
+    // is the durable copy — central requirement: abort samples must carry
+    // attempted/eligible).
+    uint64_t attack_attempts = 0;
+    uint64_t attack_eligible = 0;
+    void noteFunnelAtInjection();
     
     static FaultType stringToFaultType(const std::string &s);
     const char* faultTypeToString(CHAOSCache::FaultType f);

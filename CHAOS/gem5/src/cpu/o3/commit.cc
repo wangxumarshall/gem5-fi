@@ -63,6 +63,11 @@
 // called from commitHead below (second hook, same anchor point as W2.1).
 // Non-circular for the same reason as the W2.1 include above.
 #include "cpu/o3/CHAOSMicroSnap/CHAOSMicroSnap.hh"
+// gem5-fi [LSU][OBS-L3]: full definition for the read-only L3 propagation
+// tracer called from commitHead below (third hook, same anchor point as
+// W2.1/W2.4). Non-circular for the same reason (CHAOSPropagation.hh
+// forward-declares o3::CPU/o3::DynInst and does not include commit.hh).
+#include "cpu/o3/CHAOSPropagation/CHAOSPropagation.hh"
 #include "cpu/o3/thread_state.hh"
 #include "cpu/timebuf.hh"
 #include "debug/Activity.hh"
@@ -1301,6 +1306,16 @@ Commit::commitHead(const DynInstPtr &head_inst, unsigned inst_num)
         // anchor point as the W2.1 trace so both observation layers see the
         // same commit stream. nullptr = no snapshot (zero regression).
         chaosMicroSnap->maybeSample(tid, head_inst.get());
+    }
+
+    /* gem5-fi [LSU][OBS-L3] */ if (chaosPropagation) {
+        // Read-only L3 propagation: commit-side taint propagation — consumer
+        // nodes when a source phys reg is in the tracer's taint set, first
+        // errant_commit, dest re-taint / clean-overwrite. Same anchor point
+        // as W2.1/W2.4 (after the commit-renameMap setEntry loop, before
+        // rob->retireHead) so all three observation layers see the same
+        // commit stream. nullptr = no tracer (zero regression).
+        chaosPropagation->noteCommit(tid, head_inst.get());
     }
 
     // hardware transactional memory

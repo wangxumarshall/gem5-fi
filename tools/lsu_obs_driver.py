@@ -45,6 +45,7 @@ OBS-8a（样本级并行 + slot_policy + acquire 重试，用户指令 2026-10-1
 """
 import argparse
 import hashlib
+import inspect
 import json
 import os
 import re
@@ -60,6 +61,7 @@ REPO = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import lsu_runner as LR
 import lsu_obs_core as OC
+import lsu_l3_propagation as LP   # [LSU][OBS-L3] COVERED_FAMILIES + parser
 import lsu_unit_pilot as UP
 
 GIB = 1024 ** 3
@@ -100,10 +102,23 @@ def _numactl_prefix():
     return []
 
 
-def _obs_args(ctrace_file, msnap_file):
-    return ["--chaos_ctrace", "--ctrace_file", str(ctrace_file),
+def _obs_args(ctrace_file, msnap_file, family=None, prop_trace_file=None):
+    """OBS 观测旗标：ctrace(L2)/msnap(L1) + [LSU][OBS-L3] 覆盖家族的
+    prop_trace(L3)。
+
+    [LSU][OBS-L3] family ∈ LP.COVERED_FAMILIES（addrpath/cache）且
+    prop_trace_file 给出时追加 --chaos_propagation/--prop_trace_file。
+    golden 不加（无故障 → 空 trace；golden obs_flags 保持稳定）；
+    未覆盖家族（lsqfwd/prefetch/exmon）不加 → obs_core 走 unsupported
+    （如实）。
+    """
+    args = ["--chaos_ctrace", "--ctrace_file", str(ctrace_file),
             "--chaos_msnap", "--msnap_every", str(MS_EVERY),
             "--msnap_file", str(msnap_file)]
+    if family in LP.COVERED_FAMILIES and prop_trace_file is not None:
+        args += ["--chaos_propagation",
+                 "--prop_trace_file", str(prop_trace_file)]
+    return args
 
 
 def _guard_env(slots=None):
@@ -305,8 +320,11 @@ class ObsDriver:
         cfg, args = LR.build_guard_cmd(m, staging, span=None)
         cmd = [str(LR.g5_path()), "--outdir", str(staging), cfg] + args
         if mode == "full":
+            # [LSU][OBS-L3] 覆盖家族（addrpath/cache）追加 prop_trace 旗标
             cmd += _obs_args(staging / "commit_trace.csv.gz",
-                             staging / "micro_snap.csv.gz")
+                             staging / "micro_snap.csv.gz",
+                             family=m["family"],
+                             prop_trace_file=staging / "prop_trace.csv.gz")
         cmd = _numactl_prefix() + cmd
         sample = f"s{s}"
         gem5_exit, gtxt = self._guard_run(
@@ -355,6 +373,24 @@ class ObsDriver:
                 fprobe["path"] = Path(fprobe["path"]).name
                 fprobe["path_note"] = "样本目录内相对名（staging 改名后仍有效）"
         l3 = OC.build_l3(m["family"], l2, inactive=inactive)
+        # [LSU][OBS-L3] 真实传播链 L3（纠偏指令 2026-10-13）：覆盖家族
+        #（addrpath/cache）+ full 模式 + prop_trace 存在 → 传播链解析。
+        # obs_core 已接 prop_trace_path 委托（B 侧）时走 OC.build_l3；
+        # 否则直连 LP.build_l3（同一实现，B 侧接线前的兼容回退——绝不
+        # 因 obs_core 未合入而退回 unsupported 假象）。未覆盖家族/未收集
+        # → obs_core 原路径（unsupported / N/A 如实）。
+        prop_path = staging / "prop_trace.csv.gz"
+        prop_collected = (mode == "full"
+                          and m["family"] in LP.COVERED_FAMILIES
+                          and prop_path.exists())
+        if prop_collected:
+            if "prop_trace_path" in inspect.signature(
+                    OC.build_l3).parameters:
+                l3 = OC.build_l3(m["family"], l2, inactive=inactive,
+                                 prop_trace_path=prop_path)
+            else:
+                l3 = LP.build_l3(m["family"], l2, prop_path,
+                                 inactive=inactive)
         l4 = OC.build_l4(l0, l1, l2, l5,
                          fault_msnap_path=staging / "micro_snap.csv.gz",
                          inactive=inactive) \
@@ -362,7 +398,11 @@ class ObsDriver:
             {"status": "not_collected(l0l5_mode)",
              "reason": self.obs_mode_for(m)[1]}
         files = []
-        for name in ("addrpath_injections.log", "commit_trace.csv.gz",
+        # [LSU][OBS-L3] prop_trace.csv.gz 入 files（sha256/bytes 溯源）；
+        # cache_injections.log = cache 家族（新覆盖）注入日志（FUNNEL 行
+        # 在此，best-effort；abort 存活副本在 prop_trace funnel 节点）。
+        for name in ("addrpath_injections.log", "prop_trace.csv.gz",
+                     "cache_injections.log", "commit_trace.csv.gz",
                      "micro_snap.csv.gz", "gem5.out", "l5_verdict.json"):
             p = staging / name
             if p.exists():
@@ -383,9 +423,19 @@ class ObsDriver:
             "obs_mode": mode,
             "coverage_scope": ("full_run" if mode == "full"
                                else "none_full_run_forbidden_pending_phaseB"),
+            # [LSU][OBS-L3] 该样本是否收集了传播链 trace（覆盖家族+full）
+            "prop_traced": bool(prop_collected),
         }
-        obs = OC.build_observation(identity, l0, l1, l2, l3, l4, l5,
-                                   replay_ev, files, degradations=degr)
+        # [LSU][OBS-L3] obs_core 已接 prop_trace_path（B 侧）时透传；
+        # 未接时按原签名调用（兼容回退，见上方 l3 分支注释）。
+        if prop_collected and "prop_trace_path" in inspect.signature(
+                OC.build_observation).parameters:
+            obs = OC.build_observation(identity, l0, l1, l2, l3, l4, l5,
+                                       replay_ev, files, degradations=degr,
+                                       prop_trace_path=prop_path)
+        else:
+            obs = OC.build_observation(identity, l0, l1, l2, l3, l4, l5,
+                                       replay_ev, files, degradations=degr)
         (staging / "observation.json").write_text(
             json.dumps(obs, ensure_ascii=False, indent=1))
         return obs
@@ -467,7 +517,9 @@ class ObsDriver:
                                        str(staging), cfg] + args
             if mode == "full":
                 cmd += _obs_args(staging / "commit_trace.csv.gz",
-                                 staging / "micro_snap.csv.gz")
+                                 staging / "micro_snap.csv.gz",
+                                 family=m["family"],
+                                 prop_trace_file=staging / "prop_trace.csv.gz")
             print(f"[dry] {m['item']} s{s} mode={mode}"
                   f"{f' reason={mode_reason}' if mode_reason else ''} "
                   f"golden={key[:8]}{'(cached)' if cached else '(new)'}")
