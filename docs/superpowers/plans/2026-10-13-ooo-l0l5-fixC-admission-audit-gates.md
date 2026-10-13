@@ -121,7 +121,7 @@ Rule semantics (all scoped to `isinstance(l0.activated, int) and activated > 0`)
   (`commit_diff.first_divergence` or `l2.first_divergent_commit` is a dict) and
   `commit_diff.run_instructions` is 0/None/missing.
 
-- [ ] **Step 1: Update + write the failing tests first**
+- [x] **Step 1: Update + write the failing tests first**
 
 In `tools/tests/test_ooo_chain_audit.py`:
 - `make_obs`: default `l3_status="ok"` (method `"proxy"`, fanout
@@ -243,11 +243,11 @@ def test_fixture12_l1_zero_snaps():
 
 Also update the module docstring fixture list (1–8 -> 1–12) and the `main()` call list.
 
-- [ ] **Step 2: Run tests, verify the new fixtures FAIL** (function not yet implemented)
+- [x] **Step 2: Run tests, verify the new fixtures FAIL** (function not yet implemented)
   Run: `python3 tools/tests/test_ooo_chain_audit.py`
   Expected: f9/f10/f11/f12 checks FAIL (violations missing); fixtures 1/3/7/8 PASS.
 
-- [ ] **Step 3: Implement in tools/ooo_chain_audit.py**
+- [x] **Step 3: Implement in tools/ooo_chain_audit.py**
 
 ```python
 SEMANTIC_GATE_VIOLATIONS = ("l3_unsupported_with_activation",
@@ -324,11 +324,11 @@ summary print in correction mode prefixes `[chain_audit][correction-mode]` and n
 violations quantify the correction backlog. Rules and exit codes are IDENTICAL in both
 modes (the flag changes tone/annotation only). Update the module docstring accordingly.
 
-- [ ] **Step 4: Run the full test file — ALL PASS**
+- [x] **Step 4: Run the full test file — ALL PASS**
   Run: `python3 tools/tests/test_ooo_chain_audit.py`
   Expected: `ALL PASS` (all fixtures incl. 1–12 and CLI edges).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 ```bash
 git add tools/ooo_chain_audit.py tools/tests/test_ooo_chain_audit.py \
         docs/superpowers/plans/2026-10-13-ooo-l0l5-fixC-admission-audit-gates.md
@@ -357,7 +357,7 @@ git commit -m "[OOO][FIX-C] chain-audit: five semantic-gate mandatory-FAIL rules
   observations with non-empty `semantic_gate_violations`).
 - Master handoff `totals` gains the sum of each new count.
 
-- [ ] **Step 1: Extend the test first** — in `tools/tests/test_ooo_handoff.py` after the
+- [x] **Step 1: Extend the test first** — in `tools/tests/test_ooo_handoff.py` after the
   existing `check("status-complete", ...)`:
 
 ```python
@@ -381,10 +381,10 @@ git commit -m "[OOO][FIX-C] chain-audit: five semantic-gate mandatory-FAIL rules
 (note: the md check must run after `write_campaign_handoff` further down — place the
 `split-md-discloses-backfill` check after the `files-written` check; `mp` is bound there.)
 
-- [ ] **Step 2: Run — verify FAIL** (`python3 tools/tests/test_ooo_handoff.py`; new checks
+- [x] **Step 2: Run — verify FAIL** (`python3 tools/tests/test_ooo_handoff.py`; new checks
   FAIL with KeyError `execution_status`).
 
-- [ ] **Step 3: Implement in ooo_handoff.py**
+- [x] **Step 3: Implement in ooo_handoff.py**
 
 In `build_campaign_handoff`:
 ```python
@@ -444,9 +444,9 @@ In `build_master_handoff` `totals` add:
                                           for p in per),
 ```
 
-- [ ] **Step 4: Run — ALL PASS** (`python3 tools/tests/test_ooo_handoff.py`).
+- [x] **Step 4: Run — ALL PASS** (`python3 tools/tests/test_ooo_handoff.py`).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 ```bash
 git add tools/ooo_handoff.py tools/tests/test_ooo_handoff.py
 git commit -m "[OOO][FIX-C] handoff: split execution vs chain status (execution_status/evidence_readable/chain_backfill_required/semantic_invalid)"
@@ -482,7 +482,7 @@ git commit -m "[OOO][FIX-C] handoff: split execution vs chain status (execution_
   `execution_complete_count` = parsed results.jsonl rows with a run_id (same definition as
   Task 2). Exit 0 when the report is written; 1 on AuditError (missing dir / no samples).
 
-- [ ] **Step 1: Write the failing test** — in `tools/tests/test_ooo_chain_audit.py`:
+- [x] **Step 1: Write the failing test** — in `tools/tests/test_ooo_chain_audit.py`:
 
 ```python
 def test_correction_audit():
@@ -538,17 +538,17 @@ def test_correction_audit():
 ```
 Add `test_correction_audit()` to `main()`.
 
-- [ ] **Step 2: Run — verify FAIL** (subcommand unknown → argparse error rc=2).
+- [x] **Step 2: Run — verify FAIL** (subcommand unknown → argparse error rc=2).
 
-- [ ] **Step 3: Implement** `correction_audit()` + CLI in `tools/ooo_chain_audit.py`
+- [x] **Step 3: Implement** `correction_audit()` + CLI in `tools/ooo_chain_audit.py`
   (reuses `discover_samples`, `audit_observation`; reads results.jsonl rows for
   `execution_complete_count`; writes correction_audit.json; prints a one-line summary
   `"[correction-audit] campaign=%s n=%d semantic_invalid=%d fake_divergence=%d
   l3_unsupported=%d l0_funnel_missing=%d chain_backfill_required=%s -> %s"`).
 
-- [ ] **Step 4: Run — ALL PASS** (`python3 tools/tests/test_ooo_chain_audit.py`).
+- [x] **Step 4: Run — ALL PASS** (`python3 tools/tests/test_ooo_chain_audit.py`).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 ```bash
 git add tools/ooo_chain_audit.py tools/tests/test_ooo_chain_audit.py
 git commit -m "[OOO][FIX-C] chain-audit: offline correction-audit subcommand (per-sample re-audit, correction_audit.json, originals untouched)"
@@ -579,7 +579,7 @@ Rules (per central brief):
   `first_divergence_from_empty_trace`);
 - chain_complete=false on 100% of samples → verdict must FAIL.
 
-- [ ] **Step 1: Update the self-test fixtures + add negatives (test first)**
+- [x] **Step 1: Update the self-test fixtures + add negatives (test first)**
 
 `_mk_eng2_obs` lifted to the strict contract: `l3` default
 `{"status": "ok", "method": "proxy", "fanout": {"upper_bound": 3}, "caveat":
@@ -673,10 +673,10 @@ New negatives after the existing ones in `_self_test_body`:
           and rep["overall"] == "FAIL", json.dumps(rep["items"]["chain"]))
 ```
 
-- [ ] **Step 2: Run — verify FAIL** (`python3 tools/tests/e2e/ooo_l0l5_admission.py
+- [x] **Step 2: Run — verify FAIL** (`python3 tools/tests/e2e/ooo_l0l5_admission.py
   --self-test`; happy path FAILs on the new "chain" item / unknown key, negatives FAIL).
 
-- [ ] **Step 3: Implement in run_admission** — add `"chain"` to the `item_fails` dict;
+- [x] **Step 3: Implement in run_admission** — add `"chain"` to the `item_fails` dict;
   after loading each sample's `obs`:
 
 ```python
@@ -701,12 +701,12 @@ already fail "observation"), and after the loop:
 ```
 Update the module docstring (per-sample item 7 "chain — semantic gates + all-false rule").
 
-- [ ] **Step 4: Run — ALL PASS** (`python3 tools/tests/e2e/ooo_l0l5_admission.py
+- [x] **Step 4: Run — ALL PASS** (`python3 tools/tests/e2e/ooo_l0l5_admission.py
   --self-test` → `ALL PASS`), and regression: `python3 tools/tests/e2e/ooo_l0l5_e2e.py
   --self-test` → `ALL PASS` (unaffected test, must stay green), plus re-run
   `python3 tools/tests/test_ooo_chain_audit.py` and `python3 tools/tests/test_ooo_handoff.py`.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 ```bash
 git add tools/tests/e2e/ooo_l0l5_admission.py
 git commit -m "[OOO][FIX-C] admission: chain item — semantic-gate + all-false-chain mandatory FAIL rules; happy fixtures lifted to strict contract"
@@ -716,10 +716,10 @@ git commit -m "[OOO][FIX-C] admission: chain item — semantic-gate + all-false-
 
 ### Task 5 (verification, no code commit): Real correction audits of the four formal campaigns
 
-- [ ] **Step 1:** Confirm `formal_D01-F0-W6-c` finished (results.jsonl == 385 rows and no
+- [x] **Step 1:** Confirm `formal_D01-F0-W6-c` finished (results.jsonl == 385 rows and no
   `ooo_sample_runner`/`ooo_scheduler` processes for it); if still running, wait and
   re-check (it progresses ~1 sample/2-4 min with 2 slots).
-- [ ] **Step 2:** Run for each of the four campaign dirs (from the worktree, against the
+- [x] **Step 2:** Run for each of the four campaign dirs (from the worktree, against the
   main-repo runs/ paths, frozen sha 1a618953...):
 ```bash
 python3 tools/ooo_chain_audit.py correction-audit --campaign-dir \
@@ -728,9 +728,51 @@ python3 tools/ooo_chain_audit.py correction-audit --campaign-dir \
   Expected (from the frozen-facts survey): semantic_invalid == n (all samples carry
   l3_unsupported_with_activation + l0_funnel_missing); fake_divergence_count == 38/99/147/96
   (D01-c count to be re-measured at completion); chain_backfill_required == true everywhere.
-- [ ] **Step 3:** Cross-check each generated `correction_audit.json` against the survey
+- [x] **Step 3:** Cross-check each generated `correction_audit.json` against the survey
   numbers (spot-check 3 per_sample entries incl. one fake-divergence Crash and one
   non-zero-trace Crash); record the four summaries verbatim in the final report.
-- [ ] **Step 4 (optional if repo policy requires):** no commit — correction_audit.json
+- [x] **Step 4 (optional if repo policy requires):** no commit — correction_audit.json
   files live in untracked runs/ dirs; the numbers go into the subagent report. If the
   lead wants them in-repo, that is the lead's call (artifacts/ dirs exist for this).
+
+---
+
+## Execution record (2026-10-13, Subagent-C)
+
+All 24 steps complete; 4 task commits on `ooo/l0l5-fixC` (base 2a25073), not pushed:
+
+- Task 1 `1e6a87a` — five semantic-gate rules + `--correction-mode` + `violation_counts`
+- Task 2 `83cc75a` — handoff execution/chain status split
+- Task 3 `4c5840e` — offline `correction-audit` subcommand
+- Task 4 `d5c4c4d` — admission gate chain item + all-false rule
+
+Verification (all real runs): `test_ooo_chain_audit.py` ALL PASS (67 checks),
+`test_ooo_handoff.py` ALL PASS, `ooo_l0l5_admission.py --self-test` ALL PASS
+(16 checks incl. 4 new chain negatives), `ooo_l0l5_e2e.py --self-test` ALL PASS
+(unaffected regression).
+
+Task 5 real correction audits (frozen gem5 sha `1a618953...`, originals untouched,
+each `correction_audit.json` written into the campaign dir; full evidence re-hash —
+`evidence_readable_count=385` in all four, no file-integrity violations, the defects
+are purely semantic):
+
+| campaign | n | semantic_invalid | fake_divergence | l3_unsupported | l0_funnel_missing | l1_zero_snaps | backfill |
+|---|---|---|---|---|---|---|---|
+| formal_D01-F0-W6-c | 385 | 385 | 38 | 385 | 385 | 0 | true |
+| formal_D02-F0-W6-b | 385 | 385 | 99 | 385 | 385 | 0 | true |
+| formal_D02-F0-W6-c | 385 | 385 | 147 | 385 | 385 | 0 | true |
+| formal_D04-F0-W4-d | 385 | 385 | 96 | 385 | 385 | 0 | true |
+
+Deltas vs plan (all minor, no scope change):
+- D01-c was still running at plan time (377 rows, 09:50); it reached 385/385 on its
+  own by 10:30 (scheduler exited) and was audited at completion — matches the
+  brief's frozen "385/385".
+- test-fixture polish during TDD: fixture-1 assertions flipped to the full-chain
+  contract; the handoff flip-test also fixes l2/l3/l1 for the flipped samples
+  (the Crash fixture's commit_diff gained `run_instructions` — without it the
+  strict `first_divergence_from_empty_trace` rule correctly kept flagging it);
+  the correction-audit fixture's Crash carries the full legacy shape (l3
+  unsupported + funnel null + empty trace) like the real campaigns.
+- D04-d has 9 honest real-partial Crash samples (run_instructions>0): correctly
+  NOT flagged as fake divergences; its fake-div 96 includes the campaign's one
+  Hang (empty trace), consistent with 104 Crash = 95 fake + 9 real.
