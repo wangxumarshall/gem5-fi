@@ -15,7 +15,14 @@ Honesty contract (task-book 2.5/2.7):
     evidence (l2 status not_observed_before_crash);
   * L3 fanout exists ONLY for the PRF (method=proxy + caveat); every
     other component is unsupported and costs chain_complete (gap L3);
-  * attempted/eligible funnel counts without a source are None, not 0.
+  * L0 funnel counts are REAL per-line counts of the injector's log
+    (fix-A Task 1): attempted = skip lines + injection lines, eligible =
+    injection lines (faults actually written), injected = the final
+    faults_injected counter, and the l0 block carries a `limited` note
+    naming what the C++ injectors do NOT log (gate rejections before
+    the log point), so attempted is a lower bound of hook-level
+    inspections. Without a log (no source) attempted/eligible are None,
+    never a silent 0.
 
 Vocabulary (one classifier, no drift): the L5 classes are wilson.py's
 ALL_CLASSES; the five MAIN outcomes of an activated fault in this track
@@ -162,10 +169,32 @@ def parse_injection_log(path, component):
     Marker-less logs (CHAOSPhysReg Cycle:-lines, ...) are counted with
     runner.py's exact exclusion rules.
 
-    Returns dict(injected, events, skips, eligible_count, attempted,
-    truncated, log_path, log_exists). attempted is always None (no
-    source today -- honest n/a); eligible_count comes from a
-    CHAOS_ELIGIBLE_COUNT= line when the injector wrote one.
+    Funnel semantics (fix-A Task 1, per-line real counts):
+      attempted = len(events) + len(skips) -- every LOGGED event the
+                  injector actually inspected (draw-passing events that
+                  reached the mode-specific check)
+      eligible  = len(events) -- injection event lines: events where a
+                  fault was actually WRITTEN
+      injected  = the final faults_injected counter value (marker logs)
+                  or the runner-style line count (marker-less logs)
+    LIMITED (honest scope note, also carried as l0.limited): the C++
+    injectors do NOT log events rejected before the log point -- the
+    injection-window gate, the max_faults cap, the geometric skip, the
+    probability draw, and the pre-draw cheap eligibility checks of
+    D01-D07 (see CHAOSDecode.cc maybeCorrupt/maybeCorruptEncoding) --
+    so `attempted` is a LOWER BOUND of hook-level inspections, not the
+    hook invocation count. The log distinguishes attempted from eligible
+    exactly (skip lines carry the unchanged counter, injection lines the
+    incremented one), so neither count is null when a log exists.
+
+    A missing log is NO SOURCE: attempted/eligible are None (honest
+    n/a), never a silent 0. eligible_count is a SEPARATE injector
+    self-reported counter from a CHAOS_ELIGIBLE_COUNT= line (written at
+    teardown by CHAOSLSQFwd/CHAOSExec only; CHAOSDecode never writes
+    one).
+
+    Returns dict(injected, events, skips, eligible_count, eligible,
+    attempted, truncated, log_path, log_exists).
     """
     log_path = path
     if os.path.isdir(path):
@@ -175,8 +204,8 @@ def parse_injection_log(path, component):
         log_path = os.path.join(path, LOG_FOR_COMPONENT[component])
     if not os.path.exists(log_path):
         return dict(injected=0, events=[], skips=[], eligible_count=None,
-                    attempted=None, truncated=False, log_path=log_path,
-                    log_exists=False)
+                    eligible=None, attempted=None, truncated=False,
+                    log_path=log_path, log_exists=False)
     with open(log_path, "r", errors="replace") as f:
         text = f.read()
     events, skips = [], []
@@ -226,7 +255,8 @@ def parse_injection_log(path, component):
     if last_counter is None:
         injected = len(events)  # runner-style line counting
     return dict(injected=injected, events=events, skips=skips,
-                eligible_count=eligible, attempted=None, truncated=False,
+                eligible_count=eligible, eligible=len(events),
+                attempted=len(events) + len(skips), truncated=False,
                 log_path=log_path, log_exists=True)
 
 # ------------------------------------------------------------- conservation
@@ -444,6 +474,17 @@ def validate_observation(obs):
          "l0.activated must be int (landed injection count)")
     need(0 <= (l0.get("activated") or 0) <= (l0.get("injected") or 0),
          "l0.activated must be within [0, l0.injected]")
+    # fix-A Task 1 funnel invariant, checked only when every count is an
+    # int (a missing log leaves attempted/eligible None -- no source, no
+    # check; legacy observations without `eligible` also skip it)
+    funnel = [l0.get(k) for k in ("attempted", "eligible", "injected",
+                                  "activated")]
+    if all(isinstance(x, int) for x in funnel):
+        need(funnel[0] >= funnel[1] >= funnel[2] >= funnel[3],
+             "l0 funnel invariant violated: attempted=%s < eligible=%s < "
+             "injected=%s < activated=%s must be monotone "
+             "attempted >= eligible >= injected >= activated"
+             % tuple(funnel))
     l5 = obs.get("l5") or dict()
     cls = l5.get("classification")
     need(cls in KNOWN_CLASSES,
@@ -554,23 +595,50 @@ def l0_block_from(path, component):
     """Assemble the observation's l0 block from the injector log.
     `path` is the gem5 result dir (or the log file), per
     parse_injection_log. A missing log is status=no_log with a zero
-    funnel -- honest: nothing was attempted/landed."""
+    injected count and attempted/eligible=None (no source -- honest
+    n/a, never a silent 0).
+
+    activated derivation (fix-A Task 1 docstring mandate): this track
+    is single-fault, so activated := injected. The classification-aware
+    rule "0 if classification == Inactive else injected" gives the same
+    value on every VALID sample: validate/conservation require
+    Inactive => injected == 0 (an Inactive sample with a landed fault
+    is a conservation violation and is quarantined, never published),
+    so the Inactive branch collapses to activated == injected == 0.
+    l5.conservation.activated MUST equal this value (checked by
+    validate).
+
+    `limited` names the honest scope of the funnel counts: the C++
+    injectors do not log events rejected before the log point (window
+    gate, max_faults cap, geometric skip, probability draw, pre-draw
+    cheap eligibility), so attempted/eligible count LOGGED events only
+    and attempted is a lower bound of hook-level inspections.
+    """
     funnel = parse_injection_log(path, component)
     if funnel["log_exists"]:
         status = "ok"
         log_sha = sha256_file(funnel["log_path"])
+        limited = ("attempted/eligible count LOGGED events only (marker "
+                   "lines: injection events + honest skips); the C++ "
+                   "injectors do not log gate rejections before the log "
+                   "point (injection-window, max_faults cap, geometric "
+                   "skip, probability draw, pre-draw cheap eligibility "
+                   "for D01-D07), so attempted is a lower bound of "
+                   "hook-level inspections; eligible == injection event "
+                   "lines == faults actually written")
     else:
         status = "no_log"
         log_sha = None
+        limited = ("no injector log retained: attempted/eligible have no "
+                   "source (None, honest n/a)")
     return dict(
         status=status, component=component,
         log_name=os.path.basename(funnel["log_path"]),
         log_sha256=log_sha, injected=funnel["injected"],
-        # landed injection count (single-fault decode/rat track:
-        # activated := injected; Inactive -> 0). l5.conservation.
-        # activated MUST equal this value (checked by validate).
         activated=funnel["injected"],
         eligible_count=funnel["eligible_count"],
+        eligible=funnel["eligible"],
         attempted=funnel["attempted"], events=funnel["events"],
         skips=funnel["skips"], skip_lines=len(funnel["skips"]),
+        limited=limited,
         truncated=funnel["truncated"])

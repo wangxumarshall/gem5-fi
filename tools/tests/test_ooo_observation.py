@@ -81,8 +81,14 @@ def test_parse_injection_log():
     check("decode-success-bits", ev["bits"] == "[2]", ev)
     check("decode-success-raw", "faults_injected: 1" in ev["raw"])
     check("decode-success-no-skips", len(r["skips"]) == 0)
-    check("decode-success-attempted-none", r["attempted"] is None)
-    check("decode-success-eligible-none", r["eligible_count"] is None)
+    # [FIX-A Task 1] real per-line funnel counts (semantics change per the
+    # central fix-A mandate; the old pin was attempted is None):
+    # 1 injection line, 0 skip lines -> attempted=1, eligible=1
+    check("decode-success-attempted", r["attempted"] == 1, r["attempted"])
+    check("decode-success-eligible", r["eligible"] == 1, r["eligible"])
+    # eligible_count stays None: CHAOSDecode never writes a
+    # CHAOS_ELIGIBLE_COUNT= line (only CHAOSLSQFwd/CHAOSExec do)
+    check("decode-success-eligible-count-none", r["eligible_count"] is None)
 
     # 2. skip-then-success: marker-wins (injected=1), one event, one skip
     d, p = wtmp(DECODE_SKIP_THEN_SUCCESS)
@@ -92,6 +98,10 @@ def test_parse_injection_log():
           r["events"][0]["pc"] == "0x40c220", r["events"])
     check("skipthen-skips", len(r["skips"]) == 1 and
           r["skips"][0]["pc"] == "0x40c21c", r["skips"])
+    # [FIX-A Task 1] funnel: 1 skip + 1 injection line were inspected;
+    # only the injection line wrote a fault
+    check("skipthen-attempted", r["attempted"] == 2, r["attempted"])
+    check("skipthen-eligible", r["eligible"] == 1, r["eligible"])
 
     # 3. skip-only RAT log: injected=0, two skips, activated side = 0
     d, p = wtmp(RAT_SKIP_ONLY, name="rename_injections.log")
@@ -103,6 +113,9 @@ def test_parse_injection_log():
           "(3,4) — flipped idx 52 out of [0,48) (skipped, no clamp)",
           r["skips"][0])
     check("rat-skip-class", r["skips"][0]["class"] == "vec", r["skips"][0])
+    # [FIX-A Task 1] skip-only log: 2 events inspected, 0 faults written
+    check("rat-skips-attempted", r["attempted"] == 2, r["attempted"])
+    check("rat-skips-eligible", r["eligible"] == 0, r["eligible"])
 
     # 4. eligible count line is honored when present
     d, p = wtmp(ELIGIBLE_LOG)
@@ -118,6 +131,15 @@ def test_parse_injection_log():
     except ValueError:
         check("unknown-component-raises", True)
 
+    # 5b. missing log: no source -> attempted/eligible are honest None,
+    # never a silent 0 (module honesty contract)
+    d2 = tempfile.mkdtemp(prefix="obs-nolog-")
+    r = om.parse_injection_log(d2, "decode")
+    check("nolog-exists-false", r["log_exists"] is False, r)
+    check("nolog-injected-zero", r["injected"] == 0, r)
+    check("nolog-attempted-none", r["attempted"] is None, r)
+    check("nolog-eligible-none", r["eligible"] is None, r)
+
     # 6. physreg-style marker-less log: runner counting rules (line count)
     d, p = wtmp("Cycle: 1000, PhysReg[12] (int) bit 3 flipped\n"
                 "ReadTracePoll: t=1000\n"
@@ -126,6 +148,8 @@ def test_parse_injection_log():
     r = om.parse_injection_log(d, "physreg")
     check("physreg-line-count", r["injected"] == 2, r)
     check("physreg-poll-excluded", len(r["events"]) == 2, r)
+    check("physreg-attempted", r["attempted"] == 2, r["attempted"])
+    check("physreg-eligible", r["eligible"] == 2, r["eligible"])
 
 
 def _ctrace_line(seq, tick, val="0000000000000000"):
@@ -464,6 +488,56 @@ def test_observation_top_level_shape():
     check("json-roundtrip-validate", ok, viol)
 
 
+def test_l0_funnel_invariant_and_limited():
+    """[FIX-A Task 1] the L0 funnel must be monotone
+    attempted >= eligible >= injected >= activated whenever all four are
+    ints, and the l0 block must carry the honest `limited` scope note
+    (gate rejections before the log point are not logged by the C++
+    injectors, so attempted is a lower bound)."""
+    # (a) a well-formed funnel passes validate
+    ctx = make_ctx("Masked", 1, component="decode")
+    ctx["l0"].update(dict(attempted=3, eligible=2))
+    obs = om.build_observation(ctx)
+    check("funnel-ok-no-violations",
+          not any("funnel" in v for v in obs["violations"]),
+          obs["violations"])
+    # (b) eligible > attempted -> violation
+    ctx = make_ctx("Masked", 1, component="decode")
+    ctx["l0"].update(dict(attempted=1, eligible=2))
+    obs = om.build_observation(ctx)
+    check("funnel-eligible-gt-attempted",
+          any("funnel" in v for v in obs["violations"]), obs["violations"])
+    # (c) injected > eligible -> violation
+    ctx = make_ctx("Masked", 1, component="decode")
+    ctx["l0"].update(dict(attempted=3, eligible=0))
+    obs = om.build_observation(ctx)
+    check("funnel-injected-gt-eligible",
+          any("funnel" in v for v in obs["violations"]), obs["violations"])
+    # (d) None attempted (no source / legacy obs) skips the check
+    ctx = make_ctx("Masked", 1, component="decode")
+    obs = om.build_observation(ctx)
+    check("funnel-none-skips-check",
+          not any("funnel" in v for v in obs["violations"]),
+          obs["violations"])
+    # (e) l0_block_from on a real log: real counts + limited note
+    d, p = wtmp(DECODE_SKIP_THEN_SUCCESS)
+    blk = om.l0_block_from(d, "decode")
+    check("l0blk-attempted", blk["attempted"] == 2, blk["attempted"])
+    check("l0blk-eligible", blk["eligible"] == 1, blk["eligible"])
+    check("l0blk-injected", blk["injected"] == 1, blk["injected"])
+    check("l0blk-activated-derivation",
+          blk["activated"] == blk["injected"], blk)
+    check("l0blk-limited-note",
+          isinstance(blk.get("limited"), str) and blk["limited"],
+          blk.get("limited"))
+    # (f) missing log -> status no_log, funnel None + honest note
+    d2 = tempfile.mkdtemp(prefix="obs-nolog2-")
+    blk = om.l0_block_from(d2, "decode")
+    check("l0blk-nolog-status", blk["status"] == "no_log", blk)
+    check("l0blk-nolog-attempted-none", blk["attempted"] is None, blk)
+    check("l0blk-nolog-eligible-none", blk["eligible"] is None, blk)
+
+
 def main():
     print("test_parse_injection_log:")
     test_parse_injection_log()
@@ -475,6 +549,8 @@ def main():
     test_chain_completeness_three_states()
     print("test_validate_rules:")
     test_validate_rules()
+    print("test_l0_funnel_invariant_and_limited:")
+    test_l0_funnel_invariant_and_limited()
     print("test_build_observation_missing_block:")
     test_build_observation_missing_block()
     print("test_observation_top_level_shape:")
