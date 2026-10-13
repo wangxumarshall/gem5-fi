@@ -1,18 +1,33 @@
 #!/usr/bin/env python3
-"""lsu_obs_core.py — LSU L0-L5 观测链核心（OBS 计划 T2，用户指令 2026-10-12 二）。
+"""lsu_obs_core.py — LSU L0-L5 观测链核心（OBS 计划 T2；纠偏轮契约 v2，中央指令 2026-10-13）。
 
 纯函数库（无 gem5 依赖）：每样本 observation.json 的组装、校验与原子落盘。
 
-层级语义（用户指令 2026-10-12 二.2-二.4 钉死；生产者/消费者契约见各工具头）：
-  L0 注入漏斗与注入明细（stdout CHAOS_LSU_TRIGGER + <family>_injections.log）
+层级语义（用户指令 2026-10-12 二.2-二.4 钉死；纠偏轮 2026-10-13 补钉）：
+  L0 注入漏斗与注入明细（stdout CHAOS_LSU_TRIGGER / 注入日志 FUNNEL 行 /
+     <family>_injections.log Site 行；四字段 attempted/eligible/injected/
+     activated 任一为 None → violation l0_incomplete）
   L1 µarch 影子快照比对（tools/micro_diff.py diff()，msnap=W2.4 契约）
   L2 提交流比对（tools/commit_diff.py compare()，ctrace=W2.1 契约，五分类）
-  L3 传播证据：fanout 仅 PRF 可用（method=proxy）；非 PRF 家族 = unsupported
+  L3 传播证据：prop_trace_path 非空 → 委托 lsu_l3_propagation（A 的模块，
+     method="propagation_trace"）；PRF fanout proxy 分支保留（诚实记录）但
+     chain_complete 拒绝 proxy；非 PRF 家族无传播 trace = unsupported
      + chain_complete=false（辅助 commit 足迹单列，绝不冒充传播证据）
-  L4 首次检测/异常点与距 L0 延迟；detector 未接线（W6）→ detected_na=true，
+  L4 首次可验证异常（l4_source="first_verifiable_anomaly"，优先级
+     L3 evidence.first_errant_commit > L2 first_errant > L1 first_divergence）
+     与距 L0 延迟；无硬件检测器 → detector="not_present"、detected_na=true，
      绝不以 detected_na 冒充 Detected/Contained
   L5 九分类 = 五类结局（lsu_l5_classify）+ 首检四类（Hardware RAS/OS/
      Application/None，总方针 §32"首检来源必须且只能是…中的一项"）
+
+顶层四状态拆分（纠偏轮 2026-10-13，campaign 执行完成 ≠ chain_complete）：
+  execution_complete  guard run-finish 周期完整 且 L5 结局有效
+  evidence_complete   violations 空 + L0 四字段齐 + activated>0 时 L1/L2
+                      fault trace 可读 + L4 有首异常或诚实终态
+  chain_complete      activated>0 时 L1/L2/L4 complete（含 not_observed_*
+                      诚实终态）且 L3 complete 且 method=="propagation_trace"
+                      （proxy 不再计入）；activated=0 规则不变
+  needs_backfill      missing_levels 非空（L1-L5 中非 complete/诚实 N/A）
 
 诚实规则（硬编码，违反即 violation/degradation，绝不静默）：
   * activated=0 → L1-L4 全部 "N/A(inactive_no_activation)"
@@ -23,6 +38,8 @@
 落盘协议：一切先写 <sample>.staging/，finalize_sample 校验后 os.rename 成
 正式目录并写 COMPLETE；已有 COMPLETE 的目录只读核验（verify_complete），
 绝不覆盖；无 COMPLETE 的残留目录 quarantine 改名保留证据。
+v1 兼容：v1 样本（lsu-observation-v1，如 obs_e2e_20261012）不含 v2 字段，
+属纠偏前历史证据；按 v2 规则重算 chain_complete 会如实得出不同结论。
 """
 import fcntl
 import gzip
@@ -41,7 +58,7 @@ sys.path.insert(0, str(_HERE))          # commit_diff / micro_diff
 import commit_diff                       # noqa: E402  L2 五分类比对器（W2.2）
 import micro_diff                        # noqa: E402  L1 影子快照比对器（W2.4）
 
-SCHEMA = "lsu-observation-v1"
+SCHEMA = "lsu-observation-v2"
 COMPLETE = "COMPLETE"
 GZIP_MAGIC = b"\x1f\x8b"
 
@@ -158,6 +175,11 @@ def gz_probe(path):
 # ---------------------------------------------------------------- L0
 _FUNNEL_RE = re.compile(
     r"CHAOS_LSU_TRIGGER: .*?attempted=(\d+) eligible=(\d+) injected=(\d+)")
+# 注入日志 FUNNEL 行（纠偏轮 v2，中央指令 2026-10-13）：注入器在注入时写入
+# <family>_injections.log；abort 样本到不了 exit callback（stdout 无
+# CHAOS_LSU_TRIGGER 行），此行可存活 → attempted/eligible 由此补全。
+_FUNNEL_LOG_RE = re.compile(
+    r"FUNNEL: attempted=(\d+) eligible=(\d+) injected=(\d+)")
 # 注入行契约（addrpath/lsqfwd 等家族共用日志格式，见 s319 实测行）：
 #   Tick: 887040, Site: lsq_sendFragmentToTranslation, mode=low_bit_flip,
 #   old_vaddr=0x7ffffefd00, new_vaddr=0x87ffffefd00, faults_injected: 1 ...
@@ -168,11 +190,15 @@ _INJ_RE = re.compile(
 
 
 def parse_l0(stdout_text, injlog_text, source_names=("stdout", "injections.log")):
-    """L0：漏斗三元组 + 逐注入明细。
+    """L0：漏斗四元组之源 + 逐注入明细（纠偏轮 v2，中央指令 2026-10-13）。
 
-    abort 路径回退与 lsu_l5_classify 同口径：abort/abort-class 运行到不了
-    exit callback，stdout 无 funnel 行 → injected 取注入日志 Site 行计数
-    （attempted/eligible 诚实记 None，不猜）。两者皆无 → violation。
+    funnel 源优先级：stdout CHAOS_LSU_TRIGGER > 注入日志 FUNNEL 行（abort
+    样本补全路径，funnel_source 记 "injections.log:FUNNEL"）> Site 行计数
+    回退（attempted/eligible 诚实记 None）。四字段中本函数可判的三个
+    （attempted/eligible/injected；activated 由 build_observation 从 L5
+    verdict 回填）任一为 None → violation l0_incomplete——不再允许 abort
+    回退只有 injected；真缺就是 violation（审计 FAIL），abort 样本经
+    FUNNEL 行补全。
     """
     out = {"attempted": None, "eligible": None, "injected": None,
            "activated": None, "funnel_source": None,
@@ -196,20 +222,30 @@ def parse_l0(stdout_text, injlog_text, source_names=("stdout", "injections.log")
             "raw": line,
         })
     m = _FUNNEL_RE.search(stdout_text or "")
+    ml = _FUNNEL_LOG_RE.search(injlog_text or "")
     if m:
         out["attempted"], out["eligible"], out["injected"] = \
             (int(x) for x in m.groups())
         out["funnel_source"] = source_names[0]
-        if out["injected"] and not out["injections"]:
-            out["violations"].append(
-                "injections_log_missing: funnel injected>0 但注入日志无 Site 行")
+    elif ml:
+        out["attempted"], out["eligible"], out["injected"] = \
+            (int(x) for x in ml.groups())
+        out["funnel_source"] = f"{source_names[1]}:FUNNEL"
     elif out["injections"]:
-        # abort 回退（lsu_l5_classify 同款）：injected = Site 行计数
+        # Site 行计数回退（lsu_l5_classify 同款）：injected 如实计数，
+        # attempted/eligible 保持 None → 下方 l0_incomplete violation。
         out["injected"] = len(out["injections"])
         out["funnel_source"] = f"injection-log-fallback({source_names[1]})"
     else:
         out["violations"].append(
-            "funnel_missing: stdout 无 CHAOS_LSU_TRIGGER 行且注入日志无 Site 行")
+            "funnel_missing: stdout 无 CHAOS_LSU_TRIGGER 行、注入日志无 "
+            "FUNNEL 行且无 Site 行")
+    if out["injected"] and not out["injections"] and (m or ml):
+        out["violations"].append(
+            "injections_log_missing: funnel injected>0 但注入日志无 Site 行")
+    for k in ("attempted", "eligible", "injected"):
+        if out[k] is None:
+            out["violations"].append(f"l0_incomplete: {k}")
     return out
 
 
@@ -220,6 +256,7 @@ def first_detection_source(l5):
     Masked/SDC/Timeout = 无检测（None）；guest crash = OS（内核陷入可见）；
     simulator_assert = 模拟器 DUE（非架构检测，按 None 记并加 note——
     audit() 本就将其单列于五类之外）；真 detector 接线后由此处替换。
+    纠偏轮 2026-10-13：note 显式补 "no hardware detector present"。
     """
     outcome = (l5 or {}).get("outcome")
     note = None
@@ -232,7 +269,9 @@ def first_detection_source(l5):
     else:
         src = "None"
     if (l5 or {}).get("detected_na"):
-        note = (note + "; " if note else "") + "no detector wired (W6): detected_na=true, never counted as Detected"
+        note = (note + "; " if note else "") + \
+            "no hardware detector present (W6): detected_na=true, " \
+            "never counted as Detected"
     return src, note
 
 
@@ -378,15 +417,21 @@ def build_l2(ref_path, fault_path, l5=None, tick_tol=0, inactive=False):
     return entry
 
 
-def build_l3(family, l2, prf_only=("physreg",), method=None, inactive=False):
-    """L3：传播证据。非 PRF 家族 = unsupported（用户指令 2026-10-12 二.3）。
+def build_l3(family, l2, inactive=False, prop_trace_path=None,
+             prf_only=("physreg",), method=None):
+    """L3：传播证据（纠偏轮 v2，中央指令 2026-10-13）。
 
+    * prop_trace_path 非空 → 委托 A 的 lsu_l3_propagation.build_l3(family,
+      l2, prop_trace_path, inactive)（method="propagation_trace" 口径）；
+      本仓无该模块时优雅回退 unsupported+原因（传播证据真缺，绝不伪造
+      complete）。A 的返回结构：{"status": "complete"|"unsupported"|...,
+      "method", "correlation_keys", "evidence", "caveats"}。
+    * PRF fanout proxy 分支保留（诚实记录 upper-bound 口径），但
+      chain_complete 判定拒绝 proxy（中央明令"L3 不再是 unsupported/proxy"）。
+    * 非 PRF 家族且无传播 trace = unsupported（用户指令 2026-10-12 二.3）。
     auxiliary_commit_footprint 是 L2 副产品（分歧点统计），单列呈现，
     明确不冒充 source-read/动态指令关联/传播 tag。
     """
-    if inactive:
-        return {"status": "N/A(inactive_no_activation)",
-                "reason": "activated=0（用户指令 2026-10-12 二.4）"}
     cd = (l2 or {}).get("commit_diff") or {}
     aux = {
         "n_divergence_points": cd.get("total_divergence_points"),
@@ -394,6 +439,22 @@ def build_l3(family, l2, prf_only=("physreg",), method=None, inactive=False):
         "first_errant_seq": (cd.get("first_errant_commit") or {}).get("seq"),
         "note": "L2 commit 足迹副产品；不是传播证据（不冒充）",
     }
+    if prop_trace_path is not None:
+        try:
+            import lsu_l3_propagation as L3P   # A 的模块（并行开发中）
+        except ImportError as e:
+            if inactive:
+                return {"status": "N/A(inactive_no_activation)",
+                        "reason": "activated=0（用户指令 2026-10-12 二.4）"}
+            return {"status": "unsupported", "method": None,
+                    "reason": (f"propagation_trace 委托不可用："
+                               f"lsu_l3_propagation 导入失败（{e}）——"
+                               f"传播证据真缺，绝不伪造 complete"),
+                    "auxiliary_commit_footprint": aux}
+        return L3P.build_l3(family, l2, prop_trace_path, inactive)
+    if inactive:
+        return {"status": "N/A(inactive_no_activation)",
+                "reason": "activated=0（用户指令 2026-10-12 二.4）"}
     if family in prf_only and method == "fanout_proxy":
         return {"status": "complete", "method": "proxy",
                 "caveat": "fanout.py PRF proxy: upper-bound liveness window, "
@@ -418,20 +479,37 @@ def _msnap_tick_at(fault_msnap_path, snap_seq):
     return None
 
 
-def build_l4(l0, l1, l2, l5, fault_msnap_path=None, inactive=False):
-    """L4：首次检测/异常点与距 L0 延迟。detector 未接线 → detected_na。"""
+def build_l4(l0, l1, l2, l5, fault_msnap_path=None, inactive=False, l3=None):
+    """L4：首次可验证异常与距 L0 延迟（纠偏轮 v2，中央指令 2026-10-13）。
+
+    detector 语义显式化：无硬件检测器 → detector="not_present"（原
+    "none_wired"）、detected=false、detected_na=true——绝不伪造 detected。
+    主信号 l4_source="first_verifiable_anomaly"：first_anomaly 按证据强度
+    优先级取 L3 evidence.first_errant_commit（A 的传播 trace，若给出）>
+    L2 first_errant_commit > L1 first_divergence_snap_seq。不再按最早 tick
+    混排：L1 µarch 分歧常早于首个错误提交，但可验证性弱于 commit 级/
+    传播级证据（中央钉死优先级）。
+    """
     if inactive:
         return {"status": "N/A(inactive_no_activation)",
                 "reason": "activated=0（用户指令 2026-10-12 二.4）"}
     out = {
         "status": "complete",
-        "detector": "none_wired", "detected": False, "detected_na": True,
+        "detector": "not_present", "detected": False, "detected_na": True,
+        "l4_source": "first_verifiable_anomaly",
         "first_anomaly": None,
         "note": "LSU Detected/Contained 需真实 detector 信号（W6）；"
-                "detected_na=true 绝不冒充 Detected（用户指令 2026-10-12 二.3）",
+                "no hardware detector present：detected_na=true 绝不冒充 "
+                "Detected（用户指令 2026-10-12 二.3 / 纠偏 2026-10-13）",
     }
     inj_tick = (l0["injections"][0]["tick"] if l0.get("injections") else None)
     candidates = []
+    # L3：A 的传播 trace 证据（委托返回结构 evidence.first_errant_commit；
+    # 模块缺失/未给 first_errant 时无此候选——防御式读取，不猜形状）
+    l3e = ((l3 or {}).get("evidence") or {}).get("first_errant_commit")
+    if isinstance(l3e, dict) and l3e:
+        candidates.append({"source": "L3", "tick": l3e.get("tick"),
+                           "seq": l3e.get("seq")})
     # BUG-6 修复（BUG-4 修复引入）：not_observed 条目的 commit_diff=None——
     # dict.get(k, {}) 的默认值只在键缺失时生效，键存在且为 None 时返回 None
     # → 必须 or {} 兜底（2026-10-12 恢复链 s416 重跑实测 AttributeError）
@@ -441,13 +519,12 @@ def build_l4(l0, l1, l2, l5, fault_msnap_path=None, inactive=False):
                            "seq": l2f.get("seq")})
     l1d = ((l1 or {}).get("micro_diff") or {}).get("first_divergence_snap_seq")
     if l1d is not None:
-        candidates.append({"source": "L1", "snap_seq": l1d,
-                           "tick": (_msnap_tick_at(fault_msnap_path, l1d)
-                                    if fault_msnap_path else None)})
+        candidates.append({"source": "L1", "snap_seq": l1d, "tick": None})
     if candidates:
-        # 首异常 = 最早 tick 的可观测分歧（tick 缺失时按来源优先级 L2>L1）
-        c = sorted(candidates, key=lambda x: (x.get("tick") is None,
-                                              x.get("tick") or 0))[0]
+        # 首异常 = 最高可验证性来源（L3 > L2 > L1；中央指令 2026-10-13）
+        c = candidates[0]
+        if c["source"] == "L1" and fault_msnap_path:
+            c["tick"] = _msnap_tick_at(fault_msnap_path, l1d)
         if c.get("tick") is not None and inj_tick is not None:
             c["latency_ticks_from_first_injection"] = \
                 max(0, c["tick"] - inj_tick)
@@ -456,9 +533,87 @@ def build_l4(l0, l1, l2, l5, fault_msnap_path=None, inactive=False):
 
 
 # ---------------------------------------------------------------- assembly
+# L1-L4 诚实 N/A 终态：非 complete，但补跑也无法改变（inactive 无激活 /
+# crash/timeout 早终止——证据状态本身是诚实的终局，不是待补数据）
+_HONEST_NA_STATES = ("N/A(inactive_no_activation)",
+                     "not_observed_before_crash",
+                     "not_observed_before_timeout")
+
+
+def missing_levels(o):
+    """L1-L5 中状态非 complete/诚实 N/A 的层级列表（needs_backfill 依据）。
+
+    纠偏轮 v2（中央指令 2026-10-13）：not_collected(l0l5_mode)/unsupported/
+    error → 待补跑；L3 的 complete 以 v2 口径为准（status=="complete" 且
+    method=="propagation_trace"——proxy 是诚实单列的证据但不构成完整链，
+    需传播 trace 补跑）；L5 无有效结局（error/INCONCLUSIVE/缺）→ L5 计入。
+    L0 不在本列表（其完整性由 violations 的 l0_incomplete 表达）。
+    """
+    missing = []
+    for lv in ("L1", "L2", "L3", "L4"):
+        st = (o.get(lv) or {}).get("status")
+        if st in _HONEST_NA_STATES:
+            continue
+        if lv == "L3":
+            if st != "complete" or (o.get("L3") or {}).get("method") \
+                    != "propagation_trace":
+                missing.append(lv)
+            continue
+        if st != "complete":
+            missing.append(lv)
+    l5 = o.get("L5") or {}
+    if l5.get("error") or l5.get("outcome") in (None, "INCONCLUSIVE"):
+        missing.append("L5")
+    return missing
+
+
+def _execution_complete(l5):
+    """guard run-finish 周期完整 且 L5 结局有效（中央指令 2026-10-13）。
+
+    run-finish：L5 verdict 记录了 gem5_exit（guard 完成一个完整 run 周期后
+    由 runner/driver 写入；GuardFailure 的 run 根本不产生 verdict）。
+    结局有效：无 error 且 outcome 非 None/INCONCLUSIVE。
+    execution_complete ≠ chain_complete（campaign 执行完成不算完整链）。
+    """
+    l5 = l5 or {}
+    run_finish = isinstance(l5.get("gem5_exit"), int)
+    outcome_valid = (not l5.get("error")
+                     and l5.get("outcome") not in (None, "INCONCLUSIVE"))
+    return bool(run_finish and outcome_valid)
+
+
+def _evidence_complete(o):
+    """证据齐全判定（中央指令 2026-10-13）：violations 空 且 L0 漏斗四字段
+    齐（attempted/eligible/injected/activated 全非 None）且 activated>0 时
+    L1/L2 fault trace 可读（probe 无 error）且 L4 有 first_anomaly 或诚实
+    终态（complete / inactive-N/A / not_collected 降级明示）。
+    """
+    if o.get("violations"):
+        return False
+    l0 = o.get("L0") or {}
+    if any(l0.get(k) is None for k in ("attempted", "eligible",
+                                       "injected", "activated")):
+        return False
+    if (l0.get("activated") or 0) > 0:
+        for lv in ("L1", "L2"):
+            probe = (o.get(lv) or {}).get("fault")
+            if not isinstance(probe, dict) or probe.get("error"):
+                return False
+    l4 = o.get("L4") or {}
+    return bool(l4.get("first_anomaly") is not None
+                or l4.get("status") in ("complete",
+                                        "N/A(inactive_no_activation)",
+                                        "not_collected(l0l5_mode)"))
+
+
 def build_observation(identity, l0, l1, l2, l3, l4, l5, replay, files,
-                      degradations=None):
-    """组装 observation.json v1（含 chain_complete 判定与九分类）。"""
+                      degradations=None, prop_trace_path=None):
+    """组装 observation.json v2（四状态拆分 + 九分类；纠偏 2026-10-13）。
+
+    顶层四状态（见模块 docstring）；prop_trace_path 透传：指定了传播
+    trace 时如实记入 L3.prop_trace_path（L3 本体由 build_l3 委托构建，
+    此处只记录指定路径，绝不二次构建/伪造）。
+    """
     violations = list(l0.get("violations") or [])
     for lv, entry in (("L1", l1), ("L2", l2)):
         if entry.get("status") == "error":
@@ -476,13 +631,18 @@ def build_observation(identity, l0, l1, l2, l3, l4, l5, replay, files,
     if l0n["activated"] is None:
         l0n["activated"] = l0n.get("injected")
         l0n["activated_source"] = "fallback=injected (L5 verdict 缺 activated)"
+    if l0n["activated"] is None:
+        violations.append("l0_incomplete: activated")
+    l3n = dict(l3 or {})
+    if prop_trace_path is not None:
+        l3n["prop_trace_path"] = str(prop_trace_path)
     obs = {
         "schema": SCHEMA,
         "identity": identity,
         "L0": l0n,
         "L1": l1,
         "L2": l2,
-        "L3": l3,
+        "L3": l3n,
         "L4": l4,
         "L5": l5n,
         "replay_determinism": replay,
@@ -493,22 +653,29 @@ def build_observation(identity, l0, l1, l2, l3, l4, l5, replay, files,
     ok, reason = chain_complete(obs)
     obs["chain_complete"] = ok
     obs["chain_status_reason"] = reason
+    obs["execution_complete"] = _execution_complete(l5n)
+    obs["evidence_complete"] = _evidence_complete(obs)
+    obs["missing_levels"] = missing_levels(obs)
+    obs["needs_backfill"] = bool(obs["missing_levels"])
     return obs
 
 
 def chain_complete(o):
-    """完整链判定（OBS 计划 T2 钉死规则；返回 (bool, reason)）。
+    """完整链判定（纠偏轮 v2，中央指令 2026-10-13；返回 (bool, reason)）。
 
-    activated=0：L0/L5 完整 + L1-L4 全 N/A(inactive) → True（无事可观测）。
-    activated>0：L1-L4 全 complete（含 not_observed_before_crash/_timeout
-    的诚实终态）→ 但 LSU 家族 L3=unsupported（Phase B 前）→ False。
-    任何 violation / L5 无结论 / replay 未验证 → False。
+    activated=0：L0/L5 完整 + L1-L4 全 N/A(inactive) → True（规则不变）。
+    activated>0：L1/L2/L4 complete（含 not_observed_before_crash/_timeout
+    诚实终态）且 L3.status=="complete" 且 L3.method=="propagation_trace"
+    ——PRF 的 method=="proxy" 不再计入（中央明令"L3 不再是 unsupported/
+    proxy"）。任何 violation / L0 四字段缺 / L5 无结论 / replay 未验证 →
+    False。
     """
     if o.get("violations"):
         return False, "violations present: " + "; ".join(o["violations"][:3])
     l0, l5 = o.get("L0", {}), o.get("L5", {})
-    if l0.get("injected") is None:
-        return False, "L0 funnel missing"
+    for k in ("attempted", "eligible", "injected", "activated"):
+        if l0.get(k) is None:
+            return False, f"L0 funnel incomplete: {k}=None"
     if (l5.get("outcome") in (None, "INCONCLUSIVE")):
         return False, "L5 无有效结局"
     rd = o.get("replay_determinism") or {}
@@ -516,19 +683,23 @@ def chain_complete(o):
         return False, "replay determinism 未验证"
     if not l0.get("activated"):
         for lv in ("L1", "L2", "L3", "L4"):
-            if o[lv].get("status") != "N/A(inactive_no_activation)":
+            if (o.get(lv) or {}).get("status") != "N/A(inactive_no_activation)":
                 return False, f"activated=0 但 {lv} 非 N/A(inactive)"
         return True, "inactive 样本：L0/L5 完整，L1-L4 N/A(inactive)"
     ok_states = {"complete", "not_observed_before_crash",
                  "not_observed_before_timeout"}
     for lv in ("L1", "L2", "L4"):
-        if o[lv].get("status") not in ok_states:
-            return False, f"{lv} status={o[lv].get('status')}"
-    if o["L3"].get("status") != "complete":
-        return False, (f"L3 {o['L3'].get('status')}"
-                       f"（{o['L3'].get('reason') or 'proxy 口径'}）——"
-                       f"非 PRF 家族完整链待 Phase B 传播 tag")
-    return True, "L0-L5 complete"
+        if (o.get(lv) or {}).get("status") not in ok_states:
+            return False, f"{lv} status={(o.get(lv) or {}).get('status')}"
+    l3 = o.get("L3") or {}
+    if l3.get("status") != "complete":
+        return False, (f"L3 {l3.get('status')}"
+                       f"（{l3.get('reason') or 'proxy 口径'}）——"
+                       f"完整链需 propagation_trace（中央指令 2026-10-13）")
+    if l3.get("method") != "propagation_trace":
+        return False, (f"L3 method={l3.get('method')!r} 不计入 chain_complete"
+                       f"（proxy 上界口径仅诚实单列——中央指令 2026-10-13）")
+    return True, "L0-L5 complete（L3=propagation_trace）"
 
 
 # ---------------------------------------------------------------- finalize
