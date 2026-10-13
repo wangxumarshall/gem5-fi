@@ -53,11 +53,11 @@ propagation_trace/L4 detector=not_present，审计器默认规则集 v2）。
       逐样本 verdict/L1/L2 摘要、replay 证据、B/D/E/F 判定、绝对路径、
       运行环境 hash）。
 
-已知上游缺陷（OBS-5a 报告，主负责人修）：lsu_obs_driver.run_item 以
-sample_index=0 的 manifest 跑所有样本（m0-for-all-samples）——所有样本误用
-sample-0 seed。本工具不绕过不降验收：validate D 的"outcome 与历史 verdict
-相同"与 audit (vi) 的 seed 重算会如实 FAIL，直到驱动修复（修复须落本
-worktree 分支，watcher 在触发时刻才 subprocess 驱动文件）。
+上游缺陷备注更正（主负责人核验 2026-10-13）：OBS-5a 报告的"run_item 以
+sample-0 manifest 跑所有样本"为误报——驱动经 _manifest_for(it, s) 逐样本
+build_manifest（421c7488 修复在位；2026-10-12 E2E s414 重跑 seed 与历史
+逐样本 seed 一致为实证）。validate D 的"outcome 与历史 verdict 相同"判据
+可正常工作（跨环境结局分歧另见 E 判据的先验语义）。
 """
 import argparse
 import hashlib

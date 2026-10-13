@@ -27,6 +27,8 @@ SUITES = [
     ("test_lsu_hostmon", ["tests/test_lsu_hostmon.py"]),
     ("test_claim_concurrency", ["tests/test_claim_concurrency.py"]),
     ("test_lsu_audit", ["tests/test_lsu_audit.py"]),
+    ("test_lsu_audit_v2", ["tests/test_lsu_audit_v2.py"]),
+    ("test_lsu_l3_propagation", ["tests/test_lsu_l3_propagation.py"]),
     ("test_lsu_obs_e2e_select", ["tests/test_lsu_obs_e2e_select.py"]),
     ("micro_diff_selftest", ["tools/micro_diff.py", "--self-test"]),
     ("e2e_self_check", ["tools/lsu_obs_e2e.py", "--self-check"]),
@@ -64,10 +66,56 @@ def run_suite(cmd, retries=1):
     return out
 
 
+def scan_admission_samples(e2e_campaign):
+    """直接扫 admission 样本集（E2E campaign + p5_admission_* 准入 campaign）
+    的 observation.json——纠偏新判据（中央指令 2026-10-13）所需计数不经
+    handoff 二手转述。v1 样本（schema=lsu-observation-v1）单列为历史证据，
+    不计入 v2 计数。
+    """
+    root = MT / "runs/lsu/obs"
+    dirs = [root / e2e_campaign] + sorted(root.glob("p5_admission_*"))
+    stats = {"campaigns": [str(d) for d in dirs if d.is_dir()],
+             "v1_samples": 0, "v2_samples": 0, "chain_complete_count": 0,
+             "activated_positive": 0, "activated_chain_complete": 0,
+             "l3_method": {}, "n2_campaigns": {}}
+    for d in dirs:
+        if not d.is_dir():
+            continue
+        n_complete = 0
+        for oj in sorted(d.glob("*/**/observation.json")):
+            try:
+                o = json.loads(oj.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError):
+                continue
+            if (d.name.startswith("p5_admission_")
+                    and (oj.parent / "COMPLETE").exists()):
+                n_complete += 1
+            if o.get("schema") != "lsu-observation-v2":
+                stats["v1_samples"] += 1
+                continue
+            stats["v2_samples"] += 1
+            act = (o.get("L0") or {}).get("activated") or 0
+            if o.get("chain_complete"):
+                stats["chain_complete_count"] += 1
+                if act:
+                    stats["activated_chain_complete"] += 1
+            if act:
+                stats["activated_positive"] += 1
+                m = ((o.get("L3") or {}).get("method")) or "unsupported"
+                stats["l3_method"][m] = stats["l3_method"].get(m, 0) + 1
+        if d.name.startswith("p5_admission_"):
+            stats["n2_campaigns"][d.name] = n_complete
+    return stats
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--out", default=str(MT / "runs/lsu/obs/"
                                          "admission_handoff.json"))
+    ap.add_argument("--e2e-campaign", dest="e2e_campaign",
+                    default="obs_e2e_20261012",
+                    help="admission 计数的 E2E campaign 目录名（重新准入时"
+                         "指向新二进制上的新 campaign；v1 历史样本单列不计入）")
     args = ap.parse_args()
 
     results = {}
@@ -88,7 +136,7 @@ def main():
     gem5_sha = hashlib.sha256(GEM5.read_bytes()).hexdigest()
 
     # E2E 三类结果（验收 B/D/E/F 的执行证据；watcher 触发前=PENDING）
-    e2e_h = MT / "runs/lsu/obs/obs_e2e_20261012/handoff_e2e.json"
+    e2e_h = MT / "runs/lsu/obs" / args.e2e_campaign / "handoff_e2e.json"
     e2e = None
     if e2e_h.exists():
         try:
@@ -123,14 +171,23 @@ def main():
         return ("PASS" if ok else "FAIL",
                 f"handoff_e2e.json acceptance_BDEF: {detail}"[:300])
 
+    # 纠偏新判据数据（中央指令 2026-10-13：chain_complete_count>0、L3 真实传播）
+    adm = scan_admission_samples(args.e2e_campaign)
+
+    def crit_c():
+        if not adm["n2_campaigns"]:
+            return ("PENDING", "尚无 p5_admission_* 准入 campaign（重新准入"
+                               "序列步骤 3：每个拟分配 RunID n=2 engineering）")
+        bad = {k: v for k, v in adm["n2_campaigns"].items() if v < 2}
+        detail = (f"n=2 campaign COMPLETE 计数={adm['n2_campaigns']}")
+        return ("FAIL" if bad else "PASS", detail)
+
     crit = {
         "A_单元测试全部通过": (
             "PASS" if all_rc0(unit_names) else "FAIL",
             {n: results[n]["rc"] for n in unit_names}),
         "B_三类E2E通过": crit_b(),
-        "C_n2_engineering准入": (
-            "PENDING", "阶段二启动前对每个入选 RunID 先跑 n=2 engineering "
-                       "（runid_assignment 生成后执行；未获中央 PASS 不启动 formal）"),
+        "C_n2_engineering准入": crit_c(),
         "D_activated样本五层可读": (
             ("PASS" if (e2e_criteria or {}).get("D", {}).get("pass")
              else "PENDING"),
@@ -154,17 +211,37 @@ def main():
                     "(campaign,RunID,sample)；COMPLETE 只读核验跳过；quarantine "
                     "保留；审计器 legacy 模式树快照逐字节不变"),
         "J_本文件": ("PASS", "admission_handoff.json 由本工具机械装配"),
+        "K_activated链完整阳性样本": (
+            ("PASS" if adm["v2_samples"] and adm["activated_chain_complete"] > 0
+             else ("PENDING" if not adm["v2_samples"] else "FAIL")),
+            f"admission 样本集（campaigns={len(adm['campaigns'])}）："
+            f"v2={adm['v2_samples']} v1历史单列={adm['v1_samples']} "
+            f"chain_complete={adm['chain_complete_count']} "
+            f"activated>0且chain_complete={adm['activated_chain_complete']}"
+            f"（中央指令：>0 才可 PASS）"),
+        "L_L3真实传播非proxy": (
+            ("PASS" if adm["v2_samples"] and adm["activated_positive"] > 0
+             and set(adm["l3_method"]) == {"propagation_trace"}
+             else ("PENDING" if not adm["v2_samples"] else "FAIL")),
+            f"activated>0 样本 L3.method 分布={adm['l3_method']}"
+            f"（中央指令：不再 unsupported/proxy）"),
     }
     fails = [k for k, (v, _) in crit.items() if v == "FAIL"]
     pends = [k for k, (v, _) in crit.items() if v == "PENDING"]
 
     out = {
-        "phase": "phase1_admission",
+        "phase": "readmission_v2",
         "generated": time.strftime("%F %T"),
         "verdict": ("FAIL" if fails else
                     ("PENDING" if pends else "PASS")),
         "fail_items": fails, "pending_items": pends,
-        "note": "任一 FAIL 不进阶段二（修复后重跑本工具）；PENDING 项为按序等待的外部事件（E2E watcher / n=2 准入）",
+        "note": ("纠偏轮（中央指令 2026-10-13）：verdict=PASS 须 fails=[] 且 "
+                 "pends=[] 且 K（activated>0 且 chain_complete 阳性）与 L（L3 "
+                 "全为 propagation_trace，无 unsupported/proxy）全 PASS。任一 "
+                 "FAIL 不进阶段二；PENDING=按序等待的外部事件（新二进制编译/"
+                 "三类 E2E/n=2）。旧 admission（phase1，obs_e2e_20261012 v1 "
+                 "样本）已被纠偏指令废止为历史证据。"),
+        "admission_scan": adm,
         "identity": {
             "branch": "lsu-obs-20261012",
             "git_commit": git_commit,
@@ -182,21 +259,21 @@ def main():
             ["git", "-C", str(REPO), "log", "--oneline", "-20"],
             capture_output=True, text=True).stdout.strip().splitlines(),
         "known_limitations": [
-            "L3 非 PRF 家族 unsupported：activated>0 样本 chain_complete 恒 false "
-            "（Phase B 传播 tag 前的诚实规则，见 obs_phaseB_window_design.md）",
-            "W1（w1_all）长流载体 Phase A 强制 l0l5（激活窗口待 Phase B C++ + 重编）",
-            "guard 释放竞态（目标退出→锁 unlink 间 ~0.1-0.5s 死锁可见窗）：并发方会"
-            "被瞬时拒绝；driver 侧 acquire 重试覆盖（Subagent-B F2，runbook 附录 B）",
+            "L3 真实传播链（Subagent-A）：C++ 源码级实现中，**编译后置到 AGU 批次"
+            "终态**（单实例 scons -j16 + 冻结新二进制）——K/L 判据在新二进制上的"
+            "三类 E2E + n=2 之前恒 PENDING（中央指令 2026-10-13）",
+            "admission 样本集现全部为 v1 历史单列（obs_e2e_20261012，chain_complete"
+            "=0，L3 unsupported）——已被纠偏指令废止为历史证据，不计入 v2 计数",
+            "内存间接污染（污染值 store 后被 load）首版 L3 不覆盖（caveat 记录）；"
+            "lsqfwd/prefetch/exmon 家族 L3 保持 unsupported（未实现不冒充）",
+            "W1（w1_all）长流载体仍限 l0l5（激活窗口待重编后评估）",
+            "guard 释放竞态（~0.1-0.5s 死锁可见窗）：driver 侧 acquire 重试覆盖",
             "guard gate 磁盘红线使 /tmp（15GiB tmpfs）不能承载隔离 run——测试须用 "
-            "/home 下临时目录（Subagent-B F3）",
-            "hostmon 重启后首拍 si/so 与 cpu_pct 为 null（差分/首见语义）；跨午夜"
-            "历史窗口部分丢失（Subagent-B 已知限制）",
-            "--workers 真机并发验证推迟至 E2E/阶段二（当前 4 槽被生产批次占用，"
-            "workers 仅单测+dry-run 验证）",
-            "detector 未接线（W6）：detected_na=true，首检四类当前全部 None/OS 映射"
-            "（映射函数可复核，lsu_obs_core.first_detection_source）",
-            "BUG-1（obs_driver 样本 seed 误用 s0）：Subagent-C 发现，主干修复后本条"
-            "移除（修复 commit 见 commits 列表）",
+            "/home 下临时目录",
+            "hostmon 重启后首拍 si/so 与 cpu_pct 为 null；跨午夜历史窗口部分丢失",
+            "--workers 真机并发验证推迟至重新准入 E2E（批次占满 4 槽）",
+            "detector=not_present（无硬件 detector）：L4=首次可验证异常，detected_na"
+            "绝不计为 Detected/Contained（审计 v2 强制）",
         ],
         "artifacts": {
             "chain_ledger": str(MT / "runs/lsu/obs/"
