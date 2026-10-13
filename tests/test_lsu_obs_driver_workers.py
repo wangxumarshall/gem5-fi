@@ -482,7 +482,9 @@ def main():
                   gates >= 3 and finishes == 2,
                   f"gate_events={gates} run_finish={finishes} wall={wall:.1f}s")
             check("d_real_second_finishes_after_first",
-                  wall >= 100, f"wall={wall:.1f}s（1 槽串行 → 两轮 guard 周期）")
+                  # OBS-SLOT-RELEASE 后：目标退出即释放（≤4s），无需等满
+                  # 60s 睡眠——两轮串行 guard 周期下限从 100s 降到 15s
+                  wall >= 15, f"wall={wall:.1f}s（1 槽串行 → 两轮 guard 周期）")
             print(f"[d-real] wall={wall:.1f}s gate_events={gates} "
                   f"run_finish={finishes}", flush=True)
             os.environ["LSU_GUARD_DIR"] = str(gd_main)

@@ -251,7 +251,7 @@ def main():
           and obs_cr["L3"]["evidence"]["path_complete"] is False
           and obs_cr["L3"]["evidence"]["first_errant_commit"] is None
           and any("截断" in c for c in obs_cr["L3"]["caveats"])
-          and obs_cr["chain_complete"] is True,
+          and obs_cr["chain_complete"] is False,  # 二轮规则 1：crash 截断 path_complete=False → chain=false
           json.dumps(obs_cr.get("L3"), ensure_ascii=False)[:300])
 
     # (b) masked 缺 fault trace → D/F FAIL，B/E PASS
@@ -337,8 +337,8 @@ def main():
           and doc["samples"]["masked_or_sdc"]["L3_path_complete"] is True
           and doc["samples"]["crash"]["L3_method"] == "propagation_trace"
           and doc["samples"]["crash"]["L3_path_complete"] is False
-          and doc["chain_complete_count"] == 2
-          and doc["chain_incomplete_count"] == 0
+          and doc["chain_complete_count"] == 1  # 二轮规则 1 后：仅 Masked（errant 抵达）计 true
+          and doc["chain_incomplete_count"] == 1  # crash 截断 path_complete=False → false（二轮规则 1）
           and doc["environment"]["gem5_opt_sha256"] == E2E.FROZEN_GEM5_SHA
           and doc["environment"]["gem5_sha_matches_frozen"] is False
           and doc["environment"]["expect_gem5_sha256"] == GEM5_SHA,

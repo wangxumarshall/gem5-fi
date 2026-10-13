@@ -97,8 +97,10 @@ def write_gz(path, lines):
             f.write(l + "\n")
 
 
-def make_l5(outcome, activated):
+def make_l5(outcome, activated, eligible=None):
     return {"outcome": outcome, "activated": activated, "injected": activated,
+            "attempted": 1, "eligible": (265143 if activated else 0)
+            if eligible is None else eligible,
             "crash_kind": "guest_or_unknown" if outcome == "Crash" else None,
             "timed_out": outcome == "Timeout", "detected_na": True,
             "checksum": "0123456789abcdef",
@@ -174,8 +176,16 @@ def build_v2_sample(camp, s, *, inactive=False, outcome="SDC", mutate=None,
                   "run_instructions": 6, "ref_truncated": False,
                   "run_truncated": False, "aux": {}}}
         l3 = {"status": "complete", "method": "propagation_trace",
-              "correlation_keys": ["prf_source_read"],
-              "evidence": {"path_complete": True}, "caveats": []}
+              "correlation_keys": ["dynInstSeqNum", "request_id", "ptag"],
+              "evidence": {"path_complete": True, "terminal_verified": True,
+                           "terminal": {"kind": "errant_commit",
+                                        "node_id": 9, "dyn_inst_seq": 412,
+                                        "tick": 102},
+                           "terminal_reason": None,
+                           "first_errant_commit": {"node_id": 9,
+                                                   "dyn_inst_seq": 412,
+                                                   "tick": 102}},
+              "caveats": []}
         l4 = {"status": "complete", "detector": "not_present",
               "detected": False, "detected_na": True,
               "l4_source": "first_verifiable_anomaly",

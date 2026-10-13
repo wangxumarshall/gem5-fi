@@ -189,15 +189,35 @@ def upgrade_to_v2(obs):
     if l3.get("status") == "N/A(inactive_no_activation)":
         l3["method"] = None
     else:
+        # 二轮语义（中央纠偏 2026-10-13）：L3 complete 须可验证终点 +
+        # path_complete=true（errant_commit 抵达）才可能 chain_complete
         l3.update({"status": "complete", "method": "propagation_trace",
-                   "correlation_keys": ["prf_source_read"],
-                   "evidence": {"path_complete": True}, "caveats": []})
+                   "correlation_keys": ["dynInstSeqNum", "request_id",
+                                        "ptag"],
+                   "evidence": {
+                       "path_complete": True, "terminal_verified": True,
+                       "terminal": {"kind": "errant_commit",
+                                    "node_id": 9, "dyn_inst_seq": 412,
+                                    "tick": 902114},
+                       "terminal_reason": None,
+                       "first_errant_commit": {"node_id": 9,
+                                               "dyn_inst_seq": 412,
+                                               "tick": 902114}},
+                   "caveats": []})
     obs["L3"] = l3
     l4 = dict(obs.get("L4") or {})
     if l4.get("status") != "N/A(inactive_no_activation)":
         l4.update({"detector": "not_present",
                    "l4_source": "first_verifiable_anomaly"})
     obs["L4"] = l4
+    # 规则 6/13：L5 attempted/eligible 与 L0 同源一致（FUNNEL 回填形态）
+    l5 = dict(obs.get("L5") or {})
+    l0 = obs.get("L0") or {}
+    for k in ("attempted", "eligible"):
+        if l0.get(k) is not None and l5.get(k) is None:
+            l5[k] = l0[k]
+            l5.setdefault("funnel_backfilled_from_l0", []).append(k)
+    obs["L5"] = l5
     ok, why = A._v2_chain_complete(obs)
     obs["chain_complete"] = ok
     obs["chain_status_reason"] = why + " (v2 合成升级)"

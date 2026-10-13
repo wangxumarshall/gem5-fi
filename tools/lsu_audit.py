@@ -349,6 +349,93 @@ def _rule_chain_complete_with_degraded_layer(obs):
     return []
 
 
+def _rule_path_complete_false_chain_true(obs):
+    """R10（中央纠偏指令 2026-10-13 二轮规则 1）：activated>0 且
+    L3.path_complete=false 但 chain_complete=true → 强制 FAIL。"""
+    act = (obs.get("L0") or {}).get("activated") or 0
+    l3 = obs.get("L3") or {}
+    l3ev = l3.get("evidence") or {}
+    if (act and l3.get("method") == "propagation_trace"
+            and l3ev.get("path_complete") is False
+            and obs.get("chain_complete") is True):
+        return ["path_complete_false_chain_true: activated>0 且 "
+                "L3.path_complete=false 但 chain_complete=true（中央纠偏"
+                "指令 2026-10-13 二轮规则 1：path_complete=false 默认"
+                "chain_complete=false）"]
+    return []
+
+
+def _rule_l3_complete_without_terminal(obs):
+    """R11（二轮规则 2）：activated>0 且 L3 complete 但无可验证终点
+    （无 resp/taint_reg/consumer/errant_commit 节点，也无完整下游扫描
+    证明的 terminal_reason）→ 强制 FAIL。仅有 inj→addr_form→mem_req
+    不算完整。"""
+    act = (obs.get("L0") or {}).get("activated") or 0
+    l3 = obs.get("L3") or {}
+    l3ev = l3.get("evidence") or {}
+    if not (act and l3.get("status") == "complete"
+            and l3.get("method") == "propagation_trace"):
+        return []
+    if l3ev.get("terminal_verified") is True:
+        return []
+    # 兼容无 terminal_verified 键的旧形态：查终点节点计数
+    has_terminal_node = any(
+        ((l3ev.get(k) or {}).get("count", 0) or 0) > 0
+        for k in ("responses", "tainted_regs", "consumers"))
+    has_errant = l3ev.get("first_errant_commit") is not None
+    if has_terminal_node or has_errant:
+        return []
+    return ["l3_complete_without_verified_terminal: activated>0 且 L3 "
+            "complete 但无可验证终点（仅 inj→addr_form→mem_req 不算"
+            "完整；须 resp/taint_reg/consumer/errant_commit 或完整下游"
+            "扫描证明的 terminal_reason——中央纠偏指令 2026-10-13 二轮"
+            "规则 2）"]
+
+
+def _rule_l3_terminal_from_l2(obs):
+    """R12（二轮规则 3）：L3 终点/errant 证据来源于 L2 timing divergence
+    而非 prop_trace 节点 → 强制 FAIL。结构判据：L3 evidence 宣称
+    first_errant_commit/terminal 但无 prop_trace 关联键
+    （node_id/dyn_inst_seq/ptag）——纯 seq 对齐 L2 即为冒充。"""
+    l3 = obs.get("L3") or {}
+    l3ev = l3.get("evidence") or {}
+    if l3.get("method") != "propagation_trace":
+        return []
+    claims = []
+    fe = l3ev.get("first_errant_commit")
+    term = l3ev.get("terminal")
+    for label, node in (("first_errant_commit", fe), ("terminal", term)):
+        if not isinstance(node, dict):
+            continue
+        has_pt_keys = any(k in node for k in
+                          ("node_id", "dyn_inst_seq", "ptag", "tick"))
+        if not has_pt_keys:
+            claims.append(label)
+    if claims:
+        return ["l3_terminal_from_l2: L3 终点证据 " + "/".join(claims)
+                + " 无 prop_trace 关联键（node_id/dyn_inst_seq/ptag/tick）"
+                "——疑似 L2 timing divergence 冒充 L3 传播终点（中央纠偏"
+                "指令 2026-10-13 二轮规则 3）"]
+    return []
+
+
+def _rule_l0_l5_funnel_inconsistent(obs):
+    """R13（二轮规则 6）：L0 attempted/eligible 有真实值而 L5 为 null
+    （未经同源回填）→ 强制 FAIL；两侧均有值且不等 → FAIL。"""
+    l0, l5 = obs.get("L0") or {}, obs.get("L5") or {}
+    reasons = []
+    for k in ("attempted", "eligible"):
+        l0v, l5v = l0.get(k), l5.get(k)
+        if l0v is not None and l5v is None:
+            reasons.append(f"l0_l5_funnel_inconsistent: L0.{k}={l0v} 有"
+                           f"真实值而 L5.{k}=null（须同源回填或审计 FAIL"
+                           f"——中央纠偏指令 2026-10-13 二轮规则 6）")
+        elif l0v is not None and l5v is not None and l0v != l5v:
+            reasons.append(f"l0_l5_funnel_inconsistent: L0.{k}={l0v} != "
+                           f"L5.{k}={l5v}（漏斗源冲突）")
+    return reasons
+
+
 def _rule_schema_version(obs):
     """R7：schema 须为 lsu-observation-v2；v1 样本按 v2 规则如实 FAIL。"""
     if obs.get("schema") == SCHEMA_V2:
@@ -453,7 +540,13 @@ def _v2_chain_complete(o):
     if l3.get("status") != "complete" or l3.get("method") != "propagation_trace":
         return False, (f"L3 status={l3.get('status')} method="
                        f"{l3.get('method')}（v2 须 propagation_trace）")
-    return True, "L0-L5 complete (v2: L3 propagation_trace)"
+    # 二轮规则 1/2（与 obs_core.chain_complete 同契约，独立实现零漂移对齐）
+    l3ev = l3.get("evidence") or {}
+    if not l3ev.get("terminal_verified", True):
+        return False, "L3 无可验证终点（二轮规则 2）"
+    if not l3ev.get("path_complete", False):
+        return False, "L3.path_complete=false（二轮规则 1：activated>0 默认 false）"
+    return True, "L0-L5 complete (v2: L3 propagation_trace 抵达错误提交)"
 
 
 # ---------------------------------------------------------------- mode 1
@@ -633,6 +726,10 @@ def audit_sample_dir(d, rules_version=RULES_DEFAULT):
         reasons.extend(_rule_empty_trace_fake_divergence(obs))
         reasons.extend(_rule_detector_na_counted_as_detected(obs))
         reasons.extend(_rule_chain_complete_with_degraded_layer(obs))
+        reasons.extend(_rule_path_complete_false_chain_true(obs))
+        reasons.extend(_rule_l3_complete_without_terminal(obs))
+        reasons.extend(_rule_l3_terminal_from_l2(obs))
+        reasons.extend(_rule_l0_l5_funnel_inconsistent(obs))
         reasons.extend(_rule_schema_version(obs))
         reasons.extend(_rule_contract_v2_fields(obs))
         reasons.extend(_rule_l4_detector_v1_value(obs))
@@ -875,15 +972,23 @@ def _sc_build_valid_v2_sample(camp, s=0):
                                "ref_truncated": False,
                                "run_truncated": False, "aux": {}}},
         "L3": {"status": "complete", "method": "propagation_trace",
-               "correlation_keys": ["prf_source_read"],
-               "evidence": {"path_complete": True},
+               "correlation_keys": ["dynInstSeqNum", "request_id", "ptag"],
+               "evidence": {"path_complete": True,
+                            "terminal_verified": True,
+                            "terminal": {"kind": "errant_commit",
+                                         "node_id": 11, "dyn_inst_seq": 415,
+                                         "tick": 103},
+                            "terminal_reason": None,
+                            "first_errant_commit": {"node_id": 11,
+                                                    "dyn_inst_seq": 415,
+                                                    "tick": 103}},
                "caveats": []},
         "L4": {"status": "complete", "detector": "not_present",
                "detected": False, "detected_na": True,
                "l4_source": "first_verifiable_anomaly",
                "first_anomaly": {"source": "L2", "tick": 103, "seq": 3,
                                  "latency_ticks_from_first_injection": 0}},
-        "L5": dict(l5),
+        "L5": {**l5, "attempted": 1, "eligible": 265143},
         "replay_determinism": {"policy": "per_sample", "verified": True,
                                "evidence": {}},
         "violations": [], "degradations": [], "files": files,

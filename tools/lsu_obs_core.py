@@ -625,6 +625,22 @@ def build_observation(identity, l0, l1, l2, l3, l4, l5, replay, files,
     l5n["first_detection_source"] = src
     if src_note:
         l5n["first_detection_source_note"] = src_note
+    # L0/L5 attempted/eligible 一致性（中央纠偏指令 2026-10-13 二轮规则 6）：
+    # L5 verdict 的 attempted/eligible 仅来自 stdout CHAOS_LSU_TRIGGER 行；
+    # cache 家族等无 stdout 漏斗的运行 L5 为 None 而 L0（FUNNEL 注入日志行）
+    # 有真实值——由同一可信漏斗源回填 L5，记录回填出处；回填后冲突仍存在
+    # （两侧均有值且不等）→ violation（绝不静默取一侧）。
+    backfilled = []
+    for k in ("attempted", "eligible", "injected"):
+        l0v, l5v = (l0 or {}).get(k), l5n.get(k)
+        if l0v is not None and l5v is None:
+            l5n[k] = l0v
+            backfilled.append(k)
+        elif l0v is not None and l5v is not None and l0v != l5v:
+            violations.append(f"l0_l5_funnel_conflict: {k} L0={l0v} L5={l5v}")
+    if backfilled:
+        l5n["funnel_backfilled_from_l0"] = backfilled
+        l5n["funnel_backfill_source"] = (l0 or {}).get("funnel_source")
     # activated 口径以 L5 verdict 为准（lsu_l5_classify 运行级 activated）
     l0n = dict(l0)
     l0n["activated"] = (l5 or {}).get("activated")
@@ -699,7 +715,22 @@ def chain_complete(o):
     if l3.get("method") != "propagation_trace":
         return False, (f"L3 method={l3.get('method')!r} 不计入 chain_complete"
                        f"（proxy 上界口径仅诚实单列——中央指令 2026-10-13）")
-    return True, "L0-L5 complete（L3=propagation_trace）"
+    # 中央纠偏指令 2026-10-13 二轮：
+    #   规则 1：activated>0 且 L3.path_complete=false → chain_complete=false
+    #   规则 2：L3 完整须可验证终点（resp/taint_reg/consumer/errant_commit
+    #           或完整下游扫描证明的 terminal_reason）
+    l3ev = l3.get("evidence") or {}
+    if not l3ev.get("terminal_verified", True):
+        return False, ("L3 无可验证终点（无 resp/taint_reg/consumer/"
+                       "errant_commit 且无完整扫描 terminal_reason）——"
+                       "中央纠偏指令 2026-10-13 二轮规则 2")
+    if not l3ev.get("path_complete", False):
+        term = (l3ev.get("terminal") or {}).get("kind") \
+            or l3ev.get("terminal_reason") or "no_errant_commit"
+        return False, (f"L3.path_complete=false（终点={term}，未抵达"
+                       f"传播链错误提交）——activated>0 默认 chain_complete="
+                       f"false（中央纠偏指令 2026-10-13 二轮规则 1）")
+    return True, "L0-L5 complete（L3=propagation_trace 且抵达错误提交）"
 
 
 # ---------------------------------------------------------------- finalize

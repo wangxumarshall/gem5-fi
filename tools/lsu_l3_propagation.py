@@ -211,8 +211,83 @@ def build_l3(family, l2, prop_trace_path, inactive=False):
             "n_divergence_points": cd.get("total_divergence_points"),
             "divergence_counts": cd.get("divergence_counts"),
             "first_errant_seq": (cd.get("first_errant_commit") or {}).get("seq"),
-            "note": "L2 commit 足迹副产品；不是传播证据（不冒充）",
+            "note": "L2 commit 足迹副产品；不是传播证据（不冒充）——L3 终点"
+                    "只认 prop_trace 节点（中央纠偏指令 2026-10-13 二轮规"
+                    "则 3：L2 timing divergence 不得冒充 L3 传播终点）",
         }
+
+    # ---- L3 终点语义（中央纠偏指令 2026-10-13 二轮规则 2）----
+    # L3 完整 ≠ 仅 inj→addr_form→mem_req。须有与故障族相符的可验证终点：
+    #   resp / taint_reg / consumer / errant_commit 节点，或
+    #   完整下游扫描（trace 未截断）证明的明确 terminal_reason。
+    terminal_nodes = (resps + taints + consumers + errants)
+    terminal_reason = None
+    if not terminal_nodes and not parsed["truncated"]:
+        # 完整扫描（未截断）后无任何终点节点 → 推导 terminal_reason
+        # （须"经过完整下游扫描证明"——截断 trace 不得给 terminal_reason）
+        if addr_forms and not mem_reqs:
+            terminal_reason = (f"no_memory_request_after_addr_form"
+                               f"（完整扫描 {len(nodes)} 节点：地址形成后"
+                               f"无下游内存请求——纯 flag/translation fault"
+                               f" 家族形态）")
+        elif mem_reqs and not resps:
+            terminal_reason = (f"no_response_after_mem_req"
+                               f"（完整扫描 {len(nodes)} 节点：请求发出后"
+                               f"无响应/无寄存器污染——如 metadata 故障无"
+                               f"投递跟踪，如实）")
+        else:
+            terminal_reason = (f"injection_only_no_downstream"
+                               f"（完整扫描 {len(nodes)} 节点：注入后无任何"
+                               f"下游节点——注入未活化或地址未被消费）")
+    terminal_verified = bool(terminal_nodes) or (
+        terminal_reason is not None and not parsed["truncated"])
+
+    # path_complete（规则 1 对偶）：仅 errant_commit（传播链抵达错误提交）
+    # 才算路径走完；截断 trace 一律 False（链可能在截断点后继续）。
+    path_complete = bool(errants) and not parsed["truncated"]
+
+    # 截断 trace 的链可能未走完 → 不给 terminal_reason（完整扫描前提不成立）
+    if parsed["truncated"]:
+        caveats.append("截断 trace 不给 terminal_reason（完整下游扫描前提"
+                       "不成立——中央纠偏指令 2026-10-13 二轮规则 2）")
+
+    if not terminal_verified:
+        # 有节点但无任何可验证终点且截断（无法证明终点）→ 诚实 partial
+        return {
+            "status": "partial_no_verified_terminal",
+            "method": "propagation_trace",
+            "correlation_keys": ["dynInstSeqNum", "request_id", "ptag"],
+            "evidence": {
+                "injection": (_compact(inj_nodes[0]) if inj_nodes else None),
+                "address_formation": (_compact(addr_forms[0])
+                                      if addr_forms else None),
+                "mem_requests": {"count": len(mem_reqs),
+                                 "nodes": [_compact(n) for n in
+                                           mem_reqs[:_EVIDENCE_NODE_CAP]]},
+                "terminal_verified": False,
+                "terminal_reason": None,
+                "first_errant_commit": None,
+                "path_complete": False,
+            },
+            "reason": ("prop_trace 有节点但无可验证终点（无 resp/taint_reg/"
+                       "consumer/errant_commit 且 trace 截断无法证明完整下"
+                       "游扫描）——中央纠偏指令 2026-10-13 二轮规则 2"),
+            "caveats": caveats,
+            "funnel": parsed["funnel"],
+            "malformed": parsed["malformed"],
+            "truncated": parsed["truncated"],
+            "auxiliary_commit_footprint": aux,
+        }
+
+    first_terminal = None
+    if terminal_nodes:
+        # 终点节点按 kind 优先级取首个：errant_commit > consumer >
+        # taint_reg > resp（越下游越强）
+        for kind in ("errant_commit", "consumer", "taint_reg", "resp"):
+            firsts = _kind_nodes(nodes, kind)
+            if firsts:
+                first_terminal = {"kind": kind, **_compact(firsts[0])}
+                break
 
     return {
         "status": "complete",
@@ -236,7 +311,10 @@ def build_l3(family, l2, prop_trace_path, inactive=False):
                                     consumers[:_EVIDENCE_NODE_CAP]]},
             "first_errant_commit": (_compact(errants[0]) if errants
                                     else None),
-            "path_complete": bool(errants),
+            "terminal_verified": True,
+            "terminal": first_terminal,
+            "terminal_reason": terminal_reason,
+            "path_complete": path_complete,
         },
         "caveats": caveats,
         "funnel": parsed["funnel"],
