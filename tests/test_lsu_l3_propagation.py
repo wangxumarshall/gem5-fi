@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""test_lsu_l3_propagation.py — [LSU][OBS-L3] 传播链解析器单测（不起 gem5）。
+"""test_lsu_l3_propagation.py — [LSU][OBS-L3] 传播链解析器 + 驱动接线单测。
 
 合成 fixture 覆盖（用户指令 2026-10-13 自验证清单）：
   1 完整链（inj→addr_form→mem_req→resp→taint_reg→consumer→
@@ -12,8 +12,13 @@
     → truncated=True + 前缀打捞
   7 inactive → N/A(inactive_no_activation)
   8 FUNNEL 解析（多 funnel 行取最后）+ malformed 行不静默丢弃
+  9 [OBS-L3 驱动接线] _obs_args 家族感知 + dry-run 端到端（覆盖家族
+    ITEM-002=A01/addrpath → --chaos_propagation/--prop_trace_file 出现；
+    未覆盖家族无旗标；l0l5 模式无旗标；dry 零副作用保持）
 """
 import gzip
+import os
+import subprocess
 import sys
 import tempfile
 import zlib
@@ -21,6 +26,8 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 WT = HERE.parent
+MT = Path("/home/sdc/gem5-fi-ding")   # 主树（只读：冻结 gem5.opt）
+DRIVER = WT / "tools" / "lsu_obs_driver.py"
 sys.path.insert(0, str(WT / "tools"))
 import lsu_l3_propagation as LP  # noqa: E402
 
@@ -251,6 +258,58 @@ def main():
           == "faulting_load_commit", b9["evidence"])
     check("cache_hitmiss_caveat",
           any("hit/miss" in c for c in b9["caveats"]), b9["caveats"])
+
+    # 9) [OBS-L3 驱动接线] —— _obs_args 单元 + dry-run 端到端
+    os.environ["LSU_GUARD_DIR"] = "/tmp/l3_prop_test_guard_unused"
+    import lsu_obs_driver as OD
+    a_cov = OD._obs_args(Path("/tmp/ct"), Path("/tmp/ms"),
+                         family="addrpath",
+                         prop_trace_file=Path("/tmp/st/prop_trace.csv.gz"))
+    check("obsargs_covered_flags",
+          "--chaos_propagation" in a_cov
+          and "--prop_trace_file" in a_cov
+          and str(Path("/tmp/st/prop_trace.csv.gz")) in a_cov, a_cov)
+    a_unc = OD._obs_args(Path("/tmp/ct"), Path("/tmp/ms"),
+                         family="lsqfwd",
+                         prop_trace_file=Path("/tmp/st/prop_trace.csv.gz"))
+    check("obsargs_uncovered_no_flags",
+          "--chaos_propagation" not in a_unc
+          and "--prop_trace_file" not in a_unc, a_unc)
+    a_none = OD._obs_args(Path("/tmp/ct"), Path("/tmp/ms"))
+    check("obsargs_legacy_call_unchanged",
+          a_none == ["--chaos_ctrace", "--ctrace_file", "/tmp/ct",
+                     "--chaos_msnap", "--msnap_every", "1000",
+                     "--msnap_file", "/tmp/ms"], a_none)
+
+    def dry_run(outroot, item, sample, mode=None):
+        cmd = [sys.executable, str(DRIVER), "--items", item, "--phase",
+               "screening", "--campaign", "l3_dry", "--samples", str(sample),
+               "--dry-run", "--outdir-root", str(outroot)]
+        if mode:
+            cmd += ["--obs-mode", mode]
+        env = {**os.environ,
+               "LSU_GEM5_BIN": str(MT / "build/ARM/gem5.opt"),
+               "LSU_GUARD_DIR": "/tmp/l3_prop_test_guard_unused"}
+        r = subprocess.run(cmd, capture_output=True, text=True, env=env,
+                           cwd=str(WT))
+        return r.returncode, r.stdout + r.stderr
+
+    # ITEM-002 = A01-F0-W9（addrpath 家族 → 旗标出现）；独立空目录验零副作用
+    tmp_dry = Path(tempfile.mkdtemp(prefix="l3_prop_dry_"))
+    rc, out = dry_run(tmp_dry, "ITEM-002", 315)
+    check("driver_dry_rc0", rc == 0, out[-300:])
+    check("driver_dry_prop_flags",
+          "mode=full" in out and "--chaos_propagation" in out
+          and "--prop_trace_file" in out
+          and "prop_trace.csv.gz" in out, out)
+    check("driver_dry_zero_side_effects",
+          not any(tmp_dry.rglob("*")), str(list(tmp_dry.rglob("*"))[:5]))
+    # l0l5 模式：无任何 obs 旗标（含 prop）
+    rc2, out2 = dry_run(tmp_dry, "ITEM-002", 315, mode="l0l5")
+    check("driver_l0l5_no_prop_flags",
+          rc2 == 0 and "mode=l0l5" in out2
+          and "--chaos_propagation" not in out2
+          and "--chaos_ctrace" not in out2, out2[-300:])
 
     print(f"\nFAILURES: {fails if fails else '无'}")
     return 1 if fails else 0

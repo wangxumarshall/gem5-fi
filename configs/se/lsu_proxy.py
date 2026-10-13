@@ -27,7 +27,7 @@
 
 import argparse
 import m5
-from m5.objects import CHAOSReg, CHAOSPhysReg, CHAOSMem, CHAOSCache, CHAOSLSQFwd, CHAOSRenameMap, CHAOSFreeList, CHAOSROB, CHAOSIQ, CHAOSExec, CHAOSFPU, CHAOSL1DForward, CHAOSBPU, CHAOSAddrPath, CHAOSDecode, CHAOSExMon, CHAOSRAS, CHAOSProbe, CHAOSCommitTrace, CHAOSMicroSnap, CHAOSPrefetch, FUDesc, FUPool, OpDesc, IQUnit, StridePrefetcher, RandomRP, SimpleBTB, BTBSetAssociative, BiModeBP, ReturnAddrStack, BranchPredictor, LRURP, NULL, Parent
+from m5.objects import CHAOSReg, CHAOSPhysReg, CHAOSMem, CHAOSCache, CHAOSLSQFwd, CHAOSRenameMap, CHAOSFreeList, CHAOSROB, CHAOSIQ, CHAOSExec, CHAOSFPU, CHAOSL1DForward, CHAOSBPU, CHAOSAddrPath, CHAOSDecode, CHAOSExMon, CHAOSRAS, CHAOSProbe, CHAOSCommitTrace, CHAOSMicroSnap, CHAOSPropagation, CHAOSPrefetch, FUDesc, FUPool, OpDesc, IQUnit, StridePrefetcher, RandomRP, SimpleBTB, BTBSetAssociative, BiModeBP, ReturnAddrStack, BranchPredictor, LRURP, NULL, Parent
 from gem5.components.boards.simple_board import SimpleBoard
 from gem5.components.cachehierarchies.classic.private_l1_private_l2_cache_hierarchy import (
     PrivateL1PrivateL2CacheHierarchy,
@@ -559,6 +559,18 @@ p.add_argument("--msnap_every", type=int, default=1000,
                help="snapshot period in committed instructions")
 p.add_argument("--msnap_file", default="micro_snap.csv.gz",
                help="snapshot CSV output (relative to --outdir; .gz = auto gzip)")
+# [LSU][OBS-L3] CHAOSPropagation (real L3 propagation-chain tracer,
+# correction round 2026-10-13). READ-ONLY: observes the injector call path
+# (CHAOSAddrPath PRE/post, CHAOSCache), the LSQ request/response path and
+# the commit stream; writes one CSV node per propagation event
+# (inj/addr_form/mem_req/resp/taint_reg/consumer/errant_commit/funnel,
+# per-node gzflush — abort prefix salvageable). Consumed by
+# tools/lsu_l3_propagation.py; families covered v1 = addrpath + cache
+# (mounted by tools/lsu_obs_driver.py only for those families).
+p.add_argument("--chaos_propagation", action="store_true",
+               help="attach CHAOSPropagation (L3 propagation trace, [LSU][OBS-L3])")
+p.add_argument("--prop_trace_file", default="prop_trace.csv.gz",
+               help="propagation trace output (relative to --outdir)")
 args = p.parse_args()
 
 # C4-LSU cache hierarchy: stdlib 骨架只为 board 布线; 全部几何在下方
@@ -1092,6 +1104,22 @@ if args.chaos_msnap:
         writeLog=True,
     )
     board.chaos_msnap = msnap
+
+if args.chaos_propagation:
+    # [LSU][OBS-L3] CHAOSPropagation: O3-only, READ-ONLY L3 propagation
+    # tracer. SELF-ATTACHES at startup() to BOTH cpu.chaosPropagation
+    # (LSQ-side hooks in lsq.cc/lsq_unit.cc) and cpu.commit.chaosPropagation
+    # (commitHead, the W2.1/W2.4 anchor); CHAOSCache reaches it through the
+    # static instance(). Attaching changes nothing else — nullptr tracer =
+    # every hook short-circuits (zero regression).
+    prop = CHAOSPropagation(
+        cpu=cpu0,
+        traceFile=args.prop_trace_file,
+        writeLog=True,
+    )
+    board.chaos_propagation = prop
+    print(f"[lsu_proxy] CHAOSPropagation attached "
+          f"(trace={args.prop_trace_file})")
 
 if args.maxinsts:
     # W1.5b followup fix: BaseCPU's real param is max_insts_any_thread
