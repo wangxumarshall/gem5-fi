@@ -238,13 +238,38 @@ def assert_masked(obs):
             and src_row.get("seqencNum") == sn0):
         f.append("masked l3.source_row must join the L0 sn "
                  "(source_row=%r sn=%r)" % (src_row, sn0))
+    # [R2 central directive 4] the scan past the source must be REAL:
+    # >=1 consumer hop and >0 rows scanned (the masked fixture's fdc
+    # equals the source seq -- the degenerate window must still scan)
+    if not l3.get("hops"):
+        f.append("masked decode chain must carry >=1 real consumer hop "
+                 "(hops=%r)" % (l3.get("hops"),))
+    if not (isinstance(l3.get("rows_scanned_after_source"), int)
+            and l3["rows_scanned_after_source"] > 0):
+        f.append("masked decode chain must record rows_scanned>0 "
+                 "(%r)" % (l3.get("rows_scanned_after_source"),))
     if obs.get("chain_complete") is not True:
-        f.append("chain_complete must be true (real chain; hops may be "
-                 "empty when first_divergence==source seq)")
+        f.append("chain_complete must be true (real chain)")
     if obs.get("chain_gaps") != []:
         f.append("chain_gaps must be [] (%r)" % obs.get("chain_gaps"))
     if detector_of(obs) not in (None, "None", "n/a"):
         f.append("masked l4 detector must be None (%r)" % detector_of(obs))
+    # [R2 central directive 1] no detection event -> tick/seq/latency
+    # all null; a negative latency is never acceptable
+    fd = obs.get("l4", {}).get("first_detection") or {}
+    if fd.get("kind") is not None:
+        f.append("masked l4.first_detection.kind must be null (%r)"
+                 % fd.get("kind"))
+    if fd.get("tick") is not None or fd.get("seq") is not None:
+        f.append("masked l4.first_detection tick/seq must be null "
+                 "(tick=%r seq=%r)" % (fd.get("tick"), fd.get("seq")))
+    lat = obs.get("l4", {}).get("latency_from_l0") or {}
+    if lat.get("ticks") is not None or lat.get("committed_insts") \
+            is not None:
+        f.append("masked l4.latency must be null under no detection "
+                 "(%r)" % (lat,))
+    if isinstance(lat.get("ticks"), (int, float)) and lat["ticks"] < 0:
+        f.append("negative latency (%r)" % lat)
     return f
 
 
@@ -269,6 +294,20 @@ def assert_crash(obs, sample_dir):
         f.append("l2 not in honest set {not_observed_before_crash,"
                  "truncated, ok-with-divergence} (status=%r verdict=%r)"
                  % (status, verdict))
+    # [R2 central directive 1] the OS-channel event carries no trace
+    # anchor: tick/seq and latency stay null -- never fabricated
+    fd = obs.get("l4", {}).get("first_detection") or {}
+    if fd.get("kind") != "abnormal_termination":
+        f.append("crash l4.first_detection.kind must be "
+                 "abnormal_termination (%r)" % (fd.get("kind"),))
+    if fd.get("tick") is not None or fd.get("seq") is not None:
+        f.append("crash l4.first_detection tick/seq must be null "
+                 "(tick=%r seq=%r)" % (fd.get("tick"), fd.get("seq")))
+    lat = obs.get("l4", {}).get("latency_from_l0") or {}
+    if lat.get("ticks") is not None or lat.get("committed_insts") \
+            is not None:
+        f.append("crash l4.latency must be null (no trace anchor) "
+                 "(%r)" % (lat,))
     f += trace_evidence_readable(obs, sample_dir)
     return f
 
@@ -317,6 +356,26 @@ def assert_sdc(obs):
         f.append("sdc chain_complete must be true (real chain)")
     if obs.get("chain_gaps") != []:
         f.append("sdc chain_gaps must be [] (%r)" % obs.get("chain_gaps"))
+    # [R2 central directive 1/2] a REAL detection event carries an
+    # anchored seq + a v2-parsed tick, and the latency from the L0
+    # anchor is strictly positive (never the tid-column zero that made
+    # -9933770)
+    fd = obs.get("l4", {}).get("first_detection") or {}
+    if fd.get("kind") != "checksum_mismatch" \
+            or fd.get("detector") != "Application":
+        f.append("sdc l4 must record the application detection event "
+                 "(%r)" % (fd,))
+    if not (isinstance(fd.get("tick"), int) and fd["tick"] > 0):
+        f.append("sdc l4.first_detection.tick must be the v2-parsed "
+                 "commit tick (>0) (%r)" % (fd.get("tick"),))
+    lat = obs.get("l4", {}).get("latency_from_l0") or {}
+    if not (isinstance(lat.get("ticks"), int) and lat["ticks"] > 0):
+        f.append("sdc l4.latency.ticks must be positive (%r)"
+                 % (lat.get("ticks"),))
+    if not (isinstance(lat.get("committed_insts"), int)
+            and lat["committed_insts"] > 0):
+        f.append("sdc l4.latency.committed_insts must be positive (%r)"
+                 % (lat.get("committed_insts"),))
     return f
 
 
@@ -617,7 +676,11 @@ def _obs_min(**over):
         "l2": {"status": "ok", "commit_diff": {"verdict": "no_divergence",
                                                "primary_class": None}},
         "l3": {"status": "unsupported"},
-        "l4": {"status": "ok", "first_detection": None},
+        "l4": {"status": "ok",
+               "first_detection": {"kind": None, "detector": None,
+                                   "tick": None, "seq": None, "note": ""},
+               "latency_from_l0": {"ticks": None,
+                                   "committed_insts": None, "note": ""}},
         "l5": {"classification": "Masked", "exit": 0,
                "checksum_observed": "45737cc9a76c0dce",
                "checksum_golden": "45737cc9a76c0dce"},
@@ -702,12 +765,25 @@ def _self_test_body(tmp):
     # first_divergence==source seq -- the real fixture is exactly that)
     masked_l3 = {"status": "ok", "method": "source_read",
                  "source_row": {"seq": 103, "seqencNum": 159},
-                 "hops": []}
+                 "hops": [{"seq": 107, "seqencNum": 186, "op": "add",
+                           "via_src": {"class": 0, "arch": 3,
+                                       "phys": 103},
+                           "committed": True}],
+                 "rows_scanned_after_source": 12,
+                 "scan_range": {"first_seq": 104, "last_seq": 115},
+                 "terminal_reason": "trace ended"}
     masked_ok = _obs_min(
         l0={"injected": 1, "activated": 1,
             "events": [{"tick": 1, "sn": 159}]},
-        l3=masked_l3, chain_complete=True, chain_gaps=[])
+        l3=masked_l3, chain_complete=True, chain_gaps=[],
+        l4={"status": "none_detected",
+            "first_detection": {"kind": None, "detector": None,
+                                "tick": None, "seq": None,
+                                "note": "no detection: fault masked"},
+            "latency_from_l0": {"ticks": None,
+                                "committed_insts": None, "note": ""}})
     check("masked-pass", assert_masked(masked_ok) == [])
+    _masked_l4 = dict(masked_ok["l4"])
     check("masked-negative-checksum",
           assert_masked(_obs_min(
               l0={"injected": 1, "activated": 1,
@@ -715,6 +791,29 @@ def _self_test_body(tmp):
               l5={"classification": "Masked", "exit": 0,
                   "checksum_observed": "dead",
                   "checksum_golden": "gold"},
+              l4=_masked_l4,
+              l3=masked_l3, chain_complete=True, chain_gaps=[])) != [])
+    # zero hops with a located source (zero-scan masquerade) must FAIL
+    check("masked-negative-zero-hops",
+          assert_masked(_obs_min(
+              l0={"injected": 1, "activated": 1,
+                  "events": [{"tick": 1, "sn": 159}]},
+              l4=_masked_l4,
+              l3={"status": "ok", "method": "source_read",
+                  "source_row": {"seq": 103, "seqencNum": 159},
+                  "hops": [], "rows_scanned_after_source": 0},
+              chain_complete=True, chain_gaps=[])) != [])
+    # numeric latency under no detection must FAIL
+    check("masked-negative-latency-without-detection",
+          assert_masked(_obs_min(
+              l0={"injected": 1, "activated": 1,
+                  "events": [{"tick": 1, "sn": 159}]},
+              l4={"status": "none_detected",
+                  "first_detection": {"kind": None, "detector": None,
+                                      "tick": 0, "seq": 103, "note": ""},
+                  "latency_from_l0": {"ticks": -416955,
+                                      "committed_insts": 24,
+                                      "note": ""}},
               l3=masked_l3, chain_complete=True, chain_gaps=[])) != [])
     # the PRE-FIX-B shape (unsupported L3) must FAIL the new contract
     check("masked-negative-l3-unsupported",
@@ -743,9 +842,15 @@ def _self_test_body(tmp):
     print("[self-test] assert_crash")
     crash_l5 = {"classification": "Crash", "exit": -6,
                 "checksum_observed": None, "checksum_golden": "gold"}
+    crash_l4 = {"status": "ok",
+                "first_detection": {"kind": "abnormal_termination",
+                                    "detector": "OS", "tick": None,
+                                    "seq": None, "note": "OS channel"},
+                "latency_from_l0": {"ticks": None,
+                                    "committed_insts": None, "note": ""}}
 
     def crash_obs(status, verdict):
-        return _obs_min(l5=crash_l5,
+        return _obs_min(l5=crash_l5, l4=crash_l4,
                         l2={"status": status,
                             "commit_diff": {"verdict": verdict,
                                             "primary_class": None}})
@@ -792,14 +897,18 @@ def _self_test_body(tmp):
             "checksum_observed": "deadbeefdeadbeef",
             "checksum_golden": "gold"},
         l2={"status": "ok", "commit_diff": {
-            "verdict": "diverged", "primary_class": "data_corruption"}},
-        l4={"status": "ok", "first_detection": {
-            "kind": "checksum_mismatch", "detector": "Application",
-            "tick": 1, "seq": None, "note": ""}})
+            "verdict": "diverged", "primary_class": "data_corruption"}})
+    sdc_l4 = {"status": "ok",
+              "first_detection": {"kind": "checksum_mismatch",
+                                  "detector": "Application",
+                                  "tick": 12669580, "seq": 5798,
+                                  "note": "application checksum mismatch"},
+              "latency_from_l0": {"ticks": 2731810,
+                                  "committed_insts": 1144, "note": ""}}
     sdc_obs = _obs_min(l0={"injected": 1, "activated": 1,
                            "events": [dict(sdc_ev)]},
-                       l3=sdc_l3, chain_complete=True, chain_gaps=[],
-                       **sdc_base)
+                       l3=sdc_l3, l4=sdc_l4, chain_complete=True,
+                       chain_gaps=[], **sdc_base)
     check("sdc-pass", assert_sdc(sdc_obs) == [])
     check("sdc-negative-class",
           assert_sdc(_obs_min(l0={"injected": 1, "activated": 1,
@@ -811,9 +920,7 @@ def _self_test_body(tmp):
                                   "verdict": "diverged",
                                   "primary_class":
                                       "operand_forced_switch"}},
-                              l4={"status": "ok", "first_detection": {
-                                  "detector": "Application"}},
-                              l3=sdc_l3, chain_complete=True,
+                              l4=sdc_l4, l3=sdc_l3, chain_complete=True,
                               chain_gaps=[], **{})) != [])
     check("sdc-negative-checksum-equal",
           assert_sdc(_obs_min(l0={"injected": 1, "activated": 1,
@@ -824,9 +931,7 @@ def _self_test_body(tmp):
                               l2={"status": "ok", "commit_diff": {
                                   "verdict": "diverged",
                                   "primary_class": "data_corruption"}},
-                              l4={"status": "ok", "first_detection": {
-                                  "detector": "Application"}},
-                              l3=sdc_l3, chain_complete=True,
+                              l4=sdc_l4, l3=sdc_l3, chain_complete=True,
                               chain_gaps=[])) != [])
     # the PRE-FIX-B shape (unsupported L3) must FAIL the new contract
     check("sdc-negative-l3-unsupported",
@@ -839,9 +944,7 @@ def _self_test_body(tmp):
                                   "verdict": "diverged",
                                   "primary_class":
                                       "data_corruption"}},
-                              l4={"status": "ok", "first_detection": {
-                                  "detector": "Application"}},
-                              l3={"status": "unsupported"},
+                              l4=sdc_l4, l3={"status": "unsupported"},
                               chain_complete=False,
                               chain_gaps=["L3"])) != [])
     # first hop via a mapping OTHER than the corrupted L0 one must FAIL

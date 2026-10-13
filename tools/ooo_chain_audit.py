@@ -123,7 +123,11 @@ SEMANTIC_GATE_VIOLATIONS = ("l3_unsupported_with_activation",
                             "l0_funnel_missing",
                             "l2_diverged_zero_instructions",
                             "l1_valid_zero_snaps",
-                            "first_divergence_from_empty_trace")
+                            "first_divergence_from_empty_trace",
+                            # FIX-RB round 2 (central directive):
+                            "l4_latency_without_detection",
+                            "l4_negative_latency",
+                            "l3_zero_scan_masquerade")
 
 
 def semantic_gate_violations(obs):
@@ -188,6 +192,35 @@ def semantic_gate_violations(obs):
                   l2.get("first_divergent_commit")))
     if fd_rec and run_trace_empty:
         out.append("first_divergence_from_empty_trace")
+    # [FIX-RB round 2, central directive] L4 latency honesty + L3 scan
+    # evidence, admission view (scoped to activated samples above).
+    l4 = obs.get("l4") if isinstance(obs.get("l4"), dict) else {}
+    lat = l4.get("latency_from_l0")
+    fd_l4 = l4.get("first_detection")
+    if isinstance(lat, dict):
+        ticks = lat.get("ticks")
+        insts = lat.get("committed_insts")
+        has_num = (isinstance(ticks, (int, float))
+                   and not isinstance(ticks, bool)) \
+            or (isinstance(insts, (int, float))
+                and not isinstance(insts, bool))
+        no_event = (not isinstance(fd_l4, dict)) \
+            or fd_l4.get("kind") is None
+        if has_num and no_event:
+            out.append("l4_latency_without_detection")
+        for v in (ticks, insts):
+            if isinstance(v, (int, float)) and not isinstance(v, bool)                     and v < 0:
+                out.append("l4_negative_latency")
+    hops = l3.get("hops") if isinstance(l3.get("hops"), list) else None
+    scanned = l3.get("rows_scanned_after_source")
+    if (l3.get("status") == "ok" and l3.get("method") == "source_read"
+            and l3.get("source_row") is not None
+            and not hops
+            and not (isinstance(scanned, int) and scanned > 0)):
+        # an ok source_read chain with a located source but ZERO rows
+        # scanned and zero hops: "did not scan" masquerading as
+        # "scanned, no consumers" -- never a complete chain
+        out.append("l3_zero_scan_masquerade")
     return out
 
 
@@ -339,6 +372,28 @@ def _check_layers(obs, submodel, violations):
                     violations.append("l4_first_detection_missing:%s" % k)
             if fd.get("detector") not in DETECTOR_VOCAB:
                 violations.append("l4_detector_invalid")
+    # [FIX-RB round 2, central directive] latency honesty, ALL samples:
+    # a latency number requires a REAL detection event (kind != None),
+    # and no latency may be negative (the divergence cannot precede the
+    # fault that caused it -- a negative is a parse/anchor bug, never
+    # evidence).
+    _lat = l4.get("latency_from_l0")
+    if isinstance(_lat, dict):
+        _ticks = _lat.get("ticks")
+        _insts = _lat.get("committed_insts")
+        _has_num = (isinstance(_ticks, (int, float))
+                    and not isinstance(_ticks, bool)) \
+            or (isinstance(_insts, (int, float))
+                and not isinstance(_insts, bool))
+        _no_event = (not isinstance(fd, dict)) or fd.get("kind") is None
+        if _has_num and _no_event:
+            violations.append("l4_latency_without_detection")
+        if isinstance(_ticks, (int, float)) \
+                and not isinstance(_ticks, bool) and _ticks < 0:
+            violations.append("l4_negative_latency")
+        if isinstance(_insts, (int, float)) \
+                and not isinstance(_insts, bool) and _insts < 0:
+            violations.append("l4_negative_latency")
 
     # ---- L5 --------------------------------------------------------
     classification = l5.get("classification")
@@ -400,8 +455,17 @@ def _check_chain_flags(obs, violations):
     if l3s in ("unsupported", "not_observed_before_crash") \
             and "L3" not in gaps:
         violations.append("l3_gap_not_recorded")
+    # [FIX-RB round 2] an ok source_read chain whose source NEVER
+    # COMMITTED (source_row null -- the honest in-flight terminal
+    # state) legitimately costs gap L3: the observation completed but
+    # no propagation chain exists. Any other ok-status gap has no
+    # basis.
     if "L3" in gaps and l3s not in ("unsupported", "error",
-                                    "not_observed_before_crash"):
+                                    "not_observed_before_crash") \
+            and not (l3s == "ok"
+                     and isinstance(l3, dict)
+                     and l3.get("method") == "source_read"
+                     and l3.get("source_row") is None):
         violations.append("gap_l3_without_basis")
     return cc, gaps
 

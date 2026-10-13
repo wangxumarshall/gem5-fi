@@ -639,6 +639,139 @@ def test_fixture13_l3_not_observed_before_crash():
           "l3_gap_not_recorded" in v3, repr(v3))
 
 
+def test_fixture14_l4_latency_without_detection():
+    """[FIX-RB round 2] no detection event (kind null) but numeric
+    latency -> mandatory FAIL; with the event + non-negative latency ->
+    clean; nulls under no event -> clean."""
+    print("[fixture 14] l4 latency without detection")
+    d = fresh_campaign("f14-lat-noevent")
+    obs = make_obs("e2e_fixture-c0000-r0000", 20261013)  # Masked
+    obs["l4"]["first_detection"] = dict(kind=None, detector=None,
+                                        tick=None, seq=None, note="none")
+    obs["l4"]["latency_from_l0"] = dict(ticks=-416955,
+                                        committed_insts=24, note="")
+    install_sample(d, obs)
+    v = audit.audit_campaign(d)["samples"][0]["violations"]
+    check("f14-noevent-numeric-latency-flagged",
+          "l4_latency_without_detection" in v
+          and "l4_negative_latency" in v, repr(v))
+    # same shape with honest nulls -> clean of the new rules
+    d2 = fresh_campaign("f14-lat-nulls")
+    obs2 = json.loads(json.dumps(obs))
+    obs2["l4"]["latency_from_l0"] = dict(ticks=None,
+                                         committed_insts=None, note="")
+    install_sample(d2, obs2)
+    v2 = audit.audit_campaign(d2)["samples"][0]["violations"]
+    check("f14-noevent-null-latency-clean",
+          "l4_latency_without_detection" not in v2
+          and "l4_negative_latency" not in v2, repr(v2))
+    # a REAL detection event with a positive latency -> clean
+    d3 = fresh_campaign("f14-lat-real-event")
+    obs3 = make_obs("e2e_fixture-c0000-r0000", 20261013,
+                    classification="SDC",
+                    l2_status="ok", l2_verdict="diverged",
+                    l2_primary_class="data_corruption")
+    obs3["l4"]["first_detection"] = dict(
+        kind="checksum_mismatch", detector="Application",
+        tick=12669580, seq=5798, note="real")
+    obs3["l4"]["latency_from_l0"] = dict(ticks=2731810,
+                                         committed_insts=1144, note="")
+    install_sample(d3, obs3)
+    v3 = audit.audit_campaign(d3)["samples"][0]["violations"]
+    check("f14-real-event-positive-latency-clean",
+          "l4_latency_without_detection" not in v3
+          and "l4_negative_latency" not in v3, repr(v3))
+    # real event but NEGATIVE latency -> flagged
+    d4 = fresh_campaign("f14-lat-negative")
+    obs4 = json.loads(json.dumps(obs3))
+    obs4["l4"]["latency_from_l0"] = dict(ticks=-9933770,
+                                         committed_insts=None, note="")
+    install_sample(d4, obs4)
+    v4 = audit.audit_campaign(d4)["samples"][0]["violations"]
+    check("f14-negative-latency-flagged",
+          "l4_negative_latency" in v4, repr(v4))
+
+
+def test_fixture15_l3_zero_scan_masquerade():
+    """[FIX-RB round 2] an activated ok source_read chain with a located
+    source, zero hops and zero rows scanned = "did not scan" masquerading
+    as "scanned, no consumers" -> semantic gate FAIL; the same shape
+    WITH scan evidence (rows>0, terminal_reason) is clean; the
+    never-committed terminal state (source_row null) records its gap
+    without a basis violation."""
+    print("[fixture 15] l3 zero-scan masquerade")
+    import ooo_chain_audit as oca
+    base = {"l0": {"activated": 1, "attempted": 1, "eligible_count": None,
+                   "limited_reason": "x", "status": "ok"},
+            "l1": {"status": "ok", "micro_diff": {"snaps_run": 3}},
+            "l2": {"status": "ok", "commit_diff": {
+                "verdict": "diverged", "run_instructions": 100}},
+            "l4": {"status": "none_detected",
+                   "first_detection": {"kind": None, "detector": None,
+                                       "tick": None, "seq": None,
+                                       "note": ""},
+                   "latency_from_l0": {"ticks": None,
+                                       "committed_insts": None}}}
+    zero_scan = dict(base, l3={"status": "ok", "method": "source_read",
+                               "source_row": {"seq": 103,
+                                              "seqencNum": 159},
+                               "hops": [], "rows_scanned_after_source": 0})
+    check("f15-zero-scan-gate-fires",
+          "l3_zero_scan_masquerade" in oca.semantic_gate_violations(
+              zero_scan),
+          repr(oca.semantic_gate_violations(zero_scan)))
+    scanned = dict(base, l3={"status": "ok", "method": "source_read",
+                             "source_row": {"seq": 103,
+                                            "seqencNum": 159},
+                             "hops": [], "rows_scanned_after_source": 42,
+                             "scan_range": {"first_seq": 104,
+                                            "last_seq": 146},
+                             "terminal_reason": "trace ended"})
+    check("f15-scanned-no-consumer-clean",
+          "l3_zero_scan_masquerade" not in
+          oca.semantic_gate_violations(scanned),
+          repr(oca.semantic_gate_violations(scanned)))
+    never = dict(base, l3={"status": "ok", "method": "source_read",
+                           "source_row": None, "hops": [],
+                           "rows_scanned_after_source": None,
+                           "caveat": "never committed"})
+    check("f15-never-committed-no-masquerade",
+          "l3_zero_scan_masquerade" not in
+          oca.semantic_gate_violations(never),
+          repr(oca.semantic_gate_violations(never)))
+    # chain_completeness (producer side) agrees: zero-scan -> gap L3;
+    # scanned / never-committed shapes handled by their own states
+    import ooo_observation as oooobs
+    cc_zero = oooobs.chain_completeness(
+        dict(zero_scan, l5={"classification": "Masked",
+                            "conservation": {"conserved": True,
+                                             "activated": 1}}))
+    check("f15-zero-scan-costs-gap-l3", "L3" in cc_zero[1], repr(cc_zero))
+    cc_hops = oooobs.chain_completeness(
+        dict(base, l3={"status": "ok", "method": "source_read",
+                       "source_row": {"seq": 103, "seqencNum": 159},
+                       "hops": [{"seq": 107}], "rows_scanned_after_source":
+                       5},
+             l5={"classification": "Masked",
+                 "conservation": {"conserved": True, "activated": 1}}))
+    check("f15-real-hop-chain-complete", cc_hops == (True, []),
+          repr(cc_hops))
+    # audit gap-basis: the never-committed ok chain records its gap
+    # without a basis violation
+    d = fresh_campaign("f15-never-committed")
+    obs = make_obs("e2e_fixture-c0000-r0000", 20261013)
+    obs["l3"] = {"status": "ok", "method": "source_read",
+                 "source_row": None, "hops": [],
+                 "rows_scanned_after_source": None,
+                 "caveat": "injected DynInst never committed"}
+    obs["chain_complete"] = False
+    obs["chain_gaps"] = ["L3"]
+    install_sample(d, obs)
+    v = audit.audit_campaign(d)["samples"][0]["violations"]
+    check("f15-never-committed-gap-basis-ok",
+          "gap_l3_without_basis" not in v, repr(v))
+
+
 def test_correction_audit():
     print("[correction-audit] legacy-shaped campaign -> quantified "
           "correction report")
@@ -769,6 +902,8 @@ def main():
         test_fixture11_fake_divergence()
         test_fixture12_l1_zero_snaps()
         test_fixture13_l3_not_observed_before_crash()
+        test_fixture14_l4_latency_without_detection()
+        test_fixture15_l3_zero_scan_masquerade()
         test_correction_audit()
         test_cli_edges()
     finally:
