@@ -7,7 +7,7 @@ CLI: ooo_l0l5_admission.py --eng2-dirs <dir>... --goldens-dir G
        --guard-dir Gd [--frozen-gem5-sha S] [--frozen-chaos-commit C]
        [--repo R] [--out JSON] [--self-test]
 
-Per sample (all six items must PASS; none is ever relaxed):
+Per sample (all seven items must PASS; none is ever relaxed):
   1 identity   — gem5 sha == frozen; sha256(<repo>/<config path>) ==
                  identity.config.sha256; sha256(<repo>/<workload path>) ==
                  identity.workload.sha256 == the campaign yaml's declared
@@ -23,7 +23,14 @@ Per sample (all six items must PASS; none is ever relaxed):
                  and no file inside carries a foreign run-id pattern;
   5 replay     — determinism == "match" for every sample;
   6 observation — machine-parseable + files manifest re-hashed clean
-                 (reuses ooo_chain_audit.audit_observation).
+                 (reuses ooo_chain_audit.audit_observation);
+  7 chain      — the five admission-view semantic gates
+                 (ooo_chain_audit.semantic_gate_violations): activated>0
+                 with L3 not ok, missing L0 funnel, empty-trace fake
+                 divergence, ok-L1-with-zero-snaps are all mandatory
+                 FAILs (Fix-C Task 4, 2026-10-13); plus the campaign-
+                 level rule that chain_complete=false on 100% of samples
+                 can never PASS (an all-false chain is not a pass).
 
 The goldens dir is verified for COMPLETE.json + registry-matching final
 checksums. Output: per-item PASS/FAIL JSON (--out, default
@@ -236,7 +243,10 @@ def run_admission(eng2_dirs, goldens_dir, guard_dir, frozen_gem5,
 
     total_samples = 0
     item_fails = {k: [] for k in ("identity", "conservation", "traces",
-                                  "no_overwrite", "replay", "observation")}
+                                  "no_overwrite", "replay", "observation",
+                                  "chain")}
+    n_chain_complete = 0
+    n_chain_incomplete = 0
     for eng2_dir in eng2_dirs:
         eng2_dir = os.path.abspath(eng2_dir)
         campaign_id = os.path.basename(eng2_dir)
@@ -277,6 +287,17 @@ def run_admission(eng2_dirs, goldens_dir, guard_dir, frozen_gem5,
                 or os.path.basename(sd)
             entry["run_id"] = run_id
 
+            # mandatory-FAIL semantic gates (Fix-C Task 4, 2026-10-13):
+            # activated>0 with L3 not ok, missing L0 funnel, empty-trace
+            # fake divergence, ok-L1-with-zero-snaps -- the exact holes
+            # the four formal campaigns carry. Never relaxed.
+            for v in ooo_chain_audit.semantic_gate_violations(obs):
+                item_fails["chain"].append("%s:%s" % (run_id, v))
+            if obs.get("chain_complete") is True:
+                n_chain_complete += 1
+            else:
+                n_chain_incomplete += 1
+
             idf = check_identity(repo, obs, camp_yaml, frozen_gem5,
                                  frozen_chaos)
             entry["identity"] = idf
@@ -312,6 +333,23 @@ def run_admission(eng2_dirs, goldens_dir, guard_dir, frozen_gem5,
             report["samples"].append(entry)
 
     report["n_samples"] = total_samples
+    # campaign-level all-false rule (Fix-C Task 4): a chain that is
+    # chain_complete=false on 100% of samples can never PASS admission
+    # -- "all false" is not a pass (the four formal campaigns are the
+    # case in point).
+    n_chain_total = n_chain_complete + n_chain_incomplete
+    if n_chain_total > 0 and n_chain_incomplete == n_chain_total:
+        item_fails["chain"].append(
+            "chain_complete_false_ratio_100pct: %d/%d samples incomplete "
+            "-- an all-false chain can never PASS admission"
+            % (n_chain_incomplete, n_chain_total))
+    report["chain_summary"] = {
+        "n_samples": n_chain_total,
+        "n_chain_complete": n_chain_complete,
+        "n_chain_incomplete": n_chain_incomplete,
+        "all_chain_incomplete": (n_chain_total > 0
+                                 and n_chain_incomplete == n_chain_total),
+    }
     report["items"] = {k: ({"status": "PASS"} if not v
                            else {"status": "FAIL", "failures": v})
                        for k, v in item_fails.items()}
@@ -363,6 +401,13 @@ def _mk_fixture_repo(tmp):
 
 def _mk_eng2_obs(run_id, seed, cfg_sha, wl_sha, chaos="frozencommithash",
                  classification="Masked"):
+    """Fixture observation under the STRICT admission contract (Fix-C
+    Task 4, 2026-10-13): the happy path carries a FULL chain — l3 ok
+    with the proxy fanout (physreg-style), a recorded L0 funnel
+    (attempted + eligible_count), l1 ok with snaps, a commit_diff that
+    records run_instructions. Decode/rat-style l3-unsupported samples
+    now FAIL admission by design (see the negatives); only L3-ok chains
+    pass the gate."""
     inactive = classification == "Inactive"
     obs = {
         "schema_version": "ooo-observation/v1",
@@ -382,21 +427,25 @@ def _mk_eng2_obs(run_id, seed, cfg_sha, wl_sha, chaos="frozencommithash",
         "l0": {"injected": 0 if inactive else 1,
                "activated": 0 if inactive else 1,
                "events": [] if inactive else [{"tick": 1}],
-               "skip_lines": 2, "eligible_count": 5, "attempted": None,
+               "skip_lines": 2, "eligible_count": 5,
+               "attempted": 0 if inactive else 5,
                "log_sha256": "11" * 32},
         "l1": {"status": "inactive_no_activation" if inactive else "ok",
-               "micro_diff": None if inactive else {"x": 1},
+               "micro_diff": None if inactive else {"snaps_run": 10},
                "first_divergence": None, "files": ["evidence/micro.json"]},
         "l2": {"status": "inactive_no_activation" if inactive else "ok",
                "coverage": {"mode": "full"}, "commit_diff": None if
                inactive else {"verdict": "no_divergence",
-                              "primary_class": None},
+                              "primary_class": None,
+                              "run_instructions": 11121,
+                              "aligned_pairs": 11121},
                "first_divergent_commit": None,
                "files": []},
-        "l3": {"status": "inactive_no_activation" if inactive
-               else "unsupported", "method": None, "fanout": None,
-               "caveat": None, "reason": None if inactive else
-               "commit trace records dest regs only"},
+        "l3": {"status": "inactive_no_activation" if inactive else "ok",
+               "method": None if inactive else "proxy",
+               "fanout": None if inactive else {"upper_bound": 3},
+               "caveat": None if inactive else "PRF liveness proxy",
+               "reason": None},
         "l4": {"status": "inactive_no_activation" if inactive else "ok",
                "first_detection": None, "latency_from_l0": None,
                "oracle": {"kind": "exact_hash", "golden": "g",
@@ -407,8 +456,8 @@ def _mk_eng2_obs(run_id, seed, cfg_sha, wl_sha, chaos="frozencommithash",
                "checksum_observed": "g", "checksum_golden": "g",
                "detector": None, "conservation": {"ok": True}},
         "violations": [],
-        "chain_complete": inactive,
-        "chain_gaps": [] if inactive else ["L3"],
+        "chain_complete": True,
+        "chain_gaps": [],
         # canonical top-level replay (integration adjudication 2026-10-12)
         "replay": {"performed": True, "determinism": "match",
                    "pass2_classification": None, "verdict_pass2": None,
@@ -632,6 +681,103 @@ def _self_test_body(tmp):
           rep["items"]["identity"]["status"] == "FAIL"
           and any("gem5_sha_mismatch" in x for x in
                   rep["items"]["identity"]["failures"]))
+
+    print("[self-test] chain-item negatives (Fix-C Task 4: each must FAIL)")
+
+    # (a) activated>0 + L3 unsupported -> chain item FAIL. Under the old
+    # gate this shape PASSED as an "honest L3 gap" -- the exact hole the
+    # four formal campaigns carry 100%.
+    d, obs = fresh_negative("eng2_neg_l3gap")
+    obs["l3"] = {"status": "unsupported", "method": None, "fanout": None,
+                 "caveat": None, "reason": "no source-read association"}
+    obs["chain_complete"] = False
+    obs["chain_gaps"] = ["L3"]
+    _install_eng2_sample(d, obs, cfg_sha, wl_sha)
+    with open(os.path.join(d, "results.jsonl"), "w") as f:
+        f.write(json.dumps({"run_id": "eng2_neg_l3gap-c0000-r0000"}) + "\n")
+    out = os.path.join(tmp, "neg_l3gap.json")
+    r = _run_admission_cli(repo, [d], goldens, out)
+    with open(out) as f:
+        rep = json.load(f)
+    check("neg-l3gap-chain-fails",
+          rep["items"]["chain"]["status"] == "FAIL"
+          and any("l3_unsupported_with_activation" in x for x in
+                  rep["items"]["chain"]["failures"]),
+          json.dumps(rep["items"]["chain"]))
+    check("neg-l3gap-observation-also-fails",
+          rep["items"]["observation"]["status"] == "FAIL"
+          and any("l3_unsupported_with_activation" in x for x in
+                  rep["items"]["observation"]["failures"]))
+    check("neg-l3gap-overall-fails", rep["overall"] == "FAIL"
+          and r.returncode == 1)
+
+    # (b) attempted/eligible empty -> FAIL (l0 funnel hole)
+    d, obs = fresh_negative("eng2_neg_funnel")
+    obs["l0"]["attempted"] = None
+    obs["l0"]["eligible_count"] = None
+    _install_eng2_sample(d, obs, cfg_sha, wl_sha)
+    with open(os.path.join(d, "results.jsonl"), "w") as f:
+        f.write(json.dumps({"run_id": "eng2_neg_funnel-c0000-r0000"}) + "\n")
+    out = os.path.join(tmp, "neg_funnel.json")
+    _run_admission_cli(repo, [d], goldens, out)
+    with open(out) as f:
+        rep = json.load(f)
+    check("neg-funnel-chain-fails",
+          any("l0_funnel_missing" in x for x in
+              rep["items"]["chain"]["failures"]),
+          json.dumps(rep["items"]["chain"]))
+
+    # (c) zero-instruction fake divergence (empty run trace) -> FAIL;
+    # the seq=0 instruction_flow_change pattern the formal campaigns
+    # misreport as divergence
+    d, obs = fresh_negative("eng2_neg_fakediv")
+    obs["l5"].update({"classification": "Crash", "exit": -6,
+                      "checksum_observed": None, "faults_injected": 1})
+    obs["l2"]["commit_diff"] = {
+        "verdict": "diverged", "primary_class": "instruction_flow_change",
+        "run_instructions": 0, "aligned_pairs": 0,
+        "first_divergence": {"seq": 0,
+                             "class": "instruction_flow_change",
+                             "level": "presence",
+                             "detail": "seq 0 only in ref (run missing)",
+                             "ref_line": "0,0,73535,400d00,nop,0",
+                             "run_line": None}}
+    obs["l2"]["first_divergent_commit"] = \
+        obs["l2"]["commit_diff"]["first_divergence"]
+    _install_eng2_sample(d, obs, cfg_sha, wl_sha)
+    with open(os.path.join(d, "results.jsonl"), "w") as f:
+        f.write(json.dumps({"run_id": "eng2_neg_fakediv-c0000-r0000"}) + "\n")
+    out = os.path.join(tmp, "neg_fakediv.json")
+    _run_admission_cli(repo, [d], goldens, out)
+    with open(out) as f:
+        rep = json.load(f)
+    check("neg-fakediv-chain-fails",
+          any("l2_diverged_zero_instructions" in x for x in
+              rep["items"]["chain"]["failures"])
+          and any("first_divergence_from_empty_trace" in x for x in
+                  rep["items"]["chain"]["failures"]),
+          json.dumps(rep["items"]["chain"]))
+
+    # (d) chain_complete=false on 100% of samples -> verdict must FAIL
+    # ("all false" is not a pass)
+    d, obs = fresh_negative("eng2_neg_allfalse")
+    obs["l3"] = {"status": "unsupported", "method": None, "fanout": None,
+                 "caveat": None, "reason": "no source-read association"}
+    obs["chain_complete"] = False
+    obs["chain_gaps"] = ["L3"]
+    _install_eng2_sample(d, obs, cfg_sha, wl_sha)
+    with open(os.path.join(d, "results.jsonl"), "w") as f:
+        f.write(json.dumps({"run_id": "eng2_neg_allfalse-c0000-r0000"}) + "\n")
+    out = os.path.join(tmp, "neg_allfalse.json")
+    _run_admission_cli(repo, [d], goldens, out)
+    with open(out) as f:
+        rep = json.load(f)
+    check("neg-allfalse-ratio-rule",
+          any("chain_complete_false_ratio_100pct" in x for x in
+              rep["items"]["chain"]["failures"])
+          and rep["overall"] == "FAIL"
+          and rep["chain_summary"]["all_chain_incomplete"] is True,
+          json.dumps(rep["items"]["chain"]))
 
     n = len(FAILURES)
     print("\n%s" % ("ALL PASS" if n == 0 else "FAILURES: %r" % FAILURES))

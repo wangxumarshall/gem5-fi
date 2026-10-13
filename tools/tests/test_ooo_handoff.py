@@ -205,6 +205,68 @@ def main():
         check("wall", h["wall_seconds"] == 120)
         check("status-complete", h["status"] == "COMPLETE")
 
+        # --- execution/chain split (Fix-C Task 2, 2026-10-13) ----------
+        # execution COMPLETE must NOT masquerade as a complete chain:
+        # 3 executions, 3 readable observations, but only the Inactive
+        # sample's chain is complete -> backfill required, and the two
+        # activated samples carry semantic-gate violations (l3
+        # unsupported + missing L0 funnel are what the real formal
+        # campaigns carry 100%).
+        check("split-execution-status",
+              h["execution_status"] == "COMPLETE"
+              and h["execution_complete_count"] == 3
+              and h["evidence_readable_count"] == 3,
+              json.dumps({k: h.get(k) for k in
+                          ("execution_status", "execution_complete_count",
+                           "evidence_readable_count")}))
+        check("split-chain-backfill",
+              h["chain_complete_count"] == 1
+              and h["chain_incomplete_count"] == 2
+              and h["chain_gap_histogram"] == {"L3": 2}
+              and h["chain_backfill_required"] is True,
+              json.dumps({k: h.get(k) for k in
+                          ("chain_complete_count", "chain_incomplete_count",
+                           "chain_gap_histogram", "chain_backfill_required")}))
+        check("split-semantic-invalid",
+              h["semantic_invalid_count"] == 2,
+              str(h.get("semantic_invalid_count")))
+        # a full-chain campaign must NOT demand backfill (negative case
+        # of the split): flip the two activated samples to l3 ok + a
+        # recorded funnel + snaps -> all three chains complete.
+        for rep in (0, 1):
+            rid = f"fixture_campaign-c0000-r{rep:04d}"
+            with open(os.path.join(cdir, "samples", rid,
+                                   "observation.json")) as f:
+                o = json.load(f)
+            o["l3"] = {"status": "ok", "method": "proxy",
+                       "fanout": {"upper_bound": 3}, "caveat": "proxy",
+                       "reason": None}
+            o["l0"]["attempted"] = 1
+            o["l0"]["eligible_count"] = 1
+            o["l1"]["micro_diff"] = {"snaps_run": 10}
+            if o["l2"].get("status") == "not_observed_before_crash":
+                # make it an honest pre-crash divergence: a real partial
+                # run trace evidences the first_divergent_commit
+                o["l2"]["status"] = "ok"
+                o["l2"]["commit_diff"] = {
+                    "verdict": "diverged",
+                    "primary_class": "data_corruption",
+                    "run_instructions": 2297, "aligned_pairs": 2297}
+            o["chain_complete"] = True
+            o["chain_gaps"] = []
+            with open(os.path.join(cdir, "samples", rid,
+                                   "observation.json"), "w") as f:
+                json.dump(o, f)
+        h2 = ooo_handoff.build_campaign_handoff(cdir, cy, gdir)
+        check("split-no-backfill-when-complete",
+              h2["chain_backfill_required"] is False
+              and h2["chain_complete_count"] == 3
+              and h2["semantic_invalid_count"] == 0,
+              json.dumps({k: h2.get(k) for k in
+                          ("chain_backfill_required",
+                           "chain_complete_count",
+                           "semantic_invalid_count")}))
+
         jp, mp = ooo_handoff.write_campaign_handoff(cdir, cy, gdir)
         check("files-written", os.path.exists(jp) and os.path.exists(mp))
         with open(jp) as f:
@@ -214,6 +276,14 @@ def main():
         with open(mp) as f:
             md = f.read()
         check("md-mentions-gaps", "L3" in md and "quarantine" in md)
+        # write ran after the fixture flip -> the md must disclose the
+        # split explicitly: chain_backfill_required line + counts
+        check("md-discloses-backfill",
+              "chain_backfill_required: **False**" in md
+              and "complete 3" in md
+              and "executed: 3" in md
+              and "semantic_invalid: 0" in md,
+              md[:500])
 
     n = len(FAILURES)
     print(f"\n{'ALL PASS' if n == 0 else 'FAILURES: ' + repr(FAILURES)}")

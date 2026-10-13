@@ -18,6 +18,12 @@ Per sample:
     requires a reason; PRF submodels must carry the proxy fanout),
     L4 (first_detection detector vocabulary None|Application|OS|
     Hardware RAS|n/a), L5 (nine-class vocabulary + conservation.ok);
+  * the five admission-view semantic gates (2026-10-13, Fix-C; see
+    semantic_gate_violations): l3_unsupported_with_activation,
+    l0_funnel_missing, l2_diverged_zero_instructions,
+    l1_valid_zero_snaps, first_divergence_from_empty_trace — scoped to
+    activated>0 samples and NEVER relaxed (legacy data carrying them is
+    flagged; the offline `correction-audit` quantifies the backlog);
   * identity: every required identity key present; gem5_sha256 must equal
     --frozen-gem5-sha when given;
   * files manifest: EVERY referenced file re-hashed (no spot checks),
@@ -37,6 +43,11 @@ Outputs <campaign_dir>/chain_audit.json + chain_audit.md. Exit codes:
     observation) -> 1; honest L3 gaps alone -> 0.
 
 CLI: audit --campaign-dir <d> [--require-complete] [--frozen-gem5-sha S]
+           [--correction-mode]
+      correction-audit --campaign-dir <d> [--frozen-gem5-sha S]
+        offline re-audit of a FINISHED campaign under the current strict
+        rules; writes only <campaign_dir>/correction_audit.json and never
+        touches the original evidence.
 """
 
 import argparse
@@ -44,6 +55,7 @@ import hashlib
 import json
 import os
 import sys
+import time
 from collections import Counter
 
 SCHEMA_VERSION = "ooo-observation/v1"
@@ -96,6 +108,81 @@ NINE_CLASSES = ("SimulatorError", "Inactive", "Corrected",
 
 class AuditError(Exception):
     """Loud, user-facing audit error (bad invocation, unreadable tree)."""
+
+
+# The five admission-view mandatory-FAIL gates (L0-L5 correction,
+# 2026-10-13, Fix-C). All are scoped to samples with l0.activated >= 1:
+# an activated sample must carry a complete observation chain.
+SEMANTIC_GATE_VIOLATIONS = ("l3_unsupported_with_activation",
+                            "l0_funnel_missing",
+                            "l2_diverged_zero_instructions",
+                            "l1_valid_zero_snaps",
+                            "first_divergence_from_empty_trace")
+
+
+def semantic_gate_violations(obs):
+    """The five admission-view mandatory-FAIL gates (L0-L5 correction,
+    2026-10-13). Scoped to samples with l0.activated >= 1:
+
+      * l3_unsupported_with_activation -- an activated sample whose L3
+        (source-read association / fanout) is unsupported: a chain hole
+        from the formal-admission viewpoint;
+      * l0_funnel_missing -- l0.attempted or l0.eligible_count is
+        null/missing without a legal limited reason (l0.status=no_log,
+        or a documented non-empty l0.funnel_limited_reason /
+        l0.limited_reason string);
+      * l2_diverged_zero_instructions -- commit_diff.verdict=diverged
+        with run_instructions 0/None/missing: an empty or unrecorded
+        run trace cannot support a divergence verdict (the empty-trace
+        fake divergence: first_divergence at seq=0
+        class=instruction_flow_change is this pattern);
+      * l1_valid_zero_snaps -- l1.status=ok with micro_diff.snaps_run
+        not a positive int (zero or missing snaps under a "valid" L1);
+      * first_divergence_from_empty_trace -- a first-divergence record
+        (commit_diff.first_divergence or l2.first_divergent_commit)
+        sourced from an empty run trace.
+
+    Pure observation-shape checks: no file hashing, no identity checks
+    (those live in audit_observation). Returns a list drawn from
+    SEMANTIC_GATE_VIOLATIONS (may be empty). These rules are NEVER
+    relaxed: legacy samples carrying them are flagged, and the offline
+    correction-audit quantifies the backlog.
+    """
+    l0 = obs.get("l0") if isinstance(obs.get("l0"), dict) else {}
+    l1 = obs.get("l1") if isinstance(obs.get("l1"), dict) else {}
+    l2 = obs.get("l2") if isinstance(obs.get("l2"), dict) else {}
+    l3 = obs.get("l3") if isinstance(obs.get("l3"), dict) else {}
+    activated = l0.get("activated")
+    if not (isinstance(activated, int) and activated > 0):
+        return []
+    out = []
+    if l3.get("status") == "unsupported":
+        out.append("l3_unsupported_with_activation")
+    funnel_limited = l0.get("status") == "no_log"
+    for k in ("funnel_limited_reason", "limited_reason"):
+        r = l0.get(k)
+        if isinstance(r, str) and r.strip():
+            funnel_limited = True
+    if (l0.get("attempted") is None or l0.get("eligible_count") is None) \
+            and not funnel_limited:
+        out.append("l0_funnel_missing")
+    cd = l2.get("commit_diff") \
+        if isinstance(l2.get("commit_diff"), dict) else {}
+    run_instructions = cd.get("run_instructions")
+    run_trace_empty = run_instructions is None or run_instructions == 0
+    if cd.get("verdict") == "diverged" and run_trace_empty:
+        out.append("l2_diverged_zero_instructions")
+    if l1.get("status") == "ok":
+        md = l1.get("micro_diff")
+        snaps = md.get("snaps_run") if isinstance(md, dict) else None
+        if not (isinstance(snaps, int) and snaps > 0):
+            out.append("l1_valid_zero_snaps")
+    fd_rec = any(isinstance(x, dict) for x in
+                 (cd.get("first_divergence"),
+                  l2.get("first_divergent_commit")))
+    if fd_rec and run_trace_empty:
+        out.append("first_divergence_from_empty_trace")
+    return out
 
 
 def sha256_file(path, _buf=1024 * 1024):
@@ -166,6 +253,10 @@ def _check_layers(obs, submodel, violations):
     """Per-layer status/consistency checks. Returns the observed
     classification (or None) for campaign-level accounting."""
     classification = None
+    # the five admission-view semantic gates (2026-10-13): applied to
+    # EVERY audit, never relaxed; --correction-mode only changes the
+    # report tone, not the rules.
+    violations.extend(semantic_gate_violations(obs))
     for lk in LAYER_KEYS:
         if not isinstance(obs.get(lk), dict):
             violations.append("layer_%s_malformed" % lk)
@@ -382,9 +473,10 @@ def discover_samples(campaign_dir):
     return out, n_quarantine
 
 
-def audit_campaign(campaign_dir, frozen_gem5_sha=None):
+def audit_campaign(campaign_dir, frozen_gem5_sha=None, correction_mode=False):
     """Full campaign audit. Returns the rollup dict (also the payload
-    written to chain_audit.json)."""
+    written to chain_audit.json). `correction_mode` only annotates the
+    report (legacy re-audit tone); the RULES are identical either way."""
     if not os.path.isdir(campaign_dir):
         raise AuditError("campaign dir not found: %s" % campaign_dir)
     sample_dirs, n_quarantine = discover_samples(campaign_dir)
@@ -453,16 +545,22 @@ def audit_campaign(campaign_dir, frozen_gem5_sha=None):
     n_l3_gap = sum(1 for s in samples
                    if s["chain_gaps"] == ["L3"]
                    and not s["violations"])
+    violation_counts = Counter()
+    for s in samples:
+        for v in s["violations"]:
+            violation_counts[v] += 1
     rollup = {
         "tool": "ooo_chain_audit",
         "schema_version": SCHEMA_VERSION,
         "campaign_dir": os.path.abspath(campaign_dir),
         "frozen_gem5_sha": frozen_gem5_sha,
+        "correction_mode": bool(correction_mode),
         "n_samples": len(samples),
         "n_chain_complete": sum(1 for s in samples
                                 if s["chain_complete"] is True),
         "n_invalid": n_invalid,
         "n_l3_unsupported_gap": n_l3_gap,
+        "violation_counts": dict(violation_counts),
         "gaps_by_level": dict(gaps_by_level),
         "missing_layers_counts": dict(missing_counts),
         "classification_counts": {c: cls_counts[c] for c in NINE_CLASSES
@@ -501,6 +599,14 @@ def write_reports(campaign_dir, rollup):
         "- n_invalid (violations non-empty): %d" % rollup["n_invalid"],
         "- n_l3_unsupported_gap (honest L3 gap, not invalid): %d"
         % rollup["n_l3_unsupported_gap"],
+        "- violation_counts: %s" % json.dumps(
+            rollup.get("violation_counts", {})),
+        "- correction_mode: %s%s" % (
+            rollup.get("correction_mode", False),
+            " (re-audit of legacy data under the CURRENT strict rules; "
+            "the violations quantify the correction backlog, not a fresh "
+            "admission verdict)" if rollup.get("correction_mode")
+            else " (fresh admission audit)"),
         "- gaps_by_level: %s" % json.dumps(rollup["gaps_by_level"]),
         "- missing_layers: %s"
         % json.dumps(rollup["missing_layers_counts"]),
@@ -526,6 +632,132 @@ def write_reports(campaign_dir, rollup):
     return jpath, mpath
 
 
+# ------------------------------------------------- offline correction audit
+
+def _execution_rows(campaign_dir):
+    """Parsed results.jsonl rows carrying a run_id (the runner's
+    execution ledger). Unparseable lines are skipped (they fail louder
+    audits); a missing file is an honest zero, not an error."""
+    p = os.path.join(campaign_dir, "results.jsonl")
+    rows = []
+    if not os.path.isfile(p):
+        return rows
+    with open(p) as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                r = json.loads(line)
+            except ValueError:
+                continue
+            if isinstance(r, dict) and r.get("run_id"):
+                rows.append(r)
+    return rows
+
+
+def correction_audit(campaign_dir, frozen_gem5_sha=None):
+    """Offline re-audit of a FINISHED campaign's observations under the
+    CURRENT strict rules (Fix-C Task 3, 2026-10-13). Never re-runs a
+    sample and never rewrites any original evidence: the only artifact
+    is <campaign_dir>/correction_audit.json. Every observation is fully
+    audited via audit_observation (files manifest re-hashed); the
+    summary quantifies the correction backlog:
+
+      n                    samples audited
+      semantic_invalid     samples with any violations
+      fake_divergence_count  empty-trace fake divergences
+      l3_unsupported       l3_unsupported_with_activation count
+      l0_funnel_missing    l0_funnel_missing count
+      chain_backfill_required  chain_complete_count <
+                           execution_complete_count
+    """
+    if not os.path.isdir(campaign_dir):
+        raise AuditError("campaign dir not found: %s" % campaign_dir)
+    sample_dirs, n_quarantine = discover_samples(campaign_dir)
+    if not sample_dirs:
+        raise AuditError("no sample dirs under %s/samples" % campaign_dir)
+
+    per_sample = []
+    n_unparseable = 0
+    evidence_readable = 0
+    chain_complete_count = 0
+    for sdir in sample_dirs:
+        opath = os.path.join(sdir, "observation.json")
+        obs = None
+        if os.path.isfile(opath):
+            try:
+                with open(opath) as f:
+                    obs = json.load(f)
+            except (ValueError, OSError):
+                obs = None
+        if obs is None:
+            n_unparseable += 1
+            rec = {"run_id": os.path.basename(sdir), "classification": None,
+                   "violations": ["observation_unparseable"]}
+        else:
+            rec = audit_observation(obs, sdir, frozen_gem5_sha)
+            if not any(v.startswith(("file_missing", "file_sha_malformed",
+                                     "file_sha_mismatch",
+                                     "files_manifest_malformed",
+                                     "file_path_escape"))
+                       for v in rec["violations"]):
+                evidence_readable += 1
+            if rec["chain_complete"] is True:
+                chain_complete_count += 1
+        violations = rec["violations"]
+        per_sample.append({
+            "run_id": rec["run_id"],
+            "classification": rec["classification"],
+            "violations": violations,
+            "l2_zero_trace_fake_divergence": bool(
+                "l2_diverged_zero_instructions" in violations
+                or "first_divergence_from_empty_trace" in violations),
+        })
+
+    def count_v(name):
+        return sum(1 for p in per_sample if name in p["violations"])
+
+    execution_complete_count = len(_execution_rows(campaign_dir))
+    summary = {
+        "n": len(per_sample),
+        "semantic_invalid": sum(1 for p in per_sample if p["violations"]),
+        "fake_divergence_count": sum(
+            1 for p in per_sample if p["l2_zero_trace_fake_divergence"]),
+        "l3_unsupported": count_v("l3_unsupported_with_activation"),
+        "l0_funnel_missing": count_v("l0_funnel_missing"),
+        "chain_backfill_required": (chain_complete_count
+                                    < execution_complete_count),
+        "l1_valid_zero_snaps": count_v("l1_valid_zero_snaps"),
+        "first_divergence_from_empty_trace": count_v(
+            "first_divergence_from_empty_trace"),
+        "chain_complete_count": chain_complete_count,
+        "execution_complete_count": execution_complete_count,
+        "evidence_readable_count": evidence_readable,
+        "observations_unparseable": n_unparseable,
+        "n_quarantine_dirs": n_quarantine,
+        "note": "offline re-audit of finished evidence under the current "
+                "strict rules; original samples/observations are never "
+                "modified, this file is the only artifact",
+    }
+    return {
+        "tool": "ooo_chain_audit.correction-audit",
+        "schema_version": "ooo-correction-audit/v1",
+        "campaign_dir": os.path.abspath(campaign_dir),
+        "frozen_gem5_sha": frozen_gem5_sha,
+        "generated_at": time.strftime("%Y-%m-%dT%H:%M:%S"),
+        "per_sample": per_sample,
+        "summary": summary,
+    }
+
+
+def write_correction_report(campaign_dir, report):
+    jpath = os.path.join(campaign_dir, "correction_audit.json")
+    with open(jpath, "w") as f:
+        json.dump(report, f, indent=1, ensure_ascii=False)
+    return jpath
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(
         description="L0-L5 observation-chain integrity auditor")
@@ -539,11 +771,49 @@ def main(argv=None):
     a.add_argument("--frozen-gem5-sha", default=None,
                    help="expected sha256 of build/ARM/gem5.opt; every "
                         "sample's identity.gem5_sha256 must match")
+    a.add_argument("--correction-mode", action="store_true",
+                   help="annotate the report as a re-audit of legacy "
+                        "data under the CURRENT strict rules (tone "
+                        "only -- the rules and exit codes are "
+                        "identical in both modes)")
+    c = sub.add_parser("correction-audit",
+                       help="offline re-audit of a FINISHED campaign "
+                            "under the current strict rules; writes only "
+                            "<campaign_dir>/correction_audit.json, never "
+                            "touches the original evidence")
+    c.add_argument("--campaign-dir", required=True)
+    c.add_argument("--frozen-gem5-sha", default=None,
+                   help="expected sha256 of build/ARM/gem5.opt; every "
+                        "sample's identity.gem5_sha256 must match")
     args = ap.parse_args(argv)
+
+    if args.cmd == "correction-audit":
+        try:
+            report = correction_audit(args.campaign_dir,
+                                       frozen_gem5_sha=args.frozen_gem5_sha)
+        except AuditError as e:
+            print("[correction-audit] ERROR: %s" % e, file=sys.stderr)
+            return 1
+        try:
+            jpath = write_correction_report(args.campaign_dir, report)
+        except OSError as e:
+            print("[correction-audit] ERROR: cannot write report: %s" % e,
+                  file=sys.stderr)
+            return 1
+        s = report["summary"]
+        print("[correction-audit] campaign=%s n=%d semantic_invalid=%d "
+              "fake_divergence=%d l3_unsupported=%d l0_funnel_missing=%d "
+              "chain_backfill_required=%s -> %s"
+              % (report["campaign_dir"], s["n"], s["semantic_invalid"],
+                 s["fake_divergence_count"], s["l3_unsupported"],
+                 s["l0_funnel_missing"], s["chain_backfill_required"],
+                 jpath))
+        return 0
 
     try:
         rollup = audit_campaign(args.campaign_dir,
-                                frozen_gem5_sha=args.frozen_gem5_sha)
+                                frozen_gem5_sha=args.frozen_gem5_sha,
+                                correction_mode=args.correction_mode)
     except AuditError as e:
         print("[chain_audit] ERROR: %s" % e, file=sys.stderr)
         return 1
@@ -554,12 +824,20 @@ def main(argv=None):
               file=sys.stderr)
         jpath = mpath = None
 
+    mode_tag = ("%scorrection-mode: re-audit of legacy data; violations "
+                "below quantify the correction backlog"
+                % ("[chain_audit] ",)) if args.correction_mode else ""
+    if mode_tag:
+        print(mode_tag)
     print("[chain_audit] campaign=%s n_samples=%d n_chain_complete=%d "
           "n_invalid=%d n_l3_unsupported_gap=%d conserved=%s"
           % (rollup["campaign_dir"], rollup["n_samples"],
              rollup["n_chain_complete"], rollup["n_invalid"],
              rollup["n_l3_unsupported_gap"],
              rollup["conservation"]["conserved"]))
+    if rollup.get("violation_counts"):
+        print("[chain_audit] violation_counts=%s"
+              % json.dumps(rollup["violation_counts"]))
     for s in rollup["samples"]:
         if s["violations"]:
             print("[chain_audit] INVALID %s: %s"
