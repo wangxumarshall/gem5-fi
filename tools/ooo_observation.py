@@ -649,11 +649,32 @@ def l0_block_from(path, component):
                    "for D01-D07), so attempted is a lower bound of "
                    "hook-level inspections; eligible == injection event "
                    "lines == faults actually written")
+        # [FIX-RB] admission-gate vocabulary: semantic_gate_violations
+        # reads funnel_limited_reason / limited_reason when the funnel
+        # has an n/a field. eligible_count is n/a whenever this log
+        # carries no CHAOS_ELIGIBLE_COUNT= self-report -- decode/rat
+        # injectors never write one (only CHAOSLSQFwd/CHAOSExec do, at
+        # teardown; a crash before teardown also loses it). Documented
+        # n/a: attempted/eligible stay the real per-line counts, and
+        # this can never mask a missing log (that case is status=no_log
+        # below, which the gate already covers on its own).
+        if funnel["eligible_count"] is None:
+            limited_reason = (
+                "eligible_count n/a: no CHAOS_ELIGIBLE_COUNT= self-report "
+                "in this injector log (only CHAOSLSQFwd/CHAOSExec write "
+                "one, at teardown; decode/rat injectors never do, and a "
+                "crash before teardown loses it). attempted=%d / "
+                "eligible=%d are the real per-line logged counts "
+                "(injection events + honest skips / injection events)."
+                % (funnel["attempted"], funnel["eligible"]))
+        else:
+            limited_reason = None
     else:
         status = "no_log"
         log_sha = None
         limited = ("no injector log retained: attempted/eligible have no "
                    "source (None, honest n/a)")
+        limited_reason = None
     return dict(
         status=status, component=component,
         log_name=os.path.basename(funnel["log_path"]),
@@ -663,5 +684,5 @@ def l0_block_from(path, component):
         eligible=funnel["eligible"],
         attempted=funnel["attempted"], events=funnel["events"],
         skips=funnel["skips"], skip_lines=len(funnel["skips"]),
-        limited=limited,
+        limited=limited, limited_reason=limited_reason,
         truncated=funnel["truncated"])

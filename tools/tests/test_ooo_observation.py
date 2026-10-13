@@ -536,6 +536,44 @@ def test_l0_funnel_invariant_and_limited():
     check("l0blk-limited-note",
           isinstance(blk.get("limited"), str) and blk["limited"],
           blk.get("limited"))
+    # (e2) [FIX-RB] eligible_count has no source in a decode log (only
+    # CHAOSLSQFwd/CHAOSExec write CHAOS_ELIGIBLE_COUNT, at teardown) ->
+    # the gate-recognized l0.limited_reason documents the n/a; the real
+    # per-line counts stay; the admission gate stays silent (its own
+    # documented escape clause -- the gate itself is NOT modified)
+    import ooo_chain_audit as oca
+    check("l0blk-limited-reason-present",
+          isinstance(blk.get("limited_reason"), str)
+          and "CHAOS_ELIGIBLE_COUNT" in blk["limited_reason"]
+          and "eligible_count" in blk["limited_reason"]
+          and "attempted=2" in blk["limited_reason"],
+          blk.get("limited_reason"))
+    check("l0blk-eligible-count-none-documented",
+          blk["eligible_count"] is None
+          and blk["attempted"] == 2 and blk["eligible"] == 1,
+          (blk.get("eligible_count"), blk.get("attempted"),
+           blk.get("eligible")))
+    _obs = {"l0": blk, "l1": {}, "l2": {}, "l3": {}}
+    check("gate-silent-with-reason",
+          "l0_funnel_missing" not in
+          oca.semantic_gate_violations(_obs),
+          repr(oca.semantic_gate_violations(_obs)))
+    _obs_bad = {"l0": dict(blk, limited_reason=None),
+                "l1": {}, "l2": {}, "l3": {}}
+    check("gate-fires-without-reason",
+          "l0_funnel_missing" in
+          oca.semantic_gate_violations(_obs_bad),
+          repr(oca.semantic_gate_violations(_obs_bad)))
+    # (e3) an lsq_fwd log WITH the CHAOS_ELIGIBLE_COUNT self-report:
+    # eligible_count real, no limited_reason
+    d3, _ = wtmp("CHAOS_ELIGIBLE_COUNT=3\n"
+                 "Tick: 100, Site: lsq_fwd, faults_injected: 1\n",
+                 name="lsq_fwd_injections.log")
+    blk3 = om.l0_block_from(d3, "lsq_fwd")
+    check("l0blk-self-reported-eligible-count",
+          blk3["eligible_count"] == 3
+          and blk3.get("limited_reason") is None,
+          (blk3.get("eligible_count"), blk3.get("limited_reason")))
     # (f) missing log -> status no_log, funnel None + honest note
     d2 = tempfile.mkdtemp(prefix="obs-nolog2-")
     blk = om.l0_block_from(d2, "decode")
