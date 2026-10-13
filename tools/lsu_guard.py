@@ -79,6 +79,10 @@ TRIP_MEM_GIB = 8.0
 TRIP_MEM_HARD_GIB = 6.0
 TRIP_SWAP_GIB = 2.0
 TRIP_TERM_GRACE_S = 30
+# OBS-SLOT-RELEASE（中央指令 2026-10-13）：monitor 的资源采样保持 --interval
+# 节拍，但目标 PGID 存活改为快轮询——目标退出后槽位须在 ~2×POLL_TARGET_S 内
+# 释放（此前 time.sleep(interval) 整段睡眠导致最长 interval 秒延迟）。
+POLL_TARGET_S = 2.0
 COMPILE_COMMS = {"scons", "make", "ninja", "gcc", "g++", "gcc-12", "g++-12",
                  "clang", "clang++", "cc1plus", "cc1", "as", "ld", "ld.bfd"}
 
@@ -676,11 +680,27 @@ def _pgid_rss_gib(pgid):
     return total * 4096 / GIB
 
 
+def _pgid_alive(pgid):
+    """目标 PGID 是否仍有存活进程（僵尸 Z 不算存活：子进程退出后未收割前
+    仍保留 pgrp 字段，会把已结束的任务误判为运行中，导致锁永不释放）。"""
+    for p in os.listdir("/proc"):
+        if not p.isdigit():
+            continue
+        pf = _proc_fields(p)
+        if pf and pf[1] == pgid and pf[0] != "Z":
+            return True
+    return False
+
+
 def monitor(pgid, log_path, interval, max_seconds=None, lock_path=None, lock=None):
     """采样循环：写资源日志，检测 WARNING/TRIP；TRIP 时只终止锁内 PGID。
 
     v2：每轮采样顺带原子重写自己的锁文件 heartbeat 字段（lock_path/lock 给定
     时）——槽锁的存活性证据从"acquire 后不再更新"升级为"60s 心跳"。
+    OBS-SLOT-RELEASE（中央指令 2026-10-13）：资源采样保持 --interval 节拍
+    （不因快轮询刷屏），但目标存活每 POLL_TARGET_S 秒轮询——目标退出后
+    立即出循环、立即 wait/reap 并释放槽位（此前 time.sleep(interval) 整段
+    睡眠导致目标退出后最长 interval 秒才释放槽）。
     返回 (exit_reason, last_snapshot)。exit_reason ∈ normal|target-exited|TRIP。
     """
     low_mem_streak = 0
@@ -727,17 +747,7 @@ def monitor(pgid, log_path, interval, max_seconds=None, lock_path=None, lock=Non
             except ProcessLookupError:
                 pass
             break
-        # 目标 PGID 是否仍有存活进程（僵尸 Z 不算存活：子进程退出后未收割前
-        # 仍保留 pgrp 字段，会把已结束的任务误判为运行中，导致锁永不释放）
-        alive = False
-        for p in os.listdir("/proc"):
-            if not p.isdigit():
-                continue
-            pf = _proc_fields(p)
-            if pf and pf[1] == pgid and pf[0] != "Z":
-                alive = True
-                break
-        if not alive:
+        if not _pgid_alive(pgid):
             break
         if max_seconds and time.time() - start > max_seconds:
             reason = "max-seconds-reached"
@@ -746,7 +756,13 @@ def monitor(pgid, log_path, interval, max_seconds=None, lock_path=None, lock=Non
             except ProcessLookupError:
                 pass
             break
-        time.sleep(interval)
+        # OBS-SLOT-RELEASE：快轮询窗口（≤interval）——每 POLL_TARGET_S 秒查
+        # 目标存活，一退出立即 break 出外层循环（wait/reap+release 在调用方）
+        deadline = time.time() + interval
+        while time.time() < deadline:
+            if not _pgid_alive(pgid):
+                break
+            time.sleep(POLL_TARGET_S)
     return reason
 
 
