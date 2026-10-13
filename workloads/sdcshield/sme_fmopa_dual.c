@@ -35,8 +35,8 @@
 #include <string.h>
 #include <math.h>
 
-#define N_F32       16     /* tile side: SVL=512bit => 16 f32 lanes */
-#define K_FMOPA     64     /* outer-product rounds (the test's count) */
+#define N_F32_MAX   32     /* upper bound: SVL=1024bit => 32 f32 lanes */
+#define K_FMOPA     64     /* outer-product rounds (SVL-independent) */
 
 static uint32_t xs_state;
 static uint32_t xs32(void)
@@ -68,11 +68,23 @@ int main(int argc, char **argv)
     const int randomize = (strcmp(mode, "random") == 0);
     xs_state = seed ? seed : 1;
 
-    /* Operand streams, layout [k * N_F32 + i] (the test's geometry). */
-    static float a[K_FMOPA * N_F32], b[K_FMOPA * N_F32];
+    /* Full-SVL support: n = f32 lanes of the runtime SVL (128..1024-bit
+     * -> 4..32). All geometry below scales with n; the element-size
+     * immediates (f32 = 4B) stay constant. */
+    int64_t svl_bytes = 0;
+    asm volatile("rdsvl %0, #1" : "=r"(svl_bytes));
+    const int n = (int)(svl_bytes / 4);
+    if (n < 2 || n > N_F32_MAX) {
+        fprintf(stderr, "unsupported SVL %ld bytes\n", (long)svl_bytes);
+        return 3;
+    }
+    const int n_lanes = n;
+
+    /* Operand streams, layout [k * n + i] (the test's geometry). */
+    static float a[K_FMOPA * N_F32_MAX], b[K_FMOPA * N_F32_MAX];
     for (int k = 0; k < K_FMOPA; ++k)
-        for (int i = 0; i < N_F32; ++i) {
-            const size_t ki = (size_t)k * N_F32 + i;
+        for (int i = 0; i < n; ++i) {
+            const size_t ki = (size_t)k * n + i;
             if (randomize) {
                 a[ki] = (xs32() & 1 ? -1.0f : 1.0f) * rnd_abs_f32();
                 b[ki] = (xs32() & 1 ? -1.0f : 1.0f) * rnd_abs_f32();
@@ -90,24 +102,27 @@ int main(int argc, char **argv)
      * 64-level grid both roundings coincide (FAILS=0 with fmaf too).
      * Real-hardware single-rounding correctness is the sdcshield test's
      * own fmaf golden (PR #237), a separate layer from this FI oracle. */
-    static float golden[N_F32 * N_F32];
+    static float golden[N_F32_MAX * N_F32_MAX];
     memset(golden, 0, sizeof golden);
     for (int k = 0; k < K_FMOPA; ++k)
-        for (int r = 0; r < N_F32; ++r)
-            for (int c = 0; c < N_F32; ++c)
-                golden[(size_t)r * N_F32 + c] =
-                    a[(size_t)k * N_F32 + r] * b[(size_t)k * N_F32 + c] +
-                    golden[(size_t)r * N_F32 + c];
+        for (int r = 0; r < n; ++r)
+            for (int c = 0; c < n; ++c)
+                golden[(size_t)r * n + c] =
+                    a[(size_t)k * n + r] * b[(size_t)k * n + c] +
+                    golden[(size_t)r * n + c];
 
     /* SME kernel: one smstart/smstop window (the test's shape). */
-    static float tile[N_F32 * N_F32];
+    static float tile[N_F32_MAX * N_F32_MAX];
     {
         const float *pa = a, *pb = b;
         float *pt = tile;
+        /* x15 = n (f32 lanes, runtime from SVL); the element-size shift
+         * #2 (4 bytes/f32) is SVL-independent and stays an immediate. */
         asm volatile(
             "mov x1, %0\n\t"               /* a            */
             "mov x2, %1\n\t"               /* b            */
             "mov x3, %2\n\t"               /* tile out     */
+            "mov x15, %3\n\t"              /* n lanes      */
             "smstart sm\n\t"
             "smstart za\n\t"
             "zero {za}\n\t"
@@ -117,8 +132,9 @@ int main(int argc, char **argv)
             "1:\n\t"
             "cmp x9, #64\n\t"
             "b.ge 2f\n\t"
-            "add x10, x1, x9, lsl #6\n\t"   /* &a[k*16]     */
-            "add x11, x2, x9, lsl #6\n\t"   /* &b[k*16]     */
+            "mul x14, x9, x15\n\t"         /* k*n elements */
+            "add x10, x1, x14, lsl #2\n\t"  /* &a[k*n]      */
+            "add x11, x2, x14, lsl #2\n\t"  /* &b[k*n]      */
             "ld1w {z0.s}, p0/z, [x10]\n\t"
             "ld1w {z1.s}, p0/z, [x11]\n\t"
             "fmopa za0.s, p0/m, p1/m, z0.s, z1.s\n\t"
@@ -127,27 +143,28 @@ int main(int argc, char **argv)
             "2:\n\t"
             "mov x9, #0\n"                  /* row = 0      */
             "3:\n\t"
-            "cmp x9, #16\n\t"
+            "cmp x9, x15\n\t"
             "b.ge 4f\n\t"
             "mov w12, w9\n\t"
-            "add x13, x3, x9, lsl #6\n\t"   /* &out[r*16]   */
+            "mul x13, x9, x15\n\t"
+            "add x13, x3, x13, lsl #2\n\t"  /* &out[r*n]    */
             "st1w {za0h.s[w12, 0]}, p0, [x13]\n\t"
             "add x9, x9, #1\n\t"
             "b 3b\n"
             "4:\n\t"
             "smstop za\n\t"
             "smstop sm\n\t"
-            : : "r"(pa), "r"(pb), "r"(pt)
-            : "x1", "x2", "x3", "x9", "x10", "x11", "x13", "w12",
+            : : "r"(pa), "r"(pb), "r"(pt), "r"((long)n_lanes)
+            : "x1", "x2", "x3", "x9", "x10", "x11", "x13", "x14", "x15", "w12",
               "z0", "z1", "p0", "p1", "memory");
     }
 
     /* Channel A: byte-exact vs the scalar golden. */
-    for (size_t i = 0; i < N_F32 * N_F32; ++i) {
+    for (int i = 0; i < n * n; ++i) {
         fnv_u32(*(uint32_t *)&tile[i]);
         if (tile[i] != golden[i]) {
             if (g_fails == 0)
-                fprintf(stderr, "tile mismatch @%zu hw=%.9g sw=%.9g\n",
+                fprintf(stderr, "tile mismatch @%d hw=%.9g sw=%.9g\n",
                         i, tile[i], golden[i]);
             ++g_fails;
         }
