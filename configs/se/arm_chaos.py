@@ -42,6 +42,18 @@ p.add_argument("--maxinsts", type=int, default=0)
 # (e.g. cholesky_numeric "<iters> both", accum_kernel "<iters> both").
 p.add_argument("--workload_args", default="",
                help="space-separated argv for the SE workload binary")
+# SVE/SME full vector-length support (plan 2026-10-13-sve-sme-fi-eval Task 1).
+# SE mode reads VL from the per-ISA params (ArmISA.py sve_vl_se/sme_vl_se —
+# a generic System is allocated in SE, so ArmSystem.sve_vl does not apply;
+# isa.cc:133-134 SE branch). Unit: quadwords (128-bit). 1/2/4/8 cover the
+# architectural vector-length space 128/256/512/1024-bit.
+p.add_argument("--sve_vl", type=int, default=1, choices=[1, 2, 4, 8],
+               help="SVE vector length in 128-bit quadwords (SE-only param "
+                    "ArmISA.sve_vl_se). 1/2/4/8 = 128/256/512/1024-bit.")
+p.add_argument("--sme_vl", type=int, default=1, choices=[1, 2, 4, 8],
+               help="SME streaming vector length in 128-bit quadwords "
+                    "(SE-only param ArmISA.sme_vl_se). 1/2/4/8 = "
+                    "128/256/512/1024-bit.")
 # C2-KP: TaiShan V110 4-wide OoO proxy params (plan §4.1, E3 — NOT cycle-exact).
 # When set, overrides the DerivO3CPU defaults with V110-informed values.
 p.add_argument("--kp920_proxy", action="store_true",
@@ -308,6 +320,19 @@ board = SimpleBoard(
     memory=memory,
     cache_hierarchy=cache_hierarchy,
 )
+
+# SVE/SME full vector-length support (Task 1). Applied AFTER board creation
+# (the stdlib board has created the CPU's ISA objects by then) and BEFORE
+# Simulator instantiation. AtomicSimpleCPU has no isa vector in v25 —
+# guarded; the FI campaign targets are O3/Timing/Minor.
+_vl_applied = False
+for _isa in cpu0.isa:
+    _isa.sve_vl_se = args.sve_vl
+    _isa.sme_vl_se = args.sme_vl
+    _vl_applied = True
+if not _vl_applied:
+    print(f"WARNING: --sve_vl/--sme_vl not applied (cpu={args.cpu} has no "
+          f"isa vector); default VL/SVL = 128-bit")
 
 board.set_se_binary_workload(
     binary=FileResource(args.cmd, override=True),

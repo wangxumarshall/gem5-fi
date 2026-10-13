@@ -153,3 +153,51 @@
   - **AT_HWCAP/HWCAP2 由 gem5 从模拟 ISA 填充**（`src/arch/arm/process.cc:217-233`：fp/asimd/sve/dit/aes/pmull...）→ sdcshield 的 HWCAP 特性门控在 SE 可用
   - 风险点：SE 文件 syscall 直接打**宿主机**文件系统 → /proc/cpuinfo、/sys 拓扑读到的是宿主 128 核 Kunpeng920 的（拓扑失真，须 -n 1 钉死）；/proc/self/pagemap、forkfd 等路径未验证
   - sdcshield 有 `no-fork` ForkMode（sandstone_opts.cpp:895 "no"/"no-fork" 分支）——可绕开 fork；但 worker 线程恒为 pthread_create（sandstone_thread.cpp:123），-n 1 仍有 main+1 worker ≥2 线程
+
+---
+
+## SVE/SME 全规格 FI 评估（2026-10-13，feat/sve-sme-fi 分支，PR #237 验证）
+
+计划：docs/superpowers/plans/2026-10-13-sve-sme-fi-eval.md（J1'-J3' 预注册）。
+
+### F3/F4 gem5 保真度偏差（已登记+规避）
+
+- **F3**：SVE `mov z.d, #imm`（向量立即数 MOV）写入丢失（st1d 读回全 0）。kernel 一律用 `svdup_*`（DUP 编码，实测正常）。工具链级规避记录于 sve_sme_semantics.c P2。
+- **F4**：SME FMOPA = fplibMul+fplibAdd **双舍入**（真硬件单舍入 FMA）。三步定性：fmaf golden 在随机连续操作数上失配 181-190/256；双舍任 golden 需 **-ffp-contract=off**（否则 clang 重融合为 fmla）；规避后位一致。推论：真 sdcshield 二进制入 gem5（SE/FS）时 fmopa 随机模式将假阳性——FS 臂需知悉。
+
+### J1'（工具有效性）：通过
+
+4 kernel（fpu_special/stencil/fmopa/za_tileview 双通道提取）无注入对照全绿；
+random 5-seed checksum 互异（随机化生效）；fixed 全规格（128/256/512/1024-bit）跑通。
+
+### J2'（检出能力）：满足
+
+fpu_special×FPU-mantissa×fixed = 4/5 Detected（pilot）/ 3/10（campaign，周期对齐窗
+465,895 cycles）——逐 lane byte-exact 检出链路实证。physvec（PhysReg vector 瞬态
+单 bit）全 Masked（AVF 行为，与既往 cache pilot 一致）。fmopa/za 的 FPU 注入不覆盖
+SME 矩阵路径（FMOPA 写 ZA 不走 FP 写回 hook）——注入器覆盖边界，诚实记录。
+
+### J3'（多样性收益）：**不成立（负结果，如实报告）**
+
+周期对齐窗（各 mode 总周期 50%）+ n=10 + per-seed 基线：
+- fpu_special×fpumant：fixed 3/10 Detected，random 1/10（Wilson CI 重叠，无显著差）
+- stencil×fpumant：fixed 0/10，random 0/10
+
+**解读**：
+1. 无伤验证 ✓——random 随机输入下 byte-exact 检出链路仍工作（Detected 存在），
+   PR #237 随机化未损害检出能力；
+2. 收益未证——"输入多样性→检出面扩张"在本注入空间（FPU mantissa 瞬态、单点、
+   固定窗）未显现。fixed 特殊值表反而更敏感的机制候选：denorm_min/0.0/NaN 的
+   mantissa 位翻转产生量级级传播（denorm 尾数即全值；NaN payload 位入通道 B
+   checksum），普通随机数仅 1-ulp——**印证 fpu_special 保留 12 特殊值为语义核心
+   的设计正确性**（PR #237 的取舍）；
+3. 随机化收益主张的适用域重定位：更可能在 fracture 多片段种子轮换的长期覆盖
+   （SE 单次仿真无法承载）、永久故障形态、或跨数据模式的故障敏感性差——留待
+   后续（CHAOSFUPerm 永久故障×多 seed 是下一个自然实验）。
+
+### 注入工程标定（复用价值）
+
+- first_clock 单位是 **Cycles** 非 ticks（CHAOSPhysReg 构造 Cycles(p.firstClock)）；
+- kernel 总周期：fpu_special fixed 932k/random 2146k（2.3x=12³→16³）、stencil 207k、
+  fmopa 60k、za 53k——跨 mode 对比必须周期对齐窗（Task 7 混淆教训）；
+- 分类协议：Detected(FAILS>0 或 checksum≠per-seed 基线)/Masked/Inactive/Hang。
