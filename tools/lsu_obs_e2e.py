@@ -1,16 +1,25 @@
 #!/usr/bin/env python3
-"""lsu_obs_e2e.py — LSU 观测链 E2E kit（OBS 计划 T5a，Subagent-C）。
+"""lsu_obs_e2e.py — LSU 观测链 E2E kit（OBS 计划 T5a，Subagent-C；
+v2 适配 2026-10-13：observation v2 契约——顶层四状态/L3 委托
+propagation_trace/L4 detector=not_present，审计器默认规则集 v2）。
 
 阶段一验收 B/D/E/F 的选择器、watcher、机器判定与 handoff 报告：
   B 正常（no-fault golden）：golden COMPLETE + verify_complete OK +
     ctrace/msnap gz_probe 可读（截断 golden 拒收——会污染全部比对）
-  D Masked/SDC：COMPLETE + L1/L2 complete + L5.outcome 与历史 verdict 相同
-    （同 seed 重放确定性）+ replay verified + 证据可读 + audit PASS
-  E abort Crash：COMPLETE + outcome=Crash + L2.status ∈
+  D Masked/SDC：COMPLETE + L1/L2 complete + L3 complete+propagation_trace
+    （v2 五层可读：activated>0 样本必须有真传播证据，prop_trace.csv.gz
+    入 files）+ L5.outcome 与历史 verdict 相同（同 seed 重放确定性）+
+    replay verified + 证据可读 + audit v2 PASS
+  E abort Crash：COMPLETE + outcome=Crash（obs 管线真实产出，历史结局仅
+    先验——跨环境同 seed 注入位点不同，2026-10-12 实证）+ L2.status ∈
     {not_observed_before_crash, complete} + 截断绝不误报 no_divergence +
-    replay verified + audit PASS
-  F 可审计性：全部样本 observation.json 可被审计器解析、audit PASS、
-    identity.gem5_opt_sha256 == 冻结 sha、身份/hash 一致
+    L3 complete+propagation_trace（截断 caveat 允许、path_complete 可
+    false——崩溃截断语义，不降级 L3 口径）+ replay verified + audit v2
+    PASS
+  F 可审计性：全部样本 observation.json 可被审计器解析、audit v2 PASS
+    （规则 R1：activated>0 且 L3 非 propagation_trace → 强制 FAIL，即
+    audit v2 PASS 已隐含五层全过）、identity.gem5_opt_sha256 == 冻结
+    sha、身份/hash 一致
 
 子命令：
   --select [--campaign X] [--record-out PATH]
@@ -35,8 +44,10 @@
   --validate --campaign X [--outdir-root R] [--expect-gem5-sha H]
       B/D/E/F 逐项机器判定（退出码 0=全 PASS）。
   --self-check
-      完整性检查器有效性证明：tmp 合成好样本 → 故意篡改 files sha 与
-      chain_complete → 断言 lsu_audit 判 FAIL。
+      完整性检查器有效性证明：tmp 合成 v2 合规好样本（含真实 L3 传播
+      trace，audit v2 干净 PASS）→ 故意篡改 files sha 与 chain_complete
+      → 断言 lsu_audit 判 FAIL 且检出篡改本身（基准 v2 合规，篡改检出
+      不被 R1 等规则噪声污染）。
   --report --campaign X
       写 <outdir>/<campaign>/handoff_e2e.json + .md（选择清单+证据路径、
       逐样本 verdict/L1/L2 摘要、replay 证据、B/D/E/F 判定、绝对路径、
@@ -75,7 +86,7 @@ FROZEN_GEM5_SHA = ("10590f6295bc4dec09fc51c538dd857abaf2efb92"
                    "fb3c373422a24e1aaf1e36c")
 SLOTS_TOTAL = 4                                     # guard 硬上限（用户判据）
 DEFAULT_CAMPAIGN = "obs_e2e_20261012"
-VERSION = "lsu_obs_e2e v1 (OBS-5a)"
+VERSION = "lsu_obs_e2e v2 (OBS-5a; observation v2 契约 2026-10-13)"
 SAMPLE_DIR_RE = A.SAMPLE_DIR_RE
 
 
@@ -506,6 +517,21 @@ def validate_campaign(campaign, outdir_root, expect_gem5_sha, selection):
         if not rd.get("verified"):
             d_ok = False
             d_detail.append(f"replay_determinism.verified={rd.get('verified')}")
+        # L3（v2 五层可读）：真实传播证据——status=complete 且
+        # method=propagation_trace（unsupported/proxy 不算数，R1 对偶的
+        # kit 侧显式断言），prop_trace.csv.gz 须入 files（sha 由审计全量复核）
+        l3 = obs.get("L3") or {}
+        if l3.get("status") != "complete" \
+                or l3.get("method") != "propagation_trace":
+            d_ok = False
+            d_detail.append(
+                f"L3 status={l3.get('status')!r} method="
+                f"{l3.get('method')!r}（v2 五层可读须 L3 complete + "
+                f"propagation_trace——activated>0 样本必须有真传播证据）")
+        if not any(f.get("name") == "prop_trace.csv.gz"
+                   for f in obs.get("files") or []):
+            d_ok = False
+            d_detail.append("files 无 prop_trace.csv.gz（L3 传播证据文件缺失）")
         # 证据可读：fault ctrace+msnap + commit_diff + micro_diff + L5 文件
         for lv, nm in (("L1", "msnap"), ("L2", "ctrace")):
             if _fault_probe_path(d, obs, lv) is None:
@@ -531,7 +557,8 @@ def validate_campaign(campaign, outdir_root, expect_gem5_sha, selection):
                             f"{ident.get('gem5_opt_sha256')} != 冻结 sha")
         if d_ok:
             d_detail = [f"样本={d} outcome={outcome} L1=complete "
-                        f"L2=complete replay=verified"]
+                        f"L2=complete L3=complete(propagation_trace) "
+                        f"replay=verified"]
     add("D", d_ok, "; ".join(d_detail) if d_ok else "FAIL: " + "; ".join(d_detail))
 
     # ---- E：abort Crash 样本
@@ -560,6 +587,18 @@ def validate_campaign(campaign, outdir_root, expect_gem5_sha, selection):
             e_ok = False
             e_detail.append(f"L2.status={l2.get('status')}（须 "
                             f"not_observed_before_crash/complete）")
+        # L3（v2）：crash 样本同样须真实传播证据（R1 对偶的 kit 侧显式
+        # 断言）；截断 caveat 允许、path_complete 可 false——崩溃截断语义
+        # （abort 前缀打捞的诚实证据），但不降级 L3 口径
+        l3 = obs.get("L3") or {}
+        if l3.get("status") != "complete" \
+                or l3.get("method") != "propagation_trace":
+            e_ok = False
+            e_detail.append(
+                f"L3 status={l3.get('status')!r} method="
+                f"{l3.get('method')!r}（v2：crash 样本也须 complete + "
+                f"propagation_trace；截断 caveat 允许——崩溃截断语义不"
+                f"降级 L3 口径）")
         # 截断诚实性：fault trace 截断 → 必须标注 truncated 且绝不 no_divergence
         fp = _fault_probe_path(d, obs, "L2")
         if fp is not None:
@@ -591,7 +630,9 @@ def validate_campaign(campaign, outdir_root, expect_gem5_sha, selection):
             e_detail = [f"样本={d} L2.status={l2.get('status')} "
                         f"commit_diff.verdict="
                         f"{(l2.get('commit_diff') or {}).get('verdict')} "
-                        f"replay=verified"]
+                        f"L3=propagation_trace(path_complete="
+                        f"{((l3.get('evidence') or {}).get('path_complete'))}"
+                        f") replay=verified"]
     add("E", e_ok, "; ".join(e_detail) if e_ok else "FAIL: " + "; ".join(e_detail))
 
     # ---- F：可审计性（全部样本 + golden：解析/audit/身份 sha 一致）
@@ -616,7 +657,8 @@ def validate_campaign(campaign, outdir_root, expect_gem5_sha, selection):
             f_ok = False
             f_detail.append(f"golden audit FAIL: {rg['reasons']}")
     if f_ok:
-        f_detail = [f"全部样本 audit PASS，identity/hash 一致 "
+        f_detail = [f"全部样本 audit v2 PASS（五层全过：activated>0 → L3 "
+                    f"须 propagation_trace），identity/hash 一致 "
                     f"(gem5_opt_sha256={expect_gem5_sha[:16]}...)"]
     add("F", f_ok, "; ".join(f_detail) if f_ok else "FAIL: " + "; ".join(f_detail))
 
@@ -687,6 +729,7 @@ def _sample_summary(camp, cand):
         return {"error": err}
     d, obs = pair
     l2cd = (obs.get("L2") or {}).get("commit_diff") or {}
+    l3 = obs.get("L3") or {}
     rd = obs.get("replay_determinism") or {}
     return {
         "sample_dir": str(d.resolve()),
@@ -698,6 +741,10 @@ def _sample_summary(camp, cand):
         "commit_diff_verdict": l2cd.get("verdict"),
         "commit_diff_first_errant_seq": (l2cd.get("first_errant_commit")
                                          or {}).get("seq"),
+        "L3_status": l3.get("status"),
+        "L3_method": l3.get("method"),
+        "L3_path_complete": (l3.get("evidence") or {}).get("path_complete"),
+        "L3_truncated": l3.get("truncated"),
         "chain_complete": obs.get("chain_complete"),
         "chain_status_reason": obs.get("chain_status_reason"),
         "replay_verified": rd.get("verified"),
@@ -745,6 +792,12 @@ def report(campaign, outdir_root, expect_gem5_sha, selection=None):
         "acceptance_BDEF": lines,
         "acceptance_all_pass": ok,
     }
+    # v2：完整链计数（样本 observation 顶层 chain_complete 直读；不可读
+    # 样本不计入任一侧，由 acceptance B/D/E/F 的 FAIL 诚实暴露）
+    chain_vals = [s.get("chain_complete") for s in doc["samples"].values()
+                  if "error" not in s]
+    doc["chain_complete_count"] = sum(1 for v in chain_vals if v is True)
+    doc["chain_incomplete_count"] = sum(1 for v in chain_vals if v is False)
     camp.mkdir(parents=True, exist_ok=True)
     (camp / "handoff_e2e.json").write_text(
         json.dumps(doc, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
@@ -778,11 +831,18 @@ def report(campaign, outdir_root, expect_gem5_sha, selection=None):
                    f"- L1: {s['L1_status']}；L2: {s['L2_status']}"
                    f"（commit_diff={s['commit_diff_verdict']}, "
                    f"first_errant_seq={s['commit_diff_first_errant_seq']}）",
+                   f"- L3: {s['L3_status']}"
+                   f"（method={s['L3_method']}, "
+                   f"path_complete={s['L3_path_complete']}, "
+                   f"truncated={s['L3_truncated']}）",
                    f"- chain_complete={s['chain_complete']}"
                    f"（{s['chain_status_reason']}）",
                    f"- replay verified={s['replay_verified']} "
                    f"evidence={json.dumps(s['replay_evidence'], ensure_ascii=False)}"]
         md.append("")
+    md += [f"chain_complete 样本计数: {doc['chain_complete_count']} complete / "
+           f"{doc['chain_incomplete_count']} incomplete"
+           f"（v2 顶层直读；L3 非 propagation_trace 即 incomplete）", ""]
     md += ["## 验收判定 B/D/E/F", ""]
     for l in lines:
         md.append(f"- **{l['class']}**: {'**PASS**' if l['pass'] else '**FAIL**'}"
@@ -810,8 +870,72 @@ def cmd_report(args):
 
 
 # ================================================================ --self-check
+# v2 合成 prop_trace 夹具（与 tests/test_lsu_l3_propagation.py 的 FULL_CHAIN
+# 同款，逐列对齐 CHAOSPropagation.cc writeNode 契约：十进制数值列、无值列=
+# 空串、addr=无前缀小写 hex、detail='k=v;k=v' 无逗号）。
+_PROP_HEADER = ("# lsu-propagation v1: node_id,tick,ptag,kind,dyn_inst_seq,"
+                "request_id,addr,phys_reg,arch_reg,detail\n")
+_PROP_FULL_CHAIN = _PROP_HEADER + (
+    "0,123450,1,inj,77,,1a2b3000,,,"
+    "site=lsq_pushRequest_PRE;family=addrpath;is_load=1;old_size=8;"
+    "new_size=8;old_addr=1a2b3000;new_addr=1a2b3008\n"
+    "1,123450,1,addr_form,77,,1a2b3008,,,"
+    "site=lsq_pushRequest_PRE;old_addr=1a2b3000;new_addr=1a2b3008\n"
+    "2,124000,1,mem_req,77,77,1a2b3008,,,"
+    "site=lsq_sendFragmentToTranslation;family=addrpath;size=8\n"
+    "3,130000,1,resp,77,77,1a2b3008,,,"
+    "family=addrpath;size=8;data_fnv=0123456789abcdef\n"
+    "4,130001,1,taint_reg,77,77,1a2b3008,42,5,class=int;dest_idx=0\n"
+    "5,140000,1,consumer,90,,,42,5,class=int;src_idx=1;pc=8f00\n"
+    "6,140000,1,errant_commit,90,,,,,trigger=first_consumer;pc=8f00\n"
+    "7,150000,0,funnel,,,,,,"
+    "site=CHAOSAddrPath;attempted=12;eligible=5;injected=1\n"
+)
+# crash 截断件：链止于 consumer（无 errant_commit 尾节点 → path_complete=
+# false），且以无 gzip trailer 的 Z_SYNC_FLUSH 前缀落盘（abort 真形态）
+_PROP_CRASH_PREFIX = _PROP_HEADER + (
+    "0,123450,1,inj,77,,1a2b3000,,,"
+    "site=lsq_pushRequest_PRE;family=addrpath;is_load=1;old_size=8;"
+    "new_size=8;old_addr=1a2b3000;new_addr=1a2b3008\n"
+    "1,123450,1,addr_form,77,,1a2b3008,,,"
+    "site=lsq_pushRequest_PRE;old_addr=1a2b3000;new_addr=1a2b3008\n"
+    "2,124000,1,mem_req,77,77,1a2b3008,,,"
+    "site=lsq_sendFragmentToTranslation;family=addrpath;size=8\n"
+    "3,130000,1,resp,77,77,1a2b3008,,,"
+    "family=addrpath;size=8;data_fnv=0123456789abcdef\n"
+    "4,130001,1,taint_reg,77,77,1a2b3008,42,5,class=int;dest_idx=0\n"
+    "5,140000,1,consumer,90,,,42,5,class=int;src_idx=1;pc=8f00\n"
+)
+
+
+def _sc_write_prop_trace(path, text, truncated_prefix=False):
+    """写合成 prop_trace.csv.gz（prop_trace.csv.gz v1 契约）。
+
+    truncated_prefix=True → 无 gzip trailer 的 Z_SYNC_FLUSH 前缀
+    （CHAOSPropagation abort 时的真实形态：每节点 flush、abort 后无
+    trailer——解析器截断打捞契约的输入侧，同 L3 测试 write_gz）。"""
+    import zlib
+    if not truncated_prefix:
+        import gzip
+        with gzip.open(path, "wt", encoding="utf-8") as f:
+            f.write(text)
+    else:
+        co = zlib.compressobj(9, zlib.DEFLATED, 31)  # wbits=31: gzip 头
+        Path(path).write_bytes(
+            co.compress(text.encode("utf-8"))
+            + co.flush(zlib.Z_SYNC_FLUSH))            # 无 trailer
+
+
 def _sc_build_sample(parent, item, s, l5, *, crash_truncated=False):
-    """self-check/测试共用的最小合成 COMPLETE 样本（full 模式）。"""
+    """self-check/测试共用的最小合成 COMPLETE 样本（full 模式，v2 契约）。
+
+    v2（2026-10-13 适配）：样本经 OC.build_l3(prop_trace_path=...) 委托
+    lsu_l3_propagation 产出真实 L3，OC.build_observation(prop_trace_path=)
+    产出顶层 v2 字段（schema=lsu-observation-v2、chain_complete 四状态）。
+    masked/SDC（crash_truncated=False）= 完整传播链（errant_commit 尾节点
+    在 → path_complete=true）；crash = 截断前缀（无 errant_commit 尾节点 →
+    path_complete=false + 截断 caveat，仍 complete/propagation_trace——
+    崩溃截断语义，绝不冒充 no_divergence，也不降级 L3 口径）。"""
     import gzip
     import micro_diff
     staging = parent / f"{item}_s{s}.staging"
@@ -838,6 +962,11 @@ def _sc_build_sample(parent, item, s, l5, *, crash_truncated=False):
         blob = (staging / "commit_trace.csv.gz").read_bytes()
         (staging / "commit_trace.csv.gz").write_bytes(
             blob[:int(len(blob) * 0.6)])
+    # v2 L3 证据：prop_trace.csv.gz（完整链 / crash 截断前缀）
+    _sc_write_prop_trace(staging / "prop_trace.csv.gz",
+                         _PROP_FULL_CHAIN if not crash_truncated
+                         else _PROP_CRASH_PREFIX,
+                         truncated_prefix=crash_truncated)
     micro_diff._write_snap(str(staging / "micro_snap.csv.gz"), rows)
     inj = ("Tick: 887040, Site: lsq_sendFragmentToTranslation, "
            "mode=low_bit_flip, old_vaddr=0x7ffffefd00, "
@@ -852,7 +981,9 @@ def _sc_build_sample(parent, item, s, l5, *, crash_truncated=False):
     l0 = OC.parse_l0((staging / "gem5.out").read_text(), inj + "\n")
     l1 = OC.build_l1(msn_ref, staging / "micro_snap.csv.gz")
     l2 = OC.build_l2(ctr_ref, staging / "commit_trace.csv.gz", l5=l5)
-    l3 = OC.build_l3("addrpath", l2)
+    # 真实 L3：委托 lsu_l3_propagation（同 driver post_process 接线路径）
+    l3 = OC.build_l3("addrpath", l2,
+                     prop_trace_path=staging / "prop_trace.csv.gz")
     l4 = OC.build_l4(l0, l1, l2, l5,
                      fault_msnap_path=staging / "micro_snap.csv.gz")
     ident = {"campaign": "selfcheck", "item": item, "runid": "A01-F0-W9",
@@ -862,14 +993,16 @@ def _sc_build_sample(parent, item, s, l5, *, crash_truncated=False):
              "workload": "se:gap_bfs", "workload_sha256": "d" * 64,
              "config_family": "C4-LSU", "pythonhashseed": 0,
              "baseline_key": "e" * 32, "obs_mode": "full",
-             "coverage_scope": "full_run"}
+             "coverage_scope": "full_run", "prop_traced": True}
     files = [{"name": n, "path": n, "sha256": OC.sha256_file(staging / n),
               "bytes": (staging / n).stat().st_size}
-             for n in ("addrpath_injections.log", "commit_trace.csv.gz",
-                       "micro_snap.csv.gz", "gem5.out", "l5_verdict.json")]
+             for n in ("addrpath_injections.log", "prop_trace.csv.gz",
+                       "commit_trace.csv.gz", "micro_snap.csv.gz",
+                       "gem5.out", "l5_verdict.json")]
     obs = OC.build_observation(ident, l0, l1, l2, l3, l4, l5,
                                {"policy": "per_sample", "verified": True,
-                                "evidence": {}}, files)
+                                "evidence": {}}, files,
+                               prop_trace_path=staging / "prop_trace.csv.gz")
     (staging / "observation.json").write_text(
         json.dumps(obs, ensure_ascii=False, indent=1))
     final = parent / f"{item}_s{s}"
@@ -907,7 +1040,9 @@ def _sc_build_golden(parent, key, gem5_sha):
 
 
 def cmd_self_check(args):
-    """完整性检查器有效性证明：篡改 files sha + chain_complete → 审计器必 FAIL。"""
+    """完整性检查器有效性证明（v2）：基准样本 v2 合规（含真实 L3 传播
+    trace）→ audit v2 干净 PASS；篡改 files sha + chain_complete → 审计器
+    必 FAIL 且检出篡改本身（基准无 R1 噪声——L3 已是 propagation_trace）。"""
     tmp = Path(tempfile.mkdtemp(prefix="lsu_e2e_selfcheck_"))
     print(f"self-check 工作区: {tmp}")
     l5 = {"outcome": "SDC", "activated": 1, "injected": 1,

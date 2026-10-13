@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-"""test_lsu_obs_e2e_select.py — E2E kit 单测（OBS 计划 T5a，Subagent-C）。
+"""test_lsu_obs_e2e_select.py — E2E kit 单测（OBS 计划 T5a，Subagent-C；
+v2 适配 2026-10-13：夹具经 OC.build_l3(prop_trace_path)/OC.build_observation
+产出 observation v2——masked/SDC 真实 L3 完整链、crash 截断传播链）。
 
 覆盖：
   1  --select 对真实主树 pilot/AGU（+pilot_w1 嵌套布局）只读扫描：
@@ -7,18 +9,25 @@
      优先、simulator_assert 优先、selection.json 只落 --record-out（绝不写
      pilot 根）；引用真实选择输出。
   2  --validate 判定逻辑（合成 campaign 树，fixtures 复用 lsu_obs_e2e 的
-     _sc_build_sample/_sc_build_golden）四情形：
-     (a) golden 完整 + 两样本完好 → B/D/E/F 全 PASS（CLI 退出码 0）
+     _sc_build_sample/_sc_build_golden）五情形：
+     (a) golden 完整 + 两样本完好 → B/D/E/F 全 PASS（CLI 退出码 0）；
+         夹具真实性：masked L3=complete+propagation_trace+path_complete、
+         crash L3=截断前缀（path_complete=False + 截断 caveat，仍
+         complete/propagation_trace——崩溃截断语义）
      (b) masked 样本缺 fault trace（删 micro_snap.csv.gz）→ D FAIL、F FAIL，
          B/E 仍 PASS
      (c) crash 样本截断 fault ctrace 被篡改为 no_divergence → E FAIL（误报
          检出）、F FAIL，B/D 仍 PASS（CLI 退出码 1）
      (d) selection 历史 outcome 与样本 outcome 不符（同 seed 重放确定性
          不成立）→ D FAIL
+     (e) masked 样本 L3 被降级为 unsupported（v1 夹具形态）→ D FAIL（kit
+         侧 L3 断言 + audit v2 R1）、F FAIL，B/E 仍 PASS
   3  --self-check：篡改 files sha + chain_complete → lsu_audit 判 FAIL
-     （完整性检查器有效性证明，CLI）。
+     （完整性检查器有效性证明，CLI；基准样本 v2 合规，篡改检出无 R1 噪声）。
   4  同 ITEM / 不同 ITEM 的 driver 调用构造（一次调用带两个 --samples /
      两次调用）。
+  5  --report：handoff_e2e.json 含 chain_complete_count/
+     chain_incomplete_count（样本顶层直读）与 L3 摘要字段。
 
 注意：真实 pilot/AGU 正被生产 campaign 并发写入——树内容会在测试期间自然
 变化，故只读性以"select 代码路径仅读 + 产物仅落 record-out + pilot 根内无
@@ -68,7 +77,8 @@ def make_selection(hist_outcome="SDC"):
 
 def make_campaign(tmp, name, *, tamper=None):
     """合成 campaign：<tmp>/<name>/golden/<KEY> + <tmp>/<name>/<CAMPAIGN>/<ITEM>/。
-    tamper: None | "missing_trace" | "misreport_no_divergence" """
+    tamper: None | "missing_trace" | "misreport_no_divergence"
+            | "l3_unsupported"（masked 样本 L3 降级为 v1 夹具形态）"""
     outdir = tmp / name
     E2E._sc_build_golden(outdir / "golden", KEY, GEM5_SHA)
     item_dir = outdir / CAMPAIGN / ITEM
@@ -80,6 +90,24 @@ def make_campaign(tmp, name, *, tamper=None):
         d = item_dir / f"{ITEM}_s1"
         obs = json.loads((d / "observation.json").read_text())
         obs["L2"]["commit_diff"]["verdict"] = "no_divergence"  # 误报
+        (d / "observation.json").write_text(
+            json.dumps(obs, ensure_ascii=False, indent=1))
+        comp = json.loads((d / "COMPLETE").read_text())
+        comp["observation_sha256"] = OC.sha256_file(d / "observation.json")
+        (d / "COMPLETE").write_text(json.dumps(comp, indent=1) + "\n")
+    if tamper == "l3_unsupported":
+        # masked 样本 L3 降级为 v1 夹具形态（无传播证据）——存储侧四状态
+        # 同步重算保持一致（chain_complete=False / missing_levels=[L3]），
+        # 使 D 的失败只来自 kit 侧 L3 断言 + audit v2 R1，而非状态自相矛盾
+        d = item_dir / f"{ITEM}_s0"
+        obs = json.loads((d / "observation.json").read_text())
+        obs["L3"] = {"status": "unsupported", "method": None,
+                     "reason": "合成 v1 降级夹具：无传播证据"
+                               "（非 propagation_trace）"}
+        ok_, why = OC.chain_complete(obs)
+        obs["chain_complete"], obs["chain_status_reason"] = ok_, why
+        obs["missing_levels"] = OC.missing_levels(obs)
+        obs["needs_backfill"] = bool(obs["missing_levels"])
         (d / "observation.json").write_text(
             json.dumps(obs, ensure_ascii=False, indent=1))
         comp = json.loads((d / "COMPLETE").read_text())
@@ -192,11 +220,39 @@ def main():
     check("caseA_all_pass", ok_a and all(l["pass"] for l in la.values()),
           json.dumps({k: v["detail"] for k, v in la.items()}, ensure_ascii=False))
     check("caseA_D_detail", "outcome=SDC" in la["D"]["detail"]
-          and "replay=verified" in la["D"]["detail"], la["D"]["detail"])
+          and "replay=verified" in la["D"]["detail"]
+          and "L3=complete(propagation_trace)" in la["D"]["detail"],
+          la["D"]["detail"])
     check("caseA_E_honest_truncation",
           "not_observed_before_crash" in la["E"]["detail"]
-          and "truncated_no_divergence_in_prefix" in la["E"]["detail"],
+          and "truncated_no_divergence_in_prefix" in la["E"]["detail"]
+          and "L3=propagation_trace" in la["E"]["detail"]
+          and "path_complete=False" in la["E"]["detail"],
           la["E"]["detail"])
+    # v2 夹具真实性：masked=真实 L3 完整链 / crash=截断传播链（崩溃截断
+    # 语义：path_complete=False + 截断 caveat，仍 complete/propagation_trace）
+    obs_ms = json.loads((out_a / CAMPAIGN / ITEM / f"{ITEM}_s0"
+                         / "observation.json").read_text())
+    obs_cr = json.loads((out_a / CAMPAIGN / ITEM / f"{ITEM}_s1"
+                         / "observation.json").read_text())
+    check("fixture_masked_l3_real",
+          obs_ms["schema"] == "lsu-observation-v2"
+          and obs_ms["L3"]["status"] == "complete"
+          and obs_ms["L3"]["method"] == "propagation_trace"
+          and obs_ms["L3"]["evidence"]["path_complete"] is True
+          and obs_ms["chain_complete"] is True
+          and any(f["name"] == "prop_trace.csv.gz" for f in obs_ms["files"]),
+          json.dumps(obs_ms.get("L3"), ensure_ascii=False)[:300])
+    check("fixture_crash_l3_truncation_semantics",
+          obs_cr["schema"] == "lsu-observation-v2"
+          and obs_cr["L3"]["status"] == "complete"
+          and obs_cr["L3"]["method"] == "propagation_trace"
+          and obs_cr["L3"]["truncated"] is True
+          and obs_cr["L3"]["evidence"]["path_complete"] is False
+          and obs_cr["L3"]["evidence"]["first_errant_commit"] is None
+          and any("截断" in c for c in obs_cr["L3"]["caveats"])
+          and obs_cr["chain_complete"] is True,
+          json.dumps(obs_cr.get("L3"), ensure_ascii=False)[:300])
 
     # (b) masked 缺 fault trace → D/F FAIL，B/E PASS
     out_b = make_campaign(tmp, "case_b", tamper="missing_trace")
@@ -229,6 +285,21 @@ def main():
           not ok_d and not ld["D"]["pass"]
           and "历史 verdict" in ld["D"]["detail"], ld["D"]["detail"])
 
+    # (e) masked 样本 L3 降级为 unsupported（v1 夹具形态）→ D FAIL（kit 侧
+    # L3 断言 + audit v2 R1）、F FAIL，B/E 仍 PASS
+    out_e = make_campaign(tmp, "case_e", tamper="l3_unsupported")
+    le, ok_e = vrun(out_e, make_selection())
+    check("caseE_overall_fail", not ok_e)
+    check("caseE_l3_degraded_fails_D",
+          not le["D"]["pass"] and "L3" in le["D"]["detail"]
+          and "propagation_trace" in le["D"]["detail"]
+          and "audit FAIL" in le["D"]["detail"], le["D"]["detail"])
+    check("caseE_B_E_still_pass", le["B"]["pass"] and le["E"]["pass"],
+          f"B={le['B']['detail']} E={le['E']['detail']}")
+    check("caseE_F_fail_r1", not le["F"]["pass"]
+          and "L3_unsupported_for_activated_sample" in le["F"]["detail"],
+          le["F"]["detail"])
+
     # CLI --validate：case_a 退出码 0 / case_c 退出码 1（需 selection.json）
     for outdir, expect_rc, tag in ((out_a, 0, "caseA"), (out_c, 1, "caseC")):
         (outdir / CAMPAIGN).mkdir(parents=True, exist_ok=True)
@@ -260,6 +331,14 @@ def main():
           and doc["samples"]["masked_or_sdc"]["outcome"] == "SDC"
           and doc["samples"]["crash"]["L2_status"]
           == "not_observed_before_crash"
+          and doc["samples"]["masked_or_sdc"]["L3_status"] == "complete"
+          and doc["samples"]["masked_or_sdc"]["L3_method"]
+          == "propagation_trace"
+          and doc["samples"]["masked_or_sdc"]["L3_path_complete"] is True
+          and doc["samples"]["crash"]["L3_method"] == "propagation_trace"
+          and doc["samples"]["crash"]["L3_path_complete"] is False
+          and doc["chain_complete_count"] == 2
+          and doc["chain_incomplete_count"] == 0
           and doc["environment"]["gem5_opt_sha256"] == E2E.FROZEN_GEM5_SHA
           and doc["environment"]["gem5_sha_matches_frozen"] is False
           and doc["environment"]["expect_gem5_sha256"] == GEM5_SHA,
