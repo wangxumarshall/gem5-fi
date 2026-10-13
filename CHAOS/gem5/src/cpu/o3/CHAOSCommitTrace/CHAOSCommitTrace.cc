@@ -92,6 +92,10 @@ namespace gem5
         // commit.cc hook tests. From here on every committed instruction
         // passes through traceCommit().
         o3cpu->o3Commit().setChaosCommitTrace(this);
+        // FIX-B unit 2: v2 also arms the ROB::doSquash hook so squashed
+        // instructions get '# squash' event lines (read-only).
+        if (v2)
+            o3cpu->setChaosCommitTraceV2(this);
     }
 
     uint64_t
@@ -104,6 +108,40 @@ namespace gem5
             h *= 1099511628211ULL;             // FNV-1a 64-bit prime
         }
         return h;
+    }
+
+    void
+    CHAOSCommitTrace::traceSquash(const o3::DynInst *inst)
+    {
+        // FIX-B unit 2: one annotation line per squashed instruction.
+        // Read-only: seqNum / srcRegIdx / renamedSrcIdx are the same
+        // accessors the commit path uses. The squashed instruction never
+        // reaches commitHead (commit.cc retires squashed head insts
+        // directly), so this line is pure ADDITIONAL visibility.
+        if (!v2 || !write_log || !gz_file || !inst)
+            return;
+        char buf[512];
+        int n = std::snprintf(buf, sizeof buf, "# squash %llu %llu",
+                              (unsigned long long)inst->seqNum,
+                              (unsigned long long)curTick());
+        gzwrite(gz_file, buf, n);
+        const int nsrc = (int)inst->numSrcRegs();
+        for (int i = 0; i < nsrc; ++i) {
+            const PhysRegIdPtr phys = inst->renamedSrcIdx(i);
+            const RegClassType rc =
+                phys ? phys->classValue() : InvalidRegClass;
+            n = std::snprintf(buf, sizeof buf, " %d %u %d",
+                              (int)rc,
+                              (unsigned)inst->srcRegIdx(i).index(),
+                              phys ? (int)phys->index() : -1);
+            gzwrite(gz_file, buf, n);
+        }
+        gzwrite(gz_file, "\n", 1);
+        // squash lines participate in the crash-durability flush cadence
+        if (++rows_since_flush >= FLUSH_EVERY) {
+            gzflush(gz_file, Z_SYNC_FLUSH);
+            rows_since_flush = 0;
+        }
     }
 
     void

@@ -83,8 +83,15 @@ setter, CHAOSDecode pattern), `rob.cc` (one-line hook in doSquash).
   squashes) with --ctrace_v2: `# squash` lines present, count>0, sn
   values absent from the committed rows; FINAL checksum identical to
   no-tracer run (read-only proof). smoke no-inj FINAL unchanged.
-- [ ] implemented  [ ] built  [ ] squash lines observed on branch_mispred
-- [ ] squashed sn ∉ committed rows  [ ] FINAL unchanged  [ ] committed
+- [x] implemented  [x] built (incremental, clean link)
+- [x] squash lines observed on branch_mispred: 5,091,434 events
+      (e.g. `# squash 93 343420 0 4 82 7 0 0 7 523 523 2 0 44`)
+- [x] squashed sn ∉ committed rows: awk hash-set overlap of
+      {squash sn} x {row seqencNum} = 0 / 5,091,434 x 8,612,690
+- [x] FINAL unchanged: smoke no-inj + inj both 45737cc9a76c0dce; v1
+      traces still byte-identical to old binary; v2 ROWS identical to
+      unit-1's v2 output (squash lines purely additive)
+- [x] committed
 
 ### Unit 3 — CHAOSDecode sn join (deferred injection line + build join)
 Files: `CHAOSDecode.{hh,cc}`, `fetch.cc` (one-line hook after buildInst).

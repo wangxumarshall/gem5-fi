@@ -105,6 +105,19 @@ class CHAOSCommitTrace : public SimObject
     // loop and BEFORE rob->retireHead. READ-ONLY (see file header).
     void traceCommit(ThreadID tid, o3::DynInst *head_inst);
 
+    // FIX-B unit 2 (squash observation): called from ROB::doSquash for
+    // every instruction being squashed. READ-ONLY (reads seqNum /
+    // renamedSrcIdx / srcRegIdx); writes one v2 annotation line
+    //   # squash <seqNum> <tick> [<class> <arch> <phys>]...
+    // (the '# squash seqencNum tick' core from the FIX-B mandate, refined
+    // with the squashed instruction's src triples so a squashed CONSUMER
+    // is provable by src-matching in tools/ooo_l3.py — sn-only lines
+    // could not prove consumption). Squashed instructions retire from the
+    // ROB via commit.cc's isSquashed path WITHOUT reaching commitHead, so
+    // they never appear as commit rows: these lines are the only
+    // squash-path visibility. v2 && writeLog only; else a no-op.
+    void traceSquash(const o3::DynInst *inst);
+
   private:
     // FNV-1a-64 over a vector-register blob (16-hex-digit folding).
     uint64_t fnv1a64(const void *blob, size_t n) const;

@@ -93,6 +93,7 @@ class CHAOSFPU;  // §2.6 FP/vector execution-unit injector (forward decl)
 class CHAOSL1DForward;  // §2.7 post-check-escape injector (forward decl)
 class CHAOSAddrPath;    // §2.4 AGU address-path injector (forward decl)
 class CHAOSDecode;      // §2.14 decode-unit injector (forward decl)
+class CHAOSCommitTrace; // FIX-B v2 commit tracer (squash observation)
 
 namespace o3
 {
@@ -513,6 +514,11 @@ class CPU : public BaseCPU
     // §2.14 CHAOSDecode: raw pointer to the decode-unit injector.
     CHAOSDecode *chaosDecode = nullptr;
     void setChaosDecode(CHAOSDecode *p) { chaosDecode = p; }
+    // FIX-B (L3 squash observation): raw pointer to the v2 commit tracer,
+    // set by CHAOSCommitTrace::startup() when v2 is on, so ROB::doSquash
+    // can emit '# squash' events. nullptr = no observation (zero cost).
+    CHAOSCommitTrace *chaosCommitTraceV2 = nullptr;
+    void setChaosCommitTraceV2(CHAOSCommitTrace *p) { chaosCommitTraceV2 = p; }
 
     /** CHAOSLSQFwd hook: store->load forwarding-path injector. Set externally
      *  (from a config script) so lsq_unit.cc can reach it via the cpu pointer
