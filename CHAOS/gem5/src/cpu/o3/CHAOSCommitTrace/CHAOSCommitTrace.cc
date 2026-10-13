@@ -13,6 +13,7 @@
 #include "cpu/o3/CHAOSCommitTrace/CHAOSCommitTrace.hh"
 
 #include <cstdio>
+#include <cstring>
 #include <string>
 #include <vector>
 
@@ -30,7 +31,8 @@ namespace gem5
         : SimObject(p),
           cpu(p.cpu),
           trace_file(p.traceFile),
-          write_log(p.writeLog)
+          write_log(p.writeLog),
+          v2(p.v2)
     {
         if (write_log) {
             // Raw zlib gzFile at the simout-resolved path (NOT simout.create's
@@ -41,6 +43,16 @@ namespace gem5
             if (!gz_file)
                 panic("CHAOSCommitTrace: Could not open trace file %s",
                       path.c_str());
+            if (v2) {
+                // FIX-B v2 marker line: commit_diff.py detects the version by
+                // this marker first, column-count fit second. A v1 file
+                // (v2=false) starts directly with row seq=0 — byte-identical
+                // to the pre-v2 producer.
+                const char *hdr =
+                    "# ctrace v2 seq,seqencNum,tid,tick,pc,op,ndest"
+                    "[,class,arch,phys,val]*,nsrc[,class,arch,phys]*\n";
+                gzwrite(gz_file, hdr, (unsigned)std::strlen(hdr));
+            }
             // Normal-exit trailer: gzclose writes it. MUST run in an exit
             // callback, not the destructor — gem5's exit path does not
             // reliably run SimObject destructors (MicroSnap measurement).
@@ -113,15 +125,30 @@ namespace gem5
         // contain the injection hook.]
         //
         // Row assembly: snprintf into a staging buffer, then a bounded number
-        // of gzwrite()s (prefix / op name / dests), then the periodic
-        // gzflush. Buffer math: prefix <= 64, one dest quad <= 4+1+3+1+5+1
-        // +16+1 = 32, ndest is small (<= ~6 on AArch64); 1024 is generous.
+        // of gzwrite()s (prefix / op name / dests [/ v2 srcs]), then the
+        // periodic gzflush. Buffer math: prefix <= 80, one dest quad <=
+        // 4+1+3+1+5+1+16+1 = 32, one v2 src triple <= 24, ndest/nsrc are
+        // small (<= ~6/8 on AArch64); 1024 is generous with the defensive
+        // mid-row flush below as the backstop.
         char buf[1024];
-        int n = std::snprintf(buf, sizeof buf, "%llu,%d,%llu,%llx,",
+        int n;
+        if (v2) {
+            // FIX-B v2: seqencNum (DynInst::seqNum, the L0 sn= join key)
+            // right after the self-held commit seq.
+            n = std::snprintf(buf, sizeof buf, "%llu,%llu,%d,%llu,%llx,",
+                              (unsigned long long)my_seq,
+                              (unsigned long long)head_inst->seqNum,
+                              (int)tid,
+                              (unsigned long long)curTick(),
+                              (unsigned long long)
+                                  head_inst->pcState().instAddr());
+        } else {
+            n = std::snprintf(buf, sizeof buf, "%llu,%d,%llu,%llx,",
                               (unsigned long long)my_seq, (int)tid,
                               (unsigned long long)curTick(),
                               (unsigned long long)
                                   head_inst->pcState().instAddr());
+        }
         gzwrite(gz_file, buf, n);
 
         const std::string op_name = head_inst->staticInst->getName();
@@ -187,6 +214,31 @@ namespace gem5
             if (end - p < 64) {
                 gzwrite(gz_file, buf, p - buf);
                 p = buf;
+            }
+        }
+        if (v2) {
+            // FIX-B v2 source-operand section: nsrc + one (class,arch,phys)
+            // triple per SOURCE register (renamedSrcIdx = the mapping THIS
+            // instruction read at rename time; srcRegIdx = the arch id).
+            // Values are deliberately NOT traced — the phys regfile at
+            // commit holds the CURRENT value, not the value this
+            // instruction READ (dests differ: their value was written by
+            // this very instruction). Null phys id (should not happen at
+            // commit) keeps the column count, -1 sentinel like dests.
+            const int nsrc = (int)head_inst->numSrcRegs();
+            p += std::snprintf(p, end - p, ",%d", nsrc);
+            for (int i = 0; i < nsrc; ++i) {
+                const PhysRegIdPtr phys = head_inst->renamedSrcIdx(i);
+                const RegClassType rc =
+                    phys ? phys->classValue() : InvalidRegClass;
+                p += std::snprintf(p, end - p, ",%d,%u,%d",
+                                   (int)rc,
+                                   (unsigned)head_inst->srcRegIdx(i).index(),
+                                   phys ? (int)phys->index() : -1);
+                if (end - p < 64) {
+                    gzwrite(gz_file, buf, p - buf);
+                    p = buf;
+                }
             }
         }
         p += std::snprintf(p, end - p, "\n");

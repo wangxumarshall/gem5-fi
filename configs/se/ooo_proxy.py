@@ -409,6 +409,15 @@ p.add_argument("--chaos_ctrace", action="store_true",
 p.add_argument("--ctrace_file", default="commit_trace.csv.gz",
                help="commit trace output file (relative to --outdir; "
                     "a .gz suffix is gzip-compressed automatically)")
+# FIX-B (2026-10-13) L3 propagation v2: opt-in extended ctrace rows
+# (seqencNum + per-src class/arch/phys triples, '# ctrace v2' marker) so
+# tools/ooo_l3.py can join L0 decode-injection events (sn=) to committed
+# rows and BFS the real source->consumer chain. DEFAULT OFF = pinned v1
+# row format, byte-identical (frozen-chain consumers unaffected).
+p.add_argument("--ctrace_v2", action="store_true",
+               help="CHAOSCommitTrace v2 rows: append seqencNum + source "
+                    "(class,arch,phys) triples (FIX-B L3 propagation; "
+                    "default off = v1 pinned format)")
 # W2.4 CHAOSMicroSnap (L1 µarch shadow snapshot). READ-ONLY: no injector, no
 # state writes, no events, nothing on stdout — the workload FINAL checksum
 # must be byte-identical with it attached (hard gate). Emits one pinned-format
@@ -824,6 +833,7 @@ if args.chaos_ctrace:
         cpu=cpu0,
         traceFile=args.ctrace_file,
         writeLog=True,
+        v2=args.ctrace_v2,
     )
     board.chaos_ctrace = ctr
 

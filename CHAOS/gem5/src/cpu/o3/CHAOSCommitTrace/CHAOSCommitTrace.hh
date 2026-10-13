@@ -51,6 +51,27 @@
 // FLUSH_EVERY rows, so a Crash keeps everything up to <FLUSH_EVERY rows of
 // the abort point as a decodable truncated stream (commit_diff salvages the
 // prefix). The gzip trailer is written by gzclose in an exit callback.
+//
+// ---- v2 (FIX-B 2026-10-13, L3 propagation chain for the decode family) ----
+// v2=false (DEFAULT) pins the v1 row format above, byte-identical — the
+// frozen D01-c campaign and tools/ooo_observation.py's
+// tick_from_ctrace_raw (CSV col 2 = tick, a v1 assumption) stay untouched.
+// v2=true appends, per committed row, the DynInst's pipeline sequence
+// number and the instruction's SOURCE operand triples so an offline tool
+// (tools/ooo_l3.py) can build a real source->consumer dataflow chain:
+//   seq,seqencNum,tid,tick,pc,op,ndest[,class,arch,phys,val]*,nsrc[,class,arch,phys]*
+//     seqencNum  DynInst::seqNum (fetch-time InstSeqNum; the L0 decode
+//                injection log's sn= join key — same number space)
+//     nsrc       numSrcRegs(); then one 3-tuple per source register:
+//       class     renamedSrcIdx(i)->classValue() (InvalidRegClass=-1 if the
+//                 phys id is absent), arch srcRegIdx(i).index(), phys
+//                 renamedSrcIdx(i)->index() (-1 sentinel if absent)
+// Source VALUES are deliberately NOT traced: the phys regfile at commit
+// time holds the CURRENT value, not the value this instruction READ
+// (the dest val column is different — a dest's value is written by this
+// very instruction, so reading it back at commit is exact). A v2 file
+// starts with the marker line "# ctrace v2 <format>" (commit_diff.py
+// version-detects by marker, falling back to column-count fit).
 
 #include <zlib.h>
 
@@ -92,6 +113,7 @@ class CHAOSCommitTrace : public SimObject
     o3::CPU *o3cpu = nullptr;   // resolved at startup(); nullptr = disabled
     std::string trace_file;     // gzopen target (crash-durability note above)
     bool write_log;             // gate the per-instruction line writing
+    bool v2;                    // FIX-B: append seqencNum + src triples
     gzFile gz_file = nullptr;   // raw zlib stream; see crash-durability note
 
     // Periodic Z_SYNC_FLUSH bookkeeping: rows written since the last flush.
