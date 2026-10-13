@@ -14,18 +14,22 @@ replays every sample and asserts determinism=="match":
       inactive_no_activation, chain_complete true;
   masked — smoke + decode imm_bitflip, seed 20261013 (first Masked hit of
       the 20261012.. probe sweep; fixture selection, NOT statistics) ->
-      Masked, checksum==golden, l1/l2 ok, l3 unsupported + chain_complete
-      false + gaps==["L3"], l4 detector None;
+      Masked, checksum==golden, l1/l2 ok, l3 the REAL source_read chain
+      (sn join proven via source_row.seqencNum), chain_complete true with
+      gaps==[] (hops may be empty when first_divergence==source seq),
+      l4 detector None;
   crash — smoke + decode imm_bitflip, seed 20261012 (verified Crash,
       exit=-6 SIGABRT) -> Crash, l2 in {not_observed_before_crash,
       truncated} or ok-with-divergence — NEVER a false no_divergence —
       and ctrace/msnap truncated prefixes stay readable;
   sdc — rat + local_mbu + map_bitflip2_adj_vec on dep_chain_vec, seed
       20261600 replicating runs/formal_FR02_dcv/c0000 r0000's exact fault
-      geometry (verified: SDC, first divergence ⑤data_corruption at
-      commit seq 165) -> SDC, l2.commit_diff.primary_class==
-      "data_corruption", l4.first_detection.detector=="Application",
-      checksum != golden.
+      geometry (verified: SDC, first divergence ⑤data_corruption) -> SDC,
+      l2.commit_diff.primary_class=="data_corruption",
+      l4.first_detection.detector=="Application", checksum != golden,
+      and the rat map-entry L3 chain: >=1 hop, first hop via_src ==
+      the corrupted (class, arch, new_phys) mapping, chain_complete
+      true, gaps==[].
 
 Machine verdict per class + overall -> e2e_result.json. Exit 0 iff all
 PASS; 1 on any FAIL; 3 BLOCKED (ooo_sample_runner.py not merged yet /
@@ -42,6 +46,7 @@ import gzip
 import hashlib
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -222,13 +227,22 @@ def assert_masked(obs):
         if obs.get(lk, {}).get("status") != "ok":
             f.append("%s.status!=ok (%r)" % (lk,
                                              obs.get(lk, {}).get("status")))
-    if obs.get("l3", {}).get("status") != "unsupported":
-        f.append("decode l3.status must be unsupported (%r)"
-                 % obs.get("l3", {}).get("status"))
-    if obs.get("chain_complete") is not False:
-        f.append("chain_complete must be false (L3 gap)")
-    if obs.get("chain_gaps") != ["L3"]:
-        f.append("chain_gaps must be [L3] (%r)" % obs.get("chain_gaps"))
+    l3 = obs.get("l3", {})
+    if l3.get("status") != "ok" or l3.get("method") != "source_read":
+        f.append("decode l3 must be the REAL source_read chain "
+                 "(status=%r method=%r)" % (l3.get("status"),
+                                            l3.get("method")))
+    src_row = l3.get("source_row")
+    sn0 = (l0.get("events") or [{}])[0].get("sn")
+    if not (isinstance(src_row, dict)
+            and src_row.get("seqencNum") == sn0):
+        f.append("masked l3.source_row must join the L0 sn "
+                 "(source_row=%r sn=%r)" % (src_row, sn0))
+    if obs.get("chain_complete") is not True:
+        f.append("chain_complete must be true (real chain; hops may be "
+                 "empty when first_divergence==source seq)")
+    if obs.get("chain_gaps") != []:
+        f.append("chain_gaps must be [] (%r)" % obs.get("chain_gaps"))
     if detector_of(obs) not in (None, "None", "n/a"):
         f.append("masked l4 detector must be None (%r)" % detector_of(obs))
     return f
@@ -278,6 +292,31 @@ def assert_sdc(obs):
     if detector_of(obs) != "Application":
         f.append("l4.first_detection.detector!=Application (%r)"
                  % detector_of(obs))
+    l3 = obs.get("l3", {})
+    if l3.get("status") != "ok" or l3.get("method") != "source_read":
+        f.append("rat l3 must be the REAL source_read chain "
+                 "(status=%r method=%r)" % (l3.get("status"),
+                                            l3.get("method")))
+    elif not l3.get("hops"):
+        f.append("sdc rat sample must carry >=1 real L3 hop (the first "
+                 "corrupted read is observable in the trace)")
+    else:
+        ev0 = (l0.get("events") or [{}])[0]
+        cls = {"vec": 2, "int": 0}.get(str(ev0.get("class", "")).lower())
+        am = re.match(r"^[VX](\d+)$", str(ev0.get("arch", "")))
+        via = l3["hops"][0].get("via_src") or {}
+        if not (cls is not None and am
+                and via.get("class") == cls
+                and via.get("arch") == int(am.group(1))
+                and via.get("phys") == ev0.get("new_phys")):
+            f.append("sdc first hop via_src must equal the corrupted "
+                     "L0 mapping (via=%r class=%r arch=%r new_phys=%r)"
+                     % (via, ev0.get("class"), ev0.get("arch"),
+                        ev0.get("new_phys")))
+    if obs.get("chain_complete") is not True:
+        f.append("sdc chain_complete must be true (real chain)")
+    if obs.get("chain_gaps") != []:
+        f.append("sdc chain_gaps must be [] (%r)" % obs.get("chain_gaps"))
     return f
 
 
@@ -658,18 +697,48 @@ def _self_test_body(tmp):
     check("normal-negative", assert_normal(bad) != [])
 
     print("[self-test] assert_masked")
-    check("masked-pass", assert_masked(_obs_min()) == [])
+    # post-FIX-RB contract: the REAL source_read chain (sn join), ok
+    # status, chain_complete true, no gaps (hops may be empty when
+    # first_divergence==source seq -- the real fixture is exactly that)
+    masked_l3 = {"status": "ok", "method": "source_read",
+                 "source_row": {"seq": 103, "seqencNum": 159},
+                 "hops": []}
+    masked_ok = _obs_min(
+        l0={"injected": 1, "activated": 1,
+            "events": [{"tick": 1, "sn": 159}]},
+        l3=masked_l3, chain_complete=True, chain_gaps=[])
+    check("masked-pass", assert_masked(masked_ok) == [])
     check("masked-negative-checksum",
-          assert_masked(_obs_min(l5={"classification": "Masked", "exit": 0,
-                                     "checksum_observed": "dead",
-                                     "checksum_golden": "gold"})) != [])
-    check("masked-negative-l3",
-          assert_masked(_obs_min(l3={"status": "ok"},
-                                 chain_complete=True, chain_gaps=[])) != [])
+          assert_masked(_obs_min(
+              l0={"injected": 1, "activated": 1,
+                  "events": [{"tick": 1, "sn": 159}]},
+              l5={"classification": "Masked", "exit": 0,
+                  "checksum_observed": "dead",
+                  "checksum_golden": "gold"},
+              l3=masked_l3, chain_complete=True, chain_gaps=[])) != [])
+    # the PRE-FIX-B shape (unsupported L3) must FAIL the new contract
+    check("masked-negative-l3-unsupported",
+          assert_masked(_obs_min(
+              l0={"injected": 1, "activated": 1,
+                  "events": [{"tick": 1, "sn": 159}]},
+              l3={"status": "unsupported"}, chain_complete=False,
+              chain_gaps=["L3"])) != [])
+    # sn join broken (source_row.seqencNum != l0 sn) must FAIL
+    check("masked-negative-sn-join",
+          assert_masked(_obs_min(
+              l0={"injected": 1, "activated": 1,
+                  "events": [{"tick": 1, "sn": 159}]},
+              l3={"status": "ok", "method": "source_read",
+                  "source_row": {"seq": 103, "seqencNum": 999},
+                  "hops": []}, chain_complete=True, chain_gaps=[])) != [])
     check("masked-negative-detector",
-          assert_masked(_obs_min(l4={"status": "ok",
-                                     "first_detection": {
-                                         "detector": "Application"}})) != [])
+          assert_masked(_obs_min(
+              l0={"injected": 1, "activated": 1,
+                  "events": [{"tick": 1, "sn": 159}]},
+              l4={"status": "ok",
+                  "first_detection": {
+                      "detector": "Application"}},
+              l3=masked_l3, chain_complete=True, chain_gaps=[])) != [])
 
     print("[self-test] assert_crash")
     crash_l5 = {"classification": "Crash", "exit": -6,
@@ -710,7 +779,15 @@ def _self_test_body(tmp):
                        sd6) != [])
 
     print("[self-test] assert_sdc")
-    sdc_obs = _obs_min(
+    sdc_ev = {"tick": 9933770, "site": "rename_setEntry",
+              "mode": "map_bitflip2_adj", "class": "vec", "arch": "V1",
+              "old_phys": 1, "new_phys": 13, "faults_injected": 1}
+    sdc_l3 = {"status": "ok", "method": "source_read",
+              "hops": [{"seq": 5269, "seqencNum": 10262, "pc": "41aa14",
+                        "op": "cmeq",
+                        "via_src": {"class": 2, "arch": 1, "phys": 13},
+                        "committed": True}]}
+    sdc_base = dict(
         l5={"classification": "SDC", "exit": 0,
             "checksum_observed": "deadbeefdeadbeef",
             "checksum_golden": "gold"},
@@ -718,24 +795,30 @@ def _self_test_body(tmp):
             "verdict": "diverged", "primary_class": "data_corruption"}},
         l4={"status": "ok", "first_detection": {
             "kind": "checksum_mismatch", "detector": "Application",
-            "tick": 1, "seq": None, "note": ""}},
-        l3={"status": "unsupported"}, chain_complete=False,
-        chain_gaps=["L3"])
+            "tick": 1, "seq": None, "note": ""}})
+    sdc_obs = _obs_min(l0={"injected": 1, "activated": 1,
+                           "events": [dict(sdc_ev)]},
+                       l3=sdc_l3, chain_complete=True, chain_gaps=[],
+                       **sdc_base)
     check("sdc-pass", assert_sdc(sdc_obs) == [])
     check("sdc-negative-class",
-          assert_sdc(_obs_min(l5={"classification": "SDC", "exit": 0,
+          assert_sdc(_obs_min(l0={"injected": 1, "activated": 1,
+                                  "events": [dict(sdc_ev)]},
+                              l5={"classification": "SDC", "exit": 0,
                                   "checksum_observed": "a",
                                   "checksum_golden": "b"},
                               l2={"status": "ok", "commit_diff": {
                                   "verdict": "diverged",
-                                  "primary_class": "operand_forced_switch"}},
+                                  "primary_class":
+                                      "operand_forced_switch"}},
                               l4={"status": "ok", "first_detection": {
                                   "detector": "Application"}},
-                              l3={"status": "unsupported"},
-                              chain_complete=False,
-                              chain_gaps=["L3"])) != [])
+                              l3=sdc_l3, chain_complete=True,
+                              chain_gaps=[], **{})) != [])
     check("sdc-negative-checksum-equal",
-          assert_sdc(_obs_min(l5={"classification": "SDC", "exit": 0,
+          assert_sdc(_obs_min(l0={"injected": 1, "activated": 1,
+                                  "events": [dict(sdc_ev)]},
+                              l5={"classification": "SDC", "exit": 0,
                                   "checksum_observed": "same",
                                   "checksum_golden": "same"},
                               l2={"status": "ok", "commit_diff": {
@@ -743,9 +826,44 @@ def _self_test_body(tmp):
                                   "primary_class": "data_corruption"}},
                               l4={"status": "ok", "first_detection": {
                                   "detector": "Application"}},
+                              l3=sdc_l3, chain_complete=True,
+                              chain_gaps=[])) != [])
+    # the PRE-FIX-B shape (unsupported L3) must FAIL the new contract
+    check("sdc-negative-l3-unsupported",
+          assert_sdc(_obs_min(l0={"injected": 1, "activated": 1,
+                                  "events": [dict(sdc_ev)]},
+                              l5={"classification": "SDC", "exit": 0,
+                                  "checksum_observed": "a",
+                                  "checksum_golden": "b"},
+                              l2={"status": "ok", "commit_diff": {
+                                  "verdict": "diverged",
+                                  "primary_class":
+                                      "data_corruption"}},
+                              l4={"status": "ok", "first_detection": {
+                                  "detector": "Application"}},
                               l3={"status": "unsupported"},
                               chain_complete=False,
                               chain_gaps=["L3"])) != [])
+    # first hop via a mapping OTHER than the corrupted L0 one must FAIL
+    check("sdc-negative-wrong-mapping",
+          assert_sdc(_obs_min(l0={"injected": 1, "activated": 1,
+                                  "events": [dict(sdc_ev)]},
+                              l5={"classification": "SDC", "exit": 0,
+                                  "checksum_observed": "a",
+                                  "checksum_golden": "b"},
+                              l2={"status": "ok", "commit_diff": {
+                                  "verdict": "diverged",
+                                  "primary_class":
+                                      "data_corruption"}},
+                              l4={"status": "ok", "first_detection": {
+                                  "detector": "Application"}},
+                              l3={"status": "ok", "method": "source_read",
+                                  "hops": [{"seq": 5269,
+                                            "via_src": {"class": 2,
+                                                        "arch": 1,
+                                                        "phys": 99}}]},
+                              chain_complete=True,
+                              chain_gaps=[])) != [])
 
     print("[self-test] replay determinism lookup")
     check("replay-l2-block",
