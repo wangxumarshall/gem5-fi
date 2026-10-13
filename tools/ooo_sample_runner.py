@@ -560,6 +560,27 @@ def do_l3(component, l0_block, retained_trace, coverage=None,
     (FIX-B ooo_l3.build_l3) when the retained trace is v2; a v1 trace
     (no source triples) or any other component is honestly unsupported."""
     if component in ("decode", "rename"):
+        # Crash-truncation honesty (fix-A semantics, applied to L3): a
+        # retained trace of 0 bytes (or missing entirely) means the run
+        # died before the first gz flush -- nothing to join, and
+        # claiming "retained trace is v1" would be a false reason (the
+        # campaign ran with --ctrace_v2). l1/l2 already carry
+        # no_snapshots_before_crash / not_observed_before_crash; L3
+        # matches that vocabulary. chain_completeness still records the
+        # L3 gap (status != ok) -- honest, and the admission gate's
+        # l3_unsupported_with_activation does not fire on it.
+        try:
+            _nothing_retained = os.path.getsize(retained_trace) == 0
+        except OSError:
+            _nothing_retained = True
+        if _nothing_retained:
+            return dict(status="not_observed_before_crash", method=None,
+                        fanout=None, caveat=None,
+                        reason="retained commit trace is zero bytes (or "
+                               "absent): the run crashed before the first "
+                               "trace flush; no L3 join is possible "
+                               "(honest n/a, not an unsupported-method "
+                               "claim)")
         try:
             with gzip.open(retained_trace, "rt", errors="replace") as f:
                 head = f.read(256)

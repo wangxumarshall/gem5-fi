@@ -328,6 +328,71 @@ def _mk_staging(td, name):
     return st
 
 
+def test_do_l3_zero_byte_and_truncated_crash_semantics():
+    """[FIX-RB] do_l3 zero-observation Crash semantics, OFFLINE (no
+    gem5): a retained ctrace of 0 bytes crashed before the first gz
+    flush -- there is nothing to join, and claiming "retained trace is
+    v1" would be a false reason (the run used --ctrace_v2). L3 must
+    return the honest not_observed_before_crash marker (l1/l2 already
+    use no_snapshots_before_crash / not_observed_before_crash), which
+    records a chain gap L3 but never fires the admission gate's
+    l3_unsupported_with_activation. A truncated-but-nonempty gz (crash
+    mid-flush) must never raise: an honest error/ok block comes back."""
+    import ooo_sample_runner as sr
+    import ooo_chain_audit as oca
+    td = tempfile.mkdtemp(prefix="fixrb-l3-")
+    l0 = {"events": [{"tick": 1, "sn": 5, "faults_injected": 1}]}
+
+    # (1) 0-byte retained trace -> not_observed_before_crash, no false v1
+    zero = os.path.join(td, "zero.csv.gz")
+    open(zero, "wb").close()
+    r = sr.do_l3("decode", l0, zero)
+    check("l3 zero-byte status", r["status"] == "not_observed_before_crash",
+          repr(r.get("status")))
+    check("l3 zero-byte no false v1 reason",
+          "v1" not in (r.get("reason") or ""),
+          repr(r.get("reason")))
+    # (2) missing file -> same honest marker (nothing retained at all)
+    r2 = sr.do_l3("decode", l0, os.path.join(td, "absent.csv.gz"))
+    check("l3 missing-file status",
+          r2["status"] == "not_observed_before_crash",
+          repr(r2.get("status")))
+    # (3) the marker must NOT fire the semantic gate (gap yes,
+    #     violation no) on an activated sample
+    obs = {"l0": {"activated": 1, "attempted": 1, "eligible_count": None,
+                  "limited_reason": "x", "status": "ok"},
+           "l1": {"status": "no_snapshots_before_crash"},
+           "l2": {"status": "not_observed_before_crash"},
+           "l3": r}
+    v = oca.semantic_gate_violations(obs)
+    check("l3 zero-byte no semantic violation",
+          "l3_unsupported_with_activation" not in v, repr(v))
+    # (4) truncated-but-nonempty v2 gz (crash mid-flush): header + rows
+    #     readable, tail chopped -- must never raise out of do_l3
+    trunc = os.path.join(td, "trunc.csv.gz")
+    hdr = ("# ctrace v2 seq,seqencNum,tid,tick,pc,op,ndest"
+           "[,class,arch,phys,val]*,nsrc[,class,arch,phys]*")
+    with gzip.open(trunc, "wt") as f:
+        f.write(hdr + "\n")
+        f.write("10,401,0,500,1000,add,1,1,5,80,0000000000000000,0\n")
+        f.write("11,402,0,510,1004,sub,1,1,6,81,0000000000000000,1,1,5,80\n")
+        f.write("12,403,0,520,1008,orr,1,1,7,82,0000000000000000,1,1,6,81\n")
+    with open(trunc, "rb") as f:
+        data = f.read()
+    with open(trunc, "wb") as f:
+        f.write(data[:-6])  # chop the gz trailer -> EOFError mid-read
+    try:
+        r3 = sr.do_l3("decode", l0, trunc,
+                      coverage=dict(mode="full", seq_lo=None, seq_hi=None),
+                      first_divergent_commit=None)
+        check("l3 truncated-gz no raise, honest block",
+              r3.get("status") in ("ok", "error", "unsupported"),
+              repr(r3.get("status")))
+    except Exception as e:  # noqa: BLE001 -- the point of the check
+        check("l3 truncated-gz no raise, honest block", False,
+              "raised %r" % (e,))
+
+
 def test_do_l1_do_l2_zero_line_crash_semantics():
     """[FIX-A Task 2] zero-observation Crash semantics, OFFLINE (no gem5):
     a Crash/Hang run whose ctrace has 0 readable lines (0 bytes or an
@@ -740,6 +805,8 @@ def test_reobserve_window_and_full_modes():
 
 
 def main():
+    print("test_do_l3_zero_byte_and_truncated_crash_semantics:")
+    test_do_l3_zero_byte_and_truncated_crash_semantics()
     print("test_do_l1_do_l2_zero_line_crash_semantics:")
     test_do_l1_do_l2_zero_line_crash_semantics()
     print("test_reobserve_zero_line_crash_sample:")
