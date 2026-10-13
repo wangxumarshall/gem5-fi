@@ -62,8 +62,8 @@ except ImportError:
 
 DEFAULT_RUNS_ROOT = "/home/sdc/gem5-fi-ding/runs"
 DEFAULT_GUARD_DIR = "/home/sdc/gem5-fi-ding/runs/ooo-l0l5/guard"
-FROZEN_GEM5_SHA256 = ("1a618953b014514713c0ad98c7f3d69a48171d81f0463d9"
-                      "34bccdfcfc0070bf3")
+FROZEN_GEM5_SHA256 = ("beb5d6b7a254049c5388734abd5889f362d72caf93e24cfe2"
+                      "ccfae7a2a39e6a4")
 
 EXIT_CONFLICT = 3
 EXIT_NO_SLOT = 4
@@ -143,10 +143,13 @@ def _child_env(staging):
 
 
 def run_gem5_sample(manifest_path, binary, staging, hang_timeout,
-                    msnap_every):
+                    msnap_every, ctrace_v2=False):
     """runner.py with L1/L2 observers, in its own process group so a
     timeout kills runner AND its gem5 child (campaign.run_one_rep's
-    killpg lesson: a plain kill orphans the gem5 grandchild)."""
+    killpg lesson: a plain kill orphans the gem5 grandchild).
+    [FIX integration] ctrace_v2: pass --ctrace-v2 so the run ctrace is
+    the v2 format (seqencNum + src triples + squash events) — the input
+    for the L3 source->consumer chain (ooo_l3.build_l3)."""
     runner = os.path.join(HERE, "runner.py")
     cmd = [sys.executable, runner, manifest_path,
            "--binary", binary,
@@ -155,6 +158,8 @@ def run_gem5_sample(manifest_path, binary, staging, hang_timeout,
            "--msnap-every", str(msnap_every),
            "--stats",
            "--echo-checksum"]
+    if ctrace_v2:
+        cmd += ["--ctrace-v2"]
     env = _child_env(staging)
     t0 = time.time()
     p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
@@ -275,7 +280,10 @@ def run_tool_json(args, cwd=None):
 
 def find_inj_seq(ctrace_path, l0_events):
     """Stream the run ctrace; the first line whose tick >= the L0
-    injection tick gives the commit-seq anchor for the L2 window."""
+    injection tick gives the commit-seq anchor for the L2 window.
+    [FIX integration] v2-aware: v2 rows carry seqencNum as column 2 so
+    tick moves from column 3 (v1) to column 4 — the format is detected
+    from the '# ctrace v2' header marker (B's pinned format)."""
     if not l0_events:
         return None
     tick0 = l0_events[0].get("tick")
@@ -283,13 +291,19 @@ def find_inj_seq(ctrace_path, l0_events):
         return None
     try:
         with gzip.open(ctrace_path, "rt", errors="replace") as f:
+            is_v2 = False
             for line in f:
-                parts = line.split(",", 3)
-                if len(parts) < 3:
+                if line.startswith("#"):
+                    if "# ctrace v2" in line:
+                        is_v2 = True
+                    continue
+                parts = line.split(",", 4)
+                tick_col = 3 if is_v2 else 2
+                if len(parts) <= tick_col:
                     continue
                 try:
                     seq = int(parts[0])
-                    tick = int(parts[2])
+                    tick = int(parts[tick_col])
                 except ValueError:
                     continue
                 if tick >= tick0:
@@ -539,9 +553,36 @@ def do_l2(staging, golden_ctrace, mode, pre, post, classification,
 _PHYS_RE = re.compile(r"PhysReg\[(\d+)\]")
 
 
-def do_l3(component, l0_block, retained_trace):
-    """L3 fanout exists ONLY for the PRF (proxy + caveat); every other
-    component is honestly unsupported (task-book 2.3)."""
+def do_l3(component, l0_block, retained_trace, coverage=None,
+          first_divergent_commit=None):
+    """L3: the PRF keeps the liveness-window proxy (task-book 2.3);
+    decode/rename use the REAL source->consumer chain from a v2 ctrace
+    (FIX-B ooo_l3.build_l3) when the retained trace is v2; a v1 trace
+    (no source triples) or any other component is honestly unsupported."""
+    if component in ("decode", "rename"):
+        try:
+            with gzip.open(retained_trace, "rt", errors="replace") as f:
+                head = f.read(256)
+            is_v2 = "# ctrace v2" in head
+        except (OSError, EOFError):
+            is_v2 = False
+        if not is_v2:
+            return dict(status="unsupported", method=None, fanout=None,
+                        caveat=None,
+                        reason="retained trace is v1 (no source triples / "
+                               "seqencNum) -- the source->consumer L3 "
+                               "builder requires a --ctrace_v2 trace; "
+                               "rerun with trace.ctrace_v2: true")
+        try:
+            import ooo_l3
+            return ooo_l3.build_l3(
+                component, l0_block.get("events") or [], retained_trace,
+                coverage=coverage,
+                first_divergent_commit=first_divergent_commit)
+        except Exception as e:  # honest error, never a fabricated chain
+            return dict(status="error", method="source_read", fanout=None,
+                        caveat=None,
+                        reason="ooo_l3.build_l3 failed: %r" % (e,))
     if component != "physreg":
         return dict(status="unsupported", method=None, fanout=None,
                     caveat=None,
@@ -869,7 +910,10 @@ def cmd_run(args):
                 return EXIT_NO_SLOT
             try:
                 res = run_gem5_sample(mpath, binary, staging, hang_timeout,
-                                      msnap_every)
+                                      msnap_every,
+                                      ctrace_v2=bool(
+                                          (camp.get("trace") or {})
+                                          .get("ctrace_v2", False)))
             finally:
                 # the slot guards GEM5; post-processing runs un-slotted
                 ooo_guard.slot_release(slot)
@@ -932,7 +976,8 @@ def cmd_run(args):
                               reason="no injection landed -- L3 not "
                                      "attempted (n/a, honest)")
             elif retained:
-                l3_blk = do_l3(component, l0, retained)
+                l3_blk = do_l3(component, l0, retained, cov,
+                               l2_blk.get("first_divergent_commit"))
             else:
                 l3_blk = dict(status="error", method=None, fanout=None,
                               caveat=None,

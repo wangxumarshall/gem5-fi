@@ -65,8 +65,8 @@ DEFAULT_OUT = ("/home/sdc/gem5-fi-ding/runs/ooo-l0l5/admission/"
 SELFTEST_ROOT = os.environ.get(
     "OOO_ADMISSION_SELFTEST_ROOT",
     "/home/sdc/gem5-fi-ding/runs/ooo-l0l5/selftest/admission-selftest")
-FROZEN_GEM5_SHA = ("1a618953b014514713c0ad98c7f3d69a48171d81f0463d934b"
-                   "ccdfcfc0070bf3")
+FROZEN_GEM5_SHA = ("beb5d6b7a254049c5388734abd5889f362d72caf93e24cfe2"
+                   "ccfae7a2a39e6a4")
 
 RUN_ID_RE = re.compile(r"^[A-Za-z0-9_.\-]+-c\d{4}-r\d{4}$")
 RUN_ID_ANY_RE = re.compile(r"([A-Za-z0-9_.\-]+)-c(\d{4})-r(\d{4})")

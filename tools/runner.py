@@ -413,6 +413,12 @@ def main():
                          "--chaos_ctrace --ctrace_file PATH to the config "
                          "(C3/ooo_proxy.py only; the path is made absolute so "
                          "the trace lands exactly here).")
+    ap.add_argument("--ctrace-v2", action="store_true",
+                    help="FIX-B L3: request the v2 ctrace format "
+                         "(seqencNum + source triples + squash events) from "
+                         "the config (ooo_proxy.py --ctrace_v2). Requires "
+                         "--ctrace. The v2 format is the input for the "
+                         "tools/ooo_l3.py source->consumer chain builder.")
     ap.add_argument("--ctrace-ref", default=None, metavar="REF.csv.gz",
                     help="W2.3: after the run, diff the produced trace "
                          "against this no-injection reference via "
@@ -495,6 +501,9 @@ def main():
     if args.ctrace_ref and not args.ctrace:
         sys.exit("[runner] --ctrace-ref requires --ctrace (the five-class "
                  "diff compares the trace THIS run produces). Aborting.")
+    if args.ctrace_v2 and not args.ctrace:
+        sys.exit("[runner] --ctrace-v2 requires --ctrace (the v2 format "
+                 "modifies the trace THIS run produces). Aborting.")
     # W2.6: --fanout-phys measures the trace THIS run produces, so it is
     # meaningless without --ctrace; a negative id is a typo, not an id.
     if args.fanout_phys is not None and not args.ctrace:
@@ -1519,8 +1528,11 @@ def main():
     if args.ctrace:
         ctrace_path = os.path.abspath(args.ctrace)
         cmd += ["--chaos_ctrace", "--ctrace_file", ctrace_path]
+        if args.ctrace_v2:
+            cmd += ["--ctrace_v2"]
         note = f" (diff vs ref {os.path.abspath(args.ctrace_ref)})" if args.ctrace_ref else ""
-        print(f"[runner] ctrace: {ctrace_path}{note}")
+        print(f"[runner] ctrace: {ctrace_path}{note}"
+              f"{' v2' if args.ctrace_v2 else ''}")
     # L0-L5 (plan Task 2): L1 µarch snapshot — same absolute-path pinning as
     # the ctrace block above (ooo_proxy resolves a RELATIVE --msnap_file
     # against its own --outdir, which is the runner's private man-* tempdir).

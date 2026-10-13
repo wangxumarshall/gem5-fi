@@ -592,7 +592,12 @@ def chain_completeness(obs):
             gaps.append("L2")
         l3 = obs.get("l3") or dict()
         if l3.get("status") == "ok":
-            if l3.get("method") != "proxy":
+            # FIX-B integration: "proxy" = PRF liveness window (the
+            # task-book-sanctioned approximation); "source_read" = the
+            # real source->consumer chain from a v2 ctrace (ooo_l3).
+            # Both are completed L3 links; anything else (or a missing
+            # method) is a gap.
+            if l3.get("method") not in ("proxy", "source_read"):
                 gaps.append("L3")
         else:
             gaps.append("L3")
