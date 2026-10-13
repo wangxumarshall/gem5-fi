@@ -42,6 +42,7 @@ import shutil
 import signal
 import subprocess
 import sys
+import tempfile
 import time
 
 HERE = os.path.dirname(os.path.realpath(__file__))
@@ -356,8 +357,9 @@ def count_lines_salvage(path, comment=None):
     return n, trunc
 
 
-def do_l1(staging, golden_msnap, classification=None):
-    """micro_diff on the msnap pair; honest statuses.
+def l1_block_for(msnap_path, golden_msnap, out_json, classification=None):
+    """L1 block for one msnap pair (shared by the live do_l1 path and
+    the offline reobserve path).
 
     [FIX-A Task 2] zero-data-row semantics: a Crash/Hang run whose msnap
     has ZERO data rows (the 116-byte header-only truncated gzip of a
@@ -366,14 +368,10 @@ def do_l1(staging, golden_msnap, classification=None):
     over-claim) and the honest block is status=no_snapshots_before_crash
     with micro_diff=None. A non-Crash/Hang run with 0 data rows is an
     error (a completed run writes snapshots)."""
-    msnap = os.path.join(staging, "msnap.csv.gz")
-    ev = os.path.join(staging, "evidence")
-    os.makedirs(ev, exist_ok=True)
-    out = os.path.join(ev, "micro_diff.json")
-    if not os.path.exists(msnap):
+    if not os.path.exists(msnap_path):
         return dict(status="error",
                     reason="msnap missing (gem5 never wrote it)"), None
-    rows, mtrunc = count_lines_salvage(msnap, comment="#")
+    rows, mtrunc = count_lines_salvage(msnap_path, comment="#")
     if rows == 0:
         if classification in ("Crash", "Hang"):
             return dict(status="no_snapshots_before_crash",
@@ -390,12 +388,13 @@ def do_l1(staging, golden_msnap, classification=None):
                     files=dict(msnap_run="evidence/msnap.csv.gz"),
                     msnap_data_rows=0, msnap_truncated=mtrunc), None
     r = run_tool_json([sys.executable, os.path.join(HERE, "micro_diff.py"),
-                       "--ref", golden_msnap, "--run", msnap,
-                       "--json", out])
-    if r.returncode != 0 or not os.path.exists(out):
+                       "--ref", golden_msnap, "--run", msnap_path,
+                       "--json", out_json])
+    if r.returncode != 0 or not os.path.exists(out_json):
         return dict(status="error",
                     reason="micro_diff failed: %s" % r.stderr[-200:]), None
-    md = json.load(open(out))
+    with open(out_json) as f:
+        md = json.load(f)
     if md.get("ref_truncated") or md.get("run_truncated"):
         status = "truncated"
     else:
@@ -409,6 +408,17 @@ def do_l1(staging, golden_msnap, classification=None):
                files=dict(msnap_run="evidence/msnap.csv.gz"),
                msnap_data_rows=rows, msnap_truncated=mtrunc)
     return blk, md
+
+
+def do_l1(staging, golden_msnap, classification=None):
+    """micro_diff on the staging msnap pair; honest statuses (the shared
+    block builder is l1_block_for -- see its docstring for the
+    [FIX-A Task 2] zero-data-row semantics)."""
+    msnap = os.path.join(staging, "msnap.csv.gz")
+    ev = os.path.join(staging, "evidence")
+    os.makedirs(ev, exist_ok=True)
+    return l1_block_for(msnap, golden_msnap,
+                        os.path.join(ev, "micro_diff.json"), classification)
 
 
 def do_l2(staging, golden_ctrace, mode, pre, post, classification,
@@ -1159,12 +1169,350 @@ def cmd_replay(args):
     return 0 if determinism == "match" else 1
 
 
+def reobserve_sample(sample_dir):
+    """[FIX-A Task 3] Offline re-derivation of a published sample's
+    observation view from RETAINED EVIDENCE ONLY -- no gem5, no guard
+    slot, no claim, no results.jsonl. Returns the revised observation
+    dict in memory; NEVER writes or overwrites anything (the caller may
+    publish it as observation.revised.json).
+
+    Reuses the fix-A semantics: Task 1 (real L0 funnel from the retained
+    injector log) and Task 2 (zero-line Crash/Hang L1/L2 -- no fabricated
+    divergence). Evidence consumed:
+      evidence/<injector log>          -> l0 (real attempted/eligible)
+      runner.stdout                    -> classification/checksum re-parse
+      evidence/msnap.csv.gz            -> l1 (0 data rows + Crash/Hang =
+                                          no_snapshots_before_crash;
+                                          >0 rows -> micro_diff re-run)
+      evidence/ctrace_window.csv.gz (window) / evidence/ctrace.csv.gz
+        (full)                         -> l2 line count; 0 lines +
+                                          Crash/Hang = not_observed_
+                                          before_crash with commit_diff
+                                          null (the pre-fix commit_diff.
+                                          json verdict was fabricated
+                                          from an empty trace and is
+                                          DISCARDED)
+      evidence/commit_diff.json        -> window mode with >0 lines: the
+                                          RETAINED diff is reused verbatim
+                                          -- the window slice is a
+                                          re-sliced CLEAN gzip, so re-
+                                          running commit_diff on it would
+                                          count the ref tail as one-sided
+                                          divergences for a truncated-
+                                          prefix sample (the exact
+                                          fabrication Task 2 fixes).
+                                          Full mode keeps the whole run
+                                          trace (truncation state
+                                          preserved) and re-runs
+                                          commit_diff against the golden.
+      evidence/replay_config.json      -> component, l2 mode, golden
+                                          paths (required; a pre-contract
+                                          sample without it is a loud
+                                          refusal, not a guess)
+      observation.json                 -> identity / l3 / replay /
+                                          checksum_golden passthrough (l3
+                                          fanout re-derivation is outside
+                                          fix-A scope; the pass1 block is
+                                          evidence-frozen and passed
+                                          through)
+    """
+    sample_dir = os.path.realpath(sample_dir)
+    obs_p = os.path.join(sample_dir, "observation.json")
+    if not os.path.exists(obs_p):
+        raise SystemExit("[reobserve] no observation.json in %s"
+                         % sample_dir)
+    with open(obs_p) as f:
+        old = json.load(f)
+    old_sha = sha256_file(obs_p)
+    ev = os.path.join(sample_dir, "evidence")
+    rcfg_p = os.path.join(ev, "replay_config.json")
+    if not os.path.exists(rcfg_p):
+        raise SystemExit("[reobserve] evidence/replay_config.json missing "
+                         "in %s (pre-contract sample: the golden paths and "
+                         "L2 mode needed for offline re-derivation are not "
+                         "recoverable) -- refusing to guess" % sample_dir)
+    with open(rcfg_p) as f:
+        rcfg = json.load(f)
+    notes = []
+    component = rcfg.get("component") or (old.get("l0") or {}).get(
+        "component")
+    mode = rcfg.get("l2_mode", "full")
+    old_l5 = old.get("l5") or dict()
+    old_l2 = old.get("l2") or dict()
+
+    # ---- L0: real funnel from the retained injector log (Task 1) ----
+    l0 = ooo_observation.l0_block_from(ev, component)
+
+    # ---- classification: re-parse the retained runner stdout ----
+    stdout = ""
+    so_p = os.path.join(sample_dir, "runner.stdout")
+    if os.path.exists(so_p):
+        with open(so_p, "r", errors="replace") as f:
+            stdout = f.read()
+    res = dict(rc=old_l5.get("exit"), stdout=stdout, stderr="",
+               timed_out=bool(old_l5.get("timed_out")))
+    parsed = parse_sample_result(res)
+    parsed = resolve_budget_kill(parsed, res, l0.get("injected"))
+    classification = parsed.get("classification")
+    if classification is None:
+        classification = old_l5.get("classification")
+        notes.append("classification not re-derivable from runner.stdout; "
+                     "pass1 value %r kept" % classification)
+    elif old_l5.get("classification") != classification:
+        notes.append("re-derived classification %r != pass1 %r"
+                     % (classification, old_l5.get("classification")))
+
+    activated = 1 if (l0.get("injected") or 0) >= 1 else 0
+    retained = None
+    scope_lines = None
+    if not activated:
+        l1_blk = dict(status="inactive_no_activation", micro_diff=None,
+                      first_divergence=None, files=dict(),
+                      reason="no injection landed -- L1 not attempted "
+                             "(n/a, honest)")
+        l2_blk = dict(status="inactive_no_activation",
+                      coverage=dict(mode=mode, seq_lo=None, seq_hi=None,
+                                    note="no injection landed -- L2 not "
+                                         "attempted"),
+                      commit_diff=None, first_divergent_commit=None,
+                      files=dict())
+        cd = None
+    else:
+        # ---- L1 (Task 2 semantics; msnap is retained in full) ----
+        with tempfile.TemporaryDirectory(prefix="reobs-l1-") as tdir:
+            l1_blk, _md = l1_block_for(
+                os.path.join(ev, "msnap.csv.gz"), rcfg["golden_msnap"],
+                os.path.join(tdir, "micro_diff.json"), classification)
+        # ---- L2 ----
+        trace_name = ("ctrace_window.csv.gz" if mode == "window"
+                      else "ctrace.csv.gz")
+        trace_path = os.path.join(ev, trace_name)
+        old_cov = old_l2.get("coverage") or dict()
+        seq_lo, seq_hi = old_cov.get("seq_lo"), old_cov.get("seq_hi")
+        cd = None
+        if not os.path.exists(trace_path):
+            l2_blk = dict(status="error",
+                          reason="retained run trace missing (%s)"
+                                 % trace_name,
+                          coverage=dict(mode=mode, seq_lo=seq_lo,
+                                        seq_hi=seq_hi,
+                                        note="no retained run trace"),
+                          commit_diff=None, first_divergent_commit=None,
+                          files=dict())
+        else:
+            retained = trace_path
+            lines, ttrunc = count_lines_salvage(trace_path)
+            tbytes = os.path.getsize(trace_path)
+            scope_lines = lines
+            cov = dict(mode=mode, seq_lo=seq_lo, seq_hi=seq_hi,
+                       run_trace_lines=lines, run_trace_truncated=ttrunc,
+                       run_trace_bytes=tbytes)
+            if lines == 0:
+                cov["note"] = ("run trace 0 lines - no observation "
+                               "possible")
+                if classification in ("Crash", "Hang"):
+                    l2_blk = dict(status="not_observed_before_crash",
+                                  coverage=cov, commit_diff=None,
+                                  first_divergent_commit=None, files=dict())
+                else:
+                    l2_blk = dict(
+                        status="error",
+                        reason="run trace 0 lines but classification=%s "
+                               "(a completed run finalizes its gzip; only "
+                               "a Crash/Hang may die before the first "
+                               "flush)" % classification,
+                        coverage=cov, commit_diff=None,
+                        first_divergent_commit=None, files=dict())
+            elif mode == "window":
+                # >0 lines: reuse the retained honest full-trace windowed
+                # diff (see docstring for why re-running on the re-sliced
+                # window would fabricate one-sided divergences)
+                cd_p = os.path.join(ev, "commit_diff.json")
+                if not os.path.exists(cd_p):
+                    l2_blk = dict(
+                        status="error",
+                        reason="window-mode sample without retained "
+                               "commit_diff.json -- cannot re-derive L2 "
+                               "offline (the window slice alone cannot "
+                               "reproduce the truncation semantics)",
+                        coverage=dict(cov,
+                                      note="no retained commit_diff.json"),
+                        commit_diff=None, first_divergent_commit=None,
+                        files=dict())
+                else:
+                    with open(cd_p) as f:
+                        cd = json.load(f)
+                    status = ooo_observation.l2_status_from(cd,
+                                                            classification)
+                    l2_blk = dict(
+                        status=status,
+                        coverage=dict(
+                            cov, note="reobserved from the retained "
+                                      "commit_diff.json (the honest "
+                                      "full-trace windowed diff); "
+                                      "observable range: %d readable "
+                                      "window lines" % lines),
+                        commit_diff=cd,
+                        first_divergent_commit=cd.get("first_divergence"),
+                        files=dict(commit_diff="evidence/commit_diff.json"))
+            else:
+                # full mode: the whole run trace is retained with its
+                # truncation state -- re-run commit_diff honestly
+                with tempfile.TemporaryDirectory(prefix="reobs-l2-") as tdir:
+                    out = os.path.join(tdir, "commit_diff.json")
+                    r = run_tool_json(
+                        [sys.executable, os.path.join(HERE, "commit_diff.py"),
+                         "--ref", rcfg["golden_ctrace"], "--run", trace_path,
+                         "--json", out])
+                    if r.returncode == 0 and os.path.exists(out):
+                        with open(out) as f:
+                            cd = json.load(f)
+                if cd is None:
+                    l2_blk = dict(
+                        status="error",
+                        reason="commit_diff re-run failed on the retained "
+                               "full trace",
+                        coverage=dict(cov, note="commit_diff re-run failed"),
+                        commit_diff=None, first_divergent_commit=None,
+                        files=dict())
+                else:
+                    status = ooo_observation.l2_status_from(cd,
+                                                            classification)
+                    l2_blk = dict(
+                        status=status,
+                        coverage=dict(
+                            cov, note="reobserved: commit_diff re-run on "
+                                      "the retained full trace; observable "
+                                      "range: %d readable lines%s"
+                                      % (lines, " (truncated prefix)"
+                                         if ttrunc else "")),
+                        commit_diff=cd,
+                        first_divergent_commit=cd.get("first_divergence"),
+                        files=dict(commit_diff=None))
+
+    # ---- L3: pass1 block passthrough (fanout re-derivation is outside
+    # fix-A scope; the block is evidence-frozen) ----
+    l3_blk = old.get("l3") or dict(status="error",
+                                   reason="pass1 l3 block missing")
+
+    # ---- L4: mirror cmd_run's derivation over the new cd ----
+    first_detection = ooo_observation.first_detection_for(classification, cd)
+    latency = dict(ticks=None, committed_insts=None, note="")
+    if (l0.get("events") and isinstance(cd, dict)
+            and cd.get("first_divergence")):
+        div = cd["first_divergence"]
+        tick0 = l0["events"][0].get("tick")
+        dtick = ooo_observation.tick_from_ctrace_raw(div.get("run_line"))
+        if dtick is not None and tick0 is not None:
+            latency["ticks"] = dtick - tick0
+        if retained:
+            inj_seq = find_inj_seq(retained, l0["events"])
+            if inj_seq is not None and div.get("seq") is not None:
+                latency["committed_insts"] = div["seq"] - inj_seq
+    if not activated:
+        l4_status = "inactive_no_activation"
+    elif classification in ("SimulatorError", "Inactive"):
+        l4_status = "ok"
+    elif classification == "Masked":
+        l4_status = "none_detected"
+    else:
+        l4_status = "ok"
+    l4_blk = dict(status=l4_status, first_detection=first_detection,
+                  latency_from_l0=latency,
+                  oracle=dict(kind="exact_hash",
+                              golden=rcfg.get("golden_final"),
+                              observed=parsed.get("checksum_observed"),
+                              match=(parsed.get("checksum_observed")
+                                     == rcfg.get("golden_final")
+                                     if parsed.get("checksum_observed")
+                                     else None)))
+
+    # ---- L5: rebuilt; conservation recomputed by build_observation ----
+    faults = parsed.get("faults_injected")
+    if faults is None:
+        faults = l0.get("injected", 0)
+    l5_blk = dict(classification=classification,
+                  reason=parsed.get("reason", ""),
+                  exit=parsed.get("exit"), timed_out=parsed.get("timed_out"),
+                  faults_injected=faults,
+                  checksum_observed=parsed.get("checksum_observed"),
+                  checksum_golden=old_l5.get("checksum_golden")
+                  or rcfg.get("golden_final"),
+                  detector=None, conservation=None)
+
+    # ---- coverage_scope / files / audit ----
+    scope = dict(old.get("coverage_scope") or dict(mode=mode))
+    scope["run_trace_lines"] = scope_lines
+    scope["reobserve_note"] = ("reobserved offline from retained "
+                               "evidence (fix-A); run_trace_lines is the "
+                               "retained trace's readable-line count")
+    files = hash_tree(sample_dir, exclude=("observation.json",
+                                           "observation.revised.json"))
+    audit = dict(old.get("audit") or {})
+    audit["reobserved_at"] = time.strftime("%Y-%m-%dT%H:%M:%S")
+    audit["reobserve_builder_sha256"] = sha256_file(__file__)
+
+    ctx = dict(identity=old.get("identity") or dict(), l0=l0, l1=l1_blk,
+               l2=l2_blk, l3=l3_blk, l4=l4_blk, l5=l5_blk, files=files,
+               coverage_scope=scope, audit=audit,
+               replay=old.get("replay"))
+    revised = ooo_observation.build_observation(ctx)
+    revised["reobserve"] = dict(
+        performed=True,
+        reobserved_at=time.strftime("%Y-%m-%dT%H:%M:%S"),
+        semantics="fix-A: Task1 real L0 funnel + Task2 zero-line "
+                  "Crash/Hang L1/L2 (no fabricated divergence)",
+        based_on_observation_sha256=old_sha,
+        classification_pass1=old_l5.get("classification"),
+        l0_attempted_pass1=(old.get("l0") or {}).get("attempted"),
+        l0_eligible_pass1=(old.get("l0") or {}).get("eligible"),
+        l2_status_pass1=old_l2.get("status"),
+        l2_verdict_pass1=(old_l2.get("commit_diff") or dict()).get("verdict")
+        if isinstance(old_l2.get("commit_diff"), dict) else None,
+        notes=notes)
+    return revised
+
+
+def cmd_reobserve(args):
+    """reobserve CLI: re-derive the revised view, optionally write it as
+    observation.revised.json (NEVER observation.json), print the pass1
+    -> pass2 delta summary. Exit 0 clean; 5 when the revised view still
+    carries violations (mirrors the quarantine convention -- the caller
+    decides what to do; nothing is quarantined here)."""
+    sample_dir = os.path.realpath(args.sample_dir)
+    rev = reobserve_sample(sample_dir)
+    ro = rev["reobserve"]
+    print("[reobserve] %s:" % (rev.get("identity") or {}).get("run_id",
+                                                              sample_dir))
+    print("[reobserve]   l0 funnel: attempted %r -> %r, eligible %r -> %r, "
+          "injected %r" % (ro["l0_attempted_pass1"], rev["l0"]["attempted"],
+                           ro["l0_eligible_pass1"], rev["l0"]["eligible"],
+                           rev["l0"]["injected"]))
+    print("[reobserve]   l1: %r -> %r" % (
+        "n/a", rev["l1"]["status"]))
+    print("[reobserve]   l2: %r (verdict %r) -> %r (commit_diff %s)" % (
+        ro["l2_status_pass1"], ro["l2_verdict_pass1"], rev["l2"]["status"],
+        "null" if rev["l2"]["commit_diff"] is None else "dict"))
+    print("[reobserve]   chain: gaps %s, violations %d"
+          % (rev["chain_gaps"], len(rev["violations"])))
+    for n in ro["notes"]:
+        print("[reobserve]   note: %s" % n)
+    if args.no_write:
+        print("[reobserve]   --no-write: revised view kept in memory only")
+    else:
+        rev_p = os.path.join(sample_dir, "observation.revised.json")
+        write_json_atomic(rev_p, rev)
+        print("[reobserve]   wrote %s (observation.json untouched)"
+              % rev_p)
+    return 0 if not rev["violations"] else EXIT_QUARANTINE
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(
         prog="ooo_sample_runner.py",
         description="One L0-L5 sample: staging -> gem5 -> offline diffs "
                     "-> observation.json -> atomic COMPLETE.")
-    ap.add_argument("cmd", choices=["run", "replay"])
+    ap.add_argument("cmd", choices=["run", "replay", "reobserve"])
     ap.add_argument("--campaign-yaml", default=None,
                     help="run: the l0l5 campaign yaml")
     ap.add_argument("--rep", type=int, default=0,
@@ -1176,12 +1524,19 @@ def main(argv=None):
     ap.add_argument("--guard-dir", default=DEFAULT_GUARD_DIR)
     ap.add_argument("--runs-root", default=DEFAULT_RUNS_ROOT)
     ap.add_argument("--sample-dir", default=None,
-                    help="replay: the published sample directory")
+                    help="replay/reobserve: the published sample directory")
+    ap.add_argument("--no-write", action="store_true",
+                    help="reobserve: keep the revised view in memory only "
+                         "(do not write observation.revised.json)")
     args = ap.parse_args(argv)
     if args.cmd == "run":
         if not args.campaign_yaml:
             ap.error("run requires --campaign-yaml")
         return cmd_run(args)
+    if args.cmd == "reobserve":
+        if not args.sample_dir:
+            ap.error("reobserve requires --sample-dir")
+        return cmd_reobserve(args)
     if not args.sample_dir:
         ap.error("replay requires --sample-dir")
     return cmd_replay(args)

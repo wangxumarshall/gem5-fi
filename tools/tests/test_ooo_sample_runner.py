@@ -468,9 +468,284 @@ def test_do_l1_do_l2_zero_line_crash_semantics():
           sr.count_lines_salvage(cpath, comment="#") == (1, False))
 
 
+# ---- [FIX-A Task 3] OFFLINE reobserve fixtures (no gem5) ----------------
+
+def _mk_old_crash_sample(td):
+    """A published-sample lookalike carrying the PRE-fix observation of a
+    0-line Crash (fabricated diverged verdict, null funnel) plus its
+    retained evidence, verbatim-shaped after
+    formal_D02-F0-W6-c-c0000-r0007."""
+    sd = os.path.join(td, "old-crash-sample")
+    ev = os.path.join(sd, "evidence")
+    os.makedirs(ev)
+    gctrace, gmsnap = _mk_goldens(td)
+    with open(os.path.join(ev, "decode_injections.log"), "w") as f:
+        f.write("Tick: 475090, Site: fetch_decode, mode=bitflip2_cross, "
+                "pc=0x415758, orig_enc=0xd503201f, new_enc=0xd521201f, "
+                "bits=[21,17], field=cross, dist=4, orig_mnemonic=nop, "
+                "new_mnemonic=unknown, macroop_new=0, faults_injected: 1\n")
+    # 0-line window trace (clean empty gz, like the 43-byte real one)
+    with gzip.open(os.path.join(ev, "ctrace_window.csv.gz"), "wt"):
+        pass
+    # header-only truncated msnap (the 116-byte real shape)
+    gz = gzip.compress(MSNAP_HDR.encode())
+    with open(os.path.join(ev, "msnap.csv.gz"), "wb") as f:
+        f.write(gz[: int(len(gz) * 0.7)])
+    # the FABRICATED pre-fix commit_diff (verdict diverged from an empty
+    # trace) -- reobserve must DISCARD it for the 0-line case
+    with open(os.path.join(ev, "commit_diff.json"), "w") as f:
+        json.dump(dict(tool="commit_diff", verdict="diverged",
+                       run_truncated=False, run_instructions=0,
+                       first_divergence=dict(seq=0,
+                                             class_="instruction_flow"
+                                                    "_change"),
+                       primary_class="instruction_flow_change"), f)
+    with open(os.path.join(ev, "replay_config.json"), "w") as f:
+        json.dump(dict(component="decode", l2_mode="window",
+                       window_pre_seq=100, window_post_seq=1000,
+                       golden_ctrace=gctrace, golden_msnap=gmsnap,
+                       golden_final="45737cc9a76c0dce",
+                       hang_timeout=600, msnap_every=1000,
+                       binary="/bin/true"), f)
+    with open(os.path.join(sd, "runner.stdout"), "w") as f:
+        f.write("[runner] RESULT: run_id=old-crash-c0000-r0007 "
+                "classification=Crash faults_injected=1 exit=-6 "
+                "timed_out=False oracle=exact_hash\n"
+                "[runner]   reason: fixture\n"
+                "[runner] CHECKSUM: none\n")
+    # pre-fix observation: null funnel + fabricated l2
+    old_obs = dict(
+        schema_version="ooo-observation/v1",
+        identity=dict(run_id="old-crash-c0000-r0007", campaign_id="fixture",
+                      runid_row="D02-F0-W6-c", submodel="decode",
+                      sample_index=7, phase="formal", seed=1,
+                      manifest_sha256="0" * 64, gem5_sha256="0" * 64,
+                      config=dict(path="configs/se/ooo_proxy.py",
+                                  sha256="0" * 64),
+                      workload=dict(path="w", sha256="0" * 64,
+                                    golden_id="g"), golden_key="k",
+                      chaos_commit="x", patchset_sha256="n/a",
+                      pythonhashseed=0, host="h",
+                      started="2026-10-12T00:00:00",
+                      finished="2026-10-12T00:01:00", wall_s=60.0),
+        l0=dict(status="ok", component="decode",
+                log_name="decode_injections.log",
+                log_sha256="0" * 64, injected=1, activated=1,
+                eligible_count=None, attempted=None, events=[], skips=[],
+                skip_lines=0, truncated=False),
+        l1=dict(status="truncated", micro_diff=dict(fake=True),
+                first_divergence=None, files=dict()),
+        l2=dict(status="ok",
+                coverage=dict(mode="window", seq_lo=0, seq_hi=1000,
+                              note="fixture"),
+                commit_diff=dict(verdict="diverged",
+                                 first_divergence=dict(seq=0),
+                                 run_truncated=False, fake=True),
+                first_divergent_commit=dict(seq=0), files=dict()),
+        l3=dict(status="unsupported", method=None, fanout=None,
+                caveat=None, reason="commit trace records dest regs only"),
+        l4=dict(status="ok",
+                first_detection=dict(kind="abnormal_termination",
+                                     detector="OS", tick=None, seq=0,
+                                     note=""),
+                latency_from_l0=dict(ticks=None, committed_insts=None,
+                                     note=""),
+                oracle=dict(kind="exact_hash", golden="45737cc9a76c0dce",
+                            observed=None, match=None)),
+        l5=dict(classification="Crash", reason="fixture", exit=-6,
+                timed_out=False, faults_injected=1, checksum_observed=None,
+                checksum_golden="45737cc9a76c0dce", detector=None,
+                conservation=None),
+        replay=dict(performed=False, pass2_classification=None,
+                    determinism=None, verdict_pass2=None,
+                    checksum_pass2=None, performed_at=None),
+        files=dict(), coverage_scope=dict(mode="window", note="fixture"),
+        audit=dict(built_at="2026-10-12T00:01:00", builder_sha256="0" * 64))
+    with open(os.path.join(sd, "observation.json"), "w") as f:
+        json.dump(old_obs, f, indent=1)
+    return sd, old_obs
+
+
+def test_reobserve_zero_line_crash_sample():
+    """[FIX-A Task 3] reobserve re-derives the revised observation view
+    from retained evidence WITHOUT gem5: real L0 funnel, honest 0-line
+    Crash L1/L2, no fabricated divergence, original observation.json
+    untouched, observation.revised.json written on demand."""
+    import ooo_sample_runner as sr
+    td = tempfile.mkdtemp(prefix="fixa-reobs-")
+    sd, old_obs = _mk_old_crash_sample(td)
+    obs_p = os.path.join(sd, "observation.json")
+    before = open(obs_p, "rb").read()
+    rev = sr.reobserve_sample(sd)
+    # original untouched
+    check("r-orig-untouched", open(obs_p, "rb").read() == before)
+    # revised view: real funnel (Task 1) + honest zero-observation
+    # statuses (Task 2)
+    check("r-l0-attempted", rev["l0"]["attempted"] == 1, rev["l0"])
+    check("r-l0-eligible", rev["l0"]["eligible"] == 1, rev["l0"])
+    check("r-l0-injected", rev["l0"]["injected"] == 1, rev["l0"])
+    check("r-l0-limited-note", bool(rev["l0"].get("limited")), rev["l0"])
+    check("r-l1-status",
+          rev["l1"]["status"] == "no_snapshots_before_crash",
+          rev["l1"]["status"])
+    check("r-l1-md-null", rev["l1"]["micro_diff"] is None)
+    check("r-l2-status",
+          rev["l2"]["status"] == "not_observed_before_crash",
+          rev["l2"]["status"])
+    check("r-l2-cd-null", rev["l2"]["commit_diff"] is None,
+          rev["l2"].get("commit_diff"))
+    check("r-l2-fdc-null", rev["l2"]["first_divergent_commit"] is None,
+          rev["l2"].get("first_divergent_commit"))
+    check("r-l2-note", "run trace 0 lines" in rev["l2"]["coverage"]["note"],
+          rev["l2"]["coverage"]["note"])
+    # the fabricated pre-fix first_detection seq=0 is gone
+    check("r-l4-fd-seq-null", rev["l4"]["first_detection"]["seq"] is None,
+          rev["l4"]["first_detection"])
+    # classification re-derived from runner.stdout
+    check("r-l5-classification", rev["l5"]["classification"] == "Crash",
+          rev["l5"]["classification"])
+    check("r-chain-gaps", rev["chain_gaps"] == ["L1", "L2", "L3"],
+          rev["chain_gaps"])
+    check("r-violations-empty", rev["violations"] == [], rev["violations"])
+    # provenance: the revised view names what it revised
+    check("r-reobserve-block",
+          rev["reobserve"]["based_on_observation_sha256"] ==
+          hashlib.sha256(before).hexdigest()
+          and rev["reobserve"]["classification_pass1"] == "Crash",
+          rev.get("reobserve"))
+    # files manifest re-hashed over the sample dir (no self-hash)
+    check("r-files-manifest",
+          "evidence/decode_injections.log" in rev["files"]
+          and "observation.json" not in rev["files"], sorted(rev["files"]))
+    # no revised file written by the pure function
+    check("r-no-revised-file",
+          not os.path.exists(os.path.join(sd, "observation.revised.json")))
+    # CLI: writes observation.revised.json, original still untouched
+    r = run_sr(["reobserve", "--sample-dir", sd])
+    check("r-cli-rc0", r.returncode == 0, r.stdout[-300:] + r.stderr[-300:])
+    rev_p = os.path.join(sd, "observation.revised.json")
+    check("r-cli-wrote-revised", os.path.exists(rev_p))
+    check("r-cli-orig-untouched", open(obs_p, "rb").read() == before)
+    check("r-cli-revised-parses",
+          json.load(open(rev_p))["l2"]["status"] ==
+          "not_observed_before_crash")
+    # CLI --no-write: no file, original untouched
+    os.remove(rev_p)
+    r = run_sr(["reobserve", "--sample-dir", sd, "--no-write"])
+    check("r-cli-nowrite-rc0", r.returncode == 0, r.stdout[-200:])
+    check("r-cli-nowrite-no-file", not os.path.exists(rev_p))
+    check("r-cli-nowrite-orig", open(obs_p, "rb").read() == before)
+
+
+def test_reobserve_window_and_full_modes():
+    """>0-line samples: window mode reuses the retained (honest)
+    commit_diff.json; full mode re-runs commit_diff on the retained full
+    trace."""
+    import ooo_sample_runner as sr
+    td = tempfile.mkdtemp(prefix="fixa-reobs2-")
+    gctrace, gmsnap = _mk_goldens(td)
+    # --- window-mode Masked sample with a NON-empty window ---
+    sd = os.path.join(td, "win-sample")
+    ev = os.path.join(sd, "evidence")
+    os.makedirs(ev)
+    with open(os.path.join(ev, "decode_injections.log"), "w") as f:
+        f.write("Tick: 1100, Site: fetch_decode, mode=reg_bitflip, "
+                "pc=0x4195f0, orig_enc=0xf900dfe0, new_enc=0xf900dfe4, "
+                "bits=[2], orig_mnemonic=str, new_mnemonic=str, "
+                "regs_moved=1, macroop_new=0, faults_injected: 1\n")
+    with gzip.open(os.path.join(ev, "ctrace_window.csv.gz"), "wt") as f:
+        f.write("\n".join(_ctrace_line(i, 1000 + i) for i in range(10))
+                + "\n")
+    with gzip.open(os.path.join(ev, "msnap.csv.gz"), "wt") as f:
+        f.write(MSNAP_HDR)
+        f.write(_msnap_row(0, 0, 100))
+    honest_cd = dict(tool="commit_diff", verdict="no_divergence",
+                     run_truncated=False, first_divergence=None,
+                     ref_instructions=10, run_instructions=10)
+    with open(os.path.join(ev, "commit_diff.json"), "w") as f:
+        json.dump(honest_cd, f)
+    with open(os.path.join(ev, "replay_config.json"), "w") as f:
+        json.dump(dict(component="decode", l2_mode="window",
+                       window_pre_seq=100, window_post_seq=1000,
+                       golden_ctrace=gctrace, golden_msnap=gmsnap,
+                       golden_final="45737cc9a76c0dce",
+                       hang_timeout=600, msnap_every=1000,
+                       binary="/bin/true"), f)
+    with open(os.path.join(sd, "runner.stdout"), "w") as f:
+        f.write("[runner] RESULT: run_id=win-c0000-r0000 "
+                "classification=Masked faults_injected=1 exit=0 "
+                "timed_out=False oracle=exact_hash\n"
+                "[runner] CHECKSUM: 45737cc9a76c0dce\n")
+    base, _ = _mk_old_crash_sample(td)   # reuse the identity builder
+    old = json.load(open(os.path.join(base, "observation.json")))
+    old["identity"]["run_id"] = "win-c0000-r0000"
+    old["l5"].update(dict(classification="Masked", exit=0,
+                          checksum_observed="45737cc9a76c0dce"))
+    with open(os.path.join(sd, "observation.json"), "w") as f:
+        json.dump(old, f, indent=1)
+    rev = sr.reobserve_sample(sd)
+    check("w-l2-ok", rev["l2"]["status"] == "ok", rev["l2"]["status"])
+    check("w-l2-reuses-retained-cd",
+          rev["l2"]["commit_diff"]["verdict"] == "no_divergence"
+          and rev["l2"]["commit_diff"].get("ref_instructions") == 10,
+          rev["l2"]["commit_diff"])
+    check("w-l2-lines", rev["l2"]["coverage"]["run_trace_lines"] == 10,
+          rev["l2"]["coverage"])
+    check("w-l1-ok", rev["l1"]["status"] == "ok", rev["l1"]["status"])
+    check("w-chain-gaps", rev["chain_gaps"] == ["L3"], rev["chain_gaps"])
+    # --- full-mode Masked sample: re-runs commit_diff on the retained
+    # full trace against the golden ---
+    sd2 = os.path.join(td, "full-sample")
+    ev2 = os.path.join(sd2, "evidence")
+    os.makedirs(ev2)
+    shutil.copy(os.path.join(ev, "decode_injections.log"),
+                os.path.join(ev2, "decode_injections.log"))
+    with gzip.open(os.path.join(ev2, "ctrace.csv.gz"), "wt") as f:
+        f.write("\n".join(_ctrace_line(i, 1000 + i) for i in range(50))
+                + "\n")
+    shutil.copy(os.path.join(ev, "msnap.csv.gz"),
+                os.path.join(ev2, "msnap.csv.gz"))
+    with open(os.path.join(ev2, "replay_config.json"), "w") as f:
+        json.dump(dict(component="decode", l2_mode="full",
+                       window_pre_seq=100, window_post_seq=1000,
+                       golden_ctrace=gctrace, golden_msnap=gmsnap,
+                       golden_final="45737cc9a76c0dce",
+                       hang_timeout=600, msnap_every=1000,
+                       binary="/bin/true"), f)
+    with open(os.path.join(sd2, "runner.stdout"), "w") as f:
+        f.write("[runner] RESULT: run_id=full-c0000-r0000 "
+                "classification=Masked faults_injected=1 exit=0 "
+                "timed_out=False oracle=exact_hash\n"
+                "[runner] CHECKSUM: 45737cc9a76c0dce\n")
+    old2 = json.loads(json.dumps(old))
+    old2["identity"]["run_id"] = "full-c0000-r0000"
+    with open(os.path.join(sd2, "observation.json"), "w") as f:
+        json.dump(old2, f, indent=1)
+    rev2 = sr.reobserve_sample(sd2)
+    check("f-l2-ok", rev2["l2"]["status"] == "ok", rev2["l2"]["status"])
+    check("f-l2-reran-diff",
+          rev2["l2"]["commit_diff"]["verdict"] == "no_divergence"
+          and rev2["l2"]["commit_diff"]["ref_instructions"] == 50,
+          rev2["l2"]["commit_diff"])
+    # --- missing replay_config.json: loud honest failure ---
+    sd3 = os.path.join(td, "no-rcfg")
+    ev3 = os.path.join(sd3, "evidence")
+    os.makedirs(ev3)
+    shutil.copy(os.path.join(sd, "observation.json"),
+                os.path.join(sd3, "observation.json"))
+    r = run_sr(["reobserve", "--sample-dir", sd3])
+    check("no-rcfg-loud-failure", r.returncode != 0
+          and "replay_config" in (r.stdout + r.stderr),
+          (r.returncode, r.stderr[-200:]))
+
+
 def main():
     print("test_do_l1_do_l2_zero_line_crash_semantics:")
     test_do_l1_do_l2_zero_line_crash_semantics()
+    print("test_reobserve_zero_line_crash_sample:")
+    test_reobserve_zero_line_crash_sample()
+    print("test_reobserve_window_and_full_modes:")
+    test_reobserve_window_and_full_modes()
     print("test_crash_sample:")
     test_crash_sample()
     print("test_idempotent_rerun:")
