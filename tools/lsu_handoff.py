@@ -1,17 +1,25 @@
 #!/usr/bin/env python3
-"""lsu_handoff.py — 链路台账 ledger + campaign handoff 生成器（OBS T6）。
+"""lsu_handoff.py — 链路台账 ledger + campaign handoff 生成器（OBS T6；纠偏轮 v2，中央指令 2026-10-13）。
 
-用户指令 2026-10-12：
+用户指令 2026-10-12 + 纠偏 2026-10-13：
   * 既有结果只标记"结局完成、完整链待补跑"——本工具 --ledger 只读扫描，
-    不写任何既有样本目录、不碰 Excel；台账落 runs/lsu/obs/。
+    不写任何既有样本目录、不碰 Excel；台账落 runs/lsu/obs/（--out-dir 可
+    覆盖为 tmp 干跑目录，绝不误写主树真实 ledger）。
+  * 台账术语 v2：每行含 execution_complete / chain_complete=false /
+    missing_levels / needs_chain_backfill（保留 outcome 字段与
+    evidence_root；AGU 批次属 outcome-only——campaign 执行完成 ≠
+    chain_complete，L1-L4 完整链待补跑）。
   * 每个 campaign 输出 handoff.json + handoff.md（第四节全字段：RunID、
     代码/二进制/config/workload hashes、seed 与尝试数、九分类计数与守恒、
     完整链数量/缺失层级、证据索引、首次分歧/传播摘要、重试、资源峰值、
-    wall time、绝对路径、Git 提交）。
+    wall time、绝对路径、Git 提交）。campaign 聚合 v2：execution/
+    evidence/chain 三计数分开（chain_incomplete_count 单列待补跑，不入
+    完整完成数）。
 
 用法：
   python3 tools/lsu_handoff.py --ledger --campaign p4_agu_formal_20261012 \
-      [--freeze docs/gem5-fi/lsu/evidence/P4/p4_freeze_agu_formal_20261012.json]
+      [--freeze docs/gem5-fi/lsu/evidence/P4/p4_freeze_agu_formal_20261012.json] \
+      [--out-dir <tmp 干跑目录>]
   python3 tools/lsu_handoff.py --campaign-handoff runs/lsu/obs/<campaign> \
       [--out-dir runs/lsu/obs/<campaign>]
 """
@@ -24,6 +32,7 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import lsu_obs_core as OC   # noqa: E402  missing_levels/状态字段零漂移复用
 import lsu_runner as LR
 
 OBS_ROOT = Path("/home/sdc/gem5-fi-ding/runs/lsu/obs")   # 主树观测产物根
@@ -78,27 +87,46 @@ def build_ledger(campaign, freeze_path):
                     status = "RESULT_JSON_CORRUPT"
             # 实时样本计数（formal 进行中时 result.json 尚为 pilot 期数据）
             n_samples = len(list(udir.glob(f"{it}_s*/l5_verdict.json")))
+            # 台账术语 v2（中央指令 2026-10-13）：AGU 批次属 outcome-only
+            # （正式命令未启用 ctrace/msnap）——execution_complete 由结果
+            # 证据如实判定；chain_complete 结构性 False；L1-L4（无 L5 证据
+            # 时含 L5）待补跑。执行完成 ≠ chain_complete。
+            exec_complete = bool(n_samples) and status not in (
+                None, "RESULT_JSON_CORRUPT")
+            missing = (["L1", "L2", "L3", "L4", "L5"] if not n_samples
+                       else ["L1", "L2", "L3", "L4"])
             rows.append({
                 "runid": runid, "item": it, "carrier": carrier,
                 "key_runid": key_flag,
                 "unit_dir": str(udir),
-                "result_status": status, "l5_samples_on_disk": n_samples,
+                "outcome_status": status, "l5_samples_on_disk": n_samples,
                 "audit_summary_asof_result_json": summary,
-                "chain": "outcome_complete_chain_pending",
-                "missing_levels": ["L1", "L2", "L3", "L4"],
-                "l0_l5_only": True,
+                "execution_complete": exec_complete,
+                "chain_complete": False,
+                "missing_levels": missing,
+                "needs_chain_backfill": True,
                 "evidence_root": str(udir),
-                "note": ("正式命令未启用 ctrace/msnap：结局（L0/L5）有效，"
-                         "完整链待补跑（OBS 计划；历史补链后置）"),
+                "note": ("AGU 批次 outcome-only（正式命令未启用 ctrace/"
+                         "msnap）：execution_complete（结局有效）≠ "
+                         "chain_complete；L1-L4 完整链待补跑（OBS 计划；"
+                         "历史补链后置）"),
             })
     return {"campaign": campaign, "generated": time.strftime("%F %T"),
             "freeze": str(freeze_path),
             "gem5_opt_sha256": GEM5_FROZEN_SHA,
-            "ledger_kind": "chain_status_marking",
+            "ledger_kind": "chain_status_marking_v2",
             "rows": rows,
-            "totals": {"runids": len(rows),
-                       "with_l5_evidence": sum(1 for r in rows
-                                               if r.get("l5_samples_on_disk"))}}
+            "totals": {
+                "runids": len(rows),
+                "with_l5_evidence": sum(1 for r in rows
+                                        if r.get("l5_samples_on_disk")),
+                "execution_complete": sum(1 for r in rows
+                                          if r.get("execution_complete")),
+                "chain_complete": sum(1 for r in rows
+                                      if r.get("chain_complete")),
+                "needs_chain_backfill": sum(1 for r in rows
+                                            if r.get("needs_chain_backfill")),
+            }}
 
 
 # ------------------------------------------------------- campaign handoff
@@ -140,19 +168,21 @@ def build_campaign_handoff(cdir, out_dir=None):
         obs_list.append(o)
         l2f = ((o.get("L2") or {}).get("commit_diff") or {})
         fe = l2f.get("first_errant_commit") or {}
+        # v2 四状态（v1 历史样本缺字段时如实记 None；missing_levels 用
+        # obs_core 同源规则回补——零漂移）
+        ml = o.get("missing_levels")
+        if not isinstance(ml, list):
+            ml = OC.missing_levels(o)
         samples.append({
             "runid": o["identity"]["runid"], "sample": o["identity"]["sample"],
             "seed": o["identity"]["seed"], "obs_mode":
                 o["identity"].get("obs_mode"),
             "outcome": (o.get("L5") or {}).get("outcome"),
+            "execution_complete": o.get("execution_complete"),
+            "evidence_complete": o.get("evidence_complete"),
             "chain_complete": o.get("chain_complete"),
-            "missing_layers": [lv for lv in ("L1", "L2", "L3", "L4")
-                               if (o.get(lv) or {}).get("status")
-                               not in ("complete",
-                                       "N/A(inactive_no_activation)",
-                                       "not_observed_before_crash",
-                                       "not_observed_before_timeout",
-                                       "not_collected(l0l5_mode)")],
+            "needs_backfill": o.get("needs_backfill"),
+            "missing_levels": ml,
             "first_divergence": ({"seq": fe.get("seq"), "tick": fe.get("tick"),
                                   "class": fe.get("class")} if fe else None),
             "violations": o.get("violations"), "path": str(oj)})
@@ -174,14 +204,22 @@ def build_campaign_handoff(cdir, out_dir=None):
                          "observation.json L5.conservation）"),
         "full_chain": {
             "samples_total": len(obs_list),
-            "chain_complete_true": sum(1 for o in obs_list
-                                       if o.get("chain_complete")),
-            "chain_complete_false": sum(1 for o in obs_list
-                                        if not o.get("chain_complete")),
+            # 纠偏轮 v2（中央指令 2026-10-13）：执行完成 ≠ chain_complete，
+            # execution/evidence/chain 三计数分开单列。
+            "execution_complete_count": sum(
+                1 for o in obs_list if o.get("execution_complete")),
+            "evidence_complete_count": sum(
+                1 for o in obs_list if o.get("evidence_complete")),
+            "chain_complete_count": sum(
+                1 for o in obs_list if o.get("chain_complete")),
+            "chain_incomplete_count": sum(
+                1 for o in obs_list if o.get("chain_complete") is False),
             "false_reasons_histogram": _hist(
                 [(o.get("chain_status_reason") or "").split("（")[0].split("——")[0]
                  for o in obs_list if not o.get("chain_complete")]),
-            "note": "chain_complete=false 样本单列待补跑，不计入完整实验完成数",
+            "note": ("campaign 执行完成 ≠ chain_complete：execution/"
+                     "evidence/chain 三计数分开；chain_complete=false 样本"
+                     "单列待补跑，不计入完整实验完成数"),
         },
         "retries": _retries(cdir),
         "resource_peaks": _hostmon_peaks(),
@@ -249,6 +287,7 @@ def _hostmon_peaks():
 
 
 def _md(handoff):
+    fc = handoff["full_chain"]
     lines = [f"# handoff — {handoff['campaign']}", "",
              f"生成：{handoff['generated']}", "",
              f"- git_commit：`{handoff['git_commit']}`",
@@ -258,18 +297,27 @@ def _md(handoff):
              "## 九分类计数", "",
              "```json", json.dumps(handoff["nine_class"], ensure_ascii=False,
                                   indent=1), "```", "",
-             f"## 完整链：{handoff['full_chain']['chain_complete_true']}"
-             f"/{handoff['full_chain']['samples_total']} chain_complete=true"
-             f"（false 单列待补跑）", "",
-             "```json", json.dumps(handoff["full_chain"]["false_reasons_histogram"],
+             f"## 执行/证据/完整链（三计数分开，执行完成 ≠ chain_complete）",
+             "",
+             f"- execution_complete：{fc['execution_complete_count']}"
+             f"/{fc['samples_total']}",
+             f"- evidence_complete：{fc['evidence_complete_count']}"
+             f"/{fc['samples_total']}",
+             f"- chain_complete：{fc['chain_complete_count']}"
+             f"/{fc['samples_total']}"
+             f"（chain_incomplete={fc['chain_incomplete_count']} 单列待补跑，"
+             f"不入完整完成数）", "",
+             "```json", json.dumps(fc["false_reasons_histogram"],
                                   ensure_ascii=False, indent=1), "```", "",
              f"## 重试：{json.dumps(handoff['retries'], ensure_ascii=False)}", "",
              f"## 资源峰值：{json.dumps(handoff['resource_peaks'], ensure_ascii=False)}", "",
              "## 样本索引", ""]
     for s in handoff["samples"]:
         lines.append(f"- {s.get('runid')} {s.get('sample')} seed={s.get('seed')} "
-                     f"→ {s.get('outcome')} chain={s.get('chain_complete')} "
-                     f"missing={s.get('missing_layers')} `{s.get('path')}`")
+                     f"→ {s.get('outcome')} exec={s.get('execution_complete')} "
+                     f"evid={s.get('evidence_complete')} "
+                     f"chain={s.get('chain_complete')} "
+                     f"missing={s.get('missing_levels')} `{s.get('path')}`")
     return "\n".join(lines) + "\n"
 
 
@@ -282,15 +330,23 @@ def main():
     ap.add_argument("--freeze",
                     default="docs/gem5-fi/lsu/evidence/P4/"
                             "p4_freeze_agu_formal_20261012.json")
-    ap.add_argument("--out-dir", default=None)
+    ap.add_argument("--out-dir", default=None,
+                    help="输出目录（ledger 干跑验证用 tmp；缺省=主树 "
+                         "runs/lsu/obs/，真实台账由主负责人合并后执行）")
     args = ap.parse_args()
     if args.ledger:
         ledger = build_ledger(args.campaign, args.freeze)
-        out = OBS_ROOT / f"chain_ledger_{args.campaign}.json"
+        out = (Path(args.out_dir) / f"chain_ledger_{args.campaign}.json"
+               if args.out_dir
+               else OBS_ROOT / f"chain_ledger_{args.campaign}.json")
         out.parent.mkdir(parents=True, exist_ok=True)
         out.write_text(json.dumps(ledger, ensure_ascii=False, indent=1))
         print(f"ledger → {out}  runids={ledger['totals']['runids']} "
-              f"with_l5={ledger['totals']['with_l5_evidence']}")
+              f"with_l5={ledger['totals']['with_l5_evidence']} "
+              f"execution_complete={ledger['totals']['execution_complete']} "
+              f"chain_complete={ledger['totals']['chain_complete']} "
+              f"needs_chain_backfill="
+              f"{ledger['totals']['needs_chain_backfill']}")
         return 0
     h = build_campaign_handoff(args.campaign_handoff, args.out_dir)
     outj = Path(args.out_dir or args.campaign_handoff) / "handoff.json"
