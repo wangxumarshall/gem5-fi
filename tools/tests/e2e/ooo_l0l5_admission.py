@@ -176,19 +176,54 @@ def check_sample_dir_ownership(sample_dir, run_id):
     return fails
 
 
-def check_goldens_dir(goldens_dir, frozen_gem5=None):
-    """Every golden dir must be COMPLETE with a registry-matching final
+def check_goldens_dir(goldens_dir, frozen_gem5=None,
+                      sample_golden_dirs=None):
+    """Golden dirs must be COMPLETE with a registry-matching final
     checksum (golden_id lives in provenance.json) and, when given, the
-    frozen gem5 sha."""
+    frozen gem5 sha.
+
+    [FIX-RB round 2] sample_golden_dirs: the golden dirs the admitted
+    samples actually reference (evidence/replay_config.json golden_dir).
+    When given, exactly those dirs are checked -- a referenced-but-
+    missing/incomplete/mismatched dir is still a FAIL, nothing is waved
+    through. The goldens cache is key-separated per binary sha
+    (baseline_key hashes the spec including its gem5_sha256
+    declaration), so a multi-binary cache legitimately holds OTHER
+    eras' goldens that are not this batch's evidence; unreferenced dirs
+    are reported as skipped_unreferenced, never as failures. Without
+    sample dirs the historical whole-directory scan applies (single-
+    binary caches)."""
     fails = []
+    skipped = []
     if not os.path.isdir(goldens_dir):
-        return ["goldens_dir_missing:%s" % goldens_dir], 0
+        return ["goldens_dir_missing:%s" % goldens_dir], 0, skipped
     from runner import GOLDEN_IDS  # noqa: E402  (repo registry)
+    goldens_real = os.path.realpath(goldens_dir)
+    if sample_golden_dirs is None:
+        checked = [(name, os.path.join(goldens_dir, name))
+                   for name in sorted(os.listdir(goldens_dir))]
+        checked = [(n, d) for n, d in checked
+                   if os.path.isdir(d) and n != "specs"]
+    else:
+        checked = []
+        seen = set()
+        for gd in sorted(set(sample_golden_dirs)):
+            if os.path.realpath(gd) in seen:
+                continue
+            seen.add(os.path.realpath(gd))
+            if os.path.realpath(os.path.dirname(gd)) != goldens_real \
+                    or os.path.basename(gd) == "specs":
+                fails.append("golden_referenced_dir_invalid:%s" % gd)
+                continue
+            checked.append((os.path.basename(gd), gd))
+        ref_names = {n for n, _ in checked}
+        for name in sorted(os.listdir(goldens_dir)):
+            d = os.path.join(goldens_dir, name)
+            if os.path.isdir(d) and name != "specs" \
+                    and name not in ref_names:
+                skipped.append(name)
     n = 0
-    for name in sorted(os.listdir(goldens_dir)):
-        d = os.path.join(goldens_dir, name)
-        if not os.path.isdir(d) or name == "specs":
-            continue
+    for name, d in checked:
         comp = os.path.join(d, "COMPLETE.json")
         if not os.path.isfile(comp):
             fails.append("golden_incomplete:%s" % name)
@@ -208,15 +243,16 @@ def check_goldens_dir(goldens_dir, frozen_gem5=None):
                 pass
         if prov_final and final and prov_final != final:
             fails.append("golden_provenance_final_mismatch:%s" % name)
+        if gid and gid in GOLDEN_IDS and final \
+                and final != GOLDEN_IDS[gid]:
+            fails.append("golden_registry_final_mismatch:%s" % name)
         n += 1
         if frozen_gem5 and cj.get("gem5_sha256") \
                 and cj["gem5_sha256"] != frozen_gem5:
             fails.append("golden_gem5_sha_mismatch:%s" % name)
-        if gid and gid in GOLDEN_IDS and final != GOLDEN_IDS[gid]:
-            fails.append("golden_final_mismatch:%s" % name)
     if n == 0:
         fails.append("goldens_dir_empty")
-    return fails, n
+    return fails, n, skipped
 
 
 # ------------------------------------------------------------ admission
@@ -238,8 +274,25 @@ def run_admission(eng2_dirs, goldens_dir, guard_dir, frozen_gem5,
               "eng2_dirs": [os.path.abspath(d) for d in eng2_dirs],
               "expect_samples": expect_samples,
               "samples": [], "items": {}}
-    gfails, n_goldens = check_goldens_dir(goldens_dir, frozen_gem5)
-    report["goldens"] = {"n_complete": n_goldens, "failures": gfails}
+    sample_golden_dirs = []
+    for eng2_dir in eng2_dirs:
+        eng2_dir = os.path.abspath(eng2_dir)
+        for f in sorted(glob.glob(os.path.join(eng2_dir, "samples", "*",
+                                               "evidence",
+                                               "replay_config.json"))):
+            try:
+                with open(f) as fh:
+                    rc = json.load(fh)
+                gd = rc.get("golden_dir")
+                if gd:
+                    sample_golden_dirs.append(gd)
+            except (ValueError, OSError):
+                pass
+    gfails, n_goldens, gskip = check_goldens_dir(
+        goldens_dir, frozen_gem5,
+        sample_golden_dirs=(sample_golden_dirs or None))
+    report["goldens"] = {"n_complete": n_goldens, "failures": gfails,
+                         "skipped_unreferenced": gskip}
 
     total_samples = 0
     item_fails = {k: [] for k in ("identity", "conservation", "traces",
