@@ -926,3 +926,12 @@ Decode activated 真实链（masked 带真 hops）/ RAT activated 含真实 hop�
 ### Task R2-7: eng3 4×n=2 准入（D01-F0-W6-c, D02-F0-W6-b, D02-F0-W6-c, D04-F0-W4-d）。
 
 ### Task R2-8: admission_handoff_eng3.json + 报告，停在等待中央合并。不修改 Excel，不合并 fi-ding，不启动正式 385 RunID。
+
+## Round 2 执行记录（2026-10-13 完成）
+
+- [x] R2-1 (Fix H, f39f38e): L4 无检测事件 tick/seq/latency 全 null；v2-aware tick 解析（field2=seqenc 判别）；负延迟抑制。真实数据证明：SDC latency +2735810 ticks/+1144 insts；masked null/null。
+- [x] R2-2 (Fix I, 9b62a75): 审计强制规则 l4_latency_without_detection / l4_negative_latency / l3_zero_scan_masquerade（audit + admission 双侧），fixtures 13-15 正反测试。
+- [x] R2-3/R2-4 (Fix J, 77d821a): 退化 fdc 窗口（fdc<=source seq）继续扫描；scan_range/terminal_reason/rows_scanned 全记录。真实数据证明：masked e2e 9 hops（首跳 seq 104 via (0,3,103)）。
+- [x] R2-5 (v4d): 完整 E2E 重跑 OVERALL=PASS，四类样本全过，R2 不变量全验证（无负延迟/无无事件延迟/无零扫描假链）。
+- [x] R2-6/R2-7: eng3 4×n=2 全部 COMPLETE+replay match；admission 8/8 items PASS（goldens 检查改为样本引用集校验 2747282——多 binary 缓存修正，非放宽）。
+- [x] R2-8: admission_handoff_eng3.json 生成（merge-ready 4053340）；fails=[] pending=[]；不修改 Excel、不合并 fi-ding、不启动正式 385 RunID。停止于等待中央合并。
