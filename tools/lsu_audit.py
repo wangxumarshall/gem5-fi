@@ -382,14 +382,50 @@ def _rule_l4_detector_v1_value(obs):
     return []
 
 
+def _v1_chain_complete(o):
+    """v1 历史规则重算（升级前 lsu_obs_core.chain_complete 的逐字复现）。
+
+    纠偏集成裁决（主负责人，2026-10-13）：OC.chain_complete 已被 Sub-B 升级为
+    v2 语义（拒 proxy/L0 四字段全查）——v1 复现路径必须**自包含**，不得 import
+    生产者，否则 v1 模式随生产者升级漂移（合并实测：s3/s10 在 v1 模式被
+    v2 语义误判 mismatch）。v1 规则 = violations / L0 injected None / L5 无效 /
+    replay 未验证 / inactive N/A / activated>0 时 L1/L2/L4 诚实终态 + L3
+    status=complete（**不查 method**——v1 接受 proxy 口径，正是纠偏对象）。
+    """
+    if o.get("violations"):
+        return False, "violations present: " + "; ".join(o["violations"][:3])
+    l0, l5 = o.get("L0") or {}, o.get("L5") or {}
+    if l0.get("injected") is None:
+        return False, "L0 funnel missing"
+    if l5.get("outcome") in (None, "INCONCLUSIVE"):
+        return False, "L5 无有效结局"
+    if not (o.get("replay_determinism") or {}).get("verified"):
+        return False, "replay determinism 未验证"
+    if not l0.get("activated"):
+        for lv in ("L1", "L2", "L3", "L4"):
+            if (o.get(lv) or {}).get("status") != "N/A(inactive_no_activation)":
+                return False, f"activated=0 但 {lv} 非 N/A(inactive)"
+        return True, "inactive 样本：L0/L5 完整，L1-L4 N/A(inactive)"
+    ok_states = {"complete", "not_observed_before_crash",
+                 "not_observed_before_timeout"}
+    for lv in ("L1", "L2", "L4"):
+        if (o.get(lv) or {}).get("status") not in ok_states:
+            return False, f"{lv} status={(o.get(lv) or {}).get('status')}"
+    if (o.get("L3") or {}).get("status") != "complete":
+        return False, f"L3 {(o.get('L3') or {}).get('status')}"
+    return True, "L0-L5 complete"
+
+
 def _v2_chain_complete(o):
     """v2 完整链重算（审计器独立推导，不 import 生产者 v2 实现）。
 
-    与 v1 OC.chain_complete 的差异（中央纠偏指令 2026-10-13 契约）：
+    纠偏集成裁决（主负责人，2026-10-13，按冻结契约）：chain_complete=层级规则，
+    execution_complete/evidence_complete/needs_backfill 为**独立轴**不合取
+    （四状态拆分的目的即各轴独立；额外合取对真实 final 样本全部冗余——
+    gem5_exit 恒存在、needs_backfill/evidence 由层级规则蕴含——只会制造
+    边缘分歧）。
       * L0 漏斗四字段（attempted/eligible/injected/activated）任一 None
         → False（R2 对偶）
-      * execution_complete/evidence_complete 为 False 或 needs_backfill
-        为 True → False
       * activated>0 时 L3 须 status=complete 且 method=propagation_trace
         （proxy/None 不算——R1/R6 对偶）
     """
@@ -403,12 +439,6 @@ def _v2_chain_complete(o):
         return False, "L5 无有效结局"
     if not (o.get("replay_determinism") or {}).get("verified"):
         return False, "replay determinism 未验证"
-    if o.get("execution_complete") is False:
-        return False, "execution_complete=false"
-    if o.get("evidence_complete") is False:
-        return False, "evidence_complete=false"
-    if o.get("needs_backfill") is True:
-        return False, "needs_backfill=true"
     if not l0.get("activated"):
         for lv in ("L1", "L2", "L3", "L4"):
             if (o.get(lv) or {}).get("status") != "N/A(inactive_no_activation)":
@@ -552,13 +582,16 @@ def audit_sample_dir(d, rules_version=RULES_DEFAULT):
         if not fe.get("sha256") or OC.sha256_file(fp) != fe["sha256"]:
             reasons.append(f"sha_mismatch: {fe.get('path')}")
 
-    # (iii) chain_complete 重算一致（v2 契约样本用审计器独立 v2 重算；
-    #        v1 样本（及 v1 模式）用 OC.chain_complete——生产者同源逻辑）
+    # (iii) chain_complete 重算一致（纠偏集成裁决 2026-10-13）：
+    #   rules=v1 → 全部用自包含 _v1_chain_complete（历史逐字复现，不随
+    #   生产者 OC.chain_complete 的 v2 升级漂移）
+    #   rules=v2 → v1 契约样本（存储值由 v1 生产者计算）用 _v1；
+    #              v2 契约样本用审计器独立 _v2_chain_complete
     stored = obs.get("chain_complete")
-    if rules_version == RULES_V2 and obs.get("schema") == SCHEMA_V2:
-        recomputed, why = _v2_chain_complete(obs)
+    if rules_version == RULES_V1 or obs.get("schema") != SCHEMA_V2:
+        recomputed, why = _v1_chain_complete(obs)
     else:
-        recomputed, why = OC.chain_complete(obs)
+        recomputed, why = _v2_chain_complete(obs)
     if stored != recomputed:
         reasons.append(f"chain_complete_recompute_mismatch: stored={stored} "
                        f"recomputed={recomputed} ({why})")

@@ -152,6 +152,21 @@ def make_identity(s, seed=None, obs_mode="full"):
     }
 
 
+def downgrade_to_v1(obs):
+    """v1 历史样本形态（纠偏集成 2026-10-13）：主干 obs_core 已升级 v2 生产力
+    （schema v2/四状态/detector=not_present）——v1 夹具必须显式降级，不再
+    依赖生产者版本（合并前靠基点 v1 builder 天然产出 v1 形状，合并后失效）。"""
+    obs["schema"] = "lsu-observation-v1"
+    for k in ("execution_complete", "evidence_complete", "needs_backfill",
+              "missing_levels"):
+        obs.pop(k, None)
+    l4 = obs.get("L4") or {}
+    if l4.get("detector") == "not_present":
+        l4["detector"] = "none_wired"
+        l4.pop("l4_source", None)
+    return obs
+
+
 def upgrade_to_v2(obs):
     """把基点 v1 生产者产物升级为 v2 契约合成样本（中央指令 2026-10-13
     契约依赖节："你的测试用合成 fixture 按此契约构造，不 import B 的实现"）。
@@ -247,6 +262,8 @@ def build_sample(camp, s, *, mode="full", inactive=False, seed=None,
     obs = C.build_observation(ident, l0, l1, l2, l3, l4, l5v, replay_ev, files)
     if v2:
         obs = upgrade_to_v2(obs)
+    else:
+        obs = downgrade_to_v1(obs)
     (staging / "observation.json").write_text(
         json.dumps(obs, ensure_ascii=False, indent=1))
     C.finalize_sample(staging, final)
