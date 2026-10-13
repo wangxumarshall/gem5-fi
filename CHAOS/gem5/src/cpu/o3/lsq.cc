@@ -41,6 +41,7 @@
 
 #include "cpu/o3/lsq.hh"
 #include "cpu/o3/CHAOSAddrPath/CHAOSAddrPath.hh"  // §2.4 full def for maybeCorrupt
+#include "cpu/o3/CHAOSPropagation/CHAOSPropagation.hh"  // [LSU][OBS-L3] L3 hooks
 
 #include <algorithm>
 #include <list>
@@ -775,8 +776,24 @@ LSQ::pushRequest(const DynInstPtr& inst, bool isLoad, uint8_t *data,
     // copies so every downstream consumer sees the fault. byte_enable is a
     // const ref here — BE mutation is NOT offered at this hook (A06 does
     // size only; documented in 09 §3-W4).
-    if (cpu->chaosAddrPathPre)
-        size = cpu->chaosAddrPathPre->maybeCorruptPre(addr, size, isLoad, flags);
+    if (cpu->chaosAddrPathPre) {
+        const Addr pre_old_addr = addr;
+        const unsigned int pre_old_size = size;
+        size = cpu->chaosAddrPathPre->maybeCorruptPre(addr, size, isLoad,
+                                                      flags);
+        // [LSU][OBS-L3] register the PRE-family injection with the L3
+        // propagation tracer (inj + addr_form nodes + addr registry).
+        // lastPreHookInjected() also covers the flag-only modes (S06/L02
+        // leave addr/size untouched — a before/after compare here would
+        // miss them); their chain honestly stops at addr_form (no faulted
+        // address to track). nullptr tracer / no injection = no-op.
+        if (cpu->chaosPropagation &&
+            cpu->chaosAddrPathPre->lastPreHookInjected()) {
+            cpu->chaosPropagation->registerInjection(
+                "lsq_pushRequest_PRE", inst->seqNum, pre_old_addr, addr,
+                isLoad, pre_old_size, size);
+        }
+    }
 
     ThreadID tid = cpu->contextToThread(inst->contextId());
     auto cacheLineSize = cpu->cacheLineSize();
@@ -1155,8 +1172,28 @@ LSQ::LSQRequest::sendFragmentToTranslation(int i)
     // 512MiB range, no fault); FS-only effective. nullptr = no injection.
     if (_inst && _inst->cpu && _inst->cpu->chaosAddrPath) {
         RequestPtr r = req(i);
-        _inst->cpu->chaosAddrPath->maybeCorrupt(r);
+        const Addr post_old_vaddr = r->getVaddr();
+        if (_inst->cpu->chaosAddrPath->maybeCorrupt(r)) {
+            // [LSU][OBS-L3] post-hook family: register the injection (inj +
+            // addr_form nodes + addr registry; the request size is known
+            // here, so both sizes carry it — the corruption is address-only
+            // on this hook).
+            if (_inst->cpu->chaosPropagation)
+                _inst->cpu->chaosPropagation->registerInjection(
+                    "lsq_sendFragmentToTranslation", _inst->seqNum,
+                    post_old_vaddr, r->getVaddr(), isLoad(),
+                    r->getSize(), r->getSize());
+        }
     }
+    // [LSU][OBS-L3] mem_req node: this fragment's Request is about to leave
+    // for translation/memory — if its vaddr matches the addr registry
+    // (PRE family registered at pushRequest; post family just registered
+    // above) or its range covers a registered faulted cache byte, record
+    // the request node. Placed AFTER the corruption block so both families
+    // are covered by one call. nullptr tracer = no-op.
+    if (_inst && _inst->cpu && _inst->cpu->chaosPropagation)
+        _inst->cpu->chaosPropagation->noteMemRequest(
+            "lsq_sendFragmentToTranslation", _inst->seqNum, req(i));
     _port.getMMUPtr()->translateTiming(req(i), _inst->thread->getTC(),
             this, isLoad() ? BaseMMU::Read : BaseMMU::Write);
 }

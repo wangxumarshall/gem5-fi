@@ -46,6 +46,14 @@ class CHAOSAddrPath : public SimObject
     unsigned int maybeCorruptPre(Addr& addr, unsigned int size, bool isLoad,
                                Request::Flags& flags);
 
+    // [LSU][OBS-L3] true iff the PREVIOUS maybeCorruptPre call on this
+    // injector performed an injection. The lsq.cc pushRequest call site
+    // needs this to register the injection with CHAOSPropagation: the
+    // flag-only PRE modes (S06 STRICT_ORDER / L02 STRICTLY_ORDERED) leave
+    // addr/size untouched, so a before/after compare at the call site
+    // cannot see them.
+    bool lastPreHookInjected() const { return obs_pre_hook_injected; }
+
   private:
     // LSU W4 A-series (03-design-matrix A01-A03, bit-level family on the
     // sendFragmentToTranslation hook = DTLB-input semantics, W1 ⑦ ruling):
@@ -77,6 +85,20 @@ class CHAOSAddrPath : public SimObject
     ChaOSLsuTrigger *lsuTrigger = nullptr;
     bool f6_pending = false;
     uint64_t f5_bit = 64;   // pinned bit index (F5 low-bit / A03 stuck), 64 = not yet chosen
+
+    // [LSU][OBS-L3] resolved O3 CPU (cached at startup, dynamic_cast once —
+    // the inWindow() per-call dynamic_cast is the cost counter-precedent);
+    // nullptr = not O3. Used by the injection-time funnel notify below.
+    o3::CPU *o3cpu_resolved = nullptr;
+    // [LSU][OBS-L3] last PRE-hook injection verdict (see lastPreHookInjected).
+    bool obs_pre_hook_injected = false;
+    // [LSU][OBS-L3] funnel notify at injection time AND at exit (final
+    // counts): one prop-trace funnel node (abort-survivable — per-node
+    // gzflush) + one best-effort FUNNEL line in the injection log (the
+    // log is a simout stream and is LOST on abort; the prop-trace node is
+    // the durable copy). Central requirement: abort samples must carry
+    // attempted/eligible.
+    void notifyFunnelAtInjection();
 
     // [LSU][OBS-2] post-trigger decline counters (F-049 D-class diagnosis):
     // count trigger-fired-but-no-fault-write outcomes per reason. Observation

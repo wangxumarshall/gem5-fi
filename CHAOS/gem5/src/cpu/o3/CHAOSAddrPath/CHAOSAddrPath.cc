@@ -1,5 +1,6 @@
 #include "cpu/o3/CHAOSAddrPath/CHAOSAddrPath.hh"
 
+#include "cpu/o3/CHAOSPropagation/CHAOSPropagation.hh"  // [LSU][OBS-L3] funnel notify
 #include "cpu/o3/cpu.hh"          // o3::CPU
 #include "debug/CHAOSAddrPath.hh"
 #include "params/CHAOSAddrPath.hh"
@@ -184,6 +185,11 @@ namespace gem5
         ++l0_funnel.injected;
         ++l0_funnel.activated;
         faults_injected_count++;
+        // [LSU][OBS-L3] abort-survivable funnel row (attempted/eligible/
+        // injected as of NOW; the inj/addr_form nodes are registered by the
+        // lsq.cc sendFragmentToTranslation call site, which sees the return
+        // value and both vaddrs).
+        notifyFunnelAtInjection();
         if (write_log) {
             *(log_stream->stream()) << "Tick: " << curTick()
                 << ", Site: lsq_sendFragmentToTranslation"
@@ -201,6 +207,9 @@ namespace gem5
     CHAOSAddrPath::maybeCorruptPre(Addr& addr, unsigned int size, bool isLoad,
                                Request::Flags& flags)
     {
+        // [LSU][OBS-L3] last-hook verdict for the pushRequest call site
+        // (flag-only modes S06/L02 leave addr/size untouched).
+        obs_pre_hook_injected = false;
         if (probability <= 0.0f) return size;
 
         if (lsuTrigger) {
@@ -335,6 +344,12 @@ namespace gem5
         ++l0_funnel.injected;
         ++l0_funnel.activated;
         ++faults_injected_count;
+        // [LSU][OBS-L3] the PRE hook DID inject: the lsq.cc pushRequest call
+        // site registers inj/addr_form with CHAOSPropagation through
+        // lastPreHookInjected() (it sees the before/after addr/size for the
+        // addr registry); here we only owe the abort-survivable funnel row.
+        obs_pre_hook_injected = true;
+        notifyFunnelAtInjection();
         if (write_log && log_stream && log_stream->stream()) {
             *(log_stream->stream()) << "Tick: " << curTick()
                 << ", Site: lsq_pushRequest_PRE"
@@ -350,6 +365,32 @@ namespace gem5
     }
 
     void
+    CHAOSAddrPath::notifyFunnelAtInjection()
+    {
+        // [LSU][OBS-L3] funnel row with the counts as of NOW. Trigger path:
+        // mirror the trigger's own counters (the exit callback mirrors the
+        // same way); legacy path: attempted=eligible=injected (the existing
+        // non-trigger l0_funnel mirror convention, CHAOSAddrPath.cc exit
+        // callback). stdout stays untouched (W2.1 discipline) — the FUNNEL
+        // line goes to the injection log only, and the abort-survivable
+        // copy is the prop-trace node (per-node gzflush).
+        const uint64_t attempted =
+            lsuTrigger ? lsuTrigger->attempted : faults_injected_count;
+        const uint64_t eligible =
+            lsuTrigger ? lsuTrigger->eligible : faults_injected_count;
+        const uint64_t injected =
+            lsuTrigger ? lsuTrigger->injected : faults_injected_count;
+        if (o3cpu_resolved && o3cpu_resolved->chaosPropagation)
+            o3cpu_resolved->chaosPropagation->noteFunnel(
+                "CHAOSAddrPath", attempted, eligible, injected);
+        if (write_log && log_stream && log_stream->stream()) {
+            *(log_stream->stream()) << "FUNNEL: attempted=" << attempted
+                << " eligible=" << eligible
+                << " injected=" << injected << std::endl;
+        }
+    }
+
+    void
     CHAOSAddrPath::startup() {
         SimObject::startup();
         auto *o3cpu = dynamic_cast<o3::CPU *>(cpu);
@@ -357,6 +398,9 @@ namespace gem5
             warn("CHAOSAddrPath: cpu is not an O3CPU; injector disabled.\n");
             return;
         }
+        // [LSU][OBS-L3] cache the resolved O3 CPU for the injection-time
+        // funnel notify (dynamic_cast once, not per event).
+        o3cpu_resolved = o3cpu;
         // W4: exactly one hook per run — the PRE family (A04/A05/A06/A08)
         // registers on the pushRequest-entry pointer; the post family
         // (legacy + A01-A03 + LSU tiers) keeps the sendFragment pointer.
@@ -402,7 +446,16 @@ namespace gem5
                                             << l0_funnel.line("CHAOSAddrPath")
                                             << std::endl;
                 }
+                // [LSU][OBS-L3] final funnel row (final counts; runs only on
+                // normal exit — aborts keep the last injection-time node,
+                // which is exactly why the per-injection rows exist).
+                notifyFunnelAtInjection();
             });
+        } else if (probability > 0.0f) {
+            // [LSU][OBS-L3] legacy (non-trigger) path: final funnel row only.
+            // The l0 lines above stay lsuTrigger-only, so the legacy log
+            // output is otherwise byte-identical.
+            registerExitCallback([this]() { notifyFunnelAtInjection(); });
         }
     }
 

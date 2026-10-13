@@ -47,6 +47,7 @@
 #include "cpu/o3/CHAOSLSQFwd/CHAOSLSQFwd.hh"
 #include "cpu/o3/chaos_lsu_trigger.hh"  // LSU W2 F6 event source (SqForward)
 #include "cpu/o3/CHAOSL1DForward/CHAOSL1DForward.hh"  // §2.7 post-check escape
+#include "cpu/o3/CHAOSPropagation/CHAOSPropagation.hh"  // [LSU][OBS-L3] L3 hooks
 #include "cpu/o3/dyn_inst.hh"
 #include "cpu/o3/limits.hh"
 #include "cpu/o3/lsq.hh"
@@ -163,6 +164,20 @@ LSQUnit::completeDataAccess(PacketPtr pkt)
     }
 
     cpu->ppDataAccessComplete->notify(std::make_pair(inst, pkt));
+
+    // [LSU][OBS-L3] response node (+ load taint): the packet just returned
+    // from the memory system — if it delivers a registered fault (addrpath
+    // addr registry / cache faulted-byte registry), record the resp node
+    // and, for register-writeback loads/SC/atomics with NoFault (exactly
+    // the completeAcc condition below), the taint_reg nodes. Placed before
+    // the needWB branch so STORE responses are covered too; squashed insts
+    // are guarded inside. NOTE (documented boundary): when CHAOSL1DForward
+    // is ALSO attached, its corruption inside the needWB branch happens
+    // AFTER this snapshot — the L3 chain is not combined-injector-aware in
+    // v1 (the campaign runs one injector per sample). nullptr = no tracer.
+    if (cpu->chaosPropagation)
+        cpu->chaosPropagation->noteMemResponse(inst.get(), pkt,
+                                               request->needWBToRegister());
 
     assert(!cpu->switchedOut());
     if (!inst->isSquashed()) {
