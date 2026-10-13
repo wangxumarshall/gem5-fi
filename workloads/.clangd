@@ -1,0 +1,14 @@
+# workloads/.clangd — clangd config for the hand-built FI kernels.
+#
+# These kernels are compiled by workloads/sdcshield/Makefile (clang,
+# -march=armv9-a+sve+sme, static) and workloads/directed/ by hand — there
+# is no compilation database covering them, so without this file clangd
+# falls back to default flags and floods the editor with bogus errors
+# (svcntd/svfloat64_t "undeclared", ptrdiff_t unknown, SVE/SME asm
+# rejected). Scoped to workloads/ so the CHAOS/gem5 submodule (scons,
+# C++17, its own toolchain) is untouched.
+CompileFlags:
+  # The repo-root .clangd (gem5 flag pool for the CHAOS/ canonical tree)
+  # applies repo-wide; scrub everything it injects before adding ours.
+  Remove: ['-I*', '-isystem*', '-D*', '-std=*', '-include*']
+  Add: [-std=gnu17, -march=armv9-a+sve+sme, -Wall, -Wextra]

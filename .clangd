@@ -3,21 +3,27 @@
 # 背景（git 历史核实）：根 CHAOS/<模块>/ 是 CHAOS 框架的规范源本，
 # 历史上由多个 commit 直接编辑（S1-1、G1/64-bit、NEON-lane 等），
 # 并与 CHAOS/gem5/src/ 下的构建镜像保持双副本同步（同一 commit
-# 同时改两棵树）。vendored 树有 compile_commands.json 提供编译标志，
-# 根树没有——本文件把 gem5 构建的 -I/-D 标志（取自
-# build/ARM/compile_commands.json 中 src/CHAOSReg/CHAOSReg.cc 条目）
-# 显式补齐，使根树文件获得与镜像一致的 LSP 分析。
+# 同时改两棵树）。vendored 树由本仓 CHAOS/compile_commands.json
+# （symlink -> ../build/ARM/compile_commands.json；db 由
+# `scons -C CHAOS/gem5 build/ARM/compile_commands.json` 生成，产物
+# 在仓库根 build/ARM/，gitignored——clone 后需先跑一次该 scons
+# target 再有 LSP）按 clangd 向上搜索规则自动服务，不经本文件；
+# 根树源本不在 db 中——本文件把 gem5 构建的 -I/-D 标志（取自
+# build/ARM/compile_commands.json 中 src/CHAOSReg/CHAOSReg.cc 条目，
+# 含 NDEBUG/TRACING_ON=0 等关键宏）显式补齐，使根树文件获得与
+# 镜像一致的 LSP 分析。
 #
-# 可移植性（本版要点）：全部使用相对路径。实测（clangd 22.1.1，
-# 最小用例 /tmp/rt2 系列）相对路径的解析基准是 compile db 的
-# directory 字段（构建根），而非 cwd 或源文件目录——因此必须先
-# 用 CompilationDatabase 显式锚定 db，再写相对 -I。仓库整体迁移
-# 路径后无需修改本文件。
+# 注意：本文件曾用 `If: pathExclude: ^workloads/` 做作用域隔离，
+# 但 clangd 17.0.6 下 If 块使整份配置静默失效（cc1 里 -I/-D 全空），
+# 故 If 已移除；workloads/ 的隔离改由 workloads/.clangd 的
+# CompileFlags.Remove 通配清池实现。
+#
+# 可移植性（2026-10-13 修订）：-I 一律绝对路径。历史版本全用相对
+# 路径并依赖 CompilationDatabase 锚定的 directory 基准（实测于 pip
+# clangd 22.1.1）——但系统 clangd 17 的基准是进程 cwd，同一配置在
+# 17 下全部失配（CHAOSReg.cc 151 伪诊断）。绝对路径在两个版本下
+# 行为一致；仓库迁移后需同步更新本文件的 base（脚本可重写）。
 CompileFlags:
-  # 锚定构建数据库：vendored 树的 db（相对本 .clangd 所在目录）。
-  # 副作用（正向）：根树文件由此获得 db 的 directory 基准与
-  # fallback 命令，相对 -I 全部以此为基准解析。
-  CompilationDatabase: CHAOS/gem5/build/ARM
   Add:
     # 工具链修复（同 CHAOS/gem5/.clangd）：pip 版 clangd 22.1.1 对
     # openEuler gcc 12 的自动探测不完整，显式补 libstdc++ 头路径
@@ -25,30 +31,42 @@ CompileFlags:
     - "-isystem/usr/include/c++/12"
     - "-isystem/usr/include/c++/12/aarch64-openEuler-linux"
     - "-isystem/usr/lib/gcc/aarch64-openEuler-linux/12/include"
-    # gem5 构建标志（相对 db 目录 = CHAOS/gem5/，与 scons 命令行
-    # 的相对形态一致——从 compile_commands.json 原样照抄）
-    - "-Isrc"
-    - "-Iinclude"
-    - "-Iext"
-    - "-Iext/libelf"
-    - "-Iext/iostream3"
-    - "-Iext/nomali/include"
-    - "-Iext/drampower/src"
-    - "-Iext/softfloat"
-    - "-Iext/fputils/include"
-    - "-Iext/libfdt"
-    - "-Iext/pybind11/include"
+    # gem5 构建标志（绝对路径，基准 = vendored gem5 树根；取自
+    # build/ARM/compile_commands.json 的条目形态）
+    - "-I/home/sdc/wangxu/operator/gem5-fi/CHAOS/gem5/src"
+    - "-I/home/sdc/wangxu/operator/gem5-fi/CHAOS/gem5/include"
+    - "-I/home/sdc/wangxu/operator/gem5-fi/CHAOS/gem5/ext"
+    - "-I/home/sdc/wangxu/operator/gem5-fi/CHAOS/gem5/ext/libelf"
+    - "-I/home/sdc/wangxu/operator/gem5-fi/CHAOS/gem5/ext/iostream3"
+    - "-I/home/sdc/wangxu/operator/gem5-fi/CHAOS/gem5/ext/nomali/include"
+    - "-I/home/sdc/wangxu/operator/gem5-fi/CHAOS/gem5/ext/drampower/src"
+    - "-I/home/sdc/wangxu/operator/gem5-fi/CHAOS/gem5/ext/softfloat"
+    - "-I/home/sdc/wangxu/operator/gem5-fi/CHAOS/gem5/ext/fputils/include"
+    - "-I/home/sdc/wangxu/operator/gem5-fi/CHAOS/gem5/ext/libfdt"
+    - "-I/home/sdc/wangxu/operator/gem5-fi/CHAOS/gem5/ext/pybind11/include"
     - "-I/usr/include/python3.11"
-    - "-Iext/googletest/googletest/include"
-    - "-Iext/googletest/googlemock/include"
-    - "-Ibuild/ARM"
-    - "-Isrc/systemc/ext/systemc_home/include"
-    - "-Ibuild/ARM/systemc/ext"
-    # 关键 -D 宏（compile_commands.json 同源）
+    - "-I/home/sdc/wangxu/operator/gem5-fi/CHAOS/gem5/ext/googletest/googletest/include"
+    - "-I/home/sdc/wangxu/operator/gem5-fi/CHAOS/gem5/ext/googletest/googlemock/include"
+    - "-I/home/sdc/wangxu/operator/gem5-fi/build/ARM"
+    - "-I/home/sdc/wangxu/operator/gem5-fi/CHAOS/gem5/src/systemc/ext/systemc_home/include"
+    - "-I/home/sdc/wangxu/operator/gem5-fi/CHAOS/gem5/build/ARM/systemc/ext"
+    # 关键 -D 宏（与 db 条目逐项对齐；NDEBUG 尤其关键——gem5 头的
+    # #ifndef NDEBUG 分支会去 include 构建树才有的 debug/*.hh 生成
+    # 头，缺了它整个头链断裂、符号全 undeclared；TRACING_ON 在
+    # opt build 的 db 里是 0）
     - "-DPROTOBUF_INLINE_NOT_IN_HEADERS=0"
     - "-DPROTOBUF_ENABLE_DEBUG_LOGGING_MAY_LEAK_PII=0"
+    - "-DPROTOBUF_USE_DLLS"
     - "-DNOMINMAX"
     - "-DMAGIC_ENUM_RANGE_MAX=0x100"
     - "-DNUMBER_BITS_PER_SET=64"
-    - "-DTRACING_ON=1"
+    - "-DTRACING_ON=0"
+    - "-DNDEBUG"
     - "-std=c++17"
+
+Diagnostics:
+  # IncludeCleaner chokes on this project's generated-header trees
+  # (params/*.hh resolved via build dirs) and spams "Failed to get an
+  # entry for resolved path" on every parse (same as the sdcshield
+  # repo's .clangd); the feature adds little here, so it is off.
+  UnusedIncludes: None
