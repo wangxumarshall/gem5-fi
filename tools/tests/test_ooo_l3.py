@@ -339,6 +339,17 @@ def test_build_l3_unsupported():
         # no events at all -> unsupported
         res3 = ooo_l3.build_l3("decode", [], p2)
         check("no L0 events unsupported", res3["status"] == "unsupported")
+        # [R2-4] never-committed terminal states carry an explicit
+        # terminal_reason (never / squashed) + rows_scanned=0
+        ev_nc = ev(sn=999)   # not in the trace
+        r_nc = ooo_l3.build_l3("decode", [ev_nc], p2)
+        check("never-committed terminal_reason recorded",
+              r_nc["status"] == "ok"
+              and r_nc.get("terminal_reason")
+              == "source never committed: no rows exist past the source "
+                 "to scan"
+              and r_nc.get("rows_scanned_after_source") == 0,
+              repr(r_nc.get("terminal_reason")))
 
         # unknown component -> unsupported
         res4 = ooo_l3.build_l3("bpu", [ev(sn=101)], p2)

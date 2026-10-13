@@ -584,6 +584,12 @@ def build_l3(component, l0_events, run_ctrace_path, coverage=None,
             "squash_events_observed": squash_events_seen,
             "n_l0_events": n_events,
             "n_l0_events_with_sn": n_with_sn,
+            "rows_scanned_after_source": 0,
+            "scan_range": None,
+            "terminal_reason": ("squashed before commit (squash event "
+                                "observed)" if source_squashed else
+                                "source never committed: no rows exist "
+                                "past the source to scan"),
             "first_divergent_commit": fdc_in,
             "coverage": coverage,
             "caveat": caveat,
