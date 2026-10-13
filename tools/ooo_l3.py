@@ -185,6 +185,23 @@ def build_l3(component, l0_events, run_ctrace_path, coverage=None,
             "no L0->ctrace join semantics defined for it"
             % (component, ", ".join(SUPPORTED_COMPONENTS)))
 
+    # FIX-RB integration contract: the pipeline (sample_runner do_l3 /
+    # commit_diff) passes first_divergent_commit as the l2
+    # first-divergent RECORD (a dict carrying "seq"); the CLI and the
+    # unit tests pass a bare commit-seq int. Normalize once -- the
+    # window bound uses the int, the result echoes the original.
+    fdc_in = first_divergent_commit
+    if isinstance(fdc_in, bool):
+        fdc_seq = None
+    elif isinstance(fdc_in, int):
+        fdc_seq = fdc_in
+    elif isinstance(fdc_in, dict):
+        s = fdc_in.get("seq")
+        fdc_seq = s if isinstance(s, int) and not isinstance(s, bool) \
+            else None
+    else:
+        fdc_seq = None
+
     src_event, n_events, n_with_sn = _pick_source_event(
         load_l0_events(l0_events))
     if n_events == 0:
@@ -221,7 +238,7 @@ def build_l3(component, l0_events, run_ctrace_path, coverage=None,
     live = {}
     rows_scanned_after_source = 0
     truncated = []
-    fdc = first_divergent_commit
+    fdc = fdc_seq
 
     try:
         for kind, payload in iter_ctrace_events(run_ctrace_path):
@@ -355,7 +372,7 @@ def build_l3(component, l0_events, run_ctrace_path, coverage=None,
             "squash_events_observed": squash_events_seen,
             "n_l0_events": n_events,
             "n_l0_events_with_sn": n_with_sn,
-            "first_divergent_commit": fdc,
+            "first_divergent_commit": fdc_in,
             "coverage": coverage,
             "caveat": caveat,
         }
@@ -369,8 +386,13 @@ def build_l3(component, l0_events, run_ctrace_path, coverage=None,
     if truncated:
         caveats.append("; ".join(truncated))
     if fdc is None:
-        caveats.append("no first_divergent_commit given: the chain was "
-                       "followed to the end of the trace window")
+        if fdc_in is None:
+            caveats.append("no first_divergent_commit given: the chain was "
+                           "followed to the end of the trace window")
+        else:
+            caveats.append("first_divergent_commit given in a form without "
+                           "a usable integer seq (%r): no window bound "
+                           "applied" % (fdc_in,))
 
     return {
         "status": "ok",
@@ -394,7 +416,7 @@ def build_l3(component, l0_events, run_ctrace_path, coverage=None,
         "n_l0_events": n_events,
         "n_l0_events_with_sn": n_with_sn,
         "rows_scanned_after_source": rows_scanned_after_source,
-        "first_divergent_commit": fdc,
+        "first_divergent_commit": fdc_in,
         "coverage": coverage,
         "caveat": "; ".join(caveats) if caveats else "none",
     }

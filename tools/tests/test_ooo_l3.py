@@ -366,6 +366,34 @@ def test_build_l3_fdc():
         check("fdc passthrough",
               res["first_divergent_commit"] == 11)
 
+        # FIX-RB: the pipeline passes the l2 first-divergent RECORD
+        # (a dict with "seq"), not a bare int -- both must window
+        # identically and the result echoes the original argument.
+        res_d = ooo_l3.build_l3("decode", [ev(sn=401)], p,
+                                first_divergent_commit={
+                                    "seq": 11, "class": "data_corruption"})
+        check("fdc dict: same window as int",
+              res_d["status"] == res["status"] == "ok"
+              and [h["seq"] for h in res_d["hops"]] ==
+              [h["seq"] for h in res["hops"]],
+              json.dumps(res_d["hops"], default=str))
+        check("fdc dict: echoed verbatim",
+              res_d["first_divergent_commit"] ==
+              {"seq": 11, "class": "data_corruption"},
+              repr(res_d.get("first_divergent_commit")))
+        # a dict without a usable integer seq: no bound (honest caveat),
+        # never a TypeError, never a fabricated bound
+        res_b = ooo_l3.build_l3("decode", [ev(sn=401)], p,
+                                first_divergent_commit={"no_seq": True})
+        check("fdc unusable form: no bound, no crash",
+              res_b["status"] == "ok"
+              and [h["seq"] for h in res_b["hops"]] == [11, 12]
+              and "without a usable integer seq" in res_b["caveat"]
+              and "no window bound applied" in res_b["caveat"],
+              "hops=%r caveat=%r"
+              % ([h["seq"] for h in res_b["hops"]],
+                 res_b.get("caveat")))
+
 
 def test_l0_log_contract():
     print("[8] FIX-B decode log line through the FROZEN L0 parser")
