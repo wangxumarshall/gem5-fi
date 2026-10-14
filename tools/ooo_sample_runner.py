@@ -742,6 +742,23 @@ def retain_traces(staging, mode, cov, l2_blk):
     return retained, scope
 
 
+def _observer_tool_commit():
+    """[hotfix] The git commit of the OBSERVER toolchain (tools/) that
+    post-processes the retained evidence into observation.json -- the
+    gem5 binary and its chaos_commit stay frozen; this field records
+    WHICH observer code produced the view (central directive 2026-10-14:
+    identity must distinguish binary patchset from observer tool)."""
+    try:
+        import subprocess as _sp
+        r = _sp.run(["git", "-C", REPO, "rev-parse", "HEAD"],
+                    capture_output=True, text=True, timeout=10)
+        if r.returncode == 0:
+            return r.stdout.strip()
+    except Exception:
+        pass
+    return "unknown"
+
+
 def build_identity(camp, man, rep, seed_note, manifest_path, gem5_sha,
                    golden_handle, started, finished, wall_s):
     cfg_key = camp.get("config", "C3")
@@ -764,6 +781,7 @@ def build_identity(camp, man, rep, seed_note, manifest_path, gem5_sha,
         golden_key=golden_handle["key"],
         chaos_commit=camp.get("chaos_commit", "HEAD"),
         patchset_sha256=camp.get("patchset_sha256", "n/a"),
+        observer_tool_commit=_observer_tool_commit(),
         pythonhashseed=0,
         host=os.uname().nodename,
         started=started, finished=finished, wall_s=round(wall_s, 1))
@@ -1630,7 +1648,13 @@ def reobserve_sample(sample_dir):
     audit["reobserved_at"] = time.strftime("%Y-%m-%dT%H:%M:%S")
     audit["reobserve_builder_sha256"] = sha256_file(__file__)
 
-    ctx = dict(identity=old.get("identity") or dict(), l0=l0, l1=l1_blk,
+    # [hotfix 2026-10-14] the revised view is re-derived with TODAY's
+    # observer toolchain: stamp the current observer_tool_commit (the
+    # ORIGINAL observation.json keeps whatever it recorded -- never
+    # rewritten; this only enriches the revised/reobserved view)
+    _ident = dict(old.get("identity") or dict())
+    _ident["observer_tool_commit"] = _observer_tool_commit()
+    ctx = dict(identity=_ident, l0=l0, l1=l1_blk,
                l2=l2_blk, l3=l3_blk, l4=l4_blk, l5=l5_blk, files=files,
                coverage_scope=scope, audit=audit,
                replay=old.get("replay"))
