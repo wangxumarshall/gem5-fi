@@ -493,9 +493,24 @@ class ObsDriver:
         od = self._sample_dir(m, s)
         sample = f"s{s}"
         if (od / OC.COMPLETE).exists():
+            # OBS-FIX-3（2026-10-14，C02 跨 commit 续跑）：resume 身份闸门 =
+            # 观测二进制（准入对象=观测版二进制，中央指令 2026-10-14 第 6 条 /
+            # 82583a6d；ensure_golden 缓存复用同款先例只验 gem5_opt_sha256）。
+            # git_commit 属溯源元数据：跨前向工具修复提交续跑合法，漂移打
+            # 显式日志（边界入 handoff），不拒收；二进制不一致=真身份违规。
             ok, reason = OC.verify_complete(
-                od, {"git_commit": m["identity"]["git_commit"],
-                     "gem5_opt_sha256": m["identity"]["gem5_opt_sha256"]})
+                od, {"gem5_opt_sha256": m["identity"]["gem5_opt_sha256"]})
+            if ok:
+                try:
+                    rec = (json.loads((od / "observation.json")
+                                      .read_text(encoding="utf-8"))
+                           .get("identity", {}).get("git_commit"))
+                except (OSError, json.JSONDecodeError):
+                    rec = None
+                if rec and rec != m["identity"]["git_commit"]:
+                    print(f"[{m['item']} {sample}] resume commit 漂移 "
+                          f"{str(rec)[:8]}→{m['identity']['git_commit'][:8]}"
+                          f"（二进制一致，前向续跑；边界入 handoff）", flush=True)
             print(f"[{m['item']} {sample}] COMPLETE 已存在 → 只读核验 "
                   f"{'OK' if ok else 'REFUSED: ' + reason}，跳过", flush=True)
             return ("skipped" if ok else "verify_refused")

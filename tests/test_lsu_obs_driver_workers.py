@@ -681,6 +681,83 @@ def main():
               st2 == "COMPLETE" and c2 == {3, 4} and fin == 5 and act == 5,
               f"st2={st2} new_calls={sorted(c2)} fin={fin} act={act}")
 
+        # ------------------------------------------------ (i) 跨 commit 续跑身份核验
+        # OBS-FIX-3：resume 身份闸门 = 观测二进制（准入对象=观测版二进制，
+        # 82583a6d；ensure_golden 同款先例只验 gem5_opt_sha256+baseline_key）。
+        # git_commit 漂移 = 前向工具修复续跑 → 打日志不拒收；二进制漂移 =
+        # 真身份违规 → 维持 verify_refused。
+
+        def run_drift_resume(tag, drift):
+            """pass1 正常跑 target=4；pass2 manifest identity 注入漂移后续跑
+            target=6。drift='commit' 只改 git_commit；'binary' 只改
+            gem5_opt_sha256。返回 (st1, st2, pass2 新跑集, fin, act)。"""
+            outg = tmp / tag
+            ns = make_ns(campaign=tag, outdir_root=str(outg), samples=None,
+                         target=4, cap=60, workers=1, replay_policy="none",
+                         obs_mode="l0l5")
+            drv = OD.ObsDriver(ns)
+            if "ITEM-002" not in base_m_cache:
+                base_m_cache["ITEM-002"] = drv._manifest_for("ITEM-002", 0)
+            base = base_m_cache["ITEM-002"]
+
+            def fm_orig(it, s):
+                m = dict(base)
+                m["seed"] = (m.get("seed") or 0) + s + 1
+                return m
+            drv._manifest_for = fm_orig
+            seed_golden(drv, base)
+            state = {"calls": {}, "threads": set()}
+            ODm, orig = install_fake_run_fault_pattern(state, [1], (0.02, 0.05))
+            try:
+                st1 = drv.run_item("ITEM-002")
+            finally:
+                ODm.ObsDriver.run_fault = orig
+
+            def fm_drift(it, s):
+                m = fm_orig(it, s)
+                ident = dict(m["identity"])
+                if drift == "commit":
+                    ident["git_commit"] = "deadbeefdeadbeef"
+                else:
+                    ident["gem5_opt_sha256"] = "cafebabecafebabecafebabecafebabecafebabecafebabecafebabecafebabe"
+                m["identity"] = ident
+                return m
+            ns2 = make_ns(campaign=tag, outdir_root=str(outg), samples=None,
+                          target=6, cap=90, workers=1, replay_policy="none",
+                          obs_mode="l0l5")
+            drv2 = OD.ObsDriver(ns2)
+            drv2._manifest_for = fm_drift
+            seed_golden(drv2, base)
+            state2 = {"calls": {}, "threads": set()}
+            ODm2, orig2 = install_fake_run_fault_pattern(state2, [1], (0.02, 0.05))
+            try:
+                st2 = drv2.run_item("ITEM-002")
+            finally:
+                ODm2.ObsDriver.run_fault = orig2
+            camp = outg / tag / "ITEM-002"
+            fin = act = 0
+            if camp.exists():
+                for p in camp.iterdir():
+                    if p.is_dir() and (p / OC.COMPLETE).exists():
+                        fin += 1
+                        v = json.loads((p / "l5_verdict.json").read_text())
+                        act += 1 if v.get("activated") else 0
+            return st1, st2, set(state2["calls"]), fin, act
+
+        # (i1) git_commit 漂移：续跑合法（二进制一致），skipped 计数+精确总数
+        st1, st2, c2, fin, act = run_drift_resume("i1", "commit")
+        check("i1_commit_drift_resume_ok",
+              st1 == "COMPLETE" and st2 == "COMPLETE" and c2 == {4, 5}
+              and fin == 6 and act == 6,
+              f"st1={st1} st2={st2} new={sorted(c2)} fin={fin} act={act}")
+
+        # (i2) 二进制漂移：真身份违规 → VERIFY_REFUSED，既有目录不被触碰
+        st1, st2, c2, fin, act = run_drift_resume("i2", "binary")
+        check("i2_binary_drift_refused",
+              st1 == "COMPLETE" and st2 == "VERIFY_REFUSED" and fin == 4
+              and not c2,
+              f"st1={st1} st2={st2} fin={fin} new={sorted(c2)}")
+
         print(f"\nFAILURES: {fails if fails else '无'}")
         return 1 if fails else 0
     finally:
