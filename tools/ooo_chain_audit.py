@@ -570,7 +570,7 @@ def discover_samples(campaign_dir):
 
 
 def audit_campaign(campaign_dir, frozen_gem5_sha=None, correction_mode=False,
-                   frozen_observer_tool=None):
+                   frozen_observer_tool=None, prefer_revised=False):
     """Full campaign audit. Returns the rollup dict (also the payload
     written to chain_audit.json). `correction_mode` only annotates the
     report (legacy re-audit tone); the RULES are identical either way."""
@@ -586,6 +586,13 @@ def audit_campaign(campaign_dir, frozen_gem5_sha=None, correction_mode=False,
     dup_run_ids, dup_seeds = [], []
     for sdir in sample_dirs:
         opath = os.path.join(sdir, "observation.json")
+        # [hotfix 2026-10-14] --prefer-revised: audit the reobserve-
+        # corrected view when present (the ORIGINAL observation.json
+        # stays on disk untouched -- the FIX-A no-rewrite contract)
+        if prefer_revised:
+            rpath = os.path.join(sdir, "observation.revised.json")
+            if os.path.isfile(rpath):
+                opath = rpath
         obs = None
         if os.path.isfile(opath):
             try:
@@ -755,7 +762,7 @@ def _execution_rows(campaign_dir):
 
 
 def correction_audit(campaign_dir, frozen_gem5_sha=None,
-                     frozen_observer_tool=None):
+                     frozen_observer_tool=None, prefer_revised=False):
     """Offline re-audit of a FINISHED campaign's observations under the
     CURRENT strict rules (Fix-C Task 3, 2026-10-13). Never re-runs a
     sample and never rewrites any original evidence: the only artifact
@@ -783,6 +790,13 @@ def correction_audit(campaign_dir, frozen_gem5_sha=None,
     chain_complete_count = 0
     for sdir in sample_dirs:
         opath = os.path.join(sdir, "observation.json")
+        # [hotfix 2026-10-14] --prefer-revised: audit the reobserve-
+        # corrected view when present (the ORIGINAL observation.json
+        # stays on disk untouched -- the FIX-A no-rewrite contract)
+        if prefer_revised:
+            rpath = os.path.join(sdir, "observation.revised.json")
+            if os.path.isfile(rpath):
+                opath = rpath
         obs = None
         if os.path.isfile(opath):
             try:
@@ -885,12 +899,21 @@ def main(argv=None):
     c.add_argument("--frozen-gem5-sha", default=None,
                    help="expected sha256 of build/ARM/gem5.opt; every "
                         "sample's identity.gem5_sha256 must match")
+    c.add_argument("--frozen-observer-tool", default=None,
+                   help="pin identity.observer_tool_commit (hotfix "
+                        "2026-10-14)")
+    c.add_argument("--prefer-revised", action="store_true",
+                   help="audit the reobserve-corrected view "
+                        "(observation.revised.json) when present")
     args = ap.parse_args(argv)
 
     if args.cmd == "correction-audit":
         try:
-            report = correction_audit(args.campaign_dir,
-                                       frozen_gem5_sha=args.frozen_gem5_sha)
+            report = correction_audit(
+                args.campaign_dir,
+                frozen_gem5_sha=args.frozen_gem5_sha,
+                frozen_observer_tool=args.frozen_observer_tool,
+                prefer_revised=args.prefer_revised)
         except AuditError as e:
             print("[correction-audit] ERROR: %s" % e, file=sys.stderr)
             return 1
