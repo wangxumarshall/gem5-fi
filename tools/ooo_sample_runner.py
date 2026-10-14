@@ -584,10 +584,28 @@ def do_l3(component, l0_block, retained_trace, coverage=None,
         # matches that vocabulary. chain_completeness still records the
         # L3 gap (status != ok) -- honest, and the admission gate's
         # l3_unsupported_with_activation does not fire on it.
+        # [formal2 first-sample bug] a crashed run leaves a gzip EMPTY
+        # STREAM (~43 bytes: header+trailer, zero data lines) after
+        # window_slice -- the byte-size==0 test missed it and the sample
+        # was mislabeled "v1". Empty == zero READABLE DATA lines (the
+        # l1/l2 0-line semantics), not zero bytes.
         try:
             _nothing_retained = os.path.getsize(retained_trace) == 0
         except OSError:
             _nothing_retained = True
+        if not _nothing_retained:
+            _n = 0
+            try:
+                with gzip.open(retained_trace, "rt",
+                               errors="replace") as _f:
+                    for _ln in _f:
+                        if _ln.strip() and not _ln.startswith("#"):
+                            _n += 1
+            except (OSError, EOFError):
+                # a truncated stream keeps its readable prefix lines
+                # (counted above); only a truly empty stream stays _n=0
+                pass
+            _nothing_retained = (_n == 0)
         if _nothing_retained:
             return dict(status="not_observed_before_crash", method=None,
                         fanout=None, caveat=None,

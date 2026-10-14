@@ -114,7 +114,12 @@ def test_crash_sample():
     check("crash-l4-first-detection-no-fabricated-seq",
           obs["l4"]["first_detection"]["seq"] is None,
           obs["l4"]["first_detection"])
-    check("crash-l3-unsupported", obs["l3"]["status"] == "unsupported")
+    # [formal2 fix] the crash-before-first-flush trace is an EMPTY gzip
+    # stream -> honest not_observed_before_crash (was mislabeled v1/
+    # unsupported when the stream had gzip framing but 0 data lines)
+    check("crash-l3-unsupported",
+          obs["l3"]["status"] == "not_observed_before_crash",
+          obs["l3"]["status"])
     check("crash-l0-activated", obs["l0"]["activated"] == 1, obs["l0"])
     check("crash-l3-null-keys",
           obs["l3"]["method"] is None and obs["l3"]["fanout"] is None
@@ -352,6 +357,17 @@ def test_do_l3_zero_byte_and_truncated_crash_semantics():
     check("l3 zero-byte no false v1 reason",
           "v1" not in (r.get("reason") or ""),
           repr(r.get("reason")))
+    # (1b) [formal2 first-sample bug] an EMPTY GZIP STREAM (a crashed
+    # run leaves ~43 bytes: header+trailer, ZERO data lines) must read
+    # as nothing-retained, never as "v1"
+    import gzip as _gz
+    emptygz = os.path.join(td, "empty_stream.csv.gz")
+    with _gz.open(emptygz, "wt") as f:
+        pass  # write nothing: an empty gzip stream
+    r1b = sr.do_l3("decode", l0, emptygz)
+    check("l3 empty-gzip-stream status",
+          r1b["status"] == "not_observed_before_crash",
+          repr(r1b.get("status")) + " reason=" + repr(r1b.get("reason")))
     # (2) missing file -> same honest marker (nothing retained at all)
     r2 = sr.do_l3("decode", l0, os.path.join(td, "absent.csv.gz"))
     check("l3 missing-file status",
