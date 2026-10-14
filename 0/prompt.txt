@@ -1,0 +1,348 @@
+你是 huawei0101 上 LSU 故障注入轨道的执行负责人。工作目录严格限定为 `/home/sdc/gem5-fi-ding`，只处理 0101/LSU。全过程由服务器 AI 自行实现、调度和运行；主协调者只做只读验收、Excel 串行回填和 Git 集成。
+
+目标：在不打断当前健康运行的 AGU P4 批次前提下，先补齐新实验所需的可审计 L0-L5 观测管线和防重调度，再用实测数据把全局并发由 4 提到 6，满足门槛后最多提到 8。已有结果先标记“结局完成、完整链路待补跑”，历史补链放到后面。
+
+已核实状态：当前分支 `fi-ding`，审计 HEAD `3a5e96d5`，领先 origin 约 43；工作树有 LSU Excel 修改和大量未跟踪产物，禁止 reset/clean/覆盖。当前四个 `lsu_w1_rerun.py` driver 已占满 4 个槽，覆盖冻结的 31 个 AGU RunID，没有未认领 AGU 项；不要停止、重复认领或改写它们。当前正式命令未启用 ctrace/msnap，只有 L0 注入日志与 L5 verdict，因此这些样本不能宣称完整链。机器 128 CPU、MemAvailable 约 22.5GiB、SwapFree 14.8GiB、`/home` 仅余约 155GiB；内存集中在 NUMA node1，trace 存储/I/O 是主要风险。
+
+一、隔离和纪律
+1. 先记录 hostname/cwd/branch/HEAD/status、gem5.opt SHA256、当前 driver/gem5/AI 进程、锁、资源、31项进度。绝不干扰当前四个 driver。
+2. 不修改任何 Excel，不 pull/fetch/rebase/push，不清理 artifacts。代码开发放独立 branch/worktree，做小而可审计的本地提交，汇报父提交、commit SHA、diff 和推荐集成顺序。
+3. 运行必须冻结源码提交和 gem5 二进制哈希；运行中不得编译/替换二进制。若必须重编，等现有实验结束并确保没有实验进程后单实例完成。
+4. 你可以创建多个服务器子 agent，但由你统一管理；子 agent 不得写共享 Excel/计划文件，不得绕过全局锁。
+
+二、完整链准入（未 PASS 不得启动新的 formal）
+1. 把 ctrace、msnap、commit_diff、micro_diff 和 fanout 接入 LSU specialized runner/campaign；移除 generic campaign 对 C3-only 的限制但保留能力检查；two-phase 与观测不能互斥。所有层级落入每样本独立目录并生成 SHA256。
+2. 每个样本必须生成 `observation.json`：身份及 hashes；L0 attempted/eligible/injected/activated 和 tick/site/动态目标/field-bit/old-new；L1 ref/fault msnap 与首状态差异；L2 ref/fault ctrace、commit_diff 和首次错误提交；L3 传播证据；L4 首次检测/异常点与距 L0 延迟；L5 九分类、checksum/oracle、exit、timeout、detector；replay determinism、violations、files、`chain_complete`。
+3. 当前 fanout 只可用于 PRF 且必须标 `method=proxy` 和 caveat；非 PRF 必须实现 source-read/动态指令关联或传播 tag，否则写 `unsupported`，且 `chain_complete=false`。不得把 proxy/unsupported 冒充完整链。LSU Detected/Contained 必须来自真实 detector 信号，不能以 `detected_na=true` 算完整。
+4. activated=0 时 L1-L4 可写 N/A(inactive_no_activation)；activated>0 时 L0/L5 必须完整，ref/fault trace+msnap 可读且 diff 无错误。Crash 若首次错误提交前终止，写 `not_observed_before_crash`；截断必须明确 `truncated=true` 并验证 gzip 前缀可读，不能假报 no divergence。
+5. 为每个 baseline_key（gem5/config/proxy/workload/argv/checkpoint/maxinsts/环境 hashes）生成一次 no-fault golden 并缓存；fault/ref 固定 `PYTHONHASHSEED=0`。输出先写 staging，全部校验后原子 rename 和写 COMPLETE。任一 missing/error/identity drift/共享路径冲突不得 COMPLETE、不得进入 handoff。
+6. 长流必须先实现按激活 tick 的 ctrace/msnap 窗口或 ring buffer；窗口范围写 `coverage_scope`。所有 `.gz` 在线压缩。0101 始终保留至少 50GiB 且至少 20% `/home` 空间；否则停止新派发。
+7. 先做最小 E2E：一个正常、一个 Masked/SDC、一个 abort Crash，证明 crash durability、diff 可读和完整性检查器有效。再对下一组新 RunID 做 n=2 engineering 准入。验收结果、单元测试、样例 observation.json 和审计命令输出先交中央；未 PASS 不放量。
+
+三、全局调度和并发
+1. 在现有 guard 上增加 host-global 原子 slot 锁和 `(campaign,RunID,sample)` claim 锁；记录 owner/PID/PGID/start/heartbeat。只有 PID+启动时间双重核验才能回收 stale lock。目录存在 COMPLETE 时只读核验并跳过，绝不覆盖。
+2. 当前 4 槽保持。现有四 driver 完成/释放槽后，先用代表性长 Masked 样本把上限改为 6，持续 30–60 分钟。每 60 秒记录进程 RSS/CPU、MemAvailable、SwapFree/si/so、Committed_AS、load、blocked、gem5 数、`/home`/`/tmp` 空间和 trace 增长。
+3. 只有连续至少 30 分钟 MemAvailable>=16GiB、SwapFree>=8GiB、无持续 swap-in/out、无 blocked/timeout/guard warning、磁盘增速可控，才可升 8；本阶段绝不超过 8。MemAvailable<10GiB 停止加任务；<8GiB 两次、<6GiB 一次或 SwapFree<2GiB 触发 TRIP 并降档。
+4. gem5 池与 commit/micro diff 后处理池分开，I/O 后处理不得与全部 gem5 同时打满。根据 NUMA 实测绑核，不能假定四个 NUMA 节点都有内存。
+5. 当前冻结 AGU 队列已全部认领，因此在它结束前主要工作是实现/验证观测与锁，不要凭空启动重复 AGU。下一批运行项必须从 Excel/manifest 能力检查后产生明确、唯一、未完成的 RunID 清单，并先报中央。
+
+四、handoff
+每个 campaign 输出 `handoff.json` 和 `handoff.md`：RunID、代码/二进制/config/workload hashes、seed与尝试数、九分类计数和守恒、完整链数量/缺失层级、证据索引、首次分歧/传播摘要、重试、资源峰值、wall time、绝对路径、Git提交。不要改 Excel。发现 HEAD/二进制漂移、重复 owner、golden 不一致、链路缺失或资源 TRIP，立即停止新派发并保留证据。
+
+先回复一份简短执行计划与再次核验到的状态，然后自行实施。除非存在必须由用户决定的语义变化，不要因普通阶段完成而停；通过 handoff 向主协调者报告。
+
+---
+
+<task-notification>
+<task-id>ac721c51a8af1f947</task-id>
+<tool-use-id>call_be0d93d48dd640fcb813f0de</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi-ding/34133f86-d1e6-417f-b2ec-ea8da16cb1db/tasks/ac721c51a8af1f947.output</output-file>
+<status>completed</status>
+<summary>Agent "Subagent-B 并发与防重" came to rest</summary>
+<note>A task-notification fires each time this agent comes to rest with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>全部任务完成。以下为最终报告。
+
+---
+
+# Subagent-B（并发与防重）最终报告 — 2026-10-12
+
+## 1. 三个 commit（分支 `obs-sub-b`，基点 530f0a19，本地提交未 push）
+
+| SHA | message 首行 |
+|---|---|
+| `c3a2f620` | `[LSU][OBS-4] hostmon：60s 主机资源采样 + si/so 差分 + 槽位策略状态机（RAMP6/RAMP8/TRIP_DOWN 判据实现化）` |
+| `c1c7c53b` | `[LSU][OBS-4b] 并发竞争真实验收 G：claim 唯一性/槽竞争/run 并发上限/心跳 五组子进程竞争测试` |
+| `07e7461e` | `[LSU][OBS-8b] 并发提升 4→6→8 执行规程 runbook（前置/seed 合规途径/长载来源/观察窗/升8判据/TRIP/回退/产物）` |
+
+共 4 文件 1299 行新增；工作区干净；`tools/lsu_guard.py` 冻结未动。
+
+## 2. 每任务验证命令与真实输出摘录
+
+**任务 1**：`python3 tools/lsu_hostmon.py --self-test` → 15 用例 `SELF-TEST: ALL PASS`；`python3 tests/test_lsu_hostmon.py` → **27/27 PASS，EXIT=0**，其中真跑 `--once --out &lt;tmp&gt;`（隔离 guard 目录伪造槽 4..7 活锁+槽 0 死锁）首拍真实输出：
+```
+{"t": "2026-10-12 17:18:11", "gem5_procs": [{"pid": 2093724, "rss_gib": 0.11, "cpu_pct": null, "etime_s": 17.2}], "mem_available_gib": 22.02, ..., "si_ps": null, "so_ps": null, ..., "slots_held": 4}
+```
+`slots_held=4` 证明 glob 覆盖高位槽 4..7 且 `_lock_live` 过滤死锁；首拍差分字段 null（诚实缺测）。回归：`tests/test_lsu_guard_v2.py` 28/28 PASS。
+
+**任务 2**：`python3 tests/test_claim_concurrency.py` → **19/19 PASS，EXIT=0（连跑两次稳定）**。关键真实数据：(a) 8 进程同 claim → 恰 1 个 rc=0、7 个 REFUSED；(b) 8 不同 sample 全 rc=0；(c) SLOTS=2 下 6 并发 acquire → 恰 2 成功且槽集合 {0,1}（降序抢占）、4 个“全部被占”；(d) SLOTS=3 下 6 个 `guard run -- sleep 3` → `peak_live_sleeps=3 peak_lock_files=3 refusals=15`（**15 次竞争尝试 cap 零突破**）、6/6 run-finish `exit_code=0 target-exited`、锁全释放；(e) 心跳实测 4 个不同值递增（17:31:00→17:31:15，每 5s）。
+
+**任务 3**：runbook 内嵌命令模板逐条实跑验证（`guard status`、hostmon tail、guard_events grep）；实测修正了两条核查命令（见 §5-F4）。
+
+## 3. hostmon 常驻实例
+
+- **python3 PID = 2094537**（nohup 脱离会话，`--interval 60 --out /home/sdc/gem5-fi-ding/runs/lsu/obs/hostmon`，LSU_GUARD_DIR 指主锁目录；$! 捕到的 2094535 是 shell 包装进程）。已运行 20 拍，勿停。
+- 首拍 JSONL（17:19:29）：`mem=22.01 swap=14.85 si_ps/so_ps/obs_growth=null slots_held=4 gem5_n=1`；slot_policy.json：`{"cap":4,"state":"HOLD4",...,"evidence":{"window_ticks":1,...}}`。
+- **当前状态（主负责人接管须知）**：`cap=6, state=HOLD6, reason="RAMP8 否决：窗口不足（20&lt;30 拍）"`——由 §5-F1 的误触发所致。cap 仅为声明性文件，未自动派发任何进程；若维持语义，回 4 走 runbook §2 手动 seed，升 8 需重建完整 30 拍窗口。
+
+## 4. 触碰文件清单
+
+- worktree 已提交 4 文件：`tools/lsu_hostmon.py`、`tests/test_lsu_hostmon.py`、`tests/test_claim_concurrency.py`（均新建）、`docs/gem5-fi/lsu/evidence/P4/obs_ramp_runbook_20261012.md`（新建）。
+- 主树（唯一例外区，新建）：`/home/sdc/gem5-fi-ding/runs/lsu/obs/hostmon/{hostmon_20261012.jsonl, slot_policy.json, hostmon.nohup.log}`。
+- 测试临时目录 `.tmp_lsu_conc/` 已删（TMP_ROOT_CLEAN）；生产 driver PID 1995570/1995598/1995622/1995696 及子进程全程未受影响（存活核实）。
+
+## 5. 发现的问题（按严重度，均附最小复现/实证）
+
+- **F1（判据设计缺陷，实证）RAMP6 单拍“槽闲置”判据被生产换样间隙误触发**。实证：JSONL 17:19-17:37 共 20 拍中 17:35:29 单拍 `slots_held=3`（生产 driver 换样间隙恰好被 60s 采样拍到），decide_cap 即判“有 driver 退出”→ `cap 4→6 RAMP6`（nohup 日志：`[17:35:29] ... slots_held=3 ... → cap=6 RAMP6`）；下一拍 slots_held 即恢复 4，三个 driver 全程存活，无任何退出。任务书原文“最近拍 slots_held&lt;current_cap（有槽闲置=有 driver 退出）”的单拍语义在换样周期 &lt;60s 的生产节奏下不可靠。**建议修复（主负责人裁决）**：收紧为连续 ≥3 拍 slots_held&lt;cap（真退出会持续闲置，间隙不会）；`lsu_hostmon.py` 是我的文件，可代改+补测试。当前无实际危害（cap 声明性、runbook §1 前置由人工核验）。
+- **F2（guard v2 释放竞态，实证）** run 目标进程退出到锁 unlink 之间（monitor 的 /proc 存活扫描耗时，~0.1-0.5s）死锁可见，并发方经两条路径被瞬时拒绝：acquire rc=2“陈旧”或 gate rc=1“陈旧槽”。实证：并发测试首跑 task1 重试 `rc=1 'experiment 存在陈旧槽 [2]'`，1s 后锁已消失。最小复现：隔离 dir 下并发 6× `guard run -- sleep 3 --interval 1` + 被拒即高频重试。处置已写入 runbook 附录 B（重试即可，勿 clear-stale）。
+- **F3（guard 语义约束）** gate 磁盘红线 `max(50GiB,20%)` 使 /tmp（15GiB tmpfs）**永远不能**承载 `run` 子命令的隔离 LSU_GUARD_DIR——并发测试因此把隔离目录放 worktree（/home）下，测试结束即删。任何未来测试文档都须注意。
+- **F4（runbook 初稿缺陷，已修正）** `grep '"trip":'` 会匹配全部 `"trip": null` 常规采样行（实测 21119 条）；须用 `grep -E '"trip": "[^n]'`，且 guard_events.log 含 2026-10-12 前历史 TRIP（`MemAvailable&lt;6GiB (4.37)` pgid 900810）——观察窗判定必须用基线增量法（已写入 runbook §5）。
+
+## 6. 已知限制
+
+- hostmon 重启后首拍 si/so=null（pswpin/pswpout 原始计数器未入 JSONL，无法跨重启差分）；进程首见拍 cpu_pct=null；Z 僵尸 gem5 已排除出 gem5_n（实测换样间隙多为 Z 态 rss=0）。
+- history 重启只从**最新一个** JSONL 文件尾部续（跨午夜窗口部分丢失）；10 拍=10 分钟的 home 增量判据依赖 `--interval 60`。
+- 并发测试 (c) 用 linger 包装模拟长驻 acquirer——纯 CLI acquire 短命持有者会把槽竞争变成“陈旧”拒绝（guard docstring 自述竞态，非测试可消除）。
+- (d) 中 6 任务经 driver 侧重试才全部完成——guard `run` 无排队语义，拒绝后重试属 driver 责任（runbook 已载明）。
+- W1 Masked 种子当前不存在（pilot_w1 1124 verdict 全 Crash），runbook §3 首选路径暂不可用，已如实记录回退路径（no-fault W1 golden 双份，须不同 `--outdir-root`）。</result>
+<usage><subagent_tokens>0</subagent_tokens><tool_uses>50</tool_uses><duration_ms>2924158</duration_ms></usage>
+</task-notification>
+
+---
+
+[LSU-OBS 巡检] 检查并按需行动（保持两阶段协议，不打断 AGU driver）：1) ps -p 1995570,1995598,1995622,1995696 检查 AGU driver 存活与 runs/lsu/pilot_w1/formal_logs/driver_{A,B,C,D}.log 尾部进度；2) runs/lsu/obs/hostmon/ 的 slot_policy.json 与最新 JSONL（si/so、MemAvailable、磁盘红线）；3) runs/lsu/obs/e2e_watcher.nohup.log 与 obs_e2e_* 目录（E2E 是否已触发/完成）；4) 若 E2E 完成→执行 T10（合并 subagent 分支若未合、跑 lsu_audit、生成 admission_handoff.json 并向中央报告）；5) 若全部 driver 退出→按 runbook 启动阶段二（runid_assignment.json + RunAgent 6 槽）；6) 任何 TRIP/漂移/覆盖迹象→停止新派发并报告。
+
+---
+
+请立即执行一次“观测链准入纠偏”，但不要停止或干扰当前正在运行的四个 AGU driver。
+
+【当前结论】
+1. 当前 AGU P4 批次属于旧的 outcome-only 批次，可以自然完成，但不得宣称具有完整 L0-L5 链路。
+2. 当前 admission_handoff.json 总结论仍是 PENDING，原因是：
+   - 每个新 RunID 的 n=2 engineering 尚未执行；
+   - 当前 E2E 样本全部 chain_complete=false；
+   - 非 PRF/addrpath 的 L3 仍为 unsupported；
+   - detector 仍有 detected_na=true。
+3. 在这些问题解决前，禁止启动新的 LSU formal RunID，禁止把 admission 改成 PASS。
+
+【执行纪律】
+- 不强杀当前 AGU driver。
+- 不修改 Excel。
+- 不 pull/rebase/push。
+- 不在当前实验运行时替换或重新编译正在使用的 gem5.opt。
+- 代码继续在 lsu-obs 独立 worktree/branch 中开发。
+- 现有 AGU 结果统一标记：
+  execution_complete 或 outcome_complete；
+  chain_complete=false；
+  missing_levels=[L1,L2,L3,L4]；
+  needs_chain_backfill=true。
+
+【有限并行分工】
+最多使用三个实现型 subagent：
+
+Subagent-A：负责真实 L3 传播链
+- 为 LSU 非 PRF 故障实现真实传播关联。
+- addrpath/AGU 类至少记录：
+  注入动态指令或事件ID
+  → 错误地址形成
+  → 发出的内存请求地址
+  → LQ/SQ/cache 请求关联
+  → 返回数据或异常
+  → 依赖消费者动态指令
+  → 首次错误提交。
+- Cache 类至少记录：
+  故障 cache entry/way/set/tag/data
+  → 命中的 load/store 请求
+  → 返回值或写回值
+  → 目标物理寄存器/动态指令
+  → 消费者和首次错误提交。
+- 必须使用稳定的 dynInstSeqNum/request-id/tag 关联。
+- 不能用 commit divergence 数量或 PRF liveness proxy 冒充真实 L3。
+- 未实现的目标必须保持 unsupported 和 chain_complete=false。
+
+Subagent-B：负责 L0/L4/L5和观测契约
+- 保证 observation.json 包含 attempted、eligible、injected、activated。
+- Detected/Contained 只能来自真实 detector。
+- 如果没有硬件 detector，明确记录 detector=not_present，并以首次可验证异常作为 L4，不能伪造 detected。
+- 将状态拆分为：
+  execution_complete
+  evidence_complete
+  chain_complete
+  needs_backfill
+- campaign 执行完成不能等同于 chain_complete。
+
+Subagent-C：负责独立审计和测试
+- 修改完整性审计器，使以下情况强制 FAIL：
+  activated>0 但 L3 unsupported；
+  attempted/eligible 缺失；
+  ref/fault trace 或 msnap 不可读；
+  空 trace 被报告成真实 commit divergence；
+  detector_na 被计为 Detected/Contained；
+  chain_complete=true 但存在 missing/unsupported/proxy 层。
+- 不降低标准来让测试通过。
+
+【重新准入】
+完成实现并且当前 AGU 批次不再使用旧 gem5.opt 后，才能单实例编译和冻结新二进制。
+
+随后按顺序执行：
+1. 正常、Masked/SDC、Crash 三类 E2E。
+2. 验证 Crash trace 截断语义。
+3. 为准备分配的每个新 RunID 做 n=2 engineering。
+4. 至少产生 activated>0 且 chain_complete=true 的样本。
+5. 生成新的 admission_handoff.json。
+
+新的 admission_handoff.json 必须满足：
+- verdict=PASS；
+- pending_items=[]；
+- n=2 全部通过；
+- chain_complete_count > 0；
+- L3 不再是 unsupported/proxy；
+- 所有文件hash和binary hash一致。
+
+满足上述条件后，才可生成 runid_assignment.json，并按3个RunAgent、总计6槽启动不同RunID；资源稳定后最多提升到8槽。
+
+请先回复：
+1. 当前AGU driver状态；
+2. 三个subagent的职责和文件所有权；
+3. 需要修改的代码位置；
+4. 预计如何实现真实L3；
+5. 重新准入步骤。
+
+然后开始纠偏。不要启动新的formal，直到新准入真正PASS。
+
+---
+
+[LSU-OBS 巡检] 检查并按需行动（保持两阶段协议，不打断 AGU driver）：1) ps -p 1995570,1995598,1995622,1995696 检查 AGU driver 存活与 runs/lsu/pilot_w1/formal_logs/driver_{A,B,C,D}.log 尾部进度；2) runs/lsu/obs/hostmon/ 的 slot_policy.json 与最新 JSONL（si/so、MemAvailable、磁盘红线）；3) runs/lsu/obs/e2e_watcher.nohup.log 与 obs_e2e_* 目录（E2E 是否已触发/完成）；4) 若 E2E 完成→执行 T10（合并 subagent 分支若未合、跑 lsu_audit、生成 admission_handoff.json 并向中央报告）；5) 若全部 driver 退出→按 runbook 启动阶段二（runid_assignment.json + RunAgent 6 槽）；6) 任何 TRIP/漂移/覆盖迹象→停止新派发并报告。
+
+---
+
+<task-notification>
+<task-id>a451dce610a13de22</task-id>
+<tool-use-id>call_f370dbeaeb764c868e71f788</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi-ding/14b175ed-f52f-4a4d-8a68-bdae1c169bee/tasks/a451dce610a13de22.output</output-file>
+<status>completed</status>
+<summary>Agent "Subagent-B 观测契约 v2" came to rest</summary>
+<note>A task-notification fires each time this agent comes to rest with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>e2e_select synthetic also 37/37 green. All work complete. Final report.
+
+---
+
+# Sub-B 最终报告（LSU 纠偏轮：L0/L4/L5 与观测契约 v2）
+
+## 1. 提交列表（worktree `/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-obs2-b`，分支 `obs2-sub-b`，基点 79780240，本地提交未 push——按纪律）
+
+| SHA | 首行 |
+|---|---|
+| `f5d6c074` | [LSU][OBS-v2] 观测核心契约 v2：L0 日志 FUNNEL 源+l0_incomplete、L3 传播委托、L4 not_present+优先级、顶层四状态拆分、chain_complete 拒 proxy |
+| `68fa3b63` | [LSU][OBS-v2] 台账/handoff 术语 v2：ledger 行四键（execution/chain/missing_levels/needs_chain_backfill）+ campaign 聚合三计数分开 |
+| `84b5aa56` | [LSU][OBS-v2] observation schema v2 + 核心单测全绿（四状态 required/propagation_trace 枚举/not_present/委托与优先级用例） |
+
+## 2. 每提交自验证真实输出摘录
+
+**提交① f5d6c074**
+- `python3 -m py_compile tools/lsu_obs_core.py` → `PY_COMPILE OK`
+- `python3 tests/test_lsu_obs_core.py` → 40/41 PASS，唯一 FAIL `l4_detected_na_never_detected` 为 v1 断言 `detector=="none_wired"`（值已按中央指令改 not_present，测试更新属提交③——one-patch-per-unit 下的预期中间态，提交信息中如实记录）
+- `python3 tests/test_lsu_audit.py` → `rc=0`、`FAILURES: 无`
+- `python3 tests/test_lsu_obs_driver_cli.py` → `rc=0`、`FAILURES: 无`
+- 行为探针真实输出：`1 log_FUNNEL: 3 9 1 injections.log:FUNNEL violations= []`；`2 abort_fallback: ... violations= ['l0_incomplete: attempted', 'l0_incomplete: eligible']`；`3 delegation_fallback: unsupported None propagation_trace 委托不可用：lsu_l3_propagation 导入失败`；`4 proxy_rejected: (False, "L3 method='proxy' 不计入 chain_complete…")` / `propagation_accepted: (True, 'L0-L5 complete（L3=propagation_trace）')`；`5 four_status: exec= True evid= False chain= False missing= ['L3'] backfill= True`
+
+**提交② 68fa3b63**
+- `--ledger` 干跑（`--out-dir /tmp/subb_ledger_dry`，主树只读，绝不写真实 ledger）：`runids=31 with_l5=31 execution_complete=31 chain_complete=0 needs_chain_backfill=31`；行结构含 `execution_complete: true, chain_complete: false, missing_levels: [L1,L2,L3,L4], needs_chain_backfill: true`（A01-F1-W3 实测行）；主树 `runs/lsu/obs/chain_ledger_p4_agu_formal_20261012.json` mtime 仍为 10月12日（未动）
+- `--campaign-handoff` 合成干跑（v2 propagation_trace / v2 unsupported / v1 legacy 三样本）：`execution_complete_count=2 evidence_complete_count=2 chain_complete_count=2 chain_incomplete_count=1`；v1 样本四状态如实 `None`、`missing_levels` 用 obs_core 同源规则回补 `['L3']`（统一重标语义已验证）
+- audit / driver_cli 回归均 `rc=0`、`FAILURES: 无`
+
+**提交③ 84b5aa56**
+- `python3 tests/test_lsu_obs_core.py` → `rc=0`，**60 PASS / 0 FAIL**（`grep -c '^FAIL '`=0，`FAILURES: 无`）
+- `python3 tests/test_lsu_audit.py` → `rc=0`，28 PASS / 0 FAIL
+- `python3 tests/test_lsu_obs_driver_cli.py` → `rc=0`，15 PASS / 0 FAIL
+- schema 结构核验真实输出：`schema const: lsu-observation-v2 | obs_core SCHEMA: lsu-observation-v2 | match: True`；required 四新键齐；`L4 detector enum: ['not_present']`；`L3 method enum: ['proxy', 'propagation_trace', None]`；真实 v2 样本零缺键、枚举全过；v1 样本按 v2 required 如实缺 `['execution_complete','evidence_complete','needs_backfill','missing_levels']`（与 schema description 的中央知情声明一致）
+- 额外回归：`tests/test_lsu_obs_e2e_select.py`（合成，不碰 gem5）→ `rc=0`，37 PASS / 0 FAIL
+
+## 3. 触碰文件清单（=所有权，git diff vs 79780240 仅此 4 文件，工作区干净）
+- `tools/lsu_obs_core.py`
+- `tools/lsu_handoff.py`
+- `schemas/observation.schema.json`
+- `tests/test_lsu_obs_core.py`
+
+## 4. 契约偏离
+无。冻结接口逐条落实：build_l3 委托签名/优雅回退、chain_complete 拒 proxy（PRF proxy 分支保留为诚实记录）、四状态拆分、L0 四字段 violation、detector="not_present"、l4_source 优先级 L3&gt;L2&gt;L1、首检 note 补 "no hardware detector present"、ledger 四键、campaign 聚合三计数、schema v2 全部到位。两处需要主负责人知悉的实现裁量（均已在代码注释/提交信息中写明理由）：
+1. **execution_complete 的 "guard run-finish 周期完整" 具体化为 `isinstance(L5.gem5_exit, int)`**——gem5_exit 由 runner/driver 仅在 guard `"action": "run-finish"` 完整周期后写入 verdict；GuardFailure 的 run 根本不产生 verdict。schema 已增 L5.gem5_exit。
+2. **build_l4 新增可选尾部 kwarg `l3=None`**（向后兼容，不传时行为仅差 L3 候选缺席）——L4 需要 L3 的 evidence.first_errant_commit；driver 现有调用（不传 l3）不受影响，A 合并后 driver 侧一行 `l3=l3` 即接通。
+
+## 5. 对 A/C 的依赖点与回归发现的问题（不改他方文件，只报告）
+- **对 A**：`lsu_l3_propagation.py`（本 worktree 不存在）到位后，委托路径即刻生效；签名已用 stub 锁定为 `L3P.build_l3(family, l2, prop_trace_path, inactive)`。**A 的模块返回结构必须保证 `evidence.first_errant_commit`（dict 或缺省）**，L4 只防御式读取该形状。A 需在 driver（非我所有权）加 `prop_trace_path` 的采集与 `build_observation(..., prop_trace_path=...)` 透传——build_l3/build_observation 侧已就绪。
+- **对 C**：`lsu_audit.py` 的 `TOP_REQUIRED`（schemas required 的程序化镜像，第 66-73 行）**不含 v2 四新键**，且 `L3_LEGAL` 无 method 口径——v2 样本审计不会因缺四键 FAIL（键在 observation 里，audit 只查 TOP_REQUIRED 清单），但 **v1 历史样本在 C 侧 v2 化改造前不会按 v2 规则 FAIL**。合并时 C 需：TOP_REQUIRED 增四键、detector 合法值检查（如查 "not_present"）、chain_complete 重算已自动走新规则（audit 复用 obs_core.chain_complete，零漂移，无需改）。本次回归中 audit 测试全绿是因为 test_lsu_audit.py 的 build_sample 直接经 build_observation 生成 v2 字段。
+- **对主负责人**：真实 ledger 落盘（`runs/lsu/obs/chain_ledger_*.json` 重写）按纪律留给合并后执行；本 worktree 干跑已验证输出形态。
+- **测试 typo 备忘**：提交③开发中曾引入 `not_colllected` 拼写错误（NameError 即时暴露），当场修复后全绿——已在提交③内，无遗留。</result>
+<usage><subagent_tokens>0</subagent_tokens><tool_uses>58</tool_uses><duration_ms>2425528</duration_ms></usage>
+</task-notification>
+
+---
+
+[LSU-OBS 巡检] 检查并按需行动（保持两阶段协议，不打断 AGU driver）：1) ps -p 1995570,1995598,1995622,1995696 检查 AGU driver 存活与 runs/lsu/pilot_w1/formal_logs/driver_{A,B,C,D}.log 尾部进度；2) runs/lsu/obs/hostmon/ 的 slot_policy.json 与最新 JSONL（si/so、MemAvailable、磁盘红线）；3) runs/lsu/obs/e2e_watcher.nohup.log 与 obs_e2e_* 目录（E2E 是否已触发/完成）；4) 若 E2E 完成→执行 T10（合并 subagent 分支若未合、跑 lsu_audit、生成 admission_handoff.json 并向中央报告）；5) 若全部 driver 退出→按 runbook 启动阶段二（runid_assignment.json + RunAgent 6 槽）；6) 任何 TRIP/漂移/覆盖迹象→停止新派发并报告。
+
+---
+
+[LSU-OBS 巡检] 检查并按需行动（保持两阶段协议，不打断 AGU driver）：1) ps -p 1995570,1995598,1995622,1995696 检查 AGU driver 存活与 runs/lsu/pilot_w1/formal_logs/driver_{A,B,C,D}.log 尾部进度；2) runs/lsu/obs/hostmon/ 的 slot_policy.json 与最新 JSONL（si/so、MemAvailable、磁盘红线）；3) runs/lsu/obs/e2e_watcher.nohup.log 与 obs_e2e_* 目录（E2E 是否已触发/完成）；4) 若 E2E 完成→执行 T10（合并 subagent 分支若未合、跑 lsu_audit、生成 admission_handoff.json 并向中央报告）；5) 若全部 driver 退出→按 runbook 启动阶段二（runid_assignment.json + RunAgent 6 槽）；6) 任何 TRIP/漂移/覆盖迹象→停止新派发并报告。
+
+---
+
+[LSU-OBS 巡检] 检查并按需行动（保持两阶段协议，不打断 AGU driver）：1) ps -p 1995570,1995598,1995622,1995696 检查 AGU driver 存活与 runs/lsu/pilot_w1/formal_logs/driver_{A,B,C,D}.log 尾部进度；2) runs/lsu/obs/hostmon/ 的 slot_policy.json 与最新 JSONL（si/so、MemAvailable、磁盘红线）；3) runs/lsu/obs/e2e_watcher.nohup.log 与 obs_e2e_* 目录（E2E 是否已触发/完成）；4) 若 E2E 完成→执行 T10（合并 subagent 分支若未合、跑 lsu_audit、生成 admission_handoff.json 并向中央报告）；5) 若全部 driver 退出→按 runbook 启动阶段二（runid_assignment.json + RunAgent 6 槽）；6) 任何 TRIP/漂移/覆盖迹象→停止新派发并报告。
+
+---
+
+继续保持当前4路旧AGU outcome-only批次运行，不得停止、重启或改变其冻结二进制、配置和结果目录。
+
+但不要再等待整个旧AGU批次全部结束后才验证新观测链。当前lsu-obs-20261012分支已经到b6c1d336，admission仍为PENDING，原因是没有真实v2样本、activated完整链阳性样本和n=2准入。
+
+现在按以下顺序继续：
+
+1. 在lsu-obs-20261012独立worktree中检查当前Git状态和代码。
+2. 使用完全独立的build目录编译观测版gem5，建议单实例、最高-j8。不得覆盖或替换旧AGU批次正在使用的/home/sdc/gem5-fi-ding/build/ARM/gem5.opt。
+3. 编译期间持续检查MemAvailable、swap-in/out和旧实验进度；资源异常时自动降低编译并行度，不得杀死健康旧实验。
+4. 编译成功后记录新gem5.opt的完整SHA256、Git提交和构建路径。
+5. 使用独立的准入结果目录和独立准入槽位运行真实三类E2E。
+6. 必须取得至少一个真实activated且chain_complete=true样本；L3必须来自真实propagation_trace，不允许unsupported或proxy。
+7. 对准备分配的新RunID执行每RunID n=2 engineering准入。
+8. 使用v2审计器检查L0 attempted/eligible、L1-L5、Crash空trace语义、二进制身份和证据完整性。
+9. 只有fails=[]、pending=[]且C/K/L全部PASS时，才能把admission_handoff.json改为PASS。
+10. 不要启动新的正式RunID，不要合并到fi-ding，不要修改Excel；完成后提交所有代码并给出merge-ready提交、二进制SHA、准入报告和证据路径，等待中央合并。
+
+另外，在独立分支中修复并测试gem5子进程退出后需要接近60秒才释放槽位的问题。要求立即wait/reap并释放槽位，但不要直接修改当前旧批次正在调用的主分支脚本，也不要影响正在运行的4个driver。该优化在准入通过并合并后用于后续批次。
+
+---
+
+[LSU-OBS 巡检] 检查并按需行动（保持两阶段协议，不打断 AGU driver）：1) ps -p 1995570,1995598,1995622,1995696 检查 AGU driver 存活与 runs/lsu/pilot_w1/formal_logs/driver_{A,B,C,D}.log 尾部进度；2) runs/lsu/obs/hostmon/ 的 slot_policy.json 与最新 JSONL（si/so、MemAvailable、磁盘红线）；3) runs/lsu/obs/e2e_watcher.nohup.log 与 obs_e2e_* 目录（E2E 是否已触发/完成）；4) 若 E2E 完成→执行 T10（合并 subagent 分支若未合、跑 lsu_audit、生成 admission_handoff.json 并向中央报告）；5) 若全部 driver 退出→按 runbook 启动阶段二（runid_assignment.json + RunAgent 6 槽）；6) 任何 TRIP/漂移/覆盖迹象→停止新派发并报告。
+
+---
+
+[LSU-OBS 巡检] 检查并按需行动（保持两阶段协议，不打断 AGU driver）：1) ps -p 1995570,1995598,1995622,1995696 检查 AGU driver 存活与 runs/lsu/pilot_w1/formal_logs/driver_{A,B,C,D}.log 尾部进度；2) runs/lsu/obs/hostmon/ 的 slot_policy.json 与最新 JSONL（si/so、MemAvailable、磁盘红线）；3) runs/lsu/obs/e2e_watcher.nohup.log 与 obs_e2e_* 目录（E2E 是否已触发/完成）；4) 若 E2E 完成→执行 T10（合并 subagent 分支若未合、跑 lsu_audit、生成 admission_handoff.json 并向中央报告）；5) 若全部 driver 退出→按 runbook 启动阶段二（runid_assignment.json + RunAgent 6 槽）；6) 任何 TRIP/漂移/覆盖迹象→停止新派发并报告。
+
+---
+
+[LSU-OBS 巡检] 检查并按需行动（保持两阶段协议，不打断 AGU driver）：1) ps -p 1995570,1995598,1995622,1995696 检查 AGU driver 存活与 runs/lsu/pilot_w1/formal_logs/driver_{A,B,C,D}.log 尾部进度；2) runs/lsu/obs/hostmon/ 的 slot_policy.json 与最新 JSONL（si/so、MemAvailable、磁盘红线）；3) runs/lsu/obs/e2e_watcher.nohup.log 与 obs_e2e_* 目录（E2E 是否已触发/完成）；4) 若 E2E 完成→执行 T10（合并 subagent 分支若未合、跑 lsu_audit、生成 admission_handoff.json 并向中央报告）；5) 若全部 driver 退出→按 runbook 启动阶段二（runid_assignment.json + RunAgent 6 槽）；6) 任何 TRIP/漂移/覆盖迹象→停止新派发并报告。
+
+---
+
+[LSU-OBS 巡检] 检查并按需行动（保持两阶段协议，不打断 AGU driver）：1) ps -p 1995570,1995598,1995622,1995696 检查 AGU driver 存活与 runs/lsu/pilot_w1/formal_logs/driver_{A,B,C,D}.log 尾部进度；2) runs/lsu/obs/hostmon/ 的 slot_policy.json 与最新 JSONL（si/so、MemAvailable、磁盘红线）；3) runs/lsu/obs/e2e_watcher.nohup.log 与 obs_e2e_* 目录（E2E 是否已触发/完成）；4) 若 E2E 完成→执行 T10（合并 subagent 分支若未合、跑 lsu_audit、生成 admission_handoff.json 并向中央报告）；5) 若全部 driver 退出→按 runbook 启动阶段二（runid_assignment.json + RunAgent 6 槽）；6) 任何 TRIP/漂移/覆盖迹象→停止新派发并报告。
+
+---
+
+[LSU-OBS 巡检] 检查并按需行动（保持两阶段协议，不打断 AGU driver）：1) ps -p 1995570,1995598,1995622,1995696 检查 AGU driver 存活与 runs/lsu/pilot_w1/formal_logs/driver_{A,B,C,D}.log 尾部进度；2) runs/lsu/obs/hostmon/ 的 slot_policy.json 与最新 JSONL（si/so、MemAvailable、磁盘红线）；3) runs/lsu/obs/e2e_watcher.nohup.log 与 obs_e2e_* 目录（E2E 是否已触发/完成）；4) 若 E2E 完成→执行 T10（合并 subagent 分支若未合、跑 lsu_audit、生成 admission_handoff.json 并向中央报告）；5) 若全部 driver 退出→按 runbook 启动阶段二（runid_assignment.json + RunAgent 6 槽）；6) 任何 TRIP/漂移/覆盖迹象→停止新派发并报告。
+
+---
+
+[LSU-OBS 巡检] 检查并按需行动（保持两阶段协议，不打断 AGU driver）：1) ps -p 1995570,1995598,1995622,1995696 检查 AGU driver 存活与 runs/lsu/pilot_w1/formal_logs/driver_{A,B,C,D}.log 尾部进度；2) runs/lsu/obs/hostmon/ 的 slot_policy.json 与最新 JSONL（si/so、MemAvailable、磁盘红线）；3) runs/lsu/obs/e2e_watcher.nohup.log 与 obs_e2e_* 目录（E2E 是否已触发/完成）；4) 若 E2E 完成→执行 T10（合并 subagent 分支若未合、跑 lsu_audit、生成 admission_handoff.json 并向中央报告）；5) 若全部 driver 退出→按 runbook 启动阶段二（runid_assignment.json + RunAgent 6 槽）；6) 任何 TRIP/漂移/覆盖迹象→停止新派发并报告。
+
+---
+
+[LSU-OBS 巡检] 检查并按需行动（保持两阶段协议，不打断 AGU driver）：1) ps -p 1995570,1995598,1995622,1995696 检查 AGU driver 存活与 runs/lsu/pilot_w1/formal_logs/driver_{A,B,C,D}.log 尾部进度；2) runs/lsu/obs/hostmon/ 的 slot_policy.json 与最新 JSONL（si/so、MemAvailable、磁盘红线）；3) runs/lsu/obs/e2e_watcher.nohup.log 与 obs_e2e_* 目录（E2E 是否已触发/完成）；4) 若 E2E 完成→执行 T10（合并 subagent 分支若未合、跑 lsu_audit、生成 admission_handoff.json 并向中央报告）；5) 若全部 driver 退出→按 runbook 启动阶段二（runid_assignment.json + RunAgent 6 槽）；6) 任何 TRIP/漂移/覆盖迹象→停止新派发并报告。
+
+---
+
+[LSU-OBS 巡检] 检查并按需行动（保持两阶段协议，不打断 AGU driver）：1) ps -p 1995570,1995598,1995622,1995696 检查 AGU driver 存活与 runs/lsu/pilot_w1/formal_logs/driver_{A,B,C,D}.log 尾部进度；2) runs/lsu/obs/hostmon/ 的 slot_policy.json 与最新 JSONL（si/so、MemAvailable、磁盘红线）；3) runs/lsu/obs/e2e_watcher.nohup.log 与 obs_e2e_* 目录（E2E 是否已触发/完成）；4) 若 E2E 完成→执行 T10（合并 subagent 分支若未合、跑 lsu_audit、生成 admission_handoff.json 并向中央报告）；5) 若全部 driver 退出→按 runbook 启动阶段二（runid_assignment.json + RunAgent 6 槽）；6) 任何 TRIP/漂移/覆盖迹象→停止新派发并报告。
+
+---
+
+[LSU-OBS 巡检] 检查并按需行动（保持两阶段协议，不打断 AGU driver）：1) ps -p 1995570,1995598,1995622,1995696 检查 AGU driver 存活与 runs/lsu/pilot_w1/formal_logs/driver_{A,B,C,D}.log 尾部进度；2) runs/lsu/obs/hostmon/ 的 slot_policy.json 与最新 JSONL（si/so、MemAvailable、磁盘红线）；3) runs/lsu/obs/e2e_watcher.nohup.log 与 obs_e2e_* 目录（E2E 是否已触发/完成）；4) 若 E2E 完成→执行 T10（合并 subagent 分支若未合、跑 lsu_audit、生成 admission_handoff.json 并向中央报告）；5) 若全部 driver 退出→按 runbook 启动阶段二（runid_assignment.json + RunAgent 6 槽）；6) 任何 TRIP/漂移/覆盖迹象→停止新派发并报告。
+
+---
+
+[LSU-OBS 巡检] 检查并按需行动（保持两阶段协议，不打断 AGU driver）：1) ps -p 1995570,1995598,1995622,1995696 检查 AGU driver 存活与 runs/lsu/pilot_w1/formal_logs/driver_{A,B,C,D}.log 尾部进度；2) runs/lsu/obs/hostmon/ 的 slot_policy.json 与最新 JSONL（si/so、MemAvailable、磁盘红线）；3) runs/lsu/obs/e2e_watcher.nohup.log 与 obs_e2e_* 目录（E2E 是否已触发/完成）；4) 若 E2E 完成→执行 T10（合并 subagent 分支若未合、跑 lsu_audit、生成 admission_handoff.json 并向中央报告）；5) 若全部 driver 退出→按 runbook 启动阶段二（runid_assignment.json + RunAgent 6 槽）；6) 任何 TRIP/漂移/覆盖迹象→停止新派发并报告。
+
+---
+
+[LSU-OBS 巡检] 检查并按需行动（保持两阶段协议，不打断 AGU driver）：1) ps -p 1995570,1995598,1995622,1995696 检查 AGU driver 存活与 runs/lsu/pilot_w1/formal_logs/driver_{A,B,C,D}.log 尾部进度；2) runs/lsu/obs/hostmon/ 的 slot_policy.json 与最新 JSONL（si/so、MemAvailable、磁盘红线）；3) runs/lsu/obs/e2e_watcher.nohup.log 与 obs_e2e_* 目录（E2E 是否已触发/完成）；4) 若 E2E 完成→执行 T10（合并 subagent 分支若未合、跑 lsu_audit、生成 admission_handoff.json 并向中央报告）；5) 若全部 driver 退出→按 runbook 启动阶段二（runid_assignment.json + RunAgent 6 槽）；6) 任何 TRIP/漂移/覆盖迹象→停止新派发并报告。
+
+---
+
+[LSU-OBS 巡检] 检查并按需行动（保持两阶段协议，不打断 AGU driver）：1) ps -p 1995570,1995598,1995622,1995696 检查 AGU driver 存活与 runs/lsu/pilot_w1/formal_logs/driver_{A,B,C,D}.log 尾部进度；2) runs/lsu/obs/hostmon/ 的 slot_policy.json 与最新 JSONL（si/so、MemAvailable、磁盘红线）；3) runs/lsu/obs/e2e_watcher.nohup.log 与 obs_e2e_* 目录（E2E 是否已触发/完成）；4) 若 E2E 完成→执行 T10（合并 subagent 分支若未合、跑 lsu_audit、生成 admission_handoff.json 并向中央报告）；5) 若全部 driver 退出→按 runbook 启动阶段二（runid_assignment.json + RunAgent 6 槽）；6) 任何 TRIP/漂移/覆盖迹象→停止新派发并报告。
