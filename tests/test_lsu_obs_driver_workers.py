@@ -18,6 +18,12 @@ runs/lsu/guard）。覆盖：
       gate 事件数 ≥3 证明确实发生了重试）
   (e) --workers 3 拒绝（argparse choices 1..2）
   (f) --workers 2 --dry-run 零副作用（不 claim、不建目录）
+  (g) activated target 精确停止（OBS-FIX-1，C01-F0-W6 overshoot=1 根因回归）：
+      target 模式（samples=None）workers=2 下，任一完成时序/激活模式下
+      finalized 数 == target 精确（旧派发门不计在飞样本必然超采）——
+      (g1) 全激活+时序抖动 8 轮；(g2) 混合激活（25% activated=0）4 轮；
+      (g3) 压力 20 轮（target∈{3,5,7} × 模式×抖动）：每轮 activated==target、
+      派发数==finalized、无 staging 残留。
 """
 import argparse
 import gzip
@@ -488,6 +494,116 @@ def main():
             print(f"[d-real] wall={wall:.1f}s gate_events={gates} "
                   f"run_finish={finishes}", flush=True)
             os.environ["LSU_GUARD_DIR"] = str(gd_main)
+
+        # ------------------------------------------------ (g) activated target 精确停止
+        # OBS-FIX-1（C01-F0-W6 target=385 实采 386 根因）：旧派发门只看已完成
+        # activated、不计在飞样本 → workers=2 在 target 附近超采 ≤ workers-1。
+        # 修复后不变式：任一派发点 activated + 在飞 ≤ target → 终态精确 == target。
+        import random
+        _rnd = random.Random(20261014)
+
+        def install_fake_run_fault_pattern(state, pattern, delay):
+            """pattern[s%len] = 0/1 控制样本是否激活；delay=(lo,hi) 时序抖动
+            （恒定 delay 会让两 worker 近同刻完成 → wait 同轮收割两个 → 旧代码
+            偶然不超采；抖动才复现真实交错完成）。"""
+            import lsu_unit_pilot as UP
+
+            def fake(self, m, s, staging, mode, slots=None):
+                state["calls"][s] = state["calls"].get(s, 0) + 1
+                state["threads"].add(threading.current_thread().name)
+                lo, hi = delay if isinstance(delay, tuple) else (delay, delay)
+                time.sleep(_rnd.uniform(lo, hi))
+                if pattern[s % len(pattern)]:
+                    v = {"outcome": "Masked", "crash_kind": None, "activated": 1,
+                         "error": None, "source": "fake_unit_test"}
+                else:
+                    v = {"outcome": "Crash",
+                         "crash_kind": "simulator_assert", "activated": 0,
+                         "error": None, "source": "fake_unit_test"}
+                (staging / "gem5.out").write_text(FUNNEL + "\n")
+                (staging / "addrpath_injections.log").write_text(INJLINE + "\n")
+                (staging / "l5_verdict.json").write_text(
+                    json.dumps(v, ensure_ascii=False))
+                return v, ["fake-cmd"]
+            import lsu_obs_driver as OD
+            orig = OD.ObsDriver.run_fault
+            OD.ObsDriver.run_fault = fake
+            return OD, orig
+
+        base_m_cache = {}
+
+        def run_exact_round(tag, target, pattern, delay):
+            """一轮 target 模式（samples=None）workers=2 并行；返回
+            (status, finalized数, activated数, dispatched数, staging残留数)。"""
+            outg = tmp / tag
+            ns = make_ns(campaign=tag, outdir_root=str(outg), samples=None,
+                         target=target, cap=max(300, 10 * target), workers=2,
+                         replay_policy="none", obs_mode="l0l5")
+            drv = OD.ObsDriver(ns)
+            # 真 build_manifest 含 gem5.opt sha256（~1s/个）会拖垮压力轮：
+            # 每 item 只建一次真 manifest，其余克隆改 seed（identity 不变）。
+            if "ITEM-002" not in base_m_cache:
+                base_m_cache["ITEM-002"] = drv._manifest_for("ITEM-002", 0)
+
+            def fast_manifest(it, s):
+                m = dict(base_m_cache[it])
+                m["seed"] = (m.get("seed") or 0) + s + 1
+                return m
+            drv._manifest_for = fast_manifest
+            seed_golden(drv, base_m_cache["ITEM-002"])
+            state = {"calls": {}, "threads": set()}
+            ODm, orig_rf = install_fake_run_fault_pattern(state, pattern, delay)
+            try:
+                st = drv.run_item("ITEM-002")
+            finally:
+                ODm.ObsDriver.run_fault = orig_rf
+            camp = outg / tag / "ITEM-002"
+            fin = act = stg = 0
+            if camp.exists():
+                for p in camp.iterdir():
+                    if p.name.endswith(".staging"):
+                        stg += 1
+                    elif p.is_dir() and (p / OC.COMPLETE).exists():
+                        fin += 1
+                        v = json.loads((p / "l5_verdict.json").read_text())
+                        act += 1 if v.get("activated") else 0
+            return st, fin, act, len(state["calls"]), stg
+
+        # (g1) 全激活 + 抖动：8 轮全部精确
+        g1_bad = []
+        for i in range(8):
+            st, fin, act, disp, stg = run_exact_round(
+                f"g1_r{i}", 5, [1], (0.02, 0.15))
+            if not (st == "COMPLETE" and fin == 5 and act == 5
+                    and disp == 5 and stg == 0):
+                g1_bad.append((i, st, fin, act, disp, stg))
+        check("g1_exact_stop_all_activate",
+              not g1_bad, str(g1_bad[:3]))
+
+        # (g2) 混合激活（25% activated=0）：activated 仍精确 == target；未激活
+        # 样本是必要补偿派发（fin = activated + 未激活截断，fin ≥ act）
+        g2_bad = []
+        for i in range(4):
+            st, fin, act, disp, stg = run_exact_round(
+                f"g2_r{i}", 6, [1, 1, 1, 0], (0.02, 0.15))
+            if not (st == "COMPLETE" and act == 6 and fin >= act
+                    and disp == fin and stg == 0):
+                g2_bad.append((i, st, fin, act, disp, stg))
+        check("g2_exact_stop_mixed_activation",
+              not g2_bad, str(g2_bad[:3]))
+
+        # (g3) 压力 20 轮：随机 target/模式/抖动，逐轮精确
+        g3_bad = []
+        for i in range(20):
+            tgt = _rnd.choice([3, 5, 7])
+            pat = _rnd.choice([[1], [1, 0], [1, 1, 0, 0]])
+            st, fin, act, disp, stg = run_exact_round(
+                f"g3_r{i}", tgt, pat, (0.01, 0.12))
+            if not (st == "COMPLETE" and act == tgt and fin == disp
+                    and fin >= act and stg == 0):
+                g3_bad.append((i, tgt, pat, st, fin, act, disp, stg))
+        check("g3_exact_stop_stress_20_rounds",
+              not g3_bad, str(g3_bad[:3]))
 
         print(f"\nFAILURES: {fails if fails else '无'}")
         return 1 if fails else 0

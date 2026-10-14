@@ -624,8 +624,12 @@ class ObsDriver:
     def _run_item_parallel(self, it, plan):
         """OBS-8a：样本级并行（F-022 模式，仿 lsu_unit_pilot.run_item_samples）。
 
-        派发条件 = activated<target 且 在飞+完成<cap 且 在飞<workers
-        （--samples 显式清单模式不受 target/cap 门限，跑全清单）；
+        派发条件 = activated+在飞<target（OBS-FIX-1，2026-10-14：在飞按最坏
+        情况全激活计——旧门只看已完成 activated，C01-F0-W6 target=385 实采
+        386 超采 1）且 在飞+完成<cap 且 在飞<workers（--samples 显式清单
+        模式不受 target/cap 门限，跑全清单）。不变式：任一派发点
+        activated+在飞 ≤ target → 终态 activated 精确 == target（target 附近
+        最后 ≤ workers-1 个样本退化为串行，代价可忽略）。
         每样本完整跑 run_sample（claim 防同样本双跑；golden per-key 锁防
         并发双建）。manifest 构建在 worker 内做（build_manifest 含 gem5.opt
         sha256 ~秒级——放派发循环会让 Python 3.11 的 idle-permit 复用把
@@ -646,12 +650,13 @@ class ObsDriver:
         with ThreadPoolExecutor(max_workers=workers) as ex:
             futures, nxt = {}, 0   # future -> sample 号
             while True:
-                # 派发（dispatched = 在飞 + 已完成，即 attempt 计数）
+                # 派发（dispatched = 在飞 + 已完成，即 attempt 计数；
+                # OBS-FIX-1：target 门计入在飞 len(futures)——见 docstring）
                 while (guard_failure is None and not verify_refused
                        and len(futures) < workers
                        and nxt < len(plan)
                        and (self.args.samples
-                            or (activated < self.args.target
+                            or (activated + len(futures) < self.args.target
                                 and dispatched < self.args.cap))):
                     s = plan[nxt]
                     nxt += 1
