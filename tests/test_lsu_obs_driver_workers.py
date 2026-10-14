@@ -24,6 +24,12 @@ runs/lsu/guard）。覆盖：
       (g1) 全激活+时序抖动 8 轮；(g2) 混合激活（25% activated=0）4 轮；
       (g3) 压力 20 轮（target∈{3,5,7} × 模式×抖动）：每轮 activated==target、
       派发数==finalized、无 staging 残留。
+  (h) target 模式续跑 skip 计数（OBS-FIX-2，C02-F0-W6 续跑根因回归）：
+      run_sample 对已 COMPLETE 样本返回 "skipped"，旧计数分支只认
+      "complete" → 续跑遍漏计既有 activated、超采总数。两遍同 campaign
+      （pass1 target=N1 → pass2 target=N2>N1 续跑）：
+      (h1) 串行 4→6：s0-s3 skipped 且计入，只新跑 s4/s5，总 activated==6；
+      (h2) 并行 3→5：只新跑 s3/s4，总 activated==5。
 """
 import argparse
 import gzip
@@ -604,6 +610,76 @@ def main():
                 g3_bad.append((i, tgt, pat, st, fin, act, disp, stg))
         check("g3_exact_stop_stress_20_rounds",
               not g3_bad, str(g3_bad[:3]))
+
+        # ------------------------------------------------ (h) target 模式续跑 skip 计数
+        # OBS-FIX-2（C02-F0-W6 续跑根因）：run_sample 对已 COMPLETE 样本返回
+        # "skipped"，旧计数分支只认 "complete" → 续跑遍漏计既有 activated，
+        # 继续跑到 target 个"新"激活（总数超采）。修复后 skipped 计入，
+        # 终态总 activated（既有+新）精确 == target。
+
+        def run_resume_pair(tag, t1, t2, workers):
+            """两遍同 campaign：pass1 跑到 t1；pass2 提高目标续跑到 t2。
+            返回 (st1, st2, pass1新跑集, pass2新跑集, 最终COMPLETE数, 磁盘
+            实际 activated 总数)。"""
+            outg = tmp / tag
+            ns = make_ns(campaign=tag, outdir_root=str(outg), samples=None,
+                         target=t1, cap=max(300, 10 * t1), workers=workers,
+                         replay_policy="none", obs_mode="l0l5")
+            drv = OD.ObsDriver(ns)
+            if "ITEM-002" not in base_m_cache:
+                base_m_cache["ITEM-002"] = drv._manifest_for("ITEM-002", 0)
+
+            def fast_manifest(it, s):
+                m = dict(base_m_cache[it])
+                m["seed"] = (m.get("seed") or 0) + s + 1
+                return m
+            drv._manifest_for = fast_manifest
+            seed_golden(drv, base_m_cache["ITEM-002"])
+            state = {"calls": {}, "threads": set()}
+            ODm, orig_rf = install_fake_run_fault_pattern(state, [1], (0.02, 0.08))
+            try:
+                st1 = drv.run_item("ITEM-002")
+            finally:
+                ODm.ObsDriver.run_fault = orig_rf
+            calls1 = set(state["calls"])
+            # pass 2（续跑：新 driver 实例、同 campaign/outdir、更高 target）
+            ns2 = make_ns(campaign=tag, outdir_root=str(outg), samples=None,
+                          target=t2, cap=max(300, 10 * t2), workers=workers,
+                          replay_policy="none", obs_mode="l0l5")
+            drv2 = OD.ObsDriver(ns2)
+            drv2._manifest_for = fast_manifest
+            seed_golden(drv2, base_m_cache["ITEM-002"])
+            state2 = {"calls": {}, "threads": set()}
+            ODm2, orig_rf2 = install_fake_run_fault_pattern(state2, [1], (0.02, 0.08))
+            try:
+                st2 = drv2.run_item("ITEM-002")
+            finally:
+                ODm2.ObsDriver.run_fault = orig_rf2
+            camp = outg / tag / "ITEM-002"
+            fin = act = 0
+            if camp.exists():
+                for p in camp.iterdir():
+                    if p.is_dir() and (p / OC.COMPLETE).exists():
+                        fin += 1
+                        v = json.loads((p / "l5_verdict.json").read_text())
+                        act += 1 if v.get("activated") else 0
+            return st1, st2, calls1, set(state2["calls"]), fin, act
+
+        # (h1) 串行 4→6：s0-s3 skipped 且计入，只新跑 s4/s5，总数精确 6
+        st1, st2, c1, c2, fin, act = run_resume_pair("h1", 4, 6, 1)
+        check("h1_pass1_complete", st1 == "COMPLETE" and c1 == {0, 1, 2, 3},
+              f"st1={st1} calls1={sorted(c1)}")
+        check("h1_resume_counts_skipped_exact",
+              st2 == "COMPLETE" and c2 == {4, 5} and fin == 6 and act == 6,
+              f"st2={st2} new_calls={sorted(c2)} fin={fin} act={act}")
+
+        # (h2) 并行 3→5：只新跑 s3/s4，总数精确 5
+        st1, st2, c1, c2, fin, act = run_resume_pair("h2", 3, 5, 2)
+        check("h2_pass1_complete", st1 == "COMPLETE" and c1 == {0, 1, 2},
+              f"st1={st1} calls1={sorted(c1)}")
+        check("h2_resume_counts_skipped_exact",
+              st2 == "COMPLETE" and c2 == {3, 4} and fin == 5 and act == 5,
+              f"st2={st2} new_calls={sorted(c2)} fin={fin} act={act}")
 
         print(f"\nFAILURES: {fails if fails else '无'}")
         return 1 if fails else 0

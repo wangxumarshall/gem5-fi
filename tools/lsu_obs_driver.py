@@ -610,7 +610,10 @@ class ObsDriver:
             except UP.GuardFailure as gf:
                 print(f"[{it}] s{s}: GUARD_FAILURE {gf}"[:300], flush=True)
                 return "GUARD_FAILURE"
-            if r == "complete":
+            if r in ("complete", "skipped"):
+                # OBS-FIX-2（2026-10-14，C02-F0-W6 续跑根因）：skipped =
+                # COMPLETE 已存在（只读核验通过）——resume 遍必须计入既有
+                # activated，否则漏计导致 target 模式续跑超采总数。
                 done += 1
                 v = json.loads((self._sample_dir(m, s) / "l5_verdict.json")
                                .read_text())
@@ -677,7 +680,9 @@ class ObsDriver:
                         print(f"[{it}] s{s}: GUARD_FAILURE {gf}"[:300],
                               flush=True)
                         continue
-                    if r == "complete":
+                    if r in ("complete", "skipped"):
+                        # OBS-FIX-2：skipped 计入既有 activated（同串行路径，
+                        # C02-F0-W6 续跑根因——漏计导致超采总数）
                         # 同 _sample_dir 的路径公式（m["item"] == it）
                         od = self.root / self.args.campaign / it / f"{it}_s{s}"
                         v = json.loads((od / "l5_verdict.json").read_text())
