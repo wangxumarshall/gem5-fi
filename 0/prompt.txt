@@ -1,0 +1,159 @@
+你接手 0101 的 LSU 故障注入工作。不要从头重新实现，不要重新合并。先读取并核实当前状态，然后从以下检查点继续。
+
+【当前已确认状态】
+
+仓库：
+/home/sdc/gem5-fi-ding
+
+当前主分支：
+fi-ding
+HEAD=5d33c763f77c5d4d3dd458c9210facc458356338
+
+备份分支：
+backup/fi-ding-pre-lsu-obs-20261014
+
+观测工作树：
+/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-obs
+分支 lsu-obs-20261012，与主分支同为 5d33c763。
+
+通过准入的观测二进制：
+/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-obs/build/ARM/gem5.opt
+SHA256：
+70ff317bd411fe0250a2b715aecb1855996236e0bed8db9a062593877a000459
+
+主工作区旧二进制：
+/home/sdc/gem5-fi-ding/build/ARM/gem5.opt
+SHA256：
+10590f6295bc4dec09fc51c538dd857abaf2efb92fb3c373422a24e1aaf1e36c
+它仍供旧 AGU 批次使用，禁止重编译、覆盖或替换。
+
+严格 LSU admission 已经 PASS，不要重做观测链实现，也不要降低审计标准。
+
+【最新正式完整链批次】
+
+正式批次：
+runs/lsu/obs/p5_formal_full_c01_f0_w6
+
+RunID：
+C01-F0-W6
+ITEM-122
+
+当前事实：
+- driver_summary.json 显示 COMPLETE
+- 共生成 416 个 observation.json
+- 416/416 execution_complete=true
+- 416/416 evidence_complete=true
+- 386 个 activated
+- 30 个未激活/提前 Crash 样本
+- 186 个 chain_complete=true
+- 230 个 chain_complete=false
+- 386 Masked，30 Crash
+- 所有样本 identity.git_commit=5d33c763
+- 所有样本 binary hash=70ff317b...
+- 独立审计命令已执行：
+  python3 tools/lsu_audit.py \
+    --campaign-root runs/lsu/obs/p5_formal_full_c01_f0_w6 \
+    --rules v2
+- 审计结果：416 PASS、0 FAIL、无 residues
+- 临时审计汇总：
+  /tmp/lsu_c01_full_audit_20261014.json
+
+注意：目标是 385 个 activated，但两个 worker 并发导致实际 activated=386。严禁删除、覆盖或静默忽略第386个样本，也严禁把统计分母伪写成385。
+
+【立即执行任务，按优先级排序】
+
+一、先保护正在运行的任务
+
+1. 检查当前 PID、全局 experiment locks、claim 和 hostmon。
+2. 不得杀死当前仍在运行的旧 AGU driver。
+3. 不得清理现有 runs、COMPLETE、staging、quarantine、Excel 修改或未跟踪文件。
+4. 不运行 git reset/clean/checkout 覆盖用户文件。
+
+二、立即修正旧批次监督器的终态错误
+
+当前：
+runs/lsu/obs/lsu_batch_supervisor.sh
+
+其 batch_done() 把 GUARD_FAILURE 当成终态。这是错误的，因为多个项目仍明显低于目标，例如 ITEM-001、008、009、010、013、015、018 等。
+
+要求：
+
+1. 先备份 supervisor 脚本。
+2. GUARD_FAILURE 不得作为“31/31 已完成”的终态。
+3. 只有真正 COMPLETE、明确的 BLOCKED_ATTEMPT_CAP，或有可审计能力原因的永久 BLOCKED 才能视为终态。
+4. 修改前后执行 bash -n 和状态自检。
+5. 不干扰当前正在运行的 driver。
+6. ITEM-037 在 runs/lsu/pilot_w1/ITEM-037/ITEM-037_result.json 中已经 COMPLETE（385 activated），不要重复运行。
+7. 检查已经停止的 B/D driver 中哪些 RunID 仍为 GUARD_FAILURE/未达到 target；在确认无重复 PID、claim 和样本后，利用空闲槽安全恢复。
+8. 所有旧批次仍标记为 outcome-only，不得冒充完整观测链结果。
+
+三、完成 C01 正式批次收尾
+
+1. 为 p5_formal_full_c01_f0_w6 生成正式 handoff 和统计摘要。
+2. handoff 必须分别记录：
+   - attempted=416
+   - activated=386
+   - execution_complete=416
+   - evidence_complete=416
+   - chain_complete=186
+   - chain_incomplete=230
+   - audit_pass=416
+   - audit_fail=0
+3. chain_complete=false 但审计 PASS 的样本要保留诚实终止原因，不能补造传播节点。
+4. 明确记录 target_activated=385、actual_activated=386 和 concurrency_overshoot=1。
+5. 本批次统计暂时使用实际全部386个激活样本，禁止悄悄丢弃一个样本或把分母写成385。
+6. 定位并修复两个 worker 在 activated target 附近的原子计数/停止竞争问题。
+7. 为该竞争增加并发测试，保证后续正式 RunID 精确停止，或在设计上显式、可审计地记录 overshoot。
+8. 代码修复使用独立分支/工作树，不要直接制造主分支与 Excel 的混合提交；中央之后统一处理 Git 合并。
+
+四、更新 Excel
+
+Excel：
+docs/gem5-fi/lsu/gem5-fi-LSU单元故障注入方案.xlsx
+
+1. 当前 Excel 已有未提交修改，先备份并检查现有 diff/内容，禁止覆盖。
+2. 只能由当前主会话作为单一 Excel 写入者；subagent 禁止同时写 Excel。
+3. 将 C01-F0-W6 的实际结果、完整链统计、证据路径、commit、二进制 SHA、审计结果和 overshoot=1 写到对应位置。
+4. 百分比必须使用实际明确分母，并保证：
+   activated = 五类结果 + post-activation simulator failure
+5. 不得再次出现百分比与计数分母不一致。
+6. 如果不能安全更新工作簿，先输出独立的待导入 JSON/CSV 和字段映射，不要损坏 Excel。
+
+五、继续新的完整链正式实验
+
+完成 C01 handoff、overshoot 修复及并发测试后：
+
+1. 从 Excel 和现有台账确认下一个尚未执行、且当前注入器支持的 LSU RunID。不要仅凭猜测重复运行；预计 C02/C03 是候选，但必须以 Excel 和 claim 台账为准。
+2. 所有新正式实验必须使用观测二进制 70ff317b...，不得使用旧主树二进制。
+3. 每个样本必须保留 L0-L5、observation.json、身份和哈希、资源日志、原子 COMPLETE。
+4. 每个 RunID 完成后必须运行 v2 独立审计并生成 handoff，之后才能更新 Excel。
+5. activated 但传播没有达到有效终点时，必须诚实记为 chain_complete=false；不得降低标准。
+6. inactive/Crash 截断可按契约记录，但不能伪造 commit divergence 或传播链。
+
+六、有限并行与 subagent 分工
+
+可以使用多个 subagent，但职责必须互斥：
+
+- 一个 subagent：只检查并修复 activated target 并发 overshoot，增加测试。
+- 一个 subagent：只审计旧 AGU 未完成项和安全恢复方案。
+- 一个 subagent：只核对下一个待运行 RunID、命令和证据契约。
+- 主会话：统一调度、Git 集成、handoff 和 Excel 写入。
+
+subagent 不得同时修改同一个文件，不得写 Excel，不得各自启动重复 RunID。
+
+当前主机约有21 GiB可用内存。先维持主机总活跃 gem5 不超过4个，包括旧 AGU 和新观测实验。持续观察 MemAvailable、swap、I/O、锁和 gem5 RSS；只有稳定窗口内 MemAvailable 始终高于12 GiB且无持续 swap-in/out，才可考虑升至6。不得为了占满 CPU 忽略内存门限。
+
+【汇报要求】
+
+完成接力后汇报：
+
+1. 当前全部活跃 PID、RunID和槽位；
+2. supervisor 终态逻辑修复结果；
+3. 旧 AGU 哪些 RunID仍未完成、哪些已恢复；
+4. C01 handoff路径和完整统计；
+5. overshoot根因、修复提交和测试结果；
+6. Excel更新位置及备份路径；
+7. 下一批正式RunID、并发度和预计时间；
+8. 每个正式RunID的 execution/evidence/chain 三套独立计数。
+
+现在直接从状态核验开始执行，不要只给计划。

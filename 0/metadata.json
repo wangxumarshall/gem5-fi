@@ -1,0 +1,43 @@
+{
+  "cli_version": "0.10.2",
+  "checkpoint_id": "01M4WJX5B5JYXRJGA0NDS4B4BD",
+  "session_id": "7b2de10d-2043-405e-8c08-69e0fda77e6d",
+  "strategy": "manual-commit",
+  "created_at": "2026-10-14T06:51:59.479277252Z",
+  "branch": "fi-ding",
+  "checkpoints_count": 1,
+  "save_step_count": 1,
+  "files_touched": [],
+  "agent": "Claude Code",
+  "model": "GLM-5.3[1m]",
+  "turn_id": "46790fe59fd2",
+  "checkpoint_transcript_start": 625,
+  "transcript_lines_at_start": 625,
+  "compact_transcript_start": 82,
+  "token_usage": {
+    "input_tokens": 398954,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 14182912,
+    "output_tokens": 55694,
+    "api_call_count": 49
+  },
+  "session_metrics": {
+    "turn_count": 1
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    },
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    }
+  ]
+}
