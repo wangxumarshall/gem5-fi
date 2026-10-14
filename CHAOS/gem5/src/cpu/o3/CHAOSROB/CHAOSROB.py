@@ -31,9 +31,18 @@ class CHAOSROB(SimObject):
     #                  another ROB-resident in-flight instruction (legal
     #                  domain, designed to bypass the dependency check).
     #   destid_stuck (D31, F5): ONE entry's dest-id bit stuck-at 0/1.
+    # V2.0 B02 layering (ooo 03-design-matrix R21): pc_bitflip2_adj /
+    # pc_bitflip2_nonadj / destid_bitflip2_adj / destid_bitflip2_nonadj
+    # constrain the two flipped bits to |db|==1 resp. >=2 ("同字段相邻/
+    # 非相邻双bit", PC resp. dest-tag field; log adds dist=). The seq-field
+    # axis of B02's "按PC/tag/seq字段分层" is NOT implemented (honest gap:
+    # gem5's ROB entry seqNum is shared DynInst state with IQ/LSQ/commit
+    # ordering invariants — corrupting it needs its own design pass).
     mode = Param.String("entry_bitflip",
         "entry_bitflip | exc_suppress | pc_bitflip | pc_bitflip2 | pc_stuck"
+        " | pc_bitflip2_adj | pc_bitflip2_nonadj"
         " | destid_bitflip | destid_bitflip2 | destid_swap_active"
+        " | destid_bitflip2_adj | destid_bitflip2_nonadj"
         " | destid_stuck (spec_leak deferred)")
 
     field = Param.String("exc_status",

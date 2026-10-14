@@ -125,7 +125,11 @@ p.add_argument("--lsq_lane_skew_k", type=int, default=1)
 p.add_argument("--chaos_rename", action="store_true",
                help="attach CHAOSRenameMap (O3 rename-map injector, §2.2)")
 p.add_argument("--rename_mode", default="map_bitflip",
-               choices=["map_bitflip","map_bitflip2","swap_to_active","f5_substitute","f4_field_stuck","spec_leak","f5_rat_stuck","stale_read","swap_mispred_event","hb_bitflip","hb_bitflip2"])
+               choices=["map_bitflip","map_bitflip2","map_bitflip2_adj",
+                        "map_bitflip2_nonadj","swap_to_active",
+                        "f5_substitute","f4_field_stuck","spec_leak",
+                        "f5_rat_stuck","stale_read","swap_mispred_event",
+                        "hb_bitflip","hb_bitflip2","src_tag_swap"])
 p.add_argument("--rename_target_arch", type=int, default=-1,
                help="arch reg index whose map entry to corrupt (-1=random 0..30 int / 0..31 vec)")
 # W7.2 (ooo 04 D62-D71 merged rows): register-class axis for the RAT
@@ -167,7 +171,9 @@ p.add_argument("--chaos_rob", action="store_true",
 p.add_argument("--rob_mode", default="entry_bitflip",
                choices=["entry_bitflip","exc_suppress",
                         "pc_bitflip","pc_bitflip2","pc_stuck",
+                        "pc_bitflip2_adj","pc_bitflip2_nonadj",
                         "destid_bitflip","destid_bitflip2",
+                        "destid_bitflip2_adj","destid_bitflip2_nonadj",
                         "destid_swap_active","destid_stuck",
                         # W5.4 (D32-D35): done/completed bit at the commit
                         # gate (Commit::markCompletedInsts site).
@@ -340,7 +346,20 @@ p.add_argument("--decode_mode", default="dest_reg_sub",
                         # class bits with an opClass-change predicate.
                         "fp_opcode_bitflip","fp_opcode_bitflip2",
                         "fp_opcode_swap","fp_reg_bitflip",
-                        "fp_reg_bitflip2","fp_route_bit"])
+                        "fp_reg_bitflip2","fp_route_bit",
+                        # V2.0 D02 layering (ooo 03-design-matrix R3,
+                        # 09-audit WB3 gap): same-field adjacent /
+                        # non-adjacent dual-bit (field sampled uniformly
+                        # over opcode/reg/imm) and opcode x operand
+                        # cross-field dual-bit; log carries field=/dist=.
+                        # V2.0 FD02 layering (R31, FP/SIMD Decode): same
+                        # split over the FP word's own fields (fp_opcode
+                        # enc[23:10] / lane {Q30,size23:22} / reg), fpOnly
+                        # gated; cross = opcode x lane/reg.
+                        "bitflip2_adj","bitflip2_nonadj","bitflip2_cross",
+                        "fp_bitflip2_adj","fp_bitflip2_nonadj",
+                        "fp_bitflip2_cross","src_swap","x0_sub",
+                        "imm_rotate"])
 p.add_argument("--decode_first_clock", type=lambda x: int(x,0), default=1000)
 p.add_argument("--decode_last_clock", type=lambda x: int(x,0), default=0)
 p.add_argument("--decode_max_faults", type=lambda x: int(x,0), default=1)
@@ -390,6 +409,15 @@ p.add_argument("--chaos_ctrace", action="store_true",
 p.add_argument("--ctrace_file", default="commit_trace.csv.gz",
                help="commit trace output file (relative to --outdir; "
                     "a .gz suffix is gzip-compressed automatically)")
+# FIX-B (2026-10-13) L3 propagation v2: opt-in extended ctrace rows
+# (seqencNum + per-src class/arch/phys triples, '# ctrace v2' marker) so
+# tools/ooo_l3.py can join L0 decode-injection events (sn=) to committed
+# rows and BFS the real source->consumer chain. DEFAULT OFF = pinned v1
+# row format, byte-identical (frozen-chain consumers unaffected).
+p.add_argument("--ctrace_v2", action="store_true",
+               help="CHAOSCommitTrace v2 rows: append seqencNum + source "
+                    "(class,arch,phys) triples (FIX-B L3 propagation; "
+                    "default off = v1 pinned format)")
 # W2.4 CHAOSMicroSnap (L1 µarch shadow snapshot). READ-ONLY: no injector, no
 # state writes, no events, nothing on stdout — the workload FINAL checksum
 # must be byte-identical with it attached (hard gate). Emits one pinned-format
@@ -805,6 +833,7 @@ if args.chaos_ctrace:
         cpu=cpu0,
         traceFile=args.ctrace_file,
         writeLog=True,
+        v2=args.ctrace_v2,
     )
     board.chaos_ctrace = ctr
 

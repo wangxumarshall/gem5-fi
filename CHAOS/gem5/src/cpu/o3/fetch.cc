@@ -1293,6 +1293,15 @@ Fetch::fetch(bool &status_change)
             DynInstPtr instruction = buildInst(
                     tid, staticInst, curMacroop, this_pc, *next_pc, true);
 
+            /* gem5-fi FIX-B (sn join): read-only — when the decode
+               injector just replaced this StaticInst (its injection log
+               line is deferred), record the wrapping DynInst's seqNum so
+               the line can carry sn= (the DynInst does not exist at
+               decode time; buildInst runs in this same iteration).
+               nullptr injector = zero cost. */
+            if (cpu->chaosDecode)
+                cpu->chaosDecode->noteBuildInst(instruction.get());
+
             ppFetch->notify(instruction);
             numInst++;
 

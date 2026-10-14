@@ -16,7 +16,7 @@ import sys, os, json, subprocess, hashlib, argparse, tempfile, gzip
 
 # Shared honest classifier (plan §9.1; report issue #4 fix).
 sys.path.insert(0, os.path.dirname(os.path.realpath(__file__)))
-from classify import classify_run  # noqa: E402
+from classify import classify_run, extract_checksum  # noqa: E402
 
 try:
     import yaml
@@ -413,6 +413,12 @@ def main():
                          "--chaos_ctrace --ctrace_file PATH to the config "
                          "(C3/ooo_proxy.py only; the path is made absolute so "
                          "the trace lands exactly here).")
+    ap.add_argument("--ctrace-v2", action="store_true",
+                    help="FIX-B L3: request the v2 ctrace format "
+                         "(seqencNum + source triples + squash events) from "
+                         "the config (ooo_proxy.py --ctrace_v2). Requires "
+                         "--ctrace. The v2 format is the input for the "
+                         "tools/ooo_l3.py source->consumer chain builder.")
     ap.add_argument("--ctrace-ref", default=None, metavar="REF.csv.gz",
                     help="W2.3: after the run, diff the produced trace "
                          "against this no-injection reference via "
@@ -443,6 +449,32 @@ def main():
                          "upper-bound proxy) and print it as an "
                          "'[runner] L3RESULT: {json}' line (requires "
                          "--ctrace).")
+    # ---- L0-L5 (2026-10-12 plan Task 2): L1 µarch snapshot plumbing ----
+    # Same shape as --ctrace: C3/C4-LSU only, absolute path pins the file,
+    # evidence line after the run. Without the flag NOTHING changes (the
+    # legacy stdout contract is byte-identical).
+    ap.add_argument("--msnap", default=None, metavar="PATH",
+                    help="L1: enable the CHAOSMicroSnap µarch snapshot — "
+                         "passes --chaos_msnap --msnap_file PATH "
+                         "--msnap_every N to the config (C3/C4-LSU only; "
+                         "absolute path recommended so the snapshot lands "
+                         "exactly here).")
+    ap.add_argument("--msnap-every", type=int, default=1000, metavar="N",
+                    help="L1: snapshot period in committed instructions "
+                         "(default 1000, ooo_proxy.py's own default).")
+    # L0-L5 golden plumbing (plan Task 4; found by the FIRST real golden
+    # build 2026-10-12): runner.py captures gem5 stdout INTERNALLY for
+    # classify_run and never forwards it, so a caller (tools/ooo_golden.py)
+    # could not observe the workload FINAL checksum to cross-check against
+    # the GOLDEN_IDS registry. Opt-in evidence line; flag absent = stdout
+    # byte-identical (the W2.3 regression contract: no new flag, no new
+    # line).
+    ap.add_argument("--echo-checksum", action="store_true",
+                    help="echo the workload observed oracle checksum as "
+                         "`[runner] CHECKSUM: <16hex>` (or none) after the "
+                         "RESULT line - opt-in evidence for ooo_golden.py "
+                         "registry cross-check; absent = byte-identical "
+                         "stdout.")
     args = ap.parse_args()
 
     with open(args.manifest) as f:
@@ -469,6 +501,9 @@ def main():
     if args.ctrace_ref and not args.ctrace:
         sys.exit("[runner] --ctrace-ref requires --ctrace (the five-class "
                  "diff compares the trace THIS run produces). Aborting.")
+    if args.ctrace_v2 and not args.ctrace:
+        sys.exit("[runner] --ctrace-v2 requires --ctrace (the v2 format "
+                 "modifies the trace THIS run produces). Aborting.")
     # W2.6: --fanout-phys measures the trace THIS run produces, so it is
     # meaningless without --ctrace; a negative id is a typo, not an id.
     if args.fanout_phys is not None and not args.ctrace:
@@ -476,6 +511,17 @@ def main():
                  "measures the commit trace THIS run produces). Aborting.")
     if args.fanout_phys is not None and args.fanout_phys < 0:
         sys.exit("[runner] --fanout-phys must be a non-negative integer. "
+                 "Aborting.")
+    # L0-L5 (plan Task 2): validate the msnap flag surface EARLY, mirroring
+    # the --ctrace pattern above (a mis-scoped invocation fails loudly at
+    # the runner, never inside gem5's argparse).
+    if args.msnap and cfg_family not in ("C3", "C4-LSU"):
+        sys.exit(f"[runner] --msnap requires C3/C4-LSU (only "
+                 f"configs/se/ooo_proxy.py and configs/se/lsu_proxy.py define "
+                 f"--chaos_msnap/--msnap_file; config_family={cfg_family}). "
+                 f"Aborting.")
+    if args.msnap and args.msnap_every < 1:
+        sys.exit("[runner] --msnap-every must be >= 1 committed instruction. "
                  "Aborting.")
 
     # platform.config_params (optional dict): microarch knob overrides passed
@@ -782,6 +828,21 @@ def main():
               "legal_domain_sub": "f5_substitute",
               "stuck_at_zero": "f4_field_stuck",
               "stuck_at_one": "f4_field_stuck"}.get(inj["model"], "map_bitflip")
+        # V2.0 R02 layering (ooo 03-design-matrix R12): adjacent /
+        # non-adjacent dual-bit variants of the RAT map-field 2-bit flip
+        # (map_bitflip2_adj / map_bitflip2_nonadj), selected by the v2
+        # target.sub_field discriminator on local_mbu (the plain local_mbu
+        # keeps the uniform distinct pair).
+        if (inj["model"] == "local_mbu"
+                and rsf in ("map_bitflip2_adj", "map_bitflip2_nonadj")):
+            rm = rsf
+        # V2.0 R03-c (ooo 03-design-matrix R13, src0/src1互换): swap THE
+        # INSTRUCTION's two int source phys tags after rename — the v2
+        # target.sub_field discriminator on legal_domain_sub (the plain
+        # model keeps f5_substitute's random-allocated semantics).
+        if (inj["model"] == "legal_domain_sub"
+                and rsf == "src_tag_swap"):
+            rm = "src_tag_swap"
         # W4.2a D13 swap_to_active (ooo 04-design-matrix R14, 换值·固定间隔):
         # the structured "swap the mapping to a random ROB in-flight dest
         # physReg" model. Selected by the v2 target.sub_field discriminator
@@ -945,6 +1006,14 @@ def main():
         if (inj["model"] == "local_mbu"
                 and str(tgt.get("sub_field", "")) == "pc_bitflip2"):
             rm = "pc_bitflip2"
+        # V2.0 B02 layering (ooo 03-design-matrix R21): adjacent /
+        # non-adjacent dual-bit variants on the PC resp. dest-tag field.
+        if (inj["model"] == "local_mbu"
+                and str(tgt.get("sub_field", "")) == "pc_bitflip2_adj"):
+            rm = "pc_bitflip2_adj"
+        if (inj["model"] == "local_mbu"
+                and str(tgt.get("sub_field", "")) == "pc_bitflip2_nonadj"):
+            rm = "pc_bitflip2_nonadj"
         if (inj["model"] in ("stuck_at_zero", "stuck_at_one")
                 and str(tgt.get("sub_field", "")) == "pc_stuck"):
             rm = "pc_stuck"
@@ -952,6 +1021,12 @@ def main():
             rm = "destid_bitflip"
         if (inj["model"] == "local_mbu" and rsf == "destid_bitflip2"):
             rm = "destid_bitflip2"
+        # V2.0 B02 layering (dest-tag field; _vec suffix routes vec class
+        # via the convention above).
+        if (inj["model"] == "local_mbu" and rsf == "destid_bitflip2_adj"):
+            rm = "destid_bitflip2_adj"
+        if (inj["model"] == "local_mbu" and rsf == "destid_bitflip2_nonadj"):
+            rm = "destid_bitflip2_nonadj"
         if (inj["model"] == "legal_domain_sub"
                 and rsf == "destid_swap_active"):
             rm = "destid_swap_active"
@@ -1271,7 +1346,20 @@ def main():
                    "sign_ext_bit", "imm_subfield_shift", "crack_ctrl",
                    "fp_opcode_bitflip", "fp_opcode_bitflip2",
                    "fp_opcode_swap", "fp_reg_bitflip",
-                   "fp_reg_bitflip2", "fp_route_bit"):
+                   "fp_reg_bitflip2", "fp_route_bit",
+                   # V2.0 D02 layering (ooo 03-design-matrix R3): same-field
+                   # adjacent / non-adjacent dual-bit (field sampled over
+                   # opcode/reg/imm) + opcode x operand cross-field dual-bit.
+                   "bitflip2_adj", "bitflip2_nonadj", "bitflip2_cross",
+                   # V2.0 FD02 layering (R31, FP/SIMD Decode): same split
+                   # over the FP word's own fields (fp_opcode/lane/reg,
+                   # fpOnly gated); cross = opcode x lane/register-operand.
+                   "fp_bitflip2_adj", "fp_bitflip2_nonadj",
+                   "fp_bitflip2_cross",
+                   # V2.0 D04-c/D04-e/D05-b (R5/R6): src_swap (encoding-
+                   # layer Rn<->Rm exchange), x0_sub (one int reg operand
+                   # slot -> X0), imm_rotate (logical immediate rotation).
+                   "src_swap", "x0_sub", "imm_rotate"):
             dm = dsf
         cmd += ["--chaos_decode", "--decode_mode", dm,
                 "--decode_first_clock", str(t["value"]),
@@ -1440,8 +1528,19 @@ def main():
     if args.ctrace:
         ctrace_path = os.path.abspath(args.ctrace)
         cmd += ["--chaos_ctrace", "--ctrace_file", ctrace_path]
+        if args.ctrace_v2:
+            cmd += ["--ctrace_v2"]
         note = f" (diff vs ref {os.path.abspath(args.ctrace_ref)})" if args.ctrace_ref else ""
-        print(f"[runner] ctrace: {ctrace_path}{note}")
+        print(f"[runner] ctrace: {ctrace_path}{note}"
+              f"{' v2' if args.ctrace_v2 else ''}")
+    # L0-L5 (plan Task 2): L1 µarch snapshot — same absolute-path pinning as
+    # the ctrace block above (ooo_proxy resolves a RELATIVE --msnap_file
+    # against its own --outdir, which is the runner's private man-* tempdir).
+    if args.msnap:
+        msnap_path = os.path.abspath(args.msnap)
+        cmd += ["--chaos_msnap", "--msnap_file", msnap_path,
+                "--msnap_every", str(args.msnap_every)]
+        print(f"[runner] msnap: {msnap_path} every={args.msnap_every}")
     print("[runner] running:", " ".join(cmd[:4]), "...")
     # Hang timeout (plan §13.2): a normal sim completes in well under the
     # wall budget; a Hang = no completion within this. Default 600s; the
@@ -1545,6 +1644,11 @@ def main():
           f"faults_injected={faults} exit={r.returncode} "
           f"timed_out={timed_out} oracle={oracle_kind}")
     print(f"[runner]   reason: {reason}")
+    # L0-L5 golden plumbing: surface the observed checksum the classifier
+    # already extracted (see the --echo-checksum argparse note above).
+    if args.echo_checksum:
+        obs_cs = extract_checksum(stdout_text + "\n" + (r.stderr or ""))
+        print(f"[runner] CHECKSUM: {obs_cs if obs_cs else 'none'}")
     # ---- W2.6 (plan Task 6): stats.txt summary consumption ----
     # Parsed by campaign.py's parse_runner_result into the rep's results.jsonl
     # `stats` block. Opt-in (--stats) so legacy invocations keep their exact
@@ -1573,6 +1677,20 @@ def main():
             l2 = run_commit_diff(os.path.abspath(args.ctrace_ref),
                                  ctrace_path)
             print("[runner] L2RESULT: " + json.dumps(l2, ensure_ascii=False))
+    # ---- L0-L5 (plan Task 2): L1 µarch snapshot evidence line. Same
+    # honesty contract as the CTRACE line: count_trace_lines returns
+    # None on an unreadable/truncated stream (a crashed run's msnap
+    # lacks its gzip trailer) — that is reported as 'unreadable', never
+    # fabricated as a count. Independent of --ctrace.
+    if args.msnap:
+        msnap_path = os.path.abspath(args.msnap)
+        if os.path.exists(msnap_path):
+            n = count_trace_lines(msnap_path)
+            print(f"[runner] MSNAP: file={msnap_path} "
+                  f"lines={n if n is not None else 'unreadable'} "
+                  f"bytes={os.path.getsize(msnap_path)}")
+        else:
+            print(f"[runner] MSNAP: file={msnap_path} MISSING")
         # ---- W2.6 (plan Task 6): L3 fanout of --fanout-phys on this run's
         # trace (tools/fanout.py; liveness windows + val changes). Parsed by
         # campaign.py into the rep's results.jsonl `l3` block. The honest

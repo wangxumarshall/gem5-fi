@@ -1,0 +1,38 @@
+schema_version: arm-chaos-fi/l0l5-campaign/v1
+campaign_id: formal_D02-F0-W6-b
+runid_row: D02-F0-W6
+submodel: b
+phase: formal
+injector: decode
+config: C3
+mode: SE
+grid:
+  target_index: -1
+  protection_model: none
+  field: mixed
+  width_bits: 32
+  sub_field: bitflip2_nonadj
+  fault_model: local_mbu
+n_per_cell: 385
+base_seed: 41211122
+replay_pct: 5
+workload:
+  binary: workloads/ooo/coremark/coremark
+  binary_sha256: 3a252bbc717de9e73f98ba05db3387bc26025b1f95294d63111ae55e8b27b000
+  golden_id: coremark-golden-v1
+  trigger_mode: cycle
+  trigger_value: 1000
+limits:
+  max_faults: 1
+hang_timeout: 600
+chaos_commit: b2571491be50435fcbe78847698cf5a487fcde0e
+patchset_sha256: b2571491be50435fcbe78847698cf5a487fcde0e
+trace:
+  enabled: true
+  l2_mode: window
+  window_pre_seq: 10000
+  window_post_seq: 3000000
+  msnap_every: 1000
+topup:
+  seed_offset: 1000000
+  rounds_max: 3

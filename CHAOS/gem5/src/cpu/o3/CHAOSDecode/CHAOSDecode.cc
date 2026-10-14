@@ -1,6 +1,7 @@
 #include "cpu/o3/CHAOSDecode/CHAOSDecode.hh"
 
 #include <cstring>
+#include <utility>
 
 #include "arch/arm/decoder.hh"
 #include "arch/arm/types.hh"
@@ -10,6 +11,7 @@
 #include "cpu/static_inst.hh"     // StaticInst operand/name accessors
 #include "debug/CHAOSDecode.hh"
 #include "params/CHAOSDecode.hh"
+#include "sim/sim_exit.hh"        // registerExitCallback (FIX-B flush)
 
 namespace gem5
 {
@@ -239,6 +241,15 @@ namespace gem5
         if (s == "fp_reg_bitflip")     return Mode::FpRegBitflip;
         if (s == "fp_reg_bitflip2")    return Mode::FpRegBitflip2;
         if (s == "fp_route_bit")       return Mode::FpRouteBit;
+        if (s == "bitflip2_adj")       return Mode::Bitflip2Adj;
+        if (s == "bitflip2_nonadj")    return Mode::Bitflip2Nonadj;
+        if (s == "bitflip2_cross")     return Mode::Bitflip2Cross;
+        if (s == "fp_bitflip2_adj")    return Mode::FpBitflip2Adj;
+        if (s == "fp_bitflip2_nonadj") return Mode::FpBitflip2Nonadj;
+        if (s == "fp_bitflip2_cross")  return Mode::FpBitflip2Cross;
+        if (s == "src_swap")           return Mode::SrcSwap;
+        if (s == "x0_sub")             return Mode::X0Sub;
+        if (s == "imm_rotate")         return Mode::ImmRotate;
         panic("CHAOSDecode: unknown mode '%s'\n", s);
     }
 
@@ -263,6 +274,15 @@ namespace gem5
           case Mode::FpRegBitflip:     return "fp_reg_bitflip";
           case Mode::FpRegBitflip2:    return "fp_reg_bitflip2";
           case Mode::FpRouteBit:       return "fp_route_bit";
+          case Mode::Bitflip2Adj:      return "bitflip2_adj";
+          case Mode::Bitflip2Nonadj:   return "bitflip2_nonadj";
+          case Mode::Bitflip2Cross:    return "bitflip2_cross";
+          case Mode::FpBitflip2Adj:    return "fp_bitflip2_adj";
+          case Mode::FpBitflip2Nonadj: return "fp_bitflip2_nonadj";
+          case Mode::FpBitflip2Cross:  return "fp_bitflip2_cross";
+          case Mode::SrcSwap:          return "src_swap";
+          case Mode::X0Sub:            return "x0_sub";
+          case Mode::ImmRotate:        return "imm_rotate";
         }
         return "?";
     }
@@ -282,6 +302,30 @@ namespace gem5
         }
     }
 
+    // FD02 disjointness: mask == array-union consistency (once per
+    // construction; the compile-time asserts prove the MASKS disjoint,
+    // this proves the arrays the sampler actually uses are the same sets).
+    void
+    CHAOSDecode::checkFd02Masks()
+    {
+        auto union_of = [](const uint32_t *bits, size_t n) {
+            uint32_t m = 0;
+            for (size_t i = 0; i < n; i++) m |= 1u << bits[i];
+            return m;
+        };
+        panic_if(union_of(kFpOpFieldBits,
+                          sizeof(kFpOpFieldBits) / sizeof(kFpOpFieldBits[0]))
+                 != kFpOpFieldMask,
+                 "CHAOSDecode: kFpOpFieldBits/mask diverged\n");
+        panic_if(union_of(kFpLaneBits,
+                          sizeof(kFpLaneBits) / sizeof(kFpLaneBits[0]))
+                 != kFpLaneMask,
+                 "CHAOSDecode: kFpLaneBits/mask diverged\n");
+        panic_if(union_of(kRegBits, sizeof(kRegBits) / sizeof(kRegBits[0]))
+                 != kRegFieldMask,
+                 "CHAOSDecode: kRegBits/kRegFieldMask diverged\n");
+    }
+
     CHAOSDecode::CHAOSDecode(const CHAOSDecodeParams &p)
         : SimObject(p),
           cpu(p.cpu),
@@ -298,15 +342,86 @@ namespace gem5
             if (!log_stream || !log_stream->stream())
                 panic("CHAOSDecode: Could not open log file");
             rng.seed(rng_seed != 0 ? rng_seed : rd());
+            checkFd02Masks();
         // Sampling-bias fix (findings.md Phase 2.2/3.0): skip a
         // geometric(p=0.1) number of eligible events before the first
         // injection so maxFaults=1 lands on a seed-dependent event.
         std::geometric_distribution<uint64_t> skip_dist(0.1);
         events_to_skip = skip_dist(rng);
+        // FIX-B unit 3: never leave a deferred injection line unwritten —
+        // an exit callback flushes any still-pending line (sn=na marker).
+        registerExitCallback([this]() { flushPendingLineUnmatched(); });
         }
     }
 
-    CHAOSDecode::~CHAOSDecode() {}
+    CHAOSDecode::~CHAOSDecode()
+    {
+        // Backstop for the exit callback above (same CHAOSCommitTrace
+        // destructor discipline).
+        flushPendingLineUnmatched();
+    }
+
+    // ---- FIX-B unit 3: deferred injection-success line (sn join) ----
+
+    std::ostream &
+    CHAOSDecode::deferLogLine(const StaticInstPtr &repl)
+    {
+        // A previous pending line that never met its build join (should
+        // be unreachable — fetch.cc builds the DynInst in the same
+        // do-while iteration as the decode hook): flush it honestly with
+        // an sn=na marker instead of losing the injection record.
+        flushPendingLineUnmatched();
+        pending_repl = repl;
+        pending_count = faults_injected_count;
+        pending_line.str("");
+        pending_line.clear();
+        return pending_line;
+    }
+
+    void
+    CHAOSDecode::completePendingLine(InstSeqNum sn)
+    {
+        // sn= BEFORE the line-final marker: the frozen L0 parser
+        // (ooo_observation) keys events on "faults_injected: N" and
+        // parses every other k=v token into the event dict, so the line
+        // gains rec["sn"] = sn — the L3 join key.
+        *(log_stream->stream()) << pending_line.str()
+            << ", sn=" << sn
+            << ", faults_injected: " << pending_count
+            << std::endl;
+        pending_repl = nullptr;
+        pending_line.str("");
+        pending_line.clear();
+    }
+
+    void
+    CHAOSDecode::flushPendingLineUnmatched()
+    {
+        if (!pending_repl)
+            return;
+        if (log_stream && log_stream->stream()) {
+            *(log_stream->stream()) << pending_line.str()
+                << ", sn=na (no build join before the next event)"
+                << ", faults_injected: " << pending_count
+                << std::endl;
+        }
+        pending_repl = nullptr;
+        pending_line.str("");
+        pending_line.clear();
+    }
+
+    void
+    CHAOSDecode::noteBuildInst(const o3::DynInst *inst)
+    {
+        if (!pending_repl || !inst)
+            return;
+        // Plain instruction: the wrapping DynInst's own staticInst IS the
+        // replacement. Macroop replacement (crack_ctrl): the first
+        // microop's macroop is the replacement; its seqNum is logged (the
+        // honest per-µop granularity — one join line per injection).
+        if (inst->staticInst == pending_repl || inst->macroop == pending_repl)
+            completePendingLine(inst->seqNum);
+    }
 
     bool
     CHAOSDecode::inWindow() {
@@ -432,13 +547,18 @@ namespace gem5
         const bool is_imm_mode = (fi_mode == Mode::ImmBitflip ||
                                   fi_mode == Mode::ImmBitflip2);
         // W7 batch 1 (D56-D61): all six FP modes gate on fpOnly (see
-        // isFpOpClass for the documented scope).
+        // isFpOpClass for the documented scope). The V2.0 FD02 layered
+        // modes gate on fpOnly too (FD02's trigger: 有效FP或AdvSIMD指令
+        // 进入decode).
         const bool is_fp_mode = (fi_mode == Mode::FpOpcodeBitflip ||
                                  fi_mode == Mode::FpOpcodeBitflip2 ||
                                  fi_mode == Mode::FpOpcodeSwap ||
                                  fi_mode == Mode::FpRegBitflip ||
                                  fi_mode == Mode::FpRegBitflip2 ||
-                                 fi_mode == Mode::FpRouteBit);
+                                 fi_mode == Mode::FpRouteBit ||
+                                 fi_mode == Mode::FpBitflip2Adj ||
+                                 fi_mode == Mode::FpBitflip2Nonadj ||
+                                 fi_mode == Mode::FpBitflip2Cross);
 
         // ---- cheap per-mode eligibility (before skip/probability) ----
         const SwapRule *rule = nullptr;
@@ -491,6 +611,25 @@ namespace gem5
         if (fi_mode == Mode::FpRouteBit)
             return injectFpRouteBit(emi, enc, orig, orig->getName(),
                                     arm_dec, pc);
+        // ---- V2.0 D04-c src_swap (ooo 03-design-matrix R5): the
+        // DECODED-OUTPUT src0/src1 register-number exchange at the
+        // encoding layer (the 03 row's 注入位置 is the decode OUTPUT's
+        // src numbers — the re-decode of the Rn/Rm-exchanged encoding
+        // produces exactly that).
+        if (fi_mode == Mode::SrcSwap)
+            return injectSrcSwap(emi, enc, orig, orig->getName(),
+                                 arm_dec, pc);
+        // ---- V2.0 D04-e x0_sub (ooo 03-design-matrix R5): one int
+        // register operand slot -> X0 (register number 0).
+        if (fi_mode == Mode::X0Sub)
+            return injectX0Sub(emi, enc, orig, orig->getName(),
+                               arm_dec, pc);
+        // ---- V2.0 D05-b imm_rotate (ooo 03-design-matrix R6): rotate
+        // the LOGICAL immediate value (split-encoded imms assembled
+        // first), preserving every non-immediate bit.
+        if (fi_mode == Mode::ImmRotate)
+            return injectImmRotate(emi, enc, orig, orig->getName(),
+                                   arm_dec, pc);
 
         // ---- bit selection ----
         // Semantic predicate for reg/imm flips (see .hh): the candidate
@@ -499,11 +638,24 @@ namespace gem5
         //             (a register NUMBER changed — not an opcode bit)
         //   imm mode: the fingerprint must be UNCHANGED
         //             (a value-only change: immediate/constant bits)
+        // V2.0 D02 layered modes parameterize the predicate by the SAMPLED
+        // field (reg_pred=true for the reg field, false for imm), so the
+        // same lambda serves the field-specific modes and the layered ones.
+        const bool is_d02_layered = (fi_mode == Mode::Bitflip2Adj ||
+                                     fi_mode == Mode::Bitflip2Nonadj ||
+                                     fi_mode == Mode::Bitflip2Cross);
+        const bool is_fd02_layered = (fi_mode == Mode::FpBitflip2Adj ||
+                                      fi_mode == Mode::FpBitflip2Nonadj ||
+                                      fi_mode == Mode::FpBitflip2Cross);
+        const char *d02_field = nullptr;  // set by the layered branches
+        // FD02-c physical attribution of bit_b (lane vs reg) — the
+        // overlap-audit fix's per-line cross-field verifiability.
+        const char *fd02_phys_b = nullptr;
         const std::string orig_name = orig->getName();
         std::vector<uint32_t> fp0;
-        if (is_reg_mode || is_imm_mode)
+        if (is_reg_mode || is_imm_mode || is_d02_layered || is_fd02_layered)
             captureRegs(orig.get(), fp0);
-        auto effective = [&](uint32_t xor_mask) -> bool {
+        auto effective = [&](uint32_t xor_mask, bool reg_pred) -> bool {
             ArmISA::ExtMachInst t = emi;
             t.instBits = enc ^ xor_mask;
             StaticInstPtr c = arm_dec->decodeChaos(t);
@@ -511,7 +663,7 @@ namespace gem5
             if (c->getName() != orig_name) return false;
             std::vector<uint32_t> fpc;
             captureRegs(c.get(), fpc);
-            return is_reg_mode ? (fpc != fp0) : (fpc == fp0);
+            return reg_pred ? (fpc != fp0) : (fpc == fp0);
         };
 
         uint32_t bit_a = 32, bit_b = 32;    // 32 = unset
@@ -567,7 +719,7 @@ namespace gem5
                 // bits, deterministic under the seed.
                 std::vector<uint32_t> eff;
                 for (size_t i = 0; i < ncand; i++)
-                    if (effective(1u << cand[i]))
+                    if (effective(1u << cand[i], is_reg_mode))
                         eff.push_back(cand[i]);
                 if (eff.empty())
                     return nullptr;   // honest wasted draw, no fault count
@@ -581,13 +733,193 @@ namespace gem5
                     uint32_t b1 = cand[rng() % ncand];
                     uint32_t b2;
                     do { b2 = cand[rng() % ncand]; } while (b2 == b1);
-                    if (effective((1u << b1) | (1u << b2))) {
+                    if (effective((1u << b1) | (1u << b2), is_reg_mode)) {
                         bit_a = b1;
                         bit_b = b2;
                     }
                 }
                 if (bit_b == 32)
                     return nullptr;   // honest wasted draw, no fault count
+            }
+        } else if (is_d02_layered) {
+            // ---- V2.0 D02 layering (ooo 03-design-matrix R3, 09-audit
+            // WB3 gap). D02-a/b: field drawn uniformly over {opcode, reg,
+            // imm} ("同字段" fixes the RELATION of the two bits, not the
+            // field), then an adjacent (|dpos|==1) resp. non-adjacent
+            // (|dpos|>=2) pair within the field's bit set. opcode field:
+            // NO verification by design (opcode_bitflip2 semantics — a
+            // legal or an illegal landing are both the fault model).
+            // reg/imm fields: the field's own predicate via rejection over
+            // a Fisher-Yates-shuffled constrained-pair list (first
+            // effective hit in shuffled order = uniform over effective
+            // constrained pairs; empty result = honest wasted draw).
+            // D02-c: 1 bit of kOpcodeBits + 1 distinct bit of kOperandBits
+            // (kRegBits UNION kImmBits = enc[21:0]) — positional selection
+            // only ("各区 bit 集内选取"); the opcode half is unverified by
+            // design and the operand half is position-guaranteed.
+            const bool d02_cross = (fi_mode == Mode::Bitflip2Cross);
+            const bool d02_adj = (fi_mode == Mode::Bitflip2Adj);
+            if (!d02_cross) {
+                const uint32_t f = rng() % 3;   // 0=opcode 1=reg 2=imm
+                const uint32_t *cand;
+                size_t ncand;
+                const char *fname;
+                bool reg_pred;
+                bool verify;
+                if (f == 0) {
+                    cand = kOpcodeBits;
+                    ncand = sizeof(kOpcodeBits) / sizeof(kOpcodeBits[0]);
+                    fname = "opcode";
+                    reg_pred = false;
+                    verify = false;
+                } else if (f == 1) {
+                    cand = kRegBits;
+                    ncand = sizeof(kRegBits) / sizeof(kRegBits[0]);
+                    fname = "reg";
+                    reg_pred = true;
+                    verify = true;
+                } else {
+                    cand = kImmBits;
+                    ncand = sizeof(kImmBits) / sizeof(kImmBits[0]);
+                    fname = "imm";
+                    reg_pred = false;
+                    verify = true;
+                }
+                std::vector<std::pair<uint32_t, uint32_t>> pairs;
+                for (size_t i = 0; i < ncand; i++)
+                    for (size_t j = i + 1; j < ncand; j++) {
+                        const uint32_t d = cand[i] > cand[j]
+                            ? cand[i] - cand[j] : cand[j] - cand[i];
+                        if (d02_adj ? (d == 1) : (d >= 2))
+                            pairs.emplace_back(cand[i], cand[j]);
+                    }
+                if (pairs.empty())
+                    return nullptr;   // defensive: no constrained pair in
+                                      // the field set (unreachable for the
+                                      // three int sets today)
+                for (size_t i = pairs.size(); i > 1; i--) {
+                    const size_t j = rng() % i;
+                    std::swap(pairs[i - 1], pairs[j]);
+                }
+                for (const auto &pr : pairs) {
+                    const uint32_t mask =
+                        (1u << pr.first) | (1u << pr.second);
+                    if (!verify || effective(mask, reg_pred)) {
+                        bit_a = pr.first;
+                        bit_b = pr.second;
+                        break;
+                    }
+                }
+                if (bit_b == 32)
+                    return nullptr;   // honest wasted draw: no constrained
+                                      // pair passes the field predicate
+                d02_field = fname;
+            } else {
+                constexpr size_t n_op =
+                    sizeof(kOpcodeBits) / sizeof(kOpcodeBits[0]);
+                constexpr size_t n_od =
+                    sizeof(kOperandBits) / sizeof(kOperandBits[0]);
+                bit_a = kOpcodeBits[rng() % n_op];
+                do { bit_b = kOperandBits[rng() % n_od]; }
+                while (bit_b == bit_a);
+                d02_field = "cross";
+            }
+        } else if (is_fd02_layered) {
+            // ---- V2.0 FD02 layering (ooo 03-design-matrix R31, FP/SIMD
+            // Decode). Same adjacency split as D02 but over the FP/SIMD
+            // instruction word's OWN PHYSICAL field structure (derived
+            // from the ARM DDI field decomposition — see kFpOpFieldBits /
+            // kFpLaneBits in .hh; deliberately NOT D02's int-field sets,
+            // and NOT the W7.1 legacy window which spans four physical
+            // fields): fp_opcode = op[15:10] + the fixed-1 format bit 21
+            // (kFpOpFieldBits); lane = {Q(30), size/ftype(23:22)}; reg =
+            // the Vd/Vn/Vm positions (kRegBits, which owns Rm[20:16]).
+            // The three sets are pairwise DISJOINT (static_asserts in .hh)
+            // — the overlap-audit fix: the first implementation reused the
+            // W7.1 window as "fp_opcode", letting a cross draw pick two
+            // size bits (23,22) or two Rm bits (pilot: [16,19]) and
+            // mislabel them cross-field.
+            // FD02-a/b: field sampled uniformly over {fp_opcode, lane,
+            // reg}, adjacent (|dpos|==1) resp. non-adjacent (|dpos|>=2)
+            // pair within the field. fp_opcode/lane: NO verification by
+            // design (legal and illegal landings are both the fault model
+            // — the fpOnly gate already restricted the population). reg:
+            // the D02 reg predicate (mnemonic kept AND fingerprint moved)
+            // via rejection over a shuffled constrained-pair list.
+            // FD02-c: 1 bit of kFpOpFieldBits + 1 distinct bit of
+            // kFpOperandSideBits (lane UNION reg) — physically disjoint
+            // sides by construction; the log carries phys_a/phys_b so the
+            // cross-field claim is verifiable per line.
+            const bool fd02_cross = (fi_mode == Mode::FpBitflip2Cross);
+            const bool fd02_adj = (fi_mode == Mode::FpBitflip2Adj);
+            if (!fd02_cross) {
+                const uint32_t f = rng() % 3;  // 0=fp_opcode 1=lane 2=reg
+                const uint32_t *cand;
+                size_t ncand;
+                const char *fname;
+                bool reg_pred;
+                bool verify;
+                if (f == 0) {
+                    cand = kFpOpFieldBits;
+                    ncand = sizeof(kFpOpFieldBits) / sizeof(kFpOpFieldBits[0]);
+                    fname = "fp_opcode";
+                    reg_pred = false;
+                    verify = false;
+                } else if (f == 1) {
+                    cand = kFpLaneBits;
+                    ncand = sizeof(kFpLaneBits) / sizeof(kFpLaneBits[0]);
+                    fname = "lane";
+                    reg_pred = false;
+                    verify = false;
+                } else {
+                    cand = kRegBits;
+                    ncand = sizeof(kRegBits) / sizeof(kRegBits[0]);
+                    fname = "reg";
+                    reg_pred = true;
+                    verify = true;
+                }
+                std::vector<std::pair<uint32_t, uint32_t>> pairs;
+                for (size_t i = 0; i < ncand; i++)
+                    for (size_t j = i + 1; j < ncand; j++) {
+                        const uint32_t d = cand[i] > cand[j]
+                            ? cand[i] - cand[j] : cand[j] - cand[i];
+                        if (fd02_adj ? (d == 1) : (d >= 2))
+                            pairs.emplace_back(cand[i], cand[j]);
+                    }
+                if (pairs.empty())
+                    return nullptr;   // defensive: no constrained pair in
+                                      // the field set (unreachable for the
+                                      // three FP fields today)
+                for (size_t i = pairs.size(); i > 1; i--) {
+                    const size_t j = rng() % i;
+                    std::swap(pairs[i - 1], pairs[j]);
+                }
+                for (const auto &pr : pairs) {
+                    const uint32_t mask =
+                        (1u << pr.first) | (1u << pr.second);
+                    if (!verify || effective(mask, reg_pred)) {
+                        bit_a = pr.first;
+                        bit_b = pr.second;
+                        break;
+                    }
+                }
+                if (bit_b == 32)
+                    return nullptr;   // honest wasted draw: no constrained
+                                      // pair passes the field predicate
+                d02_field = fname;
+            } else {
+                constexpr size_t n_op =
+                    sizeof(kFpOpFieldBits) / sizeof(kFpOpFieldBits[0]);
+                constexpr size_t n_od =
+                    sizeof(kFpOperandSideBits) / sizeof(kFpOperandSideBits[0]);
+                bit_a = kFpOpFieldBits[rng() % n_op];
+                do { bit_b = kFpOperandSideBits[rng() % n_od]; }
+                while (bit_b == bit_a);
+                // physical attribution of bit_b for the cross log line:
+                // lane (Q/size/ftype) vs reg (Vd/Vn/Vm position)
+                fd02_phys_b = (bit_b == 30 || bit_b == 23 || bit_b == 22)
+                    ? "lane" : "reg";
+                d02_field = "cross";
             }
         }
 
@@ -605,26 +937,41 @@ namespace gem5
             // == new_enc. regs_moved carries the semantic verification
             // verdict for reg/imm modes (reg: 1 = a register number
             // moved; imm: 0 = value-only change).
-            *(log_stream->stream()) << "Tick: " << curTick()
+            // FIX-B unit 3: deferred line — completed with sn= by
+            // noteBuildInst when the fetch loop wraps `repl` into a
+            // DynInst (same iteration), then flushed with the
+            // line-final faults_injected marker.
+            deferLogLine(repl) << "Tick: " << curTick()
                 << ", Site: fetch_decode, mode=" << modeToString(fi_mode)
                 << ", pc=0x" << std::hex << pc << std::dec
                 << ", orig_enc=0x" << std::hex << enc << std::dec
                 << ", new_enc=0x" << std::hex << new_emi.instBits << std::dec
                 << ", bits=[" << bit_a
                 << (bit_b != 32 ? "," : "")
-                << (bit_b != 32 ? std::to_string(bit_b) : "") << "]"
+                << (bit_b != 32 ? std::to_string(bit_b) : "") << "]";
+            // V2.0 D02/FD02 layering: 03 spec "保存bit距离和原/故障值" —
+            // dist = |bit_a - bit_b|; field = the sampled field. FD02-c
+            // additionally carries the PHYSICAL field of each bit so the
+            // cross-field claim is verifiable per line (overlap-audit fix).
+            if (is_d02_layered || is_fd02_layered)
+                pending_line
+                    << ", field=" << d02_field
+                    << ", dist=" << (bit_a > bit_b ? bit_a - bit_b
+                                                   : bit_b - bit_a);
+            if (fi_mode == Mode::FpBitflip2Cross)
+                pending_line
+                    << ", phys_a=opcode, phys_b=" << fd02_phys_b;
+            pending_line
                 << ", orig_mnemonic=" << orig_name
                 << ", new_mnemonic=" << repl->getName();
             if (fi_mode == Mode::OpcodeSwap ||
                 fi_mode == Mode::FpOpcodeSwap)
-                *(log_stream->stream()) << ", swap_rule=" << rule->name;
+                pending_line << ", swap_rule=" << rule->name;
             if (is_reg_mode || is_imm_mode)
-                *(log_stream->stream())
+                pending_line
                     << ", regs_moved=" << (is_reg_mode ? 1 : 0);
-            *(log_stream->stream())
-                << ", macroop_new=" << (repl->isMacroop() ? 1 : 0)
-                << ", faults_injected: " << faults_injected_count
-                << std::endl;
+            pending_line
+                << ", macroop_new=" << (repl->isMacroop() ? 1 : 0);
         }
         return repl;
     }
@@ -633,6 +980,403 @@ namespace gem5
     // Shared skip-log prefix: "site fetch_decode + honest-skip" lines are
     // bounded by the probability draw and carry the reason + mnemonic so a
     // reviewer can see WHY a draw was not injectable.
+
+    // ---- V2.0 D04-c src_swap (ooo 03-design-matrix R5, 09-audit WB3
+    // gap) ----
+    bool
+    CHAOSDecode::isD04SwapFamily(uint32_t enc)
+    {
+        const uint32_t grp = (enc >> 24) & 0x1F;
+        return grp == 0x0B ||   // add/sub shifted/extended register
+               grp == 0x0A ||   // logical shifted register
+               grp == 0x1B;     // data-proc three-source
+    }
+
+    StaticInstPtr
+    CHAOSDecode::injectSrcSwap(uint64_t emi_raw, uint32_t enc,
+                               StaticInstPtr orig,
+                               const std::string &orig_name,
+                               ArmISA::Decoder *arm_dec, Addr pc)
+    {
+        // Family eligibility: only formats where BOTH Rn[9:5] and
+        // Rm[20:16] are source register fields (see .hh for the GNU-as
+        // verified encodings). Others: honest skip with log.
+        if (!isD04SwapFamily(enc)) {
+            if (write_log) {
+                *(log_stream->stream()) << "Tick: " << curTick()
+                    << ", Site: fetch_decode, mode=src_swap"
+                    << ", pc=0x" << std::hex << pc << std::dec
+                    << ", orig_mnemonic=" << orig_name
+                    << " — not a two-int-src data-proc format (skipped, "
+                    << ", faults_injected: " << faults_injected_count
+                    << std::endl;
+            }
+            return nullptr;
+        }
+        const uint32_t rn = (enc >> 5) & 0x1Fu;
+        const uint32_t rm = (enc >> 16) & 0x1Fu;
+        // Rn == Rm: the swap is the identity — no actual field change,
+        // NOT a valid injection (03 spec: 至少两个可选架构寄存器).
+        if (rn == rm) {
+            if (write_log) {
+                *(log_stream->stream()) << "Tick: " << curTick()
+                    << ", Site: fetch_decode, mode=src_swap"
+                    << ", pc=0x" << std::hex << pc << std::dec
+                    << ", orig_mnemonic=" << orig_name
+                    << " — Rn==Rm (" << rn << "), swap is identity "
+                    << ", faults_injected: " << faults_injected_count
+                    << std::endl;
+            }
+            return nullptr;
+        }
+        // Exchange the two 5-bit fields; every other bit is preserved by
+        // construction (asserted in the structural pilot: enc ^ new_enc
+        // has bits ONLY inside [20:16] | [9:5]).
+        const uint32_t new_enc =
+            (enc & ~((0x1Fu << 16) | (0x1Fu << 5))) | (rn << 16) | (rm << 5);
+        ArmISA::ExtMachInst new_emi;
+        new_emi = emi_raw;
+        new_emi.instBits = new_enc;
+        StaticInstPtr repl = arm_dec->decodeChaos(new_emi);
+        if (!repl) return nullptr;
+        // Semantic predicate (the W6 reg-family discipline): the mnemonic
+        // must be unchanged AND the register-operand fingerprint must MOVE
+        // (with Rn != Rm the positional src order differs, so the swap
+        // always moves it; the check guards against pathological
+        // format-decoder surprises).
+        if (repl->getName() != orig_name) {
+            if (write_log) {
+                *(log_stream->stream()) << "Tick: " << curTick()
+                    << ", Site: fetch_decode, mode=src_swap"
+                    << ", pc=0x" << std::hex << pc << std::dec
+                    << ", orig_mnemonic=" << orig_name
+                    << ", new_mnemonic=" << repl->getName()
+                    << " — mnemonic changed (skipped, no injection)"
+                    << ", faults_injected: " << faults_injected_count
+                    << std::endl;
+            }
+            return nullptr;
+        }
+        std::vector<uint32_t> fp0, fpc;
+        captureRegs(orig.get(), fp0);
+        captureRegs(repl.get(), fpc);
+        if (fpc == fp0) {
+            if (write_log) {
+                *(log_stream->stream()) << "Tick: " << curTick()
+                    << ", Site: fetch_decode, mode=src_swap"
+                    << ", pc=0x" << std::hex << pc << std::dec
+                    << ", orig_mnemonic=" << orig_name
+                    << " — fingerprint unchanged (skipped, no injection)"
+                    << ", faults_injected: " << faults_injected_count
+                    << std::endl;
+            }
+            return nullptr;
+        }
+        faults_injected_count++;
+        if (write_log) {
+            // Verifiable: new_enc == (enc with Rn/Rm fields exchanged);
+            // rn/rm values + both encodings + mnemonics all logged.
+            // FIX-B unit 3: deferred line (sn join at build).
+            deferLogLine(repl) << "Tick: " << curTick()
+                << ", Site: fetch_decode, mode=src_swap"
+                << ", pc=0x" << std::hex << pc << std::dec
+                << ", orig_enc=0x" << std::hex << enc
+                << ", new_enc=0x" << new_enc << std::dec
+                << ", rn=" << rn << "->" << rm
+                << ", rm=" << rm << "->" << rn
+                << ", orig_mnemonic=" << orig_name
+                << ", new_mnemonic=" << repl->getName();
+        }
+        return repl;
+    }
+
+    // D04-e x0_sub: replace ONE int register operand slot with X0 (the
+    // register NUMBER 0 — not XZR=31, not a data-value zeroing). Slot
+    // (src0=Rn / src1=Rm / dst=Rd) sampled uniformly; the 03 row's
+    // expected-outcome column names both "dst=x0可能掩蔽" and
+    // "src=x0可能稳定偏差", so the submodel covers all three slots with
+    // the slot recorded per injection. Same families as D04-c (Rn/Rm/Rd
+    // are all register fields there). Slot already X0 = honest skip.
+    StaticInstPtr
+    CHAOSDecode::injectX0Sub(uint64_t emi_raw, uint32_t enc,
+                             StaticInstPtr orig,
+                             const std::string &orig_name,
+                             ArmISA::Decoder *arm_dec, Addr pc)
+    {
+        if (!isD04SwapFamily(enc)) {
+            if (write_log) {
+                *(log_stream->stream()) << "Tick: " << curTick()
+                    << ", Site: fetch_decode, mode=x0_sub"
+                    << ", pc=0x" << std::hex << pc << std::dec
+                    << ", orig_mnemonic=" << orig_name
+                    << " — not an int data-proc register format (skipped, "
+                    << ", faults_injected: " << faults_injected_count
+                    << std::endl;
+            }
+            return nullptr;
+        }
+        // slot: 0=src0(Rn[9:5]) 1=src1(Rm[20:16]) 2=dst(Rd[4:0])
+        const uint32_t slot = rng() % 3;
+        uint32_t shift;
+        const char *slot_name;
+        if (slot == 0)      { shift = 5;  slot_name = "src0"; }
+        else if (slot == 1) { shift = 16; slot_name = "src1"; }
+        else                { shift = 0;  slot_name = "dst"; }
+        const uint32_t cur = (enc >> shift) & 0x1Fu;
+        if (cur == 0) {
+            if (write_log) {
+                *(log_stream->stream()) << "Tick: " << curTick()
+                    << ", Site: fetch_decode, mode=x0_sub"
+                    << ", pc=0x" << std::hex << pc << std::dec
+                    << ", orig_mnemonic=" << orig_name
+                    << " — " << slot_name << " already X0 (skipped, no "
+                    << ", faults_injected: " << faults_injected_count
+                    << std::endl;
+            }
+            return nullptr;
+        }
+        // Zero the selected 5-bit field; every other bit preserved by
+        // construction (asserted in the structural pilot).
+        const uint32_t new_enc = enc & ~(0x1Fu << shift);
+        ArmISA::ExtMachInst new_emi;
+        new_emi = emi_raw;
+        new_emi.instBits = new_enc;
+        StaticInstPtr repl = arm_dec->decodeChaos(new_emi);
+        if (!repl) return nullptr;
+        // Semantic predicate: mnemonic kept AND register fingerprint
+        // moved (the slot's register number changed 0<->nonzero).
+        if (repl->getName() != orig_name) {
+            if (write_log) {
+                *(log_stream->stream()) << "Tick: " << curTick()
+                    << ", Site: fetch_decode, mode=x0_sub"
+                    << ", pc=0x" << std::hex << pc << std::dec
+                    << ", orig_mnemonic=" << orig_name
+                    << ", new_mnemonic=" << repl->getName()
+                    << " — mnemonic changed (skipped, no injection)"
+                    << ", faults_injected: " << faults_injected_count
+                    << std::endl;
+            }
+            return nullptr;
+        }
+        std::vector<uint32_t> fp0, fpc;
+        captureRegs(orig.get(), fp0);
+        captureRegs(repl.get(), fpc);
+        if (fpc == fp0) {
+            if (write_log) {
+                *(log_stream->stream()) << "Tick: " << curTick()
+                    << ", Site: fetch_decode, mode=x0_sub"
+                    << ", pc=0x" << std::hex << pc << std::dec
+                    << ", orig_mnemonic=" << orig_name
+                    << " — fingerprint unchanged (skipped, no injection)"
+                    << ", faults_injected: " << faults_injected_count
+                    << std::endl;
+            }
+            return nullptr;
+        }
+        faults_injected_count++;
+        if (write_log) {
+            // Verifiable: new_enc == enc with the slot field zeroed;
+            // slot, old number, both encodings and mnemonics logged.
+            // FIX-B unit 3: deferred line (sn join at build).
+            deferLogLine(repl) << "Tick: " << curTick()
+                << ", Site: fetch_decode, mode=x0_sub"
+                << ", pc=0x" << std::hex << pc << std::dec
+                << ", orig_enc=0x" << std::hex << enc
+                << ", new_enc=0x" << new_enc << std::dec
+                << ", slot=" << slot_name
+                << ", old_reg=x" << cur
+                << ", new_reg=x0"
+                << ", orig_mnemonic=" << orig_name
+                << ", new_mnemonic=" << repl->getName();
+        }
+        return repl;
+    }
+
+    // ---- V2.0 D05-b imm_rotate (ooo 03-design-matrix R6, 09-audit WB3
+    // gap) ----
+    // Mask/match rows are the GNU-as-verified kSignImmFormats values (see
+    // the .hh record); the bitmask-immediate family is EXCLUDED (see .hh).
+    // Segments are MSB-first; width = sum of segment widths.
+    const CHAOSDecode::ImmRotFormat CHAOSDecode::kImmRotFormats[] = {
+        // add/sub imm12: add x0,x1,#1=0x91000420 lsl#12=0xb1400420
+        {0x1FC00000u, 0x11000000u, 1, {21,0}, {10,0}, 12,
+         "add_sub_imm12"},
+        // ldr/str unsigned imm12: str=0xf9000420 ldr=0xf9400420
+        {0x1FC00000u, 0x19000000u, 1, {21,0}, {10,0}, 12,
+         "str_imm12"},
+        {0x1FC00000u, 0x19400000u, 1, {21,0}, {10,0}, 12,
+         "ldr_imm12"},
+        // ldur/stur imm9: ldur=0xf85f8020 stur=0xf81f8020
+        {0x3FE00C00u, 0x38000000u, 1, {20,0}, {12,0}, 9,
+         "stur_imm9"},
+        {0x3FE00C00u, 0x38400000u, 1, {20,0}, {12,0}, 9,
+         "ldur_imm9"},
+        // b.cond imm19: b.eq=0x540001c0
+        {0xFF000010u, 0x54000000u, 1, {23,0}, {5,0}, 19,
+         "bcond_imm19"},
+        // cbz/cbnz imm19: cbz=0xb40001a0 cbnz=0xb5000180
+        {0x7F000000u, 0x34000000u, 1, {23,0}, {5,0}, 19,
+         "cbz_imm19"},
+        {0x7F000000u, 0x35000000u, 1, {23,0}, {5,0}, 19,
+         "cbnz_imm19"},
+        // tbz/tbnz imm14: tbz=0x36180160 tbnz=0x37180140
+        {0x7F000000u, 0x36000000u, 1, {18,0}, {5,0}, 14,
+         "tbz_imm14"},
+        {0x7F000000u, 0x37000000u, 1, {18,0}, {5,0}, 14,
+         "tbnz_imm14"},
+        // b/bl imm26: b=0x14000009 bl=0x94000008
+        {0x7C000000u, 0x14000000u, 1, {25,0}, {0,0}, 26,
+         "b_imm26"},
+        {0x7C000000u, 0x94000000u, 1, {25,0}, {0,0}, 26,
+         "bl_imm26"},
+        // adr/adrp: immhi[23:5] (MSB, 19 bits) + immlo[30:29] (LSB, 2)
+        {0x9F000000u, 0x10000000u, 2, {23,30}, {5,29}, 21,
+         "adr_imm21"},
+        {0x9F000000u, 0x90000000u, 2, {23,30}, {5,29}, 21,
+         "adrp_imm21"},
+        // ldr literal imm19: ldr x0,lit=0x580000a0
+        {0xFF000000u, 0x58000000u, 1, {23,0}, {5,0}, 19,
+         "ldr_lit_imm19"},
+        // movz/movn/movk imm16: movz=0xd2824680 movn=0x92824680
+        // movk lsl#16=0xf2a24680
+        {0x7F800000u, 0x52800000u, 1, {20,0}, {5,0}, 16,
+         "movz_imm16"},
+        {0x7F800000u, 0x92800000u, 1, {20,0}, {5,0}, 16,
+         "movn_imm16"},
+        {0x7F800000u, 0xF2800000u, 1, {20,0}, {5,0}, 16,
+         "movk_imm16"},
+    };
+
+    const CHAOSDecode::ImmRotFormat *
+    CHAOSDecode::matchImmRotFormat(uint32_t enc)
+    {
+        for (const ImmRotFormat &f : kImmRotFormats)
+            if ((enc & f.mask) == f.match)
+                return &f;
+        return nullptr;
+    }
+
+    StaticInstPtr
+    CHAOSDecode::injectImmRotate(uint64_t emi_raw, uint32_t enc,
+                                 StaticInstPtr orig,
+                                 const std::string &orig_name,
+                                 ArmISA::Decoder *arm_dec, Addr pc)
+    {
+        const ImmRotFormat *fmt = matchImmRotFormat(enc);
+        if (!fmt) {
+            if (write_log) {
+                *(log_stream->stream()) << "Tick: " << curTick()
+                    << ", Site: fetch_decode, mode=imm_rotate"
+                    << ", pc=0x" << std::hex << pc << std::dec
+                    << ", orig_mnemonic=" << orig_name
+                    << " — no supported immediate format (bitmask-imm "
+                    << "and imm-less encodings are honest skips; no "
+                    << ", faults_injected: " << faults_injected_count
+                    << std::endl;
+            }
+            return nullptr;
+        }
+        // Assemble the LOGICAL immediate value from the (possibly split)
+        // segments, MSB-first.
+        uint32_t old_val = 0;
+        for (int s = 0; s < fmt->nsegs; s++) {
+            const uint8_t hi = fmt->hi[s], lo = fmt->lo[s];
+            const uint8_t w = hi - lo + 1;
+            old_val = (old_val << w) | ((enc >> lo) & ((1u << w) - 1));
+        }
+        // Sample direction and amount; rotate the logical value.
+        const bool left = (rng() % 2) == 0;
+        const uint32_t amount = 1 + (rng() % (fmt->width - 1));
+        const uint32_t mask_w = (1u << fmt->width) - 1;
+        const uint32_t new_val = left
+            ? ((old_val << amount) | (old_val >> (fmt->width - amount)))
+              & mask_w
+            : ((old_val >> amount) | (old_val << (fmt->width - amount)))
+              & mask_w;
+        // Rotation identity (all-0, all-1, or amount==width): no actual
+        // value change — honest skip, no fault.
+        if (new_val == old_val) {
+            if (write_log) {
+                *(log_stream->stream()) << "Tick: " << curTick()
+                    << ", Site: fetch_decode, mode=imm_rotate"
+                    << ", pc=0x" << std::hex << pc << std::dec
+                    << ", orig_mnemonic=" << orig_name
+                    << ", fmt=" << fmt->name
+                    << " — rotation identity (value unchanged; skipped, "
+                    << ", faults_injected: " << faults_injected_count
+                    << std::endl;
+            }
+            return nullptr;
+        }
+        // Disperse the rotated value back into the segments (LSB segment
+        // first when peeling bits off), preserving every other bit.
+        uint32_t new_enc = enc;
+        uint32_t rest = new_val;
+        for (int s = fmt->nsegs - 1; s >= 0; s--) {
+            const uint8_t hi = fmt->hi[s], lo = fmt->lo[s];
+            const uint8_t w = hi - lo + 1;
+            const uint32_t seg = rest & ((1u << w) - 1);
+            rest >>= w;
+            new_enc = (new_enc & ~(((1u << w) - 1) << lo)) | (seg << lo);
+        }
+        ArmISA::ExtMachInst new_emi;
+        new_emi = emi_raw;
+        new_emi.instBits = new_enc;
+        StaticInstPtr repl = arm_dec->decodeChaos(new_emi);
+        if (!repl) return nullptr;
+        // Value-only predicate (the imm-family discipline): mnemonic
+        // kept AND register fingerprint UNCHANGED — only the immediate
+        // moved.
+        if (repl->getName() != orig_name) {
+            if (write_log) {
+                *(log_stream->stream()) << "Tick: " << curTick()
+                    << ", Site: fetch_decode, mode=imm_rotate"
+                    << ", pc=0x" << std::hex << pc << std::dec
+                    << ", orig_mnemonic=" << orig_name
+                    << ", new_mnemonic=" << repl->getName()
+                    << " — mnemonic changed (skipped, no injection)"
+                    << ", faults_injected: " << faults_injected_count
+                    << std::endl;
+            }
+            return nullptr;
+        }
+        std::vector<uint32_t> fp0, fpc;
+        captureRegs(orig.get(), fp0);
+        captureRegs(repl.get(), fpc);
+        if (fpc != fp0) {
+            if (write_log) {
+                *(log_stream->stream()) << "Tick: " << curTick()
+                    << ", Site: fetch_decode, mode=imm_rotate"
+                    << ", pc=0x" << std::hex << pc << std::dec
+                    << ", orig_mnemonic=" << orig_name
+                    << " — register fingerprint changed (skipped, no "
+                    << ", faults_injected: " << faults_injected_count
+                    << std::endl;
+            }
+            return nullptr;
+        }
+        faults_injected_count++;
+        if (write_log) {
+            // Verifiable: orig/new logical values, direction+amount,
+            // format, both encodings and mnemonics all logged; the
+            // encoding diff is confined to the format's imm segments.
+            // FIX-B unit 3: deferred line (sn join at build).
+            deferLogLine(repl) << "Tick: " << curTick()
+                << ", Site: fetch_decode, mode=imm_rotate"
+                << ", pc=0x" << std::hex << pc << std::dec
+                << ", orig_enc=0x" << std::hex << enc
+                << ", new_enc=0x" << new_enc << std::dec
+                << ", fmt=" << fmt->name
+                << ", width=" << (int)fmt->width
+                << ", rot=" << (left ? "left" : "right")
+                << ", amount=" << amount
+                << ", orig_imm=0x" << std::hex << old_val
+                << ", new_imm=0x" << new_val << std::dec
+                << ", orig_mnemonic=" << orig_name
+                << ", new_mnemonic=" << repl->getName();
+        }
+        return repl;
+    }
 
     // D08 sign_ext_bit: flip EXACTLY the format-located sign/top bit of the
     // immediate's encoding, then re-decode (the decoder's own sext logic
@@ -658,6 +1402,7 @@ namespace gem5
                     << ", pc=0x" << std::hex << pc << std::dec
                     << ", orig_enc=0x" << std::hex << enc << std::dec
                     << ", orig_mnemonic=" << orig_name
+                    << ", faults_injected: " << faults_injected_count
                     << std::endl;
             return nullptr;
         }
@@ -687,13 +1432,15 @@ namespace gem5
                     << ", pc=0x" << std::hex << pc << std::dec
                     << ", orig_enc=0x" << std::hex << enc << std::dec
                     << ", orig_mnemonic=" << orig_name
+                    << ", faults_injected: " << faults_injected_count
                     << std::endl;
             return nullptr;
         }
 
         faults_injected_count++;
         if (write_log)
-            *(log_stream->stream()) << "Tick: " << curTick()
+            // FIX-B unit 3: deferred line (sn join at build).
+            deferLogLine(repl) << "Tick: " << curTick()
                 << ", Site: fetch_decode, mode=sign_ext_bit"
                 << ", pc=0x" << std::hex << pc << std::dec
                 << ", format=" << fmt->name
@@ -704,9 +1451,7 @@ namespace gem5
                 << ", new_enc=0x" << std::hex << new_emi.instBits << std::dec
                 << ", orig_mnemonic=" << orig_name
                 << ", new_mnemonic=" << repl->getName()
-                << ", regs_moved=0"
-                << ", faults_injected: " << faults_injected_count
-                << std::endl;
+                << ", regs_moved=0";
         return repl;
     }
 
@@ -740,6 +1485,7 @@ namespace gem5
                     << ", pc=0x" << std::hex << pc << std::dec
                     << ", orig_enc=0x" << std::hex << enc << std::dec
                     << ", orig_mnemonic=" << orig_name
+                    << ", faults_injected: " << faults_injected_count
                     << std::endl;
             return nullptr;
         }
@@ -766,6 +1512,7 @@ namespace gem5
                     << ", pc=0x" << std::hex << pc << std::dec
                     << ", orig_enc=0x" << std::hex << enc << std::dec
                     << ", orig_mnemonic=" << orig_name
+                    << ", faults_injected: " << faults_injected_count
                     << std::endl;
             return nullptr;
         }
@@ -792,13 +1539,15 @@ namespace gem5
                     << ", new_enc=0x" << std::hex << new_emi.instBits
                     << std::dec
                     << ", orig_mnemonic=" << orig_name
+                    << ", faults_injected: " << faults_injected_count
                     << std::endl;
             return nullptr;
         }
 
         faults_injected_count++;
         if (write_log)
-            *(log_stream->stream()) << "Tick: " << curTick()
+            // FIX-B unit 3: deferred line (sn join at build).
+            deferLogLine(repl) << "Tick: " << curTick()
                 << ", Site: fetch_decode, mode=imm_subfield_shift"
                 << ", pc=0x" << std::hex << pc << std::dec
                 << ", format=" << fmt->name
@@ -810,9 +1559,7 @@ namespace gem5
                 << ", new_enc=0x" << std::hex << new_emi.instBits << std::dec
                 << ", orig_mnemonic=" << orig_name
                 << ", new_mnemonic=" << repl->getName()
-                << ", regs_moved=0"
-                << ", faults_injected: " << faults_injected_count
-                << std::endl;
+                << ", regs_moved=0";
         return repl;
     }
 
@@ -844,6 +1591,7 @@ namespace gem5
                     << ", pc=0x" << std::hex << pc << std::dec
                     << ", orig_enc=0x" << std::hex << enc << std::dec
                     << ", orig_mnemonic=" << orig_name
+                    << ", faults_injected: " << faults_injected_count
                     << std::endl;
             return nullptr;
         }
@@ -861,6 +1609,7 @@ namespace gem5
                     << ", pc=0x" << std::hex << pc << std::dec
                     << ", orig_enc=0x" << std::hex << enc << std::dec
                     << ", orig_mnemonic=" << orig_name
+                    << ", faults_injected: " << faults_injected_count
                     << std::endl;
             return nullptr;
         }
@@ -888,6 +1637,7 @@ namespace gem5
                     << ", new_enc=0x" << std::hex << new_emi.instBits
                     << std::dec
                     << ", orig_mnemonic=" << orig_name
+                    << ", faults_injected: " << faults_injected_count
                     << std::endl;
             return nullptr;
         }
@@ -905,7 +1655,10 @@ namespace gem5
 
         faults_injected_count++;
         if (write_log)
-            *(log_stream->stream()) << "Tick: " << curTick()
+            // FIX-B unit 3: deferred line (sn join at build — for a
+            // macroop replacement the FIRST microop's macroop matches and
+            // that µop's seqNum is logged).
+            deferLogLine(repl) << "Tick: " << curTick()
                 << ", Site: fetch_decode, mode=crack_ctrl"
                 << ", pc=0x" << std::hex << pc << std::dec
                 << ", orig_enc=0x" << std::hex << enc << std::dec
@@ -917,9 +1670,7 @@ namespace gem5
                 << ", uops_delta=" << delta
                 << ", arm=" << arm
                 << ", orig_mnemonic=" << orig_name
-                << ", new_mnemonic=" << repl->getName()
-                << ", faults_injected: " << faults_injected_count
-                << std::endl;
+                << ", new_mnemonic=" << repl->getName();
         return repl;
     }
 
@@ -967,6 +1718,7 @@ namespace gem5
                     << ", pc=0x" << std::hex << pc << std::dec
                     << ", orig_enc=0x" << std::hex << enc << std::dec
                     << ", orig_mnemonic=" << orig_name
+                    << ", faults_injected: " << faults_injected_count
                     << std::endl;
             return nullptr;
         }
@@ -989,6 +1741,7 @@ namespace gem5
                     << ", new_enc=0x" << std::hex << new_emi.instBits
                     << std::dec
                     << ", orig_mnemonic=" << orig_name
+                    << ", faults_injected: " << faults_injected_count
                     << std::endl;
             return nullptr;
         }
@@ -998,7 +1751,8 @@ namespace gem5
             // opclass_old/new names from the generated enums::OpClassStrings
             // table (base build artifact enums/OpClass.cc); the observable
             // route effect = the FU/latency change implied by the pair.
-            *(log_stream->stream()) << "Tick: " << curTick()
+            // FIX-B unit 3: deferred line (sn join at build).
+            deferLogLine(repl) << "Tick: " << curTick()
                 << ", Site: fetch_decode, mode=fp_route_bit"
                 << ", pc=0x" << std::hex << pc << std::dec
                 << ", orig_enc=0x" << std::hex << enc << std::dec
@@ -1009,9 +1763,7 @@ namespace gem5
                 << ", opclass_new="
                 << enums::OpClassStrings[static_cast<int>(repl->opClass())]
                 << ", orig_mnemonic=" << orig_name
-                << ", new_mnemonic=" << repl->getName()
-                << ", faults_injected: " << faults_injected_count
-                << std::endl;
+                << ", new_mnemonic=" << repl->getName();
         }
         return repl;
     }

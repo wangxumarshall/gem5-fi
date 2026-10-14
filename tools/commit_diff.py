@@ -14,7 +14,7 @@ five classes (docs/gem5-fi/ooo/01-observation-points.md, L2):
 Pinned trace line format (docs/superpowers/plans/2026-09-24-ooo-w2-observation.md
 Global Constraints; producer = W2.1 CHAOSCommitTrace, this tool = consumer):
 
-    seq,tid,tick,pc,op,ndest[,class,arch,phys,val]*
+    seq,tid,tick,pc,op,ndest[,class,arch,phys,val]*          (v1, default)
 
 CSV, one committed instruction per line. gem5 simout writes it gzip-compressed;
 this tool auto-detects gzip by magic bytes (a plain-text file also reads fine).
@@ -33,10 +33,32 @@ Fields:
       val    64-bit value as EXACTLY 16 hex digits (scalar zero-padded, or
              FNV-1a-64 of the vector blob), case-insensitive
 
-Strict parsing: every line must have exactly 6 + 4*ndest columns and every
-field must match its type; anything else is a loud exit 1 naming file + line
-number + reason. seq must start at 0 and strictly increase (alignment
-requirement of the pinned format).
+FIX-B v2 (2026-10-13, opt-in --ctrace_v2 producer; backward-compatible
+consumer — v1 files parse EXACTLY as before):
+
+    # ctrace v2 seq,seqencNum,tid,tick,pc,op,ndest[,c,a,p,v]*,nsrc[,c,a,p]*
+
+A v2 file starts with that '#'-marker line and every row additionally
+carries, after the dest 4-tuples, nsrc and one (class,arch,phys) triple per
+SOURCE register (class may be -1 = InvalidRegClass sentinel and phys may be
+-1 when the phys id is absent — same convention as the dest class column).
+Version detection: the '# ctrace v2' marker line if present; otherwise a
+per-line column-count fit (a v1 row has 6+4*ndest columns, a v2 row
+8+4*ndest+3*nsrc). A genuine v2 row can NEVER fit the v1 contract (v1's
+ndest column holds the v2 op mnemonic — never an unsigned integer), but a
+v1 row CAN coincidentally fit the v2 equation (REAL data does: an ndest=2
+v1 row whose dest0 fields are 0/2/all-digits lands on 8+4*0+3*2 = 14
+columns — measured, old_no_inj line 275), so BOTH-fit resolves to v1 and
+NEITHER-fit is rejected loudly. '# squash ...'
+event lines (FIX-B squash observation) are annotations, not records: they
+are skipped here (tools/ooo_l3.py is their consumer). The five-class
+comparison uses ONLY the v1 fields — seqencNum/nsrc/srcs are parsed and
+carried on the Rec for the L3 builder but never classified.
+
+Strict parsing: every record line must have exactly the column count its
+version demands and every field must match its type; anything else is a
+loud exit 1 naming file + line number + reason. seq must start at 0 and
+strictly increase (alignment requirement of the pinned format).
 
 Alignment & classification (plan Task 2, pinned):
   The two traces are merged on seq (union; a seq present on only one side is
@@ -121,19 +143,26 @@ class TraceError(Exception):
 
 
 class Rec(object):
-    """One parsed committed-instruction line."""
+    """One parsed committed-instruction line.
 
-    __slots__ = ("seq", "tid", "tick", "pc", "op", "ndest", "dests", "raw",
-                 "lineno")
+    v1 rows: seqenc is None, nsrc is None, srcs is [] (never a silent
+    zero-count — None distinguishes 'column absent' from 'zero sources')."""
 
-    def __init__(self, seq, tid, tick, pc, op, ndest, dests, raw, lineno):
+    __slots__ = ("seq", "seqenc", "tid", "tick", "pc", "op", "ndest",
+                 "dests", "nsrc", "srcs", "raw", "lineno")
+
+    def __init__(self, seq, tid, tick, pc, op, ndest, dests, raw, lineno,
+                 seqenc=None, nsrc=None, srcs=None):
         self.seq = seq
+        self.seqenc = seqenc   # v2: DynInst::seqNum (join key); v1: None
         self.tid = tid
         self.tick = tick
         self.pc = pc
         self.op = op
         self.ndest = ndest
         self.dests = dests  # list of (class, arch, phys, val) tuples
+        self.nsrc = nsrc    # v2: number of source triples; v1: None
+        self.srcs = srcs or []  # v2: list of (class, arch, phys) triples
         self.raw = raw      # original line text (no trailing newline)
         self.lineno = lineno
 
@@ -184,12 +213,117 @@ def _val(tok, what, path, lineno):
     return tok.lower()
 
 
-def parse_line(path, lineno, line):
+def _fit_v1(cols):
+    """Column-count fit for a v1 row: seq,tid,tick,pc,op,ndest[,c,a,p,v]*."""
+    if len(cols) < 6 or not UINT_RE.match(cols[5]):
+        return False
+    return len(cols) == 6 + 4 * int(cols[5])
+
+
+def _fit_v2(cols):
+    """Column-count fit for a v2 row (FIX-B):
+    seq,seqencNum,tid,tick,pc,op,ndest[,c,a,p,v]*,nsrc[,c,a,p]*."""
+    if len(cols) < 8 or not UINT_RE.match(cols[6]):
+        return False
+    ndest = int(cols[6])
+    nsrc_pos = 7 + 4 * ndest
+    if nsrc_pos >= len(cols) or not UINT_RE.match(cols[nsrc_pos]):
+        return False
+    nsrc = int(cols[nsrc_pos])
+    return len(cols) == 8 + 4 * ndest + 3 * nsrc
+
+
+# FIX-B squash-observation event (annotation, not a record; consumer =
+# tools/ooo_l3.py): "# squash <sn> <tick> [<class> <arch> <phys>]..."
+_SQUASH_RE = re.compile(r"^# squash \d+ \d+(?:[ ]-?\d+[ ]-?\d+[ ]-?\d+)*\s*$")
+_V2_MARKER = "# ctrace v2"
+
+
+def _check_annotation(path, lineno, line):
+    """A '#'-line is either a KNOWN FIX-B annotation (v2 header / squash
+    event) or a loud error — never silently skipped."""
+    if line.startswith(_V2_MARKER) or _SQUASH_RE.match(line):
+        return
+    raise TraceError("%s: line %d: 未知的 '#' 注释行 %r（已知注释: "
+                     "'# ctrace v2 …' 头行 / '# squash …' 事件行）"
+                     % (path, lineno, line))
+
+
+def parse_line(path, lineno, line, declared=None):
+    """Parse one record line (v1 or v2; see module docstring for both
+    pinned layouts). `declared` ("v2" after the file's marker line) makes
+    a v1-only-fitting row in a v2 file a loud error instead of a silent
+    version flip.
+
+    Version detection: a genuine v2 row can NEVER satisfy the v1 column
+    contract, because v1's ndest position (col 5) holds the v2 row's op
+    mnemonic — StaticInst mnemonics are never unsigned integers. The
+    converse is NOT true: a v1 row CAN satisfy the v2 column equation
+    when its dest fields conspire (e.g. a v1 ndest=2 row whose dest0
+    class/arch/val are 0/2/all-digits lands on 8+4*0+3*2 = 14 columns —
+    REAL data, measured: old_no_inj line 275). Both-fit therefore
+    resolves to v1, NOT an error (the error variant broke real v1
+    traces during FIX-B unit-4 verification)."""
     cols = line.split(",")
     if len(cols) < 6:
         raise TraceError("%s: line %d: 列数 %d < 6（钉死格式基列 "
                          "'seq,tid,tick,pc,op,ndest' 至少 6 列）"
                          % (path, lineno, len(cols)))
+    fit1 = _fit_v1(cols)
+    fit2 = _fit_v2(cols)
+    if not fit1 and not fit2:
+        if UINT_RE.match(cols[5]):
+            ndest = int(cols[5])
+            raise TraceError("%s: line %d: 列数不匹配: ndest=%d 要求 %d 列 "
+                             "(6+4*ndest)，实际 %d 列"
+                             % (path, lineno, ndest, 6 + 4 * ndest, len(cols)))
+        if len(cols) > 6 and UINT_RE.match(cols[6]):
+            ndest = int(cols[6])
+            raise TraceError("%s: line %d: v2 行列数不匹配: ndest=%d 时 "
+                             "要求 8+4*ndest+3*nsrc 列，实际 %d 列"
+                             % (path, lineno, ndest, len(cols)))
+        raise TraceError("%s: line %d: 行既不符合 v1 (6+4*ndest) 也不符合 "
+                         "v2 (8+4*ndest+3*nsrc) 列数契约（%d 列; ndest 列 "
+                         "'%s' 非无符号整数）"
+                         % (path, lineno, len(cols), cols[5]))
+    if declared == "v2" and not fit2:
+        raise TraceError("%s: line %d: 文件头声明 v2 但该行只符合 v1 列数"
+                         "契约" % (path, lineno))
+
+    if fit2 and not fit1:
+        # ---- v2 row (FIX-B) ----
+        seq = _uint(cols[0], "seq", path, lineno)
+        seqenc = _uint(cols[1], "seqencNum", path, lineno)
+        tid = _uint(cols[2], "tid", path, lineno)
+        tick = _uint(cols[3], "tick", path, lineno)
+        pc = _pc(cols[4], path, lineno)
+        op = cols[5]
+        if not op:
+            raise TraceError("%s: line %d: op 字段为空" % (path, lineno))
+        ndest = _uint(cols[6], "ndest", path, lineno)
+        dests = []
+        for i in range(ndest):
+            b = 7 + 4 * i
+            dcls = _cls(cols[b], "dest[%d].class" % i, path, lineno)
+            darch = _uint(cols[b + 1], "dest[%d].arch" % i, path, lineno)
+            dphys = _uint(cols[b + 2], "dest[%d].phys" % i, path, lineno)
+            dval = _val(cols[b + 3], "dest[%d].val" % i, path, lineno)
+            dests.append((dcls, darch, dphys, dval))
+        nsrc_pos = 7 + 4 * ndest
+        nsrc = _uint(cols[nsrc_pos], "nsrc", path, lineno)
+        srcs = []
+        for i in range(nsrc):
+            b = nsrc_pos + 1 + 3 * i
+            scls = _cls(cols[b], "src[%d].class" % i, path, lineno)
+            sarch = _uint(cols[b + 1], "src[%d].arch" % i, path, lineno)
+            # src phys: -1 sentinel = phys id absent (the v2 writer's null
+            # convention; dests keep the historic no-sentinel contract)
+            sphys = _cls(cols[b + 2], "src[%d].phys" % i, path, lineno)
+            srcs.append((scls, sarch, sphys))
+        return Rec(seq, tid, tick, pc, op, ndest, dests, line, lineno,
+                   seqenc=seqenc, nsrc=nsrc, srcs=srcs)
+
+    # ---- v1 row (historic path, byte-identical behavior) ----
     seq = _uint(cols[0], "seq", path, lineno)
     tid = _uint(cols[1], "tid", path, lineno)
     tick = _uint(cols[2], "tick", path, lineno)
@@ -214,7 +348,7 @@ def parse_line(path, lineno, line):
     return Rec(seq, tid, tick, pc, op, ndest, dests, line, lineno)
 
 
-def iter_records(path, trunc=None):
+def iter_records(path, trunc=None, fmt=None):
     """Yield Rec objects from `path` in file order (seq strictly increasing).
 
     `trunc` (optional dict) enables the W2.1-followup truncated-stream
@@ -223,19 +357,38 @@ def iter_records(path, trunc=None):
     gzflush(Z_SYNC_FLUSH)ed its rows) the generator STOPS gracefully and
     sets trunc['truncated']=True instead of raising; the caller then treats
     the parsed prefix as the comparable region. OSError (unreadable file)
-    still raises."""
+    still raises.
+
+    `fmt` (optional dict, FIX-B) records what the file contained:
+    fmt['marker']=True after the '# ctrace v2' header, fmt['v1_rows'] /
+    fmt['v2_rows'] count rows per version (annotations are not rows)."""
     if trunc is not None:
         trunc['truncated'] = False
+    if fmt is not None:
+        fmt['marker'] = False
+        fmt['v1_rows'] = 0
+        fmt['v2_rows'] = 0
     fh = open_text(path)
     lineno = 0
     prev_seq = None
+    declared = None
     try:
         for raw in fh:
             lineno += 1
             line = raw.rstrip("\r\n")
             if not line.strip():
                 continue  # blank line: not a record, but still counted in numbering
-            rec = parse_line(path, lineno, line)
+            if line.startswith("#"):
+                # FIX-B annotation (v2 header / squash event): not a record.
+                _check_annotation(path, lineno, line)
+                if line.startswith(_V2_MARKER):
+                    if fmt is not None:
+                        fmt['marker'] = True
+                    declared = "v2"
+                continue
+            rec = parse_line(path, lineno, line, declared=declared)
+            if fmt is not None:
+                fmt['v2_rows' if rec.seqenc is not None else 'v1_rows'] += 1
             if prev_seq is None:
                 if rec.seq != 0:
                     raise TraceError("%s: line %d: 首条记录 seq=%d，"
@@ -295,8 +448,17 @@ def _pair_divergence(r, u):
     return None
 
 
-def compare(ref_path, run_path, tick_tol):
+def compare(ref_path, run_path, tick_tol, seq_range=None):
     """Merge-join both traces on seq (streaming, O(1) memory) and classify.
+
+    seq_range (L0-L5 plan Task 3): optional (lo, hi) INCLUSIVE seq window.
+    Records with seq < lo are dropped, and the first record with seq > hi
+    ENDS that side (an early stop — the rest of that file is never read,
+    which is the point for multi-hundred-MB coremark traces). A windowed
+    comparison NEVER claims whole-trace evidence: the result carries
+    seq_range + coverage_note, and the caller (observation builder) records
+    coverage_scope accordingly. None = the legacy whole-trace comparison,
+    byte-identical output.
 
     Truncated-stream salvage (W2.1 followup): a side whose gzip ends without
     a trailer (ABORTED gem5 run; CHAOSCommitTrace gzflush-ed its rows) is
@@ -305,8 +467,29 @@ def compare(ref_path, run_path, tick_tol):
     measurement artifact, not a fault effect, and is NOT counted as
     instruction_flow_change."""
     ref_trunc, run_trunc = {}, {}
-    it_ref = iter_records(ref_path, ref_trunc)
-    it_run = iter_records(run_path, run_trunc)
+    ref_fmt, run_fmt = {}, {}
+
+    if seq_range is None:
+        # legacy whole-trace path: the RAW generators (byte-identical
+        # behavior; a generator-function wrapper would swallow them).
+        it_ref = iter_records(ref_path, ref_trunc, ref_fmt)
+        it_run = iter_records(run_path, run_trunc, run_fmt)
+    else:
+        lo, hi = seq_range
+
+        def _windowed(it):
+            """Filter one record stream to [lo, hi]: drop seq < lo, stop
+            at the first seq > hi (early stop = the file tail is never
+            decompressed -- the point for hundred-MB coremark traces)."""
+            for rec in it:
+                if rec.seq < lo:
+                    continue
+                if rec.seq > hi:
+                    return
+                yield rec
+
+        it_ref = _windowed(iter_records(ref_path, ref_trunc, ref_fmt))
+        it_run = _windowed(iter_records(run_path, run_trunc, run_fmt))
     r = next(it_ref, None)
     u = next(it_run, None)
 
@@ -429,6 +612,18 @@ def compare(ref_path, run_path, tick_tol):
         "run_instructions": n_run,
         "aligned_pairs": aligned,
         "tick_tol": tick_tol,
+        # FIX-B v2 provenance: keys exist ONLY when that side actually
+        # contained v2 rows, so v1-pair JSON stays byte-identical.
+        **({"ref_format": "v2"} if ref_fmt.get('v2_rows') else {}),
+        **({"run_format": "v2"} if run_fmt.get('v2_rows') else {}),
+        # L0-L5 plan Task 3: windowed-diff provenance. Keys exist ONLY when
+        # a --seq-range was given, so the legacy JSON stays byte-identical.
+        **({"seq_range": {"lo": seq_range[0], "hi": seq_range[1]}}
+           if seq_range is not None else {}),
+        **({"coverage_note": "diff restricted to seq [%d,%d]; divergence "
+                            "outside window unobserved"
+                           % (seq_range[0], seq_range[1])}
+           if seq_range is not None else {}),
         "verdict": verdict,
         "primary_class": first_point["class"] if first_point else None,
         "primary_class_zh": (first_point["class_zh"] if first_point
@@ -464,6 +659,10 @@ def format_report(res):
                  % (res["run"], res["run_instructions"]))
     lines.append("对齐指令对: %d    tick 容差: %d"
                  % (res["aligned_pairs"], res["tick_tol"]))
+    if "seq_range" in res:
+        lines.append("[窗口] 比对范围 seq [%d, %d]；窗口外未观测（%s）"
+                     % (res["seq_range"]["lo"], res["seq_range"]["hi"],
+                        res["coverage_note"]))
     lines.append("")
     if res["verdict"] == "no_divergence":
         lines.append("[结论] 主分类: %s (no_divergence) —— 全程指令字段一致"
@@ -526,6 +725,22 @@ def _nonneg_int(s):
     return v
 
 
+def _seq_range(s):
+    """Parse 'LO:HI' (inclusive seq window, LO <= HI) for --seq-range."""
+    try:
+        lo_s, hi_s = s.split(":", 1)
+        lo, hi = int(lo_s, 10), int(hi_s, 10)
+    except ValueError:
+        raise argparse.ArgumentTypeError(
+            "invalid --seq-range %r (expected LO:HI integers)" % s)
+    if lo < 0 or hi < 0:
+        raise argparse.ArgumentTypeError("--seq-range bounds must be >= 0")
+    if lo > hi:
+        raise argparse.ArgumentTypeError(
+            "--seq-range LO (%d) must be <= HI (%d)" % (lo, hi))
+    return (lo, hi)
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(
         prog="commit_diff.py",
@@ -540,10 +755,18 @@ def main(argv=None):
                          "（人读报告仍打印到 stdout）")
     ap.add_argument("--tick-tol", type=_nonneg_int, default=0, metavar="T",
                     help="tick 漂移容差，默认 0（tick 必须完全一致）")
+    ap.add_argument("--seq-range", type=_seq_range, default=None,
+                    metavar="LO:HI",
+                    help="L0-L5 窗口差分：仅比对 seq ∈ [LO, HI]（闭区间），"
+                         "两侧越过 HI 即早停（长流控时控盘）。窗口内的"
+                         "no_divergence 不是全程证据——JSON 带 coverage_note，"
+                         "由观测层记录 coverage_scope。缺省 = 全程比对"
+                         "（字节不变）。")
     args = ap.parse_args(argv)
 
     try:
-        res = compare(args.ref, args.run, args.tick_tol)
+        res = compare(args.ref, args.run, args.tick_tol,
+                      seq_range=args.seq_range)
     except TraceError as e:
         sys.stderr.write("commit_diff: ERROR: %s\n" % e)
         return 1

@@ -1,0 +1,243 @@
+# Progress Log
+
+## 更新要求
+
+- 活跃执行期间至少每 30 分钟更新一次；阶段/ITEM/长任务/错误/重试/资源状态变化时立即更新。
+- 只记录已实际发生的动作；所有完成声明附证据路径。
+- 每次更新写明当前 ITEM、RunID、Excel 行、campaign/phase、资源状态和唯一下一动作。
+
+## Current Status
+
+- **Current Phase:** P1
+- **Phase Status:** IN_PROGRESS
+- **Overall Status:** IN_PROGRESS
+- **Started / Last Updated / Owner:** 2026-09-30 16:30+08:00 / 2026-10-12 10:30+08:00 / 服务器 AI（Claude @ huawei0201, 本机直连）
+- **服务器身份（2026-10-12 身份锁实测）:** hostname=`localhost.localdomain`（部署名 huawei0201）/ IP=`172.168.178.81`（enp125s0f0）/ 仓库根=`/home/sdc/gem5-fi-ding` / 分支=`fi-ding` / HEAD=`ea88017`（回填提交；身份核验时为 bf3d284）/ 权威 Excel=`docs/gem5-fi/ooo/gem5-fi-OOO单元故障注入方案.xlsx`（存在✓，sha 与 findings.md 记录及 git HEAD 版本一致）。身份确认依据：用户指令指派 0201 OOO 轨道 + 本机 huawei0201 部署记忆（~/gem5-fi-ding, 2026-10-09 部署）+ 全部执行历史（runs/artifacts//tmp/ooo-pipeline）在本机；progress.md 此前无任何服务器身份记录（无冲突）。LSU Excel 存在于本机但属 0101 轨道，不触碰。
+- **Current Checklist Item / RunID / Excel Location:** NONE / NONE / NONE
+- **Current Experiment Stage:** 逐单元调度模式（2026-10-12 生效）；当前单元 Int Decode；过渡回填已完成并提交（ea88017）
+- **Campaign:** 首批 Int Decode 准入门 smoke + pilot-30（D01-F0-W6 a/b/c、D02-F0-W6 b/c、D04-F0-W4-d 等，见 Session 005）
+- **Completed ITEM Stages:** 0
+- **Resource Safety State:** NORMAL（无活跃编译/实验进程；4 实验槽位全空——2026-10-08 guard status 实测；login01 无 swap 属主机配置，F-005）
+- **Build Limit:** `-j8`，全局单实例
+- **Experiment Concurrency Limit:** 4（资源不足时降为3/2/1，不得超过4）
+- **Active Heavy Task / PID / PGID / Lock / Resource Log:** NONE（gem5 clean build 已于 09-30 18:13 COMPLETE：SCONS RC=0，见 `runs/ooo-node/logs/gem5-build-001.out`）；节点占用 job 1773145 @ cn22986（holder.sh，心跳 `runs/ooo-node/state/heartbeat`，60s 资源采样 `runs/ooo-node/state/resources.log`；**到期 2026-10-10 16:54:45，须提前提交续占作业**）
+- **Latest MemAvailable / SwapFree / Load / blocked:** login01（2026-10-08 重连实测）: ~306GiB MemAvailable / 0 swap / 负载正常；cn22986: 见 runs/ooo-node/state/resources.log
+- **Checklist SHA-256:** `d200d15c10907de8377d779ba477f0a72a1d302e2f8368deba2bf6d02ab9ec09`（2026-10-08 采样政策迁移后复验）；Excel `0f386de7c275d0ded7e679012d91c0804194d52f32e18d1cc43830a563f62b90`（同）
+- **Next Step:** Int Decode 单元推进：24 个 W3 行 BLOCKED（探针未开发）已登记；对就绪子模型（D01-a/b/c、D02-b/c、D04-d、D05-b/c）先工程 smoke 准入门，再 pilot-30，合格后 formal-385；每阶段立即回填 Excel 与本文件。FR02 补量待 FP/SIMD Rename 轮到（activated 328，差 57）。
+
+### Session 005（2026-10-12，0201 逐单元调度模式启动）
+
+- **Start:** 2026-10-12 10:07–10:35+08:00（huawei0201）
+- **Phase:** 模式切换（用户指令）+ 过渡回填 + 逐单元调度协议建立
+- **Actions:**
+  1. **§零 服务器身份锁核验**：hostname/IP/根目录/分支/HEAD/OOO Excel 实测并写入上方「服务器身份」字段；三证确认（用户指派 + 部署记忆 + 执行历史），无冲突记录；LSU 文件不触碰。
+  2. **只读核验（启动前）**：HEAD bf3d284、tracked 工作树 0 脏、5 笔未推送本地提交；无 gem5/campaign/guard/编译进程（仅归属其他会话的历史 waiter PID 911837 轮询，不动）；binary 1a618953/dep_chain 991d556a 身份不变；10 个 formal results.jsonl 完好；Excel 与清单 sha256 与 findings.md 记录及 git HEAD 版本逐字一致（此前一次 2 字符差异为本方 echo 笔误，已用 git show HEAD 版本哈希排除）。
+  3. **过渡回填（提交 `ea88017`，[OOO][DATA]）**：10 个既有 campaign → 矩阵 12 行（7 行数据列+Z=部分证据/待核对+AA 分子模型统计+AK 检测口径；5 行仅 AA 跨负载备注）。六步写协议全程执行：时间戳备份（docs/gem5-fi/ooo/backups/*.bak-20261012-101817）→ 主 agent 唯一写入者 → 临时文件 → 核验 ALL PASS（9 工作表集合一致/全表逐格 diff 仅 124 预期变更/310 RunID 不变/公式列 X,Y,AL,AM,AN,AS 完整/7 行 AM 守恒=R-AP）→ 原子替换 → 单独提交。FR02 使用 recount 修正口径 activated=328（差 57），旧 390 作废；D04-F0-W4 为 c+e 合计（AA 分列）；D02/FB02 负载部分对应（CoreMark-only/gemm 1/5 内核）如实标注。检测层级为 SE 口径推定（AK 列）：Masked→None、SDC→Application、Crash/Hang→OS、RAS=0。
+  4. **逐单元调度协议建立（本提交，[OOO][PLAN]）**：task_plan.md 新增 14 条协议（单元顺序/RunID 阶梯/子模型口径/并发/增量记录/BLOCKED/冻结条件/seed 派生/命名/检测口径/W6 开放项/身份锁）。
+  5. **Int Decode 就绪面盘点（48 RunID）**：W3 探针未开发 → 24 行 BLOCKED（含重点 D03-F6-W3）；W4×3（D04）/W5×6（D07/D08）/W6×15 可跑。子模型模式就绪：D01-a/b/c（opcode/reg/imm_bitflip）、D02-a/b/c（bitflip2_adj/nonadj/cross）、D04-c/d/e（src_swap/dest_reg_sub/x0_sub）、D05-b/c（imm_rotate/sign_ext_bit）✓；D01-d、D03-a/b/c、D04-a/b、D05-a/d、D06 全部、D07 全部（时序族）、D08 全部（uop 族）、D09 全部（stuck-at 族）→ 待实现/待核对。已有行内证据：D02-F0-W6（a）、D04-F0-W4（c+e）。
+- **Results / Evidence:** Excel 回填=ea88017；备份=docs/gem5-fi/ooo/backups/；脚本=/tmp/backfill_ooo_20261012.py；FR02 修正依据=fr02-recount-audit-2026-10-10.md（0244e9c）；无 BLOCKED 新增（W3 行为既有缺口首次正式登记）。
+- **Errors / Retries:** 0（Excel 哈希疑似差异为 echo 笔误，实测与 git 一致）。
+- **Next Step:** Int Decode 首批：D01-F0-W6-a/b/c（重点行）、D02-F0-W6-b/c、D04-F0-W4-d 的工程 smoke（n=2）→ pilot-30；全机 gem5≤4。
+
+### Session 005a（2026-10-12 10:35–11:15+08:00，Int Decode 准入门 + pilot 启动）
+
+- **Actions:**
+  1. **工程准入门 smoke×6 全部 PASS**（eng_<RunID>-<子模型>, n=2, 12/12 rep 全部 f=1 激活、分类 sane、零 SimErr/unknown）：
+     | campaign | 结果 | seed |
+     |---|---|---|
+     | eng_D01-F0-W6-a (opcode_bitflip/transient_bit_flip@coremark) | 2 Crash | 44608300 |
+     | eng_D01-F0-W6-b (reg_bitflip) | 1 Crash+1 Masked | 49213565 |
+     | eng_D01-F0-W6-c (imm_bitflip) | 2 Masked | 40251295 |
+     | eng_D02-F0-W6-b (bitflip2_nonadj/local_mbu) | 1 Crash+1 Masked | 45162890 |
+     | eng_D02-F0-W6-c (bitflip2_cross) | 2 Masked | 47418027 |
+     | eng_D04-F0-W4-d (dest_reg_sub/legal_domain_sub@dep_chain) | 1 Crash+1 Masked | 42808491 |
+     工程数据不入正式统计（协议第 8 条）；证据 runs/eng_*/c0000/results.jsonl。
+  2. **pilot-30×6 已启动**（pilot phase seed 派生：D01-a=44733814, D01-b=47074890, D01-c=47716051, D02-b=45687320, D02-c=47674779, D04-d=42372737）：编排器 /tmp/ooo-unit/pilot_orchestrator.sh 后台运行（轮A: 4×jobs=1 → 轮B: 2×jobs=2，全机 gem5≤4）；监控 cron 每 9 分钟。yaml/日志在 /tmp/ooo-unit/。
+  3. 命名/seed/审计均按 task_plan「逐单元调度协议」第 10/11 条执行；Excel 回填将在对应子模型 formal-385 完成时按六步协议单独进行。
+- **Results / Evidence:** runs/eng_D01-F0-W6-{a,b,c}/、eng_D02-F0-W6-{b,c}/、eng_D04-F0-W4-d/（各 2 行 results.jsonl）；/tmp/ooo-unit/*.yaml+*.out。
+- **Next Step:** pilot 完成审计（30 activated 目标）→ 合格子模型 formal-385；D05-F0-W6-b/c 准入门排下一批。
+
+### Session 005b（2026-10-12 11:10+08:00，Int Decode pilot 轮A 全 PASS）
+
+- **轮A pilot-30×4 全部 PASS**（各 30/30 行、act=30/30、零 SimErr/unknown/重复）：
+  | campaign | Crash | Masked | pilot P_DUE | seed |
+  |---|---|---|---|---|
+  | pilot_D01-F0-W6-a (opcode_bitflip) | 9 | 21 | 30.0% | 44733814 |
+  | pilot_D01-F0-W6-b (reg_bitflip) | 6 | 24 | 20.0% | 47074890 |
+  | pilot_D01-F0-W6-c (imm_bitflip) | 7 | 23 | 23.3% | 47716051 |
+  | pilot_D02-F0-W6-b (bitflip2_nonadj) | 6 | 24 | 20.0% | 45687320 |
+- 编排器自动接力轮B（pilot_D02-F0-W6-c + pilot_D04-F0-W4-d，jobs=2，ETA ≈11:21）；§七 已并入协议（d888d05）。
+- **6 个 formal yaml + 编排器已就绪**（formal phase seed：D01-a=47505301, D01-b=46074531, D01-c=44072336, D02-b=41211122, D02-c=47470573, D04-d=42729898；n_per_cell=385；3 轮 2×jobs=2，全机 ≤4）——轮B 审计通过后启动。
+- **Results / Evidence:** runs/pilot_D01-F0-W6-{a,b,c}/、pilot_D02-F0-W6-b/（各 30 行）；/tmp/ooo-unit/。
+- **Next Step:** 轮B 审计 → 6 formal 启动（≈7.2h，3 轮）→ 期间排 D05-F0-W6-b/c 准入门（槽位空闲时）。
+
+### Session 005c（2026-10-12 11:18+08:00，pilot 6/6 全 PASS，formal 阶段启动）
+
+- **轮B pilot-30×2 全 PASS**：pilot_D02-F0-W6-c（bitflip2_cross）：30/30 act，12 Crash+18 Masked；pilot_D04-F0-W4-d（dest_reg_sub）：30/30 act，8 Crash+22 Masked。**6/6 pilot 全部达 30 activated 目标，零 SimErr/unknown/重复**；pilot P_DUE 谱：D01-a 30%、D01-b 20%、D01-c 23.3%、D02-b 20%、D02-c 40%、D04-d 26.7%。
+- **6 个 formal-385 已启动**（编排器后台 bc2lbt9du，3 轮 2×jobs=2，全机 gem5≤4，全程约 7.2h）：轮1 D01-a/D01-b → 轮2 D01-c/D02-b → 轮3 D02-c/D04-d。seed：47505301/46074531/44072336/41211122/47470573/42729898（formal phase 派生）。
+- pilot 编排器正常退出（exit 0）；监控 cron 切至 formal 阶段（c29b3e78）。
+- **Results / Evidence:** runs/pilot_{D01-F0-W6-a,b,c, D02-F0-W6-b,c, D04-F0-W4-d}/（各 30 行 results.jsonl）。
+- **Next Step:** formal 完成审计（385 行/r0000-r0384 完整/act 口径）→ 合格子模型 Excel 六步回填（[OOO][DATA]）→ D05-F0-W6-b/c 准入门。
+
+### Session 005d（2026-10-12 13:31–13:55+08:00，⚠ 并发写入冲突事故——冻结等待用户裁决）
+
+- **事故**: formal_D01-F0-W6-a 完成审计全过（385/385、385×f=1、r0000–r0384 完整、Masked 243/Crash 142/SDC 0、P_DUE 36.9%[32.2,41.8]）。Excel 六步回填执行中, 内建核验报 FAIL（4 处意外差异 R9/R19/R60/R210 的 X 列公式变成字面值 + formulas-intact=no）, 但我的脚本存在 `&&` 链缺陷（heredoc python exit 1 后 `cp` 仍在独立行无条件执行）→ 未通过核验的文件被替换并提交 `0e41a86`。
+- **根因（复现实验定位）**: 不是 openpyxl bug（同逻辑复现两次公式完好）。工作文件在 10:24（ea88017 提交）至 13:31 之间被**另一会话外部修改**（+57KB 重算保存特征, 67 处单元格变更, 时间窗与另一 claude 会话 PID 1790962 09:17 启动吻合）: 对我过渡回填行的**SDC 口径语义修正**——AB(SDC列) 重定义为 U+AI+AJ（Data Corruption + RAS-silent Crash + RAS-silent Timeout, 例: D02-a AB=0→73=73 RAS-silent Crash）, AK 首检口径改"离线 oracle→None（非运行时检测层）/架构 Crash·归因 Timeout→OS", AE/AF 相应搬家（R02-a SDC 4 由 App→None）, AA 追加"[2026-10-12 SDC口径修正]"标记, 4.观测点定义/5.频率与统计表同步改文案, X/AL/AM 公式在 4 个数据行被保存机制冻结为字面值。我的事故脚本忠实地加载了外部修改后的文件再叠加 D01-a 行——0e41a86 实际内容 = 外部语义修正 + 我的 D01-a 行（两套口径混居: 行9/19/56/60/105/210/264 为对方口径, 行3 为我口径）。
+- **处置（已完成）**: ① formal 编排器已杀（轮2/3 不再自动派发; 在跑的 formal_D01-F0-W6-b 不动, ETA≈14:00, 完成后仅审计登记 progress.md, 不回填 Excel）; ② 权威 Excel 写入全面冻结; ③ 证据保全: bak-20261012-133146（外部修改后的工作文件快照）、bak-20261012-101817（回填前原始）、/tmp/ooo-xlsx-d01a-*.xlsx（事故 TMP）、git ea88017（我方口径干净版）; ④ 无外来 campaign/gem5 进程; ⑤ 脚本缺陷修复承诺: 后续一切 Excel 写入改为单一 python 进程内联完成 edit→save→verify→原子替换, 核验失败即中止, 杜绝 shell 链式 cp。
+- **待用户裁决**: (a) SDC 口径归属——对方"AB=U+RAS-silent(Crash+Timeout)"广义静默损坏 vs 我方"AB=校验和失配窄义 SDC"; (b) 0e41a86 混居版本如何收敛（回退到 ea88017 重放我方口径 / 保留对方口径并按其重写全部行 / 列级合并）; (c) 另一会话是否经授权继续写本 Excel; (d) formal 轮2/3 何时恢复派发。
+- **Results / Evidence:** runs/formal_D01-F0-W6-a/c0000/results.jsonl（有效）; findings.md F-013; 本 Session 为事故完整记录。
+
+### Session 005e（2026-10-12 14:10+08:00，冻结期 D01-b 完成——登记不回填）
+
+- **formal_D01-F0-W6-b（reg_bitflip/transient_bit_flip@coremark）完成并审计全过**（14:09:26 驱动退出）：385/385 行、385 distinct、r0000–r0384 完整、385×f=1（100% 激活）、**Masked 325 + Crash 60 = 385 valid**、零 SDC/Inactive/SimulatorError/Hang/unknown/重复。P_DUE = 60/385 = **15.6%**（pilot 20% [20.0%→CI 内一致]）。证据: runs/formal_D01-F0-W6-b/c0000/results.jsonl; artifacts/formal_D01-F0-W6-b/summary.md。**按冻结纪律未回填 Excel**（数据已就绪，待 F-013 裁决后按裁定口径一并回填）。
+- **Int Decode formal 阶段状态**: 2/6 完成（D01-a 243M+142C/P_DUE 36.9%、D01-b 325M+60C/P_DUE 15.6%）；轮2（D01-c/D02-b）+ 轮3（D02-c/D04-d）编排器已被杀待恢复；D05 准入门未启动。全部 6 个 yaml + 编排器脚本在 /tmp/ooo-unit/ 随时可重启。
+- 机器干净: gem5=0、无 campaign 驱动、无编排器。监视 cron 已删除，会话空闲等待用户对 F-013 四项裁决。
+
+## Phase Summary
+
+| Phase | Status | Started | Completed | Evidence/Output |
+|---|---|---|---|---|
+| P0 环境/输入/恢复预检 | COMPLETED（工程收口） | 2026-09-30 | 2026-10-08 | Units 1–3 提交（guard/recover/文档）；`gem5-build-001.out`（SCONS RC=0）；冒烟 ×2 FINAL=45737cc9a76c0dce；G0 表已填（G0-01/03/10 PASS，05/07/08 PARTIAL，02/04/09 →P1，06 →DR-002）；DR-001/DR-002 OPEN |
+| P1 注入器/观测链 | IN_PROGRESS | | | |
+| P2 负载/golden/冒烟 | PENDING | | | |
+| P3 全矩阵 Pilot | PENDING | | | |
+| P4 正式筛查 | PENDING | | | |
+| P5 预登记重点组合固定扩样 | PENDING | | | |
+| P6 单因素敏感性 | PENDING | | | |
+| P7 稳健性与复现 | PENDING | | | |
+| P8 分析归档交付 | PENDING | | | |
+
+## Session Log
+
+### Session 001
+
+- **Start:** 2026-09-30 16:30+08:00（/goal 下达；10 天长时任务）
+- **Phase:** P0
+- **Actions:**
+  1. 启动前检查：repo gem5-fi-wx-paper @ fi-ding 8b659ced 工作树 clean；login01 无遗留 gem5/实验进程；按用户指令创建 git worktree `/home/share/suke/wangxu/gem5-fi-ooo`（branch ooo-exec @ 8b659ced）。
+  2. 计划核验：5 个 Markdown 读取；完整清单 SHA-256 `f520d42a…30c91` 与 Excel SHA-256 `b73b630…7ae75` 均已核验一致；310 ITEM/310 唯一 RunID/57 模型结构核验通过。
+  3. 节点占用（正序遍历规则下的可调度实现）：q_Test_20260903 仅 cn23154（外部作业占用至 ~10-02）；q_hpcapp 睡眠节点不调度 → 不带 -nl 提交 608 副本全节点作业 → **job 1773145 RUNNING @ cn22986**（-T 864000），holder.sh 心跳+60s 资源采样落盘 NFS；废弃 PENDING 作业 1773108/1773126/1773143 已 dkill。
+  4. 二进制兼容性：预置 build/ARM/gem5.opt（源自 sdc 机 /home/sdc/gem5-fi-lsu，16:26 拷入）需 GLIBC_2.38+libpython3.11，login01（glibc 2.28）与节点（glibc 2.34）均无法运行 → 判定必须本集群重建（findings F-002）。
+  5. 工具链落位：login01 有 g++ 10.3.1/python3.9.9+headers/libpython3.9.so，但无 scons、无系统 protobuf；无外网（DNS 失败）。protobuf 27.2.0（bisheng 构建，静态库+protoc+abseil）发现于 `/work_ssd/software/soft/app/protobuf/27.2-hpckit25.1.0.SPC001-bisheng4.2.0.2.B002`；SCons 4.11.1 wheel 经本地 Windows（有外网）下载→`reach fs write` 推送→SHA256 校验一致（`454cef36…4f95c8d11d`）→`pip3 install --user` 成功（findings F-003/F-004）。
+  6. gem5 clean build 启动（17:17）：worktree ooo-exec @ 8b659ced（dirty=0），`scons -j8 build/ARM/gem5.opt`，flock 单实例锁，nice -n 10，日志 `runs/ooo-node/logs/gem5-build-001.out`；configure 阶段通过（含 "GCC 10.3.1 not officially supported" 警告，非失败，持续观察）。
+- **Results / Evidence / Errors:** build RUNNING（证据：日志持续增长，scons PID 2816362 存活）；无 BLOCKED；错误 0。
+- **Next Step:** build 完成→G0-01 证据固化；P0 剩余预检（锁/lease/守卫实测、负载盘点、G0 填表）→ [OOO][P0] commit+push。
+
+### Session 002（跨 2 个日历段：09-30 18:13 断连 + 10-08 10:44 重连）
+
+- **Start:** 2026-09-30 18:13 – 2026-10-08 11:15+08:00（含 7.3 天 VPN 断连期，F-009）
+- **Phase:** P0（收口）
+- **Actions:**
+  1. **断连期（Windows 侧离线预备）**：reach/SSH 因 SSL VPN（Topsec NGVONE）OTP 断连不可达（F-009）；期间完成：①W1 MiBench 子集供给（embecosm/mibench@0f3cbcf6 定向 9 程序目录 tarball 2.62MB，sha256 7bc51c7d…，PROVENANCE 记录源/许可/构建约定）；②P1 13 单元计划草稿（U0 文档桥接→U11 campaign 引擎→U12 收口）；③G0 填表草稿；④RECONNECT-RUNBOOK.md 重连对账手册；⑤cron 自动探测通道恢复。
+  2. **重连对账（10-08 10:44–11:00）**：清单/Excel SHA-256 复验一致；worktree git 状态符合预期（HEAD=ce8d6d8a + Unit3 文档 WIP）；主树 LSU 轨道并行推进至 d2b7e885（未触碰）；holder job 1773145 RUNNING @ cn22986；build 产物 COMPLETE（SCONS RC=0，gem5.opt sha256 9ef9c3b4…，1,252,069,576B）。
+  3. **G0-01 运行时兼容性判定（F-008）**：login01 原生构建链系统 libpython3.9 → gem5 v25.1 stdlib PEP 604 TypeError（RC=1 实测）；预置 sdc 构建（63f50c40…）经 LSU 兼容运行时（lsu_keeper/compat）可运行；两树 CHAOS/gem5/src diff=0（二进制源等价）；worktree 仓根 build/ARM/gem5.opt 硬链接采用（同 inode）；**冒烟 ×2**（ooo_proxy.py + smoke，--cpu O3）：FINAL=45737cc9a76c0dce RC=0，golden 匹配。
+  4. **G0-10 run 全路径实测**：`ooo_guard.py run --type experiment -- sha256sum build/ARM/gem5.opt` → SPAWNED pid=2909412 pgid=2909412 slot=0 → run-finish exit_code=0 target-exited → 4 槽位全释放（status 实测）。
+  5. **G0 填表**：task_plan.md G0-01..G0-10 全部填写（PASS×3 / PARTIAL×3 / PENDING→P1×3 / PENDING→DR×1）；findings.md Gate Findings 同步；F-002 修订（clean rebuild 结论作废）+ F-007 通道实证更新 + F-008/F-009 新增；DR-001（W1 供给，方案A 自主推进）/DR-002（FS vs SE，推荐 SE 基线）记录。
+  6. **Unit 3 提交**：[OOO][P0] Unit3 文档收口（本提交），bundle 通道推送。
+- **Results / Evidence / Errors:** 冒烟证据 /tmp/ooo-smoke-00{2,3,4}.log；guard runpath /tmp/ooo-guard-runpath.log + status 输出；无 BLOCKED；错误 0（F-008 属判定性发现而非错误）。
+- **Next Step:** W1 上传+构建（DR-001）；holder 续占（10-10 16:54 到期前）；P1 计划落盘并启动 U0/U1。
+
+### Session 003
+
+- **Start:** 2026-10-08 11:20–11:50+08:00
+- **Phase:** P1（启动：U0 桥接 + U1 机读映射）
+- **Actions:**
+  1. **P1 计划落盘**：`docs/superpowers/plans/2026-10-08-ooo-p1-injectors-observation-campaign.md`（14 单元，26,818B）commit c10dfd13。
+  2. **U0 设计文档桥接**：03-design-matrix.md（158 行）/09-v2-coverage-audit.md（98 行）/d-bridge-v1-v2.csv（117 行）自共享对象库（源 e3217105）取入，git hash-object 三文件全 MATCH——commit bde8ee94（原 31c1494c→4af1d51a→bde8ee94，两次重放均文件零差异：c10dfd13→127b54a3→72278a27）。
+  3. **U1 tools/ooo_models.py**（896 行）：MODELS 57 模型静态表（unit/excel_row/fault_type/freqs/workloads/n_submodels/impl_status/injector/mount_flag/submodels）+ `--check` 五组校验 + `--item` 双形态查询。静态表由 03/09 重解析生成后逐字段核对（非手抄）。
+  4. **--check 首跑即过**：`models: 57 | items_scanned: 310 | item_refs_resolved: 310 | unresolved: 0`；`impl_status: implemented=9 partial=34 unimplemented=14`；三方一致 OK（exit=0）。
+  5. **边界自测暴露并修复真实缺陷**：T1（ITEM 头格式损坏 D01→DX1）首跑**静默跳过**（items_scanned=309 仍判 OK）——违反诚实规约的假校验路径 → 加「头行全解析 + 条目数=310 + 编号连续 001..310」三断言修复 → T1–T4 全部翻红 exit=1（T4 未知模型 unresolved=1 精确报错），T5 原件复验 exit=0、清单 sha256 f520d42a…30c91 前后不变（hash 锁定原件全程未动，损坏测试全在 /tmp 副本）。
+  6. **F-010**：09 审计总账表「部分=0」与逐模型表 34 行「部分」矛盾（9+0+14≠57）；逐模型表为权威，--check 内置 9/34/14 断言；桥接件不静默改史。
+  7. **回归**：tools/ooo_recover.py selftest → SELFTEST PASS（9 夹具五状态全覆盖，无 collateral 破坏）。
+  8. **U0/U1 推送（bundle 通道，两次远程前进处置）**：远程 fi-ding 在推送窗口内连续前进两次（3671113c+127b54a3、再 72278a27，均 LSU 轨、仅 docs/gem5-fi/lsu/*，零文件重叠）→ 127b54a3/72278a27 对象经 Windows bundle 中转入库 → ooo-exec 两提交两次重放（我方文件 diff 均为空）→ 推送成功 **fi-ding=4c56bce6**（U0=bde8ee94、U1=4c56bce6；bundle sha256 d258669b/bca11830/c7eebb47 逐次校验，中转残留 ref/文件全清）。
+  9. **U1b guard_pid 竞态移植（F-025 对齐 LSU 6d1662ee，TDD）**：①失败测试 tools/tests/test_ooo_guard_f025.py（12 检查点）→ 红态实测 `AttributeError: _lock_owner_pid 不存在`；②11 处补丁移植（guard_pid 字段/_lock_owner_pid helper/陈旧判定/release confirm/clear-stale 双字段接受与判活/cmd_run finally confirm=os.getpid()）；③转绿 `SELFTEST PASS (12 checks, 0 failed)`；④回归 lite（隔离 GUARD_DIR）R1–R8 全符合 Unit1 语义（gate ok=false 仅因 LSU CP4 编译进程在跑=正确阻断；run 快命令同因无法当跑，释放路径变更已由 T5a/b 单元级覆盖，全路径 E2E 待无编译期复验）；⑤无关件回归 ooo_recover selftest PASS。
+- **Results / Evidence / Errors:** tools/ooo_models.py --check 实测输出（本 Session 第 4/5 条引用）；/tmp/ck-corrupt.md 等副本 exit=1 证据；/tmp/ooo-guard-reg 回归输出；SELFTEST PASS (12 checks, 0 failed)；无 BLOCKED；错误 0（T1 静默跳过为自测发现并当日修复的缺陷，非遗留；R7c 一行脚本槽位假设错误为测试脚本笔误，非被测件缺陷）。
+- **Next Step:** U2 时序族A（D07/R08/FD09/FR09 子模式实现 + 两态验证，dep_chain int golden 98e5e31e726e383f）。
+
+### Session 004
+
+- **Start:** 2026-10-08 11:55–13:55+08:00
+- **Phase:** P1（U10 观测链 + U1c 原生平台复活；U11 引擎在飞）
+- **Actions:**
+  1. **U10 L0–L5 观测链（commit 9f4a6946）**：tools/ooo_observe.py（334 行：collect_l0 21 日志名×3 正则、faults_for_classify 优先级 funnel_activated>l0_hit>legacy_injected>none、ref 门控 L1–L4）+ classify.py 守恒/一致性双检（check_conservation：attempted≥eligible≥injected≥activated 逐注入器+TOTALS，None=unknown 跳过；check_verdict_l0_consistency：Inactive×activated>0 / checksum≠golden / Masked·SDC×activated=0 三类违规，Crash/Hang/SimulatorError 无 L0 合法）+ tools/tests/test_ooo_classify.py 6 夹具 TDD（19/19）+ 真实 off-state E2E（compat loader gem5.opt.sdc-py311，smoke 双跑，commit_trace/micro_snap 真实 gz 走 L1–L4）。
+  2. **远程前进处置（第 4 次）**：推送窗口 fi-ding 96f25eb4（LSU ITEM-013/014 pilot）→ 反向 bundle 中转 → stash/rebase/stash-pop 零冲突 → 推送 9f4a6946。
+  3. **U1c sdc 证物三重保全**：/tmp/gem5.opt.sdc-py311.copy（inode 564）+ build/ARM/gem5.opt.sdc-py311 独立 inode 36028989067229568（links=1，防重链截断毁备份）+ 原 gem5.opt inode（可牺牲重链）。
+  4. **U1c 增量重建**：guard 4037686 / scons 4037691，12:51:36–13:41（50 分钟，env 切换 compat-py311→native-py39 全量重链，warning=false trip=null，build_lock 干净释放）；产物 build/ARM/gem5.opt 1,227,788,056B。
+  5. **U1c Step 6 两态验证（/tmp/u1c-verify.log 9/9 PASS）**：原生（无 loader/无 PYTHONHOME）smoke×2=45737cc9a76c0dce、dep_chain_int=98e5e31e726e383f、dep_chain_vec=b1e661a247b95774、rob_fill_int=19eab7d0de27237e；sdc-py311+compat 同四命令 FINAL 全一致——平台切换不改变仿真确定性。
+  6. **F-008 修订 + F-011 收口**：「结构性不可用」作废（单行 PEP604 shim 即解）；「一律经兼容 loader」降级为「原生优先/compat 回退」；F-011 保留为 py39+3.11-PYTHONHOME 组合禁令。
+  7. **U11 campaign 引擎（本提交时在飞，自测已绿）**：tools/ooo_campaign.py（854 行）SELFTEST PASS（23 checks，0 failed）——seed 公式三常量、run_key 唯一性+config 漂移、manifest 走 manifest_validate（decode 组件）、F1/F2·未接线模型·未验 golden 三类 loud-reject、假 gem5 全生命周期（staging→原子落位→COMPLETE 不可变）、写一次拒绝+非 COMPLETE 同 seed 重放、命令构造镜像 runner.py:1276 decode 分派；schema enum 补 decode + manifest_validate yaml 懒加载（login01 可 import）。实机冒烟（ITEM-002 engineering×2）待本提交后执行。
+- **Results / Evidence / Errors:** U10=9f4a6946（已推送）；U1c=本提交（simulator.py 单行 shim + findings + 本 Session + 计划勾选）；/tmp/u1c-verify.log（9/9）；/tmp/u1c-build.log（51 心跳行）；无 BLOCKED；错误 0（gem5 v25 无 --version 选项 rc=2 为探测命令选型问题，改 --help 即解，已记入 U11 代码注释）。
+- **Next Step:** U11 Step 3 实机冒烟（baseline golden 门 + ITEM-002 engineering 2 样本 COMPLETE）→ Step 4 中断恢复实测 → 提交推送；随后 U2 时序族 A（原生平台已就绪）。
+
+## Active Work
+
+| Work ID | ITEM | RunID | Excel行 | campaign/phase | sample_index/seed | 状态 | owner/PID/PGID/锁 | 心跳 | 输出/证据 |
+|---|---|---|---|---|---|---|---|---|---|
+| W-U11 | ITEM-002 | D01-F0-W6 | 4 | ooo-p1/engineering | 7/7415807299993716095 | COMPLETE（中断演练→resume 补跑：verdict=Masked rc=0 l0=legacy；8/8 全 COMPLETE） | — | — | runs/ooo/ooo-p1/engineering/D01-F0-W6/sample_000007_66ea3d72dedfc57f_acda5eee5b0d |
+| W-U11-prev | ITEM-002 | D01-F0-W6 | 4 | ooo-p1/engineering | 0-6/各自种子 | COMPLETE×7（Crash×2 Masked×5，violations=[]） | — | — | runs/ooo/ooo-p1/engineering/D01-F0-W6/sample_00000{0..6}_*_acda5eee5b0d |
+
+## Checklist Status Summary
+
+| Stage | PENDING | RUNNING | COMPLETE | BLOCKED | INVALID | NA/UNSELECTED | Total |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| Engineering | 310 | 0 | 0 | 0 | 0 | 0 | 310 |
+| Pilot | 310 | 0 | 0 | 0 | 0 | 0 | 310 |
+| Screening | 310 | 0 | 0 | 0 | 0 | 0 | 310 |
+| 重点扩样（18项） | 0 | 0 | 0 | 0 | 0 | 18 | 18 |
+| Sensitivity/Reproduction | 0 | 0 | 0 | 0 | 0 | 310 | 310 |
+
+## Test and Gate Results
+
+| Test/Gate | Expected | Actual | Status | Evidence |
+|---|---|---|---|---|
+| 六个输入文件可读 | 全部可读 | 未检查 | UNCHECKED | |
+| 清单规模 | 57模型、310 ITEM、310唯一RunID | 未检查 | UNCHECKED | |
+| 清单哈希 | `d200d15c10907de8377d779ba477f0a72a1d302e2f8368deba2bf6d02ab9ec09` | 迁移包与服务器实物复验一致 | PASS | 2026-10-08 sha256sum |
+| Excel哈希 | 与总方针一致 | 未检查 | UNCHECKED | |
+| G0-01 至 G0-09 | 均有状态与证据 | 未检查 | UNCHECKED | |
+| G0-10 | 编译锁、实验worker lease、实验并发≤4、资源守卫、60秒监控、30分钟心跳、恢复扫描可验证 | 未检查 | UNCHECKED | |
+
+## Resource Safety Status
+
+| 时间 | 状态 | MemAvailable | SwapFree | Load 1/5/15 | blocked | 磁盘 | owner/PID/PGID | 锁 | 动作/证据 |
+|---|---|---:|---:|---|---:|---:|---|---|---|
+| 2026-09-30 17:17 | NORMAL（build 启动） | 290690MiB | 0MiB（login01 无 swap，主机配置） | 7.29/8.04/8.04 | 未采样 | /home/share 999T 可用 | suke/2816362/2815276 | runs/ooo-node/state/gem5-build.lock | build-gem5.sh：-j8 单实例 flock，日志 gem5-build-001.out |
+
+## Errors and Retries
+
+| Error ID | 时间 | ITEM/RunID | 错误签名 | Attempt | 改变的策略 | Resolution/Decision Request | Evidence |
+|---|---|---|---|---:|---|---|---|
+| E-001 | 2026-10-08 | ITEM-002/D01-F0-W6 | reach 下 pgrep -f 匹配包装 bash 自身 → 属主检查假通过 → kill 自杀（status 255） | 1 | 弃 pgrep -f：PID 以 staging 目录名为准 + ps -p 锚定 cmd + pgid==pid 双确认；TERM campaign 组后再清孤儿目标组 | RESOLVED：TERM 902005+902282 双杀干净，campaign 死亡无残留；入 F-012 | /tmp/u11-interrupt*.log；findings.md F-012 |
+| E-002 | 2026-10-08 | ITEM-002/D01-F0-W6 | 缺陷①：inner script 尾部 && echo 短路，abort 样本（rc=134）丢 exit.rc | 1 | 最后一段改 ; 连接恒记录 | RESOLVED：重跑 Crash 样本 rc=134 实录；defect 产物显式删除留痕 | DELETED-DEFECTIVE-2026-10-08.md |
+| E-003 | 2026-10-08 | ITEM-002/D01-F0-W6 | 缺陷②：--outdir 多套 m5out/ 子目录，L0 证据错位（collect_l0 找不到 decode_injections.log） | 1 | --outdir 直指 run 目录（对齐 runner 惯例） | RESOLVED：decode_injections.log 落 run 目录，l0=legacy 全通 | 同上 |
+| E-004 | 2026-10-08 | ITEM-002/D01-F0-W6 | 缺陷③（诚实性关键）：guard 门禁拒绝（陈旧槽）被记 verdict=None rc=None COMPLETE | 1 | _guard_execute 改 (rc, ran) 返回，run-finish 正向证据判定；未运行→blocked-guard 大声中止 exit 2 | RESOLVED：实机复验 BLOCKED+exit=2+无落位；selftest T21；campaign 810397 的假 COMPLETE 已删 | /tmp/u11-blocked-proof.log；DELETED-DEFECTIVE |
+| E-005 | 2026-10-08 | ITEM-002/D01-F0-W6 | U10b 前样本 1 旧观测 conservation_ok=false（legacy 证据被当 funnel 口径假阳性） | 1 | classify.py 按 L0 证据源取数（funnel/l0-hit/legacy 三态） | RESOLVED：commit 3a142d0c；样本 1 删除重跑 violations=[] | tools/tests/test_ooo_classify.py T7-T9 |
+
+## Periodic Update Template
+
+```text
+时间：
+当前阶段/状态：
+当前 ITEM / RunID / Excel行：
+campaign / phase / sample_index / seed：
+过去30分钟完成：
+运行中任务与最近心跳：
+错误/重试/BLOCKED：
+资源状态（NORMAL/WARNING/TRIP/BLOCKED）：
+MemAvailable / SwapFree / Load / blocked / 磁盘：
+owner / PID / PGID / 锁 / 日志：
+门禁变化：
+唯一下一动作：
+证据路径：
+```
+
+
+## 2026-10-08 采样政策迁移
+
+- **迁移范围：** 本地 OOO 最新工作簿、完整清单、总方针、提示语和校验报告已与服务器动态 `task_plan.md`、`progress.md`、`findings.md` 三方合并；保留 P0/P1 全部证据、工程结果、Decision Request 和额外设计文件。
+- **生效规则：** 每个有效 RunID 先取得 30 个独立 activated pilot；若注入器、配置、负载、checkpoint 与 oracle 不变，可计入后续累计，否则作废重采。每个有效 RunID 固定累计至少 385；仅 `task_plan.md` 固定的 18 个重点 RunID 累计到 2401，且 2401 包含前 385。
+- **对当前 P1 的影响：** 当前无运行中的 OOO campaign/gem5 进程；P1 的 ITEM-002 / `D01-F0-W6` 8 个样本均为 engineering，继续保持 `ENGINEERING_ONLY`，不计入 pilot，不中断、不重跑。P3/P4/P5 开始前必须按新版清单重新冻结 manifest、sample_index/seed 范围和目标样本数。
+- **探索性标记：** `D01-F0-W6` 属于 18 个重点 RunID 且政策冻结前已有 engineering 结果信息；后续只能称为“2026-10-08 固定政策下的精度扩展，并带有先前探索性信息”，不得称为完全事前预注册的独立确认性结果。
+- **代码扫描：** `tools/`、`campaigns/` 和 `docs/superpowers/plans` 的 OOO 文件未发现 holdout、5000、Clopper–Pearson、Bonferroni 或区间半宽停止硬编码；本次无需修改执行脚本。
+- **哈希：** Excel `0f386de7c275d0ded7e679012d91c0804194d52f32e18d1cc43830a563f62b90`；完整清单 `d200d15c10907de8377d779ba477f0a72a1d302e2f8368deba2bf6d02ab9ec09`。
+- **唯一下一动作：** 重新读取六个权威文件并核查锁/进程/结果状态，按最新 P1 计划继续尚未完成的下一 U 单元；不得提前启动 P3/P4/P5。

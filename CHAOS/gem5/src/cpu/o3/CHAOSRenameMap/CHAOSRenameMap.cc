@@ -79,6 +79,8 @@ namespace gem5
     CHAOSRenameMap::stringToMode(const std::string &s) {
         if (s == "map_bitflip") return Mode::MapBitflip;
         if (s == "map_bitflip2") return Mode::MapBitflip2;
+        if (s == "map_bitflip2_adj") return Mode::MapBitflip2Adj;
+        if (s == "map_bitflip2_nonadj") return Mode::MapBitflip2Nonadj;
         if (s == "swap_to_active") return Mode::SwapToActive;
         if (s == "f5_substitute") return Mode::F5Substitute;
         if (s == "f4_field_stuck") return Mode::F4FieldStuck;
@@ -96,6 +98,7 @@ namespace gem5
         if (s == "oldphys_bitflip2") return Mode::OldphysBitflip2;
         if (s == "oldphys_swap_active") return Mode::OldphysSwapActive;
         if (s == "oldphys_stuck") return Mode::OldphysStuck;
+        if (s == "src_tag_swap") return Mode::SrcTagSwap;
         return Mode::MapBitflip;
     }
 
@@ -104,6 +107,8 @@ namespace gem5
         switch (m) {
             case Mode::MapBitflip: return "map_bitflip";
             case Mode::MapBitflip2: return "map_bitflip2";
+            case Mode::MapBitflip2Adj: return "map_bitflip2_adj";
+            case Mode::MapBitflip2Nonadj: return "map_bitflip2_nonadj";
             case Mode::SwapToActive: return "swap_to_active";
             case Mode::F5Substitute: return "f5_substitute";
             case Mode::F4FieldStuck: return "f4_field_stuck";
@@ -117,6 +122,7 @@ namespace gem5
             case Mode::OldphysBitflip2: return "oldphys_bitflip2";
             case Mode::OldphysSwapActive: return "oldphys_swap_active";
             case Mode::OldphysStuck: return "oldphys_stuck";
+            case Mode::SrcTagSwap: return "src_tag_swap";
         }
         return "map_bitflip";
     }
@@ -253,6 +259,90 @@ namespace gem5
         return (int)cands.size();
     }
 
+    // V2.0 R03-c src_tag_swap (ooo 03-design-matrix R13, 09-audit WB3
+    // gap): swap THE INSTRUCTION's two int source phys tags after both
+    // are renamed (per-DynInst _srcIdx), together with the per-slot
+    // ready bits (the ready state belongs to the phys reg and crosses
+    // with the tag). The speculative RAT entries themselves are
+    // untouched — the 03 row's 注入位置 is "speculative RAT读出的源物
+    // 理tag" (the READ-OUT result consumed by this instruction), a
+    // per-instruction operand-mapping fault; a persistent RAT-entry
+    // swap would be a different (corrupting) model.
+    void
+    CHAOSRenameMap::maybeSwapSrcTags(const o3::DynInstPtr &inst)
+    {
+        // Mode guard (the §2.2/W4/W5 map-entry modes never enter here —
+        // same discipline as the maybeCorrupt dest_reg_sub guard).
+        if (fi_mode != Mode::SrcTagSwap) return;
+        if (!cpu || probability <= 0.0f) return;
+        if (max_faults != 0 && faults_injected_count >= max_faults) return;
+        if (!inWindow()) return;
+        // Need >= 2 source registers, both integer class (R03 is the Int
+        // Rename row; the src operands must be X-domain for a class-
+        // consistent swap).
+        if (inst->numSrcRegs() < 2) return;
+        const RegId &s0 = inst->srcRegIdx(0);
+        const RegId &s1 = inst->srcRegIdx(1);
+        if (s0.classValue() != IntRegClass ||
+            s1.classValue() != IntRegClass)
+            return;
+        // CHAOSReg discipline: R03's domain is the architectural X0-X30
+        // (XZR=31 excluded; gem5-internal/banked slots >=32 excluded —
+        // the first pilot hit an internal-reg src (X42, a micro-op
+        // intermediate), which is outside the 03 row's scope).
+        if (!archIdxValid(s0.index()) || !archIdxValid(s1.index()))
+            return;
+        // Sampling-bias fix (same as the other sites): geometric skip
+        // before the first injection, then the probability draw.
+        if (events_to_skip > 0) { --events_to_skip; return; }
+        std::uniform_real_distribution<float> pd(0.0f, 1.0f);
+        if (pd(rng) > probability) return;
+
+        PhysRegIdPtr p0 = inst->renamedSrcIdx(0);
+        PhysRegIdPtr p1 = inst->renamedSrcIdx(1);
+        // Same phys tag behind both srcs: the swap is the identity —
+        // honest skip, no fault (03: 至少两个活跃候选tag).
+        if (!p0 || !p1 || p0 == p1) {
+            if (write_log) {
+                *(log_stream->stream()) << "Tick: " << curTick()
+                    << ", Site: rename_srcTags, mode=src_tag_swap"
+                    << ", tid=" << (int)inst->threadNumber
+                    << ", sn=" << inst->seqNum
+                    << " — srcs share the same phys tag (skipped, no "
+                    << ", faults_injected: " << faults_injected_count
+                    << std::endl;
+            }
+            return;
+        }
+        const int idx0 = p0->index(), idx1 = p1->index();
+        const bool r0 = inst->readySrcIdx(0), r1 = inst->readySrcIdx(1);
+        // Swap tags + ready bits (per-slot ready belongs to the phys
+        // reg, so it crosses with the tag).
+        inst->renamedSrcIdx(0, p1);
+        inst->renamedSrcIdx(1, p0);
+        if (r0 != r1) {
+            inst->readySrcIdx(0, r1);
+            inst->readySrcIdx(1, r0);
+        }
+        faults_injected_count++;
+        if (write_log) {
+            // Verifiable: the two tags exchanged slots; arch srcs, both
+            // phys indices (before -> after) and the ready cross all
+            // logged.
+            *(log_stream->stream()) << "Tick: " << curTick()
+                << ", Site: rename_srcTags, mode=src_tag_swap"
+                << ", tid=" << (int)inst->threadNumber
+                << ", sn=" << inst->seqNum
+                << ", arch0=X" << s0.index()
+                << ", arch1=X" << s1.index()
+                << ", phys0=" << idx0 << "->" << idx1
+                << ", phys1=" << idx1 << "->" << idx0
+                << ", ready_cross=" << ((r0 != r1) ? 1 : 0)
+                << ", faults_injected: " << faults_injected_count
+                << std::endl;
+        }
+    }
+
     bool
     CHAOSRenameMap::maybeCorrupt(ThreadID tid, const RegId &arch_reg,
                                   PhysRegIdPtr &phys_reg)
@@ -341,7 +431,9 @@ namespace gem5
                 new_idx = (int)(rng() % (unsigned)num_phys);
             }
             if (new_idx == cur_idx) return false;
-        } else if (fi_mode == Mode::MapBitflip2) {
+        } else if (fi_mode == Mode::MapBitflip2 ||
+                   fi_mode == Mode::MapBitflip2Adj ||
+                   fi_mode == Mode::MapBitflip2Nonadj) {
             // W4.1 D12 (04-design-matrix R13): flip TWO distinct random bits
             // of the physReg index at the same site as map_bitflip. On the
             // C3 north-star config (128 int physRegs = 2^7) the 7-bit index
@@ -351,14 +443,40 @@ namespace gem5
             // On a non-power-of-2 num_phys the flip can land out of range —
             // honest skip with log (NO clamp: a clamped remap would not be
             // the 2-bit-flip fault model).
+            // V2.0 R02 layering (ooo 03-design-matrix R12): the Adj/Nonadj
+            // variants constrain the pair to |b1-b2|==1 resp. >= 2
+            // ("同tag相邻/非相邻双bit"); the plain mode keeps the uniform
+            // distinct pair. The directed fault_mask control must satisfy
+            // the layering too — a violating mask is an honest skip.
             int nbits = 0; int tmp = num_phys; while (tmp > 1) { nbits++; tmp >>= 1; }
             if (nbits < 2) return false;  // index field too small for 2 bits
+            if (fi_mode == Mode::MapBitflip2Nonadj && nbits < 3)
+                return false;  // no non-adjacent pair exists below 3 bits
             int b1 = 0, b2 = 0;
             if (__builtin_popcountll(fault_mask) >= 2) {
                 // directed control: the two lowest set bits of fault_mask
                 b1 = __builtin_ctzll(fault_mask);
                 uint64_t rest = fault_mask & ~(1ULL << b1);
                 b2 = __builtin_ctzll(rest);
+                const int dd = b1 > b2 ? b1 - b2 : b2 - b1;
+                if ((fi_mode == Mode::MapBitflip2Adj && dd != 1) ||
+                    (fi_mode == Mode::MapBitflip2Nonadj && dd < 2))
+                    return false;  // directed mask violates the layering
+            } else if (fi_mode == Mode::MapBitflip2Adj) {
+                // uniform adjacent pair: (b1, b1+1), b1 in [0, nbits-1)
+                b1 = (int)(rng() % (unsigned)(nbits - 1));
+                b2 = b1 + 1;
+            } else if (fi_mode == Mode::MapBitflip2Nonadj) {
+                // rejection over the uniform distinct-pair draw (non-
+                // adjacent pairs dominate for nbits >= 4; bounded 16 tries,
+                // then an honest skip — mirrors the out-of-range policy)
+                for (int tries = 0; tries < 16; tries++) {
+                    b1 = (int)(rng() % (unsigned)nbits);
+                    b2 = (int)(rng() % (unsigned)(nbits - 1));
+                    if (b2 >= b1) b2++;
+                    if ((b1 > b2 ? b1 - b2 : b2 - b1) >= 2) break;
+                }
+                if ((b1 > b2 ? b1 - b2 : b2 - b1) < 2) return false;
             } else {
                 // uniform random DISTINCT pair: b1 uniform, b2 uniform over
                 // the remaining nbits-1 slots (order-statistics trick)
@@ -371,7 +489,8 @@ namespace gem5
             if (flipped < 0 || flipped >= num_phys) {
                 if (write_log) {
                     *(log_stream->stream()) << "Tick: " << curTick()
-                        << ", Site: rename_setEntry, mode=map_bitflip2"
+                        << ", Site: rename_setEntry, mode="
+                        << modeToString(fi_mode)
                         << classTag() << ", "
                         << "tid=" << (int)tid
                         << ", arch=" << archPrefix() << arch_idx
@@ -379,6 +498,7 @@ namespace gem5
                         << ", bits=(" << b1 << "," << b2 << ")"
                         << " — flipped idx " << flipped << " out of [0,"
                         << num_phys << ") (skipped, no clamp)"
+                        << ", faults_injected: " << faults_injected_count
                         << std::endl;
                 }
                 return false;
@@ -405,7 +525,8 @@ namespace gem5
                         << ", old_phys=" << cur_idx
                         << " — ROB has no active " << className()
                         << " dest candidate != cur "
-                        << "(skipped, no injection)" << std::endl;
+                        << ", faults_injected: " << faults_injected_count
+                        << std::endl;
                 }
                 return false;
             }
@@ -427,7 +548,8 @@ namespace gem5
                         << "arch_reg=" << className() << "[" << arch_idx
                         << "] cur_phys=" << cur_idx
                         << " — NO valid allocated substitute target (skipped, "
-                        << "no UB). tid=" << (int)tid << std::endl;
+                        << ", faults_injected: " << faults_injected_count
+                        << std::endl;
                 }
                 return false;
             }
@@ -457,18 +579,28 @@ namespace gem5
         faults_injected_count++;
 
         if (write_log) {
-            if (fi_mode == Mode::MapBitflip2) {
+            if (fi_mode == Mode::MapBitflip2 ||
+                fi_mode == Mode::MapBitflip2Adj ||
+                fi_mode == Mode::MapBitflip2Nonadj) {
                 // W4.1 D12 plan-mandated evidence line: old/new phys idx +
                 // the two flipped bits (verifiable: popcount(old^new)==2 and
-                // old ^ (1<<b1) ^ (1<<b2) == new).
+                // old ^ (1<<b1) ^ (1<<b2) == new). V2.0 R02 layering adds
+                // dist=|b1-b2| for the Adj/Nonadj submodes (03 spec
+                // "保存bit距离和原/故障值"; the plain mode keeps the exact
+                // legacy byte format).
                 *(log_stream->stream()) << "Tick: " << curTick()
-                    << ", Site: rename_setEntry, mode=map_bitflip2"
+                    << ", Site: rename_setEntry, mode=" << modeToString(fi_mode)
                     << classTag()
                     << ", tid=" << (int)tid
                     << ", arch=" << archPrefix() << arch_idx
                     << ", old_phys=" << cur_idx
                     << ", new_phys=" << new_idx
-                    << ", bits=(" << log_b1 << "," << log_b2 << ")"
+                    << ", bits=(" << log_b1 << "," << log_b2 << ")";
+                if (fi_mode != Mode::MapBitflip2)
+                    *(log_stream->stream())
+                        << ", dist=" << (log_b1 > log_b2 ? log_b1 - log_b2
+                                                         : log_b2 - log_b1);
+                *(log_stream->stream())
                     << ", faults_injected: " << faults_injected_count
                     << std::endl;
             } else if (fi_mode == Mode::SwapToActive
@@ -657,6 +789,7 @@ namespace gem5
                     << " (bit " << f5s_bit << " already at " << f5s_polarity
                     << ", no observable change)"
                     << ", exposure: " << f5s_exposures
+                    << ", faults_injected: " << faults_injected_count
                     << std::endl;
             }
             return true;
@@ -675,6 +808,7 @@ namespace gem5
                     << " — forced idx " << masked << " out of [0,"
                     << num_phys << ") (skipped this write, no clamp)"
                     << ", exposure: " << f5s_exposures
+                    << ", faults_injected: " << faults_injected_count
                     << std::endl;
             }
             return false;
@@ -690,6 +824,7 @@ namespace gem5
                 << ", stored_phys=" << masked
                 << ", bit=" << f5s_bit << " forced to " << f5s_polarity
                 << ", exposure: " << f5s_exposures
+                << ", faults_injected: " << faults_injected_count
                 << std::endl;
         }
         return true;
@@ -794,6 +929,7 @@ namespace gem5
                 << ", cause=" << (mispredict ? "branch_mispred" : "other")
                 << ", squash_sn=" << sn
                 << ", signal: " << sq_signals_logged
+                << ", faults_injected: " << faults_injected_count
                 << std::endl;
         }
     }
@@ -917,7 +1053,8 @@ namespace gem5
                 if (need == 2) *(log_stream->stream()) << "," << b2;
                 *(log_stream->stream())
                     << ") — flipped idx " << flipped << " out of [0,"
-                    << num_phys << ") (skipped, no clamp)" << std::endl;
+                    << ", faults_injected: " << faults_injected_count
+                    << std::endl;
             }
             return false;
         }
@@ -1172,7 +1309,8 @@ namespace gem5
                     if (need == 2) *(log_stream->stream()) << "," << b2;
                     *(log_stream->stream())
                         << ") — flipped idx " << flipped << " out of [0,"
-                        << num_phys << ") (skipped, no clamp)" << std::endl;
+                        << ", faults_injected: " << faults_injected_count
+                        << std::endl;
                 }
                 return false;
             }

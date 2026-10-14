@@ -94,12 +94,49 @@ class CHAOSDecode(SimObject):
     #                            latch; opClass selects the FUPool
     #                            capability, observable = FU/latency
     #                            effect); no effective bit -> honest skip.
+    # V2.0 D02 layering (ooo 03-design-matrix R3, 09-audit WB3 gap): the
+    # dual-bit-flip submodels over the same instruction-word latch, with
+    # the FIELD sampled uniformly over {opcode, reg, imm} per event
+    # ("同字段" fixes the relation of the two bits, not the field):
+    #   bitflip2_adj    (D02-a): same-field ADJACENT pair (|dpos| == 1)
+    #   bitflip2_nonadj (D02-b): same-field NON-adjacent pair (|dpos| >= 2)
+    #     opcode field: no semantic verification (opcode_bitflip2 design —
+    #     legal and illegal landings are both the model); reg/imm fields
+    #     keep their own predicate (mnemonic unchanged AND register
+    #     fingerprint moves resp. is unchanged), rejection over a shuffled
+    #     constrained-pair list.
+    #   bitflip2_cross  (D02-c): 1 bit of kOpcodeBits + 1 distinct bit of
+    #     kOperandBits (kRegBits UNION kImmBits = enc[21:0]) — positional
+    #     selection only ("各区 bit 集内选取"). Log lines carry field= and
+    #     dist= (03 spec: "保存bit距离和原/故障值").
+    # V2.0 FD02 layering (ooo 03-design-matrix R31, FP/SIMD Decode): the
+    # D02 adjacency split over the FP/SIMD instruction word's OWN fields
+    # (derived from real AArch64 encodings — see kFpLaneBits/.hh; NOT
+    # D02's int-field sets): fp_opcode = the W7.1 spike window enc[23:10];
+    # lane = {Q(30), size/ftype(23:22)} (lane STRUCTURE: count x width);
+    # reg = Vd/Vn/Vm positions. All gated by fpOnly.
+    #   fp_bitflip2_adj    (FD02-a): same-field ADJACENT pair (|dpos|==1)
+    #   fp_bitflip2_nonadj (FD02-b): same-field NON-adjacent (|dpos|>=2)
+    #     fp_opcode/lane: no verification (legal/illegal both the model);
+    #     reg keeps the D02 predicate (mnemonic + fingerprint moved).
+    #   fp_bitflip2_cross  (FD02-c): 1 bit of kFpOpcodeBits + 1 distinct
+    #     bit of kFpOperandSideBits (lane UNION reg). Log carries field=
+    #     and dist=.
+    # V2.0 D04-c (ooo 03-design-matrix R5, 09-audit WB3 gap): src_swap —
+    # exchange the DECODED-OUTPUT src0/src1 register numbers at the
+    # encoding layer (Rn[9:5] <-> Rm[20:16], re-decoded). Only the
+    # two-int-src data-proc families (bits[28:24]==01011/11011, GNU-as
+    # verified); Rn==Rm = identity = honest skip; mnemonic must be kept
+    # and the register fingerprint must move.
     mode = Param.String("dest_reg_sub",
         "dest_reg_sub | opcode_bitflip | opcode_bitflip2 | opcode_swap | "
         "reg_bitflip | reg_bitflip2 | imm_bitflip | imm_bitflip2 | "
         "sign_ext_bit | imm_subfield_shift | crack_ctrl | "
         "fp_opcode_bitflip | fp_opcode_bitflip2 | fp_opcode_swap | "
-        "fp_reg_bitflip | fp_reg_bitflip2 | fp_route_bit")
+        "fp_reg_bitflip | fp_reg_bitflip2 | fp_route_bit | "
+        "bitflip2_adj | bitflip2_nonadj | bitflip2_cross | "
+        "fp_bitflip2_adj | fp_bitflip2_nonadj | fp_bitflip2_cross | "
+        "src_swap | x0_sub")
     probability = Param.Float(1.0, "per-decode injection probability")
     firstClock = Param.UInt64(0, "first clock cycle eligible for injection")
     lastClock = Param.UInt64(0, "last cycle (0 = unrestricted)")

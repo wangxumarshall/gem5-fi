@@ -2,6 +2,7 @@
 #define __CPU_O3_CHAOS_DECODE_HH__
 
 #include <random>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -57,6 +58,15 @@ class CHAOSDecode : public SimObject
     StaticInstPtr maybeCorruptEncoding(StaticInstPtr orig,
                                        InstDecoder *dec, Addr pc);
 
+    // FIX-B unit 3 (sn join): fetch.cc calls this right after buildInst()
+    // wrapped a StaticInst into a DynInst. At DECODE time the DynInst (and
+    // its seqNum) does NOT exist yet — the decode hook runs before
+    // buildInst in the same fetch do-while iteration (fetch.cc has no
+    // break between them), so the injection-success log line is DEFERRED
+    // until this join fires on the wrapping DynInst, then completed with
+    // the REAL seqNum (sn=). READ-ONLY (reads staticInst/macroop/seqNum).
+    void noteBuildInst(const o3::DynInst *inst);
+
   private:
     BaseCPU *cpu;
     double probability;
@@ -75,6 +85,26 @@ class CHAOSDecode : public SimObject
     std::mt19937 rng;
     std::random_device rd;
     OutputStream *log_stream = nullptr;
+
+    // ---- FIX-B unit 3: deferred injection-success line (sn join) ----
+    // The success line is streamed into pending_line (NOT the log) and
+    // only written when noteBuildInst sees the wrapping DynInst; the
+    // line-final "faults_injected: N" marker is appended by the completer
+    // so the L0 log contract (ooo_observation marker-wins parsing) holds
+    // and the event dict gains rec["sn"] for the L3 join. A pending line
+    // that never meets its join (should be unreachable per the fetch.cc
+    // flow) is flushed with an explicit sn=na marker — never lost
+    // silently. pending_repl matches by StaticInstPtr identity: the
+    // replacement is a fresh decodeChaos product, so exactly the one
+    // DynInst built from it in this same iteration can match (for a
+    // macroop replacement — crack_ctrl — the first microop's macroop
+    // matches and its seqNum is logged).
+    StaticInstPtr pending_repl;
+    std::ostringstream pending_line;
+    uint64_t pending_count = 0;
+    std::ostream &deferLogLine(const StaticInstPtr &repl);
+    void completePendingLine(InstSeqNum sn);
+    void flushPendingLineUnmatched();
 
     bool inWindow();
 
@@ -104,8 +134,48 @@ class CHAOSDecode : public SimObject
                                              // FP pair table)
                       FpRegBitflip,          // D59 V-reg-number field, 1 bit
                       FpRegBitflip2,         // D60 V-reg-number field, 2 bits
-                      FpRouteBit };          // D61 instruction-route bit
+                      FpRouteBit,            // D61 instruction-route bit
                                              // (opClass-change predicate)
+                      // ---- V2.0 D02 layering (ooo 03-design-matrix R3;
+                      // 09-audit WB3 gap: adjacent/non-adjacent split +
+                      // cross-field dual flip; field sampled uniformly over
+                      // opcode/reg/imm per event) ----
+                      Bitflip2Adj,           // D02-a same-field ADJACENT
+                                             // dual bit (|dpos| == 1)
+                      Bitflip2Nonadj,        // D02-b same-field NON-adjacent
+                                             // dual bit (|dpos| >= 2)
+                      Bitflip2Cross,         // D02-c opcode x operand
+                                             // cross-field dual bit
+                      // ---- V2.0 FD02 layering (ooo 03-design-matrix R31;
+                      // same adjacency split for the FP/SIMD instruction
+                      // word; field sampled uniformly over fp_opcode/lane/
+                      // reg; cross = opcode x lane/register-operand) ----
+                      FpBitflip2Adj,         // FD02-a same-field ADJACENT
+                      FpBitflip2Nonadj,      // FD02-b same-field NON-adjacent
+                      FpBitflip2Cross,       // FD02-c opcode x lane/operand
+                      // ---- V2.0 D04-c (ooo 03-design-matrix R5, 09-audit
+                      // WB3 gap: src0/src1互换) ----
+                      SrcSwap,              // D04-c swap the DECODED-OUTPUT
+                                            // src register numbers — the
+                                            // encoding-layer Rn[9:5] <->
+                                            // Rm[20:16] exchange, re-decoded
+                                            // so the decoded tuple's srcs
+                                            // come out swapped
+                      // ---- V2.0 D04-e (same row: x0注入) ----
+                      X0Sub,                // D04-e replace ONE int register
+                                            // operand slot (src0 Rn / src1
+                                            // Rm / dst Rd, sampled
+                                            // uniformly) with X0 — register
+                                            // NUMBER 0 (NOT XZR=31, NOT a
+                                            // data-value zeroing); slot
+                                            // already X0 = honest skip
+                      // ---- V2.0 D05-b (ooo 03-design-matrix R6, 09-audit
+                      // WB3 gap: immediate rotation) ----
+                      ImmRotate };          // D05-b rotate the LOGICAL
+                                            // immediate value (split-encoded
+                                            // imms are assembled first,
+                                            // rotated, then re-dispersed);
+                                            // all non-imm bits preserved
     Mode fi_mode = Mode::DestRegSub;
     static Mode stringToMode(const std::string &s);
     const char *modeToString(Mode m) const;
@@ -128,6 +198,14 @@ class CHAOSDecode : public SimObject
     static constexpr uint32_t kImmBits[]    = {10, 11, 12, 13, 14,
                                                15, 16, 17, 18, 19,
                                                20, 21};
+    // V2.0 D02-c operand bit set: kRegBits UNION kImmBits == enc[21:0]
+    // (every operand-region position — the Rd/Rn/Rm register numbers and
+    // the imm12/immr+imms/imm6 window; bit 21 sits in BOTH the imm window
+    // and the opcode region, kept here so the union is complete — the
+    // cross mode enforces bit_a != bit_b).
+    static constexpr uint32_t kOperandBits[] = {
+        0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
+        10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21};
 
     // D03 opcode 换值: format-compatible legal-opcode swap table. Every
     // rule was verified against real GNU-as encodings (see the W6 plan
@@ -161,6 +239,67 @@ class CHAOSDecode : public SimObject
     // bit so every injection stays recomputable (orig ^ (1<<b) == new).
     static constexpr uint32_t kFpOpcodeBits[] = {
         23, 22, 21, 20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10 };
+    // V2.0 FD02 lane field: the lane-STRUCTURE control bits of the AArch64
+    // FP/SIMD encodings, derived from real instruction encodings on this
+    // host (ARM DDI 0487 AdvSIMD layout):
+    //   fadd d0,d1,d2 = 0x1e622820 (Q=0, size/ftype[23:22]=01 → 1 lane of
+    //                             64b — scalar double)
+    //   fadd s0,s1,s2 = 0x1e222820 (size=00 → 1 lane of 32b)
+    //   fadd v0.2d    = 0x4e62d420 (Q=1, size=01 → 2 lanes of 64b)
+    //   fadd v0.4s    = 0x4e22d420 (Q=1, size=00 → 4 lanes of 32b)
+    // i.e. bit 30 = Q (64/128-bit vector length → lane count) and
+    // bits[23:22] = size/ftype (element width). These are ACTIVE control
+    // bits in every FP/AdvSIMD encoding — not reserved. NOTE the
+    // documented overlap with kFpOpcodeBits: the W7.1 opcode window
+    // includes size[23:22] (it discriminates FP formats); the cross mode
+    // enforces bit_a != bit_b so a "cross" flip never degenerates to a
+    // single-bit double-flip.
+    static constexpr uint32_t kFpLaneBits[] = { 30, 23, 22 };
+    // V2.0 FD02 physical opcode field (overlap-audit fix): the W7.1
+    // kFpOpcodeBits window [23:10] deliberately SPANS four physical fields
+    // (ftype/size, fixed-1, Rm, op) — correct for the legacy random-flip
+    // modes ("the operation-discriminating bits"), but WRONG as the
+    // FD02-a/b "fp_opcode" field and the FD02-c opcode side: it let a
+    // "cross-field" draw pick two size bits (23,22) or two Rm register
+    // bits (observed in the first pilot: cross bits=[16,19] = two Rm bits,
+    // and fp_opcode-labeled pairs [17,16] = two Rm bits). Per the ARM DDI
+    // field decomposition the PHYSICAL opcode bits are op[15:10] plus the
+    // fixed-1 format bit 21 (part of the format identification, not size,
+    // not a register) — this set is pairwise disjoint from kFpLaneBits
+    // and kRegBits (static_asserts below prove it at compile time).
+    // The legacy fp_opcode_bitflip/_bitflip2 modes keep the W7.1 window
+    // unchanged (their documented semantics is the window, and their
+    // committed behavior must not change).
+    static constexpr uint32_t kFpOpFieldBits[] = {
+        21, 15, 14, 13, 12, 11, 10 };
+    // V2.0 FD02-c operand side: kFpLaneBits UNION kRegBits (the lane +
+    // Vd/Vn/Vm register-operand positions — the non-opcode side of the
+    // FP/SIMD instruction word; the FP-immediate window is deliberately
+    // NOT included: FD02's submodels name opcode/lane/register only).
+    static constexpr uint32_t kFpOperandSideBits[] = {
+        30, 23, 22,
+        0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 16, 17, 18, 19, 20 };
+
+    // ---- FD02 physical-field disjointness (compile-time proof) ----
+    // "跨字段" (cross-FIELD) is only meaningful if the two drawn bits come
+    // from two DIFFERENT physical fields. Plain-integer masks per set
+    // (member-template instantiation in in-class static_asserts is not
+    // portable) — the three masks are asserted pairwise disjoint, so a
+    // cross draw (opcode mask vs lane|reg union) can never pick two bits
+    // of one physical field, and a same-field draw is homogeneous by
+    // construction. The constructor cross-checks each mask against its
+    // array's union so the two representations can never silently diverge.
+    static constexpr uint32_t kFpOpFieldMask  = (1u << 21) | 0xFC00u;
+    static constexpr uint32_t kFpLaneMask =
+        (1u << 30) | (1u << 23) | (1u << 22);
+    static constexpr uint32_t kRegFieldMask  = 0x1F03FFu;
+    static_assert((kFpOpFieldMask & kFpLaneMask) == 0,
+                  "FD02: opcode field must not overlap the lane field");
+    static_assert((kFpOpFieldMask & kRegFieldMask) == 0,
+                  "FD02: opcode field must not overlap the reg field");
+    static_assert((kFpLaneMask & kRegFieldMask) == 0,
+                  "FD02: lane field must not overlap the reg field");
+    static void checkFd02Masks();
     // D61 route candidates: the top-level A64 instruction-class field
     // bits[28:24] (x1110/x1111 = FP/ASIMD vs the integer data-proc /
     // load-store / branch groups) — the bits the "integer vs FP/SIMD
@@ -278,6 +417,76 @@ class CHAOSDecode : public SimObject
     // objects (no clone API; mutating their flags corrupts the ISA cache).
     // Non-macroop instructions in crack_ctrl mode get an honest skip log.
     static uint32_t countMicroops(const StaticInst *mop);
+
+    // ---- V2.0 D04-c src_swap (ooo 03-design-matrix R5, 09-audit WB3
+    // gap) ----
+    // Eligible families: the A64 data-processing formats where BOTH
+    // Rn[9:5] and Rm[20:16] are source register fields (GNU-as verified
+    // on this aarch64 host, 2026-10-09):
+    //   add/sub shifted/extended register: bits[28:24]==01011
+    //     add x0,x1,x2      = 0x8b020020   add,lsl#3 = 0x8b020c20
+    //     add x0,x1,w2,sxtw = 0x8b22c020   sub       = 0xcb020020
+    //   logical shifted register:         bits[28:24]==01010
+    //     and               = 0x8a020020   orr       = 0xaa020020
+    //     eor               = 0xca020020
+    //   three-source:                    bits[28:24]==11011
+    //     madd              = 0x9b020c20   smulh     = 0x9b427c20
+    // Other two-source families (e.g. ldr x0,[x1,x2] register-offset
+    // 0xf8626820, [28:24]=11000) are HONEST SKIPS for now — the boundary
+    // is documented, not silently mis-swapped.
+    static bool isD04SwapFamily(uint32_t enc);
+
+    // The D04-c injection helper (called after the shared window/skip/
+    // probability gates; own family eligibility with honest skip log,
+    // re-decode, semantic predicate, fault counting and logging).
+    StaticInstPtr injectSrcSwap(uint64_t emi_raw, uint32_t enc,
+                                StaticInstPtr orig,
+                                const std::string &orig_name,
+                                ArmISA::Decoder *arm_dec, Addr pc);
+
+    // D04-e x0_sub: replace one int register operand slot with X0 (the
+    // register NUMBER 0). Same families as D04-c (Rn/Rm/Rd are all
+    // register fields there); the slot (src0/src1/dst) is sampled
+    // uniformly — the 03 row's expected-outcome column names BOTH
+    // "dst=x0可能掩蔽" and "src=x0可能稳定偏差", so the submodel covers
+    // all three slots with the slot recorded per injection.
+    StaticInstPtr injectX0Sub(uint64_t emi_raw, uint32_t enc,
+                              StaticInstPtr orig,
+                              const std::string &orig_name,
+                              ArmISA::Decoder *arm_dec, Addr pc);
+
+    // ---- V2.0 D05-b imm_rotate (ooo 03-design-matrix R6, 09-audit WB3
+    // gap) ----
+    // Supported immediate formats (mask/match from the GNU-as-verified
+    // kSignImmFormats rows; the bitmask-immediate N:immr:imms family is
+    // DELIBERATELY EXCLUDED — its logical value is an expanded bit
+    // pattern that does not round-trip through an immr/imms rotation;
+    // matched instructions fall through to "no supported family" honest
+    // skip). Segments are MSB-first: the logical value is assembled
+    // seg0..segN, rotated as a width-bit integer, then re-dispersed.
+    //  family             | segments (enc bits)         | width
+    //  add/sub imm12      | [21:10]                     | 12
+    //  ldr/str imm12      | [21:10]                     | 12
+    //  ldur/stur imm9     | [20:12]                     | 9
+    //  movz/n/k imm16     | [20:5]                      | 16
+    //  b/bl imm26         | [25:0]                      | 26
+    //  b.cond/cbz imm19   | [23:5]                      | 19
+    //  tbz/tbnz imm14     | [18:5]                      | 14
+    //  adr/adrp 21-bit    | immhi[23:5] + immlo[30:29]  | 21 (split)
+    //  ldr-lit imm19      | [23:5]                      | 19
+    struct ImmRotFormat { uint32_t mask, match; uint8_t nsegs;
+                          uint8_t hi[2]; uint8_t lo[2]; uint8_t width;
+                          const char *name; };
+    static const ImmRotFormat kImmRotFormats[];
+    static const ImmRotFormat *matchImmRotFormat(uint32_t enc);
+
+    // The D05-b injection helper (own format eligibility with honest
+    // skip log, logical-value assembly/rotation/dispersal, re-decode,
+    // value-only predicate, fault counting and logging).
+    StaticInstPtr injectImmRotate(uint64_t emi_raw, uint32_t enc,
+                                  StaticInstPtr orig,
+                                  const std::string &orig_name,
+                                  ArmISA::Decoder *arm_dec, Addr pc);
 
     // The three D08-D10 injection helpers (called after the shared
     // window/skip/probability gates; each does its own format eligibility,
