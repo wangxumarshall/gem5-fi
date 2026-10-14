@@ -268,7 +268,7 @@ def check_goldens_dir(goldens_dir, frozen_gem5=None,
 
 def run_admission(eng2_dirs, goldens_dir, guard_dir, frozen_gem5,
                   frozen_chaos, repo, out_path, expect_samples=8,
-                  frozen_observer_tool=None):
+                  frozen_observer_tool=None, prefer_revised=False):
     print("[admission] repo=%s guard=%s goldens=%s" % (repo, guard_dir,
                                                        goldens_dir))
     if frozen_gem5:
@@ -338,6 +338,16 @@ def run_admission(eng2_dirs, goldens_dir, guard_dir, frozen_gem5,
             total_samples += 1
             entry = {"sample_dir": sd, "campaign_id": campaign_id}
             opath = os.path.join(sd, "observation.json")
+            # [hotfix 2026-10-14] --prefer-revised: samples reobserved
+            # under the identity split carry their corrected view in
+            # observation.revised.json (originals untouched per the
+            # FIX-A no-rewrite contract) -- admit on that view and say
+            # so per sample; the original file remains on disk.
+            if prefer_revised:
+                rpath = os.path.join(sd, "observation.revised.json")
+                if os.path.isfile(rpath):
+                    opath = rpath
+                    entry["admitted_view"] = "revised"
             try:
                 with open(opath) as f:
                     obs = json.load(f)
@@ -857,6 +867,10 @@ def main():
                     default="/home/sdc/gem5-fi-ding/runs/ooo-l0l5/guard")
     ap.add_argument("--frozen-gem5-sha", default=FROZEN_GEM5_SHA)
     ap.add_argument("--frozen-chaos-commit", default=None)
+    ap.add_argument("--prefer-revised", action="store_true",
+                    help="admit on observation.revised.json when present "
+                         "(the reobserve-corrected view; originals stay "
+                         "untouched)")
     ap.add_argument("--frozen-observer-tool", default=None,
                     help="pin identity.observer_tool_commit (hotfix "
                          "2026-10-14: observer code version is a distinct "
@@ -876,7 +890,8 @@ def main():
                          args.frozen_gem5_sha, args.frozen_chaos_commit,
                          args.repo, args.out,
                          expect_samples=args.expect_samples,
-                         frozen_observer_tool=args.frozen_observer_tool)
+                         frozen_observer_tool=args.frozen_observer_tool,
+                         prefer_revised=args.prefer_revised)
 
 
 if __name__ == "__main__":
