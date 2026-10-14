@@ -189,18 +189,32 @@ def _map_seed_from(event):
     the first reader RENAMED AFTER the fault carries the src triple
     (class, arch, new_phys) -- the wrong phys. Returns
     (class, arch, phys, tick, old_phys) or None when the tags are
-    absent or not ints (no fabrication: no tags -> no join)."""
+    absent or not ints (no fabrication: no tags -> no join).
+
+    Pool inference (R02 int-pool support, 2026-10-14): CHAOSRenameMap
+    writes the ", class=vec" tag ONLY for the vec pool (classTag() in
+    CHAOSRenameMap.cc); int-pool lines carry no class tag but their
+    arch is X<n> while vec lines are V<n>. The arch PREFIX is the
+    authoritative pool discriminator: absent class + arch=X<n> -> int
+    pool (IntRegClass=0); absent class + arch=V<n> -> vec pool
+    (VecRegClass=2); explicit class tag wins when present."""
     if not isinstance(event, dict):
         return None
     cls = event.get("class")
+    arch_raw = event.get("arch")
     if isinstance(cls, str):
         cls = _REG_CLASS_TAG.get(cls.strip().lower())
     elif isinstance(cls, bool):
         cls = None
-    arch = event.get("arch")
-    if isinstance(arch, str):
-        m = _RE_ARCH_NAME.match(arch.strip())
+    arch = arch_raw
+    arch_is_str = isinstance(arch_raw, str)
+    if arch_is_str:
+        m = _RE_ARCH_NAME.match(arch_raw.strip())
         arch = int(m.group(1)) if m else None
+    if cls is None and arch_is_str and arch_raw.strip().startswith(("X", "V")):
+        # no class tag: the arch PREFIX names the pool (X=int, V=vec)
+        cls = _REG_CLASS_TAG.get("int" if arch_raw.strip()[0] == "X"
+                                  else "vec")
     phys = event.get("new_phys")
     tick = event.get("tick")
     old = event.get("old_phys")

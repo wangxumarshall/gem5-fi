@@ -553,6 +553,17 @@ def test_build_l3_rename_map_join():
               r_c["status"] == "unsupported"
               and "sn" in r_c["reason"] and "new_phys" in r_c["reason"],
               repr(r_c.get("reason")))
+        # [R02 int-pool] int-pool rename events carry NO class= tag
+        # (classTag() writes it only for the vec pool); the arch
+        # prefix X<n> names the int pool (IntRegClass=0) -> the map
+        # join must seed (0, n, new_phys)
+        ev_int = {"tick": 489720, "site": "rename_setEntry",
+                  "mode": "map_bitflip2_adj", "arch": "X0",
+                  "old_phys": 90, "new_phys": 106,
+                  "faults_injected": 1}
+        seed_int = ooo_l3._map_seed_from(ev_int)
+        check("rat int-pool seed inferred from X-arch prefix",
+              seed_int == (0, 0, 106, 489720, 90), repr(seed_int))
         # sn still wins when present (rename dest_reg_sub family)
         r_d = ooo_l3.build_l3("rat", [dict(ev, sn=11)], p)
         check("rat sn priority: sn join used when present",
