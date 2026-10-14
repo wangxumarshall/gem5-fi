@@ -100,7 +100,8 @@ L4_STATUSES = ("ok", "none_detected", "error", "inactive_no_activation")
 IDENTITY_FIELDS = ("run_id", "campaign_id", "runid_row", "submodel",
                    "sample_index", "phase", "seed", "manifest_sha256",
                    "gem5_sha256", "config", "workload", "golden_key",
-                   "chaos_commit", "patchset_sha256", "pythonhashseed",
+                   "chaos_commit", "patchset_sha256",
+                   "observer_tool_commit", "pythonhashseed",
                    "host", "started", "finished", "wall_s")
 CORE_KEYS = ("schema_version", "identity", "l0", "l1", "l2", "l3", "l4",
              "l5", "replay", "files", "coverage_scope", "audit")

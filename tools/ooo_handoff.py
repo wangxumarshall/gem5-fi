@@ -274,6 +274,11 @@ def build_campaign_handoff(campaign_dir, campaign_yaml, guard_dir):
         if o:
             ident_sample = o.get("identity")
             break
+    # [hotfix 2026-10-14] the observer toolchain commit that produced
+    # the observations (from the identity sample; "n/a" only when no
+    # observation is available -- honest, never invented)
+    obs_observer_tool_commit = ((ident_sample or {}).get(
+        "observer_tool_commit") or "n/a")
 
     stats = cell_stats(dict(counts))
     h = {
@@ -297,6 +302,7 @@ def build_campaign_handoff(campaign_dir, campaign_yaml, guard_dir):
         "identity": {
             "chaos_commit": cy.get("chaos_commit"),
             "patchset_sha256": cy.get("patchset_sha256"),
+            "observer_tool_commit": obs_observer_tool_commit,
             "gem5_sha256": (ident_sample or {}).get("gem5_sha256")
             or cy.get("frozen_gem5_sha256", "n/a"),
             "config": (ident_sample or {}).get("config")

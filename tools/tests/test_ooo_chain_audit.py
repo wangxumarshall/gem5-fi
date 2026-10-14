@@ -139,6 +139,8 @@ def make_obs(run_id, seed, classification="Masked", activated=1,
             "golden_key": "fixturegoldenkey0000000000",
             "chaos_commit": "fixturecommit",
             "patchset_sha256": "ff" * 32,
+            "observer_tool_commit": "cf9729bdf4846241a2637b71d431dfdd42"
+                                   "fb2269",
             "pythonhashseed": 0,
             "host": "huawei0201",
             "started": "2026-10-12T10:00:00",

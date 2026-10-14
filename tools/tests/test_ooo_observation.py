@@ -272,7 +272,9 @@ def make_identity():
                              "d22cfc27a4dc8cb98e85d",
                       golden_id="smoke-golden-v1"),
         golden_key="9859154dd47e7e734bbb27a7",
-        chaos_commit="58d26fe", patchset_sha256="n/a", pythonhashseed=0,
+        chaos_commit="58d26fe", patchset_sha256="n/a",
+        observer_tool_commit="cf9729bdf4846241a2637b71d431dfdd42fb2269",
+        pythonhashseed=0,
         host="huawei0201", started="2026-10-12T17:30:00",
         finished="2026-10-12T17:30:05", wall_s=5.0)
     return ident

@@ -101,7 +101,8 @@ def find_campaign_yaml(repo, campaign_id):
     return p if os.path.isfile(p) else None
 
 
-def check_identity(repo, obs, campaign_yaml, frozen_gem5, frozen_chaos):
+def check_identity(repo, obs, campaign_yaml, frozen_gem5, frozen_chaos,
+                   frozen_observer_tool=None):
     fails = []
     ident = obs.get("identity", {})
     if frozen_gem5 and ident.get("gem5_sha256") != frozen_gem5:
@@ -129,6 +130,14 @@ def check_identity(repo, obs, campaign_yaml, frozen_gem5, frozen_chaos):
             fails.append("chaos_commit_differs_from_yaml")
         if frozen_chaos and ident.get("chaos_commit") != frozen_chaos:
             fails.append("chaos_commit_differs_from_frozen")
+        # [hotfix 2026-10-14] observer toolchain identity: every sample
+        # must RECORD one, and it must match the frozen pin when given
+        otc = ident.get("observer_tool_commit")
+        if not (isinstance(otc, str) and otc.strip()
+                and otc != "unknown"):
+            fails.append("observer_tool_commit_missing")
+        elif frozen_observer_tool and otc != frozen_observer_tool:
+            fails.append("observer_tool_commit_mismatch")
     else:
         fails.append("campaign_yaml_not_found")
     return fails
@@ -258,7 +267,8 @@ def check_goldens_dir(goldens_dir, frozen_gem5=None,
 # ------------------------------------------------------------ admission
 
 def run_admission(eng2_dirs, goldens_dir, guard_dir, frozen_gem5,
-                  frozen_chaos, repo, out_path, expect_samples=8):
+                  frozen_chaos, repo, out_path, expect_samples=8,
+                  frozen_observer_tool=None):
     print("[admission] repo=%s guard=%s goldens=%s" % (repo, guard_dir,
                                                        goldens_dir))
     if frozen_gem5:
@@ -352,7 +362,7 @@ def run_admission(eng2_dirs, goldens_dir, guard_dir, frozen_gem5,
                 n_chain_incomplete += 1
 
             idf = check_identity(repo, obs, camp_yaml, frozen_gem5,
-                                 frozen_chaos)
+                                 frozen_chaos, frozen_observer_tool)
             entry["identity"] = idf
             for f in idf:
                 item_fails["identity"].append("%s:%s" % (run_id, f))
@@ -473,6 +483,8 @@ def _mk_eng2_obs(run_id, seed, cfg_sha, wl_sha, chaos="frozencommithash",
             "workload": {"path": "workloads/ooo/smoke/smoke",
                          "sha256": wl_sha, "golden_id": "smoke-golden-v1"},
             "golden_key": "k" * 24, "chaos_commit": chaos,
+            "observer_tool_commit": "cf9729bdf4846241a2637b71d431dfdd"
+                                    "42fb2269",
             "patchset_sha256": "ff" * 32, "pythonhashseed": 0,
             "host": "huawei0201", "started": "t0", "finished": "t1",
             "wall_s": 1.0,
@@ -845,6 +857,10 @@ def main():
                     default="/home/sdc/gem5-fi-ding/runs/ooo-l0l5/guard")
     ap.add_argument("--frozen-gem5-sha", default=FROZEN_GEM5_SHA)
     ap.add_argument("--frozen-chaos-commit", default=None)
+    ap.add_argument("--frozen-observer-tool", default=None,
+                    help="pin identity.observer_tool_commit (hotfix "
+                         "2026-10-14: observer code version is a distinct "
+                         "identity axis from the gem5 binary patchset)")
     ap.add_argument("--repo", default=REPO)
     ap.add_argument("--out", default=DEFAULT_OUT)
     ap.add_argument("--expect-samples", type=int, default=8,
@@ -859,7 +875,8 @@ def main():
     return run_admission(args.eng2_dirs, args.goldens_dir, args.guard_dir,
                          args.frozen_gem5_sha, args.frozen_chaos_commit,
                          args.repo, args.out,
-                         expect_samples=args.expect_samples)
+                         expect_samples=args.expect_samples,
+                         frozen_observer_tool=args.frozen_observer_tool)
 
 
 if __name__ == "__main__":

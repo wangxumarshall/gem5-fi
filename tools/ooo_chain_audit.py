@@ -91,7 +91,8 @@ LAYER_KEYS = ("l0", "l1", "l2", "l3", "l4", "l5")
 IDENTITY_KEYS = ("run_id", "campaign_id", "runid_row", "submodel",
                  "sample_index", "phase", "seed", "manifest_sha256",
                  "gem5_sha256", "config", "workload", "golden_key",
-                 "chaos_commit", "patchset_sha256", "pythonhashseed",
+                 "chaos_commit", "patchset_sha256",
+                 "observer_tool_commit", "pythonhashseed",
                  "host", "started", "finished", "wall_s")
 
 LAYER_SUBKEYS = {
@@ -288,6 +289,21 @@ def _check_identity(obs, frozen_gem5_sha, violations):
     return ident
 
 
+def _check_observer_tool(ident, frozen_observer_tool, violations):
+    """[hotfix 2026-10-14] the observation's identity must name the
+    observer toolchain commit; when the caller pins a frozen one the
+    recorded value must match (strict, never waived)."""
+    if not isinstance(ident, dict):
+        return
+    got = ident.get("observer_tool_commit")
+    if not (isinstance(got, str) and got.strip()
+            and got != "unknown"):
+        violations.append("observer_tool_commit_missing")
+        return
+    if frozen_observer_tool and got != frozen_observer_tool:
+        violations.append("observer_tool_commit_mismatch")
+
+
 def _check_layers(obs, submodel, violations):
     """Per-layer status/consistency checks. Returns the observed
     classification (or None) for campaign-level accounting."""
@@ -470,10 +486,13 @@ def _check_chain_flags(obs, violations):
     return cc, gaps
 
 
-def audit_observation(obs, sample_dir, frozen_gem5_sha=None):
+def audit_observation(obs, sample_dir, frozen_gem5_sha=None,
+                      frozen_observer_tool=None):
     """Audit one parsed observation dict. Returns the per-sample result
     record (run_id, classification, missing_layers, violations,
-    chain_complete, chain_gaps + accounting extras)."""
+    chain_complete, chain_gaps + accounting extras). [hotfix 2026-10-14]
+    frozen_observer_tool: when given, identity.observer_tool_commit must
+    match exactly (strict, never waived)."""
     violations = []
     missing_layers = []
     if not isinstance(obs, dict):
@@ -506,6 +525,7 @@ def audit_observation(obs, sample_dir, frozen_gem5_sha=None):
         violations.append("missing_key:coverage_scope")
 
     ident = _check_identity(obs, frozen_gem5_sha, violations)
+    _check_observer_tool(ident, frozen_observer_tool, violations)
     submodel = ident.get("submodel") if ident else None
     classification = _check_layers(obs, submodel, violations)
     cc, gaps = _check_chain_flags(obs, violations)
@@ -549,7 +569,8 @@ def discover_samples(campaign_dir):
     return out, n_quarantine
 
 
-def audit_campaign(campaign_dir, frozen_gem5_sha=None, correction_mode=False):
+def audit_campaign(campaign_dir, frozen_gem5_sha=None, correction_mode=False,
+                   frozen_observer_tool=None):
     """Full campaign audit. Returns the rollup dict (also the payload
     written to chain_audit.json). `correction_mode` only annotates the
     report (legacy re-audit tone); the RULES are identical either way."""
@@ -579,7 +600,8 @@ def audit_campaign(campaign_dir, frozen_gem5_sha=None, correction_mode=False):
                    "chain_complete": None, "chain_gaps": [], "seed": None,
                    "activated": None, "submodel": None}
         else:
-            rec = audit_observation(obs, sdir, frozen_gem5_sha)
+            rec = audit_observation(obs, sdir, frozen_gem5_sha,
+                                    frozen_observer_tool)
         # campaign-level uniqueness (flag every occurrence after the 1st)
         rid, seed = rec["run_id"], rec["seed"]
         if rid in seen_run_ids:
@@ -732,7 +754,8 @@ def _execution_rows(campaign_dir):
     return rows
 
 
-def correction_audit(campaign_dir, frozen_gem5_sha=None):
+def correction_audit(campaign_dir, frozen_gem5_sha=None,
+                     frozen_observer_tool=None):
     """Offline re-audit of a FINISHED campaign's observations under the
     CURRENT strict rules (Fix-C Task 3, 2026-10-13). Never re-runs a
     sample and never rewrites any original evidence: the only artifact
@@ -772,7 +795,8 @@ def correction_audit(campaign_dir, frozen_gem5_sha=None):
             rec = {"run_id": os.path.basename(sdir), "classification": None,
                    "violations": ["observation_unparseable"]}
         else:
-            rec = audit_observation(obs, sdir, frozen_gem5_sha)
+            rec = audit_observation(obs, sdir, frozen_gem5_sha,
+                                    frozen_observer_tool)
             if not any(v.startswith(("file_missing", "file_sha_malformed",
                                      "file_sha_mismatch",
                                      "files_manifest_malformed",
