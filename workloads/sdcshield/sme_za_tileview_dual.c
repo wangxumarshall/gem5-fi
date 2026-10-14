@@ -1,19 +1,31 @@
 /* sme_za_tileview_dual.c — dual-channel extraction of sdcshield test
- * `sme_za_tileview_arm` (PR #237 seed-randomized form) for CHAOS/gem5
- * SE-O3 fault injection (plan 2026-10-13-sve-sme-fi-eval Task 6).
+ * `sme_za_tileview_arm` (PR #242 full-SVL + injective-formula form) for
+ * CHAOS/gem5 SE-O3 fault injection (plan 2026-10-13-sve-sme-fi-eval Task 6).
  *
- * Kernel (the test's ZA tile-view semantics, f64 at SVL=512):
+ * Kernel (the test's ZA tile-view semantics, f64 at runtime SVL):
  *   - load row-major a into za0h via ld1d {za0h.d[w12, 0]}
  *   - round trip  : st1d {za0h.d[w12, 0]}  -> byte-identical a
  *   - transpose   : st1d {za0v.d[w12, 0]}  -> column w12 = a's row image
  *   - slice shift : za0h.d[r, 1] read      -> row written via r+1 mod n
+ *   - za1h isolation: load b into za1h, round-trip, then re-read za0h —
+ *     a must be unchanged (za0/za1 write isolation)
  * Tiles are pure data permutations — no rounding — so channel A is a
  * direct byte-exact permutation golden (unlike the FMOPA kernel, no
  * semantic adaptation is needed).
  *
- *   fixed  — (i*131+j)%977 + 0.5*(i+1) exact doubles (pre-PR#237)
- *   random — (xorshift64()%1024)*64 + (i*n+j) exact distinct integers
- *            (the PR #237 injective-index form)
+ *   fixed  — (i*131+j)%977 + 0.5*(i+1) exact doubles (pre-PR#237);
+ *            b = same + 2^52 offset (disjoint value range)
+ *   random — ((xs64() >> 21) * 256 + (i*n+j)) exact doubles, and b the
+ *            same expression + 2^52 — the PR #242 injective form:
+ *            multiplier 256 > max position index n^2-1 = 255 keeps the
+ *            decomposition unique, and b's [2^52, 2^52 + 2^51) never
+ *            intersects a's [0, 2^51)
+ *
+ * Same-source note: the kernel below is a mirror of the test's naked
+ * function — one struct in x0, all parameters ldr'd to fixed registers
+ * (n into x8), so the compiler never assigns an input to a register the
+ * asm then clobbers (the inline-asm form let clang pin n to x30/LR,
+ * which faulted under gem5; fixed here by mirroring the test's shape).
  *
  * argv: [fixed|random] [seed]
  * Build: clang -static -O2 -march=armv9-a+sve+sme -Wall -Wextra \
@@ -47,70 +59,85 @@ static void fnv_u64(uint64_t v)
     }
 }
 
-/* One smstart/smstop window performing the three views of a into the
- * three output tiles (row-major [r*n + c]). Registers follow the test's
- * kernel shape: w12 slice select, x1 base of the source row. */
-static void za_tileview_kernel(const double *a, double *id_a, double *tr_a,
-                               double *rot_a, int n)
+/* Mirror of the test's SmeZaParams: one struct pointer in x0. */
+struct ZaParams {
+    const double *a;
+    const double *b;
+    double *id_a;   /* za0h round trip of a           */
+    double *tr_a;   /* za0v vertical read = transpose */
+    double *rot_a;  /* za0h.d[r, 1] read              */
+    double *id_b;   /* za1h round trip of b           */
+    double *id_a2;  /* za0h re-read after za1h writes */
+    long n;         /* f64 per slice (runtime SVL)    */
+};
+
+/* Mirror of the test's naked kernel: five phases against the zero {za}
+ * baseline — za0h load, id/tr/slice-shift readout, then b into za1h and
+ * the isolation re-read. All row offsets are row*n elements, lsl #3
+ * scaled (8 bytes/f64), the exact addressing shape the test uses. */
+__attribute__((naked))
+static void za_tileview_kernel(const struct ZaParams *p)
 {
     asm volatile(
-        "mov x0, %0\n\t"               /* a              */
-        "mov x1, %1\n\t"               /* id_a           */
-        "mov x2, %2\n\t"               /* tr_a           */
-        "mov x3, %3\n\t"               /* rot_a          */
-        "mov x4, %4\n\t"               /* n (runtime)    */
+        "ldr x1, [x0, #0]\n\t"
+        "ldr x2, [x0, #8]\n\t"
+        "ldr x3, [x0, #16]\n\t"
+        "ldr x4, [x0, #24]\n\t"
+        "ldr x5, [x0, #32]\n\t"
+        "ldr x6, [x0, #40]\n\t"
+        "ldr x7, [x0, #48]\n\t"
+        "ldr x8, [x0, #56]\n\t"     /* n (runtime)   */
         "smstart sm\n\t"
         "smstart za\n\t"
         "zero {za}\n\t"
         "ptrue p0.d\n\t"
-        "mov x9, #0\n"                  /* row = 0        */
+        "mov x9, #0\n"
         "1:\n\t"
-        "cmp x9, x4\n\t"
+        "cmp x9, x8\n\t"
         "b.ge 2f\n\t"
         "mov w12, w9\n\t"
-        "mul x14, x9, x4\n\t"
-        "add x10, x0, x14, lsl #3\n\t"   /* &a[r*n] */
-        "ld1d {za0h.d[w12, 0]}, p0/z, [x10]\n\t"
+        "mul x10, x9, x8\n\t"
+        "ld1d {za0h.d[w12, 0]}, p0/z, [x1, x10, lsl #3]\n\t"
         "add x9, x9, #1\n\t"
         "b 1b\n"
         "2:\n\t"
-        "mov x9, #0\n"                  /* horizontal readout */
+        "mov x9, #0\n"
         "3:\n\t"
-        "cmp x9, x4\n\t"
+        "cmp x9, x8\n\t"
         "b.ge 4f\n\t"
         "mov w12, w9\n\t"
-        "mul x14, x9, x4\n\t"
-        "add x13, x1, x14, lsl #3\n\t"
-        "st1d {za0h.d[w12, 0]}, p0, [x13]\n\t"
+        "mul x10, x9, x8\n\t"
+        "st1d {za0h.d[w12, 0]}, p0, [x3, x10, lsl #3]\n\t"
+        "st1d {za0v.d[w12, 0]}, p0, [x4, x10, lsl #3]\n\t"
+        "st1d {za0h.d[w12, 1]}, p0, [x5, x10, lsl #3]\n\t"
         "add x9, x9, #1\n\t"
         "b 3b\n"
         "4:\n\t"
-        "mov x9, #0\n"                  /* vertical (transpose) readout */
+        "mov x9, #0\n"
         "5:\n\t"
-        "cmp x9, x4\n\t"
+        "cmp x9, x8\n\t"
         "b.ge 6f\n\t"
         "mov w12, w9\n\t"
-        "mul x14, x9, x4\n\t"
-        "add x13, x2, x14, lsl #3\n\t"
-        "st1d {za0v.d[w12, 0]}, p0, [x13]\n\t"
+        "mul x10, x9, x8\n\t"
+        "ld1d {za1h.d[w12, 0]}, p0/z, [x2, x10, lsl #3]\n\t"
         "add x9, x9, #1\n\t"
         "b 5b\n"
         "6:\n\t"
-        "mov x9, #0\n"                  /* slice-shift readout: za0h.d[r,1] */
+        "mov x9, #0\n"
         "7:\n\t"
-        "cmp x9, x4\n\t"
+        "cmp x9, x8\n\t"
         "b.ge 8f\n\t"
         "mov w12, w9\n\t"
-        "mul x14, x9, x4\n\t"
-        "add x13, x3, x14, lsl #3\n\t"
-        "st1d {za0h.d[w12, 1]}, p0, [x13]\n\t"
+        "mul x10, x9, x8\n\t"
+        "st1d {za1h.d[w12, 0]}, p0, [x6, x10, lsl #3]\n\t"
+        "st1d {za0h.d[w12, 0]}, p0, [x7, x10, lsl #3]\n\t"
         "add x9, x9, #1\n\t"
         "b 7b\n"
         "8:\n\t"
         "smstop za\n\t"
         "smstop sm\n\t"
-        : : "r"(a), "r"(id_a), "r"(tr_a), "r"(rot_a), "r"((long)n)
-        : "x4", "x9", "x10", "x13", "x14", "w12", "w14", "w15", "p0", "memory");
+        "ret\n"
+    );
 }
 
 int main(int argc, char **argv)
@@ -131,20 +158,32 @@ int main(int argc, char **argv)
         return 3;
     }
 
-    static double a[N_D_MAX * N_D_MAX], id_a[N_D_MAX * N_D_MAX],
-                  tr_a[N_D_MAX * N_D_MAX], rot_a[N_D_MAX * N_D_MAX];
+    static double a[N_D_MAX * N_D_MAX], b[N_D_MAX * N_D_MAX],
+                  id_a[N_D_MAX * N_D_MAX], tr_a[N_D_MAX * N_D_MAX],
+                  rot_a[N_D_MAX * N_D_MAX], id_b[N_D_MAX * N_D_MAX],
+                  id_a2[N_D_MAX * N_D_MAX];
     for (int i = 0; i < n; ++i)
         for (int j = 0; j < n; ++j) {
             const size_t ij = (size_t)i * n + j;
-            if (randomize)
-                a[ij] = (double)((xs64() % 1024) * 64 + (i * n + j));
-            else
+            if (randomize) {
+                /* PR #242 injective form (same as the test): top 43
+                 * random bits * 256 + position index; b offset by 2^52
+                 * into a disjoint range. */
+                a[ij] = (double)((xs64() >> 21) * 256 + (i * n + j));
+                b[ij] = (double)((xs64() >> 21) * 256 + (i * n + j))
+                      + 4503599627370496.0;
+            } else {
                 a[ij] = (double)((i * 131 + j) % 977) + 0.5 * (i + 1);
+                b[ij] = a[ij] + 4503599627370496.0;
+            }
         }
 
-    za_tileview_kernel(a, id_a, tr_a, rot_a, n);
+    struct ZaParams p = { a, b, id_a, tr_a, rot_a, id_b, id_a2, n };
+    za_tileview_kernel(&p);
 
-    /* Channel A: permutation goldens, byte-exact. */
+    /* Channel A: permutation goldens, byte-exact. The checksum hashes
+     * all five output tiles (5*n*n doubles), matching the test's five
+     * memcmp phases. */
     for (int i = 0; i < n; ++i)
         for (int j = 0; j < n; ++j) {
             const size_t ij = (size_t)i * n + j;
@@ -153,9 +192,21 @@ int main(int argc, char **argv)
             fnv_u64(*(uint64_t *)&id_a[ij]);
             fnv_u64(*(uint64_t *)&tr_a[ij]);
             fnv_u64(*(uint64_t *)&rot_a[ij]);
+            fnv_u64(*(uint64_t *)&id_b[ij]);
+            fnv_u64(*(uint64_t *)&id_a2[ij]);
             if (id_a[ij] != a[ij]) {
                 if (g_fails == 0)
                     fprintf(stderr, "id mismatch @(%d,%d)\n", i, j);
+                ++g_fails;
+            }
+            if (id_b[ij] != b[ij]) {
+                if (g_fails == 0)
+                    fprintf(stderr, "za1 isolation mismatch @(%d,%d)\n", i, j);
+                ++g_fails;
+            }
+            if (id_a2[ij] != a[ij]) {
+                if (g_fails == 0)
+                    fprintf(stderr, "za0 re-read mismatch @(%d,%d)\n", i, j);
                 ++g_fails;
             }
             if (tr_a[ij] != a[ji]) {
