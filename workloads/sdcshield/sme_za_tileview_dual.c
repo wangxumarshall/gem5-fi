@@ -12,8 +12,12 @@
  * semantic adaptation is needed).
  *
  *   fixed  — (i*131+j)%977 + 0.5*(i+1) exact doubles (pre-PR#237)
- *   random — (xorshift64()%1024)*64 + (i*n+j) exact distinct integers
- *            (the PR #237 injective-index form)
+ *   random — (xorshift64()%1024)*256 + (i*n+j) exact distinct integers
+ *            (multiplier 256 > max position index 255 = 16*16-1 at
+ *            SVL=1024-bit, so the n*n values stay pairwise distinct and
+ *            permutation errors cannot collide; the PR #237 injective-index
+ *            form fixed up from the multiplier-64 version, which became
+ *            non-injective once full-VL support raised n to 16)
  *
  * argv: [fixed|random] [seed]
  * Build: clang -static -O2 -march=armv9-a+sve+sme -Wall -Wextra \
@@ -137,7 +141,10 @@ int main(int argc, char **argv)
         for (int j = 0; j < n; ++j) {
             const size_t ij = (size_t)i * n + j;
             if (randomize)
-                a[ij] = (double)((xs64() % 1024) * 64 + (i * n + j));
+                /* multiplier 256 > max pos 255 (16*16-1 at SVL=1024-bit):
+                 * r*256+pos is injective in (r,pos), so all n*n values are
+                 * pairwise distinct (permutation errors cannot collide). */
+                a[ij] = (double)((xs64() % 1024) * 256 + (i * n + j));
             else
                 a[ij] = (double)((i * 131 + j) % 977) + 0.5 * (i + 1);
         }
