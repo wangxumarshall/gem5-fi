@@ -141,7 +141,11 @@ REPLAY_REQUIRED = ["policy", "verified"]
 L1L2_LEGAL = {"complete", "not_observed_before_crash",
               "not_observed_before_timeout", "N/A(inactive_no_activation)",
               "not_collected(l0l5_mode)", "error"}
-L3_LEGAL = {"complete", "unsupported", "N/A(inactive_no_activation)", "error"}
+L3_LEGAL = {"complete", "unsupported", "N/A(inactive_no_activation)", "error",
+             # 二轮语义（0245ac5a）引入的诚实状态：截断 trace 有节点但无可
+             # 证明终点（截断→完整扫描前提不成立，不给 terminal_reason）。
+             # chain_complete 规则不受影响：partial → path_complete=false。
+             "partial_no_verified_terminal"}
 L4_LEGAL = {"complete", "N/A(inactive_no_activation)",
             "not_collected(l0l5_mode)", "error"}
 # 覆盖率口径：complete 与 inactive-N/A 之外的层级 = 该层数据未采集

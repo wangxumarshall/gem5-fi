@@ -92,7 +92,7 @@
       "type": "object",
       "required": ["status"],
       "properties": {
-        "status": {"enum": ["complete", "unsupported",
+        "status": {"enum": ["complete", "partial_no_verified_terminal", "unsupported",
                              "N/A(inactive_no_activation)", "error"]},
         "method": {"enum": ["proxy", "propagation_trace", null]},
         "caveat": {"type": "string"},

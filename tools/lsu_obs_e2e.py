@@ -589,16 +589,22 @@ def validate_campaign(campaign, outdir_root, expect_gem5_sha, selection):
                             f"not_observed_before_crash/complete）")
         # L3（v2）：crash 样本同样须真实传播证据（R1 对偶的 kit 侧显式
         # 断言）；截断 caveat 允许、path_complete 可 false——崩溃截断语义
-        # （abort 前缀打捞的诚实证据），但不降级 L3 口径
+        # （abort 前缀打捞的诚实证据），但不降级 L3 口径。
+        # 二轮语义（0245ac5a）后新增合法诚实状态 partial_no_verified_terminal：
+        # 截断 trace 有节点但无可证明终点（截断→完整扫描前提不成立）——
+        # method 仍须 propagation_trace（真实采集），chain_complete 规则
+        # 不变（partial → path_complete=false → chain=false）
         l3 = obs.get("L3") or {}
-        if l3.get("status") != "complete" \
-                or l3.get("method") != "propagation_trace":
+        l3_ok_status = (l3.get("status") == "complete"
+                        or l3.get("status") == "partial_no_verified_terminal")
+        if not l3_ok_status or l3.get("method") != "propagation_trace":
             e_ok = False
             e_detail.append(
                 f"L3 status={l3.get('status')!r} method="
-                f"{l3.get('method')!r}（v2：crash 样本也须 complete + "
-                f"propagation_trace；截断 caveat 允许——崩溃截断语义不"
-                f"降级 L3 口径）")
+                f"{l3.get('method')!r}（v2：crash 样本须 complete/"
+                f"partial_no_verified_terminal + propagation_trace；截断"
+                f"caveat 允许、path_complete 可 false——崩溃截断语义不"
+                f"降级 L3 采集口径）")
         # 截断诚实性：fault trace 截断 → 必须标注 truncated 且绝不 no_divergence
         fp = _fault_probe_path(d, obs, "L2")
         if fp is not None:
