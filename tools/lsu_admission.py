@@ -18,6 +18,8 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parent.parent
 MT = Path("/home/sdc/gem5-fi-ding")
 GEM5 = MT / "build/ARM/gem5.opt"
+# 观测版二进制（准入对象）：worktree 独立 build（中央指令 2026-10-14 第 6 条）
+OBS_GEM5 = MT / ".claude/worktrees/lsu-obs/build/ARM/gem5.opt"
 
 SUITES = [
     ("test_lsu_guard_v2", ["tests/test_lsu_guard_v2.py"]),
@@ -114,6 +116,11 @@ def scan_admission_samples(e2e_campaign):
                     "reasons": (rec.get("reasons") or [])[:2]})
                 continue
             stats["v2_samples"] += 1
+            # admission 样本实际使用的二进制 SHA 分布（identity 证据）
+            gsha = (o.get("identity") or {}).get("gem5_opt_sha256")
+            if gsha:
+                d0 = stats.setdefault("gem5_opt_sha256_distribution", {})
+                d0[gsha[:16]] = d0.get(gsha[:16], 0) + 1
             act = (o.get("L0") or {}).get("activated") or 0
             if o.get("chain_complete"):
                 stats["chain_complete_count"] += 1
@@ -275,8 +282,19 @@ def main():
         "identity": {
             "branch": "lsu-obs-20261012",
             "git_commit": git_commit,
-            "gem5_opt_sha256": gem5_sha,
-            "gem5_opt_path": str(GEM5),
+            # 中央指令 2026-10-14 第 6 条：admission 的准入对象=观测版二进制
+            # （worktree build，SHA 70ff317b…）——这是 admission 样本实际
+            # 使用的二进制；主树旧 binary 是 AGU 旧批次的冻结件，仅作对照记录
+            "obs_gem5_opt_path": str(OBS_GEM5),
+            "obs_gem5_opt_sha256": (hashlib.sha256(
+                OBS_GEM5.read_bytes()).hexdigest()
+                if OBS_GEM5.exists() else "MISSING"),
+            "legacy_main_binary_sha256": gem5_sha,
+            "legacy_main_binary_note": ("主树 build/ARM/gem5.opt = AGU 旧批次"
+                                        " 冻结件（10590f…），非准入对象——"
+                                        "仅记录供对照，中央指令 2026-10-14"),
+            "admission_sample_sha256_distribution": adm.get(
+                "gem5_opt_sha256_distribution", {}),
             "frozen_agu_batch": "p4_agu_formal_20261012（31 RunID，drivers "
                                 "1995570/1995598/1995622/1995696 未受干扰）",
             "lsu_proxy_sha256": hashlib.sha256(
