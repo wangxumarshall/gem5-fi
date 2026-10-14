@@ -1537,25 +1537,56 @@ def reobserve_sample(sample_dir):
                         first_divergent_commit=cd.get("first_divergence"),
                         files=dict(commit_diff=None))
 
-    # ---- L3: pass1 block passthrough (fanout re-derivation is outside
-    # fix-A scope; the block is evidence-frozen) ----
-    l3_blk = old.get("l3") or dict(status="error",
-                                   reason="pass1 l3 block missing")
+    # ---- L3: [FIX-F2] re-derive with do_l3 from the retained trace +
+    # re-observed L0 (the FIX-A frozen passthrough predates the real
+    # source_read chain; offline re-derivation must use today's
+    # semantics). Falls back to the old block only without evidence.
+    if activated and os.path.exists(trace_path):
+        try:
+            l3_blk = do_l3(
+                rcfg.get("component") or (old.get("l0") or {}).get(
+                    "component") or "decode",
+                l0, trace_path,
+                cov, (l2_blk or {}).get("first_divergent_commit"))
+        except Exception as e:  # honest error, never fabricated
+            l3_blk = dict(status="error", method="source_read",
+                          fanout=None, caveat=None,
+                          reason="reobserve do_l3 failed: %r" % (e,))
+    else:
+        l3_blk = old.get("l3") or dict(
+            status="inactive_no_activation"
+            if not activated else "error",
+            reason="pass1 l3 block passthrough (no trace / inactive)")
 
-    # ---- L4: mirror cmd_run's derivation over the new cd ----
+    # ---- L4: mirror cmd_run's derivation over the new cd (R2-1
+    # semantics: latency only under a real detection event, never
+    # negative) ----
     first_detection = ooo_observation.first_detection_for(classification, cd)
     latency = dict(ticks=None, committed_insts=None, note="")
-    if (l0.get("events") and isinstance(cd, dict)
+    if (first_detection.get("kind") is not None
+            and l0.get("events") and isinstance(cd, dict)
             and cd.get("first_divergence")):
         div = cd["first_divergence"]
         tick0 = l0["events"][0].get("tick")
         dtick = ooo_observation.tick_from_ctrace_raw(div.get("run_line"))
         if dtick is not None and tick0 is not None:
-            latency["ticks"] = dtick - tick0
+            _dt = dtick - tick0
+            if _dt < 0:
+                latency["note"] = ("suppressed causally-impossible "
+                                   "negative tick latency (%d)" % _dt)
+            else:
+                latency["ticks"] = _dt
         if retained:
             inj_seq = find_inj_seq(retained, l0["events"])
             if inj_seq is not None and div.get("seq") is not None:
-                latency["committed_insts"] = div["seq"] - inj_seq
+                _di = div["seq"] - inj_seq
+                if _di >= 0:
+                    latency["committed_insts"] = _di
+                else:
+                    latency["note"] = (
+                        (latency["note"] + "; " if latency["note"] else "")
+                        + "suppressed negative committed-inst latency (%d)"
+                        % _di)
     if not activated:
         l4_status = "inactive_no_activation"
     elif classification in ("SimulatorError", "Inactive"):
