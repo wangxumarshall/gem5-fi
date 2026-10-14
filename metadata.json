@@ -1,0 +1,28 @@
+{
+  "cli_version": "0.10.2",
+  "checkpoint_id": "01M4W9VDFNY33SA8SN5DRWNTHA",
+  "strategy": "manual-commit",
+  "branch": "fix/lsu-obs-exact-stop-20261014",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "docs/superpowers/plans/2026-10-14-lsu-obs-activated-exact-stop.md",
+    "tests/test_lsu_obs_driver_workers.py",
+    "tools/lsu_obs_driver.py"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 365745,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 9496576,
+    "output_tokens": 82444,
+    "api_call_count": 72
+  }
+}
