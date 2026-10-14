@@ -156,6 +156,78 @@ def main():
     check("slots_cap_enforced_at_8",
           rc_over != 0 and "LSU_GUARD_SLOTS" in err_over, err_over)
 
+    # ---- 9) 创建原子性（OBS-FIX-4）：窗口内读者永不见空/半锁文件 ----
+    # 根因（今日 5 次进程死亡：D 11:55/13:01、C02 12:46/15:07、claim 测试
+    # 14:44）：旧创建路径 O_CREAT|O_EXCL 先落空文件、json.dump 后才有
+    # 内容——并发读者读到空/半文件即判"锁文件损坏"（F-023 立即失败）。
+    # 修复 = tmp 写全内容 + os.link 原子发布（读者只见"不存在"或完整）。
+    import threading
+    gd2 = Path(tempfile.mkdtemp(prefix="guard_atomic_"))
+    old_gd = G.GUARD_DIR
+    G.GUARD_DIR = str(gd2)
+    orig_dump = G.json.dump
+    torn_seen = []
+    acquired = {}
+
+    def slow_dump(obj, fh, **kw):
+        fh.write('{"torn": ')          # 模拟 dump 写入中（半文件）
+        fh.flush()
+        time.sleep(0.5)                # 窗口确定性放大
+        fh.seek(0)
+        fh.truncate()
+        orig_dump(obj, fh, **kw)
+
+    def writer():
+        G.json.dump = slow_dump
+        try:
+            acquired["lock"], acquired["err"] = G._try_acquire(
+                "experiment", "atomic-window-test")
+        finally:
+            G.json.dump = orig_dump
+
+    th = threading.Thread(target=writer)
+    th.start()
+    deadline = time.time() + 1.2
+    while time.time() < deadline and th.is_alive():
+        p5 = gd2 / "experiment_slot_5.lock"
+        if p5.exists():
+            raw = p5.read_bytes()
+            if raw:
+                try:
+                    json.loads(raw)
+                    torn_seen.append(("ok", len(raw)))
+                except Exception:
+                    torn_seen.append(("TORN", len(raw)))
+        time.sleep(0.02)
+    th.join()
+    G.GUARD_DIR = old_gd
+    check("r1_no_torn_lock_visible",
+          not torn_seen and acquired.get("lock") is not None,
+          f"torn={torn_seen[:4]} lock={acquired.get('lock')} "
+          f"err={acquired.get('err')}")
+
+    # ---- 10) 并发抢占：16 进程 × 6 槽恰 6 成功，锁全可解析，无 tmp 残留 ----
+    gd3 = Path(tempfile.mkdtemp(prefix="guard_race_"))
+    env3 = {"LSU_GUARD_DIR": str(gd3), "LSU_GUARD_SLOTS": "6"}
+    procs = [subprocess.Popen(
+        [sys.executable, str(GUARD), "acquire", "--type", "experiment",
+         "--desc", f"race{i}"], stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE, text=True, env={**os.environ, **env3})
+        for i in range(16)]
+    rcs = [p.wait() for p in procs]
+    n_ok = sum(1 for rc in rcs if rc == 0)
+    parsed = []
+    for s in range(6):
+        f = gd3 / f"experiment_slot_{s}.lock"
+        if f.exists():
+            json.loads(f.read_text())      # 不可解析即抛异常 = 失败
+            parsed.append(s)
+    leftovers = list(gd3.glob("*.tmp.*"))
+    check("r2_race_exactly_6_win",
+          n_ok == 6 and len(parsed) == 6,
+          f"n_ok={n_ok} parsed={parsed} rcs={rcs}")
+    check("r2_no_tmp_leftover", not leftovers, str(leftovers))
+
     # 清场：处置测试进程写下的 claim（陈旧：子进程已退出）
     run_guard(env, "clear-stale", "--type", "claim", "--confirm-dead-pid", "0")
     print(f"\nFAILURES: {fails if fails else '无'}")

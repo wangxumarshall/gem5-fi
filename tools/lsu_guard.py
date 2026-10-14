@@ -250,6 +250,40 @@ def _write_lock_atomic(path, lock):
     os.replace(tmp, path)
 
 
+def _publish_json_exclusive(path, obj):
+    """OBS-FIX-4（2026-10-14）：原子创建锁/claim 文件。
+
+    旧路径 O_CREAT|O_EXCL 先落**空文件**、json.dump 后才有内容——窗口期
+    内并发读者（其他 driver 的 acquire 扫描/release/gate）读到空/半文件
+    即判"锁文件损坏"→ F-023 立即失败（2026-10-14 五次进程死亡根因：
+    D 11:55/13:01、C02 12:46/15:07、claim 测试 14:44）。
+
+    新路径：tmp 写全内容 + os.link 原子发布。link(2) 目标存在即 EEXIST
+    （保持 O_EXCL 语义），读者从此只见"不存在"或"完整 JSON"。
+    返回 True=发布成功；False=EEXIST（撞槽/撞 claim，走既有占坑分支）。
+    crash 遗留 tmp 不匹配 experiment_slot_*.lock / claim glob，不污染扫描。
+    """
+    tmp = f"{path}.tmp.{os.getpid()}.{time.time_ns()}"
+    try:
+        with open(tmp, "w") as f:
+            json.dump(obj, f, ensure_ascii=False, indent=2)
+            f.flush()
+            os.fsync(f.fileno())
+        try:
+            os.link(tmp, path)
+        except FileExistsError:
+            os.unlink(tmp)
+            return False
+        os.unlink(tmp)
+        return True
+    except OSError:
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass
+        raise
+
+
 def _stop_dispatch(snap):
     """用户指令 2026-10-12 三.3：MemAvailable<10GiB → 停止加（新）任务。"""
     return snap["mem_available_gib"] < STOP_DISPATCH_MEM_GIB
@@ -363,17 +397,13 @@ def _try_acquire(task_type, desc, item=None, runid=None, log=None,
                           f"{'slot ' + str(slot) + ' ' if slot is not None else ''}"
                           f"陈旧锁（pid={old.get('pid')} 已退出或 pid_start 不符但未记录处置）；"
                           f"先 clear-stale 显式处置")
-    # 抢空槽：O_EXCL 原子创建防并发双取；撞槽（EEXIST）自动试下一候选
+    # 抢空槽：原子创建防并发双取（OBS-FIX-4）；撞槽（EEXIST）自动试下一候选
     for slot, path in candidates:
         if os.path.exists(path):
             continue
-        try:
-            fd = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o644)
-        except FileExistsError:
-            continue
         lock = {**base_lock, "slot": slot} if slot is not None else base_lock
-        with os.fdopen(fd, "w") as f:
-            json.dump(lock, f, ensure_ascii=False, indent=2)
+        if not _publish_json_exclusive(path, lock):
+            continue
         _log_event({"action": "acquire", **lock})
         return lock, None
     detail = "\n".join(
@@ -419,9 +449,7 @@ def _claim_acquire(campaign, runid, sample, desc):
         "desc": desc,
         "started": time.strftime("%Y-%m-%d %H:%M:%S"),
     }
-    try:
-        fd = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o644)
-    except FileExistsError:
+    if not _publish_json_exclusive(path, claim):
         old = _read_json_file(path)
         if old is None:
             return None, f"REFUSED: claim 文件损坏 {path}，用 clear-stale --type claim 处置"
@@ -430,8 +458,6 @@ def _claim_acquire(campaign, runid, sample, desc):
                           f"({old.get('desc', '?')}, started {old.get('started')})")
         return None, (f"REFUSED: claim 陈旧（pid={old.get('pid')} 已退出或 pid_start "
                       f"不符但未记录处置）；先 clear-stale --type claim 显式处置")
-    with os.fdopen(fd, "w") as f:
-        json.dump(claim, f, ensure_ascii=False, indent=2)
     _log_event({"action": "claim-acquire", **claim})
     return claim, None
 
