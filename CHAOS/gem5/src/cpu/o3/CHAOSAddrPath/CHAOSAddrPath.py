@@ -40,6 +40,13 @@ class CHAOSAddrPath(SimObject):
     lsuF6Event = Param.String("sq_forward",
         "F6 event: tlb_hit (FS-only) | sq_forward | dirty_eviction | "
         "cas_success")
+    f6Mode = Param.String("early_stress",
+        "[LSU][P4-F6] F6 dual-track (2026-10-15): early_stress = inject at "
+        "the FIRST occurrence of the event (legacy semantics, stress test); "
+        "steady_state = skip lsuWarmupEvents occurrences (golden-profiling "
+        "warm-up), then fire at a pre-drawn random occurrence in "
+        "[warmup+1, warmup+span] — if the event stream ends first, NO "
+        "injection (never falls back to early semantics)")
 
     # LSU W4 PRE-hook family (03-design-matrix A04/A05/A06/A08; hook =
     # LSQ::pushRequest entry, W1 ⑦ ruling). Exactly one hook per run: a

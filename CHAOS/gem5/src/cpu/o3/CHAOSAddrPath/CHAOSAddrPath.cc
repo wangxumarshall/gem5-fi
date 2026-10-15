@@ -1,5 +1,7 @@
 #include "cpu/o3/CHAOSAddrPath/CHAOSAddrPath.hh"
 
+#include <string>
+
 #include "cpu/o3/CHAOSPropagation/CHAOSPropagation.hh"  // [LSU][OBS-L3] funnel notify
 #include "cpu/o3/cpu.hh"          // o3::CPU
 #include "debug/CHAOSAddrPath.hh"
@@ -31,11 +33,32 @@ namespace gem5
                                              p.lsuSpanEvents,
                                              eventFromString(p.lsuF6Event));
         }
+        // [LSU][P4-F6] F6 dual-track mode parse (unknown value = loud panic,
+        // no silent fallback to either track).
+        if (p.f6Mode == "early_stress") {
+            f6_steady_state = false;
+        } else if (p.f6Mode == "steady_state") {
+            f6_steady_state = true;
+        } else {
+            panic("CHAOSAddrPath: unknown f6Mode '%s' "
+                  "(early_stress | steady_state)\n", p.f6Mode);
+        }
         if (probability > 0.0f) {
             log_stream = simout.create("addrpath_injections.log", false, true);
             if (!log_stream || !log_stream->stream())
                 panic("CHAOSAddrPath: Could not open log file");
             rng.seed(rng_seed != 0 ? rng_seed : rd());
+        }
+        // [LSU][P4-F6S] steady-state: pre-draw the target occurrence AFTER
+        // seeding (one draw, fixed for the run -> same seed = same target).
+        // warmup/span come from the trigger (lsuWarmupEvents/lsuSpanEvents);
+        // a warmup beyond the run's event supply means NO injection ever.
+        if (lsuTrigger && lsuTrigger->tier == ChaOSLsuTier::F6 &&
+            f6_steady_state) {
+            const uint64_t warmup = lsuTrigger->warmup_events;
+            const uint64_t span =
+                lsuTrigger->span_events ? lsuTrigger->span_events : 1;
+            f6_target_occurrence = warmup + 1 + rng() % span;
         }
     }
 
@@ -77,9 +100,29 @@ namespace gem5
         // Single-consumer F6 notify (chaos_lsu_trigger.hh). The trigger's
         // onF6Event() both filters the event type and enforces once-ever.
         if (f6Consumer && f6Consumer->lsuTrigger &&
-            f6Consumer->lsuTrigger->f6_event == ev &&
-            f6Consumer->lsuTrigger->onF6Event())
-            f6Consumer->f6_pending = true;  // fire at the next eligible hook
+            f6Consumer->lsuTrigger->f6_event == ev) {
+            // [LSU][P4-F6S] steady_state: count matching events, skip the
+            // golden-profiling warm-up, fire ONLY at the pre-drawn target
+            // occurrence (see ctor). If the stream ends first, no injection
+            // — NEVER falls back to early semantics. early_stress (default)
+            // is byte-identical to the legacy first-occurrence behavior.
+            if (f6Consumer->f6_steady_state) {
+                ++f6Consumer->f6_events_matched;
+                if (f6Consumer->f6_events_matched <
+                    f6Consumer->f6_target_occurrence)
+                    return;
+            }
+            if (f6Consumer->lsuTrigger->onF6Event()) {
+                // early_stress fires at the 1st occurrence; steady_state at
+                // the target occurrence. Freeze the occurrence AT fire time —
+                // f6_events_matched keeps counting past it (more events can
+                // occur before the next hook call consumes f6_pending).
+                f6Consumer->f6_fired_occurrence =
+                    f6Consumer->f6_steady_state
+                        ? f6Consumer->f6_events_matched : 1;
+                f6Consumer->f6_pending = true;  // fire at the next eligible hook
+            }
+        }
     }
 
     bool
@@ -465,6 +508,14 @@ namespace gem5
         obs_pre_hook_injected = true;
         notifyFunnelAtInjection();
         if (write_log && log_stream && log_stream->stream()) {
+            // [LSU][P4-F6] abort-survivable dual-track evidence: which F6
+            // track fired and at which matching-event occurrence (the
+            // CHAOS_LSU_F6MODE stdout line only prints on normal exit).
+            std::string f6_fields;
+            if (lsuTrigger && lsuTrigger->tier == ChaOSLsuTier::F6)
+                f6_fields = std::string(", f6_mode=") +
+                    (f6_steady_state ? "steady_state" : "early_stress") +
+                    ", f6_occurrence=" + std::to_string(f6_fired_occurrence);
             *(log_stream->stream()) << "Tick: " << curTick()
                 << ", Site: lsq_pushRequest_PRE"
                 << ", mode=" << pre_mode
@@ -478,6 +529,7 @@ namespace gem5
                 // ——离线拆分 load/store 只对新数据可行，历史数据不回填。
                 << ", isLoad=" << (isLoad ? 1 : 0)
                 << ", isStore=" << (isLoad ? 0 : 1)
+                << f6_fields
                 << std::endl;
         }
         return size;
@@ -538,6 +590,20 @@ namespace gem5
             registerExitCallback([this]() {
                 if (lsuTrigger) {
                     lsuTrigger->summary("CHAOSAddrPath");
+                    // [LSU][P4-F6] dual-track evidence line: which track ran,
+                    // its warm-up/span, the pre-drawn target occurrence and
+                    // how many matching events were actually seen (matched <
+                    // target = no injection, honest inj=0).
+                    if (lsuTrigger->tier == ChaOSLsuTier::F6) {
+                        printf("CHAOS_LSU_F6MODE: mode=%s warmup=%lu "
+                               "span=%lu target_occurrence=%lu matched=%lu\n",
+                               f6_steady_state ? "steady_state"
+                                               : "early_stress",
+                               (unsigned long)lsuTrigger->warmup_events,
+                               (unsigned long)lsuTrigger->span_events,
+                               (unsigned long)f6_target_occurrence,
+                               (unsigned long)f6_events_matched);
+                    }
                     // [LSU][OBS-2] post-trigger decline report (D-class):
                     // pre_opclass>0 with fault writes < trigger.injected is
                     // the phantom-activation signature (F-049).

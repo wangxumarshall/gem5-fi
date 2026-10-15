@@ -84,6 +84,15 @@ class CHAOSAddrPath : public SimObject
     // per-unit F6 consumers in W5-W8 inject AT the event instead).
     ChaOSLsuTrigger *lsuTrigger = nullptr;
     bool f6_pending = false;
+    // [LSU][P4-F6] dual-track F6 (2026-10-15): early_stress (default, legacy
+    // first-occurrence) vs steady_state (golden-profiling warm-up + a
+    // pre-drawn random target occurrence within the span; event stream
+    // ending before target = no injection, honest inj=0).
+    bool f6_steady_state = false;
+    uint64_t f6_events_matched = 0;      // steady_state: matching events seen
+    uint64_t f6_target_occurrence = 0;   // steady_state: fire at this occurrence
+    uint64_t f6_fired_occurrence = 0;    // occurrence index AT fire time (frozen;
+                                         // matched keeps counting past it)
     uint64_t f5_bit = 64;   // pinned bit index (F5 low-bit / A03 stuck), 64 = not yet chosen
 
     // [LSU][OBS-L3] resolved O3 CPU (cached at startup, dynamic_cast once —

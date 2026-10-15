@@ -464,6 +464,11 @@ p.add_argument("--addrpath_span_events", type=lambda x: int(x,0), default=1000,
 p.add_argument("--addrpath_f6_event", default="sq_forward",
                choices=["tlb_hit","sq_forward","dirty_eviction","cas_success"],
                help="W2: F6 event source (tlb_hit is FS-only in SE)")
+p.add_argument("--addrpath_f6_mode", default="early_stress",
+               choices=["early_stress","steady_state"],
+               help="P4-F6 dual-track: early_stress = first occurrence (legacy, stress); "
+                    "steady_state = warm-up (golden profiling) + random occurrence in span "
+                    "(RunID suffixes F6E/F6S — the two tracks never merge)")
 # W4: AGU A-series. Bit-level family (A01-A03) rides the sendFragment hook
 # via --addrpath_mode; the PRE family (A04/A05/A06/A08) rides the
 # pushRequest-entry hook — exactly one hook per run (pre_mode != off
@@ -1024,6 +1029,7 @@ if args.chaos_addrpath:
         lsuWarmupEvents=args.addrpath_warmup_events,
         lsuSpanEvents=args.addrpath_span_events,
         lsuF6Event=args.addrpath_f6_event,
+        f6Mode=args.addrpath_f6_mode,
         preMode=args.agu_pre_mode,
         aguSizeTo=args.agu_size_to,
     )
