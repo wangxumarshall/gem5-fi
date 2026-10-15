@@ -469,10 +469,12 @@ p.add_argument("--addrpath_f6_event", default="sq_forward",
 # pushRequest-entry hook — exactly one hook per run (pre_mode != off
 # registers on the PRE pointer instead).
 p.add_argument("--agu_pre_mode", default="off",
-               choices=["off","a04_subst","a05_shift","a06_size","a08_subst","s13_store_addr","s04_store_subst","s05_store_size","s06_store_state","s07_store_ptr","s11_store_lost","l01_load_addr","l02_load_state"],
-               help="W4: PRE-hook family at LSQ::pushRequest entry (03 A04/A05/A06/A08)")
+               choices=["off","a04_subst","a05_shift","a06s_store_size","a08_subst","s13_store_addr","s04_store_subst","s05_store_size","s06_store_state","s07_store_ptr","s11_store_lost","l01_load_addr","l02_load_state"],
+               help="W4: PRE-hook family at LSQ::pushRequest entry (03 A04/A05/A06S/A08). "
+                    "a06_size REMOVED (retired 2026-10-15, root cause C: fixed-width load "
+                    "completion asserts on shrunken packets) — use a06s_store_size (store-only)")
 p.add_argument("--agu_size_to", type=lambda x: int(x,0), default=0,
-               help="W4 a06_size: target access size 1|2|4|8|16")
+               help="W4 a06s_store_size: target access size 1|2|4|8|16 (stores only)")
 # §2.14 CHAOSDecode (O3 decode-unit injector). SELF-ATTACHES at startup()
 # to cpu.chaosDecode. Hooks rename.cc:1137 post-flattenedDestIdx; dest_reg_sub
 # F5 (per-inst, safe — _flatDestIdx is per-DynInst, not shared staticInst).

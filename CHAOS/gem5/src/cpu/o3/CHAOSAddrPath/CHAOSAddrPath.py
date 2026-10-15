@@ -46,8 +46,10 @@ class CHAOSAddrPath(SimObject):
     # non-off preMode registers on the pushRequest pointer INSTEAD of the
     # sendFragment pointer.
     preMode = Param.String("off",
-        "off | a04_subst | a05_shift | a06_size | a08_subst | "
-        "s13_store_addr | s04_store_subst (SQ addr same-page, stores) | "
-        "l01_load_addr (LQ addr single-bit, loads only)")
+        "off | a04_subst | a05_shift | a06s_store_size (store-only size "
+        "fault, a06_size v2) | a08_subst | s13_store_addr | "
+        "s04_store_subst (SQ addr same-page, stores) | "
+        "l01_load_addr (LQ addr single-bit, loads only). "
+        "a06_size RETIRED 2026-10-15 (load completion asserts)")
     aguSizeTo = Param.UInt64(0,
-        "a06_size target size: 1|2|4|8|16 (0 = invalid, no-op)")
+        "a06s_store_size target size: 1|2|4|8|16 (0 = invalid, no-op)")

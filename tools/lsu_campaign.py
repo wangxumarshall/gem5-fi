@@ -113,7 +113,12 @@ MODEL_FLAGS = {
     "A03": ("addrpath", ["--addrpath_mode", "a03_stuck0"]),  # stuck1 by seed parity (note)
     "A04": ("addrpath", ["--agu_pre_mode", "a04_subst"]),
     "A05": ("addrpath", ["--agu_pre_mode", "a05_shift"]),
-    "A06": ("addrpath", ["--agu_pre_mode", "a06_size", "--agu_size_to", "2"]),
+    # [LSU][P4-FIX-A06S] A06 RETIRED 2026-10-15 (root cause C: fixed-width
+    # load completion asserts; lsu_proxy rejects the flag) — its entry stays
+    # for historical manifest parsing ONLY; new runs must use A06S (store-
+    # only v2, RunID family A06S-F{tier}-W{carrier}).
+    "A06": ("addrpath", ["--agu_pre_mode", "a06_size", "--agu_size_to", "2"]),  # RETIRED
+    "A06S": ("addrpath", ["--agu_pre_mode", "a06s_store_size", "--agu_size_to", "2"]),
     "A08": ("addrpath", ["--agu_pre_mode", "a08_subst"]),
     # --- SQ data/forwarding family on CHAOSLSQFwd (W5 b41f4d9a verified) ---
     "S01": ("lsqfwd", ["--lsq_struct_mode", "byte_flip"]),

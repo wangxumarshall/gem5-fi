@@ -227,9 +227,27 @@ namespace gem5
             const bool pre_store_only = (pre_mode == "s13_store_addr" ||
                                          pre_mode == "s04_store_subst" ||
                                          pre_mode == "s05_store_size" ||
-                                         pre_mode == "s11_store_lost");
-            if ((pre_load_only && !isLoad) || (pre_store_only && isLoad))
+                                         pre_mode == "s11_store_lost" ||
+                                         pre_mode == "a06s_store_size");
+            if ((pre_load_only && !isLoad) || (pre_store_only && isLoad)) {
+                // [LSU][P4-FIX-A06S] load 候选拒斥（不计 activated，2026-10-15
+                // 审计根因 C：a06_size v2 = store-only）。F6 已 armed 状态下到达
+                // 的 load 在旧语义下就是注入点——显式写 REJECT 日志留证；
+                // f6_pending 保持 armed 等待下一个 store。普通逐事件拒斥只进
+                // obs_pre_opclass 计数（不刷日志，与 F-049 其余模式一致）。
+                if (pre_mode == "a06s_store_size" && f6_pending &&
+                    write_log && log_stream && log_stream->stream()) {
+                    *(log_stream->stream()) << "Tick: " << curTick()
+                        << ", Site: lsq_pushRequest_PRE, mode=" << pre_mode
+                        << ", REJECT: reason=load_candidate_under_store_only_model"
+                        << ", isLoad=1, isStore=0"
+                        << ", old_size=" << size
+                        << ", new_size=" << size
+                        << std::endl;
+                }
+                ++obs_pre_opclass;   // [LSU][OBS-2]
                 return size;   // op class not eligible for this model
+            }
             bool go;
             if (lsuTrigger->tier == ChaOSLsuTier::F6) {
                 go = f6_pending;
@@ -268,15 +286,40 @@ namespace gem5
             const uint64_t d = 1 + rng() % 7;
             const Addr lo = addr & 0xFF;
             addr = (addr & ~(Addr)0xFF) | ((lo << d | lo >> (8 - d)) & 0xFF);
-        } else if (pre_mode == "a06_size") {
-            // A06 (03): access-size substitution to another legal value
-            // {1,2,4,8,16}; address unchanged. byte_enable is const at
-            // this hook — size only (documented, 09 §3-W4).
+        } else if (pre_mode == "a06s_store_size") {
+            // [LSU][P4-FIX-A06S] A06S (03, a06_size v2, 2026-10-15 审计根因
+            // C 修复): store-only access-size substitution. Loads never reach
+            // here on the trigger path (op-class filter above); this in-switch
+            // check is the belt-and-braces for the legacy (no-trigger) path.
+            // Store short writes are architecturally legal (memory writes
+            // packet bytes); loads with a shrunken packet hit the fixed-width
+            // completion assert (LDRX completeAcc getRaw<T>) and are retired.
+            if (isLoad) { ++obs_pre_opclass; return size; }   // [LSU][OBS-2]
             if (agu_size_to == 1 || agu_size_to == 2 || agu_size_to == 4 ||
                 agu_size_to == 8 || agu_size_to == 16)
                 size = (unsigned)agu_size_to;
             else
                 { ++obs_pre_invalid; return size; }  // [LSU][OBS-2] invalid target size — no-op, logged below
+        } else if (pre_mode == "a06_size") {
+            // RETIRED (2026-10-15 audit root cause C): the fixed-width load
+            // completion path asserts on a shrunken packet (1,030 checklist
+            // + 737 W1 samples). NEVER injects; one-time warn + one-time
+            // REJECT log. lsu_proxy.py rejects the string at config time;
+            // this branch only guards direct SimObject users. Historical
+            // data (ITEM-022/023/024/025/026/027) is preserved as evidence.
+            if (!a06s_retired_warned) {
+                a06s_retired_warned = true;
+                warn("CHAOSAddrPath: pre_mode 'a06_size' RETIRED "
+                     "(2026-10-15 audit root cause C: load completion path "
+                     "asserts on shrunken packets); use 'a06s_store_size'\n");
+                if (write_log && log_stream && log_stream->stream())
+                    *(log_stream->stream()) << "Tick: " << curTick()
+                        << ", Site: lsq_pushRequest_PRE, mode=a06_size"
+                        << ", REJECT: reason=a06_size_retired_use_a06s_store_size"
+                        << std::endl;
+            }
+            ++obs_pre_invalid;
+            return size;
         } else if (pre_mode == "s13_store_addr") {
             // S13 (03): SQ entry address/tag single-bit flip — STORES only.
             // The corrupted address affects forwarding comparison AND the
@@ -359,6 +402,11 @@ namespace gem5
                 << ", old_size=" << std::dec << old_size
                 << ", new_size=" << size
                 << ", faults_injected: " << faults_injected_count
+                // [LSU][P4-FIX-A06S] op-class 字段自描述（尾部追加，向后
+                // 兼容既有 mode=/old_addr= 字段解析）；旧批次日志无此字段
+                // ——离线拆分 load/store 只对新数据可行，历史数据不回填。
+                << ", isLoad=" << (isLoad ? 1 : 0)
+                << ", isStore=" << (isLoad ? 0 : 1)
                 << std::endl;
         }
         return size;

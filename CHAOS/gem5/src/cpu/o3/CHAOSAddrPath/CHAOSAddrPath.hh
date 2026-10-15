@@ -119,8 +119,13 @@ class CHAOSAddrPath : public SimObject
     // a genuine read-back judgement).
     ChaOSL0Funnel l0_funnel;
     ChaOSL0State l0_item;
-    std::string pre_mode = "off";   // off | a04_subst | a05_shift | a06_size | a08_subst | s13_store_addr | l01_load_addr
-    uint64_t agu_size_to = 0;       // a06_size: target size {1,2,4,8,16}
+    // [LSU][P4-FIX-A06S] a06_size RETIRED 2026-10-15 (root cause C: the
+    // fixed-width load completion path asserts on shrunken packets);
+    // a06s_store_size = store-only v2. Loads are op-class filtered out
+    // before the trigger decision (F-049 discipline) and never counted.
+    std::string pre_mode = "off";   // off | a04_subst | a05_shift | a06s_store_size | a08_subst | s13_store_addr | l01_load_addr | (a06_size RETIRED: no-op)
+    uint64_t agu_size_to = 0;       // a06s_store_size: target size {1,2,4,8,16}
+    bool a06s_retired_warned = false;  // one-time warn for retired a06_size
     static CHAOSAddrPath *f6Consumer;
     static void f6Thunk(ChaOSLsuEvent ev);
 
