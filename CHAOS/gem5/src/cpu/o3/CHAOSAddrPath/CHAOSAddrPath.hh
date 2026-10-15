@@ -109,6 +109,10 @@ class CHAOSAddrPath : public SimObject
     uint64_t obs_pre_invalid = 0;    // PRE: invalid target / unknown pre_mode
     uint64_t obs_post_fired = 0;     // POST hook: trigger said "inject now"
     uint64_t obs_post_nochange = 0;  // POST: corruption produced identical vaddr
+    // [LSU][P4-FIX-GEOM] POST: 64B line geometry declined (fixed-bit modes
+    // check once; random-bit modes exhausted 16 resamples). Phantom decline
+    // (trigger fired, no fault written) — counted here, never as injected.
+    uint64_t obs_post_geomreject = 0;
 
     // W3 L0: funnel (attempted/eligible/injected mirrored from the trigger;
     // activated = the read-back verdict — for THIS hook the corrupted vaddr

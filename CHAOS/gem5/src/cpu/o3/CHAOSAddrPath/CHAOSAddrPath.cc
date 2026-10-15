@@ -132,29 +132,69 @@ namespace gem5
         //   low_bit_flip: XOR a low bit (sub-page address shift).
         // HONEST: SE-inert — SE phys mem from 0, only 512MiB, so byte7 zero still
         // lands in the mapped physical range (no fault). FS-only effective.
+        //
+        // [LSU][P4-FIX-GEOM] cache-line geometry guard (2026-10-15 audit
+        // root cause B): this hook runs AFTER the LSQ split the request into
+        // <=64B fragments, so a flipped vaddr whose (offset + fragment size)
+        // crosses a 64B line violates BaseCache::satisfyRequest's pkt
+        // invariant (41 asserts in the batch). Random-bit modes resample
+        // (<=16 draws, RNG order unchanged for a legal first draw); fixed-bit
+        // modes (F5 per-run bit / A03 stuck) check once and decline this
+        // event, preserving the one-fixed-bit-per-run contract. A decline is
+        // NOT counted as injected/activated (the trigger already fired —
+        // obs_post_geomreject counts the phantom, F-049 decline style).
         Addr vaddr = req->getVaddr();
         Addr new_vaddr = vaddr;
+        const unsigned frag_sz = req->getSize();
+        auto geomLegal = [frag_sz](Addr a) { return (a & 63) + frag_sz <= 64; };
+        unsigned geom_candidates = 1, geom_rejects = 0;   // draws taken / illegal draws
+        bool geom_failed = false;
+        // [LSU][P4-FIX-GEOM] true mode label (E-class audit finding: the
+        // translate-site log hardcoded "low_bit_flip" for every mode).
+        const char *mode_name = "low_bit_flip";
+        switch (fi_mode) {
+          case Mode::Byte7Zero:     mode_name = "byte7_zero"; break;
+          case Mode::LowBitFlip:    mode_name = "low_bit_flip"; break;
+          case Mode::A01Bit:        mode_name = "a01_bit"; break;
+          case Mode::A02DoubleBit:  mode_name = "a02_2bit"; break;
+          case Mode::A03Stuck0:     mode_name = "a03_stuck0"; break;
+          case Mode::A03Stuck1:     mode_name = "a03_stuck1"; break;
+        }
         if (fi_mode == Mode::Byte7Zero) {
-            new_vaddr = vaddr & ~((Addr)0xff << 56);  // clear byte 7
+            new_vaddr = vaddr & ~((Addr)0xff << 56);  // clear byte 7 (low bits unchanged — always legal)
         } else if (fi_mode == Mode::A01Bit) {
             // A01 (03): single-bit flip, low/mid/high band sampling
             // (VA is 48-bit in SE: low 0-15 / mid 16-39 / high 40-47).
-            const uint64_t band = rng() % 3;
-            const uint64_t bit = (band == 0) ? rng() % 16
-                               : (band == 1) ? 16 + rng() % 24
-                               : 40 + rng() % 8;
-            new_vaddr = vaddr ^ (1ULL << bit);
+            for (geom_candidates = 0; geom_candidates < 16;
+                 ++geom_candidates) {
+                const uint64_t band = rng() % 3;
+                const uint64_t bit = (band == 0) ? rng() % 16
+                                   : (band == 1) ? 16 + rng() % 24
+                                   : 40 + rng() % 8;
+                new_vaddr = vaddr ^ (1ULL << bit);
+                if (new_vaddr != vaddr && geomLegal(new_vaddr)) break;
+                ++geom_rejects;
+            }
+            geom_failed = (geom_candidates == 16);
+            if (!geom_failed) ++geom_candidates;   // draws taken (loop index -> count)
         } else if (fi_mode == Mode::A02DoubleBit) {
             // A02 (03): two bits in the SAME event, 50% adjacent / 50%
             // non-adjacent (covers both MBU and dispersed error spaces).
-            if (rng() % 2) {
-                const uint64_t b = rng() % 46;
-                new_vaddr = vaddr ^ ((1ULL << b) | (1ULL << (b + 1)));
-            } else {
-                uint64_t b1 = rng() % 48, b2 = rng() % 48;
-                if (b1 == b2) b2 = (b2 + 1) % 48;
-                new_vaddr = vaddr ^ ((1ULL << b1) | (1ULL << b2));
+            for (geom_candidates = 0; geom_candidates < 16;
+                 ++geom_candidates) {
+                if (rng() % 2) {
+                    const uint64_t b = rng() % 46;
+                    new_vaddr = vaddr ^ ((1ULL << b) | (1ULL << (b + 1)));
+                } else {
+                    uint64_t b1 = rng() % 48, b2 = rng() % 48;
+                    if (b1 == b2) b2 = (b2 + 1) % 48;
+                    new_vaddr = vaddr ^ ((1ULL << b1) | (1ULL << b2));
+                }
+                if (new_vaddr != vaddr && geomLegal(new_vaddr)) break;
+                ++geom_rejects;
             }
+            geom_failed = (geom_candidates == 16);
+            if (!geom_failed) ++geom_candidates;   // draws taken (loop index -> count)
         } else if (fi_mode == Mode::A03Stuck0 || fi_mode == Mode::A03Stuck1) {
             // A03 (03): one EA bit stuck-at-0/1, applied on EVERY event from
             // warm-up on (F5 semantics). A correct value already equal to
@@ -164,6 +204,7 @@ namespace gem5
             const Addr mask = 1ULL << f5_bit;
             new_vaddr = (fi_mode == Mode::A03Stuck0) ? (vaddr & ~mask)
                                                      : (vaddr | mask);
+            geom_failed = !geomLegal(new_vaddr);   // fixed bit: decline, never re-draw
         } else if (lsuTrigger && lsuTrigger->tier == ChaOSLsuTier::F5) {
             // LSU F5 (05 r8): "每次运行仅选一个 bit/字段" — ONE fixed bit per
             // run, stuck from the first post-warm-up eligible event on. A
@@ -171,8 +212,34 @@ namespace gem5
             // access unpredictably and trips packet-offset assertions.
             if (f5_bit == 64) f5_bit = rng() % 16;
             new_vaddr = vaddr ^ (1ULL << f5_bit);
+            geom_failed = !geomLegal(new_vaddr);   // fixed bit: decline, never re-draw
         } else {
-            new_vaddr = vaddr ^ (1ULL << (rng() % 16));  // low-bit flip
+            for (geom_candidates = 0; geom_candidates < 16;
+                 ++geom_candidates) {
+                new_vaddr = vaddr ^ (1ULL << (rng() % 16));  // low-bit flip
+                if (new_vaddr != vaddr && geomLegal(new_vaddr)) break;
+                ++geom_rejects;
+            }
+            geom_failed = (geom_candidates == 16);
+            if (!geom_failed) ++geom_candidates;   // draws taken (loop index -> count)
+        }
+        if (geom_failed) {
+            // No legal candidate: decline this injection (not counted).
+            ++obs_post_geomreject;   // [LSU][OBS-2] phantom decline counter
+            if (write_log && log_stream && log_stream->stream()) {
+                *(log_stream->stream()) << "Tick: " << curTick()
+                    << ", Site: lsq_sendFragmentToTranslation"
+                    << ", mode=" << mode_name
+                    << ", REJECT: reason=block_geometry"
+                    << ", old_vaddr=0x" << std::hex << vaddr
+                    << ", frag_size=" << std::dec << frag_sz
+                    << ", candidates=" << geom_candidates
+                    << ", geom_rejects=" << geom_rejects
+                    << ", last_cand_bitmask=0x" << std::hex
+                    << (new_vaddr ^ vaddr) << std::dec
+                    << std::endl;
+            }
+            return false;
         }
         if (new_vaddr == vaddr) { ++obs_post_nochange; return false; }   // [LSU][OBS-2]
         req->setVaddr(new_vaddr);
@@ -193,10 +260,14 @@ namespace gem5
         if (write_log) {
             *(log_stream->stream()) << "Tick: " << curTick()
                 << ", Site: lsq_sendFragmentToTranslation"
-                << ", mode=" << (fi_mode == Mode::Byte7Zero ? "byte7_zero" : "low_bit_flip")
+                << ", mode=" << mode_name
                 << ", old_vaddr=0x" << std::hex << vaddr
                 << ", new_vaddr=0x" << new_vaddr << std::dec
                 << ", faults_injected: " << faults_injected_count
+                << ", geom_candidates=" << geom_candidates
+                << ", geom_rejects=" << geom_rejects
+                << ", geom_bitmask=0x" << std::hex << (new_vaddr ^ vaddr)
+                << std::dec
                 << " (NOTE: SE-inert — byte7 zero lands in SE 512MiB range)"
                 << std::endl;
         }
@@ -472,12 +543,13 @@ namespace gem5
                     // the phantom-activation signature (F-049).
                     printf("CHAOS_L0_DECLINE: pre_fired=%lu pre_opclass=%lu "
                            "pre_invalid=%lu post_fired=%lu post_nochange=%lu "
-                           "trigger_injected=%lu\n",
+                           "post_geomreject=%lu trigger_injected=%lu\n",
                            (unsigned long)obs_pre_fired,
                            (unsigned long)obs_pre_opclass,
                            (unsigned long)obs_pre_invalid,
                            (unsigned long)obs_post_fired,
                            (unsigned long)obs_post_nochange,
+                           (unsigned long)obs_post_geomreject,
                            (unsigned long)lsuTrigger->injected);
                     // Mirror the trigger's FINAL counts here (exit time), so
                     // the funnel line and the summary line always agree.
