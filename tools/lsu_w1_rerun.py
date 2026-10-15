@@ -49,6 +49,7 @@ def run_item(it, args):
     cap = max(300, 10 * target)   # P4 冻结：护栏 cap=10×target
     runs = []
     s = 0
+    cfg_streak = 0                   # [LSU][OBS-FIX-7] 配置启动失败熔断计数
     while True:                      # 样本级 resume（F-022 同款）
         v = UP._valid_resumed(udir, it, s)
         if v is None:
@@ -72,6 +73,21 @@ def run_item(it, args):
                 print(f"[{it}] s{s}: GUARD_FAILURE {gf}"[:300], flush=True)
                 status = "GUARD_FAILURE"
                 break
+            # [LSU][OBS-FIX-7]（中央止损指令 F，2026-10-15）：连续 3 次相同配置启动
+            # 失败（ImportError 等）→ 停止本项（CONFIG_FAILURE），不记账、不消耗
+            # attempt cap。根因：2026-10-14 CHAOSPropagation 新配置×冻结旧二进制
+            # 版本错配，26,009 个样本被误分类 Crash/guest_or_unknown 后才发现。
+            _go = udir / f"{it}_s{s}_guard.out"
+            if _go.exists() and "ImportError" in _go.read_text(errors="replace"):
+                cfg_streak += 1
+                print(f"[{it}] s{s}: CONFIG_START_FAILURE (ImportError) "
+                      f"连续 {cfg_streak}/3 —— 不记账不耗 cap", flush=True)
+                if cfg_streak >= 3:
+                    status = "CONFIG_FAILURE"
+                    break
+                s += 1
+                continue
+            cfg_streak = 0
             runs.append(v)
             print(f"[{it}] s{s}: {v.get('outcome')}/{v.get('crash_kind', '-')} "
                   f"inj={v.get('injected')} act={UP._activated_count(runs)}"

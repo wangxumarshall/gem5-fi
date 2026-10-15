@@ -27,7 +27,19 @@
 
 import argparse
 import m5
-from m5.objects import CHAOSReg, CHAOSPhysReg, CHAOSMem, CHAOSCache, CHAOSLSQFwd, CHAOSRenameMap, CHAOSFreeList, CHAOSROB, CHAOSIQ, CHAOSExec, CHAOSFPU, CHAOSL1DForward, CHAOSBPU, CHAOSAddrPath, CHAOSDecode, CHAOSExMon, CHAOSRAS, CHAOSProbe, CHAOSCommitTrace, CHAOSMicroSnap, CHAOSPropagation, CHAOSPrefetch, FUDesc, FUPool, OpDesc, IQUnit, StridePrefetcher, RandomRP, SimpleBTB, BTBSetAssociative, BiModeBP, ReturnAddrStack, BranchPredictor, LRURP, NULL, Parent
+from m5.objects import CHAOSReg, CHAOSPhysReg, CHAOSMem, CHAOSCache, CHAOSLSQFwd, CHAOSRenameMap, CHAOSFreeList, CHAOSROB, CHAOSIQ, CHAOSExec, CHAOSFPU, CHAOSL1DForward, CHAOSBPU, CHAOSAddrPath, CHAOSDecode, CHAOSExMon, CHAOSRAS, CHAOSProbe, CHAOSCommitTrace, CHAOSMicroSnap, CHAOSPrefetch, FUDesc, FUPool, OpDesc, IQUnit, StridePrefetcher, RandomRP, SimpleBTB, BTBSetAssociative, BiModeBP, ReturnAddrStack, BranchPredictor, LRURP, NULL, Parent
+# [LSU][OBS-FIX-6]（2026-10-14 止损，中央指令）：CHAOSPropagation 改按需导入。
+# 根因：实现（CHAOS/gem5/src/cpu/o3/CHAOSPropagation/，提交 6c9d5930）晚于
+# 主树冻结二进制 build/ARM/gem5.opt（2026-10-11 编译，AGU legacy 轨道专用，
+# 身份 10590f62，禁止重编译）——旧二进制无该 SimObject，unconditional import
+# 使所有未启用 --chaos_propagation 的 addrpath/lsq 等任务同样启动失败
+# （~2s/样本，误分类 Crash/guest_or_unknown；2026-10-14 15:00 起波及 12 个
+# item 约 22k 样本）。条件化后：默认路径零依赖；显式请求传播追踪且二进制
+# 缺对象时给出致命错误（绝不静默降级观测语义）。
+try:
+    from m5.objects import CHAOSPropagation  # noqa: F401  观测版二进制（lsu-obs worktree）才有
+except ImportError:
+    CHAOSPropagation = None
 from gem5.components.boards.simple_board import SimpleBoard
 from gem5.components.cachehierarchies.classic.private_l1_private_l2_cache_hierarchy import (
     PrivateL1PrivateL2CacheHierarchy,
@@ -1112,6 +1124,13 @@ if args.chaos_propagation:
     # (commitHead, the W2.1/W2.4 anchor); CHAOSCache reaches it through the
     # static instance(). Attaching changes nothing else — nullptr tracer =
     # every hook short-circuits (zero regression).
+    # [LSU][OBS-FIX-6] 显式请求但二进制缺对象 → 致命错误（不静默降级）：
+    # 需换用观测版二进制（lsu-obs worktree build，含 CHAOSPropagation）。
+    if CHAOSPropagation is None:
+        raise SystemExit(
+            "[lsu_proxy] FATAL: --chaos_propagation 需要含 CHAOSPropagation "
+            "的观测版 gem5 二进制（如 .claude/worktrees/lsu-obs/build/ARM/"
+            "gem5.opt）；当前二进制早于该实现（提交 6c9d5930）。")
     prop = CHAOSPropagation(
         cpu=cpu0,
         traceFile=args.prop_trace_file,
