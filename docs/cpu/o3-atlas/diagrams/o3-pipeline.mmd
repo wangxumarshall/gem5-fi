@@ -1,0 +1,45 @@
+flowchart LR
+    BPU[BPU]
+    FTQ[FTQ]
+    FETCH[FETCH]
+    DECODE[DECODE]
+    RENAME[RENAME]
+    DISPATCH[DISPATCH]
+    ISSUE[ISSUE]
+    EXECUTE[EXECUTE]
+    MEMORY[MEMORY]
+    WRITEBACK[WRITEBACK]
+    COMMIT[COMMIT]
+    REDIRECT[REDIRECT]
+    BPU --> FTQ
+    FTQ --> FETCH
+    FETCH --> DECODE
+    DECODE --> RENAME
+    RENAME --> DISPATCH
+    DISPATCH --> ISSUE
+    ISSUE --> EXECUTE
+    EXECUTE --> MEMORY
+    MEMORY --> WRITEBACK
+    WRITEBACK --> COMMIT
+    COMMIT -.误预测恢复.-> REDIRECT
+    REDIRECT -.-> FETCH
+    CHAOSAddrPath[CHAOSAddrPath]:::chaos -.命中.-> MEMORY
+    CHAOSBPU[CHAOSBPU]:::chaos -.命中.-> BPU
+    CHAOSCache[CHAOSCache]:::chaos -.命中.-> MEMORY
+    CHAOSCommitTrace[CHAOSCommitTrace]:::chaos -.命中.-> COMMIT
+    CHAOSDecode[CHAOSDecode]:::chaos -.命中.-> DECODE
+    CHAOSExMon[CHAOSExMon]:::chaos -.命中.-> MEMORY
+    CHAOSExec[CHAOSExec]:::chaos -.命中.-> EXECUTE
+    CHAOSFPU[CHAOSFPU]:::chaos -.命中.-> EXECUTE
+    CHAOSFreeList[CHAOSFreeList]:::chaos -.命中.-> RENAME
+    CHAOSIQ[CHAOSIQ]:::chaos -.命中.-> ISSUE
+    CHAOSL1DForward[CHAOSL1DForward]:::chaos -.命中.-> MEMORY
+    CHAOSLSQFwd[CHAOSLSQFwd]:::chaos -.命中.-> MEMORY
+    CHAOSMem[CHAOSMem]:::chaos -.命中.-> MEMORY
+    CHAOSPhysReg[CHAOSPhysReg]:::chaos -.命中.-> EXECUTE
+    CHAOSProbe[CHAOSProbe]:::chaos -.命中.-> COMMIT
+    CHAOSRAS[CHAOSRAS]:::chaos -.命中.-> COMMIT
+    CHAOSROB[CHAOSROB]:::chaos -.命中.-> COMMIT
+    CHAOSReg[CHAOSReg]:::chaos -.命中.-> COMMIT
+    CHAOSRenameMap[CHAOSRenameMap]:::chaos -.命中.-> RENAME
+    classDef chaos fill:#fdd,stroke:#900,stroke-width:2px

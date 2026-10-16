@@ -5,14 +5,98 @@ No timestamps, no dict-order dependence, sorted iteration everywhere:
 running twice must be byte-identical (validate.py enforces it).
 """
 import argparse
+import shutil
+import subprocess
 from pathlib import Path
 
 from .corpus import REPO, category_of, instruction_pages
+from .schema import INJECTORS
 from .validate import load_data
 
 ATLAS = REPO / "docs/cpu/o3-atlas"
 PAGES = ATLAS / "pages"
 INDEX = ATLAS / "index"
+DIAGRAMS = ATLAS / "diagrams"
+
+# 总图骨架：标准八站主线 + BPU/FTQ 前端侧线 + MEMORY 访存侧线 + REDIRECT 恢复侧线
+STAGE_CHAIN = ["BPU", "FTQ", "FETCH", "DECODE", "RENAME", "DISPATCH",
+               "ISSUE", "EXECUTE", "MEMORY", "WRITEBACK", "COMMIT", "REDIRECT"]
+# 注入器 → 挂载站点（依据计划「关键事实 §7」挂载语义表，锚点在 families.yaml）
+INJECTOR_MOUNTS = {
+    "CHAOSDecode": "DECODE", "CHAOSRenameMap": "RENAME", "CHAOSFreeList": "RENAME",
+    "CHAOSPhysReg": "EXECUTE", "CHAOSIQ": "ISSUE", "CHAOSROB": "COMMIT",
+    "CHAOSReg": "COMMIT", "CHAOSExec": "EXECUTE", "CHAOSFPU": "EXECUTE",
+    "CHAOSLSQFwd": "MEMORY", "CHAOSL1DForward": "MEMORY", "CHAOSAddrPath": "MEMORY",
+    "CHAOSBPU": "BPU", "CHAOSRAS": "COMMIT", "CHAOSExMon": "MEMORY",
+    "CHAOSProbe": "COMMIT", "CHAOSCommitTrace": "COMMIT",
+    "CHAOSMem": "MEMORY", "CHAOSCache": "MEMORY",
+}
+
+
+def render_master_mermaid():
+    """O3 全流水线总图（mermaid）：站点主链 + 19 个 CHAOS 注入器红节点叠加挂载点。"""
+    lines = ["flowchart LR"]
+    for s in STAGE_CHAIN:
+        lines.append(f"    {s}[{s}]")
+    for a, b in zip(STAGE_CHAIN, STAGE_CHAIN[1:]):
+        label = " -.误预测恢复.-> " if (a, b) == ("COMMIT", "REDIRECT") else " --> "
+        lines.append(f"    {a}{label}{b}")
+    lines.append("    REDIRECT -.-> FETCH")
+    for inj, stage in sorted(INJECTOR_MOUNTS.items()):
+        lines.append(f"    {inj}[{sanitize_mermaid(inj)}]:::chaos -.命中.-> {stage}")
+    lines.append("    classDef chaos fill:#fdd,stroke:#900,stroke-width:2px")
+    return "\n".join(lines)
+
+
+def render_master_dot():
+    """同构 graphviz dot 版总图（dot -Tsvg 可渲染）。"""
+    lines = ["digraph o3_atlas {", "    rankdir=LR; node [shape=box];"]
+    for s in STAGE_CHAIN:
+        lines.append(f'    {s} [label="{s}"];')
+    for a, b in zip(STAGE_CHAIN, STAGE_CHAIN[1:]):
+        style = ' [style=dashed, label="误预测恢复"]' if (a, b) == ("COMMIT", "REDIRECT") else ""
+        lines.append(f"    {a} -> {b}{style};")
+    lines.append("    REDIRECT -> FETCH [style=dashed];")
+    for inj, stage in sorted(INJECTOR_MOUNTS.items()):
+        lines.append(f'    {inj} [label="{inj}", shape=hexagon, '
+                     f'style=filled, fillcolor="#fdd", color="#900"];')
+        lines.append(f"    {inj} -> {stage} [style=dashed, label=命中];")
+    lines.append("}")
+    return "\n".join(lines)
+
+
+def render_matrix(instructions):
+    """指令 × CHAOS 注入器命中矩阵（372 行 × 19 列；✓ 命中 / · 未命中）。"""
+    injs = list(INJECTORS)
+    out = ["# 指令 × CHAOS 注入器命中矩阵", "",
+           f"| 指令 | {' | '.join(injs)} |",
+           "|---|" + "---|" * len(injs)]
+    for r in sorted(instructions, key=lambda x: x["doc"]):
+        hits = set(r.get("injectors", []))
+        cells = ["✓" if i in hits else "·" for i in injs]
+        out.append(f"| [{r['doc']}](../pages/{r['doc']}) | {' | '.join(cells)} |")
+    out.append("")
+    return "\n".join(out)
+
+
+def write_diagrams(families, instructions):
+    DIAGRAMS.mkdir(parents=True, exist_ok=True)
+    mmd = DIAGRAMS / "o3-pipeline.mmd"
+    dot_f = DIAGRAMS / "o3-pipeline.dot"
+    svg = DIAGRAMS / "o3-pipeline.svg"
+    mmd.write_text(render_master_mermaid() + "\n", encoding="utf-8")
+    dot_f.write_text(render_master_dot() + "\n", encoding="utf-8")
+    if shutil.which("dot"):
+        r = subprocess.run(["dot", "-Tsvg", str(dot_f), "-o", str(svg)],
+                           capture_output=True, timeout=300)
+        if r.returncode != 0:
+            raise RuntimeError("dot -Tsvg 失败: " + r.stderr.decode()[:400])
+        print(f"diagrams: {mmd.name} + {dot_f.name} + {svg.name}")
+    else:
+        print(f"diagrams: {mmd.name} + {dot_f.name}（dot 缺失，SVG 未再生，如实记录）")
+    (DIAGRAMS / "injector-matrix.md").write_text(
+        render_matrix(instructions), encoding="utf-8")
+    print("diagrams: injector-matrix.md")
 
 # mermaid 标签里的敌对字符一律换下划线（括号/引号/花括号等会破坏节点语法）
 _MERMAID_BAD = str.maketrans({c: "_" for c in '()"\'`;:[]{}|<>#,'})
@@ -107,8 +191,13 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--category", default=None,
                     help="只生成该分类（默认全部有记录的分类）")
+    ap.add_argument("--diagrams", action="store_true",
+                    help="只生成总图与注入器矩阵（diagrams/）")
     args = ap.parse_args()
     families, instructions = load_data()
+    if args.diagrams:
+        write_diagrams(families, instructions)
+        return
     by_cat = {}
     for rec in instructions:
         by_cat.setdefault(category_of(Path(rec["doc"])), []).append(rec)
