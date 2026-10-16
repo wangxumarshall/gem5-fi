@@ -1,0 +1,1 @@
+/goal superpowers:brainstorming 对于 @docs/cpu/armv8-isa/ 中的每条指令做深刻理解，使用lsp 对gem5源码做深刻理解，构建每条指令 走过的arm64 cpu微架构的链路，然后绘制整个cpu 微架构的链路图。
