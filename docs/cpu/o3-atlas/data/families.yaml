@@ -1,0 +1,298 @@
+# docs/cpu/o3-atlas/data/families.yaml
+# o3-atlas 格式家族：链路骨架 + 注入器默认集 + 节点锚点。
+# 锚点相对仓库根，全部于 2026-10-16 逐条 sed -n 'Np' 验证行内容（见本文件提交信息）。
+# opClass 证据：build/ARM/arch/arm/generated/decoder-ns.cc.inc 构造行（"add", machInst, IntAluOp 等）。
+# 注入器命中依据：挂载语义表（计划「关键事实 §7」），默认集 = 全指令底座 + 队列/执行特征补集。
+
+dataproc-imm:
+  summary: 数据处理立即数（ADD/SUB imm、NEG、MOV-to/from-SP 别名）
+  pipeline: &std8 [FETCH, DECODE, RENAME, DISPATCH, ISSUE, EXECUTE, WRITEBACK, COMMIT]
+  queue: IQ
+  fu: IntALU
+  default_injectors: &int_inj [CHAOSDecode, CHAOSRenameMap, CHAOSFreeList, CHAOSPhysReg, CHAOSIQ, CHAOSROB, CHAOSReg, CHAOSExec, CHAOSProbe, CHAOSCommitTrace]
+  anchors: &stda
+    FETCH: CHAOS/gem5/src/cpu/o3/fetch.cc:1059
+    DECODE: CHAOS/gem5/src/cpu/o3/decode.cc:636
+    RENAME: CHAOS/gem5/src/cpu/o3/rename.cc:537
+    DISPATCH: CHAOS/gem5/src/cpu/o3/iew.cc:881
+    ISSUE: CHAOS/gem5/src/cpu/o3/inst_queue.cc:868
+    EXECUTE: CHAOS/gem5/src/cpu/o3/iew.cc:1138
+    WRITEBACK: CHAOS/gem5/src/cpu/o3/iew.cc:1380
+    COMMIT: CHAOS/gem5/src/cpu/o3/commit.cc:1125
+
+dataproc-shifted-reg:
+  summary: 数据处理移位寄存器（ADD/SUB shifted、MOV register 别名）
+  pipeline: *std8
+  queue: IQ
+  fu: IntALU
+  default_injectors: *int_inj
+  anchors: *stda
+
+dataproc-extended-reg:
+  summary: 数据处理扩展寄存器（ADD/SUB extended register）
+  pipeline: *std8
+  queue: IQ
+  fu: IntALU
+  default_injectors: *int_inj
+  anchors: *stda
+
+dataproc-1src:
+  summary: 单源数据处理（RBIT/REV*/PAC*/AUT* 等一源变换单元）
+  pipeline: *std8
+  queue: IQ
+  fu: IntALU
+  default_injectors: *int_inj
+  anchors: *stda
+
+dataproc-2src:
+  summary: 双源数据处理（CRC32* 等；CRC 的 A32/A64 opClass 差异在分类任务逐条复核）
+  pipeline: *std8
+  queue: IQ
+  fu: IntALU
+  default_injectors: *int_inj
+  anchors: *stda
+
+logical-imm:
+  summary: 逻辑立即数（AND/ORR/EOR/TST imm + MOVZ/MOVN/MOVK 宽立即数）
+  pipeline: *std8
+  queue: IQ
+  fu: IntALU
+  default_injectors: *int_inj
+  anchors: *stda
+
+logical-reg:
+  summary: 逻辑移位寄存器（AND/ORR/EOR/BIC/ORN/EON/BICS + MVN 别名）
+  pipeline: *std8
+  queue: IQ
+  fu: IntALU
+  default_injectors: *int_inj
+  anchors: *stda
+
+compare:
+  summary: 比较族（CMP/CMN/TST = ADDS/SUBS/ANDS 别名；CCMP/CCMN 条件比较）
+  pipeline: *std8
+  queue: IQ
+  fu: IntALU
+  default_injectors: *int_inj
+  anchors: *stda
+
+cond-select:
+  summary: 条件选择（CSEL/CSINC/CSINV/CSNEG + CSET/CSETM/CINC/CINV/CNEG 别名）
+  pipeline: *std8
+  queue: IQ
+  fu: IntALU
+  default_injectors: *int_inj
+  anchors: *stda
+
+bitfield:
+  summary: 位域（BFM/UBFM/SBFM/EXTR + BFI/BFXIL/SBFIZ/UBFIZ 别名）
+  pipeline: *std8
+  queue: IQ
+  fu: IntALU
+  default_injectors: *int_inj
+  anchors: *stda
+
+count:
+  summary: 计数（CLZ/CLS）
+  pipeline: *std8
+  queue: IQ
+  fu: IntALU
+  default_injectors: *int_inj
+  anchors: *stda
+
+extend:
+  summary: 扩展（SXTB/SXTH/SXTW/UXTB/UXTH/UXTW = SBFM/UBFM 家族别名）
+  pipeline: *std8
+  queue: IQ
+  fu: IntALU
+  default_injectors: *int_inj
+  anchors: *stda
+
+pc-relative:
+  summary: PC 相对（ADR/ADRP）
+  pipeline: *std8
+  queue: IQ
+  fu: IntALU
+  default_injectors: *int_inj
+  anchors: *stda
+
+flag:
+  summary: 标志操作（RMIF/SETF8/SETF16/AXFLAG/XAFLAG/CFINV）
+  pipeline: *std8
+  queue: IQ
+  fu: IntALU
+  default_injectors: *int_inj
+  anchors: *stda
+
+mul:
+  summary: 乘法族（MADD/MSUB/MUL/MNEG/SMADDL/SMSUBL/SMULL/SMNEGL/UMADDL/UMSUBL/UMULL/UMNEGL/SMULH/UMULH）
+  pipeline: *std8
+  queue: IQ
+  fu: IntMult
+  default_injectors: *int_inj
+  anchors: *stda
+
+div:
+  summary: 除法族（SDIV/UDIV）
+  pipeline: *std8
+  queue: IQ
+  fu: IntDiv
+  default_injectors: *int_inj
+  anchors: *stda
+
+hint:
+  summary: 提示指令（NOP/YIELD/WFE/WFI/SEV/SEVL/WFIT/WFET；部分带 quiesce 语义，分类任务逐条注明）
+  pipeline: *std8
+  queue: IQ
+  fu: IntALU
+  default_injectors: *int_inj
+  anchors: *stda
+
+barrier:
+  summary: 屏障（DSB/DMB/ISB；非推测，经 insertBarrier 入队）
+  pipeline: *std8
+  queue: IQ
+  fu: IntALU
+  default_injectors: *int_inj
+  anchors:
+    FETCH: CHAOS/gem5/src/cpu/o3/fetch.cc:1059
+    DECODE: CHAOS/gem5/src/cpu/o3/decode.cc:636
+    RENAME: CHAOS/gem5/src/cpu/o3/rename.cc:537
+    DISPATCH: CHAOS/gem5/src/cpu/o3/iew.cc:1048
+    ISSUE: CHAOS/gem5/src/cpu/o3/inst_queue.cc:868
+    EXECUTE: CHAOS/gem5/src/cpu/o3/iew.cc:1138
+    WRITEBACK: CHAOS/gem5/src/cpu/o3/iew.cc:1380
+    COMMIT: CHAOS/gem5/src/cpu/o3/commit.cc:1125
+
+branch-imm:
+  summary: 立即数分支（B/BL）；BPU/FTQ 为预测侧线（指令本身 FETCH→…），REDIRECT 为误预测恢复侧线
+  pipeline: &brpipe [BPU, FTQ, FETCH, DECODE, RENAME, DISPATCH, ISSUE, EXECUTE, WRITEBACK, COMMIT, REDIRECT]
+  queue: IQ
+  fu: IntALU
+  default_injectors: &br_inj [CHAOSDecode, CHAOSRenameMap, CHAOSFreeList, CHAOSPhysReg, CHAOSIQ, CHAOSROB, CHAOSReg, CHAOSExec, CHAOSProbe, CHAOSCommitTrace, CHAOSBPU]
+  anchors: &br_anchors
+    BPU: CHAOS/gem5/src/cpu/o3/bac.cc:565
+    FTQ: CHAOS/gem5/src/cpu/o3/ftq.cc:186
+    FETCH: CHAOS/gem5/src/cpu/o3/fetch.cc:1059
+    DECODE: CHAOS/gem5/src/cpu/o3/decode.cc:636
+    RENAME: CHAOS/gem5/src/cpu/o3/rename.cc:537
+    DISPATCH: CHAOS/gem5/src/cpu/o3/iew.cc:881
+    ISSUE: CHAOS/gem5/src/cpu/o3/inst_queue.cc:868
+    EXECUTE: CHAOS/gem5/src/cpu/o3/iew.cc:1138
+    WRITEBACK: CHAOS/gem5/src/cpu/o3/iew.cc:1380
+    COMMIT: CHAOS/gem5/src/cpu/o3/commit.cc:1125
+    REDIRECT: CHAOS/gem5/src/cpu/o3/fetch.cc:711
+
+branch-cond:
+  summary: 条件分支（B.cond/BC.cond）；误预测路径同 branch-imm
+  pipeline: *brpipe
+  queue: IQ
+  fu: IntALU
+  default_injectors: *br_inj
+  anchors: *br_anchors
+
+branch-reg:
+  summary: 寄存器分支（BR/BLR/RET/BRAA/BLRAA/RETAA 等；RET/BLR 涉及 RAS 预测语义）
+  pipeline: *brpipe
+  queue: IQ
+  fu: IntALU
+  default_injectors: *br_inj
+  anchors: *br_anchors
+
+exception:
+  summary: 异常生成（SVC/HVC/SMC/BRK/HLT/DCPS*）；提交期 fault 可被 CHAOSRAS 抑制
+  pipeline: *std8
+  queue: IQ
+  fu: IntALU
+  default_injectors: [CHAOSDecode, CHAOSRenameMap, CHAOSFreeList, CHAOSPhysReg, CHAOSIQ, CHAOSROB, CHAOSReg, CHAOSExec, CHAOSProbe, CHAOSCommitTrace, CHAOSRAS]
+  anchors: *stda
+
+system-reg:
+  summary: 系统寄存器访问（MRS/MSR）；SE 下可访问子集有限，分类任务逐条注明
+  pipeline: *std8
+  queue: IQ
+  fu: IntALU
+  default_injectors: *int_inj
+  anchors: *stda
+
+system-hub:
+  summary: 系统枢纽（TLBI/AT/DC 及 SYS 类；多需 FS 模式方有真实行为，tier 多为 fs-only）
+  pipeline: *std8
+  queue: IQ
+  fu: IntALU
+  default_injectors: *int_inj
+  anchors: *stda
+
+load:
+  summary: 加载族（LDR/LDUR/LDTR/LDLAR 各宽度与寻址变体）
+  pipeline: &loadpipe [FETCH, DECODE, RENAME, DISPATCH, ISSUE, EXECUTE, MEMORY, WRITEBACK, COMMIT]
+  queue: LSQ
+  fu: MemReadOp
+  default_injectors: &mem_inj [CHAOSDecode, CHAOSRenameMap, CHAOSFreeList, CHAOSPhysReg, CHAOSIQ, CHAOSROB, CHAOSReg, CHAOSProbe, CHAOSCommitTrace, CHAOSLSQFwd, CHAOSL1DForward, CHAOSAddrPath, CHAOSMem, CHAOSCache]
+  anchors: &load_anchors
+    FETCH: CHAOS/gem5/src/cpu/o3/fetch.cc:1059
+    DECODE: CHAOS/gem5/src/cpu/o3/decode.cc:636
+    RENAME: CHAOS/gem5/src/cpu/o3/rename.cc:537
+    DISPATCH: CHAOS/gem5/src/cpu/o3/iew.cc:1015
+    ISSUE: CHAOS/gem5/src/cpu/o3/inst_queue.cc:868
+    EXECUTE: CHAOS/gem5/src/cpu/o3/lsq_unit.cc:642
+    MEMORY: CHAOS/gem5/src/cpu/o3/lsq_unit.cc:1376
+    WRITEBACK: CHAOS/gem5/src/cpu/o3/lsq_unit.cc:1136
+    COMMIT: CHAOS/gem5/src/cpu/o3/commit.cc:1125
+
+store:
+  summary: 存储族（STR/STUR/STTR/STLLR 各宽度与寻址变体；经 insertNonSpec 入队）
+  pipeline: &storepipe [FETCH, DECODE, RENAME, DISPATCH, ISSUE, EXECUTE, MEMORY, WRITEBACK, COMMIT]
+  queue: LSQ
+  fu: MemWriteOp
+  default_injectors: *mem_inj
+  anchors: &store_anchors
+    FETCH: CHAOS/gem5/src/cpu/o3/fetch.cc:1059
+    DECODE: CHAOS/gem5/src/cpu/o3/decode.cc:636
+    RENAME: CHAOS/gem5/src/cpu/o3/rename.cc:537
+    DISPATCH: CHAOS/gem5/src/cpu/o3/iew.cc:1026
+    ISSUE: CHAOS/gem5/src/cpu/o3/inst_queue.cc:868
+    EXECUTE: CHAOS/gem5/src/cpu/o3/lsq_unit.cc:714
+    MEMORY: CHAOS/gem5/src/cpu/o3/lsq_unit.cc:1730
+    WRITEBACK: CHAOS/gem5/src/cpu/o3/lsq_unit.cc:848
+    COMMIT: CHAOS/gem5/src/cpu/o3/commit.cc:1125
+
+ldst-pair:
+  summary: 成对访存宏展开（LDP/STP/LDNP/STNP/LDPSW = 单一 LdpStp 类动态助记符）
+  pipeline: *loadpipe
+  queue: LSQ
+  fu: MemReadOp
+  default_injectors: *mem_inj
+  anchors: *load_anchors
+
+exclusive:
+  summary: 独占访问（LDXR/STXR/LDXP/STXP + acquire/release 变体）；独占监视器可被 CHAOSExMon 破坏
+  pipeline: *loadpipe
+  queue: LSQ
+  fu: MemReadOp
+  default_injectors: [CHAOSDecode, CHAOSRenameMap, CHAOSFreeList, CHAOSPhysReg, CHAOSIQ, CHAOSROB, CHAOSReg, CHAOSProbe, CHAOSCommitTrace, CHAOSLSQFwd, CHAOSL1DForward, CHAOSAddrPath, CHAOSMem, CHAOSCache, CHAOSExMon]
+  anchors: *load_anchors
+
+atomic-lse:
+  summary: LSE 原子（LDADD/LDCLR/LDEOR/LDSET/LDSMAX/LDSMIN/LDUMAX/LDUMIN/CAS/SWP 及 A/AL/L 变体；缓存端 RMW，不经独占监视器）
+  pipeline: *storepipe
+  queue: LSQ
+  fu: MemWriteOp
+  default_injectors: *mem_inj
+  anchors: *store_anchors
+
+acquire-release:
+  summary: 获取/释放语义访存（LDAR/STLR/LDAPR 族）
+  pipeline: *loadpipe
+  queue: LSQ
+  fu: MemReadOp
+  default_injectors: *mem_inj
+  anchors: *load_anchors
+
+prefetch:
+  summary: 预取（PRFM/PRFUM 各形式；无寄存器写回，故无 CHAOSReg 命中）
+  pipeline: *loadpipe
+  queue: LSQ
+  fu: MemReadOp
+  default_injectors: [CHAOSDecode, CHAOSRenameMap, CHAOSFreeList, CHAOSPhysReg, CHAOSIQ, CHAOSROB, CHAOSProbe, CHAOSCommitTrace, CHAOSLSQFwd, CHAOSL1DForward, CHAOSAddrPath, CHAOSMem, CHAOSCache]
+  anchors: *load_anchors
