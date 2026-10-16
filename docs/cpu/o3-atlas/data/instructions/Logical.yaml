@@ -1,0 +1,513 @@
+- doc: Logical-ANDS_immediate.md
+  mnemonic: ANDS (immediate)
+  tier: implemented
+  family: logical-imm
+  gem5:
+    decode_mnemonic: ands
+    static_inst: AndXImmCc
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:150
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  evidence:
+  - claim: A64 解码树 return new AndXImmCc(...)；family=logical-imm 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:150
+- doc: Logical-ANDS_shifted_register.md
+  mnemonic: ANDS (shifted register)
+  tier: implemented
+  family: logical-reg
+  gem5:
+    decode_mnemonic: ands
+    static_inst: AndXSRegCc
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2197
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  evidence:
+  - claim: A64 解码树 return new AndXSRegCc(...)；family=logical-reg 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2197
+- doc: Logical-AND_immediate.md
+  mnemonic: AND (immediate)
+  tier: implemented
+  family: logical-imm
+  gem5:
+    decode_mnemonic: and
+    static_inst: AndXImm
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:144
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  evidence:
+  - claim: A64 解码树 return new AndXImm(...)；family=logical-imm 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:144
+- doc: Logical-AND_shifted_register.md
+  mnemonic: AND (shifted register)
+  tier: implemented
+  family: logical-reg
+  gem5:
+    decode_mnemonic: and
+    static_inst: AndXSReg
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2185
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  evidence:
+  - claim: A64 解码树 return new AndXSReg(...)；family=logical-reg 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2185
+- doc: Logical-BICS_shifted_register.md
+  mnemonic: BICS (shifted register)
+  tier: implemented
+  family: logical-reg
+  gem5:
+    decode_mnemonic: bics
+    static_inst: BicXSRegCc
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2199
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  evidence:
+  - claim: A64 解码树 return new BicXSRegCc(...)；family=logical-reg 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2199
+- doc: Logical-BIC_shifted_register.md
+  mnemonic: BIC (shifted register)
+  tier: implemented
+  family: logical-reg
+  gem5:
+    decode_mnemonic: bic
+    static_inst: BicXSReg
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2187
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  evidence:
+  - claim: A64 解码树 return new BicXSReg(...)；family=logical-reg 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2187
+- doc: Logical-EON_shifted_register.md
+  mnemonic: EON (shifted register)
+  tier: implemented
+  family: logical-reg
+  gem5:
+    decode_mnemonic: eon
+    static_inst: EonXSReg
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2195
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  evidence:
+  - claim: A64 解码树 return new EonXSReg(...)；family=logical-reg 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2195
+- doc: Logical-EOR_immediate.md
+  mnemonic: EOR (immediate)
+  tier: implemented
+  family: logical-imm
+  gem5:
+    decode_mnemonic: eor
+    static_inst: EorXImm
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:148
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  evidence:
+  - claim: A64 解码树 return new EorXImm(...)；family=logical-imm 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:148
+- doc: Logical-EOR_shifted_register.md
+  mnemonic: EOR (shifted register)
+  tier: implemented
+  family: logical-reg
+  gem5:
+    decode_mnemonic: eor
+    static_inst: EorXSReg
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2193
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  evidence:
+  - claim: A64 解码树 return new EorXSReg(...)；family=logical-reg 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2193
+- doc: Logical-MOVK.md
+  mnemonic: MOVK
+  tier: implemented
+  family: logical-reg
+  gem5:
+    decode_mnemonic: movk
+    static_inst: Movk
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:169
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  evidence:
+  - claim: A64 解码树 return new Movk(...)；family=logical-reg 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:169
+- doc: Logical-MOVN.md
+  mnemonic: MOVN
+  tier: implemented
+  family: logical-reg
+  gem5:
+    decode_mnemonic: movn
+    static_inst: Movn
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:163
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  evidence:
+  - claim: A64 解码树 return new Movn(...)；family=logical-reg 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:163
+- doc: Logical-MOVZ.md
+  mnemonic: MOVZ
+  tier: implemented
+  family: logical-reg
+  gem5:
+    decode_mnemonic: movz
+    static_inst: Movz
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:167
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  evidence:
+  - claim: A64 解码树 return new Movz(...)；family=logical-reg 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:167
+- doc: Logical-MOV_bitmask_immediate.md
+  mnemonic: MOV (bitmask immediate)
+  tier: implemented
+  family: logical-imm
+  gem5:
+    decode_mnemonic: orr
+    static_inst: OrrXImm
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:146
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  evidence:
+  - claim: A64 解码树 return new OrrXImm(...)；family=logical-imm 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:146
+- doc: Logical-MOV_inverted_wide_immediate.md
+  mnemonic: MOV (inverted wide immediate)
+  tier: implemented
+  family: logical-imm
+  gem5:
+    decode_mnemonic: movn
+    static_inst: Movn
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:163
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  evidence:
+  - claim: A64 解码树 return new Movn(...)；family=logical-imm 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:163
+- doc: Logical-MOV_register.md
+  mnemonic: MOV (register)
+  tier: implemented
+  family: dataproc-shifted-reg
+  gem5:
+    decode_mnemonic: orr
+    static_inst: OrrXSReg
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2189
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  evidence:
+  - claim: A64 解码树 return new OrrXSReg(...)；family=dataproc-shifted-reg 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2189
+- doc: Logical-MOV_to_from_SP.md
+  mnemonic: MOV (to/from SP)
+  tier: implemented
+  family: dataproc-imm
+  gem5:
+    decode_mnemonic: add
+    static_inst: AddXImm
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:100
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  evidence:
+  - claim: A64 解码树 return new AddXImm(...)；family=dataproc-imm 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:100
+- doc: Logical-MOV_wide_immediate.md
+  mnemonic: MOV (wide immediate)
+  tier: implemented
+  family: logical-imm
+  gem5:
+    decode_mnemonic: movz
+    static_inst: Movz
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:167
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  evidence:
+  - claim: A64 解码树 return new Movz(...)；family=logical-imm 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:167
+- doc: Logical-MVN.md
+  mnemonic: MVN
+  tier: unimplemented
+  behavior: absent
+  evidence:
+  - claim: A64 解码树无匹配（scan_tiers 候选为空：生成代码无此助记符类）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:3820
+- doc: Logical-ORN_shifted_register.md
+  mnemonic: ORN (shifted register)
+  tier: implemented
+  family: logical-reg
+  gem5:
+    decode_mnemonic: orn
+    static_inst: OrnXSReg
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2191
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  evidence:
+  - claim: A64 解码树 return new OrnXSReg(...)；family=logical-reg 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2191
+- doc: Logical-ORR_immediate.md
+  mnemonic: ORR (immediate)
+  tier: implemented
+  family: logical-imm
+  gem5:
+    decode_mnemonic: orr
+    static_inst: OrrXImm
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:146
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  evidence:
+  - claim: A64 解码树 return new OrrXImm(...)；family=logical-imm 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:146
+- doc: Logical-ORR_shifted_register.md
+  mnemonic: ORR (shifted register)
+  tier: implemented
+  family: logical-reg
+  gem5:
+    decode_mnemonic: orr
+    static_inst: OrrXSReg
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2189
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  evidence:
+  - claim: A64 解码树 return new OrrXSReg(...)；family=logical-reg 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2189
+- doc: Logical-TST_immediate.md
+  mnemonic: TST (immediate)
+  tier: implemented
+  family: compare
+  gem5:
+    decode_mnemonic: ands
+    static_inst: AndXImmCc
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:150
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  evidence:
+  - claim: A64 解码树 return new AndXImmCc(...)；family=compare 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:150
+- doc: Logical-TST_shifted_register.md
+  mnemonic: TST (shifted register)
+  tier: implemented
+  family: compare
+  gem5:
+    decode_mnemonic: ands
+    static_inst: AndXSRegCc
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2197
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  evidence:
+  - claim: A64 解码树 return new AndXSRegCc(...)；family=compare 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2197

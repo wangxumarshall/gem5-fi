@@ -1,0 +1,278 @@
+- doc: Branch-BL.md
+  mnemonic: BL
+  tier: implemented
+  family: branch-imm
+  gem5:
+    decode_mnemonic: bl
+    static_inst: Bl64
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:633
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  - CHAOSBPU
+  evidence:
+  - claim: A64 解码树 return new Bl64(...)；family=branch-imm 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:633
+- doc: Branch-BLR.md
+  mnemonic: BLR
+  tier: implemented
+  family: branch-reg
+  gem5:
+    decode_mnemonic: blr
+    static_inst: Blr64
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:755
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  - CHAOSBPU
+  evidence:
+  - claim: A64 解码树 return new Blr64(...)；family=branch-reg 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:755
+- doc: Branch-BLRAA_BLRAAZ_BLRAB_BLRABZ.md
+  mnemonic: BLRAA, BLRAAZ, BLRAB, BLRABZ
+  tier: unimplemented
+  behavior: absent
+  evidence:
+  - claim: A64 解码树无匹配（scan_tiers 候选为空：生成代码无此助记符类）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:3820
+- doc: Branch-BR.md
+  mnemonic: BR
+  tier: implemented
+  family: branch-reg
+  gem5:
+    decode_mnemonic: br
+    static_inst: Br64
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:745
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  - CHAOSBPU
+  evidence:
+  - claim: A64 解码树 return new Br64(...)；family=branch-reg 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:745
+- doc: Branch-BRAA_BRAAZ_BRAB_BRABZ.md
+  mnemonic: BRAA, BRAAZ, BRAB, BRABZ
+  tier: unimplemented
+  behavior: absent
+  evidence:
+  - claim: A64 解码树无匹配（scan_tiers 候选为空：生成代码无此助记符类）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:3820
+- doc: Branch-BRK.md
+  mnemonic: BRK
+  tier: implemented
+  family: branch-reg
+  gem5:
+    decode_mnemonic: brk
+    static_inst: Brk64
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:682
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  - CHAOSBPU
+  evidence:
+  - claim: A64 解码树 return new Brk64(...)；family=branch-reg 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:682
+- doc: Branch-B_cond.md
+  mnemonic: B.cond
+  tier: implemented
+  family: branch-cond
+  gem5:
+    decode_mnemonic: b
+    static_inst: B64
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:631
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  - CHAOSBPU
+  evidence:
+  - claim: A64 解码树 return new B64(...)；family=branch-cond 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:631
+- doc: Branch-CBNZ.md
+  mnemonic: CBNZ
+  tier: implemented
+  family: branch-cond
+  gem5:
+    decode_mnemonic: cbnz
+    static_inst: Cbnz64
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:643
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  - CHAOSBPU
+  evidence:
+  - claim: A64 解码树 return new Cbnz64(...)；family=branch-cond 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:643
+- doc: Branch-CBZ.md
+  mnemonic: CBZ
+  tier: implemented
+  family: branch-cond
+  gem5:
+    decode_mnemonic: cbz
+    static_inst: Cbz64
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:641
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  - CHAOSBPU
+  evidence:
+  - claim: A64 解码树 return new Cbz64(...)；family=branch-cond 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:641
+- doc: Branch-RET.md
+  mnemonic: RET
+  tier: implemented
+  family: branch-reg
+  gem5:
+    decode_mnemonic: ret
+    static_inst: Ret64
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:771
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  - CHAOSBPU
+  evidence:
+  - claim: A64 解码树 return new Ret64(...)；family=branch-reg 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:771
+- doc: Branch-RETAA_RETAB.md
+  mnemonic: RETAA, RETAB
+  tier: implemented
+  family: branch-reg
+  gem5:
+    decode_mnemonic: retaa
+    static_inst: Retaa
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:769
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  - CHAOSBPU
+  evidence:
+  - claim: A64 解码树 return new Retaa(...)；family=branch-reg 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:769
+- doc: Branch-TBNZ.md
+  mnemonic: TBNZ
+  tier: implemented
+  family: branch-cond
+  gem5:
+    decode_mnemonic: tbnz
+    static_inst: Tbnz64
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:653
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  - CHAOSBPU
+  evidence:
+  - claim: A64 解码树 return new Tbnz64(...)；family=branch-cond 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:653
+- doc: Branch-TBZ.md
+  mnemonic: TBZ
+  tier: implemented
+  family: branch-cond
+  gem5:
+    decode_mnemonic: tbz
+    static_inst: Tbz64
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:651
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  - CHAOSBPU
+  evidence:
+  - claim: A64 解码树 return new Tbz64(...)；family=branch-cond 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:651

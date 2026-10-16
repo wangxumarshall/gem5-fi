@@ -11,6 +11,7 @@ decisions land in data/instructions/*.yaml with evidence anchors.
 import json
 import re
 import sys
+from functools import lru_cache
 from pathlib import Path
 
 from .corpus import REPO
@@ -65,6 +66,7 @@ def class_names():
     return set(re.findall(r"^\s*class ([A-Za-z0-9_]+)", text, re.M))
 
 
+@lru_cache(maxsize=1)  # 4.3MB 解析一次；372 标题复用（gen_stubs 依赖此缓存）
 def constructor_mnemonics():
     """类 → 构造函数首字符串字面量（= 助记符）。LdpStp 动态助记符特例硬编码。"""
     text = (GEN / "decoder-ns.cc.inc").read_text(encoding="utf-8", errors="replace")
@@ -86,8 +88,17 @@ def _split_title(title):
     canon = ALIASES.get(title, title)
     if " (" in canon:
         base, form = canon.split(" (", 1)
-        return base.lower(), form.rstrip(")")
-    return canon.lower(), ""
+        return _norm_base(base), form.rstrip(")")
+    return _norm_base(canon), ""
+
+
+def _norm_base(base):
+    """组合标题取首项（"CPYP , CPYM, CPYE"→"cpyp"；"CRC32B, ..."→"crc32b"），
+    点号条件后缀剥离（"B.cond"→"b"）。"""
+    base = base.split(",")[0].strip()
+    if "." in base:
+        base = base.split(".")[0]
+    return base.lower()
 
 
 def _suffix_matches(cls, form):

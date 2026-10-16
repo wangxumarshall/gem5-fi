@@ -1,0 +1,647 @@
+- doc: Arithmetic-ADC.md
+  mnemonic: ADC
+  tier: implemented
+  family: dataproc-shifted-reg
+  gem5:
+    decode_mnemonic: adc
+    static_inst: AdcXSReg
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2275
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  evidence:
+  - claim: A64 解码树 return new AdcXSReg(...)；family=dataproc-shifted-reg 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2275
+- doc: Arithmetic-ADCS.md
+  mnemonic: ADCS
+  tier: implemented
+  family: dataproc-shifted-reg
+  gem5:
+    decode_mnemonic: adcs
+    static_inst: AdcXSRegCc
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2277
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  evidence:
+  - claim: A64 解码树 return new AdcXSRegCc(...)；family=dataproc-shifted-reg 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2277
+- doc: Arithmetic-ADDG.md
+  mnemonic: ADDG
+  tier: unimplemented
+  behavior: absent
+  evidence:
+  - claim: A64 解码树无匹配（scan_tiers 候选为空：生成代码无此助记符类）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:3820
+- doc: Arithmetic-ADDS_extended_register.md
+  mnemonic: ADDS (extended register)
+  tier: implemented
+  family: dataproc-extended-reg
+  gem5:
+    decode_mnemonic: adds
+    static_inst: AddXERegCc
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2250
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  evidence:
+  - claim: A64 解码树 return new AddXERegCc(...)；family=dataproc-extended-reg 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2250
+- doc: Arithmetic-ADDS_immediate.md
+  mnemonic: ADDS (immediate)
+  tier: implemented
+  family: dataproc-imm
+  gem5:
+    decode_mnemonic: adds
+    static_inst: AddXImmCc
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:102
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  evidence:
+  - claim: A64 解码树 return new AddXImmCc(...)；family=dataproc-imm 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:102
+- doc: Arithmetic-ADDS_shifted_register.md
+  mnemonic: ADDS (shifted register)
+  tier: implemented
+  family: dataproc-shifted-reg
+  gem5:
+    decode_mnemonic: adds
+    static_inst: AddXSRegCc
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2225
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  evidence:
+  - claim: A64 解码树 return new AddXSRegCc(...)；family=dataproc-shifted-reg 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2225
+- doc: Arithmetic-ADD_extended_register.md
+  mnemonic: ADD (extended register)
+  tier: implemented
+  family: dataproc-extended-reg
+  gem5:
+    decode_mnemonic: add
+    static_inst: AddXEReg
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2248
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  evidence:
+  - claim: A64 解码树 return new AddXEReg(...)；family=dataproc-extended-reg 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2248
+- doc: Arithmetic-ADD_immediate.md
+  mnemonic: ADD (immediate)
+  tier: implemented
+  family: dataproc-imm
+  gem5:
+    decode_mnemonic: add
+    static_inst: AddXImm
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:100
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  evidence:
+  - claim: A64 解码树 return new AddXImm(...)；family=dataproc-imm 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:100
+- doc: Arithmetic-ADD_shifted_register.md
+  mnemonic: ADD (shifted register)
+  tier: implemented
+  family: dataproc-shifted-reg
+  gem5:
+    decode_mnemonic: add
+    static_inst: AddXSReg
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2223
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  evidence:
+  - claim: A64 解码树 return new AddXSReg(...)；family=dataproc-shifted-reg 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2223
+- doc: Arithmetic-MADD.md
+  mnemonic: MADD
+  tier: implemented
+  family: mul
+  gem5:
+    decode_mnemonic: madd
+    static_inst: Madd64
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2592
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  evidence:
+  - claim: A64 解码树 return new Madd64(...)；family=mul 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2592
+- doc: Arithmetic-MSUB.md
+  mnemonic: MSUB
+  tier: implemented
+  family: mul
+  gem5:
+    decode_mnemonic: msub
+    static_inst: Msub64
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2594
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  evidence:
+  - claim: A64 解码树 return new Msub64(...)；family=mul 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2594
+- doc: Arithmetic-MUL.md
+  mnemonic: MUL
+  tier: unimplemented
+  behavior: absent
+  evidence:
+  - claim: A64 解码树无匹配（scan_tiers 候选为空：生成代码无此助记符类）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:3820
+- doc: Arithmetic-NEGS.md
+  mnemonic: NEGS
+  tier: implemented
+  family: dataproc-imm
+  gem5:
+    decode_mnemonic: subs
+    static_inst: SubXERegCc
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2254
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  evidence:
+  - claim: A64 解码树 return new SubXERegCc(...)；family=dataproc-imm 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2254
+- doc: Arithmetic-NEG_shifted_register.md
+  mnemonic: NEG (shifted register)
+  tier: implemented
+  family: dataproc-shifted-reg
+  gem5:
+    decode_mnemonic: sub
+    static_inst: SubXSReg
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2227
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  evidence:
+  - claim: A64 解码树 return new SubXSReg(...)；family=dataproc-shifted-reg 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2227
+- doc: Arithmetic-SBC.md
+  mnemonic: SBC
+  tier: implemented
+  family: dataproc-shifted-reg
+  gem5:
+    decode_mnemonic: sbc
+    static_inst: SbcXSReg
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2279
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  evidence:
+  - claim: A64 解码树 return new SbcXSReg(...)；family=dataproc-shifted-reg 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2279
+- doc: Arithmetic-SBCS.md
+  mnemonic: SBCS
+  tier: implemented
+  family: dataproc-shifted-reg
+  gem5:
+    decode_mnemonic: sbcs
+    static_inst: SbcXSRegCc
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2281
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  evidence:
+  - claim: A64 解码树 return new SbcXSRegCc(...)；family=dataproc-shifted-reg 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2281
+- doc: Arithmetic-SDIV.md
+  mnemonic: SDIV
+  tier: implemented
+  family: div
+  gem5:
+    decode_mnemonic: sdiv
+    static_inst: Sdiv64
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2386
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  evidence:
+  - claim: A64 解码树 return new Sdiv64(...)；family=div 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2386
+- doc: Arithmetic-SMADDL.md
+  mnemonic: SMADDL
+  tier: implemented
+  family: mul
+  gem5:
+    decode_mnemonic: smaddl
+    static_inst: Smaddl64
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2597
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  evidence:
+  - claim: A64 解码树 return new Smaddl64(...)；family=mul 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2597
+- doc: Arithmetic-SMULH.md
+  mnemonic: SMULH
+  tier: implemented
+  family: mul
+  gem5:
+    decode_mnemonic: smulh
+    static_inst: Smulh64
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2603
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  evidence:
+  - claim: A64 解码树 return new Smulh64(...)；family=mul 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2603
+- doc: Arithmetic-SMULL.md
+  mnemonic: SMULL
+  tier: unimplemented
+  behavior: absent
+  evidence:
+  - claim: A64 解码树无匹配（scan_tiers 候选为空：生成代码无此助记符类）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:3820
+- doc: Arithmetic-SUBG.md
+  mnemonic: SUBG
+  tier: unimplemented
+  behavior: absent
+  evidence:
+  - claim: A64 解码树无匹配（scan_tiers 候选为空：生成代码无此助记符类）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:3820
+- doc: Arithmetic-SUBP.md
+  mnemonic: SUBP
+  tier: unimplemented
+  behavior: absent
+  evidence:
+  - claim: A64 解码树无匹配（scan_tiers 候选为空：生成代码无此助记符类）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:3820
+- doc: Arithmetic-SUBPS.md
+  mnemonic: SUBPS
+  tier: unimplemented
+  behavior: absent
+  evidence:
+  - claim: A64 解码树无匹配（scan_tiers 候选为空：生成代码无此助记符类）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:3820
+- doc: Arithmetic-SUBS_extended_register.md
+  mnemonic: SUBS (extended register)
+  tier: implemented
+  family: dataproc-extended-reg
+  gem5:
+    decode_mnemonic: subs
+    static_inst: SubXERegCc
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2254
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  evidence:
+  - claim: A64 解码树 return new SubXERegCc(...)；family=dataproc-extended-reg 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2254
+- doc: Arithmetic-SUBS_immediate.md
+  mnemonic: SUBS (immediate)
+  tier: implemented
+  family: dataproc-imm
+  gem5:
+    decode_mnemonic: subs
+    static_inst: SubXImmCc
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:106
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  evidence:
+  - claim: A64 解码树 return new SubXImmCc(...)；family=dataproc-imm 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:106
+- doc: Arithmetic-SUBS_shifted_register.md
+  mnemonic: SUBS (shifted register)
+  tier: implemented
+  family: dataproc-shifted-reg
+  gem5:
+    decode_mnemonic: subs
+    static_inst: SubXSRegCc
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2229
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  evidence:
+  - claim: A64 解码树 return new SubXSRegCc(...)；family=dataproc-shifted-reg 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2229
+- doc: Arithmetic-SUB_extended_register.md
+  mnemonic: SUB (extended register)
+  tier: implemented
+  family: dataproc-extended-reg
+  gem5:
+    decode_mnemonic: sub
+    static_inst: SubXEReg
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2252
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  evidence:
+  - claim: A64 解码树 return new SubXEReg(...)；family=dataproc-extended-reg 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2252
+- doc: Arithmetic-SUB_immediate.md
+  mnemonic: SUB (immediate)
+  tier: implemented
+  family: dataproc-imm
+  gem5:
+    decode_mnemonic: sub
+    static_inst: SubXImm
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:104
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  evidence:
+  - claim: A64 解码树 return new SubXImm(...)；family=dataproc-imm 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:104
+- doc: Arithmetic-SUB_shifted_register.md
+  mnemonic: SUB (shifted register)
+  tier: implemented
+  family: dataproc-shifted-reg
+  gem5:
+    decode_mnemonic: sub
+    static_inst: SubXSReg
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2227
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  evidence:
+  - claim: A64 解码树 return new SubXSReg(...)；family=dataproc-shifted-reg 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2227
+- doc: Arithmetic-UDIV.md
+  mnemonic: UDIV
+  tier: implemented
+  family: div
+  gem5:
+    decode_mnemonic: udiv
+    static_inst: Udiv64
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2384
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  evidence:
+  - claim: A64 解码树 return new Udiv64(...)；family=div 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2384
+- doc: Arithmetic-UMADDL.md
+  mnemonic: UMADDL
+  tier: implemented
+  family: mul
+  gem5:
+    decode_mnemonic: umaddl
+    static_inst: Umaddl64
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2606
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  evidence:
+  - claim: A64 解码树 return new Umaddl64(...)；family=mul 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2606
+- doc: Arithmetic-UMULH.md
+  mnemonic: UMULH
+  tier: implemented
+  family: mul
+  gem5:
+    decode_mnemonic: umulh
+    static_inst: Umulh64
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2612
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  evidence:
+  - claim: A64 解码树 return new Umulh64(...)；family=mul 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2612
+- doc: Arithmetic-UMULL.md
+  mnemonic: UMULL
+  tier: unimplemented
+  behavior: absent
+  evidence:
+  - claim: A64 解码树无匹配（scan_tiers 候选为空：生成代码无此助记符类）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:3820

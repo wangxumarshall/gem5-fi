@@ -1,0 +1,237 @@
+- doc: Pointer-Authentication-AUTDA_AUTDZA.md
+  mnemonic: AUTDA, AUTDZA
+  tier: implemented
+  family: dataproc-1src
+  gem5:
+    decode_mnemonic: autda
+    static_inst: Autda
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2444
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  evidence:
+  - claim: A64 解码树 return new Autda(...)；family=dataproc-1src 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2444
+- doc: Pointer-Authentication-AUTDB_AUTDZB.md
+  mnemonic: AUTDB, AUTDZB
+  tier: implemented
+  family: dataproc-1src
+  gem5:
+    decode_mnemonic: autdb
+    static_inst: Autdb
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2446
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  evidence:
+  - claim: A64 解码树 return new Autdb(...)；family=dataproc-1src 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2446
+- doc: Pointer-Authentication-AUTIA_AUTIA1716_AUTIASP__AUTIAZ_AUTIZA.md
+  mnemonic: AUTIA, AUTIA1716, AUTIASP , AUTIAZ, AUTIZA
+  tier: implemented
+  family: dataproc-1src
+  gem5:
+    decode_mnemonic: autia
+    static_inst: Autia
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2440
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  evidence:
+  - claim: A64 解码树 return new Autia(...)；family=dataproc-1src 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2440
+- doc: Pointer-Authentication-AUTIB_AUTIB1716_AUTIBSP__AUTIBZ_AUTIZB.md
+  mnemonic: AUTIB, AUTIB1716, AUTIBSP , AUTIBZ, AUTIZB
+  tier: implemented
+  family: dataproc-1src
+  gem5:
+    decode_mnemonic: autib
+    static_inst: Autib
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2442
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  evidence:
+  - claim: A64 解码树 return new Autib(...)；family=dataproc-1src 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2442
+- doc: Pointer-Authentication-BTI.md
+  mnemonic: BTI
+  tier: unimplemented
+  behavior: warn-nop
+  evidence:
+  - claim: 解码为 WarnUnimplemented（"bti"）——警告 + NOP 语义
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:614
+- doc: Pointer-Authentication-PACDA_PACDZA.md
+  mnemonic: PACDA, PACDZA
+  tier: implemented
+  family: dataproc-1src
+  gem5:
+    decode_mnemonic: pacda
+    static_inst: Pacda
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2436
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  evidence:
+  - claim: A64 解码树 return new Pacda(...)；family=dataproc-1src 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2436
+- doc: Pointer-Authentication-PACDB_PACDZB.md
+  mnemonic: PACDB, PACDZB
+  tier: implemented
+  family: dataproc-1src
+  gem5:
+    decode_mnemonic: pacdb
+    static_inst: Pacdb
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2438
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  evidence:
+  - claim: A64 解码树 return new Pacdb(...)；family=dataproc-1src 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2438
+- doc: Pointer-Authentication-PACGA.md
+  mnemonic: PACGA
+  tier: implemented
+  family: dataproc-2src
+  gem5:
+    decode_mnemonic: pacga
+    static_inst: Pacga
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2396
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  evidence:
+  - claim: A64 解码树 return new Pacga(...)；family=dataproc-2src 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2396
+- doc: Pointer-Authentication-PACIA_PACIA1716_PACIASP__PACIAZ_PACIZA.md
+  mnemonic: PACIA, PACIA1716, PACIASP , PACIAZ, PACIZA
+  tier: implemented
+  family: dataproc-1src
+  gem5:
+    decode_mnemonic: pacia
+    static_inst: Pacia
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2432
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  evidence:
+  - claim: A64 解码树 return new Pacia(...)；family=dataproc-1src 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2432
+- doc: Pointer-Authentication-PACIB_PACIB1716_PACIBSP__PACIBZ_PACIZB.md
+  mnemonic: PACIB, PACIB1716, PACIBSP , PACIBZ, PACIZB
+  tier: implemented
+  family: dataproc-1src
+  gem5:
+    decode_mnemonic: pacib
+    static_inst: Pacib
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2434
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  evidence:
+  - claim: A64 解码树 return new Pacib(...)；family=dataproc-1src 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2434
+- doc: Pointer-Authentication-XPACD_XPACI_XPACLRI.md
+  mnemonic: XPACD, XPACI, XPACLRI
+  tier: implemented
+  family: dataproc-1src
+  gem5:
+    decode_mnemonic: xpacd
+    static_inst: Xpacd
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2505
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  evidence:
+  - claim: A64 解码树 return new Xpacd(...)；family=dataproc-1src 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2505

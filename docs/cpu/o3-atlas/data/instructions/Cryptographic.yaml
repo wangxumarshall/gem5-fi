@@ -1,0 +1,46 @@
+- doc: Cryptographic-CRC32B_CRC32H_CRC32W__CRC32X.md
+  mnemonic: CRC32B, CRC32H, CRC32W , CRC32X
+  tier: implemented
+  family: dataproc-2src
+  gem5:
+    decode_mnemonic: crc32b
+    static_inst: Crc32b64
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2398
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  evidence:
+  - claim: A64 解码树 return new Crc32b64(...)；family=dataproc-2src 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2398
+- doc: Cryptographic-CRC32CB_CRC32CH_CRC32CW__CRC32CX.md
+  mnemonic: CRC32CB, CRC32CH, CRC32CW , CRC32CX
+  tier: implemented
+  family: dataproc-2src
+  gem5:
+    decode_mnemonic: crc32cb
+    static_inst: Crc32cb64
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2406
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  evidence:
+  - claim: A64 解码树 return new Crc32cb64(...)；family=dataproc-2src 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2406

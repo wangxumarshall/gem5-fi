@@ -1,0 +1,189 @@
+- doc: Atomic-CASB_CASAB_CASALB_CASLB.md
+  mnemonic: CASB, CASAB, CASALB, CASLB
+  tier: implemented
+  family: atomic-lse
+  gem5:
+    decode_mnemonic: casb
+    static_inst: CASB
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1513
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  - CHAOSLSQFwd
+  - CHAOSL1DForward
+  - CHAOSAddrPath
+  - CHAOSMem
+  - CHAOSCache
+  evidence:
+  - claim: A64 解码树 return new CASB(...)；family=atomic-lse 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1513
+- doc: Atomic-CASH_CASAH_CASALH_CASLH.md
+  mnemonic: CASH, CASAH, CASALH, CASLH
+  tier: implemented
+  family: atomic-lse
+  gem5:
+    decode_mnemonic: cash
+    static_inst: CASH
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1515
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  - CHAOSLSQFwd
+  - CHAOSL1DForward
+  - CHAOSAddrPath
+  - CHAOSMem
+  - CHAOSCache
+  evidence:
+  - claim: A64 解码树 return new CASH(...)；family=atomic-lse 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1515
+- doc: Atomic-CASP__CASPA_CASPAL_CASPL.md
+  mnemonic: CASP , CASPA, CASPAL, CASPL
+  tier: implemented
+  family: atomic-lse
+  gem5:
+    decode_mnemonic: casp
+    static_inst: CASP64
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1422
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  - CHAOSLSQFwd
+  - CHAOSL1DForward
+  - CHAOSAddrPath
+  - CHAOSMem
+  - CHAOSCache
+  evidence:
+  - claim: A64 解码树 return new CASP64(...)；family=atomic-lse 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1422
+- doc: Atomic-CAS_CASA_CASAL_CASL.md
+  mnemonic: CAS, CASA, CASAL, CASL
+  tier: implemented
+  family: atomic-lse
+  gem5:
+    decode_mnemonic: cas
+    static_inst: CAS64
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1519
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  - CHAOSLSQFwd
+  - CHAOSL1DForward
+  - CHAOSAddrPath
+  - CHAOSMem
+  - CHAOSCache
+  evidence:
+  - claim: A64 解码树 return new CAS64(...)；family=atomic-lse 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1519
+- doc: Atomic-SWPB_SWPAB_SWPALB_SWPLB.md
+  mnemonic: SWPB, SWPAB, SWPALB, SWPLB
+  tier: implemented
+  family: atomic-lse
+  gem5:
+    decode_mnemonic: swpb
+    static_inst: SWPB
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:835
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  - CHAOSLSQFwd
+  - CHAOSL1DForward
+  - CHAOSAddrPath
+  - CHAOSMem
+  - CHAOSCache
+  evidence:
+  - claim: A64 解码树 return new SWPB(...)；family=atomic-lse 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:835
+- doc: Atomic-SWPH_SWPAH_SWPALH_SWPLH.md
+  mnemonic: SWPH, SWPAH, SWPALH, SWPLH
+  tier: implemented
+  family: atomic-lse
+  gem5:
+    decode_mnemonic: swph
+    static_inst: SWPH
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:859
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  - CHAOSLSQFwd
+  - CHAOSL1DForward
+  - CHAOSAddrPath
+  - CHAOSMem
+  - CHAOSCache
+  evidence:
+  - claim: A64 解码树 return new SWPH(...)；family=atomic-lse 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:859
+- doc: Atomic-SWP__SWPA_SWPAL_SWPL.md
+  mnemonic: SWP , SWPA, SWPAL, SWPL
+  tier: implemented
+  family: atomic-lse
+  gem5:
+    decode_mnemonic: swp
+    static_inst: SWP
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:883
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  - CHAOSLSQFwd
+  - CHAOSL1DForward
+  - CHAOSAddrPath
+  - CHAOSMem
+  - CHAOSCache
+  evidence:
+  - claim: A64 解码树 return new SWP(...)；family=atomic-lse 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:883

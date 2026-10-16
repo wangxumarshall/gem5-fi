@@ -1,0 +1,46 @@
+- doc: Count-CLS.md
+  mnemonic: CLS
+  tier: implemented
+  family: count
+  gem5:
+    decode_mnemonic: cls
+    static_inst: Cls64
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2532
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  evidence:
+  - claim: A64 解码树 return new Cls64(...)；family=count 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2532
+- doc: Count-CLZ.md
+  mnemonic: CLZ
+  tier: implemented
+  family: count
+  gem5:
+    decode_mnemonic: clz
+    static_inst: Clz64
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2530
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  evidence:
+  - claim: A64 解码树 return new Clz64(...)；family=count 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2530

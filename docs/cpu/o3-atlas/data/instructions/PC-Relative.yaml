@@ -1,0 +1,46 @@
+- doc: PC-Relative-ADR.md
+  mnemonic: ADR
+  tier: implemented
+  family: pc-relative
+  gem5:
+    decode_mnemonic: adr
+    static_inst: AdrXImm
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:80
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  evidence:
+  - claim: A64 解码树 return new AdrXImm(...)；family=pc-relative 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:80
+- doc: PC-Relative-ADRP.md
+  mnemonic: ADRP
+  tier: implemented
+  family: pc-relative
+  gem5:
+    decode_mnemonic: adrp
+    static_inst: AdrpXImm
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:83
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  evidence:
+  - claim: A64 解码树 return new AdrpXImm(...)；family=pc-relative 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:83

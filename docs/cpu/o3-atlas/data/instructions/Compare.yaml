@@ -1,0 +1,237 @@
+- doc: Compare-CCMN_immediate.md
+  mnemonic: CCMN (immediate)
+  tier: implemented
+  family: compare
+  gem5:
+    decode_mnemonic: ccmn
+    static_inst: CcmnImm64
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2331
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  evidence:
+  - claim: A64 解码树 return new CcmnImm64(...)；family=compare 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2331
+- doc: Compare-CCMN_register.md
+  mnemonic: CCMN (register)
+  tier: implemented
+  family: compare
+  gem5:
+    decode_mnemonic: ccmn
+    static_inst: CcmnReg64
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2324
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  evidence:
+  - claim: A64 解码树 return new CcmnReg64(...)；family=compare 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2324
+- doc: Compare-CCMP_immediate.md
+  mnemonic: CCMP (immediate)
+  tier: implemented
+  family: compare
+  gem5:
+    decode_mnemonic: ccmp
+    static_inst: CcmpImm64
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2333
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  evidence:
+  - claim: A64 解码树 return new CcmpImm64(...)；family=compare 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2333
+- doc: Compare-CCMP_register.md
+  mnemonic: CCMP (register)
+  tier: implemented
+  family: compare
+  gem5:
+    decode_mnemonic: ccmp
+    static_inst: CcmpReg64
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2326
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  evidence:
+  - claim: A64 解码树 return new CcmpReg64(...)；family=compare 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2326
+- doc: Compare-CMN_extended_register.md
+  mnemonic: CMN (extended register)
+  tier: implemented
+  family: compare
+  gem5:
+    decode_mnemonic: adds
+    static_inst: AddXERegCc
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2250
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  evidence:
+  - claim: A64 解码树 return new AddXERegCc(...)；family=compare 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2250
+- doc: Compare-CMN_immediate.md
+  mnemonic: CMN (immediate)
+  tier: implemented
+  family: compare
+  gem5:
+    decode_mnemonic: adds
+    static_inst: AddXImmCc
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:102
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  evidence:
+  - claim: A64 解码树 return new AddXImmCc(...)；family=compare 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:102
+- doc: Compare-CMN_shifted_register.md
+  mnemonic: CMN (shifted register)
+  tier: implemented
+  family: compare
+  gem5:
+    decode_mnemonic: adds
+    static_inst: AddXSRegCc
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2225
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  evidence:
+  - claim: A64 解码树 return new AddXSRegCc(...)；family=compare 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2225
+- doc: Compare-CMPP.md
+  mnemonic: CMPP
+  tier: unimplemented
+  behavior: absent
+  evidence:
+  - claim: A64 解码树无匹配（scan_tiers 候选为空：生成代码无此助记符类）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:3820
+- doc: Compare-CMP_extended_register.md
+  mnemonic: CMP (extended register)
+  tier: implemented
+  family: compare
+  gem5:
+    decode_mnemonic: subs
+    static_inst: SubXERegCc
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2254
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  evidence:
+  - claim: A64 解码树 return new SubXERegCc(...)；family=compare 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2254
+- doc: Compare-CMP_immediate.md
+  mnemonic: CMP (immediate)
+  tier: implemented
+  family: compare
+  gem5:
+    decode_mnemonic: subs
+    static_inst: SubXImmCc
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:106
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  evidence:
+  - claim: A64 解码树 return new SubXImmCc(...)；family=compare 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:106
+- doc: Compare-CMP_shifted_register.md
+  mnemonic: CMP (shifted register)
+  tier: implemented
+  family: compare
+  gem5:
+    decode_mnemonic: subs
+    static_inst: SubXSRegCc
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2229
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  evidence:
+  - claim: A64 解码树 return new SubXSRegCc(...)；family=compare 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2229

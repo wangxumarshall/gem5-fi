@@ -1,0 +1,276 @@
+- doc: System-AT.md
+  mnemonic: AT
+  tier: fs-only
+  family: system-hub
+  gem5:
+    decode_mnemonic: at
+    static_inst: At64Hub
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:453
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  evidence:
+  - claim: A64 解码树 return new At64Hub(...)（系统枢纽，构造共享 msr 框架助记符）；SE 行为受限，真实语义需 FS
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:453
+- doc: System-DC.md
+  mnemonic: DC
+  tier: fs-only
+  family: system-hub
+  gem5:
+    decode_mnemonic: dc
+    static_inst: Dczva
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:347
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  evidence:
+  - claim: A64 解码树 return new Dczva(...)（系统枢纽，构造共享 msr 框架助记符）；SE 行为受限，真实语义需 FS
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:347
+- doc: System-DCPS1.md
+  mnemonic: DCPS1
+  tier: unimplemented
+  behavior: absent
+  evidence:
+  - claim: A64 解码树无匹配（scan_tiers 候选为空：生成代码无此助记符类）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:3820
+- doc: System-DCPS2.md
+  mnemonic: DCPS2
+  tier: unimplemented
+  behavior: absent
+  evidence:
+  - claim: A64 解码树无匹配（scan_tiers 候选为空：生成代码无此助记符类）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:3820
+- doc: System-DCPS3.md
+  mnemonic: DCPS3
+  tier: unimplemented
+  behavior: absent
+  evidence:
+  - claim: A64 解码树无匹配（scan_tiers 候选为空：生成代码无此助记符类）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:3820
+- doc: System-HLT.md
+  mnemonic: HLT
+  tier: implemented
+  family: exception
+  gem5:
+    decode_mnemonic: hlt
+    static_inst: Hlt64
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:684
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  - CHAOSRAS
+  evidence:
+  - claim: A64 解码树 return new Hlt64(...)；family=exception 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:684
+- doc: System-HVC.md
+  mnemonic: HVC
+  tier: implemented
+  family: exception
+  gem5:
+    decode_mnemonic: hvc
+    static_inst: Hvc64
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:678
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  - CHAOSRAS
+  evidence:
+  - claim: A64 解码树 return new Hvc64(...)；family=exception 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:678
+- doc: System-IC.md
+  mnemonic: IC
+  tier: unimplemented
+  behavior: absent
+  evidence:
+  - claim: A64 解码树无匹配（scan_tiers 候选为空：生成代码无此助记符类）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:3820
+- doc: System-MRS.md
+  mnemonic: MRS
+  tier: implemented
+  family: system-reg
+  gem5:
+    decode_mnemonic: mrs
+    static_inst: Mrs64
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:329
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  evidence:
+  - claim: A64 解码树 return new Mrs64(...)；family=system-reg 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:329
+- doc: System-MSR_immediate.md
+  mnemonic: MSR (immediate)
+  tier: implemented
+  family: system-reg
+  gem5:
+    decode_mnemonic: msr
+    static_inst: MsrImm64
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:501
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  evidence:
+  - claim: A64 解码树 return new MsrImm64(...)；family=system-reg 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:501
+- doc: System-MSR_register.md
+  mnemonic: MSR (register)
+  tier: implemented
+  family: system-reg
+  gem5:
+    decode_mnemonic: msr
+    static_inst: Msr64
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:457
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  evidence:
+  - claim: A64 解码树 return new Msr64(...)；family=system-reg 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:457
+- doc: System-SMC.md
+  mnemonic: SMC
+  tier: implemented
+  family: exception
+  gem5:
+    decode_mnemonic: smc
+    static_inst: Smc64
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:680
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  - CHAOSRAS
+  evidence:
+  - claim: A64 解码树 return new Smc64(...)；family=exception 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:680
+- doc: System-SVC.md
+  mnemonic: SVC
+  tier: implemented
+  family: exception
+  gem5:
+    decode_mnemonic: svc
+    static_inst: Svc64
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:676
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  - CHAOSRAS
+  evidence:
+  - claim: A64 解码树 return new Svc64(...)；family=exception 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:676
+- doc: System-SYS.md
+  mnemonic: SYS
+  tier: unimplemented
+  behavior: absent
+  evidence:
+  - claim: A64 解码树无匹配（scan_tiers 候选为空：生成代码无此助记符类）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:3820
+- doc: System-SYSL.md
+  mnemonic: SYSL
+  tier: unimplemented
+  behavior: absent
+  evidence:
+  - claim: A64 解码树无匹配（scan_tiers 候选为空：生成代码无此助记符类）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:3820
+- doc: System-TLBI.md
+  mnemonic: TLBI
+  tier: fs-only
+  family: system-hub
+  gem5:
+    decode_mnemonic: tlbi
+    static_inst: Tlbi64LocalHub
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:384
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  evidence:
+  - claim: A64 解码树 return new Tlbi64LocalHub(...)（系统枢纽，构造共享 msr 框架助记符）；SE 行为受限，真实语义需 FS
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:384

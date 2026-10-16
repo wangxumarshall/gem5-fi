@@ -1,0 +1,2917 @@
+- doc: Load-Store-LD64B.md
+  mnemonic: LD64B
+  tier: unimplemented
+  behavior: absent
+  evidence:
+  - claim: A64 解码树无匹配（scan_tiers 候选为空：生成代码无此助记符类）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:3820
+- doc: Load-Store-LDADDB_LDADDAB_LDADDALB_LDADDLB.md
+  mnemonic: LDADDB, LDADDAB, LDADDALB, LDADDLB
+  tier: implemented
+  family: atomic-lse
+  gem5:
+    decode_mnemonic: ldaddb
+    static_inst: LDADDB
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:839
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  - CHAOSLSQFwd
+  - CHAOSL1DForward
+  - CHAOSAddrPath
+  - CHAOSMem
+  - CHAOSCache
+  evidence:
+  - claim: A64 解码树 return new LDADDB(...)；family=atomic-lse 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:839
+- doc: Load-Store-LDADDH_LDADDAH_LDADDALH_LDADDLH.md
+  mnemonic: LDADDH, LDADDAH, LDADDALH, LDADDLH
+  tier: implemented
+  family: atomic-lse
+  gem5:
+    decode_mnemonic: ldaddh
+    static_inst: LDADDH
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:863
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  - CHAOSLSQFwd
+  - CHAOSL1DForward
+  - CHAOSAddrPath
+  - CHAOSMem
+  - CHAOSCache
+  evidence:
+  - claim: A64 解码树 return new LDADDH(...)；family=atomic-lse 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:863
+- doc: Load-Store-LDADD_LDADDA_LDADDAL_LDADDL.md
+  mnemonic: LDADD, LDADDA, LDADDAL, LDADDL
+  tier: implemented
+  family: atomic-lse
+  gem5:
+    decode_mnemonic: ldadd
+    static_inst: LDADD
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:887
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  - CHAOSLSQFwd
+  - CHAOSL1DForward
+  - CHAOSAddrPath
+  - CHAOSMem
+  - CHAOSCache
+  evidence:
+  - claim: A64 解码树 return new LDADD(...)；family=atomic-lse 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:887
+- doc: Load-Store-LDAPR.md
+  mnemonic: LDAPR
+  tier: implemented
+  family: acquire-release
+  gem5:
+    decode_mnemonic: ldapr
+    static_inst: LDAPRW64
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1787
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  - CHAOSLSQFwd
+  - CHAOSL1DForward
+  - CHAOSAddrPath
+  - CHAOSMem
+  - CHAOSCache
+  evidence:
+  - claim: A64 解码树 return new LDAPRW64(...)；family=acquire-release 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1787
+- doc: Load-Store-LDAPRB.md
+  mnemonic: LDAPRB
+  tier: implemented
+  family: acquire-release
+  gem5:
+    decode_mnemonic: ldaprb
+    static_inst: LDAPRB64
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1783
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  - CHAOSLSQFwd
+  - CHAOSL1DForward
+  - CHAOSAddrPath
+  - CHAOSMem
+  - CHAOSCache
+  evidence:
+  - claim: A64 解码树 return new LDAPRB64(...)；family=acquire-release 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1783
+- doc: Load-Store-LDAPRH.md
+  mnemonic: LDAPRH
+  tier: implemented
+  family: acquire-release
+  gem5:
+    decode_mnemonic: ldaprh
+    static_inst: LDAPRH64
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1785
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  - CHAOSLSQFwd
+  - CHAOSL1DForward
+  - CHAOSAddrPath
+  - CHAOSMem
+  - CHAOSCache
+  evidence:
+  - claim: A64 解码树 return new LDAPRH64(...)；family=acquire-release 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1785
+- doc: Load-Store-LDAPUR.md
+  mnemonic: LDAPUR
+  tier: implemented
+  family: load
+  gem5:
+    decode_mnemonic: ldapur
+    static_inst: LDAPURW64_IMM
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1617
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  - CHAOSLSQFwd
+  - CHAOSL1DForward
+  - CHAOSAddrPath
+  - CHAOSMem
+  - CHAOSCache
+  evidence:
+  - claim: A64 解码树 return new LDAPURW64_IMM(...)；family=load 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1617
+- doc: Load-Store-LDAPURB.md
+  mnemonic: LDAPURB
+  tier: implemented
+  family: load
+  gem5:
+    decode_mnemonic: ldapurb
+    static_inst: LDAPURB64_IMM
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1603
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  - CHAOSLSQFwd
+  - CHAOSL1DForward
+  - CHAOSAddrPath
+  - CHAOSMem
+  - CHAOSCache
+  evidence:
+  - claim: A64 解码树 return new LDAPURB64_IMM(...)；family=load 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1603
+- doc: Load-Store-LDAPURH.md
+  mnemonic: LDAPURH
+  tier: implemented
+  family: load
+  gem5:
+    decode_mnemonic: ldapurh
+    static_inst: LDAPURH64_IMM
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1609
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  - CHAOSLSQFwd
+  - CHAOSL1DForward
+  - CHAOSAddrPath
+  - CHAOSMem
+  - CHAOSCache
+  evidence:
+  - claim: A64 解码树 return new LDAPURH64_IMM(...)；family=load 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1609
+- doc: Load-Store-LDAPURSB.md
+  mnemonic: LDAPURSB
+  tier: implemented
+  family: load
+  gem5:
+    decode_mnemonic: ldapursb
+    static_inst: LDAPURSBW64_IMM
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1607
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  - CHAOSLSQFwd
+  - CHAOSL1DForward
+  - CHAOSAddrPath
+  - CHAOSMem
+  - CHAOSCache
+  evidence:
+  - claim: A64 解码树 return new LDAPURSBW64_IMM(...)；family=load 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1607
+- doc: Load-Store-LDAPURSH.md
+  mnemonic: LDAPURSH
+  tier: implemented
+  family: load
+  gem5:
+    decode_mnemonic: ldapursh
+    static_inst: LDAPURSHW64_IMM
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1613
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  - CHAOSLSQFwd
+  - CHAOSL1DForward
+  - CHAOSAddrPath
+  - CHAOSMem
+  - CHAOSCache
+  evidence:
+  - claim: A64 解码树 return new LDAPURSHW64_IMM(...)；family=load 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1613
+- doc: Load-Store-LDAPURSW.md
+  mnemonic: LDAPURSW
+  tier: implemented
+  family: load
+  gem5:
+    decode_mnemonic: ldapursw
+    static_inst: LDAPURSW64_IMM
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1619
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  - CHAOSLSQFwd
+  - CHAOSL1DForward
+  - CHAOSAddrPath
+  - CHAOSMem
+  - CHAOSCache
+  evidence:
+  - claim: A64 解码树 return new LDAPURSW64_IMM(...)；family=load 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1619
+- doc: Load-Store-LDAR.md
+  mnemonic: LDAR
+  tier: implemented
+  family: acquire-release
+  gem5:
+    decode_mnemonic: ldar
+    static_inst: LDARW64
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1543
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  - CHAOSLSQFwd
+  - CHAOSL1DForward
+  - CHAOSAddrPath
+  - CHAOSMem
+  - CHAOSCache
+  evidence:
+  - claim: A64 解码树 return new LDARW64(...)；family=acquire-release 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1543
+- doc: Load-Store-LDARB.md
+  mnemonic: LDARB
+  tier: implemented
+  family: acquire-release
+  gem5:
+    decode_mnemonic: ldarb
+    static_inst: LDARB64
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1539
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  - CHAOSLSQFwd
+  - CHAOSL1DForward
+  - CHAOSAddrPath
+  - CHAOSMem
+  - CHAOSCache
+  evidence:
+  - claim: A64 解码树 return new LDARB64(...)；family=acquire-release 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1539
+- doc: Load-Store-LDARH.md
+  mnemonic: LDARH
+  tier: implemented
+  family: acquire-release
+  gem5:
+    decode_mnemonic: ldarh
+    static_inst: LDARH64
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1541
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  - CHAOSLSQFwd
+  - CHAOSL1DForward
+  - CHAOSAddrPath
+  - CHAOSMem
+  - CHAOSCache
+  evidence:
+  - claim: A64 解码树 return new LDARH64(...)；family=acquire-release 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1541
+- doc: Load-Store-LDAXP.md
+  mnemonic: LDAXP
+  tier: implemented
+  family: exclusive
+  gem5:
+    decode_mnemonic: ldaxp
+    static_inst: LDAXPW64
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1491
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  - CHAOSLSQFwd
+  - CHAOSL1DForward
+  - CHAOSAddrPath
+  - CHAOSMem
+  - CHAOSCache
+  - CHAOSExMon
+  evidence:
+  - claim: A64 解码树 return new LDAXPW64(...)；family=exclusive 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1491
+- doc: Load-Store-LDAXR.md
+  mnemonic: LDAXR
+  tier: implemented
+  family: exclusive
+  gem5:
+    decode_mnemonic: ldaxr
+    static_inst: LDAXRW64
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1465
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  - CHAOSLSQFwd
+  - CHAOSL1DForward
+  - CHAOSAddrPath
+  - CHAOSMem
+  - CHAOSCache
+  - CHAOSExMon
+  evidence:
+  - claim: A64 解码树 return new LDAXRW64(...)；family=exclusive 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1465
+- doc: Load-Store-LDAXRB.md
+  mnemonic: LDAXRB
+  tier: implemented
+  family: exclusive
+  gem5:
+    decode_mnemonic: ldaxrb
+    static_inst: LDAXRB64
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1461
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  - CHAOSLSQFwd
+  - CHAOSL1DForward
+  - CHAOSAddrPath
+  - CHAOSMem
+  - CHAOSCache
+  - CHAOSExMon
+  evidence:
+  - claim: A64 解码树 return new LDAXRB64(...)；family=exclusive 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1461
+- doc: Load-Store-LDAXRH.md
+  mnemonic: LDAXRH
+  tier: implemented
+  family: exclusive
+  gem5:
+    decode_mnemonic: ldaxrh
+    static_inst: LDAXRH64
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1463
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  - CHAOSLSQFwd
+  - CHAOSL1DForward
+  - CHAOSAddrPath
+  - CHAOSMem
+  - CHAOSCache
+  - CHAOSExMon
+  evidence:
+  - claim: A64 解码树 return new LDAXRH64(...)；family=exclusive 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1463
+- doc: Load-Store-LDCLRB_LDCLRAB_LDCLRALB_LDCLRLB.md
+  mnemonic: LDCLRB, LDCLRAB, LDCLRALB, LDCLRLB
+  tier: implemented
+  family: atomic-lse
+  gem5:
+    decode_mnemonic: ldclrb
+    static_inst: LDCLRB
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:939
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  - CHAOSLSQFwd
+  - CHAOSL1DForward
+  - CHAOSAddrPath
+  - CHAOSMem
+  - CHAOSCache
+  evidence:
+  - claim: A64 解码树 return new LDCLRB(...)；family=atomic-lse 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:939
+- doc: Load-Store-LDCLRH_LDCLRAH_LDCLRALH_LDCLRLH.md
+  mnemonic: LDCLRH, LDCLRAH, LDCLRALH, LDCLRLH
+  tier: implemented
+  family: atomic-lse
+  gem5:
+    decode_mnemonic: ldclrh
+    static_inst: LDCLRH
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:953
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  - CHAOSLSQFwd
+  - CHAOSL1DForward
+  - CHAOSAddrPath
+  - CHAOSMem
+  - CHAOSCache
+  evidence:
+  - claim: A64 解码树 return new LDCLRH(...)；family=atomic-lse 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:953
+- doc: Load-Store-LDCLR_LDCLRA_LDCLRAL_LDCLRL.md
+  mnemonic: LDCLR, LDCLRA, LDCLRAL, LDCLRL
+  tier: implemented
+  family: atomic-lse
+  gem5:
+    decode_mnemonic: ldclr
+    static_inst: LDCLR
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:967
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  - CHAOSLSQFwd
+  - CHAOSL1DForward
+  - CHAOSAddrPath
+  - CHAOSMem
+  - CHAOSCache
+  evidence:
+  - claim: A64 解码树 return new LDCLR(...)；family=atomic-lse 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:967
+- doc: Load-Store-LDEORB_LDEORAB_LDEORALB_LDEORLB.md
+  mnemonic: LDEORB, LDEORAB, LDEORALB, LDEORLB
+  tier: implemented
+  family: atomic-lse
+  gem5:
+    decode_mnemonic: ldeorb
+    static_inst: LDEORB
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1000
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  - CHAOSLSQFwd
+  - CHAOSL1DForward
+  - CHAOSAddrPath
+  - CHAOSMem
+  - CHAOSCache
+  evidence:
+  - claim: A64 解码树 return new LDEORB(...)；family=atomic-lse 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1000
+- doc: Load-Store-LDEORH_LDEORAH_LDEORALH_LDEORLH.md
+  mnemonic: LDEORH, LDEORAH, LDEORALH, LDEORLH
+  tier: implemented
+  family: atomic-lse
+  gem5:
+    decode_mnemonic: ldeorh
+    static_inst: LDEORH
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1014
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  - CHAOSLSQFwd
+  - CHAOSL1DForward
+  - CHAOSAddrPath
+  - CHAOSMem
+  - CHAOSCache
+  evidence:
+  - claim: A64 解码树 return new LDEORH(...)；family=atomic-lse 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1014
+- doc: Load-Store-LDEOR_LDEORA_LDEORAL_LDEORL.md
+  mnemonic: LDEOR, LDEORA, LDEORAL, LDEORL
+  tier: implemented
+  family: atomic-lse
+  gem5:
+    decode_mnemonic: ldeor
+    static_inst: LDEOR
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1028
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  - CHAOSLSQFwd
+  - CHAOSL1DForward
+  - CHAOSAddrPath
+  - CHAOSMem
+  - CHAOSCache
+  evidence:
+  - claim: A64 解码树 return new LDEOR(...)；family=atomic-lse 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1028
+- doc: Load-Store-LDG.md
+  mnemonic: LDG
+  tier: unimplemented
+  behavior: absent
+  evidence:
+  - claim: A64 解码树无匹配（scan_tiers 候选为空：生成代码无此助记符类）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:3820
+- doc: Load-Store-LDGM.md
+  mnemonic: LDGM
+  tier: unimplemented
+  behavior: absent
+  evidence:
+  - claim: A64 解码树无匹配（scan_tiers 候选为空：生成代码无此助记符类）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:3820
+- doc: Load-Store-LDLAR.md
+  mnemonic: LDLAR
+  tier: unimplemented
+  behavior: absent
+  evidence:
+  - claim: A64 解码树无匹配（scan_tiers 候选为空：生成代码无此助记符类）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:3820
+- doc: Load-Store-LDLARB.md
+  mnemonic: LDLARB
+  tier: unimplemented
+  behavior: absent
+  evidence:
+  - claim: A64 解码树无匹配（scan_tiers 候选为空：生成代码无此助记符类）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:3820
+- doc: Load-Store-LDLARH.md
+  mnemonic: LDLARH
+  tier: unimplemented
+  behavior: absent
+  evidence:
+  - claim: A64 解码树无匹配（scan_tiers 候选为空：生成代码无此助记符类）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:3820
+- doc: Load-Store-LDNP.md
+  mnemonic: LDNP
+  tier: macro-op
+  family: ldst-pair
+  gem5:
+    decode_mnemonic: ldnp
+    static_inst: LdpStp
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1700
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  - CHAOSLSQFwd
+  - CHAOSL1DForward
+  - CHAOSAddrPath
+  - CHAOSMem
+  - CHAOSCache
+  evidence:
+  - claim: A64 解码树 return new LdpStp(...)；family=ldst-pair 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1700
+- doc: Load-Store-LDP.md
+  mnemonic: LDP
+  tier: macro-op
+  family: ldst-pair
+  gem5:
+    decode_mnemonic: ldp
+    static_inst: LdpStp
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1700
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  - CHAOSLSQFwd
+  - CHAOSL1DForward
+  - CHAOSAddrPath
+  - CHAOSMem
+  - CHAOSCache
+  evidence:
+  - claim: A64 解码树 return new LdpStp(...)；family=ldst-pair 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1700
+- doc: Load-Store-LDPSW.md
+  mnemonic: LDPSW
+  tier: macro-op
+  family: ldst-pair
+  gem5:
+    decode_mnemonic: ldpsw
+    static_inst: LdpStp
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1700
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  - CHAOSLSQFwd
+  - CHAOSL1DForward
+  - CHAOSAddrPath
+  - CHAOSMem
+  - CHAOSCache
+  evidence:
+  - claim: A64 解码树 return new LdpStp(...)；family=ldst-pair 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1700
+- doc: Load-Store-LDRAA_LDRAB.md
+  mnemonic: LDRAA, LDRAB
+  tier: implemented
+  family: load
+  gem5:
+    decode_mnemonic: ldraa
+    static_inst: LDRAA_PRE
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1814
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  - CHAOSLSQFwd
+  - CHAOSL1DForward
+  - CHAOSAddrPath
+  - CHAOSMem
+  - CHAOSCache
+  evidence:
+  - claim: A64 解码树 return new LDRAA_PRE(...)；family=load 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1814
+- doc: Load-Store-LDRB_immediate.md
+  mnemonic: LDRB (immediate)
+  tier: implemented
+  family: load
+  gem5:
+    decode_mnemonic: ldrb
+    static_inst: LDRB64_IMM
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1718
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  - CHAOSLSQFwd
+  - CHAOSL1DForward
+  - CHAOSAddrPath
+  - CHAOSMem
+  - CHAOSCache
+  evidence:
+  - claim: A64 解码树 return new LDRB64_IMM(...)；family=load 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1718
+- doc: Load-Store-LDRB_register.md
+  mnemonic: LDRB (register)
+  tier: implemented
+  family: load
+  gem5:
+    decode_mnemonic: ldrb
+    static_inst: LDRB64_IMM
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1718
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  - CHAOSLSQFwd
+  - CHAOSL1DForward
+  - CHAOSAddrPath
+  - CHAOSMem
+  - CHAOSCache
+  evidence:
+  - claim: A64 解码树 return new LDRB64_IMM(...)；family=load 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1718
+- doc: Load-Store-LDRH_immediate.md
+  mnemonic: LDRH (immediate)
+  tier: implemented
+  family: load
+  gem5:
+    decode_mnemonic: ldrh
+    static_inst: LDRH64_IMM
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1736
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  - CHAOSLSQFwd
+  - CHAOSL1DForward
+  - CHAOSAddrPath
+  - CHAOSMem
+  - CHAOSCache
+  evidence:
+  - claim: A64 解码树 return new LDRH64_IMM(...)；family=load 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1736
+- doc: Load-Store-LDRH_register.md
+  mnemonic: LDRH (register)
+  tier: implemented
+  family: load
+  gem5:
+    decode_mnemonic: ldrh
+    static_inst: LDRH64_IMM
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1736
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  - CHAOSLSQFwd
+  - CHAOSL1DForward
+  - CHAOSAddrPath
+  - CHAOSMem
+  - CHAOSCache
+  evidence:
+  - claim: A64 解码树 return new LDRH64_IMM(...)；family=load 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1736
+- doc: Load-Store-LDRSB_immediate.md
+  mnemonic: LDRSB (immediate)
+  tier: implemented
+  family: load
+  gem5:
+    decode_mnemonic: ldrsb
+    static_inst: LDRSBW64_IMM
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1722
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  - CHAOSLSQFwd
+  - CHAOSL1DForward
+  - CHAOSAddrPath
+  - CHAOSMem
+  - CHAOSCache
+  evidence:
+  - claim: A64 解码树 return new LDRSBW64_IMM(...)；family=load 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1722
+- doc: Load-Store-LDRSB_register.md
+  mnemonic: LDRSB (register)
+  tier: implemented
+  family: load
+  gem5:
+    decode_mnemonic: ldrsb
+    static_inst: LDRSBW64_IMM
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1722
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  - CHAOSLSQFwd
+  - CHAOSL1DForward
+  - CHAOSAddrPath
+  - CHAOSMem
+  - CHAOSCache
+  evidence:
+  - claim: A64 解码树 return new LDRSBW64_IMM(...)；family=load 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1722
+- doc: Load-Store-LDRSH_immediate.md
+  mnemonic: LDRSH (immediate)
+  tier: implemented
+  family: load
+  gem5:
+    decode_mnemonic: ldrsh
+    static_inst: LDRSHW64_IMM
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1740
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  - CHAOSLSQFwd
+  - CHAOSL1DForward
+  - CHAOSAddrPath
+  - CHAOSMem
+  - CHAOSCache
+  evidence:
+  - claim: A64 解码树 return new LDRSHW64_IMM(...)；family=load 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1740
+- doc: Load-Store-LDRSH_register.md
+  mnemonic: LDRSH (register)
+  tier: implemented
+  family: load
+  gem5:
+    decode_mnemonic: ldrsh
+    static_inst: LDRSHW64_IMM
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1740
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  - CHAOSLSQFwd
+  - CHAOSL1DForward
+  - CHAOSAddrPath
+  - CHAOSMem
+  - CHAOSCache
+  evidence:
+  - claim: A64 解码树 return new LDRSHW64_IMM(...)；family=load 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1740
+- doc: Load-Store-LDRSW_immediate.md
+  mnemonic: LDRSW (immediate)
+  tier: implemented
+  family: load
+  gem5:
+    decode_mnemonic: ldrsw
+    static_inst: LDRSW64_IMM
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1750
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  - CHAOSLSQFwd
+  - CHAOSL1DForward
+  - CHAOSAddrPath
+  - CHAOSMem
+  - CHAOSCache
+  evidence:
+  - claim: A64 解码树 return new LDRSW64_IMM(...)；family=load 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1750
+- doc: Load-Store-LDRSW_literal.md
+  mnemonic: LDRSW (literal)
+  tier: implemented
+  family: load
+  gem5:
+    decode_mnemonic: ldrsw
+    static_inst: LDRSWL64_LIT
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1637
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  - CHAOSLSQFwd
+  - CHAOSL1DForward
+  - CHAOSAddrPath
+  - CHAOSMem
+  - CHAOSCache
+  evidence:
+  - claim: A64 解码树 return new LDRSWL64_LIT(...)；family=load 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1637
+- doc: Load-Store-LDRSW_register.md
+  mnemonic: LDRSW (register)
+  tier: implemented
+  family: load
+  gem5:
+    decode_mnemonic: ldrsw
+    static_inst: LDRSW64_IMM
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1750
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  - CHAOSLSQFwd
+  - CHAOSL1DForward
+  - CHAOSAddrPath
+  - CHAOSMem
+  - CHAOSCache
+  evidence:
+  - claim: A64 解码树 return new LDRSW64_IMM(...)；family=load 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1750
+- doc: Load-Store-LDR_immediate.md
+  mnemonic: LDR (immediate)
+  tier: implemented
+  family: load
+  gem5:
+    decode_mnemonic: ldr
+    static_inst: LDRBFP64_IMM
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1726
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  - CHAOSLSQFwd
+  - CHAOSL1DForward
+  - CHAOSAddrPath
+  - CHAOSMem
+  - CHAOSCache
+  evidence:
+  - claim: A64 解码树 return new LDRBFP64_IMM(...)；family=load 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1726
+- doc: Load-Store-LDR_literal.md
+  mnemonic: LDR (literal)
+  tier: implemented
+  family: load
+  gem5:
+    decode_mnemonic: ldr
+    static_inst: LDRDFP64_LIT
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1635
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  - CHAOSLSQFwd
+  - CHAOSL1DForward
+  - CHAOSAddrPath
+  - CHAOSMem
+  - CHAOSCache
+  evidence:
+  - claim: A64 解码树 return new LDRDFP64_LIT(...)；family=load 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1635
+- doc: Load-Store-LDR_register.md
+  mnemonic: LDR (register)
+  tier: implemented
+  family: load
+  gem5:
+    decode_mnemonic: ldr
+    static_inst: LDRBFP64_IMM
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1726
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  - CHAOSLSQFwd
+  - CHAOSL1DForward
+  - CHAOSAddrPath
+  - CHAOSMem
+  - CHAOSCache
+  evidence:
+  - claim: A64 解码树 return new LDRBFP64_IMM(...)；family=load 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1726
+- doc: Load-Store-LDSETB_LDSETAB_LDSETALB_LDSETLB.md
+  mnemonic: LDSETB, LDSETAB, LDSETALB, LDSETLB
+  tier: implemented
+  family: atomic-lse
+  gem5:
+    decode_mnemonic: ldsetb
+    static_inst: LDSETB
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1061
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  - CHAOSLSQFwd
+  - CHAOSL1DForward
+  - CHAOSAddrPath
+  - CHAOSMem
+  - CHAOSCache
+  evidence:
+  - claim: A64 解码树 return new LDSETB(...)；family=atomic-lse 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1061
+- doc: Load-Store-LDSETH_LDSETAH_LDSETALH_LDSETLH.md
+  mnemonic: LDSETH, LDSETAH, LDSETALH, LDSETLH
+  tier: implemented
+  family: atomic-lse
+  gem5:
+    decode_mnemonic: ldseth
+    static_inst: LDSETH
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1075
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  - CHAOSLSQFwd
+  - CHAOSL1DForward
+  - CHAOSAddrPath
+  - CHAOSMem
+  - CHAOSCache
+  evidence:
+  - claim: A64 解码树 return new LDSETH(...)；family=atomic-lse 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1075
+- doc: Load-Store-LDSET_LDSETA_LDSETAL_LDSETL.md
+  mnemonic: LDSET, LDSETA, LDSETAL, LDSETL
+  tier: implemented
+  family: atomic-lse
+  gem5:
+    decode_mnemonic: ldset
+    static_inst: LDSET
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1089
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  - CHAOSLSQFwd
+  - CHAOSL1DForward
+  - CHAOSAddrPath
+  - CHAOSMem
+  - CHAOSCache
+  evidence:
+  - claim: A64 解码树 return new LDSET(...)；family=atomic-lse 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1089
+- doc: Load-Store-LDSMAXB_LDSMAXAB_LDSMAXALB_LDSMAXLB.md
+  mnemonic: LDSMAXB, LDSMAXAB, LDSMAXALB, LDSMAXLB
+  tier: implemented
+  family: atomic-lse
+  gem5:
+    decode_mnemonic: ldsmaxb
+    static_inst: LDSMAXB
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1122
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  - CHAOSLSQFwd
+  - CHAOSL1DForward
+  - CHAOSAddrPath
+  - CHAOSMem
+  - CHAOSCache
+  evidence:
+  - claim: A64 解码树 return new LDSMAXB(...)；family=atomic-lse 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1122
+- doc: Load-Store-LDSMAXH_LDSMAXAH_LDSMAXALH_LDSMAXLH.md
+  mnemonic: LDSMAXH, LDSMAXAH, LDSMAXALH, LDSMAXLH
+  tier: implemented
+  family: atomic-lse
+  gem5:
+    decode_mnemonic: ldsmaxh
+    static_inst: LDSMAXH
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1136
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  - CHAOSLSQFwd
+  - CHAOSL1DForward
+  - CHAOSAddrPath
+  - CHAOSMem
+  - CHAOSCache
+  evidence:
+  - claim: A64 解码树 return new LDSMAXH(...)；family=atomic-lse 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1136
+- doc: Load-Store-LDSMAX_LDSMAXA_LDSMAXAL_LDSMAXL.md
+  mnemonic: LDSMAX, LDSMAXA, LDSMAXAL, LDSMAXL
+  tier: implemented
+  family: atomic-lse
+  gem5:
+    decode_mnemonic: ldsmax
+    static_inst: LDSMAX
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1150
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  - CHAOSLSQFwd
+  - CHAOSL1DForward
+  - CHAOSAddrPath
+  - CHAOSMem
+  - CHAOSCache
+  evidence:
+  - claim: A64 解码树 return new LDSMAX(...)；family=atomic-lse 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1150
+- doc: Load-Store-LDSMINB_LDSMINAB_LDSMINALB_LDSMINLB.md
+  mnemonic: LDSMINB, LDSMINAB, LDSMINALB, LDSMINLB
+  tier: implemented
+  family: atomic-lse
+  gem5:
+    decode_mnemonic: ldsminb
+    static_inst: LDSMINB
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1183
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  - CHAOSLSQFwd
+  - CHAOSL1DForward
+  - CHAOSAddrPath
+  - CHAOSMem
+  - CHAOSCache
+  evidence:
+  - claim: A64 解码树 return new LDSMINB(...)；family=atomic-lse 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1183
+- doc: Load-Store-LDSMINH_LDSMINAH_LDSMINALH_LDSMINLH.md
+  mnemonic: LDSMINH, LDSMINAH, LDSMINALH, LDSMINLH
+  tier: implemented
+  family: atomic-lse
+  gem5:
+    decode_mnemonic: ldsminh
+    static_inst: LDSMINH
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1197
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  - CHAOSLSQFwd
+  - CHAOSL1DForward
+  - CHAOSAddrPath
+  - CHAOSMem
+  - CHAOSCache
+  evidence:
+  - claim: A64 解码树 return new LDSMINH(...)；family=atomic-lse 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1197
+- doc: Load-Store-LDSMIN_LDSMINA_LDSMINAL_LDSMINL.md
+  mnemonic: LDSMIN, LDSMINA, LDSMINAL, LDSMINL
+  tier: implemented
+  family: atomic-lse
+  gem5:
+    decode_mnemonic: ldsmin
+    static_inst: LDSMIN
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1211
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  - CHAOSLSQFwd
+  - CHAOSL1DForward
+  - CHAOSAddrPath
+  - CHAOSMem
+  - CHAOSCache
+  evidence:
+  - claim: A64 解码树 return new LDSMIN(...)；family=atomic-lse 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1211
+- doc: Load-Store-LDTR.md
+  mnemonic: LDTR
+  tier: implemented
+  family: load
+  gem5:
+    decode_mnemonic: ldtr
+    static_inst: LDTRW64_IMM
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2077
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  - CHAOSLSQFwd
+  - CHAOSL1DForward
+  - CHAOSAddrPath
+  - CHAOSMem
+  - CHAOSCache
+  evidence:
+  - claim: A64 解码树 return new LDTRW64_IMM(...)；family=load 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2077
+- doc: Load-Store-LDTRB.md
+  mnemonic: LDTRB
+  tier: implemented
+  family: load
+  gem5:
+    decode_mnemonic: ldtrb
+    static_inst: LDTRB64_IMM
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2061
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  - CHAOSLSQFwd
+  - CHAOSL1DForward
+  - CHAOSAddrPath
+  - CHAOSMem
+  - CHAOSCache
+  evidence:
+  - claim: A64 解码树 return new LDTRB64_IMM(...)；family=load 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2061
+- doc: Load-Store-LDTRH.md
+  mnemonic: LDTRH
+  tier: implemented
+  family: load
+  gem5:
+    decode_mnemonic: ldtrh
+    static_inst: LDTRH64_IMM
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2069
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  - CHAOSLSQFwd
+  - CHAOSL1DForward
+  - CHAOSAddrPath
+  - CHAOSMem
+  - CHAOSCache
+  evidence:
+  - claim: A64 解码树 return new LDTRH64_IMM(...)；family=load 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2069
+- doc: Load-Store-LDTRSB.md
+  mnemonic: LDTRSB
+  tier: implemented
+  family: load
+  gem5:
+    decode_mnemonic: ldtrsb
+    static_inst: LDTRSBW64_IMM
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2065
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  - CHAOSLSQFwd
+  - CHAOSL1DForward
+  - CHAOSAddrPath
+  - CHAOSMem
+  - CHAOSCache
+  evidence:
+  - claim: A64 解码树 return new LDTRSBW64_IMM(...)；family=load 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2065
+- doc: Load-Store-LDTRSH.md
+  mnemonic: LDTRSH
+  tier: implemented
+  family: load
+  gem5:
+    decode_mnemonic: ldtrsh
+    static_inst: LDTRSHW64_IMM
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2073
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  - CHAOSLSQFwd
+  - CHAOSL1DForward
+  - CHAOSAddrPath
+  - CHAOSMem
+  - CHAOSCache
+  evidence:
+  - claim: A64 解码树 return new LDTRSHW64_IMM(...)；family=load 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2073
+- doc: Load-Store-LDTRSW.md
+  mnemonic: LDTRSW
+  tier: implemented
+  family: load
+  gem5:
+    decode_mnemonic: ldtrsw
+    static_inst: LDTRSW64_IMM
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2079
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  - CHAOSLSQFwd
+  - CHAOSL1DForward
+  - CHAOSAddrPath
+  - CHAOSMem
+  - CHAOSCache
+  evidence:
+  - claim: A64 解码树 return new LDTRSW64_IMM(...)；family=load 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2079
+- doc: Load-Store-LDUMAXB_LDUMAXAB_LDUMAXALB_LDUMAXLB.md
+  mnemonic: LDUMAXB, LDUMAXAB, LDUMAXALB, LDUMAXLB
+  tier: implemented
+  family: atomic-lse
+  gem5:
+    decode_mnemonic: ldumaxb
+    static_inst: LDUMAXB
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1244
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  - CHAOSLSQFwd
+  - CHAOSL1DForward
+  - CHAOSAddrPath
+  - CHAOSMem
+  - CHAOSCache
+  evidence:
+  - claim: A64 解码树 return new LDUMAXB(...)；family=atomic-lse 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1244
+- doc: Load-Store-LDUMAXH_LDUMAXAH_LDUMAXALH_LDUMAXLH.md
+  mnemonic: LDUMAXH, LDUMAXAH, LDUMAXALH, LDUMAXLH
+  tier: implemented
+  family: atomic-lse
+  gem5:
+    decode_mnemonic: ldumaxh
+    static_inst: LDUMAXH
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1258
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  - CHAOSLSQFwd
+  - CHAOSL1DForward
+  - CHAOSAddrPath
+  - CHAOSMem
+  - CHAOSCache
+  evidence:
+  - claim: A64 解码树 return new LDUMAXH(...)；family=atomic-lse 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1258
+- doc: Load-Store-LDUMAX_LDUMAXA_LDUMAXAL_LDUMAXL.md
+  mnemonic: LDUMAX, LDUMAXA, LDUMAXAL, LDUMAXL
+  tier: implemented
+  family: atomic-lse
+  gem5:
+    decode_mnemonic: ldumax
+    static_inst: LDUMAX
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1272
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  - CHAOSLSQFwd
+  - CHAOSL1DForward
+  - CHAOSAddrPath
+  - CHAOSMem
+  - CHAOSCache
+  evidence:
+  - claim: A64 解码树 return new LDUMAX(...)；family=atomic-lse 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1272
+- doc: Load-Store-LDUMINB_LDUMINAB_LDUMINALB_LDUMINLB.md
+  mnemonic: LDUMINB, LDUMINAB, LDUMINALB, LDUMINLB
+  tier: implemented
+  family: atomic-lse
+  gem5:
+    decode_mnemonic: lduminb
+    static_inst: LDUMINB
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1305
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  - CHAOSLSQFwd
+  - CHAOSL1DForward
+  - CHAOSAddrPath
+  - CHAOSMem
+  - CHAOSCache
+  evidence:
+  - claim: A64 解码树 return new LDUMINB(...)；family=atomic-lse 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1305
+- doc: Load-Store-LDUMINH_LDUMINAH_LDUMINALH_LDUMINLH.md
+  mnemonic: LDUMINH, LDUMINAH, LDUMINALH, LDUMINLH
+  tier: implemented
+  family: atomic-lse
+  gem5:
+    decode_mnemonic: lduminh
+    static_inst: LDUMINH
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1319
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  - CHAOSLSQFwd
+  - CHAOSL1DForward
+  - CHAOSAddrPath
+  - CHAOSMem
+  - CHAOSCache
+  evidence:
+  - claim: A64 解码树 return new LDUMINH(...)；family=atomic-lse 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1319
+- doc: Load-Store-LDUMIN_LDUMINA_LDUMINAL_LDUMINL.md
+  mnemonic: LDUMIN, LDUMINA, LDUMINAL, LDUMINL
+  tier: implemented
+  family: atomic-lse
+  gem5:
+    decode_mnemonic: ldumin
+    static_inst: LDUMIN
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1333
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  - CHAOSLSQFwd
+  - CHAOSL1DForward
+  - CHAOSAddrPath
+  - CHAOSMem
+  - CHAOSCache
+  evidence:
+  - claim: A64 解码树 return new LDUMIN(...)；family=atomic-lse 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1333
+- doc: Load-Store-LDUR.md
+  mnemonic: LDUR
+  tier: implemented
+  family: load
+  gem5:
+    decode_mnemonic: ldur
+    static_inst: LDURBFP64_IMM
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1944
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  - CHAOSLSQFwd
+  - CHAOSL1DForward
+  - CHAOSAddrPath
+  - CHAOSMem
+  - CHAOSCache
+  evidence:
+  - claim: A64 解码树 return new LDURBFP64_IMM(...)；family=load 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1944
+- doc: Load-Store-LDURB.md
+  mnemonic: LDURB
+  tier: implemented
+  family: load
+  gem5:
+    decode_mnemonic: ldurb
+    static_inst: LDURB64_IMM
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1936
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  - CHAOSLSQFwd
+  - CHAOSL1DForward
+  - CHAOSAddrPath
+  - CHAOSMem
+  - CHAOSCache
+  evidence:
+  - claim: A64 解码树 return new LDURB64_IMM(...)；family=load 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1936
+- doc: Load-Store-LDURH.md
+  mnemonic: LDURH
+  tier: implemented
+  family: load
+  gem5:
+    decode_mnemonic: ldurh
+    static_inst: LDURH64_IMM
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1954
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  - CHAOSLSQFwd
+  - CHAOSL1DForward
+  - CHAOSAddrPath
+  - CHAOSMem
+  - CHAOSCache
+  evidence:
+  - claim: A64 解码树 return new LDURH64_IMM(...)；family=load 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1954
+- doc: Load-Store-LDURSB.md
+  mnemonic: LDURSB
+  tier: implemented
+  family: load
+  gem5:
+    decode_mnemonic: ldursb
+    static_inst: LDURSBW64_IMM
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1940
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  - CHAOSLSQFwd
+  - CHAOSL1DForward
+  - CHAOSAddrPath
+  - CHAOSMem
+  - CHAOSCache
+  evidence:
+  - claim: A64 解码树 return new LDURSBW64_IMM(...)；family=load 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1940
+- doc: Load-Store-LDURSH.md
+  mnemonic: LDURSH
+  tier: implemented
+  family: load
+  gem5:
+    decode_mnemonic: ldursh
+    static_inst: LDURSHW64_IMM
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1958
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  - CHAOSLSQFwd
+  - CHAOSL1DForward
+  - CHAOSAddrPath
+  - CHAOSMem
+  - CHAOSCache
+  evidence:
+  - claim: A64 解码树 return new LDURSHW64_IMM(...)；family=load 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1958
+- doc: Load-Store-LDURSW.md
+  mnemonic: LDURSW
+  tier: implemented
+  family: load
+  gem5:
+    decode_mnemonic: ldursw
+    static_inst: LDURSW64_IMM
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1968
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  - CHAOSLSQFwd
+  - CHAOSL1DForward
+  - CHAOSAddrPath
+  - CHAOSMem
+  - CHAOSCache
+  evidence:
+  - claim: A64 解码树 return new LDURSW64_IMM(...)；family=load 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1968
+- doc: Load-Store-LDXP.md
+  mnemonic: LDXP
+  tier: implemented
+  family: exclusive
+  gem5:
+    decode_mnemonic: ldxp
+    static_inst: LDXPW64
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1478
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  - CHAOSLSQFwd
+  - CHAOSL1DForward
+  - CHAOSAddrPath
+  - CHAOSMem
+  - CHAOSCache
+  - CHAOSExMon
+  evidence:
+  - claim: A64 解码树 return new LDXPW64(...)；family=exclusive 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1478
+- doc: Load-Store-LDXR.md
+  mnemonic: LDXR
+  tier: implemented
+  family: exclusive
+  gem5:
+    decode_mnemonic: ldxr
+    static_inst: LDXRW64
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1452
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  - CHAOSLSQFwd
+  - CHAOSL1DForward
+  - CHAOSAddrPath
+  - CHAOSMem
+  - CHAOSCache
+  - CHAOSExMon
+  evidence:
+  - claim: A64 解码树 return new LDXRW64(...)；family=exclusive 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1452
+- doc: Load-Store-LDXRB.md
+  mnemonic: LDXRB
+  tier: implemented
+  family: exclusive
+  gem5:
+    decode_mnemonic: ldxrb
+    static_inst: LDXRB64
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1448
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  - CHAOSLSQFwd
+  - CHAOSL1DForward
+  - CHAOSAddrPath
+  - CHAOSMem
+  - CHAOSCache
+  - CHAOSExMon
+  evidence:
+  - claim: A64 解码树 return new LDXRB64(...)；family=exclusive 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1448
+- doc: Load-Store-LDXRH.md
+  mnemonic: LDXRH
+  tier: implemented
+  family: exclusive
+  gem5:
+    decode_mnemonic: ldxrh
+    static_inst: LDXRH64
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1450
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  - CHAOSLSQFwd
+  - CHAOSL1DForward
+  - CHAOSAddrPath
+  - CHAOSMem
+  - CHAOSCache
+  - CHAOSExMon
+  evidence:
+  - claim: A64 解码树 return new LDXRH64(...)；family=exclusive 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1450
+- doc: Load-Store-ST2G.md
+  mnemonic: ST2G
+  tier: unimplemented
+  behavior: absent
+  evidence:
+  - claim: A64 解码树无匹配（scan_tiers 候选为空：生成代码无此助记符类）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:3820
+- doc: Load-Store-ST64B.md
+  mnemonic: ST64B
+  tier: unimplemented
+  behavior: absent
+  evidence:
+  - claim: A64 解码树无匹配（scan_tiers 候选为空：生成代码无此助记符类）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:3820
+- doc: Load-Store-ST64BV.md
+  mnemonic: ST64BV
+  tier: unimplemented
+  behavior: absent
+  evidence:
+  - claim: A64 解码树无匹配（scan_tiers 候选为空：生成代码无此助记符类）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:3820
+- doc: Load-Store-ST64BV0.md
+  mnemonic: ST64BV0
+  tier: unimplemented
+  behavior: absent
+  evidence:
+  - claim: A64 解码树无匹配（scan_tiers 候选为空：生成代码无此助记符类）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:3820
+- doc: Load-Store-STADDB_STADDLB.md
+  mnemonic: STADDB, STADDLB
+  tier: implemented
+  family: atomic-lse
+  gem5:
+    decode_mnemonic: staddb
+    static_inst: STADDB
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:837
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  - CHAOSLSQFwd
+  - CHAOSL1DForward
+  - CHAOSAddrPath
+  - CHAOSMem
+  - CHAOSCache
+  evidence:
+  - claim: A64 解码树 return new STADDB(...)；family=atomic-lse 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:837
+- doc: Load-Store-STADD_STADDL.md
+  mnemonic: STADD, STADDL
+  tier: implemented
+  family: atomic-lse
+  gem5:
+    decode_mnemonic: stadd
+    static_inst: STADD
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:885
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  - CHAOSLSQFwd
+  - CHAOSL1DForward
+  - CHAOSAddrPath
+  - CHAOSMem
+  - CHAOSCache
+  evidence:
+  - claim: A64 解码树 return new STADD(...)；family=atomic-lse 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:885
+- doc: Load-Store-STGM.md
+  mnemonic: STGM
+  tier: unimplemented
+  behavior: absent
+  evidence:
+  - claim: A64 解码树无匹配（scan_tiers 候选为空：生成代码无此助记符类）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:3820
+- doc: Load-Store-STGP.md
+  mnemonic: STGP
+  tier: unimplemented
+  behavior: absent
+  evidence:
+  - claim: A64 解码树无匹配（scan_tiers 候选为空：生成代码无此助记符类）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:3820
+- doc: Load-Store-STLLR.md
+  mnemonic: STLLR
+  tier: unimplemented
+  behavior: absent
+  evidence:
+  - claim: A64 解码树无匹配（scan_tiers 候选为空：生成代码无此助记符类）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:3820
+- doc: Load-Store-STLLRB.md
+  mnemonic: STLLRB
+  tier: unimplemented
+  behavior: absent
+  evidence:
+  - claim: A64 解码树无匹配（scan_tiers 候选为空：生成代码无此助记符类）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:3820
+- doc: Load-Store-STLLRH.md
+  mnemonic: STLLRH
+  tier: unimplemented
+  behavior: absent
+  evidence:
+  - claim: A64 解码树无匹配（scan_tiers 候选为空：生成代码无此助记符类）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:3820
+- doc: Load-Store-STLR.md
+  mnemonic: STLR
+  tier: implemented
+  family: acquire-release
+  gem5:
+    decode_mnemonic: stlr
+    static_inst: STLRW64
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1504
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  - CHAOSLSQFwd
+  - CHAOSL1DForward
+  - CHAOSAddrPath
+  - CHAOSMem
+  - CHAOSCache
+  evidence:
+  - claim: A64 解码树 return new STLRW64(...)；family=acquire-release 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1504
+- doc: Load-Store-STLRB.md
+  mnemonic: STLRB
+  tier: implemented
+  family: acquire-release
+  gem5:
+    decode_mnemonic: stlrb
+    static_inst: STLRB64
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1500
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  - CHAOSLSQFwd
+  - CHAOSL1DForward
+  - CHAOSAddrPath
+  - CHAOSMem
+  - CHAOSCache
+  evidence:
+  - claim: A64 解码树 return new STLRB64(...)；family=acquire-release 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1500
+- doc: Load-Store-STLRH.md
+  mnemonic: STLRH
+  tier: implemented
+  family: acquire-release
+  gem5:
+    decode_mnemonic: stlrh
+    static_inst: STLRH64
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1502
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  - CHAOSLSQFwd
+  - CHAOSL1DForward
+  - CHAOSAddrPath
+  - CHAOSMem
+  - CHAOSCache
+  evidence:
+  - claim: A64 解码树 return new STLRH64(...)；family=acquire-release 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1502
+- doc: Load-Store-STLUR.md
+  mnemonic: STLUR
+  tier: unimplemented
+  behavior: absent
+  evidence:
+  - claim: A64 解码树无匹配（scan_tiers 候选为空：生成代码无此助记符类）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:3820
+- doc: Load-Store-STLURB.md
+  mnemonic: STLURB
+  tier: unimplemented
+  behavior: absent
+  evidence:
+  - claim: A64 解码树无匹配（scan_tiers 候选为空：生成代码无此助记符类）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:3820
+- doc: Load-Store-STLURH.md
+  mnemonic: STLURH
+  tier: unimplemented
+  behavior: absent
+  evidence:
+  - claim: A64 解码树无匹配（scan_tiers 候选为空：生成代码无此助记符类）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:3820
+- doc: Load-Store-STLXP.md
+  mnemonic: STLXP
+  tier: implemented
+  family: exclusive
+  gem5:
+    decode_mnemonic: stlxp
+    static_inst: STLXPW64
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1438
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  - CHAOSLSQFwd
+  - CHAOSL1DForward
+  - CHAOSAddrPath
+  - CHAOSMem
+  - CHAOSCache
+  - CHAOSExMon
+  evidence:
+  - claim: A64 解码树 return new STLXPW64(...)；family=exclusive 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1438
+- doc: Load-Store-STLXR.md
+  mnemonic: STLXR
+  tier: implemented
+  family: exclusive
+  gem5:
+    decode_mnemonic: stlxr
+    static_inst: STLXRW64
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1411
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  - CHAOSLSQFwd
+  - CHAOSL1DForward
+  - CHAOSAddrPath
+  - CHAOSMem
+  - CHAOSCache
+  - CHAOSExMon
+  evidence:
+  - claim: A64 解码树 return new STLXRW64(...)；family=exclusive 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1411
+- doc: Load-Store-STLXRB.md
+  mnemonic: STLXRB
+  tier: implemented
+  family: exclusive
+  gem5:
+    decode_mnemonic: stlxrb
+    static_inst: STLXRB64
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1407
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  - CHAOSLSQFwd
+  - CHAOSL1DForward
+  - CHAOSAddrPath
+  - CHAOSMem
+  - CHAOSCache
+  - CHAOSExMon
+  evidence:
+  - claim: A64 解码树 return new STLXRB64(...)；family=exclusive 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1407
+- doc: Load-Store-STLXRH.md
+  mnemonic: STLXRH
+  tier: implemented
+  family: exclusive
+  gem5:
+    decode_mnemonic: stlxrh
+    static_inst: STLXRH64
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1409
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  - CHAOSLSQFwd
+  - CHAOSL1DForward
+  - CHAOSAddrPath
+  - CHAOSMem
+  - CHAOSCache
+  - CHAOSExMon
+  evidence:
+  - claim: A64 解码树 return new STLXRH64(...)；family=exclusive 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1409
+- doc: Load-Store-STNP.md
+  mnemonic: STNP
+  tier: macro-op
+  family: ldst-pair
+  gem5:
+    decode_mnemonic: stnp
+    static_inst: LdpStp
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1700
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  - CHAOSLSQFwd
+  - CHAOSL1DForward
+  - CHAOSAddrPath
+  - CHAOSMem
+  - CHAOSCache
+  evidence:
+  - claim: A64 解码树 return new LdpStp(...)；family=ldst-pair 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1700
+- doc: Load-Store-STP.md
+  mnemonic: STP
+  tier: macro-op
+  family: ldst-pair
+  gem5:
+    decode_mnemonic: stp
+    static_inst: LdpStp
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1700
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  - CHAOSLSQFwd
+  - CHAOSL1DForward
+  - CHAOSAddrPath
+  - CHAOSMem
+  - CHAOSCache
+  evidence:
+  - claim: A64 解码树 return new LdpStp(...)；family=ldst-pair 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1700
+- doc: Load-Store-STRB_immediate.md
+  mnemonic: STRB (immediate)
+  tier: implemented
+  family: store
+  gem5:
+    decode_mnemonic: strb
+    static_inst: STRB64_IMM
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1716
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  - CHAOSLSQFwd
+  - CHAOSL1DForward
+  - CHAOSAddrPath
+  - CHAOSMem
+  - CHAOSCache
+  evidence:
+  - claim: A64 解码树 return new STRB64_IMM(...)；family=store 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1716
+- doc: Load-Store-STRB_register.md
+  mnemonic: STRB (register)
+  tier: implemented
+  family: store
+  gem5:
+    decode_mnemonic: strb
+    static_inst: STRB64_IMM
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1716
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  - CHAOSLSQFwd
+  - CHAOSL1DForward
+  - CHAOSAddrPath
+  - CHAOSMem
+  - CHAOSCache
+  evidence:
+  - claim: A64 解码树 return new STRB64_IMM(...)；family=store 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1716
+- doc: Load-Store-STRH_immediate.md
+  mnemonic: STRH (immediate)
+  tier: implemented
+  family: store
+  gem5:
+    decode_mnemonic: strh
+    static_inst: STRH64_IMM
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1734
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  - CHAOSLSQFwd
+  - CHAOSL1DForward
+  - CHAOSAddrPath
+  - CHAOSMem
+  - CHAOSCache
+  evidence:
+  - claim: A64 解码树 return new STRH64_IMM(...)；family=store 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1734
+- doc: Load-Store-STRH_register.md
+  mnemonic: STRH (register)
+  tier: implemented
+  family: store
+  gem5:
+    decode_mnemonic: strh
+    static_inst: STRH64_IMM
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1734
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  - CHAOSLSQFwd
+  - CHAOSL1DForward
+  - CHAOSAddrPath
+  - CHAOSMem
+  - CHAOSCache
+  evidence:
+  - claim: A64 解码树 return new STRH64_IMM(...)；family=store 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1734
+- doc: Load-Store-STR_immediate.md
+  mnemonic: STR (immediate)
+  tier: implemented
+  family: store
+  gem5:
+    decode_mnemonic: str
+    static_inst: STRBFP64_IMM
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1724
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  - CHAOSLSQFwd
+  - CHAOSL1DForward
+  - CHAOSAddrPath
+  - CHAOSMem
+  - CHAOSCache
+  evidence:
+  - claim: A64 解码树 return new STRBFP64_IMM(...)；family=store 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1724
+- doc: Load-Store-STR_register.md
+  mnemonic: STR (register)
+  tier: implemented
+  family: store
+  gem5:
+    decode_mnemonic: str
+    static_inst: STRBFP64_IMM
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1724
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  - CHAOSLSQFwd
+  - CHAOSL1DForward
+  - CHAOSAddrPath
+  - CHAOSMem
+  - CHAOSCache
+  evidence:
+  - claim: A64 解码树 return new STRBFP64_IMM(...)；family=store 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1724
+- doc: Load-Store-STSETB_STSETLB.md
+  mnemonic: STSETB, STSETLB
+  tier: implemented
+  family: store
+  gem5:
+    decode_mnemonic: stsetb
+    static_inst: STSETB
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1059
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  - CHAOSLSQFwd
+  - CHAOSL1DForward
+  - CHAOSAddrPath
+  - CHAOSMem
+  - CHAOSCache
+  evidence:
+  - claim: A64 解码树 return new STSETB(...)；family=store 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1059
+- doc: Load-Store-STSET_STSETL.md
+  mnemonic: STSET, STSETL
+  tier: implemented
+  family: store
+  gem5:
+    decode_mnemonic: stset
+    static_inst: STSET
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1087
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  - CHAOSLSQFwd
+  - CHAOSL1DForward
+  - CHAOSAddrPath
+  - CHAOSMem
+  - CHAOSCache
+  evidence:
+  - claim: A64 解码树 return new STSET(...)；family=store 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1087
+- doc: Load-Store-STTRB.md
+  mnemonic: STTRB
+  tier: implemented
+  family: store
+  gem5:
+    decode_mnemonic: sttrb
+    static_inst: STTRB64_IMM
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2059
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  - CHAOSLSQFwd
+  - CHAOSL1DForward
+  - CHAOSAddrPath
+  - CHAOSMem
+  - CHAOSCache
+  evidence:
+  - claim: A64 解码树 return new STTRB64_IMM(...)；family=store 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2059
+- doc: Load-Store-STTRH.md
+  mnemonic: STTRH
+  tier: implemented
+  family: store
+  gem5:
+    decode_mnemonic: sttrh
+    static_inst: STTRH64_IMM
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2067
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  - CHAOSLSQFwd
+  - CHAOSL1DForward
+  - CHAOSAddrPath
+  - CHAOSMem
+  - CHAOSCache
+  evidence:
+  - claim: A64 解码树 return new STTRH64_IMM(...)；family=store 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2067
+- doc: Load-Store-STUMAX_STUMAXL.md
+  mnemonic: STUMAX, STUMAXL
+  tier: implemented
+  family: store
+  gem5:
+    decode_mnemonic: stumax
+    static_inst: STUMAX
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1270
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  - CHAOSLSQFwd
+  - CHAOSL1DForward
+  - CHAOSAddrPath
+  - CHAOSMem
+  - CHAOSCache
+  evidence:
+  - claim: A64 解码树 return new STUMAX(...)；family=store 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1270
+- doc: Load-Store-STURB.md
+  mnemonic: STURB
+  tier: implemented
+  family: store
+  gem5:
+    decode_mnemonic: sturb
+    static_inst: STURB64_IMM
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1934
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  - CHAOSLSQFwd
+  - CHAOSL1DForward
+  - CHAOSAddrPath
+  - CHAOSMem
+  - CHAOSCache
+  evidence:
+  - claim: A64 解码树 return new STURB64_IMM(...)；family=store 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1934
+- doc: Load-Store-STURH.md
+  mnemonic: STURH
+  tier: implemented
+  family: store
+  gem5:
+    decode_mnemonic: sturh
+    static_inst: STURH64_IMM
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1952
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  - CHAOSLSQFwd
+  - CHAOSL1DForward
+  - CHAOSAddrPath
+  - CHAOSMem
+  - CHAOSCache
+  evidence:
+  - claim: A64 解码树 return new STURH64_IMM(...)；family=store 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1952
+- doc: Load-Store-STXP.md
+  mnemonic: STXP
+  tier: implemented
+  family: exclusive
+  gem5:
+    decode_mnemonic: stxp
+    static_inst: STXPW64
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1424
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  - CHAOSLSQFwd
+  - CHAOSL1DForward
+  - CHAOSAddrPath
+  - CHAOSMem
+  - CHAOSCache
+  - CHAOSExMon
+  evidence:
+  - claim: A64 解码树 return new STXPW64(...)；family=exclusive 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1424
+- doc: Load-Store-STXR.md
+  mnemonic: STXR
+  tier: implemented
+  family: exclusive
+  gem5:
+    decode_mnemonic: stxr
+    static_inst: STXRW64
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1398
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  - CHAOSLSQFwd
+  - CHAOSL1DForward
+  - CHAOSAddrPath
+  - CHAOSMem
+  - CHAOSCache
+  - CHAOSExMon
+  evidence:
+  - claim: A64 解码树 return new STXRW64(...)；family=exclusive 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1398
+- doc: Load-Store-STXRB.md
+  mnemonic: STXRB
+  tier: implemented
+  family: exclusive
+  gem5:
+    decode_mnemonic: stxrb
+    static_inst: STXRB64
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1394
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  - CHAOSLSQFwd
+  - CHAOSL1DForward
+  - CHAOSAddrPath
+  - CHAOSMem
+  - CHAOSCache
+  - CHAOSExMon
+  evidence:
+  - claim: A64 解码树 return new STXRB64(...)；family=exclusive 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1394
+- doc: Load-Store-STXRH.md
+  mnemonic: STXRH
+  tier: implemented
+  family: exclusive
+  gem5:
+    decode_mnemonic: stxrh
+    static_inst: STXRH64
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1396
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  - CHAOSLSQFwd
+  - CHAOSL1DForward
+  - CHAOSAddrPath
+  - CHAOSMem
+  - CHAOSCache
+  - CHAOSExMon
+  evidence:
+  - claim: A64 解码树 return new STXRH64(...)；family=exclusive 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1396
+- doc: Load-Store-STZ2G.md
+  mnemonic: STZ2G
+  tier: unimplemented
+  behavior: absent
+  evidence:
+  - claim: A64 解码树无匹配（scan_tiers 候选为空：生成代码无此助记符类）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:3820
+- doc: Load-Store-STZG.md
+  mnemonic: STZG
+  tier: unimplemented
+  behavior: absent
+  evidence:
+  - claim: A64 解码树无匹配（scan_tiers 候选为空：生成代码无此助记符类）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:3820
+- doc: Load-Store-STZGM.md
+  mnemonic: STZGM
+  tier: unimplemented
+  behavior: absent
+  evidence:
+  - claim: A64 解码树无匹配（scan_tiers 候选为空：生成代码无此助记符类）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:3820

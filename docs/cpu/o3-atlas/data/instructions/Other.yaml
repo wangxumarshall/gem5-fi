@@ -1,0 +1,967 @@
+- doc: Other-AXFLAG.md
+  mnemonic: AXFLAG
+  tier: implemented
+  family: flag
+  gem5:
+    decode_mnemonic: axflag
+    static_inst: Axflag
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:498
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  evidence:
+  - claim: A64 解码树 return new Axflag(...)；family=flag 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:498
+- doc: Other-BC_cond.md
+  mnemonic: BC.cond
+  tier: unimplemented
+  behavior: absent
+  evidence:
+  - claim: A64 解码树无匹配（scan_tiers 候选为空：生成代码无此助记符类）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:3820
+- doc: Other-BFXIL.md
+  mnemonic: BFXIL
+  tier: implemented
+  family: bitfield
+  gem5:
+    decode_mnemonic: bfm
+    static_inst: Bfm64
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:181
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  evidence:
+  - claim: A64 解码树 return new Bfm64(...)；family=bitfield 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:181
+- doc: Other-CFINV.md
+  mnemonic: CFINV
+  tier: implemented
+  family: flag
+  gem5:
+    decode_mnemonic: cfinv
+    static_inst: Cfinv
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:492
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  evidence:
+  - claim: A64 解码树 return new Cfinv(...)；family=flag 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:492
+- doc: Other-CFP.md
+  mnemonic: CFP
+  tier: unimplemented
+  behavior: absent
+  evidence:
+  - claim: A64 解码树无匹配（scan_tiers 候选为空：生成代码无此助记符类）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:3820
+- doc: Other-CLREX.md
+  mnemonic: CLREX
+  tier: implemented
+  family: hint
+  gem5:
+    decode_mnemonic: clrex
+    static_inst: Clrex64
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:253
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  evidence:
+  - claim: A64 解码树 return new Clrex64(...)；family=hint 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:253
+- doc: Other-CPP.md
+  mnemonic: CPP
+  tier: unimplemented
+  behavior: absent
+  evidence:
+  - claim: A64 解码树无匹配（scan_tiers 候选为空：生成代码无此助记符类）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:3820
+- doc: Other-CPYFPN_CPYFMN_CPYFEN.md
+  mnemonic: CPYFPN, CPYFMN, CPYFEN
+  tier: unimplemented
+  behavior: absent
+  evidence:
+  - claim: A64 解码树无匹配（scan_tiers 候选为空：生成代码无此助记符类）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:3820
+- doc: Other-CPYFPRN_CPYFMRN_CPYFERN.md
+  mnemonic: CPYFPRN, CPYFMRN, CPYFERN
+  tier: unimplemented
+  behavior: absent
+  evidence:
+  - claim: A64 解码树无匹配（scan_tiers 候选为空：生成代码无此助记符类）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:3820
+- doc: Other-CPYFPRTN_CPYFMRTN_CPYFERTN.md
+  mnemonic: CPYFPRTN, CPYFMRTN, CPYFERTN
+  tier: unimplemented
+  behavior: absent
+  evidence:
+  - claim: A64 解码树无匹配（scan_tiers 候选为空：生成代码无此助记符类）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:3820
+- doc: Other-CPYFPRTRN_CPYFMRTRN_CPYFERTRN.md
+  mnemonic: CPYFPRTRN, CPYFMRTRN, CPYFERTRN
+  tier: unimplemented
+  behavior: absent
+  evidence:
+  - claim: A64 解码树无匹配（scan_tiers 候选为空：生成代码无此助记符类）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:3820
+- doc: Other-CPYFPRTWN_CPYFMRTWN_CPYFERTWN.md
+  mnemonic: CPYFPRTWN, CPYFMRTWN, CPYFERTWN
+  tier: unimplemented
+  behavior: absent
+  evidence:
+  - claim: A64 解码树无匹配（scan_tiers 候选为空：生成代码无此助记符类）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:3820
+- doc: Other-CPYFPRT_CPYFMRT_CPYFERT.md
+  mnemonic: CPYFPRT, CPYFMRT, CPYFERT
+  tier: unimplemented
+  behavior: absent
+  evidence:
+  - claim: A64 解码树无匹配（scan_tiers 候选为空：生成代码无此助记符类）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:3820
+- doc: Other-CPYFPTN_CPYFMTN_CPYFETN.md
+  mnemonic: CPYFPTN, CPYFMTN, CPYFETN
+  tier: unimplemented
+  behavior: absent
+  evidence:
+  - claim: A64 解码树无匹配（scan_tiers 候选为空：生成代码无此助记符类）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:3820
+- doc: Other-CPYFPTRN_CPYFMTRN_CPYFETRN.md
+  mnemonic: CPYFPTRN, CPYFMTRN, CPYFETRN
+  tier: unimplemented
+  behavior: absent
+  evidence:
+  - claim: A64 解码树无匹配（scan_tiers 候选为空：生成代码无此助记符类）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:3820
+- doc: Other-CPYFPTWN_CPYFMTWN_CPYFETWN.md
+  mnemonic: CPYFPTWN, CPYFMTWN, CPYFETWN
+  tier: unimplemented
+  behavior: absent
+  evidence:
+  - claim: A64 解码树无匹配（scan_tiers 候选为空：生成代码无此助记符类）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:3820
+- doc: Other-CPYFPT_CPYFMT_CPYFET.md
+  mnemonic: CPYFPT, CPYFMT, CPYFET
+  tier: unimplemented
+  behavior: absent
+  evidence:
+  - claim: A64 解码树无匹配（scan_tiers 候选为空：生成代码无此助记符类）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:3820
+- doc: Other-CPYFPWN_CPYFMWN_CPYFEWN.md
+  mnemonic: CPYFPWN, CPYFMWN, CPYFEWN
+  tier: unimplemented
+  behavior: absent
+  evidence:
+  - claim: A64 解码树无匹配（scan_tiers 候选为空：生成代码无此助记符类）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:3820
+- doc: Other-CPYFPWTN_CPYFMWTN_CPYFEWTN.md
+  mnemonic: CPYFPWTN, CPYFMWTN, CPYFEWTN
+  tier: unimplemented
+  behavior: absent
+  evidence:
+  - claim: A64 解码树无匹配（scan_tiers 候选为空：生成代码无此助记符类）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:3820
+- doc: Other-CPYFPWTWN_CPYFMWTWN_CPYFEWTWN.md
+  mnemonic: CPYFPWTWN, CPYFMWTWN, CPYFEWTWN
+  tier: unimplemented
+  behavior: absent
+  evidence:
+  - claim: A64 解码树无匹配（scan_tiers 候选为空：生成代码无此助记符类）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:3820
+- doc: Other-CPYFPWT_CPYFMWT_CPYFEWT.md
+  mnemonic: CPYFPWT, CPYFMWT, CPYFEWT
+  tier: unimplemented
+  behavior: absent
+  evidence:
+  - claim: A64 解码树无匹配（scan_tiers 候选为空：生成代码无此助记符类）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:3820
+- doc: Other-CPYFP__CPYFM_CPYFE.md
+  mnemonic: CPYFP , CPYFM, CPYFE
+  tier: unimplemented
+  behavior: absent
+  evidence:
+  - claim: A64 解码树无匹配（scan_tiers 候选为空：生成代码无此助记符类）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:3820
+- doc: Other-CPYPN_CPYMN_CPYEN.md
+  mnemonic: CPYPN, CPYMN, CPYEN
+  tier: unimplemented
+  behavior: absent
+  evidence:
+  - claim: A64 解码树无匹配（scan_tiers 候选为空：生成代码无此助记符类）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:3820
+- doc: Other-CPYPRN_CPYMRN_CPYERN.md
+  mnemonic: CPYPRN, CPYMRN, CPYERN
+  tier: unimplemented
+  behavior: absent
+  evidence:
+  - claim: A64 解码树无匹配（scan_tiers 候选为空：生成代码无此助记符类）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:3820
+- doc: Other-CPYPRTN_CPYMRTN_CPYERTN.md
+  mnemonic: CPYPRTN, CPYMRTN, CPYERTN
+  tier: unimplemented
+  behavior: absent
+  evidence:
+  - claim: A64 解码树无匹配（scan_tiers 候选为空：生成代码无此助记符类）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:3820
+- doc: Other-CPYPRTRN_CPYMRTRN_CPYERTRN.md
+  mnemonic: CPYPRTRN, CPYMRTRN, CPYERTRN
+  tier: unimplemented
+  behavior: absent
+  evidence:
+  - claim: A64 解码树无匹配（scan_tiers 候选为空：生成代码无此助记符类）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:3820
+- doc: Other-CPYPRTWN_CPYMRTWN_CPYERTWN.md
+  mnemonic: CPYPRTWN, CPYMRTWN, CPYERTWN
+  tier: unimplemented
+  behavior: absent
+  evidence:
+  - claim: A64 解码树无匹配（scan_tiers 候选为空：生成代码无此助记符类）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:3820
+- doc: Other-CPYPRT_CPYMRT_CPYERT.md
+  mnemonic: CPYPRT, CPYMRT, CPYERT
+  tier: unimplemented
+  behavior: absent
+  evidence:
+  - claim: A64 解码树无匹配（scan_tiers 候选为空：生成代码无此助记符类）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:3820
+- doc: Other-CPYPTN_CPYMTN_CPYETN.md
+  mnemonic: CPYPTN, CPYMTN, CPYETN
+  tier: unimplemented
+  behavior: absent
+  evidence:
+  - claim: A64 解码树无匹配（scan_tiers 候选为空：生成代码无此助记符类）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:3820
+- doc: Other-CPYPTRN_CPYMTRN_CPYETRN.md
+  mnemonic: CPYPTRN, CPYMTRN, CPYETRN
+  tier: unimplemented
+  behavior: absent
+  evidence:
+  - claim: A64 解码树无匹配（scan_tiers 候选为空：生成代码无此助记符类）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:3820
+- doc: Other-CPYPTWN_CPYMTWN_CPYETWN.md
+  mnemonic: CPYPTWN, CPYMTWN, CPYETWN
+  tier: unimplemented
+  behavior: absent
+  evidence:
+  - claim: A64 解码树无匹配（scan_tiers 候选为空：生成代码无此助记符类）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:3820
+- doc: Other-CPYPT_CPYMT_CPYET.md
+  mnemonic: CPYPT, CPYMT, CPYET
+  tier: unimplemented
+  behavior: absent
+  evidence:
+  - claim: A64 解码树无匹配（scan_tiers 候选为空：生成代码无此助记符类）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:3820
+- doc: Other-CPYPWN_CPYMWN_CPYEWN.md
+  mnemonic: CPYPWN, CPYMWN, CPYEWN
+  tier: unimplemented
+  behavior: absent
+  evidence:
+  - claim: A64 解码树无匹配（scan_tiers 候选为空：生成代码无此助记符类）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:3820
+- doc: Other-CPYPWTN_CPYMWTN_CPYEWTN.md
+  mnemonic: CPYPWTN, CPYMWTN, CPYEWTN
+  tier: unimplemented
+  behavior: absent
+  evidence:
+  - claim: A64 解码树无匹配（scan_tiers 候选为空：生成代码无此助记符类）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:3820
+- doc: Other-CPYPWTRN_CPYMWTRN_CPYEWTRN.md
+  mnemonic: CPYPWTRN, CPYMWTRN, CPYEWTRN
+  tier: unimplemented
+  behavior: absent
+  evidence:
+  - claim: A64 解码树无匹配（scan_tiers 候选为空：生成代码无此助记符类）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:3820
+- doc: Other-CPYPWTWN_CPYMWTWN_CPYEWTWN.md
+  mnemonic: CPYPWTWN, CPYMWTWN, CPYEWTWN
+  tier: unimplemented
+  behavior: absent
+  evidence:
+  - claim: A64 解码树无匹配（scan_tiers 候选为空：生成代码无此助记符类）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:3820
+- doc: Other-CPYPWT_CPYMWT_CPYEWT.md
+  mnemonic: CPYPWT, CPYMWT, CPYEWT
+  tier: unimplemented
+  behavior: absent
+  evidence:
+  - claim: A64 解码树无匹配（scan_tiers 候选为空：生成代码无此助记符类）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:3820
+- doc: Other-CPYP__CPYM_CPYE.md
+  mnemonic: CPYP , CPYM, CPYE
+  tier: unimplemented
+  behavior: absent
+  evidence:
+  - claim: A64 解码树无匹配（scan_tiers 候选为空：生成代码无此助记符类）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:3820
+- doc: Other-CSDB.md
+  mnemonic: CSDB
+  tier: unimplemented
+  behavior: warn-nop
+  evidence:
+  - claim: 解码为 WarnUnimplemented（"csdb"）——警告 + NOP 语义
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:579
+- doc: Other-CSET.md
+  mnemonic: CSET
+  tier: implemented
+  family: cond-select
+  gem5:
+    decode_mnemonic: csinc
+    static_inst: Csinc64
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2360
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  evidence:
+  - claim: A64 解码树 return new Csinc64(...)；family=cond-select 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2360
+- doc: Other-CSETM.md
+  mnemonic: CSETM
+  tier: implemented
+  family: cond-select
+  gem5:
+    decode_mnemonic: csinv
+    static_inst: Csinv64
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2362
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  evidence:
+  - claim: A64 解码树 return new Csinv64(...)；family=cond-select 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2362
+- doc: Other-DGH.md
+  mnemonic: DGH
+  tier: unimplemented
+  behavior: absent
+  evidence:
+  - claim: A64 解码树无匹配（scan_tiers 候选为空：生成代码无此助记符类）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:3820
+- doc: Other-DRPS.md
+  mnemonic: DRPS
+  tier: unimplemented
+  behavior: absent
+  evidence:
+  - claim: A64 解码树无匹配（scan_tiers 候选为空：生成代码无此助记符类）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:3820
+- doc: Other-DVP.md
+  mnemonic: DVP
+  tier: unimplemented
+  behavior: absent
+  evidence:
+  - claim: A64 解码树无匹配（scan_tiers 候选为空：生成代码无此助记符类）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:3820
+- doc: Other-ERET.md
+  mnemonic: ERET
+  tier: implemented
+  family: dataproc-1src
+  gem5:
+    decode_mnemonic: eret
+    static_inst: Eret64
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:776
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  evidence:
+  - claim: A64 解码树 return new Eret64(...)；family=dataproc-1src 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:776
+- doc: Other-ERETAA_ERETAB.md
+  mnemonic: ERETAA, ERETAB
+  tier: implemented
+  family: dataproc-1src
+  gem5:
+    decode_mnemonic: eretaa
+    static_inst: Eretaa
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:781
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  evidence:
+  - claim: A64 解码树 return new Eretaa(...)；family=dataproc-1src 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:781
+- doc: Other-ESB.md
+  mnemonic: ESB
+  tier: unimplemented
+  behavior: warn-nop
+  evidence:
+  - claim: 解码为 WarnUnimplemented（"esb"）——警告 + NOP 语义
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:570
+- doc: Other-GMI.md
+  mnemonic: GMI
+  tier: unimplemented
+  behavior: absent
+  evidence:
+  - claim: A64 解码树无匹配（scan_tiers 候选为空：生成代码无此助记符类）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:3820
+- doc: Other-IRG.md
+  mnemonic: IRG
+  tier: unimplemented
+  behavior: absent
+  evidence:
+  - claim: A64 解码树无匹配（scan_tiers 候选为空：生成代码无此助记符类）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:3820
+- doc: Other-Internal_version_only.md
+  mnemonic: Internal version only
+  tier: unimplemented
+  behavior: absent
+  evidence:
+  - claim: A64 解码树无匹配（scan_tiers 候选为空：生成代码无此助记符类）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:3820
+- doc: Other-MNEG.md
+  mnemonic: MNEG
+  tier: implemented
+  family: mul
+  gem5:
+    decode_mnemonic: msub
+    static_inst: Msub64
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2594
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  evidence:
+  - claim: A64 解码树 return new Msub64(...)；family=mul 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2594
+- doc: Other-NGC.md
+  mnemonic: NGC
+  tier: implemented
+  family: dataproc-shifted-reg
+  gem5:
+    decode_mnemonic: sbc
+    static_inst: SbcXSReg
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2279
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  evidence:
+  - claim: A64 解码树 return new SbcXSReg(...)；family=dataproc-shifted-reg 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2279
+- doc: Other-NGCS.md
+  mnemonic: NGCS
+  tier: implemented
+  family: dataproc-shifted-reg
+  gem5:
+    decode_mnemonic: sbcs
+    static_inst: SbcXSRegCc
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2281
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  evidence:
+  - claim: A64 解码树 return new SbcXSRegCc(...)；family=dataproc-shifted-reg 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2281
+- doc: Other-PSB_CSYNC.md
+  mnemonic: PSB CSYNC
+  tier: unimplemented
+  behavior: warn-nop
+  evidence:
+  - claim: 解码为 WarnUnimplemented（"psb csync"）——警告 + NOP 语义
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:573
+- doc: Other-PSSBB.md
+  mnemonic: PSSBB
+  tier: unimplemented
+  behavior: absent
+  evidence:
+  - claim: A64 解码树无匹配（scan_tiers 候选为空：生成代码无此助记符类）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:3820
+- doc: Other-RMIF.md
+  mnemonic: RMIF
+  tier: implemented
+  family: flag
+  gem5:
+    decode_mnemonic: rmif
+    static_inst: Rmif
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2293
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  evidence:
+  - claim: A64 解码树 return new Rmif(...)；family=flag 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2293
+- doc: Other-SB.md
+  mnemonic: SB
+  tier: unimplemented
+  behavior: absent
+  evidence:
+  - claim: A64 解码树无匹配（scan_tiers 候选为空：生成代码无此助记符类）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:3820
+- doc: Other-SBFIZ.md
+  mnemonic: SBFIZ
+  tier: implemented
+  family: bitfield
+  gem5:
+    decode_mnemonic: sbfm
+    static_inst: Sbfm64
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:179
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  evidence:
+  - claim: A64 解码树 return new Sbfm64(...)；family=bitfield 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:179
+- doc: Other-SETF8_SETF16.md
+  mnemonic: SETF8, SETF16
+  tier: implemented
+  family: dataproc-1src
+  gem5:
+    decode_mnemonic: setf8
+    static_inst: Setf8
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2304
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  evidence:
+  - claim: A64 解码树 return new Setf8(...)；family=dataproc-1src 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2304
+- doc: Other-SETGPN_SETGMN_SETGEN.md
+  mnemonic: SETGPN, SETGMN, SETGEN
+  tier: unimplemented
+  behavior: absent
+  evidence:
+  - claim: A64 解码树无匹配（scan_tiers 候选为空：生成代码无此助记符类）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:3820
+- doc: Other-SETGPTN_SETGMTN_SETGETN.md
+  mnemonic: SETGPTN, SETGMTN, SETGETN
+  tier: unimplemented
+  behavior: absent
+  evidence:
+  - claim: A64 解码树无匹配（scan_tiers 候选为空：生成代码无此助记符类）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:3820
+- doc: Other-SETGPT_SETGMT_SETGET.md
+  mnemonic: SETGPT, SETGMT, SETGET
+  tier: unimplemented
+  behavior: absent
+  evidence:
+  - claim: A64 解码树无匹配（scan_tiers 候选为空：生成代码无此助记符类）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:3820
+- doc: Other-SETGP__SETGM_SETGE.md
+  mnemonic: SETGP , SETGM, SETGE
+  tier: unimplemented
+  behavior: absent
+  evidence:
+  - claim: A64 解码树无匹配（scan_tiers 候选为空：生成代码无此助记符类）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:3820
+- doc: Other-SETPN_SETMN_SETEN.md
+  mnemonic: SETPN, SETMN, SETEN
+  tier: unimplemented
+  behavior: absent
+  evidence:
+  - claim: A64 解码树无匹配（scan_tiers 候选为空：生成代码无此助记符类）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:3820
+- doc: Other-SETPTN_SETMTN_SETETN.md
+  mnemonic: SETPTN, SETMTN, SETETN
+  tier: unimplemented
+  behavior: absent
+  evidence:
+  - claim: A64 解码树无匹配（scan_tiers 候选为空：生成代码无此助记符类）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:3820
+- doc: Other-SETPT_SETMT_SETET.md
+  mnemonic: SETPT, SETMT, SETET
+  tier: unimplemented
+  behavior: absent
+  evidence:
+  - claim: A64 解码树无匹配（scan_tiers 候选为空：生成代码无此助记符类）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:3820
+- doc: Other-SETP__SETM_SETE.md
+  mnemonic: SETP , SETM, SETE
+  tier: unimplemented
+  behavior: absent
+  evidence:
+  - claim: A64 解码树无匹配（scan_tiers 候选为空：生成代码无此助记符类）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:3820
+- doc: Other-SMNEGL.md
+  mnemonic: SMNEGL
+  tier: implemented
+  family: mul
+  gem5:
+    decode_mnemonic: smsubl
+    static_inst: Smsubl64
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2599
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  evidence:
+  - claim: A64 解码树 return new Smsubl64(...)；family=mul 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2599
+- doc: Other-SMSUBL.md
+  mnemonic: SMSUBL
+  tier: implemented
+  family: mul
+  gem5:
+    decode_mnemonic: smsubl
+    static_inst: Smsubl64
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2599
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  evidence:
+  - claim: A64 解码树 return new Smsubl64(...)；family=mul 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2599
+- doc: Other-SSBB.md
+  mnemonic: SSBB
+  tier: unimplemented
+  behavior: absent
+  evidence:
+  - claim: A64 解码树无匹配（scan_tiers 候选为空：生成代码无此助记符类）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:3820
+- doc: Other-SXTB.md
+  mnemonic: SXTB
+  tier: implemented
+  family: extend
+  gem5:
+    decode_mnemonic: sbfm
+    static_inst: Sbfm64
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:179
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  evidence:
+  - claim: A64 解码树 return new Sbfm64(...)；family=extend 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:179
+- doc: Other-SXTH.md
+  mnemonic: SXTH
+  tier: implemented
+  family: extend
+  gem5:
+    decode_mnemonic: sbfm
+    static_inst: Sbfm64
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:179
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  evidence:
+  - claim: A64 解码树 return new Sbfm64(...)；family=extend 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:179
+- doc: Other-SXTW.md
+  mnemonic: SXTW
+  tier: implemented
+  family: extend
+  gem5:
+    decode_mnemonic: sbfm
+    static_inst: Sbfm64
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:179
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  evidence:
+  - claim: A64 解码树 return new Sbfm64(...)；family=extend 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:179
+- doc: Other-TSB_CSYNC.md
+  mnemonic: TSB CSYNC
+  tier: unimplemented
+  behavior: warn-nop
+  evidence:
+  - claim: 解码为 WarnUnimplemented（"tsb csync"）——警告 + NOP 语义
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:576
+- doc: Other-UBFIZ.md
+  mnemonic: UBFIZ
+  tier: implemented
+  family: bitfield
+  gem5:
+    decode_mnemonic: ubfm
+    static_inst: Ubfm64
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:183
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  evidence:
+  - claim: A64 解码树 return new Ubfm64(...)；family=bitfield 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:183
+- doc: Other-UDF.md
+  mnemonic: UDF
+  tier: unimplemented
+  behavior: absent
+  evidence:
+  - claim: A64 解码树无匹配（scan_tiers 候选为空：生成代码无此助记符类）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:3820
+- doc: Other-UMNEGL.md
+  mnemonic: UMNEGL
+  tier: implemented
+  family: mul
+  gem5:
+    decode_mnemonic: umsubl
+    static_inst: Umsubl64
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2608
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  evidence:
+  - claim: A64 解码树 return new Umsubl64(...)；family=mul 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2608
+- doc: Other-UMSUBL.md
+  mnemonic: UMSUBL
+  tier: implemented
+  family: mul
+  gem5:
+    decode_mnemonic: umsubl
+    static_inst: Umsubl64
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2608
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  evidence:
+  - claim: A64 解码树 return new Umsubl64(...)；family=mul 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2608
+- doc: Other-UXTB.md
+  mnemonic: UXTB
+  tier: implemented
+  family: extend
+  gem5:
+    decode_mnemonic: ubfm
+    static_inst: Ubfm64
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:183
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  evidence:
+  - claim: A64 解码树 return new Ubfm64(...)；family=extend 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:183
+- doc: Other-UXTH.md
+  mnemonic: UXTH
+  tier: implemented
+  family: extend
+  gem5:
+    decode_mnemonic: ubfm
+    static_inst: Ubfm64
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:183
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  evidence:
+  - claim: A64 解码树 return new Ubfm64(...)；family=extend 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:183
+- doc: Other-XAFLAG.md
+  mnemonic: XAFLAG
+  tier: implemented
+  family: flag
+  gem5:
+    decode_mnemonic: xaflag
+    static_inst: Xaflag
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:495
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  evidence:
+  - claim: A64 解码树 return new Xaflag(...)；family=flag 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:495

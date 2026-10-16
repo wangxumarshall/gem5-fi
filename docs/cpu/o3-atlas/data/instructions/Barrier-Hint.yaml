@@ -1,0 +1,332 @@
+- doc: Barrier-Hint-DMB.md
+  mnemonic: DMB
+  tier: implemented
+  family: barrier
+  gem5:
+    decode_mnemonic: dmb
+    static_inst: Dmb64
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:269
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  evidence:
+  - claim: A64 解码树 return new Dmb64(...)；family=barrier 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:269
+- doc: Barrier-Hint-DSB.md
+  mnemonic: DSB
+  tier: implemented
+  family: barrier
+  gem5:
+    decode_mnemonic: dsb
+    static_inst: Dsb64Local
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:243
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  evidence:
+  - claim: A64 解码树 return new Dsb64Local(...)；family=barrier 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:243
+- doc: Barrier-Hint-HINT.md
+  mnemonic: HINT
+  tier: unimplemented
+  behavior: absent
+  evidence:
+  - claim: A64 解码树无匹配（scan_tiers 候选为空：生成代码无此助记符类）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:3820
+- doc: Barrier-Hint-ISB.md
+  mnemonic: ISB
+  tier: implemented
+  family: barrier
+  gem5:
+    decode_mnemonic: isb
+    static_inst: Isb64
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:271
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  evidence:
+  - claim: A64 解码树 return new Isb64(...)；family=barrier 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:271
+- doc: Barrier-Hint-NOP.md
+  mnemonic: NOP
+  tier: implemented
+  family: hint
+  gem5:
+    decode_mnemonic: nop
+    static_inst: NopInst
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:536
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  evidence:
+  - claim: A64 解码树 return new NopInst(...)；family=hint 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:536
+- doc: Barrier-Hint-PRFM_immediate.md
+  mnemonic: PRFM (immediate)
+  tier: implemented
+  family: prefetch
+  gem5:
+    decode_mnemonic: prfm
+    static_inst: PRFM64_IMM
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1760
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  - CHAOSLSQFwd
+  - CHAOSL1DForward
+  - CHAOSAddrPath
+  - CHAOSMem
+  - CHAOSCache
+  evidence:
+  - claim: A64 解码树 return new PRFM64_IMM(...)；family=prefetch 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1760
+- doc: Barrier-Hint-PRFM_literal.md
+  mnemonic: PRFM (literal)
+  tier: implemented
+  family: prefetch
+  gem5:
+    decode_mnemonic: prfm
+    static_inst: PRFM64_LIT
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1641
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  - CHAOSLSQFwd
+  - CHAOSL1DForward
+  - CHAOSAddrPath
+  - CHAOSMem
+  - CHAOSCache
+  evidence:
+  - claim: A64 解码树 return new PRFM64_LIT(...)；family=prefetch 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1641
+- doc: Barrier-Hint-PRFM_register.md
+  mnemonic: PRFM (register)
+  tier: implemented
+  family: prefetch
+  gem5:
+    decode_mnemonic: prfm
+    static_inst: PRFM64_IMM
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1760
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  - CHAOSLSQFwd
+  - CHAOSL1DForward
+  - CHAOSAddrPath
+  - CHAOSMem
+  - CHAOSCache
+  evidence:
+  - claim: A64 解码树 return new PRFM64_IMM(...)；family=prefetch 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1760
+- doc: Barrier-Hint-PRFUM.md
+  mnemonic: PRFUM
+  tier: implemented
+  family: prefetch
+  gem5:
+    decode_mnemonic: prfum
+    static_inst: PRFUM64_IMM
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1978
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  - CHAOSLSQFwd
+  - CHAOSL1DForward
+  - CHAOSAddrPath
+  - CHAOSMem
+  - CHAOSCache
+  evidence:
+  - claim: A64 解码树 return new PRFUM64_IMM(...)；family=prefetch 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1978
+- doc: Barrier-Hint-SEV.md
+  mnemonic: SEV
+  tier: implemented
+  family: hint
+  gem5:
+    decode_mnemonic: sev
+    static_inst: SevInst
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:544
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  evidence:
+  - claim: A64 解码树 return new SevInst(...)；family=hint 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:544
+- doc: Barrier-Hint-SEVL.md
+  mnemonic: SEVL
+  tier: implemented
+  family: hint
+  gem5:
+    decode_mnemonic: sevl
+    static_inst: SevlInst
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:546
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  evidence:
+  - claim: A64 解码树 return new SevlInst(...)；family=hint 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:546
+- doc: Barrier-Hint-WFE.md
+  mnemonic: WFE
+  tier: implemented
+  family: hint
+  gem5:
+    decode_mnemonic: wfe
+    static_inst: WfeInst
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:540
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  evidence:
+  - claim: A64 解码树 return new WfeInst(...)；family=hint 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:540
+- doc: Barrier-Hint-WFET.md
+  mnemonic: WFET
+  tier: unimplemented
+  behavior: absent
+  evidence:
+  - claim: A64 解码树无匹配（scan_tiers 候选为空：生成代码无此助记符类）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:3820
+- doc: Barrier-Hint-WFI.md
+  mnemonic: WFI
+  tier: implemented
+  family: hint
+  gem5:
+    decode_mnemonic: wfi
+    static_inst: WfiInst
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:542
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  evidence:
+  - claim: A64 解码树 return new WfiInst(...)；family=hint 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:542
+- doc: Barrier-Hint-WFIT.md
+  mnemonic: WFIT
+  tier: unimplemented
+  behavior: absent
+  evidence:
+  - claim: A64 解码树无匹配（scan_tiers 候选为空：生成代码无此助记符类）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:3820
+- doc: Barrier-Hint-YIELD.md
+  mnemonic: YIELD
+  tier: implemented
+  family: hint
+  gem5:
+    decode_mnemonic: yield
+    static_inst: YieldInst
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:538
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  evidence:
+  - claim: A64 解码树 return new YieldInst(...)；family=hint 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:538
