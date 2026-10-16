@@ -97,6 +97,68 @@
         "label": "Skill: superpowers:writing-plans",
         "default_collapsed": true
       }
+    },
+    {
+      "id": "claude-skill-call_cc7bbd8b5dbf472890b020b8",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "superpowers:executing-plans"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "257961c04035",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 372,
+        "end": 373,
+        "entry_ids": [
+          "826d55a4-d424-462f-8e94-5e2f9846dad2"
+        ],
+        "tool_use_id": "call_cc7bbd8b5dbf472890b020b8"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "call_cc7bbd8b5dbf472890b020b8"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: superpowers:executing-plans",
+        "default_collapsed": true
+      }
+    },
+    {
+      "id": "claude-skill-call_037ec32b31ab42d4a3202d1e",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "superpowers:test-driven-development"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "257961c04035",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 392,
+        "end": 393,
+        "entry_ids": [
+          "9de5db4e-2493-484c-ae50-e8169f6358a7"
+        ],
+        "tool_use_id": "call_037ec32b31ab42d4a3202d1e"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "call_037ec32b31ab42d4a3202d1e"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: superpowers:test-driven-development",
+        "default_collapsed": true
+      }
     }
   ],
   "session_metrics": {
