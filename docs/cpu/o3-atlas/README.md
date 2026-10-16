@@ -10,7 +10,7 @@ spec：`docs/superpowers/specs/2026-10-16-armv8-isa-o3-microarch-atlas-design.md
 - `data/instructions/<category>.yaml` — 372 条指令记录（单一事实源）
 - `pages/` — 生成的每指令一页（与 armv8-isa 文件名 1:1 互链）
 - `index/` — 生成的分类索引
-- `diagrams/` — 生成的总链路图与注入器命中矩阵（Phase 3）
+- `diagrams/` — [O3 总链路图](diagrams/o3-pipeline.svg)（mermaid/dot/svg 三格式，含 19 个 CHAOS 注入器挂载点）与 [指令×注入器命中矩阵](diagrams/injector-matrix.md)（372×19）
 
 ## 工具
 
