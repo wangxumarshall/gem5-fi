@@ -23,26 +23,26 @@ python3 -m tools.o3_atlas.lsp_query def CHAOS/gem5/src/cpu/o3/fetch.cc:1059:8  #
 python3 -m pytest tools/o3_atlas/tests -q                # 工具链测试
 ```
 
-## 分账表（2026-10-16，gen_stubs 生成，validate 全绿）
+## 分账表（2026-10-16 终版，gen_stubs 生成，validate 全绿）
 
-| category | implemented | macro-op | fs-only | unimplemented(absent) | unimplemented(warn-nop) | total |
-|---|---|---|---|---|---|---|
-| Arithmetic | 29 | 0 | 0 | 4 | 0 | 33 |
-| Atomic | 7 | 0 | 0 | 0 | 0 | 7 |
-| Barrier-Hint | 13 | 0 | 0 | 3 | 0 | 16 |
-| Bit-Manipulation | 21 | 0 | 0 | 4 | 0 | 25 |
-| Branch | 11 | 0 | 0 | 2 | 0 | 13 |
-| Compare | 10 | 0 | 0 | 1 | 0 | 11 |
-| Conditional-Select | 7 | 0 | 0 | 0 | 0 | 7 |
-| Count | 2 | 0 | 0 | 0 | 0 | 2 |
-| Cryptographic | 2 | 0 | 0 | 0 | 0 | 2 |
-| Load-Store | 97 | 5 | 0 | 21 | 0 | 123 |
-| Logical | 22 | 0 | 0 | 1 | 0 | 23 |
-| Other | 25 | 0 | 0 | 52 | 4 | 81 |
-| PC-Relative | 2 | 0 | 0 | 0 | 0 | 2 |
-| Pointer-Authentication | 10 | 0 | 0 | 0 | 1 | 11 |
-| System | 7 | 0 | 3 | 6 | 0 | 16 |
-| **合计** | **265** | **5** | **3** | **94** | **5** | **372** |
+| category | implemented | macro-op | fs-only | unimpl(absent) | unimpl(warn-nop) | unimpl(illegal-fault) | total |
+|---|---|---|---|---|---|---|---|
+| Arithmetic | 29 | 0 | 0 | 4 | 0 | 0 | 33 |
+| Atomic | 7 | 0 | 0 | 0 | 0 | 0 | 7 |
+| Barrier-Hint | 13 | 0 | 0 | 2 | 1 | 0 | 16 |
+| Bit-Manipulation | 24 | 0 | 0 | 1 | 0 | 0 | 25 |
+| Branch | 11 | 0 | 0 | 2 | 0 | 0 | 13 |
+| Compare | 10 | 0 | 0 | 1 | 0 | 0 | 11 |
+| Conditional-Select | 7 | 0 | 0 | 0 | 0 | 0 | 7 |
+| Count | 2 | 0 | 0 | 0 | 0 | 0 | 2 |
+| Cryptographic | 2 | 0 | 0 | 0 | 0 | 0 | 2 |
+| Load-Store | 97 | 5 | 0 | 21 | 0 | 0 | 123 |
+| Logical | 23 | 0 | 0 | 0 | 0 | 0 | 23 |
+| Other | 27 | 0 | 0 | 49 | 4 | 1 | 81 |
+| PC-Relative | 2 | 0 | 0 | 0 | 0 | 0 | 2 |
+| Pointer-Authentication | 10 | 0 | 0 | 0 | 1 | 0 | 11 |
+| System | 7 | 0 | 3 | 6 | 0 | 0 | 16 |
+| **合计** | **271** | **5** | **3** | **86** | **6** | **1** | **372** |
 
 未实现主体 = MTE（CPY*/SETG*/STG* 等，gem5 v25 源码零匹配）、SYS/SYSL（落
 Unknown64）、BTI/ESB/PSB CSYNC/TSB CSYNC/CSDB（WarnUnimplemented 警告+nop）。

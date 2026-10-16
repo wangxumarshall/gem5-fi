@@ -52,10 +52,10 @@
 - doc: Barrier-Hint-HINT.md
   mnemonic: HINT
   tier: unimplemented
-  behavior: absent
+  behavior: warn-nop
   evidence:
-  - claim: A64 解码树无匹配（scan_tiers 候选为空：生成代码无此助记符类）
-    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:3820
+  - claim: decodeHints 未分配兜底：return new WarnUnimplemented("unallocated_hint")
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:619
 - doc: Barrier-Hint-ISB.md
   mnemonic: ISB
   tier: implemented

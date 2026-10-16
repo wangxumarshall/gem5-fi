@@ -435,11 +435,29 @@
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:167
 - doc: Logical-MVN.md
   mnemonic: MVN
-  tier: unimplemented
-  behavior: absent
+  tier: implemented
+  family: logical-reg
+  gem5:
+    decode_mnemonic: orn
+    static_inst: OrnXSReg
+    variants:
+    - OrnXSReg
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2191
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
   evidence:
-  - claim: A64 解码树无匹配（scan_tiers 候选为空：生成代码无此助记符类）
-    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:3820
+  - claim: A64 解码树 return new OrnXSReg(...)；family=logical-reg 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2191
 - doc: Logical-ORN_shifted_register.md
   mnemonic: ORN (shifted register)
   tier: implemented

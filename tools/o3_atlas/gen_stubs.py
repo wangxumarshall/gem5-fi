@@ -100,6 +100,8 @@ _ALIAS_FAMILY = {
     "LSR (register)": "dataproc-2src", "ROR (register)": "dataproc-2src",
     "BFI": "bitfield", "BFXIL": "bitfield",
     "SBFIZ": "bitfield", "UBFIZ": "bitfield",
+    "BFC": "bitfield", "SBFX": "bitfield", "UBFX": "bitfield",
+    "MVN": "logical-reg", "SSBB": "barrier", "PSSBB": "barrier",
     "NGC": "dataproc-shifted-reg", "NGCS": "dataproc-shifted-reg",
     "NEGS": "dataproc-imm",
     "MNEG": "mul", "SMNEGL": "mul", "UMNEGL": "mul",
@@ -202,6 +204,18 @@ def family_for(title, category):
     return "dataproc-1src"
 
 
+# absent 判定的行为精化（实证/源码兜底依据）；键 = 标题 base，值 = (behavior, claim, anchor)
+_ABSENT_BEHAVIOR = {
+    "SB": ("illegal-fault",
+           "实证：.inst 0xd50330ff (SB) 经 gem5 O3 解码为 Unknown64，执行 panic"
+           "（faults.cc:784 Attempted to execute unknown instruction）",
+           "CHAOS/gem5/src/arch/arm/faults.cc:784"),
+    "HINT": ("warn-nop",
+             'decodeHints 未分配兜底：return new WarnUnimplemented("unallocated_hint")',
+             "CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:619"),
+}
+
+
 def generate_all():
     families = yaml.safe_load(FAMILIES_YAML.read_text(encoding="utf-8"))
     sites = _decode_sites()
@@ -264,12 +278,15 @@ def generate_all():
                     "claim": f"解码为 WarnUnimplemented（\"{mnem}\"）——警告 + NOP 语义",
                     "anchor": f"{DECODER_ANCHOR}:{warn_nop[mnem]}"}]})
         else:
+            behavior = "absent"
+            claim = ("A64 解码树无匹配（scan_tiers 候选为空："
+                     "生成代码无此助记符类）")
+            anchor = f"{DECODER_ANCHOR}:{DECODE_ROOT_LINE}"
+            if base_raw in _ABSENT_BEHAVIOR:
+                behavior, claim, anchor = _ABSENT_BEHAVIOR[base_raw]
             rec.update({
-                "tier": "unimplemented", "behavior": "absent",
-                "evidence": [{
-                    "claim": "A64 解码树无匹配（scan_tiers 候选为空："
-                             "生成代码无此助记符类）",
-                    "anchor": f"{DECODER_ANCHOR}:{DECODE_ROOT_LINE}"}]})
+                "tier": "unimplemented", "behavior": behavior,
+                "evidence": [{"claim": claim, "anchor": anchor}]})
         recs.append(rec)
     recs.sort(key=lambda r: r["doc"])
     return recs, families
@@ -287,9 +304,9 @@ def main():
             yaml.safe_dump(rows, allow_unicode=True, sort_keys=False, width=100),
             encoding="utf-8")
     # 分账表（tier × category）
-    print("| category | implemented | macro-op | fs-only | unimplemented(absent) |"
-          " unimplemented(warn-nop) | total |")
-    print("|---|---|---|---|---|---|---|")
+    print("| category | implemented | macro-op | fs-only | unimpl(absent) |"
+          " unimpl(warn-nop) | unimpl(illegal-fault) | total |")
+    print("|---|---|---|---|---|---|---|---|")
     grand = Counter()
     for cat in sorted(by_cat):
         c = Counter(r["tier"] + ("(" + r.get("behavior", "") + ")"
@@ -298,10 +315,11 @@ def main():
         grand.update(c)
         print(f"| {cat} | {c['implemented']} | {c['macro-op']} | {c['fs-only']} "
               f"| {c['unimplemented(absent)']} | {c['unimplemented(warn-nop)']} "
-              f"| {len(by_cat[cat])} |")
+              f"| {c['unimplemented(illegal-fault)']} | {len(by_cat[cat])} |")
     print(f"| **合计** | {grand['implemented']} | {grand['macro-op']} "
           f"| {grand['fs-only']} | {grand['unimplemented(absent)']} "
-          f"| {grand['unimplemented(warn-nop)']} | {sum(grand.values())} |")
+          f"| {grand['unimplemented(warn-nop)']} "
+          f"| {grand['unimplemented(illegal-fault)']} | {sum(grand.values())} |")
 
 
 if __name__ == "__main__":

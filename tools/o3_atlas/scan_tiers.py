@@ -45,6 +45,8 @@ ALIASES = {
     "ASR (register)": "ASRV", "LSL (register)": "LSLV",
     "LSR (register)": "LSRV", "ROR (register)": "RORV",
     "BFI": "BFM", "BFXIL": "BFM", "SBFIZ": "SBFM", "UBFIZ": "UBFM",
+    "BFC": "BFM", "SBFX": "SBFM", "UBFX": "UBFM", "MVN": "ORN (shifted register)",
+    "SSBB": "DSB", "PSSBB": "DSB",
     "NGC": "SBC", "NGCS": "SBCS", "NEGS": "SUBS (immediate)",
     "MNEG": "MSUB", "SMNEGL": "SMSUBL", "UMNEGL": "UMSUBL",
     "MUL": "MADD", "SMULL": "SMADDL", "UMULL": "UMADDL",

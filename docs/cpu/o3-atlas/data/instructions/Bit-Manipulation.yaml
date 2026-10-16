@@ -75,11 +75,29 @@
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2392
 - doc: Bit-Manipulation-BFC.md
   mnemonic: BFC
-  tier: unimplemented
-  behavior: absent
+  tier: implemented
+  family: bitfield
+  gem5:
+    decode_mnemonic: bfm
+    static_inst: Bfm64
+    variants:
+    - Bfm64
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:181
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
   evidence:
-  - claim: A64 解码树无匹配（scan_tiers 候选为空：生成代码无此助记符类）
-    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:3820
+  - claim: A64 解码树 return new Bfm64(...)；family=bitfield 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:181
 - doc: Bit-Manipulation-BFI.md
   mnemonic: BFI
   tier: implemented
@@ -514,11 +532,29 @@
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:179
 - doc: Bit-Manipulation-SBFX.md
   mnemonic: SBFX
-  tier: unimplemented
-  behavior: absent
+  tier: implemented
+  family: bitfield
+  gem5:
+    decode_mnemonic: sbfm
+    static_inst: Sbfm64
+    variants:
+    - Sbfm64
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:179
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
   evidence:
-  - claim: A64 解码树无匹配（scan_tiers 候选为空：生成代码无此助记符类）
-    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:3820
+  - claim: A64 解码树 return new Sbfm64(...)；family=bitfield 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:179
 - doc: Bit-Manipulation-UBFM.md
   mnemonic: UBFM
   tier: implemented
@@ -546,8 +582,26 @@
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:183
 - doc: Bit-Manipulation-UBFX.md
   mnemonic: UBFX
-  tier: unimplemented
-  behavior: absent
+  tier: implemented
+  family: bitfield
+  gem5:
+    decode_mnemonic: ubfm
+    static_inst: Ubfm64
+    variants:
+    - Ubfm64
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:183
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
   evidence:
-  - claim: A64 解码树无匹配（scan_tiers 候选为空：生成代码无此助记符类）
-    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:3820
+  - claim: A64 解码树 return new Ubfm64(...)；family=bitfield 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:183

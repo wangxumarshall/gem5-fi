@@ -576,11 +576,30 @@
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:573
 - doc: Other-PSSBB.md
   mnemonic: PSSBB
-  tier: unimplemented
-  behavior: absent
+  tier: implemented
+  family: barrier
+  gem5:
+    decode_mnemonic: dsb
+    static_inst: Dsb64Local
+    variants:
+    - Dsb64Local
+    - Dsb64Shareable
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:243
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
   evidence:
-  - claim: A64 解码树无匹配（scan_tiers 候选为空：生成代码无此助记符类）
-    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:3820
+  - claim: A64 解码树 return new Dsb64Local(...)；family=barrier 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:243
 - doc: Other-RMIF.md
   mnemonic: RMIF
   tier: implemented
@@ -609,10 +628,11 @@
 - doc: Other-SB.md
   mnemonic: SB
   tier: unimplemented
-  behavior: absent
+  behavior: illegal-fault
   evidence:
-  - claim: A64 解码树无匹配（scan_tiers 候选为空：生成代码无此助记符类）
-    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:3820
+  - claim: 实证：.inst 0xd50330ff (SB) 经 gem5 O3 解码为 Unknown64，执行 panic（faults.cc:784 Attempted to execute
+      unknown instruction）
+    anchor: CHAOS/gem5/src/arch/arm/faults.cc:784
 - doc: Other-SBFIZ.md
   mnemonic: SBFIZ
   tier: implemented
@@ -771,11 +791,30 @@
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2599
 - doc: Other-SSBB.md
   mnemonic: SSBB
-  tier: unimplemented
-  behavior: absent
+  tier: implemented
+  family: barrier
+  gem5:
+    decode_mnemonic: dsb
+    static_inst: Dsb64Local
+    variants:
+    - Dsb64Local
+    - Dsb64Shareable
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:243
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
   evidence:
-  - claim: A64 解码树无匹配（scan_tiers 候选为空：生成代码无此助记符类）
-    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:3820
+  - claim: A64 解码树 return new Dsb64Local(...)；family=barrier 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:243
 - doc: Other-SXTB.md
   mnemonic: SXTB
   tier: implemented
