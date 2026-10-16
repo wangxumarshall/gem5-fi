@@ -5,6 +5,8 @@
   gem5:
     decode_mnemonic: asrv
     static_inst: Asrv64
+    variants:
+    - Asrv64
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2392
   injectors:
@@ -28,6 +30,8 @@
   gem5:
     decode_mnemonic: sbfm
     static_inst: Sbfm64
+    variants:
+    - Sbfm64
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:179
   injectors:
@@ -51,6 +55,8 @@
   gem5:
     decode_mnemonic: asrv
     static_inst: Asrv64
+    variants:
+    - Asrv64
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2392
   injectors:
@@ -81,6 +87,8 @@
   gem5:
     decode_mnemonic: bfm
     static_inst: Bfm64
+    variants:
+    - Bfm64
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:181
   injectors:
@@ -104,6 +112,8 @@
   gem5:
     decode_mnemonic: bfm
     static_inst: Bfm64
+    variants:
+    - Bfm64
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:181
   injectors:
@@ -127,6 +137,8 @@
   gem5:
     decode_mnemonic: extr
     static_inst: Extr64
+    variants:
+    - Extr64
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:195
   injectors:
@@ -150,6 +162,8 @@
   gem5:
     decode_mnemonic: lslv
     static_inst: Lslv64
+    variants:
+    - Lslv64
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2388
   injectors:
@@ -173,6 +187,8 @@
   gem5:
     decode_mnemonic: ubfm
     static_inst: Ubfm64
+    variants:
+    - Ubfm64
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:183
   injectors:
@@ -196,6 +212,8 @@
   gem5:
     decode_mnemonic: lslv
     static_inst: Lslv64
+    variants:
+    - Lslv64
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2388
   injectors:
@@ -219,6 +237,8 @@
   gem5:
     decode_mnemonic: lsrv
     static_inst: Lsrv64
+    variants:
+    - Lsrv64
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2390
   injectors:
@@ -242,6 +262,8 @@
   gem5:
     decode_mnemonic: ubfm
     static_inst: Ubfm64
+    variants:
+    - Ubfm64
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:183
   injectors:
@@ -265,6 +287,8 @@
   gem5:
     decode_mnemonic: lsrv
     static_inst: Lsrv64
+    variants:
+    - Lsrv64
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2390
   injectors:
@@ -288,6 +312,8 @@
   gem5:
     decode_mnemonic: rbit
     static_inst: Rbit64
+    variants:
+    - Rbit64
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2517
   injectors:
@@ -311,6 +337,8 @@
   gem5:
     decode_mnemonic: rev
     static_inst: Rev64
+    variants:
+    - Rev64
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2522
   injectors:
@@ -334,6 +362,8 @@
   gem5:
     decode_mnemonic: rev16
     static_inst: Rev1664
+    variants:
+    - Rev1664
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2519
   injectors:
@@ -357,6 +387,8 @@
   gem5:
     decode_mnemonic: rev32
     static_inst: Rev3264
+    variants:
+    - Rev3264
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2524
   injectors:
@@ -387,6 +419,8 @@
   gem5:
     decode_mnemonic: rorv
     static_inst: Rorv64
+    variants:
+    - Rorv64
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2394
   injectors:
@@ -410,6 +444,8 @@
   gem5:
     decode_mnemonic: extr
     static_inst: Extr64
+    variants:
+    - Extr64
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:195
   injectors:
@@ -433,6 +469,8 @@
   gem5:
     decode_mnemonic: rorv
     static_inst: Rorv64
+    variants:
+    - Rorv64
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2394
   injectors:
@@ -456,6 +494,8 @@
   gem5:
     decode_mnemonic: sbfm
     static_inst: Sbfm64
+    variants:
+    - Sbfm64
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:179
   injectors:
@@ -486,6 +526,8 @@
   gem5:
     decode_mnemonic: ubfm
     static_inst: Ubfm64
+    variants:
+    - Ubfm64
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:183
   injectors:

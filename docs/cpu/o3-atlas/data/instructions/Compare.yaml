@@ -5,6 +5,9 @@
   gem5:
     decode_mnemonic: ccmn
     static_inst: CcmnImm64
+    variants:
+    - CcmnImm64
+    - CcmnReg64
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2331
   injectors:
@@ -28,6 +31,9 @@
   gem5:
     decode_mnemonic: ccmn
     static_inst: CcmnReg64
+    variants:
+    - CcmnImm64
+    - CcmnReg64
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2324
   injectors:
@@ -51,6 +57,9 @@
   gem5:
     decode_mnemonic: ccmp
     static_inst: CcmpImm64
+    variants:
+    - CcmpImm64
+    - CcmpReg64
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2333
   injectors:
@@ -74,6 +83,9 @@
   gem5:
     decode_mnemonic: ccmp
     static_inst: CcmpReg64
+    variants:
+    - CcmpImm64
+    - CcmpReg64
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2326
   injectors:
@@ -97,6 +109,10 @@
   gem5:
     decode_mnemonic: adds
     static_inst: AddXERegCc
+    variants:
+    - AddXERegCc
+    - AddXImmCc
+    - AddXSRegCc
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2250
   injectors:
@@ -120,6 +136,10 @@
   gem5:
     decode_mnemonic: adds
     static_inst: AddXImmCc
+    variants:
+    - AddXERegCc
+    - AddXImmCc
+    - AddXSRegCc
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:102
   injectors:
@@ -143,6 +163,10 @@
   gem5:
     decode_mnemonic: adds
     static_inst: AddXSRegCc
+    variants:
+    - AddXERegCc
+    - AddXImmCc
+    - AddXSRegCc
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2225
   injectors:
@@ -173,6 +197,10 @@
   gem5:
     decode_mnemonic: subs
     static_inst: SubXERegCc
+    variants:
+    - SubXERegCc
+    - SubXImmCc
+    - SubXSRegCc
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2254
   injectors:
@@ -196,6 +224,10 @@
   gem5:
     decode_mnemonic: subs
     static_inst: SubXImmCc
+    variants:
+    - SubXERegCc
+    - SubXImmCc
+    - SubXSRegCc
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:106
   injectors:
@@ -219,6 +251,10 @@
   gem5:
     decode_mnemonic: subs
     static_inst: SubXSRegCc
+    variants:
+    - SubXERegCc
+    - SubXImmCc
+    - SubXSRegCc
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2229
   injectors:

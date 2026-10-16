@@ -5,6 +5,8 @@
   gem5:
     decode_mnemonic: casb
     static_inst: CASB
+    variants:
+    - CASB
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1513
   injectors:
@@ -32,6 +34,8 @@
   gem5:
     decode_mnemonic: cash
     static_inst: CASH
+    variants:
+    - CASH
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1515
   injectors:
@@ -59,6 +63,9 @@
   gem5:
     decode_mnemonic: casp
     static_inst: CASP64
+    variants:
+    - CASP32
+    - CASP64
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1422
   injectors:
@@ -86,6 +93,9 @@
   gem5:
     decode_mnemonic: cas
     static_inst: CAS64
+    variants:
+    - CAS32
+    - CAS64
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1519
   injectors:
@@ -113,6 +123,8 @@
   gem5:
     decode_mnemonic: swpb
     static_inst: SWPB
+    variants:
+    - SWPB
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:835
   injectors:
@@ -140,6 +152,8 @@
   gem5:
     decode_mnemonic: swph
     static_inst: SWPH
+    variants:
+    - SWPH
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:859
   injectors:
@@ -167,6 +181,8 @@
   gem5:
     decode_mnemonic: swp
     static_inst: SWP
+    variants:
+    - SWP
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:883
   injectors:

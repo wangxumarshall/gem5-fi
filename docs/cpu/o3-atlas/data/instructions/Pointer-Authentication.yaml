@@ -5,6 +5,8 @@
   gem5:
     decode_mnemonic: autda
     static_inst: Autda
+    variants:
+    - Autda
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2444
   injectors:
@@ -28,6 +30,8 @@
   gem5:
     decode_mnemonic: autdb
     static_inst: Autdb
+    variants:
+    - Autdb
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2446
   injectors:
@@ -51,6 +55,8 @@
   gem5:
     decode_mnemonic: autia
     static_inst: Autia
+    variants:
+    - Autia
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2440
   injectors:
@@ -74,6 +80,8 @@
   gem5:
     decode_mnemonic: autib
     static_inst: Autib
+    variants:
+    - Autib
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2442
   injectors:
@@ -104,6 +112,8 @@
   gem5:
     decode_mnemonic: pacda
     static_inst: Pacda
+    variants:
+    - Pacda
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2436
   injectors:
@@ -127,6 +137,8 @@
   gem5:
     decode_mnemonic: pacdb
     static_inst: Pacdb
+    variants:
+    - Pacdb
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2438
   injectors:
@@ -150,6 +162,8 @@
   gem5:
     decode_mnemonic: pacga
     static_inst: Pacga
+    variants:
+    - Pacga
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2396
   injectors:
@@ -173,6 +187,8 @@
   gem5:
     decode_mnemonic: pacia
     static_inst: Pacia
+    variants:
+    - Pacia
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2432
   injectors:
@@ -196,6 +212,8 @@
   gem5:
     decode_mnemonic: pacib
     static_inst: Pacib
+    variants:
+    - Pacib
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2434
   injectors:
@@ -219,6 +237,8 @@
   gem5:
     decode_mnemonic: xpacd
     static_inst: Xpacd
+    variants:
+    - Xpacd
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2505
   injectors:

@@ -5,6 +5,8 @@
   gem5:
     decode_mnemonic: bl
     static_inst: Bl64
+    variants:
+    - Bl64
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:633
   injectors:
@@ -29,6 +31,8 @@
   gem5:
     decode_mnemonic: blr
     static_inst: Blr64
+    variants:
+    - Blr64
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:755
   injectors:
@@ -60,6 +64,8 @@
   gem5:
     decode_mnemonic: br
     static_inst: Br64
+    variants:
+    - Br64
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:745
   injectors:
@@ -91,6 +97,8 @@
   gem5:
     decode_mnemonic: brk
     static_inst: Brk64
+    variants:
+    - Brk64
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:682
   injectors:
@@ -115,6 +123,9 @@
   gem5:
     decode_mnemonic: b
     static_inst: B64
+    variants:
+    - B64
+    - BCond64
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:631
   injectors:
@@ -139,6 +150,8 @@
   gem5:
     decode_mnemonic: cbnz
     static_inst: Cbnz64
+    variants:
+    - Cbnz64
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:643
   injectors:
@@ -163,6 +176,8 @@
   gem5:
     decode_mnemonic: cbz
     static_inst: Cbz64
+    variants:
+    - Cbz64
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:641
   injectors:
@@ -187,6 +202,8 @@
   gem5:
     decode_mnemonic: ret
     static_inst: Ret64
+    variants:
+    - Ret64
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:771
   injectors:
@@ -211,6 +228,8 @@
   gem5:
     decode_mnemonic: retaa
     static_inst: Retaa
+    variants:
+    - Retaa
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:769
   injectors:
@@ -235,6 +254,8 @@
   gem5:
     decode_mnemonic: tbnz
     static_inst: Tbnz64
+    variants:
+    - Tbnz64
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:653
   injectors:
@@ -259,6 +280,8 @@
   gem5:
     decode_mnemonic: tbz
     static_inst: Tbz64
+    variants:
+    - Tbz64
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:651
   injectors:

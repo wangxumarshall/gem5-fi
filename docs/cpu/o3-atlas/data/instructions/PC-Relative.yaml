@@ -5,6 +5,8 @@
   gem5:
     decode_mnemonic: adr
     static_inst: AdrXImm
+    variants:
+    - AdrXImm
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:80
   injectors:
@@ -28,6 +30,8 @@
   gem5:
     decode_mnemonic: adrp
     static_inst: AdrpXImm
+    variants:
+    - AdrpXImm
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:83
   injectors:

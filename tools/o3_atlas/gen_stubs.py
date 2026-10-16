@@ -103,6 +103,7 @@ _ALIAS_FAMILY = {
     "NGC": "dataproc-shifted-reg", "NGCS": "dataproc-shifted-reg",
     "NEGS": "dataproc-imm",
     "MNEG": "mul", "SMNEGL": "mul", "UMNEGL": "mul",
+    "MUL": "mul", "SMULL": "mul", "UMULL": "mul",
 }
 
 
@@ -239,11 +240,15 @@ def generate_all():
             elif base in _FS_HUB:
                 tier = "fs-only"
             fam = family_for(title, category)
+            from .scan_tiers import constructor_mnemonics as _cm  # lru_cache 命中
+            variants = sorted(cls for cls, mns in _cm().items()
+                              if hit["mnemonic"] in mns and cls in sites)
             rec.update({
                 "tier": tier,
                 "family": fam,
                 "gem5": {"decode_mnemonic": hit["mnemonic"],
                          "static_inst": hit["class"],
+                         "variants": variants,
                          "anchors": {"decoder": anchor}},
                 "injectors": list(families[fam]["default_injectors"]),
                 "evidence": [{

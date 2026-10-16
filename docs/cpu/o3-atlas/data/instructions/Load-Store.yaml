@@ -12,6 +12,8 @@
   gem5:
     decode_mnemonic: ldaddb
     static_inst: LDADDB
+    variants:
+    - LDADDB
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:839
   injectors:
@@ -39,6 +41,8 @@
   gem5:
     decode_mnemonic: ldaddh
     static_inst: LDADDH
+    variants:
+    - LDADDH
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:863
   injectors:
@@ -66,6 +70,8 @@
   gem5:
     decode_mnemonic: ldadd
     static_inst: LDADD
+    variants:
+    - LDADD
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:887
   injectors:
@@ -93,6 +99,9 @@
   gem5:
     decode_mnemonic: ldapr
     static_inst: LDAPRW64
+    variants:
+    - LDAPRW64
+    - LDAPRX64
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1787
   injectors:
@@ -120,6 +129,8 @@
   gem5:
     decode_mnemonic: ldaprb
     static_inst: LDAPRB64
+    variants:
+    - LDAPRB64
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1783
   injectors:
@@ -147,6 +158,8 @@
   gem5:
     decode_mnemonic: ldaprh
     static_inst: LDAPRH64
+    variants:
+    - LDAPRH64
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1785
   injectors:
@@ -174,6 +187,9 @@
   gem5:
     decode_mnemonic: ldapur
     static_inst: LDAPURW64_IMM
+    variants:
+    - LDAPURW64_IMM
+    - LDAPURX64_IMM
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1617
   injectors:
@@ -201,6 +217,8 @@
   gem5:
     decode_mnemonic: ldapurb
     static_inst: LDAPURB64_IMM
+    variants:
+    - LDAPURB64_IMM
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1603
   injectors:
@@ -228,6 +246,8 @@
   gem5:
     decode_mnemonic: ldapurh
     static_inst: LDAPURH64_IMM
+    variants:
+    - LDAPURH64_IMM
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1609
   injectors:
@@ -255,6 +275,9 @@
   gem5:
     decode_mnemonic: ldapursb
     static_inst: LDAPURSBW64_IMM
+    variants:
+    - LDAPURSBW64_IMM
+    - LDAPURSBX64_IMM
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1607
   injectors:
@@ -282,6 +305,9 @@
   gem5:
     decode_mnemonic: ldapursh
     static_inst: LDAPURSHW64_IMM
+    variants:
+    - LDAPURSHW64_IMM
+    - LDAPURSHX64_IMM
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1613
   injectors:
@@ -309,6 +335,8 @@
   gem5:
     decode_mnemonic: ldapursw
     static_inst: LDAPURSW64_IMM
+    variants:
+    - LDAPURSW64_IMM
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1619
   injectors:
@@ -336,6 +364,9 @@
   gem5:
     decode_mnemonic: ldar
     static_inst: LDARW64
+    variants:
+    - LDARW64
+    - LDARX64
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1543
   injectors:
@@ -363,6 +394,8 @@
   gem5:
     decode_mnemonic: ldarb
     static_inst: LDARB64
+    variants:
+    - LDARB64
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1539
   injectors:
@@ -390,6 +423,8 @@
   gem5:
     decode_mnemonic: ldarh
     static_inst: LDARH64
+    variants:
+    - LDARH64
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1541
   injectors:
@@ -417,6 +452,9 @@
   gem5:
     decode_mnemonic: ldaxp
     static_inst: LDAXPW64
+    variants:
+    - LDAXPW64
+    - LDAXPX64
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1491
   injectors:
@@ -445,6 +483,9 @@
   gem5:
     decode_mnemonic: ldaxr
     static_inst: LDAXRW64
+    variants:
+    - LDAXRW64
+    - LDAXRX64
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1465
   injectors:
@@ -473,6 +514,8 @@
   gem5:
     decode_mnemonic: ldaxrb
     static_inst: LDAXRB64
+    variants:
+    - LDAXRB64
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1461
   injectors:
@@ -501,6 +544,8 @@
   gem5:
     decode_mnemonic: ldaxrh
     static_inst: LDAXRH64
+    variants:
+    - LDAXRH64
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1463
   injectors:
@@ -529,6 +574,8 @@
   gem5:
     decode_mnemonic: ldclrb
     static_inst: LDCLRB
+    variants:
+    - LDCLRB
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:939
   injectors:
@@ -556,6 +603,8 @@
   gem5:
     decode_mnemonic: ldclrh
     static_inst: LDCLRH
+    variants:
+    - LDCLRH
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:953
   injectors:
@@ -583,6 +632,8 @@
   gem5:
     decode_mnemonic: ldclr
     static_inst: LDCLR
+    variants:
+    - LDCLR
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:967
   injectors:
@@ -610,6 +661,8 @@
   gem5:
     decode_mnemonic: ldeorb
     static_inst: LDEORB
+    variants:
+    - LDEORB
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1000
   injectors:
@@ -637,6 +690,8 @@
   gem5:
     decode_mnemonic: ldeorh
     static_inst: LDEORH
+    variants:
+    - LDEORH
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1014
   injectors:
@@ -664,6 +719,8 @@
   gem5:
     decode_mnemonic: ldeor
     static_inst: LDEOR
+    variants:
+    - LDEOR
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1028
   injectors:
@@ -726,6 +783,8 @@
   gem5:
     decode_mnemonic: ldnp
     static_inst: LdpStp
+    variants:
+    - LdpStp
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1700
   injectors:
@@ -753,6 +812,8 @@
   gem5:
     decode_mnemonic: ldp
     static_inst: LdpStp
+    variants:
+    - LdpStp
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1700
   injectors:
@@ -780,6 +841,8 @@
   gem5:
     decode_mnemonic: ldpsw
     static_inst: LdpStp
+    variants:
+    - LdpStp
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1700
   injectors:
@@ -807,6 +870,9 @@
   gem5:
     decode_mnemonic: ldraa
     static_inst: LDRAA_PRE
+    variants:
+    - LDRAA_PRE
+    - LDRAA_REG
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1814
   injectors:
@@ -834,6 +900,11 @@
   gem5:
     decode_mnemonic: ldrb
     static_inst: LDRB64_IMM
+    variants:
+    - LDRB64_IMM
+    - LDRB64_POST
+    - LDRB64_PRE
+    - LDRB64_REG
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1718
   injectors:
@@ -861,6 +932,11 @@
   gem5:
     decode_mnemonic: ldrb
     static_inst: LDRB64_IMM
+    variants:
+    - LDRB64_IMM
+    - LDRB64_POST
+    - LDRB64_PRE
+    - LDRB64_REG
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1718
   injectors:
@@ -888,6 +964,11 @@
   gem5:
     decode_mnemonic: ldrh
     static_inst: LDRH64_IMM
+    variants:
+    - LDRH64_IMM
+    - LDRH64_POST
+    - LDRH64_PRE
+    - LDRH64_REG
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1736
   injectors:
@@ -915,6 +996,11 @@
   gem5:
     decode_mnemonic: ldrh
     static_inst: LDRH64_IMM
+    variants:
+    - LDRH64_IMM
+    - LDRH64_POST
+    - LDRH64_PRE
+    - LDRH64_REG
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1736
   injectors:
@@ -942,6 +1028,15 @@
   gem5:
     decode_mnemonic: ldrsb
     static_inst: LDRSBW64_IMM
+    variants:
+    - LDRSBW64_IMM
+    - LDRSBW64_POST
+    - LDRSBW64_PRE
+    - LDRSBW64_REG
+    - LDRSBX64_IMM
+    - LDRSBX64_POST
+    - LDRSBX64_PRE
+    - LDRSBX64_REG
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1722
   injectors:
@@ -969,6 +1064,15 @@
   gem5:
     decode_mnemonic: ldrsb
     static_inst: LDRSBW64_IMM
+    variants:
+    - LDRSBW64_IMM
+    - LDRSBW64_POST
+    - LDRSBW64_PRE
+    - LDRSBW64_REG
+    - LDRSBX64_IMM
+    - LDRSBX64_POST
+    - LDRSBX64_PRE
+    - LDRSBX64_REG
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1722
   injectors:
@@ -996,6 +1100,15 @@
   gem5:
     decode_mnemonic: ldrsh
     static_inst: LDRSHW64_IMM
+    variants:
+    - LDRSHW64_IMM
+    - LDRSHW64_POST
+    - LDRSHW64_PRE
+    - LDRSHW64_REG
+    - LDRSHX64_IMM
+    - LDRSHX64_POST
+    - LDRSHX64_PRE
+    - LDRSHX64_REG
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1740
   injectors:
@@ -1023,6 +1136,15 @@
   gem5:
     decode_mnemonic: ldrsh
     static_inst: LDRSHW64_IMM
+    variants:
+    - LDRSHW64_IMM
+    - LDRSHW64_POST
+    - LDRSHW64_PRE
+    - LDRSHW64_REG
+    - LDRSHX64_IMM
+    - LDRSHX64_POST
+    - LDRSHX64_PRE
+    - LDRSHX64_REG
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1740
   injectors:
@@ -1050,6 +1172,12 @@
   gem5:
     decode_mnemonic: ldrsw
     static_inst: LDRSW64_IMM
+    variants:
+    - LDRSW64_IMM
+    - LDRSW64_POST
+    - LDRSW64_PRE
+    - LDRSW64_REG
+    - LDRSWL64_LIT
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1750
   injectors:
@@ -1077,6 +1205,12 @@
   gem5:
     decode_mnemonic: ldrsw
     static_inst: LDRSWL64_LIT
+    variants:
+    - LDRSW64_IMM
+    - LDRSW64_POST
+    - LDRSW64_PRE
+    - LDRSW64_REG
+    - LDRSWL64_LIT
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1637
   injectors:
@@ -1104,6 +1238,12 @@
   gem5:
     decode_mnemonic: ldrsw
     static_inst: LDRSW64_IMM
+    variants:
+    - LDRSW64_IMM
+    - LDRSW64_POST
+    - LDRSW64_PRE
+    - LDRSW64_REG
+    - LDRSWL64_LIT
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1750
   injectors:
@@ -1131,6 +1271,35 @@
   gem5:
     decode_mnemonic: ldr
     static_inst: LDRBFP64_IMM
+    variants:
+    - LDRBFP64_IMM
+    - LDRBFP64_POST
+    - LDRBFP64_PRE
+    - LDRBFP64_REG
+    - LDRDFP64_IMM
+    - LDRDFP64_LIT
+    - LDRDFP64_POST
+    - LDRDFP64_PRE
+    - LDRDFP64_REG
+    - LDRHFP64_IMM
+    - LDRHFP64_POST
+    - LDRHFP64_PRE
+    - LDRHFP64_REG
+    - LDRSFP64_IMM
+    - LDRSFP64_LIT
+    - LDRSFP64_POST
+    - LDRSFP64_PRE
+    - LDRSFP64_REG
+    - LDRW64_IMM
+    - LDRW64_POST
+    - LDRW64_PRE
+    - LDRW64_REG
+    - LDRWL64_LIT
+    - LDRX64_IMM
+    - LDRX64_POST
+    - LDRX64_PRE
+    - LDRX64_REG
+    - LDRXL64_LIT
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1726
   injectors:
@@ -1158,6 +1327,35 @@
   gem5:
     decode_mnemonic: ldr
     static_inst: LDRDFP64_LIT
+    variants:
+    - LDRBFP64_IMM
+    - LDRBFP64_POST
+    - LDRBFP64_PRE
+    - LDRBFP64_REG
+    - LDRDFP64_IMM
+    - LDRDFP64_LIT
+    - LDRDFP64_POST
+    - LDRDFP64_PRE
+    - LDRDFP64_REG
+    - LDRHFP64_IMM
+    - LDRHFP64_POST
+    - LDRHFP64_PRE
+    - LDRHFP64_REG
+    - LDRSFP64_IMM
+    - LDRSFP64_LIT
+    - LDRSFP64_POST
+    - LDRSFP64_PRE
+    - LDRSFP64_REG
+    - LDRW64_IMM
+    - LDRW64_POST
+    - LDRW64_PRE
+    - LDRW64_REG
+    - LDRWL64_LIT
+    - LDRX64_IMM
+    - LDRX64_POST
+    - LDRX64_PRE
+    - LDRX64_REG
+    - LDRXL64_LIT
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1635
   injectors:
@@ -1185,6 +1383,35 @@
   gem5:
     decode_mnemonic: ldr
     static_inst: LDRBFP64_IMM
+    variants:
+    - LDRBFP64_IMM
+    - LDRBFP64_POST
+    - LDRBFP64_PRE
+    - LDRBFP64_REG
+    - LDRDFP64_IMM
+    - LDRDFP64_LIT
+    - LDRDFP64_POST
+    - LDRDFP64_PRE
+    - LDRDFP64_REG
+    - LDRHFP64_IMM
+    - LDRHFP64_POST
+    - LDRHFP64_PRE
+    - LDRHFP64_REG
+    - LDRSFP64_IMM
+    - LDRSFP64_LIT
+    - LDRSFP64_POST
+    - LDRSFP64_PRE
+    - LDRSFP64_REG
+    - LDRW64_IMM
+    - LDRW64_POST
+    - LDRW64_PRE
+    - LDRW64_REG
+    - LDRWL64_LIT
+    - LDRX64_IMM
+    - LDRX64_POST
+    - LDRX64_PRE
+    - LDRX64_REG
+    - LDRXL64_LIT
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1726
   injectors:
@@ -1212,6 +1439,8 @@
   gem5:
     decode_mnemonic: ldsetb
     static_inst: LDSETB
+    variants:
+    - LDSETB
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1061
   injectors:
@@ -1239,6 +1468,8 @@
   gem5:
     decode_mnemonic: ldseth
     static_inst: LDSETH
+    variants:
+    - LDSETH
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1075
   injectors:
@@ -1266,6 +1497,8 @@
   gem5:
     decode_mnemonic: ldset
     static_inst: LDSET
+    variants:
+    - LDSET
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1089
   injectors:
@@ -1293,6 +1526,8 @@
   gem5:
     decode_mnemonic: ldsmaxb
     static_inst: LDSMAXB
+    variants:
+    - LDSMAXB
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1122
   injectors:
@@ -1320,6 +1555,8 @@
   gem5:
     decode_mnemonic: ldsmaxh
     static_inst: LDSMAXH
+    variants:
+    - LDSMAXH
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1136
   injectors:
@@ -1347,6 +1584,8 @@
   gem5:
     decode_mnemonic: ldsmax
     static_inst: LDSMAX
+    variants:
+    - LDSMAX
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1150
   injectors:
@@ -1374,6 +1613,8 @@
   gem5:
     decode_mnemonic: ldsminb
     static_inst: LDSMINB
+    variants:
+    - LDSMINB
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1183
   injectors:
@@ -1401,6 +1642,8 @@
   gem5:
     decode_mnemonic: ldsminh
     static_inst: LDSMINH
+    variants:
+    - LDSMINH
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1197
   injectors:
@@ -1428,6 +1671,8 @@
   gem5:
     decode_mnemonic: ldsmin
     static_inst: LDSMIN
+    variants:
+    - LDSMIN
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1211
   injectors:
@@ -1455,6 +1700,9 @@
   gem5:
     decode_mnemonic: ldtr
     static_inst: LDTRW64_IMM
+    variants:
+    - LDTRW64_IMM
+    - LDTRX64_IMM
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2077
   injectors:
@@ -1482,6 +1730,8 @@
   gem5:
     decode_mnemonic: ldtrb
     static_inst: LDTRB64_IMM
+    variants:
+    - LDTRB64_IMM
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2061
   injectors:
@@ -1509,6 +1759,8 @@
   gem5:
     decode_mnemonic: ldtrh
     static_inst: LDTRH64_IMM
+    variants:
+    - LDTRH64_IMM
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2069
   injectors:
@@ -1536,6 +1788,9 @@
   gem5:
     decode_mnemonic: ldtrsb
     static_inst: LDTRSBW64_IMM
+    variants:
+    - LDTRSBW64_IMM
+    - LDTRSBX64_IMM
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2065
   injectors:
@@ -1563,6 +1818,9 @@
   gem5:
     decode_mnemonic: ldtrsh
     static_inst: LDTRSHW64_IMM
+    variants:
+    - LDTRSHW64_IMM
+    - LDTRSHX64_IMM
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2073
   injectors:
@@ -1590,6 +1848,8 @@
   gem5:
     decode_mnemonic: ldtrsw
     static_inst: LDTRSW64_IMM
+    variants:
+    - LDTRSW64_IMM
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2079
   injectors:
@@ -1617,6 +1877,8 @@
   gem5:
     decode_mnemonic: ldumaxb
     static_inst: LDUMAXB
+    variants:
+    - LDUMAXB
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1244
   injectors:
@@ -1644,6 +1906,8 @@
   gem5:
     decode_mnemonic: ldumaxh
     static_inst: LDUMAXH
+    variants:
+    - LDUMAXH
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1258
   injectors:
@@ -1671,6 +1935,8 @@
   gem5:
     decode_mnemonic: ldumax
     static_inst: LDUMAX
+    variants:
+    - LDUMAX
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1272
   injectors:
@@ -1698,6 +1964,8 @@
   gem5:
     decode_mnemonic: lduminb
     static_inst: LDUMINB
+    variants:
+    - LDUMINB
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1305
   injectors:
@@ -1725,6 +1993,8 @@
   gem5:
     decode_mnemonic: lduminh
     static_inst: LDUMINH
+    variants:
+    - LDUMINH
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1319
   injectors:
@@ -1752,6 +2022,8 @@
   gem5:
     decode_mnemonic: ldumin
     static_inst: LDUMIN
+    variants:
+    - LDUMIN
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1333
   injectors:
@@ -1779,6 +2051,13 @@
   gem5:
     decode_mnemonic: ldur
     static_inst: LDURBFP64_IMM
+    variants:
+    - LDURBFP64_IMM
+    - LDURDFP64_IMM
+    - LDURHFP64_IMM
+    - LDURSFP64_IMM
+    - LDURW64_IMM
+    - LDURX64_IMM
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1944
   injectors:
@@ -1806,6 +2085,8 @@
   gem5:
     decode_mnemonic: ldurb
     static_inst: LDURB64_IMM
+    variants:
+    - LDURB64_IMM
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1936
   injectors:
@@ -1833,6 +2114,8 @@
   gem5:
     decode_mnemonic: ldurh
     static_inst: LDURH64_IMM
+    variants:
+    - LDURH64_IMM
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1954
   injectors:
@@ -1860,6 +2143,9 @@
   gem5:
     decode_mnemonic: ldursb
     static_inst: LDURSBW64_IMM
+    variants:
+    - LDURSBW64_IMM
+    - LDURSBX64_IMM
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1940
   injectors:
@@ -1887,6 +2173,9 @@
   gem5:
     decode_mnemonic: ldursh
     static_inst: LDURSHW64_IMM
+    variants:
+    - LDURSHW64_IMM
+    - LDURSHX64_IMM
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1958
   injectors:
@@ -1914,6 +2203,8 @@
   gem5:
     decode_mnemonic: ldursw
     static_inst: LDURSW64_IMM
+    variants:
+    - LDURSW64_IMM
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1968
   injectors:
@@ -1941,6 +2232,9 @@
   gem5:
     decode_mnemonic: ldxp
     static_inst: LDXPW64
+    variants:
+    - LDXPW64
+    - LDXPX64
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1478
   injectors:
@@ -1969,6 +2263,9 @@
   gem5:
     decode_mnemonic: ldxr
     static_inst: LDXRW64
+    variants:
+    - LDXRW64
+    - LDXRX64
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1452
   injectors:
@@ -1997,6 +2294,8 @@
   gem5:
     decode_mnemonic: ldxrb
     static_inst: LDXRB64
+    variants:
+    - LDXRB64
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1448
   injectors:
@@ -2025,6 +2324,8 @@
   gem5:
     decode_mnemonic: ldxrh
     static_inst: LDXRH64
+    variants:
+    - LDXRH64
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1450
   injectors:
@@ -2081,6 +2382,8 @@
   gem5:
     decode_mnemonic: staddb
     static_inst: STADDB
+    variants:
+    - STADDB
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:837
   injectors:
@@ -2108,6 +2411,8 @@
   gem5:
     decode_mnemonic: stadd
     static_inst: STADD
+    variants:
+    - STADD
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:885
   injectors:
@@ -2170,6 +2475,9 @@
   gem5:
     decode_mnemonic: stlr
     static_inst: STLRW64
+    variants:
+    - STLRW64
+    - STLRX64
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1504
   injectors:
@@ -2197,6 +2505,8 @@
   gem5:
     decode_mnemonic: stlrb
     static_inst: STLRB64
+    variants:
+    - STLRB64
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1500
   injectors:
@@ -2224,6 +2534,8 @@
   gem5:
     decode_mnemonic: stlrh
     static_inst: STLRH64
+    variants:
+    - STLRH64
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1502
   injectors:
@@ -2272,6 +2584,9 @@
   gem5:
     decode_mnemonic: stlxp
     static_inst: STLXPW64
+    variants:
+    - STLXPW64
+    - STLXPX64
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1438
   injectors:
@@ -2300,6 +2615,9 @@
   gem5:
     decode_mnemonic: stlxr
     static_inst: STLXRW64
+    variants:
+    - STLXRW64
+    - STLXRX64
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1411
   injectors:
@@ -2328,6 +2646,8 @@
   gem5:
     decode_mnemonic: stlxrb
     static_inst: STLXRB64
+    variants:
+    - STLXRB64
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1407
   injectors:
@@ -2356,6 +2676,8 @@
   gem5:
     decode_mnemonic: stlxrh
     static_inst: STLXRH64
+    variants:
+    - STLXRH64
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1409
   injectors:
@@ -2384,6 +2706,8 @@
   gem5:
     decode_mnemonic: stnp
     static_inst: LdpStp
+    variants:
+    - LdpStp
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1700
   injectors:
@@ -2411,6 +2735,8 @@
   gem5:
     decode_mnemonic: stp
     static_inst: LdpStp
+    variants:
+    - LdpStp
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1700
   injectors:
@@ -2438,6 +2764,11 @@
   gem5:
     decode_mnemonic: strb
     static_inst: STRB64_IMM
+    variants:
+    - STRB64_IMM
+    - STRB64_POST
+    - STRB64_PRE
+    - STRB64_REG
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1716
   injectors:
@@ -2465,6 +2796,11 @@
   gem5:
     decode_mnemonic: strb
     static_inst: STRB64_IMM
+    variants:
+    - STRB64_IMM
+    - STRB64_POST
+    - STRB64_PRE
+    - STRB64_REG
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1716
   injectors:
@@ -2492,6 +2828,11 @@
   gem5:
     decode_mnemonic: strh
     static_inst: STRH64_IMM
+    variants:
+    - STRH64_IMM
+    - STRH64_POST
+    - STRH64_PRE
+    - STRH64_REG
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1734
   injectors:
@@ -2519,6 +2860,11 @@
   gem5:
     decode_mnemonic: strh
     static_inst: STRH64_IMM
+    variants:
+    - STRH64_IMM
+    - STRH64_POST
+    - STRH64_PRE
+    - STRH64_REG
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1734
   injectors:
@@ -2546,6 +2892,31 @@
   gem5:
     decode_mnemonic: str
     static_inst: STRBFP64_IMM
+    variants:
+    - STRBFP64_IMM
+    - STRBFP64_POST
+    - STRBFP64_PRE
+    - STRBFP64_REG
+    - STRDFP64_IMM
+    - STRDFP64_POST
+    - STRDFP64_PRE
+    - STRDFP64_REG
+    - STRHFP64_IMM
+    - STRHFP64_POST
+    - STRHFP64_PRE
+    - STRHFP64_REG
+    - STRSFP64_IMM
+    - STRSFP64_POST
+    - STRSFP64_PRE
+    - STRSFP64_REG
+    - STRW64_IMM
+    - STRW64_POST
+    - STRW64_PRE
+    - STRW64_REG
+    - STRX64_IMM
+    - STRX64_POST
+    - STRX64_PRE
+    - STRX64_REG
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1724
   injectors:
@@ -2573,6 +2944,31 @@
   gem5:
     decode_mnemonic: str
     static_inst: STRBFP64_IMM
+    variants:
+    - STRBFP64_IMM
+    - STRBFP64_POST
+    - STRBFP64_PRE
+    - STRBFP64_REG
+    - STRDFP64_IMM
+    - STRDFP64_POST
+    - STRDFP64_PRE
+    - STRDFP64_REG
+    - STRHFP64_IMM
+    - STRHFP64_POST
+    - STRHFP64_PRE
+    - STRHFP64_REG
+    - STRSFP64_IMM
+    - STRSFP64_POST
+    - STRSFP64_PRE
+    - STRSFP64_REG
+    - STRW64_IMM
+    - STRW64_POST
+    - STRW64_PRE
+    - STRW64_REG
+    - STRX64_IMM
+    - STRX64_POST
+    - STRX64_PRE
+    - STRX64_REG
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1724
   injectors:
@@ -2600,6 +2996,8 @@
   gem5:
     decode_mnemonic: stsetb
     static_inst: STSETB
+    variants:
+    - STSETB
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1059
   injectors:
@@ -2627,6 +3025,8 @@
   gem5:
     decode_mnemonic: stset
     static_inst: STSET
+    variants:
+    - STSET
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1087
   injectors:
@@ -2654,6 +3054,8 @@
   gem5:
     decode_mnemonic: sttrb
     static_inst: STTRB64_IMM
+    variants:
+    - STTRB64_IMM
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2059
   injectors:
@@ -2681,6 +3083,8 @@
   gem5:
     decode_mnemonic: sttrh
     static_inst: STTRH64_IMM
+    variants:
+    - STTRH64_IMM
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2067
   injectors:
@@ -2708,6 +3112,8 @@
   gem5:
     decode_mnemonic: stumax
     static_inst: STUMAX
+    variants:
+    - STUMAX
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1270
   injectors:
@@ -2735,6 +3141,8 @@
   gem5:
     decode_mnemonic: sturb
     static_inst: STURB64_IMM
+    variants:
+    - STURB64_IMM
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1934
   injectors:
@@ -2762,6 +3170,8 @@
   gem5:
     decode_mnemonic: sturh
     static_inst: STURH64_IMM
+    variants:
+    - STURH64_IMM
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1952
   injectors:
@@ -2789,6 +3199,9 @@
   gem5:
     decode_mnemonic: stxp
     static_inst: STXPW64
+    variants:
+    - STXPW64
+    - STXPX64
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1424
   injectors:
@@ -2817,6 +3230,9 @@
   gem5:
     decode_mnemonic: stxr
     static_inst: STXRW64
+    variants:
+    - STXRW64
+    - STXRX64
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1398
   injectors:
@@ -2845,6 +3261,8 @@
   gem5:
     decode_mnemonic: stxrb
     static_inst: STXRB64
+    variants:
+    - STXRB64
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1394
   injectors:
@@ -2873,6 +3291,8 @@
   gem5:
     decode_mnemonic: stxrh
     static_inst: STXRH64
+    variants:
+    - STXRH64
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1396
   injectors:

@@ -5,6 +5,9 @@
   gem5:
     decode_mnemonic: ands
     static_inst: AndXImmCc
+    variants:
+    - AndXImmCc
+    - AndXSRegCc
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:150
   injectors:
@@ -28,6 +31,9 @@
   gem5:
     decode_mnemonic: ands
     static_inst: AndXSRegCc
+    variants:
+    - AndXImmCc
+    - AndXSRegCc
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2197
   injectors:
@@ -51,6 +57,9 @@
   gem5:
     decode_mnemonic: and
     static_inst: AndXImm
+    variants:
+    - AndXImm
+    - AndXSReg
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:144
   injectors:
@@ -74,6 +83,9 @@
   gem5:
     decode_mnemonic: and
     static_inst: AndXSReg
+    variants:
+    - AndXImm
+    - AndXSReg
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2185
   injectors:
@@ -97,6 +109,8 @@
   gem5:
     decode_mnemonic: bics
     static_inst: BicXSRegCc
+    variants:
+    - BicXSRegCc
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2199
   injectors:
@@ -120,6 +134,8 @@
   gem5:
     decode_mnemonic: bic
     static_inst: BicXSReg
+    variants:
+    - BicXSReg
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2187
   injectors:
@@ -143,6 +159,8 @@
   gem5:
     decode_mnemonic: eon
     static_inst: EonXSReg
+    variants:
+    - EonXSReg
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2195
   injectors:
@@ -166,6 +184,9 @@
   gem5:
     decode_mnemonic: eor
     static_inst: EorXImm
+    variants:
+    - EorXImm
+    - EorXSReg
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:148
   injectors:
@@ -189,6 +210,9 @@
   gem5:
     decode_mnemonic: eor
     static_inst: EorXSReg
+    variants:
+    - EorXImm
+    - EorXSReg
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2193
   injectors:
@@ -212,6 +236,8 @@
   gem5:
     decode_mnemonic: movk
     static_inst: Movk
+    variants:
+    - Movk
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:169
   injectors:
@@ -235,6 +261,8 @@
   gem5:
     decode_mnemonic: movn
     static_inst: Movn
+    variants:
+    - Movn
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:163
   injectors:
@@ -258,6 +286,8 @@
   gem5:
     decode_mnemonic: movz
     static_inst: Movz
+    variants:
+    - Movz
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:167
   injectors:
@@ -281,6 +311,9 @@
   gem5:
     decode_mnemonic: orr
     static_inst: OrrXImm
+    variants:
+    - OrrXImm
+    - OrrXSReg
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:146
   injectors:
@@ -304,6 +337,8 @@
   gem5:
     decode_mnemonic: movn
     static_inst: Movn
+    variants:
+    - Movn
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:163
   injectors:
@@ -327,6 +362,9 @@
   gem5:
     decode_mnemonic: orr
     static_inst: OrrXSReg
+    variants:
+    - OrrXImm
+    - OrrXSReg
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2189
   injectors:
@@ -350,6 +388,10 @@
   gem5:
     decode_mnemonic: add
     static_inst: AddXImm
+    variants:
+    - AddXEReg
+    - AddXImm
+    - AddXSReg
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:100
   injectors:
@@ -373,6 +415,8 @@
   gem5:
     decode_mnemonic: movz
     static_inst: Movz
+    variants:
+    - Movz
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:167
   injectors:
@@ -403,6 +447,8 @@
   gem5:
     decode_mnemonic: orn
     static_inst: OrnXSReg
+    variants:
+    - OrnXSReg
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2191
   injectors:
@@ -426,6 +472,9 @@
   gem5:
     decode_mnemonic: orr
     static_inst: OrrXImm
+    variants:
+    - OrrXImm
+    - OrrXSReg
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:146
   injectors:
@@ -449,6 +498,9 @@
   gem5:
     decode_mnemonic: orr
     static_inst: OrrXSReg
+    variants:
+    - OrrXImm
+    - OrrXSReg
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2189
   injectors:
@@ -472,6 +524,9 @@
   gem5:
     decode_mnemonic: ands
     static_inst: AndXImmCc
+    variants:
+    - AndXImmCc
+    - AndXSRegCc
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:150
   injectors:
@@ -495,6 +550,9 @@
   gem5:
     decode_mnemonic: ands
     static_inst: AndXSRegCc
+    variants:
+    - AndXImmCc
+    - AndXSRegCc
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2197
   injectors:

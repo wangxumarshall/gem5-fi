@@ -5,6 +5,8 @@
   gem5:
     decode_mnemonic: cls
     static_inst: Cls64
+    variants:
+    - Cls64
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2532
   injectors:
@@ -28,6 +30,8 @@
   gem5:
     decode_mnemonic: clz
     static_inst: Clz64
+    variants:
+    - Clz64
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2530
   injectors:

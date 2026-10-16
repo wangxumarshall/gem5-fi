@@ -5,6 +5,8 @@
   gem5:
     decode_mnemonic: adc
     static_inst: AdcXSReg
+    variants:
+    - AdcXSReg
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2275
   injectors:
@@ -28,6 +30,8 @@
   gem5:
     decode_mnemonic: adcs
     static_inst: AdcXSRegCc
+    variants:
+    - AdcXSRegCc
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2277
   injectors:
@@ -58,6 +62,10 @@
   gem5:
     decode_mnemonic: adds
     static_inst: AddXERegCc
+    variants:
+    - AddXERegCc
+    - AddXImmCc
+    - AddXSRegCc
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2250
   injectors:
@@ -81,6 +89,10 @@
   gem5:
     decode_mnemonic: adds
     static_inst: AddXImmCc
+    variants:
+    - AddXERegCc
+    - AddXImmCc
+    - AddXSRegCc
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:102
   injectors:
@@ -104,6 +116,10 @@
   gem5:
     decode_mnemonic: adds
     static_inst: AddXSRegCc
+    variants:
+    - AddXERegCc
+    - AddXImmCc
+    - AddXSRegCc
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2225
   injectors:
@@ -127,6 +143,10 @@
   gem5:
     decode_mnemonic: add
     static_inst: AddXEReg
+    variants:
+    - AddXEReg
+    - AddXImm
+    - AddXSReg
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2248
   injectors:
@@ -150,6 +170,10 @@
   gem5:
     decode_mnemonic: add
     static_inst: AddXImm
+    variants:
+    - AddXEReg
+    - AddXImm
+    - AddXSReg
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:100
   injectors:
@@ -173,6 +197,10 @@
   gem5:
     decode_mnemonic: add
     static_inst: AddXSReg
+    variants:
+    - AddXEReg
+    - AddXImm
+    - AddXSReg
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2223
   injectors:
@@ -196,6 +224,8 @@
   gem5:
     decode_mnemonic: madd
     static_inst: Madd64
+    variants:
+    - Madd64
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2592
   injectors:
@@ -219,6 +249,8 @@
   gem5:
     decode_mnemonic: msub
     static_inst: Msub64
+    variants:
+    - Msub64
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2594
   injectors:
@@ -237,20 +269,15 @@
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2594
 - doc: Arithmetic-MUL.md
   mnemonic: MUL
-  tier: unimplemented
-  behavior: absent
-  evidence:
-  - claim: A64 解码树无匹配（scan_tiers 候选为空：生成代码无此助记符类）
-    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:3820
-- doc: Arithmetic-NEGS.md
-  mnemonic: NEGS
   tier: implemented
-  family: dataproc-imm
+  family: mul
   gem5:
-    decode_mnemonic: subs
-    static_inst: SubXERegCc
+    decode_mnemonic: madd
+    static_inst: Madd64
+    variants:
+    - Madd64
     anchors:
-      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2254
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2592
   injectors:
   - CHAOSDecode
   - CHAOSRenameMap
@@ -263,8 +290,35 @@
   - CHAOSProbe
   - CHAOSCommitTrace
   evidence:
-  - claim: A64 解码树 return new SubXERegCc(...)；family=dataproc-imm 骨架引用（分类任务深填）
-    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2254
+  - claim: A64 解码树 return new Madd64(...)；family=mul 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2592
+- doc: Arithmetic-NEGS.md
+  mnemonic: NEGS
+  tier: implemented
+  family: dataproc-imm
+  gem5:
+    decode_mnemonic: subs
+    static_inst: SubXImmCc
+    variants:
+    - SubXERegCc
+    - SubXImmCc
+    - SubXSRegCc
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:106
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
+  evidence:
+  - claim: A64 解码树 return new SubXImmCc(...)；family=dataproc-imm 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:106
 - doc: Arithmetic-NEG_shifted_register.md
   mnemonic: NEG (shifted register)
   tier: implemented
@@ -272,6 +326,10 @@
   gem5:
     decode_mnemonic: sub
     static_inst: SubXSReg
+    variants:
+    - SubXEReg
+    - SubXImm
+    - SubXSReg
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2227
   injectors:
@@ -295,6 +353,8 @@
   gem5:
     decode_mnemonic: sbc
     static_inst: SbcXSReg
+    variants:
+    - SbcXSReg
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2279
   injectors:
@@ -318,6 +378,8 @@
   gem5:
     decode_mnemonic: sbcs
     static_inst: SbcXSRegCc
+    variants:
+    - SbcXSRegCc
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2281
   injectors:
@@ -341,6 +403,8 @@
   gem5:
     decode_mnemonic: sdiv
     static_inst: Sdiv64
+    variants:
+    - Sdiv64
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2386
   injectors:
@@ -364,6 +428,8 @@
   gem5:
     decode_mnemonic: smaddl
     static_inst: Smaddl64
+    variants:
+    - Smaddl64
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2597
   injectors:
@@ -387,6 +453,8 @@
   gem5:
     decode_mnemonic: smulh
     static_inst: Smulh64
+    variants:
+    - Smulh64
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2603
   injectors:
@@ -405,11 +473,29 @@
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2603
 - doc: Arithmetic-SMULL.md
   mnemonic: SMULL
-  tier: unimplemented
-  behavior: absent
+  tier: implemented
+  family: mul
+  gem5:
+    decode_mnemonic: smaddl
+    static_inst: Smaddl64
+    variants:
+    - Smaddl64
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2597
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
   evidence:
-  - claim: A64 解码树无匹配（scan_tiers 候选为空：生成代码无此助记符类）
-    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:3820
+  - claim: A64 解码树 return new Smaddl64(...)；family=mul 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2597
 - doc: Arithmetic-SUBG.md
   mnemonic: SUBG
   tier: unimplemented
@@ -438,6 +524,10 @@
   gem5:
     decode_mnemonic: subs
     static_inst: SubXERegCc
+    variants:
+    - SubXERegCc
+    - SubXImmCc
+    - SubXSRegCc
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2254
   injectors:
@@ -461,6 +551,10 @@
   gem5:
     decode_mnemonic: subs
     static_inst: SubXImmCc
+    variants:
+    - SubXERegCc
+    - SubXImmCc
+    - SubXSRegCc
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:106
   injectors:
@@ -484,6 +578,10 @@
   gem5:
     decode_mnemonic: subs
     static_inst: SubXSRegCc
+    variants:
+    - SubXERegCc
+    - SubXImmCc
+    - SubXSRegCc
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2229
   injectors:
@@ -507,6 +605,10 @@
   gem5:
     decode_mnemonic: sub
     static_inst: SubXEReg
+    variants:
+    - SubXEReg
+    - SubXImm
+    - SubXSReg
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2252
   injectors:
@@ -530,6 +632,10 @@
   gem5:
     decode_mnemonic: sub
     static_inst: SubXImm
+    variants:
+    - SubXEReg
+    - SubXImm
+    - SubXSReg
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:104
   injectors:
@@ -553,6 +659,10 @@
   gem5:
     decode_mnemonic: sub
     static_inst: SubXSReg
+    variants:
+    - SubXEReg
+    - SubXImm
+    - SubXSReg
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2227
   injectors:
@@ -576,6 +686,8 @@
   gem5:
     decode_mnemonic: udiv
     static_inst: Udiv64
+    variants:
+    - Udiv64
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2384
   injectors:
@@ -599,6 +711,8 @@
   gem5:
     decode_mnemonic: umaddl
     static_inst: Umaddl64
+    variants:
+    - Umaddl64
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2606
   injectors:
@@ -622,6 +736,8 @@
   gem5:
     decode_mnemonic: umulh
     static_inst: Umulh64
+    variants:
+    - Umulh64
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2612
   injectors:
@@ -640,8 +756,26 @@
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2612
 - doc: Arithmetic-UMULL.md
   mnemonic: UMULL
-  tier: unimplemented
-  behavior: absent
+  tier: implemented
+  family: mul
+  gem5:
+    decode_mnemonic: umaddl
+    static_inst: Umaddl64
+    variants:
+    - Umaddl64
+    anchors:
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2606
+  injectors:
+  - CHAOSDecode
+  - CHAOSRenameMap
+  - CHAOSFreeList
+  - CHAOSPhysReg
+  - CHAOSIQ
+  - CHAOSROB
+  - CHAOSReg
+  - CHAOSExec
+  - CHAOSProbe
+  - CHAOSCommitTrace
   evidence:
-  - claim: A64 解码树无匹配（scan_tiers 候选为空：生成代码无此助记符类）
-    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:3820
+  - claim: A64 解码树 return new Umaddl64(...)；family=mul 骨架引用（分类任务深填）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2606

@@ -27,7 +27,7 @@ python3 -m pytest tools/o3_atlas/tests -q                # 工具链测试
 
 | category | implemented | macro-op | fs-only | unimplemented(absent) | unimplemented(warn-nop) | total |
 |---|---|---|---|---|---|---|
-| Arithmetic | 26 | 0 | 0 | 7 | 0 | 33 |
+| Arithmetic | 29 | 0 | 0 | 4 | 0 | 33 |
 | Atomic | 7 | 0 | 0 | 0 | 0 | 7 |
 | Barrier-Hint | 13 | 0 | 0 | 3 | 0 | 16 |
 | Bit-Manipulation | 21 | 0 | 0 | 4 | 0 | 25 |
@@ -42,7 +42,7 @@ python3 -m pytest tools/o3_atlas/tests -q                # 工具链测试
 | PC-Relative | 2 | 0 | 0 | 0 | 0 | 2 |
 | Pointer-Authentication | 10 | 0 | 0 | 0 | 1 | 11 |
 | System | 7 | 0 | 3 | 6 | 0 | 16 |
-| **合计** | **262** | **5** | **3** | **97** | **5** | **372** |
+| **合计** | **265** | **5** | **3** | **94** | **5** | **372** |
 
 未实现主体 = MTE（CPY*/SETG*/STG* 等，gem5 v25 源码零匹配）、SYS/SYSL（落
 Unknown64）、BTI/ESB/PSB CSYNC/TSB CSYNC/CSDB（WarnUnimplemented 警告+nop）。

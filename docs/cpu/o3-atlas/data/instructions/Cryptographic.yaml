@@ -5,6 +5,8 @@
   gem5:
     decode_mnemonic: crc32b
     static_inst: Crc32b64
+    variants:
+    - Crc32b64
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2398
   injectors:
@@ -28,6 +30,8 @@
   gem5:
     decode_mnemonic: crc32cb
     static_inst: Crc32cb64
+    variants:
+    - Crc32cb64
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2406
   injectors:

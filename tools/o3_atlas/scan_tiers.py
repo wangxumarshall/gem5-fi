@@ -45,8 +45,9 @@ ALIASES = {
     "ASR (register)": "ASRV", "LSL (register)": "LSLV",
     "LSR (register)": "LSRV", "ROR (register)": "RORV",
     "BFI": "BFM", "BFXIL": "BFM", "SBFIZ": "SBFM", "UBFIZ": "UBFM",
-    "NGC": "SBC", "NGCS": "SBCS", "NEGS": "SUBS",
+    "NGC": "SBC", "NGCS": "SBCS", "NEGS": "SUBS (immediate)",
     "MNEG": "MSUB", "SMNEGL": "SMSUBL", "UMNEGL": "UMSUBL",
+    "MUL": "MADD", "SMULL": "SMADDL", "UMULL": "UMADDL",
 }
 
 # 形式 → 类名后缀线索（Agent 探索：XImm=imm、SReg=shifted、EReg=extended、

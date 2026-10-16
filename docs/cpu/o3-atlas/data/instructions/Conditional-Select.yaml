@@ -5,6 +5,8 @@
   gem5:
     decode_mnemonic: csinc
     static_inst: Csinc64
+    variants:
+    - Csinc64
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2360
   injectors:
@@ -28,6 +30,8 @@
   gem5:
     decode_mnemonic: csinv
     static_inst: Csinv64
+    variants:
+    - Csinv64
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2362
   injectors:
@@ -51,6 +55,8 @@
   gem5:
     decode_mnemonic: csneg
     static_inst: Csneg64
+    variants:
+    - Csneg64
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2364
   injectors:
@@ -74,6 +80,8 @@
   gem5:
     decode_mnemonic: csel
     static_inst: Csel64
+    variants:
+    - Csel64
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2358
   injectors:
@@ -97,6 +105,8 @@
   gem5:
     decode_mnemonic: csinc
     static_inst: Csinc64
+    variants:
+    - Csinc64
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2360
   injectors:
@@ -120,6 +130,8 @@
   gem5:
     decode_mnemonic: csinv
     static_inst: Csinv64
+    variants:
+    - Csinv64
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2362
   injectors:
@@ -143,6 +155,8 @@
   gem5:
     decode_mnemonic: csneg
     static_inst: Csneg64
+    variants:
+    - Csneg64
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2364
   injectors:

@@ -5,6 +5,8 @@
   gem5:
     decode_mnemonic: dmb
     static_inst: Dmb64
+    variants:
+    - Dmb64
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:269
   injectors:
@@ -28,6 +30,9 @@
   gem5:
     decode_mnemonic: dsb
     static_inst: Dsb64Local
+    variants:
+    - Dsb64Local
+    - Dsb64Shareable
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:243
   injectors:
@@ -58,6 +63,8 @@
   gem5:
     decode_mnemonic: isb
     static_inst: Isb64
+    variants:
+    - Isb64
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:271
   injectors:
@@ -81,6 +88,8 @@
   gem5:
     decode_mnemonic: nop
     static_inst: NopInst
+    variants:
+    - NopInst
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:536
   injectors:
@@ -104,6 +113,10 @@
   gem5:
     decode_mnemonic: prfm
     static_inst: PRFM64_IMM
+    variants:
+    - PRFM64_IMM
+    - PRFM64_LIT
+    - PRFM64_REG
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1760
   injectors:
@@ -130,6 +143,10 @@
   gem5:
     decode_mnemonic: prfm
     static_inst: PRFM64_LIT
+    variants:
+    - PRFM64_IMM
+    - PRFM64_LIT
+    - PRFM64_REG
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1641
   injectors:
@@ -156,6 +173,10 @@
   gem5:
     decode_mnemonic: prfm
     static_inst: PRFM64_IMM
+    variants:
+    - PRFM64_IMM
+    - PRFM64_LIT
+    - PRFM64_REG
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1760
   injectors:
@@ -182,6 +203,8 @@
   gem5:
     decode_mnemonic: prfum
     static_inst: PRFUM64_IMM
+    variants:
+    - PRFUM64_IMM
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1978
   injectors:
@@ -208,6 +231,8 @@
   gem5:
     decode_mnemonic: sev
     static_inst: SevInst
+    variants:
+    - SevInst
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:544
   injectors:
@@ -231,6 +256,8 @@
   gem5:
     decode_mnemonic: sevl
     static_inst: SevlInst
+    variants:
+    - SevlInst
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:546
   injectors:
@@ -254,6 +281,8 @@
   gem5:
     decode_mnemonic: wfe
     static_inst: WfeInst
+    variants:
+    - WfeInst
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:540
   injectors:
@@ -284,6 +313,8 @@
   gem5:
     decode_mnemonic: wfi
     static_inst: WfiInst
+    variants:
+    - WfiInst
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:542
   injectors:
@@ -314,6 +345,8 @@
   gem5:
     decode_mnemonic: yield
     static_inst: YieldInst
+    variants:
+    - YieldInst
     anchors:
       decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:538
   injectors:
