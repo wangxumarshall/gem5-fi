@@ -21,7 +21,7 @@
   - CHAOSProbe
   - CHAOSCommitTrace
   evidence:
-  - claim: A64 解码树 return new AdrXImm(...)；family=pc-relative 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new AdrXImm(...)（主定义类，变体见 variants；链路骨架=family pc-relative，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:80
 - doc: PC-Relative-ADRP.md
   mnemonic: ADRP
@@ -46,5 +46,5 @@
   - CHAOSProbe
   - CHAOSCommitTrace
   evidence:
-  - claim: A64 解码树 return new AdrpXImm(...)；family=pc-relative 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new AdrpXImm(...)（主定义类，变体见 variants；链路骨架=family pc-relative，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:83

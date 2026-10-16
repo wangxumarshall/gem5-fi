@@ -42,3 +42,18 @@ def test_index_table_rows():
 
 def test_render_deterministic():
     assert render_page(REC, FAM["dataproc-imm"]) == render_page(REC, FAM["dataproc-imm"])
+
+
+def test_mini_mermaid_mounts_memory_injectors_at_memory_node():
+    # 修复②：访存注入器必须挂 MEMORY 站（与总图 INJECTOR_MOUNTS 一致），不是 EXECUTE
+    from tools.o3_atlas.generate import INJECTOR_MOUNTS, render_mini_mermaid
+    fam = {"pipeline": ["FETCH", "DECODE", "RENAME", "DISPATCH", "ISSUE",
+                        "EXECUTE", "MEMORY", "WRITEBACK", "COMMIT"]}
+    mmd = render_mini_mermaid(fam, ["CHAOSLSQFwd", "CHAOSExec", "CHAOSDecode"])
+    idx = {n: i for i, n in enumerate(fam["pipeline"])}
+    lines = mmd.splitlines()
+    for line in lines:
+        if "CHAOSLSQFwd" in line and "-.->" in line:
+            assert f"N{idx['MEMORY']}" in line  # LSQFwd → MEMORY
+        if "CHAOSExec" in line and "-.->" in line:
+            assert f"N{idx['EXECUTE']}" in line  # Exec → EXECUTE

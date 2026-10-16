@@ -216,6 +216,15 @@ _ABSENT_BEHAVIOR = {
 }
 
 
+# 逐记录覆盖（标题首 token 归一化后匹配）：A64 CRC 的 opClass 实为 SimdCrcOp
+# （decoder-ns.cc.inc:58992 Crc32b64 构造），不属于 CHAOSExec 的
+# IntAlu/IntMult/IntDiv 命中谓词，故 fu 覆盖且从命中集中剔除 CHAOSExec
+_FU_OVERRIDES = {
+    "crc32b": {"fu": "SimdCrcOp"},
+    "crc32cb": {"fu": "SimdCrcOp"},
+}
+
+
 def generate_all():
     families = yaml.safe_load(FAMILIES_YAML.read_text(encoding="utf-8"))
     sites = _decode_sites()
@@ -255,21 +264,30 @@ def generate_all():
                 tier = "fs-only"
             fam = family_for(title, category)
             from .scan_tiers import constructor_mnemonics as _cm  # lru_cache 命中
+            from .scan_tiers import _norm_base
             variants = sorted(cls for cls, mns in _cm().items()
                               if hit["mnemonic"] in mns and cls in sites)
-            rec.update({
+            injectors = list(families[fam]["default_injectors"])
+            rec_body = {
                 "tier": tier,
                 "family": fam,
                 "gem5": {"decode_mnemonic": hit["mnemonic"],
                          "static_inst": hit["class"],
                          "variants": variants,
                          "anchors": {"decoder": anchor}},
-                "injectors": list(families[fam]["default_injectors"]),
+                "injectors": injectors,
                 "evidence": [{
-                    "claim": f"A64 解码树 return new {hit['class']}(...)；"
-                             f"family={fam} 骨架引用（分类任务深填）",
+                    "claim": f"A64 解码树 return new {hit['class']}(...)（主定义类，"
+                             f"变体见 variants；链路骨架=family {fam}，"
+                             f"注入器命中见 injectors）",
                     "anchor": anchor}],
-            })
+            }
+            fu_ov = _FU_OVERRIDES.get(_norm_base(title.split(" (")[0]))
+            if fu_ov:
+                rec_body["overrides"] = dict(fu_ov)
+                rec_body["injectors"] = [i for i in injectors
+                                         if i != "CHAOSExec"]
+            rec.update(rec_body)
         elif base.lower() in warn_nop or base_raw.lower() in warn_nop:
             mnem = base.lower() if base.lower() in warn_nop else base_raw.lower()
             rec.update({

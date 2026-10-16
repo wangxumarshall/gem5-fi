@@ -21,7 +21,7 @@
   - CHAOSProbe
   - CHAOSCommitTrace
   evidence:
-  - claim: A64 解码树 return new Axflag(...)；family=flag 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new Axflag(...)（主定义类，变体见 variants；链路骨架=family flag，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:498
 - doc: Other-BC_cond.md
   mnemonic: BC.cond
@@ -53,7 +53,7 @@
   - CHAOSProbe
   - CHAOSCommitTrace
   evidence:
-  - claim: A64 解码树 return new Bfm64(...)；family=bitfield 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new Bfm64(...)（主定义类，变体见 variants；链路骨架=family bitfield，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:181
 - doc: Other-CFINV.md
   mnemonic: CFINV
@@ -78,7 +78,7 @@
   - CHAOSProbe
   - CHAOSCommitTrace
   evidence:
-  - claim: A64 解码树 return new Cfinv(...)；family=flag 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new Cfinv(...)（主定义类，变体见 variants；链路骨架=family flag，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:492
 - doc: Other-CFP.md
   mnemonic: CFP
@@ -110,7 +110,7 @@
   - CHAOSProbe
   - CHAOSCommitTrace
   evidence:
-  - claim: A64 解码树 return new Clrex64(...)；family=hint 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new Clrex64(...)（主定义类，变体见 variants；链路骨架=family hint，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:253
 - doc: Other-CPP.md
   mnemonic: CPP
@@ -366,7 +366,7 @@
   - CHAOSProbe
   - CHAOSCommitTrace
   evidence:
-  - claim: A64 解码树 return new Csinc64(...)；family=cond-select 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new Csinc64(...)（主定义类，变体见 variants；链路骨架=family cond-select，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2360
 - doc: Other-CSETM.md
   mnemonic: CSETM
@@ -391,7 +391,7 @@
   - CHAOSProbe
   - CHAOSCommitTrace
   evidence:
-  - claim: A64 解码树 return new Csinv64(...)；family=cond-select 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new Csinv64(...)（主定义类，变体见 variants；链路骨架=family cond-select，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2362
 - doc: Other-DGH.md
   mnemonic: DGH
@@ -437,7 +437,7 @@
   - CHAOSProbe
   - CHAOSCommitTrace
   evidence:
-  - claim: A64 解码树 return new Eret64(...)；family=dataproc-1src 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new Eret64(...)（主定义类，变体见 variants；链路骨架=family dataproc-1src，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:776
 - doc: Other-ERETAA_ERETAB.md
   mnemonic: ERETAA, ERETAB
@@ -462,7 +462,7 @@
   - CHAOSProbe
   - CHAOSCommitTrace
   evidence:
-  - claim: A64 解码树 return new Eretaa(...)；family=dataproc-1src 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new Eretaa(...)（主定义类，变体见 variants；链路骨架=family dataproc-1src，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:781
 - doc: Other-ESB.md
   mnemonic: ESB
@@ -515,7 +515,7 @@
   - CHAOSProbe
   - CHAOSCommitTrace
   evidence:
-  - claim: A64 解码树 return new Msub64(...)；family=mul 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new Msub64(...)（主定义类，变体见 variants；链路骨架=family mul，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2594
 - doc: Other-NGC.md
   mnemonic: NGC
@@ -540,7 +540,8 @@
   - CHAOSProbe
   - CHAOSCommitTrace
   evidence:
-  - claim: A64 解码树 return new SbcXSReg(...)；family=dataproc-shifted-reg 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new SbcXSReg(...)（主定义类，变体见 variants；链路骨架=family dataproc-shifted-reg，注入器命中见
+      injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2279
 - doc: Other-NGCS.md
   mnemonic: NGCS
@@ -565,7 +566,8 @@
   - CHAOSProbe
   - CHAOSCommitTrace
   evidence:
-  - claim: A64 解码树 return new SbcXSRegCc(...)；family=dataproc-shifted-reg 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new SbcXSRegCc(...)（主定义类，变体见 variants；链路骨架=family dataproc-shifted-reg，注入器命中见
+      injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2281
 - doc: Other-PSB_CSYNC.md
   mnemonic: PSB CSYNC
@@ -598,7 +600,7 @@
   - CHAOSProbe
   - CHAOSCommitTrace
   evidence:
-  - claim: A64 解码树 return new Dsb64Local(...)；family=barrier 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new Dsb64Local(...)（主定义类，变体见 variants；链路骨架=family barrier，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:243
 - doc: Other-RMIF.md
   mnemonic: RMIF
@@ -623,7 +625,7 @@
   - CHAOSProbe
   - CHAOSCommitTrace
   evidence:
-  - claim: A64 解码树 return new Rmif(...)；family=flag 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new Rmif(...)（主定义类，变体见 variants；链路骨架=family flag，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2293
 - doc: Other-SB.md
   mnemonic: SB
@@ -656,7 +658,7 @@
   - CHAOSProbe
   - CHAOSCommitTrace
   evidence:
-  - claim: A64 解码树 return new Sbfm64(...)；family=bitfield 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new Sbfm64(...)（主定义类，变体见 variants；链路骨架=family bitfield，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:179
 - doc: Other-SETF8_SETF16.md
   mnemonic: SETF8, SETF16
@@ -681,7 +683,7 @@
   - CHAOSProbe
   - CHAOSCommitTrace
   evidence:
-  - claim: A64 解码树 return new Setf8(...)；family=dataproc-1src 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new Setf8(...)（主定义类，变体见 variants；链路骨架=family dataproc-1src，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2304
 - doc: Other-SETGPN_SETGMN_SETGEN.md
   mnemonic: SETGPN, SETGMN, SETGEN
@@ -762,7 +764,7 @@
   - CHAOSProbe
   - CHAOSCommitTrace
   evidence:
-  - claim: A64 解码树 return new Smsubl64(...)；family=mul 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new Smsubl64(...)（主定义类，变体见 variants；链路骨架=family mul，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2599
 - doc: Other-SMSUBL.md
   mnemonic: SMSUBL
@@ -787,7 +789,7 @@
   - CHAOSProbe
   - CHAOSCommitTrace
   evidence:
-  - claim: A64 解码树 return new Smsubl64(...)；family=mul 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new Smsubl64(...)（主定义类，变体见 variants；链路骨架=family mul，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2599
 - doc: Other-SSBB.md
   mnemonic: SSBB
@@ -813,7 +815,7 @@
   - CHAOSProbe
   - CHAOSCommitTrace
   evidence:
-  - claim: A64 解码树 return new Dsb64Local(...)；family=barrier 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new Dsb64Local(...)（主定义类，变体见 variants；链路骨架=family barrier，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:243
 - doc: Other-SXTB.md
   mnemonic: SXTB
@@ -838,7 +840,7 @@
   - CHAOSProbe
   - CHAOSCommitTrace
   evidence:
-  - claim: A64 解码树 return new Sbfm64(...)；family=extend 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new Sbfm64(...)（主定义类，变体见 variants；链路骨架=family extend，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:179
 - doc: Other-SXTH.md
   mnemonic: SXTH
@@ -863,7 +865,7 @@
   - CHAOSProbe
   - CHAOSCommitTrace
   evidence:
-  - claim: A64 解码树 return new Sbfm64(...)；family=extend 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new Sbfm64(...)（主定义类，变体见 variants；链路骨架=family extend，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:179
 - doc: Other-SXTW.md
   mnemonic: SXTW
@@ -888,7 +890,7 @@
   - CHAOSProbe
   - CHAOSCommitTrace
   evidence:
-  - claim: A64 解码树 return new Sbfm64(...)；family=extend 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new Sbfm64(...)（主定义类，变体见 variants；链路骨架=family extend，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:179
 - doc: Other-TSB_CSYNC.md
   mnemonic: TSB CSYNC
@@ -920,7 +922,7 @@
   - CHAOSProbe
   - CHAOSCommitTrace
   evidence:
-  - claim: A64 解码树 return new Ubfm64(...)；family=bitfield 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new Ubfm64(...)（主定义类，变体见 variants；链路骨架=family bitfield，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:183
 - doc: Other-UDF.md
   mnemonic: UDF
@@ -952,7 +954,7 @@
   - CHAOSProbe
   - CHAOSCommitTrace
   evidence:
-  - claim: A64 解码树 return new Umsubl64(...)；family=mul 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new Umsubl64(...)（主定义类，变体见 variants；链路骨架=family mul，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2608
 - doc: Other-UMSUBL.md
   mnemonic: UMSUBL
@@ -977,7 +979,7 @@
   - CHAOSProbe
   - CHAOSCommitTrace
   evidence:
-  - claim: A64 解码树 return new Umsubl64(...)；family=mul 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new Umsubl64(...)（主定义类，变体见 variants；链路骨架=family mul，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2608
 - doc: Other-UXTB.md
   mnemonic: UXTB
@@ -1002,7 +1004,7 @@
   - CHAOSProbe
   - CHAOSCommitTrace
   evidence:
-  - claim: A64 解码树 return new Ubfm64(...)；family=extend 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new Ubfm64(...)（主定义类，变体见 variants；链路骨架=family extend，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:183
 - doc: Other-UXTH.md
   mnemonic: UXTH
@@ -1027,7 +1029,7 @@
   - CHAOSProbe
   - CHAOSCommitTrace
   evidence:
-  - claim: A64 解码树 return new Ubfm64(...)；family=extend 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new Ubfm64(...)（主定义类，变体见 variants；链路骨架=family extend，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:183
 - doc: Other-XAFLAG.md
   mnemonic: XAFLAG
@@ -1052,5 +1054,5 @@
   - CHAOSProbe
   - CHAOSCommitTrace
   evidence:
-  - claim: A64 解码树 return new Xaflag(...)；family=flag 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new Xaflag(...)（主定义类，变体见 variants；链路骨架=family flag，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:495

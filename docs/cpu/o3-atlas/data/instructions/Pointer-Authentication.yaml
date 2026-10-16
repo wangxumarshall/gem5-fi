@@ -21,7 +21,7 @@
   - CHAOSProbe
   - CHAOSCommitTrace
   evidence:
-  - claim: A64 解码树 return new Autda(...)；family=dataproc-1src 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new Autda(...)（主定义类，变体见 variants；链路骨架=family dataproc-1src，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2444
 - doc: Pointer-Authentication-AUTDB_AUTDZB.md
   mnemonic: AUTDB, AUTDZB
@@ -46,7 +46,7 @@
   - CHAOSProbe
   - CHAOSCommitTrace
   evidence:
-  - claim: A64 解码树 return new Autdb(...)；family=dataproc-1src 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new Autdb(...)（主定义类，变体见 variants；链路骨架=family dataproc-1src，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2446
 - doc: Pointer-Authentication-AUTIA_AUTIA1716_AUTIASP__AUTIAZ_AUTIZA.md
   mnemonic: AUTIA, AUTIA1716, AUTIASP , AUTIAZ, AUTIZA
@@ -71,7 +71,7 @@
   - CHAOSProbe
   - CHAOSCommitTrace
   evidence:
-  - claim: A64 解码树 return new Autia(...)；family=dataproc-1src 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new Autia(...)（主定义类，变体见 variants；链路骨架=family dataproc-1src，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2440
 - doc: Pointer-Authentication-AUTIB_AUTIB1716_AUTIBSP__AUTIBZ_AUTIZB.md
   mnemonic: AUTIB, AUTIB1716, AUTIBSP , AUTIBZ, AUTIZB
@@ -96,7 +96,7 @@
   - CHAOSProbe
   - CHAOSCommitTrace
   evidence:
-  - claim: A64 解码树 return new Autib(...)；family=dataproc-1src 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new Autib(...)（主定义类，变体见 variants；链路骨架=family dataproc-1src，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2442
 - doc: Pointer-Authentication-BTI.md
   mnemonic: BTI
@@ -128,7 +128,7 @@
   - CHAOSProbe
   - CHAOSCommitTrace
   evidence:
-  - claim: A64 解码树 return new Pacda(...)；family=dataproc-1src 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new Pacda(...)（主定义类，变体见 variants；链路骨架=family dataproc-1src，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2436
 - doc: Pointer-Authentication-PACDB_PACDZB.md
   mnemonic: PACDB, PACDZB
@@ -153,7 +153,7 @@
   - CHAOSProbe
   - CHAOSCommitTrace
   evidence:
-  - claim: A64 解码树 return new Pacdb(...)；family=dataproc-1src 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new Pacdb(...)（主定义类，变体见 variants；链路骨架=family dataproc-1src，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2438
 - doc: Pointer-Authentication-PACGA.md
   mnemonic: PACGA
@@ -178,7 +178,7 @@
   - CHAOSProbe
   - CHAOSCommitTrace
   evidence:
-  - claim: A64 解码树 return new Pacga(...)；family=dataproc-2src 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new Pacga(...)（主定义类，变体见 variants；链路骨架=family dataproc-2src，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2396
 - doc: Pointer-Authentication-PACIA_PACIA1716_PACIASP__PACIAZ_PACIZA.md
   mnemonic: PACIA, PACIA1716, PACIASP , PACIAZ, PACIZA
@@ -203,7 +203,7 @@
   - CHAOSProbe
   - CHAOSCommitTrace
   evidence:
-  - claim: A64 解码树 return new Pacia(...)；family=dataproc-1src 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new Pacia(...)（主定义类，变体见 variants；链路骨架=family dataproc-1src，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2432
 - doc: Pointer-Authentication-PACIB_PACIB1716_PACIBSP__PACIBZ_PACIZB.md
   mnemonic: PACIB, PACIB1716, PACIBSP , PACIBZ, PACIZB
@@ -228,7 +228,7 @@
   - CHAOSProbe
   - CHAOSCommitTrace
   evidence:
-  - claim: A64 解码树 return new Pacib(...)；family=dataproc-1src 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new Pacib(...)（主定义类，变体见 variants；链路骨架=family dataproc-1src，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2434
 - doc: Pointer-Authentication-XPACD_XPACI_XPACLRI.md
   mnemonic: XPACD, XPACI, XPACLRI
@@ -253,5 +253,5 @@
   - CHAOSProbe
   - CHAOSCommitTrace
   evidence:
-  - claim: A64 解码树 return new Xpacd(...)；family=dataproc-1src 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new Xpacd(...)（主定义类，变体见 variants；链路骨架=family dataproc-1src，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2505

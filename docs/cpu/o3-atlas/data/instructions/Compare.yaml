@@ -22,7 +22,7 @@
   - CHAOSProbe
   - CHAOSCommitTrace
   evidence:
-  - claim: A64 解码树 return new CcmnImm64(...)；family=compare 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new CcmnImm64(...)（主定义类，变体见 variants；链路骨架=family compare，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2331
 - doc: Compare-CCMN_register.md
   mnemonic: CCMN (register)
@@ -48,7 +48,7 @@
   - CHAOSProbe
   - CHAOSCommitTrace
   evidence:
-  - claim: A64 解码树 return new CcmnReg64(...)；family=compare 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new CcmnReg64(...)（主定义类，变体见 variants；链路骨架=family compare，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2324
 - doc: Compare-CCMP_immediate.md
   mnemonic: CCMP (immediate)
@@ -74,7 +74,7 @@
   - CHAOSProbe
   - CHAOSCommitTrace
   evidence:
-  - claim: A64 解码树 return new CcmpImm64(...)；family=compare 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new CcmpImm64(...)（主定义类，变体见 variants；链路骨架=family compare，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2333
 - doc: Compare-CCMP_register.md
   mnemonic: CCMP (register)
@@ -100,7 +100,7 @@
   - CHAOSProbe
   - CHAOSCommitTrace
   evidence:
-  - claim: A64 解码树 return new CcmpReg64(...)；family=compare 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new CcmpReg64(...)（主定义类，变体见 variants；链路骨架=family compare，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2326
 - doc: Compare-CMN_extended_register.md
   mnemonic: CMN (extended register)
@@ -127,7 +127,7 @@
   - CHAOSProbe
   - CHAOSCommitTrace
   evidence:
-  - claim: A64 解码树 return new AddXERegCc(...)；family=compare 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new AddXERegCc(...)（主定义类，变体见 variants；链路骨架=family compare，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2250
 - doc: Compare-CMN_immediate.md
   mnemonic: CMN (immediate)
@@ -154,7 +154,7 @@
   - CHAOSProbe
   - CHAOSCommitTrace
   evidence:
-  - claim: A64 解码树 return new AddXImmCc(...)；family=compare 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new AddXImmCc(...)（主定义类，变体见 variants；链路骨架=family compare，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:102
 - doc: Compare-CMN_shifted_register.md
   mnemonic: CMN (shifted register)
@@ -181,7 +181,7 @@
   - CHAOSProbe
   - CHAOSCommitTrace
   evidence:
-  - claim: A64 解码树 return new AddXSRegCc(...)；family=compare 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new AddXSRegCc(...)（主定义类，变体见 variants；链路骨架=family compare，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2225
 - doc: Compare-CMPP.md
   mnemonic: CMPP
@@ -215,7 +215,7 @@
   - CHAOSProbe
   - CHAOSCommitTrace
   evidence:
-  - claim: A64 解码树 return new SubXERegCc(...)；family=compare 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new SubXERegCc(...)（主定义类，变体见 variants；链路骨架=family compare，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2254
 - doc: Compare-CMP_immediate.md
   mnemonic: CMP (immediate)
@@ -242,7 +242,7 @@
   - CHAOSProbe
   - CHAOSCommitTrace
   evidence:
-  - claim: A64 解码树 return new SubXImmCc(...)；family=compare 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new SubXImmCc(...)（主定义类，变体见 variants；链路骨架=family compare，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:106
 - doc: Compare-CMP_shifted_register.md
   mnemonic: CMP (shifted register)
@@ -269,5 +269,5 @@
   - CHAOSProbe
   - CHAOSCommitTrace
   evidence:
-  - claim: A64 解码树 return new SubXSRegCc(...)；family=compare 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new SubXSRegCc(...)（主定义类，变体见 variants；链路骨架=family compare，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2229

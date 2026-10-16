@@ -116,8 +116,8 @@
 | [Conditional-Select-CSNEG.md](../pages/Conditional-Select-CSNEG.md) | ✓ | ✓ | ✓ | ✓ | ✓ | · | · | · | ✓ | ✓ | ✓ | · | · | · | · | ✓ | ✓ | · | · |
 | [Count-CLS.md](../pages/Count-CLS.md) | ✓ | ✓ | ✓ | ✓ | ✓ | · | · | · | ✓ | ✓ | ✓ | · | · | · | · | ✓ | ✓ | · | · |
 | [Count-CLZ.md](../pages/Count-CLZ.md) | ✓ | ✓ | ✓ | ✓ | ✓ | · | · | · | ✓ | ✓ | ✓ | · | · | · | · | ✓ | ✓ | · | · |
-| [Cryptographic-CRC32B_CRC32H_CRC32W__CRC32X.md](../pages/Cryptographic-CRC32B_CRC32H_CRC32W__CRC32X.md) | ✓ | ✓ | ✓ | ✓ | ✓ | · | · | · | ✓ | ✓ | ✓ | · | · | · | · | ✓ | ✓ | · | · |
-| [Cryptographic-CRC32CB_CRC32CH_CRC32CW__CRC32CX.md](../pages/Cryptographic-CRC32CB_CRC32CH_CRC32CW__CRC32CX.md) | ✓ | ✓ | ✓ | ✓ | ✓ | · | · | · | ✓ | ✓ | ✓ | · | · | · | · | ✓ | ✓ | · | · |
+| [Cryptographic-CRC32B_CRC32H_CRC32W__CRC32X.md](../pages/Cryptographic-CRC32B_CRC32H_CRC32W__CRC32X.md) | ✓ | ✓ | ✓ | ✓ | ✓ | · | · | · | ✓ | ✓ | · | · | · | · | · | ✓ | ✓ | · | · |
+| [Cryptographic-CRC32CB_CRC32CH_CRC32CW__CRC32CX.md](../pages/Cryptographic-CRC32CB_CRC32CH_CRC32CW__CRC32CX.md) | ✓ | ✓ | ✓ | ✓ | ✓ | · | · | · | ✓ | ✓ | · | · | · | · | · | ✓ | ✓ | · | · |
 | [Load-Store-LD64B.md](../pages/Load-Store-LD64B.md) | · | · | · | · | · | · | · | · | · | · | · | · | · | · | · | · | · | · | · |
 | [Load-Store-LDADDB_LDADDAB_LDADDALB_LDADDLB.md](../pages/Load-Store-LDADDB_LDADDAB_LDADDALB_LDADDLB.md) | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | · | · | · | · | · | ✓ | ✓ | ✓ | ✓ |
 | [Load-Store-LDADDH_LDADDAH_LDADDALH_LDADDLH.md](../pages/Load-Store-LDADDH_LDADDAH_LDADDALH_LDADDLH.md) | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | · | · | · | · | · | ✓ | ✓ | ✓ | ✓ |

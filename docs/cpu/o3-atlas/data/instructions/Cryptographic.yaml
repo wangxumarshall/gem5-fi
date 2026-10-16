@@ -17,12 +17,13 @@
   - CHAOSIQ
   - CHAOSROB
   - CHAOSReg
-  - CHAOSExec
   - CHAOSProbe
   - CHAOSCommitTrace
   evidence:
-  - claim: A64 解码树 return new Crc32b64(...)；family=dataproc-2src 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new Crc32b64(...)（主定义类，变体见 variants；链路骨架=family dataproc-2src，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2398
+  overrides:
+    fu: SimdCrcOp
 - doc: Cryptographic-CRC32CB_CRC32CH_CRC32CW__CRC32CX.md
   mnemonic: CRC32CB, CRC32CH, CRC32CW , CRC32CX
   tier: implemented
@@ -42,9 +43,10 @@
   - CHAOSIQ
   - CHAOSROB
   - CHAOSReg
-  - CHAOSExec
   - CHAOSProbe
   - CHAOSCommitTrace
   evidence:
-  - claim: A64 解码树 return new Crc32cb64(...)；family=dataproc-2src 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new Crc32cb64(...)（主定义类，变体见 variants；链路骨架=family dataproc-2src，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2406
+  overrides:
+    fu: SimdCrcOp

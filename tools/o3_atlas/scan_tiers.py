@@ -115,7 +115,17 @@ def _a64_like(cls):
     """A64 类名形先验：[XW]<Form>（AddXImm/BCond64/STXRX64/LDRX64_IMM…）。
     仅作排序加权（A32/T32 类共存在于生成文件），不是过滤器。"""
     return bool(re.search(r"[XW](Imm|SReg|EReg|Reg|1Reg|2Reg|Cond)", cls)
-                or cls.endswith("64"))
+                or cls.endswith("64") or "64_" in cls)
+
+
+def _int_like(cls):
+    """整型变体优先于 FP/SIMD 变体：LDRX64_IMM 必须排在 LDRBFP64_IMM 前。"""
+    return 0 if ("FP" in cls or "Simd" in cls) else 1
+
+
+def _x_width(cls):
+    """X（64 位）宽度优先于 W（32 位）：主定义形式是 LDRX64_IMM/AddXImm。"""
+    return 1 if re.search(r"X(64)?(_|Imm|SReg|EReg|Reg|1Reg|2Reg|Cond|$)", cls) else 0
 
 
 def candidates_for(title):
@@ -131,8 +141,10 @@ def candidates_for(title):
             why += f' + form "{form}" → suffix {"命中" if form_match else "不匹配"}'
         out.append({"class": cls, "mnemonic": base, "form": form,
                     "form_match": form_match, "a64_like": _a64_like(cls),
+                    "int_like": _int_like(cls), "x_width": _x_width(cls),
                     "why": why})
-    out.sort(key=lambda x: (-x["form_match"], -x["a64_like"], x["class"]))
+    out.sort(key=lambda x: (-x["form_match"], -x["a64_like"],
+                            -x["int_like"], -x["x_width"], x["class"]))
     return out
 
 

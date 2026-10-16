@@ -22,17 +22,17 @@ flowchart LR
     N4 --> N5
     N5 --> N6
     N6 --> N7
-    I0[CHAOSCommitTrace] -.-> N5
-    I1[CHAOSDecode] -.-> N5
+    I0[CHAOSCommitTrace] -.-> N7
+    I1[CHAOSDecode] -.-> N1
     I2[CHAOSExec] -.-> N5
-    I3[CHAOSFreeList] -.-> N5
-    I4[CHAOSIQ] -.-> N5
+    I3[CHAOSFreeList] -.-> N2
+    I4[CHAOSIQ] -.-> N4
     I5[CHAOSPhysReg] -.-> N5
-    I6[CHAOSProbe] -.-> N5
-    I7[CHAOSRAS] -.-> N5
-    I8[CHAOSROB] -.-> N5
-    I9[CHAOSReg] -.-> N5
-    I10[CHAOSRenameMap] -.-> N5
+    I6[CHAOSProbe] -.-> N7
+    I7[CHAOSRAS] -.-> N7
+    I8[CHAOSROB] -.-> N7
+    I9[CHAOSReg] -.-> N7
+    I10[CHAOSRenameMap] -.-> N2
 ```
 
 ## 分站链路
@@ -78,4 +78,4 @@ flowchart LR
 
 | 断言 | 锚点 |
 |---|---|
-| A64 解码树 return new Hvc64(...)；family=exception 骨架引用（分类任务深填） | CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:678 |
+| A64 解码树 return new Hvc64(...)（主定义类，变体见 variants；链路骨架=family exception，注入器命中见 injectors） | CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:678 |

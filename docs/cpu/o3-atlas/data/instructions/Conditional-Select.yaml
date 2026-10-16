@@ -21,7 +21,7 @@
   - CHAOSProbe
   - CHAOSCommitTrace
   evidence:
-  - claim: A64 解码树 return new Csinc64(...)；family=cond-select 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new Csinc64(...)（主定义类，变体见 variants；链路骨架=family cond-select，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2360
 - doc: Conditional-Select-CINV.md
   mnemonic: CINV
@@ -46,7 +46,7 @@
   - CHAOSProbe
   - CHAOSCommitTrace
   evidence:
-  - claim: A64 解码树 return new Csinv64(...)；family=cond-select 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new Csinv64(...)（主定义类，变体见 variants；链路骨架=family cond-select，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2362
 - doc: Conditional-Select-CNEG.md
   mnemonic: CNEG
@@ -71,7 +71,7 @@
   - CHAOSProbe
   - CHAOSCommitTrace
   evidence:
-  - claim: A64 解码树 return new Csneg64(...)；family=cond-select 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new Csneg64(...)（主定义类，变体见 variants；链路骨架=family cond-select，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2364
 - doc: Conditional-Select-CSEL.md
   mnemonic: CSEL
@@ -96,7 +96,7 @@
   - CHAOSProbe
   - CHAOSCommitTrace
   evidence:
-  - claim: A64 解码树 return new Csel64(...)；family=cond-select 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new Csel64(...)（主定义类，变体见 variants；链路骨架=family cond-select，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2358
 - doc: Conditional-Select-CSINC.md
   mnemonic: CSINC
@@ -121,7 +121,7 @@
   - CHAOSProbe
   - CHAOSCommitTrace
   evidence:
-  - claim: A64 解码树 return new Csinc64(...)；family=cond-select 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new Csinc64(...)（主定义类，变体见 variants；链路骨架=family cond-select，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2360
 - doc: Conditional-Select-CSINV.md
   mnemonic: CSINV
@@ -146,7 +146,7 @@
   - CHAOSProbe
   - CHAOSCommitTrace
   evidence:
-  - claim: A64 解码树 return new Csinv64(...)；family=cond-select 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new Csinv64(...)（主定义类，变体见 variants；链路骨架=family cond-select，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2362
 - doc: Conditional-Select-CSNEG.md
   mnemonic: CSNEG
@@ -171,5 +171,5 @@
   - CHAOSProbe
   - CHAOSCommitTrace
   evidence:
-  - claim: A64 解码树 return new Csneg64(...)；family=cond-select 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new Csneg64(...)（主定义类，变体见 variants；链路骨架=family cond-select，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2364

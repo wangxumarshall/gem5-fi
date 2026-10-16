@@ -55,3 +55,23 @@ def test_known_tiers_and_evidence_anchors():
     assert ldp["tier"] == "macro-op" and ldp["gem5"]["static_inst"] == "LdpStp"
     tlbi = recs["TLBI"]
     assert tlbi["tier"] == "fs-only"
+
+
+def test_crc_records_use_simdcrc_fu_and_drop_chaosexec():
+    # 修复③：A64 CRC32 的 opClass 是 SimdCrcOp（decoder-ns.cc.inc:58992），
+    # 不在 CHAOSExec 的 IntAlu/IntMult/IntDiv 命中谓词内
+    from tools.o3_atlas.gen_stubs import generate_all
+    recs = {r["mnemonic"]: r for r in generate_all()[0]}
+    crc = recs["CRC32B, CRC32H, CRC32W , CRC32X"]  # 真实标题（"W , X" 带空格）
+    assert crc.get("overrides", {}).get("fu") == "SimdCrcOp"
+    assert "CHAOSExec" not in crc["injectors"]
+
+
+def test_no_stale_deepfill_promise_in_claims():
+    # 修复④：evidence 措辞不得残留"分类任务深填"的过期承诺
+    from tools.o3_atlas.gen_stubs import generate_all
+    recs, _ = generate_all()
+    stale = [r["doc"] for r in recs
+             if any("分类任务深填" in e.get("claim", "")
+                    for e in r.get("evidence", []))]
+    assert stale == []

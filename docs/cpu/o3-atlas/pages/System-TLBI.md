@@ -22,16 +22,16 @@ flowchart LR
     N4 --> N5
     N5 --> N6
     N6 --> N7
-    I0[CHAOSCommitTrace] -.-> N5
-    I1[CHAOSDecode] -.-> N5
+    I0[CHAOSCommitTrace] -.-> N7
+    I1[CHAOSDecode] -.-> N1
     I2[CHAOSExec] -.-> N5
-    I3[CHAOSFreeList] -.-> N5
-    I4[CHAOSIQ] -.-> N5
+    I3[CHAOSFreeList] -.-> N2
+    I4[CHAOSIQ] -.-> N4
     I5[CHAOSPhysReg] -.-> N5
-    I6[CHAOSProbe] -.-> N5
-    I7[CHAOSROB] -.-> N5
-    I8[CHAOSReg] -.-> N5
-    I9[CHAOSRenameMap] -.-> N5
+    I6[CHAOSProbe] -.-> N7
+    I7[CHAOSROB] -.-> N7
+    I8[CHAOSReg] -.-> N7
+    I9[CHAOSRenameMap] -.-> N2
 ```
 
 ## 分站链路

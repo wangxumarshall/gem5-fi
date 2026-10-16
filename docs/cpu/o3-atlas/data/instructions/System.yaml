@@ -89,7 +89,7 @@
   - CHAOSCommitTrace
   - CHAOSRAS
   evidence:
-  - claim: A64 解码树 return new Hlt64(...)；family=exception 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new Hlt64(...)（主定义类，变体见 variants；链路骨架=family exception，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:684
 - doc: System-HVC.md
   mnemonic: HVC
@@ -115,7 +115,7 @@
   - CHAOSCommitTrace
   - CHAOSRAS
   evidence:
-  - claim: A64 解码树 return new Hvc64(...)；family=exception 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new Hvc64(...)（主定义类，变体见 variants；链路骨架=family exception，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:678
 - doc: System-IC.md
   mnemonic: IC
@@ -150,7 +150,7 @@
   - CHAOSProbe
   - CHAOSCommitTrace
   evidence:
-  - claim: A64 解码树 return new Mrs64(...)；family=system-reg 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new Mrs64(...)（主定义类，变体见 variants；链路骨架=family system-reg，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:329
 - doc: System-MSR_immediate.md
   mnemonic: MSR (immediate)
@@ -184,7 +184,7 @@
   - CHAOSProbe
   - CHAOSCommitTrace
   evidence:
-  - claim: A64 解码树 return new MsrImm64(...)；family=system-reg 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new MsrImm64(...)（主定义类，变体见 variants；链路骨架=family system-reg，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:501
 - doc: System-MSR_register.md
   mnemonic: MSR (register)
@@ -218,7 +218,7 @@
   - CHAOSProbe
   - CHAOSCommitTrace
   evidence:
-  - claim: A64 解码树 return new Msr64(...)；family=system-reg 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new Msr64(...)（主定义类，变体见 variants；链路骨架=family system-reg，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:457
 - doc: System-SMC.md
   mnemonic: SMC
@@ -244,7 +244,7 @@
   - CHAOSCommitTrace
   - CHAOSRAS
   evidence:
-  - claim: A64 解码树 return new Smc64(...)；family=exception 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new Smc64(...)（主定义类，变体见 variants；链路骨架=family exception，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:680
 - doc: System-SVC.md
   mnemonic: SVC
@@ -270,7 +270,7 @@
   - CHAOSCommitTrace
   - CHAOSRAS
   evidence:
-  - claim: A64 解码树 return new Svc64(...)；family=exception 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new Svc64(...)（主定义类，变体见 variants；链路骨架=family exception，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:676
 - doc: System-SYS.md
   mnemonic: SYS

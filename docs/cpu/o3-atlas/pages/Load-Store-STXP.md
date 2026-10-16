@@ -24,21 +24,21 @@ flowchart LR
     N5 --> N6
     N6 --> N7
     N7 --> N8
-    I0[CHAOSAddrPath] -.-> N5
-    I1[CHAOSCache] -.-> N5
-    I2[CHAOSCommitTrace] -.-> N5
-    I3[CHAOSDecode] -.-> N5
-    I4[CHAOSExMon] -.-> N5
-    I5[CHAOSFreeList] -.-> N5
-    I6[CHAOSIQ] -.-> N5
-    I7[CHAOSL1DForward] -.-> N5
-    I8[CHAOSLSQFwd] -.-> N5
-    I9[CHAOSMem] -.-> N5
+    I0[CHAOSAddrPath] -.-> N6
+    I1[CHAOSCache] -.-> N6
+    I2[CHAOSCommitTrace] -.-> N8
+    I3[CHAOSDecode] -.-> N1
+    I4[CHAOSExMon] -.-> N6
+    I5[CHAOSFreeList] -.-> N2
+    I6[CHAOSIQ] -.-> N4
+    I7[CHAOSL1DForward] -.-> N6
+    I8[CHAOSLSQFwd] -.-> N6
+    I9[CHAOSMem] -.-> N6
     I10[CHAOSPhysReg] -.-> N5
-    I11[CHAOSProbe] -.-> N5
-    I12[CHAOSROB] -.-> N5
-    I13[CHAOSReg] -.-> N5
-    I14[CHAOSRenameMap] -.-> N5
+    I11[CHAOSProbe] -.-> N8
+    I12[CHAOSROB] -.-> N8
+    I13[CHAOSReg] -.-> N8
+    I14[CHAOSRenameMap] -.-> N2
 ```
 
 ## 分站链路
@@ -58,8 +58,8 @@ flowchart LR
 ## 解码身份
 
 - decoder 格式：stxp
-- StaticInst 类：STXPW64
-- 解码锚点：CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1424
+- StaticInst 类：STXPX64
+- 解码锚点：CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1426
 
 ## 队列与执行单元
 
@@ -89,4 +89,4 @@ flowchart LR
 
 | 断言 | 锚点 |
 |---|---|
-| A64 解码树 return new STXPW64(...)；family=exclusive 骨架引用（分类任务深填） | CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1424 |
+| A64 解码树 return new STXPX64(...)（主定义类，变体见 variants；链路骨架=family exclusive，注入器命中见 injectors） | CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1426 |

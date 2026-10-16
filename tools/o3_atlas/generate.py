@@ -113,16 +113,18 @@ def sanitize_mermaid(s):
 
 
 def render_mini_mermaid(fam, hit_injectors=()):
-    """家族流水线主链 + 命中注入器以虚线挂到 EXECUTE（或末站）。"""
+    """家族流水线主链 + 命中注入器按总图 INJECTOR_MOUNTS 挂到对应站点。"""
     nodes = fam["pipeline"]
     lines = ["flowchart LR"]
     for i, n in enumerate(nodes):
         lines.append(f"    N{i}[{sanitize_mermaid(n)}]")
     for i in range(len(nodes) - 1):
         lines.append(f"    N{i} --> N{i + 1}")
-    anchor = nodes.index("EXECUTE") if "EXECUTE" in nodes else len(nodes) - 1
+    idx = {n: i for i, n in enumerate(nodes)}
     for j, inj in enumerate(sorted(hit_injectors)):
-        lines.append(f"    I{j}[{sanitize_mermaid(inj)}] -.-> N{anchor}")
+        target = INJECTOR_MOUNTS.get(inj, "EXECUTE")
+        ti = idx.get(target, len(nodes) - 1)
+        lines.append(f"    I{j}[{sanitize_mermaid(inj)}] -.-> N{ti}")
     return "\n".join(lines)
 
 

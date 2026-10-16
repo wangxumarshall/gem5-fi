@@ -22,7 +22,7 @@
   - CHAOSCommitTrace
   - CHAOSBPU
   evidence:
-  - claim: A64 解码树 return new Bl64(...)；family=branch-imm 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new Bl64(...)（主定义类，变体见 variants；链路骨架=family branch-imm，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:633
 - doc: Branch-BLR.md
   mnemonic: BLR
@@ -48,7 +48,7 @@
   - CHAOSCommitTrace
   - CHAOSBPU
   evidence:
-  - claim: A64 解码树 return new Blr64(...)；family=branch-reg 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new Blr64(...)（主定义类，变体见 variants；链路骨架=family branch-reg，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:755
 - doc: Branch-BLRAA_BLRAAZ_BLRAB_BLRABZ.md
   mnemonic: BLRAA, BLRAAZ, BLRAB, BLRABZ
@@ -81,7 +81,7 @@
   - CHAOSCommitTrace
   - CHAOSBPU
   evidence:
-  - claim: A64 解码树 return new Br64(...)；family=branch-reg 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new Br64(...)（主定义类，变体见 variants；链路骨架=family branch-reg，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:745
 - doc: Branch-BRAA_BRAAZ_BRAB_BRABZ.md
   mnemonic: BRAA, BRAAZ, BRAB, BRABZ
@@ -114,7 +114,7 @@
   - CHAOSCommitTrace
   - CHAOSBPU
   evidence:
-  - claim: A64 解码树 return new Brk64(...)；family=branch-reg 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new Brk64(...)（主定义类，变体见 variants；链路骨架=family branch-reg，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:682
 - doc: Branch-B_cond.md
   mnemonic: B.cond
@@ -141,7 +141,7 @@
   - CHAOSCommitTrace
   - CHAOSBPU
   evidence:
-  - claim: A64 解码树 return new B64(...)；family=branch-cond 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new B64(...)（主定义类，变体见 variants；链路骨架=family branch-cond，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:631
 - doc: Branch-CBNZ.md
   mnemonic: CBNZ
@@ -167,7 +167,7 @@
   - CHAOSCommitTrace
   - CHAOSBPU
   evidence:
-  - claim: A64 解码树 return new Cbnz64(...)；family=branch-cond 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new Cbnz64(...)（主定义类，变体见 variants；链路骨架=family branch-cond，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:643
 - doc: Branch-CBZ.md
   mnemonic: CBZ
@@ -193,7 +193,7 @@
   - CHAOSCommitTrace
   - CHAOSBPU
   evidence:
-  - claim: A64 解码树 return new Cbz64(...)；family=branch-cond 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new Cbz64(...)（主定义类，变体见 variants；链路骨架=family branch-cond，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:641
 - doc: Branch-RET.md
   mnemonic: RET
@@ -219,7 +219,7 @@
   - CHAOSCommitTrace
   - CHAOSBPU
   evidence:
-  - claim: A64 解码树 return new Ret64(...)；family=branch-reg 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new Ret64(...)（主定义类，变体见 variants；链路骨架=family branch-reg，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:771
 - doc: Branch-RETAA_RETAB.md
   mnemonic: RETAA, RETAB
@@ -245,7 +245,7 @@
   - CHAOSCommitTrace
   - CHAOSBPU
   evidence:
-  - claim: A64 解码树 return new Retaa(...)；family=branch-reg 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new Retaa(...)（主定义类，变体见 variants；链路骨架=family branch-reg，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:769
 - doc: Branch-TBNZ.md
   mnemonic: TBNZ
@@ -271,7 +271,7 @@
   - CHAOSCommitTrace
   - CHAOSBPU
   evidence:
-  - claim: A64 解码树 return new Tbnz64(...)；family=branch-cond 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new Tbnz64(...)（主定义类，变体见 variants；链路骨架=family branch-cond，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:653
 - doc: Branch-TBZ.md
   mnemonic: TBZ
@@ -297,5 +297,5 @@
   - CHAOSCommitTrace
   - CHAOSBPU
   evidence:
-  - claim: A64 解码树 return new Tbz64(...)；family=branch-cond 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new Tbz64(...)（主定义类，变体见 variants；链路骨架=family branch-cond，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:651

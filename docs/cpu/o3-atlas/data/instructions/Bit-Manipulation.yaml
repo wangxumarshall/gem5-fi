@@ -21,7 +21,7 @@
   - CHAOSProbe
   - CHAOSCommitTrace
   evidence:
-  - claim: A64 解码树 return new Asrv64(...)；family=bitfield 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new Asrv64(...)（主定义类，变体见 variants；链路骨架=family bitfield，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2392
 - doc: Bit-Manipulation-ASR_immediate.md
   mnemonic: ASR (immediate)
@@ -46,7 +46,7 @@
   - CHAOSProbe
   - CHAOSCommitTrace
   evidence:
-  - claim: A64 解码树 return new Sbfm64(...)；family=bitfield 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new Sbfm64(...)（主定义类，变体见 variants；链路骨架=family bitfield，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:179
 - doc: Bit-Manipulation-ASR_register.md
   mnemonic: ASR (register)
@@ -71,7 +71,7 @@
   - CHAOSProbe
   - CHAOSCommitTrace
   evidence:
-  - claim: A64 解码树 return new Asrv64(...)；family=dataproc-2src 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new Asrv64(...)（主定义类，变体见 variants；链路骨架=family dataproc-2src，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2392
 - doc: Bit-Manipulation-BFC.md
   mnemonic: BFC
@@ -96,7 +96,7 @@
   - CHAOSProbe
   - CHAOSCommitTrace
   evidence:
-  - claim: A64 解码树 return new Bfm64(...)；family=bitfield 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new Bfm64(...)（主定义类，变体见 variants；链路骨架=family bitfield，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:181
 - doc: Bit-Manipulation-BFI.md
   mnemonic: BFI
@@ -121,7 +121,7 @@
   - CHAOSProbe
   - CHAOSCommitTrace
   evidence:
-  - claim: A64 解码树 return new Bfm64(...)；family=bitfield 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new Bfm64(...)（主定义类，变体见 variants；链路骨架=family bitfield，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:181
 - doc: Bit-Manipulation-BFM.md
   mnemonic: BFM
@@ -146,7 +146,7 @@
   - CHAOSProbe
   - CHAOSCommitTrace
   evidence:
-  - claim: A64 解码树 return new Bfm64(...)；family=bitfield 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new Bfm64(...)（主定义类，变体见 variants；链路骨架=family bitfield，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:181
 - doc: Bit-Manipulation-EXTR.md
   mnemonic: EXTR
@@ -171,7 +171,7 @@
   - CHAOSProbe
   - CHAOSCommitTrace
   evidence:
-  - claim: A64 解码树 return new Extr64(...)；family=bitfield 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new Extr64(...)（主定义类，变体见 variants；链路骨架=family bitfield，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:195
 - doc: Bit-Manipulation-LSLV.md
   mnemonic: LSLV
@@ -196,7 +196,7 @@
   - CHAOSProbe
   - CHAOSCommitTrace
   evidence:
-  - claim: A64 解码树 return new Lslv64(...)；family=bitfield 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new Lslv64(...)（主定义类，变体见 variants；链路骨架=family bitfield，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2388
 - doc: Bit-Manipulation-LSL_immediate.md
   mnemonic: LSL (immediate)
@@ -221,7 +221,7 @@
   - CHAOSProbe
   - CHAOSCommitTrace
   evidence:
-  - claim: A64 解码树 return new Ubfm64(...)；family=bitfield 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new Ubfm64(...)（主定义类，变体见 variants；链路骨架=family bitfield，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:183
 - doc: Bit-Manipulation-LSL_register.md
   mnemonic: LSL (register)
@@ -246,7 +246,7 @@
   - CHAOSProbe
   - CHAOSCommitTrace
   evidence:
-  - claim: A64 解码树 return new Lslv64(...)；family=dataproc-2src 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new Lslv64(...)（主定义类，变体见 variants；链路骨架=family dataproc-2src，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2388
 - doc: Bit-Manipulation-LSRV.md
   mnemonic: LSRV
@@ -271,7 +271,7 @@
   - CHAOSProbe
   - CHAOSCommitTrace
   evidence:
-  - claim: A64 解码树 return new Lsrv64(...)；family=bitfield 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new Lsrv64(...)（主定义类，变体见 variants；链路骨架=family bitfield，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2390
 - doc: Bit-Manipulation-LSR_immediate.md
   mnemonic: LSR (immediate)
@@ -296,7 +296,7 @@
   - CHAOSProbe
   - CHAOSCommitTrace
   evidence:
-  - claim: A64 解码树 return new Ubfm64(...)；family=bitfield 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new Ubfm64(...)（主定义类，变体见 variants；链路骨架=family bitfield，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:183
 - doc: Bit-Manipulation-LSR_register.md
   mnemonic: LSR (register)
@@ -321,7 +321,7 @@
   - CHAOSProbe
   - CHAOSCommitTrace
   evidence:
-  - claim: A64 解码树 return new Lsrv64(...)；family=dataproc-2src 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new Lsrv64(...)（主定义类，变体见 variants；链路骨架=family dataproc-2src，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2390
 - doc: Bit-Manipulation-RBIT.md
   mnemonic: RBIT
@@ -346,7 +346,7 @@
   - CHAOSProbe
   - CHAOSCommitTrace
   evidence:
-  - claim: A64 解码树 return new Rbit64(...)；family=bitfield 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new Rbit64(...)（主定义类，变体见 variants；链路骨架=family bitfield，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2517
 - doc: Bit-Manipulation-REV.md
   mnemonic: REV
@@ -371,7 +371,7 @@
   - CHAOSProbe
   - CHAOSCommitTrace
   evidence:
-  - claim: A64 解码树 return new Rev64(...)；family=bitfield 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new Rev64(...)（主定义类，变体见 variants；链路骨架=family bitfield，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2522
 - doc: Bit-Manipulation-REV16.md
   mnemonic: REV16
@@ -396,7 +396,7 @@
   - CHAOSProbe
   - CHAOSCommitTrace
   evidence:
-  - claim: A64 解码树 return new Rev1664(...)；family=bitfield 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new Rev1664(...)（主定义类，变体见 variants；链路骨架=family bitfield，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2519
 - doc: Bit-Manipulation-REV32.md
   mnemonic: REV32
@@ -421,7 +421,7 @@
   - CHAOSProbe
   - CHAOSCommitTrace
   evidence:
-  - claim: A64 解码树 return new Rev3264(...)；family=bitfield 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new Rev3264(...)（主定义类，变体见 variants；链路骨架=family bitfield，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2524
 - doc: Bit-Manipulation-REV64.md
   mnemonic: REV64
@@ -453,7 +453,7 @@
   - CHAOSProbe
   - CHAOSCommitTrace
   evidence:
-  - claim: A64 解码树 return new Rorv64(...)；family=bitfield 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new Rorv64(...)（主定义类，变体见 variants；链路骨架=family bitfield，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2394
 - doc: Bit-Manipulation-ROR_immediate.md
   mnemonic: ROR (immediate)
@@ -478,7 +478,7 @@
   - CHAOSProbe
   - CHAOSCommitTrace
   evidence:
-  - claim: A64 解码树 return new Extr64(...)；family=bitfield 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new Extr64(...)（主定义类，变体见 variants；链路骨架=family bitfield，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:195
 - doc: Bit-Manipulation-ROR_register.md
   mnemonic: ROR (register)
@@ -503,7 +503,7 @@
   - CHAOSProbe
   - CHAOSCommitTrace
   evidence:
-  - claim: A64 解码树 return new Rorv64(...)；family=dataproc-2src 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new Rorv64(...)（主定义类，变体见 variants；链路骨架=family dataproc-2src，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2394
 - doc: Bit-Manipulation-SBFM.md
   mnemonic: SBFM
@@ -528,7 +528,7 @@
   - CHAOSProbe
   - CHAOSCommitTrace
   evidence:
-  - claim: A64 解码树 return new Sbfm64(...)；family=bitfield 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new Sbfm64(...)（主定义类，变体见 variants；链路骨架=family bitfield，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:179
 - doc: Bit-Manipulation-SBFX.md
   mnemonic: SBFX
@@ -553,7 +553,7 @@
   - CHAOSProbe
   - CHAOSCommitTrace
   evidence:
-  - claim: A64 解码树 return new Sbfm64(...)；family=bitfield 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new Sbfm64(...)（主定义类，变体见 variants；链路骨架=family bitfield，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:179
 - doc: Bit-Manipulation-UBFM.md
   mnemonic: UBFM
@@ -578,7 +578,7 @@
   - CHAOSProbe
   - CHAOSCommitTrace
   evidence:
-  - claim: A64 解码树 return new Ubfm64(...)；family=bitfield 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new Ubfm64(...)（主定义类，变体见 variants；链路骨架=family bitfield，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:183
 - doc: Bit-Manipulation-UBFX.md
   mnemonic: UBFX
@@ -603,5 +603,5 @@
   - CHAOSProbe
   - CHAOSCommitTrace
   evidence:
-  - claim: A64 解码树 return new Ubfm64(...)；family=bitfield 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new Ubfm64(...)（主定义类，变体见 variants；链路骨架=family bitfield，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:183

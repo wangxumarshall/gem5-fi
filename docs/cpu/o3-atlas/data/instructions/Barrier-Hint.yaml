@@ -21,7 +21,7 @@
   - CHAOSProbe
   - CHAOSCommitTrace
   evidence:
-  - claim: A64 解码树 return new Dmb64(...)；family=barrier 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new Dmb64(...)（主定义类，变体见 variants；链路骨架=family barrier，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:269
 - doc: Barrier-Hint-DSB.md
   mnemonic: DSB
@@ -47,7 +47,7 @@
   - CHAOSProbe
   - CHAOSCommitTrace
   evidence:
-  - claim: A64 解码树 return new Dsb64Local(...)；family=barrier 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new Dsb64Local(...)（主定义类，变体见 variants；链路骨架=family barrier，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:243
 - doc: Barrier-Hint-HINT.md
   mnemonic: HINT
@@ -79,7 +79,7 @@
   - CHAOSProbe
   - CHAOSCommitTrace
   evidence:
-  - claim: A64 解码树 return new Isb64(...)；family=barrier 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new Isb64(...)（主定义类，变体见 variants；链路骨架=family barrier，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:271
 - doc: Barrier-Hint-NOP.md
   mnemonic: NOP
@@ -104,7 +104,7 @@
   - CHAOSProbe
   - CHAOSCommitTrace
   evidence:
-  - claim: A64 解码树 return new NopInst(...)；family=hint 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new NopInst(...)（主定义类，变体见 variants；链路骨架=family hint，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:536
 - doc: Barrier-Hint-PRFM_immediate.md
   mnemonic: PRFM (immediate)
@@ -134,7 +134,7 @@
   - CHAOSMem
   - CHAOSCache
   evidence:
-  - claim: A64 解码树 return new PRFM64_IMM(...)；family=prefetch 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new PRFM64_IMM(...)（主定义类，变体见 variants；链路骨架=family prefetch，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1760
 - doc: Barrier-Hint-PRFM_literal.md
   mnemonic: PRFM (literal)
@@ -164,7 +164,7 @@
   - CHAOSMem
   - CHAOSCache
   evidence:
-  - claim: A64 解码树 return new PRFM64_LIT(...)；family=prefetch 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new PRFM64_LIT(...)（主定义类，变体见 variants；链路骨架=family prefetch，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1641
 - doc: Barrier-Hint-PRFM_register.md
   mnemonic: PRFM (register)
@@ -194,7 +194,7 @@
   - CHAOSMem
   - CHAOSCache
   evidence:
-  - claim: A64 解码树 return new PRFM64_IMM(...)；family=prefetch 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new PRFM64_IMM(...)（主定义类，变体见 variants；链路骨架=family prefetch，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1760
 - doc: Barrier-Hint-PRFUM.md
   mnemonic: PRFUM
@@ -222,7 +222,7 @@
   - CHAOSMem
   - CHAOSCache
   evidence:
-  - claim: A64 解码树 return new PRFUM64_IMM(...)；family=prefetch 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new PRFUM64_IMM(...)（主定义类，变体见 variants；链路骨架=family prefetch，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1978
 - doc: Barrier-Hint-SEV.md
   mnemonic: SEV
@@ -247,7 +247,7 @@
   - CHAOSProbe
   - CHAOSCommitTrace
   evidence:
-  - claim: A64 解码树 return new SevInst(...)；family=hint 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new SevInst(...)（主定义类，变体见 variants；链路骨架=family hint，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:544
 - doc: Barrier-Hint-SEVL.md
   mnemonic: SEVL
@@ -272,7 +272,7 @@
   - CHAOSProbe
   - CHAOSCommitTrace
   evidence:
-  - claim: A64 解码树 return new SevlInst(...)；family=hint 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new SevlInst(...)（主定义类，变体见 variants；链路骨架=family hint，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:546
 - doc: Barrier-Hint-WFE.md
   mnemonic: WFE
@@ -297,7 +297,7 @@
   - CHAOSProbe
   - CHAOSCommitTrace
   evidence:
-  - claim: A64 解码树 return new WfeInst(...)；family=hint 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new WfeInst(...)（主定义类，变体见 variants；链路骨架=family hint，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:540
 - doc: Barrier-Hint-WFET.md
   mnemonic: WFET
@@ -329,7 +329,7 @@
   - CHAOSProbe
   - CHAOSCommitTrace
   evidence:
-  - claim: A64 解码树 return new WfiInst(...)；family=hint 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new WfiInst(...)（主定义类，变体见 variants；链路骨架=family hint，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:542
 - doc: Barrier-Hint-WFIT.md
   mnemonic: WFIT
@@ -361,5 +361,5 @@
   - CHAOSProbe
   - CHAOSCommitTrace
   evidence:
-  - claim: A64 解码树 return new YieldInst(...)；family=hint 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new YieldInst(...)（主定义类，变体见 variants；链路骨架=family hint，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:538

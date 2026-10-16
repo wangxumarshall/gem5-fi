@@ -22,7 +22,7 @@
   - CHAOSProbe
   - CHAOSCommitTrace
   evidence:
-  - claim: A64 解码树 return new AndXImmCc(...)；family=logical-imm 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new AndXImmCc(...)（主定义类，变体见 variants；链路骨架=family logical-imm，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:150
 - doc: Logical-ANDS_shifted_register.md
   mnemonic: ANDS (shifted register)
@@ -48,7 +48,7 @@
   - CHAOSProbe
   - CHAOSCommitTrace
   evidence:
-  - claim: A64 解码树 return new AndXSRegCc(...)；family=logical-reg 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new AndXSRegCc(...)（主定义类，变体见 variants；链路骨架=family logical-reg，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2197
 - doc: Logical-AND_immediate.md
   mnemonic: AND (immediate)
@@ -74,7 +74,7 @@
   - CHAOSProbe
   - CHAOSCommitTrace
   evidence:
-  - claim: A64 解码树 return new AndXImm(...)；family=logical-imm 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new AndXImm(...)（主定义类，变体见 variants；链路骨架=family logical-imm，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:144
 - doc: Logical-AND_shifted_register.md
   mnemonic: AND (shifted register)
@@ -100,7 +100,7 @@
   - CHAOSProbe
   - CHAOSCommitTrace
   evidence:
-  - claim: A64 解码树 return new AndXSReg(...)；family=logical-reg 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new AndXSReg(...)（主定义类，变体见 variants；链路骨架=family logical-reg，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2185
 - doc: Logical-BICS_shifted_register.md
   mnemonic: BICS (shifted register)
@@ -125,7 +125,7 @@
   - CHAOSProbe
   - CHAOSCommitTrace
   evidence:
-  - claim: A64 解码树 return new BicXSRegCc(...)；family=logical-reg 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new BicXSRegCc(...)（主定义类，变体见 variants；链路骨架=family logical-reg，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2199
 - doc: Logical-BIC_shifted_register.md
   mnemonic: BIC (shifted register)
@@ -150,7 +150,7 @@
   - CHAOSProbe
   - CHAOSCommitTrace
   evidence:
-  - claim: A64 解码树 return new BicXSReg(...)；family=logical-reg 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new BicXSReg(...)（主定义类，变体见 variants；链路骨架=family logical-reg，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2187
 - doc: Logical-EON_shifted_register.md
   mnemonic: EON (shifted register)
@@ -175,7 +175,7 @@
   - CHAOSProbe
   - CHAOSCommitTrace
   evidence:
-  - claim: A64 解码树 return new EonXSReg(...)；family=logical-reg 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new EonXSReg(...)（主定义类，变体见 variants；链路骨架=family logical-reg，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2195
 - doc: Logical-EOR_immediate.md
   mnemonic: EOR (immediate)
@@ -201,7 +201,7 @@
   - CHAOSProbe
   - CHAOSCommitTrace
   evidence:
-  - claim: A64 解码树 return new EorXImm(...)；family=logical-imm 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new EorXImm(...)（主定义类，变体见 variants；链路骨架=family logical-imm，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:148
 - doc: Logical-EOR_shifted_register.md
   mnemonic: EOR (shifted register)
@@ -227,7 +227,7 @@
   - CHAOSProbe
   - CHAOSCommitTrace
   evidence:
-  - claim: A64 解码树 return new EorXSReg(...)；family=logical-reg 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new EorXSReg(...)（主定义类，变体见 variants；链路骨架=family logical-reg，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2193
 - doc: Logical-MOVK.md
   mnemonic: MOVK
@@ -252,7 +252,7 @@
   - CHAOSProbe
   - CHAOSCommitTrace
   evidence:
-  - claim: A64 解码树 return new Movk(...)；family=logical-reg 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new Movk(...)（主定义类，变体见 variants；链路骨架=family logical-reg，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:169
 - doc: Logical-MOVN.md
   mnemonic: MOVN
@@ -277,7 +277,7 @@
   - CHAOSProbe
   - CHAOSCommitTrace
   evidence:
-  - claim: A64 解码树 return new Movn(...)；family=logical-reg 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new Movn(...)（主定义类，变体见 variants；链路骨架=family logical-reg，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:163
 - doc: Logical-MOVZ.md
   mnemonic: MOVZ
@@ -302,7 +302,7 @@
   - CHAOSProbe
   - CHAOSCommitTrace
   evidence:
-  - claim: A64 解码树 return new Movz(...)；family=logical-reg 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new Movz(...)（主定义类，变体见 variants；链路骨架=family logical-reg，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:167
 - doc: Logical-MOV_bitmask_immediate.md
   mnemonic: MOV (bitmask immediate)
@@ -328,7 +328,7 @@
   - CHAOSProbe
   - CHAOSCommitTrace
   evidence:
-  - claim: A64 解码树 return new OrrXImm(...)；family=logical-imm 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new OrrXImm(...)（主定义类，变体见 variants；链路骨架=family logical-imm，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:146
 - doc: Logical-MOV_inverted_wide_immediate.md
   mnemonic: MOV (inverted wide immediate)
@@ -353,7 +353,7 @@
   - CHAOSProbe
   - CHAOSCommitTrace
   evidence:
-  - claim: A64 解码树 return new Movn(...)；family=logical-imm 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new Movn(...)（主定义类，变体见 variants；链路骨架=family logical-imm，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:163
 - doc: Logical-MOV_register.md
   mnemonic: MOV (register)
@@ -379,7 +379,8 @@
   - CHAOSProbe
   - CHAOSCommitTrace
   evidence:
-  - claim: A64 解码树 return new OrrXSReg(...)；family=dataproc-shifted-reg 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new OrrXSReg(...)（主定义类，变体见 variants；链路骨架=family dataproc-shifted-reg，注入器命中见
+      injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2189
 - doc: Logical-MOV_to_from_SP.md
   mnemonic: MOV (to/from SP)
@@ -406,7 +407,7 @@
   - CHAOSProbe
   - CHAOSCommitTrace
   evidence:
-  - claim: A64 解码树 return new AddXImm(...)；family=dataproc-imm 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new AddXImm(...)（主定义类，变体见 variants；链路骨架=family dataproc-imm，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:100
 - doc: Logical-MOV_wide_immediate.md
   mnemonic: MOV (wide immediate)
@@ -431,7 +432,7 @@
   - CHAOSProbe
   - CHAOSCommitTrace
   evidence:
-  - claim: A64 解码树 return new Movz(...)；family=logical-imm 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new Movz(...)（主定义类，变体见 variants；链路骨架=family logical-imm，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:167
 - doc: Logical-MVN.md
   mnemonic: MVN
@@ -456,7 +457,7 @@
   - CHAOSProbe
   - CHAOSCommitTrace
   evidence:
-  - claim: A64 解码树 return new OrnXSReg(...)；family=logical-reg 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new OrnXSReg(...)（主定义类，变体见 variants；链路骨架=family logical-reg，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2191
 - doc: Logical-ORN_shifted_register.md
   mnemonic: ORN (shifted register)
@@ -481,7 +482,7 @@
   - CHAOSProbe
   - CHAOSCommitTrace
   evidence:
-  - claim: A64 解码树 return new OrnXSReg(...)；family=logical-reg 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new OrnXSReg(...)（主定义类，变体见 variants；链路骨架=family logical-reg，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2191
 - doc: Logical-ORR_immediate.md
   mnemonic: ORR (immediate)
@@ -507,7 +508,7 @@
   - CHAOSProbe
   - CHAOSCommitTrace
   evidence:
-  - claim: A64 解码树 return new OrrXImm(...)；family=logical-imm 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new OrrXImm(...)（主定义类，变体见 variants；链路骨架=family logical-imm，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:146
 - doc: Logical-ORR_shifted_register.md
   mnemonic: ORR (shifted register)
@@ -533,7 +534,7 @@
   - CHAOSProbe
   - CHAOSCommitTrace
   evidence:
-  - claim: A64 解码树 return new OrrXSReg(...)；family=logical-reg 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new OrrXSReg(...)（主定义类，变体见 variants；链路骨架=family logical-reg，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2189
 - doc: Logical-TST_immediate.md
   mnemonic: TST (immediate)
@@ -559,7 +560,7 @@
   - CHAOSProbe
   - CHAOSCommitTrace
   evidence:
-  - claim: A64 解码树 return new AndXImmCc(...)；family=compare 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new AndXImmCc(...)（主定义类，变体见 variants；链路骨架=family compare，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:150
 - doc: Logical-TST_shifted_register.md
   mnemonic: TST (shifted register)
@@ -585,5 +586,5 @@
   - CHAOSProbe
   - CHAOSCommitTrace
   evidence:
-  - claim: A64 解码树 return new AndXSRegCc(...)；family=compare 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new AndXSRegCc(...)（主定义类，变体见 variants；链路骨架=family compare，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2197

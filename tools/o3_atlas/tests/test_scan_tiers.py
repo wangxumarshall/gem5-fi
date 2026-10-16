@@ -38,3 +38,10 @@ def test_candidates_for_alias_resolves_to_primary():
     from tools.o3_atlas.scan_tiers import candidates_for
     c = candidates_for("MOV (to/from SP)")
     assert any(x["class"] == "AddXImm" for x in c)
+
+
+def test_candidates_integer_variant_outranks_fp_variant():
+    # 修复①：整型变体必须排在 FP/SIMD 变体前（LDR 主类是 LDRX64_IMM 不是 LDRBFP64_IMM）
+    from tools.o3_atlas.scan_tiers import candidates_for
+    c = candidates_for("LDR (immediate)")
+    assert c[0]["class"] == "LDRX64_IMM", f"top={c[0]['class']}"

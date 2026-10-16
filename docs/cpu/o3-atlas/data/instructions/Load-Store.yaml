@@ -32,7 +32,7 @@
   - CHAOSMem
   - CHAOSCache
   evidence:
-  - claim: A64 解码树 return new LDADDB(...)；family=atomic-lse 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new LDADDB(...)（主定义类，变体见 variants；链路骨架=family atomic-lse，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:839
 - doc: Load-Store-LDADDH_LDADDAH_LDADDALH_LDADDLH.md
   mnemonic: LDADDH, LDADDAH, LDADDALH, LDADDLH
@@ -61,7 +61,7 @@
   - CHAOSMem
   - CHAOSCache
   evidence:
-  - claim: A64 解码树 return new LDADDH(...)；family=atomic-lse 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new LDADDH(...)（主定义类，变体见 variants；链路骨架=family atomic-lse，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:863
 - doc: Load-Store-LDADD_LDADDA_LDADDAL_LDADDL.md
   mnemonic: LDADD, LDADDA, LDADDAL, LDADDL
@@ -90,7 +90,7 @@
   - CHAOSMem
   - CHAOSCache
   evidence:
-  - claim: A64 解码树 return new LDADD(...)；family=atomic-lse 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new LDADD(...)（主定义类，变体见 variants；链路骨架=family atomic-lse，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:887
 - doc: Load-Store-LDAPR.md
   mnemonic: LDAPR
@@ -98,12 +98,12 @@
   family: acquire-release
   gem5:
     decode_mnemonic: ldapr
-    static_inst: LDAPRW64
+    static_inst: LDAPRX64
     variants:
     - LDAPRW64
     - LDAPRX64
     anchors:
-      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1787
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1789
   injectors:
   - CHAOSDecode
   - CHAOSRenameMap
@@ -120,8 +120,8 @@
   - CHAOSMem
   - CHAOSCache
   evidence:
-  - claim: A64 解码树 return new LDAPRW64(...)；family=acquire-release 骨架引用（分类任务深填）
-    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1787
+  - claim: A64 解码树 return new LDAPRX64(...)（主定义类，变体见 variants；链路骨架=family acquire-release，注入器命中见 injectors）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1789
 - doc: Load-Store-LDAPRB.md
   mnemonic: LDAPRB
   tier: implemented
@@ -149,7 +149,7 @@
   - CHAOSMem
   - CHAOSCache
   evidence:
-  - claim: A64 解码树 return new LDAPRB64(...)；family=acquire-release 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new LDAPRB64(...)（主定义类，变体见 variants；链路骨架=family acquire-release，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1783
 - doc: Load-Store-LDAPRH.md
   mnemonic: LDAPRH
@@ -178,7 +178,7 @@
   - CHAOSMem
   - CHAOSCache
   evidence:
-  - claim: A64 解码树 return new LDAPRH64(...)；family=acquire-release 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new LDAPRH64(...)（主定义类，变体见 variants；链路骨架=family acquire-release，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1785
 - doc: Load-Store-LDAPUR.md
   mnemonic: LDAPUR
@@ -186,12 +186,12 @@
   family: load
   gem5:
     decode_mnemonic: ldapur
-    static_inst: LDAPURW64_IMM
+    static_inst: LDAPURX64_IMM
     variants:
     - LDAPURW64_IMM
     - LDAPURX64_IMM
     anchors:
-      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1617
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1615
   injectors:
   - CHAOSDecode
   - CHAOSRenameMap
@@ -208,8 +208,8 @@
   - CHAOSMem
   - CHAOSCache
   evidence:
-  - claim: A64 解码树 return new LDAPURW64_IMM(...)；family=load 骨架引用（分类任务深填）
-    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1617
+  - claim: A64 解码树 return new LDAPURX64_IMM(...)（主定义类，变体见 variants；链路骨架=family load，注入器命中见 injectors）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1615
 - doc: Load-Store-LDAPURB.md
   mnemonic: LDAPURB
   tier: implemented
@@ -237,7 +237,7 @@
   - CHAOSMem
   - CHAOSCache
   evidence:
-  - claim: A64 解码树 return new LDAPURB64_IMM(...)；family=load 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new LDAPURB64_IMM(...)（主定义类，变体见 variants；链路骨架=family load，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1603
 - doc: Load-Store-LDAPURH.md
   mnemonic: LDAPURH
@@ -266,7 +266,7 @@
   - CHAOSMem
   - CHAOSCache
   evidence:
-  - claim: A64 解码树 return new LDAPURH64_IMM(...)；family=load 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new LDAPURH64_IMM(...)（主定义类，变体见 variants；链路骨架=family load，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1609
 - doc: Load-Store-LDAPURSB.md
   mnemonic: LDAPURSB
@@ -274,12 +274,12 @@
   family: load
   gem5:
     decode_mnemonic: ldapursb
-    static_inst: LDAPURSBW64_IMM
+    static_inst: LDAPURSBX64_IMM
     variants:
     - LDAPURSBW64_IMM
     - LDAPURSBX64_IMM
     anchors:
-      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1607
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1605
   injectors:
   - CHAOSDecode
   - CHAOSRenameMap
@@ -296,20 +296,20 @@
   - CHAOSMem
   - CHAOSCache
   evidence:
-  - claim: A64 解码树 return new LDAPURSBW64_IMM(...)；family=load 骨架引用（分类任务深填）
-    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1607
+  - claim: A64 解码树 return new LDAPURSBX64_IMM(...)（主定义类，变体见 variants；链路骨架=family load，注入器命中见 injectors）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1605
 - doc: Load-Store-LDAPURSH.md
   mnemonic: LDAPURSH
   tier: implemented
   family: load
   gem5:
     decode_mnemonic: ldapursh
-    static_inst: LDAPURSHW64_IMM
+    static_inst: LDAPURSHX64_IMM
     variants:
     - LDAPURSHW64_IMM
     - LDAPURSHX64_IMM
     anchors:
-      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1613
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1611
   injectors:
   - CHAOSDecode
   - CHAOSRenameMap
@@ -326,8 +326,8 @@
   - CHAOSMem
   - CHAOSCache
   evidence:
-  - claim: A64 解码树 return new LDAPURSHW64_IMM(...)；family=load 骨架引用（分类任务深填）
-    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1613
+  - claim: A64 解码树 return new LDAPURSHX64_IMM(...)（主定义类，变体见 variants；链路骨架=family load，注入器命中见 injectors）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1611
 - doc: Load-Store-LDAPURSW.md
   mnemonic: LDAPURSW
   tier: implemented
@@ -355,7 +355,7 @@
   - CHAOSMem
   - CHAOSCache
   evidence:
-  - claim: A64 解码树 return new LDAPURSW64_IMM(...)；family=load 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new LDAPURSW64_IMM(...)（主定义类，变体见 variants；链路骨架=family load，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1619
 - doc: Load-Store-LDAR.md
   mnemonic: LDAR
@@ -363,12 +363,12 @@
   family: acquire-release
   gem5:
     decode_mnemonic: ldar
-    static_inst: LDARW64
+    static_inst: LDARX64
     variants:
     - LDARW64
     - LDARX64
     anchors:
-      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1543
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1545
   injectors:
   - CHAOSDecode
   - CHAOSRenameMap
@@ -385,8 +385,8 @@
   - CHAOSMem
   - CHAOSCache
   evidence:
-  - claim: A64 解码树 return new LDARW64(...)；family=acquire-release 骨架引用（分类任务深填）
-    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1543
+  - claim: A64 解码树 return new LDARX64(...)（主定义类，变体见 variants；链路骨架=family acquire-release，注入器命中见 injectors）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1545
 - doc: Load-Store-LDARB.md
   mnemonic: LDARB
   tier: implemented
@@ -414,7 +414,7 @@
   - CHAOSMem
   - CHAOSCache
   evidence:
-  - claim: A64 解码树 return new LDARB64(...)；family=acquire-release 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new LDARB64(...)（主定义类，变体见 variants；链路骨架=family acquire-release，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1539
 - doc: Load-Store-LDARH.md
   mnemonic: LDARH
@@ -443,7 +443,7 @@
   - CHAOSMem
   - CHAOSCache
   evidence:
-  - claim: A64 解码树 return new LDARH64(...)；family=acquire-release 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new LDARH64(...)（主定义类，变体见 variants；链路骨架=family acquire-release，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1541
 - doc: Load-Store-LDAXP.md
   mnemonic: LDAXP
@@ -451,12 +451,12 @@
   family: exclusive
   gem5:
     decode_mnemonic: ldaxp
-    static_inst: LDAXPW64
+    static_inst: LDAXPX64
     variants:
     - LDAXPW64
     - LDAXPX64
     anchors:
-      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1491
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1493
   injectors:
   - CHAOSDecode
   - CHAOSRenameMap
@@ -474,20 +474,20 @@
   - CHAOSCache
   - CHAOSExMon
   evidence:
-  - claim: A64 解码树 return new LDAXPW64(...)；family=exclusive 骨架引用（分类任务深填）
-    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1491
+  - claim: A64 解码树 return new LDAXPX64(...)（主定义类，变体见 variants；链路骨架=family exclusive，注入器命中见 injectors）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1493
 - doc: Load-Store-LDAXR.md
   mnemonic: LDAXR
   tier: implemented
   family: exclusive
   gem5:
     decode_mnemonic: ldaxr
-    static_inst: LDAXRW64
+    static_inst: LDAXRX64
     variants:
     - LDAXRW64
     - LDAXRX64
     anchors:
-      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1465
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1467
   injectors:
   - CHAOSDecode
   - CHAOSRenameMap
@@ -505,8 +505,8 @@
   - CHAOSCache
   - CHAOSExMon
   evidence:
-  - claim: A64 解码树 return new LDAXRW64(...)；family=exclusive 骨架引用（分类任务深填）
-    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1465
+  - claim: A64 解码树 return new LDAXRX64(...)（主定义类，变体见 variants；链路骨架=family exclusive，注入器命中见 injectors）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1467
 - doc: Load-Store-LDAXRB.md
   mnemonic: LDAXRB
   tier: implemented
@@ -535,7 +535,7 @@
   - CHAOSCache
   - CHAOSExMon
   evidence:
-  - claim: A64 解码树 return new LDAXRB64(...)；family=exclusive 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new LDAXRB64(...)（主定义类，变体见 variants；链路骨架=family exclusive，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1461
 - doc: Load-Store-LDAXRH.md
   mnemonic: LDAXRH
@@ -565,7 +565,7 @@
   - CHAOSCache
   - CHAOSExMon
   evidence:
-  - claim: A64 解码树 return new LDAXRH64(...)；family=exclusive 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new LDAXRH64(...)（主定义类，变体见 variants；链路骨架=family exclusive，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1463
 - doc: Load-Store-LDCLRB_LDCLRAB_LDCLRALB_LDCLRLB.md
   mnemonic: LDCLRB, LDCLRAB, LDCLRALB, LDCLRLB
@@ -594,7 +594,7 @@
   - CHAOSMem
   - CHAOSCache
   evidence:
-  - claim: A64 解码树 return new LDCLRB(...)；family=atomic-lse 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new LDCLRB(...)（主定义类，变体见 variants；链路骨架=family atomic-lse，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:939
 - doc: Load-Store-LDCLRH_LDCLRAH_LDCLRALH_LDCLRLH.md
   mnemonic: LDCLRH, LDCLRAH, LDCLRALH, LDCLRLH
@@ -623,7 +623,7 @@
   - CHAOSMem
   - CHAOSCache
   evidence:
-  - claim: A64 解码树 return new LDCLRH(...)；family=atomic-lse 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new LDCLRH(...)（主定义类，变体见 variants；链路骨架=family atomic-lse，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:953
 - doc: Load-Store-LDCLR_LDCLRA_LDCLRAL_LDCLRL.md
   mnemonic: LDCLR, LDCLRA, LDCLRAL, LDCLRL
@@ -652,7 +652,7 @@
   - CHAOSMem
   - CHAOSCache
   evidence:
-  - claim: A64 解码树 return new LDCLR(...)；family=atomic-lse 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new LDCLR(...)（主定义类，变体见 variants；链路骨架=family atomic-lse，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:967
 - doc: Load-Store-LDEORB_LDEORAB_LDEORALB_LDEORLB.md
   mnemonic: LDEORB, LDEORAB, LDEORALB, LDEORLB
@@ -681,7 +681,7 @@
   - CHAOSMem
   - CHAOSCache
   evidence:
-  - claim: A64 解码树 return new LDEORB(...)；family=atomic-lse 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new LDEORB(...)（主定义类，变体见 variants；链路骨架=family atomic-lse，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1000
 - doc: Load-Store-LDEORH_LDEORAH_LDEORALH_LDEORLH.md
   mnemonic: LDEORH, LDEORAH, LDEORALH, LDEORLH
@@ -710,7 +710,7 @@
   - CHAOSMem
   - CHAOSCache
   evidence:
-  - claim: A64 解码树 return new LDEORH(...)；family=atomic-lse 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new LDEORH(...)（主定义类，变体见 variants；链路骨架=family atomic-lse，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1014
 - doc: Load-Store-LDEOR_LDEORA_LDEORAL_LDEORL.md
   mnemonic: LDEOR, LDEORA, LDEORAL, LDEORL
@@ -739,7 +739,7 @@
   - CHAOSMem
   - CHAOSCache
   evidence:
-  - claim: A64 解码树 return new LDEOR(...)；family=atomic-lse 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new LDEOR(...)（主定义类，变体见 variants；链路骨架=family atomic-lse，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1028
 - doc: Load-Store-LDG.md
   mnemonic: LDG
@@ -803,7 +803,7 @@
   - CHAOSMem
   - CHAOSCache
   evidence:
-  - claim: A64 解码树 return new LdpStp(...)；family=ldst-pair 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new LdpStp(...)（主定义类，变体见 variants；链路骨架=family ldst-pair，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1700
 - doc: Load-Store-LDP.md
   mnemonic: LDP
@@ -832,7 +832,7 @@
   - CHAOSMem
   - CHAOSCache
   evidence:
-  - claim: A64 解码树 return new LdpStp(...)；family=ldst-pair 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new LdpStp(...)（主定义类，变体见 variants；链路骨架=family ldst-pair，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1700
 - doc: Load-Store-LDPSW.md
   mnemonic: LDPSW
@@ -861,7 +861,7 @@
   - CHAOSMem
   - CHAOSCache
   evidence:
-  - claim: A64 解码树 return new LdpStp(...)；family=ldst-pair 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new LdpStp(...)（主定义类，变体见 variants；链路骨架=family ldst-pair，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1700
 - doc: Load-Store-LDRAA_LDRAB.md
   mnemonic: LDRAA, LDRAB
@@ -891,7 +891,7 @@
   - CHAOSMem
   - CHAOSCache
   evidence:
-  - claim: A64 解码树 return new LDRAA_PRE(...)；family=load 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new LDRAA_PRE(...)（主定义类，变体见 variants；链路骨架=family load，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1814
 - doc: Load-Store-LDRB_immediate.md
   mnemonic: LDRB (immediate)
@@ -923,7 +923,7 @@
   - CHAOSMem
   - CHAOSCache
   evidence:
-  - claim: A64 解码树 return new LDRB64_IMM(...)；family=load 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new LDRB64_IMM(...)（主定义类，变体见 variants；链路骨架=family load，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1718
 - doc: Load-Store-LDRB_register.md
   mnemonic: LDRB (register)
@@ -955,7 +955,7 @@
   - CHAOSMem
   - CHAOSCache
   evidence:
-  - claim: A64 解码树 return new LDRB64_IMM(...)；family=load 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new LDRB64_IMM(...)（主定义类，变体见 variants；链路骨架=family load，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1718
 - doc: Load-Store-LDRH_immediate.md
   mnemonic: LDRH (immediate)
@@ -987,7 +987,7 @@
   - CHAOSMem
   - CHAOSCache
   evidence:
-  - claim: A64 解码树 return new LDRH64_IMM(...)；family=load 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new LDRH64_IMM(...)（主定义类，变体见 variants；链路骨架=family load，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1736
 - doc: Load-Store-LDRH_register.md
   mnemonic: LDRH (register)
@@ -1019,7 +1019,7 @@
   - CHAOSMem
   - CHAOSCache
   evidence:
-  - claim: A64 解码树 return new LDRH64_IMM(...)；family=load 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new LDRH64_IMM(...)（主定义类，变体见 variants；链路骨架=family load，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1736
 - doc: Load-Store-LDRSB_immediate.md
   mnemonic: LDRSB (immediate)
@@ -1027,7 +1027,7 @@
   family: load
   gem5:
     decode_mnemonic: ldrsb
-    static_inst: LDRSBW64_IMM
+    static_inst: LDRSBX64_IMM
     variants:
     - LDRSBW64_IMM
     - LDRSBW64_POST
@@ -1038,7 +1038,7 @@
     - LDRSBX64_PRE
     - LDRSBX64_REG
     anchors:
-      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1722
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1720
   injectors:
   - CHAOSDecode
   - CHAOSRenameMap
@@ -1055,15 +1055,15 @@
   - CHAOSMem
   - CHAOSCache
   evidence:
-  - claim: A64 解码树 return new LDRSBW64_IMM(...)；family=load 骨架引用（分类任务深填）
-    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1722
+  - claim: A64 解码树 return new LDRSBX64_IMM(...)（主定义类，变体见 variants；链路骨架=family load，注入器命中见 injectors）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1720
 - doc: Load-Store-LDRSB_register.md
   mnemonic: LDRSB (register)
   tier: implemented
   family: load
   gem5:
     decode_mnemonic: ldrsb
-    static_inst: LDRSBW64_IMM
+    static_inst: LDRSBX64_IMM
     variants:
     - LDRSBW64_IMM
     - LDRSBW64_POST
@@ -1074,7 +1074,7 @@
     - LDRSBX64_PRE
     - LDRSBX64_REG
     anchors:
-      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1722
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1720
   injectors:
   - CHAOSDecode
   - CHAOSRenameMap
@@ -1091,15 +1091,15 @@
   - CHAOSMem
   - CHAOSCache
   evidence:
-  - claim: A64 解码树 return new LDRSBW64_IMM(...)；family=load 骨架引用（分类任务深填）
-    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1722
+  - claim: A64 解码树 return new LDRSBX64_IMM(...)（主定义类，变体见 variants；链路骨架=family load，注入器命中见 injectors）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1720
 - doc: Load-Store-LDRSH_immediate.md
   mnemonic: LDRSH (immediate)
   tier: implemented
   family: load
   gem5:
     decode_mnemonic: ldrsh
-    static_inst: LDRSHW64_IMM
+    static_inst: LDRSHX64_IMM
     variants:
     - LDRSHW64_IMM
     - LDRSHW64_POST
@@ -1110,7 +1110,7 @@
     - LDRSHX64_PRE
     - LDRSHX64_REG
     anchors:
-      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1740
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1738
   injectors:
   - CHAOSDecode
   - CHAOSRenameMap
@@ -1127,15 +1127,15 @@
   - CHAOSMem
   - CHAOSCache
   evidence:
-  - claim: A64 解码树 return new LDRSHW64_IMM(...)；family=load 骨架引用（分类任务深填）
-    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1740
+  - claim: A64 解码树 return new LDRSHX64_IMM(...)（主定义类，变体见 variants；链路骨架=family load，注入器命中见 injectors）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1738
 - doc: Load-Store-LDRSH_register.md
   mnemonic: LDRSH (register)
   tier: implemented
   family: load
   gem5:
     decode_mnemonic: ldrsh
-    static_inst: LDRSHW64_IMM
+    static_inst: LDRSHX64_IMM
     variants:
     - LDRSHW64_IMM
     - LDRSHW64_POST
@@ -1146,7 +1146,7 @@
     - LDRSHX64_PRE
     - LDRSHX64_REG
     anchors:
-      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1740
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1738
   injectors:
   - CHAOSDecode
   - CHAOSRenameMap
@@ -1163,8 +1163,8 @@
   - CHAOSMem
   - CHAOSCache
   evidence:
-  - claim: A64 解码树 return new LDRSHW64_IMM(...)；family=load 骨架引用（分类任务深填）
-    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1740
+  - claim: A64 解码树 return new LDRSHX64_IMM(...)（主定义类，变体见 variants；链路骨架=family load，注入器命中见 injectors）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1738
 - doc: Load-Store-LDRSW_immediate.md
   mnemonic: LDRSW (immediate)
   tier: implemented
@@ -1196,7 +1196,7 @@
   - CHAOSMem
   - CHAOSCache
   evidence:
-  - claim: A64 解码树 return new LDRSW64_IMM(...)；family=load 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new LDRSW64_IMM(...)（主定义类，变体见 variants；链路骨架=family load，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1750
 - doc: Load-Store-LDRSW_literal.md
   mnemonic: LDRSW (literal)
@@ -1229,7 +1229,7 @@
   - CHAOSMem
   - CHAOSCache
   evidence:
-  - claim: A64 解码树 return new LDRSWL64_LIT(...)；family=load 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new LDRSWL64_LIT(...)（主定义类，变体见 variants；链路骨架=family load，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1637
 - doc: Load-Store-LDRSW_register.md
   mnemonic: LDRSW (register)
@@ -1262,7 +1262,7 @@
   - CHAOSMem
   - CHAOSCache
   evidence:
-  - claim: A64 解码树 return new LDRSW64_IMM(...)；family=load 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new LDRSW64_IMM(...)（主定义类，变体见 variants；链路骨架=family load，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1750
 - doc: Load-Store-LDR_immediate.md
   mnemonic: LDR (immediate)
@@ -1270,7 +1270,7 @@
   family: load
   gem5:
     decode_mnemonic: ldr
-    static_inst: LDRBFP64_IMM
+    static_inst: LDRX64_IMM
     variants:
     - LDRBFP64_IMM
     - LDRBFP64_POST
@@ -1301,7 +1301,7 @@
     - LDRX64_REG
     - LDRXL64_LIT
     anchors:
-      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1726
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1758
   injectors:
   - CHAOSDecode
   - CHAOSRenameMap
@@ -1318,15 +1318,15 @@
   - CHAOSMem
   - CHAOSCache
   evidence:
-  - claim: A64 解码树 return new LDRBFP64_IMM(...)；family=load 骨架引用（分类任务深填）
-    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1726
+  - claim: A64 解码树 return new LDRX64_IMM(...)（主定义类，变体见 variants；链路骨架=family load，注入器命中见 injectors）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1758
 - doc: Load-Store-LDR_literal.md
   mnemonic: LDR (literal)
   tier: implemented
   family: load
   gem5:
     decode_mnemonic: ldr
-    static_inst: LDRDFP64_LIT
+    static_inst: LDRWL64_LIT
     variants:
     - LDRBFP64_IMM
     - LDRBFP64_POST
@@ -1357,7 +1357,7 @@
     - LDRX64_REG
     - LDRXL64_LIT
     anchors:
-      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1635
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1629
   injectors:
   - CHAOSDecode
   - CHAOSRenameMap
@@ -1374,15 +1374,15 @@
   - CHAOSMem
   - CHAOSCache
   evidence:
-  - claim: A64 解码树 return new LDRDFP64_LIT(...)；family=load 骨架引用（分类任务深填）
-    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1635
+  - claim: A64 解码树 return new LDRWL64_LIT(...)（主定义类，变体见 variants；链路骨架=family load，注入器命中见 injectors）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1629
 - doc: Load-Store-LDR_register.md
   mnemonic: LDR (register)
   tier: implemented
   family: load
   gem5:
     decode_mnemonic: ldr
-    static_inst: LDRBFP64_IMM
+    static_inst: LDRX64_IMM
     variants:
     - LDRBFP64_IMM
     - LDRBFP64_POST
@@ -1413,7 +1413,7 @@
     - LDRX64_REG
     - LDRXL64_LIT
     anchors:
-      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1726
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1758
   injectors:
   - CHAOSDecode
   - CHAOSRenameMap
@@ -1430,8 +1430,8 @@
   - CHAOSMem
   - CHAOSCache
   evidence:
-  - claim: A64 解码树 return new LDRBFP64_IMM(...)；family=load 骨架引用（分类任务深填）
-    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1726
+  - claim: A64 解码树 return new LDRX64_IMM(...)（主定义类，变体见 variants；链路骨架=family load，注入器命中见 injectors）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1758
 - doc: Load-Store-LDSETB_LDSETAB_LDSETALB_LDSETLB.md
   mnemonic: LDSETB, LDSETAB, LDSETALB, LDSETLB
   tier: implemented
@@ -1459,7 +1459,7 @@
   - CHAOSMem
   - CHAOSCache
   evidence:
-  - claim: A64 解码树 return new LDSETB(...)；family=atomic-lse 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new LDSETB(...)（主定义类，变体见 variants；链路骨架=family atomic-lse，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1061
 - doc: Load-Store-LDSETH_LDSETAH_LDSETALH_LDSETLH.md
   mnemonic: LDSETH, LDSETAH, LDSETALH, LDSETLH
@@ -1488,7 +1488,7 @@
   - CHAOSMem
   - CHAOSCache
   evidence:
-  - claim: A64 解码树 return new LDSETH(...)；family=atomic-lse 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new LDSETH(...)（主定义类，变体见 variants；链路骨架=family atomic-lse，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1075
 - doc: Load-Store-LDSET_LDSETA_LDSETAL_LDSETL.md
   mnemonic: LDSET, LDSETA, LDSETAL, LDSETL
@@ -1517,7 +1517,7 @@
   - CHAOSMem
   - CHAOSCache
   evidence:
-  - claim: A64 解码树 return new LDSET(...)；family=atomic-lse 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new LDSET(...)（主定义类，变体见 variants；链路骨架=family atomic-lse，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1089
 - doc: Load-Store-LDSMAXB_LDSMAXAB_LDSMAXALB_LDSMAXLB.md
   mnemonic: LDSMAXB, LDSMAXAB, LDSMAXALB, LDSMAXLB
@@ -1546,7 +1546,7 @@
   - CHAOSMem
   - CHAOSCache
   evidence:
-  - claim: A64 解码树 return new LDSMAXB(...)；family=atomic-lse 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new LDSMAXB(...)（主定义类，变体见 variants；链路骨架=family atomic-lse，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1122
 - doc: Load-Store-LDSMAXH_LDSMAXAH_LDSMAXALH_LDSMAXLH.md
   mnemonic: LDSMAXH, LDSMAXAH, LDSMAXALH, LDSMAXLH
@@ -1575,7 +1575,7 @@
   - CHAOSMem
   - CHAOSCache
   evidence:
-  - claim: A64 解码树 return new LDSMAXH(...)；family=atomic-lse 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new LDSMAXH(...)（主定义类，变体见 variants；链路骨架=family atomic-lse，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1136
 - doc: Load-Store-LDSMAX_LDSMAXA_LDSMAXAL_LDSMAXL.md
   mnemonic: LDSMAX, LDSMAXA, LDSMAXAL, LDSMAXL
@@ -1604,7 +1604,7 @@
   - CHAOSMem
   - CHAOSCache
   evidence:
-  - claim: A64 解码树 return new LDSMAX(...)；family=atomic-lse 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new LDSMAX(...)（主定义类，变体见 variants；链路骨架=family atomic-lse，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1150
 - doc: Load-Store-LDSMINB_LDSMINAB_LDSMINALB_LDSMINLB.md
   mnemonic: LDSMINB, LDSMINAB, LDSMINALB, LDSMINLB
@@ -1633,7 +1633,7 @@
   - CHAOSMem
   - CHAOSCache
   evidence:
-  - claim: A64 解码树 return new LDSMINB(...)；family=atomic-lse 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new LDSMINB(...)（主定义类，变体见 variants；链路骨架=family atomic-lse，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1183
 - doc: Load-Store-LDSMINH_LDSMINAH_LDSMINALH_LDSMINLH.md
   mnemonic: LDSMINH, LDSMINAH, LDSMINALH, LDSMINLH
@@ -1662,7 +1662,7 @@
   - CHAOSMem
   - CHAOSCache
   evidence:
-  - claim: A64 解码树 return new LDSMINH(...)；family=atomic-lse 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new LDSMINH(...)（主定义类，变体见 variants；链路骨架=family atomic-lse，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1197
 - doc: Load-Store-LDSMIN_LDSMINA_LDSMINAL_LDSMINL.md
   mnemonic: LDSMIN, LDSMINA, LDSMINAL, LDSMINL
@@ -1691,7 +1691,7 @@
   - CHAOSMem
   - CHAOSCache
   evidence:
-  - claim: A64 解码树 return new LDSMIN(...)；family=atomic-lse 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new LDSMIN(...)（主定义类，变体见 variants；链路骨架=family atomic-lse，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1211
 - doc: Load-Store-LDTR.md
   mnemonic: LDTR
@@ -1699,12 +1699,12 @@
   family: load
   gem5:
     decode_mnemonic: ldtr
-    static_inst: LDTRW64_IMM
+    static_inst: LDTRX64_IMM
     variants:
     - LDTRW64_IMM
     - LDTRX64_IMM
     anchors:
-      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2077
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2083
   injectors:
   - CHAOSDecode
   - CHAOSRenameMap
@@ -1721,8 +1721,8 @@
   - CHAOSMem
   - CHAOSCache
   evidence:
-  - claim: A64 解码树 return new LDTRW64_IMM(...)；family=load 骨架引用（分类任务深填）
-    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2077
+  - claim: A64 解码树 return new LDTRX64_IMM(...)（主定义类，变体见 variants；链路骨架=family load，注入器命中见 injectors）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2083
 - doc: Load-Store-LDTRB.md
   mnemonic: LDTRB
   tier: implemented
@@ -1750,7 +1750,7 @@
   - CHAOSMem
   - CHAOSCache
   evidence:
-  - claim: A64 解码树 return new LDTRB64_IMM(...)；family=load 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new LDTRB64_IMM(...)（主定义类，变体见 variants；链路骨架=family load，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2061
 - doc: Load-Store-LDTRH.md
   mnemonic: LDTRH
@@ -1779,7 +1779,7 @@
   - CHAOSMem
   - CHAOSCache
   evidence:
-  - claim: A64 解码树 return new LDTRH64_IMM(...)；family=load 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new LDTRH64_IMM(...)（主定义类，变体见 variants；链路骨架=family load，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2069
 - doc: Load-Store-LDTRSB.md
   mnemonic: LDTRSB
@@ -1787,12 +1787,12 @@
   family: load
   gem5:
     decode_mnemonic: ldtrsb
-    static_inst: LDTRSBW64_IMM
+    static_inst: LDTRSBX64_IMM
     variants:
     - LDTRSBW64_IMM
     - LDTRSBX64_IMM
     anchors:
-      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2065
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2063
   injectors:
   - CHAOSDecode
   - CHAOSRenameMap
@@ -1809,20 +1809,20 @@
   - CHAOSMem
   - CHAOSCache
   evidence:
-  - claim: A64 解码树 return new LDTRSBW64_IMM(...)；family=load 骨架引用（分类任务深填）
-    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2065
+  - claim: A64 解码树 return new LDTRSBX64_IMM(...)（主定义类，变体见 variants；链路骨架=family load，注入器命中见 injectors）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2063
 - doc: Load-Store-LDTRSH.md
   mnemonic: LDTRSH
   tier: implemented
   family: load
   gem5:
     decode_mnemonic: ldtrsh
-    static_inst: LDTRSHW64_IMM
+    static_inst: LDTRSHX64_IMM
     variants:
     - LDTRSHW64_IMM
     - LDTRSHX64_IMM
     anchors:
-      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2073
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2071
   injectors:
   - CHAOSDecode
   - CHAOSRenameMap
@@ -1839,8 +1839,8 @@
   - CHAOSMem
   - CHAOSCache
   evidence:
-  - claim: A64 解码树 return new LDTRSHW64_IMM(...)；family=load 骨架引用（分类任务深填）
-    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2073
+  - claim: A64 解码树 return new LDTRSHX64_IMM(...)（主定义类，变体见 variants；链路骨架=family load，注入器命中见 injectors）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2071
 - doc: Load-Store-LDTRSW.md
   mnemonic: LDTRSW
   tier: implemented
@@ -1868,7 +1868,7 @@
   - CHAOSMem
   - CHAOSCache
   evidence:
-  - claim: A64 解码树 return new LDTRSW64_IMM(...)；family=load 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new LDTRSW64_IMM(...)（主定义类，变体见 variants；链路骨架=family load，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2079
 - doc: Load-Store-LDUMAXB_LDUMAXAB_LDUMAXALB_LDUMAXLB.md
   mnemonic: LDUMAXB, LDUMAXAB, LDUMAXALB, LDUMAXLB
@@ -1897,7 +1897,7 @@
   - CHAOSMem
   - CHAOSCache
   evidence:
-  - claim: A64 解码树 return new LDUMAXB(...)；family=atomic-lse 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new LDUMAXB(...)（主定义类，变体见 variants；链路骨架=family atomic-lse，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1244
 - doc: Load-Store-LDUMAXH_LDUMAXAH_LDUMAXALH_LDUMAXLH.md
   mnemonic: LDUMAXH, LDUMAXAH, LDUMAXALH, LDUMAXLH
@@ -1926,7 +1926,7 @@
   - CHAOSMem
   - CHAOSCache
   evidence:
-  - claim: A64 解码树 return new LDUMAXH(...)；family=atomic-lse 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new LDUMAXH(...)（主定义类，变体见 variants；链路骨架=family atomic-lse，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1258
 - doc: Load-Store-LDUMAX_LDUMAXA_LDUMAXAL_LDUMAXL.md
   mnemonic: LDUMAX, LDUMAXA, LDUMAXAL, LDUMAXL
@@ -1955,7 +1955,7 @@
   - CHAOSMem
   - CHAOSCache
   evidence:
-  - claim: A64 解码树 return new LDUMAX(...)；family=atomic-lse 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new LDUMAX(...)（主定义类，变体见 variants；链路骨架=family atomic-lse，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1272
 - doc: Load-Store-LDUMINB_LDUMINAB_LDUMINALB_LDUMINLB.md
   mnemonic: LDUMINB, LDUMINAB, LDUMINALB, LDUMINLB
@@ -1984,7 +1984,7 @@
   - CHAOSMem
   - CHAOSCache
   evidence:
-  - claim: A64 解码树 return new LDUMINB(...)；family=atomic-lse 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new LDUMINB(...)（主定义类，变体见 variants；链路骨架=family atomic-lse，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1305
 - doc: Load-Store-LDUMINH_LDUMINAH_LDUMINALH_LDUMINLH.md
   mnemonic: LDUMINH, LDUMINAH, LDUMINALH, LDUMINLH
@@ -2013,7 +2013,7 @@
   - CHAOSMem
   - CHAOSCache
   evidence:
-  - claim: A64 解码树 return new LDUMINH(...)；family=atomic-lse 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new LDUMINH(...)（主定义类，变体见 variants；链路骨架=family atomic-lse，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1319
 - doc: Load-Store-LDUMIN_LDUMINA_LDUMINAL_LDUMINL.md
   mnemonic: LDUMIN, LDUMINA, LDUMINAL, LDUMINL
@@ -2042,7 +2042,7 @@
   - CHAOSMem
   - CHAOSCache
   evidence:
-  - claim: A64 解码树 return new LDUMIN(...)；family=atomic-lse 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new LDUMIN(...)（主定义类，变体见 variants；链路骨架=family atomic-lse，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1333
 - doc: Load-Store-LDUR.md
   mnemonic: LDUR
@@ -2050,7 +2050,7 @@
   family: load
   gem5:
     decode_mnemonic: ldur
-    static_inst: LDURBFP64_IMM
+    static_inst: LDURX64_IMM
     variants:
     - LDURBFP64_IMM
     - LDURDFP64_IMM
@@ -2059,7 +2059,7 @@
     - LDURW64_IMM
     - LDURX64_IMM
     anchors:
-      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1944
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1976
   injectors:
   - CHAOSDecode
   - CHAOSRenameMap
@@ -2076,8 +2076,8 @@
   - CHAOSMem
   - CHAOSCache
   evidence:
-  - claim: A64 解码树 return new LDURBFP64_IMM(...)；family=load 骨架引用（分类任务深填）
-    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1944
+  - claim: A64 解码树 return new LDURX64_IMM(...)（主定义类，变体见 variants；链路骨架=family load，注入器命中见 injectors）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1976
 - doc: Load-Store-LDURB.md
   mnemonic: LDURB
   tier: implemented
@@ -2105,7 +2105,7 @@
   - CHAOSMem
   - CHAOSCache
   evidence:
-  - claim: A64 解码树 return new LDURB64_IMM(...)；family=load 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new LDURB64_IMM(...)（主定义类，变体见 variants；链路骨架=family load，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1936
 - doc: Load-Store-LDURH.md
   mnemonic: LDURH
@@ -2134,7 +2134,7 @@
   - CHAOSMem
   - CHAOSCache
   evidence:
-  - claim: A64 解码树 return new LDURH64_IMM(...)；family=load 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new LDURH64_IMM(...)（主定义类，变体见 variants；链路骨架=family load，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1954
 - doc: Load-Store-LDURSB.md
   mnemonic: LDURSB
@@ -2142,12 +2142,12 @@
   family: load
   gem5:
     decode_mnemonic: ldursb
-    static_inst: LDURSBW64_IMM
+    static_inst: LDURSBX64_IMM
     variants:
     - LDURSBW64_IMM
     - LDURSBX64_IMM
     anchors:
-      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1940
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1938
   injectors:
   - CHAOSDecode
   - CHAOSRenameMap
@@ -2164,20 +2164,20 @@
   - CHAOSMem
   - CHAOSCache
   evidence:
-  - claim: A64 解码树 return new LDURSBW64_IMM(...)；family=load 骨架引用（分类任务深填）
-    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1940
+  - claim: A64 解码树 return new LDURSBX64_IMM(...)（主定义类，变体见 variants；链路骨架=family load，注入器命中见 injectors）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1938
 - doc: Load-Store-LDURSH.md
   mnemonic: LDURSH
   tier: implemented
   family: load
   gem5:
     decode_mnemonic: ldursh
-    static_inst: LDURSHW64_IMM
+    static_inst: LDURSHX64_IMM
     variants:
     - LDURSHW64_IMM
     - LDURSHX64_IMM
     anchors:
-      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1958
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1956
   injectors:
   - CHAOSDecode
   - CHAOSRenameMap
@@ -2194,8 +2194,8 @@
   - CHAOSMem
   - CHAOSCache
   evidence:
-  - claim: A64 解码树 return new LDURSHW64_IMM(...)；family=load 骨架引用（分类任务深填）
-    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1958
+  - claim: A64 解码树 return new LDURSHX64_IMM(...)（主定义类，变体见 variants；链路骨架=family load，注入器命中见 injectors）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1956
 - doc: Load-Store-LDURSW.md
   mnemonic: LDURSW
   tier: implemented
@@ -2223,7 +2223,7 @@
   - CHAOSMem
   - CHAOSCache
   evidence:
-  - claim: A64 解码树 return new LDURSW64_IMM(...)；family=load 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new LDURSW64_IMM(...)（主定义类，变体见 variants；链路骨架=family load，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1968
 - doc: Load-Store-LDXP.md
   mnemonic: LDXP
@@ -2231,12 +2231,12 @@
   family: exclusive
   gem5:
     decode_mnemonic: ldxp
-    static_inst: LDXPW64
+    static_inst: LDXPX64
     variants:
     - LDXPW64
     - LDXPX64
     anchors:
-      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1478
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1480
   injectors:
   - CHAOSDecode
   - CHAOSRenameMap
@@ -2254,20 +2254,20 @@
   - CHAOSCache
   - CHAOSExMon
   evidence:
-  - claim: A64 解码树 return new LDXPW64(...)；family=exclusive 骨架引用（分类任务深填）
-    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1478
+  - claim: A64 解码树 return new LDXPX64(...)（主定义类，变体见 variants；链路骨架=family exclusive，注入器命中见 injectors）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1480
 - doc: Load-Store-LDXR.md
   mnemonic: LDXR
   tier: implemented
   family: exclusive
   gem5:
     decode_mnemonic: ldxr
-    static_inst: LDXRW64
+    static_inst: LDXRX64
     variants:
     - LDXRW64
     - LDXRX64
     anchors:
-      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1452
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1454
   injectors:
   - CHAOSDecode
   - CHAOSRenameMap
@@ -2285,8 +2285,8 @@
   - CHAOSCache
   - CHAOSExMon
   evidence:
-  - claim: A64 解码树 return new LDXRW64(...)；family=exclusive 骨架引用（分类任务深填）
-    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1452
+  - claim: A64 解码树 return new LDXRX64(...)（主定义类，变体见 variants；链路骨架=family exclusive，注入器命中见 injectors）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1454
 - doc: Load-Store-LDXRB.md
   mnemonic: LDXRB
   tier: implemented
@@ -2315,7 +2315,7 @@
   - CHAOSCache
   - CHAOSExMon
   evidence:
-  - claim: A64 解码树 return new LDXRB64(...)；family=exclusive 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new LDXRB64(...)（主定义类，变体见 variants；链路骨架=family exclusive，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1448
 - doc: Load-Store-LDXRH.md
   mnemonic: LDXRH
@@ -2345,7 +2345,7 @@
   - CHAOSCache
   - CHAOSExMon
   evidence:
-  - claim: A64 解码树 return new LDXRH64(...)；family=exclusive 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new LDXRH64(...)（主定义类，变体见 variants；链路骨架=family exclusive，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1450
 - doc: Load-Store-ST2G.md
   mnemonic: ST2G
@@ -2402,7 +2402,7 @@
   - CHAOSMem
   - CHAOSCache
   evidence:
-  - claim: A64 解码树 return new STADDB(...)；family=atomic-lse 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new STADDB(...)（主定义类，变体见 variants；链路骨架=family atomic-lse，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:837
 - doc: Load-Store-STADD_STADDL.md
   mnemonic: STADD, STADDL
@@ -2431,7 +2431,7 @@
   - CHAOSMem
   - CHAOSCache
   evidence:
-  - claim: A64 解码树 return new STADD(...)；family=atomic-lse 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new STADD(...)（主定义类，变体见 variants；链路骨架=family atomic-lse，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:885
 - doc: Load-Store-STGM.md
   mnemonic: STGM
@@ -2474,12 +2474,12 @@
   family: acquire-release
   gem5:
     decode_mnemonic: stlr
-    static_inst: STLRW64
+    static_inst: STLRX64
     variants:
     - STLRW64
     - STLRX64
     anchors:
-      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1504
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1506
   injectors:
   - CHAOSDecode
   - CHAOSRenameMap
@@ -2496,8 +2496,8 @@
   - CHAOSMem
   - CHAOSCache
   evidence:
-  - claim: A64 解码树 return new STLRW64(...)；family=acquire-release 骨架引用（分类任务深填）
-    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1504
+  - claim: A64 解码树 return new STLRX64(...)（主定义类，变体见 variants；链路骨架=family acquire-release，注入器命中见 injectors）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1506
 - doc: Load-Store-STLRB.md
   mnemonic: STLRB
   tier: implemented
@@ -2525,7 +2525,7 @@
   - CHAOSMem
   - CHAOSCache
   evidence:
-  - claim: A64 解码树 return new STLRB64(...)；family=acquire-release 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new STLRB64(...)（主定义类，变体见 variants；链路骨架=family acquire-release，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1500
 - doc: Load-Store-STLRH.md
   mnemonic: STLRH
@@ -2554,7 +2554,7 @@
   - CHAOSMem
   - CHAOSCache
   evidence:
-  - claim: A64 解码树 return new STLRH64(...)；family=acquire-release 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new STLRH64(...)（主定义类，变体见 variants；链路骨架=family acquire-release，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1502
 - doc: Load-Store-STLUR.md
   mnemonic: STLUR
@@ -2583,12 +2583,12 @@
   family: exclusive
   gem5:
     decode_mnemonic: stlxp
-    static_inst: STLXPW64
+    static_inst: STLXPX64
     variants:
     - STLXPW64
     - STLXPX64
     anchors:
-      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1438
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1440
   injectors:
   - CHAOSDecode
   - CHAOSRenameMap
@@ -2606,20 +2606,20 @@
   - CHAOSCache
   - CHAOSExMon
   evidence:
-  - claim: A64 解码树 return new STLXPW64(...)；family=exclusive 骨架引用（分类任务深填）
-    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1438
+  - claim: A64 解码树 return new STLXPX64(...)（主定义类，变体见 variants；链路骨架=family exclusive，注入器命中见 injectors）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1440
 - doc: Load-Store-STLXR.md
   mnemonic: STLXR
   tier: implemented
   family: exclusive
   gem5:
     decode_mnemonic: stlxr
-    static_inst: STLXRW64
+    static_inst: STLXRX64
     variants:
     - STLXRW64
     - STLXRX64
     anchors:
-      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1411
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1413
   injectors:
   - CHAOSDecode
   - CHAOSRenameMap
@@ -2637,8 +2637,8 @@
   - CHAOSCache
   - CHAOSExMon
   evidence:
-  - claim: A64 解码树 return new STLXRW64(...)；family=exclusive 骨架引用（分类任务深填）
-    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1411
+  - claim: A64 解码树 return new STLXRX64(...)（主定义类，变体见 variants；链路骨架=family exclusive，注入器命中见 injectors）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1413
 - doc: Load-Store-STLXRB.md
   mnemonic: STLXRB
   tier: implemented
@@ -2667,7 +2667,7 @@
   - CHAOSCache
   - CHAOSExMon
   evidence:
-  - claim: A64 解码树 return new STLXRB64(...)；family=exclusive 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new STLXRB64(...)（主定义类，变体见 variants；链路骨架=family exclusive，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1407
 - doc: Load-Store-STLXRH.md
   mnemonic: STLXRH
@@ -2697,7 +2697,7 @@
   - CHAOSCache
   - CHAOSExMon
   evidence:
-  - claim: A64 解码树 return new STLXRH64(...)；family=exclusive 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new STLXRH64(...)（主定义类，变体见 variants；链路骨架=family exclusive，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1409
 - doc: Load-Store-STNP.md
   mnemonic: STNP
@@ -2726,7 +2726,7 @@
   - CHAOSMem
   - CHAOSCache
   evidence:
-  - claim: A64 解码树 return new LdpStp(...)；family=ldst-pair 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new LdpStp(...)（主定义类，变体见 variants；链路骨架=family ldst-pair，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1700
 - doc: Load-Store-STP.md
   mnemonic: STP
@@ -2755,7 +2755,7 @@
   - CHAOSMem
   - CHAOSCache
   evidence:
-  - claim: A64 解码树 return new LdpStp(...)；family=ldst-pair 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new LdpStp(...)（主定义类，变体见 variants；链路骨架=family ldst-pair，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1700
 - doc: Load-Store-STRB_immediate.md
   mnemonic: STRB (immediate)
@@ -2787,7 +2787,7 @@
   - CHAOSMem
   - CHAOSCache
   evidence:
-  - claim: A64 解码树 return new STRB64_IMM(...)；family=store 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new STRB64_IMM(...)（主定义类，变体见 variants；链路骨架=family store，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1716
 - doc: Load-Store-STRB_register.md
   mnemonic: STRB (register)
@@ -2819,7 +2819,7 @@
   - CHAOSMem
   - CHAOSCache
   evidence:
-  - claim: A64 解码树 return new STRB64_IMM(...)；family=store 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new STRB64_IMM(...)（主定义类，变体见 variants；链路骨架=family store，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1716
 - doc: Load-Store-STRH_immediate.md
   mnemonic: STRH (immediate)
@@ -2851,7 +2851,7 @@
   - CHAOSMem
   - CHAOSCache
   evidence:
-  - claim: A64 解码树 return new STRH64_IMM(...)；family=store 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new STRH64_IMM(...)（主定义类，变体见 variants；链路骨架=family store，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1734
 - doc: Load-Store-STRH_register.md
   mnemonic: STRH (register)
@@ -2883,7 +2883,7 @@
   - CHAOSMem
   - CHAOSCache
   evidence:
-  - claim: A64 解码树 return new STRH64_IMM(...)；family=store 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new STRH64_IMM(...)（主定义类，变体见 variants；链路骨架=family store，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1734
 - doc: Load-Store-STR_immediate.md
   mnemonic: STR (immediate)
@@ -2891,7 +2891,7 @@
   family: store
   gem5:
     decode_mnemonic: str
-    static_inst: STRBFP64_IMM
+    static_inst: STRX64_IMM
     variants:
     - STRBFP64_IMM
     - STRBFP64_POST
@@ -2918,7 +2918,7 @@
     - STRX64_PRE
     - STRX64_REG
     anchors:
-      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1724
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1756
   injectors:
   - CHAOSDecode
   - CHAOSRenameMap
@@ -2935,15 +2935,15 @@
   - CHAOSMem
   - CHAOSCache
   evidence:
-  - claim: A64 解码树 return new STRBFP64_IMM(...)；family=store 骨架引用（分类任务深填）
-    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1724
+  - claim: A64 解码树 return new STRX64_IMM(...)（主定义类，变体见 variants；链路骨架=family store，注入器命中见 injectors）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1756
 - doc: Load-Store-STR_register.md
   mnemonic: STR (register)
   tier: implemented
   family: store
   gem5:
     decode_mnemonic: str
-    static_inst: STRBFP64_IMM
+    static_inst: STRX64_IMM
     variants:
     - STRBFP64_IMM
     - STRBFP64_POST
@@ -2970,7 +2970,7 @@
     - STRX64_PRE
     - STRX64_REG
     anchors:
-      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1724
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1756
   injectors:
   - CHAOSDecode
   - CHAOSRenameMap
@@ -2987,8 +2987,8 @@
   - CHAOSMem
   - CHAOSCache
   evidence:
-  - claim: A64 解码树 return new STRBFP64_IMM(...)；family=store 骨架引用（分类任务深填）
-    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1724
+  - claim: A64 解码树 return new STRX64_IMM(...)（主定义类，变体见 variants；链路骨架=family store，注入器命中见 injectors）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1756
 - doc: Load-Store-STSETB_STSETLB.md
   mnemonic: STSETB, STSETLB
   tier: implemented
@@ -3016,7 +3016,7 @@
   - CHAOSMem
   - CHAOSCache
   evidence:
-  - claim: A64 解码树 return new STSETB(...)；family=store 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new STSETB(...)（主定义类，变体见 variants；链路骨架=family store，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1059
 - doc: Load-Store-STSET_STSETL.md
   mnemonic: STSET, STSETL
@@ -3045,7 +3045,7 @@
   - CHAOSMem
   - CHAOSCache
   evidence:
-  - claim: A64 解码树 return new STSET(...)；family=store 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new STSET(...)（主定义类，变体见 variants；链路骨架=family store，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1087
 - doc: Load-Store-STTRB.md
   mnemonic: STTRB
@@ -3074,7 +3074,7 @@
   - CHAOSMem
   - CHAOSCache
   evidence:
-  - claim: A64 解码树 return new STTRB64_IMM(...)；family=store 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new STTRB64_IMM(...)（主定义类，变体见 variants；链路骨架=family store，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2059
 - doc: Load-Store-STTRH.md
   mnemonic: STTRH
@@ -3103,7 +3103,7 @@
   - CHAOSMem
   - CHAOSCache
   evidence:
-  - claim: A64 解码树 return new STTRH64_IMM(...)；family=store 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new STTRH64_IMM(...)（主定义类，变体见 variants；链路骨架=family store，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2067
 - doc: Load-Store-STUMAX_STUMAXL.md
   mnemonic: STUMAX, STUMAXL
@@ -3132,7 +3132,7 @@
   - CHAOSMem
   - CHAOSCache
   evidence:
-  - claim: A64 解码树 return new STUMAX(...)；family=store 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new STUMAX(...)（主定义类，变体见 variants；链路骨架=family store，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1270
 - doc: Load-Store-STURB.md
   mnemonic: STURB
@@ -3161,7 +3161,7 @@
   - CHAOSMem
   - CHAOSCache
   evidence:
-  - claim: A64 解码树 return new STURB64_IMM(...)；family=store 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new STURB64_IMM(...)（主定义类，变体见 variants；链路骨架=family store，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1934
 - doc: Load-Store-STURH.md
   mnemonic: STURH
@@ -3190,7 +3190,7 @@
   - CHAOSMem
   - CHAOSCache
   evidence:
-  - claim: A64 解码树 return new STURH64_IMM(...)；family=store 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new STURH64_IMM(...)（主定义类，变体见 variants；链路骨架=family store，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1952
 - doc: Load-Store-STXP.md
   mnemonic: STXP
@@ -3198,12 +3198,12 @@
   family: exclusive
   gem5:
     decode_mnemonic: stxp
-    static_inst: STXPW64
+    static_inst: STXPX64
     variants:
     - STXPW64
     - STXPX64
     anchors:
-      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1424
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1426
   injectors:
   - CHAOSDecode
   - CHAOSRenameMap
@@ -3221,20 +3221,20 @@
   - CHAOSCache
   - CHAOSExMon
   evidence:
-  - claim: A64 解码树 return new STXPW64(...)；family=exclusive 骨架引用（分类任务深填）
-    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1424
+  - claim: A64 解码树 return new STXPX64(...)（主定义类，变体见 variants；链路骨架=family exclusive，注入器命中见 injectors）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1426
 - doc: Load-Store-STXR.md
   mnemonic: STXR
   tier: implemented
   family: exclusive
   gem5:
     decode_mnemonic: stxr
-    static_inst: STXRW64
+    static_inst: STXRX64
     variants:
     - STXRW64
     - STXRX64
     anchors:
-      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1398
+      decoder: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1400
   injectors:
   - CHAOSDecode
   - CHAOSRenameMap
@@ -3252,8 +3252,8 @@
   - CHAOSCache
   - CHAOSExMon
   evidence:
-  - claim: A64 解码树 return new STXRW64(...)；family=exclusive 骨架引用（分类任务深填）
-    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1398
+  - claim: A64 解码树 return new STXRX64(...)（主定义类，变体见 variants；链路骨架=family exclusive，注入器命中见 injectors）
+    anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1400
 - doc: Load-Store-STXRB.md
   mnemonic: STXRB
   tier: implemented
@@ -3282,7 +3282,7 @@
   - CHAOSCache
   - CHAOSExMon
   evidence:
-  - claim: A64 解码树 return new STXRB64(...)；family=exclusive 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new STXRB64(...)（主定义类，变体见 variants；链路骨架=family exclusive，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1394
 - doc: Load-Store-STXRH.md
   mnemonic: STXRH
@@ -3312,7 +3312,7 @@
   - CHAOSCache
   - CHAOSExMon
   evidence:
-  - claim: A64 解码树 return new STXRH64(...)；family=exclusive 骨架引用（分类任务深填）
+  - claim: A64 解码树 return new STXRH64(...)（主定义类，变体见 variants；链路骨架=family exclusive，注入器命中见 injectors）
     anchor: CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:1396
 - doc: Load-Store-STZ2G.md
   mnemonic: STZ2G

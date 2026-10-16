@@ -22,16 +22,15 @@ flowchart LR
     N4 --> N5
     N5 --> N6
     N6 --> N7
-    I0[CHAOSCommitTrace] -.-> N5
-    I1[CHAOSDecode] -.-> N5
-    I2[CHAOSExec] -.-> N5
-    I3[CHAOSFreeList] -.-> N5
-    I4[CHAOSIQ] -.-> N5
-    I5[CHAOSPhysReg] -.-> N5
-    I6[CHAOSProbe] -.-> N5
-    I7[CHAOSROB] -.-> N5
-    I8[CHAOSReg] -.-> N5
-    I9[CHAOSRenameMap] -.-> N5
+    I0[CHAOSCommitTrace] -.-> N7
+    I1[CHAOSDecode] -.-> N1
+    I2[CHAOSFreeList] -.-> N2
+    I3[CHAOSIQ] -.-> N4
+    I4[CHAOSPhysReg] -.-> N5
+    I5[CHAOSProbe] -.-> N7
+    I6[CHAOSROB] -.-> N7
+    I7[CHAOSReg] -.-> N7
+    I8[CHAOSRenameMap] -.-> N2
 ```
 
 ## 分站链路
@@ -55,7 +54,7 @@ flowchart LR
 
 ## 队列与执行单元
 
-- 队列：IQ · FU：IntALU
+- 队列：IQ · FU：SimdCrcOp
 
 ## CHAOS 注入器命中
 
@@ -63,7 +62,6 @@ flowchart LR
 |---|
 | CHAOSCommitTrace |
 | CHAOSDecode |
-| CHAOSExec |
 | CHAOSFreeList |
 | CHAOSIQ |
 | CHAOSPhysReg |
@@ -76,4 +74,4 @@ flowchart LR
 
 | 断言 | 锚点 |
 |---|---|
-| A64 解码树 return new Crc32b64(...)；family=dataproc-2src 骨架引用（分类任务深填） | CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2398 |
+| A64 解码树 return new Crc32b64(...)（主定义类，变体见 variants；链路骨架=family dataproc-2src，注入器命中见 injectors） | CHAOS/gem5/src/arch/arm/isa/formats/aarch64.isa:2398 |
