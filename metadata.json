@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.10.2",
+  "checkpoint_id": "01M5A9N3VF56NW6WBGEGVVD0C7",
+  "strategy": "manual-commit",
+  "branch": "integration/lsu-xlsx2md-20261019",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "docs/gem5-fi/lsu/gem5-fi-LSU单元故障注入方案.xlsx"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 8145,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 913088,
+    "output_tokens": 4499,
+    "api_call_count": 3
+  }
+}
