@@ -1,0 +1,104 @@
+/superpowers:writing-plans
+
+现在 Excel→Markdown 的提取和集成已经完成。下一阶段处理 LSU 历史修复分支，并以以下文档作为唯一实验规格：
+
+docs/gem5-fi/lsu/gem5-fi-LSU单元故障注入方案.md
+及其 4 个子文档，特别是：
+- 07-展开执行矩阵
+- 09-逐RunID传播监控
+- 10-源码监控映射
+
+目标不是直接合并所有旧分支，而是筛选、移植仍适用于新版方案的修复，然后补齐 Markdown 要求的注入与 L0–L5 完整传播监控。
+
+请先只制定计划，不启动正式实验。
+
+一、开始前审计
+
+1. 检查当前 HEAD、分支、工作树、已跟踪修改和未跟踪文件。
+2. 不覆盖、不清理、不提交其他会话遗留的修改。
+3. 确认当前 xlsx 的 SHA256 与 Markdown 元数据绑定一致。
+4. 确认 Markdown 中 325 个 RunID 唯一，表 7 与表 9 的 RunID 集合一致。
+5. 列出当前代码相对 Markdown 的实现缺口，不得把“已有部分监控”误认为“完整实现”。
+
+二、历史分支处理原则
+
+逐提交审计，不得整分支盲目 merge：
+
+1. 469429f4 [LSU][OBS-FIX-5]
+   - 原则上应移植。
+   - 它用于解析 cache tag/valid/dirty/data_shift/toggle 等字段注入日志。
+   - 必须补测试，证明 C04–C09 类型日志可形成合法 L0 fault_applied 记录。
+
+2. 35ccda91 [LSU][P4-FIX-GEOM]
+   - 审核后移植。
+   - 验证地址翻转后的 64B line 合法性、重采样/拒绝计数、真实 mode 标签。
+   - 确认它不会静默改变 Markdown 中 A01/A02 等模型的目标分布；发生 reject/resample 必须可观测。
+
+3. 83ff9265 [LSU][P4-FIX-A06S]
+   - 不得直接移植并把 A06 静默替换成 A06S。
+   - 当前 Markdown 明确定义 A06，且不存在 A06S。
+   - 先形成专项裁决：
+     a. 当前 A06 的 load/store 哪些语义可以安全实现；
+     b. 为什么旧 load-size 会触发 fixed-width completion 断言；
+     c. 如何在不违反 gem5 Request/Packet/completion 契约的前提下实现 Markdown 中的 A06；
+     d. 若暂时只能实现 store-only，必须把 A06 相关 RunID 标记 BLOCKED，不得伪装成已完成，也不得私自修改模型ID。
+
+4. dd755d7e [LSU][P4-F6]
+   - 可移植其中与 Markdown 相符的 early_stress 路径。
+   - Markdown 的 F6 是“首次出现指定事件时注入一次”，正式运行只能使用并记录这一语义。
+   - steady_state 只能作为独立扩展实验，不得与 Markdown 的 F6 样本混合。
+
+5. dd6714c4 [LSU][P4-FIX-RECLASS]
+   - 审核其 guest_arch_fault/Timeout/SimFailure 分类规则。
+   - 可复用逻辑，但输出必须适配新版结果字段与 L0–L5 终止判定。
+   - 不得用离线分类替代传播证据；链路缺失必须标 Unknown。
+
+6. 28caead8 [LSU][CAPACITY]
+   - 暂不移植 8→24 并发扩容。
+   - 它与新版实验语义无关。
+   - 前期 pilot 使用保守并发，防止资源压力制造伪 Timeout/SimFailure。
+
+7. integration/lsu-p4-20261016
+   - 视为上述 P4 提交的集合，不得重复合并。
+
+三、以 Markdown 为规格进行实现
+
+1. 为每个 RunID 建立“规格→命令行参数→注入点→监控钩子→结果字段”的可机读映射。
+2. 严格实现表 9 的：
+   - 完整传播路径；
+   - 必监控单元/事件/指标；
+   - 跨单元关联键；
+   - 完整性/传播终止判定；
+   - 缺失监控及新增钩子。
+3. 必须保存：
+   - run_id、sample_run_id、fault_id/ptag；
+   - event_id、parent_event_id；
+   - dyn_inst_seq、commit_seq、PC/opcode；
+   - request_id、walk_id、mshr_id、fill_id；
+   - LQ/SQ index、VA/PA/cache line；
+   - 各单元关键指标 before/after；
+   - first divergence；
+   - 最终 SDC/Detected/Masked/Crash/Timeout/SimFailure/Unknown 及证据。
+4. 禁止只用 tick 或 address 作为跨单元关联键。
+5. 链路在某节点中断时，只能标记“截至该节点可证，后续 Unknown”，不得推断 Masked。
+6. 不得为了让运行通过而改变 Markdown 的模型语义、RunID 或激活口径。
+
+四、验证与执行门禁
+
+分四阶段：
+
+Phase A：选择性移植修复并运行单元测试。
+Phase B：完成 Markdown→实现覆盖矩阵，列出 PASS/PARTIAL/BLOCKED。
+Phase C：只运行一个代表性 RunID 的 golden + fault pilot，验证 L0–L5 完整链和指标变化。
+Phase D：仅当 pilot 全部通过、A06 等冲突已有明确裁决后，才提出分批执行 325 个 RunID 的计划。
+
+本次 planning 结束时必须给出：
+
+1. 每个历史提交：采用/部分采用/拒绝及理由；
+2. 精确 cherry-pick 或手工移植顺序；
+3. Markdown 325 个 RunID 的实现覆盖统计；
+4. 缺失源码钩子清单；
+5. A06 专项裁决；
+6. pilot RunID 选择及原因；
+7. 测试、构建、资源门禁与回滚方案；
+8. 明确指出正式 campaign 尚未启动。
