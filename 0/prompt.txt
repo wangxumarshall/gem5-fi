@@ -1,0 +1,20 @@
+/superpowers:writing-plans
+
+请为以下任务制定可执行计划，暂时不要修改任何文件：
+
+读取：
+/home/sdc/gem5-fi-ding/docs/gem5-fi/lsu/gem5-fi-LSU单元故障注入方案.xlsx
+
+将工作簿全部工作表完整转换为 Markdown 方案文档，要求：
+1. 保留工作表顺序、表名、表头、RunID、传播监控、结果统计及备注。
+2. 不遗漏隐藏行列、合并单元格内容和公式的当前显示值。
+3. 大型“展开执行矩阵”不得截断；每个 RunID 必须保留且唯一。
+4. 输出到：
+   /home/sdc/gem5-fi-ding/docs/gem5-fi/lsu/gem5-fi-LSU单元故障注入方案.md
+5. 不修改或覆盖原 Excel。
+6. 转换后校验：工作表数量、RunID 数量、RunID 唯一性，以及关键字段的非空数量；在计划中写明校验方法。
+7. Markdown 过宽时，可按工作表分节或拆分为主文档加子文档，但主文档必须提供目录和链接。
+
+---
+
+native
