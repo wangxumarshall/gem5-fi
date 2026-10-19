@@ -18,9 +18,7 @@ PAGES = ATLAS / "pages"
 INDEX = ATLAS / "index"
 DIAGRAMS = ATLAS / "diagrams"
 
-# 总图骨架：标准八站主线 + BPU/FTQ 前端侧线 + MEMORY 访存侧线 + REDIRECT 恢复侧线
-STAGE_CHAIN = ["BPU", "FTQ", "FETCH", "DECODE", "RENAME", "DISPATCH",
-               "ISSUE", "EXECUTE", "MEMORY", "WRITEBACK", "COMMIT", "REDIRECT"]
+# 总图 = 全部 implemented 指令链路的并集（数据推导）+ 单元富化 + 注入器叠加
 # 注入器 → 挂载站点（依据计划「关键事实 §7」挂载语义表，锚点在 families.yaml）
 INJECTOR_MOUNTS = {
     "CHAOSDecode": "DECODE", "CHAOSRenameMap": "RENAME", "CHAOSFreeList": "RENAME",
@@ -31,38 +29,132 @@ INJECTOR_MOUNTS = {
     "CHAOSProbe": "COMMIT", "CHAOSCommitTrace": "COMMIT",
     "CHAOSMem": "MEMORY", "CHAOSCache": "MEMORY",
 }
+_MEM_FUS = ("MemReadOp", "MemWriteOp")  # 访存侧 opClass（挂 LSQ→MEMORY），其余为执行单元
 
 
-def render_master_mermaid():
-    """O3 全流水线总图（mermaid）：站点主链 + 19 个 CHAOS 注入器红节点叠加挂载点。"""
-    lines = ["flowchart LR"]
-    for s in STAGE_CHAIN:
-        lines.append(f"    {s}[{s}]")
-    for a, b in zip(STAGE_CHAIN, STAGE_CHAIN[1:]):
-        label = " -.误预测恢复.-> " if (a, b) == ("COMMIT", "REDIRECT") else " --> "
-        lines.append(f"    {a}{label}{b}")
-    lines.append("    REDIRECT -.-> FETCH")
+def build_union_graph(families, instructions):
+    """对全部 implemented 指令的家族 pipeline 求并集。
+
+    返回 (nodes, edges, fus, queues, node_anchor)：
+    - nodes/edges：家族链路的节点与相邻边并集（如 ALU 的 EXECUTE→WRITEBACK 与
+      load 的 EXECUTE→MEMORY 在并集中并存，形成真实的分岔拓扑）
+    - fus/queues：记录级 FU（overrides 优先）与家族 queue 的并集
+    - node_anchor：站点 → families.yaml 的代码锚点
+    """
+    pref = ["BPU", "FTQ", "FETCH", "DECODE", "RENAME", "DISPATCH",
+            "ISSUE", "EXECUTE", "MEMORY", "WRITEBACK", "COMMIT", "REDIRECT"]
+    edges, nodes_seen, fus, queues, node_anchor = set(), set(), set(), set(), {}
+    for r in instructions:
+        if r.get("tier") == "unimplemented":
+            continue
+        fam = families.get(r.get("family"))
+        if not fam:
+            continue
+        pipe = fam["pipeline"]
+        for i, n in enumerate(pipe):
+            nodes_seen.add(n)
+            if i:
+                edges.add((pipe[i - 1], n))
+        for n, a in (fam.get("anchors") or {}).items():
+            node_anchor.setdefault(n, a)
+        fu = (r.get("overrides") or {}).get("fu") or fam.get("fu")
+        if fu:
+            fus.add(fu)
+        if fam.get("queue"):
+            queues.add(fam["queue"])
+    nodes = [n for n in pref if n in nodes_seen] + sorted(nodes_seen - set(pref))
+    return nodes, edges, fus, queues, node_anchor
+
+
+def _node_label(n, anchors):
+    a = anchors.get(n)
+    return f"{n} · {a.rsplit('/', 1)[-1]}" if a else n
+
+
+def render_master_mermaid(families=None, instructions=None):
+    """O3 全流水线总图（mermaid）：所有指令链路的并集 + IQ/LSQ/ROB + FU 并集
+    扇出 + 19 个 CHAOS 注入器挂载。无参调用时从数据层加载。"""
+    if families is None or instructions is None:
+        families, instructions = load_data()
+    nodes, edges, fus, queues, anchors = build_union_graph(families, instructions)
+    int_fus = sorted(f for f in fus if f not in _MEM_FUS)
+    mem_fus = sorted(f for f in fus if f in _MEM_FUS)
+    L = ["flowchart LR"]
+    for n in nodes:
+        L.append(f'    {n}["{_node_label(n, anchors)}"]')
+    if "IQ" in queues:
+        L.append('    IQ["IQ · inst_queue.cc:868"]')
+    if "LSQ" in queues:
+        L.append('    LSQ["LSQ（LQ/SQ→L1D/TLB）· lsq_unit.cc:338"]')
+    L.append('    ROB["ROB · rob.cc:194"]')
+    for a, b in sorted(edges):
+        if (a, b) == ("COMMIT", "REDIRECT"):
+            L.append(f"    {a} -.误预测恢复.-> {b}")
+        else:
+            L.append(f"    {a} --> {b}")
+    if "REDIRECT" in nodes:
+        L.append("    REDIRECT -.-> FETCH")
+    # 队列与 ROB 通道（来自 queue 并集与锚点表：gem5 v25 中 ROB 在 rename→commit 传递上入队）
+    if "IQ" in queues:
+        L.append("    DISPATCH --> IQ")
+        L.append("    IQ --> ISSUE")
+    if "LSQ" in queues:
+        L.append("    DISPATCH --> LSQ")
+        L.append("    LSQ --> ISSUE")
+    L.append("    RENAME --> ROB")
+    L.append("    ROB --> COMMIT")
+    # FU 并集扇出：执行单元（EXECUTE→FU→WRITEBACK）与访存 opClass（LSQ→FU→MEMORY）
+    for fu in int_fus:
+        L.append(f'    FU_{fu}["{fu}"]')
+        L.append(f"    EXECUTE --> FU_{fu}")
+        L.append(f"    FU_{fu} --> WRITEBACK")
+    for fu in mem_fus:
+        L.append(f'    FU_{fu}["{fu}"]')
+        L.append(f"    LSQ --> FU_{fu}")
+        L.append(f"    FU_{fu} --> MEMORY")
     for inj, stage in sorted(INJECTOR_MOUNTS.items()):
-        lines.append(f"    {inj}[{sanitize_mermaid(inj)}]:::chaos -.命中.-> {stage}")
-    lines.append("    classDef chaos fill:#fdd,stroke:#900,stroke-width:2px")
-    return "\n".join(lines)
+        L.append(f"    {inj}[{sanitize_mermaid(inj)}]:::chaos -.命中.-> {stage}")
+    L.append("    classDef chaos fill:#fdd,stroke:#900,stroke-width:2px")
+    return "\n".join(L)
 
 
-def render_master_dot():
-    """同构 graphviz dot 版总图（dot -Tsvg 可渲染）。"""
-    lines = ["digraph o3_atlas {", "    rankdir=LR; node [shape=box];"]
-    for s in STAGE_CHAIN:
-        lines.append(f'    {s} [label="{s}"];')
-    for a, b in zip(STAGE_CHAIN, STAGE_CHAIN[1:]):
+def render_master_dot(families=None, instructions=None):
+    """同构 graphviz dot 版并集总图（dot -Tsvg 可渲染）。"""
+    if families is None or instructions is None:
+        families, instructions = load_data()
+    nodes, edges, fus, queues, anchors = build_union_graph(families, instructions)
+    int_fus = sorted(f for f in fus if f not in _MEM_FUS)
+    mem_fus = sorted(f for f in fus if f in _MEM_FUS)
+    L = ["digraph o3_atlas {", "    rankdir=LR; node [shape=box];"]
+    for n in nodes:
+        L.append(f'    {n} [label="{_node_label(n, anchors)}"];')
+    if "IQ" in queues:
+        L.append('    IQ [label="IQ · inst_queue.cc:868"];')
+    if "LSQ" in queues:
+        L.append('    LSQ [label="LSQ（LQ/SQ→L1D/TLB）· lsq_unit.cc:338"];')
+    L.append('    ROB [label="ROB · rob.cc:194"];')
+    for a, b in sorted(edges):
         style = ' [style=dashed, label="误预测恢复"]' if (a, b) == ("COMMIT", "REDIRECT") else ""
-        lines.append(f"    {a} -> {b}{style};")
-    lines.append("    REDIRECT -> FETCH [style=dashed];")
+        L.append(f"    {a} -> {b}{style};")
+    if "REDIRECT" in nodes:
+        L.append("    REDIRECT -> FETCH [style=dashed];")
+    if "IQ" in queues:
+        L.append("    DISPATCH -> IQ; IQ -> ISSUE;")
+    if "LSQ" in queues:
+        L.append("    DISPATCH -> LSQ; LSQ -> ISSUE;")
+    L.append("    RENAME -> ROB; ROB -> COMMIT;")
+    for fu in int_fus:
+        L.append(f'    FU_{fu} [label="{fu}", shape=ellipse];')
+        L.append(f"    EXECUTE -> FU_{fu}; FU_{fu} -> WRITEBACK;")
+    for fu in mem_fus:
+        L.append(f'    FU_{fu} [label="{fu}", shape=ellipse];')
+        L.append(f"    LSQ -> FU_{fu}; FU_{fu} -> MEMORY;")
     for inj, stage in sorted(INJECTOR_MOUNTS.items()):
-        lines.append(f'    {inj} [label="{inj}", shape=hexagon, '
-                     f'style=filled, fillcolor="#fdd", color="#900"];')
-        lines.append(f"    {inj} -> {stage} [style=dashed, label=命中];")
-    lines.append("}")
-    return "\n".join(lines)
+        L.append(f'    {inj} [label="{inj}", shape=hexagon, '
+                 f'style=filled, fillcolor="#fdd", color="#900"];')
+        L.append(f"    {inj} -> {stage} [style=dashed, label=命中];")
+    L.append("}")
+    return "\n".join(L)
 
 
 def render_matrix(instructions):
@@ -84,8 +176,8 @@ def write_diagrams(families, instructions):
     mmd = DIAGRAMS / "o3-pipeline.mmd"
     dot_f = DIAGRAMS / "o3-pipeline.dot"
     svg = DIAGRAMS / "o3-pipeline.svg"
-    mmd.write_text(render_master_mermaid() + "\n", encoding="utf-8")
-    dot_f.write_text(render_master_dot() + "\n", encoding="utf-8")
+    mmd.write_text(render_master_mermaid(families, instructions) + "\n", encoding="utf-8")
+    dot_f.write_text(render_master_dot(families, instructions) + "\n", encoding="utf-8")
     if shutil.which("dot"):
         r = subprocess.run(["dot", "-Tsvg", str(dot_f), "-o", str(svg)],
                            capture_output=True, timeout=300)

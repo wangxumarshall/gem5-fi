@@ -34,3 +34,38 @@ def test_master_dot_compiles_to_svg(tmp_path):
                        capture_output=True, timeout=120)
     assert r.returncode == 0, r.stderr.decode()[:400]
     assert svg_f.stat().st_size > 1000
+
+
+def test_master_diagram_is_union_of_all_instruction_paths():
+    # 总图 = 全部 implemented 指令链路的并集（数据推导，非手搭骨架）
+    from tools.o3_atlas.generate import render_master_mermaid
+    from tools.o3_atlas.validate import load_data
+    families, instructions = load_data()
+    mmd = render_master_mermaid(families, instructions)
+    # 整型路径并入（ALU 家族）：EXECUTE 直通 WRITEBACK
+    assert "EXECUTE --> WRITEBACK" in mmd
+    # 访存路径并入（load/store 家族）：EXECUTE 经 MEMORY
+    assert "EXECUTE --> MEMORY" in mmd
+    assert "MEMORY --> WRITEBACK" in mmd
+    # 分支侧线并入：BPU→FTQ 前端 + 误预测恢复回边
+    assert "BPU --> FTQ" in mmd
+    assert "REDIRECT -.-> FETCH" in mmd
+    # 队列并集：IQ 与 LSQ 都有指令走
+    assert "DISPATCH --> IQ" in mmd and "DISPATCH --> LSQ" in mmd
+    # FU 并集：执行单元扇出含数据层实际出现的全部 opClass
+    for fu in ("IntALU", "IntMult", "IntDiv", "SimdCrcOp", "MemReadOp", "MemWriteOp"):
+        assert fu in mmd, fu
+    # ROB：所有指令经 ROB 至提交
+    assert "RENAME --> ROB" in mmd and "ROB --> COMMIT" in mmd
+
+
+def test_master_dot_is_union_with_fu_and_queues():
+    from tools.o3_atlas.generate import render_master_dot
+    from tools.o3_atlas.validate import load_data
+    families, instructions = load_data()
+    dot_src = render_master_dot(families, instructions)
+    assert "EXECUTE -> MEMORY" in dot_src
+    assert "EXECUTE -> WRITEBACK" in dot_src
+    for fu in ("IntALU", "IntMult", "IntDiv", "SimdCrcOp", "MemReadOp", "MemWriteOp"):
+        assert fu in dot_src, fu
+    assert "IQ" in dot_src and "LSQ" in dot_src and "ROB" in dot_src

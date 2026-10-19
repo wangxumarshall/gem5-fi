@@ -1,28 +1,56 @@
 flowchart LR
-    BPU[BPU]
-    FTQ[FTQ]
-    FETCH[FETCH]
-    DECODE[DECODE]
-    RENAME[RENAME]
-    DISPATCH[DISPATCH]
-    ISSUE[ISSUE]
-    EXECUTE[EXECUTE]
-    MEMORY[MEMORY]
-    WRITEBACK[WRITEBACK]
-    COMMIT[COMMIT]
-    REDIRECT[REDIRECT]
+    BPU["BPU · bac.cc:565"]
+    FTQ["FTQ · ftq.cc:186"]
+    FETCH["FETCH · fetch.cc:1059"]
+    DECODE["DECODE · decode.cc:636"]
+    RENAME["RENAME · rename.cc:537"]
+    DISPATCH["DISPATCH · iew.cc:881"]
+    ISSUE["ISSUE · inst_queue.cc:868"]
+    EXECUTE["EXECUTE · iew.cc:1138"]
+    MEMORY["MEMORY · lsq_unit.cc:1730"]
+    WRITEBACK["WRITEBACK · iew.cc:1380"]
+    COMMIT["COMMIT · commit.cc:1125"]
+    REDIRECT["REDIRECT · fetch.cc:711"]
+    IQ["IQ · inst_queue.cc:868"]
+    LSQ["LSQ（LQ/SQ→L1D/TLB）· lsq_unit.cc:338"]
+    ROB["ROB · rob.cc:194"]
     BPU --> FTQ
-    FTQ --> FETCH
-    FETCH --> DECODE
-    DECODE --> RENAME
-    RENAME --> DISPATCH
-    DISPATCH --> ISSUE
-    ISSUE --> EXECUTE
-    EXECUTE --> MEMORY
-    MEMORY --> WRITEBACK
-    WRITEBACK --> COMMIT
     COMMIT -.误预测恢复.-> REDIRECT
+    DECODE --> RENAME
+    DISPATCH --> ISSUE
+    EXECUTE --> MEMORY
+    EXECUTE --> WRITEBACK
+    FETCH --> DECODE
+    FTQ --> FETCH
+    ISSUE --> EXECUTE
+    MEMORY --> WRITEBACK
+    RENAME --> DISPATCH
+    WRITEBACK --> COMMIT
     REDIRECT -.-> FETCH
+    DISPATCH --> IQ
+    IQ --> ISSUE
+    DISPATCH --> LSQ
+    LSQ --> ISSUE
+    RENAME --> ROB
+    ROB --> COMMIT
+    FU_IntALU["IntALU"]
+    EXECUTE --> FU_IntALU
+    FU_IntALU --> WRITEBACK
+    FU_IntDiv["IntDiv"]
+    EXECUTE --> FU_IntDiv
+    FU_IntDiv --> WRITEBACK
+    FU_IntMult["IntMult"]
+    EXECUTE --> FU_IntMult
+    FU_IntMult --> WRITEBACK
+    FU_SimdCrcOp["SimdCrcOp"]
+    EXECUTE --> FU_SimdCrcOp
+    FU_SimdCrcOp --> WRITEBACK
+    FU_MemReadOp["MemReadOp"]
+    LSQ --> FU_MemReadOp
+    FU_MemReadOp --> MEMORY
+    FU_MemWriteOp["MemWriteOp"]
+    LSQ --> FU_MemWriteOp
+    FU_MemWriteOp --> MEMORY
     CHAOSAddrPath[CHAOSAddrPath]:::chaos -.命中.-> MEMORY
     CHAOSBPU[CHAOSBPU]:::chaos -.命中.-> BPU
     CHAOSCache[CHAOSCache]:::chaos -.命中.-> MEMORY
