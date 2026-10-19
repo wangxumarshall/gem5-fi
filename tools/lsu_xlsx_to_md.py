@@ -420,6 +420,14 @@ def validate(xlsx_path: Path, out_dir: Path) -> int:
                     bad_links += 1
     check(f"V1 目录链接全部可解析（断链 {bad_links}）", bad_links == 0)
 
+    # V1b 孤儿子文档：out_dir 中的 MAIN_STEM-*.md 必须恰为期望子文档集
+    # （主文档有 SHA 绑定、子文档靠主文档 TOC 背书；孤儿文件两者皆逃，必须响亮拒绝）
+    expected_subs = {subdoc_filename(name, idx) for idx, name in enumerate(names)
+                     if is_subdoc(models[name])}
+    actual_subs = {p.name for p in out_dir.glob(f"{MAIN_STEM}-*.md")}
+    check(f"V1 无孤儿子文档（多出 {sorted(actual_subs - expected_subs)}）",
+          actual_subs == expected_subs)
+
     # 每表 canonical 网格（xlsx 侧）
     xcan = {n: [[canonical(v) for v in row] for row in m.grid]
             for n, m in models.items()}
