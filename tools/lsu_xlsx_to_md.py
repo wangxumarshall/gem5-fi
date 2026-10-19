@@ -301,16 +301,215 @@ def generate(xlsx_path: Path, out_dir: Path) -> dict:
             "runid_sheet9": len(s9.runids) if s9 else None}
 
 
+# ---------- validate（Task 2） ----------
+
+KEY_COLUMNS = {  # V4 显式报告的关键字段（表名 → 表头名列表）
+    "7.展开执行矩阵": ["RunID", "传播监控", "预期结果", "故障表现形式/子模型",
+                     "Attempted", "Activated", "Masked", "Crash", "SDC",
+                     "记录状态", "实测备注", "检测/告警证据"],
+    "9.逐RunID传播监控": ["RunID", "完整传播路径（按顺序）", "必监控单元/事件/指标",
+                       "完整性/传播终止判定", "首轮目标Activated样本数"],
+    "3.位置x模型矩阵": ["模型ID"],
+    "10.源码监控映射": ["模型ID"],
+    "6.负载清单": ["负载ID"],
+}
+
+
+def parse_md_tables(text: str) -> list:
+    """小节文本 → 原始文本网格（行序 = 源行序；横幅行为单格行；跳过非表格行）。"""
+    grid, lines, i = [], text.splitlines(), 0
+    while i < len(lines):
+        line = lines[i]
+        if line.startswith("|"):
+            block = []
+            while i < len(lines) and lines[i].startswith("|"):
+                block.append(lines[i])
+                i += 1
+            cells = [split_md_row(l) for l in block]
+            if len(cells) >= 2:                      # 表头 + 分隔行 + 数据…
+                grid.append(cells[0])
+                grid.extend(cells[2:])
+        elif line.startswith(BANNER_PREFIX):
+            grid.append([md_unescape(line[len(BANNER_PREFIX):].strip())])
+            i += 1
+        else:
+            i += 1
+    return grid
+
+
+def split_main_sections(main_text: str) -> dict:
+    parts = re.split(r'^<a id="sheet-(\d+)"></a>$', main_text, flags=re.M)
+    return {int(parts[j]): parts[j + 1] for j in range(1, len(parts), 2)}
+
+
+def md_row_to_canonical(cells: list, ncols: int) -> list:
+    out = [md_escape(c.strip()) for c in cells]
+    if len(out) < ncols:
+        out += [""] * (ncols - len(out))
+    return out[:ncols]
+
+
+def validate(xlsx_path: Path, out_dir: Path) -> int:
+    checks, failures = [], []
+
+    def check(name, ok):
+        checks.append((name, ok))
+        if not ok:
+            failures.append(name)
+
+    sha_before = hashlib.sha256(xlsx_path.read_bytes()).hexdigest()
+    main_path = out_dir / f"{MAIN_STEM}.md"
+    if not main_path.exists():
+        print(f"[validate] 缺主文档 {main_path}")
+        return 1
+    main_text = main_path.read_text(encoding="utf-8")
+    meta = parse_metadata(main_text)
+
+    wbv = openpyxl.load_workbook(xlsx_path, data_only=True)
+    wbf = openpyxl.load_workbook(xlsx_path, data_only=False)
+    names = list(wbv.sheetnames)
+    models = {n: build_sheet_model(wbv[n], wbf[n]) for n in names}
+
+    # V0 源不变式
+    lit_br = sum(1 for m in models.values() for row in m.grid for v in row
+                 if isinstance(v, str) and "<br>" in v)
+    edge_ws = sum(1 for m in models.values() for row in m.grid for v in row
+                  if isinstance(v, str) and v != v.strip())
+    check(f"V0 无字面 '<br>' 单元格（实测 {lit_br}）", lit_br == 0)
+    check(f"V0 无边缘空白单元格（实测 {edge_ws}）", edge_ws == 0)
+    n_formula = sum(len(m.formulas) for m in models.values())
+    n_hidden_r = sum(len(m.hidden_rows) for m in models.values())
+    n_hidden_c = sum(len(m.hidden_cols) for m in models.values())
+    n_hidden_sh = sum(1 for m in models.values() if m.sheet_state != "visible")
+    checks.append((f"V0 报告: 公式 {n_formula}；隐藏行 {n_hidden_r}；"
+                   f"隐藏列 {n_hidden_c}；非 visible 工作表 {n_hidden_sh}", True))
+
+    # V5 源绑定
+    check(f"V5 元数据 Source-SHA256 == 当前源", meta.get("Source-SHA256") == sha_before)
+    check("V5 元数据 Sheet-Count == 实际", meta.get("Sheet-Count") == str(len(names)))
+
+    # 定位每个表的 MD 文本
+    sections = split_main_sections(main_text)
+    md_of = {}
+    for idx, name in enumerate(names):
+        m = models[name]
+        if is_subdoc(m):
+            p = out_dir / subdoc_filename(name, idx)
+            if not p.exists():
+                check(f"V1 [{name}] 子文档存在", False)
+                continue
+            check(f"V1 [{name}] 子文档存在", True)
+            md_of[name] = p.read_text(encoding="utf-8")
+        else:
+            md_of[name] = sections.get(idx, "")
+            check(f"V1 [{name}] 内联节存在", bool(md_of[name]))
+
+    # V1 目录链接可解析
+    toc_lines = [l for l in main_text.splitlines()
+                 if l.startswith("| ") and ("](#" in l or "](gem5-fi-" in l)]
+    n_toc = len(toc_lines)
+    check(f"V1 目录行数 == 工作表数（{n_toc} vs {len(names)}）", n_toc == len(names))
+    bad_links = 0
+    for l in toc_lines:
+        for target in re.findall(r"\]\(([^)]+)\)", l):
+            if target.startswith("#"):
+                if f'<a id="{target[1:]}"></a>' not in main_text:
+                    bad_links += 1
+            else:
+                if not (out_dir / target).exists():
+                    bad_links += 1
+    check(f"V1 目录链接全部可解析（断链 {bad_links}）", bad_links == 0)
+
+    # 每表 canonical 网格（xlsx 侧）
+    xcan = {n: [[canonical(v) for v in row] for row in m.grid]
+            for n, m in models.items()}
+
+    # V3 全量往返 + V7 披露注记
+    for name in names:
+        m = models[name]
+        parsed = parse_md_tables(md_of.get(name, ""))
+        pcan = [md_row_to_canonical(r, m.ncols) for r in parsed]
+        if len(pcan) != len(m.grid):
+            check(f"V3 [{name}] 行数一致（xlsx {len(m.grid)} vs md {len(pcan)}）", False)
+            continue
+        diff = next((r for r, (x, p) in enumerate(zip(xcan[name], pcan), 1) if x != p), None)
+        check(f"V3 [{name}] 逐格相等（{m.nonempty} 非空格）", diff is None)
+        if diff:
+            print(f"    V3[{name}] 首个差异行 {diff}: xlsx={xcan[name][diff-1][:3]} "
+                  f"md={pcan[diff-1][:3]}")
+        if m.trailing_empty:
+            check(f"V7 [{name}] 尾部空行注记（{m.trailing_empty} 行）",
+                  f"尾部全空行 {m.trailing_empty} 行" in md_of.get(name, ""))
+        if m.merged:
+            check(f"V7 [{name}] 合并单元格注记",
+                  all(r in md_of.get(name, "") for r in m.merged))
+        if m.formulas:
+            check(f"V7 [{name}] 公式注记（{len(m.formulas)} 条）",
+                  "公式 " in md_of.get(name, ""))
+
+    # V2 RunID（对每个含 RunID 的表）
+    rid_sets = {}
+    for name in names:
+        m = models[name]
+        if not m.runids:
+            continue
+        parsed = parse_md_tables(md_of.get(name, ""))
+        md_rids = [r[0] for r in parsed[1:] if r and RUNID_RE.match(r[0])]
+        check(f"V2 [{name}] RunID 数量一致（xlsx {len(m.runids)} vs md {len(md_rids)}）",
+              len(md_rids) == len(m.runids))
+        check(f"V2 [{name}] RunID 无重复", len(md_rids) == len(set(md_rids)))
+        check(f"V2 [{name}] RunID 集合与源一致", set(md_rids) == set(m.runids))
+        rid_sets[name] = set(m.runids)
+    pair = [n for n in ("7.展开执行矩阵", "9.逐RunID传播监控") if n in rid_sets]
+    if len(pair) == 2:
+        check("V2 表7/表9 RunID 集合相等", rid_sets[pair[0]] == rid_sets[pair[1]])
+    else:
+        checks.append(("V2 表7/表9 RunID 集合相等：n/a（源不足两张 RunID 表）", True))
+
+    # V4 关键字段非空计数
+    for name, wants in KEY_COLUMNS.items():
+        if name not in models:
+            checks.append((f"V4 [{name}] n/a（源无此表）", True))
+            continue
+        m, parsed = models[name], parse_md_tables(md_of.get(name, ""))
+        pcan = [md_row_to_canonical(r, m.ncols) for r in parsed]
+        hdr = xcan[name][0] if xcan[name] else []
+        for want in wants:
+            ci = next((i for i, h in enumerate(hdr) if h == canonical(want)), None)
+            if ci is None:
+                check(f"V4 [{name}][{want}] 找到列", False)
+                continue
+            n_x = sum(1 for row in xcan[name][1:] if row[ci])
+            n_m = sum(1 for row in pcan[1:] if ci < len(row) and row[ci])
+            check(f"V4 [{name}][{want}] 非空 xlsx={n_x} md={n_m}", n_x == n_m)
+
+    # V6 校验期间源未被修改
+    sha_after = hashlib.sha256(xlsx_path.read_bytes()).hexdigest()
+    check("V6 校验前后源 sha256 一致（只读证明）", sha_after == sha_before)
+
+    print("=" * 72)
+    for name, ok in checks:
+        print(f"  [{'PASS' if ok else 'FAIL'}] {name}")
+    print("=" * 72)
+    if failures:
+        print(f"VALIDATE FAIL（{len(failures)} 项失败）:")
+        for f in failures:
+            print(f"  - {f}")
+        return 1
+    print("ALL PASS")
+    return 0
+
+
 # ---------- CLI ----------
 
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description="gem5-fi LSU 方案工作簿 xlsx→Markdown 转换与校验")
     ap.add_argument("--xlsx", required=True, help="源工作簿路径（只读，绝不修改）")
     ap.add_argument("--out-dir", required=True, help="Markdown 输出目录")
-    ap.add_argument("--validate", action="store_true", help="校验 out-dir 中已生成文档（Task 2 实现）")
+    ap.add_argument("--validate", action="store_true", help="校验 out-dir 中已生成文档")
     a = ap.parse_args(argv)
     if a.validate:
-        sys.exit("[ABORT] --validate 模式在 Task 2 实现（当前构建只有 generate）")
+        return validate(Path(a.xlsx), Path(a.out_dir))
     generate(Path(a.xlsx), Path(a.out_dir))
     return 0
 

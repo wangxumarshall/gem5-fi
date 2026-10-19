@@ -128,3 +128,78 @@ def test_formula_and_hidden_notes(fx, tmp_path):
     assert "公式 A2" in text and "`=1+1`" in text and "无缓存值" in text
     assert "隐藏行 [3]" in text
     assert "| 隐藏行内容 |" in text          # 隐藏行内容仍完整列出
+
+
+# ---------- validate（Task 2） ----------
+
+def test_validate_pass_on_fresh_generation(fx, tmp_path):
+    out = tmp_path / "out"
+    x2m.generate(fx, out)
+    assert x2m.validate(fx, out) == 0
+
+
+def _mutated_fails(fx, tmp_path, mutate):
+    out = tmp_path / "out"
+    x2m.generate(fx, out)
+    mutate(out)
+    assert x2m.validate(fx, out) != 0
+
+
+def _edit(out, fname, fn):
+    p = out / fname
+    lines = p.read_text(encoding="utf-8").splitlines()
+    fn(lines)
+    p.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
+def test_validate_detects_missing_row(fx, tmp_path):
+    def drop(lines):
+        for i, l in enumerate(lines):
+            if l.startswith("| A01-F1-W3"):
+                del lines[i]
+                return
+        raise AssertionError("fixture 行未找到")
+    _mutated_fails(fx, tmp_path, lambda out: _edit(out, f"{MAIN}.md", drop))
+
+
+def test_validate_detects_cell_mutation(fx, tmp_path):
+    def change(lines):
+        for i, l in enumerate(lines):
+            if l.startswith("| A01-F0-W3"):
+                lines[i] = l.replace("v1", "TAMPERED")
+                return
+        raise AssertionError("fixture 行未找到")
+    _mutated_fails(fx, tmp_path, lambda out: _edit(out, f"{MAIN}.md", change))
+
+
+def test_validate_detects_duplicate_runid(fx, tmp_path):
+    def dup(lines):
+        for i, l in enumerate(lines):
+            if l.startswith("| A01-F1-W3"):
+                lines.insert(i, l)
+                return
+        raise AssertionError("fixture 行未找到")
+    _mutated_fails(fx, tmp_path, lambda out: _edit(out, f"{MAIN}.md", dup))
+
+
+def test_validate_detects_source_drift(fx, tmp_path):
+    def drift(text):
+        return text.replace("Source-SHA256: ", "Source-SHA256: 0")  # 篡改绑定哈希
+    def mutate(out):
+        p = out / f"{MAIN}.md"
+        p.write_text(drift(p.read_text(encoding="utf-8")), encoding="utf-8")
+    _mutated_fails(fx, tmp_path, mutate)
+
+
+def test_validate_detects_missing_sheet(fx, tmp_path):
+    def drop_section(lines):
+        keep, skipping = [], False
+        for l in lines:
+            if l.startswith('<a id="sheet-2"'):
+                skipping = True
+            elif l.startswith('<a id="sheet-'):
+                skipping = False
+            if not skipping:
+                keep.append(l)
+        lines[:] = keep
+    _mutated_fails(fx, tmp_path, lambda out: _edit(out, f"{MAIN}.md", drop_section))
