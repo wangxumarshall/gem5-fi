@@ -251,6 +251,37 @@ def reclassify(samples):
         total=len(samples)), sig_cols, exit_cols, diag
 
 
+# ---------------------------------------------------------------- [MDSPEC][A5.4]
+# 证据门（用户指令二.5）：离线分类不得替代传播证据；链路缺失只能标
+# “截至该节点可证，后续 Unknown”，不得推断 Masked。
+# 依据（真实 l5_verdict.json schema，runs/lsu/engineering 实测）：旧批次
+# verdict 无 L0-L5 链事件（早于传播插桩），终局证据面只有
+# crash_kind/gem5_exit（崩溃/超时本身可观测）与 checksum（oracle 在案）。
+EVIDENCE_GATE_VERSION = "mdspec-1"
+
+
+def evidence_gate(verdict):
+    """l5_verdict.json → (mdspec_outcome, evidence_status)。
+
+    - injected>=1 且终局直接证据在案（Crash/Timeout 的 crash_kind/gem5_exit，
+      或 checksum 非 null）→ observed，outcome 保持原判；
+    - injected>=1 但 Masked 无 checksum 证据且无链事件（无法证明“未传播”）
+      → missing → Unknown（不得推断 Masked）；
+    - 未注入 → not_injected（Injected-not-activated 记账类别，非 Unknown）；
+    - verdict 缺失（None）→ Unknown/missing（防御路径，诚实降级）。
+    """
+    if not verdict:
+        return "Unknown", "missing"
+    if not (verdict.get("injected") or 0):
+        return verdict.get("outcome"), "not_injected"
+    out = verdict.get("outcome")
+    if out in ("Crash", "Timeout"):
+        return out, "observed"          # 终局事件本身即直接证据
+    if verdict.get("checksum") is not None:
+        return out, "observed"          # oracle 校验和在案（相等=Masked 可证）
+    return "Unknown", "missing"         # 链路缺失：不得推断 Masked
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
