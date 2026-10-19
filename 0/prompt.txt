@@ -1,0 +1,7 @@
+<task-notification>
+<task-id>buppfbxj3</task-id>
+<tool-use-id>call_d4468692d2a346c793b0c786</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi-ding/1a8944a7-2c46-48c0-9e9f-2ab1995ae43d/tasks/buppfbxj3.output</output-file>
+<status>completed</status>
+<summary>Background command "Watcher: wait for A5 rebuild marker" completed (exit code 0)</summary>
+</task-notification>
