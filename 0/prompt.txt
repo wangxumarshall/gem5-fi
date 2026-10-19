@@ -1,0 +1,98 @@
+/superpowers:writing-plans
+
+请为以下任务制定可执行计划，暂时不要修改任何文件：
+
+读取：
+/home/sdc/gem5-fi-ding/docs/gem5-fi/lsu/gem5-fi-LSU单元故障注入方案.xlsx
+
+将工作簿全部工作表完整转换为 Markdown 方案文档，要求：
+1. 保留工作表顺序、表名、表头、RunID、传播监控、结果统计及备注。
+2. 不遗漏隐藏行列、合并单元格内容和公式的当前显示值。
+3. 大型“展开执行矩阵”不得截断；每个 RunID 必须保留且唯一。
+4. 输出到：
+   /home/sdc/gem5-fi-ding/docs/gem5-fi/lsu/gem5-fi-LSU单元故障注入方案.md
+5. 不修改或覆盖原 Excel。
+6. 转换后校验：工作表数量、RunID 数量、RunID 唯一性，以及关键字段的非空数量；在计划中写明校验方法。
+7. Markdown 过宽时，可按工作表分节或拆分为主文档加子文档，但主文档必须提供目录和链接。
+
+---
+
+native
+
+---
+
+选择 3：保持现状，暂不执行 fi-ding → main 的本地合并，也不要直接创建整个 fi-ding → main PR。
+
+请继续处理以下发布前事项：
+
+1. 先修复并测试主 Markdown 末尾多余空行，使：
+   git diff --check 8aec2a8b..HEAD
+   完全通过。
+
+2. 将当前 SHA256 为
+   389546f0f8f3d0c6ece2ed33d3a8cfd1426faa9bbc101f7ad7d9612159e273e0
+   的 LSU xlsx 精确提交。
+   只能显式 stage 该 xlsx，不得 stage 当前工作树中的 69 个删除项、.planning、OOO 产物或其他未跟踪文件。
+
+3. 不要直接用 fi-ding 向 main 发 PR。另建一个基于 origin/main 的干净集成分支，例如：
+   integration/lsu-xlsx2md-20261019
+
+4. 在干净集成分支中仅引入：
+   - 当前正确版本的 LSU xlsx
+   - f5b25a1a
+   - cfbb861d
+   - ca2b9124
+   - cd701f96
+   - 4cbbc8d1
+   - 末尾空行修复提交
+
+   注意 origin/main 当前不存在该 xlsx，因此需要把正确 xlsx 作为新增文件带入，不能假定 main 已有来源文件。
+
+5. 在集成分支重新运行：
+   - 15 个测试
+   - 正式 --validate
+   - git diff --check
+   - SHA256/mtime/size 前后只读检查
+
+6. 全部通过后，再创建
+   integration/lsu-xlsx2md-20261019 → main
+   的聚焦 PR，不得创建 fi-ding → main 的大 PR。
+
+---
+
+选择 3：保持现状，暂不执行 fi-ding → main 的本地合并，也不要直接创建整个 fi-ding → main PR。
+
+请继续处理以下发布前事项：
+
+1. 先修复并测试主 Markdown 末尾多余空行，使：
+   git diff --check 8aec2a8b..HEAD
+   完全通过。
+
+2. 将当前 SHA256 为
+   389546f0f8f3d0c6ece2ed33d3a8cfd1426faa9bbc101f7ad7d9612159e273e0
+   的 LSU xlsx 精确提交。
+   只能显式 stage 该 xlsx，不得 stage 当前工作树中的 69 个删除项、.planning、OOO 产物或其他未跟踪文件。
+
+3. 不要直接用 fi-ding 向 main 发 PR。另建一个基于 origin/main 的干净集成分支，例如：
+   integration/lsu-xlsx2md-20261019
+
+4. 在干净集成分支中仅引入：
+   - 当前正确版本的 LSU xlsx
+   - f5b25a1a
+   - cfbb861d
+   - ca2b9124
+   - cd701f96
+   - 4cbbc8d1
+   - 末尾空行修复提交
+
+   注意 origin/main 当前不存在该 xlsx，因此需要把正确 xlsx 作为新增文件带入，不能假定 main 已有来源文件。
+
+5. 在集成分支重新运行：
+   - 15 个测试
+   - 正式 --validate
+   - git diff --check
+   - SHA256/mtime/size 前后只读检查
+
+6. 全部通过后，再创建
+   integration/lsu-xlsx2md-20261019 → main
+   的聚焦 PR，不得创建 fi-ding → main 的大 PR。
