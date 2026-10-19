@@ -55,9 +55,13 @@ def main():
           f"first={entries[0]['run_id']} nodes={entries[0]['path_nodes']}")
     known_wl = [e for e in entries if e["workload"]["binary"]]
     check("known_workloads_resolve_to_existing_binary",
-          all((ROOT / "workloads" / e["workload"]["binary"]).exists()
+          len(known_wl) >= 150 and all(
+              (ROOT / "workloads" / "directed" / e["workload"]["binary"]).exists()
+              or (ROOT / "workloads" / e["workload"]["binary"]).exists()
               for e in known_wl),
-          str({e["workload"]["binary"] for e in known_wl}))
+          f"n_known={len(known_wl)}")   # 非空性下限：防 vacuous-pass（B1 缺陷教训）
+    check("agu_addrmodes_resolved",
+          any(e["workload"]["binary"] == "agu_addrmodes" for e in entries))
     unknown_wl = [e for e in entries if not e["workload"]["binary"]]
     check("unknown_workloads_marked_not_guessed",
           all(e["workload"]["note"] and e["status"] == "BLOCKED"

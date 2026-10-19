@@ -43,11 +43,17 @@ def _txt(v):
 
 
 def _resolve_workload(spec_name):
-    """WL_BINARY 前缀匹配（长键优先）+ 实存校验；未映射 → 不猜（null+注记）。"""
+    """WL_BINARY 前缀匹配（长键优先）+ 实存校验；未映射 → 不猜（null+注记）。
+
+    路径解析：裸名（agu_addrmodes 等）位于 workloads/directed/；
+    带子目录的值（mibench/bin/w1_all）相对 workloads/ 直取。
+    """
     for key, binary in sorted(lc.WL_BINARY.items(), key=lambda kv: -len(kv[0])):
         if spec_name.startswith(key):
-            if (ROOT / "workloads" / binary).exists():
-                return binary, None
+            for cand in (ROOT / "workloads" / "directed" / binary,
+                         ROOT / "workloads" / binary):
+                if cand.exists():
+                    return binary, None
             return None, f"WL_BINARY 映射 {key}→{binary} 但二进制不存在"
     return None, "规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
 
