@@ -1050,3 +1050,16 @@ git push origin fi-ding
 - **源文件活变动**：若 Task 1–3 任何一步发现 xlsx sha256 与 Task 0 记录不一致（说明期间有人改写了工作簿），停下向用户确认后再以新版本重新生成——元数据 SHA 绑定会诚实地暴露这一点（V5）。
 - **xlsx 是否入库**：本计划不提交 xlsx（用户工作树改动归用户）。若用户后续希望像 OoO 轨道那样把 xlsx 纳入版本管理，是独立的一个后续 commit，不属于本计划。
 - **再生成**：xlsx 更新后重跑 generate+validate 即可重建文档；元数据块会自动绑定新 SHA。
+
+---
+
+## 发布前事项（2026-10-19 用户指令，主计划收官后的增补）
+
+> 用户在 finishing 菜单选择"保持现状（选项 3）"后下达的 6 项发布前事项，逐项执行并勾选。
+
+- [x] **R1. 主文档末尾多余空行修复**：`git diff --check 8aec2a8b..HEAD` 完全通过（TDD：test_no_trailing_blank_line RED→GREEN，套件 16/16；再生成后仅主文档 1 增 2 删，--validate ALL PASS）
+- [ ] **R2. 精确提交 xlsx**：仅显式 stage sha256=389546f0…e273e0 的 LSU xlsx（不波及工作树 69 个删除项、.planning、OOO 产物或未跟踪文件）
+- [ ] **R3. 干净集成分支**：基于 origin/main 新建 `integration/lsu-xlsx2md-20261019`（不建 fi-ding→main 大 PR）
+- [ ] **R4. 集成分支仅引入**：正确 xlsx（作新增文件，origin/main 无此文件）+ f5b25a1a + cfbb861d + ca2b9124 + cd701f96 + 4cbbc8d1 + 末尾空行修复提交
+- [ ] **R5. 集成分支复验**：16 个测试 + 正式 --validate + git diff --check + SHA256/mtime/size 前后只读检查
+- [ ] **R6. 聚焦 PR**：`integration/lsu-xlsx2md-20261019 → main`（不得创建 fi-ding→main 大 PR）

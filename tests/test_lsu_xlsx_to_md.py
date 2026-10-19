@@ -219,3 +219,15 @@ def test_validate_detects_subdoc_mutation(fx, tmp_path):
                 return
         raise AssertionError("fixture 行未找到")
     _mutated_fails(fx, tmp_path, lambda out: _edit(out, f"{MAIN}-03-宽表.md", drop))
+
+
+def test_no_trailing_blank_line(fx, tmp_path):
+    """所有生成文档必须恰以单个换行结尾（git diff --check 的 blank-at-eof 必须为零）。"""
+    out = tmp_path / "out"
+    x2m.generate(fx, out)
+    docs = sorted(out.glob("*.md"))
+    assert len(docs) == 2                    # 主文档 + 1 子文档（fixture）
+    for p in docs:
+        data = p.read_bytes()
+        assert data.endswith(b"\n"), f"{p.name} 须以换行结尾"
+        assert not data.endswith(b"\n\n"), f"{p.name} 末尾不得有多余空行"
