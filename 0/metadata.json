@@ -75,6 +75,68 @@
         "label": "Skill: superpowers:executing-plans",
         "default_collapsed": true
       }
+    },
+    {
+      "id": "claude-skill-call_e589829f7e724e878d360e50",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "superpowers:test-driven-development"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "ada0f8809ccb",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 245,
+        "end": 246,
+        "entry_ids": [
+          "b8775b5a-3858-4609-a6f1-5a9c42e777ed"
+        ],
+        "tool_use_id": "call_e589829f7e724e878d360e50"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "call_e589829f7e724e878d360e50"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: superpowers:test-driven-development",
+        "default_collapsed": true
+      }
+    },
+    {
+      "id": "claude-skill-call_89560faecd114e3c8a0a0fa5",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "superpowers:finishing-a-development-branch"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "ada0f8809ccb",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 584,
+        "end": 585,
+        "entry_ids": [
+          "22f5ed48-2aad-470c-a41b-00e203ff8aaa"
+        ],
+        "tool_use_id": "call_89560faecd114e3c8a0a0fa5"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "call_89560faecd114e3c8a0a0fa5"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: superpowers:finishing-a-development-branch",
+        "default_collapsed": true
+      }
     }
   ],
   "session_metrics": {
