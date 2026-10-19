@@ -289,7 +289,9 @@ def generate(xlsx_path: Path, out_dir: Path) -> dict:
     main_doc.append("")
     main_doc.extend(inline_sections)
     p = out_dir / f"{MAIN_STEM}.md"
-    p.write_text("\n".join(main_doc) + "\n", encoding="utf-8")
+    # 主文档恰以单个换行结尾：main_doc 末元素（内联节或空串）经 join 已带结尾 \n，
+    # 再补 "\n" 会造成 blank-at-eof（git diff --check 告警）
+    p.write_text("\n".join(main_doc), encoding="utf-8")
     written.insert(0, p)
     print(f"[generate] 源: {xlsx_path} sha256={sha[:16]}…")
     for f in written:

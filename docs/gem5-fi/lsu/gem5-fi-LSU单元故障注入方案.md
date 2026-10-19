@@ -5,7 +5,7 @@ Source-File: gem5-fi-LSU单元故障注入方案.xlsx
 Source-SHA256: 389546f0f8f3d0c6ece2ed33d3a8cfd1426faa9bbc101f7ad7d9612159e273e0
 Source-MTime-Local: 2026-10-19T20:46:38
 Source-Size-Bytes: 181590
-Generated-At-Local: 2026-10-19T21:23:54
+Generated-At-Local: 2026-10-19T22:35:36
 Sheet-Count: 12
 RunID-Count-Sheet7: 325
 RunID-Count-Sheet9: 325
@@ -229,4 +229,3 @@ Tool: tools/lsu_xlsx_to_md.py
 | detection_layer / contained | 检测与控制 | Hardware RAS/OS/App/None及是否contained | 工作簿结果列，事件日志缺 | 最终判定事件必需 |
 | outcome / oracle_diff | 结局 | Masked/DC/Crash/Timeout/SDC与golden差异 | runner/classifier已有 | 与fault_id/sample_run_id绑定 |
 | evidence_status | 证据状态 | observed/derived/missing/conflict | 缺失 | 防止把缺失事件解释为未传播 |
-
