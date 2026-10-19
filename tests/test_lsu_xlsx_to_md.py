@@ -116,9 +116,7 @@ def test_trailing_empty_rows_disclosed(fx, tmp_path):
     out = tmp_path / "out"
     x2m.generate(fx, out)
     text = (out / f"{MAIN}.md").read_text(encoding="utf-8")
-    assert "尾部全空行 5 行" in text
-    for _ in range(5):
-        pass  # 尾部空行本身不列表（由 V3/V7 校验兜底）
+    assert "尾部全空行 5 行" in text   # 尾部空行本身不列表（由 V3/V7 校验兜底）
 
 
 def test_formula_and_hidden_notes(fx, tmp_path):
@@ -203,3 +201,21 @@ def test_validate_detects_missing_sheet(fx, tmp_path):
                 keep.append(l)
         lines[:] = keep
     _mutated_fails(fx, tmp_path, lambda out: _edit(out, f"{MAIN}.md", drop_section))
+
+
+def test_validate_detects_orphan_subdoc(fx, tmp_path):
+    """孤儿子文档：out_dir 多出的 MAIN_STEM-*.md 必须令 validate 失败（V1b）。"""
+    def mutate(out):
+        (out / f"{MAIN}-99-伪造.md").write_text("# 陈旧伪造子文档\n", encoding="utf-8")
+    _mutated_fails(fx, tmp_path, mutate)
+
+
+def test_validate_detects_subdoc_mutation(fx, tmp_path):
+    """子文档删行必须令 validate 失败（V3 行数；钉住既有防御，43 列大表同代码路径）。"""
+    def drop(lines):
+        for i, l in enumerate(lines):
+            if l.startswith("| 隐藏行内容"):
+                del lines[i]
+                return
+        raise AssertionError("fixture 行未找到")
+    _mutated_fails(fx, tmp_path, lambda out: _edit(out, f"{MAIN}-03-宽表.md", drop))
