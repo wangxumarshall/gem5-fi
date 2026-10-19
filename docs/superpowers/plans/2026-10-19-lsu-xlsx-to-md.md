@@ -109,17 +109,17 @@
 
 **Interfaces:** 无代码。为 Task 1–3 提供唯一工作清单。
 
-- [ ] **Step 0.1: 确认计划文件存在且为最新**
+- [x] **Step 0.1: 确认计划文件存在且为最新**
 
 Run: `ls -la docs/superpowers/plans/2026-10-19-lsu-xlsx-to-md.md`
 Expected: 文件存在（本会话计划阶段已写出）。
 
-- [ ] **Step 0.2: 记录源文件初始指纹（供 Task 3 终验比对）**
+- [x] **Step 0.2: 记录源文件初始指纹（供 Task 3 终验比对）**
 
 Run: `sha256sum "docs/gem5-fi/lsu/gem5-fi-LSU单元故障注入方案.xlsx" && stat -c '%y %s' "docs/gem5-fi/lsu/gem5-fi-LSU单元故障注入方案.xlsx"`
 Expected: 输出一行 sha256 + 一行 mtime/size，**抄录进提交信息或执行记录**（Task 3 Step 3.6 比对用）。
 
-- [ ] **Step 0.3: 提交计划文件**
+- [x] **Step 0.3: 提交计划文件**
 
 ```bash
 git add docs/superpowers/plans/2026-10-19-lsu-xlsx-to-md.md
@@ -147,7 +147,7 @@ git push origin fi-ding
   - 常量 `MAIN_STEM = "gem5-fi-LSU单元故障注入方案"`、`BANNER_PREFIX = "### 分节横幅："`、`META_BEGIN/META_END`、`RUNID_RE`
   - Task 1 只实现 `main()` 的 generate 分支；`--validate` 参数**先占位为未实现错误**（`sys.exit("validate 模式在 Task 2 实现")`），Task 2 补齐。
 
-- [ ] **Step 1.1: 写失败测试**
+- [x] **Step 1.1: 写失败测试**
 
 创建 `tests/test_lsu_xlsx_to_md.py`（完整内容；fixture 用 openpyxl 在 `tmp_path` 合成迷你工作簿，覆盖换行/竖线/横幅分节/公式无缓存/隐藏行/RunID/宽表子文档/尾部空行全要素——**不触碰真实工作簿**）：
 
@@ -284,12 +284,12 @@ def test_formula_and_hidden_notes(fx, tmp_path):
     assert "| 隐藏行内容 |" in text          # 隐藏行内容仍完整列出
 ```
 
-- [ ] **Step 1.2: 运行确认 RED**
+- [x] **Step 1.2: 运行确认 RED**
 
 Run: `python3 -m pytest tests/test_lsu_xlsx_to_md.py -v`
 Expected: 收集失败或全部 ERROR/FAIL（`ModuleNotFoundError: No module named 'lsu_xlsx_to_md'`）。
 
-- [ ] **Step 1.3: 实现转换器 generate 部分**
+- [x] **Step 1.3: 实现转换器 generate 部分**
 
 创建 `tools/lsu_xlsx_to_md.py`（完整内容；validate 相关函数 Task 2 追加，本步 `main()` 的 `--validate` 分支先响亮报错）：
 
@@ -615,17 +615,17 @@ if __name__ == "__main__":
     sys.exit(main())
 ```
 
-- [ ] **Step 1.4: 运行测试确认 GREEN**
+- [x] **Step 1.4: 运行测试确认 GREEN**
 
 Run: `python3 -m pytest tests/test_lsu_xlsx_to_md.py -v`
 Expected: **7 passed**（test_cell_to_text、test_escape_unescape_roundtrip、test_generate_writes_docs_and_source_untouched、test_multiline_and_pipe_rendering、test_banner_split、test_trailing_empty_rows_disclosed、test_formula_and_hidden_notes），0 FAIL、0 ERROR。
 
-- [ ] **Step 1.5: 不受影响回归（基线对照）**
+- [x] **Step 1.5: 不受影响回归（基线对照）**
 
 Run: `python3 -m pytest tests/ --collect-only -q | tail -1 && python3 tools/manifest_validate.py --help >/dev/null && echo smoke-ok`
 Expected: `5 tests collected …`（与基线相同，证明未干扰既有套件）+ `smoke-ok`（exit 0）。
 
-- [ ] **Step 1.6: 提交并推送**
+- [x] **Step 1.6: 提交并推送**
 
 ```bash
 git add tools/lsu_xlsx_to_md.py tests/test_lsu_xlsx_to_md.py
@@ -649,7 +649,7 @@ git push origin fi-ding
   - `md_row_to_canonical(cells: list[str], ncols: int) -> list[str]`（原始文本行 → canonical 行，右侧补空到 ncols）
   - `validate(xlsx_path: Path, out_dir: Path) -> int`（0=全过，1=有失败；打印逐项 PASS/FAIL 表）
 
-- [ ] **Step 2.1: 先写失败的校验测试（含 5 种负向变异）**
+- [x] **Step 2.1: 先写失败的校验测试（含 5 种负向变异）**
 
 追加到 `tests/test_lsu_xlsx_to_md.py`：
 
@@ -729,12 +729,12 @@ def test_validate_detects_missing_sheet(fx, tmp_path):
     _mutated_fails(fx, tmp_path, lambda out: _edit(out, f"{MAIN}.md", drop_section))
 ```
 
-- [ ] **Step 2.2: 运行确认 RED**
+- [x] **Step 2.2: 运行确认 RED**
 
 Run: `python3 -m pytest tests/test_lsu_xlsx_to_md.py -v`
 Expected: 新增 6 个校验测试全部 FAIL（`AttributeError: module 'lsu_xlsx_to_md' has no attribute 'validate'`），Task 1 的 7 个保持 PASS。
 
-- [ ] **Step 2.3: 实现 validate**
+- [x] **Step 2.3: 实现 validate**
 
 在 `tools/lsu_xlsx_to_md.py` 中追加（并把 `main()` 的 `--validate` 分支改为 `return validate(Path(a.xlsx), Path(a.out_dir))`）：
 
@@ -938,12 +938,12 @@ def validate(xlsx_path: Path, out_dir: Path) -> int:
     return 0
 ```
 
-- [ ] **Step 2.4: 运行全部测试确认 GREEN**
+- [x] **Step 2.4: 运行全部测试确认 GREEN**
 
 Run: `python3 -m pytest tests/test_lsu_xlsx_to_md.py -v`
 Expected: 全部 PASS（Task 1 的 7 个 + Task 2 的 6 个 = 13 个，0 FAIL），确认输出里 5 个负向变异测试均为 PASS（即校验器抓到了每一种破坏）。
 
-- [ ] **Step 2.5: 真实工作簿 /tmp 冒烟（generate + validate 全链）**
+- [x] **Step 2.5: 真实工作簿 /tmp 冒烟（generate + validate 全链）**
 
 ```bash
 rm -rf /tmp/lsu_md_smoke && python3 tools/lsu_xlsx_to_md.py \
@@ -954,12 +954,12 @@ python3 tools/lsu_xlsx_to_md.py \
 
 Expected: generate 写出 5 个文件（主 + 4 子）；validate 逐项打印并 `ALL PASS`，其中关键行：Sheet-Count=12、`V2 [7.展开执行矩阵] RunID 数量一致（xlsx 325 vs md 325）`、`V2 [7.展开执行矩阵] RunID 无重复`、`V2 表7/表9 RunID 集合相等`、`V3 [7.展开执行矩阵] 逐格相等`、`V4 [7.展开执行矩阵][Attempted] 非空 xlsx=0 md=0`（空=空的诚实呈现）。**引用真实输出进提交信息**。若任何一项 FAIL：停下按 systematic-debugging 修复后重跑，不得跳过。
 
-- [ ] **Step 2.6: 冒烟后源文件未动 + 不受影响回归**
+- [x] **Step 2.6: 冒烟后源文件未动 + 不受影响回归**
 
 Run: `sha256sum "docs/gem5-fi/lsu/gem5-fi-LSU单元故障注入方案.xlsx" && python3 -m pytest tests/ --collect-only -q | tail -1`
 Expected: sha256 与 Task 0 Step 0.2 记录一致；collect 仍为 `5 tests collected`。
 
-- [ ] **Step 2.7: 提交并推送**
+- [x] **Step 2.7: 提交并推送**
 
 ```bash
 git add tools/lsu_xlsx_to_md.py tests/test_lsu_xlsx_to_md.py
@@ -980,7 +980,7 @@ git push origin fi-ding
 - Consumes: Task 1/2 的 `generate`/`validate` CLI。
 - Produces: 最终交付文档集（requirement 4 的精确路径）。
 
-- [ ] **Step 3.1: 正式生成到 docs/gem5-fi/lsu/**
+- [x] **Step 3.1: 正式生成到 docs/gem5-fi/lsu/**
 
 ```bash
 python3 tools/lsu_xlsx_to_md.py \
@@ -990,7 +990,7 @@ python3 tools/lsu_xlsx_to_md.py \
 
 Expected: 写出主文档 + 4 子文档（03/07/09/10），打印各文件字节数。
 
-- [ ] **Step 3.2: 就地终验（V0–V7）**
+- [x] **Step 3.2: 就地终验（V0–V7）**
 
 ```bash
 python3 tools/lsu_xlsx_to_md.py \
@@ -1000,7 +1000,7 @@ python3 tools/lsu_xlsx_to_md.py \
 
 Expected: 退出码 0，`ALL PASS`；关键数字：12 表、表 7/表 9 各 325 RunID 无重复且集合相等、V3 12 表逐格相等（12,996 非空格）、V4 各关键列 xlsx==md。**真实输出原文引用进提交信息**。
 
-- [ ] **Step 3.3: 独立抽查（不依赖校验器的第二证据链）**
+- [x] **Step 3.3: 独立抽查（不依赖校验器的第二证据链）**
 
 ```bash
 grep -cE '^\| [A-Z][0-9]{2}-F[0-9]+-W[0-9]+ ' "docs/gem5-fi/lsu/gem5-fi-LSU单元故障注入方案-07-展开执行矩阵.md"
@@ -1011,12 +1011,12 @@ ls -la docs/gem5-fi/lsu/*.md
 
 Expected: 两个 grep 均输出 **325**；主文档 `^## ` = **9**（目录 + 8 内联表节）；5 个 .md 文件存在。表 7 子文档应含 43 列表头行（`| RunID | 模型ID | … | 故障表现形式/子模型 |`）。
 
-- [ ] **Step 3.4: 不受影响回归**
+- [x] **Step 3.4: 不受影响回归**
 
 Run: `python3 -m pytest tests/ --collect-only -q | tail -1 && python3 tools/manifest_validate.py --help >/dev/null && echo smoke-ok`
 Expected: `5 tests collected …` + `smoke-ok`（与基线一致）。
 
-- [ ] **Step 3.5: 源文件未被修改的最终证明**
+- [x] **Step 3.5: 源文件未被修改的最终证明**
 
 ```bash
 sha256sum "docs/gem5-fi/lsu/gem5-fi-LSU单元故障注入方案.xlsx"
@@ -1026,7 +1026,7 @@ git status --short -- "docs/gem5-fi/lsu/gem5-fi-LSU单元故障注入方案.xlsx
 
 Expected: sha256/mtime 与 Task 0 Step 0.2 抄录值完全一致；git 状态仍为 ` M`（用户的工作树改动原样保留，未被 stage）。
 
-- [ ] **Step 3.6: 勾选计划复选框并提交推送**
+- [x] **Step 3.6: 勾选计划复选框并提交推送**
 
 本计划文件勾选 Task 3（及补勾执行中发现的一切）后：
 
