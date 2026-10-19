@@ -113,12 +113,11 @@ MODEL_FLAGS = {
     "A03": ("addrpath", ["--addrpath_mode", "a03_stuck0"]),  # stuck1 by seed parity (note)
     "A04": ("addrpath", ["--agu_pre_mode", "a04_subst"]),
     "A05": ("addrpath", ["--agu_pre_mode", "a05_shift"]),
-    # [LSU][P4-FIX-A06S] A06 RETIRED 2026-10-15 (root cause C: fixed-width
-    # load completion asserts; lsu_proxy rejects the flag) — its entry stays
-    # for historical manifest parsing ONLY; new runs must use A06S (store-
-    # only v2, RunID family A06S-F{tier}-W{carrier}).
-    "A06": ("addrpath", ["--agu_pre_mode", "a06_size", "--agu_size_to", "2"]),  # RETIRED
-    "A06S": ("addrpath", ["--agu_pre_mode", "a06s_store_size", "--agu_size_to", "2"]),
+    # [LSU][MDSPEC][A6] A06（规格名，2026-10-19 计划 §2 裁决）：a06_size =
+    # A06-a store 侧安全路径（store 短写架构合法；load 候选 REJECT 留证）。
+    # A06 RunID 在 load 侧 + byte-enable 实现并实证前保持 MODEL_BLOCKED；
+    # 旧名 a06s_store_size 为被拒别名（不得私改模型 ID，无 A06S RunID 族）。
+    "A06": ("addrpath", ["--agu_pre_mode", "a06_size", "--agu_size_to", "2"]),
     "A08": ("addrpath", ["--agu_pre_mode", "a08_subst"]),
     # --- SQ data/forwarding family on CHAOSLSQFwd (W5 b41f4d9a verified) ---
     "S01": ("lsqfwd", ["--lsq_struct_mode", "byte_flip"]),
@@ -221,6 +220,13 @@ MODEL_BLOCKED.update({
     "O05": "blocked(multicore-fs: RMW ordering needs multi-core)",
     "O06": "blocked(multicore-fs: barrier completion needs multi-core)",
     "O07": "blocked(multicore-fs: order-tag swap needs multi-core)",
+    # [LSU][MDSPEC][A6] A06 专项裁决（计划 §2.d，2026-10-19）：store 侧安全
+    # 路径已实现（a06_size，load 候选 REJECT 留证）；load 侧（定宽完成断言，
+    # 需 Request 契约 spike）与 A06-b byte-enable（钩子处 const，需 packet
+    # 构建层）未实现未实证——A06 全部 6 RunID 保持 BLOCKED，不得伪装完成。
+    # 解除条件：计划 §2.c 至少一条 load 侧路径通过 spike 验证 + 测试。
+    "A06": ("BLOCKED(load-side fixed-width completion contract + byte-enable "
+            "pending; store-only path implemented — MDSPEC §2 ruling 2026-10-19)"),
 })
 
 # Trigger-tier flags per family. F0 span: addrpath/lsqfwd eligible streams

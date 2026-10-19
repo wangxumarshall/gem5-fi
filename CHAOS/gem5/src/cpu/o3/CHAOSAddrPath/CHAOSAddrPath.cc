@@ -342,14 +342,15 @@ namespace gem5
                                          pre_mode == "s04_store_subst" ||
                                          pre_mode == "s05_store_size" ||
                                          pre_mode == "s11_store_lost" ||
-                                         pre_mode == "a06s_store_size");
+                                         pre_mode == "a06_size");
             if ((pre_load_only && !isLoad) || (pre_store_only && isLoad)) {
-                // [LSU][P4-FIX-A06S] load 候选拒斥（不计 activated，2026-10-15
-                // 审计根因 C：a06_size v2 = store-only）。F6 已 armed 状态下到达
-                // 的 load 在旧语义下就是注入点——显式写 REJECT 日志留证；
-                // f6_pending 保持 armed 等待下一个 store。普通逐事件拒斥只进
+                // [LSU][MDSPEC][A6] load 候选拒斥（不计 activated；2026-10-15
+                // 审计根因 C + 2026-10-19 计划 §2 裁决：A06 store 侧安全路径，
+                // 模式名回归规格 a06_size）。F6 已 armed 状态下到达的 load 在
+                // 旧语义下就是注入点——显式写 REJECT 日志留证；f6_pending
+                // 保持 armed 等待下一个 store。普通逐事件拒斥只进
                 // obs_pre_opclass 计数（不刷日志，与 F-049 其余模式一致）。
-                if (pre_mode == "a06s_store_size" && f6_pending &&
+                if (pre_mode == "a06_size" && f6_pending &&
                     write_log && log_stream && log_stream->stream()) {
                     *(log_stream->stream()) << "Tick: " << curTick()
                         << ", Site: lsq_pushRequest_PRE, mode=" << pre_mode
@@ -400,36 +401,35 @@ namespace gem5
             const uint64_t d = 1 + rng() % 7;
             const Addr lo = addr & 0xFF;
             addr = (addr & ~(Addr)0xFF) | ((lo << d | lo >> (8 - d)) & 0xFF);
-        } else if (pre_mode == "a06s_store_size") {
-            // [LSU][P4-FIX-A06S] A06S (03, a06_size v2, 2026-10-15 审计根因
-            // C 修复): store-only access-size substitution. Loads never reach
-            // here on the trigger path (op-class filter above); this in-switch
-            // check is the belt-and-braces for the legacy (no-trigger) path.
-            // Store short writes are architecturally legal (memory writes
-            // packet bytes); loads with a shrunken packet hit the fixed-width
-            // completion assert (LDRX completeAcc getRaw<T>) and are retired.
+        } else if (pre_mode == "a06_size") {
+            // [LSU][MDSPEC][A6] A06 (Markdown 规格 §2 裁决, 2026-10-19):
+            // store-only access-size substitution（A06-a store 侧安全路径；
+            // store 短写架构合法——内存按 packet 字节落盘）。load 侧不安全：
+            // 缩小 packet 命中定宽完成断言（LDRX completeAcc getRaw<T>，
+            // 2026-10-15 审计 1,030 checklist + 737 W1 样本），故 load 候选
+            // 经上方 op-class 过滤 REJECT 留证；A06 RunID 在 load 侧与
+            // byte-enable（本钩子处为 const）实现并实证前保持 BLOCKED。
             if (isLoad) { ++obs_pre_opclass; return size; }   // [LSU][OBS-2]
             if (agu_size_to == 1 || agu_size_to == 2 || agu_size_to == 4 ||
                 agu_size_to == 8 || agu_size_to == 16)
                 size = (unsigned)agu_size_to;
             else
                 { ++obs_pre_invalid; return size; }  // [LSU][OBS-2] invalid target size — no-op, logged below
-        } else if (pre_mode == "a06_size") {
-            // RETIRED (2026-10-15 audit root cause C): the fixed-width load
-            // completion path asserts on a shrunken packet (1,030 checklist
-            // + 737 W1 samples). NEVER injects; one-time warn + one-time
-            // REJECT log. lsu_proxy.py rejects the string at config time;
-            // this branch only guards direct SimObject users. Historical
-            // data (ITEM-022/023/024/025/026/027) is preserved as evidence.
+        } else if (pre_mode == "a06s_store_size") {
+            // REJECTED ALIAS (2026-10-19 MDSPEC §2 裁决): 规格定义 A06、无
+            // A06S——旧名 a06s_store_size 是 83ff9265 引入的私改模型名，禁止
+            // 用于新运行（不得私改模型 ID）。NEVER injects; one-time warn +
+            // one-time REJECT log。lsu_proxy.py rejects the string at config
+            // time; this branch only guards direct SimObject users。
             if (!a06s_retired_warned) {
                 a06s_retired_warned = true;
-                warn("CHAOSAddrPath: pre_mode 'a06_size' RETIRED "
-                     "(2026-10-15 audit root cause C: load completion path "
-                     "asserts on shrunken packets); use 'a06s_store_size'\n");
+                warn("CHAOSAddrPath: pre_mode 'a06s_store_size' is a rejected "
+                     "alias (MDSPEC 2026-10-19 ruling: spec defines A06, not "
+                     "A06S); use 'a06_size' (store-side safe path)\n");
                 if (write_log && log_stream && log_stream->stream())
                     *(log_stream->stream()) << "Tick: " << curTick()
-                        << ", Site: lsq_pushRequest_PRE, mode=a06_size"
-                        << ", REJECT: reason=a06_size_retired_use_a06s_store_size"
+                        << ", Site: lsq_pushRequest_PRE, mode=a06s_store_size"
+                        << ", REJECT: reason=a06s_store_size_alias_use_a06_size"
                         << std::endl;
             }
             ++obs_pre_invalid;
