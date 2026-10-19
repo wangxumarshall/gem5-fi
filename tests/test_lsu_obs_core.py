@@ -601,6 +601,33 @@ def main():
     check("file_lock_released_after_scope", r2.returncode == 0,
           f"rc={r2.returncode}")
 
+    # ---- 12) [MDSPEC][A1] OBS-FIX-5 移植验证：cache Field 系列注入行（C04-C09）----
+    # 计划 Task A1 / 用户指令二.1：证明 C04-C09 类型日志（tag/valid/dirty/
+    # data_shift/toggle 字段目标）可形成合法 L0 fault_applied 记录。
+    # fixture 行 = 469429f4 提交信息中隔离证据的实测格式（CHAOSCache.cc
+    # Field 系列）；tag 行带 old/new 明细，其余无 rest（正则 rest 可选）。
+    field_lines = "\n".join([
+        "Tick: 1000000, Cache Block Addr: 576640, Field: tag (F5 alias), "
+        "old_tag=0x23 -> new_tag=0x0",
+        "Tick: 1000001, Cache Block Addr: 576640, Field: valid (invalidate)",
+        "Tick: 1000002, Cache Block Addr: 576640, Field: data_shift "
+        "(C09 rotate by 1 byte)",
+        "Tick: 1000003, Cache Block Addr: 576640, Field: dirty (toggle bit 3)",
+    ]) + "\n"
+    l0f = C.parse_l0(FUNNEL + "\n030921682b3731f2\n", field_lines)
+    injf = l0f.get("injections", [])
+    check("field_inj_all_four_formats_parse", len(injf) == 4,
+          f"n={len(injf)} detail={str(injf)[:200]}")
+    check("field_inj_first_tick",
+          bool(injf) and injf[0].get("tick") == 1000000,
+          f"first={str(injf[0]) if injf else None}")
+    check("field_inj_target_is_cache_block",
+          bool(injf) and all(i.get("dynamic_target") == "cache_block"
+                             for i in injf),
+          f"targets={[i.get('dynamic_target') for i in injf]}")
+    # Byte Offset 原格式不回退：本节上方既有 _CACHE_INJ_RE 用例继续全绿（本套件
+    # 全体 check 通过 = 退出码 0 即为回归证明）。
+
     print(f"\nFAILURES: {fails if fails else '无'}")
     return 1 if fails else 0
 
