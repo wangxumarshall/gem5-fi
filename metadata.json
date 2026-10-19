@@ -3,7 +3,7 @@
   "checkpoint_id": "01M5A9H9RB21GM4339R9Y90PRB",
   "strategy": "manual-commit",
   "branch": "fi-ding",
-  "checkpoints_count": 4,
+  "checkpoints_count": 5,
   "files_touched": [
     "docs/gem5-fi/lsu/gem5-fi-LSU单元故障注入方案.xlsx"
   ],
@@ -21,13 +21,20 @@
       "compact_transcript": "/1/transcript.jsonl",
       "content_hash": "/1/content_hash.txt",
       "prompt": "/1/prompt.txt"
+    },
+    {
+      "metadata": "/2/metadata.json",
+      "transcript": "/2/full.jsonl",
+      "compact_transcript": "/2/transcript.jsonl",
+      "content_hash": "/2/content_hash.txt",
+      "prompt": "/2/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 23999732,
+    "input_tokens": 25032066,
     "cache_creation_tokens": 0,
-    "cache_read_tokens": 292401856,
-    "output_tokens": 713097,
-    "api_call_count": 516
+    "cache_read_tokens": 328181952,
+    "output_tokens": 926912,
+    "api_call_count": 639
   }
 }

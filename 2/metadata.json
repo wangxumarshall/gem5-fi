@@ -1,0 +1,73 @@
+{
+  "cli_version": "0.10.2",
+  "checkpoint_id": "01M5A9H9RB21GM4339R9Y90PRB",
+  "session_id": "b03d4aed-2a16-4e98-b96b-a1ae7aedac68",
+  "strategy": "manual-commit",
+  "created_at": "2026-10-19T14:37:57.196778376Z",
+  "branch": "fi-ding",
+  "checkpoints_count": 1,
+  "save_step_count": 1,
+  "files_touched": [
+    "docs/gem5-fi/lsu/gem5-fi-LSU单元故障注入方案.xlsx"
+  ],
+  "agent": "Claude Code",
+  "model": "GLM-5.3[1m]",
+  "turn_id": "dc0e600d092c",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 1032334,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 35780096,
+    "output_tokens": 213815,
+    "api_call_count": 123
+  },
+  "skill_events_version": 1,
+  "skill_events": [
+    {
+      "id": "claude-skill-call_fbc298a0f6bf4546945840dd",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "superpowers:writing-plans"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "dc0e600d092c",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 427,
+        "end": 428,
+        "entry_ids": [
+          "de37abdc-70af-4852-9691-c0dd9bc48e36"
+        ],
+        "tool_use_id": "call_fbc298a0f6bf4546945840dd"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "call_fbc298a0f6bf4546945840dd"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: superpowers:writing-plans",
+        "default_collapsed": true
+      }
+    }
+  ],
+  "session_metrics": {
+    "turn_count": 2
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-10-19T14:37:56.437853513Z",
+    "agent_lines": 0,
+    "agent_removed": 0,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 0,
+    "total_lines_changed": 0,
+    "agent_percentage": 0,
+    "metric_version": 2
+  }
+}
