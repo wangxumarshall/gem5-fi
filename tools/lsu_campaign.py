@@ -228,10 +228,37 @@ MODEL_BLOCKED.update({
 # eligible streams are per-calculatePrefetch (131/9 on prefetch_stride —
 # span 50/8 verified today; a span larger than the stream never fires,
 # noted as the F0-uniform approximation).
+#
+# [LSU][MDSPEC][A5] F6 单语义门禁（用户指令二.4 / 规格 F6 = 首次出现指定
+# 事件时注入一次）：正式（mdspec）track 只允许 early_stress 语义；
+# steady_state 仅限显式 opt-in 的独立扩展实验，不得与正式 F6 样本混合。
+F6_DEFAULT_MODE = "early_stress"
+
+
+def assert_formal_f6_mode(mode):
+    """正式 track 的 F6 模式门禁：仅 early_stress 通过，其余 SystemExit。"""
+    if mode != F6_DEFAULT_MODE:
+        sys.stderr.write(
+            f"[F6-GATE] formal track 拒绝 f6Mode={mode!r}：规格 F6 = 首次出现"
+            f"指定事件时注入一次（early_stress）。steady_state 仅限显式 "
+            f"opt-in 的独立扩展实验，不得与正式 F6 样本混合。\n")
+        raise SystemExit(2)
+    return None
+
+
+def _addrpath_tier_flags(tier):
+    flags = ["--addrpath_lsu_tier", tier,
+             "--addrpath_warmup_events", "0",
+             "--addrpath_span_events", "1000"]
+    if tier == "F6":
+        # 显式钉死规格 F6 语义并过正式门禁（防 steady_state 混入正式样本）
+        assert_formal_f6_mode(F6_DEFAULT_MODE)
+        flags += ["--addrpath_f6_mode", F6_DEFAULT_MODE]
+    return flags
+
+
 FAMILY_TIER_FLAGS = {
-    "addrpath": lambda tier: ["--addrpath_lsu_tier", tier,
-                              "--addrpath_warmup_events", "0",
-                              "--addrpath_span_events", "1000"],
+    "addrpath": _addrpath_tier_flags,
     "lsqfwd": lambda tier: ["--lsqfwd_lsu_tier", tier,
                             "--lsqfwd_warmup_events", "0",
                             "--lsqfwd_span_events", "1000"],
