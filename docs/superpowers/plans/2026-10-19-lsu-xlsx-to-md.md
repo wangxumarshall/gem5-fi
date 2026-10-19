@@ -1058,8 +1058,13 @@ git push origin fi-ding
 > 用户在 finishing 菜单选择"保持现状（选项 3）"后下达的 6 项发布前事项，逐项执行并勾选。
 
 - [x] **R1. 主文档末尾多余空行修复**：`git diff --check 8aec2a8b..HEAD` 完全通过（TDD：test_no_trailing_blank_line RED→GREEN，套件 16/16；再生成后仅主文档 1 增 2 删，--validate ALL PASS）
-- [ ] **R2. 精确提交 xlsx**：仅显式 stage sha256=389546f0…e273e0 的 LSU xlsx（不波及工作树 69 个删除项、.planning、OOO 产物或未跟踪文件）
-- [ ] **R3. 干净集成分支**：基于 origin/main 新建 `integration/lsu-xlsx2md-20261019`（不建 fi-ding→main 大 PR）
-- [ ] **R4. 集成分支仅引入**：正确 xlsx（作新增文件，origin/main 无此文件）+ f5b25a1a + cfbb861d + ca2b9124 + cd701f96 + 4cbbc8d1 + 末尾空行修复提交
-- [ ] **R5. 集成分支复验**：16 个测试 + 正式 --validate + git diff --check + SHA256/mtime/size 前后只读检查
-- [ ] **R6. 聚焦 PR**：`integration/lsu-xlsx2md-20261019 → main`（不得创建 fi-ding→main 大 PR）
+- [x] **R2. 精确提交 xlsx**：仅显式 stage sha256=389546f0…e273e0 的 LSU xlsx（不波及工作树 69 个删除项、.planning、OOO 产物或未跟踪文件）
+- [x] **R3. 干净集成分支**：基于 origin/main 新建 `integration/lsu-xlsx2md-20261019`（不建 fi-ding→main 大 PR）
+- [x] **R4. 集成分支仅引入**：正确 xlsx（作新增文件，origin/main 无此文件）+ f5b25a1a + cfbb861d + ca2b9124 + cd701f96 + 4cbbc8d1 + 末尾空行修复提交
+- [x] **R5. 集成分支复验**：16 个测试 + 正式 --validate + git diff --check + SHA256/mtime/size 前后只读检查
+- [x] **R6. 聚焦 PR**：`integration/lsu-xlsx2md-20261019 → main`（不得创建 fi-ding→main 大 PR）
+
+> **R1–R6 全部完成（2026-10-19）**：fi-ding 3fb067a8(R1 空行修复)/9160767f(R2 xlsx 精确提交)；
+> R3+R4 集成分支 `integration/lsu-xlsx2md-20261019` = origin/main(9dbbbbba) + 9691b2bb(xlsx 新增文件) + 6 cherry-pick(ff012560/87cdd768/4bb0c50f/bdaeb0de/bf3b3cab/afd77916)，与 fi-ding 终态逐文件等价（git diff 为空）；
+> R5 复验（worktree .claude/worktrees/integration-lsu-xlsx2md-20261019）：16/16 测试 + --validate ALL PASS(62 项 [PASS]) + git diff --check origin/main..HEAD 干净 + 源只读指纹一致（sha256=389546f0…/181590B；worktree 副本 mtime=检出时刻属预期）；
+> R6 聚焦 PR **#60** = integration/lsu-xlsx2md-20261019 → main（未创建 fi-ding→main 大 PR）。
