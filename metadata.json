@@ -1,0 +1,31 @@
+{
+  "cli_version": "0.10.2",
+  "checkpoint_id": "01M590306QPES7CQ22M8ZHTXPX",
+  "strategy": "manual-commit",
+  "branch": "docs/o3-atlas-union-diagram",
+  "checkpoints_count": 2,
+  "files_touched": null,
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 1934689,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 59554304,
+    "output_tokens": 284553,
+    "api_call_count": 184,
+    "subagent_tokens": {
+      "input_tokens": 93984,
+      "cache_creation_tokens": 0,
+      "cache_read_tokens": 831488,
+      "output_tokens": 14876,
+      "api_call_count": 18
+    }
+  }
+}
