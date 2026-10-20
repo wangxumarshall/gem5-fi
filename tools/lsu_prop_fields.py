@@ -56,6 +56,8 @@ KIND_LAYER = {
     "lq_read": "L3", "lq_complete": "L3",
     # [MDSPEC][H3] SQ 生命周期（execute/writeback/complete；drain 属 L3 访存侧）
     "sq_execute": "L3", "sq_writeback": "L3", "sq_complete": "L3",
+    # [MDSPEC][H3-FWD] S 系转发故障（生产 store→消费 load 的转发数据被污染）
+    "lsq_fwd": "L3",
     # [MDSPEC][H4] cache 结构事件（L1=lookup / L2=hit返回·miss+MSHR+fill+evict
     # / L3=writeback 持久化）
     "cache_access": "L1", "cache_return": "L2", "cache_fill": "L2",
@@ -103,6 +105,8 @@ REQUIRED_FIELDS = {
     "sq_writeback": ["fault_id", "dyn_inst_seq", "sq_idx", "pa"],
     "sq_complete": ["fault_id", "dyn_inst_seq", "sq_idx", "va",
                     "state_after"],
+    # [MDSPEC][H3-FWD] before/after = 转发数据被污染前后（地址域关联）
+    "lsq_fwd": ["fault_id", "va", "field", "before", "after"],
     # [MDSPEC][H4] cache 结构事件（access/return/fill/evict）
     "cache_access": ["fault_id", "va", "pa"],
     "cache_return": ["fault_id", "pa", "field"],

@@ -4,10 +4,12 @@
 
 #include <iostream>
 #include <fstream>
+#include <sstream>
 
 #include "base/output.hh"
 #include "cpu/o3/cpu.hh"
 #include "debug/LSQUnit.hh"
+#include "cpu/o3/CHAOSPropagation/CHAOSPropagation.hh"  // [MDSPEC][H3-FWD]
 
 namespace gem5
 {
@@ -165,6 +167,35 @@ namespace gem5
     CHAOSLSQFwd::writeLog(const char *type, unsigned size, Addr vaddr,
                           int byte_off, int mask)
     {
+        // [MDSPEC][H3-FWD] register the forwarding fault with the propagation
+        // tracer — writeLog is the single chokepoint every S01/S02/S03/S08/S09
+        // injection path passes through, so one hook covers them all.
+        //
+        // RULING (ledgered): this call site has the forwarded vaddr + size but
+        // NOT the producer-store / consumer-load DynInst seqNum (the LSQ
+        // forwarding path in lsq_unit.cc does not pass them here). The chain is
+        // therefore registered ADDRESS-SCOPED: the forwarded range goes into
+        // the block registry, so the consuming load's resp/taint_reg/consumer/
+        // errant_commit join this chain via correlateRequest's range-overlap
+        // fallback. Chain identity = fault_id/ptag + parent_event_id; the
+        // address is only the correlation surface. Passing the real seqNums is
+        // the documented next step.
+        if (CHAOSPropagation *tr = CHAOSPropagation::instance()) {
+            const uint64_t ptag = tr->registerCacheFault(
+                vaddr, -1, size ? size : 1, "lsqfwd_forward");
+            if (ptag) {
+                std::ostringstream a;
+                a << std::hex << vaddr;
+                tr->notePropEvt("lsq_fwd", {
+                    {"fault_id", std::to_string(ptag)},
+                    {"va", a.str()},
+                    {"pa", a.str()},
+                    {"field", type},
+                    {"before", "store_data"},
+                    {"after", std::string("fwd_corrupt:") + type},
+                });
+            }
+        }
         if (!write_log) return;
         *(log_stream->stream())
             << "Cycle: " << cpu->curCycle()
