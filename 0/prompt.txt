@@ -1,0 +1,7 @@
+<task-notification>
+<task-id>b7bw69mc9</task-id>
+<tool-use-id>call_01_yt4pa039ql49kvkz0q5nw7b4</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi-ding/139b256b-ce9a-410c-a2b2-067568e22237/tasks/b7bw69mc9.output</output-file>
+<status>failed</status>
+<summary>Background command "Run FS campaign smoke" failed with exit code 143</summary>
+</task-notification>
