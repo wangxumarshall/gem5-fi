@@ -66,6 +66,35 @@ def resolve_g5(env=None):
     return path
 
 
+def fs_dir(env=None):
+    """Directory holding the FS images (vmlinux / ubuntu.img / boot.arm64).
+
+    A worktree does not carry the ~3 GB gem5-fs/ submodule, so the assets are
+    REUSED from wherever they exist: $LSU_FS_DIR → <repo>/gem5-fs. Same
+    discipline as LSU_GEM5_BIN (and item 四.2 of the 2026-10-20 instruction:
+    inventory the existing kernel/disk/bootloader/checkpoint and reuse them).
+    """
+    import os
+    env = os.environ if env is None else env
+    d = env.get("LSU_FS_DIR")
+    return Path(d) if d else (REPO / "gem5-fs")
+
+
+def fs_asset(name, env=None):
+    return fs_dir(env) / name
+
+
+def require_fs_assets():
+    """Hard-fail (with the reuse hint) when the FS images are absent."""
+    missing = [str(p) for p in (fs_asset("vmlinux"), fs_asset("ubuntu.img"),
+                                fs_asset("boot.arm64")) if not p.exists()]
+    if missing:
+        raise SystemExit(
+            "[campaign] FS assets missing: %s — set LSU_FS_DIR to the "
+            "directory holding vmlinux/ubuntu.img/boot.arm64 (the main tree's "
+            "gem5-fs/ works from a worktree)." % ", ".join(missing))
+
+
 def propagation_flags(runid, seed):
     """[MDSPEC][H0] per-SAMPLE propagation-trace flags.
 
@@ -378,8 +407,9 @@ def resolve_cell(cell):
 
     # 3a. FS family: B0 platform + checkpoint restore + tlb_probe carrier
     if family == "armtlb":
-        flags = ["--kernel", str(FS_KERNEL), "--disk", str(FS_DISK),
-                 "--bootloader", str(FS_BOOTLOADER), "--cpu", "O3",
+        flags = ["--kernel", str(fs_asset("vmlinux")),
+                 "--disk", str(fs_asset("ubuntu.img")),
+                 "--bootloader", str(fs_asset("boot.arm64")), "--cpu", "O3",
                  "--readfile", str(FS_CARRIER_RC), "--ckpt-first-clock",
                  "--chaos_armtlb", "--tlb_first_clock", "1000",
                  "--tlb_probability", "1.0",
@@ -401,6 +431,59 @@ def resolve_cell(cell):
     flags += FAMILY_TIER_FLAGS[family](freq)
     flags += extra
     return flags, golden, binary
+
+
+def write_chain_report(outdir, runid, seed, result, exit_code=None):
+    """[MDSPEC][C1] per-sample chain report: join the propagation stream with
+    this sample's L5 oracle outcome and persist machine-readable verdicts.
+
+    Evidence discipline (user instruction 2026-10-20 §四):
+      * a missing chain_end is NOT a reason to drop the stream — the
+        per-node Z_SYNC_FLUSH-ed prefix is salvaged and the report is
+        flagged `truncated` (Crash / Abort / Timeout all keep their
+        evidence);
+      * no stream at all is recorded as `stream_present: false` (an honest
+        absence, never a fabricated verdict).
+
+    Returns the report dict (also written to <outdir>/chain_report.json).
+    """
+    import lsu_chain_check as CHAIN
+    import lsu_prop_fields as PF
+
+    oracle = result.get("outcome") if isinstance(result, dict) else None
+    rep = {"run_id": runid, "sample_run_id": str(seed),
+           "oracle_outcome": oracle, "exit_code": exit_code,
+           "stream_present": False, "truncated": None, "event_count": 0,
+           "faults": {}, "terminal": None, "provable_to": None,
+           "beyond": None, "summary": ""}
+    evt = Path(outdir) / "prop_evt.txt.gz"
+    if evt.exists():
+        events, truncated = PF.read_events(evt)
+        verdict = CHAIN.check_chain(events, oracle_outcome=oracle)
+        rep.update({"stream_present": True, "truncated": truncated,
+                    "event_count": len(events), "faults": verdict["faults"]})
+        if verdict["faults"]:
+            # single-fault campaign: surface the (first) chain at top level
+            fid = sorted(verdict["faults"])[0]
+            f = verdict["faults"][fid]
+            rep.update({"terminal": f["terminal"],
+                        "provable_to": f["provable_to"],
+                        "beyond": f["beyond"]})
+        rep["summary"] = (
+            "%s s%s oracle=%s exit=%s stream=%s truncated=%s events=%d "
+            "faults=%d terminal=%s provable_to=%s beyond=%s"
+            % (runid, seed, oracle, exit_code, True, truncated,
+               len(events), len(verdict["faults"]), rep["terminal"],
+               rep["provable_to"], rep["beyond"]))
+    else:
+        rep["summary"] = ("%s s%s oracle=%s exit=%s stream=absent "
+                          "(no prop_evt.txt.gz — injector not wired or run "
+                          "died before the tracer opened)"
+                          % (runid, seed, oracle, exit_code))
+    Path(outdir).mkdir(parents=True, exist_ok=True)
+    (Path(outdir) / "chain_report.json").write_text(
+        json.dumps(rep, indent=1, ensure_ascii=False), encoding="utf-8")
+    return rep
 
 
 def classify_run(outdir, stdout_file, golden, exit_code, stderr_file=None):
@@ -497,6 +580,7 @@ def run_single_cell(cell, args, seed, outdir):
         if not args.fs_checkpoint:
             return {"outcome": "Blocked",
                     "error": "FS cells need --fs-checkpoint (B0 cpt)"}
+        require_fs_assets()   # loud SystemExit + LSU_FS_DIR hint if absent
         cmd = [g5, "--outdir", str(outdir), str(FS_CONFIG)]
         cmd += ["--restore-checkpoint", args.fs_checkpoint]
         cmd += flags
@@ -532,7 +616,10 @@ def run_single_cell(cell, args, seed, outdir):
             classes["Timeout"] = inj
             return {"outcome": "Timeout", "injected": inj, "activated": inj,
                     "classes": classes, "mode": "FS"}
-        return classify_fs_run(outdir, proc.stdout, exit_code)
+        _fsres = classify_fs_run(outdir, proc.stdout, exit_code)
+        _fsres["chain_report"] = write_chain_report(
+            outdir, runid, seed, _fsres, exit_code=exit_code)
+        return _fsres
 
     # ---- SE families ----
     cmd = [g5, "--outdir", str(outdir), str(LSU_PROXY)]
@@ -558,7 +645,12 @@ def run_single_cell(cell, args, seed, outdir):
     except subprocess.TimeoutExpired:
         stdout_file.write_text("")
         stderr_file.write_text("TIMEOUT")
-        return {"outcome": "Timeout", "injected": 0, "activated": 0}
+        # [MDSPEC][C1] a killed run keeps its flushed prefix: build the chain
+        # report BEFORE returning, so a Timeout is not evidence loss.
+        _to = {"outcome": "Timeout", "injected": 0, "activated": 0}
+        _crep = write_chain_report(outdir, runid, seed, _to, exit_code=None)
+        _to["chain_report"] = _crep
+        return _to
 
     # C-series: CHAOSCache logs to cache_injections.log, not stdout — read
     # it for the injection count (223e4b12 fix).
@@ -584,6 +676,10 @@ def run_single_cell(cell, args, seed, outdir):
         if isinstance(result.get("classes"), dict):
             result["classes"][oc] = cache_inj
         result["injection_source"] = "cache_injections.log"
+    # [MDSPEC][C1] oracle-joined chain report for this sample (after the
+    # cache-log fixup so the oracle is final).
+    result["chain_report"] = write_chain_report(
+        outdir, runid, seed, result, exit_code=exit_code)
     return result
 
 
@@ -716,7 +812,8 @@ def run_cell_adaptive(cell, args, outroot):
         act = int(r.get("activated", 0) or 0)
         runs.append({"seed": seed, "cluster_id": "%s#%d" % (runid, seed),
                      "activated": act,
-                     "outcome": r.get("outcome", "Unclassified")})
+                     "outcome": r.get("outcome", "Unclassified"),
+                     "chain": r.get("chain_report")})
         attempted += int(r.get("attempted", 0) or 0)
         activated += act
         oc = r.get("outcome")
@@ -739,6 +836,24 @@ def run_cell_adaptive(cell, args, outroot):
     }
     cell_out.mkdir(parents=True, exist_ok=True)
     (cell_out / "cell_results.json").write_text(json.dumps(result, indent=1))
+    # [MDSPEC][C1] auditable chain artefacts for the cell: the machine-
+    # readable array (one entry per sample) plus a human summary. Written
+    # even when every sample lacks a stream — "absent" is recorded, not
+    # silently omitted.
+    chains = [r["chain"] for r in runs if r.get("chain")]
+    (cell_out / "chain_report.json").write_text(
+        json.dumps({"runid": runid, "samples": chains}, indent=1,
+                   ensure_ascii=False), encoding="utf-8")
+    lines = ["# chain summary — %s" % runid, "",
+             "| seed | oracle | stream | truncated | events | terminal | "
+             "provable_to | beyond |", "|---|---|---|---|---|---|---|---|"]
+    for c in chains:
+        lines.append("| %s | %s | %s | %s | %s | %s | %s | %s |" % (
+            c.get("sample_run_id"), c.get("oracle_outcome"),
+            c.get("stream_present"), c.get("truncated"), c.get("event_count"),
+            c.get("terminal"), c.get("provable_to"), c.get("beyond")))
+    (cell_out / "chain_summary.md").write_text("\n".join(lines) + "\n",
+                                               encoding="utf-8")
     return runid, ("  %s: phase=%s n_runs=%d activated=%d sdc=%d "
                    "stop=%s cons=%s" %
                    (runid, args.phase, len(runs), activated, classes["SDC"],

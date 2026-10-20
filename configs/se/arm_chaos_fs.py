@@ -25,6 +25,13 @@ from m5.objects import (ArmDefaultRelease, VExpress_GEM5_Foundation,
                         VExpress_GEM5_V1, CHAOSArmTLB, CHAOSArmSysReg,
                         CHAOSPTW, CHAOSPhysReg, CHAOSAddrPath)
 from gem5.components.boards.arm_board import ArmBoard
+# [MDSPEC][H0] CHAOSPropagation may be absent from an older binary — import
+# on demand so the FS path degrades loudly only when the flag is requested
+# (same discipline as configs/se/lsu_proxy.py).
+try:
+    from m5.objects import CHAOSPropagation
+except ImportError:
+    CHAOSPropagation = None
 from gem5.simulate.exit_event import ExitEvent
 from gem5.components.cachehierarchies.classic.private_l1_private_l2_cache_hierarchy import (
     PrivateL1PrivateL2CacheHierarchy,
@@ -150,6 +157,17 @@ p.add_argument("--ptw_max_faults", type=lambda x:int(x,0), default=1)
 p.add_argument("--ptw_fault_mask", type=lambda x:int(x,0), default=0,
                help="PTE XOR bitmask; 0 = random single bit")
 p.add_argument("--ptw_rng_seed", type=lambda x:int(x,0), default=20260825)
+# [MDSPEC][H0] CHAOSPropagation unified propagation stream (FS side). The
+# campaign passes these on every sample; without parsing them here the
+# SystemConfig rejected the FS command line (argparse: unrecognized
+# arguments) or silently dropped the trace. run_id / sample_run_id are
+# stamped on every PROP-EVT line (spec sheet 11); prop_evt.txt.gz lands in
+# gem5 --outdir (= the sample's seed dir).
+p.add_argument("--chaos_propagation", action="store_true",
+               help="attach CHAOSPropagation (L0-L5 propagation trace)")
+p.add_argument("--prop_trace_file", default="prop_trace.csv.gz")
+p.add_argument("--prop_run_id", default="")
+p.add_argument("--prop_sample_run_id", default="")
 p.add_argument("--ptw_events_to_skip", type=lambda x: int(x,0), default=0,
                help="v1.2 Phase 17 H7: fixed eligible-walk skip (0 = legacy "
                     "first-eligible — 60/60 seeds hit the same dead event).")
@@ -473,6 +491,32 @@ if args.v110_params or args.lsu_b0:
         except AttributeError:
             print("[arm_chaos_fs] C2-KP V110 skipped (boot CPU: params "
                   "apply on the O3 restore)")
+
+# [MDSPEC][H0] CHAOSPropagation (FS path). O3-only: it self-attaches at
+# startup() to cpu.chaosPropagation (the LSQ-side hooks) and
+# cpu.commit.chaosPropagation — a TIMING/Atomic core has neither, so asking
+# for a trace on a non-O3 run is a hard error, not a silent empty file.
+if args.chaos_propagation:
+    if CHAOSPropagation is None:
+        raise SystemExit(
+            "[arm_chaos_fs] FATAL: --chaos_propagation needs a gem5 binary "
+            "built with CHAOSPropagation (the worktree binary has it).")
+    if cpu_map[args.cpu] is not CPUTypes.O3:
+        raise SystemExit(
+            "[arm_chaos_fs] FATAL: --chaos_propagation is O3-only (got "
+            "--cpu %s). The CP roadmap is TIMING boot -> O3 restore; set "
+            "--cpu O3." % args.cpu)
+    _prop_cpu = processor.get_cores()[0].core
+    board.chaos_propagation = CHAOSPropagation(
+        cpu=_prop_cpu,
+        traceFile=args.prop_trace_file,
+        writeLog=True,
+        runId=args.prop_run_id,
+        sampleRunId=args.prop_sample_run_id,
+    )
+    print("[arm_chaos_fs] CHAOSPropagation attached (trace=%s, run_id=%r, "
+          "sample_run_id=%r)" % (args.prop_trace_file, args.prop_run_id,
+                                 args.prop_sample_run_id))
 
 simulator = Simulator(
     board=board, full_system=True,

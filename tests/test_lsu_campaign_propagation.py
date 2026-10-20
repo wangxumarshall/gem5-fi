@@ -119,6 +119,97 @@ def main():
                   j >= 0 and cmd[j + 1] == "s7", str(cmd))
             check("二进制取自 LSU_GEM5_BIN", str(real) in cmd, str(cmd[:2]))
 
+    print("[4] FS 路径：armtlb 单元的命令构造同样带传播标志")
+    if not real.exists():
+        check("FS 命令构造（需已构建二进制）", False, "未找到 " + str(real))
+    else:
+        import os
+        os.environ["LSU_GEM5_BIN"] = str(real)
+        captured = {}
+
+        def fake_run_fs(cmd, **kw):
+            captured["cmd"] = cmd
+
+            class P:
+                returncode = 0
+                stdout = ""
+                stderr = ""
+            return P()
+
+        orig = LC.subprocess.run
+        LC.subprocess.run = fake_run_fs
+        orig_fs = LC.classify_fs_run
+        LC.classify_fs_run = lambda *a, **k: {"outcome": "Timeout",
+                                             "injected": 0, "activated": 0}
+        try:
+            args = types.SimpleNamespace(
+                phase="trial", timeout=60, fs_checkpoint="/tmp/fake_cpt",
+                fs_timeout=60)
+            cell = _cell("T01-F0-W4", "T01", "L1d-TLB", "F0",
+                         "TLB-AliasPerm 地址翻译探针")
+            out = ROOT / "runs/lsu/_test_prop_assembly_fs/seed1"
+            LC.run_single_cell(cell, args, 5, out)
+        finally:
+            LC.subprocess.run = orig
+            LC.classify_fs_run = orig_fs
+            os.environ.pop("LSU_GEM5_BIN", None)
+        cmd = captured.get("cmd") or []
+        check("FS 命令已组装", bool(cmd), "subprocess.run 未被调用")
+        check("FS 命令用 fs 配置", any("fs" in str(c) for c in cmd[:4]), str(cmd[:3]))
+        check("FS 含 --chaos_propagation", "--chaos_propagation" in cmd, str(cmd))
+        i = cmd.index("--prop_run_id") if "--prop_run_id" in cmd else -1
+        check("FS --prop_run_id = RunID",
+              i >= 0 and cmd[i + 1] == "T01-F0-W4", str(cmd))
+        j = (cmd.index("--prop_sample_run_id")
+             if "--prop_sample_run_id" in cmd else -1)
+        check("FS --prop_sample_run_id = s<seed>",
+              j >= 0 and cmd[j + 1] == "s5", str(cmd))
+
+    print("[5] chain_report：oracle join + truncated 保留（含无 chain_end）")
+    import gzip
+    import json as _json
+    import tempfile
+    with tempfile.TemporaryDirectory() as td:
+        d = Path(td)
+        # 一条真实形状的流：tlb_fault(contained 空) + 无 chain_end（中止样本）
+        body = (
+            "# prop-evt v1: header\n"
+            "PROP-EVT: kind=inj run_id=X sample_run_id=s1 fault_id=1 "
+            "event_id=0 tick=10\n"
+            "PROP-EVT: kind=addr_form run_id=X sample_run_id=s1 fault_id=1 "
+            "event_id=1 tick=10\n"
+            "PROP-EVT: kind=tlb_fault run_id=X sample_run_id=s1 fault_id=1 "
+            "event_id=2 tick=13 detection_layer=Hardware contained= "
+            "outcome=GenericPageTableFault\n"
+        )
+        # A well-formed gz is NOT truncated; the abort shape is a stream
+        # that was Z_SYNC_FLUSH-ed but never finished (no trailer). Build
+        # exactly that, or the assertion tests nothing.
+        import zlib
+        co = zlib.compressobj(9, zlib.DEFLATED, 16 + 15)   # gzip wrapper
+        (d / "prop_evt.txt.gz").write_bytes(
+            co.compress(body.encode()) + co.flush(zlib.Z_SYNC_FLUSH))
+        rep = LC.write_chain_report(d, "A01-F0-W3", 1,
+                                    {"outcome": "Crash"}, exit_code=134)
+        check("stream_present", rep["stream_present"] is True, str(rep))
+        check("事件前缀被保留（无 chain_end 也计入）", rep["event_count"] == 3,
+              str(rep["event_count"]))
+        check("truncated 标记（gz 无 trailer）", rep["truncated"] is True,
+              str(rep["truncated"]))
+        check("oracle join → crash_translation_blocked",
+              rep["terminal"] == "crash_translation_blocked", str(rep["terminal"]))
+        check("provable_to / beyond 一致",
+              rep["provable_to"] == "L2" and rep["beyond"] == "",
+              f'{rep["provable_to"]} / {rep["beyond"]!r}')
+        check("chain_report.json 落盘",
+              (d / "chain_report.json").exists(), "文件不存在")
+        # 无流：诚实记录 absent，不伪造判定
+        rep2 = LC.write_chain_report(d / "non", "X-F0-W1", 2,
+                                     {"outcome": "Masked"})
+        check("无流 → stream_present=False 且无 terminal",
+              rep2["stream_present"] is False and rep2["terminal"] is None,
+              str(rep2))
+
     print()
     if FAILED:
         print(f"FAILED ({len(FAILED)}): {FAILED}")
