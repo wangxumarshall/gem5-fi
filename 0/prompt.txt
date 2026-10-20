@@ -1,0 +1,3 @@
+暂时不要启动正式实验。先将 CHAOSPropagation 完整接入 tools/lsu_campaign.py，确保每个样本自动传递 run_id/sample_run_id，并生成 prop_evt.txt.gz；增加测试并用正式 campaign 入口重跑 A01、P01 各一个 smoke，证明不是直驱特例。
+
+随后用定向 pilot 补齐 Store Queue 的 sq_execute/sq_writeback/sq_complete 和 Cache 的 mshr_alloc，使98个PARTIAL重新按真实证据判定；继续实现49个 MODE-UNIMPL RunID。将其余77个外部阻塞项单独列出供用户裁决。全部完成后停止并报告，不要启动正式 campaign。
