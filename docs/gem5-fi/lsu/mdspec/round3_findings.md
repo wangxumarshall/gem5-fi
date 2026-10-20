@@ -45,9 +45,15 @@ CHaOSPropagation 只发射**已关联**事件，故头部就绪、事件为空�
 **需要一次 `--debug-flags=LSQUnit` 定向运行**（检查被注入 seq 的 "Executing store" 行是否存在、
 与 lsq_push 的先后），本轮未做。
 
-**G4 — FS 侧 `T01-F0-W4` 的 oracle/终局**：本轮 FS smoke 在记录时刻仍在运行
-（完整 restore + tlb_probe 载荷 > 20 min，campaign `--fs-timeout` 1800s）；
-已落盘证据见上，终局留待该批次收尾（`chain_report.json` 会由本轮新增的超时分支路径写出）。
+**G4 — FS smoke 被**我自己的外层 `timeout 1700` **终止（exit 143 = SIGTERM）**，
+不是实现失败、也**不是** campaign 的 per-sample `--fs-timeout` 路径**：
+- 终止时该样本尚未跑完 → **没有**写出 `chain_report.json` / `cell_results.json`；
+  本轮新增的"超时保前缀"路径因此**未在 FS 上得到验证**（仅在单元测试中验证过）。
+- 磁盘上确有的 FS 产物：`armtlb_injections.log`（1 次注入）、`prop_evt.txt.gz`
+  （229 B，仅 39 字段表头，0 事件）、`prop_trace.csv.gz`、gem5 自带 config/stats。
+- 无残留 gem5 进程（SIGTERM 已传导，`pgrep -c gem5.opt` = 0）。
+**下一步（已确认可行）**：外层超时须 > campaign `--fs-timeout`（1800s），
+建议 2400s；完整 restore + tlb_probe 载荷单样本耗时 > 28 min 量级。
 
 ## 3. 本轮修掉的真实缺陷（由测试发现，非猜测）
 
