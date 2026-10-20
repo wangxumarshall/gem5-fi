@@ -251,6 +251,14 @@ class CHAOSPropagation : public SimObject
     uint64_t noteMshrFree(Addr line);       // release; returns the freed id
     uint64_t noteFill(Addr line);           // fresh fill_id
 
+    // [MDSPEC][H6] attach an EXISTING ptag's chain to a faulted byte range
+    // in the block registry, so cache-side events (cache_access /
+    // cache_return / RMW) on that line correlate with the chain the
+    // injector opened. Needed by injectors whose fault is architecturally
+    // visible to the cache but whose site (e.g. the ARM exclusive monitor
+    // in the ISA) is not the cache itself. No-op for ptag == 0.
+    void registerPtagBlock(uint64_t ptag, Addr byte_begin, Addr byte_end);
+
     // ---- pipeline hooks (read-only w.r.t. CPU state) -----------------------
     // [MDSPEC][H1] Fault correlation for LSQ unified events: return the
     // ptag whose addr-registry entry matches (dyn_seq + range overlap) or
@@ -363,6 +371,7 @@ class CHAOSPropagation : public SimObject
         uint64_t taintor_seq;      // DynInst::seqNum of the tainting inst
     };
     std::map<std::pair<int, uint32_t>, TaintEntry> taint_set;
+
     // [MDSPEC][H5] prefetch-request registry: one entry per prefetch
     // request keyed by its line base, carrying the request-level
     // pf_request_id (independent of ptag) so every downstream node of the

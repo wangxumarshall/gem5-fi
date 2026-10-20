@@ -65,6 +65,9 @@ KIND_LAYER = {
     "pf_fill": "L3", "pf_demand": "L4",
     # [MDSPEC][H6] atomic 事件链
     "atomic_op": "L2",
+    # [MDSPEC][H6] exmon（独占监视器）链：LDXR 置（损坏的）monitor(L1) →
+    # 保留比较决定 match/mismatch(L2) → STXR 状态消费/重试(L3)
+    "exmon_monitor": "L1", "exmon_rmw": "L2", "exmon_stxr": "L3",
     # [MDSPEC][L5] 链终局（退出回调发射；outcome=detection_layer/contained）
     "chain_end": "L5",
 }
@@ -96,6 +99,14 @@ REQUIRED_FIELDS = {
     # [MDSPEC][H4] cache 结构事件（access/return/fill/evict）
     "cache_access": ["fault_id", "va", "pa"],
     "cache_return": ["fault_id", "pa", "field"],
+    "cache_fill": ["fault_id", "pa", "cache_line", "fill_id"],
+    # victim 证据：set/way + victim tag（before）+ dirty 状态在 field
+    "cache_evict": ["fault_id", "cache_line", "set", "way"],
+    "mshr_alloc": ["fault_id", "cache_line", "mshr_id"],
+    "mshr_merge": ["fault_id", "cache_line", "mshr_id"],
+    "mshr_fill": ["fault_id", "cache_line", "mshr_id", "fill_id"],
+    "mshr_free": ["fault_id", "cache_line", "mshr_id"],
+    "cache_writeback": ["fault_id", "cache_line"],
     # [MDSPEC][H5] prefetch 链：pf_request_id 为请求级稳定标识（≠ fault_id），
     # 同一预取请求的 queue/issue/fill/demand 四节点必须携带同一值。
     "pf_train": ["fault_id", "pf_request_id", "pc", "before", "after"],
@@ -106,6 +117,14 @@ REQUIRED_FIELDS = {
                   "pa"],
     # [MDSPEC][H6] atomic 链
     "atomic_op": ["fault_id", "dyn_inst_seq", "va"],
+    # [MDSPEC][H6] exmon 链（monitor 地址 before/after + 保留比较 + STXR
+    # 消费/重试；request_id 为 LL-SC 配对键的一部分）
+    "exmon_monitor": ["fault_id", "dyn_inst_seq", "request_id", "pa",
+                      "before", "after"],
+    "exmon_rmw": ["fault_id", "dyn_inst_seq", "pa", "state_before",
+                  "state_after"],
+    "exmon_stxr": ["fault_id", "dyn_inst_seq", "request_id", "pa",
+                   "state_before", "state_after", "entry_index"],
     # [MDSPEC][L5] 链终局（退出回调发射）
     "chain_end": ["fault_id", "outcome", "detection_layer", "contained"],
 }

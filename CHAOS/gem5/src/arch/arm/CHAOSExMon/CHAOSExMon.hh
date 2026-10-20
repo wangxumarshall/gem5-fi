@@ -68,6 +68,19 @@ class CHAOSExMon : public SimObject
     // from the seed, so maxFaults=1 lands on a seed-dependent event.
     uint64_t events_to_skip = 0;
 
+    // [MDSPEC][H6] ptag of the currently-active monitor-side fault (0 =
+    // none). The STXR-consumption event attaches to it: LDXR places the
+    // (corrupted) monitor, the paired STXR consumes it — the LL-SC pairing
+    // is the shared key across the two events.
+    uint64_t active_monitor_ptag = 0;
+
+    // [MDSPEC][H6] STXR attempts observed against the active monitor. The
+    // LL-SC probe is a software retry loop: every failed STXR is retried,
+    // so the consumption node is emitted per attempt carrying its 1-based
+    // attempt number (spec sheet 9 O01: "成功/失败/重试"). Reset when a new
+    // monitor fault is injected.
+    uint64_t active_monitor_attempts = 0;
+
     std::mt19937 rng;
     std::random_device rd;
     OutputStream *log_stream = nullptr;

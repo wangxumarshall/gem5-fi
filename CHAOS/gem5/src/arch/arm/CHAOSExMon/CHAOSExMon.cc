@@ -4,6 +4,10 @@
 #include "mem/request.hh"
 #include "debug/CHAOSExMon.hh"
 #include "params/CHAOSExMon.hh"
+// [MDSPEC][H6] exmon faults register with the propagation tracer through
+// the static instance (CHAOSCache precedent — the ISA has no tracer ptr).
+#include "cpu/o3/CHAOSPropagation/CHAOSPropagation.hh"
+#include <sstream>
 
 namespace gem5
 {
@@ -73,6 +77,51 @@ namespace gem5
     bool
     CHAOSExMon::maybeCorrupt(const RequestPtr &req, bool would_succeed)
     {
+        // [MDSPEC][H6] STXR consumption of an active monitor-side fault:
+        // observe the (corrupted-monitor-driven) verdict as the terminal
+        // consumption of the LDXR→STXR chain. The verdict is NOT mutated
+        // here (O01/O02 only corrupt the monitor). Attaches to
+        // active_monitor_ptag (LL-SC pairing key — the shared key the spec
+        // names for O01). nullptr/no-active = no-op.
+        //
+        // Two distinct nodes, as the spec separates them:
+        //   exmon_rmw  (L2) — the reservation compare that DECIDES
+        //                     match/mismatch (cache/coherence compare point).
+        //   exmon_stxr (L3) — the status/old-value consumption by the STXR,
+        //                     carrying the 1-based retry attempt number.
+        // state_before/state_after genuinely differ (reserved → outcome),
+        // unlike the earlier form that printed the same value twice.
+        if ((fi_mode == Mode::O01MonitorAddrBitflip ||
+             fi_mode == Mode::O02MonitorStateCorrupt) &&
+            active_monitor_ptag != 0 && req) {
+            if (CHAOSPropagation *h6s = CHAOSPropagation::instance()) {
+                const uint64_t seq = req->hasInstSeqNum()
+                    ? req->getReqInstSeqNum() : 0;
+                ++active_monitor_attempts;
+                std::ostringstream h6s_pa;
+                h6s_pa << std::hex << req->getPaddr();
+                h6s->notePropEvt("exmon_rmw", {
+                    {"fault_id", std::to_string(active_monitor_ptag)},
+                    {"dyn_inst_seq", std::to_string(seq)},
+                    {"request_id", std::to_string(seq)},
+                    {"pa", h6s_pa.str()},
+                    {"field", "reservation_compare"},
+                    {"state_before", "reserved"},
+                    {"state_after", would_succeed ? "match_success"
+                                                  : "mismatch_fail"},
+                });
+                h6s->notePropEvt("exmon_stxr", {
+                    {"fault_id", std::to_string(active_monitor_ptag)},
+                    {"dyn_inst_seq", std::to_string(seq)},
+                    {"request_id", std::to_string(seq)},
+                    {"pa", h6s_pa.str()},
+                    {"entry_index", std::to_string(active_monitor_attempts)},
+                    {"field", "stxr_consume"},
+                    {"state_before", "reserved"},
+                    {"state_after", would_succeed ? "success" : "fail_retry"},
+                });
+            }
+        }
         // W8 O01/O02 are monitor-side (handleLockedRead) faults — the STXR
         // verdict must pass through untouched on these modes.
         if (fi_mode == Mode::O01MonitorAddrBitflip ||
@@ -195,6 +244,46 @@ namespace gem5
                 << ", flag=" << (mv.flag ? 1 : 0)
                 << ", faults_injected: " << faults_injected_count
                 << std::endl;
+        }
+
+        // [MDSPEC][H6] register the monitor-side fault with the tracer and
+        // emit the exmon_monitor event (L1): the LDXR placed a corrupted
+        // monitor. before/after = original vs corrupted monitor address,
+        // state_* = monitor flag. The ptag is kept so the paired STXR's
+        // consumption event attaches to the same chain (LL-SC pairing =
+        // the shared key). nullptr tracer = no-op.
+        if (CHAOSPropagation *h6 = CHAOSPropagation::instance()) {
+            const uint64_t seq = req->hasInstSeqNum()
+                ? req->getReqInstSeqNum() : 0;
+            const uint64_t ptag = h6->registerInjection(
+                site, seq, paddr, mv.addr, true, 8, 8);
+            if (ptag) {
+                active_monitor_ptag = ptag;
+                active_monitor_attempts = 0;   // new monitor → new retry count
+                // The monitor is compared against the STXR block address
+                // (masks are cache-block sized), so register the whole 64B
+                // line the reservation covers: the cache-side nodes
+                // (cache_access/cache_return/RMW) on that line then carry
+                // this chain instead of dropping out. The chain's own key
+                // stays the ptag (fault_id).
+                h6->registerPtagBlock(ptag, paddr & ~Addr(0x3f),
+                                      (paddr & ~Addr(0x3f)) + 64);
+                std::ostringstream h6_before, h6_after;
+                h6_before << std::hex << paddr;
+                h6_after << std::hex << mv.addr;
+                h6->notePropEvt("exmon_monitor", {
+                    {"fault_id", std::to_string(ptag)},
+                    {"dyn_inst_seq", std::to_string(seq)},
+                    {"request_id", std::to_string(seq)},
+                    {"va", h6_before.str()},
+                    {"pa", h6_before.str()},
+                    {"before", h6_before.str()},
+                    {"after", h6_after.str()},
+                    {"field", site},
+                    {"state_before", "1"},
+                    {"state_after", mv.flag ? "1" : "0"},
+                });
+            }
         }
         return mv;
     }
