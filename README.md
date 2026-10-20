@@ -1,11 +1,9 @@
-# gem5-fi-fuzz
+# arm64 sdc gem5-fi
 
-**从生产级故障取证走向微架构级故障注入**——面向 ARM64 服务器 CPU 静默数据损坏（SDC）的 gem5 仿真研究基础设施。
 
-一台鲲鹏 920 服务器（192 核 TaiShan-v110）的 CPU179 核在 22 天里引发了 19 次致命 panic，全部归因于该核 LSU 数据返回通路的静默数据损坏（SDC）。本仓库先用 crash 取证把故障钉死到微架构通路（D1 数据通路 / D2 地址通路 / D3 PTW 通路），再在 gem5 v25.1.0.1 + CHAOS 框架上构建了 **19 个微架构故障注入器**与可 campaign 化跑批的实验基础设施，用周期精确仿真定量回答**"哪个单元、什么故障形态、多大几率产生 SDC"**，产出 **DFT 测试向量、保护投资排序、位谱指纹** 三类可交付结论，并进一步用于评估 SDC 检测工具（SDCShield）与检测度量（SDC-ED、Harpocrates 覆盖指标）的有效性。
+在 gem5 v25.1.0.1 + CHAOS 框架上构建了 **19 个微架构故障注入器**与可 campaign 化跑批的实验基础设施，用周期精确仿真定量回答**"哪个单元、什么故障形态、多大几率产生 SDC"**，产出 **DFT 测试向量、保护投资排序、位谱指纹** 三类可交付结论，并进一步用于评估 SDC 检测工具（SDCShield）与检测度量（SDC-ED、Harpocrates 覆盖指标）的有效性。
 
 > 新读者入口：[`docs/gem5/project-understanding.md`](docs/gem5/project-understanding.md)（全景技术文档）；
-> 结果与任务登记簿：[`findings.md`](findings.md) / [`task_plan.md`](task_plan.md) / [`AGENT_TASKS.md`](AGENT_TASKS.md) / [`progress.md`](progress.md)。
 
 ## 解决的问题
 
@@ -242,14 +240,6 @@ python3 -m pytest tests/test_report.py -q   # 诊断引擎 / 指纹 / 报告等 
 |---|---|
 | [`docs/gem5/project-understanding.md`](docs/gem5/project-understanding.md) | **推荐入口**：仓库全景技术文档 |
 | [`docs/gem5/gem5-architecture-and-chaos-internals.md`](docs/gem5/gem5-architecture-and-chaos-internals.md) | gem5 架构与 CHAOS 内部机制（222KB） |
-| [`fi_research/EXPERIMENT_DESIGN.md`](fi_research/EXPERIMENT_DESIGN.md) | 科学设计总纲：研究命题、H0–H4 可证伪假设、实验组 A–E、度量协议 |
-| [`docs/cases/`](docs/cases/) | 19 案 vmcore 取证报告 + 12 案 census + 17 案综合论文 |
-| [`docs/hypothesis/ARM64-SDC-uArch.md`](docs/hypothesis/ARM64-SDC-uArch.md) | ARM64 vs x86-64 六维差异的第一性原理分析 + 统一 AVF/PVF 模型 |
-| [`docs/sdc-ed/`](docs/sdc-ed/) | SDC-ED 方法论、标定与 lift 两轮报告、Harpocrates 三方对照 |
-| [`docs/harpocrates/`](docs/harpocrates/) | 覆盖指标复现方法与实验报告 |
-| [`docs/papers/ref/`](docs/papers/ref/) | 31 篇文献 PDF（Veritas / SEVI / PinDrop / SiliFuzz / Harpocrates / GeFIN / CHAOS…） |
-| [`rules/flight-rules.md`](rules/flight-rules.md) | SDC 诊断规则库 v1.0.0（P1–P11 / N1–N10） |
-| `docs/superpowers/plans/` | 7 份实施计划（研究工作的 why 与任务分解） |
 
 ## 诚实边界
 
