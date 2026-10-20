@@ -1,0 +1,34 @@
+{
+  "cli_version": "0.10.2",
+  "checkpoint_id": "01M5DADGBT6J50490X3XDYVCJS",
+  "strategy": "manual-commit",
+  "branch": "lsu-mdspec-20261019",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "CHAOS/gem5/src/arch/arm/CHAOSArmTLB/CHAOSArmTLB.cc",
+    "CHAOS/gem5/src/arch/arm/CHAOSArmTLB/CHAOSArmTLB.hh",
+    "CHAOS/gem5/src/arch/arm/mmu.cc",
+    "CHAOS/gem5/src/arch/arm/tlb.cc",
+    "CHAOS/gem5/src/arch/arm/tlb.hh",
+    "CHAOS/gem5/src/cpu/o3/CHAOSPropagation/CHAOSPropagation.cc",
+    "CHAOS/gem5/src/cpu/o3/CHAOSPropagation/CHAOSPropagation.hh",
+    "tests/test_lsu_hook_tlb.py",
+    "tools/lsu_prop_fields.py"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 11670,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 711296,
+    "output_tokens": 5585,
+    "api_call_count": 5
+  }
+}
