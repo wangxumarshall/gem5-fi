@@ -478,12 +478,39 @@ namespace gem5
 
     // ------------------------------------------------------------ pipeline
 
-    void
+    uint64_t
+    CHAOSPropagation::correlateRequest(uint64_t dyn_seq, Addr addr,
+                                       Addr size)
+    {
+        if (!write_log)
+            return 0;
+        sweepExpired();
+        const Addr a_end = addr + size;
+        // addrpath registry: range overlap + dyn-inst binding (same
+        // semantics as noteMemRequest's stamped path).
+        for (const auto &kv : addr_registry) {
+            const AddrEntry &e = kv.second;
+            if (e.size == 0)
+                continue;
+            if (addr < e.base + e.size && e.base < a_end
+                    && e.dyn_seq == dyn_seq)
+                return e.ptag;
+        }
+        // cache faulted-byte registry: range overlap (SE vaddr==paddr).
+        for (const auto &kv : blk_registry) {
+            const BlkEntry &e = kv.second;
+            if (addr < e.byte_end && e.byte_begin < a_end)
+                return e.ptag;
+        }
+        return 0;
+    }
+
+    uint64_t
     CHAOSPropagation::noteMemRequest(const char *site, uint64_t dyn_seq,
                                      const RequestPtr &req)
     {
         if (!write_log || !req || !req->hasVaddr())
-            return;
+            return 0;
         sweepExpired();
         const Addr v = req->getVaddr();
         const Addr v_end = v + (Addr)req->getSize();
@@ -494,6 +521,7 @@ namespace gem5
         // (documented: split _mainReq is not seq-stamped).
         const bool stamped = req->hasInstSeqNum();
         const uint64_t req_seq = stamped ? req->getReqInstSeqNum() : 0;
+        uint64_t matched = 0;
         for (const auto &kv : addr_registry) {
             const AddrEntry &e = kv.second;
             if (e.size == 0)
@@ -508,6 +536,8 @@ namespace gem5
               << req->getSize();
             writeNode(e.ptag, "mem_req", dyn_seq, true,
                       req_seq, stamped, v, true, 0, false, 0, false, d.str());
+            if (!matched)
+                matched = e.ptag;
         }
 
         // cache faulted-byte registry: range overlap (SE vaddr==paddr).
@@ -519,7 +549,12 @@ namespace gem5
             d << "site=" << site << ";family=cache;size=" << req->getSize();
             writeNode(e.ptag, "mem_req", dyn_seq, true,
                       req_seq, stamped, v, true, 0, false, 0, false, d.str());
+            if (!matched)
+                matched = e.ptag;
         }
+        // [MDSPEC][H1] first matched chain id for the unified lsq_sendfrag
+        // event emitted by the caller (lsq.cc sendFragmentToTranslation).
+        return matched;
     }
 
     void

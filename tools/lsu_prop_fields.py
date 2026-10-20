@@ -39,8 +39,21 @@ _PREFIX = "PROP-EVT:"
 KIND_LAYER = {
     "inj": "L0", "addr_form": "L1", "mem_req": "L2", "resp": "L3",
     "taint_reg": "L4", "consumer": "L4", "errant_commit": "L4",
+    # [MDSPEC][H1] lsq.cc 统一事件（表 9：L1=EA/size/flags 进入 LSQRequest；
+    # L2=请求离开 LSQ 去翻译/访存）
+    "lsq_push": "L1", "lsq_sendfrag": "L2",
 }
 _LAYER_ORDER = ["L0", "L1", "L2", "L3", "L4", "L5"]
+
+# 家族必录字段契约（kind → 必须非空的注册表字段；表 9 必监控列）。
+# 发射端（C++ 钩子）与本校验共用此表——契约测试 tests/test_lsu_hook_*.py
+# 逐族钉死。
+REQUIRED_FIELDS = {
+    "lsq_push": ["fault_id", "dyn_inst_seq", "pc", "opcode",
+                 "lq_idx", "sq_idx", "va"],
+    "lsq_sendfrag": ["fault_id", "dyn_inst_seq", "pc", "opcode",
+                     "request_id", "va"],
+}
 
 
 def register_kind_layer(kind, layer):
@@ -48,6 +61,23 @@ def register_kind_layer(kind, layer):
     if layer not in _LAYER_ORDER:
         raise ValueError(f"layer must be one of {_LAYER_ORDER}, got {layer}")
     KIND_LAYER[kind] = layer
+
+
+def validate_event(evt):
+    """按家族契约校验：kind 必须已知 + REQUIRED_FIELDS 全部非空。
+
+    返回错误列表（空 = 合法）。观测流是故障传播流（规格 11），
+    fault_id 非空即链关联在场——非关联观测事件不得入流。
+    """
+    kind = evt.get("kind", "")
+    errs = []
+    if kind not in KIND_LAYER:
+        errs.append(f"unknown kind '{kind}' (not in KIND_LAYER)")
+        return errs
+    for f in REQUIRED_FIELDS.get(kind, []):
+        if not evt.get(f, ""):
+            errs.append(f"{kind}: required field '{f}' missing/empty")
+    return errs
 
 
 def parse_line(line):
@@ -60,10 +90,10 @@ def parse_line(line):
     if body:
         for tok in body.split():
             k, sep, v = tok.partition("=")
-            if sep and k in evt:
+            if sep:
+                # 注册表键必有（空值合法）；注册表外的家族键（表 11 24 字段
+                # 之外的 asid/hit 等）保留在 dict 中供家族消费
                 evt[k] = v
-            # 未知键忽略（发射端注册表演进的读取容错；发射端自身对未知键
-            # warn-once 并丢弃，双端一致）
     return evt
 
 

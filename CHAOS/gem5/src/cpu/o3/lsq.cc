@@ -45,6 +45,7 @@
 
 #include <algorithm>
 #include <list>
+#include <sstream>
 #include <string>
 
 #include "base/compiler.hh"
@@ -795,6 +796,34 @@ LSQ::pushRequest(const DynInstPtr& inst, bool isLoad, uint8_t *data,
         }
     }
 
+    // [MDSPEC][H1] unified lsq_push event (spec sheet 9, 39-RunID family:
+    // L1 = EA/size/flags enter the LSQRequest; correlation keys
+    // lq_idx/sq_idx/PC/opcode). Emitted ONLY for fault-correlated requests
+    // (PROP-EVT is a fault-propagation stream, spec sheet 11). Placed after
+    // the PRE hook so a fresh injection's registry entry correlates the
+    // very same request. nullptr tracer / no chain = no event.
+    if (cpu->chaosPropagation) {
+        const uint64_t h1_ptag = cpu->chaosPropagation->correlateRequest(
+            inst->seqNum, addr, size);
+        if (h1_ptag) {
+            std::ostringstream h1_hex;
+            h1_hex << std::hex << addr;
+            const std::string h1_va = h1_hex.str();
+            h1_hex.str(""); h1_hex.clear();
+            h1_hex << inst->pcState().instAddr();
+            cpu->chaosPropagation->notePropEvt("lsq_push", {
+                {"fault_id", std::to_string(h1_ptag)},
+                {"dyn_inst_seq", std::to_string(inst->seqNum)},
+                {"pc", h1_hex.str()},
+                {"opcode", inst->staticInst->getName()},
+                {"lq_idx", std::to_string((long long)inst->lqIdx)},
+                {"sq_idx", std::to_string((long long)inst->sqIdx)},
+                {"va", h1_va},
+                {"field", isLoad ? "load" : "store"},
+            });
+        }
+    }
+
     ThreadID tid = cpu->contextToThread(inst->contextId());
     auto cacheLineSize = cpu->cacheLineSize();
     bool needs_burst = transferNeedsBurst(addr, size, cacheLineSize);
@@ -1191,9 +1220,32 @@ LSQ::LSQRequest::sendFragmentToTranslation(int i)
     // above) or its range covers a registered faulted cache byte, record
     // the request node. Placed AFTER the corruption block so both families
     // are covered by one call. nullptr tracer = no-op.
-    if (_inst && _inst->cpu && _inst->cpu->chaosPropagation)
-        _inst->cpu->chaosPropagation->noteMemRequest(
+    if (_inst && _inst->cpu && _inst->cpu->chaosPropagation) {
+        const uint64_t h1_ptag = _inst->cpu->chaosPropagation->noteMemRequest(
             "lsq_sendFragmentToTranslation", _inst->seqNum, req(i));
+        // [MDSPEC][H1] unified lsq_sendfrag event (L2: the fragment Request
+        // leaves the LSQ for translation/memory). Same correlation as the
+        // v1 mem_req node; H1 keys = PC/opcode/request_id.
+        if (h1_ptag) {
+            std::ostringstream h1_hex;
+            h1_hex << std::hex << req(i)->getVaddr();
+            const std::string h1_va = h1_hex.str();
+            h1_hex.str(""); h1_hex.clear();
+            h1_hex << _inst->pcState().instAddr();
+            const bool h1_stamped = req(i)->hasInstSeqNum();
+            _inst->cpu->chaosPropagation->notePropEvt("lsq_sendfrag", {
+                {"fault_id", std::to_string(h1_ptag)},
+                {"dyn_inst_seq", std::to_string(_inst->seqNum)},
+                {"pc", h1_hex.str()},
+                {"opcode", _inst->staticInst->getName()},
+                {"request_id", h1_stamped
+                    ? std::to_string(req(i)->getReqInstSeqNum())
+                    : std::string("0")},
+                {"va", h1_va},
+                {"field", isLoad() ? "load" : "store"},
+            });
+        }
+    }
     _port.getMMUPtr()->translateTiming(req(i), _inst->thread->getTC(),
             this, isLoad() ? BaseMMU::Read : BaseMMU::Write);
 }

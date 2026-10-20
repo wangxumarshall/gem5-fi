@@ -217,12 +217,20 @@ class CHAOSPropagation : public SimObject
                     uint64_t injected);
 
     // ---- pipeline hooks (read-only w.r.t. CPU state) -----------------------
+    // [MDSPEC][H1] Fault correlation for LSQ unified events: return the
+    // ptag whose addr-registry entry matches (dyn_seq + range overlap) or
+    // whose faulted-byte registry overlaps [addr, addr+size). 0 = no chain
+    // (the request is not fault-correlated; PROP-EVT is a fault-propagation
+    // stream, spec sheet 11 — non-correlated observations stay out).
+    uint64_t correlateRequest(uint64_t dyn_seq, Addr addr, Addr size);
+
     // LSQ::LSQRequest::sendFragmentToTranslation: the fragment Request is
     // about to leave for translation/memory. Writes a mem_req node when it
     // matches the addr registry (addrpath) or the faulted-byte registry
-    // (cache).
-    void noteMemRequest(const char *site, uint64_t dyn_inst_seq,
-                        const RequestPtr &req);
+    // (cache). Returns the FIRST matched ptag (0 = no match) so the H1
+    // unified lsq_sendfrag event can carry the chain id.
+    uint64_t noteMemRequest(const char *site, uint64_t dyn_inst_seq,
+                            const RequestPtr &req);
 
     // LSQUnit::completeDataAccess (pre-writeback, squashed-guarded inside):
     // writes a resp node when the packet delivers a registered fault, and —
