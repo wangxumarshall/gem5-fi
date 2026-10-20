@@ -42,6 +42,10 @@ KIND_LAYER = {
     # [MDSPEC][H1] lsq.cc 统一事件（表 9：L1=EA/size/flags 进入 LSQRequest；
     # L2=请求离开 LSQ 去翻译/访存）
     "lsq_push": "L1", "lsq_sendfrag": "L2",
+    # [MDSPEC][H2] TLB 翻译统一事件（mmu.cc translateTiming = SE+FS 漏斗；
+    # SE 不经 TLB::lookup——tlb.cc:173 实证。tlb_walk/tlb_refill 属 FS
+    # 路径，推迟到 FS TLB 轨道，未注册 = 诚实缺席）
+    "tlb_translate": "L2",
 }
 _LAYER_ORDER = ["L0", "L1", "L2", "L3", "L4", "L5"]
 
@@ -53,6 +57,8 @@ REQUIRED_FIELDS = {
                  "lq_idx", "sq_idx", "va"],
     "lsq_sendfrag": ["fault_id", "dyn_inst_seq", "pc", "opcode",
                      "request_id", "va"],
+    # [MDSPEC][H2] pa 入口未定留空（诚实 pending；PA 物化由 resp 节点覆盖）
+    "tlb_translate": ["fault_id", "dyn_inst_seq", "va", "request_id"],
 }
 
 

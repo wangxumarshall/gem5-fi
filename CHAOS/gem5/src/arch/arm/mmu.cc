@@ -47,6 +47,10 @@
 #include "arch/arm/stage2_lookup.hh"
 #include "arch/arm/table_walker.hh"
 #include "arch/arm/tlb.hh"
+// [MDSPEC][H2] TLB translate unified event: reached through the static
+// instance (CHAOSCache precedent — the MMU has no CPU pointer).
+#include "cpu/o3/CHAOSPropagation/CHAOSPropagation.hh"
+#include <sstream>
 #include "arch/arm/tlbi_op.hh"
 #include "arch/arm/types.hh"
 #include "debug/MMU.hh"
@@ -1292,6 +1296,35 @@ MMU::translateTiming(const RequestPtr &req, ThreadContext *tc,
     auto& state = updateMiscReg(tc, tran_type, stage2);
 
     assert(translation);
+
+    // [MDSPEC][H2] unified tlb_translate event (spec sheet 9, 39-RunID
+    // family: L2 — the fragment leaves for VA→PA translation). THIS is the
+    // SE+FS funnel (lsq.cc sendFragmentToTranslation calls it directly);
+    // SE translates via translateSe and NEVER reaches TLB::lookup
+    // (tlb.cc:173 comment) — so this is the only translate node an SE run
+    // can see. Emitted ONLY for fault-correlated requests (spec sheet 11:
+    // propagation stream). pa stays empty at entry (translation not yet
+    // done — honest pending; PA materialization is covered by the resp
+    // node). tlb.cc lookup / table_walker.cc walk+refill nodes are FS-only
+    // paths — deferred to the FS TLB track (W4 workload BLOCKED), NOT
+    // silently skipped.
+    {
+        CHAOSPropagation *h2_prop = CHAOSPropagation::instance();
+        if (h2_prop && req && req->hasVaddr() && req->hasInstSeqNum()) {
+            const uint64_t h2_ptag = h2_prop->correlateRequest(
+                req->getReqInstSeqNum(), req->getVaddr(), req->getSize());
+            if (h2_ptag) {
+                std::ostringstream h2_hex;
+                h2_hex << std::hex << req->getVaddr();
+                h2_prop->notePropEvt("tlb_translate", {
+                    {"fault_id", std::to_string(h2_ptag)},
+                    {"dyn_inst_seq", std::to_string(req->getReqInstSeqNum())},
+                    {"request_id", std::to_string(req->getReqInstSeqNum())},
+                    {"va", h2_hex.str()},
+                });
+            }
+        }
+    }
 
     translateComplete(req, tc, translation, mode, tran_type,
         stage2, state);
