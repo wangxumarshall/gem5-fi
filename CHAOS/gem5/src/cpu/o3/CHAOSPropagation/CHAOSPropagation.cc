@@ -506,6 +506,24 @@ namespace gem5
     }
 
     uint64_t
+    CHAOSPropagation::correlateRequestBySeq(uint64_t dyn_seq,
+                                            Addr *base_out)
+    {
+        if (!write_log)
+            return 0;
+        sweepExpired();
+        for (const auto &kv : addr_registry) {
+            const AddrEntry &e = kv.second;
+            if (e.dyn_seq == dyn_seq) {
+                if (base_out)
+                    *base_out = e.base;
+                return e.ptag;
+            }
+        }
+        return 0;
+    }
+
+    uint64_t
     CHAOSPropagation::noteMemRequest(const char *site, uint64_t dyn_seq,
                                      const RequestPtr &req)
     {
@@ -618,6 +636,28 @@ namespace gem5
             writeNode(hit_ptag, "resp", inst->seqNum, true,
                       req_seq, req_seq != 0, pkt->getAddr(), true,
                       0, false, 0, false, d.str());
+        }
+
+        // [MDSPEC][H7] unified lq_complete event (spec sheet 9: LQ
+        // lifecycle — the response returned for LQ entry lqIdx; L3).
+        // Load-side discriminator = wb_to_reg (needWBToRegister — the SAME
+        // condition gating taint_reg below). lqIdx alone is UNSOUND: stores
+        // keep a stale lqIdx from DynInst-pool reuse (empirically hit on
+        // sq_forward dyn133 store with residual lq_idx=3).
+        if (wb_to_reg && inst->lqIdx >= 0) {
+            std::ostringstream h7_va, h7_pa;
+            if (pkt->req && pkt->req->hasVaddr())
+                h7_va << std::hex << pkt->req->getVaddr();
+            h7_pa << std::hex << pkt->getAddr();
+            notePropEvt("lq_complete", {
+                {"fault_id", std::to_string(hit_ptag)},
+                {"dyn_inst_seq", std::to_string(inst->seqNum)},
+                {"lq_idx", std::to_string((long long)inst->lqIdx)},
+                {"va", h7_va.str()},
+                {"pa", h7_pa.str()},
+                {"request_id", req_seq ? std::to_string(req_seq)
+                                       : std::string("0")},
+            });
         }
 
         // taint_reg: exactly the condition under which LSQUnit::writeback

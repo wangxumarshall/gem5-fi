@@ -1381,6 +1381,27 @@ LSQUnit::read(LSQRequest *request, ssize_t load_idx)
     load_entry.setRequest(request);
     assert(load_inst);
 
+    // [MDSPEC][H7] unified lq_read event (spec sheet 9: LQ lifecycle — the
+    // load's memory read issues; L3). Correlated by dyn-seq (the addr
+    // registry's dyn_seq binding); va from the registry entry. nullptr
+    // tracer / no chain = no event.
+    if (cpu->chaosPropagation) {
+        Addr h7_base = 0;
+        const uint64_t h7_ptag =
+            cpu->chaosPropagation->correlateRequestBySeq(load_inst->seqNum,
+                                                         &h7_base);
+        if (h7_ptag) {
+            std::ostringstream h7_hex;
+            h7_hex << std::hex << h7_base;
+            cpu->chaosPropagation->notePropEvt("lq_read", {
+                {"fault_id", std::to_string(h7_ptag)},
+                {"dyn_inst_seq", std::to_string(load_inst->seqNum)},
+                {"lq_idx", std::to_string((long long)load_idx)},
+                {"va", h7_hex.str()},
+            });
+        }
+    }
+
     assert(!load_inst->isExecuted());
 
     // Make sure this isn't a strictly ordered load

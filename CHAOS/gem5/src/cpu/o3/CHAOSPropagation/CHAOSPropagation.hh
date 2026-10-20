@@ -224,6 +224,13 @@ class CHAOSPropagation : public SimObject
     // stream, spec sheet 11 — non-correlated observations stay out).
     uint64_t correlateRequest(uint64_t dyn_seq, Addr addr, Addr size);
 
+    // [MDSPEC][H7] Seq-only correlation for LQ/SQ lifecycle sites that have
+    // the DynInst but not a stable vaddr at hand (read()/executeStore()):
+    // match the addr registry by dyn_seq alone; optionally return the
+    // registered base via base_out (the event's va).
+    uint64_t correlateRequestBySeq(uint64_t dyn_seq,
+                                   Addr *base_out = nullptr);
+
     // LSQ::LSQRequest::sendFragmentToTranslation: the fragment Request is
     // about to leave for translation/memory. Writes a mem_req node when it
     // matches the addr registry (addrpath) or the faulted-byte registry

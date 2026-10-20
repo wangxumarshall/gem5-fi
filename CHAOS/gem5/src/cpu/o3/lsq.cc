@@ -816,8 +816,13 @@ LSQ::pushRequest(const DynInstPtr& inst, bool isLoad, uint8_t *data,
                 {"dyn_inst_seq", std::to_string(inst->seqNum)},
                 {"pc", h1_hex.str()},
                 {"opcode", inst->staticInst->getName()},
-                {"lq_idx", std::to_string((long long)inst->lqIdx)},
-                {"sq_idx", std::to_string((long long)inst->sqIdx)},
+                // 不适用侧显式 -1（DynInst 的 lqIdx/sqIdx 对非本侧指令是
+                // 池复用残留值——sq_forward dyn133 store 带残留 lq_idx=3
+                // 实证；-1 = 本请求类型不占用该队列）
+                {"lq_idx", std::to_string((long long)(isLoad
+                    ? inst->lqIdx : (ssize_t)-1))},
+                {"sq_idx", std::to_string((long long)(isLoad
+                    ? (ssize_t)-1 : inst->sqIdx))},
                 {"va", h1_va},
                 {"field", isLoad ? "load" : "store"},
             });
