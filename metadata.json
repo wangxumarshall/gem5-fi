@@ -1,0 +1,32 @@
+{
+  "cli_version": "0.10.2",
+  "checkpoint_id": "01M5D4AFF7QKRWYEAKS5W0V9AB",
+  "strategy": "manual-commit",
+  "branch": "lsu-mdspec-20261019",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "docs/gem5-fi/lsu/mdspec/coverage_matrix.md",
+    "docs/gem5-fi/lsu/mdspec/pilot_evidence.json",
+    "docs/gem5-fi/lsu/mdspec/round4_findings.md",
+    "tests/test_lsu_coverage_matrix.py",
+    "tests/test_lsu_pilot_evidence.py",
+    "tools/lsu_coverage_matrix.py",
+    "tools/lsu_pilot_evidence.py"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 9348,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 392960,
+    "output_tokens": 4461,
+    "api_call_count": 3
+  }
+}
