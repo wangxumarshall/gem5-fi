@@ -1,0 +1,12 @@
+继续在 /home/sdc/gem5-fi-ding/.claude/worktrees/lsu-mdspec-20261019 和分支 lsu-mdspec-20261019 工作，暂时不要启动正式实验，也不要把当前4个未暂存文件按“已完成”直接提交。
+
+请完成以下收口：
+
+1. P01 必须按方案中的真实 RunID P01-F0-W8，使用现有 workloads/directed/prefetch_stride 重跑；禁止继续使用不存在的 P01-F0-W3 或 agu_addrmodes。先证明注入日志非空，再贯通并验证 training→queue→request→fill/MSHR→后续 demand→终局，pf_request_id 必须是稳定的请求级标识，不能简单等同 fault_id。
+2. 为 O01-F0-W7 将 CHAOSExMon 接入 CHAOSPropagation，记录 monitor 地址 before/after、fault_id、dyn_inst_seq/request_id，并贯通 STXR 消费、成功/失败/重试、cache/RMW/return 和最终结局。
+3. 补齐 H4 的 MSHR allocate/merge/fill/victim/writeback，以及 H5、H6 在 Markdown 要求的全部节点；不得因注册表布尔值为 true 就判定整族完成。
+4. 保留 A01 的真实 tlb_fault 事件，但不要对所有 translation fault 无条件写 contained=1。区分“翻译阶段阻断”与最终 Contained/Crash/Handled outcome，并与 runner/oracle 结果关联；补充对应测试，使 chain checker 的 terminal、provable_to 和 beyond 结果一致。
+5. 用真实事件和代表性 pilot 重新生成覆盖矩阵。126 个 BLOCKED 必须逐项解决，或列出需要我批准延期的明确清单；阻塞原因按互斥类别统计。
+6. 分阶段运行测试、重新构建，并至少真实验证 A01、A04、C01、P01、O01。每条链缺事件时只能报告 Unknown，不得推断 Masked/Contained。
+7. 清理安全可删产物，使 /home 可用空间恢复到至少 71 GiB；然后将修复按功能拆分提交并推送到该特性分支，再安全集成 fi-ding 最新的2个提交。
+8. 全部完成后停止，不要启动正式实验。向我报告：提交SHA、工作树是否干净、构建/测试结果、5个pilot的逐层链路、325 RunID状态、剩余阻塞、磁盘空间和正式实验GO/NO-GO判定。
