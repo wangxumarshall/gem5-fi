@@ -565,6 +565,63 @@ namespace gem5
         return 0;
     }
 
+    // ------------------------------------------------- MSHR lifecycle (H4)
+    uint64_t
+    CHAOSPropagation::noteMshrAlloc(Addr line)
+    {
+        if (!write_log)
+            return 0;
+        const uint64_t id = ++next_mshr_id;
+        mshr_registry[line] = id;
+        return id;
+    }
+
+    uint64_t
+    CHAOSPropagation::noteMshrLookup(Addr line)
+    {
+        if (!write_log)
+            return 0;
+        const auto it = mshr_registry.find(line);
+        return it == mshr_registry.end() ? 0 : it->second;
+    }
+
+    uint64_t
+    CHAOSPropagation::noteMshrFree(Addr line)
+    {
+        if (!write_log)
+            return 0;
+        const auto it = mshr_registry.find(line);
+        if (it == mshr_registry.end())
+            return 0;
+        const uint64_t id = it->second;
+        mshr_registry.erase(it);
+        return id;
+    }
+
+    uint64_t
+    CHAOSPropagation::noteFill(Addr line)
+    {
+        (void)line;                    // reserved for per-line fill accounting
+        if (!write_log)
+            return 0;
+        return ++next_fill_id;
+    }
+
+    void
+    CHAOSPropagation::registerPtagBlock(uint64_t ptag, Addr byte_begin,
+                                        Addr byte_end)
+    {
+        if (!write_log || ptag == 0 || byte_end <= byte_begin)
+            return;
+        sweepExpired();
+        BlkEntry e;
+        e.ptag = ptag;
+        e.byte_begin = byte_begin;
+        e.byte_end = byte_end;
+        e.registered = curTick();
+        blk_registry[byte_begin] = e;
+    }
+
     uint64_t
     CHAOSPropagation::noteMemRequest(const char *site, uint64_t dyn_seq,
                                      const RequestPtr &req)

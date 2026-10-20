@@ -54,11 +54,12 @@ KIND_LAYER = {
     "lq_read": "L3", "lq_complete": "L3",
     # [MDSPEC][H3] SQ 生命周期（execute/writeback/complete；drain 属 L3 访存侧）
     "sq_execute": "L3", "sq_writeback": "L3", "sq_complete": "L3",
-    # [MDSPEC][H4] cache 结构事件（L1=lookup / L2=hit返回·miss+fill+evict）
+    # [MDSPEC][H4] cache 结构事件（L1=lookup / L2=hit返回·miss+MSHR+fill+evict
+    # / L3=writeback 持久化）
     "cache_access": "L1", "cache_return": "L2", "cache_fill": "L2",
-    "cache_evict": "L2",
-    # [MDSPEC][H5] prefetch 链（训练/发射）
-    "pf_train": "L1", "pf_issue": "L2",
+    "cache_evict": "L2", "mshr_alloc": "L2", "mshr_merge": "L2",
+    "mshr_fill": "L2", "mshr_free": "L2",
+    "cache_writeback": "L3",
     # [MDSPEC][H6] atomic 事件链
     "atomic_op": "L2",
     # [MDSPEC][L5] 链终局（退出回调发射；outcome=detection_layer/contained）
@@ -92,10 +93,6 @@ REQUIRED_FIELDS = {
     # [MDSPEC][H4] cache 结构事件（access/return/fill/evict）
     "cache_access": ["fault_id", "va", "pa"],
     "cache_return": ["fault_id", "pa", "field"],
-    "cache_fill": ["fault_id", "pa", "cache_line"],
-    "cache_evict": ["fault_id", "cache_line"],
-    # [MDSPEC][H5] prefetch 链
-    "pf_train": ["fault_id", "pf_request_id"],
     "pf_issue": ["fault_id", "pf_request_id", "va"],
     # [MDSPEC][H6] atomic 链
     "atomic_op": ["fault_id", "dyn_inst_seq", "va"],

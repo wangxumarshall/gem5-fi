@@ -275,9 +275,6 @@ Queued::getPacket()
                 h5q_hex << std::hex << pkt->getAddr();
                 h5q->notePropEvt("pf_issue", {
                     {"fault_id", std::to_string(h5q_ptag)},
-                    // pf_request_id = tick（稳定的请求级标识，唯一于
-                    // 每个预取发射——不等于 fault_id/ptag）
-                    {"pf_request_id", std::to_string(curTick())},
                     {"va", h5q_hex.str()},
                 });
             }

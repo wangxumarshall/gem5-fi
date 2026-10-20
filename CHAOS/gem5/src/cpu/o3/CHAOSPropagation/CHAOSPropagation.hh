@@ -216,6 +216,16 @@ class CHAOSPropagation : public SimObject
     void noteFunnel(const char *site, uint64_t attempted, uint64_t eligible,
                     uint64_t injected);
 
+    // [MDSPEC][H4] MSHR lifecycle identity. One stable mshr_id per
+    // in-flight miss line (spec sheet 9 C01: "mshr_id/fill_id/victim_id 及
+    // event 父子关系"); a merge reuses the existing id of the same line,
+    // a free releases it, and every fill allocates a fresh fill_id. These
+    // are REAL allocated ids, not the hex block address.
+    uint64_t noteMshrAlloc(Addr line);      // fresh id for a new miss line
+    uint64_t noteMshrLookup(Addr line);     // existing id (merge); 0 = none
+    uint64_t noteMshrFree(Addr line);       // release; returns the freed id
+    uint64_t noteFill(Addr line);           // fresh fill_id
+
     // ---- pipeline hooks (read-only w.r.t. CPU state) -----------------------
     // [MDSPEC][H1] Fault correlation for LSQ unified events: return the
     // ptag whose addr-registry entry matches (dyn_seq + range overlap) or
@@ -328,6 +338,10 @@ class CHAOSPropagation : public SimObject
         uint64_t taintor_seq;      // DynInst::seqNum of the tainting inst
     };
     std::map<std::pair<int, uint32_t>, TaintEntry> taint_set;
+    // [MDSPEC][H4] in-flight miss lines → allocated mshr_id (real ids).
+    std::map<Addr, uint64_t> mshr_registry;
+    uint64_t next_mshr_id = 0;         // 0 reserved ("no mshr")
+    uint64_t next_fill_id = 0;         // 0 reserved ("no fill")
 };
 
 } // namespace gem5

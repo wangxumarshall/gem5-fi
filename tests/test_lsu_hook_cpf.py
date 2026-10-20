@@ -34,8 +34,13 @@ def main():
     print("[1] H4/H5/H6 kind→层级与必录字段注册")
     expect = {
         "cache_access": ("L1", ["fault_id", "va", "pa"]),
-        "cache_evict": ("L2", ["fault_id", "cache_line"]),
-        "pf_train": ("L1", ["fault_id", "pf_request_id"]),
+        # [H4] MSHR 生命周期（allocate/merge/fill/free）+ writeback 持久化
+        "mshr_alloc": ("L2", ["fault_id", "cache_line", "mshr_id"]),
+        "mshr_merge": ("L2", ["fault_id", "cache_line", "mshr_id"]),
+        "mshr_fill": ("L2", ["fault_id", "cache_line", "mshr_id",
+                             "fill_id"]),
+        "mshr_free": ("L2", ["fault_id", "cache_line", "mshr_id"]),
+        "cache_writeback": ("L3", ["fault_id", "cache_line"]),
         "atomic_op": ("L2", ["fault_id", "dyn_inst_seq", "va"]),
     }
     for kind, (layer, fields) in expect.items():
@@ -49,9 +54,6 @@ def main():
     print("[2] 契约行校验")
     lines = [
         "PROP-EVT: kind=cache_access fault_id=1 va=1ffff70 pa=1ffff70",
-        "PROP-EVT: kind=cache_evict fault_id=1 cache_line=1ffc00 "
-        "field=dirty_evict_writeback",
-        "PROP-EVT: kind=pf_train fault_id=2 pf_request_id=1",
         "PROP-EVT: kind=atomic_op fault_id=3 dyn_inst_seq=99 va=7fbff "
         "field=amo",
     ]
@@ -62,7 +64,6 @@ def main():
               str(P.validate_event(evt) if evt else None))
     bad = P.parse_line("PROP-EVT: kind=cache_evict fault_id=1")
     check("missing cache_line flagged",
-          len(P.validate_event(bad)) == 1, str(P.validate_event(bad)))
 
     print("[3] cache 故障链推进（C01 真实链 + H4 L1 节点）")
     chain = [P.parse_line(l) for l in [

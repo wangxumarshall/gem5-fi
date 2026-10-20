@@ -1030,7 +1030,6 @@ Cache::evictBlock(CacheBlk *blk)
             const uint64_t h4_ptag = h4->correlateBlock(
                 h4_blk_addr, blkSize, &h4_base);
             if (h4_ptag) {
-                std::ostringstream h4_hex;
                 h4_hex << std::hex << h4_blk_addr;
                 h4->notePropEvt("cache_evict", {
                     {"fault_id", std::to_string(h4_ptag)},

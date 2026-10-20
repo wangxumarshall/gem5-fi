@@ -411,6 +411,31 @@ BaseCache::handleTimingReqMiss(PacketPtr pkt, MSHR *mshr, CacheBlk *blk,
                 // merging target's address BEFORE the merge. The coalesced
                 // request then carries the wrong address downstream.
                 chaosLsuF6Observe(ChaOSLsuEvent::DirtyEviction);
+                // [MDSPEC][H4] mshr_merge event (spec sheet 9 C-chain L2:
+                // "miss→MSHR merge" — a second request coalesces into the
+                // existing MSHR for the faulted block). mshr_id is the id
+                // allocated when this line's MSHR was created (real id, not
+                // the block address).
+                {
+                    CHAOSPropagation *h4m = CHAOSPropagation::instance();
+                    if (h4m) {
+                        Addr h4m_base = 0;
+                        const uint64_t h4m_ptag = h4m->correlateBlock(
+                            pkt->getAddr(), blkSize, &h4m_base);
+                        if (h4m_ptag) {
+                            std::ostringstream h4m_hex;
+                            h4m_hex << std::hex << pkt->getAddr();
+                            h4m->notePropEvt("mshr_merge", {
+                                {"fault_id", std::to_string(h4m_ptag)},
+                                {"cache_line", h4m_hex.str()},
+                                {"mshr_id", std::to_string(
+                                    h4m->noteMshrLookup(
+                                        pkt->getBlockAddr(blkSize)))},
+                                {"state_after", "merged_into_mshr"},
+                            });
+                        }
+                    }
+                }
                 mshr->allocateTarget(pkt, forward_time, order++,
                                      allocOnFill(pkt->cmd));
                 if (mshr->getNumTargets() >= numTarget) {
@@ -459,6 +484,31 @@ BaseCache::handleTimingReqMiss(PacketPtr pkt, MSHR *mshr, CacheBlk *blk,
             // Here we are using forward_time, modelling the latency of
             // a miss (outbound) just as forwardLatency, neglecting the
             // lookupLatency component.
+            // [MDSPEC][H4] mshr_alloc event (spec sheet 9 C-chain L2:
+            // "miss→MSHR allocate"). mshr_id is a freshly allocated real id
+            // for this miss line (kept until the fill frees it); set/way are
+            // reported when the target block is already known.
+            // Fault-correlated only (blk registry overlap).
+            {
+                CHAOSPropagation *h4a = CHAOSPropagation::instance();
+                if (h4a && pkt && pkt->hasData()) {
+                    Addr h4a_base = 0;
+                    const uint64_t h4a_ptag = h4a->correlateBlock(
+                        pkt->getAddr(), blkSize, &h4a_base);
+                    if (h4a_ptag) {
+                        std::ostringstream h4a_hex;
+                        h4a_hex << std::hex << pkt->getAddr();
+                        const Addr h4a_line = pkt->getBlockAddr(blkSize);
+                        h4a->notePropEvt("mshr_alloc", {
+                            {"fault_id", std::to_string(h4a_ptag)},
+                            {"cache_line", h4a_hex.str()},
+                            {"mshr_id", std::to_string(
+                                h4a->noteMshrAlloc(h4a_line))},
+                            {"state_after", "mshr_allocated"},
+                        });
+                    }
+                }
+            }
             allocateMissBuffer(pkt, forward_time);
         }
     }
@@ -1604,9 +1654,12 @@ BaseCache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
     const bool has_old_data = blk && blk->isValid();
     const std::string old_state = (debug::Cache && blk) ? blk->print() : "";
 
-    // [MDSPEC][H4] unified cache_fill event (spec sheet 9 C-chain: L2 =
-    // "miss→fill"——the faulted block is FILLED from the next level; this
-    // is the fill_id evidence). Fault-correlated only (blk registry).
+    // [MDSPEC][H4] unified cache_fill / mshr_fill / mshr_free events
+    // (spec sheet 9 C-chain: L2 = "miss→fill"; C01 requires
+    // "mshr_id/fill_id/victim_id 及 event 父子关系"). Fault-correlated only
+    // (blk registry). One fill_id is allocated for this fill and reused by
+    // the cache_fill and pf_fill nodes of the same fill.
+    uint64_t h4_fill_id = 0;
     {
         CHAOSPropagation *h4f = CHAOSPropagation::instance();
         if (h4f) {
@@ -1616,10 +1669,35 @@ BaseCache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
             if (h4f_ptag) {
                 std::ostringstream h4f_hex;
                 h4f_hex << std::hex << addr;
+                const Addr h4f_line = addr;
+                h4_fill_id = h4f->noteFill(h4f_line);
+                // mshr_fill: the miss completes (fill_id + the mshr it
+                // serviced), then mshr_free releases that mshr id.
+                h4f->notePropEvt("mshr_fill", {
+                    {"fault_id", std::to_string(h4f_ptag)},
+                    {"cache_line", h4f_hex.str()},
+                    {"mshr_id", std::to_string(
+                        h4f->noteMshrLookup(h4f_line))},
+                    {"fill_id", std::to_string(h4_fill_id)},
+                    {"state_after", "filled"},
+                });
                 h4f->notePropEvt("cache_fill", {
                     {"fault_id", std::to_string(h4f_ptag)},
                     {"pa", h4f_hex.str()},
                     {"cache_line", h4f_hex.str()},
+                    {"fill_id", std::to_string(h4_fill_id)},
+                });
+                h4f->notePropEvt("mshr_free", {
+                    {"fault_id", std::to_string(h4f_ptag)},
+                    {"cache_line", h4f_hex.str()},
+                    {"mshr_id", std::to_string(
+                        h4f->noteMshrFree(h4f_line))},
+                    {"state_after", "mshr_freed"},
+                });
+            }
+        }
+    }
+
                 });
             }
         }
@@ -1807,6 +1885,28 @@ BaseCache::writebackBlk(CacheBlk *blk)
                 "Writeback from read-only cache");
     assert(blk && blk->isValid() &&
         (blk->isSet(CacheBlk::DirtyBit) || writebackClean));
+    // [MDSPEC][H4] cache_writeback event (spec sheet 9 C-chain: dirty
+    // victim's data persists to the next level via writeback). Fault-
+    // correlated only (blk registry overlap on the written-back line).
+    {
+        CHAOSPropagation *h4w = CHAOSPropagation::instance();
+        if (h4w) {
+            Addr h4w_base = 0;
+            const uint64_t h4w_ptag = h4w->correlateBlock(
+                regenerateBlkAddr(blk), blkSize, &h4w_base);
+            if (h4w_ptag) {
+                std::ostringstream h4w_hex;
+                h4w_hex << std::hex << regenerateBlkAddr(blk);
+                h4w->notePropEvt("cache_writeback", {
+                    {"fault_id", std::to_string(h4w_ptag)},
+                    {"cache_line", h4w_hex.str()},
+                    {"pa", h4w_hex.str()},
+                    {"state_before", "dirty"},
+                    {"state_after", "written_back"},
+                });
+            }
+        }
+    }
 
     stats.writebacks[Request::wbRequestorId]++;
 
