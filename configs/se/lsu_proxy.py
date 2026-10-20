@@ -592,6 +592,12 @@ p.add_argument("--chaos_propagation", action="store_true",
                help="attach CHAOSPropagation (L3 propagation trace, [LSU][OBS-L3])")
 p.add_argument("--prop_trace_file", default="prop_trace.csv.gz",
                help="propagation trace output (relative to --outdir)")
+# [MDSPEC][H0] PROP-EVT unified stream identity (spec sheet 11: run_id /
+# sample_run_id must be written into every event; empty = honest unset)
+p.add_argument("--prop_run_id", default="",
+               help="campaign RunID stamped into every PROP-EVT event")
+p.add_argument("--prop_sample_run_id", default="",
+               help="sample index within the RunID (sample_run_id)")
 args = p.parse_args()
 
 # C4-LSU cache hierarchy: stdlib 骨架只为 board 布线; 全部几何在下方
@@ -1145,10 +1151,13 @@ if args.chaos_propagation:
         cpu=cpu0,
         traceFile=args.prop_trace_file,
         writeLog=True,
+        runId=args.prop_run_id,
+        sampleRunId=args.prop_sample_run_id,
     )
     board.chaos_propagation = prop
     print(f"[lsu_proxy] CHAOSPropagation attached "
-          f"(trace={args.prop_trace_file})")
+          f"(trace={args.prop_trace_file}, run_id={args.prop_run_id!r}, "
+          f"sample_run_id={args.prop_sample_run_id!r})")
 
 if args.maxinsts:
     # W1.5b followup fix: BaseCPU's real param is max_insts_any_thread

@@ -25,3 +25,11 @@ class CHAOSPropagation(SimObject):
     addrExpiryTicks = Param.Unsigned(20000000,
         "registry entry lifetime in ticks (0 = never expire); bounds "
         "address-reuse misattribution (lazy sweep on insert/lookup)")
+    # [MDSPEC][H0] PROP-EVT unified stream (spec sheet 11)
+    evtTraceFile = Param.String("prop_evt.txt.gz",
+        "PROP-EVT unified event stream (relative to --outdir; .gz = auto "
+        "gzip; all registry fields per line, empty values kept)")
+    runId = Param.String("", "campaign RunID (spec sheet 11: written into "
+        "every PROP-EVT event; empty = unset, honest empty)")
+    sampleRunId = Param.String("", "sample index within the RunID (spec "
+        "sheet 11 sample_run_id; empty = unset)")

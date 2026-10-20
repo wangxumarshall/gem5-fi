@@ -125,6 +125,7 @@
 #include <map>
 #include <string>
 #include <utility>
+#include <vector>
 
 #include "base/types.hh"
 #include "mem/request.hh"          // RequestPtr (CHAOSAddrPath.hh precedent)
@@ -152,6 +153,41 @@ class CHAOSPropagation : public SimObject
     static CHAOSPropagation *instance() { return chaos_instance; }
 
     void startup() override;
+
+    // ============ PROP-EVT unified stream (spec sheet 11, plan Task H0) ====
+    // prop_evt.txt.gz: one line per propagation event, ALL registry fields
+    // in canonical order, empty values kept as "k=" (keys never omitted):
+    //   PROP-EVT: kind=<v> run_id=<v> ... evidence_status=<v>
+    // event_id shares the v1 node_id counter (PROP-EVT line N joins the v1
+    // CSV row N 1:1). parent_event_id = previous event of the same fault
+    // chain (root inj = ""), so propagation edges are explicit — no
+    // offline guessing. The registry below is the single source of truth;
+    // tools/lsu_prop_fields.py carries an identical copy, pinned equal by
+    // tests/test_lsu_prop_fields.py (emit/parse same-source discipline).
+    // "kind" leads the registry: spec sheet 11 lists 24 data fields but no
+    // event type — without kind the stream is untyped (v1 precedent).
+    static inline const char *const PROP_EVT_FIELDS[] = {
+        "kind", "run_id", "sample_run_id", "fault_id", "event_id",
+        "parent_event_id", "tick", "cycle", "core_id", "thread_id",
+        "dyn_inst_seq", "commit_seq", "pc", "opcode", "lq_idx", "sq_idx",
+        "request_id", "walk_id", "mshr_id", "fill_id", "pf_request_id",
+        "va", "pa", "cache_line", "set", "way", "entry_index", "field",
+        "before", "after", "state_before", "state_after", "arch_reg",
+        "phys_reg", "detection_layer", "contained", "outcome", "oracle_diff",
+        "evidence_status",
+    };
+    static constexpr int N_PROP_EVT_FIELDS =
+        (int)(sizeof(PROP_EVT_FIELDS) / sizeof(PROP_EVT_FIELDS[0]));
+
+    // H1-H7 hook families (and any future observer): emit one unified
+    // event. kv pairs use registry field names; unknown keys are warned
+    // once and dropped (honest, never silently kept). Auto-filled when the
+    // caller leaves them absent: event_id (next counter), parent_event_id
+    // (chain of fault_id), tick, cycle, core_id, run_id / sample_run_id
+    // (params), evidence_status ("observed").
+    void notePropEvt(const std::string &kind,
+                     const std::vector<std::pair<std::string, std::string>> &kv);
+
 
     // ---- injector-facing registration (fault-injection time) --------------
     // addrpath family: an AGU address fault just mutated a request address
@@ -204,7 +240,20 @@ class CHAOSPropagation : public SimObject
     void writeNode(uint64_t ptag, const char *kind, uint64_t dyn_seq,
                    bool has_seq, uint64_t request_id, bool has_req_id,
                    Addr addr, bool has_addr, uint64_t phys_reg, bool has_phys,
-                   uint64_t arch_reg, bool has_arch, const std::string &detail);
+                   uint64_t arch_reg, bool has_arch, const std::string &detail,
+                   int tid = -1);
+
+    // Core PROP-EVT emitter: event_id is the caller-allocated (v1-shared)
+    // counter value; ptag drives the parent_event_id chain. fields may
+    // override auto values (tick/cycle/core_id/run_id/...).
+    void emitPropEvt(const std::string &kind, uint64_t ptag, uint64_t event_id,
+                     std::map<std::string, std::string> fields, int tid);
+
+    // Parse a v1 detail "k=v;k=v" string into the map (used by the
+    // dual-emit to lift old_addr/new_addr/pc/field/block_addr into the
+    // unified before/after/pc/field/cache_line fields).
+    static void parseDetail(const std::string &detail,
+                            std::map<std::string, std::string> &out);
 
     uint64_t fnv1a64(const void *blob, size_t n) const;
     const char *regClassName(int class_value) const;
@@ -218,6 +267,17 @@ class CHAOSPropagation : public SimObject
     bool write_log;                // gate ALL tracking + writing
     uint64_t addr_expiry_ticks;    // registry entry lifetime (0 = never expire)
     gzFile gz_file = nullptr;      // raw zlib stream; crash-durability note
+
+    // PROP-EVT stream (H0): second crash-durable gz; event counter shared
+    // with v1 (event_id == node_id). ptag_last_event gives each fault chain
+    // its previous event id (parent_event_id edge).
+    std::string evt_trace_file;    // simout.resolve target (.gz)
+    std::string run_id;            // campaign RunID (param; "" = unset)
+    std::string sample_run_id;     // sample index within the RunID
+    gzFile evt_gz_file = nullptr;
+    uint64_t clock_period = 0;     // captured at startup(); cycle = tick/period
+    bool evt_unknown_key_warned = false;
+    std::map<uint64_t, uint64_t> ptag_last_event;
 
     static CHAOSPropagation *chaos_instance;
 

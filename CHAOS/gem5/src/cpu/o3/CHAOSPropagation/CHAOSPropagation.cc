@@ -38,7 +38,10 @@ namespace gem5
           cpu(p.cpu),
           trace_file(p.traceFile),
           write_log(p.writeLog),
-          addr_expiry_ticks(p.addrExpiryTicks)
+          addr_expiry_ticks(p.addrExpiryTicks),
+          evt_trace_file(p.evtTraceFile),
+          run_id(p.runId),
+          sample_run_id(p.sampleRunId)
     {
         // CHAOSCache (no CPU pointer) reaches the tracer through the static
         // instance (single-core campaign; BaseCache::chaosVictimHook static
@@ -66,6 +69,27 @@ namespace gem5
                       path.c_str());
             gzflush(gz_file, Z_SYNC_FLUSH);
 
+            // PROP-EVT unified stream (H0): same crash-durability contract
+            // (raw gzFile + per-node Z_SYNC_FLUSH). The '#' header line
+            // carries the registry; the Python parser rejects it as a
+            // non-PROP-EVT line.
+            const std::string epath = simout.resolve(evt_trace_file);
+            evt_gz_file = gzopen(epath.c_str(), "wb");
+            if (!evt_gz_file)
+                panic("CHAOSPropagation: Could not open PROP-EVT file %s",
+                      epath.c_str());
+            std::ostringstream eh;
+            eh << "# prop-evt v1:";
+            for (int i = 0; i < N_PROP_EVT_FIELDS; ++i)
+                eh << " " << PROP_EVT_FIELDS[i];
+            eh << "\n";
+            const std::string ehs = eh.str();
+            if (gzwrite(evt_gz_file, ehs.data(), (unsigned)ehs.size())
+                    != (int)ehs.size())
+                panic("CHAOSPropagation: PROP-EVT header write failed on %s",
+                      epath.c_str());
+            gzflush(evt_gz_file, Z_SYNC_FLUSH);
+
             // Normal-exit trailer: gzclose writes the gzip trailer. MUST be
             // an exit callback, not the destructor — gem5's exit path does
             // not reliably run SimObject destructors (CHAOSMicroSnap
@@ -77,6 +101,10 @@ namespace gem5
                     gzclose(gz_file);
                     gz_file = nullptr;
                 }
+                if (evt_gz_file) {
+                    gzclose(evt_gz_file);
+                    evt_gz_file = nullptr;
+                }
             });
         }
     }
@@ -87,6 +115,10 @@ namespace gem5
         if (gz_file) {
             gzclose(gz_file);
             gz_file = nullptr;
+        }
+        if (evt_gz_file) {
+            gzclose(evt_gz_file);
+            evt_gz_file = nullptr;
         }
         if (chaos_instance == this)
             chaos_instance = nullptr;
@@ -102,6 +134,8 @@ namespace gem5
             return;
         }
         o3cpu = o3;
+        // PROP-EVT cycle field: tick / clockPeriod (integer division).
+        clock_period = o3cpu->clockPeriod();
         // CHAOSCommitTrace/CHAOSMicroSnap setter pattern, both consumers:
         // (a) the CPU pointer the LSQ-side hooks (lsq.cc / lsq_unit.cc)
         //     read via cpu->chaosPropagation;
@@ -162,6 +196,117 @@ namespace gem5
         }
     }
 
+    // ------------------------------------------------------ PROP-EVT (H0)
+
+    void
+    CHAOSPropagation::parseDetail(const std::string &detail,
+                                  std::map<std::string, std::string> &out)
+    {
+        // v1 detail contract: "k=v;k=v", no commas. Keys that match a
+        // unified field name (pc/field) land directly; others are lifted by
+        // the caller where the schema has a home.
+        size_t pos = 0;
+        while (pos < detail.size()) {
+            const size_t semi = detail.find(';', pos);
+            const std::string tok = detail.substr(
+                pos, semi == std::string::npos ? std::string::npos : semi - pos);
+            const size_t eq = tok.find('=');
+            if (eq != std::string::npos)
+                out[tok.substr(0, eq)] = tok.substr(eq + 1);
+            if (semi == std::string::npos)
+                break;
+            pos = semi + 1;
+        }
+    }
+
+    void
+    CHAOSPropagation::emitPropEvt(const std::string &kind, uint64_t ptag,
+                                  uint64_t event_id,
+                                  std::map<std::string, std::string> fields,
+                                  int tid)
+    {
+        if (!write_log || !evt_gz_file)
+            return;
+        // Auto fields: caller-supplied non-empty values win.
+        const Tick now = curTick();
+        if (fields["tick"].empty())
+            fields["tick"] = std::to_string(now);
+        if (fields["cycle"].empty())
+            fields["cycle"] = clock_period
+                ? std::to_string(now / clock_period) : std::string("0");
+        if (fields["core_id"].empty())
+            fields["core_id"] = std::to_string(cpu ? cpu->cpuId() : 0);
+        if (tid >= 0 && fields["thread_id"].empty())
+            fields["thread_id"] = std::to_string(tid);
+        fields["fault_id"] = std::to_string(ptag);
+        fields["event_id"] = std::to_string(event_id);
+        if (fields["parent_event_id"].empty()) {
+            const auto it = ptag_last_event.find(ptag);
+            if (it != ptag_last_event.end() && it->second != event_id)
+                fields["parent_event_id"] = std::to_string(it->second);
+        }
+        if (!run_id.empty() && fields["run_id"].empty())
+            fields["run_id"] = run_id;
+        if (!sample_run_id.empty() && fields["sample_run_id"].empty())
+            fields["sample_run_id"] = sample_run_id;
+        if (fields["evidence_status"].empty())
+            fields["evidence_status"] = "observed";   // spec sheet 11 default
+        // kind is forced — the caller cannot retype an event.
+        fields["kind"] = kind;
+
+        std::ostringstream row;
+        row << "PROP-EVT:";
+        for (int i = 0; i < N_PROP_EVT_FIELDS; ++i) {
+            const auto it = fields.find(PROP_EVT_FIELDS[i]);
+            row << ' ' << PROP_EVT_FIELDS[i] << '='
+                << (it == fields.end() ? "" : it->second);
+        }
+        row << '\n';
+        const std::string s = row.str();
+        if (gzwrite(evt_gz_file, s.data(), (unsigned)s.size()) != (int)s.size())
+            panic("CHAOSPropagation: PROP-EVT write failed (event %llu)",
+                  (unsigned long long)event_id);
+        gzflush(evt_gz_file, Z_SYNC_FLUSH);
+        if (ptag != 0)
+            ptag_last_event[ptag] = event_id;
+    }
+
+    void
+    CHAOSPropagation::notePropEvt(
+        const std::string &kind,
+        const std::vector<std::pair<std::string, std::string>> &kv)
+    {
+        if (!write_log || !evt_gz_file)
+            return;
+        std::map<std::string, std::string> fields;
+        uint64_t ptag = 0;
+        for (const auto &pair : kv) {
+            bool known = false;
+            for (int i = 0; i < N_PROP_EVT_FIELDS; ++i) {
+                if (pair.first == PROP_EVT_FIELDS[i]) {
+                    known = true;
+                    break;
+                }
+            }
+            if (!known) {
+                if (!evt_unknown_key_warned) {
+                    warn("CHAOSPropagation: PROP-EVT unknown field '%s' "
+                         "(dropped; further drops are silent)\n",
+                         pair.first.c_str());
+                    evt_unknown_key_warned = true;
+                }
+                continue;
+            }
+            fields[pair.first] = pair.second;
+        }
+        const auto fp = fields.find("fault_id");
+        if (fp != fields.end() && !fp->second.empty())
+            ptag = strtoull(fp->second.c_str(), nullptr, 10);
+        emitPropEvt(kind, ptag, next_node_id++, std::move(fields), -1);
+    }
+
+    // ------------------------------------------------------------------ util
+
     void
     CHAOSPropagation::writeNode(uint64_t ptag, const char *kind,
                                 uint64_t dyn_seq, bool has_seq,
@@ -169,7 +314,7 @@ namespace gem5
                                 Addr addr, bool has_addr,
                                 uint64_t phys_reg, bool has_phys,
                                 uint64_t arch_reg, bool has_arch,
-                                const std::string &detail)
+                                const std::string &detail, int tid)
     {
         if (!write_log || !gz_file)
             return;
@@ -195,6 +340,39 @@ namespace gem5
         // Crash durability (W2.1 contract): one flush per node — an aborted
         // run keeps every completed node readable (trailer-less prefix).
         gzflush(gz_file, Z_SYNC_FLUSH);
+
+        // PROP-EVT dual-emit (H0): same event in the unified sheet-11
+        // schema; event_id == this node_id (1:1 join with the v1 CSV row).
+        // Funnel rows are not propagation events — no dual-emit.
+        if (strcmp(kind, "funnel") != 0) {
+            std::map<std::string, std::string> f;
+            parseDetail(detail, f);
+            if (has_seq)
+                f["dyn_inst_seq"] = std::to_string(dyn_seq);
+            if (has_req_id)
+                f["request_id"] = std::to_string(request_id);
+            if (has_addr) {
+                std::ostringstream a;
+                a << std::hex << addr;
+                f["va"] = a.str();
+            }
+            if (has_phys)
+                f["phys_reg"] = std::to_string(phys_reg);
+            if (has_arch)
+                f["arch_reg"] = std::to_string(arch_reg);
+            // detail lifts: old_addr/new_addr → before/after; block_addr →
+            // cache_line; pc=/field= already land on their unified names.
+            const auto oa = f.find("old_addr");
+            if (oa != f.end())
+                f["before"] = oa->second;
+            const auto na = f.find("new_addr");
+            if (na != f.end())
+                f["after"] = na->second;
+            const auto ba = f.find("block_addr");
+            if (ba != f.end())
+                f["cache_line"] = ba->second;
+            emitPropEvt(kind, ptag, next_node_id, std::move(f), tid);
+        }
         ++next_node_id;
     }
 
@@ -464,7 +642,8 @@ namespace gem5
               << ";src_idx=" << i << ";pc=" << std::hex << pc << std::dec;
             writeNode(it->second.ptag, "consumer", head_inst->seqNum, true,
                       0, false, 0, false, phys->index(), true,
-                      head_inst->srcRegIdx(i).index(), true, d.str());
+                      head_inst->srcRegIdx(i).index(), true, d.str(),
+                      (int)tid);
         }
 
         // Dests: is this the faulting load itself committing its tainted
@@ -498,7 +677,8 @@ namespace gem5
                                              : "faulting_load_commit")
               << ";pc=" << std::hex << pc << std::dec;
             writeNode(ptag, "errant_commit", head_inst->seqNum, true,
-                      0, false, 0, false, 0, false, 0, false, d.str());
+                      0, false, 0, false, 0, false, 0, false, d.str(),
+                      (int)tid);
             errant_commit_seen = true;
         }
 
