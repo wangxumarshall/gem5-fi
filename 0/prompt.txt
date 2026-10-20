@@ -35,3 +35,7 @@ docs/gem5-fi/lsu/gem5-fi-LSU单元故障注入方案.md
 ---
 
 @docs/cpu/o3-atlas/diagrams/ 重新重构这个图，要求体现 cpu微架构，以及每个微架构的故障注入的能力
+
+---
+
+还是微架构的流水线。要在cpu微架构的pipeline的下方 体现故障注入能力
