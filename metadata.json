@@ -3,7 +3,7 @@
   "checkpoint_id": "01M5CENVD6AJMFT2ZM3V5R03F4",
   "strategy": "manual-commit",
   "branch": "lsu-mdspec-20261019",
-  "checkpoints_count": 1,
+  "checkpoints_count": 6,
   "files_touched": [
     "docs/gem5-fi/lsu/mdspec/blockers_for_approval.md"
   ],
@@ -14,13 +14,20 @@
       "compact_transcript": "/0/transcript.jsonl",
       "content_hash": "/0/content_hash.txt",
       "prompt": ""
+    },
+    {
+      "metadata": "/1/metadata.json",
+      "transcript": "/1/full.jsonl",
+      "compact_transcript": "/1/transcript.jsonl",
+      "content_hash": "/1/content_hash.txt",
+      "prompt": "/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 2717,
+    "input_tokens": 7178430,
     "cache_creation_tokens": 0,
-    "cache_read_tokens": 553984,
-    "output_tokens": 1143,
-    "api_call_count": 1
+    "cache_read_tokens": 350524032,
+    "output_tokens": 603362,
+    "api_call_count": 590
   }
 }
