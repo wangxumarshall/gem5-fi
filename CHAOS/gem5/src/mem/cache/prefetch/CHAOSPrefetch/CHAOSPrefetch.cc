@@ -5,6 +5,9 @@
 
 #include <string>
 
+// [MDSPEC][H5] prefetch fault registration with the propagation tracer
+// (static instance — CHAOSCache precedent; the prefetcher has no CPU ptr).
+#include "cpu/o3/CHAOSPropagation/CHAOSPropagation.hh"
 #include "sim/sim_exit.hh"        // registerExitCallback (W2 summary line)
 
 namespace gem5
@@ -131,6 +134,24 @@ namespace gem5
         if (!go) return;
         if (max_faults != 0 && faults_injected >= max_faults) return;
         ++faults_injected;
+
+        // [MDSPEC][H5] Register the prefetch fault with the propagation
+        // tracer and emit the unified pf_train event (the single injection
+        // funnel — every mode passes through here). The whole-block
+        // registration [pf_addr, pf_addr+line_size) lets later demand
+        // loads / cache events on the faulted line correlate (correlateBlock
+        // / blk_registry). nullptr tracer = no-op (no CHAOSPropagation
+        // attached). pf_request_id = injector-local fault counter.
+        if (CHAOSPropagation *h5 = CHAOSPropagation::instance()) {
+            const uint64_t h5_ptag = h5->registerCacheFault(
+                pf_addr, -1, line_size, "prefetch");
+            if (h5_ptag) {
+                h5->notePropEvt("pf_train", {
+                    {"fault_id", std::to_string(h5_ptag)},
+                    {"pf_request_id", std::to_string(faults_injected)},
+                });
+            }
+        }
 
         switch (fi_mode) {
           case Mode::P01StrideBitflip: {

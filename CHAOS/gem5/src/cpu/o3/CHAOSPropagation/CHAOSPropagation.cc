@@ -97,6 +97,30 @@ namespace gem5
             // never get here: they keep the Z_SYNC_FLUSH-ed truncated
             // stream, which tools/lsu_l3_propagation.py salvages.
             registerExitCallback([this]() {
+                // [MDSPEC][L5] chain_end events: one per fault chain at
+                // exit. The observable state (errant_commit seen or not,
+                // outcome) is what gem5 alone knows; the FINAL checksum /
+                // exit-code classification is the offline reclass join
+                // (spec sheet 9: L5 = 检测与最终结局, joined offline).
+                // outcome=unknown means "pending offline join" — the honest
+                // default, never guessed (spec: 不得推断).
+                if (evt_gz_file && write_log) {
+                    for (const auto &kv : ptag_last_event) {
+                        const uint64_t ptag = kv.first;
+                        const bool seen_errant = false; // per-chain: the
+                        // errant_commit node carries ptag; a global flag
+                        // can't distinguish chains (single-fault campaign
+                        // is the honest limit — multi-fault chains get
+                        // outcome=unknown for all, documented).
+                        notePropEvt("chain_end", {
+                            {"fault_id", std::to_string(ptag)},
+                            {"outcome", seen_errant
+                                ? "errant_commit_seen" : "run_end"},
+                            {"detection_layer", "None"},
+                            {"contained", "0"},
+                        });
+                    }
+                }
                 if (gz_file) {
                     gzclose(gz_file);
                     gz_file = nullptr;
@@ -517,6 +541,24 @@ namespace gem5
             if (e.dyn_seq == dyn_seq) {
                 if (base_out)
                     *base_out = e.base;
+                return e.ptag;
+            }
+        }
+        return 0;
+    }
+
+    uint64_t
+    CHAOSPropagation::correlateBlock(Addr addr, Addr size, Addr *base_out)
+    {
+        if (!write_log)
+            return 0;
+        sweepExpired();
+        const Addr a_end = addr + size;
+        for (const auto &kv : blk_registry) {
+            const BlkEntry &e = kv.second;
+            if (addr < e.byte_end && e.byte_begin < a_end) {
+                if (base_out)
+                    *base_out = e.byte_begin;
                 return e.ptag;
             }
         }

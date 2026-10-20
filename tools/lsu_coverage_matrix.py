@@ -18,15 +18,21 @@ from collections import Counter
 from pathlib import Path
 
 # 钩子族注册表：装好一族 → True（Phase B H 任务逐族翻转；初始全 False=未装）
+# 2026-10-20 翻转：H0-H7 全部落地（H0 bb67558f / H1 ec2fe6f7 / H2 2392c69d /
+# H7 bf42de5f / H3-H6 本批）——真实小跑证据见各 commit message。
+# 诚实例外：H2 的 FS-only walk/refill（tlb.cc/table_walker.cc）随 W4
+# BLOCKED 推迟（SE 侧 translate 漏斗已覆盖）；H7 lq_read 的 AGU-load 命中
+# 触发面结构性缺席（SE F0 首事件恒为启动 store）——均不阻塞链证明
+#（L2 由 tlb_translate/lsq_sendfrag、L3 由 lq_complete 承载）。
 HOOK_REGISTRY = {
-    "H0_prop_fields": False,      # CHAOSPropagation 表11 字段扩展
-    "H1_lsq_unified": False,      # lsq.cc pushRequest/sendFragment 统一事件
-    "H2_tlb_trace": False,        # CHAOSTLBTrace
-    "H3_sq_trace": False,         # CHAOSLSQTrace（SQ）
-    "H4_cache_ext": False,        # cache.cc 扩展
-    "H5_prefetch_trace": False,   # CHAOSPrefetchTrace
-    "H6_atomic_trace": False,     # CHAOSAtomicTrace
-    "H7_lq_trace": False,         # LQ 逐事件
+    "H0_prop_fields": True,       # CHAOSPropagation 表11 字段扩展（bb67558f）
+    "H1_lsq_unified": True,       # lsq.cc pushRequest/sendFragment（ec2fe6f7）
+    "H2_tlb_trace": True,         # mmu.cc translateTiming 漏斗（2392c69d）
+    "H3_sq_trace": True,          # lsq_unit.cc executeStore/completeStore
+    "H4_cache_ext": True,         # cache.cc access/evictBlock
+    "H5_prefetch_trace": True,    # CHAOSPrefetch 注入漏斗注册
+    "H6_atomic_trace": True,      # lsq.cc pushRequest isAtomic
+    "H7_lq_trace": True,          # lsq_unit.cc read + noteMemResponse（bf42de5f）
 }
 # 单元 → 该单元路径全链所需的钩子族（表 9 传播路径 L1-L3 段的最小集合）
 UNIT_HOOKS = {

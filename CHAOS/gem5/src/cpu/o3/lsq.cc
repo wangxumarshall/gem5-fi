@@ -829,6 +829,25 @@ LSQ::pushRequest(const DynInstPtr& inst, bool isLoad, uint8_t *data,
         }
     }
 
+    // [MDSPEC][H6] unified atomic_op event (spec sheet 9: atomic/sync
+    // chain — the atomic request enters the LSQ; L2). Same correlation as
+    // lsq_push; isAtomic = non-null amo functor (pushRequest:772). The
+    // exclusive-monitor side (LDXR/STXR) is covered by CHAOSExMon.
+    if (cpu->chaosPropagation && isAtomic) {
+        const uint64_t h6_ptag = cpu->chaosPropagation->correlateRequest(
+            inst->seqNum, addr, size);
+        if (h6_ptag) {
+            std::ostringstream h6_hex;
+            h6_hex << std::hex << addr;
+            cpu->chaosPropagation->notePropEvt("atomic_op", {
+                {"fault_id", std::to_string(h6_ptag)},
+                {"dyn_inst_seq", std::to_string(inst->seqNum)},
+                {"va", h6_hex.str()},
+                {"field", "amo"},
+            });
+        }
+    }
+
     ThreadID tid = cpu->contextToThread(inst->contextId());
     auto cacheLineSize = cpu->cacheLineSize();
     bool needs_burst = transferNeedsBurst(addr, size, cacheLineSize);

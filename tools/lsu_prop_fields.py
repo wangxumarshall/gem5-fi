@@ -49,6 +49,17 @@ KIND_LAYER = {
     # [MDSPEC][H7] LQ 逐事件（表 9：lq_idx 生命周期；read/completion 属
     # L3 访存发射与返回；insert 在 dispatch 期早于注入注册、结构性缺席）
     "lq_read": "L3", "lq_complete": "L3",
+    # [MDSPEC][H3] SQ 生命周期（execute/writeback/complete；drain 属 L3 访存侧）
+    "sq_execute": "L3", "sq_writeback": "L3", "sq_complete": "L3",
+    # [MDSPEC][H4] cache 结构事件（L1=lookup / L2=hit返回·miss+fill+evict）
+    "cache_access": "L1", "cache_return": "L2", "cache_fill": "L2",
+    "cache_evict": "L2",
+    # [MDSPEC][H5] prefetch 链（训练/发射）
+    "pf_train": "L1", "pf_issue": "L2",
+    # [MDSPEC][H6] atomic 事件链
+    "atomic_op": "L2",
+    # [MDSPEC][L5] 链终局（退出回调发射；outcome=detection_layer/contained）
+    "chain_end": "L5",
 }
 _LAYER_ORDER = ["L0", "L1", "L2", "L3", "L4", "L5"]
 
@@ -65,6 +76,24 @@ REQUIRED_FIELDS = {
     # [MDSPEC][H7] LQ 生命周期（va 取注册表 base；pa=响应地址）
     "lq_read": ["fault_id", "dyn_inst_seq", "lq_idx", "va"],
     "lq_complete": ["fault_id", "dyn_inst_seq", "lq_idx", "va", "pa"],
+    # [MDSPEC][H3] SQ 生命周期（execute→writeback→complete）
+    "sq_execute": ["fault_id", "dyn_inst_seq", "sq_idx", "va",
+                   "state_before"],
+    "sq_writeback": ["fault_id", "dyn_inst_seq", "sq_idx", "pa"],
+    "sq_complete": ["fault_id", "dyn_inst_seq", "sq_idx", "va",
+                    "state_after"],
+    # [MDSPEC][H4] cache 结构事件（access/return/fill/evict）
+    "cache_access": ["fault_id", "va", "pa"],
+    "cache_return": ["fault_id", "pa", "field"],
+    "cache_fill": ["fault_id", "pa", "cache_line"],
+    "cache_evict": ["fault_id", "cache_line"],
+    # [MDSPEC][H5] prefetch 链
+    "pf_train": ["fault_id", "pf_request_id"],
+    "pf_issue": ["fault_id", "pf_request_id", "va"],
+    # [MDSPEC][H6] atomic 链
+    "atomic_op": ["fault_id", "dyn_inst_seq", "va"],
+    # [MDSPEC][L5] 链终局（退出回调发射）
+    "chain_end": ["fault_id", "outcome", "detection_layer", "contained"],
 }
 
 

@@ -231,6 +231,12 @@ class CHAOSPropagation : public SimObject
     uint64_t correlateRequestBySeq(uint64_t dyn_seq,
                                    Addr *base_out = nullptr);
 
+    // [MDSPEC][H4] Block-address correlation for cache structural events
+    // (access/fill/evict on a faulted block): return the ptag whose
+    // faulted-byte registry overlaps [addr, addr+size); optionally return
+    // the registered base. 0 = not fault-correlated (no event).
+    uint64_t correlateBlock(Addr addr, Addr size, Addr *base_out = nullptr);
+
     // LSQ::LSQRequest::sendFragmentToTranslation: the fragment Request is
     // about to leave for translation/memory. Writes a mem_req node when it
     // matches the addr registry (addrpath) or the faulted-byte registry

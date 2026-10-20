@@ -46,6 +46,10 @@
 #include "mem/cache/base.hh"
 #include "mem/cache/CHAOSCache/CHAOSCache.hh"  // v1.2 Phase 14: victim hook
 #include "cpu/o3/chaos_lsu_trigger.hh"  // LSU W2 F6 event source (CasSuccess)
+// [MDSPEC][H4] cache fill events reach the tracer through the static
+// instance (CHAOSCache precedent — BaseCache has no tracer pointer).
+#include "cpu/o3/CHAOSPropagation/CHAOSPropagation.hh"
+#include <sstream>
 
 #include "base/compiler.hh"
 #include "base/logging.hh"
@@ -1599,6 +1603,27 @@ BaseCache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
     bool is_secure = pkt->isSecure();
     const bool has_old_data = blk && blk->isValid();
     const std::string old_state = (debug::Cache && blk) ? blk->print() : "";
+
+    // [MDSPEC][H4] unified cache_fill event (spec sheet 9 C-chain: L2 =
+    // "miss→fill"——the faulted block is FILLED from the next level; this
+    // is the fill_id evidence). Fault-correlated only (blk registry).
+    {
+        CHAOSPropagation *h4f = CHAOSPropagation::instance();
+        if (h4f) {
+            Addr h4f_base = 0;
+            const uint64_t h4f_ptag = h4f->correlateBlock(
+                addr, blkSize, &h4f_base);
+            if (h4f_ptag) {
+                std::ostringstream h4f_hex;
+                h4f_hex << std::hex << addr;
+                h4f->notePropEvt("cache_fill", {
+                    {"fault_id", std::to_string(h4f_ptag)},
+                    {"pa", h4f_hex.str()},
+                    {"cache_line", h4f_hex.str()},
+                });
+            }
+        }
+    }
 
     // When handling a fill, we should have no writes to this line.
     assert(addr == pkt->getBlockAddr(blkSize));

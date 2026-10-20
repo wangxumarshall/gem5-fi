@@ -51,6 +51,10 @@
 #include "base/compiler.hh"
 #include "base/logging.hh"
 #include "cpu/o3/chaos_lsu_trigger.hh"  // LSU W2 F6 event source (DirtyEviction)
+// [MDSPEC][H4] cache structural events reach the tracer through the static
+// instance (CHAOSCache precedent — BaseCache has no tracer pointer).
+#include "cpu/o3/CHAOSPropagation/CHAOSPropagation.hh"
+#include <sstream>
 #include "base/trace.hh"
 #include "base/types.hh"
 #include "debug/Cache.hh"
@@ -163,6 +167,31 @@ bool
 Cache::access(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
               PacketList &writebacks)
 {
+    // [MDSPEC][H4] unified cache_access event (spec sheet 9: L1 — cache
+    // tag lookup on a faulted block). Fault-correlated only (blk registry
+    // overlap; the propagation stream is a fault stream, spec sheet 11).
+    // Static instance (CHAOSCache precedent — BaseCache has no tracer ptr).
+    {
+        CHAOSPropagation *h4 = CHAOSPropagation::instance();
+        if (h4 && pkt) {
+            Addr h4_base = 0;
+            const uint64_t h4_ptag = h4->correlateBlock(
+                pkt->getAddr(), pkt->getSize(), &h4_base);
+            if (h4_ptag) {
+                std::ostringstream h4_hex;
+                h4_hex << std::hex << pkt->getAddr();
+                const std::string h4_pa = h4_hex.str();
+                h4_hex.str(""); h4_hex.clear();
+                if (pkt->req && pkt->req->hasVaddr())
+                    h4_hex << pkt->req->getVaddr();
+                h4->notePropEvt("cache_access", {
+                    {"fault_id", std::to_string(h4_ptag)},
+                    {"va", h4_hex.str()},
+                    {"pa", h4_pa},
+                });
+            }
+        }
+    }
 
     if (pkt->req->isUncacheable()) {
         assert(pkt->isRequest());
@@ -185,7 +214,29 @@ Cache::access(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
         return false;
     }
 
-    return BaseCache::access(pkt, blk, lat, writebacks);
+    // [MDSPEC][H4] cache_return event (spec sheet 9 C-chain: L2 = "hit
+    // 返回 / miss→fill"——cache 故障的 L2 节点是访问结果而非翻译：故障
+    // 注册在访问时、load 翻译结构性先于注册（C01 实证：tlb_translate
+    // 对 cache 链恒不关联），这是规格 C 路径 L2 的正确落点）。
+    const bool h4_result = BaseCache::access(pkt, blk, lat, writebacks);
+    {
+        CHAOSPropagation *h4r = CHAOSPropagation::instance();
+        if (h4r && pkt) {
+            Addr h4_base = 0;
+            const uint64_t h4r_ptag = h4r->correlateBlock(
+                pkt->getAddr(), pkt->getSize(), &h4_base);
+            if (h4r_ptag) {
+                std::ostringstream h4r_hex;
+                h4r_hex << std::hex << pkt->getAddr();
+                h4r->notePropEvt("cache_return", {
+                    {"fault_id", std::to_string(h4r_ptag)},
+                    {"pa", h4r_hex.str()},
+                    {"field", h4_result ? "hit" : "miss"},
+                });
+            }
+        }
+    }
+    return h4_result;
 }
 
 void
@@ -967,6 +1018,29 @@ Cache::evictBlock(CacheBlk *blk)
     // (writebackClean-driven writebacks of clean lines do NOT count — W1 ④).
     if (blk->isSet(CacheBlk::DirtyBit))
         chaosLsuF6Observe(ChaOSLsuEvent::DirtyEviction);
+
+    // [MDSPEC][H4] unified cache_evict event (spec sheet 9: L2 — a faulted
+    // block is evicted; dirty eviction = the fault PERSISTS to the next
+    // level via writeback). Fault-correlated only (blk registry overlap).
+    {
+        CHAOSPropagation *h4 = CHAOSPropagation::instance();
+        if (h4) {
+            const Addr h4_blk_addr = regenerateBlkAddr(blk);
+            Addr h4_base = 0;
+            const uint64_t h4_ptag = h4->correlateBlock(
+                h4_blk_addr, blkSize, &h4_base);
+            if (h4_ptag) {
+                std::ostringstream h4_hex;
+                h4_hex << std::hex << h4_blk_addr;
+                h4->notePropEvt("cache_evict", {
+                    {"fault_id", std::to_string(h4_ptag)},
+                    {"cache_line", h4_hex.str()},
+                    {"field", blk->isSet(CacheBlk::DirtyBit)
+                        ? "dirty_evict_writeback" : "clean_evict"},
+                });
+            }
+        }
+    }
 
     PacketPtr pkt = (blk->isSet(CacheBlk::DirtyBit) || writebackClean) ?
         writebackBlk(blk) : cleanEvictBlk(blk);

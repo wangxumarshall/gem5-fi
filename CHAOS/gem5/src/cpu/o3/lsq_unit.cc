@@ -723,6 +723,29 @@ LSQUnit::executeStore(const DynInstPtr &store_inst)
 
     assert(!store_inst->isSquashed());
 
+    // [MDSPEC][H3] unified sq_execute event (spec sheet 9: SQ lifecycle —
+    // the store executes in the SQ; L3). Correlated by dyn-seq; va from
+    // the addr registry entry. nullptr tracer / no chain = no event.
+    // state_before/after: SQ entry state at execute time.
+    if (cpu->chaosPropagation) {
+        Addr h3_base = 0;
+        const uint64_t h3_ptag =
+            cpu->chaosPropagation->correlateRequestBySeq(store_inst->seqNum,
+                                                         &h3_base);
+        if (h3_ptag) {
+            std::ostringstream h3_hex;
+            h3_hex << std::hex << h3_base;
+            cpu->chaosPropagation->notePropEvt("sq_execute", {
+                {"fault_id", std::to_string(h3_ptag)},
+                {"dyn_inst_seq", std::to_string(store_inst->seqNum)},
+                {"sq_idx", std::to_string((long long)store_idx)},
+                {"va", h3_hex.str()},
+                {"state_before", "issued"},
+            });
+        }
+    }
+
+
     // Check the recently completed loads to see if any match this store's
     // address.  If so, then we have a memory ordering violation.
     typename LoadQueue::iterator loadIt = store_inst->lqIt;
@@ -917,6 +940,32 @@ LSQUnit::writebackStores()
                 storeWBIt.idx(), inst->pcState(),
                 request->mainReq()->getPaddr(), (int)*(inst->memData),
                 inst->seqNum);
+
+        // [MDSPEC][H3] unified sq_writeback event (spec sheet 9: SQ
+        // lifecycle — the store's packet is BUILT and about to be sent to
+        // the cache; L3). This fires EARLIER than sq_complete (which is the
+        // writeback-ACK path) — it is the L2→L3 evidence for the A01
+        // pilot's startup store whose ACK-path completeStore does not
+        // appear (empirical: a01_bit 5/5 samples; a04 1/1 fires both).
+        // Correlated by dyn-seq via the addr registry.
+        if (cpu->chaosPropagation) {
+            Addr h3wb_base = 0;
+            const uint64_t h3wb_ptag =
+                cpu->chaosPropagation->correlateRequestBySeq(inst->seqNum,
+                                                             &h3wb_base);
+            if (h3wb_ptag) {
+                std::ostringstream h3wb_hex;
+                h3wb_hex << std::hex
+                         << request->mainReq()->getPaddr();
+                cpu->chaosPropagation->notePropEvt("sq_writeback", {
+                    {"fault_id", std::to_string(h3wb_ptag)},
+                    {"dyn_inst_seq", std::to_string(inst->seqNum)},
+                    {"sq_idx", std::to_string((long long)inst->sqIdx)},
+                    {"pa", h3wb_hex.str()},
+                    {"state_after", "packet_built"},
+                });
+            }
+        }
 
         // @todo: Remove this SC hack once the memory system handles it.
         if (inst->isStoreConditional()) {
@@ -1209,6 +1258,29 @@ LSQUnit::completeStore(typename StoreQueue::iterator store_idx)
     /* We 'need' a copy here because we may clear the entry from the
      * store queue. */
     DynInstPtr store_inst = store_idx->instruction();
+
+    // [MDSPEC][H3] unified sq_complete event (spec sheet 9: SQ lifecycle —
+    // the store drained to memory, SQ entry released; L3). Same
+    // correlation as sq_execute; state_after = completed.
+    if (cpu->chaosPropagation) {
+        Addr h3_base = 0;
+        const uint64_t h3_ptag =
+            cpu->chaosPropagation->correlateRequestBySeq(store_inst->seqNum,
+                                                         &h3_base);
+        if (h3_ptag) {
+            std::ostringstream h3_hex;
+            h3_hex << std::hex << h3_base;
+            cpu->chaosPropagation->notePropEvt("sq_complete", {
+                {"fault_id", std::to_string(h3_ptag)},
+                {"dyn_inst_seq", std::to_string(store_inst->seqNum)},
+                {"sq_idx", std::to_string((long long)
+                    store_inst->sqIdx)},
+                {"va", h3_hex.str()},
+                {"state_after", "completed"},
+            });
+        }
+    }
+
     if (store_idx == storeQueue.begin()) {
         do {
             storeQueue.front().clear();
