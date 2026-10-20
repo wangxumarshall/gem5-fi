@@ -10,7 +10,7 @@ spec：`docs/superpowers/specs/2026-10-16-armv8-isa-o3-microarch-atlas-design.md
 - `data/instructions/<category>.yaml` — 372 条指令记录（单一事实源）
 - `pages/` — 生成的每指令一页（与 armv8-isa 文件名 1:1 互链）
 - `index/` — 生成的分类索引
-- `diagrams/` — [O3 总链路图](diagrams/o3-pipeline.svg)（**全部 implemented 指令链路的并集**，数据推导：12 站点 + EXECUTE→WRITEBACK/EXECUTE→MEMORY 分岔 + IQ/LSQ/ROB + FU 并集扇出（IntALU/IntMult/IntDiv/SimdCrcOp/MemRead/MemWrite）+ 误预测回边 + 19 个 CHAOS 注入器挂载；mermaid/dot/svg 三格式）与 [指令×注入器命中矩阵](diagrams/injector-matrix.md)（372×19）
+- `diagrams/` — [O3 微架构总图](diagrams/o3-pipeline.svg)（**µarch 块级**：BPU·FTQ·ICache·Decoder·RAT·FreeList·IQ·LSQ·FU 池·地址通路/TLB·L1D·DRAM·PRF·ROB·架构 RF·观测器；指令流边 = 全部 implemented 指令链路的块级并集（整型 IQ→FU 与访存 IQ→LSQ→TLB→L1D 并存）；**红块 = 可注入单元，每块标注注入器 + 故障模式计数**——模式全集实时解析自 `ooo_proxy.py`，与实验工具面同源；mermaid/dot/svg 三格式）· [微架构单元×注入能力表](diagrams/injection-capabilities.md)（每注入器的模式全集/破坏目标/挂载锚点）· [指令×注入器命中矩阵](diagrams/injector-matrix.md)（372×19）
 
 ## 工具
 

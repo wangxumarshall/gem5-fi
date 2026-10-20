@@ -1,73 +1,35 @@
 flowchart LR
-    BPU["BPU · bac.cc:565"]
-    FTQ["FTQ · ftq.cc:186"]
-    FETCH["FETCH · fetch.cc:1059"]
-    DECODE["DECODE · decode.cc:636"]
-    RENAME["RENAME · rename.cc:537"]
-    DISPATCH["DISPATCH · iew.cc:881"]
-    ISSUE["ISSUE · inst_queue.cc:868"]
-    EXECUTE["EXECUTE · iew.cc:1138"]
-    MEMORY["MEMORY · lsq_unit.cc:1730"]
-    WRITEBACK["WRITEBACK · iew.cc:1380"]
-    COMMIT["COMMIT · commit.cc:1125"]
-    REDIRECT["REDIRECT · fetch.cc:711"]
-    IQ["IQ · inst_queue.cc:868"]
-    LSQ["LSQ（LQ/SQ→L1D/TLB）· lsq_unit.cc:338"]
-    ROB["ROB · rob.cc:194"]
+    BPU["BPU 分支预测器（BTB·RAS·方向/目标）<br/>⚡CHAOSBPU(2模式)"]:::cap
+    FTQ["FTQ 取指目标队列<br/>无注入挂载"]:::plain
+    ICACHE["ICache 取指<br/>无注入挂载"]:::plain
+    DECODER["Decoder（编码→StaticInst）<br/>⚡CHAOSDecode(26模式)"]:::cap
+    RAT["RAT 重命名映射表<br/>⚡CHAOSRenameMap(14模式)"]:::cap
+    FREELIST["FreeList 空闲物理寄存器表<br/>⚡CHAOSFreeList(7模式)"]:::cap
+    IQ["IQ 发射队列（源标签 CAM·就绪位·唤醒）<br/>⚡CHAOSIQ(12模式)"]:::cap
+    LSQ["LSQ（LQ/SQ·store→load 前送·独占监视）<br/>⚡CHAOSLSQFwd(6模式) ⚡CHAOSExMon(2模式)"]:::cap
+    FU["FU 池（IntALU·IntDiv·IntMult·SimdCrcOp）<br/>⚡CHAOSExec(整数结果 XOR 位翻转（exec_fault_mask 参数化）) ⚡CHAOSFPU(6模式)"]:::cap
+    TLBPATH["地址通路（翻译前 vaddr·TLB）<br/>⚡CHAOSAddrPath(2模式)"]:::cap
+    L1D["L1D 返回通路（ECC 后包数据）<br/>⚡CHAOSL1DForward(L1D 返回包数据位翻转（fault_mask 参数化）) ⚡CHAOSCache(cache 行数据注入（arm_chaos_cache 配置族）)"]:::cap
+    DRAM["内存子系统（DRAM 保护模型）<br/>⚡CHAOSMem(参数化注入)"]:::cap
+    PRF["PRF 物理寄存器堆<br/>⚡CHAOSPhysReg(3模式)"]:::cap
+    ROB["ROB 重排序缓冲（pc·dest·done·exc·指针）<br/>⚡CHAOSROB(28模式) ⚡CHAOSRAS(提交期 head fault 清除（异常抑制）)"]:::cap
+    ARCHRF["架构寄存器堆（提交态）<br/>⚡CHAOSReg(4模式)"]:::cap
+    OBS["观测器（占基采样·commit 轨迹，只读）<br/>👁CHAOSProbe(观测) 👁CHAOSCommitTrace(观测)"]:::cap
     BPU --> FTQ
-    COMMIT -.误预测恢复.-> REDIRECT
-    DECODE --> RENAME
-    DISPATCH --> ISSUE
-    EXECUTE --> MEMORY
-    EXECUTE --> WRITEBACK
-    FETCH --> DECODE
-    FTQ --> FETCH
-    ISSUE --> EXECUTE
-    MEMORY --> WRITEBACK
-    RENAME --> DISPATCH
-    WRITEBACK --> COMMIT
-    REDIRECT -.-> FETCH
-    DISPATCH --> IQ
-    IQ --> ISSUE
-    DISPATCH --> LSQ
-    LSQ --> ISSUE
-    RENAME --> ROB
-    ROB --> COMMIT
-    FU_IntALU["IntALU"]
-    EXECUTE --> FU_IntALU
-    FU_IntALU --> WRITEBACK
-    FU_IntDiv["IntDiv"]
-    EXECUTE --> FU_IntDiv
-    FU_IntDiv --> WRITEBACK
-    FU_IntMult["IntMult"]
-    EXECUTE --> FU_IntMult
-    FU_IntMult --> WRITEBACK
-    FU_SimdCrcOp["SimdCrcOp"]
-    EXECUTE --> FU_SimdCrcOp
-    FU_SimdCrcOp --> WRITEBACK
-    FU_MemReadOp["MemReadOp"]
-    LSQ --> FU_MemReadOp
-    FU_MemReadOp --> MEMORY
-    FU_MemWriteOp["MemWriteOp"]
-    LSQ --> FU_MemWriteOp
-    FU_MemWriteOp --> MEMORY
-    CHAOSAddrPath[CHAOSAddrPath]:::chaos -.命中.-> MEMORY
-    CHAOSBPU[CHAOSBPU]:::chaos -.命中.-> BPU
-    CHAOSCache[CHAOSCache]:::chaos -.命中.-> MEMORY
-    CHAOSCommitTrace[CHAOSCommitTrace]:::chaos -.命中.-> COMMIT
-    CHAOSDecode[CHAOSDecode]:::chaos -.命中.-> DECODE
-    CHAOSExMon[CHAOSExMon]:::chaos -.命中.-> MEMORY
-    CHAOSExec[CHAOSExec]:::chaos -.命中.-> EXECUTE
-    CHAOSFPU[CHAOSFPU]:::chaos -.命中.-> EXECUTE
-    CHAOSFreeList[CHAOSFreeList]:::chaos -.命中.-> RENAME
-    CHAOSIQ[CHAOSIQ]:::chaos -.命中.-> ISSUE
-    CHAOSL1DForward[CHAOSL1DForward]:::chaos -.命中.-> MEMORY
-    CHAOSLSQFwd[CHAOSLSQFwd]:::chaos -.命中.-> MEMORY
-    CHAOSMem[CHAOSMem]:::chaos -.命中.-> MEMORY
-    CHAOSPhysReg[CHAOSPhysReg]:::chaos -.命中.-> EXECUTE
-    CHAOSProbe[CHAOSProbe]:::chaos -.命中.-> COMMIT
-    CHAOSRAS[CHAOSRAS]:::chaos -.命中.-> COMMIT
-    CHAOSROB[CHAOSROB]:::chaos -.命中.-> COMMIT
-    CHAOSReg[CHAOSReg]:::chaos -.命中.-> COMMIT
-    CHAOSRenameMap[CHAOSRenameMap]:::chaos -.命中.-> RENAME
-    classDef chaos fill:#fdd,stroke:#900,stroke-width:2px
+    DECODER --> RAT
+    FREELIST --> IQ
+    FTQ --> ICACHE
+    FU --> PRF
+    ICACHE --> DECODER
+    IQ --> FU
+    IQ --> LSQ
+    L1D --> PRF
+    LSQ --> TLBPATH
+    PRF --> ROB
+    RAT --> FREELIST
+    ROB --> ARCHRF
+    TLBPATH --> L1D
+    FU -.-> ICACHE
+    L1D --> DRAM
+    classDef cap fill:#fdd,stroke:#900,stroke-width:2px
+    classDef plain fill:#eee,stroke:#999
