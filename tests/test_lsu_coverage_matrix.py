@@ -1,5 +1,14 @@
 #!/usr/bin/env python3
-"""test_lsu_coverage_matrix.py — [MDSPEC][B2] 覆盖矩阵（Review Focus #1 核心）。"""
+"""[MDSPEC][B2] 覆盖矩阵（Review Focus #1 核心）——2026-10-20 证据化重写。
+
+旧版用 8 个注册表布尔值判 PASS，被实证证伪（H4/H5/H6 有整族节点未实现仍判
+PASS）。新版判据：**逐节点、双证据**（实现 + 真实运行观测），见
+tools/lsu_coverage_matrix.py 头注释。本测试钉死：
+  1. 无证据文件时**任何**非 BLOCKED 都不能 PASS（"没证据"≠"已实现"）；
+  2. 缺**任一**节点即 PARTIAL 并逐项列出（不得因族内多数节点在就判完成）；
+  3. BLOCKED 数与 runid_map 守恒；
+  4. 证据充分时对应单元转 PASS（反向验证判据不是恒假）。
+"""
 import json
 import subprocess
 import sys
@@ -15,37 +24,59 @@ def main():
     fails = []
 
     def check(name, cond, detail=""):
-        print(("PASS " if cond else "FAIL ") + name + ("   <- " + detail if not cond else ""))
+        print(("PASS " if cond else "FAIL ") + name +
+              ("   <- " + detail if not cond else ""))
         if not cond:
             fails.append(name)
 
     m = json.loads((ROOT / "docs/gem5-fi/lsu/mdspec/runid_map.json")
                    .read_text(encoding="utf-8"))
-    rows = [(e["run_id"],) + CM.assess(e) for e in m["entries"]]
-    st = [r[1] for r in rows]
-    # Review Focus #1：钩子未装时 PASS 必须为 0（部分已有≠完整实现）
-    check("baseline_pass_is_zero", st.count("PASS") == 0, f"PASS={st.count('PASS')}")
-    check("blocked_count_matches_map",
+    entries = m["entries"]
+    live = [e for e in entries if e["status"] != "BLOCKED"]
+
+    # --- 1. 无证据 ⇒ 非 BLOCKED 一律 PARTIAL（PASS 必须由证据支撑） -------
+    st = [CM.assess(e, None)[0] for e in entries]
+    check("no_evidence_means_no_pass", st.count("PASS") == 0,
+          f"PASS={st.count('PASS')}")
+    check("blocked_count_conserved",
           st.count("BLOCKED") == m["summary"]["status"]["BLOCKED"],
           f"matrix={st.count('BLOCKED')} map={m['summary']['status']['BLOCKED']}")
     check("partial_is_rest",
-          st.count("PARTIAL") == 325 - st.count("BLOCKED") - st.count("PASS"),
+          st.count("PARTIAL") == len(entries) - st.count("BLOCKED"),
           f"PARTIAL={st.count('PARTIAL')}")
-    # 装一个族的 AGU 路径不全（H1/H2/H0 三族才 PASS）——逐族翻转语义
-    CM.HOOK_REGISTRY["H1_lsq_unified"] = True
-    agu = [e for e in m["entries"] if e["unit"] == "AGU" and e["status"] != "BLOCKED"]
-    check("agu_still_partial_with_one_hook",
-          all(CM.assess(e)[0] == "PARTIAL" for e in agu),
+
+    # --- 2. 族内缺一个节点 ⇒ PARTIAL，且该节点被逐项列出 ------------------
+    # AGU 需要 11 个节点；只给 10 个（缺 chain_end）必须 PARTIAL 并指名
+    agu = [e for e in live if e["unit"] == "AGU"]
+    req = CM.UNIT_REQUIRED_NODES["AGU"]
+    partial_evidence = {"kinds_observed": [k for k in req if k != "chain_end"]}
+    res = [CM.assess(e, partial_evidence) for e in agu]
+    check("one_missing_node_blocks_family",
+          all(r[0] == "PARTIAL" for r in res),
           f"n_agu={len(agu)}")
-    CM.HOOK_REGISTRY["H2_tlb_trace"] = True
-    CM.HOOK_REGISTRY["H0_prop_fields"] = True
-    check("agu_passes_with_all_three_hooks",
-          all(CM.assess(e)[0] == "PASS" for e in agu),
-          f"n_agu={len(agu)} reasons={CM.assess(agu[0]) if agu else None}")
-    CM.HOOK_REGISTRY["H1_lsq_unified"] = False
-    CM.HOOK_REGISTRY["H2_tlb_trace"] = False
-    CM.HOOK_REGISTRY["H0_prop_fields"] = False
-    # CLI 全链
+    check("missing_node_named_in_reason",
+          all(any("chain_end" in w for w in r[1]) for r in res),
+          str(res[0][1] if res else None))
+
+    # --- 3. 证据充分 + 节点齐 ⇒ PASS（判据可满足，非恒假） -----------------
+    full_evidence = {"kinds_observed": list(req)}
+    res2 = [CM.assess(e, full_evidence) for e in agu]
+    check("all_nodes_evidence_and_impl_passes",
+          all(r[0] == "PASS" for r in res2),
+          str(res2[0] if res2 else None))
+
+    # --- 4. 未实现的节点即使"证据齐"也不能 PASS（实现证据不可绕过） --------
+    fake_evidence = {"kinds_observed": req + ["totally_made_up_kind"]}
+    # 把 AGU 需求里塞一个不存在的 kind：模拟"规格要求但发射端没实现"
+    CM.UNIT_REQUIRED_NODES["AGU"] = req + ["not_implemented_kind"]
+    res3 = [CM.assess(e, fake_evidence) for e in agu]
+    check("unimplemented_node_blocks_pass",
+          all(r[0] == "PARTIAL" and
+              any("not_implemented_kind" in w for w in r[1]) for r in res3),
+          str(res3[0][1] if res3 else None))
+    CM.UNIT_REQUIRED_NODES["AGU"] = req
+
+    # --- 5. CLI 端到端 -----------------------------------------------------
     r = subprocess.run(
         [sys.executable, str(ROOT / "tools/lsu_coverage_matrix.py"),
          "--map", str(ROOT / "docs/gem5-fi/lsu/mdspec/runid_map.json"),
@@ -53,7 +84,17 @@ def main():
         capture_output=True, text=True, timeout=120)
     check("cli_generates_matrix",
           r.returncode == 0 and "PASS=0" in r.stdout,
-          f"rc={r.returncode} out={r.stdout.strip()[:120]}")
+          f"rc={r.returncode} out={r.stdout.strip()[:140]}")
+    ev = ROOT / "docs/gem5-fi/lsu/mdspec/pilot_evidence.json"
+    if ev.exists():
+        r2 = subprocess.run(
+            [sys.executable, str(ROOT / "tools/lsu_coverage_matrix.py"),
+             "--map", str(ROOT / "docs/gem5-fi/lsu/mdspec/runid_map.json"),
+             "--evidence", str(ev),
+             "--out", "/tmp/mdspec_coverage_test_ev.md"],
+            capture_output=True, text=True, timeout=120)
+        check("cli_with_evidence_runs",
+              r2.returncode == 0, f"rc={r2.returncode} {r2.stderr[-160:]}")
 
     print(f"\nFAILURES: {fails if fails else '无'}")
     return 1 if fails else 0

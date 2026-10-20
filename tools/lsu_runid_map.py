@@ -55,6 +55,12 @@ def _resolve_workload(spec_name):
                 if cand.exists():
                     return binary, None
             return None, f"WL_BINARY 映射 {key}→{binary} 但二进制不存在"
+    # WL_BINARY 未命中时查负载级结构性封锁表（README §8.3：多核 FS /
+    # FS 基础设施 / SPEC 授权）——此前只输出"无映射"，掩盖了真实的外部
+    # 阻塞类别（B2 triage 需要互斥原因）。长键优先，与 WL_BINARY 同序。
+    for key, reason in sorted(lc.WL_BLOCKED.items(), key=lambda kv: -len(kv[0])):
+        if spec_name.startswith(key):
+            return None, f"workload-level:{reason}"
     return None, "规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
 
 

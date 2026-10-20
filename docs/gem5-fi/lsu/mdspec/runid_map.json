@@ -1442,7 +1442,7 @@
     "spec_name": "TLB-AliasPerm 地址翻译探针（4KiB/2MiB 页、ASID、同VA不同PA、权限、TLBI、跨页访问）",
     "binary": null,
     "golden": null,
-    "note": "规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "note": "workload-level:blocked(fs-infra: TLB workload needs FS)"
    },
    "path_raw": "[T01-F0-W4] L0 CHAOSArmTLB表项/查找结果注入 → L1 DTLB lookup(tag/ASID/valid/way/PPN/permission/page-size) → L2 hit或miss→page walk→refill/TLBI→翻译完成(PA或fault) → L3 LSQ Request进入L1D/下级内存 → L4 load返回PRF或store落点/异常处理 → L5 commit/squash与软件oracle结局。本Run触发=DTLB中存在有效项；频率=F0；负载=TLB-AliasPerm 地址翻译探针（4KiB/2MiB 页、ASID、同VA不同PA、权限、TLBI、跨页访问）。",
    "path_nodes": [
@@ -1462,7 +1462,7 @@
    "impl_status": "部分已有（只有注入或通用commit监控；必须新增单元级传播事件）",
    "status": "BLOCKED",
    "status_reasons": [
-    "workload:规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "workload:workload-level:blocked(fs-infra: TLB workload needs FS)"
    ],
    "target_activated_samples": "385"
   },
@@ -1512,7 +1512,7 @@
     "spec_name": "TLB-AliasPerm 地址翻译探针（4KiB/2MiB 页、ASID、同VA不同PA、权限、TLBI、跨页访问）",
     "binary": null,
     "golden": null,
-    "note": "规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "note": "workload-level:blocked(fs-infra: TLB workload needs FS)"
    },
    "path_raw": "[T01-F1-W4] L0 CHAOSArmTLB表项/查找结果注入 → L1 DTLB lookup(tag/ASID/valid/way/PPN/permission/page-size) → L2 hit或miss→page walk→refill/TLBI→翻译完成(PA或fault) → L3 LSQ Request进入L1D/下级内存 → L4 load返回PRF或store落点/异常处理 → L5 commit/squash与软件oracle结局。本Run触发=DTLB中存在有效项；频率=F1；负载=TLB-AliasPerm 地址翻译探针（4KiB/2MiB 页、ASID、同VA不同PA、权限、TLBI、跨页访问）。",
    "path_nodes": [
@@ -1532,7 +1532,7 @@
    "impl_status": "部分已有（只有注入或通用commit监控；必须新增单元级传播事件）",
    "status": "BLOCKED",
    "status_reasons": [
-    "workload:规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "workload:workload-level:blocked(fs-infra: TLB workload needs FS)"
    ],
    "target_activated_samples": "385"
   },
@@ -1582,7 +1582,7 @@
     "spec_name": "TLB-AliasPerm 地址翻译探针（4KiB/2MiB 页、ASID、同VA不同PA、权限、TLBI、跨页访问）",
     "binary": null,
     "golden": null,
-    "note": "规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "note": "workload-level:blocked(fs-infra: TLB workload needs FS)"
    },
    "path_raw": "[T01-F2-W4] L0 CHAOSArmTLB表项/查找结果注入 → L1 DTLB lookup(tag/ASID/valid/way/PPN/permission/page-size) → L2 hit或miss→page walk→refill/TLBI→翻译完成(PA或fault) → L3 LSQ Request进入L1D/下级内存 → L4 load返回PRF或store落点/异常处理 → L5 commit/squash与软件oracle结局。本Run触发=DTLB中存在有效项；频率=F2；负载=TLB-AliasPerm 地址翻译探针（4KiB/2MiB 页、ASID、同VA不同PA、权限、TLBI、跨页访问）。",
    "path_nodes": [
@@ -1602,7 +1602,7 @@
    "impl_status": "部分已有（只有注入或通用commit监控；必须新增单元级传播事件）",
    "status": "BLOCKED",
    "status_reasons": [
-    "workload:规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "workload:workload-level:blocked(fs-infra: TLB workload needs FS)"
    ],
    "target_activated_samples": "385"
   },
@@ -1652,7 +1652,7 @@
     "spec_name": "TLB-AliasPerm 地址翻译探针（4KiB/2MiB 页、ASID、同VA不同PA、权限、TLBI、跨页访问）",
     "binary": null,
     "golden": null,
-    "note": "规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "note": "workload-level:blocked(fs-infra: TLB workload needs FS)"
    },
    "path_raw": "[T02-F0-W4] L0 CHAOSArmTLB表项/查找结果注入 → L1 DTLB lookup(tag/ASID/valid/way/PPN/permission/page-size) → L2 hit或miss→page walk→refill/TLBI→翻译完成(PA或fault) → L3 LSQ Request进入L1D/下级内存 → L4 load返回PRF或store落点/异常处理 → L5 commit/squash与软件oracle结局。本Run触发=有效表项且后续复用；频率=F0；负载=TLB-AliasPerm 地址翻译探针（4KiB/2MiB 页、ASID、同VA不同PA、权限、TLBI、跨页访问）。",
    "path_nodes": [
@@ -1672,7 +1672,7 @@
    "impl_status": "部分已有（只有注入或通用commit监控；必须新增单元级传播事件）",
    "status": "BLOCKED",
    "status_reasons": [
-    "workload:规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "workload:workload-level:blocked(fs-infra: TLB workload needs FS)"
    ],
    "target_activated_samples": "385"
   },
@@ -1722,7 +1722,7 @@
     "spec_name": "TLB-AliasPerm 地址翻译探针（4KiB/2MiB 页、ASID、同VA不同PA、权限、TLBI、跨页访问）",
     "binary": null,
     "golden": null,
-    "note": "规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "note": "workload-level:blocked(fs-infra: TLB workload needs FS)"
    },
    "path_raw": "[T02-F2-W4] L0 CHAOSArmTLB表项/查找结果注入 → L1 DTLB lookup(tag/ASID/valid/way/PPN/permission/page-size) → L2 hit或miss→page walk→refill/TLBI→翻译完成(PA或fault) → L3 LSQ Request进入L1D/下级内存 → L4 load返回PRF或store落点/异常处理 → L5 commit/squash与软件oracle结局。本Run触发=有效表项且后续复用；频率=F2；负载=TLB-AliasPerm 地址翻译探针（4KiB/2MiB 页、ASID、同VA不同PA、权限、TLBI、跨页访问）。",
    "path_nodes": [
@@ -1742,7 +1742,7 @@
    "impl_status": "部分已有（只有注入或通用commit监控；必须新增单元级传播事件）",
    "status": "BLOCKED",
    "status_reasons": [
-    "workload:规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "workload:workload-level:blocked(fs-infra: TLB workload needs FS)"
    ],
    "target_activated_samples": "385"
   },
@@ -1758,7 +1758,7 @@
     "spec_name": "TLB-AliasPerm 地址翻译探针（4KiB/2MiB 页、ASID、同VA不同PA、权限、TLBI、跨页访问）",
     "binary": null,
     "golden": null,
-    "note": "规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "note": "workload-level:blocked(fs-infra: TLB workload needs FS)"
    },
    "path_raw": "[T03-F5-W4] L0 CHAOSArmTLB表项/查找结果注入 → L1 DTLB lookup(tag/ASID/valid/way/PPN/permission/page-size) → L2 hit或miss→page walk→refill/TLBI→翻译完成(PA或fault) → L3 LSQ Request进入L1D/下级内存 → L4 load返回PRF或store落点/异常处理 → L5 commit/squash与软件oracle结局。本Run触发=首个DTLB hit后持续；频率=F5；负载=TLB-AliasPerm 地址翻译探针（4KiB/2MiB 页、ASID、同VA不同PA、权限、TLBI、跨页访问）。",
    "path_nodes": [
@@ -1778,7 +1778,7 @@
    "impl_status": "部分已有（只有注入或通用commit监控；必须新增单元级传播事件）",
    "status": "BLOCKED",
    "status_reasons": [
-    "workload:规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "workload:workload-level:blocked(fs-infra: TLB workload needs FS)"
    ],
    "target_activated_samples": "385"
   },
@@ -1828,7 +1828,7 @@
     "spec_name": "TLB-AliasPerm 地址翻译探针（4KiB/2MiB 页、ASID、同VA不同PA、权限、TLBI、跨页访问）",
     "binary": null,
     "golden": null,
-    "note": "规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "note": "workload-level:blocked(fs-infra: TLB workload needs FS)"
    },
    "path_raw": "[T04-F0-W4] L0 CHAOSArmTLB表项/查找结果注入 → L1 DTLB lookup(tag/ASID/valid/way/PPN/permission/page-size) → L2 hit或miss→page walk→refill/TLBI→翻译完成(PA或fault) → L3 LSQ Request进入L1D/下级内存 → L4 load返回PRF或store落点/异常处理 → L5 commit/squash与软件oracle结局。本Run触发=同时存在两个已映射数据页；频率=F0；负载=TLB-AliasPerm 地址翻译探针（4KiB/2MiB 页、ASID、同VA不同PA、权限、TLBI、跨页访问）。",
    "path_nodes": [
@@ -1848,7 +1848,7 @@
    "impl_status": "部分已有（只有注入或通用commit监控；必须新增单元级传播事件）",
    "status": "BLOCKED",
    "status_reasons": [
-    "workload:规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "workload:workload-level:blocked(fs-infra: TLB workload needs FS)"
    ],
    "target_activated_samples": "385"
   },
@@ -1864,7 +1864,7 @@
     "spec_name": "TLB-AliasPerm 地址翻译探针（4KiB/2MiB 页、ASID、同VA不同PA、权限、TLBI、跨页访问）",
     "binary": null,
     "golden": null,
-    "note": "规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "note": "workload-level:blocked(fs-infra: TLB workload needs FS)"
    },
    "path_raw": "[T04-F2-W4] L0 CHAOSArmTLB表项/查找结果注入 → L1 DTLB lookup(tag/ASID/valid/way/PPN/permission/page-size) → L2 hit或miss→page walk→refill/TLBI→翻译完成(PA或fault) → L3 LSQ Request进入L1D/下级内存 → L4 load返回PRF或store落点/异常处理 → L5 commit/squash与软件oracle结局。本Run触发=同时存在两个已映射数据页；频率=F2；负载=TLB-AliasPerm 地址翻译探针（4KiB/2MiB 页、ASID、同VA不同PA、权限、TLBI、跨页访问）。",
    "path_nodes": [
@@ -1884,7 +1884,7 @@
    "impl_status": "部分已有（只有注入或通用commit监控；必须新增单元级传播事件）",
    "status": "BLOCKED",
    "status_reasons": [
-    "workload:规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "workload:workload-level:blocked(fs-infra: TLB workload needs FS)"
    ],
    "target_activated_samples": "385"
   },
@@ -1900,7 +1900,7 @@
     "spec_name": "TLB-AliasPerm 地址翻译探针（4KiB/2MiB 页、ASID、同VA不同PA、权限、TLBI、跨页访问）",
     "binary": null,
     "golden": null,
-    "note": "规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "note": "workload-level:blocked(fs-infra: TLB workload needs FS)"
    },
    "path_raw": "[T04-F6-W4] L0 CHAOSArmTLB表项/查找结果注入 → L1 DTLB lookup(tag/ASID/valid/way/PPN/permission/page-size) → L2 hit或miss→page walk→refill/TLBI→翻译完成(PA或fault) → L3 LSQ Request进入L1D/下级内存 → L4 load返回PRF或store落点/异常处理 → L5 commit/squash与软件oracle结局。本Run触发=同时存在两个已映射数据页；频率=F6；负载=TLB-AliasPerm 地址翻译探针（4KiB/2MiB 页、ASID、同VA不同PA、权限、TLBI、跨页访问）。",
    "path_nodes": [
@@ -1920,7 +1920,7 @@
    "impl_status": "部分已有（只有注入或通用commit监控；必须新增单元级传播事件）",
    "status": "BLOCKED",
    "status_reasons": [
-    "workload:规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "workload:workload-level:blocked(fs-infra: TLB workload needs FS)"
    ],
    "target_activated_samples": "385"
   },
@@ -1936,7 +1936,7 @@
     "spec_name": "TLB-AliasPerm 地址翻译探针（4KiB/2MiB 页、ASID、同VA不同PA、权限、TLBI、跨页访问）",
     "binary": null,
     "golden": null,
-    "note": "规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "note": "workload-level:blocked(fs-infra: TLB workload needs FS)"
    },
    "path_raw": "[T05-F0-W4] L0 CHAOSArmTLB表项/查找结果注入 → L1 DTLB lookup(tag/ASID/valid/way/PPN/permission/page-size) → L2 hit或miss→page walk→refill/TLBI→翻译完成(PA或fault) → L3 LSQ Request进入L1D/下级内存 → L4 load返回PRF或store落点/异常处理 → L5 commit/squash与软件oracle结局。本Run触发=ASID切换或TLBI前后；频率=F0；负载=TLB-AliasPerm 地址翻译探针（4KiB/2MiB 页、ASID、同VA不同PA、权限、TLBI、跨页访问）。",
    "path_nodes": [
@@ -1958,7 +1958,7 @@
    "status_reasons": [
     "campaign:deferred(mode unimplemented: valid/global/ASID state)",
     "spec:需新增（当前阻塞：valid/global/ASID模式未实现）",
-    "workload:规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "workload:workload-level:blocked(fs-infra: TLB workload needs FS)"
    ],
    "target_activated_samples": "385"
   },
@@ -1974,7 +1974,7 @@
     "spec_name": "TLB-AliasPerm 地址翻译探针（4KiB/2MiB 页、ASID、同VA不同PA、权限、TLBI、跨页访问）",
     "binary": null,
     "golden": null,
-    "note": "规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "note": "workload-level:blocked(fs-infra: TLB workload needs FS)"
    },
    "path_raw": "[T05-F2-W4] L0 CHAOSArmTLB表项/查找结果注入 → L1 DTLB lookup(tag/ASID/valid/way/PPN/permission/page-size) → L2 hit或miss→page walk→refill/TLBI→翻译完成(PA或fault) → L3 LSQ Request进入L1D/下级内存 → L4 load返回PRF或store落点/异常处理 → L5 commit/squash与软件oracle结局。本Run触发=ASID切换或TLBI前后；频率=F2；负载=TLB-AliasPerm 地址翻译探针（4KiB/2MiB 页、ASID、同VA不同PA、权限、TLBI、跨页访问）。",
    "path_nodes": [
@@ -1996,7 +1996,7 @@
    "status_reasons": [
     "campaign:deferred(mode unimplemented: valid/global/ASID state)",
     "spec:需新增（当前阻塞：valid/global/ASID模式未实现）",
-    "workload:规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "workload:workload-level:blocked(fs-infra: TLB workload needs FS)"
    ],
    "target_activated_samples": "385"
   },
@@ -2012,7 +2012,7 @@
     "spec_name": "TLB-AliasPerm 地址翻译探针（4KiB/2MiB 页、ASID、同VA不同PA、权限、TLBI、跨页访问）",
     "binary": null,
     "golden": null,
-    "note": "规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "note": "workload-level:blocked(fs-infra: TLB workload needs FS)"
    },
    "path_raw": "[T05-F6-W4] L0 CHAOSArmTLB表项/查找结果注入 → L1 DTLB lookup(tag/ASID/valid/way/PPN/permission/page-size) → L2 hit或miss→page walk→refill/TLBI→翻译完成(PA或fault) → L3 LSQ Request进入L1D/下级内存 → L4 load返回PRF或store落点/异常处理 → L5 commit/squash与软件oracle结局。本Run触发=ASID切换或TLBI前后；频率=F6；负载=TLB-AliasPerm 地址翻译探针（4KiB/2MiB 页、ASID、同VA不同PA、权限、TLBI、跨页访问）。",
    "path_nodes": [
@@ -2034,7 +2034,7 @@
    "status_reasons": [
     "campaign:deferred(mode unimplemented: valid/global/ASID state)",
     "spec:需新增（当前阻塞：valid/global/ASID模式未实现）",
-    "workload:规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "workload:workload-level:blocked(fs-infra: TLB workload needs FS)"
    ],
    "target_activated_samples": "385"
   },
@@ -2050,7 +2050,7 @@
     "spec_name": "TLB-AliasPerm 地址翻译探针（4KiB/2MiB 页、ASID、同VA不同PA、权限、TLBI、跨页访问）",
     "binary": null,
     "golden": null,
-    "note": "规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "note": "workload-level:blocked(fs-infra: TLB workload needs FS)"
    },
    "path_raw": "[T06-F0-W4] L0 CHAOSArmTLB表项/查找结果注入 → L1 DTLB lookup(tag/ASID/valid/way/PPN/permission/page-size) → L2 hit或miss→page walk→refill/TLBI→翻译完成(PA或fault) → L3 LSQ Request进入L1D/下级内存 → L4 load返回PRF或store落点/异常处理 → L5 commit/squash与软件oracle结局。本Run触发=访问权限边界或不同memory attribute页；频率=F0；负载=TLB-AliasPerm 地址翻译探针（4KiB/2MiB 页、ASID、同VA不同PA、权限、TLBI、跨页访问）。",
    "path_nodes": [
@@ -2072,7 +2072,7 @@
    "status_reasons": [
     "campaign:deferred(mode unimplemented: permission legal-substitution)",
     "spec:需新增（当前阻塞：permission/attribute合法替换未实现）",
-    "workload:规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "workload:workload-level:blocked(fs-infra: TLB workload needs FS)"
    ],
    "target_activated_samples": "385"
   },
@@ -2088,7 +2088,7 @@
     "spec_name": "TLB-AliasPerm 地址翻译探针（4KiB/2MiB 页、ASID、同VA不同PA、权限、TLBI、跨页访问）",
     "binary": null,
     "golden": null,
-    "note": "规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "note": "workload-level:blocked(fs-infra: TLB workload needs FS)"
    },
    "path_raw": "[T06-F2-W4] L0 CHAOSArmTLB表项/查找结果注入 → L1 DTLB lookup(tag/ASID/valid/way/PPN/permission/page-size) → L2 hit或miss→page walk→refill/TLBI→翻译完成(PA或fault) → L3 LSQ Request进入L1D/下级内存 → L4 load返回PRF或store落点/异常处理 → L5 commit/squash与软件oracle结局。本Run触发=访问权限边界或不同memory attribute页；频率=F2；负载=TLB-AliasPerm 地址翻译探针（4KiB/2MiB 页、ASID、同VA不同PA、权限、TLBI、跨页访问）。",
    "path_nodes": [
@@ -2110,7 +2110,7 @@
    "status_reasons": [
     "campaign:deferred(mode unimplemented: permission legal-substitution)",
     "spec:需新增（当前阻塞：permission/attribute合法替换未实现）",
-    "workload:规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "workload:workload-level:blocked(fs-infra: TLB workload needs FS)"
    ],
    "target_activated_samples": "385"
   },
@@ -2126,7 +2126,7 @@
     "spec_name": "TLB-AliasPerm 地址翻译探针（4KiB/2MiB 页、ASID、同VA不同PA、权限、TLBI、跨页访问）",
     "binary": null,
     "golden": null,
-    "note": "规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "note": "workload-level:blocked(fs-infra: TLB workload needs FS)"
    },
    "path_raw": "[T06-F6-W4] L0 CHAOSArmTLB表项/查找结果注入 → L1 DTLB lookup(tag/ASID/valid/way/PPN/permission/page-size) → L2 hit或miss→page walk→refill/TLBI→翻译完成(PA或fault) → L3 LSQ Request进入L1D/下级内存 → L4 load返回PRF或store落点/异常处理 → L5 commit/squash与软件oracle结局。本Run触发=访问权限边界或不同memory attribute页；频率=F6；负载=TLB-AliasPerm 地址翻译探针（4KiB/2MiB 页、ASID、同VA不同PA、权限、TLBI、跨页访问）。",
    "path_nodes": [
@@ -2148,7 +2148,7 @@
    "status_reasons": [
     "campaign:deferred(mode unimplemented: permission legal-substitution)",
     "spec:需新增（当前阻塞：permission/attribute合法替换未实现）",
-    "workload:规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "workload:workload-level:blocked(fs-infra: TLB workload needs FS)"
    ],
    "target_activated_samples": "385"
   },
@@ -2164,7 +2164,7 @@
     "spec_name": "TLB-AliasPerm 地址翻译探针（4KiB/2MiB 页、ASID、同VA不同PA、权限、TLBI、跨页访问）",
     "binary": null,
     "golden": null,
-    "note": "规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "note": "workload-level:blocked(fs-infra: TLB workload needs FS)"
    },
    "path_raw": "[T07-F0-W4] L0 CHAOSArmTLB表项/查找结果注入 → L1 DTLB lookup(tag/ASID/valid/way/PPN/permission/page-size) → L2 hit或miss→page walk→refill/TLBI→翻译完成(PA或fault) → L3 LSQ Request进入L1D/下级内存 → L4 load返回PRF或store落点/异常处理 → L5 commit/squash与软件oracle结局。本Run触发=DTLB lookup；频率=F0；负载=TLB-AliasPerm 地址翻译探针（4KiB/2MiB 页、ASID、同VA不同PA、权限、TLBI、跨页访问）。",
    "path_nodes": [
@@ -2186,7 +2186,7 @@
    "status_reasons": [
     "campaign:deferred(mode unimplemented: hit fabrication/way select)",
     "spec:需新增（当前阻塞：hit fabrication/way select未实现）",
-    "workload:规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "workload:workload-level:blocked(fs-infra: TLB workload needs FS)"
    ],
    "target_activated_samples": "385"
   },
@@ -2202,7 +2202,7 @@
     "spec_name": "TLB-AliasPerm 地址翻译探针（4KiB/2MiB 页、ASID、同VA不同PA、权限、TLBI、跨页访问）",
     "binary": null,
     "golden": null,
-    "note": "规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "note": "workload-level:blocked(fs-infra: TLB workload needs FS)"
    },
    "path_raw": "[T07-F4-W4] L0 CHAOSArmTLB表项/查找结果注入 → L1 DTLB lookup(tag/ASID/valid/way/PPN/permission/page-size) → L2 hit或miss→page walk→refill/TLBI→翻译完成(PA或fault) → L3 LSQ Request进入L1D/下级内存 → L4 load返回PRF或store落点/异常处理 → L5 commit/squash与软件oracle结局。本Run触发=DTLB lookup；频率=F4；负载=TLB-AliasPerm 地址翻译探针（4KiB/2MiB 页、ASID、同VA不同PA、权限、TLBI、跨页访问）。",
    "path_nodes": [
@@ -2224,7 +2224,7 @@
    "status_reasons": [
     "campaign:deferred(mode unimplemented: hit fabrication/way select)",
     "spec:需新增（当前阻塞：hit fabrication/way select未实现）",
-    "workload:规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "workload:workload-level:blocked(fs-infra: TLB workload needs FS)"
    ],
    "target_activated_samples": "385"
   },
@@ -2240,7 +2240,7 @@
     "spec_name": "TLB-AliasPerm 地址翻译探针（4KiB/2MiB 页、ASID、同VA不同PA、权限、TLBI、跨页访问）",
     "binary": null,
     "golden": null,
-    "note": "规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "note": "workload-level:blocked(fs-infra: TLB workload needs FS)"
    },
    "path_raw": "[T07-F6-W4] L0 CHAOSArmTLB表项/查找结果注入 → L1 DTLB lookup(tag/ASID/valid/way/PPN/permission/page-size) → L2 hit或miss→page walk→refill/TLBI→翻译完成(PA或fault) → L3 LSQ Request进入L1D/下级内存 → L4 load返回PRF或store落点/异常处理 → L5 commit/squash与软件oracle结局。本Run触发=DTLB lookup；频率=F6；负载=TLB-AliasPerm 地址翻译探针（4KiB/2MiB 页、ASID、同VA不同PA、权限、TLBI、跨页访问）。",
    "path_nodes": [
@@ -2262,7 +2262,7 @@
    "status_reasons": [
     "campaign:deferred(mode unimplemented: hit fabrication/way select)",
     "spec:需新增（当前阻塞：hit fabrication/way select未实现）",
-    "workload:规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "workload:workload-level:blocked(fs-infra: TLB workload needs FS)"
    ],
    "target_activated_samples": "385"
   },
@@ -2278,7 +2278,7 @@
     "spec_name": "TLB-AliasPerm 地址翻译探针（4KiB/2MiB 页、ASID、同VA不同PA、权限、TLBI、跨页访问）",
     "binary": null,
     "golden": null,
-    "note": "规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "note": "workload-level:blocked(fs-infra: TLB workload needs FS)"
    },
    "path_raw": "[T08-F0-W4] L0 CHAOSArmTLB表项/查找结果注入 → L1 DTLB lookup(tag/ASID/valid/way/PPN/permission/page-size) → L2 hit或miss→page walk→refill/TLBI→翻译完成(PA或fault) → L3 LSQ Request进入L1D/下级内存 → L4 load返回PRF或store落点/异常处理 → L5 commit/squash与软件oracle结局。本Run触发=DTLB miss并启动walk；频率=F0；负载=TLB-AliasPerm 地址翻译探针（4KiB/2MiB 页、ASID、同VA不同PA、权限、TLBI、跨页访问）。",
    "path_nodes": [
@@ -2300,7 +2300,7 @@
    "status_reasons": [
     "campaign:deferred(mode unimplemented: walk pairing)",
     "spec:需新增（当前阻塞：walk/fill pairing未实现）",
-    "workload:规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "workload:workload-level:blocked(fs-infra: TLB workload needs FS)"
    ],
    "target_activated_samples": "385"
   },
@@ -2353,7 +2353,7 @@
     "spec_name": "TLB-AliasPerm 地址翻译探针（4KiB/2MiB 页、ASID、同VA不同PA、权限、TLBI、跨页访问）",
     "binary": null,
     "golden": null,
-    "note": "规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "note": "workload-level:blocked(fs-infra: TLB workload needs FS)"
    },
    "path_raw": "[T08-F4-W4] L0 CHAOSArmTLB表项/查找结果注入 → L1 DTLB lookup(tag/ASID/valid/way/PPN/permission/page-size) → L2 hit或miss→page walk→refill/TLBI→翻译完成(PA或fault) → L3 LSQ Request进入L1D/下级内存 → L4 load返回PRF或store落点/异常处理 → L5 commit/squash与软件oracle结局。本Run触发=DTLB miss并启动walk；频率=F4；负载=TLB-AliasPerm 地址翻译探针（4KiB/2MiB 页、ASID、同VA不同PA、权限、TLBI、跨页访问）。",
    "path_nodes": [
@@ -2375,7 +2375,7 @@
    "status_reasons": [
     "campaign:deferred(mode unimplemented: walk pairing)",
     "spec:需新增（当前阻塞：walk/fill pairing未实现）",
-    "workload:规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "workload:workload-level:blocked(fs-infra: TLB workload needs FS)"
    ],
    "target_activated_samples": "385"
   },
@@ -2428,7 +2428,7 @@
     "spec_name": "TLB-AliasPerm 地址翻译探针（4KiB/2MiB 页、ASID、同VA不同PA、权限、TLBI、跨页访问）",
     "binary": null,
     "golden": null,
-    "note": "规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "note": "workload-level:blocked(fs-infra: TLB workload needs FS)"
    },
    "path_raw": "[T08-F6-W4] L0 CHAOSArmTLB表项/查找结果注入 → L1 DTLB lookup(tag/ASID/valid/way/PPN/permission/page-size) → L2 hit或miss→page walk→refill/TLBI→翻译完成(PA或fault) → L3 LSQ Request进入L1D/下级内存 → L4 load返回PRF或store落点/异常处理 → L5 commit/squash与软件oracle结局。本Run触发=DTLB miss并启动walk；频率=F6；负载=TLB-AliasPerm 地址翻译探针（4KiB/2MiB 页、ASID、同VA不同PA、权限、TLBI、跨页访问）。",
    "path_nodes": [
@@ -2450,7 +2450,7 @@
    "status_reasons": [
     "campaign:deferred(mode unimplemented: walk pairing)",
     "spec:需新增（当前阻塞：walk/fill pairing未实现）",
-    "workload:规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "workload:workload-level:blocked(fs-infra: TLB workload needs FS)"
    ],
    "target_activated_samples": "385"
   },
@@ -5244,7 +5244,7 @@
     "spec_name": "Atomic-Litmus 并发探针（MP、SB、LB、IRIW、Dekker、ticket lock、CAS counter、LDXR/STXR）",
     "binary": null,
     "golden": null,
-    "note": "规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "note": "workload-level:blocked(multicore-fs: litmus needs multi-core FS)"
    },
    "path_raw": "[C08-F0-W7] L0 CHAOSCache或MSHR/fill控制点注入 → L1 tag lookup(set/way/tag/valid/coh/dirty/data) → L2 hit返回，或miss→MSHR allocate/merge→下级Request→response/fill→victim/eviction/writeback → L3 响应送回LSQ或错误line成为后续命中源 → L4 load写PRF/消费者或store持久化副作用 → L5 commit/异常与软件oracle结局。本Run触发=共享行或snoop；频率=F0；负载=Atomic-Litmus 并发探针（MP、SB、LB、IRIW、Dekker、ticket lock、CAS counter、LDXR/STXR）。",
    "path_nodes": [
@@ -5263,7 +5263,7 @@
    "impl_status": "部分已有（只有注入或通用commit监控；必须新增单元级传播事件）",
    "status": "BLOCKED",
    "status_reasons": [
-    "workload:规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "workload:workload-level:blocked(multicore-fs: litmus needs multi-core FS)"
    ],
    "target_activated_samples": "385"
   },
@@ -5313,7 +5313,7 @@
     "spec_name": "Atomic-Litmus 并发探针（MP、SB、LB、IRIW、Dekker、ticket lock、CAS counter、LDXR/STXR）",
     "binary": null,
     "golden": null,
-    "note": "规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "note": "workload-level:blocked(multicore-fs: litmus needs multi-core FS)"
    },
    "path_raw": "[C08-F2-W7] L0 CHAOSCache或MSHR/fill控制点注入 → L1 tag lookup(set/way/tag/valid/coh/dirty/data) → L2 hit返回，或miss→MSHR allocate/merge→下级Request→response/fill→victim/eviction/writeback → L3 响应送回LSQ或错误line成为后续命中源 → L4 load写PRF/消费者或store持久化副作用 → L5 commit/异常与软件oracle结局。本Run触发=共享行或snoop；频率=F2；负载=Atomic-Litmus 并发探针（MP、SB、LB、IRIW、Dekker、ticket lock、CAS counter、LDXR/STXR）。",
    "path_nodes": [
@@ -5332,7 +5332,7 @@
    "impl_status": "部分已有（只有注入或通用commit监控；必须新增单元级传播事件）",
    "status": "BLOCKED",
    "status_reasons": [
-    "workload:规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "workload:workload-level:blocked(multicore-fs: litmus needs multi-core FS)"
    ],
    "target_activated_samples": "385"
   },
@@ -5382,7 +5382,7 @@
     "spec_name": "Atomic-Litmus 并发探针（MP、SB、LB、IRIW、Dekker、ticket lock、CAS counter、LDXR/STXR）",
     "binary": null,
     "golden": null,
-    "note": "规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "note": "workload-level:blocked(multicore-fs: litmus needs multi-core FS)"
    },
    "path_raw": "[C08-F5-W7] L0 CHAOSCache或MSHR/fill控制点注入 → L1 tag lookup(set/way/tag/valid/coh/dirty/data) → L2 hit返回，或miss→MSHR allocate/merge→下级Request→response/fill→victim/eviction/writeback → L3 响应送回LSQ或错误line成为后续命中源 → L4 load写PRF/消费者或store持久化副作用 → L5 commit/异常与软件oracle结局。本Run触发=共享行或snoop；频率=F5；负载=Atomic-Litmus 并发探针（MP、SB、LB、IRIW、Dekker、ticket lock、CAS counter、LDXR/STXR）。",
    "path_nodes": [
@@ -5401,7 +5401,7 @@
    "impl_status": "部分已有（只有注入或通用commit监控；必须新增单元级传播事件）",
    "status": "BLOCKED",
    "status_reasons": [
-    "workload:规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "workload:workload-level:blocked(multicore-fs: litmus needs multi-core FS)"
    ],
    "target_activated_samples": "385"
   },
@@ -5451,7 +5451,7 @@
     "spec_name": "Atomic-Litmus 并发探针（MP、SB、LB、IRIW、Dekker、ticket lock、CAS counter、LDXR/STXR）",
     "binary": null,
     "golden": null,
-    "note": "规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "note": "workload-level:blocked(multicore-fs: litmus needs multi-core FS)"
    },
    "path_raw": "[C08-F6-W7] L0 CHAOSCache或MSHR/fill控制点注入 → L1 tag lookup(set/way/tag/valid/coh/dirty/data) → L2 hit返回，或miss→MSHR allocate/merge→下级Request→response/fill→victim/eviction/writeback → L3 响应送回LSQ或错误line成为后续命中源 → L4 load写PRF/消费者或store持久化副作用 → L5 commit/异常与软件oracle结局。本Run触发=共享行或snoop；频率=F6；负载=Atomic-Litmus 并发探针（MP、SB、LB、IRIW、Dekker、ticket lock、CAS counter、LDXR/STXR）。",
    "path_nodes": [
@@ -5470,7 +5470,7 @@
    "impl_status": "部分已有（只有注入或通用commit监控；必须新增单元级传播事件）",
    "status": "BLOCKED",
    "status_reasons": [
-    "workload:规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "workload:workload-level:blocked(multicore-fs: litmus needs multi-core FS)"
    ],
    "target_activated_samples": "385"
   },
@@ -6399,7 +6399,7 @@
     "spec_name": "Atomic-Litmus 并发探针（MP、SB、LB、IRIW、Dekker、ticket lock、CAS counter、LDXR/STXR）",
     "binary": null,
     "golden": null,
-    "note": "规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "note": "workload-level:blocked(multicore-fs: litmus needs multi-core FS)"
    },
    "path_raw": "[O01-F0-W7] L0 exclusive-monitor/原子操作数/完成或排序状态注入 → L1 LDXR建立reservation或LSE/CAS/SWP/LDADD形成RMW请求 → L2 cache/coherence执行compare/old→new并决定success → L3 STXR状态/old value返回、barrier/order约束全局可见性 → L4 目的寄存器与共享内存被后续线程消费 → L5 commit与litmus forbidden-outcome/oracle结局。本Run触发=LDXR后、STXR前；频率=F0；负载=Atomic-Litmus 并发探针（MP、SB、LB、IRIW、Dekker、ticket lock、CAS counter、LDXR/STXR）。",
    "path_nodes": [
@@ -6418,7 +6418,7 @@
    "impl_status": "部分已有（只有注入或通用commit监控；必须新增单元级传播事件）",
    "status": "BLOCKED",
    "status_reasons": [
-    "workload:规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "workload:workload-level:blocked(multicore-fs: litmus needs multi-core FS)"
    ],
    "target_activated_samples": "385"
   },
@@ -6434,7 +6434,7 @@
     "spec_name": "Atomic-Litmus 并发探针（MP、SB、LB、IRIW、Dekker、ticket lock、CAS counter、LDXR/STXR）",
     "binary": null,
     "golden": null,
-    "note": "规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "note": "workload-level:blocked(multicore-fs: litmus needs multi-core FS)"
    },
    "path_raw": "[O01-F2-W7] L0 exclusive-monitor/原子操作数/完成或排序状态注入 → L1 LDXR建立reservation或LSE/CAS/SWP/LDADD形成RMW请求 → L2 cache/coherence执行compare/old→new并决定success → L3 STXR状态/old value返回、barrier/order约束全局可见性 → L4 目的寄存器与共享内存被后续线程消费 → L5 commit与litmus forbidden-outcome/oracle结局。本Run触发=LDXR后、STXR前；频率=F2；负载=Atomic-Litmus 并发探针（MP、SB、LB、IRIW、Dekker、ticket lock、CAS counter、LDXR/STXR）。",
    "path_nodes": [
@@ -6453,7 +6453,7 @@
    "impl_status": "部分已有（只有注入或通用commit监控；必须新增单元级传播事件）",
    "status": "BLOCKED",
    "status_reasons": [
-    "workload:规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "workload:workload-level:blocked(multicore-fs: litmus needs multi-core FS)"
    ],
    "target_activated_samples": "385"
   },
@@ -6469,7 +6469,7 @@
     "spec_name": "Atomic-Litmus 并发探针（MP、SB、LB、IRIW、Dekker、ticket lock、CAS counter、LDXR/STXR）",
     "binary": null,
     "golden": null,
-    "note": "规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "note": "workload-level:blocked(multicore-fs: litmus needs multi-core FS)"
    },
    "path_raw": "[O01-F6-W7] L0 exclusive-monitor/原子操作数/完成或排序状态注入 → L1 LDXR建立reservation或LSE/CAS/SWP/LDADD形成RMW请求 → L2 cache/coherence执行compare/old→new并决定success → L3 STXR状态/old value返回、barrier/order约束全局可见性 → L4 目的寄存器与共享内存被后续线程消费 → L5 commit与litmus forbidden-outcome/oracle结局。本Run触发=LDXR后、STXR前；频率=F6；负载=Atomic-Litmus 并发探针（MP、SB、LB、IRIW、Dekker、ticket lock、CAS counter、LDXR/STXR）。",
    "path_nodes": [
@@ -6488,7 +6488,7 @@
    "impl_status": "部分已有（只有注入或通用commit监控；必须新增单元级传播事件）",
    "status": "BLOCKED",
    "status_reasons": [
-    "workload:规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "workload:workload-level:blocked(multicore-fs: litmus needs multi-core FS)"
    ],
    "target_activated_samples": "385"
   },
@@ -6504,7 +6504,7 @@
     "spec_name": "Atomic-Litmus 并发探针（MP、SB、LB、IRIW、Dekker、ticket lock、CAS counter、LDXR/STXR）",
     "binary": null,
     "golden": null,
-    "note": "规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "note": "workload-level:blocked(multicore-fs: litmus needs multi-core FS)"
    },
    "path_raw": "[O02-F0-W7] L0 exclusive-monitor/原子操作数/完成或排序状态注入 → L1 LDXR建立reservation或LSE/CAS/SWP/LDADD形成RMW请求 → L2 cache/coherence执行compare/old→new并决定success → L3 STXR状态/old value返回、barrier/order约束全局可见性 → L4 目的寄存器与共享内存被后续线程消费 → L5 commit与litmus forbidden-outcome/oracle结局。本Run触发=存在竞争写或reservation；频率=F0；负载=Atomic-Litmus 并发探针（MP、SB、LB、IRIW、Dekker、ticket lock、CAS counter、LDXR/STXR）。",
    "path_nodes": [
@@ -6523,7 +6523,7 @@
    "impl_status": "部分已有（只有注入或通用commit监控；必须新增单元级传播事件）",
    "status": "BLOCKED",
    "status_reasons": [
-    "workload:规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "workload:workload-level:blocked(multicore-fs: litmus needs multi-core FS)"
    ],
    "target_activated_samples": "385"
   },
@@ -6539,7 +6539,7 @@
     "spec_name": "Atomic-Litmus 并发探针（MP、SB、LB、IRIW、Dekker、ticket lock、CAS counter、LDXR/STXR）",
     "binary": null,
     "golden": null,
-    "note": "规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "note": "workload-level:blocked(multicore-fs: litmus needs multi-core FS)"
    },
    "path_raw": "[O02-F2-W7] L0 exclusive-monitor/原子操作数/完成或排序状态注入 → L1 LDXR建立reservation或LSE/CAS/SWP/LDADD形成RMW请求 → L2 cache/coherence执行compare/old→new并决定success → L3 STXR状态/old value返回、barrier/order约束全局可见性 → L4 目的寄存器与共享内存被后续线程消费 → L5 commit与litmus forbidden-outcome/oracle结局。本Run触发=存在竞争写或reservation；频率=F2；负载=Atomic-Litmus 并发探针（MP、SB、LB、IRIW、Dekker、ticket lock、CAS counter、LDXR/STXR）。",
    "path_nodes": [
@@ -6558,7 +6558,7 @@
    "impl_status": "部分已有（只有注入或通用commit监控；必须新增单元级传播事件）",
    "status": "BLOCKED",
    "status_reasons": [
-    "workload:规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "workload:workload-level:blocked(multicore-fs: litmus needs multi-core FS)"
    ],
    "target_activated_samples": "385"
   },
@@ -6574,7 +6574,7 @@
     "spec_name": "Atomic-Litmus 并发探针（MP、SB、LB、IRIW、Dekker、ticket lock、CAS counter、LDXR/STXR）",
     "binary": null,
     "golden": null,
-    "note": "规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "note": "workload-level:blocked(multicore-fs: litmus needs multi-core FS)"
    },
    "path_raw": "[O02-F5-W7] L0 exclusive-monitor/原子操作数/完成或排序状态注入 → L1 LDXR建立reservation或LSE/CAS/SWP/LDADD形成RMW请求 → L2 cache/coherence执行compare/old→new并决定success → L3 STXR状态/old value返回、barrier/order约束全局可见性 → L4 目的寄存器与共享内存被后续线程消费 → L5 commit与litmus forbidden-outcome/oracle结局。本Run触发=存在竞争写或reservation；频率=F5；负载=Atomic-Litmus 并发探针（MP、SB、LB、IRIW、Dekker、ticket lock、CAS counter、LDXR/STXR）。",
    "path_nodes": [
@@ -6593,7 +6593,7 @@
    "impl_status": "部分已有（只有注入或通用commit监控；必须新增单元级传播事件）",
    "status": "BLOCKED",
    "status_reasons": [
-    "workload:规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "workload:workload-level:blocked(multicore-fs: litmus needs multi-core FS)"
    ],
    "target_activated_samples": "385"
   },
@@ -6609,7 +6609,7 @@
     "spec_name": "Atomic-Litmus 并发探针（MP、SB、LB、IRIW、Dekker、ticket lock、CAS counter、LDXR/STXR）",
     "binary": null,
     "golden": null,
-    "note": "规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "note": "workload-level:blocked(multicore-fs: litmus needs multi-core FS)"
    },
    "path_raw": "[O02-F6-W7] L0 exclusive-monitor/原子操作数/完成或排序状态注入 → L1 LDXR建立reservation或LSE/CAS/SWP/LDADD形成RMW请求 → L2 cache/coherence执行compare/old→new并决定success → L3 STXR状态/old value返回、barrier/order约束全局可见性 → L4 目的寄存器与共享内存被后续线程消费 → L5 commit与litmus forbidden-outcome/oracle结局。本Run触发=存在竞争写或reservation；频率=F6；负载=Atomic-Litmus 并发探针（MP、SB、LB、IRIW、Dekker、ticket lock、CAS counter、LDXR/STXR）。",
    "path_nodes": [
@@ -6628,7 +6628,7 @@
    "impl_status": "部分已有（只有注入或通用commit监控；必须新增单元级传播事件）",
    "status": "BLOCKED",
    "status_reasons": [
-    "workload:规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "workload:workload-level:blocked(multicore-fs: litmus needs multi-core FS)"
    ],
    "target_activated_samples": "385"
   },
@@ -6644,7 +6644,7 @@
     "spec_name": "Atomic-Litmus 并发探针（MP、SB、LB、IRIW、Dekker、ticket lock、CAS counter、LDXR/STXR）",
     "binary": null,
     "golden": null,
-    "note": "规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "note": "workload-level:blocked(multicore-fs: litmus needs multi-core FS)"
    },
    "path_raw": "[O03-F0-W7] L0 exclusive-monitor/原子操作数/完成或排序状态注入 → L1 LDXR建立reservation或LSE/CAS/SWP/LDADD形成RMW请求 → L2 cache/coherence执行compare/old→new并决定success → L3 STXR状态/old value返回、barrier/order约束全局可见性 → L4 目的寄存器与共享内存被后续线程消费 → L5 commit与litmus forbidden-outcome/oracle结局。本Run触发=原子操作完成；频率=F0；负载=Atomic-Litmus 并发探针（MP、SB、LB、IRIW、Dekker、ticket lock、CAS counter、LDXR/STXR）。",
    "path_nodes": [
@@ -6663,7 +6663,7 @@
    "impl_status": "部分已有（注入近似：当前以force-fail为主，未覆盖双向状态翻转；传播仍缺）",
    "status": "BLOCKED",
    "status_reasons": [
-    "workload:规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "workload:workload-level:blocked(multicore-fs: litmus needs multi-core FS)"
    ],
    "target_activated_samples": "385"
   },
@@ -6679,7 +6679,7 @@
     "spec_name": "Atomic-Litmus 并发探针（MP、SB、LB、IRIW、Dekker、ticket lock、CAS counter、LDXR/STXR）",
     "binary": null,
     "golden": null,
-    "note": "规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "note": "workload-level:blocked(multicore-fs: litmus needs multi-core FS)"
    },
    "path_raw": "[O03-F2-W7] L0 exclusive-monitor/原子操作数/完成或排序状态注入 → L1 LDXR建立reservation或LSE/CAS/SWP/LDADD形成RMW请求 → L2 cache/coherence执行compare/old→new并决定success → L3 STXR状态/old value返回、barrier/order约束全局可见性 → L4 目的寄存器与共享内存被后续线程消费 → L5 commit与litmus forbidden-outcome/oracle结局。本Run触发=原子操作完成；频率=F2；负载=Atomic-Litmus 并发探针（MP、SB、LB、IRIW、Dekker、ticket lock、CAS counter、LDXR/STXR）。",
    "path_nodes": [
@@ -6698,7 +6698,7 @@
    "impl_status": "部分已有（注入近似：当前以force-fail为主，未覆盖双向状态翻转；传播仍缺）",
    "status": "BLOCKED",
    "status_reasons": [
-    "workload:规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "workload:workload-level:blocked(multicore-fs: litmus needs multi-core FS)"
    ],
    "target_activated_samples": "385"
   },
@@ -6714,7 +6714,7 @@
     "spec_name": "Atomic-Litmus 并发探针（MP、SB、LB、IRIW、Dekker、ticket lock、CAS counter、LDXR/STXR）",
     "binary": null,
     "golden": null,
-    "note": "规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "note": "workload-level:blocked(multicore-fs: litmus needs multi-core FS)"
    },
    "path_raw": "[O03-F6-W7] L0 exclusive-monitor/原子操作数/完成或排序状态注入 → L1 LDXR建立reservation或LSE/CAS/SWP/LDADD形成RMW请求 → L2 cache/coherence执行compare/old→new并决定success → L3 STXR状态/old value返回、barrier/order约束全局可见性 → L4 目的寄存器与共享内存被后续线程消费 → L5 commit与litmus forbidden-outcome/oracle结局。本Run触发=原子操作完成；频率=F6；负载=Atomic-Litmus 并发探针（MP、SB、LB、IRIW、Dekker、ticket lock、CAS counter、LDXR/STXR）。",
    "path_nodes": [
@@ -6733,7 +6733,7 @@
    "impl_status": "部分已有（注入近似：当前以force-fail为主，未覆盖双向状态翻转；传播仍缺）",
    "status": "BLOCKED",
    "status_reasons": [
-    "workload:规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "workload:workload-level:blocked(multicore-fs: litmus needs multi-core FS)"
    ],
    "target_activated_samples": "385"
   },
@@ -6749,7 +6749,7 @@
     "spec_name": "Atomic-Litmus 并发探针（MP、SB、LB、IRIW、Dekker、ticket lock、CAS counter、LDXR/STXR）",
     "binary": null,
     "golden": null,
-    "note": "规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "note": "workload-level:blocked(multicore-fs: litmus needs multi-core FS)"
    },
    "path_raw": "[O04-F0-W7] L0 exclusive-monitor/原子操作数/完成或排序状态注入 → L1 LDXR建立reservation或LSE/CAS/SWP/LDADD形成RMW请求 → L2 cache/coherence执行compare/old→new并决定success → L3 STXR状态/old value返回、barrier/order约束全局可见性 → L4 目的寄存器与共享内存被后续线程消费 → L5 commit与litmus forbidden-outcome/oracle结局。本Run触发=CAS/SWP/LDADD；频率=F0；负载=Atomic-Litmus 并发探针（MP、SB、LB、IRIW、Dekker、ticket lock、CAS counter、LDXR/STXR）。",
    "path_nodes": [
@@ -6770,7 +6770,7 @@
    "status_reasons": [
     "campaign:deferred(RMW data path needs cache-side SwapResp hook)",
     "spec:需新增（当前阻塞：缺RMW数据/SwapResp hook）",
-    "workload:规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "workload:workload-level:blocked(multicore-fs: litmus needs multi-core FS)"
    ],
    "target_activated_samples": "385"
   },
@@ -6786,7 +6786,7 @@
     "spec_name": "Atomic-Litmus 并发探针（MP、SB、LB、IRIW、Dekker、ticket lock、CAS counter、LDXR/STXR）",
     "binary": null,
     "golden": null,
-    "note": "规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "note": "workload-level:blocked(multicore-fs: litmus needs multi-core FS)"
    },
    "path_raw": "[O04-F2-W7] L0 exclusive-monitor/原子操作数/完成或排序状态注入 → L1 LDXR建立reservation或LSE/CAS/SWP/LDADD形成RMW请求 → L2 cache/coherence执行compare/old→new并决定success → L3 STXR状态/old value返回、barrier/order约束全局可见性 → L4 目的寄存器与共享内存被后续线程消费 → L5 commit与litmus forbidden-outcome/oracle结局。本Run触发=CAS/SWP/LDADD；频率=F2；负载=Atomic-Litmus 并发探针（MP、SB、LB、IRIW、Dekker、ticket lock、CAS counter、LDXR/STXR）。",
    "path_nodes": [
@@ -6807,7 +6807,7 @@
    "status_reasons": [
     "campaign:deferred(RMW data path needs cache-side SwapResp hook)",
     "spec:需新增（当前阻塞：缺RMW数据/SwapResp hook）",
-    "workload:规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "workload:workload-level:blocked(multicore-fs: litmus needs multi-core FS)"
    ],
    "target_activated_samples": "385"
   },
@@ -6823,7 +6823,7 @@
     "spec_name": "Atomic-Litmus 并发探针（MP、SB、LB、IRIW、Dekker、ticket lock、CAS counter、LDXR/STXR）",
     "binary": null,
     "golden": null,
-    "note": "规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "note": "workload-level:blocked(multicore-fs: litmus needs multi-core FS)"
    },
    "path_raw": "[O04-F6-W7] L0 exclusive-monitor/原子操作数/完成或排序状态注入 → L1 LDXR建立reservation或LSE/CAS/SWP/LDADD形成RMW请求 → L2 cache/coherence执行compare/old→new并决定success → L3 STXR状态/old value返回、barrier/order约束全局可见性 → L4 目的寄存器与共享内存被后续线程消费 → L5 commit与litmus forbidden-outcome/oracle结局。本Run触发=CAS/SWP/LDADD；频率=F6；负载=Atomic-Litmus 并发探针（MP、SB、LB、IRIW、Dekker、ticket lock、CAS counter、LDXR/STXR）。",
    "path_nodes": [
@@ -6844,7 +6844,7 @@
    "status_reasons": [
     "campaign:deferred(RMW data path needs cache-side SwapResp hook)",
     "spec:需新增（当前阻塞：缺RMW数据/SwapResp hook）",
-    "workload:规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "workload:workload-level:blocked(multicore-fs: litmus needs multi-core FS)"
    ],
    "target_activated_samples": "385"
   },
@@ -6860,7 +6860,7 @@
     "spec_name": "Atomic-Litmus 并发探针（MP、SB、LB、IRIW、Dekker、ticket lock、CAS counter、LDXR/STXR）",
     "binary": null,
     "golden": null,
-    "note": "规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "note": "workload-level:blocked(multicore-fs: litmus needs multi-core FS)"
    },
    "path_raw": "[O05-F0-W7] L0 exclusive-monitor/原子操作数/完成或排序状态注入 → L1 LDXR建立reservation或LSE/CAS/SWP/LDADD形成RMW请求 → L2 cache/coherence执行compare/old→new并决定success → L3 STXR状态/old value返回、barrier/order约束全局可见性 → L4 目的寄存器与共享内存被后续线程消费 → L5 commit与litmus forbidden-outcome/oracle结局。本Run触发=原子事务；频率=F0；负载=Atomic-Litmus 并发探针（MP、SB、LB、IRIW、Dekker、ticket lock、CAS counter、LDXR/STXR）。",
    "path_nodes": [
@@ -6881,7 +6881,7 @@
    "status_reasons": [
     "campaign:blocked(multicore-fs: RMW ordering needs multi-core)",
     "spec:需新增（当前阻塞：需要多核FS的RMW请求/全局可见性）",
-    "workload:规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "workload:workload-level:blocked(multicore-fs: litmus needs multi-core FS)"
    ],
    "target_activated_samples": "385"
   },
@@ -6897,7 +6897,7 @@
     "spec_name": "Atomic-Litmus 并发探针（MP、SB、LB、IRIW、Dekker、ticket lock、CAS counter、LDXR/STXR）",
     "binary": null,
     "golden": null,
-    "note": "规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "note": "workload-level:blocked(multicore-fs: litmus needs multi-core FS)"
    },
    "path_raw": "[O05-F4-W7] L0 exclusive-monitor/原子操作数/完成或排序状态注入 → L1 LDXR建立reservation或LSE/CAS/SWP/LDADD形成RMW请求 → L2 cache/coherence执行compare/old→new并决定success → L3 STXR状态/old value返回、barrier/order约束全局可见性 → L4 目的寄存器与共享内存被后续线程消费 → L5 commit与litmus forbidden-outcome/oracle结局。本Run触发=原子事务；频率=F4；负载=Atomic-Litmus 并发探针（MP、SB、LB、IRIW、Dekker、ticket lock、CAS counter、LDXR/STXR）。",
    "path_nodes": [
@@ -6918,7 +6918,7 @@
    "status_reasons": [
     "campaign:blocked(multicore-fs: RMW ordering needs multi-core)",
     "spec:需新增（当前阻塞：需要多核FS的RMW请求/全局可见性）",
-    "workload:规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "workload:workload-level:blocked(multicore-fs: litmus needs multi-core FS)"
    ],
    "target_activated_samples": "385"
   },
@@ -6934,7 +6934,7 @@
     "spec_name": "Atomic-Litmus 并发探针（MP、SB、LB、IRIW、Dekker、ticket lock、CAS counter、LDXR/STXR）",
     "binary": null,
     "golden": null,
-    "note": "规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "note": "workload-level:blocked(multicore-fs: litmus needs multi-core FS)"
    },
    "path_raw": "[O05-F6-W7] L0 exclusive-monitor/原子操作数/完成或排序状态注入 → L1 LDXR建立reservation或LSE/CAS/SWP/LDADD形成RMW请求 → L2 cache/coherence执行compare/old→new并决定success → L3 STXR状态/old value返回、barrier/order约束全局可见性 → L4 目的寄存器与共享内存被后续线程消费 → L5 commit与litmus forbidden-outcome/oracle结局。本Run触发=原子事务；频率=F6；负载=Atomic-Litmus 并发探针（MP、SB、LB、IRIW、Dekker、ticket lock、CAS counter、LDXR/STXR）。",
    "path_nodes": [
@@ -6955,7 +6955,7 @@
    "status_reasons": [
     "campaign:blocked(multicore-fs: RMW ordering needs multi-core)",
     "spec:需新增（当前阻塞：需要多核FS的RMW请求/全局可见性）",
-    "workload:规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "workload:workload-level:blocked(multicore-fs: litmus needs multi-core FS)"
    ],
    "target_activated_samples": "385"
   },
@@ -6971,7 +6971,7 @@
     "spec_name": "Atomic-Litmus 并发探针（MP、SB、LB、IRIW、Dekker、ticket lock、CAS counter、LDXR/STXR）",
     "binary": null,
     "golden": null,
-    "note": "规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "note": "workload-level:blocked(multicore-fs: litmus needs multi-core FS)"
    },
    "path_raw": "[O06-F0-W7] L0 exclusive-monitor/原子操作数/完成或排序状态注入 → L1 LDXR建立reservation或LSE/CAS/SWP/LDADD形成RMW请求 → L2 cache/coherence执行compare/old→new并决定success → L3 STXR状态/old value返回、barrier/order约束全局可见性 → L4 目的寄存器与共享内存被后续线程消费 → L5 commit与litmus forbidden-outcome/oracle结局。本Run触发=barrier有前后内存事务；频率=F0；负载=Atomic-Litmus 并发探针（MP、SB、LB、IRIW、Dekker、ticket lock、CAS counter、LDXR/STXR）。",
    "path_nodes": [
@@ -6992,7 +6992,7 @@
    "status_reasons": [
     "campaign:blocked(multicore-fs: barrier completion needs multi-core)",
     "spec:需新增（当前阻塞：需要多核FS barrier完成跟踪）",
-    "workload:规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "workload:workload-level:blocked(multicore-fs: litmus needs multi-core FS)"
    ],
    "target_activated_samples": "385"
   },
@@ -7008,7 +7008,7 @@
     "spec_name": "Atomic-Litmus 并发探针（MP、SB、LB、IRIW、Dekker、ticket lock、CAS counter、LDXR/STXR）",
     "binary": null,
     "golden": null,
-    "note": "规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "note": "workload-level:blocked(multicore-fs: litmus needs multi-core FS)"
    },
    "path_raw": "[O06-F4-W7] L0 exclusive-monitor/原子操作数/完成或排序状态注入 → L1 LDXR建立reservation或LSE/CAS/SWP/LDADD形成RMW请求 → L2 cache/coherence执行compare/old→new并决定success → L3 STXR状态/old value返回、barrier/order约束全局可见性 → L4 目的寄存器与共享内存被后续线程消费 → L5 commit与litmus forbidden-outcome/oracle结局。本Run触发=barrier有前后内存事务；频率=F4；负载=Atomic-Litmus 并发探针（MP、SB、LB、IRIW、Dekker、ticket lock、CAS counter、LDXR/STXR）。",
    "path_nodes": [
@@ -7029,7 +7029,7 @@
    "status_reasons": [
     "campaign:blocked(multicore-fs: barrier completion needs multi-core)",
     "spec:需新增（当前阻塞：需要多核FS barrier完成跟踪）",
-    "workload:规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "workload:workload-level:blocked(multicore-fs: litmus needs multi-core FS)"
    ],
    "target_activated_samples": "385"
   },
@@ -7045,7 +7045,7 @@
     "spec_name": "Atomic-Litmus 并发探针（MP、SB、LB、IRIW、Dekker、ticket lock、CAS counter、LDXR/STXR）",
     "binary": null,
     "golden": null,
-    "note": "规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "note": "workload-level:blocked(multicore-fs: litmus needs multi-core FS)"
    },
    "path_raw": "[O06-F6-W7] L0 exclusive-monitor/原子操作数/完成或排序状态注入 → L1 LDXR建立reservation或LSE/CAS/SWP/LDADD形成RMW请求 → L2 cache/coherence执行compare/old→new并决定success → L3 STXR状态/old value返回、barrier/order约束全局可见性 → L4 目的寄存器与共享内存被后续线程消费 → L5 commit与litmus forbidden-outcome/oracle结局。本Run触发=barrier有前后内存事务；频率=F6；负载=Atomic-Litmus 并发探针（MP、SB、LB、IRIW、Dekker、ticket lock、CAS counter、LDXR/STXR）。",
    "path_nodes": [
@@ -7066,7 +7066,7 @@
    "status_reasons": [
     "campaign:blocked(multicore-fs: barrier completion needs multi-core)",
     "spec:需新增（当前阻塞：需要多核FS barrier完成跟踪）",
-    "workload:规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "workload:workload-level:blocked(multicore-fs: litmus needs multi-core FS)"
    ],
    "target_activated_samples": "385"
   },
@@ -7082,7 +7082,7 @@
     "spec_name": "Atomic-Litmus 并发探针（MP、SB、LB、IRIW、Dekker、ticket lock、CAS counter、LDXR/STXR）",
     "binary": null,
     "golden": null,
-    "note": "规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "note": "workload-level:blocked(multicore-fs: litmus needs multi-core FS)"
    },
    "path_raw": "[O07-F0-W7] L0 exclusive-monitor/原子操作数/完成或排序状态注入 → L1 LDXR建立reservation或LSE/CAS/SWP/LDADD形成RMW请求 → L2 cache/coherence执行compare/old→new并决定success → L3 STXR状态/old value返回、barrier/order约束全局可见性 → L4 目的寄存器与共享内存被后续线程消费 → L5 commit与litmus forbidden-outcome/oracle结局。本Run触发=至少2个相关事务；频率=F0；负载=Atomic-Litmus 并发探针（MP、SB、LB、IRIW、Dekker、ticket lock、CAS counter、LDXR/STXR）。",
    "path_nodes": [
@@ -7103,7 +7103,7 @@
    "status_reasons": [
     "campaign:blocked(multicore-fs: order-tag swap needs multi-core)",
     "spec:需新增（当前阻塞：需要多核FS order-tag/ready跟踪）",
-    "workload:规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "workload:workload-level:blocked(multicore-fs: litmus needs multi-core FS)"
    ],
    "target_activated_samples": "385"
   },
@@ -7119,7 +7119,7 @@
     "spec_name": "Atomic-Litmus 并发探针（MP、SB、LB、IRIW、Dekker、ticket lock、CAS counter、LDXR/STXR）",
     "binary": null,
     "golden": null,
-    "note": "规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "note": "workload-level:blocked(multicore-fs: litmus needs multi-core FS)"
    },
    "path_raw": "[O07-F2-W7] L0 exclusive-monitor/原子操作数/完成或排序状态注入 → L1 LDXR建立reservation或LSE/CAS/SWP/LDADD形成RMW请求 → L2 cache/coherence执行compare/old→new并决定success → L3 STXR状态/old value返回、barrier/order约束全局可见性 → L4 目的寄存器与共享内存被后续线程消费 → L5 commit与litmus forbidden-outcome/oracle结局。本Run触发=至少2个相关事务；频率=F2；负载=Atomic-Litmus 并发探针（MP、SB、LB、IRIW、Dekker、ticket lock、CAS counter、LDXR/STXR）。",
    "path_nodes": [
@@ -7140,7 +7140,7 @@
    "status_reasons": [
     "campaign:blocked(multicore-fs: order-tag swap needs multi-core)",
     "spec:需新增（当前阻塞：需要多核FS order-tag/ready跟踪）",
-    "workload:规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "workload:workload-level:blocked(multicore-fs: litmus needs multi-core FS)"
    ],
    "target_activated_samples": "385"
   },
@@ -7156,7 +7156,7 @@
     "spec_name": "Atomic-Litmus 并发探针（MP、SB、LB、IRIW、Dekker、ticket lock、CAS counter、LDXR/STXR）",
     "binary": null,
     "golden": null,
-    "note": "规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "note": "workload-level:blocked(multicore-fs: litmus needs multi-core FS)"
    },
    "path_raw": "[O07-F6-W7] L0 exclusive-monitor/原子操作数/完成或排序状态注入 → L1 LDXR建立reservation或LSE/CAS/SWP/LDADD形成RMW请求 → L2 cache/coherence执行compare/old→new并决定success → L3 STXR状态/old value返回、barrier/order约束全局可见性 → L4 目的寄存器与共享内存被后续线程消费 → L5 commit与litmus forbidden-outcome/oracle结局。本Run触发=至少2个相关事务；频率=F6；负载=Atomic-Litmus 并发探针（MP、SB、LB、IRIW、Dekker、ticket lock、CAS counter、LDXR/STXR）。",
    "path_nodes": [
@@ -7177,7 +7177,7 @@
    "status_reasons": [
     "campaign:blocked(multicore-fs: order-tag swap needs multi-core)",
     "spec:需新增（当前阻塞：需要多核FS order-tag/ready跟踪）",
-    "workload:规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "workload:workload-level:blocked(multicore-fs: litmus needs multi-core FS)"
    ],
    "target_activated_samples": "385"
   },
@@ -8791,7 +8791,7 @@
     "spec_name": "TLB-AliasPerm 地址翻译探针（4KiB/2MiB 页、ASID、同VA不同PA、权限、TLBI、跨页访问）",
     "binary": null,
     "golden": null,
-    "note": "规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "note": "workload-level:blocked(fs-infra: TLB workload needs FS)"
    },
    "path_raw": "[T10-F0-W4] L0 CHAOSArmTLB表项/查找结果注入 → L1 DTLB lookup(tag/ASID/valid/way/PPN/permission/page-size) → L2 hit或miss→page walk→refill/TLBI→翻译完成(PA或fault) → L3 LSQ Request进入L1D/下级内存 → L4 load返回PRF或store落点/异常处理 → L5 commit/squash与软件oracle结局。本Run触发=DTLB 中存在有效项且后续再次命中；频率=F0；负载=TLB-AliasPerm 地址翻译探针（4KiB/2MiB 页、ASID、同VA不同PA、权限、TLBI、跨页访问）。",
    "path_nodes": [
@@ -8811,7 +8811,7 @@
    "impl_status": "部分已有（注入近似：bit flip存在但没有低/中/高PPN分层参数；传播仍缺）",
    "status": "BLOCKED",
    "status_reasons": [
-    "workload:规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "workload:workload-level:blocked(fs-infra: TLB workload needs FS)"
    ],
    "target_activated_samples": "385"
   },
@@ -8827,7 +8827,7 @@
     "spec_name": "SPEC CPU2017 采样区间",
     "binary": null,
     "golden": null,
-    "note": "规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "note": "workload-level:blocked(spec-license: SPEC CPU2017 needs a license)"
    },
    "path_raw": "[T10-F0-W11] L0 CHAOSArmTLB表项/查找结果注入 → L1 DTLB lookup(tag/ASID/valid/way/PPN/permission/page-size) → L2 hit或miss→page walk→refill/TLBI→翻译完成(PA或fault) → L3 LSQ Request进入L1D/下级内存 → L4 load返回PRF或store落点/异常处理 → L5 commit/squash与软件oracle结局。本Run触发=DTLB 中存在有效项且后续再次命中；频率=F0；负载=SPEC CPU2017 采样区间。",
    "path_nodes": [
@@ -8847,7 +8847,7 @@
    "impl_status": "部分已有（注入近似：bit flip存在但没有低/中/高PPN分层参数；传播仍缺）",
    "status": "BLOCKED",
    "status_reasons": [
-    "workload:规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "workload:workload-level:blocked(spec-license: SPEC CPU2017 needs a license)"
    ],
    "target_activated_samples": "385"
   },
@@ -8897,7 +8897,7 @@
     "spec_name": "TLB-AliasPerm 地址翻译探针（4KiB/2MiB 页、ASID、同VA不同PA、权限、TLBI、跨页访问）",
     "binary": null,
     "golden": null,
-    "note": "规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "note": "workload-level:blocked(fs-infra: TLB workload needs FS)"
    },
    "path_raw": "[T10-F1-W4] L0 CHAOSArmTLB表项/查找结果注入 → L1 DTLB lookup(tag/ASID/valid/way/PPN/permission/page-size) → L2 hit或miss→page walk→refill/TLBI→翻译完成(PA或fault) → L3 LSQ Request进入L1D/下级内存 → L4 load返回PRF或store落点/异常处理 → L5 commit/squash与软件oracle结局。本Run触发=DTLB 中存在有效项且后续再次命中；频率=F1；负载=TLB-AliasPerm 地址翻译探针（4KiB/2MiB 页、ASID、同VA不同PA、权限、TLBI、跨页访问）。",
    "path_nodes": [
@@ -8917,7 +8917,7 @@
    "impl_status": "部分已有（注入近似：bit flip存在但没有低/中/高PPN分层参数；传播仍缺）",
    "status": "BLOCKED",
    "status_reasons": [
-    "workload:规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "workload:workload-level:blocked(fs-infra: TLB workload needs FS)"
    ],
    "target_activated_samples": "385"
   },
@@ -8933,7 +8933,7 @@
     "spec_name": "SPEC CPU2017 采样区间",
     "binary": null,
     "golden": null,
-    "note": "规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "note": "workload-level:blocked(spec-license: SPEC CPU2017 needs a license)"
    },
    "path_raw": "[T10-F1-W11] L0 CHAOSArmTLB表项/查找结果注入 → L1 DTLB lookup(tag/ASID/valid/way/PPN/permission/page-size) → L2 hit或miss→page walk→refill/TLBI→翻译完成(PA或fault) → L3 LSQ Request进入L1D/下级内存 → L4 load返回PRF或store落点/异常处理 → L5 commit/squash与软件oracle结局。本Run触发=DTLB 中存在有效项且后续再次命中；频率=F1；负载=SPEC CPU2017 采样区间。",
    "path_nodes": [
@@ -8953,7 +8953,7 @@
    "impl_status": "部分已有（注入近似：bit flip存在但没有低/中/高PPN分层参数；传播仍缺）",
    "status": "BLOCKED",
    "status_reasons": [
-    "workload:规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "workload:workload-level:blocked(spec-license: SPEC CPU2017 needs a license)"
    ],
    "target_activated_samples": "385"
   },
@@ -9003,7 +9003,7 @@
     "spec_name": "TLB-AliasPerm 地址翻译探针（4KiB/2MiB 页、ASID、同VA不同PA、权限、TLBI、跨页访问）",
     "binary": null,
     "golden": null,
-    "note": "规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "note": "workload-level:blocked(fs-infra: TLB workload needs FS)"
    },
    "path_raw": "[T10-F2-W4] L0 CHAOSArmTLB表项/查找结果注入 → L1 DTLB lookup(tag/ASID/valid/way/PPN/permission/page-size) → L2 hit或miss→page walk→refill/TLBI→翻译完成(PA或fault) → L3 LSQ Request进入L1D/下级内存 → L4 load返回PRF或store落点/异常处理 → L5 commit/squash与软件oracle结局。本Run触发=DTLB 中存在有效项且后续再次命中；频率=F2；负载=TLB-AliasPerm 地址翻译探针（4KiB/2MiB 页、ASID、同VA不同PA、权限、TLBI、跨页访问）。",
    "path_nodes": [
@@ -9023,7 +9023,7 @@
    "impl_status": "部分已有（注入近似：bit flip存在但没有低/中/高PPN分层参数；传播仍缺）",
    "status": "BLOCKED",
    "status_reasons": [
-    "workload:规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "workload:workload-level:blocked(fs-infra: TLB workload needs FS)"
    ],
    "target_activated_samples": "385"
   },
@@ -9039,7 +9039,7 @@
     "spec_name": "SPEC CPU2017 采样区间",
     "binary": null,
     "golden": null,
-    "note": "规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "note": "workload-level:blocked(spec-license: SPEC CPU2017 needs a license)"
    },
    "path_raw": "[T10-F2-W11] L0 CHAOSArmTLB表项/查找结果注入 → L1 DTLB lookup(tag/ASID/valid/way/PPN/permission/page-size) → L2 hit或miss→page walk→refill/TLBI→翻译完成(PA或fault) → L3 LSQ Request进入L1D/下级内存 → L4 load返回PRF或store落点/异常处理 → L5 commit/squash与软件oracle结局。本Run触发=DTLB 中存在有效项且后续再次命中；频率=F2；负载=SPEC CPU2017 采样区间。",
    "path_nodes": [
@@ -9059,7 +9059,7 @@
    "impl_status": "部分已有（注入近似：bit flip存在但没有低/中/高PPN分层参数；传播仍缺）",
    "status": "BLOCKED",
    "status_reasons": [
-    "workload:规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "workload:workload-level:blocked(spec-license: SPEC CPU2017 needs a license)"
    ],
    "target_activated_samples": "385"
   },
@@ -9143,7 +9143,7 @@
     "spec_name": "SPEC CPU2017 采样区间",
     "binary": null,
     "golden": null,
-    "note": "规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "note": "workload-level:blocked(spec-license: SPEC CPU2017 needs a license)"
    },
    "path_raw": "[S13-F0-W11] L0 SQ/转发/地址/状态注入 → L1 SQ allocate→地址/数据/byte-mask/age/valid/committed/completed → L2 与load地址比较、store-to-load forwarding或violation/replay → L3 store获得commit授权→drain→Request/ack→L1D hit/miss/MSHR/fill/writeback → L4 cache/memory可见副作用及后续load读取 → L5 commit/squash/异常与软件oracle结局。本Run触发=SQ 中存在地址已知、尚未提交且之后会被消费的 store；频率=F0；负载=SPEC CPU2017 采样区间。",
    "path_nodes": [
@@ -9163,7 +9163,7 @@
    "impl_status": "部分已有（可直接启用现有L0/L3/commit监控；仍需补TLB/LSQ/cache关联字段）",
    "status": "BLOCKED",
    "status_reasons": [
-    "workload:规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "workload:workload-level:blocked(spec-license: SPEC CPU2017 needs a license)"
    ],
    "target_activated_samples": "385"
   },
@@ -9281,7 +9281,7 @@
     "spec_name": "SPEC CPU2017 采样区间",
     "binary": null,
     "golden": null,
-    "note": "规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "note": "workload-level:blocked(spec-license: SPEC CPU2017 needs a license)"
    },
    "path_raw": "[S13-F1-W11] L0 SQ/转发/地址/状态注入 → L1 SQ allocate→地址/数据/byte-mask/age/valid/committed/completed → L2 与load地址比较、store-to-load forwarding或violation/replay → L3 store获得commit授权→drain→Request/ack→L1D hit/miss/MSHR/fill/writeback → L4 cache/memory可见副作用及后续load读取 → L5 commit/squash/异常与软件oracle结局。本Run触发=SQ 中存在地址已知、尚未提交且之后会被消费的 store；频率=F1；负载=SPEC CPU2017 采样区间。",
    "path_nodes": [
@@ -9301,7 +9301,7 @@
    "impl_status": "部分已有（可直接启用现有L0/L3/commit监控；仍需补TLB/LSQ/cache关联字段）",
    "status": "BLOCKED",
    "status_reasons": [
-    "workload:规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "workload:workload-level:blocked(spec-license: SPEC CPU2017 needs a license)"
    ],
    "target_activated_samples": "385"
   },
@@ -9419,7 +9419,7 @@
     "spec_name": "SPEC CPU2017 采样区间",
     "binary": null,
     "golden": null,
-    "note": "规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "note": "workload-level:blocked(spec-license: SPEC CPU2017 needs a license)"
    },
    "path_raw": "[S13-F2-W11] L0 SQ/转发/地址/状态注入 → L1 SQ allocate→地址/数据/byte-mask/age/valid/committed/completed → L2 与load地址比较、store-to-load forwarding或violation/replay → L3 store获得commit授权→drain→Request/ack→L1D hit/miss/MSHR/fill/writeback → L4 cache/memory可见副作用及后续load读取 → L5 commit/squash/异常与软件oracle结局。本Run触发=SQ 中存在地址已知、尚未提交且之后会被消费的 store；频率=F2；负载=SPEC CPU2017 采样区间。",
    "path_nodes": [
@@ -9439,7 +9439,7 @@
    "impl_status": "部分已有（可直接启用现有L0/L3/commit监控；仍需补TLB/LSQ/cache关联字段）",
    "status": "BLOCKED",
    "status_reasons": [
-    "workload:规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "workload:workload-level:blocked(spec-license: SPEC CPU2017 needs a license)"
    ],
    "target_activated_samples": "385"
   },
@@ -10240,7 +10240,7 @@
     "spec_name": "SPEC CPU2017 采样区间",
     "binary": null,
     "golden": null,
-    "note": "规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "note": "workload-level:blocked(spec-license: SPEC CPU2017 needs a license)"
    },
    "path_raw": "[L04-F0-W11] L0 LQ地址/状态/violation/response-pair注入 → L1 LQ allocate→地址已知→issued/completed/squashed → L2 与更老store比较、forward或cache request、violation与replay → L3 cache response按request_id返回并绑定目标load → L4 数据写目的PRF→消费者→commit或squash → L5 首个错误commit/异常与软件oracle结局。本Run触发=同时存在至少两个在途load且发生cache response；频率=F0；负载=SPEC CPU2017 采样区间。",
    "path_nodes": [
@@ -10262,7 +10262,7 @@
    "status_reasons": [
     "campaign:deferred(consumer-side: response-pairing event source only)",
     "spec:需新增（当前阻塞：只有response-pairing事件源，无可注入/追踪映射）",
-    "workload:规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "workload:workload-level:blocked(spec-license: SPEC CPU2017 needs a license)"
    ],
    "target_activated_samples": "385"
   },
@@ -10352,7 +10352,7 @@
     "spec_name": "SPEC CPU2017 采样区间",
     "binary": null,
     "golden": null,
-    "note": "规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "note": "workload-level:blocked(spec-license: SPEC CPU2017 needs a license)"
    },
    "path_raw": "[L04-F2-W11] L0 LQ地址/状态/violation/response-pair注入 → L1 LQ allocate→地址已知→issued/completed/squashed → L2 与更老store比较、forward或cache request、violation与replay → L3 cache response按request_id返回并绑定目标load → L4 数据写目的PRF→消费者→commit或squash → L5 首个错误commit/异常与软件oracle结局。本Run触发=同时存在至少两个在途load且发生cache response；频率=F2；负载=SPEC CPU2017 采样区间。",
    "path_nodes": [
@@ -10374,7 +10374,7 @@
    "status_reasons": [
     "campaign:deferred(consumer-side: response-pairing event source only)",
     "spec:需新增（当前阻塞：只有response-pairing事件源，无可注入/追踪映射）",
-    "workload:规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "workload:workload-level:blocked(spec-license: SPEC CPU2017 needs a license)"
    ],
    "target_activated_samples": "385"
   },
@@ -10464,7 +10464,7 @@
     "spec_name": "SPEC CPU2017 采样区间",
     "binary": null,
     "golden": null,
-    "note": "规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "note": "workload-level:blocked(spec-license: SPEC CPU2017 needs a license)"
    },
    "path_raw": "[L04-F6-W11] L0 LQ地址/状态/violation/response-pair注入 → L1 LQ allocate→地址已知→issued/completed/squashed → L2 与更老store比较、forward或cache request、violation与replay → L3 cache response按request_id返回并绑定目标load → L4 数据写目的PRF→消费者→commit或squash → L5 首个错误commit/异常与软件oracle结局。本Run触发=同时存在至少两个在途load且发生cache response；频率=F6；负载=SPEC CPU2017 采样区间。",
    "path_nodes": [
@@ -10486,7 +10486,7 @@
    "status_reasons": [
     "campaign:deferred(consumer-side: response-pairing event source only)",
     "spec:需新增（当前阻塞：只有response-pairing事件源，无可注入/追踪映射）",
-    "workload:规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "workload:workload-level:blocked(spec-license: SPEC CPU2017 needs a license)"
    ],
    "target_activated_samples": "385"
   },
@@ -10685,7 +10685,7 @@
     "spec_name": "SPEC CPU2017 采样区间",
     "binary": null,
     "golden": null,
-    "note": "规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "note": "workload-level:blocked(spec-license: SPEC CPU2017 needs a license)"
    },
    "path_raw": "[C15-F0-W11] L0 CHAOSCache或MSHR/fill控制点注入 → L1 tag lookup(set/way/tag/valid/coh/dirty/data) → L2 hit返回，或miss→MSHR allocate/merge→下级Request→response/fill→victim/eviction/writeback → L3 响应送回LSQ或错误line成为后续命中源 → L4 load写PRF/消费者或store持久化副作用 → L5 commit/异常与软件oracle结局。本Run触发=MSHR接近或达到容量上限时发生新miss分配；频率=F0；负载=SPEC CPU2017 采样区间。",
    "path_nodes": [
@@ -10706,7 +10706,7 @@
    "status_reasons": [
     "campaign:deferred(consumer-side: MSHR occupancy event source only)",
     "spec:需新增（当前阻塞：无MSHR occupancy/entry选择注入）",
-    "workload:规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "workload:workload-level:blocked(spec-license: SPEC CPU2017 needs a license)"
    ],
    "target_activated_samples": "385"
   },
@@ -10795,7 +10795,7 @@
     "spec_name": "SPEC CPU2017 采样区间",
     "binary": null,
     "golden": null,
-    "note": "规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "note": "workload-level:blocked(spec-license: SPEC CPU2017 needs a license)"
    },
    "path_raw": "[C15-F4-W11] L0 CHAOSCache或MSHR/fill控制点注入 → L1 tag lookup(set/way/tag/valid/coh/dirty/data) → L2 hit返回，或miss→MSHR allocate/merge→下级Request→response/fill→victim/eviction/writeback → L3 响应送回LSQ或错误line成为后续命中源 → L4 load写PRF/消费者或store持久化副作用 → L5 commit/异常与软件oracle结局。本Run触发=MSHR接近或达到容量上限时发生新miss分配；频率=F4；负载=SPEC CPU2017 采样区间。",
    "path_nodes": [
@@ -10816,7 +10816,7 @@
    "status_reasons": [
     "campaign:deferred(consumer-side: MSHR occupancy event source only)",
     "spec:需新增（当前阻塞：无MSHR occupancy/entry选择注入）",
-    "workload:规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "workload:workload-level:blocked(spec-license: SPEC CPU2017 needs a license)"
    ],
    "target_activated_samples": "385"
   },
@@ -10905,7 +10905,7 @@
     "spec_name": "SPEC CPU2017 采样区间",
     "binary": null,
     "golden": null,
-    "note": "规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "note": "workload-level:blocked(spec-license: SPEC CPU2017 needs a license)"
    },
    "path_raw": "[C15-F6-W11] L0 CHAOSCache或MSHR/fill控制点注入 → L1 tag lookup(set/way/tag/valid/coh/dirty/data) → L2 hit返回，或miss→MSHR allocate/merge→下级Request→response/fill→victim/eviction/writeback → L3 响应送回LSQ或错误line成为后续命中源 → L4 load写PRF/消费者或store持久化副作用 → L5 commit/异常与软件oracle结局。本Run触发=MSHR接近或达到容量上限时发生新miss分配；频率=F6；负载=SPEC CPU2017 采样区间。",
    "path_nodes": [
@@ -10926,7 +10926,7 @@
    "status_reasons": [
     "campaign:deferred(consumer-side: MSHR occupancy event source only)",
     "spec:需新增（当前阻塞：无MSHR occupancy/entry选择注入）",
-    "workload:规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "workload:workload-level:blocked(spec-license: SPEC CPU2017 needs a license)"
    ],
    "target_activated_samples": "385"
   },
@@ -10942,7 +10942,7 @@
     "spec_name": "Atomic-Litmus 并发探针（MP、SB、LB、IRIW、Dekker、ticket lock、CAS counter、LDXR/STXR）",
     "binary": null,
     "golden": null,
-    "note": "规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "note": "workload-level:blocked(multicore-fs: litmus needs multi-core FS)"
    },
    "path_raw": "[O09-F0-W7] L0 exclusive-monitor/原子操作数/完成或排序状态注入 → L1 LDXR建立reservation或LSE/CAS/SWP/LDADD形成RMW请求 → L2 cache/coherence执行compare/old→new并决定success → L3 STXR状态/old value返回、barrier/order约束全局可见性 → L4 目的寄存器与共享内存被后续线程消费 → L5 commit与litmus forbidden-outcome/oracle结局。本Run触发=CAS/SWP/LDADD 等原子操作进入执行或返回阶段；频率=F0；负载=Atomic-Litmus 并发探针（MP、SB、LB、IRIW、Dekker、ticket lock、CAS counter、LDXR/STXR）。",
    "path_nodes": [
@@ -10963,7 +10963,7 @@
    "status_reasons": [
     "campaign:deferred(RMW operand path needs cache-side hook)",
     "spec:需新增（当前阻塞：缺RMW operand hook）",
-    "workload:规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "workload:workload-level:blocked(multicore-fs: litmus needs multi-core FS)"
    ],
    "target_activated_samples": "385"
   },
@@ -10979,7 +10979,7 @@
     "spec_name": "PARSEC-Selected 多线程应用（共享队列、锁与任务并行）",
     "binary": null,
     "golden": null,
-    "note": "规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "note": "workload-level:blocked(multicore-fs: PARSEC needs multi-core FS)"
    },
    "path_raw": "[O09-F0-W13] L0 exclusive-monitor/原子操作数/完成或排序状态注入 → L1 LDXR建立reservation或LSE/CAS/SWP/LDADD形成RMW请求 → L2 cache/coherence执行compare/old→new并决定success → L3 STXR状态/old value返回、barrier/order约束全局可见性 → L4 目的寄存器与共享内存被后续线程消费 → L5 commit与litmus forbidden-outcome/oracle结局。本Run触发=CAS/SWP/LDADD 等原子操作进入执行或返回阶段；频率=F0；负载=PARSEC-Selected 多线程应用（共享队列、锁与任务并行）。",
    "path_nodes": [
@@ -11000,7 +11000,7 @@
    "status_reasons": [
     "campaign:deferred(RMW operand path needs cache-side hook)",
     "spec:需新增（当前阻塞：缺RMW operand hook）",
-    "workload:规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "workload:workload-level:blocked(multicore-fs: PARSEC needs multi-core FS)"
    ],
    "target_activated_samples": "385"
   },
@@ -11016,7 +11016,7 @@
     "spec_name": "Atomic-Litmus 并发探针（MP、SB、LB、IRIW、Dekker、ticket lock、CAS counter、LDXR/STXR）",
     "binary": null,
     "golden": null,
-    "note": "规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "note": "workload-level:blocked(multicore-fs: litmus needs multi-core FS)"
    },
    "path_raw": "[O09-F1-W7] L0 exclusive-monitor/原子操作数/完成或排序状态注入 → L1 LDXR建立reservation或LSE/CAS/SWP/LDADD形成RMW请求 → L2 cache/coherence执行compare/old→new并决定success → L3 STXR状态/old value返回、barrier/order约束全局可见性 → L4 目的寄存器与共享内存被后续线程消费 → L5 commit与litmus forbidden-outcome/oracle结局。本Run触发=CAS/SWP/LDADD 等原子操作进入执行或返回阶段；频率=F1；负载=Atomic-Litmus 并发探针（MP、SB、LB、IRIW、Dekker、ticket lock、CAS counter、LDXR/STXR）。",
    "path_nodes": [
@@ -11037,7 +11037,7 @@
    "status_reasons": [
     "campaign:deferred(RMW operand path needs cache-side hook)",
     "spec:需新增（当前阻塞：缺RMW operand hook）",
-    "workload:规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "workload:workload-level:blocked(multicore-fs: litmus needs multi-core FS)"
    ],
    "target_activated_samples": "385"
   },
@@ -11053,7 +11053,7 @@
     "spec_name": "PARSEC-Selected 多线程应用（共享队列、锁与任务并行）",
     "binary": null,
     "golden": null,
-    "note": "规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "note": "workload-level:blocked(multicore-fs: PARSEC needs multi-core FS)"
    },
    "path_raw": "[O09-F1-W13] L0 exclusive-monitor/原子操作数/完成或排序状态注入 → L1 LDXR建立reservation或LSE/CAS/SWP/LDADD形成RMW请求 → L2 cache/coherence执行compare/old→new并决定success → L3 STXR状态/old value返回、barrier/order约束全局可见性 → L4 目的寄存器与共享内存被后续线程消费 → L5 commit与litmus forbidden-outcome/oracle结局。本Run触发=CAS/SWP/LDADD 等原子操作进入执行或返回阶段；频率=F1；负载=PARSEC-Selected 多线程应用（共享队列、锁与任务并行）。",
    "path_nodes": [
@@ -11074,7 +11074,7 @@
    "status_reasons": [
     "campaign:deferred(RMW operand path needs cache-side hook)",
     "spec:需新增（当前阻塞：缺RMW operand hook）",
-    "workload:规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "workload:workload-level:blocked(multicore-fs: PARSEC needs multi-core FS)"
    ],
    "target_activated_samples": "385"
   },
@@ -11090,7 +11090,7 @@
     "spec_name": "Atomic-Litmus 并发探针（MP、SB、LB、IRIW、Dekker、ticket lock、CAS counter、LDXR/STXR）",
     "binary": null,
     "golden": null,
-    "note": "规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "note": "workload-level:blocked(multicore-fs: litmus needs multi-core FS)"
    },
    "path_raw": "[O09-F2-W7] L0 exclusive-monitor/原子操作数/完成或排序状态注入 → L1 LDXR建立reservation或LSE/CAS/SWP/LDADD形成RMW请求 → L2 cache/coherence执行compare/old→new并决定success → L3 STXR状态/old value返回、barrier/order约束全局可见性 → L4 目的寄存器与共享内存被后续线程消费 → L5 commit与litmus forbidden-outcome/oracle结局。本Run触发=CAS/SWP/LDADD 等原子操作进入执行或返回阶段；频率=F2；负载=Atomic-Litmus 并发探针（MP、SB、LB、IRIW、Dekker、ticket lock、CAS counter、LDXR/STXR）。",
    "path_nodes": [
@@ -11111,7 +11111,7 @@
    "status_reasons": [
     "campaign:deferred(RMW operand path needs cache-side hook)",
     "spec:需新增（当前阻塞：缺RMW operand hook）",
-    "workload:规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "workload:workload-level:blocked(multicore-fs: litmus needs multi-core FS)"
    ],
    "target_activated_samples": "385"
   },
@@ -11127,7 +11127,7 @@
     "spec_name": "PARSEC-Selected 多线程应用（共享队列、锁与任务并行）",
     "binary": null,
     "golden": null,
-    "note": "规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "note": "workload-level:blocked(multicore-fs: PARSEC needs multi-core FS)"
    },
    "path_raw": "[O09-F2-W13] L0 exclusive-monitor/原子操作数/完成或排序状态注入 → L1 LDXR建立reservation或LSE/CAS/SWP/LDADD形成RMW请求 → L2 cache/coherence执行compare/old→new并决定success → L3 STXR状态/old value返回、barrier/order约束全局可见性 → L4 目的寄存器与共享内存被后续线程消费 → L5 commit与litmus forbidden-outcome/oracle结局。本Run触发=CAS/SWP/LDADD 等原子操作进入执行或返回阶段；频率=F2；负载=PARSEC-Selected 多线程应用（共享队列、锁与任务并行）。",
    "path_nodes": [
@@ -11148,7 +11148,7 @@
    "status_reasons": [
     "campaign:deferred(RMW operand path needs cache-side hook)",
     "spec:需新增（当前阻塞：缺RMW operand hook）",
-    "workload:规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "workload:workload-level:blocked(multicore-fs: PARSEC needs multi-core FS)"
    ],
    "target_activated_samples": "385"
   },
@@ -11235,7 +11235,7 @@
     "spec_name": "PARSEC-Selected 多线程应用（共享队列、锁与任务并行）",
     "binary": null,
     "golden": null,
-    "note": "规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "note": "workload-level:blocked(multicore-fs: PARSEC needs multi-core FS)"
    },
    "path_raw": "[P09-F0-W13] L0 训练表/置信度/生成地址/队列/请求属性注入 → L1 demand访问训练PC/stride/confidence并生成候选 → L2 prefetch queue选择/发出/cancel/merge/throttle → L3 L1/L2 cache接收响应、fill set/way/tag/data/ownership/dirty并可能驱逐victim/writeback → L4 后续demand命中该line或受污染/错误驱逐影响 → L5 架构结果、oracle与性能偏差。本Run触发=prefetch分配cache line并驱逐dirty victim；频率=F0；负载=PARSEC-Selected 多线程应用（共享队列、锁与任务并行）。",
    "path_nodes": [
@@ -11256,7 +11256,7 @@
    "impl_status": "部分已有（注入近似：cache dirty故障近似prefetch触发writeback时序；传播仍缺）",
    "status": "BLOCKED",
    "status_reasons": [
-    "workload:规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "workload:workload-level:blocked(multicore-fs: PARSEC needs multi-core FS)"
    ],
    "target_activated_samples": "385"
   },
@@ -11343,7 +11343,7 @@
     "spec_name": "PARSEC-Selected 多线程应用（共享队列、锁与任务并行）",
     "binary": null,
     "golden": null,
-    "note": "规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "note": "workload-level:blocked(multicore-fs: PARSEC needs multi-core FS)"
    },
    "path_raw": "[P09-F4-W13] L0 训练表/置信度/生成地址/队列/请求属性注入 → L1 demand访问训练PC/stride/confidence并生成候选 → L2 prefetch queue选择/发出/cancel/merge/throttle → L3 L1/L2 cache接收响应、fill set/way/tag/data/ownership/dirty并可能驱逐victim/writeback → L4 后续demand命中该line或受污染/错误驱逐影响 → L5 架构结果、oracle与性能偏差。本Run触发=prefetch分配cache line并驱逐dirty victim；频率=F4；负载=PARSEC-Selected 多线程应用（共享队列、锁与任务并行）。",
    "path_nodes": [
@@ -11364,7 +11364,7 @@
    "impl_status": "部分已有（注入近似：cache dirty故障近似prefetch触发writeback时序；传播仍缺）",
    "status": "BLOCKED",
    "status_reasons": [
-    "workload:规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "workload:workload-level:blocked(multicore-fs: PARSEC needs multi-core FS)"
    ],
    "target_activated_samples": "385"
   },
@@ -11451,7 +11451,7 @@
     "spec_name": "PARSEC-Selected 多线程应用（共享队列、锁与任务并行）",
     "binary": null,
     "golden": null,
-    "note": "规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "note": "workload-level:blocked(multicore-fs: PARSEC needs multi-core FS)"
    },
    "path_raw": "[P09-F6-W13] L0 训练表/置信度/生成地址/队列/请求属性注入 → L1 demand访问训练PC/stride/confidence并生成候选 → L2 prefetch queue选择/发出/cancel/merge/throttle → L3 L1/L2 cache接收响应、fill set/way/tag/data/ownership/dirty并可能驱逐victim/writeback → L4 后续demand命中该line或受污染/错误驱逐影响 → L5 架构结果、oracle与性能偏差。本Run触发=prefetch分配cache line并驱逐dirty victim；频率=F6；负载=PARSEC-Selected 多线程应用（共享队列、锁与任务并行）。",
    "path_nodes": [
@@ -11472,7 +11472,7 @@
    "impl_status": "部分已有（注入近似：cache dirty故障近似prefetch触发writeback时序；传播仍缺）",
    "status": "BLOCKED",
    "status_reasons": [
-    "workload:规格负载名无 SE 载体映射（WL_BINARY 前缀未命中；不猜）"
+    "workload:workload-level:blocked(multicore-fs: PARSEC needs multi-core FS)"
    ],
    "target_activated_samples": "385"
   }
