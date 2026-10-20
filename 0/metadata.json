@@ -1,0 +1,133 @@
+{
+  "cli_version": "0.10.2",
+  "checkpoint_id": "01M5C2K9ECEFDTCVF30Z7899YE",
+  "session_id": "c3880015-3712-404c-94a4-e902467cb52b",
+  "strategy": "manual-commit",
+  "created_at": "2026-10-20T07:14:50.5167515Z",
+  "branch": "closeout-tmp",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "docs/superpowers/plans/2026-10-20-root-readme.md"
+  ],
+  "agent": "Claude Code",
+  "model": "GLM-5.3[1m]",
+  "turn_id": "2386364443f2",
+  "checkpoint_transcript_start": 229,
+  "transcript_lines_at_start": 229,
+  "compact_transcript_start": 33,
+  "token_usage": {
+    "input_tokens": 8922,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 1109184,
+    "output_tokens": 5287,
+    "api_call_count": 7
+  },
+  "skill_events_version": 1,
+  "skill_events": [
+    {
+      "id": "claude-skill-call_e9a22f6fa3b7402495c9d314",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "superpowers:writing-plans"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "2386364443f2",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 66,
+        "end": 67,
+        "entry_ids": [
+          "3b7fe539-25ca-432e-8403-87de50ca80a2"
+        ],
+        "tool_use_id": "call_e9a22f6fa3b7402495c9d314"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "call_e9a22f6fa3b7402495c9d314"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: superpowers:writing-plans",
+        "default_collapsed": true
+      }
+    },
+    {
+      "id": "claude-skill-call_3e832bbf310a4ba4ae38c781",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "superpowers:executing-plans"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "2386364443f2",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 102,
+        "end": 103,
+        "entry_ids": [
+          "942df389-dc09-448b-8897-a41bce97e554"
+        ],
+        "tool_use_id": "call_3e832bbf310a4ba4ae38c781"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "call_3e832bbf310a4ba4ae38c781"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: superpowers:executing-plans",
+        "default_collapsed": true
+      }
+    },
+    {
+      "id": "claude-skill-call_c83eb56468f14b4ba4014c0c",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "superpowers:using-git-worktrees"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "2386364443f2",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 109,
+        "end": 110,
+        "entry_ids": [
+          "618299ed-4166-4144-b8fc-fa29c6af0db4"
+        ],
+        "tool_use_id": "call_c83eb56468f14b4ba4014c0c"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "call_c83eb56468f14b4ba4014c0c"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: superpowers:using-git-worktrees",
+        "default_collapsed": true
+      }
+    }
+  ],
+  "initial_attribution": {
+    "calculated_at": "2026-10-20T07:14:50.34002777Z",
+    "agent_lines": 19,
+    "agent_removed": 6,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 19,
+    "total_lines_changed": 25,
+    "agent_percentage": 100,
+    "metric_version": 2
+  }
+}
