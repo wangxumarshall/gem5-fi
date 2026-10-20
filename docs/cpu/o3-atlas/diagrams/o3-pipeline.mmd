@@ -1,35 +1,71 @@
-flowchart LR
-    BPU["BPU 分支预测器（BTB·RAS·方向/目标）<br/>⚡CHAOSBPU(2模式)"]:::cap
-    FTQ["FTQ 取指目标队列<br/>无注入挂载"]:::plain
-    ICACHE["ICache 取指<br/>无注入挂载"]:::plain
-    DECODER["Decoder（编码→StaticInst）<br/>⚡CHAOSDecode(26模式)"]:::cap
-    RAT["RAT 重命名映射表<br/>⚡CHAOSRenameMap(14模式)"]:::cap
-    FREELIST["FreeList 空闲物理寄存器表<br/>⚡CHAOSFreeList(7模式)"]:::cap
-    IQ["IQ 发射队列（源标签 CAM·就绪位·唤醒）<br/>⚡CHAOSIQ(12模式)"]:::cap
-    LSQ["LSQ（LQ/SQ·store→load 前送·独占监视）<br/>⚡CHAOSLSQFwd(6模式) ⚡CHAOSExMon(2模式)"]:::cap
-    FU["FU 池（IntALU·IntDiv·IntMult·SimdCrcOp）<br/>⚡CHAOSExec(整数结果 XOR 位翻转（exec_fault_mask 参数化）) ⚡CHAOSFPU(6模式)"]:::cap
-    TLBPATH["地址通路（翻译前 vaddr·TLB）<br/>⚡CHAOSAddrPath(2模式)"]:::cap
-    L1D["L1D 返回通路（ECC 后包数据）<br/>⚡CHAOSL1DForward(L1D 返回包数据位翻转（fault_mask 参数化）) ⚡CHAOSCache(cache 行数据注入（arm_chaos_cache 配置族）)"]:::cap
-    DRAM["内存子系统（DRAM 保护模型）<br/>⚡CHAOSMem(参数化注入)"]:::cap
-    PRF["PRF 物理寄存器堆<br/>⚡CHAOSPhysReg(3模式)"]:::cap
-    ROB["ROB 重排序缓冲（pc·dest·done·exc·指针）<br/>⚡CHAOSROB(28模式) ⚡CHAOSRAS(提交期 head fault 清除（异常抑制）)"]:::cap
-    ARCHRF["架构寄存器堆（提交态）<br/>⚡CHAOSReg(4模式)"]:::cap
-    OBS["观测器（占基采样·commit 轨迹，只读）<br/>👁CHAOSProbe(观测) 👁CHAOSCommitTrace(观测)"]:::cap
-    BPU --> FTQ
-    DECODER --> RAT
-    FREELIST --> IQ
-    FTQ --> ICACHE
-    FU --> PRF
-    ICACHE --> DECODER
-    IQ --> FU
-    IQ --> LSQ
-    L1D --> PRF
-    LSQ --> TLBPATH
-    PRF --> ROB
-    RAT --> FREELIST
-    ROB --> ARCHRF
-    TLBPATH --> L1D
-    FU -.-> ICACHE
-    L1D --> DRAM
-    classDef cap fill:#fdd,stroke:#900,stroke-width:2px
-    classDef plain fill:#eee,stroke:#999
+flowchart TB
+    subgraph PIPE["⟦CPU 微架构流水线⟧ 指令流 = 全部 implemented 指令链路的并集"]
+        direction LR
+        BPU["BPU<br/>BTB·RAS·方向/目标预测"]
+        FTQ["FTQ<br/>取指目标队列"]
+        FETCH["FETCH<br/>ICache 取指"]
+        DECODE["DECODE<br/>Decoder→StaticInst"]
+        RENAME["RENAME<br/>RAT·FreeList→物理标签"]
+        DISPATCH["DISPATCH<br/>IQ/LSQ 入队"]
+        ISSUE["ISSUE<br/>IQ 唤醒·选择"]
+        EXECUTE["EXECUTE<br/>FU 池（IntALU·IntDiv·IntMult·SimdCrcOp）"]
+        MEMORY["MEMORY<br/>LSQ·L1D·TLB"]
+        WRITEBACK["WRITEBACK<br/>PRF 写回"]
+        COMMIT["COMMIT<br/>ROB→架构RF"]
+        REDIRECT["REDIRECT<br/>误预测重定向"]
+        BPU --> FTQ
+        COMMIT -.误预测.-> REDIRECT
+        DECODE --> RENAME
+        DISPATCH --> ISSUE
+        EXECUTE --> MEMORY
+        EXECUTE --> WRITEBACK
+        FETCH --> DECODE
+        FTQ --> FETCH
+        ISSUE --> EXECUTE
+        MEMORY --> WRITEBACK
+        RENAME --> DISPATCH
+        WRITEBACK --> COMMIT
+        REDIRECT -.-> FETCH
+    end
+    subgraph CAPS["⟦故障注入能力层⟧ ⚡注入器(模式数)·👁观测器（模式全集实时解析自 ooo_proxy.py）"]
+        direction LR
+        CHAOSBPU["⚡CHAOSBPU(2模式)<br/>dir_flip, target_flip"]:::capnode
+        CHAOSDecode["⚡CHAOSDecode(26模式)<br/>dest_reg_sub, opcode_bitflip, opcode_bitflip2…"]:::capnode
+        CHAOSFreeList["⚡CHAOSFreeList(7模式)<br/>mark_free, pop_wrong, mark_free_event…"]:::capnode
+        CHAOSRenameMap["⚡CHAOSRenameMap(14模式)<br/>map_bitflip, map_bitflip2, map_bitflip2_adj…"]:::capnode
+        CHAOSIQ["⚡CHAOSIQ(12模式)<br/>wake_omit, src_ready_bitflip, wake_phase…"]:::capnode
+        CHAOSExec["⚡CHAOSExec<br/>整数结果 XOR 位翻转（exec_fault_mask 参数化）"]:::capnode
+        CHAOSFPU["⚡CHAOSFPU(6模式)<br/>, , , , , …"]:::capnode
+        CHAOSPhysReg["⚡CHAOSPhysReg(3模式)<br/>phys, arch_frontend, arch_commit"]:::capnode
+        CHAOSAddrPath["⚡CHAOSAddrPath(2模式)<br/>byte7_zero, low_bit_flip"]:::capnode
+        CHAOSCache["⚡CHAOSCache<br/>cache 行数据注入（arm_chaos_cache 配置族）"]:::capnode
+        CHAOSExMon["⚡CHAOSExMon(2模式)<br/>stxr_force_success, stxr_force_fail"]:::capnode
+        CHAOSL1DForward["⚡CHAOSL1DForward<br/>L1D 返回包数据位翻转（fault_mask 参数化）"]:::capnode
+        CHAOSLSQFwd["⚡CHAOSLSQFwd(6模式)<br/>byte_flip, byte_lane_skew, stale_line_replay…"]:::capnode
+        CHAOSMem["⚡CHAOSMem<br/>参数化注入"]:::capnode
+        CHAOSCommitTrace["👁CHAOSCommitTrace(观测)"]:::capnode
+        CHAOSProbe["👁CHAOSProbe(观测)"]:::capnode
+        CHAOSRAS["⚡CHAOSRAS<br/>提交期 head fault 清除（异常抑制）"]:::capnode
+        CHAOSROB["⚡CHAOSROB(28模式)<br/>entry_bitflip, exc_suppress, pc_bitflip…"]:::capnode
+        CHAOSReg["⚡CHAOSReg(4模式)<br/>bit_flip, stuck_at_zero, stuck_at_one…"]:::capnode
+    end
+    MEMORY -.-> CHAOSAddrPath
+    BPU -.-> CHAOSBPU
+    MEMORY -.-> CHAOSCache
+    COMMIT -.-> CHAOSCommitTrace
+    DECODE -.-> CHAOSDecode
+    MEMORY -.-> CHAOSExMon
+    EXECUTE -.-> CHAOSExec
+    EXECUTE -.-> CHAOSFPU
+    RENAME -.-> CHAOSFreeList
+    ISSUE -.-> CHAOSIQ
+    MEMORY -.-> CHAOSL1DForward
+    MEMORY -.-> CHAOSLSQFwd
+    MEMORY -.-> CHAOSMem
+    EXECUTE -.-> CHAOSPhysReg
+    COMMIT -.-> CHAOSProbe
+    COMMIT -.-> CHAOSRAS
+    COMMIT -.-> CHAOSROB
+    COMMIT -.-> CHAOSReg
+    RENAME -.-> CHAOSRenameMap
+    classDef capnode fill:#fdd,stroke:#900,stroke-width:2px

@@ -13,9 +13,12 @@ pytestmark = pytest.mark.skipif(
     not PROXY.is_file(),
     reason="configs/se/ooo_proxy.py 缺失（能力模式全集的数据源；诚实跳过）")
 
-UARCH_BLOCKS = ("BPU", "FTQ", "ICACHE", "DECODER", "RAT", "FREELIST", "IQ",
-                "LSQ", "FU", "TLBPATH", "L1D", "DRAM", "PRF", "ROB",
-                "ARCHRF", "OBS")
+# 上层：流水线站点
+STAGES = ("BPU", "FTQ", "FETCH", "DECODE", "RENAME", "DISPATCH", "ISSUE",
+          "EXECUTE", "MEMORY", "WRITEBACK", "COMMIT", "REDIRECT")
+# 站点标签内嵌的 µarch 结构
+STRUCTS = ("ICache", "Decoder", "RAT", "FreeList", "IQ", "LSQ", "FU", "L1D",
+           "TLB", "PRF", "ROB")
 
 
 def test_injector_caps_parsed_from_ooo_proxy():
@@ -29,36 +32,47 @@ def test_injector_caps_parsed_from_ooo_proxy():
     assert "stxr_force_success" in caps[INJECTOR_FLAG_MAP["CHAOSExMon"][0]]
 
 
-def test_master_mermaid_shows_uarch_blocks_with_injection_badges():
+def test_master_mermaid_pipeline_top_capability_layer_below():
     mmd = render_master_mermaid()
-    for b in UARCH_BLOCKS:
-        assert b in mmd, b
+    # 上层：微架构流水线（站点 + 结构单元标签）
+    for s in STAGES:
+        assert s in mmd, s
+    for st in STRUCTS:
+        assert st in mmd, st
+    # 两层结构：流水线在上、注入能力层在下
+    assert "微架构流水线" in mmd and "故障注入能力" in mmd
+    # 指令流并集：EXECUTE 分岔（ALU 直通 WB 与访存经 MEMORY）
+    assert "EXECUTE --> WRITEBACK" in mmd
+    assert "EXECUTE --> MEMORY" in mmd
+    assert "MEMORY --> WRITEBACK" in mmd
+    assert "REDIRECT -.-> FETCH" in mmd
+    # 挂载边：流水线站点 -.-> 下方注入器（19 个全覆盖）
     for inj in INJECTORS:
         assert inj in mmd, inj
-    # 指令流并集（块级）：整型 IQ→FU→PRF 与访存 IQ→LSQ→TLB→L1D 并存
-    for e in ("IQ --> FU", "IQ --> LSQ", "LSQ --> TLBPATH", "TLBPATH --> L1D",
-              "FU --> PRF", "ROB --> ARCHRF", "RAT --> FREELIST",
-              "DECODER --> RAT"):
+    for e in ("BPU -.-> CHAOSBPU", "DECODE -.-> CHAOSDecode",
+              "RENAME -.-> CHAOSRenameMap", "RENAME -.-> CHAOSFreeList",
+              "ISSUE -.-> CHAOSIQ", "EXECUTE -.-> CHAOSExec",
+              "MEMORY -.-> CHAOSLSQFwd", "COMMIT -.-> CHAOSROB"):
         assert e in mmd, e
-    # 误预测回边 + 内存层级下探
-    assert "FU -.-> ICACHE" in mmd
-    assert "L1D --> DRAM" in mmd
-    # 能力徽标：ROB 块带 CHAOSROB 模式计数（解析自 ooo_proxy.py）
-    assert "⚡CHAOSROB(" in mmd
-    # FU 块含并集执行单元
+    # 能力徽标：注入器节点带模式计数（解析自 ooo_proxy.py）
+    assert "⚡CHAOSROB(" in mmd and "⚡CHAOSDecode(" in mmd
+    # FU 并集入 EXECUTE 站点标签
     for fu in ("IntALU", "IntMult", "IntDiv", "SimdCrcOp"):
         assert fu in mmd, fu
 
 
-def test_master_dot_is_uarch_and_compiles(tmp_path):
+def test_master_dot_pipeline_and_caps_compiles(tmp_path):
     dot_src = render_master_dot()
     assert dot_src.lstrip().startswith("digraph")
-    for b in UARCH_BLOCKS:
-        assert b in dot_src, b
+    for s in STAGES:
+        assert s in dot_src, s
     for inj in INJECTORS:
         assert inj in dot_src, inj
-    for e in ("IQ -> FU", "IQ -> LSQ", "LSQ -> TLBPATH", "ROB -> ARCHRF"):
-        assert e in dot_src, e
+    assert "EXECUTE -> MEMORY" in dot_src
+    assert "EXECUTE -> WRITEBACK" in dot_src
+    assert "COMMIT -> CHAOSROB" in dot_src
+    assert "DECODE -> CHAOSDecode" in dot_src
+    assert "⚡CHAOSROB(" in dot_src
     if not shutil.which("dot"):
         pytest.skip("graphviz dot 缺失（诚实跳过）")
     dot_f = tmp_path / "o3.dot"
@@ -73,12 +87,8 @@ def test_master_dot_is_uarch_and_compiles(tmp_path):
 def test_injection_capabilities_table_complete():
     from tools.o3_atlas.generate import render_injection_caps
     md = render_injection_caps()
-    for b in UARCH_BLOCKS:
-        assert b in md, b
     for inj in INJECTORS:
         assert inj in md, inj
-    # 模式全集入表（抽验代表性模式名）
     assert "pc_bitflip" in md and "map_bitflip" in md
     assert "opcode_bitflip" in md and "stxr_force_success" in md
-    # 每行是完整表格行（| 分隔）
-    assert len([l for l in md.splitlines() if l.startswith("|")]) >= len(UARCH_BLOCKS) + 2
+    assert len([l for l in md.splitlines() if l.startswith("|")]) >= 19 + 2

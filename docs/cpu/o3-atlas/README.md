@@ -10,7 +10,7 @@ spec：`docs/superpowers/specs/2026-10-16-armv8-isa-o3-microarch-atlas-design.md
 - `data/instructions/<category>.yaml` — 372 条指令记录（单一事实源）
 - `pages/` — 生成的每指令一页（与 armv8-isa 文件名 1:1 互链）
 - `index/` — 生成的分类索引
-- `diagrams/` — [O3 微架构总图](diagrams/o3-pipeline.svg)（**µarch 块级**：BPU·FTQ·ICache·Decoder·RAT·FreeList·IQ·LSQ·FU 池·地址通路/TLB·L1D·DRAM·PRF·ROB·架构 RF·观测器；指令流边 = 全部 implemented 指令链路的块级并集（整型 IQ→FU 与访存 IQ→LSQ→TLB→L1D 并存）；**红块 = 可注入单元，每块标注注入器 + 故障模式计数**——模式全集实时解析自 `ooo_proxy.py`，与实验工具面同源；mermaid/dot/svg 三格式）· [微架构单元×注入能力表](diagrams/injection-capabilities.md)（每注入器的模式全集/破坏目标/挂载锚点）· [指令×注入器命中矩阵](diagrams/injector-matrix.md)（372×19）
+- `diagrams/` — [O3 微架构流水线总图](diagrams/o3-pipeline.svg)（**上下两层**：上层 = CPU 微架构流水线，站点标签内嵌结构（BPU·BTB/RAS、ICache、Decoder、RAT·FreeList、IQ、LSQ、FU 池并集、L1D·TLB、PRF、ROB→架构RF），指令流 = 全部 implemented 指令链路的并集（EXECUTE 双路分岔 + 误预测回边）；**下层 = 故障注入能力层**——19 个注入器按挂载站点对齐垂挂于流水线正下方，⚡注入器(N模式)+代表模式（实时解析自 `ooo_proxy.py`）·👁只读观测器；mermaid/dot/svg 三格式）· [注入能力表](diagrams/injection-capabilities.md)（每注入器模式全集/破坏目标/挂载锚点）· [指令×注入器命中矩阵](diagrams/injector-matrix.md)（372×19）
 
 ## 工具
 

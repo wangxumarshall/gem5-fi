@@ -186,97 +186,110 @@ def _inj_badge(inj, caps):
     return f"⚡{inj}({_INJ_PLAIN_DESC.get(inj, '参数化注入')})"
 
 
-def _station_blocks(station, fu):
-    """流水线站点 → µarch 块（gem5 v25 实测结构，锚点见 MICROARCH_BLOCKS）。"""
-    if station == "BPU":
-        return ["BPU"]
-    if station == "FTQ":
-        return ["FTQ"]
-    if station == "FETCH":
-        return ["ICACHE"]
-    if station == "DECODE":
-        return ["DECODER"]
-    if station == "RENAME":
-        return ["RAT", "FREELIST"]
-    if station == "ISSUE":
-        return ["IQ"]  # 访存类同样经 IQ 唤醒（iew.cc:1036 insertNonSpec/:1086 insert）
-    if station == "EXECUTE":
-        return ["LSQ"] if fu in _MEM_FUS else ["FU"]
-    if station == "MEMORY":
-        return ["TLBPATH", "L1D"]
-    if station == "WRITEBACK":
-        return ["PRF"]
-    if station == "COMMIT":
-        return ["ROB", "ARCHRF"]
-    return []  # DISPATCH（IEW 内部分派）/ REDIRECT（画为回边）
+# 流水线站点标签（内嵌 µarch 结构；EXECUTE 的 FU 并集动态填充）
+_STAGE_LABELS = {
+    "BPU": "BPU<br/>BTB·RAS·方向/目标预测",
+    "FTQ": "FTQ<br/>取指目标队列",
+    "FETCH": "FETCH<br/>ICache 取指",
+    "DECODE": "DECODE<br/>Decoder→StaticInst",
+    "RENAME": "RENAME<br/>RAT·FreeList→物理标签",
+    "DISPATCH": "DISPATCH<br/>IQ/LSQ 入队",
+    "ISSUE": "ISSUE<br/>IQ 唤醒·选择",
+    "EXECUTE": "EXECUTE<br/>FU 池",
+    "MEMORY": "MEMORY<br/>LSQ·L1D·TLB",
+    "WRITEBACK": "WRITEBACK<br/>PRF 写回",
+    "COMMIT": "COMMIT<br/>ROB→架构RF",
+    "REDIRECT": "REDIRECT<br/>误预测重定向",
+}
+_STAGE_ORDER = ["BPU", "FTQ", "FETCH", "DECODE", "RENAME", "DISPATCH",
+                "ISSUE", "EXECUTE", "MEMORY", "WRITEBACK", "COMMIT", "REDIRECT"]
 
 
-def build_block_union(families, instructions):
-    """全部 implemented 指令链路 → µarch 块级有向边并集。"""
-    edges = set()
-    for r in instructions:
-        if r.get("tier") == "unimplemented":
-            continue
-        fam = families.get(r.get("family"))
-        if not fam:
-            continue
-        fu = (r.get("overrides") or {}).get("fu") or fam.get("fu")
-        blocks = []
-        for st in fam["pipeline"]:
-            for b in _station_blocks(st, fu):
-                if not blocks or blocks[-1] != b:
-                    blocks.append(b)
-        for a, b in zip(blocks, blocks[1:]):
-            edges.add((a, b))
-    return edges
+def _ordered_injectors():
+    """按挂载站点在流水线中的顺序排列注入器（能力层与流水线从左到右对齐）。"""
+    return sorted(INJECTOR_MOUNTS,
+                  key=lambda i: (_STAGE_ORDER.index(INJECTOR_MOUNTS[i]), i))
+
+
+def _caps_node_label(inj, caps):
+    if inj in ("CHAOSProbe", "CHAOSCommitTrace"):
+        return f"👁{inj}(观测)"
+    modes = _inj_modes(inj, caps)
+    if modes:
+        rep = ", ".join(modes[:3]) + ("…" if len(modes) > 3 else "")
+        return f"⚡{inj}({len(modes)}模式)<br/>{rep}"
+    return f"⚡{inj}<br/>{_INJ_PLAIN_DESC.get(inj, '参数化注入')}"
 
 
 def render_master_mermaid(families=None, instructions=None):
-    """O3 微架构总图（mermaid）：节点 = µarch 结构单元（红=可注入/灰=无挂载），
-    指令流边 = 全部 implemented 指令链路的块级并集，每个单元标注其故障注入
-    能力（注入器 + 模式计数，实时解析自 ooo_proxy.py）。无参时从数据层加载。"""
+    """O3 总图（mermaid，上下两层）：上层 = CPU 微架构流水线（指令流 = 全部
+    implemented 指令链路的并集，站点标签内嵌 µarch 结构）；下层 = 故障注入
+    能力层（19 个注入器按挂载站点对齐，⚡模式计数实时解析自 ooo_proxy.py，
+    虚线自流水线站点垂下）。无参时从数据层加载。"""
     if families is None or instructions is None:
         families, instructions = load_data()
-    _, _, fus, _, _ = build_union_graph(families, instructions)
-    edges = build_block_union(families, instructions)
+    nodes, edges, fus, _q, _a = build_union_graph(families, instructions)
     caps = parse_injector_caps()
     int_fus = sorted(f for f in fus if f not in _MEM_FUS)
-    L = ["flowchart LR"]
-    for bid, label, injs, _anchor in MICROARCH_BLOCKS:
-        if bid == "FU" and int_fus:
-            label = f"FU 池（{'·'.join(int_fus)}）"
-        badge = " ".join(_inj_badge(i, caps) for i in injs) or "无注入挂载"
-        cls = "cap" if injs else "plain"
-        L.append(f'    {bid}["{label}<br/>{badge}"]:::{cls}')
+    L = ["flowchart TB"]
+    L.append('    subgraph PIPE["⟦CPU 微架构流水线⟧ 指令流 = 全部 implemented 指令链路的并集"]')
+    L.append("        direction LR")
+    for s in nodes:
+        label = _STAGE_LABELS.get(s, s)
+        if s == "EXECUTE" and int_fus:
+            label = f"EXECUTE<br/>FU 池（{'·'.join(int_fus)}）"
+        L.append(f'        {s}["{label}"]')
     for a, b in sorted(edges):
-        L.append(f"    {a} --> {b}")
-    L.append("    FU -.-> ICACHE")   # 误预测重定向回边
-    L.append("    L1D --> DRAM")     # 内存层级下探
-    L.append("    classDef cap fill:#fdd,stroke:#900,stroke-width:2px")
-    L.append("    classDef plain fill:#eee,stroke:#999")
+        if (a, b) == ("COMMIT", "REDIRECT"):
+            L.append(f"        {a} -.误预测.-> {b}")
+        else:
+            L.append(f"        {a} --> {b}")
+    if "REDIRECT" in nodes:
+        L.append("        REDIRECT -.-> FETCH")
+    L.append("    end")
+    L.append('    subgraph CAPS["⟦故障注入能力层⟧ ⚡注入器(模式数)·👁观测器（模式全集实时解析自 ooo_proxy.py）"]')
+    L.append("        direction LR")
+    for inj in _ordered_injectors():
+        L.append(f'        {inj}["{_caps_node_label(inj, caps)}"]:::capnode')
+    L.append("    end")
+    # 挂载边：流水线站点 -.-> 正下方注入器
+    for inj, stage in sorted(INJECTOR_MOUNTS.items()):
+        L.append(f"    {stage} -.-> {inj}")
+    L.append("    classDef capnode fill:#fdd,stroke:#900,stroke-width:2px")
     return "\n".join(L)
 
 
 def render_master_dot(families=None, instructions=None):
-    """同构 graphviz dot 版微架构总图（dot -Tsvg 可渲染）。"""
+    """同构 graphviz dot 版两层总图（dot -Tsvg 可渲染）。"""
     if families is None or instructions is None:
         families, instructions = load_data()
-    _, _, fus, _, _ = build_union_graph(families, instructions)
-    edges = build_block_union(families, instructions)
+    nodes, edges, fus, _q, _a = build_union_graph(families, instructions)
     caps = parse_injector_caps()
     int_fus = sorted(f for f in fus if f not in _MEM_FUS)
-    L = ["digraph o3_atlas {", "    rankdir=LR; node [shape=box];"]
-    for bid, label, injs, _anchor in MICROARCH_BLOCKS:
-        if bid == "FU" and int_fus:
-            label = f"FU 池（{'·'.join(int_fus)}）"
-        badge = " | ".join(_inj_badge(i, caps) for i in injs) or "无注入挂载"
-        style = (', style=filled, fillcolor="#fdd", color="#900"' if injs
-                 else ', style=filled, fillcolor="#eee"')
-        L.append(f'    {bid} [label="{label}\\n{badge}"{style}];')
+    L = ["digraph o3_atlas {", "    rankdir=TB;",
+         '    subgraph cluster_pipeline {',
+         '        label="⟦CPU 微架构流水线⟧ 指令流=implemented 指令链路并集";',
+         "        node [shape=box];"]
+    for s in nodes:
+        label = _STAGE_LABELS.get(s, s).replace("<br/>", "\\n")
+        if s == "EXECUTE" and int_fus:
+            label = f"EXECUTE\\nFU 池（{'·'.join(int_fus)}）"
+        L.append(f'        {s} [label="{label}"];')
     for a, b in sorted(edges):
-        L.append(f"    {a} -> {b};")
-    L.append("    FU -> ICACHE [style=dashed, label=误预测重定向];")
-    L.append("    L1D -> DRAM;")
+        style = ' [style=dashed, label="误预测"]' if (a, b) == ("COMMIT", "REDIRECT") else ""
+        L.append(f"        {a} -> {b}{style};")
+    if "REDIRECT" in nodes:
+        L.append("        REDIRECT -> FETCH [style=dashed];")
+    L.append("    }")
+    L.append('    subgraph cluster_caps {')
+    L.append('        label="⟦故障注入能力层⟧ ⚡注入器(模式数)·👁观测器（实时解析自 ooo_proxy.py）";')
+    L.append('        node [shape=hexagon, style=filled, fillcolor="#fdd", color="#900"];')
+    for inj in _ordered_injectors():
+        label = _caps_node_label(inj, caps).replace("<br/>", "\\n")
+        L.append(f'        {inj} [label="{label}"];')
+    L.append("    }")
+    for inj, stage in sorted(INJECTOR_MOUNTS.items()):
+        L.append(f"    {stage} -> {inj} [style=dashed];")
     L.append("}")
     return "\n".join(L)
 
