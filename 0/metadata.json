@@ -1,0 +1,42 @@
+{
+  "cli_version": "0.10.2",
+  "checkpoint_id": "01M5CEND8XT8Z0A2PSD1R6DCSG",
+  "session_id": "139b256b-ce9a-410c-a2b2-067568e22237",
+  "strategy": "manual-commit",
+  "created_at": "2026-10-20T10:45:44.174328941Z",
+  "branch": "lsu-mdspec-20261019",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "docs/gem5-fi/lsu/mdspec/coverage_matrix.md",
+    "docs/gem5-fi/lsu/mdspec/pilot_evidence.json",
+    "docs/gem5-fi/lsu/mdspec/targeted_pilot_sq_mshr.md"
+  ],
+  "agent": "Claude Code",
+  "model": "DeepSeek-V4.1-Flash",
+  "turn_id": "9da283d21e5c",
+  "checkpoint_transcript_start": 2000,
+  "transcript_lines_at_start": 2000,
+  "compact_transcript_start": 275,
+  "token_usage": {
+    "input_tokens": 27543,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 6462336,
+    "output_tokens": 13026,
+    "api_call_count": 12
+  },
+  "session_metrics": {
+    "turn_count": 1
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-10-20T10:45:43.75180791Z",
+    "agent_lines": 0,
+    "agent_removed": 0,
+    "human_added": 230,
+    "human_modified": 57,
+    "human_removed": 0,
+    "total_committed": 230,
+    "total_lines_changed": 287,
+    "agent_percentage": 0,
+    "metric_version": 2
+  }
+}
