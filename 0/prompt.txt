@@ -1,0 +1,100 @@
+/superpowers:executing-plans
+
+继续在以下位置工作：
+
+- 仓库：/home/sdc/gem5-fi-ding
+- worktree：/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-mdspec-20261019
+- 分支：lsu-mdspec-20261019
+- 当前基线：092ad663
+- 规格：docs/gem5-fi/lsu/gem5-fi-LSU单元故障注入方案.md 及其4个子文档
+- 现有计划：docs/superpowers/plans/2026-10-20-lsu-campaign-propagation-and-coverage.md
+
+目标：解决正式 LSU 实验前的全部剩余实现、观测、载体和 campaign 问题。不要只更新计划或报告；必须实现、测试并用真实运行验证。全部完成后停在正式 campaign 启动前通知我，禁止自行启动正式实验。
+
+一、修复正式 campaign 全链路
+
+1. 完成 SE 与 FS 两条路径的 CHAOSPropagation 接入。
+2. 当前 tools/lsu_campaign.py 已向 FS 传入传播参数，但 configs/fs/lsu_b0_fs.py 尚未解析这些参数。补齐 FS 参数、CHAOSPropagation 对象创建、run_id/sample_run_id 和每样本 prop_evt.txt.gz 输出。
+3. campaign 每个样本结束后，自动把 cell_results.json 中的最终 outcome/oracle 传给 lsu_chain_check.py，生成机器可读的 chain_report.json 和可审计摘要。
+4. Crash/Abort/Timeout 必须保留已落盘的事件前缀并标 truncated；不得因为没有 chain_end 就丢弃证据。
+5. 增加 SE、FS 命令构造测试和真实入口 smoke；不能只测试 helper 函数。
+
+二、补齐98个PARTIAL的真实证据
+
+1. Store Queue：
+   - 查明 sq_execute 未出现的真实原因，包括注册时序和关联键。
+   - 将 CHAOSLSQFwd 等 S 系注入器接入 CHAOSPropagation。
+   - 保证 inj→sq_execute→sq_writeback→sq_complete→终局可以用 fault_id、dyn_inst_seq、sq_idx、request_id 关联。
+   - 用真实 S 系 RunID pilot 证明，不接受纯合成事件测试。
+2. Cache：
+   - 设计可重复的“目标行驱逐后重新访问”载体或正确的 miss 注入路径。
+   - 真实观察 mshr_alloc→merge/fill/free→cache fill/return→consumer/终局。
+   - 不得因为注入点位于 valid line 就把 mshr_alloc 判为不需要。
+3. 得到证据后重新生成矩阵；缺节点仍必须保持 PARTIAL/Unknown。
+
+三、实现49个 MODE-UNIMPL
+
+按照 docs/gem5-fi/lsu/mdspec/mode_unimpl_plan.md 和 Markdown 规格依次实现：
+
+C11 → C12 → L04 → P06 → C14/C15 → S10 → A07 → T08。
+
+每一组都必须同时完成：
+
+- 真实故障注入模式
+- before/after 与激活条件
+- CLI/config 参数
+- campaign MODEL_FLAGS/RunID 映射
+- CHAOSPropagation 事件和稳定关联键
+- 单元测试
+- 真实 pilot
+- 覆盖矩阵更新
+- 独立 commit 并 push
+
+禁止仅增加事件源、布尔注册表或文档后就标记完成。
+
+四、处理当前77个外部阻塞项
+
+1. RULING 6：对 A06 load-side fixed-width/byte-enable 做安全性 spike；能够安全实现则实现并验证，确实不能实现时给出源码级不可实现证据和所需裁决。
+2. FS-INFRA 24：盘点服务器现有 kernel、disk、bootloader、checkpoint 和载体，优先复用已有资产；补齐可复现的 FS checkpoint 流水线和 TLB 负载。
+3. FS-MULTICORE 35：建立多核 FS Atomic-Litmus/PARSEC 执行与 oracle，验证线程间消费、RMW、barrier 和 forbidden outcome，不能用单核 SE 探针替代正式语义。
+4. LICENSE 12：不得伪造或用其他负载替代 SPEC CPU2017。先完成所有无需授权即可完成的适配器、配置和检查；若服务器确实没有合法 SPEC 数据，最后只把这12项列为“等待用户提供授权数据”，明确所需路径和文件。
+5. 不得把“实现复杂”当作外部阻塞。只有确实缺少授权数据、镜像或用户裁决时才能停下来请求输入。
+
+五、重新定义并验证准入状态
+
+1. 将“实现就绪状态”和“正式实验结果”分开：
+   - READY：注入器、载体、传播链、campaign 和 oracle 均已接通并通过真实 pilot。
+   - PARTIAL：仍缺节点或终局。
+   - BLOCKED：存在明确外部依赖。
+   正式实验未运行前，不得把单元级 pilot 外推成所有 RunID 已取得完整传播结果。
+2. 每个 RunID 必须有明确的可执行命令、载体、故障模式、oracle、输出目录和传播文件契约。
+3. 构建最终 gem5.opt，记录 SHA256，确认没有源码比二进制更新。
+4. 测试必须全绿；既有失败也必须修复或给出经过独立复现的明确准入裁决，不能只写“非本次回归”。
+5. 每个单元和每种新增模式至少跑一个正式 campaign 入口 pilot；注入日志必须非空。
+6. 始终保持：
+   - 并发 gem5 ≤ 4
+   - /home 可用空间 ≥ max(50 GiB, 20%)
+   - 不使用 git add -A
+   - 不修改或清理他人工作树
+   - 不启动正式 campaign
+
+六、最终交付并停止
+
+全部可实现工作完成后：
+
+1. 提交并推送到 origin/lsu-mdspec-20261019。
+2. 确认工作树干净，local/remote SHA 一致。
+3. 报告：
+   - 最终提交 SHA
+   - gem5.opt SHA256
+   - 构建和测试结果
+   - SE/FS campaign smoke
+   - sq_execute、mshr_alloc 真实证据
+   - 49个 MODE-UNIMPL 的逐项状态
+   - 325 RunID 的 READY/PARTIAL/BLOCKED 数量
+   - 尚需用户提供的外部资源或裁决
+   - 磁盘/内存状态
+   - 最终 GO/NO-GO
+4. 在可以启动正式实验前停止并通知我，等待我批准。
+
+如果再次遇到 Bash classifier unavailable，不要反复重试或改变实现。保留工作树，列出待执行命令和待提交文件，然后通知我由外部 SSH 代为执行。
