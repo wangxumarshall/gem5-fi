@@ -86,3 +86,16 @@
       flag，属**真未实现**；已产出范围界定与实施顺序 `mode_unimpl_plan.md`（C11→C12→L04→P06→C14/C15→S10/A07/T08）。
       **本次会话未实现其中任何一项**——不得视为完成。
 - [ ] **Task 6 收口报告**：见会话回复。
+
+## 进度节（第三轮，base 092ad663）
+
+- [x] **一.1–一.5** `3800a137`：FS 参数解析 + CHAOSPropagation 对象 + `LSU_FS_DIR` 复用 +
+      每样本 `chain_report.json`（oracle join）+ 超时保前缀 + SE/FS 命令构造测试（17 项全绿）。
+      FS 真入口 smoke：注入非空 / 流文件与 39 字段表头就绪 / **事件 0**（新发现 `CHAOSArmTLB`
+      未向 tracer 注册链）。
+- [ ] **二** 未完成：G1/G2 注入器注册缺口、`sq_execute` 根因（已缩到 2 假设）、
+      `mshr_alloc` 可重复载体 —— 证据与下一步见 `round3_findings.md`。
+- [ ] **三** 未完成：49 项 MODE-UNIMPL 一项未实现（范围与顺序见 `mode_unimpl_plan.md`）。
+- [ ] **四** 未完成：A06 spike / FS-MULTICORE / LICENSE 适配。
+- [ ] **五** 未完成：READY/PARTIAL/BLOCKED 逐 RunID 命令契约表。
+- **正式 campaign 未启动。**
