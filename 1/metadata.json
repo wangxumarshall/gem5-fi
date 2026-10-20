@@ -1,0 +1,70 @@
+{
+  "cli_version": "0.10.2",
+  "checkpoint_id": "01M5CWJ9KEH5KBEQ9CAJ12RGDQ",
+  "session_id": "f10ec8b6-876e-4f70-bcfc-d93ac6646edb",
+  "strategy": "manual-commit",
+  "created_at": "2026-10-20T14:48:47.802362822Z",
+  "branch": "lsu-mdspec-20261019",
+  "checkpoints_count": 1,
+  "save_step_count": 1,
+  "files_touched": [
+    "CHAOS/gem5/src/arch/arm/mmu.cc",
+    "CHAOS/gem5/src/cpu/o3/CHAOSLSQFwd/CHAOSLSQFwd.cc",
+    "CHAOS/gem5/src/cpu/o3/CHAOSPropagation/CHAOSPropagation.cc",
+    "CHAOS/gem5/src/cpu/o3/CHAOSPropagation/CHAOSPropagation.hh",
+    "CHAOS/gem5/src/cpu/o3/chaos_lsu_trigger.hh",
+    "CHAOS/gem5/src/cpu/o3/lsq.cc",
+    "CHAOS/gem5/src/cpu/o3/lsq_unit.cc",
+    "CHAOS/gem5/src/mem/cache/base.cc",
+    "CHAOS/gem5/src/mem/cache/cache.cc",
+    "CHAOS/gem5/src/mem/cache/prefetch/queued.cc"
+  ],
+  "agent": "Claude Code",
+  "model": "DeepSeek-V4.1-Flash",
+  "turn_id": "be3027e9a5e7",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 125916,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 1824256,
+    "output_tokens": 20008,
+    "api_call_count": 24
+  },
+  "skill_events_version": 1,
+  "skill_events": [
+    {
+      "id": "prompt-skill-claude-code-superpowers:subagent-driven-development-2026-10-20T13:07:33.695383955Z",
+      "event_type": "prompt_invocation",
+      "skill": {
+        "name": "superpowers:subagent-driven-development"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "prompt_slash_command",
+        "confidence": "explicit"
+      },
+      "turn_id": "be3027e9a5e7",
+      "timestamp": "2026-10-20T13:07:33.695383955Z",
+      "native": {
+        "command": "/superpowers:subagent-driven-development"
+      },
+      "collapse": {
+        "target": "user_message",
+        "label": "/superpowers:subagent-driven-development",
+        "default_collapsed": true
+      }
+    }
+  ],
+  "initial_attribution": {
+    "calculated_at": "2026-10-20T14:48:47.725264777Z",
+    "agent_lines": 182,
+    "agent_removed": 45,
+    "human_added": 370,
+    "human_modified": 10,
+    "human_removed": 0,
+    "total_committed": 562,
+    "total_lines_changed": 676,
+    "agent_percentage": 33.57988165680473,
+    "metric_version": 2
+  }
+}
