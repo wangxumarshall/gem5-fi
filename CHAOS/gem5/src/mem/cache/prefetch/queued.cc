@@ -274,8 +274,9 @@ Queued::getPacket()
         CHAOSPropagation *h5q = CHAOSPropagation::instance();
         if (h5q && pkt) {
             Addr h5q_base = 0;
+            const char *h5q_corr = nullptr;   // [R4-1-review-I1]
             const uint64_t h5q_ptag = h5q->correlateBlock(
-                pkt->getAddr(), pkt->getSize(), &h5q_base);
+                pkt->getAddr(), pkt->getSize(), &h5q_base, &h5q_corr);
             if (h5q_ptag) {
                 std::ostringstream h5q_hex;
                 h5q_hex << std::hex << pkt->getAddr();
@@ -283,6 +284,7 @@ Queued::getPacket()
                     pkt->getAddr(), pkt->getSize());
                 h5q->notePropEvt("pf_issue", {
                     {"fault_id", std::to_string(h5q_ptag)},
+                    {"corr", h5q_corr ? h5q_corr : ""},
                     {"pf_request_id", std::to_string(h5q_pfid)},
                     {"va", h5q_hex.str()},
                     {"state_after", "issued"},
@@ -374,8 +376,9 @@ Queued::translationComplete(DeferredPacket *dp, bool failed,
             {
                 CHAOSPropagation *h5e = CHAOSPropagation::instance();
                 if (h5e && it->pkt) {
+                    const char *h5e_corr = nullptr;   // [R4-1-review-I1]
                     const uint64_t h5e_ptag = h5e->correlateBlock(
-                        it->pkt->getAddr(), it->pkt->getSize());
+                        it->pkt->getAddr(), it->pkt->getSize(), nullptr, &h5e_corr);
                     if (h5e_ptag) {
                         const uint64_t h5e_pfid = h5e->notePrefetchRequest(
                             it->pkt->getAddr(), it->pkt->getSize());
@@ -383,6 +386,7 @@ Queued::translationComplete(DeferredPacket *dp, bool failed,
                         h5e_hex << std::hex << it->pkt->getAddr();
                         h5e->notePropEvt("pf_queue", {
                             {"fault_id", std::to_string(h5e_ptag)},
+                            {"corr", h5e_corr ? h5e_corr : ""},
                             {"pf_request_id", std::to_string(h5e_pfid)},
                             {"va", h5e_hex.str()},
                             {"entry_index", std::to_string(pfq.size() + 1)},
@@ -541,8 +545,9 @@ Queued::insert(const PacketPtr &pkt, PrefetchInfo &new_pfi,
         {
             CHAOSPropagation *h5e = CHAOSPropagation::instance();
             if (h5e && dpp.pkt) {
+                const char *h5e_corr = nullptr;   // [R4-1-review-I1]
                 const uint64_t h5e_ptag = h5e->correlateBlock(
-                    dpp.pkt->getAddr(), dpp.pkt->getSize());
+                    dpp.pkt->getAddr(), dpp.pkt->getSize(), nullptr, &h5e_corr);
                 if (h5e_ptag) {
                     const uint64_t h5e_pfid = h5e->notePrefetchRequest(
                         dpp.pkt->getAddr(), dpp.pkt->getSize());
@@ -550,6 +555,7 @@ Queued::insert(const PacketPtr &pkt, PrefetchInfo &new_pfi,
                     h5e_hex << std::hex << dpp.pkt->getAddr();
                     h5e->notePropEvt("pf_queue", {
                         {"fault_id", std::to_string(h5e_ptag)},
+                        {"corr", h5e_corr ? h5e_corr : ""},
                         {"pf_request_id", std::to_string(h5e_pfid)},
                         {"va", h5e_hex.str()},
                         {"entry_index", std::to_string(pfq.size() + 1)},

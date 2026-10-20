@@ -1311,13 +1311,16 @@ MMU::translateTiming(const RequestPtr &req, ThreadContext *tc,
     {
         CHAOSPropagation *h2_prop = CHAOSPropagation::instance();
         if (h2_prop && req && req->hasVaddr() && req->hasInstSeqNum()) {
+            const char *h2_corr = nullptr;   // [R4-1-review-I1]
             const uint64_t h2_ptag = h2_prop->correlateRequest(
-                req->getReqInstSeqNum(), req->getVaddr(), req->getSize());
+                req->getReqInstSeqNum(), req->getVaddr(),
+                req->getSize(), &h2_corr);
             if (h2_ptag) {
                 std::ostringstream h2_hex;
                 h2_hex << std::hex << req->getVaddr();
                 h2_prop->notePropEvt("tlb_translate", {
                     {"fault_id", std::to_string(h2_ptag)},
+                    {"corr", h2_corr ? h2_corr : ""},
                     {"dyn_inst_seq", std::to_string(req->getReqInstSeqNum())},
                     {"request_id", std::to_string(req->getReqInstSeqNum())},
                     {"va", h2_hex.str()},
@@ -1339,13 +1342,16 @@ MMU::translateTiming(const RequestPtr &req, ThreadContext *tc,
     if (h2_fault != NoFault) {
         CHAOSPropagation *h2f = CHAOSPropagation::instance();
         if (h2f && req && req->hasVaddr() && req->hasInstSeqNum()) {
+            const char *h2f_corr = nullptr;   // [R4-1-review-I1]
             const uint64_t h2f_ptag = h2f->correlateRequest(
-                req->getReqInstSeqNum(), req->getVaddr(), req->getSize());
+                req->getReqInstSeqNum(), req->getVaddr(),
+                req->getSize(), &h2f_corr);
             if (h2f_ptag) {
                 std::ostringstream h2f_hex;
                 h2f_hex << std::hex << req->getVaddr();
                 h2f->notePropEvt("tlb_fault", {
                     {"fault_id", std::to_string(h2f_ptag)},
+                    {"corr", h2f_corr ? h2f_corr : ""},
                     {"dyn_inst_seq", std::to_string(req->getReqInstSeqNum())},
                     {"request_id", std::to_string(req->getReqInstSeqNum())},
                     {"va", h2f_hex.str()},

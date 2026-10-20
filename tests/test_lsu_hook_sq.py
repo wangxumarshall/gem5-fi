@@ -56,17 +56,18 @@ def main():
     print("[2] 契约行校验")
     good_e = P.parse_line(
         "PROP-EVT: kind=sq_execute fault_id=1 dyn_inst_seq=133 sq_idx=22 "
-        "va=7fbff state_before=issued")
+        "va=7fbff state_before=issued corr=seq_primary")
     check("complete sq_execute validates",
           good_e is not None and P.validate_event(good_e) == [])
     good_c = P.parse_line(
         "PROP-EVT: kind=sq_complete fault_id=1 dyn_inst_seq=133 sq_idx=22 "
-        "va=7fbff state_after=completed")
+        "va=7fbff state_after=completed corr=seq_primary")
     check("complete sq_complete validates",
           good_c is not None and P.validate_event(good_c) == [])
     bad = P.parse_line("PROP-EVT: kind=sq_execute fault_id=1 dyn_inst_seq=1")
     errs = P.validate_event(bad)
-    check("missing sq_idx/va/state_before flagged", len(errs) == 3, str(errs))
+    check("missing sq_idx/va/state_before/corr flagged", len(errs) == 4,
+          str(errs))
 
     print("[3] store 链推进（a04 全链含 sq 对）")
     chain = [P.parse_line(l) for l in [

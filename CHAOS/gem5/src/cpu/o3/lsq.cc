@@ -803,8 +803,9 @@ LSQ::pushRequest(const DynInstPtr& inst, bool isLoad, uint8_t *data,
     // the PRE hook so a fresh injection's registry entry correlates the
     // very same request. nullptr tracer / no chain = no event.
     if (cpu->chaosPropagation) {
+        const char *h1_corr = nullptr;   // [R4-1-review-I1]
         const uint64_t h1_ptag = cpu->chaosPropagation->correlateRequest(
-            inst->seqNum, addr, size);
+            inst->seqNum, addr, size, &h1_corr);
         if (h1_ptag) {
             std::ostringstream h1_hex;
             h1_hex << std::hex << addr;
@@ -813,6 +814,7 @@ LSQ::pushRequest(const DynInstPtr& inst, bool isLoad, uint8_t *data,
             h1_hex << inst->pcState().instAddr();
             cpu->chaosPropagation->notePropEvt("lsq_push", {
                 {"fault_id", std::to_string(h1_ptag)},
+                {"corr", h1_corr ? h1_corr : ""},
                 {"dyn_inst_seq", std::to_string(inst->seqNum)},
                 {"pc", h1_hex.str()},
                 {"opcode", inst->staticInst->getName()},
@@ -834,13 +836,15 @@ LSQ::pushRequest(const DynInstPtr& inst, bool isLoad, uint8_t *data,
     // lsq_push; isAtomic = non-null amo functor (pushRequest:772). The
     // exclusive-monitor side (LDXR/STXR) is covered by CHAOSExMon.
     if (cpu->chaosPropagation && isAtomic) {
+        const char *h6_corr = nullptr;   // [R4-1-review-I1]
         const uint64_t h6_ptag = cpu->chaosPropagation->correlateRequest(
-            inst->seqNum, addr, size);
+            inst->seqNum, addr, size, &h6_corr);
         if (h6_ptag) {
             std::ostringstream h6_hex;
             h6_hex << std::hex << addr;
             cpu->chaosPropagation->notePropEvt("atomic_op", {
                 {"fault_id", std::to_string(h6_ptag)},
+                {"corr", h6_corr ? h6_corr : ""},
                 {"dyn_inst_seq", std::to_string(inst->seqNum)},
                 {"va", h6_hex.str()},
                 {"field", "amo"},
@@ -1245,8 +1249,9 @@ LSQ::LSQRequest::sendFragmentToTranslation(int i)
     // the request node. Placed AFTER the corruption block so both families
     // are covered by one call. nullptr tracer = no-op.
     if (_inst && _inst->cpu && _inst->cpu->chaosPropagation) {
+        const char *h1_corr = nullptr;   // [R4-1-review-I1]
         const uint64_t h1_ptag = _inst->cpu->chaosPropagation->noteMemRequest(
-            "lsq_sendFragmentToTranslation", _inst->seqNum, req(i));
+            "lsq_sendFragmentToTranslation", _inst->seqNum, req(i), &h1_corr);
         // [MDSPEC][H1] unified lsq_sendfrag event (L2: the fragment Request
         // leaves the LSQ for translation/memory). Same correlation as the
         // v1 mem_req node; H1 keys = PC/opcode/request_id.
@@ -1259,6 +1264,7 @@ LSQ::LSQRequest::sendFragmentToTranslation(int i)
             const bool h1_stamped = req(i)->hasInstSeqNum();
             _inst->cpu->chaosPropagation->notePropEvt("lsq_sendfrag", {
                 {"fault_id", std::to_string(h1_ptag)},
+                {"corr", h1_corr ? h1_corr : ""},
                 {"dyn_inst_seq", std::to_string(_inst->seqNum)},
                 {"pc", h1_hex.str()},
                 {"opcode", _inst->staticInst->getName()},

@@ -729,14 +729,16 @@ LSQUnit::executeStore(const DynInstPtr &store_inst)
     // state_before/after: SQ entry state at execute time.
     if (cpu->chaosPropagation) {
         Addr h3_base = 0;
+        const char *h3_corr = nullptr;   // [R4-1-review-I1]
         const uint64_t h3_ptag =
             cpu->chaosPropagation->correlateRequestBySeq(store_inst->seqNum,
-                                                         &h3_base);
+                                                         &h3_base, &h3_corr);
         if (h3_ptag) {
             std::ostringstream h3_hex;
             h3_hex << std::hex << h3_base;
             cpu->chaosPropagation->notePropEvt("sq_execute", {
                 {"fault_id", std::to_string(h3_ptag)},
+                {"corr", h3_corr ? h3_corr : ""},
                 {"dyn_inst_seq", std::to_string(store_inst->seqNum)},
                 {"sq_idx", std::to_string((long long)store_idx)},
                 {"va", h3_hex.str()},
@@ -950,15 +952,18 @@ LSQUnit::writebackStores()
         // Correlated by dyn-seq via the addr registry.
         if (cpu->chaosPropagation) {
             Addr h3wb_base = 0;
+            const char *h3wb_corr = nullptr;   // [R4-1-review-I1]
             const uint64_t h3wb_ptag =
                 cpu->chaosPropagation->correlateRequestBySeq(inst->seqNum,
-                                                             &h3wb_base);
+                                                         &h3wb_base,
+                                                         &h3wb_corr);
             if (h3wb_ptag) {
                 std::ostringstream h3wb_hex;
                 h3wb_hex << std::hex
                          << request->mainReq()->getPaddr();
                 cpu->chaosPropagation->notePropEvt("sq_writeback", {
                     {"fault_id", std::to_string(h3wb_ptag)},
+                    {"corr", h3wb_corr ? h3wb_corr : ""},
                     {"dyn_inst_seq", std::to_string(inst->seqNum)},
                     {"sq_idx", std::to_string((long long)inst->sqIdx)},
                     {"pa", h3wb_hex.str()},
@@ -1264,14 +1269,16 @@ LSQUnit::completeStore(typename StoreQueue::iterator store_idx)
     // correlation as sq_execute; state_after = completed.
     if (cpu->chaosPropagation) {
         Addr h3_base = 0;
+        const char *h3_corr = nullptr;   // [R4-1-review-I1]
         const uint64_t h3_ptag =
             cpu->chaosPropagation->correlateRequestBySeq(store_inst->seqNum,
-                                                         &h3_base);
+                                                         &h3_base, &h3_corr);
         if (h3_ptag) {
             std::ostringstream h3_hex;
             h3_hex << std::hex << h3_base;
             cpu->chaosPropagation->notePropEvt("sq_complete", {
                 {"fault_id", std::to_string(h3_ptag)},
+                {"corr", h3_corr ? h3_corr : ""},
                 {"dyn_inst_seq", std::to_string(store_inst->seqNum)},
                 {"sq_idx", std::to_string((long long)
                     store_inst->sqIdx)},
@@ -1459,14 +1466,16 @@ LSQUnit::read(LSQRequest *request, ssize_t load_idx)
     // tracer / no chain = no event.
     if (cpu->chaosPropagation) {
         Addr h7_base = 0;
+        const char *h7_corr = nullptr;   // [R4-1-review-I1]
         const uint64_t h7_ptag =
             cpu->chaosPropagation->correlateRequestBySeq(load_inst->seqNum,
-                                                         &h7_base);
+                                                         &h7_base, &h7_corr);
         if (h7_ptag) {
             std::ostringstream h7_hex;
             h7_hex << std::hex << h7_base;
             cpu->chaosPropagation->notePropEvt("lq_read", {
                 {"fault_id", std::to_string(h7_ptag)},
+                {"corr", h7_corr ? h7_corr : ""},
                 {"dyn_inst_seq", std::to_string(load_inst->seqNum)},
                 {"lq_idx", std::to_string((long long)load_idx)},
                 {"va", h7_hex.str()},

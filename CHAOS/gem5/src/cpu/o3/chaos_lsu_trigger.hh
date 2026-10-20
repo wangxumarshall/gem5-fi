@@ -107,6 +107,7 @@ struct ChaOSLsuTrigger
   private:
     uint64_t next_fire = 0;       // eligible-count threshold (F1-F4)
     uint64_t burst_left = 0;      // F4: remaining burst shots (this shot incl.)
+    uint64_t fired_at = 0;        // [R4-1-review-I2] F0: eligible count at fire
     bool spent  = false;          // F0/F6 fired once
     bool armed  = false;
 
@@ -167,7 +168,8 @@ struct ChaOSLsuTrigger
                   rng = chaosSampleLCG(rng);
                   next_fire = warmup_events + rng % span;
               }
-              if (eligible >= next_fire) { spent = true; ++injected; return true; }
+              if (eligible >= next_fire) { spent = true; fired_at = eligible;
+                                          ++injected; return true; }
               return false;
           }
           case ChaOSLsuTier::F1:
@@ -222,6 +224,56 @@ struct ChaOSLsuTrigger
                (unsigned long)first_eligible_tick,
                (unsigned long)last_eligible_tick);
         chaosLsuF6EventsReport();   // [LSU][OBS-1] event-supply observation
+
+        // [MDSPEC][R4-1-review-I2] LOUD F0 span diagnostics — the two
+        // silent failure modes of a static span vs. the workload's real
+        // eligible stream (the S01 root cause class). Printed right after
+        // the summary line so it lands in the same stdout log the campaign
+        // captures; NEVER buried:
+        //   SPAN_UNREACHABLE — the hook fired (attempted>0) but the F0 draw
+        //     landed beyond the observed eligible stream → injected=0
+        //     (span larger than the stream, or the stream truncated).
+        //   EARLY_BIAS — an injection happened AND the observed eligible
+        //     stream ran past the draw window [warmup, warmup+span). Two
+        //     readings, honestly both named: (a) span UNDER-COVERS the
+        //     golden (uninjected) eligible stream — golden events beyond
+        //     the window were unreachable, the "fires, looks healthy" bias
+        //     mode; (b) span == the measured golden size and the injected
+        //     FAULT ITSELF extended the stream (post-injection events) —
+        //     not a sampling bias. fired_at (= eligible count at fire,
+        //     always ≤ warmup+span-1) + the uninjected golden measurement
+        //     adjudicate: excess events all post-date fired_at.
+        if (tier == ChaOSLsuTier::F0) {
+            const uint64_t eff_span = span_events ? span_events : 1;
+            const uint64_t draw_end = warmup_events + eff_span;
+            if (attempted > 0 && injected == 0)
+                printf("CHAOS_LSU_TRIGGER_ALARM: injector=%s "
+                       "mode=SPAN_UNREACHABLE attempted=%lu eligible=%lu "
+                       "injected=%lu draw_next_fire=%lu span=%lu warmup=%lu "
+                       "(F0 draw never landed inside the observed eligible "
+                       "stream; no injection though the hook fired)\n",
+                       injector, (unsigned long)attempted,
+                       (unsigned long)eligible, (unsigned long)injected,
+                       (unsigned long)next_fire,
+                       (unsigned long)span_events,
+                       (unsigned long)warmup_events);
+            else if (injected > 0 && eligible >= draw_end)
+                printf("CHAOS_LSU_TRIGGER_ALARM: injector=%s mode=EARLY_BIAS "
+                       "attempted=%lu eligible=%lu injected=%lu fired_at=%lu "
+                       "span=%lu warmup=%lu (observed eligible ran past the "
+                       "F0 draw window [%lu,%lu): span under-covers the "
+                       "golden stream = silent early bias, OR span == "
+                       "measured golden and the fault extended the stream "
+                       "past fired_at — adjudicate vs the uninjected golden "
+                       "measurement)\n",
+                       injector, (unsigned long)attempted,
+                       (unsigned long)eligible, (unsigned long)injected,
+                       (unsigned long)fired_at,
+                       (unsigned long)span_events,
+                       (unsigned long)warmup_events,
+                       (unsigned long)warmup_events,
+                       (unsigned long)(draw_end - 1));
+        }
     }
 };
 

@@ -53,15 +53,16 @@ def main():
 
     print("[2] 契约行校验")
     good_r = P.parse_line("PROP-EVT: kind=lq_read fault_id=1 dyn_inst_seq=42 "
-                          "lq_idx=3 va=1ffff70")
+                          "lq_idx=3 va=1ffff70 corr=seq_primary")
     check("complete lq_read validates",
           good_r is not None and P.validate_event(good_r) == [])
     good_c = P.parse_line("PROP-EVT: kind=lq_complete fault_id=1 "
-                          "dyn_inst_seq=42 lq_idx=3 va=1ffff70 pa=1ffff70")
+                          "dyn_inst_seq=42 lq_idx=3 va=1ffff70 pa=1ffff70 "
+                          "corr=addr_fallback")
     check("complete lq_complete validates",
           good_c is not None and P.validate_event(good_c) == [])
     bad = P.parse_line("PROP-EVT: kind=lq_read fault_id=1 dyn_inst_seq=42")
-    check("missing lq_idx/va flagged", len(P.validate_event(bad)) == 2)
+    check("missing lq_idx/va/corr flagged", len(P.validate_event(bad)) == 3)
 
     print("[3] 链推进")
     chain = [P.parse_line("PROP-EVT: kind=%s fault_id=1 event_id=%d" % (k, i))

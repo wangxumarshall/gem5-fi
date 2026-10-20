@@ -420,13 +420,15 @@ BaseCache::handleTimingReqMiss(PacketPtr pkt, MSHR *mshr, CacheBlk *blk,
                     CHAOSPropagation *h4m = CHAOSPropagation::instance();
                     if (h4m) {
                         Addr h4m_base = 0;
+                        const char *h4m_corr = nullptr;   // [R4-1-review-I1]
                         const uint64_t h4m_ptag = h4m->correlateBlock(
-                            pkt->getAddr(), blkSize, &h4m_base);
+                            pkt->getAddr(), blkSize, &h4m_base, &h4m_corr);
                         if (h4m_ptag) {
                             std::ostringstream h4m_hex;
                             h4m_hex << std::hex << pkt->getAddr();
                             h4m->notePropEvt("mshr_merge", {
                                 {"fault_id", std::to_string(h4m_ptag)},
+                                {"corr", h4m_corr ? h4m_corr : ""},
                                 {"cache_line", h4m_hex.str()},
                                 {"mshr_id", std::to_string(
                                     h4m->noteMshrLookup(
@@ -493,14 +495,16 @@ BaseCache::handleTimingReqMiss(PacketPtr pkt, MSHR *mshr, CacheBlk *blk,
                 CHAOSPropagation *h4a = CHAOSPropagation::instance();
                 if (h4a && pkt && pkt->hasData()) {
                     Addr h4a_base = 0;
+                    const char *h4a_corr = nullptr;   // [R4-1-review-I1]
                     const uint64_t h4a_ptag = h4a->correlateBlock(
-                        pkt->getAddr(), blkSize, &h4a_base);
+                        pkt->getAddr(), blkSize, &h4a_base, &h4a_corr);
                     if (h4a_ptag) {
                         std::ostringstream h4a_hex;
                         h4a_hex << std::hex << pkt->getAddr();
                         const Addr h4a_line = pkt->getBlockAddr(blkSize);
                         h4a->notePropEvt("mshr_alloc", {
                             {"fault_id", std::to_string(h4a_ptag)},
+                            {"corr", h4a_corr ? h4a_corr : ""},
                             {"cache_line", h4a_hex.str()},
                             {"mshr_id", std::to_string(
                                 h4a->noteMshrAlloc(h4a_line))},
@@ -1664,8 +1668,9 @@ BaseCache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
         CHAOSPropagation *h4f = CHAOSPropagation::instance();
         if (h4f) {
             Addr h4f_base = 0;
+            const char *h4f_corr = nullptr;   // [R4-1-review-I1]
             const uint64_t h4f_ptag = h4f->correlateBlock(
-                addr, blkSize, &h4f_base);
+                addr, blkSize, &h4f_base, &h4f_corr);
             if (h4f_ptag) {
                 std::ostringstream h4f_hex;
                 h4f_hex << std::hex << addr;
@@ -1675,6 +1680,7 @@ BaseCache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
                 // serviced), then mshr_free releases that mshr id.
                 h4f->notePropEvt("mshr_fill", {
                     {"fault_id", std::to_string(h4f_ptag)},
+                    {"corr", h4f_corr ? h4f_corr : ""},
                     {"cache_line", h4f_hex.str()},
                     {"mshr_id", std::to_string(
                         h4f->noteMshrLookup(h4f_line))},
@@ -1683,12 +1689,14 @@ BaseCache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
                 });
                 h4f->notePropEvt("cache_fill", {
                     {"fault_id", std::to_string(h4f_ptag)},
+                    {"corr", h4f_corr ? h4f_corr : ""},
                     {"pa", h4f_hex.str()},
                     {"cache_line", h4f_hex.str()},
                     {"fill_id", std::to_string(h4_fill_id)},
                 });
                 h4f->notePropEvt("mshr_free", {
                     {"fault_id", std::to_string(h4f_ptag)},
+                    {"corr", h4f_corr ? h4f_corr : ""},
                     {"cache_line", h4f_hex.str()},
                     {"mshr_id", std::to_string(
                         h4f->noteMshrFree(h4f_line))},
@@ -1712,12 +1720,14 @@ BaseCache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
                 addr, blkSize, &h5f_base);
             if (h5f_pfid) {
                 Addr h5f_ptag_base = 0;
+                const char *h5f_corr = nullptr;   // [R4-1-review-I1]
                 const uint64_t h5f_ptag = h5f->correlateBlock(
-                    addr, blkSize, &h5f_ptag_base);
+                    addr, blkSize, &h5f_ptag_base, &h5f_corr);
                 std::ostringstream h5f_hex;
                 h5f_hex << std::hex << addr;
                 h5f->notePropEvt("pf_fill", {
                     {"fault_id", std::to_string(h5f_ptag)},
+                    {"corr", h5f_corr ? h5f_corr : ""},
                     {"pf_request_id", std::to_string(h5f_pfid)},
                     {"pa", h5f_hex.str()},
                     {"cache_line", h5f_hex.str()},
@@ -1918,13 +1928,15 @@ BaseCache::writebackBlk(CacheBlk *blk)
         CHAOSPropagation *h4w = CHAOSPropagation::instance();
         if (h4w) {
             Addr h4w_base = 0;
+            const char *h4w_corr = nullptr;   // [R4-1-review-I1]
             const uint64_t h4w_ptag = h4w->correlateBlock(
-                regenerateBlkAddr(blk), blkSize, &h4w_base);
+                regenerateBlkAddr(blk), blkSize, &h4w_base, &h4w_corr);
             if (h4w_ptag) {
                 std::ostringstream h4w_hex;
                 h4w_hex << std::hex << regenerateBlkAddr(blk);
                 h4w->notePropEvt("cache_writeback", {
                     {"fault_id", std::to_string(h4w_ptag)},
+                    {"corr", h4w_corr ? h4w_corr : ""},
                     {"cache_line", h4w_hex.str()},
                     {"pa", h4w_hex.str()},
                     {"state_before", "dirty"},

@@ -203,7 +203,17 @@ def build_guard_cmd(manifest, outdir, span=None):
         args = ["--cmd", str(_wl_path(manifest["carrier"].split(":")[1])),
                 "--cpu", "O3", "--variant", "B0"]
         args += LC.FAMILY_MOUNT[fam]
-        tier = LC.FAMILY_TIER_FLAGS[fam](freq)
+        # [R4-1-review-I2] tier flags are per (model, tier, workload); an
+        # unmeasured lsqfwd F0 (model, workload) pair returns None → refuse
+        # loudly (never silently reuse another pair's span in a guard run).
+        wl_bin = manifest["carrier"].split(":")[1]
+        tier = LC.FAMILY_TIER_FLAGS[fam](manifest.get("model_id", ""), freq,
+                                         wl_bin)
+        if tier is None:
+            sys.exit("BLOCKED: F0 span unmeasured for (model %s, workload "
+                     "%s, family %s) — measure its eligible stream and set "
+                     "LSQFWD_F0_SPAN in tools/lsu_campaign.py"
+                     % (manifest.get("model_id"), wl_bin, fam))
         if span is not None:
             # F0 两遍法：把 tier flags 里的 span 值替换为实测 N
             tier = [str(span) if (tier[i - 1].endswith("span_events")) else v

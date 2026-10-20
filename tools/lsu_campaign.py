@@ -328,34 +328,69 @@ def _addrpath_tier_flags(tier):
     return flags
 
 
+# [MDSPEC][R4-1-review-I2] lsqfwd F0 span is PER (MODEL, WORKLOAD BINARY),
+# measured with real runs (a family-wide constant silently biases F0 to the
+# first `span` events on longer streams and never fires on shorter ones —
+# the reviewer's two failure modes; and a model-only table is unsound where
+# the eligible stream is workload-dependent: L03 measured 571 on
+# sq_forward but 18681 on sqlite_like). warmup=1 + span=N is the TRUE
+# F0-uniform parameterization: next_fire = 1 + lcg(seed)%N ∈ [1,N] hits
+# each of the N eligible events with probability 1/N (warmup=0 + span=N
+# double-weights event 1 and can never hit event N — that bias was real in
+# the previous span=7/warmup=0 config). The teardown alarm
+# (CHAOS_LSU_TRIGGER_ALARM, chaos_lsu_trigger.hh summary) fires LOUDLY on
+# both drift modes: SPAN_UNREACHABLE (attempted>0 && injected==0) and
+# EARLY_BIAS (injected>0 && eligible ran past the draw window).
+#
+# Measurements (real runs 2026-10-20, binary cd49e8dfabe531c4, the resolved
+# campaign command with tier=F0 and span=1000000 so the draw never lands;
+# CHAOS_LSU_TRIGGER teardown eligible= is the stream size). Quoted output in
+# docs/gem5-fi/lsu/mdspec/round4_findings.md §R4-1-fix.
+LSQFWD_F0_SPAN = {
+    # (model, workload binary) -> measured eligible-stream size
+    ("S01", "sq_forward"): 7,    # byte_flip, corrupt() path
+    ("S02", "sq_forward"): 7,    # byte_flip x2, corrupt() path
+    ("S03", "sq_forward"): 7,    # byte_lane_skew, corrupt() path
+    ("S08", "sq_forward"): 2,    # fwd_source_sub, maybeSubstituteSource
+                                 #   (alt-SQ-entry opportunities; the
+                                 #   R4-1-review-I2 change routes this site
+                                 #   through the trigger — before, the tier
+                                 #   flags were inert here)
+    ("S09", "sq_forward"): 7,    # byte_lane_skew, corrupt() path
+    ("L03", "sq_forward"): 571,  # violation-check stream (lsqfwd_l03)
+    ("L03", "sqlite_like"): 18681,
+}
+
+
+def _lsqfwd_tier_flags(model, tier, wl_binary=None):
+    if tier == "F0":
+        span = LSQFWD_F0_SPAN.get((model, wl_binary))
+        if span is None:
+            return None   # resolve_cell turns this into a loud BLOCKED cell
+        # warmup=1: see the uniform-parameterization note above.
+        return ["--lsqfwd_lsu_tier", tier,
+                "--lsqfwd_warmup_events", "1",
+                "--lsqfwd_span_events", str(span)]
+    # F1-F4/F5/F6 do not consume span_events (interval/warm-up/event-based);
+    # keep the historical inert values for those tiers.
+    return ["--lsqfwd_lsu_tier", tier,
+            "--lsqfwd_warmup_events", "0",
+            "--lsqfwd_span_events", "1000"]
+
+
 FAMILY_TIER_FLAGS = {
-    "addrpath": _addrpath_tier_flags,
-    # [MDSPEC][R4-1] lsqfwd F0 span 7 (was 1000): measured on S01/S02-F0-W5
-    # (sq_forward, real campaign entry, 2026-10-20) the ENTIRE eligible
-    # forward stream is 7 events (CHAOS_LSU_TRIGGER attempted=7 eligible=7
-    # injected=0 on every seed); F0 draws next_fire = lcg(seed)%1000 =
-    # 412/417/806 for seeds 1/2/3 — never reached, injected stays 0. Same
-    # structural class as the P01-W8 prefetch root cause (span larger than
-    # the eligible stream never fires). span=7 = the measured stream size:
-    # a true F0-uniform draw over eligible events (next_fire = lcg(seed)%7
-    # ∈ [0,6] ⇒ always fires, per-seed variation; span=1 was rejected —
-    # it deterministically hits the first eligible event, measured to be a
-    # wrong-path squashed load [sn:258] ⇒ every seed identical Masked).
-    # KNOWN LIMITATION: S08 (fwd_source_sub) rides a different, unmeasured
-    # eligible stream (maybeSubstituteSource) — if smaller than 7 its F0
-    # cells may still not fire; re-tune per workload/model eligible count
-    # for the full campaign. NOTE: this lambda appends AFTER FAMILY_MOUNT
-    # and argparse takes the LAST occurrence, so the span must be fixed
-    # HERE (a FAMILY_MOUNT override would be silently clobbered — verified
-    # by experiment).
-    "lsqfwd": lambda tier: ["--lsqfwd_lsu_tier", tier,
-                            "--lsqfwd_warmup_events", "0",
-                            "--lsqfwd_span_events", "7"],
-    "cache": lambda tier: [],   # legacy firstClock mechanism (tier not consumed)
-    "prefetch": lambda tier: ["--prefetch_lsu_tier", tier,
-                              "--prefetch_warmup_events", "0",
-                              "--prefetch_span_events", "50"],
-    "exmon": lambda tier: [],   # legacy window path (tier not consumed)
+    "addrpath": lambda model, tier, wl_binary=None: _addrpath_tier_flags(tier),
+    # [MDSPEC][R4-1-review-I2] per-(model, workload) F0 span (see
+    # LSQFWD_F0_SPAN above). This lambda appends AFTER FAMILY_MOUNT and
+    # argparse takes the LAST occurrence, so the span must be fixed HERE (a
+    # FAMILY_MOUNT override would be silently clobbered — verified by
+    # experiment in R4-1).
+    "lsqfwd": _lsqfwd_tier_flags,
+    "cache": lambda model, tier, wl_binary=None: [],   # legacy firstClock
+    "prefetch": lambda model, tier, wl_binary=None: [
+        "--prefetch_lsu_tier", tier,
+        "--prefetch_warmup_events", "0", "--prefetch_span_events", "50"],
+    "exmon": lambda model, tier, wl_binary=None: [],   # legacy window path
 }
 FAMILY_MOUNT = {
     "addrpath": ["--chaos_addrpath"],
@@ -446,7 +481,21 @@ def resolve_cell(cell):
 
     flags = ["--cmd", str(REPO / "workloads/directed" / binary), "--cpu", "O3"]
     flags += FAMILY_MOUNT[family]
-    flags += FAMILY_TIER_FLAGS[family](freq)
+    # [MDSPEC][R4-1-review-I2] tier flags are per (model, tier, workload):
+    # an lsqfwd F0 (model, workload) pair whose eligible stream is
+    # UNMEASURED is refused LOUDLY here (a family-wide span constant was the
+    # silent-bias root cause; a model-only table is unsound where the
+    # stream is workload-dependent — L03: 571 on sq_forward, 18681 on
+    # sqlite_like).
+    tier_flags = FAMILY_TIER_FLAGS[family](model, freq, binary)
+    if tier_flags is None:
+        return None, None, (
+            "BLOCKED(F0-span-unmeasured: model %s on workload %s — measure "
+            "its eligible stream with a real run and set "
+            "LSQFWD_F0_SPAN[('%s', '%s')] in tools/lsu_campaign.py; "
+            "refusing rather than silently reusing another pair's span)"
+            % (model, binary, model, binary))
+    flags += tier_flags
     flags += extra
     return flags, golden, binary
 
@@ -692,6 +741,15 @@ def run_single_cell(cell, args, seed, outdir):
                 cache_inj += 1
 
     result = classify_run(outdir, stdout_file, golden, exit_code, stderr_file)
+    # [MDSPEC][R4-1-review-I2] surface the injector's LOUD F0 span alarms
+    # (CHAOS_LSU_TRIGGER_ALARM, chaos_lsu_trigger.hh summary) into the
+    # per-run result so the cell summary prints them — the alarm must be
+    # visible in the run's summary, not buried in run.out.
+    _alarms = [ln.strip() for ln in
+               stdout_file.read_text(errors="replace").splitlines()
+               if "CHAOS_LSU_TRIGGER_ALARM" in ln]
+    if _alarms:
+        result["trigger_alarm"] = _alarms
     if cache_inj > 0 and result.get("injected", 0) == 0:
         # CHAOSCache logs "Tick:"/"Cycle:" lines (no "Site: " lines and no
         # CHAOS_LSU_TRIGGER stdout funnel — the legacy firstClock mechanism),
@@ -843,7 +901,8 @@ def run_cell_adaptive(cell, args, outroot):
         runs.append({"seed": seed, "cluster_id": "%s#%d" % (runid, seed),
                      "activated": act,
                      "outcome": r.get("outcome", "Unclassified"),
-                     "chain": r.get("chain_report")})
+                     "chain": r.get("chain_report"),
+                     "trigger_alarm": r.get("trigger_alarm")})
         attempted += int(r.get("attempted", 0) or 0)
         activated += act
         oc = r.get("outcome")
@@ -865,7 +924,6 @@ def run_cell_adaptive(cell, args, outroot):
         "runs": runs,
     }
     cell_out.mkdir(parents=True, exist_ok=True)
-    (cell_out / "cell_results.json").write_text(json.dumps(result, indent=1))
     # [MDSPEC][C1] auditable chain artefacts for the cell: the machine-
     # readable array (one entry per sample) plus a human summary. Written
     # even when every sample lacks a stream — "absent" is recorded, not
@@ -884,10 +942,22 @@ def run_cell_adaptive(cell, args, outroot):
             c.get("terminal"), c.get("provable_to"), c.get("beyond")))
     (cell_out / "chain_summary.md").write_text("\n".join(lines) + "\n",
                                                encoding="utf-8")
-    return runid, ("  %s: phase=%s n_runs=%d activated=%d sdc=%d "
-                   "stop=%s cons=%s" %
-                   (runid, args.phase, len(runs), activated, classes["SDC"],
-                    stop_reason, result["conservation"]))
+    # [MDSPEC][R4-1-review-I2] per-cell alarm roll-up: any seed's
+    # CHAOS_LSU_TRIGGER_ALARM lines print on the campaign console summary
+    # and persist in cell_results.json — the loud, unburied drift signal.
+    alarm_msgs = ["seed%d: %s" % (rr["seed"], a)
+                  for rr in runs
+                  for a in (rr.get("trigger_alarm") or [])]
+    result["trigger_alarms"] = alarm_msgs
+    (cell_out / "cell_results.json").write_text(json.dumps(result, indent=1))
+    line = ("  %s: phase=%s n_runs=%d activated=%d sdc=%d "
+            "stop=%s cons=%s" %
+            (runid, args.phase, len(runs), activated, classes["SDC"],
+             stop_reason, result["conservation"]))
+    if alarm_msgs:
+        line += "\n  ALARM %s: %d trigger alarm(s): %s" % (
+            runid, len(alarm_msgs), " | ".join(alarm_msgs))
+    return runid, line
 
 
 def _wilson_stats(classes, activated, runs, clustered):

@@ -353,18 +353,32 @@ namespace gem5
         if (!load_data || !true_src || !alt_src) return false;
         if (copy_size == 0 || alt_size == 0) return false;
 
-        Cycles cur = cpu->curCycle();
-        if (cur < first_clock) return false;
-        if (last_clock != Cycles(0) && cur > last_clock) return false;
-        if (max_faults != 0 && faults_injected_count >= max_faults) return false;
+        // [MDSPEC][R4-1-review-I2] the event-normalized trigger owns this
+        // site too: fwd_source_sub's eligible stream (wrong-source
+        // opportunities — the call site's alt-scan already gated on an
+        // older SQ entry carrying data) must ride the SAME F0-uniform /
+        // F1-F4 interval semantics as the data-path corrupt() site. Before
+        // this change a tier-mounted S08 run never consulted lsuTrigger
+        // (attempted=0) and injected via the legacy Bernoulli path below —
+        // the tier flags were silently inert for this mode.
+        if (lsuTrigger) {
+            lsuTrigger->onAttempt();
+            if (!lsuTrigger->onEligible()) return false;
+        } else {
+            Cycles cur = cpu->curCycle();
+            if (cur < first_clock) return false;
+            if (last_clock != Cycles(0) && cur > last_clock) return false;
+            if (max_faults != 0 && faults_injected_count >= max_faults)
+                return false;
 
-        // sampling-bias fix: consume skip only on eligible wrong-source
-        // opportunities (an older SQ entry exists with data)
-        if (count_only) { ++eligible_count; return false; }
-        if (events_to_skip > 0) { --events_to_skip; return false; }
+            // sampling-bias fix: consume skip only on eligible wrong-source
+            // opportunities (an older SQ entry exists with data)
+            if (count_only) { ++eligible_count; return false; }
+            if (events_to_skip > 0) { --events_to_skip; return false; }
 
-        std::uniform_real_distribution<float> dist(0.0f, 1.0f);
-        if (dist(rng) >= probability) return false;
+            std::uniform_real_distribution<float> dist(0.0f, 1.0f);
+            if (dist(rng) >= probability) return false;
+        }
 
         // Copy the WRONG store's data into the load buffer. If the wrong
         // source is smaller than the load, copy what it has (the tail keeps

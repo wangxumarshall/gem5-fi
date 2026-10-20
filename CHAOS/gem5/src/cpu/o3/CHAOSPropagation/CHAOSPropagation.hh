@@ -282,33 +282,56 @@ class CHAOSPropagation : public SimObject
     void registerPtagBlock(uint64_t ptag, Addr byte_begin, Addr byte_end);
 
     // ---- pipeline hooks (read-only w.r.t. CPU state) -----------------------
+    // [MDSPEC][R4-1-review-I1] correlation-arm labels (user ruling 2026-10-20:
+    // address-only correlation may survive ONLY as a labeled fallback —
+    // consumers must be labeled too, not just the registration). Every
+    // PROP-EVT event whose fault_id came from a correlate* lookup carries
+    // corr=<one of these> saying WHICH arm matched:
+    //   CORR_SEQ_PRIMARY   — the join is seq-bound (addr-registry entry
+    //                        matched with dyn_seq, or correlateRequestBySeq)
+    //   CORR_ADDR_FALLBACK — the join is address-only (faulted-byte / blk
+    //                        registry overlap; no seq constraint)
+    static constexpr const char *CORR_SEQ_PRIMARY = "seq_primary";
+    static constexpr const char *CORR_ADDR_FALLBACK = "addr_fallback";
+
     // [MDSPEC][H1] Fault correlation for LSQ unified events: return the
     // ptag whose addr-registry entry matches (dyn_seq + range overlap) or
     // whose faulted-byte registry overlaps [addr, addr+size). 0 = no chain
     // (the request is not fault-correlated; PROP-EVT is a fault-propagation
     // stream, spec sheet 11 — non-correlated observations stay out).
-    uint64_t correlateRequest(uint64_t dyn_seq, Addr addr, Addr size);
+    // corr_out (optional) receives the matched arm's label above; it is
+    // left untouched when nothing matched.
+    uint64_t correlateRequest(uint64_t dyn_seq, Addr addr, Addr size,
+                              const char **corr_out = nullptr);
 
     // [MDSPEC][H7] Seq-only correlation for LQ/SQ lifecycle sites that have
     // the DynInst but not a stable vaddr at hand (read()/executeStore()):
     // match the addr registry by dyn_seq alone; optionally return the
-    // registered base via base_out (the event's va).
+    // registered base via base_out (the event's va). The join is seq-bound
+    // by construction → *corr_out = CORR_SEQ_PRIMARY on a hit.
     uint64_t correlateRequestBySeq(uint64_t dyn_seq,
-                                   Addr *base_out = nullptr);
+                                   Addr *base_out = nullptr,
+                                   const char **corr_out = nullptr);
 
     // [MDSPEC][H4] Block-address correlation for cache structural events
     // (access/fill/evict on a faulted block): return the ptag whose
     // faulted-byte registry overlaps [addr, addr+size); optionally return
-    // the registered base. 0 = not fault-correlated (no event).
-    uint64_t correlateBlock(Addr addr, Addr size, Addr *base_out = nullptr);
+    // the registered base. 0 = not fault-correlated (no event). The join
+    // is address-only by construction → *corr_out = CORR_ADDR_FALLBACK on
+    // a hit (the labeled fallback arm).
+    uint64_t correlateBlock(Addr addr, Addr size, Addr *base_out = nullptr,
+                            const char **corr_out = nullptr);
 
     // LSQ::LSQRequest::sendFragmentToTranslation: the fragment Request is
     // about to leave for translation/memory. Writes a mem_req node when it
     // matches the addr registry (addrpath) or the faulted-byte registry
     // (cache). Returns the FIRST matched ptag (0 = no match) so the H1
-    // unified lsq_sendfrag event can carry the chain id.
+    // unified lsq_sendfrag event can carry the chain id; corr_out receives
+    // the matched arm's label (seq-bound addr registry vs address-only blk
+    // registry — [MDSPEC][R4-1-review-I1]).
     uint64_t noteMemRequest(const char *site, uint64_t dyn_inst_seq,
-                            const RequestPtr &req);
+                            const RequestPtr &req,
+                            const char **corr_out = nullptr);
 
     // LSQUnit::completeDataAccess (pre-writeback, squashed-guarded inside):
     // writes a resp node when the packet delivers a registered fault, and —

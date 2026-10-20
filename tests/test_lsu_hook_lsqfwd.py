@@ -115,13 +115,119 @@ def main():
         P.parse_line("PROP-EVT: kind=inj fault_id=1 event_id=0"),
         good,
         P.parse_line("PROP-EVT: kind=sq_writeback fault_id=1 "
-                     "dyn_inst_seq=133 sq_idx=4 event_id=2"),
+                     "dyn_inst_seq=133 sq_idx=4 event_id=2 corr=seq_primary"),
         P.parse_line("PROP-EVT: kind=sq_complete fault_id=1 "
-                     "dyn_inst_seq=133 sq_idx=4 event_id=3"),
+                     "dyn_inst_seq=133 sq_idx=4 event_id=3 corr=seq_primary"),
     ]
     v = P.provable_to(chain)
     check("inj→lsq_fwd→sq_writeback→sq_complete reaches L3",
           v["provable_to"] == "L3", str(v))
+
+    print("[5] [R4-1-review-I1] corr 必录于一切经 correlate* 加入链的事件")
+    corr_kinds = ["lsq_push", "lsq_sendfrag", "tlb_translate", "tlb_fault",
+                  "lq_read", "lq_complete", "sq_execute", "sq_writeback",
+                  "sq_complete", "atomic_op", "cache_access", "cache_return",
+                  "cache_fill", "cache_evict", "mshr_alloc", "mshr_merge",
+                  "mshr_fill", "mshr_free", "cache_writeback", "pf_queue",
+                  "pf_issue"]
+    missing = [k for k in corr_kinds
+               if "corr" not in P.REQUIRED_FIELDS.get(k, [])]
+    check("corr required on all correlate-joined kinds",
+          not missing, str(missing))
+    # pf_demand / pf_fill 允许 fault_id=0（仅预取请求链）→ corr 可空，
+    # 不得列入必录（列入会把诚实缺席判成违约）
+    check("pf_demand/pf_fill corr optional (fault_id=0 allowed)",
+          all("corr" not in P.REQUIRED_FIELDS.get(k, [])
+              for k in ("pf_demand", "pf_fill")))
+    # C++ 面：correlate API 都带 corr_out 出参（调用点不必自行重推导）
+    hh2 = (ROOT / "CHAOS/gem5/src/cpu/o3/CHAOSPropagation/"
+           "CHAOSPropagation.hh").read_text()
+    check("correlateRequest carries corr_out",
+          hh2.count("const char **corr_out = nullptr") >= 4)
+    check("correlateRequestBySeq carries corr_out",
+          hh2.count("const char **corr_out = nullptr") >= 3)
+    check("correlateBlock carries corr_out",
+          "Addr *base_out = nullptr,\n"
+          "                            const char **corr_out" in hh2)
+    check("arm labels defined (seq_primary / addr_fallback)",
+          'CORR_SEQ_PRIMARY = "seq_primary"' in hh2
+          and 'CORR_ADDR_FALLBACK = "addr_fallback"' in hh2)
+    # 调用点：每个 correlate 调用都传出 arm 并在事件里带 corr=
+    site_files = {
+        "CHAOS/gem5/src/cpu/o3/lsq.cc": 3,
+        "CHAOS/gem5/src/cpu/o3/lsq_unit.cc": 4,
+        "CHAOS/gem5/src/arch/arm/mmu.cc": 2,
+        "CHAOS/gem5/src/mem/cache/cache.cc": 4,
+        "CHAOS/gem5/src/mem/cache/base.cc": 5,
+        "CHAOS/gem5/src/mem/cache/prefetch/queued.cc": 3,
+    }
+    total_calls = 0
+    total_corr = 0
+    for rel, expect_calls in site_files.items():
+        txt = (ROOT / rel).read_text()
+        calls = (txt.count("->correlateRequest(")
+                 + txt.count("->correlateRequestBySeq(")
+                 + txt.count("->correlateBlock(")
+                 + txt.count("->noteMemRequest("))
+        # 注释行里的调用名不算：粗校验调用数 >= 预期（唯一注释场景是
+        # CHAOSArmTLB.cc，不在本表）
+        corrs = txt.count("_corr = nullptr;   // [R4-1-review-I1]")
+        total_calls += calls
+        total_corr += corrs
+        check(f"{rel.split('/')[-1]}: {expect_calls} call sites plumbed "
+              f"(found {corrs} corr decls)", corrs == expect_calls,
+              f"calls={calls} corr_decls={corrs}")
+    check("no fallback-joined event without marker (21 sites / 23 events)",
+          total_corr == 21)
+
+    print("[6] [R4-1-review-I2] 触发器 span 语义 + 双失效模式告警")
+    trig = (ROOT / "CHAOS/gem5/src/cpu/o3/chaos_lsu_trigger.hh").read_text()
+    check("SPAN_UNREACHABLE alarm mode present",
+          "mode=SPAN_UNREACHABLE" in trig
+          and "attempted > 0 && injected == 0" in trig)
+    check("EARLY_BIAS alarm mode present (silent bias detector)",
+          "mode=EARLY_BIAS" in trig and "injected > 0 && eligible >= draw_end"
+          in trig)
+    check("alarm gated to F0 (span semantics)",
+          "if (tier == ChaOSLsuTier::F0)" in trig)
+    # 告警消息必须携带 fired_at 并诚实区分两种读法（span 低覆盖 = 真偏置
+    # vs 注入故障自身延长流 = 非采样偏置）——不得把故障延长宣称为偏置
+    check("EARLY_BIAS message carries fired_at (adjudication key)",
+          "fired_at=%lu" in trig and "fired_at = eligible;" in trig)
+    check("EARLY_BIAS message names both readings honestly",
+          "span under-covers the" in trig
+          and "the fault extended the stream" in trig)
+
+    print("[7] [R4-1-review-I2] 每 (模型,负载) span 表 + 未测量对的响亮拒绝")
+    camp = (ROOT / "tools/lsu_campaign.py").read_text()
+    check("LSQFWD_F0_SPAN per-(model,workload) table exists",
+          "LSQFWD_F0_SPAN = {" in camp
+          and '("S01", "sq_forward"): 7' in camp)
+    check("no family-wide lsqfwd span constant remains",
+          '"--lsqfwd_span_events", "7"' not in camp)
+    check("unmeasured F0 (model,workload) refused loudly",
+          "F0-span-unmeasured" in camp)
+    check("F0 warmup=1 (true uniform: 1+N over N events)",
+          '"--lsqfwd_warmup_events", "1"' in camp)
+    check("campaign surfaces CHAOS_LSU_TRIGGER_ALARM in cell summary",
+          "CHAOS_LSU_TRIGGER_ALARM" in camp and "ALARM %s" in camp)
+    import re as _re
+    m = _re.search(r"LSQFWD_F0_SPAN = \{(.*?)\n\}", camp, _re.S)
+    entries = {(a, b): c for a, b, c in _re.findall(
+        r'\("(S\d\d|L03)", "([a-z_/]+)"\):\s*(\d+)', m.group(1))} if m else {}
+    # 每个测量值来自实测 teardown 行（round4_findings.md §R4-1-fix 引用）
+    for pair in (("S01", "sq_forward"), ("S02", "sq_forward"),
+                 ("S03", "sq_forward"), ("S08", "sq_forward"),
+                 ("S09", "sq_forward"), ("L03", "sq_forward"),
+                 ("L03", "sqlite_like")):
+        check(f"{pair[0]}@{pair[1]} span measured (integer)",
+              entries.get(pair) is not None and entries[pair].isdigit(),
+              str(entries.get(pair)))
+    check("S08's own stream measured (2, not the corrupt-path 7)",
+          entries.get(("S08", "sq_forward")) == "2")
+    check("L03 stream is workload-dependent (571 vs 18681 measured)",
+          entries.get(("L03", "sq_forward")) == "571"
+          and entries.get(("L03", "sqlite_like")) == "18681")
 
     print()
     if FAILED:

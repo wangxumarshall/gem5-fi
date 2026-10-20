@@ -83,30 +83,35 @@ _LAYER_ORDER = ["L0", "L1", "L2", "L3", "L4", "L5"]
 # 家族必录字段契约（kind → 必须非空的注册表字段；表 9 必监控列）。
 # 发射端（C++ 钩子）与本校验共用此表——契约测试 tests/test_lsu_hook_*.py
 # 逐族钉死。
+# [MDSPEC][R4-1-review-I1] corr 为一切"经 correlate* 加入链"的事件的必录
+# 字段（seq_primary | addr_fallback——仅地址关联必须显式标注，不得静默）。
+# 例外：pf_demand / pf_fill 允许 fault_id=0（仅预取请求链、无故障链关联，
+# corr 留空是诚实缺席），故不列入其必录。
 REQUIRED_FIELDS = {
-    "lsq_push": ["fault_id", "dyn_inst_seq", "pc", "opcode",
+    "lsq_push": ["fault_id", "corr", "dyn_inst_seq", "pc", "opcode",
                  "lq_idx", "sq_idx", "va"],
-    "lsq_sendfrag": ["fault_id", "dyn_inst_seq", "pc", "opcode",
+    "lsq_sendfrag": ["fault_id", "corr", "dyn_inst_seq", "pc", "opcode",
                      "request_id", "va"],
     # [MDSPEC][H2] pa 入口未定留空（诚实 pending；PA 物化由 resp 节点覆盖）
-    "tlb_translate": ["fault_id", "dyn_inst_seq", "va", "request_id"],
+    "tlb_translate": ["fault_id", "corr", "dyn_inst_seq", "va", "request_id"],
     # [MDSPEC][H2-fix] 翻译 fault 检测（detection_layer=Hardware；contained
     # 为空 = pending offline join——不预定终局）
-    "tlb_fault": ["fault_id", "dyn_inst_seq", "va", "outcome",
+    "tlb_fault": ["fault_id", "corr", "dyn_inst_seq", "va", "outcome",
                   "detection_layer"],
     # [MDSPEC][H2-FS] TLB-entry pfn 故障：before/after = old/new PFN，
     # state_before/after = old/new PA（dyn_inst_seq 在该钩子点不可得 → 地址域
-    # 关联；链身份仍是 fault_id + parent_event_id）
+    # 关联；链身份仍是 fault_id + parent_event_id；注册站点不经 correlate*，
+    # corr 不适用）
     "tlb_pfn": ["fault_id", "va", "before", "after", "field",
                 "state_before", "state_after"],
     # [MDSPEC][H7] LQ 生命周期（va 取注册表 base；pa=响应地址）
-    "lq_read": ["fault_id", "dyn_inst_seq", "lq_idx", "va"],
-    "lq_complete": ["fault_id", "dyn_inst_seq", "lq_idx", "va", "pa"],
+    "lq_read": ["fault_id", "corr", "dyn_inst_seq", "lq_idx", "va"],
+    "lq_complete": ["fault_id", "corr", "dyn_inst_seq", "lq_idx", "va", "pa"],
     # [MDSPEC][H3] SQ 生命周期（execute→writeback→complete）
-    "sq_execute": ["fault_id", "dyn_inst_seq", "sq_idx", "va",
+    "sq_execute": ["fault_id", "corr", "dyn_inst_seq", "sq_idx", "va",
                    "state_before"],
-    "sq_writeback": ["fault_id", "dyn_inst_seq", "sq_idx", "pa"],
-    "sq_complete": ["fault_id", "dyn_inst_seq", "sq_idx", "va",
+    "sq_writeback": ["fault_id", "corr", "dyn_inst_seq", "sq_idx", "pa"],
+    "sq_complete": ["fault_id", "corr", "dyn_inst_seq", "sq_idx", "va",
                     "state_after"],
     # [MDSPEC][H3-FWD] before/after = 转发数据被污染前后。
     # [MDSPEC][R4-1] seq/idx/request_id 为 PRIMARY 关联键（用户裁决
@@ -119,26 +124,28 @@ REQUIRED_FIELDS = {
                 "sq_idx", "lq_idx", "request_id", "va", "field",
                 "before", "after"],
     # [MDSPEC][H4] cache 结构事件（access/return/fill/evict）
-    "cache_access": ["fault_id", "va", "pa"],
-    "cache_return": ["fault_id", "pa", "field"],
-    "cache_fill": ["fault_id", "pa", "cache_line", "fill_id"],
+    "cache_access": ["fault_id", "corr", "va", "pa"],
+    "cache_return": ["fault_id", "corr", "pa", "field"],
+    "cache_fill": ["fault_id", "corr", "pa", "cache_line", "fill_id"],
     # victim 证据：set/way + victim tag（before）+ dirty 状态在 field
-    "cache_evict": ["fault_id", "cache_line", "set", "way"],
-    "mshr_alloc": ["fault_id", "cache_line", "mshr_id"],
-    "mshr_merge": ["fault_id", "cache_line", "mshr_id"],
-    "mshr_fill": ["fault_id", "cache_line", "mshr_id", "fill_id"],
-    "mshr_free": ["fault_id", "cache_line", "mshr_id"],
-    "cache_writeback": ["fault_id", "cache_line"],
+    "cache_evict": ["fault_id", "corr", "cache_line", "set", "way"],
+    "mshr_alloc": ["fault_id", "corr", "cache_line", "mshr_id"],
+    "mshr_merge": ["fault_id", "corr", "cache_line", "mshr_id"],
+    "mshr_fill": ["fault_id", "corr", "cache_line", "mshr_id", "fill_id"],
+    "mshr_free": ["fault_id", "corr", "cache_line", "mshr_id"],
+    "cache_writeback": ["fault_id", "corr", "cache_line"],
     # [MDSPEC][H5] prefetch 链：pf_request_id 为请求级稳定标识（≠ fault_id），
     # 同一预取请求的 queue/issue/fill/demand 四节点必须携带同一值。
+    # pf_queue/pf_issue 仅在故障链关联（ptag>0）时发射 → corr 必录；
+    # pf_fill/pf_demand 允许 fault_id=0（仅预取请求链）→ corr 可空。
     "pf_train": ["fault_id", "pf_request_id", "pc", "before", "after"],
-    "pf_queue": ["fault_id", "pf_request_id", "va", "entry_index"],
-    "pf_issue": ["fault_id", "pf_request_id", "va"],
+    "pf_queue": ["fault_id", "corr", "pf_request_id", "va", "entry_index"],
+    "pf_issue": ["fault_id", "corr", "pf_request_id", "va"],
     "pf_fill": ["fault_id", "pf_request_id", "pa", "cache_line"],
     "pf_demand": ["fault_id", "pf_request_id", "dyn_inst_seq", "request_id",
                   "pa"],
     # [MDSPEC][H6] atomic 链
-    "atomic_op": ["fault_id", "dyn_inst_seq", "va"],
+    "atomic_op": ["fault_id", "corr", "dyn_inst_seq", "va"],
     # [MDSPEC][H6] exmon 链（monitor 地址 before/after + 保留比较 + STXR
     # 消费/重试；request_id 为 LL-SC 配对键的一部分）
     "exmon_monitor": ["fault_id", "dyn_inst_seq", "request_id", "pa",

@@ -57,17 +57,18 @@ def main():
     print("[2] 契约行校验（validate_event）")
     good_push = P.parse_line(
         "PROP-EVT: kind=lsq_push fault_id=1 dyn_inst_seq=42 pc=4096 "
-        "opcode=ldr lq_idx=3 sq_idx=-1 va=1ffff70 sample_run_id=0")
+        "opcode=ldr lq_idx=3 sq_idx=-1 va=1ffff70 corr=seq_primary "
+        "sample_run_id=0")
     check("complete lsq_push validates",
           good_push is not None and P.validate_event(good_push) == [])
     bad_push = P.parse_line(
         "PROP-EVT: kind=lsq_push fault_id=1 dyn_inst_seq=42")
     errs = P.validate_event(bad_push)
-    check("missing pc/opcode/lq_idx/sq_idx/va flagged",
-          len(errs) >= 5, str(errs))
+    check("missing pc/opcode/lq_idx/sq_idx/va/corr flagged",
+          len(errs) >= 6, str(errs))
     good_frag = P.parse_line(
         "PROP-EVT: kind=lsq_sendfrag fault_id=1 dyn_inst_seq=42 pc=4096 "
-        "opcode=ldr request_id=42 va=1ffff70")
+        "opcode=ldr request_id=42 va=1ffff70 corr=seq_primary")
     check("complete lsq_sendfrag validates",
           good_frag is not None and P.validate_event(good_frag) == [])
 

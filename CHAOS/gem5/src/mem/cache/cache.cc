@@ -175,8 +175,9 @@ Cache::access(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
         CHAOSPropagation *h4 = CHAOSPropagation::instance();
         if (h4 && pkt) {
             Addr h4_base = 0;
+            const char *h4_corr = nullptr;   // [R4-1-review-I1]
             const uint64_t h4_ptag = h4->correlateBlock(
-                pkt->getAddr(), pkt->getSize(), &h4_base);
+                pkt->getAddr(), pkt->getSize(), &h4_base, &h4_corr);
             if (h4_ptag) {
                 std::ostringstream h4_hex;
                 h4_hex << std::hex << pkt->getAddr();
@@ -186,6 +187,7 @@ Cache::access(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
                     h4_hex << pkt->req->getVaddr();
                 h4->notePropEvt("cache_access", {
                     {"fault_id", std::to_string(h4_ptag)},
+                    {"corr", h4_corr ? h4_corr : ""},
                     {"va", h4_hex.str()},
                     {"pa", h4_pa},
                 });
@@ -223,13 +225,15 @@ Cache::access(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
         CHAOSPropagation *h4r = CHAOSPropagation::instance();
         if (h4r && pkt) {
             Addr h4_base = 0;
+            const char *h4r_corr = nullptr;   // [R4-1-review-I1]
             const uint64_t h4r_ptag = h4r->correlateBlock(
-                pkt->getAddr(), pkt->getSize(), &h4_base);
+                pkt->getAddr(), pkt->getSize(), &h4_base, &h4r_corr);
             if (h4r_ptag) {
                 std::ostringstream h4r_hex;
                 h4r_hex << std::hex << pkt->getAddr();
                 h4r->notePropEvt("cache_return", {
                     {"fault_id", std::to_string(h4r_ptag)},
+                    {"corr", h4r_corr ? h4r_corr : ""},
                     {"pa", h4r_hex.str()},
                     {"field", h4_result ? "hit" : "miss"},
                 });
@@ -252,14 +256,16 @@ Cache::access(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
                 pkt->getAddr(), pkt->getSize(), &h5d_base);
             if (h5d_pfid) {
                 Addr h5d_ptag_base = 0;
+                const char *h5d_corr = nullptr;   // [R4-1-review-I1]
                 const uint64_t h5d_ptag = h5d->correlateBlock(
-                    pkt->getAddr(), pkt->getSize(), &h5d_ptag_base);
+                    pkt->getAddr(), pkt->getSize(), &h5d_ptag_base, &h5d_corr);
                 std::ostringstream h5d_hex;
                 h5d_hex << std::hex << pkt->getAddr();
                 const uint64_t h5d_seq = pkt->req->hasInstSeqNum()
                     ? pkt->req->getReqInstSeqNum() : 0;
                 h5d->notePropEvt("pf_demand", {
                     {"fault_id", std::to_string(h5d_ptag)},
+                    {"corr", h5d_corr ? h5d_corr : ""},
                     {"pf_request_id", std::to_string(h5d_pfid)},
                     {"dyn_inst_seq", std::to_string(h5d_seq)},
                     {"request_id", std::to_string(h5d_seq)},
@@ -1061,8 +1067,9 @@ Cache::evictBlock(CacheBlk *blk)
         if (h4) {
             const Addr h4_blk_addr = regenerateBlkAddr(blk);
             Addr h4_base = 0;
+            const char *h4_corr = nullptr;   // [R4-1-review-I1]
             const uint64_t h4_ptag = h4->correlateBlock(
-                h4_blk_addr, blkSize, &h4_base);
+                h4_blk_addr, blkSize, &h4_base, &h4_corr);
             if (h4_ptag) {
                 std::ostringstream h4_hex, h4_tag;
                 h4_hex << std::hex << h4_blk_addr;
@@ -1072,6 +1079,7 @@ Cache::evictBlock(CacheBlk *blk)
                 // dirty state + the evicted line address.
                 h4->notePropEvt("cache_evict", {
                     {"fault_id", std::to_string(h4_ptag)},
+                    {"corr", h4_corr ? h4_corr : ""},
                     {"cache_line", h4_hex.str()},
                     {"set", std::to_string(blk->getSet())},
                     {"way", std::to_string(blk->getWay())},

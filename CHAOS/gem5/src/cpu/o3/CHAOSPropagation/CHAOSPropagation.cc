@@ -575,34 +575,42 @@ namespace gem5
 
     uint64_t
     CHAOSPropagation::correlateRequest(uint64_t dyn_seq, Addr addr,
-                                       Addr size)
+                                       Addr size, const char **corr_out)
     {
         if (!write_log)
             return 0;
         sweepExpired();
         const Addr a_end = addr + size;
         // addrpath registry: range overlap + dyn-inst binding (same
-        // semantics as noteMemRequest's stamped path).
+        // semantics as noteMemRequest's stamped path). Seq-bound arm.
         for (const auto &kv : addr_registry) {
             const AddrEntry &e = kv.second;
             if (e.size == 0)
                 continue;
             if (addr < e.base + e.size && e.base < a_end
-                    && e.dyn_seq == dyn_seq)
+                    && e.dyn_seq == dyn_seq) {
+                if (corr_out)
+                    *corr_out = CORR_SEQ_PRIMARY;
                 return e.ptag;
+            }
         }
         // cache faulted-byte registry: range overlap (SE vaddr==paddr).
+        // Address-only arm: the labeled fallback ([R4-1-review-I1]).
         for (const auto &kv : blk_registry) {
             const BlkEntry &e = kv.second;
-            if (addr < e.byte_end && e.byte_begin < a_end)
+            if (addr < e.byte_end && e.byte_begin < a_end) {
+                if (corr_out)
+                    *corr_out = CORR_ADDR_FALLBACK;
                 return e.ptag;
+            }
         }
         return 0;
     }
 
     uint64_t
     CHAOSPropagation::correlateRequestBySeq(uint64_t dyn_seq,
-                                            Addr *base_out)
+                                            Addr *base_out,
+                                            const char **corr_out)
     {
         if (!write_log)
             return 0;
@@ -612,6 +620,8 @@ namespace gem5
             if (e.dyn_seq == dyn_seq) {
                 if (base_out)
                     *base_out = e.base;
+                if (corr_out)
+                    *corr_out = CORR_SEQ_PRIMARY;
                 return e.ptag;
             }
         }
@@ -619,7 +629,8 @@ namespace gem5
     }
 
     uint64_t
-    CHAOSPropagation::correlateBlock(Addr addr, Addr size, Addr *base_out)
+    CHAOSPropagation::correlateBlock(Addr addr, Addr size, Addr *base_out,
+                                     const char **corr_out)
     {
         if (!write_log)
             return 0;
@@ -630,6 +641,8 @@ namespace gem5
             if (addr < e.byte_end && e.byte_begin < a_end) {
                 if (base_out)
                     *base_out = e.byte_begin;
+                if (corr_out)
+                    *corr_out = CORR_ADDR_FALLBACK;
                 return e.ptag;
             }
         }
@@ -747,7 +760,8 @@ namespace gem5
 
     uint64_t
     CHAOSPropagation::noteMemRequest(const char *site, uint64_t dyn_seq,
-                                     const RequestPtr &req)
+                                     const RequestPtr &req,
+                                     const char **corr_out)
     {
         if (!write_log || !req || !req->hasVaddr())
             return 0;
@@ -771,6 +785,8 @@ namespace gem5
                 continue;                       // no overlap
             if (stamped && req_seq != e.dyn_seq)
                 continue;                       // not the faulting inst
+            if (corr_out && !*corr_out)
+                *corr_out = CORR_SEQ_PRIMARY;   // seq-bound arm
             std::ostringstream d;
             d << "site=" << site << ";family=addrpath;size="
               << req->getSize();
@@ -781,10 +797,13 @@ namespace gem5
         }
 
         // cache faulted-byte registry: range overlap (SE vaddr==paddr).
+        // Address-only arm: the labeled fallback ([R4-1-review-I1]).
         for (const auto &kv : blk_registry) {
             const BlkEntry &e = kv.second;
             if (v >= e.byte_end || e.byte_begin >= v_end)
                 continue;
+            if (corr_out && !*corr_out)
+                *corr_out = CORR_ADDR_FALLBACK;
             std::ostringstream d;
             d << "site=" << site << ";family=cache;size=" << req->getSize();
             writeNode(e.ptag, "mem_req", dyn_seq, true,
@@ -807,6 +826,7 @@ namespace gem5
 
         uint64_t hit_ptag = 0;
         const char *hit_family = nullptr;
+        const char *hit_corr = nullptr;   // [R4-1-review-I1] matched arm
 
         // addrpath: the response's own Request vaddr range vs the registry,
         // bound to this instruction (the faulting load itself).
@@ -821,6 +841,7 @@ namespace gem5
                         && e.dyn_seq == inst->seqNum) {
                     hit_ptag = e.ptag;
                     hit_family = "addrpath";
+                    hit_corr = CORR_SEQ_PRIMARY;
                     break;
                 }
             }
@@ -834,6 +855,7 @@ namespace gem5
                 if (a < e.byte_end && e.byte_begin < a_end) {
                     hit_ptag = e.ptag;
                     hit_family = "cache";
+                    hit_corr = CORR_ADDR_FALLBACK;
                     break;
                 }
             }
@@ -879,6 +901,8 @@ namespace gem5
                 {"pa", h7_pa.str()},
                 {"request_id", req_seq ? std::to_string(req_seq)
                                        : std::string("0")},
+                // [R4-1-review-I1] which correlate arm joined this event
+                {"corr", hit_corr ? hit_corr : ""},
             });
         }
 
