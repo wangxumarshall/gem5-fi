@@ -31,7 +31,7 @@
 - Consumes: 仓库现有文档与源码事实（Step 2 事实清单；探索结论已在会话中，执行时以原文复核为准）
 - Produces: 根 `README.md`；远端分支 `origin/docs/root-readme`（恰好 1 个 commit）
 
-- [ ] **Step 1: 创建隔离 worktree（避开主树 rebase）**
+- [x] **Step 1: 创建隔离 worktree（避开主树 rebase）**
 
 ```bash
 df -h /home/sdc | tail -1   # 确认磁盘余量足够再检出一份 tracked 树
@@ -39,7 +39,7 @@ git worktree add /home/sdc/wangxu/gem5-fi-fuzz-readme-wt -b docs/root-readme 9db
 git status   # 预期：主树仍显示「交互式变基操作正在进行中」——未被破坏
 ```
 
-- [ ] **Step 2: 锁定事实清单（读权威原文，不采信转述）**
+- [x] **Step 2: 锁定事实清单（读权威原文，不采信转述）**
 
 在 worktree 中 Read（执行时逐项打勾核对，数字以原文为准、与下表不符时以原文为准并修正 README 草稿）：
 
@@ -70,7 +70,7 @@ git status   # 预期：主树仍显示「交互式变基操作正在进行中�
 | 14 | 子模块 | gem5-fs（已 checkout）；sdcshield（未 init，需 `git submodule update --init`） | .gitmodules + git submodule status |
 | 15 | Harpocrates 复现 | 论文核心主张全部复现且无违反 | docs/harpocrates/reproduction-report.md |
 
-- [ ] **Step 3: 撰写 README.md（worktree 中，章节结构固定）**
+- [x] **Step 3: 撰写 README.md（worktree 中，章节结构固定）**
 
 ```text
 # gem5-fi-fuzz
@@ -121,7 +121,7 @@ git status   # 预期：主树仍显示「交互式变基操作正在进行中�
    单机未复现/未做硅片验证；结论严格限定可建模维度
 ```
 
-- [ ] **Step 4: 事实核验（真实命令，输出留作提交依据）**
+- [x] **Step 4: 事实核验（真实命令，输出留作提交依据）**
 
 ```bash
 cd /home/sdc/wangxu/gem5-fi-fuzz-readme-wt
@@ -148,7 +148,7 @@ cd /home/sdc/wangxu/gem5-fi-fuzz && python3 -m pytest tests/test_report.py -q
 
 预期：4a 全部路径存在；4b/4c 逐条命中；4d 全部 PASS（纯文档变更不应影响任何测试）。
 
-- [ ] **Step 5: 提交并推送（单 commit：计划 + README）**
+- [x] **Step 5: 提交并推送（单 commit：计划 + README）**
 
 ```bash
 cp /home/sdc/wangxu/gem5-fi-fuzz/docs/superpowers/plans/2026-10-20-root-readme.md \
@@ -163,7 +163,7 @@ git commit -m "docs: 创建仓库根 README.md——项目全景介绍（功能/
 git push -u origin docs/root-readme
 ```
 
-- [ ] **Step 6: 清理与主树还原**
+- [x] **Step 6: 清理与主树还原**
 
 ```bash
 git worktree remove --force /home/sdc/wangxu/gem5-fi-fuzz-readme-wt
@@ -182,3 +182,16 @@ git worktree list   # 预期：仅剩主 worktree
 1. **Spec coverage**：用户四维度——解决的问题→§1；功能→§3；特性→§4；使用场景→§8。均有着落。✓
 2. **Placeholder scan**：无 TBD/TODO；验证命令均为可直接执行的真实命令。✓
 3. **一致性**：分支名全篇统一 `docs/root-readme`；worktree 路径统一 `/home/sdc/wangxu/gem5-fi-fuzz-readme-wt`。✓
+
+---
+
+## 勾选收口（2026-10-20，全部实证）
+
+Task 1 六步全闭环，真实输出留档：
+
+- **Step 1**：worktree 经原生 EnterWorktree 建立（`.claude/worktrees/docs-root-readme`，分支 `worktree-docs-root-readme`，基点 9dbbbbba）——执行时按 using-git-worktrees 技能优先原生工具，与计划中手写 `git worktree add` 路径等价；主树 rebase 状态全程未动（`git status` 复核）。
+- **Step 2**：事实清单逐项对原文核对——三带格局 `docs/gem5/project-understanding.md:96,100`；FSU 谱与 Exec 0/768 `task_plan.md:94,98`；reads 中位 1,975,000 `MICROARCH_EVIDENCE.md:182`；18.8× `docs/harpocrates/reproduction-report.md:72`；J1 24 倍 `docs/sdc-ed/lift-report-round2.md:98`；24/24 `docs/sdc-ed/method.md:214`；真机 ~446 核 0 SDC `MICROARCH_EVIDENCE.md:295`。
+- **Step 3**：README.md 落盘（445 行，11 章节，1 个 mermaid 架构图）。
+- **Step 4**：路径核验 47/48 实存（`cpts/` 为 boot 阶段生成的 gitignore 目录，README 已注明）；CLI 事实对 argparse 实测（arm_chaos.py / runner.py / campaign.py / fs_checkpoint.py / verify_gem5_injectors.sh）；回归 `python3 -m pytest tests/test_report.py -q` → **`2 passed in 0.39s`**。
+- **Step 5**：提交 `ad1da02f` 推送至 `origin/docs/root-readme`（`git ls-remote` 实证 `ad1da02faf5a462763fe976c8c6b974307458abd`）。
+- **Step 6**：worktree 移除（提交先经 ls-remote 确认在远端）；主树计划草稿删除；主树终态 = 交互式变基进行中（剩 76 pick）、工作区干净、`git worktree list` 仅剩主树。
