@@ -184,6 +184,69 @@ def main():
           f8["terminal"] == "detected_contained", f8["terminal"])
     check("resolved beyond 为空（终局已定）", f8["beyond"] == "", f8["beyond"])
 
+    print("[7] tlb_fault × runner/oracle join（翻译阻断 → 具体终局）")
+    blocked = _evts([
+        "PROP-EVT: kind=inj fault_id=20 event_id=0 tick=10",
+        "PROP-EVT: kind=addr_form fault_id=20 event_id=1 tick=10",
+        "PROP-EVT: kind=mem_req fault_id=20 event_id=2 tick=11",
+        "PROP-EVT: kind=tlb_translate fault_id=20 event_id=3 tick=12",
+        "PROP-EVT: kind=tlb_fault fault_id=20 event_id=4 tick=13 "
+        "detection_layer=Hardware contained= outcome=GenericPageTableFault",
+    ])
+    fa = CC.check_chain(blocked, oracle_outcome="Crash")["faults"]["20"]
+    check("oracle=Crash → crash_translation_blocked（闭合）",
+          fa["terminal"] == "crash_translation_blocked", fa["terminal"])
+    check("crash 终局 beyond 为空", fa["beyond"] == "", fa["beyond"])
+    check("crash 终局 provable_to=L2（翻译阻断层级）",
+          fa["provable_to"] == "L2", str(fa["provable_to"]))
+    fb = CC.check_chain(blocked, oracle_outcome="SDC")["faults"]["20"]
+    check("oracle=SDC → sdc_translation_blocked",
+          fb["terminal"] == "sdc_translation_blocked", fb["terminal"])
+    fc = CC.check_chain(blocked, oracle_outcome="Masked")["faults"]["20"]
+    check("oracle=Masked 不得推断 Masked/Contained（保持开放终局）",
+          fc["terminal"] == "provable_to_L2_then_unknown", fc["terminal"])
+    check("oracle 干净 beyond=Unknown", fc["beyond"] == "Unknown",
+          fc["beyond"])
+    fd = CC.check_chain(blocked)["faults"]["20"]
+    check("oracle 缺省 → detected_translation_outcome_pending",
+          fd["terminal"] == "detected_translation_outcome_pending",
+          fd["terminal"])
+
+    print("[8] terminal / provable_to / beyond 三向自洽")
+    full_evts = _evts([
+        "PROP-EVT: kind=inj fault_id=30 event_id=0 tick=1",
+        "PROP-EVT: kind=addr_form fault_id=30 event_id=1 tick=1",
+        "PROP-EVT: kind=lsq_push fault_id=30 event_id=2 tick=2",
+        "PROP-EVT: kind=mem_req fault_id=30 event_id=3 tick=3",
+        "PROP-EVT: kind=resp fault_id=30 event_id=4 tick=4",
+        "PROP-EVT: kind=taint_reg fault_id=30 event_id=5 tick=5",
+        "PROP-EVT: kind=errant_commit fault_id=30 event_id=6 tick=6",
+    ])
+    contained_evts = _evts([
+        "PROP-EVT: kind=inj fault_id=31 event_id=0 tick=1",
+        "PROP-EVT: kind=chain_end fault_id=31 event_id=1 tick=9 "
+        "detection_layer=Hardware contained=1",
+    ])
+    verdicts = {
+        "full": CC.check_chain(full_evts),
+        "crash_blocked": CC.check_chain(blocked, oracle_outcome="Crash"),
+        "timeout_blocked": CC.check_chain(blocked, oracle_outcome="Timeout"),
+        "sdc_blocked": CC.check_chain(blocked, oracle_outcome="SDC"),
+        "pending": CC.check_chain(blocked),
+        "contained": CC.check_chain(contained_evts),
+    }
+    for tag, verdict in verdicts.items():
+        for fid, f in verdict["faults"].items():
+            closed = f["terminal"] in CC.CLOSED_TERMINALS
+            check(f"[{tag}] beyond 与终局自洽（{f['terminal']}）",
+                  (f["beyond"] == "") == closed,
+                  f"beyond={f['beyond']!r} closed={closed}")
+            check(f"[{tag}] provable_to 为合法层级（{f['provable_to']}）",
+                  f["provable_to"] in CC.LAYERS, str(f["provable_to"]))
+    check("full 终局 provable_to=L4",
+          verdicts["full"]["faults"]["30"]["provable_to"] == "L4",
+          str(verdicts["full"]["faults"]["30"]["provable_to"]))
+
     print()
     if FAILED:
         print(f"FAILED ({len(FAILED)}): {FAILED}")

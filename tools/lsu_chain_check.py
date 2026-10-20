@@ -43,6 +43,19 @@ _L5_OUTCOME_KINDS = {"chain_end"}
 
 _L4_TERMINAL_KINDS = {"errant_commit"}  # L4 终局：首个错误提交（v1/H0）
 
+# 闭合终局（链已收敛 → beyond=""）。其余（provable_to_*_then_unknown /
+# detected_translation_outcome_pending / no_l0_fault_applied）为开放终局，
+# beyond="Unknown"。此集合与 _terminal 的返回值必须一致——
+# tests/test_lsu_chain_check.py 钉死该自洽性。
+CLOSED_TERMINALS = {
+    "full",
+    "detected_contained",
+    "squash_replay_masked",
+    "crash_translation_blocked",
+    "timeout_translation_blocked",
+    "sdc_translation_blocked",
+}
+
 
 def _layer_of(evt):
     return P.KIND_LAYER.get(evt.get("kind", ""))
@@ -101,17 +114,43 @@ def _edges_for(chain_events):
     return edges, by_layer
 
 
-def _terminal(chain_events, edges, by_layer):
-    """终止判定（规格三终局 + Unknown 兜底；缺席不猜测）。"""
-    # [H2-fix] tlb_fault = Hardware 检测（翻译层阻断）——不预定 contained。
-    # 终局（Contained/Crash/Handled）由 chain_end + runner/oracle 离线
-    # join 决定；此处只报告检测到翻译 fault，链的传播被阻断于 L2。
+def _terminal(chain_events, edges, by_layer, oracle_outcome=None):
+    """终止判定（规格三终局 + Unknown 兜底；缺席不猜测）。
+
+    [H2-fix] tlb_fault = Hardware 检测，表示**翻译阶段阻断**，它本身
+    **不是**终局：不得据此无条件写 contained=1。终局由"翻译阻断证据 +
+    runner/oracle 结局（L5 五类）"联合决定：
+
+      oracle=Crash/Timeout/SDC  → <kind>_translation_blocked（闭合：确实
+                                  产生了错误结局，翻译阻断是其机理）
+      oracle=Detected/Contained → detected_contained（闭合）
+      oracle=Masked（oracle 干净）→ provable_to_L2_then_unknown
+                                  （**绝不**因 oracle 干净就推断 Masked/
+                                  Contained —— 规格表 9 判定列钉死）
+      oracle 缺失/INCONCLUSIVE  → detected_translation_outcome_pending
+                                  （开放，beyond=Unknown）
+
+    "Handled"（guest 自行处理翻译故障后继续）在本事件流内**不可判别**
+    ——干净 oracle 无法区分"被吸收"与"没造成影响"，故只能标 Unknown
+    （诚实：不引入不可观测的语义）。
+    """
+    translation_blocked = False
     for e in chain_events:
         if (e.get("kind") == "tlb_fault"
                 and e.get("detection_layer") == "Hardware"):
+            translation_blocked = True
             if e.get("contained") == "1":
+                # 显式 contained 证据（非推断）优先于 oracle 兜底
                 return "detected_contained"
-            # contained 为空 = pending offline join（不得推断）
+    if translation_blocked:
+        if oracle_outcome in ("Crash", "Timeout", "SDC"):
+            return f"{oracle_outcome.lower()}_translation_blocked"
+        if oracle_outcome == "Detected/Contained":
+            return "detected_contained"
+        if oracle_outcome in ("Masked",):
+            # oracle 干净 ≠ 链完整 ≠ Masked：只按可证层级报告
+            pass
+        else:
             return "detected_translation_outcome_pending"
     # 显式 contained 检测（L5 证据事件）
     for e in chain_events:
@@ -149,16 +188,21 @@ def _terminal(chain_events, edges, by_layer):
     return f"provable_to_{deepest}_then_unknown"
 
 
-def check_chain(events, spec_nodes=None):
+def check_chain(events, spec_nodes=None, oracle_outcome=None):
     """主入口：events = lsu_prop_fields 解析的事件列表。
 
+    oracle_outcome: runner/分类器的 L5 结局（Masked/Detected/Contained/
+    SDC/Crash/Timeout/INCONCLUSIVE），用于把"翻译阶段阻断"join 成终局。
+    缺省 None ⇒ 翻译阻断保持 pending（不猜测）。
+
     返回 {faults: {fault_id: {edges, terminal, provable_to, beyond}},
-          spec_nodes}（spec_nodes 透传记录判据来源）。
+          spec_nodes, oracle_outcome}。
     """
-    result = {"faults": {}, "spec_nodes": spec_nodes or LAYERS}
+    result = {"faults": {}, "spec_nodes": spec_nodes or LAYERS,
+              "oracle_outcome": oracle_outcome}
     for fid, chain in _group_by_fault(events).items():
         edges, by_layer = _edges_for(chain)
-        term = _terminal(chain, edges, by_layer)
+        term = _terminal(chain, edges, by_layer, oracle_outcome)
         provable = None
         for lay in LAYERS:
             if by_layer.get(lay):
@@ -169,12 +213,10 @@ def check_chain(events, spec_nodes=None):
             "edges": edges,
             "terminal": term,
             "provable_to": provable,
-            # beyond=Unknown 仅用于"可证至 Ln 后未知"的开放终局；
-            # 已定终局（full / detected_contained / squash_replay_masked）
-            # beyond 为空——链已收敛，无"后续未知"。绝不 Masked。
-            "beyond": ("" if term in ("full", "detected_contained",
-                                     "squash_replay_masked")
-                       else "Unknown"),
+            # beyond=Unknown 仅用于开放终局（"可证至 Ln 后未知" / 翻译阻断
+            # 待 join）；闭合终局 beyond 为空——链已收敛，无"后续未知"。
+            # 绝不 Masked。
+            "beyond": "" if term in CLOSED_TERMINALS else "Unknown",
             "event_count": len(chain),
         }
     return result
@@ -182,12 +224,19 @@ def check_chain(events, spec_nodes=None):
 
 def main():
     if len(sys.argv) < 2:
-        print("usage: lsu_chain_check.py <prop_evt.txt[.gz]> [--run-id X]",
-              file=sys.stderr)
+        print("usage: lsu_chain_check.py <prop_evt.txt[.gz]> [--run-id X] "
+              "[--oracle-outcome Masked|SDC|Crash|Timeout|"
+              "Detected/Contained]", file=sys.stderr)
         return 2
-    path = Path(sys.argv[1])
+    argv = sys.argv[1:]
+    oracle = None
+    if "--oracle-outcome" in argv:
+        i = argv.index("--oracle-outcome")
+        oracle = argv[i + 1]
+        del argv[i:i + 2]
+    path = Path(argv[0])
     events, truncated = P.read_events(path)
-    verdict = check_chain(events)
+    verdict = check_chain(events, oracle_outcome=oracle)
     verdict["truncated_stream"] = truncated
     verdict["total_events"] = len(events)
     print(json.dumps(verdict, indent=1, ensure_ascii=False))
