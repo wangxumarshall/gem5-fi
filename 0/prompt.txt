@@ -1,0 +1,141 @@
+/superpowers:executing-plans
+
+这是持续执行到正式实验准入的终局指令。
+
+继续使用：
+
+- worktree：/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-mdspec-20261019
+- 分支：lsu-mdspec-20261019
+- 当前基线：50b42ed4
+- 权威规格：docs/gem5-fi/lsu/gem5-fi-LSU单元故障注入方案.md 及4个子文档
+- 现有计划、findings和mdspec证据全部继续复用
+
+不要重新规划整个任务，不要新建worktree，不要启动正式campaign。
+
+从现在开始持续执行：
+
+实现 → 测试 → 构建 → 正式campaign入口pilot → 审计真实产物 → 修复 → commit/push → 自动继续下一项。
+
+完成一个阶段、commit、pilot、报告或发现新问题，都不是停止条件。不要再用“本轮完成”“下一阶段建议”“等待用户继续”结束。上下文压缩后从计划和进度文件恢复并继续。
+
+一、完成基础传播链
+
+1. ArmTLB：
+   - 当前VA页/错误PA地址域关联在多核并发下可能串链。
+   - 优先从MMU/TLB调用链向注入点传入Request、dyn_inst_seq、request_id和线程/核心身份。
+   - 若必须保留地址域关联，必须增加core/thread、ASID、时间窗口和唯一活跃故障约束，并用并发测试证明不会误关联。
+   - 不得仅以address或tick作为传播身份。
+2. CHAOSLSQFwd：
+   - 将S01/S02/S03/S08/S09真实注入接入CHAOSPropagation。
+   - 记录生产store、消费load、sq_idx/lq_idx、dyn_inst_seq、request_id、地址、before/after和fault_id。
+   - 用正式campaign真实pilot贯通forward→response→consumer→commit/oracle。
+3. sq_execute：
+   - 用LSQUnit debug确定缺事件是注册时序还是被选指令类型错误。
+   - 修复真实时序，贯通inj→sq_execute→sq_writeback→sq_complete→终局。
+   - 禁止补造事后事件。
+4. mshr_alloc：
+   - 构造稳定的驱逐后重取或冷miss载体。
+   - 贯通mshr_alloc→merge/fill/free→cache_fill/return→consumer→终局。
+   - 只记录与fault_id真实关联的MSHR，不得把无关miss计入。
+5. 完成后立即重生成证据和矩阵，但不要停下来汇报。
+
+二、实现全部49个MODE-UNIMPL
+
+依次完成：
+
+C11 → C12 → L04 → P06 → C14/C15 → S10 → A07 → T08。
+
+每组必须具备：
+
+- 真实注入机制
+- 合法目标和activated判据
+- before/after
+- CLI/config
+- campaign MODEL_FLAGS与RunID映射
+- CHAOSPropagation事件和稳定关联键
+- oracle
+- 单元测试
+- 正式campaign入口真实pilot
+- 覆盖矩阵更新
+- 独立commit并push
+
+完成一组后立即继续下一组。不得仅写计划、事件源、测试桩或文档后标记完成。
+
+三、解除其余阻塞
+
+1. A06的6项：完成load-side fixed-width/byte-enable安全实现、测试和pilot。
+2. FS-INFRA的24项：复用现有kernel、镜像、bootloader和checkpoint，补齐TLB载体、传播和oracle。
+3. FS-MULTICORE的35项：建立正式多核Atomic-Litmus/PARSEC运行链，验证线程间消费、exclusive monitor、RMW、barrier、全局可见性和forbidden outcome。
+4. LICENSE的12项：
+   - 先搜索服务器是否已有合法SPEC CPU2017数据。
+   - 完成所有无需数据的适配器、配置、路径守卫、oracle接口和测试。
+   - 不得伪造或用其他负载冒充SPEC。
+   - 如果最终确实缺合法数据，这是允许向用户请求外部输入的唯一主要资源例外。
+5. 不得因为实现复杂、运行慢或发现新bug而重新标成延期。
+
+四、建立325个RunID的最终准入契约
+
+为每个RunID生成并验证：
+
+- READY/PARTIAL/BLOCKED状态
+- 实际命令
+- 二进制和载体
+- 故障模式
+- 注入与激活判据
+- oracle
+- 输出目录
+- prop_evt.txt.gz
+- chain_report.json
+- 最终结果文件
+- 所属代表性pilot证据
+
+READY只能表示注入器、载体、campaign、传播链和oracle全部接通。正式实验未运行前，不得将pilot结果冒充为该RunID的正式结果。
+
+五、最终质量门禁
+
+1. 所有代码测试和准入测试通过。
+2. 每组C++修改后重新构建gem5.opt。
+3. 最终记录gem5.opt完整SHA256，并确认没有源码比二进制更新。
+4. SE和FS正式入口smoke通过。
+5. Crash/Abort/Timeout均能保存传播前缀和完整报告。
+6. 每个新增机制至少一个真实pilot，且注入日志非空。
+7. 缺事件只能是Unknown，不得推断Masked或Contained。
+8. 并发gem5≤4。
+9. /home可用空间始终≥71GiB。
+10. 不使用git add -A，不reset/clean他人内容。
+11. 每个逻辑单元独立commit并push到origin/lsu-mdspec-20261019。
+12. 正式campaign不得启动。
+
+六、停止条件
+
+只有满足以下正式实验GO条件后才能正常停止：
+
+- 所有可实现问题已完成
+- 49个MODE-UNIMPL全部完成
+- 基础SQ/MSHR/TLB/LSQFwd传播全部通过
+- A06与FS/多核基础设施完成
+- 325个RunID全部READY，或只剩用户明确批准排除的外部项
+- 工作树干净
+- local/remote SHA一致
+- 最终构建、测试、SE/FS smoke和准入检查通过
+- 磁盘、内存、并发guard通过
+- 正式实验尚未启动
+
+达到后提交最终报告并停下来等待我批准启动正式实验。
+
+除此之外，只允许在真正缺少用户才能提供的外部输入时停止，例如合法SPEC数据、凭据或不可替代的科学裁决。停止前必须先做完所有不依赖该输入的工作，并精确列出：
+
+- 受影响RunID
+- 唯一外部阻塞
+- 已完成准备
+- 需要用户提供的文件、路径或裁决
+- 提供后直接执行的命令
+
+测试失败、构建失败、pilot无事件、发现新bug、运行时间长、需要重构、完成阶段性commit、Bash classifier偶发错误，都不是停止理由。
+
+若Bash classifier unavailable：
+- 不要修改正确实现来绕过；
+- 稍后用简单命令复测；
+- 继续所有可做工作；
+- 保留精确待执行命令；
+- classifier恢复后立即继续。
