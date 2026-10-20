@@ -138,6 +138,10 @@ def main():
 
         orig = LC.subprocess.run
         LC.subprocess.run = fake_run_fs
+        # asset guard is exercised by the real FS smoke; here we only assert
+        # the command shape (the worktree has no gem5-fs submodule).
+        orig_assets = LC.require_fs_assets
+        LC.require_fs_assets = lambda: None
         orig_fs = LC.classify_fs_run
         LC.classify_fs_run = lambda *a, **k: {"outcome": "Timeout",
                                              "injected": 0, "activated": 0}
@@ -152,6 +156,7 @@ def main():
         finally:
             LC.subprocess.run = orig
             LC.classify_fs_run = orig_fs
+            LC.require_fs_assets = orig_assets
             os.environ.pop("LSU_GEM5_BIN", None)
         cmd = captured.get("cmd") or []
         check("FS 命令已组装", bool(cmd), "subprocess.run 未被调用")

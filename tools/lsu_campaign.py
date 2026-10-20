@@ -586,6 +586,10 @@ def run_single_cell(cell, args, seed, outdir):
         cmd += flags
         cmd += ["--tlb_rng_seed", str(seed)]
         cmd += prop
+        # [MDSPEC][C1] FS timeout bookkeeping was the one path that could lose
+        # evidence: the outer `timeout` must stay well ABOVE --fs-timeout so
+        # the inner cap produces a real campaign-visible Timeout WITH its
+        # salvaged prefix (see the except branch below).
         # T03 stuck0/stuck1 alternate by seed parity (both sub-modes sampled)
         if model == "T03":
             i = cmd.index("--tlb_fault_type")
@@ -614,8 +618,16 @@ def run_single_cell(cell, args, seed, outdir):
             classes = {k: 0 for k in ("Masked", "Detected/Contained", "SDC",
                                       "Crash", "Timeout")}
             classes["Timeout"] = inj
-            return {"outcome": "Timeout", "injected": inj, "activated": inj,
-                    "classes": classes, "mode": "FS"}
+            # [MDSPEC][C1] FS Timeout keeps its evidence: the killed run's
+            # Z_SYNC_FLUSH-ed prefix is salvaged and the oracle-joined chain
+            # report is written BEFORE returning (user instruction §一.3: a
+            # Timeout must still yield prop_evt.txt.gz + chain_report.json;
+            # losing it because there is no chain_end is evidence loss).
+            _to = {"outcome": "Timeout", "injected": inj, "activated": inj,
+                   "classes": classes, "mode": "FS"}
+            _to["chain_report"] = write_chain_report(
+                outdir, runid, seed, _to, exit_code=None)
+            return _to
         _fsres = classify_fs_run(outdir, proc.stdout, exit_code)
         _fsres["chain_report"] = write_chain_report(
             outdir, runid, seed, _fsres, exit_code=exit_code)
