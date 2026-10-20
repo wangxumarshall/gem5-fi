@@ -278,7 +278,12 @@ FAMILY_MOUNT = {
     "addrpath": ["--chaos_addrpath"],
     "lsqfwd": ["--chaos_lsqfwd"],
     "cache": ["--chaos_l1d", "--l1d_first_clock", "1000", "--l1d_max_faults", "1"],
-    "prefetch": ["--chaos_prefetch", "--prefetch_max_faults", "1"],
+    # [MDSPEC][H5-fix] span_events=1: default 1000 > eligible events (~133
+    # on prefetch_stride) → F0 trigger never fires (P01-W8 root cause).
+    # span=1 guarantees injection on first eligible event (mdspec pilot).
+    # Full 385-sample campaign should re-tune per workload eligible count.
+    "prefetch": ["--chaos_prefetch", "--prefetch_max_faults", "1",
+                  "--prefetch_span_events", "1"],
     "exmon": ["--chaos_exmon", "--exmon_first_clock", "1000", "--exmon_max_faults", "1"],
 }
 # Seed flag per family (findings lesson: injectors take --<inj>_rng_seed,
