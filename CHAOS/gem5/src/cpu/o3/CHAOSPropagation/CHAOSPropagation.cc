@@ -118,6 +118,10 @@ namespace gem5
                                 ? "errant_commit_seen" : "run_end"},
                             {"detection_layer", "None"},
                             {"contained", "0"},
+                            // [R4-4-review-I1] explicit non-join marker:
+                            // the exit summary correlates nothing (the
+                            // per-event corr fields carry provenance).
+                            {"corr", CORR_NONE},
                         });
                     }
                 }
@@ -347,7 +351,8 @@ namespace gem5
                                 Addr addr, bool has_addr,
                                 uint64_t phys_reg, bool has_phys,
                                 uint64_t arch_reg, bool has_arch,
-                                const std::string &detail, int tid)
+                                const std::string &detail, const char *corr,
+                                int tid)
     {
         if (!write_log || !gz_file)
             return;
@@ -380,6 +385,17 @@ namespace gem5
         if (strcmp(kind, "funnel") != 0) {
             std::map<std::string, std::string> f;
             parseDetail(detail, f);
+            // [R4-4-review-I1] every dual-emitted event carries an explicit
+            // corr provenance marker (join arm, or a non-join marker saying
+            // HOW it belongs to the chain). nullptr = the caller forgot —
+            // warn once and emit corr= so the gap is visible, never silent.
+            if (!corr && !evt_corr_missing_warned) {
+                warn("CHAOSPropagation: writeNode kind '%s' dual-emitted "
+                     "without a corr label (corr= written; further "
+                     "occurrences are silent)\n", kind);
+                evt_corr_missing_warned = true;
+            }
+            f["corr"] = corr ? corr : "";
             if (has_seq)
                 f["dyn_inst_seq"] = std::to_string(dyn_seq);
             if (has_req_id)
@@ -430,7 +446,8 @@ namespace gem5
               << ";old_addr=" << std::hex << old_addr
               << ";new_addr=" << new_addr << std::dec;
             writeNode(ptag, "inj", dyn_seq, true, 0, false,
-                      old_addr, true, 0, false, 0, false, d.str());
+                      old_addr, true, 0, false, 0, false, d.str(),
+                      CORR_ORIGIN);
         }
         // addr_form node: the erroneous address (addr column = NEW addr).
         {
@@ -438,7 +455,8 @@ namespace gem5
             d << "site=" << site << ";old_addr=" << std::hex << old_addr
               << ";new_addr=" << new_addr << std::dec;
             writeNode(ptag, "addr_form", dyn_seq, true, 0, false,
-                      new_addr, true, 0, false, 0, false, d.str());
+                      new_addr, true, 0, false, 0, false, d.str(),
+                      CORR_ORIGIN);
         }
         // Addr registry: [new_addr, new_addr+size). size==0 (s11 lost-store
         // substitution) registers an address-only marker that never
@@ -469,7 +487,8 @@ namespace gem5
               << ";byte_offset=" << byte_offset
               << ";block_addr=" << std::hex << block_addr << std::dec;
             writeNode(ptag, "inj", 0, false, 0, false,
-                      block_addr, true, 0, false, 0, false, d.str());
+                      block_addr, true, 0, false, 0, false, d.str(),
+                      CORR_ORIGIN);
         }
         if (byte_offset >= 0) {
             // Single faulted byte (data faults).
@@ -522,7 +541,8 @@ namespace gem5
               << ";fwd_addr=" << std::hex << vaddr << std::dec;
             writeNode(ptag, "inj", load_seq, true,
                       load_req_id, load_req_id != 0,
-                      vaddr, true, 0, false, 0, false, d.str());
+                      vaddr, true, 0, false, 0, false, d.str(),
+                      CORR_ORIGIN);
         }
 
         // PRIMARY: addr-registry entry bound to the producer store's
@@ -593,7 +613,7 @@ namespace gem5
               << ";pa_changed=" << (pa_changed ? 1 : 0) << std::dec;
             writeNode(ptag, "inj", req_seq, req_seq != 0,
                       req_seq, req_seq != 0, va, true, 0, false, 0, false,
-                      d.str());
+                      d.str(), CORR_ORIGIN);
         }
 
         // PRIMARY (seq-bound): the request whose translation consumed the
@@ -895,7 +915,8 @@ namespace gem5
             d << "site=" << site << ";family=addrpath;size="
               << req->getSize();
             writeNode(e.ptag, "mem_req", dyn_seq, true,
-                      req_seq, stamped, v, true, 0, false, 0, false, d.str());
+                      req_seq, stamped, v, true, 0, false, 0, false, d.str(),
+                      CORR_SEQ_PRIMARY);
             if (!matched)
                 matched = e.ptag;
         }
@@ -911,7 +932,8 @@ namespace gem5
             std::ostringstream d;
             d << "site=" << site << ";family=cache;size=" << req->getSize();
             writeNode(e.ptag, "mem_req", dyn_seq, true,
-                      req_seq, stamped, v, true, 0, false, 0, false, d.str());
+                      req_seq, stamped, v, true, 0, false, 0, false, d.str(),
+                      CORR_ADDR_FALLBACK);
             if (!matched)
                 matched = e.ptag;
         }
@@ -983,7 +1005,7 @@ namespace gem5
                 d << ";fault=" << inst->getFault()->name();
             writeNode(hit_ptag, "resp", inst->seqNum, true,
                       req_seq, req_seq != 0, pkt->getAddr(), true,
-                      0, false, 0, false, d.str());
+                      0, false, 0, false, d.str(), hit_corr);
         }
 
         // [MDSPEC][H7] unified lq_complete event (spec sheet 9: LQ
@@ -1032,7 +1054,7 @@ namespace gem5
             writeNode(hit_ptag, "taint_reg", inst->seqNum, true,
                       req_seq, req_seq != 0, pkt->getAddr(), true,
                       phys->index(), true,
-                      inst->destRegIdx(i).index(), true, d.str());
+                      inst->destRegIdx(i).index(), true, d.str(), hit_corr);
         }
     }
 
@@ -1068,7 +1090,7 @@ namespace gem5
             writeNode(it->second.ptag, "consumer", head_inst->seqNum, true,
                       0, false, 0, false, phys->index(), true,
                       head_inst->srcRegIdx(i).index(), true, d.str(),
-                      (int)tid);
+                      CORR_TAINT_PROP, (int)tid);
         }
 
         // Dests: is this the faulting load itself committing its tainted
@@ -1103,7 +1125,7 @@ namespace gem5
               << ";pc=" << std::hex << pc << std::dec;
             writeNode(ptag, "errant_commit", head_inst->seqNum, true,
                       0, false, 0, false, 0, false, 0, false, d.str(),
-                      (int)tid);
+                      CORR_TAINT_PROP, (int)tid);
             errant_commit_seen = true;
         }
 

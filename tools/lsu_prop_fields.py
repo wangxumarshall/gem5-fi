@@ -24,6 +24,10 @@ from pathlib import Path
 # [MDSPEC][R4-1] 追加 store_dyn_inst_seq（lsq_fwd 生产 store 的 seq，与
 # dyn_inst_seq=消费 load 的 seq 成对）与 corr（关联来源标注：
 # seq_primary | addr_fallback——仅地址关联必须显式标注，不得静默）。
+# [MDSPEC][R4-4-review-I1] corr 词汇表扩至 5 值并覆盖**全部**入链事件
+# （含 writeNode 双发的 inj/addr_form/mem_req/resp/taint_reg/consumer/
+# errant_commit 与 chain_end）：join 未发生时必须显式说明，不得留空——
+# 空 corr 与"未标注的地址域 join"不可区分（R4-4 评审 Important-1）。
 PROP_EVT_FIELDS = [
     "kind", "run_id", "sample_run_id", "fault_id", "event_id",
     "parent_event_id", "tick", "cycle", "core_id", "thread_id",
@@ -34,6 +38,21 @@ PROP_EVT_FIELDS = [
     "state_after", "arch_reg", "phys_reg", "detection_layer",
     "contained", "outcome", "oracle_diff", "evidence_status", "corr",
 ]
+
+# [MDSPEC][R4-4-review-I1] corr 取值域（发射端 CHAOSPropagation.hh 的
+# CORR_* 常量同源；tests/test_lsu_prop_fields.py §6 钉死）：
+CORR_VALUES = {
+    "seq_primary",    # 经 seq 主臂入链（correlate* 命中 seq 绑定条目）
+    "addr_fallback",  # 经地址 fallback 臂入链（blk 注册表重叠，无 seq 约束）
+    "origin",         # 链开启注册事件（inj/addr_form）——无 join 发生
+    "taint_prop",     # 经污染集成员关系入链（consumer/errant_commit）——
+                      # 本事件无 correlate 查询，成员资格由建立污染的
+                      # taint_reg 传播（其 corr 记录准入臂）
+    "none",           # 链生命周期标记（chain_end 退出回调）——无关联语义
+}
+# 空 corr 仅允许在已裁决的诚实缺席场景：tlb_pfn 无关联面（req_seq=0 且
+# PA 页未变，链诚实止于本事件）与 pf_fill/pf_demand 的 fault_id=0（仅
+# 预取请求链、无故障链关联）。
 
 _PREFIX = "PROP-EVT:"
 
@@ -158,8 +177,26 @@ REQUIRED_FIELDS = {
                   "state_after"],
     "exmon_stxr": ["fault_id", "dyn_inst_seq", "request_id", "pa",
                    "state_before", "state_after", "entry_index"],
-    # [MDSPEC][L5] 链终局（退出回调发射）
-    "chain_end": ["fault_id", "outcome", "detection_layer", "contained"],
+    # [MDSPEC][R4-4-review-I1] v1 writeNode 双发事件族：corr 必录（每个
+    # 入链事件必须显式标注关联来源；无 join 时用 origin/taint_prop/none
+    # 显式说明——见 CORR_VALUES）。inj/addr_form = origin（链开启注册，
+    # 无 join）；mem_req = 匹配臂（seq_primary|addr_fallback）；resp/
+    # taint_reg = 交付响应命中的关联臂；consumer/errant_commit =
+    # taint_prop（污染集成员关系，非 correlate 查询）。其余必录字段为
+    # 发射端结构性保证（noteMemRequest/noteMemResponse/noteCommit 恒填）。
+    "inj": ["fault_id", "corr"],
+    "addr_form": ["fault_id", "corr", "va"],
+    "mem_req": ["fault_id", "corr", "dyn_inst_seq", "va"],
+    "resp": ["fault_id", "corr", "dyn_inst_seq"],
+    "taint_reg": ["fault_id", "corr", "dyn_inst_seq", "phys_reg",
+                  "arch_reg"],
+    "consumer": ["fault_id", "corr", "dyn_inst_seq", "phys_reg",
+                 "arch_reg"],
+    "errant_commit": ["fault_id", "corr", "dyn_inst_seq"],
+    # [MDSPEC][L5] 链终局（退出回调发射；corr=none——退出汇总不关联任何
+    # 事件，事件级 corr 已携带各自来源）
+    "chain_end": ["fault_id", "outcome", "detection_layer", "contained",
+                  "corr"],
 }
 
 

@@ -121,6 +121,93 @@ def main():
               trunc2 is True and len(evts2) >= 1,
               f"trunc={trunc2} n={len(evts2)}")
 
+    # ---- 6. [R4-4-review-I1] corr 全事件覆盖契约 ------------------------
+    # 评审 Important-1：writeNode 双发事件（resp/taint_reg/consumer/
+    # errant_commit/inj/addr_form/mem_req）与 chain_end 曾带 corr=''——
+    # 地址臂入链的事件与无标注不可区分。契约：corr 必录；无 join 时用
+    # origin/taint_prop/none 显式说明，绝不静默留空。
+    print("[6] [R4-4-review-I1] corr coverage contract (all chain events)")
+    check("CORR_VALUES vocabulary pinned",
+          P.CORR_VALUES == {"seq_primary", "addr_fallback", "origin",
+                            "taint_prop", "none"},
+          str(P.CORR_VALUES))
+    # 发射端同源：C++ 常量必须全部在场（防词汇表漂移）
+    src = (ROOT / "CHAOS/gem5/src/cpu/o3/CHAOSPropagation"
+           / "CHAOSPropagation.hh").read_text()
+    for c in ("CORR_SEQ_PRIMARY", "CORR_ADDR_FALLBACK", "CORR_ORIGIN",
+              "CORR_TAINT_PROP", "CORR_NONE"):
+        check(f".hh defines {c}", f"{c} =" in src)
+    cc = (ROOT / "CHAOS/gem5/src/cpu/o3/CHAOSPropagation"
+          / "CHAOSPropagation.cc").read_text()
+    check("writeNode dual-emit writes f[\"corr\"]",
+          'f["corr"] = corr ? corr : ""' in cc)
+    check("dual-emit nullptr corr warns (never silent)",
+          "evt_corr_missing_warned" in cc)
+    check("consumer/errant_commit labeled taint_prop",
+          cc.count("CORR_TAINT_PROP") >= 2)
+    # 必录字段：v1 writeNode 双发族 + chain_end 全部含 corr
+    v1_kinds = {
+        "inj": ["fault_id", "corr"],
+        "addr_form": ["fault_id", "corr", "va"],
+        "mem_req": ["fault_id", "corr", "dyn_inst_seq", "va"],
+        "resp": ["fault_id", "corr", "dyn_inst_seq"],
+        "taint_reg": ["fault_id", "corr", "dyn_inst_seq", "phys_reg",
+                      "arch_reg"],
+        "consumer": ["fault_id", "corr", "dyn_inst_seq", "phys_reg",
+                     "arch_reg"],
+        "errant_commit": ["fault_id", "corr", "dyn_inst_seq"],
+        "chain_end": ["fault_id", "outcome", "detection_layer", "contained",
+                      "corr"],
+    }
+    for kind, fields in v1_kinds.items():
+        req = P.REQUIRED_FIELDS.get(kind)
+        check(f"{kind} required fields include corr",
+              req is not None and all(f in req for f in fields), str(req))
+    # 契约行校验：mask40 形状的地址臂链（每事件显式来源）
+    good_lines = [
+        # 链开启（无 join）→ origin
+        "PROP-EVT: kind=inj fault_id=1 corr=origin dyn_inst_seq=301",
+        "PROP-EVT: kind=addr_form fault_id=1 corr=origin va=81d35fa8",
+        # 载体 store 按 seq 主臂入链 → seq_primary
+        "PROP-EVT: kind=mem_req fault_id=1 corr=seq_primary "
+        "dyn_inst_seq=301 va=ffffffc009483fa8",
+        # 错误 PA 页上的无关流量按地址臂入链 → addr_fallback（评审核心：
+        # 此前这些事件 corr=''，与 seq 入链不可区分）
+        "PROP-EVT: kind=resp fault_id=1 corr=addr_fallback dyn_inst_seq=303",
+        "PROP-EVT: kind=taint_reg fault_id=1 corr=addr_fallback "
+        "dyn_inst_seq=303 phys_reg=10 arch_reg=5",
+        # 污染集传播（commit 侧，无 correlate 查询）→ taint_prop
+        "PROP-EVT: kind=consumer fault_id=1 corr=taint_prop "
+        "dyn_inst_seq=391 phys_reg=10 arch_reg=5",
+        "PROP-EVT: kind=errant_commit fault_id=1 corr=taint_prop "
+        "dyn_inst_seq=391",
+        # 退出汇总（不关联任何事件）→ none
+        "PROP-EVT: kind=chain_end fault_id=1 outcome=run_end "
+        "detection_layer=None contained=0 corr=none",
+    ]
+    for gl in good_lines:
+        evt = P.parse_line(gl)
+        check(f"validate {gl.split('kind=')[1].split()[0]} (labeled)",
+              evt is not None and P.validate_event(evt) == [],
+              str(P.validate_event(evt) if evt else None))
+    # 空 corr = 契约违例（不再是合法值）
+    bad_resp = P.parse_line("PROP-EVT: kind=resp fault_id=1 "
+                            "dyn_inst_seq=303 corr=")
+    check("resp with empty corr flagged (unlabeled join forbidden)",
+          any("'corr'" in e for e in P.validate_event(bad_resp)),
+          str(P.validate_event(bad_resp)))
+    bad_end = P.parse_line("PROP-EVT: kind=chain_end fault_id=1 "
+                           "outcome=run_end detection_layer=None contained=0")
+    check("chain_end without corr flagged",
+          any("'corr'" in e for e in P.validate_event(bad_end)),
+          str(P.validate_event(bad_end)))
+    # 已裁决的诚实缺席例外保持：tlb_pfn / pf_fill / pf_demand 的 corr
+    # 不列入必录（空=无关联面 / fault_id=0 仅预取链）
+    for kind in ("tlb_pfn", "pf_fill", "pf_demand"):
+        check(f"{kind} corr stays optional (approved honest absence)",
+              "corr" not in P.REQUIRED_FIELDS.get(kind, []),
+              str(P.REQUIRED_FIELDS.get(kind)))
+
     print()
     if FAILED:
         print(f"FAILED ({len(FAILED)}): {FAILED}")

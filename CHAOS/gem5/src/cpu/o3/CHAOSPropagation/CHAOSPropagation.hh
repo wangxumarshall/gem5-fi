@@ -320,8 +320,29 @@ class CHAOSPropagation : public SimObject
     //                        matched with dyn_seq, or correlateRequestBySeq)
     //   CORR_ADDR_FALLBACK — the join is address-only (faulted-byte / blk
     //                        registry overlap; no seq constraint)
+    // [MDSPEC][R4-4-review-I1] the corr contract extends to EVERY event on
+    // the stream, including the writeNode dual-emit kinds (inj / addr_form /
+    // mem_req / resp / taint_reg / consumer / errant_commit) and chain_end:
+    // where no correlate lookup ran, the marker must SAY so — an empty corr
+    // on a chain member is a contract violation (it is indistinguishable
+    // from an unlabeled address-domain join). Non-join markers:
+    //   CORR_ORIGIN     — chain-opening registration event (inj / addr_form):
+    //                     no join is attempted; this event CREATES the chain.
+    //   CORR_TAINT_PROP — fault_id from taint-set membership (consumer /
+    //                     errant_commit): no correlate lookup at this event;
+    //                     membership propagates from the taint_reg that
+    //                     established the taint (whose own corr records the
+    //                     arm that admitted the chain).
+    //   CORR_NONE       — chain lifecycle marker with no correlation
+    //                     semantics (chain_end exit callback).
+    // corr stays empty ONLY where an earlier approved family contract allows
+    // the honest absence: tlb_pfn with no correlation surface (req_seq==0
+    // AND PA page unchanged) and pf_fill/pf_demand with fault_id=0.
     static constexpr const char *CORR_SEQ_PRIMARY = "seq_primary";
     static constexpr const char *CORR_ADDR_FALLBACK = "addr_fallback";
+    static constexpr const char *CORR_ORIGIN = "origin";
+    static constexpr const char *CORR_TAINT_PROP = "taint_prop";
+    static constexpr const char *CORR_NONE = "none";
 
     // [MDSPEC][H1] Fault correlation for LSQ unified events: return the
     // ptag whose addr-registry entry matches (dyn_seq + range overlap) or
@@ -375,11 +396,16 @@ class CHAOSPropagation : public SimObject
 
   private:
     // One CSV row: numeric fields with has_x=false print as "".
+    // corr labels the PROP-EVT dual-emit ([R4-4-review-I1]): one of the
+    // CORR_* constants above (or a correlate* arm label) — nullptr only for
+    // kinds that are not dual-emitted (funnel); a nullptr corr on a
+    // dual-emitted kind warns once and writes corr= (contract violation
+    // guard, never silent).
     void writeNode(uint64_t ptag, const char *kind, uint64_t dyn_seq,
                    bool has_seq, uint64_t request_id, bool has_req_id,
                    Addr addr, bool has_addr, uint64_t phys_reg, bool has_phys,
                    uint64_t arch_reg, bool has_arch, const std::string &detail,
-                   int tid = -1);
+                   const char *corr = nullptr, int tid = -1);
 
     // Core PROP-EVT emitter: event_id is the caller-allocated (v1-shared)
     // counter value; ptag drives the parent_event_id chain. fields may
@@ -415,6 +441,7 @@ class CHAOSPropagation : public SimObject
     gzFile evt_gz_file = nullptr;
     uint64_t clock_period = 0;     // captured at startup(); cycle = tick/period
     bool evt_unknown_key_warned = false;
+    bool evt_corr_missing_warned = false;   // [R4-4-review-I1] guard above
     std::map<uint64_t, uint64_t> ptag_last_event;
 
     static CHAOSPropagation *chaos_instance;

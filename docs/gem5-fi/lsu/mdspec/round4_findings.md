@@ -556,7 +556,8 @@ C09-F0-W6）均未观测到 mshr_*（campaign 单元语义未变）。同机制�
 
 ## R4-4（2026-10-21）：ArmTLB 关联去地址歧义——Request/seq 主键（推翻"注入点无 Request"旧裁决）
 
-基线 `78c95b32`（二进制 `2462dc0fcf1d3d96`），重建后 `90652c1c67547247`（sha256 前缀）。
+基线 `78c95b32`（二进制 `2462dc0fcf1d3d96`），重建后 `90652c1c67547247`（sha256 前缀）；
+评审修复轮（§4.5）重建后 `9a224358e5803dc6`。
 完整报告：`.superpowers/sdd/2026-10-20-lsu-mdspec-round4/task-4-report.md`。
 
 ### 4.1 歧义实证（修复前，当前二进制真实 FS 复跑，非推测）
@@ -639,7 +640,40 @@ TLB 故障链（143 事件显式 `corr=addr_fallback`）。三重错配实证：
   `test_lsu_hook_tlb.py` 新增 6 项全 PASS、存量失败 2 项不变；`test_lsu_hook_cpf.py`
   13 项失败不变；`test_lsu_prop_fields.py` / `test_lsu_chain_check.py` ALL PASS。
 - 残留（登记不修）：resp/consumer/taint_reg/errant_commit 经 writeNode 双发不带
-  corr（R4-1 §1.3-2 已登记的下游标注缺口）；PA 页 fallback 为地址域（错误页上的
-  其他流量也会标注入链，cache 家族同语义）；functional lookup 仍可能注入（存量
-  行为，现诚实登记为 req_seq=0 链）；T01 随机 1-bit 掩码有 8/64 概率落在 PA 有效
-  位内（本 seed bit 56 回绕惰性）——campaign 掩码调参属后续任务。
+  corr（R4-1 §1.3-2 已登记的下游标注缺口）——**已于评审修复轮闭环**（§4.5）；
+  PA 页 fallback 为地址域（错误页上的其他流量也会标注入链，cache 家族同语义）；
+  functional lookup 仍可能注入（存量行为，现诚实登记为 req_seq=0 链）；T01 随机
+  1-bit 掩码有 8/64 概率落在 PA 有效位内（本 seed bit 56 回绕惰性）——campaign
+  掩码调参属后续任务；resp/taint_reg 的 `va` 字段携带交付地址 PA（v1 双发统一
+  映射，登记待事件字段任务）。
+
+### 4.5 评审修复轮（Important-1，2026-10-21）：corr 全事件覆盖——writeNode 双发 + chain_end
+
+评审确认规格 ✅（105-seq→1-seq 独立复算一致）但返回 Important-1：mask40 运行
+137 个未标注事件（resp×22/taint_reg×5/consumer×107/errant_commit×1/inj×1/
+chain_end×1）——writeNode 双发路径不写 corr，"经地址臂入链"与未标注不可区分，
+而 run 2b 的 L0→L5 Crash 判定首次依赖这些事件。修复（二进制 `9a224358e5803dc6`）：
+
+- **corr 词汇表 2→5 值**（.hh 常量与裁决注释同源，"未 join"与"地址 join"不混同）：
+  `origin`（链开启注册 inj/addr_form——无 join，本事件创建链）、`taint_prop`
+  （污染集成员关系 consumer/errant_commit——本事件无 correlate 查询，成员资格由
+  建立污染的 taint_reg 传播，其 corr 记录准入臂）、`none`（chain_end 生命周期
+  标记）。空 corr 仅保留已裁决的诚实缺席（tlb_pfn 无关联面 / pf_* fault_id=0）。
+- **writeNode 13 调用点逐一显式标注**：inj/addr_form=origin；mem_req 双臂各带各的
+  （seq 臂 seq_primary / blk 臂 addr_fallback）；resp/taint_reg=命中臂 hit_corr；
+  consumer/errant_commit=taint_prop；funnel 不双发不适用。双发 corr==nullptr
+  守卫 warn 一次（缺口可见，绝不静默）。
+- **契约收口**：`tools/lsu_prop_fields.py` 新增 `CORR_VALUES` + v1 双发族与
+  chain_end 的 REQUIRED_FIELDS（corr 必录，注册表 39 字段零新增）；契约测试
+  `test_lsu_prop_fields.py` §6 新增 33 项全 PASS。
+- **真机前后对照**（三次真实运行，注入点逐字段确定性复现）：
+  - mask40：239 事件 **137 未标注 → 0**；resp×22 拆为载体 `seq_primary`×1
+    （seq 301）+ 错误页流量 `addr_fallback`×21（评审复算的 1/21 逐事件可辨）；
+    前后 (kind, dyn_inst_seq, tick) 流 240/240 行一致（纯加标注，join/RNG 不变）；
+    链裁决不变：L0→L5 全边 proven、terminal=full（真实 Kernel Oops 复现）。
+  - T01 postfix（默认掩码）：6 事件 2→0 未标注；verdict 不变
+    （provable_to_L0_then_unknown——PA 回绕诚实止于 TLB 层）。
+  - S04-F0-W5 SE 回归：10 事件全带标（origin×2 + seq_primary×8）、
+    provable_to=L3 与 R4-1 基线同型——共享 writeNode 改动无附带破坏。
+- 证据：`runs/lsu/r4_t4_fix_mask40/`、`runs/lsu/r4_t4_fix_postfix/T01-F0-W4/`、
+  `runs/lsu/r4_t4_fix_regr/S04-F0-W5/`；完整修复报告 task-4-report.md §9。
