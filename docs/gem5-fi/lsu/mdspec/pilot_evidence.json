@@ -134,6 +134,151 @@
    "events": 475,
    "truncated": false,
    "faults": 1
+  },
+  "S04-F0-W5": {
+   "unit": "Store Queue",
+   "path": "runs/lsu/mdspec_campaign_smoke/S04-F0-W5/seed1/prop_evt.txt.gz",
+   "kinds": [
+    "addr_form",
+    "inj",
+    "lsq_push",
+    "lsq_sendfrag",
+    "mem_req",
+    "resp",
+    "sq_complete",
+    "sq_writeback",
+    "tlb_translate"
+   ],
+   "events": 9,
+   "truncated": true,
+   "faults": 1
+  },
+  "S05-F0-W5": {
+   "unit": "Store Queue",
+   "path": "runs/lsu/mdspec_campaign_smoke/S05-F0-W5/seed1/prop_evt.txt.gz",
+   "kinds": [
+    "addr_form",
+    "inj",
+    "lsq_push",
+    "lsq_sendfrag",
+    "mem_req",
+    "resp",
+    "sq_complete",
+    "sq_writeback",
+    "tlb_translate"
+   ],
+   "events": 9,
+   "truncated": true,
+   "faults": 1
+  },
+  "C09-F0-W10": {
+   "unit": "L1d-Cache",
+   "path": "runs/lsu/mdspec_campaign_smoke/C09-F0-W10/seed2/prop_evt.txt.gz",
+   "kinds": [
+    "cache_access",
+    "cache_evict",
+    "cache_return",
+    "cache_writeback",
+    "chain_end",
+    "consumer",
+    "errant_commit",
+    "inj",
+    "lq_complete",
+    "lsq_push",
+    "lsq_sendfrag",
+    "mem_req",
+    "resp",
+    "taint_reg",
+    "tlb_fault",
+    "tlb_translate"
+   ],
+   "events": 146,
+   "truncated": false,
+   "faults": 1
+  },
+  "C4-cache_dirtyevict": {
+   "unit": null,
+   "path": "runs/lsu/mdspec_pilot/_mshr/cache_dirtyevict_c5000/prop_evt.txt.gz",
+   "kinds": [
+    "cache_access",
+    "cache_evict",
+    "cache_return",
+    "cache_writeback",
+    "chain_end",
+    "consumer",
+    "errant_commit",
+    "inj",
+    "lq_complete",
+    "resp",
+    "taint_reg"
+   ],
+   "events": 438,
+   "truncated": false,
+   "faults": 2
+  },
+  "C4-stream_chase": {
+   "unit": null,
+   "path": "runs/lsu/mdspec_pilot/_mshr/stream_chase_c5000/prop_evt.txt.gz",
+   "kinds": [
+    "cache_access",
+    "cache_evict",
+    "cache_return",
+    "cache_writeback",
+    "chain_end",
+    "consumer",
+    "errant_commit",
+    "inj",
+    "lq_complete",
+    "resp",
+    "taint_reg"
+   ],
+   "events": 442,
+   "truncated": false,
+   "faults": 2
+  },
+  "A01-F0-W3-campaign": {
+   "unit": null,
+   "path": "runs/lsu/mdspec_campaign_smoke/A01-F0-W3/seed1/prop_evt.txt.gz",
+   "kinds": [
+    "addr_form",
+    "inj",
+    "lsq_sendfrag",
+    "mem_req",
+    "tlb_fault",
+    "tlb_translate"
+   ],
+   "events": 6,
+   "truncated": true,
+   "faults": 1
+  },
+  "P01-F0-W8-campaign": {
+   "unit": null,
+   "path": "runs/lsu/mdspec_campaign_smoke/P01-F0-W8/seed1/prop_evt.txt.gz",
+   "kinds": [
+    "cache_access",
+    "cache_evict",
+    "cache_fill",
+    "cache_return",
+    "cache_writeback",
+    "chain_end",
+    "consumer",
+    "errant_commit",
+    "inj",
+    "lq_complete",
+    "mshr_fill",
+    "mshr_free",
+    "mshr_merge",
+    "pf_demand",
+    "pf_fill",
+    "pf_issue",
+    "pf_queue",
+    "pf_train",
+    "resp",
+    "taint_reg"
+   ],
+   "events": 630,
+   "truncated": false,
+   "faults": 1
   }
  },
  "kinds_observed": [
@@ -164,6 +309,8 @@
   "pf_queue",
   "pf_train",
   "resp",
+  "sq_complete",
+  "sq_writeback",
   "taint_reg",
   "tlb_fault",
   "tlb_translate"
@@ -187,14 +334,21 @@
   ],
   "L1d-Cache": [
    "cache_access",
+   "cache_evict",
    "cache_return",
+   "cache_writeback",
    "chain_end",
    "consumer",
    "errant_commit",
    "inj",
    "lq_complete",
+   "lsq_push",
+   "lsq_sendfrag",
+   "mem_req",
    "resp",
-   "taint_reg"
+   "taint_reg",
+   "tlb_fault",
+   "tlb_translate"
   ],
   "数据预取器": [
    "cache_access",
@@ -232,6 +386,17 @@
    "pf_queue",
    "resp",
    "taint_reg"
+  ],
+  "Store Queue": [
+   "addr_form",
+   "inj",
+   "lsq_push",
+   "lsq_sendfrag",
+   "mem_req",
+   "resp",
+   "sq_complete",
+   "sq_writeback",
+   "tlb_translate"
   ]
  }
 }
