@@ -1,0 +1,62 @@
+请继续当前工作，不要停在 H0–H2。完成并提交 H7，然后实现 H3、H4、H5、H6，确保 H0–H7 全部完成。随后重新构建 gem5、运行全部测试、更新 HOOK_REGISTRY 和 325 RunID 覆盖矩阵，并完成各单元族必要的真实 pilot 验证。
+
+只有在所有观测 hook 均完成、覆盖矩阵不再因 hook 出现 PARTIAL/BLOCKED、真实 L0→L5 pilot 通过、工作树干净且分支已与最新 fi-ding 安全集成后，才算完成。
+
+---
+
+当前还不能收官。不要仅以 HOOK_REGISTRY=true 或合成事件测试作为 hook 完成依据。
+
+请修复真实 A01-F0-W3 pilot 的 L2→L3 缺口，并实现可验证的 L4→L5 事件；补齐 H4 的 MSHR/fill/writeback、H5 的 training→queue→request→fill→demand、H6 的 exclusive-monitor/atomic cache/RMW/return 完整链。为 SQ、Cache、Prefetch、Atomic、LQ/TLB 各运行真实代表性 pilot，证明各层共享关联键和指标 before/after。
+
+随后处理或明确裁决覆盖矩阵中剩余的 126 个 BLOCKED RunID，重新生成矩阵。所有代码提交并推送、工作树干净、分支与最新 fi-ding 集成、真实 pilot 满足 Markdown 的 L0→L5 要求后，在正式实验前停下来通知我。不要启动正式批量实验。
+
+---
+
+请继续在 lsu-mdspec-20261019 worktree 中工作，当前起点为已推送提交 ff1306b3。不要启动正式批量实验。
+
+首先修复 A01 POST 路径的真实传播缺口：当前事件流为
+inj→addr_form→mem_req→lsq_sendfrag→tlb_translate→chain_end，
+缺少 sq_writeback、resp、sq_complete。请对照能够完整落流的 A04 PRE 路径，沿故障注册时序、writebackStores、response、completeStore 和 dyn_inst_seq/sq_idx/fault_id 关联逐层定位并修复，真实 pilot 必须证明 L2→L3。
+
+然后完成：
+1. 为 panic/abort/timeout 补齐可验证的 L5 终局证据；
+2. H4 补齐 MSHR allocate/merge/fill/writeback；
+3. H5 补齐 training→queue→request→fill→demand；
+4. H6 补齐 exclusive-monitor→RMW→cache→return；
+5. 分别为 SQ、Cache、Prefetch、Atomic、LQ/TLB 运行真实代表性 pilot；
+6. 逐项处理覆盖矩阵中的 126 个 BLOCKED RunID：能实现的补齐，不能实现的给出精确技术原因和需我裁决的选项；
+7. 只有真实事件链通过时才能标 PASS，不得仅通过 HOOK_REGISTRY=true 或合成测试判定；
+8. 每个任务单元完成后提交并推送，最后安全同步最新 fi-ding；
+9. 重新生成 325 RunID 覆盖矩阵并报告 PASS/PARTIAL/BLOCKED。
+
+完成所有实现、构建、测试、真实 pilot 和分支集成后，在正式实验开始前停下来通知我，等待批准。
+
+---
+
+继续在 /home/sdc/gem5-fi-ding/.claude/worktrees/lsu-mdspec-20261019 和分支 lsu-mdspec-20261019 工作，暂时不要启动正式实验，也不要把当前4个未暂存文件按“已完成”直接提交。
+
+请完成以下收口：
+
+1. P01 必须按方案中的真实 RunID P01-F0-W8，使用现有 workloads/directed/prefetch_stride 重跑；禁止继续使用不存在的 P01-F0-W3 或 agu_addrmodes。先证明注入日志非空，再贯通并验证 training→queue→request→fill/MSHR→后续 demand→终局，pf_request_id 必须是稳定的请求级标识，不能简单等同 fault_id。
+2. 为 O01-F0-W7 将 CHAOSExMon 接入 CHAOSPropagation，记录 monitor 地址 before/after、fault_id、dyn_inst_seq/request_id，并贯通 STXR 消费、成功/失败/重试、cache/RMW/return 和最终结局。
+3. 补齐 H4 的 MSHR allocate/merge/fill/victim/writeback，以及 H5、H6 在 Markdown 要求的全部节点；不得因注册表布尔值为 true 就判定整族完成。
+4. 保留 A01 的真实 tlb_fault 事件，但不要对所有 translation fault 无条件写 contained=1。区分“翻译阶段阻断”与最终 Contained/Crash/Handled outcome，并与 runner/oracle 结果关联；补充对应测试，使 chain checker 的 terminal、provable_to 和 beyond 结果一致。
+5. 用真实事件和代表性 pilot 重新生成覆盖矩阵。126 个 BLOCKED 必须逐项解决，或列出需要我批准延期的明确清单；阻塞原因按互斥类别统计。
+6. 分阶段运行测试、重新构建，并至少真实验证 A01、A04、C01、P01、O01。每条链缺事件时只能报告 Unknown，不得推断 Masked/Contained。
+7. 清理安全可删产物，使 /home 可用空间恢复到至少 71 GiB；然后将修复按功能拆分提交并推送到该特性分支，再安全集成 fi-ding 最新的2个提交。
+8. 全部完成后停止，不要启动正式实验。向我报告：提交SHA、工作树是否干净、构建/测试结果、5个pilot的逐层链路、325 RunID状态、剩余阻塞、磁盘空间和正式实验GO/NO-GO判定。
+
+---
+
+继续在 /home/sdc/gem5-fi-ding/.claude/worktrees/lsu-mdspec-20261019 和分支 lsu-mdspec-20261019 工作，暂时不要启动正式实验，也不要把当前4个未暂存文件按“已完成”直接提交。
+
+请完成以下收口：
+
+1. P01 必须按方案中的真实 RunID P01-F0-W8，使用现有 workloads/directed/prefetch_stride 重跑；禁止继续使用不存在的 P01-F0-W3 或 agu_addrmodes。先证明注入日志非空，再贯通并验证 training→queue→request→fill/MSHR→后续 demand→终局，pf_request_id 必须是稳定的请求级标识，不能简单等同 fault_id。
+2. 为 O01-F0-W7 将 CHAOSExMon 接入 CHAOSPropagation，记录 monitor 地址 before/after、fault_id、dyn_inst_seq/request_id，并贯通 STXR 消费、成功/失败/重试、cache/RMW/return 和最终结局。
+3. 补齐 H4 的 MSHR allocate/merge/fill/victim/writeback，以及 H5、H6 在 Markdown 要求的全部节点；不得因注册表布尔值为 true 就判定整族完成。
+4. 保留 A01 的真实 tlb_fault 事件，但不要对所有 translation fault 无条件写 contained=1。区分“翻译阶段阻断”与最终 Contained/Crash/Handled outcome，并与 runner/oracle 结果关联；补充对应测试，使 chain checker 的 terminal、provable_to 和 beyond 结果一致。
+5. 用真实事件和代表性 pilot 重新生成覆盖矩阵。126 个 BLOCKED 必须逐项解决，或列出需要我批准延期的明确清单；阻塞原因按互斥类别统计。
+6. 分阶段运行测试、重新构建，并至少真实验证 A01、A04、C01、P01、O01。每条链缺事件时只能报告 Unknown，不得推断 Masked/Contained。
+7. 清理安全可删产物，使 /home 可用空间恢复到至少 71 GiB；然后将修复按功能拆分提交并推送到该特性分支，再安全集成 fi-ding 最新的2个提交。
+8. 全部完成后停止，不要启动正式实验。向我报告：提交SHA、工作树是否干净、构建/测试结果、5个pilot的逐层链路、325 RunID状态、剩余阻塞、磁盘空间和正式实验GO/NO-GO判定。
