@@ -1,73 +1,71 @@
-flowchart LR
-    BPU["BPU · bac.cc:565"]
-    FTQ["FTQ · ftq.cc:186"]
-    FETCH["FETCH · fetch.cc:1059"]
-    DECODE["DECODE · decode.cc:636"]
-    RENAME["RENAME · rename.cc:537"]
-    DISPATCH["DISPATCH · iew.cc:881"]
-    ISSUE["ISSUE · inst_queue.cc:868"]
-    EXECUTE["EXECUTE · iew.cc:1138"]
-    MEMORY["MEMORY · lsq_unit.cc:1730"]
-    WRITEBACK["WRITEBACK · iew.cc:1380"]
-    COMMIT["COMMIT · commit.cc:1125"]
-    REDIRECT["REDIRECT · fetch.cc:711"]
-    IQ["IQ · inst_queue.cc:868"]
-    LSQ["LSQ（LQ/SQ→L1D/TLB）· lsq_unit.cc:338"]
-    ROB["ROB · rob.cc:194"]
-    BPU --> FTQ
-    COMMIT -.误预测恢复.-> REDIRECT
-    DECODE --> RENAME
-    DISPATCH --> ISSUE
-    EXECUTE --> MEMORY
-    EXECUTE --> WRITEBACK
-    FETCH --> DECODE
-    FTQ --> FETCH
-    ISSUE --> EXECUTE
-    MEMORY --> WRITEBACK
-    RENAME --> DISPATCH
-    WRITEBACK --> COMMIT
-    REDIRECT -.-> FETCH
-    DISPATCH --> IQ
-    IQ --> ISSUE
-    DISPATCH --> LSQ
-    LSQ --> ISSUE
-    RENAME --> ROB
-    ROB --> COMMIT
-    FU_IntALU["IntALU"]
-    EXECUTE --> FU_IntALU
-    FU_IntALU --> WRITEBACK
-    FU_IntDiv["IntDiv"]
-    EXECUTE --> FU_IntDiv
-    FU_IntDiv --> WRITEBACK
-    FU_IntMult["IntMult"]
-    EXECUTE --> FU_IntMult
-    FU_IntMult --> WRITEBACK
-    FU_SimdCrcOp["SimdCrcOp"]
-    EXECUTE --> FU_SimdCrcOp
-    FU_SimdCrcOp --> WRITEBACK
-    FU_MemReadOp["MemReadOp"]
-    LSQ --> FU_MemReadOp
-    FU_MemReadOp --> MEMORY
-    FU_MemWriteOp["MemWriteOp"]
-    LSQ --> FU_MemWriteOp
-    FU_MemWriteOp --> MEMORY
-    CHAOSAddrPath[CHAOSAddrPath]:::chaos -.命中.-> MEMORY
-    CHAOSBPU[CHAOSBPU]:::chaos -.命中.-> BPU
-    CHAOSCache[CHAOSCache]:::chaos -.命中.-> MEMORY
-    CHAOSCommitTrace[CHAOSCommitTrace]:::chaos -.命中.-> COMMIT
-    CHAOSDecode[CHAOSDecode]:::chaos -.命中.-> DECODE
-    CHAOSExMon[CHAOSExMon]:::chaos -.命中.-> MEMORY
-    CHAOSExec[CHAOSExec]:::chaos -.命中.-> EXECUTE
-    CHAOSFPU[CHAOSFPU]:::chaos -.命中.-> EXECUTE
-    CHAOSFreeList[CHAOSFreeList]:::chaos -.命中.-> RENAME
-    CHAOSIQ[CHAOSIQ]:::chaos -.命中.-> ISSUE
-    CHAOSL1DForward[CHAOSL1DForward]:::chaos -.命中.-> MEMORY
-    CHAOSLSQFwd[CHAOSLSQFwd]:::chaos -.命中.-> MEMORY
-    CHAOSMem[CHAOSMem]:::chaos -.命中.-> MEMORY
-    CHAOSPhysReg[CHAOSPhysReg]:::chaos -.命中.-> EXECUTE
-    CHAOSProbe[CHAOSProbe]:::chaos -.命中.-> COMMIT
-    CHAOSRAS[CHAOSRAS]:::chaos -.命中.-> COMMIT
-    CHAOSROB[CHAOSROB]:::chaos -.命中.-> COMMIT
-    CHAOSReg[CHAOSReg]:::chaos -.命中.-> COMMIT
-    CHAOSRenameMap[CHAOSRenameMap]:::chaos -.命中.-> RENAME
-    classDef chaos fill:#fdd,stroke:#900,stroke-width:2px
+flowchart TB
+    subgraph PIPE["⟦CPU 微架构流水线⟧ 指令流 = 全部 implemented 指令链路的并集"]
+        direction LR
+        BPU["BPU<br/>BTB·RAS·方向/目标预测"]
+        FTQ["FTQ<br/>取指目标队列"]
+        FETCH["FETCH<br/>ICache 取指"]
+        DECODE["DECODE<br/>Decoder→StaticInst"]
+        RENAME["RENAME<br/>RAT·FreeList→物理标签"]
+        DISPATCH["DISPATCH<br/>IQ/LSQ 入队"]
+        ISSUE["ISSUE<br/>IQ 唤醒·选择"]
+        EXECUTE["EXECUTE<br/>FU 池（IntALU·IntDiv·IntMult·SimdCrcOp）"]
+        MEMORY["MEMORY<br/>LSQ·L1D·TLB"]
+        WRITEBACK["WRITEBACK<br/>PRF 写回"]
+        COMMIT["COMMIT<br/>ROB→架构RF"]
+        REDIRECT["REDIRECT<br/>误预测重定向"]
+        BPU --> FTQ
+        COMMIT -.误预测.-> REDIRECT
+        DECODE --> RENAME
+        DISPATCH --> ISSUE
+        EXECUTE --> MEMORY
+        EXECUTE --> WRITEBACK
+        FETCH --> DECODE
+        FTQ --> FETCH
+        ISSUE --> EXECUTE
+        MEMORY --> WRITEBACK
+        RENAME --> DISPATCH
+        WRITEBACK --> COMMIT
+        REDIRECT -.-> FETCH
+    end
+    subgraph CAPS["⟦故障注入能力层⟧ ⚡注入器(模式数)·👁观测器（模式全集实时解析自 ooo_proxy.py）"]
+        direction LR
+        CHAOSBPU["⚡CHAOSBPU(2模式)<br/>dir_flip, target_flip"]:::capnode
+        CHAOSDecode["⚡CHAOSDecode(26模式)<br/>dest_reg_sub, opcode_bitflip, opcode_bitflip2…"]:::capnode
+        CHAOSFreeList["⚡CHAOSFreeList(7模式)<br/>mark_free, pop_wrong, mark_free_event…"]:::capnode
+        CHAOSRenameMap["⚡CHAOSRenameMap(14模式)<br/>map_bitflip, map_bitflip2, map_bitflip2_adj…"]:::capnode
+        CHAOSIQ["⚡CHAOSIQ(12模式)<br/>wake_omit, src_ready_bitflip, wake_phase…"]:::capnode
+        CHAOSExec["⚡CHAOSExec<br/>整数结果 XOR 位翻转（exec_fault_mask 参数化）"]:::capnode
+        CHAOSFPU["⚡CHAOSFPU(6模式)<br/>, , , , , …"]:::capnode
+        CHAOSPhysReg["⚡CHAOSPhysReg(3模式)<br/>phys, arch_frontend, arch_commit"]:::capnode
+        CHAOSAddrPath["⚡CHAOSAddrPath(2模式)<br/>byte7_zero, low_bit_flip"]:::capnode
+        CHAOSCache["⚡CHAOSCache<br/>cache 行数据注入（arm_chaos_cache 配置族）"]:::capnode
+        CHAOSExMon["⚡CHAOSExMon(2模式)<br/>stxr_force_success, stxr_force_fail"]:::capnode
+        CHAOSL1DForward["⚡CHAOSL1DForward<br/>L1D 返回包数据位翻转（fault_mask 参数化）"]:::capnode
+        CHAOSLSQFwd["⚡CHAOSLSQFwd(6模式)<br/>byte_flip, byte_lane_skew, stale_line_replay…"]:::capnode
+        CHAOSMem["⚡CHAOSMem<br/>参数化注入"]:::capnode
+        CHAOSCommitTrace["👁CHAOSCommitTrace(观测)"]:::capnode
+        CHAOSProbe["👁CHAOSProbe(观测)"]:::capnode
+        CHAOSRAS["⚡CHAOSRAS<br/>提交期 head fault 清除（异常抑制）"]:::capnode
+        CHAOSROB["⚡CHAOSROB(28模式)<br/>entry_bitflip, exc_suppress, pc_bitflip…"]:::capnode
+        CHAOSReg["⚡CHAOSReg(4模式)<br/>bit_flip, stuck_at_zero, stuck_at_one…"]:::capnode
+    end
+    MEMORY -.-> CHAOSAddrPath
+    BPU -.-> CHAOSBPU
+    MEMORY -.-> CHAOSCache
+    COMMIT -.-> CHAOSCommitTrace
+    DECODE -.-> CHAOSDecode
+    MEMORY -.-> CHAOSExMon
+    EXECUTE -.-> CHAOSExec
+    EXECUTE -.-> CHAOSFPU
+    RENAME -.-> CHAOSFreeList
+    ISSUE -.-> CHAOSIQ
+    MEMORY -.-> CHAOSL1DForward
+    MEMORY -.-> CHAOSLSQFwd
+    MEMORY -.-> CHAOSMem
+    EXECUTE -.-> CHAOSPhysReg
+    COMMIT -.-> CHAOSProbe
+    COMMIT -.-> CHAOSRAS
+    COMMIT -.-> CHAOSROB
+    COMMIT -.-> CHAOSReg
+    RENAME -.-> CHAOSRenameMap
+    classDef capnode fill:#fdd,stroke:#900,stroke-width:2px

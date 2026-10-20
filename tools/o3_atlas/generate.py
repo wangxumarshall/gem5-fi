@@ -5,8 +5,10 @@ No timestamps, no dict-order dependence, sorted iteration everywhere:
 running twice must be byte-identical (validate.py enforces it).
 """
 import argparse
+import re
 import shutil
 import subprocess
+from functools import lru_cache
 from pathlib import Path
 
 from .corpus import REPO, category_of, instruction_pages
@@ -66,95 +68,254 @@ def build_union_graph(families, instructions):
     return nodes, edges, fus, queues, node_anchor
 
 
-def _node_label(n, anchors):
-    a = anchors.get(n)
-    return f"{n} · {a.rsplit('/', 1)[-1]}" if a else n
+# ── 微架构块级总图：节点 = µarch 单元，指令流边 = 全部指令链路的块级并集 ──
+# 注入器 → ooo_proxy.py 能力参数（choices 即故障模式面；与实验工具面同源）
+INJECTOR_FLAG_MAP = {
+    "CHAOSDecode": ["decode_mode"],
+    "CHAOSRenameMap": ["rename_mode"],
+    "CHAOSFreeList": ["freelist_mode"],
+    "CHAOSROB": ["rob_mode"],
+    "CHAOSIQ": ["iq_mode"],
+    "CHAOSPhysReg": ["phys_mode"],
+    "CHAOSReg": ["fault_type"],
+    "CHAOSFPU": ["fpu_bitseg"],
+    "CHAOSLSQFwd": ["lsq_struct_mode"],
+    "CHAOSAddrPath": ["addrpath_mode"],
+    "CHAOSBPU": ["bpu_mode"],
+    "CHAOSExMon": ["exmon_mode"],
+    "CHAOSMem": ["protection_model"],
+    "CHAOSExec": [], "CHAOSL1DForward": [], "CHAOSRAS": [], "CHAOSCache": [],
+    "CHAOSProbe": [], "CHAOSCommitTrace": [],
+}
+# 无枚举模式的注入器的能力描述
+_INJ_PLAIN_DESC = {
+    "CHAOSExec": "整数结果 XOR 位翻转（exec_fault_mask 参数化）",
+    "CHAOSL1DForward": "L1D 返回包数据位翻转（fault_mask 参数化）",
+    "CHAOSRAS": "提交期 head fault 清除（异常抑制）",
+    "CHAOSCache": "cache 行数据注入（arm_chaos_cache 配置族）",
+}
+# 注入器 → 破坏的目标状态
+INJECTOR_TARGET = {
+    "CHAOSDecode": "StaticInst 编码/寄存器号/立即数（解码输出 + rename 目的寄存器替换）",
+    "CHAOSRenameMap": "RAT 表项（逻辑→物理映射、历史位、源标签）",
+    "CHAOSFreeList": "空闲物理寄存器表（弹出/标记空闲/释放丢弃/栈头位）",
+    "CHAOSPhysReg": "PRF 槽位值（bitflip/stuck，phys/arch_frontend/arch_commit 定位）",
+    "CHAOSIQ": "IQ 表项源标签 CAM/就绪位/唤醒/派发路由",
+    "CHAOSROB": "ROB 表项字段（pc/dest/done/exc/oldphys/头尾指针）+ done 位时序",
+    "CHAOSReg": "提交态架构寄存器（GPR/FPR，bitflip/stuck-at/random + 永久化）",
+    "CHAOSExec": "整数执行结果（IntAlu/IntMult/IntDiv 结果 XOR）",
+    "CHAOSFPU": "浮点结果分段（sign/exp/mantissa + FMA 加权/舍入/FPSR）",
+    "CHAOSLSQFwd": "store→load 前送数据通路（字节/车道/陈旧行/源替换/相位）",
+    "CHAOSL1DForward": "L1D 返回包数据（ECC 检查后注入）",
+    "CHAOSAddrPath": "翻译前虚地址（byte7 清零/低位翻转）",
+    "CHAOSBPU": "分支预测方向/目标翻转 + RAS 返回地址",
+    "CHAOSRAS": "提交期异常抑制（清除 head 挂起 fault）",
+    "CHAOSExMon": "独占监视器（STXR 强制成败/监视器状态）",
+    "CHAOSMem": "DRAM 侧（保护模型 + 概率位翻转/stuck）",
+    "CHAOSCache": "cache 行数据（L1D/L1I/L2）",
+    "CHAOSProbe": "观测器：ROB/IQ/FreeList 占基采样（只读）",
+    "CHAOSCommitTrace": "观测器：commit 轨迹与 squash 记录（只读）",
+}
+# µarch 块表：(块 id, 显示名+结构, 挂载注入器, 挂载锚点)
+MICROARCH_BLOCKS = [
+    ("BPU", "BPU 分支预测器（BTB·RAS·方向/目标）", ["CHAOSBPU"],
+     "CHAOS/gem5/src/cpu/o3/bac.cc:565"),
+    ("FTQ", "FTQ 取指目标队列", [], "CHAOS/gem5/src/cpu/o3/ftq.cc:186"),
+    ("ICACHE", "ICache 取指", [], "CHAOS/gem5/src/cpu/o3/fetch.cc:1059"),
+    ("DECODER", "Decoder（编码→StaticInst）", ["CHAOSDecode"],
+     "CHAOS/gem5/src/cpu/o3/fetch.cc:1257"),
+    ("RAT", "RAT 重命名映射表", ["CHAOSRenameMap"],
+     "CHAOS/gem5/src/cpu/o3/rename_map.hh:266"),
+    ("FREELIST", "FreeList 空闲物理寄存器表", ["CHAOSFreeList"],
+     "CHAOS/gem5/src/cpu/o3/free_list.hh:115"),
+    ("IQ", "IQ 发射队列（源标签 CAM·就绪位·唤醒）", ["CHAOSIQ"],
+     "CHAOS/gem5/src/cpu/o3/inst_queue.cc:694"),
+    ("LSQ", "LSQ（LQ/SQ·store→load 前送·独占监视）",
+     ["CHAOSLSQFwd", "CHAOSExMon"], "CHAOS/gem5/src/cpu/o3/lsq_unit.cc:338"),
+    ("FU", "FU 池", ["CHAOSExec", "CHAOSFPU"],
+     "CHAOS/gem5/src/cpu/o3/dyn_inst.cc:367"),
+    ("TLBPATH", "地址通路（翻译前 vaddr·TLB）", ["CHAOSAddrPath"],
+     "CHAOS/gem5/src/cpu/o3/lsq.cc:1176"),
+    ("L1D", "L1D 返回通路（ECC 后包数据）", ["CHAOSL1DForward", "CHAOSCache"],
+     "CHAOS/gem5/src/cpu/o3/lsq_unit.cc:200"),
+    ("DRAM", "内存子系统（DRAM 保护模型）", ["CHAOSMem"],
+     "CHAOS/gem5/src/mem/CHAOSMem/CHAOSMem.cc"),
+    ("PRF", "PRF 物理寄存器堆", ["CHAOSPhysReg"],
+     "CHAOS/gem5/src/cpu/o3/CHAOSPhysReg/CHAOSPhysReg.cc:201"),
+    ("ROB", "ROB 重排序缓冲（pc·dest·done·exc·指针）", ["CHAOSROB", "CHAOSRAS"],
+     "CHAOS/gem5/src/cpu/o3/rob.cc:236"),
+    ("ARCHRF", "架构寄存器堆（提交态）", ["CHAOSReg"],
+     "CHAOS/gem5/src/CHAOSReg/CHAOSReg.cc:287"),
+    ("OBS", "观测器（占基采样·commit 轨迹，只读）",
+     ["CHAOSProbe", "CHAOSCommitTrace"], "CHAOS/gem5/src/cpu/o3/commit.cc:1299"),
+]
+
+
+@lru_cache(maxsize=1)
+def parse_injector_caps():
+    """解析 ooo_proxy.py argparse 的 choices——各注入器的故障模式全集。
+
+    与实验工具面同源：ooo_proxy.py 新增/删除模式，本表与总图徽标自动跟随。
+    """
+    src = (REPO / "configs/se/ooo_proxy.py").read_text(encoding="utf-8",
+                                                       errors="replace")
+    # 先剥离 # 行注释：注释里的方括号（如 enc[28:24]）会提前终止 choices 匹配
+    src = re.sub(r"#[^\n]*", "", src)
+    caps = {}
+    for part in src.split('add_argument("')[1:]:
+        flag = part.split('"', 1)[0].lstrip("-")
+        end = part.find("add_argument")
+        body = part[:end] if end != -1 else part
+        cm = re.search(r"choices\s*=\s*\[(.*?)\]", body, re.S)
+        if cm:
+            caps[flag] = re.findall(r'"([^"]+)"', cm.group(1))
+    return caps
+
+
+def _inj_modes(inj, caps):
+    return [m for flag in INJECTOR_FLAG_MAP.get(inj, [])
+            for m in caps.get(flag, [])]
+
+
+def _inj_badge(inj, caps):
+    if inj in ("CHAOSProbe", "CHAOSCommitTrace"):
+        return f"👁{inj}(观测)"
+    modes = _inj_modes(inj, caps)
+    if modes:
+        return f"⚡{inj}({len(modes)}模式)"
+    return f"⚡{inj}({_INJ_PLAIN_DESC.get(inj, '参数化注入')})"
+
+
+# 流水线站点标签（内嵌 µarch 结构；EXECUTE 的 FU 并集动态填充）
+_STAGE_LABELS = {
+    "BPU": "BPU<br/>BTB·RAS·方向/目标预测",
+    "FTQ": "FTQ<br/>取指目标队列",
+    "FETCH": "FETCH<br/>ICache 取指",
+    "DECODE": "DECODE<br/>Decoder→StaticInst",
+    "RENAME": "RENAME<br/>RAT·FreeList→物理标签",
+    "DISPATCH": "DISPATCH<br/>IQ/LSQ 入队",
+    "ISSUE": "ISSUE<br/>IQ 唤醒·选择",
+    "EXECUTE": "EXECUTE<br/>FU 池",
+    "MEMORY": "MEMORY<br/>LSQ·L1D·TLB",
+    "WRITEBACK": "WRITEBACK<br/>PRF 写回",
+    "COMMIT": "COMMIT<br/>ROB→架构RF",
+    "REDIRECT": "REDIRECT<br/>误预测重定向",
+}
+_STAGE_ORDER = ["BPU", "FTQ", "FETCH", "DECODE", "RENAME", "DISPATCH",
+                "ISSUE", "EXECUTE", "MEMORY", "WRITEBACK", "COMMIT", "REDIRECT"]
+
+
+def _ordered_injectors():
+    """按挂载站点在流水线中的顺序排列注入器（能力层与流水线从左到右对齐）。"""
+    return sorted(INJECTOR_MOUNTS,
+                  key=lambda i: (_STAGE_ORDER.index(INJECTOR_MOUNTS[i]), i))
+
+
+def _caps_node_label(inj, caps):
+    if inj in ("CHAOSProbe", "CHAOSCommitTrace"):
+        return f"👁{inj}(观测)"
+    modes = _inj_modes(inj, caps)
+    if modes:
+        rep = ", ".join(modes[:3]) + ("…" if len(modes) > 3 else "")
+        return f"⚡{inj}({len(modes)}模式)<br/>{rep}"
+    return f"⚡{inj}<br/>{_INJ_PLAIN_DESC.get(inj, '参数化注入')}"
 
 
 def render_master_mermaid(families=None, instructions=None):
-    """O3 全流水线总图（mermaid）：所有指令链路的并集 + IQ/LSQ/ROB + FU 并集
-    扇出 + 19 个 CHAOS 注入器挂载。无参调用时从数据层加载。"""
+    """O3 总图（mermaid，上下两层）：上层 = CPU 微架构流水线（指令流 = 全部
+    implemented 指令链路的并集，站点标签内嵌 µarch 结构）；下层 = 故障注入
+    能力层（19 个注入器按挂载站点对齐，⚡模式计数实时解析自 ooo_proxy.py，
+    虚线自流水线站点垂下）。无参时从数据层加载。"""
     if families is None or instructions is None:
         families, instructions = load_data()
-    nodes, edges, fus, queues, anchors = build_union_graph(families, instructions)
+    nodes, edges, fus, _q, _a = build_union_graph(families, instructions)
+    caps = parse_injector_caps()
     int_fus = sorted(f for f in fus if f not in _MEM_FUS)
-    mem_fus = sorted(f for f in fus if f in _MEM_FUS)
-    L = ["flowchart LR"]
-    for n in nodes:
-        L.append(f'    {n}["{_node_label(n, anchors)}"]')
-    if "IQ" in queues:
-        L.append('    IQ["IQ · inst_queue.cc:868"]')
-    if "LSQ" in queues:
-        L.append('    LSQ["LSQ（LQ/SQ→L1D/TLB）· lsq_unit.cc:338"]')
-    L.append('    ROB["ROB · rob.cc:194"]')
+    L = ["flowchart TB"]
+    L.append('    subgraph PIPE["⟦CPU 微架构流水线⟧ 指令流 = 全部 implemented 指令链路的并集"]')
+    L.append("        direction LR")
+    for s in nodes:
+        label = _STAGE_LABELS.get(s, s)
+        if s == "EXECUTE" and int_fus:
+            label = f"EXECUTE<br/>FU 池（{'·'.join(int_fus)}）"
+        L.append(f'        {s}["{label}"]')
     for a, b in sorted(edges):
         if (a, b) == ("COMMIT", "REDIRECT"):
-            L.append(f"    {a} -.误预测恢复.-> {b}")
+            L.append(f"        {a} -.误预测.-> {b}")
         else:
-            L.append(f"    {a} --> {b}")
+            L.append(f"        {a} --> {b}")
     if "REDIRECT" in nodes:
-        L.append("    REDIRECT -.-> FETCH")
-    # 队列与 ROB 通道（来自 queue 并集与锚点表：gem5 v25 中 ROB 在 rename→commit 传递上入队）
-    if "IQ" in queues:
-        L.append("    DISPATCH --> IQ")
-        L.append("    IQ --> ISSUE")
-    if "LSQ" in queues:
-        L.append("    DISPATCH --> LSQ")
-        L.append("    LSQ --> ISSUE")
-    L.append("    RENAME --> ROB")
-    L.append("    ROB --> COMMIT")
-    # FU 并集扇出：执行单元（EXECUTE→FU→WRITEBACK）与访存 opClass（LSQ→FU→MEMORY）
-    for fu in int_fus:
-        L.append(f'    FU_{fu}["{fu}"]')
-        L.append(f"    EXECUTE --> FU_{fu}")
-        L.append(f"    FU_{fu} --> WRITEBACK")
-    for fu in mem_fus:
-        L.append(f'    FU_{fu}["{fu}"]')
-        L.append(f"    LSQ --> FU_{fu}")
-        L.append(f"    FU_{fu} --> MEMORY")
+        L.append("        REDIRECT -.-> FETCH")
+    L.append("    end")
+    L.append('    subgraph CAPS["⟦故障注入能力层⟧ ⚡注入器(模式数)·👁观测器（模式全集实时解析自 ooo_proxy.py）"]')
+    L.append("        direction LR")
+    for inj in _ordered_injectors():
+        L.append(f'        {inj}["{_caps_node_label(inj, caps)}"]:::capnode')
+    L.append("    end")
+    # 挂载边：流水线站点 -.-> 正下方注入器
     for inj, stage in sorted(INJECTOR_MOUNTS.items()):
-        L.append(f"    {inj}[{sanitize_mermaid(inj)}]:::chaos -.命中.-> {stage}")
-    L.append("    classDef chaos fill:#fdd,stroke:#900,stroke-width:2px")
+        L.append(f"    {stage} -.-> {inj}")
+    L.append("    classDef capnode fill:#fdd,stroke:#900,stroke-width:2px")
     return "\n".join(L)
 
 
 def render_master_dot(families=None, instructions=None):
-    """同构 graphviz dot 版并集总图（dot -Tsvg 可渲染）。"""
+    """同构 graphviz dot 版两层总图（dot -Tsvg 可渲染）。"""
     if families is None or instructions is None:
         families, instructions = load_data()
-    nodes, edges, fus, queues, anchors = build_union_graph(families, instructions)
+    nodes, edges, fus, _q, _a = build_union_graph(families, instructions)
+    caps = parse_injector_caps()
     int_fus = sorted(f for f in fus if f not in _MEM_FUS)
-    mem_fus = sorted(f for f in fus if f in _MEM_FUS)
-    L = ["digraph o3_atlas {", "    rankdir=LR; node [shape=box];"]
-    for n in nodes:
-        L.append(f'    {n} [label="{_node_label(n, anchors)}"];')
-    if "IQ" in queues:
-        L.append('    IQ [label="IQ · inst_queue.cc:868"];')
-    if "LSQ" in queues:
-        L.append('    LSQ [label="LSQ（LQ/SQ→L1D/TLB）· lsq_unit.cc:338"];')
-    L.append('    ROB [label="ROB · rob.cc:194"];')
+    L = ["digraph o3_atlas {", "    rankdir=TB;",
+         '    subgraph cluster_pipeline {',
+         '        label="⟦CPU 微架构流水线⟧ 指令流=implemented 指令链路并集";',
+         "        node [shape=box];"]
+    for s in nodes:
+        label = _STAGE_LABELS.get(s, s).replace("<br/>", "\\n")
+        if s == "EXECUTE" and int_fus:
+            label = f"EXECUTE\\nFU 池（{'·'.join(int_fus)}）"
+        L.append(f'        {s} [label="{label}"];')
     for a, b in sorted(edges):
-        style = ' [style=dashed, label="误预测恢复"]' if (a, b) == ("COMMIT", "REDIRECT") else ""
-        L.append(f"    {a} -> {b}{style};")
+        style = ' [style=dashed, label="误预测"]' if (a, b) == ("COMMIT", "REDIRECT") else ""
+        L.append(f"        {a} -> {b}{style};")
     if "REDIRECT" in nodes:
-        L.append("    REDIRECT -> FETCH [style=dashed];")
-    if "IQ" in queues:
-        L.append("    DISPATCH -> IQ; IQ -> ISSUE;")
-    if "LSQ" in queues:
-        L.append("    DISPATCH -> LSQ; LSQ -> ISSUE;")
-    L.append("    RENAME -> ROB; ROB -> COMMIT;")
-    for fu in int_fus:
-        L.append(f'    FU_{fu} [label="{fu}", shape=ellipse];')
-        L.append(f"    EXECUTE -> FU_{fu}; FU_{fu} -> WRITEBACK;")
-    for fu in mem_fus:
-        L.append(f'    FU_{fu} [label="{fu}", shape=ellipse];')
-        L.append(f"    LSQ -> FU_{fu}; FU_{fu} -> MEMORY;")
+        L.append("        REDIRECT -> FETCH [style=dashed];")
+    L.append("    }")
+    L.append('    subgraph cluster_caps {')
+    L.append('        label="⟦故障注入能力层⟧ ⚡注入器(模式数)·👁观测器（实时解析自 ooo_proxy.py）";')
+    L.append('        node [shape=hexagon, style=filled, fillcolor="#fdd", color="#900"];')
+    for inj in _ordered_injectors():
+        label = _caps_node_label(inj, caps).replace("<br/>", "\\n")
+        L.append(f'        {inj} [label="{label}"];')
+    L.append("    }")
     for inj, stage in sorted(INJECTOR_MOUNTS.items()):
-        L.append(f'    {inj} [label="{inj}", shape=hexagon, '
-                 f'style=filled, fillcolor="#fdd", color="#900"];')
-        L.append(f"    {inj} -> {stage} [style=dashed, label=命中];")
+        L.append(f"    {stage} -> {inj} [style=dashed];")
     L.append("}")
     return "\n".join(L)
+
+
+def render_injection_caps():
+    """微架构单元 × 故障注入能力表（模式全集实时解析自 ooo_proxy.py）。"""
+    caps = parse_injector_caps()
+    out = ["# 微架构单元 × 故障注入能力", "",
+           "> 故障模式全集实时解析自 `configs/se/ooo_proxy.py`（与实验工具面同源："
+           "工具增删模式，此表与总图徽标自动跟随）。",
+           "", "| 微架构单元 | 注入器 | 模式数 | 故障模式全集 / 能力 | 破坏目标 | 挂载锚点 |",
+           "|---|---|---|---|---|---|"]
+    for bid, label, injs, anchor in MICROARCH_BLOCKS:
+        unit = f"{bid}（{label}）"
+        if not injs:
+            out.append(f"| {unit} | — | 0 | 无注入挂载 | — | {anchor} |")
+            continue
+        for inj in injs:
+            modes = _inj_modes(inj, caps)
+            cap_text = (", ".join(modes) if modes
+                        else _INJ_PLAIN_DESC.get(inj, "参数化注入"))
+            n = str(len(modes)) if modes else "—"
+            out.append(f"| {unit} | **{inj}** | {n} | {cap_text} | "
+                       f"{INJECTOR_TARGET[inj]} | {anchor} |")
+    out.append("")
+    return "\n".join(out)
 
 
 def render_matrix(instructions):
@@ -189,6 +350,9 @@ def write_diagrams(families, instructions):
     (DIAGRAMS / "injector-matrix.md").write_text(
         render_matrix(instructions), encoding="utf-8")
     print("diagrams: injector-matrix.md")
+    (DIAGRAMS / "injection-capabilities.md").write_text(
+        render_injection_caps(), encoding="utf-8")
+    print("diagrams: injection-capabilities.md")
 
 # mermaid 标签里的敌对字符一律换下划线（括号/引号/花括号等会破坏节点语法）
 _MERMAID_BAD = str.maketrans({c: "_" for c in '()"\'`;:[]{}|<>#,'})
