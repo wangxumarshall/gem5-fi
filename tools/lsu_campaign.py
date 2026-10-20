@@ -43,6 +43,42 @@ REPO = Path(__file__).resolve().parent.parent
 G5 = REPO / "build/ARM/gem5.opt"
 LSU_PROXY = REPO / "configs/se/lsu_proxy.py"
 L5 = REPO / "tools/lsu_l5_classify.py"
+
+
+def resolve_g5(env=None):
+    """gem5 binary for campaign runs.
+
+    Precedence: $LSU_GEM5_BIN (the worktree convention — a worktree has no
+    repo-root build/, cf. tools/lsu_runner.py) → repo-root build/ARM/gem5.opt.
+    Loud SystemExit when neither exists: a campaign that silently ran the
+    wrong binary is the stale-binary failure mode this repo has been bitten
+    by twice (CLAUDE.md: a stale duplicate once caused fake segfaults).
+    """
+    import os
+    env = os.environ if env is None else env
+    cand = env.get("LSU_GEM5_BIN")
+    path = Path(cand) if cand else G5
+    if not path.exists():
+        raise SystemExit(
+            "[campaign] gem5 binary not found: %s — set LSU_GEM5_BIN to a "
+            "built gem5.opt (worktrees build at CHAOS/gem5/build/ARM/gem5.opt)"
+            % path)
+    return path
+
+
+def propagation_flags(runid, seed):
+    """[MDSPEC][H0] per-SAMPLE propagation-trace flags.
+
+    Every campaign sample attaches CHAOSPropagation and stamps its identity,
+    so propagation evidence comes from the OFFICIAL entry point, not only
+    from hand-driven lsu_proxy invocations. prop_sample_run_id = the sample
+    index within the RunID (spec sheet 11 requires run_id + sample_run_id on
+    every event); prop_evt.txt.gz lands in the seed dir (= gem5 --outdir).
+    """
+    return ["--chaos_propagation",
+            "--prop_run_id", str(runid),
+            "--prop_sample_run_id", "s%d" % int(seed)]
+
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from wilson import wilson_ci  # repo's single Wilson impl (no drift)
 
@@ -452,16 +488,20 @@ def run_single_cell(cell, args, seed, outdir):
 
     family = MODEL_FLAGS[model][0]
     outdir.mkdir(parents=True, exist_ok=True)
+    # [MDSPEC][H0] every sample carries the propagation trace + identity
+    prop = propagation_flags(runid, seed)
+    g5 = str(resolve_g5())
 
     # ---- FS family (armtlb): lsu_b0_fs + checkpoint restore + carrier ----
     if family == "armtlb":
         if not args.fs_checkpoint:
             return {"outcome": "Blocked",
                     "error": "FS cells need --fs-checkpoint (B0 cpt)"}
-        cmd = [str(G5), "--outdir", str(outdir), str(FS_CONFIG)]
+        cmd = [g5, "--outdir", str(outdir), str(FS_CONFIG)]
         cmd += ["--restore-checkpoint", args.fs_checkpoint]
         cmd += flags
         cmd += ["--tlb_rng_seed", str(seed)]
+        cmd += prop
         # T03 stuck0/stuck1 alternate by seed parity (both sub-modes sampled)
         if model == "T03":
             i = cmd.index("--tlb_fault_type")
@@ -495,9 +535,10 @@ def run_single_cell(cell, args, seed, outdir):
         return classify_fs_run(outdir, proc.stdout, exit_code)
 
     # ---- SE families ----
-    cmd = [str(G5), "--outdir", str(outdir), str(LSU_PROXY)]
+    cmd = [g5, "--outdir", str(outdir), str(LSU_PROXY)]
     cmd += flags
     cmd += [FAMILY_SEED[family], str(seed)]
+    cmd += prop
     # A03 stuck0/stuck1 alternate by seed parity (both sub-modes sampled);
     # swap the mode VALUE in place — the flag sits mid-list, before the
     # seed flag (the first version clobbered --addrpath_rng_seed by writing
