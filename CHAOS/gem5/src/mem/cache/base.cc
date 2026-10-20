@@ -1698,6 +1698,31 @@ BaseCache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
         }
     }
 
+    // [MDSPEC][H5] unified pf_fill event (spec sheet 9 P-chain: L3 =
+    // "cache接收响应、fill set/way/tag/data ... merge MSHR"——the prefetch
+    // request's line is filled). Carries the SAME request-level
+    // pf_request_id as the pf_queue/pf_issue nodes of this prefetch (from
+    // the tracer's prefetch-request registry), plus the fill_id. Only
+    // emitted for lines a prefetch request registered — never guessed.
+    {
+        CHAOSPropagation *h5f = CHAOSPropagation::instance();
+        if (h5f) {
+            Addr h5f_base = 0;
+            const uint64_t h5f_pfid = h5f->prefetchRequestId(
+                addr, blkSize, &h5f_base);
+            if (h5f_pfid) {
+                Addr h5f_ptag_base = 0;
+                const uint64_t h5f_ptag = h5f->correlateBlock(
+                    addr, blkSize, &h5f_ptag_base);
+                std::ostringstream h5f_hex;
+                h5f_hex << std::hex << addr;
+                h5f->notePropEvt("pf_fill", {
+                    {"fault_id", std::to_string(h5f_ptag)},
+                    {"pf_request_id", std::to_string(h5f_pfid)},
+                    {"pa", h5f_hex.str()},
+                    {"cache_line", h5f_hex.str()},
+                    {"fill_id", std::to_string(h4_fill_id)},
+                    {"state_after", "filled"},
                 });
             }
         }
@@ -1885,6 +1910,7 @@ BaseCache::writebackBlk(CacheBlk *blk)
                 "Writeback from read-only cache");
     assert(blk && blk->isValid() &&
         (blk->isSet(CacheBlk::DirtyBit) || writebackClean));
+
     // [MDSPEC][H4] cache_writeback event (spec sheet 9 C-chain: dirty
     // victim's data persists to the next level via writeback). Fault-
     // correlated only (blk registry overlap on the written-back line).

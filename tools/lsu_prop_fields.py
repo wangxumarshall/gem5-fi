@@ -60,6 +60,9 @@ KIND_LAYER = {
     "cache_evict": "L2", "mshr_alloc": "L2", "mshr_merge": "L2",
     "mshr_fill": "L2", "mshr_free": "L2",
     "cache_writeback": "L3",
+    # [MDSPEC][H5] prefetch 链（训练 L1 → 队列/发射 L2 → fill L3 → demand L4）
+    "pf_train": "L1", "pf_queue": "L2", "pf_issue": "L2",
+    "pf_fill": "L3", "pf_demand": "L4",
     # [MDSPEC][H6] atomic 事件链
     "atomic_op": "L2",
     # [MDSPEC][L5] 链终局（退出回调发射；outcome=detection_layer/contained）
@@ -93,7 +96,14 @@ REQUIRED_FIELDS = {
     # [MDSPEC][H4] cache 结构事件（access/return/fill/evict）
     "cache_access": ["fault_id", "va", "pa"],
     "cache_return": ["fault_id", "pa", "field"],
+    # [MDSPEC][H5] prefetch 链：pf_request_id 为请求级稳定标识（≠ fault_id），
+    # 同一预取请求的 queue/issue/fill/demand 四节点必须携带同一值。
+    "pf_train": ["fault_id", "pf_request_id", "pc", "before", "after"],
+    "pf_queue": ["fault_id", "pf_request_id", "va", "entry_index"],
     "pf_issue": ["fault_id", "pf_request_id", "va"],
+    "pf_fill": ["fault_id", "pf_request_id", "pa", "cache_line"],
+    "pf_demand": ["fault_id", "pf_request_id", "dyn_inst_seq", "request_id",
+                  "pa"],
     # [MDSPEC][H6] atomic 链
     "atomic_op": ["fault_id", "dyn_inst_seq", "va"],
     # [MDSPEC][L5] 链终局（退出回调发射）

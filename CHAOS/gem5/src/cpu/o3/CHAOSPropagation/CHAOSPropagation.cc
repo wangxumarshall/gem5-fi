@@ -218,6 +218,15 @@ namespace gem5
             else
                 ++it;
         }
+        // [MDSPEC][H5] prefetch requests share the same lifetime policy as
+        // the other address registries (no expiry when addr_expiry_ticks=0).
+        for (auto it = pf_registry.begin(); it != pf_registry.end(); ) {
+            if (now > it->second.registered &&
+                now - it->second.registered > (Tick)addr_expiry_ticks)
+                it = pf_registry.erase(it);
+            else
+                ++it;
+        }
     }
 
     // ------------------------------------------------------ PROP-EVT (H0)
@@ -560,6 +569,58 @@ namespace gem5
                 if (base_out)
                     *base_out = e.byte_begin;
                 return e.ptag;
+            }
+        }
+        return 0;
+    }
+
+    // ------------------------------------------------ prefetch request id (H5)
+    uint64_t
+    CHAOSPropagation::notePrefetchRequest(Addr addr, Addr size)
+    {
+        if (!write_log)
+            return 0;
+        sweepExpired();
+        const Addr base = addr & ~(Addr)(size ? size - 1 : 0);
+        const uint64_t pfid = PF_ID_BASE + (++next_pf_request_id);
+        PfEntry e;
+        e.pf_request_id = pfid;
+        e.base = base;
+        e.size = size;
+        e.registered = curTick();
+        pf_registry[base] = e;
+        return pfid;
+    }
+
+    void
+    CHAOSPropagation::registerPtagPrefetch(uint64_t pfid, Addr addr, Addr size)
+    {
+        if (!write_log || pfid < PF_ID_BASE || size == 0)
+            return;
+        sweepExpired();
+        const Addr base = addr & ~(Addr)(size - 1);
+        PfEntry e;
+        e.pf_request_id = pfid;
+        e.base = base;
+        e.size = size;
+        e.registered = curTick();
+        pf_registry[base] = e;
+    }
+
+    uint64_t
+    CHAOSPropagation::prefetchRequestId(Addr addr, Addr size, Addr *base_out)
+    {
+        if (!write_log)
+            return 0;
+        sweepExpired();
+        const Addr a_end = addr + (size ? size : 1);
+        for (const auto &kv : pf_registry) {
+            const PfEntry &e = kv.second;
+            const Addr e_end = e.base + (e.size ? e.size : 1);
+            if (addr < e_end && e.base < a_end) {
+                if (base_out)
+                    *base_out = e.base;
+                return e.pf_request_id;
             }
         }
         return 0;

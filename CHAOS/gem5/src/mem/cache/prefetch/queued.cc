@@ -264,6 +264,12 @@ Queued::getPacket()
     // segment; L2). Fault-correlated only (blk registry overlap on the
     // pf address; pf_train registered the faulted line). Static
     // instance — the prefetcher has no tracer pointer.
+    //
+    // pf_request_id comes from the tracer's prefetch-request registry
+    // (allocated once at enqueue, see pf_queue below), so this node shares
+    // the SAME request-level id as the queue/fill/demand nodes of the same
+    // prefetch — a stable request identity, never the fault_id and never a
+    // bare tick.
     {
         CHAOSPropagation *h5q = CHAOSPropagation::instance();
         if (h5q && pkt) {
@@ -273,9 +279,13 @@ Queued::getPacket()
             if (h5q_ptag) {
                 std::ostringstream h5q_hex;
                 h5q_hex << std::hex << pkt->getAddr();
+                const uint64_t h5q_pfid = h5q->prefetchRequestId(
+                    pkt->getAddr(), pkt->getSize());
                 h5q->notePropEvt("pf_issue", {
                     {"fault_id", std::to_string(h5q_ptag)},
+                    {"pf_request_id", std::to_string(h5q_pfid)},
                     {"va", h5q_hex.str()},
+                    {"state_after", "issued"},
                 });
             }
         }
@@ -355,6 +365,32 @@ Queued::translationComplete(DeferredPacket *dp, bool failed,
             Tick pf_time = curTick() + clockPeriod() * latency;
             it->createPkt(target_paddr, blkSize, requestorId, tagPrefetch,
                           pf_time);
+            // [MDSPEC][H5] pf_queue node (L2, queue-selection segment of
+            // the spec chain). The tracer allocates the request-level
+            // pf_request_id here — once per prefetch request — so the later
+            // issue/fill/demand nodes of this same request resolve the same
+            // id (never a per-site counter). Emitted only for
+            // fault-correlated prefetches (blk registry overlap).
+            {
+                CHAOSPropagation *h5e = CHAOSPropagation::instance();
+                if (h5e && it->pkt) {
+                    const uint64_t h5e_ptag = h5e->correlateBlock(
+                        it->pkt->getAddr(), it->pkt->getSize());
+                    if (h5e_ptag) {
+                        const uint64_t h5e_pfid = h5e->notePrefetchRequest(
+                            it->pkt->getAddr(), it->pkt->getSize());
+                        std::ostringstream h5e_hex;
+                        h5e_hex << std::hex << it->pkt->getAddr();
+                        h5e->notePropEvt("pf_queue", {
+                            {"fault_id", std::to_string(h5e_ptag)},
+                            {"pf_request_id", std::to_string(h5e_pfid)},
+                            {"va", h5e_hex.str()},
+                            {"entry_index", std::to_string(pfq.size() + 1)},
+                            {"state_after", "queued"},
+                        });
+                    }
+                }
+            }
             addToQueue(pfq, *it);
         }
     } else {
@@ -499,6 +535,29 @@ Queued::insert(const PacketPtr &pkt, PrefetchInfo &new_pfi,
         DPRINTF(HWPrefetch, "Prefetch queued. "
                 "addr:%#x priority: %3d tick:%lld.\n",
                 new_pfi.getAddr(), priority, pf_time);
+        // [MDSPEC][H5] pf_queue node (see translationComplete for the
+        // contract): allocates the request-level pf_request_id once per
+        // prefetch request, fault-correlated prefetches only.
+        {
+            CHAOSPropagation *h5e = CHAOSPropagation::instance();
+            if (h5e && dpp.pkt) {
+                const uint64_t h5e_ptag = h5e->correlateBlock(
+                    dpp.pkt->getAddr(), dpp.pkt->getSize());
+                if (h5e_ptag) {
+                    const uint64_t h5e_pfid = h5e->notePrefetchRequest(
+                        dpp.pkt->getAddr(), dpp.pkt->getSize());
+                    std::ostringstream h5e_hex;
+                    h5e_hex << std::hex << dpp.pkt->getAddr();
+                    h5e->notePropEvt("pf_queue", {
+                        {"fault_id", std::to_string(h5e_ptag)},
+                        {"pf_request_id", std::to_string(h5e_pfid)},
+                        {"va", h5e_hex.str()},
+                        {"entry_index", std::to_string(pfq.size() + 1)},
+                        {"state_after", "queued"},
+                    });
+                }
+            }
+        }
         addToQueue(pfq, dpp);
     } else {
         // Add the translation request and try to resolve it later

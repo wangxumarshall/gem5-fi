@@ -236,6 +236,40 @@ Cache::access(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
             }
         }
     }
+
+    // [MDSPEC][H5] unified pf_demand event (spec sheet 9 P-chain: L4 =
+    // "后续demand命中该line或受污染/错误驱逐影响"). A NON-prefetch access on
+    // a line that a prefetch request registered → the demand consuming the
+    // prefetched line. Carries the prefetch's request-level
+    // pf_request_id (same id as that request's pf_queue/pf_issue/pf_fill)
+    // plus the demand's own request identity. Scope honesty: matched by
+    // line overlap (the spec's VA/PA/cache_line key), never tick/addr-only.
+    {
+        CHAOSPropagation *h5d = CHAOSPropagation::instance();
+        if (h5d && pkt && pkt->req && !pkt->req->isPrefetch()) {
+            Addr h5d_base = 0;
+            const uint64_t h5d_pfid = h5d->prefetchRequestId(
+                pkt->getAddr(), pkt->getSize(), &h5d_base);
+            if (h5d_pfid) {
+                Addr h5d_ptag_base = 0;
+                const uint64_t h5d_ptag = h5d->correlateBlock(
+                    pkt->getAddr(), pkt->getSize(), &h5d_ptag_base);
+                std::ostringstream h5d_hex;
+                h5d_hex << std::hex << pkt->getAddr();
+                const uint64_t h5d_seq = pkt->req->hasInstSeqNum()
+                    ? pkt->req->getReqInstSeqNum() : 0;
+                h5d->notePropEvt("pf_demand", {
+                    {"fault_id", std::to_string(h5d_ptag)},
+                    {"pf_request_id", std::to_string(h5d_pfid)},
+                    {"dyn_inst_seq", std::to_string(h5d_seq)},
+                    {"request_id", std::to_string(h5d_seq)},
+                    {"pa", h5d_hex.str()},
+                    {"cache_line", h5d_hex.str()},
+                    {"field", h4_result ? "demand_hit" : "demand_miss"},
+                });
+            }
+        }
+    }
     return h4_result;
 }
 
@@ -1030,10 +1064,18 @@ Cache::evictBlock(CacheBlk *blk)
             const uint64_t h4_ptag = h4->correlateBlock(
                 h4_blk_addr, blkSize, &h4_base);
             if (h4_ptag) {
+                std::ostringstream h4_hex, h4_tag;
                 h4_hex << std::hex << h4_blk_addr;
+                h4_tag << std::hex << blk->getTag();
+                // victim evidence (spec sheet 9 C01: "victim tag/data/
+                // dirty、writeback addr/data"): set/way + victim tag +
+                // dirty state + the evicted line address.
                 h4->notePropEvt("cache_evict", {
                     {"fault_id", std::to_string(h4_ptag)},
                     {"cache_line", h4_hex.str()},
+                    {"set", std::to_string(blk->getSet())},
+                    {"way", std::to_string(blk->getWay())},
+                    {"before", h4_tag.str()},
                     {"field", blk->isSet(CacheBlk::DirtyBit)
                         ? "dirty_evict_writeback" : "clean_evict"},
                 });

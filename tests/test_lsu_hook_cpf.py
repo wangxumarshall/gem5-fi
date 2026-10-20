@@ -34,6 +34,9 @@ def main():
     print("[1] H4/H5/H6 kind→层级与必录字段注册")
     expect = {
         "cache_access": ("L1", ["fault_id", "va", "pa"]),
+        "cache_evict": ("L2", ["fault_id", "cache_line", "set", "way"]),
+        "cache_return": ("L2", ["fault_id", "pa", "field"]),
+        "cache_fill": ("L2", ["fault_id", "pa", "cache_line", "fill_id"]),
         # [H4] MSHR 生命周期（allocate/merge/fill/free）+ writeback 持久化
         "mshr_alloc": ("L2", ["fault_id", "cache_line", "mshr_id"]),
         "mshr_merge": ("L2", ["fault_id", "cache_line", "mshr_id"]),
@@ -41,6 +44,16 @@ def main():
                              "fill_id"]),
         "mshr_free": ("L2", ["fault_id", "cache_line", "mshr_id"]),
         "cache_writeback": ("L3", ["fault_id", "cache_line"]),
+        # [H5] prefetch 全链：训练 L1 → 队列/发射 L2 → fill L3 → demand L4
+        "pf_train": ("L1", ["fault_id", "pf_request_id", "pc",
+                            "before", "after"]),
+        "pf_queue": ("L2", ["fault_id", "pf_request_id", "va",
+                            "entry_index"]),
+        "pf_issue": ("L2", ["fault_id", "pf_request_id", "va"]),
+        "pf_fill": ("L3", ["fault_id", "pf_request_id", "pa",
+                           "cache_line"]),
+        "pf_demand": ("L4", ["fault_id", "pf_request_id", "dyn_inst_seq",
+                             "request_id", "pa"]),
         "atomic_op": ("L2", ["fault_id", "dyn_inst_seq", "va"]),
     }
     for kind, (layer, fields) in expect.items():

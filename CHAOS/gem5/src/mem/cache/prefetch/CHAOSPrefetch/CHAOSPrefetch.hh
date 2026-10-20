@@ -35,8 +35,10 @@
 #ifndef __MEM_CACHE_PREFETCH_CHAOS_CHAOSPREFETCH_HH__
 #define __MEM_CACHE_PREFETCH_CHAOS_CHAOSPREFETCH_HH__
 
+#include <map>
 #include <random>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "base/output.hh"
@@ -89,6 +91,13 @@ class CHAOSPrefetch : public SimObject
     bool f6_pending = false;
     static CHAOSPrefetch *f6Consumer;
     static void f6Thunk(ChaOSLsuEvent ev);
+
+    // [MDSPEC][H5] training-entry PC → (ptag, pf_request_id) of its active
+    // fault chain. Needed because the hook sits at calculatePrefetch's TAIL:
+    // a stride-affecting fault changes what the NEXT call for the same PC
+    // generates, so those later candidates must join the already-open
+    // request chain (see maybeCorrupt).
+    std::map<Addr, std::pair<uint64_t, uint64_t>> corrupted_entries;
 
     std::mt19937_64 rng;
     std::random_device rd;

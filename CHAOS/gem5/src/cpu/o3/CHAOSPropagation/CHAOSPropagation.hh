@@ -216,6 +216,31 @@ class CHAOSPropagation : public SimObject
     void noteFunnel(const char *site, uint64_t attempted, uint64_t eligible,
                     uint64_t injected);
 
+    // [MDSPEC][H5] prefetch request-level identity. pf_request_id must be a
+    // STABLE request-level id shared by every node of one prefetch
+    // request's chain (train→queue→issue→fill→demand) — it is NOT the
+    // fault id (ptag) and NOT a per-site counter or a tick (spec sheet 9
+    // P01: "为prefetch request分配pf_request_id并贯穿MSHR/fill/后续demand").
+    // Allocates a fresh id (>=1) and registers [addr, addr+size) so the
+    // later queue/issue/fill/demand events on the same prefetched line
+    // resolve to the same id. 0 = tracer disabled.
+    uint64_t notePrefetchRequest(Addr addr, Addr size);
+
+    // [MDSPEC][H5] resolve the pf_request_id of the prefetch request whose
+    // registered line overlaps [addr, addr+size); 0 = no prefetch request
+    // (the site is not prefetch-driven → no pf_* node). Optionally returns
+    // the registered base. Range overlap only — never a single-key guess.
+    uint64_t prefetchRequestId(Addr addr, Addr size, Addr *base_out = nullptr);
+
+    // [MDSPEC][H5] attach an ALREADY-allocated prefetch request to another
+    // generated line. The prefetcher's fault (e.g. a corrupted training
+    // stride) only shows up in the candidate addresses generated on later
+    // calls, so this is how those candidates join the same request chain
+    // (and how queue/issue/fill/demand on them resolve to that
+    // pf_request_id). Requires a pfid >= PF_ID_BASE (from
+    // notePrefetchRequest); no-op otherwise.
+    void registerPtagPrefetch(uint64_t pfid, Addr addr, Addr size);
+
     // [MDSPEC][H4] MSHR lifecycle identity. One stable mshr_id per
     // in-flight miss line (spec sheet 9 C01: "mshr_id/fill_id/victim_id 及
     // event 父子关系"); a merge reuses the existing id of the same line,
@@ -338,6 +363,24 @@ class CHAOSPropagation : public SimObject
         uint64_t taintor_seq;      // DynInst::seqNum of the tainting inst
     };
     std::map<std::pair<int, uint32_t>, TaintEntry> taint_set;
+    // [MDSPEC][H5] prefetch-request registry: one entry per prefetch
+    // request keyed by its line base, carrying the request-level
+    // pf_request_id (independent of ptag) so every downstream node of the
+    // same prefetch resolves the same id.
+    struct PfEntry {
+        uint64_t pf_request_id;
+        Addr base;
+        Addr size;
+        Tick registered;
+    };
+    std::map<Addr, PfEntry> pf_registry;
+    uint64_t next_pf_request_id = 0;   // 0 reserved ("no prefetch request")
+    // pf_request_id lives in a DISJOINT numeric space from fault_id/ptag
+    // (offset PF_ID_BASE) so a request-level id can never be mistaken for,
+    // or coincide with, a fault-chain id (spec sheet 9 P01 requires them
+    // to be different identities).
+    static constexpr uint64_t PF_ID_BASE = 1ULL << 32;
+
     // [MDSPEC][H4] in-flight miss lines → allocated mshr_id (real ids).
     std::map<Addr, uint64_t> mshr_registry;
     uint64_t next_mshr_id = 0;         // 0 reserved ("no mshr")

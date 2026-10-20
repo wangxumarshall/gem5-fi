@@ -3,6 +3,7 @@
 
 #include "mem/cache/prefetch/CHAOSPrefetch/CHAOSPrefetch.hh"
 
+#include <sstream>
 #include <string>
 
 // [MDSPEC][H5] prefetch fault registration with the propagation tracer
@@ -113,6 +114,26 @@ namespace gem5
     {
         trigger.onAttempt();
 
+        // [MDSPEC][H5] Observation-only continuation (2026-10-20 finding).
+        // Once a training entry carries an active fault chain, EVERY later
+        // call for that PC keeps joining its generated candidates to that
+        // chain — the injector must not stop *observing* when its fault
+        // budget is spent. Without this, a single F0 injection leaves the
+        // corrupted stride's output unregistered and the spec chain's L2/L3
+        // (queue/issue/fill) and L4 (demand) nodes are unreachable purely
+        // because the injector returned early (verified empirically: the
+        // hook ran exactly once, with an EMPTY candidate set).
+        CHAOSPropagation *h5 = CHAOSPropagation::instance();
+        const Addr h5_pc = entry ? entry->getTag() : 0;
+        if (entry && h5 && corrupted_entries.count(h5_pc)) {
+            const std::pair<uint64_t, uint64_t> ids = corrupted_entries[h5_pc];
+            for (const auto &ap : addresses) {
+                h5->registerPtagBlock(ids.first, ap.first,
+                                      ap.first + line_size);
+                h5->registerPtagPrefetch(ids.second, ap.first, line_size);
+            }
+        }
+
         // Eligibility (04 L0 funnel): the mode's target must exist.
         //   entry-target modes (P01/P02/P08): live table entry (hit-trained
         //     or miss-just-inserted)
@@ -136,7 +157,35 @@ namespace gem5
         ++faults_injected;
 
         // [MDSPEC][H5] Register the prefetch fault with the propagation
+        // tracer (the single injection funnel — every mode passes through
+        // here) and allocate the request-level pf_request_id. The
+        // whole-block registration [pf_addr, pf_addr+line_size) lets later
+        // demand loads / cache events on the faulted line correlate
+        // (correlateBlock / blk_registry). nullptr tracer = no-op (no
+        // CHAOSPropagation attached).
+        //
+        // pf_request_id is a STABLE request-level identity (tracer-allocated,
+        // shared by this request's train/queue/issue/fill/demand nodes) and
+        // is deliberately NOT the fault_id/ptag (spec sheet 9 P01). The
+        // pf_train node itself is emitted after the mutation below so that
+        // before/after carry the real training-entry change.
+        uint64_t h5_ptag = 0;
+        uint64_t h5_pfid = 0;
+        // h5_pc is computed once at the top of this function (also used by
+        // the observation-only continuation above).
+        // If this training entry already carries an active fault chain
+        // (e.g. P01's corrupted stride keeps generating wrong addresses on
+        // later calls), the candidates generated on THIS call belong to
+        // that same request chain — reuse its ids.
+        if (entry && corrupted_entries.count(h5_pc)) {
+            h5_ptag = corrupted_entries[h5_pc].first;
+            h5_pfid = corrupted_entries[h5_pc].second;
+        } else if (CHAOSPropagation *h5 = CHAOSPropagation::instance()) {
+            h5_ptag = h5->registerCacheFault(pf_addr, -1, line_size, "prefetch");
+            if (h5_ptag)
+                h5_pfid = h5->notePrefetchRequest(pf_addr, line_size);
         }
+        const int h5_stride_before = entry ? entry->stride : 0;
 
         switch (fi_mode) {
           case Mode::P01StrideBitflip: {
@@ -218,6 +267,42 @@ namespace gem5
                            " -> 0 (stuck)");
               break;
           }
+        }
+
+        if (h5_ptag && h5) {
+            const bool already_chained = corrupted_entries.count(h5_pc) > 0;
+            // [MDSPEC][H5] Join the candidate addresses generated on this
+            // call to the request chain. The hook sits at calculatePrefetch's
+            // TAIL, so for stride-affecting modes (P01/P08) the current
+            // candidates were built with the OLD stride and the corrupted
+            // output appears on the NEXT call for this PC — registering both
+            // this call's candidates and (via corrupted_entries below) the
+            // later ones is what makes queue→request→fill→demand reachable.
+            // pf_request_id/mshr-fill then resolve on these lines.
+            for (const auto &ap : addresses) {
+                h5->registerPtagBlock(h5_ptag, ap.first, ap.first + line_size);
+                h5->registerPtagPrefetch(h5_pfid, ap.first, line_size);
+            }
+            // pf_train node (L1) — emitted after the mutation so L0→L1 is a
+            // real before/after edge. Carries the request-level
+            // pf_request_id (≠ fault_id) plus the training-entry evidence
+            // the spec requires for P01 (PC/tag, old/new stride, the
+            // generated candidate address).
+            if (!already_chained) {
+                std::ostringstream h5_pc_hex, h5_addr_hex;
+                h5_pc_hex << std::hex << h5_pc;
+                h5_addr_hex << std::hex << pf_addr;
+                h5->notePropEvt("pf_train", {
+                    {"fault_id", std::to_string(h5_ptag)},
+                    {"pf_request_id", std::to_string(h5_pfid)},
+                    {"pc", h5_pc_hex.str()},
+                    {"va", h5_addr_hex.str()},
+                    {"before", std::to_string(h5_stride_before)},
+                    {"after", std::to_string(entry ? entry->stride : 0)},
+                    {"field", "stride"},
+                });
+                corrupted_entries[h5_pc] = {h5_ptag, h5_pfid};
+            }
         }
     }
 
