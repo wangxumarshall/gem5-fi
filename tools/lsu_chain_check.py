@@ -103,6 +103,13 @@ def _edges_for(chain_events):
 
 def _terminal(chain_events, edges, by_layer):
     """终止判定（规格三终局 + Unknown 兜底；缺席不猜测）。"""
+    # [H2-fix] tlb_fault = Hardware 检测 + contained（翻译层遏制——
+    # A01 POST 根因：corrupted vaddr 未映射 → MMU 检测 → 传播被遏制）
+    for e in chain_events:
+        if (e.get("kind") == "tlb_fault"
+                and e.get("detection_layer") == "Hardware"
+                and e.get("contained") == "1"):
+            return "detected_contained"
     # 显式 contained 检测（L5 证据事件）
     for e in chain_events:
         if (e.get("detection_layer") and e.get("contained") == "1"

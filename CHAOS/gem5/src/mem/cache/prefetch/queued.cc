@@ -37,6 +37,11 @@
 
 #include "mem/cache/prefetch/queued.hh"
 
+// [MDSPEC][H5] prefetch queue-to-cache issue events reach the tracer
+// through the static instance (CHAOSCache precedent).
+#include "cpu/o3/CHAOSPropagation/CHAOSPropagation.hh"
+#include <sstream>
+
 #include <cassert>
 
 #include "arch/generic/tlb.hh"
@@ -253,6 +258,29 @@ Queued::getPacket()
 
     PacketPtr pkt = pfq.front().pkt;
     pfq.pop_front();
+
+    // [MDSPEC][H5] unified pf_issue event (spec sheet 9: prefetch chain
+    // training→queue→REQUEST→fill→demand — this is the queue→request
+    // segment; L2). Fault-correlated only (blk registry overlap on the
+    // pf address; pf_train registered the faulted line). Static
+    // instance — the prefetcher has no tracer pointer.
+    {
+        CHAOSPropagation *h5q = CHAOSPropagation::instance();
+        if (h5q && pkt) {
+            Addr h5q_base = 0;
+            const uint64_t h5q_ptag = h5q->correlateBlock(
+                pkt->getAddr(), pkt->getSize(), &h5q_base);
+            if (h5q_ptag) {
+                std::ostringstream h5q_hex;
+                h5q_hex << std::hex << pkt->getAddr();
+                h5q->notePropEvt("pf_issue", {
+                    {"fault_id", std::to_string(h5q_ptag)},
+                    {"pf_request_id", std::to_string(h5q_ptag)},
+                    {"va", h5q_hex.str()},
+                });
+            }
+        }
+    }
 
     prefetchStats.pfIssued++;
     issuedPrefetches += 1;

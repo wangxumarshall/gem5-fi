@@ -46,6 +46,9 @@ KIND_LAYER = {
     # SE 不经 TLB::lookup——tlb.cc:173 实证。tlb_walk/tlb_refill 属 FS
     # 路径，推迟到 FS TLB 轨道，未注册 = 诚实缺席）
     "tlb_translate": "L2",
+    # [MDSPEC][H2-fix] 翻译 fault 检测事件（A01 POST 根因：corrupted vaddr
+    # 落到未映射地址 → 翻译 fault = Hardware 检测 + contained）
+    "tlb_fault": "L2",
     # [MDSPEC][H7] LQ 逐事件（表 9：lq_idx 生命周期；read/completion 属
     # L3 访存发射与返回；insert 在 dispatch 期早于注入注册、结构性缺席）
     "lq_read": "L3", "lq_complete": "L3",
@@ -73,6 +76,9 @@ REQUIRED_FIELDS = {
                      "request_id", "va"],
     # [MDSPEC][H2] pa 入口未定留空（诚实 pending；PA 物化由 resp 节点覆盖）
     "tlb_translate": ["fault_id", "dyn_inst_seq", "va", "request_id"],
+    # [MDSPEC][H2-fix] 翻译 fault 检测（detection_layer=Hardware, contained=1）
+    "tlb_fault": ["fault_id", "dyn_inst_seq", "va", "outcome",
+                  "detection_layer", "contained"],
     # [MDSPEC][H7] LQ 生命周期（va 取注册表 base；pa=响应地址）
     "lq_read": ["fault_id", "dyn_inst_seq", "lq_idx", "va"],
     "lq_complete": ["fault_id", "dyn_inst_seq", "lq_idx", "va", "pa"],

@@ -1326,8 +1326,36 @@ MMU::translateTiming(const RequestPtr &req, ThreadContext *tc,
         }
     }
 
-    translateComplete(req, tc, translation, mode, tran_type,
-        stage2, state);
+    // [MDSPEC][H2-fix] Capture the translation fault — A01 POST pilot
+    // root cause: a01_bit corrupts the startup store's vaddr to an
+    // UNMAPPED address in 5/5 samples → translation faults → write()
+    // never called → SQ entry empty ("Fault on Store, Size = 0" debug
+    // evidence) → store never reaches L3. The translation fault IS the
+    // detection/containment point — emit tlb_fault so the chain gets
+    // L2 detection evidence instead of an honest but uninformative
+    // "unknown beyond L2".
+    const Fault h2_fault = translateComplete(req, tc, translation, mode,
+        tran_type, stage2, state);
+    if (h2_fault != NoFault) {
+        CHAOSPropagation *h2f = CHAOSPropagation::instance();
+        if (h2f && req && req->hasVaddr() && req->hasInstSeqNum()) {
+            const uint64_t h2f_ptag = h2f->correlateRequest(
+                req->getReqInstSeqNum(), req->getVaddr(), req->getSize());
+            if (h2f_ptag) {
+                std::ostringstream h2f_hex;
+                h2f_hex << std::hex << req->getVaddr();
+                h2f->notePropEvt("tlb_fault", {
+                    {"fault_id", std::to_string(h2f_ptag)},
+                    {"dyn_inst_seq", std::to_string(req->getReqInstSeqNum())},
+                    {"request_id", std::to_string(req->getReqInstSeqNum())},
+                    {"va", h2f_hex.str()},
+                    {"outcome", h2_fault->name()},
+                    {"detection_layer", "Hardware"},
+                    {"contained", "1"},
+                });
+            }
+        }
+    }
 }
 
 Fault
