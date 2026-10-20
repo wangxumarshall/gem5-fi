@@ -63,3 +63,26 @@
 
 - [ ] **Step 6.1** 报告：提交 SHA、工作树、构建/测试、两个 smoke 的逐层链、矩阵前后对比、MODE-UNIMPL 进展、77 项清单、磁盘、GO/NO-GO。
 - [ ] **Step 6.2** 更新 memory；**不启动正式 campaign**。
+
+---
+
+## 进度节（第二轮实测）
+
+- [x] **Task 1/2 [CAMPAIGN+SMOKE]** `c27bb782`：campaign 每样本带
+      `--chaos_propagation --prop_run_id <RunID> --prop_sample_run_id s<seed>`（SE+FS 两支）；
+      `resolve_g5()` 遵 `LSU_GEM5_BIN`→repo-root，皆缺则 SystemExit；测试
+      `tests/test_lsu_campaign_propagation.py`（RED 已证）。**正式入口 smoke**：
+      A01-F0-W3（6 事件，run_id/sample_run_id 在案，exit 134 流 truncated=True 属崩溃可存活设计）、
+      P01-F0-W8（630 事件，链 full/L5，注入日志非空）——证据 `campaign_smoke_report.md`。
+- [x] **Task 3 [EVIDENCE]** `fa790700`：定向 pilot 取到 **sq_writeback/sq_complete**
+      （S04/S05-F0-W5），Store Queue **4/7→6/7**；**sq_execute 未观测**（疑注册/执行时序，待查）；
+      **mshr_alloc 未观测**（机理实证：CHAOSCache 注入的是已 valid 的行，该行不会 miss；
+      需"驱逐后再取回"）；另纠正 first_clock 单位是**周期**的误解。矩阵计数不变（101/98/126），
+      PARTIAL 不因"多数节点已证"升级。证据 `targeted_pilot_sq_mshr.md`。
+- [x] **Task 5 [BLOCKERS]** `6c7ea461`：77 项外部阻塞单独成 `blockers_for_approval.md`
+      （RULING 6 / LICENSE 12 / FS-MULTICORE 35 / FS-INFRA 24，每类给机理+解除条件+建议+备选口径）。
+- [ ] **Task 4 [MODE-UNIMPL] 未完成**：49 项全部仍 BLOCKED。实测确认 9 个模型
+      （C11/C12/C14/C15/S10/P06/L04/A07/T08）既不在 `MODEL_FLAGS`、`lsu_proxy` 也无对应模式
+      flag，属**真未实现**；已产出范围界定与实施顺序 `mode_unimpl_plan.md`（C11→C12→L04→P06→C14/C15→S10/A07/T08）。
+      **本次会话未实现其中任何一项**——不得视为完成。
+- [ ] **Task 6 收口报告**：见会话回复。
