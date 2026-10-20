@@ -723,10 +723,47 @@ LSQUnit::executeStore(const DynInstPtr &store_inst)
 
     assert(!store_inst->isSquashed());
 
-    // [MDSPEC][H3] unified sq_execute event (spec sheet 9: SQ lifecycle —
-    // the store executes in the SQ; L3). Correlated by dyn-seq; va from
-    // the addr registry entry. nullptr tracer / no chain = no event.
-    // state_before/after: SQ entry state at execute time.
+    // Check the recently completed loads to see if any match this store's
+    // address.  If so, then we have a memory ordering violation.
+    typename LoadQueue::iterator loadIt = store_inst->lqIt;
+
+    Fault store_fault = store_inst->initiateAcc();
+
+    // [MDSPEC][H3/R4-2] unified sq_execute event (spec sheet 9: SQ
+    // lifecycle — the store executes in the SQ; L3). Correlated by
+    // dyn-seq (correlateRequestBySeq); va from the addr registry entry;
+    // sq_idx from DynInst::sqIdx — the R4-1 keys. nullptr tracer / no
+    // chain = no event.
+    //
+    // [R4-2 root cause, measured 2026-10-20] this hook USED to sit at the
+    // top of executeStore, BEFORE initiateAcc(), and could never see a
+    // chain opened for THIS store: the store-side AGU-pre family
+    // (S04-S07/S11/S13) registers its chain inside
+    // initiateAcc -> DynInst::writeMem -> LSQ::pushRequest (PRE hook) —
+    // i.e. AFTER the old hook position but within the SAME executeStore
+    // call. Measured (S04-F0-W5 s1, binary 14a1c7fe3418a3d8,
+    // --debug-flags=LSQUnit): "Executing store [sn:3998]" at tick
+    // 5920530, the pushRequest_PRE injection (0x4903e8 -> 0x490250,
+    // isStore=1) at the SAME tick, then "Doing write to store idx 338,
+    // addr 0x75250" with the already-substituted address; the store's
+    // sq_writeback (5929385) / sq_complete (5930155) correlated, but the
+    // pre-hook lookup at the top returned 0. Placing the hook BELOW
+    // initiateAcc lets a store polluted at pushRequest join its own chain
+    // at execute time.
+    //
+    // Honest boundary (measured, S01-F0-W5 s2): a store->load FORWARD
+    // fault (lsqfwd S01/S02/S03/S08/S09) corrupts the LOAD's forwarded
+    // data during the load's read(); the producing store executed BEFORE
+    // the forward (sn 9901 executed at tick 12631465; corrupt + forward
+    // at tick 12631850; "Executing store [sn:9904]" count = 0 — the
+    // victim is a load and never reaches executeStore), so the producer's
+    // seq registration postdates its executeStore — sq_execute
+    // legitimately STAYS ABSENT for that carrier (emitting it would
+    // back-date the chain before its inj root). A deferred-translation
+    // re-issue (IEW deferMemInst path) re-enters executeStore and emits
+    // one event per actual execute pass (SE campaign stores execute once
+    // — verified in the same traces: exactly one "Executing store" line
+    // per sn).
     if (cpu->chaosPropagation) {
         Addr h3_base = 0;
         const char *h3_corr = nullptr;   // [R4-1-review-I1]
@@ -746,13 +783,6 @@ LSQUnit::executeStore(const DynInstPtr &store_inst)
             });
         }
     }
-
-
-    // Check the recently completed loads to see if any match this store's
-    // address.  If so, then we have a memory ordering violation.
-    typename LoadQueue::iterator loadIt = store_inst->lqIt;
-
-    Fault store_fault = store_inst->initiateAcc();
 
     if (store_inst->isTranslationDelayed() &&
         store_fault == NoFault)

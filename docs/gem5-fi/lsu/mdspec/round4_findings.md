@@ -294,3 +294,144 @@ S02-F0-W5: phase=trial n_runs=3 activated=3 sdc=0 stop=seed-cap(3) cons=OK
   所指的 silent early bias。
 - 链路：6 样本全部 `provable_to=L3`（terminal provable_to_L3_then_unknown，
   L3→L4 断链仍是上一轮诚实清单第 1 条，未变）。
+
+## R4-2（2026-10-20）：`sq_execute` 根因定论 + 修复 + 真实观测，Store Queue 7/7
+
+> 基线 `2de6c332`（binary `14a1c7fe3418a3d8`），修复重建后 binary
+> `cb58c9ed01ed7eb7`（sha256 前缀）。改动仅
+> `CHAOS/gem5/src/cpu/o3/lsq_unit.cc::executeStore` 钩子位置。
+
+### 2.1 定论（真实 `--debug-flags=LSQUnit` 输出，非猜测）
+
+两个假设**按载体分属**，均有实测输出：
+
+**(b) 对 S01/S02（lsqfwd 转发污染载体）成立——被注入指令是 load。**
+定向运行（与 campaign 解析出的 flags 一致 + debug）：
+
+```bash
+CHAOS/gem5/build/ARM/gem5.opt --outdir /tmp/r4t2_s01_pre --debug-flags=LSQUnit \
+  --debug-file=lsqunit.log configs/se/lsu_proxy.py \
+  --cmd workloads/directed/sq_forward --cpu O3 --chaos_lsqfwd \
+  --lsqfwd_lsu_tier F0 --lsqfwd_warmup_events 1 --lsqfwd_span_events 7 \
+  --lsq_struct_mode byte_flip --rng_seed 2 \
+  --chaos_propagation --prop_run_id S01-F0-W5 --prop_sample_run_id s2
+```
+
+注入日志（`lsq_fwd_injections.log`）：`Cycle: 32810, Site: store->load_forward,
+..., Vaddr: 0x48fb70, ..., StoreSeq: 9901, SqIdx: 793, LoadSeq: 9904, LqIdx: 587`
+（Cycle×385=tick 12631850）。debug 追踪（`/tmp/r4t2_s01_pre/lsqunit.log`）：
+
+```
+12631465: Executing store PC (0x444470=>0x444474) [sn:9901]   ← 生产 store 先执行（比注入早 385 tick）
+12631850: Executing load PC (0x4448a4=>0x4448a8) [sn:9904]    ← 受害指令是 load
+12631850: Read called, load idx: 586, store idx: 794, storeHead: 792 addr: 0x74b70
+12631850: CHAOSLSQFwd: corrupted forwarded byte 0 (vaddr=0x48fb70 mask=0x80 type=bit_flip)
+12631850: Forwarding from store idx 793 to load to addr 0x48fb70
+$ grep -c "Executing store.*sn:9904]" /tmp/r4t2_s01_pre/lsqunit.log
+0                                                              ← 受害 load 永不进入 executeStore
+```
+
+即：`corrupt()` 污染的是 **load 的 memData**（lsq_unit.cc:1687，
+`cpu->lsqFwd->corrupt(load_inst->memData, ...)`）；生产 store 的 executeStore
+（tick 12631465）**早于**注入（12631850）——其 seq 注册发生在它执行之后。
+**任何钩子位置都无法为该载体诚实地发射 sq_execute**（发射即把事件回溯到
+inj 根之前）。按任务预案的裁决路径：SQ 执行期观测的载体是 store 侧模型。
+
+**(a) 对 S04–S07/S11/S13（agu_pre store 侧载体）成立——但精确形态是
+"同一 executeStore 调用内钩子在注册之前"，不是 dispatch-vs-issue。**
+定向运行（S04-F0-W5 s1，同上形式 + `--chaos_addrpath --addrpath_lsu_tier F0
+--addrpath_warmup_events 0 --addrpath_span_events 1000 --agu_pre_mode
+s04_store_subst --addrpath_rng_seed 1`）。注入日志：
+`Tick: 5920530, Site: lsq_pushRequest_PRE, mode=s04_store_subst,
+old_addr=0x4903e8, new_addr=0x490250, ..., isLoad=0, isStore=1`；
+PROP-EVT `inj` 事件 `dyn_inst_seq=3998 tick=5920530`。debug 追踪：
+
+```
+5918990: Inserting store PC (0x402b18=>0x402b1c) idx:338 [sn:3998]  ← dispatch（另一拍）
+5920530: Executing store PC (0x402b18=>0x402b1c) [sn:3998]          ← executeStore 开始（旧钩子在此，查不到注册）
+5920530: Doing write to store idx 338, addr 0x75250 [sn:3998]       ← initiateAcc→writeMem→pushRequest 已注入并注册（0x75250=被替换地址 0x490250 的 paddr）
+5929385: D-Cache: Writing back store idx:339 ... [sn:3998]          ← sq_writeback 可关联（已注册）
+5930155: Completing store [sn:3998]                                 ← sq_complete 可关联
+```
+
+注册点 `registerInjection("lsq_pushRequest_PRE", inst->seqNum, ...)` 在
+`LSQ::pushRequest`（lsq.cc:793），经 `DynInst::writeMem → cpu->pushRequest`
+（dyn_inst.cc:449）被**同一个 executeStore 调用里的 `initiateAcc()`**（原
+lsq_unit.cc:755）同步调到——旧钩子（原 :726，函数顶部）在其**之前**执行，
+故 `correlateRequestBySeq(3998)` 返回 0、不发事件；而 sq_writeback/
+sq_complete 在注册之后发生，正常落流。这正是第三轮 G3 观察到的不对称。
+
+### 2.2 修复
+
+`lsq_unit.cc::executeStore`：sq_execute 钩子从函数顶部**移到
+`initiateAcc()` 之后**（翻译延迟早退之前）。键不变（R4-1 的
+seq/sq_idx：`correlateRequestBySeq(store_inst->seqNum)` +
+`DynInst::sqIdx`）；字段契约不变（fault_id/corr/dyn_inst_seq/sq_idx/va/
+state_before，`tools/lsu_prop_fields.py` REQUIRED_FIELDS 未动）。
+被污染 store（S04 载体，pushRequest 处污染自身地址）由此在执行时刻
+按 seq 入链；S01/S02 的生产 store 执行早于注入，sq_execute **诚实保持
+缺席**（不回溯造假）。翻译延迟重进（FS PTW 路径）按实际执行遍数发射
+（SE 载体实测每 store 恰好一次 "Executing store" 行）。
+
+修复后同一定向运行（binary `cb58c9ed01ed7eb7`，`/tmp/r4t2_s04_post/`），
+sq_execute 出现且链完整：
+
+```
+PROP-EVT: kind=sq_execute run_id=S04-F0-W5 sample_run_id=s1 fault_id=1 event_id=7
+  parent_event_id=6 tick=5920530 cycle=15378 dyn_inst_seq=3998 sq_idx=339
+  va=490250 state_before=issued ... corr=seq_primary
+```
+
+链：inj(1)→addr_form(2)→lsq_push(3)→mem_req(4)→lsq_sendfrag(5)→
+tlb_translate(6)→**sq_execute(7)**→sq_writeback(8)→resp(9)→sq_complete(10)，
+全链 `dyn_inst_seq=3998`，`sq_idx=339` 与 lsq_push/sq_writeback/sq_complete
+同源一致。
+
+### 2.3 真机证据（正式 campaign 入口）
+
+```bash
+LSU_GEM5_BIN=$PWD/CHAOS/gem5/build/ARM/gem5.opt python3 tools/lsu_campaign.py \
+  --matrix artifacts/lsu-trial/07-expanded-matrix-backfilled.csv \
+  --outdir runs/lsu/r4_t2_sqexec --cells S04-F0-W5 \
+  --phase trial --max-seeds-per-cell 3 --max-parallel 1
+```
+
+```
+  S04-F0-W5: phase=trial n_runs=3 activated=3 sdc=0 stop=seed-cap(3) cons=OK
+```
+
+逐 seed（`runs/lsu/r4_t2_sqexec/S04-F0-W5/`）：
+
+| seed | oracle | 流 | Store Queue 单元节点（7 项） |
+|---|---|---|---|
+| s1 | Crash（被替换地址触发 guest 页表 fault，exit=-6） | 截断前缀 10 事件 | inj/lsq_push/lsq_sendfrag/**sq_execute**/sq_writeback/sq_complete（无 chain_end——Crash 截断，C1 路径保留前缀） |
+| s2 | Masked | 完整 11 事件 | **7/7**（含 chain_end） |
+| s3 | Masked | 完整 11 事件 | **7/7**（含 chain_end） |
+
+s2 的 sq_execute：`dyn_inst_seq=4015 sq_idx=344 va=490a80 corr=seq_primary
+tick=5942475`；s3：`dyn_inst_seq=8579 sq_idx=723 va=4976a0 corr=seq_primary`。
+三 seed 链终点均 `provable_to=L3`（`chain_report.json`：
+`terminal=provable_to_L3_then_unknown`）。触发漏斗（run.out）：
+`attempted=2582 eligible=1307 injected=1`（s1 同型）。
+
+**不受影响族回归**（同入口，S01-F0-W5 3 seed，`runs/lsu/r4_t2_s01_regr/`）：
+`activated=3 sdc=0 stop=seed-cap(3) cons=OK`，三 seed 链型与 R4-1-fix 完全
+一致（lsq_fwd→sq_writeback→sq_complete + 5 个 addr_fallback 下游 load +
+chain_end），且**无 sq_execute**（诚实缺席，符合 2.1(b) 的定论）；seed2
+的 EARLY_BIAS 告警与 §R4-1-fix I2 记录同型（已裁决为故障延长）。
+
+### 2.4 诚实登记
+
+- **addrpath F0 span 未测量（Task-1 parked 项，本轮如实再现）**：S04
+  seed2/seed3 出现 `EARLY_BIAS ... eligible=1307 span=1000` 告警——
+  span=1000 < 实测 eligible 流 1307，属 R4-1-review-I2 已 park 的
+  "addrpath/prefetch F0 span 不在 lsqfwd 表内"的既有偏置检测，本轮未修
+  （修它=给 LSQFWD_F0_SPAN 之外建 addrpath 表，超出本任务单元）。
+- **S01/S02（转发污染载体）sq_execute 结构性缺席**：见 2.1(b)。这不是
+  缺陷而是因果事实——受害指令是 load，生产 store 的执行先于故障存在。
+  SQ 执行期观测由 store 侧载体（S04–S07/S11/S13）承担。
+- `lsq_fwd` 事件 `parent_event_id=0`（根事件显式 0 而非空串）——修复前
+  后逐字节一致（/tmp/r4t2_s01_pre vs /tmp/r4t2_s01_post），R4-1 既有发射
+  行为，本轮未动，登记备查。
+- 本轮 3+3 样本为证据性 pilot，**非正式 campaign**。
+
