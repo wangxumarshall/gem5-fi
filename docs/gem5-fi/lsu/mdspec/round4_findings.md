@@ -435,3 +435,110 @@ chain_end），且**无 sq_execute**（诚实缺席，符合 2.1(b) 的定论）
   行为，本轮未动，登记备查。
 - 本轮 3+3 样本为证据性 pilot，**非正式 campaign**。
 
+
+## R4-3（2026-10-21）：mshr_alloc 双根因定论 + 钩子修复 + 可重复 evict→refill 载体，L1d-Cache 11/11
+
+> 基线 `15fa094b`（binary `cb58c9ed01ed7eb7`），修复重建后 binary
+> `2462dc0fcf1d3d96`（sha256 前缀）。改动两件：`base.cc` mshr_alloc 钩子
+> 卫条件修复 + 新定向负载 `workloads/directed/cache_mshr_refetch.c`。
+
+### 3.1 根因定论（真实 `--debug-flags=Cache` 输出 + gem5 命令表，非猜测）
+
+此前结论（§3 旧文）：注入行必须"先驱逐再取回"（evict→refill）才可能观测
+mshr_alloc。**R4-3 实测证明这是必要不充分条件**——构造出可重复载体后
+merge/fill/free 全落流、alloc 仍缺席。定向 debug 运行（载体 s1 复跑 +
+`--debug-flags=Cache`，`/tmp/r4t3_dbg/cache.log`）：
+
+```
+47051620: l1d-cache-0: access for ReadReq [76e00:76e07] miss
+47052390: l1d-cache-0: sendMSHRQueuePacket: MSHR ReadReq [76e00:76e07]
+47052775: l1d-cache-0: handleTimingReqMiss coalescing MSHR for ReadReq [76e08:76e0f]
+47057780: l1d-cache-0: recvTimingResp: Handling response ReadResp [76e00:76e3f]
+```
+
+miss→MSHR→coalesce→fill 全链真实发生在故障行 0x76e00 上，地址关联命中
+（同 tick 的 merge/fill/free 事件都在流里），唯独 alloc 缺席。根因：
+`base.cc::handleTimingReqMiss` 的 alloc 钩子卫条件 `pkt->hasData()`。
+gem5 的 **request 包不带 payload**：`ReadReq` 属性 `{IsRead, IsRequest,
+NeedsResponse}`（`packet.cc` 命令表），无 HasData；只有 response 和
+`WriteReq`（`{IsWrite, NeedsWritable, IsRequest, NeedsResponse, HasData}`）
+带。该卫条件**结构性丢弃一切 demand-read miss**——"miss→MSHR allocate"
+（规格表 9 C 链 L2）的规范场景。同一根因解释 P01（预取链）只见
+merge/fill/free 从未见 alloc：SoftPFReq/HardPFReq 亦无 HasData。
+
+### 3.2 修复
+
+`base.cc` mshr_alloc 钩子：`if (h4a && pkt && pkt->hasData())` →
+`if (h4a && pkt)`。到达该处的包必是分配 MSHR 的 miss（eviction/WriteClean
+此前已分流 writebuffer），读/写/预取一视同仁；correlateBlock/corr 标注/
+字段契约（fault_id, corr, cache_line, mshr_id）全部未动，
+`lsu_prop_fields.py` 未动。构建：`scons -j126` exit 0、
+`done building targets`、error/warning 计数 0（base.cc 单文件重编）。
+
+### 3.3 载体：cache_mshr_refetch.c（可重复 evict→refill）
+
+- 48KiB 连续 region = L1D（32KiB/2-way/64B，256 组）每组恰好 3 行 →
+  顺序全扫时**每行每轮必然 miss**（2-way LRU）；每轮另做 noinline
+  volatile 栈帧读写（栈行同样每轮驱逐→重取）；region 外启动杂项行在
+  round 0 后不可再被抽中。单轮 ≈28K cycle ≈10.8M tick < 20M tick
+  注册窗 → 注入后 ≤1 轮内该行必再 miss。
+- 值只进 checksum（绝不当地址）→ 不 crash，链到 chain_end。
+
+### 3.4 真机证据（定向载体 ×6 seed + campaign 入口 ×2 cell）
+
+载体（C09 data_shift flags + `--chaos_propagation`，first_clock=40000）：
+**6/6 seed 全部观测 mshr_alloc，alloc 的 cache_line 与注入行逐一相同**
+（s1:76e00/s2:78180/s3:7ed40/s4:7e300/s5:77780/s6:79500；每 seed
+alloc=2 merge=13-14 fill=2 free=2——恰好 2 轮落在 20M tick 注册窗内，
+第 3 轮起注册过期事件停发）。s1 完整 ID 链：
+
+```
+inj(76e00@40000000) → cache_evict+cache_writeback(76e00@43823780) →
+mshr_alloc(76e00, mshr_id=1 @47051620) → mshr_merge×3(76e08/e10/e18,
+mshr_id=1) → mshr_fill(76e00, mshr_id=1, fill_id=1 @47057780) →
+cache_fill(pa=76e00, fill_id=1) → mshr_free(76e00, mshr_id=1 @47057780)
+```
+
+`lsu_chain_check.py`：**L0→L1→L2→L3→L4→L5 全 proven，terminal=full**
+（cache 家族首个满深链）。故障行驱逐时为脏（warm-up 写脏；fill 后 L1D
+持 M/dirty 态），writeback 把损坏数据带回 L2、refill 取回损坏数据 →
+6/6 checksum 偏离 golden 682fe66c2cbbec4b（SDC）——**故障数据经 MSHR
+refill 真实传播**，非仅地址巧合。
+
+**归因口径**：alloc 的 miss 地址==故障行 → 分配的 MSHR 就是**故障行自己的
+MSHR**（mshr_id 1/2 与 merge/fill/free 同 ID 闭环）；关联方式为地址
+（blk registry，corr=addr_fallback——cache 故障无 seq 主键，R4-1 契约的
+显式 fallback 臂）。少量 merge 来自相邻行 load（64B 关联窗口与注册区间
+重叠，mshr_id=0=查无此行）——correlateBlock 块窗口既有语义，corr 标注
+如实区分，不计入归因。
+
+campaign 入口诚实对照：
+- **C09-F0-W6**（W6=cache_dirtyevict，家族 first_clock=1000，3 seed，
+  `runs/lsu/r4_t3_c09w6/`）：`activated=6 sdc=0 stop=seed-cap(3) cons=OK`，
+  三 seed prop_evt **均无 mshr_\* 事件**——W6 单遍相位结构对故障行的重取
+  在 phase 4，超出 20M tick 注册窗；cell 语义不变、如实保留。
+- **S04-F0-W5 不受影响族回归**（3 seed，`runs/lsu/r4_t3_s04_regr/`）：
+  `activated=3`，三 seed 事件流与 R4-2 记录（`runs/lsu/r4_t2_sqexec/`）
+  **逐 kind 且 seed2 逐字节一致**——base.cc 卫条件移除对无关联 miss 的
+  链零影响（钩子只在 correlateBlock 命中时发射）。seed2/3 的 EARLY_BIAS
+  告警与 R4-2 §2.4 记录同型（addrpath span parked 项，未变）。
+
+### 3.5 覆盖矩阵
+
+`pilot_evidence.json` 重生成（20 pilot：原 13 项全保留、S04-F0-W5 重指向
+R4-2 sqexec 运行、新增 C09-F0-W6 与载体 ×6）；`coverage_matrix.md` 重生成：
+**PASS=199 / PARTIAL=0 / BLOCKED=126**（前值 101/98/126）——199 个非阻塞
+cell 全部节点均有真实运行证据（L1d-Cache 11/11 补 mshr_alloc、Store Queue
+7/7 补 sq_execute）；126 BLOCKED 均为外部阻塞（FS/multicore/SPEC）。
+`atomic_op` 仍诚实未观测（O 系全 BLOCKED=multicore-FS，载体不可用）。
+
+### 3.6 诚实登记
+
+- 载体 6 样本 + campaign 2 cell 均为证据性 pilot，**非正式 campaign**。
+- 载体的 `--l1d_first_clock 40000` 是定向运行参数（campaign 家族默认 1000
+  不变）；该值经实测校准（warm-up+round0 完成于 ~85K cycle 前，
+  40e6 tick=104K cycle 落在 round 3 附近）。
+- 相邻行 merge（mshr_id=0）是 correlateBlock 块窗口语义的既有行为，
+  修复前后一致（修复前 merge 已如此发射），本轮未改关联语义。
+- `mshr_alloc` 修复后亦会为**软件预取 miss** 发射（此前同被 hasData 屏蔽；
+  SoftPFReq 分配 MSHR 是事实行为）——本轮未在预取载体上复测，登记备查。

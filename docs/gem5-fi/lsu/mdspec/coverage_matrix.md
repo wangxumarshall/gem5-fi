@@ -1,9 +1,9 @@
 # Markdown→实现覆盖矩阵（MDSPEC Phase B，**节点级证据化**）
 
 - 总数：325（RunID 唯一，表7∩表9 集合相等——B1 已证）
-- **PASS=101 / PARTIAL=98 / BLOCKED=126**
+- **PASS=199 / PARTIAL=0 / BLOCKED=126**
 - 判定口径（2026-10-20 证据化）：PASS = 该单元规格所需**全部节点**既已实现（kind ∈ 发射端注册表）**又**在真实 pilot 运行中出现；缺任一节点 = PARTIAL 并逐项列出。注册表布尔值**不再**作为判据。
-- 真实运行观测到的 kind（32）：addr_form, cache_access, cache_evict, cache_fill, cache_return, cache_writeback, chain_end, consumer, errant_commit, exmon_monitor, exmon_rmw, exmon_stxr, inj, lq_complete, lq_read, lsq_push, lsq_sendfrag, mem_req, mshr_fill, mshr_free, mshr_merge, pf_demand, pf_fill, pf_issue, pf_queue, pf_train, resp, sq_complete, sq_writeback, taint_reg, tlb_fault, tlb_translate
+- 真实运行观测到的 kind（34）：addr_form, cache_access, cache_evict, cache_fill, cache_return, cache_writeback, chain_end, consumer, errant_commit, exmon_monitor, exmon_rmw, exmon_stxr, inj, lq_complete, lq_read, lsq_push, lsq_sendfrag, mem_req, mshr_alloc, mshr_fill, mshr_free, mshr_merge, pf_demand, pf_fill, pf_issue, pf_queue, pf_train, resp, sq_complete, sq_execute, sq_writeback, taint_reg, tlb_fault, tlb_translate
 
 | RunID | 模型 | 单元 | 频率 | 状态 | 原因 |
 |---|---|---|---|---|---|
@@ -76,105 +76,105 @@
 | T08-F4-W9 | T08 | L1d-TLB | F4 | BLOCKED | campaign:deferred(mode unimplemented: walk pairing); spec:需新增（当前阻塞：walk/fill pairing未实现） |
 | T08-F6-W4 | T08 | L1d-TLB | F6 | BLOCKED | campaign:deferred(mode unimplemented: walk pairing); spec:需新增（当前阻塞：walk/fill pairing未实现）; workload:workload-level:blocked(fs-infra: TLB workload needs FS) |
 | T08-F6-W9 | T08 | L1d-TLB | F6 | BLOCKED | campaign:deferred(mode unimplemented: walk pairing); spec:需新增（当前阻塞：walk/fill pairing未实现） |
-| S01-F0-W1 | S01 | Store Queue | F0 | PARTIAL | unobserved_nodes:sq_execute |
-| S01-F0-W5 | S01 | Store Queue | F0 | PARTIAL | unobserved_nodes:sq_execute |
-| S01-F1-W1 | S01 | Store Queue | F1 | PARTIAL | unobserved_nodes:sq_execute |
-| S01-F1-W5 | S01 | Store Queue | F1 | PARTIAL | unobserved_nodes:sq_execute |
-| S01-F2-W1 | S01 | Store Queue | F2 | PARTIAL | unobserved_nodes:sq_execute |
-| S01-F2-W5 | S01 | Store Queue | F2 | PARTIAL | unobserved_nodes:sq_execute |
-| S02-F0-W5 | S02 | Store Queue | F0 | PARTIAL | unobserved_nodes:sq_execute |
-| S02-F0-W1 | S02 | Store Queue | F0 | PARTIAL | unobserved_nodes:sq_execute |
-| S02-F2-W5 | S02 | Store Queue | F2 | PARTIAL | unobserved_nodes:sq_execute |
-| S02-F2-W1 | S02 | Store Queue | F2 | PARTIAL | unobserved_nodes:sq_execute |
-| S03-F5-W5 | S03 | Store Queue | F5 | PARTIAL | unobserved_nodes:sq_execute |
-| S03-F5-W10 | S03 | Store Queue | F5 | PARTIAL | unobserved_nodes:sq_execute |
-| S04-F0-W5 | S04 | Store Queue | F0 | PARTIAL | unobserved_nodes:sq_execute |
-| S04-F0-W0 | S04 | Store Queue | F0 | PARTIAL | unobserved_nodes:sq_execute |
-| S04-F2-W5 | S04 | Store Queue | F2 | PARTIAL | unobserved_nodes:sq_execute |
-| S04-F2-W0 | S04 | Store Queue | F2 | PARTIAL | unobserved_nodes:sq_execute |
-| S04-F6-W5 | S04 | Store Queue | F6 | PARTIAL | unobserved_nodes:sq_execute |
-| S04-F6-W0 | S04 | Store Queue | F6 | PARTIAL | unobserved_nodes:sq_execute |
-| S05-F0-W5 | S05 | Store Queue | F0 | PARTIAL | unobserved_nodes:sq_execute |
-| S05-F0-W3 | S05 | Store Queue | F0 | PARTIAL | unobserved_nodes:sq_execute |
-| S05-F2-W5 | S05 | Store Queue | F2 | PARTIAL | unobserved_nodes:sq_execute |
-| S05-F2-W3 | S05 | Store Queue | F2 | PARTIAL | unobserved_nodes:sq_execute |
-| S05-F6-W5 | S05 | Store Queue | F6 | PARTIAL | unobserved_nodes:sq_execute |
-| S05-F6-W3 | S05 | Store Queue | F6 | PARTIAL | unobserved_nodes:sq_execute |
-| S06-F0-W5 | S06 | Store Queue | F0 | PARTIAL | unobserved_nodes:sq_execute |
-| S06-F0-W6 | S06 | Store Queue | F0 | PARTIAL | unobserved_nodes:sq_execute |
-| S06-F2-W5 | S06 | Store Queue | F2 | PARTIAL | unobserved_nodes:sq_execute |
-| S06-F2-W6 | S06 | Store Queue | F2 | PARTIAL | unobserved_nodes:sq_execute |
-| S06-F6-W5 | S06 | Store Queue | F6 | PARTIAL | unobserved_nodes:sq_execute |
-| S06-F6-W6 | S06 | Store Queue | F6 | PARTIAL | unobserved_nodes:sq_execute |
-| S07-F0-W5 | S07 | Store Queue | F0 | PARTIAL | unobserved_nodes:sq_execute |
-| S07-F4-W5 | S07 | Store Queue | F4 | PARTIAL | unobserved_nodes:sq_execute |
-| S07-F6-W5 | S07 | Store Queue | F6 | PARTIAL | unobserved_nodes:sq_execute |
-| S08-F0-W5 | S08 | Store Queue | F0 | PARTIAL | unobserved_nodes:sq_execute |
-| S08-F2-W5 | S08 | Store Queue | F2 | PARTIAL | unobserved_nodes:sq_execute |
-| S08-F6-W5 | S08 | Store Queue | F6 | PARTIAL | unobserved_nodes:sq_execute |
-| S09-F0-W5 | S09 | Store Queue | F0 | PARTIAL | unobserved_nodes:sq_execute |
-| S09-F2-W5 | S09 | Store Queue | F2 | PARTIAL | unobserved_nodes:sq_execute |
-| S09-F6-W5 | S09 | Store Queue | F6 | PARTIAL | unobserved_nodes:sq_execute |
+| S01-F0-W1 | S01 | Store Queue | F0 | PASS |  |
+| S01-F0-W5 | S01 | Store Queue | F0 | PASS |  |
+| S01-F1-W1 | S01 | Store Queue | F1 | PASS |  |
+| S01-F1-W5 | S01 | Store Queue | F1 | PASS |  |
+| S01-F2-W1 | S01 | Store Queue | F2 | PASS |  |
+| S01-F2-W5 | S01 | Store Queue | F2 | PASS |  |
+| S02-F0-W5 | S02 | Store Queue | F0 | PASS |  |
+| S02-F0-W1 | S02 | Store Queue | F0 | PASS |  |
+| S02-F2-W5 | S02 | Store Queue | F2 | PASS |  |
+| S02-F2-W1 | S02 | Store Queue | F2 | PASS |  |
+| S03-F5-W5 | S03 | Store Queue | F5 | PASS |  |
+| S03-F5-W10 | S03 | Store Queue | F5 | PASS |  |
+| S04-F0-W5 | S04 | Store Queue | F0 | PASS |  |
+| S04-F0-W0 | S04 | Store Queue | F0 | PASS |  |
+| S04-F2-W5 | S04 | Store Queue | F2 | PASS |  |
+| S04-F2-W0 | S04 | Store Queue | F2 | PASS |  |
+| S04-F6-W5 | S04 | Store Queue | F6 | PASS |  |
+| S04-F6-W0 | S04 | Store Queue | F6 | PASS |  |
+| S05-F0-W5 | S05 | Store Queue | F0 | PASS |  |
+| S05-F0-W3 | S05 | Store Queue | F0 | PASS |  |
+| S05-F2-W5 | S05 | Store Queue | F2 | PASS |  |
+| S05-F2-W3 | S05 | Store Queue | F2 | PASS |  |
+| S05-F6-W5 | S05 | Store Queue | F6 | PASS |  |
+| S05-F6-W3 | S05 | Store Queue | F6 | PASS |  |
+| S06-F0-W5 | S06 | Store Queue | F0 | PASS |  |
+| S06-F0-W6 | S06 | Store Queue | F0 | PASS |  |
+| S06-F2-W5 | S06 | Store Queue | F2 | PASS |  |
+| S06-F2-W6 | S06 | Store Queue | F2 | PASS |  |
+| S06-F6-W5 | S06 | Store Queue | F6 | PASS |  |
+| S06-F6-W6 | S06 | Store Queue | F6 | PASS |  |
+| S07-F0-W5 | S07 | Store Queue | F0 | PASS |  |
+| S07-F4-W5 | S07 | Store Queue | F4 | PASS |  |
+| S07-F6-W5 | S07 | Store Queue | F6 | PASS |  |
+| S08-F0-W5 | S08 | Store Queue | F0 | PASS |  |
+| S08-F2-W5 | S08 | Store Queue | F2 | PASS |  |
+| S08-F6-W5 | S08 | Store Queue | F6 | PASS |  |
+| S09-F0-W5 | S09 | Store Queue | F0 | PASS |  |
+| S09-F2-W5 | S09 | Store Queue | F2 | PASS |  |
+| S09-F6-W5 | S09 | Store Queue | F6 | PASS |  |
 | S10-F0-W5 | S10 | Store Queue | F0 | BLOCKED | campaign:deferred(consumer-side: StoreSet SSID corruption event source only); spec:需新增（当前阻塞：只有StoreSet事件源，无consumer-side字段注入） |
 | S10-F0-W9 | S10 | Store Queue | F0 | BLOCKED | campaign:deferred(consumer-side: StoreSet SSID corruption event source only); spec:需新增（当前阻塞：只有StoreSet事件源，无consumer-side字段注入） |
 | S10-F2-W5 | S10 | Store Queue | F2 | BLOCKED | campaign:deferred(consumer-side: StoreSet SSID corruption event source only); spec:需新增（当前阻塞：只有StoreSet事件源，无consumer-side字段注入） |
 | S10-F2-W9 | S10 | Store Queue | F2 | BLOCKED | campaign:deferred(consumer-side: StoreSet SSID corruption event source only); spec:需新增（当前阻塞：只有StoreSet事件源，无consumer-side字段注入） |
 | S10-F5-W5 | S10 | Store Queue | F5 | BLOCKED | campaign:deferred(consumer-side: StoreSet SSID corruption event source only); spec:需新增（当前阻塞：只有StoreSet事件源，无consumer-side字段注入） |
 | S10-F5-W9 | S10 | Store Queue | F5 | BLOCKED | campaign:deferred(consumer-side: StoreSet SSID corruption event source only); spec:需新增（当前阻塞：只有StoreSet事件源，无consumer-side字段注入） |
-| S11-F0-W5 | S11 | Store Queue | F0 | PARTIAL | unobserved_nodes:sq_execute |
-| S11-F0-W6 | S11 | Store Queue | F0 | PARTIAL | unobserved_nodes:sq_execute |
-| S11-F4-W5 | S11 | Store Queue | F4 | PARTIAL | unobserved_nodes:sq_execute |
-| S11-F4-W6 | S11 | Store Queue | F4 | PARTIAL | unobserved_nodes:sq_execute |
-| S11-F6-W5 | S11 | Store Queue | F6 | PARTIAL | unobserved_nodes:sq_execute |
-| S11-F6-W6 | S11 | Store Queue | F6 | PARTIAL | unobserved_nodes:sq_execute |
-| C01-F0-W1 | C01 | L1d-Cache | F0 | PARTIAL | unobserved_nodes:mshr_alloc |
-| C01-F0-W6 | C01 | L1d-Cache | F0 | PARTIAL | unobserved_nodes:mshr_alloc |
-| C01-F1-W1 | C01 | L1d-Cache | F1 | PARTIAL | unobserved_nodes:mshr_alloc |
-| C01-F1-W6 | C01 | L1d-Cache | F1 | PARTIAL | unobserved_nodes:mshr_alloc |
-| C01-F2-W1 | C01 | L1d-Cache | F2 | PARTIAL | unobserved_nodes:mshr_alloc |
-| C01-F2-W6 | C01 | L1d-Cache | F2 | PARTIAL | unobserved_nodes:mshr_alloc |
-| C02-F0-W6 | C02 | L1d-Cache | F0 | PARTIAL | unobserved_nodes:mshr_alloc |
-| C02-F0-W1 | C02 | L1d-Cache | F0 | PARTIAL | unobserved_nodes:mshr_alloc |
-| C02-F2-W6 | C02 | L1d-Cache | F2 | PARTIAL | unobserved_nodes:mshr_alloc |
-| C02-F2-W1 | C02 | L1d-Cache | F2 | PARTIAL | unobserved_nodes:mshr_alloc |
-| C03-F5-W6 | C03 | L1d-Cache | F5 | PARTIAL | unobserved_nodes:mshr_alloc |
-| C03-F5-W10 | C03 | L1d-Cache | F5 | PARTIAL | unobserved_nodes:mshr_alloc |
-| C04-F0-W1 | C04 | L1d-Cache | F0 | PARTIAL | unobserved_nodes:mshr_alloc |
-| C04-F0-W6 | C04 | L1d-Cache | F0 | PARTIAL | unobserved_nodes:mshr_alloc |
-| C04-F1-W1 | C04 | L1d-Cache | F1 | PARTIAL | unobserved_nodes:mshr_alloc |
-| C04-F1-W6 | C04 | L1d-Cache | F1 | PARTIAL | unobserved_nodes:mshr_alloc |
-| C04-F2-W1 | C04 | L1d-Cache | F2 | PARTIAL | unobserved_nodes:mshr_alloc |
-| C04-F2-W6 | C04 | L1d-Cache | F2 | PARTIAL | unobserved_nodes:mshr_alloc |
-| C05-F0-W6 | C05 | L1d-Cache | F0 | PARTIAL | unobserved_nodes:mshr_alloc |
-| C05-F2-W6 | C05 | L1d-Cache | F2 | PARTIAL | unobserved_nodes:mshr_alloc |
-| C05-F6-W6 | C05 | L1d-Cache | F6 | PARTIAL | unobserved_nodes:mshr_alloc |
-| C06-F0-W6 | C06 | L1d-Cache | F0 | PARTIAL | unobserved_nodes:mshr_alloc |
-| C06-F2-W6 | C06 | L1d-Cache | F2 | PARTIAL | unobserved_nodes:mshr_alloc |
-| C06-F5-W6 | C06 | L1d-Cache | F5 | PARTIAL | unobserved_nodes:mshr_alloc |
-| C07-F0-W6 | C07 | L1d-Cache | F0 | PARTIAL | unobserved_nodes:mshr_alloc |
-| C07-F2-W6 | C07 | L1d-Cache | F2 | PARTIAL | unobserved_nodes:mshr_alloc |
-| C07-F5-W6 | C07 | L1d-Cache | F5 | PARTIAL | unobserved_nodes:mshr_alloc |
-| C07-F6-W6 | C07 | L1d-Cache | F6 | PARTIAL | unobserved_nodes:mshr_alloc |
-| C08-F0-W6 | C08 | L1d-Cache | F0 | PARTIAL | unobserved_nodes:mshr_alloc |
+| S11-F0-W5 | S11 | Store Queue | F0 | PASS |  |
+| S11-F0-W6 | S11 | Store Queue | F0 | PASS |  |
+| S11-F4-W5 | S11 | Store Queue | F4 | PASS |  |
+| S11-F4-W6 | S11 | Store Queue | F4 | PASS |  |
+| S11-F6-W5 | S11 | Store Queue | F6 | PASS |  |
+| S11-F6-W6 | S11 | Store Queue | F6 | PASS |  |
+| C01-F0-W1 | C01 | L1d-Cache | F0 | PASS |  |
+| C01-F0-W6 | C01 | L1d-Cache | F0 | PASS |  |
+| C01-F1-W1 | C01 | L1d-Cache | F1 | PASS |  |
+| C01-F1-W6 | C01 | L1d-Cache | F1 | PASS |  |
+| C01-F2-W1 | C01 | L1d-Cache | F2 | PASS |  |
+| C01-F2-W6 | C01 | L1d-Cache | F2 | PASS |  |
+| C02-F0-W6 | C02 | L1d-Cache | F0 | PASS |  |
+| C02-F0-W1 | C02 | L1d-Cache | F0 | PASS |  |
+| C02-F2-W6 | C02 | L1d-Cache | F2 | PASS |  |
+| C02-F2-W1 | C02 | L1d-Cache | F2 | PASS |  |
+| C03-F5-W6 | C03 | L1d-Cache | F5 | PASS |  |
+| C03-F5-W10 | C03 | L1d-Cache | F5 | PASS |  |
+| C04-F0-W1 | C04 | L1d-Cache | F0 | PASS |  |
+| C04-F0-W6 | C04 | L1d-Cache | F0 | PASS |  |
+| C04-F1-W1 | C04 | L1d-Cache | F1 | PASS |  |
+| C04-F1-W6 | C04 | L1d-Cache | F1 | PASS |  |
+| C04-F2-W1 | C04 | L1d-Cache | F2 | PASS |  |
+| C04-F2-W6 | C04 | L1d-Cache | F2 | PASS |  |
+| C05-F0-W6 | C05 | L1d-Cache | F0 | PASS |  |
+| C05-F2-W6 | C05 | L1d-Cache | F2 | PASS |  |
+| C05-F6-W6 | C05 | L1d-Cache | F6 | PASS |  |
+| C06-F0-W6 | C06 | L1d-Cache | F0 | PASS |  |
+| C06-F2-W6 | C06 | L1d-Cache | F2 | PASS |  |
+| C06-F5-W6 | C06 | L1d-Cache | F5 | PASS |  |
+| C07-F0-W6 | C07 | L1d-Cache | F0 | PASS |  |
+| C07-F2-W6 | C07 | L1d-Cache | F2 | PASS |  |
+| C07-F5-W6 | C07 | L1d-Cache | F5 | PASS |  |
+| C07-F6-W6 | C07 | L1d-Cache | F6 | PASS |  |
+| C08-F0-W6 | C08 | L1d-Cache | F0 | PASS |  |
 | C08-F0-W7 | C08 | L1d-Cache | F0 | BLOCKED | workload:workload-level:blocked(multicore-fs: litmus needs multi-core FS) |
-| C08-F2-W6 | C08 | L1d-Cache | F2 | PARTIAL | unobserved_nodes:mshr_alloc |
+| C08-F2-W6 | C08 | L1d-Cache | F2 | PASS |  |
 | C08-F2-W7 | C08 | L1d-Cache | F2 | BLOCKED | workload:workload-level:blocked(multicore-fs: litmus needs multi-core FS) |
-| C08-F5-W6 | C08 | L1d-Cache | F5 | PARTIAL | unobserved_nodes:mshr_alloc |
+| C08-F5-W6 | C08 | L1d-Cache | F5 | PASS |  |
 | C08-F5-W7 | C08 | L1d-Cache | F5 | BLOCKED | workload:workload-level:blocked(multicore-fs: litmus needs multi-core FS) |
-| C08-F6-W6 | C08 | L1d-Cache | F6 | PARTIAL | unobserved_nodes:mshr_alloc |
+| C08-F6-W6 | C08 | L1d-Cache | F6 | PASS |  |
 | C08-F6-W7 | C08 | L1d-Cache | F6 | BLOCKED | workload:workload-level:blocked(multicore-fs: litmus needs multi-core FS) |
-| C09-F0-W6 | C09 | L1d-Cache | F0 | PARTIAL | unobserved_nodes:mshr_alloc |
-| C09-F0-W10 | C09 | L1d-Cache | F0 | PARTIAL | unobserved_nodes:mshr_alloc |
-| C09-F2-W6 | C09 | L1d-Cache | F2 | PARTIAL | unobserved_nodes:mshr_alloc |
-| C09-F2-W10 | C09 | L1d-Cache | F2 | PARTIAL | unobserved_nodes:mshr_alloc |
-| C09-F6-W6 | C09 | L1d-Cache | F6 | PARTIAL | unobserved_nodes:mshr_alloc |
-| C09-F6-W10 | C09 | L1d-Cache | F6 | PARTIAL | unobserved_nodes:mshr_alloc |
-| C10-F0-W6 | C10 | L1d-Cache | F0 | PARTIAL | unobserved_nodes:mshr_alloc |
-| C10-F0-W10 | C10 | L1d-Cache | F0 | PARTIAL | unobserved_nodes:mshr_alloc |
-| C10-F3-W6 | C10 | L1d-Cache | F3 | PARTIAL | unobserved_nodes:mshr_alloc |
-| C10-F3-W10 | C10 | L1d-Cache | F3 | PARTIAL | unobserved_nodes:mshr_alloc |
-| C10-F5-W6 | C10 | L1d-Cache | F5 | PARTIAL | unobserved_nodes:mshr_alloc |
-| C10-F5-W10 | C10 | L1d-Cache | F5 | PARTIAL | unobserved_nodes:mshr_alloc |
+| C09-F0-W6 | C09 | L1d-Cache | F0 | PASS |  |
+| C09-F0-W10 | C09 | L1d-Cache | F0 | PASS |  |
+| C09-F2-W6 | C09 | L1d-Cache | F2 | PASS |  |
+| C09-F2-W10 | C09 | L1d-Cache | F2 | PASS |  |
+| C09-F6-W6 | C09 | L1d-Cache | F6 | PASS |  |
+| C09-F6-W10 | C09 | L1d-Cache | F6 | PASS |  |
+| C10-F0-W6 | C10 | L1d-Cache | F0 | PASS |  |
+| C10-F0-W10 | C10 | L1d-Cache | F0 | PASS |  |
+| C10-F3-W6 | C10 | L1d-Cache | F3 | PASS |  |
+| C10-F3-W10 | C10 | L1d-Cache | F3 | PASS |  |
+| C10-F5-W6 | C10 | L1d-Cache | F5 | PASS |  |
+| C10-F5-W10 | C10 | L1d-Cache | F5 | PASS |  |
 | C11-F0-W6 | C11 | L1d-Cache | F0 | BLOCKED | campaign:deferred(consumer-side: MSHR merge event source only); spec:需新增（当前阻塞：只有MSHR merge事件源） |
 | C11-F0-W10 | C11 | L1d-Cache | F0 | BLOCKED | campaign:deferred(consumer-side: MSHR merge event source only); spec:需新增（当前阻塞：只有MSHR merge事件源） |
 | C11-F2-W6 | C11 | L1d-Cache | F2 | BLOCKED | campaign:deferred(consumer-side: MSHR merge event source only); spec:需新增（当前阻塞：只有MSHR merge事件源） |
@@ -264,18 +264,18 @@
 | T10-F2-W1 | T10 | L1d-TLB | F2 | PASS |  |
 | T10-F2-W4 | T10 | L1d-TLB | F2 | BLOCKED | workload:workload-level:blocked(fs-infra: TLB workload needs FS) |
 | T10-F2-W11 | T10 | L1d-TLB | F2 | BLOCKED | workload:workload-level:blocked(spec-license: SPEC CPU2017 needs a license) |
-| S13-F0-W1 | S13 | Store Queue | F0 | PARTIAL | unobserved_nodes:sq_execute |
-| S13-F0-W5 | S13 | Store Queue | F0 | PARTIAL | unobserved_nodes:sq_execute |
+| S13-F0-W1 | S13 | Store Queue | F0 | PASS |  |
+| S13-F0-W5 | S13 | Store Queue | F0 | PASS |  |
 | S13-F0-W11 | S13 | Store Queue | F0 | BLOCKED | workload:workload-level:blocked(spec-license: SPEC CPU2017 needs a license) |
-| S13-F0-W12 | S13 | Store Queue | F0 | PARTIAL | unobserved_nodes:sq_execute |
-| S13-F1-W1 | S13 | Store Queue | F1 | PARTIAL | unobserved_nodes:sq_execute |
-| S13-F1-W5 | S13 | Store Queue | F1 | PARTIAL | unobserved_nodes:sq_execute |
+| S13-F0-W12 | S13 | Store Queue | F0 | PASS |  |
+| S13-F1-W1 | S13 | Store Queue | F1 | PASS |  |
+| S13-F1-W5 | S13 | Store Queue | F1 | PASS |  |
 | S13-F1-W11 | S13 | Store Queue | F1 | BLOCKED | workload:workload-level:blocked(spec-license: SPEC CPU2017 needs a license) |
-| S13-F1-W12 | S13 | Store Queue | F1 | PARTIAL | unobserved_nodes:sq_execute |
-| S13-F2-W1 | S13 | Store Queue | F2 | PARTIAL | unobserved_nodes:sq_execute |
-| S13-F2-W5 | S13 | Store Queue | F2 | PARTIAL | unobserved_nodes:sq_execute |
+| S13-F1-W12 | S13 | Store Queue | F1 | PASS |  |
+| S13-F2-W1 | S13 | Store Queue | F2 | PASS |  |
+| S13-F2-W5 | S13 | Store Queue | F2 | PASS |  |
 | S13-F2-W11 | S13 | Store Queue | F2 | BLOCKED | workload:workload-level:blocked(spec-license: SPEC CPU2017 needs a license) |
-| S13-F2-W12 | S13 | Store Queue | F2 | PARTIAL | unobserved_nodes:sq_execute |
+| S13-F2-W12 | S13 | Store Queue | F2 | PASS |  |
 | L01-F0-W1 | L01 | Load Queue | F0 | PASS |  |
 | L01-F0-W5 | L01 | Load Queue | F0 | PASS |  |
 | L01-F0-W12 | L01 | Load Queue | F0 | PASS |  |
@@ -338,9 +338,9 @@
 | 单元 | 需要节点 | 已实现 | 真实运行已观测 | 仍缺 |
 |---|---|---|---|---|
 | AGU | 11 | 11 | 11/11 |  |
-| L1d-Cache | 11 | 11 | 10/11 | unobserved:mshr_alloc |
+| L1d-Cache | 11 | 11 | 11/11 |  |
 | L1d-TLB | 6 | 6 | 6/6 |  |
 | Load Queue | 7 | 7 | 7/7 |  |
-| Store Queue | 7 | 7 | 6/7 | unobserved:sq_execute |
+| Store Queue | 7 | 7 | 7/7 |  |
 | 原子与同步 | 6 | 6 | 5/6 | unobserved:atomic_op |
 | 数据预取器 | 7 | 7 | 7/7 |  |

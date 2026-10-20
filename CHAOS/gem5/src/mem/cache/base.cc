@@ -491,9 +491,24 @@ BaseCache::handleTimingReqMiss(PacketPtr pkt, MSHR *mshr, CacheBlk *blk,
             // for this miss line (kept until the fill frees it); set/way are
             // reported when the target block is already known.
             // Fault-correlated only (blk registry overlap).
+            // [MDSPEC][R4-3] hasData() guard removed: in gem5, REQUEST
+            // packets carry no payload — ReadReq's MemCmd attributes are
+            // {IsRead, IsRequest, NeedsResponse} with NO HasData (packet.cc
+            // command table; only responses and write requests carry data).
+            // The old `pkt->hasData()` guard therefore structurally dropped
+            // every demand-READ miss — the canonical miss→MSHR-allocate
+            // case — which is why mshr_alloc was never observed on any
+            // load-driven carrier (W6/W10/C09 pilots) even when the
+            // faulted line was verifiably evicted and re-fetched
+            // (--debug-flags=Cache: "access for ReadReq [...] miss" +
+            // "sendMSHRQueuePacket: MSHR ReadReq" on the faulted line,
+            // mshr_merge/fill/free firing, mshr_alloc silent). Evictions
+            // and WriteClean never reach this point (allocateWriteBuffer
+            // branch above), so every packet here is a miss allocating an
+            // MSHR — read, write, or prefetch alike.
             {
                 CHAOSPropagation *h4a = CHAOSPropagation::instance();
-                if (h4a && pkt && pkt->hasData()) {
+                if (h4a && pkt) {
                     Addr h4a_base = 0;
                     const char *h4a_corr = nullptr;   // [R4-1-review-I1]
                     const uint64_t h4a_ptag = h4a->correlateBlock(
