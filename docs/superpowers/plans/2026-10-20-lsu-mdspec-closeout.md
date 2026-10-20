@@ -180,3 +180,29 @@
 ## 进度节（实测填记）
 
 - 起点：HEAD `d6b89696`；`/home` Avail 68 GiB；PASS=199/BLOCKED=126。
+
+---
+
+## 进度节（实测填记，2026-10-20 执行完毕）
+
+- [x] **Task 0 磁盘**：删除 `/tmp/w1_*`（4088 个 10-09 遗留 MiBench scratch）与已收官轨道 worktree
+      的**构建产物** `lsu-p4-fix/CHAOS/gem5/build`（6.8G，分支 `fix/lsu-p4-simfail-20261015`@63cacb61
+      仍在共享 .git 且已被本分支 cherry-pick，源码树未动）。`/home` 可用 68G → **73G**（≥71 GiB）。
+      注：先前记录的大项均在 **tmpfs**（`/tmp` 是 RAM，清它不增加 `/home` 空间）——该结论已实证修正。
+- [x] **Task 1 H5**：`3fceea26`（H4）/ `05b66100`（H5）/ `7993f192`（H6）三族按 `[Hn]` 标签行级拆分提交
+      （lossless 断言：三族状态可逐字节重建工作树）。
+- [x] **Task 4 H2**：`e76546c7`。**Task 5 B2**：`4b6dd313`。**Pilot 报告/计划**：`a4819054`。
+- [x] **Task 6 构建/测试**：二进制 `746b0b91d485b00e`；`scons` exit 0（唯一 `-Wreorder` 警告位于
+      **未改动**文件 CHAOSCache.hh/.cc，`git diff` 证其与 HEAD 逐字节相同＝既有警告被重新编译暴露）。
+      LSU 脚本套件 **22 PASS / 1 FAIL**（`test_lsu_obs_e2e_select.py`，与 HEAD 同源同败：该文件与其
+      依赖 `lsu_obs_core.py`/`lsu_obs_e2e.py` 均未被本分支改动）；`test_lsu_guard_v2.py` 首轮失败、
+      复跑通过（主机 load≈114 的竞争测试抖动）；`test_claim_concurrency.py` 的 5 个 pytest error 是
+      脚本式测试被 pytest 收集（`fixture 'check' not found`），既有。无注入 golden
+      `agu_addrmodes` FINAL=`728e604ffcec539d`（与基线一致）。
+- [x] **Task 7 五 pilot**：A01(crash_translation_blocked,L2) / A04(full,L5) / C01(full,L5) /
+      P01(full,L5) / O01(full,L5)——见 `docs/gem5-fi/lsu/mdspec/pilot_report.md`。
+- [x] **Task 8 集成**：`cff95c2d` merge `origin/fi-ding` 最新 2 提交（o3-atlas 图）；文件集与原
+      LSU 改动不相交、零冲突；合并后 **未触及任何 C++/config**（无需重建），LSU 套件与 golden 复跑通过。
+      o3-atlas 测试在本 worktree 失败 14 项**并非回归**：其语料 `docs/cpu/armv8-isa/`（387 页）**未入 git**
+      （0 tracked），仅存在于主树；在主树（fi-ding@6f98088a）上 43/43 通过。
+- [x] **Task 9 报告**：本文件 + memory 更新；**正式 campaign 未启动**。
