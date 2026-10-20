@@ -82,6 +82,42 @@ def main():
     check("unregistered kind rejected by validate_event",
           len(P.validate_event(evt)) >= 1)
 
+    print("[5] [R4-4] tlb_pfn seq-PRIMARY 关联契约（2026-10-20 裁决）")
+    # R4-4：MMU::getTE 向 TLB 发布在飞翻译的 Request 身份 → tlb_pfn 链
+    # SEQ-PRIMARY 注册。dyn_inst_seq/request_id 必录（"0"=未盖戳）；
+    # corr 标注注册臂但空值合法（req_seq=0 且 PA 页未变 → 无关联面，
+    # 链诚实止于本事件）。
+    req = P.REQUIRED_FIELDS.get("tlb_pfn")
+    check("tlb_pfn requires dyn_inst_seq + request_id (seq-primary)",
+          req is not None and "dyn_inst_seq" in req and "request_id" in req,
+          str(req))
+    check("tlb_pfn keeps pfn/pa state fields",
+          req is not None and all(f in req for f in
+                                 ("va", "before", "after", "field",
+                                  "state_before", "state_after")))
+    check("tlb_pfn corr NOT required (empty = honest no-surface)",
+          req is not None and "corr" not in req)
+    good = P.parse_line(
+        "PROP-EVT: kind=tlb_pfn fault_id=1 corr=seq_primary "
+        "dyn_inst_seq=302 request_id=302 va=ffffffc009483fa8 "
+        "pa=81d75fa8 before=81d75 after=100000000081d75 field=bit_flip "
+        "state_before=81d75fa8 state_after=81d75fa8")
+    check("complete seq_primary tlb_pfn validates",
+          good is not None and P.validate_event(good) == [])
+    unstamped = P.parse_line(
+        "PROP-EVT: kind=tlb_pfn fault_id=2 corr= dyn_inst_seq=0 "
+        "request_id=0 va=ffff7000 pa=7000 before=ff after=7f "
+        "field=bit_flip state_before=7000 state_after=7000")
+    check("unstamped seq ('0') + empty corr validates (fallback-only or "
+          "chain-stops-at-TLB)", unstamped is not None
+          and P.validate_event(unstamped) == [])
+    bad = P.parse_line(
+        "PROP-EVT: kind=tlb_pfn fault_id=3 va=1000 before=ff after=7f "
+        "field=bit_flip state_before=1000 state_after=7000")
+    errs = P.validate_event(bad)
+    check("missing dyn_inst_seq/request_id flagged",
+          len(errs) == 2, str(errs))
+
     print()
     if FAILED:
         print(f"FAILED ({len(FAILED)}): {FAILED}")

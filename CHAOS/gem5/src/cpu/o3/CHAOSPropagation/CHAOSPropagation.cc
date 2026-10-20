@@ -557,6 +557,110 @@ namespace gem5
         return ptag;
     }
 
+    // [MDSPEC][R4-4] ArmTLB pfn fault (seq-primary; see .hh for the ruling
+    // and the measured pre-R4-4 mis-association this replaces).
+    uint64_t
+    CHAOSPropagation::registerTlbFault(uint64_t req_seq, Addr va, Addr size,
+                                       Addr old_pfn, Addr new_pfn,
+                                       Addr old_pa, Addr new_pa,
+                                       Addr pa_span, const char *mode)
+    {
+        if (!write_log)
+            return 0;
+        const uint64_t ptag = ++next_ptag;
+        const Addr span = size ? size : 1;
+        // pa_span = the entry's page size (entry->size + 1 at the site);
+        // pa_mask = its page mask. Fall back to 4 KiB when 0 (defensive —
+        // the site always passes entry->size + 1, which is >= 0x1000).
+        const Addr pa_span_eff = pa_span ? pa_span : (Addr)0x1000;
+        const Addr pa_mask = pa_span_eff - 1;
+        const Addr old_page = old_pa & ~pa_mask;
+        const Addr new_page = new_pa & ~pa_mask;
+        const bool pa_changed = new_page != old_page;
+
+        // inj node (v1 CSV): the L0 injection. addr column = the VA whose
+        // translation consumed the corrupted entry; seq columns carry the
+        // in-flight request's identity ("" when unstamped).
+        {
+            std::ostringstream d;
+            d << "family=tlb;field=" << mode
+              << ";req_seq=" << req_seq
+              << ";old_pfn=" << std::hex << old_pfn
+              << ";new_pfn=" << new_pfn
+              << ";old_pa=" << old_pa
+              << ";new_pa=" << new_pa
+              << ";pa_span=" << pa_span_eff
+              << ";pa_changed=" << (pa_changed ? 1 : 0) << std::dec;
+            writeNode(ptag, "inj", req_seq, req_seq != 0,
+                      req_seq, req_seq != 0, va, true, 0, false, 0, false,
+                      d.str());
+        }
+
+        // PRIMARY (seq-bound): the request whose translation consumed the
+        // corrupted entry — its later seq-keyed events join by seq.
+        if (req_seq) {
+            sweepExpired();
+            AddrEntry e;
+            e.ptag = ptag;
+            e.dyn_seq = req_seq;
+            e.base = va;
+            e.size = span;
+            e.registered = curTick();
+            addr_registry[va] = e;
+        }
+
+        // FALLBACK (labeled, address-only): the WRONG physical page, only
+        // when the corrupted pfn actually redirects the PA. No VA-page
+        // registration anymore (that was the pre-R4-4 mis-association
+        // source: every later same-VA request joined regardless of seq).
+        if (pa_changed) {
+            sweepExpired();
+            BlkEntry b;
+            b.ptag = ptag;
+            b.byte_begin = new_page;
+            b.byte_end = new_page + pa_span_eff;
+            b.registered = curTick();
+            blk_registry[new_page] = b;
+        }
+
+        // corr label: which arm downstream events join this chain by.
+        //   seq_primary  — the seq-bound primary arm is registered
+        //   addr_fallback — only the PA-page fallback exists (req_seq==0)
+        //   ""           — no correlation surface at all (req_seq==0 AND
+        //                  the PA page unchanged): the chain honestly
+        //                  stops at this event.
+        const char *corr = nullptr;
+        if (req_seq)
+            corr = CORR_SEQ_PRIMARY;
+        else if (pa_changed)
+            corr = CORR_ADDR_FALLBACK;
+
+        // Unified L2 event (tlb_pfn): full pfn/pa old-new state. Address
+        // fields are bare lowercase hex (registry convention); pfn values
+        // hex; dyn_inst_seq/request_id "0" = unstamped (lsq_sendfrag
+        // convention).
+        std::ostringstream h_va, h_pfn_old, h_pfn_new, h_pa_old, h_pa_new;
+        h_va << std::hex << va;
+        h_pfn_old << std::hex << old_pfn;
+        h_pfn_new << std::hex << new_pfn;
+        h_pa_old << std::hex << old_pa;
+        h_pa_new << std::hex << new_pa;
+        notePropEvt("tlb_pfn", {
+            {"fault_id", std::to_string(ptag)},
+            {"corr", corr ? corr : ""},
+            {"dyn_inst_seq", std::to_string(req_seq)},
+            {"request_id", std::to_string(req_seq)},
+            {"va", h_va.str()},
+            {"pa", h_pa_new.str()},
+            {"before", h_pfn_old.str()},
+            {"after", h_pfn_new.str()},
+            {"field", mode},
+            {"state_before", h_pa_old.str()},
+            {"state_after", h_pa_new.str()},
+        });
+        return ptag;
+    }
+
     void
     CHAOSPropagation::noteFunnel(const char *site, uint64_t attempted,
                                  uint64_t eligible, uint64_t injected)

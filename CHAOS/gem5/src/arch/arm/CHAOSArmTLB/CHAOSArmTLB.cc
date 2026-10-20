@@ -144,7 +144,8 @@ namespace gem5
     }
 
     void
-    CHAOSArmTLB::maybeCorrupt(ArmISA::TlbEntry *entry, Addr va)
+    CHAOSArmTLB::maybeCorrupt(ArmISA::TlbEntry *entry, Addr va,
+                              uint64_t req_seq, uint64_t req_size)
     {
         if (!entry || probability <= 0.0f) return;
         // TLB has no direct curCycle(); use curTick() vs the clock domain.
@@ -186,6 +187,9 @@ namespace gem5
             }
             if (candidates.empty()) return;  // no legal substitute (honest no-op)
             Addr old_pfn = entry->pfn;
+            // [R4-4] gem5's own PA arithmetic, before/after the mutation —
+            // captures the 64-bit wrap that leaves high pfn bits inert.
+            const Addr old_pa = entry->pAddr(va);
             entry->pfn = candidates[rng() % candidates.size()];
             stats->numFaultsInjected++;
             ++faults_injected_count;
@@ -200,7 +204,9 @@ namespace gem5
                     << ", candidates: " << std::dec << candidates.size()
                     << std::endl;
             }
-            registerTrace(va, old_pfn, entry->pfn, "pfn_to_mapped_page");
+            registerTrace(va, old_pfn, entry->pfn, old_pa, entry->pAddr(va),
+                          entry->size + 1, "pfn_to_mapped_page",
+                          req_seq, req_size);
             return;
         }
 
@@ -209,6 +215,9 @@ namespace gem5
         if (mask == 0) return;
 
         Addr old_pfn = entry->pfn;
+        // [R4-4] gem5's own PA arithmetic, before/after the mutation —
+        // captures the 64-bit wrap that leaves high pfn bits inert.
+        const Addr old_pa = entry->pAddr(va);
         switch (chosen) {
             case FaultType::StuckAtZero:
                 entry->pfn &= ~mask;
@@ -245,55 +254,59 @@ namespace gem5
                 << ", Mask: 0x" << mask << std::dec
                 << std::endl;
         }
-        registerTrace(va, old_pfn, entry->pfn, faultTypeToString(chosen));
+        registerTrace(va, old_pfn, entry->pfn, old_pa, entry->pAddr(va),
+                      entry->size + 1, faultTypeToString(chosen),
+                      req_seq, req_size);
     }
 
-    // [MDSPEC][H2-FS] register a TLB-entry fault with the propagation tracer.
+    // [MDSPEC][R4-4] register a TLB-entry fault with the propagation tracer
+    // — SEQ-PRIMARY correlation (replaces the pre-R4-4 address-only
+    // registration; user ruling 2026-10-20: address-only correlation may
+    // survive only as a labeled fallback).
     //
-    // RULING (ledgered): this hook site — TLB::lookup(entry, va) — has no
-    // Request (Lookup is a typedef of TlbEntry::KeyType and carries no req;
-    // adding one means changing gem5 core signatures). The chain is therefore
-    // registered ADDRESS-SCOPED:
-    //   * the VA page goes into the block registry (registerCacheFault), so
-    //     mmu.cc's correlateRequest(seq, vaddr, size) joins this chain via
-    //     the registry's range-overlap fallback — the same mechanism cache
-    //     faults already use;
-    //   * the WRONG physical page is registered to the SAME ptag
-    //     (registerPtagBlock), so cache_access / cache_return / resp /
-    //     taint_reg / consumer on the mis-translated address join too.
-    // Chain identity remains fault_id/ptag + parent_event_id; VA/PA are the
-    // correlation surface, never the identity (spec: no single-key linking).
+    // Pre-R4-4 defect (measured, runs/lsu/r4_fs/T01-F0-W4/seed1): the chain
+    // was registered VA-PAGE-scoped in the faulted-byte registry, so every
+    // later request whose VA fell in the same 4 KiB page joined by address
+    // overlap — 105 DISTINCT dyn_inst_seqs' events (lsq_push/mem_req/
+    // lsq_sendfrag/tlb_translate/resp/consumer) merged into one TLB fault
+    // chain, none identifiable as the request whose translation consumed
+    // the corrupted entry (that request's own tlb_translate had already
+    // fired before the injection — the join was provably NOT the fault
+    // consumer). The drawn mask (pfn bit 56) also wraps out of the 64-bit
+    // PA, so the PA was UNCHANGED and every "downstream" cache/resp/
+    // taint_reg/errant_commit join was fabricated from unrelated correct
+    // traffic on the unchanged page.
+    //
+    // The injection site (TLB::lookup) still has no Request in the gem5
+    // core signature, but MMU::getTE — the only lookup caller that owns
+    // the RequestPtr — now publishes the in-flight request's seq/size on
+    // the TLB (chaosLookupReqSeq/Size, [R4-4]), which this hook consumes:
+    //   * PRIMARY  — addr-registry entry [va, va+span) bound to req_seq,
+    //                so the request's own later seq-keyed events join by
+    //                SEQ (correlateRequestBySeq / correlateRequest's
+    //                seq arm); same registration shape as R4-1's
+    //                registerLSQForwardFault.
+    //   * FALLBACK — the WRONG physical page in the faulted-byte registry
+    //                for the seq-less cache-side sites, ONLY when the
+    //                corrupted pfn actually redirects the PA (old/new PA
+    //                page differ). A pfn bit at/above the PA width wraps
+    //                out of the Addr and changes nothing — then nothing is
+    //                registered downstream and the chain honestly ends at
+    //                the TLB layer (no fabricated cache/resp joins).
+    //   * req_seq == 0 (table-walker / functional lookups — no Request
+    //     identity published): no primary arm; the PA fallback (when the
+    //     PA changed) survives, labeled addr_fallback.
     void
     CHAOSArmTLB::registerTrace(Addr va, Addr old_pfn, Addr new_pfn,
-                               const char *mode)
+                               Addr old_pa, Addr new_pa, Addr pa_span,
+                               const char *mode, uint64_t req_seq,
+                               uint64_t req_size)
     {
         CHAOSPropagation *tr = CHAOSPropagation::instance();
         if (!tr)
             return;
-        const Addr page_mask = ~Addr(0xfff);
-        const Addr va_page = va & page_mask;
-        const Addr old_pa = (old_pfn << 12) | (va & ~page_mask);
-        const Addr new_pa = (new_pfn << 12) | (va & ~page_mask);
-        const uint64_t ptag = tr->registerCacheFault(va_page, -1, 0x1000,
-                                                     "arm_tlb_pfn");
-        if (!ptag)
-            return;
-        tr->registerPtagBlock(ptag, new_pa & page_mask,
-                              (new_pa & page_mask) + 0x1000);
-        std::ostringstream h;
-        h << std::hex << va_page << " va=" << va
-          << " old_pfn=" << old_pfn << " new_pfn=" << new_pfn
-          << " old_pa=" << old_pa << " new_pa=" << new_pa;
-        tr->notePropEvt("tlb_pfn", {
-            {"fault_id", std::to_string(ptag)},
-            {"va", h.str()},
-            {"pa", std::to_string(new_pa)},
-            {"before", std::to_string(old_pfn)},
-            {"after", std::to_string(new_pfn)},
-            {"field", mode},
-            {"state_before", std::to_string(old_pa)},
-            {"state_after", std::to_string(new_pa)},
-        });
+        tr->registerTlbFault(req_seq, va, req_size, old_pfn, new_pfn,
+                             old_pa, new_pa, pa_span, mode);
     }
 
     CHAOSArmTLB::CHAOSArmTLBStats::CHAOSArmTLBStats(statistics::Group *parent)

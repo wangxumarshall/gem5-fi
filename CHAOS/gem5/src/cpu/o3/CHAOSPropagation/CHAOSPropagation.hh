@@ -232,6 +232,35 @@ class CHAOSPropagation : public SimObject
                                      Addr vaddr, Addr size,
                                      const char *field);
 
+    // [MDSPEC][R4-4] ArmTLB pfn fault, seq-PRIMARY correlation (the TLB
+    // twin of registerLSQForwardFault; replaces the pre-R4-4 address-only
+    // registration, user ruling 2026-10-20). The injection site
+    // (TLB::lookup) has no Request in the gem5 core signature, but
+    // MMU::getTE publishes the in-flight translation's identity on the TLB
+    // (chaosLookupReqSeq/Size) which CHAOSArmTLB forwards here:
+    //   PRIMARY  — addr-registry entry [va, va+span) bound to req_seq, so
+    //              the request's own later seq-keyed events (correlate-
+    //              RequestBySeq / correlateRequest's seq arm) join by SEQ.
+    //              req_seq == 0 (table-walker / functional lookups) skips
+    //              the primary — labeled fallback only.
+    //   FALLBACK — the WRONG physical page [new_pa_page, +pa_span) in the
+    //              faulted-byte registry for the seq-less cache-side sites,
+    //              ONLY when the corrupted pfn actually redirects the PA
+    //              (old/new PA page differ — pfn bits at/above the PA width
+    //              wrap out of the 64-bit Addr and are architecturally
+    //              inert; measured: the T01 default draw pfn-bit-56). When
+    //              the PA is unchanged NOTHING is registered downstream:
+    //              the chain honestly ends at the TLB layer rather than
+    //              fabricating cache/resp/taint joins from unrelated
+    //              correct traffic on the unchanged page.
+    // The unified tlb_pfn event carries corr (seq_primary | addr_fallback
+    // | "" for the no-surface case) plus dyn_inst_seq/request_id ("0" =
+    // unstamped, lsq_sendfrag convention). Returns the ptag (0 = disabled).
+    uint64_t registerTlbFault(uint64_t req_seq, Addr va, Addr size,
+                              Addr old_pfn, Addr new_pfn,
+                              Addr old_pa, Addr new_pa, Addr pa_span,
+                              const char *mode);
+
     // Funnel row (attempted/eligible/injected as of NOW). Called by the
     // injectors at every successful injection AND at their exit callbacks
     // (final counts). Per-node Z_SYNC_FLUSH ⇒ abort-survivable.

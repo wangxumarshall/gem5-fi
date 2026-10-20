@@ -37,9 +37,22 @@ class CHAOSArmTLB : public SimObject
     // the clock window + maxFaults cap), corrupts retval->pfn by the mask
     // (bit_flip / stuck_at_zero / stuck_at_one). Hot-path: when
     // probability==0 or outside the window, returns immediately.
-    void maybeCorrupt(ArmISA::TlbEntry *entry, Addr va);
-    // [MDSPEC][H2-FS] propagation-trace registration (see .cc ruling).
-    void registerTrace(Addr va, Addr old_pfn, Addr new_pfn, const char *mode);
+    // [MDSPEC][R4-4] req_seq/req_size carry the Request identity of the
+    // translation in flight at this lookup (published by MMU::getTE via
+    // the TLB's chaosLookupReq* side-channel; 0 = no Request identity —
+    // table-walker/functional lookups). The fault chain registers
+    // SEQ-PRIMARY on that request; address-only correlation survives only
+    // as the labeled fallback (user ruling 2026-10-20).
+    void maybeCorrupt(ArmISA::TlbEntry *entry, Addr va,
+                      uint64_t req_seq, uint64_t req_size);
+    // [MDSPEC][R4-4] propagation-trace registration (see .cc ruling).
+    // old_pa/new_pa are the entry's pAddr(va) before/after the mutation
+    // (gem5's own arithmetic — includes the 64-bit wrap that makes pfn
+    // bits at/above the PA width architecturally inert); pa_span is the
+    // entry's page size (entry->size + 1).
+    void registerTrace(Addr va, Addr old_pfn, Addr new_pfn,
+                       Addr old_pa, Addr new_pa, Addr pa_span,
+                       const char *mode, uint64_t req_seq, uint64_t req_size);
 
   private:
     // PfnToMappedPage = §2.10 F5 (Phase 4.4, FS-only): substitute the hit

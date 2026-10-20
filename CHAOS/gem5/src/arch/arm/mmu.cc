@@ -1771,8 +1771,27 @@ MMU::getTE(TlbEntry **te, const RequestPtr &req, ThreadContext *tc, Mode mode,
         vaddr = vaddr_tainted;
     }
 
+    // [MDSPEC][R4-4] Publish this translation's Request identity to the
+    // target TLB for the duration of the lookup so the CHAOSArmTLB hook
+    // inside TLB::lookup can bind the fault chain to the request whose
+    // translation consumed the corrupted entry (seq-PRIMARY correlation).
+    // Cleared right after — every other TLB::lookup path (table walker's
+    // mmu->lookup, MMU::translateFunctional) has no RequestPtr and must
+    // honestly see 0. getTE is the only lookup caller that owns the req.
+    TLB *const chaos_lookup_tlb = getTlb(mode, state.isStage2);
+    if (chaos_lookup_tlb) {
+        chaos_lookup_tlb->chaosLookupReqSeq =
+            req->hasInstSeqNum() ? req->getReqInstSeqNum() : 0;
+        chaos_lookup_tlb->chaosLookupReqSize = req->getSize();
+    }
+
     *te = lookup(vaddr, state.asid, state.vmid, ss, false,
                  false, regime, state.isStage2, mode);
+
+    if (chaos_lookup_tlb) {
+        chaos_lookup_tlb->chaosLookupReqSeq = 0;
+        chaos_lookup_tlb->chaosLookupReqSize = 0;
+    }
 
     if (!isCompleteTranslation(*te)) {
         if (req->isPrefetch()) {
@@ -1801,8 +1820,18 @@ MMU::getTE(TlbEntry **te, const RequestPtr &req, ThreadContext *tc, Mode mode,
             return fault;
         }
 
+        // [MDSPEC][R4-4] same bracket for the post-walk re-lookup
+        if (chaos_lookup_tlb) {
+            chaos_lookup_tlb->chaosLookupReqSeq =
+                req->hasInstSeqNum() ? req->getReqInstSeqNum() : 0;
+            chaos_lookup_tlb->chaosLookupReqSize = req->getSize();
+        }
         *te = lookup(vaddr, state.asid, state.vmid, ss,
                      true, false, regime, state.isStage2, mode);
+        if (chaos_lookup_tlb) {
+            chaos_lookup_tlb->chaosLookupReqSeq = 0;
+            chaos_lookup_tlb->chaosLookupReqSize = 0;
+        }
         assert(*te);
     }
     return NoFault;

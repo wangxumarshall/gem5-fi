@@ -232,10 +232,24 @@ class TLB : public BaseTLB
 
     // Phase 3 §六.4 item 3: CHAOSArmTLB TLB-entry injector hook. Set from a
     // config (the injector SELF-ATTACHES via this setter); TLB::lookup
-    // calls chaosTLB->maybeCorrupt(retval, va) on a hit to corrupt the entry's
-    // pfn before returning. nullptr = no injector (hot-path short-circuit).
+    // calls chaosTLB->maybeCorrupt(retval, va, ...) on a hit to corrupt the
+    // entry's pfn before returning. nullptr = no injector (hot-path
+    // short-circuit).
     class ::gem5::CHAOSArmTLB *chaosTLB = nullptr;
     void setChaosTLB(::gem5::CHAOSArmTLB *p) { chaosTLB = p; }
+
+    // [MDSPEC][R4-4] Request identity of the translation IN FLIGHT at this
+    // TLB lookup. Set by MMU::getTE (the only lookup caller that owns the
+    // RequestPtr) immediately before its MMU::lookup calls and cleared right
+    // after, so the CHAOSArmTLB hook inside TLB::lookup can bind the fault
+    // chain to the request whose translation consumed the corrupted entry
+    // (seq-PRIMARY correlation, user ruling 2026-10-20). 0 = no Request
+    // identity at this lookup (table-walker mmu->lookup / functional
+    // translateFunctional paths) — the chain then degrades honestly to the
+    // labeled address fallback only. Read synchronously inside TLB::lookup
+    // (gem5 is event-driven single-threaded; no cross-event lifetime).
+    uint64_t chaosLookupReqSeq = 0;   // Request-stamped dyn-inst seq
+    uint64_t chaosLookupReqSize = 0;  // Request byte size
 
     int getsize() const { return size; }
 

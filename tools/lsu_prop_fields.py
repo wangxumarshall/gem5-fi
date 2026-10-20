@@ -98,12 +98,16 @@ REQUIRED_FIELDS = {
     # 为空 = pending offline join——不预定终局）
     "tlb_fault": ["fault_id", "corr", "dyn_inst_seq", "va", "outcome",
                   "detection_layer"],
-    # [MDSPEC][H2-FS] TLB-entry pfn 故障：before/after = old/new PFN，
-    # state_before/after = old/new PA（dyn_inst_seq 在该钩子点不可得 → 地址域
-    # 关联；链身份仍是 fault_id + parent_event_id；注册站点不经 correlate*，
-    # corr 不适用）
-    "tlb_pfn": ["fault_id", "va", "before", "after", "field",
-                "state_before", "state_after"],
+    # [MDSPEC][H2-FS][R4-4] TLB-entry pfn 故障：before/after = old/new PFN，
+    # state_before/after = old/new PA（hex）。R4-4 起 MMU::getTE 向 TLB 发布
+    # 在飞翻译的 Request 身份（chaosLookupReqSeq）→ 链 SEQ-PRIMARY 注册：
+    # dyn_inst_seq/request_id 必录（"0"=未盖戳——table-walker/functional
+    # 查询路径无 Request 身份，lsq_sendfrag 约定）。corr 标注注册臂
+    # （seq_primary=主臂已注册；addr_fallback=仅 PA 页 fallback；空=无关联
+    # 面——req_seq=0 且 PA 页未变，链诚实止于本事件，不预定下游）。
+    # corr 不列入必录：空值合法（无关联面），不得强制非空。
+    "tlb_pfn": ["fault_id", "dyn_inst_seq", "request_id", "va", "before",
+                "after", "field", "state_before", "state_after"],
     # [MDSPEC][H7] LQ 生命周期（va 取注册表 base；pa=响应地址）
     "lq_read": ["fault_id", "corr", "dyn_inst_seq", "lq_idx", "va"],
     "lq_complete": ["fault_id", "corr", "dyn_inst_seq", "lq_idx", "va", "pa"],

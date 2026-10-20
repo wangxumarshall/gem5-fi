@@ -553,3 +553,93 @@ C09-F0-W6）均未观测到 mshr_*（campaign 单元语义未变）。同机制�
   修复前后一致（修复前 merge 已如此发射），本轮未改关联语义。
 - `mshr_alloc` 修复后亦会为**软件预取 miss** 发射（此前同被 hasData 屏蔽；
   SoftPFReq 分配 MSHR 是事实行为）——本轮未在预取载体上复测，登记备查。
+
+## R4-4（2026-10-21）：ArmTLB 关联去地址歧义——Request/seq 主键（推翻"注入点无 Request"旧裁决）
+
+基线 `78c95b32`（二进制 `2462dc0fcf1d3d96`），重建后 `90652c1c67547247`（sha256 前缀）。
+完整报告：`.superpowers/sdd/2026-10-20-lsu-mdspec-round4/task-4-report.md`。
+
+### 4.1 歧义实证（修复前，当前二进制真实 FS 复跑，非推测）
+
+命令（正式 campaign 入口）：
+
+```bash
+LSU_FS_DIR=/home/sdc/gem5-fi-ding/gem5-fs \
+LSU_GEM5_BIN=$PWD/CHAOS/gem5/build/ARM/gem5.opt \
+timeout 2400 python3 tools/lsu_campaign.py \
+  --matrix artifacts/lsu-trial/07-expanded-matrix-backfilled.csv \
+  --cells T01-F0-W4 --phase trial --max-seeds-per-cell 1 --max-parallel 1 \
+  --fs-checkpoint /home/sdc/gem5-fi-ding/runs/lsu/fs_cpt_boot/cpt.237949797015 \
+  --fs-timeout 1800 --outdir runs/lsu/r4_t4_prefix
+```
+
+`runs/lsu/r4_t4_prefix/T01-F0-W4/seed1/`：注入 `Tick: 237950940537, VA:
+0xffffffc009483fa8, old_pfn: 0x81d75, new_pfn: 0x100000000081d75, Mask:
+0x100000000000000`；`prop_evt.txt.gz` 303 事件、**105 个不同 dyn_inst_seq** 入同一条
+TLB 故障链（143 事件显式 `corr=addr_fallback`）。三重错配实证：
+
+1. **同 VA 页不同 seq 并发合**：seq 303（va=fe0）/304（fe8）/307/308/310… 的
+   lsq_push/mem_req/lsq_sendfrag/tlb_translate 全按 VA 页重叠入链；入链 VA 无一等于
+   注入载体 VA fa8——载体自身事件在注入前已发射，链上成员**全部不是**故障消费者。
+2. **PA 根本没变**：pfn bit 56 在 `pAddr` 64-bit 回绕外（`state_before=state_after=
+   81d75fa8`）→ 26 cache_access + 23 resp + 5 taint_reg + 1 errant_commit + 107
+   consumer 均为无关正确流量的伪下游。
+3. **链报告伪证 L4**（chain_report.json）：`provable_to: L4`，四条边全部由地址域
+   join 的共享 fault_id 构成。
+
+### 4.2 改造（Request 可达 → seq 主键，无复合键）
+
+第三轮 G1"钩子只有 VA 无 Request"的结论被推翻：`MMU::getTE` 全程持有 RequestPtr，
+其 lookup 即注入点上方。变更 9 文件：
+
+- `tlb.hh`：TLB 新增 `chaosLookupReqSeq/Size` 侧信道（0=无 Request 身份：
+  walker/functional 路径）；`mmu.cc` getTE 在两次 lookup 前后 set/clear；
+  `tlb.cc` 钩子传入。
+- `CHAOSArmTLB.{hh,cc}`：注入点用 gem5 自身 `entry->pAddr(va)` 取前后 PA（含回绕）、
+  `entry->size+1` 为页跨度，转发给新 API。
+- `CHAOSPropagation::registerTlbFault`：**PRIMARY** = addr registry `[va, va+span)`
+  绑定 `req_seq`（载体自身 sq_*/resp 按 seq 入链，与 R4-1 registerLSQForwardFault
+  同构）；**FALLBACK（标注）** = 仅当 **PA 页真实变化**才注册错误 PA 页（cache 侧
+  无 seq 观测点用）；**删除** VA 页 blk 注册（歧义源）。PA 回绕不变 → 零下游注册，
+  链诚实止于 TLB 层（任务书明示可接受）。
+- `tlb_pfn` 事件新增 `corr`（seq_primary|addr_fallback|空=无关联面）、
+  `dyn_inst_seq`/`request_id`（"0"=未盖戳）；注册表零新键（双源 pin 不动）；
+  `REQUIRED_FIELDS["tlb_pfn"]` += dyn_inst_seq, request_id（corr 刻意不列入必录：
+  空值合法）。
+
+### 4.3 真机（重建后二进制，同 seed 同注入点确定性复现）
+
+- **run 2**（campaign 入口，T01 默认掩码 → PA 回绕不变）：
+  `runs/lsu/r4_t4_postfix/T01-F0-W4/`：链从 303 事件/105 seq → **6 事件/1 seq**，
+  全部 `dyn_inst_seq=301`（注入载体首次可辨）：`inj → tlb_pfn(seq_primary) →
+  sq_execute → sq_writeback → resp → sq_complete`；0 cache/taint/consumer/errant。
+  链报告（chain_report.json）：`L2->L3: proven`（witness 共享键
+  `['fault_id','dyn_inst_seq']`——首条按 SEQ 证成的 TLB 链边）；L0→L1/L1→L2
+  **结构性缺失**（TLB 故障击发在翻译时刻，载体 lsq_push 必先于注入——修复前
+  这两级由无关请求的 lsq_push/tlb_translate 伪填充成 `provable_to=L4`），梯子
+  verdict 如实 `provable_to_L0_then_unknown / beyond=Unknown`。
+- **run 2b**（直接入口，`--tlb_fault_mask 0x40` → PA 真变页 81d75000→81d35000）：
+  `runs/lsu/r4_t4_postfix_mask40/`：239 事件，`tlb_pfn(seq_primary, pa=81d35fa8) →
+  sq_*(seq301, seq_primary) → cache_access/return×27(错误 PA, addr_fallback) →
+  resp → taint_reg×5 → errant_commit(391) → consumer×107 → chain_end`，guest 真实
+  **Kernel Oops**（Crash/DUE）。链检查器（`lsu_chain_check.check_chain(events,
+  oracle_outcome='Crash')`）实测 `{'L0->L1': 'proven', 'L1->L2': 'proven',
+  'L2->L3': 'proven', 'L3->L4': 'proven', 'L4->L5': 'proven'}, provable_to=L5,
+  terminal=full`——错误 PA 页 cache 事件补上 L1 rung 后 **L0→L5 全边证成**，
+  终局真实 Crash。修复前的 lsq_push/mem_req/lsq_sendfrag/tlb_translate 伪关联
+  （4×22 条）在两次修复后运行中均为 **0**。
+- 无歧义实证（控制器要求）：并发同 VA 不同 seq（303/304/…）修复后 0 条入链
+  （seq 臂要求 `e.dyn_seq == dyn_seq` 且 VA 页 blk 注册已删）；PA 不变时 0 条下游
+  join；PA 真变时 join 全部落在真实重定向的错误物理页且逐条 addr_fallback 标注。
+
+### 4.4 测试与诚实登记
+
+- 构建 `scons -j16`：`scons: done building targets.`、0 error、触碰文件 0 新告警。
+- `pytest tests/ -q`：16 passed + 5 errors（claim_concurrency 存量，计数不变）；
+  `test_lsu_hook_tlb.py` 新增 6 项全 PASS、存量失败 2 项不变；`test_lsu_hook_cpf.py`
+  13 项失败不变；`test_lsu_prop_fields.py` / `test_lsu_chain_check.py` ALL PASS。
+- 残留（登记不修）：resp/consumer/taint_reg/errant_commit 经 writeNode 双发不带
+  corr（R4-1 §1.3-2 已登记的下游标注缺口）；PA 页 fallback 为地址域（错误页上的
+  其他流量也会标注入链，cache 家族同语义）；functional lookup 仍可能注入（存量
+  行为，现诚实登记为 req_seq=0 链）；T01 随机 1-bit 掩码有 8/64 概率落在 PA 有效
+  位内（本 seed bit 56 回绕惰性）——campaign 掩码调参属后续任务。
