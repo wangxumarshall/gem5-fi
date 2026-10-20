@@ -3,6 +3,8 @@
 #include "arch/arm/tlb.hh"
 #include "arch/arm/pagetable.hh"
 #include "base/output.hh"
+#include <sstream>
+#include "cpu/o3/CHAOSPropagation/CHAOSPropagation.hh"  // [MDSPEC][H2-FS]
 
 namespace gem5
 {
@@ -198,6 +200,7 @@ namespace gem5
                     << ", candidates: " << std::dec << candidates.size()
                     << std::endl;
             }
+            registerTrace(va, old_pfn, entry->pfn, "pfn_to_mapped_page");
             return;
         }
 
@@ -242,6 +245,55 @@ namespace gem5
                 << ", Mask: 0x" << mask << std::dec
                 << std::endl;
         }
+        registerTrace(va, old_pfn, entry->pfn, faultTypeToString(chosen));
+    }
+
+    // [MDSPEC][H2-FS] register a TLB-entry fault with the propagation tracer.
+    //
+    // RULING (ledgered): this hook site — TLB::lookup(entry, va) — has no
+    // Request (Lookup is a typedef of TlbEntry::KeyType and carries no req;
+    // adding one means changing gem5 core signatures). The chain is therefore
+    // registered ADDRESS-SCOPED:
+    //   * the VA page goes into the block registry (registerCacheFault), so
+    //     mmu.cc's correlateRequest(seq, vaddr, size) joins this chain via
+    //     the registry's range-overlap fallback — the same mechanism cache
+    //     faults already use;
+    //   * the WRONG physical page is registered to the SAME ptag
+    //     (registerPtagBlock), so cache_access / cache_return / resp /
+    //     taint_reg / consumer on the mis-translated address join too.
+    // Chain identity remains fault_id/ptag + parent_event_id; VA/PA are the
+    // correlation surface, never the identity (spec: no single-key linking).
+    void
+    CHAOSArmTLB::registerTrace(Addr va, Addr old_pfn, Addr new_pfn,
+                               const char *mode)
+    {
+        CHAOSPropagation *tr = CHAOSPropagation::instance();
+        if (!tr)
+            return;
+        const Addr page_mask = ~Addr(0xfff);
+        const Addr va_page = va & page_mask;
+        const Addr old_pa = (old_pfn << 12) | (va & ~page_mask);
+        const Addr new_pa = (new_pfn << 12) | (va & ~page_mask);
+        const uint64_t ptag = tr->registerCacheFault(va_page, -1, 0x1000,
+                                                     "arm_tlb_pfn");
+        if (!ptag)
+            return;
+        tr->registerPtagBlock(ptag, new_pa & page_mask,
+                              (new_pa & page_mask) + 0x1000);
+        std::ostringstream h;
+        h << std::hex << va_page << " va=" << va
+          << " old_pfn=" << old_pfn << " new_pfn=" << new_pfn
+          << " old_pa=" << old_pa << " new_pa=" << new_pa;
+        tr->notePropEvt("tlb_pfn", {
+            {"fault_id", std::to_string(ptag)},
+            {"va", h.str()},
+            {"pa", std::to_string(new_pa)},
+            {"before", std::to_string(old_pfn)},
+            {"after", std::to_string(new_pfn)},
+            {"field", mode},
+            {"state_before", std::to_string(old_pa)},
+            {"state_after", std::to_string(new_pa)},
+        });
     }
 
     CHAOSArmTLB::CHAOSArmTLBStats::CHAOSArmTLBStats(statistics::Group *parent)

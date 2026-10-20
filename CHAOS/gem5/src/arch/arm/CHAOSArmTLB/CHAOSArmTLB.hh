@@ -38,6 +38,8 @@ class CHAOSArmTLB : public SimObject
     // (bit_flip / stuck_at_zero / stuck_at_one). Hot-path: when
     // probability==0 or outside the window, returns immediately.
     void maybeCorrupt(ArmISA::TlbEntry *entry, Addr va);
+    // [MDSPEC][H2-FS] propagation-trace registration (see .cc ruling).
+    void registerTrace(Addr va, Addr old_pfn, Addr new_pfn, const char *mode);
 
   private:
     // PfnToMappedPage = §2.10 F5 (Phase 4.4, FS-only): substitute the hit

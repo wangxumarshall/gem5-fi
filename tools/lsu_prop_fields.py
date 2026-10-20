@@ -49,6 +49,8 @@ KIND_LAYER = {
     # [MDSPEC][H2-fix] 翻译 fault 检测事件（A01 POST 根因：corrupted vaddr
     # 落到未映射地址 → 翻译 fault = Hardware 检测 + contained）
     "tlb_fault": "L2",
+    # [MDSPEC][H2-FS] TLB-entry pfn 故障：old/new PFN 与 old/new PA
+    "tlb_pfn": "L2",
     # [MDSPEC][H7] LQ 逐事件（表 9：lq_idx 生命周期；read/completion 属
     # L3 访存发射与返回；insert 在 dispatch 期早于注入注册、结构性缺席）
     "lq_read": "L3", "lq_complete": "L3",
@@ -87,6 +89,11 @@ REQUIRED_FIELDS = {
     # 为空 = pending offline join——不预定终局）
     "tlb_fault": ["fault_id", "dyn_inst_seq", "va", "outcome",
                   "detection_layer"],
+    # [MDSPEC][H2-FS] TLB-entry pfn 故障：before/after = old/new PFN，
+    # state_before/after = old/new PA（dyn_inst_seq 在该钩子点不可得 → 地址域
+    # 关联；链身份仍是 fault_id + parent_event_id）
+    "tlb_pfn": ["fault_id", "va", "before", "after", "field",
+                "state_before", "state_after"],
     # [MDSPEC][H7] LQ 生命周期（va 取注册表 base；pa=响应地址）
     "lq_read": ["fault_id", "dyn_inst_seq", "lq_idx", "va"],
     "lq_complete": ["fault_id", "dyn_inst_seq", "lq_idx", "va", "pa"],
