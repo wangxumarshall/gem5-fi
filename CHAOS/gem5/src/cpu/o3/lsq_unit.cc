@@ -1653,10 +1653,32 @@ LSQUnit::read(LSQRequest *request, ssize_t load_idx)
                 // reproduce-method2 v3 mechanism on core 179). Hot-path:
                 // when no injector is attached (lsqFwd==nullptr) or its
                 // probability is 0, corrupt() returns immediately.
+                // [MDSPEC][R4-1] the producer store's and consuming load's
+                // dyn_inst_seq / sq_idx / lq_idx / request_id ride along as
+                // the PRIMARY correlation keys (sq_idx from DynInst::sqIdx
+                // — the same source as the sq_execute/sq_writeback/
+                // sq_complete events; lq_idx = the read() load_idx, the
+                // same source as the lq_read events, so the keys join 1:1).
                 if (cpu->lsqFwd) {
+                    CHAOSLSQFwd::FwdCorrelKeys fwd_keys;
+                    fwd_keys.store_dyn_inst_seq =
+                        store_it->instruction()->seqNum;
+                    fwd_keys.sq_idx =
+                        (long long)store_it->instruction()->sqIdx;
+                    const auto &st_req = store_it->request()->mainReq();
+                    if (st_req && st_req->hasInstSeqNum())
+                        fwd_keys.store_request_id =
+                            st_req->getReqInstSeqNum();
+                    fwd_keys.load_dyn_inst_seq = load_inst->seqNum;
+                    fwd_keys.lq_idx = (long long)load_idx;
+                    const auto &ld_req = request->mainReq();
+                    if (ld_req && ld_req->hasInstSeqNum())
+                        fwd_keys.load_request_id =
+                            ld_req->getReqInstSeqNum();
                     cpu->lsqFwd->corrupt(load_inst->memData,
                                          request->mainReq()->getSize(),
-                                         request->mainReq()->getVaddr());
+                                         request->mainReq()->getVaddr(),
+                                         fwd_keys);
                 }
 
                 // LSU W2 F6 event source (09 §2.1 map): a store-to-load

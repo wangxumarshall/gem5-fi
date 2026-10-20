@@ -169,12 +169,12 @@ class CHAOSPropagation : public SimObject
     static inline const char *const PROP_EVT_FIELDS[] = {
         "kind", "run_id", "sample_run_id", "fault_id", "event_id",
         "parent_event_id", "tick", "cycle", "core_id", "thread_id",
-        "dyn_inst_seq", "commit_seq", "pc", "opcode", "lq_idx", "sq_idx",
-        "request_id", "walk_id", "mshr_id", "fill_id", "pf_request_id",
-        "va", "pa", "cache_line", "set", "way", "entry_index", "field",
-        "before", "after", "state_before", "state_after", "arch_reg",
-        "phys_reg", "detection_layer", "contained", "outcome", "oracle_diff",
-        "evidence_status",
+        "dyn_inst_seq", "store_dyn_inst_seq", "commit_seq", "pc", "opcode",
+        "lq_idx", "sq_idx", "request_id", "walk_id", "mshr_id", "fill_id",
+        "pf_request_id", "va", "pa", "cache_line", "set", "way",
+        "entry_index", "field", "before", "after", "state_before",
+        "state_after", "arch_reg", "phys_reg", "detection_layer",
+        "contained", "outcome", "oracle_diff", "evidence_status", "corr",
     };
     static constexpr int N_PROP_EVT_FIELDS =
         (int)(sizeof(PROP_EVT_FIELDS) / sizeof(PROP_EVT_FIELDS[0]));
@@ -209,6 +209,28 @@ class CHAOSPropagation : public SimObject
     //                      (the chain honestly stops at inj).
     uint64_t registerCacheFault(Addr block_addr, int byte_offset,
                                 Addr block_size, const char *field);
+
+    // [MDSPEC][R4-1] SQ store->load forwarding fault, seq-PRIMARY
+    // correlation (user ruling 2026-10-20: address-only correlation may
+    // survive only as a labeled fallback). Allocates a ptag, writes the
+    // inj node, and registers:
+    //   PRIMARY   — addr-registry entry [vaddr, vaddr+size) bound to the
+    //               PRODUCER STORE's dyn_inst_seq, so the store's later
+    //               sq_writeback / sq_complete events (which correlate by
+    //               correlateRequestBySeq) join this chain by SEQ;
+    //   FALLBACK  — the same byte range in the faulted-byte (blk) registry
+    //               for seq-less call sites (correlateBlock / the cache
+    //               branch of noteMemResponse). Address-only by design;
+    //               events that rely on it must carry corr=addr_fallback.
+    // store_seq == 0 (seq genuinely unavailable at the call site) skips
+    // the primary registration — the chain then joins by the labeled
+    // address fallback only. Returns the ptag (0 = tracer disabled).
+    uint64_t registerLSQForwardFault(uint64_t store_seq, long long sq_idx,
+                                     uint64_t store_req_id,
+                                     uint64_t load_seq, long long lq_idx,
+                                     uint64_t load_req_id,
+                                     Addr vaddr, Addr size,
+                                     const char *field);
 
     // Funnel row (attempted/eligible/injected as of NOW). Called by the
     // injectors at every successful injection AND at their exit callbacks

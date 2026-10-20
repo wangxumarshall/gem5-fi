@@ -21,15 +21,18 @@ from pathlib import Path
 # 与 CHAOSPropagation.hh 的 PROP_EVT_FIELDS[] 同名同序。
 # kind 为事件语义首字段（规格表 11 未列——计划 H0 裁决：v1 已有 kind 概念，
 # 无 kind 则事件不可分型；24 规格字段全部在列）。
+# [MDSPEC][R4-1] 追加 store_dyn_inst_seq（lsq_fwd 生产 store 的 seq，与
+# dyn_inst_seq=消费 load 的 seq 成对）与 corr（关联来源标注：
+# seq_primary | addr_fallback——仅地址关联必须显式标注，不得静默）。
 PROP_EVT_FIELDS = [
     "kind", "run_id", "sample_run_id", "fault_id", "event_id",
     "parent_event_id", "tick", "cycle", "core_id", "thread_id",
-    "dyn_inst_seq", "commit_seq", "pc", "opcode", "lq_idx", "sq_idx",
-    "request_id", "walk_id", "mshr_id", "fill_id", "pf_request_id",
-    "va", "pa", "cache_line", "set", "way", "entry_index", "field",
-    "before", "after", "state_before", "state_after", "arch_reg",
-    "phys_reg", "detection_layer", "contained", "outcome", "oracle_diff",
-    "evidence_status",
+    "dyn_inst_seq", "store_dyn_inst_seq", "commit_seq", "pc", "opcode",
+    "lq_idx", "sq_idx", "request_id", "walk_id", "mshr_id", "fill_id",
+    "pf_request_id", "va", "pa", "cache_line", "set", "way",
+    "entry_index", "field", "before", "after", "state_before",
+    "state_after", "arch_reg", "phys_reg", "detection_layer",
+    "contained", "outcome", "oracle_diff", "evidence_status", "corr",
 ]
 
 _PREFIX = "PROP-EVT:"
@@ -105,8 +108,16 @@ REQUIRED_FIELDS = {
     "sq_writeback": ["fault_id", "dyn_inst_seq", "sq_idx", "pa"],
     "sq_complete": ["fault_id", "dyn_inst_seq", "sq_idx", "va",
                     "state_after"],
-    # [MDSPEC][H3-FWD] before/after = 转发数据被污染前后（地址域关联）
-    "lsq_fwd": ["fault_id", "va", "field", "before", "after"],
+    # [MDSPEC][H3-FWD] before/after = 转发数据被污染前后。
+    # [MDSPEC][R4-1] seq/idx/request_id 为 PRIMARY 关联键（用户裁决
+    # 2026-10-20）：dyn_inst_seq=消费 load 的 seq；store_dyn_inst_seq=
+    # 生产 store 的 seq；sq_idx/lq_idx 与 sq_*/lq_read 事件同源（1:1
+    # join）；request_id=load 请求的 Request-stamped seq（lsq_sendfrag
+    # 约定，未盖戳=0）。仅地址关联只允许作为 corr=addr_fallback 标注的
+    # fallback 出现，不得静默。
+    "lsq_fwd": ["fault_id", "dyn_inst_seq", "store_dyn_inst_seq",
+                "sq_idx", "lq_idx", "request_id", "va", "field",
+                "before", "after"],
     # [MDSPEC][H4] cache 结构事件（access/return/fill/evict）
     "cache_access": ["fault_id", "va", "pa"],
     "cache_return": ["fault_id", "pa", "field"],

@@ -34,12 +34,38 @@ class CHAOSLSQFwd : public SimObject
     CHAOSLSQFwd(const CHAOSLSQFwdParams &p);
     ~CHAOSLSQFwd();
 
+    // [MDSPEC][R4-1] Seq/idx/request_id correlation keys for ONE
+    // store->load forward (user ruling 2026-10-20: these are the PRIMARY
+    // correlation keys; address-only correlation is a labeled fallback).
+    // Filled by lsq_unit.cc at the forward site — raw values only, so
+    // lsq_unit.cc needs no CHAOS types beyond this header.
+    //   store_*: the producer store whose SQ data is the forward source
+    //            (sq_idx = DynInst::sqIdx, same source as the sq_execute/
+    //            sq_writeback/sq_complete events, so the keys join 1:1);
+    //   load_*:  the consuming load whose memData gets corrupted
+    //            (lq_idx = the read() load_idx parameter, same source as
+    //            the lq_read events);
+    //   *_request_id: the Request-stamped inst seq (getReqInstSeqNum),
+    //            0 when the request is not seq-stamped (lsq_sendfrag
+    //            convention).
+    // store_dyn_inst_seq == 0 marks "seq genuinely unavailable" — the
+    // emitted event then carries corr=addr_fallback.
+    struct FwdCorrelKeys {
+        uint64_t store_dyn_inst_seq = 0;
+        long long sq_idx = -1;
+        uint64_t store_request_id = 0;
+        uint64_t load_dyn_inst_seq = 0;
+        long long lq_idx = -1;
+        uint64_t load_request_id = 0;
+    };
+
     // Called from lsq_unit.cc after the forward memcpy, BEFORE the data is
     // packetized and written back to the load. If the RNG fires, this flips
     // bits in `data` (one byte selected by byteOffset). Hot-path: when
     // probability==0 or outside the [firstClock,lastClock] window, returns
     // immediately with no work.
-    void corrupt(uint8_t *data, unsigned size, Addr vaddr);
+    void corrupt(uint8_t *data, unsigned size, Addr vaddr,
+                 const FwdCorrelKeys &keys);
 
     // §2.4 fwd_source_sub (F5, Phase 4.2 — method1 wrong-source forwarding):
     // called from lsq_unit.cc at the forwarding DECISION point, after a
@@ -129,7 +155,7 @@ class CHAOSLSQFwd : public SimObject
 
     int generateRandomMask(int bits_to_change);  // 8-bit mask (per byte)
     void writeLog(const char *type, unsigned size, Addr vaddr, int byte_off,
-                  int mask);
+                  int mask, const FwdCorrelKeys &keys);
 
     struct CHAOSLSQFwdStats : public statistics::Group {
         statistics::Scalar numFaultsInjected;

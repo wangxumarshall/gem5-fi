@@ -330,9 +330,27 @@ def _addrpath_tier_flags(tier):
 
 FAMILY_TIER_FLAGS = {
     "addrpath": _addrpath_tier_flags,
+    # [MDSPEC][R4-1] lsqfwd F0 span 7 (was 1000): measured on S01/S02-F0-W5
+    # (sq_forward, real campaign entry, 2026-10-20) the ENTIRE eligible
+    # forward stream is 7 events (CHAOS_LSU_TRIGGER attempted=7 eligible=7
+    # injected=0 on every seed); F0 draws next_fire = lcg(seed)%1000 =
+    # 412/417/806 for seeds 1/2/3 — never reached, injected stays 0. Same
+    # structural class as the P01-W8 prefetch root cause (span larger than
+    # the eligible stream never fires). span=7 = the measured stream size:
+    # a true F0-uniform draw over eligible events (next_fire = lcg(seed)%7
+    # ∈ [0,6] ⇒ always fires, per-seed variation; span=1 was rejected —
+    # it deterministically hits the first eligible event, measured to be a
+    # wrong-path squashed load [sn:258] ⇒ every seed identical Masked).
+    # KNOWN LIMITATION: S08 (fwd_source_sub) rides a different, unmeasured
+    # eligible stream (maybeSubstituteSource) — if smaller than 7 its F0
+    # cells may still not fire; re-tune per workload/model eligible count
+    # for the full campaign. NOTE: this lambda appends AFTER FAMILY_MOUNT
+    # and argparse takes the LAST occurrence, so the span must be fixed
+    # HERE (a FAMILY_MOUNT override would be silently clobbered — verified
+    # by experiment).
     "lsqfwd": lambda tier: ["--lsqfwd_lsu_tier", tier,
                             "--lsqfwd_warmup_events", "0",
-                            "--lsqfwd_span_events", "1000"],
+                            "--lsqfwd_span_events", "7"],
     "cache": lambda tier: [],   # legacy firstClock mechanism (tier not consumed)
     "prefetch": lambda tier: ["--prefetch_lsu_tier", tier,
                               "--prefetch_warmup_events", "0",

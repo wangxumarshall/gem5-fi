@@ -495,6 +495,68 @@ namespace gem5
         return ptag;
     }
 
+    // [MDSPEC][R4-1] SQ store->load forwarding fault (seq-primary).
+    uint64_t
+    CHAOSPropagation::registerLSQForwardFault(
+        uint64_t store_seq, long long sq_idx, uint64_t store_req_id,
+        uint64_t load_seq, long long lq_idx, uint64_t load_req_id,
+        Addr vaddr, Addr size, const char *field)
+    {
+        if (!write_log)
+            return 0;
+        const uint64_t ptag = ++next_ptag;
+        const Addr span = size ? size : 1;
+
+        // inj node: the consuming load's seq (the instruction whose
+        // architectural state receives the corrupted data) + both sides'
+        // keys in the detail for the v1 CSV.
+        {
+            std::ostringstream d;
+            d << "family=lsqfwd;field=" << field
+              << ";store_dyn_inst_seq=" << store_seq
+              << ";sq_idx=" << sq_idx
+              << ";store_request_id=" << store_req_id
+              << ";load_dyn_inst_seq=" << load_seq
+              << ";lq_idx=" << lq_idx
+              << ";load_request_id=" << load_req_id
+              << ";fwd_addr=" << std::hex << vaddr << std::dec;
+            writeNode(ptag, "inj", load_seq, true,
+                      load_req_id, load_req_id != 0,
+                      vaddr, true, 0, false, 0, false, d.str());
+        }
+
+        // PRIMARY: addr-registry entry bound to the producer store's
+        // dyn_inst_seq. The store is definitionally still in the SQ at
+        // forward time (the scan window ends at storeWBIt), so its
+        // sq_writeback / sq_complete fire AFTER this registration and join
+        // the chain by seq (correlateRequestBySeq).
+        if (store_seq) {
+            sweepExpired();
+            AddrEntry e;
+            e.ptag = ptag;
+            e.dyn_seq = store_seq;
+            e.base = vaddr;
+            e.size = span;
+            e.registered = curTick();
+            addr_registry[vaddr] = e;
+        }
+
+        // FALLBACK (labeled, address-only): the forwarded byte range in
+        // the faulted-byte registry for seq-less sites (correlateBlock /
+        // noteMemResponse's cache branch). Same registration the pre-R4
+        // registerCacheFault path made — now explicitly secondary.
+        {
+            sweepExpired();
+            BlkEntry b;
+            b.ptag = ptag;
+            b.byte_begin = vaddr;
+            b.byte_end = vaddr + span;
+            b.registered = curTick();
+            blk_registry[vaddr] = b;
+        }
+        return ptag;
+    }
+
     void
     CHAOSPropagation::noteFunnel(const char *site, uint64_t attempted,
                                  uint64_t eligible, uint64_t injected)

@@ -165,34 +165,43 @@ namespace gem5
 
     void
     CHAOSLSQFwd::writeLog(const char *type, unsigned size, Addr vaddr,
-                          int byte_off, int mask)
+                          int byte_off, int mask, const FwdCorrelKeys &keys)
     {
         // [MDSPEC][H3-FWD] register the forwarding fault with the propagation
-        // tracer — writeLog is the single chokepoint every S01/S02/S03/S08/S09
-        // injection path passes through, so one hook covers them all.
+        // tracer — writeLog is the single chokepoint every S01/S02/S03/S09
+        // data-path injection passes through, so one hook covers them all.
         //
-        // RULING (ledgered): this call site has the forwarded vaddr + size but
-        // NOT the producer-store / consumer-load DynInst seqNum (the LSQ
-        // forwarding path in lsq_unit.cc does not pass them here). The chain is
-        // therefore registered ADDRESS-SCOPED: the forwarded range goes into
-        // the block registry, so the consuming load's resp/taint_reg/consumer/
-        // errant_commit join this chain via correlateRequest's range-overlap
-        // fallback. Chain identity = fault_id/ptag + parent_event_id; the
-        // address is only the correlation surface. Passing the real seqNums is
-        // the documented next step.
+        // [MDSPEC][R4-1] seq-PRIMARY correlation (user ruling 2026-10-20,
+        // superseding the H3-FWD address-scoped note): the producer store's
+        // and consuming load's dyn_inst_seq / sq_idx / lq_idx / request_id
+        // are passed in from lsq_unit.cc's forward site. Registration binds
+        // the addr registry to the STORE's seq (sq_writeback/sq_complete
+        // join by seq); the byte range stays in the blk registry as the
+        // LABELED address-only fallback. store_dyn_inst_seq == 0 (seq
+        // genuinely unavailable) degrades to corr=addr_fallback.
         if (CHAOSPropagation *tr = CHAOSPropagation::instance()) {
-            const uint64_t ptag = tr->registerCacheFault(
-                vaddr, -1, size ? size : 1, "lsqfwd_forward");
+            const uint64_t ptag = tr->registerLSQForwardFault(
+                keys.store_dyn_inst_seq, keys.sq_idx, keys.store_request_id,
+                keys.load_dyn_inst_seq, keys.lq_idx, keys.load_request_id,
+                vaddr, size ? size : 1, "lsqfwd_forward");
             if (ptag) {
                 std::ostringstream a;
                 a << std::hex << vaddr;
                 tr->notePropEvt("lsq_fwd", {
                     {"fault_id", std::to_string(ptag)},
+                    {"dyn_inst_seq", std::to_string(keys.load_dyn_inst_seq)},
+                    {"store_dyn_inst_seq",
+                     std::to_string(keys.store_dyn_inst_seq)},
+                    {"sq_idx", std::to_string(keys.sq_idx)},
+                    {"lq_idx", std::to_string(keys.lq_idx)},
+                    {"request_id", std::to_string(keys.load_request_id)},
                     {"va", a.str()},
                     {"pa", a.str()},
                     {"field", type},
                     {"before", "store_data"},
                     {"after", std::string("fwd_corrupt:") + type},
+                    {"corr", keys.store_dyn_inst_seq ? "seq_primary"
+                                                     : "addr_fallback"},
                 });
             }
         }
@@ -206,11 +215,16 @@ namespace gem5
             << ", FwdSize: " << size
             << ", ByteOffset: " << byte_off
             << ", Mask: " << std::bitset<8>(mask)
+            << ", StoreSeq: " << keys.store_dyn_inst_seq
+            << ", SqIdx: " << keys.sq_idx
+            << ", LoadSeq: " << keys.load_dyn_inst_seq
+            << ", LqIdx: " << keys.lq_idx
             << std::endl;
     }
 
     void
-    CHAOSLSQFwd::corrupt(uint8_t *data, unsigned size, Addr vaddr)
+    CHAOSLSQFwd::corrupt(uint8_t *data, unsigned size, Addr vaddr,
+                         const FwdCorrelKeys &keys)
     {
         // Hot-path short-circuit: no injection configured.
         if (probability <= 0.0f) return;
@@ -268,7 +282,7 @@ namespace gem5
             }
             stats->numFaultsInjected++;
             ++faults_injected_count;
-            writeLog("byte_lane_skew", size, vaddr, lane_skew_k, 0);
+            writeLog("byte_lane_skew", size, vaddr, lane_skew_k, 0, keys);
             DPRINTF(LSQUnit, "CHAOSLSQFwd: byte_lane_skew rol %d (vaddr=%#x)\n",
                     lane_skew_k, vaddr);
             return;
@@ -277,7 +291,7 @@ namespace gem5
             for (unsigned i = 0; i < size; i++) data[i] = 0;
             stats->numFaultsInjected++;
             ++faults_injected_count;
-            writeLog("all_zero", size, vaddr, 0, 0);
+            writeLog("all_zero", size, vaddr, 0, 0, keys);
             DPRINTF(LSQUnit, "CHAOSLSQFwd: all_zero (vaddr=%#x size=%u)\n",
                     vaddr, size);
             return;
@@ -318,7 +332,7 @@ namespace gem5
         }
         stats->numFaultsInjected++;
         ++faults_injected_count;
-        writeLog(faultTypeToString(chosen), size, vaddr, off, mask);
+        writeLog(faultTypeToString(chosen), size, vaddr, off, mask, keys);
         DPRINTF(LSQUnit, "CHAOSLSQFwd: corrupted forwarded byte %d (vaddr=%#x "
                 "mask=%#x type=%s)\n", off, vaddr, mask,
                 faultTypeToString(chosen));
