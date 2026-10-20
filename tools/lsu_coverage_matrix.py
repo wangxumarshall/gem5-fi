@@ -36,6 +36,15 @@ import lsu_prop_fields as P  # noqa: E402  （发射端 kind 注册表 = 实现�
 #
 # 证据文件缺省缺失时**不降级为 PASS**：所有非 BLOCKED 一律 PARTIAL
 # （unobserved=全部节点），因为"没证据" ≠ "已实现"。
+#
+# 2026-10-21 辅助运行边界（R4-3 评审 Important-1）：PASS 的节点级证据取
+# **全部 pilot 的 kind 并集**（节点=钩子能力级证据，与注入单元解耦）。
+# 证据可来自**辅助运行**（RunID ≠ 矩阵 RunID 的真实 pilot：directed 载体 /
+# campaign smoke 复跑）——但必须显式标出（aux_run_boundary：逐单元列出
+# 仅辅助运行观测到的必需节点 + 提供/未观测到它们的 RunID），否则 PASS 行
+# 会被误读为"该矩阵单元自身的 campaign 运行观测到了全部节点"。逐单元归属
+# 索引见 pilot_evidence.json 的 kinds_observed_by_unit（RunID→单元解析：
+# 精确匹配 → 行标签，见 tools/lsu_pilot_evidence.py unit_of）。
 UNIT_REQUIRED_NODES = {
     # AGU/LSQ 全链（表 9 A01：inj→L1 EA 入 LSQRequest→L2 dTLB→L3 LQ/SQ+访问
     # L1D→L4 PRF/消费者/提交→L5 终局）
@@ -96,6 +105,56 @@ def assess(entry, evidence):
     return "PARTIAL", why
 
 
+def aux_run_boundary(entries, evidence):
+    """逐单元计算"仅在辅助运行中观测到的必需节点"（R4-3 评审边界要求）。
+
+    辅助运行 = 证据文件里 RunID ≠ 矩阵 RunID 的真实 pilot（directed 载体、
+    campaign smoke 复跑、机理变体——**不是**矩阵单元自身的运行）。PASS 的
+    节点级证据允许来自辅助运行（节点=钩子能力证据，判据取全部 pilot 的
+    kind 并集），但必须显式标出——否则矩阵 PASS 行会被误读为"该单元的
+    campaign 运行自己观测到了全部节点"。
+
+    返回 {unit: {"nodes": [...], "aux_rids": [...], "matrix_rids": [...]}}：
+      nodes       必需节点中，辅助运行观测到、而该单元全部矩阵 RunID 运行
+                  均未观测到的节点（aux-only 定义保证后者；按
+                  UNIT_REQUIRED_NODES 顺序）；
+      aux_rids    提供上述节点的辅助运行 RunID；
+      matrix_rids 该单元在证据文件中的全部矩阵 RunID 运行（均未观测到
+                  上述节点）。
+    无证据文件 / 旧格式（无 pilots）→ {}。
+    """
+    if not evidence or "pilots" not in evidence:
+        return {}
+    matrix_rids = {e["run_id"] for e in entries}
+    per_unit = {}
+    for rid, p in evidence["pilots"].items():
+        unit = p.get("unit")
+        if not unit:
+            continue
+        d = per_unit.setdefault(unit, {"matrix_kinds": set(), "aux": {}})
+        if rid in matrix_rids:
+            d["matrix_kinds"].update(p.get("kinds", []))
+        else:
+            d["aux"][rid] = set(p.get("kinds", []))
+    out = {}
+    for unit, d in per_unit.items():
+        req = UNIT_REQUIRED_NODES.get(unit, [])
+        aux_kinds = (set().union(*d["aux"].values()) if d["aux"] else set())
+        nodes = [k for k in req
+                 if k in aux_kinds and k not in d["matrix_kinds"]]
+        if not nodes:
+            continue
+        node_set = set(nodes)
+        out[unit] = {
+            "nodes": nodes,
+            "aux_rids": sorted(r for r, ks in d["aux"].items() if ks & node_set),
+            "matrix_rids": sorted(
+                r for r, p in evidence["pilots"].items()
+                if r in matrix_rids and p.get("unit") == unit),
+        }
+    return out
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--map", required=True)
@@ -106,9 +165,14 @@ def main():
     a = ap.parse_args()
     m = json.loads(Path(a.map).read_text(encoding="utf-8"))
     evidence = load_evidence(a.evidence)
+    boundary = aux_run_boundary(m["entries"], evidence)
     rows = []
     for e in m["entries"]:
         st, why = assess(e, evidence)
+        # 辅助运行边界标注（R4-3 评审）：PASS 所依据的节点证据里，哪些
+        # 必需节点**仅**由非矩阵 RunID 的辅助运行（directed 载体等）提供。
+        if st == "PASS" and e["unit"] in boundary:
+            why = why + [f"aux_run_nodes:{','.join(boundary[e['unit']]['nodes'])}"]
         rows.append((e["run_id"], e["model_id"], e["unit"], e["freq"], st,
                      "; ".join(why)))
     cnt = Counter(r[4] for r in rows)
@@ -120,9 +184,21 @@ def main():
              "- 判定口径（2026-10-20 证据化）：PASS = 该单元规格所需**全部节点**"
              "既已实现（kind ∈ 发射端注册表）**又**在真实 pilot 运行中出现；"
              "缺任一节点 = PARTIAL 并逐项列出。注册表布尔值**不再**作为判据。",
-             f"- 真实运行观测到的 kind（{len(obs)}）：{', '.join(obs) or '（无证据文件）'}",
-             "",
-             "| RunID | 模型 | 单元 | 频率 | 状态 | 原因 |", "|---|---|---|---|---|---|"]
+             "- 节点级证据取**全部 pilot 的 kind 并集**（节点=钩子能力级证据，"
+             "与注入单元解耦）；逐单元归属索引见 pilot_evidence.json 的 "
+             "kinds_observed_by_unit（RunID→单元解析：精确匹配 → 行标签，"
+             "见 tools/lsu_pilot_evidence.py unit_of）。"]
+    if boundary:
+        lines.append(
+            "- **辅助运行证据边界**：下表所列单元的部分必需节点仅在**非矩阵"
+            " RunID 的辅助运行**（directed 载体 / campaign smoke 复跑，**非**"
+            "该矩阵单元自身的运行）中观测到——矩阵单元自身的运行（含 campaign "
+            "单元）未观测到这些节点；PASS 行已逐行标注 `aux_run_nodes:`，"
+            "详见文末\"辅助运行证据边界\"表。")
+    lines += [
+        f"- 真实运行观测到的 kind（{len(obs)}）：{', '.join(obs) or '（无证据文件）'}",
+        "",
+        "| RunID | 模型 | 单元 | 频率 | 状态 | 原因 |", "|---|---|---|---|---|---|"]
     lines += [f"| {r[0]} | {r[1]} | {r[2]} | {r[3]} | {r[4]} | {r[5][:160]} |"
               for r in rows]
 
@@ -130,20 +206,42 @@ def main():
     # 原因 BLOCKED，其钩子能力仍应可见——否则"H6 已验证"会被 126 BLOCKED
     # 淹没（用户第 3/5 点：能力与裁决要分开陈述）。
     lines += ["", "## 单元级节点能力（与 RunID 阻塞解耦）", "",
-              "| 单元 | 需要节点 | 已实现 | 真实运行已观测 | 仍缺 |",
-              "|---|---|---|---|---|"]
+              "| 单元 | 需要节点 | 已实现 | 真实运行已观测 | 仍缺 | "
+              "仅辅助运行观测 |",
+              "|---|---|---|---|---|---|"]
     observed_set = set(obs)
     for unit in sorted(UNIT_REQUIRED_NODES):
         req = UNIT_REQUIRED_NODES[unit]
         impl = [k for k in req if k in P.KIND_LAYER]
         miss = [k for k in req if k not in P.KIND_LAYER]
-        obs = [k for k in req if k in observed_set]
+        obs_u = [k for k in req if k in observed_set]
         unobs = [k for k in req if k not in observed_set]
+        aux_nodes = boundary.get(unit, {}).get("nodes", [])
         lines.append(
             f"| {unit} | {len(req)} | {len(impl)} | "
-            f"{len(obs)}/{len(req)} | "
+            f"{len(obs_u)}/{len(req)} | "
             f"{('impl:' + ','.join(miss) + ' ') if miss else ''}"
-            f"{('unobserved:' + ','.join(unobs)) if unobs else ''} |")
+            f"{('unobserved:' + ','.join(unobs)) if unobs else ''} | "
+            f"{(', '.join(aux_nodes)) if aux_nodes else '—'} |")
+
+    # 辅助运行证据边界表（R4-3 评审 Important-1）：把"决定 PASS 的节点证据
+    # 来自哪些运行"逐单元摊开——辅助运行 RunID 与该单元的矩阵 RunID 运行
+    # （后者均未观测到这些节点）并排列出，边界不可误读。
+    if boundary:
+        lines += ["", "## 辅助运行证据边界（矩阵单元自身运行 vs 辅助运行）", "",
+                  "PASS 的节点级证据允许来自辅助运行（RunID ≠ 矩阵 RunID 的"
+                  "真实 pilot：directed 载体 / campaign smoke 复跑 / 机理变体）。"
+                  "下表逐单元列出**仅在辅助运行中观测到**的必需节点；最后一列"
+                  "是该单元在证据文件中的全部矩阵 RunID 运行——它们**均未**"
+                  "观测到这些节点（含 campaign 单元自身的运行）：", "",
+                  "| 单元 | 仅辅助运行观测的必需节点 | 辅助运行 RunID | "
+                  "矩阵 RunID 运行（均未观测到） |",
+                  "|---|---|---|---|"]
+        for unit in sorted(boundary):
+            b = boundary[unit]
+            lines.append(f"| {unit} | {', '.join(b['nodes'])} | "
+                         f"{', '.join(b['aux_rids'])} | "
+                         f"{', '.join(b['matrix_rids'])} |")
     Path(a.out).parent.mkdir(parents=True, exist_ok=True)
     Path(a.out).write_text("\n".join(lines) + "\n", encoding="utf-8")
     print(f"[coverage] PASS={cnt.get('PASS', 0)} PARTIAL={cnt.get('PARTIAL', 0)} "

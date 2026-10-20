@@ -96,6 +96,46 @@ def main():
         check("cli_with_evidence_runs",
               r2.returncode == 0, f"rc={r2.returncode} {r2.stderr[-160:]}")
 
+    # --- 6. 辅助运行证据边界（R4-3 评审 Important-1）-----------------------
+    # 载体归属修复后：L1d-Cache 的 mshr_* 必需节点由 directed 载体
+    # （C09-R4T3-MSHRREF-*，非矩阵 RunID）提供，矩阵单元自身的运行（含
+    # campaign 单元 C09-F0-W6）未观测到——边界必须显式、可审计。
+    if ev.exists():
+        evidence = json.loads(ev.read_text(encoding="utf-8"))
+        b = CM.aux_run_boundary(entries, evidence)
+        l1d = b.get("L1d-Cache")
+        check("boundary_l1d_names_mshr_alloc",
+              l1d is not None and "mshr_alloc" in l1d["nodes"],
+              str(l1d["nodes"] if l1d else None))
+        check("boundary_l1d_carriers_all_six",
+              l1d is not None and
+              all(f"C09-R4T3-MSHRREF-s{i}" in l1d["aux_rids"]
+                  for i in range(1, 7)),
+              str(l1d["aux_rids"] if l1d else None))
+        check("boundary_l1d_lists_campaign_cell",
+              l1d is not None and "C09-F0-W6" in l1d["matrix_rids"],
+              str(l1d["matrix_rids"] if l1d else None))
+        # 通用性（非为 MSHRREF 特判）：数据预取器的 pf_queue/pf_issue 同样
+        # 仅由辅助运行（campaign smoke 复跑 / 机理变体）提供，必须同样标出
+        pf = b.get("数据预取器")
+        check("boundary_prefetch_general_too",
+              pf is not None and pf["nodes"] == ["pf_queue", "pf_issue"],
+              str(pf["nodes"] if pf else None))
+        # 无辅助独供节点的单元不得误标（Store Queue 7/7 全由矩阵运行观测）
+        check("boundary_no_false_positive_sq",
+              "Store Queue" not in b, str(sorted(b)))
+        md = Path("/tmp/mdspec_coverage_test_ev.md").read_text(
+            encoding="utf-8")
+        check("md_pass_rows_annotated",
+              "aux_run_nodes:mshr_alloc" in md)
+        has_section = "## 辅助运行证据边界" in md
+        check("md_boundary_section_present", has_section)
+        tail = md.split("## 辅助运行证据边界", 1)[1] if has_section else ""
+        check("md_boundary_names_carrier_and_campaign_cell",
+              "C09-R4T3-MSHRREF-s1" in tail and "C09-F0-W6" in tail)
+        check("md_capability_table_has_aux_column",
+              "仅辅助运行观测" in md)
+
     print(f"\nFAILURES: {fails if fails else '无'}")
     return 1 if fails else 0
 

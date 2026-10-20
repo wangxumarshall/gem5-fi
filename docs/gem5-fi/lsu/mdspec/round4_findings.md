@@ -532,6 +532,17 @@ cell 全部节点均有真实运行证据（L1d-Cache 11/11 补 mshr_alloc、Sto
 7/7 补 sq_execute）；126 BLOCKED 均为外部阻塞（FS/multicore/SPEC）。
 `atomic_op` 仍诚实未观测（O 系全 BLOCKED=multicore-FS，载体不可用）。
 
+**评审补救（Important-1，2026-10-21）**：载体 ×6 此前 `unit=null`，逐单元
+索引（kinds_observed_by_unit）与矩阵全局判据矛盾（矩阵称 L1d-Cache 11/11
+而逐单元索引无 mshr_alloc）。修复：`unit_of()` 增加行标签归属（RunID 精确
+匹配 → 行标签唯一归属 → 否则 null），两个产物已重生成——逐单元索引现在
+含全部 11 个必需节点（含 mshr_alloc），归属依据记录在每 pilot 的
+`unit_source` 字段；矩阵新增"辅助运行证据边界"：L1d-Cache 的
+mshr_alloc/merge/fill/free + cache_fill 由 directed 载体
+`C09-R4T3-MSHRREF-s1..s6`（非 campaign）提供，矩阵单元运行（含
+C09-F0-W6）均未观测到 mshr_*（campaign 单元语义未变）。同机制同时标出
+数据预取器 pf_queue/pf_issue 亦仅由辅助运行提供（非特判）。
+
 ### 3.6 诚实登记
 
 - 载体 6 样本 + campaign 2 cell 均为证据性 pilot，**非正式 campaign**。

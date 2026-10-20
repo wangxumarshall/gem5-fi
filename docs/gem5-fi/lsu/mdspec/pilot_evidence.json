@@ -2,6 +2,7 @@
  "pilots": {
   "A01-F0-W3": {
    "unit": "AGU",
+   "unit_source": "exact",
    "path": "runs/lsu/mdspec_pilot/A01-F0-W3/s1/prop_evt.txt.gz",
    "kinds": [
     "addr_form",
@@ -17,6 +18,7 @@
   },
   "A04-F0-W3": {
    "unit": "AGU",
+   "unit_source": "exact",
    "path": "runs/lsu/mdspec_pilot/A04-F0-W3/s1/prop_evt.txt.gz",
    "kinds": [
     "addr_form",
@@ -39,6 +41,7 @@
   },
   "C01-F0-W6": {
    "unit": "L1d-Cache",
+   "unit_source": "exact",
    "path": "runs/lsu/mdspec_pilot/C01-F0-W6/s1/prop_evt.txt.gz",
    "kinds": [
     "cache_access",
@@ -57,6 +60,7 @@
   },
   "P01-F0-W8": {
    "unit": "数据预取器",
+   "unit_source": "exact",
    "path": "runs/lsu/mdspec_pilot/P01-F0-W8/s1/prop_evt.txt.gz",
    "kinds": [
     "cache_access",
@@ -84,6 +88,7 @@
   },
   "O01-F0-W7": {
    "unit": "原子与同步",
+   "unit_source": "exact",
    "path": "runs/lsu/mdspec_pilot/O01-F0-W7/s1/prop_evt.txt.gz",
    "kinds": [
     "addr_form",
@@ -107,7 +112,8 @@
    "faults": 1
   },
   "P01-F0-W8-P03mech": {
-   "unit": null,
+   "unit": "数据预取器",
+   "unit_source": "row_tag",
    "path": "runs/lsu/mdspec_pilot/_h5mech/P03/prop_evt.txt.gz",
    "kinds": [
     "cache_access",
@@ -137,6 +143,7 @@
   },
   "S04-F0-W5": {
    "unit": "Store Queue",
+   "unit_source": "exact",
    "path": "runs/lsu/r4_t2_sqexec/S04-F0-W5/seed2/prop_evt.txt.gz",
    "kinds": [
     "addr_form",
@@ -157,6 +164,7 @@
   },
   "S05-F0-W5": {
    "unit": "Store Queue",
+   "unit_source": "exact",
    "path": "runs/lsu/mdspec_campaign_smoke/S05-F0-W5/seed1/prop_evt.txt.gz",
    "kinds": [
     "addr_form",
@@ -175,6 +183,7 @@
   },
   "C09-F0-W10": {
    "unit": "L1d-Cache",
+   "unit_source": "exact",
    "path": "runs/lsu/mdspec_campaign_smoke/C09-F0-W10/seed2/prop_evt.txt.gz",
    "kinds": [
     "cache_access",
@@ -200,6 +209,7 @@
   },
   "C4-cache_dirtyevict": {
    "unit": null,
+   "unit_source": null,
    "path": "runs/lsu/mdspec_pilot/_mshr/cache_dirtyevict_c5000/prop_evt.txt.gz",
    "kinds": [
     "cache_access",
@@ -220,6 +230,7 @@
   },
   "C4-stream_chase": {
    "unit": null,
+   "unit_source": null,
    "path": "runs/lsu/mdspec_pilot/_mshr/stream_chase_c5000/prop_evt.txt.gz",
    "kinds": [
     "cache_access",
@@ -239,7 +250,8 @@
    "faults": 2
   },
   "A01-F0-W3-campaign": {
-   "unit": null,
+   "unit": "AGU",
+   "unit_source": "row_tag",
    "path": "runs/lsu/mdspec_campaign_smoke/A01-F0-W3/seed1/prop_evt.txt.gz",
    "kinds": [
     "addr_form",
@@ -254,7 +266,8 @@
    "faults": 1
   },
   "P01-F0-W8-campaign": {
-   "unit": null,
+   "unit": "数据预取器",
+   "unit_source": "row_tag",
    "path": "runs/lsu/mdspec_campaign_smoke/P01-F0-W8/seed1/prop_evt.txt.gz",
    "kinds": [
     "cache_access",
@@ -284,6 +297,7 @@
   },
   "C09-F0-W6": {
    "unit": "L1d-Cache",
+   "unit_source": "exact",
    "path": "runs/lsu/r4_t3_c09w6/C09-F0-W6/seed1/prop_evt.txt.gz",
    "kinds": [
     "cache_access",
@@ -301,7 +315,8 @@
    "faults": 1
   },
   "C09-R4T3-MSHRREF-s1": {
-   "unit": null,
+   "unit": "L1d-Cache",
+   "unit_source": "row_tag",
    "path": "runs/lsu/r4_t3_mshr/s1/prop_evt.txt.gz",
    "kinds": [
     "cache_access",
@@ -326,7 +341,8 @@
    "faults": 1
   },
   "C09-R4T3-MSHRREF-s2": {
-   "unit": null,
+   "unit": "L1d-Cache",
+   "unit_source": "row_tag",
    "path": "runs/lsu/r4_t3_mshr/s2/prop_evt.txt.gz",
    "kinds": [
     "cache_access",
@@ -351,7 +367,8 @@
    "faults": 1
   },
   "C09-R4T3-MSHRREF-s3": {
-   "unit": null,
+   "unit": "L1d-Cache",
+   "unit_source": "row_tag",
    "path": "runs/lsu/r4_t3_mshr/s3/prop_evt.txt.gz",
    "kinds": [
     "cache_access",
@@ -376,7 +393,8 @@
    "faults": 1
   },
   "C09-R4T3-MSHRREF-s4": {
-   "unit": null,
+   "unit": "L1d-Cache",
+   "unit_source": "row_tag",
    "path": "runs/lsu/r4_t3_mshr/s4/prop_evt.txt.gz",
    "kinds": [
     "cache_access",
@@ -401,7 +419,8 @@
    "faults": 1
   },
   "C09-R4T3-MSHRREF-s5": {
-   "unit": null,
+   "unit": "L1d-Cache",
+   "unit_source": "row_tag",
    "path": "runs/lsu/r4_t3_mshr/s5/prop_evt.txt.gz",
    "kinds": [
     "cache_access",
@@ -426,7 +445,8 @@
    "faults": 1
   },
   "C09-R4T3-MSHRREF-s6": {
-   "unit": null,
+   "unit": "L1d-Cache",
+   "unit_source": "row_tag",
    "path": "runs/lsu/r4_t3_mshr/s6/prop_evt.txt.gz",
    "kinds": [
     "cache_access",
@@ -507,6 +527,7 @@
   "L1d-Cache": [
    "cache_access",
    "cache_evict",
+   "cache_fill",
    "cache_return",
    "cache_writeback",
    "chain_end",
@@ -517,6 +538,10 @@
    "lsq_push",
    "lsq_sendfrag",
    "mem_req",
+   "mshr_alloc",
+   "mshr_fill",
+   "mshr_free",
+   "mshr_merge",
    "resp",
    "taint_reg",
    "tlb_fault",
@@ -538,6 +563,8 @@
    "mshr_merge",
    "pf_demand",
    "pf_fill",
+   "pf_issue",
+   "pf_queue",
    "pf_train",
    "resp",
    "taint_reg"
