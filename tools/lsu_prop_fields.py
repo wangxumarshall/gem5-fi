@@ -76,9 +76,10 @@ REQUIRED_FIELDS = {
                      "request_id", "va"],
     # [MDSPEC][H2] pa 入口未定留空（诚实 pending；PA 物化由 resp 节点覆盖）
     "tlb_translate": ["fault_id", "dyn_inst_seq", "va", "request_id"],
-    # [MDSPEC][H2-fix] 翻译 fault 检测（detection_layer=Hardware, contained=1）
+    # [MDSPEC][H2-fix] 翻译 fault 检测（detection_layer=Hardware；contained
+    # 为空 = pending offline join——不预定终局）
     "tlb_fault": ["fault_id", "dyn_inst_seq", "va", "outcome",
-                  "detection_layer", "contained"],
+                  "detection_layer"],
     # [MDSPEC][H7] LQ 生命周期（va 取注册表 base；pa=响应地址）
     "lq_read": ["fault_id", "dyn_inst_seq", "lq_idx", "va"],
     "lq_complete": ["fault_id", "dyn_inst_seq", "lq_idx", "va", "pa"],

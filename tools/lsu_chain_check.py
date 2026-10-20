@@ -103,13 +103,16 @@ def _edges_for(chain_events):
 
 def _terminal(chain_events, edges, by_layer):
     """终止判定（规格三终局 + Unknown 兜底；缺席不猜测）。"""
-    # [H2-fix] tlb_fault = Hardware 检测 + contained（翻译层遏制——
-    # A01 POST 根因：corrupted vaddr 未映射 → MMU 检测 → 传播被遏制）
+    # [H2-fix] tlb_fault = Hardware 检测（翻译层阻断）——不预定 contained。
+    # 终局（Contained/Crash/Handled）由 chain_end + runner/oracle 离线
+    # join 决定；此处只报告检测到翻译 fault，链的传播被阻断于 L2。
     for e in chain_events:
         if (e.get("kind") == "tlb_fault"
-                and e.get("detection_layer") == "Hardware"
-                and e.get("contained") == "1"):
-            return "detected_contained"
+                and e.get("detection_layer") == "Hardware"):
+            if e.get("contained") == "1":
+                return "detected_contained"
+            # contained 为空 = pending offline join（不得推断）
+            return "detected_translation_outcome_pending"
     # 显式 contained 检测（L5 证据事件）
     for e in chain_events:
         if (e.get("detection_layer") and e.get("contained") == "1"
@@ -166,7 +169,12 @@ def check_chain(events, spec_nodes=None):
             "edges": edges,
             "terminal": term,
             "provable_to": provable,
-            "beyond": "" if term == "full" else "Unknown",  # 绝不 Masked
+            # beyond=Unknown 仅用于"可证至 Ln 后未知"的开放终局；
+            # 已定终局（full / detected_contained / squash_replay_masked）
+            # beyond 为空——链已收敛，无"后续未知"。绝不 Masked。
+            "beyond": ("" if term in ("full", "detected_contained",
+                                     "squash_replay_masked")
+                       else "Unknown"),
             "event_count": len(chain),
         }
     return result

@@ -153,6 +153,37 @@ def main():
     else:
         print("  SKIP 真实样本不在（/tmp/h7v_c01 已清理）——合成例已覆盖")
 
+    print("[6] tlb_fault 终局语义（翻译阻断 ≠ 终局 Contained）")
+    # contained 空 = 翻译阶段阻断，终局 pending（不得推断 Contained）
+    pending = _evts([
+        "PROP-EVT: kind=inj fault_id=7 event_id=0 tick=10",
+        "PROP-EVT: kind=addr_form fault_id=7 event_id=1 tick=10",
+        "PROP-EVT: kind=lsq_sendfrag fault_id=7 event_id=2 tick=11",
+        "PROP-EVT: kind=tlb_translate fault_id=7 event_id=3 tick=12",
+        "PROP-EVT: kind=tlb_fault fault_id=7 event_id=4 tick=13 "
+        "detection_layer=Hardware contained= outcome=GenericPageTableFault",
+    ])
+    v7 = CC.check_chain(pending)
+    f7 = v7["faults"]["7"]
+    check("tlb_fault(contained 空) → detected_translation_outcome_pending",
+          f7["terminal"] == "detected_translation_outcome_pending",
+          f7["terminal"])
+    check("pending 不得是 detected_contained",
+          f7["terminal"] != "detected_contained")
+    check("pending beyond 非空（终局待 join）", f7["beyond"] != "")
+    # contained=1（显式终局证据）→ detected_contained
+    resolved = _evts([
+        "PROP-EVT: kind=inj fault_id=8 event_id=0 tick=10",
+        "PROP-EVT: kind=addr_form fault_id=8 event_id=1 tick=10",
+        "PROP-EVT: kind=tlb_fault fault_id=8 event_id=2 tick=13 "
+        "detection_layer=Hardware contained=1 outcome=GenericPageTableFault",
+    ])
+    v8 = CC.check_chain(resolved)
+    f8 = v8["faults"]["8"]
+    check("tlb_fault(contained=1) → detected_contained",
+          f8["terminal"] == "detected_contained", f8["terminal"])
+    check("resolved beyond 为空（终局已定）", f8["beyond"] == "", f8["beyond"])
+
     print()
     if FAILED:
         print(f"FAILED ({len(FAILED)}): {FAILED}")

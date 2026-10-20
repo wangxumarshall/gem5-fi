@@ -1350,8 +1350,12 @@ MMU::translateTiming(const RequestPtr &req, ThreadContext *tc,
                     {"request_id", std::to_string(req->getReqInstSeqNum())},
                     {"va", h2f_hex.str()},
                     {"outcome", h2_fault->name()},
+                    // detection_layer=Hardware：MMU 检测到无效地址。
+                    // contained 不在此预定——终局（Contained/Crash/Handled）
+                    // 由 chain_end + runner/oracle 离线 join 决定（规格：
+                    // 不得推断）。空 = pending offline join。
                     {"detection_layer", "Hardware"},
-                    {"contained", "1"},
+                    {"contained", ""},
                 });
             }
         }
