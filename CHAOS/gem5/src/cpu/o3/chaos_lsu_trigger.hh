@@ -90,6 +90,17 @@ enum class ChaOSLsuTier : uint8_t { F0, F1, F2, F3, F4, F5, F6 };
 // true W1 SqForward source is the lsq_unit.cc forward branch). Removing
 // it would change the event supply of already-landed F6 cells; recorded
 // here and in the R4-5.7 report, not silently altered.
+//
+// [MDSPEC][R4-5.5] NINTH source, same ruling shape: the L1D MSHR
+// completing-and-should-release point (BaseCache::recvTimingResp's
+// mshrQueue.deallocate site — CHAOSCache targetField=mshr_busy_leak, model
+// C14-a) is an F6 event source: C14's specified event IS the MSHR that has
+// finished its fill and should return to the free list (the 03 sheet's
+// "目标MSHR首次完成并应释放"). Same non-ride: the release hook calls
+// onF6Event(false) directly at the release site (the release hook itself is
+// the attempt stream — R4-5.1-review-I1 accounting; the W1 thunk sites keep
+// the default true).
+//
 enum class ChaOSLsuEvent : uint8_t { TlbHit, SqForward, DirtyEviction,
                                      CasSuccess };
 

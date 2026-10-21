@@ -608,6 +608,72 @@ namespace gem5
         return ptag;
     }
 
+    // [MDSPEC][R4-5.5] C14-a MSHR busy/occupied stuck-at-1 (see .hh for the
+    // full contract). Address-only registration (the labeled addr_fallback
+    // arm): the release-point site has no Request seq binding — later
+    // events on the leaked entry's line join by overlap instead.
+    uint64_t
+    CHAOSPropagation::registerMshrBusyFault(Addr line, Addr block_size,
+                                            uint64_t occ_before,
+                                            uint64_t occ_after, bool was_full)
+    {
+        if (!write_log)
+            return 0;
+        const uint64_t ptag = ++next_ptag;
+
+        // inj node (addr column = the leaked entry's line). before/after =
+        // the occupancy pair — this model's faulted VALUE: the in-service
+        // occupancy that the correct release would have left (before) vs.
+        // the occupancy with the release SKIPPED (after).
+        {
+            std::ostringstream d;
+            d << "family=cache;field=mshr_busy_leak"
+              << ";before=" << occ_before
+              << ";after=" << occ_after
+              << ";was_full=" << (was_full ? 1 : 0)
+              << ";block_addr=" << std::hex << line << std::dec;
+            writeNode(ptag, "inj", 0, false, 0, false,
+                      line, true, 0, false, 0, false, d.str(),
+                      CORR_ORIGIN);
+        }
+        // model-specific mshr_busy node (the stuck occupied state itself).
+        // mshr_id: the propagator's line-keyed MSHR registry id for this
+        // entry — looked up, and minted when it did not exist yet (the
+        // fault is registered at the release point, which may precede any
+        // H4 mshr_alloc observation of this line). Deliberately NOT
+        // released here (no noteMshrFree): the leak is the point.
+        {
+            uint64_t mid = noteMshrLookup(line);
+            if (!mid)
+                mid = noteMshrAlloc(line);
+            std::ostringstream h;
+            h << std::hex << line;
+            notePropEvt("mshr_busy", {
+                {"fault_id", std::to_string(ptag)},
+                {"corr", CORR_ORIGIN},
+                {"mshr_id", std::to_string(mid)},
+                {"entry_index", std::to_string(mid)},
+                {"cache_line", h.str()},
+                {"field", "busy"},
+                {"state_before", "should_release"},
+                {"state_after", "stuck_busy"},
+            });
+        }
+        // faulted-byte (blk) registry: the WHOLE leaked line. Later events
+        // on that line (a re-miss' mshr_alloc/mshr_merge, cache_access, a
+        // response delivery) join by overlap — corr=addr_fallback.
+        {
+            sweepExpired();
+            BlkEntry b;
+            b.ptag = ptag;
+            b.byte_begin = line;
+            b.byte_end = line + (block_size ? block_size : 1);
+            b.registered = curTick();
+            blk_registry[b.byte_begin] = b;
+        }
+        return ptag;
+    }
+
     // [MDSPEC][R4-5.4] P06-a prefetch-as-demand fill classification fault
     // (see .hh for the full contract). Address-only registration (the
     // labeled addr_fallback arm): the fill-classification site has no

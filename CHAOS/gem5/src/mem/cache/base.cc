@@ -83,6 +83,10 @@ CHAOSCache *BaseCache::chaosMergeHook = nullptr;
 // [MDSPEC][R4-5.2] C12 fill-timing offset registry (declared in base.hh).
 CHAOSCache *BaseCache::chaosFillTimingHook = nullptr;
 
+// [MDSPEC][R4-5.5] C14-a MSHR busy/occupied stuck-at-1 registry
+// (declared in base.hh).
+CHAOSCache *BaseCache::chaosMshrBusyHook = nullptr;
+
 BaseCache::CacheResponsePort::CacheResponsePort(const std::string &_name,
                                           BaseCache& _cache,
                                           const std::string &_label)
@@ -802,9 +806,27 @@ BaseCache::recvTimingResp(PacketPtr pkt)
             // lets the injector decide whether to prevent this deallocation
             // (MSHR stays allocated = permanent stall for that block).
             chaosLsuF6Observe(ChaOSLsuEvent::DirtyEviction);
-            mshrQueue.deallocate(mshr);
-            if (was_full && !mshrQueue.isFull()) {
-                clearBlocked(Blocked_NoMSHRs);
+            // [MDSPEC][R4-5.5] C14-a MSHR busy/occupied stuck-at-1: the
+            // registered CHAOSCache (targetField=mshr_busy_leak) may SKIP
+            // this deallocation — the serviced entry stays in the queue's
+            // allocated list and never returns to the free list. The miss
+            // already completed (the fill was delivered by
+            // serviceMSHRTargets above), so the consumer got its data;
+            // only the slot is lost and the queue ultimately stays full
+            // (capacity degradation -> the CPU side stays blocked ->
+            // Timeout). When the leak fires the caller must ALSO skip the
+            // clearBlocked below: the queue is in fact still full, and
+            // clearing would be a lie that hides the leak. nullptr/false =
+            // zero regression (the deallocation runs unchanged).
+            const bool mshr_leaked = chaosMshrBusyHook &&
+                chaosMshrBusyHook->maybeStickMshrBusy(
+                    this, mshr, pkt->getBlockAddr(blkSize),
+                    mshrQueue.numInService(), was_full);
+            if (!mshr_leaked) {
+                mshrQueue.deallocate(mshr);
+                if (was_full && !mshrQueue.isFull()) {
+                    clearBlocked(Blocked_NoMSHRs);
+                }
             }
 
             // Request the bus for a prefetch if this deallocation freed enough

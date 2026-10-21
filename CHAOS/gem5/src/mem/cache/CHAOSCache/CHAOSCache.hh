@@ -69,6 +69,30 @@ class CHAOSCache : public SimObject
      *  process the packet). */
     bool maybeDeferFillTiming(BaseCache *cache, PacketPtr pkt);
 
+    /** [MDSPEC][R4-5.5] C14 MSHR busy/occupied stuck-at-1 (resource leak,
+     *  sub-model C14-a). Called by BaseCache::recvTimingResp IMMEDIATELY
+     *  BEFORE mshrQueue.deallocate(mshr) — the MSHR release point (the
+     *  spec's "目标MSHR首次完成并应释放" event). With the trigger's
+     *  consent the deallocation is SKIPPED: the entry stays in the MSHR
+     *  queue's allocated list and never returns to the free list, i.e.
+     *  its busy/occupied state is stuck-at-1. The corresponding miss DID
+     *  complete normally (serviceMSHRTargets already delivered the fill
+     *  before we get here) — only the slot is lost. Once the leaked slot
+     *  is the last free-demand entry the queue reports full and BaseCache
+     *  keeps the CPU side blocked (capacity degradation; the spec's
+     *  "容量退化和Timeout"). Only fires when `cache == targetCache` (the
+     *  mounted L1D), the mode is targetField=="mshr_busy_leak", no leak is
+     *  already pending (single slot — the 03 sheet's "每次运行只固定一个
+     *  表项"), and maxFaults is not exhausted. Returns true if the caller
+     *  must SKIP the deallocation (and its clearBlocked bookkeeping).
+     *
+     *  `line`   = the fill's block address (the leaked entry's line).
+     *  `in_service` = mshrQueue.numInService() read BEFORE the release
+     *                 (a public proxy for the private allocated counter).
+     *  `was_full`   = mshrQueue.isFull() read before the release. */
+    bool maybeStickMshrBusy(BaseCache *cache, MSHR *mshr, Addr line,
+                            uint64_t in_service, bool was_full);
+
   private:
     enum class FaultType {
       BitFlip,
@@ -150,6 +174,14 @@ class CHAOSCache : public SimObject
     // C12 resume body (fillResumeEvent thunk): deliver the stashed fill
     // response at the shifted tick via the public BaseCache trampoline.
     void resumeDeferredFill();
+    // [MDSPEC][R4-5.5] C14 MSHR busy-stuck leak: the single leaked slot.
+    // nullptr until the (one) leak has happened; the slot is never freed
+    // by construction, so there is nothing to reset — the pointer doubles
+    // as the "one entry per run" guard the 03 sheet mandates.
+    MSHR *mshr_busy_victim = nullptr;
+    uint64_t mshr_busy_leaks = 0;      // successful leak injections (funnel)
+    // Legacy-attack periodic self-check disabled in hook modes (unused
+    // here, kept as the C11/C12 `lsu_hook_mode` gate does).
     // [LSU][OBS-L3] nullptr default: the ctor only assigns log_stream when
     // probability != 0, and the [OBS-L3] funnel helper reads it on every
     // injection — the default-init makes that read defined (defensive; the
