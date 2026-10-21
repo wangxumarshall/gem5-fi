@@ -1552,3 +1552,39 @@ LSU_FS_DIR=/home/sdc/gem5-fi-ding/gem5-fs python3 tools/lsu_campaign.py \
 ```
 判据：注入日志含 `Site: arm_tlb_walk_issue_drop`，且 `tlb_walk`/`tlb_refill`
 共享同一 `walk_id`、refill `field=lost`。**未跑之前 T08 保持 BLOCKED。**
+
+### 5.9.6 FS pilot 首次尝试（2026-10-22，**未通过** → T08 保持 BLOCKED）
+
+执行（`LSU_FS_DIR=/home/sdc/gem5-fi-ding/gem5-fs`，checkpoint
+`runs/lsu/fs_cpt_boot/cpt.237949797015`，1 cell 1 seed）：
+
+```
+python3 tools/lsu_campaign.py --matrix artifacts/lsu-trial/07-expanded-matrix-backfilled.csv \
+  --outdir runs/lsu/r4_t59_pilot --cells T08-F0-W9 --phase trial \
+  --max-seeds-per-cell 1 --max-parallel 1 --timeout 1200 \
+  --fs-checkpoint /home/sdc/gem5-fi-ding/runs/lsu/fs_cpt_boot/cpt.237949797015
+```
+
+**结果：未完成**——外层 1500 s 上限到点被杀（`FS_EXIT=124`），未产出终止统计。
+但**已产生可判读的部分证据**，且**判据不满足**：
+
+1. 注入日志确实有 T08 故障类型，但落点**不是** T08-a 的 walk 发出点：
+```
+Tick: 237950940537, Site: arm_tlb_lookup_hit, VA: 0xffffffc009483fa8,
+old_pfn: 0x81d75, new_pfn: 0x81d75, FaultType: walk_pairing, Mask: 0x4000000
+```
+注意 **old_pfn == new_pfn**（未改变）且 Site 为既有的 lookup-hit 路径 ——
+即 `--tlb_fault_type walk_pairing` 在这一跑里**没有改道到 walk 发出点**。
+2. PROP-EVT 仅 6 个事件、`truncated=True`，kind 集合为
+`inj / resp / sq_complete / sq_execute / sq_writeback / tlb_pfn` ——
+**没有 `tlb_walk` / `tlb_refill`**，即 T08-a 的配对观测量根本没出现。
+
+**结论（诚实）**：T08-a 在本轮**未经真机断言**，验收判据（注入日志含
+`Site: arm_tlb_walk_issue_drop` + `tlb_walk`/`tlb_refill` 共享 `walk_id` +
+refill `field=lost`）**明确不满足**。**T08 保持 MODEL_BLOCKED**（已还原）。
+
+**给下一执行单元的线索（未验证，不得当结论）**：需先查清 (a) FS 配置是否真的把
+`walker=<ArmTableWalker>` 挂给了 CHAOSArmTLB（未挂则 walk 钩子永不触发），
+以及 (b) `faultType=walk_pairing` 在注入分派里是否被 lookup-hit 分支抢先消费。
+另：该 FS 组合（checkpoint 恢复 + tlb_probe 载体）单跑超过 1500 s 未结束，
+后续需按更长预算或更短 ROI 窗口重跑。
