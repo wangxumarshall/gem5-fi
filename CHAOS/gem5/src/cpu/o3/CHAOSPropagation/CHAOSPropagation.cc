@@ -559,6 +559,55 @@ namespace gem5
         return ptag;
     }
 
+    // [MDSPEC][R4-5.2] C12 fill-timing offset (see .hh for the full
+    // contract). Address-only registration (the labeled addr_fallback arm):
+    // the fill-response site has no Request seq binding — the delayed
+    // fill's consumers join by line overlap instead.
+    uint64_t
+    CHAOSPropagation::registerFillTimingFault(Addr line, Addr block_size,
+                                              Tick arrival_tick,
+                                              Tick deferred_tick,
+                                              uint64_t delay_cycles)
+    {
+        if (!write_log)
+            return 0;
+        const uint64_t ptag = ++next_ptag;
+
+        // inj node (addr column = the deferred fill's line). before/after
+        // carry the faulted VALUE for this model — the fill's delivery
+        // tick before/after the offset (registered fields, so the pair is
+        // stream-visible on the dual-emit; delay_cycles stays in the
+        // detail for the v1 CSV node and is derivable as after-before).
+        {
+            std::ostringstream d;
+            d << "family=cache;field=mshr_fill_timing"
+              << ";before=" << arrival_tick
+              << ";after=" << deferred_tick
+              << ";delay_cycles=" << delay_cycles
+              << ";block_addr=" << std::hex << line << std::dec;
+            writeNode(ptag, "inj", 0, false, 0, false,
+                      line, true, 0, false, 0, false, d.str(),
+                      CORR_ORIGIN);
+        }
+        // faulted-byte (blk) registry: the WHOLE fill line. The delayed
+        // mshr_fill/cache_fill/mshr_free events (correlateBlock on the
+        // line), cache_access on later lookups, and noteMemResponse's
+        // cache arm (the response delivery on this very line) all join by
+        // overlap — at the shifted tick, so the trace itself witnesses the
+        // offset (mshr_fill.tick - inj.tick = the delay + the normal fill
+        // pipeline latency).
+        {
+            sweepExpired();
+            BlkEntry b;
+            b.ptag = ptag;
+            b.byte_begin = line;
+            b.byte_end = line + (block_size ? block_size : 1);
+            b.registered = curTick();
+            blk_registry[b.byte_begin] = b;
+        }
+        return ptag;
+    }
+
     // [MDSPEC][R4-1] SQ store->load forwarding fault (seq-primary).
     uint64_t
     CHAOSPropagation::registerLSQForwardFault(

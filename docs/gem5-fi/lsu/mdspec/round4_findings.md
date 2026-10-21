@@ -789,3 +789,155 @@ C11 后现实全 PASS；pytest 16 passed + 5 既有 error、cpf 13 / tlb 2 既�
 - **Minor2**：`lsu_runid_map.py` SPEC_IMPL_LANDED["C11"] 机器可读化——落地
   子模型（C11-b 同 line merge 目标翻位）与未落地子模型（C11-a 跨行替换/
   C11-c target 丢失/C11-d target 重复）逐一点名，`runid_map.json` 再生成。
+
+## R4-5.2（2026-10-21）：C12 fill 时序偏移模式落地（MODE-UNIMPL 41→35）
+
+基线 `33d3c5ff`（二进制 `e6b12033131cdd0a`），强制重编 3 个改动 TU
+（CHAOSCache/base/CHAOSPropagation .o 删除重建）后 **`503f35b7ed049342`**。
+完整报告：`.superpowers/sdd/2026-10-20-lsu-mdspec-round4/task-5-2-report.md`。
+本项继承了一次被中断的在飞行工作（12 文件 + 1 测试，未构建未运行）——
+全部按下文重验证后落地；继承稿中 3 处与事实不符处已修正（见 §5.2.6）。
+
+### 5.2.1 实现（逐项落地模板 1-3）
+
+- **注入端**：`CHAOSCache` 新模式 `targetField=mshr_fill_timing`
+  （C11 先例：新 targetField 值=新子模型模式）——事件归一化
+  `ChaOSLsuTrigger`（LSU track；lsuTier/off 与 lsuFillDelayCycles=0 均
+  大声 panic；legacy 周期攻击经 `lsu_hook_mode`（=merge_mode‖
+  fill_timing_mode）门禁用）。钩子 `maybeDeferFillTiming` 挂在
+  `BaseCache::recvTimingResp` **顶部、popSenderState 之前**：触发器同意
+  后 fill 响应包被 stash（MSHR sender state 未弹——推迟期间 MSHR 保持
+  outstanding，后续同 line 请求继续合并），`fillResumeEvent` 定在
+  `curTick()+lsuFillDelayCycles` 个挂载缓存 clock edge，经公共跳板
+  `chaosResumeDeferredResp` **再入 recvTimingResp**——miss-latency 统计、
+  handleFill（H4 mshr_fill/cache_fill/mshr_free）、serviceMSHRTargets、
+  MSHR 释放全部在偏移后的 tick 运行（消费者拿到**相同数据、推迟的时间**，
+  表7 钦定"数据载荷保持正确"）。资格门镜像 recvTimingResp is_fill 的
+  read 臂（非错误 READ + 非 forward MSHR）；**再入防护**（pkt==fillPendingPkt
+  直接处理，与 tier/maxFaults 无关——F5+unlimited 不成环）与**单槽守卫**
+  （槽占用时结构性拒绝第二份推迟；campaign maxFaults=1，无界多推迟需队列，
+  超范围未实现）。F6=**首个过资格门的 fill**（第六个 F6 事件源，登记于
+  chaos_lsu_trigger.hh；`onF6Event(false)`——attempt 已由 onAttempt 计过，
+  R4-5.1-review-I1 形态复用）。偏移实测恰 38500 ticks=100 个 L1D clock
+  edge（每 seed 逐字节一致）。
+- **观测端**：无新 kind——复用 inj/mshr_*/cache_*/resp/lq_complete/
+  taint_reg/consumer/errant_commit/chain_end。新增
+  `CHAOSPropagation::registerFillTimingFault`：inj 节点（corr=origin；
+  **before/after=fill 交付 tick 前/后**——时序故障的被故障值就是交付时间，
+  经 writeNode 双发直接入统一流；block_addr→cache_line）+ **整行**入 blk
+  注册表 → 偏移后 tick 的 mshr_fill/cache_fill/mshr_free（correlateBlock）、
+  后续 cache_access、noteMemResponse 缓存臂（resp/lq_complete/taint_reg）
+  全部入链，逐事件 corr=addr_fallback 显式标注。
+- **路由**：lsu_proxy choices+`--l1d_fill_delay_cycles` → MODEL_FLAGS C12
+  （显式 delay=100）→ `CACHE_F0_SPAN` C12 自有流实测条目 +
+  `_cache_tier_flags` 扩为 C11/C12（未实测 F0 对仍拒绝；legacy cache 模型
+  tier flags 逐字节不变）→ C12 从 MODEL_BLOCKED 删除（实测后才删）。
+  `lsu_runid_map` SPEC_IMPL_LANDED["C12"] 登记（落地=有界偏移；pending:
+  C12-a 丢失/C12-b 重复/C12-c valid 过早/C12-d 旧数据+新tag，表9 子模型
+  逐一点名）。
+
+### 5.2.2 F0 跨度实测（span=1000000 纯普查，注入 0 次，二进制 503f35b7ed049342）
+
+```
+$ <worktree>/CHAOS/gem5/build/ARM/gem5.opt --outdir=runs/lsu/r4_t52_span/<wl> \
+    configs/se/lsu_proxy.py --cmd workloads/directed/<wl> --cpu O3 \
+    --chaos_l1d --l1d_first_clock 1000 --l1d_max_faults 1 \
+    --l1d_lsu_tier F0 --l1d_warmup_events 1 --l1d_span_events 1000000 \
+    --l1d_target_field mshr_fill_timing --l1d_rng_seed 1 \
+    --chaos_propagation --prop_run_id C12-SPAN-<wl> --prop_sample_run_id s1
+CHAOS_LSU_TRIGGER: injector=CHAOSCache tier=F0 attempted=2556 eligible=1535 injected=0 ...
+CHAOS_LSU_TRIGGER_ALARM: ... mode=SPAN_UNREACHABLE ... draw_next_fire=756413 ...（普查意图）
+```
+
+- (C12, cache_dirtyevict)=**1535**（attempted 2556）
+- (C12, stream_chase)=**20229**（attempted 20541）
+- (C12, cache_mshr_refetch)=**12551**（attempted 13348；辅助载体）
+- C12 流=L1D read fill，与 C11 merge 流分开实测（refetch 载体上
+  merges/fills≈3.3，两表数值不可跨模型比较——结构性成立）。
+
+### 5.2.3 真机证据
+
+- **campaign 入口**（任务书原命令）C12-F0-W6 3 seed：
+  `activated=3 sdc=0 stop=seed-cap(3) cons=OK`，oracle **Masked×3**——
+  时序故障数据载荷保持正确（表7 钦定口径），sdc=0 是诚实结果而非缺陷。
+  注入日志 3/3 非空（各恰 1 次推迟，偏移逐字节=38500 ticks，如
+  `Tick: 47008115, Cache Block Addr: 537536, Field: mshr_fill_timing
+  (C12 fill deferred 100 cycles), arrival_tick=47008115,
+  deferred_tick=47046615, faults_injected: 1`）；seed1-3 触发器
+  `attempted=2034/1774/2338 eligible=1013/753/1317 injected=1`（F0 抽样
+  互异，均落在 1535 跨度内；fire 后 maxFaults 冻结，C11 同口径）。
+- **逐边链证据**（lsu_chain_check.py）：**seed2/seed3 terminal=full、
+  provable_to=L5、L0→L5 全边 proven**；**seed1 terminal=
+  provable_to_L0_then_unknown（beyond=Unknown）**——seed1 被推迟行
+  （0x833c0）注入后至程序结束未被再次访问，全流 0 条 cache_access，L1
+  边缺席（L2→L3/L3→L4/L4→L5 仍 proven：偏移后 mshr_fill@deferred_tick →
+  resp/lq_complete/taint_reg → errant_commit(taint_prop) → consumer×6022 →
+  chain_end）。按规格"缺事件只能报 Unknown，不得推断 Masked"如实记录；
+  seed2 的 L1 边来自 3.55M ticks 后同行重访（cache_access@48960835，
+  注册窗内），系负载访问结构差异而非代码缺陷。
+- **定向载体** cache_mshr_refetch（golden 682fe66c2cbbec4b 与 R4-3/C11
+  一致）×3 seed（F0, span=12551）：checksum 三方全等于 golden（Masked
+  ×3）、注入 3/3、链 **3/3 terminal=full 全边 proven**（每行每轮重取，
+  被推迟行必被重访——L1 边结构性在场）。
+- **F6 单元** C12-F6-W6 seed1：`attempted=1 eligible=1 injected=1`
+  （恰一次 attempt/eligible/injected，无双计；注入在首个资格 fill
+  tick=147455=first_eligible_tick，early_stress 首现语义），链
+  terminal=full；campaign `activated=1 sdc=0 cons=OK`。
+- **不受影响族回归** C01-F0-W6（legacy firstClock/bit_flip 路径）1 seed：
+  `activated=1 sdc=0 cons=OK`，注入行 `Tick: 1000000, Cache Block Addr:
+  577344, Byte Offset: 0, FaultType: bit_flip, Mask: 10000000` 与
+  R4-5.1 记录逐字节一致。
+
+### 5.2.4 覆盖矩阵
+
+`coverage_matrix.md`：**PASS=207→213 / PARTIAL=0 / BLOCKED=118→112**（C12
+6 RunID 全 PASS）；`blocked_triage` MODE-UNIMPL **41→35**。L1d-Cache 辅助
+运行边界保持关闭（C11 已闭；C12 载体 16 kinds 不引入辅助独供节点）；
+pilot_evidence 增 C12-F0-W6（矩阵运行）+ C12-R4T52-MSHRREF-s1..s3（载体）。
+
+### 5.2.5 测试
+
+新增 `tests/test_lsu_hook_c12.py`（56 项契约：观测 kind/必录字段、时序对
+inj.before<after 且 mshr_fill.tick≥inj.after、合成链 full、L0 注入行解析、
+源码级触发纪律（onF6Event(false) 单次 onAttempt）/端到端接线/顺序契约
+（钩子先于 popSenderState）/再入与单槽守卫、路由+跨度表+loud refusal、
+6 RunID 解析）全 PASS；`test_lsu_hook_c11` legacy 攻击门 pin 更新为
+lsu_hook_mode 泛化形（merge 语义不变）；`test_lsu_coverage_matrix` 增
+C12 同构钉（矩阵运行观测延迟 fill 生命周期/载体留证/6 行 PASS/边界仍闭）
+全 PASS；runid_map/pilot_evidence/chain_check/f6_gate/lsq/lq/sq/lsqfwd
+全 PASS；`chaos_lsu_trigger_test.cc` 独立单测 ALL PASSED；pytest 16
+passed + 5 既有 error（claim_concurrency，计数不变）；cpf 13 / tlb 2
+既有失败计数与名单不变。
+
+### 5.2.6 诚实登记（含对继承在飞行稿的修正）
+
+- **继承稿修正 1**：`lsu_runid_map.py` SPEC_IMPL_LANDED["C12"] 原文称
+  "campaign C12-F0-W6 3 seed + 载体 ×3 全链 full"——实测 campaign 链为
+  **2/3 full + 1/3 provable_to_L0_then_unknown**，已改为逐 seed 如实表述
+  （含 sdc=0 口径与 seed1 L1 边缺席原因）。
+- **继承稿修正 2**：`lsu_campaign.py` CACHE_F0_SPAN 注释原把整表出处记
+  为 C11 的 ddde3425 二进制——C12 行实测于 503f35b7（本项重建二进制），
+  已按模型分注出处。
+- **继承稿修正 3**：继承稿把 CHAOSCache ctor 的 legacy 攻击门变量
+  merge_mode 改名 lsu_hook_mode，但未同步 `test_lsu_hook_c11` 的源码级
+  pin（若真跑过该测试必 FAIL——证明确实从未运行）；已更新 pin 并确认
+  merge 语义不变（lsu_hook_mode=merge_mode‖fill_timing_mode）。
+- **中断交接偏差**：交接说明称在飞行稿"no build"——实测工作树二进制
+  mtime（10:47）晚于全部源码编辑（10:28-10:39），即前次尝试**已构建过**
+  一个二进制。为获得正向出处证明，删除 3 个改动 TU 的 .o 强制重编，
+  本项全部证据出自 **503f35b7ed049342**。
+- **seed1 的 L1 边缺席**：见 §5.2.3——负载结构性的行未被重访，诚实
+  Unknown；链核心（L0→L2→L5 的偏移交付边）在全部 3 seed proven。
+- **延迟 fill 事件的 mshr_id=0**：被推迟 MSHR 的分配早于 C12 注册
+  （H4 mshr_alloc 仅故障关联才发射）——"查无此行"哨兵语义（R4-3
+  §3.6、C11 §5.1.6 同类），非真实 id，不作 join key。
+- **单槽限制**：同一时刻至多一份推迟 fill（campaign maxFaults=1 下
+  无影响；F5+unlimited 的多次并发推迟需队列，超范围未实现）。
+- **资格门与预取**：门未含 isDemand——若 L1D 挂预取器 HardPFResp 亦
+  eligible；B0 profile `l1d.prefetcher = NULL`（02 r19），campaign 实测
+  流为 demand-only（S3/S4 变体 profile 不在 campaign 路由内）。
+- **子模型范围**：xlsx 表9 C12-a（fill/writeback 丢失/无界推迟）、C12-b
+  （重复）、C12-c（valid 过早）、C12-d（旧数据+新 tag）未落地——本轮
+  落地的是表7 实施细则"延后"子模型（有界交付偏移）；仅解除"只有事件
+  源"阻塞前提（spec_landed 留证）。
+- 全部运行为 pilot/证据性质（phase=trial），未启动正式 campaign。

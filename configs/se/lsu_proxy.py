@@ -179,21 +179,34 @@ p.add_argument("--l1d_max_faults", type=lambda x: int(x,0), default=1)
 p.add_argument("--l1d_rng_seed", type=lambda x: int(x,0), default=20260825)
 p.add_argument("--l1d_target_field", default="data",
                choices=["data","tag","valid","dirty","coh","data_shift",
-                        "mshr_merge"])
+                        "mshr_merge","mshr_fill_timing"])
 p.add_argument("--l1d_protection_model", default="none",
                choices=["none","sed","secded_poison","secded"])
 p.add_argument("--l1d_lsu_tier", default="off",
                choices=["off","F0","F1","F2","F3","F4","F5","F6"],
                help="W6: LSU trigger tier on CHAOSCache (05 r2-r8). "
                     "REQUIRED for targetField=mshr_merge (MDSPEC C11: "
-                    "event-normalized merge-corruption trigger; 'off' "
+                    "event-normalized merge-corruption trigger) and "
+                    "targetField=mshr_fill_timing (MDSPEC C12: "
+                    "event-normalized fill-timing-offset trigger; 'off' "
                     "panics loudly)")
 p.add_argument("--l1d_warmup_events", type=lambda x: int(x,0), default=0,
-               help="MDSPEC C11 mshr_merge: eligible merge events skipped "
-                    "before arming (LSU trigger warmup_events)")
+               help="MDSPEC C11 mshr_merge / C12 mshr_fill_timing: eligible "
+                    "events skipped before arming (LSU trigger "
+                    "warmup_events; C11 stream = demand-read merges, "
+                    "C12 stream = read fills on the mounted L1D)")
 p.add_argument("--l1d_span_events", type=lambda x: int(x,0), default=1000,
-               help="MDSPEC C11 mshr_merge: F0 uniform window size in "
-                    "eligible merge events (LSU trigger span_events)")
+               help="MDSPEC C11 mshr_merge / C12 mshr_fill_timing: F0 "
+                    "uniform window size in eligible events (LSU trigger "
+                    "span_events)")
+p.add_argument("--l1d_fill_delay_cycles", type=lambda x: int(x,0),
+               default=100,
+               help="MDSPEC C12 mshr_fill_timing: the fill-timing offset "
+                    "in cache cycles — the deferred fill's processing "
+                    "(handleFill + target service + MSHR free) runs at "
+                    "curTick() + this many clock edges of the mounted "
+                    "cache. >=1 required in that mode (0 panics loudly); "
+                    "inert in every other targetField mode")
 # W8: P-series prefetcher injector (CHAOSPrefetch hooks the L2
 # StridePrefetcher via the Stride registry — self-attaching, no target
 # param; 03-design-matrix P-rows. A tier is REQUIRED: this injector is
@@ -735,6 +748,7 @@ def _lsu_b0_caches(root):
             lsuTier=args.l1d_lsu_tier,
             lsuWarmupEvents=args.l1d_warmup_events,
             lsuSpanEvents=args.l1d_span_events,
+            lsuFillDelayCycles=args.l1d_fill_delay_cycles,
             writeLog=True)
         print(f"[lsu_proxy] CHAOSCache attached to l1d-cache-0 "
               f"(field={args.l1d_target_field}, protection={args.l1d_protection_model}, "

@@ -51,7 +51,18 @@ class CHAOSCache(SimObject):
         "coherence bit) | data_shift (C09 rotate) | tag(F5) | mshr_merge "
         "(MDSPEC C11: merge-target address bit_flip at the MSHR coalescing "
         "hook — event-normalized ChaOSLsuTrigger via lsuTier; the legacy "
-        "periodic block attack is DISABLED in this mode)")
+        "periodic block attack is DISABLED in this mode) | mshr_fill_timing "
+        "(MDSPEC C12: fill-timing OFFSET — a fill response is deferred by "
+        "lsuFillDelayCycles cache cycles (stash + scheduled resume into "
+        "recvTimingResp); same trigger discipline via lsuTier, legacy "
+        "periodic attack DISABLED)")
+    lsuFillDelayCycles = Param.UInt64(100,
+        "MDSPEC C12 mshr_fill_timing: the fill-timing offset in cache clock "
+        "cycles — the deferred fill's processing (handleFill + target "
+        "service + MSHR free) runs at curTick() + this many clock edges of "
+        "the mounted cache. >= 1 required in mshr_fill_timing mode (0 is "
+        "panicked loudly — a zero-cycle offset is a no-op, not a timing "
+        "fault). Inert in every other targetField mode.")
     pairedSector = Param.Bool(False,
         "Phase 5 §7.7 paired-sector 128B fault-domain proxy: when set, the "
         "fault is applied to BOTH the target 64B block AND its 128B-aligned "

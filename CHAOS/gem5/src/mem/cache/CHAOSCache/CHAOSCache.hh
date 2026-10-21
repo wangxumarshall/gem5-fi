@@ -50,6 +50,25 @@ class CHAOSCache : public SimObject
      *  the corrupted address joins the chain). Returns true if corrupted. */
     bool maybeCorruptMergeTarget(BaseCache *cache, PacketPtr pkt);
 
+    /** [MDSPEC][R4-5.2] C12 fill-timing offset. Called by
+     *  BaseCache::recvTimingResp at the TOP, BEFORE popSenderState: with
+     *  the trigger's consent (LSU-track ChaOSLsuTrigger, event-normalized
+     *  on the fill-response stream), DEFER the fill response to a later
+     *  tick — the packet is stashed (MSHR sender state intact, so the
+     *  MSHR stays outstanding and later same-line requests keep merging)
+     *  and a resume event at curTick() + lsuFillDelayCycles cache cycles
+     *  re-enters recvTimingResp via BaseCache::chaosResumeDeferredResp.
+     *  The whole fill path then runs at the shifted tick: the consumer
+     *  gets the same data at a shifted time. Only fires when
+     *  `cache == targetCache` (the mounted L1D), the mode is
+     *  targetField=="mshr_fill_timing", and maxFaults is not exhausted.
+     *  Registers the fault with CHAOSPropagation (inj node + the whole
+     *  fill line in the faulted-byte registry, so the DELAYED
+     *  mshr_fill/cache_fill/mshr_free events and the response delivery
+     *  join the chain). Returns true if deferred (caller must NOT
+     *  process the packet). */
+    bool maybeDeferFillTiming(BaseCache *cache, PacketPtr pkt);
+
   private:
     enum class FaultType {
       BitFlip,
@@ -115,6 +134,22 @@ class CHAOSCache : public SimObject
     // LSU W6/W10: event-normalized trigger + L0 funnel
     ChaOSLsuTrigger *lsuTrigger = nullptr;
     ChaOSL0Funnel l0_funnel;
+
+    // [MDSPEC][R4-5.2] C12 fill-timing offset: the single deferred-fill
+    // slot + the scheduled resume event + the configured offset (cache
+    // cycles). fillPendingPkt doubles as the re-entry guard: during the
+    // resume event the stashed pointer is still set, so the re-entered
+    // recvTimingResp->maybeDeferFillTiming sees pkt == fillPendingPkt and
+    // processes the packet instead of deferring again (independent of
+    // tier/maxFaults). A SECOND deferral while one is pending is
+    // structurally refused (single slot — the campaign runs maxFaults=1;
+    // an unlimited multi-defer needs a queue, out of scope, honest).
+    PacketPtr fillPendingPkt = nullptr;
+    EventFunctionWrapper fillResumeEvent;
+    uint64_t fill_delay_cycles = 100;
+    // C12 resume body (fillResumeEvent thunk): deliver the stashed fill
+    // response at the shifted tick via the public BaseCache trampoline.
+    void resumeDeferredFill();
     // [LSU][OBS-L3] nullptr default: the ctor only assigns log_stream when
     // probability != 0, and the [OBS-L3] funnel helper reads it on every
     // injection — the default-init makes that read defined (defensive; the

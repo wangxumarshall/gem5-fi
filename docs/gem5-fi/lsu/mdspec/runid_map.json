@@ -6350,12 +6350,9 @@
    "correlation_keys": "run_id + sample_run_id + fault_id/ptag；event_id + parent_event_id；tick/cycle + core_id + thread_id；dyn_inst_seq + commit_seq + PC/opcode；lq_idx/sq_idx；request_id/pf_request_id/walk_id/mshr_id/fill_id；VA/PA/cache_line；arch_reg/phys_reg。禁止只用tick或address单键连接。",
    "termination": "完整：存在L0 fault_applied，且每条边由共享键与时间/可达性同时证明，最终到达(1) errant commit/错误内存副作用/软件oracle差异，或(2)明确检测并contained，或(3)明确squash/replay/mask且无错误副作用。若链在某节点后缺事件，只能标“截至该节点可证，后续Unknown”，不得推断Masked。",
    "impl_status": "需新增（当前阻塞：只有fill timing事件源）",
-   "spec_landed": "",
-   "status": "BLOCKED",
-   "status_reasons": [
-    "campaign:deferred(consumer-side: fill-timing event source only)",
-    "spec:需新增（当前阻塞：只有fill timing事件源）"
-   ],
+   "spec_landed": "implemented(mshr_fill_timing=bounded fill-delivery offset by lsuFillDelayCycles cache cycles, CHAOSCache defer hook at the top of BaseCache::recvTimingResp (stash + scheduled resume via chaosResumeDeferredResp); pending: C12-a fill/writeback drop (unbounded), C12-b duplicate fill, C12-c valid-too-early, C12-d stale-data+new-tag; evidence: round4_findings.md §R4-5.2, campaign C12-F0-W6 3-seed (3/3 activated, oracle Masked x3 — timing fault keeps the data payload correct per spec; chains 2/3 full + 1/3 provable_to_L0_then_unknown) + carrier cache_mshr_refetch x3 (checksum=golden, chains 3/3 full))",
+   "status": "PARTIAL",
+   "status_reasons": [],
    "target_activated_samples": "385"
   },
   {
@@ -6387,12 +6384,9 @@
    "correlation_keys": "run_id + sample_run_id + fault_id/ptag；event_id + parent_event_id；tick/cycle + core_id + thread_id；dyn_inst_seq + commit_seq + PC/opcode；lq_idx/sq_idx；request_id/pf_request_id/walk_id/mshr_id/fill_id；VA/PA/cache_line；arch_reg/phys_reg。禁止只用tick或address单键连接。",
    "termination": "完整：存在L0 fault_applied，且每条边由共享键与时间/可达性同时证明，最终到达(1) errant commit/错误内存副作用/软件oracle差异，或(2)明确检测并contained，或(3)明确squash/replay/mask且无错误副作用。若链在某节点后缺事件，只能标“截至该节点可证，后续Unknown”，不得推断Masked。",
    "impl_status": "需新增（当前阻塞：只有fill timing事件源）",
-   "spec_landed": "",
-   "status": "BLOCKED",
-   "status_reasons": [
-    "campaign:deferred(consumer-side: fill-timing event source only)",
-    "spec:需新增（当前阻塞：只有fill timing事件源）"
-   ],
+   "spec_landed": "implemented(mshr_fill_timing=bounded fill-delivery offset by lsuFillDelayCycles cache cycles, CHAOSCache defer hook at the top of BaseCache::recvTimingResp (stash + scheduled resume via chaosResumeDeferredResp); pending: C12-a fill/writeback drop (unbounded), C12-b duplicate fill, C12-c valid-too-early, C12-d stale-data+new-tag; evidence: round4_findings.md §R4-5.2, campaign C12-F0-W6 3-seed (3/3 activated, oracle Masked x3 — timing fault keeps the data payload correct per spec; chains 2/3 full + 1/3 provable_to_L0_then_unknown) + carrier cache_mshr_refetch x3 (checksum=golden, chains 3/3 full))",
+   "status": "PARTIAL",
+   "status_reasons": [],
    "target_activated_samples": "385"
   },
   {
@@ -6425,12 +6419,9 @@
    "correlation_keys": "run_id + sample_run_id + fault_id/ptag；event_id + parent_event_id；tick/cycle + core_id + thread_id；dyn_inst_seq + commit_seq + PC/opcode；lq_idx/sq_idx；request_id/pf_request_id/walk_id/mshr_id/fill_id；VA/PA/cache_line；arch_reg/phys_reg。禁止只用tick或address单键连接。",
    "termination": "完整：存在L0 fault_applied，且每条边由共享键与时间/可达性同时证明，最终到达(1) errant commit/错误内存副作用/软件oracle差异，或(2)明确检测并contained，或(3)明确squash/replay/mask且无错误副作用。若链在某节点后缺事件，只能标“截至该节点可证，后续Unknown”，不得推断Masked。",
    "impl_status": "需新增（当前阻塞：只有fill timing事件源）",
-   "spec_landed": "",
-   "status": "BLOCKED",
-   "status_reasons": [
-    "campaign:deferred(consumer-side: fill-timing event source only)",
-    "spec:需新增（当前阻塞：只有fill timing事件源）"
-   ],
+   "spec_landed": "implemented(mshr_fill_timing=bounded fill-delivery offset by lsuFillDelayCycles cache cycles, CHAOSCache defer hook at the top of BaseCache::recvTimingResp (stash + scheduled resume via chaosResumeDeferredResp); pending: C12-a fill/writeback drop (unbounded), C12-b duplicate fill, C12-c valid-too-early, C12-d stale-data+new-tag; evidence: round4_findings.md §R4-5.2, campaign C12-F0-W6 3-seed (3/3 activated, oracle Masked x3 — timing fault keeps the data payload correct per spec; chains 2/3 full + 1/3 provable_to_L0_then_unknown) + carrier cache_mshr_refetch x3 (checksum=golden, chains 3/3 full))",
+   "status": "PARTIAL",
+   "status_reasons": [],
    "target_activated_samples": "385"
   },
   {
@@ -6462,12 +6453,9 @@
    "correlation_keys": "run_id + sample_run_id + fault_id/ptag；event_id + parent_event_id；tick/cycle + core_id + thread_id；dyn_inst_seq + commit_seq + PC/opcode；lq_idx/sq_idx；request_id/pf_request_id/walk_id/mshr_id/fill_id；VA/PA/cache_line；arch_reg/phys_reg。禁止只用tick或address单键连接。",
    "termination": "完整：存在L0 fault_applied，且每条边由共享键与时间/可达性同时证明，最终到达(1) errant commit/错误内存副作用/软件oracle差异，或(2)明确检测并contained，或(3)明确squash/replay/mask且无错误副作用。若链在某节点后缺事件，只能标“截至该节点可证，后续Unknown”，不得推断Masked。",
    "impl_status": "需新增（当前阻塞：只有fill timing事件源）",
-   "spec_landed": "",
-   "status": "BLOCKED",
-   "status_reasons": [
-    "campaign:deferred(consumer-side: fill-timing event source only)",
-    "spec:需新增（当前阻塞：只有fill timing事件源）"
-   ],
+   "spec_landed": "implemented(mshr_fill_timing=bounded fill-delivery offset by lsuFillDelayCycles cache cycles, CHAOSCache defer hook at the top of BaseCache::recvTimingResp (stash + scheduled resume via chaosResumeDeferredResp); pending: C12-a fill/writeback drop (unbounded), C12-b duplicate fill, C12-c valid-too-early, C12-d stale-data+new-tag; evidence: round4_findings.md §R4-5.2, campaign C12-F0-W6 3-seed (3/3 activated, oracle Masked x3 — timing fault keeps the data payload correct per spec; chains 2/3 full + 1/3 provable_to_L0_then_unknown) + carrier cache_mshr_refetch x3 (checksum=golden, chains 3/3 full))",
+   "status": "PARTIAL",
+   "status_reasons": [],
    "target_activated_samples": "385"
   },
   {
@@ -6500,12 +6488,9 @@
    "correlation_keys": "run_id + sample_run_id + fault_id/ptag；event_id + parent_event_id；tick/cycle + core_id + thread_id；dyn_inst_seq + commit_seq + PC/opcode；lq_idx/sq_idx；request_id/pf_request_id/walk_id/mshr_id/fill_id；VA/PA/cache_line；arch_reg/phys_reg。禁止只用tick或address单键连接。",
    "termination": "完整：存在L0 fault_applied，且每条边由共享键与时间/可达性同时证明，最终到达(1) errant commit/错误内存副作用/软件oracle差异，或(2)明确检测并contained，或(3)明确squash/replay/mask且无错误副作用。若链在某节点后缺事件，只能标“截至该节点可证，后续Unknown”，不得推断Masked。",
    "impl_status": "需新增（当前阻塞：只有fill timing事件源）",
-   "spec_landed": "",
-   "status": "BLOCKED",
-   "status_reasons": [
-    "campaign:deferred(consumer-side: fill-timing event source only)",
-    "spec:需新增（当前阻塞：只有fill timing事件源）"
-   ],
+   "spec_landed": "implemented(mshr_fill_timing=bounded fill-delivery offset by lsuFillDelayCycles cache cycles, CHAOSCache defer hook at the top of BaseCache::recvTimingResp (stash + scheduled resume via chaosResumeDeferredResp); pending: C12-a fill/writeback drop (unbounded), C12-b duplicate fill, C12-c valid-too-early, C12-d stale-data+new-tag; evidence: round4_findings.md §R4-5.2, campaign C12-F0-W6 3-seed (3/3 activated, oracle Masked x3 — timing fault keeps the data payload correct per spec; chains 2/3 full + 1/3 provable_to_L0_then_unknown) + carrier cache_mshr_refetch x3 (checksum=golden, chains 3/3 full))",
+   "status": "PARTIAL",
+   "status_reasons": [],
    "target_activated_samples": "385"
   },
   {
@@ -6537,12 +6522,9 @@
    "correlation_keys": "run_id + sample_run_id + fault_id/ptag；event_id + parent_event_id；tick/cycle + core_id + thread_id；dyn_inst_seq + commit_seq + PC/opcode；lq_idx/sq_idx；request_id/pf_request_id/walk_id/mshr_id/fill_id；VA/PA/cache_line；arch_reg/phys_reg。禁止只用tick或address单键连接。",
    "termination": "完整：存在L0 fault_applied，且每条边由共享键与时间/可达性同时证明，最终到达(1) errant commit/错误内存副作用/软件oracle差异，或(2)明确检测并contained，或(3)明确squash/replay/mask且无错误副作用。若链在某节点后缺事件，只能标“截至该节点可证，后续Unknown”，不得推断Masked。",
    "impl_status": "需新增（当前阻塞：只有fill timing事件源）",
-   "spec_landed": "",
-   "status": "BLOCKED",
-   "status_reasons": [
-    "campaign:deferred(consumer-side: fill-timing event source only)",
-    "spec:需新增（当前阻塞：只有fill timing事件源）"
-   ],
+   "spec_landed": "implemented(mshr_fill_timing=bounded fill-delivery offset by lsuFillDelayCycles cache cycles, CHAOSCache defer hook at the top of BaseCache::recvTimingResp (stash + scheduled resume via chaosResumeDeferredResp); pending: C12-a fill/writeback drop (unbounded), C12-b duplicate fill, C12-c valid-too-early, C12-d stale-data+new-tag; evidence: round4_findings.md §R4-5.2, campaign C12-F0-W6 3-seed (3/3 activated, oracle Masked x3 — timing fault keeps the data payload correct per spec; chains 2/3 full + 1/3 provable_to_L0_then_unknown) + carrier cache_mshr_refetch x3 (checksum=golden, chains 3/3 full))",
+   "status": "PARTIAL",
+   "status_reasons": [],
    "target_activated_samples": "385"
   },
   {
@@ -11781,14 +11763,14 @@
  "summary": {
   "total": 325,
   "status": {
-   "PARTIAL": 207,
-   "BLOCKED": 118
+   "PARTIAL": 213,
+   "BLOCKED": 112
   },
   "blocked_by_unit": {
    "AGU": 12,
    "L1d-TLB": 30,
    "Store Queue": 9,
-   "L1d-Cache": 21,
+   "L1d-Cache": 15,
    "原子与同步": 28,
    "数据预取器": 9,
    "Load Queue": 9

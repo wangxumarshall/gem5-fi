@@ -173,9 +173,13 @@ def main():
           "while ((1u << lo) < size)" in merge_fn
           and "while ((1u << hi) < blk_sz)" in merge_fn)
     ctor = chk[:chk.index("CHAOSCache::CHAOSCacheStats")]
+    # [MDSPEC][R4-5.2] C12 落地把门变量从 merge_mode 泛化为 lsu_hook_mode
+    # （= merge_mode || fill_timing_mode）：merge 模式仍禁用 legacy 周期
+    # 攻击（lsu_hook_mode 包含 merge_mode），C12 fill_timing 同门。
     check("合并模式禁用 legacy 周期攻击（不注入无关数据故障）",
-          "const bool merge_mode" in ctor
-          and "if (!merge_mode)" in ctor)
+          'const bool merge_mode = (target_field == "mshr_merge")' in ctor
+          and "lsu_hook_mode = merge_mode || fill_timing_mode" in ctor
+          and "if (!lsu_hook_mode)" in ctor)
     check("legacy cache 路径回归不变（victim 钩子未动）",
           "chaosVictimHook = this" in chk)
 
@@ -193,9 +197,12 @@ def main():
           str(LC.MODEL_FLAGS.get("C11")))
     check("C11 已从 MODEL_BLOCKED 删除（实测可跑后才允许）",
           "C11" not in LC.MODEL_BLOCKED)
-    check("后续模型未误解锁（C12/C14/C15/S10/L04 仍 BLOCKED）",
+    # [MDSPEC][R4-5.2] C12 已按同一模板落地并实测（targetField=
+    # mshr_fill_timing，见 test_lsu_hook_c12.py）——不再列入"未解锁"钉；
+    # C14/C15/S10/L04 仍未实现，必须保持 BLOCKED。
+    check("后续模型未误解锁（C14/C15/S10/L04 仍 BLOCKED）",
           all(m in LC.MODEL_BLOCKED
-              for m in ("C12", "C14", "C15", "S10", "L04")))
+              for m in ("C14", "C15", "S10", "L04")))
     for pair in (("C11", "cache_dirtyevict"), ("C11", "stream_chase"),
                  ("C11", "cache_mshr_refetch")):
         check(f"CACHE_F0_SPAN 实测条目 {pair}",

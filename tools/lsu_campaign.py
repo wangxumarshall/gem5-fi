@@ -220,6 +220,18 @@ MODEL_FLAGS = {
     # _cache_tier_flags); the legacy periodic block attack is disabled in
     # this mode (mode_unimpl_plan.md C11 row, landed per the template).
     "C11": ("cache", ["--l1d_target_field", "mshr_merge"]),
+    # [MDSPEC][R4-5.2] C12: fill-timing offset — a fill response on the
+    # mounted L1D is DEFERRED by lsuFillDelayCycles cache cycles (stash +
+    # scheduled resume into BaseCache::recvTimingResp; the fill/MSHR-free/
+    # target-service all run at the shifted tick). Event-normalized
+    # trigger on the fill-response stream (lsuTier, see _cache_tier_flags);
+    # the legacy periodic block attack is disabled in this mode
+    # (mode_unimpl_plan.md C12 row, landed per the template; submodels
+    # C12-a drop / C12-b dup / C12-c early-valid / C12-d stale-tag are NOT
+    # landed — the bounded offset only, recorded in lsu_runid_map
+    # SPEC_IMPL_LANDED).
+    "C12": ("cache", ["--l1d_target_field", "mshr_fill_timing",
+                      "--l1d_fill_delay_cycles", "100"]),
     # --- Prefetcher (W8 f76f5632, verified today) ---
     "P01": ("prefetch", ["--prefetch_mode", "p01_stride_bitflip"]),
     "P02": ("prefetch", ["--prefetch_mode", "p02_confidence_corrupt"]),
@@ -265,9 +277,12 @@ MODEL_BLOCKED = {
     # mode is implemented (targetField=mshr_merge, CHAOSCache
     # maybeCorruptMergeTarget at BaseCache::handleTimingReqMiss) and proven
     # by real runs — see round4_findings.md §R4-5.1.
+    # [MDSPEC][R4-5.2] C12 removed from this table: the fill-timing offset
+    # mode is implemented (targetField=mshr_fill_timing, CHAOSCache
+    # maybeDeferFillTiming at the top of BaseCache::recvTimingResp) and
+    # proven by real runs — see round4_findings.md §R4-5.2.
     "S10": "deferred(consumer-side: StoreSet SSID corruption event source only)",
     "L04": "deferred(consumer-side: response-pairing event source only)",
-    "C12": "deferred(consumer-side: fill-timing event source only)",
     "C14": "deferred(consumer-side: MSHR busy event source only)",
     "C15": "deferred(consumer-side: MSHR occupancy event source only)",
     # no clean hook (documented in injector headers / W4-W8 session notes)
@@ -394,24 +409,39 @@ def _lsqfwd_tier_flags(model, tier, wl_binary=None):
 # never lands; the CHAOSCache teardown line CHAOS_LSU_TRIGGER eligible= is
 # the stream size). Same loud-refusal contract: an unmeasured (model,
 # workload) pair never silently reuses another pair's span.
+# [MDSPEC][R4-5.2] C12 (mshr_fill_timing) extends the table with its OWN
+# stream: the L1D's read fills (non-error READ responses on a non-forward
+# MSHR) — a DIFFERENT stream from C11's merges, measured separately per
+# (model, workload); a C11 span is never reused for C12.
 CACHE_F0_SPAN = {
-    # (model, workload binary) -> measured eligible merge-event stream size
-    # (real runs 2026-10-21, binary ddde342587407b3a, tier=F0 warmup=1
-    # span=1000000 so the draw never lands — CHAOS_LSU_TRIGGER teardown
-    # eligible= is the stream size; quoted output in
+    # (model, workload binary) -> measured eligible event stream size
+    # C11 rows (real runs 2026-10-21, binary ddde342587407b3a, tier=F0
+    # warmup=1 span=1000000 so the draw never lands — CHAOS_LSU_TRIGGER
+    # teardown eligible= is the stream size; quoted output in
     # docs/gem5-fi/lsu/mdspec/round4_findings.md §R4-5.1)
     ("C11", "cache_dirtyevict"): 3421,     # attempted=10879
     ("C11", "stream_chase"): 4737,         # attempted=32792
     ("C11", "cache_mshr_refetch"): 41091,  # attempted=46957 (aux carrier)
+    # C12 rows (real runs 2026-10-21, binary 503f35b7ed049342, same census
+    # shape: tier=F0 warmup=1 span=1000000, seed 1 — draw_next_fire=756413
+    # never landed, injected=0, SPAN_UNREACHABLE alarm = the census intent;
+    # full census commands + quoted teardown lines in round4_findings.md
+    # §R4-5.2). The C12 stream is the L1D's read FILLS — a different stream
+    # from C11's merges (merges-per-fill ~3.3 on the refetch carrier), so
+    # the numbers are NOT comparable across models by design.
+    ("C12", "cache_dirtyevict"): 1535,     # attempted=2556
+    ("C12", "stream_chase"): 20229,        # attempted=20541
+    ("C12", "cache_mshr_refetch"): 12551,  # attempted=13348 (aux carrier)
 }
 
 
 def _cache_tier_flags(model, tier, wl_binary=None):
     # Legacy cache models (C01-C10/P07/P09) ride the legacy firstClock
     # mechanism — no LSU trigger flags (byte-identical to the old []).
-    if model != "C11":
+    if model not in ("C11", "C12"):
         return []
-    # C11 mshr_merge: a tier is REQUIRED (the injector panics on 'off').
+    # C11 mshr_merge / C12 mshr_fill_timing: a tier is REQUIRED (the
+    # injector panics on 'off').
     if tier == "F0":
         span = CACHE_F0_SPAN.get((model, wl_binary))
         if span is None:

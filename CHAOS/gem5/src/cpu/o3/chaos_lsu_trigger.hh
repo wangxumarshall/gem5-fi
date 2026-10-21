@@ -54,6 +54,15 @@ enum class ChaOSLsuTier : uint8_t { F0, F1, F2, F3, F4, F5, F6 };
 // an exhaustive enumeration). It does NOT ride chaosLsuF6Observe/Notify
 // (typed to the W1 enum above) — the merge hook calls onF6Event(false)
 // directly at the merge site (early_stress first-occurrence, A5 ruling).
+//
+// [MDSPEC][R4-5.2] SIXTH source, same ruling shape: the L1D miss fill
+// (BaseCache::recvTimingResp read-fill arrival at the mounted cache —
+// CHAOSCache targetField=mshr_fill_timing, model C12) is an F6 event
+// source: C12's specified event IS the miss fill (the model's trigger
+// column reads "miss fill或dirty writeback"; the landed mode defers the
+// miss fill). Same non-ride: the fill-timing hook calls onF6Event(false)
+// directly at the fill site (the fillResponse-arrival hook is the attempt
+// stream, R4-5.1-review-I1 accounting).
 enum class ChaOSLsuEvent : uint8_t { TlbHit, SqForward, DirtyEviction,
                                      CasSuccess };
 

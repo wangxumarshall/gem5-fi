@@ -88,6 +88,33 @@ def generate_map(xlsx_path):
                "substitution, C11-c target loss, C11-d target duplication; "
                "evidence: round4_findings.md §R4-5.1, campaign C11-F0-W6 "
                "3-seed + carrier x3)",
+        # C12（6 RunID，阻塞短语 "consumer-side: fill-timing event source
+        # only"）：targetField=mshr_fill_timing（CHAOSCache fill 推迟钩子 @
+        # BaseCache::recvTimingResp 顶部，popSenderState 之前 stash + 定时
+        # resume）——落地=有界时序偏移（lsuFillDelayCycles=100 缓存周期的
+        # fill 交付推迟，实测偏移恰 38500 ticks = 100 个 L1D clock edge）。
+        # 真机证据（round4_findings.md §R4-5.2）：campaign C12-F0-W6 3 seed
+        # 3/3 activated、oracle Masked×3（时序故障数据载荷保持正确——表7
+        # 钦定口径，sdc=0 是诚实结果而非缺陷）；链 2/3 terminal=full +
+        # 1/3 provable_to_L0_then_unknown（seed1 被推迟行注入后未被重访，
+        # L1 cache_access 缺席——按规格"缺事件只能报 Unknown"记录，不推断
+        # Masked）；载体 cache_mshr_refetch ×3 checksum 全等于 golden、链
+        # 3/3 full；C12-F6-W6 seed1 attempted=1/eligible=1/injected=1（无
+        # 双计）链 full。[R4-5.2 同 Minor2 形态] 落地范围机器可读（xlsx
+        # 表9 子模型逐一点名）：C12-a fill/writeback 丢失（无界推迟/drop）、
+        # C12-b 重复、C12-c valid 过早、C12-d 旧数据+新 tag 未落地，
+        # 仍为 spec 待办。
+        "C12": "implemented(mshr_fill_timing=bounded fill-delivery offset "
+               "by lsuFillDelayCycles cache cycles, CHAOSCache defer hook "
+               "at the top of BaseCache::recvTimingResp (stash + scheduled "
+               "resume via chaosResumeDeferredResp); pending: C12-a "
+               "fill/writeback drop (unbounded), C12-b duplicate fill, "
+               "C12-c valid-too-early, C12-d stale-data+new-tag; evidence: "
+               "round4_findings.md §R4-5.2, campaign C12-F0-W6 3-seed "
+               "(3/3 activated, oracle Masked x3 — timing fault keeps the "
+               "data payload correct per spec; chains 2/3 full + 1/3 "
+               "provable_to_L0_then_unknown) + carrier cache_mshr_refetch "
+               "x3 (checksum=golden, chains 3/3 full))",
     }
 
     wb = openpyxl.load_workbook(xlsx_path, data_only=True)

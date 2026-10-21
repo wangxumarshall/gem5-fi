@@ -132,6 +132,31 @@ class BaseCache : public ClockedObject
     // nullptr = zero regression. PUBLIC: the injector sets it from its ctor.
     static class CHAOSCache *chaosMergeHook;
 
+    // [MDSPEC][R4-5.2] C12 fill-timing offset registry (same pattern as
+    // chaosVictimHook/chaosMergeHook). BaseCache::recvTimingResp consults it
+    // at the TOP, BEFORE popSenderState: the registered CHAOSCache
+    // (targetField=mshr_fill_timing, mounted on this cache) may DEFER a
+    // fill response to a later tick — it stashes the packet (MSHR sender
+    // state intact, so the MSHR stays outstanding and later same-line
+    // requests keep merging into it) and schedules a resume event at
+    // curTick() + lsuFillDelayCycles cache cycles that re-enters
+    // recvTimingResp via chaosResumeDeferredResp (public trampoline —
+    // recvTimingResp itself is protected). The whole fill path (handleFill,
+    // serviceMSHRTargets, MSHR deallocation) then runs at the shifted
+    // tick: the consumer sees the same data delivered at a shifted time.
+    // The injector checks `cache == targetCache`, so only the mounted
+    // cache (L1D) is affected. nullptr = zero regression. PUBLIC: the
+    // injector sets it from its ctor.
+    static class CHAOSCache *chaosFillTimingHook;
+
+    // [MDSPEC][R4-5.2] C12 public trampoline: re-enter the (protected)
+    // recvTimingResp with a previously deferred fill-response packet. Only
+    // the C12 resume event calls this (single deferred slot on the
+    // injector); the injector's re-entry guard (pkt == its pending slot)
+    // makes the deferred packet process normally instead of deferring
+    // again, independent of tier/maxFaults.
+    void chaosResumeDeferredResp(PacketPtr pkt);
+
     /**
      * Reasons for caches to be blocked.
      */

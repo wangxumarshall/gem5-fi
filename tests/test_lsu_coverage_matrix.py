@@ -141,6 +141,25 @@ def main():
         c11_pass = [l for l in md.splitlines()
                     if l.startswith("| C11-") and "| PASS |" in l]
         check("md_c11_rows_all_pass", len(c11_pass) == 8, str(len(c11_pass)))
+        # [MDSPEC][R4-5.2] C12 落地后的同构钉：矩阵运行（C12-F0-W6
+        # campaign 3-seed 之 seed1）+ 3 载体（C12-R4T52-MSHRREF-*）均在
+        # 证据文件中；6 行 C12 全 PASS；L1d 边界保持关闭（C11 已闭，C12
+        # 载体的 16 kinds 不引入辅助独供节点）。
+        c12ev = evidence["pilots"].get("C12-F0-W6", {})
+        mshr_fill_nodes = {"mshr_fill", "mshr_free", "cache_fill"}
+        check("c12_matrix_run_observes_delayed_fill_lifecycle",
+              mshr_fill_nodes.issubset(set(c12ev.get("kinds", []))),
+              str(c12ev.get("kinds")))
+        c12_carriers = set(evidence["pilots"])
+        check("c12_carriers_retained_in_evidence",
+              all(f"C12-R4T52-MSHRREF-s{i}" in c12_carriers
+                  for i in range(1, 4)),
+              str(sorted(c for c in c12_carriers if "R4T52" in c)))
+        c12_pass = [l for l in md.splitlines()
+                    if l.startswith("| C12-") and "| PASS |" in l]
+        check("md_c12_rows_all_pass", len(c12_pass) == 6, str(len(c12_pass)))
+        check("boundary_l1d_still_closed_after_c12",
+              "L1d-Cache" not in b, str(sorted(b)))
         has_section = "## 辅助运行证据边界" in md
         check("md_boundary_section_present", has_section)
         tail = md.split("## 辅助运行证据边界", 1)[1] if has_section else ""

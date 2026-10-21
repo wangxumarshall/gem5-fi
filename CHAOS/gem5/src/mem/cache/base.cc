@@ -80,6 +80,9 @@ CHAOSCache *BaseCache::chaosVictimHook = nullptr;
 // [MDSPEC][R4-5.1] C11 MSHR-merge corruption registry (declared in base.hh).
 CHAOSCache *BaseCache::chaosMergeHook = nullptr;
 
+// [MDSPEC][R4-5.2] C12 fill-timing offset registry (declared in base.hh).
+CHAOSCache *BaseCache::chaosFillTimingHook = nullptr;
+
 BaseCache::CacheResponsePort::CacheResponsePort(const std::string &_name,
                                           BaseCache& _cache,
                                           const std::string &_label)
@@ -636,6 +639,20 @@ BaseCache::handleUncacheableWriteResp(PacketPtr pkt)
     cpuSidePort.schedTimingResp(pkt, completion_time);
 }
 
+// [MDSPEC][R4-5.2] C12 public trampoline (declared in base.hh): re-enter
+// the protected recvTimingResp with a previously DEFERRED fill-response
+// packet. Only the C12 resume event on the registered CHAOSCache calls
+// this; the injector's re-entry guard (pkt == its pending slot) makes the
+// deferred packet process normally instead of deferring again, regardless
+// of tier/maxFaults. The packet's MSHR sender state was never popped, so
+// the normal path (is_fill / handleFill / serviceMSHRTargets / MSHR free)
+// runs unchanged — just at the shifted tick.
+void
+BaseCache::chaosResumeDeferredResp(PacketPtr pkt)
+{
+    recvTimingResp(pkt);
+}
+
 void
 BaseCache::recvTimingResp(PacketPtr pkt)
 {
@@ -662,6 +679,27 @@ BaseCache::recvTimingResp(PacketPtr pkt)
         assert(pkt->req->isUncacheable());
         handleUncacheableWriteResp(pkt);
         return;
+    }
+
+    // [MDSPEC][R4-5.2] C12 fill-timing offset: the registered CHAOSCache
+    // (targetField=mshr_fill_timing) may DEFER this response to a later
+    // tick — it stashes the packet BEFORE the sender state is popped (the
+    // MSHR stays outstanding; later same-line requests keep merging) and
+    // schedules a resume event at curTick() + lsuFillDelayCycles cache
+    // cycles that re-enters recvTimingResp via chaosResumeDeferredResp.
+    // The whole fill path below (miss-latency stat, handleFill + H4
+    // mshr_fill/cache_fill/mshr_free events, serviceMSHRTargets, MSHR
+    // deallocation) then runs at the SHIFTED tick — the consumer gets the
+    // same data at a shifted time, and the injector registered the fault
+    // (inj node corr=origin + the whole fill line in the faulted-byte
+    // registry) so those delayed events join the C12 chain (corr=
+    // addr_fallback). The injector checks `cache == targetCache`, so only
+    // the mounted cache (L1D) is affected; its eligibility gate mirrors
+    // this function's is_fill (a non-error READ on a non-forward MSHR).
+    // nullptr / false = zero regression (processing proceeds normally).
+    if (chaosFillTimingHook &&
+        chaosFillTimingHook->maybeDeferFillTiming(this, pkt)) {
+        return;   // deferred: the scheduled resume event owns the packet
     }
 
     // we have dealt with any (uncacheable) writes above, from here on
@@ -706,8 +744,13 @@ BaseCache::recvTimingResp(PacketPtr pkt)
 
         const bool allocate = (writeAllocator && mshr->wasWholeLineWrite) ?
             writeAllocator->allocate() : mshr->allocOnFill();
-        // LSU W6 C12: fill/writeback timing corruption — the event hook
-        // lets the injector delay or drop this fill (data never arrives).
+        // LSU W2 F6 event-source observation (09 §2.1 map): a fill site
+        // installs new data — observed here as an SqForward-cadence proxy
+        // event (W6 wiring, unchanged). [MDSPEC][R4-5.2] C12 note: the
+        // actual fill-timing OFFSET is implemented upstream at the top of
+        // recvTimingResp (chaosFillTimingHook, BEFORE popSenderState) —
+        // this observe call is only the W1 event-source counter, it does
+        // not itself delay anything.
         chaosLsuF6Observe(ChaOSLsuEvent::SqForward);
         blk = handleFill(pkt, blk, writebacks, allocate);
         assert(blk != nullptr);

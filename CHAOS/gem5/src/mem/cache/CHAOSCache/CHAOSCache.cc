@@ -39,6 +39,8 @@ namespace gem5
         faults_injected_count(0),
         attackEvent([this] { this->injectFault(); }, name()),
         periodicCheck([this] { this->checkPermanent(); }, name() + ".periodicCheck"),
+        fillResumeEvent([this] { this->resumeDeferredFill(); },
+                        name() + ".fillResume"),
         stats(nullptr)
     {
         // v1.2 Phase 14: register the victim hook with BaseCache so
@@ -46,38 +48,55 @@ namespace gem5
         if (victim_fault) {
             BaseCache::chaosVictimHook = this;
         }
-        // [MDSPEC][R4-5.1] C11 MSHR merge corruption mode: event-normalized
-        // trigger (LSU track, chaos_lsu_trigger.hh) on the merge-event
-        // stream + the static merge hook. The legacy periodic block attack
-        // is DISABLED in this mode (it would inject an unrelated data fault
+        // [MDSPEC][R4-5.1] C11 MSHR merge corruption mode + [MDSPEC][R4-5.2]
+        // C12 fill-timing offset mode: event-normalized trigger (LSU track,
+        // chaos_lsu_trigger.hh) on the model's own event stream + the
+        // corresponding static hook. The legacy periodic block attack is
+        // DISABLED in these modes (it would inject an unrelated data fault
         // on a random block — a different model's fault polluting the
-        // sample). A tier is REQUIRED: "off" is rejected loudly (merge mode
-        // without a trigger has no fire semantics; probability checks are
-        // never hand-rolled, CLAUDE.md trigger discipline).
+        // sample). A tier is REQUIRED: "off" is rejected loudly (a hook
+        // mode without a trigger has no fire semantics; probability checks
+        // are never hand-rolled, CLAUDE.md trigger discipline).
         const bool merge_mode = (target_field == "mshr_merge");
-        if (merge_mode) {
+        // [MDSPEC][R4-5.2] C12: defer a fill response by lsuFillDelayCycles
+        // cache cycles (see maybeDeferFillTiming).
+        const bool fill_timing_mode = (target_field == "mshr_fill_timing");
+        const bool lsu_hook_mode = merge_mode || fill_timing_mode;
+        if (lsu_hook_mode) {
             if (p.lsuTier == "off") {
-                panic("CHAOSCache: targetField=mshr_merge requires a tier "
+                panic("CHAOSCache: targetField=%s requires a tier "
                       "(--l1d_lsu_tier F0..F6, LSU event-normalized trigger; "
-                      "'off' has no fire semantics for the merge hook)\n");
+                      "'off' has no fire semantics for the %s hook)\n",
+                      target_field.c_str(),
+                      merge_mode ? "merge" : "fill-timing");
             }
+            if (fill_timing_mode && p.lsuFillDelayCycles == 0) {
+                panic("CHAOSCache: targetField=mshr_fill_timing requires "
+                      "lsuFillDelayCycles >= 1 (--l1d_fill_delay_cycles; a "
+                      "zero-cycle offset is a no-op, not a timing fault)\n");
+            }
+            fill_delay_cycles = p.lsuFillDelayCycles;
             lsuTrigger = new ChaOSLsuTrigger(
                 tierFromString(p.lsuTier), rng_seed ? rng_seed : 1,
                 p.lsuWarmupEvents, p.lsuSpanEvents);
-            BaseCache::chaosMergeHook = this;
+            if (merge_mode)
+                BaseCache::chaosMergeHook = this;
+            else
+                BaseCache::chaosFillTimingHook = this;
         }
         // [LSU][OBS-L3] final funnel row (final counts; runs only on normal
         // exit — aborts keep the last per-attack injection-time node, which
-        // is exactly why the per-attack rows exist). In merge mode the
-        // trigger's teardown summary (stdout CHAOS_LSU_TRIGGER line, the
-        // campaign L0 funnel source) prints first; the funnel row itself
-        // reads the TRIGGER counters there (see noteFunnelAtInjection).
+        // is exactly why the per-attack rows exist). In a trigger-hook mode
+        // (merge / fill-timing) the trigger's teardown summary (stdout
+        // CHAOS_LSU_TRIGGER line, the campaign L0 funnel source) prints
+        // first; the funnel row itself reads the TRIGGER counters there
+        // (see noteFunnelAtInjection).
         registerExitCallback([this]() {
             if (lsuTrigger)
                 lsuTrigger->summary("CHAOSCache");
             noteFunnelAtInjection();
         });
-        if (probability != 0.0 || merge_mode) {
+        if (probability != 0.0 || lsu_hook_mode) {
             log_stream = simout.create("cache_injections.log", false, true);
             if (!log_stream || !log_stream->stream()) {
                 panic("CHAOSCache: Could not open log file");
@@ -96,14 +115,14 @@ namespace gem5
 
             rng.seed(rng_seed != 0 ? rng_seed : rd());
             if (probability != 0.0) {
-                // (merge mode with probability==0 skips this — a geometric
-                // distribution requires p in (0,1]; the legacy attack that
-                // consumes it never runs in merge mode anyway.)
+                // (a trigger-hook mode with probability==0 skips this — a
+                // geometric distribution requires p in (0,1]; the legacy
+                // attack that consumes it never runs in those modes.)
                 inter_fault_cycles_dist =
                     std::geometric_distribution<unsigned>(probability);
             }
 
-            if (!merge_mode) {
+            if (!lsu_hook_mode) {
                 scheduleAttack(first_tick + inter_fault_cycles_dist(rng) * tick_to_clock_ratio);
             }
 
@@ -117,7 +136,7 @@ namespace gem5
             std::vector<double> weights = {bit_flip_prob, stuck_at_zero_prob, stuck_at_one_prob};
             random_fault_distribution = std::discrete_distribution<int>(weights.begin(), weights.end());
 
-            if (!merge_mode)
+            if (!lsu_hook_mode)
                 scheduleCheckPermanentFault(first_tick + ticks_permament_fault_check);
         }
     }
@@ -328,14 +347,17 @@ namespace gem5
         // [LSU][OBS-L3] funnel row with the counts as of NOW. Legacy attack
         // funnel: attempted = attack-event firings, eligible = firings that
         // found >=1 valid block, injected = faults_injected_count.
-        // [MDSPEC][R4-5.1] merge mode (lsuTrigger != nullptr): the counters
-        // are the TRIGGER's (attempted = merge-hook invocations on this
-        // cache, eligible = demand-read merges with a corruptible offset
-        // bit, injected = trigger-consented corruptions) — the legacy
-        // attack never fires there. stdout stays untouched (W2.1
-        // discipline) — the FUNNEL line goes to the injection log only;
-        // the abort-survivable copy is the prop-trace node (per-node
-        // gzflush).
+        // [MDSPEC][R4-5.1] merge mode / [MDSPEC][R4-5.2] fill-timing mode
+        // (lsuTrigger != nullptr): the counters are the TRIGGER's —
+        // merge: attempted = merge-hook invocations on this cache, eligible
+        // = demand-read merges with a corruptible offset bit, injected =
+        // trigger-consented corruptions; fill-timing: attempted = fill-hook
+        // invocations (response arrivals at the mounted cache), eligible =
+        // non-error read fills on a non-forward MSHR, injected =
+        // trigger-consented deferrals — the legacy attack never fires in
+        // those modes. stdout stays untouched (W2.1 discipline) — the
+        // FUNNEL line goes to the injection log only; the abort-survivable
+        // copy is the prop-trace node (per-node gzflush).
         const bool merge_mode = (lsuTrigger != nullptr);
         const uint64_t att = merge_mode ? lsuTrigger->attempted
                                         : attack_attempts;
@@ -910,6 +932,135 @@ namespace gem5
         // One funnel row per successful injection (abort-survivable: the
         // prop-trace node is gzflushed per node; the log line is
         // best-effort) — merge-mode counters via noteFunnelAtInjection.
+        noteFunnelAtInjection();
+        return true;
+    }
+
+    // [MDSPEC][R4-5.2] C12 fill-timing resume (fillResumeEvent thunk, fired
+    // at the shifted tick). fillPendingPkt stays SET during the re-entry:
+    // the re-entered recvTimingResp -> maybeDeferFillTiming sees
+    // pkt == fillPendingPkt and processes the packet instead of deferring
+    // again — independent of tier/maxFaults (an F5+unlimited config cannot
+    // loop). The packet is deleted inside recvTimingResp, so afterwards the
+    // stale pointer is only nulled, never dereferenced. If the simulation
+    // ends before the resume fires, the deferred fill is simply LOST (the
+    // honest C12-a "fill lost" semantics) — with a finite delay this needs
+    // an exit within the offset window, which no campaign cell does.
+    void
+    CHAOSCache::resumeDeferredFill()
+    {
+        PacketPtr pkt = fillPendingPkt;
+        if (!pkt)
+            return;
+        targetCache->chaosResumeDeferredResp(pkt);
+        fillPendingPkt = nullptr;
+    }
+
+    // [MDSPEC][R4-5.2] C12 fill-timing offset. BaseCache::recvTimingResp
+    // calls this at the TOP, BEFORE popSenderState — the packet still owns
+    // its MSHR sender state, so deferring it keeps the MSHR outstanding
+    // (later same-line requests keep merging; the targets keep waiting).
+    // With the trigger's consent, the fill's processing is shifted to
+    // curTick() + lsuFillDelayCycles cache clock edges: the miss-latency
+    // stat, handleFill (with the H4 mshr_fill/cache_fill/mshr_free
+    // events), serviceMSHRTargets and the MSHR deallocation all run at the
+    // shifted tick — the consumer gets the SAME data at a SHIFTED time
+    // (the timing fault the C12 model specifies; the drop/duplicate/
+    // early-valid/stale-tag submodels C12-a..d are NOT this mode — only
+    // the bounded offset is).
+    bool
+    CHAOSCache::maybeDeferFillTiming(BaseCache *cache, PacketPtr pkt)
+    {
+        if (target_field != "mshr_fill_timing") return false;  // mode off
+        if (cache != targetCache) return false;   // only the mounted cache
+        if (!pkt || !lsuTrigger) return false;
+        if (pkt == fillPendingPkt) return false;  // resume re-entry: process
+        if (max_faults != 0 && faults_injected_count >= max_faults)
+            return false;                         // G5 single-fault cap
+        if (fillPendingPkt) return false;         // single slot occupied
+
+        lsuTrigger->onAttempt();
+
+        // Eligibility: a response that will FILL this cache — a non-error
+        // READ whose sender state is a non-forward MSHR (mirrors
+        // recvTimingResp's is_fill for the read arm). Write-class
+        // responses (UpgradeResp / whole-line-write / LockedRMWWriteResp)
+        // and error responses count as attempted but never defer. A
+        // HardPFResp prefetch fill on the mounted cache would be an
+        // eligible READ; on B0 the L2 owns the prefetcher, so the L1D
+        // stream the campaign measures is demand-only (honest note).
+        MSHR *mshr = dynamic_cast<MSHR *>(pkt->senderState);
+        if (!pkt->isRead() || pkt->isError() || !mshr || mshr->isForward)
+            return false;
+
+        bool go;
+        if (lsuTrigger->tier == ChaOSLsuTier::F6) {
+            // C12's F6 "specified event" IS the miss fill (a read fill
+            // response arriving at the mounted L1D — this model's event
+            // source, the SIXTH registered in chaos_lsu_trigger.hh; the
+            // 09 §2.1 four-event list is the W1 map, not exhaustive).
+            // TRUE firing condition: the FIRST fill response that passes
+            // the eligibility gate above (early_stress first-occurrence,
+            // A5 ruling). onF6Event(false): attempted was already booked
+            // exactly once by onAttempt() above — the fill hook is the
+            // attempt stream, so the event gate must not re-book it
+            // ([MDSPEC][R4-5.1-review-I1], the C11 fix; the W1 thunk
+            // sites keep the default true).
+            go = lsuTrigger->onF6Event(false);
+        } else {
+            go = lsuTrigger->onEligible();
+        }
+        if (!go)
+            return false;
+
+        // The offset: shift the fill's processing to a later clock edge of
+        // the MOUNTED cache's domain. lsuFillDelayCycles >= 1 is ctor-
+        // panicked, so clockEdge is strictly in the future.
+        const Tick when = targetCache->clockEdge(Cycles(fill_delay_cycles));
+        if (when <= curTick())
+            return false;   // defensive: never schedule in the past
+
+        fillPendingPkt = pkt;
+        schedule(fillResumeEvent, when);
+        ++faults_injected_count;
+        if (stats)
+            stats->numFaultsInjected++;
+        const unsigned blk_sz = targetCache->getBlockSize();
+        const Addr line = pkt->getAddr() & ~((Addr)blk_sz - 1);
+
+        // Propagation registration: inj node (corr=origin; the timing pair
+        // arrival_tick/deferred_tick lives in the detail — the unified
+        // before/after lifts are address-valued and misusing them for
+        // ticks would be dishonest; the shift is directly readable as
+        // mshr_fill.tick - inj.tick) + the WHOLE fill line in the
+        // faulted-byte registry, so (a) the delayed H4 mshr_fill/
+        // cache_fill/mshr_free events (correlateBlock on the line) join
+        // the chain at the shifted tick, (b) cache_access on any later
+        // lookup of the line joins (L1), and (c) noteMemResponse's cache
+        // arm (the response is delivered on this very line) fires resp +
+        // lq_complete + taint_reg at the shifted tick. All address-only
+        // joins — corr=addr_fallback, the labeled C-family arm (no seq
+        // primary at this site).
+        if (CHAOSPropagation::instance())
+            CHAOSPropagation::instance()->registerFillTimingFault(
+                line, blk_sz, curTick(), when, fill_delay_cycles);
+
+        // Injection-log detail line (L0 parses the "Cache Block Addr/
+        // Field" contract — tools/lsu_obs_core._CACHE_FIELD_INJ_RE; the
+        // mshr_id/fill_id of the deferred fill are on the DELAYED H4
+        // mshr_fill/cache_fill events).
+        if (write_log && log_stream && log_stream->stream()) {
+            *(log_stream->stream()) << "Tick: " << curTick()
+                << ", Cache Block Addr: " << line
+                << ", Field: mshr_fill_timing (C12 fill deferred "
+                << fill_delay_cycles << " cycles), arrival_tick=" << curTick()
+                << ", deferred_tick=" << when
+                << ", faults_injected: " << faults_injected_count
+                << std::endl;
+        }
+        // One funnel row per successful injection (abort-survivable: the
+        // prop-trace node is gzflushed per node; the log line is
+        // best-effort) — trigger-mode counters via noteFunnelAtInjection.
         noteFunnelAtInjection();
         return true;
     }

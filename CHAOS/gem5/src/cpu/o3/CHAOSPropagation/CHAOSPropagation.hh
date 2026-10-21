@@ -229,6 +229,27 @@ class CHAOSPropagation : public SimObject
     uint64_t registerMshrMergeFault(Addr line, Addr old_addr, Addr new_addr,
                                     unsigned size);
 
+    // [MDSPEC][R4-5.2] C12 fill-timing offset (CHAOSCache
+    // maybeDeferFillTiming): a fill response on `line` just got DEFERRED —
+    // its processing (handleFill + target service + MSHR free) runs at
+    // `deferred_tick` instead of the arrival tick `arrival_tick` (the
+    // offset = deferred_tick - arrival_tick = delay_cycles cache cycles).
+    // Writes the inj node (corr=origin; addr column = the fill line;
+    // before/after = the faulted VALUE for this model, the delivery tick
+    // before/after the offset — registered fields, so the pair is
+    // stream-visible; block_addr lifts to cache_line) and registers the
+    // WHOLE fill line [line, line+block_size) in the faulted-byte (blk)
+    // registry so every downstream event on that line joins the chain
+    // address-only (the labeled addr_fallback arm — no seq primary at this
+    // site): the DELAYED mshr_fill/cache_fill/mshr_free events
+    // (correlateBlock), cache_access on later lookups, and
+    // noteMemResponse's cache arm (the response is delivered on this very
+    // line) -> resp / lq_complete / taint_reg, all at the shifted tick.
+    // Returns the ptag (0 = tracer disabled).
+    uint64_t registerFillTimingFault(Addr line, Addr block_size,
+                                     Tick arrival_tick, Tick deferred_tick,
+                                     uint64_t delay_cycles);
+
     // [MDSPEC][R4-1] SQ store->load forwarding fault, seq-PRIMARY
     // correlation (user ruling 2026-10-20: address-only correlation may
     // survive only as a labeled fallback). Allocates a ptag, writes the

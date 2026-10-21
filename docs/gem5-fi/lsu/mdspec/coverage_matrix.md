@@ -1,7 +1,7 @@
 # Markdown→实现覆盖矩阵（MDSPEC Phase B，**节点级证据化**）
 
 - 总数：325（RunID 唯一，表7∩表9 集合相等——B1 已证）
-- **PASS=207 / PARTIAL=0 / BLOCKED=118**
+- **PASS=213 / PARTIAL=0 / BLOCKED=112**
 - 判定口径（2026-10-20 证据化）：PASS = 该单元规格所需**全部节点**既已实现（kind ∈ 发射端注册表）**又**在真实 pilot 运行中出现；缺任一节点 = PARTIAL 并逐项列出。注册表布尔值**不再**作为判据。
 - 节点级证据取**全部 pilot 的 kind 并集**（节点=钩子能力级证据，与注入单元解耦）；逐单元归属索引见 pilot_evidence.json 的 kinds_observed_by_unit（RunID→单元解析：精确匹配 → 行标签，见 tools/lsu_pilot_evidence.py unit_of）。
 - **辅助运行证据边界**：下表所列单元的部分必需节点仅在**非矩阵 RunID 的辅助运行**（directed 载体 / campaign smoke 复跑，**非**该矩阵单元自身的运行）中观测到——矩阵单元自身的运行（含 campaign 单元）未观测到这些节点；PASS 行已逐行标注 `aux_run_nodes:`，详见文末"辅助运行证据边界"表。
@@ -185,12 +185,12 @@
 | C11-F4-W10 | C11 | L1d-Cache | F4 | PASS |  |
 | C11-F6-W6 | C11 | L1d-Cache | F6 | PASS |  |
 | C11-F6-W10 | C11 | L1d-Cache | F6 | PASS |  |
-| C12-F0-W6 | C12 | L1d-Cache | F0 | BLOCKED | campaign:deferred(consumer-side: fill-timing event source only); spec:需新增（当前阻塞：只有fill timing事件源） |
-| C12-F0-W10 | C12 | L1d-Cache | F0 | BLOCKED | campaign:deferred(consumer-side: fill-timing event source only); spec:需新增（当前阻塞：只有fill timing事件源） |
-| C12-F4-W6 | C12 | L1d-Cache | F4 | BLOCKED | campaign:deferred(consumer-side: fill-timing event source only); spec:需新增（当前阻塞：只有fill timing事件源） |
-| C12-F4-W10 | C12 | L1d-Cache | F4 | BLOCKED | campaign:deferred(consumer-side: fill-timing event source only); spec:需新增（当前阻塞：只有fill timing事件源） |
-| C12-F6-W6 | C12 | L1d-Cache | F6 | BLOCKED | campaign:deferred(consumer-side: fill-timing event source only); spec:需新增（当前阻塞：只有fill timing事件源） |
-| C12-F6-W10 | C12 | L1d-Cache | F6 | BLOCKED | campaign:deferred(consumer-side: fill-timing event source only); spec:需新增（当前阻塞：只有fill timing事件源） |
+| C12-F0-W6 | C12 | L1d-Cache | F0 | PASS |  |
+| C12-F0-W10 | C12 | L1d-Cache | F0 | PASS |  |
+| C12-F4-W6 | C12 | L1d-Cache | F4 | PASS |  |
+| C12-F4-W10 | C12 | L1d-Cache | F4 | PASS |  |
+| C12-F6-W6 | C12 | L1d-Cache | F6 | PASS |  |
+| C12-F6-W10 | C12 | L1d-Cache | F6 | PASS |  |
 | O01-F0-W7 | O01 | 原子与同步 | F0 | BLOCKED | workload:workload-level:blocked(multicore-fs: litmus needs multi-core FS) |
 | O01-F2-W7 | O01 | 原子与同步 | F2 | BLOCKED | workload:workload-level:blocked(multicore-fs: litmus needs multi-core FS) |
 | O01-F6-W7 | O01 | 原子与同步 | F6 | BLOCKED | workload:workload-level:blocked(multicore-fs: litmus needs multi-core FS) |
