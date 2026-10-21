@@ -250,6 +250,37 @@ class CHAOSPropagation : public SimObject
                                      Tick arrival_tick, Tick deferred_tick,
                                      uint64_t delay_cycles);
 
+    // [MDSPEC][R4-5.4] P06-a prefetch-as-demand fill classification fault
+    // (CHAOSPrefetch maybeMarkFillAsDemand, called from Cache::
+    // serviceMSHRTargets' setPrefetched gate — the site where a fill's
+    // demand/prefetch classification becomes the durable line state). A
+    // prefetch-owned fill on `line` just got its classification marked
+    // demand: the CacheBlk::Prefetched bit is NOT set, so the line enters
+    // the cache exactly as a demand fill (the faulted VALUE of this model
+    // is the fill classification, before=prefetch -> after=demand — the
+    // third per-model value type after C12's tick pair and L04's seq
+    // pair; read it together with field=pf_fill_class). Writes the inj
+    // node (corr=origin; addr column = the marked line; before/after =
+    // the classification pair, registered fields so the pair is
+    // stream-visible; block_addr lifts to cache_line) and registers the
+    // WHOLE line [line, line+block_size) in the faulted-byte (blk)
+    // registry so every downstream event on that line joins the chain
+    // address-only (the labeled addr_fallback arm — no seq primary at
+    // this site): cache_access on later lookups, cache_fill/mshr_fill/
+    // mshr_free on refetches, cache_evict on eviction, and
+    // noteMemResponse's cache arm (a demand load served on this line) ->
+    // resp / lq_complete / taint_reg. The addr arm is the KNOWN
+    // over-approximation (a correct response on the same line joins and
+    // taints — C11 §5.1.6 precedent, corr=addr_fallback says so); the
+    // oracle adjudicates. The PREFETCH-REQUEST registry entry
+    // (notePrefetchRequest, called by the injector right after this)
+    // additionally arms the pf_fill/pf_demand nodes for this line: the
+    // injector's call site allocates the request-level pf_request_id at
+    // marking time (the queue/issue nodes predate the fault and stay
+    // absent — honest gap, the fault happens at fill). Returns the ptag
+    // (0 = tracer disabled).
+    uint64_t registerPfFillClassFault(Addr line, Addr block_size);
+
     // [MDSPEC][R4-1] SQ store->load forwarding fault, seq-PRIMARY
     // correlation (user ruling 2026-10-20: address-only correlation may
     // survive only as a labeled fallback). Allocates a ptag, writes the

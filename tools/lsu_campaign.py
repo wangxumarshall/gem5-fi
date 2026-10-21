@@ -253,6 +253,14 @@ MODEL_FLAGS = {
     "P05": ("prefetch", ["--prefetch_mode", "p05_drop_dup"]),
     "P07": ("cache", ["--l1d_target_field", "tag"]),            # approx: fill way/tag -> tag
     "P08": ("prefetch", ["--prefetch_mode", "p08_stride_stuck"]),
+    # [MDSPEC][R4-5.4] P06-a prefetch-as-demand fill-classification
+    # marking (CHAOSPrefetch mode p06_as_demand; hook maybeMarkFillAsDemand
+    # at Cache::serviceMSHRTargets' setPrefetched gate). C++ is
+    # COMPILE-UNVERIFIED and pilot evidence is PENDING at landing time
+    # (integration owns build + campaign — see R4-5.4 report); F0 cells
+    # additionally stay loudly blocked on the PF_F0_SPAN census until
+    # integration measures the two spans.
+    "P06": ("prefetch", ["--prefetch_mode", "p06_as_demand"]),
     "P09": ("cache", ["--l1d_target_field", "dirty"]),          # approx: pf dirty evict -> dirty
     # --- Atomic (W8 1b97b714 + existing stxr modes) ---
     "O01": ("exmon", ["--exmon_mode", "o01_monitor_addr_bitflip"]),
@@ -298,12 +306,19 @@ MODEL_BLOCKED = {
     # target exchange (L04-b) is implemented (--lsqfwd_l04, CHAOSLSQFwd
     # maybeSwapResponseTarget at the LSQUnit::completeDataAccess pairing
     # point) and proven by real runs — see round4_findings.md §R4-5.3.
+    # [MDSPEC][R4-5.4] P06 removed from this table: the prefetch-as-demand
+    # fill-classification marking (P06-a forward arm) is implemented
+    # (--prefetch_mode p06_as_demand, CHAOSPrefetch maybeMarkFillAsDemand
+    # at Cache::serviceMSHRTargets' setPrefetched gate). UNLIKE C11/C12/L04
+    # there is NO real-run evidence yet — this landing is compile-
+    # unverified and pilot-pending (integration owns build + campaign);
+    # the F0 cells stay loudly blocked on the PF_F0_SPAN census until the
+    # spans are measured, so no unmeasured cell silently runs.
     "S10": "deferred(consumer-side: StoreSet SSID corruption event source only)",
     "C14": "deferred(consumer-side: MSHR busy event source only)",
     "C15": "deferred(consumer-side: MSHR occupancy event source only)",
     # no clean hook (documented in injector headers / W4-W8 session notes)
     "A07": "deferred(R4: no clean hook)",
-    "P06": "deferred(no clean hook: prefetch-as-demand marking)",
     "O04": "deferred(RMW data path needs cache-side SwapResp hook)",
     "O09": "deferred(RMW operand path needs cache-side hook)",
     # B0 protection rows (09 §6.4): not applicable, never zero-filled
@@ -485,6 +500,54 @@ def _cache_tier_flags(model, tier, wl_binary=None):
             "--l1d_span_events", "1000"]
 
 
+# [MDSPEC][R4-5.4] prefetch family P06 (p06_as_demand): the eligible stream
+# is the mounted cache's PREFETCH-OWNED FILLS (Cache::serviceMSHRTargets
+# setPrefetched gate, from_pref && !from_core && blk) — per (model,
+# workload), to be measured with real runs exactly like LSQFWD_F0_SPAN/
+# CACHE_F0_SPAN above (tier=F0 + span=1000000 so the draw never lands;
+# the CHAOSPrefetch teardown CHAOS_LSU_TRIGGER eligible= is the stream
+# size; SPAN_UNREACHABLE alarm = the census intent). Same loud-refusal
+# contract: an unmeasured (model, workload) pair never silently reuses
+# another pair's span.
+#
+# P06 rows are UNMEASURED at landing time (R4-5.4 landed in a worktree
+# forbidden from running pilots — integration must run the census and
+# fill both entries before any P06-F0 cell runs). Census command per
+# workload binary <wl> (mirror of the C12 census shape):
+#   build/ARM/gem5.opt --outdir=runs/lsu/r4_t54_span/<wl> \
+#     configs/se/lsu_proxy.py --cmd workloads/directed/<wl> --cpu O3 \
+#     --chaos_prefetch --prefetch_mode p06_as_demand \
+#     --prefetch_lsu_tier F0 --prefetch_warmup_events 1 \
+#     --prefetch_span_events 1000000 --prefetch_max_faults 1 \
+#     --prefetch_rng_seed 1 \
+#     --chaos_propagation --prop_run_id P06-SPAN-<wl> \
+#     --prop_sample_run_id s1
+PF_F0_SPAN = {
+    # (model, workload binary) -> measured eligible event stream size
+    # ("P06", "cache_dirtyevict"): <int>,   # W6 — TO BE MEASURED
+    # ("P06", "prefetch_stride"): <int>,    # W8 — TO BE MEASURED
+}
+
+
+def _prefetch_tier_flags(model, tier, wl_binary=None):
+    # [MDSPEC][R4-5.4] P06 (p06_as_demand): per-(model, workload) F0 span
+    # (PF_F0_SPAN above — R4-1-review-I2 uniform parameterization:
+    # warmup=1 + span=N hits each of the N eligible events with
+    # probability 1/N). Unmeasured pair -> None -> resolve_cell's loud
+    # BLOCKED(F0-span-unmeasured) cell.
+    if model == "P06" and tier == "F0":
+        span = PF_F0_SPAN.get((model, wl_binary))
+        if span is None:
+            return None
+        return ["--prefetch_lsu_tier", tier,
+                "--prefetch_warmup_events", "1",
+                "--prefetch_span_events", str(span)]
+    # P01-P08 keep the historical tier flags BYTE-IDENTICAL (their F0
+    # span convention predates the per-pair census — untouched).
+    return ["--prefetch_lsu_tier", tier,
+            "--prefetch_warmup_events", "0", "--prefetch_span_events", "50"]
+
+
 FAMILY_TIER_FLAGS = {
     "addrpath": lambda model, tier, wl_binary=None: _addrpath_tier_flags(tier),
     # [MDSPEC][R4-1-review-I2] per-(model, workload) F0 span (see
@@ -496,9 +559,10 @@ FAMILY_TIER_FLAGS = {
     # [MDSPEC][R4-5.1] C11 mshr_merge is LSU-trigger-native; all other
     # cache models keep the legacy firstClock path (byte-identical []).
     "cache": _cache_tier_flags,
-    "prefetch": lambda model, tier, wl_binary=None: [
-        "--prefetch_lsu_tier", tier,
-        "--prefetch_warmup_events", "0", "--prefetch_span_events", "50"],
+    # [MDSPEC][R4-5.4] P06 needs the per-(model, workload) F0 span
+    # (PF_F0_SPAN loud refusal); P01-P08 tier flags stay byte-identical
+    # (see _prefetch_tier_flags).
+    "prefetch": _prefetch_tier_flags,
     "exmon": lambda model, tier, wl_binary=None: [],   # legacy window path
 }
 FAMILY_MOUNT = {
@@ -599,8 +663,12 @@ def resolve_cell(cell):
     tier_flags = FAMILY_TIER_FLAGS[family](model, freq, binary)
     if tier_flags is None:
         # [MDSPEC][R4-5.1] name the family's own span table in the refusal
-        # (cache/C11 -> CACHE_F0_SPAN; lsqfwd -> LSQFWD_F0_SPAN).
-        span_table = "CACHE_F0_SPAN" if family == "cache" else "LSQFWD_F0_SPAN"
+        # (cache/C11-C12 -> CACHE_F0_SPAN; lsqfwd -> LSQFWD_F0_SPAN;
+        # [R4-5.4] prefetch/P06 -> PF_F0_SPAN).
+        span_table = {"cache": "CACHE_F0_SPAN",
+                      "lsqfwd": "LSQFWD_F0_SPAN",
+                      "prefetch": "PF_F0_SPAN"}.get(
+                          family, "LSQFWD_F0_SPAN")
         return None, None, (
             "BLOCKED(F0-span-unmeasured: model %s on workload %s — measure "
             "its eligible stream with a real run and set "

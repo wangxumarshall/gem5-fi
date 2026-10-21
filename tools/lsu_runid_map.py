@@ -161,6 +161,47 @@ def generate_map(xlsx_path):
                "injected sample, L0->L1/L1->L2/L2->L3 structurally missing "
                "(pairing-point fault is at L3; the loads' request-path "
                "events predate the injection — no back-projection))",
+        # P06（6 RunID，阻塞短语 "no clean hook: prefetch-as-demand
+        # marking"）：--prefetch_mode p06_as_demand（CHAOSPrefetch
+        # maybeMarkFillAsDemand @ Cache::serviceMSHRTargets 的
+        # setPrefetched 分类门——gem5 中 demand/prefetch 分类位的
+        # 落点：from_pref 的 fill 在此成为持久的行属性
+        # CacheBlk::Prefetched，替换策略 fill 数据/有用性统计/
+        # hasBeenPrefetched 探测全部读它）。
+        # [Minor2 形态] 落地范围机器可读（xlsx 表9 子模型逐一点名）：
+        # 落地=P06-a 正向臂（把 prefetch 标成 demand）——一个
+        # prefetch-owned fill 被分类为 demand（不置 Prefetched 位，
+        # 该行以 demand fill 形态进入缓存；包的响应管道
+        # HardPFReq/FromPrefetcher/静默 target 删除/下游
+        # ReadSharedReq 全部不动——改写 cmd 会经 FromCPU 臂把
+        # 未请求响应推上 CPU 侧=结构性崩溃，非合法值替换）；
+        # 未落地=P06-a 反向臂（把 demand 标成 prefetch，需 demand
+        # 路径分类钩子）、P06-b dirty 属性错误、P06-c ownership
+        # 错误、P06-d allocate 属性错误（fill 权限属性是一致性侧
+        # 状态，非预取器标记），仍为 spec 待办。
+        # 证据状态（与 C11/C12/L04 不同，如实登记）：本项在禁止
+        # 构建/运行 pilot 的 worktree 落地——C++ 编译未验证、
+        # 真机证据 0、PF_F0_SPAN 两条跨度未实测（P06-F0 两 cell
+        # 在 campaign 大声 BLOCKED(F0-span-unmeasured) 直到集成方
+        # 实测）；F2/F6 四 cell 路由可解析但未运行。集成方待办见
+        # R4-5.4-report.md。
+        "P06": "implemented(pf_fill_class=P06-a forward arm "
+               "prefetch-as-demand fill-classification marking at the "
+               "Cache::serviceMSHRTargets setPrefetched gate (one "
+               "prefetch-owned fill classified demand: CacheBlk::"
+               "Prefetched not set, the line enters the cache as a "
+               "demand fill; packet plumbing HardPFReq/FromPrefetcher/"
+               "silent-target-delete untouched), CHAOSPrefetch "
+               "maybeMarkFillAsDemand via fillMarkHook; pending: P06-a "
+               "reverse arm (demand marked prefetch), P06-b dirty "
+               "attribute, P06-c ownership attribute, P06-d allocate "
+               "attribute (xlsx sheet-9 sub-models; fill-permission "
+               "attributes are coherence-side state, not a prefetcher "
+               "marking); evidence: NONE YET — landed compile-unverified "
+               "in a no-build worktree, zero real-run samples, PF_F0_SPAN "
+               "unmeasured (P06-F0 cells stay BLOCKED(F0-span-unmeasured) "
+               "until integration measures; F2/F6 cells resolve runnable "
+               "but unrun) — integration checklist in R4-5.4-report.md)",
     }
 
     wb = openpyxl.load_workbook(xlsx_path, data_only=True)
