@@ -307,6 +307,36 @@ def generate_map(xlsx_path):
                "substitution, a two-point implementation), A07-c ready loss "
                "(hang/Timeout channel, needs timeout bookkeeping — "
                "L04-a same class)",
+
+        # C14（2 RunID，阻塞短语 "consumer-side: MSHR busy event source
+        # only"）：targetField=mshr_busy_leak（CHAOSCache maybeStickMshrBusy
+        # @ BaseCache::recvTimingResp 的 MSHR 释放点）——落地=C14-a
+        # "MSHR busy/occupied stuck-at-1"（已完成 fill 的表项**不释放**，
+        # 留在 allocated list、永不回 free list；对应 miss 正常完成，
+        # 仅槽位丢失 → 队列最终恒满 → 容量退化/Timeout）。
+        # 观测=新 kind mshr_busy（L2，mshr_id/entry_index/state_before/
+        # state_after/occupancy 对）+ 复用既有 mshr_* 链；inj corr=origin。
+        # 证据状态（诚实）：落地自隔离 no-build worktree——**C++ compile-
+        # unverified，无 census/无 pilot/无逐边链证据**；本条解除 spec
+        # "需新增"的前提仅为"注入模式已实现"，验证债显式登记：集成方
+        # build → F5 census（CACHE_F0_SPAN 未实测；C14 为 F5 cell 不需要
+        # F0 跨度）→ campaign 2 cell × 3 seed + lsu_chain_check 逐边 +
+        # 不受影响族回归 → 再把真机证据补进本条目与 round4_findings
+        # §R4-5.5（R4-5.5-5.6-report.md 清单）。C14 只有一个子模型
+        # （C14-a），无未落地项。
+        "C14": "implemented(c14a_busy_stuck=MSHR busy/occupied stuck-at-1: "
+               "the serviced MSHR entry is not released at "
+               "BaseCache::recvTimingResp's release point — it stays in the "
+               "queue's allocated list and never returns to the free list; "
+               "the miss itself completed, only the slot is lost -> "
+               "capacity degradation/Timeout), CHAOSCache "
+               "maybeStickMshrBusy + mshr_busy(L2) observation; pending: "
+               "NONE (single sub-model C14-a); evidence: NONE yet — landed "
+               "compile-unverified from the isolated no-build worktree "
+               "r4-c14c15, no census/pilot/chain evidence; integration must "
+               "build + pilot 2 cells x 3 seeds + chain check before this "
+               "entry carries real-run evidence (R4-5.5-5.6-report.md "
+               "checklist)",
     }
 
     wb = openpyxl.load_workbook(xlsx_path, data_only=True)

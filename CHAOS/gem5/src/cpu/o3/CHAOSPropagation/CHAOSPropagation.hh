@@ -250,6 +250,27 @@ class CHAOSPropagation : public SimObject
                                      Tick arrival_tick, Tick deferred_tick,
                                      uint64_t delay_cycles);
 
+    // [MDSPEC][R4-5.5] C14-a MSHR busy/occupied stuck-at-1 (CHAOSCache
+    // maybeStickMshrBusy at BaseCache::recvTimingResp's release point): an
+    // MSHR entry that COMPLETED its fill was NOT released — it stays in the
+    // queue's allocated list (busy/occupied stuck-at-1) and never returns
+    // to the free list. `line` = the leaked entry's line; before/after =
+    // the queue's in-service occupancy that the correct release would have
+    // left vs. the occupancy with the release skipped (this model's
+    // faulted VALUE — a 4th value type after C12's tick pair, L04's seq
+    // pair and P06's classification pair). Writes the inj node
+    // (corr=origin; addr column = the line) + the model-specific
+    // `mshr_busy` node (the stuck state itself: mshr_id/entry_index/
+    // state_before/state_after/field=busy) and registers the WHOLE line in
+    // the faulted-byte (blk) registry so later events on that line join
+    // address-only (corr=addr_fallback — the C-family site has no seq
+    // primary). The entry's mshr_id is looked up (or minted) in the
+    // propagator's line-keyed MSHR registry and deliberately NOT released
+    // (the leak is the point). Returns the ptag (0 = tracer disabled).
+    uint64_t registerMshrBusyFault(Addr line, Addr block_size,
+                                   uint64_t occ_before, uint64_t occ_after,
+                                   bool was_full);
+
     // [MDSPEC][R4-5.4] P06-a prefetch-as-demand fill classification fault
     // (CHAOSPrefetch maybeMarkFillAsDemand, called from Cache::
     // serviceMSHRTargets' setPrefetched gate — the site where a fill's

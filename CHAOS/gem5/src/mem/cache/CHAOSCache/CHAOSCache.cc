@@ -61,14 +61,20 @@ namespace gem5
         // [MDSPEC][R4-5.2] C12: defer a fill response by lsuFillDelayCycles
         // cache cycles (see maybeDeferFillTiming).
         const bool fill_timing_mode = (target_field == "mshr_fill_timing");
-        const bool lsu_hook_mode = merge_mode || fill_timing_mode;
+        // [MDSPEC][R4-5.5] C14-a: MSHR busy/occupied stuck-at-1 (a resource
+        // leak — the released entry never returns to the free list).
+        const bool mshr_busy_mode = (target_field == "mshr_busy_leak");
+        const bool lsu_hook_mode = merge_mode || fill_timing_mode ||
+                                   mshr_busy_mode;
         if (lsu_hook_mode) {
             if (p.lsuTier == "off") {
                 panic("CHAOSCache: targetField=%s requires a tier "
                       "(--l1d_lsu_tier F0..F6, LSU event-normalized trigger; "
                       "'off' has no fire semantics for the %s hook)\n",
                       target_field.c_str(),
-                      merge_mode ? "merge" : "fill-timing");
+                      merge_mode ? "merge"
+                                 : (fill_timing_mode ? "fill-timing"
+                                                     : "mshr-busy"));
             }
             if (fill_timing_mode && p.lsuFillDelayCycles == 0) {
                 panic("CHAOSCache: targetField=mshr_fill_timing requires "
@@ -81,8 +87,10 @@ namespace gem5
                 p.lsuWarmupEvents, p.lsuSpanEvents);
             if (merge_mode)
                 BaseCache::chaosMergeHook = this;
-            else
+            else if (fill_timing_mode)
                 BaseCache::chaosFillTimingHook = this;
+            else
+                BaseCache::chaosMshrBusyHook = this;   // C14-a
         }
         // [LSU][OBS-L3] final funnel row (final counts; runs only on normal
         // exit — aborts keep the last per-attack injection-time node, which
@@ -94,6 +102,17 @@ namespace gem5
         registerExitCallback([this]() {
             if (lsuTrigger)
                 lsuTrigger->summary("CHAOSCache");
+            // [MDSPEC][R4-5.5] C14-a teardown read-back: the leak count and
+            // whether the stuck slot is still held at end of run. Runs only
+            // on normal exit (an abort keeps the last injection-log node).
+            if (target_field == "mshr_busy_leak")
+                printf("CHAOS_MSHR_BUSY: injector=CHAOSCache mode=c14a_busy_stuck "
+                       "leaks=%lu slot_held=%d released_normally=%d "
+                       "(C14-a MSHR occupied stuck-at-1; the leaked entry "
+                       "never returned to the free list)\n",
+                       (unsigned long)mshr_busy_leaks,
+                       mshr_busy_victim ? 1 : 0,
+                       mshr_busy_leaks ? 0 : 1);
             noteFunnelAtInjection();
         });
         if (probability != 0.0 || lsu_hook_mode) {
@@ -1068,6 +1087,104 @@ namespace gem5
         // One funnel row per successful injection (abort-survivable: the
         // prop-trace node is gzflushed per node; the log line is
         // best-effort) — trigger-mode counters via noteFunnelAtInjection.
+        noteFunnelAtInjection();
+        return true;
+    }
+
+    // [MDSPEC][R4-5.5] C14-a MSHR busy/occupied stuck-at-1 (resource leak).
+    // BaseCache::recvTimingResp calls this IMMEDIATELY BEFORE
+    // mshrQueue.deallocate(mshr). Consent => the caller SKIPS the
+    // deallocation: the serviced entry stays in the queue's allocated list
+    // and never returns to the free list (the "busy/occupied stuck-at-1"
+    // of the model). The corresponding miss completed normally — the fill
+    // was already delivered by serviceMSHRTargets before this point, so
+    // the consumer got its data; only the SLOT is lost. Once the leaked
+    // slot is the last free-demand entry isFull() stays true, the CPU side
+    // stays blocked (Blocked_NoMSHRs) and prefetch is starved: the 03
+    // sheet's "容量退化和Timeout". See the .hh contract for the call
+    // site, the single-slot rule and the honest consequences.
+    bool
+    CHAOSCache::maybeStickMshrBusy(BaseCache *cache, MSHR *mshr, Addr line,
+                                   uint64_t in_service, bool was_full)
+    {
+        if (target_field != "mshr_busy_leak") return false;  // mode off
+        if (cache != targetCache) return false;   // only the mounted cache
+        if (!mshr || !lsuTrigger) return false;
+        if (mshr_busy_victim) return false;  // single slot: one entry per run
+        if (max_faults != 0 && faults_injected_count >= max_faults)
+            return false;                     // G5 single-fault cap
+
+        lsuTrigger->onAttempt();
+
+        // Eligibility: THIS call site is the MSHR release point — the fill
+        // has completed (the 03 sheet's "对应 miss 正常完成") and the entry
+        // is about to return to the free list. The faulted VALUE is the
+        // entry's occupied/busy state: correct = released, faulty = stuck
+        // busy. No further filter (every release is an eligible event; the
+        // one-entry rule comes from the single slot + maxFaults=1).
+        bool go;
+        if (lsuTrigger->tier == ChaOSLsuTier::F6) {
+            // C14's F6 "specified event" IS the MSHR completing-and-
+            // should-release (this model's event source — the 09 §2.1
+            // four-event list is the W1 map, not an exhaustive
+            // enumeration; recorded as the NINTH F6 source in
+            // chaos_lsu_trigger.hh). onF6Event(false): attempted was
+            // already booked exactly once by onAttempt() above — the
+            // release hook IS the attempt stream, so the event gate must
+            // not re-book it ([MDSPEC][R4-5.1-review-I1], the C11 fix
+            // shape; the W1 thunk sites keep the default true).
+            go = lsuTrigger->onF6Event(false);
+        } else {
+            go = lsuTrigger->onEligible();
+        }
+        if (!go)
+            return false;
+
+        mshr_busy_victim = mshr;
+        ++mshr_busy_leaks;
+        ++faults_injected_count;
+        if (stats)
+            stats->numFaultsInjected++;
+
+        // Occupancy pair (this model's faulted value — the 4th per-model
+        // value type after C12's tick pair, L04's seq pair and P06's
+        // classification pair). in_service was sampled by the caller
+        // BEFORE the deallocation, so it still counts this entry: the
+        // correct release would leave in_service-1, the skipped release
+        // leaves in_service.
+        const uint64_t occ_after = in_service;
+        const uint64_t occ_before = in_service ? in_service - 1 : 0;
+
+        // Propagation registration: inj node (corr=origin; addr column =
+        // the leaked entry's line; before/after = the occupancy pair) +
+        // the model-specific mshr_busy node (the stuck state itself) + the
+        // line in the faulted-byte registry so later events on that line
+        // join address-only (the labeled addr_fallback arm — the C-family
+        // site has no seq primary). HONEST NOTE: the H4 mshr_free event
+        // for this line fires EARLIER, inside handleFill — it reports the
+        // INTENDED release, while this mshr_busy node reports that the
+        // release was actually SKIPPED; the two together are the read-out
+        // of the leak.
+        if (CHAOSPropagation::instance())
+            CHAOSPropagation::instance()->registerMshrBusyFault(
+                line, targetCache->getBlockSize(), occ_before, occ_after,
+                was_full);
+
+        // Injection-log detail line (L0 parses the "Cache Block Addr/
+        // Field" contract — tools/lsu_obs_core._CACHE_FIELD_INJ_RE).
+        if (write_log && log_stream && log_stream->stream()) {
+            *(log_stream->stream()) << "Tick: " << curTick()
+                << ", Cache Block Addr: " << line
+                << ", Field: mshr_busy_leak (C14-a occupied-stuck-at-1 "
+                << "release-skipped), in_service_before=" << occ_before
+                << ", in_service_after=" << occ_after
+                << ", was_full=" << (was_full ? 1 : 0)
+                << ", faults_injected: " << faults_injected_count
+                << std::endl;
+        }
+        // One funnel row per successful injection (abort-survivable via the
+        // prop-trace node; the log line is best-effort) — trigger-mode
+        // counters via noteFunnelAtInjection.
         noteFunnelAtInjection();
         return true;
     }

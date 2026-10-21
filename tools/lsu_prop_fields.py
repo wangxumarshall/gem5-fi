@@ -91,6 +91,10 @@ KIND_LAYER = {
     "cache_access": "L1", "cache_return": "L2", "cache_fill": "L2",
     "cache_evict": "L2", "mshr_alloc": "L2", "mshr_merge": "L2",
     "mshr_fill": "L2", "mshr_free": "L2",
+    # [MDSPEC][R4-5.5] C14-a MSHR busy/occupied stuck-at-1: the serviced
+    # entry that was NOT released (resource leak; 表9 C14 行 L1 档点名
+    # "MSHR 占用与 free list").
+    "mshr_busy": "L2",
     "cache_writeback": "L3",
     # [MDSPEC][H5] prefetch 链（训练 L1 → 队列/发射 L2 → fill L3 → demand L4）
     "pf_train": "L1", "pf_queue": "L2", "pf_issue": "L2",
@@ -176,6 +180,13 @@ REQUIRED_FIELDS = {
     "mshr_merge": ["fault_id", "corr", "cache_line", "mshr_id"],
     "mshr_fill": ["fault_id", "corr", "cache_line", "mshr_id", "fill_id"],
     "mshr_free": ["fault_id", "corr", "cache_line", "mshr_id"],
+    # [MDSPEC][R4-5.5] C14-a MSHR busy/occupied stuck-at-1: the entry that
+    # completed its fill but was NOT released (busy/occupied stuck-at-1).
+    # state_before/state_after = should_release / stuck_busy; entry_index
+    # = mshr_id (the queue slot identity — 表9 C14 行点名监控 "mshr_id、
+    # busy/free tick、occupancy"); corr = origin (chain-opening node).
+    "mshr_busy": ["fault_id", "corr", "mshr_id", "entry_index",
+                  "cache_line", "field", "state_before", "state_after"],
     "cache_writeback": ["fault_id", "corr", "cache_line"],
     # [MDSPEC][H5] prefetch 链：pf_request_id 为请求级稳定标识（≠ fault_id），
     # 同一预取请求的 queue/issue/fill/demand 四节点必须携带同一值。

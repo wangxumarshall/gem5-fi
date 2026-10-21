@@ -55,6 +55,10 @@ class CHAOSCache(SimObject):
         "(MDSPEC C12: fill-timing OFFSET — a fill response is deferred by "
         "lsuFillDelayCycles cache cycles (stash + scheduled resume into "
         "recvTimingResp); same trigger discipline via lsuTier, legacy "
+        "periodic attack DISABLED) | mshr_busy_leak (MDSPEC C14-a: the "
+        "serviced MSHR entry is NOT released at the fill release point — "
+        "its busy/occupied state is stuck-at-1, the slot never returns to "
+        "the free list; same trigger discipline via lsuTier, legacy "
         "periodic attack DISABLED)")
     lsuFillDelayCycles = Param.UInt64(100,
         "MDSPEC C12 mshr_fill_timing: the fill-timing offset in cache clock "

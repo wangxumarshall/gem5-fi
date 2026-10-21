@@ -149,6 +149,23 @@ class BaseCache : public ClockedObject
     // injector sets it from its ctor.
     static class CHAOSCache *chaosFillTimingHook;
 
+    // [MDSPEC][R4-5.5] C14-a MSHR busy/occupied stuck-at-1 registry (same
+    // pattern as chaosVictimHook/chaosMergeHook/chaosFillTimingHook).
+    // BaseCache::recvTimingResp consults it IMMEDIATELY BEFORE
+    // mshrQueue.deallocate(mshr): the registered CHAOSCache
+    // (targetField=mshr_busy_leak, mounted on this cache) may SKIP the
+    // deallocation — the serviced MSHR entry stays in the queue's
+    // allocated list and never returns to the free list (busy/occupied
+    // stuck-at-1, sub-model C14-a). The miss itself already completed (the
+    // fill was delivered by serviceMSHRTargets before this point) so the
+    // consumer got its data; only the SLOT is lost. Once the leaked slot
+    // is the last free-demand entry isFull() stays true, the CPU side
+    // stays blocked and prefetch is starved (the 03 sheet's "容量退化和
+    // Timeout"). The injector checks `cache == targetCache`, so only the
+    // mounted cache (L1D) is affected. nullptr = zero regression. PUBLIC:
+    // the injector sets it from its ctor.
+    static class CHAOSCache *chaosMshrBusyHook;
+
     // [MDSPEC][R4-5.2] C12 public trampoline: re-enter the (protected)
     // recvTimingResp with a previously deferred fill-response packet. Only
     // the C12 resume event calls this (single deferred slot on the
