@@ -234,6 +234,33 @@ class CHAOSLSQFwd : public SimObject
     };
     std::unordered_map<Addr, S10Entry> s10_entries;
     uint64_t s10_activated_count = 0;  // entries with consumed=true
+    // [MDSPEC][R4-5.7b] S10 FUNNEL FORK-POINT DIAGNOSTICS (observation only,
+    // zero semantic effect). Root cause of the R4-5.7 census result
+    // "attempted=4/5 eligible=0": the S10 hook lives ONLY in the
+    // "brand-new store set" arm of StoreSet::violation
+    // (store_set.cc `if (!valid_load_SSID && !valid_store_SSID)`), reached
+    // through chaosS10SsidSubst -> s10SsidSubstCb. `eligible` can only
+    // increment from there AND only when the live-SSIT candidate scan is
+    // non-empty. These counters split that compound gate so ONE census run
+    // decides between the four triage classes (docs R4-5.7b report §1):
+    //   arm1_events         - times the assignment arm was ENTERED (hook
+    //                         reached at all) => (c) if 0 with attempted>0
+    //   arm1_cand_empty     - entered but the live SSIT held no OTHER live
+    //                         SSID => (a)/(b)/(d), the observed predicate
+    //   arm1_cand_ok        - entered with >=1 legal candidate (=> eligible)
+    //   max_live_ssids      - widest distinct-live-SSID set seen => 1 means
+    //                         "only one store-set in use" => (d)
+    //   max_cands           - widest legal candidate set seen
+    //   arm1_load_pcs       - DISTINCT load PCs entering the assignment arm
+    //                         (dedup, insertion order); >1 means several
+    //                         first-time training pairs existed.
+    // Purely additive: printed once at teardown as CHAOS_LSU_S10_FORK.
+    uint64_t s10_arm1_events = 0;
+    uint64_t s10_arm1_cand_empty = 0;
+    uint64_t s10_arm1_cand_ok = 0;
+    uint64_t s10_max_live_ssids = 0;
+    uint64_t s10_max_cands = 0;
+    std::vector<Addr> s10_arm1_load_pcs;
     // [MDSPEC][R4-5.3] L04-b pending exchange: one injection swaps the
     // pairing-table entries of two loads; the halves complete at different
     // response arrivals. State: the source load (returned as the delivered-
