@@ -334,6 +334,26 @@ class CHAOSPropagation : public SimObject
                                    uint64_t tgt_req_id, Addr tgt_va,
                                    unsigned tgt_size);
 
+    // [MDSPEC][R4-5.7] S10-a StoreSet SSIT-ID 换值 (CHAOSLSQFwd
+    // --lsqfwd_s10, hooks at StoreSet::violation / checkInst — see
+    // CHAOSLSQFwd.hh for the model ruling). A violation retrain just
+    // assigned the load PC a fresh SSID and the injector substituted it
+    // with ANOTHER LEGAL live store-set ID (candidates = valid SSIT
+    // entries' SSIDs minus the true one; workbook 07 实施细则: no random
+    // bit strings — the target came from the current run). Writes the inj
+    // node (corr=origin; pc lifts to the unified pc field; before/after =
+    // true/target SSID — the faulted VALUE of this model, the SSID
+    // assignment; store_pc and the candidate-set size stay in the detail)
+    // and registers NO downstream correlate surface: the fault lives in
+    // PC-keyed predictor state, which has no addr/seq registry arm. The
+    // chain's downstream members (ssit_consult / ssit_violation) are the
+    // injector's own PC-keyed emissions — pf_train precedent (the
+    // prefetcher's stride fault has the same no-correlate-surface shape).
+    // Returns the ptag (0 = tracer disabled).
+    uint64_t registerStoreSetFault(Addr store_pc, Addr load_pc,
+                                   uint64_t true_ssid, uint64_t new_ssid,
+                                   size_t candidate_count);
+
     // [MDSPEC][R4-4] ArmTLB pfn fault, seq-PRIMARY correlation (the TLB
     // twin of registerLSQForwardFault; replaces the pre-R4-4 address-only
     // registration, user ruling 2026-10-20). The injection site

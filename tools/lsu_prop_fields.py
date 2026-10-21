@@ -80,6 +80,12 @@ KIND_LAYER = {
     "sq_execute": "L3", "sq_writeback": "L3", "sq_complete": "L3",
     # [MDSPEC][H3-FWD] S 系转发故障（生产 store→消费 load 的转发数据被污染）
     "lsq_fwd": "L3",
+    # [MDSPEC][R4-5.7] S10 StoreSet SSIT 腐蚀链（换值子模型 S10-a）：
+    # ssit_consult（L1）= checkInst 咨询被腐蚀 load PC 的 SSIT 条目——
+    # 预测依赖的读取点（dispatch 期，先于执行）；ssit_violation（L2）=
+    # 该 PC 上的 memory-ordering violation 检出（漏预测的具体化——
+    # 表9 S10 行 L2 档字面点名 "violation/replay"）。
+    "ssit_consult": "L1", "ssit_violation": "L2",
     # [MDSPEC][H4] cache 结构事件（L1=lookup / L2=hit返回·miss+MSHR+fill+evict
     # / L3=writeback 持久化）
     "cache_access": "L1", "cache_return": "L2", "cache_fill": "L2",
@@ -146,6 +152,20 @@ REQUIRED_FIELDS = {
     "lsq_fwd": ["fault_id", "dyn_inst_seq", "store_dyn_inst_seq",
                 "sq_idx", "lq_idx", "request_id", "va", "field",
                 "before", "after"],
+    # [MDSPEC][R4-5.7] S10 StoreSet SSIT 腐蚀链（S10-a 换值；注入器
+    # CHAOSLSQFwd --lsqfwd_s10，注入点 StoreSet::violation 新 SSID 赋值臂）。
+    # ssit_consult: before/after = 反事实/实际预测的 producing-store seq
+    # （本模型的被故障值=预测；before=真 SSID 的 LFST 槽会返回什么，
+    # after=被腐蚀 SSID 实际返回什么；entry_index=实际命中的 SSID）。
+    # ssit_violation: state_before = violation 时刻该 PC 仍映射的 SSID
+    # （腐蚀存续期=替换值；violation 重训自愈后=合并值——流保持诚实）。
+    # corr 刻意不列入必录（pf_train 先例类）：链成员资格来自注入器自有
+    # 的 PC 键匹配，非 correlate* 查询——CORR_VALUES 5 值词汇表无 PC 键
+    # join 标记，扩表会破坏 test_lsu_prop_fields §6 的钉死契约（此为
+    # 已裁决的诚实缺席，非静默地址关联；登记于 R4-5.7 报告）。
+    "ssit_consult": ["fault_id", "pc", "field", "before", "after",
+                     "entry_index"],
+    "ssit_violation": ["fault_id", "pc", "field", "state_before"],
     # [MDSPEC][H4] cache 结构事件（access/return/fill/evict）
     "cache_access": ["fault_id", "corr", "va", "pa"],
     "cache_return": ["fault_id", "corr", "pa", "field"],

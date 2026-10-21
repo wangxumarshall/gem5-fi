@@ -214,6 +214,20 @@ MODEL_FLAGS = {
     # lsu_runid_map SPEC_IMPL_LANDED (mode_unimpl_plan.md L04 row, landed
     # per the template).
     "L04": ("lsqfwd", ["--lsqfwd_l04"]),
+    # [MDSPEC][R4-5.7] S10: StoreSet SSIT-ID 换值 (S10-a) — the load's
+    # freshly assigned SSIT SSID is substituted with ANOTHER LEGAL live
+    # store-set ID (candidates = valid SSIT entries' SSIDs, no random bit
+    # strings — workbook 07 实施细则) at the StoreSet training point
+    # (StoreSet::violation's new-SSID arm, chaosS10* hooks in
+    # CHAOSLSQFwd). Event-normalized trigger on the SSIT-training stream
+    # (lsuTier; the SQ-forward data-path hook is split off, L03/L04
+    # discipline). S10-b (LFST target) / S10-c (valid loss) / the other
+    # violation() merge arms are NOT landed — lsu_runid_map
+    # SPEC_IMPL_LANDED pending list. NOTE (honest): landed compile-
+    # unverified by the isolated worktree (build/census/pilot are the
+    # integration side's steps); F0 cells refuse loudly until
+    # LSQFWD_F0_SPAN gains the measured (S10, binary) pairs.
+    "S10": ("lsqfwd", ["--lsqfwd_s10"]),
     # --- L1D-Cache (W6; C-series runs the CHAOSCache legacy mechanism) ---
     "C01": ("cache", ["--l1d_target_field", "data", "--l1d_fault_type", "bit_flip"]),
     "C02": ("cache", ["--l1d_target_field", "data", "--l1d_fault_type", "bit_flip",
@@ -316,7 +330,14 @@ MODEL_BLOCKED = {
     # recorded in round4_findings.md §R4-5.4. Removed from this table only
     # on that evidence (the round's "assert runnable first" rule), exactly
     # as C11/C12/L04 were.
-    "S10": "deferred(consumer-side: StoreSet SSID corruption event source only)",
+    # ---
+    # [MDSPEC][R4-5.7] S10 StoreSet SSIT-ID 换值模式（S10-a）已由隔离 worktree
+    # 实现（`--lsqfwd_s10` + `CHAOSLSQFwd` 的 chaosS10* 钩子 @ StoreSet::
+    # violation / checkInst + `store_set.cc`），但**尚无论证可跑**：该 worktree
+    # 禁跑 build/pilot，故并入时仍是 compile-unverified。按本轮铁律
+    # 「断言可跑才删」，**S10 暂留本表**；主 worktree 的 build + 跨度普查 +
+    # 真机 pilot 通过后，在同一集成提交内改为证据化移除。
+    "S10": "landed compile-unverified, pilot pending (integration owns build + census + campaign; see R4-5.7 report)",
     "C14": "deferred(consumer-side: MSHR busy event source only)",
     "C15": "deferred(consumer-side: MSHR occupancy event source only)",
     # no clean hook (documented in injector headers / W4-W8 session notes)
@@ -428,6 +449,25 @@ LSQFWD_F0_SPAN = {
     # stream from the S models' forwards (7) and L03's violation checks.
     ("L04", "sq_forward"): 324,    # attempted=2317
     ("L04", "sqlite_like"): 5597,  # attempted=35156
+    # [MDSPEC][R4-5.7] S10 rows: DELIBERATELY ABSENT (census pending —
+    # landed from an isolated no-build worktree; the landing agent is
+    # forbidden to run gem5). The S10 stream is the StoreSet new-SSID
+    # assignment arm's ELIGIBLE events: a violation retrain where NEITHER
+    # the load nor the store PC has a valid SSIT entry AND at least one
+    # OTHER live store-set ID exists (candidate scan non-empty) — a
+    # DIFFERENT stream from L03's violation checks (571 on sq_forward:
+    # every checkViolations hit) and from the S models' forwards (7).
+    # Integration MUST census both pairs before any S10-F0 cell runs
+    # (resolve_cell refuses loudly with BLOCKED(F0-span-unmeasured) until
+    # then — the refusal IS the design, never silently reuse another
+    # pair's span):
+    #   ("S10", "sq_forward"): <to be measured by integration>,
+    #   ("S10", "gap_bfs"):    <to be measured by integration — W9's
+    #                           GAP/Graph500 binary, never census'd for any
+    #                           lsqfwd model before S10>,
+    # Census shape: identical to the L04 rows above (tier=F0 warmup=1
+    # span=1000000, seed 1 — draw never lands; CHAOS_LSU_TRIGGER teardown
+    # eligible= is the stream size; SPAN_UNREACHABLE alarm = census intent).
 }
 
 

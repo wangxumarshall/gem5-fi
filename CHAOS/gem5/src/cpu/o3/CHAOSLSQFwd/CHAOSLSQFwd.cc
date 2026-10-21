@@ -5,6 +5,7 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
+#include <algorithm>   // [MDSPEC][R4-5.7] std::find (S10 candidate dedup)
 
 #include "base/output.hh"
 #include "cpu/o3/cpu.hh"
@@ -33,6 +34,7 @@ namespace gem5
           write_log(p.writeLog),
           l03_mode(p.l03Mode),   // [LSU][SEM-B]
           l04_mode(p.l04Mode),   // [MDSPEC][R4-5.3] W5 L04
+          s10_mode(p.s10Mode),   // [MDSPEC][R4-5.7] W5 S10
           rng(rng_seed != 0 ? rng_seed : rd()),
           log_stream(nullptr),
           stats(nullptr)
@@ -57,6 +59,33 @@ namespace gem5
                   "requires --lsqfwd_lsu_tier (the event-normalized trigger "
                   "owns the pairing-point stream); refusing to run with a "
                   "legacy Bernoulli fallback");
+        // [MDSPEC][R4-5.7] S10 is trigger-native the same way (the
+        // StoreSet SSIT-training stream is the model's event source) and
+        // rides the standard mount (log stream + exit callbacks live in
+        // the probability>0 branch — the campaign default 1.0). Loud
+        // refusals, L04/C11/C12 convention.
+        if (s10_mode && !lsuTrigger)
+            panic("CHAOSLSQFwd: --lsqfwd_s10 (S10 StoreSet SSIT-ID 换值 "
+                  "mode) requires --lsqfwd_lsu_tier (the event-normalized "
+                  "trigger owns the StoreSet training stream); refusing to "
+                  "run with a legacy Bernoulli fallback");
+        if (s10_mode && probability <= 0.0f)
+            panic("CHAOSLSQFwd: --lsqfwd_s10 requires the standard mount "
+                  "(probability > 0; the campaign default is 1.0 — the "
+                  "legacy probability knob is not the S10 trigger, but the "
+                  "injection-log stream and exit callbacks live on the "
+                  "standard mount path)");
+        // [MDSPEC][R4-5.7] S10 hook registration: StoreSet (inside
+        // MemDepUnit/InstQueue) reaches this injector through the
+        // chaosS10* globals (single-consumer, BaseCache::chaosMergeHook
+        // precedent). Cleared in the destructor.
+        if (s10_mode) {
+            s10_active = this;
+            chaosS10Violation = &CHAOSLSQFwd::s10ViolationCb;
+            chaosS10SsidSubst = &CHAOSLSQFwd::s10SsidSubstCb;
+            chaosS10CorruptedPc = &CHAOSLSQFwd::s10CorruptedPcCb;
+            chaosS10Consult = &CHAOSLSQFwd::s10ConsultCb;
+        }
         if (lsuTrigger) {
             // W5: funnel lines at exit (chaos_l0 discipline: log file, not
             // stdout). activated = same near-tautological approximation as
@@ -68,7 +97,15 @@ namespace gem5
                 l0_funnel.attempted = lsuTrigger->attempted;
                 l0_funnel.eligible  = lsuTrigger->eligible;
                 l0_funnel.injected  = faults_injected_count;
-                l0_funnel.activated = faults_injected_count;
+                // [MDSPEC][R4-5.7] S10 activated is NOT the near-tautology
+                // the data-path models use: the fault lives in PC-keyed
+                // predictor state, so "consumed downstream" = a consult or
+                // violation actually read the corrupted entry (workbook
+                // 激活口径: "故障值被下游实际读取、选择或消费"). An
+                // injection whose PC is never consulted stays
+                // Injected-not-activated — reported honestly as 0.
+                l0_funnel.activated = s10_mode ? s10_activated_count
+                                               : faults_injected_count;
                 if (write_log && log_stream && log_stream->stream()) {
                     *(log_stream->stream()) << l0_funnel.line("CHAOSLSQFwd")
                                             << std::endl;
@@ -126,6 +163,19 @@ namespace gem5
 
     CHAOSLSQFwd::~CHAOSLSQFwd()
     {
+        // [MDSPEC][R4-5.7] S10 hook deregistration (single consumer: only
+        // clear what still points at THIS injector's statics).
+        if (s10_active == this) {
+            s10_active = nullptr;
+            if (chaosS10Violation == &CHAOSLSQFwd::s10ViolationCb)
+                chaosS10Violation = nullptr;
+            if (chaosS10SsidSubst == &CHAOSLSQFwd::s10SsidSubstCb)
+                chaosS10SsidSubst = nullptr;
+            if (chaosS10CorruptedPc == &CHAOSLSQFwd::s10CorruptedPcCb)
+                chaosS10CorruptedPc = nullptr;
+            if (chaosS10Consult == &CHAOSLSQFwd::s10ConsultCb)
+                chaosS10Consult = nullptr;
+        }
         // v1.1 Phase 8.2 countOnlyMode: the driver's dry-run learns
         // N_eligible from this line (campaign.py parses the log).
         if (count_only && log_stream && log_stream->stream()) {
@@ -256,6 +306,11 @@ namespace gem5
         // the trigger stream is the response-pairing point only
         // (LSQUnit::completeDataAccess, maybeSwapResponseTarget).
         if (l04_mode) return;
+        // [MDSPEC][R4-5.7] S10 hook split, same discipline: with
+        // --lsqfwd_s10 the SQ-forward data path is NOT S10's event source —
+        // the trigger stream is the StoreSet SSIT-training point only
+        // (StoreSet::violation, chaosS10* hooks).
+        if (s10_mode) return;
         if (lsuTrigger) {
             // LSU W2/W5 path (05 r2-r8): the event-normalized trigger owns
             // warm-up/repetition semantics; the legacy cycle window,
@@ -636,6 +691,220 @@ namespace gem5
                 "src seq %llu -> tgt seq %llu\n",
                 (unsigned long long)src.seq, (unsigned long long)b.seq);
         return b.inst;
+    }
+
+    // [MDSPEC][R4-5.7] S10 StoreSet SSIT-ID 换值 (S10-a). See CHAOSLSQFwd.hh
+    // for the model ruling; the hooks below are the single consumer the
+    // chaosS10* globals point at while an S10-armed injector is mounted.
+    CHAOSLSQFwd *CHAOSLSQFwd::s10_active = nullptr;
+
+    void
+    CHAOSLSQFwd::s10ViolationCb(Addr store_pc, Addr load_pc,
+                                uint64_t load_ssid_now, bool load_ssid_valid)
+    {
+        if (!s10_active || !s10_active->lsuTrigger)
+            return;
+
+        // (a) ssit_violation (L2): a memory-ordering violation was detected
+        // on a corrupted load PC — the missed-dependence manifestation.
+        // Cap-INDEPENDENT (mechanical chain evidence of the already-injected
+        // fault, L04 half-2 discipline: the cap gates NEW injections).
+        // state_before = the SSID still mapped to that PC at violation time
+        // (== the substituted SSID while the corruption is live; a healed
+        // retrain shows the merged value — the stream stays honest either
+        // way). Caveat recorded in the report: violations on that PC can
+        // also occur naturally (the SSIT is a predictor, not a guarantee);
+        // this event witnesses the co-occurrence, the causal reading rests
+        // on the preceding ssit_consult's before/after divergence.
+        auto it = s10_active->s10_entries.find(load_pc);
+        if (it != s10_active->s10_entries.end()) {
+            if (!it->second.consumed) {
+                it->second.consumed = true;
+                ++s10_active->s10_activated_count;
+            }
+            if (CHAOSPropagation *tr = CHAOSPropagation::instance()) {
+                std::ostringstream pc_hex;
+                pc_hex << std::hex << load_pc;
+                // kv pairs must be registry fields (unregistered keys are
+                // warned + dropped by notePropEvt); the store PC stays in
+                // the inj node's v1 detail (registerStoreSetFault) and the
+                // injection-log line, not on this unified event.
+                tr->notePropEvt("ssit_violation", {
+                    {"fault_id", std::to_string(it->second.ptag)},
+                    {"pc", pc_hex.str()},
+                    {"field", "dep_miss_violation"},
+                    {"state_before",
+                     load_ssid_valid ? std::to_string(load_ssid_now)
+                                     : "invalid"},
+                });
+            }
+            if (s10_active->write_log && s10_active->log_stream &&
+                s10_active->log_stream->stream()) {
+                *(s10_active->log_stream->stream())
+                    << "Tick: " << curTick()
+                    << ", Site: StoreSet_violation_retrain"
+                    << ", mode=ssit_violation (S10 dep-miss manifestation)"
+                    << ", load_pc=0x" << std::hex << load_pc << std::dec
+                    << ", load_ssid_now="
+                    << (load_ssid_valid ? std::to_string(load_ssid_now)
+                                        : std::string("invalid"))
+                    << ", faults_injected: "
+                    << s10_active->faults_injected_count
+                    << std::endl;
+            }
+        }
+
+        // (b) maxFaults cap BEFORE onAttempt (C11 convention: with the
+        // campaign cap the funnel counters freeze at fire time — exact).
+        if (s10_active->max_faults != 0 &&
+            s10_active->faults_injected_count >= s10_active->max_faults)
+            return;
+
+        // (c) The attempt stream: EVERY StoreSet training event (the hook
+        // is the top of StoreSet::violation). Eligibility (the new-SSID
+        // assignment arm + a live candidate) is decided at the subst hook.
+        s10_active->lsuTrigger->onAttempt();
+    }
+
+    bool
+    CHAOSLSQFwd::s10SsidSubstCb(Addr store_pc, Addr load_pc,
+                                uint64_t true_ssid, const S10SsidScan &scan,
+                                uint64_t *out_ssid)
+    {
+        if (!s10_active || !s10_active->lsuTrigger || !out_ssid)
+            return false;
+
+        // Workbook 07 实施细则: the substituted value must be ANOTHER
+        // LEGAL live value from the current run — no random bit strings.
+        // Candidate set = SSIDs of currently valid SSIT entries (live
+        // store sets; free/idle SSIDs are excluded by construction — only
+        // present entries scan), minus the true SSID. Lazy scan (L04
+        // RespPairScan precedent): paid only here, in the assignment arm.
+        std::vector<uint64_t> live;
+        if (scan)
+            scan(live);
+        std::vector<uint64_t> cands;
+        for (uint64_t s : live)
+            if (s != true_ssid &&
+                std::find(cands.begin(), cands.end(), s) == cands.end())
+                cands.push_back(s);
+        if (cands.empty())
+            return false;   // no other live store set — not eligible
+
+        // Trigger decision. F6 ([MDSPEC][R4-5.1-review-I1] accounting):
+        // the attempt was already booked by s10ViolationCb's onAttempt —
+        // onF6Event(false) must not re-book it. F6 = the first eligible
+        // assignment event (early_stress first-occurrence, A5 ruling).
+        bool go;
+        if (s10_active->lsuTrigger->tier == ChaOSLsuTier::F6) {
+            go = s10_active->lsuTrigger->onF6Event(false);
+        } else {
+            go = s10_active->lsuTrigger->onEligible();
+        }
+        if (!go)
+            return false;
+
+        // Fire: choose the target uniformly among the candidates (seeded
+        // mt19937 — reproducible with --rng_seed; the spec does not pin a
+        // choice rule, recorded here). The value is legal by construction
+        // (it came from the live SSIT, so < LFSTSize holds).
+        const uint64_t target = cands[s10_active->rng() % cands.size()];
+
+        // Propagation registration: inj node only (corr=origin; the
+        // before/after pair = the faulted VALUE of this model, the SSID
+        // assignment). NO addr/seq registry entry — a PC-keyed predictor
+        // state has no correlate surface; chain members are this
+        // injector's own PC-keyed emissions (pf_train precedent).
+        uint64_t ptag = 0;
+        if (CHAOSPropagation *tr = CHAOSPropagation::instance())
+            ptag = tr->registerStoreSetFault(store_pc, load_pc, true_ssid,
+                                             target, cands.size());
+
+        // Consumption table (single-slot-per-PC: re-corruption of the same
+        // PC — only possible with maxFaults=0/unlimited — overwrites; the
+        // previous chain then has no live consumption surface, recorded in
+        // the .hh comment rather than papered over).
+        s10_active->s10_entries[load_pc] =
+            S10Entry{ptag, true_ssid, false};
+
+        ++s10_active->faults_injected_count;
+        if (s10_active->stats)
+            s10_active->stats->numFaultsInjected++;
+        // Injection-log line (L0 parses the "Tick: …, Site: …, mode=…,
+        // old_ssid/new_ssid, …, faults_injected:" contract —
+        // tools/lsu_obs_core._INJ_RE; source/target + the candidate-set
+        // size are the workbook's "保存 source/target 及候选集合").
+        if (s10_active->write_log && s10_active->log_stream &&
+            s10_active->log_stream->stream()) {
+            *(s10_active->log_stream->stream())
+                << "Tick: " << curTick()
+                << ", Site: StoreSet_violation_ssid_assign"
+                << ", mode=ssid_subst (S10-a SSIT-ID 换值)"
+                << ", old_ssid=" << true_ssid
+                << ", new_ssid=" << target
+                << ", store_pc=0x" << std::hex << store_pc << std::dec
+                << ", load_pc=0x" << std::hex << load_pc << std::dec
+                << ", ssid_candidates=" << cands.size()
+                << ", faults_injected: "
+                << s10_active->faults_injected_count
+                << std::endl;
+        }
+        DPRINTF(LSQUnit, "CHAOSLSQFwd: S10 SSIT ssid subst load_pc=%#x "
+                "true=%llu -> %llu (candidates=%zu)\n", load_pc,
+                (unsigned long long)true_ssid, (unsigned long long)target,
+                cands.size());
+        *out_ssid = target;
+        return true;
+    }
+
+    bool
+    CHAOSLSQFwd::s10CorruptedPcCb(Addr pc, uint64_t *true_ssid)
+    {
+        if (!s10_active || !true_ssid)
+            return false;
+        auto it = s10_active->s10_entries.find(pc);
+        if (it == s10_active->s10_entries.end())
+            return false;
+        *true_ssid = it->second.true_ssid;
+        return true;
+    }
+
+    void
+    CHAOSLSQFwd::s10ConsultCb(Addr pc, uint64_t actual_ssid,
+                              uint64_t actual_dep, uint64_t counterfactual_dep)
+    {
+        if (!s10_active)
+            return;
+        auto it = s10_active->s10_entries.find(pc);
+        if (it == s10_active->s10_entries.end())
+            return;
+
+        // The corrupted SSIT entry was READ by the prediction path — the
+        // workbook's 激活口径 ("故障值被下游实际读取、选择或消费"). Whether
+        // the prediction actually CHANGED is readable on the stream
+        // (before=counterfactual vs after=actual producing-store seq).
+        if (!it->second.consumed) {
+            it->second.consumed = true;
+            ++s10_active->s10_activated_count;
+        }
+
+        if (CHAOSPropagation *tr = CHAOSPropagation::instance()) {
+            std::ostringstream pc_hex;
+            pc_hex << std::hex << pc;
+            tr->notePropEvt("ssit_consult", {
+                {"fault_id", std::to_string(it->second.ptag)},
+                {"pc", pc_hex.str()},
+                {"field", "pred_dep"},
+                {"before", std::to_string(counterfactual_dep)},
+                {"after", std::to_string(actual_dep)},
+                {"entry_index", std::to_string(actual_ssid)},
+            });
+        }
+        DPRINTF(LSQUnit, "CHAOSLSQFwd: S10 consult load_pc=%#x ssid=%llu "
+                "dep=%llu (counterfactual %llu)\n", pc,
+                (unsigned long long)actual_ssid,
+                (unsigned long long)actual_dep,
+                (unsigned long long)counterfactual_dep);
     }
 
 } // namespace gem5

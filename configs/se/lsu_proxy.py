@@ -298,6 +298,15 @@ p.add_argument("--lsqfwd_l03", action="store_true",
 p.add_argument("--lsqfwd_l04", action="store_true",
                help="W5 L04: exchange two in-flight loads' response-pairing "
                     "targets (lsqfwd trigger, completeDataAccess site)")
+# [MDSPEC][R4-5.7] W5 S10: StoreSet SSIT-ID 换值 (rides lsqfwd LSU trigger;
+# requires --lsqfwd_lsu_tier != off and the standard mount — the injector
+# panics otherwise, trigger-native model). The StoreSet training stream
+# (StoreSet::violation's new-SSID assignment arm) is the trigger's event
+# source; the SQ-forward data-path hook is split off.
+p.add_argument("--lsqfwd_s10", action="store_true",
+               help="W5 S10: substitute the load's freshly assigned SSIT "
+                    "SSID with another legal live store-set ID (lsqfwd "
+                    "trigger, StoreSet::violation site)")
 # §2.2 CHAOSRenameMap (O3 rename-map fault injector). SELF-ATTACHES at
 # startup() to thread-0 frontRenameMap.chaosRenameMap. map_bitflip /
 # map_bitflip2 (W4.1 D12: 2 distinct random index bits) / swap_to_active
@@ -882,6 +891,7 @@ if args.chaos_lsqfwd:
         lsuSpanEvents=args.lsqfwd_span_events,
         l03Mode=args.lsqfwd_l03,   # [LSU][SEM-B] W5 L03 接线
         l04Mode=args.lsqfwd_l04,   # [MDSPEC][R4-5.3] W5 L04 接线
+        s10Mode=args.lsqfwd_s10,   # [MDSPEC][R4-5.7] W5 S10 接线
         firstClock=args.first_clock,
         lastClock=args.last_clock,
         maxFaults=args.max_faults,
