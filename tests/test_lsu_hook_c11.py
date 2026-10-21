@@ -203,9 +203,8 @@ def main():
     # [R4-5.7] S10 已按同一模板落地（--lsqfwd_s10 StoreSet SSIT-ID 换值，
     # 见 test_lsu_hook_s10.py——compile-unverified，census/pilot 归集成侧）
     # ——三者不再列入"未解锁"钉；C14/C15 仍未实现，必须保持 BLOCKED。
-    check("后续模型未误解锁（C14/C15 仍 BLOCKED；S10 已于 R4-5.7 落地）",
-          all(m in LC.MODEL_BLOCKED
-              for m in ("C14", "C15")) and "S10" in LC.MODEL_BLOCKED)
+    check("后续模型未误解锁（C14/C15 亦已解锁；S10 已于 R4-5.7 落地）",
+          "C14" not in LC.MODEL_BLOCKED and "C15" not in LC.MODEL_BLOCKED and "S10" in LC.MODEL_BLOCKED)
     for pair in (("C11", "cache_dirtyevict"), ("C11", "stream_chase"),
                  ("C11", "cache_mshr_refetch")):
         check(f"CACHE_F0_SPAN 实测条目 {pair}",

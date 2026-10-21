@@ -1,10 +1,10 @@
 # Markdown→实现覆盖矩阵（MDSPEC Phase B，**节点级证据化**）
 
 - 总数：325（RunID 唯一，表7∩表9 集合相等——B1 已证）
-- **PASS=231 / PARTIAL=0 / BLOCKED=94**
+- **PASS=239 / PARTIAL=0 / BLOCKED=86**
 - 判定口径（2026-10-20 证据化）：PASS = 该单元规格所需**全部节点**既已实现（kind ∈ 发射端注册表）**又**在真实 pilot 运行中出现；缺任一节点 = PARTIAL 并逐项列出。注册表布尔值**不再**作为判据。
 - 节点级证据取**全部 pilot 的 kind 并集**（节点=钩子能力级证据，与注入单元解耦）；逐单元归属索引见 pilot_evidence.json 的 kinds_observed_by_unit（RunID→单元解析：精确匹配 → 行标签，见 tools/lsu_pilot_evidence.py unit_of）。
-- 真实运行观测到的 kind（34）：addr_form, cache_access, cache_evict, cache_fill, cache_return, cache_writeback, chain_end, consumer, errant_commit, exmon_monitor, exmon_rmw, exmon_stxr, inj, lq_complete, lq_read, lsq_push, lsq_sendfrag, mem_req, mshr_alloc, mshr_fill, mshr_free, mshr_merge, pf_demand, pf_fill, pf_issue, pf_queue, pf_train, resp, sq_complete, sq_execute, sq_writeback, taint_reg, tlb_fault, tlb_translate
+- 真实运行观测到的 kind（35）：addr_form, cache_access, cache_evict, cache_fill, cache_return, cache_writeback, chain_end, consumer, errant_commit, exmon_monitor, exmon_rmw, exmon_stxr, inj, lq_complete, lq_read, lsq_push, lsq_sendfrag, mem_req, mshr_alloc, mshr_busy, mshr_fill, mshr_free, mshr_merge, pf_demand, pf_fill, pf_issue, pf_queue, pf_train, resp, sq_complete, sq_execute, sq_writeback, taint_reg, tlb_fault, tlb_translate
 
 | RunID | 模型 | 单元 | 频率 | 状态 | 原因 |
 |---|---|---|---|---|---|
@@ -307,17 +307,17 @@
 | L04-F6-W5 | L04 | Load Queue | F6 | PASS |  |
 | L04-F6-W11 | L04 | Load Queue | F6 | BLOCKED | workload:workload-level:blocked(spec-license: SPEC CPU2017 needs a license) |
 | L04-F6-W12 | L04 | Load Queue | F6 | PASS |  |
-| C14-F5-W6 | C14 | L1d-Cache | F5 | BLOCKED | campaign:deferred(consumer-side: MSHR busy event source only); spec:需新增（当前阻塞：无MSHR busy注入） |
-| C14-F5-W10 | C14 | L1d-Cache | F5 | BLOCKED | campaign:deferred(consumer-side: MSHR busy event source only); spec:需新增（当前阻塞：无MSHR busy注入） |
-| C15-F0-W6 | C15 | L1d-Cache | F0 | BLOCKED | campaign:deferred(consumer-side: MSHR occupancy event source only); spec:需新增（当前阻塞：无MSHR occupancy/entry选择注入） |
-| C15-F0-W10 | C15 | L1d-Cache | F0 | BLOCKED | campaign:deferred(consumer-side: MSHR occupancy event source only); spec:需新增（当前阻塞：无MSHR occupancy/entry选择注入） |
-| C15-F0-W11 | C15 | L1d-Cache | F0 | BLOCKED | campaign:deferred(consumer-side: MSHR occupancy event source only); spec:需新增（当前阻塞：无MSHR occupancy/entry选择注入）; workload:workload-level:blocked(spec-license: SPEC |
-| C15-F4-W6 | C15 | L1d-Cache | F4 | BLOCKED | campaign:deferred(consumer-side: MSHR occupancy event source only); spec:需新增（当前阻塞：无MSHR occupancy/entry选择注入） |
-| C15-F4-W10 | C15 | L1d-Cache | F4 | BLOCKED | campaign:deferred(consumer-side: MSHR occupancy event source only); spec:需新增（当前阻塞：无MSHR occupancy/entry选择注入） |
-| C15-F4-W11 | C15 | L1d-Cache | F4 | BLOCKED | campaign:deferred(consumer-side: MSHR occupancy event source only); spec:需新增（当前阻塞：无MSHR occupancy/entry选择注入）; workload:workload-level:blocked(spec-license: SPEC |
-| C15-F6-W6 | C15 | L1d-Cache | F6 | BLOCKED | campaign:deferred(consumer-side: MSHR occupancy event source only); spec:需新增（当前阻塞：无MSHR occupancy/entry选择注入） |
-| C15-F6-W10 | C15 | L1d-Cache | F6 | BLOCKED | campaign:deferred(consumer-side: MSHR occupancy event source only); spec:需新增（当前阻塞：无MSHR occupancy/entry选择注入） |
-| C15-F6-W11 | C15 | L1d-Cache | F6 | BLOCKED | campaign:deferred(consumer-side: MSHR occupancy event source only); spec:需新增（当前阻塞：无MSHR occupancy/entry选择注入）; workload:workload-level:blocked(spec-license: SPEC |
+| C14-F5-W6 | C14 | L1d-Cache | F5 | PASS |  |
+| C14-F5-W10 | C14 | L1d-Cache | F5 | PASS |  |
+| C15-F0-W6 | C15 | L1d-Cache | F0 | PASS |  |
+| C15-F0-W10 | C15 | L1d-Cache | F0 | PASS |  |
+| C15-F0-W11 | C15 | L1d-Cache | F0 | BLOCKED | workload:workload-level:blocked(spec-license: SPEC CPU2017 needs a license) |
+| C15-F4-W6 | C15 | L1d-Cache | F4 | PASS |  |
+| C15-F4-W10 | C15 | L1d-Cache | F4 | PASS |  |
+| C15-F4-W11 | C15 | L1d-Cache | F4 | BLOCKED | workload:workload-level:blocked(spec-license: SPEC CPU2017 needs a license) |
+| C15-F6-W6 | C15 | L1d-Cache | F6 | PASS |  |
+| C15-F6-W10 | C15 | L1d-Cache | F6 | PASS |  |
+| C15-F6-W11 | C15 | L1d-Cache | F6 | BLOCKED | workload:workload-level:blocked(spec-license: SPEC CPU2017 needs a license) |
 | O09-F0-W7 | O09 | 原子与同步 | F0 | BLOCKED | campaign:deferred(RMW operand path needs cache-side hook); spec:需新增（当前阻塞：缺RMW operand hook）; workload:workload-level:blocked(multicore-fs: litmus needs multi-co |
 | O09-F0-W13 | O09 | 原子与同步 | F0 | BLOCKED | campaign:deferred(RMW operand path needs cache-side hook); spec:需新增（当前阻塞：缺RMW operand hook）; workload:workload-level:blocked(multicore-fs: PARSEC needs multi-co |
 | O09-F1-W7 | O09 | 原子与同步 | F1 | BLOCKED | campaign:deferred(RMW operand path needs cache-side hook); spec:需新增（当前阻塞：缺RMW operand hook）; workload:workload-level:blocked(multicore-fs: litmus needs multi-co |

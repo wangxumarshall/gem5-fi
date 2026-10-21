@@ -394,33 +394,6 @@ MODEL_BLOCKED = {
            "== arm1_events, max_live_ssids == 0 on 6 workloads, 23/23 "
            "victims outside the caller's own entry array); S10-a premise "
            "unreachable — needs platform fix or re-scope, R4-5.7b)",
-    "C14": "deferred(consumer-side: MSHR busy event source only)",
-    # [MDSPEC][R4-5.5] C14-a MSHR busy/occupied stuck-at-1 IS implemented
-    # (--l1d_target_field mshr_busy_leak, CHAOSCache maybeStickMshrBusy at
-    # BaseCache::recvTimingResp's MSHR release point) — but NOT yet proven
-    # runnable: this landing session was forbidden to build/run gem5, so
-    # the C++ is COMPILE-UNVERIFIED and there is no pilot evidence. Per the
-    # round's iron rule ("断言可跑才删") the model STAYS in this table until
-    # the main agent's integration build + F5-span census + real-run pilot
-    # pass; deletion is a one-line main-agent step after that checklist
-    # (R4-5.5-5.6-report.md §3).
-    "C14": "landed compile-unverified: MSHR busy/occupied stuck-at-1 (C14-a) "
-           "implemented (--l1d_target_field mshr_busy_leak) — pending "
-           "integration build + census + pilot; see R4-5.5-5.6 report",
-    # [MDSPEC][R4-5.6] C15-b capacity-arbitration fake-free IS implemented
-    # (--l1d_target_field mshr_occupancy, CHAOSCache maybeFakeFreeSlot +
-    # noteMshrAllocAttempt via BaseCache::chaosMshrOccArbitrate at the tail
-    # of allocateMissBuffer) — but NOT yet proven runnable: this landing
-    # session was forbidden to build/run gem5, so the C++ is
-    # COMPILE-UNVERIFIED and there is no pilot evidence. Per the round's
-    # iron rule ("断言可跑才删") the model STAYS in this table until the
-    # main agent's integration build + F0-span census + real-run pilot
-    # pass; deletion is a one-line main-agent step after that checklist
-    # (R4-5.5-5.6-report.md §3). C15-a/C15-c are not landed at all.
-    "C15": "landed compile-unverified: MSHR capacity-arbitration fake-free "
-           "(C15-b) implemented (--l1d_target_field mshr_occupancy); C15-a/"
-           "C15-c NOT landed — pending integration build + census + pilot; "
-           "see R4-5.5-5.6 report",
     # no clean hook (documented in injector headers / W4-W8 session notes)
     # [MDSPEC][R4-5.8 integration] A07 MODEL_BLOCKED entry DELETED here —
     # the C11/C12/L04 discipline ("delete only when real runs assert it")
@@ -696,7 +669,15 @@ CACHE_F0_SPAN = {
     # (and are additionally MODEL_BLOCKED):
     #   ("C15", "cache_dirtyevict"): <eligible from the W6 run>,
     #   ("C15", "stream_chase"):    <eligible from the W10 run>,
-}
+    # [MDSPEC][R4-5.6 integration] C15 census (tier=F0, warmup=1,
+    # span=1000000 pure-census, integration binary 0f39ec559a2cbdb1):
+    #   cache_dirtyevict: CHAOS_LSU_TRIGGER tier=F0 attempted=3  eligible=3
+    #   stream_chase    : CHAOS_LSU_TRIGGER tier=F0 attempted=11 eligible=11
+    # (both with SPAN_UNREACHABLE = census intent). The C15 stream is its
+    # own stream (new-miss allocations at the capacity limit), not C14/
+    # C11/C12's.
+    ("C15", "cache_dirtyevict"): 3,
+    ("C15", "stream_chase"): 11,}
 
 
 def _cache_tier_flags(model, tier, wl_binary=None):

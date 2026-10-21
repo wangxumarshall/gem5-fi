@@ -336,7 +336,14 @@ def generate_map(xlsx_path):
                "r4-c14c15, no census/pilot/chain evidence; integration must "
                "build + pilot 2 cells x 3 seeds + chain check before this "
                "entry carries real-run evidence (R4-5.5-5.6-report.md "
-               "checklist)",
+               "checklist); INTEGRATED 2026-10-21 on binary "
+               "0f39ec559a2cbdb1: build clean, campaign pilot "
+               "C14-F5-W6/W10 x 3 seeds all activated=3 with non-empty "
+               "cache_injections.log (Field: mshr_busy_leak ... "
+               "in_service_after=1) and chain_check per-edge records (8 "
+               "events, provable_to L0 then Unknown, oracle=Crash, stream "
+               "truncated — honest missing events, not Masked inference); "
+               "C14 deleted from MODEL_BLOCKED after these runs)",
         # C15（6 RunID，阻塞短语 "consumer-side: MSHR occupancy event
         # source only"）：targetField=mshr_occupancy（CHAOSCache
         # maybeFakeFreeSlot + noteMshrAllocAttempt @

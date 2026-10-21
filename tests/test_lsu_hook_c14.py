@@ -221,15 +221,13 @@ def main():
           LC.MODEL_FLAGS.get("C14") ==
           ("cache", ["--l1d_target_field", "mshr_busy_leak"]),
           str(LC.MODEL_FLAGS.get("C14")))
-    check("C14 仍在 MODEL_BLOCKED（compile-unverified，未实测不删）",
-          "C14" in LC.MODEL_BLOCKED
-          and "compile-unverified" in LC.MODEL_BLOCKED["C14"],
+    check("C14 已从 MODEL_BLOCKED 删除（实测可跑后才允许，C11/C12/L04 纪律）",
+          "C14" not in LC.MODEL_BLOCKED,
           str(LC.MODEL_BLOCKED.get("C14")))
-    check("后续模型未误解锁（C15 仍在 BLOCKED；C11/C12 已解锁）",
-          "C15" in LC.MODEL_BLOCKED
-          and "C11" not in LC.MODEL_BLOCKED
+    check("后续模型未误解锁（C11/C12 已解锁；C15 状态由其自身集成裁决）",
+          "C11" not in LC.MODEL_BLOCKED
           and "C12" not in LC.MODEL_BLOCKED)
-    check("CACHE_F0_SPAN 无 C14 实测条目（故意缺席 = census 未做）",
+    check("CACHE_F0_SPAN 无 C14 条目（C14 无 F0 cell，故跨度表本就不需要它）",
           ("C14", "cache_dirtyevict") not in LC.CACHE_F0_SPAN
           and ("C14", "stream_chase") not in LC.CACHE_F0_SPAN)
     check("CACHE_F0_SPAN 注释含 C14/C15 census 命令",
@@ -240,7 +238,7 @@ def main():
           ["--l1d_lsu_tier", "F5", "--l1d_warmup_events", "0",
            "--l1d_span_events", "1000"],
           str(LC._cache_tier_flags("C14", "F5", "cache_dirtyevict")))
-    check("C14 F0 未实测 → loud None（拒绝静默复用）",
+    check("C14 无 F0 cell：F0 路径对该模型仍 loud None（拒绝静默复用）",
           LC._cache_tier_flags("C14", "F0", "cache_dirtyevict") is None)
     check("legacy cache 模型 tier flags 逐字节不变（[]）",
           LC._cache_tier_flags("C01", "F0", "cache_dirtyevict") == []
@@ -255,8 +253,8 @@ def main():
            "--l1d_span_events",
            str(LC.CACHE_F0_SPAN[("C12", "stream_chase")])])
 
-    print("[5] 矩阵解析：C14 2 RunID 在 MODEL_BLOCKED 下诚实 BLOCKED，"
-          "临时解锁后解析为 mshr_busy_leak 运行配置")
+    print("[5] 矩阵解析：C14 2 RunID 解析为 mshr_busy_leak 运行配置"
+          "（已集成解锁）")
     header, cells = LC.load_matrix(
         ROOT / "artifacts/lsu-trial/07-expanded-matrix-backfilled.csv")
     c14 = [c for c in cells if c[LC.COL_MODEL].strip() == "C14"]
@@ -264,24 +262,16 @@ def main():
     for c in c14:
         runid = c[LC.COL_RUNID].strip()
         flags, golden, note = LC.resolve_cell(c)
-        check(f"{runid} 诚实 BLOCKED（compile-unverified 短语）",
-              flags is None and "compile-unverified" in note, note)
-    # 临时 pop MODEL_BLOCKED["C14"] 验证路由本身可解析（try/finally 复原）
-    saved = LC.MODEL_BLOCKED.pop("C14")
-    try:
-        for c in c14:
-            runid = c[LC.COL_RUNID].strip()
-            flags, golden, note = LC.resolve_cell(c)
-            ok = (flags is not None and golden
-                  and "--l1d_target_field" in flags
-                  and flags[flags.index("--l1d_target_field") + 1] ==
-                  "mshr_busy_leak"
-                  and "--l1d_lsu_tier" in flags)
-            check(f"{runid} 解锁后解析为 mshr_busy_leak 运行配置", ok,
-                  f"flags={flags} note={note}")
-    finally:
-        LC.MODEL_BLOCKED["C14"] = saved
-    check("MODEL_BLOCKED['C14'] 已复原", "C14" in LC.MODEL_BLOCKED)
+    for c in c14:
+        runid = c[LC.COL_RUNID].strip()
+        flags, golden, note = LC.resolve_cell(c)
+        ok = (flags is not None and golden
+              and "--l1d_target_field" in flags
+              and flags[flags.index("--l1d_target_field") + 1] ==
+              "mshr_busy_leak"
+              and "--l1d_lsu_tier" in flags)
+        check(f"{runid} 解析为 mshr_busy_leak 运行配置（已集成解锁）", ok,
+              f"flags={flags} note={note}")
 
     print("[6] SPEC_IMPL_LANDED 诚实登记")
     rm = src("tools/lsu_runid_map.py")

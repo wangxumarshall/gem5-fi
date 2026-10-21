@@ -235,16 +235,14 @@ def main():
           LC.MODEL_FLAGS.get("C15") ==
           ("cache", ["--l1d_target_field", "mshr_occupancy"]),
           str(LC.MODEL_FLAGS.get("C15")))
-    check("C15 仍在 MODEL_BLOCKED（compile-unverified，未实测不删）",
-          "C15" in LC.MODEL_BLOCKED
-          and "compile-unverified" in LC.MODEL_BLOCKED["C15"],
+    check("C15 已从 MODEL_BLOCKED 删除（实测可跑后才允许，C11/C12/L04 纪律）",
+          "C15" not in LC.MODEL_BLOCKED,
           str(LC.MODEL_BLOCKED.get("C15")))
-    check("C14 仍在 MODEL_BLOCKED（前一单元未误解锁）",
-          "C14" in LC.MODEL_BLOCKED
-          and "compile-unverified" in LC.MODEL_BLOCKED["C14"])
-    check("CACHE_F0_SPAN 无 C15 实测条目（故意缺席 = census 未做）",
-          ("C15", "cache_dirtyevict") not in LC.CACHE_F0_SPAN
-          and ("C15", "stream_chase") not in LC.CACHE_F0_SPAN)
+    check("C14 亦已解锁（前一单元同批集成实测通过）",
+          "C14" not in LC.MODEL_BLOCKED)
+    check("CACHE_F0_SPAN 含 C15 实测条目（集成 census：3 / 11）",
+          LC.CACHE_F0_SPAN.get(("C15", "cache_dirtyevict")) == 3
+          and LC.CACHE_F0_SPAN.get(("C15", "stream_chase")) == 11)
     check("CACHE_F0_SPAN 注释含 C15 census 命令",
           "C15-SPAN-" in src("tools/lsu_campaign.py"))
     check("C15 F4 tier flags（inert span，lsqfwd 约定）",
@@ -252,8 +250,12 @@ def main():
           ["--l1d_lsu_tier", "F4", "--l1d_warmup_events", "0",
            "--l1d_span_events", "1000"],
           str(LC._cache_tier_flags("C15", "F4", "cache_dirtyevict")))
-    check("C15 F0 未实测 → loud None（拒绝静默复用）",
-          LC._cache_tier_flags("C15", "F0", "cache_dirtyevict") is None)
+    check("C15 F0 实测对解析为 warmup=1 + span=实测流长；未实测 workload 仍 "
+          "loud None",
+          LC._cache_tier_flags("C15", "F0", "cache_dirtyevict") ==
+          ["--l1d_lsu_tier", "F0", "--l1d_warmup_events", "1",
+           "--l1d_span_events", "3"]
+          and LC._cache_tier_flags("C15", "F0", "sqlite_like") is None)
     check("legacy cache 模型 tier flags 逐字节不变（[]）",
           LC._cache_tier_flags("C01", "F0", "cache_dirtyevict") == []
           and LC._cache_tier_flags("C09", "F2", "stream_chase") == [])
@@ -275,39 +277,28 @@ def main():
     check("其中 3 个为 W11/SPEC（LICENSE 阻塞）", len(w11) == 3, str(len(w11)))
     for c in c15:
         runid = c[LC.COL_RUNID].strip()
+        freq = c[LC.COL_FREQ].strip()
         flags, golden, note = LC.resolve_cell(c)
-        check(f"{runid} 诚实 BLOCKED（compile-unverified 或 LICENSE）",
-              flags is None and ("compile-unverified" in note
-                                 or "spec-license" in note), note)
-    # 临时 pop MODEL_BLOCKED["C15"] 验证路由本身可解析（try/finally 复原）
-    saved = LC.MODEL_BLOCKED.pop("C15")
-    try:
-        for c in c15:
-            runid = c[LC.COL_RUNID].strip()
-            freq = c[LC.COL_FREQ].strip()
-            flags, golden, note = LC.resolve_cell(c)
-            if freq == "F0":
-                # F0 cells: span unmeasured -> loud refusal (except W11 which
-                # stays LICENSE-blocked by the earlier workload gate)
-                if c[LC.COL_WORKLOAD].strip().startswith("SPEC"):
-                    ok = flags is None and "spec-license" in note
-                else:
-                    ok = flags is None and "F0-span-unmeasured" in note
-                check(f"{runid} 解锁后 F0 跨度未实测 → loud 拒绝", ok, note)
-            elif c[LC.COL_WORKLOAD].strip().startswith("SPEC"):
-                check(f"{runid} LICENSE 阻塞不因解锁而消失",
-                      flags is None and "spec-license" in note, note)
+        if freq == "F0":
+            # F0 cells: measured spans now resolve; W11 stays LICENSE-blocked
+            if c[LC.COL_WORKLOAD].strip().startswith("SPEC"):
+                ok = flags is None and "spec-license" in note
             else:
                 ok = (flags is not None and golden
-                      and "--l1d_target_field" in flags
-                      and flags[flags.index("--l1d_target_field") + 1] ==
-                      "mshr_occupancy"
-                      and "--l1d_lsu_tier" in flags)
-                check(f"{runid} 解锁后解析为 mshr_occupancy 运行配置", ok,
-                      f"flags={flags} note={note}")
-    finally:
-        LC.MODEL_BLOCKED["C15"] = saved
-    check("MODEL_BLOCKED['C15'] 已复原", "C15" in LC.MODEL_BLOCKED)
+                      and "--l1d_lsu_tier" in flags
+                      and "F0" in flags)
+            check(f"{runid} F0 解析为实测跨度运行配置", ok, note)
+        elif c[LC.COL_WORKLOAD].strip().startswith("SPEC"):
+            check(f"{runid} LICENSE 阻塞不因解锁而消失",
+                  flags is None and "spec-license" in note, note)
+        else:
+            ok = (flags is not None and golden
+                  and "--l1d_target_field" in flags
+                  and flags[flags.index("--l1d_target_field") + 1] ==
+                  "mshr_occupancy"
+                  and "--l1d_lsu_tier" in flags)
+            check(f"{runid} 解析为 mshr_occupancy 运行配置（已集成解锁）", ok,
+                  f"flags={flags} note={note}")
 
     print("[6] SPEC_IMPL_LANDED 诚实登记")
     rm = src("tools/lsu_runid_map.py")

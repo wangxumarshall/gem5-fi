@@ -283,8 +283,8 @@ def main():
           str(LC.MODEL_FLAGS.get("L04")))
     check("L04 已从 MODEL_BLOCKED 删除（实测可跑后才允许）",
           "L04" not in LC.MODEL_BLOCKED)
-    check("后续模型未误解锁（C14/C15 仍 BLOCKED；S10 已于 R4-5.7 落地）",
-          all(m in LC.MODEL_BLOCKED for m in ("C14", "C15"))
+    check("后续模型未误解锁（C14/C15 亦已解锁；S10 已于 R4-5.7 落地）",
+          all(m not in LC.MODEL_BLOCKED for m in ("C14", "C15"))
           and "S10" in LC.MODEL_BLOCKED)
     for pair in (("L04", "sq_forward"), ("L04", "sqlite_like")):
         check(f"LSQFWD_F0_SPAN 实测条目 {pair}",

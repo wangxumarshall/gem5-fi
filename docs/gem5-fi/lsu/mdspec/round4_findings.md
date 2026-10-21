@@ -1418,3 +1418,67 @@ A07-c（ready 丢失，hang/Timeout 通道：需超时簿记，L04-a 同类）�
 - 测试订正：`tests/test_lsu_hook_s10.py` / `_l04.py` / `_c11.py` / `_c12.py` 中
   "S10 已解锁/不在 MODEL_BLOCKED"的断言改为**实测诚实态**（本提交前它们在本分支
   上即为红，属落地期测试与集成期实现的既存不一致，现一次性对齐）。
+
+## R4-5.5 / R4-5.6（2026-10-21）：C14 MSHR busy-stuck-at-1 + C15 MSHR 容量仲裁伪空位 集成收口（MODE-UNIMPL 23→15；矩阵 PARTIAL 231→239 / BLOCKED 94→86）
+
+> 落地实现来自隔离 worktree `r4-5.5-5.6-c14c15`（commits `e5ac34e6` C14 / `ab537409` C15，
+> 均声明 C++ COMPILE-UNVERIFIED）。集成侧完成 merge → build → census → pilot → 证据重生成。
+> 集成二进制 sha256 前缀 **`0f39ec559a2cbdb1`**（构建**零错误零新增 warning**）。
+
+### 5.5.1 语义合并（五处冲突，逐处按语义解析）
+
+`chaos_lsu_trigger.hh`：两侧都在 F6 事件源表尾追加条目 → 保留全部，按合并次序
+重排为 S10=EIGHTH、A07=NINTH、**C14=TENTH、C15=ELEVENTH**（文件内注明理由，事件源
+集合未增未减）。`tools/lsu_campaign.py`：取 C14/C15 的新落地短语，并**保留 S10 的
+实测定论条目**（不复活已删的 P06/A07 条目）。`tools/lsu_runid_map.py`：两侧条目增量
+均保留（丢弃 theirs 侧陈旧的 S10 证据尾巴，保留 S10 的实测负结果登记）。
+
+### 5.5.2 C15 F0 跨度普查（真机，span=1000000 纯普查，注入 0 次）
+
+```
+CHAOS_LSU_TRIGGER: injector=CHAOSCache tier=F0 attempted=3  eligible=3  injected=0   # cache_dirtyevict
+CHAOS_LSU_TRIGGER: injector=CHAOSCache tier=F0 attempted=11 eligible=11 injected=0   # stream_chase
+```
+（均伴随 `SPAN_UNREACHABLE` = 普查意图。）写入
+`CACHE_F0_SPAN[("C15","cache_dirtyevict")]=3`、`[("C15","stream_chase")]=11`。
+C15 的 eligible 流 = **到达 MSHR 容量上限的新 miss 分配**，与 C14 的释放点、
+C11 的 merge、C12 的 fill **不是同一条流**，未复用他模型数字。
+
+### 5.5.3 真机 pilot（campaign 正式入口，8 cell × 3 seed = 24 样本）
+
+```
+  C14-F5-W6 : n_runs=3 activated=3 sdc=0  | C14-F5-W10: n_runs=3 activated=3 sdc=0
+  C15-F0-W6 : n_runs=3 activated=3 sdc=0  | C15-F0-W10: n_runs=3 activated=3 sdc=0
+  C15-F6-W6 : n_runs=3 activated=3 sdc=0  | C15-F6-W10: n_runs=3 activated=3 sdc=0
+  C15-F4-W6 : n_runs=3 activated=0 sdc=0  | C15-F4-W10: n_runs=3 activated=0 sdc=0   ← 诚实零
+```
+（C15-F{0,4,6}-W11 三 cell 属 **LICENSE**（SPEC CPU2017），先于模型阻塞被拦截，不在本轮范围。）
+
+**注入日志非空（模板第 5 步第一判据）** —— 原文两行：
+```
+Tick: 147455, Cache Block Addr: 576960, Field: mshr_busy_leak (C14-a occupied-stuck-at-1 release-skipped), in_service_before=0, in_service_after=1, was_full=0, faults_injected: 1
+Tick: 9977276, Cache Block Addr: 580800, Field: mshr_occupancy (C15-b fake-free at capacity), in_service=5, faults_injected: 1
+```
+
+**链检查（`lsu_chain_check.py`，campaign 调起）**：
+- **C14-F5-W6**：`events=8 terminal=provable_to_L0_then_unknown provable_to=L0`，
+  oracle=**Crash**，`stream truncated=True`。即：注入成功但**运行随即崩溃**，下游
+  传播事件因进程终止而不存在 —— **诚实登记为"缺事件"**，不推断 Masked。
+- **C15-F0-W6 / C15-F6-W6**：`events=0 terminal=None`，oracle=**Crash**，
+  `truncated=True`（同样因崩溃而无链事件）。**诚实零事件**，不冒充已观测。
+- **C15-F4-W6/W10 = 诚实零注入**：`tier=F4 attempted=3 eligible=3 injected=0`
+  —— F4 突发周期 `intervalEvents(F4)=100000`，而 C15 实测流长仅 3/11 →
+  突发起点结构性不可达（与 A07-F4、L04-F2、P06-F2 同类）。
+
+### 5.5.4 裁定与覆盖
+
+- C14/C15 **从 `MODEL_BLOCKED` 删除**（C11/C12/L04 纪律：真机可跑且注入日志非空）。
+- 台账：runid_map `PARTIAL 231 → 239`、`BLOCKED 94 → 86`
+  （blocked_by_unit 的 L1d-Cache 15 → 7）；coverage 同步 `PASS=239 / PARTIAL=0 / BLOCKED=86`。
+- `pilot_evidence.json`：新增 24 条 C14/C15 样本（151 pilots / 35 kinds）。
+- 契约测试：`tests/test_lsu_hook_c14.py`（56 项）、`tests/test_lsu_hook_c15.py`（74 项）**全 PASS**。
+
+### 5.5.5 未落地（照旧钉在 `SPEC_IMPL_LANDED`）
+
+C15-a（占用计数 ±1）、C15-c（free-list 选中在用表项）未落地（需 MSHRQueue 私有内部
+访问，风险不可控）；C15 的"接近容量上限"以 `isFull()`（"达到"）实现。
