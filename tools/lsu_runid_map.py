@@ -142,7 +142,8 @@ def generate_map(xlsx_path):
         # seed（F0-W5 3/3 注入：Crash×2 真实 guest 页表 fault + Masked×1；
         # F0-W12/F6-W5/F6-W12 各 3/3 注入 Masked；F2-W5/W12 0 注入=诚实
         # 零——F2 平均间隔 10 万事件 >> 实测流长 324/5597，与 S01-F2-W5
-        # 同构）；链 15/15 注入样本 L3→L4 proven、13/15 L4→L5 proven
+        # 同构）；链：campaign 注入样本 12 个，12/12 L3→L4 proven、10/12
+        # L4→L5 proven（2 个 Crash 样本截断；F2 两 cell 0 注入不计入分母）
         # （Crash 样本截断前缀无 chain_end），L0→L1/L1→L2/L2→L3 结构性
         # missing（配对点故障在 L3，受影响 load 的 L1/L2 请求路径事件
         # 先于注入——T01-postfix 同类，不回溯）。

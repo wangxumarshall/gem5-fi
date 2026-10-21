@@ -1057,9 +1057,16 @@ passed + 5 既有 error（claim_concurrency，计数不变）；cpf 13 / tlb 2
   eligible 事件（±50% jitter）>> 实测流长 324/5597，触发器
   `tier=F2 attempted=2319 eligible=324 injected=0`——数学正确结果，
   与 S01-F2-W5（流 7）同构（该 cell 在矩阵同为 PASS 口径）。
-- **逐边链证据**（lsu_chain_check）：15/15 注入样本 **L3→L4 proven**
-  （witness `['fault_id','dyn_inst_seq']`，resp→taint_reg）；13/15
-  **L4→L5 proven**（chain_end；2 个 Crash 样本截断无 chain_end=诚实）；
+- **逐边链证据**（lsu_chain_check）：L04 **campaign 注入样本共 12 个**
+  （F0-W5×3 + F0-W12×3 + F6-W5×3 + F6-W12×3；F2 两 cell 各 3 seed 为 0 注入，
+  不计入分母），**12/12 L3→L4 proven**（witness
+  `['fault_id','dyn_inst_seq']`，resp→taint_reg）；**10/12 L4→L5 proven**
+  （chain_end；2 个 Crash 样本截断无 chain_end=诚实，即 L04-F0-W5 seed1/seed3）；
+  > **计数勘误（2026-10-21）**：本节原写 "15/15 … 13/15"，分母把 3 个
+  > `runs/lsu/r4_t53_s01_regr/S01-F0-W5` 回归样本（**另一模型**的链）并入了
+  > L04 分子/分母。按 `runs/lsu/r4_t53_l04*/**/seed*/chain_report.json` 的
+  > `faults[*].edges` 逐样本重数，真值为 **12/12 与 10/12**；`tools/lsu_runid_map.py`
+  > 与 `runid_map.json` 同步更正。
   **L0→L1/L1→L2/L2→L3 结构性 missing**——配对点故障发生在 L3（响应
   交付），受影响 load 的 L1/L2 请求路径事件（lsq_push/mem_req/
   lsq_sendfrag）先于注入存在，不回溯入链（T01-postfix 同类，梯子
