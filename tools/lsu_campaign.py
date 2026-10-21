@@ -1227,8 +1227,13 @@ def main():
                          "SE workloads run 10-40s, so 300s > 10x any golden)")
     # ---- FS (armtlb family / M3) ----
     p.add_argument("--fs-checkpoint", default=None,
-                   help="B0 checkpoint dir (runs/fs_lsu/boot_b0/cpt.*) — "
-                        "required for T-cell runs")
+                   help="B0 checkpoint dir — required for T-cell runs. "
+                        "[R4-5.9] the previously-cited path "
+                        "runs/fs_lsu/boot_b0/cpt.* does NOT exist; the real "
+                        "checkpoints on this host are "
+                        "runs/lsu/fs_cpt_boot/cpt.237949797015 and "
+                        "runs/h7formal/mkckpt/cpt.90000000 (see "
+                        "tests/test_lsu_fs_infra.py)")
     p.add_argument("--fs-timeout", type=int, default=1800,
                    help="FS per-run wall-clock cap (05 r17 FS: restore+payload "
                         "~4 min measured, 30 min absolute cap)")
