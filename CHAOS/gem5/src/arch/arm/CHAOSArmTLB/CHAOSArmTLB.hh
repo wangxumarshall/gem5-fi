@@ -15,9 +15,15 @@
 namespace gem5
 {
 
-namespace ArmISA { class TLB; struct TlbEntry; }
-class TableWalker;   // [R4-5.9] T08 walk/fill pairing (full def in
-                     // arch/arm/table_walker.hh)
+namespace ArmISA {
+class TLB;
+struct TlbEntry;
+// [R4-5.9] T08 walk/fill pairing — the real class lives in
+// gem5::ArmISA (arch/arm/table_walker.hh), so the forward declaration
+// must sit in the SAME namespace (a gem5-level `class TableWalker;`
+// would be a DIFFERENT type and made `TableWalker::…` ambiguous).
+class TableWalker;
+}
 
 // CHAOSArmTLB — ARM TLB-entry fault injector (Phase 3 §六.4 item 3).
 //
@@ -90,7 +96,7 @@ class CHAOSArmTLB : public SimObject
     // [R4-5.9] T08 target walker (optional; nullptr unless the FS config
     // passes walker= to the CHAOSArmTLB object). Also the host of the
     // event-normalized walk_pairing trigger.
-    TableWalker *walker = nullptr;
+    ArmISA::TableWalker *walker = nullptr;
     std::unique_ptr<ChaOSLsuTrigger> lsuTrigger;
     float probability;
     FaultType fault_type_enum;

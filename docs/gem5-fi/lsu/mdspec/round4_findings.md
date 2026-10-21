@@ -1482,3 +1482,73 @@ Tick: 9977276, Cache Block Addr: 580800, Field: mshr_occupancy (C15-b fake-free 
 
 C15-a（占用计数 ±1）、C15-c（free-list 选中在用表项）未落地（需 MSHRQueue 私有内部
 访问，风险不可控）；C15 的"接近容量上限"以 `isFull()`（"达到"）实现。
+
+## R4-5.9（2026-10-22）：T08 FS 页表遍历 walk/fill 配对 —— 集成至"编译通过 + 路由就绪"，**仍 BLOCKED 待真机 FS pilot**
+
+> 落地实现来自隔离 worktree `r4-5.9-t08-fs`（commits `2628a1e6` T08-a 落地 /
+> `8f722721` FS 可行性核实）。集成侧完成 merge + **编译修复** + 契约测试；
+> **未**执行 FS pilot（FS 全系统恢复未在本轮跑），故 **T08 保持 MODEL_BLOCKED**
+> —— 遵守「断言可跑才删」纪律，不静默解阻塞。
+
+### 5.9.1 编译修复（真实失败 → 真实修复）
+
+T08 侧原始提交声明 C++ COMPILE-UNVERIFIED。集成侧首次编译暴露一处真实错误：
+
+```
+src/arch/arm/table_walker.cc:67:1: 错误：对‘TableWalker’的引用有歧义
+  备选为： ‘class gem5::ArmISA::TableWalker’（arch/arm/table_walker.hh:75）
+           ‘class gem5::TableWalker’（CHAOSArmTLB.hh:19）
+```
+根因：`CHAOSArmTLB.hh` 把前向声明 `class TableWalker;` 放在了 `namespace gem5`
+层，而真正的类在 `gem5::ArmISA`（`arch/arm/table_walker.hh`）——两个不同名字
+产生歧义。修复：前向声明移入 `namespace ArmISA {}`，使用点写
+`ArmISA::TableWalker`（`CHAOSArmTLB.{hh,cc}`）。
+
+**构建核验（显式）**：`scons -j16 build/ARM/gem5.opt` → `SCONS_EXIT=0`，
+零 error；二进制 sha256 前缀 **`b7e90f737bed80d4`**。
+
+**更正（对 R4-5.5/5.6 提交信息的诚实修订）**：C14/C15 集成提交信息写了
+"零新增 warning"，该判断**仅基于对 `error:` 的 grep**，未核 warning。本轮核验
+发现 `CHAOSCache` 存在 `-Wreorder` 警告（`attackEvent/periodicCheck` 与
+`first_tick/last_tick` 的初始化顺序）——经与 `55b89900` 逐行比对，该初始化
+顺序**在基线即已存在**，非本轮引入（基线同一 TU 编译时同样报出）。此处如实
+更正，避免"零新增 warning"被误读为本轮已验证全部警告。
+
+### 5.9.2 FS 可行性（落地侧核实结论，集成侧认同）
+
+FS 结构上可挂钩、资产齐备：walk/fill 钩子位于 `table_walker.cc`（walk 发出点与
+refill/finish 点），注入钩子已在 `tlb.cc` 就位；FS 资产
+`gem5-fs/{vmlinux, ubuntu.img, boot.arm64}` 齐备，且 **checkpoint 实测存在**
+（`runs/lsu/fs_cpt_boot/cpt.237949797015`；文档中记载的
+`runs/fs_lsu/boot_b0/cpt.*` **不存在**——已在报告更正）。
+
+### 5.9.3 阻塞分类（本轮最重要的产物）
+
+| 类别 | 数量 | 判定（实测） |
+|---|---|---|
+| FS-INFRA | 24 | **非外部阻塞**：资产/载体/checkpoint 齐备，缺的是工时（build + `--fs-checkpoint` 接线 + 跑 T 系 cell） |
+| FS-MULTICORE | 35 | **半自修**：FS 平台 `num_cores=1` 硬编码（`arm_chaos_fs.py`）需改配置；另一半**真外部**（litmus/PARSEC 载荷二进制不在仓库内，已 `find` 实证） |
+| LICENSE | 12 | **真外部**：SPEC CPU2017 授权与数据 |
+| RULING | 6 | 需用户裁决（A06 等） |
+
+### 5.9.4 测试（真实运行）
+
+- `tests/test_lsu_hook_t08.py` → **ALL PASS**（24 项）
+- `tests/test_lsu_fs_infra.py` → 三态正确：本 worktree（无 FS 资产）SKIP、
+  `LSU_FS_DIR=<真实资产>` **ALL PASS**、伪目录 rc=1
+- `tests/test_lsu_hook_tlb.py` → 新增 12 项 PASS；2 项既有失败（基线同）
+- `pytest tests/ -q` → 16 passed / 5 errors（基线既有）
+
+### 5.9.5 未做（明确边界）
+
+**未执行 T08 真机 pilot**：需要 FS 全系统 checkpoint 恢复（非 SE 可代），
+本轮时间预算用尽前未启动。T08-a 的验收判据（主 agent 后续执行）：
+```
+LSU_FS_DIR=/home/sdc/gem5-fi-ding/gem5-fs python3 tools/lsu_campaign.py \
+  --matrix artifacts/lsu-trial/07-expanded-matrix-backfilled.csv \
+  --outdir runs/lsu/r4_t59_pilot --cells T08-F0-W9,T08-F4-W9,T08-F6-W9 \
+  --phase trial --max-seeds-per-cell 3 --max-parallel 1 \
+  --fs-checkpoint /home/sdc/gem5-fi-ding/runs/lsu/fs_cpt_boot/cpt.237949797015
+```
+判据：注入日志含 `Site: arm_tlb_walk_issue_drop`，且 `tlb_walk`/`tlb_refill`
+共享同一 `walk_id`、refill `field=lost`。**未跑之前 T08 保持 BLOCKED。**

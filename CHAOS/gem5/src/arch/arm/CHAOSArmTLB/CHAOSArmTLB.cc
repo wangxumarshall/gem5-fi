@@ -118,7 +118,7 @@ namespace gem5
     }
 
     // [MDSPEC][R4-5.9] T08-a walk/fill 丢失. See the header for the full
-    // ruling. The walk-issue point (TableWalker::walk) IS the eligible
+    // ruling. The walk-issue point (ArmISA::TableWalker::walk) IS the eligible
     // event stream for this model (spec trigger column: "DTLB miss并启动
     // walk"), so the funnel accounting is onAttempt at entry + the tier
     // decision on the same event (F6 rides onF6Event(false) — the attempt
