@@ -1028,10 +1028,17 @@ namespace gem5
         const unsigned blk_sz = targetCache->getBlockSize();
         const Addr line = pkt->getAddr() & ~((Addr)blk_sz - 1);
 
-        // Propagation registration: inj node (corr=origin; the timing pair
-        // arrival_tick/deferred_tick lives in the detail — the unified
-        // before/after lifts are address-valued and misusing them for
-        // ticks would be dishonest; the shift is directly readable as
+        // Propagation registration: inj node (corr=origin; addr column =
+        // the fill line; the timing pair arrival_tick/deferred_tick rides
+        // the UNIFIED before/after fields — registerFillTimingFault writes
+        // before=<arrival_tick>;after=<deferred_tick> into the detail,
+        // before/after are registered PROP_EVT_FIELDS, so parseDetail
+        // lifts the pair onto the stream. They carry this model's faulted
+        // VALUE, the fill's delivery tick before/after the offset —
+        // tick-valued here, address-valued for the C11 merge model, so
+        // consumers must read them together with `field`. delay_cycles
+        // stays detail-only (v1 CSV node; derivable as after-before) and
+        // the shift is also witnessed on the trace as
         // mshr_fill.tick - inj.tick) + the WHOLE fill line in the
         // faulted-byte registry, so (a) the delayed H4 mshr_fill/
         // cache_fill/mshr_free events (correlateBlock on the line) join

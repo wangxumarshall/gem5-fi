@@ -102,14 +102,23 @@ def generate_map(xlsx_path):
         # 3/3 full；C12-F6-W6 seed1 attempted=1/eligible=1/injected=1（无
         # 双计）链 full。[R4-5.2 同 Minor2 形态] 落地范围机器可读（xlsx
         # 表9 子模型逐一点名）：C12-a fill/writeback 丢失（无界推迟/drop）、
-        # C12-b 重复、C12-c valid 过早、C12-d 旧数据+新 tag 未落地，
-        # 仍为 spec 待办。
+        # C12-b 重复、C12-c valid 过早、C12-d 旧数据+新 tag；外加触发
+        # 条件列 "miss fill或dirty writeback" 的 dirty writeback 半臂
+        # C12-e（有界时序偏移只落地读 miss fill 臂——资格门=非错误 READ
+        # 且 sender state 为非 forward MSHR；dirty writeback 走 writeback
+        # buffer 通路，不在本钩子上）。以上均未落地，仍为 spec 待办；
+        # C12-e 是本仓库命名（触发条件列另一半），非表9 子模型编号。
         "C12": "implemented(mshr_fill_timing=bounded fill-delivery offset "
                "by lsuFillDelayCycles cache cycles, CHAOSCache defer hook "
                "at the top of BaseCache::recvTimingResp (stash + scheduled "
                "resume via chaosResumeDeferredResp); pending: C12-a "
                "fill/writeback drop (unbounded), C12-b duplicate fill, "
-               "C12-c valid-too-early, C12-d stale-data+new-tag; evidence: "
+               "C12-c valid-too-early, C12-d stale-data+new-tag, C12-e "
+               "dirty-writeback timing arm (the 'dirty writeback' half of "
+               "trigger column 'miss fill或dirty writeback' — landed "
+               "eligibility gate covers the read-miss-fill arm only; repo "
+               "name for the trigger column's other half, not an xlsx "
+               "sheet-9 sub-model); evidence: "
                "round4_findings.md §R4-5.2, campaign C12-F0-W6 3-seed "
                "(3/3 activated, oracle Masked x3 — timing fault keeps the "
                "data payload correct per spec; chains 2/3 full + 1/3 "

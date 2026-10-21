@@ -897,7 +897,7 @@ pilot_evidence 增 C12-F0-W6（矩阵运行）+ C12-R4T52-MSHRREF-s1..s3（载�
 
 ### 5.2.5 测试
 
-新增 `tests/test_lsu_hook_c12.py`（56 项契约：观测 kind/必录字段、时序对
+新增 `tests/test_lsu_hook_c12.py`（64 项契约：观测 kind/必录字段、时序对
 inj.before<after 且 mshr_fill.tick≥inj.after、合成链 full、L0 注入行解析、
 源码级触发纪律（onF6Event(false) 单次 onAttempt）/端到端接线/顺序契约
 （钩子先于 popSenderState）/再入与单槽守卫、路由+跨度表+loud refusal、
@@ -941,3 +941,41 @@ passed + 5 既有 error（claim_concurrency，计数不变）；cpf 13 / tlb 2
   落地的是表7 实施细则"延后"子模型（有界交付偏移）；仅解除"只有事件
   源"阻塞前提（spec_landed 留证）。
 - 全部运行为 pilot/证据性质（phase=trial），未启动正式 campaign。
+
+### 5.2.7 评审修复轮（2026-10-21，review Important 1 + 两处记录性更正）
+
+- **Important 1（假注释）**：`CHAOSCache.cc` `maybeDeferFillTiming` 的
+  "Propagation registration" 注释块原称"时序对只入 detail——统一
+  before/after 是地址值语义、拿它装 tick 不诚实"——与代码相反：
+  `registerFillTimingFault` 实际写 `;before=<arrival_tick>;
+  after=<deferred_tick>` 入 detail，before/after 是注册的
+  `PROP_EVT_FIELDS`，`parseDetail` 将其抬上统一流（CHAOSPropagation.hh
+  契约注释与本测试"时序对入统一流"钉均如此断言）。该注释系继承在
+  飞行稿原文、落地时未清洗——恰属本任务声称清除的"继承 falsehood"
+  类。已改写为陈述真实契约（tick 对走统一 before/after；其语义是
+  "本模型的故障值"——C12 为交付 tick、C11 merge 为地址，须随
+  `field` 一起解读；delay_cycles 留 detail，偏移亦可由
+  mshr_fill.tick - inj.tick 见证）。纯注释，零行为变更（增量重建 +
+  全套测试复核，见下）。**附带核查过的设计点**：before/after 跨模型
+  的值类型多态（地址 vs tick）在注册点文档、头文件契约与测试三处
+  一致写明，且无任何工具按地址类型假设消费 cache 族的 before/after
+  （grep `tools/lsu_chain_check.py`/`lsu_obs_core.py` 无消费）——是
+  有文档的类型化复用而非静默重载，如实记录，不改设计。
+- **记录性更正 1（检查计数）**：本文件 §5.2.5 与 task-5-2-report.md
+  原记"56 项契约"——实测 committed 测试输出 **64** 条 PASS 行：
+  `python3 tests/test_lsu_hook_c12.py 2>&1 | grep -cE "^[[:space:]]+PASS "`
+  → 64（尾行 "ALL PASS"，rc=0）。56 为落地时误记，已全部改为 64。
+- **记录性更正 2（触发条件列的 writeback 半臂）**：清单（§C12 触发
+  条件）为 "miss fill或dirty writeback"；落地资格门=非错误 READ 且
+  sender state 为非 forward MSHR（仅读 miss fill 臂），dirty writeback
+  走 writeback buffer 通路不在钩子上——该半臂未落地且原 pending
+  （C12-a..d，表9 子模型）不覆盖（C12-a 是"丢失"子模型，非有界偏移
+  的 writeback 臂）。已在 `SPEC_IMPL_LANDED["C12"]` pending 列增补
+  **C12-e dirty-writeback timing arm**（本仓库命名，注明非表9 子模型
+  编号），并重生成 `runid_map.json`（diff 恰为 6 行 C12
+  spec_landed，summary PARTIAL=213/BLOCKED=112 不变）。
+- **修复轮验证**：增量 `scons -j126` EXIT=0、0 error、仅 6 条既有
+  -Wreorder（非本轮引入）；`test_lsu_hook_c12` 64/64 PASS、
+  `test_lsu_hook_c11`/`test_lsu_runid_map`/`test_lsu_coverage_matrix`/
+  `test_lsu_pilot_evidence`/`test_lsu_chain_check`/`test_lsu_f6_gate`
+  全 rc=0。
