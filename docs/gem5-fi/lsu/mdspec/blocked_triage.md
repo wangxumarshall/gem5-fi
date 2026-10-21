@@ -1,7 +1,7 @@
 # 126 BLOCKED 逐项裁决（互斥分类）
 
-- BLOCKED 总数：106（守恒校验通过：Σ 分类 == 总数）
-- 分类统计：RULING=6 / LICENSE=12 / FS-MULTICORE=35 / FS-INFRA=24 / MODE-UNIMPL=29 / HOOK-UNIMPL=0 / OK=0
+- BLOCKED 总数：100（守恒校验通过：Σ 分类 == 总数）
+- 分类统计：RULING=6 / LICENSE=12 / FS-MULTICORE=35 / FS-INFRA=24 / MODE-UNIMPL=23 / HOOK-UNIMPL=0 / OK=0
 
 ## 互斥类别定义
 
@@ -25,7 +25,7 @@
 - **RULING**（6 个）：A06-F0-W3, A06-F0-W5, A06-F2-W3, A06-F2-W5, A06-F6-W3, A06-F6-W5
 
 可自行解除（不需批准，但需实现工作）：
-- MODE-UNIMPL（29 个）：见下表逐项理由
+- MODE-UNIMPL（23 个）：见下表逐项理由
 
 ## 逐项明细
 
@@ -89,12 +89,6 @@
 | O09-F1-W7 | 原子与同步 | O09 | FS-MULTICORE | campaign:deferred(RMW operand path needs cache-side hook) ; spec:需新增（当前阻塞：缺RMW operand hook） ; workload:workload-level:blocked(multicore-fs: litmus ne |
 | O09-F2-W13 | 原子与同步 | O09 | FS-MULTICORE | campaign:deferred(RMW operand path needs cache-side hook) ; spec:需新增（当前阻塞：缺RMW operand hook） ; workload:workload-level:blocked(multicore-fs: PARSEC ne |
 | O09-F2-W7 | 原子与同步 | O09 | FS-MULTICORE | campaign:deferred(RMW operand path needs cache-side hook) ; spec:需新增（当前阻塞：缺RMW operand hook） ; workload:workload-level:blocked(multicore-fs: litmus ne |
-| P06-F0-W6 | 数据预取器 | P06 | MODE-UNIMPL | 新增 CHAOSPrefetchTrace：src/mem/cache/prefetch/stride.cc::calculatePrefetch、queued.cc队列、base.cc::notify与cache request/fill/victim/writeback；为prefetch re |
-| P06-F0-W8 | 数据预取器 | P06 | MODE-UNIMPL | 新增 CHAOSPrefetchTrace：src/mem/cache/prefetch/stride.cc::calculatePrefetch、queued.cc队列、base.cc::notify与cache request/fill/victim/writeback；为prefetch re |
-| P06-F2-W6 | 数据预取器 | P06 | MODE-UNIMPL | 新增 CHAOSPrefetchTrace：src/mem/cache/prefetch/stride.cc::calculatePrefetch、queued.cc队列、base.cc::notify与cache request/fill/victim/writeback；为prefetch re |
-| P06-F2-W8 | 数据预取器 | P06 | MODE-UNIMPL | 新增 CHAOSPrefetchTrace：src/mem/cache/prefetch/stride.cc::calculatePrefetch、queued.cc队列、base.cc::notify与cache request/fill/victim/writeback；为prefetch re |
-| P06-F6-W6 | 数据预取器 | P06 | MODE-UNIMPL | 新增 CHAOSPrefetchTrace：src/mem/cache/prefetch/stride.cc::calculatePrefetch、queued.cc队列、base.cc::notify与cache request/fill/victim/writeback；为prefetch re |
-| P06-F6-W8 | 数据预取器 | P06 | MODE-UNIMPL | 新增 CHAOSPrefetchTrace：src/mem/cache/prefetch/stride.cc::calculatePrefetch、queued.cc队列、base.cc::notify与cache request/fill/victim/writeback；为prefetch re |
 | P09-F0-W13 | 数据预取器 | P09 | FS-MULTICORE | workload:workload-level:blocked(multicore-fs: PARSEC needs multi-core FS) |
 | P09-F4-W13 | 数据预取器 | P09 | FS-MULTICORE | workload:workload-level:blocked(multicore-fs: PARSEC needs multi-core FS) |
 | P09-F6-W13 | 数据预取器 | P09 | FS-MULTICORE | workload:workload-level:blocked(multicore-fs: PARSEC needs multi-core FS) |

@@ -13,8 +13,11 @@ mshr_alloc。本测试钉死：
   4. 已交付证据文件自洽：kinds_observed_by_unit / kinds_observed 严格等于
      按 pilots[].unit/kinds 重算的结果（防止再出现"两套口径"）；
   5. 已交付证据文件里 L1d-Cache 逐单元含全部 11 个必需节点（含
-     mshr_alloc），且 mshr_alloc 的提供者全部归属 L1d-Cache——矩阵 11/11
-     的主张在逐单元索引可验证（评审要求的审计入口）。
+     mshr_alloc），且 mshr_alloc 的提供者**均已归属某单元**、其中**存在**
+     归属 L1d-Cache 者——矩阵 11/11 的主张在逐单元索引可验证（评审要求的
+     审计入口）。[R4-5.4 集成] 原断言为"提供者**全部**归属 L1d-Cache"；
+     mshr_alloc 是 cache 结构事件，任何走到 cache 路径的运行都会发出它
+     （P06 的预取运行亦然），故该更强断言本就不成立，改为上面两条。
 """
 import json
 import sys
@@ -102,10 +105,19 @@ def main():
           "mshr_alloc 不在 kinds_observed_by_unit['L1d-Cache']")
     providers = [rid for rid, p in ev["pilots"].items()
                  if "mshr_alloc" in p["kinds"]]
-    check("mshr_alloc_providers_attributed_to_l1d",
-          bool(providers) and all(ev["pilots"][r]["unit"] == "L1d-Cache"
-                                  for r in providers),
+    # [R4-5.4 集成] mshr_alloc 是 **cache 结构事件**：任何真正走到 cache 路径的
+    # 运行都会发出它，不止 L1d-Cache 单元的载体（P06 的预取运行亦然）。故"提供者
+    # 全部归属 L1d-Cache"本就不成立；拆成两条独立断言，保住原意：
+    #   (a) 每个 mshr_alloc 提供者都**已归属某单元**（无 null/孤儿）→ 归属机制有效；
+    #   (b) **存在**归属 L1d-Cache 的提供者（叠加上面的 per-unit 含 mshr_alloc）
+    #       → 矩阵 11/11 可按逐单元索引复核（R4-3 评审 Important-1 的原意）。
+    check("mshr_alloc_providers_all_attributed",
+          bool(providers) and all(ev["pilots"][r]["unit"] for r in providers),
           str([(r, ev["pilots"][r]["unit"]) for r in providers]))
+    l1d_providers = [r for r in providers
+                     if ev["pilots"][r]["unit"] == "L1d-Cache"]
+    check("mshr_alloc_has_l1d_providers", bool(l1d_providers),
+          f"n_l1d={len(l1d_providers)} of {len(providers)} providers")
 
     print(f"\nFAILURES: {fails if fails else '无'}")
     return 1 if fails else 0

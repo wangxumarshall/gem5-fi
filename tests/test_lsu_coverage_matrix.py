@@ -121,20 +121,41 @@ def main():
               and all(f"C11-R4T5-MSHRREF-s{i}" in carriers
                       for i in range(1, 4)),
               str(sorted(c for c in carriers if "MSHRREF" in c)))
-        # 通用性（非为 MSHRREF 特判）：数据预取器的 pf_queue/pf_issue 仍
-        # 仅由辅助运行（campaign smoke 复跑 / 机理变体）提供，必须同样标出
-        pf = b.get("数据预取器")
-        check("boundary_prefetch_general_too",
-              pf is not None and pf["nodes"] == ["pf_queue", "pf_issue"],
-              str(pf["nodes"] if pf else None))
-        # 无辅助独供节点的单元不得误标（Store Queue 7/7 全由矩阵运行观测）
-        check("boundary_no_false_positive_sq",
-              "Store Queue" not in b, str(sorted(b)))
+        # [R4-5.4 集成] 边界表**整体为空**：R4-5.4 落地 P06 后，数据预取器的
+        # pf_queue/pf_issue 由矩阵 RunID P06-F0-W6/F6-W6/F6-W8 自身的 campaign
+        # 运行直接观测到——最后一个"仅辅助运行可见"的单元也关闭了。这意味着
+        # **每个 PASS 单元的必需节点都由该单元自己的矩阵运行自证**，无需辅助
+        # 运行兜底，也就不再有需要标注的边界行。这是比"机制生效"更强的状态。
+        check("boundary_empty_all_units_self_corroborated", b == {},
+              str({u: v["nodes"] for u, v in b.items()}))
+        # 关闭依据可审计：矩阵 RunID P01-F0-W8（**精确匹配**，非辅助）的 pilot
+        # 观测到 pf_queue/pf_issue —— 数据预取器单元因此不再依赖辅助运行。
+        pref_ev = evidence["pilots"].get("P01-F0-W8", {})
+        check("prefetch_nodes_observed_by_matrix_run",
+              {"pf_queue", "pf_issue"}.issubset(set(pref_ev.get("kinds", []))),
+              str(sorted(set(pref_ev.get("kinds", [])) & {"pf_queue",
+                                                          "pf_issue"})))
+        # 机制本身仍须被钉死（活数据已干净 → 用**合成夹具**验证，否则回归网
+        # 会在"数据恰好干净"时静默失效）：一个单元的必需节点只出现在
+        # 非矩阵运行的 pilot 里时，必须被标出。
+        synth_entries = [{"run_id": "ZZ1-F0-W1", "unit": "L1d-Cache"}]
+        synth_ev = {"pilots": {
+            "ZZ1-F0-W1": {"unit": "L1d-Cache", "kinds": ["cache_access"]},
+            "ZZ1-SYNTHCARRIER-s1": {"unit": "L1d-Cache",
+                                    "kinds": ["mshr_alloc"]},
+            # 矩阵 RunID 的逐 seed 流 = 该矩阵运行本身，**不得**算辅助
+            "ZZ1-F0-W1-seed2": {"unit": "L1d-Cache", "kinds": ["mshr_fill"]},
+        }}
+        sb = CM.aux_run_boundary(synth_entries, synth_ev)
+        check("boundary_mechanism_flags_aux_only_node",
+              sb.get("L1d-Cache", {}).get("nodes") == ["mshr_alloc"],
+              str(sb.get("L1d-Cache", {}).get("nodes")))
+        check("boundary_seed_stream_counts_as_matrix_run",
+              sb.get("L1d-Cache", {}).get("aux_rids")
+              == ["ZZ1-SYNTHCARRIER-s1"],
+              str(sb.get("L1d-Cache", {}).get("aux_rids")))
         md = Path("/tmp/mdspec_coverage_test_ev.md").read_text(
             encoding="utf-8")
-        # P01 行仍须逐行标注（通用机制在 C11 边界关闭后依然生效）
-        check("md_prefetch_rows_annotated",
-              "aux_run_nodes:pf_queue,pf_issue" in md)
         # L1d 行不再标注 mshr（矩阵运行已自证）；C11 8 行全 PASS
         check("md_l1d_rows_not_annotated_mshr",
               "aux_run_nodes:mshr" not in md)
@@ -163,8 +184,11 @@ def main():
         has_section = "## 辅助运行证据边界" in md
         check("md_boundary_section_present", has_section)
         tail = md.split("## 辅助运行证据边界", 1)[1] if has_section else ""
-        check("md_boundary_names_prefetch_carriers",
-              "P01-F0-W8-campaign" in tail and "P01-F0-W8" in tail)
+        # 边界为空 → 章节必须以**空集结论**显式出声（否则读者会把"没写"
+        # 误读成"没查"），并指向判据来源（aux_run_boundary）。
+        check("md_boundary_states_empty_conclusion",
+              "**本表为空**" in tail and "aux_run_boundary" in tail,
+              tail.strip()[:120])
         check("md_capability_table_has_aux_column",
               "仅辅助运行观测" in md)
 

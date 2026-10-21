@@ -306,14 +306,16 @@ MODEL_BLOCKED = {
     # target exchange (L04-b) is implemented (--lsqfwd_l04, CHAOSLSQFwd
     # maybeSwapResponseTarget at the LSQUnit::completeDataAccess pairing
     # point) and proven by real runs — see round4_findings.md §R4-5.3.
-    # [MDSPEC][R4-5.4] P06 removed from this table: the prefetch-as-demand
-    # fill-classification marking (P06-a forward arm) is implemented
-    # (--prefetch_mode p06_as_demand, CHAOSPrefetch maybeMarkFillAsDemand
-    # at Cache::serviceMSHRTargets' setPrefetched gate). UNLIKE C11/C12/L04
-    # there is NO real-run evidence yet — this landing is compile-
-    # unverified and pilot-pending (integration owns build + campaign);
-    # the F0 cells stay loudly blocked on the PF_F0_SPAN census until the
-    # spans are measured, so no unmeasured cell silently runs.
+    # [MDSPEC][R4-5.4] P06-a prefetch-as-demand fill-classification marking
+    # (--prefetch_mode p06_as_demand, CHAOSPrefetch maybeMarkFillAsDemand at
+    # Cache::serviceMSHRTargets' setPrefetched gate) IS implemented and
+    # proven runnable by integration: the C++ built clean on binary
+    # 2c5a03913bebfcae, the census showed the hook firing on real
+    # prefetch-owned fills (cache_dirtyevict attempted=56 eligible=56;
+    # prefetch_stride attempted=32 eligible=32), and the campaign pilot is
+    # recorded in round4_findings.md §R4-5.4. Removed from this table only
+    # on that evidence (the round's "assert runnable first" rule), exactly
+    # as C11/C12/L04 were.
     "S10": "deferred(consumer-side: StoreSet SSID corruption event source only)",
     "C14": "deferred(consumer-side: MSHR busy event source only)",
     "C15": "deferred(consumer-side: MSHR occupancy event source only)",
@@ -524,8 +526,22 @@ def _cache_tier_flags(model, tier, wl_binary=None):
 #     --prop_sample_run_id s1
 PF_F0_SPAN = {
     # (model, workload binary) -> measured eligible event stream size
-    # ("P06", "cache_dirtyevict"): <int>,   # W6 — TO BE MEASURED
-    # ("P06", "prefetch_stride"): <int>,    # W8 — TO BE MEASURED
+    #
+    # [R4-5.4 integration] MEASURED 2026-10-21 on binary
+    # 2c5a03913bebfcae with the census command above (span=1e6 so the F0
+    # draw can never land; the teardown `eligible=` is therefore the whole
+    # golden stream, and the SPAN_UNREACHABLE alarm confirms the census
+    # intent). Raw teardown lines:
+    #   cache_dirtyevict: injector=CHAOSPrefetch tier=F0 attempted=56
+    #     eligible=56 injected=0 ... ALARM mode=SPAN_UNREACHABLE
+    #     draw_next_fire=756413 span=1000000 warmup=1
+    #   prefetch_stride : injector=CHAOSPrefetch tier=F0 attempted=32
+    #     eligible=32 injected=0 ... ALARM mode=SPAN_UNREACHABLE
+    #     draw_next_fire=756413 span=1000000 warmup=1
+    # (same seed-1 draw across both, as expected for warmup=1 + span=1e6.)
+    # Per-pair keying, not a family constant (R4-1-review-I2).
+    ("P06", "cache_dirtyevict"): 56,   # W6
+    ("P06", "prefetch_stride"): 32,    # W8
 }
 
 

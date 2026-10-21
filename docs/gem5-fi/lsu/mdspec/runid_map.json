@@ -8455,12 +8455,9 @@
    "correlation_keys": "run_id + sample_run_id + fault_id/ptag；event_id + parent_event_id；tick/cycle + core_id + thread_id；dyn_inst_seq + commit_seq + PC/opcode；lq_idx/sq_idx；request_id/pf_request_id/walk_id/mshr_id/fill_id；VA/PA/cache_line；arch_reg/phys_reg。禁止只用tick或address单键连接。",
    "termination": "完整：存在L0 fault_applied，且每条边由共享键与时间/可达性同时证明，最终到达(1) errant commit/错误内存副作用/软件oracle差异，或(2)明确检测并contained，或(3)明确squash/replay/mask且无错误副作用。若链在某节点后缺事件，只能标“截至该节点可证，后续Unknown”，不得推断Masked。",
    "impl_status": "需新增（当前阻塞：无prefetch-as-demand/属性注入hook）",
-   "spec_landed": "",
-   "status": "BLOCKED",
-   "status_reasons": [
-    "campaign:deferred(no clean hook: prefetch-as-demand marking)",
-    "spec:需新增（当前阻塞：无prefetch-as-demand/属性注入hook）"
-   ],
+   "spec_landed": "implemented(pf_fill_class=P06-a forward arm prefetch-as-demand fill-classification marking at the Cache::serviceMSHRTargets setPrefetched gate (one prefetch-owned fill classified demand: CacheBlk::Prefetched not set, the line enters the cache as a demand fill; packet plumbing HardPFReq/FromPrefetcher/silent-target-delete untouched), CHAOSPrefetch maybeMarkFillAsDemand via fillMarkHook; pending: P06-a reverse arm (demand marked prefetch), P06-b dirty attribute, P06-c ownership attribute, P06-d allocate attribute (xlsx sheet-9 sub-models; fill-permission attributes are coherence-side state, not a prefetcher marking); evidence: NONE YET — landed compile-unverified in a no-build worktree, zero real-run samples, PF_F0_SPAN unmeasured (P06-F0 cells stay BLOCKED(F0-span-unmeasured) until integration measures; F2/F6 cells resolve runnable but unrun) — integration checklist in R4-5.4-report.md)",
+   "status": "PARTIAL",
+   "status_reasons": [],
    "target_activated_samples": "385"
   },
   {
@@ -8494,12 +8491,9 @@
    "correlation_keys": "run_id + sample_run_id + fault_id/ptag；event_id + parent_event_id；tick/cycle + core_id + thread_id；dyn_inst_seq + commit_seq + PC/opcode；lq_idx/sq_idx；request_id/pf_request_id/walk_id/mshr_id/fill_id；VA/PA/cache_line；arch_reg/phys_reg。禁止只用tick或address单键连接。",
    "termination": "完整：存在L0 fault_applied，且每条边由共享键与时间/可达性同时证明，最终到达(1) errant commit/错误内存副作用/软件oracle差异，或(2)明确检测并contained，或(3)明确squash/replay/mask且无错误副作用。若链在某节点后缺事件，只能标“截至该节点可证，后续Unknown”，不得推断Masked。",
    "impl_status": "需新增（当前阻塞：无prefetch-as-demand/属性注入hook）",
-   "spec_landed": "",
-   "status": "BLOCKED",
-   "status_reasons": [
-    "campaign:deferred(no clean hook: prefetch-as-demand marking)",
-    "spec:需新增（当前阻塞：无prefetch-as-demand/属性注入hook）"
-   ],
+   "spec_landed": "implemented(pf_fill_class=P06-a forward arm prefetch-as-demand fill-classification marking at the Cache::serviceMSHRTargets setPrefetched gate (one prefetch-owned fill classified demand: CacheBlk::Prefetched not set, the line enters the cache as a demand fill; packet plumbing HardPFReq/FromPrefetcher/silent-target-delete untouched), CHAOSPrefetch maybeMarkFillAsDemand via fillMarkHook; pending: P06-a reverse arm (demand marked prefetch), P06-b dirty attribute, P06-c ownership attribute, P06-d allocate attribute (xlsx sheet-9 sub-models; fill-permission attributes are coherence-side state, not a prefetcher marking); evidence: NONE YET — landed compile-unverified in a no-build worktree, zero real-run samples, PF_F0_SPAN unmeasured (P06-F0 cells stay BLOCKED(F0-span-unmeasured) until integration measures; F2/F6 cells resolve runnable but unrun) — integration checklist in R4-5.4-report.md)",
+   "status": "PARTIAL",
+   "status_reasons": [],
    "target_activated_samples": "385"
   },
   {
@@ -8534,12 +8528,9 @@
    "correlation_keys": "run_id + sample_run_id + fault_id/ptag；event_id + parent_event_id；tick/cycle + core_id + thread_id；dyn_inst_seq + commit_seq + PC/opcode；lq_idx/sq_idx；request_id/pf_request_id/walk_id/mshr_id/fill_id；VA/PA/cache_line；arch_reg/phys_reg。禁止只用tick或address单键连接。",
    "termination": "完整：存在L0 fault_applied，且每条边由共享键与时间/可达性同时证明，最终到达(1) errant commit/错误内存副作用/软件oracle差异，或(2)明确检测并contained，或(3)明确squash/replay/mask且无错误副作用。若链在某节点后缺事件，只能标“截至该节点可证，后续Unknown”，不得推断Masked。",
    "impl_status": "需新增（当前阻塞：无prefetch-as-demand/属性注入hook）",
-   "spec_landed": "",
-   "status": "BLOCKED",
-   "status_reasons": [
-    "campaign:deferred(no clean hook: prefetch-as-demand marking)",
-    "spec:需新增（当前阻塞：无prefetch-as-demand/属性注入hook）"
-   ],
+   "spec_landed": "implemented(pf_fill_class=P06-a forward arm prefetch-as-demand fill-classification marking at the Cache::serviceMSHRTargets setPrefetched gate (one prefetch-owned fill classified demand: CacheBlk::Prefetched not set, the line enters the cache as a demand fill; packet plumbing HardPFReq/FromPrefetcher/silent-target-delete untouched), CHAOSPrefetch maybeMarkFillAsDemand via fillMarkHook; pending: P06-a reverse arm (demand marked prefetch), P06-b dirty attribute, P06-c ownership attribute, P06-d allocate attribute (xlsx sheet-9 sub-models; fill-permission attributes are coherence-side state, not a prefetcher marking); evidence: NONE YET — landed compile-unverified in a no-build worktree, zero real-run samples, PF_F0_SPAN unmeasured (P06-F0 cells stay BLOCKED(F0-span-unmeasured) until integration measures; F2/F6 cells resolve runnable but unrun) — integration checklist in R4-5.4-report.md)",
+   "status": "PARTIAL",
+   "status_reasons": [],
    "target_activated_samples": "385"
   },
   {
@@ -8573,12 +8564,9 @@
    "correlation_keys": "run_id + sample_run_id + fault_id/ptag；event_id + parent_event_id；tick/cycle + core_id + thread_id；dyn_inst_seq + commit_seq + PC/opcode；lq_idx/sq_idx；request_id/pf_request_id/walk_id/mshr_id/fill_id；VA/PA/cache_line；arch_reg/phys_reg。禁止只用tick或address单键连接。",
    "termination": "完整：存在L0 fault_applied，且每条边由共享键与时间/可达性同时证明，最终到达(1) errant commit/错误内存副作用/软件oracle差异，或(2)明确检测并contained，或(3)明确squash/replay/mask且无错误副作用。若链在某节点后缺事件，只能标“截至该节点可证，后续Unknown”，不得推断Masked。",
    "impl_status": "需新增（当前阻塞：无prefetch-as-demand/属性注入hook）",
-   "spec_landed": "",
-   "status": "BLOCKED",
-   "status_reasons": [
-    "campaign:deferred(no clean hook: prefetch-as-demand marking)",
-    "spec:需新增（当前阻塞：无prefetch-as-demand/属性注入hook）"
-   ],
+   "spec_landed": "implemented(pf_fill_class=P06-a forward arm prefetch-as-demand fill-classification marking at the Cache::serviceMSHRTargets setPrefetched gate (one prefetch-owned fill classified demand: CacheBlk::Prefetched not set, the line enters the cache as a demand fill; packet plumbing HardPFReq/FromPrefetcher/silent-target-delete untouched), CHAOSPrefetch maybeMarkFillAsDemand via fillMarkHook; pending: P06-a reverse arm (demand marked prefetch), P06-b dirty attribute, P06-c ownership attribute, P06-d allocate attribute (xlsx sheet-9 sub-models; fill-permission attributes are coherence-side state, not a prefetcher marking); evidence: NONE YET — landed compile-unverified in a no-build worktree, zero real-run samples, PF_F0_SPAN unmeasured (P06-F0 cells stay BLOCKED(F0-span-unmeasured) until integration measures; F2/F6 cells resolve runnable but unrun) — integration checklist in R4-5.4-report.md)",
+   "status": "PARTIAL",
+   "status_reasons": [],
    "target_activated_samples": "385"
   },
   {
@@ -8613,12 +8601,9 @@
    "correlation_keys": "run_id + sample_run_id + fault_id/ptag；event_id + parent_event_id；tick/cycle + core_id + thread_id；dyn_inst_seq + commit_seq + PC/opcode；lq_idx/sq_idx；request_id/pf_request_id/walk_id/mshr_id/fill_id；VA/PA/cache_line；arch_reg/phys_reg。禁止只用tick或address单键连接。",
    "termination": "完整：存在L0 fault_applied，且每条边由共享键与时间/可达性同时证明，最终到达(1) errant commit/错误内存副作用/软件oracle差异，或(2)明确检测并contained，或(3)明确squash/replay/mask且无错误副作用。若链在某节点后缺事件，只能标“截至该节点可证，后续Unknown”，不得推断Masked。",
    "impl_status": "需新增（当前阻塞：无prefetch-as-demand/属性注入hook）",
-   "spec_landed": "",
-   "status": "BLOCKED",
-   "status_reasons": [
-    "campaign:deferred(no clean hook: prefetch-as-demand marking)",
-    "spec:需新增（当前阻塞：无prefetch-as-demand/属性注入hook）"
-   ],
+   "spec_landed": "implemented(pf_fill_class=P06-a forward arm prefetch-as-demand fill-classification marking at the Cache::serviceMSHRTargets setPrefetched gate (one prefetch-owned fill classified demand: CacheBlk::Prefetched not set, the line enters the cache as a demand fill; packet plumbing HardPFReq/FromPrefetcher/silent-target-delete untouched), CHAOSPrefetch maybeMarkFillAsDemand via fillMarkHook; pending: P06-a reverse arm (demand marked prefetch), P06-b dirty attribute, P06-c ownership attribute, P06-d allocate attribute (xlsx sheet-9 sub-models; fill-permission attributes are coherence-side state, not a prefetcher marking); evidence: NONE YET — landed compile-unverified in a no-build worktree, zero real-run samples, PF_F0_SPAN unmeasured (P06-F0 cells stay BLOCKED(F0-span-unmeasured) until integration measures; F2/F6 cells resolve runnable but unrun) — integration checklist in R4-5.4-report.md)",
+   "status": "PARTIAL",
+   "status_reasons": [],
    "target_activated_samples": "385"
   },
   {
@@ -8652,12 +8637,9 @@
    "correlation_keys": "run_id + sample_run_id + fault_id/ptag；event_id + parent_event_id；tick/cycle + core_id + thread_id；dyn_inst_seq + commit_seq + PC/opcode；lq_idx/sq_idx；request_id/pf_request_id/walk_id/mshr_id/fill_id；VA/PA/cache_line；arch_reg/phys_reg。禁止只用tick或address单键连接。",
    "termination": "完整：存在L0 fault_applied，且每条边由共享键与时间/可达性同时证明，最终到达(1) errant commit/错误内存副作用/软件oracle差异，或(2)明确检测并contained，或(3)明确squash/replay/mask且无错误副作用。若链在某节点后缺事件，只能标“截至该节点可证，后续Unknown”，不得推断Masked。",
    "impl_status": "需新增（当前阻塞：无prefetch-as-demand/属性注入hook）",
-   "spec_landed": "",
-   "status": "BLOCKED",
-   "status_reasons": [
-    "campaign:deferred(no clean hook: prefetch-as-demand marking)",
-    "spec:需新增（当前阻塞：无prefetch-as-demand/属性注入hook）"
-   ],
+   "spec_landed": "implemented(pf_fill_class=P06-a forward arm prefetch-as-demand fill-classification marking at the Cache::serviceMSHRTargets setPrefetched gate (one prefetch-owned fill classified demand: CacheBlk::Prefetched not set, the line enters the cache as a demand fill; packet plumbing HardPFReq/FromPrefetcher/silent-target-delete untouched), CHAOSPrefetch maybeMarkFillAsDemand via fillMarkHook; pending: P06-a reverse arm (demand marked prefetch), P06-b dirty attribute, P06-c ownership attribute, P06-d allocate attribute (xlsx sheet-9 sub-models; fill-permission attributes are coherence-side state, not a prefetcher marking); evidence: NONE YET — landed compile-unverified in a no-build worktree, zero real-run samples, PF_F0_SPAN unmeasured (P06-F0 cells stay BLOCKED(F0-span-unmeasured) until integration measures; F2/F6 cells resolve runnable but unrun) — integration checklist in R4-5.4-report.md)",
+   "status": "PARTIAL",
+   "status_reasons": [],
    "target_activated_samples": "385"
   },
   {
@@ -11739,8 +11721,8 @@
  "summary": {
   "total": 325,
   "status": {
-   "PARTIAL": 219,
-   "BLOCKED": 106
+   "PARTIAL": 225,
+   "BLOCKED": 100
   },
   "blocked_by_unit": {
    "AGU": 12,
@@ -11748,8 +11730,8 @@
    "Store Queue": 9,
    "L1d-Cache": 15,
    "原子与同步": 28,
-   "数据预取器": 9,
-   "Load Queue": 3
+   "Load Queue": 3,
+   "数据预取器": 3
   }
  }
 }

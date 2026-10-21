@@ -266,14 +266,26 @@ def main():
     check("后续模型未误解锁（C14/C15/S10/A06 仍 BLOCKED）",
           all(m in LC.MODEL_BLOCKED
               for m in ("C14", "C15", "S10", "A06")))
-    check("PF_F0_SPAN 表存在且 P06 条目未实测（本 worktree 禁跑 census）",
+    # [R4-5.4 集成] 本文件撰写于隔离 worktree（禁跑 pilot），当时两个 (P06, workload)
+    # 跨度**未实测**，故断言"表存在但条目缺席 + loud None"。集成期主 worktree 已用
+    # 普查实测（cache_dirtyevict=56、prefetch_stride=32；见 round4_findings.md §R4-5.4），
+    # 断言随之翻转为"**已实测**且按对取值 + 逐对生效"，同时保留"未实测对仍 loud 拒绝"
+    # 这条**机制**断言（用一个刻意未实测的负载名验证），以免丢失该纪律的回归网。
+    check("PF_F0_SPAN 表存在且 P06 两条已实测（集成期普查）",
           isinstance(LC.PF_F0_SPAN, dict)
-          and ("P06", "cache_dirtyevict") not in LC.PF_F0_SPAN
-          and ("P06", "prefetch_stride") not in LC.PF_F0_SPAN,
+          and LC.PF_F0_SPAN.get(("P06", "cache_dirtyevict")) == 56
+          and LC.PF_F0_SPAN.get(("P06", "prefetch_stride")) == 32,
           str(LC.PF_F0_SPAN))
-    check("未实测 (P06, workload) F0 拒绝（loud None）",
-          LC._prefetch_tier_flags("P06", "F0", "cache_dirtyevict") is None
-          and LC._prefetch_tier_flags("P06", "F0", "prefetch_stride") is None)
+    check("已实测 (P06, workload) F0 逐对生效（span=实测值, warmup=1）",
+          LC._prefetch_tier_flags("P06", "F0", "cache_dirtyevict") ==
+          ["--prefetch_lsu_tier", "F0", "--prefetch_warmup_events", "1",
+           "--prefetch_span_events", "56"]
+          and LC._prefetch_tier_flags("P06", "F0", "prefetch_stride") ==
+          ["--prefetch_lsu_tier", "F0", "--prefetch_warmup_events", "1",
+           "--prefetch_span_events", "32"],
+          str(LC._prefetch_tier_flags("P06", "F0", "cache_dirtyevict")))
+    check("未实测 (P06, workload) F0 仍 loud 拒绝（机制未丢）",
+          LC._prefetch_tier_flags("P06", "F0", "no_such_workload") is None)
     check("P06 F2/F6 tier flags 解析（legacy 形，span 惰性）",
           LC._prefetch_tier_flags("P06", "F2", "cache_dirtyevict") ==
           ["--prefetch_lsu_tier", "F2", "--prefetch_warmup_events", "0",
@@ -299,7 +311,7 @@ def main():
           ["--lsqfwd_lsu_tier", "F0", "--lsqfwd_warmup_events", "1",
            "--lsqfwd_span_events", "324"])
 
-    print("[5] 矩阵解析：6 个 P06 RunID（F0 大声阻塞 / F2·F6 可解析）")
+    print("[5] 矩阵解析：6 个 P06 RunID（F0 已实测 → 可解析 / F2·F6 可解析）")
     header, cells = LC.load_matrix(
         ROOT / "artifacts/lsu-trial/07-expanded-matrix-backfilled.csv")
     p06 = [c for c in cells if c[LC.COL_MODEL].strip() == "P06"]
@@ -309,10 +321,22 @@ def main():
         tier = c[LC.COL_FREQ].strip()
         flags, golden, note = LC.resolve_cell(c)
         if tier == "F0":
-            ok = (flags is None and golden is None
-                  and note.startswith("BLOCKED(F0-span-unmeasured")
-                  and "PF_F0_SPAN" in note)
-            check(f"{runid} F0 未实测跨度 → 大声 BLOCKED（拒绝静默跑）",
+            # [R4-5.4 集成] 集成期已普查两条跨度，F0 cell 不再阻塞；断言翻转为
+            # "解析成功且 span = 该负载的实测值"（值来自 PF_F0_SPAN，非硬编码常量）。
+            wl = c[LC.COL_WORKLOAD].strip()
+            wl_bin = next((b for k, b in LC.WL_BINARY.items() if k in wl), None)
+            want = LC.PF_F0_SPAN.get(("P06", wl_bin))
+            # 注意 flags 里 `--prefetch_span_events` **出现两次**（家族基础
+            # mount 给 1，tier lambda 给实测跨度）；argparse **last-wins**，
+            # 故生效值 = 最后一次出现，必须按 rindex 取（同 C11/C12 的
+            # FAMILY_TIER_FLAGS 先例）。
+            ok = (flags is not None and golden and want is not None
+                  and "--prefetch_lsu_tier" in flags
+                  and flags[len(flags) - 1 - flags[::-1].index(
+                      "--prefetch_lsu_tier") + 1] == "F0"
+                  and flags[len(flags) - 1 - flags[::-1].index(
+                      "--prefetch_span_events") + 1] == str(want))
+            check(f"{runid} F0 已实测跨度 → 解析运行配置（span={want}）",
                   ok, f"flags={flags} note={note}")
         else:
             ok = (flags is not None and golden

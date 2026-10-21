@@ -1128,3 +1128,88 @@ tlb 2 既有失败计数与名单不变。
   → hang/Timeout 通道，需超时簿记语义）未落地——本轮落地的是表9
   L04-b；仅解除"只有事件源"阻塞前提（spec_landed 留证）。
 - 全部 18 样本为证据性 pilot（phase=trial），未启动正式 campaign。
+
+## R4-5.4（2026-10-21）：P06 预取-as-demand fill 分类标记落地（MODE-UNIMPL 29→23）
+
+**集成路径**（本模型在隔离 worktree 中实现、由主 worktree 串行收口；来源分支
+`r4-5.4-p06` @ `03cd4a25`，合并入 `38bc7ebe`）。
+
+### 1. 落地内容
+
+- 注入模式 `--prefetch_mode p06_as_demand`（`CHAOSPrefetch`）；钩子
+  `maybeMarkFillAsDemand` 挂在 `Cache::serviceMSHRTargets` 的 `setPrefetched`
+  门——**fill 的 demand/prefetch 分类在此成为行的持久状态**（`CacheBlk::Prefetched`
+  是美国下游消费者读的属性）。被标记的预取自有 fill 不再 `setPrefetched`，该行以
+  完全等同 demand fill 的方式进入 cache。
+- 观测：`CHAOSPropagation::registerPfFillClassFault(line, block_size)`
+  （inj 节点 `corr=origin`；before/after = 分类对 prefetch→demand，注册字段
+  故可流内可见；整行入 blk 注册表 → 下游同线事件经**带标注**的
+  `corr=addr_fallback` 臂入链——该点无 seq 主键，属已知过近似，见 §5.1.6 先例）。
+- 路由：`configs/se/lsu_proxy.py` mode choice → `MODEL_FLAGS["P06"]` →
+  `PF_F0_SPAN` 逐 (模型, 负载) 实测跨度 → `MODEL_BLOCKED` 移除。
+
+### 2. 集成期真实证据（主 worktree，binary `2c5a03913bebfcae`）
+
+**构建**：`scons -j16 build/ARM/gem5.opt` → `SCONS_EXIT=0`，`error:` 计数 0，
+P06 改动的三个 TU（`CHAOSPrefetch.cc` / `cache/cache.cc` / `CHAOSPropagation.cc`）
+**零新增警告**。（`CHAOSCache.cc` 构造函数的 6 条 `-Wreorder` 为 HEAD 既有，与本轮无关。）
+
+**F0 跨度普查**（span=1e6 使 draw 永不落点，teardown `eligible=` 即整条 golden 流；
+`SPAN_UNREACHABLE` 告警即普查意图的确认）：
+
+| 负载 | attempted | eligible | 告警 |
+|---|---|---|---|
+| `cache_dirtyevict` (W6) | 56 | **56** | SPAN_UNREACHABLE (draw_next_fire=756413, span=1000000) |
+| `prefetch_stride` (W8) | 32 | **32** | SPAN_UNREACHABLE (draw_next_fire=756413, span=1000000) |
+
+普查本身即首条真实证据：**钩子确实在真实运行的预取自有 fill 上被调用，且资格门放行**
+（attempted>0）。测得跨度已按 (model, workload) 写入 `PF_F0_SPAN`。
+
+**正式 campaign 入口 pilot**（`tools/lsu_campaign.py`，6 cell × 3 seed，
+`--max-parallel 1`）：
+
+| RunID | n_runs | activated | oracle | 注入样本链 |
+|---|---|---|---|---|
+| `P06-F0-W6` | 3 | **3** | Masked×3 | 3/3 全边 proven |
+| `P06-F0-W8` | 3 | **2** | Masked×2 | 2/2 全边 proven |
+| `P06-F2-W6` | 3 | **0** | — | — |
+| `P06-F2-W8` | 3 | **0** | — | — |
+| `P06-F6-W6` | 3 | **3** | Masked×3 | 3/3 全边 proven |
+| `P06-F6-W8` | 3 | **3** | Masked×3 | 3/3 全边 proven |
+
+**逐边链证据**（`lsu_chain_check`，共 **11 个注入样本**）：
+**11/11 样本的 L0→L1→L2→L3→L4→L5 六条边全部 proven**——记为 full terminal。
+（对比 L04：其 L0→L1/L1→L2/L2→L3 结构性 missing；P06 在 fill 分类点注入，
+被标记行的上下游事件**都可回溯入链**，故链是全梯子。）
+
+### 3. 诚实披露（未解决/未完全）
+
+- **`P06-F0-W8` 仅 2/3 activated，第 3 个 seed 是一次真实的 F0 未落点**：
+  seed1 teardown 为
+  `attempted=28 eligible=28 injected=0 draw_next_fire=29 span=32 warmup=1`
+  —— 该次**注入运行的 eligible 流长 28 < golden 普查的 32**，而 seed 抽到的落点
+  是 29，故落在流外。这是 F0「均匀分布于 eligible 流」语义在**故障改变流长**时的
+  固有效应（与 R4-5.2 EARLY_BIAS 的故障延长同族、方向相反）。**如实记为 2/3，
+  不补齐、不外推。** 一号告警已在大声报出，未被静默。
+- **`P06-F2-W6/W8` 各 3 seed 全 0 注入**：F2 的平均间隔 5e4–1.5e5 eligible 事件
+  ≫ 实测流长（56 / 32），数学上不可能击发——与 `L04-F2-*`、`S01-F2-W5` 同构。
+  该项是**网格级频率轴事实**，非 P06 特有缺陷；仍按节点级判据计 PASS（判据与
+  注入击发解耦，见 `coverage_matrix.md` 判定口径），并在 `pilot_evidence.json`
+  中如实记录 `events=0`。
+- **本模型只落地 P06-a 正向臂**（预取 fill 被分类为 demand）。**未落地**并在
+  `SPEC_IMPL_LANDED["P06"]` 机器可读登记的 pending：P06-a 反向臂、P06-b/c/d。
+- **`corr=addr_fallback` 过近似**：整行入 blk 注册表，故同一行上的**正确**响应
+  同样会入链并被 taint（C11 §5.1.6 先例）；oracle 负责裁决，标注已标明关联臂。
+
+### 4. 覆盖矩阵变化（证据化口径）
+
+| 项 | 前 | 后 |
+|---|---|---|
+| PASS | 219 | **225** |
+| PARTIAL | 0 | 0 |
+| BLOCKED | 106 | **100** |
+| MODE-UNIMPL 类 | 29 | **23** |
+
+（合计恒为 325。）P06 的 6 个 RunID 由 BLOCKED 转 PASS；
+`pilot_evidence.json` 的 kind 并集 33→34（新增 `sq_execute`，来自 Task 2 的活样本；
+**无任何 kind 丢失**）。

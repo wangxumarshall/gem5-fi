@@ -1,10 +1,9 @@
 # Markdown→实现覆盖矩阵（MDSPEC Phase B，**节点级证据化**）
 
 - 总数：325（RunID 唯一，表7∩表9 集合相等——B1 已证）
-- **PASS=219 / PARTIAL=0 / BLOCKED=106**
+- **PASS=225 / PARTIAL=0 / BLOCKED=100**
 - 判定口径（2026-10-20 证据化）：PASS = 该单元规格所需**全部节点**既已实现（kind ∈ 发射端注册表）**又**在真实 pilot 运行中出现；缺任一节点 = PARTIAL 并逐项列出。注册表布尔值**不再**作为判据。
 - 节点级证据取**全部 pilot 的 kind 并集**（节点=钩子能力级证据，与注入单元解耦）；逐单元归属索引见 pilot_evidence.json 的 kinds_observed_by_unit（RunID→单元解析：精确匹配 → 行标签，见 tools/lsu_pilot_evidence.py unit_of）。
-- **辅助运行证据边界**：下表所列单元的部分必需节点仅在**非矩阵 RunID 的辅助运行**（directed 载体 / campaign smoke 复跑，**非**该矩阵单元自身的运行）中观测到——矩阵单元自身的运行（含 campaign 单元）未观测到这些节点；PASS 行已逐行标注 `aux_run_nodes:`，详见文末"辅助运行证据边界"表。
 - 真实运行观测到的 kind（34）：addr_form, cache_access, cache_evict, cache_fill, cache_return, cache_writeback, chain_end, consumer, errant_commit, exmon_monitor, exmon_rmw, exmon_stxr, inj, lq_complete, lq_read, lsq_push, lsq_sendfrag, mem_req, mshr_alloc, mshr_fill, mshr_free, mshr_merge, pf_demand, pf_fill, pf_issue, pf_queue, pf_train, resp, sq_complete, sq_execute, sq_writeback, taint_reg, tlb_fault, tlb_translate
 
 | RunID | 模型 | 单元 | 频率 | 状态 | 原因 |
@@ -213,50 +212,50 @@
 | O07-F0-W7 | O07 | 原子与同步 | F0 | BLOCKED | campaign:blocked(multicore-fs: order-tag swap needs multi-core); spec:需新增（当前阻塞：需要多核FS order-tag/ready跟踪）; workload:workload-level:blocked(multicore-fs: litmus n |
 | O07-F2-W7 | O07 | 原子与同步 | F2 | BLOCKED | campaign:blocked(multicore-fs: order-tag swap needs multi-core); spec:需新增（当前阻塞：需要多核FS order-tag/ready跟踪）; workload:workload-level:blocked(multicore-fs: litmus n |
 | O07-F6-W7 | O07 | 原子与同步 | F6 | BLOCKED | campaign:blocked(multicore-fs: order-tag swap needs multi-core); spec:需新增（当前阻塞：需要多核FS order-tag/ready跟踪）; workload:workload-level:blocked(multicore-fs: litmus n |
-| P01-F0-W2 | P01 | 数据预取器 | F0 | PASS | aux_run_nodes:pf_queue,pf_issue |
-| P01-F0-W8 | P01 | 数据预取器 | F0 | PASS | aux_run_nodes:pf_queue,pf_issue |
-| P01-F1-W2 | P01 | 数据预取器 | F1 | PASS | aux_run_nodes:pf_queue,pf_issue |
-| P01-F1-W8 | P01 | 数据预取器 | F1 | PASS | aux_run_nodes:pf_queue,pf_issue |
-| P01-F2-W2 | P01 | 数据预取器 | F2 | PASS | aux_run_nodes:pf_queue,pf_issue |
-| P01-F2-W8 | P01 | 数据预取器 | F2 | PASS | aux_run_nodes:pf_queue,pf_issue |
-| P02-F0-W8 | P02 | 数据预取器 | F0 | PASS | aux_run_nodes:pf_queue,pf_issue |
-| P02-F0-W10 | P02 | 数据预取器 | F0 | PASS | aux_run_nodes:pf_queue,pf_issue |
-| P02-F3-W8 | P02 | 数据预取器 | F3 | PASS | aux_run_nodes:pf_queue,pf_issue |
-| P02-F3-W10 | P02 | 数据预取器 | F3 | PASS | aux_run_nodes:pf_queue,pf_issue |
-| P02-F5-W8 | P02 | 数据预取器 | F5 | PASS | aux_run_nodes:pf_queue,pf_issue |
-| P02-F5-W10 | P02 | 数据预取器 | F5 | PASS | aux_run_nodes:pf_queue,pf_issue |
-| P03-F0-W8 | P03 | 数据预取器 | F0 | PASS | aux_run_nodes:pf_queue,pf_issue |
-| P03-F0-W9 | P03 | 数据预取器 | F0 | PASS | aux_run_nodes:pf_queue,pf_issue |
-| P03-F2-W8 | P03 | 数据预取器 | F2 | PASS | aux_run_nodes:pf_queue,pf_issue |
-| P03-F2-W9 | P03 | 数据预取器 | F2 | PASS | aux_run_nodes:pf_queue,pf_issue |
-| P03-F6-W8 | P03 | 数据预取器 | F6 | PASS | aux_run_nodes:pf_queue,pf_issue |
-| P03-F6-W9 | P03 | 数据预取器 | F6 | PASS | aux_run_nodes:pf_queue,pf_issue |
-| P04-F0-W2 | P04 | 数据预取器 | F0 | PASS | aux_run_nodes:pf_queue,pf_issue |
-| P04-F0-W8 | P04 | 数据预取器 | F0 | PASS | aux_run_nodes:pf_queue,pf_issue |
-| P04-F4-W2 | P04 | 数据预取器 | F4 | PASS | aux_run_nodes:pf_queue,pf_issue |
-| P04-F4-W8 | P04 | 数据预取器 | F4 | PASS | aux_run_nodes:pf_queue,pf_issue |
-| P04-F5-W2 | P04 | 数据预取器 | F5 | PASS | aux_run_nodes:pf_queue,pf_issue |
-| P04-F5-W8 | P04 | 数据预取器 | F5 | PASS | aux_run_nodes:pf_queue,pf_issue |
-| P05-F0-W8 | P05 | 数据预取器 | F0 | PASS | aux_run_nodes:pf_queue,pf_issue |
-| P05-F0-W10 | P05 | 数据预取器 | F0 | PASS | aux_run_nodes:pf_queue,pf_issue |
-| P05-F4-W8 | P05 | 数据预取器 | F4 | PASS | aux_run_nodes:pf_queue,pf_issue |
-| P05-F4-W10 | P05 | 数据预取器 | F4 | PASS | aux_run_nodes:pf_queue,pf_issue |
-| P05-F6-W8 | P05 | 数据预取器 | F6 | PASS | aux_run_nodes:pf_queue,pf_issue |
-| P05-F6-W10 | P05 | 数据预取器 | F6 | PASS | aux_run_nodes:pf_queue,pf_issue |
-| P06-F0-W6 | P06 | 数据预取器 | F0 | BLOCKED | campaign:deferred(no clean hook: prefetch-as-demand marking); spec:需新增（当前阻塞：无prefetch-as-demand/属性注入hook） |
-| P06-F0-W8 | P06 | 数据预取器 | F0 | BLOCKED | campaign:deferred(no clean hook: prefetch-as-demand marking); spec:需新增（当前阻塞：无prefetch-as-demand/属性注入hook） |
-| P06-F2-W6 | P06 | 数据预取器 | F2 | BLOCKED | campaign:deferred(no clean hook: prefetch-as-demand marking); spec:需新增（当前阻塞：无prefetch-as-demand/属性注入hook） |
-| P06-F2-W8 | P06 | 数据预取器 | F2 | BLOCKED | campaign:deferred(no clean hook: prefetch-as-demand marking); spec:需新增（当前阻塞：无prefetch-as-demand/属性注入hook） |
-| P06-F6-W6 | P06 | 数据预取器 | F6 | BLOCKED | campaign:deferred(no clean hook: prefetch-as-demand marking); spec:需新增（当前阻塞：无prefetch-as-demand/属性注入hook） |
-| P06-F6-W8 | P06 | 数据预取器 | F6 | BLOCKED | campaign:deferred(no clean hook: prefetch-as-demand marking); spec:需新增（当前阻塞：无prefetch-as-demand/属性注入hook） |
-| P07-F0-W6 | P07 | 数据预取器 | F0 | PASS | aux_run_nodes:pf_queue,pf_issue |
-| P07-F0-W8 | P07 | 数据预取器 | F0 | PASS | aux_run_nodes:pf_queue,pf_issue |
-| P07-F2-W6 | P07 | 数据预取器 | F2 | PASS | aux_run_nodes:pf_queue,pf_issue |
-| P07-F2-W8 | P07 | 数据预取器 | F2 | PASS | aux_run_nodes:pf_queue,pf_issue |
-| P07-F6-W6 | P07 | 数据预取器 | F6 | PASS | aux_run_nodes:pf_queue,pf_issue |
-| P07-F6-W8 | P07 | 数据预取器 | F6 | PASS | aux_run_nodes:pf_queue,pf_issue |
-| P08-F5-W8 | P08 | 数据预取器 | F5 | PASS | aux_run_nodes:pf_queue,pf_issue |
-| P08-F5-W10 | P08 | 数据预取器 | F5 | PASS | aux_run_nodes:pf_queue,pf_issue |
+| P01-F0-W2 | P01 | 数据预取器 | F0 | PASS |  |
+| P01-F0-W8 | P01 | 数据预取器 | F0 | PASS |  |
+| P01-F1-W2 | P01 | 数据预取器 | F1 | PASS |  |
+| P01-F1-W8 | P01 | 数据预取器 | F1 | PASS |  |
+| P01-F2-W2 | P01 | 数据预取器 | F2 | PASS |  |
+| P01-F2-W8 | P01 | 数据预取器 | F2 | PASS |  |
+| P02-F0-W8 | P02 | 数据预取器 | F0 | PASS |  |
+| P02-F0-W10 | P02 | 数据预取器 | F0 | PASS |  |
+| P02-F3-W8 | P02 | 数据预取器 | F3 | PASS |  |
+| P02-F3-W10 | P02 | 数据预取器 | F3 | PASS |  |
+| P02-F5-W8 | P02 | 数据预取器 | F5 | PASS |  |
+| P02-F5-W10 | P02 | 数据预取器 | F5 | PASS |  |
+| P03-F0-W8 | P03 | 数据预取器 | F0 | PASS |  |
+| P03-F0-W9 | P03 | 数据预取器 | F0 | PASS |  |
+| P03-F2-W8 | P03 | 数据预取器 | F2 | PASS |  |
+| P03-F2-W9 | P03 | 数据预取器 | F2 | PASS |  |
+| P03-F6-W8 | P03 | 数据预取器 | F6 | PASS |  |
+| P03-F6-W9 | P03 | 数据预取器 | F6 | PASS |  |
+| P04-F0-W2 | P04 | 数据预取器 | F0 | PASS |  |
+| P04-F0-W8 | P04 | 数据预取器 | F0 | PASS |  |
+| P04-F4-W2 | P04 | 数据预取器 | F4 | PASS |  |
+| P04-F4-W8 | P04 | 数据预取器 | F4 | PASS |  |
+| P04-F5-W2 | P04 | 数据预取器 | F5 | PASS |  |
+| P04-F5-W8 | P04 | 数据预取器 | F5 | PASS |  |
+| P05-F0-W8 | P05 | 数据预取器 | F0 | PASS |  |
+| P05-F0-W10 | P05 | 数据预取器 | F0 | PASS |  |
+| P05-F4-W8 | P05 | 数据预取器 | F4 | PASS |  |
+| P05-F4-W10 | P05 | 数据预取器 | F4 | PASS |  |
+| P05-F6-W8 | P05 | 数据预取器 | F6 | PASS |  |
+| P05-F6-W10 | P05 | 数据预取器 | F6 | PASS |  |
+| P06-F0-W6 | P06 | 数据预取器 | F0 | PASS |  |
+| P06-F0-W8 | P06 | 数据预取器 | F0 | PASS |  |
+| P06-F2-W6 | P06 | 数据预取器 | F2 | PASS |  |
+| P06-F2-W8 | P06 | 数据预取器 | F2 | PASS |  |
+| P06-F6-W6 | P06 | 数据预取器 | F6 | PASS |  |
+| P06-F6-W8 | P06 | 数据预取器 | F6 | PASS |  |
+| P07-F0-W6 | P07 | 数据预取器 | F0 | PASS |  |
+| P07-F0-W8 | P07 | 数据预取器 | F0 | PASS |  |
+| P07-F2-W6 | P07 | 数据预取器 | F2 | PASS |  |
+| P07-F2-W8 | P07 | 数据预取器 | F2 | PASS |  |
+| P07-F6-W6 | P07 | 数据预取器 | F6 | PASS |  |
+| P07-F6-W8 | P07 | 数据预取器 | F6 | PASS |  |
+| P08-F5-W8 | P08 | 数据预取器 | F5 | PASS |  |
+| P08-F5-W10 | P08 | 数据预取器 | F5 | PASS |  |
 | T10-F0-W1 | T10 | L1d-TLB | F0 | PASS |  |
 | T10-F0-W4 | T10 | L1d-TLB | F0 | BLOCKED | workload:workload-level:blocked(fs-infra: TLB workload needs FS) |
 | T10-F0-W11 | T10 | L1d-TLB | F0 | BLOCKED | workload:workload-level:blocked(spec-license: SPEC CPU2017 needs a license) |
@@ -325,14 +324,14 @@
 | O09-F1-W13 | O09 | 原子与同步 | F1 | BLOCKED | campaign:deferred(RMW operand path needs cache-side hook); spec:需新增（当前阻塞：缺RMW operand hook）; workload:workload-level:blocked(multicore-fs: PARSEC needs multi-co |
 | O09-F2-W7 | O09 | 原子与同步 | F2 | BLOCKED | campaign:deferred(RMW operand path needs cache-side hook); spec:需新增（当前阻塞：缺RMW operand hook）; workload:workload-level:blocked(multicore-fs: litmus needs multi-co |
 | O09-F2-W13 | O09 | 原子与同步 | F2 | BLOCKED | campaign:deferred(RMW operand path needs cache-side hook); spec:需新增（当前阻塞：缺RMW operand hook）; workload:workload-level:blocked(multicore-fs: PARSEC needs multi-co |
-| P09-F0-W6 | P09 | 数据预取器 | F0 | PASS | aux_run_nodes:pf_queue,pf_issue |
-| P09-F0-W8 | P09 | 数据预取器 | F0 | PASS | aux_run_nodes:pf_queue,pf_issue |
+| P09-F0-W6 | P09 | 数据预取器 | F0 | PASS |  |
+| P09-F0-W8 | P09 | 数据预取器 | F0 | PASS |  |
 | P09-F0-W13 | P09 | 数据预取器 | F0 | BLOCKED | workload:workload-level:blocked(multicore-fs: PARSEC needs multi-core FS) |
-| P09-F4-W6 | P09 | 数据预取器 | F4 | PASS | aux_run_nodes:pf_queue,pf_issue |
-| P09-F4-W8 | P09 | 数据预取器 | F4 | PASS | aux_run_nodes:pf_queue,pf_issue |
+| P09-F4-W6 | P09 | 数据预取器 | F4 | PASS |  |
+| P09-F4-W8 | P09 | 数据预取器 | F4 | PASS |  |
 | P09-F4-W13 | P09 | 数据预取器 | F4 | BLOCKED | workload:workload-level:blocked(multicore-fs: PARSEC needs multi-core FS) |
-| P09-F6-W6 | P09 | 数据预取器 | F6 | PASS | aux_run_nodes:pf_queue,pf_issue |
-| P09-F6-W8 | P09 | 数据预取器 | F6 | PASS | aux_run_nodes:pf_queue,pf_issue |
+| P09-F6-W6 | P09 | 数据预取器 | F6 | PASS |  |
+| P09-F6-W8 | P09 | 数据预取器 | F6 | PASS |  |
 | P09-F6-W13 | P09 | 数据预取器 | F6 | BLOCKED | workload:workload-level:blocked(multicore-fs: PARSEC needs multi-core FS) |
 
 ## 单元级节点能力（与 RunID 阻塞解耦）
@@ -345,12 +344,10 @@
 | Load Queue | 7 | 7 | 7/7 |  | — |
 | Store Queue | 7 | 7 | 7/7 |  | — |
 | 原子与同步 | 6 | 6 | 5/6 | unobserved:atomic_op | — |
-| 数据预取器 | 7 | 7 | 7/7 |  | pf_queue, pf_issue |
+| 数据预取器 | 7 | 7 | 7/7 |  | — |
 
 ## 辅助运行证据边界（矩阵单元自身运行 vs 辅助运行）
 
-PASS 的节点级证据允许来自辅助运行（RunID ≠ 矩阵 RunID 的真实 pilot：directed 载体 / campaign smoke 复跑 / 机理变体）。下表逐单元列出**仅在辅助运行中观测到**的必需节点；最后一列是该单元在证据文件中的全部矩阵 RunID 运行——它们**均未**观测到这些节点（含 campaign 单元自身的运行）：
+**本表为空**：没有任何单元的必需节点是「仅辅助运行可见」的——每个 PASS 单元的必需节点都由**该单元自己的矩阵运行**（含其 `<矩阵RunID>-seed<N>` 逐 seed 流）直接观测到，无需辅助运行兜底。
 
-| 单元 | 仅辅助运行观测的必需节点 | 辅助运行 RunID | 矩阵 RunID 运行（均未观测到） |
-|---|---|---|---|
-| 数据预取器 | pf_queue, pf_issue | P01-F0-W8-P03mech, P01-F0-W8-campaign | P01-F0-W8 |
+（机制与判据见 `tools/lsu_coverage_matrix.py::aux_run_boundary`；边界非空时此处会逐单元列出「仅辅助运行观测的必需节点 / 辅助运行 RunID / 该单元矩阵运行（均未观测到）」。）

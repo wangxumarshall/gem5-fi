@@ -13,6 +13,7 @@ PASS/PARTIAL/BLOCKED 判定（Review Focus #1：部分已有≠PASS——PASS=0 
 """
 import argparse
 import json
+import re
 import sys
 from collections import Counter
 from pathlib import Path
@@ -126,13 +127,29 @@ def aux_run_boundary(entries, evidence):
     if not evidence or "pilots" not in evidence:
         return {}
     matrix_rids = {e["run_id"] for e in entries}
+    # [R4-5.4 集成] 矩阵 RunID 的**逐 seed 流**（标签 `<矩阵RunID>-seed<N>`）
+    # 就是该矩阵运行本身，不是辅助运行。此前按精确匹配判定，把
+    # `S04-F0-W5-seed2` 这类标签误判成 aux —— 于是矩阵单元**自己的** seed 流
+    # 被算作"辅助运行证据"，边界表出现**假阳性**（Store Queue 被标成
+    # "sq_execute 仅辅助运行可见"，而它其实来自矩阵单元 S04-F0-W5 自己的 seed 流）。
+    # 规则收紧为：`<矩阵RunID>-seed<数字>` 归矩阵；其余后缀
+    # （`-campaign` 复跑、`-R4T3-MSHRREF-sN` 载体、`-P03mech` 机理变体）
+    # 仍是辅助——它们确实是另一条运行。
+    _seed_suffix = re.compile(r"^(?P<base>.+)-seed\d+$")
+
+    def _matrix_owner(rid):
+        if rid in matrix_rids:
+            return rid
+        m = _seed_suffix.match(rid)
+        return m.group("base") if m and m.group("base") in matrix_rids else None
+
     per_unit = {}
     for rid, p in evidence["pilots"].items():
         unit = p.get("unit")
         if not unit:
             continue
         d = per_unit.setdefault(unit, {"matrix_kinds": set(), "aux": {}})
-        if rid in matrix_rids:
+        if _matrix_owner(rid):
             d["matrix_kinds"].update(p.get("kinds", []))
         else:
             d["aux"][rid] = set(p.get("kinds", []))
@@ -227,6 +244,19 @@ def main():
     # 辅助运行证据边界表（R4-3 评审 Important-1）：把"决定 PASS 的节点证据
     # 来自哪些运行"逐单元摊开——辅助运行 RunID 与该单元的矩阵 RunID 运行
     # （后者均未观测到这些节点）并排列出，边界不可误读。
+    #
+    # [R4-5.4 集成] 边界为空时**也要出声**：空表既可读作"没有单元依赖辅助
+    # 运行"（健康，R4-5.4 后即此），也可被误读作"这项检查没跑"。故空表时
+    # 显式写明它是空集结论、并指向判据来源，而不是静默省略。
+    if not boundary:
+        lines += ["", "## 辅助运行证据边界（矩阵单元自身运行 vs 辅助运行）", "",
+                  "**本表为空**：没有任何单元的必需节点是「仅辅助运行可见」的——"
+                  "每个 PASS 单元的必需节点都由**该单元自己的矩阵运行**（含其 "
+                  "`<矩阵RunID>-seed<N>` 逐 seed 流）直接观测到，无需辅助运行兜底。",
+                  "",
+                  "（机制与判据见 `tools/lsu_coverage_matrix.py::aux_run_boundary`；"
+                  "边界非空时此处会逐单元列出「仅辅助运行观测的必需节点 / 辅助"
+                  "运行 RunID / 该单元矩阵运行（均未观测到）」。）"]
     if boundary:
         lines += ["", "## 辅助运行证据边界（矩阵单元自身运行 vs 辅助运行）", "",
                   "PASS 的节点级证据允许来自辅助运行（RunID ≠ 矩阵 RunID 的"
