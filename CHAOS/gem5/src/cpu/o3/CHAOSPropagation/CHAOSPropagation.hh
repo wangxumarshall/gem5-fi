@@ -272,6 +272,37 @@ class CHAOSPropagation : public SimObject
                                      Addr vaddr, Addr size,
                                      const char *field);
 
+    // [MDSPEC][R4-5.3] L04-b response-pairing target exchange (CHAOSLSQFwd
+    // maybeSwapResponseTarget, called from LSQUnit::completeDataAccess —
+    // the request->instruction() pairing point). One in-flight load's
+    // returning response just got its pairing-table entry exchanged with
+    // another in-flight load's: the response for `src` is delivered to
+    // `tgt` now (half 1), and tgt's own later response is delivered to src
+    // (half 2) — two legal responses, each to the wrong consumer
+    // ("两个响应数据各自合法但送错消费者"). PRIMARY correlation is SEQ-
+    // BOUND on BOTH loads (the 09 sheet keys lq_idx↔dyn_inst_seq↔
+    // request_id; user ruling 2026-10-20): the inj node carries the TARGET
+    // (wrong consumer) seq — its resp/lq_complete/taint_reg share it — and
+    // before/after = the pairing mapping source-seq -> target-seq (the
+    // faulted VALUE of this model, dual-emit lifted from old_addr/new_addr
+    // detail keys; value type is per-model, see the C12 tick-pair
+    // precedent). The EXCHANGED pairing table is registered as TWO
+    // seq-bound addr-registry entries: [src_va, +src_size) -> tgt_seq
+    // (half 1's noteMemResponse: packet = src's response, inst = tgt) and
+    // [tgt_va, +tgt_size) -> src_seq (half 2). NO address-only fallback is
+    // registered for L04 (stricter than the labeled-fallback minimum: the
+    // 09 sheet forbids address single-key chains). Address collision
+    // (src_va == tgt_va — same-VA loads, common on the sq_forward probe):
+    // one map key — the half-1 binding wins, half 2 then has no
+    // seq-bound surface (honest gap, recorded here, never an addr join).
+    // Returns the ptag (0 = tracer disabled).
+    uint64_t registerRespPairFault(uint64_t src_seq, long long src_lq_idx,
+                                   uint64_t src_req_id, Addr src_va,
+                                   unsigned src_size,
+                                   uint64_t tgt_seq, long long tgt_lq_idx,
+                                   uint64_t tgt_req_id, Addr tgt_va,
+                                   unsigned tgt_size);
+
     // [MDSPEC][R4-4] ArmTLB pfn fault, seq-PRIMARY correlation (the TLB
     // twin of registerLSQForwardFault; replaces the pre-R4-4 address-only
     // registration, user ruling 2026-10-20). The injection site

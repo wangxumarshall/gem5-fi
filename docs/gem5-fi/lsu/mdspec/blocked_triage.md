@@ -1,7 +1,7 @@
 # 126 BLOCKED 逐项裁决（互斥分类）
 
-- BLOCKED 总数：112（守恒校验通过：Σ 分类 == 总数）
-- 分类统计：RULING=6 / LICENSE=12 / FS-MULTICORE=35 / FS-INFRA=24 / MODE-UNIMPL=35 / HOOK-UNIMPL=0 / OK=0
+- BLOCKED 总数：106（守恒校验通过：Σ 分类 == 总数）
+- 分类统计：RULING=6 / LICENSE=12 / FS-MULTICORE=35 / FS-INFRA=24 / MODE-UNIMPL=29 / HOOK-UNIMPL=0 / OK=0
 
 ## 互斥类别定义
 
@@ -25,7 +25,7 @@
 - **RULING**（6 个）：A06-F0-W3, A06-F0-W5, A06-F2-W3, A06-F2-W5, A06-F6-W3, A06-F6-W5
 
 可自行解除（不需批准，但需实现工作）：
-- MODE-UNIMPL（35 个）：见下表逐项理由
+- MODE-UNIMPL（29 个）：见下表逐项理由
 
 ## 逐项明细
 
@@ -58,15 +58,9 @@
 | C15-F6-W10 | L1d-Cache | C15 | MODE-UNIMPL | 扩展 src/mem/cache/cache.cc 的access/handleTimingReqMiss/recvTimingResp/handleFill/evictBlock/writebackBlk与MSHR队列事件；为tag/valid/dirty/coh/victim故障建立传播regi |
 | C15-F6-W11 | L1d-Cache | C15 | LICENSE | campaign:deferred(consumer-side: MSHR occupancy event source only) ; spec:需新增（当前阻塞：无MSHR occupancy/entry选择注入） ; workload:workload-level:blocked(spec-l |
 | C15-F6-W6 | L1d-Cache | C15 | MODE-UNIMPL | 扩展 src/mem/cache/cache.cc 的access/handleTimingReqMiss/recvTimingResp/handleFill/evictBlock/writebackBlk与MSHR队列事件；为tag/valid/dirty/coh/victim故障建立传播regi |
-| L04-F0-W11 | Load Queue | L04 | LICENSE | campaign:deferred(consumer-side: response-pairing event source only) ; spec:需新增（当前阻塞：只有response-pairing事件源，无可注入/追踪映射） ; workload:workload-level:blocke |
-| L04-F0-W12 | Load Queue | L04 | MODE-UNIMPL | 新增LQ逐事件跟踪：src/cpu/o3/lsq_unit.cc 的insertLoad/read/checkViolations/completeDataAccess与replay路径；记录lq_idx↔dyn_inst_seq↔request_id↔dest phys-reg映射；L03接入真实 |
-| L04-F0-W5 | Load Queue | L04 | MODE-UNIMPL | 新增LQ逐事件跟踪：src/cpu/o3/lsq_unit.cc 的insertLoad/read/checkViolations/completeDataAccess与replay路径；记录lq_idx↔dyn_inst_seq↔request_id↔dest phys-reg映射；L03接入真实 |
-| L04-F2-W11 | Load Queue | L04 | LICENSE | campaign:deferred(consumer-side: response-pairing event source only) ; spec:需新增（当前阻塞：只有response-pairing事件源，无可注入/追踪映射） ; workload:workload-level:blocke |
-| L04-F2-W12 | Load Queue | L04 | MODE-UNIMPL | 新增LQ逐事件跟踪：src/cpu/o3/lsq_unit.cc 的insertLoad/read/checkViolations/completeDataAccess与replay路径；记录lq_idx↔dyn_inst_seq↔request_id↔dest phys-reg映射；L03接入真实 |
-| L04-F2-W5 | Load Queue | L04 | MODE-UNIMPL | 新增LQ逐事件跟踪：src/cpu/o3/lsq_unit.cc 的insertLoad/read/checkViolations/completeDataAccess与replay路径；记录lq_idx↔dyn_inst_seq↔request_id↔dest phys-reg映射；L03接入真实 |
-| L04-F6-W11 | Load Queue | L04 | LICENSE | campaign:deferred(consumer-side: response-pairing event source only) ; spec:需新增（当前阻塞：只有response-pairing事件源，无可注入/追踪映射） ; workload:workload-level:blocke |
-| L04-F6-W12 | Load Queue | L04 | MODE-UNIMPL | 新增LQ逐事件跟踪：src/cpu/o3/lsq_unit.cc 的insertLoad/read/checkViolations/completeDataAccess与replay路径；记录lq_idx↔dyn_inst_seq↔request_id↔dest phys-reg映射；L03接入真实 |
-| L04-F6-W5 | Load Queue | L04 | MODE-UNIMPL | 新增LQ逐事件跟踪：src/cpu/o3/lsq_unit.cc 的insertLoad/read/checkViolations/completeDataAccess与replay路径；记录lq_idx↔dyn_inst_seq↔request_id↔dest phys-reg映射；L03接入真实 |
+| L04-F0-W11 | Load Queue | L04 | LICENSE | workload:workload-level:blocked(spec-license: SPEC CPU2017 needs a license) |
+| L04-F2-W11 | Load Queue | L04 | LICENSE | workload:workload-level:blocked(spec-license: SPEC CPU2017 needs a license) |
+| L04-F6-W11 | Load Queue | L04 | LICENSE | workload:workload-level:blocked(spec-license: SPEC CPU2017 needs a license) |
 | O01-F0-W7 | 原子与同步 | O01 | FS-MULTICORE | workload:workload-level:blocked(multicore-fs: litmus needs multi-core FS) |
 | O01-F2-W7 | 原子与同步 | O01 | FS-MULTICORE | workload:workload-level:blocked(multicore-fs: litmus needs multi-core FS) |
 | O01-F6-W7 | 原子与同步 | O01 | FS-MULTICORE | workload:workload-level:blocked(multicore-fs: litmus needs multi-core FS) |

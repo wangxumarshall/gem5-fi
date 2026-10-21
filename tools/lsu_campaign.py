@@ -201,6 +201,19 @@ MODEL_FLAGS = {
     "L01": ("addrpath", ["--agu_pre_mode", "l01_load_addr"]),
     "L02": ("addrpath", ["--agu_pre_mode", "l02_load_state"]),
     "L03": ("lsqfwd", ["--lsqfwd_l03"]),
+    # [MDSPEC][R4-5.3] L04: response-pairing target exchange (L04-b) —
+    # two in-flight loads' response-pairing entries are exchanged at the
+    # request->instruction() pairing point (LSQUnit::completeDataAccess ->
+    # CHAOSLSQFwd::maybeSwapResponseTarget): each load's returning response
+    # is delivered to the OTHER load (data unchanged, wrong consumer).
+    # Event-normalized trigger on the pairing-point stream (lsuTier; the
+    # SQ-forward data-path hook is split off, L03 discipline); the
+    # candidate gate = plain register-WB load + live same-size/byte-enable
+    # in-flight partner with an outstanding packet. L04-a (one-shot
+    # transaction-ID replacement, victim-hang) NOT landed — recorded in
+    # lsu_runid_map SPEC_IMPL_LANDED (mode_unimpl_plan.md L04 row, landed
+    # per the template).
+    "L04": ("lsqfwd", ["--lsqfwd_l04"]),
     # --- L1D-Cache (W6; C-series runs the CHAOSCache legacy mechanism) ---
     "C01": ("cache", ["--l1d_target_field", "data", "--l1d_fault_type", "bit_flip"]),
     "C02": ("cache", ["--l1d_target_field", "data", "--l1d_fault_type", "bit_flip",
@@ -281,8 +294,11 @@ MODEL_BLOCKED = {
     # mode is implemented (targetField=mshr_fill_timing, CHAOSCache
     # maybeDeferFillTiming at the top of BaseCache::recvTimingResp) and
     # proven by real runs — see round4_findings.md §R4-5.2.
+    # [MDSPEC][R4-5.3] L04 removed from this table: the response-pairing
+    # target exchange (L04-b) is implemented (--lsqfwd_l04, CHAOSLSQFwd
+    # maybeSwapResponseTarget at the LSQUnit::completeDataAccess pairing
+    # point) and proven by real runs — see round4_findings.md §R4-5.3.
     "S10": "deferred(consumer-side: StoreSet SSID corruption event source only)",
-    "L04": "deferred(consumer-side: response-pairing event source only)",
     "C14": "deferred(consumer-side: MSHR busy event source only)",
     "C15": "deferred(consumer-side: MSHR occupancy event source only)",
     # no clean hook (documented in injector headers / W4-W8 session notes)
@@ -384,6 +400,17 @@ LSQFWD_F0_SPAN = {
     ("S09", "sq_forward"): 7,    # byte_lane_skew, corrupt() path
     ("L03", "sq_forward"): 571,  # violation-check stream (lsqfwd_l03)
     ("L03", "sqlite_like"): 18681,
+    # [MDSPEC][R4-5.3] L04 rows (real runs 2026-10-21, binary
+    # 7a546ef5f2df1127, same census shape: tier=F0 warmup=1 span=1000000,
+    # seed 1 — draw_next_fire=756413 never landed, injected=0,
+    # SPAN_UNREACHABLE alarm = the census intent; full census commands in
+    # round4_findings.md §R4-5.3). The L04 stream is the response-pairing
+    # point's ELIGIBLE responses: a plain register-WB load response with a
+    # live same-size/byte-enable in-flight partner whose request has an
+    # outstanding packet (LSQUnit::completeDataAccess hook) — a DIFFERENT
+    # stream from the S models' forwards (7) and L03's violation checks.
+    ("L04", "sq_forward"): 324,    # attempted=2317
+    ("L04", "sqlite_like"): 5597,  # attempted=35156
 }
 
 

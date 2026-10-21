@@ -124,6 +124,43 @@ def generate_map(xlsx_path):
                "data payload correct per spec; chains 2/3 full + 1/3 "
                "provable_to_L0_then_unknown) + carrier cache_mshr_refetch "
                "x3 (checksum=golden, chains 3/3 full))",
+        # L04（6 RunID，阻塞短语 "consumer-side: response-pairing event
+        # source only"）：--lsqfwd_l04（CHAOSLSQFwd
+        # maybeSwapResponseTarget @ LSQUnit::completeDataAccess——
+        # request->instruction() 配对点，09 sheet 钦定 "L04在response
+        # 配对点新增可注入且可观测hook"）。
+        # [Minor2 形态] 落地范围机器可读（xlsx 表9 子模型逐一点名）：
+        # 落地=L04-b 同（周期）load 返回目标互换——两个在途 load 的
+        # 配对表项互换，各自响应交付给对方（"两个响应数据各自合法但
+        # 送错消费者"；SE 时序松弛：两半可不同周期到达，语义不变），
+        # 注入行保存 source/target ID，关联=两条 seq-bound addr_registry
+        # 条目（[src_va]→tgt_seq / [tgt_va]→src_seq，无任何 address-only
+        # fallback——严于"标注 fallback"最低线）；未落地=L04-a 一次性
+        # response transaction ID 替换（受害 load 永不完成——hang/
+        # Timeout 通道，需超时簿记语义，仍为 spec 待办）。
+        # 真机证据（round4_findings.md §R4-5.3）：campaign 6 cell × 3
+        # seed（F0-W5 3/3 注入：Crash×2 真实 guest 页表 fault + Masked×1；
+        # F0-W12/F6-W5/F6-W12 各 3/3 注入 Masked；F2-W5/W12 0 注入=诚实
+        # 零——F2 平均间隔 10 万事件 >> 实测流长 324/5597，与 S01-F2-W5
+        # 同构）；链 15/15 注入样本 L3→L4 proven、13/15 L4→L5 proven
+        # （Crash 样本截断前缀无 chain_end），L0→L1/L1→L2/L2→L3 结构性
+        # missing（配对点故障在 L3，受影响 load 的 L1/L2 请求路径事件
+        # 先于注入——T01-postfix 同类，不回溯）。
+        "L04": "implemented(resp_pairing=L04-b in-flight load response-"
+               "pairing target exchange at the completeDataAccess pairing "
+               "point (deferred halves: each load's returning response "
+               "delivered to the OTHER load, data unchanged; SE timing "
+               "relaxation documented), CHAOSLSQFwd "
+               "maybeSwapResponseTarget; pending: L04-a one-shot response "
+               "transaction-ID replacement (victim load never completes — "
+               "hang/Timeout channel); evidence: round4_findings.md "
+               "§R4-5.3, campaign L04 6-cell x 3-seed (F0/F6 12/12 "
+               "injected, F0-W5 Crash x2 real guest page-table faults; "
+               "F2 0-injected honest zero — mean interval 100k events >> "
+               "measured streams 324/5597); chains L3->L4 proven on every "
+               "injected sample, L0->L1/L1->L2/L2->L3 structurally missing "
+               "(pairing-point fault is at L3; the loads' request-path "
+               "events predate the injection — no back-projection))",
     }
 
     wb = openpyxl.load_workbook(xlsx_path, data_only=True)

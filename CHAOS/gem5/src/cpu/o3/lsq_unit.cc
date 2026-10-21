@@ -165,6 +165,72 @@ LSQUnit::completeDataAccess(PacketPtr pkt)
 
     cpu->ppDataAccessComplete->notify(std::make_pair(inst, pkt));
 
+    // [MDSPEC][R4-5.3] L04 response-pairing target: the load this response
+    // is DELIVERED to. Normally `inst` (the request's own instruction —
+    // the correct pairing); with --lsqfwd_l04 the injector may substitute
+    // another in-flight load (L04-b target exchange — the 09 sheet's
+    // "response配对点" injection hook; the substitution applies to the
+    // delivery below: squash check, resp/lq_complete/taint_reg observation
+    // and the writeback. The HTM block above and the ppDataAccessComplete
+    // probe stay bound to the REQUEST's own instruction — request-side
+    // semantics, unchanged).
+    DynInstPtr target = inst;
+    if (cpu->lsqFwd) {
+        CHAOSLSQFwd::RespPairKeys l04_keys;
+        l04_keys.seq = inst->seqNum;
+        l04_keys.lq_idx = inst->lqIdx;
+        l04_keys.request_id =
+            (request->req() && request->req()->hasInstSeqNum())
+                ? request->req()->getReqInstSeqNum() : 0;
+        l04_keys.vaddr = request->getVaddr();
+        l04_keys.size = request->_size;
+        l04_keys.eligible_shape =
+            request->needWBToRegister() && inst->isLoad() &&
+            !inst->isAtomic() && !inst->isStoreConditional() &&
+            !inst->isSquashed();
+        target = cpu->lsqFwd->maybeSwapResponseTarget(
+            inst, l04_keys,
+            [this, &inst, request](std::vector<CHAOSLSQFwd::RespPairCand> &out) {
+                // In-flight candidates: valid LQ entries holding a plain
+                // register-writeback load whose request has a packet
+                // already outstanding (a response WILL return — a load
+                // still waiting to issue may be satisfied by forwarding
+                // and never respond), with the SAME size and byte-enable
+                // (completeAcc reads the packet per the substitute's own
+                // static inst; a mismatch would read out of bounds).
+                for (auto &e : loadQueue) {
+                    if (!e.valid())
+                        continue;
+                    const DynInstPtr &c = e.instruction();
+                    if (!c || c == inst || c->isSquashed() ||
+                        c->isExecuted())
+                        continue;
+                    if (!c->isLoad() || c->isAtomic() ||
+                        c->isStoreConditional())
+                        continue;
+                    LSQ::LSQRequest *cr = c->savedRequest;
+                    if (!cr || cr->_numOutstandingPackets == 0)
+                        continue;
+                    if (cr->_size != request->_size)
+                        continue;
+                    if (cr->_byteEnable != request->_byteEnable)
+                        continue;
+                    if (!cr->needWBToRegister())
+                        continue;
+                    CHAOSLSQFwd::RespPairCand cand;
+                    cand.inst = c;
+                    cand.seq = c->seqNum;
+                    cand.lq_idx = c->lqIdx;
+                    cand.request_id =
+                        (cr->req() && cr->req()->hasInstSeqNum())
+                            ? cr->req()->getReqInstSeqNum() : 0;
+                    cand.vaddr = cr->_addr;
+                    cand.size = cr->_size;
+                    out.push_back(cand);
+                }
+            });
+    }
+
     // [LSU][OBS-L3] response node (+ load taint): the packet just returned
     // from the memory system — if it delivers a registered fault (addrpath
     // addr registry / cache faulted-byte registry), record the resp node
@@ -175,17 +241,19 @@ LSQUnit::completeDataAccess(PacketPtr pkt)
     // is ALSO attached, its corruption inside the needWB branch happens
     // AFTER this snapshot — the L3 chain is not combined-injector-aware in
     // v1 (the campaign runs one injector per sample). nullptr = no tracer.
+    // [MDSPEC][R4-5.3] `target`: the delivered-to load (L04 exchange) —
+    // the resp/lq_complete/taint_reg nodes carry the CONSUMER's identity.
     if (cpu->chaosPropagation)
-        cpu->chaosPropagation->noteMemResponse(inst.get(), pkt,
+        cpu->chaosPropagation->noteMemResponse(target.get(), pkt,
                                                request->needWBToRegister());
 
     assert(!cpu->switchedOut());
-    if (!inst->isSquashed()) {
+    if (!target->isSquashed()) {
         if (request->needWBToRegister()) {
             // Only loads, store conditionals and atomics perform the writeback
             // after receving the response from the memory
-            assert(inst->isLoad() || inst->isStoreConditional() ||
-                   inst->isAtomic());
+            assert(target->isLoad() || target->isStoreConditional() ||
+                   target->isAtomic());
 
             // hardware transactional memory
             if (pkt->htmTransactionFailedInCache()) {
@@ -200,12 +268,12 @@ LSQUnit::completeDataAccess(PacketPtr pkt)
                 cpu->chaosL1DFwd->maybeCorrupt(request->mainPacket());
             }
 
-            writeback(inst, request->mainPacket());
-            if (inst->isStore() || inst->isAtomic()) {
+            writeback(target, request->mainPacket());
+            if (target->isStore() || target->isAtomic()) {
                 request->writebackDone();
                 completeStore(request->instruction()->sqIt);
             }
-        } else if (inst->isStore()) {
+        } else if (target->isStore()) {
             // This is a regular store (i.e., not store conditionals and
             // atomics), so it can complete without writing back
             completeStore(request->instruction()->sqIt);

@@ -671,6 +671,92 @@
    "events": 89903,
    "truncated": false,
    "faults": 1
+  },
+  "L04-F0-W5": {
+   "unit": "Load Queue",
+   "unit_source": "exact",
+   "path": "runs/lsu/r4_t53_l04f0w5/L04-F0-W5/seed2/prop_evt.txt.gz",
+   "kinds": [
+    "chain_end",
+    "consumer",
+    "errant_commit",
+    "inj",
+    "lq_complete",
+    "resp",
+    "taint_reg"
+   ],
+   "events": 15,
+   "truncated": false,
+   "faults": 1
+  },
+  "L04-F0-W12": {
+   "unit": "Load Queue",
+   "unit_source": "exact",
+   "path": "runs/lsu/r4_t53_l04rest/L04-F0-W12/seed1/prop_evt.txt.gz",
+   "kinds": [
+    "chain_end",
+    "consumer",
+    "errant_commit",
+    "inj",
+    "lq_complete",
+    "resp",
+    "taint_reg"
+   ],
+   "events": 13,
+   "truncated": false,
+   "faults": 1
+  },
+  "L04-F2-W5": {
+   "unit": "Load Queue",
+   "unit_source": "exact",
+   "path": "runs/lsu/r4_t53_l04rest/L04-F2-W5/seed1/prop_evt.txt.gz",
+   "kinds": [],
+   "events": 0,
+   "truncated": false,
+   "faults": 0
+  },
+  "L04-F2-W12": {
+   "unit": "Load Queue",
+   "unit_source": "exact",
+   "path": "runs/lsu/r4_t53_l04rest/L04-F2-W12/seed1/prop_evt.txt.gz",
+   "kinds": [],
+   "events": 0,
+   "truncated": false,
+   "faults": 0
+  },
+  "L04-F6-W5": {
+   "unit": "Load Queue",
+   "unit_source": "exact",
+   "path": "runs/lsu/r4_t53_l04rest/L04-F6-W5/seed1/prop_evt.txt.gz",
+   "kinds": [
+    "chain_end",
+    "consumer",
+    "errant_commit",
+    "inj",
+    "lq_complete",
+    "resp",
+    "taint_reg"
+   ],
+   "events": 14,
+   "truncated": false,
+   "faults": 1
+  },
+  "L04-F6-W12": {
+   "unit": "Load Queue",
+   "unit_source": "exact",
+   "path": "runs/lsu/r4_t53_l04rest/L04-F6-W12/seed1/prop_evt.txt.gz",
+   "kinds": [
+    "chain_end",
+    "consumer",
+    "errant_commit",
+    "inj",
+    "lq_complete",
+    "resp",
+    "taint_reg"
+   ],
+   "events": 14,
+   "truncated": false,
+   "faults": 1
   }
  },
  "kinds_observed": [
@@ -800,6 +886,15 @@
    "sq_execute",
    "sq_writeback",
    "tlb_translate"
+  ],
+  "Load Queue": [
+   "chain_end",
+   "consumer",
+   "errant_commit",
+   "inj",
+   "lq_complete",
+   "resp",
+   "taint_reg"
   ]
  }
 }

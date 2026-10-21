@@ -48,6 +48,12 @@ class CHAOSLSQFwd(SimObject):
         "[LSU][SEM-B] W5 L03: violation-check-address corruption — the SQ-forward "
         "data-path hook is excluded from the trigger stream (hook split); without "
         "it, the violation hook stays silent (data-path structMode models only)")
+    l04Mode = Param.Bool(False,
+        "[MDSPEC][R4-5.3] W5 L04: response-pairing target exchange (L04-b) — "
+        "the injector's stream is the response-pairing point "
+        "(LSQUnit::completeDataAccess, maybeSwapResponseTarget); the SQ-forward "
+        "data-path hook is excluded (hook split, L03 discipline). Requires "
+        "lsuTier != off (the ctor panics otherwise — trigger-native model).")
 
     firstClock = Param.UInt64(0, "First clock cycle eligible for injection")
     lastClock = Param.UInt64(0, "Last cycle (0 = unrestricted)")

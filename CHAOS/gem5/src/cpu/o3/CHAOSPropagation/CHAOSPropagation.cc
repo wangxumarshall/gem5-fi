@@ -671,6 +671,80 @@ namespace gem5
         return ptag;
     }
 
+    // [MDSPEC][R4-5.3] L04-b response-pairing target exchange (see .hh for
+    // the ruling and the exchanged-pairing-table correlation design).
+    uint64_t
+    CHAOSPropagation::registerRespPairFault(
+        uint64_t src_seq, long long src_lq_idx, uint64_t src_req_id,
+        Addr src_va, unsigned src_size,
+        uint64_t tgt_seq, long long tgt_lq_idx, uint64_t tgt_req_id,
+        Addr tgt_va, unsigned tgt_size)
+    {
+        if (!write_log)
+            return 0;
+        const uint64_t ptag = ++next_ptag;
+        const Addr src_span = src_size ? src_size : 1;
+        const Addr tgt_span = tgt_size ? tgt_size : 1;
+
+        // inj node (v1 CSV + dual-emit): dyn_inst_seq = the TARGET load (the
+        // wrong consumer whose writeback materializes the fault — its
+        // resp/lq_complete/taint_reg share this seq, so the L0->L1 edge
+        // witness keys fault_id+dyn_inst_seq match); addr = the response's
+        // own vaddr; before/after = the pairing mapping (source seq ->
+        // target seq — the faulted VALUE of this model; value type is
+        // per-model, interpreted with `field`, C12 tick-pair precedent).
+        {
+            std::ostringstream d;
+            d << "family=lsqfwd;field=resp_pairing"
+              << ";source_dyn_inst_seq=" << src_seq
+              << ";source_lq_idx=" << src_lq_idx
+              << ";source_request_id=" << src_req_id
+              << ";source_va=" << std::hex << src_va
+              << ";target_dyn_inst_seq=" << tgt_seq
+              << ";target_lq_idx=" << tgt_lq_idx
+              << ";target_request_id=" << tgt_req_id
+              << ";target_va=" << tgt_va << std::dec
+              << ";old_addr=" << src_seq      // lifted -> before
+              << ";new_addr=" << tgt_seq;     // lifted -> after
+            writeNode(ptag, "inj", tgt_seq, true,
+                      tgt_req_id, tgt_req_id != 0,
+                      src_va, true, 0, false, 0, false, d.str(),
+                      CORR_ORIGIN);
+        }
+
+        // PRIMARY (seq-bound), the exchanged pairing table. Entry 1:
+        // [src_va, +src_span) -> tgt_seq — half 1 joins here (the packet
+        // IS src's response, noteMemResponse's inst is the target).
+        {
+            sweepExpired();
+            AddrEntry e;
+            e.ptag = ptag;
+            e.dyn_seq = tgt_seq;
+            e.base = src_va;
+            e.size = src_span;
+            e.registered = curTick();
+            addr_registry[src_va] = e;
+        }
+        // Entry 2: [tgt_va, +tgt_span) -> src_seq — half 2 joins here (the
+        // packet is tgt's response, inst is the source). Skipped on
+        // address collision (one map key; the half-1 binding wins and half
+        // 2 keeps no seq-bound surface — honest gap, see .hh).
+        if (tgt_va != src_va) {
+            sweepExpired();
+            AddrEntry e2;
+            e2.ptag = ptag;
+            e2.dyn_seq = src_seq;
+            e2.base = tgt_va;
+            e2.size = tgt_span;
+            e2.registered = curTick();
+            addr_registry[tgt_va] = e2;
+        }
+        // NO blk-registry (address-only) fallback by design — L04's joins
+        // are seq-bound only (the 09 sheet forbids address single-key
+        // chains; stricter than the labeled-fallback minimum).
+        return ptag;
+    }
+
     // [MDSPEC][R4-4] ArmTLB pfn fault (seq-primary; see .hh for the ruling
     // and the measured pre-R4-4 mis-association this replaces).
     uint64_t

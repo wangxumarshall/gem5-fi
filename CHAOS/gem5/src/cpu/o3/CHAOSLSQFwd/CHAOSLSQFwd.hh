@@ -4,10 +4,13 @@
 #include <random>
 #include <bitset>
 #include <memory>
+#include <functional>
+#include <vector>
 
 #include "base/output.hh"
 #include "cpu/o3/chaos_l0.hh"           // LSU W3 L0 funnel
 #include "cpu/o3/chaos_lsu_trigger.hh"  // LSU W2 event-normalized tiers
+#include "cpu/o3/dyn_inst_ptr.hh"       // [LSU W5 L04] DynInstPtr (resp-pair)
 #include "base/statistics.hh"
 #include "base/types.hh"
 #include "params/CHAOSLSQFwd.hh"
@@ -93,6 +96,56 @@ class CHAOSLSQFwd : public SimObject
     // changes ONLY the violation check, not the actual memory access.
     bool violationCorrupt(Addr& cmp_addr);
 
+    // [MDSPEC][R4-5.3] LSU W5 L04 — response-pairing target substitution
+    // (model L04-b "同周期load返回目标互换", workbook 03/09 sheets; the
+    // blocking phrase "consumer-side: response-pairing event source only"
+    // is lifted by THIS injectable+traceable mapping). Called from
+    // LSQUnit::completeDataAccess — the request->instruction() pairing
+    // point the 09 sheet names ("L04在response配对点新增可注入且可观测
+    // hook") — for EVERY response delivered there (loads, stores, atomics;
+    // the attempt stream). Returns the DynInst the response shall be
+    // DELIVERED to: `inst` (the request's own instruction — the correct
+    // pairing) normally; the chosen candidate on an exchange half.
+    //
+    // Pairing key (PRIMARY, per the 09 sheet "lq_idx↔dyn_inst_seq↔
+    // request_id" + user ruling 2026-10-20): the source/target loads'
+    // dyn_inst_seq/lq_idx/request_id. Address-only joins are NOT
+    // registered for L04 (no addr_fallback surface at all — stricter than
+    // the labeled-fallback minimum).
+    //
+    //   RespPairKeys  — the response's own (source) load identity, filled
+    //                   by lsq_unit.cc (raw values, no CHAOS types there).
+    //   RespPairCand  — one in-flight candidate load B (valid, plain
+    //                   register-writeback load, not squashed/executed,
+    //                   savedRequest with a packet already outstanding,
+    //                   SAME size and byte-enable as the source —
+    //                   completeAcc reads the packet per B's own static
+    //                   inst, so a size mismatch would read out of
+    //                   bounds).
+    //   scan          — lazy LQ scan callback (lsq_unit.cc side); invoked
+    //                   only after the cheap shape gate passes, so
+    //                   non-L04 and non-eligible responses never pay it.
+    struct RespPairKeys {
+        uint64_t seq = 0;             // source load DynInst::seqNum
+        long long lq_idx = -1;        // source load DynInst::lqIdx
+        uint64_t request_id = 0;      // Request-stamped seq (0 = unstamped)
+        Addr vaddr = 0;               // the response's request vaddr
+        unsigned size = 0;            // the request's access size
+        bool eligible_shape = false;  // plain register-WB load, unsquashed
+    };
+    struct RespPairCand {
+        o3::DynInstPtr inst;          // the candidate load B
+        uint64_t seq = 0;
+        long long lq_idx = -1;
+        uint64_t request_id = 0;
+        Addr vaddr = 0;
+        unsigned size = 0;
+    };
+    using RespPairScan = std::function<void(std::vector<RespPairCand> &)>;
+    o3::DynInstPtr maybeSwapResponseTarget(const o3::DynInstPtr &inst,
+                                           const RespPairKeys &src,
+                                           const RespPairScan &scan);
+
   private:
     enum class FaultType { BitFlip, StuckAtZero, StuckAtOne, Random };
     static FaultType stringToFaultType(const std::string &s);
@@ -129,6 +182,15 @@ class CHAOSLSQFwd : public SimObject
     uint64_t rng_seed;
     bool write_log;
     bool l03_mode = false;   // [LSU][SEM-B] W5 L03: violation-site only
+    bool l04_mode = false;   // [MDSPEC][R4-5.3] W5 L04: response-pairing site
+    // [MDSPEC][R4-5.3] L04-b pending exchange: one injection swaps the
+    // pairing-table entries of two loads; the halves complete at different
+    // response arrivals. State: the source load (returned as the delivered-
+    // to target when the partner's response arrives) + the partner's seq
+    // (matches that response). maxFaults=1 campaign cap => one exchange.
+    bool l04_pending = false;
+    o3::DynInstPtr l04_pending_src;
+    uint64_t l04_pending_tgt_seq = 0;
     // Sampling-bias fix (same as CHAOSL1DForward, findings.md Phase 2.2):
     // number of eligible forwarding events to skip before the first
     // injection — geometric(p=0.1) from the seed, so maxFaults=1 lands on a

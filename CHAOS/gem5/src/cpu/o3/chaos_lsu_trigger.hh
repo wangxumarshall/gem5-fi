@@ -63,6 +63,16 @@ enum class ChaOSLsuTier : uint8_t { F0, F1, F2, F3, F4, F5, F6 };
 // miss fill). Same non-ride: the fill-timing hook calls onF6Event(false)
 // directly at the fill site (the fillResponse-arrival hook is the attempt
 // stream, R4-5.1-review-I1 accounting).
+//
+// [MDSPEC][R4-5.3] SEVENTH source, same ruling shape: the LQ
+// response-pairing point (LSQUnit::completeDataAccess — CHAOSLSQFwd
+// --lsqfwd_l04, model L04) is an F6 event source: L04's specified event
+// IS the load response arriving while another same-shape load is in
+// flight (the model's trigger condition "同时存在至少两个在途load且发生
+// cache response"). Same non-ride: the pairing hook calls onF6Event(false)
+// directly at the eligible response (the completeDataAccess hook is the
+// attempt stream; store/atomic/squashed responses and no-candidate
+// arrivals return before the event — attempted, never the F6 event).
 enum class ChaOSLsuEvent : uint8_t { TlbHit, SqForward, DirtyEviction,
                                      CasSuccess };
 

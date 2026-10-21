@@ -979,3 +979,145 @@ passed + 5 既有 error（claim_concurrency，计数不变）；cpf 13 / tlb 2
   `test_lsu_hook_c11`/`test_lsu_runid_map`/`test_lsu_coverage_matrix`/
   `test_lsu_pilot_evidence`/`test_lsu_chain_check`/`test_lsu_f6_gate`
   全 rc=0。
+
+## R4-5.3（2026-10-21）：L04 响应配对目标互换落地（MODE-UNIMPL 35→29）
+
+基线 `aebb9c10`（二进制 `3919bb951e6a4c8c`），重建后 **`7a546ef5f2df1127`**
+（sha256 前缀）。完整报告：
+`.superpowers/sdd/2026-10-20-lsu-mdspec-round4/task-5-3-report.md`。
+
+### 5.3.1 实现（逐项落地模板 1-3）
+
+- **注入端**：`CHAOSLSQFwd` 新模式 `--lsqfwd_l04`（L03 的 `--lsqfwd_l03`
+  同形——配对点自有流，SQ-forward 数据路径钩子按 L03 纪律旁路
+  `if (l04_mode) return;`；lsuTier=off 大声 panic）。**注入点 = 09 sheet
+  钦定的"response配对点"**：`LSQUnit::completeDataAccess`——
+  `request->instruction()` 绑定处，`maybeSwapResponseTarget(inst, src,
+  scan)` 返回该响应**交付给哪个 load**。落地子模型 = **L04-b
+  "load返回目标互换"**：两个在途 load 的配对表项互换，各自响应交付给
+  对方（"两个响应数据各自合法但送错消费者"，数据不变、消费者错）。
+  实现为延迟两半：half 1 = 源 load A 的响应到达、触发器同意后按种子
+  rng 均匀选在途候选 B，本响应交付给 B（B 的目的寄存器收 A 的数据）；
+  half 2 = B 自己的响应到达时交付给 A——两 load 各完成恰一次、程序
+  正常终止（oracle 可分类），workbook "同周期"在 SE 上松弛为配对窗
+  互换（语义不变，如实登记）。**候选门**（防 completeAcc 越界与悬挂）：
+  有效 LQ 项、plain 寄存器写回 load（非 atomic/SC）、未 squash/未
+  执行、savedRequest **有在途包**（未发出的 load 可能被 forward 满足
+  而永不响应）、**同尺寸同 byte-enable**。attempt 流 = 配对点的全部
+  响应（C11 惯例）；F6 = 首个过双门的响应，`onF6Event(false)`（本
+  调用 attempted 已由 onAttempt 计过，R4-5.1-review-I1 形态）；
+  maxFaults cap 在 half-2 之后（封顶不掐断已建交换——否则 A 悬挂）。
+  L04-a（一次性 transaction ID 替换、受害 load 永不完成的 hang/Timeout
+  通道）未落地，pending 登记。
+- **观测端**：无新 kind——复用 inj/resp/lq_complete/taint_reg/consumer/
+  errant_commit/chain_end（`resp_pairing` 是 inj 的 field 值）。新增
+  `CHAOSPropagation::registerRespPairFault`：inj 节点（corr=origin，
+  dyn_inst_seq=**target**（错消费者，其 resp/lq_complete 同 seq——
+  L0→L1 边证键一致）；before/after = 配对映射 source-seq→target-seq
+  （本模型的被故障值=配对映射，C12 tick 对同形的多态复用））+
+  **交换配对表 = 两条 seq-bound addr_registry 条目**：[src_va,+size)→
+  tgt_seq（half 1 命中）与 [tgt_va,+size)→src_seq（half 2 命中）。
+  **L04 不注册任何 address-only fallback**（严于"标注 fallback"最低
+  线——09 sheet 禁止地址单键连接）；同 VA 碰撞只留 half-1 绑定
+  （half 2 无 seq 面，诚实缺口，登记不伪装）。配对错换在统一流上
+  直接可读：W12 s1 实测 `lq_complete(dyn=99618,lq=8052,request_id=99617)`
+  与 `lq_complete(dyn=99617,lq=8051,request_id=99618)`——两个 load
+  各带**对方**的请求戳完成。
+- **路由**：lsu_proxy `--lsqfwd_l04` → MODEL_FLAGS L04（lsqfwd 家族）→
+  `LSQFWD_F0_SPAN` L04 自有流实测条目 → 从 MODEL_BLOCKED 删除（实测
+ 后才删）。`lsu_runid_map` SPEC_IMPL_LANDED["L04"] 登记（landed=L04-b
+  目标互换；pending: L04-a），`runid_map.json` 再生成（L04 9 条全带
+  spec_landed：6 PARTIAL + 3 W11 SPEC-blocked）。
+
+### 5.3.2 F0 跨度实测（span=1000000 纯普查，注入 0 次，二进制 7a546ef5f2df1127）
+
+```bash
+<worktree>/CHAOS/gem5/build/ARM/gem5.opt --outdir=runs/lsu/r4_t53_span/<wl> \
+  configs/se/lsu_proxy.py --cmd workloads/directed/<wl> --cpu O3 \
+  --chaos_lsqfwd --lsqfwd_l04 --lsqfwd_lsu_tier F0 --lsqfwd_warmup_events 1 \
+  --lsqfwd_span_events 1000000 --rng_seed 1 \
+  --chaos_propagation --prop_run_id L04-SPAN-<wl> --prop_sample_run_id s1
+```
+
+- (L04, sq_forward)=**324**（attempted=2317）
+- (L04, sqlite_like)=**5597**（attempted=35156）
+- L04 流=配对点合格响应（plain WB load 响应 + 同形在途伙伴），与 S 系
+  转发流（7）/L03 violation 流（571）互不通用——三表分开实测。
+
+### 5.3.3 真机证据（campaign 入口，6 cell × 3 seed = 18 样本）
+
+- **L04-F0-W5** 3/3 注入（tick 4142985/518980/8639015 随 seed 互异）：
+  oracle **Crash×2**（真实 guest 故障 `panic: Page table fault when
+  accessing virtual address 0xd65f03c0a8c87bfd`——被错交的指针值被当
+  地址消费，exit=-6，截断前缀 11 事件保留）+ **Masked×1**（checksum==
+  golden `1f4cbf14327717df`，完整 15 事件含 chain_end）。
+- **L04-F0-W12 / L04-F6-W5 / L04-F6-W12** 各 3/3 注入、oracle Masked×9、
+  流完整（13-15 事件，含 errant_commit + consumer + chain_end）。
+- **L04-F2-W5 / L04-F2-W12** 0 注入 = **诚实零**：F2 平均间隔 10 万
+  eligible 事件（±50% jitter）>> 实测流长 324/5597，触发器
+  `tier=F2 attempted=2319 eligible=324 injected=0`——数学正确结果，
+  与 S01-F2-W5（流 7）同构（该 cell 在矩阵同为 PASS 口径）。
+- **逐边链证据**（lsu_chain_check）：15/15 注入样本 **L3→L4 proven**
+  （witness `['fault_id','dyn_inst_seq']`，resp→taint_reg）；13/15
+  **L4→L5 proven**（chain_end；2 个 Crash 样本截断无 chain_end=诚实）；
+  **L0→L1/L1→L2/L2→L3 结构性 missing**——配对点故障发生在 L3（响应
+  交付），受影响 load 的 L1/L2 请求路径事件（lsq_push/mem_req/
+  lsq_sendfrag）先于注入存在，不回溯入链（T01-postfix 同类，梯子
+  terminal=provable_to_L0_then_unknown / beyond=Unknown，绝不推断
+  Masked）。
+- **F6 记账无双计**：L04-F6-W5 s1 `attempted=34 eligible=1 injected=1`
+  （击发那次调用 onAttempt 计 1 + onF6Event(false) 只计 eligible/injected）。
+- **功能验证**（非 campaign，span=324 seed2）：注入行
+  `source_dyn_inst_seq=253 … target_dyn_inst_seq=255 …`（相邻栈槽
+  8B 互换），程序正常退出，chain 含双方 resp/lq_complete/taint_reg +
+  errant_commit(253) + consumer×6 + chain_end。
+- **不受影响族回归** S01-F0-W5 3 seed：`activated=3 sdc=0 cons=OK`，
+  seed2 EARLY_BIAS 告警与 R4-1-fix I2 记录逐字同型（已裁决为故障
+  延长）——共享 lsq_unit.cc/CHAOSLSQFwd 改动零附带破坏。
+
+### 5.3.4 覆盖矩阵
+
+`coverage_matrix.md`：**PASS=213→219 / PARTIAL=0 / BLOCKED=112→106**
+（L04 6 RunID 全 PASS；3 个 W11 保持 SPEC license 阻塞）；
+`blocked_triage` MODE-UNIMPL **35→29**。`pilot_evidence.json` 再生成：
+既有 29 pilot 逐条保真（kinds+events 零漂移），新增 L04 6 条（F2
+两条 events=0 诚实零、不贡献 kind）。
+
+### 5.3.5 测试
+
+新增 `tests/test_lsu_hook_l04.py`（**74 项**契约：观测 kind/必录字段/
+corr 词汇表、合成链逐事件 validate + L3→L4/L4→L5 proven 与
+L0→L1/L1→L2/L2→L3 结构性 missing + terminal/beyond 钉死、L0 注入行
+Tick/Site/mode 契约（lsu_obs_core._INJ_RE 可解析——L04 用新行格式，
+S 系旧 Cycle 格式为存量行为未动）、源码级触发纪律（onF6Event(false)
+单次 onAttempt、half-2 先于 cap、无手搓概率）/端到端接线/候选门
+（同尺寸/byte-enable/在途包）、路由+跨度表+loud refusal、SPEC_IMPL_
+LANDED 源码+JSON 双 pin、9 cell 解析）全 PASS；`test_lsu_hook_c11/
+c12` 的"后续模型"钉更新（C14/C15/S10 仍 BLOCKED）；全套 lsu 脚本
+测试 rc=0；`chaos_lsu_trigger_test.cc` 独立单测 ALL PASSED；pytest
+16 passed + 5 既有 error（claim_concurrency，计数不变）；cpf 13 /
+tlb 2 既有失败计数与名单不变。
+
+### 5.3.6 诚实登记
+
+- **"同周期"时序松弛**：L04-b 的两半在 SE 上可隔多个周期（half 2
+  等 B 的响应返回，实测 W12 s1 相邻 2 tick、功能验证相隔 54K tick）；
+  语义（两合法响应送错消费者）与 workbook 一致，时序按配对窗互换
+  如实登记。
+- **受害 load 悬挂残留**（half 2 永不到达的情形）：若 B 在注入后被
+  squash 且其请求被释放（响应丢弃），A 永不完成 → campaign SE
+  timeout。18 个证据样本 0 次发生；风险已在代码注释与本节登记
+  （L04-a 的 hang 语义即此通道的极端形，未落地）。
+- **单交换槽**：pending 交换状态只有一份（C12 单槽守卫同类）——
+  campaign maxFaults=1 下无影响；maxFaults=0（无限）时第二个交换会
+  覆盖未完成的第一个（其 half-2 丢失 → 那个源 load 悬挂）。多交换
+  并发需队列，超范围未实现。
+- **同 VA 互换近惰性**：sq_forward 的相邻栈槽若内容相同，互换后值
+  不变（Masked 的一个来源）；spec 未排除同 VA 候选，按 spec 实现，
+  oracle 裁决。
+- **L0→L1/L1→L2 结构性缺席**（见 5.3.3）：不回溯伪造（pre-R4-4 TLB
+  教训），登记为 L04 链的诚实形态。
+- **子模型范围**：L04-a（transaction ID 一次性替换，受害 load 悬挂
+  → hang/Timeout 通道，需超时簿记语义）未落地——本轮落地的是表9
+  L04-b；仅解除"只有事件源"阻塞前提（spec_landed 留证）。
+- 全部 18 样本为证据性 pilot（phase=trial），未启动正式 campaign。

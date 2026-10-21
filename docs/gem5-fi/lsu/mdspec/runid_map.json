@@ -10469,12 +10469,9 @@
    "correlation_keys": "run_id + sample_run_id + fault_id/ptag；event_id + parent_event_id；tick/cycle + core_id + thread_id；dyn_inst_seq + commit_seq + PC/opcode；lq_idx/sq_idx；request_id/pf_request_id/walk_id/mshr_id/fill_id；VA/PA/cache_line；arch_reg/phys_reg。禁止只用tick或address单键连接。",
    "termination": "完整：存在L0 fault_applied，且每条边由共享键与时间/可达性同时证明，最终到达(1) errant commit/错误内存副作用/软件oracle差异，或(2)明确检测并contained，或(3)明确squash/replay/mask且无错误副作用。若链在某节点后缺事件，只能标“截至该节点可证，后续Unknown”，不得推断Masked。",
    "impl_status": "需新增（当前阻塞：只有response-pairing事件源，无可注入/追踪映射）",
-   "spec_landed": "",
-   "status": "BLOCKED",
-   "status_reasons": [
-    "campaign:deferred(consumer-side: response-pairing event source only)",
-    "spec:需新增（当前阻塞：只有response-pairing事件源，无可注入/追踪映射）"
-   ],
+   "spec_landed": "implemented(resp_pairing=L04-b in-flight load response-pairing target exchange at the completeDataAccess pairing point (deferred halves: each load's returning response delivered to the OTHER load, data unchanged; SE timing relaxation documented), CHAOSLSQFwd maybeSwapResponseTarget; pending: L04-a one-shot response transaction-ID replacement (victim load never completes — hang/Timeout channel); evidence: round4_findings.md §R4-5.3, campaign L04 6-cell x 3-seed (F0/F6 12/12 injected, F0-W5 Crash x2 real guest page-table faults; F2 0-injected honest zero — mean interval 100k events >> measured streams 324/5597); chains L3->L4 proven on every injected sample, L0->L1/L1->L2/L2->L3 structurally missing (pairing-point fault is at L3; the loads' request-path events predate the injection — no back-projection))",
+   "status": "PARTIAL",
+   "status_reasons": [],
    "target_activated_samples": "385"
   },
   {
@@ -10507,11 +10504,9 @@
    "correlation_keys": "run_id + sample_run_id + fault_id/ptag；event_id + parent_event_id；tick/cycle + core_id + thread_id；dyn_inst_seq + commit_seq + PC/opcode；lq_idx/sq_idx；request_id/pf_request_id/walk_id/mshr_id/fill_id；VA/PA/cache_line；arch_reg/phys_reg。禁止只用tick或address单键连接。",
    "termination": "完整：存在L0 fault_applied，且每条边由共享键与时间/可达性同时证明，最终到达(1) errant commit/错误内存副作用/软件oracle差异，或(2)明确检测并contained，或(3)明确squash/replay/mask且无错误副作用。若链在某节点后缺事件，只能标“截至该节点可证，后续Unknown”，不得推断Masked。",
    "impl_status": "需新增（当前阻塞：只有response-pairing事件源，无可注入/追踪映射）",
-   "spec_landed": "",
+   "spec_landed": "implemented(resp_pairing=L04-b in-flight load response-pairing target exchange at the completeDataAccess pairing point (deferred halves: each load's returning response delivered to the OTHER load, data unchanged; SE timing relaxation documented), CHAOSLSQFwd maybeSwapResponseTarget; pending: L04-a one-shot response transaction-ID replacement (victim load never completes — hang/Timeout channel); evidence: round4_findings.md §R4-5.3, campaign L04 6-cell x 3-seed (F0/F6 12/12 injected, F0-W5 Crash x2 real guest page-table faults; F2 0-injected honest zero — mean interval 100k events >> measured streams 324/5597); chains L3->L4 proven on every injected sample, L0->L1/L1->L2/L2->L3 structurally missing (pairing-point fault is at L3; the loads' request-path events predate the injection — no back-projection))",
    "status": "BLOCKED",
    "status_reasons": [
-    "campaign:deferred(consumer-side: response-pairing event source only)",
-    "spec:需新增（当前阻塞：只有response-pairing事件源，无可注入/追踪映射）",
     "workload:workload-level:blocked(spec-license: SPEC CPU2017 needs a license)"
    ],
    "target_activated_samples": "385"
@@ -10546,12 +10541,9 @@
    "correlation_keys": "run_id + sample_run_id + fault_id/ptag；event_id + parent_event_id；tick/cycle + core_id + thread_id；dyn_inst_seq + commit_seq + PC/opcode；lq_idx/sq_idx；request_id/pf_request_id/walk_id/mshr_id/fill_id；VA/PA/cache_line；arch_reg/phys_reg。禁止只用tick或address单键连接。",
    "termination": "完整：存在L0 fault_applied，且每条边由共享键与时间/可达性同时证明，最终到达(1) errant commit/错误内存副作用/软件oracle差异，或(2)明确检测并contained，或(3)明确squash/replay/mask且无错误副作用。若链在某节点后缺事件，只能标“截至该节点可证，后续Unknown”，不得推断Masked。",
    "impl_status": "需新增（当前阻塞：只有response-pairing事件源，无可注入/追踪映射）",
-   "spec_landed": "",
-   "status": "BLOCKED",
-   "status_reasons": [
-    "campaign:deferred(consumer-side: response-pairing event source only)",
-    "spec:需新增（当前阻塞：只有response-pairing事件源，无可注入/追踪映射）"
-   ],
+   "spec_landed": "implemented(resp_pairing=L04-b in-flight load response-pairing target exchange at the completeDataAccess pairing point (deferred halves: each load's returning response delivered to the OTHER load, data unchanged; SE timing relaxation documented), CHAOSLSQFwd maybeSwapResponseTarget; pending: L04-a one-shot response transaction-ID replacement (victim load never completes — hang/Timeout channel); evidence: round4_findings.md §R4-5.3, campaign L04 6-cell x 3-seed (F0/F6 12/12 injected, F0-W5 Crash x2 real guest page-table faults; F2 0-injected honest zero — mean interval 100k events >> measured streams 324/5597); chains L3->L4 proven on every injected sample, L0->L1/L1->L2/L2->L3 structurally missing (pairing-point fault is at L3; the loads' request-path events predate the injection — no back-projection))",
+   "status": "PARTIAL",
+   "status_reasons": [],
    "target_activated_samples": "385"
   },
   {
@@ -10584,12 +10576,9 @@
    "correlation_keys": "run_id + sample_run_id + fault_id/ptag；event_id + parent_event_id；tick/cycle + core_id + thread_id；dyn_inst_seq + commit_seq + PC/opcode；lq_idx/sq_idx；request_id/pf_request_id/walk_id/mshr_id/fill_id；VA/PA/cache_line；arch_reg/phys_reg。禁止只用tick或address单键连接。",
    "termination": "完整：存在L0 fault_applied，且每条边由共享键与时间/可达性同时证明，最终到达(1) errant commit/错误内存副作用/软件oracle差异，或(2)明确检测并contained，或(3)明确squash/replay/mask且无错误副作用。若链在某节点后缺事件，只能标“截至该节点可证，后续Unknown”，不得推断Masked。",
    "impl_status": "需新增（当前阻塞：只有response-pairing事件源，无可注入/追踪映射）",
-   "spec_landed": "",
-   "status": "BLOCKED",
-   "status_reasons": [
-    "campaign:deferred(consumer-side: response-pairing event source only)",
-    "spec:需新增（当前阻塞：只有response-pairing事件源，无可注入/追踪映射）"
-   ],
+   "spec_landed": "implemented(resp_pairing=L04-b in-flight load response-pairing target exchange at the completeDataAccess pairing point (deferred halves: each load's returning response delivered to the OTHER load, data unchanged; SE timing relaxation documented), CHAOSLSQFwd maybeSwapResponseTarget; pending: L04-a one-shot response transaction-ID replacement (victim load never completes — hang/Timeout channel); evidence: round4_findings.md §R4-5.3, campaign L04 6-cell x 3-seed (F0/F6 12/12 injected, F0-W5 Crash x2 real guest page-table faults; F2 0-injected honest zero — mean interval 100k events >> measured streams 324/5597); chains L3->L4 proven on every injected sample, L0->L1/L1->L2/L2->L3 structurally missing (pairing-point fault is at L3; the loads' request-path events predate the injection — no back-projection))",
+   "status": "PARTIAL",
+   "status_reasons": [],
    "target_activated_samples": "385"
   },
   {
@@ -10622,11 +10611,9 @@
    "correlation_keys": "run_id + sample_run_id + fault_id/ptag；event_id + parent_event_id；tick/cycle + core_id + thread_id；dyn_inst_seq + commit_seq + PC/opcode；lq_idx/sq_idx；request_id/pf_request_id/walk_id/mshr_id/fill_id；VA/PA/cache_line；arch_reg/phys_reg。禁止只用tick或address单键连接。",
    "termination": "完整：存在L0 fault_applied，且每条边由共享键与时间/可达性同时证明，最终到达(1) errant commit/错误内存副作用/软件oracle差异，或(2)明确检测并contained，或(3)明确squash/replay/mask且无错误副作用。若链在某节点后缺事件，只能标“截至该节点可证，后续Unknown”，不得推断Masked。",
    "impl_status": "需新增（当前阻塞：只有response-pairing事件源，无可注入/追踪映射）",
-   "spec_landed": "",
+   "spec_landed": "implemented(resp_pairing=L04-b in-flight load response-pairing target exchange at the completeDataAccess pairing point (deferred halves: each load's returning response delivered to the OTHER load, data unchanged; SE timing relaxation documented), CHAOSLSQFwd maybeSwapResponseTarget; pending: L04-a one-shot response transaction-ID replacement (victim load never completes — hang/Timeout channel); evidence: round4_findings.md §R4-5.3, campaign L04 6-cell x 3-seed (F0/F6 12/12 injected, F0-W5 Crash x2 real guest page-table faults; F2 0-injected honest zero — mean interval 100k events >> measured streams 324/5597); chains L3->L4 proven on every injected sample, L0->L1/L1->L2/L2->L3 structurally missing (pairing-point fault is at L3; the loads' request-path events predate the injection — no back-projection))",
    "status": "BLOCKED",
    "status_reasons": [
-    "campaign:deferred(consumer-side: response-pairing event source only)",
-    "spec:需新增（当前阻塞：只有response-pairing事件源，无可注入/追踪映射）",
     "workload:workload-level:blocked(spec-license: SPEC CPU2017 needs a license)"
    ],
    "target_activated_samples": "385"
@@ -10661,12 +10648,9 @@
    "correlation_keys": "run_id + sample_run_id + fault_id/ptag；event_id + parent_event_id；tick/cycle + core_id + thread_id；dyn_inst_seq + commit_seq + PC/opcode；lq_idx/sq_idx；request_id/pf_request_id/walk_id/mshr_id/fill_id；VA/PA/cache_line；arch_reg/phys_reg。禁止只用tick或address单键连接。",
    "termination": "完整：存在L0 fault_applied，且每条边由共享键与时间/可达性同时证明，最终到达(1) errant commit/错误内存副作用/软件oracle差异，或(2)明确检测并contained，或(3)明确squash/replay/mask且无错误副作用。若链在某节点后缺事件，只能标“截至该节点可证，后续Unknown”，不得推断Masked。",
    "impl_status": "需新增（当前阻塞：只有response-pairing事件源，无可注入/追踪映射）",
-   "spec_landed": "",
-   "status": "BLOCKED",
-   "status_reasons": [
-    "campaign:deferred(consumer-side: response-pairing event source only)",
-    "spec:需新增（当前阻塞：只有response-pairing事件源，无可注入/追踪映射）"
-   ],
+   "spec_landed": "implemented(resp_pairing=L04-b in-flight load response-pairing target exchange at the completeDataAccess pairing point (deferred halves: each load's returning response delivered to the OTHER load, data unchanged; SE timing relaxation documented), CHAOSLSQFwd maybeSwapResponseTarget; pending: L04-a one-shot response transaction-ID replacement (victim load never completes — hang/Timeout channel); evidence: round4_findings.md §R4-5.3, campaign L04 6-cell x 3-seed (F0/F6 12/12 injected, F0-W5 Crash x2 real guest page-table faults; F2 0-injected honest zero — mean interval 100k events >> measured streams 324/5597); chains L3->L4 proven on every injected sample, L0->L1/L1->L2/L2->L3 structurally missing (pairing-point fault is at L3; the loads' request-path events predate the injection — no back-projection))",
+   "status": "PARTIAL",
+   "status_reasons": [],
    "target_activated_samples": "385"
   },
   {
@@ -10699,12 +10683,9 @@
    "correlation_keys": "run_id + sample_run_id + fault_id/ptag；event_id + parent_event_id；tick/cycle + core_id + thread_id；dyn_inst_seq + commit_seq + PC/opcode；lq_idx/sq_idx；request_id/pf_request_id/walk_id/mshr_id/fill_id；VA/PA/cache_line；arch_reg/phys_reg。禁止只用tick或address单键连接。",
    "termination": "完整：存在L0 fault_applied，且每条边由共享键与时间/可达性同时证明，最终到达(1) errant commit/错误内存副作用/软件oracle差异，或(2)明确检测并contained，或(3)明确squash/replay/mask且无错误副作用。若链在某节点后缺事件，只能标“截至该节点可证，后续Unknown”，不得推断Masked。",
    "impl_status": "需新增（当前阻塞：只有response-pairing事件源，无可注入/追踪映射）",
-   "spec_landed": "",
-   "status": "BLOCKED",
-   "status_reasons": [
-    "campaign:deferred(consumer-side: response-pairing event source only)",
-    "spec:需新增（当前阻塞：只有response-pairing事件源，无可注入/追踪映射）"
-   ],
+   "spec_landed": "implemented(resp_pairing=L04-b in-flight load response-pairing target exchange at the completeDataAccess pairing point (deferred halves: each load's returning response delivered to the OTHER load, data unchanged; SE timing relaxation documented), CHAOSLSQFwd maybeSwapResponseTarget; pending: L04-a one-shot response transaction-ID replacement (victim load never completes — hang/Timeout channel); evidence: round4_findings.md §R4-5.3, campaign L04 6-cell x 3-seed (F0/F6 12/12 injected, F0-W5 Crash x2 real guest page-table faults; F2 0-injected honest zero — mean interval 100k events >> measured streams 324/5597); chains L3->L4 proven on every injected sample, L0->L1/L1->L2/L2->L3 structurally missing (pairing-point fault is at L3; the loads' request-path events predate the injection — no back-projection))",
+   "status": "PARTIAL",
+   "status_reasons": [],
    "target_activated_samples": "385"
   },
   {
@@ -10737,11 +10718,9 @@
    "correlation_keys": "run_id + sample_run_id + fault_id/ptag；event_id + parent_event_id；tick/cycle + core_id + thread_id；dyn_inst_seq + commit_seq + PC/opcode；lq_idx/sq_idx；request_id/pf_request_id/walk_id/mshr_id/fill_id；VA/PA/cache_line；arch_reg/phys_reg。禁止只用tick或address单键连接。",
    "termination": "完整：存在L0 fault_applied，且每条边由共享键与时间/可达性同时证明，最终到达(1) errant commit/错误内存副作用/软件oracle差异，或(2)明确检测并contained，或(3)明确squash/replay/mask且无错误副作用。若链在某节点后缺事件，只能标“截至该节点可证，后续Unknown”，不得推断Masked。",
    "impl_status": "需新增（当前阻塞：只有response-pairing事件源，无可注入/追踪映射）",
-   "spec_landed": "",
+   "spec_landed": "implemented(resp_pairing=L04-b in-flight load response-pairing target exchange at the completeDataAccess pairing point (deferred halves: each load's returning response delivered to the OTHER load, data unchanged; SE timing relaxation documented), CHAOSLSQFwd maybeSwapResponseTarget; pending: L04-a one-shot response transaction-ID replacement (victim load never completes — hang/Timeout channel); evidence: round4_findings.md §R4-5.3, campaign L04 6-cell x 3-seed (F0/F6 12/12 injected, F0-W5 Crash x2 real guest page-table faults; F2 0-injected honest zero — mean interval 100k events >> measured streams 324/5597); chains L3->L4 proven on every injected sample, L0->L1/L1->L2/L2->L3 structurally missing (pairing-point fault is at L3; the loads' request-path events predate the injection — no back-projection))",
    "status": "BLOCKED",
    "status_reasons": [
-    "campaign:deferred(consumer-side: response-pairing event source only)",
-    "spec:需新增（当前阻塞：只有response-pairing事件源，无可注入/追踪映射）",
     "workload:workload-level:blocked(spec-license: SPEC CPU2017 needs a license)"
    ],
    "target_activated_samples": "385"
@@ -10776,12 +10755,9 @@
    "correlation_keys": "run_id + sample_run_id + fault_id/ptag；event_id + parent_event_id；tick/cycle + core_id + thread_id；dyn_inst_seq + commit_seq + PC/opcode；lq_idx/sq_idx；request_id/pf_request_id/walk_id/mshr_id/fill_id；VA/PA/cache_line；arch_reg/phys_reg。禁止只用tick或address单键连接。",
    "termination": "完整：存在L0 fault_applied，且每条边由共享键与时间/可达性同时证明，最终到达(1) errant commit/错误内存副作用/软件oracle差异，或(2)明确检测并contained，或(3)明确squash/replay/mask且无错误副作用。若链在某节点后缺事件，只能标“截至该节点可证，后续Unknown”，不得推断Masked。",
    "impl_status": "需新增（当前阻塞：只有response-pairing事件源，无可注入/追踪映射）",
-   "spec_landed": "",
-   "status": "BLOCKED",
-   "status_reasons": [
-    "campaign:deferred(consumer-side: response-pairing event source only)",
-    "spec:需新增（当前阻塞：只有response-pairing事件源，无可注入/追踪映射）"
-   ],
+   "spec_landed": "implemented(resp_pairing=L04-b in-flight load response-pairing target exchange at the completeDataAccess pairing point (deferred halves: each load's returning response delivered to the OTHER load, data unchanged; SE timing relaxation documented), CHAOSLSQFwd maybeSwapResponseTarget; pending: L04-a one-shot response transaction-ID replacement (victim load never completes — hang/Timeout channel); evidence: round4_findings.md §R4-5.3, campaign L04 6-cell x 3-seed (F0/F6 12/12 injected, F0-W5 Crash x2 real guest page-table faults; F2 0-injected honest zero — mean interval 100k events >> measured streams 324/5597); chains L3->L4 proven on every injected sample, L0->L1/L1->L2/L2->L3 structurally missing (pairing-point fault is at L3; the loads' request-path events predate the injection — no back-projection))",
+   "status": "PARTIAL",
+   "status_reasons": [],
    "target_activated_samples": "385"
   },
   {
@@ -11763,8 +11739,8 @@
  "summary": {
   "total": 325,
   "status": {
-   "PARTIAL": 213,
-   "BLOCKED": 112
+   "PARTIAL": 219,
+   "BLOCKED": 106
   },
   "blocked_by_unit": {
    "AGU": 12,
@@ -11773,7 +11749,7 @@
    "L1d-Cache": 15,
    "原子与同步": 28,
    "数据预取器": 9,
-   "Load Queue": 9
+   "Load Queue": 3
   }
  }
 }

@@ -8,6 +8,7 @@
 
 #include "base/output.hh"
 #include "cpu/o3/cpu.hh"
+#include "cpu/o3/dyn_inst.hh"   // [MDSPEC][R4-5.3] full DynInst (resp-pair)
 #include "debug/LSQUnit.hh"
 #include "cpu/o3/CHAOSPropagation/CHAOSPropagation.hh"  // [MDSPEC][H3-FWD]
 
@@ -31,6 +32,7 @@ namespace gem5
           rng_seed(p.rngSeed),
           write_log(p.writeLog),
           l03_mode(p.l03Mode),   // [LSU][SEM-B]
+          l04_mode(p.l04Mode),   // [MDSPEC][R4-5.3] W5 L04
           rng(rng_seed != 0 ? rng_seed : rd()),
           log_stream(nullptr),
           stats(nullptr)
@@ -47,6 +49,14 @@ namespace gem5
             lsuTrigger = new ChaOSLsuTrigger(tier, rng_seed ? rng_seed : 1,
                                              p.lsuWarmupEvents, p.lsuSpanEvents);
         }
+        // [MDSPEC][R4-5.3] L04 is trigger-native (the response-pairing
+        // stream is the model's event source) — the tier flags are not
+        // optional. Loud refusal, C11/C12 convention (never silently inert).
+        if (l04_mode && !lsuTrigger)
+            panic("CHAOSLSQFwd: --lsqfwd_l04 (L04 response-pairing mode) "
+                  "requires --lsqfwd_lsu_tier (the event-normalized trigger "
+                  "owns the pairing-point stream); refusing to run with a "
+                  "legacy Bernoulli fallback");
         if (lsuTrigger) {
             // W5: funnel lines at exit (chaos_l0 discipline: log file, not
             // stdout). activated = same near-tautological approximation as
@@ -241,6 +251,11 @@ namespace gem5
         // data path is NOT L03's event source — the trigger stream must be
         // violation checks only (checkViolations site), not the mixed stream.
         if (l03_mode) return;
+        // [MDSPEC][R4-5.3] L04 hook split, same discipline: with
+        // --lsqfwd_l04 the SQ-forward data path is NOT L04's event source —
+        // the trigger stream is the response-pairing point only
+        // (LSQUnit::completeDataAccess, maybeSwapResponseTarget).
+        if (l04_mode) return;
         if (lsuTrigger) {
             // LSU W2/W5 path (05 r2-r8): the event-normalized trigger owns
             // warm-up/repetition semantics; the legacy cycle window,
@@ -484,6 +499,143 @@ namespace gem5
                 << std::endl;
         }
         return true;
+    }
+
+    // [MDSPEC][R4-5.3] LSU W5 L04-b: response-pairing target exchange.
+    // Model (workbook 03/09, L04 row): when >=2 loads are in flight, the
+    // response-pairing table's entries for two loads are EXCHANGED — each
+    // load's returning response is delivered to the OTHER load ("两个响应
+    // 数据各自合法但送错消费者": both responses keep their data, both go
+    // to the wrong consumer). Realized here as a deferred exchange:
+    //   half 1 — the source load A's response arrives; with the trigger's
+    //            consent a candidate in-flight load B is chosen and THIS
+    //            response is delivered to B (writeback(B, A's packet):
+    //            B's dest reg receives A's data — the mispairing);
+    //   half 2 — B's own response arrives later and is delivered to A
+    //            (writeback(A, B's packet)). Both loads complete exactly
+    //            once, each with the other's data; the program terminates
+    //            and the oracle classifies normally.
+    // The workbook's "同周期" (same-cycle) is relaxed to a pairing-window
+    // exchange (responses may arrive in different cycles — gem5 delivers
+    // one response per completeDataAccess call); the SEMANTICS — two
+    // legal responses, each delivered to the wrong consumer — are exactly
+    // the L04-b exchange. L04-a (one-shot transaction-ID replacement whose
+    // victim load never completes — a hang/Timeout channel) is NOT landed
+    // (pending in lsu_runid_map SPEC_IMPL_LANDED).
+    o3::DynInstPtr
+    CHAOSLSQFwd::maybeSwapResponseTarget(const o3::DynInstPtr &inst,
+                                         const RespPairKeys &src,
+                                         const RespPairScan &scan)
+    {
+        // Non-L04 runs: one branch, byte-identical behavior.
+        if (!l04_mode || !lsuTrigger)
+            return inst;
+
+        // Half 2 — the pending exchange's partner response. Mechanical
+        // completion of the already-injected fault: no trigger consult, no
+        // attempt booking (booking it would double-count the injected
+        // event's own footprint in the attempt stream), and deliberately
+        // BEFORE the maxFaults cap (the cap gates NEW injections, not the
+        // completion of an established exchange — capping here would hang
+        // the source load).
+        if (l04_pending && inst && inst->seqNum == l04_pending_tgt_seq) {
+            l04_pending = false;
+            return l04_pending_src;
+        }
+
+        // G5 single-fault cap BEFORE onAttempt (C11 convention: with the
+        // campaign cap the counters freeze at fire time — exact).
+        if (max_faults != 0 && faults_injected_count >= max_faults)
+            return inst;
+
+        // The pairing point's attempt stream: EVERY response delivered via
+        // completeDataAccess (loads, stores, atomics — C11's "the hook is
+        // the attempt stream" convention).
+        lsuTrigger->onAttempt();
+
+        // Eligibility gate 1 (shape): a plain register-writeback load's
+        // response (store/atomic/SC/squashed responses return here —
+        // attempted, never the event).
+        if (!src.eligible_shape || src.size == 0)
+            return inst;
+
+        // Eligibility gate 2 (the model's own trigger condition "同时存在
+        // 至少两个在途load且发生cache response"): a live same-shape
+        // candidate must exist. The scan is lazy — paid only past gate 1.
+        std::vector<RespPairCand> cands;
+        if (scan)
+            scan(cands);
+        if (cands.empty())
+            return inst;
+
+        // Trigger decision. F6 ([MDSPEC][R4-5.1-review-I1] accounting):
+        // onAttempt above already booked this invocation — onF6Event(false)
+        // must not re-book attempted. F6 = the FIRST response that passes
+        // BOTH gates (the eligible-event first-occurrence, early_stress).
+        bool go;
+        if (lsuTrigger->tier == ChaOSLsuTier::F6) {
+            go = lsuTrigger->onF6Event(false);
+        } else {
+            go = lsuTrigger->onEligible();
+        }
+        if (!go)
+            return inst;
+
+        // Fire: choose the partner uniformly among the candidates (seeded
+        // mt19937 — reproducible with --rng_seed; the spec does not pin a
+        // choice rule, recorded here).
+        const RespPairCand &b = cands[rng() % cands.size()];
+
+        // Establish the exchange (half 2 completes it).
+        l04_pending = true;
+        l04_pending_src = inst;
+        l04_pending_tgt_seq = b.seq;
+
+        // Propagation registration: inj node (corr=origin; before/after =
+        // the pairing mapping source-seq -> target-seq, the faulted VALUE
+        // of this model, lifted to the unified stream via the writeNode
+        // dual-emit old_addr/new_addr keys) + the EXCHANGED pairing table
+        // as two seq-bound addr-registry entries: [src_va,+size) bound to
+        // the TARGET seq (half 1's noteMemResponse hits: packet = A's
+        // response, inst = B), [tgt_va,+size) bound to the SOURCE seq
+        // (half 2 hits). Address collision (same-VA loads): one map key —
+        // the half-1 binding wins and half 2 has no seq-bound surface
+        // (recorded in the registration, never papered over with an
+        // address-only join — the 09 sheet forbids address single-key
+        // chains).
+        if (CHAOSPropagation *tr = CHAOSPropagation::instance()) {
+            tr->registerRespPairFault(
+                src.seq, src.lq_idx, src.request_id, src.vaddr, src.size,
+                b.seq, b.lq_idx, b.request_id, b.vaddr, b.size);
+        }
+
+        ++faults_injected_count;
+        if (stats)
+            stats->numFaultsInjected++;
+        // Injection-log line (L0 parses the "Tick: …, Site: …, mode=…,
+        // faults_injected:" contract — tools/lsu_obs_core._INJ_RE; the
+        // source/target IDs are the L04 pairing keys the spec requires to
+        // be saved: "保存 source/target ID").
+        if (write_log && log_stream && log_stream->stream()) {
+            *(log_stream->stream())
+                << "Tick: " << curTick()
+                << ", Site: completeDataAccess_response_pairing"
+                << ", mode=resp_pairing (L04-b target exchange)"
+                << ", source_dyn_inst_seq=" << src.seq
+                << ", source_lq_idx=" << src.lq_idx
+                << ", source_request_id=" << src.request_id
+                << ", source_va=0x" << std::hex << src.vaddr << std::dec
+                << ", target_dyn_inst_seq=" << b.seq
+                << ", target_lq_idx=" << b.lq_idx
+                << ", target_request_id=" << b.request_id
+                << ", target_va=0x" << std::hex << b.vaddr << std::dec
+                << ", faults_injected: " << faults_injected_count
+                << std::endl;
+        }
+        DPRINTF(LSQUnit, "CHAOSLSQFwd: L04 resp-pairing exchange "
+                "src seq %llu -> tgt seq %llu\n",
+                (unsigned long long)src.seq, (unsigned long long)b.seq);
+        return b.inst;
     }
 
 } // namespace gem5

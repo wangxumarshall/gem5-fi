@@ -448,10 +448,17 @@ LSQ::sendRetryResp()
 bool
 LSQ::recvTimingResp(PacketPtr pkt)
 {
-    // LSU W5 L04: response-pairing corruption — when a cache response
-    // arrives and the F6 CAS-success event notify fires (proxy), redirect
-    // the response to the WRONG LSQ unit (simulating a transaction-ID
-    // mismatch where the response goes to the wrong load).
+    // [LSU W5 L04] response-arrival observation: every cache response
+    // counts as a CasSuccess-tagged F6 event supply (the W1 four-source
+    // enum has no load-response member; this proxy counts every response).
+    // [MDSPEC][R4-5.3] the L04 INJECTION decision no longer lives here —
+    // it moved to the real pairing point (LSQUnit::completeDataAccess →
+    // CHAOSLSQFwd::maybeSwapResponseTarget, the request->instruction()
+    // binding), where the eligibility gates (plain register-WB load +
+    // live same-shape in-flight candidate) and the trigger's
+    // onF6Event(false) first-eligible-occurrence semantics apply. This
+    // observe stays as the event-supply counter (chaos_lsu_trigger.hh
+    // chaosLsuF6EventsSeen, [LSU][OBS-1]) — counting only, no injection.
     chaosLsuF6Observe(ChaOSLsuEvent::CasSuccess);
 
     if (pkt->isError())

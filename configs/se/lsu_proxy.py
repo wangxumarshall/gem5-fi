@@ -288,6 +288,13 @@ p.add_argument("--lsqfwd_span_events", type=lambda x: int(x,0), default=1000)
 # W5 L03: violation-detection corruption (rides lsqfwd LSU trigger)
 p.add_argument("--lsqfwd_l03", action="store_true",
                help="W5 L03: corrupt violation-check address (lsqfwd trigger)")
+# [MDSPEC][R4-5.3] W5 L04: response-pairing target exchange (rides lsqfwd
+# LSU trigger; requires --lsqfwd_lsu_tier != off — the injector panics
+# otherwise). The pairing-point stream (LSQUnit::completeDataAccess) is the
+# trigger's event source; the SQ-forward data-path hook is split off.
+p.add_argument("--lsqfwd_l04", action="store_true",
+               help="W5 L04: exchange two in-flight loads' response-pairing "
+                    "targets (lsqfwd trigger, completeDataAccess site)")
 # §2.2 CHAOSRenameMap (O3 rename-map fault injector). SELF-ATTACHES at
 # startup() to thread-0 frontRenameMap.chaosRenameMap. map_bitflip /
 # map_bitflip2 (W4.1 D12: 2 distinct random index bits) / swap_to_active
@@ -871,6 +878,7 @@ if args.chaos_lsqfwd:
         lsuWarmupEvents=args.lsqfwd_warmup_events,
         lsuSpanEvents=args.lsqfwd_span_events,
         l03Mode=args.lsqfwd_l03,   # [LSU][SEM-B] W5 L03 接线
+        l04Mode=args.lsqfwd_l04,   # [MDSPEC][R4-5.3] W5 L04 接线
         firstClock=args.first_clock,
         lastClock=args.last_clock,
         maxFaults=args.max_faults,

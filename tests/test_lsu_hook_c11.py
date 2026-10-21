@@ -198,11 +198,12 @@ def main():
     check("C11 已从 MODEL_BLOCKED 删除（实测可跑后才允许）",
           "C11" not in LC.MODEL_BLOCKED)
     # [MDSPEC][R4-5.2] C12 已按同一模板落地并实测（targetField=
-    # mshr_fill_timing，见 test_lsu_hook_c12.py）——不再列入"未解锁"钉；
-    # C14/C15/S10/L04 仍未实现，必须保持 BLOCKED。
-    check("后续模型未误解锁（C14/C15/S10/L04 仍 BLOCKED）",
+    # mshr_fill_timing，见 test_lsu_hook_c12.py）；[R4-5.3] L04 已按同一
+    # 模板落地并实测（--lsqfwd_l04 配对点交换，见 test_lsu_hook_l04.py）
+    # ——两者不再列入"未解锁"钉；C14/C15/S10 仍未实现，必须保持 BLOCKED。
+    check("后续模型未误解锁（C14/C15/S10 仍 BLOCKED）",
           all(m in LC.MODEL_BLOCKED
-              for m in ("C14", "C15", "S10", "L04")))
+              for m in ("C14", "C15", "S10")))
     for pair in (("C11", "cache_dirtyevict"), ("C11", "stream_chase"),
                  ("C11", "cache_mshr_refetch")):
         check(f"CACHE_F0_SPAN 实测条目 {pair}",
