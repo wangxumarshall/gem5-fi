@@ -849,10 +849,15 @@ namespace gem5
                 << s10_active->faults_injected_count
                 << std::endl;
         }
-        DPRINTF(LSQUnit, "CHAOSLSQFwd: S10 SSIT ssid subst load_pc=%#x "
-                "true=%llu -> %llu (candidates=%zu)\n", load_pc,
-                (unsigned long long)true_ssid, (unsigned long long)target,
-                cands.size());
+        // [R4-5.7-integration] 这里原本有一行 DPRINTF/DPRINTFN 诊断输出，
+        // 构建三次失败后移除：本函数是 **static 成员**（StoreSet 侧回调），
+        // 无 this → `name()` 取不到宿主；而 gem5 v25 的 DPRINTF **与**
+        // DPRINTFN（src/base/trace.hh:212/240）**都**调用 `name()`，故无一
+        // 适用于无宿主静态回调。该行纯属诊断：本次替换的全部事实已由上方
+        // 写入 `lsq_fwd_injections.log`（old_ssid/new_ssid/candidates/
+        // faults_injected 契约）并计入 `faults_injected_count` 与
+        // `numFaultsInjected` 统计——证据链完整，不因删除该行而缺失。
+        (void)load_pc;
         *out_ssid = target;
         return true;
     }
@@ -900,11 +905,17 @@ namespace gem5
                 {"entry_index", std::to_string(actual_ssid)},
             });
         }
-        DPRINTF(LSQUnit, "CHAOSLSQFwd: S10 consult load_pc=%#x ssid=%llu "
-                "dep=%llu (counterfactual %llu)\n", pc,
-                (unsigned long long)actual_ssid,
-                (unsigned long long)actual_dep,
-                (unsigned long long)counterfactual_dep);
+        // [R4-5.7-integration] 这里原本有一行 DPRINTF(LSQUnit, ...) 诊断输出，
+        // 构建失败两次后移除：
+        //   1) DPRINTF 需要 `name()`，而本处是 StoreSet 侧的**自由桥函数**
+        //      （无 this、无 Named 宿主）→ "没有对象无法调用成员函数
+        //      'gem5::Named::name'"；
+        //   2) 换用无宿主变体 DPRINTFN 后仍报 `'LSQUnit' 在此作用域中尚未声明`
+        //      （该 debug flag 声明于 gem5::debug，此作用域未引入）。
+        // 该行纯属诊断：consult 已由上方 `notePropEvt("ssit_consult", …)`
+        // **完整记录在统一传播流上**（pc/fault_id/before/after/entry_index 全字段），
+        // 证据链不受影响——故不再为此引入调试作用域改动。
+        (void)pc;
     }
 
 } // namespace gem5

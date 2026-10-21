@@ -297,6 +297,14 @@ class CHAOSLSQFwd : public SimObject
 
 } // namespace gem5
 
+// [MDSPEC][R4-5.7-integration] 下列 S10 钩子函数指针必须**位于 namespace gem5
+// 内**：它们以裸名 `Addr` / `S10SsidScan` 书写，而 namespace 已在上方关闭
+// ——首次构建（SCONS_EXIT=2）即在 store_set.o / lsq_unit.o 报
+// "'Addr' was not declared in this scope; did you mean 'gem5::Addr'?"。
+// 重开 namespace（与文件其余部分风格一致），而非逐处限定 `gem5::`。
+namespace gem5
+{
+
 // [MDSPEC][R4-5.7] S10 StoreSet hook bridge. StoreSet has no CPU/injector
 // pointer (it is a plain sub-object of MemDepUnit inside InstQueue), so the
 // S10-armed CHAOSLSQFwd self-registers these single-consumer callbacks
@@ -340,5 +348,7 @@ inline bool (*chaosS10CorruptedPc)(Addr pc, uint64_t *true_ssid) = nullptr;
 inline void (*chaosS10Consult)(Addr pc, uint64_t actual_ssid,
                                uint64_t actual_dep,
                                uint64_t counterfactual_dep) = nullptr;
+
+} // namespace gem5  [R4-5.7-integration] 关闭为 S10 钩子重开的 namespace
 
 #endif // __CPU_O3_CHAOS_LSQ_FWD_HH__
