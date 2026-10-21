@@ -5,6 +5,7 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
+#include <cstdio>      // [MDSPEC][R4-5.7b] printf (CHAOS_LSU_S10_FORK line)
 #include <algorithm>   // [MDSPEC][R4-5.7] std::find (S10 candidate dedup)
 
 #include "base/output.hh"
@@ -94,6 +95,36 @@ namespace gem5
             registerExitCallback([this]() {
                 if (lsuTrigger)
                     lsuTrigger->summary("CHAOSLSQFwd");
+                // [MDSPEC][R4-5.7b] S10 fork-point break-down, printed next
+                // to CHAOS_LSU_TRIGGER so one census run settles the
+                // attempted>0/eligible=0 triage (classes (a)/(b)/(c)/(d);
+                // see the .hh member comment). Only in S10 mode; zero
+                // effect on every other model's output. Reading:
+                //   arm1_events==0            -> (c): the assignment arm is
+                //                                never entered at all
+                //   arm1_events>0 && cand_empty==arm1_events
+                //                             -> the predicate never held:
+                //                                (a) if max_live_ssids==0,
+                //                                (d) if max_live_ssids==1
+                //                                (single store-set in use)
+                //   arm1_cand_ok>0            -> candidates existed: any
+                //                                eligible==0 then is a
+                //                                trigger-window artifact
+                if (s10_mode) {
+                    printf("CHAOS_LSU_S10_FORK: injector=CHAOSLSQFwd "
+                           "attempted=%lu eligible=%lu arm1_events=%lu "
+                           "arm1_cand_empty=%lu arm1_cand_ok=%lu "
+                           "max_live_ssids=%lu max_cands=%lu "
+                           "distinct_arm1_load_pcs=%zu\n",
+                           (unsigned long)lsuTrigger->attempted,
+                           (unsigned long)lsuTrigger->eligible,
+                           (unsigned long)s10_arm1_events,
+                           (unsigned long)s10_arm1_cand_empty,
+                           (unsigned long)s10_arm1_cand_ok,
+                           (unsigned long)s10_max_live_ssids,
+                           (unsigned long)s10_max_cands,
+                           s10_arm1_load_pcs.size());
+                }
                 l0_funnel.attempted = lsuTrigger->attempted;
                 l0_funnel.eligible  = lsuTrigger->eligible;
                 l0_funnel.injected  = faults_injected_count;
@@ -774,6 +805,17 @@ namespace gem5
         if (!s10_active || !s10_active->lsuTrigger || !out_ssid)
             return false;
 
+        // [MDSPEC][R4-5.7b] FUNNEL FORK-POINT INSTRUMENTATION (observation
+        // only — no decision below depends on these counters). Reaching this
+        // line at all means StoreSet::violation took its "brand-new store
+        // set" arm with the S10 hook mounted; this call site is therefore
+        // exactly the arm-1 entry point the R4-5.7b triage needs to count.
+        ++s10_active->s10_arm1_events;
+        if (std::find(s10_active->s10_arm1_load_pcs.begin(),
+                      s10_active->s10_arm1_load_pcs.end(), load_pc) ==
+            s10_active->s10_arm1_load_pcs.end())
+            s10_active->s10_arm1_load_pcs.push_back(load_pc);
+
         // Workbook 07 实施细则: the substituted value must be ANOTHER
         // LEGAL live value from the current run — no random bit strings.
         // Candidate set = SSIDs of currently valid SSIT entries (live
@@ -788,8 +830,26 @@ namespace gem5
             if (s != true_ssid &&
                 std::find(cands.begin(), cands.end(), s) == cands.end())
                 cands.push_back(s);
-        if (cands.empty())
+        // [MDSPEC][R4-5.7b] Record the two observable quantities behind the
+        // fork: how many DISTINCT live store-sets the SSIT held (== 1 means
+        // "this run only ever uses one store-set" — triage class (d)) and
+        // how wide the legal candidate set was.
+        {
+            std::vector<uint64_t> distinct_live;
+            for (uint64_t s : live)
+                if (std::find(distinct_live.begin(), distinct_live.end(), s)
+                        == distinct_live.end())
+                    distinct_live.push_back(s);
+            if (distinct_live.size() > s10_active->s10_max_live_ssids)
+                s10_active->s10_max_live_ssids = distinct_live.size();
+            if (cands.size() > s10_active->s10_max_cands)
+                s10_active->s10_max_cands = cands.size();
+        }
+        if (cands.empty()) {
+            ++s10_active->s10_arm1_cand_empty;   // (a)/(b)/(d) predicate hit
             return false;   // no other live store set — not eligible
+        }
+        ++s10_active->s10_arm1_cand_ok;
 
         // Trigger decision. F6 ([MDSPEC][R4-5.1-review-I1] accounting):
         // the attempt was already booked by s10ViolationCb's onAttempt —
