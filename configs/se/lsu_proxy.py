@@ -179,7 +179,8 @@ p.add_argument("--l1d_max_faults", type=lambda x: int(x,0), default=1)
 p.add_argument("--l1d_rng_seed", type=lambda x: int(x,0), default=20260825)
 p.add_argument("--l1d_target_field", default="data",
                choices=["data","tag","valid","dirty","coh","data_shift",
-                        "mshr_merge","mshr_fill_timing","mshr_busy_leak"])
+                        "mshr_merge","mshr_fill_timing","mshr_busy_leak",
+                        "mshr_occupancy"])
 p.add_argument("--l1d_protection_model", default="none",
                choices=["none","sed","secded_poison","secded"])
 p.add_argument("--l1d_lsu_tier", default="off",
@@ -190,8 +191,10 @@ p.add_argument("--l1d_lsu_tier", default="off",
                     "targetField=mshr_fill_timing (MDSPEC C12: "
                     "event-normalized fill-timing-offset trigger) and "
                     "targetField=mshr_busy_leak (MDSPEC C14-a: "
-                    "event-normalized MSHR release point; 'off' panics "
-                    "loudly)")
+                    "event-normalized MSHR release point) and "
+                    "targetField=mshr_occupancy (MDSPEC C15-b: "
+                    "event-normalized MSHR capacity arbitration; 'off' "
+                    "panics loudly)")
 p.add_argument("--l1d_warmup_events", type=lambda x: int(x,0), default=0,
                help="MDSPEC C11 mshr_merge / C12 mshr_fill_timing: eligible "
                     "events skipped before arming (LSU trigger "

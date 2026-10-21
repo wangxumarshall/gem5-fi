@@ -271,6 +271,20 @@ MODEL_FLAGS = {
     # worktree; C14-F5 cells resolve runnable but unrun, and the
     # integration side owns build + census + pilot (R4-5.5-5.6-report.md).
     "C14": ("cache", ["--l1d_target_field", "mshr_busy_leak"]),
+    # [MDSPEC][R4-5.6] C15-b: MSHR capacity-arbitration "fake free" — at MSHR
+    # capacity the injector fabricates a free slot (clears the full block)
+    # so exactly one further miss allocation runs beyond the arbitration's
+    # capacity. Event-normalized trigger on the allocation-at-capacity
+    # stream (lsuTier, see _cache_tier_flags); the legacy periodic block
+    # attack is disabled in this mode (mode_unimpl_plan.md C15 row, landed
+    # per the template). C15-a (occupancy +/-1) and C15-c (free-list picks
+    # an in-use entry) are NOT landed — recorded in lsu_runid_map
+    # SPEC_IMPL_LANDED. NOTE (honest): the C++ is COMPILE-UNVERIFIED and
+    # there is no pilot evidence — landed from an isolated no-build
+    # worktree; C15-F4/F6 cells resolve runnable but unrun, C15-F0 cells
+    # additionally stay BLOCKED(F0-span-unmeasured) until integration
+    # measures the stream (R4-5.5-5.6-report.md).
+    "C15": ("cache", ["--l1d_target_field", "mshr_occupancy"]),
     # --- Prefetcher (W8 f76f5632, verified today) ---
     "P01": ("prefetch", ["--prefetch_mode", "p01_stride_bitflip"]),
     "P02": ("prefetch", ["--prefetch_mode", "p02_confidence_corrupt"]),
@@ -362,7 +376,20 @@ MODEL_BLOCKED = {
     "C14": "landed compile-unverified: MSHR busy/occupied stuck-at-1 (C14-a) "
            "implemented (--l1d_target_field mshr_busy_leak) — pending "
            "integration build + census + pilot; see R4-5.5-5.6 report",
-    "C15": "deferred(consumer-side: MSHR occupancy event source only)",
+    # [MDSPEC][R4-5.6] C15-b capacity-arbitration fake-free IS implemented
+    # (--l1d_target_field mshr_occupancy, CHAOSCache maybeFakeFreeSlot +
+    # noteMshrAllocAttempt via BaseCache::chaosMshrOccArbitrate at the tail
+    # of allocateMissBuffer) — but NOT yet proven runnable: this landing
+    # session was forbidden to build/run gem5, so the C++ is
+    # COMPILE-UNVERIFIED and there is no pilot evidence. Per the round's
+    # iron rule ("断言可跑才删") the model STAYS in this table until the
+    # main agent's integration build + F0-span census + real-run pilot
+    # pass; deletion is a one-line main-agent step after that checklist
+    # (R4-5.5-5.6-report.md §3). C15-a/C15-c are not landed at all.
+    "C15": "landed compile-unverified: MSHR capacity-arbitration fake-free "
+           "(C15-b) implemented (--l1d_target_field mshr_occupancy); C15-a/"
+           "C15-c NOT landed — pending integration build + census + pilot; "
+           "see R4-5.5-5.6 report",
     # no clean hook (documented in injector headers / W4-W8 session notes)
     "A07": "deferred(R4: no clean hook)",
     "O04": "deferred(RMW data path needs cache-side SwapResp hook)",
@@ -565,19 +592,31 @@ CACHE_F0_SPAN = {
     #     --chaos_propagation --prop_run_id C14-SPAN-<wl> \
     #     --prop_sample_run_id s1
     #   # <wl> ∈ {cache_dirtyevict (W6), stream_chase (W10)}.
+    #   # <wl> ∈ {cache_dirtyevict (W6), stream_chase (W10)}; the C15 pair
+    #   # uses the same command with --l1d_target_field mshr_occupancy and
+    #   # the run-id C15-SPAN-<wl>.
     # Then set here:
     #   ("C14", "cache_dirtyevict"): <eligible from the W6 run>,
     #   ("C14", "stream_chase"):    <eligible from the W10 run>,
+    #
+    # [MDSPEC][R4-5.6] C15 (mshr_occupancy): also DELIBERATELY ABSENT. Its
+    # stream is the new-miss allocations that reach the queue's capacity
+    # limit (a DIFFERENT stream from C14's releases and from C11's merges /
+    # C12's fills). C15 HAS F0 cells (C15-F0-W6/W10), so integration MUST
+    # census this pair before either can run; until then they refuse loudly
+    # (and are additionally MODEL_BLOCKED):
+    #   ("C15", "cache_dirtyevict"): <eligible from the W6 run>,
+    #   ("C15", "stream_chase"):    <eligible from the W10 run>,
 }
 
 
 def _cache_tier_flags(model, tier, wl_binary=None):
     # Legacy cache models (C01-C10/P07/P09) ride the legacy firstClock
     # mechanism — no LSU trigger flags (byte-identical to the old []).
-    if model not in ("C11", "C12", "C14"):
+    if model not in ("C11", "C12", "C14", "C15"):
         return []
-    # C11 mshr_merge / C12 mshr_fill_timing / C14 mshr_busy_leak: a tier is
-    # REQUIRED (the injector panics on 'off').
+    # C11 mshr_merge / C12 mshr_fill_timing / C14 mshr_busy_leak / C15
+    # mshr_occupancy: a tier is REQUIRED (the injector panics on 'off').
     if tier == "F0":
         span = CACHE_F0_SPAN.get((model, wl_binary))
         if span is None:

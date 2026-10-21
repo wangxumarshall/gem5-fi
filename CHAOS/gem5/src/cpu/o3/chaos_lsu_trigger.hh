@@ -101,6 +101,14 @@ enum class ChaOSLsuTier : uint8_t { F0, F1, F2, F3, F4, F5, F6 };
 // the attempt stream — R4-5.1-review-I1 accounting; the W1 thunk sites keep
 // the default true).
 //
+//
+// [MDSPEC][R4-5.6] TENTH source, same ruling shape: the L1D MSHR
+// capacity-arbitration point (BaseCache::allocateMissBuffer's isFull()
+// decision — CHAOSCache targetField=mshr_occupancy, model C15-b) is an F6
+// event source: C15's specified event IS a new miss allocation at the MSHR
+// capacity limit (the 03 sheet's "MSHR接近或达到容量上限时发生新miss分配").
+// Same non-ride: the arbitration hook calls onF6Event(false) directly at
+// the allocation site (the arbitration hook itself is the attempt stream).
 enum class ChaOSLsuEvent : uint8_t { TlbHit, SqForward, DirtyEviction,
                                      CasSuccess };
 

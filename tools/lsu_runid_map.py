@@ -272,6 +272,48 @@ def generate_map(xlsx_path):
                "build + pilot 2 cells x 3 seeds + chain check before this "
                "entry carries real-run evidence (R4-5.5-5.6-report.md "
                "checklist)",
+        # C15（6 RunID，阻塞短语 "consumer-side: MSHR occupancy event
+        # source only"）：targetField=mshr_occupancy（CHAOSCache
+        # maybeFakeFreeSlot + noteMshrAllocAttempt @
+        # BaseCache::chaosMshrOccArbitrate，allocateMissBuffer 尾部）——
+        # 落地=C15-b "在容量已满时伪造空位"：MSHR 队列满时注入器伪造一个
+        # 空位（清掉刚设的 Blocked_NoMSHRs），使**恰好一次**后续 miss
+        # 分配从 reserve 条目超额发生——仲裁的 allow/deny 结果真的被放宽
+        # （03 sheet "仅在仲裁结果真正允许…一次 miss 分配时计为 activated"，
+        # 本实现以 noteMshrAllocAttempt 的真实读回计 activated）。
+        # 观测=新 kind mshr_arb（L2，mshr_id/entry_index=占用/state_before=
+        # full_blocked→state_after=over_commit_alloc/field=capacity）+
+        # 复用既有 mshr_* 链；inj corr=origin，before/after=占用对；
+        # teardown 行 CHAOS_MSHR_OCC（fires vs activated）。
+        # 未落地=C15-a 占用计数±1（少计方向→覆盖在用表项 SDC 臂）、
+        # C15-c free-list 选中另一在用表项（两者都需 MSHRQueue 私有内部
+        # 访问 / 覆盖语义，本会话无编译与运行验证能力，风险不可控）。
+        # 证据状态（诚实）：落地自隔离 no-build worktree——**C++ compile-
+        # unverified，无 census/无 pilot/无逐边链证据**；本轮解除 spec
+        # "需新增"前提的仅为"注入模式已实现"，验证债显式登记：集成方
+        # build → F0 census（CACHE_F0_SPAN[(C15,cache_dirtyevict)] /
+        # [(C15,stream_chase)]，F0 cell 在此之前保持 loud
+        # BLOCKED(F0-span-unmeasured)）→ campaign 6 cell（W6/W10）× 3
+        # seed + lsu_chain_check 逐边 + 不受影响族回归 → 再把真机证据补进
+        # 本条目与 round4_findings §R4-5.6（R4-5.5-5.6-report.md 清单）。
+        # 注：C15-F{0,4,6}-W11 三 cell 属 LICENSE（SPEC CPU2017 无授权），
+        # WL_BLOCKED 先于 MODEL_BLOCKED 生效，删本模型阻塞后仍被 LICENSE
+        # 拦截（不在本模型可跑范围内）。
+        "C15": "implemented(c15b_fake_free=MSHR capacity-arbitration "
+               "fake-free: at MSHR capacity the injector fabricates a free "
+               "slot so exactly one further miss allocation runs beyond the "
+               "arbitration's capacity — the allow/deny decision is "
+               "genuinely wrong; activated = the over-capacity allocation "
+               "actually observed), CHAOSCache maybeFakeFreeSlot + "
+               "noteMshrAllocAttempt + mshr_arb(L2) observation; pending: "
+               "C15-a occupancy counter +/-1, C15-c free-list selects "
+               "another in-use entry; evidence: NONE yet — landed "
+               "compile-unverified from the isolated no-build worktree "
+               "r4-c14c15, no census/pilot/chain evidence; integration must "
+               "build + census CACHE_F0_SPAN[(C15,cache_dirtyevict)]/"
+               "[(C15,stream_chase)] + pilot 6 cells x 3 seeds + chain "
+               "check before this entry carries real-run evidence "
+               "(R4-5.5-5.6-report.md checklist)",
     }
 
     wb = openpyxl.load_workbook(xlsx_path, data_only=True)

@@ -674,6 +674,66 @@ namespace gem5
         return ptag;
     }
 
+    // [MDSPEC][R4-5.6] C15-b MSHR capacity-arbitration fake-free (see .hh
+    // for the full contract). Address-only registration (the labeled
+    // addr_fallback arm): the arbitration site has no Request seq binding —
+    // later events on the over-committed request's line join by overlap.
+    uint64_t
+    CHAOSPropagation::registerMshrArbFault(Addr line, Addr block_size,
+                                           uint64_t occ_before,
+                                           uint64_t occ_after,
+                                           bool materialized)
+    {
+        if (!write_log)
+            return 0;
+        const uint64_t ptag = ++next_ptag;
+
+        // inj node (addr column = the over-committed request's line).
+        // before/after = the occupancy pair — this model's faulted VALUE:
+        // the in-service occupancy at the fire (before) vs. at the
+        // over-capacity allocation (after).
+        {
+            std::ostringstream d;
+            d << "family=cache;field=mshr_occupancy"
+              << ";before=" << occ_before
+              << ";after=" << occ_after
+              << ";materialized=" << (materialized ? 1 : 0)
+              << ";block_addr=" << std::hex << line << std::dec;
+            writeNode(ptag, "inj", 0, false, 0, false,
+                      line, true, 0, false, 0, false, d.str(),
+                      CORR_ORIGIN);
+        }
+        // model-specific mshr_arb node (the arbitration observation: the
+        // arbitration genuinely ALLOWED an allocation beyond capacity).
+        {
+            std::ostringstream h;
+            h << std::hex << line;
+            notePropEvt("mshr_arb", {
+                {"fault_id", std::to_string(ptag)},
+                {"corr", CORR_ORIGIN},
+                {"mshr_id", std::to_string(noteMshrAlloc(line))},
+                {"entry_index", std::to_string(occ_after)},
+                {"cache_line", h.str()},
+                {"field", "capacity"},
+                {"state_before", "full_blocked"},
+                {"state_after", "over_commit_alloc"},
+            });
+        }
+        // faulted-byte (blk) registry: the over-committed request's line.
+        // Later events on that line (cache_access, mshr_merge/fill/free,
+        // the response delivery) join by overlap — corr=addr_fallback.
+        {
+            sweepExpired();
+            BlkEntry b;
+            b.ptag = ptag;
+            b.byte_begin = line;
+            b.byte_end = line + (block_size ? block_size : 1);
+            b.registered = curTick();
+            blk_registry[b.byte_begin] = b;
+        }
+        return ptag;
+    }
+
     // [MDSPEC][R4-5.4] P06-a prefetch-as-demand fill classification fault
     // (see .hh for the full contract). Address-only registration (the
     // labeled addr_fallback arm): the fill-classification site has no

@@ -87,6 +87,10 @@ CHAOSCache *BaseCache::chaosFillTimingHook = nullptr;
 // (declared in base.hh).
 CHAOSCache *BaseCache::chaosMshrBusyHook = nullptr;
 
+// [MDSPEC][R4-5.6] C15-b MSHR capacity-arbitration registry (declared in
+// base.hh).
+CHAOSCache *BaseCache::chaosMshrOccHook = nullptr;
+
 BaseCache::CacheResponsePort::CacheResponsePort(const std::string &_name,
                                           BaseCache& _cache,
                                           const std::string &_label)
@@ -655,6 +659,43 @@ void
 BaseCache::chaosResumeDeferredResp(PacketPtr pkt)
 {
     recvTimingResp(pkt);
+}
+
+// [MDSPEC][R4-5.6] C15-b MSHR capacity-arbitration hook (declared in
+// base.hh). Called from the TAIL of the inline allocateMissBuffer, after
+// the new miss allocation ran the queue's capacity arbitration. Two jobs,
+// in this order:
+//   1. READ-BACK: if the mounted CHAOSCache has a fabricated free slot
+//      pending, this allocation is the over-capacity (reserve) one it
+//      allowed — noteMshrAllocAttempt consumes it (registers the fault,
+//      bumps `activated`) when the queue is still full, or drops it
+//      (honest Inject-not-activated) when the queue drained in between.
+//   2. FIRE: when the queue is full (the allocation reached the capacity
+//      limit) and the injector consents, fabricate a free slot by
+//      clearing the block just set above, so the CPU side retries and one
+//      further allocation runs beyond capacity.
+// nullptr hook = nothing happens: the normal path is byte-for-byte
+// unchanged (zero regression).
+void
+BaseCache::chaosMshrOccArbitrate(PacketPtr pkt, MSHR *mshr)
+{
+    if (!chaosMshrOccHook)
+        return;
+    if (chaosMshrOccHook->noteMshrAllocAttempt(
+            this, pkt, mshr, mshrQueue.isFull(),
+            mshrQueue.numInService())) {
+        return;   // this allocation WAS the over-commit one
+    }
+    if (mshrQueue.isFull() &&
+        chaosMshrOccHook->maybeFakeFreeSlot(this, pkt, mshr,
+                                            mshrQueue.numInService())) {
+        // The fabricated free slot: unblock the CPU side so exactly one
+        // further miss allocation consumes a reserve entry beyond the
+        // arbitration's capacity. isFull() is still true, so the next
+        // allocateMissBuffer re-blocks (and stops iterating) — the
+        // widening is bounded to one allocation per fabrication.
+        clearBlocked((BlockedCause)MSHRQueue_MSHRs);
+    }
 }
 
 void

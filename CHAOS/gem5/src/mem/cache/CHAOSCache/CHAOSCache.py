@@ -59,7 +59,11 @@ class CHAOSCache(SimObject):
         "serviced MSHR entry is NOT released at the fill release point — "
         "its busy/occupied state is stuck-at-1, the slot never returns to "
         "the free list; same trigger discipline via lsuTier, legacy "
-        "periodic attack DISABLED)")
+        "periodic attack DISABLED) | mshr_occupancy (MDSPEC C15-b: at MSHR "
+        "capacity the injector fabricates a free slot so one further "
+        "allocation runs beyond the arbitration's capacity — the "
+        "arbitration's allow/deny decision is genuinely wrong; same trigger "
+        "discipline via lsuTier, legacy periodic attack DISABLED)")
     lsuFillDelayCycles = Param.UInt64(100,
         "MDSPEC C12 mshr_fill_timing: the fill-timing offset in cache clock "
         "cycles — the deferred fill's processing (handleFill + target "
