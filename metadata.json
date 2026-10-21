@@ -2,7 +2,7 @@
   "cli_version": "0.10.2",
   "checkpoint_id": "01M5FGA71V5B97K4CV8HE6NG6Y",
   "strategy": "manual-commit",
-  "branch": "r4-5.5-5.6-c14c15",
+  "branch": "lsu-mdspec-20261019",
   "checkpoints_count": 1,
   "files_touched": null,
   "sessions": [
@@ -15,10 +15,10 @@
     }
   ],
   "token_usage": {
-    "input_tokens": 6043,
+    "input_tokens": 422069,
     "cache_creation_tokens": 0,
-    "cache_read_tokens": 672384,
-    "output_tokens": 2290,
-    "api_call_count": 2
+    "cache_read_tokens": 40697856,
+    "output_tokens": 110162,
+    "api_call_count": 169
   }
 }
