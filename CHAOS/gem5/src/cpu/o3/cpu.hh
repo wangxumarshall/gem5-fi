@@ -513,6 +513,14 @@ class CPU : public BaseCPU
     // split/Request construction (A04/A05/A06/A08 family).
     CHAOSAddrPath *chaosAddrPathPre = nullptr;
     void setChaosAddrPathPre(CHAOSAddrPath *p) { chaosAddrPathPre = p; }
+    // [MDSPEC][R4-5.8] A07 AGU clean-ready/handshake hook: IEW::
+    // executeInsts' isMemRef branch — the ready point where the scheduler
+    // hands a ready memory instruction to the LSQ for address generation
+    // (the AGU = initiateAcc inside executeLoad/executeStore). Set by
+    // CHAOSAddrPath::startup() when agu_ready_mode != off; nullptr = the
+    // call site short-circuits (zero regression).
+    CHAOSAddrPath *chaosAguReady = nullptr;
+    void setChaosAguReady(CHAOSAddrPath *p) { chaosAguReady = p; }
     // [LSU][OBS-L3] CHAOSPropagation: raw pointer to the READ-ONLY L3
     // propagation tracer. Set by the tracer's startup()
     // (setChaosPropagation(this)); the LSQ-side hooks (lsq.cc pushRequest /

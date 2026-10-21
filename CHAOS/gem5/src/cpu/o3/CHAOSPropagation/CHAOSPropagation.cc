@@ -608,6 +608,70 @@ namespace gem5
         return ptag;
     }
 
+    // [MDSPEC][R4-5.8] A07-b AGU-ready delay (see .hh for the full
+    // contract — the late-binding design and why NO registry entry is
+    // made here). inj node only; the address binding arrives with the
+    // delayed instruction's EA at LSQ::pushRequest (bindAguFaultAddr).
+    uint64_t
+    CHAOSPropagation::registerAguReadyFault(uint64_t dyn_seq,
+                                            long long lq_idx,
+                                            long long sq_idx,
+                                            Tick ready_tick,
+                                            Tick delayed_tick,
+                                            uint64_t delay_cycles,
+                                            bool is_load, Addr pc)
+    {
+        if (!write_log)
+            return 0;
+        const uint64_t ptag = ++next_ptag;
+
+        // inj node (dyn_seq = the delayed instruction — the fault IS its
+        // ready timing). before/after carry the faulted VALUE for this
+        // model: the ready tick before/after the bounded delay (the C12
+        // delivery-tick precedent; value type is per-model, documented at
+        // the registration point and lifted by the writeNode dual-emit).
+        // delay_cycles / lq_idx / sq_idx / pc stay in the v1 detail.
+        {
+            std::ostringstream d;
+            d << "family=addrpath;field=agu_ready_delay"
+              << ";before=" << ready_tick
+              << ";after=" << delayed_tick
+              << ";delay_cycles=" << delay_cycles
+              << ";is_load=" << (is_load ? 1 : 0)
+              << ";lq_idx=" << lq_idx
+              << ";sq_idx=" << sq_idx
+              << ";pc=0x" << std::hex << pc << std::dec;
+            writeNode(ptag, "inj", dyn_seq, true,
+                      0, false, 0, false, 0, false, 0, false, d.str(),
+                      CORR_ORIGIN);
+        }
+        // NO registry entry: the EA does not exist at the ready point.
+        // bindAguFaultAddr (called from the pushRequest PRE hook at the
+        // delayed tick) binds the chain to the real address range.
+        return ptag;
+    }
+
+    // [MDSPEC][R4-5.8] A07 late address binding: attach the ptag from
+    // registerAguReadyFault to [addr, addr+size) bound to dyn_seq (the
+    // seq-primary arm — same entry shape as registerLSQForwardFault's
+    // PRIMARY, but the range is the DELAYED instruction's own access:
+    // only its requests/events match, never another instruction's).
+    void
+    CHAOSPropagation::bindAguFaultAddr(uint64_t ptag, uint64_t dyn_seq,
+                                       Addr addr, unsigned size)
+    {
+        if (!write_log || ptag == 0 || dyn_seq == 0)
+            return;
+        sweepExpired();
+        AddrEntry e;
+        e.ptag = ptag;
+        e.dyn_seq = dyn_seq;
+        e.base = addr;
+        e.size = size ? size : 1;
+        e.registered = curTick();
+        addr_registry[addr] = e;
+    }
+
     // [MDSPEC][R4-1] SQ store->load forwarding fault (seq-primary).
     uint64_t
     CHAOSPropagation::registerLSQForwardFault(

@@ -73,6 +73,18 @@ enum class ChaOSLsuTier : uint8_t { F0, F1, F2, F3, F4, F5, F6 };
 // directly at the eligible response (the completeDataAccess hook is the
 // attempt stream; store/atomic/squashed responses and no-candidate
 // arrivals return before the event — attempted, never the F6 event).
+//
+// [MDSPEC][R4-5.8] EIGHTH source, same ruling shape: the AGU
+// clean-ready/handshake point (IEW::executeInsts' isMemRef branch —
+// CHAOSAddrPath agu_ready_mode=a07b_ready_delay, model A07) is an F6
+// event source: A07's specified event IS the address-ready handshake of
+// an eligible plain load/store (the model's trigger "连续相关访存" is
+// realized by the W3/W5 dependent-chase workloads). Same non-ride: the
+// ready hook calls onF6Event(false) directly at the eligible ready event
+// (the ready hook is the attempt stream; atomic/prefetch arrivals return
+// before the event on the op-class gate — attempted, never the F6
+// event). A07 runs do NOT register the W1 four-source thunk
+// (CHAOSAddrPath::startup gates it on agu_ready_mode == off).
 enum class ChaOSLsuEvent : uint8_t { TlbHit, SqForward, DirtyEviction,
                                      CasSuccess };
 

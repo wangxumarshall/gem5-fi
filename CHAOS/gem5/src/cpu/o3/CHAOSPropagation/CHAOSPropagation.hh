@@ -250,6 +250,41 @@ class CHAOSPropagation : public SimObject
                                      Tick arrival_tick, Tick deferred_tick,
                                      uint64_t delay_cycles);
 
+    // [MDSPEC][R4-5.8] A07-b AGU-ready delay (CHAOSAddrPath
+    // maybeDelayAguReady at IEW::executeInsts' isMemRef branch — the
+    // ready/handshake point). ONE plain load/store just had its
+    // address-ready handshake delayed: the AGU (initiateAcc) runs at
+    // `delayed_tick` instead of `ready_tick` (delay = delayed_tick -
+    // ready_tick = delay_cycles CPU cycles). Writes the inj node
+    // (corr=origin; before/after = the faulted VALUE of this model — the
+    // ready tick before/after the delay, the C12 delivery-tick precedent;
+    // delay_cycles / lq_idx / sq_idx / pc stay in the v1 detail) and
+    // registers NOTHING yet: the EA does not exist at the ready point.
+    // The address binding is LATE: bindAguFaultAddr (below) is called
+    // from the LSQ::pushRequest PRE hook when the DELAYED instruction's
+    // EA first materializes (the AGU raw output), binding the chain to
+    // the real range [addr, addr+size) with the instruction's seq — the
+    // very same request's lsq_push (emitted right after the PRE hook),
+    // its mem_req/tlb_translate fragments and every downstream
+    // seq/overlap-correlated node then join with corr=seq_primary and
+    // REAL va values. NO address-only fallback arm exists for A07 (the
+    // fault follows the dynamic instruction, not an address — L04's
+    // stricter-than-minimum stance). If the delayed instruction never
+    // reaches pushRequest (predicated-off / squashed in the delay
+    // window), the chain honestly stops at the inj node.
+    // Returns the ptag (0 = tracer disabled).
+    uint64_t registerAguReadyFault(uint64_t dyn_seq, long long lq_idx,
+                                   long long sq_idx, Tick ready_tick,
+                                   Tick delayed_tick, uint64_t delay_cycles,
+                                   bool is_load, Addr pc);
+
+    // [MDSPEC][R4-5.8] A07 late address binding (see above): attach the
+    // ALREADY-allocated ptag to [addr, addr+size) bound to dyn_seq in the
+    // addr registry (the seq-primary arm). No-op for ptag == 0 or
+    // dyn_seq == 0.
+    void bindAguFaultAddr(uint64_t ptag, uint64_t dyn_seq,
+                          Addr addr, unsigned size);
+
     // [MDSPEC][R4-1] SQ store->load forwarding fault, seq-PRIMARY
     // correlation (user ruling 2026-10-20: address-only correlation may
     // survive only as a labeled fallback). Allocates a ptag, writes the

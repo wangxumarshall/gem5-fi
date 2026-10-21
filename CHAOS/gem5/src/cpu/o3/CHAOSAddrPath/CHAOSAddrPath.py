@@ -60,3 +60,22 @@ class CHAOSAddrPath(SimObject):
         "a06_size RETIRED 2026-10-15 (load completion asserts)")
     aguSizeTo = Param.UInt64(0,
         "a06s_store_size target size: 1|2|4|8|16 (0 = invalid, no-op)")
+
+    # [MDSPEC][R4-5.8] A07 AGU clean-ready/handshake family (03 sheet A07:
+    # "AGU 结果的 address-ready 握手信号与 EA 流水锁存器"; hook =
+    # IEW::executeInsts' isMemRef branch — the ready point, BEFORE the EA
+    # exists, which is why neither the pushRequest PRE hook (AGU raw
+    # OUTPUT) nor the sendFragment POST hook (DTLB input) could express
+    # the ready-timing model). Landed sub-model: a07b_ready_delay = A07-b
+    # bounded ready delay (delay_cycles CPU clock edges; spec "延后1
+    # 周期"; data payload stays correct — only the timing shifts).
+    # A07-a (ready early + stale latched EA) and A07-c (ready lost) are
+    # pending — see tools/lsu_runid_map.py SPEC_IMPL_LANDED. LSU-trigger-
+    # native: a non-off mode REQUIRES lsuTier != off and is mutually
+    # exclusive with preMode (one hook per run, W1-⑦).
+    aguReadyMode = Param.String("off",
+        "off | a07b_ready_delay (A07-b bounded AGU-ready delay at the IEW "
+        "memRef ready/handshake point)")
+    aguReadyDelayCycles = Param.UInt64(1,
+        "A07-b: the ready handshake is delayed by this many CPU clock "
+        "edges (bounded, >=1; spec default 1 = '延后1周期')")

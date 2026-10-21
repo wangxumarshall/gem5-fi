@@ -4,6 +4,7 @@
 
 #include "cpu/o3/CHAOSPropagation/CHAOSPropagation.hh"  // [LSU][OBS-L3] funnel notify
 #include "cpu/o3/cpu.hh"          // o3::CPU
+#include "cpu/o3/dyn_inst.hh"     // [MDSPEC][R4-5.8] A07 ready hook (DynInst)
 #include "debug/CHAOSAddrPath.hh"
 #include "params/CHAOSAddrPath.hh"
 #include "sim/sim_exit.hh"        // registerExitCallback (W2 summary line)
@@ -24,8 +25,36 @@ namespace gem5
           rng_seed(p.rngSeed),
           write_log(p.writeLog),
           pre_mode(p.preMode),
-          agu_size_to(p.aguSizeTo)
+          agu_size_to(p.aguSizeTo),
+          agu_ready_mode(p.aguReadyMode),
+          agu_ready_delay_cycles(p.aguReadyDelayCycles),
+          aguResumeEvent([this] { this->resumeDeferredAgu(); },
+                         name() + ".aguResume")
     {
+        // [MDSPEC][R4-5.8] A07 config validation — LOUD refusals, no silent
+        // fallback (C11/C12 discipline): the ready-delay mode is
+        // LSU-trigger-native (the cycle-window legacy path has no event
+        // denominator at the ready point), takes exactly one hook per run
+        // (W1-⑦: agu_ready_mode and the PRE family are mutually
+        // exclusive), and the delay is a positive bound (0 = no-op, the
+        // spec's "延后1周期" is the default and the campaign-pinned value).
+        if (agu_ready_mode != "off") {
+            if (agu_ready_mode != "a07b_ready_delay")
+                panic("CHAOSAddrPath: unknown agu_ready_mode '%s' "
+                      "(off | a07b_ready_delay)\n", agu_ready_mode.c_str());
+            if (p.lsuTier == "off")
+                panic("CHAOSAddrPath: agu_ready_mode requires --addrpath_"
+                      "lsu_tier (A07 is LSU-trigger-native; the legacy "
+                      "cycle-window path is not offered at the ready "
+                      "hook)\n");
+            if (pre_mode != "off")
+                panic("CHAOSAddrPath: agu_ready_mode and agu_pre_mode are "
+                      "mutually exclusive (one hook per run, W1-⑦ "
+                      "discipline)\n");
+            if (agu_ready_delay_cycles < 1)
+                panic("CHAOSAddrPath: agu_ready_delay_cycles must be >= 1 "
+                      "(A07-b bounded delay; 0 is a no-op)\n");
+        }
         if (p.lsuTier != "off") {
             lsuTrigger = new ChaOSLsuTrigger(tierFromString(p.lsuTier),
                                              rng_seed ? rng_seed : 1,
@@ -319,11 +348,37 @@ namespace gem5
 
     unsigned int
     CHAOSAddrPath::maybeCorruptPre(Addr& addr, unsigned int size, bool isLoad,
-                               Request::Flags& flags)
+                               Request::Flags& flags, uint64_t dyn_inst_seq)
     {
         // [LSU][OBS-L3] last-hook verdict for the pushRequest call site
         // (flag-only modes S06/L02 leave addr/size untouched).
         obs_pre_hook_injected = false;
+
+        // [MDSPEC][R4-5.8] A07 path: this hook serves ONLY as the EA
+        // observation point (late binding) — NEVER a value fault and NEVER
+        // a trigger attempt (the ready hook owns the attempt stream;
+        // booking attempts here would double-count and the PRE op-class
+        // filter would mis-shape the denominator). When the DELAYED
+        // instruction's EA first materializes (pushRequest entry = the
+        // AGU's raw output, W1-⑦), bind the fault chain to the real
+        // address range so the very same request's lsq_push (emitted right
+        // below this hook in LSQ::pushRequest), its mem_req/tlb_translate
+        // fragments and every downstream node join by seq+overlap with
+        // REAL va values (a precise range — no address-only fallback arm
+        // is registered for A07; the fault follows the dynamic
+        // instruction, not an address).
+        if (agu_ready_mode != "off") {
+            if (!agu_addr_bound && dyn_inst_seq != 0
+                && dyn_inst_seq == agu_fault_seq && agu_fault_ptag) {
+                CHAOSPropagation *prop = CHAOSPropagation::instance();
+                if (prop)
+                    prop->bindAguFaultAddr(agu_fault_ptag, dyn_inst_seq,
+                                           addr, size);
+                agu_addr_bound = true;
+            }
+            return size;
+        }
+
         if (probability <= 0.0f) return size;
 
         if (lsuTrigger) {
@@ -535,6 +590,145 @@ namespace gem5
         return size;
     }
 
+    // [MDSPEC][R4-5.8] A07-b AGU clean-ready delay (see .hh for the hook
+    // contract). Called from IEW::executeInsts' isMemRef branch — the
+    // ready/handshake point. Returns true = the caller MUST SKIP the normal
+    // execute path this cycle (the resume event re-enters it at the delayed
+    // tick); false = proceed normally.
+    bool
+    CHAOSAddrPath::maybeDelayAguReady(const DynInstPtr &inst)
+    {
+        if (agu_ready_mode == "off" || !lsuTrigger)
+            return false;
+        if (!inst)
+            return false;
+        if (max_faults != 0 && faults_injected_count >= max_faults)
+            return false;   // G5 single-fault cap (C11 discipline)
+
+        lsuTrigger->onAttempt();
+
+        // Eligibility (op-class filter BEFORE the trigger decision, F-049):
+        // plain loads and plain stores — the AGU serves both queues;
+        // atomics are the O-family RMW models' territory and prefetches the
+        // P-family's; the spec binds ONE dynamic instruction. The
+        // "连续相关访存" (consecutive dependent memory accesses) trigger
+        // context is workload-realized (W3/W5 are dependent-chase probes)
+        // — a true data-dependency gate needs producer tracking the ready
+        // point does not expose (register producers are not carried on the
+        // DynInst at execute time); honest registration, C11's same-page
+        // proxy class.
+        if (inst->isAtomic() || inst->isDataPrefetch()
+            || inst->isInstPrefetch()
+            || !(inst->isLoad() || inst->isStore())) {
+            ++obs_agu_opclass;
+            return false;
+        }
+        // Single-slot guard (C12 discipline): a second fire while one
+        // resume is pending would overwrite the slot (the first
+        // instruction's resume lost). Campaign maxFaults=1 makes this
+        // unreachable; structural refusal under unlimited configs.
+        if (aguResumeEvent.scheduled()) {
+            ++obs_agu_slotbusy;
+            return false;
+        }
+
+        bool go;
+        if (lsuTrigger->tier == ChaOSLsuTier::F6) {
+            // EIGHTH F6 event source (chaos_lsu_trigger.hh registry): A07's
+            // specified event IS the AGU-ready handshake of an eligible
+            // plain mem op. onF6Event(false): THIS invocation's attempt was
+            // already booked by onAttempt() above — booking again here
+            // would double-count ([MDSPEC][R4-5.1-review-I1]; the W1 thunk
+            // sites keep the default because their event notification has
+            // no onAttempt stream).
+            go = lsuTrigger->onF6Event(false);
+        } else {
+            go = lsuTrigger->onEligible();
+        }
+        if (!go)
+            return false;
+
+        // Fire: stash the instruction and schedule the resume at the CPU's
+        // clockEdge(delay). The AGU (initiateAcc) runs INSIDE the resume
+        // re-entry, so every downstream value is the CORRECT one, only the
+        // ready/execute tick shifts from ready_tick to delayed_tick (the
+        // spec's "只改变一次事件的发生周期…数据载荷保持正确").
+        const Tick ready_tick = curTick();
+        const Tick delayed_tick =
+            o3cpu_resolved
+                ? o3cpu_resolved->clockEdge(Cycles(agu_ready_delay_cycles))
+                : ready_tick;
+        aguPendingInst = inst;
+        agu_fault_seq = inst->seqNum;
+        agu_addr_bound = false;
+        agu_activated = false;
+        schedule(aguResumeEvent, delayed_tick);
+        ++faults_injected_count;
+        chaosL0Register(l0_item, inst->seqNum);
+        ++l0_funnel.injected;
+        // Registration: inj node (corr=origin; before/after = the faulted
+        // VALUE of this model, the ready tick before/after the delay — the
+        // C12 delivery-tick precedent; delay_cycles/keys stay in the v1
+        // detail). NO registry entry yet: the EA does not exist at the
+        // ready point; bindAguFaultAddr (maybeCorruptPre, above) binds the
+        // chain to the real address range when the delayed instruction's
+        // EA enters the LSQ.
+        if (CHAOSPropagation::instance())
+            agu_fault_ptag = CHAOSPropagation::instance()->registerAguReadyFault(
+                inst->seqNum,
+                (long long)(inst->isLoad() ? inst->lqIdx : -1),
+                (long long)(inst->isLoad() ? -1 : inst->sqIdx),
+                ready_tick, delayed_tick, agu_ready_delay_cycles,
+                inst->isLoad(), inst->pcState().instAddr());
+        notifyFunnelAtInjection();
+        if (write_log && log_stream && log_stream->stream()) {
+            *(log_stream->stream()) << "Tick: " << ready_tick
+                << ", Site: iew_memRef_AGU_ready"
+                << ", mode=" << agu_ready_mode
+                << ", dyn_inst_seq=" << inst->seqNum
+                << ", ready_tick=" << ready_tick
+                << ", delayed_tick=" << delayed_tick
+                << ", delay_cycles=" << agu_ready_delay_cycles
+                << ", isLoad=" << (inst->isLoad() ? 1 : 0)
+                << ", isStore=" << (inst->isLoad() ? 0 : 1)
+                << ", faults_injected: " << faults_injected_count
+                << std::endl;
+        }
+        return true;
+    }
+
+    // [MDSPEC][R4-5.8] A07-b resume thunk (aguResumeEvent, fires at the
+    // delayed tick = the CPU's clockEdge(delay); EventFunctionWrapper's
+    // Maximum_Priority runs it after that tick's CPU tick event, i.e. the
+    // instruction executes "at" the delayed cycle). Squash-safe: the stashed
+    // DynInstPtr keeps the instruction alive across the delay window; if a
+    // younger-installed squash removed it in between, chaosAguResumeInst's
+    // squashed branch retires it exactly like executeInsts does (the fault
+    // then stays Injected-not-activated — l0_funnel.activated is only
+    // bumped on a genuine resume consumption, a REAL read-back verdict,
+    // stricter than the POST hook's near-tautological approximation).
+    void
+    CHAOSAddrPath::resumeDeferredAgu()
+    {
+        DynInstPtr inst = aguPendingInst;
+        aguPendingInst = nullptr;   // clear the slot BEFORE re-entry
+        if (!inst)
+            return;
+        if (o3cpu_resolved) {
+            agu_activated = true;
+            ++l0_funnel.activated;
+            o3cpu_resolved->o3IEW().chaosAguResumeInst(inst);
+        }
+        if (write_log && log_stream && log_stream->stream()) {
+            *(log_stream->stream()) << "Tick: " << curTick()
+                << ", Site: iew_memRef_AGU_ready_resume"
+                << ", mode=" << agu_ready_mode
+                << ", dyn_inst_seq=" << inst->seqNum
+                << ", consumed=1, squashed=" << (inst->isSquashed() ? 1 : 0)
+                << std::endl;
+        }
+    }
+
     void
     CHAOSAddrPath::notifyFunnelAtInjection()
     {
@@ -575,12 +769,29 @@ namespace gem5
         // W4: exactly one hook per run — the PRE family (A04/A05/A06/A08)
         // registers on the pushRequest-entry pointer; the post family
         // (legacy + A01-A03 + LSU tiers) keeps the sendFragment pointer.
-        if (pre_mode != "off")
+        // [MDSPEC][R4-5.8] A07 third family: the ready hook owns the
+        // injection; the PRE pointer is registered ONLY as the EA
+        // observation point (maybeCorruptPre's top branch makes it a
+        // non-injecting late binder — no attempts, no value fault), and
+        // the POST (sendFragment) pointer stays UNREGISTERED so no value
+        // fault path exists for A07 (timing-only model).
+        if (agu_ready_mode != "off") {
+            o3cpu->setChaosAguReady(this);
             o3cpu->setChaosAddrPathPre(this);
-        else
+        } else if (pre_mode != "off") {
+            o3cpu->setChaosAddrPathPre(this);
+        } else {
             o3cpu->setChaosAddrPath(this);
+        }
         if (lsuTrigger) {
-            if (lsuTrigger->tier == ChaOSLsuTier::F6) {
+            // [MDSPEC][R4-5.8] the W1 four-source F6 thunk registration is
+            // for the POST family ONLY: A07's F6 event source IS the
+            // AGU-ready handshake (booked at the hook via onF6Event(false),
+            // chaos_lsu_trigger.hh EIGHTH source) — registering the thunk
+            // here would make W1 events (sq_forward etc.) consume the F6
+            // once-ever shot.
+            if (lsuTrigger->tier == ChaOSLsuTier::F6
+                && agu_ready_mode == "off") {
                 f6Consumer = this;
                 chaosLsuF6Notify = &CHAOSAddrPath::f6Thunk;
             }
@@ -594,7 +805,12 @@ namespace gem5
                     // its warm-up/span, the pre-drawn target occurrence and
                     // how many matching events were actually seen (matched <
                     // target = no injection, honest inj=0).
-                    if (lsuTrigger->tier == ChaOSLsuTier::F6) {
+                    // [MDSPEC][R4-5.8] POST-family only: A07's F6 semantics
+                    // is onF6Event(false) at the ready hook (the thunk track
+                    // never runs — printing it would claim a mode that
+                    // never fired).
+                    if (lsuTrigger->tier == ChaOSLsuTier::F6
+                        && agu_ready_mode == "off") {
                         printf("CHAOS_LSU_F6MODE: mode=%s warmup=%lu "
                                "span=%lu target_occurrence=%lu matched=%lu\n",
                                f6_steady_state ? "steady_state"
@@ -617,6 +833,25 @@ namespace gem5
                            (unsigned long)obs_post_nochange,
                            (unsigned long)obs_post_geomreject,
                            (unsigned long)lsuTrigger->injected);
+                    // [MDSPEC][R4-5.8] A07 ready-hook evidence line
+                    // (agu_ready_mode runs only): the pending slot's final
+                    // state — addr_bound=0 means the delayed instruction's
+                    // EA never entered the LSQ (predicated-off / squashed
+                    // before pushRequest: chain honestly stops at inj);
+                    // activated counts resumes that actually executed the
+                    // instruction (genuine read-back, 03 sheet's
+                    // Injected-not-activated distinction).
+                    if (agu_ready_mode != "off")
+                        printf("CHAOS_AGU_READY: mode=%s delay_cycles=%lu "
+                               "fault_seq=%lu addr_bound=%d activated=%d "
+                               "obs_opclass=%lu obs_slotbusy=%lu\n",
+                               agu_ready_mode.c_str(),
+                               (unsigned long)agu_ready_delay_cycles,
+                               (unsigned long)agu_fault_seq,
+                               agu_addr_bound ? 1 : 0,
+                               agu_activated ? 1 : 0,
+                               (unsigned long)obs_agu_opclass,
+                               (unsigned long)obs_agu_slotbusy);
                     // Mirror the trigger's FINAL counts here (exit time), so
                     // the funnel line and the summary line always agree.
                     l0_funnel.attempted = lsuTrigger->attempted;
