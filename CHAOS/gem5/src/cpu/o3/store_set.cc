@@ -31,6 +31,9 @@
 #include "base/trace.hh"
 #include "cpu/o3/store_set.hh"
 #include "cpu/o3/chaos_lsu_trigger.hh"  // LSU W5 S10 StoreSet corruption
+// [MDSPEC][R4-5.7] S10 hooks (chaosS10* globals; StoreSet has no CPU or
+// injector pointer — the S10-armed CHAOSLSQFwd self-registers them).
+#include "cpu/o3/CHAOSLSQFwd/CHAOSLSQFwd.hh"
 #include "debug/StoreSet.hh"
 #include "mem/cache/tags/indexing_policies/base.hh"
 #include "mem/cache/replacement_policies/base.hh"
@@ -118,20 +121,60 @@ StoreSet::violation(Addr store_PC, Addr load_PC)
     bool valid_load_SSID  = ld_entry && ld_entry->isValid();
     bool valid_store_SSID = st_entry && st_entry->isValid();
 
+    // [MDSPEC][R4-5.7] S10 hook (1/3): the TOP of every training event is
+    // the ATTEMPT stream (cap + onAttempt live in the injector callback),
+    // and — when load_PC is a corrupted S10 entry — the ssit_violation
+    // observation (the missed-dependence manifestation, cap-independent).
+    // Null (every non-S10 run): one branch, byte-identical behavior.
+    if (chaosS10Violation)
+        chaosS10Violation(store_PC, load_PC,
+                          valid_load_SSID ? ld_entry->getSSID() : 0,
+                          valid_load_SSID);
+
     if (!valid_load_SSID && !valid_store_SSID) {
         // Calculate a new SSID here.
         SSID new_set = calcSSID(load_PC);
 
-        // LSU W5 S10: StoreSet SSID corruption — when the F6-style event
-        // notify fires, XOR the new SSID with a random small value. This
-        // merges two unrelated store sets (false aliasing) or splits a
-        // real one, corrupting memory dependence prediction.
+        // LSU W5 S10: StoreSet SSID corruption — event-source observation.
+        // [MDSPEC][R4-5.7] HISTORICAL NOTE, kept deliberately: this
+        // count-only chaosLsuF6Observe (commit 7af6eed4) predates the S10
+        // landing and conflates SSIT-training events into the SqForward
+        // F6 supply counter (the true W1 SqForward source is the
+        // lsq_unit.cc forward branch). Removing it would change the event
+        // supply of already-landed F6 cells — out of scope here; recorded
+        // in the R4-5.7 report. The INJECTION itself is the S10 hook
+        // below (the W5 comment's claimed XOR corruption never existed —
+        // the "event source only" blocker this landing lifts).
         chaosLsuF6Observe(ChaOSLsuEvent::SqForward);
+
+        // [MDSPEC][R4-5.7] S10 hook (2/3): SSIT-ID 换值 in the new-SSID
+        // assignment arm. The LOAD's freshly assigned SSID may be
+        // substituted with ANOTHER LEGAL live store-set ID (workbook 07
+        // 实施细则: candidates from the current run, no random bit
+        // strings); the STORE entry keeps the true SSID, so the trained
+        // pair splits and the load aliases the target store set. The
+        // lazy scan enumerates the live SSIDs (valid SSIT entries only —
+        // free/idle SSIDs are not candidates by construction).
+        SSID load_ssid = new_set;
+        if (chaosS10SsidSubst) {
+            uint64_t subst = new_set;
+            if (chaosS10SsidSubst(store_PC, load_PC, new_set,
+                                  [this](std::vector<uint64_t> &out) {
+                                      for (const auto &e : SSIT)
+                                          if (e.isValid())
+                                              out.push_back(e.getSSID());
+                                  }, &subst)) {
+                // Legal by construction (a live SSIT SSID is < LFSTSize);
+                // the assert keeps that contract explicit.
+                assert(subst < (uint64_t)LFSTSize);
+                load_ssid = subst;
+            }
+        }
 
         assert(new_set < LFSTSize);
 
         SSITEntry *ld_entry = SSIT.findVictim({load_PC});
-        ld_entry->setSSID(new_set);
+        ld_entry->setSSID(load_ssid);
         SSIT.insertEntry({load_PC}, ld_entry);
 
         SSITEntry *st_entry = SSIT.findVictim({store_PC});
@@ -253,6 +296,28 @@ StoreSet::checkInst(Addr PC)
 
         assert(inst_SSID < LFSTSize);
 
+        // The prediction this consult returns (0 = no dependency).
+        InstSeqNum dep = validLFST[inst_SSID] ? LFST[inst_SSID] : 0;
+
+        // [MDSPEC][R4-5.7] S10 hook (3/3): consumer observation. When PC
+        // is a corrupted S10 entry, the consult READ the corrupted SSIT
+        // mapping — emit ssit_consult with the counterfactual prediction
+        // (what the TRUE SSID's LFST slot would have returned; LFST is
+        // private to StoreSet, so the counterfactual is computed HERE and
+        // handed to the injector alongside the actual). Null (every
+        // non-S10 run): no work.
+        if (chaosS10CorruptedPc && chaosS10Consult) {
+            uint64_t true_ssid = 0;
+            if (chaosS10CorruptedPc(PC, &true_ssid)) {
+                const uint64_t counter_dep =
+                    (true_ssid < (uint64_t)LFSTSize &&
+                     validLFST[true_ssid])
+                        ? (uint64_t)LFST[true_ssid] : 0;
+                chaosS10Consult(PC, (uint64_t)inst_SSID, (uint64_t)dep,
+                                counter_dep);
+            }
+        }
+
         if (!validLFST[inst_SSID]) {
 
             DPRINTF(StoreSet, "Inst %#x with SSID %i had no "
@@ -263,7 +328,7 @@ StoreSet::checkInst(Addr PC)
             DPRINTF(StoreSet, "Inst %#x with SSID %i had LFST "
                     "inum of %i\n", PC, inst_SSID, LFST[inst_SSID]);
 
-            return LFST[inst_SSID];
+            return dep;
         }
     }
 }

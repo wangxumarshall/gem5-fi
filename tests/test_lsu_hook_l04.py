@@ -219,7 +219,11 @@ def main():
           and "c->isExecuted()" in lu)
     hook = lcc[lcc.index(
         "CHAOSLSQFwd::maybeSwapResponseTarget"):]
-    hook = hook[:hook.index("\n    }\n\n} // namespace gem5")]
+    # [R4-5.7] the S10 callbacks were appended after maybeSwapResponseTarget
+    # in the same namespace tail — bound the slice at the S10 section so the
+    # L04 per-function pins below (single onAttempt etc.) keep testing the
+    # L04 body only (the namespace-end cut would swallow the S10 bodies).
+    hook = hook[:hook.index("    // [MDSPEC][R4-5.7] S10 StoreSet SSIT-ID 换值")]
     check("half-2 先于 maxFaults cap（封顶不掐断已建交换——否则 src 悬挂）",
           hook.index("l04_pending_tgt_seq") < hook.index("max_faults"),
           "order")
@@ -279,8 +283,9 @@ def main():
           str(LC.MODEL_FLAGS.get("L04")))
     check("L04 已从 MODEL_BLOCKED 删除（实测可跑后才允许）",
           "L04" not in LC.MODEL_BLOCKED)
-    check("后续模型未误解锁（C14/C15/S10 仍 BLOCKED）",
-          all(m in LC.MODEL_BLOCKED for m in ("C14", "C15", "S10")))
+    check("后续模型未误解锁（C14/C15 仍 BLOCKED；S10 已于 R4-5.7 落地）",
+          all(m in LC.MODEL_BLOCKED for m in ("C14", "C15"))
+          and "S10" not in LC.MODEL_BLOCKED)
     for pair in (("L04", "sq_forward"), ("L04", "sqlite_like")):
         check(f"LSQFWD_F0_SPAN 实测条目 {pair}",
               isinstance(LC.LSQFWD_F0_SPAN.get(pair), int)

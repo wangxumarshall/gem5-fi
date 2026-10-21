@@ -5,6 +5,7 @@
 #include <bitset>
 #include <memory>
 #include <functional>
+#include <unordered_map>
 #include <vector>
 
 #include "base/output.hh"
@@ -20,6 +21,11 @@ namespace gem5
 {
 
 namespace o3 { class CPU; }
+
+// [MDSPEC][R4-5.7] S10 StoreSet lazy candidate scan (L04 RespPairScan
+// precedent): fills the live-SSID candidate set. Declared before the class
+// because the S10 static hook bodies (private members below) reference it.
+using S10SsidScan = std::function<void(std::vector<uint64_t> &)>;
 
 // CHAOSLSQFwd — store-to-load forwarding-path fault injector for O3CPU.
 //
@@ -146,6 +152,35 @@ class CHAOSLSQFwd : public SimObject
                                            const RespPairKeys &src,
                                            const RespPairScan &scan);
 
+    // [MDSPEC][R4-5.7] S10 StoreSet SSIT-ID 换值 (workbook 07 matrix S10 row:
+    // "SSIT的store-set ID换成另一合法ID"; blocking phrase "consumer-side:
+    // StoreSet SSID corruption event source only" lifted by THIS mode).
+    // Injection point = StoreSet::violation's new-SSID assignment arm (the
+    // training event, workbook trigger "load/store alias训练后"; the W5
+    // commit 7af6eed4 placed a count-only chaosLsuF6Observe there — the
+    // "event source only"). Payload: the LOAD's freshly assigned SSIT SSID
+    // is substituted with ANOTHER LEGAL live store-set ID chosen from the
+    // current run (workbook 实施细则: no random bit strings — candidates
+    // must be live values satisfying range/encoding/lifecycle constraints;
+    // source/target + candidate count saved in the injection line). The
+    // STORE entry keeps the true SSID: the trained pair splits and the
+    // load aliases the target store set. S10-b (LFST target) / S10-c
+    // (valid loss) / the other violation() merge arms are NOT landed
+    // (lsu_runid_map SPEC_IMPL_LANDED pending list).
+    //
+    // Consumer observation (the model's monitor focus "预测依赖与replay"):
+    //   ssit_consult (L1) — StoreSet::checkInst consulting the corrupted
+    //     load PC's entry; before/after = counterfactual/actual predicted
+    //     producing-store seq (the faulted VALUE of this model is the
+    //     PREDICTION);
+    //   ssit_violation (L2) — a memory-ordering violation detected on the
+    //     corrupted load PC (the missed-dependence manifestation; sheet 09
+    //     L2 rung literally names "violation/replay"), state_before = the
+    //     SSID still mapped at violation time.
+    // No addr/seq correlate surface exists for a PC-keyed predictor state:
+    // chain members are the injector's own PC-keyed emissions (pf_train
+    // precedent) — zero downstream registry registration, honestly.
+
   private:
     enum class FaultType { BitFlip, StuckAtZero, StuckAtOne, Random };
     static FaultType stringToFaultType(const std::string &s);
@@ -183,6 +218,22 @@ class CHAOSLSQFwd : public SimObject
     bool write_log;
     bool l03_mode = false;   // [LSU][SEM-B] W5 L03: violation-site only
     bool l04_mode = false;   // [MDSPEC][R4-5.3] W5 L04: response-pairing site
+    bool s10_mode = false;   // [MDSPEC][R4-5.7] W5 S10: StoreSet SSIT-ID 换值
+    // [MDSPEC][R4-5.7] S10 corrupted-entry table: corrupted load PC ->
+    // (propagation ptag, true SSID, consumed flag). The consumption surface
+    // is the injector's own PC-keyed match (StoreSet consults / violations
+    // of that PC) — see the public S10 comment above. Under the campaign
+    // cap (maxFaults=1) at most one entry exists; re-corruption of the
+    // same PC (F5 unlimited) overwrites — the previous chain then has no
+    // live consumption surface left (honest single-slot-per-PC limit,
+    // recorded here rather than papered over with a multi-map).
+    struct S10Entry {
+        uint64_t ptag = 0;
+        uint64_t true_ssid = 0;
+        bool consumed = false;
+    };
+    std::unordered_map<Addr, S10Entry> s10_entries;
+    uint64_t s10_activated_count = 0;  // entries with consumed=true
     // [MDSPEC][R4-5.3] L04-b pending exchange: one injection swaps the
     // pairing-table entries of two loads; the halves complete at different
     // response arrivals. State: the source load (returned as the delivered-
@@ -219,6 +270,21 @@ class CHAOSLSQFwd : public SimObject
     void writeLog(const char *type, unsigned size, Addr vaddr, int byte_off,
                   int mask, const FwdCorrelKeys &keys);
 
+    // [MDSPEC][R4-5.7] S10 static hook bodies (registered into the
+    // chaosS10* globals below by the ctor when s10_mode; deregistered by
+    // the dtor). The active instance is the single s10_active injector
+    // (single-consumer, single-core-SE scoped — same scoping as
+    // chaosLsuF6Notify, chaos_lsu_trigger.hh).
+    static CHAOSLSQFwd *s10_active;
+    static void s10ViolationCb(Addr store_pc, Addr load_pc,
+                               uint64_t load_ssid_now, bool load_ssid_valid);
+    static bool s10SsidSubstCb(Addr store_pc, Addr load_pc,
+                               uint64_t true_ssid,
+                               const S10SsidScan &scan, uint64_t *out_ssid);
+    static bool s10CorruptedPcCb(Addr pc, uint64_t *true_ssid);
+    static void s10ConsultCb(Addr pc, uint64_t actual_ssid,
+                             uint64_t actual_dep, uint64_t counterfactual_dep);
+
     struct CHAOSLSQFwdStats : public statistics::Group {
         statistics::Scalar numFaultsInjected;
         statistics::Scalar numBitFlips;
@@ -230,4 +296,49 @@ class CHAOSLSQFwd : public SimObject
 };
 
 } // namespace gem5
+
+// [MDSPEC][R4-5.7] S10 StoreSet hook bridge. StoreSet has no CPU/injector
+// pointer (it is a plain sub-object of MemDepUnit inside InstQueue), so the
+// S10-armed CHAOSLSQFwd self-registers these single-consumer callbacks
+// (BaseCache::chaosMergeHook precedent, C11; the W1-thunk chaosLsuF6Notify
+// scoping: single-core-SE, one LSU consumer per run by construction).
+// store_set.cc includes this header — signatures carry raw values only.
+//
+//   chaosS10Violation — called at the TOP of StoreSet::violation (every
+//     training event; the ATTEMPT stream) with the load's current SSIT
+//     SSID (validity flag: the entry may be absent/invalid — the SSIT is
+//     finite and cleared periodically). The callback (a) emits
+//     ssit_violation when load_pc is a corrupted entry (the missed-
+//     dependence manifestation — cap-INDEPENDENT, mechanical chain
+//     evidence like L04's half-2), then (b) applies the maxFaults cap
+//     BEFORE onAttempt (C11 convention: counters freeze at fire time) and
+//     (c) books the attempt.
+//   chaosS10SsidSubst — called in the new-SSID assignment arm with the
+//     freshly computed true SSID; the LAZY scan fills the live-SSID
+//     candidate set (valid SSIT entries' SSIDs). Eligibility = the arm
+//     reached AND >= 1 OTHER live store set (workbook 实施细则: the
+//     substituted value must be another legal live value; free/idle
+//     entries excluded by construction — only present SSIT entries scan).
+//     Trigger decision onEligible() / onF6Event(false) (the attempt was
+//     already booked by chaosS10Violation — R4-5.1-review-I1 accounting).
+//     On fire: target chosen uniformly among the candidates (seeded
+//     mt19937), *out_ssid filled, injection logged + registered.
+//   chaosS10CorruptedPc / chaosS10Consult — called from
+//     StoreSet::checkInst: the former asks whether PC is a corrupted
+//     entry (StoreSet then computes the counterfactual prediction from
+//     the TRUE SSID's LFST slot — LFST is private to StoreSet), the
+//     latter receives the consult (actual ssid/dep + counterfactual dep)
+//     and emits the ssit_consult event.
+inline void (*chaosS10Violation)(Addr store_pc, Addr load_pc,
+                                 uint64_t load_ssid_now,
+                                 bool load_ssid_valid) = nullptr;
+inline bool (*chaosS10SsidSubst)(Addr store_pc, Addr load_pc,
+                                 uint64_t true_ssid,
+                                 const S10SsidScan &scan,
+                                 uint64_t *out_ssid) = nullptr;
+inline bool (*chaosS10CorruptedPc)(Addr pc, uint64_t *true_ssid) = nullptr;
+inline void (*chaosS10Consult)(Addr pc, uint64_t actual_ssid,
+                               uint64_t actual_dep,
+                               uint64_t counterfactual_dep) = nullptr;
+
 #endif // __CPU_O3_CHAOS_LSQ_FWD_HH__

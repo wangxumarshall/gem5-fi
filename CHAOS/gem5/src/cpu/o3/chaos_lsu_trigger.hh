@@ -73,6 +73,23 @@ enum class ChaOSLsuTier : uint8_t { F0, F1, F2, F3, F4, F5, F6 };
 // directly at the eligible response (the completeDataAccess hook is the
 // attempt stream; store/atomic/squashed responses and no-candidate
 // arrivals return before the event — attempted, never the F6 event).
+//
+// [MDSPEC][R4-5.7] EIGHTH source, same ruling shape: the StoreSet
+// SSID-assignment training event (StoreSet::violation's new-SSID arm —
+// CHAOSLSQFwd --lsqfwd_s10, model S10; the workbook trigger "load/store
+// alias训练后" IS the violation retrain that assigns a fresh SSID) is an
+// F6 event source. Same non-ride: the S10 subst hook calls onF6Event(false)
+// directly at the eligible assignment (the StoreSet::violation top is the
+// attempt stream — s10ViolationCb; violations that retrain existing sets
+// and assignment events with no other live store set return before the
+// event — attempted, never the F6 event). NOTE: the S10 matrix rows carry
+// no F6 cells (F0/F2/F5 only); this ruling records the event-source shape
+// for completeness. HISTORICAL CONFLATION, kept deliberately: the W5
+// commit 7af6eed4 also calls chaosLsuF6Observe(SqForward) at this site —
+// SSIT-training events are counted into the SqForward supply counter (the
+// true W1 SqForward source is the lsq_unit.cc forward branch). Removing
+// it would change the event supply of already-landed F6 cells; recorded
+// here and in the R4-5.7 report, not silently altered.
 enum class ChaOSLsuEvent : uint8_t { TlbHit, SqForward, DirtyEviction,
                                      CasSuccess };
 

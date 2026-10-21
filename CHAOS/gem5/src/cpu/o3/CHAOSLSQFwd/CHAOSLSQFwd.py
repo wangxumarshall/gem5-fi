@@ -54,6 +54,16 @@ class CHAOSLSQFwd(SimObject):
         "(LSQUnit::completeDataAccess, maybeSwapResponseTarget); the SQ-forward "
         "data-path hook is excluded (hook split, L03 discipline). Requires "
         "lsuTier != off (the ctor panics otherwise — trigger-native model).")
+    s10Mode = Param.Bool(False,
+        "[MDSPEC][R4-5.7] W5 S10: StoreSet SSIT-ID 换值 (S10-a) — the "
+        "injector's stream is the StoreSet SSIT-training point "
+        "(StoreSet::violation's new-SSID assignment arm, via the chaosS10* "
+        "hooks); the substituted value is ANOTHER LEGAL live store-set ID "
+        "(candidates = valid SSIT entries' SSIDs, no random bit strings — "
+        "workbook 07 实施细则). The SQ-forward data-path hook is excluded "
+        "(hook split, L03/L04 discipline). Requires lsuTier != off AND the "
+        "standard mount (probability > 0) — the ctor panics otherwise "
+        "(trigger-native model).")
 
     firstClock = Param.UInt64(0, "First clock cycle eligible for injection")
     lastClock = Param.UInt64(0, "Last cycle (0 = unrestricted)")

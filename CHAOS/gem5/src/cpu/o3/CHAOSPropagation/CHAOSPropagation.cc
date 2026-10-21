@@ -745,6 +745,43 @@ namespace gem5
         return ptag;
     }
 
+    // [MDSPEC][R4-5.7] S10-a StoreSet SSIT-ID 换值 (see .hh for the ruling:
+    // inj node only, no correlate surface — PC-keyed predictor state).
+    uint64_t
+    CHAOSPropagation::registerStoreSetFault(Addr store_pc, Addr load_pc,
+                                            uint64_t true_ssid,
+                                            uint64_t new_ssid,
+                                            size_t candidate_count)
+    {
+        if (!write_log)
+            return 0;
+        const uint64_t ptag = ++next_ptag;
+
+        // inj node (v1 CSV + dual-emit): no seq, no addr — the faulted
+        // structure is the PC-indexed SSIT mapping. pc lifts to the
+        // unified pc field (the corrupted LOAD's PC — the chain's key);
+        // before/after = the faulted VALUE of this model, the SSID
+        // assignment (true -> substituted; both legal live store-set IDs,
+        // workbook 07 实施细则). store_pc and the candidate-set size stay
+        // in the detail (the workbook's "保存 source/target 及候选集合").
+        {
+            std::ostringstream d;
+            d << "family=lsqfwd;field=ssid"
+              << ";pc=" << std::hex << load_pc << std::dec
+              << ";store_pc=" << std::hex << store_pc << std::dec
+              << ";ssid_candidates=" << candidate_count
+              << ";old_addr=" << true_ssid      // lifted -> before
+              << ";new_addr=" << new_ssid;      // lifted -> after
+            writeNode(ptag, "inj", 0, false, 0, false,
+                      0, false, 0, false, 0, false, d.str(),
+                      CORR_ORIGIN);
+        }
+        // NO addr/seq registry registration by design (see .hh): the
+        // downstream chain members (ssit_consult / ssit_violation) are the
+        // injector's own PC-keyed emissions, pf_train precedent.
+        return ptag;
+    }
+
     // [MDSPEC][R4-4] ArmTLB pfn fault (seq-primary; see .hh for the ruling
     // and the measured pre-R4-4 mis-association this replaces).
     uint64_t

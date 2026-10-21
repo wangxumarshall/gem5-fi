@@ -161,6 +161,46 @@ def generate_map(xlsx_path):
                "injected sample, L0->L1/L1->L2/L2->L3 structurally missing "
                "(pairing-point fault is at L3; the loads' request-path "
                "events predate the injection — no back-projection))",
+        # S10（6 RunID，阻塞短语 "consumer-side: StoreSet SSID corruption
+        # event source only"）：--lsqfwd_s10（CHAOSLSQFwd chaosS10* 钩子 @
+        # store_set.cc StoreSet::violation 新 SSID 赋值臂 / checkInst——
+        # W5 commit 7af6eed4 的 count-only 事件源由此升级为真注入）。
+        # [Minor2 形态] 落地范围机器可读（xlsx 表9 子模型逐一点名）：
+        # 落地=S10-a SSIT ID 换值——load 侧 SSIT 条目新赋值的 SSID 换成
+        # 当前运行中另一合法在用 store-set ID（候选=SSIT 现存有效条目
+        # 的 SSID 集合、排除真值；表7 实施细则"不生成任意随机位串"），
+        # store 条目保留真 SSID（训练对被拆开 + load 假并入目标集合）；
+        # 观测=ssit_consult（L1，checkInst 咨询腐蚀条目，before/after=
+        # 反事实/实际预测 producing-store seq）与 ssit_violation（L2，
+        # 腐蚀 PC 上的 ordering violation 检出）；注入行保存
+        # old_ssid/new_ssid/候选数。未落地=S10-b LFST target 错误、
+        # S10-c store-set valid 丢失、violation() 其余合并臂的注入点
+        # （只落新 SSID 赋值臂）、多字段并发替换（表7 "每次运行只替换
+        # 一个字段"已满足，maxFaults>1 的多 PC 消费面为单槽/PC）。
+        # 证据状态（诚实）：落地自隔离 no-build worktree——C++ compile-
+        # unverified，无 census/无 pilot/无逐边链证据；本条目解除 spec
+        # "需新增"阻塞的依据是"注入模式已实现"，验证债显式登记：
+        # build（scons 增量）→ F0 census（(S10,sq_forward)/(S10,gap_bfs)
+        # 实测流长填 LSQFWD_F0_SPAN，F0 cell 解锁）→ campaign 6 cell ×
+        # 3 seed + lsu_chain_check 逐边 + 不受影响族回归 → 再把真机
+        # 证据补进本条目与 round4_findings §R4-5.7（集成侧步骤，
+        # R4-5.7-report.md 清单）。
+        "S10": "implemented(ssid_subst=S10-a SSIT-ID 换值 at the "
+               "StoreSet::violation new-SSID assignment arm (the load's "
+               "freshly assigned SSIT SSID substituted with ANOTHER LEGAL "
+               "live store-set ID — candidates = valid SSIT entries' "
+               "SSIDs minus the true one, workbook 07 实施细则 no-random-"
+               "bit-strings; the store entry keeps the true SSID), "
+               "CHAOSLSQFwd chaosS10* hooks + ssit_consult(L1)/"
+               "ssit_violation(L2) observations; pending: S10-b LFST "
+               "target error, S10-c store-set valid loss, the other "
+               "violation() merge arms as injection points (new-SSID "
+               "assignment arm only), multi-field concurrent substitution; "
+               "evidence: NONE yet — landed compile-unverified from the "
+               "isolated no-build worktree r4-s10, integration must build "
+               "+ census LSQFWD_F0_SPAN[(S10,sq_forward)/(S10,gap_bfs)] + "
+               "pilot 6 cells x 3 seeds + chain check before this entry "
+               "carries real-run evidence (R4-5.7-report.md checklist))",
     }
 
     wb = openpyxl.load_workbook(xlsx_path, data_only=True)
