@@ -1,0 +1,41 @@
+{
+  "cli_version": "0.10.2",
+  "checkpoint_id": "01M5DZHE239W3VGT365ZVQ8GM5",
+  "strategy": "manual-commit",
+  "branch": "lsu-mdspec-20261019",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "CHAOS/gem5/src/cpu/o3/CHAOSPropagation/CHAOSPropagation.cc",
+    "CHAOS/gem5/src/cpu/o3/CHAOSPropagation/CHAOSPropagation.hh",
+    "CHAOS/gem5/src/mem/cache/CHAOSCache/CHAOSCache.cc",
+    "CHAOS/gem5/src/mem/cache/CHAOSCache/CHAOSCache.hh",
+    "CHAOS/gem5/src/mem/cache/CHAOSCache/CHAOSCache.py",
+    "CHAOS/gem5/src/mem/cache/base.cc",
+    "CHAOS/gem5/src/mem/cache/base.hh",
+    "configs/se/lsu_proxy.py",
+    "docs/gem5-fi/lsu/mdspec/blocked_triage.md",
+    "docs/gem5-fi/lsu/mdspec/coverage_matrix.md",
+    "docs/gem5-fi/lsu/mdspec/pilot_evidence.json",
+    "docs/gem5-fi/lsu/mdspec/runid_map.json",
+    "tests/test_lsu_coverage_matrix.py",
+    "tests/test_lsu_hook_c11.py",
+    "tools/lsu_campaign.py",
+    "tools/lsu_runid_map.py"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 149564,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 1168384,
+    "output_tokens": 6784,
+    "api_call_count": 10
+  }
+}
