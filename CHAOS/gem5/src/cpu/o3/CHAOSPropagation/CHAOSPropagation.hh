@@ -210,6 +210,25 @@ class CHAOSPropagation : public SimObject
     uint64_t registerCacheFault(Addr block_addr, int byte_offset,
                                 Addr block_size, const char *field);
 
+    // [MDSPEC][R4-5.1] C11 MSHR merge corruption (CHAOSCache
+    // maybeCorruptMergeTarget): a demand-read target coalescing into an
+    // outstanding MSHR just had ONE offset-domain bit of its address
+    // flipped (old_addr -> new_addr, same line; `line` = the shared block
+    // address). Writes the inj node (detail old_addr/new_addr/size/
+    // block_addr — the dual-emit lifts them to before/after/cache_line;
+    // addr column = the corrupted target address; corr=origin) and
+    // registers the CORRUPTED target range [new_addr, new_addr+size) in
+    // the faulted-byte (blk) registry so every downstream event on that
+    // address/line joins the chain address-only (the labeled
+    // addr_fallback arm — C-family faults have no seq primary at this
+    // site): the H4 mshr_merge event at the same site (it correlates on
+    // the corrupted address), mshr_fill/cache_fill/mshr_free on the line,
+    // and noteMemResponse's cache arm (the response returns on the
+    // corrupted address) -> resp / lq_complete / taint_reg. Returns the
+    // ptag (0 = tracer disabled).
+    uint64_t registerMshrMergeFault(Addr line, Addr old_addr, Addr new_addr,
+                                    unsigned size);
+
     // [MDSPEC][R4-1] SQ store->load forwarding fault, seq-PRIMARY
     // correlation (user ruling 2026-10-20: address-only correlation may
     // survive only as a labeled fallback). Allocates a ptag, writes the

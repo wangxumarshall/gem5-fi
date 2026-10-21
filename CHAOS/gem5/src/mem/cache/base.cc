@@ -77,6 +77,9 @@ namespace gem5
 // v1.2 Phase 14: the CHAOSCache victim-fault registry (declared in base.hh).
 CHAOSCache *BaseCache::chaosVictimHook = nullptr;
 
+// [MDSPEC][R4-5.1] C11 MSHR-merge corruption registry (declared in base.hh).
+CHAOSCache *BaseCache::chaosMergeHook = nullptr;
+
 BaseCache::CacheResponsePort::CacheResponsePort(const std::string &_name,
                                           BaseCache& _cache,
                                           const std::string &_label)
@@ -406,11 +409,26 @@ BaseCache::handleTimingReqMiss(PacketPtr pkt, MSHR *mshr, CacheBlk *blk,
                 // buffer and to schedule an event to the queued
                 // port and also takes into account the additional
                 // delay of the xbar.
-                // LSU W6 C11: MSHR merge corruption — when the F6 dirty-
-                // eviction event fires (proxy cadence), flip a low bit of the
-                // merging target's address BEFORE the merge. The coalesced
-                // request then carries the wrong address downstream.
+                // LSU W2 F6 event-source observation (09 §2.1 map): a merge
+                // site coalesces demand traffic — observed here as a
+                // DirtyEviction-cadence proxy event (W6 wiring, unchanged).
                 chaosLsuF6Observe(ChaOSLsuEvent::DirtyEviction);
+                // [MDSPEC][R4-5.1] C11 MSHR merge corruption: the registered
+                // CHAOSCache (targetField=mshr_merge) may flip ONE bit of the
+                // merging target's address BEFORE the merge — the flip is
+                // confined to the block-offset domain at/above log2(size), so
+                // the target stays same-line (the merge remains legal,
+                // "merge needs same-line requests" holds) and alignment- and
+                // bounds-safe (satisfyRequest's offset+size<=blkSize assert).
+                // The coalesced target then carries the wrong address
+                // downstream: the fill's readout (setDataFromBlock uses
+                // pkt->getOffset(blkSize)) serves the block at the corrupted
+                // offset, and the response returns on the corrupted address.
+                // The injector registers the fault BEFORE the H4 mshr_merge
+                // event below, so that event (correlateBlock on the corrupted
+                // address) joins the C11 chain. nullptr = zero regression.
+                if (chaosMergeHook)
+                    chaosMergeHook->maybeCorruptMergeTarget(this, pkt);
                 // [MDSPEC][H4] mshr_merge event (spec sheet 9 C-chain L2:
                 // "miss→MSHR merge" — a second request coalesces into the
                 // existing MSHR for the faulted block). mshr_id is the id

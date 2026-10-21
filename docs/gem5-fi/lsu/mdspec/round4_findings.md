@@ -677,3 +677,87 @@ chain_end×1）——writeNode 双发路径不写 corr，"经地址臂入链"与
     provable_to=L3 与 R4-1 基线同型——共享 writeNode 改动无附带破坏。
 - 证据：`runs/lsu/r4_t4_fix_mask40/`、`runs/lsu/r4_t4_fix_postfix/T01-F0-W4/`、
   `runs/lsu/r4_t4_fix_regr/S04-F0-W5/`；完整修复报告 task-4-report.md §9。
+
+## R4-5.1（2026-10-21）：C11 MSHR merge 腐蚀模式落地（MODE-UNIMPL 49→41）
+
+基线 `acc19511`（二进制 `9a224358e5803dc6`），重建后 **`ddde342587407b3a`**。
+完整报告：`.superpowers/sdd/2026-10-20-lsu-mdspec-round4/task-5-1-report.md`。
+
+### 5.1.1 实现（逐项落地模板 1-3）
+
+- **注入端**：`CHAOSCache` 新模式 `targetField=mshr_merge`——事件归一化
+  `ChaOSLsuTrigger`（LSU track，lsuTier/off 大声拒绝；legacy 周期攻击在该
+  模式禁用，避免无关数据故障污染样本）。钩子 `maybeCorruptMergeTarget`
+  挂在 `BaseCache::handleTimingReqMiss` 合并分支（`chaosMergeHook` 静态
+  注册表，victim 先例；`cache == targetCache` 只作用于挂载的 L1D），
+  **在 allocateTarget 与 H4 mshr_merge 事件之前**翻合并目标地址 1 位——
+  位数域 [log2(size), log2(blkSize)) （8B load = bit 3-5）：同 line（合并
+  仍合法，激活口径"merge需同line请求"成立）、对齐保持、offset+size≤64
+  （satisfyRequest 断言类 [P4-FIX-GEOM] 结构性规避）。F6=onF6Event 于每次
+  merge（early_stress 首次出现语义）。下游机理实证：fill 读出
+  （setDataFromBlock@getOffset）按**损坏偏移**取数、响应按**损坏地址**返回
+  ——合并目标所属 load 真实消费故障（activated）。
+- **观测端**：无新 kind——C11 复用 inj/mshr_*/cache_*/resp/lq_complete/
+  taint_reg/consumer/errant_commit/chain_end。新增
+  `CHAOSPropagation::registerMshrMergeFault`：inj 节点（corr=origin，
+  old_addr/new_addr/block_addr 经 writeNode 双发提升为 before/after/
+  cache_line）+ 损坏目标范围入 blk 注册表 → 同点 mshr_merge、行级
+  mshr_fill/cache_fill/mshr_free、noteMemResponse 缓存臂（pkt 地址=损坏
+  地址）→ resp/lq_complete/taint_reg 全部入链，逐事件 corr=addr_fallback
+  显式标注（R4-4-review-I1 契约）。
+- **路由**：lsu_proxy choices+lsuTier/warmup/span 透传 → MODEL_FLAGS C11 →
+  `CACHE_F0_SPAN` 实测跨度表 + `_cache_tier_flags`（未实测 F0 对拒绝；
+  legacy cache 模型 tier flags 逐字节不变）→ C11 从 MODEL_BLOCKED 删除
+  （实测后才删）。`lsu_runid_map` 新增 `SPEC_IMPL_LANDED` 落地登记（xlsx
+  表9"需新增"规格阻塞按模型解除，spec_landed 字段留证；C12 等保持阻塞）。
+
+### 5.1.2 F0 跨度实测（span=1000000 纯普查，注入 0 次）
+
+```
+(C11, cache_dirtyevict)=3421  (C11, stream_chase)=4737  (C11, cache_mshr_refetch)=41091
+```
+
+### 5.1.3 真机证据
+
+- **campaign 入口** C11-F0-W6 3 seed：`activated=3 sdc=3 stop=seed-cap(3)`；
+  注入日志 3/3 非空（各恰 1 次 merge 翻位，如
+  `old_addr=0x79290→new_addr=0x79280 bit 4, faults_injected: 1`）；
+  `lsu_chain_check` 3/3 **terminal=full, provable_to=L5, L0→L5 全边
+  proven**（无缺边、无 Unknown）。链：
+  inj(origin) → mshr_merge(同 tick, addr_fallback) → mshr_fill/mshr_free →
+  resp/lq_complete/taint_reg(损坏地址) → errant_commit(taint_prop) →
+  consumer → chain_end。
+- **定向载体** cache_mshr_refetch（golden 682fe66c2cbbec4b 与 R4-3 一致）
+  ×3 seed 全注入、checksum 全偏离（SDC 3/3）、链全 full；下一轮重取把损坏
+  行自身 MSHR 生命周期闭环（mshr_alloc id=1 → mshr_fill id=1 → mshr_free
+  id=1）。
+- **不受影响族回归** C01-F0-W6（legacy firstClock/bit_flip 路径）1 seed：
+  `activated=1 cons=OK`，注入行/漏斗与既有行为一致。
+
+### 5.1.4 覆盖矩阵
+
+`coverage_matrix.md`：**PASS=199→207 / PARTIAL=0 / BLOCKED=126→118**（C11
+8 RunID 全 PASS）；`blocked_triage` MODE-UNIMPL **49→41**。**L1d-Cache 辅助
+运行边界关闭**：矩阵 RunID 自身的 campaign 运行（C11-F0-W6）首次直接观测
+全部 mshr_* 必需节点（R4-3 的"矩阵单元未观测 mshr_*"注记被取代）；预取器
+pf_queue/pf_issue 辅助边界不变（机制通用性由测试钉死）。
+
+### 5.1.5 测试
+
+新增 `tests/test_lsu_hook_c11.py`（53 项契约：观测 kind/必录字段、合成链
+full、L0 注入行解析、源码级触发纪律/端到端接线/顺序契约、路由+跨度表+loud
+refusal、8 RunID 解析）全 PASS；`test_lsu_coverage_matrix` 边界 pin 更新为
+C11 后现实全 PASS；pytest 16 passed + 5 既有 error、cpf 13 / tlb 2 既有
+失败计数不变；lsq/lq/sq/lsqfwd/runid_map/pilot_evidence/chain_check 全 PASS。
+
+### 5.1.6 诚实登记
+
+- 合并事件的 mshr_id=0：被并入的 MSHR 分配早于 C11 注册（H4 mshr_alloc 仅
+  故障关联才发射）——既有"查无此行"语义，下一轮重取以真 id 闭环。
+- addr_fallback 臂已知过近似：注册窗口内同地址的后续正确响应也会入链/
+  入污染（与 R4-3 相邻行 merge 同类，corr 标注如实区分；链裁决立于第一轮
+  损坏交付边，SDC 分类由 oracle checksum 驱动）。
+- xlsx C11 其余子模型（target 丢失/复制、换另一合法 miss 行）未实现——本
+  轮落地的是 mode_unimpl_plan/任务书钦定的"合并目标地址翻位"表述；仅解除
+  "只有事件源"阻塞前提（spec_landed 留证）。
+- 全部运行为 pilot/证据性质（phase=trial），未启动正式 campaign。

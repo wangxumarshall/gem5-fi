@@ -213,6 +213,13 @@ MODEL_FLAGS = {
     "C08": ("cache", ["--l1d_target_field", "coh"]),
     "C09": ("cache", ["--l1d_target_field", "data_shift"]),
     "C10": ("cache", ["--l1d_target_field", "valid"]),  # approx: PLRU->valid invalidate
+    # [MDSPEC][R4-5.1] C11: MSHR merge corruption — the merging target's
+    # address gets ONE offset-domain bit flipped at the coalescing hook
+    # (BaseCache::handleTimingReqMiss, before allocateTarget). Event-
+    # normalized trigger on the merge-event stream (lsuTier, see
+    # _cache_tier_flags); the legacy periodic block attack is disabled in
+    # this mode (mode_unimpl_plan.md C11 row, landed per the template).
+    "C11": ("cache", ["--l1d_target_field", "mshr_merge"]),
     # --- Prefetcher (W8 f76f5632, verified today) ---
     "P01": ("prefetch", ["--prefetch_mode", "p01_stride_bitflip"]),
     "P02": ("prefetch", ["--prefetch_mode", "p02_confidence_corrupt"]),
@@ -254,9 +261,12 @@ TLB_PROBE_GOLDEN = "b6d81b360a5672d80c27430f39153e2c"  # md5 of 1 MiB zeros (hos
 MODEL_BLOCKED = {
     # notify-only event sources — consumer-side corruption NOT implemented
     # (W5/W6 wired chaosLsuF6Notify call sites only; grep-verified 2026-09-26)
+    # [MDSPEC][R4-5.1] C11 removed from this table: the merge corruption
+    # mode is implemented (targetField=mshr_merge, CHAOSCache
+    # maybeCorruptMergeTarget at BaseCache::handleTimingReqMiss) and proven
+    # by real runs — see round4_findings.md §R4-5.1.
     "S10": "deferred(consumer-side: StoreSet SSID corruption event source only)",
     "L04": "deferred(consumer-side: response-pairing event source only)",
-    "C11": "deferred(consumer-side: MSHR merge event source only)",
     "C12": "deferred(consumer-side: fill-timing event source only)",
     "C14": "deferred(consumer-side: MSHR busy event source only)",
     "C15": "deferred(consumer-side: MSHR occupancy event source only)",
@@ -378,6 +388,46 @@ def _lsqfwd_tier_flags(model, tier, wl_binary=None):
             "--lsqfwd_span_events", "1000"]
 
 
+# [MDSPEC][R4-5.1] cache family C11 (mshr_merge): the eligible stream is the
+# L1D's DEMAND-READ MSHR merges — per (model, workload), measured with real
+# runs exactly like LSQFWD_F0_SPAN above (tier=F0 + span=1000000 so the draw
+# never lands; the CHAOSCache teardown line CHAOS_LSU_TRIGGER eligible= is
+# the stream size). Same loud-refusal contract: an unmeasured (model,
+# workload) pair never silently reuses another pair's span.
+CACHE_F0_SPAN = {
+    # (model, workload binary) -> measured eligible merge-event stream size
+    # (real runs 2026-10-21, binary ddde342587407b3a, tier=F0 warmup=1
+    # span=1000000 so the draw never lands — CHAOS_LSU_TRIGGER teardown
+    # eligible= is the stream size; quoted output in
+    # docs/gem5-fi/lsu/mdspec/round4_findings.md §R4-5.1)
+    ("C11", "cache_dirtyevict"): 3421,     # attempted=10879
+    ("C11", "stream_chase"): 4737,         # attempted=32792
+    ("C11", "cache_mshr_refetch"): 41091,  # attempted=46957 (aux carrier)
+}
+
+
+def _cache_tier_flags(model, tier, wl_binary=None):
+    # Legacy cache models (C01-C10/P07/P09) ride the legacy firstClock
+    # mechanism — no LSU trigger flags (byte-identical to the old []).
+    if model != "C11":
+        return []
+    # C11 mshr_merge: a tier is REQUIRED (the injector panics on 'off').
+    if tier == "F0":
+        span = CACHE_F0_SPAN.get((model, wl_binary))
+        if span is None:
+            return None   # resolve_cell turns this into a loud BLOCKED cell
+        # warmup=1 + span=N: the TRUE F0-uniform parameterization
+        # (LSQFWD_F0_SPAN note above applies verbatim).
+        return ["--l1d_lsu_tier", tier,
+                "--l1d_warmup_events", "1",
+                "--l1d_span_events", str(span)]
+    # F2/F4/F5/F6 do not consume span_events (interval/burst/event-based);
+    # inert values, lsqfwd convention.
+    return ["--l1d_lsu_tier", tier,
+            "--l1d_warmup_events", "0",
+            "--l1d_span_events", "1000"]
+
+
 FAMILY_TIER_FLAGS = {
     "addrpath": lambda model, tier, wl_binary=None: _addrpath_tier_flags(tier),
     # [MDSPEC][R4-1-review-I2] per-(model, workload) F0 span (see
@@ -386,7 +436,9 @@ FAMILY_TIER_FLAGS = {
     # FAMILY_MOUNT override would be silently clobbered — verified by
     # experiment in R4-1).
     "lsqfwd": _lsqfwd_tier_flags,
-    "cache": lambda model, tier, wl_binary=None: [],   # legacy firstClock
+    # [MDSPEC][R4-5.1] C11 mshr_merge is LSU-trigger-native; all other
+    # cache models keep the legacy firstClock path (byte-identical []).
+    "cache": _cache_tier_flags,
     "prefetch": lambda model, tier, wl_binary=None: [
         "--prefetch_lsu_tier", tier,
         "--prefetch_warmup_events", "0", "--prefetch_span_events", "50"],
@@ -489,12 +541,15 @@ def resolve_cell(cell):
     # sqlite_like).
     tier_flags = FAMILY_TIER_FLAGS[family](model, freq, binary)
     if tier_flags is None:
+        # [MDSPEC][R4-5.1] name the family's own span table in the refusal
+        # (cache/C11 -> CACHE_F0_SPAN; lsqfwd -> LSQFWD_F0_SPAN).
+        span_table = "CACHE_F0_SPAN" if family == "cache" else "LSQFWD_F0_SPAN"
         return None, None, (
             "BLOCKED(F0-span-unmeasured: model %s on workload %s — measure "
             "its eligible stream with a real run and set "
-            "LSQFWD_F0_SPAN[('%s', '%s')] in tools/lsu_campaign.py; "
+            "%s[('%s', '%s')] in tools/lsu_campaign.py; "
             "refusing rather than silently reusing another pair's span)"
-            % (model, binary, model, binary))
+            % (model, binary, span_table, model, binary))
     flags += tier_flags
     flags += extra
     return flags, golden, binary

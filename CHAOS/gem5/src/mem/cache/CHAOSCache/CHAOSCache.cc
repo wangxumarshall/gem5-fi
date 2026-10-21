@@ -46,11 +46,38 @@ namespace gem5
         if (victim_fault) {
             BaseCache::chaosVictimHook = this;
         }
+        // [MDSPEC][R4-5.1] C11 MSHR merge corruption mode: event-normalized
+        // trigger (LSU track, chaos_lsu_trigger.hh) on the merge-event
+        // stream + the static merge hook. The legacy periodic block attack
+        // is DISABLED in this mode (it would inject an unrelated data fault
+        // on a random block — a different model's fault polluting the
+        // sample). A tier is REQUIRED: "off" is rejected loudly (merge mode
+        // without a trigger has no fire semantics; probability checks are
+        // never hand-rolled, CLAUDE.md trigger discipline).
+        const bool merge_mode = (target_field == "mshr_merge");
+        if (merge_mode) {
+            if (p.lsuTier == "off") {
+                panic("CHAOSCache: targetField=mshr_merge requires a tier "
+                      "(--l1d_lsu_tier F0..F6, LSU event-normalized trigger; "
+                      "'off' has no fire semantics for the merge hook)\n");
+            }
+            lsuTrigger = new ChaOSLsuTrigger(
+                tierFromString(p.lsuTier), rng_seed ? rng_seed : 1,
+                p.lsuWarmupEvents, p.lsuSpanEvents);
+            BaseCache::chaosMergeHook = this;
+        }
         // [LSU][OBS-L3] final funnel row (final counts; runs only on normal
         // exit — aborts keep the last per-attack injection-time node, which
-        // is exactly why the per-attack rows exist).
-        registerExitCallback([this]() { noteFunnelAtInjection(); });
-        if (probability != 0.0) {
+        // is exactly why the per-attack rows exist). In merge mode the
+        // trigger's teardown summary (stdout CHAOS_LSU_TRIGGER line, the
+        // campaign L0 funnel source) prints first; the funnel row itself
+        // reads the TRIGGER counters there (see noteFunnelAtInjection).
+        registerExitCallback([this]() {
+            if (lsuTrigger)
+                lsuTrigger->summary("CHAOSCache");
+            noteFunnelAtInjection();
+        });
+        if (probability != 0.0 || merge_mode) {
             log_stream = simout.create("cache_injections.log", false, true);
             if (!log_stream || !log_stream->stream()) {
                 panic("CHAOSCache: Could not open log file");
@@ -68,9 +95,17 @@ namespace gem5
             ticks_permament_fault_check = cycles_permament_fault_check * tick_to_clock_ratio;
 
             rng.seed(rng_seed != 0 ? rng_seed : rd());
-            inter_fault_cycles_dist = std::geometric_distribution<unsigned>(probability);
+            if (probability != 0.0) {
+                // (merge mode with probability==0 skips this — a geometric
+                // distribution requires p in (0,1]; the legacy attack that
+                // consumes it never runs in merge mode anyway.)
+                inter_fault_cycles_dist =
+                    std::geometric_distribution<unsigned>(probability);
+            }
 
-            scheduleAttack(first_tick + inter_fault_cycles_dist(rng) * tick_to_clock_ratio);
+            if (!merge_mode) {
+                scheduleAttack(first_tick + inter_fault_cycles_dist(rng) * tick_to_clock_ratio);
+            }
 
             if ((bit_flip_prob + stuck_at_zero_prob + stuck_at_one_prob) != 1.0){
                 warn("Sum of probabilities is not 1, assuming 0.9 for bitFlipProb, 0.05 for stuckAtZeroProb and 0.05 for stuckAtOneProb.\n");
@@ -82,7 +117,8 @@ namespace gem5
             std::vector<double> weights = {bit_flip_prob, stuck_at_zero_prob, stuck_at_one_prob};
             random_fault_distribution = std::discrete_distribution<int>(weights.begin(), weights.end());
 
-            scheduleCheckPermanentFault(first_tick + ticks_permament_fault_check);
+            if (!merge_mode)
+                scheduleCheckPermanentFault(first_tick + ticks_permament_fault_check);
         }
     }
 
@@ -118,6 +154,20 @@ namespace gem5
             case FaultType::Random: return "random";  // G7: handle enum to clear -Wswitch
         }
         return "random";
+    }
+
+    // [MDSPEC][R4-5.1] C11: lsuTier param -> enum (CHAOSAddrPath precedent;
+    // "off" is rejected in the ctor before we get here).
+    ChaOSLsuTier
+    CHAOSCache::tierFromString(const std::string &s) {
+        if (s == "F0") return ChaOSLsuTier::F0;
+        if (s == "F1") return ChaOSLsuTier::F1;
+        if (s == "F2") return ChaOSLsuTier::F2;
+        if (s == "F3") return ChaOSLsuTier::F3;
+        if (s == "F4") return ChaOSLsuTier::F4;
+        if (s == "F5") return ChaOSLsuTier::F5;
+        if (s == "F6") return ChaOSLsuTier::F6;
+        panic("CHAOSCache: unknown lsuTier '%s'\n", s.c_str());
     }
 
     // §1.2 protection-aware modeling (N1 TRM Table 9-1 PROXY). Map the
@@ -275,20 +325,31 @@ namespace gem5
     void
     CHAOSCache::noteFunnelAtInjection()
     {
-        // [LSU][OBS-L3] funnel row with the counts as of NOW (legacy attack
+        // [LSU][OBS-L3] funnel row with the counts as of NOW. Legacy attack
         // funnel: attempted = attack-event firings, eligible = firings that
-        // found >=1 valid block, injected = faults_injected_count). stdout
-        // stays untouched (W2.1 discipline) — the FUNNEL line goes to the
-        // injection log only; the abort-survivable copy is the prop-trace
-        // node (per-node gzflush).
+        // found >=1 valid block, injected = faults_injected_count.
+        // [MDSPEC][R4-5.1] merge mode (lsuTrigger != nullptr): the counters
+        // are the TRIGGER's (attempted = merge-hook invocations on this
+        // cache, eligible = demand-read merges with a corruptible offset
+        // bit, injected = trigger-consented corruptions) — the legacy
+        // attack never fires there. stdout stays untouched (W2.1
+        // discipline) — the FUNNEL line goes to the injection log only;
+        // the abort-survivable copy is the prop-trace node (per-node
+        // gzflush).
+        const bool merge_mode = (lsuTrigger != nullptr);
+        const uint64_t att = merge_mode ? lsuTrigger->attempted
+                                        : attack_attempts;
+        const uint64_t eli = merge_mode ? lsuTrigger->eligible
+                                        : attack_eligible;
+        const uint64_t inj = merge_mode ? lsuTrigger->injected
+                                        : faults_injected_count;
         if (CHAOSPropagation::instance())
-            CHAOSPropagation::instance()->noteFunnel(
-                "CHAOSCache", attack_attempts, attack_eligible,
-                faults_injected_count);
+            CHAOSPropagation::instance()->noteFunnel("CHAOSCache", att,
+                                                     eli, inj);
         if (write_log && log_stream && log_stream->stream()) {
-            *(log_stream->stream()) << "FUNNEL: attempted=" << attack_attempts
-                << " eligible=" << attack_eligible
-                << " injected=" << faults_injected_count << std::endl;
+            *(log_stream->stream()) << "FUNNEL: attempted=" << att
+                << " eligible=" << eli
+                << " injected=" << inj << std::endl;
         }
     }
 
@@ -733,6 +794,106 @@ namespace gem5
                 << ", faults_injected: " << faults_injected_count
                 << std::endl;
         }
+        return true;
+    }
+
+    // [MDSPEC][R4-5.1] C11 MSHR merge corruption. BaseCache::
+    // handleTimingReqMiss calls this in its coalescing branch (MSHR hit),
+    // BEFORE mshr->allocateTarget. With the trigger's consent, ONE bit of
+    // the merging target's address is flipped inside the block-offset
+    // domain at/above log2(size): the merged target stays same-line (the
+    // merge remains a legal same-line merge — the activation criterion
+    // "at least 1 outstanding miss; merge needs same-line requests" holds),
+    // the access stays size-aligned, and offset+size <= blkSize always
+    // (BaseCache::satisfyRequest asserts it; bits below log2(size) could
+    // push an unaligned offset past the bound — the [P4-FIX-GEOM] class).
+    // Downstream: the fill's readout (satisfyRequest -> setDataFromBlock
+    // at getOffset(blkSize)) serves the block at the WRONG offset and the
+    // response returns on the corrupted address, so the fault is consumed
+    // (activated) by the load that owns the merged target.
+    bool
+    CHAOSCache::maybeCorruptMergeTarget(BaseCache *cache, PacketPtr pkt)
+    {
+        if (target_field != "mshr_merge") return false;  // mode off
+        if (cache != targetCache) return false;          // only the mounted cache
+        if (!pkt || !lsuTrigger) return false;
+        if (max_faults != 0 && faults_injected_count >= max_faults)
+            return false;                                // G5 single-fault cap
+
+        lsuTrigger->onAttempt();
+
+        // Eligibility: a demand READ merging into the outstanding MSHR,
+        // with at least one flippable offset bit (log2(size) <= bit <
+        // log2(blkSize); a whole-line access has none — honest skip).
+        const unsigned blk_sz = targetCache->getBlockSize();
+        const unsigned size = pkt->getSize();
+        if (!pkt->isRead() || !pkt->isDemand() || size == 0 || size > blk_sz)
+            return false;
+        int lo = 0;  while ((1u << lo) < size)   ++lo;   // ceil(log2(size))
+        int hi = 0;  while ((1u << hi) < blk_sz) ++hi;   // log2(blkSize)
+        if (lo >= hi)
+            return false;
+
+        bool go;
+        if (lsuTrigger->tier == ChaOSLsuTier::F6) {
+            // C11's F6 "specified event" IS the MSHR merge (this model's
+            // event source — the 09 §2.1 four-event list is the W1 map,
+            // not an exhaustive enumeration; the matrix F6 row reads "如
+            // TLB hit、SQ forward、..."). onF6Event() enforces once-ever =
+            // early_stress (first occurrence), the only formal-track F6
+            // semantics (A5 ruling). It books its own attempted/eligible/
+            // injected — the same accounting the CHAOSAddrPath F6 thunk
+            // relies on.
+            go = lsuTrigger->onF6Event();
+        } else {
+            go = lsuTrigger->onEligible();
+        }
+        if (!go)
+            return false;
+
+        // Bit choice: uniform over the alignment-preserving domain, driven
+        // by the seeded mt19937 (reproducible with --l1d_rng_seed).
+        const int bit = lo + (int)(rng() % (unsigned)(hi - lo));
+        const Addr old_addr = pkt->getAddr();
+        const Addr new_addr = old_addr ^ ((Addr)1 << bit);
+        pkt->setAddr(new_addr);
+        ++faults_injected_count;
+        if (stats)
+            stats->numFaultsInjected++;
+        const Addr line = old_addr & ~((Addr)blk_sz - 1);
+
+        // Propagation registration: inj node (corr=origin; the writeNode
+        // dual-emit lifts old_addr/new_addr -> before/after and block_addr
+        // -> cache_line) + the CORRUPTED target range in the faulted-byte
+        // registry, so (a) the H4 mshr_merge event right after this (it
+        // correlates on the corrupted address, same line) joins the chain,
+        // (b) mshr_fill/cache_fill/mshr_free on the line join by overlap,
+        // and (c) noteMemResponse's cache arm (pkt->getAddr() = the
+        // corrupted address the response returns on) fires resp +
+        // lq_complete + taint_reg. All address-only joins — corr=
+        // addr_fallback, the labeled C-family arm (no seq primary at this
+        // site).
+        if (CHAOSPropagation::instance())
+            CHAOSPropagation::instance()->registerMshrMergeFault(
+                line, old_addr, new_addr, size);
+
+        // Injection-log detail line (L0 parses the "Cache Block Addr/Field"
+        // contract — tools/lsu_obs_core._CACHE_FIELD_INJ_RE; the mshr_id of
+        // the merged-into MSHR is on the H4 mshr_merge event that follows
+        // this on the prop stream).
+        if (write_log && log_stream && log_stream->stream()) {
+            *(log_stream->stream()) << "Tick: " << curTick()
+                << ", Cache Block Addr: " << line
+                << ", Field: mshr_merge (C11 target addr bit_flip bit " << bit
+                << "), old_addr=0x" << std::hex << old_addr
+                << ", new_addr=0x" << new_addr << std::dec
+                << ", faults_injected: " << faults_injected_count
+                << std::endl;
+        }
+        // One funnel row per successful injection (abort-survivable: the
+        // prop-trace node is gzflushed per node; the log line is
+        // best-effort) — merge-mode counters via noteFunnelAtInjection.
+        noteFunnelAtInjection();
         return true;
     }
 

@@ -514,6 +514,51 @@ namespace gem5
         return ptag;
     }
 
+    // [MDSPEC][R4-5.1] C11 MSHR merge corruption (see .hh for the full
+    // contract). Address-only registration (the labeled addr_fallback arm):
+    // this site has no Request seq binding for the MSHR entry itself — the
+    // seq of the merging load belongs to the response side, which joins by
+    // packet-address overlap instead.
+    uint64_t
+    CHAOSPropagation::registerMshrMergeFault(Addr line, Addr old_addr,
+                                             Addr new_addr, unsigned size)
+    {
+        if (!write_log)
+            return 0;
+        const uint64_t ptag = ++next_ptag;
+
+        // inj node (addr column = the corrupted target address; detail
+        // keys old_addr/new_addr/block_addr are lifted by the writeNode
+        // dual-emit into before/after/cache_line).
+        {
+            std::ostringstream d;
+            d << "family=cache;field=mshr_merge"
+              << ";old_addr=" << std::hex << old_addr
+              << ";new_addr=" << new_addr
+              << ";size=" << std::dec << size
+              << ";block_addr=" << std::hex << line << std::dec;
+            writeNode(ptag, "inj", 0, false, 0, false,
+                      new_addr, true, 0, false, 0, false, d.str(),
+                      CORR_ORIGIN);
+        }
+        // faulted-byte (blk) registry: the CORRUPTED target range. The
+        // fill's readout serves the block at the corrupted offset and the
+        // response returns on the corrupted address, so noteMemResponse's
+        // cache arm (pkt->getAddr()) fires there; the H4 mshr_merge event
+        // (correlateBlock on the corrupted address, same line) and the
+        // line-level mshr_fill/cache_fill/mshr_free events join by overlap.
+        {
+            sweepExpired();
+            BlkEntry b;
+            b.ptag = ptag;
+            b.byte_begin = new_addr;
+            b.byte_end = new_addr + (size ? (Addr)size : 1);
+            b.registered = curTick();
+            blk_registry[b.byte_begin] = b;
+        }
+        return ptag;
+    }
+
     // [MDSPEC][R4-1] SQ store->load forwarding fault (seq-primary).
     uint64_t
     CHAOSPropagation::registerLSQForwardFault(

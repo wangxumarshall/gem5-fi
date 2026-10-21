@@ -65,6 +65,24 @@ def _resolve_workload(spec_name):
 
 
 def generate_map(xlsx_path):
+    # [MDSPEC][R4-5.1] 模式落地登记（mode_unimpl_plan 49 项逐项落地的
+    # 配套机制）：xlsx 表9「实现状态=需新增」是规格侧阻塞前提；当某模型
+    # 的注入模式**已实现并实证**（真实 campaign 运行 + 注入日志非空 +
+    # lsu_chain_check 逐边证据，见 mode_unimpl_plan §逐项落地模板第 5 步）
+    # 后在此登记——登记后该模型的 spec 阻塞理由不再计入 status_reasons
+    # （解除记录在每 entry 的 spec_landed 字段，可审计）。未登记模型保持
+    # 规格阻塞原样（不得静默解除）。
+    SPEC_IMPL_LANDED = {
+        # C11（8 RunID，阻塞短语 "consumer-side: MSHR merge event source
+        # only"）：targetField=mshr_merge（CHAOSCache 合并钩子 @
+        # BaseCache::handleTimingReqMiss），campaign C11-F0-W6 3 seed
+        # 3/3 activated SDC + 载体 cache_mshr_refetch ×3 全链 full——
+        # 证据 docs/gem5-fi/lsu/mdspec/round4_findings.md §R4-5.1。
+        "C11": "implemented(mshr_merge mode, CHAOSCache merge hook @ "
+               "BaseCache::handleTimingReqMiss; evidence: round4_findings.md "
+               "§R4-5.1, campaign C11-F0-W6 3-seed + carrier x3)",
+    }
+
     wb = openpyxl.load_workbook(xlsx_path, data_only=True)
     i7, r7 = _rows(wb["7.展开执行矩阵"])
     i9, r9 = _rows(wb["9.逐RunID传播监控"])
@@ -95,7 +113,8 @@ def generate_map(xlsx_path):
         reasons = []
         if model in lc.MODEL_BLOCKED:
             reasons.append(f"campaign:{lc.MODEL_BLOCKED[model]}")
-        if impl_status.startswith("需新增"):
+        landed = SPEC_IMPL_LANDED.get(model)
+        if impl_status.startswith("需新增") and not landed:
             reasons.append(f"spec:{impl_status}")
         if wl_note:
             reasons.append(f"workload:{wl_note}")
@@ -116,6 +135,9 @@ def generate_map(xlsx_path):
             correlation_keys=_txt(s9[i9["跨单元关联键"]]),
             termination=_txt(s9[i9["完整性/传播终止判定"]]),
             impl_status=impl_status,
+            # [MDSPEC][R4-5.1] 落地登记留证（SPEC_IMPL_LANDED）：非阻塞，
+            # 记录该模型 spec「需新增」前提被实现解除的依据。
+            spec_landed=landed or "",
             status="BLOCKED" if reasons else "PARTIAL",
             status_reasons=reasons,
             target_activated_samples=_txt(s9[i9["首轮目标Activated样本数"]]),

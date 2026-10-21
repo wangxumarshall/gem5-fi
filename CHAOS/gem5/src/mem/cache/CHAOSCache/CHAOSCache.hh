@@ -36,6 +36,20 @@ class CHAOSCache : public SimObject
      *  Returns true if corrupted. Nullptr-safe. */
     bool maybeCorruptVictim(PacketPtr pkt);
 
+    /** [MDSPEC][R4-5.1] C11 MSHR merge corruption. Called by
+     *  BaseCache::handleTimingReqMiss in the coalescing branch, BEFORE
+     *  mshr->allocateTarget: with the trigger's consent (LSU-track
+     *  ChaOSLsuTrigger, event-normalized on the merge-event stream) flip
+     *  ONE bit of the MERGING TARGET's address. The flip is confined to
+     *  the block-offset domain at/above log2(pkt size) — the target stays
+     *  same-line (the merge remains legal) and alignment/bounds-safe.
+     *  Only fires when `cache == targetCache` (the mounted L1D), the mode
+     *  is targetField=="mshr_merge", and maxFaults is not exhausted.
+     *  Registers the fault with CHAOSPropagation (inj node + the corrupted
+     *  target range in the faulted-byte registry, so the later response on
+     *  the corrupted address joins the chain). Returns true if corrupted. */
+    bool maybeCorruptMergeTarget(BaseCache *cache, PacketPtr pkt);
+
   private:
     enum class FaultType {
       BitFlip,
@@ -123,6 +137,9 @@ class CHAOSCache : public SimObject
     
     static FaultType stringToFaultType(const std::string &s);
     const char* faultTypeToString(CHAOSCache::FaultType f);
+    // [MDSPEC][R4-5.1] C11: parse the lsuTier param string ("off" is
+    // rejected loudly — merge mode without a tier has no trigger).
+    static ChaOSLsuTier tierFromString(const std::string &s);
     static ProtectionOutcome stringToProtectionModelPub(const std::string &s);
     const char* protectionOutcomeToString(CHAOSCache::ProtectionOutcome o);
     // §1.2 post-injection protection handling. Called right after the byte

@@ -178,12 +178,22 @@ p.add_argument("--l1d_first_clock", type=lambda x: int(x,0), default=1000)
 p.add_argument("--l1d_max_faults", type=lambda x: int(x,0), default=1)
 p.add_argument("--l1d_rng_seed", type=lambda x: int(x,0), default=20260825)
 p.add_argument("--l1d_target_field", default="data",
-               choices=["data","tag","valid","dirty","coh","data_shift"])
+               choices=["data","tag","valid","dirty","coh","data_shift",
+                        "mshr_merge"])
 p.add_argument("--l1d_protection_model", default="none",
                choices=["none","sed","secded_poison","secded"])
 p.add_argument("--l1d_lsu_tier", default="off",
                choices=["off","F0","F1","F2","F3","F4","F5","F6"],
-               help="W6: LSU trigger tier on CHAOSCache (05 r2-r8)")
+               help="W6: LSU trigger tier on CHAOSCache (05 r2-r8). "
+                    "REQUIRED for targetField=mshr_merge (MDSPEC C11: "
+                    "event-normalized merge-corruption trigger; 'off' "
+                    "panics loudly)")
+p.add_argument("--l1d_warmup_events", type=lambda x: int(x,0), default=0,
+               help="MDSPEC C11 mshr_merge: eligible merge events skipped "
+                    "before arming (LSU trigger warmup_events)")
+p.add_argument("--l1d_span_events", type=lambda x: int(x,0), default=1000,
+               help="MDSPEC C11 mshr_merge: F0 uniform window size in "
+                    "eligible merge events (LSU trigger span_events)")
 # W8: P-series prefetcher injector (CHAOSPrefetch hooks the L2
 # StridePrefetcher via the Stride registry — self-attaching, no target
 # param; 03-design-matrix P-rows. A tier is REQUIRED: this injector is
@@ -722,9 +732,13 @@ def _lsu_b0_caches(root):
             maxFaults=args.l1d_max_faults,
             targetField=args.l1d_target_field,
             protectionModel=args.l1d_protection_model,
+            lsuTier=args.l1d_lsu_tier,
+            lsuWarmupEvents=args.l1d_warmup_events,
+            lsuSpanEvents=args.l1d_span_events,
             writeLog=True)
         print(f"[lsu_proxy] CHAOSCache attached to l1d-cache-0 "
-              f"(field={args.l1d_target_field}, protection={args.l1d_protection_model})")
+              f"(field={args.l1d_target_field}, protection={args.l1d_protection_model}, "
+              f"tier={args.l1d_lsu_tier})")
 
     print(f"[lsu_proxy] B0 caches applied (variant={args.variant}): L1D "
           f"{'64KiB/4' if args.variant == 'S2' else '32KiB/2'}-way lat222 "

@@ -121,6 +121,17 @@ class BaseCache : public ClockedObject
     // nullptr = zero regression. PUBLIC: the injector sets it from its ctor.
     static class CHAOSCache *chaosVictimHook;
 
+    // [MDSPEC][R4-5.1] C11 MSHR-merge corruption registry (same pattern as
+    // chaosVictimHook). handleTimingReqMiss's coalescing branch consults it
+    // BEFORE mshr->allocateTarget: the registered CHAOSCache (mounted on
+    // this cache) may bit-flip the MERGING TARGET's address so the merged
+    // request carries the wrong address downstream (the fill's readout
+    // serves the block at the corrupted offset — BaseCache::satisfyRequest
+    // setDataFromBlock uses pkt->getOffset(blkSize)). The injector checks
+    // `cache == targetCache`, so only the mounted cache (L1D) is affected.
+    // nullptr = zero regression. PUBLIC: the injector sets it from its ctor.
+    static class CHAOSCache *chaosMergeHook;
+
     /**
      * Reasons for caches to be blocked.
      */

@@ -96,26 +96,32 @@ def main():
         check("cli_with_evidence_runs",
               r2.returncode == 0, f"rc={r2.returncode} {r2.stderr[-160:]}")
 
-    # --- 6. 辅助运行证据边界（R4-3 评审 Important-1）-----------------------
-    # 载体归属修复后：L1d-Cache 的 mshr_* 必需节点由 directed 载体
-    # （C09-R4T3-MSHRREF-*，非矩阵 RunID）提供，矩阵单元自身的运行（含
-    # campaign 单元 C09-F0-W6）未观测到——边界必须显式、可审计。
+    # --- 6. 辅助运行证据边界（R4-3 评审 Important-1；R4-5.1 更新）----------
+    # R4-3 时期：L1d-Cache 的 mshr_* 必需节点仅由 directed 载体
+    # （C09-R4T3-MSHRREF-*，非矩阵 RunID）提供。R4-5.1 C11 落地后，
+    # **矩阵 RunID 自身的 campaign 运行**（C11-F0-W6，3-seed 真跑）直接
+    # 观测到全部 mshr_* 节点 → L1d-Cache 不再有辅助独供节点，边界对该
+    # 单元关闭（矩阵运行自证，优于辅助运行兜底）。
     if ev.exists():
         evidence = json.loads(ev.read_text(encoding="utf-8"))
         b = CM.aux_run_boundary(entries, evidence)
-        l1d = b.get("L1d-Cache")
-        check("boundary_l1d_names_mshr_alloc",
-              l1d is not None and "mshr_alloc" in l1d["nodes"],
-              str(l1d["nodes"] if l1d else None))
-        check("boundary_l1d_carriers_all_six",
-              l1d is not None and
-              all(f"C09-R4T3-MSHRREF-s{i}" in l1d["aux_rids"]
-                  for i in range(1, 7)),
-              str(l1d["aux_rids"] if l1d else None))
-        check("boundary_l1d_lists_campaign_cell",
-              l1d is not None and "C09-F0-W6" in l1d["matrix_rids"],
-              str(l1d["matrix_rids"] if l1d else None))
-        # 通用性（非为 MSHRREF 特判）：数据预取器的 pf_queue/pf_issue 同样
+        check("boundary_l1d_closed_by_c11_matrix_run",
+              "L1d-Cache" not in b, str(sorted(b)))
+        # 关闭依据可审计：C11-F0-W6（矩阵 RunID 的 campaign 运行）的
+        # pilot 观测含全部 mshr_* 必需节点；R4-3 的 6 载体与 R4-5.1 的
+        # 3 载体仍在证据文件中留证。
+        c11ev = evidence["pilots"].get("C11-F0-W6", {})
+        mshr_nodes = {"mshr_alloc", "mshr_merge", "mshr_fill", "mshr_free"}
+        check("c11_matrix_run_observes_mshr_lifecycle",
+              mshr_nodes.issubset(set(c11ev.get("kinds", []))),
+              str(c11ev.get("kinds")))
+        carriers = set(evidence["pilots"])
+        check("boundary_carriers_retained_in_evidence",
+              all(f"C09-R4T3-MSHRREF-s{i}" in carriers for i in range(1, 7))
+              and all(f"C11-R4T5-MSHRREF-s{i}" in carriers
+                      for i in range(1, 4)),
+              str(sorted(c for c in carriers if "MSHRREF" in c)))
+        # 通用性（非为 MSHRREF 特判）：数据预取器的 pf_queue/pf_issue 仍
         # 仅由辅助运行（campaign smoke 复跑 / 机理变体）提供，必须同样标出
         pf = b.get("数据预取器")
         check("boundary_prefetch_general_too",
@@ -126,13 +132,20 @@ def main():
               "Store Queue" not in b, str(sorted(b)))
         md = Path("/tmp/mdspec_coverage_test_ev.md").read_text(
             encoding="utf-8")
-        check("md_pass_rows_annotated",
-              "aux_run_nodes:mshr_alloc" in md)
+        # P01 行仍须逐行标注（通用机制在 C11 边界关闭后依然生效）
+        check("md_prefetch_rows_annotated",
+              "aux_run_nodes:pf_queue,pf_issue" in md)
+        # L1d 行不再标注 mshr（矩阵运行已自证）；C11 8 行全 PASS
+        check("md_l1d_rows_not_annotated_mshr",
+              "aux_run_nodes:mshr" not in md)
+        c11_pass = [l for l in md.splitlines()
+                    if l.startswith("| C11-") and "| PASS |" in l]
+        check("md_c11_rows_all_pass", len(c11_pass) == 8, str(len(c11_pass)))
         has_section = "## 辅助运行证据边界" in md
         check("md_boundary_section_present", has_section)
         tail = md.split("## 辅助运行证据边界", 1)[1] if has_section else ""
-        check("md_boundary_names_carrier_and_campaign_cell",
-              "C09-R4T3-MSHRREF-s1" in tail and "C09-F0-W6" in tail)
+        check("md_boundary_names_prefetch_carriers",
+              "P01-F0-W8-campaign" in tail and "P01-F0-W8" in tail)
         check("md_capability_table_has_aux_column",
               "仅辅助运行观测" in md)
 
