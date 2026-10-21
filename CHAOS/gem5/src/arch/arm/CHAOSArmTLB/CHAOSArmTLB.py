@@ -17,6 +17,12 @@ class CHAOSArmTLB(SimObject):
     cxx_header = "arch/arm/CHAOSArmTLB/CHAOSArmTLB.hh"
 
     tlb = Param.ArmTLB(NULL, "Target ArmTLB to inject into (the I or D TLB)")
+    # [R4-5.9] T08 walk/fill pairing: the ArmTableWalker to attach to (only
+    # needed by faultType=walk_pairing; nullptr for the T01-T04/T10 lookup
+    # modes). The ctor self-attaches (walker->setChaosTLB(this)).
+    walker = Param.ArmTableWalker(NULL,
+        "Target ArmTableWalker for faultType=walk_pairing (T08); NULL for "
+        "the TLB-lookup modes")
     probability = Param.Float(0.0,
         "Per-lookup probability of corrupting a TLB hit's pfn (0..1).")
     firstClock = Param.UInt64(0, "First clock cycle eligible for injection")
@@ -28,7 +34,8 @@ class CHAOSArmTLB(SimObject):
     # four modes are bit-level on the hit entry's pfn.
     faultType = Param.String("bit_flip",
         "bit_flip | stuck_at_zero | stuck_at_one | random | "
-        "pfn_to_mapped_page")
+        "pfn_to_mapped_page | walk_pairing (T08-a FS walk/fill lost — "
+        "requires walker= and lsuTier=")
     faultMask = Param.UInt64(0,
         "64-bit mask applied to the pfn (bit positions to flip/force). 0 = "
         "random (bitsToChange bits).")

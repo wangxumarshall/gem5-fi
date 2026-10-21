@@ -383,6 +383,22 @@ class CHAOSPropagation : public SimObject
                               Addr old_pa, Addr new_pa, Addr pa_span,
                               const char *mode);
 
+    // [MDSPEC][R4-5.9] T08 walk/fill pairing (FS-only): register a PAIR of
+    // nodes for ONE page-table walk — `tlb_walk` (the walk issued by
+    // TableWalker::walk) and `tlb_refill` (the refill completion of that
+    // same walk). Both carry the SAME walk_id and the SAME fault_id ⇒ the
+    // pairing is provable by construction (two nodes, distinct ticks,
+    // shared walk_id) — this is the "walk/fill pairing" the T08 blocker
+    // named. fill_lost=true records the T08-a outcome honestly as
+    // field=lost / outcome=lost (the refill that never arrived) rather
+    // than fabricating a completed refill. corr=origin on both nodes (the
+    // injector's own registration burst — no correlate* query, same shape
+    // as registerTlbFault's inj node). Returns the ptag (0 = disabled).
+    uint64_t registerTlbWalkPair(uint64_t walk_id, Addr va, uint64_t req_seq,
+                                 uint64_t walk_start_tick,
+                                 uint64_t refill_tick, unsigned level,
+                                 bool fill_lost, const char *mode);
+
     // Funnel row (attempted/eligible/injected as of NOW). Called by the
     // injectors at every successful injection AND at their exit callbacks
     // (final counts). Per-node Z_SYNC_FLUSH ⇒ abort-survivable.

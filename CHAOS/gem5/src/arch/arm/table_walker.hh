@@ -1001,6 +1001,16 @@ class TableWalker : public ClockedObject
 
         TableWalker *tableWalker;
 
+        // [MDSPEC][R4-5.9] T08 walk/fill pairing: per-walk identity + the
+        // tick the walk was ISSUED at. Assigned once in TableWalker::walk()
+        // when this WalkerState is constructed; consumed by the CHAOSArmTLB
+        // walk_pairing injector at the walk-issue decision point so the
+        // emitted tlb_walk / tlb_refill node pair shares one walk_id and
+        // carries the true issue/completion ticks (the pairing evidence).
+        // Default 0 = walk never reached the injector (inert, zero effect).
+        uint64_t chaosWalkId = 0;
+        Tick chaosWalkStartTick = 0;
+
         /** Timestamp for calculating elapsed time in service (for stats) */
         Tick startTime;
 
@@ -1064,6 +1074,17 @@ class TableWalker : public ClockedObject
 
     void setMmu(MMU *_mmu);
     void setTestInterface(TlbTestInterface *ti);
+
+    // [MDSPEC][R4-5.9] T08 walk/fill pairing injector attachment. Set from
+    // CHAOSArmTLB's self-attach (same pattern as TLB::chaosTLB). nullptr =
+    // no injector → TableWalker::walk emits nothing and drops no walk
+    // (byte-equivalent to the pre-R4-5.9 tree).
+    class ::gem5::CHAOSArmTLB *chaosTLB = nullptr;
+    void setChaosTLB(class ::gem5::CHAOSArmTLB *p) { chaosTLB = p; }
+
+    // Monotonic per-walk id source (pairing key). Incremented once per
+    // WalkerState created in walk().
+    uint64_t chaosNextWalkId = 0;
 
     WalkUnit *getAvailableWalk(BaseMMU::Mode mode, bool stage2,
                                bool functional) const;

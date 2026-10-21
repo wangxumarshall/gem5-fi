@@ -36,6 +36,7 @@
  */
 #include "arch/arm/table_walker.hh"
 #include "arch/arm/CHAOSPTW/CHAOSPTW.hh"  // §2.10 full def for maybeCorrupt
+#include "arch/arm/CHAOSArmTLB/CHAOSArmTLB.hh"  // [R4-5.9] T08 walk pairing
 
 #include <cassert>
 #include <memory>
@@ -179,6 +180,14 @@ TableWalker::walk(const RequestPtr &req, ThreadContext *tc, uint16_t asid,
     WalkerState *curr_state = new WalkerState();
     curr_state->tableWalker = this;
     curr_state->startTime = curTick();
+    // [MDSPEC][R4-5.9] T08 walk/fill pairing: assign the per-walk identity +
+    // the ISSUE tick once, at WalkerState construction. Consumed by the
+    // CHAOSArmTLB walk_pairing injector at the walk-issue decision point
+    // below (and emitted with the walk/fill node pair so the pairing key and
+    // both ticks are recorded). chaosWalkId is 0 and the injector is a no-op
+    // when no injector is attached (chaosTLB == nullptr).
+    curr_state->chaosWalkId = ++chaosNextWalkId;
+    curr_state->chaosWalkStartTick = curTick();
     curr_state->tc = tc;
     curr_state->isStage2 = stage2;
     curr_state->el =
@@ -313,6 +322,27 @@ TableWalker::walk(const RequestPtr &req, ThreadContext *tc, uint16_t asid,
 
         return NoFault;
     } else {
+        // [MDSPEC][R4-5.9] T08-a walk/fill 丢失 (FS-only): consult the
+        // CHAOSArmTLB walk_pairing injector BEFORE the walk is handed to the
+        // walk unit. If it fires, the walk is DROPPED here — the requesting
+        // translation is never finished (the spec's "丢失多Timeout" channel),
+        // and the walk/fill node pair has already been emitted by the
+        // injector (registerTlbWalkPair, fill_lost=true). nullptr/false =
+        // byte-equivalent to the pre-R4-5.9 tree (no injection by default).
+        if (chaosTLB) {
+            const uint64_t req_seq = (curr_state->req &&
+                                      curr_state->req->hasInstSeqNum())
+                                         ? curr_state->req->getReqInstSeqNum()
+                                         : 0;
+            if (chaosTLB->maybeDropWalkFill(curr_state->chaosWalkId,
+                                            curr_state->vaddr, req_seq,
+                                            curr_state->chaosWalkStartTick,
+                                            /*level=*/1)) {
+                delete curr_state;
+                return NoFault;   // the walk never issues; transState stalls
+            }
+        }
+
         // The walk unit is now busy servicing this walk request
         assert(walk_unit->isAvailable());
         walk_unit->isAvailable(false);

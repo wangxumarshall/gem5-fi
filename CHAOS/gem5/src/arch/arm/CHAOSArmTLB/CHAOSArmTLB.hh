@@ -8,6 +8,7 @@
 #include "base/output.hh"
 #include "base/statistics.hh"
 #include "base/types.hh"
+#include "cpu/o3/chaos_lsu_trigger.hh"   // [R4-5.9] walk_pairing trigger tier
 #include "params/CHAOSArmTLB.hh"
 #include "sim/sim_object.hh"
 
@@ -15,6 +16,8 @@ namespace gem5
 {
 
 namespace ArmISA { class TLB; struct TlbEntry; }
+class TableWalker;   // [R4-5.9] T08 walk/fill pairing (full def in
+                     // arch/arm/table_walker.hh)
 
 // CHAOSArmTLB — ARM TLB-entry fault injector (Phase 3 §六.4 item 3).
 //
@@ -54,16 +57,41 @@ class CHAOSArmTLB : public SimObject
                        Addr old_pa, Addr new_pa, Addr pa_span,
                        const char *mode, uint64_t req_seq, uint64_t req_size);
 
+    // [MDSPEC][R4-5.9] T08 walk/fill pairing (FS-only). Called from
+    // TableWalker::walk() once per page-table walk, right AFTER the
+    // WalkerState is constructed (walk_id + issue tick assigned) and just
+    // BEFORE the walk is handed to a walk unit. This is the one point that
+    // (a) has a real Request (dyn-inst seq / transaction identity — the
+    // spec's "DTLB miss并启动walk" trigger) and (b) can withhold the walk.
+    // Returns true => this walk is DROPPED (T08-a, "walk/fill丢失"): the
+    // caller must NOT issue it, so the requesting translation never
+    // completes (the spec's Timeout channel). The walk/fill node pair is
+    // emitted at the fire point (registerTlbWalkPair, fill_lost=true).
+    // Consults lsuTrigger (F0/F4/F6, event-normalized on the walk-issue
+    // stream). Inert (returns false, emits nothing) when faultType is not
+    // "walk_pairing" or no lsuTier is mounted — byte-equivalent to the
+    // pre-R4-5.9 tree.
+    bool maybeDropWalkFill(uint64_t walk_id, Addr va, uint64_t req_seq,
+                           uint64_t walk_start_tick, unsigned level);
+
   private:
     // PfnToMappedPage = §2.10 F5 (Phase 4.4, FS-only): substitute the hit
     // entry's pfn with another MAPPED entry's pfn (legal domain -> silent
     // wrong-page access, method2's silent-SDC pathway).
     enum class FaultType { BitFlip, StuckAtZero, StuckAtOne, Random,
-                           PfnToMappedPage };
+                           PfnToMappedPage,
+                           // [R4-5.9] T08: FS page-table walk/fill pairing
+                           // (walk_pairing) — see maybeDropWalkFill.
+                           WalkPairing };
     static FaultType stringToFaultType(const std::string &s);
     const char *faultTypeToString(FaultType f);
 
     ArmISA::TLB *tlb;
+    // [R4-5.9] T08 target walker (optional; nullptr unless the FS config
+    // passes walker= to the CHAOSArmTLB object). Also the host of the
+    // event-normalized walk_pairing trigger.
+    TableWalker *walker = nullptr;
+    std::unique_ptr<ChaOSLsuTrigger> lsuTrigger;
     float probability;
     FaultType fault_type_enum;
     uint64_t fault_mask;

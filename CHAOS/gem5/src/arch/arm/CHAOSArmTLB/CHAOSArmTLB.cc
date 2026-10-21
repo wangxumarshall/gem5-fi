@@ -2,8 +2,10 @@
 #include "params/CHAOSArmTLB.hh"
 #include "arch/arm/tlb.hh"
 #include "arch/arm/pagetable.hh"
+#include "arch/arm/table_walker.hh"   // [R4-5.9] T08 walker self-attach
 #include "base/output.hh"
 #include <sstream>
+#include "sim/sim_exit.hh"            // [R4-5.9] registerExitCallback
 #include "cpu/o3/CHAOSPropagation/CHAOSPropagation.hh"  // [MDSPEC][H2-FS]
 
 namespace gem5
@@ -25,6 +27,44 @@ namespace gem5
           protection_model(p.protectionModel),
           stats(nullptr)
     {
+        // [MDSPEC][R4-5.9] T08 walk/fill pairing wiring. walker is set from
+        // the optional Param (FS configs pass walker=<ArmTableWalker>);
+        // nullptr keeps every existing T01-T04/T10/TLB cell byte-equivalent.
+        walker = p.walker;
+        if (p.lsuTier != "off") {
+            auto tier = ChaOSLsuTier::F0;
+            if (p.lsuTier == "F1") tier = ChaOSLsuTier::F1;
+            else if (p.lsuTier == "F2") tier = ChaOSLsuTier::F2;
+            else if (p.lsuTier == "F3") tier = ChaOSLsuTier::F3;
+            else if (p.lsuTier == "F4") tier = ChaOSLsuTier::F4;
+            else if (p.lsuTier == "F5") tier = ChaOSLsuTier::F5;
+            else if (p.lsuTier == "F6") tier = ChaOSLsuTier::F6;
+            lsuTrigger = std::make_unique<ChaOSLsuTrigger>(
+                tier, rng_seed ? rng_seed : 1,
+                p.lsuWarmupEvents, p.lsuSpanEvents);
+        }
+        // walk_pairing is the only mode that needs the event-normalized
+        // trigger; refuse loudly instead of silently injecting nothing
+        // (L04/S10 discipline — a mode that needs a tier must not run
+        // without one).
+        if (fault_type_enum == FaultType::WalkPairing && !lsuTrigger) {
+            panic("CHAOSArmTLB: faultType=walk_pairing requires "
+                  "--tlb_lsu_tier (the event-normalized trigger that "
+                  "selects which walk is dropped). See R4-5.9 report.");
+        }
+        if (fault_type_enum == FaultType::WalkPairing && !walker) {
+            panic("CHAOSArmTLB: faultType=walk_pairing requires walker= "
+                  "(the ArmTableWalker to attach to). See R4-5.9 report.");
+        }
+        if (walker) {
+            walker->setChaosTLB(this);
+        }
+        if (lsuTrigger) {
+            registerExitCallback([this]() {
+                if (lsuTrigger)
+                    lsuTrigger->summary("CHAOSArmTLB");
+            });
+        }
         if (probability > 0.0f) {
             log_stream = simout.create("armtlb_injections.log", false, true);
             if (!log_stream || !log_stream->stream()) {
@@ -59,6 +99,8 @@ namespace gem5
         if (s == "stuck_at_zero") return FaultType::StuckAtZero;
         if (s == "stuck_at_one") return FaultType::StuckAtOne;
         if (s == "pfn_to_mapped_page") return FaultType::PfnToMappedPage;
+        // [R4-5.9] T08: FS walk/fill pairing (T08-a lost walk).
+        if (s == "walk_pairing") return FaultType::WalkPairing;
         return FaultType::Random;
     }
 
@@ -69,9 +111,62 @@ namespace gem5
             case FaultType::StuckAtZero: return "stuck_at_zero";
             case FaultType::StuckAtOne: return "stuck_at_one";
             case FaultType::PfnToMappedPage: return "pfn_to_mapped_page";
+            case FaultType::WalkPairing: return "walk_pairing";  // [R4-5.9]
             case FaultType::Random: return "random";  // G7: clear -Wswitch
         }
         return "random";
+    }
+
+    // [MDSPEC][R4-5.9] T08-a walk/fill 丢失. See the header for the full
+    // ruling. The walk-issue point (TableWalker::walk) IS the eligible
+    // event stream for this model (spec trigger column: "DTLB miss并启动
+    // walk"), so the funnel accounting is onAttempt at entry + the tier
+    // decision on the same event (F6 rides onF6Event(false) — the attempt
+    // is already booked here, matching the CHAOSCache mshr_merge precedent).
+    bool
+    CHAOSArmTLB::maybeDropWalkFill(uint64_t walk_id, Addr va, uint64_t req_seq,
+                                   uint64_t walk_start_tick, unsigned level)
+    {
+        if (fault_type_enum != FaultType::WalkPairing) return false;
+        if (!lsuTrigger) return false;
+        lsuTrigger->onAttempt();
+        if (max_faults != 0 && faults_injected_count >= max_faults)
+            return false;
+        // Per-walk Bernoulli gate (parity with maybeCorrupt's probability
+        // semantics). Only consulted when probability > 0 (default 0 =
+        // inert, so the campaign's T-cells keep their existing behaviour
+        // unless T08 explicitly arms this mode).
+        if (probability > 0.0f) {
+            std::uniform_real_distribution<float> probDist(0.0f, 1.0f);
+            if (probDist(rng) > probability) return false;
+        }
+        const bool fire = (lsuTrigger->tier == ChaOSLsuTier::F6)
+                              ? lsuTrigger->onF6Event(false)
+                              : lsuTrigger->onEligible();
+        if (!fire) return false;
+
+        ++faults_injected_count;
+        stats->numFaultsInjected++;
+        // Emit the walk/fill node PAIR (pairing key = walk_id). T08-a is
+        // the lost-refill arm: fill_lost=true ⇒ the tlb_refill node is
+        // recorded explicitly as field=lost / outcome=lost rather than
+        // fabricating a completed refill (honest absence).
+        CHAOSPropagation *tr = CHAOSPropagation::instance();
+        if (tr) {
+            tr->registerTlbWalkPair(walk_id, va, req_seq, walk_start_tick,
+                                    curTick(), level, /*fill_lost=*/true,
+                                    "walk_pairing");
+        }
+        if (write_log && log_stream) {
+            *(log_stream->stream())
+                << "Tick: " << curTick()
+                << ", Site: arm_tlb_walk_issue_drop"
+                << ", walk_id: " << walk_id
+                << ", VA: 0x" << std::hex << va
+                << ", FaultType: walk_pairing (T08-a lost walk/fill)"
+                << std::dec << std::endl;
+        }
+        return true;
     }
 
     // §1.2 protection-aware (N1 TRM Table 9-1 PROXY). L1 TLB = 'none' (raw

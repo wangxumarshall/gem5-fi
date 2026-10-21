@@ -110,9 +110,20 @@ p.add_argument("--tlb_probability", type=float, default=0.0,
                help="CHAOSArmTLB per-lookup injection probability")
 p.add_argument("--tlb_fault_type", default="bit_flip",
                choices=["bit_flip", "stuck_at_zero", "stuck_at_one",
-                        "random", "pfn_to_mapped_page"],
+                        "random", "pfn_to_mapped_page", "walk_pairing"],
                help="CHAOSArmTLB fault type; pfn_to_mapped_page = §2.10 F5 "
-                    "(substitute with another mapped entry's pfn)")
+                    "(substitute with another mapped entry's pfn); "
+                    "walk_pairing = T08-a FS walk/fill lost (R4-5.9; needs "
+                    "--tlb_lsu_tier)")
+# [R4-5.9] T08 walk/fill pairing trigger tier (event-normalized on the
+# page-table-walk issue stream). "off" = no trigger; walk_pairing panics
+# without a tier (loud refusal, L04/S10 discipline).
+p.add_argument("--tlb_lsu_tier", default="off",
+               choices=["off", "F0", "F1", "F2", "F3", "F4", "F5", "F6"],
+               help="CHAOSArmTLB event-normalized trigger tier (T08)")
+p.add_argument("--tlb_lsu_warmup_events", type=lambda x:int(x,0), default=0)
+p.add_argument("--tlb_lsu_span_events", type=lambda x:int(x,0), default=1000,
+               help="F0 uniform window size over the walk-issue stream")
 p.add_argument("--tlb_max_faults", type=lambda x:int(x,0), default=1,
                help="CHAOSArmTLB max faults; 1 for single-fault")
 p.add_argument("--tlb_fault_mask", type=lambda x:int(x,0), default=0,
@@ -269,8 +280,15 @@ if args.chaos_armtlb or args.chaos_sysreg or args.chaos_ptw or args.chaos_phys o
         core0 = processor.get_cores()[0]
         cpu0 = core0.core
         dtb = cpu0.mmu.dtb  # the data TLB (ArmISA::TLB)
+        # [R4-5.9] T08 walk_pairing attaches to the ArmTableWalker
+        # (cpu0.mmu.walker) instead of (well, in addition to) the TLB: the
+        # fault is on the page-table walk issue, not the lookup hit.
+        # walk_pairing also arms an event-normalized tier (--tlb_lsu_tier);
+        # without it the ctor panics loudly (the mode cannot run tierless).
         arm_tlb = CHAOSArmTLB(
             tlb=dtb,
+            walker=cpu0.mmu.walker if args.tlb_fault_type == "walk_pairing"
+                   else None,
             probability=args.tlb_probability,
             firstClock=args.tlb_first_clock,
             faultType=args.tlb_fault_type,
@@ -279,6 +297,9 @@ if args.chaos_armtlb or args.chaos_sysreg or args.chaos_ptw or args.chaos_phys o
             maxFaults=args.tlb_max_faults,
             rngSeed=args.tlb_rng_seed,
             protectionModel=args.tlb_protection_model,
+            lsuTier=args.tlb_lsu_tier,
+            lsuWarmupEvents=args.tlb_lsu_warmup_events,
+            lsuSpanEvents=args.tlb_lsu_span_events,
             writeLog=True,
         )
         board.chaos_armtlb = arm_tlb
