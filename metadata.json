@@ -1,0 +1,39 @@
+{
+  "cli_version": "0.10.2",
+  "checkpoint_id": "01M5FCZ4PX8P12X2NM4SNGCXB3",
+  "strategy": "manual-commit",
+  "branch": "lsu-mdspec-20261019",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "CHAOS/gem5/src/cpu/o3/CHAOSAddrPath/CHAOSAddrPath.cc",
+    "CHAOS/gem5/src/cpu/o3/CHAOSAddrPath/CHAOSAddrPath.hh",
+    "CHAOS/gem5/src/cpu/o3/CHAOSAddrPath/CHAOSAddrPath.py",
+    "CHAOS/gem5/src/cpu/o3/CHAOSPropagation/CHAOSPropagation.cc",
+    "CHAOS/gem5/src/cpu/o3/CHAOSPropagation/CHAOSPropagation.hh",
+    "CHAOS/gem5/src/cpu/o3/chaos_lsu_trigger.hh",
+    "CHAOS/gem5/src/cpu/o3/cpu.hh",
+    "CHAOS/gem5/src/cpu/o3/iew.cc",
+    "CHAOS/gem5/src/cpu/o3/iew.hh",
+    "CHAOS/gem5/src/cpu/o3/lsq.cc",
+    "configs/se/lsu_proxy.py",
+    "tests/test_lsu_hook_a07.py",
+    "tools/lsu_campaign.py",
+    "tools/lsu_runid_map.py"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 144579,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 2902400,
+    "output_tokens": 29910,
+    "api_call_count": 32
+  }
+}
