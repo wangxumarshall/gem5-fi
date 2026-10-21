@@ -349,24 +349,17 @@ MODEL_BLOCKED = {
     "C14": "deferred(consumer-side: MSHR busy event source only)",
     "C15": "deferred(consumer-side: MSHR occupancy event source only)",
     # no clean hook (documented in injector headers / W4-W8 session notes)
-    # [MDSPEC][R4-5.8] A07 hook LANDED (IEW::executeInsts memRef branch =
-    # the AGU clean-ready/handshake point; CHAOSAddrPath agu_ready_mode=
-    # a07b_ready_delay + delay 1, MODEL_FLAGS["A07"] routes it) but the
-    # mode is COMPILE-UNVERIFIED and NOT pilot-proven — this session was
-    # forbidden to build or run. Keep A07 blocked until the integration
-    # checklist completes (delete this entry only after, the C11/C12/L04
-    # discipline): (1) integration build; (2) ADDRPATH_F0_SPAN census for
-    # (A07, agu_addrmodes) and (A07, sq_forward) — A07-F0 cells then stop
-    # hitting the BLOCKED(F0-span-unmeasured) refusal; (3) a passing
-    # pilot (injection log non-empty + lsu_chain_check per-edge record).
+    # [MDSPEC][R4-5.8 integration] A07 MODEL_BLOCKED entry DELETED here —
+    # the C11/C12/L04 discipline ("delete only when real runs assert it")
+    # is satisfied by real integration runs on binary sha256 prefix
+    # 09d70dd0987c57d1: (1) clean build; (2) ADDRPATH_F0_SPAN census
+    # (eligible=2795 on agu_addrmodes, 2579 on sq_forward — see
+    # ADDRPATH_F0_SPAN); (3) pilot: 6 cells x 3 seeds, injection log
+    # non-empty and lsu_chain_check per-edge records — see
+    # docs/gem5-fi/lsu/mdspec/round4_findings.md §R4-5.8.
     # NOTE (merge-order): the R4-5.4 P06 MODEL_BLOCKED entry was already
     # deleted on the integration branch (P06 landed and pilot-proven) —
     # this merge keeps it deleted and does NOT reintroduce it.
-    "A07": ("deferred(R4-5.8 landed compile-unverified: AGU clean-ready "
-            "hook + A07-b ready-delay mode implemented; pending integration "
-            "build + ADDRPATH_F0_SPAN census (A07,agu_addrmodes)/"
-            "(A07,sq_forward) + pilot proof — delete after, C11/C12/L04 "
-            "discipline)"),
     "O04": "deferred(RMW data path needs cache-side SwapResp hook)",
     "O09": "deferred(RMW operand path needs cache-side hook)",
     # B0 protection rows (09 §6.4): not applicable, never zero-filled
@@ -439,6 +432,19 @@ def assert_formal_f6_mode(mode):
 # then set them here. A07-F0 cells refuse loudly until then.
 ADDRPATH_F0_SPAN = {
     # (model, workload binary) -> measured eligible event stream size
+    # [MDSPEC][R4-5.8 integration] A07 census (tier=F0, warmup=1,
+    # span=1000000 pure-census runs; integration binary sha256 prefix
+    # 09d70dd0987c57d1): the A07 eligible stream = plain (non-atomic,
+    # non-prefetch) loads/stores reaching the IEW ready/handshake point —
+    # a DIFFERENT stream from the A01-A03 fragments and from every
+    # PRE-family model; no other model's number may be reused. Real
+    # teardown lines (runs/lsu/r4_a07_span/<wl>.run.out):
+    #   agu_addrmodes: injector=CHAOSAddrPath tier=F0 attempted=2795
+    #                  eligible=2795 injected=0 (SPAN_UNREACHABLE, census)
+    #   sq_forward:    injector=CHAOSAddrPath tier=F0 attempted=2579
+    #                  eligible=2579 injected=0 (SPAN_UNREACHABLE, census)
+    ("A07", "agu_addrmodes"): 2795,
+    ("A07", "sq_forward"): 2579,
 }
 
 

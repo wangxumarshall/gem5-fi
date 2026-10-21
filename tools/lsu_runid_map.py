@@ -243,21 +243,25 @@ def generate_map(xlsx_path):
                "+ census LSQFWD_F0_SPAN[(S10,sq_forward)/(S10,gap_bfs)] + "
                "pilot 6 cells x 3 seeds + chain check before this entry "
                "carries real-run evidence (R4-5.7-report.md checklist))",
-        # A07（6 RunID，阻塞短语 "R4: no clean hook"）：[R4-5.8] AGU
-        # clean-ready/握手钩子已落地——IEW::executeInsts 的 isMemRef 分支
-        # （调度器把就绪访存指令交给 LSQ 算地址的那一点，AGU=其中的
-        # initiateAcc；EA 尚不存在，故 PRE（pushRequest=AGU 原始输出）与
-        # POST（sendFragment=DTLB 输入）两族钩子都表达不了 ready 时序）。
-        # 落地子模型=A07-b 有界 ready 延迟（agu_ready_mode=a07b_ready_delay，
-        # 延迟 1 个 CPU clock edge，spec"延后1周期"；resume 事件在延迟拍再入
-        # 同一执行路径——数据载荷保持正确，只有时序移动；EA 晚绑定：延迟
-        # 指令的 EA 进入 LSQ 时把链绑到真实地址区间，lsq_push/mem_req/
-        # tlb_translate 按 seq+overlap 入链）。
-        # [诚实登记] 本项落地会话被禁止构建/运行：C++ COMPILE-UNVERIFIED、
-        # 无 pilot 证据；A07 保持在 lsu_campaign.MODEL_BLOCKED（集成侧
-        # build + ADDRPATH_F0_SPAN census + pilot 通过后才删，C11/C12/L04
-        # 纪律）。本登记解除的是规格侧"无 clean ready/握手注入 hook"前提
-        # （钩子已存在可审计），非完成声明。
+        # A07（6 RunID）：[R4-5.8] AGU clean-ready/握手钩子 + A07-b 有界
+        # ready 延迟**已落地并集成验证**（build + census + pilot 三次真机
+        # 执行，集成二进制 sha256 前缀 09d70dd0987c57d1）。
+        # 钩子点=IEW::executeInsts 的 isMemRef 分支（调度器把就绪访存指令
+        # 交给 LSQ 算地址的那一点；AGU=其中的 initiateAcc；EA 尚不存在，
+        # 故 PRE（pushRequest=AGU 原始输出）与 POST（sendFragment=DTLB 输入）
+        # 两族钩子都表达不了 ready 时序）。
+        # 子模型=A07-b 有界 ready 延迟（delay_cycles=1，spec"延后1周期"；
+        # resume 事件在延迟拍再入同一执行路径——数据载荷保持正确，只有
+        # 时序移动；EA 晚绑定：延迟指令的 EA 进入 LSQ 时把链绑到真实地址
+        # 区间，lsq_push/mem_req/tlb_translate 按 seq+overlap 入链）。
+        # [真机证据] 见 round4_findings.md §R4-5.8 与 pilot_evidence.json：
+        #   F0-W3/W5、F6-W3/W5 各 3 seed，每 seed injected=1、activated=1，
+        #   injection log 非空（Site: iew_memRef_AGU_ready + _resume），
+        #   chain_check 逐边记录（F6 样本 full→L5；F0 样本 L3 后 Unknown，
+        #   诚实缺事件）；A07-F4-W3/W5 各 3 seed = honest zero（F4 突发
+        #   平均间隔 1e5 eligible 事件 >> A07 实测流长 2795/2579）。
+        # [census] ADDRPATH_F0_SPAN[(A07,agu_addrmodes)]=2795、
+        #   [(A07,sq_forward)]=2579（span=1000000 纯普查实测，重启 F0 cell）。
         # 未落地（pending）：A07-a ready 过早并使用旧 EA（SDC 通道——需
         # EA 流水锁存值观测 + 值替换，两点实现）；A07-c ready 丢失（hang/
         # Timeout 通道，需超时簿记——L04-a 同类）。
@@ -269,17 +273,26 @@ def generate_map(xlsx_path):
                "correct, timing only; EA late-bound to the fault chain at "
                "the delayed instruction's pushRequest so lsq_push/mem_req/"
                "tlb_translate join by seq+overlap); STATUS: "
-               "COMPILE-UNVERIFIED, no pilot evidence (landing session "
-               "forbidden to build/run; A07 stays in campaign "
-               "MODEL_BLOCKED until integration build + "
-               "ADDRPATH_F0_SPAN census (A07,agu_addrmodes)/"
-               "(A07,sq_forward) + pilot pass — this entry lifts the SPEC "
-               "premise 'no clean ready/handshake injection hook' only, "
-               "the hook exists and is auditable); pending: A07-a "
-               "ready-early + stale latched EA (SDC-capable; needs EA "
-               "pipeline-latch observation + value substitution, a "
-               "two-point implementation), A07-c ready loss (hang/Timeout "
-               "channel, needs timeout bookkeeping — L04-a same class)",
+               "COMPILE-VERIFIED + pilot-proven on the integration binary "
+               "(sha256 prefix 09d70dd0987c57d1): build clean, census "
+               "ADDRPATH_F0_SPAN[(A07,agu_addrmodes)]=2795 / "
+               "[(A07,sq_forward)]=2579, pilot 6 cells x 3 seeds — "
+               "A07-F0-W3/A07-F0-W5/A07-F6-W3/A07-F6-W5 injected=1 and "
+               "activated=1 per seed with chain_check per-edge records "
+               "(F6 samples full to L5; F0 samples provable to L3 then "
+               "Unknown — honest missing events), A07-F4-W3/A07-F4-W5 = "
+               "honest zero (F4 burst mean interval 1e5 eligible events "
+               ">> measured A07 stream 2795/2579 — same class as "
+               "L04-F2/P06-F2 recorded honest zeros); A07 deleted from "
+               "lsu_campaign.MODEL_BLOCKED after these real runs "
+               "(C11/C12/L04 discipline); this entry lifts the SPEC "
+               "premise 'no clean ready/handshake injection hook' — the "
+               "hook exists, is auditable and is now proven on real runs); "
+               "pending: A07-a ready-early + stale latched EA "
+               "(SDC-capable; needs EA pipeline-latch observation + value "
+               "substitution, a two-point implementation), A07-c ready loss "
+               "(hang/Timeout channel, needs timeout bookkeeping — "
+               "L04-a same class)",
     }
 
     wb = openpyxl.load_workbook(xlsx_path, data_only=True)

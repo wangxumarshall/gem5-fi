@@ -326,20 +326,27 @@ def main():
           ("addrpath", ["--agu_ready_mode", "a07b_ready_delay",
                         "--agu_ready_delay_cycles", "1"]),
           str(LC.MODEL_FLAGS.get("A07")))
-    check("A07 保持 MODEL_BLOCKED（compile-unverified + 无 pilot——集成侧 "
-          "build+census+pilot 后才删，C11/C12/L04 纪律）",
-          "A07" in LC.MODEL_BLOCKED
-          and "compile-unverified" in LC.MODEL_BLOCKED["A07"],
+    check("A07 已从 MODEL_BLOCKED 删除（实测可跑后才允许——集成侧 "
+          "build + census + pilot 全过，C11/C12/L04 纪律）",
+          "A07" not in LC.MODEL_BLOCKED,
           str(LC.MODEL_BLOCKED.get("A07"))[:120])
     check("旧阻塞短语已退役（'R4: no clean hook' 不再是 A07 的理由）",
           LC.MODEL_BLOCKED.get("A07") != "deferred(R4: no clean hook)", "")
-    check("ADDRPATH_F0_SPAN 跨度表存在且 A07 条目故意缺席（census 禁跑，"
-          "待集成侧实测）",
-          LC.ADDRPATH_F0_SPAN == {},
+    check("ADDRPATH_F0_SPAN 含两个实测条目（集成侧 census："
+          "agu_addrmodes=2795 / sq_forward=2579）",
+          LC.ADDRPATH_F0_SPAN.get(("A07", "agu_addrmodes")) == 2795
+          and LC.ADDRPATH_F0_SPAN.get(("A07", "sq_forward")) == 2579,
           str(LC.ADDRPATH_F0_SPAN))
-    check("A07 F0 tier flags 对未实测对 loud None（F0-span-unmeasured）",
-          LC._addrpath_tier_flags("A07", "F0", "agu_addrmodes") is None
-          and LC._addrpath_tier_flags("A07", "F0", "sq_forward") is None, "")
+    check("A07 F0 tier flags：实测对 = warmup=1 + span=实测流长（真 "
+          "F0-uniform）；未实测 workload 仍 loud None",
+          LC._addrpath_tier_flags("A07", "F0", "agu_addrmodes") ==
+          ["--addrpath_lsu_tier", "F0", "--addrpath_warmup_events", "1",
+           "--addrpath_span_events", "2795"]
+          and LC._addrpath_tier_flags("A07", "F0", "sq_forward") ==
+          ["--addrpath_lsu_tier", "F0", "--addrpath_warmup_events", "1",
+           "--addrpath_span_events", "2579"]
+          and LC._addrpath_tier_flags("A07", "F0", "sqlite_like") is None,
+          str(LC._addrpath_tier_flags("A07", "F0", "agu_addrmodes")))
     check("A07 非 F0 tier flags 可解析（F4/F6 惯例形 + F6 门禁 flag）",
           LC._addrpath_tier_flags("A07", "F4", "agu_addrmodes") ==
           ["--addrpath_lsu_tier", "F4", "--addrpath_warmup_events", "0",
@@ -356,58 +363,39 @@ def main():
           ["--addrpath_lsu_tier", "F6", "--addrpath_warmup_events", "0",
            "--addrpath_span_events", "1000", "--addrpath_f6_mode",
            "early_stress"], "")
-    # 解阻塞后的 F0 拒绝路径（活体验证：临时移除 MODEL_BLOCKED 条目，
-    # resolve_cell 必须落到 BLOCKED(F0-span-unmeasured) 并点名
-    # ADDRPATH_F0_SPAN；finally 恢复）
-    try:
-        saved = LC.MODEL_BLOCKED.pop("A07")
-        header, cells = LC.load_matrix(
-            ROOT / "artifacts/lsu-trial/07-expanded-matrix-backfilled.csv")
-        a07f0 = [c for c in cells
-                 if c[LC.COL_MODEL].strip() == "A07"
-                 and c[LC.COL_FREQ].strip() == "F0"]
-        check("矩阵 A07-F0 cell 数 = 2（W3/W5）", len(a07f0) == 2,
-              str(len(a07f0)))
-        ok_refusal = True
-        for c in a07f0:
-            flags, golden, note = LC.resolve_cell(c)
-            if flags is not None or "F0-span-unmeasured" not in note \
-                    or "ADDRPATH_F0_SPAN" not in note:
-                ok_refusal = False
-        check("（解阻塞后）A07-F0 拒绝点名 ADDRPATH_F0_SPAN（活体 loud "
-              "refusal 路径）", ok_refusal, "")
-    finally:
-        LC.MODEL_BLOCKED["A07"] = saved
-    check("恢复后 A07 仍在 MODEL_BLOCKED",
-          LC.MODEL_BLOCKED.get("A07") == saved, "")
+    # loud refusal 路径在解阻塞后依然有效：未实测 workload 对仍被拒
+    check("A07 F0 未实测 workload 对仍 loud None（F0-span-unmeasured "
+          "拒绝路径未因解阻塞而失效）",
+          LC._addrpath_tier_flags("A07", "F0", "sqlite_like") is None, "")
 
-    print("[5] 矩阵解析：6 个 A07 RunID 全部 loud blocked（诚实中间态）")
+    print("[5] 矩阵解析：6 个 A07 RunID 全部 runnable（集成后真机可跑）")
     header, cells = LC.load_matrix(
         ROOT / "artifacts/lsu-trial/07-expanded-matrix-backfilled.csv")
     a07 = [c for c in cells if c[LC.COL_MODEL].strip() == "A07"]
     check("A07 cell 数 = 6", len(a07) == 6, str(len(a07)))
-    all_blocked = True
+    all_runnable = True
     for c in a07:
         runid = c[LC.COL_RUNID].strip()
         flags, golden, note = LC.resolve_cell(c)
-        if flags is not None or "A07" not in note:
-            all_blocked = False
+        if flags is None:
+            all_runnable = False
             print(f"    {runid}: note={str(note)[:100]}")
-    check("6 RunID 全部解析为阻塞（MODEL_BLOCKED 理由，无静默 runnable）",
-          all_blocked, "")
+    check("6 RunID 全部解析为 runnable（MODEL_BLOCKED 条目已删；campaign "
+          "--dry-run 实测 runnable=6）", all_runnable, "")
 
-    print("[6] SPEC_IMPL_LANDED 登记（机器可读 pending）")
+    print("[6] SPEC_IMPL_LANDED 登记（集成后：真机证据在册）")
     rim = src("tools/lsu_runid_map.py")
     check('SPEC_IMPL_LANDED 含 "A07" 条目', '"A07": "implemented(' in rim, "")
-    check("A07 条目声明 COMPILE-VERIFIED 状态（诚实：compile-unverified）",
-          "COMPILE-UNVERIFIED" in rim, "")
+    check("A07 条目声明 COMPILE-VERIFIED（集成侧已构建；不再有 "
+          "COMPILE-UNVERIFIED 字样）",
+          "COMPILE-VERIFIED" in rim and "COMPILE-UNVERIFIED" not in rim, "")
     check("A07 条目 pending 列逐一点名（A07-a 旧EA / A07-c 丢失）",
           "A07-a" in rim and "stale latched EA" in rim
           and "A07-c" in rim and "ready loss" in rim, "")
-    check("A07 条目记录 census 待测对（agu_addrmodes/sq_forward）",
-          "agu_addrmodes" in rim and "sq_forward" in rim, "")
-    check("A07 条目不声称 pilot 证据（本会话禁止运行）",
-          "no pilot evidence" in rim, "")
+    check("A07 条目记录实测 census 跨度对（2795 / 2579）",
+          "2795" in rim and "2579" in rim, "")
+    check("A07 条目记录真机 pilot 证据（F0/F6 已注入 + F4 honest zero）",
+          "A07-F6-W3" in rim and "honest zero" in rim, "")
 
     print()
     if FAILED:

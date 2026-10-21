@@ -1,7 +1,7 @@
 # Markdown→实现覆盖矩阵（MDSPEC Phase B，**节点级证据化**）
 
 - 总数：325（RunID 唯一，表7∩表9 集合相等——B1 已证）
-- **PASS=225 / PARTIAL=0 / BLOCKED=100**
+- **PASS=231 / PARTIAL=0 / BLOCKED=94**
 - 判定口径（2026-10-20 证据化）：PASS = 该单元规格所需**全部节点**既已实现（kind ∈ 发射端注册表）**又**在真实 pilot 运行中出现；缺任一节点 = PARTIAL 并逐项列出。注册表布尔值**不再**作为判据。
 - 节点级证据取**全部 pilot 的 kind 并集**（节点=钩子能力级证据，与注入单元解耦）；逐单元归属索引见 pilot_evidence.json 的 kinds_observed_by_unit（RunID→单元解析：精确匹配 → 行标签，见 tools/lsu_pilot_evidence.py unit_of）。
 - 真实运行观测到的 kind（34）：addr_form, cache_access, cache_evict, cache_fill, cache_return, cache_writeback, chain_end, consumer, errant_commit, exmon_monitor, exmon_rmw, exmon_stxr, inj, lq_complete, lq_read, lsq_push, lsq_sendfrag, mem_req, mshr_alloc, mshr_fill, mshr_free, mshr_merge, pf_demand, pf_fill, pf_issue, pf_queue, pf_train, resp, sq_complete, sq_execute, sq_writeback, taint_reg, tlb_fault, tlb_translate
@@ -35,12 +35,12 @@
 | A06-F2-W5 | A06 | AGU | F2 | BLOCKED | campaign:BLOCKED(load-side fixed-width completion contract + byte-enable pending; store-only path implemented — MDSPEC §2 ruling 2026-10-19) |
 | A06-F6-W3 | A06 | AGU | F6 | BLOCKED | campaign:BLOCKED(load-side fixed-width completion contract + byte-enable pending; store-only path implemented — MDSPEC §2 ruling 2026-10-19) |
 | A06-F6-W5 | A06 | AGU | F6 | BLOCKED | campaign:BLOCKED(load-side fixed-width completion contract + byte-enable pending; store-only path implemented — MDSPEC §2 ruling 2026-10-19) |
-| A07-F0-W3 | A07 | AGU | F0 | BLOCKED | campaign:deferred(R4: no clean hook); spec:需新增（当前阻塞：无clean ready/握手注入hook） |
-| A07-F0-W5 | A07 | AGU | F0 | BLOCKED | campaign:deferred(R4: no clean hook); spec:需新增（当前阻塞：无clean ready/握手注入hook） |
-| A07-F4-W3 | A07 | AGU | F4 | BLOCKED | campaign:deferred(R4: no clean hook); spec:需新增（当前阻塞：无clean ready/握手注入hook） |
-| A07-F4-W5 | A07 | AGU | F4 | BLOCKED | campaign:deferred(R4: no clean hook); spec:需新增（当前阻塞：无clean ready/握手注入hook） |
-| A07-F6-W3 | A07 | AGU | F6 | BLOCKED | campaign:deferred(R4: no clean hook); spec:需新增（当前阻塞：无clean ready/握手注入hook） |
-| A07-F6-W5 | A07 | AGU | F6 | BLOCKED | campaign:deferred(R4: no clean hook); spec:需新增（当前阻塞：无clean ready/握手注入hook） |
+| A07-F0-W3 | A07 | AGU | F0 | PASS |  |
+| A07-F0-W5 | A07 | AGU | F0 | PASS |  |
+| A07-F4-W3 | A07 | AGU | F4 | PASS |  |
+| A07-F4-W5 | A07 | AGU | F4 | PASS |  |
+| A07-F6-W3 | A07 | AGU | F6 | PASS |  |
+| A07-F6-W5 | A07 | AGU | F6 | PASS |  |
 | A08-F0-W3 | A08 | AGU | F0 | PASS |  |
 | A08-F0-W5 | A08 | AGU | F0 | PASS |  |
 | A08-F2-W3 | A08 | AGU | F2 | PASS |  |
@@ -116,12 +116,12 @@
 | S09-F0-W5 | S09 | Store Queue | F0 | PASS |  |
 | S09-F2-W5 | S09 | Store Queue | F2 | PASS |  |
 | S09-F6-W5 | S09 | Store Queue | F6 | PASS |  |
-| S10-F0-W5 | S10 | Store Queue | F0 | BLOCKED | campaign:deferred(consumer-side: StoreSet SSID corruption event source only); spec:需新增（当前阻塞：只有StoreSet事件源，无consumer-side字段注入） |
-| S10-F0-W9 | S10 | Store Queue | F0 | BLOCKED | campaign:deferred(consumer-side: StoreSet SSID corruption event source only); spec:需新增（当前阻塞：只有StoreSet事件源，无consumer-side字段注入） |
-| S10-F2-W5 | S10 | Store Queue | F2 | BLOCKED | campaign:deferred(consumer-side: StoreSet SSID corruption event source only); spec:需新增（当前阻塞：只有StoreSet事件源，无consumer-side字段注入） |
-| S10-F2-W9 | S10 | Store Queue | F2 | BLOCKED | campaign:deferred(consumer-side: StoreSet SSID corruption event source only); spec:需新增（当前阻塞：只有StoreSet事件源，无consumer-side字段注入） |
-| S10-F5-W5 | S10 | Store Queue | F5 | BLOCKED | campaign:deferred(consumer-side: StoreSet SSID corruption event source only); spec:需新增（当前阻塞：只有StoreSet事件源，无consumer-side字段注入） |
-| S10-F5-W9 | S10 | Store Queue | F5 | BLOCKED | campaign:deferred(consumer-side: StoreSet SSID corruption event source only); spec:需新增（当前阻塞：只有StoreSet事件源，无consumer-side字段注入） |
+| S10-F0-W5 | S10 | Store Queue | F0 | BLOCKED | campaign:landed compile-unverified, pilot pending (integration owns build + census + campaign; see R4-5.7 report) |
+| S10-F0-W9 | S10 | Store Queue | F0 | BLOCKED | campaign:landed compile-unverified, pilot pending (integration owns build + census + campaign; see R4-5.7 report) |
+| S10-F2-W5 | S10 | Store Queue | F2 | BLOCKED | campaign:landed compile-unverified, pilot pending (integration owns build + census + campaign; see R4-5.7 report) |
+| S10-F2-W9 | S10 | Store Queue | F2 | BLOCKED | campaign:landed compile-unverified, pilot pending (integration owns build + census + campaign; see R4-5.7 report) |
+| S10-F5-W5 | S10 | Store Queue | F5 | BLOCKED | campaign:landed compile-unverified, pilot pending (integration owns build + census + campaign; see R4-5.7 report) |
+| S10-F5-W9 | S10 | Store Queue | F5 | BLOCKED | campaign:landed compile-unverified, pilot pending (integration owns build + census + campaign; see R4-5.7 report) |
 | S11-F0-W5 | S11 | Store Queue | F0 | PASS |  |
 | S11-F0-W6 | S11 | Store Queue | F0 | PASS |  |
 | S11-F4-W5 | S11 | Store Queue | F4 | PASS |  |

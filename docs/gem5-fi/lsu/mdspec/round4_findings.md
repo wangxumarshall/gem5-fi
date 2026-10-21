@@ -1213,3 +1213,130 @@ P06 改动的三个 TU（`CHAOSPrefetch.cc` / `cache/cache.cc` / `CHAOSPropagati
 （合计恒为 325。）P06 的 6 个 RunID 由 BLOCKED 转 PASS；
 `pilot_evidence.json` 的 kind 并集 33→34（新增 `sq_execute`，来自 Task 2 的活样本；
 **无任何 kind 丢失**）。
+
+## R4-5.8（2026-10-21）：A07 AGU clean-ready/握手钩子集成——merge + build + census + 真机 pilot（MODE-UNIMPL 29→23 的证据化副作用：矩阵 PARTIAL 225→231 / BLOCKED 100→94）
+
+> 本文档节由**集成侧（主 worktree）**撰写：A07 的落地实现来自隔离 worktree
+> `r4-5.8-a07` @`317e4407`（其报告 `R4-5.8-report.md` 如实声明 C++ 为
+> COMPILE-UNVERIFIED、无 pilot 证据）。本节只记录集成侧**真实执行**的动作与输出。
+
+### 5.8.1 语义合并（禁止直接覆盖）
+
+merge `317e4407`（base `79439d75`）到 `55b89900`，五处冲突**逐处按语义解析**（细节见
+合并提交信息）：两侧 F6 事件源表都追加了 "EIGHTH" 条目 → S10 保持 EIGHTH、A07 改
+NINTH（S10 先并入，事实优先）；`CHAOSPropagation.{hh,cc}` 两侧各自追加新函数且
+**共享同一 open-brace 上下文行** → 解析为两个完整函数，共享前缀各复制一份；
+`MODEL_BLOCKED` 取 A07 新短语且**不重新引入已被 P06（R4-5.4）删除的 P06 条目**；
+`resolve_cell` 的 span_table 合并为**四族** dict；`SPEC_IMPL_LANDED` 两条增量都保留。
+
+### 5.8.2 编译修复（两次真实失败 → 两次修复，非猜测）
+
+| # | 实测报错 | 根因 | 修复 |
+|---|---|---|---|
+| 1 | `CHAOSAddrPath.hh:92/202: 错误：‘DynInstPtr’不是一个类型名` | `DynInstPtr` 定义在 `gem5::o3`，而 `CHAOSAddrPath` 在 `namespace gem5` | 4 处加 `o3::` 限定（与 `CHAOSLSQFwd.hh` 既有写法一致） |
+| 2 | `iew.cc:1214: 错误：对不完全的类型‘class gem5::CHAOSAddrPath’的非法使用` | `cpu.hh` 只有前置声明 | `iew.cc` 增加 `#include "cpu/o3/CHAOSAddrPath/CHAOSAddrPath.hh"`（与 `lsq.cc` 同款） |
+
+**构建核验（显式，未用 grep 吞错误）**：`cd CHAOS/gem5 && scons -j16 build/ARM/gem5.opt`
+→ `SCONS_EXIT=0`；日志中除既有环境警告（HDF5/PNG 缺失）外**零 warning/error**；
+二进制重链于 22:30，sha256 前缀 **`09d70dd0987c57d1`**。
+
+### 5.8.3 F0 跨度普查（真机，span=1000000 纯普查、注入 0 次）
+
+```
+$ .../gem5.opt --outdir=runs/lsu/r4_a07_span/<wl> configs/se/lsu_proxy.py \
+    --cmd workloads/directed/<wl> --cpu O3 --chaos_addrpath \
+    --agu_ready_mode a07b_ready_delay --agu_ready_delay_cycles 1 \
+    --addrpath_lsu_tier F0 --addrpath_warmup_events 1 \
+    --addrpath_span_events 1000000 --addrpath_rng_seed 1 ...
+```
+| 负载 | 真实 teardown 行 | eligible（= 跨度） |
+|---|---|---|
+| agu_addrmodes | `CHAOS_LSU_TRIGGER: injector=CHAOSAddrPath tier=F0 attempted=2795 eligible=2795 injected=0` | **2795** |
+| sq_forward | `... attempted=2579 eligible=2579 injected=0` | **2579** |
+
+（两者均伴随 `SPAN_UNREACHABLE` 告警 = 普查意图本身。）已写入
+`ADDRPATH_F0_SPAN[(A07,agu_addrmodes)]=2795`、`[(A07,sq_forward)]=2579`。
+A07 的 eligible 流 = 到达 IEW ready 点的**普通 load/store**（原子/预取被
+op-class 门挡在 eligible 之外），与 A01-A03 片段及所有 PRE 族**不是同一条流**，
+故未复用任何其它模型的数字。
+
+### 5.8.4 真机 pilot（campaign 正式入口，6 cell × 3 seed = 18 样本）
+
+```
+$ LSU_GEM5_BIN=<worktree>/CHAOS/gem5/build/ARM/gem5.opt python3 tools/lsu_campaign.py \
+    --matrix artifacts/lsu-trial/07-expanded-matrix-backfilled.csv \
+    --outdir runs/lsu/r4_a07_pilot \
+    --cells A07-F0-W3,A07-F0-W5,A07-F4-W3,A07-F4-W5,A07-F6-W3,A07-F6-W5 \
+    --phase trial --max-seeds-per-cell 3 --max-parallel 1
+  A07-F0-W3: n_runs=3 activated=3 sdc=0 stop=seed-cap(3) cons=OK
+  A07-F0-W5: n_runs=3 activated=3 sdc=0 stop=seed-cap(3) cons=OK
+  A07-F4-W3: n_runs=3 activated=0 sdc=0 stop=seed-cap(3) cons=OK
+  A07-F4-W5: n_runs=3 activated=0 sdc=0 stop=seed-cap(3) cons=OK
+  A07-F6-W3: n_runs=3 activated=3 sdc=0 stop=seed-cap(3) cons=OK
+  A07-F6-W5: n_runs=3 activated=3 sdc=0 stop=seed-cap(3) cons=OK
+```
+
+**注入日志非空（模板第 5 步第一判据）** —— `A07-F0-W3/seed1/addrpath_injections.log` 原文：
+```
+FUNNEL: attempted=2123 eligible=2123 injected=1
+Tick: 15434650, Site: iew_memRef_AGU_ready, mode=a07b_ready_delay, dyn_inst_seq=12413, ready_tick=15434650, delayed_tick=15435035, delay_cycles=1, isLoad=0, isStore=1, faults_injected: 1
+Tick: 15435035, Site: iew_memRef_AGU_ready_resume, mode=a07b_ready_delay, dyn_inst_seq=12413, consumed=1, squashed=0
+```
+（`A07-F6-W3/seed1` 同形，`dyn_inst_seq=5, isLoad=1`；teardown
+`CHAOS_AGU_READY: mode=a07b_ready_delay delay_cycles=1 fault_seq=… addr_bound=1 activated=1`。）
+
+**链检查逐边记录（`lsu_chain_check.py`，由 campaign 调起）**：
+- **F6 样本（load 载体）= 完整链至 L5**：`A07-F6-W3/W5` 各 3 seed，
+  `events=234 terminal=full provable_to=L5`。
+- **F0 样本 = provable_to L3 后 Unknown**：`A07-F0-W3` seed1 逐边
+  `L0->L1=proven(inj→lsq_push, seq_primary) · L1->L2=proven(lsq_push→mem_req)
+  · L2->L3=proven(mem_req→sq_execute) · L3->L4=missing · L4->L5=missing`，
+  `terminal=provable_to_L3_then_unknown`。**诚实登记**：F0 的抽中指令是
+  **store**（`isStore=1`），A07-b 是**时序故障**（数据载荷保持正确），store
+  侧 L4/L5 的“值证据”事件不产生 → 缺事件报 Unknown，**不推断 Masked**
+  （与 C12 的 sdc=0/Masked 同类诚实结果）。
+
+**A07-F4-W3/W5 = 诚实零（不是缺陷，是规格间隔与流长不匹配）**：
+`tier=F4 attempted=2800 eligible=2800 injected=0`，`fault_seq=0 addr_bound=0 activated=0`。
+机理：F4 突发周期 `intervalEvents(F4)=100000`（`chaos_lsu_trigger.hh`），
+`next_fire = warmup + 1e5/2 + rng%1e5 ∈ [5e4,1.5e5)`，而 A07 在两个负载上的
+实测 eligible 流仅 **2795 / 2579** → 突发起点**结构性不可达**。与
+`L04-F2`（R4-5.3 §5.3.6）、`P06-F2`（§R4-5.4）登记的诚实零同类。
+**未做**：未为了“让 F4 出数”而放宽 interval 常量——那会改动全族触发语义，
+属另一项独立变更，且会波及已落地的其它模型 F4 cell。
+
+### 5.8.5 契约与覆盖
+
+- 契约测试：`tests/test_lsu_hook_a07.py` **83 项全 PASS**（含把“A07 保持
+  MODEL_BLOCKED / 跨度表故意缺席 / 无 pilot 证据”三条**落地期诚实钉**，
+  更新为**集成期诚实钉**：MODEL_BLOCKED 条目已删、跨度表含 2795/2579、
+  未实测 workload 对仍 loud None、6 cell 全部 runnable、runid_map 条目含
+  真机证据）。
+- `tests/test_lsu_runid_map.py` → `FAILURES: 无`；`tests/test_lsu_coverage_matrix.py`
+  → `FAILURES: 无`。
+- **台账真机变化**：runid_map `PARTIAL 225 → 231`、`BLOCKED 100 → 94`
+  （blocked_by_unit 的 AGU 12 → 6，剩余 6 = A06 的 RULING 类）；覆盖矩阵
+  随之 `PASS=231 / PARTIAL=0 / BLOCKED=94`。
+- `pilot_evidence.json`：新增 18 条 A07 样本（127 pilots / 34 kinds），
+  其中 F4 六条为 `events=0` 的诚实零条目（不贡献任何 kind）。
+
+### 5.8.6 未落地（照旧钉在 `SPEC_IMPL_LANDED["A07"]`）
+
+A07-a（ready 过早 + 旧 EA，SDC 通道：需 EA 流水锁存观测 + 值替换的两点实现）、
+A07-c（ready 丢失，hang/Timeout 通道：需超时簿记，L04-a 同类）。
+
+### 5.8.7 不受影响族回归（A07 触及 executeInsts 热路径、PRE 钩子签名、CHAOSPropagation）
+
+`runs/lsu/r4_t58_regr/`（campaign 入口，各 3 seed，`--max-parallel 1`）真实输出：
+```
+  S04-F0-W5: n_runs=3 activated=3 sdc=0 stop=seed-cap(3) cons=OK
+  S01-F0-W5: n_runs=3 activated=3 sdc=0 stop=seed-cap(3) cons=OK
+  C12-F0-W6: n_runs=3 activated=3 sdc=0 stop=seed-cap(3) cons=OK
+```
+- `S04` 走 `maybeCorruptPre`（A07 改了其签名：+`dyn_inst_seq`）→ 3 seed 均正常注入。
+- `S01` 走 `executeInsts` 默认路径（A07 在 memRef 分支加了 `chaosAguReady` 判空短路）→ 正常注入。
+- `C12` 走 `CHAOSPropagation` 未触及路径 → 正常注入。
+- 三者出现的 `EARLY_BIAS` 告警（S04 seed2/3 `eligible=1307 span=1000`；S01 seed2
+  `span=7`）与 §R4-1-fix I2 / §R4-2 §2.4 记录的**既有类别同型**（parked 的
+  addrpath 家族默认 span=1000 + F0 故障延长流），非本次 A07 引入；
+  A07 侧测试逐项钉死"非 A07 的 addrpath 模型 tier flags 逐字节不变"。
