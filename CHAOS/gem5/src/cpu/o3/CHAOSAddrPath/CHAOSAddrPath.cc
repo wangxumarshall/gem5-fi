@@ -596,7 +596,7 @@ namespace gem5
     // execute path this cycle (the resume event re-enters it at the delayed
     // tick); false = proceed normally.
     bool
-    CHAOSAddrPath::maybeDelayAguReady(const DynInstPtr &inst)
+    CHAOSAddrPath::maybeDelayAguReady(const o3::DynInstPtr &inst)
     {
         if (agu_ready_mode == "off" || !lsuTrigger)
             return false;
@@ -710,7 +710,7 @@ namespace gem5
     void
     CHAOSAddrPath::resumeDeferredAgu()
     {
-        DynInstPtr inst = aguPendingInst;
+        o3::DynInstPtr inst = aguPendingInst;
         aguPendingInst = nullptr;   // clear the slot BEFORE re-entry
         if (!inst)
             return;

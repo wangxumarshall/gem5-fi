@@ -48,6 +48,8 @@
 #include <queue>
 
 #include "cpu/checker/cpu.hh"
+#include "cpu/o3/CHAOSAddrPath/CHAOSAddrPath.hh"  // [MDSPEC][R4-5.8] A07
+                                    // AGU ready hook full definition
 #include "cpu/o3/dyn_inst.hh"
 #include "cpu/o3/fu_pool.hh"
 #include "cpu/o3/limits.hh"

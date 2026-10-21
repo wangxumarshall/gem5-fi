@@ -89,7 +89,7 @@ class CHAOSAddrPath : public SimObject
     // two-point implementation) and A07-c (ready lost — hang/Timeout
     // channel, needs timeout bookkeeping, L04-a same class) are NOT
     // landed; see tools/lsu_runid_map.py SPEC_IMPL_LANDED pending list.
-    bool maybeDelayAguReady(const DynInstPtr &inst);
+    bool maybeDelayAguReady(const o3::DynInstPtr &inst);
 
   private:
     // [MDSPEC][R4-5.8] A07-b resume thunk (aguResumeEvent, fires at the
@@ -199,7 +199,7 @@ class CHAOSAddrPath : public SimObject
     // Pending delayed instruction (single slot). agu_fault_seq drives the
     // EA late binding at pushRequest (see resumeDeferredAgu note above);
     // agu_fault_ptag is the chain id returned by registerAguReadyFault.
-    DynInstPtr aguPendingInst;        // stashed until the resume event fires
+    o3::DynInstPtr aguPendingInst;        // stashed until the resume event fires
     uint64_t agu_fault_seq = 0;
     uint64_t agu_fault_ptag = 0;
     bool agu_addr_bound = false;      // late binding done for this fault
