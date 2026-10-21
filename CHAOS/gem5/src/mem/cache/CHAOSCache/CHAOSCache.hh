@@ -93,6 +93,44 @@ class CHAOSCache : public SimObject
     bool maybeStickMshrBusy(BaseCache *cache, MSHR *mshr, Addr line,
                             uint64_t in_service, bool was_full);
 
+    /** [MDSPEC][R4-5.6] C15-b MSHR capacity-arbitration "fake free"
+     *  (sub-model C15-b: "在容量已满时伪造空位"). Called by
+     *  BaseCache::chaosMshrOccArbitrate, which itself is called from the
+     *  TAIL of BaseCache::allocateMissBuffer — i.e. right after a new miss
+     *  allocation ran the queue's capacity arbitration. When the queue is
+     *  FULL (`isFull()` true after the allocation — the 03 sheet's "MSHR
+     *  接近或达到容量上限时发生新 miss 分配"; the private `allocated`
+     *  counter is unreachable, so isFull() IS the only public capacity
+     *  predicate, honest approximation) and the trigger consents, the
+     *  injector fabricates a free slot: the caller CLEARS the
+     *  Blocked_NoMSHRs block, so the CPU side retries and exactly ONE
+     *  further miss allocation consumes a reserve entry BEYOND the
+     *  arbitration's capacity — the arbitration's allow/deny decision is
+     *  genuinely wrong (the 03 sheet's "仅在仲裁结果真正允许…一次 miss
+     *  分配时计为 activated"). Returns true if the caller must clear the
+     *  block. Only fires when `cache == targetCache` (the mounted L1D),
+     *  the mode is targetField=="mshr_occupancy", no fabricated slot is
+     *  already pending (single slot), and maxFaults is not exhausted. */
+    bool maybeFakeFreeSlot(BaseCache *cache, PacketPtr pkt, MSHR *mshr,
+                           uint64_t in_service);
+
+    /** [MDSPEC][R4-5.6] C15-b materialization read-back. Called (from the
+     *  same BaseCache helper) at the TOP of every subsequent
+     *  allocateMissBuffer on the mounted cache. A pending fabricated free
+     *  slot is CONSUMED here iff this allocation still runs while the
+     *  queue is full — that allocation is the over-capacity (reserve) one
+     *  the faulty arbitration allowed: the fault is then REGISTERED (inj +
+     *  the mshr_arb observation node + the request's line in the
+     *  faulted-byte registry) and `activated` is bumped. If the queue
+     *  drained in between (isFull() false) the fabricated slot was simply
+     *  never used — the pending flag is dropped and nothing is recorded
+     *  (an honest Inject-not-activated sample; the fire is still visible
+     *  in the injection log and the trigger funnel). Returns true if this
+     *  allocation was the over-commit one (the caller must then NOT also
+     *  fire a new fault on the same allocation). */
+    bool noteMshrAllocAttempt(BaseCache *cache, PacketPtr pkt, MSHR *mshr,
+                              bool is_full, uint64_t in_service);
+
   private:
     enum class FaultType {
       BitFlip,
@@ -180,8 +218,18 @@ class CHAOSCache : public SimObject
     // as the "one entry per run" guard the 03 sheet mandates.
     MSHR *mshr_busy_victim = nullptr;
     uint64_t mshr_busy_leaks = 0;      // successful leak injections (funnel)
-    // Legacy-attack periodic self-check disabled in hook modes (unused
-    // here, kept as the C11/C12 `lsu_hook_mode` gate does).
+    // [MDSPEC][R4-5.6] C15-b fake-free state. mshr_fake_free_armed = a
+    // fabricated free slot has been handed to the caller (the full block
+    // was cleared) and is waiting for its over-capacity allocation; the
+    // flag doubles as the "one fabricated slot at a time" guard. fires =
+    // trigger-consented fabrications (the L0 log + trigger funnel count);
+    // over_commit = materializations (the real arbitration read-back —
+    // `activated` in the teardown line). mshr_occ_at_fire = the occupancy
+    // sampled at the fire (for the observation pair).
+    bool mshr_fake_free_armed = false;
+    uint64_t mshr_fake_free_fires = 0;
+    uint64_t mshr_over_commit = 0;
+    uint64_t mshr_occ_at_fire = 0;
     // [LSU][OBS-L3] nullptr default: the ctor only assigns log_stream when
     // probability != 0, and the [OBS-L3] funnel helper reads it on every
     // injection — the default-init makes that read defined (defensive; the

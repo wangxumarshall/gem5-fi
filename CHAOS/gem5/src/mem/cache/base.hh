@@ -166,6 +166,30 @@ class BaseCache : public ClockedObject
     // the injector sets it from its ctor.
     static class CHAOSCache *chaosMshrBusyHook;
 
+    // [MDSPEC][R4-5.6] C15-b MSHR capacity-arbitration registry (same
+    // pattern as the other CHAOSCache hooks). BaseCache::allocateMissBuffer
+    // consults it at its TAIL, right after the new miss allocation ran the
+    // queue's capacity arbitration: the registered CHAOSCache
+    // (targetField=mshr_occupancy, mounted on this cache) may FABRICATE A
+    // FREE SLOT when the queue is full — the caller clears the
+    // Blocked_NoMSHRs block so exactly one further allocation consumes a
+    // reserve entry BEYOND the arbitration's capacity (the arbitration's
+    // allow/deny decision is genuinely wrong; sub-model C15-b "在容量已满
+    // 时伪造空位"). The injector's read-back (noteMshrAllocAttempt) then
+    // observes the over-capacity allocation. The injector checks
+    // `cache == targetCache`, so only the mounted cache (L1D) is affected.
+    // nullptr = zero regression (no hook call, no clearBlocked). PUBLIC:
+    // the injector sets it from its ctor.
+    static class CHAOSCache *chaosMshrOccHook;
+
+    // [MDSPEC][R4-5.6] C15-b drain-through: the out-of-line body of the
+    // allocateMissBuffer tail hook (in base.cc — it must call CHAOSCache
+    // methods, and base.hh cannot include CHAOSCache.hh without a cycle).
+    // Reads the C15 read-back state, fires the fabricated-free slot and
+    // clears the full block when the injector consents. A no-op when
+    // chaosMshrOccHook is null.
+    void chaosMshrOccArbitrate(PacketPtr pkt, MSHR *mshr);
+
     // [MDSPEC][R4-5.2] C12 public trampoline: re-enter the (protected)
     // recvTimingResp with a previously deferred fill-response packet. Only
     // the C12 resume event calls this (single deferred slot on the
@@ -1242,6 +1266,14 @@ class BaseCache : public ClockedObject
         if (mshrQueue.isFull()) {
             setBlocked((BlockedCause)MSHRQueue_MSHRs);
         }
+
+        // [MDSPEC][R4-5.6] C15-b capacity-arbitration hook (out-of-line in
+        // base.cc): reads back a pending fabricated-free slot (the
+        // over-capacity allocation) and, when the queue is full and the
+        // injector consents, fabricates a new one by clearing the block
+        // just set above. A no-op when no C15 injector is mounted, so the
+        // normal path is byte-for-byte unchanged.
+        chaosMshrOccArbitrate(pkt, mshr);
 
         if (sched_send) {
             // schedule the send

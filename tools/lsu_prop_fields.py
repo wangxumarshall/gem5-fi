@@ -95,6 +95,10 @@ KIND_LAYER = {
     # entry that was NOT released (resource leak; 表9 C14 行 L1 档点名
     # "MSHR 占用与 free list").
     "mshr_busy": "L2",
+    # [MDSPEC][R4-5.6] C15-b MSHR capacity-arbitration fake-free: the new
+    # miss allocation the faulty arbitration genuinely allowed beyond
+    # capacity (表9 C15 行 L1 档点名 "MSHR 占用/free-list 守恒").
+    "mshr_arb": "L2",
     "cache_writeback": "L3",
     # [MDSPEC][H5] prefetch 链（训练 L1 → 队列/发射 L2 → fill L3 → demand L4）
     "pf_train": "L1", "pf_queue": "L2", "pf_issue": "L2",
@@ -187,6 +191,14 @@ REQUIRED_FIELDS = {
     # busy/free tick、occupancy"); corr = origin (chain-opening node).
     "mshr_busy": ["fault_id", "corr", "mshr_id", "entry_index",
                   "cache_line", "field", "state_before", "state_after"],
+    # [MDSPEC][R4-5.6] C15-b MSHR capacity arbitration: the over-capacity
+    # allocation the faulty arbitration allowed. state_before/after =
+    # full_blocked / over_commit_alloc; entry_index = the MSHR occupancy at
+    # the over-commit (the model's faulted bookkeeping — 表9 C15 行点名
+    # 监控 "真实/故障 occupancy、free/full、used entry"); mshr_id = the
+    # over-committed entry; corr = origin (chain-opening node).
+    "mshr_arb": ["fault_id", "corr", "mshr_id", "entry_index",
+                 "cache_line", "field", "state_before", "state_after"],
     "cache_writeback": ["fault_id", "corr", "cache_line"],
     # [MDSPEC][H5] prefetch 链：pf_request_id 为请求级稳定标识（≠ fault_id），
     # 同一预取请求的 queue/issue/fill/demand 四节点必须携带同一值。

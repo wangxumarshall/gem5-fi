@@ -64,8 +64,10 @@ namespace gem5
         // [MDSPEC][R4-5.5] C14-a: MSHR busy/occupied stuck-at-1 (a resource
         // leak — the released entry never returns to the free list).
         const bool mshr_busy_mode = (target_field == "mshr_busy_leak");
+        // [MDSPEC][R4-5.6] C15-b: MSHR capacity-arbitration fake-free.
+        const bool mshr_occ_mode = (target_field == "mshr_occupancy");
         const bool lsu_hook_mode = merge_mode || fill_timing_mode ||
-                                   mshr_busy_mode;
+                                   mshr_busy_mode || mshr_occ_mode;
         if (lsu_hook_mode) {
             if (p.lsuTier == "off") {
                 panic("CHAOSCache: targetField=%s requires a tier "
@@ -74,7 +76,8 @@ namespace gem5
                       target_field.c_str(),
                       merge_mode ? "merge"
                                  : (fill_timing_mode ? "fill-timing"
-                                                     : "mshr-busy"));
+                                   : (mshr_busy_mode ? "mshr-busy"
+                                                     : "mshr-occupancy")));
             }
             if (fill_timing_mode && p.lsuFillDelayCycles == 0) {
                 panic("CHAOSCache: targetField=mshr_fill_timing requires "
@@ -89,8 +92,10 @@ namespace gem5
                 BaseCache::chaosMergeHook = this;
             else if (fill_timing_mode)
                 BaseCache::chaosFillTimingHook = this;
-            else
+            else if (mshr_busy_mode)
                 BaseCache::chaosMshrBusyHook = this;   // C14-a
+            else
+                BaseCache::chaosMshrOccHook = this;    // C15-b
         }
         // [LSU][OBS-L3] final funnel row (final counts; runs only on normal
         // exit — aborts keep the last per-attack injection-time node, which
@@ -113,6 +118,19 @@ namespace gem5
                        (unsigned long)mshr_busy_leaks,
                        mshr_busy_victim ? 1 : 0,
                        mshr_busy_leaks ? 0 : 1);
+            // [MDSPEC][R4-5.6] C15-b teardown read-back: fires = fabricated
+            // free slots (trigger-consented, = the injection-log count and
+            // the C-family activated PROXY), activated = over-capacity
+            // allocations actually allowed (the REAL arbitration
+            // read-back). fires > activated = Inject-not-activated.
+            if (target_field == "mshr_occupancy")
+                printf("CHAOS_MSHR_OCC: injector=CHAOSCache mode=c15b_fake_free "
+                       "fires=%lu activated=%lu occ_at_fire=%lu "
+                       "(C15-b capacity-arbitration fake-free; activated = "
+                       "allocations genuinely allowed beyond capacity)\n",
+                       (unsigned long)mshr_fake_free_fires,
+                       (unsigned long)mshr_over_commit,
+                       (unsigned long)mshr_occ_at_fire);
             noteFunnelAtInjection();
         });
         if (probability != 0.0 || lsu_hook_mode) {
@@ -1186,6 +1204,141 @@ namespace gem5
         // prop-trace node; the log line is best-effort) — trigger-mode
         // counters via noteFunnelAtInjection.
         noteFunnelAtInjection();
+        return true;
+    }
+
+    // [MDSPEC][R4-5.6] C15-b capacity-arbitration "fake free" (sub-model
+    // C15-b: "在容量已满时伪造空位"). BaseCache::chaosMshrOccArbitrate
+    // calls this from the TAIL of allocateMissBuffer, right after a new
+    // miss allocation ran the queue's capacity arbitration. When the queue
+    // is FULL (`isFull()` — the public capacity predicate; the private
+    // `allocated` counter is unreachable, honest approximation of the 03
+    // sheet's "接近或达到容量上限") and the trigger consents, the injector
+    // FABRICATES A FREE SLOT: the caller clears the Blocked_NoMSHRs block,
+    // the CPU side retries, and exactly ONE further miss allocation
+    // consumes a reserve entry BEYOND the arbitration's capacity — the
+    // arbitration's allow/deny decision is genuinely wrong, which is the
+    // 03 sheet's "仅在仲裁结果真正允许…一次 miss 分配时计为 activated".
+    // The fabricated slot is a single-slot state (the flag doubles as the
+    // guard); the materialization is read back by noteMshrAllocAttempt.
+    bool
+    CHAOSCache::maybeFakeFreeSlot(BaseCache *cache, PacketPtr pkt, MSHR *mshr,
+                                  uint64_t in_service)
+    {
+        if (target_field != "mshr_occupancy") return false;  // mode off
+        if (cache != targetCache) return false;   // only the mounted cache
+        if (!lsuTrigger) return false;
+        if (mshr_fake_free_armed) return false;   // single fabricated slot
+        if (max_faults != 0 && faults_injected_count >= max_faults)
+            return false;                         // G5 single-fault cap
+
+        lsuTrigger->onAttempt();
+
+        // Eligibility: THIS call site is a new miss allocation that left
+        // the queue FULL — i.e. the allocation reached the capacity limit
+        // (the 03 sheet's trigger condition). No further filter: the
+        // arbitration decision this allocation ran is about to be
+        // overridden by the fabricated free slot.
+        bool go;
+        if (lsuTrigger->tier == ChaOSLsuTier::F6) {
+            // C15's F6 "specified event" IS a new miss allocation at the
+            // MSHR capacity limit (this model's event source — the 09 §2.1
+            // four-event list is the W1 map, not exhaustive; recorded as
+            // the TENTH F6 source in chaos_lsu_trigger.hh). onF6Event(false):
+            // attempted was already booked exactly once by onAttempt()
+            // above — the arbitration hook IS the attempt stream, so the
+            // event gate must not re-book it ([MDSPEC][R4-5.1-review-I1]).
+            go = lsuTrigger->onF6Event(false);
+        } else {
+            go = lsuTrigger->onEligible();
+        }
+        if (!go)
+            return false;
+
+        mshr_fake_free_armed = true;
+        ++mshr_fake_free_fires;
+        mshr_occ_at_fire = in_service;
+        ++faults_injected_count;
+        if (stats)
+            stats->numFaultsInjected++;
+
+        // Injection-log detail line (L0 parses the "Cache Block Addr/
+        // Field" contract — tools/lsu_obs_core._CACHE_FIELD_INJ_RE). The
+        // log records the FABRICATION (the C-family fire-side record, like
+        // C11/C12); the real arbitration read-back is the prop-stream
+        // mshr_arb node emitted at materialization + the CHAOS_MSHR_OCC
+        // teardown line.
+        const unsigned blk_sz = targetCache->getBlockSize();
+        const Addr line = pkt ? pkt->getBlockAddr(blk_sz) : 0;
+        if (write_log && log_stream && log_stream->stream()) {
+            *(log_stream->stream()) << "Tick: " << curTick()
+                << ", Cache Block Addr: " << line
+                << ", Field: mshr_occupancy (C15-b fake-free at capacity), "
+                << "in_service=" << in_service
+                << ", faults_injected: " << faults_injected_count
+                << std::endl;
+        }
+        // One funnel row per successful injection (abort-survivable via the
+        // prop-trace node; the log line is best-effort).
+        noteFunnelAtInjection();
+        return true;   // caller clears Blocked_NoMSHRs (the fabricated slot)
+    }
+
+    // [MDSPEC][R4-5.6] C15-b materialization read-back. Called at the TOP
+    // of every allocateMissBuffer on the mounted cache. A pending
+    // fabricated free slot is CONSUMED here iff this allocation still runs
+    // while the queue is full — that allocation is the over-capacity
+    // (reserve) one the faulty arbitration allowed. The fault is then
+    // REGISTERED (inj + the mshr_arb observation node + the request's line
+    // in the faulted-byte registry) and `activated` is bumped. If the
+    // queue drained in between (is_full false) the fabricated slot was
+    // never used: the flag is dropped and nothing is recorded — an honest
+    // Inject-not-activated sample (the fire stays visible in the injection
+    // log and the trigger funnel).
+    bool
+    CHAOSCache::noteMshrAllocAttempt(BaseCache *cache, PacketPtr pkt,
+                                     MSHR *mshr, bool is_full,
+                                     uint64_t in_service)
+    {
+        if (target_field != "mshr_occupancy") return false;  // mode off
+        if (cache != targetCache) return false;   // only the mounted cache
+        if (!mshr_fake_free_armed) return false;  // nothing pending
+        if (!is_full) {
+            // The queue drained before the fabricated slot was used: the
+            // arbitration was never actually widened. Honest no-op.
+            mshr_fake_free_armed = false;
+            return false;
+        }
+
+        mshr_fake_free_armed = false;
+        ++mshr_over_commit;
+
+        const unsigned blk_sz = targetCache->getBlockSize();
+        const Addr line = pkt ? pkt->getBlockAddr(blk_sz) : 0;
+
+        // Propagation registration: inj node (corr=origin; addr column =
+        // the over-committed request's line; before/after = the occupancy
+        // pair — the model's faulted value is the occupancy bookkeeping)
+        // + the model-specific mshr_arb node + the line in the
+        // faulted-byte registry so later events on that line join
+        // address-only (corr=addr_fallback — the C-family site has no seq
+        // primary).
+        if (CHAOSPropagation::instance())
+            CHAOSPropagation::instance()->registerMshrArbFault(
+                line, blk_sz, mshr_occ_at_fire, in_service, mshr != nullptr);
+
+        // Injection-log detail line: the MATERIALIZATION of the fabricated
+        // slot (the arbitration genuinely allowed an over-capacity
+        // allocation). Written in addition to the fire line so the log
+        // itself carries the fire/materialization distinction.
+        if (write_log && log_stream && log_stream->stream()) {
+            *(log_stream->stream()) << "Tick: " << curTick()
+                << ", Cache Block Addr: " << line
+                << ", Field: mshr_occupancy_materialized (C15-b over-capacity "
+                << "allocation allowed), occupancy=" << in_service
+                << ", faults_injected: " << faults_injected_count
+                << std::endl;
+        }
         return true;
     }
 

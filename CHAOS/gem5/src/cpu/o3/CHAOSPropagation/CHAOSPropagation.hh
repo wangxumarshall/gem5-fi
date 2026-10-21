@@ -271,6 +271,26 @@ class CHAOSPropagation : public SimObject
                                    uint64_t occ_before, uint64_t occ_after,
                                    bool was_full);
 
+    // [MDSPEC][R4-5.6] C15-b MSHR capacity-arbitration fake-free (CHAOSCache
+    // noteMshrAllocAttempt, called from BaseCache::chaosMshrOccArbitrate):
+    // the arbitration was widened by a fabricated free slot, and `line` is
+    // the request whose over-capacity (reserve) allocation the fault
+    // actually allowed. before/after = the queue's in-service occupancy
+    // pair around the over-commit (the model's faulted VALUE is the
+    // occupancy bookkeeping). Writes the inj node (corr=origin; addr
+    // column = the over-committed request's line) + the model-specific
+    // `mshr_arb` node (the arbitration observation: mshr_id/entry_index/
+    // state_before=full_blocked -> state_after=over_commit_alloc/field=
+    // capacity) and registers the WHOLE line in the faulted-byte (blk)
+    // registry so later events on that line join address-only (corr=
+    // addr_fallback — the C-family site has no seq primary). `materialized`
+    // is recorded in the node detail (this API is only called on
+    // materialization, so it is always true here — kept for symmetry with
+    // the fire-side log line). Returns the ptag (0 = tracer disabled).
+    uint64_t registerMshrArbFault(Addr line, Addr block_size,
+                                  uint64_t occ_before, uint64_t occ_after,
+                                  bool materialized);
+
     // [MDSPEC][R4-5.4] P06-a prefetch-as-demand fill classification fault
     // (CHAOSPrefetch maybeMarkFillAsDemand, called from Cache::
     // serviceMSHRTargets' setPrefetched gate — the site where a fill's
