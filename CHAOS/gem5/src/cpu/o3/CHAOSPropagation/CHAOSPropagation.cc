@@ -608,6 +608,53 @@ namespace gem5
         return ptag;
     }
 
+    // [MDSPEC][R4-5.4] P06-a prefetch-as-demand fill classification fault
+    // (see .hh for the full contract). Address-only registration (the
+    // labeled addr_fallback arm): the fill-classification site has no
+    // Request seq binding — the marked line's later consumers join by
+    // line overlap instead.
+    uint64_t
+    CHAOSPropagation::registerPfFillClassFault(Addr line, Addr block_size)
+    {
+        if (!write_log)
+            return 0;
+        const uint64_t ptag = ++next_ptag;
+
+        // inj node (addr column = the marked line). before/after carry
+        // the faulted VALUE for this model — the fill's demand/prefetch
+        // classification before/after the marking (registered fields, so
+        // the pair is stream-visible on the dual-emit; the string values
+        // are the third per-model value type after C12's tick pair and
+        // L04's seq pair — read them together with field=pf_fill_class).
+        {
+            std::ostringstream d;
+            d << "family=prefetch;field=pf_fill_class"
+              << ";before=prefetch"
+              << ";after=demand"
+              << ";block_addr=" << std::hex << line << std::dec;
+            writeNode(ptag, "inj", 0, false, 0, false,
+                      line, true, 0, false, 0, false, d.str(),
+                      CORR_ORIGIN);
+        }
+        // faulted-byte (blk) registry: the WHOLE marked line. cache_access
+        // on later lookups, cache_fill/mshr_fill/mshr_free on refetches,
+        // cache_evict on eviction, and noteMemResponse's cache arm (a
+        // demand load served on this line -> resp/lq_complete/taint_reg)
+        // all join by overlap, each carrying corr=addr_fallback (the
+        // labeled over-approximation: a correct response on the same
+        // line also joins — C11 §5.1.6 precedent; the oracle adjudicates).
+        {
+            sweepExpired();
+            BlkEntry b;
+            b.ptag = ptag;
+            b.byte_begin = line;
+            b.byte_end = line + (block_size ? block_size : 1);
+            b.registered = curTick();
+            blk_registry[b.byte_begin] = b;
+        }
+        return ptag;
+    }
+
     // [MDSPEC][R4-1] SQ store->load forwarding fault (seq-primary).
     uint64_t
     CHAOSPropagation::registerLSQForwardFault(

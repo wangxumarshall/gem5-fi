@@ -215,8 +215,11 @@ p.add_argument("--chaos_prefetch", action="store_true",
                help="attach CHAOSPrefetch (W8 P-series, 03 P-rows)")
 p.add_argument("--prefetch_mode", default="p01_stride_bitflip",
                choices=["p01_stride_bitflip","p02_confidence_corrupt",
-                        "p03_addr_subst","p05_drop_dup","p08_stride_stuck"],
-               help="W8 P-series fault mode")
+                        "p03_addr_subst","p05_drop_dup","p08_stride_stuck",
+                        "p06_as_demand"],
+               help="W8 P-series fault mode (p06_as_demand = P06-a "
+                    "prefetch-as-demand fill-classification marking, "
+                    "R4-5.4)")
 p.add_argument("--prefetch_lsu_tier", default="F0",
                choices=["F0","F1","F2","F3","F4","F5","F6"],
                help="W8: LSU event-normalized trigger tier (05 r2-r8)")

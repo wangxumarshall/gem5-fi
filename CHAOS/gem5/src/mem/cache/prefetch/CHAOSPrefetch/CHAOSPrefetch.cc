@@ -15,6 +15,7 @@ namespace gem5
 {
 
     CHAOSPrefetch *CHAOSPrefetch::f6Consumer = nullptr;
+    CHAOSPrefetch *CHAOSPrefetch::fillMarkHook = nullptr;
 
     CHAOSPrefetch::CHAOSPrefetch(const CHAOSPrefetchParams &p)
         : SimObject(p),
@@ -39,6 +40,12 @@ namespace gem5
             f6Consumer = this;
             chaosLsuF6Notify = &CHAOSPrefetch::f6Thunk;
         }
+        // [MDSPEC][R4-5.4] P06-a: self-attach the fill-classification
+        // hook (single consumer; Cache::serviceMSHRTargets consults it at
+        // the setPrefetched gate). P06-mode only — every other run keeps
+        // the gate byte-identical.
+        if (fi_mode == Mode::P06AsDemand)
+            fillMarkHook = this;
     }
 
     CHAOSPrefetch::~CHAOSPrefetch()
@@ -49,6 +56,8 @@ namespace gem5
             f6Consumer = nullptr;
             chaosLsuF6Notify = nullptr;
         }
+        if (fillMarkHook == this)
+            fillMarkHook = nullptr;
     }
 
     CHAOSPrefetch::Mode
@@ -58,6 +67,7 @@ namespace gem5
         if (s == "p03_addr_subst")         return Mode::P03AddrSubst;
         if (s == "p05_drop_dup")           return Mode::P05DropDup;
         if (s == "p08_stride_stuck")       return Mode::P08StrideStuck;
+        if (s == "p06_as_demand")          return Mode::P06AsDemand;
         return Mode::P01StrideBitflip;     // p01_stride_bitflip / default
     }
 
@@ -112,6 +122,13 @@ namespace gem5
                                     &addresses,
                                 Addr pf_addr)
     {
+        // [MDSPEC][R4-5.4] P06-a is NOT a generation-site mode: its event
+        // source is the FILL site (maybeMarkFillAsDemand, the fill-
+        // classification gate). This hook must stay fully inert here —
+        // NOT even onAttempt (P06's attempt stream is the fill hook; a
+        // second attempt stream would corrupt the funnel denominator).
+        if (fi_mode == Mode::P06AsDemand) return;
+
         trigger.onAttempt();
 
         // [MDSPEC][H5] Observation-only continuation (2026-10-20 finding).
@@ -304,6 +321,94 @@ namespace gem5
                 corrupted_entries[h5_pc] = {h5_ptag, h5_pfid};
             }
         }
+    }
+
+    // [MDSPEC][R4-5.4] P06-a prefetch-as-demand fill classification
+    // (see CHAOSPrefetch.hh for the mode contract). Cache::
+    // serviceMSHRTargets calls this at the setPrefetched gate for every
+    // prefetch-involving fill (from_pref). The faulted VALUE is the
+    // fill's demand/prefetch classification — the gate is where that
+    // classification becomes the durable line state (CacheBlk::
+    // Prefetched), the attribute every downstream classification
+    // consumer reads: replacement-policy fill data (data_update.
+    // hwPrefetched), the wasPrefetched useful/unused accounting on
+    // demand hit / eviction, and the hasBeenPrefetched probes. A marked
+    // fill skips setPrefetched — the line enters the cache exactly as a
+    // demand fill ("demand" is a legal value from the same run: every
+    // demand fill takes exactly that branch). The packet plumbing is
+    // untouched (see .hh — rewriting pkt->cmd would push an unrequested
+    // response up the CPU side via the FromCPU MSHR-target arm).
+    //
+    // Eligibility (legal-candidate discipline, spec 03 P06 row): the
+    // classification must be LIVE at this fill — demand_merged fills
+    // are already demand-classified (a mark there is a void value) and
+    // a null blk has no line state to classify; both book attempted and
+    // return. The gate condition itself is therefore the eligibility.
+    bool
+    CHAOSPrefetch::maybeMarkFillAsDemand(Addr line, unsigned blk_size,
+                                         bool demand_merged, bool blk_valid)
+    {
+        // Belt and braces: the registry is only set in P06 mode.
+        if (fi_mode != Mode::P06AsDemand) return false;
+        // G5 single-fault cap, C11 convention (CHAOSCache
+        // maybeCorruptMergeTarget): the cap check runs BEFORE onAttempt,
+        // so attempted/eligible freeze exactly at fire time under the
+        // campaign cap maxFaults=1 (post-fire fills return here).
+        if (max_faults != 0 && faults_injected >= max_faults)
+            return false;
+
+        trigger.onAttempt();
+
+        if (demand_merged || !blk_valid) return false;
+
+        // F0-F5 sample the eligible stream; F6 rides the P-family W1
+        // event machinery (f6Thunk sets f6_pending at the configured
+        // event — dirty_eviction by default; the marking lands at the
+        // next eligible fill, the same f6_pending shape maybeCorrupt
+        // uses for P01-P08). onF6Event stays at its default-true thunk
+        // site — it is NOT called inside this hook, so the R4-5.1-
+        // review-I1 double-count shape cannot arise here.
+        bool go;
+        if (trigger.tier == ChaOSLsuTier::F6) {
+            go = f6_pending;
+            f6_pending = false;
+        } else {
+            go = trigger.onEligible();
+        }
+        if (!go) return false;
+
+        ++faults_injected;
+
+        // [MDSPEC][H5] Register the fault with the propagation tracer:
+        // inj node (corr=origin; before/after = the classification pair
+        // prefetch->demand, the faulted value of this model) + the whole
+        // line in the faulted-byte registry (downstream joins by
+        // overlap, corr=addr_fallback). The prefetch-request registry
+        // entry allocated right after arms the pf_fill/pf_demand nodes
+        // for this line: the queue/issue nodes predate the fault and
+        // stay absent (honest gap — the fault happens at fill time, the
+        // pf_request_id is request-level identity allocated at marking).
+        if (CHAOSPropagation *h5 = CHAOSPropagation::instance()) {
+            const uint64_t h5_ptag =
+                h5->registerPfFillClassFault(line, blk_size);
+            if (h5_ptag)
+                h5->notePrefetchRequest(line, blk_size);
+        }
+
+        // L0 injection detail line — lsu_obs_core._INJ_RE contract
+        // (Tick/Site/mode/old_/new_/faults_injected; unlike the P01
+        // logInjection format this one is machine-parseable).
+        if (write_log && log_stream && log_stream->stream()) {
+            (*log_stream->stream())
+                << "Tick: " << curTick()
+                << ", Site: P06_fill_class_mark, mode=p06_as_demand"
+                << ", old_class=prefetch, new_class=demand"
+                << ", line=0x" << std::hex << line << std::dec
+                << ", blk_size=" << blk_size
+                << ", faults_injected: " << faults_injected
+                << "\n";
+        }
+        return true;
     }
 
     void

@@ -54,6 +54,12 @@
 // [MDSPEC][H4] cache structural events reach the tracer through the static
 // instance (CHAOSCache precedent — BaseCache has no tracer pointer).
 #include "cpu/o3/CHAOSPropagation/CHAOSPropagation.hh"
+// [MDSPEC][R4-5.4] P06-a prefetch-as-demand fill marking: the
+// setPrefetched gate in serviceMSHRTargets consults the registered
+// CHAOSPrefetch (mode p06_as_demand) via the fillMarkHook single-
+// consumer registry (CHAOSCache chaosVictimHook precedent). Inert
+// (null) for every non-P06 run.
+#include "mem/cache/prefetch/CHAOSPrefetch/CHAOSPrefetch.hh"
 #include <sstream>
 #include "base/trace.hh"
 #include "base/types.hh"
@@ -1031,7 +1037,28 @@ Cache::serviceMSHRTargets(MSHR *mshr, const PacketPtr pkt, CacheBlk *blk)
         }
     }
 
-    if (blk && !from_core && from_pref) {
+    // [MDSPEC][R4-5.4] P06-a prefetch-as-demand fill marking hook. This
+    // gate is where a fill's demand/prefetch classification becomes the
+    // durable line state (CacheBlk::Prefetched) — the attribute the
+    // downstream classification consumers read (replacement fill data
+    // hwPrefetched, wasPrefetched useful/unused accounting,
+    // hasBeenPrefetched probes). The registered CHAOSPrefetch (mode
+    // p06_as_demand) may mark ONE eligible prefetch-owned fill as demand:
+    // the caller then skips setPrefetched and the line enters the cache
+    // exactly as a demand fill. Called for EVERY prefetch-involving fill
+    // (from_pref) — demand-merged fills book attempted inside the hook
+    // but are not eligible (already demand-classified; a mark would be a
+    // void value). Null hook (every non-P06 run): byte-identical to the
+    // original gate. Only the cache owning the mounted prefetcher ever
+    // reaches here with from_pref (HardPFReq never leaves its owning
+    // cache — see CHAOSPrefetch.hh fillMarkHook note).
+    bool p06_demand_marked = false;
+    if (from_pref && CHAOSPrefetch::fillMarkHook) {
+        p06_demand_marked =
+            CHAOSPrefetch::fillMarkHook->maybeMarkFillAsDemand(
+                mshr->blkAddr, blkSize, from_core, blk != nullptr);
+    }
+    if (blk && !from_core && from_pref && !p06_demand_marked) {
         blk->setPrefetched();
     }
 

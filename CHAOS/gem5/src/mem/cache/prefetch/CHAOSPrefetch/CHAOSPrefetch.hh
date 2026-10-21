@@ -19,9 +19,39 @@
 //                        queue-content effect)
 //   P08StrideStuck       stride stuck-at-0, re-applied on every eligible
 //                        event (P08, F5 nature; the tier decides)
+//   P06AsDemand          [MDSPEC][R4-5.4] P06-a prefetch-as-demand fill
+//                        classification marking (p06_as_demand). NOT a
+//                        generation-site mode: maybeCorrupt is INERT here
+//                        (P06's event source is the FILL site). The hook
+//                        is maybeMarkFillAsDemand, consulted by Cache::
+//                        serviceMSHRTargets at the setPrefetched gate —
+//                        the site where a fill's demand/prefetch
+//                        classification becomes the durable line state.
+//                        With the trigger's consent ONE prefetch-owned
+//                        fill is classified DEMAND: CacheBlk::Prefetched
+//                        is not set, so the line enters the cache exactly
+//                        as a demand fill (replacement data hwPrefetched,
+//                        wasPrefetched useful/unused accounting, and
+//                        hasBeenPrefetched probes all read the demand
+//                        value — the classification's downstream
+//                        consumers). The packet's own plumbing (HardPFReq
+//                        cmd, FromPrefetcher MSHR target, silent target
+//                        delete, downstream ReadSharedReq) is untouched:
+//                        rewriting the cmd would push an unrequested
+//                        response up the CPU side (mshr.cc:320 derives
+//                        the target source from it) — a structural crash,
+//                        not a legal-value substitution. The REVERSE
+//                        direction (demand marked prefetch) and the
+//                        permission attributes (P06-b dirty / P06-c
+//                        ownership / P06-d allocate) are NOT implemented
+//                        (see SPEC_IMPL_LANDED pending list).
 //
 // HONEST BOUNDARY — NOT in this injector:
-//   P06 (prefetch marked demand / wrong permissions): no clean hook, deferred.
+//   P06-b/c/d (wrong dirty/ownership/allocate fill permissions): the
+//                        fill-permission attributes are coherence-side
+//                        state, not a prefetcher marking — deferred.
+//   P06-a reverse arm (demand marked prefetch): would need a hook on the
+//                        demand path's classification — deferred.
 //   P07 (fill way/tag mismatch): cache-side, CHAOSCache tag approximation.
 //   P09 (prefetch-caused dirty-eviction writeback loss): cache-side,
 //        CHAOSCache dirty/victim approximation.
@@ -55,7 +85,7 @@ class CHAOSPrefetch : public SimObject
 {
   public:
     enum class Mode { P01StrideBitflip, P02ConfidenceCorrupt, P03AddrSubst,
-                      P05DropDup, P08StrideStuck };
+                      P05DropDup, P08StrideStuck, P06AsDemand };
     static Mode stringToMode(const std::string &s);
 
     CHAOSPrefetch(const CHAOSPrefetchParams &p);
@@ -72,6 +102,35 @@ class CHAOSPrefetch : public SimObject
     void maybeCorrupt(prefetch::Stride::StrideEntry *entry,
                       std::vector<prefetch::Queued::AddrPriority> &addresses,
                       Addr pf_addr);
+
+    // [MDSPEC][R4-5.4] P06-a prefetch-as-demand fill-classification hook.
+    // Cache::serviceMSHRTargets calls this (through fillMarkHook below) at
+    // the setPrefetched gate, for EVERY prefetch-involving fill (from_pref
+    // — including demand-merged ones, which book attempted but are not
+    // eligible: a demand target already classifies the fill demand, a mark
+    // there would be a void value, not a legal substitution). With the
+    // trigger's consent ONE eligible prefetch-owned fill is classified
+    // DEMAND — the caller then SKIPS blk->setPrefetched(). Params mirror
+    // the gate's own inputs: line = mshr->blkAddr; blk_size = the host
+    // cache's block size; demand_merged = the gate's from_core; blk_valid
+    // = (blk != nullptr). Returns true iff this fill was marked (the
+    // caller must then treat the fill as demand-classified).
+    bool maybeMarkFillAsDemand(Addr line, unsigned blk_size,
+                               bool demand_merged, bool blk_valid);
+
+    // Single-consumer registry (CHAOSCache chaosVictimHook/chaosMergeHook
+    // precedent): set only by a P06-mode injector (one per run by grid
+    // construction), consulted by Cache::serviceMSHRTargets. Null for
+    // every other run — the gate is then byte-identical to the original.
+    // Single-target by construction: only the cache that OWNS the mounted
+    // prefetcher allocates FromPrefetcher MSHR targets (HardPFReq packets
+    // originate from Queued::DeferredPacket::createPkt and never leave
+    // the owning cache — createMissPacket rewrites them to ReadSharedReq/
+    // ReadCleanReq downstream, cache.cc:1305 comment), so prefetch-owned
+    // fills occur only at that cache (the L2 in the B0 profile; the S4
+    // variant moves the single prefetcher to the L1D and the hook follows
+    // it — still one cache).
+    static CHAOSPrefetch *fillMarkHook;
 
   private:
     static ChaOSLsuTier tierFromString(const std::string &s);
