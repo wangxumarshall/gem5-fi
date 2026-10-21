@@ -693,8 +693,12 @@ chain_end×1）——writeNode 双发路径不写 corr，"经地址臂入链"与
   **在 allocateTarget 与 H4 mshr_merge 事件之前**翻合并目标地址 1 位——
   位数域 [log2(size), log2(blkSize)) （8B load = bit 3-5）：同 line（合并
   仍合法，激活口径"merge需同line请求"成立）、对齐保持、offset+size≤64
-  （satisfyRequest 断言类 [P4-FIX-GEOM] 结构性规避）。F6=onF6Event 于每次
-  merge（early_stress 首次出现语义）。下游机理实证：fill 读出
+  （satisfyRequest 断言类 [P4-FIX-GEOM] 结构性规避）。F6 于**首个通过资格门的
+  merge** 触发一次——资格门=demand read 并入挂载 L1D outstanding MSHR 且存在
+  可翻 offset 位 [log2(size), log2(blkSize))；非 demand merge（写/预取）与
+  整行访问在门之前返回（计入 attempted、不构成 F6 事件），即 F6 并非"于每次
+  merge"（early_stress 首次出现语义，A5 ruling；merge 作为第五个 F6 事件源
+  登记于 chaos_lsu_trigger.hh，见 §5.1.7 修复）。下游机理实证：fill 读出
   （setDataFromBlock@getOffset）按**损坏偏移**取数、响应按**损坏地址**返回
   ——合并目标所属 load 真实消费故障（activated）。
 - **观测端**：无新 kind——C11 复用 inj/mshr_*/cache_*/resp/lq_complete/
@@ -761,3 +765,27 @@ C11 后现实全 PASS；pytest 16 passed + 5 既有 error、cpf 13 / tlb 2 既�
   轮落地的是 mode_unimpl_plan/任务书钦定的"合并目标地址翻位"表述；仅解除
   "只有事件源"阻塞前提（spec_landed 留证）。
 - 全部运行为 pilot/证据性质（phase=trial），未启动正式 campaign。
+
+### 5.1.7 评审修复（R4-5.1-review-I1/Minor2，2026-10-21）
+
+- **F6 funnel 双计修复**：merge 钩子每次调用先 `onAttempt()`，F6 臂又调
+  `onF6Event()`（其内部 `++attempted`）——触发 merge 那次调用 attempted 被计
+  两次。修复：`onF6Event(bool book_attempt=true)` 增参，merge 站点传
+  `false`（该次调用的 attempted 已由 onAttempt 计过一次）；W1 thunk 站点
+  （CHAOSAddrPath/CHAOSPrefetch f6Thunk）保持默认 `true`——其事件通知处无
+  attempt 流，事件发生即 attempt（单测钉死"100 stream + 1 event"语义），
+  且 thunk 不在钩子调用内、同调用双计不可能。**F0–F5 路径核实不受影响**：
+  `onEligible()` 不动 attempted（CHAOSCache/CHAOSLSQFwd/CHAOSAddrPath/
+  CHAOSPrefetch 同构），attempted 恒=每次钩子调用一次。真机前后对照
+  （C11-F6-W6 seed1，同 seed 同负载）：旧二进制 `attempted=27 eligible=1
+  injected=1` → 修复后 `attempted=26`（恰少 1，即触发 merge 的双计），
+  注入行 tick/bit/地址逐字节一致。
+- **F6 触发条件文档纠正**（本节 §5.1.1 已改）：非"于每次 merge"，而是
+  "首个通过资格门的 merge"（demand read 并入挂载 L1D outstanding MSHR 且
+  ≥1 可翻 offset 位；非 demand/整行在门前返回）。
+- **第五事件源登记**：`chaos_lsu_trigger.hh` 枚举注释处记录 merge 作为
+  第五个 F6 事件源（矩阵 F6 行"如…"非穷举；不走 chaosLsuF6Observe/Notify
+  ——其类型绑定 W1 四源枚举；merge 站点直调 `onF6Event(false)`）。
+- **Minor2**：`lsu_runid_map.py` SPEC_IMPL_LANDED["C11"] 机器可读化——落地
+  子模型（C11-b 同 line merge 目标翻位）与未落地子模型（C11-a 跨行替换/
+  C11-c target 丢失/C11-d target 重复）逐一点名，`runid_map.json` 再生成。

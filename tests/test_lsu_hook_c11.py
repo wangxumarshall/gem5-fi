@@ -149,7 +149,22 @@ def main():
     merge_fn = merge_fn[:merge_fn.index("\n    }")]
     check("触发语义走 ChaOSLsuTrigger（onAttempt/onEligible/onF6Event）",
           "onAttempt()" in merge_fn and "onEligible()" in merge_fn
-          and "onF6Event()" in merge_fn)
+          and "onF6Event(false)" in merge_fn)
+    # [MDSPEC][R4-5.1-review-I1] F6 funnel 无双计：merge 钩子的 attempt 流
+    # = onAttempt 每次调用恰一次；F6 事件门 onF6Event(false) 不得再计
+    # attempted（W1 thunk 站点保持默认 true——事件通知处无 onAttempt）。
+    check("F6 事件门不重复计 attempted（onF6Event(false)，review-I1）",
+          "lsuTrigger->onF6Event(false);" in merge_fn
+          and merge_fn.count("lsuTrigger->onAttempt();") == 1)
+    trig_hh = src("CHAOS/gem5/src/cpu/o3/chaos_lsu_trigger.hh")
+    check("trigger 头文件 onF6Event(book_attempt=true) 双调用形态契约",
+          "onF6Event(bool book_attempt = true)" in trig_hh
+          and "if (book_attempt) ++attempted;" in trig_hh)
+    check("第五 F6 事件源（MSHR merge）已在 trigger 头文件登记",
+          "FIFTH source" in trig_hh and "MSHR merge" in trig_hh
+          and "onF6Event(false)" in trig_hh)
+    check("F6 触发条件=首个过资格门的 merge（非『于每次 merge』）",
+          "FIRST merge that passes the eligibility gate" in merge_fn)
     check("合并函数无手搓概率检查",
           "uniform_real_distribution" not in merge_fn
           and "probability" not in merge_fn)

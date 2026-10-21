@@ -78,9 +78,16 @@ def generate_map(xlsx_path):
         # BaseCache::handleTimingReqMiss），campaign C11-F0-W6 3 seed
         # 3/3 activated SDC + 载体 cache_mshr_refetch ×3 全链 full——
         # 证据 docs/gem5-fi/lsu/mdspec/round4_findings.md §R4-5.1。
-        "C11": "implemented(mshr_merge mode, CHAOSCache merge hook @ "
-               "BaseCache::handleTimingReqMiss; evidence: round4_findings.md "
-               "§R4-5.1, campaign C11-F0-W6 3-seed + carrier x3)",
+        # [R4-5.1-review-Minor2] 落地范围机器可读（xlsx 表9 子模型
+        # C11-a..C11-d 逐一点名）：落地=C11-b 错误merge 的同 line
+        # merge-目标翻位实现；C11-a（换另一合法 miss 行）/C11-c（target
+        # 丢失）/C11-d（target 重复）未落地，仍为 spec 待办。
+        "C11": "implemented(mshr_merge=C11-b same-line merge-target "
+               "bit-flip, CHAOSCache merge hook @ "
+               "BaseCache::handleTimingReqMiss; pending: C11-a cross-line "
+               "substitution, C11-c target loss, C11-d target duplication; "
+               "evidence: round4_findings.md §R4-5.1, campaign C11-F0-W6 "
+               "3-seed + carrier x3)",
     }
 
     wb = openpyxl.load_workbook(xlsx_path, data_only=True)

@@ -46,6 +46,14 @@ enum class ChaOSLsuTier : uint8_t { F0, F1, F2, F3, F4, F5, F6 };
 // F6 event sources (09 §2.1 W1 map). TlbHit is FS-only — SE never calls
 // TLB::lookup (arm/mmu.cc:323-365 translateSe); the enum value exists so the
 // config surface is uniform, and an SE run selecting it logs zero events.
+//
+// [MDSPEC][R4-5.1] FIFTH source, recorded ruling: the L1D MSHR merge
+// (BaseCache::handleTimingReqMiss coalescing branch — CHAOSCache
+// targetField=mshr_merge, model C11) is treated as an F6 event source: C11's
+// specified event IS the merge, and the matrix F6 row reads "如…" (e.g., not
+// an exhaustive enumeration). It does NOT ride chaosLsuF6Observe/Notify
+// (typed to the W1 enum above) — the merge hook calls onF6Event(false)
+// directly at the merge site (early_stress first-occurrence, A5 ruling).
 enum class ChaOSLsuEvent : uint8_t { TlbHit, SqForward, DirtyEviction,
                                      CasSuccess };
 
@@ -200,12 +208,25 @@ struct ChaOSLsuTrigger
 
     // The F6 event source calls this when the configured event occurs.
     // Returns true => inject at this event, once ever.
+    // book_attempt — two caller shapes, [MDSPEC][R4-5.1-review-I1]:
+    //   true (default): the W1 thunk sites (CHAOSAddrPath/CHAOSPrefetch
+    //     f6Thunk) have no attempt stream at the event-notification site —
+    //     there the event occurrence IS the attempt, so it is booked here
+    //     (pinned by tests/chaos_lsu_trigger_test.cc "100 stream + 1
+    //     event"). The same-invocation double-count is impossible there:
+    //     onF6Event() runs in the thunk, not inside a hook call that
+    //     already did onAttempt().
+    //   false: a hook-based caller that ALREADY counted this invocation via
+    //     onAttempt() (CHAOSCache mshr_merge: the merge hook itself is the
+    //     attempt stream). Booking attempted again here would count the
+    //     firing hook invocation twice.
     bool
-    onF6Event()
+    onF6Event(bool book_attempt = true)
     {
         if (tier != ChaOSLsuTier::F6 || spent) return false;
         spent = true;
-        ++attempted; ++eligible; ++injected;
+        if (book_attempt) ++attempted;
+        ++eligible; ++injected;
         if (!first_eligible_tick) first_eligible_tick = curTick();
         last_eligible_tick = curTick();   // [LSU][OBS-3]
         return true;

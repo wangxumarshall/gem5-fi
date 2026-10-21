@@ -839,12 +839,29 @@ namespace gem5
             // C11's F6 "specified event" IS the MSHR merge (this model's
             // event source — the 09 §2.1 four-event list is the W1 map,
             // not an exhaustive enumeration; the matrix F6 row reads "如
-            // TLB hit、SQ forward、..."). onF6Event() enforces once-ever =
+            // TLB hit、SQ forward、..."; recorded as the fifth F6 source
+            // in chaos_lsu_trigger.hh). TRUE firing condition: F6 fires
+            // at the FIRST merge that passes the eligibility gate above —
+            // a demand READ merging into the mounted cache's outstanding
+            // MSHR with >=1 flippable offset bit ([log2(size),
+            // log2(blkSize))). Non-demand merges (writes, prefetches) and
+            // whole-line accesses (no flippable bit) return BEFORE this
+            // point: attempted, but never the F6 event. Once-ever =
             // early_stress (first occurrence), the only formal-track F6
-            // semantics (A5 ruling). It books its own attempted/eligible/
-            // injected — the same accounting the CHAOSAddrPath F6 thunk
-            // relies on.
-            go = lsuTrigger->onF6Event();
+            // semantics (A5 ruling).
+            //
+            // Funnel accounting ([MDSPEC][R4-5.1-review-I1]): onAttempt()
+            // above already booked attempted for THIS hook invocation
+            // exactly once — the merge hook is the attempt stream — so the
+            // event gate must not re-book it: onF6Event(false). It books
+            // eligible+injected at the firing merge (the W1 thunk sites
+            // keep the onF6Event() default — their event notification has
+            // no onAttempt, see chaos_lsu_trigger.hh). With the campaign
+            // cap maxFaults=1 the hook stops at the cap check above right
+            // after the fire, so attempted/eligible freeze at fire time
+            // (exact); with maxFaults=0 post-fire merges keep counting
+            // attempted only — the single-shot trigger stops sampling.
+            go = lsuTrigger->onF6Event(false);
         } else {
             go = lsuTrigger->onEligible();
         }

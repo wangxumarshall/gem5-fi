@@ -6074,7 +6074,7 @@
    "correlation_keys": "run_id + sample_run_id + fault_id/ptag；event_id + parent_event_id；tick/cycle + core_id + thread_id；dyn_inst_seq + commit_seq + PC/opcode；lq_idx/sq_idx；request_id/pf_request_id/walk_id/mshr_id/fill_id；VA/PA/cache_line；arch_reg/phys_reg。禁止只用tick或address单键连接。",
    "termination": "完整：存在L0 fault_applied，且每条边由共享键与时间/可达性同时证明，最终到达(1) errant commit/错误内存副作用/软件oracle差异，或(2)明确检测并contained，或(3)明确squash/replay/mask且无错误副作用。若链在某节点后缺事件，只能标“截至该节点可证，后续Unknown”，不得推断Masked。",
    "impl_status": "需新增（当前阻塞：只有MSHR merge事件源）",
-   "spec_landed": "implemented(mshr_merge mode, CHAOSCache merge hook @ BaseCache::handleTimingReqMiss; evidence: round4_findings.md §R4-5.1, campaign C11-F0-W6 3-seed + carrier x3)",
+   "spec_landed": "implemented(mshr_merge=C11-b same-line merge-target bit-flip, CHAOSCache merge hook @ BaseCache::handleTimingReqMiss; pending: C11-a cross-line substitution, C11-c target loss, C11-d target duplication; evidence: round4_findings.md §R4-5.1, campaign C11-F0-W6 3-seed + carrier x3)",
    "status": "PARTIAL",
    "status_reasons": [],
    "target_activated_samples": "385"
@@ -6108,7 +6108,7 @@
    "correlation_keys": "run_id + sample_run_id + fault_id/ptag；event_id + parent_event_id；tick/cycle + core_id + thread_id；dyn_inst_seq + commit_seq + PC/opcode；lq_idx/sq_idx；request_id/pf_request_id/walk_id/mshr_id/fill_id；VA/PA/cache_line；arch_reg/phys_reg。禁止只用tick或address单键连接。",
    "termination": "完整：存在L0 fault_applied，且每条边由共享键与时间/可达性同时证明，最终到达(1) errant commit/错误内存副作用/软件oracle差异，或(2)明确检测并contained，或(3)明确squash/replay/mask且无错误副作用。若链在某节点后缺事件，只能标“截至该节点可证，后续Unknown”，不得推断Masked。",
    "impl_status": "需新增（当前阻塞：只有MSHR merge事件源）",
-   "spec_landed": "implemented(mshr_merge mode, CHAOSCache merge hook @ BaseCache::handleTimingReqMiss; evidence: round4_findings.md §R4-5.1, campaign C11-F0-W6 3-seed + carrier x3)",
+   "spec_landed": "implemented(mshr_merge=C11-b same-line merge-target bit-flip, CHAOSCache merge hook @ BaseCache::handleTimingReqMiss; pending: C11-a cross-line substitution, C11-c target loss, C11-d target duplication; evidence: round4_findings.md §R4-5.1, campaign C11-F0-W6 3-seed + carrier x3)",
    "status": "PARTIAL",
    "status_reasons": [],
    "target_activated_samples": "385"
@@ -6143,7 +6143,7 @@
    "correlation_keys": "run_id + sample_run_id + fault_id/ptag；event_id + parent_event_id；tick/cycle + core_id + thread_id；dyn_inst_seq + commit_seq + PC/opcode；lq_idx/sq_idx；request_id/pf_request_id/walk_id/mshr_id/fill_id；VA/PA/cache_line；arch_reg/phys_reg。禁止只用tick或address单键连接。",
    "termination": "完整：存在L0 fault_applied，且每条边由共享键与时间/可达性同时证明，最终到达(1) errant commit/错误内存副作用/软件oracle差异，或(2)明确检测并contained，或(3)明确squash/replay/mask且无错误副作用。若链在某节点后缺事件，只能标“截至该节点可证，后续Unknown”，不得推断Masked。",
    "impl_status": "需新增（当前阻塞：只有MSHR merge事件源）",
-   "spec_landed": "implemented(mshr_merge mode, CHAOSCache merge hook @ BaseCache::handleTimingReqMiss; evidence: round4_findings.md §R4-5.1, campaign C11-F0-W6 3-seed + carrier x3)",
+   "spec_landed": "implemented(mshr_merge=C11-b same-line merge-target bit-flip, CHAOSCache merge hook @ BaseCache::handleTimingReqMiss; pending: C11-a cross-line substitution, C11-c target loss, C11-d target duplication; evidence: round4_findings.md §R4-5.1, campaign C11-F0-W6 3-seed + carrier x3)",
    "status": "PARTIAL",
    "status_reasons": [],
    "target_activated_samples": "385"
@@ -6177,7 +6177,7 @@
    "correlation_keys": "run_id + sample_run_id + fault_id/ptag；event_id + parent_event_id；tick/cycle + core_id + thread_id；dyn_inst_seq + commit_seq + PC/opcode；lq_idx/sq_idx；request_id/pf_request_id/walk_id/mshr_id/fill_id；VA/PA/cache_line；arch_reg/phys_reg。禁止只用tick或address单键连接。",
    "termination": "完整：存在L0 fault_applied，且每条边由共享键与时间/可达性同时证明，最终到达(1) errant commit/错误内存副作用/软件oracle差异，或(2)明确检测并contained，或(3)明确squash/replay/mask且无错误副作用。若链在某节点后缺事件，只能标“截至该节点可证，后续Unknown”，不得推断Masked。",
    "impl_status": "需新增（当前阻塞：只有MSHR merge事件源）",
-   "spec_landed": "implemented(mshr_merge mode, CHAOSCache merge hook @ BaseCache::handleTimingReqMiss; evidence: round4_findings.md §R4-5.1, campaign C11-F0-W6 3-seed + carrier x3)",
+   "spec_landed": "implemented(mshr_merge=C11-b same-line merge-target bit-flip, CHAOSCache merge hook @ BaseCache::handleTimingReqMiss; pending: C11-a cross-line substitution, C11-c target loss, C11-d target duplication; evidence: round4_findings.md §R4-5.1, campaign C11-F0-W6 3-seed + carrier x3)",
    "status": "PARTIAL",
    "status_reasons": [],
    "target_activated_samples": "385"
@@ -6212,7 +6212,7 @@
    "correlation_keys": "run_id + sample_run_id + fault_id/ptag；event_id + parent_event_id；tick/cycle + core_id + thread_id；dyn_inst_seq + commit_seq + PC/opcode；lq_idx/sq_idx；request_id/pf_request_id/walk_id/mshr_id/fill_id；VA/PA/cache_line；arch_reg/phys_reg。禁止只用tick或address单键连接。",
    "termination": "完整：存在L0 fault_applied，且每条边由共享键与时间/可达性同时证明，最终到达(1) errant commit/错误内存副作用/软件oracle差异，或(2)明确检测并contained，或(3)明确squash/replay/mask且无错误副作用。若链在某节点后缺事件，只能标“截至该节点可证，后续Unknown”，不得推断Masked。",
    "impl_status": "需新增（当前阻塞：只有MSHR merge事件源）",
-   "spec_landed": "implemented(mshr_merge mode, CHAOSCache merge hook @ BaseCache::handleTimingReqMiss; evidence: round4_findings.md §R4-5.1, campaign C11-F0-W6 3-seed + carrier x3)",
+   "spec_landed": "implemented(mshr_merge=C11-b same-line merge-target bit-flip, CHAOSCache merge hook @ BaseCache::handleTimingReqMiss; pending: C11-a cross-line substitution, C11-c target loss, C11-d target duplication; evidence: round4_findings.md §R4-5.1, campaign C11-F0-W6 3-seed + carrier x3)",
    "status": "PARTIAL",
    "status_reasons": [],
    "target_activated_samples": "385"
@@ -6246,7 +6246,7 @@
    "correlation_keys": "run_id + sample_run_id + fault_id/ptag；event_id + parent_event_id；tick/cycle + core_id + thread_id；dyn_inst_seq + commit_seq + PC/opcode；lq_idx/sq_idx；request_id/pf_request_id/walk_id/mshr_id/fill_id；VA/PA/cache_line；arch_reg/phys_reg。禁止只用tick或address单键连接。",
    "termination": "完整：存在L0 fault_applied，且每条边由共享键与时间/可达性同时证明，最终到达(1) errant commit/错误内存副作用/软件oracle差异，或(2)明确检测并contained，或(3)明确squash/replay/mask且无错误副作用。若链在某节点后缺事件，只能标“截至该节点可证，后续Unknown”，不得推断Masked。",
    "impl_status": "需新增（当前阻塞：只有MSHR merge事件源）",
-   "spec_landed": "implemented(mshr_merge mode, CHAOSCache merge hook @ BaseCache::handleTimingReqMiss; evidence: round4_findings.md §R4-5.1, campaign C11-F0-W6 3-seed + carrier x3)",
+   "spec_landed": "implemented(mshr_merge=C11-b same-line merge-target bit-flip, CHAOSCache merge hook @ BaseCache::handleTimingReqMiss; pending: C11-a cross-line substitution, C11-c target loss, C11-d target duplication; evidence: round4_findings.md §R4-5.1, campaign C11-F0-W6 3-seed + carrier x3)",
    "status": "PARTIAL",
    "status_reasons": [],
    "target_activated_samples": "385"
@@ -6281,7 +6281,7 @@
    "correlation_keys": "run_id + sample_run_id + fault_id/ptag；event_id + parent_event_id；tick/cycle + core_id + thread_id；dyn_inst_seq + commit_seq + PC/opcode；lq_idx/sq_idx；request_id/pf_request_id/walk_id/mshr_id/fill_id；VA/PA/cache_line；arch_reg/phys_reg。禁止只用tick或address单键连接。",
    "termination": "完整：存在L0 fault_applied，且每条边由共享键与时间/可达性同时证明，最终到达(1) errant commit/错误内存副作用/软件oracle差异，或(2)明确检测并contained，或(3)明确squash/replay/mask且无错误副作用。若链在某节点后缺事件，只能标“截至该节点可证，后续Unknown”，不得推断Masked。",
    "impl_status": "需新增（当前阻塞：只有MSHR merge事件源）",
-   "spec_landed": "implemented(mshr_merge mode, CHAOSCache merge hook @ BaseCache::handleTimingReqMiss; evidence: round4_findings.md §R4-5.1, campaign C11-F0-W6 3-seed + carrier x3)",
+   "spec_landed": "implemented(mshr_merge=C11-b same-line merge-target bit-flip, CHAOSCache merge hook @ BaseCache::handleTimingReqMiss; pending: C11-a cross-line substitution, C11-c target loss, C11-d target duplication; evidence: round4_findings.md §R4-5.1, campaign C11-F0-W6 3-seed + carrier x3)",
    "status": "PARTIAL",
    "status_reasons": [],
    "target_activated_samples": "385"
@@ -6315,7 +6315,7 @@
    "correlation_keys": "run_id + sample_run_id + fault_id/ptag；event_id + parent_event_id；tick/cycle + core_id + thread_id；dyn_inst_seq + commit_seq + PC/opcode；lq_idx/sq_idx；request_id/pf_request_id/walk_id/mshr_id/fill_id；VA/PA/cache_line；arch_reg/phys_reg。禁止只用tick或address单键连接。",
    "termination": "完整：存在L0 fault_applied，且每条边由共享键与时间/可达性同时证明，最终到达(1) errant commit/错误内存副作用/软件oracle差异，或(2)明确检测并contained，或(3)明确squash/replay/mask且无错误副作用。若链在某节点后缺事件，只能标“截至该节点可证，后续Unknown”，不得推断Masked。",
    "impl_status": "需新增（当前阻塞：只有MSHR merge事件源）",
-   "spec_landed": "implemented(mshr_merge mode, CHAOSCache merge hook @ BaseCache::handleTimingReqMiss; evidence: round4_findings.md §R4-5.1, campaign C11-F0-W6 3-seed + carrier x3)",
+   "spec_landed": "implemented(mshr_merge=C11-b same-line merge-target bit-flip, CHAOSCache merge hook @ BaseCache::handleTimingReqMiss; pending: C11-a cross-line substitution, C11-c target loss, C11-d target duplication; evidence: round4_findings.md §R4-5.1, campaign C11-F0-W6 3-seed + carrier x3)",
    "status": "PARTIAL",
    "status_reasons": [],
    "target_activated_samples": "385"
