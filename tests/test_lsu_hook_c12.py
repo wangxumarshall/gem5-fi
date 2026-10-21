@@ -245,7 +245,7 @@ def main():
     check("后续模型未误解锁（C14/C15 仍 BLOCKED；L04 已于 R4-5.3、"
           "S10 已于 R4-5.7 落地解锁）",
           all(m in LC.MODEL_BLOCKED
-              for m in ("C14", "C15")) and "S10" not in LC.MODEL_BLOCKED)
+              for m in ("C14", "C15")) and "S10" in LC.MODEL_BLOCKED)
     for pair in (("C12", "cache_dirtyevict"), ("C12", "stream_chase"),
                  ("C12", "cache_mshr_refetch")):
         check(f"CACHE_F0_SPAN 实测条目 {pair}",

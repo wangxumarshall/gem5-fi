@@ -272,9 +272,11 @@ def main():
     check("MODEL_FLAGS 注册 S10（lsqfwd 家族 + --lsqfwd_s10）",
           LC.MODEL_FLAGS.get("S10") == ("lsqfwd", ["--lsqfwd_s10"]),
           str(LC.MODEL_FLAGS.get("S10")))
-    check("S10 已从 MODEL_BLOCKED 删除（模式已实现；census/pilot 是集成侧"
-          "步骤）",
-          "S10" not in LC.MODEL_BLOCKED)
+    check("S10 仍在 MODEL_BLOCKED，理由由集成侧实测定论（平台缺陷：SSIT "
+          "恒不有效 → S10-a 前提不可达；非实现缺失）",
+          "S10" in LC.MODEL_BLOCKED
+          and "platform-defect" in LC.MODEL_BLOCKED["S10"],
+          str(LC.MODEL_BLOCKED.get("S10"))[:120])
     check("LSQFWD_F0_SPAN 无 S10 条目（census pending——F0 cell 响亮拒绝"
           "直到集成侧实测）",
           not [k for k in LC.LSQFWD_F0_SPAN if k[0] == "S10"],
@@ -283,7 +285,7 @@ def main():
           '("S10", "sq_forward")' in src("tools/lsu_campaign.py")
           and '("S10", "gap_bfs")' in src("tools/lsu_campaign.py"))
 
-    print("[7] 矩阵解析：S10 的 6 cell（F0 响亮拒绝 + F2/F5 可跑）")
+    print("[7] 矩阵解析：S10 的 6 cell（全数 loud blocked——平台缺陷定论）")
     header, cells = LC.load_matrix(
         ROOT / "artifacts/lsu-trial/07-expanded-matrix-backfilled.csv")
     s10 = [c for c in cells if c[LC.COL_MODEL].strip() == "S10"]
@@ -296,18 +298,9 @@ def main():
         runid = c[LC.COL_RUNID].strip()
         tier = c[LC.COL_FREQ].strip()
         flags, golden, note = LC.resolve_cell(c)
-        if tier == "F0":
-            ok = (flags is None and note is not None
-                  and "BLOCKED(F0-span-unmeasured" in note)
-            check(f"{runid} F0 响亮拒绝（span 未实测——拒绝即设计，绝不"
-                  "静默复用他对流长）", ok, f"note={note}")
-        else:
-            ok = (flags is not None and golden
-                  and "--lsqfwd_s10" in flags
-                  and "--lsqfwd_lsu_tier" in flags
-                  and f"--lsqfwd_lsu_tier {tier}" in " ".join(flags))
-            check(f"{runid} 解析为 lsqfwd_s10 运行配置（tier={tier}）",
-                  ok, f"flags={flags} note={note}")
+        ok = (flags is None and note is not None and "platform-defect" in note)
+        check(f"{runid} loud blocked（tier={tier}，理由=平台缺陷，绝不静默 "
+              "runnable）", ok, f"note={note}")
 
     print("[8] SPEC_IMPL_LANDED 登记契约（源码钉；JSON 再生成为集成侧步骤）")
     rm_src = src("tools/lsu_runid_map.py")
@@ -315,10 +308,9 @@ def main():
           '"S10": "implemented(ssid_subst=S10-a' in rm_src)
     for pending in ("S10-b LFST", "S10-c store-set valid loss"):
         check(f"pending 子模型点名：{pending}", pending in rm_src)
-    check("登记显式声明 compile-unverified + 集成侧验证债（无真机证据"
-          "不冒充已实证）",
-          "evidence: NONE yet" in rm_src
-          and "compile-" in rm_src.split('"S10"')[1][:2400])
+    check("登记已改写为集成侧实测定论（真机负结果，不冒充已实证）",
+          "evidence: REAL RUNS, NEGATIVE" in rm_src
+          and "platform-defect" in rm_src.split('"S10"')[1][:2400])
 
     print()
     if FAILED:

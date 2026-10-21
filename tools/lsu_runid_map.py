@@ -238,11 +238,25 @@ def generate_map(xlsx_path):
                "target error, S10-c store-set valid loss, the other "
                "violation() merge arms as injection points (new-SSID "
                "assignment arm only), multi-field concurrent substitution; "
-               "evidence: NONE yet — landed compile-unverified from the "
-               "isolated no-build worktree r4-s10, integration must build "
-               "+ census LSQFWD_F0_SPAN[(S10,sq_forward)/(S10,gap_bfs)] + "
-               "pilot 6 cells x 3 seeds + chain check before this entry "
-               "carries real-run evidence (R4-5.7-report.md checklist))",
+               "evidence: REAL RUNS, NEGATIVE — integration built it "
+               "(binary 0d2f0664823f4315) and measured 6 workloads "
+               "(sq_forward/gap_bfs/alias_sites/cache_dirtyevict/"
+               "stream_chase/sqlite_like): attempted=4..55, arm1_events == "
+               "attempted, arm1_cand_empty == arm1_events, max_live_ssids "
+               "== 0, eligible == 0 everywhere. Root cause PROVEN by a "
+               "probe build (removed before commit): every SSIT.findVictim "
+               "victim lies OUTSIDE the calling StoreSet's own entry array "
+               "(23/23) because the per-CPU SSITIndexingPolicy object is "
+               "shared across MaxThreads MemDepUnits and each "
+               "StoreSet::init overwrites the policy's entry-pointer table "
+               "— only the last-initialised thread's SSIT is reachable, so "
+               "the active thread's SSIT never validates and S10-a's "
+               "'another legal live store-set' premise is unreachable on "
+               "this platform. S10 stays in MODEL_BLOCKED as "
+               "BLOCKED(platform-defect: ...) — NOT a MODE-UNIMPL gap; the "
+               "way out (platform fix vs spec re-scope) is an open "
+               "adjudication item, see round4_findings.md §R4-5.7b and "
+               "blocked_triage.md PLATFORM-DEFECT)",
         # A07（6 RunID）：[R4-5.8] AGU clean-ready/握手钩子 + A07-b 有界
         # ready 延迟**已落地并集成验证**（build + census + pilot 三次真机
         # 执行，集成二进制 sha256 前缀 09d70dd0987c57d1）。

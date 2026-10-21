@@ -116,12 +116,12 @@
 | S09-F0-W5 | S09 | Store Queue | F0 | PASS |  |
 | S09-F2-W5 | S09 | Store Queue | F2 | PASS |  |
 | S09-F6-W5 | S09 | Store Queue | F6 | PASS |  |
-| S10-F0-W5 | S10 | Store Queue | F0 | BLOCKED | campaign:landed compile-unverified, pilot pending (integration owns build + census + campaign; see R4-5.7 report) |
-| S10-F0-W9 | S10 | Store Queue | F0 | BLOCKED | campaign:landed compile-unverified, pilot pending (integration owns build + census + campaign; see R4-5.7 report) |
-| S10-F2-W5 | S10 | Store Queue | F2 | BLOCKED | campaign:landed compile-unverified, pilot pending (integration owns build + census + campaign; see R4-5.7 report) |
-| S10-F2-W9 | S10 | Store Queue | F2 | BLOCKED | campaign:landed compile-unverified, pilot pending (integration owns build + census + campaign; see R4-5.7 report) |
-| S10-F5-W5 | S10 | Store Queue | F5 | BLOCKED | campaign:landed compile-unverified, pilot pending (integration owns build + census + campaign; see R4-5.7 report) |
-| S10-F5-W9 | S10 | Store Queue | F5 | BLOCKED | campaign:landed compile-unverified, pilot pending (integration owns build + census + campaign; see R4-5.7 report) |
+| S10-F0-W5 | S10 | Store Queue | F0 | BLOCKED | campaign:BLOCKED(platform-defect: O3 StoreSet SSIT inert — shared SSITIndexingPolicy across MaxThreads MemDepUnits makes the active thread's SSIT never validate |
+| S10-F0-W9 | S10 | Store Queue | F0 | BLOCKED | campaign:BLOCKED(platform-defect: O3 StoreSet SSIT inert — shared SSITIndexingPolicy across MaxThreads MemDepUnits makes the active thread's SSIT never validate |
+| S10-F2-W5 | S10 | Store Queue | F2 | BLOCKED | campaign:BLOCKED(platform-defect: O3 StoreSet SSIT inert — shared SSITIndexingPolicy across MaxThreads MemDepUnits makes the active thread's SSIT never validate |
+| S10-F2-W9 | S10 | Store Queue | F2 | BLOCKED | campaign:BLOCKED(platform-defect: O3 StoreSet SSIT inert — shared SSITIndexingPolicy across MaxThreads MemDepUnits makes the active thread's SSIT never validate |
+| S10-F5-W5 | S10 | Store Queue | F5 | BLOCKED | campaign:BLOCKED(platform-defect: O3 StoreSet SSIT inert — shared SSITIndexingPolicy across MaxThreads MemDepUnits makes the active thread's SSIT never validate |
+| S10-F5-W9 | S10 | Store Queue | F5 | BLOCKED | campaign:BLOCKED(platform-defect: O3 StoreSet SSIT inert — shared SSITIndexingPolicy across MaxThreads MemDepUnits makes the active thread's SSIT never validate |
 | S11-F0-W5 | S11 | Store Queue | F0 | PASS |  |
 | S11-F0-W6 | S11 | Store Queue | F0 | PASS |  |
 | S11-F4-W5 | S11 | Store Queue | F4 | PASS |  |

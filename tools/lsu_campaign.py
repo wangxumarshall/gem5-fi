@@ -345,7 +345,29 @@ MODEL_BLOCKED = {
     # 禁跑 build/pilot，故并入时仍是 compile-unverified。按本轮铁律
     # 「断言可跑才删」，**S10 暂留本表**；主 worktree 的 build + 跨度普查 +
     # 真机 pilot 通过后，在同一集成提交内改为证据化移除。
-    "S10": "landed compile-unverified, pilot pending (integration owns build + census + campaign; see R4-5.7 report)",
+    # [MDSPEC][R4-5.7b integration] S10 STAYS BLOCKED — measured reason: the
+    # S10-a premise ("another legal live store-set to substitute") is
+    # UNREACHABLE on this platform. Real runs (integration binary
+    # 0d2f0664823f4315, 6 workloads sq_forward / gap_bfs / alias_sites /
+    # cache_dirtyevict / stream_chase / sqlite_like): attempted=4..55,
+    # arm1_events == attempted, arm1_cand_empty == arm1_events,
+    # max_live_ssids == 0, arm1_cand_ok == 0, eligible == 0.
+    # Proven mechanism (dedicated probe build, probes removed before commit):
+    # every victim returned by SSIT.findVictim() lies OUTSIDE the calling
+    # StoreSet's own entry array (23/23), because the per-CPU
+    # params.SSITIndexingPolicy object is SHARED by all MaxThreads
+    # MemDepUnits and each StoreSet::init() overwrites the policy's
+    # entry-pointer table (AssociativeCache::initParams ->
+    # indexingPolicy->setEntry) — only the last-initialised thread's SSIT is
+    # reachable, the active thread's SSIT never validates, so the candidate
+    # set is empty by construction. See round4_findings.md §R4-5.7b and
+    # blocked_triage.md (new WORKLOAD/PLATFORM class).
+    "S10": "BLOCKED(platform-defect: O3 StoreSet SSIT inert — shared "
+           "SSITIndexingPolicy across MaxThreads MemDepUnits makes the "
+           "active thread's SSIT never validate (measured arm1_cand_empty "
+           "== arm1_events, max_live_ssids == 0 on 6 workloads, 23/23 "
+           "victims outside the caller's own entry array); S10-a premise "
+           "unreachable — needs platform fix or re-scope, R4-5.7b)",
     "C14": "deferred(consumer-side: MSHR busy event source only)",
     "C15": "deferred(consumer-side: MSHR occupancy event source only)",
     # no clean hook (documented in injector headers / W4-W8 session notes)

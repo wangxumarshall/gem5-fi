@@ -131,3 +131,24 @@
 | T10-F1-W4 | L1d-TLB | T10 | FS-INFRA | workload:workload-level:blocked(fs-infra: TLB workload needs FS) |
 | T10-F2-W11 | L1d-TLB | T10 | LICENSE | workload:workload-level:blocked(spec-license: SPEC CPU2017 needs a license) |
 | T10-F2-W4 | L1d-TLB | T10 | FS-INFRA | workload:workload-level:blocked(fs-infra: TLB workload needs FS) |
+
+## 新增类别：PLATFORM-DEFECT（2026-10-21，R4-5.7b）
+
+第七类阻塞：**规格前提在当前平台上结构性不可达**——既不是"实现缺失"（MODE-UNIMPL），
+也不是"需要裁决/授权"（RULING/LICENSE/FS-*），而是**平台自身的行为缺陷**。
+
+| RunID | 单元 | 模型 | 类别 | 实测理由 |
+|---|---|---|---|---|
+| S10-F0-W5 | Store Queue | S10 | PLATFORM-DEFECT | O3 StoreSet SSIT 恒不有效（`max_live_ssids=0`）→ S10-a 候选集恒空 |
+| S10-F0-W9 | Store Queue | S10 | PLATFORM-DEFECT | 同上 |
+| S10-F2-W5 | Store Queue | S10 | PLATFORM-DEFECT | 同上（F2 还需 eligible≥5e4，数学不可能） |
+| S10-F2-W9 | Store Queue | S10 | PLATFORM-DEFECT | 同上 |
+| S10-F5-W5 | Store Queue | S10 | PLATFORM-DEFECT | 同上 |
+| S10-F5-W9 | Store Queue | S10 | PLATFORM-DEFECT | 同上 |
+
+机理（探针实证）：`params.SSITIndexingPolicy` 为**单一实例**，被 `MaxThreads`(4) 个
+`MemDepUnit` 的 `StoreSet` 共享；`AssociativeCache::initParams()` 每次 `init` 都
+`indexingPolicy->setEntry(...)` 覆盖同一张条目指针表 → 只有最后初始化的线程的 SSIT 可达，
+活跃线程的 SSIT 永远无效（23/23 victim 指针落在本实例 `entries` 数组之外）。
+详见 `round4_findings.md` §R4-5.7b。**出路需裁决**：平台修复（每 StoreSet 独立
+indexing policy）或规格侧重新定义候选来源。

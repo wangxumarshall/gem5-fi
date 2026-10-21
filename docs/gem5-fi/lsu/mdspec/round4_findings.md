@@ -1340,3 +1340,81 @@ A07-c（ready 丢失，hang/Timeout 通道：需超时簿记，L04-a 同类）�
   `span=7`）与 §R4-1-fix I2 / §R4-2 §2.4 记录的**既有类别同型**（parked 的
   addrpath 家族默认 span=1000 + F0 故障延长流），非本次 A07 引入；
   A07 侧测试逐项钉死"非 A07 的 addrpath 模型 tier flags 逐字节不变"。
+
+## R4-5.7b（2026-10-21）：S10 `attempted>0 / eligible=0` 根因**定论** —— 平台缺陷（O3 StoreSet SSIT 无效化），非实现缺失、非负载选择问题
+
+> 落地侧（隔离 worktree `r4-5.7b-s10-rootcause`，commits `20c5050f`/`ec8fcf47`）交付了
+> 根因判别仪表（`CHAOS_LSU_S10_FORK` 行 + 6 个纯观测计数）与定向载体
+> `workloads/directed/alias_sites`；本节是**集成侧**在其之上完成的真机定论与修正。
+
+### 5.7b.1 分叉点（源码逐行，集成侧复核确认）
+
+`attempted` 在 `StoreSet::violation` 顶部（`store_set.cc:129` 的 S10 hook 1/3）记账；
+`eligible` 只在**四臂中唯一带 S10 钩子的第 1 臂**（`:134` 两 PC 皆未训练）经候选集闸
+（`CHAOSLSQFwd.cc` `s10SsidSubstCb`）后由 `onEligible()` 递增。臂 2/3/4 无钩子。
+故 **`eligible ≡ 0` ⟺ 该臂从未以"候选集非空"被进入**。
+
+### 5.7b.2 真机定论（集成二进制 `0d2f0664823f4315`，6 个负载）
+
+`--chaos_lsqfwd --lsqfwd_s10 --lsqfwd_lsu_tier F5/F0 --lsqfwd_span_events 1000000`：
+
+| 负载 | attempted | arm1_events | arm1_cand_empty | arm1_cand_ok | max_live_ssids | eligible |
+|---|---|---|---|---|---|---|
+| alias_sites（**新载体**） | 55 | 23 | 23 | 0 | 0 | **0** |
+| sq_forward | 4 | 4 | 4 | 0 | 0 | **0** |
+| gap_bfs | 5 | 5 | 5 | 0 | 0 | **0** |
+| cache_dirtyevict | 4 | 4 | 4 | 0 | 0 | **0** |
+| stream_chase | 5 | 5 | 5 | 0 | 0 | **0** |
+| sqlite_like | 4 | 4 | 4 | 0 | 0 | **0** |
+
+即：`arm1_events == attempted`（**每一次训练事件都落在唯一的可注入臂**，从未出现过
+臂 2/3/4），而在**每一次**这样的事件上，扫描到的"其它合法活跃 store-set"数量恒为 0 →
+候选集空 → 不 eligible。F0/F5 需 `eligible ≥ 1`、F2 需 `≥ 50000`（`intervalEvents(F2)=100000`）
+→ **6 个 S10 cell 结构性 0 注入**。
+
+**这推翻了落地侧报告 §1 的静态预测**（其模型给出"新载体 `eligible=11/12`"）。
+静态模型假设"插入的条目在下一次事件可见"；实测证伪（见 5.7b.3）。**以实测为准。**
+
+### 5.7b.3 机理（探针构建实证，探针已在提交前移除）
+
+三次探针（同一 worktree，临时打印后 `git checkout` 还原）给出链条：
+
+1. `S10DBG arm1 live_before=0 / live_after=0`（23/23）：**在同一次调用内、两次
+   `SSIT.insertEntry` 之后立刻全表扫描，本实例的 SSIT 仍是 0 条有效**。
+2. `S10DBG victim=0x46a31540 this_entries=[0x469c8000..0x469ddfa8] OUTSIDE`（23/23）：
+   `SSIT.findVictim()` 返回的条目指针**落在本实例 `entries` 数组之外**。
+3. 源码：`AssociativeCache::initParams()` 逐个 `indexingPolicy->setEntry(entry, idx)`
+   ——索引策略持有"条目指针表"；而 `MemDepUnit` 为每个线程构造一个 `StoreSet`，**都把
+   同一个 `params.SSITIndexingPolicy` 传进去**（`mem_dep_unit.cc:58/100`），
+   `BaseO3CPU.py:163` 的默认值是**一个实例**。故 `MaxThreads`(=4) 个 `StoreSet::init`
+   互相覆盖同一张指针表，**只有最后初始化的那个线程的 SSIT 可达**；活跃线程（0）的
+   SSIT 永远拿不到自己的条目 → 永远无效 → 候选集恒空。
+
+这是**平台（vendored gem5 v25 tree）侧的既有缺陷**，与 CHAOS 注入无关；也是
+`checkInst`（SSIT 的消费端）在这些运行里从不被调用的直接后果（预测器实际处于惰性状态）。
+
+### 5.7b.4 裁定与登记（诚实边界）
+
+- **S10 保持 `MODEL_BLOCKED`**，但阻塞**理由改写为实测定论**：
+  `BLOCKED(platform-defect: O3 StoreSet SSIT inert …)`（`tools/lsu_campaign.py`）。
+  6 个 S10 RunID 在覆盖矩阵中仍为 BLOCKED，且**理由不再是 MODE-UNIMPL**
+  （S10-a 的实现已落地且真实可运行）而是"平台前提不可达"。
+- 新增裁决类别记入 `blocked_triage.md`：**PLATFORM-DEFECT**（原类别 RULING/LICENSE/
+  FS-MULTICORE/FS-INFRA/MODE-UNIMPL/HOOK-UNIMPL 之外的第七类）。
+- **不**据此删除 S10 的 `MODEL_BLOCKED` 条目；**不**放宽候选合法性以求 `eligible>0`
+  （规格原文要求候选必须来自当前运行的合法活跃 store-set）。
+- 出路（需裁决，二选一）：(a) 平台修复——让每个 `StoreSet` 持有自己的
+  indexing policy（`MemDepUnit` 侧复制/去共享），属平台级改动，影响面需评估；
+  (b) 规格侧重新定义 S10-a 的候选来源。两者都超出本轮授权范围，**未实施**。
+
+### 5.7b.5 交付物
+
+- 判别仪表：`CHAOSLSQFwd.{hh,cc}` 6 个纯观测计数 + `CHAOS_LSU_S10_FORK` 输出行
+  （**零裁决分支**，非 S10 模式不打印）；契约测试 `tests/test_lsu_hook_s10_fork.py`（40 项）。
+- 定向载体 `workloads/directed/alias_sites`（+ `.c`，`gcc -O2 -static -Wall -Wextra`
+  零告警；12 个互异别名站）+ `tests/test_lsu_carrier_alias_sites.py`。
+- 证据：`runs/lsu/r4_t57b_clean/{alias_sites,sq_forward,gap_bfs}.out`（干净二进制复现），
+  `runs/lsu/r4_t57b_probe/`（探针构建，2 次运行，仅用于机理实证）。
+- 测试订正：`tests/test_lsu_hook_s10.py` / `_l04.py` / `_c11.py` / `_c12.py` 中
+  "S10 已解锁/不在 MODEL_BLOCKED"的断言改为**实测诚实态**（本提交前它们在本分支
+  上即为红，属落地期测试与集成期实现的既存不一致，现一次性对齐）。
