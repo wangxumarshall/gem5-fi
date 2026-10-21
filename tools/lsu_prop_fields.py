@@ -65,9 +65,15 @@ KIND_LAYER = {
     # L2=请求离开 LSQ 去翻译/访存）
     "lsq_push": "L1", "lsq_sendfrag": "L2",
     # [MDSPEC][H2] TLB 翻译统一事件（mmu.cc translateTiming = SE+FS 漏斗；
-    # SE 不经 TLB::lookup——tlb.cc:173 实证。tlb_walk/tlb_refill 属 FS
-    # 路径，推迟到 FS TLB 轨道，未注册 = 诚实缺席）
+    # SE 不经 TLB::lookup——tlb.cc:173 实证）。
     "tlb_translate": "L2",
+    # [MDSPEC][R4-5.9] T08 walk/fill 配对（FS-only）：tlb_walk = DTLB miss
+    # 启动的页表遍历（TableWalker::walk 发出，table_walker.cc）；tlb_refill
+    # = 该 walk 的 refill 完成（walker 把 PTE 交回 MMU）。两节点共享同一
+    # walk_id + 同一 fault_id ⇒ 配对由构造可证（不同 tick，pairing 键
+    # walk_id）。T08-a（丢失）落地：refill 未到达 → tlb_refill 以
+    # field=lost/outcome=lost 显式记录（诚实标注"未到达"，非伪造一次 refill）。
+    "tlb_walk": "L2", "tlb_refill": "L2",
     # [MDSPEC][H2-fix] 翻译 fault 检测事件（A01 POST 根因：corrupted vaddr
     # 落到未映射地址 → 翻译 fault = Hardware 检测 + contained）
     "tlb_fault": "L2",
@@ -127,6 +133,17 @@ REQUIRED_FIELDS = {
                      "request_id", "va"],
     # [MDSPEC][H2] pa 入口未定留空（诚实 pending；PA 物化由 resp 节点覆盖）
     "tlb_translate": ["fault_id", "corr", "dyn_inst_seq", "va", "request_id"],
+    # [MDSPEC][R4-5.9] T08 walk/fill 配对（FS-only，见 KIND_LAYER 注）。
+    # tlb_walk：walk 发出点（TableWalker::walk，table_walker.cc）——必录
+    #   walk_id（配对键）+ va + dyn_inst_seq/request_id（Request 身份；
+    #   "0"=未盖戳，lsq_sendfrag 约定）。corr=origin（注入器注册事件，
+    #   无 correlate* 查询——与 registerTlbFault 的 inj 节点同形）。
+    # tlb_refill：该 walk 的 refill 完成节点，必录同一 walk_id（配对可证）
+    #   + va + field（refill 结局：正常=pte 字段名；T08-a 丢失="lost"）。
+    #   corr=origin（注入器注册事件）。
+    "tlb_walk": ["fault_id", "corr", "walk_id", "va", "dyn_inst_seq",
+                 "request_id"],
+    "tlb_refill": ["fault_id", "corr", "walk_id", "va", "field"],
     # [MDSPEC][H2-fix] 翻译 fault 检测（detection_layer=Hardware；contained
     # 为空 = pending offline join——不预定终局）
     "tlb_fault": ["fault_id", "corr", "dyn_inst_seq", "va", "outcome",

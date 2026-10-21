@@ -386,6 +386,35 @@ def generate_map(xlsx_path):
                "[(C15,stream_chase)] + pilot 6 cells x 3 seeds + chain "
                "check before this entry carries real-run evidence "
                "(R4-5.5-5.6-report.md checklist)",
+        # T08（3 RunID，阻塞短语 "deferred(mode unimplemented: walk
+        # pairing)"；FS-only）：落地=T08-a walk/fill 丢失——walk 在其发出点
+        # （TableWalker::walk，arch/arm/table_walker.cc）被丢弃，请求的
+        # translation 永不完成（规格钦定 Timeout 通道）；注入器
+        # CHAOSArmTLB faultType=walk_pairing（lsuTier F0/F4/F6 事件归一化），
+        # 命中时 registerTlbWalkPair 发射 tlb_walk+tlb_refill(walk_id 配对)
+        # 双节点。未落地=T08-b 重复 / T08-c done 过早 / T08-d 旧 walk 结果
+        # 写入（仍为 spec 待办）。证据状态（如实登记）：本项在禁止构建/运行
+        # 的 worktree 落地——C++ 编译未验证、真机证据 0、FS-INFRA 载体
+        # （TLB-AliasPerm / GAP）未跑；MODEL_BLOCKED 保持（不静默解除）。
+        # 集成方待办见 R4-5.9-report.md 清单。
+        "T08": "implemented(walk_pairing=T08-a walk/fill lost at the walk "
+               "ISSUE point — TableWalker::walk (arch/arm/table_walker.cc) "
+               "drops the walk for the selected request, so its translation "
+               "never completes (the spec's 丢失->Timeout channel); the "
+               "injector is CHAOSArmTLB faultType=walk_pairing with the "
+               "event-normalized lsuTier (F0/F4/F6) on the walk-issue "
+               "stream, and on a fire it emits the walk/fill node pair "
+               "(tlb_walk + tlb_refill, shared walk_id = the pairing key, "
+               "fill_lost=true -> field=lost/outcome=lost) via "
+               "CHAOSPropagation::registerTlbWalkPair; pending: T08-b "
+               "duplicate, T08-c done-too-early, T08-d stale-walk-result "
+               "write (xlsx sheet-9 sub-models 03/07); evidence: NONE yet "
+               "— landed compile-unverified from the isolated no-build "
+               "worktree r4-t08fs (FS-only: the model needs a full-system "
+               "restore, and this session may neither build nor run gem5). "
+               "Integration must build + run the 3 T08 cells (F0/F4/F6 W4) "
+               "+ lsu_chain_check before this entry carries real-run "
+               "evidence (R4-5.9-report.md checklist))",
     }
 
     wb = openpyxl.load_workbook(xlsx_path, data_only=True)

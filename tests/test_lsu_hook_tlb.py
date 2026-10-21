@@ -9,13 +9,18 @@ SE 实证约束（CHAOS/gem5/src/arch/arm/tlb.cc:173 注释）：SE 经 translat
 arch/arm/mmu.cc::MMU::translateTiming（SE/FS 共用，lsq.cc
 sendFragmentToTranslation 直接调用）。故 H2 的 translate 节点挂
 mmu.cc::translateTiming（SE 立即可验证，pilot A01-F0-W3 是 SE 负载）；
-tlb.cc lookup 与 table_walker.cc walk/refill 节点属 FS 路径——推迟到
-FS TLB 轨道（W4 TLB-AliasPerm 负载本就 BLOCKED），不静默跳过。
+tlb.cc lookup 与 table_walker.cc walk/refill 节点属 FS 路径。
+
+[R4-5.9] T08（walk/fill 配对）落地后，tlb_walk/tlb_refill 已注册（L2），
+配对键 = walk_id；本测试从"未注册 = 诚实缺席"改为"已注册 + 配对契约"。
+C++ 端（TableWalker::walk / CHAOSArmTLB::maybeDropWalkFill）为
+COMPILE-UNVERIFIED（本 worktree 禁止 build），此处只钉契约面。
 
 契约：
 - kind=tlb_translate → L2（VA→PA 翻译请求离开 LSQ 后进入 MMU 漏斗）
 - 必录字段：fault_id, dyn_inst_seq, va, request_id（pa 在入口未定，留空
   诚实；PA 物化由 resp 节点与 lsq_sendfrag→resp 链覆盖）
+- kind=tlb_walk/tlb_refill → L2；必录包含 walk_id（配对键）
 - 发射端只对 fault-correlated 请求发射（规格 11 传播流语义）。
 
 用法：python3 tests/test_lsu_hook_tlb.py   （退出码 0=全 PASS）
@@ -72,15 +77,58 @@ def main():
     check("inj→addr_form→lsq_push→tlb_translate→resp reaches L3",
           v["provable_to"] == "L3", str(v))
 
-    print("[4] FS 路径推迟如实记录（不静默）")
-    # tlb_walk / tlb_refill 尚未注册 = FS 轨道未实现的诚实状态；
-    # 注册它们是 FS TLB 轨道任务（W4 解锁后）的义务。
-    check("tlb_walk/tlb_refill NOT yet registered (honest fs-pending)",
-          "tlb_walk" not in P.KIND_LAYER
-          and "tlb_refill" not in P.KIND_LAYER)
-    evt = P.parse_line("PROP-EVT: kind=tlb_walk fault_id=1")
-    check("unregistered kind rejected by validate_event",
-          len(P.validate_event(evt)) >= 1)
+    print("[4] [R4-5.9] T08 walk/fill 配对节点注册（FS 轨道落地）")
+    # R4-5.9：tlb_walk（walk 发出，TableWalker::walk）与 tlb_refill（该
+    # walk 的 refill 完成）注册为 L2，配对键 = walk_id（两节点同值）。
+    check("tlb_walk -> L2", P.KIND_LAYER.get("tlb_walk") == "L2",
+          str(P.KIND_LAYER.get("tlb_walk")))
+    check("tlb_refill -> L2", P.KIND_LAYER.get("tlb_refill") == "L2",
+          str(P.KIND_LAYER.get("tlb_refill")))
+    wreq = P.REQUIRED_FIELDS.get("tlb_walk")
+    check("tlb_walk requires walk_id + va + seq/request_id + corr",
+          wreq is not None
+          and all(f in wreq for f in ("fault_id", "corr", "walk_id", "va",
+                                      "dyn_inst_seq", "request_id")),
+          str(wreq))
+    rreq = P.REQUIRED_FIELDS.get("tlb_refill")
+    check("tlb_refill requires walk_id + va + field + corr",
+          rreq is not None
+          and all(f in rreq for f in ("fault_id", "corr", "walk_id", "va",
+                                      "field")),
+          str(rreq))
+
+    print("[5] [R4-5.9] T08-a 丢失配对契约（同一 walk_id 的双节点）")
+    walk = P.parse_line(
+        "PROP-EVT: kind=tlb_walk fault_id=7 corr=origin walk_id=101 "
+        "va=ffffffc009483000 dyn_inst_seq=302 request_id=302")
+    refill = P.parse_line(
+        "PROP-EVT: kind=tlb_refill fault_id=7 corr=origin walk_id=101 "
+        "va=ffffffc009483000 field=lost outcome=lost")
+    check("complete tlb_walk validates",
+          walk is not None and P.validate_event(walk) == [],
+          str(P.validate_event(walk) if walk else "None"))
+    check("complete tlb_refill (lost) validates",
+          refill is not None and P.validate_event(refill) == [],
+          str(P.validate_event(refill) if refill else "None"))
+    check("pairing key equal on both nodes (walk_id)",
+          walk is not None and refill is not None
+          and walk["walk_id"] == refill["walk_id"] == "101")
+    check("both nodes carry the same fault_id (chain binding)",
+          walk is not None and refill is not None
+          and walk["fault_id"] == refill["fault_id"] == "7")
+    check("tlb_walk/tlb_refill reach L2 in a chain",
+          P.provable_to([walk, refill])["provable_to"] == "L2",
+          str(P.provable_to([walk, refill])))
+    bad_walk = P.parse_line("PROP-EVT: kind=tlb_walk fault_id=7 corr=origin "
+                            "va=1000 dyn_inst_seq=1 request_id=1")
+    check("tlb_walk missing walk_id flagged",
+          len(P.validate_event(bad_walk)) == 1,
+          str(P.validate_event(bad_walk)))
+    bad_refill = P.parse_line("PROP-EVT: kind=tlb_refill fault_id=7 "
+                              "corr=origin va=1000 field=lost")
+    check("tlb_refill missing walk_id flagged",
+          len(P.validate_event(bad_refill)) == 1,
+          str(P.validate_event(bad_refill)))
 
     print("[5] [R4-4] tlb_pfn seq-PRIMARY 关联契约（2026-10-20 裁决）")
     # R4-4：MMU::getTE 向 TLB 发布在飞翻译的 Request 身份 → tlb_pfn 链

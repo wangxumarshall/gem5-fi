@@ -325,6 +325,15 @@ MODEL_FLAGS = {
     "T03": ("armtlb", ["--tlb_fault_type", "stuck_at_zero"]),  # stuck1 by seed parity
     "T04": ("armtlb", ["--tlb_fault_type", "pfn_to_mapped_page"]),
     "T10": ("armtlb", ["--tlb_fault_type", "bit_flip"]),  # approx: no banding submodel
+    # [MDSPEC][R4-5.9] T08: FS page-table walk/fill pairing (T08-a lost
+    # walk) — the walk is DROPPED at its issue point (TableWalker::walk) so
+    # the requesting translation never completes (spec Timeout channel).
+    # Rides the event-normalized tier on the walk-issue stream
+    # (--tlb_lsu_tier <F>; the armtlb branch below appends it). Landed
+    # compile-unverified by the isolated worktree; FS-only — neither the
+    # build nor the pilot can run here (see MODEL_BLOCKED["T08"] and the
+    # R4-5.9 report). NOT removed from MODEL_BLOCKED: no real-run evidence.
+    "T08": ("armtlb", ["--tlb_fault_type", "walk_pairing"]),
 }
 
 # ---- FS carrier (M3 plan Task 5/6 decision tree) ----
@@ -420,7 +429,17 @@ MODEL_BLOCKED = {
     "T05": "deferred(mode unimplemented: valid/global/ASID state)",
     "T06": "deferred(mode unimplemented: permission legal-substitution)",
     "T07": "deferred(mode unimplemented: hit fabrication/way select)",
-    "T08": "deferred(mode unimplemented: walk pairing)",
+    # [MDSPEC][R4-5.9] T08: the walk/fill pairing MODE now exists
+    # (faultType=walk_pairing, T08-a lost walk — TableWalker::walk drops the
+    # walk; registerTlbWalkPair emits the tlb_walk/tlb_refill node pair).
+    # It is NOT removed from MODEL_BLOCKED: the C++ is compile-unverified
+    # (this worktree may not build) AND the model is FS-only, so no real-run
+    # evidence (injection log / chain / activated) exists yet. Removing the
+    # block requires a real campaign run with a non-empty injection log +
+    # lsu_chain_check edges (mode_unimpl_plan §逐项落地模板 step 5). The
+    # honest phrase is kept; the routing is live (MODEL_FLAGS["T08"]).
+    "T08": ("landed compile-unverified, pilot pending (FS-only; integration "
+            "owns build + FS census + campaign; see R4-5.9 report)"),
 }
 # O05-O07 are multicore-semantic models — their cells sit on Atomic-Litmus/
 # PARSEC (workload-blocked); add the model-level reason for robustness.
@@ -861,6 +880,12 @@ def resolve_cell(cell):
                  "--chaos_armtlb", "--tlb_first_clock", "1000",
                  "--tlb_probability", "1.0",
                  "--tlb_max_faults", "1"] + extra
+        # [MDSPEC][R4-5.9] T08 walk_pairing is event-normalized: arm the tier
+        # from the cell's F column (the walk-issue stream is the eligible
+        # stream). The lookup modes (T01-T04/T10) carry NO tier (lsuTier
+        # stays "off" — byte-equivalent to the pre-R4-5.9 tree).
+        if "walk_pairing" in extra:
+            flags += ["--tlb_lsu_tier", freq]
         return flags, TLB_PROBE_GOLDEN, "fs:tlb_probe"
 
     # 4. workload must have an SE binary + golden

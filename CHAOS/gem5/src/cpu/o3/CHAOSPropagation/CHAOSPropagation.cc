@@ -1124,6 +1124,64 @@ namespace gem5
         return ptag;
     }
 
+    // [MDSPEC][R4-5.9] T08 walk/fill pairing. Two PROP-EVT nodes for ONE
+    // walk, sharing walk_id (the pairing key) and ptag (the chain binding):
+    //   tlb_walk   — tick = the walk's ISSUE tick (walker entry)
+    //   tlb_refill — tick = the refill completion tick; field=lost and
+    //                outcome=lost when the refill never arrived (T08-a)
+    // The walk_id equality + the two distinct ticks are the pairing
+    // evidence; a lost refill is recorded explicitly, never fabricated.
+    uint64_t
+    CHAOSPropagation::registerTlbWalkPair(uint64_t walk_id, Addr va,
+                                          uint64_t req_seq,
+                                          uint64_t walk_start_tick,
+                                          uint64_t refill_tick,
+                                          unsigned level, bool fill_lost,
+                                          const char *mode)
+    {
+        if (!write_log)
+            return 0;
+        const uint64_t ptag = ++next_ptag;
+        std::ostringstream h_va;
+        h_va << std::hex << va;
+
+        std::ostringstream d_walk;
+        d_walk << "family=tlb;site=tlb_walk;walk_id=" << walk_id
+               << ";level=L" << level << ";start_tick=" << walk_start_tick
+               << ";req_seq=" << req_seq;
+        notePropEvt("tlb_walk", {
+            {"fault_id", std::to_string(ptag)},
+            {"corr", CORR_ORIGIN},
+            {"walk_id", std::to_string(walk_id)},
+            {"va", h_va.str()},
+            {"dyn_inst_seq", std::to_string(req_seq)},
+            {"request_id", std::to_string(req_seq)},
+            {"tick", std::to_string(walk_start_tick)},
+            {"field", mode},
+        });
+
+        // The refill node. field=lost marks the T08-a lost-refill outcome
+        // (the refill that never arrived) so downstream joins can prove the
+        // walk was unpaired rather than silently absent.
+        const char *refill_field = fill_lost ? "lost" : mode;
+        std::ostringstream d_refill;
+        d_refill << "family=tlb;site=tlb_refill;walk_id=" << walk_id
+                 << ";level=L" << level
+                 << ";outcome=" << (fill_lost ? "lost" : "refilled")
+                 << ";refill_tick=" << refill_tick
+                 << ";req_seq=" << req_seq;
+        notePropEvt("tlb_refill", {
+            {"fault_id", std::to_string(ptag)},
+            {"corr", CORR_ORIGIN},
+            {"walk_id", std::to_string(walk_id)},
+            {"va", h_va.str()},
+            {"field", refill_field},
+            {"outcome", fill_lost ? "lost" : "refilled"},
+            {"tick", std::to_string(refill_tick)},
+        });
+        return ptag;
+    }
+
     void
     CHAOSPropagation::noteFunnel(const char *site, uint64_t attempted,
                                  uint64_t eligible, uint64_t injected)
