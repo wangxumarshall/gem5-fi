@@ -1,0 +1,173 @@
+{
+  "cli_version": "0.10.2",
+  "checkpoint_id": "01M5F0M0662TZT3QQ2DBK8YSQK",
+  "session_id": "f10ec8b6-876e-4f70-bcfc-d93ac6646edb",
+  "strategy": "manual-commit",
+  "created_at": "2026-10-21T10:37:59.248213757Z",
+  "branch": "r4-5.7-s10",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "CHAOS/gem5/src/cpu/o3/CHAOSLSQFwd/CHAOSLSQFwd.cc",
+    "CHAOS/gem5/src/cpu/o3/CHAOSLSQFwd/CHAOSLSQFwd.hh",
+    "CHAOS/gem5/src/cpu/o3/CHAOSLSQFwd/CHAOSLSQFwd.py",
+    "CHAOS/gem5/src/cpu/o3/CHAOSPropagation/CHAOSPropagation.cc",
+    "CHAOS/gem5/src/cpu/o3/CHAOSPropagation/CHAOSPropagation.hh",
+    "CHAOS/gem5/src/cpu/o3/chaos_lsu_trigger.hh",
+    "configs/se/lsu_proxy.py",
+    "tests/test_lsu_hook_c11.py",
+    "tests/test_lsu_hook_c12.py",
+    "tests/test_lsu_hook_l04.py",
+    "tools/lsu_campaign.py",
+    "tools/lsu_runid_map.py"
+  ],
+  "agent": "Claude Code",
+  "model": "DeepSeek-V4.1-Flash",
+  "turn_id": "3ccabd6808d7",
+  "checkpoint_transcript_start": 849,
+  "transcript_lines_at_start": 849,
+  "compact_transcript_start": 112,
+  "token_usage": {
+    "input_tokens": 42185,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 3377536,
+    "output_tokens": 23632,
+    "api_call_count": 14
+  },
+  "skill_events_version": 1,
+  "skill_events": [
+    {
+      "id": "prompt-skill-claude-code-superpowers:subagent-driven-development-2026-10-20T13:07:33.695383955Z",
+      "event_type": "prompt_invocation",
+      "skill": {
+        "name": "superpowers:subagent-driven-development"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "prompt_slash_command",
+        "confidence": "explicit"
+      },
+      "turn_id": "be3027e9a5e7",
+      "timestamp": "2026-10-20T13:07:33.695383955Z",
+      "native": {
+        "command": "/superpowers:subagent-driven-development"
+      },
+      "collapse": {
+        "target": "user_message",
+        "label": "/superpowers:subagent-driven-development",
+        "default_collapsed": true
+      }
+    },
+    {
+      "id": "prompt-skill-claude-code-superpowers:subagent-driven-development-2026-10-20T15:16:13.549892938Z",
+      "event_type": "prompt_invocation",
+      "skill": {
+        "name": "superpowers:subagent-driven-development"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "prompt_slash_command",
+        "confidence": "explicit"
+      },
+      "turn_id": "7f0b7e96f988",
+      "timestamp": "2026-10-20T15:16:13.549892938Z",
+      "native": {
+        "command": "/superpowers:subagent-driven-development"
+      },
+      "collapse": {
+        "target": "user_message",
+        "label": "/superpowers:subagent-driven-development",
+        "default_collapsed": true
+      }
+    },
+    {
+      "id": "prompt-skill-claude-code-superpowers:subagent-driven-development-2026-10-21T00:08:39.840554932Z",
+      "event_type": "prompt_invocation",
+      "skill": {
+        "name": "superpowers:subagent-driven-development"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "prompt_slash_command",
+        "confidence": "explicit"
+      },
+      "turn_id": "a06a18065112",
+      "timestamp": "2026-10-21T00:08:39.840554932Z",
+      "native": {
+        "command": "/superpowers:subagent-driven-development"
+      },
+      "collapse": {
+        "target": "user_message",
+        "label": "/superpowers:subagent-driven-development",
+        "default_collapsed": true
+      }
+    },
+    {
+      "id": "prompt-skill-claude-code-superpowers:subagent-driven-development-2026-10-21T02:05:06.595386958Z",
+      "event_type": "prompt_invocation",
+      "skill": {
+        "name": "superpowers:subagent-driven-development"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "prompt_slash_command",
+        "confidence": "explicit"
+      },
+      "turn_id": "aa318b6e61b7",
+      "timestamp": "2026-10-21T02:05:06.595386958Z",
+      "native": {
+        "command": "/superpowers:subagent-driven-development"
+      },
+      "collapse": {
+        "target": "user_message",
+        "label": "/superpowers:subagent-driven-development",
+        "default_collapsed": true
+      }
+    },
+    {
+      "id": "prompt-skill-claude-code-superpowers:subagent-driven-development-2026-10-21T03:00:49.1005616Z",
+      "event_type": "prompt_invocation",
+      "skill": {
+        "name": "superpowers:subagent-driven-development"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "prompt_slash_command",
+        "confidence": "explicit"
+      },
+      "turn_id": "a76a64d46609",
+      "timestamp": "2026-10-21T03:00:49.1005616Z",
+      "native": {
+        "command": "/superpowers:subagent-driven-development"
+      },
+      "collapse": {
+        "target": "user_message",
+        "label": "/superpowers:subagent-driven-development",
+        "default_collapsed": true
+      }
+    }
+  ],
+  "session_metrics": {
+    "turn_count": 2
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-10-21T10:37:58.94694924Z",
+    "agent_lines": 770,
+    "agent_removed": 10,
+    "human_added": 1088,
+    "human_modified": 12,
+    "human_removed": 0,
+    "total_committed": 1870,
+    "total_lines_changed": 1886,
+    "agent_percentage": 41.35737009544008,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    }
+  ]
+}
