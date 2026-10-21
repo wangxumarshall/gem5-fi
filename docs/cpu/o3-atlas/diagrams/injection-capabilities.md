@@ -14,14 +14,13 @@
 | LSQ（LSQ（LQ/SQ·store→load 前送·独占监视）） | **CHAOSLSQFwd** | 6 | byte_flip, byte_lane_skew, stale_line_replay, all_zero, fwd_source_sub, phase_offset | store→load 前送数据通路（字节/车道/陈旧行/源替换/相位） | CHAOS/gem5/src/cpu/o3/lsq_unit.cc:338 |
 | LSQ（LSQ（LQ/SQ·store→load 前送·独占监视）） | **CHAOSExMon** | 2 | stxr_force_success, stxr_force_fail | 独占监视器（STXR 强制成败/监视器状态） | CHAOS/gem5/src/cpu/o3/lsq_unit.cc:338 |
 | FU（FU 池） | **CHAOSExec** | — | 整数结果 XOR 位翻转（exec_fault_mask 参数化） | 整数执行结果（IntAlu/IntMult/IntDiv 结果 XOR） | CHAOS/gem5/src/cpu/o3/dyn_inst.cc:367 |
-| FU（FU 池） | **CHAOSFPU** | 6 | , , , , , , , , , , ,
-                         | 浮点结果分段（sign/exp/mantissa + FMA 加权/舍入/FPSR） | CHAOS/gem5/src/cpu/o3/dyn_inst.cc:367 |
+| FU（FU 池） | **CHAOSFPU** | 6 | , , , , , , , , , , ,| 浮点结果分段（sign/exp/mantissa + FMA 加权/舍入/FPSR） | CHAOS/gem5/src/cpu/o3/dyn_inst.cc:367 |
 | TLBPATH（地址通路（翻译前 vaddr·TLB）） | **CHAOSAddrPath** | 2 | byte7_zero, low_bit_flip | 翻译前虚地址（byte7 清零/低位翻转） | CHAOS/gem5/src/cpu/o3/lsq.cc:1176 |
 | L1D（L1D 返回通路（ECC 后包数据）） | **CHAOSL1DForward** | — | L1D 返回包数据位翻转（fault_mask 参数化） | L1D 返回包数据（ECC 检查后注入） | CHAOS/gem5/src/cpu/o3/lsq_unit.cc:200 |
 | L1D（L1D 返回通路（ECC 后包数据）） | **CHAOSCache** | — | cache 行数据注入（arm_chaos_cache 配置族） | cache 行数据（L1D/L1I/L2） | CHAOS/gem5/src/cpu/o3/lsq_unit.cc:200 |
 | DRAM（内存子系统（DRAM 保护模型）） | **CHAOSMem** | — | 参数化注入 | DRAM 侧（保护模型 + 概率位翻转/stuck） | CHAOS/gem5/src/mem/CHAOSMem/CHAOSMem.cc |
 | PRF（PRF 物理寄存器堆） | **CHAOSPhysReg** | 3 | phys, arch_frontend, arch_commit | PRF 槽位值（bitflip/stuck，phys/arch_frontend/arch_commit 定位） | CHAOS/gem5/src/cpu/o3/CHAOSPhysReg/CHAOSPhysReg.cc:201 |
-| ROB（ROB 重排序缓冲（pc·dest·done·exc·指针）） | **CHAOSROB** | 28 | entry_bitflip, exc_suppress, pc_bitflip, pc_bitflip2, pc_stuck, pc_bitflip2_adj, pc_bitflip2_nonadj, destid_bitflip, destid_bitflip2, destid_bitflip2_adj, destid_bitflip2_nonadj, destid_swap_active, destid_stuck, done_early, done_early_event, done_delay, done_delay_event, rob_stale_read, oldphys_bitflip, oldphys_bitflip2, oldphys_swap_active, oldphys_stuck, head_ptr_bitflip, head_ptr_bitflip2, head_ptr_stuck, tail_ptr_bitflip, tail_ptr_bitflip2, tail_ptr_stuck | ROB 表项字段（pc/dest/done/exc/oldphys/头尾指针）+ done 位时序 | CHAOS/gem5/src/cpu/o3/rob.cc:236 |
+| ROB（ROB 重排序缓冲（pc·dest·done·exc·指针）） | **CHAOSROB** | 28 | entry_bitflip, exc_suppress, pc_bitflip, pc_bitflip2, pc_stuck, pc_bitflip2_adj, pc_bitflip2_nonadj, destid_bitflip, destid_bitflip2, destid_bitflip2_adj, destid_bitflip2_nonadj, destid_swap_active, destid_stuck, done_early, done_early_event, done_delay,done_delay_event, rob_stale_read, oldphys_bitflip, oldphys_bitflip2, oldphys_swap_active, oldphys_stuck, head_ptr_bitflip, head_ptr_bitflip2, head_ptr_stuck, tail_ptr_bitflip, tail_ptr_bitflip2, tail_ptr_stuck | ROB 表项字段（pc/dest/done/exc/oldphys/头尾指针）+ done 位时序 | CHAOS/gem5/src/cpu/o3/rob.cc:236 |
 | ROB（ROB 重排序缓冲（pc·dest·done·exc·指针）） | **CHAOSRAS** | — | 提交期 head fault 清除（异常抑制） | 提交期异常抑制（清除 head 挂起 fault） | CHAOS/gem5/src/cpu/o3/rob.cc:236 |
 | ARCHRF（架构寄存器堆（提交态）） | **CHAOSReg** | 4 | bit_flip, stuck_at_zero, stuck_at_one, random | 提交态架构寄存器（GPR/FPR，bitflip/stuck-at/random + 永久化） | CHAOS/gem5/src/CHAOSReg/CHAOSReg.cc:287 |
 | OBS（观测器（占基采样·commit 轨迹，只读）） | **CHAOSProbe** | — | 参数化注入 | 观测器：ROB/IQ/FreeList 占基采样（只读） | CHAOS/gem5/src/cpu/o3/commit.cc:1299 |
