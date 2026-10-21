@@ -11,6 +11,7 @@
 #include "cpu/base.hh"
 #include "cpu/o3/chaos_l0.hh"           // LSU W3 L0 funnel + item lifecycle
 #include "cpu/o3/chaos_lsu_trigger.hh"  // LSU W2 event-normalized tiers
+#include "cpu/o3/dyn_inst_ptr.hh"       // [MDSPEC][R4-5.8] DynInstPtr (A07 ready hook)
 #include "mem/request.hh"
 
 namespace gem5 { namespace o3 { class CPU; } }
@@ -44,7 +45,8 @@ class CHAOSAddrPath : public SimObject
     // a06_size (access-size substitution; byte_enable is const at this
     // hook — size only), a08_subst (same-page, no object constraint).
     unsigned int maybeCorruptPre(Addr& addr, unsigned int size, bool isLoad,
-                               Request::Flags& flags);
+                               Request::Flags& flags,
+                               uint64_t dyn_inst_seq);
 
     // [LSU][OBS-L3] true iff the PREVIOUS maybeCorruptPre call on this
     // injector performed an injection. The lsq.cc pushRequest call site
@@ -54,7 +56,54 @@ class CHAOSAddrPath : public SimObject
     // cannot see them.
     bool lastPreHookInjected() const { return obs_pre_hook_injected; }
 
+    // [MDSPEC][R4-5.8] A07 AGU clean-ready / handshake hook (03 sheet A07:
+    // "AGU 结果的 address-ready 握手信号与 EA 流水锁存器"). Called from
+    // IEW::executeInsts' isMemRef branch — THE ready/handshake point of
+    // this microarchitecture: the scheduler (IQ) has just handed a READY
+    // memory instruction to the LSQ to calculate its address (the AGU =
+    // initiateAcc inside executeLoad/executeStore); the DPRINTF right
+    // above the call site literally reads "Calculating address for memory
+    // reference". This is the single per-memory-instruction point where a
+    // real AGU's address-ready signal would fire, BEFORE the EA exists
+    // (the AGU runs inside initiateAcc) — which is exactly why no earlier
+    // hook (pushRequest PRE = the AGU's raw OUTPUT, sendFragment POST =
+    // the DTLB input) could express a ready-timing fault.
+    //
+    // Landed sub-model = A07-b (ready delayed, bounded): with the
+    // trigger's consent the ready handshake for ONE plain load/store is
+    // delayed by agu_ready_delay_cycles CPU clock edges — the instruction
+    // is NOT executed this cycle; this injector's aguResumeEvent re-enters
+    // the execute path (IEW::chaosAguResumeInst) at the delayed tick, so
+    // the AGU output, the LSQRequest and every downstream event carry the
+    // SAME (correct) values, only shifted in time (spec 03: "不改变值
+    // 本身…数据载荷保持正确"). Attempt stream = every memRef reaching the
+    // ready point; eligibility = plain load/store (atomics are the O-family
+    // RMW territory, prefetches the P-family's; op-class filter BEFORE the
+    // trigger decision, F-049 discipline). F6 fires at the FIRST eligible
+    // ready event (onF6Event(false) — the ready hook already booked this
+    // invocation's attempt; the EIGHTH F6 event source, registered in
+    // chaos_lsu_trigger.hh).
+    //
+    // A07-a (ready early + stale latched EA — the SDC-capable sub-model;
+    // needs the EA-latch value at pushRequest + a value substitution, a
+    // two-point implementation) and A07-c (ready lost — hang/Timeout
+    // channel, needs timeout bookkeeping, L04-a same class) are NOT
+    // landed; see tools/lsu_runid_map.py SPEC_IMPL_LANDED pending list.
+    bool maybeDelayAguReady(const DynInstPtr &inst);
+
   private:
+    // [MDSPEC][R4-5.8] A07-b resume thunk (aguResumeEvent, fires at the
+    // delayed tick = cpu clockEdge(delay)). Single slot (C12 single-slot
+    // discipline): a second fire while one resume is pending is
+    // structurally refused at the hook (obs_agu_slotbusy). agu_fault_seq
+    // drives the EA late binding in maybeCorruptPre: at the DELAYED
+    // instruction's pushRequest entry (the AGU raw output — the first
+    // point the EA exists) the fault chain is bound to the real address
+    // range [addr, addr+size), so the very same request's lsq_push /
+    // mem_req / tlb_translate join by seq+overlap (seq_primary) and the
+    // downstream chain carries REAL va values.
+    void resumeDeferredAgu();
+
     // LSU W4 A-series (03-design-matrix A01-A03, bit-level family on the
     // sendFragmentToTranslation hook = DTLB-input semantics, W1 ⑦ ruling):
     //   A01Bit     single-bit flip, low/mid/high band sampling (A01)
@@ -141,6 +190,27 @@ class CHAOSAddrPath : public SimObject
     bool a06s_retired_warned = false;  // one-time warn for retired a06_size
     static CHAOSAddrPath *f6Consumer;
     static void f6Thunk(ChaOSLsuEvent ev);
+
+    // [MDSPEC][R4-5.8] A07 AGU clean-ready/handshake mode state. Declared
+    // AFTER pre_mode/agu_size_to so the ctor's mem-init order (params,
+    // then the event wrapper) matches declaration order (-Wreorder).
+    std::string agu_ready_mode = "off";   // off | a07b_ready_delay
+    uint64_t agu_ready_delay_cycles = 1;  // A07-b bounded delay (spec: 1)
+    // Pending delayed instruction (single slot). agu_fault_seq drives the
+    // EA late binding at pushRequest (see resumeDeferredAgu note above);
+    // agu_fault_ptag is the chain id returned by registerAguReadyFault.
+    DynInstPtr aguPendingInst;        // stashed until the resume event fires
+    uint64_t agu_fault_seq = 0;
+    uint64_t agu_fault_ptag = 0;
+    bool agu_addr_bound = false;      // late binding done for this fault
+    bool agu_activated = false;       // resume consumed (genuine read-back)
+    // [MDSPEC][OBS-2 shape] post-trigger decline counters (observation
+    // only — every increment sits on a path that already returned).
+    uint64_t obs_agu_opclass = 0;     // ready hook: atomic/prefetch declined
+    uint64_t obs_agu_slotbusy = 0;    // ready hook: single slot occupied
+    // Resume event (C12 fillResumeEvent shape): scheduled at the CPU's
+    // clockEdge(delay); fires IEW::chaosAguResumeInst for the stashed inst.
+    EventFunctionWrapper aguResumeEvent;
 
     std::mt19937 rng;
     std::random_device rd;

@@ -296,6 +296,19 @@ class IEW
      */
     void tick();
 
+    /** [MDSPEC][R4-5.8] A07-b AGU-ready delay resume: re-enter the AGU
+     * execute path for ONE instruction whose address-ready handshake was
+     * delayed by CHAOSAddrPath (agu_ready_mode=a07b_ready_delay) — fires
+     * from the injector's aguResumeEvent at the delayed CPU clock edge.
+     * Mirrors executeInsts' isMemRef() branch verbatim (squash handling,
+     * executeLoad/executeStore dispatch, translation-delay defer, store
+     * executed/commit bookkeeping) so the delayed instruction follows the
+     * exact path an on-time one takes — only the timing differs (spec 03
+     * A07: 数据载荷保持正确). Called from outside (the injector holds the
+     * CPU pointer) — hence public.
+     */
+    void chaosAguResumeInst(const DynInstPtr &inst);
+
   private:
     /** Updates execution stats based on the instruction. */
     void updateExeInstStats(const DynInstPtr &inst);

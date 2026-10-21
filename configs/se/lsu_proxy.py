@@ -524,6 +524,26 @@ p.add_argument("--agu_pre_mode", default="off",
                     "a06s_store_size REMOVED (rejected alias — no silent model-ID rewrite)")
 p.add_argument("--agu_size_to", type=lambda x: int(x,0), default=0,
                help="W4 a06_size: target access size 1|2|4|8|16 (stores only)")
+# [MDSPEC][R4-5.8] A07 AGU clean-ready/handshake family (03 sheet A07:
+# "AGU 结果的 address-ready 握手信号与 EA 流水锁存器"). Hook =
+# IEW::executeInsts' isMemRef branch — THE ready point (the IQ hands a
+# ready mem inst to the LSQ to calculate its address; the AGU =
+# initiateAcc inside executeLoad/executeStore); BEFORE the EA exists,
+# which is why the PRE (pushRequest = AGU raw output) and POST
+# (sendFragment = DTLB input) hooks cannot express the ready-timing
+# model. Landed sub-model: a07b_ready_delay (A07-b bounded ready delay,
+# spec "延后1周期"; data payload stays correct). A07-a (ready early +
+# stale latched EA) / A07-c (ready lost) pending — MDSPEC
+# SPEC_IMPL_LANDED. LSU-trigger-native + one-hook-per-run (W1-⑦).
+p.add_argument("--agu_ready_mode", default="off",
+               choices=["off","a07b_ready_delay"],
+               help="[MDSPEC][R4-5.8] A07 AGU clean-ready/handshake hook "
+                    "(IEW executeInsts memRef branch). a07b_ready_delay = "
+                    "A07-b bounded ready delay; requires --addrpath_lsu_tier; "
+                    "mutually exclusive with --agu_pre_mode")
+p.add_argument("--agu_ready_delay_cycles", type=lambda x: int(x,0), default=1,
+               help="A07-b: ready handshake delayed by N CPU clock edges "
+                    "(bounded, >=1; spec default 1 = 延后1周期)")
 # §2.14 CHAOSDecode (O3 decode-unit injector). SELF-ATTACHES at startup()
 # to cpu.chaosDecode. Hooks rename.cc:1137 post-flattenedDestIdx; dest_reg_sub
 # F5 (per-inst, safe — _flatDestIdx is per-DynInst, not shared staticInst).
@@ -1074,6 +1094,21 @@ if args.chaos_bpu:
 if args.chaos_addrpath:
     # §2.4 CHAOSAddrPath: O3-only. SELF-ATTACHES at startup() to
     # cpu.chaosAddrPath (sendFragmentToTranslation calls maybeCorrupt).
+    # [MDSPEC][R4-5.8] A07 config-time validation (the injector's ctor
+    # panics too — this fails BEFORE SimObject construction, A06-ruling
+    # style): agu_ready_mode is LSU-trigger-native, one-hook-per-run
+    # (W1-⑦), and a positive bounded delay.
+    if args.agu_ready_mode != "off":
+        if args.addrpath_lsu_tier == "off":
+            p.error("--agu_ready_mode requires --addrpath_lsu_tier "
+                    "(A07 is LSU-trigger-native; the legacy cycle-window "
+                    "path is not offered at the ready hook)")
+        if args.agu_pre_mode != "off":
+            p.error("--agu_ready_mode and --agu_pre_mode are mutually "
+                    "exclusive (one hook per run, W1-⑦)")
+        if args.agu_ready_delay_cycles < 1:
+            p.error("--agu_ready_delay_cycles must be >= 1 (A07-b bounded "
+                    "delay; 0 is a no-op)")
     ap = CHAOSAddrPath(
         cpu=cpu0,
         mode=args.addrpath_mode,
@@ -1089,6 +1124,8 @@ if args.chaos_addrpath:
         f6Mode=args.addrpath_f6_mode,
         preMode=args.agu_pre_mode,
         aguSizeTo=args.agu_size_to,
+        aguReadyMode=args.agu_ready_mode,
+        aguReadyDelayCycles=args.agu_ready_delay_cycles,
     )
     board.chaos_addrpath = ap
 

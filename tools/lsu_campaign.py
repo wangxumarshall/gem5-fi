@@ -184,6 +184,14 @@ MODEL_FLAGS = {
     # 旧名 a06s_store_size 为被拒别名（不得私改模型 ID，无 A06S RunID 族）。
     "A06": ("addrpath", ["--agu_pre_mode", "a06_size", "--agu_size_to", "2"]),
     "A08": ("addrpath", ["--agu_pre_mode", "a08_subst"]),
+    # [MDSPEC][R4-5.8] A07 AGU clean-ready/handshake timing model (03 sheet
+    # A07-b "ready延迟"): --agu_ready_mode a07b_ready_delay at the IEW
+    # memRef ready point (IEW::executeInsts), bounded delay pinned to the
+    # spec's 延后1周期. A07 stays in MODEL_BLOCKED until the integration
+    # build + ADDRPATH_F0_SPAN census + pilot proof land (C11/C12/L04
+    # discipline: delete from MODEL_BLOCKED only when real runs assert it).
+    "A07": ("addrpath", ["--agu_ready_mode", "a07b_ready_delay",
+                          "--agu_ready_delay_cycles", "1"]),
     # --- SQ data/forwarding family on CHAOSLSQFwd (W5 b41f4d9a verified) ---
     "S01": ("lsqfwd", ["--lsq_struct_mode", "byte_flip"]),
     "S02": ("lsqfwd", ["--lsq_struct_mode", "byte_flip", "--bits_to_change", "2"]),
@@ -341,7 +349,24 @@ MODEL_BLOCKED = {
     "C14": "deferred(consumer-side: MSHR busy event source only)",
     "C15": "deferred(consumer-side: MSHR occupancy event source only)",
     # no clean hook (documented in injector headers / W4-W8 session notes)
-    "A07": "deferred(R4: no clean hook)",
+    # [MDSPEC][R4-5.8] A07 hook LANDED (IEW::executeInsts memRef branch =
+    # the AGU clean-ready/handshake point; CHAOSAddrPath agu_ready_mode=
+    # a07b_ready_delay + delay 1, MODEL_FLAGS["A07"] routes it) but the
+    # mode is COMPILE-UNVERIFIED and NOT pilot-proven — this session was
+    # forbidden to build or run. Keep A07 blocked until the integration
+    # checklist completes (delete this entry only after, the C11/C12/L04
+    # discipline): (1) integration build; (2) ADDRPATH_F0_SPAN census for
+    # (A07, agu_addrmodes) and (A07, sq_forward) — A07-F0 cells then stop
+    # hitting the BLOCKED(F0-span-unmeasured) refusal; (3) a passing
+    # pilot (injection log non-empty + lsu_chain_check per-edge record).
+    # NOTE (merge-order): the R4-5.4 P06 MODEL_BLOCKED entry was already
+    # deleted on the integration branch (P06 landed and pilot-proven) —
+    # this merge keeps it deleted and does NOT reintroduce it.
+    "A07": ("deferred(R4-5.8 landed compile-unverified: AGU clean-ready "
+            "hook + A07-b ready-delay mode implemented; pending integration "
+            "build + ADDRPATH_F0_SPAN census (A07,agu_addrmodes)/"
+            "(A07,sq_forward) + pilot proof — delete after, C11/C12/L04 "
+            "discipline)"),
     "O04": "deferred(RMW data path needs cache-side SwapResp hook)",
     "O09": "deferred(RMW operand path needs cache-side hook)",
     # B0 protection rows (09 §6.4): not applicable, never zero-filled
@@ -396,10 +421,45 @@ def assert_formal_f6_mode(mode):
     return None
 
 
-def _addrpath_tier_flags(tier):
-    flags = ["--addrpath_lsu_tier", tier,
-             "--addrpath_warmup_events", "0",
-             "--addrpath_span_events", "1000"]
+# [MDSPEC][R4-5.8] A07 (agu_ready a07b_ready_delay) F0 span table — the
+# SAME per-(model, workload binary) contract as LSQFWD_F0_SPAN /
+# CACHE_F0_SPAN above (an unmeasured pair is refused LOUDLY by
+# resolve_cell -> BLOCKED(F0-span-unmeasured), never a silent reuse of
+# another pair's span; the teardown CHAOS_LSU_TRIGGER eligible= is the
+# stream size when measured with tier=F0 + span=1000000). The A07
+# eligible stream = plain (non-atomic, non-prefetch) loads/stores
+# reaching the AGU clean-ready point (IEW::executeInsts' isMemRef
+# branch) — a DIFFERENT stream from the A01-A03 sendFragment fragments
+# and every PRE-family model, measured separately. THE TWO A07 ENTRIES
+# ARE DELIBERATELY ABSENT: this session was forbidden to run the census
+# (no build, no gem5 runs). The main agent must measure, with the
+# rebuilt binary (commands in R4-5.8-report.md):
+#   (A07, "agu_addrmodes")  — W3 AGU-AddrModes probe
+#   (A07, "sq_forward")     — W5 SQ-Forward probe
+# then set them here. A07-F0 cells refuse loudly until then.
+ADDRPATH_F0_SPAN = {
+    # (model, workload binary) -> measured eligible event stream size
+}
+
+
+def _addrpath_tier_flags(model, tier, wl_binary=None):
+    # [MDSPEC][R4-5.8] A07: per-(model, workload) F0 span with the
+    # LSQFWD_F0_SPAN loud-refusal contract (see ADDRPATH_F0_SPAN above);
+    # warmup=1 + span=N = the TRUE F0-uniform parameterization. Every
+    # other addrpath model keeps the historical tier flags byte-identical
+    # (the pre-R4-5.8 span=1000 family default — the R4-2 §2.4 parked
+    # addrpath-span item, unchanged by this task).
+    if model == "A07" and tier == "F0":
+        span = ADDRPATH_F0_SPAN.get((model, wl_binary))
+        if span is None:
+            return None   # resolve_cell turns this into a loud BLOCKED cell
+        flags = ["--addrpath_lsu_tier", tier,
+                 "--addrpath_warmup_events", "1",
+                 "--addrpath_span_events", str(span)]
+    else:
+        flags = ["--addrpath_lsu_tier", tier,
+                 "--addrpath_warmup_events", "0",
+                 "--addrpath_span_events", "1000"]
     if tier == "F6":
         # 显式钉死规格 F6 语义并过正式门禁（防 steady_state 混入正式样本）
         assert_formal_f6_mode(F6_DEFAULT_MODE)
@@ -605,7 +665,11 @@ def _prefetch_tier_flags(model, tier, wl_binary=None):
 
 
 FAMILY_TIER_FLAGS = {
-    "addrpath": lambda model, tier, wl_binary=None: _addrpath_tier_flags(tier),
+    # [MDSPEC][R4-5.8] model-aware since A07: the A07-F0 arm consults
+    # ADDRPATH_F0_SPAN (loud refusal on unmeasured pairs, the
+    # LSQFWD_F0_SPAN contract); every other addrpath model is
+    # byte-identical to the pre-A07 family lambda.
+    "addrpath": _addrpath_tier_flags,
     # [MDSPEC][R4-1-review-I2] per-(model, workload) F0 span (see
     # LSQFWD_F0_SPAN above). This lambda appends AFTER FAMILY_MOUNT and
     # argparse takes the LAST occurrence, so the span must be fixed HERE (a
@@ -720,10 +784,12 @@ def resolve_cell(cell):
     if tier_flags is None:
         # [MDSPEC][R4-5.1] name the family's own span table in the refusal
         # (cache/C11-C12 -> CACHE_F0_SPAN; lsqfwd -> LSQFWD_F0_SPAN;
-        # [R4-5.4] prefetch/P06 -> PF_F0_SPAN).
+        # [R4-5.4] prefetch/P06 -> PF_F0_SPAN; [R4-5.8] addrpath/A07 ->
+        # ADDRPATH_F0_SPAN).
         span_table = {"cache": "CACHE_F0_SPAN",
                       "lsqfwd": "LSQFWD_F0_SPAN",
-                      "prefetch": "PF_F0_SPAN"}.get(
+                      "prefetch": "PF_F0_SPAN",
+                      "addrpath": "ADDRPATH_F0_SPAN"}.get(
                           family, "LSQFWD_F0_SPAN")
         return None, None, (
             "BLOCKED(F0-span-unmeasured: model %s on workload %s — measure "

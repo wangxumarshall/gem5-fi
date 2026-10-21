@@ -243,6 +243,43 @@ def generate_map(xlsx_path):
                "+ census LSQFWD_F0_SPAN[(S10,sq_forward)/(S10,gap_bfs)] + "
                "pilot 6 cells x 3 seeds + chain check before this entry "
                "carries real-run evidence (R4-5.7-report.md checklist))",
+        # A07（6 RunID，阻塞短语 "R4: no clean hook"）：[R4-5.8] AGU
+        # clean-ready/握手钩子已落地——IEW::executeInsts 的 isMemRef 分支
+        # （调度器把就绪访存指令交给 LSQ 算地址的那一点，AGU=其中的
+        # initiateAcc；EA 尚不存在，故 PRE（pushRequest=AGU 原始输出）与
+        # POST（sendFragment=DTLB 输入）两族钩子都表达不了 ready 时序）。
+        # 落地子模型=A07-b 有界 ready 延迟（agu_ready_mode=a07b_ready_delay，
+        # 延迟 1 个 CPU clock edge，spec"延后1周期"；resume 事件在延迟拍再入
+        # 同一执行路径——数据载荷保持正确，只有时序移动；EA 晚绑定：延迟
+        # 指令的 EA 进入 LSQ 时把链绑到真实地址区间，lsq_push/mem_req/
+        # tlb_translate 按 seq+overlap 入链）。
+        # [诚实登记] 本项落地会话被禁止构建/运行：C++ COMPILE-UNVERIFIED、
+        # 无 pilot 证据；A07 保持在 lsu_campaign.MODEL_BLOCKED（集成侧
+        # build + ADDRPATH_F0_SPAN census + pilot 通过后才删，C11/C12/L04
+        # 纪律）。本登记解除的是规格侧"无 clean ready/握手注入 hook"前提
+        # （钩子已存在可审计），非完成声明。
+        # 未落地（pending）：A07-a ready 过早并使用旧 EA（SDC 通道——需
+        # EA 流水锁存值观测 + 值替换，两点实现）；A07-c ready 丢失（hang/
+        # Timeout 通道，需超时簿记——L04-a 同类）。
+        "A07": "implemented(agu_ready=a07b bounded AGU-ready delay "
+               "(delay_cycles=1, spec '延后1周期') at the IEW::executeInsts "
+               "isMemRef ready/handshake point — CHAOSAddrPath "
+               "agu_ready_mode=a07b_ready_delay, resume event re-enters "
+               "the execute path at the delayed clock edge (data payload "
+               "correct, timing only; EA late-bound to the fault chain at "
+               "the delayed instruction's pushRequest so lsq_push/mem_req/"
+               "tlb_translate join by seq+overlap); STATUS: "
+               "COMPILE-UNVERIFIED, no pilot evidence (landing session "
+               "forbidden to build/run; A07 stays in campaign "
+               "MODEL_BLOCKED until integration build + "
+               "ADDRPATH_F0_SPAN census (A07,agu_addrmodes)/"
+               "(A07,sq_forward) + pilot pass — this entry lifts the SPEC "
+               "premise 'no clean ready/handshake injection hook' only, "
+               "the hook exists and is auditable); pending: A07-a "
+               "ready-early + stale latched EA (SDC-capable; needs EA "
+               "pipeline-latch observation + value substitution, a "
+               "two-point implementation), A07-c ready loss (hang/Timeout "
+               "channel, needs timeout bookkeeping — L04-a same class)",
     }
 
     wb = openpyxl.load_workbook(xlsx_path, data_only=True)
