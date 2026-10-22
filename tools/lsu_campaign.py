@@ -507,8 +507,27 @@ MODEL_BLOCKED = {
     # block requires a real campaign run with a non-empty injection log +
     # lsu_chain_check edges (mode_unimpl_plan §逐项落地模板 step 5). The
     # honest phrase is kept; the routing is live (MODEL_FLAGS["T08"]).
-    "T08": ("landed compile-unverified, pilot pending (FS-only; integration "
-            "owns build + FS census + campaign; see R4-5.9 report)"),
+    # [MDSPEC][R4-8-FS] T08-a REAL-MACHINE ASSERTED (2026-10-22, branch
+    # r4-7-fsinfra-w1): a campaign run of T08-F0-W4 seed1 on the frozen
+    # binary (sha256 prefix 7d52bc1392a10055) printed
+    #   Site: arm_tlb_walk_issue_probe  walk_id: 1    (walk-issue hook reached)
+    #   Site: arm_tlb_lookup_hit_skipped              (NOT consumed at lookup-hit)
+    #   Site: arm_tlb_walk_issue_drop   walk_id: 703  (T08-a real drop)
+    # and the PROP-EVT pair tlb_walk/tlb_refill shares walk_id=703 +
+    # fault_id=1 with tlb_refill field=lost — all four R4-6-T08 §4.3
+    # acceptance criteria met. The previous reason ("landed compile-
+    # unverified, pilot pending") is therefore FACTUALLY STALE: compile is
+    # proven (the frozen binary carries the fix strings AND the drop line can
+    # only be emitted by the fixed maybeDropWalkFill), and the pilot ran.
+    # KEPT (not deleted) so nothing silently unblocks: the still-unmeasured
+    # cells are T08-F4/F6-W4/W9, whose F4 landing (50000 + LCG % 100000 walk
+    # events ≈ 9.9e4-1.41e5) has NO measured budget on an FS run. Deleting it
+    # is a one-line integration call — see
+    # docs/gem5-fi/lsu/mdspec/R4-8-FS-W1-report.md §2.3 / §7.2.
+    "T08": ("F0 real-run asserted (T08-F0-W4 seed1: walk_issue_probe + "
+            "walk_issue_drop + tlb_walk/tlb_refill walk_id=703 field=lost; "
+            "R4-8-FS-W1 report §4.3); F4/F6 landing budget UNMEASURED — "
+            "entry kept until integration decides to remove it"),
 }
 # O05-O07 are multicore-semantic models — their cells sit on Atomic-Litmus/
 # PARSEC (workload-blocked); add the model-level reason for robustness.

@@ -168,7 +168,7 @@ def main():
             _fs_run.append(r)
         elif f is None and k.startswith("deferred(mode unimplemented"):
             _fs_modeblk.append(r)
-        elif f is None and "compile-unverified" in k:
+        elif f is None and _lc.MODEL_BLOCKED.get(r.split("-")[0]) == k:
             _fs_t08.append(r)              # T08: MODEL_BLOCKED, needs opt-in
         else:
             _fs_other.append((r, k))
@@ -182,11 +182,16 @@ def main():
           sorted(_fs_modeblk) == sorted(
               [r for r in FS_INFRA if r.split("-")[0] in ("T05", "T06", "T07")]),
           str(_fs_modeblk))
-    check("T08 W4 rows (3) are blocked ONLY by MODEL_BLOCKED (a landed "
-          "compile-unverified model awaiting real-run evidence), not by a "
-          "workload/mode gap",
+    check("T08 W4 rows (3) are blocked ONLY by MODEL_BLOCKED (the model is "
+          "real-run asserted but the entry is kept until integration removes "
+          "it), not by a workload/mode gap",
           sorted(_fs_t08) == ["T08-F0-W4", "T08-F4-W4", "T08-F6-W4"],
           str(_fs_t08))
+    check("T08's block reason no longer claims 'compile-unverified' / "
+          "'pilot pending' (that statement was disproved by the R4-8 real run)",
+          "compile-unverified" not in _lc.MODEL_BLOCKED["T08"]
+          and "real-run asserted" in _lc.MODEL_BLOCKED["T08"]
+          and "UNMEASURED" in _lc.MODEL_BLOCKED["T08"])
     check("no FS-INFRA row resolves to anything else", not _fs_other,
           str(_fs_other))
     check("the FS-INFRA reason is NEVER the bare workload-level fs-infra "
