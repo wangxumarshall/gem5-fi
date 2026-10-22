@@ -91,6 +91,10 @@ CHAOSCache *BaseCache::chaosMshrBusyHook = nullptr;
 // base.hh).
 CHAOSCache *BaseCache::chaosMshrOccHook = nullptr;
 
+// [MDSPEC][R4-9-FSMC] O04/O05/O09 LSE atomic-RMW registry (declared in
+// base.hh).
+CHAOSCache *BaseCache::chaosRmwHook = nullptr;
+
 BaseCache::CacheResponsePort::CacheResponsePort(const std::string &_name,
                                           BaseCache& _cache,
                                           const std::string &_label)
@@ -696,6 +700,20 @@ BaseCache::chaosMshrOccArbitrate(PacketPtr pkt, MSHR *mshr)
         // widening is bounded to one allocation per fabrication.
         clearBlocked((BlockedCause)MSHRQueue_MSHRs);
     }
+}
+
+// [MDSPEC][R4-9-FSMC] O04/O05/O09 LSE atomic-RMW hook (declared in base.hh).
+// Called from satisfyRequest's SwapReq branch right after the atomic op
+// functor ran, so `blk_data` holds the NEW memory value and the packet's
+// data buffer holds the OLD (returned) value. Pure delegation — the
+// injector decides whether this access is its eligible event. nullptr hook
+// = nothing happens (zero regression).
+void
+BaseCache::chaosRmwCommit(PacketPtr pkt, uint8_t *blk_data)
+{
+    if (!chaosRmwHook)
+        return;
+    chaosRmwHook->maybeCorruptRmw(this, pkt, blk_data);
 }
 
 void
@@ -1399,6 +1417,17 @@ BaseCache::satisfyRequest(PacketPtr pkt, CacheBlk *blk, bool, bool)
             // non-atomic cmpAndSwap path below is a W8 refinement (its
             // match/miss verdict is internal to cmpAndSwap) — recorded.
             chaosLsuF6Observe(ChaOSLsuEvent::CasSuccess);
+
+            // [MDSPEC][R4-9-FSMC] O04/O05/O09 LSE atomic-RMW node. At this
+            // point BOTH read-modify-write latches exist: the packet's data
+            // buffer holds the OLD value (set by pkt->setData above, before
+            // the functor ran) and `blk_data` holds the NEW memory value the
+            // RMW just wrote. The registered injector (mounted on this
+            // cache) may mis-route the data-select MUX (O04), flip a bit of
+            // the result/old-value latch (O09) or corrupt the RMW's
+            // completion -- drop it / apply it twice (O05). No-op when no
+            // rmw-mode injector is mounted (chaosRmwHook == nullptr).
+            chaosRmwCommit(pkt, blk_data);
 
             // Inform of this block's data contents update
             if (ppDataUpdate->hasListeners()) {

@@ -111,6 +111,14 @@ KIND_LAYER = {
     "pf_fill": "L3", "pf_demand": "L4",
     # [MDSPEC][H6] atomic 事件链
     "atomic_op": "L2",
+    # [MDSPEC][R4-9-FSMC] O04/O05/O09 LSE 原子读改写（SwapReq 提交点，
+    # BaseCache::satisfyRequest——同点已有 F6 CasSuccess 计数钩子）：
+    #   rmw_data   = O04 数据选择 MUX 错选（old/new 交换，返回锁存器；
+    #                L1 值面瞬态）
+    #   rmw_result = O09 result/old-value 锁存器 1 bit 翻转（L1）
+    #   rmw_order  = O05 RMW 完成握手损坏（丢失/重复一次，数据载荷正确；
+    #                L2 完成时序面）
+    "rmw_data": "L1", "rmw_result": "L1", "rmw_order": "L2",
     # [MDSPEC][H6] exmon（独占监视器）链：LDXR 置（损坏的）monitor(L1) →
     # 保留比较决定 match/mismatch(L2) → STXR 状态消费/重试(L3)
     "exmon_monitor": "L1", "exmon_rmw": "L2", "exmon_stxr": "L3",
@@ -229,6 +237,15 @@ REQUIRED_FIELDS = {
                   "pa"],
     # [MDSPEC][H6] atomic 链
     "atomic_op": ["fault_id", "corr", "dyn_inst_seq", "va"],
+    # [MDSPEC][R4-9-FSMC] O04/O05/O09 RMW 数据面/完成面节点：必录值面对
+    # （before/after）+ 载体（cache_line/entry_index 为地址域关联键；
+    # field 标注子模型规则）+ corr（origin=链开启注册）。
+    "rmw_data": ["fault_id", "corr", "cache_line", "field",
+                 "before", "after"],
+    "rmw_result": ["fault_id", "corr", "cache_line", "field",
+                   "before", "after"],
+    "rmw_order": ["fault_id", "corr", "cache_line", "field",
+                  "state_before", "state_after"],
     # [MDSPEC][H6] exmon 链（monitor 地址 before/after + 保留比较 + STXR
     # 消费/重试；request_id 为 LL-SC 配对键的一部分）
     "exmon_monitor": ["fault_id", "dyn_inst_seq", "request_id", "pa",

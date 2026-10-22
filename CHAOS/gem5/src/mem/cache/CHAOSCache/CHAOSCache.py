@@ -63,7 +63,27 @@ class CHAOSCache(SimObject):
         "capacity the injector fabricates a free slot so one further "
         "allocation runs beyond the arbitration's capacity — the "
         "arbitration's allow/deny decision is genuinely wrong; same trigger "
-        "discipline via lsuTier, legacy periodic attack DISABLED)")
+        "discipline via lsuTier, legacy periodic attack DISABLED) | "
+        "rmw_mux (MDSPEC R4-9-FSMC O04-a: LSE read-modify-write "
+        "data-select MUX mis-route — the OLD (returned) and NEW (memory) "
+        "latches of an atomic CAS/SWP/LDADD are EXCHANGED at the SwapReq "
+        "commit site in BaseCache::satisfyRequest; same trigger discipline "
+        "via lsuTier, legacy periodic attack DISABLED) | rmw_latch "
+        "(MDSPEC R4-9-FSMC O09: ONE bit of the RMW result/old-value latch "
+        "— the value returned to software — is flipped; address/opcode/"
+        "success/timing untouched; same trigger discipline) | rmw_order "
+        "(MDSPEC R4-9-FSMC O05: the RMW's completion is corrupted while the "
+        "DATA stays correct — the memory update is DROPPED (rule=lost) or "
+        "the atomic op is applied TWICE (rule=dup); same trigger discipline)")
+    lsuRmwRule = Param.String("swap_oldnew",
+        "MDSPEC R4-9-FSMC RMW sub-rule, consumed only by the rmw_* "
+        "targetField modes (a mode/rule mismatch is rejected loudly in the "
+        "CHAOSCache ctor — a half-specified model is never silently run). "
+        "swap_oldnew = O04-a old/new exchange (targetField=rmw_mux); "
+        "result_old = O09-a result/old-value latch bit flip "
+        "(targetField=rmw_latch); lost = O05-a RMW dropped; dup = O05-b RMW "
+        "applied twice (targetField=rmw_order). Inert in every other "
+        "targetField mode.")
     lsuFillDelayCycles = Param.UInt64(100,
         "MDSPEC C12 mshr_fill_timing: the fill-timing offset in cache clock "
         "cycles — the deferred fill's processing (handleFill + target "

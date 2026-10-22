@@ -318,6 +318,25 @@ MODEL_FLAGS = {
     "O01": ("exmon", ["--exmon_mode", "o01_monitor_addr_bitflip"]),
     "O02": ("exmon", ["--exmon_mode", "o02_monitor_state_corrupt"]),
     "O03": ("exmon", ["--exmon_mode", "stxr_force_fail"]),  # status-flip semantics
+    # [MDSPEC][R4-9-FSMC] O04/O05/O09 LSE atomic-RMW family: the RMW
+    # data-select MUX (O04-a), the result/old-value latch (O09-a) and the
+    # RMW completion (O05-a lost) are corrupted at the SwapReq commit site
+    # in BaseCache::satisfyRequest (CHAOSCache targetField=rmw_*; the same
+    # event-normalized trigger discipline via --l1d_lsu_tier, F6 = the
+    # first eligible RMW commit). Independence finding (R4-9-FSMC report
+    # §2): the node is the CACHE-side RMW data path — NOT a multi-core
+    # construct; the earlier "needs cache-side SwapResp hook" diagnosis was
+    # right about the gap, wrong about it being a multi-core dependency.
+    # NOTE (honest): the C++ is COMPILE-UNVERIFIED — this worktree may not
+    # build — so the cells STAY in MODEL_BLOCKED until integration builds
+    # the tree, censuses the RMW-commit stream and pilots (the C11/C12/L04
+    # rule: delete only when real runs assert it).
+    "O04": ("cache", ["--l1d_target_field", "rmw_mux",
+                      "--l1d_rmw_rule", "swap_oldnew"]),
+    "O09": ("cache", ["--l1d_target_field", "rmw_latch",
+                      "--l1d_rmw_rule", "result_old"]),
+    "O05": ("cache", ["--l1d_target_field", "rmw_order",
+                      "--l1d_rmw_rule", "lost"]),
     # --- TLB (W7 / M3 plan Task 5): FS-only family on lsu_b0_fs + B0 cpt.
     # faultType surface verified on arm_chaos_fs.py:81-100 (T3 smoke real run).
     # HONEST approximations: T10's low/mid/high pfn-bit banding submodel is
@@ -432,8 +451,22 @@ MODEL_BLOCKED = {
     # NOTE (merge-order): the R4-5.4 P06 MODEL_BLOCKED entry was already
     # deleted on the integration branch (P06 landed and pilot-proven) —
     # this merge keeps it deleted and does NOT reintroduce it.
-    "O04": "deferred(RMW data path needs cache-side SwapResp hook)",
-    "O09": "deferred(RMW operand path needs cache-side hook)",
+    # [MDSPEC][R4-9-FSMC] O04/O09: the RMW data-path hooks NOW EXIST
+    # (CHAOSCache targetField=rmw_mux / rmw_latch at BaseCache::
+    # satisfyRequest's SwapReq branch; MODEL_FLAGS carries the routing) but
+    # the C++ is COMPILE-UNVERIFIED (this worktree may not build) and no
+    # real run has asserted them — same state as C11/C12/L04 at their
+    # landing. The block is KEPT (delete-only-on-real-run-evidence, the
+    # round's rule); the honest phrase replaces the old "needs cache-side
+    # SwapResp hook" gap statement. Reason text keeps a model-gap token
+    # (RMW) so tools/lsu_blocked_triage.py still buckets these as
+    # HOOK-UNIMPL until the integration pilot moves them.
+    "O04": "deferred(RMW data-path hook LANDED (rmw_mux @ SwapReq commit) "
+           "but COMPILE-UNVERIFIED — build + RMW-commit census + pilot "
+           "pending, R4-9-FSMC)",
+    "O09": "deferred(RMW operand hook LANDED (rmw_latch @ SwapReq commit, "
+           "result/old-value latch) but COMPILE-UNVERIFIED — build + "
+           "RMW-commit census + pilot pending, R4-9-FSMC)",
     # B0 protection rows (09 §6.4): not applicable, never zero-filled
     "S12": "不适用(B0无保护)",
     "T09": "不适用(B0无保护)",
@@ -461,7 +494,19 @@ MODEL_BLOCKED = {
 # O05-O07 are multicore-semantic models — their cells sit on Atomic-Litmus/
 # PARSEC (workload-blocked); add the model-level reason for robustness.
 MODEL_BLOCKED.update({
-    "O05": "blocked(multicore-fs: RMW ordering needs multi-core)",
+    # [MDSPEC][R4-9-FSMC] O05: the RMW-completion hook NOW EXISTS
+    # (CHAOSCache targetField=rmw_order, rule=lost — the memory update is
+    # dropped at the SwapReq commit site, DATA payload stays correct;
+    # MODEL_FLAGS carries the routing) but the C++ is COMPILE-UNVERIFIED
+    # and un-piloted, so the block is KEPT (C11/C12/L04 rule). The cells
+    # additionally sit on Atomic-Litmus (W7) — a workload that genuinely
+    # needs the multi-core FS carrier — so the "multicore-fs:" token is
+    # kept deliberately: it is BOTH true and load-bearing for
+    # tools/lsu_blocked_triage.py's FS-MULTICORE bucket (dropping it would
+    # silently re-bucket these RunIDs).
+    "O05": "blocked(multicore-fs: W7 Atomic-Litmus workload; RMW-completion "
+           "hook rmw_order LANDED @ SwapReq commit but COMPILE-UNVERIFIED "
+           "+ un-piloted, R4-9-FSMC)",
     "O06": "blocked(multicore-fs: barrier completion needs multi-core)",
     "O07": "blocked(multicore-fs: order-tag swap needs multi-core)",
     # [LSU][MDSPEC][A6] A06 专项裁决（计划 §2.d，2026-10-19；R4-6-A06
@@ -724,10 +769,31 @@ CACHE_F0_SPAN = {
 def _cache_tier_flags(model, tier, wl_binary=None):
     # Legacy cache models (C01-C10/P07/P09) ride the legacy firstClock
     # mechanism — no LSU trigger flags (byte-identical to the old []).
-    if model not in ("C11", "C12", "C14", "C15"):
+    if model not in ("C11", "C12", "C14", "C15", "O04", "O05", "O09"):
         return []
     # C11 mshr_merge / C12 mshr_fill_timing / C14 mshr_busy_leak / C15
-    # mshr_occupancy: a tier is REQUIRED (the injector panics on 'off').
+    # mshr_occupancy / O04 rmw_mux / O05 rmw_order / O09 rmw_latch: a tier
+    # is REQUIRED (the injector panics on 'off').
+    #
+    # [MDSPEC][R4-9-FSMC] The RMW models' eligible stream is the mounted
+    # L1D's atomic-RMW COMMITS (BaseCache::satisfyRequest's SwapReq branch,
+    # the same event base.cc counts as ChaOSLsuEvent::CasSuccess) — a
+    # DIFFERENT stream from C11's merges / C12's fills / C14's releases /
+    # C15's capacity allocations, so it is per-(model, workload) measured
+    # like every other stream and is DELIBERATELY ABSENT from CACHE_F0_SPAN
+    # until integration runs the census (an unmeasured F0 pair must refuse
+    # LOUDLY, never silently reuse another model's stream — the
+    # R4-1-review-I2 rule):
+    #   build/ARM/gem5.opt --outdir=runs/lsu/r4_9_span/<wl> \
+    #     configs/se/lsu_proxy.py --cmd workloads/directed/<wl> --cpu O3 \
+    #     --chaos_l1d --l1d_target_field rmw_mux --l1d_rmw_rule swap_oldnew \
+    #     --l1d_lsu_tier F0 --l1d_warmup_events 1 --l1d_span_events 1000000 \
+    #     --l1d_max_faults 1 --l1d_rng_seed 1 \
+    #     --chaos_propagation --prop_run_id O04-SPAN-<wl> --prop_sample_run_id s1
+    #   # (--l1d_target_field rmw_latch/--l1d_rmw_rule result_old for O09,
+    #   #  rmw_order/lost for O05; the teardown CHAOS_LSU_TRIGGER eligible=
+    #   #  IS the stream size and the SPAN_UNREACHABLE alarm is the census
+    #   #  intent). Then set e.g. ("O04", "<wl>"): <eligible> here.
     if tier == "F0":
         span = CACHE_F0_SPAN.get((model, wl_binary))
         if span is None:

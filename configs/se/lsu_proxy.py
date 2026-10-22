@@ -180,7 +180,19 @@ p.add_argument("--l1d_rng_seed", type=lambda x: int(x,0), default=20260825)
 p.add_argument("--l1d_target_field", default="data",
                choices=["data","tag","valid","dirty","coh","data_shift",
                         "mshr_merge","mshr_fill_timing","mshr_busy_leak",
-                        "mshr_occupancy"])
+                        "mshr_occupancy",
+                        # [MDSPEC][R4-9-FSMC] O04/O05/O09 LSE atomic-RMW
+                        # modes (SwapReq commit site; same trigger
+                        # discipline via --l1d_lsu_tier).
+                        "rmw_mux","rmw_latch","rmw_order"])
+p.add_argument("--l1d_rmw_rule", default="swap_oldnew",
+               choices=["swap_oldnew","result_old","lost","dup"],
+               help="MDSPEC R4-9-FSMC RMW sub-rule: swap_oldnew = O04-a "
+                    "old/new exchange (targetField=rmw_mux); result_old = "
+                    "O09-a result/old-value latch bit flip "
+                    "(targetField=rmw_latch); lost / dup = O05-a/b RMW "
+                    "dropped / applied-twice (targetField=rmw_order). A "
+                    "mode/rule mismatch is rejected loudly by the injector.")
 p.add_argument("--l1d_protection_model", default="none",
                choices=["none","sed","secded_poison","secded"])
 p.add_argument("--l1d_lsu_tier", default="off",
@@ -809,6 +821,7 @@ def _lsu_b0_caches(root):
             maxFaults=args.l1d_max_faults,
             targetField=args.l1d_target_field,
             protectionModel=args.l1d_protection_model,
+            lsuRmwRule=args.l1d_rmw_rule,
             lsuTier=args.l1d_lsu_tier,
             lsuWarmupEvents=args.l1d_warmup_events,
             lsuSpanEvents=args.l1d_span_events,
