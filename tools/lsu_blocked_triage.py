@@ -25,7 +25,24 @@ from pathlib import Path
 
 # 优先级序（先匹配者胜）——类别名保持稳定，下游脚本按名引用。
 CLASS_ORDER = ["RULING", "LICENSE", "FS-MULTICORE", "FS-INFRA",
-               "MODE-UNIMPL", "HOOK-UNIMPL", "OK"]
+               "MODE-UNIMPL", "HOOK-UNIMPL", "UNRESOLVED",
+               "PLATFORM-DEFECT", "UNCLASSIFIED", "OK"]
+
+# [R5-U4] 单一分类来源。本工具曾自带一套正则（`先实现：`/`spec:需新增` 等旧
+# 词表），在 runid_map 措辞演进后整体失配，产出 `MODE-UNIMPL=23`、且**没有**
+# UNRESOLVED 桶，与权威契约（`lsu_ready_contract._classify`）的 84 项分类
+# 相互矛盾（同一台账三处总数 126/100/106）。按 CLAUDE.md「One classifier,
+# no drift」，改为**从契约产物读取已判定的 category**，不再自行重判。
+CONTRACT_CATS = {"RULING", "LICENSE", "FS-MULTICORE", "FS-INFRA",
+                 "MODE-UNIMPL", "UNRESOLVED", "PLATFORM-DEFECT",
+                 "UNCLASSIFIED"}
+
+
+def classify_from_contract(entry):
+    """契约行 → (class, 理由原文)。契约已在 build_contract 中判定 category。"""
+    cat = entry.get("category") or "UNCLASSIFIED"
+    why = entry.get("why") or entry.get("resolve_reason") or ""
+    return (cat if cat in CONTRACT_CATS else "UNCLASSIFIED"), why
 
 _RULING = re.compile(r"campaign:BLOCKED|A06")
 _LICENSE = re.compile(r"spec-license|SPEC CPU2017")
@@ -60,17 +77,35 @@ def classify(entry):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--map", required=True)
+    ap.add_argument("--map", help="runid_map.json（旧口径，自带正则分类）")
+    ap.add_argument("--contract", help="ready_contract.json（权威口径，"
+                    "直接读其 category —— 推荐，杜绝分类漂移）")
     ap.add_argument("--out", required=True)
+    ap.add_argument("--approval-out", default=None,
+                    help="同时产出『需用户裁决清单』md（同一分类来源，防漂移）")
     a = ap.parse_args()
-    entries = json.loads(Path(a.map).read_text(encoding="utf-8"))["entries"]
+    if not (a.map or a.contract):
+        ap.error("必须给 --contract（推荐）或 --map")
+
+    if a.contract:
+        doc = json.loads(Path(a.contract).read_text(encoding="utf-8"))
+        entries = doc["entries"]
+        source = f"ready_contract.json（权威契约；契约总数 {doc['status']}）"
+    else:
+        entries = json.loads(Path(a.map).read_text(encoding="utf-8"))["entries"]
+        source = "runid_map.json（旧口径）"
+
     blocked = [e for e in entries if e["status"] == "BLOCKED"]
 
     rows, per_class = [], defaultdict(list)
     for e in blocked:
-        cls, why = classify(e)
+        if a.contract:
+            cls, why = classify_from_contract(e)
+        else:
+            cls, why = classify(e)
         per_class[cls].append(e["run_id"])
-        rows.append((e["run_id"], e["unit"], e["model_id"], cls, why))
+        rows.append((e["run_id"], e.get("unit", ""),
+                     e.get("model") or e.get("model_id", ""), cls, why))
 
     cnt = Counter(r[3] for r in rows)
     assert sum(cnt.values()) == len(blocked), "分类必须守恒（互斥且完备）"
@@ -78,7 +113,8 @@ def main():
         if c not in cnt and c != "OK":
             cnt[c] = 0
 
-    L = ["# 126 BLOCKED 逐项裁决（互斥分类）", "",
+    L = [f"# {len(blocked)} BLOCKED 逐项裁决（互斥分类）", "",
+         f"- 分类来源：{source}",
          f"- BLOCKED 总数：{len(blocked)}（守恒校验通过：Σ 分类 == 总数）",
          f"- 分类统计：" + " / ".join(f"{c}={cnt[c]}" for c in CLASS_ORDER), "",
          "## 互斥类别定义", "",
@@ -94,7 +130,7 @@ def main():
          "以下类别**在可预见范围内无法由本轨道单方面解除**，需批准延期：",
          ""]
     deferrable = [c for c in ("LICENSE", "FS-MULTICORE", "FS-INFRA",
-                              "RULING") if cnt[c]]
+                              "RULING", "UNRESOLVED") if cnt[c]]
     for c in deferrable:
         ids = per_class[c]
         L.append(f"- **{c}**（{len(ids)} 个）：{', '.join(sorted(ids))}")
@@ -112,6 +148,42 @@ def main():
     out = Path(a.out)
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text("\n".join(L) + "\n", encoding="utf-8")
+
+    if a.approval_out:
+        MECH = {
+            "RULING": ("A06 load 侧定宽完成契约；load SHRINK 结构性不可达（已源码实证与契约钉死）",
+                       "实现 load 侧 size 注入 + byte-enable 钩子，或规格裁决仅保留 widen"),
+            "LICENSE": ("SPEC CPU2017 需授权；仓库内无任何 SPEC 二进制/golden 可替代",
+                        "取得授权，或书面同意以 SE 近似负载替代（改变规格负载）"),
+            "FS-MULTICORE": ("语义需多核 FS（litmus MP/SB/LB/IRIW、PARSEC 共享队列）",
+                             "多核 FS 平台 + 载具落地"),
+            "FS-INFRA": ("TLB 翻译负载需 FS；且 FS 载体在预算内不终止 → 无 L5",
+                         "FS 载具可终止化 + campaign 入口 pilot"),
+            "UNRESOLVED": ("S10-F2 为规格结构性拒绝（F2 首抽下界 ≫ 实测流长）；"
+                           "S01/S02-F0-W1 待 span census 收敛",
+                           "规格级重划 cell（长载体）或接受拒绝；census 收敛后写入 span"),
+        }
+        M = [f"# 需用户裁决 / 延期清单（{len(blocked)} BLOCKED 中的不可自解项）", "",
+             f"> 生成自 `tools/lsu_blocked_triage.py --contract`，与 `blocked_triage.md` "
+             f"**同一分类来源**（{source}）。", ""]
+        total = 0
+        for c in deferrable:
+            ids = sorted(per_class[c])
+            total += len(ids)
+            mech, unblock = MECH.get(c, ("—", "—"))
+            M += [f"## {c}（{len(ids)} 项）", "",
+                  f"- **阻塞机理**：{mech}",
+                  f"- **解除条件**：{unblock}",
+                  f"- **建议处置**：批准延期，或按上述条件解除", "",
+                  "| RunID |", "|---|"]
+            M += [f"| {i} |" for i in ids]
+            M += [""]
+        M += [f"**合计 {total} 项**（其余 {len(blocked) - total} 项为可自行实现，"
+              f"见 `blocked_triage.md`）。", ""]
+        ao = Path(a.approval_out)
+        ao.parent.mkdir(parents=True, exist_ok=True)
+        ao.write_text("\n".join(M) + "\n", encoding="utf-8")
+        print(f"[triage] approval list → {ao}（{total} 项）")
     print(f"[triage] BLOCKED={len(blocked)} " +
           " ".join(f"{c}={cnt[c]}" for c in CLASS_ORDER) + f" → {out}")
     return 0
