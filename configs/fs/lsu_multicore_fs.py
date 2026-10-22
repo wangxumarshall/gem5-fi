@@ -89,6 +89,13 @@ from gem5.resources.resource import (
 from gem5.simulate.exit_event import ExitEvent
 from gem5.simulate.simulator import Simulator
 
+# [MDSPEC][R4-8-FSMC-B] CHAOSPropagation may be absent from an older binary —
+# import defensively and refuse loudly rather than silently emitting nothing.
+try:
+    from m5.objects import CHAOSPropagation
+except ImportError:  # pragma: no cover - depends on the binary
+    CHAOSPropagation = None
+
 p = argparse.ArgumentParser()
 p.add_argument("--kernel", required=True, help="path to vmlinux")
 p.add_argument("--disk", required=True, help="path to the disk image")
@@ -130,6 +137,20 @@ p.add_argument("--exmon_lsu_tier", default="off",
                choices=["off", "F0", "F1", "F2", "F3", "F4", "F5", "F6"])
 p.add_argument("--exmon_lsu_warmup_events", type=lambda x: int(x, 0), default=0)
 p.add_argument("--exmon_lsu_span_events", type=lambda x: int(x, 0), default=1000)
+# [MDSPEC][R4-8-FSMC-B] CHAOSPropagation unified propagation stream (FS side).
+# WHY: CHAOSExMon already emits the O-series monitor-side chain events
+# (exmon_monitor L1 -> exmon_rmw L2 -> exmon_stxr L3, CHAOSExMon.cc:255/97/113)
+# but those calls route through CHAOSPropagation::instance(), which is nullptr
+# unless a CHAOSPropagation SimObject is instantiated — so on the multi-core FS
+# platform those events were silently dropped and the A-group cells had an
+# oracle but NO propagation chain. This mounts it, mirroring the 1-core FS
+# precedent (configs/se/arm_chaos_fs.py:551-575).
+p.add_argument("--chaos_propagation", action="store_true",
+               help="attach CHAOSPropagation (L0-L5 propagation trace); "
+                    "O3-only, hard error otherwise")
+p.add_argument("--prop_trace_file", default="prop_trace.csv.gz")
+p.add_argument("--prop_run_id", default="")
+p.add_argument("--prop_sample_run_id", default="")
 args = p.parse_args()
 
 if args.num_cores < 1:
@@ -223,6 +244,41 @@ if args.chaos_exmon:
               f"{args.chaos_core} (mode={args.exmon_mode}, "
               f"tier={args.exmon_lsu_tier})")
     cache_hierarchy._pre_instantiate = _attach_injectors
+
+# [MDSPEC][R4-8-FSMC-B] CHAOSPropagation (FS multi-core path). O3-only: it
+# self-attaches at startup() to cpu.chaosPropagation (LSQ-side hooks) and
+# cpu.commit.chaosPropagation — Atomic/TIMING cores have neither, so asking
+# for a trace on a non-O3 run is a hard error, not a silent empty file.
+# Mirrors the 1-core FS precedent (configs/se/arm_chaos_fs.py:551-575).
+if args.chaos_propagation:
+    # NOTE (verified): `raise SystemExit(<str>)` inside a gem5 config does NOT
+    # print the message on this build — it surfaces as an opaque
+    # "pybind11::cast_error: Unable to cast Python instance of type <class
+    # 'str'> to C++ type 'int'" abort at tick 0 (reproduced with the
+    # pre-existing --num-cores guard too, so it is a platform quirk, not this
+    # block's). Therefore print the reason explicitly BEFORE exiting so the
+    # refusal is actually legible.
+    if CHAOSPropagation is None:
+        print("[lsu_multicore_fs] FATAL: --chaos_propagation needs a gem5 "
+              "binary built with CHAOSPropagation (the worktree binary has it).")
+        raise SystemExit(1)
+    if cpu_map[args.cpu] is not CPUTypes.O3:
+        print("[lsu_multicore_fs] FATAL: --chaos_propagation is O3-only (got "
+              "--cpu %s). The FS roadmap is Atomic boot -> O3 restore; set "
+              "--cpu O3." % args.cpu)
+        raise SystemExit(1)
+    _prop_cpu = processor.get_cores()[args.chaos_core].core
+    board.chaos_propagation = CHAOSPropagation(
+        cpu=_prop_cpu,
+        traceFile=args.prop_trace_file,
+        writeLog=True,
+        runId=args.prop_run_id,
+        sampleRunId=args.prop_sample_run_id,
+    )
+    print("[lsu_multicore_fs] CHAOSPropagation attached on core %d "
+          "(trace=%s, run_id=%r, sample_run_id=%r)"
+          % (args.chaos_core, args.prop_trace_file, args.prop_run_id,
+             args.prop_sample_run_id))
 
 if args.restore_checkpoint:
     import pathlib
