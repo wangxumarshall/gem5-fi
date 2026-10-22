@@ -26,7 +26,19 @@
 
 ## 阶段分解（每项一个 commit → 立即 push）
 
-- [ ] **C1 — T05**：`CHAOSArmTLB` 增 `valid_clear` / `valid_set` / `global_flip` /
+> 执行结果：C1+C2+C3 合并为 `3e64f291`（三族共享同一代码路径与观测节点，不可分割）；
+> C4 = `3db770fb`；C5 = 本报告 + 计划勾选。
+
+- [x] **C5 — 分类与交付**：逐 RunID 四类分类表 + 构建清单报告
+      （`docs/gem5-fi/lsu/mdspec/R4-10-FSINFRA-agent-report.md`）。
+- [x] **C4 — T08-b/c/d**：refill 完成钩子 + `walk_fill_dup` / `walk_done_early` /
+      `walk_stale_result`；walk_id 配对节点（field/outcome 逐子模型标注）；接线；契约测试。
+- [x] **C3 — T07**：`false_hit` / `double_hit` / `wrong_way`；同上接线；契约测试。
+- [x] **C2 — T06**：`perm_subst` / `memtype_subst` / `pagesize_subst`（从同 TLB
+      另一条 live 表项取合法值）；同上接线；契约测试。
+- [x] **C1+C2+C3 — T05/T06/T07**（合并 commit `3e64f291`）：`CHAOSArmTLB` 增 10 个 faultType +
+      `tlb_state` 传播节点（L2）+ `maybeCorruptLookup`（tlb.cc miss/hit 双钩子）+ 路由 + 契约测试。
+- [x] ~~**C1 — T05**~~：`CHAOSArmTLB` 增 `valid_clear` / `valid_set` / `global_flip` /
       `asid_subst` 四个 faultType；新增 `tlb_state` 传播节点（L2）；config choices +
       campaign `MODEL_FLAGS` + 从 `MODEL_BLOCKED` 删除 T05；契约测试。
 - [ ] **C2 — T06**：增 `perm_subst` / `memtype_subst` / `pagesize_subst`（从同 TLB
