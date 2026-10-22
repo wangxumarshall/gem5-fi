@@ -181,6 +181,39 @@ class CHAOSLSQFwd : public SimObject
     // chain members are the injector's own PC-keyed emissions (pf_train
     // precedent) — zero downstream registry registration, honestly.
 
+    // [MDSPEC][R4-9-FSMC] O06 barrier-completion tracking. Node = the O3
+    // MemDepUnit's barrier-SN bookkeeping — the ONLY barrier-completion
+    // structure on this platform (chaos_barrier_hook.hh carries the
+    // code-level proof: DMB/DSB themselves carry no memory access at all,
+    // misc64.isa:229-233 / misc.isa:1216-1230). The spec's
+    // "提前 done / 延后或丢失 done" map onto the two ends of that
+    // bookkeeping:
+    //   barrier_done=early (O06-a): the barrier's SN is NOT tracked at
+    //     insertion, so later loads/stores issue straight past the barrier
+    //     (the spec's "提前done会让后续访问越过屏障"; the observable effect is
+    //     a litmus violation -> SDC);
+    //   barrier_done=stuck (O06-b): the SN is never released, so every later
+    //     memory op keeps waiting on it — the barrier never completes (the
+    //     spec's 停顿 -> Timeout channel).
+    // Registered into the chaosBarrierInsertHook/chaosBarrierReleaseHook
+    // globals by the ctor when o06_mode (deregistered by the dtor); the
+    // MemDepUnit call sites are in mem_dep_unit.cc.
+    bool maybeCorruptBarrierInsert(uint64_t seq, bool is_read, bool is_write);
+    int maybeCorruptBarrierRelease(uint64_t seq, bool is_read, bool is_write,
+                                   uint64_t *subst);
+
+    // [MDSPEC][R4-9-FSMC] O07 order-tag 换值 (workbook 07 O07 row: "交换两个
+    // 在飞事务的 order tag"; eligibility "至少2个相关事务"). HONEST PROXY:
+    // gem5 O3 has no explicit ordering queue with numbered tags — the closest
+    // structural analogue is the barrier-SN set, where the InstSeqNum IS the
+    // tag and the release point IS the handoff. The landed rule exchanges
+    // WHICH in-flight transaction's tag gets released: the injector remembers
+    // the live barrier SNs it has seen, so the substitute is always another
+    // LEGAL live SN (no fabricated value — the spec's 实施细则). With no
+    // other live SN the injection is honestly skipped (attempted, never
+    // eligible). Returns 0 = no swap.
+    uint64_t orderTagSubstitute(uint64_t seq);
+
   private:
     enum class FaultType { BitFlip, StuckAtZero, StuckAtOne, Random };
     static FaultType stringToFaultType(const std::string &s);
@@ -269,6 +302,19 @@ class CHAOSLSQFwd : public SimObject
     bool l04_pending = false;
     o3::DynInstPtr l04_pending_src;
     uint64_t l04_pending_tgt_seq = 0;
+    // [MDSPEC][R4-9-FSMC] O06/O07 mode flags + the barrier-SN ledger. The
+    // injector records every barrier SN the MemDepUnit tracked (it sees the
+    // insert hook) and stops tracking it at the release, so
+    // orderTagSubstitute can always return ANOTHER LEGAL LIVE SN (O07) and
+    // never a fabricated value. barrier_* counters are the L0 read-back.
+    bool o06_mode = false;
+    bool o07_mode = false;
+    bool o06_early = false;        // O06 sub-rule: early (a) vs stuck (b)
+    std::vector<uint64_t> barrier_live_sns;
+    uint64_t barrier_inserts_seen = 0;
+    uint64_t barrier_releases_seen = 0;
+    uint64_t barrier_injections = 0;
+    // one-shot F6 "spent" bookkeeping is owned by lsuTrigger (onF6Event).
     // Sampling-bias fix (same as CHAOSL1DForward, findings.md Phase 2.2):
     // number of eligible forwarding events to skip before the first
     // injection — geometric(p=0.1) from the seed, so maxFaults=1 lands on a
@@ -311,6 +357,15 @@ class CHAOSLSQFwd : public SimObject
     static bool s10CorruptedPcCb(Addr pc, uint64_t *true_ssid);
     static void s10ConsultCb(Addr pc, uint64_t actual_ssid,
                              uint64_t actual_dep, uint64_t counterfactual_dep);
+    // [MDSPEC][R4-9-FSMC] O06/O07 static hook bodies (registered into the
+    // chaosBarrier* globals by the ctor when o06_mode/o07_mode; cleared by
+    // the dtor). Single consumer, same scoping as the s10 callbacks above.
+    static bool barrierInsertCb(uint64_t seq, bool is_read, bool is_write);
+    static int barrierReleaseCb(uint64_t seq, bool is_read, bool is_write,
+                                uint64_t *subst);
+    // The single armed instance the static callbacks above act through
+    // (set by the ctor when o06_mode/o07_mode, cleared by the dtor).
+    static CHAOSLSQFwd *barrier_active;
 
     struct CHAOSLSQFwdStats : public statistics::Group {
         statistics::Scalar numFaultsInjected;

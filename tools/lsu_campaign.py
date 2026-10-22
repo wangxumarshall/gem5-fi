@@ -337,6 +337,14 @@ MODEL_FLAGS = {
                       "--l1d_rmw_rule", "result_old"]),
     "O05": ("cache", ["--l1d_target_field", "rmw_order",
                       "--l1d_rmw_rule", "lost"]),
+    # [MDSPEC][R4-9-FSMC] O06/O07 barrier-completion / order-tag family on
+    # CHAOSLSQFwd (lsqfwd family; the LSU trigger's stream is the MemDepUnit
+    # barrier-SN bookkeeping — see cpu/o3/chaos_barrier_hook.hh for the
+    # code-level proof that this IS the only barrier-completion structure on
+    # the platform). O06-a (early done) is the campaign default sub-model;
+    # the O06-b (stuck) sub-model is reachable via --lsqfwd_o06_done stuck.
+    "O06": ("lsqfwd", ["--lsqfwd_o06", "--lsqfwd_o06_done", "early"]),
+    "O07": ("lsqfwd", ["--lsqfwd_o07"]),
     # --- TLB (W7 / M3 plan Task 5): FS-only family on lsu_b0_fs + B0 cpt.
     # faultType surface verified on arm_chaos_fs.py:81-100 (T3 smoke real run).
     # HONEST approximations: T10's low/mid/high pfn-bit banding submodel is
@@ -507,8 +515,22 @@ MODEL_BLOCKED.update({
     "O05": "blocked(multicore-fs: W7 Atomic-Litmus workload; RMW-completion "
            "hook rmw_order LANDED @ SwapReq commit but COMPILE-UNVERIFIED "
            "+ un-piloted, R4-9-FSMC)",
-    "O06": "blocked(multicore-fs: barrier completion needs multi-core)",
-    "O07": "blocked(multicore-fs: order-tag swap needs multi-core)",
+    # [MDSPEC][R4-9-FSMC] O06/O07: the barrier-completion / order-tag hooks
+    # NOW EXIST (CHAOSLSQFwd --lsqfwd_o06/--lsqfwd_o07; MemDepUnit barrier-SN
+    # bookkeeping, cpu/o3/chaos_barrier_hook.hh) but the C++ is
+    # COMPILE-UNVERIFIED (this worktree may not build) and un-piloted, so the
+    # blocks are KEPT (C11/C12/L04 rule). The cells sit on Atomic-Litmus
+    # (W7) — a workload that genuinely needs the multi-core FS carrier — so
+    # the "multicore-fs:" token is kept deliberately: it is BOTH true and
+    # load-bearing for tools/lsu_blocked_triage.py's FS-MULTICORE bucket.
+    "O06": "blocked(multicore-fs: W7 Atomic-Litmus workload; barrier-"
+           "completion hook LANDED (MemDepUnit barrier-SN bookkeeping, "
+           "CHAOSLSQFwd --lsqfwd_o06) but COMPILE-UNVERIFIED + un-piloted, "
+           "R4-9-FSMC)",
+    "O07": "blocked(multicore-fs: W7 Atomic-Litmus workload; order-tag "
+           "exchange hook LANDED (MemDepUnit barrier-SN set as the ordering-"
+           "tag proxy, CHAOSLSQFwd --lsqfwd_o07) but COMPILE-UNVERIFIED + "
+           "un-piloted, R4-9-FSMC)",
     # [LSU][MDSPEC][A6] A06 专项裁决（计划 §2.d，2026-10-19；R4-6-A06
     # 2026-10-22 更新）：store 侧安全路径已实现（a06_size，目标可任意合法）；
     # load 侧已落地 **widen-only** 路径（--agu_size_to_load；定宽完成合同

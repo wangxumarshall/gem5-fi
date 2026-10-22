@@ -324,6 +324,22 @@ p.add_argument("--lsqfwd_s10", action="store_true",
                help="W5 S10: substitute the load's freshly assigned SSIT "
                     "SSID with another legal live store-set ID (lsqfwd "
                     "trigger, StoreSet::violation site)")
+# [MDSPEC][R4-9-FSMC] O06/O07 barrier-completion / order-tag family (rides the
+# lsqfwd LSU trigger; requires --lsqfwd_lsu_tier != off — the injector panics
+# otherwise, trigger-native model). Node = MemDepUnit's barrier-SN bookkeeping
+# (cpu/o3/chaos_barrier_hook.hh); the SQ-forward data-path hook is split off.
+p.add_argument("--lsqfwd_o06", action="store_true",
+               help="R4-9-FSMC O06: barrier-completion tracking fault "
+                    "(--lsqfwd_o06_done early|stuck)")
+p.add_argument("--lsqfwd_o06_done", default="early",
+               choices=["early","stuck"],
+               help="O06 sub-rule: early = O06-a 提前 done (barrier released "
+                    "before the preceding memory ops drained; later accesses "
+                    "pass the barrier -> litmus violation/SDC); stuck = O06-b "
+                    "延后/丢失 done (the barrier never completes -> Timeout)")
+p.add_argument("--lsqfwd_o07", action="store_true",
+               help="R4-9-FSMC O07: order-tag 换值 (HONEST PROXY: another "
+                    "live barrier SN is released in this one's place)")
 # §2.2 CHAOSRenameMap (O3 rename-map fault injector). SELF-ATTACHES at
 # startup() to thread-0 frontRenameMap.chaosRenameMap. map_bitflip /
 # map_bitflip2 (W4.1 D12: 2 distinct random index bits) / swap_to_active
@@ -950,6 +966,10 @@ if args.chaos_lsqfwd:
         l03Mode=args.lsqfwd_l03,   # [LSU][SEM-B] W5 L03 接线
         l04Mode=args.lsqfwd_l04,   # [MDSPEC][R4-5.3] W5 L04 接线
         s10Mode=args.lsqfwd_s10,   # [MDSPEC][R4-5.7] W5 S10 接线
+        # [MDSPEC][R4-9-FSMC] O06/O07 barrier-completion / order-tag wiring.
+        o06Mode=args.lsqfwd_o06,
+        o06BarrierDone=args.lsqfwd_o06_done,
+        o07Mode=args.lsqfwd_o07,
         firstClock=args.first_clock,
         lastClock=args.last_clock,
         maxFaults=args.max_faults,

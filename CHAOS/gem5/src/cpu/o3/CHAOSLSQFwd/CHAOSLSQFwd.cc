@@ -9,6 +9,7 @@
 #include <algorithm>   // [MDSPEC][R4-5.7] std::find (S10 candidate dedup)
 
 #include "base/output.hh"
+#include "cpu/o3/chaos_barrier_hook.hh"  // [MDSPEC][R4-9-FSMC] O06/O07
 #include "cpu/o3/cpu.hh"
 #include "cpu/o3/dyn_inst.hh"   // [MDSPEC][R4-5.3] full DynInst (resp-pair)
 #include "debug/LSQUnit.hh"
@@ -36,6 +37,10 @@ namespace gem5
           l03_mode(p.l03Mode),   // [LSU][SEM-B]
           l04_mode(p.l04Mode),   // [MDSPEC][R4-5.3] W5 L04
           s10_mode(p.s10Mode),   // [MDSPEC][R4-5.7] W5 S10
+          // [MDSPEC][R4-9-FSMC] O06/O07 barrier-completion / order-tag modes.
+          o06_mode(p.o06Mode),
+          o07_mode(p.o07Mode),
+          o06_early(p.o06BarrierDone == "early"),
           rng(rng_seed != 0 ? rng_seed : rd()),
           log_stream(nullptr),
           stats(nullptr)
@@ -87,6 +92,20 @@ namespace gem5
             chaosS10CorruptedPc = &CHAOSLSQFwd::s10CorruptedPcCb;
             chaosS10Consult = &CHAOSLSQFwd::s10ConsultCb;
         }
+        // [MDSPEC][R4-9-FSMC] O06/O07: trigger-native like L04/S10 (the
+        // barrier-SN stream IS the model's event source). The MemDepUnit has
+        // no injector pointer, so the armed instance self-registers into the
+        // chaosBarrier* globals (S10/store_set.cc precedent).
+        if (o06_mode || o07_mode) {
+            if (!lsuTrigger)
+                panic("CHAOSLSQFwd: --lsqfwd_o06/--lsqfwd_o07 require "
+                      "--lsqfwd_lsu_tier (the event-normalized trigger owns "
+                      "the barrier bookkeeping stream); refusing to run with "
+                      "a legacy Bernoulli fallback");
+            barrier_active = this;
+            chaosBarrierInsertHook = &CHAOSLSQFwd::barrierInsertCb;
+            chaosBarrierReleaseHook = &CHAOSLSQFwd::barrierReleaseCb;
+        }
         if (lsuTrigger) {
             // W5: funnel lines at exit (chaos_l0 discipline: log file, not
             // stdout). activated = same near-tautological approximation as
@@ -125,6 +144,23 @@ namespace gem5
                            (unsigned long)s10_max_cands,
                            s10_arm1_load_pcs.size());
                 }
+                // [MDSPEC][R4-9-FSMC] O06/O07 teardown read-back: the barrier
+                // bookkeeping the injector saw + how many completions it
+                // corrupted. barrier_live_sns.size() > 0 at exit is the O06-b
+                // OBSERVABLE STALL (the SN was never released — every later
+                // memory op waited on a barrier that never completed).
+                if (o06_mode || o07_mode)
+                    printf("CHAOS_BARRIER: injector=CHAOSLSQFwd mode=%s "
+                           "inserts_seen=%lu releases_seen=%lu injections=%lu "
+                           "live_sns_at_exit=%lu (R4-9-FSMC O06/O07 barrier "
+                           "bookkeeping hook, mem_dep_unit.cc)\n",
+                           o06_mode ? (o06_early ? "o06a_early_done"
+                                                 : "o06b_done_stuck")
+                                    : "o07_order_tag_swap",
+                           (unsigned long)barrier_inserts_seen,
+                           (unsigned long)barrier_releases_seen,
+                           (unsigned long)barrier_injections,
+                           (unsigned long)barrier_live_sns.size());
                 l0_funnel.attempted = lsuTrigger->attempted;
                 l0_funnel.eligible  = lsuTrigger->eligible;
                 l0_funnel.injected  = faults_injected_count;
@@ -206,6 +242,15 @@ namespace gem5
                 chaosS10CorruptedPc = nullptr;
             if (chaosS10Consult == &CHAOSLSQFwd::s10ConsultCb)
                 chaosS10Consult = nullptr;
+        }
+        // [MDSPEC][R4-9-FSMC] O06/O07 hook deregistration (same single-
+        // consumer discipline).
+        if (barrier_active == this) {
+            barrier_active = nullptr;
+            if (chaosBarrierInsertHook == &CHAOSLSQFwd::barrierInsertCb)
+                chaosBarrierInsertHook = nullptr;
+            if (chaosBarrierReleaseHook == &CHAOSLSQFwd::barrierReleaseCb)
+                chaosBarrierReleaseHook = nullptr;
         }
         // v1.1 Phase 8.2 countOnlyMode: the driver's dry-run learns
         // N_eligible from this line (campaign.py parses the log).
@@ -342,6 +387,11 @@ namespace gem5
         // the trigger stream is the StoreSet SSIT-training point only
         // (StoreSet::violation, chaosS10* hooks).
         if (s10_mode) return;
+        // [MDSPEC][R4-9-FSMC] O06/O07 hook split, same discipline: with
+        // --lsqfwd_o06/--lsqfwd_o07 the SQ-forward data path is NOT the
+        // model's event source — the trigger stream is the barrier-SN
+        // bookkeeping in MemDepUnit (cpu/o3/chaos_barrier_hook.hh).
+        if (o06_mode || o07_mode) return;
         if (lsuTrigger) {
             // LSU W2/W5 path (05 r2-r8): the event-normalized trigger owns
             // warm-up/repetition semantics; the legacy cycle window,
@@ -728,6 +778,205 @@ namespace gem5
     // for the model ruling; the hooks below are the single consumer the
     // chaosS10* globals point at while an S10-armed injector is mounted.
     CHAOSLSQFwd *CHAOSLSQFwd::s10_active = nullptr;
+
+    // [MDSPEC][R4-9-FSMC] O06/O07 single armed consumer (the static
+    // callbacks registered into the chaosBarrier* globals act through it).
+    CHAOSLSQFwd *CHAOSLSQFwd::barrier_active = nullptr;
+
+    // ---- [MDSPEC][R4-9-FSMC] O06/O07 barrier bookkeeping hooks ------------
+    // Called from MemDepUnit (mem_dep_unit.cc) via the chaosBarrier* globals;
+    // this injector is the single consumer. `seq` is the barrier's
+    // InstSeqNum (the platform's order tag — see chaos_barrier_hook.hh).
+
+    bool
+    CHAOSLSQFwd::barrierInsertCb(uint64_t seq, bool is_read, bool is_write)
+    {
+        // Defensive: the globals are cleared by the dtor, so a torn-down
+        // injector is never reached. The armed instance is the single
+        // registered consumer (chaos_barrier_active).
+        CHAOSLSQFwd *self = barrier_active;
+        if (!self || !self->lsuTrigger)
+            return false;
+        // Ledger first: the injector's view of the live barrier SNs must
+        // mirror the MemDepUnit's own set (O07's substitute picker reads it).
+        ++self->barrier_inserts_seen;
+        self->barrier_live_sns.push_back(seq);
+        const bool corrupt = self->maybeCorruptBarrierInsert(seq, is_read,
+                                                             is_write);
+        if (corrupt) {
+            // O06-a: the SN will NOT be tracked by the MemDepUnit — drop it
+            // from the ledger so both views stay identical.
+            if (!self->barrier_live_sns.empty())
+                self->barrier_live_sns.pop_back();
+        }
+        return corrupt;
+    }
+
+    int
+    CHAOSLSQFwd::barrierReleaseCb(uint64_t seq, bool is_read, bool is_write,
+                                  uint64_t *subst)
+    {
+        CHAOSLSQFwd *self = barrier_active;
+        if (!self || !self->lsuTrigger)
+            return 0;
+        return self->maybeCorruptBarrierRelease(seq, is_read, is_write,
+                                                subst);
+    }
+
+    // O06-a "early done": consent => the SN is NOT tracked. The insert event
+    // itself is the attempt stream; only the F6 tier fires ON the insert,
+    // every other tier samples the inserts through onEligible().
+    bool
+    CHAOSLSQFwd::maybeCorruptBarrierInsert(uint64_t, bool, bool)
+    {
+        if (!o06_mode || !o06_early)
+            return false;                     // stuck (b) acts at release
+        if (max_faults != 0 && barrier_injections >= max_faults)
+            return false;
+        lsuTrigger->onAttempt();
+        const bool go = (lsuTrigger->tier == ChaOSLsuTier::F6)
+                            ? lsuTrigger->onF6Event(false)
+                            : lsuTrigger->onEligible();
+        if (!go)
+            return false;
+        ++barrier_injections;
+        ++faults_injected_count;
+        if (stats)
+            stats->numFaultsInjected++;
+        if (CHAOSPropagation *tr = CHAOSPropagation::instance()) {
+            std::vector<std::pair<std::string, std::string>> kv = {
+                {"field", "barrier_done"},
+                {"state_before", "tracked"},
+                {"state_after", "early_released"},
+                {"corr", "origin"},
+            };
+            tr->notePropEvt("barrier_done", kv);
+        }
+        if (write_log && log_stream && log_stream->stream()) {
+            *(log_stream->stream())
+                << "Tick: " << curTick() << ", Field: barrier_done "
+                << "(O06-a early done, barrier SN " << seq
+                << " NOT tracked), injections: " << barrier_injections
+                << std::endl;
+        }
+        return true;
+    }
+
+    // O06-b "done stuck" / O07 order-tag exchange, both decided at the
+    // release point. Returns the chaos_barrier_hook.hh code (0/1/2).
+    int
+    CHAOSLSQFwd::maybeCorruptBarrierRelease(uint64_t seq, bool is_read,
+                                            bool is_write, uint64_t *subst)
+    {
+        ++barrier_releases_seen;
+        // The release is also the ledger's removal point (both the normal
+        // path and the injected ones) — the injector's view must stay in
+        // sync with the MemDepUnit's.
+        auto drop = [this](uint64_t sn) {
+            for (auto it = barrier_live_sns.begin();
+                 it != barrier_live_sns.end(); ++it) {
+                if (*it == sn) { barrier_live_sns.erase(it); return; }
+            }
+        };
+
+        if (o06_mode && !o06_early) {         // O06-b: stuck
+            if (max_faults != 0 && barrier_injections >= max_faults)
+                return 0;
+            lsuTrigger->onAttempt();
+            const bool go = (lsuTrigger->tier == ChaOSLsuTier::F6)
+                                ? lsuTrigger->onF6Event(false)
+                                : lsuTrigger->onEligible();
+            if (!go)
+                return 0;
+            ++barrier_injections;
+            ++faults_injected_count;
+            if (stats)
+                stats->numFaultsInjected++;
+            // The SN stays in the ledger too (it was never released).
+            if (CHAOSPropagation *tr = CHAOSPropagation::instance()) {
+                std::vector<std::pair<std::string, std::string>> kv = {
+                    {"field", "barrier_done"},
+                    {"state_before", "should_release"},
+                    {"state_after", "stuck"},
+                    {"corr", "origin"},
+                };
+                tr->notePropEvt("barrier_done", kv);
+            }
+            if (write_log && log_stream && log_stream->stream()) {
+                *(log_stream->stream())
+                    << "Tick: " << curTick() << ", Field: barrier_done "
+                    << "(O06-b done lost: barrier SN " << seq
+                    << " stays tracked), injections: " << barrier_injections
+                    << std::endl;
+            }
+            return 1;
+        }
+
+        if (o07_mode) {                       // O07: order-tag exchange
+            if (max_faults != 0 && barrier_injections >= max_faults) {
+                drop(seq);
+                return 0;
+            }
+            lsuTrigger->onAttempt();
+            const bool go = (lsuTrigger->tier == ChaOSLsuTier::F6)
+                                ? lsuTrigger->onF6Event(false)
+                                : lsuTrigger->onEligible();
+            if (!go) {
+                drop(seq);
+                return 0;
+            }
+            // [MDSPEC][R4-9-FSMC] the substitute must be ANOTHER LEGAL LIVE
+            // tag (workbook 实施细则) — the ledger holds exactly those.
+            // With none, the injection is honestly skipped (attempted,
+            // never eligible: the spec's "至少2个相关事务" gate).
+            const uint64_t other = orderTagSubstitute(seq);
+            if (other == 0) {
+                drop(seq);
+                return 0;
+            }
+            drop(other);
+            if (subst)
+                *subst = other;
+            ++barrier_injections;
+            ++faults_injected_count;
+            if (stats)
+                stats->numFaultsInjected++;
+            if (CHAOSPropagation *tr = CHAOSPropagation::instance()) {
+                std::vector<std::pair<std::string, std::string>> kv = {
+                    {"field", "order_tag"},
+                    {"state_before", std::to_string(seq)},
+                    {"state_after", std::to_string(other)},
+                    {"corr", "origin"},
+                };
+                tr->notePropEvt("order_tag", kv);
+            }
+            if (write_log && log_stream && log_stream->stream()) {
+                *(log_stream->stream())
+                    << "Tick: " << curTick() << ", Field: order_tag "
+                    << "(O07 swap: released SN " << other << " instead of "
+                    << seq << "), injections: " << barrier_injections
+                    << std::endl;
+            }
+            return 2;
+        }
+
+        drop(seq);
+        return 0;
+    }
+
+    // O07 substitute picker: another live barrier SN (never a fabricated
+    // value). LIFO so a long-lived earlier barrier is the preferred swap
+    // partner, matching the spec's "交换两个在飞事务" reading.
+    uint64_t
+    CHAOSLSQFwd::orderTagSubstitute(uint64_t seq)
+    {
+        for (auto it = barrier_live_sns.rbegin();
+             it != barrier_live_sns.rend(); ++it) {
+            if (*it != seq)
+                return *it;
+        }
+        return 0;
+    }
 
     void
     CHAOSLSQFwd::s10ViolationCb(Addr store_pc, Addr load_pc,
