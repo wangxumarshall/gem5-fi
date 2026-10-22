@@ -26,6 +26,8 @@ namespace gem5
           write_log(p.writeLog),
           pre_mode(p.preMode),
           agu_size_to(p.aguSizeTo),
+          agu_size_to_load(p.aguSizeToLoad),
+          be_mode(p.beMode),
           agu_ready_mode(p.aguReadyMode),
           agu_ready_delay_cycles(p.aguReadyDelayCycles),
           aguResumeEvent([this] { this->resumeDeferredAgu(); },
@@ -72,6 +74,20 @@ namespace gem5
             panic("CHAOSAddrPath: unknown f6Mode '%s' "
                   "(early_stress | steady_state)\n", p.f6Mode);
         }
+        // [MDSPEC][R4-6-A06] A06-b loud refusals (C11/C12 discipline: an
+        // unknown selector must never silently degrade to "off"). The load
+        // widen leg needs no runtime validation here: agu_size_to_load is
+        // validated per event by a06LoadWiden (declines are counted, and
+        // 0 = "disabled" is a legitimate configuration).
+        if (be_mode != "off" && be_mode != "observe"
+            && be_mode != "shift_mid") {
+            panic("CHAOSAddrPath: unknown be_mode '%s' "
+                  "(off | observe | shift_mid)\n", be_mode.c_str());
+        }
+        if (be_mode != "off" && pre_mode != "a06_size")
+            panic("CHAOSAddrPath: be_mode requires pre_mode=a06_size (A06-b "
+                  "is a sub-fault of the same A06 model, and one sample must "
+                  "carry one fault — 03 sheet: 不在同一样本叠加)\n");
         if (probability > 0.0f) {
             log_stream = simout.create("addrpath_injections.log", false, true);
             if (!log_stream || !log_stream->stream())
@@ -346,9 +362,58 @@ namespace gem5
         return true;
     }
 
+    // [MDSPEC][R4-6-A06] A06-a/A06-b helpers ----------------------------------
+    bool
+    CHAOSAddrPath::isLegalAguSize(uint64_t s) {
+        return s == 1 || s == 2 || s == 4 || s == 8 || s == 16;
+    }
+
+    // A06-a load leg: is THIS load writable by the mode, and to what size?
+    // Success <=> target is a STRICT WIDENING in {1,2,4,8,16} that keeps the
+    // whole access inside one 64B line. Everything else is a counted decline
+    // (never a silent no-op, never an injection):
+    //   NoTarget       agu_size_to_load == 0 (load leg not configured)
+    //   Illegal        target not in {1,2,4,8,16}
+    //   ShrinkOrEqual  target <= orig size — FORBIDDEN: the load's
+    //                  completion is fixed-width per static instruction
+    //                  (LoadCompleteAcc getMemLE(pkt, Mem, ..)) while the
+    //                  packet/memData buffer is sized by this request size
+    //                  (lsq_unit.cc:1915) => heap over-read.
+    //   Geometry       (addr&63)+target > 64 — would break
+    //                  BaseCache::satisfyRequest's packet-offset invariant.
+    CHAOSAddrPath::A06LoadVerdict
+    CHAOSAddrPath::a06LoadWiden(Addr addr, unsigned size,
+                                unsigned &target) const {
+        if (agu_size_to_load == 0) return A06LoadVerdict::NoTarget;
+        if (!isLegalAguSize(agu_size_to_load)) return A06LoadVerdict::Illegal;
+        if (agu_size_to_load <= (uint64_t)size)
+            return A06LoadVerdict::ShrinkOrEqual;
+        if ((addr & 63) + agu_size_to_load > 64)
+            return A06LoadVerdict::Geometry;
+        target = (unsigned)agu_size_to_load;
+        return A06LoadVerdict::Success;
+    }
+
+    const char *
+    CHAOSAddrPath::a06LoadVerdictReason(A06LoadVerdict v) {
+        switch (v) {
+          case A06LoadVerdict::NoTarget:
+            return "load_widen_target_unset";
+          case A06LoadVerdict::Illegal:
+            return "load_widen_target_illegal";
+          case A06LoadVerdict::ShrinkOrEqual:
+            return "load_size_shrink_violates_fixed_width_completion";
+          case A06LoadVerdict::Geometry:
+            return "load_widen_block_geometry";
+          default:
+            return "load_widen_ok";
+        }
+    }
+
     unsigned int
     CHAOSAddrPath::maybeCorruptPre(Addr& addr, unsigned int size, bool isLoad,
-                               Request::Flags& flags, uint64_t dyn_inst_seq)
+                               Request::Flags& flags, uint64_t dyn_inst_seq,
+                               std::vector<bool>& byte_enable)
     {
         // [LSU][OBS-L3] last-hook verdict for the pushRequest call site
         // (flag-only modes S06/L02 leave addr/size untouched).
@@ -381,6 +446,19 @@ namespace gem5
 
         if (probability <= 0.0f) return size;
 
+        // [LSU][MDSPEC][R4-6-A06] A06-a load-leg verdict. Eligibility ==
+        // writability (F-049): decided here, BEFORE the trigger, so a load
+        // the mode cannot write can never consume the F6 once-ever shot —
+        // and the very same verdict drives the value write in the a06_size
+        // branch below (computed once; no RNG, hence deterministic).
+        A06LoadVerdict a06_load_v = A06LoadVerdict::Success;
+        unsigned a06_load_tgt = 0;
+        if (pre_mode == "a06_size" && isLoad)
+            a06_load_v = a06LoadWiden(addr, size, a06_load_tgt);
+        const bool a06_load_declined =
+            (pre_mode == "a06_size" && isLoad &&
+             a06_load_v != A06LoadVerdict::Success);
+
         if (lsuTrigger) {
             lsuTrigger->onAttempt();
             // [LSU][SEM-PRE] op-class filter BEFORE the trigger decision (F-049
@@ -390,29 +468,46 @@ namespace gem5
             // S05/S11 = stores only; eligible streams now exclude the opposite
             // class, so interval tiers (F1/F2/F4) count against the op-filtered
             // stream. The in-switch checks stay as belt-and-braces; OBS-2's
-            // pre_opclass counter is the regression detector (must stay 0).
+            // pre_opclass counter is the regression detector — for the
+            // opposite-class models it must stay 0. [MDSPEC][R4-6-A06] For
+            // a06_size it is EXPECTED to be nonzero: the load leg admits
+            // only widen-legal loads, so every non-widenable load is a
+            // legitimate op-class decline (its per-reason counters below
+            // classify it further).
             const bool pre_load_only  = (pre_mode == "l01_load_addr" ||
                                          pre_mode == "l02_load_state");
             const bool pre_store_only = (pre_mode == "s13_store_addr" ||
                                          pre_mode == "s04_store_subst" ||
                                          pre_mode == "s05_store_size" ||
-                                         pre_mode == "s11_store_lost" ||
-                                         pre_mode == "a06_size");
-            if ((pre_load_only && !isLoad) || (pre_store_only && isLoad)) {
-                // [LSU][MDSPEC][A6] load 候选拒斥（不计 activated；2026-10-15
-                // 审计根因 C + 2026-10-19 计划 §2 裁决：A06 store 侧安全路径，
-                // 模式名回归规格 a06_size）。F6 已 armed 状态下到达的 load 在
-                // 旧语义下就是注入点——显式写 REJECT 日志留证；f6_pending
-                // 保持 armed 等待下一个 store。普通逐事件拒斥只进
+                                         pre_mode == "s11_store_lost");
+            // [LSU][MDSPEC][R4-6-A06] A06-a bisects by op class: stores take
+            // any legal target, loads only a contract-safe WIDENING (see
+            // a06LoadWiden). Eligibility == writability (F-049), decided
+            // BEFORE the trigger, so a load the mode cannot write can never
+            // consume the F6 once-ever shot. The verdict was computed ONCE
+            // above and is reused by the a06_size branch below.
+            if ((pre_load_only && !isLoad) || (pre_store_only && isLoad)
+                || a06_load_declined) {
+                // [LSU][MDSPEC][A6] op-class 拒斥（不计 activated）。A06
+                // 2026-10-19 裁决曾把全部 load 拒斥（store-only 安全路径）；
+                // R4-6-A06 2026-10-22 起 load 在 **widen 合法** 时是合格
+                // op（contract 只禁 shrink），其余 load 仍在这里被拒，且带
+                // 明确理由。F6 已 armed 时显式写 REJECT 日志留证；f6_pending
+                // 保持 armed 等待下一个合格事件。普通逐事件拒斥只进
                 // obs_pre_opclass 计数（不刷日志，与 F-049 其余模式一致）。
                 if (pre_mode == "a06_size" && f6_pending &&
                     write_log && log_stream && log_stream->stream()) {
                     *(log_stream->stream()) << "Tick: " << curTick()
                         << ", Site: lsq_pushRequest_PRE, mode=" << pre_mode
-                        << ", REJECT: reason=load_candidate_under_store_only_model"
-                        << ", isLoad=1, isStore=0"
+                        << ", REJECT: reason="
+                        << (a06_load_declined
+                                ? a06LoadVerdictReason(a06_load_v)
+                                : "load_candidate_under_store_only_model")
+                        << ", isLoad=" << (isLoad ? 1 : 0)
+                        << ", isStore=" << (isLoad ? 0 : 1)
                         << ", old_size=" << size
                         << ", new_size=" << size
+                        << ", widen_target=" << agu_size_to_load
                         << std::endl;
                 }
                 ++obs_pre_opclass;   // [LSU][OBS-2]
@@ -457,19 +552,57 @@ namespace gem5
             const Addr lo = addr & 0xFF;
             addr = (addr & ~(Addr)0xFF) | ((lo << d | lo >> (8 - d)) & 0xFF);
         } else if (pre_mode == "a06_size") {
-            // [LSU][MDSPEC][A6] A06 (Markdown 规格 §2 裁决, 2026-10-19):
-            // store-only access-size substitution（A06-a store 侧安全路径；
-            // store 短写架构合法——内存按 packet 字节落盘）。load 侧不安全：
-            // 缩小 packet 命中定宽完成断言（LDRX completeAcc getRaw<T>，
-            // 2026-10-15 审计 1,030 checklist + 737 W1 样本），故 load 候选
-            // 经上方 op-class 过滤 REJECT 留证；A06 RunID 在 load 侧与
-            // byte-enable（本钩子处为 const）实现并实证前保持 BLOCKED。
-            if (isLoad) { ++obs_pre_opclass; return size; }   // [LSU][OBS-2]
-            if (agu_size_to == 1 || agu_size_to == 2 || agu_size_to == 4 ||
-                agu_size_to == 8 || agu_size_to == 16)
+            // [LSU][MDSPEC][A6] A06-a access-size substitution. Per-op-class
+            // legality envelope (2026-10-19 裁决 store-only；R4-6-A06
+            // 2026-10-22 起加 load 侧 widen):
+            //   store: any legal target {1,2,4,8,16} — a short/wide store is
+            //          architecturally legal (memory lands per packet byte).
+            //   load : STRICT WIDEN ONLY (a06LoadWiden). The load's
+            //          completion is fixed-width per static instruction
+            //          (ARM LoadCompleteAcc getMemLE(pkt, Mem, ..),
+            //          arch/arm/isa/templates/mem.isa:487-512) while the
+            //          packet and the destination buffer are sized by THIS
+            //          request size (lsq_unit.cc:1915-1917) — a shrink is a
+            //          heap over-read, the 2026-10-15 audit's "fixed-width
+            //          completion contract". This is the constraint we
+            //          ROUTE AROUND by restricting the load-side legal set
+            //          to the contract-safe half, not by weakening the
+            //          contract.
+            // Amplifier/traceability: the widen grows req_e = req_s+size, so
+            //   LSQUnit::tryToForward's store_has_upper_limit
+            //   (lsq_unit.cc:1657-1720) stops holding -> the full
+            //   store->load forward is demoted/lost and the load re-reads
+            //   memory (SDC-capable when the store has not drained). The
+            //   address is unchanged, so the L3 chain is bound by the inj
+            //   node's old_size/new_size (registerInjection, lsq.cc) and the
+            //   addr registry range [addr, addr+new_size).
+            if (isLoad) {
+                if (a06_load_declined) {
+                    // Belt-and-braces: the trigger path already filtered
+                    // this (eligibility == writability). The legacy
+                    // (non-trigger) path lands here — count per reason,
+                    // never write.
+                    switch (a06_load_v) {
+                      case A06LoadVerdict::NoTarget:
+                        ++obs_pre_a06_load_notarget; break;
+                      case A06LoadVerdict::Illegal:
+                        ++obs_pre_a06_load_illegal; break;
+                      case A06LoadVerdict::ShrinkOrEqual:
+                        ++obs_pre_a06_load_shrink; break;
+                      case A06LoadVerdict::Geometry:
+                        ++obs_pre_a06_load_geom; break;
+                      default: break;
+                    }
+                    ++obs_pre_opclass;   // [LSU][OBS-2]
+                    return size;
+                }
+                size = a06_load_tgt;
+                ++obs_pre_a06_load_widen;
+            } else if (isLegalAguSize(agu_size_to)) {
                 size = (unsigned)agu_size_to;
-            else
-                { ++obs_pre_invalid; return size; }  // [LSU][OBS-2] invalid target size — no-op, logged below
+            } else {
+                ++obs_pre_invalid; return size;   // [LSU][OBS-2] invalid target size — no-op, logged below
+            }
         } else if (pre_mode == "a06s_store_size") {
             // REJECTED ALIAS (2026-10-19 MDSPEC §2 裁决): 规格定义 A06、无
             // A06S——旧名 a06s_store_size 是 83ff9265 引入的私改模型名，禁止
@@ -552,6 +685,46 @@ namespace gem5
             { ++obs_pre_invalid; return size; }  // [LSU][OBS-2] unknown pre_mode — config validated in .py choices
         }
 
+        // [MDSPEC][R4-6-A06] A06-b byte-enable observation / injection.
+        // Runs AFTER the size substitution for two reasons: (1) the mask is
+        // size-indexed, so it must be validated against the FINAL size;
+        // (2) lsq.cc rebuilds _byteEnable all-true when the size changed
+        // (mask/size consistency), so a mask substitution on the same event
+        // as a size substitution would be silently discarded — declined
+        // explicitly instead (obs_be_declined).
+        unsigned be_ones = 0;
+        const unsigned be_len = (unsigned)byte_enable.size();
+        for (bool b : byte_enable) if (b) ++be_ones;
+        ++obs_be_seen;
+        const bool be_all_true = (be_ones == be_len);
+        if (be_all_true) ++obs_be_all_true;
+        bool be_substituted = false;
+        if (be_mode == "shift_mid") {
+            if (size != old_size) {
+                // A06-a already owns this event (one fault per sample).
+                ++obs_be_declined;
+            } else if (!isLoad && be_len == size && size >= 2) {
+                // "另一合法掩码": all-true with one INTERIOR byte cleared.
+                // index (size-1)/2 satisfies 0 <= idx <= size-2, so the mask
+                // has no inactive TAIL (LSQRequest::addReq / inactiveTailSize,
+                // lsq.cc:1186-1197) => the request size is unchanged => the
+                // fixed-width load completion contract is untouched, and
+                // Request::isMasked() -> Packet::isMaskedWrite() ->
+                // Packet::writeData (packet.hh:1320-1336) / MSHR::TargetList::
+                // add / base.cc:1090 give the store a real partial write.
+                byte_enable[(size - 1) / 2] = false;
+                be_substituted = true;
+                ++obs_be_substituted;
+            } else {
+                // size < 2 (no interior byte) or a LOAD: a load's mask has
+                // no architectural consumer on this path (the ISA always
+                // produces all-true — see the hh carrier note), and its only
+                // functional lever is the tail trim == a size change, which
+                // the load contract forbids. Declined, counted.
+                ++obs_be_declined;
+            }
+        }
+
         chaosL0Register(l0_item, addr ? addr : size);
         ++l0_funnel.injected;
         ++l0_funnel.activated;
@@ -584,6 +757,17 @@ namespace gem5
                 // ——离线拆分 load/store 只对新数据可行，历史数据不回填。
                 << ", isLoad=" << (isLoad ? 1 : 0)
                 << ", isStore=" << (isLoad ? 0 : 1)
+                // [MDSPEC][R4-6-A06] A06 self-description (tail-appended,
+                // same backward-compat rule): which FIELD the fault landed
+                // on (addr / size / addr+size — computed, never asserted)
+                // and the A06-b byte-enable evidence for this event.
+                << ", fault_field="
+                << (addr != old_addr
+                        ? (size != old_size ? "addr+size" : "addr")
+                        : (size != old_size ? "size" : "none"))
+                << ", be_len=" << be_len
+                << ", be_ones=" << be_ones
+                << ", be_subst=" << (be_substituted ? 1 : 0)
                 << f6_fields
                 << std::endl;
         }
@@ -755,6 +939,34 @@ namespace gem5
         }
     }
 
+    // [MDSPEC][R4-6-A06] A06 summary line (stdout, W2.1 discipline: a NEW
+    // line, never a change to an existing one). Printed only for A06-shaped
+    // runs (a06_size / the rejected a06s alias / a non-off be_mode) so every
+    // other configuration's stdout stays byte-identical.
+    void
+    CHAOSAddrPath::a06Summary() {
+        if (pre_mode != "a06_size" && pre_mode != "a06s_store_size"
+            && be_mode == "off")
+            return;
+        printf("CHAOS_L0_A06: pre_mode=%s size_to=%lu load_size_to=%lu "
+               "be_mode=%s load_widen=%lu load_notarget=%lu "
+               "load_illegal=%lu load_shrink=%lu load_geom=%lu "
+               "be_seen=%lu be_all_true=%lu be_subst=%lu be_declined=%lu\n",
+               pre_mode.c_str(),
+               (unsigned long)agu_size_to,
+               (unsigned long)agu_size_to_load,
+               be_mode.c_str(),
+               (unsigned long)obs_pre_a06_load_widen,
+               (unsigned long)obs_pre_a06_load_notarget,
+               (unsigned long)obs_pre_a06_load_illegal,
+               (unsigned long)obs_pre_a06_load_shrink,
+               (unsigned long)obs_pre_a06_load_geom,
+               (unsigned long)obs_be_seen,
+               (unsigned long)obs_be_all_true,
+               (unsigned long)obs_be_substituted,
+               (unsigned long)obs_be_declined);
+    }
+
     void
     CHAOSAddrPath::startup() {
         SimObject::startup();
@@ -867,6 +1079,10 @@ namespace gem5
                                             << l0_funnel.line("CHAOSAddrPath")
                                             << std::endl;
                 }
+                // [MDSPEC][R4-6-A06] A06 evidence line (A06-shaped runs
+                // only — a06Summary() self-guards, so every other
+                // configuration's stdout stays byte-identical).
+                a06Summary();
                 // [LSU][OBS-L3] final funnel row (final counts; runs only on
                 // normal exit — aborts keep the last injection-time node,
                 // which is exactly why the per-injection rows exist).
@@ -876,7 +1092,14 @@ namespace gem5
             // [LSU][OBS-L3] legacy (non-trigger) path: final funnel row only.
             // The l0 lines above stay lsuTrigger-only, so the legacy log
             // output is otherwise byte-identical.
-            registerExitCallback([this]() { notifyFunnelAtInjection(); });
+            // [MDSPEC][R4-6-A06] the A06 counters matter on this path too (a
+            // PRE-family mode can be driven by the legacy cycle window) —
+            // a06Summary() is a new, self-guarded line, so runs that are not
+            // A06-shaped remain byte-identical.
+            registerExitCallback([this]() {
+                a06Summary();
+                notifyFunnelAtInjection();
+            });
         }
     }
 

@@ -16,6 +16,7 @@ MODEL_BLOCKED：compile-unverified + 无 pilot，集成侧 build+census+pilot
 
 用法：python3 tests/test_lsu_hook_a07.py   （退出码 0=全 PASS）
 """
+import re
 import sys
 from pathlib import Path
 
@@ -302,10 +303,12 @@ def main():
     check("晚绑定 = seq-bound addr_registry 条目（seq 主臂，精确区间）",
           "e.dyn_seq = dyn_seq;" in bind
           and "addr_registry[addr] = e;" in bind, "")
+    # [MDSPEC][R4-6-A06] 调用点 2026-10-22 追加了 byte-enable IN/OUT 参数
+    # （A06-b），并把实参换行——本项判据放宽为"空白无关"的参数序匹配，
+    # 语义不变：PRE 调用点仍把 addr/size/isLoad/flags/seqNum 传下去。
     check("lsq.cc PRE 调用点传 inst->seqNum（晚绑定的 seq 面）",
-          "maybeCorruptPre(addr, size, isLoad,\n"
-          "                                                      flags, "
-          "inst->seqNum)" in lsq_cc, "")
+          re.search(r"maybeCorruptPre\(\s*addr,\s*size,\s*isLoad,\s*flags,\s*"
+                    r"inst->seqNum\s*,", lsq_cc) is not None, "")
     check("第八 F6 事件源（AGU clean-ready）已在 trigger 头文件登记",
           "EIGHTH source" in trig_hh and "a07b_ready_delay" in trig_hh, "")
     check("CHAOSAddrPath.py 参数面（aguReadyMode + aguReadyDelayCycles）",

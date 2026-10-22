@@ -3,6 +3,7 @@
 
 #include <random>
 #include <string>
+#include <vector>
 
 #include "params/CHAOSAddrPath.hh"
 #include "sim/sim_object.hh"
@@ -42,11 +43,16 @@ class CHAOSAddrPath : public SimObject
     // "same object" needs the W9 oracle table, documented proxy), a05_shift
     // (shift-amount submodel: low-byte rotate; the base/index/extend-swap
     // submodels are NOT expressible from the final addr — deferred, R5),
-    // a06_size (access-size substitution; byte_enable is const at this
-    // hook — size only), a08_subst (same-page, no object constraint).
+    // a06_size (access-size substitution, plus the A06-b byte-enable mask
+    // fault below), a08_subst (same-page, no object constraint).
+    //
+    // [MDSPEC][R4-6-A06] byte_enable is now an IN/OUT parameter (the
+    // caller passes a mutable copy; lsq.cc builds LSQRequest::_byteEnable
+    // from it). A06-b ("byte-enable 改为另一合法掩码") substitutes it in
+    // place; every other mode leaves it untouched.
     unsigned int maybeCorruptPre(Addr& addr, unsigned int size, bool isLoad,
-                               Request::Flags& flags,
-                               uint64_t dyn_inst_seq);
+                               Request::Flags& flags, uint64_t dyn_inst_seq,
+                               std::vector<bool>& byte_enable);
 
     // [LSU][OBS-L3] true iff the PREVIOUS maybeCorruptPre call on this
     // injector performed an injection. The lsq.cc pushRequest call site
@@ -172,6 +178,35 @@ class CHAOSAddrPath : public SimObject
     // (trigger fired, no fault written) — counted here, never as injected.
     uint64_t obs_post_geomreject = 0;
 
+    // [MDSPEC][R4-6-A06] A06-a load leg + A06-b byte-enable counters.
+    // Every decline is counted per REASON (checklist 激活口径: a trigger
+    // fire the mode cannot write is not an injection) and, when the F6
+    // once-ever shot is armed, logged as a REJECT line (the load-candidate
+    // convention introduced by the 2026-10-19 ruling).
+    uint64_t obs_pre_a06_load_widen = 0;   // load leg: widen injected
+    uint64_t obs_pre_a06_load_notarget = 0; // load: agu_size_to_load unset
+    uint64_t obs_pre_a06_load_illegal = 0;  // load: target not in {1,2,4,8,16}
+    uint64_t obs_pre_a06_load_shrink = 0;   // load: target <= orig (contract)
+    uint64_t obs_pre_a06_load_geom = 0;     // load: widen crosses the 64B line
+    uint64_t obs_be_seen = 0;               // A06-b: faulted requests seen
+    uint64_t obs_be_all_true = 0;           // ... of which the mask is all-true
+    uint64_t obs_be_substituted = 0;        // A06-b shift_mid applied (store)
+    uint64_t obs_be_declined = 0;           // A06-b shift_mid declined
+    // A06-a load-leg eligibility (F-049: a mode/target combination that
+    // cannot write this request is NOT eligible — decided BEFORE the
+    // trigger decision so an unwritable load can never consume the F6
+    // once-ever shot). Returns the reason; target is set only on Success.
+    enum class A06LoadVerdict
+    { Success, NoTarget, Illegal, ShrinkOrEqual, Geometry };
+    A06LoadVerdict a06LoadWiden(Addr addr, unsigned size,
+                                unsigned &target) const;
+    static const char *a06LoadVerdictReason(A06LoadVerdict v);
+    static bool isLegalAguSize(uint64_t s);
+    // One A06 evidence line (stdout, W2.1 discipline — a NEW line only).
+    // Self-guarded: prints only for A06-shaped runs (pre_mode a06_size /
+    // the rejected a06s alias / a non-off be_mode).
+    void a06Summary();
+
     // W3 L0: funnel (attempted/eligible/injected mirrored from the trigger;
     // activated = the read-back verdict — for THIS hook the corrupted vaddr
     // is consumed by the very next pipeline step (translateTiming consumes
@@ -185,8 +220,44 @@ class CHAOSAddrPath : public SimObject
     // fixed-width load completion path asserts on shrunken packets);
     // a06s_store_size = store-only v2. Loads are op-class filtered out
     // before the trigger decision (F-049 discipline) and never counted.
-    std::string pre_mode = "off";   // off | a04_subst | a05_shift | a06s_store_size | a08_subst | s13_store_addr | l01_load_addr | (a06_size RETIRED: no-op)
-    uint64_t agu_size_to = 0;       // a06s_store_size: target size {1,2,4,8,16}
+    std::string pre_mode = "off";   // off | a04_subst | a05_shift | a06_size | a08_subst | s13_store_addr | l01_load_addr (a06s_store_size = rejected alias)
+    uint64_t agu_size_to = 0;       // a06_size store leg: target size {1,2,4,8,16}
+    // [MDSPEC][R4-6-A06] A06-a LOAD leg (planned 2026-10-22). The load's
+    // completion is fixed-width per STATIC INSTRUCTION (ARM
+    // LoadCompleteAcc, arch/arm/isa/templates/mem.isa:487-512, copies
+    // sizeof(Mem) bytes out of the packet via getMemLE), while the packet
+    // and the destination buffer are sized by THIS request size
+    // (lsq_unit.cc:1915-1917 `new uint8_t[request->mainReq()->getSize()]`).
+    // A load size strictly BELOW the original is therefore a heap
+    // over-read — never injectable. The legal load target set is the
+    // strict WIDENINGS {1,2,4,8,16} that also fit one 64B line:
+    //     (addr & 63) + target <= 64
+    // (BaseCache::satisfyRequest's packet-offset invariant, the same guard
+    // the POST hook applies as P4-FIX-GEOM). 0 = load leg disabled: loads
+    // are declined with a counted reason, never silently no-op'd.
+    uint64_t agu_size_to_load = 0;  // 0 = disabled; else strict widen target
+    // [MDSPEC][R4-6-A06] A06-b byte-enable mode. Carrier finding (grep
+    // evidence, R4-6-A06 report): every AArch64 load/store path in this
+    // tree passes std::vector<bool>(size, true) — mem.isa:424/477,
+    // neon64.isa:328/355/411/443, sve_mem.isa, sme.isa — so the ISA-side
+    // mask domain is the singleton {all-ones}; the only functional lever
+    // of the mask is LSQRequest::addReq's inactive-TAIL trim
+    // (lsq.cc:1186-1197), which is semantically an access-size change
+    // (and hence forbidden for loads by the contract above).
+    //   off       : no mask handling (legacy; byte-identical output)
+    //   observe   : census the mask of every faulted request (be_len /
+    //               be_ones / be_all_true) into the log + the summary line
+    //   shift_mid : inject "another legal mask" = all-true with the MIDDLE
+    //               byte cleared (index size/2, requires size >= 2 and
+    //               index < size-1 so inactiveTailSize()==0 => the request
+    //               size is unchanged => the load contract is untouched).
+    //               Applied to STORES only: Request::isMasked() ->
+    //               Packet::isMaskedWrite() -> Packet::writeData (packet.hh
+    //               :1320-1336) / MSHR::TargetList::add / base.cc:1090 — a
+    //               real partial write. For LOADS the mask has no
+    //               architectural consumer on this path, so shift_mid
+    //               declines loads (counted).
+    std::string be_mode = "off";    // off | observe | shift_mid
     bool a06s_retired_warned = false;  // one-time warn for retired a06_size
     static CHAOSAddrPath *f6Consumer;
     static void f6Thunk(ChaOSLsuEvent ev);

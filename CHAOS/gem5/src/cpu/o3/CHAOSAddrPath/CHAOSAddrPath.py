@@ -53,13 +53,37 @@ class CHAOSAddrPath(SimObject):
     # non-off preMode registers on the pushRequest pointer INSTEAD of the
     # sendFragment pointer.
     preMode = Param.String("off",
-        "off | a04_subst | a05_shift | a06s_store_size (store-only size "
-        "fault, a06_size v2) | a08_subst | s13_store_addr | "
-        "s04_store_subst (SQ addr same-page, stores) | "
-        "l01_load_addr (LQ addr single-bit, loads only). "
-        "a06_size RETIRED 2026-10-15 (load completion asserts)")
+        "off | a04_subst | a05_shift | a06_size (A06-a: store = any legal "
+        "target; load = contract-safe WIDEN only, see aguSizeToLoad) | "
+        "a08_subst | s13_store_addr | s04_store_subst (SQ addr same-page, "
+        "stores) | l01_load_addr (LQ addr single-bit, loads only). "
+        "'a06s_store_size' is a REJECTED alias (never use — no silent "
+        "model-ID rewrite; it is refused at config time and is a no-op in "
+        "the .cc, counted as obs_pre_invalid)")
     aguSizeTo = Param.UInt64(0,
-        "a06s_store_size target size: 1|2|4|8|16 (0 = invalid, no-op)")
+        "a06_size STORE leg target size: 1|2|4|8|16 "
+        "(anything else = invalid, no-op + counted)")
+    # [MDSPEC][R4-6-A06] A06-a LOAD leg: STRICT WIDEN only. The AArch64
+    # load completion is fixed-width per static instruction (LoadCompleteAcc
+    # getMemLE(pkt, Mem, ..)), while the packet/memData buffer is sized by
+    # the request size (lsq_unit.cc:1915) — a shrink is a heap over-read.
+    aguSizeToLoad = Param.UInt64(0,
+        "a06_size LOAD leg strict widen target: 2|4|8|16, must exceed the "
+        "original access size and keep (addr&63)+target <= 64. "
+        "0 = load leg disabled (loads are declined + counted, never a "
+        "silent no-op)")
+    # [MDSPEC][R4-6-A06] A06-b byte-enable. Every AArch64 load/store path in
+    # this tree passes std::vector<bool>(size, true) (mem.isa, neon64.isa,
+    # sve_mem.isa, sme.isa), so the ISA-side mask domain is {all-ones} and
+    # the only functional lever is the inactive-TAIL trim in
+    # LSQRequest::addReq (== an access-size change). shift_mid clears an
+    # INTERIOR byte => no tail run => the request size is unchanged.
+    beMode = Param.String("off",
+        "off | observe (census the faulted request's mask: be_len/be_ones/"
+        "be_all_true into the injection log + the CHAOS_L0_A06 summary line) "
+        "| shift_mid (A06-b injection: substitute an interior-cleared mask; "
+        "STORES only — a load's mask has no architectural consumer on this "
+        "path; requires preMode=a06_size)")
 
     # [MDSPEC][R4-5.8] A07 AGU clean-ready/handshake family (03 sheet A07:
     # "AGU 结果的 address-ready 握手信号与 EA 流水锁存器"; hook =

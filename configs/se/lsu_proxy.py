@@ -523,12 +523,32 @@ p.add_argument("--addrpath_f6_mode", default="early_stress",
 p.add_argument("--agu_pre_mode", default="off",
                choices=["off","a04_subst","a05_shift","a06_size","a08_subst","s13_store_addr","s04_store_subst","s05_store_size","s06_store_state","s07_store_ptr","s11_store_lost","l01_load_addr","l02_load_state"],
                help="W4: PRE-hook family at LSQ::pushRequest entry (03 A04/A05/A06/A08). "
-                    "a06_size = A06-a store-side safe path (MDSPEC 2026-10-19 ruling: spec "
-                    "defines A06, not A06S; store short writes legal, load candidates "
-                    "REJECT-logged — load side BLOCKED pending contract spike). "
+                    "a06_size = A06-a access-size substitution: stores take any legal "
+                    "target, loads only a contract-safe WIDEN (see --agu_size_to_load). "
+                    "(MDSPEC 2026-10-19 ruling: spec defines A06, not A06S.) "
                     "a06s_store_size REMOVED (rejected alias — no silent model-ID rewrite)")
 p.add_argument("--agu_size_to", type=lambda x: int(x,0), default=0,
-               help="W4 a06_size: target access size 1|2|4|8|16 (stores only)")
+               help="W4 a06_size STORE leg: target access size 1|2|4|8|16")
+# [MDSPEC][R4-6-A06] A06-a LOAD leg. The AArch64 load completion is
+# fixed-width per STATIC instruction (LoadCompleteAcc getMemLE(pkt, Mem)),
+# while the packet/memData buffer is sized by the request size — a shrink is
+# a heap over-read. Legal load targets are the strict WIDENINGS only.
+p.add_argument("--agu_size_to_load", type=lambda x: int(x,0), default=0,
+               help="W4 a06_size LOAD leg: strict widen target 2|4|8|16 "
+                    "(must exceed the original size and fit one 64B line; "
+                    "0 = load leg disabled, loads are declined + counted)")
+# [MDSPEC][R4-6-A06] A06-b byte-enable. Carrier finding: every AArch64
+# load/store path in this tree passes std::vector<bool>(size, true), so the
+# ISA mask domain is {all-ones}; the only functional lever is the
+# inactive-TAIL trim in LSQRequest::addReq (== a size change). shift_mid
+# clears an INTERIOR byte (no tail run => size unchanged => the load
+# contract is untouched) and is applied to stores only.
+p.add_argument("--agu_be_mode", default="off",
+               choices=["off","observe","shift_mid"],
+               help="[MDSPEC][R4-6-A06] A06-b byte-enable: off | observe "
+                    "(census the faulted request's mask) | shift_mid "
+                    "(substitute a middle-cleared mask; stores only, "
+                    "requires --agu_pre_mode a06_size)")
 # [MDSPEC][R4-5.8] A07 AGU clean-ready/handshake family (03 sheet A07:
 # "AGU 结果的 address-ready 握手信号与 EA 流水锁存器"). Hook =
 # IEW::executeInsts' isMemRef branch — THE ready point (the IQ hands a
@@ -1114,6 +1134,12 @@ if args.chaos_addrpath:
         if args.agu_ready_delay_cycles < 1:
             p.error("--agu_ready_delay_cycles must be >= 1 (A07-b bounded "
                     "delay; 0 is a no-op)")
+    # [MDSPEC][R4-6-A06] A06-b config-time validation (the injector's ctor
+    # panics too — loud refusal, never a silent no-op).
+    if args.agu_be_mode != "off" and args.agu_pre_mode != "a06_size":
+        p.error("--agu_be_mode requires --agu_pre_mode a06_size (A06-b is a "
+                "sub-fault of the same A06 model; one sample carries one "
+                "fault — 03 sheet: 不在同一样本叠加)")
     ap = CHAOSAddrPath(
         cpu=cpu0,
         mode=args.addrpath_mode,
@@ -1129,6 +1155,8 @@ if args.chaos_addrpath:
         f6Mode=args.addrpath_f6_mode,
         preMode=args.agu_pre_mode,
         aguSizeTo=args.agu_size_to,
+        aguSizeToLoad=args.agu_size_to_load,
+        beMode=args.agu_be_mode,
         aguReadyMode=args.agu_ready_mode,
         aguReadyDelayCycles=args.agu_ready_delay_cycles,
     )

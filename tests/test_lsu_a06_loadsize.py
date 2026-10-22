@@ -1,0 +1,237 @@
+#!/usr/bin/env python3
+"""test_lsu_a06_loadsize.py — [MDSPEC][R4-6-A06] A06 load 侧 size 注入 +
+A06-b byte-enable 观测/注入 的契约测试（纯 Python，不需要 gem5 二进制）。
+
+分三层，每层都标明**证据类型**（诚实标注，不把静态检查说成实证）：
+
+  A. 源码契约（静态）：把 A06-a load leg 的合法包络、A06-b 的载体判定、
+     接线点、日志/stdout 证据字段、被拒别名 —— 以精确字符串/行模式钉死在
+     源码里；任何后续削弱（例如放开 shrink、去掉 panic、把 load 重新整体
+     拒斥）都会让本层失败。**这不等于行为已被实证**（行为需 gem5 跑，
+     见报告里的 spike 命令）。
+  B. 载体（真实执行）：workloads/directed/a06_size_be.c 以
+     `gcc -O2 -static -Wall -Wextra` 编译（零告警）并两次运行输出逐字节
+     一致（确定性），canary 判定为 1（未污染）。这是本测试唯一的真跑项。
+  C. 路由（静态 + import 真值）：campaign 的 A06 路由含规格模式名 a06_size
+     与 load widen 目标；MODEL_BLOCKED 仍有 A06 且理由提到 load；A06S 不得
+     泄入任何模型字典；lsu_proxy 的 --agu_pre_mode choices 不含被拒别名。
+
+用法：python3 tests/test_lsu_a06_loadsize.py   （退出码 0 = 全 PASS）
+"""
+import re
+import subprocess
+import sys
+import tempfile
+from pathlib import Path
+
+HERE = Path(__file__).resolve().parent
+ROOT = HERE.parent
+sys.path.insert(0, str(ROOT / "tools"))
+import lsu_campaign as lc   # noqa: E402
+
+SRC = ROOT / "CHAOS" / "gem5" / "src" / "cpu" / "o3"
+CC = SRC / "CHAOSAddrPath" / "CHAOSAddrPath.cc"
+HH = SRC / "CHAOSAddrPath" / "CHAOSAddrPath.hh"
+PY = SRC / "CHAOSAddrPath" / "CHAOSAddrPath.py"
+LSQ = SRC / "lsq.cc"
+PROXY = ROOT / "configs" / "se" / "lsu_proxy.py"
+CARRIER = ROOT / "workloads" / "directed" / "a06_size_be.c"
+
+
+def main():
+    fails = []
+
+    def check(name, cond, detail=""):
+        print(("PASS " if cond else "FAIL ") + name
+              + ("   <- " + str(detail) if not cond else ""))
+        if not cond:
+            fails.append(name)
+
+    cctxt = CC.read_text()
+    hhtxt = HH.read_text()
+    pytest_txt = PY.read_text()
+    lsqtxt = LSQ.read_text()
+    proxytxt = PROXY.read_text()
+
+    # ---------------- A. 源码契约（静态） ----------------
+    # A1 load 侧不再是"整体拒斥"：a06_size 已从 pre_store_only 名单移除。
+    m = re.search(r"pre_store_only = \((.*?)\);", cctxt, re.S)
+    check("A1_a06_not_in_pre_store_only",
+          m is not None and "a06_size" not in m.group(1),
+          m.group(1) if m else "pre_store_only not found")
+
+    # A2 shrink/相等 = 合同违约，被显式拒斥（不是 no-op）。
+    check("A2_shrink_violates_contract",
+          "load_size_shrink_violates_fixed_width_completion" in cctxt
+          and "agu_size_to_load <= (uint64_t)size" in cctxt,
+          "shrink guard / reason string missing")
+
+    # A3 几何约束（同 P4-FIX-GEOM 的 64B packet-offset 不变量）。
+    check("A3_widen_block_geometry_guard",
+          "(addr & 63) + agu_size_to_load > 64" in cctxt,
+          "64B-line geometry guard missing")
+
+    # A4 合法目标集合 = {1,2,4,8,16}（与规格的合法 size 域一致）。
+    check("A4_legal_target_set",
+          re.search(r"isLegalAguSize.*?\n.*?return s == 1 \|\| s == 2 \|\| s == 4 "
+                    r"\|\| s == 8 \|\| s == 16;", cctxt) is not None,
+          "isLegalAguSize definition not pinned")
+
+    # A5 load 侧合法性判定在 trigger 决策之前（F-049：不合格 load 不得吃掉
+    #    F6 的一次性 shot）。判据：verdict 计算块出现在 `if (lsuTrigger)` 之前。
+    i_verdict = cctxt.find("A06-a load-leg verdict")
+    i_trigger = cctxt.find("if (lsuTrigger) {", cctxt.find("maybeCorruptPre"))
+    check("A5_load_verdict_before_trigger",
+          i_verdict > 0 and i_trigger > 0 and i_verdict < i_trigger,
+          f"verdict@{i_verdict} trigger@{i_trigger}")
+
+    # A6 A06-b：载体不可注入的部分显式拒斥 + 计数（load 侧 / size 已消费）。
+    check("A6_be_decline_counted",
+          "obs_be_declined" in cctxt and "obs_be_declined" in hhtxt
+          and "else if (!isLoad && be_len == size && size >= 2)" in cctxt,
+          "A06-b decline path not pinned")
+
+    # A7 A06-b 掩码是"内部位清零"（尾部无 0 -> 不触发 addReq 尾部裁剪 ->
+    #    size 不变 -> 不触 load 定宽合同）。判据：索引表达式 + 该论证注释。
+    check("A7_be_mask_interior_only",
+          "byte_enable[(size - 1) / 2] = false;" in cctxt
+          and "inactiveTailSize" in cctxt,
+          "interior-cleared mask substitution not pinned")
+
+    # A8 be_mode 响亮拒绝（未知值 panic；非 a06_size 的 pre_mode panic）。
+    check("A8_be_mode_loud_refusal",
+          "unknown be_mode" in cctxt and "panic(" in cctxt
+          and 'be_mode != "off" && pre_mode != "a06_size"' in cctxt,
+          "be_mode validation missing")
+
+    # A9 被拒别名仍在（不得私改模型 ID）：.cc 一次性 warn + 不注入。
+    check("A9_rejected_alias_intact",
+          'else if (pre_mode == "a06s_store_size")' in cctxt
+          and "'a06s_store_size' is a rejected " in cctxt
+          and "a06s_retired_warned" in cctxt,
+          "a06s_store_size alias guard removed")
+
+    # A10 证据字段：PRE 日志尾部自描述 + 新 stdout 汇总行。
+    check("A10_evidence_fields",
+          ", fault_field=" in cctxt and ", be_len=" in cctxt
+          and ", be_ones=" in cctxt and ", be_subst=" in cctxt
+          and "CHAOS_L0_A06:" in cctxt,
+          "A06 evidence fields / summary line missing")
+    # 日志改动必须是**尾部追加**（lsu_phantom_audit.py 的 PRE_LINE_RE 依赖
+    # mode/old_addr/new_addr/old_size/new_size/faults_injected 的前缀顺序）。
+    i_faults = cctxt.find('", faults_injected: " << faults_injected_count')
+    i_field = cctxt.find('", fault_field="')
+    check("A10b_log_tail_appended",
+          i_faults > 0 and i_field > i_faults,
+          f"faults_injected@{i_faults} fault_field@{i_field}")
+
+    # A11 lsq.cc 接线：可变副本传入钩子 + _byteEnable 由该副本重建。
+    check("A11_lsq_wiring",
+          "std::vector<bool> pre_byte_enable(byte_enable);" in lsqtxt
+          and "maybeCorruptPre(addr, size, isLoad,\n"
+              "                                                      flags, "
+              "inst->seqNum,\n"
+              "                                                      "
+              "pre_byte_enable)" in lsqtxt
+          and "(pre_byte_enable.size() == size)" in lsqtxt,
+          "lsq.cc PRE-hook byte-enable wiring not pinned")
+
+    # A12 签名三处一致（.hh 声明 / .cc 定义 / lsq.cc 调用点参数个数）。
+    check("A12_signature_consistent",
+          "std::vector<bool>& byte_enable);" in hhtxt
+          and "std::vector<bool>& byte_enable)" in cctxt
+          and hhtxt.count("std::vector<bool>& byte_enable") >= 1,
+          "maybeCorruptPre signature mismatch")
+
+    # A13 参数全链路（SimObject.py -> .hh -> .cc -> lsu_proxy.py）。
+    check("A13_param_aguSizeToLoad_wired",
+          "aguSizeToLoad = Param.UInt64" in pytest_txt
+          and "agu_size_to_load = 0" in hhtxt
+          and "aguSizeToLoad=args.agu_size_to_load" in proxytxt
+          and "agu_size_to_load(p.aguSizeToLoad)" in cctxt,
+          "aguSizeToLoad not wired everywhere")
+    check("A13_param_beMode_wired",
+          "beMode = Param.String" in pytest_txt
+          and 'be_mode = "off"' in hhtxt
+          and "beMode=args.agu_be_mode" in proxytxt
+          and "be_mode(p.beMode)" in cctxt,
+          "beMode not wired everywhere")
+
+    # A14 声明顺序 = ctor 初始化顺序（-Wreorder：agu_size_to_load/be_mode 必须
+    #     紧跟在 agu_size_to 之后，且 .cc 初始化列表同序）。
+    i_decl = hhtxt.find("uint64_t agu_size_to_load = 0;")
+    i_bem = hhtxt.find('std::string be_mode = "off";')
+    i_decl_agu = hhtxt.find("uint64_t agu_size_to = 0;")
+    i_init = cctxt.find("agu_size_to_load(p.aguSizeToLoad),")
+    i_init_be = cctxt.find("be_mode(p.beMode),")
+    check("A14_member_and_init_order",
+          i_decl_agu < i_decl < i_bem and 0 < i_init < i_init_be,
+          f"decl {i_decl_agu}/{i_decl}/{i_bem} init {i_init}/{i_init_be}")
+
+    # ---------------- B. 载体（真实执行） ----------------
+    check("B0_carrier_exists", CARRIER.is_file(), str(CARRIER))
+    if CARRIER.is_file():
+        with tempfile.TemporaryDirectory() as td:
+            exe = Path(td) / "a06_size_be"
+            cp = subprocess.run(
+                ["gcc", "-O2", "-static", "-Wall", "-Wextra",
+                 "-o", str(exe), str(CARRIER)],
+                capture_output=True, text=True, timeout=300)
+            warn = (cp.stdout + cp.stderr).strip()
+            check("B1_carrier_builds_clean", cp.returncode == 0 and warn == "",
+                  f"rc={cp.returncode} out={warn[:300]}")
+            if cp.returncode == 0:
+                r1 = subprocess.run([str(exe)], capture_output=True, text=True,
+                                    timeout=120)
+                r2 = subprocess.run([str(exe)], capture_output=True, text=True,
+                                    timeout=120)
+                check("B2_carrier_deterministic",
+                      r1.returncode == 0 and r1.stdout == r2.stdout
+                      and r1.stdout.strip() != "",
+                      f"rc={r1.returncode} out={r1.stdout[:80]!r}")
+                lines = r1.stdout.strip().splitlines()
+                check("B3_carrier_oracle_lines",
+                      len(lines) == 2
+                      and re.fullmatch(r"[0-9a-f]{16}", lines[0]) is not None
+                      and lines[1] == "canary=" + "0" * 15 + "1",
+                      f"lines={lines}")
+
+    # ---------------- C. 路由 / 配置（静态 + import 真值） ----------------
+    family, extra = lc.MODEL_FLAGS["A06"]
+    check("C1_a06_route_spec_mode",
+          family == "addrpath" and "--agu_pre_mode" in extra
+          and "a06_size" in extra,
+          f"family={family} extra={extra}")
+    check("C2_a06_route_has_load_target",
+          "--agu_size_to_load" in extra and "--agu_size_to" in extra,
+          f"extra={extra}")
+    check("C3_a06_still_blocked",
+          "A06" in lc.MODEL_BLOCKED
+          and "load" in str(lc.MODEL_BLOCKED["A06"]).lower(),
+          str(lc.MODEL_BLOCKED.get("A06"))[:120])
+    check("C4_no_a06s_model_id",
+          not any(k.startswith("A06S") for k in lc.MODEL_FLAGS)
+          and not any(k.startswith("A06S") for k in lc.MODEL_BLOCKED),
+          f"flags={[k for k in lc.MODEL_FLAGS if k.startswith('A06S')]}")
+    # C5 只判 **choices 列表本身**：帮助文本里提到被拒别名是允许的
+    # （"REMOVED (rejected alias …)"），把它混进 choices 才是回归。
+    mchoice = re.search(r'"--agu_pre_mode", default="off",\s*\n\s*choices=\[(.*?)\]',
+                        proxytxt, re.S)
+    choices = mchoice.group(1) if mchoice else ""
+    check("C5_alias_absent_from_proxy_choices",
+          '"a06_size"' in choices and "a06s_store_size" not in choices,
+          f"choices={choices[:200]!r}")
+    check("C6_be_mode_choices_declared",
+          '"off","observe","shift_mid"' in proxytxt.replace(" ", ""),
+          "agu_be_mode choices missing")
+    check("C7_proxy_be_mode_validation",
+          'args.agu_be_mode != "off" and args.agu_pre_mode != "a06_size"'
+          in proxytxt,
+          "config-time be_mode validation missing")
+
+    print(f"\nFAILURES: {fails if fails else '无'}")
+    return 1 if fails else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

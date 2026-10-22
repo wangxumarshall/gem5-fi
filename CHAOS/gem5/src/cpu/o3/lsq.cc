@@ -781,9 +781,15 @@ LSQ::pushRequest(const DynInstPtr& inst, bool isLoad, uint8_t *data,
     // LSU W4 A-series PRE hook (W1 ⑦ ruling): pushRequest entry = the AGU's
     // raw output, the single mandatory pass-through point BEFORE split
     // decision and Request construction. Mutates the by-value addr/size
-    // copies so every downstream consumer sees the fault. byte_enable is a
-    // const ref here — BE mutation is NOT offered at this hook (A06 does
-    // size only; documented in 09 §3-W4).
+    // copies so every downstream consumer sees the fault.
+    // [MDSPEC][R4-6-A06] A06-b: the hook now also receives a MUTABLE copy
+    // of the byte-enable mask (A06-b = "byte-enable 改为另一合法掩码").
+    // The mask is size-indexed, so the hook substitutes it against the
+    // PRE-substitution size; the `_byteEnable` rebuild below then keeps
+    // (mask, size) consistent. Consequence (documented, R4-6-A06 report):
+    // when the size changed the mask is rebuilt all-true, i.e. size and
+    // mask substitution are mutually exclusive at the request level.
+    std::vector<bool> pre_byte_enable(byte_enable);
     if (cpu->chaosAddrPathPre) {
         const Addr pre_old_addr = addr;
         const unsigned int pre_old_size = size;
@@ -792,7 +798,8 @@ LSQ::pushRequest(const DynInstPtr& inst, bool isLoad, uint8_t *data,
         // chain to the delayed instruction's real address range); the PRE
         // value modes ignore it.
         size = cpu->chaosAddrPathPre->maybeCorruptPre(addr, size, isLoad,
-                                                      flags, inst->seqNum);
+                                                      flags, inst->seqNum,
+                                                      pre_byte_enable);
         // [LSU][OBS-L3] register the PRE-family injection with the L3
         // propagation tracer (inj + addr_form nodes + addr registry).
         // lastPreHookInjected() also covers the flag-only modes (S06/L02
@@ -898,8 +905,13 @@ LSQ::pushRequest(const DynInstPtr& inst, bool isLoad, uint8_t *data,
         // W4 A06: the PRE hook may substitute the access size; keep the
         // byte-enable consistent (all-true at the new size) or the
         // Request::setByteEnable assert fires downstream.
-        request->_byteEnable = (byte_enable.size() == size)
-            ? byte_enable : std::vector<bool>(size, true);
+        // [MDSPEC][R4-6-A06] source = the hook's mutable copy
+        // (pre_byte_enable): unchanged when A06-b is off / declined,
+        // substituted when the A06-b mask fault fired. A size change wins
+        // over a mask substitution by construction (mask size mismatch =>
+        // all-true rebuild).
+        request->_byteEnable = (pre_byte_enable.size() == size)
+            ? pre_byte_enable : std::vector<bool>(size, true);
         inst->setRequest();
         request->taskId(cpu->taskId());
 
