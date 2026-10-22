@@ -1,0 +1,38 @@
+{
+  "cli_version": "0.10.2",
+  "checkpoint_id": "01M5HH1MWZKSSERSRD69028G05",
+  "session_id": "5a096a1f-f87e-45a0-88e0-e96a0f1cc3d4",
+  "strategy": "manual-commit",
+  "created_at": "2026-10-22T10:03:32.25601638Z",
+  "branch": "r4-10-fsinfra",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "docs/gem5-fi/lsu/mdspec/R4-10-FSINFRA-agent-report.md",
+    "docs/superpowers/plans/2026-10-22-r4-10-fsinfra-tlb-modes.md"
+  ],
+  "agent": "Claude Code",
+  "model": "DeepSeek-V4.1-Flash",
+  "turn_id": "2ed8629756bb",
+  "checkpoint_transcript_start": 428,
+  "transcript_lines_at_start": 428,
+  "compact_transcript_start": 47,
+  "token_usage": {
+    "input_tokens": 0,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 0,
+    "api_call_count": 0
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-10-22T10:03:32.175540327Z",
+    "agent_lines": 157,
+    "agent_removed": 1,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 157,
+    "total_lines_changed": 158,
+    "agent_percentage": 100,
+    "metric_version": 2
+  }
+}
