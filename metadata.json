@@ -2,7 +2,6 @@
   "cli_version": "0.10.2",
   "checkpoint_id": "01M5GGNG988N200EZ00SPTQR3F",
   "strategy": "manual-commit",
-  "branch": "r4-6-s10-platformfix",
   "checkpoints_count": 1,
   "files_touched": null,
   "sessions": [
@@ -15,10 +14,10 @@
     }
   ],
   "token_usage": {
-    "input_tokens": 197256,
+    "input_tokens": 217162,
     "cache_creation_tokens": 0,
-    "cache_read_tokens": 6050176,
-    "output_tokens": 37060,
-    "api_call_count": 50
+    "cache_read_tokens": 7880960,
+    "output_tokens": 42284,
+    "api_call_count": 59
   }
 }
