@@ -290,6 +290,8 @@ $ python3 tests/test_lsu_w11_spec_residual.py      → 18 项 PASS，FAILURES: �
 $ python3 tests/test_lsu_ready_contract_category.py→  8 项 PASS，FAILURES: 无，exit 0
 $ python3 tests/test_lsu_runid_map.py              → FAILURES: 无，exit 0
 $ python3 tests/test_lsu_coverage_matrix.py        → FAILURES: 无，exit 0
+$ python3 tests/test_lsu_hook_t08.py               → ALL PASS，exit 0
+$ python3 tests/test_lsu_hook_t08_walk.py          → ALL PASS，exit 0
 $ python3 tests/test_lsu_hook_c15.py               → ALL PASS，exit 0
 $ python3 tests/test_lsu_hook_l04.py               → ALL PASS，exit 0
 $ python3 tools/lsu_ready_contract.py              → total=325 READY=220 PARTIAL=0
@@ -297,6 +299,17 @@ $ python3 tools/lsu_ready_contract.py              → total=325 READY=220 PARTI
     blocked_by_category={'RULING': 6, 'FS-INFRA': 24, 'MODE-UNIMPL': 3,
     'UNRESOLVED': 19, 'PLATFORM-DEFECT': 6, 'FS-MULTICORE': 35, 'LICENSE': 12}
 ```
+
+**全量回归（不受影响族证据）**：
+
+```
+$ python3 -m pytest tests/ -q
+16 passed, 5 errors in 1.47s
+```
+
+5 个 error 全部在 `tests/test_claim_concurrency.py`（独立脚本式测试、用自定义 check
+而非 pytest fixture）—— 与 R4-7 提交 `302ec9cf` 记录的基线**逐字相同**（"16 passed +
+5 errors（全在 test_claim_concurrency.py）：基线既有，非本轮引入"），本轮零新增失败。
 
 （不与 gem5 build 相关的测试无需 build；本轮**未 build**。）
 
