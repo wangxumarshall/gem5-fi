@@ -17,6 +17,7 @@ sha256，落在 stdout）。
 """
 import argparse
 import base64
+import gzip
 import hashlib
 import pathlib
 import textwrap
@@ -51,6 +52,11 @@ def main() -> int:
     ap.add_argument("--strip-suffix", default="",
                     help="suffix stripped from the host file name to get the "
                          "guest-side name (e.g. _fs)")
+    ap.add_argument("--compress", action="store_true",
+                    help="gzip each ELF before embedding (guest needs gzip; "
+                         "shrinks the payload ~2.8x — the measured FS deploy "
+                         "cost is dominated by payload bytes through the "
+                         "guest shell, see R4-8-FSMC-report.md)")
     ap.add_argument("names", nargs="+", help="host binary names in run order")
     args = ap.parse_args()
 
@@ -69,15 +75,21 @@ def main() -> int:
         blob = exe.read_bytes()
         if not blob.startswith(b"\x7fELF"):
             raise SystemExit(f"{exe} is not an ELF (build first?)")
-        b64 = base64.b64encode(blob).decode()
+        if args.compress:
+            payload = gzip.compress(blob, 9)
+            decode = f"base64 -d | gzip -dc > /tmp/{guest}"
+        else:
+            payload = blob
+            decode = f"base64 -d > /tmp/{guest}"
+        b64 = base64.b64encode(payload).decode()
         parts.append(
-            f"base64 -d > /tmp/{guest} << 'B64_{guest}'\n"
+            f"{decode} << 'B64_{guest}'\n"
             + "\n".join(textwrap.wrap(b64, 76))
             + f"\nB64_{guest}\n"
             f"chmod +x /tmp/{guest}\n"
             f"echo \"[litmus.rcS] /tmp/{guest} "
             f"sha256=$(sha256sum /tmp/{guest} | cut -d' ' -f1) "
-            f"size={len(blob)}\"\n"
+            f"size={len(blob)} emb={len(payload)}\"\n"
         )
     parts.append(
         "\n# 运行顺序：atomic 最先（最可能给出可读 oracle），然后 sb，"
