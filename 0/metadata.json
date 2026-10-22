@@ -1,0 +1,56 @@
+{
+  "cli_version": "0.10.2",
+  "checkpoint_id": "01M5GVCX8ETYEZX5K9ZNHEQ53M",
+  "session_id": "f9b7462d-653a-4227-8c4a-c5df0612dfd0",
+  "strategy": "manual-commit",
+  "created_at": "2026-10-22T03:45:11.103320744Z",
+  "branch": "r4-8-spec-residual",
+  "checkpoints_count": 1,
+  "save_step_count": 1,
+  "files_touched": [],
+  "agent": "Claude Code",
+  "model": "DeepSeek-V4.1-Flash",
+  "turn_id": "fe48095dd964",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 123146,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 1369216,
+    "output_tokens": 28928,
+    "api_call_count": 19
+  },
+  "skill_events_version": 1,
+  "skill_events": [
+    {
+      "id": "claude-skill-call_02_m0xg822wyrp5od1kqrjq5zkf",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "superpowers:dispatching-parallel-agents"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "fe48095dd964",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 26,
+        "end": 27,
+        "entry_ids": [
+          "699b6e10-6a27-4eec-89a9-07721b70d4ee"
+        ],
+        "tool_use_id": "call_02_m0xg822wyrp5od1kqrjq5zkf"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "call_02_m0xg822wyrp5od1kqrjq5zkf"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: superpowers:dispatching-parallel-agents",
+        "default_collapsed": true
+      }
+    }
+  ]
+}
