@@ -1714,8 +1714,21 @@ LSQUnit::read(LSQRequest *request, ssize_t load_idx)
 
                 // Allocate memory if this is the first time a load is issued.
                 if (!load_inst->memData) {
-                    load_inst->memData =
-                        new uint8_t[request->mainReq()->getSize()];
+                    // [MDSPEC][R4-8-A06] A06-a load-shrink carrier: floor the
+                    // destination buffer at the pre-fault STATIC width
+                    // (DynInst::chaosA06BufBytes, set by LSQ::pushRequest)
+                    // and zero-fill, so the fixed-width completeAcc readback
+                    // (sizeof(Mem) bytes) stays in bounds and a shrunk load
+                    // completes as a faithful zero-extended truncation.
+                    // chaosA06BufBytes == 0 for every non-shrunk load, so the
+                    // allocation is then exactly the pre-A06 one
+                    // (byte-identical baseline).
+                    unsigned a06_buf = request->mainReq()->getSize();
+                    if (load_inst->chaosA06BufBytes > a06_buf)
+                        a06_buf = load_inst->chaosA06BufBytes;
+                    load_inst->memData = new uint8_t[a06_buf];
+                    if (a06_buf > request->mainReq()->getSize())
+                        memset(load_inst->memData, 0, a06_buf);
                 }
                 if (store_it->isAllZeros())
                     memset(load_inst->memData, 0,
@@ -1913,7 +1926,18 @@ LSQUnit::read(LSQRequest *request, ssize_t load_idx)
 
     // Allocate memory if this is the first time a load is issued.
     if (!load_inst->memData) {
-        load_inst->memData = new uint8_t[request->mainReq()->getSize()];
+        // [MDSPEC][R4-8-A06] A06-a load-shrink carrier (see the forwarding
+        // allocation above): floor at the pre-fault static width and
+        // zero-fill so a shrunk load completes as a faithful zero-extended
+        // truncation instead of the fixed-width completeAcc readback
+        // running past the heap. chaosA06BufBytes == 0 (every non-shrunk
+        // load) reproduces the pre-A06 allocation byte-for-byte.
+        unsigned a06_buf = request->mainReq()->getSize();
+        if (load_inst->chaosA06BufBytes > a06_buf)
+            a06_buf = load_inst->chaosA06BufBytes;
+        load_inst->memData = new uint8_t[a06_buf];
+        if (a06_buf > request->mainReq()->getSize())
+            memset(load_inst->memData, 0, a06_buf);
     }
 
 

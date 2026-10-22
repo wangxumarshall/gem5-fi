@@ -186,8 +186,9 @@ class CHAOSAddrPath : public SimObject
     uint64_t obs_pre_a06_load_widen = 0;   // load leg: widen injected
     uint64_t obs_pre_a06_load_notarget = 0; // load: agu_size_to_load unset
     uint64_t obs_pre_a06_load_illegal = 0;  // load: target not in {1,2,4,8,16}
-    uint64_t obs_pre_a06_load_shrink = 0;   // load: target <= orig (contract)
-    uint64_t obs_pre_a06_load_geom = 0;     // load: widen crosses the 64B line
+    uint64_t obs_pre_a06_load_shrink = 0;   // load leg: shrink injected
+    uint64_t obs_pre_a06_load_nochange = 0; // load: target == orig (no-op)
+    uint64_t obs_pre_a06_load_geom = 0;     // load: target crosses the 64B line
     uint64_t obs_be_seen = 0;               // A06-b: faulted requests seen
     uint64_t obs_be_all_true = 0;           // ... of which the mask is all-true
     uint64_t obs_be_substituted = 0;        // A06-b shift_mid applied (store)
@@ -196,10 +197,16 @@ class CHAOSAddrPath : public SimObject
     // cannot write this request is NOT eligible — decided BEFORE the
     // trigger decision so an unwritable load can never consume the F6
     // once-ever shot). Returns the reason; target is set only on Success.
+    // [MDSPEC][R4-8-A06] The load leg now accepts the FULL legal envelope
+    // {1,2,4,8,16} (widen AND shrink) — the spec's "替换为另一合法组合" has
+    // no direction restriction. A shrink is only safe because
+    // DynInst::chaosA06BufBytes floors the load's destination buffer at the
+    // pre-fault static width (lsq_unit.cc read()), turning the shrink into a
+    // faithful zero-extended truncation instead of a heap over-read.
     enum class A06LoadVerdict
-    { Success, NoTarget, Illegal, ShrinkOrEqual, Geometry };
-    A06LoadVerdict a06LoadWiden(Addr addr, unsigned size,
-                                unsigned &target) const;
+    { Success, NoTarget, Illegal, NoChange, Geometry };
+    A06LoadVerdict a06LoadSize(Addr addr, unsigned size,
+                               unsigned &target) const;
     static const char *a06LoadVerdictReason(A06LoadVerdict v);
     static bool isLegalAguSize(uint64_t s);
     // One A06 evidence line (stdout, W2.1 discipline — a NEW line only).

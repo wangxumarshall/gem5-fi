@@ -63,13 +63,18 @@ class CHAOSAddrPath(SimObject):
     aguSizeTo = Param.UInt64(0,
         "a06_size STORE leg target size: 1|2|4|8|16 "
         "(anything else = invalid, no-op + counted)")
-    # [MDSPEC][R4-6-A06] A06-a LOAD leg: STRICT WIDEN only. The AArch64
-    # load completion is fixed-width per static instruction (LoadCompleteAcc
-    # getMemLE(pkt, Mem, ..)), while the packet/memData buffer is sized by
-    # the request size (lsq_unit.cc:1915) — a shrink is a heap over-read.
+    # [MDSPEC][R4-6-A06 / R4-8-A06] A06-a LOAD leg: ANOTHER legal size,
+    # widen OR shrink. The AArch64 load completion is fixed-width per static
+    # instruction (LoadCompleteAcc getMemLE(pkt, Mem, ..) reads sizeof(Mem)
+    # bytes), while the destination buffer is sized by the request size
+    # (lsq_unit.cc read()). A shrink is therefore only safe because
+    # LSQ::pushRequest hands the pre-fault static width to the LSQUnit
+    # (DynInst::chaosA06BufBytes), which floors + zero-fills that buffer —
+    # turning the shrink into a faithful zero-extended truncation.
     aguSizeToLoad = Param.UInt64(0,
-        "a06_size LOAD leg strict widen target: 2|4|8|16, must exceed the "
-        "original access size and keep (addr&63)+target <= 64. "
+        "a06_size LOAD leg target size: 1|2|4|8|16 (another legal value; "
+        "widen or shrink, must differ from the original access size and keep "
+        "(addr&63)+target <= 64). "
         "0 = load leg disabled (loads are declined + counted, never a "
         "silent no-op)")
     # [MDSPEC][R4-6-A06] A06-b byte-enable. Every AArch64 load/store path in

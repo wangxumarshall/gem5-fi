@@ -812,6 +812,17 @@ LSQ::pushRequest(const DynInstPtr& inst, bool isLoad, uint8_t *data,
                 "lsq_pushRequest_PRE", inst->seqNum, pre_old_addr, addr,
                 isLoad, pre_old_size, size);
         }
+        // [MDSPEC][R4-8-A06] A06-a load-shrink carrier (fixed-width
+        // completion contract). A load's request `size` here IS its static
+        // memory-operand width (initiateMemRead passes sizeof(Mem),
+        // arch/generic/memhelpers.hh:74-83). If the hook SHRANK it, hand the
+        // original width to the LSQUnit so the destination buffer (sized by
+        // the faulted `size` at lsq_unit.cc read()) is floored at the static
+        // readback width and zero-filled — the shrunk load then completes as
+        // a faithful zero-extended truncation instead of reading past the
+        // heap. A widen/touch leaves the field 0 (byte-identical baseline).
+        if (isLoad && size < pre_old_size)
+            inst->chaosA06BufBytes = pre_old_size;
     }
 
     // [MDSPEC][H1] unified lsq_push event (spec sheet 9, 39-RunID family:

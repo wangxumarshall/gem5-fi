@@ -269,12 +269,17 @@ MODEL_FLAGS = {
     "A04": ("addrpath", ["--agu_pre_mode", "a04_subst"]),
     "A05": ("addrpath", ["--agu_pre_mode", "a05_shift"]),
     # [LSU][MDSPEC][A6] A06（规格名，2026-10-19 计划 §2 裁决 + R4-6-A06
-    # 2026-10-22 load 侧落地）：a06_size = A06-a，按 op-class 的合法包络 ——
-    # store 侧任意合法目标；load 侧仅 strict widen（--agu_size_to_load；
-    # 定宽完成合同只禁 shrink，论证见 CHAOSAddrPath.hh）。
+    # 2026-10-22 load 侧落地 + R4-8-A06 2026-10-22 load shrink 落地）：
+    # a06_size = A06-a，按 op-class 的合法包络 —— store 侧任意合法目标；
+    # load 侧**任意另一合法值**（--agu_size_to_load；widen 或 shrink 都合法，
+    # 与规格 "替换为另一合法组合" 一致）。shrink 的安全性由定宽完成合同的
+    # **缓冲下限**提供（DynInst::chaosA06BufBytes；见 CHAOSAddrPath.hh）。
+    # 本路由 target=8：实宽 1/2/4 的 load 加宽到 8，实宽 16 的向量 load 收缩到
+    # 8（实宽 8 的 load 落在 NoChange 拒斥），故 carrier 内的访存可同时覆盖
+    # widen 与 shrink 两个方向。
     # 旧名 a06s_store_size 仍为被拒别名（不得私改模型 ID，无 A06S RunID 族）。
-    # A06 RunID 保持 MODEL_BLOCKED：R4-6-A06 只落了代码（COMPILE-UNVERIFIED）
-    # + carrier + 契约测试，解除要 §2.c spike 的**真实 gem5 运行**断言。
+    # A06 RunID 保持 MODEL_BLOCKED：shrink 路径只到 COMPILE-UNVERIFIED
+    # （待集成构建），解除要 §2.c spike 的**真实 gem5 运行**断言。
     "A06": ("addrpath", ["--agu_pre_mode", "a06_size", "--agu_size_to", "2",
                           "--agu_size_to_load", "8"]),
     "A08": ("addrpath", ["--agu_pre_mode", "a08_subst"]),
@@ -705,18 +710,23 @@ MODEL_BLOCKED.update({
            "tag proxy, CHAOSLSQFwd --lsqfwd_o07) but COMPILE-UNVERIFIED + "
            "un-piloted, R4-9-FSMC)",
 
-    # [LSU][MDSPEC][A6] A06 专项裁决（计划 §2.d，2026-10-19；R4-6-A06
-    # 2026-10-22 更新）：store 侧安全路径已实现（a06_size，目标可任意合法）；
-    # load 侧已落地 **widen-only** 路径（--agu_size_to_load；定宽完成合同
-    # 只禁 shrink，shrink 仍显式拒斥并计数留证）；A06-b 已落地掩码观测
-    # （be_mode=observe）与"内部位清零"注入（be_mode=shift_mid，仅 store）。
-    # 但这一切都是 **COMPILE-UNVERIFIED 的代码 + carrier + 契约测试**——
-    # §2.c spike 的**真实 gem5 运行**尚未执行（本 worktree 禁构建），故 6 个
-    # RunID 全部保持 BLOCKED，不得伪装完成。
-    # 解除条件（不变）：计划 §2.c 至少一条 load 侧路径通过 spike 验证 + 测试。
-    "A06": ("BLOCKED(load-side widen path + A06-b mask path landed but "
-            "COMPILE-UNVERIFIED; spike (real gem5 run) pending — R4-6-A06 "
-            "2026-10-22, MDSPEC §2 ruling 2026-10-19)"),
+    # [LSU][MDSPEC][A6] A06 专项裁决（计划 §2.d，2026-10-19；R4-6-A06 +
+    # R4-8-A06 2026-10-22 更新）：store 侧安全路径已实现（a06_size，目标可
+    # 任意合法）；load 侧已放宽为**任意另一合法值**（widen 或 shrink，
+    # --agu_size_to_load；shrink 的安全性由定宽完成合同的**缓冲下限**
+    # DynInst::chaosA06BufBytes 提供，见 R4-8-A06-report §2.1）；A06-b 已落地
+    # 掩码观测（be_mode=observe）与"内部位清零"注入（be_mode=shift_mid，仅
+    # store；真机 be_subst=1 已实证）。
+    # 仍 BLOCKED 的**具体**理由：load 侧 shrink 的载体是 **COMPILE-UNVERIFIED**
+    # 的 C++（本 worktree 禁构建，见 R4-8-A06-report §7）。已实证的：store 侧
+    # shrink（8→2）真机可达且有 Crash 后果、load widen 真机可达、A06-b store
+    # 掩码注入 be_subst=1、shrink 护栏 load_shrink 计数真机在跑。
+    # 解除条件（不变）：集成构建通过 + §7 的 load shrink spike 实测通过。
+    "A06": ("BLOCKED(load-side SHRINK faithful path implemented but "
+            "COMPILE-UNVERIFIED (pending integration build); store-side size "
+            "/ load WIDEN / A06-b store mask already real-spike-verified — "
+            "R4-8-A06 2026-10-22)"),
+
 })
 
 # Trigger-tier flags per family. F0 span: addrpath/lsqfwd eligible streams
