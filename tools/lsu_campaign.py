@@ -164,17 +164,20 @@ WL_BLOCKED = {
     # 保留 "multicore-fs:" 前缀是**有意的**：lsu_blocked_triage.py 用正则
     # r"multicore" 做互斥分类，去掉前缀会让这些格子掉出 FS-MULTICORE 桶
     # （甚至被判成 OK = 静默解锁），那是本轮明令禁止的。
-    "Atomic-Litmus": ("blocked(multicore-fs: 基础设施已落地 R4-8-FSMC"
-                      "（2 核 Ruby/CHI FS + 仓库本地 litmus，真机 guest"
-                      " nproc=2）；残留 = §09 CHAOSAtomicTrace（L1 monitor"
-                      " addr/valid/granule/version、atomic operand/SwapResp"
-                      " 路径、order tag/barrier 完成点 + core/thread/"
-                      "global_order_id 关联键）未实现 + campaign 路由/golden"
-                      " 未接线；见 R4-8-FSMC-report.md)"),
+    "Atomic-Litmus": ("blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS "
+                      "+ 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 "
+                      "格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 "
+                      "该模型×档位亲和集合内：C08 是注入器宿主互斥，"
+                      "O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)"),
     "PARSEC": ("blocked(multicore-fs: W13 负载身份——PARSEC(dedup/ferret/"
-               "streamcluster) 开源但仓库内无 aarch64 二进制/输入集（find"
-               " 实证）；且 O09/P09 各自的模型/注入器缺口未解；见"
-               " R4-8-FSMC-report.md)"),
+               "streamcluster) **开源（不是授权障碍）但本仓库不可得**：find 实证"
+               "只有 gem5 上游测试脚手架 CHAOS/gem5/tests/gem5/parsec_benchmarks/，"
+               "而它默认被禁用（PARSEC disk image is too big）、valid_hosts="
+               "(host_x86_64_tag,) 仅 x86_64 宿主、需 --resource-directory 指向"
+               "预编译镜像 + KVM；无源码/输入集/aarch64 构建。另叠加各自的模型/宿主"
+               "缺口（O09 缺 RMW operand hook；P09 的 dirty-evict 走 classic "
+               "CHAOSCache，与'多线程真实应用'语义构造性互斥）；替代负载会改写格子"
+               "定义 ⇒ 规格级决定。见 R4-9-FSMC-A 报告 §5)"),
     "SPEC": "blocked(spec-license: SPEC CPU2017 needs a license)",
 }
 
@@ -335,9 +338,15 @@ MODEL_FLAGS = {
     "P06": ("prefetch", ["--prefetch_mode", "p06_as_demand"]),
     "P09": ("cache", ["--l1d_target_field", "dirty"]),          # approx: pf dirty evict -> dirty
     # --- Atomic (W8 1b97b714 + existing stxr modes) ---
-    "O01": ("exmon", ["--exmon_mode", "o01_monitor_addr_bitflip"]),
-    "O02": ("exmon", ["--exmon_mode", "o02_monitor_state_corrupt"]),
-    "O03": ("exmon", ["--exmon_mode", "stxr_force_fail"]),  # status-flip semantics
+    # [MDSPEC][R4-9-FSMC-A] O01/O02/O03 的家族从 "exmon"（SE 遗留窗口路径）
+    # 改为 "exmon-fsmc"：这三格是 atomic/monitor 模型，只有在**有跨核一致性**
+    # 的平台上才有语义，而三格在 SE 侧从来是 workload-blocked（没有可跑的 SE
+    # 载体）。新家族只走 FS：lsu_multicore_fs.py 2 核 Ruby/CHI + 检查点 +
+    # litmus_free 载体。**SE 路径不是被删掉，是从未存在过**（exmon 家族此前
+    # 只作为"接线验证载体"存在，见 FAMILY_TIER_FLAGS 的原注释）。
+    "O01": ("exmon-fsmc", ["--exmon_mode", "o01_monitor_addr_bitflip"]),
+    "O02": ("exmon-fsmc", ["--exmon_mode", "o02_monitor_state_corrupt"]),
+    "O03": ("exmon-fsmc", ["--exmon_mode", "stxr_force_fail"]),  # status-flip semantics
     # --- TLB (W7 / M3 plan Task 5): FS-only family on lsu_b0_fs + B0 cpt.
     # faultType surface verified on arm_chaos_fs.py:81-100 (T3 smoke real run).
     # HONEST approximations: T10's low/mid/high pfn-bit banding submodel is
@@ -384,6 +393,35 @@ FS_KERNEL = REPO / "gem5-fs/vmlinux"
 FS_DISK = REPO / "gem5-fs/ubuntu.img"
 FS_BOOTLOADER = REPO / "gem5-fs/boot.arm64"
 TLB_PROBE_GOLDEN = "b6d81b360a5672d80c27430f39153e2c"  # md5 of 1 MiB zeros (host-computed)
+
+# --- [MDSPEC][R4-9-FSMC-A] 多核 FS Atomic-Litmus 载体 ---------------------
+# O01/O02/O03 是 **atomic / exclusive-monitor** 模型：它们只有在**有跨核
+# 一致性**的平台上才有语义（R4-8-FSMC §1.2：gem5 v25 classic 多核没有跨核
+# 一致性，MP 型 litmus 的无故障对照就会挂死）。所以这三格的载体是
+# configs/fs/lsu_multicore_fs.py（2 核 Ruby/CHI）+ workloads/litmus 的
+# litmus_free（零 libc freestanding，~8 KB，见 R4-9-FSMC-A 报告），
+# 经 litmus_free.rcS 投放，oracle 是载体自报的三条"禁出现计数"行 + 一行
+# FINAL=<16hex>（golden 即无故障运行的 FINAL）。
+#
+# 检查点：2 核 CHI 的用户态检查点是 /tmp 下的**可再生临时产物**（启动约 16
+# min，见 R4-8-FSMC §3）。为了让工具不把一个 /tmp 路径硬编码成"资产"，这里
+# 走环境变量 LSU_FS_MC_CHECKPOINT，缺省指向 R4-8-FSMC 生成的那个；不存在时
+# 在 resolve 阶段就**大声拒绝**（不是静默跑一个没有检查点的配置）。
+FSMC_CONFIG = REPO / "configs/fs/lsu_multicore_fs.py"
+FSMC_CARRIER_RC = REPO / "configs/fs/litmus_free.rcS"
+FSMC_CHECKPOINT_ENV = "LSU_FS_MC_CHECKPOINT"
+FSMC_DEFAULT_CHECKPOINT = "/tmp/r4-8-fsmc/mc_boot/cpt.243414599076"
+FSMC_GOLDEN_FINAL = "6b8b75aaa790aeb1"  # 无故障运行的 FINAL（见 R4-9-FSMC-A 报告 §3）
+# F 档位里 CHAOSExMon **能诚实表达**的那些：
+#   * F0 = 单次瞬态（task_plan.md §18）——maxFaults=1 单次注入即是 F0；
+#   * F5 = 永久（"always true，注入器对每个 eligible 事件施加"）——
+#     maxFaults=0（无限）即永久。
+#   * F2 = 重复/突发（chaos_trigger.hh 的 interval 260000 cycles）与
+#     F6 = 确定性路径/矩阵规定层：**CHAOSExMon 不消费 chaos_trigger**，
+#     没有 interval / 确定性路径语义 ⇒ 无法表达，保持 BLOCKED（见
+#     resolve_cell 的 F 档位门与 lsu_fsmc_verdict.py 的逐格理由）。
+FSMC_FAULT_EXPRESSIBLE_TIERS = ("F0", "F5")
+
 # Model-level blocks (never silently skipped; the reason lands in col26/27).
 MODEL_BLOCKED = {
     # notify-only event sources — consumer-side corruption NOT implemented
@@ -833,6 +871,39 @@ def _prefetch_tier_flags(model, tier, wl_binary=None):
             "--prefetch_warmup_events", "0", "--prefetch_span_events", "50"]
 
 
+def _fsmc_tier_flags(model, tier, wl_binary=None):
+    """[MDSPEC][R4-9-FSMC-A] 多核 FS litmus 上 O01/O02/O03 的 F 档位表达。
+
+    只用 CHAOSExMon **真正消费**的旋钮（源码级事实：CHAOSExMon.cc 的构造函数
+    读 probability / firstClock / lastClock / maxFaults / rngSeed / writeLog；
+    `lsuTier` / `lsuWarmupEvents` / `lsuSpanEvents` 只在 CHAOSExMon.py 里声明，
+    在 .hh/.cc 里 **0 次**出现）。所以：
+      F0（单次瞬态）→ --exmon_max_faults 1
+      F5（永久）    → --exmon_max_faults 0（无限）
+    其余档位在这里**大声拒绝**（返回 None），resolve_cell 会把它变成 blocked
+    理由，而不是悄悄用 maxFaults=1 冒充——这正是本轮的纪律要求。
+    """
+    if tier == "F0":
+        # FAMILY_MOUNT 已经给了 --exmon_max_faults 1（单次瞬态）；这里不再
+        # 重复一次，免得同一 flag 出现两遍（argparse last-wins 会掩盖笔误）。
+        return []
+    if tier == "F5":
+        return ["--exmon_max_faults", "0"]
+    return None
+
+
+def _fsmc_tier_block_reason(tier):
+    """resolve_cell 用的 F 档位门理由（与 _fsmc_tier_flags 同源，不会漂移）。"""
+    return ("blocked(fsmc-trigger: %s 的档位语义在 CHAOSExMon 里**未实现**"
+            "（lsuTier/lsuWarmupEvents/lsuSpanEvents 在 CHAOSExMon.py 有声明、"
+            "在 .hh/.cc 里 0 次出现；inWindow() 只有 firstClock/lastClock 的"
+            "**时钟**窗，事件计数只有内部 geometric(0.1) 首跳）；F2 的 "
+            "interval 语义（chaos_trigger.hh，260000 cycles）与 F6 的"
+            "确定性路径层都没有可落地旋钮 ⇒ 无法诚实表达，保持 BLOCKED"
+            "（F0/F5 已可由 maxFaults=1/0 表达）。见 R4-9-FSMC-A 报告 §4)"
+            % tier)
+
+
 FAMILY_TIER_FLAGS = {
     # [MDSPEC][R4-5.8] model-aware since A07: the A07-F0 arm consults
     # ADDRPATH_F0_SPAN (loud refusal on unmeasured pairs, the
@@ -853,6 +924,13 @@ FAMILY_TIER_FLAGS = {
     # (see _prefetch_tier_flags).
     "prefetch": _prefetch_tier_flags,
     "exmon": lambda model, tier, wl_binary=None: [],   # legacy window path
+    # [MDSPEC][R4-9-FSMC-A] 多核 FS litmus 上的 exmon：F 档位**只用
+    # CHAOSExMon 真正消费的旋钮**表达，不传 lsuTier（该参数在
+    # CHAOSExMon.py 里有声明、在 .hh/.cc 里 0 次出现 ⇒ 传了就是"声称一个
+    # 没实现的窗"，正是半接线）。F0 → --exmon_max_faults 1（单次瞬态，与
+    # FAMILY_MOUNT 同值，显式重述）；F5 → --exmon_max_faults 0（无限 =
+    # 永久）。其余档位在 resolve_cell 里被 F 档位门挡住，走不到这里。
+    "exmon-fsmc": _fsmc_tier_flags,
 }
 FAMILY_MOUNT = {
     "addrpath": ["--chaos_addrpath"],
@@ -865,6 +943,11 @@ FAMILY_MOUNT = {
     "prefetch": ["--chaos_prefetch", "--prefetch_max_faults", "1",
                   "--prefetch_span_events", "1"],
     "exmon": ["--chaos_exmon", "--exmon_first_clock", "1000", "--exmon_max_faults", "1"],
+    # [MDSPEC][R4-9-FSMC-A] --exmon_max_faults 在这里是 F0 的默认值；F5 由
+    # _fsmc_tier_flags 追加一次覆盖（argparse last-wins，与 lsqfwd 的 span
+    # 覆盖同一约定，见 FAMILY_TIER_FLAGS 上方注释）。
+    "exmon-fsmc": ["--chaos_exmon", "--exmon_first_clock", "1000",
+                    "--exmon_max_faults", "1"],
 }
 # Seed flag per family (findings lesson: injectors take --<inj>_rng_seed,
 # lsqfwd takes the generic --rng_seed).
@@ -874,6 +957,7 @@ FAMILY_SEED = {
     "cache": "--l1d_rng_seed",
     "prefetch": "--prefetch_rng_seed",
     "exmon": "--exmon_rng_seed",
+    "exmon-fsmc": "--exmon_rng_seed",
 }
 
 
@@ -920,6 +1004,13 @@ def resolve_cell(cell, allow_blocked=False):
             if model in MODEL_FLAGS and MODEL_FLAGS[model][0] == "armtlb":
                 # MiBench / TLB-AliasPerm / GAP carriers: runnable via FS
                 continue
+            # [MDSPEC][R4-9-FSMC-A] Atomic-Litmus 对 O01/O02/O03 不再是
+            # "没有载体"：载体是 2 核 Ruby/CHI + litmus_free（真机端到端
+            # 跑通过）。放行到 3a2 分支，由那里的 **F 档位门**决定该格是否
+            # 可跑；不能诚实表达的档位（F2/F6）在那里被拒并给出精确理由。
+            if key == "Atomic-Litmus" and model in MODEL_FLAGS \
+                    and MODEL_FLAGS[model][0] == "exmon-fsmc":
+                continue
             return None, None, reason
     # 2. model-level block / deferral / N-A
     if model in MODEL_BLOCKED:
@@ -955,6 +1046,30 @@ def resolve_cell(cell, allow_blocked=False):
                       str(ARMTLB_T08_WARMUP_EVENTS),
                       "--tlb_lsu_span_events", str(ARMTLB_T08_SPAN_EVENTS)]
         return flags, TLB_PROBE_GOLDEN, "fs:tlb_probe"
+
+    # 3a2. [MDSPEC][R4-9-FSMC-A] FS family: 2-core Ruby/CHI + litmus_free 载体。
+    # 与 3a 的 armtlb 并列，但平台不同（lsu_multicore_fs.py，不是 lsu_b0_fs）；
+    # 检查点由 FSMC_CHECKPOINT_ENV 提供（缺省是 R4-8-FSMC 生成的那个 /tmp
+    # 产物）——**不存在就在 resolve 阶段大声拒绝**，绝不静默跑一个没有检查点
+    # 的配置。
+    if family == "exmon-fsmc":
+        tier_flags = FAMILY_TIER_FLAGS[family](model, freq)
+        if tier_flags is None:
+            return None, None, _fsmc_tier_block_reason(freq)
+        ckpt = os.environ.get(FSMC_CHECKPOINT_ENV, FSMC_DEFAULT_CHECKPOINT)
+        if not Path(ckpt).exists():
+            return None, None, (
+                f"blocked(fsmc-infra: 2 核 Ruby/CHI 检查点 {ckpt} 不在；"
+                f"按 R4-8-FSMC §3 的启动臂重新生成（约 16 min）后设 "
+                f"{FSMC_CHECKPOINT_ENV} 指向它)")
+        flags = ["--kernel", str(fs_asset("vmlinux")),
+                 "--disk", str(fs_asset("ubuntu.img")),
+                 "--bootloader", str(fs_asset("boot.arm64")),
+                 "--num-cores", "2", "--coherence", "chi", "--cpu", "O3",
+                 "--readfile", str(FSMC_CARRIER_RC),
+                 "--restore-checkpoint", ckpt]
+        flags += FAMILY_MOUNT[family] + extra + tier_flags
+        return flags, FSMC_GOLDEN_FINAL, "fs:fsmc-litmus"
 
     # 4. workload must have an SE binary + golden
     binary = None
@@ -1143,6 +1258,85 @@ def classify_fs_run(outdir, run_stdout, exit_code):
     return out
 
 
+def count_fsmc_injections(ilog_path):
+    """[MDSPEC][R4-9-FSMC-A] CHAOSExMon 的注入计数。
+
+    CHAOSExMon 的每一行注入日志都以 `..., Site: <site>, mode=...` 收尾
+    （见 CHAOSExMon.cc 的 write_log 分支），所以按 `Site: ` 计数与 injector
+    自身的 faults_injected_count 一致。文件缺失 = 0（注入器未挂载或没触发）。
+    """
+    p = Path(ilog_path)
+    if not p.exists():
+        return 0
+    n = 0
+    for line in p.read_text(errors="replace").splitlines():
+        if "Site: " in line:
+            n += 1
+    return n
+
+
+def classify_fsmc_run(outdir, run_stdout, exit_code):
+    """[MDSPEC][R4-9-FSMC-A] L5 classification for one FS-multicore litmus run.
+
+    通道（与 tools/lsu_campaign.py 的 FS 口径一致，只是 oracle 换成
+    litmus_free 的自报行）：
+      Crash:        guest 内核 Oops / gem5 报 Kernel oops
+      SDC:          出现 **禁出现结果** —— SB forbidden(00) > 0，或 MP
+                    flag1_x0_violations > 0，或 atomic violations > 0，或
+                    任一 bad>0；或 FINAL 存在但不等于 golden
+      Masked:       FINAL == golden（三条禁出现计数全 0）
+      Unclassified: 干净退出但没有 FINAL 行（诚实：没有 oracle 就不分类）
+    Injected: exmon_injections.log 的 `Site: ` 行数（与其它注入器同一类
+    "近同义"代理，见 classify_fs_run 的说明）。
+    """
+    import re as _re
+    terminal = ""
+    tf = outdir / "board.terminal"
+    if tf.exists():
+        terminal = tf.read_text(errors="replace")
+    injected = count_fsmc_injections(outdir / "exmon_injections.log")
+    out = {"injected": injected, "activated": injected,
+           "attempted": None, "eligible": None, "checksum": None}
+
+    def _num(pat, text):
+        m = _re.search(pat, text)
+        return int(m.group(1)) if m else None
+
+    sb_forb = _num(r"LITMUS free sb hist .*forbidden\(00\)=(\d+)", terminal)
+    sb_bad = _num(r"LITMUS free sb hist .*bad=(\d+)", terminal)
+    mp_viol = _num(r"LITMUS free mp flag1_x0_violations=(\d+)", terminal)
+    at_viol = _num(r"LITMUS free atomic ctr_expect=\d+ violations=(\d+)",
+                   terminal)
+    finals = _re.findall(r"FINAL=([0-9a-f]{16})", terminal)
+    out["oracle_lines"] = {"sb_forbidden": sb_forb, "sb_bad": sb_bad,
+                           "mp_violations": mp_viol,
+                           "atomic_violations": at_viol,
+                           "final": finals[-1] if finals else None}
+    if "Oops" in terminal or "Kernel oops in guest" in run_stdout:
+        out.update(outcome="Crash", crash_kind="kernel_oops")
+    else:
+        viol = [v for v in (sb_forb, sb_bad, mp_viol, at_viol)
+                if v is not None and v > 0]
+        if viol:
+            out["outcome"] = "SDC"
+        elif finals:
+            out["checksum"] = finals[-1]
+            out["outcome"] = ("Masked" if finals[-1] == FSMC_GOLDEN_FINAL
+                              else "SDC")
+        elif exit_code != 0:
+            out.update(outcome="Crash", crash_kind="guest_or_unknown")
+        else:
+            out["outcome"] = "Unclassified"
+    oc = out["outcome"]
+    classes = {k: 0 for k in ("Masked", "Detected/Contained", "SDC",
+                              "Crash", "Timeout")}
+    if oc in classes and injected:
+        classes[oc] = injected
+    out["classes"] = classes
+    out["mode"] = "FS"
+    return out
+
+
 def run_single_cell(cell, args, seed, outdir):
     """Run one gem5 invocation for a single cell×seed. Returns classification dict."""
     runid = cell[COL_RUNID]
@@ -1159,16 +1353,31 @@ def run_single_cell(cell, args, seed, outdir):
     prop = propagation_flags(runid, seed)
     g5 = str(resolve_g5())
 
-    # ---- FS family (armtlb): lsu_b0_fs + checkpoint restore + carrier ----
-    if family == "armtlb":
-        if not args.fs_checkpoint:
-            return {"outcome": "Blocked",
-                    "error": "FS cells need --fs-checkpoint (B0 cpt)"}
+    # ---- FS families (armtlb / exmon-fsmc): checkpoint restore + carrier ----
+    # [MDSPEC][R4-9-FSMC-A] exmon-fsmc 与 armtlb 共用这条"FS 跑一趟"的骨架，
+    # 差别只有三处：平台 config、检查点来源、注入日志名 —— 全在这里显式分派，
+    # 免得两份几乎相同的 subprocess 代码各自漂移。
+    if family in ("armtlb", "exmon-fsmc"):
+        if family == "armtlb":
+            if not args.fs_checkpoint:
+                return {"outcome": "Blocked",
+                        "error": "FS cells need --fs-checkpoint (B0 cpt)"}
+            fs_config = FS_CONFIG
+            ckpt_extra = ["--restore-checkpoint", args.fs_checkpoint]
+            seed_flag = "--tlb_rng_seed"
+            inj_log = "armtlb_injections.log"
+        else:
+            # 检查点已在 resolve_cell 的 flags 里（来自 FSMC_CHECKPOINT_ENV，
+            # 且那里已经确认它存在）；这里不再要求 --fs-checkpoint。
+            fs_config = FSMC_CONFIG
+            ckpt_extra = []
+            seed_flag = FAMILY_SEED[family]
+            inj_log = "exmon_injections.log"
         require_fs_assets()   # loud SystemExit + LSU_FS_DIR hint if absent
-        cmd = [g5, "--outdir", str(outdir), str(FS_CONFIG)]
-        cmd += ["--restore-checkpoint", args.fs_checkpoint]
+        cmd = [g5, "--outdir", str(outdir), str(fs_config)]
+        cmd += ckpt_extra
         cmd += flags
-        cmd += ["--tlb_rng_seed", str(seed)]
+        cmd += [seed_flag, str(seed)]
         cmd += prop
         # [MDSPEC][C1] FS timeout bookkeeping was the one path that could lose
         # evidence: the outer `timeout` must stay well ABOVE --fs-timeout so
@@ -1194,9 +1403,10 @@ def run_single_cell(cell, args, seed, outdir):
             # survived as slow-progress runs; killed at the 30-min cap with
             # injected=0 — the Timeout channel was silently empty).
             inj = 0
-            ilog = outdir / "armtlb_injections.log"
+            ilog = outdir / inj_log
             if ilog.exists():
-                inj = count_armtlb_injections(ilog)
+                inj = (count_armtlb_injections(ilog) if family == "armtlb"
+                       else count_fsmc_injections(ilog))
             classes = {k: 0 for k in ("Masked", "Detected/Contained", "SDC",
                                       "Crash", "Timeout")}
             classes["Timeout"] = inj
@@ -1210,7 +1420,9 @@ def run_single_cell(cell, args, seed, outdir):
             _to["chain_report"] = write_chain_report(
                 outdir, runid, seed, _to, exit_code=None)
             return _to
-        _fsres = classify_fs_run(outdir, proc.stdout, exit_code)
+        _fsres = (classify_fs_run(outdir, proc.stdout, exit_code)
+                  if family == "armtlb"
+                  else classify_fsmc_run(outdir, proc.stdout, exit_code))
         _fsres["chain_report"] = write_chain_report(
             outdir, runid, seed, _fsres, exit_code=exit_code)
         return _fsres
