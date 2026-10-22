@@ -1,0 +1,37 @@
+{
+  "cli_version": "0.10.2",
+  "checkpoint_id": "01M5GMKRVKNVSJEDRAN23CGJ72",
+  "session_id": "492e583a-a50c-4723-aba2-f594947f2bea",
+  "strategy": "manual-commit",
+  "created_at": "2026-10-22T01:46:37.638278462Z",
+  "branch": "lsu-mdspec-20261019",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "docs/gem5-fi/lsu/mdspec/ready_contract.json"
+  ],
+  "agent": "Claude Code",
+  "model": "DeepSeek-V4.1-Flash",
+  "turn_id": "1c5074705234",
+  "checkpoint_transcript_start": 1335,
+  "transcript_lines_at_start": 1335,
+  "compact_transcript_start": 153,
+  "token_usage": {
+    "input_tokens": 12283,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 2134144,
+    "output_tokens": 3451,
+    "api_call_count": 6
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-10-22T01:46:37.383456743Z",
+    "agent_lines": 21,
+    "agent_removed": 7,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 21,
+    "total_lines_changed": 28,
+    "agent_percentage": 100,
+    "metric_version": 2
+  }
+}
