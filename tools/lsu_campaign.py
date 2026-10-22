@@ -486,6 +486,13 @@ MODEL_FLAGS = {
 # workload-level "fs-infra" phrase.
 ARMTLB_MODELS = {"T01", "T02", "T03", "T04", "T05", "T06", "T07", "T08", "T10"}
 
+# [R4-10] the walk/refill family — the four sub-models of T08. All ride the
+# event-normalized tier on the walk-ISSUE stream (the armtlb branch below
+# appends --tlb_lsu_tier <F> for these). T08-a drops the walk at issue;
+# T08-b/c/d are applied at the refill completion point.
+WALK_FAULT_TYPES = ("walk_pairing", "walk_fill_dup", "walk_done_early",
+                    "walk_stale_result")
+
 # [MDSPEC][R4-6-T08] Pinned F0 window for T08's walk-issue stream. The values
 # ARE the config defaults (configs/se/arm_chaos_fs.py --tlb_lsu_warmup_events
 # 0 / --tlb_lsu_span_events 1000): this is an explicit pin, not a re-tune, so
@@ -686,9 +693,14 @@ MODEL_BLOCKED = {
             "with the same walk_id/field=lost signature, activated=1; F4-W9 "
             "honest zero (burst interval 1e5 eligible events >> the ~1e3 "
             "walk-issue stream — hook reached, never fires), binary "
-            "7d52bc1392a10055. Block retained: pending T08-b/c/d sub-model "
-            "modes have no real-run coverage and the pilots are 1 seed each; "
-            "deletion is an integration decision"),
+            "7d52bc1392a10055. [R4-10] the T08-b/c/d sub-model modes "
+            "(walk_fill_dup / walk_done_early / walk_stale_result) are now "
+            "LANDED in CHAOSArmTLB + table_walker.cc (refill completion hook, "
+            "walk_id-paired tlb_walk/tlb_refill with field/outcome per "
+            "sub-model) but COMPILE-UNVERIFIED — build + FS pilot await "
+            "integration. "
+            "Block retained: pilots are 1 seed each and the sub-models have no "
+            "real-run coverage; deletion is an integration decision"),
 }
 # O05-O07 are multicore-semantic models — their cells sit on Atomic-Litmus/
 # PARSEC (workload-blocked); add the model-level reason for robustness.
@@ -1365,7 +1377,7 @@ def resolve_cell(cell, allow_blocked=False):
         # [MDSPEC][R4-6-T08] the F0 window is pinned from the constants above
         # (same values as the config defaults) so the draw index is auditable
         # straight from the flag list — see the constants' comment.
-        if "walk_pairing" in extra:
+        if any(w in extra for w in WALK_FAULT_TYPES):
             flags += ["--tlb_lsu_tier", freq,
                       "--tlb_lsu_warmup_events",
                       str(ARMTLB_T08_WARMUP_EVENTS),

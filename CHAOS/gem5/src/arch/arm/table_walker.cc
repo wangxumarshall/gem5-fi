@@ -2621,8 +2621,32 @@ WalkUnit::insertTableEntry(WalkerState *curr_state, DescriptorBase &descriptor,
             descriptor.lookupLevel, static_cast<uint8_t>(descriptor.domain()),
             descriptor.getRawData());
 
+    // [MDSPEC][R4-10-T08-b/c/d] walk/refill pairing sub-models (FS-only):
+    // consult the injector at the refill completion point, BEFORE the entry
+    // is written. T08-d rewrites te.pfn in place (stale result); T08-b asks
+    // for a SECOND insert (duplicated refill); T08-c only relabels the
+    // refill tick (done too early). The tlb_walk/tlb_refill node pair (with
+    // the sub-model's field/outcome) is emitted inside the injector.
+    // nullptr/false => byte-equivalent to the pre-R4-10 tree.
+    bool chaos_dup_refill = false;
+    if (parent->chaosTLB) {
+        const uint64_t req_seq = (curr_state->req &&
+                                  curr_state->req->hasInstSeqNum())
+                                     ? curr_state->req->getReqInstSeqNum()
+                                     : 0;
+        chaos_dup_refill = parent->chaosTLB->maybeCorruptWalkRefill(
+            curr_state->chaosWalkId, curr_state->vaddr, req_seq,
+            curr_state->chaosWalkStartTick, /*level=*/1, &te);
+    }
+
     // Insert the entry into the TLBs
     mmu->insert(te, curr_state->mode, isStage2);
+
+    // T08-b duplicated refill: the same walk's result is written a SECOND
+    // time (the pairing node was already emitted by the injector).
+    if (chaos_dup_refill) {
+        mmu->insert(te, curr_state->mode, isStage2);
+    }
 }
 
 WalkUnit::LookupLevel

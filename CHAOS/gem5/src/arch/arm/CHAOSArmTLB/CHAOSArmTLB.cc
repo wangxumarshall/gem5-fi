@@ -47,14 +47,16 @@ namespace gem5
         // trigger; refuse loudly instead of silently injecting nothing
         // (L04/S10 discipline — a mode that needs a tier must not run
         // without one).
-        if (fault_type_enum == FaultType::WalkPairing && !lsuTrigger) {
-            panic("CHAOSArmTLB: faultType=walk_pairing requires "
-                  "--tlb_lsu_tier (the event-normalized trigger that "
-                  "selects which walk is dropped). See R4-5.9 report.");
+        if (isWalkFamily(fault_type_enum) && !lsuTrigger) {
+            panic("CHAOSArmTLB: the walk/refill family (walk_pairing / "
+                  "walk_fill_dup / walk_done_early / walk_stale_result) "
+                  "requires --tlb_lsu_tier (the event-normalized trigger that "
+                  "selects which walk is affected). See R4-5.9 / R4-10 reports.");
         }
-        if (fault_type_enum == FaultType::WalkPairing && !walker) {
-            panic("CHAOSArmTLB: faultType=walk_pairing requires walker= "
-                  "(the ArmTableWalker to attach to). See R4-5.9 report.");
+        if (isWalkFamily(fault_type_enum) && !walker) {
+            panic("CHAOSArmTLB: the walk/refill family requires walker= "
+                  "(the ArmTableWalker to attach to). See R4-5.9 / R4-10 "
+                  "reports.");
         }
         if (walker) {
             walker->setChaosTLB(this);
@@ -101,6 +103,10 @@ namespace gem5
         if (s == "pfn_to_mapped_page") return FaultType::PfnToMappedPage;
         // [R4-5.9] T08: FS walk/fill pairing (T08-a lost walk).
         if (s == "walk_pairing") return FaultType::WalkPairing;
+        // [R4-10-T08-b/c/d] walk/refill pairing sub-models.
+        if (s == "walk_fill_dup") return FaultType::WalkDuplicate;
+        if (s == "walk_done_early") return FaultType::WalkEarlyDone;
+        if (s == "walk_stale_result") return FaultType::WalkStaleResult;
         // [R4-10-T05] entry identity / lifecycle state.
         if (s == "valid_clear") return FaultType::ValidClear;
         if (s == "valid_set") return FaultType::ValidSet;
@@ -125,6 +131,9 @@ namespace gem5
             case FaultType::StuckAtOne: return "stuck_at_one";
             case FaultType::PfnToMappedPage: return "pfn_to_mapped_page";
             case FaultType::WalkPairing: return "walk_pairing";  // [R4-5.9]
+            case FaultType::WalkDuplicate: return "walk_fill_dup";   // T08-b
+            case FaultType::WalkEarlyDone: return "walk_done_early"; // T08-c
+            case FaultType::WalkStaleResult: return "walk_stale_result"; // T08-d
             case FaultType::ValidClear: return "valid_clear";    // [R4-10-T05]
             case FaultType::ValidSet: return "valid_set";
             case FaultType::GlobalFlip: return "global_flip";
@@ -150,7 +159,11 @@ namespace gem5
     CHAOSArmTLB::maybeDropWalkFill(uint64_t walk_id, Addr va, uint64_t req_seq,
                                    uint64_t walk_start_tick, unsigned level)
     {
-        if (fault_type_enum != FaultType::WalkPairing) return false;
+        // [R4-10] all four walk-family sub-models share this issue-point
+        // funnel (the walk-issue stream is the eligible stream for the whole
+        // family): T08-a DROPS the walk here; T08-b/c/d arm a refill-side
+        // action applied in maybeCorruptWalkRefill.
+        if (!isWalkFamily(fault_type_enum)) return false;
         if (!lsuTrigger) return false;
         lsuTrigger->onAttempt();
         // [MDSPEC][R4-6-T08] One-shot reachability probe. The R4-5.9 pilot
@@ -187,6 +200,42 @@ namespace gem5
                               ? lsuTrigger->onF6Event(false)
                               : lsuTrigger->onEligible();
         if (!fire) return false;
+
+        // [R4-10] T08-b/c/d: the walk is NOT dropped here — arm the refill
+        // action and let maybeCorruptWalkRefill apply it at the refill
+        // completion point (the pairing node pair is emitted there, with the
+        // sub-model's field/outcome). walk_stale_result needs a PREVIOUS
+        // completed walk; on the very first walk it is an honest no-op (no
+        // budget consumed, one-shot notice).
+        if (fault_type_enum != FaultType::WalkPairing) {
+            if (fault_type_enum == FaultType::WalkStaleResult &&
+                !have_last_walk) {
+                if (write_log && log_stream && !stale_no_previous_notice) {
+                    stale_no_previous_notice = true;
+                    *(log_stream->stream())
+                        << "Tick: " << curTick()
+                        << ", Site: arm_tlb_walk_stale_no_previous"
+                        << ", walk_id: " << walk_id
+                        << ", FaultType: walk_stale_result (no previously "
+                           "completed walk yet — honest no-op)"
+                        << std::endl;
+                }
+                return false;   // do NOT consume the fault budget
+            }
+            ++faults_injected_count;
+            stats->numFaultsInjected++;
+            pending_walk_id = walk_id;
+            if (write_log && log_stream) {
+                *(log_stream->stream())
+                    << "Tick: " << curTick()
+                    << ", Site: arm_tlb_walk_refill_armed"
+                    << ", walk_id: " << walk_id
+                    << ", VA: 0x" << std::hex << va << std::dec
+                    << ", FaultType: " << faultTypeToString(fault_type_enum)
+                    << std::endl;
+            }
+            return false;   // the walk proceeds; the refill hook fires
+        }
 
         ++faults_injected_count;
         stats->numFaultsInjected++;
@@ -456,6 +505,99 @@ namespace gem5
         registerTrace(va, old_pfn, entry->pfn, old_pa, entry->pAddr(va),
                       entry->size + 1, faultTypeToString(chosen),
                       req_seq, req_size);
+    }
+
+    // [MDSPEC][R4-10-T08-b/c/d] walk/refill pairing sub-models. Called at the
+    // refill completion point (WalkUnit::insertTableEntry) once per COMPLETED
+    // walk, BEFORE mmu->insert. Applies the sub-model armed at the issue point
+    // (pending_walk_id) and emits the tlb_walk/tlb_refill node pair with the
+    // sub-model's field + outcome. Also maintains the last-completed-walk
+    // record consumed by walk_stale_result (captured BEFORE any mutation, so
+    // a stale substitution always uses the NATURAL previous result).
+    bool
+    CHAOSArmTLB::maybeCorruptWalkRefill(uint64_t walk_id, Addr va,
+                                        uint64_t req_seq,
+                                        uint64_t walk_start_tick,
+                                        unsigned level, ArmISA::TlbEntry *te)
+    {
+        bool duplicate = false;
+        // Natural result of THIS walk (pre-mutation) — the record a later
+        // stale fault draws from.
+        const Addr this_pfn = te ? te->pfn : 0;
+        const Addr this_vpn = te ? te->vpn : 0;
+
+        if (isWalkFamily(fault_type_enum) && pending_walk_id != 0 &&
+            pending_walk_id == walk_id &&
+            fault_type_enum != FaultType::WalkPairing) {
+            pending_walk_id = 0;   // one-shot arm
+            const char *mode = faultTypeToString(fault_type_enum);
+            // T08-c reports the completion (done) at the walk's ISSUE tick
+            // (the "done too early" handshake fault); the data payload stays
+            // correct (spec T08: timing-only, data must remain valid).
+            const uint64_t refill_tick =
+                (fault_type_enum == FaultType::WalkEarlyDone)
+                    ? walk_start_tick
+                    : (uint64_t)curTick();
+
+            if (fault_type_enum == FaultType::WalkStaleResult) {
+                if (te && have_last_walk) {
+                    const Addr old_pfn = te->pfn;
+                    // Write the PREVIOUS walk's translation into the current
+                    // entry (the "old walk result written into the current
+                    // slot" fault). The tag/size stay this walk's — only the
+                    // translation payload is stale.
+                    te->pfn = last_walk_pfn;
+                    if (write_log && log_stream) {
+                        *(log_stream->stream())
+                            << "Tick: " << curTick()
+                            << ", Site: arm_tlb_walk_refill_stale"
+                            << ", walk_id: " << walk_id
+                            << ", VA: 0x" << std::hex << va
+                            << ", old_pfn: 0x" << old_pfn
+                            << ", stale_pfn: 0x" << te->pfn
+                            << ", FaultType: walk_stale_result" << std::dec
+                            << std::endl;
+                    }
+                    CHAOSPropagation *tr = CHAOSPropagation::instance();
+                    if (tr) {
+                        tr->registerTlbWalkPair(walk_id, va, req_seq,
+                                                walk_start_tick, refill_tick,
+                                                level, /*fill_lost=*/false,
+                                                mode);
+                    }
+                    stats->numFaultsInjected++;
+                }
+                // else: honest no-op (should not happen — the issue point
+                // already refused when there was no previous walk).
+            } else {
+                // T08-b (duplicated refill) / T08-c (done too early).
+                duplicate = (fault_type_enum == FaultType::WalkDuplicate);
+                CHAOSPropagation *tr = CHAOSPropagation::instance();
+                if (tr) {
+                    tr->registerTlbWalkPair(walk_id, va, req_seq,
+                                            walk_start_tick, refill_tick,
+                                            level, /*fill_lost=*/false, mode);
+                }
+                if (write_log && log_stream) {
+                    *(log_stream->stream())
+                        << "Tick: " << curTick()
+                        << ", Site: arm_tlb_walk_refill"
+                        << ", walk_id: " << walk_id
+                        << ", VA: 0x" << std::hex << va << std::dec
+                        << ", FaultType: " << mode
+                        << std::endl;
+                }
+                stats->numFaultsInjected++;
+            }
+        }
+
+        // Maintain the last-completed-walk record (natural values).
+        if (te) {
+            last_walk_pfn = this_pfn;
+            last_walk_vpn = this_vpn;
+            have_last_walk = true;
+        }
+        return duplicate;
     }
 
     // [MDSPEC][R4-10-T05/T06] entry-state / attribute substitution. Mutates

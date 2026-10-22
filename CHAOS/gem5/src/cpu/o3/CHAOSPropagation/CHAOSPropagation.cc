@@ -1234,12 +1234,21 @@ namespace gem5
 
         // The refill node. field=lost marks the T08-a lost-refill outcome
         // (the refill that never arrived) so downstream joins can prove the
-        // walk was unpaired rather than silently absent.
+        // walk was unpaired rather than silently absent. [R4-10] the T08-b/c/d
+        // sub-models label their outcome explicitly (duplicated / early_done /
+        // stale) instead of a bare "refilled", so the pairing is self-describing.
+        const std::string mode_s(mode);
+        const char *refill_outcome =
+            fill_lost ? "lost"
+                      : (mode_s == "walk_fill_dup" ? "duplicated"
+                         : mode_s == "walk_done_early" ? "early_done"
+                         : mode_s == "walk_stale_result" ? "stale"
+                                                         : "refilled");
         const char *refill_field = fill_lost ? "lost" : mode;
         std::ostringstream d_refill;
         d_refill << "family=tlb;site=tlb_refill;walk_id=" << walk_id
                  << ";level=L" << level
-                 << ";outcome=" << (fill_lost ? "lost" : "refilled")
+                 << ";outcome=" << refill_outcome
                  << ";refill_tick=" << refill_tick
                  << ";req_seq=" << req_seq;
         notePropEvt("tlb_refill", {
@@ -1248,7 +1257,7 @@ namespace gem5
             {"walk_id", std::to_string(walk_id)},
             {"va", h_va.str()},
             {"field", refill_field},
-            {"outcome", fill_lost ? "lost" : "refilled"},
+            {"outcome", refill_outcome},
             {"tick", std::to_string(refill_tick)},
         });
         return ptag;

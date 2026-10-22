@@ -109,8 +109,11 @@ def main():
                   ("case FaultType::StuckAtZero:", "case FaultType::StuckAtOne:",
                    "case FaultType::BitFlip:", "FaultType::PfnToMappedPage")))
     dw = _body(tlb_cc, "CHAOSArmTLB::maybeDropWalkFill(", "\n    // §1.2 protection-aware")
-    check("maybeDropWalkFill 首行仍是 WalkPairing 门（其它 mode 立即返回 false）",
-          dw.index("fault_type_enum != FaultType::WalkPairing")
+    # [R4-10] the gate widened from WalkPairing to the whole walk/refill
+    # family (isWalkFamily) so T08-b/c/d share the issue-point funnel; the
+    # INTENT is unchanged — a non-walk mode returns before onAttempt().
+    check("maybeDropWalkFill 首行是 walk 家族门（其它 mode 立即返回 false）",
+          dw.index("isWalkFamily(fault_type_enum)")
           < dw.index("lsuTrigger->onAttempt()"))
     check("walk 发出点探针行存在（wiring 证明，且 T08-only）",
           "arm_tlb_walk_issue_probe" in dw and "walk_pairing_probe_notice" in dw)
@@ -124,8 +127,11 @@ def main():
     # for walk_pairing: passing walker=None for the lookup modes made gem5's
     # param conversion call Class(None) -> TypeError, killing EVERY FS run at
     # instantiate time (see round4_findings §R4-6.0).
-    check("FS config 在 walk_pairing 下把 walker=cpu0.mmu.walker 交给 CHAOSArmTLB",
-          'if args.tlb_fault_type == "walk_pairing":' in fs_py
+    # [R4-10] the walker kwarg is now gated on the walk FAMILY
+    # (WALK_FAULT_TYPES), so T08-b/c/d also get the walker; the lookup modes
+    # still never pass walker= (the R4-6.0 None-param crash stays fixed).
+    check("FS config 在 walk 家族下把 walker=cpu0.mmu.walker 交给 CHAOSArmTLB",
+          "if args.tlb_fault_type in WALK_FAULT_TYPES:" in fs_py
           and '_tlb_kwargs["walker"] = cpu0.mmu.walker' in fs_py)
     _kw = (fs_py.split("_tlb_kwargs = dict(")[1].split("if args.tlb_fault_type")[0]
            if "_tlb_kwargs = dict(" in fs_py else "")
@@ -148,8 +154,10 @@ def main():
           "serialize" not in tlb_hh_arm and "class TLB : public BaseTLB" in tlb_hh_arm)
 
     print("[C] 配置/campaign 面：早失败 + T08 flags + blocked opt-in")
-    i_val = fs_py.index('if args.tlb_fault_type == "walk_pairing":')
-    check("config 有 walk_pairing 早失败块（chaos_armtlb + tier）",
+    # [R4-10] the refusal block is now gated on the walk FAMILY
+    # (WALK_FAULT_TYPES) so the T08-b/c/d sub-models get the same早失败.
+    i_val = fs_py.index("if args.tlb_fault_type in WALK_FAULT_TYPES:")
+    check("config 有 walk 家族早失败块（chaos_armtlb + tier）",
           "--chaos_armtlb" in fs_py[i_val:i_val + 1600]
           and 'args.tlb_lsu_tier == "off"' in fs_py[i_val:i_val + 1600])
     check("早失败在 SimObject 构造之前（ctor panic 之前就退）",
