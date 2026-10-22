@@ -186,7 +186,20 @@ class CHAOSAddrPath : public SimObject
     uint64_t obs_pre_a06_load_widen = 0;   // load leg: widen injected
     uint64_t obs_pre_a06_load_notarget = 0; // load: agu_size_to_load unset
     uint64_t obs_pre_a06_load_illegal = 0;  // load: target not in {1,2,4,8,16}
-    uint64_t obs_pre_a06_load_shrink = 0;   // load leg: shrink injected
+    // [R4-10][A06] == 0 by construction. Its only increment site (the
+    // `else` of the widen test in the a06_size branch) is unreachable: for a
+    // load, a06LoadSize returns ShrinkUnsafe for every target < orig size
+    // BEFORE any write, so the hook can never return a shrunk load size.
+    // Kept for summary-line field stability; the LIVE shrink signal is
+    // obs_pre_a06_load_shrink_unsafe below (never a silent zero).
+    uint64_t obs_pre_a06_load_shrink = 0;   // load leg: shrink injected (DEAD: always 0)
+    // [R4-10][A06] load shrink DECLINED (loudly, per-reason). The real,
+    // reachable counter for a shrink candidate: both a06 switch sites count
+    // ShrinkUnsafe here instead of falling into `default: break;` (the pre-
+    // R4-10 bug: it was folded only into the aggregate obs_pre_opclass, so
+    // every A06 summary printed a silent `load_shrink=0` with no visible
+    // decline — the "never a silent zero" convention this fixes).
+    uint64_t obs_pre_a06_load_shrink_unsafe = 0; // load: shrink DECLINED (structural)
     uint64_t obs_pre_a06_load_nochange = 0; // load: target == orig (no-op)
     uint64_t obs_pre_a06_load_geom = 0;     // load: target crosses the 64B line
     uint64_t obs_be_seen = 0;               // A06-b: faulted requests seen
@@ -197,12 +210,16 @@ class CHAOSAddrPath : public SimObject
     // cannot write this request is NOT eligible — decided BEFORE the
     // trigger decision so an unwritable load can never consume the F6
     // once-ever shot). Returns the reason; target is set only on Success.
-    // [MDSPEC][R4-8-A06] The load leg now accepts the FULL legal envelope
-    // {1,2,4,8,16} (widen AND shrink) — the spec's "替换为另一合法组合" has
-    // no direction restriction. A shrink is only safe because
-    // DynInst::chaosA06BufBytes floors the load's destination buffer at the
-    // pre-fault static width (lsq_unit.cc read()), turning the shrink into a
-    // faithful zero-extended truncation instead of a heap over-read.
+    // [MDSPEC][R4-8-A06] The load leg accepts the WIDEN direction of the
+    // legal envelope {1,2,4,8,16}; the SHRINK direction is DECLINED (see
+    // ShrinkUnsafe). [R4-10] Correction of the R4-8-A06 draft: that draft
+    // claimed a shrink "is only safe because DynInst::chaosA06BufBytes
+    // floors the load's destination buffer". That premise is WRONG — the
+    // fixed-width completion aborts on the PACKET's size field, not the
+    // destination buffer — so the buffer floor cannot make shrink safe. The
+    // DynInst::chaosA06BufBytes floor and the two lsq_unit.cc allocations
+    // that honour it are retained but STRUCTURALLY UNREACHABLE under
+    // a06_size (dead code, kept only to avoid churning lsq.cc/lsq_unit.cc).
     enum class A06LoadVerdict
     // [R4-8-INT] ShrinkUnsafe: the SHRINK direction is DECLINED (loudly,
     // counted) because it cannot be made safe on this platform. The

@@ -330,6 +330,21 @@ def main():
             check(f"{runid} loud blocked（tier={tier}，理由="
                   f"{extra}，绝不静默 runnable）", ok, f"note={str(note)[:90]}")
 
+    # [R4-10][S10-F2 显式裁决] 拒绝理由必须是**类别 (iii) 规格要求结构性拒绝**，
+    # 而不是 (i)"interval 配置不适配当前事件流"的模糊说法：
+    #   * 理由必须点名 interval 是 **SPEC-FIXED**（规格钉死，不是我们选得不好）；
+    #   * 必须显式声明 **may NOT be re-tuned**（重调即改故障模型语义）；
+    #   * 必须给出数字下界（iv/2 = 50000 > 实测流长 3/4）作为结构性证据。
+    # 若未来有人把 F2 改成"调 interval 即可"，本判据失败 —— 强制走 spec 裁决。
+    f2c = [c for c in s10 if c[LC.COL_RUNID].strip() == "S10-F2-W5"][0]
+    _f, _g, f2_note = LC.resolve_cell(f2c)
+    check("S10-F2 拒绝理由 = 类别(iii) 规格要求结构性拒绝"
+          "（SPEC-FIXED + 不得重调 + 数字下界）",
+          f2_note is not None and "SPEC-FIXED" in f2_note
+          and "may NOT be re-tuned" in f2_note
+          and "50000" in f2_note,
+          f"note={str(f2_note)[:160]}")
+
     print("[8] SPEC_IMPL_LANDED 登记契约（源码钉；JSON 再生成为集成侧步骤）")
     rm_src = src("tools/lsu_runid_map.py")
     check("SPEC_IMPL_LANDED 源码含 S10 条目",
