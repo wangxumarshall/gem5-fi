@@ -218,14 +218,26 @@ def main():
               and "eligible" in csrc)
         check("头注释指明本修复是前提（未修复时候选恒空）",
               "平台修复" in csrc)
-        check("只提交源码（编译产物不进仓库）", not CARRIER_ELF.is_file(),
-              str(CARRIER_ELF))
+        # [R4-8-INT] 本断言钉的是"**编译产物不进仓库**"，即 **未被 git 跟踪**，
+        # 而不是"ELF 文件不存在"。二者必须区分：集成侧必须在磁盘上构建出该
+        # ELF 才能跑 campaign（`lsu_campaign.wl_binary_path()` 直接指向本路径，
+        # F0/F5 cell 的 carrier==workloads/directed/ssit_dual_set）。原写法
+        # `check(..., not CARRIER_ELF.is_file())` 与本文件自己那句"集成侧构建后
+        # 重跑本测试即可生效"自相矛盾——集成一完成就必然 FAIL（已实测命中）。
+        # 改为跟踪性断言后：真正的"提交了编译产物"仍被拒绝，集成的构建产物不再
+        # 被误判；下方的 ELF 静态核验照常生效。
+        _rel = CARRIER_ELF.relative_to(ROOT)
+        tracked = subprocess.run(
+            ["git", "-C", str(ROOT), "ls-files", "--error-unmatch", str(_rel)],
+            capture_output=True, text=True).returncode == 0
+        check("只提交源码（编译产物不进仓库 = 未被 git 跟踪）", not tracked,
+              f"tracked={tracked} path={CARRIER_ELF}")
 
         nm = shutil.which("nm")
         objdump = shutil.which("objdump")
         if not CARRIER_ELF.is_file():
             skip("ELF 静态核验（站点/别名对/SSID 分布）",
-                 "未提交 ELF（本轮约束：只提交源码）——集成侧构建后重跑本测试即可生效")
+                 "磁盘上无 ELF（尚未构建）——构建后重跑本测试即可生效")
         elif not (nm and objdump):
             skip("ELF 静态核验", "缺 nm/objdump")
         else:

@@ -24,3 +24,13 @@ m5out/
 # snapshots live in artifacts/). Keep artifacts/ tracked as verification evidence.
 runs/
 __pycache__/
+
+# R4-8 carrier ELF：ssit_dual_set / a06_size_be 的在库策略是
+# **只提交 .c 源码，编译产物由集成侧构建**（钉在
+# tests/test_lsu_hook_s10_platformfix.py 的"编译产物不进仓库"断言里；commit
+# 8276087b / 5082dd8f 均只提交源码）。但工具链要求在磁盘上存在该 ELF
+# （lsu_campaign.wl_binary_path 直接指向本路径），因此"忽略"而不是"清理"。
+# 其余 workloads/directed/* 同级二进制仍照旧跟踪——此处是这两个 carrier 的
+# 专项规则，不是全仓惯例的变更。
+workloads/directed/ssit_dual_set
+workloads/directed/a06_size_be
