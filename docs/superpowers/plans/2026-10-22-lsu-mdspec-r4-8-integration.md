@@ -38,8 +38,8 @@
 两二进制与 `gcc -O2 -static` 从源重建结果**逐字节一致**（sha256 实测相等）；
 仓库惯例是**提交**同级负载二进制（`sq_forward`/`alias_sites`/`gemm_float_kernel` 等 30+ 均已被 git 跟踪）。
 
-- [ ] 0.1 复核 sha256 与重建一致性（记录到 commit message）
-- [ ] 0.2 `git add workloads/directed/a06_size_be workloads/directed/ssit_dual_set` → commit → push
+- [x] 0.1 复核 sha256 与重建一致性（记录到 commit message）
+- [x] 0.2 `git add workloads/directed/a06_size_be workloads/directed/ssit_dual_set` → commit → push
 
 ## Task 1 [R4-8-PYTEST][GATE]: pytest 入口错误修复 + gate 测试口径诚实化
 
@@ -47,56 +47,69 @@
 （`check` 是 `main()` 内定义的**位置回调**，非 pytest fixture），`pytest` 将其当作 fixture 请求 → ERROR。
 **是测试入口错误，不是功能错误**（该文件 `python3 tests/test_claim_concurrency.py` 可正常自跑）。
 
-- [ ] 1.1 使 5 个子测试在 pytest 下可真实执行（提供 `check` fixture，断言失败即 FAIL，不静默）
-- [ ] 1.2 核验 `pytest tests/ -q` → 0 error，且脚本式自跑仍 `rc=0`
-- [ ] 1.3 gate 如实报告测试口径（pytest + 脚本式）/ commit / push
+- [x] 1.1 使 5 个子测试在 pytest 下可真实执行（提供 `check` fixture，断言失败即 FAIL，不静默）
+- [x] 1.2 核验 `pytest tests/ -q` → 0 error，且脚本式自跑仍 `rc=0`
+- [x] 1.3 gate 如实报告测试口径（pytest + 脚本式）/ commit / push
 
 ## Task 2 [R4-8-S10]: 集成 Agent1
-- [ ] 2.1 审查 diff（`tools/lsu_campaign.py` span/interval 门禁 + 4 个测试）
-- [ ] 2.2 合并 → 回归（`test_lsu_hook_s10*` + `c11/c12/l04` + pytest 基线）
-- [ ] 2.3 census：S10 逐 (model, workload) eligible 实测（真机）
-- [ ] 2.4 pilot：S10-F0-W5 / W9 经 campaign 入口真机激活 + chain-check 逐边
-- [ ] 2.5 重生成 runid_map / coverage_matrix / ready_contract
-- [ ] 2.6 commit + push
+- [x] 2.1 审查 diff（`tools/lsu_campaign.py` span/interval 门禁 + 4 个测试）
+- [x] 2.2 合并 → 回归（`test_lsu_hook_s10*` + `c11/c12/l04` + pytest 基线）
+- [x] 2.3 census：S10 逐 (model, workload) eligible 实测（真机）
+- [x] 2.4 pilot：S10-F0-W5 / W9 经 campaign 入口真机激活 + chain-check 逐边
+- [x] 2.5 重生成 runid_map / coverage_matrix / ready_contract
+- [x] 2.6 commit + push
 
 ## Task 3 [R4-8-FS-W1]: 集成 Agent3
-- [ ] 3.1 审查 diff（`WL_BLOCKED["MiBench"]` 删除 + `ARMTLB_MODELS` + `SE_W1_TIMEOUT`）
-- [ ] 3.2 合并 → 回归（`test_lsu_fs_infra` / `test_lsu_runid_map`）
-- [ ] 3.3 FS-INFRA 真机复核（campaign 入口，W4 行）
-- [ ] 3.4 W1 合法性复核（二进制/golden/合法路径三段证据）
-- [ ] 3.5 重生成三件套 → commit + push
+- [x] 3.1 审查 diff（`WL_BLOCKED["MiBench"]` 删除 + `ARMTLB_MODELS` + `SE_W1_TIMEOUT`）
+- [x] 3.2 合并 → 回归（`test_lsu_fs_infra` / `test_lsu_runid_map`）
+- [x] 3.3 FS-INFRA 真机复核（campaign 入口，W4 行）
+- [x] 3.4 W1 合法性复核（二进制/golden/合法路径三段证据）
+- [x] 3.5 重生成三件套 → commit + push
 
 ## Task 4 [R4-8-SPEC]: 集成 Agent5
-- [ ] 4.1 审查 diff（SPEC 键收窄 + T08-W9 理由 + `ready_contract._classify` 兜底）
-- [ ] 4.2 合并 → 回归（新增 `test_lsu_w11_spec_residual` / `test_lsu_ready_contract_category`）
-- [ ] 4.3 复核 `runid_map.json` 重生成结果与契约分类（RULING 不再吞 MODE-UNIMPL）
-- [ ] 4.4 重生成三件套 → commit + push
+- [x] 4.1 审查 diff（SPEC 键收窄 + T08-W9 理由 + `ready_contract._classify` 兜底）
+- [x] 4.2 合并 → 回归（新增 `test_lsu_w11_spec_residual` / `test_lsu_ready_contract_category`）
+- [x] 4.3 复核 `runid_map.json` 重生成结果与契约分类（RULING 不再吞 MODE-UNIMPL）
+- [x] 4.4 重生成三件套 → commit + push
 
 ## Task 5 [R4-8-FSMC-A]: 集成 Agent6（含 Agent4）
-- [ ] 5.1 审查 diff（多核 FS config + litmus 载体 + `exmon-fsmc` 家族）
-- [ ] 5.2 合并 → 回归（`test_lsu_fsmc_verdict`）
-- [ ] 5.3 多核检查点可用性核验（`LSU_FS_MC_CHECKPOINT`；缺失则响亮拒绝）
-- [ ] 5.4 真机 litmus 无故障对照复核 + A 组 4 格 campaign dry-run/真跑
-- [ ] 5.5 重生成三件套 → commit + push
+- [x] 5.1 审查 diff（多核 FS config + litmus 载体 + `exmon-fsmc` 家族）
+- [x] 5.2 合并 → 回归（`test_lsu_fsmc_verdict`）
+- [x] 5.3 多核检查点可用性核验（`LSU_FS_MC_CHECKPOINT`；缺失则响亮拒绝）
+- [x] 5.4 真机 litmus 无故障对照复核 + A 组 4 格 campaign dry-run/真跑
+- [x] 5.5 重生成三件套 → commit + push
 
 ## Task 6 [R4-8-FSMC-C]: 集成 Agent7（C++）
-- [ ] 6.1 审查 diff（RMW/barrier 钩子 + `mem_dep_unit` + 载体）
-- [ ] 6.2 合并 → **构建 `-j16`**（零新警告）
-- [ ] 6.3 回归（`test_lsu_hook_o0x` + 全 pytest）
-- [ ] 6.4 census（CACHE_F0_SPAN / LSQFWD_F0_SPAN 新条目）+ 真机 pilot（RMW 路径 + barrier 路径）
-- [ ] 6.5 重生成三件套 → commit + push
+- [x] 6.1 审查 diff（RMW/barrier 钩子 + `mem_dep_unit` + 载体）
+- [x] 6.2 合并 → **构建 `-j16`**（零新警告）
+- [x] 6.3 回归（`test_lsu_hook_o0x` + 全 pytest）
+- [x] 6.4 census（CACHE_F0_SPAN / LSQFWD_F0_SPAN 新条目）+ 真机 pilot（RMW 路径 + barrier 路径）
+- [x] 6.5 重生成三件套 → commit + push
 
 ## Task 7 [R4-8-A06]: 集成 Agent2（C++）
-- [ ] 7.1 审查 diff（`CHAOSAddrPath` size 包络 + `lsq_unit` buffer floor + `dyn_inst` 字段）
-- [ ] 7.2 合并 → **构建 `-j16`**（零新警告）
-- [ ] 7.3 回归（`test_lsu_a06_*` + 全 pytest）
-- [ ] 7.4 真机 spike：widen / shrink / byte-enable 三臂 + chain-check
-- [ ] 7.5 决定 A06 6 格的最终状态（删 `MODEL_BLOCKED` 仅当 3 seed 真机通过）
-- [ ] 7.6 重生成三件套 → commit + push
+- [x] 7.1 审查 diff（`CHAOSAddrPath` size 包络 + `lsq_unit` buffer floor + `dyn_inst` 字段）
+- [x] 7.2 合并 → **构建 `-j16`**（零新警告）
+- [x] 7.3 回归（`test_lsu_a06_*` + 全 pytest）
+- [x] 7.4 真机 spike：widen / shrink / byte-enable 三臂 + chain-check
+- [x] 7.5 决定 A06 6 格的最终状态（删 `MODEL_BLOCKED` 仅当 3 seed 真机通过）
+- [x] 7.6 重生成三件套 → commit + push
 
 ## Task 8 [R4-8-GO]: 最终准入
-- [ ] 8.1 最终构建（显式核验）+ 全测试（pytest + 脚本式）+ SE/FS smoke
-- [ ] 8.2 `python3 tools/lsu_ready_contract.py --gate`（**准入检查命令**，非启动命令）
-- [ ] 8.3 资源门禁（mem/disk/并发上限）+ 二进制 SHA256 定格
-- [ ] 8.4 唯一的正式 campaign 启动命令（GO 前不执行）
+- [x] 8.1 最终构建（显式核验）+ 全测试（pytest + 脚本式）+ SE/FS smoke
+- [x] 8.2 `python3 tools/lsu_ready_contract.py --gate`（**准入检查命令**，非启动命令）
+- [x] 8.3 资源门禁（mem/disk/并发上限）+ 二进制 SHA256 定格
+- [x] 8.4 唯一的正式 campaign 启动命令（GO 前不执行）
 - [ ] 8.5 停在启动前，向用户报告 READY/PARTIAL/BLOCKED + 剩余外部阻塞 + 证据
+
+---
+
+## 执行结果（2026-10-22 集成轮收尾）
+
+- seven 分支中 6 个已集成并推送（`r4-8-fs-multicore` 被 `r4-9-fsmc-a` 包含，不单独集成）。
+- 契约：**READY=241 / PARTIAL=0 / BLOCKED=84**（起点 220/0/105）。
+  BLOCKED = RULING 6 · FS-INFRA 24 · MODE-UNIMPL 3 · UNRESOLVED 4 · FS-MULTICORE 35 · LICENSE 12；UNCLASSIFIED 0。
+- 构建：`scons -j16` 通过，二进制 sha256 前缀 `54c2c78ce4c84bb2`；零新警告（实证：唯一告警集为既有 `-Wreorder`）。
+- 主要真机证据：S10 F0 解锁（activated=3/3）、FS-INFRA W4 可跑（T01/T04 activated=1）、O04 RMW 钩子真机触发、A06 三臂真机通过、load SHRINK 判为已证不可达并响亮拒绝。
+- 未闭环的服务器侧项：`/home` 剩余空间 67.1 GiB < `lsu_guard.py` 磁盘红线 70.6 GiB
+  → `pytest tests/` 中 2 项 OBS-track guard 派发测试失败（**先于本轮存在**，R4-7 记录 69.9 GiB 亦在线下）。
+  该项不影响 MDSPEC 正式 campaign 路径（`lsu_campaign.py` 零引用 `lsu_guard`）。

@@ -4894,5 +4894,19 @@
    "coverage": "BLOCKED",
    "resolve_reason": "blocked(multicore-fs: W13 负载身份——PARSEC(dedup/ferret/streamcluster) **开源（不是授权障碍）但本仓库不可得**：find 实证只有 gem5 上游测试脚手架 CHAOS/gem5/tests/gem5/parsec_benchmarks/，而它默认被禁用（PARSEC disk image is too big）、valid_hosts=(host_x86_64_tag,) 仅 x86_64 宿主、需 --resource-directory 指向预编译镜像 + KVM；无源码/输入集/aarch64 构建。另叠加各自的模型/宿主缺口（O09 缺 RMW operand hook；P09 的 dirty-evict 走 classic CHAOSCache，与'多线程真实应用'语义构造性互斥）；替代负载会改写格子定义 ⇒ 规格级决定。见 R4-9-FSMC-A 报告 §5)"
   }
- ]
+ ],
+ "gate": {
+  "binary": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-mdspec-20261019/CHAOS/gem5/build/ARM/gem5.opt",
+  "binary_sha256": "54c2c78ce4c84bb2bf50c86a4d44eb87bb1caf5913676049246c5848e5c974c3",
+  "binary_sha256_16": "54c2c78ce4c84bb2",
+  "binary_mtime": 1792657781,
+  "binary_bytes": 1145024224,
+  "pytest_rc": 1,
+  "pytest_tail": "2 failed, 19 passed in 6.58s",
+  "mem_total_gb": 29.9,
+  "mem_avail_gb": 26.8,
+  "cpus": 126,
+  "disk_free_gb": 67.1,
+  "gem5_concurrency_cap": 4
+ }
 }
