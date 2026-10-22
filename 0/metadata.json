@@ -1,0 +1,23 @@
+{
+  "cli_version": "0.10.2",
+  "checkpoint_id": "01M5GGV7GHHZ2BMB844822DCH8",
+  "session_id": "492e583a-a50c-4723-aba2-f594947f2bea",
+  "strategy": "manual-commit",
+  "created_at": "2026-10-22T00:40:48.084458014Z",
+  "branch": "r4-6-s10-platformfix",
+  "checkpoints_count": 1,
+  "files_touched": [],
+  "agent": "Claude Code",
+  "model": "DeepSeek-V4.1-Flash",
+  "turn_id": "1c5074705234",
+  "checkpoint_transcript_start": 619,
+  "transcript_lines_at_start": 619,
+  "compact_transcript_start": 76,
+  "token_usage": {
+    "input_tokens": 5267,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 612864,
+    "output_tokens": 1277,
+    "api_call_count": 3
+  }
+}
