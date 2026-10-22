@@ -1,0 +1,47 @@
+{
+  "cli_version": "0.10.2",
+  "checkpoint_id": "01M5HGCTMQHR0THJCGF2JB4WED",
+  "session_id": "5a096a1f-f87e-45a0-88e0-e96a0f1cc3d4",
+  "strategy": "manual-commit",
+  "created_at": "2026-10-22T09:52:10.045713494Z",
+  "branch": "r4-10-fsinfra",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "CHAOS/gem5/src/arch/arm/CHAOSArmTLB/CHAOSArmTLB.cc",
+    "CHAOS/gem5/src/arch/arm/CHAOSArmTLB/CHAOSArmTLB.hh",
+    "CHAOS/gem5/src/arch/arm/tlb.cc",
+    "CHAOS/gem5/src/cpu/o3/CHAOSPropagation/CHAOSPropagation.cc",
+    "CHAOS/gem5/src/cpu/o3/CHAOSPropagation/CHAOSPropagation.hh",
+    "configs/se/arm_chaos_fs.py",
+    "docs/superpowers/plans/2026-10-22-r4-10-fsinfra-tlb-modes.md",
+    "tests/test_lsu_fs_infra.py",
+    "tests/test_lsu_hook_t05_state.py",
+    "tools/lsu_campaign.py",
+    "tools/lsu_prop_fields.py"
+  ],
+  "agent": "Claude Code",
+  "model": "DeepSeek-V4.1-Flash",
+  "turn_id": "2ed8629756bb",
+  "checkpoint_transcript_start": 425,
+  "transcript_lines_at_start": 425,
+  "compact_transcript_start": 47,
+  "token_usage": {
+    "input_tokens": 0,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 0,
+    "api_call_count": 0
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-10-22T09:52:09.956235048Z",
+    "agent_lines": 703,
+    "agent_removed": 39,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 703,
+    "total_lines_changed": 742,
+    "agent_percentage": 100,
+    "metric_version": 2
+  }
+}
