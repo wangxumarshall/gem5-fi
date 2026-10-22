@@ -75,3 +75,19 @@ python3 tools/lsu_campaign.py \
 | **未动** | `r4-8-fsmca`（用户明令：有未提交成果） | — | — |
 | **未动** | 其他会话 worktree（lsu-capacity/lsu-p4-fix/r4-8-fsmcc/r4-c14c15/r4-s10rc/r4-t08fs 等，未合并或有未提交改动） | — | — |
 | **未动** | `wangxu/`(99G)、`sdc-excite-reproduce/`(61G)、`gem5-fs/`(3G，FS 必需)、`sdc-run/`(用户数据) | — | — |
+
+---
+
+## 附：R5 事实订正（2026-10-22，对抗性核验实测）
+
+以下是对本报告正文的**事实纠错**，不改变任何 RunID 计数或准入结论（仍为 NO-GO）。
+
+| 位置 | 原文 | 实测 | 证据 |
+|---|---|---|---|
+| §2 FS-MULTICORE 行 | "传播链（616 事件/586 链节点）" | **810 事件 / 585 链节点** | `zcat /tmp/r4-8-fsmcb/run2/prop_evt.txt.gz \| grep -oE 'kind=[A-Za-z_]+' \| sort \| uniq -c`（合计 810）；`zcat …/prop_trace.csv.gz \| grep -cv '^#'` = 585。定性结论（干净臂为空、链由注入引起）不受影响。 |
+| §2 FS-INFRA 行 | "FS 载体在预算内不终止 → 无 L5" | **过于笼统**：`T04-F0-W4` 达到 `outcome=Crash` 且链 `L0→L1 proven …`；仅 T01/T03/T08 超时 | `runs/lsu/trial_r48_fs/T04-F0-W4/cell_results.json` |
+| §3 "构建"行 | "改动文件零新增编译告警" | **盘上无构建日志可复核**（仅可由冻结二进制 `strings` 间接佐证 C++ 已编入） | 如实披露为"仅散文、无产物" |
+| §5 磁盘审计 | 各 worktree 回收 GiB 数 | 无盘上产物可复核 | 同上 |
+
+同时确认（核验为真，无需订正）：A06 load SHRINK 证明链四处 `file:line` 逐字正确；
+LICENSE 12 全盘零 SPEC 产物；`e4dcd5da` 为 HEAD 祖先；二进制 sha256 `f4dbfb9a66e0df80…`。
