@@ -3,6 +3,21 @@
 - BLOCKED 总数：100（守恒校验通过：Σ 分类 == 总数）
 - 分类统计：RULING=6 / LICENSE=12 / FS-MULTICORE=35 / FS-INFRA=24 / MODE-UNIMPL=23 / HOOK-UNIMPL=0 / OK=0
 
+## R4-6 台账订正（2026-10-22，三处事实变化）
+
+**HONEST NOTE：** 本节是对 2026-10-21 分类的**事实订正**，不改变 RunID 计数，
+只改"理由"与"是否平台可自解"的判定。逐条证据见 `round4_findings.md` 同名小节。
+
+| 变更 | 影响 RunID | 旧理由 | 新理由（实测） |
+|---|---|---|---|
+| **FS-INFRA 根因修复**（§R4-6.0） | T01/T02/T03/T04/T10 × W4 等 | "需 FS 基础设施" | **实为配置 bug**：`CHAOSArmTLB.walker=None` 使全部 FS run 在实例化期崩溃；已修，T01-F0-W4 真机产出注入 + 6 事件链 |
+| **T08 真机通过**（§R4-6-T08） | T08-F0/F4/F6-W9 | MODE-UNIMPL(walk pairing) | **已真机触发**：`arm_tlb_walk_issue_drop` + `tlb_walk`/`tlb_refill` 同 walk_id、refill field=lost |
+| **S10 平台缺陷修复**（§R4-6-S10） | S10-F0/F2/F5-W5/W9 | PLATFORM-DEFECT(SSIT inert) | **平台已修**：`eligible=11 / max_live_ssids=11`（原 6 负载全 0）；但**解锁前仍需 campaign 入口 pilot**，故本轮**仍记 BLOCKED** |
+
+**仍未解除（需用户侧/裁决）**：LICENSE 12（SPEC CPU2017 授权）、FS-MULTICORE 35 中
+的 litmus/PARSEC 载荷缺失部分（真外部）、RULING 6（A06，本轮 spike 部分通过，见 §R4-6-A06）、
+19 个 W1(MiBench) cell 的口径冲突（runid_map 可跑 vs campaign 静态表拒跑，待裁）。
+
 ## 互斥类别定义
 
 | 类别 | 含义 | 解除条件 |
