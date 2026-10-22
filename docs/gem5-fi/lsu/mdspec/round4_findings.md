@@ -1662,3 +1662,68 @@ kind=sq_complete tick=237950942203 corr=seq_primary
 
 `A01-F0-W3`（SE，非 FS 路径）经 campaign 正式入口：`activated=1 sdc=0
 cons=OK`，零 SIGSEGV。
+
+## R4-6-S10（2026-10-22）：PLATFORM-DEFECT **修复并真机验证** —— O3 StoreSet SSIT 共享索引策略串表
+
+> 集成侧在隔离提交 `b940c4b7`（`AssociativeCache` 只用自己持有的条目）之上完成构建与真机判据。
+> **本修复推翻 §R4-5.7b 的"平台前提不可达"裁定**：S10-a 的前提（另一个合法活跃 store-set）
+> 在修复后**可达**，S10 的 6 个 RunID 不再因平台缺陷而结构性 0 注入。
+
+### S10.1 根因（与 §5.7b 一致，定位到具体行）
+
+`IndexingPolicyTemplate` 只有**一张**条目指针表，`setEntry()` 为每个用它初始化的容器写入。
+O3 的 `InstructionQueue` 持有 `MemDepUnit memDepUnit[MaxThreads]`，`MaxThreads` = `o3/limits.hh`
+的编译期常量 **4**（与 numThreads 无关），构造时对 tid=0..3 **全部** `init()`
+（`inst_queue.cc:253-256`），每个 `StoreSet::init` 都拿到**同一个** `params.SSITIndexingPolicy`
+（`mem_dep_unit.cc:58/100`；`BaseO3CPU.py:163` 默认值是**单实例**）→ 4 次
+`initParams → setEntry` 互相覆盖，**tid=3 最后写胜出**：整张表指向 `memdepUnit[3]` 的 entries。
+故活跃线程（SE 单线程 = tid 0）的 `findEntry/findVictim` 读写的是**别人**的 entries，
+本实例 `entries` 恒为 invalid。
+
+**对 §5.7b 的一处修正**：SSIT 并非"惰性失效"——它经由串过去的表**照常工作**
+（alias_sites `attempted=55` 而 `arm1_events=23`，说明 32 次事件看到了已训练条目）；
+真正被打破的是**本实例内的枚举**（S10 候选集懒扫描 `for (const auto &e : SSIT)`
+与 `StoreSet::clear()` 读的是那份恒空表），这解释了 `max_live_ssids=0` 与 `victim OUTSIDE`。
+
+### S10.2 修复（语义不变）
+
+`AssociativeCache` 的每次查表把 indexing policy 给出的候选指针映射回**本容器**的等价条目：
+`setEntry()` 由 index 推出 `(set = index/assoc, way = index%assoc)` 并 `setPosition`
+（`indexing_policies/base.hh:142-156`，已逐行核对），故 `index = set*assoc + way`
+是它的**精确逆**；对不共享 policy 的容器是恒等变换。
+`findEntry` / `findVictim` / `getPossibleEntries` 三处统一走 `ownedEntry()`。
+
+### S10.3 真机判据（集成二进制 `7d52bc1392a10055`，SE）
+
+**新载体 `ssit_dual_set`**（`--chaos_lsqfwd --lsqfwd_s10 --lsqfwd_lsu_tier F5 --lsqfwd_span_events 1000000`）：
+
+```
+CHAOS_LSU_S10_FORK: attempted=2 eligible=11 arm1_events=12 arm1_cand_empty=1
+                    arm1_cand_ok=11 max_live_ssids=11 max_cands=11 distinct_arm1_load_pcs=12
+CHAOS_LSU_TRIGGER:  tier=F5 attempted=2 eligible=11 injected=11
+```
+
+**旧载体 `alias_sites`**（对照，同 flag）：
+
+```
+CHAOS_LSU_S10_FORK: attempted=2 eligible=21 arm1_events=22 arm1_cand_empty=1
+                    arm1_cand_ok=21 max_live_ssids=13 max_cands=13
+```
+
+对比 §5.7b 修复前（6 个负载）：`arm1_cand_empty == arm1_events`、`max_live_ssids == 0`、
+`eligible == 0`。**修复后两载体均 `eligible>0`、`max_live_ssids>0`** → 判据满足。
+
+### S10.4 回归（AssociativeCache 为 TLB/预取/BTB 共用，必须逐项验）
+
+| 回归项 | 结果 |
+|---|---|
+| `reg_chain`（非 S10、非注入） | golden `f247ef3fe6f02cfd` **无漂移** |
+| `A01-F0-W3`（AGU/LSQ 链） | `activated=1 sdc=0 cons=OK` |
+| `C01-F0-W6`（L1d-Cache 路径） | `activated=1 sdc=0 cons=OK` |
+| `alias_sites`/`ssit_dual_set` | 见上，两载体均 `eligible>0` |
+
+### S10.5 后续（未做，留作下一单元）
+
+- S10 的 6 个 RunID 仍标 `MODEL_BLOCKED(platform-defect)`：**解锁前需按纪律跑 campaign 入口
+  的 3 seed 真机 pilot + 链检查**（本节的证据是定向 census，非 campaign 入口）。
+- `StoreSet::clear()`（周期 250000）在修复后才真正生效（设计行为）。
