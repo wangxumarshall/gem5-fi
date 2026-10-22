@@ -50,6 +50,50 @@ class CHAOSCache : public SimObject
      *  the corrupted address joins the chain). Returns true if corrupted. */
     bool maybeCorruptMergeTarget(BaseCache *cache, PacketPtr pkt);
 
+    /** [MDSPEC][R4-9-FSMC] O04/O05/O09 LSE atomic-RMW hook. Called by
+     *  BaseCache::satisfyRequest's SwapReq branch IMMEDIATELY AFTER
+     *  (*(pkt->getAtomicOp()))(blk_data), so at entry:
+     *    - the packet's data buffer holds the OLD value (pkt->setData copied
+     *      it out of the block before the functor ran) — the spec's
+     *      "old-value / result" latch,
+     *    - `blk_data` (blk->data + offset) holds the NEW memory value the RMW
+     *      just wrote — the write-side latch.
+     *  Modes (targetField):
+     *    rmw_mux   (O04-a "交换 old/new 值"): the data-select MUX is
+     *      mis-routed — the two latches are exchanged (software receives the
+     *      NEW value, memory keeps the OLD one). Bit pattern stays legal.
+     *    rmw_latch (O09-a "result/old-value 锁存器"): ONE bit of the
+     *      result/old-value latch (the value returned to software) is
+     *      flipped; address, opcode, success status and transaction timing
+     *      are untouched.
+     *    rmw_order (O05): the RMW's completion is wrong while the DATA
+     *      payload stays correct (the spec's "数据载荷保持正确，以便把结果
+     *      归因于握手/完成时序而不是数据翻转"):
+     *        lsuRmwRule=lost : the memory update is DROPPED (blk_data
+     *          restored from the packet's old value) — the RMW took effect
+     *          zero times;
+     *        lsuRmwRule=dup  : the atomic op functor is re-applied to
+     *          blk_data — the RMW took effect twice.
+     *  Event-normalized trigger (LSU track, chaos_lsu_trigger.hh) on the RMW
+     *  commit stream — the F6 event IS the atomic RMW commit (the same
+     *  CasSuccess source base.cc already counts). The legacy periodic block
+     *  attack is DISABLED in these modes (same rule as C11/C12/C14/C15).
+     *  Only fires when `cache == targetCache` (the mounted L1D), the
+     *  targetField is one of the three rmw_* modes, and maxFaults is not
+     *  exhausted. Returns true if the RMW was corrupted.
+     *
+     *  Honest scope (see R4-9-FSMC-C-report.md §4): the compare/replacement/
+     *  addend OPERAND latches are members of the ISA-generated
+     *  AtomicGeneric3Op / std::function object (amo64.isa:201-215,
+     *  base/amo.hh:87-105) and have no independently addressable latch on
+     *  this platform — only the result/old-value face (the return packet)
+     *  and the new-value face (the block) are reachable. O04-c/d and the
+     *  operand sub-models are therefore recorded as landed-subset.
+     *
+     *  NOTE: compile-unverified (this worktree may not build) — the
+     *  integration side owns the build. */
+    bool maybeCorruptRmw(BaseCache *cache, PacketPtr pkt, uint8_t *blk_data);
+
     /** [MDSPEC][R4-5.2] C12 fill-timing offset. Called by
      *  BaseCache::recvTimingResp at the TOP, BEFORE popSenderState: with
      *  the trigger's consent (LSU-track ChaOSLsuTrigger, event-normalized
@@ -230,6 +274,12 @@ class CHAOSCache : public SimObject
     uint64_t mshr_fake_free_fires = 0;
     uint64_t mshr_over_commit = 0;
     uint64_t mshr_occ_at_fire = 0;
+    // [MDSPEC][R4-9-FSMC] O04/O05/O09 RMW sub-rule (lsuRmwRule param; the
+    // three rmw_* targetField modes share the SwapReq hook, the rule picks
+    // the sub-model): swap_oldnew (O04-a) | result_old (O09-a) |
+    // lost | dup (O05). Validated against the mode loudly in the ctor.
+    std::string rmw_rule;
+    uint64_t rmw_injections = 0;   // L0 read-back: corrupted RMW commits
     // [LSU][OBS-L3] nullptr default: the ctor only assigns log_stream when
     // probability != 0, and the [OBS-L3] funnel helper reads it on every
     // injection — the default-init makes that read defined (defensive; the

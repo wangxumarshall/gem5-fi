@@ -182,6 +182,30 @@ class BaseCache : public ClockedObject
     // the injector sets it from its ctor.
     static class CHAOSCache *chaosMshrOccHook;
 
+    // [MDSPEC][R4-9-FSMC] O04/O05/O09 LSE atomic-RMW registry (same pattern
+    // as the other CHAOSCache hooks). BaseCache::satisfyRequest's SwapReq
+    // branch consults it IMMEDIATELY AFTER (*(pkt->getAtomicOp()))(blk_data)
+    // — i.e. after the RMW's data-select MUX has produced the NEW memory
+    // value in `blk_data` and pkt->setData(blk_data) has already copied the
+    // OLD value into the packet's return buffer. Both read-modify-write
+    // latches are then materialized (old = packet data, new = blk_data) —
+    // exactly the node the spec's models describe:
+    //   O04 "LSE 原子读改写的数据选择与返回 MUX"        -> data-select mis-route
+    //   O09 "compare/replacement/addend/old-value/result 数据锁存器" -> 1-bit
+    //   O05 "RMW request/done 通路与线性化"             -> lost / duplicate
+    // The registered CHAOSCache (mounted on this cache) applies its mode's
+    // corruption; nullptr = zero regression. Only the mounted cache (L1D)
+    // is affected (the injector checks `cache == targetCache`). PUBLIC:
+    // the injector sets it from its ctor.
+    static class CHAOSCache *chaosRmwHook;
+
+    // [MDSPEC][R4-9-FSMC] O04/O05/O09 drain-through: the out-of-line body of
+    // the SwapReq hook (in base.cc — it must call CHAOSCache methods, and
+    // base.hh cannot include CHAOSCache.hh without a cycle). A no-op when
+    // chaosRmwHook is null. `blk_data` points at the block's data window for
+    // this access (blk->data + pkt->getOffset(blkSize)).
+    void chaosRmwCommit(PacketPtr pkt, uint8_t *blk_data);
+
     // [MDSPEC][R4-5.6] C15-b drain-through: the out-of-line body of the
     // allocateMissBuffer tail hook (in base.cc — it must call CHAOSCache
     // methods, and base.hh cannot include CHAOSCache.hh without a cycle).

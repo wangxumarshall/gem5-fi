@@ -32,6 +32,7 @@
 
 #include "base/compiler.hh"
 #include "base/debug.hh"
+#include "cpu/o3/chaos_barrier_hook.hh"   // [MDSPEC][R4-9-FSMC] O06/O07
 #include "cpu/o3/dyn_inst.hh"
 #include "cpu/o3/inst_queue.hh"
 #include "cpu/o3/limits.hh"
@@ -160,6 +161,19 @@ void
 MemDepUnit::insertBarrierSN(const DynInstPtr &barr_inst)
 {
     InstSeqNum barr_sn = barr_inst->seqNum;
+
+    // [MDSPEC][R4-9-FSMC] O06-a "提前 done": the barrier-completion handshake
+    // fires early — the SN is NOT tracked, so hasLoadBarrier()/hasStoreBarrier()
+    // never gates the later memory ops and they issue straight past the barrier
+    // (the spec's "提前done会让后续访问越过屏障"). No hook registered (the
+    // default) => the original path below runs byte-for-byte.
+    if (chaosBarrierInsertHook &&
+        chaosBarrierInsertHook((uint64_t)barr_sn, barr_inst->isReadBarrier(),
+                               barr_inst->isWriteBarrier())) {
+        DPRINTF(MemDepUnit, "CHAOS O06-a: barrier SN:%lli NOT tracked "
+                            "(early done)\n", barr_sn);
+        return;
+    }
 
     if (barr_inst->isReadBarrier() || barr_inst->isHtmCmd())
         loadBarrierSNs.insert(barr_sn);
@@ -433,13 +447,42 @@ MemDepUnit::completeInst(const DynInstPtr &inst)
     completed(inst);
     InstSeqNum barr_sn = inst->seqNum;
 
-    if (inst->isWriteBarrier() || inst->isHtmCmd()) {
-        assert(hasStoreBarrier());
-        storeBarrierSNs.erase(barr_sn);
-    }
-    if (inst->isReadBarrier() || inst->isHtmCmd()) {
-        assert(hasLoadBarrier());
-        loadBarrierSNs.erase(barr_sn);
+    // [MDSPEC][R4-9-FSMC] O06-b (done lost/stuck) / O07 (order-tag exchange).
+    // With no hook registered (the default) `baction` stays 0 and the
+    // original path below — asserts included — runs byte-for-byte.
+    uint64_t subst_sn = 0;
+    const int baction =
+        (chaosBarrierReleaseHook &&
+         (inst->isReadBarrier() || inst->isWriteBarrier()))
+        ? chaosBarrierReleaseHook((uint64_t)barr_sn, inst->isReadBarrier(),
+                                  inst->isWriteBarrier(), &subst_sn)
+        : 0;
+
+    if (baction == 1) {
+        // O06-b: the completion is LOST — the SN stays tracked forever, so
+        // every later memory op keeps waiting on this barrier (the spec's
+        // stall -> Timeout channel). Nothing is erased here.
+        DPRINTF(MemDepUnit, "CHAOS O06-b: barrier SN:%lli completion LOST "
+                            "(SN stays tracked)\n", barr_sn);
+    } else if (baction == 2 && subst_sn != 0) {
+        // O07: order-tag exchange — ANOTHER in-flight transaction's tag is
+        // released in this one's place (the two order tags were swapped).
+        const InstSeqNum sub = (InstSeqNum)subst_sn;
+        DPRINTF(MemDepUnit, "CHAOS O07: order tag SN:%lli released instead "
+                            "of SN:%lli\n", (long long)sub, barr_sn);
+        if (inst->isWriteBarrier() || inst->isHtmCmd())
+            storeBarrierSNs.erase(sub);
+        if (inst->isReadBarrier() || inst->isHtmCmd())
+            loadBarrierSNs.erase(sub);
+    } else {
+        if (inst->isWriteBarrier() || inst->isHtmCmd()) {
+            assert(hasStoreBarrier());
+            storeBarrierSNs.erase(barr_sn);
+        }
+        if (inst->isReadBarrier() || inst->isHtmCmd()) {
+            assert(hasLoadBarrier());
+            loadBarrierSNs.erase(barr_sn);
+        }
     }
     if (debug::MemDepUnit) {
         const char *barrier_type = nullptr;

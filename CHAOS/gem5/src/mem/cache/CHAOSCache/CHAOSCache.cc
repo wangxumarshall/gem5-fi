@@ -66,8 +66,19 @@ namespace gem5
         const bool mshr_busy_mode = (target_field == "mshr_busy_leak");
         // [MDSPEC][R4-5.6] C15-b: MSHR capacity-arbitration fake-free.
         const bool mshr_occ_mode = (target_field == "mshr_occupancy");
+        // [MDSPEC][R4-9-FSMC] O04/O05/O09: the three LSE atomic-RMW modes
+        // share the SwapReq commit hook (BaseCache::satisfyRequest); the
+        // sub-model is picked by lsuRmwRule (validated below).
+        const bool rmw_mux_mode   = (target_field == "rmw_mux");
+        const bool rmw_latch_mode = (target_field == "rmw_latch");
+        const bool rmw_order_mode = (target_field == "rmw_order");
+        const bool rmw_mode = rmw_mux_mode || rmw_latch_mode || rmw_order_mode;
         const bool lsu_hook_mode = merge_mode || fill_timing_mode ||
-                                   mshr_busy_mode || mshr_occ_mode;
+                                   mshr_busy_mode || mshr_occ_mode ||
+                                   rmw_mode;
+        // [MDSPEC][R4-9-FSMC] the RMW sub-rule (kept as a member; assigned
+        // here rather than in the init list to avoid a -Wreorder hazard).
+        rmw_rule = p.lsuRmwRule;
         if (lsu_hook_mode) {
             if (p.lsuTier == "off") {
                 panic("CHAOSCache: targetField=%s requires a tier "
@@ -77,7 +88,24 @@ namespace gem5
                       merge_mode ? "merge"
                                  : (fill_timing_mode ? "fill-timing"
                                    : (mshr_busy_mode ? "mshr-busy"
-                                                     : "mshr-occupancy")));
+                                     : (mshr_occ_mode ? "mshr-occupancy"
+                                                      : "rmw"))));
+            }
+            // [MDSPEC][R4-9-FSMC] mode/rule consistency: a rmw_* mode whose
+            // lsuRmwRule names another model's sub-model (or a non-rmw mode
+            // carrying a non-default rule) is a half-specified model —
+            // rejected loudly, never silently run with an unintended rule.
+            const bool rule_ok =
+                (rmw_mux_mode   && rmw_rule == "swap_oldnew") ||
+                (rmw_latch_mode && rmw_rule == "result_old") ||
+                (rmw_order_mode && (rmw_rule == "lost" || rmw_rule == "dup")) ||
+                (!rmw_mode      && rmw_rule == "swap_oldnew");
+            if (!rule_ok) {
+                panic("CHAOSCache: targetField=%s is inconsistent with "
+                      "lsuRmwRule=%s (rmw_mux needs swap_oldnew; rmw_latch "
+                      "needs result_old; rmw_order needs lost|dup; every "
+                      "other targetField needs the default swap_oldnew)\n",
+                      target_field.c_str(), rmw_rule.c_str());
             }
             if (fill_timing_mode && p.lsuFillDelayCycles == 0) {
                 panic("CHAOSCache: targetField=mshr_fill_timing requires "
@@ -94,8 +122,10 @@ namespace gem5
                 BaseCache::chaosFillTimingHook = this;
             else if (mshr_busy_mode)
                 BaseCache::chaosMshrBusyHook = this;   // C14-a
-            else
+            else if (mshr_occ_mode)
                 BaseCache::chaosMshrOccHook = this;    // C15-b
+            else
+                BaseCache::chaosRmwHook = this;        // R4-9-FSMC O04/O05/O09
         }
         // [LSU][OBS-L3] final funnel row (final counts; runs only on normal
         // exit — aborts keep the last per-attack injection-time node, which
@@ -131,6 +161,16 @@ namespace gem5
                        (unsigned long)mshr_fake_free_fires,
                        (unsigned long)mshr_over_commit,
                        (unsigned long)mshr_occ_at_fire);
+            // [MDSPEC][R4-9-FSMC] O04/O05/O09 teardown read-back: how many
+            // atomic RMW commits were corrupted under the mode's rule (the
+            // L0 injected count; activated stays the L3 chain's verdict).
+            if (target_field == "rmw_mux" || target_field == "rmw_latch" ||
+                target_field == "rmw_order")
+                printf("CHAOS_RMW: injector=CHAOSCache field=%s rule=%s "
+                       "rmw_injections=%lu (R4-9-FSMC O04/O05/O09 LSE "
+                       "atomic-RMW hook at the SwapReq commit site)\n",
+                       target_field.c_str(), rmw_rule.c_str(),
+                       (unsigned long)rmw_injections);
             noteFunnelAtInjection();
         });
         if (probability != 0.0 || lsu_hook_mode) {
@@ -969,6 +1009,126 @@ namespace gem5
         // One funnel row per successful injection (abort-survivable: the
         // prop-trace node is gzflushed per node; the log line is
         // best-effort) — merge-mode counters via noteFunnelAtInjection.
+        noteFunnelAtInjection();
+        return true;
+    }
+
+    // [MDSPEC][R4-9-FSMC] O04/O05/O09 LSE atomic-RMW hook (declared in
+    // CHAOSCache.hh). BaseCache::satisfyRequest's SwapReq branch calls this
+    // right after the atomic op functor ran, so at entry:
+    //   ret  = pkt->getPtr()  -> the OLD value (the result/old-value latch)
+    //   blk_data              -> the NEW memory value (the write-side latch)
+    // The three modes are pure data-path edits of those two windows; the
+    // trigger is the LSU event-normalized one on the RMW-commit stream (F6
+    // fires at the first eligible RMW — the same CasSuccess event the F6
+    // census already counts in base.cc).
+    bool
+    CHAOSCache::maybeCorruptRmw(BaseCache *cache, PacketPtr pkt,
+                                uint8_t *blk_data)
+    {
+        const bool rmw_on = (target_field == "rmw_mux" ||
+                             target_field == "rmw_latch" ||
+                             target_field == "rmw_order");
+        if (!rmw_on) return false;                       // mode off
+        if (cache != targetCache) return false;          // only the mounted cache
+        if (!pkt || !blk_data || !lsuTrigger) return false;
+        if (max_faults != 0 && faults_injected_count >= max_faults)
+            return false;                                // G5 single-fault cap
+
+        lsuTrigger->onAttempt();
+
+        // Eligibility: a real atomic RMW with a non-zero access size that
+        // carries a return-value buffer. An ATOMIC_NO_RETURN_OP form has no
+        // result latch to deliver and a whole-line access has no bounded
+        // window — both honest skips (attempted, never eligible).
+        const unsigned blk_sz = targetCache->getBlockSize();
+        const unsigned size = pkt->getSize();
+        if (size == 0 || size > blk_sz)
+            return false;
+        // The returned OLD value lives in the packet's data buffer (set by
+        // BaseCache::satisfyRequest's pkt->setData(blk_data) before the
+        // atomic op functor ran). getPtr is a template (no default arg).
+        if (!pkt->isAtomicOp())
+            return false;
+        uint8_t *ret = pkt->getPtr<uint8_t>();
+
+        bool go;
+        if (lsuTrigger->tier == ChaOSLsuTier::F6) {
+            // R4-9-FSMC: the RMW commit IS the F6 event source for these
+            // modes (the atomic's specified event). onAttempt() already
+            // booked this hook invocation, so book_attempt=false
+            // ([R4-5.1-review-I1] accounting).
+            go = lsuTrigger->onF6Event(false);
+        } else {
+            go = lsuTrigger->onEligible();
+        }
+        if (!go)
+            return false;
+
+        int log_byte = -1;      // -1 = whole-access range (multi-byte rules)
+
+        if (rmw_rule == "swap_oldnew") {
+            // O04-a "交换 old/new 值": the data-select MUX delivered the
+            // wrong source — software receives the NEW value and memory keeps
+            // the OLD one. Both fragments are legal bit strings, so the
+            // encoding/crash profile is unchanged (the spec's 位模式合法且
+            // 可能不崩溃，预期高 SDC).
+            for (unsigned i = 0; i < size; ++i) {
+                const uint8_t t = ret[i];
+                ret[i] = blk_data[i];
+                blk_data[i] = t;
+            }
+        } else if (rmw_rule == "result_old") {
+            // O09-a: ONE bit of the result/old-value latch (the returned
+            // value). Address, opcode, success status and transaction timing
+            // are untouched — the injected fault is purely the value
+            // software observes.
+            const unsigned bit = (unsigned)(rng() % (8u * size));
+            ret[bit >> 3] ^= (uint8_t)(1u << (bit & 7u));
+            log_byte = (int)(bit >> 3);
+        } else if (rmw_rule == "lost") {
+            // O05-a: the RMW's completion is lost — the memory update is
+            // dropped (the RMW took effect zero times) while the returned
+            // OLD value stays correct (the spec's "数据载荷保持正确").
+            for (unsigned i = 0; i < size; ++i)
+                blk_data[i] = ret[i];
+        } else {   // "dup"
+            // O05-b: the RMW is executed twice — the atomic op functor is
+            // re-applied to the block. The returned OLD value stays correct.
+            AtomicOpFunctor *op = pkt->getAtomicOp();
+            if (op)
+                (*op)(blk_data);
+        }
+
+        ++faults_injected_count;
+        ++rmw_injections;
+        if (stats)
+            stats->numFaultsInjected++;
+
+        // [MDSPEC][R4-9-FSMC] Propagation registration: a
+        // result/old-value-face fault. The registerable correlate surface at
+        // this site is the RMW's LINE (+ the exact byte for the one-bit
+        // latch rule); registering it lets the downstream events on that
+        // line join the chain address-only (the labeled addr_fallback arm —
+        // the C-family has no seq primary at the cache site).
+        const Addr acc_addr = pkt->getAddr();
+        const Addr line = acc_addr & ~((Addr)blk_sz - 1);
+        const int blk_off = (int)(acc_addr & ((Addr)blk_sz - 1));
+        if (CHAOSPropagation::instance())
+            CHAOSPropagation::instance()->registerCacheFault(
+                line, log_byte < 0 ? -1 : (blk_off + log_byte), blk_sz,
+                target_field.c_str());
+
+        // Injection-log detail line (L0 parses the "Cache Block Addr/Field"
+        // contract — tools/lsu_obs_core._CACHE_FIELD_INJ_RE).
+        if (write_log && log_stream && log_stream->stream()) {
+            *(log_stream->stream()) << "Tick: " << curTick()
+                << ", Cache Block Addr: " << line
+                << ", Field: " << target_field << " (rule " << rmw_rule
+                << ", size " << size << ")"
+                << ", faults_injected: " << faults_injected_count
+                << std::endl;
+        }
         noteFunnelAtInjection();
         return true;
     }

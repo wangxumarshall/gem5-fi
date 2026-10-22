@@ -79,6 +79,30 @@ class CHAOSLSQFwd(SimObject):
     countOnly = Param.Bool(False,
         "v1.1 Phase 8.2 countOnlyMode: consume eligible events and print "
         "CHAOS_ELIGIBLE_COUNT=<n> at teardown, never corrupt.")
+    # [MDSPEC][R4-9-FSMC] O06 barrier-completion / O07 order-tag modes. Node =
+    # the O3 MemDepUnit's barrier-SN bookkeeping (the ONLY barrier-completion
+    # structure on this platform; DMB/DSB themselves carry no memory access —
+    # see cpu/o3/chaos_barrier_hook.hh). Requires lsuTier != off (the ctor
+    # panics otherwise — trigger-native model, L04/S10 discipline).
+    o06Mode = Param.Bool(False,
+        "MDSPEC R4-9-FSMC O06: barrier-completion tracking fault. The "
+        "injector hooks MemDepUnit::insertBarrierSN / completeInst and, on "
+        "the trigger's consent, either releases the barrier early "
+        "(o06BarrierDone=early) or never releases it (stuck). The SQ-forward "
+        "data-path hook is NOT part of this stream.")
+    o06BarrierDone = Param.String("early",
+        "O06 sub-rule: early (O06-a 提前 done — the barrier SN is not "
+        "tracked, so later memory ops issue past the barrier; a litmus "
+        "violation => SDC) | stuck (O06-b 延后/丢失 done — the SN is never "
+        "released, every later memory op waits forever => Timeout). Inert "
+        "unless o06Mode.")
+    o07Mode = Param.Bool(False,
+        "MDSPEC R4-9-FSMC O07: order-tag 换值. HONEST PROXY — gem5 O3 has "
+        "no explicit ordering queue; the barrier-SN set is the structural "
+        "analogue (InstSeqNum = the order tag, the release point = the "
+        "handoff). On consent the injector releases ANOTHER live barrier SN "
+        "in this one's place (always a legal live value, never fabricated); "
+        "with no other live SN the injection is honestly skipped.")
     # LSU W2/W5 (05 r2-r8): event-normalized trigger tier; "off" = legacy
     # cycle-window + geometric-skip path (byte-identical).
     lsuTier = Param.String("off", "off | F0 | F1 | F2 | F3 | F4 | F5 | F6")
