@@ -69,7 +69,8 @@ FREE_CFLAGS := -O2 -static -no-pie -ffreestanding -nostdlib \
                -Wl,-z,noexecstack -Wl,-N -Wl,--no-warn-rwx-segments
 
 .PHONY: all fs clean smoke payload $(WORKLOADS) $(FS_WORKLOADS) \
-        free smoke_free payload_free lint_free
+        free smoke_free payload_free lint_free \
+        litmus_free_pilot pilot_free smoke_free_pilot payload_free_pilot
 
 all: $(WORKLOADS)
 
@@ -104,6 +105,32 @@ payload_free: free
 	python3 $(CURDIR)/make_free_payload.py --elf $(CURDIR)/litmus_free \
 	    --out $(CURDIR)/../../configs/fs/litmus_free_diag.rcS --ladder
 
+# ---- R4-8-FSMC-B：小轮次 pilot 载体 ----------------------------------------
+# WHY: the canonical `litmus_free` (SB 64 / ATOM 8x2) is the identity the
+# campaign + FSMC_GOLDEN_FINAL pin; it must not drift. But on the 2-core
+# Ruby/O3 restore the ATOMIC phase of the canonical build does NOT complete
+# inside the observation window (R4-9-FSMC-A §2.4/§2.5, re-measured here), so
+# a clean ATOMIC oracle — and therefore any injection-vs-fault-free control —
+# could never be taken. This pilot build is the SAME source with a smaller
+# round count so the LDXR/STXR path is observable; it gets its OWN rcS and
+# its OWN golden. It is an injection-instrumentation carrier, NOT a
+# replacement for the canonical carrier's identity.
+PILOT_CFLAGS := -DLITMUS_FREE_SB_ROUNDS=8 -DLITMUS_FREE_ATOM_ROUNDS=2 \
+                -DLITMUS_FREE_ATOM_INCR=1
+
+litmus_free_pilot: litmus_free.c
+	$(CC) $(FREE_CFLAGS) $(PILOT_CFLAGS) -o $@ $<
+
+pilot_free: litmus_free_pilot
+
+smoke_free_pilot: pilot_free
+	@echo "=== litmus_free_pilot (native, pin 0,1) ==="; taskset -c 0,1 ./litmus_free_pilot; \
+	 echo "rc=$$?"
+
+payload_free_pilot: pilot_free
+	python3 $(CURDIR)/make_free_payload.py --elf $(CURDIR)/litmus_free_pilot \
+	    --out $(CURDIR)/../../configs/fs/litmus_free_pilot.rcS
+
 litmus_sb: litmus_sb.c litmus_common.h
 	$(CC) $(CFLAGS) $(LITMUS_EXTRA) -o $@ $<
 
@@ -137,4 +164,4 @@ payload: fs
 	    --out $(CURDIR)/../../configs/fs/litmus.rcS $(PAYLOAD_ORDER)
 
 clean:
-	rm -f $(WORKLOADS) $(FS_WORKLOADS) litmus_free
+	rm -f $(WORKLOADS) $(FS_WORKLOADS) litmus_free litmus_free_pilot
