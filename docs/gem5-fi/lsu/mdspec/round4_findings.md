@@ -1917,3 +1917,25 @@ S10-F5-W5: phase=trial n_runs=3 activated=9 sdc=0 stop=seed-cap(3) cons=OK
 ——这是 `lsu_ready_contract._classify` 的 `else: RULING` **兜底**把 T08-W9 三行（理由
 `campaign:landed compile-unverified, pilot pending…`）吞进 RULING 所致，属**已知分类器缺陷**，
 由 `r4-8-spec-residual` 分支（显式判据 + `UNCLASSIFIED` 响亮兜底）修复后消除。
+
+## §R4-8-FS-W1 + §R4-8-SPEC（主 agent 集成，2026-10-22）
+
+**主 agent 独立 FS 真机复核**（binary `7d52bc1392a10055`，checkpoint `runs/lsu/fs_cpt_boot/cpt.237949797015`，campaign 正式入口）：
+```
+Resolution: {'runnable': 2}
+  T01-F0-W4: phase=trial n_runs=1 activated=1 sdc=0 stop=seed-cap(1) cons=OK
+  T04-F0-W4: phase=trial n_runs=1 activated=1 sdc=0 stop=seed-cap(1) cons=OK
+```
+→ `CHaosArmTLB.walker=None` 修复后 FS-INFRA 行确实可跑（非"路由就绪"）。
+
+**W1(MiBench) 口径订正的实际效果**：过宽的 `WL_BLOCKED["MiBench"]` 已删，19 格从"静态表拒跑"转可解析；
+残余 2 格（S01/S02-F0-W1）由**精确的** `F0-span-unmeasured` 拒绝（未编造 span）。
+UNRESOLVED 19 → **4**（残余 = S01/S02-F0-W1 span 未实测 + S10-F2-W5/W9 interval 语义拒绝）。
+
+**SPEC/W11**：阻塞键由裸子串 `"SPEC"` 收窄为具名身份常量 `SPEC_WL_IDENTITY`（= "SPEC CPU2017"；
+全矩阵仅 12 行 W11 匹配，且 `_resolve_workload` 中硬编码 `key == "SPEC"` 同步收窄——否则
+T10-F{0,1,2}-W11 会静默改判到 `fs:tlb_probe` 载体，该回归由 `test_lsu_w11_spec_residual.py` A4 钉住）。
+替换裁定：开放载体等于**静默重定义 cell**（W11 身份 = 授权 SPEC 数据集，磁盘上不存在，`find` 实证）→ 保留为真外部。
+
+**契约分类器**：`_classify` 的 `else: RULING` 静默兜底改为显式判据 + `UNCLASSIFIED` 响亮兜底；
+合并后 T08 措辞（"pending T08-b/c/d sub-model modes"）补入 MODE-UNIMPL 显式判据。
