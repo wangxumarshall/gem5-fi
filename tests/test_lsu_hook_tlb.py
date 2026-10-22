@@ -50,28 +50,30 @@ def main():
     check("tlb_translate -> L2", P.KIND_LAYER.get("tlb_translate") == "L2",
           str(P.KIND_LAYER.get("tlb_translate")))
     req = P.REQUIRED_FIELDS.get("tlb_translate")
+    # [R5] corr 自 R4-4-review-I1 起为全部入链事件必录（acc19511）。
     check("tlb_translate required fields",
           req is not None
-          and all(f in req for f in ("fault_id", "dyn_inst_seq", "va",
+          and all(f in req for f in ("fault_id", "corr", "dyn_inst_seq", "va",
                                      "request_id")))
 
     print("[2] 契约行校验")
     good = P.parse_line(
-        "PROP-EVT: kind=tlb_translate fault_id=1 dyn_inst_seq=42 "
+        "PROP-EVT: kind=tlb_translate fault_id=1 corr=origin dyn_inst_seq=42 "
         "request_id=42 va=1ffff70 pa=")
     check("complete tlb_translate validates (pa empty = honest pending)",
           good is not None and P.validate_event(good) == [])
     bad = P.parse_line("PROP-EVT: kind=tlb_translate fault_id=1")
     errs = P.validate_event(bad)
-    check("missing dyn_inst_seq/va/request_id flagged",
-          len(errs) == 3, str(errs))
+    check("missing corr/dyn_inst_seq/va/request_id flagged",
+          len(errs) == 4, str(errs))
 
     print("[3] 链推进与层级语义")
     chain = [P.parse_line("PROP-EVT: kind=inj fault_id=1 event_id=0"),
              P.parse_line("PROP-EVT: kind=addr_form fault_id=1 event_id=1"),
              P.parse_line("PROP-EVT: kind=lsq_push fault_id=1 event_id=2"),
              P.parse_line("PROP-EVT: kind=tlb_translate fault_id=1 "
-                          "event_id=3 dyn_inst_seq=42 request_id=42 va=1ffff70"),
+                          "event_id=3 corr=origin dyn_inst_seq=42 "
+                          "request_id=42 va=1ffff70"),
              P.parse_line("PROP-EVT: kind=resp fault_id=1 event_id=4")]
     v = P.provable_to(chain)
     check("inj→addr_form→lsq_push→tlb_translate→resp reaches L3",

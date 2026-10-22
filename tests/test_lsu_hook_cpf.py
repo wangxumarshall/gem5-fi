@@ -73,23 +73,27 @@ def main():
               str(req))
 
     print("[2] 契约行校验")
+    # [R5] corr 自 R4-4-review-I1 起为全部入链事件必录（acc19511）。以下为
+    # 单行合成夹具（无 join 伙伴），按 CORR_VALUES 语义取 origin（链开启 /
+    # 无 join 发生），非静默地址关联。
     lines = [
-        "PROP-EVT: kind=cache_access fault_id=1 va=1ffff70 pa=1ffff70",
-        "PROP-EVT: kind=cache_evict fault_id=1 cache_line=1ffc00 set=3 "
-        "way=1 before=1ffff field=dirty_evict_writeback",
+        "PROP-EVT: kind=cache_access fault_id=1 corr=origin va=1ffff70 "
+        "pa=1ffff70",
+        "PROP-EVT: kind=cache_evict fault_id=1 corr=origin cache_line=1ffc00 "
+        "set=3 way=1 before=1ffff field=dirty_evict_writeback",
         "PROP-EVT: kind=pf_train fault_id=2 pf_request_id=1 pc=4091a0 "
         "before=64 after=0 field=stride",
-        "PROP-EVT: kind=pf_queue fault_id=2 pf_request_id=1 va=1ffff70 "
-        "entry_index=3 state_after=queued",
-        "PROP-EVT: kind=pf_issue fault_id=2 pf_request_id=1 va=1ffff70 "
-        "state_after=issued",
+        "PROP-EVT: kind=pf_queue fault_id=2 corr=origin pf_request_id=1 "
+        "va=1ffff70 entry_index=3 state_after=queued",
+        "PROP-EVT: kind=pf_issue fault_id=2 corr=origin pf_request_id=1 "
+        "va=1ffff70 state_after=issued",
         "PROP-EVT: kind=pf_fill fault_id=2 pf_request_id=1 pa=1ffff70 "
         "cache_line=1ffff70 state_after=filled",
         "PROP-EVT: kind=pf_demand fault_id=2 pf_request_id=1 "
         "dyn_inst_seq=4001 request_id=4001 pa=1ffff70 "
         "cache_line=1ffff70 field=demand_hit",
-        "PROP-EVT: kind=atomic_op fault_id=3 dyn_inst_seq=99 va=7fbff "
-        "field=amo",
+        "PROP-EVT: kind=atomic_op fault_id=3 corr=origin dyn_inst_seq=99 "
+        "va=7fbff field=amo",
         "PROP-EVT: kind=exmon_monitor fault_id=4 dyn_inst_seq=50 "
         "request_id=50 pa=7fbff00 before=7fbff00 after=7fbff40 "
         "field=o01_monitor_addr_bitflip state_before=1 state_after=0",
@@ -99,20 +103,22 @@ def main():
         "PROP-EVT: kind=exmon_stxr fault_id=4 dyn_inst_seq=51 "
         "request_id=51 pa=7fbff00 entry_index=2 field=stxr_consume "
         "state_before=reserved state_after=fail_retry",
-        "PROP-EVT: kind=cache_return fault_id=5 pa=1ffff70 field=hit",
-        "PROP-EVT: kind=cache_fill fault_id=5 pa=1ffff70 cache_line=1ffc00 "
-        "fill_id=7",
-        "PROP-EVT: kind=mshr_alloc fault_id=5 cache_line=1ffff70 "
-        "mshr_id=3",
-        "PROP-EVT: kind=mshr_merge fault_id=5 cache_line=1ffff70 "
-        "mshr_id=3",
-        "PROP-EVT: kind=mshr_fill fault_id=5 cache_line=1ffff70 mshr_id=3 "
-        "fill_id=7 state_after=filled",
-        "PROP-EVT: kind=mshr_free fault_id=5 cache_line=1ffff70 mshr_id=3 "
-        "state_after=mshr_freed",
-        "PROP-EVT: kind=cache_writeback fault_id=5 cache_line=1ffff70",
-        "PROP-EVT: kind=cache_evict fault_id=5 cache_line=1ffff70 set=3 "
-        "way=1 before=1ffff field=dirty_evict_writeback",
+        "PROP-EVT: kind=cache_return fault_id=5 corr=origin pa=1ffff70 "
+        "field=hit",
+        "PROP-EVT: kind=cache_fill fault_id=5 corr=origin pa=1ffff70 "
+        "cache_line=1ffc00 fill_id=7",
+        "PROP-EVT: kind=mshr_alloc fault_id=5 corr=origin "
+        "cache_line=1ffff70 mshr_id=3",
+        "PROP-EVT: kind=mshr_merge fault_id=5 corr=origin "
+        "cache_line=1ffff70 mshr_id=3",
+        "PROP-EVT: kind=mshr_fill fault_id=5 corr=origin cache_line=1ffff70 "
+        "mshr_id=3 fill_id=7 state_after=filled",
+        "PROP-EVT: kind=mshr_free fault_id=5 corr=origin cache_line=1ffff70 "
+        "mshr_id=3 state_after=mshr_freed",
+        "PROP-EVT: kind=cache_writeback fault_id=5 corr=origin "
+        "cache_line=1ffff70",
+        "PROP-EVT: kind=cache_evict fault_id=5 corr=origin cache_line=1ffff70 "
+        "set=3 way=1 before=1ffff field=dirty_evict_writeback",
     ]
     for line in lines:
         evt = P.parse_line(line)
