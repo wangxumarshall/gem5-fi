@@ -1860,3 +1860,32 @@ chain_report: oracle=Timeout events=3 truncated=True
 L0 之后各边 `missing` 且 `beyond=Unknown` —— 这是 T08-a 的**正确诚实终局**
 （丢失的 walk 使翻译永不完成，故无下游事件；按纪律**不得**推断 Masked）。
 `activated=1`（计数修正后）。
+
+## R4-6-S10b（2026-10-22）：campaign 入口 3-seed pilot（6 cell）—— F5 真机激活，F2 结构性零
+
+命令（`--allow-blocked-models`，二进制 `7d52bc1392a10055`）：
+
+```
+python3 tools/lsu_campaign.py --matrix artifacts/lsu-trial/07-expanded-matrix-backfilled.csv \
+  --outdir runs/lsu/r4_6_s10_pilot \
+  --cells S10-F0-W5,S10-F2-W5,S10-F5-W5,S10-F0-W9,S10-F2-W9,S10-F5-W9 \
+  --phase trial --max-seeds-per-cell 3 --max-parallel 1 --allow-blocked-models
+```
+
+| cell | n_runs | attempted | activated | 判定 |
+|---|---|---|---|---|
+| S10-F5-W5 | 3 | 6 | **9** | **真机激活** |
+| S10-F5-W9 | 3 | 6 | **12** | **真机激活** |
+| S10-F2-W5 | 3 | — | **0** | 结构性零（见下） |
+| S10-F2-W9 | 3 | — | **0** | 结构性零 |
+
+**F2 结构性零的理由（诚实，非实现缺失）**：F2 的 `intervalEvents` = 100000（每 10 万
+eligible 事件注入一次），而本载体的 eligible 流长量级为 **10¹–10²**（定向 census 实测
+`eligible=11`；旧载体 alias_sites `eligible=21`）。窗口远大于流长 ⇒ 永不触发。
+这与 §R4-1 的 F0 span 超流长属**同一类**（触发窗 > 流长）。
+
+**裁定（本轮）**：S10 **仍记 BLOCKED**，但阻塞理由再次改写为**实测定论**：
+`platform-fixed but F0/F2 trigger windows exceed the eligible stream length of
+every available carrier`（F5 通道已证明可用）。解锁路径二选一（需裁决）：
+(a) 构造能产生 ≥10⁵ eligible 事件的载体（重活）；(b) 按 §R4-1 先例把 S10 的
+F0/F2 span 改为**逐(模型,负载)实测流长**（真 F0/F2 语义）。
