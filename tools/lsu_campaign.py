@@ -193,11 +193,40 @@ GOLDENS = {
 # (T01/T02/T10 W1 rows are unchanged — asserted in tests/test_lsu_fs_infra.py).
 # Kept blockers are precise: TLB-AliasPerm (needs FS), Atomic-Litmus/PARSEC
 # (need multi-core FS), SPEC (needs a license).
+
+# [R4-8-INT 语义合并] 与 r4-8-spec-residual 的 W11 粒度订正并集（两侧不冲突）：
+# Workload-level structural blocks (README §8.3 — 65 cells on W1/W4/W7/W13,
+# plus SPEC-license W11). Matched by keyword on the workload column.
+#
+# [LSU][MDSPEC][R4-8-SPEC] W11 granuality audit (2026-10-22). The W11 cells'
+# spec workload name is byte-identical on all 12 rows — "SPEC CPU2017 采样区间"
+# (sheet 6/7 W11 = "选择 mcf、omnetpp、xalancbmk、lbm 的固定 SimPoint/
+# checkpoint；不跑全程", purpose "外部有效性；主结论之后复核"). So the block is
+# on a workload IDENTITY the spec pins, NOT a blanket model-level gap: the four
+# W11 models (C15/L04/S13/T10) each already own runnable non-W11 cells on
+# open-source SE carriers (W5/W6/W10/W12), i.e. the blocker adds no model
+# coverage — it withholds the licensed SPEC data set only. The match key is
+# therefore narrowed from the bare substring "SPEC" to the pinned identity
+# "SPEC CPU2017" (strictly more precise; all 12 W11 rows still match, no other
+# row in the 325-RunID matrix contains "SPEC CPU2017" — see
+# tests/test_lsu_w11_spec_residual.py). Substitution verdict: an open-source
+# carrier would silently re-identify a SPEC cell, so the SPEC license gap stays
+# an external blocker (the licensed binaries/inputs + SimPoint set are not on
+# disk — audited by find; see R4-8-SPEC-residual-report.md §A.c).
+# [LSU][MDSPEC][R4-8-SPEC] The W11 workload identity the spec pins (sheet 6/7).
+# Named once so the block table and resolve_cell's FS-family special-case
+# cannot drift apart — the earlier bare key "SPEC" + literal `key == "SPEC"`
+# comparison in resolve_cell was exactly that drift trap: narrowing the key
+# without the comparison silently made T10-F{0,1,2}-W11 resolve to the
+# fs:tlb_probe carrier instead of the license refusal (caught by
+# tests/test_lsu_w11_spec_residual.py A4).
+SPEC_WL_IDENTITY = "SPEC CPU2017"
+
 WL_BLOCKED = {
     "TLB-AliasPerm": "blocked(fs-infra: TLB workload needs FS)",
     "Atomic-Litmus": "blocked(multicore-fs: litmus needs multi-core FS)",
     "PARSEC": "blocked(multicore-fs: PARSEC needs multi-core FS)",
-    "SPEC": "blocked(spec-license: SPEC CPU2017 needs a license)",
+    SPEC_WL_IDENTITY: "blocked(spec-license: SPEC CPU2017 needs a license)",
 }
 
 # ---------------------------------------------------------------- models
@@ -511,33 +540,33 @@ MODEL_BLOCKED = {
     # [MDSPEC][R4-5.9] T08: the walk/fill pairing MODE now exists
     # (faultType=walk_pairing, T08-a lost walk — TableWalker::walk drops the
     # walk; registerTlbWalkPair emits the tlb_walk/tlb_refill node pair).
-    # It is NOT removed from MODEL_BLOCKED: the C++ is compile-unverified
-    # (this worktree may not build) AND the model is FS-only, so no real-run
-    # evidence (injection log / chain / activated) exists yet. Removing the
-    # block requires a real campaign run with a non-empty injection log +
-    # lsu_chain_check edges (mode_unimpl_plan §逐项落地模板 step 5). The
-    # honest phrase is kept; the routing is live (MODEL_FLAGS["T08"]).
-    # [MDSPEC][R4-8-FS] T08-a REAL-MACHINE ASSERTED (2026-10-22, branch
-    # r4-7-fsinfra-w1): a campaign run of T08-F0-W4 seed1 on the frozen
-    # binary (sha256 prefix 7d52bc1392a10055) printed
-    #   Site: arm_tlb_walk_issue_probe  walk_id: 1    (walk-issue hook reached)
-    #   Site: arm_tlb_lookup_hit_skipped              (NOT consumed at lookup-hit)
-    #   Site: arm_tlb_walk_issue_drop   walk_id: 703  (T08-a real drop)
-    # and the PROP-EVT pair tlb_walk/tlb_refill shares walk_id=703 +
-    # fault_id=1 with tlb_refill field=lost — all four R4-6-T08 §4.3
-    # acceptance criteria met. The previous reason ("landed compile-
-    # unverified, pilot pending") is therefore FACTUALLY STALE: compile is
-    # proven (the frozen binary carries the fix strings AND the drop line can
-    # only be emitted by the fixed maybeDropWalkFill), and the pilot ran.
-    # KEPT (not deleted) so nothing silently unblocks: the still-unmeasured
-    # cells are T08-F4/F6-W4/W9, whose F4 landing (50000 + LCG % 100000 walk
-    # events ≈ 9.9e4-1.41e5) has NO measured budget on an FS run. Deleting it
-    # is a one-line integration call — see
-    # docs/gem5-fi/lsu/mdspec/R4-8-FS-W1-report.md §2.3 / §7.2.
-    "T08": ("F0 real-run asserted (T08-F0-W4 seed1: walk_issue_probe + "
-            "walk_issue_drop + tlb_walk/tlb_refill walk_id=703 field=lost; "
-            "R4-8-FS-W1 report §4.3); F4/F6 landing budget UNMEASURED — "
-            "entry kept until integration decides to remove it"),
+    # [R4-8-INT 语义合并] 两侧都在订正 T08 的理由文本，事实互补（W4 见
+    # r4-7-fsinfra-w1，W9 见 r4-8-spec-residual），取并集：
+    # T08-a（walk_pairing）**已真机断言**——旧理由 "landed compile-unverified,
+    # pilot pending" 已被证伪（冻结二进制 7d52bc1392a10055 既带修复字符串、
+    # 又能打印只可能由修复后 maybeDropWalkFill 产生的 drop 行；pilot 已实跑）。
+    #   * T08-F0-W4 seed1（R4-8-FS-W1 §4.3）：arm_tlb_walk_issue_probe +
+    #     arm_tlb_lookup_hit_skipped + arm_tlb_walk_issue_drop **walk_id=703**，
+    #     且 prop_evt 的 tlb_walk/tlb_refill 共享 walk_id=703 + fault_id=1、
+    #     tlb_refill field=lost —— R4-6-T08 §4.3 四项验收判据全中。
+    #   * T08-F0-W9（R4-6-T08）与 T08-F6-W9（R4-8-SPEC §B.3，F6=首次 walk 即
+    #     注入，drop walk_id=1 与 probe 同 tick）同样注入成功、activated=1。
+    #   * T08-F4-W9 = **诚实零（结构性）**：F4 burst interval=100000 eligible
+    #     events ≫ 实测 walk-issue 流 ~1e3（probe 行证明钩子到达，无 drop 行）。
+    # 条目**保留**（不删）以免静默解锁：残留理由是未落地的 T08-b/c/d 子模型
+    # 模式（mode 未实现、无真机覆盖）+ 上述 pilot 仅 1 seed（本仓别处删除门槛
+    # 为 3 seed）。删除是一行改动，留给集成方裁决（R4-6-T08 §4.4 /
+    # R4-8-FS-W1 §7.2 / R4-8-SPEC-residual §B）。
+    "T08": ("walk_pairing (T08-a) landed AND real-run proven — F0-W4 seed1 "
+            "(R4-8-FS-W1 §4.3: walk_issue_probe + walk_issue_drop walk_id=703 "
+            "+ tlb_walk/tlb_refill sharing walk_id=703/fault_id=1 with refill "
+            "field=lost), F0-W9 (R4-6-T08) and F6-W9 (R4-8-SPEC §B.3) injected "
+            "with the same walk_id/field=lost signature, activated=1; F4-W9 "
+            "honest zero (burst interval 1e5 eligible events >> the ~1e3 "
+            "walk-issue stream — hook reached, never fires), binary "
+            "7d52bc1392a10055. Block retained: pending T08-b/c/d sub-model "
+            "modes have no real-run coverage and the pilots are 1 seed each; "
+            "deletion is an integration decision"),
 }
 # O05-O07 are multicore-semantic models — their cells sit on Atomic-Litmus/
 # PARSEC (workload-blocked); add the model-level reason for robustness.
@@ -1043,7 +1072,13 @@ def resolve_cell(cell, allow_blocked=False):
     #    and a carrier substitution cannot honor it (T6 decision, honest).
     for key, reason in WL_BLOCKED.items():
         if key in workload:
-            if model in ARMTLB_MODELS and key == "SPEC":
+            # [R4-8-INT 语义合并] 两侧意图相同（SPEC 许可阻塞只对 FS/armtlb
+            # 家族生效，且必须按**收窄后的身份键** SPEC_WL_IDENTITY 匹配，
+            # 否则 T10-F{0,1,2}-W11 会静默改判到 fs:tlb_probe 载体——该回归
+            # 由 test_lsu_w11_spec_residual.py A4 钉住）。取并集：家族判据用
+            # ARMTLB_MODELS（本文件下方 FS 家族分支已在用），键用 Agent5 的
+            # SPEC_WL_IDENTITY 具名常量（防键/比较式漂移）。
+            if model in ARMTLB_MODELS and key == SPEC_WL_IDENTITY:
                 return None, None, reason
             if model in ARMTLB_MODELS:
                 # TLB-AliasPerm (and any remaining non-SPEC key) carrier:

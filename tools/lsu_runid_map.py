@@ -408,13 +408,26 @@ def generate_map(xlsx_path):
                "fill_lost=true -> field=lost/outcome=lost) via "
                "CHAOSPropagation::registerTlbWalkPair; pending: T08-b "
                "duplicate, T08-c done-too-early, T08-d stale-walk-result "
-               "write (xlsx sheet-9 sub-models 03/07); evidence: NONE yet "
-               "— landed compile-unverified from the isolated no-build "
-               "worktree r4-t08fs (FS-only: the model needs a full-system "
-               "restore, and this session may neither build nor run gem5). "
-               "Integration must build + run the 3 T08 cells (F0/F4/F6 W4) "
-               "+ lsu_chain_check before this entry carries real-run "
-               "evidence (R4-5.9-report.md checklist))",
+               "write (xlsx sheet-9 sub-models 03/07); "
+               # [LSU][MDSPEC][R4-8-SPEC] evidence updated from "NONE yet" to
+               # the MEASURED runs (the old phrase became false once the
+               # integration binary carried the C++ and the FS pilots ran).
+               "evidence: REAL RUNS on binary 7d52bc1392a10055 (FS restore "
+               "from cpt.237949797015, carrier configs/fs/tlb_probe.rcS) — "
+               "F0-W9 injected=1/activated=1 with arm_tlb_walk_issue_drop + "
+               "tlb_walk/tlb_refill sharing walk_id and refill field=lost "
+               "(R4-6-T08 §T08.4); F6-W9 injected=1/activated=1 at the FIRST "
+               "walk (F6 early_stress; prop_evt inj→tlb_walk→tlb_refill all "
+               "walk_id=1, refill field=lost/outcome=lost) with oracle="
+               "Timeout — the spec'd channel for a dropped walk (R4-8-SPEC "
+               "§B.3); F4-W9 honest zero, structurally (burst interval 1e5 "
+               "eligible events >> the ~1e3 walk-issue stream; probe line "
+               "shows the hook was reached, no drop line). Chain terminal "
+               "provable_to_L0_then_unknown on the injected samples (the L0 "
+               "anchor added in R4-6-T08 §T08.3). STILL PENDING: T08-b/c/d "
+               "real-run coverage and 3-seed breadth for F0/F6; "
+               "MODEL_BLOCKED['T08'] is retained for those (R4-8-SPEC "
+               "residual report §B, integration decides the deletion))",
     }
 
     wb = openpyxl.load_workbook(xlsx_path, data_only=True)

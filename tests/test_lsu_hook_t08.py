@@ -85,13 +85,18 @@ def main():
     blk = lc.MODEL_BLOCKED.get("T08", "")
     check("MODEL_BLOCKED['T08'] KEPT (not silently unblocked)",
           "T08" in lc.MODEL_BLOCKED)
-    check("blocked phrase is honest (compile-unverified + FS-only pilot pending)",
-          "compile-unverified" in blk and "pilot pending" in blk
-          and "FS-only" in blk, blk)
+    # [LSU][MDSPEC][R4-8-SPEC] the phrase is updated to the MEASURED truth:
+    # the C++ was built on the integration binary and the FS pilots ran
+    # (F0-W9 R4-6-T08, F6-W9 R4-8-SPEC), so "compile-unverified / pilot
+    # pending" became false. The invariant pinned here: the block is KEPT and
+    # its reason names the landed arm + the still-pending sub-models.
+    check("blocked phrase is honest (T08-a real-run proven + pending b/c/d)",
+          "walk_pairing" in blk and "T08-a" in blk and "T08-b" in blk
+          and ("mode unimplemented" in blk or "pilot pending" in blk), blk)
     wl = "TLB-AliasPerm 地址翻译探针"
     r = lc.resolve_cell(_cell("T08", "F0", wl, "T08-F0-W4"))
     check("resolve_cell(T08-F0-W4) -> blocked reason (not silently runnable)",
-          r[0] is None and "compile-unverified" in (r[2] or ""), str(r))
+          r[0] is None and "walk_pairing" in (r[2] or ""), str(r))
     r2 = lc.resolve_cell(_cell("T01", "F0", wl, "T01-F0-W4"))
     check("T01 lookup mode unchanged (ar mtlb FS flags, no walk path)",
           r2[1] == lc.TLB_PROBE_GOLDEN and "--tlb_fault_type" in r2[0]
@@ -118,16 +123,21 @@ def main():
           'notePropEvt("tlb_walk"' in prop and 'notePropEvt("tlb_refill"' in prop
           and '"walk_id"' in prop)
 
-    print("[5] SPEC_IMPL_LANDED 登记（诚实：显式 compile-unverified + 证据债）")
+    print("[5] SPEC_IMPL_LANDED 登记（诚实：显式真机证据 + 证据债）")
     rm = (ROOT / "tools/lsu_runid_map.py").read_text()
     i = rm.find('"T08":')
-    seg = rm[i:i + 1800]
+    # [LSU][MDSPEC][R4-8-SPEC] window widened: the entry now also carries the
+    # measured real-run evidence paragraph (was ~0.7 KB, now ~1.9 KB).
+    seg = rm[i:i + 3500]
     check("SPEC_IMPL_LANDED carries a T08 entry",
           i != -1 and "walk_pairing" in seg)
     check("entry names the landed sub-model (T08-a) and pending b/c/d",
           "T08-a" in seg and "T08-b" in seg and "T08-c" in seg and "T08-d" in seg)
-    check("entry states evidence NONE + compile-unverified",
-          "evidence: NONE yet" in seg and "compile-unverified" in seg)
+    # [LSU][MDSPEC][R4-8-SPEC] evidence upgraded from "NONE yet" to the
+    # measured runs; the debt is now the *pending* b/c/d coverage.
+    check("entry carries the measured real-run evidence + pending debt",
+          "evidence: REAL RUNS" in seg and "7d52bc1392a10055" in seg
+          and "STILL PENDING" in seg)
 
     print()
     if FAILED:
