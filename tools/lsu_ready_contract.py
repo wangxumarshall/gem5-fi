@@ -165,6 +165,13 @@ def verdict(doc):
             reasons.append("正式二进制缺失")
         if g.get("pytest_rc") != 0:
             reasons.append(f"pytest_rc={g.get('pytest_rc')} != 0（{g.get('pytest_tail','')}）")
+        # [R5-U2] 全套件结果（pytest 未收集的独立脚本单列，不得被 pytest_rc 掩盖）
+        if g.get("tests_fail", 0) > 0:
+            reasons.append(f"全套件 FAIL={g['tests_fail']}"
+                           f"（{g.get('tests_counts')}）")
+        if g.get("tests_env_blocked", 0) > 0:
+            reasons.append(f"全套件 ENV 阻塞={g['tests_env_blocked']} 项未判定"
+                           "（缺二进制/资产，不得计入通过）")
         du = shutil.disk_usage(str(REPO))
         tot_gib = du.total / 2 ** 30
         floor = max(DISK_MIN_FREE_GIB, DISK_MIN_FREE_PCT * tot_gib)
@@ -253,6 +260,23 @@ def gate():
     tail = (r.stdout or "").strip().splitlines()[-1:] or [""]
     g["pytest_rc"] = r.returncode
     g["pytest_tail"] = tail[0][:200]
+    # [R5-U2] 全部套件（含 pytest 不收集的 ~40 个独立脚本）。这些脚本
+    # **无论成败都 exit 0**，故 pytest_rc 与 returncode 都不足以证明通过 ——
+    # 必须由 tools/lsu_test_runner.py 解析真实输出判定（该文件头部有动机说明）。
+    tj = f"/tmp/lsu_gate_tests_{os.getpid()}.json"
+    tr = subprocess.run([sys.executable, "tools/lsu_test_runner.py",
+                         "--quiet", "--json", tj],
+                        capture_output=True, text=True, cwd=str(REPO))
+    ttail = (tr.stdout or "").strip().splitlines()[-1:] or [""]
+    g["tests_rc"] = tr.returncode
+    g["tests_tail"] = ttail[0][:200]
+    try:
+        counts = json.loads(Path(tj).read_text())["counts"]
+    except Exception:
+        counts = {"UNKNOWN": 1}
+    g["tests_counts"] = counts
+    g["tests_fail"] = counts.get("FAIL", 0)
+    g["tests_env_blocked"] = counts.get("ENV", 0)
     # 资源准入
     try:
         with open("/proc/meminfo") as fh:
