@@ -336,6 +336,19 @@ MODEL_FLAGS = {
     "T08": ("armtlb", ["--tlb_fault_type", "walk_pairing"]),
 }
 
+# [MDSPEC][R4-6-T08] Pinned F0 window for T08's walk-issue stream. The values
+# ARE the config defaults (configs/se/arm_chaos_fs.py --tlb_lsu_warmup_events
+# 0 / --tlb_lsu_span_events 1000): this is an explicit pin, not a re-tune, so
+# the injection index is auditable from the flag list and cannot drift with a
+# default change. F0 draws next_fire = warmup + chaosSampleLCG(seed) % span
+# over the WALK-ISSUE stream; with the campaign's seed=1..N (the FS branch
+# appends --tlb_rng_seed <seed>) the drop lands at walk-event index 412
+# (seed 1) / 417 (seed 2) / 806 (seed 3). It is NOT a census-measured span —
+# the walk stream has never been counted on a real FS run (F0 census
+# discipline: re-tune with a measured eligible count).
+ARMTLB_T08_WARMUP_EVENTS = 0
+ARMTLB_T08_SPAN_EVENTS = 1000
+
 # ---- FS carrier (M3 plan Task 5/6 decision tree) ----
 # T-cell design workloads (MiBench/TLB-AliasPerm/GAP) have no binaries on the
 # stock ubuntu image; SPEC stays license-blocked. Runnable T-cells execute on
@@ -897,8 +910,14 @@ def resolve_cell(cell, allow_blocked=False):
         # from the cell's F column (the walk-issue stream is the eligible
         # stream). The lookup modes (T01-T04/T10) carry NO tier (lsuTier
         # stays "off" — byte-equivalent to the pre-R4-5.9 tree).
+        # [MDSPEC][R4-6-T08] the F0 window is pinned from the constants above
+        # (same values as the config defaults) so the draw index is auditable
+        # straight from the flag list — see the constants' comment.
         if "walk_pairing" in extra:
-            flags += ["--tlb_lsu_tier", freq]
+            flags += ["--tlb_lsu_tier", freq,
+                      "--tlb_lsu_warmup_events",
+                      str(ARMTLB_T08_WARMUP_EVENTS),
+                      "--tlb_lsu_span_events", str(ARMTLB_T08_SPAN_EVENTS)]
         return flags, TLB_PROBE_GOLDEN, "fs:tlb_probe"
 
     # 4. workload must have an SE binary + golden
