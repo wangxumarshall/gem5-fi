@@ -68,9 +68,44 @@ def main():
     fscfg = ROOT / "configs/se/arm_chaos_fs.py"
     src = fscfg.read_text()
     check("FS platform exists (configs/se/arm_chaos_fs.py)", fscfg.exists())
-    check("FS platform is SINGLE-CORE (num_cores=1) — FS-MULTICORE needs a "
-          "config change, not just a run",
+    check("legacy FS platform is still SINGLE-CORE (num_cores=1)",
           "num_cores=1" in src, "num_cores=1 not found")
+
+    # [R4-8-FSMC] 多核 FS 平台（Task 1）：W7/W13 的载体前提。这里断言的是
+    # **结构事实**，不是"跑过了" —— 跑没跑由报告里的真机输出负责。
+    mccfg = ROOT / "configs/fs/lsu_multicore_fs.py"
+    mcsrc = mccfg.read_text() if mccfg.exists() else ""
+    check("multi-core FS platform exists (configs/fs/lsu_multicore_fs.py)",
+          mccfg.exists())
+    check("multi-core platform takes --num-cores (default 2, SMP >1)",
+          '"--num-cores"' in mcsrc and 'default=2' in mcsrc,
+          "no --num-cores with default=2")
+    check("multi-core platform offers COHERENT chi and non-coherent classic",
+          '"chi"' in mcsrc and '"classic"' in mcsrc
+          and "CoherenceProtocol" not in mcsrc)
+    check("multi-core platform wires num_cores into SimpleProcessor",
+          "num_cores=args.num_cores" in mcsrc)
+    # 构造性事实：CHAOSCache 取 Param.Cache（classic），Ruby/CHI 的 L1 是
+    # cache controller，不是 classic Cache ⇒ 该 config 不能挂 CHAOSCache。
+    # 这条断言是为了防止有人"顺手"把 CHAOSCache 塞进来造成半接线。
+    check("multi-core platform does NOT mount CHAOSCache (classic-only "
+          "SimObject; Ruby L1s are cache controllers)",
+          "CHAOSCache(" not in mcsrc and "CHAOSCache\n" not in mcsrc
+          and "import CHAOSCache" not in mcsrc
+          and "from m5.objects import" in mcsrc
+          and "CHAOSExMon" in mcsrc,
+          "CHAOSCache is mounted/imported in the multi-core config")
+    check("multi-core platform documents WHY it exists (R4-8-FSMC)",
+          "R4-8-FSMC" in mcsrc)
+    # 诚实检测：多核 checkpoint 是否存在（不存在必须报"不存在"，不得假定）。
+    ckpts = sorted((ROOT / "runs").rglob("cpt.*")) \
+        if (ROOT / "runs").exists() else []
+    multi = []
+    for c in ckpts:
+        ini = c.parent / "config.ini"
+        if ini.exists() and "[board.processor.cores1]" in ini.read_text():
+            multi.append(str(c.relative_to(ROOT)))
+    print(f"      multi-core checkpoints found: {multi or 'NONE'}")
 
     print("[2] campaign FS 接线（路径解析 + 响亮拒绝）")
     import lsu_campaign as lc
