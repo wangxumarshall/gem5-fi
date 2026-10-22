@@ -42,6 +42,7 @@
 #ifndef __BASE_CACHE_ASSOCIATIVE_CACHE_HH__
 #define __BASE_CACHE_ASSOCIATIVE_CACHE_HH__
 
+#include <cassert>
 #include <string_view>
 #include <type_traits>
 #include <vector>
@@ -96,6 +97,44 @@ class AssociativeCache : public Named
             indexingPolicy->setEntry(entry, entry_idx);
             entry->replacementData = replPolicy->instantiateEntry();
         }
+    }
+
+    /**
+     * Translate an entry pointer handed out by the indexing policy into the
+     * entry *this* container owns.
+     *
+     * An indexing policy stores ONE table of entry pointers
+     * (IndexingPolicyTemplate::sets), which is (re)written by
+     * IndexingPolicyTemplate::setEntry() for every container initialized with
+     * that policy. When several containers share a policy, the table ends up
+     * naming only the entries of the container that was initialized last, and
+     * every lookup of every other container would be served out of that
+     * foreign container's storage. The pointer returned by the policy is
+     * therefore not usable as-is.
+     *
+     * Each entry does, however, remember the (set, way) position that
+     * setEntry() derived from its own index, and that position is a pure
+     * function of the index
+     * (set = index / assoc, way = index % assoc); it is identical for every
+     * container built with the same geometry. Recomputing the index from the
+     * position maps a policy candidate onto exactly the equivalent entry of
+     * this container, which makes `entries` the only storage a container ever
+     * reads or writes. For a policy that is not shared, this is the identity.
+     */
+    Entry *
+    ownedEntry(ReplaceableEntry *entry) const
+    {
+        assert(entry);
+
+        const size_t entry_idx =
+            (size_t)entry->getSet() * associativity + entry->getWay();
+
+        assert(entry_idx < entries.size());
+
+        // The entries are this container's own storage; the accessors below
+        // hand out mutable pointers to them by design (the indexing policy
+        // does the same with its table).
+        return const_cast<Entry *>(&entries[entry_idx]);
     }
 
   public:
@@ -219,7 +258,7 @@ class AssociativeCache : public Named
         auto candidates = indexingPolicy->getPossibleEntries(key);
 
         for (auto candidate : candidates) {
-            Entry *entry = static_cast<Entry*>(candidate);
+            Entry *entry = ownedEntry(candidate);
             if (entry->match(key)) {
                 return entry;
             }
@@ -237,6 +276,10 @@ class AssociativeCache : public Named
     findVictim(const KeyType &key)
     {
         auto candidates = indexingPolicy->getPossibleEntries(key);
+
+        for (auto &candidate : candidates) {
+            candidate = ownedEntry(candidate);
+        }
 
         auto victim = static_cast<Entry*>(replPolicy->getVictim(candidates));
 
@@ -293,14 +336,14 @@ class AssociativeCache : public Named
         std::vector<ReplaceableEntry *> selected_entries =
             indexingPolicy->getPossibleEntries(key);
 
-        std::vector<Entry *> entries;
+        std::vector<Entry *> owned_entries;
 
         std::transform(selected_entries.begin(), selected_entries.end(),
-                       std::back_inserter(entries), [](auto &entry) {
-                           return static_cast<Entry *>(entry);
+                       std::back_inserter(owned_entries), [this](auto &entry) {
+                           return ownedEntry(entry);
                        });
 
-        return entries;
+        return owned_entries;
     }
 
     /** Iterator types */
