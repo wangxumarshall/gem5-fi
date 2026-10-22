@@ -348,7 +348,7 @@
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、addr_form、lsq_push、lsq_sendfrag、tlb_translate、mem_req、resp、taint_reg、consumer、errant_commit、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
    "coverage": "BLOCKED",
-   "resolve_reason": "BLOCKED(load-side fixed-width completion contract + byte-enable pending; store-only path implemented — MDSPEC §2 ruling 2026-10-19)"
+   "resolve_reason": "BLOCKED(load-side widen path + A06-b mask path landed but COMPILE-UNVERIFIED; spike (real gem5 run) pending — R4-6-A06 2026-10-22, MDSPEC §2 ruling 2026-10-19)"
   },
   {
    "run_id": "A06-F0-W5",
@@ -363,7 +363,7 @@
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、addr_form、lsq_push、lsq_sendfrag、tlb_translate、mem_req、resp、taint_reg、consumer、errant_commit、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
    "coverage": "BLOCKED",
-   "resolve_reason": "BLOCKED(load-side fixed-width completion contract + byte-enable pending; store-only path implemented — MDSPEC §2 ruling 2026-10-19)"
+   "resolve_reason": "BLOCKED(load-side widen path + A06-b mask path landed but COMPILE-UNVERIFIED; spike (real gem5 run) pending — R4-6-A06 2026-10-22, MDSPEC §2 ruling 2026-10-19)"
   },
   {
    "run_id": "A06-F2-W3",
@@ -378,7 +378,7 @@
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、addr_form、lsq_push、lsq_sendfrag、tlb_translate、mem_req、resp、taint_reg、consumer、errant_commit、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
    "coverage": "BLOCKED",
-   "resolve_reason": "BLOCKED(load-side fixed-width completion contract + byte-enable pending; store-only path implemented — MDSPEC §2 ruling 2026-10-19)"
+   "resolve_reason": "BLOCKED(load-side widen path + A06-b mask path landed but COMPILE-UNVERIFIED; spike (real gem5 run) pending — R4-6-A06 2026-10-22, MDSPEC §2 ruling 2026-10-19)"
   },
   {
    "run_id": "A06-F2-W5",
@@ -393,7 +393,7 @@
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、addr_form、lsq_push、lsq_sendfrag、tlb_translate、mem_req、resp、taint_reg、consumer、errant_commit、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
    "coverage": "BLOCKED",
-   "resolve_reason": "BLOCKED(load-side fixed-width completion contract + byte-enable pending; store-only path implemented — MDSPEC §2 ruling 2026-10-19)"
+   "resolve_reason": "BLOCKED(load-side widen path + A06-b mask path landed but COMPILE-UNVERIFIED; spike (real gem5 run) pending — R4-6-A06 2026-10-22, MDSPEC §2 ruling 2026-10-19)"
   },
   {
    "run_id": "A06-F6-W3",
@@ -408,7 +408,7 @@
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、addr_form、lsq_push、lsq_sendfrag、tlb_translate、mem_req、resp、taint_reg、consumer、errant_commit、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
    "coverage": "BLOCKED",
-   "resolve_reason": "BLOCKED(load-side fixed-width completion contract + byte-enable pending; store-only path implemented — MDSPEC §2 ruling 2026-10-19)"
+   "resolve_reason": "BLOCKED(load-side widen path + A06-b mask path landed but COMPILE-UNVERIFIED; spike (real gem5 run) pending — R4-6-A06 2026-10-22, MDSPEC §2 ruling 2026-10-19)"
   },
   {
    "run_id": "A06-F6-W5",
@@ -423,7 +423,7 @@
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、addr_form、lsq_push、lsq_sendfrag、tlb_translate、mem_req、resp、taint_reg、consumer、errant_commit、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
    "coverage": "BLOCKED",
-   "resolve_reason": "BLOCKED(load-side fixed-width completion contract + byte-enable pending; store-only path implemented — MDSPEC §2 ruling 2026-10-19)"
+   "resolve_reason": "BLOCKED(load-side widen path + A06-b mask path landed but COMPILE-UNVERIFIED; spike (real gem5 run) pending — R4-6-A06 2026-10-22, MDSPEC §2 ruling 2026-10-19)"
   },
   {
    "run_id": "A07-F0-W3",
@@ -4895,5 +4895,19 @@
    "coverage": "BLOCKED",
    "resolve_reason": "blocked(multicore-fs: PARSEC needs multi-core FS)"
   }
- ]
+ ],
+ "gate": {
+  "binary": "/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-mdspec-20261019/CHAOS/gem5/build/ARM/gem5.opt",
+  "binary_sha256": "7d52bc1392a100554d1a004f25ee339b9b9ef6d6e4544ba620e86f1a436a077b",
+  "binary_sha256_16": "7d52bc1392a10055",
+  "binary_mtime": 1792633028,
+  "binary_bytes": 1144920480,
+  "pytest_rc": 1,
+  "pytest_tail": "16 passed, 5 errors in 1.28s",
+  "mem_total_gb": 29.9,
+  "mem_avail_gb": 24.6,
+  "cpus": 126,
+  "disk_free_gb": 69.9,
+  "gem5_concurrency_cap": 4
+ }
 }
