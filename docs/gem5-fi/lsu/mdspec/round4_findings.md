@@ -1846,3 +1846,17 @@ kind=tlb_refill walk_id=703 field=lost outcome=lost tick=238044463587
 - 下一步（未做）：改用 F5/F6 定点触发（而非 F0/F2 均匀抽样）以保证落点落在 load；
   或按合同结论把 A06-a 明确重定义为"load 仅 strict widen"并据此写判据
   （落地侧报告 §5 已列该选项，需裁决）。
+
+### T08.6 L0 锚点复跑（二进制 `7d52bc1392a10055`，同命令）
+
+```
+T08-F0-W9: activated=1 sdc=0 stop=seed-cap(1) cons=OK
+chain_report: oracle=Timeout events=3 truncated=True
+              terminal=provable_to_L0_then_unknown  provable_to=L0  beyond=Unknown
+              edges: L0->L1 missing / L1->L2 missing / … / L4->L5 missing
+```
+
+对比补锚前（首轮）的 `terminal=no_l0_fault_applied`：L0 现已被证明。
+L0 之后各边 `missing` 且 `beyond=Unknown` —— 这是 T08-a 的**正确诚实终局**
+（丢失的 walk 使翻译永不完成，故无下游事件；按纪律**不得**推断 Masked）。
+`activated=1`（计数修正后）。
