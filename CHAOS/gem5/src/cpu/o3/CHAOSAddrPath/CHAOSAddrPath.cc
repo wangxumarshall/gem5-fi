@@ -504,9 +504,10 @@ namespace gem5
                 || a06_load_declined) {
                 // [LSU][MDSPEC][A6] op-class 拒斥（不计 activated）。A06
                 // 2026-10-19 裁决曾把全部 load 拒斥（store-only 安全路径）；
-                // R4-6-A06 2026-10-22 起 load 在 **widen 合法** 时是合格
-                // op（contract 只禁 shrink），其余 load 仍在这里被拒，且带
-                // 明确理由。F6 已 armed 时显式写 REJECT 日志留证；f6_pending
+                // R4-6-A06 2026-10-22 load 侧放宽到 widen；R4-8-A06
+                // 2026-10-22 起 load 侧 = **任意另一合法值**（widen 或
+                // shrink），只有 NoChange / Geometry / 非法目标仍在这里被拒，
+                // 且带明确理由。F6 已 armed 时显式写 REJECT 日志留证；f6_pending
                 // 保持 armed 等待下一个合格事件。普通逐事件拒斥只进
                 // obs_pre_opclass 计数（不刷日志，与 F-049 其余模式一致）。
                 if (pre_mode == "a06_size" && f6_pending &&
@@ -523,6 +524,29 @@ namespace gem5
                         << ", new_size=" << size
                         << ", widen_target=" << agu_size_to_load
                         << std::endl;
+                }
+                // [MDSPEC][R4-8-A06] per-reason observability under the TIER
+                // route. These per-reason counters used to be reachable ONLY
+                // through the legacy gating path (the a06_size branch below),
+                // because this eligibility filter returns first — so an
+                // F0/F2/F6 run could never report WHY an A06 load was
+                // declined and the campaign's real route was blind to the
+                // guardrail (that is exactly why R4-6-A06 could not reproduce
+                // `load_shrink` with a tier config). Counted here now, once
+                // per event; the legacy path counts in the a06_size branch,
+                // and the two paths are mutually exclusive.
+                if (pre_mode == "a06_size" && isLoad && a06_load_declined) {
+                    switch (a06_load_v) {
+                      case A06LoadVerdict::NoTarget:
+                        ++obs_pre_a06_load_notarget; break;
+                      case A06LoadVerdict::Illegal:
+                        ++obs_pre_a06_load_illegal; break;
+                      case A06LoadVerdict::NoChange:
+                        ++obs_pre_a06_load_nochange; break;
+                      case A06LoadVerdict::Geometry:
+                        ++obs_pre_a06_load_geom; break;
+                      default: break;
+                    }
                 }
                 ++obs_pre_opclass;   // [LSU][OBS-2]
                 return size;   // op class not eligible for this model

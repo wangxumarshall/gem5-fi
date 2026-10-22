@@ -107,6 +107,17 @@ def main():
     check("A5_load_verdict_before_trigger",
           i_verdict > 0 and i_trigger > 0 and i_verdict < i_trigger,
           f"verdict@{i_verdict} trigger@{i_trigger}")
+    # A5b [R4-8-A06] 逐因计数在 **tier 路径** 也必须可达（历史上只在 legacy
+    #     路径可达 ⇒ F0/F2/F6 的 campaign 路由看不见护栏，这正是 R4-6-A06
+    #     真机复现不出 load_shrink 的原因）。判据：opclass 过滤块内出现
+    #     per-reason switch + 明确注释。
+    i_switch = cctxt.find("per-reason observability under the TIER")
+    i_opclass_ret = cctxt.find("return size;   // op class not eligible "
+                               "for this model")
+    check("A5b_per_reason_counting_in_tier_path",
+          i_switch > 0 and i_opclass_ret > 0 and i_switch < i_opclass_ret
+          and cctxt.count("case A06LoadVerdict::NoChange:") >= 2,
+          f"switch@{i_switch} opclass_ret@{i_opclass_ret}")
 
     # A6 A06-b：载体不可注入的部分显式拒斥 + 计数（load 侧 / size 已消费）。
     check("A6_be_decline_counted",
