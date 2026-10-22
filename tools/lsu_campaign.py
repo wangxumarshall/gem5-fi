@@ -340,6 +340,16 @@ MODEL_FLAGS = {
     "T08": ("armtlb", ["--tlb_fault_type", "walk_pairing"]),
 }
 
+# [MDSPEC][R4-8-FS] The full TLB-translation model family (T01-T08 + T10;
+# T09 is B0-N/A, not a translation model). Used by resolve_cell's workload-
+# block step: for these models the TLB-AliasPerm workload is NOT the blocker
+# (the FS tlb_probe carrier serves it), so the reason must come from the
+# model-level check — precise per model. T05/T06/T07 are deliberately NOT in
+# MODEL_FLAGS (their CHAOSArmTLB modes do not exist yet): they must report
+# "deferred(mode unimplemented: …)" from MODEL_BLOCKED, never the misleading
+# workload-level "fs-infra" phrase.
+ARMTLB_MODELS = {"T01", "T02", "T03", "T04", "T05", "T06", "T07", "T08", "T10"}
+
 # [MDSPEC][R4-6-T08] Pinned F0 window for T08's walk-issue stream. The values
 # ARE the config defaults (configs/se/arm_chaos_fs.py --tlb_lsu_warmup_events
 # 0 / --tlb_lsu_span_events 1000): this is an explicit pin, not a re-tune, so
@@ -887,11 +897,20 @@ def resolve_cell(cell, allow_blocked=False):
     #    and a carrier substitution cannot honor it (T6 decision, honest).
     for key, reason in WL_BLOCKED.items():
         if key in workload:
-            if model in MODEL_FLAGS and MODEL_FLAGS[model][0] == "armtlb" \
-                    and key == "SPEC":
+            if model in ARMTLB_MODELS and key == "SPEC":
                 return None, None, reason
-            if model in MODEL_FLAGS and MODEL_FLAGS[model][0] == "armtlb":
-                # MiBench / TLB-AliasPerm / GAP carriers: runnable via FS
+            if model in ARMTLB_MODELS:
+                # TLB-AliasPerm (and any remaining non-SPEC key) carrier:
+                # NOT a workload-level blocker for a T-model — the FS carrier
+                # serves it, so fall through to the model-level check, which
+                # carries the PRECISE reason (FS flag set for T01-T04/T10;
+                # "mode unimplemented" for T05/T06/T07; MODEL_BLOCKED for T08).
+                # [MDSPEC][R4-8-FS] keyed on ARMTLB_MODELS, not on
+                # MODEL_FLAGS["…"]=="armtlb": T05/T06/T07 are deliberately
+                # ABSENT from MODEL_FLAGS (their modes do not exist in
+                # CHAOSArmTLB), so the old test made them report the
+                # misleading "fs-infra: TLB workload needs FS" instead of
+                # their real blocker.
                 continue
             return None, None, reason
     # 2. model-level block / deferral / N-A

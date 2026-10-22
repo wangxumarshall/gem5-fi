@@ -140,6 +140,70 @@ def main():
           f"'{CKPT_DOCUMENTED_STALE}'; real dirs are the ones above "
           f"(R4-5.9 report §1).")
 
+    print("[5] FS-INFRA 24 行：逐行的**精确**残余阻塞（R4-8）")
+    # 每一行都必须落在 {FS flags | 精确 MODE-UNIMPL | MODEL_BLOCKED(T08)} 之一。
+    # T05/T06/T07 的模式在 CHAOSArmTLB 里**不存在**（只有 bit_flip /
+    # stuck_at_zero|one / pfn_to_mapped_page / walk_pairing），故精确理由是
+    # "mode unimplemented"而非过宽的"fs-infra"——此处把它钉死，防止任何一行
+    # 在无声中被解锁。
+    import lsu_campaign as _lc
+    _hdr, _cells = _lc.load_matrix(
+        ROOT / "artifacts/lsu-trial/07-expanded-matrix-backfilled.csv")
+    _byid = {c[_lc.COL_RUNID]: c for c in _cells}
+    FS_INFRA = ["T01-F0-W4", "T01-F1-W4", "T01-F2-W4", "T02-F0-W4", "T02-F2-W4",
+                "T03-F5-W4", "T04-F0-W4", "T04-F2-W4", "T04-F6-W4",
+                "T05-F0-W4", "T05-F2-W4", "T05-F6-W4",
+                "T06-F0-W4", "T06-F2-W4", "T06-F6-W4",
+                "T07-F0-W4", "T07-F4-W4", "T07-F6-W4",
+                "T08-F0-W4", "T08-F4-W4", "T08-F6-W4",
+                "T10-F0-W4", "T10-F1-W4", "T10-F2-W4"]
+    check("FS-INFRA row list is exactly 24 rows", len(FS_INFRA) == 24)
+    check("every FS-INFRA row is present in the matrix",
+          all(r in _byid for r in FS_INFRA),
+          str([r for r in FS_INFRA if r not in _byid]))
+    _fs_run, _fs_modeblk, _fs_t08, _fs_other = [], [], [], []
+    for r in FS_INFRA:
+        f, g, k = _lc.resolve_cell(_byid[r])
+        if f is not None and k == "fs:tlb_probe":
+            _fs_run.append(r)
+        elif f is None and k.startswith("deferred(mode unimplemented"):
+            _fs_modeblk.append(r)
+        elif f is None and "compile-unverified" in k:
+            _fs_t08.append(r)              # T08: MODEL_BLOCKED, needs opt-in
+        else:
+            _fs_other.append((r, k))
+    check("T01/T02/T03/T04/T10 W4 rows resolve to FS flag sets (12 rows)",
+          _fs_run == ["T01-F0-W4", "T01-F1-W4", "T01-F2-W4", "T02-F0-W4",
+                      "T02-F2-W4", "T03-F5-W4", "T04-F0-W4", "T04-F2-W4",
+                      "T04-F6-W4", "T10-F0-W4", "T10-F1-W4", "T10-F2-W4"],
+          str(_fs_run))
+    check("T05/T06/T07 (9 rows) carry the PRECISE mode-unimplemented reason, "
+          "not the over-broad fs-infra phrasing",
+          sorted(_fs_modeblk) == sorted(
+              [r for r in FS_INFRA if r.split("-")[0] in ("T05", "T06", "T07")]),
+          str(_fs_modeblk))
+    check("T08 W4 rows (3) are blocked ONLY by MODEL_BLOCKED (a landed "
+          "compile-unverified model awaiting real-run evidence), not by a "
+          "workload/mode gap",
+          sorted(_fs_t08) == ["T08-F0-W4", "T08-F4-W4", "T08-F6-W4"],
+          str(_fs_t08))
+    check("no FS-INFRA row resolves to anything else", not _fs_other,
+          str(_fs_other))
+    check("the FS-INFRA reason is NEVER the bare workload-level fs-infra "
+          "phrase for T05/T06/T07 (the R4-8 precision fix)",
+          all("workload" not in k for _r, k in _fs_other))
+    check("T05/T06/T07 are absent from MODEL_FLAGS (their modes do not exist "
+          "in CHAOSArmTLB)",
+          all(m not in _lc.MODEL_FLAGS for m in ("T05", "T06", "T07")))
+    check("T05/T06/T07 are MODEL_BLOCKED with a mode-unimplemented reason",
+          all("mode unimplemented" in _lc.MODEL_BLOCKED[m]
+              for m in ("T05", "T06", "T07")))
+    check("T08 resolves to FS flags under --allow-blocked-models (the opt-in "
+          "that produces the real-run evidence)",
+          _lc.resolve_cell(_byid["T08-F0-W4"], allow_blocked=True)[0] is not None
+          and "walk_pairing" in _lc.resolve_cell(_byid["T08-F0-W4"],
+                                                allow_blocked=True)[0])
+
     print()
     if SKIPPED:
         print(f"SKIPPED ({len(SKIPPED)}): {SKIPPED}")
