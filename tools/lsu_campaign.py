@@ -150,12 +150,36 @@ GOLDENS = {
 }
 # Workload-level structural blocks (README §8.3 — 65 cells on W1/W4/W7/W13,
 # plus SPEC-license W11). Matched by keyword on the workload column.
+#
+# [LSU][MDSPEC][R4-8-SPEC] W11 granuality audit (2026-10-22). The W11 cells'
+# spec workload name is byte-identical on all 12 rows — "SPEC CPU2017 采样区间"
+# (sheet 6/7 W11 = "选择 mcf、omnetpp、xalancbmk、lbm 的固定 SimPoint/
+# checkpoint；不跑全程", purpose "外部有效性；主结论之后复核"). So the block is
+# on a workload IDENTITY the spec pins, NOT a blanket model-level gap: the four
+# W11 models (C15/L04/S13/T10) each already own runnable non-W11 cells on
+# open-source SE carriers (W5/W6/W10/W12), i.e. the blocker adds no model
+# coverage — it withholds the licensed SPEC data set only. The match key is
+# therefore narrowed from the bare substring "SPEC" to the pinned identity
+# "SPEC CPU2017" (strictly more precise; all 12 W11 rows still match, no other
+# row in the 325-RunID matrix contains "SPEC CPU2017" — see
+# tests/test_lsu_w11_spec_residual.py). Substitution verdict: an open-source
+# carrier would silently re-identify a SPEC cell, so the SPEC license gap stays
+# an external blocker (the licensed binaries/inputs + SimPoint set are not on
+# disk — audited by find; see R4-8-SPEC-residual-report.md §A.c).
+# [LSU][MDSPEC][R4-8-SPEC] The W11 workload identity the spec pins (sheet 6/7).
+# Named once so the block table and resolve_cell's FS-family special-case
+# cannot drift apart — the earlier bare key "SPEC" + literal `key == "SPEC"`
+# comparison in resolve_cell was exactly that drift trap: narrowing the key
+# without the comparison silently made T10-F{0,1,2}-W11 resolve to the
+# fs:tlb_probe carrier instead of the license refusal (caught by
+# tests/test_lsu_w11_spec_residual.py A4).
+SPEC_WL_IDENTITY = "SPEC CPU2017"
 WL_BLOCKED = {
     "MiBench": "blocked(fs-infra: SE has no MiBench FS pipeline)",
     "TLB-AliasPerm": "blocked(fs-infra: TLB workload needs FS)",
     "Atomic-Litmus": "blocked(multicore-fs: litmus needs multi-core FS)",
     "PARSEC": "blocked(multicore-fs: PARSEC needs multi-core FS)",
-    "SPEC": "blocked(spec-license: SPEC CPU2017 needs a license)",
+    SPEC_WL_IDENTITY: "blocked(spec-license: SPEC CPU2017 needs a license)",
 }
 
 # ---------------------------------------------------------------- models
@@ -888,7 +912,7 @@ def resolve_cell(cell, allow_blocked=False):
     for key, reason in WL_BLOCKED.items():
         if key in workload:
             if model in MODEL_FLAGS and MODEL_FLAGS[model][0] == "armtlb" \
-                    and key == "SPEC":
+                    and key == SPEC_WL_IDENTITY:
                 return None, None, reason
             if model in MODEL_FLAGS and MODEL_FLAGS[model][0] == "armtlb":
                 # MiBench / TLB-AliasPerm / GAP carriers: runnable via FS
