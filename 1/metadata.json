@@ -1,0 +1,73 @@
+{
+  "cli_version": "0.10.2",
+  "checkpoint_id": "01M5GGQZQY9GKNZACWPKTYR9FH",
+  "session_id": "d19cc369-cb70-46bf-81f2-e50ff797223a",
+  "strategy": "manual-commit",
+  "created_at": "2026-10-22T00:39:04.494522321Z",
+  "branch": "r4-6-t08-realwalk",
+  "checkpoints_count": 1,
+  "save_step_count": 1,
+  "files_touched": [
+    "tools/lsu_campaign.py"
+  ],
+  "agent": "Claude Code",
+  "model": "DeepSeek-V4.1-Flash",
+  "turn_id": "db8e5d48cd37",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 1036903,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 72278144,
+    "output_tokens": 147976,
+    "api_call_count": 237
+  },
+  "skill_events_version": 1,
+  "skill_events": [
+    {
+      "id": "claude-skill-call_00_pyglixda7gje4h32gpjehwth",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "superpowers:dispatching-parallel-agents"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "db8e5d48cd37",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 177,
+        "end": 178,
+        "entry_ids": [
+          "70752cb6-246c-496f-96fb-033b7a512a59"
+        ],
+        "tool_use_id": "call_00_pyglixda7gje4h32gpjehwth"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "call_00_pyglixda7gje4h32gpjehwth"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: superpowers:dispatching-parallel-agents",
+        "default_collapsed": true
+      }
+    }
+  ],
+  "session_metrics": {
+    "turn_count": 2
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-10-22T00:39:04.140996092Z",
+    "agent_lines": 0,
+    "agent_removed": 0,
+    "human_added": 32,
+    "human_modified": 9,
+    "human_removed": 0,
+    "total_committed": 32,
+    "total_lines_changed": 41,
+    "agent_percentage": 0,
+    "metric_version": 2
+  }
+}
