@@ -285,10 +285,19 @@ if args.chaos_armtlb or args.chaos_sysreg or args.chaos_ptw or args.chaos_phys o
         # fault is on the page-table walk issue, not the lookup hit.
         # walk_pairing also arms an event-normalized tier (--tlb_lsu_tier);
         # without it the ctor panics loudly (the mode cannot run tierless).
-        arm_tlb = CHAOSArmTLB(
+        # [R4-6][FS-INFRA] SimObject params MUST NOT be passed python None:
+        # gem5's param conversion turns a non-SimObject value into
+        # Class(value), so `walker=None` died with
+        #   TypeError: SimObject.__init__() takes 1 positional argument
+        #              but 2 were given
+        #   Error setting param CHAOSArmTLB.walker to None
+        # during _pre_instantiate — i.e. EVERY FS T-cell run (T01..T10) died
+        # at instantiate time, before the sim ever started (this is the real
+        # reason the T-series was recorded as "FS-INFRA blocked": the FS
+        # pipeline crashed, not merely "needed hours"). Omit the kwarg for
+        # the lookup modes instead — Param.ArmTableWalker's default is NULL.
+        _tlb_kwargs = dict(
             tlb=dtb,
-            walker=cpu0.mmu.walker if args.tlb_fault_type == "walk_pairing"
-                   else None,
             probability=args.tlb_probability,
             firstClock=args.tlb_first_clock,
             faultType=args.tlb_fault_type,
@@ -302,6 +311,9 @@ if args.chaos_armtlb or args.chaos_sysreg or args.chaos_ptw or args.chaos_phys o
             lsuSpanEvents=args.tlb_lsu_span_events,
             writeLog=True,
         )
+        if args.tlb_fault_type == "walk_pairing":
+            _tlb_kwargs["walker"] = cpu0.mmu.walker
+        arm_tlb = CHAOSArmTLB(**_tlb_kwargs)
         board.chaos_armtlb = arm_tlb
         # CHAOSArmTLB SELF-ATTACHES (constructor sets tlb->chaosTLB = this),
         # same pattern as CHAOSLSQFwd — no setChaosTLB call (no python binding).

@@ -1588,3 +1588,77 @@ refill `field=lost`）**明确不满足**。**T08 保持 MODEL_BLOCKED**（已�
 以及 (b) `faultType=walk_pairing` 在注入分派里是否被 lookup-hit 分支抢先消费。
 另：该 FS 组合（checkpoint 恢复 + tlb_probe 载体）单跑超过 1500 s 未结束，
 后续需按更长预算或更短 ROI 窗口重跑。
+
+## R4-6.0（2026-10-22）：FS T 系**根因**修复 —— `CHAOSArmTLB.walker=None` 让全部 FS 运行在实例化期即死
+
+> 本轮集成侧第一动作。此前 §5.9.3 把 FS-INFRA(24) 判为"非外部阻塞、缺工时"——
+> **该判断不完整**：真因是一个配置 bug，使**所有** T 系 FS run 从未真正跑起来。
+
+### 0.1 复现（修复前，真实输出）
+
+`tools/lsu_campaign.py --cells T01-F0-W4 --fs-checkpoint <B0 cpt>`（早期探针）：
+
+```
+TypeError: SimObject.__init__() takes 1 positional argument but 2 were given
+Error setting param CHAOSArmTLB.walker to None
+At:
+  src/python/m5/params/base_params.py(239): convert
+  arm_chaos_fs.py(288): _attach_tlb
+  ...
+```
+
+`exit_code=1`、`stats.txt` 0 字节（仿真从未启动）、`chain_report.json` 记
+`oracle=Crash stream=absent`。即 **T01/T02/…/T10 的每一个 FS cell 都在
+`_pre_instantiate` 抛异常**，与"调度难/时间长"无关。
+
+### 0.2 根因
+
+`configs/se/arm_chaos_fs.py` 的 `_attach_tlb` 恒传 `walker=… else None`。
+gem5 的 SimObject 参数转换对非 SimObject 值执行 `Class(value)`，故 python
+`None` 触发 `SimObject.__init__(None)` → `TypeError`。`CHAOSArmTLB.py` 的
+`walker = Param.ArmTableWalker(NULL, …)` 默认值本就是 NULL，**正确形态是
+不传该 kwarg**。
+
+### 0.3 修复
+
+改为先装配 kwargs dict、仅在 `--tlb_fault_type walk_pairing` 时注入
+`walker`，其余模式完全不设该参数（默认 NULL）。**不改变任何非 walk_pairing
+模式的参数语义**；lookup 系（T01–T04/T10）与 walk 系（T08）走同一构造路径。
+
+### 0.4 修复后真实运行证据（T01-F0-W4，campaign 正式入口）
+
+注入日志（`armtlb_injections.log`）不再为空：
+
+```
+Tick: 237950940537, Site: arm_tlb_lookup_hit, VA: 0xffffffc009483fa8,
+old_pfn: 0x81d75, new_pfn: 0x100000000081d75, FaultType: bit_flip,
+Mask: 0x100000000000000
+```
+
+`prop_evt.txt.gz` 出现完整传播链（6 事件、`corr` 标注齐备）：
+
+```
+kind=inj       tick=237950940537 corr=origin
+kind=tlb_pfn   tick=237950940537 before=81d75 after=100000000081d75 corr=seq_primary
+kind=sq_execute tick=237950940537 sq_idx=32 corr=seq_primary
+kind=sq_writeback tick=237950941869 pa=81d75fa8 corr=seq_primary
+kind=resp      tick=237950942203 request_id=301 corr=seq_primary
+kind=sq_complete tick=237950942203 corr=seq_primary
+```
+
+即 **L0 注入 → L1 翻译 pfn 变更 → L3 SQ 执行/回写 → L4 响应** 逐边可连。
+
+### 0.5 诚实边界
+
+- 该 run **未在预算内自然结束**：guest payload（`tlb_probe.rcS`）在 O3 restore
+  下极慢（console 停在 `drop_caches` 循环），45 min 外层预算内未 `m5 exit`，
+  已由集成侧主动停止。故 **T01-F0-W4 的 L5 分类未由 campaign 聚合器给出**，
+  本节的证据 = 产物级（注入日志 + prop_evt + 链），**不得**当作 Pass。
+- 另一独立发现（R4-7 工具暴露，见 §R4-7）：19 个 W1(MiBench) cell 在
+  `runid_map.json` 中无阻塞理由（视为可跑），但 `lsu_campaign.resolve_cell`
+  因 `WL_BLOCKED["MiBench"]` 静态表直接拒跑 —— 两工具口径不一致，待裁。
+
+### 0.6 回归
+
+`A01-F0-W3`（SE，非 FS 路径）经 campaign 正式入口：`activated=1 sdc=0
+cons=OK`，零 SIGSEGV。
