@@ -69,8 +69,8 @@
 
 ## FS-INFRA（24 项）
 
-- **阻塞机理**：TLB 翻译负载需 FS；且 FS 载体在预算内不终止 → 无 L5
-- **解除条件**：FS 载具可终止化 + campaign 入口 pilot
+- **阻塞机理**：**并非缺 FS 基础设施**（该旧措辞已被本轮真机证据反驳）：载体/checkpoint 齐备，本集成二进制下 T01-F0-W4 产出真实注入（arm_tlb_lookup_hit，pfn 0x81d75→0x100000000081d75），T04-F0-W4 activated=1 / outcome=Crash / 链 L0→L5 full（1572 事件）。真正的阻塞是**逐格 campaign 入口 pilot 未完成**——T05/T06/T07/T08为本轮新实现模式、T10 PPN 分层未参数化，均无真机 pilot；且 runid_map 的 workload 级静态键 TLB-AliasPerm 仍整批拒绝该负载。
+- **解除条件**：逐格（含 T05–T08 新模式）真机 30 activated pilot 后，解除 TLB-AliasPerm 键并重生成 runid_map → 契约
 - **建议处置**：批准延期，或按上述条件解除
 
 | RunID |

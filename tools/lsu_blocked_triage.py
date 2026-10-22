@@ -157,8 +157,15 @@ def main():
                         "取得授权，或书面同意以 SE 近似负载替代（改变规格负载）"),
             "FS-MULTICORE": ("语义需多核 FS（litmus MP/SB/LB/IRIW、PARSEC 共享队列）",
                              "多核 FS 平台 + 载具落地"),
-            "FS-INFRA": ("TLB 翻译负载需 FS；且 FS 载体在预算内不终止 → 无 L5",
-                         "FS 载具可终止化 + campaign 入口 pilot"),
+            "FS-INFRA": ("**并非缺 FS 基础设施**（该旧措辞已被本轮真机证据反驳）："
+                         "载体/checkpoint 齐备，本集成二进制下 T01-F0-W4 产出真实注入"
+                         "（arm_tlb_lookup_hit，pfn 0x81d75→0x100000000081d75），"
+                         "T04-F0-W4 activated=1 / outcome=Crash / 链 L0→L5 full（1572 事件）。"
+                         "真正的阻塞是**逐格 campaign 入口 pilot 未完成**——T05/T06/T07/T08"
+                         "为本轮新实现模式、T10 PPN 分层未参数化，均无真机 pilot；"
+                         "且 runid_map 的 workload 级静态键 TLB-AliasPerm 仍整批拒绝该负载。",
+                         "逐格（含 T05–T08 新模式）真机 30 activated pilot 后，"
+                         "解除 TLB-AliasPerm 键并重生成 runid_map → 契约"),
             "UNRESOLVED": ("S10-F2 为规格结构性拒绝（F2 首抽下界 ≫ 实测流长）；"
                            "S01/S02-F0-W1 待 span census 收敛",
                            "规格级重划 cell（长载体）或接受拒绝；census 收敛后写入 span"),
