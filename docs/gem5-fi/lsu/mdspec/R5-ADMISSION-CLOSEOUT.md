@@ -39,7 +39,7 @@ blocked_by_category={'RULING':6,'FS-INFRA':24,'MODE-UNIMPL':3,'UNRESOLVED':4,'FS
 | # | 缺陷（实测） | 修复 | commit |
 |---|---|---|---|
 | D1 | `test_lsu_hook_tlb.py`(2 失败) / `test_lsu_hook_cpf.py`(13 失败)：夹具缺 `corr`，而 R4-4(`acc19511`) 已把 `corr` 列为全部入链事件必录 | 夹具补 `corr=origin`（单行合成夹具无 join 伙伴） | `7b3734a5` |
-| D2 | 门禁 `pytest tests/ -q` **只收集 21 个**；~40 个 hook 契约套件是 `main()` 独立脚本，从不执行，且**无论成败都 exit 0** → `pytest_rc==0` 与 returncode 均不能证明通过；D1 的红因此静默数周 | 新增 `tools/lsu_test_runner.py`（逐套件真实子进程 + **解析输出**判定 PASS/SKIP/ENV/FAIL）；`gate()` 接入；`verdict()` 增两条 NO-GO 理由 | `642ef725` |
+| D2 | 门禁 `pytest tests/ -q` **只收集 21 个**；~50 个 hook 契约套件是 `main()` 独立脚本，**从不被收集执行**（这才是根因）；D1 的红因此静默数周 | 新增 `tools/lsu_test_runner.py`（逐套件真实子进程 + **解析输出**判定 PASS/SKIP/ENV/FAIL）；`gate()` 接入；`verdict()` 增 NO-GO 理由 | `642ef725` |
 | D3 | 旧 obs 管线硬编码已删主树二进制路径（R4-10 磁盘审计刻意删除的陈旧件）→ 4 套件 RED | 统一 `$LSU_GEM5_BIN` → `<repo>/CHAOS/gem5/build/ARM/gem5.opt`；`e2e_select` 依赖的冻结数据/二进制确缺 → **诚实 SKIP 并逐项披露**，未改写 `FROZEN_GEM5_SHA` 充绿 | `039e88ce` |
 | D4 | BLOCKED 台账三处总数矛盾（126/100/106 vs 契约 84），20 个 RunID 台账 BLOCKED 而契约 READY，无 UNRESOLVED 桶 | `lsu_blocked_triage.py` 增 `--contract`（直接读契约 category，**单一分类来源**）+ `--approval-out`（裁决清单同源生成，此前手写无生成器）；新增契约测试 `test_lsu_triage_ledger.py` | `728fb375` |
 | D5 | 4 条 BLOCKED 行在 `why` 字段**自报 "PASS"**（`_classify` 在 flags=None 分支返回 coverage 状态） | 改引 `resolve_cell` 的真实拒绝理由 | `63a89932` |

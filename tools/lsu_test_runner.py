@@ -2,12 +2,15 @@
 """lsu_test_runner.py — 真实运行 tests/ 下的**全部**套件（含 pytest 不收集的独立脚本）。
 
 动机（R5-U2，缺陷实测）：`tests/test_lsu_*.py` 中大多数是 `main()` 独立脚本，
-`python3 -m pytest tests/ -q` **只收集 21 个**（实测 `--collect-only`），其余约 40 个
-hook/契约套件从不被执行；而且这些脚本**无论成败都以 exit 0 结束**，只把
-`ALL PASS` / `FAILURES: [...]` 打到 stdout。因此：
-  * `pytest_rc == 0` 不能证明"全部套件通过"；
-  * 子进程 `returncode == 0` 也不能证明该脚本通过。
-二者曾共同掩护了 R4-4 `corr` 契约收紧后两个 hook 套件长达数周的静默红（R5-U1）。
+`python3 -m pytest tests/ -q` **只收集 21 个**（实测 `--collect-only`），其余约 50 个
+hook/契约套件从不被执行 —— 这本身就足以让它们的红完全不进入门禁，
+曾掩护 R4-4 `corr` 契约收紧后两个 hook 套件长达数周的静默红（R5-U1）。
+
+判定口径（[R5-U7] 独立复核 F3 纠正）：**以解析输出为准，rc 仅作辅助**。
+实测 `tests/test_lsu_hook_{tlb,cpf}.py` 失败时确实 exit 1，但**不得假定所有
+套件都如此** —— 本仓库各代脚本的判定风格不一，只依赖 rc 会在"打印失败却
+exit 0"的套件上静默放行。反之，**输出不可识别时按 FAIL 处理**（诚实缺省），
+绝不按 PASS。
 
 本运行器逐个套件以真实子进程执行、解析真实输出，分类如下：
 
@@ -63,6 +66,9 @@ def classify(rc, out):
         body = m.group("body").strip()
         if body and body not in ("无",):
             return "FAIL", f"FAILURES: [{body[:120]}]"
+        return "PASS", "FAILURES: [无]"
+    # 无括号的 "FAILURES: 无" 是另一族的通过标记（FAILPAT 要求方括号，故单列）
+    if re.search(r"FAILURES:\s*无", text):
         return "PASS", "FAILURES: 无"
     if "ALL PASS" in text:
         return "PASS", "ALL PASS"
@@ -70,7 +76,9 @@ def classify(rc, out):
         return "SKIP", tail
     if rc != 0:
         return "FAIL", tail
-    return "PASS", "rc=0（未见显式判定）"
+    # [R5-U7] F3：输出不可识别时**不得**默认 PASS。rc==0 只说明进程正常退出，
+    # 不说明断言通过（历史上存在"打印失败仍 exit 0"的判定风格）。
+    return "FAIL", "rc=0 但输出无可识别的判定标记（未见 ALL PASS / FAILURES）"
 
 
 def run_one(path, timeout):

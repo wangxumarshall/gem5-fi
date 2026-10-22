@@ -169,6 +169,15 @@ def verdict(doc):
         if g.get("pytest_rc") != 0:
             reasons.append(f"pytest_rc={g.get('pytest_rc')} != 0（{g.get('pytest_tail','')}）")
         # [R5-U2] 全套件结果（pytest 未收集的独立脚本单列，不得被 pytest_rc 掩盖）
+        # [R5-U7] F1：先看运行器自身是否正常。此前只读 tests_fail/tests_env_blocked，
+        # 而它们来自"运行器崩溃即回退 {UNKNOWN:1}"的 JSON —— 于是运行器挂掉时
+        # tests_fail=0、无任何 NO-GO 理由，门禁静默放行（伪装为"无失败"）。
+        if g.get("tests_rc") not in (0, None):
+            reasons.append(f"全套件运行器 tests_rc={g.get('tests_rc')} != 0"
+                           "（运行器自身失败/超时，其结果不可采信）")
+        if "UNKNOWN" in (g.get("tests_counts") or {}):
+            reasons.append("全套件计数不可得（tests_counts=UNKNOWN）——"
+                           "运行器未产出结果，不得视为『无失败』")
         if g.get("tests_fail", 0) > 0:
             reasons.append(f"全套件 FAIL={g['tests_fail']}"
                            f"（{g.get('tests_counts')}）")

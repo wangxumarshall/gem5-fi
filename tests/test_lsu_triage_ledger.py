@@ -41,6 +41,34 @@ def main():
     check("triage_rows_match_contract_set", rows == blocked,
           f"对称差 {sorted(rows ^ blocked)[:8]}")
 
+    # [R5-U7] F2：仅比对 RunID 集合不够 —— 原缺陷（三处总数矛盾 + 误标类别）
+    # 的"误标"一面未被覆盖。必须逐行钉死 (runid, category)。
+    pairs = set()
+    for ln in triage.splitlines():
+        m = re.match(r"^\| ([A-Z]\d{2}-F\d-W\d+) \|", ln)
+        if not m:
+            continue
+        cols = [c.strip() for c in ln.strip().strip("|").split("|")]
+        pairs.add((m.group(1), cols[3] if len(cols) > 3 else "?"))
+    want = {(r["run_id"], r["category"]) for r in doc["entries"]
+            if r["status"] == "BLOCKED"}
+    check("triage_row_category_matches_contract", pairs == want,
+          f"类别不符 {sorted(pairs ^ want)[:8]}")
+    # 表头统计行也必须与契约逐类相等（原缺陷的第二/三处总数即在此行）
+    stat = re.search(r"分类统计：(.+)", triage)
+    got = {}
+    if stat:
+        for tok in stat.group(1).split("/"):
+            k, _, v = tok.strip().partition("=")
+            got[k.strip()] = int(v)
+    exp = {}
+    for _rid, cat in want:
+        exp[cat] = exp.get(cat, 0) + 1
+    for c in ("RULING", "LICENSE", "FS-MULTICORE", "FS-INFRA",
+              "MODE-UNIMPL", "HOOK-UNIMPL", "UNRESOLVED"):
+        check(f"stat_line_{c}", got.get(c, 0) == exp.get(c, 0),
+              f"台账 {got.get(c, 0)} vs 契约 {exp.get(c, 0)}")
+
     check("triage_cites_contract_source", "ready_contract.json" in triage,
           "台账未标注分类来源")
 
