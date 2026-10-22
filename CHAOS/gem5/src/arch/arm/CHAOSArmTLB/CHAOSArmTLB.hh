@@ -114,6 +114,17 @@ class CHAOSArmTLB : public SimObject
     // the bit. Drawn geometric(0.1) from rngSeed in the ctor; consumed
     // on eligible events (post probability-gate) before the first fault.
     uint64_t events_to_skip = 0;
+    // [MDSPEC][R4-6-T08] one-shot diagnostics for faultType=walk_pairing.
+    // (1) lookup_notice: TLB::lookup reached maybeCorrupt with the
+    //     walk-issue-only model mounted — logged once and SKIPPED, so the
+    //     fault budget is never consumed by the lookup-hit path (the
+    //     R4-5.9 pilot's root cause: old_pfn == new_pfn at
+    //     Site: arm_tlb_lookup_hit with the single maxFaults budget gone).
+    // (2) probe_notice: TableWalker::walk reached maybeDropWalkFill — the
+    //     wiring proof for the walk hook, printed once per run so it
+    //     survives a timeout-killed sim (no exit callback needed).
+    bool walk_pairing_lookup_notice = false;
+    bool walk_pairing_probe_notice = false;
     bool write_log;
     std::string protection_model;  // §1.2 protection-aware layer
 
