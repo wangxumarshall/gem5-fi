@@ -140,6 +140,137 @@ def main():
           f"'{CKPT_DOCUMENTED_STALE}'; real dirs are the ones above "
           f"(R4-5.9 report §1).")
 
+    print("[5] FS-INFRA 24 行：逐行的**精确**残余阻塞（R4-8）")
+    # 每一行都必须落在 {FS flags | 精确 MODE-UNIMPL | MODEL_BLOCKED(T08)} 之一。
+    # T05/T06/T07 的模式在 CHAOSArmTLB 里**不存在**（只有 bit_flip /
+    # stuck_at_zero|one / pfn_to_mapped_page / walk_pairing），故精确理由是
+    # "mode unimplemented"而非过宽的"fs-infra"——此处把它钉死，防止任何一行
+    # 在无声中被解锁。
+    import lsu_campaign as _lc
+    _hdr, _cells = _lc.load_matrix(
+        ROOT / "artifacts/lsu-trial/07-expanded-matrix-backfilled.csv")
+    _byid = {c[_lc.COL_RUNID]: c for c in _cells}
+    FS_INFRA = ["T01-F0-W4", "T01-F1-W4", "T01-F2-W4", "T02-F0-W4", "T02-F2-W4",
+                "T03-F5-W4", "T04-F0-W4", "T04-F2-W4", "T04-F6-W4",
+                "T05-F0-W4", "T05-F2-W4", "T05-F6-W4",
+                "T06-F0-W4", "T06-F2-W4", "T06-F6-W4",
+                "T07-F0-W4", "T07-F4-W4", "T07-F6-W4",
+                "T08-F0-W4", "T08-F4-W4", "T08-F6-W4",
+                "T10-F0-W4", "T10-F1-W4", "T10-F2-W4"]
+    check("FS-INFRA row list is exactly 24 rows", len(FS_INFRA) == 24)
+    check("every FS-INFRA row is present in the matrix",
+          all(r in _byid for r in FS_INFRA),
+          str([r for r in FS_INFRA if r not in _byid]))
+    _fs_run, _fs_modeblk, _fs_t08, _fs_other = [], [], [], []
+    for r in FS_INFRA:
+        f, g, k = _lc.resolve_cell(_byid[r])
+        if f is not None and k == "fs:tlb_probe":
+            _fs_run.append(r)
+        elif f is None and k.startswith("deferred(mode unimplemented"):
+            _fs_modeblk.append(r)
+        elif f is None and _lc.MODEL_BLOCKED.get(r.split("-")[0]) == k:
+            _fs_t08.append(r)              # T08: MODEL_BLOCKED, needs opt-in
+        else:
+            _fs_other.append((r, k))
+    check("T01/T02/T03/T04/T10 W4 rows resolve to FS flag sets (12 rows)",
+          _fs_run == ["T01-F0-W4", "T01-F1-W4", "T01-F2-W4", "T02-F0-W4",
+                      "T02-F2-W4", "T03-F5-W4", "T04-F0-W4", "T04-F2-W4",
+                      "T04-F6-W4", "T10-F0-W4", "T10-F1-W4", "T10-F2-W4"],
+          str(_fs_run))
+    check("T05/T06/T07 (9 rows) carry the PRECISE mode-unimplemented reason, "
+          "not the over-broad fs-infra phrasing",
+          sorted(_fs_modeblk) == sorted(
+              [r for r in FS_INFRA if r.split("-")[0] in ("T05", "T06", "T07")]),
+          str(_fs_modeblk))
+    check("T08 W4 rows (3) are blocked ONLY by MODEL_BLOCKED (the model is "
+          "real-run asserted but the entry is kept until integration removes "
+          "it), not by a workload/mode gap",
+          sorted(_fs_t08) == ["T08-F0-W4", "T08-F4-W4", "T08-F6-W4"],
+          str(_fs_t08))
+    check("T08's block reason no longer claims 'compile-unverified' / "
+          "'pilot pending' (that statement was disproved by the R4-8 real run)",
+          "compile-unverified" not in _lc.MODEL_BLOCKED["T08"]
+          and "real-run asserted" in _lc.MODEL_BLOCKED["T08"]
+          and "UNMEASURED" in _lc.MODEL_BLOCKED["T08"])
+    check("no FS-INFRA row resolves to anything else", not _fs_other,
+          str(_fs_other))
+    check("the FS-INFRA reason is NEVER the bare workload-level fs-infra "
+          "phrase for T05/T06/T07 (the R4-8 precision fix)",
+          all("workload" not in k for _r, k in _fs_other))
+    check("T05/T06/T07 are absent from MODEL_FLAGS (their modes do not exist "
+          "in CHAOSArmTLB)",
+          all(m not in _lc.MODEL_FLAGS for m in ("T05", "T06", "T07")))
+    check("T05/T06/T07 are MODEL_BLOCKED with a mode-unimplemented reason",
+          all("mode unimplemented" in _lc.MODEL_BLOCKED[m]
+              for m in ("T05", "T06", "T07")))
+    check("T08 resolves to FS flags under --allow-blocked-models (the opt-in "
+          "that produces the real-run evidence)",
+          _lc.resolve_cell(_byid["T08-F0-W4"], allow_blocked=True)[0] is not None
+          and "walk_pairing" in _lc.resolve_cell(_byid["T08-F0-W4"],
+                                                allow_blocked=True)[0])
+
+    print("[6] W1(MiBench) 19 行口径订正（R4-8）：静态表已精确化")
+    # 用户/编排侧裁决：二进制 + golden + 合法 SE 路径都在盘上 ⇒ 过宽的
+    # WL_BLOCKED["MiBench"] 必须订正；只保留精确阻塞。本段把订正后的
+    # 集合钉死（任何一行无声解锁/无声保留都会 fail）。
+    check("WL_BLOCKED no longer carries the over-broad 'MiBench' key",
+          "MiBench" not in _lc.WL_BLOCKED)
+    check("WL_BLOCKED still carries the four precise blockers (not "
+          "blanket-cleared)",
+          set(_lc.WL_BLOCKED) == {"TLB-AliasPerm", "Atomic-Litmus", "PARSEC",
+                                  "SPEC"},
+          str(sorted(_lc.WL_BLOCKED)))
+    check("W1 carrier has an SE binary mapping + golden",
+          _lc.WL_BINARY.get("MiBench-TC23") == "mibench/bin/w1_all"
+          and _lc.GOLDENS.get("mibench/bin/w1_all") == "6dab8ec221c46677")
+    w1_bin = ROOT / "workloads" / "mibench" / "bin" / "w1_all"
+    check("W1 binary exists on disk (workloads/mibench/bin/w1_all)",
+          w1_bin.exists() and w1_bin.stat().st_size > 0,
+          f"size={w1_bin.stat().st_size if w1_bin.exists() else 0}")
+    W1_ROWS = ["S01-F0-W1", "S01-F1-W1", "S01-F2-W1", "S02-F0-W1", "S02-F2-W1",
+               "C01-F0-W1", "C01-F1-W1", "C01-F2-W1", "C02-F0-W1", "C02-F2-W1",
+               "C04-F0-W1", "C04-F1-W1", "C04-F2-W1", "S13-F0-W1", "S13-F1-W1",
+               "S13-F2-W1", "L01-F0-W1", "L01-F1-W1", "L01-F2-W1"]
+    check("W1 口径冲突行数 == 19 (the audit's scope)",
+          len(W1_ROWS) == 19)
+    _w1_run, _w1_span_block, _w1_other = [], [], []
+    for r in W1_ROWS:
+        f, g, k = _lc.resolve_cell(_byid[r])
+        if f is not None:
+            _cmd = f[f.index("--cmd") + 1]
+            check(f"{r}: resolved --cmd path exists on disk",
+                  Path(_cmd).exists(), _cmd)
+            check(f"{r}: resolves to the frozen W1 golden",
+                  g == "6dab8ec221c46677", str(g))
+            _w1_run.append(r)
+        elif "F0-span-unmeasured" in k:
+            _w1_span_block.append(r)
+        else:
+            _w1_other.append((r, k))
+    check("17/19 W1 rows resolve runnable (their --cmd path exists)",
+          sorted(_w1_run) == sorted([r for r in W1_ROWS
+                                     if r not in ("S01-F0-W1", "S02-F0-W1")]),
+          str(_w1_run))
+    check("the remaining 2 rows are blocked by the PRECISE F0-span-unmeasured "
+          "gate (a per-(model,workload) census, NOT a workload block)",
+          sorted(_w1_span_block) == ["S01-F0-W1", "S02-F0-W1"],
+          str(_w1_span_block))
+    check("no W1 row is workload-blocked or otherwise unexplained",
+          not _w1_other, str(_w1_other))
+    check("T-model W1 rows are UNCHANGED: still resolve to the armtlb FS flag "
+          "set (the MiBench-key removal must not re-route them to SE)",
+          all(_lc.resolve_cell(_byid[r])[0] is not None
+              and "--cmd" not in _lc.resolve_cell(_byid[r])[0]
+              for r in ("T01-F0-W1", "T01-F1-W1", "T01-F2-W1", "T02-F0-W1",
+                        "T02-F2-W1", "T10-F0-W1", "T10-F1-W1", "T10-F2-W1")))
+    check("W1 SE runs get lsu_runner's frozen SE_W1 budget (not --timeout 300, "
+          "which would fabricate a Timeout at 7.4h golden)",
+          _lc.SE_W1_TIMEOUT == 43200)
+    check("wl_binary_path() resolves the W1 carrier to the real path",
+          _lc.wl_binary_path("mibench/bin/w1_all").exists()
+          and _lc.wl_binary_path("agu_addrmodes") ==
+          ROOT / "workloads/directed/agu_addrmodes")
+
     print()
     if SKIPPED:
         print(f"SKIPPED ({len(SKIPPED)}): {SKIPPED}")

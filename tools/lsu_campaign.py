@@ -84,6 +84,29 @@ def fs_asset(name, env=None):
     return fs_dir(env) / name
 
 
+def wl_binary_path(binary):
+    """[MDSPEC][R4-8-W1] Workload binary -> real path, directed-first.
+
+    The 9 directed W9 carriers live in workloads/directed/<binary>; the W1
+    MiBench-TC23 carrier lives at workloads/mibench/bin/w1_all (i.e. a
+    subdirectory of workloads/, NOT of workloads/directed/). resolve_cell
+    used to hardcode the directed prefix, so an unblocked W1 cell would have
+    been launched with a NON-EXISTENT --cmd path. Same directed-then-root
+    fallback as lsu_runner._wl_path (the two drivers must not drift).
+    """
+    p = REPO / "workloads" / "directed" / binary
+    return p if p.exists() else REPO / "workloads" / binary
+
+
+# [MDSPEC][R4-8-W1] Per-workload SE wall-clock budget. The campaign's generic
+# --timeout (300 s) is calibrated for the directed W9 carriers (golden 10-40 s);
+# the W1 MiBench-TC23 golden measured 7.44-7.51 h (F-050), so 300 s would kill
+# every W1 run as a FABRICATED Timeout (injected=0). lsu_runner.TIMEOUTS
+# already freezes SE_W1=43200 s for exactly this reason; the campaign reuses
+# the same constant so the two drivers agree (no drift, no silent fake Timeout).
+SE_W1_TIMEOUT = 43200
+
+
 def require_fs_assets():
     """Hard-fail (with the reuse hint) when the FS images are absent."""
     missing = [str(p) for p in (fs_asset("vmlinux"), fs_asset("ubuntu.img"),
@@ -148,10 +171,29 @@ GOLDENS = {
     "sqlite_like": "33f836327a416d35",
     "mibench/bin/w1_all": "6dab8ec221c46677",
 }
-# Workload-level structural blocks (README §8.3 — 65 cells on W1/W4/W7/W13,
-# plus SPEC-license W11). Matched by keyword on the workload column.
+# Workload-level structural blocks (README §8.3 — W4/W7/W13, plus
+# SPEC-license W11). Matched by keyword on the workload column.
+#
+# [MDSPEC][R4-8-W1] "MiBench" was REMOVED from this table (2026-10-22). Its
+# old reason ("fs-infra: SE has no MiBench FS pipeline") was factually wrong:
+# the W1 MiBench-TC23 carrier has an SE binary + a frozen golden AND a legal
+# SE run path, all verified on disk —
+#   * binary  workloads/mibench/bin/w1_all (ELF aarch64, static, 938232 B);
+#   * golden  6dab8ec221c46677 (runner.py GOLDEN_IDS + lsu_w1_rerun's frozen
+#     5-way-equal manifest docs/gem5-fi/lsu/evidence/golden_w1_all_manifest.json,
+#     canonical sha256 5bb9298aa1100edd…75245b);
+#   * path    SE (the campaign's own SE branch; lsu_w1_rerun already drove 15
+#     items on this carrier) — no FS is required.
+# The machine-readable runid_map generator (tools/lsu_runid_map.py
+# _resolve_workload) already resolved these 19 cells as runnable (WL_BINARY
+# precedes WL_BLOCKED there), so the static table was the ONLY thing refusing
+# them — the exact 口径 conflict recorded in round4_findings.md §R4-6.0 §0.5.
+# Removing the key does NOT change any T-model (FS-family) cell: those `continue`
+# past every non-SPEC key and resolve to the armtlb FS flag set either way
+# (T01/T02/T10 W1 rows are unchanged — asserted in tests/test_lsu_fs_infra.py).
+# Kept blockers are precise: TLB-AliasPerm (needs FS), Atomic-Litmus/PARSEC
+# (need multi-core FS), SPEC (needs a license).
 WL_BLOCKED = {
-    "MiBench": "blocked(fs-infra: SE has no MiBench FS pipeline)",
     "TLB-AliasPerm": "blocked(fs-infra: TLB workload needs FS)",
     "Atomic-Litmus": "blocked(multicore-fs: litmus needs multi-core FS)",
     "PARSEC": "blocked(multicore-fs: PARSEC needs multi-core FS)",
@@ -340,6 +382,16 @@ MODEL_FLAGS = {
     "T08": ("armtlb", ["--tlb_fault_type", "walk_pairing"]),
 }
 
+# [MDSPEC][R4-8-FS] The full TLB-translation model family (T01-T08 + T10;
+# T09 is B0-N/A, not a translation model). Used by resolve_cell's workload-
+# block step: for these models the TLB-AliasPerm workload is NOT the blocker
+# (the FS tlb_probe carrier serves it), so the reason must come from the
+# model-level check — precise per model. T05/T06/T07 are deliberately NOT in
+# MODEL_FLAGS (their CHAOSArmTLB modes do not exist yet): they must report
+# "deferred(mode unimplemented: …)" from MODEL_BLOCKED, never the misleading
+# workload-level "fs-infra" phrase.
+ARMTLB_MODELS = {"T01", "T02", "T03", "T04", "T05", "T06", "T07", "T08", "T10"}
+
 # [MDSPEC][R4-6-T08] Pinned F0 window for T08's walk-issue stream. The values
 # ARE the config defaults (configs/se/arm_chaos_fs.py --tlb_lsu_warmup_events
 # 0 / --tlb_lsu_span_events 1000): this is an explicit pin, not a re-tune, so
@@ -465,8 +517,27 @@ MODEL_BLOCKED = {
     # block requires a real campaign run with a non-empty injection log +
     # lsu_chain_check edges (mode_unimpl_plan §逐项落地模板 step 5). The
     # honest phrase is kept; the routing is live (MODEL_FLAGS["T08"]).
-    "T08": ("landed compile-unverified, pilot pending (FS-only; integration "
-            "owns build + FS census + campaign; see R4-5.9 report)"),
+    # [MDSPEC][R4-8-FS] T08-a REAL-MACHINE ASSERTED (2026-10-22, branch
+    # r4-7-fsinfra-w1): a campaign run of T08-F0-W4 seed1 on the frozen
+    # binary (sha256 prefix 7d52bc1392a10055) printed
+    #   Site: arm_tlb_walk_issue_probe  walk_id: 1    (walk-issue hook reached)
+    #   Site: arm_tlb_lookup_hit_skipped              (NOT consumed at lookup-hit)
+    #   Site: arm_tlb_walk_issue_drop   walk_id: 703  (T08-a real drop)
+    # and the PROP-EVT pair tlb_walk/tlb_refill shares walk_id=703 +
+    # fault_id=1 with tlb_refill field=lost — all four R4-6-T08 §4.3
+    # acceptance criteria met. The previous reason ("landed compile-
+    # unverified, pilot pending") is therefore FACTUALLY STALE: compile is
+    # proven (the frozen binary carries the fix strings AND the drop line can
+    # only be emitted by the fixed maybeDropWalkFill), and the pilot ran.
+    # KEPT (not deleted) so nothing silently unblocks: the still-unmeasured
+    # cells are T08-F4/F6-W4/W9, whose F4 landing (50000 + LCG % 100000 walk
+    # events ≈ 9.9e4-1.41e5) has NO measured budget on an FS run. Deleting it
+    # is a one-line integration call — see
+    # docs/gem5-fi/lsu/mdspec/R4-8-FS-W1-report.md §2.3 / §7.2.
+    "T08": ("F0 real-run asserted (T08-F0-W4 seed1: walk_issue_probe + "
+            "walk_issue_drop + tlb_walk/tlb_refill walk_id=703 field=lost; "
+            "R4-8-FS-W1 report §4.3); F4/F6 landing budget UNMEASURED — "
+            "entry kept until integration decides to remove it"),
 }
 # O05-O07 are multicore-semantic models — their cells sit on Atomic-Litmus/
 # PARSEC (workload-blocked); add the model-level reason for robustness.
@@ -972,11 +1043,20 @@ def resolve_cell(cell, allow_blocked=False):
     #    and a carrier substitution cannot honor it (T6 decision, honest).
     for key, reason in WL_BLOCKED.items():
         if key in workload:
-            if model in MODEL_FLAGS and MODEL_FLAGS[model][0] == "armtlb" \
-                    and key == "SPEC":
+            if model in ARMTLB_MODELS and key == "SPEC":
                 return None, None, reason
-            if model in MODEL_FLAGS and MODEL_FLAGS[model][0] == "armtlb":
-                # MiBench / TLB-AliasPerm / GAP carriers: runnable via FS
+            if model in ARMTLB_MODELS:
+                # TLB-AliasPerm (and any remaining non-SPEC key) carrier:
+                # NOT a workload-level blocker for a T-model — the FS carrier
+                # serves it, so fall through to the model-level check, which
+                # carries the PRECISE reason (FS flag set for T01-T04/T10;
+                # "mode unimplemented" for T05/T06/T07; MODEL_BLOCKED for T08).
+                # [MDSPEC][R4-8-FS] keyed on ARMTLB_MODELS, not on
+                # MODEL_FLAGS["…"]=="armtlb": T05/T06/T07 are deliberately
+                # ABSENT from MODEL_FLAGS (their modes do not exist in
+                # CHAOSArmTLB), so the old test made them report the
+                # misleading "fs-infra: TLB workload needs FS" instead of
+                # their real blocker.
                 continue
             return None, None, reason
     # 2. model-level block / deferral / N-A
@@ -1024,7 +1104,7 @@ def resolve_cell(cell, allow_blocked=False):
         return None, None, f"NOT-MAPPED(workload {workload[:40]})"
     golden = GOLDENS[binary]
 
-    flags = ["--cmd", str(REPO / "workloads/directed" / binary), "--cpu", "O3"]
+    flags = ["--cmd", str(wl_binary_path(binary)), "--cpu", "O3"]
     flags += FAMILY_MOUNT[family]
     # [MDSPEC][R4-1-review-I2] tier flags are per (model, tier, workload):
     # an lsqfwd F0 (model, workload) pair whose eligible stream is
@@ -1294,9 +1374,13 @@ def run_single_cell(cell, args, seed, outdir):
 
     stdout_file = outdir / "run.out"
     stderr_file = outdir / "run.err"
+    # [MDSPEC][R4-8-W1] W1 (MiBench-TC23) gets lsu_runner's frozen SE_W1
+    # budget; every other SE carrier keeps the operator's --timeout.
+    _se_timeout = (SE_W1_TIMEOUT if str(_binary).endswith("w1_all")
+                   else args.timeout)
     try:
         proc = subprocess.run(cmd, capture_output=True, text=True,
-                              timeout=args.timeout)
+                              timeout=_se_timeout)
         stdout_file.write_text(proc.stdout)
         stderr_file.write_text(proc.stderr)
         exit_code = proc.returncode
