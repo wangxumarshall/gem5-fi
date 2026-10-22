@@ -158,8 +158,10 @@ def main():
     wl = "TLB-AliasPerm 地址翻译探针"
     c = _cell("T08", "F0", wl, "T08-F0-W9")
     blocked = lc.resolve_cell(c)
+    # [LSU][MDSPEC][R4-8-SPEC] 钉不变量（仍 BLOCKED + 理由点名 T08-a）而非
+    # 过时短语：真机 pilot 已跑，旧短语 "compile-unverified" 已成假陈述。
     check("默认仍 BLOCKED（不静默解阻塞）",
-          blocked[0] is None and "compile-unverified" in (blocked[2] or ""),
+          blocked[0] is None and "walk_pairing" in (blocked[2] or ""),
           str(blocked))
     flags, golden, carrier = lc.resolve_cell(c, allow_blocked=True)
     check("--allow-blocked-models opt-in 后可解析出 FS flags", flags is not None)

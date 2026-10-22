@@ -473,14 +473,41 @@ MODEL_BLOCKED = {
     # [MDSPEC][R4-5.9] T08: the walk/fill pairing MODE now exists
     # (faultType=walk_pairing, T08-a lost walk — TableWalker::walk drops the
     # walk; registerTlbWalkPair emits the tlb_walk/tlb_refill node pair).
-    # It is NOT removed from MODEL_BLOCKED: the C++ is compile-unverified
-    # (this worktree may not build) AND the model is FS-only, so no real-run
-    # evidence (injection log / chain / activated) exists yet. Removing the
-    # block requires a real campaign run with a non-empty injection log +
-    # lsu_chain_check edges (mode_unimpl_plan §逐项落地模板 step 5). The
-    # honest phrase is kept; the routing is live (MODEL_FLAGS["T08"]).
-    "T08": ("landed compile-unverified, pilot pending (FS-only; integration "
-            "owns build + FS census + campaign; see R4-5.9 report)"),
+    # [LSU][MDSPEC][R4-8-SPEC] the block is KEPT but its reason is now the
+    # MEASURED truth (the old "compile-unverified, pilot pending" phrase was
+    # false: the C++ was built on the integration binary and the FS pilot has
+    # run twice). Measured on binary 7d52bc1392a10055, FS restore from
+    # cpt.237949797015, carrier configs/fs/tlb_probe.rcS:
+    #   * T08-F0-W9 — injected at the walk-issue point (R4-6-T08 §T08.4):
+    #     arm_tlb_walk_issue_drop + tlb_walk/tlb_refill sharing walk_id,
+    #     refill field=lost; activated=1.
+    #   * T08-F6-W9 — R4-8-SPEC §B.3: injection at the FIRST walk (F6 =
+    #     early_stress first occurrence; arm_tlb_walk_issue_drop walk_id=1 at
+    #     the same tick as the probe), prop_evt inj→tlb_walk→tlb_refill all
+    #     walk_id=1 / fault_id=1, refill field=lost/outcome=lost,
+    #     activated=1, oracle=Timeout (the spec'd channel for a dropped walk).
+    #   * T08-F4-W9 — honest zero, structurally: F4's burst interval is
+    #     100000 eligible events (chaos_lsu_trigger.hh intervalEvents(F4))
+    #     vs. the measured walk-issue stream ~1e3 (walk_id 703 after ~7 min)
+    #     — the probe line proves the hook was reached, no drop line appears
+    #     (same class as L04-F2 / A07-F4 / P06-F0 honest zeros).
+    # So the remaining block reason is NOT missing evidence for T08-a but the
+    # not-yet-implemented T08-b/c/d sub-model modes (mode unimplemented, still
+    # spec 待办), plus the 1-seed breadth of the above pilots (this repo's
+    # deletion bar elsewhere was 3 seeds). Deleting this entry follows the
+    # C11/C12/L04/A07 discipline once integration accepts that evidence
+    # (it would move T08-F{0,4,6}-W9 to runnable: BLOCKED 86→83, READY
+    # 220→223) — the decision is deliberately left to integration, as
+    # R4-6-T08 §4.4 already recorded.
+    "T08": ("walk_pairing (T08-a) landed AND real-run proven — F0-W9 "
+            "(R4-6-T08) and F6-W9 (R4-8-SPEC) injected with "
+            "tlb_walk/tlb_refill sharing walk_id + refill field=lost on "
+            "binary 7d52bc1392a10055; F4-W9 honest zero (burst interval 1e5 "
+            "eligible events >> the ~1e3 walk-issue stream — hook reached, "
+            "never fires). Block retained: the pending T08-b/c/d sub-model "
+            "modes (mode unimplemented) have no real-run coverage, and the "
+            "F0/F6 pilots are 1 seed each; deletion is an integration "
+            "decision (R4-8-SPEC residual report §B)"),
 }
 # O05-O07 are multicore-semantic models — their cells sit on Atomic-Litmus/
 # PARSEC (workload-blocked); add the model-level reason for robustness.
