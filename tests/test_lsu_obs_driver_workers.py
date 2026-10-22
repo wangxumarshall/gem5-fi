@@ -50,7 +50,15 @@ HERE = Path(__file__).resolve().parent
 WT = HERE.parent
 DRIVER = WT / "tools" / "lsu_obs_driver.py"
 GUARD = WT / "tools" / "lsu_guard.py"
-MT = Path("/home/sdc/gem5-fi-ding")
+
+
+def gem5_bin():
+    """gem5 二进制：$LSU_GEM5_BIN 覆盖 → worktree <WT>/CHAOS/gem5/build/ARM/
+    gem5.opt（与 tools/lsu_runner.g5_path / lsu_campaign.resolve_g5 同约定；主树
+    repo 根 build/ 已由 R4-10 磁盘审计删除）。"""
+    env = os.environ.get("LSU_GEM5_BIN")
+    return Path(env) if env else WT / "CHAOS/gem5/build/ARM/gem5.opt"
+
 
 FUNNEL = "CHAOS_LSU_TRIGGER: cycle=123 attempted=1 eligible=1 injected=1"
 INJLINE = ("Tick: 887040, Site: lsq_sendFragmentToTranslation, mode=low_bit_flip, "
@@ -167,7 +175,7 @@ def fake_guard_script(tmp, name, stateful):
 
 def cli_env(guard_dir):
     return {**os.environ,
-            "LSU_GEM5_BIN": str(MT / "build/ARM/gem5.opt"),
+            "LSU_GEM5_BIN": str(gem5_bin()),
             "LSU_GUARD_DIR": guard_dir,
             "PYTHONHASHSEED": "0"}
 
@@ -188,7 +196,7 @@ def main():
         # lsu_guard.GUARD_DIR 在 import 时冻结）
         gd_main = tmp / "guard"
         os.environ["LSU_GUARD_DIR"] = str(gd_main)
-        os.environ["LSU_GEM5_BIN"] = str(MT / "build/ARM/gem5.opt")
+        os.environ["LSU_GEM5_BIN"] = str(gem5_bin())
         os.environ["PYTHONHASHSEED"] = "0"
         sys.path.insert(0, str(WT / "tools"))
         import lsu_obs_driver as OD

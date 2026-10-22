@@ -19,12 +19,19 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 WT = HERE.parent
 DRIVER = WT / "tools" / "lsu_obs_driver.py"
-MT = Path("/home/sdc/gem5-fi-ding")
+
+
+def gem5_bin():
+    """gem5 二进制：$LSU_GEM5_BIN 覆盖 → worktree <WT>/CHAOS/gem5/build/ARM/
+    gem5.opt（与 tools/lsu_runner.g5_path / lsu_campaign.resolve_g5 同约定；主树
+    repo 根 build/ 已由 R4-10 磁盘审计删除）。dry-run 首元素须与此同值。"""
+    env = os.environ.get("LSU_GEM5_BIN")
+    return Path(env) if env else WT / "CHAOS/gem5/build/ARM/gem5.opt"
 
 
 def dry_run(outroot, item, sample):
     env = {**os.environ,
-           "LSU_GEM5_BIN": str(MT / "build/ARM/gem5.opt"),
+           "LSU_GEM5_BIN": str(gem5_bin()),
            "LSU_GUARD_DIR": "/tmp/obs_cli_test_guard_unused"}
     r = subprocess.run(
         [sys.executable, str(DRIVER), "--items", item, "--phase", "screening",
@@ -51,7 +58,7 @@ def main():
           and "--ctrace_file" in out, out)
     check("msnap_flags_present", "--chaos_msnap" in out
           and "--msnap_file" in out, out)
-    check("gem5_bin_override", str(MT / "build/ARM/gem5.opt") in out, out)
+    check("gem5_bin_override", str(gem5_bin()) in out, out)
     check("numactl_node1", "--cpunodebind=1" in out and "--membind=1" in out,
           out)
     check("lsu_proxy_used", "configs/se/lsu_proxy.py" in out, out)
@@ -84,7 +91,7 @@ def main():
           and "carrier_over_budget" in reason3, f"{mode3} {reason3}")
 
     # 4b) CLI 降级路径：--obs-mode l0l5（真实清单项 dry-run，不带 ctrace 旗标）
-    env = {**os.environ, "LSU_GEM5_BIN": str(MT / "build/ARM/gem5.opt"),
+    env = {**os.environ, "LSU_GEM5_BIN": str(gem5_bin()),
            "LSU_GUARD_DIR": "/tmp/obs_cli_test_guard_unused"}
     r2 = subprocess.run(
         [sys.executable, str(DRIVER), "--items", "ITEM-002", "--phase",

@@ -10,6 +10,7 @@ A–J 逐项 PASS/FAIL/PENDING + commit/二进制哈希 + 已知限制。任一 
 import argparse
 import hashlib
 import json
+import os
 import subprocess
 import sys
 import time
@@ -17,7 +18,17 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
 MT = Path("/home/sdc/gem5-fi-ding")
-GEM5 = MT / "build/ARM/gem5.opt"
+
+
+def _gem5_bin():
+    """冻结 gem5.opt：$LSU_GEM5_BIN 覆盖 → worktree <REPO>/CHAOS/gem5/build/ARM/
+    gem5.opt（与 tools/lsu_runner.g5_path / lsu_campaign.resolve_g5 同约定；主树
+    repo 根 build/ 已由 R4-10 磁盘审计删除，worktree 构建落在 CHAOS/gem5/build）。"""
+    env = os.environ.get("LSU_GEM5_BIN")
+    return Path(env) if env else REPO / "CHAOS/gem5/build/ARM/gem5.opt"
+
+
+GEM5 = _gem5_bin()
 # 观测版二进制（准入对象）：worktree 独立 build（中央指令 2026-10-14 第 6 条）
 OBS_GEM5 = MT / ".claude/worktrees/lsu-obs/build/ARM/gem5.opt"
 

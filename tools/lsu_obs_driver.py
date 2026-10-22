@@ -64,6 +64,14 @@ import lsu_obs_core as OC
 import lsu_l3_propagation as LP   # [LSU][OBS-L3] COVERED_FAMILIES + parser
 import lsu_unit_pilot as UP
 
+
+def default_gem5_bin():
+    """冻结 gem5.opt：$LSU_GEM5_BIN 覆盖 → worktree <REPO>/CHAOS/gem5/build/ARM/
+    gem5.opt（与 tools/lsu_runner.g5_path / lsu_campaign.resolve_g5 同约定；主树
+    repo 根 build/ 已由 R4-10 磁盘审计删除，worktree 构建落在 CHAOS/gem5/build）。"""
+    env = os.environ.get("LSU_GEM5_BIN")
+    return Path(env) if env else REPO / "CHAOS/gem5/build/ARM/gem5.opt"
+
 GIB = 1024 ** 3
 MS_EVERY = 1000           # CHAOSMicroSnap snapEvery（与 lsu_proxy 默认一致）
 DIFF_WORKERS = 2          # 后处理池上限（与 gem5 槽位分离，用户指令 三.4）
@@ -203,8 +211,7 @@ class ObsDriver:
         self.guard_env = {
             "LSU_GUARD_DIR": args.guard_dir or str(
                 Path("/home/sdc/gem5-fi-ding/runs/lsu/guard")),
-            "LSU_GEM5_BIN": args.gem5_bin or str(
-                Path("/home/sdc/gem5-fi-ding/build/ARM/gem5.opt")),
+            "LSU_GEM5_BIN": args.gem5_bin or str(default_gem5_bin()),
             "PYTHONHASHSEED": "0",
         }
         os.environ.update(self.guard_env)

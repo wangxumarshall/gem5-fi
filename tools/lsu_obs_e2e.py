@@ -79,6 +79,23 @@ import lsu_runner as LR        # noqa: E402  parse_items（清单解析，只读
 import lsu_campaign as LC      # noqa: E402  WL_BINARY/MODEL_FLAGS（映射唯一来源）
 
 MT = Path("/home/sdc/gem5-fi-ding")
+
+
+def gem5_bin(env=None):
+    """冻结 gem5.opt：$LSU_GEM5_BIN 覆盖 → worktree <WT>/CHAOS/gem5/build/ARM/
+    gem5.opt（与 tools/lsu_runner.g5_path / lsu_campaign.resolve_g5 同约定；主树
+    repo 根 build/ 已由 R4-10 磁盘审计删除，worktree 构建落在 CHAOS/gem5/build）。
+    解析结果缺席时高声失败——绝不静默回退到已删除的主树旧件。"""
+    e = os.environ if env is None else env
+    cand = e.get("LSU_GEM5_BIN")
+    p = Path(cand) if cand else WT / "CHAOS/gem5/build/ARM/gem5.opt"
+    if not p.exists():
+        raise SystemExit(
+            f"[e2e] gem5 binary not found: {p} — set LSU_GEM5_BIN to a built "
+            f"gem5.opt (worktrees build at CHAOS/gem5/build/ARM/gem5.opt)")
+    return p
+
+
 PILOT_CHECKLIST_ROOT = MT / "runs/lsu/pilot/AGU"   # checklist 短流（优先）
 PILOT_W1_ROOT = MT / "runs/lsu/pilot_w1"           # w1 长流（备选）
 OUTDIR_ROOT = MT / "runs/lsu/obs"                  # E2E 产物（新目录，允许写）
@@ -341,7 +358,7 @@ def run_driver(campaign, outdir_root, sel, runlog, attempts=3):
       不受影响）。"""
     ms, cr = sel["masked_or_sdc"], sel["crash"]
     env = {**os.environ,
-           "LSU_GEM5_BIN": str(MT / "build/ARM/gem5.opt"),
+           "LSU_GEM5_BIN": str(gem5_bin()),
            "LSU_GUARD_DIR": str(MT / "runs/lsu/guard"),
            "PYTHONHASHSEED": "0"}
     if sel.get("same_item"):
@@ -772,15 +789,16 @@ def report(campaign, outdir_root, expect_gem5_sha, selection=None):
             runlog = json.loads(rl_path.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError):
             runlog = {"error": "e2e_run_log.json 不可读"}
+    gb = gem5_bin()
     doc = {
         "tool": VERSION, "campaign": campaign,
         "generated_at": time.strftime("%F %T"),
         "environment": {
-            "gem5_opt": str(MT / "build/ARM/gem5.opt"),
-            "gem5_opt_sha256": _sha256_file(MT / "build/ARM/gem5.opt"),
+            "gem5_opt": str(gb),
+            "gem5_opt_sha256": _sha256_file(gb),
             "expect_gem5_sha256": expect_gem5_sha,
             "gem5_sha_matches_frozen":
-                _sha256_file(MT / "build/ARM/gem5.opt") == expect_gem5_sha,
+                _sha256_file(gb) == expect_gem5_sha,
             "lsu_proxy_sha256": _sha256_file(WT / "configs/se/lsu_proxy.py"),
             "worktree": str(WT),
             "worktree_git_commit": subprocess.run(
