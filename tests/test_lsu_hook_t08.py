@@ -117,8 +117,11 @@ def main():
           'if (s == "walk_pairing") return FaultType::WalkPairing;' in tlb)
     check("CHAOSArmTLB emits the pair via registerTlbWalkPair",
           "registerTlbWalkPair" in tlb)
-    check("CHAOSArmTLB panics loudly when walk_pairing lacks tier/walker",
-          tlb.count("panic(") >= 2 and "walk_pairing requires" in tlb)
+    # [R4-10] the ctor guards now cover the whole walk/refill family (four
+    # sub-models); the loud-refusal INTENT is unchanged, only the literal.
+    check("CHAOSArmTLB panics loudly when a walk-family mode lacks tier/walker",
+          tlb.count("panic(") >= 2 and "requires" in tlb
+          and "walk/refill family" in tlb)
     prop = (ROOT / "CHAOS/gem5/src/cpu/o3/CHAOSPropagation/CHAOSPropagation.cc").read_text()
     check("registerTlbWalkPair emits tlb_walk + tlb_refill with shared walk_id",
           'notePropEvt("tlb_walk"' in prop and 'notePropEvt("tlb_refill"' in prop

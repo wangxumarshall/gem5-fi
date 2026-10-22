@@ -110,11 +110,22 @@ p.add_argument("--tlb_probability", type=float, default=0.0,
                help="CHAOSArmTLB per-lookup injection probability")
 p.add_argument("--tlb_fault_type", default="bit_flip",
                choices=["bit_flip", "stuck_at_zero", "stuck_at_one",
-                        "random", "pfn_to_mapped_page", "walk_pairing"],
+                        "random", "pfn_to_mapped_page", "walk_pairing",
+                        # [R4-10-T08-b/c/d] walk/refill pairing sub-models
+                        "walk_fill_dup", "walk_done_early", "walk_stale_result",
+                        # [R4-10-T05] entry identity / lifecycle state
+                        "valid_clear", "valid_set", "global_flip", "asid_subst",
+                        # [R4-10-T06] access-attribute legal substitution
+                        "perm_subst", "memtype_subst", "pagesize_subst",
+                        # [R4-10-T07] CAM compare / way select
+                        "false_hit", "double_hit", "wrong_way"],
                help="CHAOSArmTLB fault type; pfn_to_mapped_page = §2.10 F5 "
                     "(substitute with another mapped entry's pfn); "
                     "walk_pairing = T08-a FS walk/fill lost (R4-5.9; needs "
-                    "--tlb_lsu_tier)")
+                    "--tlb_lsu_tier); valid_clear/valid_set/global_flip/"
+                    "asid_subst = T05 entry state; perm_subst/memtype_subst/"
+                    "pagesize_subst = T06 legal attribute substitution; "
+                    "false_hit/double_hit/wrong_way = T07 CAM/way select")
 # [R4-5.9] T08 walk/fill pairing trigger tier (event-normalized on the
 # page-table-walk issue stream). "off" = no trigger; walk_pairing panics
 # without a tier (loud refusal, L04/S10 discipline).
@@ -228,21 +239,27 @@ args = p.parse_args()
 # expensive a silently half-wired T08 run is (a 1500 s FS run that produced
 # no walk evidence), so refuse here, first, with the flag names. Same
 # discipline as L04/S10: a mode that needs X must not run without X.
-if args.tlb_fault_type == "walk_pairing":
+# [R4-10] the walk/refill family: all four ride the walk-ISSUE event stream
+# (need --chaos_armtlb + --tlb_lsu_tier + walker=). T08-a drops the walk at
+# issue; T08-b/c/d are applied at the refill completion point.
+WALK_FAULT_TYPES = ("walk_pairing", "walk_fill_dup", "walk_done_early",
+                    "walk_stale_result")
+if args.tlb_fault_type in WALK_FAULT_TYPES:
     if not args.chaos_armtlb:
         raise SystemExit(
-            "[arm_chaos_fs] --tlb_fault_type walk_pairing requires "
+            f"[arm_chaos_fs] --tlb_fault_type {args.tlb_fault_type} requires "
             "--chaos_armtlb: without it no CHAOSArmTLB SimObject exists, so "
             "neither the walk hook (TableWalker) nor the lookup hook (TLB) "
             "is mounted and the run would silently inject nothing. "
             "See docs/gem5-fi/lsu/mdspec/R4-6-T08-agent-report.md")
     if args.tlb_lsu_tier == "off":
         raise SystemExit(
-            "[arm_chaos_fs] --tlb_fault_type walk_pairing requires an "
-            "event-normalized tier (--tlb_lsu_tier F0/F4/F6): the "
+            f"[arm_chaos_fs] --tlb_fault_type {args.tlb_fault_type} requires "
+            "an event-normalized tier (--tlb_lsu_tier F0/F4/F6): the "
             "page-table-walk ISSUE stream is this model's eligible stream, "
             "so a tierless run has no sampling rule. "
-            "See docs/gem5-fi/lsu/mdspec/R4-6-T08-agent-report.md")
+            "See docs/gem5-fi/lsu/mdspec/R4-6-T08-agent-report.md and the "
+            "R4-10 report (T08-b/c/d sub-models).")
 
 cpu_map = {"O3": CPUTypes.O3, "TIMING": CPUTypes.TIMING,
            "Atomic": CPUTypes.ATOMIC}
@@ -334,7 +351,7 @@ if args.chaos_armtlb or args.chaos_sysreg or args.chaos_ptw or args.chaos_phys o
             lsuSpanEvents=args.tlb_lsu_span_events,
             writeLog=True,
         )
-        if args.tlb_fault_type == "walk_pairing":
+        if args.tlb_fault_type in WALK_FAULT_TYPES:
             _tlb_kwargs["walker"] = cpu0.mmu.walker
         arm_tlb = CHAOSArmTLB(**_tlb_kwargs)
         board.chaos_armtlb = arm_tlb

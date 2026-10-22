@@ -1125,6 +1125,54 @@ namespace gem5
     }
 
     // [MDSPEC][R4-5.9] T08 walk/fill pairing. Two PROP-EVT nodes for ONE
+    // [MDSPEC][R4-10-T05/T06/T07] TLB entry-state / attribute fault. One L0
+    // `inj` anchor + one L2 `tlb_state` node. The pfn/PA are not the fault
+    // surface here (the mutated field is valid/global/asid/ap/mtype/page-size),
+    // so the node carries field + state_before/state_after text instead of the
+    // tlb_pfn before/after-pfn payload. corr = seq_primary when the in-flight
+    // request is published (the request's later seq-keyed events join by seq);
+    // else "" — no correlation surface, the chain honestly stops here (mirrors
+    // registerTlbFault's no-surface arm; NO PA-page fallback is invented
+    // because this fault does not change the PA).
+    uint64_t
+    CHAOSPropagation::registerTlbStateFault(uint64_t req_seq, Addr va, Addr size,
+                                            const char *field,
+                                            const std::string &before,
+                                            const std::string &after)
+    {
+        if (!write_log)
+            return 0;
+        (void)size;
+        const uint64_t ptag = ++next_ptag;
+
+        std::ostringstream d_inj;
+        d_inj << "family=tlb;field=" << field << ";req_seq=" << req_seq
+              << ";state_before=" << before << ";state_after=" << after;
+        notePropEvt("inj", {
+            {"fault_id", std::to_string(ptag)},
+            {"corr", CORR_ORIGIN},
+            {"dyn_inst_seq", std::to_string(req_seq)},
+            {"request_id", std::to_string(req_seq)},
+            {"field", field},
+            {"evidence_status", "observed"},
+            {"detail", d_inj.str()},
+        });
+
+        std::ostringstream h_va;
+        h_va << std::hex << va;
+        notePropEvt("tlb_state", {
+            {"fault_id", std::to_string(ptag)},
+            {"corr", req_seq ? CORR_SEQ_PRIMARY : ""},
+            {"dyn_inst_seq", std::to_string(req_seq)},
+            {"request_id", std::to_string(req_seq)},
+            {"va", h_va.str()},
+            {"field", field},
+            {"state_before", before},
+            {"state_after", after},
+        });
+        return ptag;
+    }
+
     // walk, sharing walk_id (the pairing key) and ptag (the chain binding):
     //   tlb_walk   — tick = the walk's ISSUE tick (walker entry)
     //   tlb_refill — tick = the refill completion tick; field=lost and
@@ -1186,12 +1234,21 @@ namespace gem5
 
         // The refill node. field=lost marks the T08-a lost-refill outcome
         // (the refill that never arrived) so downstream joins can prove the
-        // walk was unpaired rather than silently absent.
+        // walk was unpaired rather than silently absent. [R4-10] the T08-b/c/d
+        // sub-models label their outcome explicitly (duplicated / early_done /
+        // stale) instead of a bare "refilled", so the pairing is self-describing.
+        const std::string mode_s(mode);
+        const char *refill_outcome =
+            fill_lost ? "lost"
+                      : (mode_s == "walk_fill_dup" ? "duplicated"
+                         : mode_s == "walk_done_early" ? "early_done"
+                         : mode_s == "walk_stale_result" ? "stale"
+                                                         : "refilled");
         const char *refill_field = fill_lost ? "lost" : mode;
         std::ostringstream d_refill;
         d_refill << "family=tlb;site=tlb_refill;walk_id=" << walk_id
                  << ";level=L" << level
-                 << ";outcome=" << (fill_lost ? "lost" : "refilled")
+                 << ";outcome=" << refill_outcome
                  << ";refill_tick=" << refill_tick
                  << ";req_seq=" << req_seq;
         notePropEvt("tlb_refill", {
@@ -1200,7 +1257,7 @@ namespace gem5
             {"walk_id", std::to_string(walk_id)},
             {"va", h_va.str()},
             {"field", refill_field},
-            {"outcome", fill_lost ? "lost" : "refilled"},
+            {"outcome", refill_outcome},
             {"tick", std::to_string(refill_tick)},
         });
         return ptag;

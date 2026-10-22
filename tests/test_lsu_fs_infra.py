@@ -175,12 +175,15 @@ def main():
           f"'{CKPT_DOCUMENTED_STALE}'; real dirs are the ones above "
           f"(R4-5.9 report §1).")
 
-    print("[5] FS-INFRA 24 行：逐行的**精确**残余阻塞（R4-8）")
-    # 每一行都必须落在 {FS flags | 精确 MODE-UNIMPL | MODEL_BLOCKED(T08)} 之一。
-    # T05/T06/T07 的模式在 CHAOSArmTLB 里**不存在**（只有 bit_flip /
-    # stuck_at_zero|one / pfn_to_mapped_page / walk_pairing），故精确理由是
-    # "mode unimplemented"而非过宽的"fs-infra"——此处把它钉死，防止任何一行
-    # 在无声中被解锁。
+    print("[5] FS-INFRA 24 行：逐行的**精确**残余阻塞（R4-8 / R4-10）")
+    # 每一行都必须落在 {FS flags | MODEL_BLOCKED(opt-in)} 之一。
+    # [R4-10] T05/T06/T07 的模式**已实现**（R4-10：CHAOSArmTLB 的
+    # valid_clear/valid_set/global_flip/asid_subst、perm_subst/memtype_subst/
+    # pagesize_subst、false_hit/double_hit/wrong_way），故它们与 T08 一样
+    # 落 MODEL_BLOCKED（理由 = landed/compile-unverified，只有
+    # --allow-blocked-models 才放行），解析后走 FS flags。此前"absent from
+    # MODEL_FLAGS + reason=mode unimplemented"的断言随实现落地而作废——
+    # 此处改为钉**新的**语义不变量（模式已在 MODEL_FLAGS + 理由已诚实改写）。
     import lsu_campaign as _lc
     _hdr, _cells = _lc.load_matrix(
         ROOT / "artifacts/lsu-trial/07-expanded-matrix-backfilled.csv")
@@ -196,7 +199,7 @@ def main():
     check("every FS-INFRA row is present in the matrix",
           all(r in _byid for r in FS_INFRA),
           str([r for r in FS_INFRA if r not in _byid]))
-    _fs_run, _fs_modeblk, _fs_t08, _fs_other = [], [], [], []
+    _fs_run, _fs_modeblk, _fs_modelblk, _fs_other = [], [], [], []
     for r in FS_INFRA:
         f, g, k = _lc.resolve_cell(_byid[r])
         if f is not None and k == "fs:tlb_probe":
@@ -204,7 +207,7 @@ def main():
         elif f is None and k.startswith("deferred(mode unimplemented"):
             _fs_modeblk.append(r)
         elif f is None and _lc.MODEL_BLOCKED.get(r.split("-")[0]) == k:
-            _fs_t08.append(r)              # T08: MODEL_BLOCKED, needs opt-in
+            _fs_modelblk.append(r)   # T05/T06/T07/T08: MODEL_BLOCKED, opt-in
         else:
             _fs_other.append((r, k))
     check("T01/T02/T03/T04/T10 W4 rows resolve to FS flag sets (12 rows)",
@@ -212,16 +215,15 @@ def main():
                       "T02-F2-W4", "T03-F5-W4", "T04-F0-W4", "T04-F2-W4",
                       "T04-F6-W4", "T10-F0-W4", "T10-F1-W4", "T10-F2-W4"],
           str(_fs_run))
-    check("T05/T06/T07 (9 rows) carry the PRECISE mode-unimplemented reason, "
-          "not the over-broad fs-infra phrasing",
-          sorted(_fs_modeblk) == sorted(
-              [r for r in FS_INFRA if r.split("-")[0] in ("T05", "T06", "T07")]),
+    check("no FS-INFRA row is still refused with 'mode unimplemented' "
+          "(R4-10 landed T05/T06/T07 modes)", not _fs_modeblk,
           str(_fs_modeblk))
-    check("T08 W4 rows (3) are blocked ONLY by MODEL_BLOCKED (the model is "
-          "real-run asserted but the entry is kept until integration removes "
-          "it), not by a workload/mode gap",
-          sorted(_fs_t08) == ["T08-F0-W4", "T08-F4-W4", "T08-F6-W4"],
-          str(_fs_t08))
+    check("T05/T06/T07/T08 W4 rows (12) are blocked ONLY by MODEL_BLOCKED "
+          "(modes landed; opt-in needed) — not by a workload/FS-infra gap",
+          sorted(_fs_modelblk) == sorted(
+              [r for r in FS_INFRA if r.split("-")[0] in
+               ("T05", "T06", "T07", "T08")]),
+          str(_fs_modelblk))
     # [R4-8-INT] 合并 r4-8-spec-residual 后 T08 理由取并集（W4 证据来自
     # r4-7-fsinfra-w1、W9 来自 r4-8-spec-residual），措辞随之变化 —— 故改钉
     # **语义不变量**而非具体字面：两句被真机证伪的断言必须消失，且必须点名
@@ -237,17 +239,26 @@ def main():
     check("the FS-INFRA reason is NEVER the bare workload-level fs-infra "
           "phrase for T05/T06/T07 (the R4-8 precision fix)",
           all("workload" not in k for _r, k in _fs_other))
-    check("T05/T06/T07 are absent from MODEL_FLAGS (their modes do not exist "
-          "in CHAOSArmTLB)",
-          all(m not in _lc.MODEL_FLAGS for m in ("T05", "T06", "T07")))
-    check("T05/T06/T07 are MODEL_BLOCKED with a mode-unimplemented reason",
-          all("mode unimplemented" in _lc.MODEL_BLOCKED[m]
-              for m in ("T05", "T06", "T07")))
-    check("T08 resolves to FS flags under --allow-blocked-models (the opt-in "
-          "that produces the real-run evidence)",
-          _lc.resolve_cell(_byid["T08-F0-W4"], allow_blocked=True)[0] is not None
-          and "walk_pairing" in _lc.resolve_cell(_byid["T08-F0-W4"],
-                                                allow_blocked=True)[0])
+    check("T05/T06/T07 ARE in MODEL_FLAGS (R4-10 landed their modes)",
+          all(m in _lc.MODEL_FLAGS for m in ("T05", "T06", "T07")))
+    check("T05/T06/T07 MODEL_BLOCKED reason is the honest landed/"
+          "compile-unverified phrase (no 'mode unimplemented')",
+          all("LANDED" in _lc.MODEL_BLOCKED[m]
+              and "COMPILE-UNVERIFIED" in _lc.MODEL_BLOCKED[m]
+              and "mode unimplemented" not in _lc.MODEL_BLOCKED[m]
+              for m in ("T05", "T06", "T07")),
+          {m: _lc.MODEL_BLOCKED[m][:40] for m in ("T05", "T06", "T07")})
+    check("T05/T06/T07/T08 resolve to FS flags under --allow-blocked-models "
+          "(the opt-in that produces the real-run evidence)",
+          all(_lc.resolve_cell(_byid[f"{m}-F0-W4"], allow_blocked=True)[0]
+              is not None for m in ("T05", "T06", "T07", "T08")))
+    check("T05/T06/T07 allow-blocked flags carry their sub-model fault type",
+          "valid_clear" in _lc.resolve_cell(_byid["T05-F0-W4"],
+                                            allow_blocked=True)[0]
+          and "perm_subst" in _lc.resolve_cell(_byid["T06-F0-W4"],
+                                               allow_blocked=True)[0]
+          and "false_hit" in _lc.resolve_cell(_byid["T07-F0-W4"],
+                                              allow_blocked=True)[0])
 
     print("[6] W1(MiBench) 19 行口径订正（R4-8）：静态表已精确化")
     # 用户/编排侧裁决：二进制 + golden + 合法 SE 路径都在盘上 ⇒ 过宽的

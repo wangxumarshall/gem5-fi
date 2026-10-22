@@ -467,6 +467,13 @@ MODEL_FLAGS = {
     # build nor the pilot can run here (see MODEL_BLOCKED["T08"] and the
     # R4-5.9 report). NOT removed from MODEL_BLOCKED: no real-run evidence.
     "T08": ("armtlb", ["--tlb_fault_type", "walk_pairing"]),
+    # [MDSPEC][R4-10-T05/T06/T07] entry-state / attribute / CAM-select
+    # modes — implemented in CHAOSArmTLB (R4-10, compile-unverified in the
+    # isolated worktree). The campaign default sub-model is the spec's
+    # "-a" arm; the other sub-models are reachable via --tlb_fault_type.
+    "T05": ("armtlb", ["--tlb_fault_type", "valid_clear"]),
+    "T06": ("armtlb", ["--tlb_fault_type", "perm_subst"]),
+    "T07": ("armtlb", ["--tlb_fault_type", "false_hit"]),
 }
 
 # [MDSPEC][R4-8-FS] The full TLB-translation model family (T01-T08 + T10;
@@ -478,6 +485,13 @@ MODEL_FLAGS = {
 # "deferred(mode unimplemented: …)" from MODEL_BLOCKED, never the misleading
 # workload-level "fs-infra" phrase.
 ARMTLB_MODELS = {"T01", "T02", "T03", "T04", "T05", "T06", "T07", "T08", "T10"}
+
+# [R4-10] the walk/refill family — the four sub-models of T08. All ride the
+# event-normalized tier on the walk-ISSUE stream (the armtlb branch below
+# appends --tlb_lsu_tier <F> for these). T08-a drops the walk at issue;
+# T08-b/c/d are applied at the refill completion point.
+WALK_FAULT_TYPES = ("walk_pairing", "walk_fill_dup", "walk_done_early",
+                    "walk_stale_result")
 
 # [MDSPEC][R4-6-T08] Pinned F0 window for T08's walk-issue stream. The values
 # ARE the config defaults (configs/se/arm_chaos_fs.py --tlb_lsu_warmup_events
@@ -631,13 +645,27 @@ MODEL_BLOCKED = {
     "T09": "不适用(B0无保护)",
     "C13": "不适用(B0无保护)",
     "O08": "不适用(B0无保护)",
-    # TLB models: T05-T08 modes NOT yet implemented in CHAOSArmTLB (W7
-    # follow-up — M3 plan Task 7 Step 3); T01-T04/T10 are mapped (armtlb
-    # family above), T09 is B0-N/A below. The old blanket T01-T10 block
-    # fired before MODEL_FLAGS and masked the new FS routing (dry-run caught).
-    "T05": "deferred(mode unimplemented: valid/global/ASID state)",
-    "T06": "deferred(mode unimplemented: permission legal-substitution)",
-    "T07": "deferred(mode unimplemented: hit fabrication/way select)",
+    # TLB models: T01-T04/T08/T10 are mapped (armtlb family above), T09 is
+    # B0-N/A below. The old blanket T01-T10 block fired before MODEL_FLAGS and
+    # masked the new FS routing (dry-run caught).
+    # [MDSPEC][R4-10-T05/T06/T07] the entry-state / attribute-substitution /
+    # CAM-select MODES are now IMPLEMENTED in CHAOSArmTLB (valid_clear/
+    # valid_set/global_flip/asid_subst; perm_subst/memtype_subst/
+    # pagesize_subst; false_hit/double_hit/wrong_way — see the R4-10 report
+    # and tests/test_lsu_hook_t05_state.py). The C++ is COMPILE-UNVERIFIED
+    # (the R4-10 worktree may not build) and no real FS run has asserted
+    # them, so the block is KEPT on the same discipline as O04/O09 (delete
+    # only on real-run evidence). The honest phrase replaces the old
+    # "mode unimplemented" gap statement.
+    "T05": ("deferred(T05 entry-state modes LANDED (valid_clear/valid_set/"
+            "global_flip/asid_subst) but COMPILE-UNVERIFIED — build + FS "
+            "pilot pending, R4-10)"),
+    "T06": ("deferred(T06 attribute legal-substitution modes LANDED "
+            "(perm_subst/memtype_subst/pagesize_subst) but "
+            "COMPILE-UNVERIFIED — build + FS pilot pending, R4-10)"),
+    "T07": ("deferred(T07 CAM/way-select modes LANDED (false_hit/double_hit/"
+            "wrong_way) but COMPILE-UNVERIFIED — build + FS pilot pending, "
+            "R4-10)"),
     # [MDSPEC][R4-5.9] T08: the walk/fill pairing MODE now exists
     # (faultType=walk_pairing, T08-a lost walk — TableWalker::walk drops the
     # walk; registerTlbWalkPair emits the tlb_walk/tlb_refill node pair).
@@ -665,9 +693,14 @@ MODEL_BLOCKED = {
             "with the same walk_id/field=lost signature, activated=1; F4-W9 "
             "honest zero (burst interval 1e5 eligible events >> the ~1e3 "
             "walk-issue stream — hook reached, never fires), binary "
-            "7d52bc1392a10055. Block retained: pending T08-b/c/d sub-model "
-            "modes have no real-run coverage and the pilots are 1 seed each; "
-            "deletion is an integration decision"),
+            "7d52bc1392a10055. [R4-10] the T08-b/c/d sub-model modes "
+            "(walk_fill_dup / walk_done_early / walk_stale_result) are now "
+            "LANDED in CHAOSArmTLB + table_walker.cc (refill completion hook, "
+            "walk_id-paired tlb_walk/tlb_refill with field/outcome per "
+            "sub-model) but COMPILE-UNVERIFIED — build + FS pilot await "
+            "integration. "
+            "Block retained: pilots are 1 seed each and the sub-models have no "
+            "real-run coverage; deletion is an integration decision"),
 }
 # O05-O07 are multicore-semantic models — their cells sit on Atomic-Litmus/
 # PARSEC (workload-blocked); add the model-level reason for robustness.
@@ -1344,7 +1377,7 @@ def resolve_cell(cell, allow_blocked=False):
         # [MDSPEC][R4-6-T08] the F0 window is pinned from the constants above
         # (same values as the config defaults) so the draw index is auditable
         # straight from the flag list — see the constants' comment.
-        if "walk_pairing" in extra:
+        if any(w in extra for w in WALK_FAULT_TYPES):
             flags += ["--tlb_lsu_tier", freq,
                       "--tlb_lsu_warmup_events",
                       str(ARMTLB_T08_WARMUP_EVENTS),

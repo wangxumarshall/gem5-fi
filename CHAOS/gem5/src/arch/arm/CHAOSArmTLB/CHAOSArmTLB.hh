@@ -80,6 +80,41 @@ class CHAOSArmTLB : public SimObject
     bool maybeDropWalkFill(uint64_t walk_id, Addr va, uint64_t req_seq,
                            uint64_t walk_start_tick, unsigned level);
 
+    // [MDSPEC][R4-10-T07] CAM-compare / way-select hook (called from
+    // TLB::lookup for BOTH outcomes). Returns the entry the MMU should use:
+    //   * false_hit  — on a MISS (entry == nullptr) fabricate a hit by
+    //     returning another VALID entry from the same TLB (a wrong
+    //     translation the CAM would never have produced);
+    //   * double_hit — on a HIT, record that a second entry also matches
+    //     this VA/ASID (match-vector popcount 2) — no pointer change;
+    //   * wrong_way  — on a HIT, return a DIFFERENT valid way's entry.
+    // For every other fault type this is a strict no-op returning `entry`
+    // unchanged AND consuming no budget, so the T01-T06/T08/T10 paths are
+    // byte-equivalent. The lookup-HIT-only tlb_state/attr/pfn models stay in
+    // maybeCorrupt; this hook exists because false_hit needs the MISS case
+    // and the returned-pointer slot, neither of which maybeCorrupt owns.
+    ArmISA::TlbEntry *maybeCorruptLookup(ArmISA::TlbEntry *entry, Addr va,
+                                         uint64_t req_seq, uint64_t req_size);
+
+    // [MDSPEC][R4-10-T08-b/c/d] walk/refill pairing sub-models (FS-only).
+    // Called at the refill completion point (WalkUnit::insertTableEntry)
+    // BEFORE mmu->insert, once per COMPLETED walk:
+    //   * T08-b walk_fill_dup    — the same walk's result is written a SECOND
+    //     time (the caller must insert `te` again): returns true.
+    //   * T08-c walk_done_early  — the completion (done) signal is reported at
+    //     the walk's ISSUE tick instead of the refill tick; the data payload
+    //     stays correct (spec T08: timing-only fault).
+    //   * T08-d walk_stale_result— the PREVIOUS completed walk's translation
+    //     (pfn) is written into the current entry (a stale result).
+    // Also maintains the last-completed-walk record consumed by T08-d. Returns
+    // true only for the duplicated-refill arm. For a non-walk-family model or
+    // no pending arm this is a strict no-op returning false (byte-equivalent
+    // to the pre-R4-10 tree). The pairing node pair (tlb_walk/tlb_refill with
+    // the sub-model's field/outcome) is emitted HERE, at the refill point.
+    bool maybeCorruptWalkRefill(uint64_t walk_id, Addr va, uint64_t req_seq,
+                                uint64_t walk_start_tick, unsigned level,
+                                ArmISA::TlbEntry *te);
+
   private:
     // PfnToMappedPage = §2.10 F5 (Phase 4.4, FS-only): substitute the hit
     // entry's pfn with another MAPPED entry's pfn (legal domain -> silent
@@ -88,9 +123,60 @@ class CHAOSArmTLB : public SimObject
                            PfnToMappedPage,
                            // [R4-5.9] T08: FS page-table walk/fill pairing
                            // (walk_pairing) — see maybeDropWalkFill.
-                           WalkPairing };
+                           WalkPairing,
+                           // [R4-10-T08-b/c/d] walk/refill pairing sub-models
+                           // — see maybeCorruptWalkRefill. All four are the
+                           // walk family (isWalkFamily) and are armed at the
+                           // issue point (maybeDropWalkFill) then applied at
+                           // the refill completion point.
+                           WalkDuplicate,   // T08-b duplicated refill
+                           WalkEarlyDone,   // T08-c done reported too early
+                           WalkStaleResult, // T08-d previous walk's result
+                           // [R4-10-T05] entry identity / lifecycle STATE:
+                           // valid清零/伪置位、global翻转、ASID替换为别的
+                           // 活跃ASID（每次只改一种状态）。Lookup-HIT path.
+                           ValidClear, ValidSet, GlobalFlip, AsidSubst,
+                           // [R4-10-T06] access-attribute LEGAL substitution
+                           // (PPN不变): AP权限、memory type、page size 各替换
+                           // 为同 TLB 另一条 live 表项的合法编码。
+                           PermSubst, MemTypeSubst, PageSizeSubst,
+                           // [R4-10-T07] CAM compare / way select:
+                           // false hit / double hit / wrong-way selection.
+                           // Handled in maybeCorruptLookup (needs the miss
+                           // case + the returned-pointer slot).
+                           FalseHit, DoubleHit, WrongWay };
     static FaultType stringToFaultType(const std::string &s);
     const char *faultTypeToString(FaultType f);
+    // [R4-10] family predicates (single source of truth for which hook owns
+    // which model — no drift between maybeCorrupt / maybeCorruptLookup /
+    // maybeDropWalkFill).
+    static bool isEntryStateFault(FaultType f)
+    {
+        return f == FaultType::ValidClear || f == FaultType::ValidSet ||
+               f == FaultType::GlobalFlip || f == FaultType::AsidSubst;
+    }
+    static bool isAttrSubstFault(FaultType f)
+    {
+        return f == FaultType::PermSubst || f == FaultType::MemTypeSubst ||
+               f == FaultType::PageSizeSubst;
+    }
+    static bool isCamFault(FaultType f)
+    {
+        return f == FaultType::FalseHit || f == FaultType::DoubleHit ||
+               f == FaultType::WrongWay;
+    }
+    static bool isWalkFamily(FaultType f)
+    {
+        return f == FaultType::WalkPairing || f == FaultType::WalkDuplicate ||
+               f == FaultType::WalkEarlyDone ||
+               f == FaultType::WalkStaleResult;
+    }
+    // [R4-10-T05/T06] apply an entry-state or attribute-substitution fault to
+    // `entry` and register the tlb_state node. Returns true if applied (a
+    // legal substitute existed and the field changed), false = honest no-op
+    // (no candidate — nothing registered, nothing counted).
+    bool applyEntryFieldFault(ArmISA::TlbEntry *entry, FaultType ft, Addr va,
+                              uint64_t req_seq, uint64_t req_size);
 
     ArmISA::TLB *tlb;
     // [R4-5.9] T08 target walker (optional; nullptr unless the FS config
@@ -125,6 +211,16 @@ class CHAOSArmTLB : public SimObject
     //     survives a timeout-killed sim (no exit callback needed).
     bool walk_pairing_lookup_notice = false;
     bool walk_pairing_probe_notice = false;
+    // [MDSPEC][R4-10-T08-b/c/d] state for the refill-side sub-models.
+    // pending_walk_id: the walk_id armed at the issue point (0 = none); the
+    // refill hook applies the sub-model only to THAT walk. last_walk_pfn /
+    // last_walk_vpn / have_last_walk: the PREVIOUS completed walk's result,
+    // consumed by walk_stale_result (T08-d).
+    uint64_t pending_walk_id = 0;
+    Addr last_walk_pfn = 0;
+    Addr last_walk_vpn = 0;
+    bool have_last_walk = false;
+    bool stale_no_previous_notice = false;
     bool write_log;
     std::string protection_model;  // §1.2 protection-aware layer
 
@@ -151,6 +247,8 @@ class CHAOSArmTLB : public SimObject
         statistics::Scalar numBitFlips;
         statistics::Scalar numStuckAtZero;
         statistics::Scalar numStuckAtOne;
+        // [R4-10-T05/T06/T07] entry-state / attribute / CAM faults applied.
+        statistics::Scalar numStateFaults;
         CHAOSArmTLBStats(statistics::Group *parent);
     };
     std::unique_ptr<CHAOSArmTLBStats> stats;

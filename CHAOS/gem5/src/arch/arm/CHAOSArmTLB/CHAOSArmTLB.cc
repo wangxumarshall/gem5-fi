@@ -47,14 +47,16 @@ namespace gem5
         // trigger; refuse loudly instead of silently injecting nothing
         // (L04/S10 discipline — a mode that needs a tier must not run
         // without one).
-        if (fault_type_enum == FaultType::WalkPairing && !lsuTrigger) {
-            panic("CHAOSArmTLB: faultType=walk_pairing requires "
-                  "--tlb_lsu_tier (the event-normalized trigger that "
-                  "selects which walk is dropped). See R4-5.9 report.");
+        if (isWalkFamily(fault_type_enum) && !lsuTrigger) {
+            panic("CHAOSArmTLB: the walk/refill family (walk_pairing / "
+                  "walk_fill_dup / walk_done_early / walk_stale_result) "
+                  "requires --tlb_lsu_tier (the event-normalized trigger that "
+                  "selects which walk is affected). See R4-5.9 / R4-10 reports.");
         }
-        if (fault_type_enum == FaultType::WalkPairing && !walker) {
-            panic("CHAOSArmTLB: faultType=walk_pairing requires walker= "
-                  "(the ArmTableWalker to attach to). See R4-5.9 report.");
+        if (isWalkFamily(fault_type_enum) && !walker) {
+            panic("CHAOSArmTLB: the walk/refill family requires walker= "
+                  "(the ArmTableWalker to attach to). See R4-5.9 / R4-10 "
+                  "reports.");
         }
         if (walker) {
             walker->setChaosTLB(this);
@@ -101,6 +103,23 @@ namespace gem5
         if (s == "pfn_to_mapped_page") return FaultType::PfnToMappedPage;
         // [R4-5.9] T08: FS walk/fill pairing (T08-a lost walk).
         if (s == "walk_pairing") return FaultType::WalkPairing;
+        // [R4-10-T08-b/c/d] walk/refill pairing sub-models.
+        if (s == "walk_fill_dup") return FaultType::WalkDuplicate;
+        if (s == "walk_done_early") return FaultType::WalkEarlyDone;
+        if (s == "walk_stale_result") return FaultType::WalkStaleResult;
+        // [R4-10-T05] entry identity / lifecycle state.
+        if (s == "valid_clear") return FaultType::ValidClear;
+        if (s == "valid_set") return FaultType::ValidSet;
+        if (s == "global_flip") return FaultType::GlobalFlip;
+        if (s == "asid_subst") return FaultType::AsidSubst;
+        // [R4-10-T06] access-attribute legal substitution.
+        if (s == "perm_subst") return FaultType::PermSubst;
+        if (s == "memtype_subst") return FaultType::MemTypeSubst;
+        if (s == "pagesize_subst") return FaultType::PageSizeSubst;
+        // [R4-10-T07] CAM compare / way select.
+        if (s == "false_hit") return FaultType::FalseHit;
+        if (s == "double_hit") return FaultType::DoubleHit;
+        if (s == "wrong_way") return FaultType::WrongWay;
         return FaultType::Random;
     }
 
@@ -112,6 +131,19 @@ namespace gem5
             case FaultType::StuckAtOne: return "stuck_at_one";
             case FaultType::PfnToMappedPage: return "pfn_to_mapped_page";
             case FaultType::WalkPairing: return "walk_pairing";  // [R4-5.9]
+            case FaultType::WalkDuplicate: return "walk_fill_dup";   // T08-b
+            case FaultType::WalkEarlyDone: return "walk_done_early"; // T08-c
+            case FaultType::WalkStaleResult: return "walk_stale_result"; // T08-d
+            case FaultType::ValidClear: return "valid_clear";    // [R4-10-T05]
+            case FaultType::ValidSet: return "valid_set";
+            case FaultType::GlobalFlip: return "global_flip";
+            case FaultType::AsidSubst: return "asid_subst";
+            case FaultType::PermSubst: return "perm_subst";      // [R4-10-T06]
+            case FaultType::MemTypeSubst: return "memtype_subst";
+            case FaultType::PageSizeSubst: return "pagesize_subst";
+            case FaultType::FalseHit: return "false_hit";        // [R4-10-T07]
+            case FaultType::DoubleHit: return "double_hit";
+            case FaultType::WrongWay: return "wrong_way";
             case FaultType::Random: return "random";  // G7: clear -Wswitch
         }
         return "random";
@@ -127,7 +159,11 @@ namespace gem5
     CHAOSArmTLB::maybeDropWalkFill(uint64_t walk_id, Addr va, uint64_t req_seq,
                                    uint64_t walk_start_tick, unsigned level)
     {
-        if (fault_type_enum != FaultType::WalkPairing) return false;
+        // [R4-10] all four walk-family sub-models share this issue-point
+        // funnel (the walk-issue stream is the eligible stream for the whole
+        // family): T08-a DROPS the walk here; T08-b/c/d arm a refill-side
+        // action applied in maybeCorruptWalkRefill.
+        if (!isWalkFamily(fault_type_enum)) return false;
         if (!lsuTrigger) return false;
         lsuTrigger->onAttempt();
         // [MDSPEC][R4-6-T08] One-shot reachability probe. The R4-5.9 pilot
@@ -164,6 +200,42 @@ namespace gem5
                               ? lsuTrigger->onF6Event(false)
                               : lsuTrigger->onEligible();
         if (!fire) return false;
+
+        // [R4-10] T08-b/c/d: the walk is NOT dropped here — arm the refill
+        // action and let maybeCorruptWalkRefill apply it at the refill
+        // completion point (the pairing node pair is emitted there, with the
+        // sub-model's field/outcome). walk_stale_result needs a PREVIOUS
+        // completed walk; on the very first walk it is an honest no-op (no
+        // budget consumed, one-shot notice).
+        if (fault_type_enum != FaultType::WalkPairing) {
+            if (fault_type_enum == FaultType::WalkStaleResult &&
+                !have_last_walk) {
+                if (write_log && log_stream && !stale_no_previous_notice) {
+                    stale_no_previous_notice = true;
+                    *(log_stream->stream())
+                        << "Tick: " << curTick()
+                        << ", Site: arm_tlb_walk_stale_no_previous"
+                        << ", walk_id: " << walk_id
+                        << ", FaultType: walk_stale_result (no previously "
+                           "completed walk yet — honest no-op)"
+                        << std::endl;
+                }
+                return false;   // do NOT consume the fault budget
+            }
+            ++faults_injected_count;
+            stats->numFaultsInjected++;
+            pending_walk_id = walk_id;
+            if (write_log && log_stream) {
+                *(log_stream->stream())
+                    << "Tick: " << curTick()
+                    << ", Site: arm_tlb_walk_refill_armed"
+                    << ", walk_id: " << walk_id
+                    << ", VA: 0x" << std::hex << va << std::dec
+                    << ", FaultType: " << faultTypeToString(fault_type_enum)
+                    << std::endl;
+            }
+            return false;   // the walk proceeds; the refill hook fires
+        }
 
         ++faults_injected_count;
         stats->numFaultsInjected++;
@@ -297,6 +369,14 @@ namespace gem5
             return;
         }
 
+        // [MDSPEC][R4-10-T07] The CAM/way-select models (false_hit /
+        // double_hit / wrong_way) are owned by maybeCorruptLookup, which is
+        // the only hook that sees the MISS case and can REPLACE the returned
+        // entry pointer. Skipping here for the same reason walk_pairing is
+        // skipped above: the single fault budget must not be spent on an
+        // ineligible site. Every other fault type is byte-equivalent.
+        if (isCamFault(fault_type_enum)) return;
+
         // TLB has no direct curCycle(); use curTick() vs the clock domain.
         // The first/last clock window is checked via curTick (tick-based,
         // approximate — a TLB SimObject has access to its own clock).
@@ -318,6 +398,17 @@ namespace gem5
         if (fault_type_enum == FaultType::Random) {
             int idx = random_fault_distribution(rng);
             chosen = static_cast<FaultType>(idx);
+        }
+
+        // [MDSPEC][R4-10-T05/T06] entry-state / access-attribute faults act
+        // on a field of the hit entry that is NOT the pfn (valid/global/asid,
+        // or a legal AP/memory-type/page-size substitute from another live
+        // entry). They do not use the pfn mask and bypass applyProtection
+        // (which models pfn-parity), so they are dispatched here. An honest
+        // no-op (no legal candidate) registers and counts nothing.
+        if (isEntryStateFault(chosen) || isAttrSubstFault(chosen)) {
+            applyEntryFieldFault(entry, chosen, va, req_seq, req_size);
+            return;
         }
 
         // §2.10 F5 pfn_to_mapped_page (Phase 4.4): substitute the hit
@@ -416,6 +507,316 @@ namespace gem5
                       req_seq, req_size);
     }
 
+    // [MDSPEC][R4-10-T08-b/c/d] walk/refill pairing sub-models. Called at the
+    // refill completion point (WalkUnit::insertTableEntry) once per COMPLETED
+    // walk, BEFORE mmu->insert. Applies the sub-model armed at the issue point
+    // (pending_walk_id) and emits the tlb_walk/tlb_refill node pair with the
+    // sub-model's field + outcome. Also maintains the last-completed-walk
+    // record consumed by walk_stale_result (captured BEFORE any mutation, so
+    // a stale substitution always uses the NATURAL previous result).
+    bool
+    CHAOSArmTLB::maybeCorruptWalkRefill(uint64_t walk_id, Addr va,
+                                        uint64_t req_seq,
+                                        uint64_t walk_start_tick,
+                                        unsigned level, ArmISA::TlbEntry *te)
+    {
+        bool duplicate = false;
+        // Natural result of THIS walk (pre-mutation) — the record a later
+        // stale fault draws from.
+        const Addr this_pfn = te ? te->pfn : 0;
+        const Addr this_vpn = te ? te->vpn : 0;
+
+        if (isWalkFamily(fault_type_enum) && pending_walk_id != 0 &&
+            pending_walk_id == walk_id &&
+            fault_type_enum != FaultType::WalkPairing) {
+            pending_walk_id = 0;   // one-shot arm
+            const char *mode = faultTypeToString(fault_type_enum);
+            // T08-c reports the completion (done) at the walk's ISSUE tick
+            // (the "done too early" handshake fault); the data payload stays
+            // correct (spec T08: timing-only, data must remain valid).
+            const uint64_t refill_tick =
+                (fault_type_enum == FaultType::WalkEarlyDone)
+                    ? walk_start_tick
+                    : (uint64_t)curTick();
+
+            if (fault_type_enum == FaultType::WalkStaleResult) {
+                if (te && have_last_walk) {
+                    const Addr old_pfn = te->pfn;
+                    // Write the PREVIOUS walk's translation into the current
+                    // entry (the "old walk result written into the current
+                    // slot" fault). The tag/size stay this walk's — only the
+                    // translation payload is stale.
+                    te->pfn = last_walk_pfn;
+                    if (write_log && log_stream) {
+                        *(log_stream->stream())
+                            << "Tick: " << curTick()
+                            << ", Site: arm_tlb_walk_refill_stale"
+                            << ", walk_id: " << walk_id
+                            << ", VA: 0x" << std::hex << va
+                            << ", old_pfn: 0x" << old_pfn
+                            << ", stale_pfn: 0x" << te->pfn
+                            << ", FaultType: walk_stale_result" << std::dec
+                            << std::endl;
+                    }
+                    CHAOSPropagation *tr = CHAOSPropagation::instance();
+                    if (tr) {
+                        tr->registerTlbWalkPair(walk_id, va, req_seq,
+                                                walk_start_tick, refill_tick,
+                                                level, /*fill_lost=*/false,
+                                                mode);
+                    }
+                    stats->numFaultsInjected++;
+                }
+                // else: honest no-op (should not happen — the issue point
+                // already refused when there was no previous walk).
+            } else {
+                // T08-b (duplicated refill) / T08-c (done too early).
+                duplicate = (fault_type_enum == FaultType::WalkDuplicate);
+                CHAOSPropagation *tr = CHAOSPropagation::instance();
+                if (tr) {
+                    tr->registerTlbWalkPair(walk_id, va, req_seq,
+                                            walk_start_tick, refill_tick,
+                                            level, /*fill_lost=*/false, mode);
+                }
+                if (write_log && log_stream) {
+                    *(log_stream->stream())
+                        << "Tick: " << curTick()
+                        << ", Site: arm_tlb_walk_refill"
+                        << ", walk_id: " << walk_id
+                        << ", VA: 0x" << std::hex << va << std::dec
+                        << ", FaultType: " << mode
+                        << std::endl;
+                }
+                stats->numFaultsInjected++;
+            }
+        }
+
+        // Maintain the last-completed-walk record (natural values).
+        if (te) {
+            last_walk_pfn = this_pfn;
+            last_walk_vpn = this_vpn;
+            have_last_walk = true;
+        }
+        return duplicate;
+    }
+
+    // [MDSPEC][R4-10-T05/T06] entry-state / attribute substitution. Mutates
+    // ONE field of the hit entry (spec: 一次只改一种状态 / 一个字段) and
+    // registers the L2 tlb_state node. Legal-domain discipline (spec T06:
+    // "从当前运行中选择另一个满足…约束的合法值"): substitutes are taken from
+    // ANOTHER live (valid) entry of the same TLB, never a random bit string.
+    // Returns true when applied; false = honest no-op (no candidate), in
+    // which case nothing is registered and no budget is consumed beyond the
+    // trigger draw the caller already made.
+    bool
+    CHAOSArmTLB::applyEntryFieldFault(ArmISA::TlbEntry *entry, FaultType ft,
+                                      Addr va, uint64_t req_seq,
+                                      uint64_t req_size)
+    {
+        if (!entry) return false;
+        const char *field = faultTypeToString(ft);
+        std::string before, after;
+
+        switch (ft) {
+          case FaultType::ValidClear:
+            before = entry->valid ? "1" : "0";
+            entry->valid = false;
+            after = "0";
+            break;
+          case FaultType::ValidSet:
+            before = entry->valid ? "1" : "0";
+            entry->valid = true;
+            after = "1";
+            break;
+          case FaultType::GlobalFlip:
+            before = entry->global ? "1" : "0";
+            entry->global = !entry->global;
+            after = entry->global ? "1" : "0";
+            break;
+          case FaultType::AsidSubst: {
+            if (!tlb) return false;
+            bool found = false; uint16_t cand = 0;
+            const auto &tbl = tlb->entryTable();
+            for (auto it = tbl.begin(); it != tbl.end(); ++it) {
+                if (&(*it) == entry) continue;
+                if (it->valid && it->asid != entry->asid) {
+                    cand = it->asid; found = true; break;
+                }
+            }
+            if (!found) return false;   // no other active ASID: honest no-op
+            before = std::to_string(entry->asid);
+            entry->asid = cand;
+            after = std::to_string(cand);
+            break;
+          }
+          case FaultType::PermSubst: {
+            if (!tlb) return false;
+            bool found = false; uint8_t cand = 0;
+            const auto &tbl = tlb->entryTable();
+            for (auto it = tbl.begin(); it != tbl.end(); ++it) {
+                if (&(*it) == entry) continue;
+                if (it->valid && it->ap != entry->ap) {
+                    cand = it->ap; found = true; break;
+                }
+            }
+            if (!found) return false;
+            before = std::to_string(static_cast<unsigned>(entry->ap));
+            entry->ap = cand;
+            after = std::to_string(static_cast<unsigned>(cand));
+            break;
+          }
+          case FaultType::MemTypeSubst: {
+            if (!tlb) return false;
+            bool found = false; uint8_t cand = 0;
+            const auto &tbl = tlb->entryTable();
+            for (auto it = tbl.begin(); it != tbl.end(); ++it) {
+                if (&(*it) == entry) continue;
+                if (it->valid &&
+                    static_cast<uint8_t>(it->mtype) !=
+                        static_cast<uint8_t>(entry->mtype)) {
+                    cand = static_cast<uint8_t>(it->mtype); found = true; break;
+                }
+            }
+            if (!found) return false;
+            before = std::to_string(static_cast<unsigned>(entry->mtype));
+            entry->mtype =
+                static_cast<ArmISA::TlbEntry::MemoryType>(cand);
+            after = std::to_string(static_cast<unsigned>(entry->mtype));
+            break;
+          }
+          case FaultType::PageSizeSubst: {
+            if (!tlb) return false;
+            bool found = false; uint8_t n = 0; ArmISA::GrainSize tg =
+                ArmISA::Grain4KB;
+            const auto &tbl = tlb->entryTable();
+            for (auto it = tbl.begin(); it != tbl.end(); ++it) {
+                if (&(*it) == entry) continue;
+                if (it->valid && it->N != entry->N) {
+                    n = it->N; tg = it->tg; found = true; break;
+                }
+            }
+            if (!found) return false;
+            before = std::to_string(entry->N);
+            entry->N = n;
+            // PPN unchanged (spec T06-c): only the page-size encoding moves.
+            entry->size = (n >= 64) ? ~(Addr)0 : ((Addr(1) << n) - 1);
+            entry->tg = tg;
+            after = std::to_string(n);
+            break;
+          }
+          default:
+            return false;
+        }
+
+        stats->numStateFaults++;
+        ++faults_injected_count;
+        if (write_log && log_stream) {
+            *(log_stream->stream())
+                << "Tick: " << curTick()
+                << ", Site: arm_tlb_lookup_hit"
+                << ", VA: 0x" << std::hex << va << std::dec
+                << ", old_" << field << ": " << before
+                << ", new_" << field << ": " << after
+                << ", FaultType: " << field
+                << std::endl;
+        }
+        CHAOSPropagation *tr = CHAOSPropagation::instance();
+        if (tr) {
+            tr->registerTlbStateFault(req_seq, va, req_size, field,
+                                      before, after);
+        }
+        return true;
+    }
+
+    // [MDSPEC][R4-10-T07] CAM-compare / way-select models. Called from
+    // TLB::lookup for BOTH outcomes (miss/hit). false_hit fabricates a hit on
+    // a miss; wrong_way returns another valid way's entry; double_hit observes
+    // a fabricated double match. None of them writes entry contents (spec
+    // T07: "不直接改表项内容"), so no TLB insert happens inside the lookup
+    // iteration (which would invalidate the returned pointer). Honest no-op
+    // when the model's premise is unreachable (no other valid entry / no
+    // second match).
+    ArmISA::TlbEntry *
+    CHAOSArmTLB::maybeCorruptLookup(ArmISA::TlbEntry *entry, Addr va,
+                                    uint64_t req_seq, uint64_t req_size)
+    {
+        if (!isCamFault(fault_type_enum)) return entry;
+        if (probability <= 0.0f) return entry;
+        if (max_faults != 0 && faults_injected_count >= max_faults) return entry;
+        std::uniform_real_distribution<float> probDist(0.0f, 1.0f);
+        if (probDist(rng) > probability) return entry;
+        if (events_to_skip > 0) { --events_to_skip; return entry; }
+        if (!tlb) return entry;
+
+        const auto &tbl = tlb->entryTable();
+        const char *field = faultTypeToString(fault_type_enum);
+        std::string before, after;
+        ArmISA::TlbEntry *ret = entry;
+
+        switch (fault_type_enum) {
+          case FaultType::FalseHit: {
+            if (entry) return entry;   // only the MISS arm fabricates a hit
+            ArmISA::TlbEntry *cand = nullptr;
+            for (auto it = tbl.begin(); it != tbl.end(); ++it) {
+                if (it->valid) {
+                    cand = const_cast<ArmISA::TlbEntry *>(&(*it)); break;
+                }
+            }
+            if (!cand) return entry;   // nothing to fabricate from: no-op
+            before = "miss"; after = "hit";
+            ret = cand;
+            break;
+          }
+          case FaultType::DoubleHit: {
+            if (!entry) return entry;   // needs a first hit to double
+            unsigned matches = 1;
+            for (auto it = tbl.begin(); it != tbl.end(); ++it) {
+                if (&(*it) == entry) continue;
+                if (it->valid && it->vpn == entry->vpn) ++matches;
+            }
+            // No second match exists → the premise is unreachable on this
+            // platform; honest no-op rather than a fabricated popcount.
+            if (matches < 2) return entry;
+            before = "1"; after = std::to_string(matches);
+            break;
+          }
+          case FaultType::WrongWay: {
+            if (!entry) return entry;
+            ArmISA::TlbEntry *cand = nullptr;
+            for (auto it = tbl.begin(); it != tbl.end(); ++it) {
+                if (&(*it) == entry) continue;
+                if (it->valid) {
+                    cand = const_cast<ArmISA::TlbEntry *>(&(*it)); break;
+                }
+            }
+            if (!cand) return entry;   // no other way: honest no-op
+            before = "issued_way"; after = "wrong_way";
+            ret = cand;
+            break;
+          }
+          default:
+            return entry;
+        }
+
+        stats->numStateFaults++;
+        ++faults_injected_count;
+        if (write_log && log_stream) {
+            *(log_stream->stream())
+                << "Tick: " << curTick()
+                << ", Site: arm_tlb_lookup"
+                << ", VA: 0x" << std::hex << va << std::dec
+                << ", CAM: " << before << " -> " << after
+                << ", FaultType: " << field
+                << std::endl;
+        }
+        CHAOSPropagation *tr = CHAOSPropagation::instance();
+        if (tr) {
+            tr->registerTlbStateFault(req_seq, va, req_size, field,
+                                      before, after);
+        }
+        return ret;
+    }
+
     // [MDSPEC][R4-4] register a TLB-entry fault with the propagation tracer
     // — SEQ-PRIMARY correlation (replaces the pre-R4-4 address-only
     // registration; user ruling 2026-10-20: address-only correlation may
@@ -475,7 +876,9 @@ namespace gem5
           ADD_STAT(numStuckAtZero, statistics::units::Count::get(),
                    "TLB pfn stuck-at-zero faults"),
           ADD_STAT(numStuckAtOne, statistics::units::Count::get(),
-                   "TLB pfn stuck-at-one faults")
+                   "TLB pfn stuck-at-one faults"),
+          ADD_STAT(numStateFaults, statistics::units::Count::get(),
+                   "TLB entry-state/attribute/CAM faults (T05/T06/T07)")
     {}
 
 } // namespace gem5
