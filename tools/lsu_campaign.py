@@ -153,8 +153,28 @@ GOLDENS = {
 WL_BLOCKED = {
     "MiBench": "blocked(fs-infra: SE has no MiBench FS pipeline)",
     "TLB-AliasPerm": "blocked(fs-infra: TLB workload needs FS)",
-    "Atomic-Litmus": "blocked(multicore-fs: litmus needs multi-core FS)",
-    "PARSEC": "blocked(multicore-fs: PARSEC needs multi-core FS)",
+    # [MDSPEC][R4-8-FSMC] 这两条原先是 blanket 短语（"litmus needs
+    # multi-core FS" / "PARSEC needs multi-core FS"）。R4-8-FSMC 实测
+    # 后必须改写：多核 FS 基础设施**已经落地并真机跑通**
+    # （configs/fs/lsu_multicore_fs.py 2 核 Ruby/CHI 检查点 +
+    # workloads/litmus 三件套；guest nproc=2），所以"没有多核 FS"不再是
+    # 事实；残留的是**别的**东西。逐格裁决见
+    # docs/gem5-fi/lsu/mdspec/R4-8-FSMC-report.md 与
+    # tools/lsu_fsmc_verdict.py。
+    # 保留 "multicore-fs:" 前缀是**有意的**：lsu_blocked_triage.py 用正则
+    # r"multicore" 做互斥分类，去掉前缀会让这些格子掉出 FS-MULTICORE 桶
+    # （甚至被判成 OK = 静默解锁），那是本轮明令禁止的。
+    "Atomic-Litmus": ("blocked(multicore-fs: 基础设施已落地 R4-8-FSMC"
+                      "（2 核 Ruby/CHI FS + 仓库本地 litmus，真机 guest"
+                      " nproc=2）；残留 = §09 CHAOSAtomicTrace（L1 monitor"
+                      " addr/valid/granule/version、atomic operand/SwapResp"
+                      " 路径、order tag/barrier 完成点 + core/thread/"
+                      "global_order_id 关联键）未实现 + campaign 路由/golden"
+                      " 未接线；见 R4-8-FSMC-report.md)"),
+    "PARSEC": ("blocked(multicore-fs: W13 负载身份——PARSEC(dedup/ferret/"
+               "streamcluster) 开源但仓库内无 aarch64 二进制/输入集（find"
+               " 实证）；且 O09/P09 各自的模型/注入器缺口未解；见"
+               " R4-8-FSMC-report.md)"),
     "SPEC": "blocked(spec-license: SPEC CPU2017 needs a license)",
 }
 
@@ -460,10 +480,17 @@ MODEL_BLOCKED = {
 }
 # O05-O07 are multicore-semantic models — their cells sit on Atomic-Litmus/
 # PARSEC (workload-blocked); add the model-level reason for robustness.
+# [MDSPEC][R4-8-FSMC] 这三条原先只写 "needs multi-core"，暗示多核 FS 是
+# 唯一缺口。实测不是：多核 FS 基础设施已经落地并真机跑通（configs/fs/
+# lsu_multicore_fs.py，guest nproc=2），而这三个模型连**语义**都还没实现
+# —— 与多核无关的独立阻塞。理由补齐为模型缺口 + 指出基础设施已就绪。
 MODEL_BLOCKED.update({
-    "O05": "blocked(multicore-fs: RMW ordering needs multi-core)",
-    "O06": "blocked(multicore-fs: barrier completion needs multi-core)",
-    "O07": "blocked(multicore-fs: order-tag swap needs multi-core)",
+    "O05": ("blocked(multicore-fs: 模型语义未实现——RMW 请求/全局可见性 "
+            "order 跟踪缺失；多核 FS 基础设施已就绪 R4-8-FSMC)"),
+    "O06": ("blocked(multicore-fs: 模型语义未实现——barrier 完成跟踪缺失；"
+            "多核 FS 基础设施已就绪 R4-8-FSMC)"),
+    "O07": ("blocked(multicore-fs: 模型语义未实现——order-tag/ready 跟踪"
+            "缺失；多核 FS 基础设施已就绪 R4-8-FSMC)"),
     # [LSU][MDSPEC][A6] A06 专项裁决（计划 §2.d，2026-10-19；R4-6-A06
     # 2026-10-22 更新）：store 侧安全路径已实现（a06_size，目标可任意合法）；
     # load 侧已落地 **widen-only** 路径（--agu_size_to_load；定宽完成合同
