@@ -2636,6 +2636,45 @@
    "events": 0,
    "truncated": true,
    "faults": 0
+  },
+  "S10-F0-W5": {
+   "unit": "Store Queue",
+   "unit_source": "exact",
+   "path": "runs/lsu/trial_r48_s10/S10-F0-W5/seed3/prop_evt.txt.gz",
+   "kinds": [
+    "chain_end",
+    "inj",
+    "ssit_consult"
+   ],
+   "events": 3,
+   "truncated": false,
+   "faults": 1
+  },
+  "S10-F0-W9": {
+   "unit": "Store Queue",
+   "unit_source": "exact",
+   "path": "runs/lsu/trial_r48_s10/S10-F0-W9/seed3/prop_evt.txt.gz",
+   "kinds": [
+    "chain_end",
+    "inj",
+    "ssit_consult"
+   ],
+   "events": 3,
+   "truncated": false,
+   "faults": 1
+  },
+  "S10-F5-W5": {
+   "unit": "Store Queue",
+   "unit_source": "exact",
+   "path": "runs/lsu/trial_r48_s10/S10-F5-W5/seed3/prop_evt.txt.gz",
+   "kinds": [
+    "chain_end",
+    "inj",
+    "ssit_consult"
+   ],
+   "events": 9,
+   "truncated": false,
+   "faults": 3
   }
  },
  "kinds_observed": [
@@ -2671,6 +2710,7 @@
   "sq_complete",
   "sq_execute",
   "sq_writeback",
+  "ssit_consult",
   "taint_reg",
   "tlb_fault",
   "tlb_translate"
@@ -2770,6 +2810,7 @@
    "sq_complete",
    "sq_execute",
    "sq_writeback",
+   "ssit_consult",
    "tlb_translate"
   ],
   "Load Queue": [

@@ -1889,3 +1889,31 @@ eligible 事件注入一次），而本载体的 eligible 流长量级为 **10¹
 every available carrier`（F5 通道已证明可用）。解锁路径二选一（需裁决）：
 (a) 构造能产生 ≥10⁵ eligible 事件的载体（重活）；(b) 按 §R4-1 先例把 S10 的
 F0/F2 span 改为**逐(模型,负载)实测流长**（真 F0/F2 语义）。
+
+## §R4-8-S10（主 agent 集成，2026-10-22）：S10 F0 由结构性零 → 真机激活
+
+**二进制身份**：worktree `CHAOS/gem5/build/ARM/gem5.opt`，sha256 前缀 `7d52bc1392a10055`（未重建；本轮 S10 改动为 Python 工具层 + 测试，无 C++）。
+
+**census（tier=F0 warmup=1 span=1000000，抽签永不落地 ⇒ teardown `eligible=` 即完整流长）**
+- `(S10, sq_forward)` → 实测 eligible=3（`CHAOS_LSU_TRIGGER: injector=CHAOSLSQFwd tier=F0 attempted=4 eligible=3`）
+- `(S10, gap_bfs)`   → 实测 eligible=4（`attempted=5 eligible=4`）
+
+**真机 pilot（campaign 正式入口，`--max-seeds-per-cell 3 --max-parallel 1`）**
+```
+S10-F0-W5: phase=trial n_runs=3 activated=3 sdc=0 stop=seed-cap(3) cons=OK
+S10-F0-W9: phase=trial n_runs=3 activated=3 sdc=0 stop=seed-cap(3) cons=OK
+S10-F5-W5: phase=trial n_runs=3 activated=9 sdc=0 stop=seed-cap(3) cons=OK
+```
+
+**chain-check 逐边（9/9 样本一致）**：`L0->L1 = proven`（witness `L0:inj@t… → L1:ssit_consult@t…`，shared_keys=`fault_id`）；
+`L1->L2…L4->L5 = missing` ⇒ `terminal = provable_to_L1_then_unknown`、`provable_to = L1`、`beyond = Unknown`（**绝不推断 Masked**）。
+
+**F2 仍 BLOCKED（结构性，附数字）**：F2 的 spec 固定 interval=100000 ⇒ 最小首次抽签 `interval/2 = 50000`，而实测流长 3 / 4——
+相差 4 个数量级。重调 interval 会**改动故障模型语义**，故不重调；改为逐 cell 响亮拒绝
+`BLOCKED(interval-tier-unreachable: …)`（`LSQFWD_INTERVAL_UNREACHABLE`），杜绝静默 `activated=0`。
+
+**台账影响（本轮重生成）**：READY 220 → **224**、BLOCKED 105 → **101**；PLATFORM-DEFECT 6 → 0
+（4 格转 READY、2 格转 UNRESOLVED=F2 的响亮拒绝）；另 `MODE-UNIMPL 3 → 0 且 RULING 6 → 9`
+——这是 `lsu_ready_contract._classify` 的 `else: RULING` **兜底**把 T08-W9 三行（理由
+`campaign:landed compile-unverified, pilot pending…`）吞进 RULING 所致，属**已知分类器缺陷**，
+由 `r4-8-spec-residual` 分支（显式判据 + `UNCLASSIFIED` 响亮兜底）修复后消除。
