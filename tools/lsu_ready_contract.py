@@ -42,8 +42,33 @@ DEFAULT_CKPT = Path("/home/sdc/gem5-fi-ding/runs/lsu/fs_cpt_boot/cpt.23794979701
 # 唯一正式启动命令的固定出口（R4-7.4：GO 前只此一条）
 FORMAL_OUTDIR = "runs/lsu/formal_325"
 
-SEEDS_PER_CELL = 3           # trial 口径（README §oracle：directed 控制=确定性复跑）
+SEEDS_PER_CELL = 3           # pilot/trial 口径（非正式；仅供 pilot 复现）
 MAX_PARALLEL = 1             # 主 agent 串行纪律（CLAUDE.md：构建/实验严格串行）
+
+# ---- 正式 campaign 口径（来自 `完整任务执行清单.md` §全局实验口径，2026-10-08 生效）----
+# pilot     : 每有效 RunID 先取 30 个独立 activated runs/clusters（检查注入器/负载/oracle）
+# 正式筛查  : 每有效 RunID **固定累计 ≥385** 个独立 activated（统一报 Wilson 95% CI）
+# 重点扩样  : 仅下列 **21 个固定 RunID** 累计到 **2401**（含前 385，非额外再取）
+# 采样数量**在 campaign 开始前固定**；**禁止**按中途点估计或普通 CI 半宽序贯停止
+#            ⇒ 正式 phase 用 `screening`（到量即停），**不**用 `main`（Wilson 序贯，违反本政策）。
+# 逐 cell F0–F6 注入节律由 07 展开矩阵逐行定义（F0=每 run 1 次均匀抽样；
+# F1≈1/1e6 eligible；F2≈1/1e5 eligible），**不在 phase 参数里**。
+FORMAL_PHASE = "screening"
+SCREENING_TARGET = 385
+FOCUS_TARGET = 2401
+FOCUS_RUNIDS = frozenset({
+    "A01-F0-W3", "A04-F0-W3", "T10-F0-W4", "T04-F0-W4", "S13-F0-W5",
+    "S04-F0-W5", "L01-F0-W5", "L03-F0-W5", "C04-F0-W6", "C05-F0-W6",
+    "C10-F0-W6", "C12-F0-W6", "O01-F0-W7", "O05-F0-W7", "P03-F0-W8",
+    "P07-F0-W8", "P09-F0-W6", "T10-F0-W11", "S13-F0-W12", "O09-F0-W13",
+    "P09-F0-W13",
+})
+FORMAL_SEED_CAP = 100000     # 上限（activated 为停机判据；避免 seed-cap 提前截断）
+# 启动门禁资源红线（与 tools/lsu_guard.py 同源）
+DISK_MIN_FREE_GIB = 50.0
+DISK_MIN_FREE_PCT = 0.20
+MEM_MIN_AVAIL_GIB = 10.0     # lsu_guard STOP_DISPATCH_MEM_GIB
+GEM5_CONCURRENCY_CAP = 4     # >4 并发 OOM-kill 整批（CLAUDE.md）
 
 
 def _row_ids(md_path):
@@ -101,16 +126,65 @@ def _classify(entry, cov_status, flags):
 
 
 def _command(runid, family):
-    """该 RunID 的精确执行命令（与 campaign 入口逐字一致）。"""
+    """该 RunID 的**正式**执行命令（phase/样本量取自清单 §全局实验口径）。
+
+    默认 RunID：固定累计 ≥385 activated；21 个重点 RunID：累计 2401。
+    禁止 trial/3-seed（那是 pilot）与 main/Wilson 序贯（违反固定样本量政策）。
+    """
+    target = FOCUS_TARGET if runid in FOCUS_RUNIDS else SCREENING_TARGET
     common = (f"LSU_GEM5_BIN=$PWD/CHAOS/gem5/build/ARM/gem5.opt "
               f"python3 tools/lsu_campaign.py "
               f"--matrix {DEFAULT_MATRIX.relative_to(REPO)} "
-              f"--outdir {FORMAL_OUTDIR} --cells {runid} --phase trial "
-              f"--max-seeds-per-cell {SEEDS_PER_CELL} "
+              f"--outdir {FORMAL_OUTDIR} --cells {runid} "
+              f"--phase {FORMAL_PHASE} --screening-target {target} "
+              f"--max-seeds-per-cell {FORMAL_SEED_CAP} "
               f"--max-parallel {MAX_PARALLEL}")
     if family == "armtlb":
         common += (f" --fs-checkpoint {DEFAULT_CKPT}")
     return common
+
+
+def verdict(doc):
+    """真 GO/NO-GO 判定。BLOCKED>0 / 测试失败 / 资源不足 / 命令仍是 trial → NO-GO。
+
+    仅当**全部**条件满足才 GO：BLOCKED==0 且 self_consistent 且 gate 各项达标。
+    """
+    reasons = []
+    if not doc.get("self_consistent"):
+        reasons.append("契约计数不自洽")
+    st = doc["status"]
+    if st.get("BLOCKED", 0) > 0:
+        reasons.append(f"BLOCKED={st['BLOCKED']} > 0（{doc['blocked_by_category']}）")
+    if st.get("PARTIAL", 0) > 0:
+        reasons.append(f"PARTIAL={st['PARTIAL']} > 0")
+    g = doc.get("gate")
+    if not g:
+        reasons.append("未运行 --gate 资源/测试门禁")
+    else:
+        if not g.get("binary_sha256"):
+            reasons.append("正式二进制缺失")
+        if g.get("pytest_rc") != 0:
+            reasons.append(f"pytest_rc={g.get('pytest_rc')} != 0（{g.get('pytest_tail','')}）")
+        du = shutil.disk_usage(str(REPO))
+        tot_gib = du.total / 2 ** 30
+        floor = max(DISK_MIN_FREE_GIB, DISK_MIN_FREE_PCT * tot_gib)
+        if g.get("disk_free_gb", 0) < floor:
+            reasons.append(f"磁盘 free {g.get('disk_free_gb')}G < 红线 {floor:.1f}G")
+        if g.get("mem_avail_gb", 0) < MEM_MIN_AVAIL_GIB:
+            reasons.append(f"MemAvailable {g.get('mem_avail_gb')}G < {MEM_MIN_AVAIL_GIB}G")
+    # 正式命令不得仍是 pilot 口径
+    cmds = [r["command"] for r in doc["entries"] if r.get("command")]
+    if any("--phase trial" in c for c in cmds):
+        reasons.append("正式命令仍为 pilot（--phase trial）")
+    if any(f"--phase {FORMAL_PHASE}" not in c for c in cmds):
+        reasons.append(f"存在非 {FORMAL_PHASE} phase 的正式命令")
+    go = not reasons
+    return {"verdict": "GO" if go else "NO-GO",
+            "formal_phase": FORMAL_PHASE,
+            "screening_target": SCREENING_TARGET,
+            "focus_target": FOCUS_TARGET,
+            "focus_runids": sorted(FOCUS_RUNIDS),
+            "reasons": reasons or ["全部准入条件满足"]}
 
 
 def _acceptance(unit):
@@ -226,6 +300,7 @@ def main():
     }
     if a.gate:
         doc["gate"] = gate()
+    doc["verdict"] = verdict(doc)
 
     Path(a.out).write_text(json.dumps(doc, ensure_ascii=False, indent=1))
 
@@ -236,7 +311,12 @@ def main():
           f" / BLOCKED={counts['BLOCKED']}**）",
           f"- 自洽：{'✅' if doc['self_consistent'] else '❌ 计数不自洽'}",
           f"- BLOCKED 分类：{dict(cats)}",
-          f"- 抽样：每 cell {SEEDS_PER_CELL} seed，`--max-parallel {MAX_PARALLEL}`",
+          f"- **准入裁决：{doc['verdict']['verdict']}**"
+          + ("" if doc['verdict']['verdict'] == "GO"
+             else f"（{'；'.join(doc['verdict']['reasons'])}）"),
+          f"- 正式口径：`--phase {FORMAL_PHASE}`，默认 RunID 累计 ≥{SCREENING_TARGET} "
+          f"activated，{len(FOCUS_RUNIDS)} 个重点 RunID 累计 {FOCUS_TARGET}；"
+          f"`--max-parallel {MAX_PARALLEL}`（禁止 trial/3-seed 与 Wilson 序贯）",
           f"- FS checkpoint：`{DEFAULT_CKPT}`",
           ""]
     md.append("| RunID | 单元 | 模型 | F | 状态 | 类别 | 覆盖 | 命令(READY/PARTIAL) |")
@@ -256,7 +336,9 @@ def main():
         print(f"[gate] binary_sha256={g.get('binary_sha256_16')} "
               f"pytest_rc={g.get('pytest_rc')} "
               f"mem_avail={g.get('mem_avail_gb')}G disk_free={g.get('disk_free_gb')}G")
-    return 0 if doc["self_consistent"] else 1
+    v = doc["verdict"]
+    print(f"[verdict] {v['verdict']} — {'；'.join(v['reasons'])}")
+    return 0 if v["verdict"] == "GO" else 1
 
 
 if __name__ == "__main__":

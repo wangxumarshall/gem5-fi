@@ -1993,7 +1993,7 @@
    "spec_landed": "",
    "status": "BLOCKED",
    "status_reasons": [
-    "campaign:deferred(mode unimplemented: valid/global/ASID state)",
+    "campaign:deferred(T05 entry-state modes LANDED (valid_clear/valid_set/global_flip/asid_subst) but COMPILE-UNVERIFIED — build + FS pilot pending, R4-10)",
     "spec:需新增（当前阻塞：valid/global/ASID模式未实现）",
     "workload:workload-level:blocked(fs-infra: TLB workload needs FS)"
    ],
@@ -2032,7 +2032,7 @@
    "spec_landed": "",
    "status": "BLOCKED",
    "status_reasons": [
-    "campaign:deferred(mode unimplemented: valid/global/ASID state)",
+    "campaign:deferred(T05 entry-state modes LANDED (valid_clear/valid_set/global_flip/asid_subst) but COMPILE-UNVERIFIED — build + FS pilot pending, R4-10)",
     "spec:需新增（当前阻塞：valid/global/ASID模式未实现）",
     "workload:workload-level:blocked(fs-infra: TLB workload needs FS)"
    ],
@@ -2071,7 +2071,7 @@
    "spec_landed": "",
    "status": "BLOCKED",
    "status_reasons": [
-    "campaign:deferred(mode unimplemented: valid/global/ASID state)",
+    "campaign:deferred(T05 entry-state modes LANDED (valid_clear/valid_set/global_flip/asid_subst) but COMPILE-UNVERIFIED — build + FS pilot pending, R4-10)",
     "spec:需新增（当前阻塞：valid/global/ASID模式未实现）",
     "workload:workload-level:blocked(fs-infra: TLB workload needs FS)"
    ],
@@ -2110,7 +2110,7 @@
    "spec_landed": "",
    "status": "BLOCKED",
    "status_reasons": [
-    "campaign:deferred(mode unimplemented: permission legal-substitution)",
+    "campaign:deferred(T06 attribute legal-substitution modes LANDED (perm_subst/memtype_subst/pagesize_subst) but COMPILE-UNVERIFIED — build + FS pilot pending, R4-10)",
     "spec:需新增（当前阻塞：permission/attribute合法替换未实现）",
     "workload:workload-level:blocked(fs-infra: TLB workload needs FS)"
    ],
@@ -2149,7 +2149,7 @@
    "spec_landed": "",
    "status": "BLOCKED",
    "status_reasons": [
-    "campaign:deferred(mode unimplemented: permission legal-substitution)",
+    "campaign:deferred(T06 attribute legal-substitution modes LANDED (perm_subst/memtype_subst/pagesize_subst) but COMPILE-UNVERIFIED — build + FS pilot pending, R4-10)",
     "spec:需新增（当前阻塞：permission/attribute合法替换未实现）",
     "workload:workload-level:blocked(fs-infra: TLB workload needs FS)"
    ],
@@ -2188,7 +2188,7 @@
    "spec_landed": "",
    "status": "BLOCKED",
    "status_reasons": [
-    "campaign:deferred(mode unimplemented: permission legal-substitution)",
+    "campaign:deferred(T06 attribute legal-substitution modes LANDED (perm_subst/memtype_subst/pagesize_subst) but COMPILE-UNVERIFIED — build + FS pilot pending, R4-10)",
     "spec:需新增（当前阻塞：permission/attribute合法替换未实现）",
     "workload:workload-level:blocked(fs-infra: TLB workload needs FS)"
    ],
@@ -2227,7 +2227,7 @@
    "spec_landed": "",
    "status": "BLOCKED",
    "status_reasons": [
-    "campaign:deferred(mode unimplemented: hit fabrication/way select)",
+    "campaign:deferred(T07 CAM/way-select modes LANDED (false_hit/double_hit/wrong_way) but COMPILE-UNVERIFIED — build + FS pilot pending, R4-10)",
     "spec:需新增（当前阻塞：hit fabrication/way select未实现）",
     "workload:workload-level:blocked(fs-infra: TLB workload needs FS)"
    ],
@@ -2266,7 +2266,7 @@
    "spec_landed": "",
    "status": "BLOCKED",
    "status_reasons": [
-    "campaign:deferred(mode unimplemented: hit fabrication/way select)",
+    "campaign:deferred(T07 CAM/way-select modes LANDED (false_hit/double_hit/wrong_way) but COMPILE-UNVERIFIED — build + FS pilot pending, R4-10)",
     "spec:需新增（当前阻塞：hit fabrication/way select未实现）",
     "workload:workload-level:blocked(fs-infra: TLB workload needs FS)"
    ],
@@ -2305,7 +2305,7 @@
    "spec_landed": "",
    "status": "BLOCKED",
    "status_reasons": [
-    "campaign:deferred(mode unimplemented: hit fabrication/way select)",
+    "campaign:deferred(T07 CAM/way-select modes LANDED (false_hit/double_hit/wrong_way) but COMPILE-UNVERIFIED — build + FS pilot pending, R4-10)",
     "spec:需新增（当前阻塞：hit fabrication/way select未实现）",
     "workload:workload-level:blocked(fs-infra: TLB workload needs FS)"
    ],
@@ -2344,7 +2344,7 @@
    "spec_landed": "implemented(walk_pairing=T08-a walk/fill lost at the walk ISSUE point — TableWalker::walk (arch/arm/table_walker.cc) drops the walk for the selected request, so its translation never completes (the spec's 丢失->Timeout channel); the injector is CHAOSArmTLB faultType=walk_pairing with the event-normalized lsuTier (F0/F4/F6) on the walk-issue stream, and on a fire it emits the walk/fill node pair (tlb_walk + tlb_refill, shared walk_id = the pairing key, fill_lost=true -> field=lost/outcome=lost) via CHAOSPropagation::registerTlbWalkPair; pending: T08-b duplicate, T08-c done-too-early, T08-d stale-walk-result write (xlsx sheet-9 sub-models 03/07); evidence: REAL RUNS on binary 7d52bc1392a10055 (FS restore from cpt.237949797015, carrier configs/fs/tlb_probe.rcS) — F0-W9 injected=1/activated=1 with arm_tlb_walk_issue_drop + tlb_walk/tlb_refill sharing walk_id and refill field=lost (R4-6-T08 §T08.4); F6-W9 injected=1/activated=1 at the FIRST walk (F6 early_stress; prop_evt inj→tlb_walk→tlb_refill all walk_id=1, refill field=lost/outcome=lost) with oracle=Timeout — the spec'd channel for a dropped walk (R4-8-SPEC §B.3); F4-W9 honest zero, structurally (burst interval 1e5 eligible events >> the ~1e3 walk-issue stream; probe line shows the hook was reached, no drop line). Chain terminal provable_to_L0_then_unknown on the injected samples (the L0 anchor added in R4-6-T08 §T08.3). STILL PENDING: T08-b/c/d real-run coverage and 3-seed breadth for F0/F6; MODEL_BLOCKED['T08'] is retained for those (R4-8-SPEC residual report §B, integration decides the deletion))",
    "status": "BLOCKED",
    "status_reasons": [
-    "campaign:walk_pairing (T08-a) landed AND real-run proven — F0-W4 seed1 (R4-8-FS-W1 §4.3: walk_issue_probe + walk_issue_drop walk_id=703 + tlb_walk/tlb_refill sharing walk_id=703/fault_id=1 with refill field=lost), F0-W9 (R4-6-T08) and F6-W9 (R4-8-SPEC §B.3) injected with the same walk_id/field=lost signature, activated=1; F4-W9 honest zero (burst interval 1e5 eligible events >> the ~1e3 walk-issue stream — hook reached, never fires), binary 7d52bc1392a10055. Block retained: pending T08-b/c/d sub-model modes have no real-run coverage and the pilots are 1 seed each; deletion is an integration decision",
+    "campaign:walk_pairing (T08-a) landed AND real-run proven — F0-W4 seed1 (R4-8-FS-W1 §4.3: walk_issue_probe + walk_issue_drop walk_id=703 + tlb_walk/tlb_refill sharing walk_id=703/fault_id=1 with refill field=lost), F0-W9 (R4-6-T08) and F6-W9 (R4-8-SPEC §B.3) injected with the same walk_id/field=lost signature, activated=1; F4-W9 honest zero (burst interval 1e5 eligible events >> the ~1e3 walk-issue stream — hook reached, never fires), binary 7d52bc1392a10055. [R4-10] the T08-b/c/d sub-model modes (walk_fill_dup / walk_done_early / walk_stale_result) are now LANDED in CHAOSArmTLB + table_walker.cc (refill completion hook, walk_id-paired tlb_walk/tlb_refill with field/outcome per sub-model) but COMPILE-UNVERIFIED — build + FS pilot await integration. Block retained: pilots are 1 seed each and the sub-models have no real-run coverage; deletion is an integration decision",
     "workload:workload-level:blocked(fs-infra: TLB workload needs FS)"
    ],
    "target_activated_samples": "385"
@@ -2382,7 +2382,7 @@
    "spec_landed": "implemented(walk_pairing=T08-a walk/fill lost at the walk ISSUE point — TableWalker::walk (arch/arm/table_walker.cc) drops the walk for the selected request, so its translation never completes (the spec's 丢失->Timeout channel); the injector is CHAOSArmTLB faultType=walk_pairing with the event-normalized lsuTier (F0/F4/F6) on the walk-issue stream, and on a fire it emits the walk/fill node pair (tlb_walk + tlb_refill, shared walk_id = the pairing key, fill_lost=true -> field=lost/outcome=lost) via CHAOSPropagation::registerTlbWalkPair; pending: T08-b duplicate, T08-c done-too-early, T08-d stale-walk-result write (xlsx sheet-9 sub-models 03/07); evidence: REAL RUNS on binary 7d52bc1392a10055 (FS restore from cpt.237949797015, carrier configs/fs/tlb_probe.rcS) — F0-W9 injected=1/activated=1 with arm_tlb_walk_issue_drop + tlb_walk/tlb_refill sharing walk_id and refill field=lost (R4-6-T08 §T08.4); F6-W9 injected=1/activated=1 at the FIRST walk (F6 early_stress; prop_evt inj→tlb_walk→tlb_refill all walk_id=1, refill field=lost/outcome=lost) with oracle=Timeout — the spec'd channel for a dropped walk (R4-8-SPEC §B.3); F4-W9 honest zero, structurally (burst interval 1e5 eligible events >> the ~1e3 walk-issue stream; probe line shows the hook was reached, no drop line). Chain terminal provable_to_L0_then_unknown on the injected samples (the L0 anchor added in R4-6-T08 §T08.3). STILL PENDING: T08-b/c/d real-run coverage and 3-seed breadth for F0/F6; MODEL_BLOCKED['T08'] is retained for those (R4-8-SPEC residual report §B, integration decides the deletion))",
    "status": "BLOCKED",
    "status_reasons": [
-    "campaign:walk_pairing (T08-a) landed AND real-run proven — F0-W4 seed1 (R4-8-FS-W1 §4.3: walk_issue_probe + walk_issue_drop walk_id=703 + tlb_walk/tlb_refill sharing walk_id=703/fault_id=1 with refill field=lost), F0-W9 (R4-6-T08) and F6-W9 (R4-8-SPEC §B.3) injected with the same walk_id/field=lost signature, activated=1; F4-W9 honest zero (burst interval 1e5 eligible events >> the ~1e3 walk-issue stream — hook reached, never fires), binary 7d52bc1392a10055. Block retained: pending T08-b/c/d sub-model modes have no real-run coverage and the pilots are 1 seed each; deletion is an integration decision"
+    "campaign:walk_pairing (T08-a) landed AND real-run proven — F0-W4 seed1 (R4-8-FS-W1 §4.3: walk_issue_probe + walk_issue_drop walk_id=703 + tlb_walk/tlb_refill sharing walk_id=703/fault_id=1 with refill field=lost), F0-W9 (R4-6-T08) and F6-W9 (R4-8-SPEC §B.3) injected with the same walk_id/field=lost signature, activated=1; F4-W9 honest zero (burst interval 1e5 eligible events >> the ~1e3 walk-issue stream — hook reached, never fires), binary 7d52bc1392a10055. [R4-10] the T08-b/c/d sub-model modes (walk_fill_dup / walk_done_early / walk_stale_result) are now LANDED in CHAOSArmTLB + table_walker.cc (refill completion hook, walk_id-paired tlb_walk/tlb_refill with field/outcome per sub-model) but COMPILE-UNVERIFIED — build + FS pilot await integration. Block retained: pilots are 1 seed each and the sub-models have no real-run coverage; deletion is an integration decision"
    ],
    "target_activated_samples": "385"
   },
@@ -2419,7 +2419,7 @@
    "spec_landed": "implemented(walk_pairing=T08-a walk/fill lost at the walk ISSUE point — TableWalker::walk (arch/arm/table_walker.cc) drops the walk for the selected request, so its translation never completes (the spec's 丢失->Timeout channel); the injector is CHAOSArmTLB faultType=walk_pairing with the event-normalized lsuTier (F0/F4/F6) on the walk-issue stream, and on a fire it emits the walk/fill node pair (tlb_walk + tlb_refill, shared walk_id = the pairing key, fill_lost=true -> field=lost/outcome=lost) via CHAOSPropagation::registerTlbWalkPair; pending: T08-b duplicate, T08-c done-too-early, T08-d stale-walk-result write (xlsx sheet-9 sub-models 03/07); evidence: REAL RUNS on binary 7d52bc1392a10055 (FS restore from cpt.237949797015, carrier configs/fs/tlb_probe.rcS) — F0-W9 injected=1/activated=1 with arm_tlb_walk_issue_drop + tlb_walk/tlb_refill sharing walk_id and refill field=lost (R4-6-T08 §T08.4); F6-W9 injected=1/activated=1 at the FIRST walk (F6 early_stress; prop_evt inj→tlb_walk→tlb_refill all walk_id=1, refill field=lost/outcome=lost) with oracle=Timeout — the spec'd channel for a dropped walk (R4-8-SPEC §B.3); F4-W9 honest zero, structurally (burst interval 1e5 eligible events >> the ~1e3 walk-issue stream; probe line shows the hook was reached, no drop line). Chain terminal provable_to_L0_then_unknown on the injected samples (the L0 anchor added in R4-6-T08 §T08.3). STILL PENDING: T08-b/c/d real-run coverage and 3-seed breadth for F0/F6; MODEL_BLOCKED['T08'] is retained for those (R4-8-SPEC residual report §B, integration decides the deletion))",
    "status": "BLOCKED",
    "status_reasons": [
-    "campaign:walk_pairing (T08-a) landed AND real-run proven — F0-W4 seed1 (R4-8-FS-W1 §4.3: walk_issue_probe + walk_issue_drop walk_id=703 + tlb_walk/tlb_refill sharing walk_id=703/fault_id=1 with refill field=lost), F0-W9 (R4-6-T08) and F6-W9 (R4-8-SPEC §B.3) injected with the same walk_id/field=lost signature, activated=1; F4-W9 honest zero (burst interval 1e5 eligible events >> the ~1e3 walk-issue stream — hook reached, never fires), binary 7d52bc1392a10055. Block retained: pending T08-b/c/d sub-model modes have no real-run coverage and the pilots are 1 seed each; deletion is an integration decision",
+    "campaign:walk_pairing (T08-a) landed AND real-run proven — F0-W4 seed1 (R4-8-FS-W1 §4.3: walk_issue_probe + walk_issue_drop walk_id=703 + tlb_walk/tlb_refill sharing walk_id=703/fault_id=1 with refill field=lost), F0-W9 (R4-6-T08) and F6-W9 (R4-8-SPEC §B.3) injected with the same walk_id/field=lost signature, activated=1; F4-W9 honest zero (burst interval 1e5 eligible events >> the ~1e3 walk-issue stream — hook reached, never fires), binary 7d52bc1392a10055. [R4-10] the T08-b/c/d sub-model modes (walk_fill_dup / walk_done_early / walk_stale_result) are now LANDED in CHAOSArmTLB + table_walker.cc (refill completion hook, walk_id-paired tlb_walk/tlb_refill with field/outcome per sub-model) but COMPILE-UNVERIFIED — build + FS pilot await integration. Block retained: pilots are 1 seed each and the sub-models have no real-run coverage; deletion is an integration decision",
     "workload:workload-level:blocked(fs-infra: TLB workload needs FS)"
    ],
    "target_activated_samples": "385"
@@ -2457,7 +2457,7 @@
    "spec_landed": "implemented(walk_pairing=T08-a walk/fill lost at the walk ISSUE point — TableWalker::walk (arch/arm/table_walker.cc) drops the walk for the selected request, so its translation never completes (the spec's 丢失->Timeout channel); the injector is CHAOSArmTLB faultType=walk_pairing with the event-normalized lsuTier (F0/F4/F6) on the walk-issue stream, and on a fire it emits the walk/fill node pair (tlb_walk + tlb_refill, shared walk_id = the pairing key, fill_lost=true -> field=lost/outcome=lost) via CHAOSPropagation::registerTlbWalkPair; pending: T08-b duplicate, T08-c done-too-early, T08-d stale-walk-result write (xlsx sheet-9 sub-models 03/07); evidence: REAL RUNS on binary 7d52bc1392a10055 (FS restore from cpt.237949797015, carrier configs/fs/tlb_probe.rcS) — F0-W9 injected=1/activated=1 with arm_tlb_walk_issue_drop + tlb_walk/tlb_refill sharing walk_id and refill field=lost (R4-6-T08 §T08.4); F6-W9 injected=1/activated=1 at the FIRST walk (F6 early_stress; prop_evt inj→tlb_walk→tlb_refill all walk_id=1, refill field=lost/outcome=lost) with oracle=Timeout — the spec'd channel for a dropped walk (R4-8-SPEC §B.3); F4-W9 honest zero, structurally (burst interval 1e5 eligible events >> the ~1e3 walk-issue stream; probe line shows the hook was reached, no drop line). Chain terminal provable_to_L0_then_unknown on the injected samples (the L0 anchor added in R4-6-T08 §T08.3). STILL PENDING: T08-b/c/d real-run coverage and 3-seed breadth for F0/F6; MODEL_BLOCKED['T08'] is retained for those (R4-8-SPEC residual report §B, integration decides the deletion))",
    "status": "BLOCKED",
    "status_reasons": [
-    "campaign:walk_pairing (T08-a) landed AND real-run proven — F0-W4 seed1 (R4-8-FS-W1 §4.3: walk_issue_probe + walk_issue_drop walk_id=703 + tlb_walk/tlb_refill sharing walk_id=703/fault_id=1 with refill field=lost), F0-W9 (R4-6-T08) and F6-W9 (R4-8-SPEC §B.3) injected with the same walk_id/field=lost signature, activated=1; F4-W9 honest zero (burst interval 1e5 eligible events >> the ~1e3 walk-issue stream — hook reached, never fires), binary 7d52bc1392a10055. Block retained: pending T08-b/c/d sub-model modes have no real-run coverage and the pilots are 1 seed each; deletion is an integration decision"
+    "campaign:walk_pairing (T08-a) landed AND real-run proven — F0-W4 seed1 (R4-8-FS-W1 §4.3: walk_issue_probe + walk_issue_drop walk_id=703 + tlb_walk/tlb_refill sharing walk_id=703/fault_id=1 with refill field=lost), F0-W9 (R4-6-T08) and F6-W9 (R4-8-SPEC §B.3) injected with the same walk_id/field=lost signature, activated=1; F4-W9 honest zero (burst interval 1e5 eligible events >> the ~1e3 walk-issue stream — hook reached, never fires), binary 7d52bc1392a10055. [R4-10] the T08-b/c/d sub-model modes (walk_fill_dup / walk_done_early / walk_stale_result) are now LANDED in CHAOSArmTLB + table_walker.cc (refill completion hook, walk_id-paired tlb_walk/tlb_refill with field/outcome per sub-model) but COMPILE-UNVERIFIED — build + FS pilot await integration. Block retained: pilots are 1 seed each and the sub-models have no real-run coverage; deletion is an integration decision"
    ],
    "target_activated_samples": "385"
   },
@@ -2494,7 +2494,7 @@
    "spec_landed": "implemented(walk_pairing=T08-a walk/fill lost at the walk ISSUE point — TableWalker::walk (arch/arm/table_walker.cc) drops the walk for the selected request, so its translation never completes (the spec's 丢失->Timeout channel); the injector is CHAOSArmTLB faultType=walk_pairing with the event-normalized lsuTier (F0/F4/F6) on the walk-issue stream, and on a fire it emits the walk/fill node pair (tlb_walk + tlb_refill, shared walk_id = the pairing key, fill_lost=true -> field=lost/outcome=lost) via CHAOSPropagation::registerTlbWalkPair; pending: T08-b duplicate, T08-c done-too-early, T08-d stale-walk-result write (xlsx sheet-9 sub-models 03/07); evidence: REAL RUNS on binary 7d52bc1392a10055 (FS restore from cpt.237949797015, carrier configs/fs/tlb_probe.rcS) — F0-W9 injected=1/activated=1 with arm_tlb_walk_issue_drop + tlb_walk/tlb_refill sharing walk_id and refill field=lost (R4-6-T08 §T08.4); F6-W9 injected=1/activated=1 at the FIRST walk (F6 early_stress; prop_evt inj→tlb_walk→tlb_refill all walk_id=1, refill field=lost/outcome=lost) with oracle=Timeout — the spec'd channel for a dropped walk (R4-8-SPEC §B.3); F4-W9 honest zero, structurally (burst interval 1e5 eligible events >> the ~1e3 walk-issue stream; probe line shows the hook was reached, no drop line). Chain terminal provable_to_L0_then_unknown on the injected samples (the L0 anchor added in R4-6-T08 §T08.3). STILL PENDING: T08-b/c/d real-run coverage and 3-seed breadth for F0/F6; MODEL_BLOCKED['T08'] is retained for those (R4-8-SPEC residual report §B, integration decides the deletion))",
    "status": "BLOCKED",
    "status_reasons": [
-    "campaign:walk_pairing (T08-a) landed AND real-run proven — F0-W4 seed1 (R4-8-FS-W1 §4.3: walk_issue_probe + walk_issue_drop walk_id=703 + tlb_walk/tlb_refill sharing walk_id=703/fault_id=1 with refill field=lost), F0-W9 (R4-6-T08) and F6-W9 (R4-8-SPEC §B.3) injected with the same walk_id/field=lost signature, activated=1; F4-W9 honest zero (burst interval 1e5 eligible events >> the ~1e3 walk-issue stream — hook reached, never fires), binary 7d52bc1392a10055. Block retained: pending T08-b/c/d sub-model modes have no real-run coverage and the pilots are 1 seed each; deletion is an integration decision",
+    "campaign:walk_pairing (T08-a) landed AND real-run proven — F0-W4 seed1 (R4-8-FS-W1 §4.3: walk_issue_probe + walk_issue_drop walk_id=703 + tlb_walk/tlb_refill sharing walk_id=703/fault_id=1 with refill field=lost), F0-W9 (R4-6-T08) and F6-W9 (R4-8-SPEC §B.3) injected with the same walk_id/field=lost signature, activated=1; F4-W9 honest zero (burst interval 1e5 eligible events >> the ~1e3 walk-issue stream — hook reached, never fires), binary 7d52bc1392a10055. [R4-10] the T08-b/c/d sub-model modes (walk_fill_dup / walk_done_early / walk_stale_result) are now LANDED in CHAOSArmTLB + table_walker.cc (refill completion hook, walk_id-paired tlb_walk/tlb_refill with field/outcome per sub-model) but COMPILE-UNVERIFIED — build + FS pilot await integration. Block retained: pilots are 1 seed each and the sub-models have no real-run coverage; deletion is an integration decision",
     "workload:workload-level:blocked(fs-infra: TLB workload needs FS)"
    ],
    "target_activated_samples": "385"
@@ -2532,7 +2532,7 @@
    "spec_landed": "implemented(walk_pairing=T08-a walk/fill lost at the walk ISSUE point — TableWalker::walk (arch/arm/table_walker.cc) drops the walk for the selected request, so its translation never completes (the spec's 丢失->Timeout channel); the injector is CHAOSArmTLB faultType=walk_pairing with the event-normalized lsuTier (F0/F4/F6) on the walk-issue stream, and on a fire it emits the walk/fill node pair (tlb_walk + tlb_refill, shared walk_id = the pairing key, fill_lost=true -> field=lost/outcome=lost) via CHAOSPropagation::registerTlbWalkPair; pending: T08-b duplicate, T08-c done-too-early, T08-d stale-walk-result write (xlsx sheet-9 sub-models 03/07); evidence: REAL RUNS on binary 7d52bc1392a10055 (FS restore from cpt.237949797015, carrier configs/fs/tlb_probe.rcS) — F0-W9 injected=1/activated=1 with arm_tlb_walk_issue_drop + tlb_walk/tlb_refill sharing walk_id and refill field=lost (R4-6-T08 §T08.4); F6-W9 injected=1/activated=1 at the FIRST walk (F6 early_stress; prop_evt inj→tlb_walk→tlb_refill all walk_id=1, refill field=lost/outcome=lost) with oracle=Timeout — the spec'd channel for a dropped walk (R4-8-SPEC §B.3); F4-W9 honest zero, structurally (burst interval 1e5 eligible events >> the ~1e3 walk-issue stream; probe line shows the hook was reached, no drop line). Chain terminal provable_to_L0_then_unknown on the injected samples (the L0 anchor added in R4-6-T08 §T08.3). STILL PENDING: T08-b/c/d real-run coverage and 3-seed breadth for F0/F6; MODEL_BLOCKED['T08'] is retained for those (R4-8-SPEC residual report §B, integration decides the deletion))",
    "status": "BLOCKED",
    "status_reasons": [
-    "campaign:walk_pairing (T08-a) landed AND real-run proven — F0-W4 seed1 (R4-8-FS-W1 §4.3: walk_issue_probe + walk_issue_drop walk_id=703 + tlb_walk/tlb_refill sharing walk_id=703/fault_id=1 with refill field=lost), F0-W9 (R4-6-T08) and F6-W9 (R4-8-SPEC §B.3) injected with the same walk_id/field=lost signature, activated=1; F4-W9 honest zero (burst interval 1e5 eligible events >> the ~1e3 walk-issue stream — hook reached, never fires), binary 7d52bc1392a10055. Block retained: pending T08-b/c/d sub-model modes have no real-run coverage and the pilots are 1 seed each; deletion is an integration decision"
+    "campaign:walk_pairing (T08-a) landed AND real-run proven — F0-W4 seed1 (R4-8-FS-W1 §4.3: walk_issue_probe + walk_issue_drop walk_id=703 + tlb_walk/tlb_refill sharing walk_id=703/fault_id=1 with refill field=lost), F0-W9 (R4-6-T08) and F6-W9 (R4-8-SPEC §B.3) injected with the same walk_id/field=lost signature, activated=1; F4-W9 honest zero (burst interval 1e5 eligible events >> the ~1e3 walk-issue stream — hook reached, never fires), binary 7d52bc1392a10055. [R4-10] the T08-b/c/d sub-model modes (walk_fill_dup / walk_done_early / walk_stale_result) are now LANDED in CHAOSArmTLB + table_walker.cc (refill completion hook, walk_id-paired tlb_walk/tlb_refill with field/outcome per sub-model) but COMPILE-UNVERIFIED — build + FS pilot await integration. Block retained: pilots are 1 seed each and the sub-models have no real-run coverage; deletion is an integration decision"
    ],
    "target_activated_samples": "385"
   },

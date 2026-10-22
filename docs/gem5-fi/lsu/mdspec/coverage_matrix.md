@@ -62,15 +62,15 @@
 | T04-F0-W4 | T04 | L1d-TLB | F0 | BLOCKED | workload:workload-level:blocked(fs-infra: TLB workload needs FS) |
 | T04-F2-W4 | T04 | L1d-TLB | F2 | BLOCKED | workload:workload-level:blocked(fs-infra: TLB workload needs FS) |
 | T04-F6-W4 | T04 | L1d-TLB | F6 | BLOCKED | workload:workload-level:blocked(fs-infra: TLB workload needs FS) |
-| T05-F0-W4 | T05 | L1d-TLB | F0 | BLOCKED | campaign:deferred(mode unimplemented: valid/global/ASID state); spec:需新增（当前阻塞：valid/global/ASID模式未实现）; workload:workload-level:blocked(fs-infra: TLB workload ne |
-| T05-F2-W4 | T05 | L1d-TLB | F2 | BLOCKED | campaign:deferred(mode unimplemented: valid/global/ASID state); spec:需新增（当前阻塞：valid/global/ASID模式未实现）; workload:workload-level:blocked(fs-infra: TLB workload ne |
-| T05-F6-W4 | T05 | L1d-TLB | F6 | BLOCKED | campaign:deferred(mode unimplemented: valid/global/ASID state); spec:需新增（当前阻塞：valid/global/ASID模式未实现）; workload:workload-level:blocked(fs-infra: TLB workload ne |
-| T06-F0-W4 | T06 | L1d-TLB | F0 | BLOCKED | campaign:deferred(mode unimplemented: permission legal-substitution); spec:需新增（当前阻塞：permission/attribute合法替换未实现）; workload:workload-level:blocked(fs-infra: TLB  |
-| T06-F2-W4 | T06 | L1d-TLB | F2 | BLOCKED | campaign:deferred(mode unimplemented: permission legal-substitution); spec:需新增（当前阻塞：permission/attribute合法替换未实现）; workload:workload-level:blocked(fs-infra: TLB  |
-| T06-F6-W4 | T06 | L1d-TLB | F6 | BLOCKED | campaign:deferred(mode unimplemented: permission legal-substitution); spec:需新增（当前阻塞：permission/attribute合法替换未实现）; workload:workload-level:blocked(fs-infra: TLB  |
-| T07-F0-W4 | T07 | L1d-TLB | F0 | BLOCKED | campaign:deferred(mode unimplemented: hit fabrication/way select); spec:需新增（当前阻塞：hit fabrication/way select未实现）; workload:workload-level:blocked(fs-infra: TLB w |
-| T07-F4-W4 | T07 | L1d-TLB | F4 | BLOCKED | campaign:deferred(mode unimplemented: hit fabrication/way select); spec:需新增（当前阻塞：hit fabrication/way select未实现）; workload:workload-level:blocked(fs-infra: TLB w |
-| T07-F6-W4 | T07 | L1d-TLB | F6 | BLOCKED | campaign:deferred(mode unimplemented: hit fabrication/way select); spec:需新增（当前阻塞：hit fabrication/way select未实现）; workload:workload-level:blocked(fs-infra: TLB w |
+| T05-F0-W4 | T05 | L1d-TLB | F0 | BLOCKED | campaign:deferred(T05 entry-state modes LANDED (valid_clear/valid_set/global_flip/asid_subst) but COMPILE-UNVERIFIED — build + FS pilot pending, R4-10); spec:需新 |
+| T05-F2-W4 | T05 | L1d-TLB | F2 | BLOCKED | campaign:deferred(T05 entry-state modes LANDED (valid_clear/valid_set/global_flip/asid_subst) but COMPILE-UNVERIFIED — build + FS pilot pending, R4-10); spec:需新 |
+| T05-F6-W4 | T05 | L1d-TLB | F6 | BLOCKED | campaign:deferred(T05 entry-state modes LANDED (valid_clear/valid_set/global_flip/asid_subst) but COMPILE-UNVERIFIED — build + FS pilot pending, R4-10); spec:需新 |
+| T06-F0-W4 | T06 | L1d-TLB | F0 | BLOCKED | campaign:deferred(T06 attribute legal-substitution modes LANDED (perm_subst/memtype_subst/pagesize_subst) but COMPILE-UNVERIFIED — build + FS pilot pending, R4- |
+| T06-F2-W4 | T06 | L1d-TLB | F2 | BLOCKED | campaign:deferred(T06 attribute legal-substitution modes LANDED (perm_subst/memtype_subst/pagesize_subst) but COMPILE-UNVERIFIED — build + FS pilot pending, R4- |
+| T06-F6-W4 | T06 | L1d-TLB | F6 | BLOCKED | campaign:deferred(T06 attribute legal-substitution modes LANDED (perm_subst/memtype_subst/pagesize_subst) but COMPILE-UNVERIFIED — build + FS pilot pending, R4- |
+| T07-F0-W4 | T07 | L1d-TLB | F0 | BLOCKED | campaign:deferred(T07 CAM/way-select modes LANDED (false_hit/double_hit/wrong_way) but COMPILE-UNVERIFIED — build + FS pilot pending, R4-10); spec:需新增（当前阻塞：hit  |
+| T07-F4-W4 | T07 | L1d-TLB | F4 | BLOCKED | campaign:deferred(T07 CAM/way-select modes LANDED (false_hit/double_hit/wrong_way) but COMPILE-UNVERIFIED — build + FS pilot pending, R4-10); spec:需新增（当前阻塞：hit  |
+| T07-F6-W4 | T07 | L1d-TLB | F6 | BLOCKED | campaign:deferred(T07 CAM/way-select modes LANDED (false_hit/double_hit/wrong_way) but COMPILE-UNVERIFIED — build + FS pilot pending, R4-10); spec:需新增（当前阻塞：hit  |
 | T08-F0-W4 | T08 | L1d-TLB | F0 | BLOCKED | campaign:walk_pairing (T08-a) landed AND real-run proven — F0-W4 seed1 (R4-8-FS-W1 §4.3: walk_issue_probe + walk_issue_drop walk_id=703 + tlb_walk/tlb_refill sh |
 | T08-F0-W9 | T08 | L1d-TLB | F0 | BLOCKED | campaign:walk_pairing (T08-a) landed AND real-run proven — F0-W4 seed1 (R4-8-FS-W1 §4.3: walk_issue_probe + walk_issue_drop walk_id=703 + tlb_walk/tlb_refill sh |
 | T08-F4-W4 | T08 | L1d-TLB | F4 | BLOCKED | campaign:walk_pairing (T08-a) landed AND real-run proven — F0-W4 seed1 (R4-8-FS-W1 §4.3: walk_issue_probe + walk_issue_drop walk_id=703 + tlb_walk/tlb_refill sh |
