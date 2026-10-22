@@ -791,7 +791,7 @@
    "spec_landed": "",
    "status": "BLOCKED",
    "status_reasons": [
-    "campaign:BLOCKED(load-side fixed-width completion contract + byte-enable pending; store-only path implemented — MDSPEC §2 ruling 2026-10-19)"
+    "campaign:BLOCKED(load-side widen path + A06-b mask path landed but COMPILE-UNVERIFIED; spike (real gem5 run) pending — R4-6-A06 2026-10-22, MDSPEC §2 ruling 2026-10-19)"
    ],
    "target_activated_samples": "385"
   },
@@ -829,7 +829,7 @@
    "spec_landed": "",
    "status": "BLOCKED",
    "status_reasons": [
-    "campaign:BLOCKED(load-side fixed-width completion contract + byte-enable pending; store-only path implemented — MDSPEC §2 ruling 2026-10-19)"
+    "campaign:BLOCKED(load-side widen path + A06-b mask path landed but COMPILE-UNVERIFIED; spike (real gem5 run) pending — R4-6-A06 2026-10-22, MDSPEC §2 ruling 2026-10-19)"
    ],
    "target_activated_samples": "385"
   },
@@ -867,7 +867,7 @@
    "spec_landed": "",
    "status": "BLOCKED",
    "status_reasons": [
-    "campaign:BLOCKED(load-side fixed-width completion contract + byte-enable pending; store-only path implemented — MDSPEC §2 ruling 2026-10-19)"
+    "campaign:BLOCKED(load-side widen path + A06-b mask path landed but COMPILE-UNVERIFIED; spike (real gem5 run) pending — R4-6-A06 2026-10-22, MDSPEC §2 ruling 2026-10-19)"
    ],
    "target_activated_samples": "385"
   },
@@ -905,7 +905,7 @@
    "spec_landed": "",
    "status": "BLOCKED",
    "status_reasons": [
-    "campaign:BLOCKED(load-side fixed-width completion contract + byte-enable pending; store-only path implemented — MDSPEC §2 ruling 2026-10-19)"
+    "campaign:BLOCKED(load-side widen path + A06-b mask path landed but COMPILE-UNVERIFIED; spike (real gem5 run) pending — R4-6-A06 2026-10-22, MDSPEC §2 ruling 2026-10-19)"
    ],
    "target_activated_samples": "385"
   },
@@ -943,7 +943,7 @@
    "spec_landed": "",
    "status": "BLOCKED",
    "status_reasons": [
-    "campaign:BLOCKED(load-side fixed-width completion contract + byte-enable pending; store-only path implemented — MDSPEC §2 ruling 2026-10-19)"
+    "campaign:BLOCKED(load-side widen path + A06-b mask path landed but COMPILE-UNVERIFIED; spike (real gem5 run) pending — R4-6-A06 2026-10-22, MDSPEC §2 ruling 2026-10-19)"
    ],
    "target_activated_samples": "385"
   },
@@ -981,7 +981,7 @@
    "spec_landed": "",
    "status": "BLOCKED",
    "status_reasons": [
-    "campaign:BLOCKED(load-side fixed-width completion contract + byte-enable pending; store-only path implemented — MDSPEC §2 ruling 2026-10-19)"
+    "campaign:BLOCKED(load-side widen path + A06-b mask path landed but COMPILE-UNVERIFIED; spike (real gem5 run) pending — R4-6-A06 2026-10-22, MDSPEC §2 ruling 2026-10-19)"
    ],
    "target_activated_samples": "385"
   },
@@ -2341,11 +2341,10 @@
    "correlation_keys": "run_id + sample_run_id + fault_id/ptag；event_id + parent_event_id；tick/cycle + core_id + thread_id；dyn_inst_seq + commit_seq + PC/opcode；lq_idx/sq_idx；request_id/pf_request_id/walk_id/mshr_id/fill_id；VA/PA/cache_line；arch_reg/phys_reg。禁止只用tick或address单键连接。",
    "termination": "完整：存在L0 fault_applied，且每条边由共享键与时间/可达性同时证明，最终到达(1) errant commit/错误内存副作用/软件oracle差异，或(2)明确检测并contained，或(3)明确squash/replay/mask且无错误副作用。若链在某节点后缺事件，只能标“截至该节点可证，后续Unknown”，不得推断Masked。",
    "impl_status": "需新增（当前阻塞：walk/fill pairing未实现）",
-   "spec_landed": "",
+   "spec_landed": "implemented(walk_pairing=T08-a walk/fill lost at the walk ISSUE point — TableWalker::walk (arch/arm/table_walker.cc) drops the walk for the selected request, so its translation never completes (the spec's 丢失->Timeout channel); the injector is CHAOSArmTLB faultType=walk_pairing with the event-normalized lsuTier (F0/F4/F6) on the walk-issue stream, and on a fire it emits the walk/fill node pair (tlb_walk + tlb_refill, shared walk_id = the pairing key, fill_lost=true -> field=lost/outcome=lost) via CHAOSPropagation::registerTlbWalkPair; pending: T08-b duplicate, T08-c done-too-early, T08-d stale-walk-result write (xlsx sheet-9 sub-models 03/07); evidence: NONE yet — landed compile-unverified from the isolated no-build worktree r4-t08fs (FS-only: the model needs a full-system restore, and this session may neither build nor run gem5). Integration must build + run the 3 T08 cells (F0/F4/F6 W4) + lsu_chain_check before this entry carries real-run evidence (R4-5.9-report.md checklist))",
    "status": "BLOCKED",
    "status_reasons": [
-    "campaign:deferred(mode unimplemented: walk pairing)",
-    "spec:需新增（当前阻塞：walk/fill pairing未实现）",
+    "campaign:landed compile-unverified, pilot pending (FS-only; integration owns build + FS census + campaign; see R4-5.9 report)",
     "workload:workload-level:blocked(fs-infra: TLB workload needs FS)"
    ],
    "target_activated_samples": "385"
@@ -2380,11 +2379,10 @@
    "correlation_keys": "run_id + sample_run_id + fault_id/ptag；event_id + parent_event_id；tick/cycle + core_id + thread_id；dyn_inst_seq + commit_seq + PC/opcode；lq_idx/sq_idx；request_id/pf_request_id/walk_id/mshr_id/fill_id；VA/PA/cache_line；arch_reg/phys_reg。禁止只用tick或address单键连接。",
    "termination": "完整：存在L0 fault_applied，且每条边由共享键与时间/可达性同时证明，最终到达(1) errant commit/错误内存副作用/软件oracle差异，或(2)明确检测并contained，或(3)明确squash/replay/mask且无错误副作用。若链在某节点后缺事件，只能标“截至该节点可证，后续Unknown”，不得推断Masked。",
    "impl_status": "需新增（当前阻塞：walk/fill pairing未实现）",
-   "spec_landed": "",
+   "spec_landed": "implemented(walk_pairing=T08-a walk/fill lost at the walk ISSUE point — TableWalker::walk (arch/arm/table_walker.cc) drops the walk for the selected request, so its translation never completes (the spec's 丢失->Timeout channel); the injector is CHAOSArmTLB faultType=walk_pairing with the event-normalized lsuTier (F0/F4/F6) on the walk-issue stream, and on a fire it emits the walk/fill node pair (tlb_walk + tlb_refill, shared walk_id = the pairing key, fill_lost=true -> field=lost/outcome=lost) via CHAOSPropagation::registerTlbWalkPair; pending: T08-b duplicate, T08-c done-too-early, T08-d stale-walk-result write (xlsx sheet-9 sub-models 03/07); evidence: NONE yet — landed compile-unverified from the isolated no-build worktree r4-t08fs (FS-only: the model needs a full-system restore, and this session may neither build nor run gem5). Integration must build + run the 3 T08 cells (F0/F4/F6 W4) + lsu_chain_check before this entry carries real-run evidence (R4-5.9-report.md checklist))",
    "status": "BLOCKED",
    "status_reasons": [
-    "campaign:deferred(mode unimplemented: walk pairing)",
-    "spec:需新增（当前阻塞：walk/fill pairing未实现）"
+    "campaign:landed compile-unverified, pilot pending (FS-only; integration owns build + FS census + campaign; see R4-5.9 report)"
    ],
    "target_activated_samples": "385"
   },
@@ -2418,11 +2416,10 @@
    "correlation_keys": "run_id + sample_run_id + fault_id/ptag；event_id + parent_event_id；tick/cycle + core_id + thread_id；dyn_inst_seq + commit_seq + PC/opcode；lq_idx/sq_idx；request_id/pf_request_id/walk_id/mshr_id/fill_id；VA/PA/cache_line；arch_reg/phys_reg。禁止只用tick或address单键连接。",
    "termination": "完整：存在L0 fault_applied，且每条边由共享键与时间/可达性同时证明，最终到达(1) errant commit/错误内存副作用/软件oracle差异，或(2)明确检测并contained，或(3)明确squash/replay/mask且无错误副作用。若链在某节点后缺事件，只能标“截至该节点可证，后续Unknown”，不得推断Masked。",
    "impl_status": "需新增（当前阻塞：walk/fill pairing未实现）",
-   "spec_landed": "",
+   "spec_landed": "implemented(walk_pairing=T08-a walk/fill lost at the walk ISSUE point — TableWalker::walk (arch/arm/table_walker.cc) drops the walk for the selected request, so its translation never completes (the spec's 丢失->Timeout channel); the injector is CHAOSArmTLB faultType=walk_pairing with the event-normalized lsuTier (F0/F4/F6) on the walk-issue stream, and on a fire it emits the walk/fill node pair (tlb_walk + tlb_refill, shared walk_id = the pairing key, fill_lost=true -> field=lost/outcome=lost) via CHAOSPropagation::registerTlbWalkPair; pending: T08-b duplicate, T08-c done-too-early, T08-d stale-walk-result write (xlsx sheet-9 sub-models 03/07); evidence: NONE yet — landed compile-unverified from the isolated no-build worktree r4-t08fs (FS-only: the model needs a full-system restore, and this session may neither build nor run gem5). Integration must build + run the 3 T08 cells (F0/F4/F6 W4) + lsu_chain_check before this entry carries real-run evidence (R4-5.9-report.md checklist))",
    "status": "BLOCKED",
    "status_reasons": [
-    "campaign:deferred(mode unimplemented: walk pairing)",
-    "spec:需新增（当前阻塞：walk/fill pairing未实现）",
+    "campaign:landed compile-unverified, pilot pending (FS-only; integration owns build + FS census + campaign; see R4-5.9 report)",
     "workload:workload-level:blocked(fs-infra: TLB workload needs FS)"
    ],
    "target_activated_samples": "385"
@@ -2457,11 +2454,10 @@
    "correlation_keys": "run_id + sample_run_id + fault_id/ptag；event_id + parent_event_id；tick/cycle + core_id + thread_id；dyn_inst_seq + commit_seq + PC/opcode；lq_idx/sq_idx；request_id/pf_request_id/walk_id/mshr_id/fill_id；VA/PA/cache_line；arch_reg/phys_reg。禁止只用tick或address单键连接。",
    "termination": "完整：存在L0 fault_applied，且每条边由共享键与时间/可达性同时证明，最终到达(1) errant commit/错误内存副作用/软件oracle差异，或(2)明确检测并contained，或(3)明确squash/replay/mask且无错误副作用。若链在某节点后缺事件，只能标“截至该节点可证，后续Unknown”，不得推断Masked。",
    "impl_status": "需新增（当前阻塞：walk/fill pairing未实现）",
-   "spec_landed": "",
+   "spec_landed": "implemented(walk_pairing=T08-a walk/fill lost at the walk ISSUE point — TableWalker::walk (arch/arm/table_walker.cc) drops the walk for the selected request, so its translation never completes (the spec's 丢失->Timeout channel); the injector is CHAOSArmTLB faultType=walk_pairing with the event-normalized lsuTier (F0/F4/F6) on the walk-issue stream, and on a fire it emits the walk/fill node pair (tlb_walk + tlb_refill, shared walk_id = the pairing key, fill_lost=true -> field=lost/outcome=lost) via CHAOSPropagation::registerTlbWalkPair; pending: T08-b duplicate, T08-c done-too-early, T08-d stale-walk-result write (xlsx sheet-9 sub-models 03/07); evidence: NONE yet — landed compile-unverified from the isolated no-build worktree r4-t08fs (FS-only: the model needs a full-system restore, and this session may neither build nor run gem5). Integration must build + run the 3 T08 cells (F0/F4/F6 W4) + lsu_chain_check before this entry carries real-run evidence (R4-5.9-report.md checklist))",
    "status": "BLOCKED",
    "status_reasons": [
-    "campaign:deferred(mode unimplemented: walk pairing)",
-    "spec:需新增（当前阻塞：walk/fill pairing未实现）"
+    "campaign:landed compile-unverified, pilot pending (FS-only; integration owns build + FS census + campaign; see R4-5.9 report)"
    ],
    "target_activated_samples": "385"
   },
@@ -2495,11 +2491,10 @@
    "correlation_keys": "run_id + sample_run_id + fault_id/ptag；event_id + parent_event_id；tick/cycle + core_id + thread_id；dyn_inst_seq + commit_seq + PC/opcode；lq_idx/sq_idx；request_id/pf_request_id/walk_id/mshr_id/fill_id；VA/PA/cache_line；arch_reg/phys_reg。禁止只用tick或address单键连接。",
    "termination": "完整：存在L0 fault_applied，且每条边由共享键与时间/可达性同时证明，最终到达(1) errant commit/错误内存副作用/软件oracle差异，或(2)明确检测并contained，或(3)明确squash/replay/mask且无错误副作用。若链在某节点后缺事件，只能标“截至该节点可证，后续Unknown”，不得推断Masked。",
    "impl_status": "需新增（当前阻塞：walk/fill pairing未实现）",
-   "spec_landed": "",
+   "spec_landed": "implemented(walk_pairing=T08-a walk/fill lost at the walk ISSUE point — TableWalker::walk (arch/arm/table_walker.cc) drops the walk for the selected request, so its translation never completes (the spec's 丢失->Timeout channel); the injector is CHAOSArmTLB faultType=walk_pairing with the event-normalized lsuTier (F0/F4/F6) on the walk-issue stream, and on a fire it emits the walk/fill node pair (tlb_walk + tlb_refill, shared walk_id = the pairing key, fill_lost=true -> field=lost/outcome=lost) via CHAOSPropagation::registerTlbWalkPair; pending: T08-b duplicate, T08-c done-too-early, T08-d stale-walk-result write (xlsx sheet-9 sub-models 03/07); evidence: NONE yet — landed compile-unverified from the isolated no-build worktree r4-t08fs (FS-only: the model needs a full-system restore, and this session may neither build nor run gem5). Integration must build + run the 3 T08 cells (F0/F4/F6 W4) + lsu_chain_check before this entry carries real-run evidence (R4-5.9-report.md checklist))",
    "status": "BLOCKED",
    "status_reasons": [
-    "campaign:deferred(mode unimplemented: walk pairing)",
-    "spec:需新增（当前阻塞：walk/fill pairing未实现）",
+    "campaign:landed compile-unverified, pilot pending (FS-only; integration owns build + FS census + campaign; see R4-5.9 report)",
     "workload:workload-level:blocked(fs-infra: TLB workload needs FS)"
    ],
    "target_activated_samples": "385"
@@ -2534,11 +2529,10 @@
    "correlation_keys": "run_id + sample_run_id + fault_id/ptag；event_id + parent_event_id；tick/cycle + core_id + thread_id；dyn_inst_seq + commit_seq + PC/opcode；lq_idx/sq_idx；request_id/pf_request_id/walk_id/mshr_id/fill_id；VA/PA/cache_line；arch_reg/phys_reg。禁止只用tick或address单键连接。",
    "termination": "完整：存在L0 fault_applied，且每条边由共享键与时间/可达性同时证明，最终到达(1) errant commit/错误内存副作用/软件oracle差异，或(2)明确检测并contained，或(3)明确squash/replay/mask且无错误副作用。若链在某节点后缺事件，只能标“截至该节点可证，后续Unknown”，不得推断Masked。",
    "impl_status": "需新增（当前阻塞：walk/fill pairing未实现）",
-   "spec_landed": "",
+   "spec_landed": "implemented(walk_pairing=T08-a walk/fill lost at the walk ISSUE point — TableWalker::walk (arch/arm/table_walker.cc) drops the walk for the selected request, so its translation never completes (the spec's 丢失->Timeout channel); the injector is CHAOSArmTLB faultType=walk_pairing with the event-normalized lsuTier (F0/F4/F6) on the walk-issue stream, and on a fire it emits the walk/fill node pair (tlb_walk + tlb_refill, shared walk_id = the pairing key, fill_lost=true -> field=lost/outcome=lost) via CHAOSPropagation::registerTlbWalkPair; pending: T08-b duplicate, T08-c done-too-early, T08-d stale-walk-result write (xlsx sheet-9 sub-models 03/07); evidence: NONE yet — landed compile-unverified from the isolated no-build worktree r4-t08fs (FS-only: the model needs a full-system restore, and this session may neither build nor run gem5). Integration must build + run the 3 T08 cells (F0/F4/F6 W4) + lsu_chain_check before this entry carries real-run evidence (R4-5.9-report.md checklist))",
    "status": "BLOCKED",
    "status_reasons": [
-    "campaign:deferred(mode unimplemented: walk pairing)",
-    "spec:需新增（当前阻塞：walk/fill pairing未实现）"
+    "campaign:landed compile-unverified, pilot pending (FS-only; integration owns build + FS census + campaign; see R4-5.9 report)"
    ],
    "target_activated_samples": "385"
   },
