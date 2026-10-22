@@ -84,6 +84,29 @@ def fs_asset(name, env=None):
     return fs_dir(env) / name
 
 
+def wl_binary_path(binary):
+    """[MDSPEC][R4-8-W1] Workload binary -> real path, directed-first.
+
+    The 9 directed W9 carriers live in workloads/directed/<binary>; the W1
+    MiBench-TC23 carrier lives at workloads/mibench/bin/w1_all (i.e. a
+    subdirectory of workloads/, NOT of workloads/directed/). resolve_cell
+    used to hardcode the directed prefix, so an unblocked W1 cell would have
+    been launched with a NON-EXISTENT --cmd path. Same directed-then-root
+    fallback as lsu_runner._wl_path (the two drivers must not drift).
+    """
+    p = REPO / "workloads" / "directed" / binary
+    return p if p.exists() else REPO / "workloads" / binary
+
+
+# [MDSPEC][R4-8-W1] Per-workload SE wall-clock budget. The campaign's generic
+# --timeout (300 s) is calibrated for the directed W9 carriers (golden 10-40 s);
+# the W1 MiBench-TC23 golden measured 7.44-7.51 h (F-050), so 300 s would kill
+# every W1 run as a FABRICATED Timeout (injected=0). lsu_runner.TIMEOUTS
+# already freezes SE_W1=43200 s for exactly this reason; the campaign reuses
+# the same constant so the two drivers agree (no drift, no silent fake Timeout).
+SE_W1_TIMEOUT = 43200
+
+
 def require_fs_assets():
     """Hard-fail (with the reuse hint) when the FS images are absent."""
     missing = [str(p) for p in (fs_asset("vmlinux"), fs_asset("ubuntu.img"),
@@ -148,10 +171,29 @@ GOLDENS = {
     "sqlite_like": "33f836327a416d35",
     "mibench/bin/w1_all": "6dab8ec221c46677",
 }
-# Workload-level structural blocks (README §8.3 — 65 cells on W1/W4/W7/W13,
-# plus SPEC-license W11). Matched by keyword on the workload column.
+# Workload-level structural blocks (README §8.3 — W4/W7/W13, plus
+# SPEC-license W11). Matched by keyword on the workload column.
+#
+# [MDSPEC][R4-8-W1] "MiBench" was REMOVED from this table (2026-10-22). Its
+# old reason ("fs-infra: SE has no MiBench FS pipeline") was factually wrong:
+# the W1 MiBench-TC23 carrier has an SE binary + a frozen golden AND a legal
+# SE run path, all verified on disk —
+#   * binary  workloads/mibench/bin/w1_all (ELF aarch64, static, 938232 B);
+#   * golden  6dab8ec221c46677 (runner.py GOLDEN_IDS + lsu_w1_rerun's frozen
+#     5-way-equal manifest docs/gem5-fi/lsu/evidence/golden_w1_all_manifest.json,
+#     canonical sha256 5bb9298aa1100edd…75245b);
+#   * path    SE (the campaign's own SE branch; lsu_w1_rerun already drove 15
+#     items on this carrier) — no FS is required.
+# The machine-readable runid_map generator (tools/lsu_runid_map.py
+# _resolve_workload) already resolved these 19 cells as runnable (WL_BINARY
+# precedes WL_BLOCKED there), so the static table was the ONLY thing refusing
+# them — the exact 口径 conflict recorded in round4_findings.md §R4-6.0 §0.5.
+# Removing the key does NOT change any T-model (FS-family) cell: those `continue`
+# past every non-SPEC key and resolve to the armtlb FS flag set either way
+# (T01/T02/T10 W1 rows are unchanged — asserted in tests/test_lsu_fs_infra.py).
+# Kept blockers are precise: TLB-AliasPerm (needs FS), Atomic-Litmus/PARSEC
+# (need multi-core FS), SPEC (needs a license).
 WL_BLOCKED = {
-    "MiBench": "blocked(fs-infra: SE has no MiBench FS pipeline)",
     "TLB-AliasPerm": "blocked(fs-infra: TLB workload needs FS)",
     "Atomic-Litmus": "blocked(multicore-fs: litmus needs multi-core FS)",
     "PARSEC": "blocked(multicore-fs: PARSEC needs multi-core FS)",
@@ -958,7 +1000,7 @@ def resolve_cell(cell, allow_blocked=False):
         return None, None, f"NOT-MAPPED(workload {workload[:40]})"
     golden = GOLDENS[binary]
 
-    flags = ["--cmd", str(REPO / "workloads/directed" / binary), "--cpu", "O3"]
+    flags = ["--cmd", str(wl_binary_path(binary)), "--cpu", "O3"]
     flags += FAMILY_MOUNT[family]
     # [MDSPEC][R4-1-review-I2] tier flags are per (model, tier, workload):
     # an lsqfwd F0 (model, workload) pair whose eligible stream is
@@ -1222,9 +1264,13 @@ def run_single_cell(cell, args, seed, outdir):
 
     stdout_file = outdir / "run.out"
     stderr_file = outdir / "run.err"
+    # [MDSPEC][R4-8-W1] W1 (MiBench-TC23) gets lsu_runner's frozen SE_W1
+    # budget; every other SE carrier keeps the operator's --timeout.
+    _se_timeout = (SE_W1_TIMEOUT if str(_binary).endswith("w1_all")
+                   else args.timeout)
     try:
         proc = subprocess.run(cmd, capture_output=True, text=True,
-                              timeout=args.timeout)
+                              timeout=_se_timeout)
         stdout_file.write_text(proc.stdout)
         stderr_file.write_text(proc.stderr)
         exit_code = proc.returncode

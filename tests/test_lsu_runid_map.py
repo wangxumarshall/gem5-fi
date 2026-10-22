@@ -71,6 +71,62 @@ def main():
     check("mibench_prefixed_match_resolved",
           any(e["workload"]["spec_name"].startswith("MiBench")
               and e["workload"]["binary"] for e in entries))
+
+    # [MDSPEC][R4-8-W1] 口径一致性（R4-6.0 §0.5 记录的 19 行冲突的机械封口）：
+    # runid_map 视为"有载体可跑"的行，campaign 的 resolve_cell **不得**再以
+    # 负载级（WL_BLOCKED）理由拒跑。逐行核验——任何一行重新落回负载级拒跑
+    # 都会 fail（无声回退 = bug）。
+    import lsu_campaign as lc   # noqa: E402  (唯一阻塞真相来源)
+
+    def _cell(e):
+        c = [""] * 10
+        c[lc.COL_RUNID] = e["run_id"]
+        c[lc.COL_MODEL] = e["model_id"]
+        c[lc.COL_FREQ] = e["freq"]
+        c[lc.COL_WORKLOAD] = e["workload"]["spec_name"]
+        return c
+
+    # 冲突口径 = 非 FS-family（非 armtlb）的 W1 行：27 - 8 个 T 模型 = 19。
+    # T 模型的 W1 行走 FS 载体（其 golden 是 TLB probe 的，不是 MiBench 的），
+    # 不属于"口径冲突"集合，单独断言它们仍走 FS。
+    _w1_all = [e for e in entries if e["run_id"].endswith("-W1")
+               and e["workload"]["binary"]]
+    check("w1_rows_total_is_27", len(_w1_all) == 27, f"n={len(_w1_all)}")
+    t_rows = [e for e in _w1_all if e["model_id"] in lc.ARMTLB_MODELS]
+    check("T-model W1 rows (8) resolve to the armtlb FS flag set, not to the "
+          "MiBench SE carrier",
+          len(t_rows) == 8 and all(
+              _g == lc.TLB_PROBE_GOLDEN and "--cmd" not in f
+              for f, _g, _k in (lc.resolve_cell(_cell(e)) for e in t_rows)),
+          str([e["run_id"] for e in t_rows]))
+    w1 = [e for e in _w1_all if e["model_id"] not in lc.ARMTLB_MODELS]
+    check("w1_audit_scope_is_19_rows", len(w1) == 19, f"n={len(w1)}")
+    wl_blocked_rows, runnable, span_rows, other = [], [], [], []
+    for e in w1:
+        flags, _g, kind = lc.resolve_cell(_cell(e))
+        if flags is not None:
+            runnable.append(e["run_id"])
+        elif "TLB workload needs FS" in kind or "has no" in kind \
+                or "multicore-fs" in kind or "license" in kind:
+            wl_blocked_rows.append((e["run_id"], kind))
+        elif "F0-span-unmeasured" in kind:
+            span_rows.append(e["run_id"])
+        else:
+            other.append((e["run_id"], kind))
+    check("no W1 row is workload-blocked in campaign while runid_map says "
+          "runnable (the R4-8 fix)",
+          not wl_blocked_rows, str(wl_blocked_rows))
+    check("17 W1 rows resolve runnable; the 2 F0 rows are blocked by the "
+          "PRECISE per-(model,workload) F0-span census gate",
+          len(runnable) == 17 and sorted(span_rows) == ["S01-F0-W1",
+                                                        "S02-F0-W1"]
+          and not other,
+          f"runnable={len(runnable)} span={sorted(span_rows)} other={other}")
+    check("the over-broad 'MiBench' workload block is gone; the four precise "
+          "blockers remain",
+          set(lc.WL_BLOCKED) == {"TLB-AliasPerm", "Atomic-Litmus", "PARSEC",
+                                 "SPEC"},
+          str(sorted(lc.WL_BLOCKED)))
     print(f"\nFAILURES: {fails if fails else '无'}")
     return 1 if fails else 0
 

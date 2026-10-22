@@ -204,6 +204,68 @@ def main():
           and "walk_pairing" in _lc.resolve_cell(_byid["T08-F0-W4"],
                                                 allow_blocked=True)[0])
 
+    print("[6] W1(MiBench) 19 行口径订正（R4-8）：静态表已精确化")
+    # 用户/编排侧裁决：二进制 + golden + 合法 SE 路径都在盘上 ⇒ 过宽的
+    # WL_BLOCKED["MiBench"] 必须订正；只保留精确阻塞。本段把订正后的
+    # 集合钉死（任何一行无声解锁/无声保留都会 fail）。
+    check("WL_BLOCKED no longer carries the over-broad 'MiBench' key",
+          "MiBench" not in _lc.WL_BLOCKED)
+    check("WL_BLOCKED still carries the four precise blockers (not "
+          "blanket-cleared)",
+          set(_lc.WL_BLOCKED) == {"TLB-AliasPerm", "Atomic-Litmus", "PARSEC",
+                                  "SPEC"},
+          str(sorted(_lc.WL_BLOCKED)))
+    check("W1 carrier has an SE binary mapping + golden",
+          _lc.WL_BINARY.get("MiBench-TC23") == "mibench/bin/w1_all"
+          and _lc.GOLDENS.get("mibench/bin/w1_all") == "6dab8ec221c46677")
+    w1_bin = ROOT / "workloads" / "mibench" / "bin" / "w1_all"
+    check("W1 binary exists on disk (workloads/mibench/bin/w1_all)",
+          w1_bin.exists() and w1_bin.stat().st_size > 0,
+          f"size={w1_bin.stat().st_size if w1_bin.exists() else 0}")
+    W1_ROWS = ["S01-F0-W1", "S01-F1-W1", "S01-F2-W1", "S02-F0-W1", "S02-F2-W1",
+               "C01-F0-W1", "C01-F1-W1", "C01-F2-W1", "C02-F0-W1", "C02-F2-W1",
+               "C04-F0-W1", "C04-F1-W1", "C04-F2-W1", "S13-F0-W1", "S13-F1-W1",
+               "S13-F2-W1", "L01-F0-W1", "L01-F1-W1", "L01-F2-W1"]
+    check("W1 口径冲突行数 == 19 (the audit's scope)",
+          len(W1_ROWS) == 19)
+    _w1_run, _w1_span_block, _w1_other = [], [], []
+    for r in W1_ROWS:
+        f, g, k = _lc.resolve_cell(_byid[r])
+        if f is not None:
+            _cmd = f[f.index("--cmd") + 1]
+            check(f"{r}: resolved --cmd path exists on disk",
+                  Path(_cmd).exists(), _cmd)
+            check(f"{r}: resolves to the frozen W1 golden",
+                  g == "6dab8ec221c46677", str(g))
+            _w1_run.append(r)
+        elif "F0-span-unmeasured" in k:
+            _w1_span_block.append(r)
+        else:
+            _w1_other.append((r, k))
+    check("17/19 W1 rows resolve runnable (their --cmd path exists)",
+          sorted(_w1_run) == sorted([r for r in W1_ROWS
+                                     if r not in ("S01-F0-W1", "S02-F0-W1")]),
+          str(_w1_run))
+    check("the remaining 2 rows are blocked by the PRECISE F0-span-unmeasured "
+          "gate (a per-(model,workload) census, NOT a workload block)",
+          sorted(_w1_span_block) == ["S01-F0-W1", "S02-F0-W1"],
+          str(_w1_span_block))
+    check("no W1 row is workload-blocked or otherwise unexplained",
+          not _w1_other, str(_w1_other))
+    check("T-model W1 rows are UNCHANGED: still resolve to the armtlb FS flag "
+          "set (the MiBench-key removal must not re-route them to SE)",
+          all(_lc.resolve_cell(_byid[r])[0] is not None
+              and "--cmd" not in _lc.resolve_cell(_byid[r])[0]
+              for r in ("T01-F0-W1", "T01-F1-W1", "T01-F2-W1", "T02-F0-W1",
+                        "T02-F2-W1", "T10-F0-W1", "T10-F1-W1", "T10-F2-W1")))
+    check("W1 SE runs get lsu_runner's frozen SE_W1 budget (not --timeout 300, "
+          "which would fabricate a Timeout at 7.4h golden)",
+          _lc.SE_W1_TIMEOUT == 43200)
+    check("wl_binary_path() resolves the W1 carrier to the real path",
+          _lc.wl_binary_path("mibench/bin/w1_all").exists()
+          and _lc.wl_binary_path("agu_addrmodes") ==
+          ROOT / "workloads/directed/agu_addrmodes")
+
     print()
     if SKIPPED:
         print(f"SKIPPED ({len(SKIPPED)}): {SKIPPED}")
