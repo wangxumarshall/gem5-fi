@@ -838,7 +838,7 @@ def load_matrix(path):
     return header, cells
 
 
-def resolve_cell(cell):
+def resolve_cell(cell, allow_blocked=False):
     """Cell -> (flags list, golden, binary) or (None, None, blocked_reason).
 
     Every cell resolves to exactly one of: runnable flags, or a blocked/
@@ -846,6 +846,15 @@ def resolve_cell(cell):
     main() asserts this (CLAUDE.md: half-routed components are rejected).
     FS families (armtlb) resolve to an FS flag set with the tlb_probe
     carrier; their golden is the host-computed payload oracle.
+
+    [MDSPEC][R4-6-T08] allow_blocked=True is the EXPLICIT operator opt-in
+    (--allow-blocked-models) that lets a MODEL_BLOCKED model run anyway. It
+    exists because the MODEL_BLOCKED entry for a landed-but-unasserted model
+    is otherwise a deadlock: the block says "remove me only with real-run
+    evidence" while the block itself forbids the run that would produce it
+    (measured on this exact branch — see the R4-6-T08 report §"integration
+    deadlock"). The block reason is NOT hidden: it is echoed to stdout and
+    carried in the cell/run JSON as model_blocked_reason.
     """
     model = cell[COL_MODEL].strip()
     freq = cell[COL_FREQ].strip()
@@ -865,7 +874,11 @@ def resolve_cell(cell):
             return None, None, reason
     # 2. model-level block / deferral / N-A
     if model in MODEL_BLOCKED:
-        return None, None, MODEL_BLOCKED[model]
+        if not allow_blocked:
+            return None, None, MODEL_BLOCKED[model]
+        print(f"[allow-blocked] {cell[COL_RUNID]}: running a MODEL_BLOCKED "
+              f"model under the explicit --allow-blocked-models opt-in; "
+              f"reason kept in the output: {MODEL_BLOCKED[model]}")
     # 3. model must have a mapping
     if model not in MODEL_FLAGS:
         return None, None, f"NOT-MAPPED(model {model})"
@@ -1060,7 +1073,8 @@ def run_single_cell(cell, args, seed, outdir):
     runid = cell[COL_RUNID]
     model = cell[COL_MODEL].strip()
 
-    flags, golden, _binary = resolve_cell(cell)
+    flags, golden, _binary = resolve_cell(
+        cell, allow_blocked=getattr(args, "allow_blocked_models", False))
     if flags is None:
         return {"outcome": "Blocked", "error": golden}
 
@@ -1205,6 +1219,16 @@ def main():
     p.add_argument("--outdir", default="runs/lsu")
     p.add_argument("--max-parallel", type=int, default=4)
     p.add_argument("--cells", help="comma-separated RunIDs to run (default: all)")
+    p.add_argument("--allow-blocked-models", action="store_true",
+                   help="[MDSPEC][R4-6-T08] explicit opt-in to run cells whose "
+                        "MODEL is still in MODEL_BLOCKED (a landed-but-"
+                        "unasserted model is otherwise unrunnable by "
+                        "construction — the block demands real-run evidence "
+                        "while forbidding the run). The block reason is "
+                        "echoed to stdout and kept in the cell JSON as "
+                        "model_blocked_reason; this flag never unblocks "
+                        "anything, it only lets the operator produce the "
+                        "evidence.")
     p.add_argument("--dry-run", action="store_true")
     p.add_argument("--phase", default="trial", choices=["trial", "screening", "main"])
     p.add_argument("--max-seeds-per-cell", type=int, default=10,
@@ -1254,7 +1278,8 @@ def main():
     unrunnable = []
     runnable = []
     for cell in cells:
-        flags, _g, reason = resolve_cell(cell)
+        flags, _g, reason = resolve_cell(
+            cell, allow_blocked=a.allow_blocked_models)
         if flags is None:
             key = reason.split("(")[0].split(":")[0]
             counts[key] = counts.get(key, 0) + 1
@@ -1331,11 +1356,18 @@ def run_cell_adaptive(cell, args, outroot):
         seed += 1
         r = run_single_cell(cell, args, seed, cell_out / f"seed{seed}")
         act = int(r.get("activated", 0) or 0)
-        runs.append({"seed": seed, "cluster_id": "%s#%d" % (runid, seed),
-                     "activated": act,
-                     "outcome": r.get("outcome", "Unclassified"),
-                     "chain": r.get("chain_report"),
-                     "trigger_alarm": r.get("trigger_alarm")})
+        # [MDSPEC][R4-6-T08] the opt-in's honesty trail: a sample of a
+        # MODEL_BLOCKED model carries its block reason in the cell JSON.
+        _entry = {"seed": seed, "cluster_id": "%s#%d" % (runid, seed),
+                  "activated": act,
+                  "outcome": r.get("outcome", "Unclassified"),
+                  "chain": r.get("chain_report"),
+                  "trigger_alarm": r.get("trigger_alarm")}
+        if getattr(args, "allow_blocked_models", False):
+            _mb = MODEL_BLOCKED.get(cell[COL_MODEL].strip())
+            if _mb:
+                _entry["model_blocked_reason"] = _mb
+        runs.append(_entry)
         attempted += int(r.get("attempted", 0) or 0)
         activated += act
         oc = r.get("outcome")
