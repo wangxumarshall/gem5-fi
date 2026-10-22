@@ -62,7 +62,17 @@ def _row_ids(md_path):
 
 
 def _classify(entry, cov_status, flags):
-    """(status, category, why) —— 口径见模块 docstring。"""
+    """(status, category, why) —— 口径见模块 docstring。
+
+    [LSU][MDSPEC][R4-8-SPEC] 每个互斥类别**显式**判据 + 兜底报警。此前 A06 与
+    T08 都靠 `else: cat = "RULING"` 兜底落到 RULING —— 那是**静默**的：R4-5.9
+    把 `MODEL_BLOCKED["T08"]` 文案从 "mode unimplemented: walk pairing" 改成
+    "landed compile-unverified, pilot pending" 后，T08-F{0,4,6}-W9 的类别就
+    **无声**从 MODE-UNIMPL 变成 RULING（RULING 6→9），而台账（runid_map）与
+    分类器都不出声。现改为：A06 的 "ruling" 与 T08 的 "pilot pending"/"mode
+    unimplemented" 各自显式匹配；任何落到兜底的理由一律标为 UNCLASSIFIED
+    并计数（响亮的未知，绝不冒充某个具体类别）。
+    """
     reasons = entry.get("status_reasons") or []
     if reasons:
         joined = " ; ".join(reasons)
@@ -74,10 +84,12 @@ def _classify(entry, cov_status, flags):
             cat = "LICENSE"
         elif "fs-infra" in joined:
             cat = "FS-INFRA"
-        elif "mode unimplemented" in joined:
+        elif "mode unimplemented" in joined or "pilot pending" in joined:
             cat = "MODE-UNIMPL"
-        else:
+        elif "ruling" in joined:
             cat = "RULING"
+        else:
+            cat = "UNCLASSIFIED"
         return "BLOCKED", cat, joined
     if flags is None:
         return "BLOCKED", "UNRESOLVED", str(cov_status)
