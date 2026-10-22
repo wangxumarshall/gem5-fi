@@ -253,6 +253,27 @@ def main():
           "A06" in lc.MODEL_BLOCKED
           and "load" in str(lc.MODEL_BLOCKED["A06"]).lower(),
           str(lc.MODEL_BLOCKED.get("A06"))[:120])
+    # C3b [R4-8-A06] BLOCKED 理由必须**具体且可跑**（不是空话）：点名 load 侧
+    #     shrink、点名 COMPILE-UNVERIFIED 这条真实原因；且 6 个 A06 RunID 都
+    #     仍在 MODEL_BLOCKED 里（逐个断言，不是"存在 A06 就行"）。
+    a06_rows = [f"A06-F0-W3", "A06-F0-W5", "A06-F2-W3", "A06-F2-W5",
+                "A06-F6-W3", "A06-F6-W5"]
+    reason = str(lc.MODEL_BLOCKED.get("A06", ""))
+    check("C3b_blocked_reason_specific",
+          "SHRINK" in reason.upper()
+          and "COMPILE-UNVERIFIED" in reason.upper(),
+          reason[:160])
+    # 6 个 RunID 的 model 前缀都必须落在 MODEL_BLOCKED（campaign 以 model
+    # 为单位封锁；RunID 级封锁由该 model 条目派生）。
+    check("C3c_all_six_a06_runids_blocked",
+          all(r.split("-")[0] in lc.MODEL_BLOCKED for r in a06_rows),
+          f"rows={a06_rows} blocked={sorted(lc.MODEL_BLOCKED)[:12]}")
+    # C3d 反向：A06 必须在 MODEL_BLOCKED **且不在** MODEL_FLAGS 的可跑集合之外
+    #     —— A06 有路由（MODEL_FLAGS）但同时被 BLOCKED 是允许的（RULING 家族），
+    #     但没有路由才是回归。
+    check("C3d_a06_has_route_but_blocked",
+          "A06" in lc.MODEL_FLAGS and "A06" in lc.MODEL_BLOCKED,
+          f"flags={'A06' in lc.MODEL_FLAGS} blocked={'A06' in lc.MODEL_BLOCKED}")
     check("C4_no_a06s_model_id",
           not any(k.startswith("A06S") for k in lc.MODEL_FLAGS)
           and not any(k.startswith("A06S") for k in lc.MODEL_BLOCKED),
