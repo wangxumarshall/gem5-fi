@@ -1041,6 +1041,27 @@ def classify_run(outdir, stdout_file, golden, exit_code, stderr_file=None):
     return {"outcome": "Unclassified", "error": r.stderr[:200] if r.stderr else "unknown"}
 
 
+# [R4-6-T08] armtlb injection counting: the injector log carries T08
+# one-shot DIAGNOSTIC lines ("Site: arm_tlb_walk_issue_probe" = the walk hook
+# was reached; "Site: arm_tlb_lookup_hit_skipped" = the walk-issue-only model
+# deliberately did NOT consume the lookup hit). Neither is an injection, so
+# counting every "Site: " line overstated T08-F0-W9 as activated=3 when the
+# real injection count was 1. Count only lines that record an applied fault.
+_ARMTLB_DIAG_SITES = ("arm_tlb_walk_issue_probe",
+                      "arm_tlb_lookup_hit_skipped")
+
+
+def count_armtlb_injections(ilog_path):
+    """Number of APPLIED faults in armtlb_injections.log (diagnostics excluded)."""
+    try:
+        lines = Path(ilog_path).read_text(errors="replace").splitlines()
+    except OSError:
+        return 0
+    return sum(1 for ln in lines
+               if "Site: " in ln
+               and not any(d in ln for d in _ARMTLB_DIAG_SITES))
+
+
 def classify_fs_run(outdir, run_stdout, exit_code):
     """L5 classification for one FS (armtlb) run.
 
@@ -1063,8 +1084,7 @@ def classify_fs_run(outdir, run_stdout, exit_code):
     injected = 0
     ilog = outdir / "armtlb_injections.log"
     if ilog.exists():
-        injected = sum(1 for ln in ilog.read_text(errors="replace").splitlines()
-                       if "Site: " in ln)
+        injected = count_armtlb_injections(ilog)
     out = {"injected": injected, "activated": injected,
            "attempted": None, "eligible": None, "checksum": None}
     if "Oops" in terminal or "Kernel oops in guest" in run_stdout:
@@ -1149,9 +1169,7 @@ def run_single_cell(cell, args, seed, outdir):
             inj = 0
             ilog = outdir / "armtlb_injections.log"
             if ilog.exists():
-                inj = sum(1 for ln in
-                          ilog.read_text(errors="replace").splitlines()
-                          if "Site: " in ln)
+                inj = count_armtlb_injections(ilog)
             classes = {k: 0 for k in ("Masked", "Detected/Contained", "SDC",
                                       "Crash", "Timeout")}
             classes["Timeout"] = inj

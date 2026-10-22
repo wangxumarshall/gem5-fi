@@ -1727,3 +1727,77 @@ CHAOS_LSU_S10_FORK: attempted=2 eligible=21 arm1_events=22 arm1_cand_empty=1
 - S10 的 6 个 RunID 仍标 `MODEL_BLOCKED(platform-defect)`：**解锁前需按纪律跑 campaign 入口
   的 3 seed 真机 pilot + 链检查**（本节的证据是定向 census，非 campaign 入口）。
 - `StoreSet::clear()`（周期 250000）在修复后才真正生效（设计行为）。
+
+## R4-6-T08（2026-10-22）：T08-a **真机通过** —— walk 发出点真实注入 + `tlb_walk`/`tlb_refill` 同 walk_id 配对（refill field=lost）
+
+> 集成侧在隔离提交（`6f4d1cce`…`5ea294c9`，6 个）之上完成语义合并、构建修复、L0 锚点补强与 **FS 真机 pilot**。
+> **本节的判据 = §5.9.5 列出的 T08-a 验收条件，逐条满足。**
+
+### T08.1 根因（落地侧逐行给出，集成侧复核认同）
+
+`CHAOSArmTLB::maybeCorrupt`（lookup-hit 路径，`tlb.cc:171` 仅在命中时进入）对
+`faultType=walk_pairing` 落到 `switch` 的 `default: break`（**不改 pfn**），却**照常**
+`++faults_injected_count` —— 把 `maxFaults=1` 的**唯一预算**在 lookup 命中上花光。
+于是 `maybeDropWalkFill`（walk 发出点）永远看到 `faults_injected_count >= max_faults`
+而恒返回 false → 永不丢 walk → 无 `tlb_walk`/`tlb_refill`。这正是 §5.9.6 观测到的
+`Site: arm_tlb_lookup_hit, old_pfn == new_pfn, FaultType: walk_pairing` 指纹。
+
+另查实（否定性结论）：**walker 接线本就存在** —— `arm_chaos_fs.py` 传
+`walker=cpu0.mmu.walker`、ctor 自挂 `walker->setChaosTLB(this)`，`chaosTLB` 是
+`ArmISA::TableWalker` 的**成员**；`ArmMMU.py` 全 MMU 只声明 1 个 walker，itb/dtb/stage2 共用。
+§5.9.6 的线索 (a) 因此**被排除**。
+
+### T08.2 修复（3 处，非 walk_pairing 模式逐字节不变）
+
+1. `maybeCorrupt` 顶部对 `WalkPairing` **早退**（在任何预算/RNG/`events_to_skip` 消耗**之前**），
+   并打一行一次性诊断 `Site: arm_tlb_lookup_hit_skipped`。
+2. `maybeDropWalkFill` 增加一次性接线证明行 `Site: arm_tlb_walk_issue_probe`。
+3. `switch` 增显式 `case WalkPairing: return;`（结构性不可达，防未来回归）。
+
+### T08.3 集成侧补强：**L0 锚点**
+
+首轮 pilot（二进制 `77d19605664e65ff`）已满足判据语句，但 `chain_report` 报
+`terminal=no_l0_fault_applied` —— 因为 `registerTlbWalkPair` 只写 `tlb_walk`/`tlb_refill`
+两个节点，**不写 L0 `inj`**，链检查器因此无 L0 锚。已在
+`CHAOSPropagation::registerTlbWalkPair` 前置写一个 `inj` 节点（同 `fault_id`/`ptag`，
+`corr=origin`），事件序为 `inj → tlb_walk → tlb_refill`。
+
+### T08.4 真机证据（campaign 正式入口，FS，二进制 `7d52bc1392a10055`）
+
+```
+python3 tools/lsu_campaign.py --matrix artifacts/lsu-trial/07-expanded-matrix-backfilled.csv \
+  --outdir runs/lsu/r4_t6_pilot2 --cells T08-F0-W9 --phase trial --max-seeds-per-cell 1 \
+  --max-parallel 1 --fs-timeout 1200 --allow-blocked-models \
+  --fs-checkpoint /home/sdc/gem5-fi-ding/runs/lsu/fs_cpt_boot/cpt.237949797015
+```
+
+`armtlb_injections.log`（**三条**，覆盖三个判据语句）：
+
+```
+Tick: 237949797348, Site: arm_tlb_walk_issue_probe, walk_id: 1, VA: 0x40b4c0,
+  FaultType: walk_pairing (walk-issue hook REACHED: TableWalker::walk -> maybeDropWalkFill)
+Tick: 237950233578, Site: arm_tlb_lookup_hit_skipped, VA: 0xffffffc009483eb0,
+  FaultType: walk_pairing (T08 walk-issue-only: NOT consumed at lookup-hit)
+Tick: 238044463587, Site: arm_tlb_walk_issue_drop, walk_id: 703, VA: 0xffffffc00801e240,
+  FaultType: walk_pairing (T08-a lost walk/fill)
+```
+
+`prop_evt.txt.gz`（**judged**）：`kind` 集合 = `{inj, tlb_walk, tlb_refill}`，其中
+
+```
+kind=tlb_walk   walk_id=703 field=walk_pairing tick=238044463587
+kind=tlb_refill walk_id=703 field=lost outcome=lost tick=238044463587
+```
+
+即 §5.9.5 判据 **①`Site: arm_tlb_walk_issue_drop` ②`tlb_walk`/`tlb_refill` 共享
+同一 `walk_id` ③refill `field=lost`** 三条全部满足。
+
+### T08.5 诚实边界
+
+- 该 run 以 **Timeout** 告终（guest payload 在 O3 restore 下极慢，与 §R4-6.0 同因）：
+  L5 分类为 Timeout，**不是** SDC/Masked。这符合 T08-a 的语义（翻译永不完成通道）。
+- `faultType` 非 walk_pairing 的 T 系（T01–T04/T10）行为不变；首轮 T01 pilot 已见
+  `inj → tlb_pfn → sq_execute → sq_writeback → resp → sq_complete` 完整链（§R4-6.0）。
+- **注入计数修正（工具侧）**：分类器原先把 `Site: ` 行一律计为注入，导致 T08 首轮
+  虚报 `activated=3`（真实注入 = 1，因两条为诊断行）。已改为
+  `count_armtlb_injections()` 排除 `_probe` / `_skipped` 诊断站点。

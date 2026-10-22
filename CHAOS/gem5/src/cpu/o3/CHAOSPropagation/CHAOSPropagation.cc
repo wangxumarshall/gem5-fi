@@ -1145,6 +1145,30 @@ namespace gem5
         std::ostringstream h_va;
         h_va << std::hex << va;
 
+        // [R4-6-T08] L0 anchor for the walk-issue model. The T08 drop IS an
+        // injection performed at the page-table walk-issue decision point, so
+        // the stream must carry its L0 node. Without it the local chain has no
+        // L0 event at all and the chain checker can only report
+        // no_l0_fault_applied even though tlb_walk/tlb_refill are in the
+        // stream (measured on the R4-6 T08-F0-W9 pilot). Emitted first so the
+        // event order is inj -> tlb_walk -> tlb_refill; part of the same
+        // fault_id/ptag, so existing joins are unaffected.
+        std::ostringstream d_inj;
+        d_inj << "family=tlb;site=arm_tlb_walk_issue_drop;field=" << mode
+              << ";walk_id=" << walk_id << ";level=L" << level
+              << ";req_seq=" << req_seq;
+        notePropEvt("inj", {
+            {"fault_id", std::to_string(ptag)},
+            {"corr", CORR_ORIGIN},
+            {"walk_id", std::to_string(walk_id)},
+            {"va", h_va.str()},
+            {"dyn_inst_seq", std::to_string(req_seq)},
+            {"request_id", std::to_string(req_seq)},
+            {"field", mode},
+            {"evidence_status", "observed"},
+            {"detail", d_inj.str()},
+        });
+
         std::ostringstream d_walk;
         d_walk << "family=tlb;site=tlb_walk;walk_id=" << walk_id
                << ";level=L" << level << ";start_tick=" << walk_start_tick

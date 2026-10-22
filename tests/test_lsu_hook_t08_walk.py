@@ -120,11 +120,17 @@ def main():
           "walk_pairing_lookup_notice" in tlb_hh and "walk_pairing_probe_notice" in tlb_hh)
 
     print("[B] walker 接线（config + 自挂 + 唯一实例 + TLB 冷启动）")
+    # [R4-6.0] the kwarg is now assembled into _tlb_kwargs and injected only
+    # for walk_pairing: passing walker=None for the lookup modes made gem5's
+    # param conversion call Class(None) -> TypeError, killing EVERY FS run at
+    # instantiate time (see round4_findings §R4-6.0).
     check("FS config 在 walk_pairing 下把 walker=cpu0.mmu.walker 交给 CHAOSArmTLB",
-          'walker=cpu0.mmu.walker if args.tlb_fault_type == "walk_pairing"'
-          in fs_py)
-    check("其余 fault type 传 walker=None（T01-T04/T10 逐字节不变）",
-          "else None," in fs_py and "walker=cpu0.mmu.walker" in fs_py)
+          'if args.tlb_fault_type == "walk_pairing":' in fs_py
+          and '_tlb_kwargs["walker"] = cpu0.mmu.walker' in fs_py)
+    _kw = (fs_py.split("_tlb_kwargs = dict(")[1].split("if args.tlb_fault_type")[0]
+           if "_tlb_kwargs = dict(" in fs_py else "")
+    check("其余 fault type 不设 walker 参数（不得传 None）",
+          "_tlb_kwargs = dict(" in fs_py and "walker" not in _kw)
     check("ctor 自挂 walker->setChaosTLB(this)",
           "walker->setChaosTLB(this)" in tlb_cc)
     check("table_walker 在 walk 发出点查 chaosTLB->maybeDropWalkFill",
