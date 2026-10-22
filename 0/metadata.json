@@ -1,0 +1,25 @@
+{
+  "cli_version": "0.10.2",
+  "checkpoint_id": "01M5GNJ5WXJBNH60CJJVZZY1CY",
+  "session_id": "492e583a-a50c-4723-aba2-f594947f2bea",
+  "strategy": "manual-commit",
+  "created_at": "2026-10-22T02:03:14.07554845Z",
+  "branch": "lsu-mdspec-20261019",
+  "checkpoints_count": 1,
+  "save_step_count": 1,
+  "files_touched": [],
+  "agent": "Claude Code",
+  "model": "DeepSeek-V4.1-Flash",
+  "turn_id": "f38b1218fc11",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 718902,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 31963392,
+    "output_tokens": 87274,
+    "api_call_count": 141
+  },
+  "session_metrics": {
+    "turn_count": 1
+  }
+}

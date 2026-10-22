@@ -1,0 +1,7 @@
+<task-notification>
+<task-id>brjgpalem</task-id>
+<tool-use-id>call_01_hkdrk85tz90abehylka4cwca</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi-ding/492e583a-a50c-4723-aba2-f594947f2bea/tasks/brjgpalem.output</output-file>
+<status>completed</status>
+<summary>Background command "Relaunch T08 pilot" completed (exit code 0)</summary>
+</task-notification>
