@@ -5351,7 +5351,7 @@
     "spec_name": "Atomic-Litmus 并发探针（MP、SB、LB、IRIW、Dekker、ticket lock、CAS counter、LDXR/STXR）",
     "binary": null,
     "golden": null,
-    "note": "workload-level:blocked(multicore-fs: litmus needs multi-core FS)"
+    "note": "workload-level:blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 该模型×档位亲和集合内：C08 是注入器宿主互斥，O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)"
    },
    "path_raw": "[C08-F0-W7] L0 CHAOSCache或MSHR/fill控制点注入 → L1 tag lookup(set/way/tag/valid/coh/dirty/data) → L2 hit返回，或miss→MSHR allocate/merge→下级Request→response/fill→victim/eviction/writeback → L3 响应送回LSQ或错误line成为后续命中源 → L4 load写PRF/消费者或store持久化副作用 → L5 commit/异常与软件oracle结局。本Run触发=共享行或snoop；频率=F0；负载=Atomic-Litmus 并发探针（MP、SB、LB、IRIW、Dekker、ticket lock、CAS counter、LDXR/STXR）。",
    "path_nodes": [
@@ -5371,7 +5371,7 @@
    "spec_landed": "",
    "status": "BLOCKED",
    "status_reasons": [
-    "workload:workload-level:blocked(multicore-fs: litmus needs multi-core FS)"
+    "workload:workload-level:blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 该模型×档位亲和集合内：C08 是注入器宿主互斥，O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)"
    ],
    "target_activated_samples": "385"
   },
@@ -5422,7 +5422,7 @@
     "spec_name": "Atomic-Litmus 并发探针（MP、SB、LB、IRIW、Dekker、ticket lock、CAS counter、LDXR/STXR）",
     "binary": null,
     "golden": null,
-    "note": "workload-level:blocked(multicore-fs: litmus needs multi-core FS)"
+    "note": "workload-level:blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 该模型×档位亲和集合内：C08 是注入器宿主互斥，O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)"
    },
    "path_raw": "[C08-F2-W7] L0 CHAOSCache或MSHR/fill控制点注入 → L1 tag lookup(set/way/tag/valid/coh/dirty/data) → L2 hit返回，或miss→MSHR allocate/merge→下级Request→response/fill→victim/eviction/writeback → L3 响应送回LSQ或错误line成为后续命中源 → L4 load写PRF/消费者或store持久化副作用 → L5 commit/异常与软件oracle结局。本Run触发=共享行或snoop；频率=F2；负载=Atomic-Litmus 并发探针（MP、SB、LB、IRIW、Dekker、ticket lock、CAS counter、LDXR/STXR）。",
    "path_nodes": [
@@ -5442,7 +5442,7 @@
    "spec_landed": "",
    "status": "BLOCKED",
    "status_reasons": [
-    "workload:workload-level:blocked(multicore-fs: litmus needs multi-core FS)"
+    "workload:workload-level:blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 该模型×档位亲和集合内：C08 是注入器宿主互斥，O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)"
    ],
    "target_activated_samples": "385"
   },
@@ -5493,7 +5493,7 @@
     "spec_name": "Atomic-Litmus 并发探针（MP、SB、LB、IRIW、Dekker、ticket lock、CAS counter、LDXR/STXR）",
     "binary": null,
     "golden": null,
-    "note": "workload-level:blocked(multicore-fs: litmus needs multi-core FS)"
+    "note": "workload-level:blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 该模型×档位亲和集合内：C08 是注入器宿主互斥，O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)"
    },
    "path_raw": "[C08-F5-W7] L0 CHAOSCache或MSHR/fill控制点注入 → L1 tag lookup(set/way/tag/valid/coh/dirty/data) → L2 hit返回，或miss→MSHR allocate/merge→下级Request→response/fill→victim/eviction/writeback → L3 响应送回LSQ或错误line成为后续命中源 → L4 load写PRF/消费者或store持久化副作用 → L5 commit/异常与软件oracle结局。本Run触发=共享行或snoop；频率=F5；负载=Atomic-Litmus 并发探针（MP、SB、LB、IRIW、Dekker、ticket lock、CAS counter、LDXR/STXR）。",
    "path_nodes": [
@@ -5513,7 +5513,7 @@
    "spec_landed": "",
    "status": "BLOCKED",
    "status_reasons": [
-    "workload:workload-level:blocked(multicore-fs: litmus needs multi-core FS)"
+    "workload:workload-level:blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 该模型×档位亲和集合内：C08 是注入器宿主互斥，O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)"
    ],
    "target_activated_samples": "385"
   },
@@ -5564,7 +5564,7 @@
     "spec_name": "Atomic-Litmus 并发探针（MP、SB、LB、IRIW、Dekker、ticket lock、CAS counter、LDXR/STXR）",
     "binary": null,
     "golden": null,
-    "note": "workload-level:blocked(multicore-fs: litmus needs multi-core FS)"
+    "note": "workload-level:blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 该模型×档位亲和集合内：C08 是注入器宿主互斥，O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)"
    },
    "path_raw": "[C08-F6-W7] L0 CHAOSCache或MSHR/fill控制点注入 → L1 tag lookup(set/way/tag/valid/coh/dirty/data) → L2 hit返回，或miss→MSHR allocate/merge→下级Request→response/fill→victim/eviction/writeback → L3 响应送回LSQ或错误line成为后续命中源 → L4 load写PRF/消费者或store持久化副作用 → L5 commit/异常与软件oracle结局。本Run触发=共享行或snoop；频率=F6；负载=Atomic-Litmus 并发探针（MP、SB、LB、IRIW、Dekker、ticket lock、CAS counter、LDXR/STXR）。",
    "path_nodes": [
@@ -5584,7 +5584,7 @@
    "spec_landed": "",
    "status": "BLOCKED",
    "status_reasons": [
-    "workload:workload-level:blocked(multicore-fs: litmus needs multi-core FS)"
+    "workload:workload-level:blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 该模型×档位亲和集合内：C08 是注入器宿主互斥，O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)"
    ],
    "target_activated_samples": "385"
   },
@@ -6497,7 +6497,7 @@
     "spec_name": "Atomic-Litmus 并发探针（MP、SB、LB、IRIW、Dekker、ticket lock、CAS counter、LDXR/STXR）",
     "binary": null,
     "golden": null,
-    "note": "workload-level:blocked(multicore-fs: litmus needs multi-core FS)"
+    "note": "workload-level:blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 该模型×档位亲和集合内：C08 是注入器宿主互斥，O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)"
    },
    "path_raw": "[O01-F0-W7] L0 exclusive-monitor/原子操作数/完成或排序状态注入 → L1 LDXR建立reservation或LSE/CAS/SWP/LDADD形成RMW请求 → L2 cache/coherence执行compare/old→new并决定success → L3 STXR状态/old value返回、barrier/order约束全局可见性 → L4 目的寄存器与共享内存被后续线程消费 → L5 commit与litmus forbidden-outcome/oracle结局。本Run触发=LDXR后、STXR前；频率=F0；负载=Atomic-Litmus 并发探针（MP、SB、LB、IRIW、Dekker、ticket lock、CAS counter、LDXR/STXR）。",
    "path_nodes": [
@@ -6517,7 +6517,7 @@
    "spec_landed": "",
    "status": "BLOCKED",
    "status_reasons": [
-    "workload:workload-level:blocked(multicore-fs: litmus needs multi-core FS)"
+    "workload:workload-level:blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 该模型×档位亲和集合内：C08 是注入器宿主互斥，O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)"
    ],
    "target_activated_samples": "385"
   },
@@ -6533,7 +6533,7 @@
     "spec_name": "Atomic-Litmus 并发探针（MP、SB、LB、IRIW、Dekker、ticket lock、CAS counter、LDXR/STXR）",
     "binary": null,
     "golden": null,
-    "note": "workload-level:blocked(multicore-fs: litmus needs multi-core FS)"
+    "note": "workload-level:blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 该模型×档位亲和集合内：C08 是注入器宿主互斥，O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)"
    },
    "path_raw": "[O01-F2-W7] L0 exclusive-monitor/原子操作数/完成或排序状态注入 → L1 LDXR建立reservation或LSE/CAS/SWP/LDADD形成RMW请求 → L2 cache/coherence执行compare/old→new并决定success → L3 STXR状态/old value返回、barrier/order约束全局可见性 → L4 目的寄存器与共享内存被后续线程消费 → L5 commit与litmus forbidden-outcome/oracle结局。本Run触发=LDXR后、STXR前；频率=F2；负载=Atomic-Litmus 并发探针（MP、SB、LB、IRIW、Dekker、ticket lock、CAS counter、LDXR/STXR）。",
    "path_nodes": [
@@ -6553,7 +6553,7 @@
    "spec_landed": "",
    "status": "BLOCKED",
    "status_reasons": [
-    "workload:workload-level:blocked(multicore-fs: litmus needs multi-core FS)"
+    "workload:workload-level:blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 该模型×档位亲和集合内：C08 是注入器宿主互斥，O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)"
    ],
    "target_activated_samples": "385"
   },
@@ -6569,7 +6569,7 @@
     "spec_name": "Atomic-Litmus 并发探针（MP、SB、LB、IRIW、Dekker、ticket lock、CAS counter、LDXR/STXR）",
     "binary": null,
     "golden": null,
-    "note": "workload-level:blocked(multicore-fs: litmus needs multi-core FS)"
+    "note": "workload-level:blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 该模型×档位亲和集合内：C08 是注入器宿主互斥，O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)"
    },
    "path_raw": "[O01-F6-W7] L0 exclusive-monitor/原子操作数/完成或排序状态注入 → L1 LDXR建立reservation或LSE/CAS/SWP/LDADD形成RMW请求 → L2 cache/coherence执行compare/old→new并决定success → L3 STXR状态/old value返回、barrier/order约束全局可见性 → L4 目的寄存器与共享内存被后续线程消费 → L5 commit与litmus forbidden-outcome/oracle结局。本Run触发=LDXR后、STXR前；频率=F6；负载=Atomic-Litmus 并发探针（MP、SB、LB、IRIW、Dekker、ticket lock、CAS counter、LDXR/STXR）。",
    "path_nodes": [
@@ -6589,7 +6589,7 @@
    "spec_landed": "",
    "status": "BLOCKED",
    "status_reasons": [
-    "workload:workload-level:blocked(multicore-fs: litmus needs multi-core FS)"
+    "workload:workload-level:blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 该模型×档位亲和集合内：C08 是注入器宿主互斥，O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)"
    ],
    "target_activated_samples": "385"
   },
@@ -6605,7 +6605,7 @@
     "spec_name": "Atomic-Litmus 并发探针（MP、SB、LB、IRIW、Dekker、ticket lock、CAS counter、LDXR/STXR）",
     "binary": null,
     "golden": null,
-    "note": "workload-level:blocked(multicore-fs: litmus needs multi-core FS)"
+    "note": "workload-level:blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 该模型×档位亲和集合内：C08 是注入器宿主互斥，O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)"
    },
    "path_raw": "[O02-F0-W7] L0 exclusive-monitor/原子操作数/完成或排序状态注入 → L1 LDXR建立reservation或LSE/CAS/SWP/LDADD形成RMW请求 → L2 cache/coherence执行compare/old→new并决定success → L3 STXR状态/old value返回、barrier/order约束全局可见性 → L4 目的寄存器与共享内存被后续线程消费 → L5 commit与litmus forbidden-outcome/oracle结局。本Run触发=存在竞争写或reservation；频率=F0；负载=Atomic-Litmus 并发探针（MP、SB、LB、IRIW、Dekker、ticket lock、CAS counter、LDXR/STXR）。",
    "path_nodes": [
@@ -6625,7 +6625,7 @@
    "spec_landed": "",
    "status": "BLOCKED",
    "status_reasons": [
-    "workload:workload-level:blocked(multicore-fs: litmus needs multi-core FS)"
+    "workload:workload-level:blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 该模型×档位亲和集合内：C08 是注入器宿主互斥，O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)"
    ],
    "target_activated_samples": "385"
   },
@@ -6641,7 +6641,7 @@
     "spec_name": "Atomic-Litmus 并发探针（MP、SB、LB、IRIW、Dekker、ticket lock、CAS counter、LDXR/STXR）",
     "binary": null,
     "golden": null,
-    "note": "workload-level:blocked(multicore-fs: litmus needs multi-core FS)"
+    "note": "workload-level:blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 该模型×档位亲和集合内：C08 是注入器宿主互斥，O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)"
    },
    "path_raw": "[O02-F2-W7] L0 exclusive-monitor/原子操作数/完成或排序状态注入 → L1 LDXR建立reservation或LSE/CAS/SWP/LDADD形成RMW请求 → L2 cache/coherence执行compare/old→new并决定success → L3 STXR状态/old value返回、barrier/order约束全局可见性 → L4 目的寄存器与共享内存被后续线程消费 → L5 commit与litmus forbidden-outcome/oracle结局。本Run触发=存在竞争写或reservation；频率=F2；负载=Atomic-Litmus 并发探针（MP、SB、LB、IRIW、Dekker、ticket lock、CAS counter、LDXR/STXR）。",
    "path_nodes": [
@@ -6661,7 +6661,7 @@
    "spec_landed": "",
    "status": "BLOCKED",
    "status_reasons": [
-    "workload:workload-level:blocked(multicore-fs: litmus needs multi-core FS)"
+    "workload:workload-level:blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 该模型×档位亲和集合内：C08 是注入器宿主互斥，O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)"
    ],
    "target_activated_samples": "385"
   },
@@ -6677,7 +6677,7 @@
     "spec_name": "Atomic-Litmus 并发探针（MP、SB、LB、IRIW、Dekker、ticket lock、CAS counter、LDXR/STXR）",
     "binary": null,
     "golden": null,
-    "note": "workload-level:blocked(multicore-fs: litmus needs multi-core FS)"
+    "note": "workload-level:blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 该模型×档位亲和集合内：C08 是注入器宿主互斥，O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)"
    },
    "path_raw": "[O02-F5-W7] L0 exclusive-monitor/原子操作数/完成或排序状态注入 → L1 LDXR建立reservation或LSE/CAS/SWP/LDADD形成RMW请求 → L2 cache/coherence执行compare/old→new并决定success → L3 STXR状态/old value返回、barrier/order约束全局可见性 → L4 目的寄存器与共享内存被后续线程消费 → L5 commit与litmus forbidden-outcome/oracle结局。本Run触发=存在竞争写或reservation；频率=F5；负载=Atomic-Litmus 并发探针（MP、SB、LB、IRIW、Dekker、ticket lock、CAS counter、LDXR/STXR）。",
    "path_nodes": [
@@ -6697,7 +6697,7 @@
    "spec_landed": "",
    "status": "BLOCKED",
    "status_reasons": [
-    "workload:workload-level:blocked(multicore-fs: litmus needs multi-core FS)"
+    "workload:workload-level:blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 该模型×档位亲和集合内：C08 是注入器宿主互斥，O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)"
    ],
    "target_activated_samples": "385"
   },
@@ -6713,7 +6713,7 @@
     "spec_name": "Atomic-Litmus 并发探针（MP、SB、LB、IRIW、Dekker、ticket lock、CAS counter、LDXR/STXR）",
     "binary": null,
     "golden": null,
-    "note": "workload-level:blocked(multicore-fs: litmus needs multi-core FS)"
+    "note": "workload-level:blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 该模型×档位亲和集合内：C08 是注入器宿主互斥，O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)"
    },
    "path_raw": "[O02-F6-W7] L0 exclusive-monitor/原子操作数/完成或排序状态注入 → L1 LDXR建立reservation或LSE/CAS/SWP/LDADD形成RMW请求 → L2 cache/coherence执行compare/old→new并决定success → L3 STXR状态/old value返回、barrier/order约束全局可见性 → L4 目的寄存器与共享内存被后续线程消费 → L5 commit与litmus forbidden-outcome/oracle结局。本Run触发=存在竞争写或reservation；频率=F6；负载=Atomic-Litmus 并发探针（MP、SB、LB、IRIW、Dekker、ticket lock、CAS counter、LDXR/STXR）。",
    "path_nodes": [
@@ -6733,7 +6733,7 @@
    "spec_landed": "",
    "status": "BLOCKED",
    "status_reasons": [
-    "workload:workload-level:blocked(multicore-fs: litmus needs multi-core FS)"
+    "workload:workload-level:blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 该模型×档位亲和集合内：C08 是注入器宿主互斥，O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)"
    ],
    "target_activated_samples": "385"
   },
@@ -6749,7 +6749,7 @@
     "spec_name": "Atomic-Litmus 并发探针（MP、SB、LB、IRIW、Dekker、ticket lock、CAS counter、LDXR/STXR）",
     "binary": null,
     "golden": null,
-    "note": "workload-level:blocked(multicore-fs: litmus needs multi-core FS)"
+    "note": "workload-level:blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 该模型×档位亲和集合内：C08 是注入器宿主互斥，O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)"
    },
    "path_raw": "[O03-F0-W7] L0 exclusive-monitor/原子操作数/完成或排序状态注入 → L1 LDXR建立reservation或LSE/CAS/SWP/LDADD形成RMW请求 → L2 cache/coherence执行compare/old→new并决定success → L3 STXR状态/old value返回、barrier/order约束全局可见性 → L4 目的寄存器与共享内存被后续线程消费 → L5 commit与litmus forbidden-outcome/oracle结局。本Run触发=原子操作完成；频率=F0；负载=Atomic-Litmus 并发探针（MP、SB、LB、IRIW、Dekker、ticket lock、CAS counter、LDXR/STXR）。",
    "path_nodes": [
@@ -6769,7 +6769,7 @@
    "spec_landed": "",
    "status": "BLOCKED",
    "status_reasons": [
-    "workload:workload-level:blocked(multicore-fs: litmus needs multi-core FS)"
+    "workload:workload-level:blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 该模型×档位亲和集合内：C08 是注入器宿主互斥，O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)"
    ],
    "target_activated_samples": "385"
   },
@@ -6785,7 +6785,7 @@
     "spec_name": "Atomic-Litmus 并发探针（MP、SB、LB、IRIW、Dekker、ticket lock、CAS counter、LDXR/STXR）",
     "binary": null,
     "golden": null,
-    "note": "workload-level:blocked(multicore-fs: litmus needs multi-core FS)"
+    "note": "workload-level:blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 该模型×档位亲和集合内：C08 是注入器宿主互斥，O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)"
    },
    "path_raw": "[O03-F2-W7] L0 exclusive-monitor/原子操作数/完成或排序状态注入 → L1 LDXR建立reservation或LSE/CAS/SWP/LDADD形成RMW请求 → L2 cache/coherence执行compare/old→new并决定success → L3 STXR状态/old value返回、barrier/order约束全局可见性 → L4 目的寄存器与共享内存被后续线程消费 → L5 commit与litmus forbidden-outcome/oracle结局。本Run触发=原子操作完成；频率=F2；负载=Atomic-Litmus 并发探针（MP、SB、LB、IRIW、Dekker、ticket lock、CAS counter、LDXR/STXR）。",
    "path_nodes": [
@@ -6805,7 +6805,7 @@
    "spec_landed": "",
    "status": "BLOCKED",
    "status_reasons": [
-    "workload:workload-level:blocked(multicore-fs: litmus needs multi-core FS)"
+    "workload:workload-level:blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 该模型×档位亲和集合内：C08 是注入器宿主互斥，O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)"
    ],
    "target_activated_samples": "385"
   },
@@ -6821,7 +6821,7 @@
     "spec_name": "Atomic-Litmus 并发探针（MP、SB、LB、IRIW、Dekker、ticket lock、CAS counter、LDXR/STXR）",
     "binary": null,
     "golden": null,
-    "note": "workload-level:blocked(multicore-fs: litmus needs multi-core FS)"
+    "note": "workload-level:blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 该模型×档位亲和集合内：C08 是注入器宿主互斥，O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)"
    },
    "path_raw": "[O03-F6-W7] L0 exclusive-monitor/原子操作数/完成或排序状态注入 → L1 LDXR建立reservation或LSE/CAS/SWP/LDADD形成RMW请求 → L2 cache/coherence执行compare/old→new并决定success → L3 STXR状态/old value返回、barrier/order约束全局可见性 → L4 目的寄存器与共享内存被后续线程消费 → L5 commit与litmus forbidden-outcome/oracle结局。本Run触发=原子操作完成；频率=F6；负载=Atomic-Litmus 并发探针（MP、SB、LB、IRIW、Dekker、ticket lock、CAS counter、LDXR/STXR）。",
    "path_nodes": [
@@ -6841,7 +6841,7 @@
    "spec_landed": "",
    "status": "BLOCKED",
    "status_reasons": [
-    "workload:workload-level:blocked(multicore-fs: litmus needs multi-core FS)"
+    "workload:workload-level:blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 该模型×档位亲和集合内：C08 是注入器宿主互斥，O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)"
    ],
    "target_activated_samples": "385"
   },
@@ -6857,7 +6857,7 @@
     "spec_name": "Atomic-Litmus 并发探针（MP、SB、LB、IRIW、Dekker、ticket lock、CAS counter、LDXR/STXR）",
     "binary": null,
     "golden": null,
-    "note": "workload-level:blocked(multicore-fs: litmus needs multi-core FS)"
+    "note": "workload-level:blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 该模型×档位亲和集合内：C08 是注入器宿主互斥，O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)"
    },
    "path_raw": "[O04-F0-W7] L0 exclusive-monitor/原子操作数/完成或排序状态注入 → L1 LDXR建立reservation或LSE/CAS/SWP/LDADD形成RMW请求 → L2 cache/coherence执行compare/old→new并决定success → L3 STXR状态/old value返回、barrier/order约束全局可见性 → L4 目的寄存器与共享内存被后续线程消费 → L5 commit与litmus forbidden-outcome/oracle结局。本Run触发=CAS/SWP/LDADD；频率=F0；负载=Atomic-Litmus 并发探针（MP、SB、LB、IRIW、Dekker、ticket lock、CAS counter、LDXR/STXR）。",
    "path_nodes": [
@@ -6879,7 +6879,7 @@
    "status_reasons": [
     "campaign:deferred(RMW data path needs cache-side SwapResp hook)",
     "spec:需新增（当前阻塞：缺RMW数据/SwapResp hook）",
-    "workload:workload-level:blocked(multicore-fs: litmus needs multi-core FS)"
+    "workload:workload-level:blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 该模型×档位亲和集合内：C08 是注入器宿主互斥，O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)"
    ],
    "target_activated_samples": "385"
   },
@@ -6895,7 +6895,7 @@
     "spec_name": "Atomic-Litmus 并发探针（MP、SB、LB、IRIW、Dekker、ticket lock、CAS counter、LDXR/STXR）",
     "binary": null,
     "golden": null,
-    "note": "workload-level:blocked(multicore-fs: litmus needs multi-core FS)"
+    "note": "workload-level:blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 该模型×档位亲和集合内：C08 是注入器宿主互斥，O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)"
    },
    "path_raw": "[O04-F2-W7] L0 exclusive-monitor/原子操作数/完成或排序状态注入 → L1 LDXR建立reservation或LSE/CAS/SWP/LDADD形成RMW请求 → L2 cache/coherence执行compare/old→new并决定success → L3 STXR状态/old value返回、barrier/order约束全局可见性 → L4 目的寄存器与共享内存被后续线程消费 → L5 commit与litmus forbidden-outcome/oracle结局。本Run触发=CAS/SWP/LDADD；频率=F2；负载=Atomic-Litmus 并发探针（MP、SB、LB、IRIW、Dekker、ticket lock、CAS counter、LDXR/STXR）。",
    "path_nodes": [
@@ -6917,7 +6917,7 @@
    "status_reasons": [
     "campaign:deferred(RMW data path needs cache-side SwapResp hook)",
     "spec:需新增（当前阻塞：缺RMW数据/SwapResp hook）",
-    "workload:workload-level:blocked(multicore-fs: litmus needs multi-core FS)"
+    "workload:workload-level:blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 该模型×档位亲和集合内：C08 是注入器宿主互斥，O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)"
    ],
    "target_activated_samples": "385"
   },
@@ -6933,7 +6933,7 @@
     "spec_name": "Atomic-Litmus 并发探针（MP、SB、LB、IRIW、Dekker、ticket lock、CAS counter、LDXR/STXR）",
     "binary": null,
     "golden": null,
-    "note": "workload-level:blocked(multicore-fs: litmus needs multi-core FS)"
+    "note": "workload-level:blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 该模型×档位亲和集合内：C08 是注入器宿主互斥，O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)"
    },
    "path_raw": "[O04-F6-W7] L0 exclusive-monitor/原子操作数/完成或排序状态注入 → L1 LDXR建立reservation或LSE/CAS/SWP/LDADD形成RMW请求 → L2 cache/coherence执行compare/old→new并决定success → L3 STXR状态/old value返回、barrier/order约束全局可见性 → L4 目的寄存器与共享内存被后续线程消费 → L5 commit与litmus forbidden-outcome/oracle结局。本Run触发=CAS/SWP/LDADD；频率=F6；负载=Atomic-Litmus 并发探针（MP、SB、LB、IRIW、Dekker、ticket lock、CAS counter、LDXR/STXR）。",
    "path_nodes": [
@@ -6955,7 +6955,7 @@
    "status_reasons": [
     "campaign:deferred(RMW data path needs cache-side SwapResp hook)",
     "spec:需新增（当前阻塞：缺RMW数据/SwapResp hook）",
-    "workload:workload-level:blocked(multicore-fs: litmus needs multi-core FS)"
+    "workload:workload-level:blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 该模型×档位亲和集合内：C08 是注入器宿主互斥，O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)"
    ],
    "target_activated_samples": "385"
   },
@@ -6971,7 +6971,7 @@
     "spec_name": "Atomic-Litmus 并发探针（MP、SB、LB、IRIW、Dekker、ticket lock、CAS counter、LDXR/STXR）",
     "binary": null,
     "golden": null,
-    "note": "workload-level:blocked(multicore-fs: litmus needs multi-core FS)"
+    "note": "workload-level:blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 该模型×档位亲和集合内：C08 是注入器宿主互斥，O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)"
    },
    "path_raw": "[O05-F0-W7] L0 exclusive-monitor/原子操作数/完成或排序状态注入 → L1 LDXR建立reservation或LSE/CAS/SWP/LDADD形成RMW请求 → L2 cache/coherence执行compare/old→new并决定success → L3 STXR状态/old value返回、barrier/order约束全局可见性 → L4 目的寄存器与共享内存被后续线程消费 → L5 commit与litmus forbidden-outcome/oracle结局。本Run触发=原子事务；频率=F0；负载=Atomic-Litmus 并发探针（MP、SB、LB、IRIW、Dekker、ticket lock、CAS counter、LDXR/STXR）。",
    "path_nodes": [
@@ -6991,9 +6991,9 @@
    "spec_landed": "",
    "status": "BLOCKED",
    "status_reasons": [
-    "campaign:blocked(multicore-fs: RMW ordering needs multi-core)",
+    "campaign:blocked(multicore-fs: 模型语义未实现——RMW 请求/全局可见性 order 跟踪缺失；多核 FS 基础设施已就绪 R4-8-FSMC)",
     "spec:需新增（当前阻塞：需要多核FS的RMW请求/全局可见性）",
-    "workload:workload-level:blocked(multicore-fs: litmus needs multi-core FS)"
+    "workload:workload-level:blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 该模型×档位亲和集合内：C08 是注入器宿主互斥，O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)"
    ],
    "target_activated_samples": "385"
   },
@@ -7009,7 +7009,7 @@
     "spec_name": "Atomic-Litmus 并发探针（MP、SB、LB、IRIW、Dekker、ticket lock、CAS counter、LDXR/STXR）",
     "binary": null,
     "golden": null,
-    "note": "workload-level:blocked(multicore-fs: litmus needs multi-core FS)"
+    "note": "workload-level:blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 该模型×档位亲和集合内：C08 是注入器宿主互斥，O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)"
    },
    "path_raw": "[O05-F4-W7] L0 exclusive-monitor/原子操作数/完成或排序状态注入 → L1 LDXR建立reservation或LSE/CAS/SWP/LDADD形成RMW请求 → L2 cache/coherence执行compare/old→new并决定success → L3 STXR状态/old value返回、barrier/order约束全局可见性 → L4 目的寄存器与共享内存被后续线程消费 → L5 commit与litmus forbidden-outcome/oracle结局。本Run触发=原子事务；频率=F4；负载=Atomic-Litmus 并发探针（MP、SB、LB、IRIW、Dekker、ticket lock、CAS counter、LDXR/STXR）。",
    "path_nodes": [
@@ -7029,9 +7029,9 @@
    "spec_landed": "",
    "status": "BLOCKED",
    "status_reasons": [
-    "campaign:blocked(multicore-fs: RMW ordering needs multi-core)",
+    "campaign:blocked(multicore-fs: 模型语义未实现——RMW 请求/全局可见性 order 跟踪缺失；多核 FS 基础设施已就绪 R4-8-FSMC)",
     "spec:需新增（当前阻塞：需要多核FS的RMW请求/全局可见性）",
-    "workload:workload-level:blocked(multicore-fs: litmus needs multi-core FS)"
+    "workload:workload-level:blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 该模型×档位亲和集合内：C08 是注入器宿主互斥，O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)"
    ],
    "target_activated_samples": "385"
   },
@@ -7047,7 +7047,7 @@
     "spec_name": "Atomic-Litmus 并发探针（MP、SB、LB、IRIW、Dekker、ticket lock、CAS counter、LDXR/STXR）",
     "binary": null,
     "golden": null,
-    "note": "workload-level:blocked(multicore-fs: litmus needs multi-core FS)"
+    "note": "workload-level:blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 该模型×档位亲和集合内：C08 是注入器宿主互斥，O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)"
    },
    "path_raw": "[O05-F6-W7] L0 exclusive-monitor/原子操作数/完成或排序状态注入 → L1 LDXR建立reservation或LSE/CAS/SWP/LDADD形成RMW请求 → L2 cache/coherence执行compare/old→new并决定success → L3 STXR状态/old value返回、barrier/order约束全局可见性 → L4 目的寄存器与共享内存被后续线程消费 → L5 commit与litmus forbidden-outcome/oracle结局。本Run触发=原子事务；频率=F6；负载=Atomic-Litmus 并发探针（MP、SB、LB、IRIW、Dekker、ticket lock、CAS counter、LDXR/STXR）。",
    "path_nodes": [
@@ -7067,9 +7067,9 @@
    "spec_landed": "",
    "status": "BLOCKED",
    "status_reasons": [
-    "campaign:blocked(multicore-fs: RMW ordering needs multi-core)",
+    "campaign:blocked(multicore-fs: 模型语义未实现——RMW 请求/全局可见性 order 跟踪缺失；多核 FS 基础设施已就绪 R4-8-FSMC)",
     "spec:需新增（当前阻塞：需要多核FS的RMW请求/全局可见性）",
-    "workload:workload-level:blocked(multicore-fs: litmus needs multi-core FS)"
+    "workload:workload-level:blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 该模型×档位亲和集合内：C08 是注入器宿主互斥，O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)"
    ],
    "target_activated_samples": "385"
   },
@@ -7085,7 +7085,7 @@
     "spec_name": "Atomic-Litmus 并发探针（MP、SB、LB、IRIW、Dekker、ticket lock、CAS counter、LDXR/STXR）",
     "binary": null,
     "golden": null,
-    "note": "workload-level:blocked(multicore-fs: litmus needs multi-core FS)"
+    "note": "workload-level:blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 该模型×档位亲和集合内：C08 是注入器宿主互斥，O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)"
    },
    "path_raw": "[O06-F0-W7] L0 exclusive-monitor/原子操作数/完成或排序状态注入 → L1 LDXR建立reservation或LSE/CAS/SWP/LDADD形成RMW请求 → L2 cache/coherence执行compare/old→new并决定success → L3 STXR状态/old value返回、barrier/order约束全局可见性 → L4 目的寄存器与共享内存被后续线程消费 → L5 commit与litmus forbidden-outcome/oracle结局。本Run触发=barrier有前后内存事务；频率=F0；负载=Atomic-Litmus 并发探针（MP、SB、LB、IRIW、Dekker、ticket lock、CAS counter、LDXR/STXR）。",
    "path_nodes": [
@@ -7105,9 +7105,9 @@
    "spec_landed": "",
    "status": "BLOCKED",
    "status_reasons": [
-    "campaign:blocked(multicore-fs: barrier completion needs multi-core)",
+    "campaign:blocked(multicore-fs: 模型语义未实现——barrier 完成跟踪缺失；多核 FS 基础设施已就绪 R4-8-FSMC)",
     "spec:需新增（当前阻塞：需要多核FS barrier完成跟踪）",
-    "workload:workload-level:blocked(multicore-fs: litmus needs multi-core FS)"
+    "workload:workload-level:blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 该模型×档位亲和集合内：C08 是注入器宿主互斥，O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)"
    ],
    "target_activated_samples": "385"
   },
@@ -7123,7 +7123,7 @@
     "spec_name": "Atomic-Litmus 并发探针（MP、SB、LB、IRIW、Dekker、ticket lock、CAS counter、LDXR/STXR）",
     "binary": null,
     "golden": null,
-    "note": "workload-level:blocked(multicore-fs: litmus needs multi-core FS)"
+    "note": "workload-level:blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 该模型×档位亲和集合内：C08 是注入器宿主互斥，O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)"
    },
    "path_raw": "[O06-F4-W7] L0 exclusive-monitor/原子操作数/完成或排序状态注入 → L1 LDXR建立reservation或LSE/CAS/SWP/LDADD形成RMW请求 → L2 cache/coherence执行compare/old→new并决定success → L3 STXR状态/old value返回、barrier/order约束全局可见性 → L4 目的寄存器与共享内存被后续线程消费 → L5 commit与litmus forbidden-outcome/oracle结局。本Run触发=barrier有前后内存事务；频率=F4；负载=Atomic-Litmus 并发探针（MP、SB、LB、IRIW、Dekker、ticket lock、CAS counter、LDXR/STXR）。",
    "path_nodes": [
@@ -7143,9 +7143,9 @@
    "spec_landed": "",
    "status": "BLOCKED",
    "status_reasons": [
-    "campaign:blocked(multicore-fs: barrier completion needs multi-core)",
+    "campaign:blocked(multicore-fs: 模型语义未实现——barrier 完成跟踪缺失；多核 FS 基础设施已就绪 R4-8-FSMC)",
     "spec:需新增（当前阻塞：需要多核FS barrier完成跟踪）",
-    "workload:workload-level:blocked(multicore-fs: litmus needs multi-core FS)"
+    "workload:workload-level:blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 该模型×档位亲和集合内：C08 是注入器宿主互斥，O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)"
    ],
    "target_activated_samples": "385"
   },
@@ -7161,7 +7161,7 @@
     "spec_name": "Atomic-Litmus 并发探针（MP、SB、LB、IRIW、Dekker、ticket lock、CAS counter、LDXR/STXR）",
     "binary": null,
     "golden": null,
-    "note": "workload-level:blocked(multicore-fs: litmus needs multi-core FS)"
+    "note": "workload-level:blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 该模型×档位亲和集合内：C08 是注入器宿主互斥，O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)"
    },
    "path_raw": "[O06-F6-W7] L0 exclusive-monitor/原子操作数/完成或排序状态注入 → L1 LDXR建立reservation或LSE/CAS/SWP/LDADD形成RMW请求 → L2 cache/coherence执行compare/old→new并决定success → L3 STXR状态/old value返回、barrier/order约束全局可见性 → L4 目的寄存器与共享内存被后续线程消费 → L5 commit与litmus forbidden-outcome/oracle结局。本Run触发=barrier有前后内存事务；频率=F6；负载=Atomic-Litmus 并发探针（MP、SB、LB、IRIW、Dekker、ticket lock、CAS counter、LDXR/STXR）。",
    "path_nodes": [
@@ -7181,9 +7181,9 @@
    "spec_landed": "",
    "status": "BLOCKED",
    "status_reasons": [
-    "campaign:blocked(multicore-fs: barrier completion needs multi-core)",
+    "campaign:blocked(multicore-fs: 模型语义未实现——barrier 完成跟踪缺失；多核 FS 基础设施已就绪 R4-8-FSMC)",
     "spec:需新增（当前阻塞：需要多核FS barrier完成跟踪）",
-    "workload:workload-level:blocked(multicore-fs: litmus needs multi-core FS)"
+    "workload:workload-level:blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 该模型×档位亲和集合内：C08 是注入器宿主互斥，O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)"
    ],
    "target_activated_samples": "385"
   },
@@ -7199,7 +7199,7 @@
     "spec_name": "Atomic-Litmus 并发探针（MP、SB、LB、IRIW、Dekker、ticket lock、CAS counter、LDXR/STXR）",
     "binary": null,
     "golden": null,
-    "note": "workload-level:blocked(multicore-fs: litmus needs multi-core FS)"
+    "note": "workload-level:blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 该模型×档位亲和集合内：C08 是注入器宿主互斥，O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)"
    },
    "path_raw": "[O07-F0-W7] L0 exclusive-monitor/原子操作数/完成或排序状态注入 → L1 LDXR建立reservation或LSE/CAS/SWP/LDADD形成RMW请求 → L2 cache/coherence执行compare/old→new并决定success → L3 STXR状态/old value返回、barrier/order约束全局可见性 → L4 目的寄存器与共享内存被后续线程消费 → L5 commit与litmus forbidden-outcome/oracle结局。本Run触发=至少2个相关事务；频率=F0；负载=Atomic-Litmus 并发探针（MP、SB、LB、IRIW、Dekker、ticket lock、CAS counter、LDXR/STXR）。",
    "path_nodes": [
@@ -7219,9 +7219,9 @@
    "spec_landed": "",
    "status": "BLOCKED",
    "status_reasons": [
-    "campaign:blocked(multicore-fs: order-tag swap needs multi-core)",
+    "campaign:blocked(multicore-fs: 模型语义未实现——order-tag/ready 跟踪缺失；多核 FS 基础设施已就绪 R4-8-FSMC)",
     "spec:需新增（当前阻塞：需要多核FS order-tag/ready跟踪）",
-    "workload:workload-level:blocked(multicore-fs: litmus needs multi-core FS)"
+    "workload:workload-level:blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 该模型×档位亲和集合内：C08 是注入器宿主互斥，O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)"
    ],
    "target_activated_samples": "385"
   },
@@ -7237,7 +7237,7 @@
     "spec_name": "Atomic-Litmus 并发探针（MP、SB、LB、IRIW、Dekker、ticket lock、CAS counter、LDXR/STXR）",
     "binary": null,
     "golden": null,
-    "note": "workload-level:blocked(multicore-fs: litmus needs multi-core FS)"
+    "note": "workload-level:blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 该模型×档位亲和集合内：C08 是注入器宿主互斥，O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)"
    },
    "path_raw": "[O07-F2-W7] L0 exclusive-monitor/原子操作数/完成或排序状态注入 → L1 LDXR建立reservation或LSE/CAS/SWP/LDADD形成RMW请求 → L2 cache/coherence执行compare/old→new并决定success → L3 STXR状态/old value返回、barrier/order约束全局可见性 → L4 目的寄存器与共享内存被后续线程消费 → L5 commit与litmus forbidden-outcome/oracle结局。本Run触发=至少2个相关事务；频率=F2；负载=Atomic-Litmus 并发探针（MP、SB、LB、IRIW、Dekker、ticket lock、CAS counter、LDXR/STXR）。",
    "path_nodes": [
@@ -7257,9 +7257,9 @@
    "spec_landed": "",
    "status": "BLOCKED",
    "status_reasons": [
-    "campaign:blocked(multicore-fs: order-tag swap needs multi-core)",
+    "campaign:blocked(multicore-fs: 模型语义未实现——order-tag/ready 跟踪缺失；多核 FS 基础设施已就绪 R4-8-FSMC)",
     "spec:需新增（当前阻塞：需要多核FS order-tag/ready跟踪）",
-    "workload:workload-level:blocked(multicore-fs: litmus needs multi-core FS)"
+    "workload:workload-level:blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 该模型×档位亲和集合内：C08 是注入器宿主互斥，O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)"
    ],
    "target_activated_samples": "385"
   },
@@ -7275,7 +7275,7 @@
     "spec_name": "Atomic-Litmus 并发探针（MP、SB、LB、IRIW、Dekker、ticket lock、CAS counter、LDXR/STXR）",
     "binary": null,
     "golden": null,
-    "note": "workload-level:blocked(multicore-fs: litmus needs multi-core FS)"
+    "note": "workload-level:blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 该模型×档位亲和集合内：C08 是注入器宿主互斥，O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)"
    },
    "path_raw": "[O07-F6-W7] L0 exclusive-monitor/原子操作数/完成或排序状态注入 → L1 LDXR建立reservation或LSE/CAS/SWP/LDADD形成RMW请求 → L2 cache/coherence执行compare/old→new并决定success → L3 STXR状态/old value返回、barrier/order约束全局可见性 → L4 目的寄存器与共享内存被后续线程消费 → L5 commit与litmus forbidden-outcome/oracle结局。本Run触发=至少2个相关事务；频率=F6；负载=Atomic-Litmus 并发探针（MP、SB、LB、IRIW、Dekker、ticket lock、CAS counter、LDXR/STXR）。",
    "path_nodes": [
@@ -7295,9 +7295,9 @@
    "spec_landed": "",
    "status": "BLOCKED",
    "status_reasons": [
-    "campaign:blocked(multicore-fs: order-tag swap needs multi-core)",
+    "campaign:blocked(multicore-fs: 模型语义未实现——order-tag/ready 跟踪缺失；多核 FS 基础设施已就绪 R4-8-FSMC)",
     "spec:需新增（当前阻塞：需要多核FS order-tag/ready跟踪）",
-    "workload:workload-level:blocked(multicore-fs: litmus needs multi-core FS)"
+    "workload:workload-level:blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 该模型×档位亲和集合内：C08 是注入器宿主互斥，O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)"
    ],
    "target_activated_samples": "385"
   },
@@ -11096,7 +11096,7 @@
     "spec_name": "Atomic-Litmus 并发探针（MP、SB、LB、IRIW、Dekker、ticket lock、CAS counter、LDXR/STXR）",
     "binary": null,
     "golden": null,
-    "note": "workload-level:blocked(multicore-fs: litmus needs multi-core FS)"
+    "note": "workload-level:blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 该模型×档位亲和集合内：C08 是注入器宿主互斥，O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)"
    },
    "path_raw": "[O09-F0-W7] L0 exclusive-monitor/原子操作数/完成或排序状态注入 → L1 LDXR建立reservation或LSE/CAS/SWP/LDADD形成RMW请求 → L2 cache/coherence执行compare/old→new并决定success → L3 STXR状态/old value返回、barrier/order约束全局可见性 → L4 目的寄存器与共享内存被后续线程消费 → L5 commit与litmus forbidden-outcome/oracle结局。本Run触发=CAS/SWP/LDADD 等原子操作进入执行或返回阶段；频率=F0；负载=Atomic-Litmus 并发探针（MP、SB、LB、IRIW、Dekker、ticket lock、CAS counter、LDXR/STXR）。",
    "path_nodes": [
@@ -11118,7 +11118,7 @@
    "status_reasons": [
     "campaign:deferred(RMW operand path needs cache-side hook)",
     "spec:需新增（当前阻塞：缺RMW operand hook）",
-    "workload:workload-level:blocked(multicore-fs: litmus needs multi-core FS)"
+    "workload:workload-level:blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 该模型×档位亲和集合内：C08 是注入器宿主互斥，O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)"
    ],
    "target_activated_samples": "385"
   },
@@ -11134,7 +11134,7 @@
     "spec_name": "PARSEC-Selected 多线程应用（共享队列、锁与任务并行）",
     "binary": null,
     "golden": null,
-    "note": "workload-level:blocked(multicore-fs: PARSEC needs multi-core FS)"
+    "note": "workload-level:blocked(multicore-fs: W13 负载身份——PARSEC(dedup/ferret/streamcluster) **开源（不是授权障碍）但本仓库不可得**：find 实证只有 gem5 上游测试脚手架 CHAOS/gem5/tests/gem5/parsec_benchmarks/，而它默认被禁用（PARSEC disk image is too big）、valid_hosts=(host_x86_64_tag,) 仅 x86_64 宿主、需 --resource-directory 指向预编译镜像 + KVM；无源码/输入集/aarch64 构建。另叠加各自的模型/宿主缺口（O09 缺 RMW operand hook；P09 的 dirty-evict 走 classic CHAOSCache，与'多线程真实应用'语义构造性互斥）；替代负载会改写格子定义 ⇒ 规格级决定。见 R4-9-FSMC-A 报告 §5)"
    },
    "path_raw": "[O09-F0-W13] L0 exclusive-monitor/原子操作数/完成或排序状态注入 → L1 LDXR建立reservation或LSE/CAS/SWP/LDADD形成RMW请求 → L2 cache/coherence执行compare/old→new并决定success → L3 STXR状态/old value返回、barrier/order约束全局可见性 → L4 目的寄存器与共享内存被后续线程消费 → L5 commit与litmus forbidden-outcome/oracle结局。本Run触发=CAS/SWP/LDADD 等原子操作进入执行或返回阶段；频率=F0；负载=PARSEC-Selected 多线程应用（共享队列、锁与任务并行）。",
    "path_nodes": [
@@ -11156,7 +11156,7 @@
    "status_reasons": [
     "campaign:deferred(RMW operand path needs cache-side hook)",
     "spec:需新增（当前阻塞：缺RMW operand hook）",
-    "workload:workload-level:blocked(multicore-fs: PARSEC needs multi-core FS)"
+    "workload:workload-level:blocked(multicore-fs: W13 负载身份——PARSEC(dedup/ferret/streamcluster) **开源（不是授权障碍）但本仓库不可得**：find 实证只有 gem5 上游测试脚手架 CHAOS/gem5/tests/gem5/parsec_benchmarks/，而它默认被禁用（PARSEC disk image is too big）、valid_hosts=(host_x86_64_tag,) 仅 x86_64 宿主、需 --resource-directory 指向预编译镜像 + KVM；无源码/输入集/aarch64 构建。另叠加各自的模型/宿主缺口（O09 缺 RMW operand hook；P09 的 dirty-evict 走 classic CHAOSCache，与'多线程真实应用'语义构造性互斥）；替代负载会改写格子定义 ⇒ 规格级决定。见 R4-9-FSMC-A 报告 §5)"
    ],
    "target_activated_samples": "385"
   },
@@ -11172,7 +11172,7 @@
     "spec_name": "Atomic-Litmus 并发探针（MP、SB、LB、IRIW、Dekker、ticket lock、CAS counter、LDXR/STXR）",
     "binary": null,
     "golden": null,
-    "note": "workload-level:blocked(multicore-fs: litmus needs multi-core FS)"
+    "note": "workload-level:blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 该模型×档位亲和集合内：C08 是注入器宿主互斥，O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)"
    },
    "path_raw": "[O09-F1-W7] L0 exclusive-monitor/原子操作数/完成或排序状态注入 → L1 LDXR建立reservation或LSE/CAS/SWP/LDADD形成RMW请求 → L2 cache/coherence执行compare/old→new并决定success → L3 STXR状态/old value返回、barrier/order约束全局可见性 → L4 目的寄存器与共享内存被后续线程消费 → L5 commit与litmus forbidden-outcome/oracle结局。本Run触发=CAS/SWP/LDADD 等原子操作进入执行或返回阶段；频率=F1；负载=Atomic-Litmus 并发探针（MP、SB、LB、IRIW、Dekker、ticket lock、CAS counter、LDXR/STXR）。",
    "path_nodes": [
@@ -11194,7 +11194,7 @@
    "status_reasons": [
     "campaign:deferred(RMW operand path needs cache-side hook)",
     "spec:需新增（当前阻塞：缺RMW operand hook）",
-    "workload:workload-level:blocked(multicore-fs: litmus needs multi-core FS)"
+    "workload:workload-level:blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 该模型×档位亲和集合内：C08 是注入器宿主互斥，O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)"
    ],
    "target_activated_samples": "385"
   },
@@ -11210,7 +11210,7 @@
     "spec_name": "PARSEC-Selected 多线程应用（共享队列、锁与任务并行）",
     "binary": null,
     "golden": null,
-    "note": "workload-level:blocked(multicore-fs: PARSEC needs multi-core FS)"
+    "note": "workload-level:blocked(multicore-fs: W13 负载身份——PARSEC(dedup/ferret/streamcluster) **开源（不是授权障碍）但本仓库不可得**：find 实证只有 gem5 上游测试脚手架 CHAOS/gem5/tests/gem5/parsec_benchmarks/，而它默认被禁用（PARSEC disk image is too big）、valid_hosts=(host_x86_64_tag,) 仅 x86_64 宿主、需 --resource-directory 指向预编译镜像 + KVM；无源码/输入集/aarch64 构建。另叠加各自的模型/宿主缺口（O09 缺 RMW operand hook；P09 的 dirty-evict 走 classic CHAOSCache，与'多线程真实应用'语义构造性互斥）；替代负载会改写格子定义 ⇒ 规格级决定。见 R4-9-FSMC-A 报告 §5)"
    },
    "path_raw": "[O09-F1-W13] L0 exclusive-monitor/原子操作数/完成或排序状态注入 → L1 LDXR建立reservation或LSE/CAS/SWP/LDADD形成RMW请求 → L2 cache/coherence执行compare/old→new并决定success → L3 STXR状态/old value返回、barrier/order约束全局可见性 → L4 目的寄存器与共享内存被后续线程消费 → L5 commit与litmus forbidden-outcome/oracle结局。本Run触发=CAS/SWP/LDADD 等原子操作进入执行或返回阶段；频率=F1；负载=PARSEC-Selected 多线程应用（共享队列、锁与任务并行）。",
    "path_nodes": [
@@ -11232,7 +11232,7 @@
    "status_reasons": [
     "campaign:deferred(RMW operand path needs cache-side hook)",
     "spec:需新增（当前阻塞：缺RMW operand hook）",
-    "workload:workload-level:blocked(multicore-fs: PARSEC needs multi-core FS)"
+    "workload:workload-level:blocked(multicore-fs: W13 负载身份——PARSEC(dedup/ferret/streamcluster) **开源（不是授权障碍）但本仓库不可得**：find 实证只有 gem5 上游测试脚手架 CHAOS/gem5/tests/gem5/parsec_benchmarks/，而它默认被禁用（PARSEC disk image is too big）、valid_hosts=(host_x86_64_tag,) 仅 x86_64 宿主、需 --resource-directory 指向预编译镜像 + KVM；无源码/输入集/aarch64 构建。另叠加各自的模型/宿主缺口（O09 缺 RMW operand hook；P09 的 dirty-evict 走 classic CHAOSCache，与'多线程真实应用'语义构造性互斥）；替代负载会改写格子定义 ⇒ 规格级决定。见 R4-9-FSMC-A 报告 §5)"
    ],
    "target_activated_samples": "385"
   },
@@ -11248,7 +11248,7 @@
     "spec_name": "Atomic-Litmus 并发探针（MP、SB、LB、IRIW、Dekker、ticket lock、CAS counter、LDXR/STXR）",
     "binary": null,
     "golden": null,
-    "note": "workload-level:blocked(multicore-fs: litmus needs multi-core FS)"
+    "note": "workload-level:blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 该模型×档位亲和集合内：C08 是注入器宿主互斥，O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)"
    },
    "path_raw": "[O09-F2-W7] L0 exclusive-monitor/原子操作数/完成或排序状态注入 → L1 LDXR建立reservation或LSE/CAS/SWP/LDADD形成RMW请求 → L2 cache/coherence执行compare/old→new并决定success → L3 STXR状态/old value返回、barrier/order约束全局可见性 → L4 目的寄存器与共享内存被后续线程消费 → L5 commit与litmus forbidden-outcome/oracle结局。本Run触发=CAS/SWP/LDADD 等原子操作进入执行或返回阶段；频率=F2；负载=Atomic-Litmus 并发探针（MP、SB、LB、IRIW、Dekker、ticket lock、CAS counter、LDXR/STXR）。",
    "path_nodes": [
@@ -11270,7 +11270,7 @@
    "status_reasons": [
     "campaign:deferred(RMW operand path needs cache-side hook)",
     "spec:需新增（当前阻塞：缺RMW operand hook）",
-    "workload:workload-level:blocked(multicore-fs: litmus needs multi-core FS)"
+    "workload:workload-level:blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 该模型×档位亲和集合内：C08 是注入器宿主互斥，O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)"
    ],
    "target_activated_samples": "385"
   },
@@ -11286,7 +11286,7 @@
     "spec_name": "PARSEC-Selected 多线程应用（共享队列、锁与任务并行）",
     "binary": null,
     "golden": null,
-    "note": "workload-level:blocked(multicore-fs: PARSEC needs multi-core FS)"
+    "note": "workload-level:blocked(multicore-fs: W13 负载身份——PARSEC(dedup/ferret/streamcluster) **开源（不是授权障碍）但本仓库不可得**：find 实证只有 gem5 上游测试脚手架 CHAOS/gem5/tests/gem5/parsec_benchmarks/，而它默认被禁用（PARSEC disk image is too big）、valid_hosts=(host_x86_64_tag,) 仅 x86_64 宿主、需 --resource-directory 指向预编译镜像 + KVM；无源码/输入集/aarch64 构建。另叠加各自的模型/宿主缺口（O09 缺 RMW operand hook；P09 的 dirty-evict 走 classic CHAOSCache，与'多线程真实应用'语义构造性互斥）；替代负载会改写格子定义 ⇒ 规格级决定。见 R4-9-FSMC-A 报告 §5)"
    },
    "path_raw": "[O09-F2-W13] L0 exclusive-monitor/原子操作数/完成或排序状态注入 → L1 LDXR建立reservation或LSE/CAS/SWP/LDADD形成RMW请求 → L2 cache/coherence执行compare/old→new并决定success → L3 STXR状态/old value返回、barrier/order约束全局可见性 → L4 目的寄存器与共享内存被后续线程消费 → L5 commit与litmus forbidden-outcome/oracle结局。本Run触发=CAS/SWP/LDADD 等原子操作进入执行或返回阶段；频率=F2；负载=PARSEC-Selected 多线程应用（共享队列、锁与任务并行）。",
    "path_nodes": [
@@ -11308,7 +11308,7 @@
    "status_reasons": [
     "campaign:deferred(RMW operand path needs cache-side hook)",
     "spec:需新增（当前阻塞：缺RMW operand hook）",
-    "workload:workload-level:blocked(multicore-fs: PARSEC needs multi-core FS)"
+    "workload:workload-level:blocked(multicore-fs: W13 负载身份——PARSEC(dedup/ferret/streamcluster) **开源（不是授权障碍）但本仓库不可得**：find 实证只有 gem5 上游测试脚手架 CHAOS/gem5/tests/gem5/parsec_benchmarks/，而它默认被禁用（PARSEC disk image is too big）、valid_hosts=(host_x86_64_tag,) 仅 x86_64 宿主、需 --resource-directory 指向预编译镜像 + KVM；无源码/输入集/aarch64 构建。另叠加各自的模型/宿主缺口（O09 缺 RMW operand hook；P09 的 dirty-evict 走 classic CHAOSCache，与'多线程真实应用'语义构造性互斥）；替代负载会改写格子定义 ⇒ 规格级决定。见 R4-9-FSMC-A 报告 §5)"
    ],
    "target_activated_samples": "385"
   },
@@ -11397,7 +11397,7 @@
     "spec_name": "PARSEC-Selected 多线程应用（共享队列、锁与任务并行）",
     "binary": null,
     "golden": null,
-    "note": "workload-level:blocked(multicore-fs: PARSEC needs multi-core FS)"
+    "note": "workload-level:blocked(multicore-fs: W13 负载身份——PARSEC(dedup/ferret/streamcluster) **开源（不是授权障碍）但本仓库不可得**：find 实证只有 gem5 上游测试脚手架 CHAOS/gem5/tests/gem5/parsec_benchmarks/，而它默认被禁用（PARSEC disk image is too big）、valid_hosts=(host_x86_64_tag,) 仅 x86_64 宿主、需 --resource-directory 指向预编译镜像 + KVM；无源码/输入集/aarch64 构建。另叠加各自的模型/宿主缺口（O09 缺 RMW operand hook；P09 的 dirty-evict 走 classic CHAOSCache，与'多线程真实应用'语义构造性互斥）；替代负载会改写格子定义 ⇒ 规格级决定。见 R4-9-FSMC-A 报告 §5)"
    },
    "path_raw": "[P09-F0-W13] L0 训练表/置信度/生成地址/队列/请求属性注入 → L1 demand访问训练PC/stride/confidence并生成候选 → L2 prefetch queue选择/发出/cancel/merge/throttle → L3 L1/L2 cache接收响应、fill set/way/tag/data/ownership/dirty并可能驱逐victim/writeback → L4 后续demand命中该line或受污染/错误驱逐影响 → L5 架构结果、oracle与性能偏差。本Run触发=prefetch分配cache line并驱逐dirty victim；频率=F0；负载=PARSEC-Selected 多线程应用（共享队列、锁与任务并行）。",
    "path_nodes": [
@@ -11419,7 +11419,7 @@
    "spec_landed": "",
    "status": "BLOCKED",
    "status_reasons": [
-    "workload:workload-level:blocked(multicore-fs: PARSEC needs multi-core FS)"
+    "workload:workload-level:blocked(multicore-fs: W13 负载身份——PARSEC(dedup/ferret/streamcluster) **开源（不是授权障碍）但本仓库不可得**：find 实证只有 gem5 上游测试脚手架 CHAOS/gem5/tests/gem5/parsec_benchmarks/，而它默认被禁用（PARSEC disk image is too big）、valid_hosts=(host_x86_64_tag,) 仅 x86_64 宿主、需 --resource-directory 指向预编译镜像 + KVM；无源码/输入集/aarch64 构建。另叠加各自的模型/宿主缺口（O09 缺 RMW operand hook；P09 的 dirty-evict 走 classic CHAOSCache，与'多线程真实应用'语义构造性互斥）；替代负载会改写格子定义 ⇒ 规格级决定。见 R4-9-FSMC-A 报告 §5)"
    ],
    "target_activated_samples": "385"
   },
@@ -11508,7 +11508,7 @@
     "spec_name": "PARSEC-Selected 多线程应用（共享队列、锁与任务并行）",
     "binary": null,
     "golden": null,
-    "note": "workload-level:blocked(multicore-fs: PARSEC needs multi-core FS)"
+    "note": "workload-level:blocked(multicore-fs: W13 负载身份——PARSEC(dedup/ferret/streamcluster) **开源（不是授权障碍）但本仓库不可得**：find 实证只有 gem5 上游测试脚手架 CHAOS/gem5/tests/gem5/parsec_benchmarks/，而它默认被禁用（PARSEC disk image is too big）、valid_hosts=(host_x86_64_tag,) 仅 x86_64 宿主、需 --resource-directory 指向预编译镜像 + KVM；无源码/输入集/aarch64 构建。另叠加各自的模型/宿主缺口（O09 缺 RMW operand hook；P09 的 dirty-evict 走 classic CHAOSCache，与'多线程真实应用'语义构造性互斥）；替代负载会改写格子定义 ⇒ 规格级决定。见 R4-9-FSMC-A 报告 §5)"
    },
    "path_raw": "[P09-F4-W13] L0 训练表/置信度/生成地址/队列/请求属性注入 → L1 demand访问训练PC/stride/confidence并生成候选 → L2 prefetch queue选择/发出/cancel/merge/throttle → L3 L1/L2 cache接收响应、fill set/way/tag/data/ownership/dirty并可能驱逐victim/writeback → L4 后续demand命中该line或受污染/错误驱逐影响 → L5 架构结果、oracle与性能偏差。本Run触发=prefetch分配cache line并驱逐dirty victim；频率=F4；负载=PARSEC-Selected 多线程应用（共享队列、锁与任务并行）。",
    "path_nodes": [
@@ -11530,7 +11530,7 @@
    "spec_landed": "",
    "status": "BLOCKED",
    "status_reasons": [
-    "workload:workload-level:blocked(multicore-fs: PARSEC needs multi-core FS)"
+    "workload:workload-level:blocked(multicore-fs: W13 负载身份——PARSEC(dedup/ferret/streamcluster) **开源（不是授权障碍）但本仓库不可得**：find 实证只有 gem5 上游测试脚手架 CHAOS/gem5/tests/gem5/parsec_benchmarks/，而它默认被禁用（PARSEC disk image is too big）、valid_hosts=(host_x86_64_tag,) 仅 x86_64 宿主、需 --resource-directory 指向预编译镜像 + KVM；无源码/输入集/aarch64 构建。另叠加各自的模型/宿主缺口（O09 缺 RMW operand hook；P09 的 dirty-evict 走 classic CHAOSCache，与'多线程真实应用'语义构造性互斥）；替代负载会改写格子定义 ⇒ 规格级决定。见 R4-9-FSMC-A 报告 §5)"
    ],
    "target_activated_samples": "385"
   },
@@ -11619,7 +11619,7 @@
     "spec_name": "PARSEC-Selected 多线程应用（共享队列、锁与任务并行）",
     "binary": null,
     "golden": null,
-    "note": "workload-level:blocked(multicore-fs: PARSEC needs multi-core FS)"
+    "note": "workload-level:blocked(multicore-fs: W13 负载身份——PARSEC(dedup/ferret/streamcluster) **开源（不是授权障碍）但本仓库不可得**：find 实证只有 gem5 上游测试脚手架 CHAOS/gem5/tests/gem5/parsec_benchmarks/，而它默认被禁用（PARSEC disk image is too big）、valid_hosts=(host_x86_64_tag,) 仅 x86_64 宿主、需 --resource-directory 指向预编译镜像 + KVM；无源码/输入集/aarch64 构建。另叠加各自的模型/宿主缺口（O09 缺 RMW operand hook；P09 的 dirty-evict 走 classic CHAOSCache，与'多线程真实应用'语义构造性互斥）；替代负载会改写格子定义 ⇒ 规格级决定。见 R4-9-FSMC-A 报告 §5)"
    },
    "path_raw": "[P09-F6-W13] L0 训练表/置信度/生成地址/队列/请求属性注入 → L1 demand访问训练PC/stride/confidence并生成候选 → L2 prefetch queue选择/发出/cancel/merge/throttle → L3 L1/L2 cache接收响应、fill set/way/tag/data/ownership/dirty并可能驱逐victim/writeback → L4 后续demand命中该line或受污染/错误驱逐影响 → L5 架构结果、oracle与性能偏差。本Run触发=prefetch分配cache line并驱逐dirty victim；频率=F6；负载=PARSEC-Selected 多线程应用（共享队列、锁与任务并行）。",
    "path_nodes": [
@@ -11641,7 +11641,7 @@
    "spec_landed": "",
    "status": "BLOCKED",
    "status_reasons": [
-    "workload:workload-level:blocked(multicore-fs: PARSEC needs multi-core FS)"
+    "workload:workload-level:blocked(multicore-fs: W13 负载身份——PARSEC(dedup/ferret/streamcluster) **开源（不是授权障碍）但本仓库不可得**：find 实证只有 gem5 上游测试脚手架 CHAOS/gem5/tests/gem5/parsec_benchmarks/，而它默认被禁用（PARSEC disk image is too big）、valid_hosts=(host_x86_64_tag,) 仅 x86_64 宿主、需 --resource-directory 指向预编译镜像 + KVM；无源码/输入集/aarch64 构建。另叠加各自的模型/宿主缺口（O09 缺 RMW operand hook；P09 的 dirty-evict 走 classic CHAOSCache，与'多线程真实应用'语义构造性互斥）；替代负载会改写格子定义 ⇒ 规格级决定。见 R4-9-FSMC-A 报告 §5)"
    ],
    "target_activated_samples": "385"
   }

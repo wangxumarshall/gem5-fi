@@ -157,13 +157,13 @@
 | C07-F5-W6 | C07 | L1d-Cache | F5 | PASS |  |
 | C07-F6-W6 | C07 | L1d-Cache | F6 | PASS |  |
 | C08-F0-W6 | C08 | L1d-Cache | F0 | PASS |  |
-| C08-F0-W7 | C08 | L1d-Cache | F0 | BLOCKED | workload:workload-level:blocked(multicore-fs: litmus needs multi-core FS) |
+| C08-F0-W7 | C08 | L1d-Cache | F0 | BLOCKED | workload:workload-level:blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不 |
 | C08-F2-W6 | C08 | L1d-Cache | F2 | PASS |  |
-| C08-F2-W7 | C08 | L1d-Cache | F2 | BLOCKED | workload:workload-level:blocked(multicore-fs: litmus needs multi-core FS) |
+| C08-F2-W7 | C08 | L1d-Cache | F2 | BLOCKED | workload:workload-level:blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不 |
 | C08-F5-W6 | C08 | L1d-Cache | F5 | PASS |  |
-| C08-F5-W7 | C08 | L1d-Cache | F5 | BLOCKED | workload:workload-level:blocked(multicore-fs: litmus needs multi-core FS) |
+| C08-F5-W7 | C08 | L1d-Cache | F5 | BLOCKED | workload:workload-level:blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不 |
 | C08-F6-W6 | C08 | L1d-Cache | F6 | PASS |  |
-| C08-F6-W7 | C08 | L1d-Cache | F6 | BLOCKED | workload:workload-level:blocked(multicore-fs: litmus needs multi-core FS) |
+| C08-F6-W7 | C08 | L1d-Cache | F6 | BLOCKED | workload:workload-level:blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不 |
 | C09-F0-W6 | C09 | L1d-Cache | F0 | PASS |  |
 | C09-F0-W10 | C09 | L1d-Cache | F0 | PASS |  |
 | C09-F2-W6 | C09 | L1d-Cache | F2 | PASS |  |
@@ -190,28 +190,28 @@
 | C12-F4-W10 | C12 | L1d-Cache | F4 | PASS |  |
 | C12-F6-W6 | C12 | L1d-Cache | F6 | PASS |  |
 | C12-F6-W10 | C12 | L1d-Cache | F6 | PASS |  |
-| O01-F0-W7 | O01 | 原子与同步 | F0 | BLOCKED | workload:workload-level:blocked(multicore-fs: litmus needs multi-core FS) |
-| O01-F2-W7 | O01 | 原子与同步 | F2 | BLOCKED | workload:workload-level:blocked(multicore-fs: litmus needs multi-core FS) |
-| O01-F6-W7 | O01 | 原子与同步 | F6 | BLOCKED | workload:workload-level:blocked(multicore-fs: litmus needs multi-core FS) |
-| O02-F0-W7 | O02 | 原子与同步 | F0 | BLOCKED | workload:workload-level:blocked(multicore-fs: litmus needs multi-core FS) |
-| O02-F2-W7 | O02 | 原子与同步 | F2 | BLOCKED | workload:workload-level:blocked(multicore-fs: litmus needs multi-core FS) |
-| O02-F5-W7 | O02 | 原子与同步 | F5 | BLOCKED | workload:workload-level:blocked(multicore-fs: litmus needs multi-core FS) |
-| O02-F6-W7 | O02 | 原子与同步 | F6 | BLOCKED | workload:workload-level:blocked(multicore-fs: litmus needs multi-core FS) |
-| O03-F0-W7 | O03 | 原子与同步 | F0 | BLOCKED | workload:workload-level:blocked(multicore-fs: litmus needs multi-core FS) |
-| O03-F2-W7 | O03 | 原子与同步 | F2 | BLOCKED | workload:workload-level:blocked(multicore-fs: litmus needs multi-core FS) |
-| O03-F6-W7 | O03 | 原子与同步 | F6 | BLOCKED | workload:workload-level:blocked(multicore-fs: litmus needs multi-core FS) |
-| O04-F0-W7 | O04 | 原子与同步 | F0 | BLOCKED | campaign:deferred(RMW data path needs cache-side SwapResp hook); spec:需新增（当前阻塞：缺RMW数据/SwapResp hook）; workload:workload-level:blocked(multicore-fs: litmus needs |
-| O04-F2-W7 | O04 | 原子与同步 | F2 | BLOCKED | campaign:deferred(RMW data path needs cache-side SwapResp hook); spec:需新增（当前阻塞：缺RMW数据/SwapResp hook）; workload:workload-level:blocked(multicore-fs: litmus needs |
-| O04-F6-W7 | O04 | 原子与同步 | F6 | BLOCKED | campaign:deferred(RMW data path needs cache-side SwapResp hook); spec:需新增（当前阻塞：缺RMW数据/SwapResp hook）; workload:workload-level:blocked(multicore-fs: litmus needs |
-| O05-F0-W7 | O05 | 原子与同步 | F0 | BLOCKED | campaign:blocked(multicore-fs: RMW ordering needs multi-core); spec:需新增（当前阻塞：需要多核FS的RMW请求/全局可见性）; workload:workload-level:blocked(multicore-fs: litmus needs mul |
-| O05-F4-W7 | O05 | 原子与同步 | F4 | BLOCKED | campaign:blocked(multicore-fs: RMW ordering needs multi-core); spec:需新增（当前阻塞：需要多核FS的RMW请求/全局可见性）; workload:workload-level:blocked(multicore-fs: litmus needs mul |
-| O05-F6-W7 | O05 | 原子与同步 | F6 | BLOCKED | campaign:blocked(multicore-fs: RMW ordering needs multi-core); spec:需新增（当前阻塞：需要多核FS的RMW请求/全局可见性）; workload:workload-level:blocked(multicore-fs: litmus needs mul |
-| O06-F0-W7 | O06 | 原子与同步 | F0 | BLOCKED | campaign:blocked(multicore-fs: barrier completion needs multi-core); spec:需新增（当前阻塞：需要多核FS barrier完成跟踪）; workload:workload-level:blocked(multicore-fs: litmus nee |
-| O06-F4-W7 | O06 | 原子与同步 | F4 | BLOCKED | campaign:blocked(multicore-fs: barrier completion needs multi-core); spec:需新增（当前阻塞：需要多核FS barrier完成跟踪）; workload:workload-level:blocked(multicore-fs: litmus nee |
-| O06-F6-W7 | O06 | 原子与同步 | F6 | BLOCKED | campaign:blocked(multicore-fs: barrier completion needs multi-core); spec:需新增（当前阻塞：需要多核FS barrier完成跟踪）; workload:workload-level:blocked(multicore-fs: litmus nee |
-| O07-F0-W7 | O07 | 原子与同步 | F0 | BLOCKED | campaign:blocked(multicore-fs: order-tag swap needs multi-core); spec:需新增（当前阻塞：需要多核FS order-tag/ready跟踪）; workload:workload-level:blocked(multicore-fs: litmus n |
-| O07-F2-W7 | O07 | 原子与同步 | F2 | BLOCKED | campaign:blocked(multicore-fs: order-tag swap needs multi-core); spec:需新增（当前阻塞：需要多核FS order-tag/ready跟踪）; workload:workload-level:blocked(multicore-fs: litmus n |
-| O07-F6-W7 | O07 | 原子与同步 | F6 | BLOCKED | campaign:blocked(multicore-fs: order-tag swap needs multi-core); spec:需新增（当前阻塞：需要多核FS order-tag/ready跟踪）; workload:workload-level:blocked(multicore-fs: litmus n |
+| O01-F0-W7 | O01 | 原子与同步 | F0 | BLOCKED | workload:workload-level:blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不 |
+| O01-F2-W7 | O01 | 原子与同步 | F2 | BLOCKED | workload:workload-level:blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不 |
+| O01-F6-W7 | O01 | 原子与同步 | F6 | BLOCKED | workload:workload-level:blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不 |
+| O02-F0-W7 | O02 | 原子与同步 | F0 | BLOCKED | workload:workload-level:blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不 |
+| O02-F2-W7 | O02 | 原子与同步 | F2 | BLOCKED | workload:workload-level:blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不 |
+| O02-F5-W7 | O02 | 原子与同步 | F5 | BLOCKED | workload:workload-level:blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不 |
+| O02-F6-W7 | O02 | 原子与同步 | F6 | BLOCKED | workload:workload-level:blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不 |
+| O03-F0-W7 | O03 | 原子与同步 | F0 | BLOCKED | workload:workload-level:blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不 |
+| O03-F2-W7 | O03 | 原子与同步 | F2 | BLOCKED | workload:workload-level:blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不 |
+| O03-F6-W7 | O03 | 原子与同步 | F6 | BLOCKED | workload:workload-level:blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不 |
+| O04-F0-W7 | O04 | 原子与同步 | F0 | BLOCKED | campaign:deferred(RMW data path needs cache-side SwapResp hook); spec:需新增（当前阻塞：缺RMW数据/SwapResp hook）; workload:workload-level:blocked(multicore-fs: 载体已就绪——2 核 R |
+| O04-F2-W7 | O04 | 原子与同步 | F2 | BLOCKED | campaign:deferred(RMW data path needs cache-side SwapResp hook); spec:需新增（当前阻塞：缺RMW数据/SwapResp hook）; workload:workload-level:blocked(multicore-fs: 载体已就绪——2 核 R |
+| O04-F6-W7 | O04 | 原子与同步 | F6 | BLOCKED | campaign:deferred(RMW data path needs cache-side SwapResp hook); spec:需新增（当前阻塞：缺RMW数据/SwapResp hook）; workload:workload-level:blocked(multicore-fs: 载体已就绪——2 核 R |
+| O05-F0-W7 | O05 | 原子与同步 | F0 | BLOCKED | campaign:blocked(multicore-fs: 模型语义未实现——RMW 请求/全局可见性 order 跟踪缺失；多核 FS 基础设施已就绪 R4-8-FSMC); spec:需新增（当前阻塞：需要多核FS的RMW请求/全局可见性）; workload:workload-level:blocked(mul |
+| O05-F4-W7 | O05 | 原子与同步 | F4 | BLOCKED | campaign:blocked(multicore-fs: 模型语义未实现——RMW 请求/全局可见性 order 跟踪缺失；多核 FS 基础设施已就绪 R4-8-FSMC); spec:需新增（当前阻塞：需要多核FS的RMW请求/全局可见性）; workload:workload-level:blocked(mul |
+| O05-F6-W7 | O05 | 原子与同步 | F6 | BLOCKED | campaign:blocked(multicore-fs: 模型语义未实现——RMW 请求/全局可见性 order 跟踪缺失；多核 FS 基础设施已就绪 R4-8-FSMC); spec:需新增（当前阻塞：需要多核FS的RMW请求/全局可见性）; workload:workload-level:blocked(mul |
+| O06-F0-W7 | O06 | 原子与同步 | F0 | BLOCKED | campaign:blocked(multicore-fs: 模型语义未实现——barrier 完成跟踪缺失；多核 FS 基础设施已就绪 R4-8-FSMC); spec:需新增（当前阻塞：需要多核FS barrier完成跟踪）; workload:workload-level:blocked(multicore-fs |
+| O06-F4-W7 | O06 | 原子与同步 | F4 | BLOCKED | campaign:blocked(multicore-fs: 模型语义未实现——barrier 完成跟踪缺失；多核 FS 基础设施已就绪 R4-8-FSMC); spec:需新增（当前阻塞：需要多核FS barrier完成跟踪）; workload:workload-level:blocked(multicore-fs |
+| O06-F6-W7 | O06 | 原子与同步 | F6 | BLOCKED | campaign:blocked(multicore-fs: 模型语义未实现——barrier 完成跟踪缺失；多核 FS 基础设施已就绪 R4-8-FSMC); spec:需新增（当前阻塞：需要多核FS barrier完成跟踪）; workload:workload-level:blocked(multicore-fs |
+| O07-F0-W7 | O07 | 原子与同步 | F0 | BLOCKED | campaign:blocked(multicore-fs: 模型语义未实现——order-tag/ready 跟踪缺失；多核 FS 基础设施已就绪 R4-8-FSMC); spec:需新增（当前阻塞：需要多核FS order-tag/ready跟踪）; workload:workload-level:blocked( |
+| O07-F2-W7 | O07 | 原子与同步 | F2 | BLOCKED | campaign:blocked(multicore-fs: 模型语义未实现——order-tag/ready 跟踪缺失；多核 FS 基础设施已就绪 R4-8-FSMC); spec:需新增（当前阻塞：需要多核FS order-tag/ready跟踪）; workload:workload-level:blocked( |
+| O07-F6-W7 | O07 | 原子与同步 | F6 | BLOCKED | campaign:blocked(multicore-fs: 模型语义未实现——order-tag/ready 跟踪缺失；多核 FS 基础设施已就绪 R4-8-FSMC); spec:需新增（当前阻塞：需要多核FS order-tag/ready跟踪）; workload:workload-level:blocked( |
 | P01-F0-W2 | P01 | 数据预取器 | F0 | PASS |  |
 | P01-F0-W8 | P01 | 数据预取器 | F0 | PASS |  |
 | P01-F1-W2 | P01 | 数据预取器 | F1 | PASS |  |
@@ -318,21 +318,21 @@
 | C15-F6-W6 | C15 | L1d-Cache | F6 | PASS |  |
 | C15-F6-W10 | C15 | L1d-Cache | F6 | PASS |  |
 | C15-F6-W11 | C15 | L1d-Cache | F6 | BLOCKED | workload:workload-level:blocked(spec-license: SPEC CPU2017 needs a license) |
-| O09-F0-W7 | O09 | 原子与同步 | F0 | BLOCKED | campaign:deferred(RMW operand path needs cache-side hook); spec:需新增（当前阻塞：缺RMW operand hook）; workload:workload-level:blocked(multicore-fs: litmus needs multi-co |
-| O09-F0-W13 | O09 | 原子与同步 | F0 | BLOCKED | campaign:deferred(RMW operand path needs cache-side hook); spec:需新增（当前阻塞：缺RMW operand hook）; workload:workload-level:blocked(multicore-fs: PARSEC needs multi-co |
-| O09-F1-W7 | O09 | 原子与同步 | F1 | BLOCKED | campaign:deferred(RMW operand path needs cache-side hook); spec:需新增（当前阻塞：缺RMW operand hook）; workload:workload-level:blocked(multicore-fs: litmus needs multi-co |
-| O09-F1-W13 | O09 | 原子与同步 | F1 | BLOCKED | campaign:deferred(RMW operand path needs cache-side hook); spec:需新增（当前阻塞：缺RMW operand hook）; workload:workload-level:blocked(multicore-fs: PARSEC needs multi-co |
-| O09-F2-W7 | O09 | 原子与同步 | F2 | BLOCKED | campaign:deferred(RMW operand path needs cache-side hook); spec:需新增（当前阻塞：缺RMW operand hook）; workload:workload-level:blocked(multicore-fs: litmus needs multi-co |
-| O09-F2-W13 | O09 | 原子与同步 | F2 | BLOCKED | campaign:deferred(RMW operand path needs cache-side hook); spec:需新增（当前阻塞：缺RMW operand hook）; workload:workload-level:blocked(multicore-fs: PARSEC needs multi-co |
+| O09-F0-W7 | O09 | 原子与同步 | F0 | BLOCKED | campaign:deferred(RMW operand path needs cache-side hook); spec:需新增（当前阻塞：缺RMW operand hook）; workload:workload-level:blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI F |
+| O09-F0-W13 | O09 | 原子与同步 | F0 | BLOCKED | campaign:deferred(RMW operand path needs cache-side hook); spec:需新增（当前阻塞：缺RMW operand hook）; workload:workload-level:blocked(multicore-fs: W13 负载身份——PARSEC(dedu |
+| O09-F1-W7 | O09 | 原子与同步 | F1 | BLOCKED | campaign:deferred(RMW operand path needs cache-side hook); spec:需新增（当前阻塞：缺RMW operand hook）; workload:workload-level:blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI F |
+| O09-F1-W13 | O09 | 原子与同步 | F1 | BLOCKED | campaign:deferred(RMW operand path needs cache-side hook); spec:需新增（当前阻塞：缺RMW operand hook）; workload:workload-level:blocked(multicore-fs: W13 负载身份——PARSEC(dedu |
+| O09-F2-W7 | O09 | 原子与同步 | F2 | BLOCKED | campaign:deferred(RMW operand path needs cache-side hook); spec:需新增（当前阻塞：缺RMW operand hook）; workload:workload-level:blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI F |
+| O09-F2-W13 | O09 | 原子与同步 | F2 | BLOCKED | campaign:deferred(RMW operand path needs cache-side hook); spec:需新增（当前阻塞：缺RMW operand hook）; workload:workload-level:blocked(multicore-fs: W13 负载身份——PARSEC(dedu |
 | P09-F0-W6 | P09 | 数据预取器 | F0 | PASS |  |
 | P09-F0-W8 | P09 | 数据预取器 | F0 | PASS |  |
-| P09-F0-W13 | P09 | 数据预取器 | F0 | BLOCKED | workload:workload-level:blocked(multicore-fs: PARSEC needs multi-core FS) |
+| P09-F0-W13 | P09 | 数据预取器 | F0 | BLOCKED | workload:workload-level:blocked(multicore-fs: W13 负载身份——PARSEC(dedup/ferret/streamcluster) **开源（不是授权障碍）但本仓库不可得**：find 实证只有 gem5 上游测试脚手架 CHAOS/gem5/tests/gem5/pa |
 | P09-F4-W6 | P09 | 数据预取器 | F4 | PASS |  |
 | P09-F4-W8 | P09 | 数据预取器 | F4 | PASS |  |
-| P09-F4-W13 | P09 | 数据预取器 | F4 | BLOCKED | workload:workload-level:blocked(multicore-fs: PARSEC needs multi-core FS) |
+| P09-F4-W13 | P09 | 数据预取器 | F4 | BLOCKED | workload:workload-level:blocked(multicore-fs: W13 负载身份——PARSEC(dedup/ferret/streamcluster) **开源（不是授权障碍）但本仓库不可得**：find 实证只有 gem5 上游测试脚手架 CHAOS/gem5/tests/gem5/pa |
 | P09-F6-W6 | P09 | 数据预取器 | F6 | PASS |  |
 | P09-F6-W8 | P09 | 数据预取器 | F6 | PASS |  |
-| P09-F6-W13 | P09 | 数据预取器 | F6 | BLOCKED | workload:workload-level:blocked(multicore-fs: PARSEC needs multi-core FS) |
+| P09-F6-W13 | P09 | 数据预取器 | F6 | BLOCKED | workload:workload-level:blocked(multicore-fs: W13 负载身份——PARSEC(dedup/ferret/streamcluster) **开源（不是授权障碍）但本仓库不可得**：find 实证只有 gem5 上游测试脚手架 CHAOS/gem5/tests/gem5/pa |
 
 ## 单元级节点能力（与 RunID 阻塞解耦）
 

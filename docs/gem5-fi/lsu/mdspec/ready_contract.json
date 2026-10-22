@@ -2262,12 +2262,12 @@
    "status": "BLOCKED",
    "category": "FS-MULTICORE",
    "family": null,
-   "why": "workload:workload-level:blocked(multicore-fs: litmus needs multi-core FS)",
+   "why": "workload:workload-level:blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 该模型×档位亲和集合内：C08 是注入器宿主互斥，O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)",
    "precondition": "SE 构建二进制 + 载体 ELF（无需 FS 资产）",
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、cache_access、cache_return、mshr_alloc、mshr_merge、mshr_fill、mshr_free、cache_fill、cache_evict、cache_writeback、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
    "coverage": "BLOCKED",
-   "resolve_reason": "blocked(multicore-fs: litmus needs multi-core FS)"
+   "resolve_reason": "blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 该模型×档位亲和集合内：C08 是注入器宿主互斥，O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)"
   },
   {
    "run_id": "C08-F2-W6",
@@ -2292,12 +2292,12 @@
    "status": "BLOCKED",
    "category": "FS-MULTICORE",
    "family": null,
-   "why": "workload:workload-level:blocked(multicore-fs: litmus needs multi-core FS)",
+   "why": "workload:workload-level:blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 该模型×档位亲和集合内：C08 是注入器宿主互斥，O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)",
    "precondition": "SE 构建二进制 + 载体 ELF（无需 FS 资产）",
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、cache_access、cache_return、mshr_alloc、mshr_merge、mshr_fill、mshr_free、cache_fill、cache_evict、cache_writeback、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
    "coverage": "BLOCKED",
-   "resolve_reason": "blocked(multicore-fs: litmus needs multi-core FS)"
+   "resolve_reason": "blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 该模型×档位亲和集合内：C08 是注入器宿主互斥，O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)"
   },
   {
    "run_id": "C08-F5-W6",
@@ -2322,12 +2322,12 @@
    "status": "BLOCKED",
    "category": "FS-MULTICORE",
    "family": null,
-   "why": "workload:workload-level:blocked(multicore-fs: litmus needs multi-core FS)",
+   "why": "workload:workload-level:blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 该模型×档位亲和集合内：C08 是注入器宿主互斥，O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)",
    "precondition": "SE 构建二进制 + 载体 ELF（无需 FS 资产）",
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、cache_access、cache_return、mshr_alloc、mshr_merge、mshr_fill、mshr_free、cache_fill、cache_evict、cache_writeback、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
    "coverage": "BLOCKED",
-   "resolve_reason": "blocked(multicore-fs: litmus needs multi-core FS)"
+   "resolve_reason": "blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 该模型×档位亲和集合内：C08 是注入器宿主互斥，O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)"
   },
   {
    "run_id": "C08-F6-W6",
@@ -2352,12 +2352,12 @@
    "status": "BLOCKED",
    "category": "FS-MULTICORE",
    "family": null,
-   "why": "workload:workload-level:blocked(multicore-fs: litmus needs multi-core FS)",
+   "why": "workload:workload-level:blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 该模型×档位亲和集合内：C08 是注入器宿主互斥，O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)",
    "precondition": "SE 构建二进制 + 载体 ELF（无需 FS 资产）",
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、cache_access、cache_return、mshr_alloc、mshr_merge、mshr_fill、mshr_free、cache_fill、cache_evict、cache_writeback、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
    "coverage": "BLOCKED",
-   "resolve_reason": "blocked(multicore-fs: litmus needs multi-core FS)"
+   "resolve_reason": "blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 该模型×档位亲和集合内：C08 是注入器宿主互斥，O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)"
   },
   {
    "run_id": "C09-F0-W6",
@@ -2756,13 +2756,13 @@
    "freq": "F0",
    "status": "BLOCKED",
    "category": "FS-MULTICORE",
-   "family": null,
-   "why": "workload:workload-level:blocked(multicore-fs: litmus needs multi-core FS)",
+   "family": "exmon-fsmc",
+   "why": "workload:workload-level:blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 该模型×档位亲和集合内：C08 是注入器宿主互斥，O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)",
    "precondition": "SE 构建二进制 + 载体 ELF（无需 FS 资产）",
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、exmon_monitor、exmon_rmw、exmon_stxr、atomic_op、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
    "coverage": "BLOCKED",
-   "resolve_reason": "blocked(multicore-fs: litmus needs multi-core FS)"
+   "resolve_reason": "fs:fsmc-litmus"
   },
   {
    "run_id": "O01-F2-W7",
@@ -2772,12 +2772,12 @@
    "status": "BLOCKED",
    "category": "FS-MULTICORE",
    "family": null,
-   "why": "workload:workload-level:blocked(multicore-fs: litmus needs multi-core FS)",
+   "why": "workload:workload-level:blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 该模型×档位亲和集合内：C08 是注入器宿主互斥，O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)",
    "precondition": "SE 构建二进制 + 载体 ELF（无需 FS 资产）",
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、exmon_monitor、exmon_rmw、exmon_stxr、atomic_op、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
    "coverage": "BLOCKED",
-   "resolve_reason": "blocked(multicore-fs: litmus needs multi-core FS)"
+   "resolve_reason": "blocked(fsmc-trigger: F2 的档位语义在 CHAOSExMon 里**未实现**（lsuTier/lsuWarmupEvents/lsuSpanEvents 在 CHAOSExMon.py 有声明、在 .hh/.cc 里 0 次出现；inWindow() 只有 firstClock/lastClock 的**时钟**窗，事件计数只有内部 geometric(0.1) 首跳）；F2 的 interval 语义（chaos_trigger.hh，260000 cycles）与 F6 的确定性路径层都没有可落地旋钮 ⇒ 无法诚实表达，保持 BLOCKED（F0/F5 已可由 maxFaults=1/0 表达）。见 R4-9-FSMC-A 报告 §4)"
   },
   {
    "run_id": "O01-F6-W7",
@@ -2787,12 +2787,12 @@
    "status": "BLOCKED",
    "category": "FS-MULTICORE",
    "family": null,
-   "why": "workload:workload-level:blocked(multicore-fs: litmus needs multi-core FS)",
+   "why": "workload:workload-level:blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 该模型×档位亲和集合内：C08 是注入器宿主互斥，O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)",
    "precondition": "SE 构建二进制 + 载体 ELF（无需 FS 资产）",
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、exmon_monitor、exmon_rmw、exmon_stxr、atomic_op、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
    "coverage": "BLOCKED",
-   "resolve_reason": "blocked(multicore-fs: litmus needs multi-core FS)"
+   "resolve_reason": "blocked(fsmc-trigger: F6 的档位语义在 CHAOSExMon 里**未实现**（lsuTier/lsuWarmupEvents/lsuSpanEvents 在 CHAOSExMon.py 有声明、在 .hh/.cc 里 0 次出现；inWindow() 只有 firstClock/lastClock 的**时钟**窗，事件计数只有内部 geometric(0.1) 首跳）；F2 的 interval 语义（chaos_trigger.hh，260000 cycles）与 F6 的确定性路径层都没有可落地旋钮 ⇒ 无法诚实表达，保持 BLOCKED（F0/F5 已可由 maxFaults=1/0 表达）。见 R4-9-FSMC-A 报告 §4)"
   },
   {
    "run_id": "O02-F0-W7",
@@ -2801,13 +2801,13 @@
    "freq": "F0",
    "status": "BLOCKED",
    "category": "FS-MULTICORE",
-   "family": null,
-   "why": "workload:workload-level:blocked(multicore-fs: litmus needs multi-core FS)",
+   "family": "exmon-fsmc",
+   "why": "workload:workload-level:blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 该模型×档位亲和集合内：C08 是注入器宿主互斥，O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)",
    "precondition": "SE 构建二进制 + 载体 ELF（无需 FS 资产）",
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、exmon_monitor、exmon_rmw、exmon_stxr、atomic_op、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
    "coverage": "BLOCKED",
-   "resolve_reason": "blocked(multicore-fs: litmus needs multi-core FS)"
+   "resolve_reason": "fs:fsmc-litmus"
   },
   {
    "run_id": "O02-F2-W7",
@@ -2817,12 +2817,12 @@
    "status": "BLOCKED",
    "category": "FS-MULTICORE",
    "family": null,
-   "why": "workload:workload-level:blocked(multicore-fs: litmus needs multi-core FS)",
+   "why": "workload:workload-level:blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 该模型×档位亲和集合内：C08 是注入器宿主互斥，O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)",
    "precondition": "SE 构建二进制 + 载体 ELF（无需 FS 资产）",
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、exmon_monitor、exmon_rmw、exmon_stxr、atomic_op、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
    "coverage": "BLOCKED",
-   "resolve_reason": "blocked(multicore-fs: litmus needs multi-core FS)"
+   "resolve_reason": "blocked(fsmc-trigger: F2 的档位语义在 CHAOSExMon 里**未实现**（lsuTier/lsuWarmupEvents/lsuSpanEvents 在 CHAOSExMon.py 有声明、在 .hh/.cc 里 0 次出现；inWindow() 只有 firstClock/lastClock 的**时钟**窗，事件计数只有内部 geometric(0.1) 首跳）；F2 的 interval 语义（chaos_trigger.hh，260000 cycles）与 F6 的确定性路径层都没有可落地旋钮 ⇒ 无法诚实表达，保持 BLOCKED（F0/F5 已可由 maxFaults=1/0 表达）。见 R4-9-FSMC-A 报告 §4)"
   },
   {
    "run_id": "O02-F5-W7",
@@ -2831,13 +2831,13 @@
    "freq": "F5",
    "status": "BLOCKED",
    "category": "FS-MULTICORE",
-   "family": null,
-   "why": "workload:workload-level:blocked(multicore-fs: litmus needs multi-core FS)",
+   "family": "exmon-fsmc",
+   "why": "workload:workload-level:blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 该模型×档位亲和集合内：C08 是注入器宿主互斥，O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)",
    "precondition": "SE 构建二进制 + 载体 ELF（无需 FS 资产）",
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、exmon_monitor、exmon_rmw、exmon_stxr、atomic_op、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
    "coverage": "BLOCKED",
-   "resolve_reason": "blocked(multicore-fs: litmus needs multi-core FS)"
+   "resolve_reason": "fs:fsmc-litmus"
   },
   {
    "run_id": "O02-F6-W7",
@@ -2847,12 +2847,12 @@
    "status": "BLOCKED",
    "category": "FS-MULTICORE",
    "family": null,
-   "why": "workload:workload-level:blocked(multicore-fs: litmus needs multi-core FS)",
+   "why": "workload:workload-level:blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 该模型×档位亲和集合内：C08 是注入器宿主互斥，O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)",
    "precondition": "SE 构建二进制 + 载体 ELF（无需 FS 资产）",
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、exmon_monitor、exmon_rmw、exmon_stxr、atomic_op、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
    "coverage": "BLOCKED",
-   "resolve_reason": "blocked(multicore-fs: litmus needs multi-core FS)"
+   "resolve_reason": "blocked(fsmc-trigger: F6 的档位语义在 CHAOSExMon 里**未实现**（lsuTier/lsuWarmupEvents/lsuSpanEvents 在 CHAOSExMon.py 有声明、在 .hh/.cc 里 0 次出现；inWindow() 只有 firstClock/lastClock 的**时钟**窗，事件计数只有内部 geometric(0.1) 首跳）；F2 的 interval 语义（chaos_trigger.hh，260000 cycles）与 F6 的确定性路径层都没有可落地旋钮 ⇒ 无法诚实表达，保持 BLOCKED（F0/F5 已可由 maxFaults=1/0 表达）。见 R4-9-FSMC-A 报告 §4)"
   },
   {
    "run_id": "O03-F0-W7",
@@ -2861,13 +2861,13 @@
    "freq": "F0",
    "status": "BLOCKED",
    "category": "FS-MULTICORE",
-   "family": null,
-   "why": "workload:workload-level:blocked(multicore-fs: litmus needs multi-core FS)",
+   "family": "exmon-fsmc",
+   "why": "workload:workload-level:blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 该模型×档位亲和集合内：C08 是注入器宿主互斥，O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)",
    "precondition": "SE 构建二进制 + 载体 ELF（无需 FS 资产）",
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、exmon_monitor、exmon_rmw、exmon_stxr、atomic_op、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
    "coverage": "BLOCKED",
-   "resolve_reason": "blocked(multicore-fs: litmus needs multi-core FS)"
+   "resolve_reason": "fs:fsmc-litmus"
   },
   {
    "run_id": "O03-F2-W7",
@@ -2877,12 +2877,12 @@
    "status": "BLOCKED",
    "category": "FS-MULTICORE",
    "family": null,
-   "why": "workload:workload-level:blocked(multicore-fs: litmus needs multi-core FS)",
+   "why": "workload:workload-level:blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 该模型×档位亲和集合内：C08 是注入器宿主互斥，O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)",
    "precondition": "SE 构建二进制 + 载体 ELF（无需 FS 资产）",
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、exmon_monitor、exmon_rmw、exmon_stxr、atomic_op、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
    "coverage": "BLOCKED",
-   "resolve_reason": "blocked(multicore-fs: litmus needs multi-core FS)"
+   "resolve_reason": "blocked(fsmc-trigger: F2 的档位语义在 CHAOSExMon 里**未实现**（lsuTier/lsuWarmupEvents/lsuSpanEvents 在 CHAOSExMon.py 有声明、在 .hh/.cc 里 0 次出现；inWindow() 只有 firstClock/lastClock 的**时钟**窗，事件计数只有内部 geometric(0.1) 首跳）；F2 的 interval 语义（chaos_trigger.hh，260000 cycles）与 F6 的确定性路径层都没有可落地旋钮 ⇒ 无法诚实表达，保持 BLOCKED（F0/F5 已可由 maxFaults=1/0 表达）。见 R4-9-FSMC-A 报告 §4)"
   },
   {
    "run_id": "O03-F6-W7",
@@ -2892,12 +2892,12 @@
    "status": "BLOCKED",
    "category": "FS-MULTICORE",
    "family": null,
-   "why": "workload:workload-level:blocked(multicore-fs: litmus needs multi-core FS)",
+   "why": "workload:workload-level:blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 该模型×档位亲和集合内：C08 是注入器宿主互斥，O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)",
    "precondition": "SE 构建二进制 + 载体 ELF（无需 FS 资产）",
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、exmon_monitor、exmon_rmw、exmon_stxr、atomic_op、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
    "coverage": "BLOCKED",
-   "resolve_reason": "blocked(multicore-fs: litmus needs multi-core FS)"
+   "resolve_reason": "blocked(fsmc-trigger: F6 的档位语义在 CHAOSExMon 里**未实现**（lsuTier/lsuWarmupEvents/lsuSpanEvents 在 CHAOSExMon.py 有声明、在 .hh/.cc 里 0 次出现；inWindow() 只有 firstClock/lastClock 的**时钟**窗，事件计数只有内部 geometric(0.1) 首跳）；F2 的 interval 语义（chaos_trigger.hh，260000 cycles）与 F6 的确定性路径层都没有可落地旋钮 ⇒ 无法诚实表达，保持 BLOCKED（F0/F5 已可由 maxFaults=1/0 表达）。见 R4-9-FSMC-A 报告 §4)"
   },
   {
    "run_id": "O04-F0-W7",
@@ -2907,12 +2907,12 @@
    "status": "BLOCKED",
    "category": "FS-MULTICORE",
    "family": null,
-   "why": "campaign:deferred(RMW data path needs cache-side SwapResp hook) ; spec:需新增（当前阻塞：缺RMW数据/SwapResp hook） ; workload:workload-level:blocked(multicore-fs: litmus needs multi-core FS)",
+   "why": "campaign:deferred(RMW data path needs cache-side SwapResp hook) ; spec:需新增（当前阻塞：缺RMW数据/SwapResp hook） ; workload:workload-level:blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 该模型×档位亲和集合内：C08 是注入器宿主互斥，O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)",
    "precondition": "SE 构建二进制 + 载体 ELF（无需 FS 资产）",
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、exmon_monitor、exmon_rmw、exmon_stxr、atomic_op、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
    "coverage": "BLOCKED",
-   "resolve_reason": "blocked(multicore-fs: litmus needs multi-core FS)"
+   "resolve_reason": "blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 该模型×档位亲和集合内：C08 是注入器宿主互斥，O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)"
   },
   {
    "run_id": "O04-F2-W7",
@@ -2922,12 +2922,12 @@
    "status": "BLOCKED",
    "category": "FS-MULTICORE",
    "family": null,
-   "why": "campaign:deferred(RMW data path needs cache-side SwapResp hook) ; spec:需新增（当前阻塞：缺RMW数据/SwapResp hook） ; workload:workload-level:blocked(multicore-fs: litmus needs multi-core FS)",
+   "why": "campaign:deferred(RMW data path needs cache-side SwapResp hook) ; spec:需新增（当前阻塞：缺RMW数据/SwapResp hook） ; workload:workload-level:blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 该模型×档位亲和集合内：C08 是注入器宿主互斥，O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)",
    "precondition": "SE 构建二进制 + 载体 ELF（无需 FS 资产）",
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、exmon_monitor、exmon_rmw、exmon_stxr、atomic_op、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
    "coverage": "BLOCKED",
-   "resolve_reason": "blocked(multicore-fs: litmus needs multi-core FS)"
+   "resolve_reason": "blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 该模型×档位亲和集合内：C08 是注入器宿主互斥，O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)"
   },
   {
    "run_id": "O04-F6-W7",
@@ -2937,12 +2937,12 @@
    "status": "BLOCKED",
    "category": "FS-MULTICORE",
    "family": null,
-   "why": "campaign:deferred(RMW data path needs cache-side SwapResp hook) ; spec:需新增（当前阻塞：缺RMW数据/SwapResp hook） ; workload:workload-level:blocked(multicore-fs: litmus needs multi-core FS)",
+   "why": "campaign:deferred(RMW data path needs cache-side SwapResp hook) ; spec:需新增（当前阻塞：缺RMW数据/SwapResp hook） ; workload:workload-level:blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 该模型×档位亲和集合内：C08 是注入器宿主互斥，O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)",
    "precondition": "SE 构建二进制 + 载体 ELF（无需 FS 资产）",
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、exmon_monitor、exmon_rmw、exmon_stxr、atomic_op、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
    "coverage": "BLOCKED",
-   "resolve_reason": "blocked(multicore-fs: litmus needs multi-core FS)"
+   "resolve_reason": "blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 该模型×档位亲和集合内：C08 是注入器宿主互斥，O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)"
   },
   {
    "run_id": "O05-F0-W7",
@@ -2952,12 +2952,12 @@
    "status": "BLOCKED",
    "category": "FS-MULTICORE",
    "family": null,
-   "why": "campaign:blocked(multicore-fs: RMW ordering needs multi-core) ; spec:需新增（当前阻塞：需要多核FS的RMW请求/全局可见性） ; workload:workload-level:blocked(multicore-fs: litmus needs multi-core FS)",
+   "why": "campaign:blocked(multicore-fs: 模型语义未实现——RMW 请求/全局可见性 order 跟踪缺失；多核 FS 基础设施已就绪 R4-8-FSMC) ; spec:需新增（当前阻塞：需要多核FS的RMW请求/全局可见性） ; workload:workload-level:blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 该模型×档位亲和集合内：C08 是注入器宿主互斥，O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)",
    "precondition": "SE 构建二进制 + 载体 ELF（无需 FS 资产）",
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、exmon_monitor、exmon_rmw、exmon_stxr、atomic_op、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
    "coverage": "BLOCKED",
-   "resolve_reason": "blocked(multicore-fs: litmus needs multi-core FS)"
+   "resolve_reason": "blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 该模型×档位亲和集合内：C08 是注入器宿主互斥，O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)"
   },
   {
    "run_id": "O05-F4-W7",
@@ -2967,12 +2967,12 @@
    "status": "BLOCKED",
    "category": "FS-MULTICORE",
    "family": null,
-   "why": "campaign:blocked(multicore-fs: RMW ordering needs multi-core) ; spec:需新增（当前阻塞：需要多核FS的RMW请求/全局可见性） ; workload:workload-level:blocked(multicore-fs: litmus needs multi-core FS)",
+   "why": "campaign:blocked(multicore-fs: 模型语义未实现——RMW 请求/全局可见性 order 跟踪缺失；多核 FS 基础设施已就绪 R4-8-FSMC) ; spec:需新增（当前阻塞：需要多核FS的RMW请求/全局可见性） ; workload:workload-level:blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 该模型×档位亲和集合内：C08 是注入器宿主互斥，O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)",
    "precondition": "SE 构建二进制 + 载体 ELF（无需 FS 资产）",
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、exmon_monitor、exmon_rmw、exmon_stxr、atomic_op、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
    "coverage": "BLOCKED",
-   "resolve_reason": "blocked(multicore-fs: litmus needs multi-core FS)"
+   "resolve_reason": "blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 该模型×档位亲和集合内：C08 是注入器宿主互斥，O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)"
   },
   {
    "run_id": "O05-F6-W7",
@@ -2982,12 +2982,12 @@
    "status": "BLOCKED",
    "category": "FS-MULTICORE",
    "family": null,
-   "why": "campaign:blocked(multicore-fs: RMW ordering needs multi-core) ; spec:需新增（当前阻塞：需要多核FS的RMW请求/全局可见性） ; workload:workload-level:blocked(multicore-fs: litmus needs multi-core FS)",
+   "why": "campaign:blocked(multicore-fs: 模型语义未实现——RMW 请求/全局可见性 order 跟踪缺失；多核 FS 基础设施已就绪 R4-8-FSMC) ; spec:需新增（当前阻塞：需要多核FS的RMW请求/全局可见性） ; workload:workload-level:blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 该模型×档位亲和集合内：C08 是注入器宿主互斥，O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)",
    "precondition": "SE 构建二进制 + 载体 ELF（无需 FS 资产）",
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、exmon_monitor、exmon_rmw、exmon_stxr、atomic_op、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
    "coverage": "BLOCKED",
-   "resolve_reason": "blocked(multicore-fs: litmus needs multi-core FS)"
+   "resolve_reason": "blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 该模型×档位亲和集合内：C08 是注入器宿主互斥，O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)"
   },
   {
    "run_id": "O06-F0-W7",
@@ -2997,12 +2997,12 @@
    "status": "BLOCKED",
    "category": "FS-MULTICORE",
    "family": null,
-   "why": "campaign:blocked(multicore-fs: barrier completion needs multi-core) ; spec:需新增（当前阻塞：需要多核FS barrier完成跟踪） ; workload:workload-level:blocked(multicore-fs: litmus needs multi-core FS)",
+   "why": "campaign:blocked(multicore-fs: 模型语义未实现——barrier 完成跟踪缺失；多核 FS 基础设施已就绪 R4-8-FSMC) ; spec:需新增（当前阻塞：需要多核FS barrier完成跟踪） ; workload:workload-level:blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 该模型×档位亲和集合内：C08 是注入器宿主互斥，O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)",
    "precondition": "SE 构建二进制 + 载体 ELF（无需 FS 资产）",
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、exmon_monitor、exmon_rmw、exmon_stxr、atomic_op、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
    "coverage": "BLOCKED",
-   "resolve_reason": "blocked(multicore-fs: litmus needs multi-core FS)"
+   "resolve_reason": "blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 该模型×档位亲和集合内：C08 是注入器宿主互斥，O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)"
   },
   {
    "run_id": "O06-F4-W7",
@@ -3012,12 +3012,12 @@
    "status": "BLOCKED",
    "category": "FS-MULTICORE",
    "family": null,
-   "why": "campaign:blocked(multicore-fs: barrier completion needs multi-core) ; spec:需新增（当前阻塞：需要多核FS barrier完成跟踪） ; workload:workload-level:blocked(multicore-fs: litmus needs multi-core FS)",
+   "why": "campaign:blocked(multicore-fs: 模型语义未实现——barrier 完成跟踪缺失；多核 FS 基础设施已就绪 R4-8-FSMC) ; spec:需新增（当前阻塞：需要多核FS barrier完成跟踪） ; workload:workload-level:blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 该模型×档位亲和集合内：C08 是注入器宿主互斥，O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)",
    "precondition": "SE 构建二进制 + 载体 ELF（无需 FS 资产）",
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、exmon_monitor、exmon_rmw、exmon_stxr、atomic_op、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
    "coverage": "BLOCKED",
-   "resolve_reason": "blocked(multicore-fs: litmus needs multi-core FS)"
+   "resolve_reason": "blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 该模型×档位亲和集合内：C08 是注入器宿主互斥，O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)"
   },
   {
    "run_id": "O06-F6-W7",
@@ -3027,12 +3027,12 @@
    "status": "BLOCKED",
    "category": "FS-MULTICORE",
    "family": null,
-   "why": "campaign:blocked(multicore-fs: barrier completion needs multi-core) ; spec:需新增（当前阻塞：需要多核FS barrier完成跟踪） ; workload:workload-level:blocked(multicore-fs: litmus needs multi-core FS)",
+   "why": "campaign:blocked(multicore-fs: 模型语义未实现——barrier 完成跟踪缺失；多核 FS 基础设施已就绪 R4-8-FSMC) ; spec:需新增（当前阻塞：需要多核FS barrier完成跟踪） ; workload:workload-level:blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 该模型×档位亲和集合内：C08 是注入器宿主互斥，O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)",
    "precondition": "SE 构建二进制 + 载体 ELF（无需 FS 资产）",
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、exmon_monitor、exmon_rmw、exmon_stxr、atomic_op、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
    "coverage": "BLOCKED",
-   "resolve_reason": "blocked(multicore-fs: litmus needs multi-core FS)"
+   "resolve_reason": "blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 该模型×档位亲和集合内：C08 是注入器宿主互斥，O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)"
   },
   {
    "run_id": "O07-F0-W7",
@@ -3042,12 +3042,12 @@
    "status": "BLOCKED",
    "category": "FS-MULTICORE",
    "family": null,
-   "why": "campaign:blocked(multicore-fs: order-tag swap needs multi-core) ; spec:需新增（当前阻塞：需要多核FS order-tag/ready跟踪） ; workload:workload-level:blocked(multicore-fs: litmus needs multi-core FS)",
+   "why": "campaign:blocked(multicore-fs: 模型语义未实现——order-tag/ready 跟踪缺失；多核 FS 基础设施已就绪 R4-8-FSMC) ; spec:需新增（当前阻塞：需要多核FS order-tag/ready跟踪） ; workload:workload-level:blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 该模型×档位亲和集合内：C08 是注入器宿主互斥，O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)",
    "precondition": "SE 构建二进制 + 载体 ELF（无需 FS 资产）",
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、exmon_monitor、exmon_rmw、exmon_stxr、atomic_op、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
    "coverage": "BLOCKED",
-   "resolve_reason": "blocked(multicore-fs: litmus needs multi-core FS)"
+   "resolve_reason": "blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 该模型×档位亲和集合内：C08 是注入器宿主互斥，O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)"
   },
   {
    "run_id": "O07-F2-W7",
@@ -3057,12 +3057,12 @@
    "status": "BLOCKED",
    "category": "FS-MULTICORE",
    "family": null,
-   "why": "campaign:blocked(multicore-fs: order-tag swap needs multi-core) ; spec:需新增（当前阻塞：需要多核FS order-tag/ready跟踪） ; workload:workload-level:blocked(multicore-fs: litmus needs multi-core FS)",
+   "why": "campaign:blocked(multicore-fs: 模型语义未实现——order-tag/ready 跟踪缺失；多核 FS 基础设施已就绪 R4-8-FSMC) ; spec:需新增（当前阻塞：需要多核FS order-tag/ready跟踪） ; workload:workload-level:blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 该模型×档位亲和集合内：C08 是注入器宿主互斥，O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)",
    "precondition": "SE 构建二进制 + 载体 ELF（无需 FS 资产）",
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、exmon_monitor、exmon_rmw、exmon_stxr、atomic_op、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
    "coverage": "BLOCKED",
-   "resolve_reason": "blocked(multicore-fs: litmus needs multi-core FS)"
+   "resolve_reason": "blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 该模型×档位亲和集合内：C08 是注入器宿主互斥，O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)"
   },
   {
    "run_id": "O07-F6-W7",
@@ -3072,12 +3072,12 @@
    "status": "BLOCKED",
    "category": "FS-MULTICORE",
    "family": null,
-   "why": "campaign:blocked(multicore-fs: order-tag swap needs multi-core) ; spec:需新增（当前阻塞：需要多核FS order-tag/ready跟踪） ; workload:workload-level:blocked(multicore-fs: litmus needs multi-core FS)",
+   "why": "campaign:blocked(multicore-fs: 模型语义未实现——order-tag/ready 跟踪缺失；多核 FS 基础设施已就绪 R4-8-FSMC) ; spec:需新增（当前阻塞：需要多核FS order-tag/ready跟踪） ; workload:workload-level:blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 该模型×档位亲和集合内：C08 是注入器宿主互斥，O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)",
    "precondition": "SE 构建二进制 + 载体 ELF（无需 FS 资产）",
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、exmon_monitor、exmon_rmw、exmon_stxr、atomic_op、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
    "coverage": "BLOCKED",
-   "resolve_reason": "blocked(multicore-fs: litmus needs multi-core FS)"
+   "resolve_reason": "blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 该模型×档位亲和集合内：C08 是注入器宿主互斥，O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)"
   },
   {
    "run_id": "P01-F0-W2",
@@ -4677,12 +4677,12 @@
    "status": "BLOCKED",
    "category": "FS-MULTICORE",
    "family": null,
-   "why": "campaign:deferred(RMW operand path needs cache-side hook) ; spec:需新增（当前阻塞：缺RMW operand hook） ; workload:workload-level:blocked(multicore-fs: litmus needs multi-core FS)",
+   "why": "campaign:deferred(RMW operand path needs cache-side hook) ; spec:需新增（当前阻塞：缺RMW operand hook） ; workload:workload-level:blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 该模型×档位亲和集合内：C08 是注入器宿主互斥，O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)",
    "precondition": "SE 构建二进制 + 载体 ELF（无需 FS 资产）",
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、exmon_monitor、exmon_rmw、exmon_stxr、atomic_op、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
    "coverage": "BLOCKED",
-   "resolve_reason": "blocked(multicore-fs: litmus needs multi-core FS)"
+   "resolve_reason": "blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 该模型×档位亲和集合内：C08 是注入器宿主互斥，O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)"
   },
   {
    "run_id": "O09-F0-W13",
@@ -4692,12 +4692,12 @@
    "status": "BLOCKED",
    "category": "FS-MULTICORE",
    "family": null,
-   "why": "campaign:deferred(RMW operand path needs cache-side hook) ; spec:需新增（当前阻塞：缺RMW operand hook） ; workload:workload-level:blocked(multicore-fs: PARSEC needs multi-core FS)",
+   "why": "campaign:deferred(RMW operand path needs cache-side hook) ; spec:需新增（当前阻塞：缺RMW operand hook） ; workload:workload-level:blocked(multicore-fs: W13 负载身份——PARSEC(dedup/ferret/streamcluster) **开源（不是授权障碍）但本仓库不可得**：find 实证只有 gem5 上游测试脚手架 CHAOS/gem5/tests/gem5/parsec_benchmarks/，而它默认被禁用（PARSEC disk image is too big）、valid_hosts=(host_x86_64_tag,) 仅 x86_64 宿主、需 --resource-directory 指向预编译镜像 + KVM；无源码/输入集/aarch64 构建。另叠加各自的模型/宿主缺口（O09 缺 RMW operand hook；P09 的 dirty-evict 走 classic CHAOSCache，与'多线程真实应用'语义构造性互斥）；替代负载会改写格子定义 ⇒ 规格级决定。见 R4-9-FSMC-A 报告 §5)",
    "precondition": "SE 构建二进制 + 载体 ELF（无需 FS 资产）",
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、exmon_monitor、exmon_rmw、exmon_stxr、atomic_op、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
    "coverage": "BLOCKED",
-   "resolve_reason": "blocked(multicore-fs: PARSEC needs multi-core FS)"
+   "resolve_reason": "blocked(multicore-fs: W13 负载身份——PARSEC(dedup/ferret/streamcluster) **开源（不是授权障碍）但本仓库不可得**：find 实证只有 gem5 上游测试脚手架 CHAOS/gem5/tests/gem5/parsec_benchmarks/，而它默认被禁用（PARSEC disk image is too big）、valid_hosts=(host_x86_64_tag,) 仅 x86_64 宿主、需 --resource-directory 指向预编译镜像 + KVM；无源码/输入集/aarch64 构建。另叠加各自的模型/宿主缺口（O09 缺 RMW operand hook；P09 的 dirty-evict 走 classic CHAOSCache，与'多线程真实应用'语义构造性互斥）；替代负载会改写格子定义 ⇒ 规格级决定。见 R4-9-FSMC-A 报告 §5)"
   },
   {
    "run_id": "O09-F1-W7",
@@ -4707,12 +4707,12 @@
    "status": "BLOCKED",
    "category": "FS-MULTICORE",
    "family": null,
-   "why": "campaign:deferred(RMW operand path needs cache-side hook) ; spec:需新增（当前阻塞：缺RMW operand hook） ; workload:workload-level:blocked(multicore-fs: litmus needs multi-core FS)",
+   "why": "campaign:deferred(RMW operand path needs cache-side hook) ; spec:需新增（当前阻塞：缺RMW operand hook） ; workload:workload-level:blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 该模型×档位亲和集合内：C08 是注入器宿主互斥，O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)",
    "precondition": "SE 构建二进制 + 载体 ELF（无需 FS 资产）",
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、exmon_monitor、exmon_rmw、exmon_stxr、atomic_op、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
    "coverage": "BLOCKED",
-   "resolve_reason": "blocked(multicore-fs: litmus needs multi-core FS)"
+   "resolve_reason": "blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 该模型×档位亲和集合内：C08 是注入器宿主互斥，O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)"
   },
   {
    "run_id": "O09-F1-W13",
@@ -4722,12 +4722,12 @@
    "status": "BLOCKED",
    "category": "FS-MULTICORE",
    "family": null,
-   "why": "campaign:deferred(RMW operand path needs cache-side hook) ; spec:需新增（当前阻塞：缺RMW operand hook） ; workload:workload-level:blocked(multicore-fs: PARSEC needs multi-core FS)",
+   "why": "campaign:deferred(RMW operand path needs cache-side hook) ; spec:需新增（当前阻塞：缺RMW operand hook） ; workload:workload-level:blocked(multicore-fs: W13 负载身份——PARSEC(dedup/ferret/streamcluster) **开源（不是授权障碍）但本仓库不可得**：find 实证只有 gem5 上游测试脚手架 CHAOS/gem5/tests/gem5/parsec_benchmarks/，而它默认被禁用（PARSEC disk image is too big）、valid_hosts=(host_x86_64_tag,) 仅 x86_64 宿主、需 --resource-directory 指向预编译镜像 + KVM；无源码/输入集/aarch64 构建。另叠加各自的模型/宿主缺口（O09 缺 RMW operand hook；P09 的 dirty-evict 走 classic CHAOSCache，与'多线程真实应用'语义构造性互斥）；替代负载会改写格子定义 ⇒ 规格级决定。见 R4-9-FSMC-A 报告 §5)",
    "precondition": "SE 构建二进制 + 载体 ELF（无需 FS 资产）",
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、exmon_monitor、exmon_rmw、exmon_stxr、atomic_op、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
    "coverage": "BLOCKED",
-   "resolve_reason": "blocked(multicore-fs: PARSEC needs multi-core FS)"
+   "resolve_reason": "blocked(multicore-fs: W13 负载身份——PARSEC(dedup/ferret/streamcluster) **开源（不是授权障碍）但本仓库不可得**：find 实证只有 gem5 上游测试脚手架 CHAOS/gem5/tests/gem5/parsec_benchmarks/，而它默认被禁用（PARSEC disk image is too big）、valid_hosts=(host_x86_64_tag,) 仅 x86_64 宿主、需 --resource-directory 指向预编译镜像 + KVM；无源码/输入集/aarch64 构建。另叠加各自的模型/宿主缺口（O09 缺 RMW operand hook；P09 的 dirty-evict 走 classic CHAOSCache，与'多线程真实应用'语义构造性互斥）；替代负载会改写格子定义 ⇒ 规格级决定。见 R4-9-FSMC-A 报告 §5)"
   },
   {
    "run_id": "O09-F2-W7",
@@ -4737,12 +4737,12 @@
    "status": "BLOCKED",
    "category": "FS-MULTICORE",
    "family": null,
-   "why": "campaign:deferred(RMW operand path needs cache-side hook) ; spec:需新增（当前阻塞：缺RMW operand hook） ; workload:workload-level:blocked(multicore-fs: litmus needs multi-core FS)",
+   "why": "campaign:deferred(RMW operand path needs cache-side hook) ; spec:需新增（当前阻塞：缺RMW operand hook） ; workload:workload-level:blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 该模型×档位亲和集合内：C08 是注入器宿主互斥，O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)",
    "precondition": "SE 构建二进制 + 载体 ELF（无需 FS 资产）",
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、exmon_monitor、exmon_rmw、exmon_stxr、atomic_op、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
    "coverage": "BLOCKED",
-   "resolve_reason": "blocked(multicore-fs: litmus needs multi-core FS)"
+   "resolve_reason": "blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 该模型×档位亲和集合内：C08 是注入器宿主互斥，O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)"
   },
   {
    "run_id": "O09-F2-W13",
@@ -4752,12 +4752,12 @@
    "status": "BLOCKED",
    "category": "FS-MULTICORE",
    "family": null,
-   "why": "campaign:deferred(RMW operand path needs cache-side hook) ; spec:需新增（当前阻塞：缺RMW operand hook） ; workload:workload-level:blocked(multicore-fs: PARSEC needs multi-core FS)",
+   "why": "campaign:deferred(RMW operand path needs cache-side hook) ; spec:需新增（当前阻塞：缺RMW operand hook） ; workload:workload-level:blocked(multicore-fs: W13 负载身份——PARSEC(dedup/ferret/streamcluster) **开源（不是授权障碍）但本仓库不可得**：find 实证只有 gem5 上游测试脚手架 CHAOS/gem5/tests/gem5/parsec_benchmarks/，而它默认被禁用（PARSEC disk image is too big）、valid_hosts=(host_x86_64_tag,) 仅 x86_64 宿主、需 --resource-directory 指向预编译镜像 + KVM；无源码/输入集/aarch64 构建。另叠加各自的模型/宿主缺口（O09 缺 RMW operand hook；P09 的 dirty-evict 走 classic CHAOSCache，与'多线程真实应用'语义构造性互斥）；替代负载会改写格子定义 ⇒ 规格级决定。见 R4-9-FSMC-A 报告 §5)",
    "precondition": "SE 构建二进制 + 载体 ELF（无需 FS 资产）",
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、exmon_monitor、exmon_rmw、exmon_stxr、atomic_op、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
    "coverage": "BLOCKED",
-   "resolve_reason": "blocked(multicore-fs: PARSEC needs multi-core FS)"
+   "resolve_reason": "blocked(multicore-fs: W13 负载身份——PARSEC(dedup/ferret/streamcluster) **开源（不是授权障碍）但本仓库不可得**：find 实证只有 gem5 上游测试脚手架 CHAOS/gem5/tests/gem5/parsec_benchmarks/，而它默认被禁用（PARSEC disk image is too big）、valid_hosts=(host_x86_64_tag,) 仅 x86_64 宿主、需 --resource-directory 指向预编译镜像 + KVM；无源码/输入集/aarch64 构建。另叠加各自的模型/宿主缺口（O09 缺 RMW operand hook；P09 的 dirty-evict 走 classic CHAOSCache，与'多线程真实应用'语义构造性互斥）；替代负载会改写格子定义 ⇒ 规格级决定。见 R4-9-FSMC-A 报告 §5)"
   },
   {
    "run_id": "P09-F0-W6",
@@ -4797,12 +4797,12 @@
    "status": "BLOCKED",
    "category": "FS-MULTICORE",
    "family": null,
-   "why": "workload:workload-level:blocked(multicore-fs: PARSEC needs multi-core FS)",
+   "why": "workload:workload-level:blocked(multicore-fs: W13 负载身份——PARSEC(dedup/ferret/streamcluster) **开源（不是授权障碍）但本仓库不可得**：find 实证只有 gem5 上游测试脚手架 CHAOS/gem5/tests/gem5/parsec_benchmarks/，而它默认被禁用（PARSEC disk image is too big）、valid_hosts=(host_x86_64_tag,) 仅 x86_64 宿主、需 --resource-directory 指向预编译镜像 + KVM；无源码/输入集/aarch64 构建。另叠加各自的模型/宿主缺口（O09 缺 RMW operand hook；P09 的 dirty-evict 走 classic CHAOSCache，与'多线程真实应用'语义构造性互斥）；替代负载会改写格子定义 ⇒ 规格级决定。见 R4-9-FSMC-A 报告 §5)",
    "precondition": "SE 构建二进制 + 载体 ELF（无需 FS 资产）",
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、pf_train、pf_queue、pf_issue、pf_fill、pf_demand、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
    "coverage": "BLOCKED",
-   "resolve_reason": "blocked(multicore-fs: PARSEC needs multi-core FS)"
+   "resolve_reason": "blocked(multicore-fs: W13 负载身份——PARSEC(dedup/ferret/streamcluster) **开源（不是授权障碍）但本仓库不可得**：find 实证只有 gem5 上游测试脚手架 CHAOS/gem5/tests/gem5/parsec_benchmarks/，而它默认被禁用（PARSEC disk image is too big）、valid_hosts=(host_x86_64_tag,) 仅 x86_64 宿主、需 --resource-directory 指向预编译镜像 + KVM；无源码/输入集/aarch64 构建。另叠加各自的模型/宿主缺口（O09 缺 RMW operand hook；P09 的 dirty-evict 走 classic CHAOSCache，与'多线程真实应用'语义构造性互斥）；替代负载会改写格子定义 ⇒ 规格级决定。见 R4-9-FSMC-A 报告 §5)"
   },
   {
    "run_id": "P09-F4-W6",
@@ -4842,12 +4842,12 @@
    "status": "BLOCKED",
    "category": "FS-MULTICORE",
    "family": null,
-   "why": "workload:workload-level:blocked(multicore-fs: PARSEC needs multi-core FS)",
+   "why": "workload:workload-level:blocked(multicore-fs: W13 负载身份——PARSEC(dedup/ferret/streamcluster) **开源（不是授权障碍）但本仓库不可得**：find 实证只有 gem5 上游测试脚手架 CHAOS/gem5/tests/gem5/parsec_benchmarks/，而它默认被禁用（PARSEC disk image is too big）、valid_hosts=(host_x86_64_tag,) 仅 x86_64 宿主、需 --resource-directory 指向预编译镜像 + KVM；无源码/输入集/aarch64 构建。另叠加各自的模型/宿主缺口（O09 缺 RMW operand hook；P09 的 dirty-evict 走 classic CHAOSCache，与'多线程真实应用'语义构造性互斥）；替代负载会改写格子定义 ⇒ 规格级决定。见 R4-9-FSMC-A 报告 §5)",
    "precondition": "SE 构建二进制 + 载体 ELF（无需 FS 资产）",
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、pf_train、pf_queue、pf_issue、pf_fill、pf_demand、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
    "coverage": "BLOCKED",
-   "resolve_reason": "blocked(multicore-fs: PARSEC needs multi-core FS)"
+   "resolve_reason": "blocked(multicore-fs: W13 负载身份——PARSEC(dedup/ferret/streamcluster) **开源（不是授权障碍）但本仓库不可得**：find 实证只有 gem5 上游测试脚手架 CHAOS/gem5/tests/gem5/parsec_benchmarks/，而它默认被禁用（PARSEC disk image is too big）、valid_hosts=(host_x86_64_tag,) 仅 x86_64 宿主、需 --resource-directory 指向预编译镜像 + KVM；无源码/输入集/aarch64 构建。另叠加各自的模型/宿主缺口（O09 缺 RMW operand hook；P09 的 dirty-evict 走 classic CHAOSCache，与'多线程真实应用'语义构造性互斥）；替代负载会改写格子定义 ⇒ 规格级决定。见 R4-9-FSMC-A 报告 §5)"
   },
   {
    "run_id": "P09-F6-W6",
@@ -4887,12 +4887,12 @@
    "status": "BLOCKED",
    "category": "FS-MULTICORE",
    "family": null,
-   "why": "workload:workload-level:blocked(multicore-fs: PARSEC needs multi-core FS)",
+   "why": "workload:workload-level:blocked(multicore-fs: W13 负载身份——PARSEC(dedup/ferret/streamcluster) **开源（不是授权障碍）但本仓库不可得**：find 实证只有 gem5 上游测试脚手架 CHAOS/gem5/tests/gem5/parsec_benchmarks/，而它默认被禁用（PARSEC disk image is too big）、valid_hosts=(host_x86_64_tag,) 仅 x86_64 宿主、需 --resource-directory 指向预编译镜像 + KVM；无源码/输入集/aarch64 构建。另叠加各自的模型/宿主缺口（O09 缺 RMW operand hook；P09 的 dirty-evict 走 classic CHAOSCache，与'多线程真实应用'语义构造性互斥）；替代负载会改写格子定义 ⇒ 规格级决定。见 R4-9-FSMC-A 报告 §5)",
    "precondition": "SE 构建二进制 + 载体 ELF（无需 FS 资产）",
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、pf_train、pf_queue、pf_issue、pf_fill、pf_demand、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
    "coverage": "BLOCKED",
-   "resolve_reason": "blocked(multicore-fs: PARSEC needs multi-core FS)"
+   "resolve_reason": "blocked(multicore-fs: W13 负载身份——PARSEC(dedup/ferret/streamcluster) **开源（不是授权障碍）但本仓库不可得**：find 实证只有 gem5 上游测试脚手架 CHAOS/gem5/tests/gem5/parsec_benchmarks/，而它默认被禁用（PARSEC disk image is too big）、valid_hosts=(host_x86_64_tag,) 仅 x86_64 宿主、需 --resource-directory 指向预编译镜像 + KVM；无源码/输入集/aarch64 构建。另叠加各自的模型/宿主缺口（O09 缺 RMW operand hook；P09 的 dirty-evict 走 classic CHAOSCache，与'多线程真实应用'语义构造性互斥）；替代负载会改写格子定义 ⇒ 规格级决定。见 R4-9-FSMC-A 报告 §5)"
   }
  ]
 }
