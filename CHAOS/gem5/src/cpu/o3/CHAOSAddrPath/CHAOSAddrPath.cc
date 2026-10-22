@@ -552,6 +552,10 @@ namespace gem5
                         ++obs_pre_a06_load_nochange; break;
                       case A06LoadVerdict::Geometry:
                         ++obs_pre_a06_load_geom; break;
+                      case A06LoadVerdict::ShrinkUnsafe:
+                        // [R4-10][A06] the shrink decline is now counted per
+                        // REASON (was the `default: break;` silent fall-through).
+                        ++obs_pre_a06_load_shrink_unsafe; break;
                       default: break;
                     }
                 }
@@ -640,6 +644,9 @@ namespace gem5
                         ++obs_pre_a06_load_nochange; break;
                       case A06LoadVerdict::Geometry:
                         ++obs_pre_a06_load_geom; break;
+                      case A06LoadVerdict::ShrinkUnsafe:
+                        // [R4-10][A06] counted per REASON (was `default:`).
+                        ++obs_pre_a06_load_shrink_unsafe; break;
                       default: break;
                     }
                     ++obs_pre_opclass;   // [LSU][OBS-2]
@@ -647,6 +654,11 @@ namespace gem5
                 }
                 // [MDSPEC][R4-8-A06] split the injection counter by direction
                 // (target vs ORIGINAL size, before the write).
+                // [R4-10][A06] the `else` branch (obs_pre_a06_load_shrink) is
+                // now UNREACHABLE: a06_load_declined==false implies
+                // a06_load_tgt > size (shrink returns ShrinkUnsafe above), so
+                // only the widen arm is ever taken. Kept for field stability;
+                // declines are counted in obs_pre_a06_load_shrink_unsafe.
                 if (a06_load_tgt > size) ++obs_pre_a06_load_widen;
                 else                     ++obs_pre_a06_load_shrink;
                 size = a06_load_tgt;
@@ -1007,7 +1019,8 @@ namespace gem5
             && be_mode == "off")
             return;
         printf("CHAOS_L0_A06: pre_mode=%s size_to=%lu load_size_to=%lu "
-               "be_mode=%s load_widen=%lu load_shrink=%lu load_notarget=%lu "
+               "be_mode=%s load_widen=%lu load_shrink=%lu "
+               "load_shrink_unsafe=%lu load_notarget=%lu "
                "load_illegal=%lu load_nochange=%lu load_geom=%lu "
                "be_seen=%lu be_all_true=%lu be_subst=%lu be_declined=%lu\n",
                pre_mode.c_str(),
@@ -1016,6 +1029,7 @@ namespace gem5
                be_mode.c_str(),
                (unsigned long)obs_pre_a06_load_widen,
                (unsigned long)obs_pre_a06_load_shrink,
+               (unsigned long)obs_pre_a06_load_shrink_unsafe,
                (unsigned long)obs_pre_a06_load_notarget,
                (unsigned long)obs_pre_a06_load_illegal,
                (unsigned long)obs_pre_a06_load_nochange,

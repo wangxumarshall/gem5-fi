@@ -38,6 +38,13 @@ LSQ_UNIT = SRC / "lsq_unit.cc"
 DYNINST = SRC / "dyn_inst.hh"
 PROXY = ROOT / "configs" / "se" / "lsu_proxy.py"
 CARRIER = ROOT / "workloads" / "directed" / "a06_size_be.c"
+# [R4-10][A06] the vendored gem5 sources that carry the fixed-width completion
+# PROOF (the reason load-side shrink is declined, not a carrier miss).
+GEM5SRC = ROOT / "CHAOS" / "gem5" / "src"
+PACKET_ACCESS = GEM5SRC / "mem" / "packet_access.hh"
+PACKET = GEM5SRC / "mem" / "packet.hh"
+MEMHELPERS = GEM5SRC / "arch" / "generic" / "memhelpers.hh"
+ARM_MEM = GEM5SRC / "arch" / "arm" / "isa" / "templates" / "mem.isa"
 
 
 def main():
@@ -62,11 +69,13 @@ def main():
           m is not None and "a06_size" not in m.group(1),
           m.group(1) if m else "pre_store_only not found")
 
-    # A2 [R4-8-A06] load 侧包络 = 另一合法值 {1,2,4,8,16}（widen 或 shrink），
-    #    不再"只准 widen"；护栏是 target==原值不写（NoChange）与越 64B 行拒斥
-    #    （Geometry）。shrink 之所以安全，靠的是定宽完成合同的**缓冲下限**
-    #    （DynInst::chaosA06BufBytes），而不是禁掉该故障方向。
-    check("A2_load_envelope_widen_or_shrink",
+    # A2 [R4-10-A06 订正] load 侧包络 = 另一合法值 {1,2,4,8,16} 的 **widen 方向**；
+    #    shrink 方向经 R4-10 独立复核后**响亮拒绝**（A06LoadVerdict::ShrinkUnsafe，
+    #    见 A15/A16）——R4-8-A06 草案曾以为靠定宽完成合同的**缓冲下限**
+    #    （DynInst::chaosA06BufBytes）即可安全 shrink，该前提已被证伪
+    #    （断言在 packet size 上，与目的缓冲区无关）。护栏仍是 target==原值不写
+    #    （NoChange）与越 64B 行拒斥（Geometry）。
+    check("A2_load_envelope_widen_shrink_declined",
           "a06LoadSize" in cctxt
           and "A06LoadVerdict::NoChange" in cctxt
           and "ShrinkOrEqual" not in cctxt
@@ -161,6 +170,34 @@ def main():
               in cctxt
           and "++obs_pre_a06_load_shrink;" in cctxt,
           "widen/shrink/nochange counters not pinned")
+    # A15 [R4-10][A06] ShrinkUnsafe 必须**逐因计数**（不得再落 `default:`），
+    #     且在汇总行可见 —— 否则 A06 每次运行打印 load_shrink=0 的静默零，
+    #     与"永不静默零"约定相悖。判据：.hh 声明 + .cc 两处 switch 各有
+    #     一个 `case A06LoadVerdict::ShrinkUnsafe` 自增 + 汇总行含该字段。
+    check("A15_shrink_unsafe_counted_per_reason",
+          "obs_pre_a06_load_shrink_unsafe = 0;" in hhtxt
+          and cctxt.count("++obs_pre_a06_load_shrink_unsafe;") >= 2
+          and "case A06LoadVerdict::ShrinkUnsafe:" in cctxt
+          and "load_shrink_unsafe=%lu" in cctxt,
+          "shrink-unsafe decline is not counted per-reason / not in summary")
+    # A16 [R4-10][A06] 定宽完成合同的**源码级证明**（这才是"结构性不可达"
+    #     的判据，而不是"carrier 未命中"）：ARMLoadCompleteAcc 无条件按静态
+    #     操作数宽度读回 → getMem → pkt->get<MemT> → getRaw 断言
+    #     sizeof(T) <= pkt->size，而 pkt->size 来自 req->getSize()。
+    #     这四条**同时**成立才算证明链完整；任何一条被改（例如把断言放宽为
+    #     逐字节拷贝、或让 packet size 与 request size 解耦）都会让本判据失败，
+    #     从而强迫重新裁决 shrink 的可达性。
+    pa_txt = PACKET_ACCESS.read_text()
+    pk_txt = PACKET.read_text()
+    mh_txt = MEMHELPERS.read_text()
+    armmem_txt = ARM_MEM.read_text()
+    check("A16_fixed_width_completion_proof",
+          "assert(sizeof(T) <= size);" in pa_txt          # packet_access.hh:55
+          and "return *(T*)data;" in pa_txt
+          and "size = req->getSize();" in pk_txt           # packet.hh:908
+          and "mem = pkt->get<MemT>(Order);" in mh_txt     # memhelpers.hh:80
+          and "getMemLE(pkt, Mem, traceData);" in armmem_txt,  # mem.isa:499
+          "fixed-width completion proof chain broken")
     # 日志改动必须是**尾部追加**（lsu_phantom_audit.py 的 PRE_LINE_RE 依赖
     # mode/old_addr/new_addr/old_size/new_size/faults_injected 的前缀顺序）。
     i_faults = cctxt.find('", faults_injected: " << faults_injected_count')
