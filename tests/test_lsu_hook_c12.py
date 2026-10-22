@@ -242,9 +242,13 @@ def main():
           str(LC.MODEL_FLAGS.get("C12")))
     check("C12 已从 MODEL_BLOCKED 删除（实测可跑后才允许）",
           "C12" not in LC.MODEL_BLOCKED)
+    # [MDSPEC][R4-8-S10] S10 最终落地（平台修 §R4-6-S10 + 本轮 census）；
+    # 断言注释见 test_lsu_hook_c11.py 同名处。
     check("后续模型未误解锁（C14/C15 亦已解锁；L04 已于 R4-5.3、"
-          "S10 已于 R4-5.7 落地解锁）",
-          "C14" not in LC.MODEL_BLOCKED and "C15" not in LC.MODEL_BLOCKED and "S10" in LC.MODEL_BLOCKED)
+          "S10 已于 R4-8-S10 逐格门禁接管）",
+          "C14" not in LC.MODEL_BLOCKED and "C15" not in LC.MODEL_BLOCKED
+          and "S10" not in LC.MODEL_BLOCKED
+          and ("S10", "F2", "sq_forward") in LC.LSQFWD_INTERVAL_UNREACHABLE)
     for pair in (("C12", "cache_dirtyevict"), ("C12", "stream_chase"),
                  ("C12", "cache_mshr_refetch")):
         check(f"CACHE_F0_SPAN 实测条目 {pair}",

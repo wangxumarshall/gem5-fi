@@ -14,7 +14,8 @@ before/after=反事实/实际预测 producing-store seq；ssit_violation(L2)—�
 corr 刻意不列入必录——pf_train 先例类：注入器自有 PC 键匹配、非
 correlate* join，CORR_VALUES 5 值词汇表（test_lsu_prop_fields §6 钉死）
 无 PC 键 join 标记）、路由（lsu_proxy flag → MODEL_FLAGS → LSQFWD_F0_SPAN
-**无条目**（census 归集成侧，F0 cell 响亮拒绝）→ 从 MODEL_BLOCKED 删除）
+**实测条目** sq_forward/3 + gap_bfs/4（R4-8-S10 census，F0 cell 靠它可跑）→
+MODEL_BLOCKED 已删除；F2 两格由 LSQFWD_INTERVAL_UNREACHABLE 逐格响亮拒绝）
 与 L0 注入行契约（old_ssid/new_ssid 对 _INJ_RE 可解析）逐项钉死。
 
 链形态（结构性，与 L04/T01-postfix 同类）：故障发生在预测器状态（PC 键），
@@ -272,20 +273,30 @@ def main():
     check("MODEL_FLAGS 注册 S10（lsqfwd 家族 + --lsqfwd_s10）",
           LC.MODEL_FLAGS.get("S10") == ("lsqfwd", ["--lsqfwd_s10"]),
           str(LC.MODEL_FLAGS.get("S10")))
-    check("S10 仍在 MODEL_BLOCKED，理由由集成侧实测定论（平台缺陷：SSIT "
-          "恒不有效 → S10-a 前提不可达；非实现缺失）",
-          "S10" in LC.MODEL_BLOCKED
-          and "platform-defect" in LC.MODEL_BLOCKED["S10"],
+    # [MDSPEC][R4-8-S10] the R4-5.7b platform-defect block was LIFTED by
+    # the §R4-6-S10 platform fix + this round's census: S10 is no longer in
+    # MODEL_BLOCKED. The honest state is now PER-TIER (see the matrix
+    # section below), not a blanket model block.
+    check("S10 已从 MODEL_BLOCKED 删除（平台缺陷已修并真机验证，"
+          "§R4-6-S10；F0/F2 改由逐格门禁把关）",
+          "S10" not in LC.MODEL_BLOCKED,
           str(LC.MODEL_BLOCKED.get("S10"))[:120])
-    check("LSQFWD_F0_SPAN 无 S10 条目（census pending——F0 cell 响亮拒绝"
-          "直到集成侧实测）",
-          not [k for k in LC.LSQFWD_F0_SPAN if k[0] == "S10"],
-          str([k for k in LC.LSQFWD_F0_SPAN if k[0] == "S10"]))
-    check("campaign 登记集成侧 census 待办（S10 行注释点名两个待测对）",
-          '("S10", "sq_forward")' in src("tools/lsu_campaign.py")
-          and '("S10", "gap_bfs")' in src("tools/lsu_campaign.py"))
+    check("LSQFWD_F0_SPAN 有 S10 实测条目（本轮 census：sq_forward/3、"
+          "gap_bfs/4——R4-8-S10）",
+          LC.LSQFWD_F0_SPAN.get(("S10", "sq_forward")) == 3
+          and LC.LSQFWD_F0_SPAN.get(("S10", "gap_bfs")) == 4,
+          str({k: v for k, v in LC.LSQFWD_F0_SPAN.items() if k[0] == "S10"}))
+    check("LSQFWD_INTERVAL_UNREACHABLE 登记 S10-F2 两格（F2 下界 50000 "
+          ">> 实测流长，响亮拒绝而非静默零）",
+          ("S10", "F2", "sq_forward") in LC.LSQFWD_INTERVAL_UNREACHABLE
+          and ("S10", "F2", "gap_bfs") in LC.LSQFWD_INTERVAL_UNREACHABLE)
+    check("LSU_INTERVAL_EVENTS 与 trigger 头 intervalEvents() 一致"
+          "（F1/F2/F3/F4 = 1e6/1e5/1e4/1e5）",
+          LC.LSU_INTERVAL_EVENTS == {"F1": 1000000, "F2": 100000,
+                                     "F3": 10000, "F4": 100000},
+          str(LC.LSU_INTERVAL_EVENTS))
 
-    print("[7] 矩阵解析：S10 的 6 cell（全数 loud blocked——平台缺陷定论）")
+    print("[7] 矩阵解析：S10 的 6 cell（F0/F5 runnable；F2 逐格响亮拒绝）")
     header, cells = LC.load_matrix(
         ROOT / "artifacts/lsu-trial/07-expanded-matrix-backfilled.csv")
     s10 = [c for c in cells if c[LC.COL_MODEL].strip() == "S10"]
@@ -294,13 +305,30 @@ def main():
     check("S10 RunID 集合 = 任务书 6 项",
           runids == {"S10-F0-W5", "S10-F0-W9", "S10-F2-W5", "S10-F2-W9",
                      "S10-F5-W5", "S10-F5-W9"}, str(sorted(runids)))
+    # Expected per-cell state after R4-8-S10 (measured, not asserted blind):
+    expect = {
+        "S10-F0-W5": ("runnable", 3), "S10-F0-W9": ("runnable", 4),
+        "S10-F5-W5": ("runnable", None), "S10-F5-W9": ("runnable", None),
+        "S10-F2-W5": ("blocked", "interval-tier-unreachable"),
+        "S10-F2-W9": ("blocked", "interval-tier-unreachable"),
+    }
     for c in s10:
         runid = c[LC.COL_RUNID].strip()
         tier = c[LC.COL_FREQ].strip()
         flags, golden, note = LC.resolve_cell(c)
-        ok = (flags is None and note is not None and "platform-defect" in note)
-        check(f"{runid} loud blocked（tier={tier}，理由=平台缺陷，绝不静默 "
-              "runnable）", ok, f"note={note}")
+        want, extra = expect[runid]
+        if want == "runnable":
+            ok = flags is not None and note is not None
+            if extra is not None:
+                # F0: the measured span must be the F0 window (warmup=1).
+                ok = ok and "--lsqfwd_span_events" in flags and \
+                    flags[flags.index("--lsqfwd_span_events") + 1] == str(extra)
+            check(f"{runid} runnable（tier={tier}，实测门禁通过）", ok,
+                  f"flags={flags}")
+        else:
+            ok = (flags is None and note is not None and extra in note)
+            check(f"{runid} loud blocked（tier={tier}，理由="
+                  f"{extra}，绝不静默 runnable）", ok, f"note={str(note)[:90]}")
 
     print("[8] SPEC_IMPL_LANDED 登记契约（源码钉；JSON 再生成为集成侧步骤）")
     rm_src = src("tools/lsu_runid_map.py")
