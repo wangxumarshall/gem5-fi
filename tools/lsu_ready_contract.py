@@ -86,7 +86,7 @@ def _row_ids(md_path):
     return out
 
 
-def _classify(entry, cov_status, flags):
+def _classify(entry, cov_status, flags, reason=None):
     """(status, category, why) —— 口径见模块 docstring。
 
     [LSU][MDSPEC][R4-8-SPEC] 每个互斥类别**显式**判据 + 兜底报警。此前 A06 与
@@ -119,7 +119,10 @@ def _classify(entry, cov_status, flags):
             cat = "UNCLASSIFIED"
         return "BLOCKED", cat, joined
     if flags is None:
-        return "BLOCKED", "UNRESOLVED", str(cov_status)
+        # [R5-U5] 此前返回 cov_status（多为 "PASS"），使被拒绝的行在 why 字段里
+        # 自报 "PASS" —— 一条 BLOCKED 行声称通过，属误导性陈述。改为如实引用
+        # resolve_cell 的拒绝理由。
+        return "BLOCKED", "UNRESOLVED", (reason or "resolve_cell 拒绝（未给出理由）")
     if cov_status == "PASS":
         return "READY", "OK", ""
     return "PARTIAL", "NODE-GAP", f"coverage={cov_status}"
@@ -221,7 +224,7 @@ def build_contract(map_path, matrix_path, cov_path):
             flags, _golden, reason = lc.resolve_cell(cell)
             if flags is not None:
                 fam = lc.MODEL_FLAGS[e["model_id"]][0]
-        status, cat, why = _classify(e, cov.get(runid, "?"), flags)
+        status, cat, why = _classify(e, cov.get(runid, "?"), flags, reason)
         row = {
             "run_id": runid, "unit": unit, "model": e.get("model_id", ""),
             "freq": e.get("freq", ""), "status": status, "category": cat,

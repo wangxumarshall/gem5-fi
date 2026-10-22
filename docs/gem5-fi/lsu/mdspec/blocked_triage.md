@@ -80,10 +80,10 @@
 | P09-F0-W13 | 数据预取器 | P09 | FS-MULTICORE | workload:workload-level:blocked(multicore-fs: W13 负载身份——PARSEC(dedup/ferret/streamcluster) **开源（不是授权障碍）但本仓库不可得**：find 实证只有 gem5 上游测试脚手架 CHAOS/gem5/tes |
 | P09-F4-W13 | 数据预取器 | P09 | FS-MULTICORE | workload:workload-level:blocked(multicore-fs: W13 负载身份——PARSEC(dedup/ferret/streamcluster) **开源（不是授权障碍）但本仓库不可得**：find 实证只有 gem5 上游测试脚手架 CHAOS/gem5/tes |
 | P09-F6-W13 | 数据预取器 | P09 | FS-MULTICORE | workload:workload-level:blocked(multicore-fs: W13 负载身份——PARSEC(dedup/ferret/streamcluster) **开源（不是授权障碍）但本仓库不可得**：find 实证只有 gem5 上游测试脚手架 CHAOS/gem5/tes |
-| S01-F0-W1 | Store Queue | S01 | UNRESOLVED | PASS |
-| S02-F0-W1 | Store Queue | S02 | UNRESOLVED | PASS |
-| S10-F2-W5 | Store Queue | S10 | UNRESOLVED | PASS |
-| S10-F2-W9 | Store Queue | S10 | UNRESOLVED | PASS |
+| S01-F0-W1 | Store Queue | S01 | UNRESOLVED | BLOCKED(F0-span-unmeasured: model S01 on workload mibench/bin/w1_all — measure its eligible stream with a real run and set LSQFWD_F0_SPAN[('S01', 'mib |
+| S02-F0-W1 | Store Queue | S02 | UNRESOLVED | BLOCKED(F0-span-unmeasured: model S02 on workload mibench/bin/w1_all — measure its eligible stream with a real run and set LSQFWD_F0_SPAN[('S02', 'mib |
+| S10-F2-W5 | Store Queue | S10 | UNRESOLVED | BLOCKED(interval-tier-unreachable: model S10 tier F2 on workload sq_forward — the tier's SPEC-FIXED first-fire draw is U[F2/2, 3*F2/2) = at least 5000 |
+| S10-F2-W9 | Store Queue | S10 | UNRESOLVED | BLOCKED(interval-tier-unreachable: model S10 tier F2 on workload gap_bfs — the tier's SPEC-FIXED first-fire draw is U[F2/2, 3*F2/2) = at least 50000 e |
 | S13-F0-W11 | Store Queue | S13 | LICENSE | workload:workload-level:blocked(spec-license: SPEC CPU2017 needs a license) |
 | S13-F1-W11 | Store Queue | S13 | LICENSE | workload:workload-level:blocked(spec-license: SPEC CPU2017 needs a license) |
 | S13-F2-W11 | Store Queue | S13 | LICENSE | workload:workload-level:blocked(spec-license: SPEC CPU2017 needs a license) |
