@@ -174,9 +174,16 @@ src/mem/ruby/system/Sequencer.cc:707: warn: Replacement policy updates ...
 
 | 臂 | 载荷 | 结果 |
 |---|---|---|
-| A 干净对照 | `litmus.rcS`（未压缩 2.60 MB） | 派遣成功、解出前**卡在第一个二进制**；`--fs-timeout` 级 40 min 上限内未打印任何 per-binary 行 |
-| B 注入臂 | `litmus.rcS` + `--chaos_exmon --exmon_mode o01_monitor_addr_bitflip --exmon_lsu_tier F0 --exmon_lsu_span_events 8` | 注入器已挂载（日志实证见 §3.3）；载荷同 A 的慢 |
-| C 压缩对照 | `litmus_c.rcS`（gzip，1.15 MB） | 同 A 的慢（用于区分"体积问题"还是"结构问题"） |
+| A 干净对照 | `litmus.rcS`（未压缩 2.60 MB） | 派遣成功、解出前**卡在第一个二进制**；从派遣到 40 min 运行上限，`board.terminal` 恒定 267 B（最后一行永远是 `deploying litmus binaries from embedded base64`），无任何 per-binary 行 |
+| B 注入臂 | `litmus.rcS` + `--chaos_exmon --exmon_mode o01_monitor_addr_bitflip --exmon_lsu_tier F0 --exmon_lsu_span_events 8` | 注入器已挂载（日志实证见 §3.3）；派遣后 6+ min 仍停在同上那一行 |
+| C 压缩对照 | `litmus_c.rcS`（gzip，1.15 MB = 2.26× 小） | **同样停在同一行**（观测窗口内也没越过第一个二进制）⇒ 单纯减体积在这个观测窗内**没有**证明可解，问题在"guest 侧解包路径"本身（`sh` 的 heredoc + guest 磁盘/管道），不只是字节数 |
+
+**三臂的最终状态完全一致**（各 `board.terminal` 267 B、末行相同），且三臂在
+同一检查点上、同一宿主、同一时刻并发运行 ⇒ 这不是"某一臂的偶然失败"。
+
+预算账（任务书 ≤8 次）：本轮共 **4 次** gem5 调用（1 次 2 核 CHI 启动、
+3 次 O3 恢复臂：干净/注入/压缩），每次都用 `flock` 占槽；三臂在记录完上述
+状态后已被主动终止，**没有把槽位留到本轮之外**（其余 agent 仍需槽位）。
 
 判据与证据强度：
 
@@ -191,14 +198,22 @@ src/mem/ruby/system/Sequencer.cc:707: warn: Replacement policy updates ...
   **>17 min 未完成**（对照：同一宿主用 20 个 fork/exec 的 T-系载荷只用了约
   10 min，见 `configs/fs/tlb_probe.rcS` 头注）。瓶颈在**载荷字节数 × guest
   磁盘/管道路径**，不在 CPU。
-- **修法（下一位集成方按此做，成本已量化）**：不要把静态 glibc 二进制
-  （~640 KB/个 → base64 ~0.86 MB/个）当载荷。两个立即可用的方向：
-  1. `-nostdlib` 手写 syscall 的 litmus（aarch64 原始系统调用：
-     `clone`(220) 代 fork、`mmap`(222)、`sched_setaffinity`(122)、`exit`(93)），
-     产物约 **2–4 KB**，base64 后仍是几 KB ⇒ 解包在秒级；
-  2. 或把 ELF 放进 guest 镜像/第二块磁盘（本 worktree 无 root，未采用）。
-  本次的压缩臂 C 已经把 2.60 MB 降到 1.15 MB（2.26×），足以说明方向对：
-  载荷体积是**一阶**成本。
+- **修法（下一位集成方按此做；注意这一条已被压缩臂 C 收紧）**：压缩臂
+  （2.26× 小）在观测窗内**同样卡住**，所以**不要**只按"减一半"去估；
+  正确做法是**两件事一起做**，并且**先量后调**：
+  1. **先做一次"空载"基线**：用同一个 `--readfile` 机制投一个几 KB 的
+     平凡脚本（只 `echo` 一个标记 + `m5 exit`），量出"readfile + `sh` 解析"
+     的固定成本；再投一个单文件 `dd if=/dev/zero bs=1M count=1 | base64`
+     之类，量出"每 MB heredoc 解包"的边际成本。两个数一除就知道该把载荷
+     压到多小。**没有这两个数，任何"改小一点就行"的判断都是猜的。**
+  2. 载荷侧：把 litmus 改成 `-nostdlib` 手写 syscall 的版本（aarch64 原始
+     系统调用：`clone`(220) 代 fork、`mmap`(222)、`sched_setaffinity`(122)、
+     `exit`(93)），产物约 **2–4 KB** ⇒ 连 heredoc 都几乎不存在；
+     或者干脆放弃"经 `sh` heredoc 解包"这条路，把 ELF 预置进 guest 镜像/
+     第二块磁盘（本 worktree 无 root，未采用）。
+  本轮实测给出的**唯一**有把握的结论是：**当前形态（640 KB 静态 ELF × 3
+  经 shell heredoc）在 2 核 Ruby/O3 恢复态下不可行**；具体阈值待第 1 步的
+  两个数落地。
 
 ### 3.3 注入臂：O01 在多核 FS 上真实挂载 【通过（挂载），未到 oracle】
 
