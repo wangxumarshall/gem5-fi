@@ -113,3 +113,33 @@ python3 tools/lsu_campaign.py \
 - [ ] FS-INFRA 阻塞理由措辞更正（旧措辞已被证据反驳）。
 - [ ] 集成报告 "616 事件" → 810 更正。
 - [ ] O04–O09 W7 15 项的 campaign 入口 pilot。
+
+---
+
+## 9. 本轮终局快照（2026-10-22 21:30）
+
+- **HEAD**：`0665b051`（`origin/lsu-mdspec-20261019` 同步，工作树干净）
+- **权威准入**：`total=325 READY=241 PARTIAL=0 BLOCKED=84 self_consistent=True`；
+  `verdict = NO-GO`（`verdict()` 自动判定，非人工声明）
+- **325 机器核对**：四源集合对称差全 0；源 xlsx sha256 `389546f0…` 与文档头一致
+- **全套件**：`lsu_test_runner` → `PASS=50 SKIP=1 FAIL=0 ENV=0`；`pytest` 21 passed
+- **二进制**：sha256 `f4dbfb9a66e0df80…`（1,145,188,760 B）
+
+### 仍在运行的真实任务（不杀、不干预）
+
+| 任务 | 状态 |
+|---|---|
+| S01-F0-W1 span census | 运行中（21:06 后进入输出静默段，CPU 持续 99.8%，判定为推进中） |
+| T01-F0-W4 FS pilot | 运行中 |
+| FS-INFRA 逐格 pilot 批（22 格，2 并发） | 本轮发起，证据落 `/tmp/r5_fs_pilot/batch/` |
+
+### 结论（不夸大）
+
+达到正式实验标准所需的是 **BLOCKED→0**，本轮**未达到**，也**未**通过任何改分类/放宽阈值手段接近它。
+84 项中：**真外部 47**（LICENSE 12 + W13 PARSEC 6 + C08 构造性互斥 4 + A06 规格裁决 6 +
+S10-F2 规格结构性拒绝 2 + FS-MULTICORE 其余外部项）+ **可跑但未逐格 pilot ~33**
+（FS-INFRA 24 + O04–O09 W7 15 中的未 pilot 部分）+ **census 待收敛 2**（S01/S02-F0-W1）。
+
+⇒ 未满足用户条件 2 的"剩余项全部不可达"分支：约 33 项**可达**，缺的是逐格 pilot
+（每格 FS pilot 约 30–45 min，33 格 × 2 并发 ≈ 8–12 h），本轮已启动该批次但未完成。
+**不得**据此宣布 GO，也不得把"批次已启动"当作"已解锁"。
