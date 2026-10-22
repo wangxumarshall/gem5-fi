@@ -1801,3 +1801,48 @@ kind=tlb_refill walk_id=703 field=lost outcome=lost tick=238044463587
 - **注入计数修正（工具侧）**：分类器原先把 `Site: ` 行一律计为注入，导致 T08 首轮
   虚报 `activated=3`（真实注入 = 1，因两条为诊断行）。已改为
   `count_armtlb_injections()` 排除 `_probe` / `_skipped` 诊断站点。
+
+## R4-6-A06（2026-10-22）：load 侧 widen 路径集成 —— **真机 spike 部分通过，A06 保持 BLOCKED**
+
+> 落地侧交付（`04189a7e`…`f8252918`）经集成侧构建（`scons -j16` exit=0 零 error，
+> 二进制 `7d52bc1392a10055`）+ 契约测试（`tests/test_lsu_a06_loadsize.py` **27/27 PASS**）
+> + 真机 spike 复核。
+
+### A06.1 接口复核（落地侧结论，集成侧核对无误）
+
+- **load 侧 REJECT 点**：`CHAOSAddrPath.cc::maybeCorruptPre` 的 op-class 过滤块
+  （`pre_store_only` 含 `"a06_size"`），判据是**定宽完成合同**：`pushRequest(size)`
+  同时定 packet 宽度（`lsq.cc:1362-1369`）与 load 目的缓冲区
+  （`lsq_unit.cc:1915-1917`），ARM `LoadCompleteAcc` 按**静态指令**定宽读回
+  （`mem.isa:487-512`）⇒ shrink = 堆越界读（硬约束）。
+- **byte-enable 载体**：存在但 **ISA 侧恒全 1**（`mem.isa`/`neon64.isa`/`sve_mem.isa`/
+  `sme.isa` 全部 `vector<bool>(size, true)`）⇒ 无"另一合法掩码"来源。
+
+### A06.2 真机 spike 实测（集成侧，`workloads/directed/a06_size_be`）
+
+**(2) A06-a load widen（`--agu_size_to 2 --agu_size_to_load 8`，F0/span1000）**
+
+| seed | load_widen | load_shrink | 落点 |
+|---|---|---|---|
+| 1 / 13 / 99 / 4243 | 0 | 0 | store |
+| **202** | **1** | 0 | **load（加宽）** |
+
+⇒ **load 侧可达性成立（`load_widen=1`）**，但 `load_shrink` 未出现：
+本 flag 组合下 load 目标恒为 8 > 实宽 ⇒ 结构性无 shrink 候选。
+
+**reverse 组合（`--agu_size_to 8 --agu_size_to_load 2`，F2/span2000）**：6 seed 全部
+`be_seen=0`（注入窗内未触发）⇒ shrink 护栏**未能在本轮真机复现**。
+
+**(3) A06-b（`--agu_be_mode shift_mid`）**：未跑（前置 (2) 未全过）。
+
+### A06.3 裁定（诚实）
+
+- **A06 的 6 个 RunID 保持 `MODEL_BLOCKED`**（理由仍为 RULING）。
+- 已达成的：`CHAOS_L0_A06` 计数器族真实产出；load 加宽路径真机可达（seed202）；
+  契约测试全绿；无 assert/SIGSEGV（seed202 rc=0）。
+- **未达成的**（不得声称完成）：`load_shrink≥1` 护栏真机证明；`be_subst≥1` 掩码换值
+  真机证明；`--debug-flags=LSQUnit` 的 forwarding mis-match/replay 激活形态直证；
+  §2.c 要求的完整 spike 5 条。
+- 下一步（未做）：改用 F5/F6 定点触发（而非 F0/F2 均匀抽样）以保证落点落在 load；
+  或按合同结论把 A06-a 明确重定义为"load 仅 strict widen"并据此写判据
+  （落地侧报告 §5 已列该选项，需裁决）。
