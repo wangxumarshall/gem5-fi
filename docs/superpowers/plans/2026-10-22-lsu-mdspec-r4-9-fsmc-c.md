@@ -34,12 +34,12 @@
 
 ## 2. 逐项任务（每项 = 一个 commit）
 
-- [ ] **T1** O04/O05/O09 RMW 钩子 + 端到端接线（CHAOSCache.hh/.cc/.py、base.hh/.cc、
+- [x] **T1** O04/O05/O09 RMW 钩子 + 端到端接线（CHAOSCache.hh/.cc/.py、base.hh/.cc、
       lsu_proxy.py、lsu_campaign.py MODEL_FLAGS/MODEL_BLOCKED、lsu_prop_fields.py）。
-- [ ] **T2** O06/O07 屏障/order 钩子 + 端到端接线（CHAOSLSQFwd.hh/.cc/.py、mem_dep_unit.cc、
+- [x] **T2** O06/O07 屏障/order 钩子 + 端到端接线（CHAOSLSQFwd.hh/.cc/.py、mem_dep_unit.cc、
       lsu_proxy.py、lsu_campaign.py、lsu_prop_fields.py）。
-- [ ] **T3** 定向 SE 载体（RMW/屏障，自 oracle）+ 契约测试 `tests/test_lsu_hook_o0x.py`。
-- [ ] **T4** 台账订正 + 裁决报告 `docs/gem5-fi/lsu/mdspec/R4-9-FSMC-C-report.md`。
+- [x] **T3** 定向 SE 载体（RMW/屏障，自 oracle）+ 契约测试 `tests/test_lsu_hook_o0x.py`。
+- [x] **T4** 台账订正 + 裁决报告 `docs/gem5-fi/lsu/mdspec/R4-9-FSMC-C-report.md`。
 
 ## 3. 测试命令（真实、可跑）
 
