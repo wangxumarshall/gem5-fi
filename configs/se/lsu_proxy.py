@@ -529,13 +529,17 @@ p.add_argument("--agu_pre_mode", default="off",
                     "a06s_store_size REMOVED (rejected alias — no silent model-ID rewrite)")
 p.add_argument("--agu_size_to", type=lambda x: int(x,0), default=0,
                help="W4 a06_size STORE leg: target access size 1|2|4|8|16")
-# [MDSPEC][R4-6-A06] A06-a LOAD leg. The AArch64 load completion is
-# fixed-width per STATIC instruction (LoadCompleteAcc getMemLE(pkt, Mem)),
-# while the packet/memData buffer is sized by the request size — a shrink is
-# a heap over-read. Legal load targets are the strict WIDENINGS only.
+# [MDSPEC][R4-6-A06 / R4-8-A06] A06-a LOAD leg: another legal access size
+# (1|2|4|8|16), widen OR shrink. The fixed-width load completion contract
+# (LoadCompleteAcc getMemLE(pkt, Mem) reads sizeof(Mem) STATIC bytes) is
+# satisfied by flooring the load's destination buffer at the pre-fault
+# static width (DynInst::chaosA06BufBytes, set in LSQ::pushRequest for a
+# shrunk load) + zero-filling it, so a shrink completes as a faithful
+# zero-extended truncation instead of a heap over-read.
 p.add_argument("--agu_size_to_load", type=lambda x: int(x,0), default=0,
-               help="W4 a06_size LOAD leg: strict widen target 2|4|8|16 "
-                    "(must exceed the original size and fit one 64B line; "
+               help="W4 a06_size LOAD leg: target access size 1|2|4|8|16 "
+                    "(another legal value, widen or shrink; must differ from "
+                    "the original size and fit one 64B line; "
                     "0 = load leg disabled, loads are declined + counted)")
 # [MDSPEC][R4-6-A06] A06-b byte-enable. Carrier finding: every AArch64
 # load/store path in this tree passes std::vector<bool>(size, true), so the

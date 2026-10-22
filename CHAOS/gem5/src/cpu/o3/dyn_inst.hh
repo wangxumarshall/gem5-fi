@@ -348,6 +348,22 @@ class DynInst : public ExecContext, public RefCounted
     /** Pointer to the data for the memory access. */
     uint8_t *memData = nullptr;
 
+    // [MDSPEC][R4-8-A06] A06-a load-shrink carrier (fixed-width completion
+    // contract). The AArch64 load completion is fixed-width per STATIC
+    // instruction (LoadCompleteAcc getMemLE(pkt, Mem) -> Packet::getRaw<T>,
+    // arch/generic/memhelpers.hh:87), i.e. it reads sizeof(Mem) bytes from
+    // the packet data, while the destination buffer is sized by the
+    // (possibly faulted) request size (lsq_unit.cc read():
+    // `new uint8_t[request->mainReq()->getSize()]`). An A06-a shrink would
+    // therefore read past the heap. LSQ::pushRequest sets this to the
+    // ORIGINAL (== static) request width when — and only when — a load was
+    // SHRUNK by the A06 hook; the two load-buffer allocation sites then
+    // floor the buffer at this width and zero-fill it, so the shrunk load
+    // completes as a faithful zero-extended truncation.
+    // 0 = untouched: every non-shrunk load keeps today's exact allocation,
+    // so non-A06 output stays byte-identical.
+    unsigned chaosA06BufBytes = 0;
+
     /** Load queue index. */
     ssize_t lqIdx = -1;
     typename LSQUnit::LQIterator lqIt;

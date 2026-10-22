@@ -34,6 +34,8 @@ CC = SRC / "CHAOSAddrPath" / "CHAOSAddrPath.cc"
 HH = SRC / "CHAOSAddrPath" / "CHAOSAddrPath.hh"
 PY = SRC / "CHAOSAddrPath" / "CHAOSAddrPath.py"
 LSQ = SRC / "lsq.cc"
+LSQ_UNIT = SRC / "lsq_unit.cc"
+DYNINST = SRC / "dyn_inst.hh"
 PROXY = ROOT / "configs" / "se" / "lsu_proxy.py"
 CARRIER = ROOT / "workloads" / "directed" / "a06_size_be.c"
 
@@ -60,11 +62,32 @@ def main():
           m is not None and "a06_size" not in m.group(1),
           m.group(1) if m else "pre_store_only not found")
 
-    # A2 shrink/相等 = 合同违约，被显式拒斥（不是 no-op）。
-    check("A2_shrink_violates_contract",
-          "load_size_shrink_violates_fixed_width_completion" in cctxt
-          and "agu_size_to_load <= (uint64_t)size" in cctxt,
-          "shrink guard / reason string missing")
+    # A2 [R4-8-A06] load 侧包络 = 另一合法值 {1,2,4,8,16}（widen 或 shrink），
+    #    不再"只准 widen"；护栏是 target==原值不写（NoChange）与越 64B 行拒斥
+    #    （Geometry）。shrink 之所以安全，靠的是定宽完成合同的**缓冲下限**
+    #    （DynInst::chaosA06BufBytes），而不是禁掉该故障方向。
+    check("A2_load_envelope_widen_or_shrink",
+          "a06LoadSize" in cctxt
+          and "A06LoadVerdict::NoChange" in cctxt
+          and "ShrinkOrEqual" not in cctxt
+          and "(addr & 63) + agu_size_to_load > 64" in cctxt,
+          "load envelope / no-change guard not pinned")
+    # A2b 定宽完成合同的载体必须三处齐备：字段声明（dyn_inst.hh）、
+    #     设置点（lsq.cc 只在 **shrink** 时写）、两个分配点下限（lsq_unit.cc）。
+    dictxt = DYNINST.read_text()
+    lsqunittxt = LSQ_UNIT.read_text()
+    check("A2b_shrink_carrier_wired",
+          "unsigned chaosA06BufBytes = 0;" in dictxt
+          and "inst->chaosA06BufBytes = pre_old_size;" in lsqtxt
+          and lsqunittxt.count("chaosA06BufBytes") >= 2
+          and lsqunittxt.count("new uint8_t[a06_buf]") >= 2,
+          "A06 load-shrink buffer floor carrier not wired")
+    # A2c 载体必须在**非 shrink** 时保持 0 => 非 A06 运行字节不变
+    #     （field 默认 0 + 仅在 shrink 的 load 上赋值）。
+    check("A2c_carrier_inert_by_default",
+          "unsigned chaosA06BufBytes = 0;" in dictxt
+          and "if (isLoad && size < pre_old_size)" in lsqtxt,
+          "carrier not gated to the shrink case")
 
     # A3 几何约束（同 P4-FIX-GEOM 的 64B packet-offset 不变量）。
     check("A3_widen_block_geometry_guard",
@@ -117,6 +140,16 @@ def main():
           and ", be_ones=" in cctxt and ", be_subst=" in cctxt
           and "CHAOS_L0_A06:" in cctxt,
           "A06 evidence fields / summary line missing")
+    # A10c [R4-8-A06] 汇总行新增 load_nochange、且 widen/shrink 分向计数
+    #      （三者必须在 .hh 计数器、.cc 分支与 .cc 汇总行同时存在）。
+    check("A10c_load_direction_counters",
+          "obs_pre_a06_load_nochange" in hhtxt
+          and "obs_pre_a06_load_nochange" in cctxt
+          and "load_nochange=%lu" in cctxt
+          and "if (a06_load_tgt > size) ++obs_pre_a06_load_widen;"
+              in cctxt
+          and "++obs_pre_a06_load_shrink;" in cctxt,
+          "widen/shrink/nochange counters not pinned")
     # 日志改动必须是**尾部追加**（lsu_phantom_audit.py 的 PRE_LINE_RE 依赖
     # mode/old_addr/new_addr/old_size/new_size/faults_injected 的前缀顺序）。
     i_faults = cctxt.find('", faults_injected: " << faults_injected_count')

@@ -179,12 +179,17 @@ MODEL_FLAGS = {
     "A04": ("addrpath", ["--agu_pre_mode", "a04_subst"]),
     "A05": ("addrpath", ["--agu_pre_mode", "a05_shift"]),
     # [LSU][MDSPEC][A6] A06（规格名，2026-10-19 计划 §2 裁决 + R4-6-A06
-    # 2026-10-22 load 侧落地）：a06_size = A06-a，按 op-class 的合法包络 ——
-    # store 侧任意合法目标；load 侧仅 strict widen（--agu_size_to_load；
-    # 定宽完成合同只禁 shrink，论证见 CHAOSAddrPath.hh）。
+    # 2026-10-22 load 侧落地 + R4-8-A06 2026-10-22 load shrink 落地）：
+    # a06_size = A06-a，按 op-class 的合法包络 —— store 侧任意合法目标；
+    # load 侧**任意另一合法值**（--agu_size_to_load；widen 或 shrink 都合法，
+    # 与规格 "替换为另一合法组合" 一致）。shrink 的安全性由定宽完成合同的
+    # **缓冲下限**提供（DynInst::chaosA06BufBytes；见 CHAOSAddrPath.hh）。
+    # 本路由 target=8：实宽 1/2/4 的 load 加宽到 8，实宽 16 的向量 load 收缩到
+    # 8（实宽 8 的 load 落在 NoChange 拒斥），故 carrier 内的访存可同时覆盖
+    # widen 与 shrink 两个方向。
     # 旧名 a06s_store_size 仍为被拒别名（不得私改模型 ID，无 A06S RunID 族）。
-    # A06 RunID 保持 MODEL_BLOCKED：R4-6-A06 只落了代码（COMPILE-UNVERIFIED）
-    # + carrier + 契约测试，解除要 §2.c spike 的**真实 gem5 运行**断言。
+    # A06 RunID 保持 MODEL_BLOCKED：shrink 路径只到 COMPILE-UNVERIFIED
+    # （待集成构建），解除要 §2.c spike 的**真实 gem5 运行**断言。
     "A06": ("addrpath", ["--agu_pre_mode", "a06_size", "--agu_size_to", "2",
                           "--agu_size_to_load", "8"]),
     "A08": ("addrpath", ["--agu_pre_mode", "a08_subst"]),

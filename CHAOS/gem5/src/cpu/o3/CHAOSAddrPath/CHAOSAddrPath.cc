@@ -76,8 +76,8 @@ namespace gem5
         }
         // [MDSPEC][R4-6-A06] A06-b loud refusals (C11/C12 discipline: an
         // unknown selector must never silently degrade to "off"). The load
-        // widen leg needs no runtime validation here: agu_size_to_load is
-        // validated per event by a06LoadWiden (declines are counted, and
+        // size leg needs no runtime validation here: agu_size_to_load is
+        // validated per event by a06LoadSize (declines are counted, and
         // 0 = "disabled" is a legitimate configuration).
         if (be_mode != "off" && be_mode != "observe"
             && be_mode != "shift_mid") {
@@ -369,25 +369,37 @@ namespace gem5
     }
 
     // A06-a load leg: is THIS load writable by the mode, and to what size?
-    // Success <=> target is a STRICT WIDENING in {1,2,4,8,16} that keeps the
-    // whole access inside one 64B line. Everything else is a counted decline
-    // (never a silent no-op, never an injection):
-    //   NoTarget       agu_size_to_load == 0 (load leg not configured)
-    //   Illegal        target not in {1,2,4,8,16}
-    //   ShrinkOrEqual  target <= orig size — FORBIDDEN: the load's
-    //                  completion is fixed-width per static instruction
-    //                  (LoadCompleteAcc getMemLE(pkt, Mem, ..)) while the
-    //                  packet/memData buffer is sized by this request size
-    //                  (lsq_unit.cc:1915) => heap over-read.
-    //   Geometry       (addr&63)+target > 64 — would break
-    //                  BaseCache::satisfyRequest's packet-offset invariant.
+    // [MDSPEC][R4-8-A06] Success <=> target is ANOTHER LEGAL value in
+    // {1,2,4,8,16} (widen OR shrink — the spec's "替换为另一合法组合" has no
+    // direction restriction) that keeps the whole access inside one 64B line.
+    // Everything else is a counted decline (never a silent no-op, never an
+    // injection):
+    //   NoTarget   agu_size_to_load == 0 (load leg not configured)
+    //   Illegal    target not in {1,2,4,8,16}
+    //   NoChange   target == original size (not a fault — nothing to write)
+    //   Geometry   (addr&63)+target > 64 — would break
+    //              BaseCache::satisfyRequest's packet-offset invariant.
+    //
+    // On the SHRINK direction and the fixed-width completion contract: the
+    // AArch64 load completion is fixed-width per STATIC instruction
+    // (LoadCompleteAcc getMemLE(pkt, Mem) -> Packet::getRaw<T>,
+    // arch/generic/memhelpers.hh:87 reads sizeof(Mem) bytes), while the
+    // destination buffer is sized by the (possibly faulted) request size
+    // (lsq_unit.cc read()). A shrink would therefore read past the heap —
+    // UNLESS the buffer is floored at the pre-fault static width. That floor
+    // is exactly what LSQ::pushRequest hands to LSQUnit through
+    // DynInst::chaosA06BufBytes (set only when this function's caller shrinks
+    // a load) and what the two load-buffer allocation sites honour: the
+    // shrunk load then completes as a faithful zero-extended TRUNCATION
+    // (the spec's predicted load manifestation, 03-sheet A06 行 "load 可能
+    // 表现为截断/符号扩展错误"), never as an out-of-bounds read.
     CHAOSAddrPath::A06LoadVerdict
-    CHAOSAddrPath::a06LoadWiden(Addr addr, unsigned size,
-                                unsigned &target) const {
+    CHAOSAddrPath::a06LoadSize(Addr addr, unsigned size,
+                               unsigned &target) const {
         if (agu_size_to_load == 0) return A06LoadVerdict::NoTarget;
         if (!isLegalAguSize(agu_size_to_load)) return A06LoadVerdict::Illegal;
-        if (agu_size_to_load <= (uint64_t)size)
-            return A06LoadVerdict::ShrinkOrEqual;
+        if (agu_size_to_load == (uint64_t)size)
+            return A06LoadVerdict::NoChange;
         if ((addr & 63) + agu_size_to_load > 64)
             return A06LoadVerdict::Geometry;
         target = (unsigned)agu_size_to_load;
@@ -398,15 +410,15 @@ namespace gem5
     CHAOSAddrPath::a06LoadVerdictReason(A06LoadVerdict v) {
         switch (v) {
           case A06LoadVerdict::NoTarget:
-            return "load_widen_target_unset";
+            return "load_size_target_unset";
           case A06LoadVerdict::Illegal:
-            return "load_widen_target_illegal";
-          case A06LoadVerdict::ShrinkOrEqual:
-            return "load_size_shrink_violates_fixed_width_completion";
+            return "load_size_target_illegal";
+          case A06LoadVerdict::NoChange:
+            return "load_size_nochange";
           case A06LoadVerdict::Geometry:
-            return "load_widen_block_geometry";
+            return "load_size_block_geometry";
           default:
-            return "load_widen_ok";
+            return "load_size_ok";
         }
     }
 
@@ -454,7 +466,7 @@ namespace gem5
         A06LoadVerdict a06_load_v = A06LoadVerdict::Success;
         unsigned a06_load_tgt = 0;
         if (pre_mode == "a06_size" && isLoad)
-            a06_load_v = a06LoadWiden(addr, size, a06_load_tgt);
+            a06_load_v = a06LoadSize(addr, size, a06_load_tgt);
         const bool a06_load_declined =
             (pre_mode == "a06_size" && isLoad &&
              a06_load_v != A06LoadVerdict::Success);
@@ -480,9 +492,11 @@ namespace gem5
                                          pre_mode == "s04_store_subst" ||
                                          pre_mode == "s05_store_size" ||
                                          pre_mode == "s11_store_lost");
-            // [LSU][MDSPEC][R4-6-A06] A06-a bisects by op class: stores take
-            // any legal target, loads only a contract-safe WIDENING (see
-            // a06LoadWiden). Eligibility == writability (F-049), decided
+            // [LSU][MDSPEC][R4-8-A06] A06-a bisects by op class: stores take
+            // any legal target; loads take any OTHER legal target (widen or
+            // shrink — see a06LoadSize; a shrink is made safe by the floored
+            // load buffer, DynInst::chaosA06BufBytes). Eligibility ==
+            // writability (F-049), decided
             // BEFORE the trigger, so a load the mode cannot write can never
             // consume the F6 once-ever shot. The verdict was computed ONCE
             // above and is reused by the a06_size branch below.
@@ -554,25 +568,29 @@ namespace gem5
         } else if (pre_mode == "a06_size") {
             // [LSU][MDSPEC][A6] A06-a access-size substitution. Per-op-class
             // legality envelope (2026-10-19 裁决 store-only；R4-6-A06
-            // 2026-10-22 起加 load 侧 widen):
+            // 2026-10-22 load 侧落地；R4-8-A06 2026-10-22 放开 load shrink):
             //   store: any legal target {1,2,4,8,16} — a short/wide store is
             //          architecturally legal (memory lands per packet byte).
-            //   load : STRICT WIDEN ONLY (a06LoadWiden). The load's
-            //          completion is fixed-width per static instruction
-            //          (ARM LoadCompleteAcc getMemLE(pkt, Mem, ..),
-            //          arch/arm/isa/templates/mem.isa:487-512) while the
-            //          packet and the destination buffer are sized by THIS
-            //          request size (lsq_unit.cc:1915-1917) — a shrink is a
-            //          heap over-read, the 2026-10-15 audit's "fixed-width
-            //          completion contract". This is the constraint we
-            //          ROUTE AROUND by restricting the load-side legal set
-            //          to the contract-safe half, not by weakening the
-            //          contract.
-            // Amplifier/traceability: the widen grows req_e = req_s+size, so
-            //   LSQUnit::tryToForward's store_has_upper_limit
+            //   load : ANY other legal value {1,2,4,8,16} (a06LoadSize) —
+            //          widen OR shrink. Both directions are faithful to the
+            //          spec ("替换为另一合法组合"). The fixed-width
+            //          completion contract (LoadCompleteAcc getMemLE(pkt,
+            //          Mem) reads sizeof(Mem) STATIC bytes) is satisfied by
+            //          floored buffers, not by forbidding the fault:
+            //          LSQ::pushRequest records the pre-fault static width in
+            //          DynInst::chaosA06BufBytes whenever it shrinks a load,
+            //          and the two load-buffer allocation sites in lsq_unit.cc
+            //          floor at that width + zero-fill — so a shrunk load
+            //          completes as a zero-extended TRUNCATION instead of a
+            //          heap over-read.
+            // Amplifier/traceability (widen): the widen grows req_e =
+            //   req_s+size, so LSQUnit::tryToForward's store_has_upper_limit
             //   (lsq_unit.cc:1657-1720) stops holding -> the full
             //   store->load forward is demoted/lost and the load re-reads
-            //   memory (SDC-capable when the store has not drained). The
+            //   memory (SDC-capable when the store has not drained).
+            // Amplifier/traceability (shrink): the completion truncates to
+            //   the faulted width, zero-extending the tail — a value-level
+            //   SDC of the load's destination register. Either way the
             //   address is unchanged, so the L3 chain is bound by the inj
             //   node's old_size/new_size (registerInjection, lsq.cc) and the
             //   addr registry range [addr, addr+new_size).
@@ -587,8 +605,8 @@ namespace gem5
                         ++obs_pre_a06_load_notarget; break;
                       case A06LoadVerdict::Illegal:
                         ++obs_pre_a06_load_illegal; break;
-                      case A06LoadVerdict::ShrinkOrEqual:
-                        ++obs_pre_a06_load_shrink; break;
+                      case A06LoadVerdict::NoChange:
+                        ++obs_pre_a06_load_nochange; break;
                       case A06LoadVerdict::Geometry:
                         ++obs_pre_a06_load_geom; break;
                       default: break;
@@ -596,8 +614,17 @@ namespace gem5
                     ++obs_pre_opclass;   // [LSU][OBS-2]
                     return size;
                 }
+                // [MDSPEC][R4-8-A06] split the injection counter by direction
+                // (target vs ORIGINAL size, before the write).
+                if (a06_load_tgt > size) ++obs_pre_a06_load_widen;
+                else                     ++obs_pre_a06_load_shrink;
                 size = a06_load_tgt;
-                ++obs_pre_a06_load_widen;
+                // NOTE: the carrier's buffer floor (DynInst::
+                // chaosA06BufBytes) is NOT set here — this hook has no
+                // DynInst handle. LSQ::pushRequest compares the returned size
+                // against its saved pre-fault size and sets the field on the
+                // shrinking load, which covers the trigger and legacy paths
+                // alike (lsq.cc).
             } else if (isLegalAguSize(agu_size_to)) {
                 size = (unsigned)agu_size_to;
             } else {
@@ -949,17 +976,18 @@ namespace gem5
             && be_mode == "off")
             return;
         printf("CHAOS_L0_A06: pre_mode=%s size_to=%lu load_size_to=%lu "
-               "be_mode=%s load_widen=%lu load_notarget=%lu "
-               "load_illegal=%lu load_shrink=%lu load_geom=%lu "
+               "be_mode=%s load_widen=%lu load_shrink=%lu load_notarget=%lu "
+               "load_illegal=%lu load_nochange=%lu load_geom=%lu "
                "be_seen=%lu be_all_true=%lu be_subst=%lu be_declined=%lu\n",
                pre_mode.c_str(),
                (unsigned long)agu_size_to,
                (unsigned long)agu_size_to_load,
                be_mode.c_str(),
                (unsigned long)obs_pre_a06_load_widen,
+               (unsigned long)obs_pre_a06_load_shrink,
                (unsigned long)obs_pre_a06_load_notarget,
                (unsigned long)obs_pre_a06_load_illegal,
-               (unsigned long)obs_pre_a06_load_shrink,
+               (unsigned long)obs_pre_a06_load_nochange,
                (unsigned long)obs_pre_a06_load_geom,
                (unsigned long)obs_be_seen,
                (unsigned long)obs_be_all_true,
