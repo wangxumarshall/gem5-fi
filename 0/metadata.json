@@ -1,0 +1,22 @@
+{
+  "cli_version": "0.10.2",
+  "checkpoint_id": "01M5HJME7T5WAHX0ZM4ZV74ZPD",
+  "session_id": "5a096a1f-f87e-45a0-88e0-e96a0f1cc3d4",
+  "strategy": "manual-commit",
+  "created_at": "2026-10-22T10:31:15.08404234Z",
+  "branch": "r4-8-fsmc-b",
+  "checkpoints_count": 1,
+  "save_step_count": 1,
+  "files_touched": [],
+  "agent": "Claude Code",
+  "model": "DeepSeek-V4.1-Flash",
+  "turn_id": "2ed8629756bb",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 143630,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 3035520,
+    "output_tokens": 32004,
+    "api_call_count": 37
+  }
+}
