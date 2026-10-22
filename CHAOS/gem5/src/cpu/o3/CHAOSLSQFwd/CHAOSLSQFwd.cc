@@ -827,7 +827,10 @@ namespace gem5
     // itself is the attempt stream; only the F6 tier fires ON the insert,
     // every other tier samples the inserts through onEligible().
     bool
-    CHAOSLSQFwd::maybeCorruptBarrierInsert(uint64_t, bool, bool)
+    // [R4-8-INT] 形参名必须写全：函数体第 858 行的注入日志要打印 barrier SN
+    // （= seq）。原为无名形参 (uint64_t, bool, bool)，编译报
+    // "'seq' was not declared in this scope"（编译未验证分支的漏网）。
+    CHAOSLSQFwd::maybeCorruptBarrierInsert(uint64_t seq, bool, bool)
     {
         if (!o06_mode || !o06_early)
             return false;                     // stuck (b) acts at release

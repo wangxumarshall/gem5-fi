@@ -1939,3 +1939,19 @@ T10-F{0,1,2}-W11 会静默改判到 `fs:tlb_probe` 载体，该回归由 `test_l
 
 **契约分类器**：`_classify` 的 `else: RULING` 静默兜底改为显式判据 + `UNCLASSIFIED` 响亮兜底；
 合并后 T08 措辞（"pending T08-b/c/d sub-model modes"）补入 MODE-UNIMPL 显式判据。
+
+## §R4-8-FSMC-C（主 agent 集成，2026-10-22）：O04–O09 钩子构建通过，但未取得真机触发
+
+**构建**：`scons -j16 build/ARM/gem5.opt` **成功**；新二进制 sha256 前缀 `deeb9ff3997cf13d`（1,145,064,704 B）。
+**零新警告判定（实证）**：唯一告警集是 `CHAOSCache` 的 `-Wreorder`（`CHAOSCache.cc:14` + `.hh:216/228/238/289`）——
+其构造成员初始化列表在本轮 diff 中**逐字节未改**（首个 hunk 起于 `.cc:66`），被告警成员的**声明相对顺序亦未变**
+（新增 `rmw_rule` 插在其后），故该告警为**既有**，非本轮引入。
+**编译缺陷修复（集成方）**：`CHAOSLSQFwd.cc:830` 形参无名 `(uint64_t, bool, bool)` 而函数体 858 行使用 `seq`
+→ `error: 'seq' was not declared in this scope`；补形参名后可编译（这正是"compile-unverified"分支的漏网）。
+
+**真机尝试（诚实负结果）**：以 SE 定向载体直跑，接线完整（`--l1d_target_field rmw_mux --l1d_rmw_rule swap_oldnew
+--l1d_lsu_tier F6`，choices/rule/tier 均已在 `configs/se/lsu_proxy.py` 注册；`--lsqfwd_o06 --lsqfwd_o06_done early
+--lsqfwd_lsu_tier F6`）。两次运行 `rc=0`、载体校验和与 Agent7 报告一致（`e2d502897d3e9d1c` / `04cc99e6f78e39c4`），
+但**未产生任何注入行或 prop_evt**（`prop_evt.txt.gz` 未生成）⇒ 触发未成立，未取得真实注入证据。
+**结论：C 组 15 格保持 BLOCKED**（C11/C12/L04 纪律：只有真机断言才解锁）；且这批格子还独立受
+W7=Atomic-Litmus 负载级阻塞（其载体为多核 FS litmus，见 §R4-8-FSMC-A）。理由文本已按实测改写。

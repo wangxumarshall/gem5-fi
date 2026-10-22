@@ -6877,7 +6877,7 @@
    "spec_landed": "",
    "status": "BLOCKED",
    "status_reasons": [
-    "campaign:deferred(RMW data path needs cache-side SwapResp hook)",
+    "campaign:deferred(RMW data-path hook LANDED (rmw_mux @ SwapReq commit) but COMPILE-UNVERIFIED — build + RMW-commit census + pilot pending, R4-9-FSMC)",
     "spec:需新增（当前阻塞：缺RMW数据/SwapResp hook）",
     "workload:workload-level:blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 该模型×档位亲和集合内：C08 是注入器宿主互斥，O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)"
    ],
@@ -6915,7 +6915,7 @@
    "spec_landed": "",
    "status": "BLOCKED",
    "status_reasons": [
-    "campaign:deferred(RMW data path needs cache-side SwapResp hook)",
+    "campaign:deferred(RMW data-path hook LANDED (rmw_mux @ SwapReq commit) but COMPILE-UNVERIFIED — build + RMW-commit census + pilot pending, R4-9-FSMC)",
     "spec:需新增（当前阻塞：缺RMW数据/SwapResp hook）",
     "workload:workload-level:blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 该模型×档位亲和集合内：C08 是注入器宿主互斥，O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)"
    ],
@@ -6953,7 +6953,7 @@
    "spec_landed": "",
    "status": "BLOCKED",
    "status_reasons": [
-    "campaign:deferred(RMW data path needs cache-side SwapResp hook)",
+    "campaign:deferred(RMW data-path hook LANDED (rmw_mux @ SwapReq commit) but COMPILE-UNVERIFIED — build + RMW-commit census + pilot pending, R4-9-FSMC)",
     "spec:需新增（当前阻塞：缺RMW数据/SwapResp hook）",
     "workload:workload-level:blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 该模型×档位亲和集合内：C08 是注入器宿主互斥，O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)"
    ],
@@ -6991,7 +6991,7 @@
    "spec_landed": "",
    "status": "BLOCKED",
    "status_reasons": [
-    "campaign:blocked(multicore-fs: 模型语义未实现——RMW 请求/全局可见性 order 跟踪缺失；多核 FS 基础设施已就绪 R4-8-FSMC)",
+    "campaign:blocked(multicore-fs: W7 Atomic-Litmus workload; RMW-completion hook rmw_order LANDED @ SwapReq commit but COMPILE-UNVERIFIED + un-piloted, R4-9-FSMC)",
     "spec:需新增（当前阻塞：需要多核FS的RMW请求/全局可见性）",
     "workload:workload-level:blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 该模型×档位亲和集合内：C08 是注入器宿主互斥，O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)"
    ],
@@ -7029,7 +7029,7 @@
    "spec_landed": "",
    "status": "BLOCKED",
    "status_reasons": [
-    "campaign:blocked(multicore-fs: 模型语义未实现——RMW 请求/全局可见性 order 跟踪缺失；多核 FS 基础设施已就绪 R4-8-FSMC)",
+    "campaign:blocked(multicore-fs: W7 Atomic-Litmus workload; RMW-completion hook rmw_order LANDED @ SwapReq commit but COMPILE-UNVERIFIED + un-piloted, R4-9-FSMC)",
     "spec:需新增（当前阻塞：需要多核FS的RMW请求/全局可见性）",
     "workload:workload-level:blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 该模型×档位亲和集合内：C08 是注入器宿主互斥，O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)"
    ],
@@ -7067,7 +7067,7 @@
    "spec_landed": "",
    "status": "BLOCKED",
    "status_reasons": [
-    "campaign:blocked(multicore-fs: 模型语义未实现——RMW 请求/全局可见性 order 跟踪缺失；多核 FS 基础设施已就绪 R4-8-FSMC)",
+    "campaign:blocked(multicore-fs: W7 Atomic-Litmus workload; RMW-completion hook rmw_order LANDED @ SwapReq commit but COMPILE-UNVERIFIED + un-piloted, R4-9-FSMC)",
     "spec:需新增（当前阻塞：需要多核FS的RMW请求/全局可见性）",
     "workload:workload-level:blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 该模型×档位亲和集合内：C08 是注入器宿主互斥，O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)"
    ],
@@ -7105,7 +7105,7 @@
    "spec_landed": "",
    "status": "BLOCKED",
    "status_reasons": [
-    "campaign:blocked(multicore-fs: 模型语义未实现——barrier 完成跟踪缺失；多核 FS 基础设施已就绪 R4-8-FSMC)",
+    "campaign:blocked(multicore-fs: W7 Atomic-Litmus workload; barrier-completion hook LANDED (MemDepUnit barrier-SN bookkeeping, CHAOSLSQFwd --lsqfwd_o06) but COMPILE-UNVERIFIED + un-piloted, R4-9-FSMC)",
     "spec:需新增（当前阻塞：需要多核FS barrier完成跟踪）",
     "workload:workload-level:blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 该模型×档位亲和集合内：C08 是注入器宿主互斥，O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)"
    ],
@@ -7143,7 +7143,7 @@
    "spec_landed": "",
    "status": "BLOCKED",
    "status_reasons": [
-    "campaign:blocked(multicore-fs: 模型语义未实现——barrier 完成跟踪缺失；多核 FS 基础设施已就绪 R4-8-FSMC)",
+    "campaign:blocked(multicore-fs: W7 Atomic-Litmus workload; barrier-completion hook LANDED (MemDepUnit barrier-SN bookkeeping, CHAOSLSQFwd --lsqfwd_o06) but COMPILE-UNVERIFIED + un-piloted, R4-9-FSMC)",
     "spec:需新增（当前阻塞：需要多核FS barrier完成跟踪）",
     "workload:workload-level:blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 该模型×档位亲和集合内：C08 是注入器宿主互斥，O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)"
    ],
@@ -7181,7 +7181,7 @@
    "spec_landed": "",
    "status": "BLOCKED",
    "status_reasons": [
-    "campaign:blocked(multicore-fs: 模型语义未实现——barrier 完成跟踪缺失；多核 FS 基础设施已就绪 R4-8-FSMC)",
+    "campaign:blocked(multicore-fs: W7 Atomic-Litmus workload; barrier-completion hook LANDED (MemDepUnit barrier-SN bookkeeping, CHAOSLSQFwd --lsqfwd_o06) but COMPILE-UNVERIFIED + un-piloted, R4-9-FSMC)",
     "spec:需新增（当前阻塞：需要多核FS barrier完成跟踪）",
     "workload:workload-level:blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 该模型×档位亲和集合内：C08 是注入器宿主互斥，O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)"
    ],
@@ -7219,7 +7219,7 @@
    "spec_landed": "",
    "status": "BLOCKED",
    "status_reasons": [
-    "campaign:blocked(multicore-fs: 模型语义未实现——order-tag/ready 跟踪缺失；多核 FS 基础设施已就绪 R4-8-FSMC)",
+    "campaign:blocked(multicore-fs: W7 Atomic-Litmus workload; order-tag exchange hook LANDED (MemDepUnit barrier-SN set as the ordering-tag proxy, CHAOSLSQFwd --lsqfwd_o07) but COMPILE-UNVERIFIED + un-piloted, R4-9-FSMC)",
     "spec:需新增（当前阻塞：需要多核FS order-tag/ready跟踪）",
     "workload:workload-level:blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 该模型×档位亲和集合内：C08 是注入器宿主互斥，O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)"
    ],
@@ -7257,7 +7257,7 @@
    "spec_landed": "",
    "status": "BLOCKED",
    "status_reasons": [
-    "campaign:blocked(multicore-fs: 模型语义未实现——order-tag/ready 跟踪缺失；多核 FS 基础设施已就绪 R4-8-FSMC)",
+    "campaign:blocked(multicore-fs: W7 Atomic-Litmus workload; order-tag exchange hook LANDED (MemDepUnit barrier-SN set as the ordering-tag proxy, CHAOSLSQFwd --lsqfwd_o07) but COMPILE-UNVERIFIED + un-piloted, R4-9-FSMC)",
     "spec:需新增（当前阻塞：需要多核FS order-tag/ready跟踪）",
     "workload:workload-level:blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 该模型×档位亲和集合内：C08 是注入器宿主互斥，O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)"
    ],
@@ -7295,7 +7295,7 @@
    "spec_landed": "",
    "status": "BLOCKED",
    "status_reasons": [
-    "campaign:blocked(multicore-fs: 模型语义未实现——order-tag/ready 跟踪缺失；多核 FS 基础设施已就绪 R4-8-FSMC)",
+    "campaign:blocked(multicore-fs: W7 Atomic-Litmus workload; order-tag exchange hook LANDED (MemDepUnit barrier-SN set as the ordering-tag proxy, CHAOSLSQFwd --lsqfwd_o07) but COMPILE-UNVERIFIED + un-piloted, R4-9-FSMC)",
     "spec:需新增（当前阻塞：需要多核FS order-tag/ready跟踪）",
     "workload:workload-level:blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 该模型×档位亲和集合内：C08 是注入器宿主互斥，O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)"
    ],
@@ -11116,7 +11116,7 @@
    "spec_landed": "",
    "status": "BLOCKED",
    "status_reasons": [
-    "campaign:deferred(RMW operand path needs cache-side hook)",
+    "campaign:deferred(RMW operand hook LANDED (rmw_latch @ SwapReq commit, result/old-value latch) but COMPILE-UNVERIFIED — build + RMW-commit census + pilot pending, R4-9-FSMC)",
     "spec:需新增（当前阻塞：缺RMW operand hook）",
     "workload:workload-level:blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 该模型×档位亲和集合内：C08 是注入器宿主互斥，O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)"
    ],
@@ -11154,7 +11154,7 @@
    "spec_landed": "",
    "status": "BLOCKED",
    "status_reasons": [
-    "campaign:deferred(RMW operand path needs cache-side hook)",
+    "campaign:deferred(RMW operand hook LANDED (rmw_latch @ SwapReq commit, result/old-value latch) but COMPILE-UNVERIFIED — build + RMW-commit census + pilot pending, R4-9-FSMC)",
     "spec:需新增（当前阻塞：缺RMW operand hook）",
     "workload:workload-level:blocked(multicore-fs: W13 负载身份——PARSEC(dedup/ferret/streamcluster) **开源（不是授权障碍）但本仓库不可得**：find 实证只有 gem5 上游测试脚手架 CHAOS/gem5/tests/gem5/parsec_benchmarks/，而它默认被禁用（PARSEC disk image is too big）、valid_hosts=(host_x86_64_tag,) 仅 x86_64 宿主、需 --resource-directory 指向预编译镜像 + KVM；无源码/输入集/aarch64 构建。另叠加各自的模型/宿主缺口（O09 缺 RMW operand hook；P09 的 dirty-evict 走 classic CHAOSCache，与'多线程真实应用'语义构造性互斥）；替代负载会改写格子定义 ⇒ 规格级决定。见 R4-9-FSMC-A 报告 §5)"
    ],
@@ -11192,7 +11192,7 @@
    "spec_landed": "",
    "status": "BLOCKED",
    "status_reasons": [
-    "campaign:deferred(RMW operand path needs cache-side hook)",
+    "campaign:deferred(RMW operand hook LANDED (rmw_latch @ SwapReq commit, result/old-value latch) but COMPILE-UNVERIFIED — build + RMW-commit census + pilot pending, R4-9-FSMC)",
     "spec:需新增（当前阻塞：缺RMW operand hook）",
     "workload:workload-level:blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 该模型×档位亲和集合内：C08 是注入器宿主互斥，O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)"
    ],
@@ -11230,7 +11230,7 @@
    "spec_landed": "",
    "status": "BLOCKED",
    "status_reasons": [
-    "campaign:deferred(RMW operand path needs cache-side hook)",
+    "campaign:deferred(RMW operand hook LANDED (rmw_latch @ SwapReq commit, result/old-value latch) but COMPILE-UNVERIFIED — build + RMW-commit census + pilot pending, R4-9-FSMC)",
     "spec:需新增（当前阻塞：缺RMW operand hook）",
     "workload:workload-level:blocked(multicore-fs: W13 负载身份——PARSEC(dedup/ferret/streamcluster) **开源（不是授权障碍）但本仓库不可得**：find 实证只有 gem5 上游测试脚手架 CHAOS/gem5/tests/gem5/parsec_benchmarks/，而它默认被禁用（PARSEC disk image is too big）、valid_hosts=(host_x86_64_tag,) 仅 x86_64 宿主、需 --resource-directory 指向预编译镜像 + KVM；无源码/输入集/aarch64 构建。另叠加各自的模型/宿主缺口（O09 缺 RMW operand hook；P09 的 dirty-evict 走 classic CHAOSCache，与'多线程真实应用'语义构造性互斥）；替代负载会改写格子定义 ⇒ 规格级决定。见 R4-9-FSMC-A 报告 §5)"
    ],
@@ -11268,7 +11268,7 @@
    "spec_landed": "",
    "status": "BLOCKED",
    "status_reasons": [
-    "campaign:deferred(RMW operand path needs cache-side hook)",
+    "campaign:deferred(RMW operand hook LANDED (rmw_latch @ SwapReq commit, result/old-value latch) but COMPILE-UNVERIFIED — build + RMW-commit census + pilot pending, R4-9-FSMC)",
     "spec:需新增（当前阻塞：缺RMW operand hook）",
     "workload:workload-level:blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 该模型×档位亲和集合内：C08 是注入器宿主互斥，O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)"
    ],
@@ -11306,7 +11306,7 @@
    "spec_landed": "",
    "status": "BLOCKED",
    "status_reasons": [
-    "campaign:deferred(RMW operand path needs cache-side hook)",
+    "campaign:deferred(RMW operand hook LANDED (rmw_latch @ SwapReq commit, result/old-value latch) but COMPILE-UNVERIFIED — build + RMW-commit census + pilot pending, R4-9-FSMC)",
     "spec:需新增（当前阻塞：缺RMW operand hook）",
     "workload:workload-level:blocked(multicore-fs: W13 负载身份——PARSEC(dedup/ferret/streamcluster) **开源（不是授权障碍）但本仓库不可得**：find 实证只有 gem5 上游测试脚手架 CHAOS/gem5/tests/gem5/parsec_benchmarks/，而它默认被禁用（PARSEC disk image is too big）、valid_hosts=(host_x86_64_tag,) 仅 x86_64 宿主、需 --resource-directory 指向预编译镜像 + KVM；无源码/输入集/aarch64 构建。另叠加各自的模型/宿主缺口（O09 缺 RMW operand hook；P09 的 dirty-evict 走 classic CHAOSCache，与'多线程真实应用'语义构造性互斥）；替代负载会改写格子定义 ⇒ 规格级决定。见 R4-9-FSMC-A 报告 §5)"
    ],
