@@ -79,11 +79,11 @@ ARTIFACTS = {
 # ---- 载体指纹（防无声漂移；测试实测磁盘 sha256 比对）--------------------
 CARRIER_SHA256 = {
     "workloads/litmus/litmus_free": (
-        "df76d963a0c7bd8b174f2866ad98f8e5ddca18b0baa05448d5747a1056c89ffb"),
+        "6823afeb57194ded0aaf0dc2d7236468d973f252dc6b76abc72adc4789f4fed6"),
     "configs/fs/litmus_free.rcS": (
-        "46012d8017cbe87b1fb72754cfc5ae7834e6b9ff8fe333ef3da0a94d5dbacc6d"),
+        "1112dc8f56fbbd21f02dcaf5a41d7206fc150ef7b4057ef559a155f831dfb642"),
     "configs/fs/litmus_free_diag.rcS": (
-        "cf203a2c17efee19c6948424c1fe6bc637e6bf255a43c17fc29cc26137f6a644"),
+        "6a047da28bc63ac8790e3b6c84a41f62ca88b2e1161846039f3bf6514a336d53"),
 }
 
 # 逐格理由。

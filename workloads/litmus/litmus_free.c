@@ -74,16 +74,33 @@ typedef unsigned int u32;
 #define LITMUS_FREE_SB_ROUNDS 64
 #endif
 #ifndef LITMUS_FREE_MP_ROUNDS
-#define LITMUS_FREE_MP_ROUNDS 64
+#define LITMUS_FREE_MP_ROUNDS 16
+#endif
+/* MP 测试默认**不跑**（理由见报告 §3）：读取侧的"有界自旋"在 gem5 2 核
+ * Ruby/O3 的时序下无界地贵——宿主侧一次 cache 事务约 0.2 s，而"主机上立刻
+ * 可见"的 flag 在 guest 里要等下一次一致性事务才可见，于是每轮自旋都跑满
+ * 上界。SB 已用两侧直方图（01/10 两向都出现）证明跨核可见性，MP 不再承担
+ * 判别职责；宿主上做逻辑自检时用 -DLITMUS_FREE_WITH_MP=1 打开。 */
+#ifndef LITMUS_FREE_WITH_MP
+#define LITMUS_FREE_WITH_MP 0
 #endif
 #ifndef LITMUS_FREE_MP_SPIN
-#define LITMUS_FREE_MP_SPIN 50000
+/* 有界自旋上界。**实测教训（R4-9-FSMC-A）**：gem5 2 核 Ruby/O3 恢复态下一次
+ * cache 事务在宿主侧是 ~0.1 s 量级，50000 次迭代 × 64 轮 = 3.2M 次 load 会
+ * 跑成小时级（第一次真机运行正是卡在这里，报告 §3.3）。2000 次已比"一次跨核
+ * 传播"（个位数次 load）宽三个数量级；超时只把"看不见 flag"记成 timeout
+ * 计数，不会挂死。轮数同时从 64 降到 16（同理，控制总墙钟）。 */
+#define LITMUS_FREE_MP_SPIN 2000
 #endif
+/* gem5 FS 预算：ATOMIC 每轮每核做 ATOM_INCR 次 ldxr/stxr CAS，跨核竞争会让
+ * stxr 失败重试（宿主上每核 150–200 次尝试才完成 128 次自增），而 guest 里
+ * 每次 LL/SC 都是一次一致性事务 ⇒ 轮数/增量必须比宿主小一个量级，否则
+ * payload 在观测窗内跑不完（R4-9-FSMC-A §2.6 实测）。 */
 #ifndef LITMUS_FREE_ATOM_ROUNDS
-#define LITMUS_FREE_ATOM_ROUNDS 32
+#define LITMUS_FREE_ATOM_ROUNDS 8
 #endif
 #ifndef LITMUS_FREE_ATOM_INCR
-#define LITMUS_FREE_ATOM_INCR 4
+#define LITMUS_FREE_ATOM_INCR 2
 #endif
 
 /* ---- syscall ----------------------------------------------------------- */
@@ -366,7 +383,7 @@ static void mp_child(void *p)
 
 static u64 g_mp_tmo = 1;   /* 非零初值 ⇒ .data，见 obuf 上方说明 */
 
-static u64 run_mp(long ncpu)
+static u64 __attribute__((unused)) run_mp(long ncpu)
 {
     struct mp_sh *s = (struct mp_sh *)os_mmap(sizeof *s, MAP_SHARED_ANON);
     u64 viol = 0, tmo = 0;
@@ -541,7 +558,13 @@ void _start(void)
     }
 
     u64 sb = run_sb(ncpu);
+#if LITMUS_FREE_WITH_MP
     u64 mp = run_mp(ncpu);
+#else
+    u64 mp = 0;
+    o_s("LITMUS free mp SKIPPED (LITMUS_FREE_WITH_MP=0)\n");
+    o_flush();
+#endif
     u64 at = run_atom(ncpu);
 
     o_s("FINAL="); o_hex16(final_hash(sb, mp, g_mp_tmo, at)); o_c('\n');

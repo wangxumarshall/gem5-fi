@@ -411,7 +411,7 @@ FSMC_CONFIG = REPO / "configs/fs/lsu_multicore_fs.py"
 FSMC_CARRIER_RC = REPO / "configs/fs/litmus_free.rcS"
 FSMC_CHECKPOINT_ENV = "LSU_FS_MC_CHECKPOINT"
 FSMC_DEFAULT_CHECKPOINT = "/tmp/r4-8-fsmc/mc_boot/cpt.243414599076"
-FSMC_GOLDEN_FINAL = "6b8b75aaa790aeb1"  # 无故障运行的 FINAL（见 R4-9-FSMC-A 报告 §3）
+FSMC_GOLDEN_FINAL = "6b39e7aaa74b663f"  # 无故障运行的 FINAL（见 R4-9-FSMC-A 报告 §3）
 # F 档位里 CHAOSExMon **能诚实表达**的那些：
 #   * F0 = 单次瞬态（task_plan.md §18）——maxFaults=1 单次注入即是 F0；
 #   * F5 = 永久（"always true，注入器对每个 eligible 事件施加"）——
