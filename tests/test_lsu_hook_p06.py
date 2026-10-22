@@ -263,9 +263,18 @@ def main():
           str(LC.MODEL_FLAGS.get("P06")))
     check("P06 已从 MODEL_BLOCKED 删除",
           "P06" not in LC.MODEL_BLOCKED)
-    check("后续模型未误解锁（C14/C15/S10/A06 仍 BLOCKED）",
-          all(m in LC.MODEL_BLOCKED
-              for m in ("C14", "C15", "S10", "A06")))
+    # [R4-8-INT] 本守卫的原意是"后续模型不得**误解锁**"（撰写时 C14/C15/S10/A06
+    # 都还 BLOCKED）。但把这份名单**硬编码为"必须仍 BLOCKED"**会让守卫在合法
+    # 推进发生时变成"禁止解锁"——C14/C15 于 R4-5.5/5.6 按 C11/C12/L04 纪律
+    # （真机 pilot + 链检查 + 证据重生成）合法解锁后，本行即已 FAIL（**先于本轮**，
+    # 见 test_lsu_hook_p06.py 自 R4-5.5 起 rc=1）；本轮 S10 又按同一纪律解锁
+    # （activated=3/3 + L0→L1 逐边 proven，见 round4_findings.md §R4-8-S10）。
+    # 改为**按证据**断言，既不放过误解锁，也不惩罚合法推进：
+    #   * 尚未拿到真机证据的 A06 必须仍在 MODEL_BLOCKED；
+    #   * 已解锁的三个必须确实不在表里（其 span 表/路由由各自的 hook 测试钉住）。
+    check("后续模型未误解锁（A06 仍 BLOCKED；C14/C15/S10 按纪律解锁）",
+          "A06" in LC.MODEL_BLOCKED
+          and all(m not in LC.MODEL_BLOCKED for m in ("C14", "C15", "S10")))
     # [R4-5.4 集成] 本文件撰写于隔离 worktree（禁跑 pilot），当时两个 (P06, workload)
     # 跨度**未实测**，故断言"表存在但条目缺席 + loud None"。集成期主 worktree 已用
     # 普查实测（cache_dirtyevict=56、prefetch_stride=32；见 round4_findings.md §R4-5.4），
