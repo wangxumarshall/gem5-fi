@@ -203,8 +203,16 @@ def main():
     # [R4-5.7] S10 已按同一模板落地（--lsqfwd_s10 StoreSet SSIT-ID 换值，
     # 见 test_lsu_hook_s10.py——compile-unverified，census/pilot 归集成侧）
     # ——三者不再列入"未解锁"钉；C14/C15 仍未实现，必须保持 BLOCKED。
-    check("后续模型未误解锁（C14/C15 亦已解锁；S10 已于 R4-5.7 落地）",
-          "C14" not in LC.MODEL_BLOCKED and "C15" not in LC.MODEL_BLOCKED and "S10" in LC.MODEL_BLOCKED)
+    # [MDSPEC][R4-5.7b→R4-8-S10] S10 亦已落地并按**逐格**门禁接管：平台缺陷
+    # 修好后（§R4-6-S10，真机 eligible>0）本轮实测两条 spec 载体的 eligible
+    # 流（sq_forward 3 / gap_bfs 4）——F0 由 LSQFWD_F0_SPAN 门禁、F5 已激活、
+    # F2 由 LSQFWD_INTERVAL_UNREACHABLE 逐格响亮拒绝，故 S10 不再列入
+    # "未解锁"钉（此前断言 "S10 in MODEL_BLOCKED" 已随 R4-8-S10 失效）。
+    check("后续模型未误解锁（C14/C15 亦已解锁；S10 已于 R4-8-S10 "
+          "逐格门禁接管）",
+          "C14" not in LC.MODEL_BLOCKED and "C15" not in LC.MODEL_BLOCKED
+          and "S10" not in LC.MODEL_BLOCKED
+          and ("S10", "F2", "sq_forward") in LC.LSQFWD_INTERVAL_UNREACHABLE)
     for pair in (("C11", "cache_dirtyevict"), ("C11", "stream_chase"),
                  ("C11", "cache_mshr_refetch")):
         check(f"CACHE_F0_SPAN 实测条目 {pair}",

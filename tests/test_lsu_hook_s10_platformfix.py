@@ -159,29 +159,39 @@ def main():
           "AssociativeCache" not in ss
           and "ownedEntry" not in ss and "ownedEntry" not in cc)
 
-    print("[B4] 诚实边界：S10 仍 loud blocked（源码修复≠真机 eligible>0）")
-    check("MODEL_BLOCKED['S10'] 仍为 platform-defect（未抢先解锁）",
-          "S10" in LC.MODEL_BLOCKED
-          and "platform-defect" in LC.MODEL_BLOCKED["S10"])
+    print("[B4] 诚实边界（R4-8-S10 更新）：平台已修 + 本轮 census → 逐格门禁")
+    # [MDSPEC][R4-8-S10] the platform fix is real-run verified (§R4-6-S10)
+    # and this round's census measured both spec carriers, so S10 is NO LONGER
+    # blanket-blocked: the honest state is per-tier (F0 runnable on the
+    # measured span, F5 already active, F2 loud-refused with its number).
+    check("MODEL_BLOCKED['S10'] 已删除（平台缺陷已修 + 真机 eligible>0 已实测）",
+          "S10" not in LC.MODEL_BLOCKED,
+          str(LC.MODEL_BLOCKED.get("S10"))[:120])
+    check("LSQFWD_F0_SPAN 已有 S10 实测条目（sq_forward/3、gap_bfs/4）",
+          LC.LSQFWD_F0_SPAN.get(("S10", "sq_forward")) == 3
+          and LC.LSQFWD_F0_SPAN.get(("S10", "gap_bfs")) == 4)
     header, cells = LC.load_matrix(
         ROOT / "artifacts/lsu-trial/07-expanded-matrix-backfilled.csv")
     s10 = [c for c in cells if c[LC.COL_MODEL].strip() == "S10"]
     bad = []
     for c in s10:
+        rid = c[LC.COL_RUNID].strip()
+        tier = c[LC.COL_FREQ].strip()
         flags, golden, note = LC.resolve_cell(c)
-        if not (flags is None and note and "platform-defect" in note):
-            bad.append(c[LC.COL_RUNID])
-    check("6 个 S10 cell 仍 loud blocked（census 是集成侧步骤）",
+        if tier in ("F0", "F5"):
+            if flags is None:
+                bad.append(rid)                    # must be runnable
+        else:                                      # F2: loud refusal
+            if not (flags is None and note
+                    and "interval-tier-unreachable" in note):
+                bad.append(rid)
+    check("6 个 S10 cell 逐格正确（F0/F5 runnable；F2 响亮拒绝）",
           len(s10) == 6 and not bad, str(bad))
     camp = src("tools/lsu_campaign.py")
-    check("census 待办注释块仍在（集成侧必须先普查再删 BLOCKED，"
-          "「断言可跑才删」纪律）",
-          "census pending" in camp
-          and "Integration MUST census both pairs" in camp)
-    check("S10 仍无 LSQFWD_F0_SPAN 实测条目（未替集成侧伪造跨度）",
-          not [k for k in LC.LSQFWD_F0_SPAN if k[0] == "S10"])
-    print("  TODO(集成侧) 把 workloads/directed/ssit_dual_set 一并登进 S10 census "
-          "待测对（本 worktree 不代改共享工具 tools/lsu_campaign.py）")
+    check("F2 逐格拒绝表已登记（LSQFWD_INTERVAL_UNREACHABLE，"
+          "绝不静默 runnable）",
+          "LSQFWD_INTERVAL_UNREACHABLE" in camp
+          and ("S10", "F2", "sq_forward") in LC.LSQFWD_INTERVAL_UNREACHABLE)
 
     print("[C] carrier：workloads/directed/ssit_dual_set.c（只提交源码）")
     check("carrier 源文件存在", CARRIER_C.is_file(), str(CARRIER_C))

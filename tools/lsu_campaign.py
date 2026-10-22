@@ -414,12 +414,22 @@ MODEL_BLOCKED = {
     # reachable, the active thread's SSIT never validates, so the candidate
     # set is empty by construction. See round4_findings.md §R4-5.7b and
     # blocked_triage.md (new WORKLOAD/PLATFORM class).
-    "S10": "BLOCKED(platform-defect: O3 StoreSet SSIT inert — shared "
-           "SSITIndexingPolicy across MaxThreads MemDepUnits makes the "
-           "active thread's SSIT never validate (measured arm1_cand_empty "
-           "== arm1_events, max_live_ssids == 0 on 6 workloads, 23/23 "
-           "victims outside the caller's own entry array); S10-a premise "
-           "unreachable — needs platform fix or re-scope, R4-5.7b)",
+    # [MDSPEC][R4-8-S10] S10 MODEL_BLOCKED entry DELETED here — the
+    # platform defect that justified it (§R4-5.7b: shared SSITIndexingPolicy
+    # across MaxThreads MemDepUnits) was FIXED and real-run verified in
+    # §R4-6-S10 (binary 7d52bc1392a10055, eligible>0 on two carriers). The
+    # C11/C12/L04/A07 discipline ("delete only when real runs assert it")
+    # is now satisfied per-tier:
+    #   * F5 cells (S10-F5-W5/W9) — really activated (9/12) in §R4-6-S10b;
+    #   * F0 cells (S10-F0-W5/W9) — runnable via the per-(model, workload)
+    #     measured span in LSQFWD_F0_SPAN (streams 3 / 4, measured this
+    #     round; warmup=1+span=N IS the exact F0-uniform parameterization)
+    #     and real-run verified (injection log non-empty) in R4-8-S10;
+    #   * F2 cells (S10-F2-W5/W9) — do NOT ride this deletion: their
+    #     SPEC-FIXED interval (100000) makes them structurally zero on
+    #     these carriers and they are refused cell-by-cell by
+    #     LSQFWD_INTERVAL_UNREACHABLE (a loud, measured, per-cell block,
+    #     not a silent zero). See round4_findings.md §R4-8-S10.
     # no clean hook (documented in injector headers / W4-W8 session notes)
     # [MDSPEC][R4-5.8 integration] A07 MODEL_BLOCKED entry DELETED here —
     # the C11/C12/L04 discipline ("delete only when real runs assert it")
@@ -602,26 +612,82 @@ LSQFWD_F0_SPAN = {
     # stream from the S models' forwards (7) and L03's violation checks.
     ("L04", "sq_forward"): 324,    # attempted=2317
     ("L04", "sqlite_like"): 5597,  # attempted=35156
-    # [MDSPEC][R4-5.7] S10 rows: DELIBERATELY ABSENT (census pending —
-    # landed from an isolated no-build worktree; the landing agent is
-    # forbidden to run gem5). The S10 stream is the StoreSet new-SSID
-    # assignment arm's ELIGIBLE events: a violation retrain where NEITHER
-    # the load nor the store PC has a valid SSIT entry AND at least one
-    # OTHER live store-set ID exists (candidate scan non-empty) — a
-    # DIFFERENT stream from L03's violation checks (571 on sq_forward:
-    # every checkViolations hit) and from the S models' forwards (7).
-    # Integration MUST census both pairs before any S10-F0 cell runs
-    # (resolve_cell refuses loudly with BLOCKED(F0-span-unmeasured) until
-    # then — the refusal IS the design, never silently reuse another
-    # pair's span):
-    #   ("S10", "sq_forward"): <to be measured by integration>,
-    #   ("S10", "gap_bfs"):    <to be measured by integration — W9's
-    #                           GAP/Graph500 binary, never census'd for any
-    #                           lsqfwd model before S10>,
-    # Census shape: identical to the L04 rows above (tier=F0 warmup=1
-    # span=1000000, seed 1 — draw never lands; CHAOS_LSU_TRIGGER teardown
-    # eligible= is the stream size; SPAN_UNREACHABLE alarm = census intent).
+    # [MDSPEC][R4-8-S10] S10 rows — MEASURED 2026-10-22 (binary
+    # 7d52bc1392a10055, census shape identical to the L04 rows above:
+    # tier=F0 warmup=1 span=1000000 seed 1 — the draw never lands, so the
+    # teardown CHAOS_LSU_TRIGGER `eligible=` IS the whole stream and the
+    # SPAN_UNREACHABLE alarm is the census intent). The S10 stream is the
+    # StoreSet new-SSID assignment arm's ELIGIBLE events: a violation
+    # retrain where NEITHER the load nor the store PC has a valid SSIT
+    # entry AND at least one OTHER live store-set ID exists (candidate
+    # scan non-empty) — a DIFFERENT stream from L03's violation checks
+    # (571 on sq_forward: every checkViolations hit) and from the S
+    # models' forwards (7). Raw teardown lines (quoted in
+    # docs/gem5-fi/lsu/mdspec/R4-8-S10-span-report.md):
+    #   sq_forward: injector=CHAOSLSQFwd tier=F0 attempted=4 eligible=3
+    #               injected=0 ... mode=SPAN_UNREACHABLE draw_next_fire=756413
+    #   gap_bfs   : injector=CHAOSLSQFwd tier=F0 attempted=5 eligible=4
+    #               injected=0 ... mode=SPAN_UNREACHABLE draw_next_fire=756413
+    # Both runs also logged (platform fix witness, §R4-6-S10):
+    #   CHAOS_LSU_S10_FORK ... arm1_cand_ok=3 (sq_forward) / 4 (gap_bfs),
+    #   max_live_ssids=3 / 4.
+    # The stream is workload-length-bound at 10^1: both spec carriers are
+    # SHORT directed probes (single loop nest, run ends by itself) and the
+    # S10 eligible event is one-shot per (store_PC, load_PC) pair per
+    # StoreSet::clear() period (250000 memory ops, store_set.cc
+    # checkClear) — so a stream of 10^5 is unreachable for either carrier
+    # (see LSQFWD_INTERVAL_UNREACHABLE below for the F2 consequence).
+    ("S10", "sq_forward"): 3,    # W5 carrier (SQ-Forward 转发探针)
+    ("S10", "gap_bfs"): 4,       # W9 carrier (GAP/Graph500 子集)
 }
+
+
+# [MDSPEC][R4-8-S10] INTERVAL-TIER reachability refusals, keyed per
+# (model, tier, workload binary) exactly like the span tables above.
+#
+# F1/F2/F3 (+F4's burst period) arm on an eligible-COUNT threshold drawn as
+# `interval/2 + rng % interval` (chaos_lsu_trigger.hh intervalEvents() +
+# scheduleNext()) — so the MINIMUM first fire for tier T is
+# intervalEvents(T)/2. A run whose WHOLE eligible stream is shorter than
+# that can NEVER fire tier T: the zero is structural (no window, nothing to
+# tune), and it is NOT fixable by calibration the way F0 is — F1-F4's
+# intervals are SPEC-FIXED (05 r3-r5: mean 1e6/1e5/1e4 eligible events) and
+# re-tuning them to the workload would ALTER THE FAULT-MODEL SEMANTICS.
+# That asymmetry is exactly why F0 (no interval) gets the per-workload span
+# calibration above while F1-F4 do not.
+#
+# Measured S10 streams (LSQFWD_F0_SPAN, this round): sq_forward 3,
+# gap_bfs 4. F2's minimum first draw is intervalEvents(F2)/2 = 50000
+# (intervalEvents(F2) = 100000, store_set.cc/chaos_lsu_trigger.hh) — four
+# orders of magnitude above either stream, so S10-F2-W5 / S10-F2-W9 are
+# STRUCTURALLY ZERO on the spec-pinned W5/W9 carriers. They therefore
+# refuse LOUDLY (never run and report a hollow activated=0) until either
+# (a) the spec's W5/W9 carrier is re-scoped to a long carrier sustaining
+# >= 5*10^4 eligible StoreSet events, or (b) the S10 F2 cell is dropped.
+# Both are spec-level decisions, NOT taken here.
+#
+# NOTE (honest, recorded NOT acted on — one-patch-per-unit): the identical
+# interval/2 > measured-stream condition holds for the other lsqfwd-family
+# F2 cells (S01/S02/L01/L02/L04/S04-S06/S08/S09/S13-F2-*, 26 cells whose
+# measured streams are 2-5597). Flagging it here rather than silently
+# re-blocking 26 cells outside this S10 patch; the orchestrator decides.
+LSQFWD_INTERVAL_UNREACHABLE = {
+    ("S10", "F2", "sq_forward"),   # measured stream 3    << min draw 50000
+    ("S10", "F2", "gap_bfs"),      # measured stream 4    << min draw 50000
+    # F1/F3/F4 on the same carriers would be identically unreachable (min
+    # draws 500000 / 5000 / 50000 all > 3-4); S10 has no such cells, so no
+    # entries are added (the refusal table is keyed on REAL cells).
+}
+
+
+# [MDSPEC][R4-8-S10] the SPEC-FIXED interval-tier periods (eligible events),
+# mirrored from chaos_lsu_trigger.hh ChaOSLsuTrigger::intervalEvents(). The
+# minimum first fire for tier T is interval(T)/2 (scheduleNext: from +
+# iv/2 + rng % iv). Kept in lockstep with the header by the S10 contract
+# test (tests/test_lsu_hook_s10_span.py) — a drift here would silently
+# mis-gate every interval-tier cell.
+LSU_INTERVAL_EVENTS = {"F1": 1000000, "F2": 100000, "F3": 10000,
+                       "F4": 100000}
 
 
 def _lsqfwd_tier_flags(model, tier, wl_binary=None):
@@ -633,6 +699,25 @@ def _lsqfwd_tier_flags(model, tier, wl_binary=None):
         return ["--lsqfwd_lsu_tier", tier,
                 "--lsqfwd_warmup_events", "1",
                 "--lsqfwd_span_events", str(span)]
+    # [MDSPEC][R4-8-S10] interval-tier (F1-F4) reachability: a (model, tier,
+    # workload) whose tier can never fire because the measured eligible
+    # stream is shorter than the tier's MINIMUM first draw refuses LOUDLY
+    # with its own reason string (resolve_cell passes it through) — never a
+    # silent run that would report a hollow activated=0. No re-tuning of the
+    # spec-fixed interval (that would alter fault-model semantics).
+    if (model, tier, wl_binary) in LSQFWD_INTERVAL_UNREACHABLE:
+        iv = LSU_INTERVAL_EVENTS.get(tier)
+        stream = LSQFWD_F0_SPAN.get((model, wl_binary))
+        return ("BLOCKED(interval-tier-unreachable: model %s tier %s on "
+                "workload %s — the tier's SPEC-FIXED first-fire draw is "
+                "U[%s/2, 3*%s/2) = at least %s eligible events, but the "
+                "measured eligible stream is %s; the interval may NOT be "
+                "re-tuned to the workload (that alters fault-model "
+                "semantics — see LSQFWD_INTERVAL_UNREACHABLE); needs a "
+                "re-scoped long carrier or a cell ruling, R4-8-S10)"
+                % (model, tier, wl_binary,
+                   "F2", "F2", iv // 2 if iv else "n/a",
+                   stream if stream is not None else "n/a"))
     # F1-F4/F5/F6 do not consume span_events (interval/warm-up/event-based);
     # keep the historical inert values for those tiers.
     return ["--lsqfwd_lsu_tier", tier,
@@ -948,6 +1033,12 @@ def resolve_cell(cell, allow_blocked=False):
     # stream is workload-dependent — L03: 571 on sq_forward, 18681 on
     # sqlite_like).
     tier_flags = FAMILY_TIER_FLAGS[family](model, freq, binary)
+    if isinstance(tier_flags, str):
+        # [MDSPEC][R4-8-S10] the family helper may return a READY-MADE
+        # BLOCKED(...) reason (e.g. the interval-tier reachability refusal
+        # LSQFWD_INTERVAL_UNREACHABLE) — an honest, cell-specific loud block
+        # rather than the generic F0-span-unmeasured one below.
+        return None, None, tier_flags
     if tier_flags is None:
         # [MDSPEC][R4-5.1] name the family's own span table in the refusal
         # (cache/C11-C12 -> CACHE_F0_SPAN; lsqfwd -> LSQFWD_F0_SPAN;
