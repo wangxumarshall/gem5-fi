@@ -58,46 +58,47 @@
 
 **Files:** `configs/fs/lsu_multicore_fs.py`（新增）；`tests/test_lsu_fs_infra.py`（改断言）。
 
-- [ ] 1.1 写 `configs/fs/lsu_multicore_fs.py`：`--num-cores`（默认 2）、
+- [x] 1.1 写 `configs/fs/lsu_multicore_fs.py`：`--num-cores`（默认 2）、
       `--coherence {chi,classic}`、kernel/disk/bootloader/readfile/restore-checkpoint、
       CPU 侧注入器 `--chaos_exmon`(+tier/seed/mode)。文件头写清"为什么"、
       classic 无一致性的源码证据、CHAOSCache 无法挂 Ruby 的构造性事实。
-- [ ] 1.2 **真机验证**：2 核 Atomic + CHI 启动（`--readfile boot_ckpt.rcS`）
+- [x] 1.2 **真机验证**：2 核 Atomic + CHI 启动（`--readfile boot_ckpt.rcS`）
       → 产出 2 核 checkpoint；`config.ini` 出现 `cores0/cores1` + ruby 段；
       guest `dmesg`/`board.terminal` 出现 SMP 双核证据（`/proc/cpuinfo`）。
       **判据：checkpoint 目录存在且其 config.ini 是 2 核。**
-- [ ] 1.3 改 `tests/test_lsu_fs_infra.py`：把"FS 平台单核"这条断言改成
+- [x] 1.3 改 `tests/test_lsu_fs_infra.py`：把"FS 平台单核"这条断言改成
       （a）legacy `arm_chaos_fs.py` 仍单核 且（b）新的多核 config 存在、默认 2 核、
       CHI 可选、classic 保留；再断言站内没有多核 checkpoint 的检测是**诚实**的
       （有则报有）。
-- [ ] 1.4 commit + push。
+- [x] 1.4 commit + push。
 
 ## Task 2 [R4-8-FSMC-2]：仓库本地 litmus 载体（自造、自 oracle、可复现）
 
 **Files:** `workloads/litmus/{litmus_common.h,litmus_sb.c,litmus_mp.c,litmus_atomic.c,Makefile,make_payload.py}`（新增）。
 
-- [ ] 2.1 三个 litmus：SB（dmb 保护）、MP（跨核可见性）、ATOMIC（LDXR/STXR
+- [x] 2.1 三个 litmus：SB（dmb 保护）、MP（跨核可见性）、ATOMIC（LDXR/STXR
       CAS counter，同时报总重试次数 ⇒ 区分"重试吸收=Masked"与"丢失更新=SDC"）。
       oracle = 规格 §6 W7 的"每轮检查禁出现结果"计数（必须 0），
       另打 `FINAL=<16hex>`（只哈希 测试标识+违例数+轮次，不含非确定的分布）。
-- [ ] 2.2 **宿主原生验证**（真多核 aarch64，与 gem5 无关）：三个都 0 违例、
+- [x] 2.2 **宿主原生验证**（真多核 aarch64，与 gem5 无关）：三个都 0 违例、
       且观察到真并发（ATOMIC tries > 最小、SB 直方图非退化）。
-- [ ] 2.3 `make payload` 从 ELF 生成 `configs/fs/litmus.rcS`（base64 内嵌，幂等，
+- [x] 2.3 `make payload` 从 ELF 生成 `configs/fs/litmus.rcS`（base64 内嵌，幂等，
       打印 sha256）。
-- [ ] 2.4 commit + push。
+- [x] 2.4 commit + push。
 
 ## Task 3 [R4-8-FSMC-3]：多核 FS litmus 真机端到端 + O01/O02/O03 注入臂
 
 **Files:** `configs/fs/litmus.rcS`（Task 2 生成）；证据入 `R4-8-FSMC-report.md`。
 
+> **未达成（如实）**：平台臂通过（guest `nproc=2`），但载荷臂三次真机尝试都卡在 guest 侧 base64 解包（≥18 min 未完），litmus 的 oracle/FINAL 未取到；原因与量化见报告 §3.2，故本项**不勾**，也不据此宣称任何格子可执行。
 - [ ] 3.1 从 Task 1 的 2 核 checkpoint 恢复，`--cpu O3 --coherence chi`，
       `--readfile configs/fs/litmus.rcS`：三个 litmus 全跑完并打印 oracle 行 +
       `FINAL`（无故障时违例=0）。
 - [ ] 3.2 同一次运行加 `--chaos_exmon --exmon_mode o01_monitor_addr_bitflip
       --exmon_lsu_tier F0`：观测注入日志非空 + litmus 的 tries/oracle 变化。
-- [ ] 3.3 记录原始输出（board.terminal 摘录 + 文件 sha256）；若任一步不成立，
+- [x] 3.3 记录原始输出（board.terminal 摘录 + 文件 sha256）；若任一步不成立，
       **如实记录失败**，并把该格保持 BLOCKED。
-- [ ] 3.4 commit + push。
+- [x] 3.4 commit + push。
 
 ## Task 4 [R4-8-FSMC-4]：35 行逐项裁决 + 断言钉死 + 证据报告
 
@@ -105,11 +106,11 @@
 `tests/test_lsu_fs_infra.py`、`tests/test_lsu_runid_map.py`（增断言）；
 `tools/lsu_campaign.py`（只在**可端到端执行**时才允许改路由，否则不改）。
 
-- [ ] 4.1 逐行裁决表：row → verdict → 证明它的产物/命令 → 原始输出摘录。
-- [ ] 4.2 测试断言：把"这 35 项各自为什么阻塞"机读化，**任何一格静默解锁都算 bug**。
-- [ ] 4.3 只在 Task 3 真的端到端跑通时才写 campaign 路由（否则明确记录"未接线，
+- [x] 4.1 逐行裁决表：row → verdict → 证明它的产物/命令 → 原始输出摘录。
+- [x] 4.2 测试断言：把"这 35 项各自为什么阻塞"机读化，**任何一格静默解锁都算 bug**。
+- [x] 4.3 只在 Task 3 真的端到端跑通时才写 campaign 路由（否则明确记录"未接线，
       因为会变成半接线"）。
-- [ ] 4.4 commit + push；`git rebase lsu-mdspec-20261019` 后 push 最终版。
+- [x] 4.4 commit + push；`git rebase lsu-mdspec-20261019` 后 push 最终版。
 
 ## 停止条件
 
