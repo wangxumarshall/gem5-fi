@@ -204,7 +204,21 @@ class CHAOSAddrPath : public SimObject
     // pre-fault static width (lsq_unit.cc read()), turning the shrink into a
     // faithful zero-extended truncation instead of a heap over-read.
     enum class A06LoadVerdict
-    { Success, NoTarget, Illegal, NoChange, Geometry };
+    // [R4-8-INT] ShrinkUnsafe: the SHRINK direction is DECLINED (loudly,
+    // counted) because it cannot be made safe on this platform. The
+    // fixed-width completion contract asserts sizeof(T) <= pkt->size in
+    // Packet::getRaw<T> (src/mem/packet_access.hh:55) — it keys on the
+    // PACKET's size field, NOT on the destination buffer. Flooring the
+    // buffer (DynInst::chaosA06BufBytes) therefore cannot prevent the
+    // abort: measured 2026-10-22, `--agu_size_to_load 1` on
+    // workloads/directed/a06_size_be SIGABRTs with
+    //   Assertion `sizeof(T) <= size' failed  (T = unsigned long)
+    // on the integrated binary (sha256 prefix 78b8582966e83072).
+    // A faithful shrink needs the packet size kept >= the static width with
+    // the truncation done at COMMIT — a deeper LSQ/AGU redesign, not this
+    // arm. Widen / store-size / byte-enable stay available and are
+    // real-machine verified.
+    { Success, NoTarget, Illegal, NoChange, Geometry, ShrinkUnsafe };
     A06LoadVerdict a06LoadSize(Addr addr, unsigned size,
                                unsigned &target) const;
     static const char *a06LoadVerdictReason(A06LoadVerdict v);

@@ -691,8 +691,8 @@ MODEL_BLOCKED.update({
     # tools/lsu_blocked_triage.py's FS-MULTICORE bucket (dropping it would
     # silently re-bucket these RunIDs).
     "O05": "blocked(multicore-fs: W7 Atomic-Litmus workload; RMW-completion "
-           "hook rmw_order LANDED @ SwapReq commit but COMPILE-UNVERIFIED "
-           "+ un-piloted, R4-9-FSMC)",
+           "hook rmw_order LANDED @ SwapReq commit and COMPILED (build OK) "
+           "but un-piloted, R4-9-FSMC)",
     # [MDSPEC][R4-9-FSMC] O06/O07: the barrier-completion / order-tag hooks
     # NOW EXIST (CHAOSLSQFwd --lsqfwd_o06/--lsqfwd_o07; MemDepUnit barrier-SN
     # bookkeeping, cpu/o3/chaos_barrier_hook.hh) but the C++ is
@@ -703,31 +703,38 @@ MODEL_BLOCKED.update({
     # load-bearing for tools/lsu_blocked_triage.py's FS-MULTICORE bucket.
     "O06": "blocked(multicore-fs: W7 Atomic-Litmus workload; barrier-"
            "completion hook LANDED (MemDepUnit barrier-SN bookkeeping, "
-           "CHAOSLSQFwd --lsqfwd_o06) but COMPILE-UNVERIFIED + un-piloted, "
+           "CHAOSLSQFwd --lsqfwd_o06) and COMPILED but un-piloted, "
            "R4-9-FSMC)",
     "O07": "blocked(multicore-fs: W7 Atomic-Litmus workload; order-tag "
            "exchange hook LANDED (MemDepUnit barrier-SN set as the ordering-"
-           "tag proxy, CHAOSLSQFwd --lsqfwd_o07) but COMPILE-UNVERIFIED + "
+           "tag proxy, CHAOSLSQFwd --lsqfwd_o07) and COMPILED but "
            "un-piloted, R4-9-FSMC)",
 
-    # [LSU][MDSPEC][A6] A06 专项裁决（计划 §2.d，2026-10-19；R4-6-A06 +
-    # R4-8-A06 2026-10-22 更新）：store 侧安全路径已实现（a06_size，目标可
-    # 任意合法）；load 侧已放宽为**任意另一合法值**（widen 或 shrink，
-    # --agu_size_to_load；shrink 的安全性由定宽完成合同的**缓冲下限**
-    # DynInst::chaosA06BufBytes 提供，见 R4-8-A06-report §2.1）；A06-b 已落地
-    # 掩码观测（be_mode=observe）与"内部位清零"注入（be_mode=shift_mid，仅
-    # store；真机 be_subst=1 已实证）。
-    # 仍 BLOCKED 的**具体**理由：load 侧 shrink 的载体是 **COMPILE-UNVERIFIED**
-    # 的 C++（本 worktree 禁构建，见 R4-8-A06-report §7）。已实证的：store 侧
-    # shrink（8→2）真机可达且有 Crash 后果、load widen 真机可达、A06-b store
-    # 掩码注入 be_subst=1、shrink 护栏 load_shrink 计数真机在跑。
-    # 解除条件（不变）：集成构建通过 + §7 的 load shrink spike 实测通过。
-    "A06": ("BLOCKED(load-side SHRINK faithful path implemented but "
-            "COMPILE-UNVERIFIED (pending integration build); store-side size "
-            "/ load WIDEN / A06-b store mask already real-spike-verified — "
-            "R4-8-A06 2026-10-22)"),
-
-})
+    # [LSU][MDSPEC][A6] A06 专项裁决（计划 §2.d 2026-10-19；R4-6-A06 + R4-8-A06
+    # + R4-8-INT 2026-10-22 集成实测更新）。**忠实实现 = 已实现臂的全集**：
+    #   * store 侧 size（含 shrink）——真机可达且有 Crash 后果（R4-8-A06 §5）；
+    #   * load 侧 **WIDEN** ——真机可达（R4-8-A06；本轮 campaign 试跑
+    #     activated=1，见 runs/lsu/trial_r48_a06）；
+    #   * A06-b byte-enable store 掩码 ——真机 be_subst=1（本轮复验）。
+    # **load 侧 SHRINK 被判为「真正不可达路径」并响亮拒绝**：定宽完成合同在
+    # Packet::getRaw<T> 上断言 sizeof(T) <= pkt->size（src/mem/packet_access.hh:55），
+    # 用的是 **packet 的 size 字段**而非目的缓冲区 ⇒ 缓冲区下限在构造上无效。
+    # 集成实测（二进制 78b8582966e83072）：--agu_size_to_load 1 → SIGABRT
+    # `Assertion sizeof(T) <= size failed`。已在 a06LoadSize 里判 ShrinkUnsafe
+    # （计数拒绝、绝不注入；修后同命令 rc=0 不再崩溃）。忠实 shrink 需要把
+    # packet size 保持 >= 静态宽度、截断改在 commit 完成 —— 属 LSQ/AGU 重设计，
+    # 非本臂。仍 BLOCKED 的**具体**理由：A06 的 F0 跨度未实测（本轮 campaign
+    # 试跑报 CHAOS_LSU_TRIGGER_ALARM EARLY_BIAS：eligible=1677 ≫ span=1000），
+    # 且 pilot 仅 1 seed（本仓别处解锁门槛为 3 seed + 逐边链）。
+    "A06": ("BLOCKED(load WIDEN + store size/shrink + A06-b store mask are "
+            "real-machine verified (campaign trial: activated=1); load SHRINK "
+            "is a PROVEN-unreachable path and is declined loudly "
+            "(Packet::getRaw asserts sizeof(T) <= pkt->size — real SIGABRT "
+            "evidence; faithful shrink needs an LSQ/AGU redesign). Remaining: "
+            "A06 F0 span unmeasured (EARLY_BIAS alarm, eligible 1677 >> span "
+            "1000) and the pilot is 1 seed. SPEC-SCOPE ruling item "
+            "(MDSPEC §2.d ruling 2026-10-19, A06 load-side contract) — "
+            "R4-8-A06 + R4-8-INT 2026-10-22)"),})
 
 # Trigger-tier flags per family. F0 span: addrpath/lsqfwd eligible streams
 # are per-request (large; span 1000 verified by the W10 trial); prefetch

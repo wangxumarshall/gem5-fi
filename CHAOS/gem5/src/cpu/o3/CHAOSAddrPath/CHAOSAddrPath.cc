@@ -402,6 +402,11 @@ namespace gem5
             return A06LoadVerdict::NoChange;
         if ((addr & 63) + agu_size_to_load > 64)
             return A06LoadVerdict::Geometry;
+        // [R4-8-INT] decline the shrink direction outright (see the enum
+        // comment): the fixed-width completion asserts on the PACKET size,
+        // so a shrunk load SIGABRTs regardless of the buffer floor.
+        if (agu_size_to_load < (uint64_t)size)
+            return A06LoadVerdict::ShrinkUnsafe;
         target = (unsigned)agu_size_to_load;
         return A06LoadVerdict::Success;
     }
@@ -417,6 +422,8 @@ namespace gem5
             return "load_size_nochange";
           case A06LoadVerdict::Geometry:
             return "load_size_block_geometry";
+          case A06LoadVerdict::ShrinkUnsafe:
+            return "load_size_block_shrink_unsafe";
           default:
             return "load_size_ok";
         }

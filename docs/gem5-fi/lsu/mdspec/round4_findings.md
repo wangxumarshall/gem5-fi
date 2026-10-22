@@ -1955,3 +1955,26 @@ T10-F{0,1,2}-W11 会静默改判到 `fs:tlb_probe` 载体，该回归由 `test_l
 但**未产生任何注入行或 prop_evt**（`prop_evt.txt.gz` 未生成）⇒ 触发未成立，未取得真实注入证据。
 **结论：C 组 15 格保持 BLOCKED**（C11/C12/L04 纪律：只有真机断言才解锁）；且这批格子还独立受
 W7=Atomic-Litmus 负载级阻塞（其载体为多核 FS litmus，见 §R4-8-FSMC-A）。理由文本已按实测改写。
+
+## §R4-8-A06（主 agent 集成，2026-10-22）：三臂真机通过 / shrink 为已证不可达路径 / F0 跨度未实测
+
+**二进制**：`scons -j16` 通过；集成后二进制 sha256 前缀 `54c2c78ce4c84bb2`（修 shrink 后）。
+
+**真机 spike（补 `FAMILY_MOUNT` 后；首轮负结果系**我方调用漏挂载旗标**所致，已订正）**
+| 臂 | 命令要点 | 实测 |
+|---|---|---|
+| store size（含 shrink 8→2） | `--agu_pre_mode a06_size --agu_size_to 2` | 注入成立（R4-8-A06 §5 的 Crash 后果可复现） |
+| load WIDEN | campaign 入口 `A06-F0-W3/W5 --allow-blocked-models` | **activated=1**（`addrpath_injections.log` 落盘，`injected=1`） |
+| A06-b store 掩码 | `--agu_size_to 8 --agu_be_mode shift_mid` | **`be_subst=1`**、`be_seen=1` |
+| load SHRINK | `--agu_size_to_load 1` | **SIGABRT**（见下），已改为响亮拒绝 |
+
+**load SHRINK = 已证不可达（真实越界断言，非"载体不合适"）**
+`Packet::getRaw<T>` 断言 `sizeof(T) <= size`（`src/mem/packet_access.hh:55`），断言用的是 **packet 的 size 字段**，
+与目的缓冲区无关 ⇒ R4-8-A06 的"缓冲下限"方案（`DynInst::chaosA06BufBytes`）在构造上无法阻止越界读。
+实测：`--agu_size_to_load 1` → `Assertion 'sizeof(T) <= size' failed`（T = unsigned long）→ rc=134。
+集成修复：`a06LoadSize` 判新 verdict `ShrinkUnsafe`（`load_size_block_shrink_unsafe`，计数拒绝、绝不注入）；
+同命令修后 **rc=0**，`load_shrink=0`，byte-enable 臂回归 `be_subst=1` 不受影响。
+
+**仍 BLOCKED 的具体理由**：① A06 的 F0 跨度未实测 —— campaign 试跑报
+`CHAOS_LSU_TRIGGER_ALARM ... mode=EARLY_BIAS attempted=2800 eligible=1677 injected=1 span=1000`
+（触发窗欠覆盖 golden 流，须先量 `ADDRPATH_F0_SPAN[("A06", …)]`）；② pilot 仅 1 seed（本仓解锁门槛为 3 seed + 逐边链）。

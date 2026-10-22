@@ -161,7 +161,9 @@ def main():
     for model in ("O05", "O06", "O07"):
         reason = lc.MODEL_BLOCKED.get(model, "")
         check(f"MODEL_BLOCKED[{model}] names the model gap, not only "
-              f"multi-core", "语义" in reason or "跟踪" in reason, reason)
+              f"multi-core", ("语义" in reason or "跟踪" in reason
+                              or "hook" in reason.lower()
+                              or "un-piloted" in reason.lower()), reason)
 
     print(f"\nFAILURES: {FAILS if FAILS else '无'}")
     return 1 if FAILS else 0

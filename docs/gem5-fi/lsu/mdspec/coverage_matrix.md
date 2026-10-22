@@ -29,12 +29,12 @@
 | A05-F0-W3 | A05 | AGU | F0 | PASS |  |
 | A05-F2-W3 | A05 | AGU | F2 | PASS |  |
 | A05-F6-W3 | A05 | AGU | F6 | PASS |  |
-| A06-F0-W3 | A06 | AGU | F0 | BLOCKED | campaign:BLOCKED(load-side widen path + A06-b mask path landed but COMPILE-UNVERIFIED; spike (real gem5 run) pending — R4-6-A06 2026-10-22, MDSPEC §2 ruling 202 |
-| A06-F0-W5 | A06 | AGU | F0 | BLOCKED | campaign:BLOCKED(load-side widen path + A06-b mask path landed but COMPILE-UNVERIFIED; spike (real gem5 run) pending — R4-6-A06 2026-10-22, MDSPEC §2 ruling 202 |
-| A06-F2-W3 | A06 | AGU | F2 | BLOCKED | campaign:BLOCKED(load-side widen path + A06-b mask path landed but COMPILE-UNVERIFIED; spike (real gem5 run) pending — R4-6-A06 2026-10-22, MDSPEC §2 ruling 202 |
-| A06-F2-W5 | A06 | AGU | F2 | BLOCKED | campaign:BLOCKED(load-side widen path + A06-b mask path landed but COMPILE-UNVERIFIED; spike (real gem5 run) pending — R4-6-A06 2026-10-22, MDSPEC §2 ruling 202 |
-| A06-F6-W3 | A06 | AGU | F6 | BLOCKED | campaign:BLOCKED(load-side widen path + A06-b mask path landed but COMPILE-UNVERIFIED; spike (real gem5 run) pending — R4-6-A06 2026-10-22, MDSPEC §2 ruling 202 |
-| A06-F6-W5 | A06 | AGU | F6 | BLOCKED | campaign:BLOCKED(load-side widen path + A06-b mask path landed but COMPILE-UNVERIFIED; spike (real gem5 run) pending — R4-6-A06 2026-10-22, MDSPEC §2 ruling 202 |
+| A06-F0-W3 | A06 | AGU | F0 | BLOCKED | campaign:BLOCKED(load WIDEN + store size/shrink + A06-b store mask are real-machine verified (campaign trial: activated=1); load SHRINK is a PROVEN-unreachable  |
+| A06-F0-W5 | A06 | AGU | F0 | BLOCKED | campaign:BLOCKED(load WIDEN + store size/shrink + A06-b store mask are real-machine verified (campaign trial: activated=1); load SHRINK is a PROVEN-unreachable  |
+| A06-F2-W3 | A06 | AGU | F2 | BLOCKED | campaign:BLOCKED(load WIDEN + store size/shrink + A06-b store mask are real-machine verified (campaign trial: activated=1); load SHRINK is a PROVEN-unreachable  |
+| A06-F2-W5 | A06 | AGU | F2 | BLOCKED | campaign:BLOCKED(load WIDEN + store size/shrink + A06-b store mask are real-machine verified (campaign trial: activated=1); load SHRINK is a PROVEN-unreachable  |
+| A06-F6-W3 | A06 | AGU | F6 | BLOCKED | campaign:BLOCKED(load WIDEN + store size/shrink + A06-b store mask are real-machine verified (campaign trial: activated=1); load SHRINK is a PROVEN-unreachable  |
+| A06-F6-W5 | A06 | AGU | F6 | BLOCKED | campaign:BLOCKED(load WIDEN + store size/shrink + A06-b store mask are real-machine verified (campaign trial: activated=1); load SHRINK is a PROVEN-unreachable  |
 | A07-F0-W3 | A07 | AGU | F0 | PASS |  |
 | A07-F0-W5 | A07 | AGU | F0 | PASS |  |
 | A07-F4-W3 | A07 | AGU | F4 | PASS |  |
@@ -203,12 +203,12 @@
 | O04-F0-W7 | O04 | 原子与同步 | F0 | BLOCKED | campaign:deferred(RMW data-path hook LANDED (rmw_mux @ SwapReq commit) but COMPILE-UNVERIFIED — build + RMW-commit census + pilot pending, R4-9-FSMC); spec:需新增（ |
 | O04-F2-W7 | O04 | 原子与同步 | F2 | BLOCKED | campaign:deferred(RMW data-path hook LANDED (rmw_mux @ SwapReq commit) but COMPILE-UNVERIFIED — build + RMW-commit census + pilot pending, R4-9-FSMC); spec:需新增（ |
 | O04-F6-W7 | O04 | 原子与同步 | F6 | BLOCKED | campaign:deferred(RMW data-path hook LANDED (rmw_mux @ SwapReq commit) but COMPILE-UNVERIFIED — build + RMW-commit census + pilot pending, R4-9-FSMC); spec:需新增（ |
-| O05-F0-W7 | O05 | 原子与同步 | F0 | BLOCKED | campaign:blocked(multicore-fs: W7 Atomic-Litmus workload; RMW-completion hook rmw_order LANDED @ SwapReq commit but COMPILE-UNVERIFIED + un-piloted, R4-9-FSMC); |
-| O05-F4-W7 | O05 | 原子与同步 | F4 | BLOCKED | campaign:blocked(multicore-fs: W7 Atomic-Litmus workload; RMW-completion hook rmw_order LANDED @ SwapReq commit but COMPILE-UNVERIFIED + un-piloted, R4-9-FSMC); |
-| O05-F6-W7 | O05 | 原子与同步 | F6 | BLOCKED | campaign:blocked(multicore-fs: W7 Atomic-Litmus workload; RMW-completion hook rmw_order LANDED @ SwapReq commit but COMPILE-UNVERIFIED + un-piloted, R4-9-FSMC); |
-| O06-F0-W7 | O06 | 原子与同步 | F0 | BLOCKED | campaign:blocked(multicore-fs: W7 Atomic-Litmus workload; barrier-completion hook LANDED (MemDepUnit barrier-SN bookkeeping, CHAOSLSQFwd --lsqfwd_o06) but COMPI |
-| O06-F4-W7 | O06 | 原子与同步 | F4 | BLOCKED | campaign:blocked(multicore-fs: W7 Atomic-Litmus workload; barrier-completion hook LANDED (MemDepUnit barrier-SN bookkeeping, CHAOSLSQFwd --lsqfwd_o06) but COMPI |
-| O06-F6-W7 | O06 | 原子与同步 | F6 | BLOCKED | campaign:blocked(multicore-fs: W7 Atomic-Litmus workload; barrier-completion hook LANDED (MemDepUnit barrier-SN bookkeeping, CHAOSLSQFwd --lsqfwd_o06) but COMPI |
+| O05-F0-W7 | O05 | 原子与同步 | F0 | BLOCKED | campaign:blocked(multicore-fs: W7 Atomic-Litmus workload; RMW-completion hook rmw_order LANDED @ SwapReq commit and COMPILED (build OK) but un-piloted, R4-9-FSM |
+| O05-F4-W7 | O05 | 原子与同步 | F4 | BLOCKED | campaign:blocked(multicore-fs: W7 Atomic-Litmus workload; RMW-completion hook rmw_order LANDED @ SwapReq commit and COMPILED (build OK) but un-piloted, R4-9-FSM |
+| O05-F6-W7 | O05 | 原子与同步 | F6 | BLOCKED | campaign:blocked(multicore-fs: W7 Atomic-Litmus workload; RMW-completion hook rmw_order LANDED @ SwapReq commit and COMPILED (build OK) but un-piloted, R4-9-FSM |
+| O06-F0-W7 | O06 | 原子与同步 | F0 | BLOCKED | campaign:blocked(multicore-fs: W7 Atomic-Litmus workload; barrier-completion hook LANDED (MemDepUnit barrier-SN bookkeeping, CHAOSLSQFwd --lsqfwd_o06) and COMPI |
+| O06-F4-W7 | O06 | 原子与同步 | F4 | BLOCKED | campaign:blocked(multicore-fs: W7 Atomic-Litmus workload; barrier-completion hook LANDED (MemDepUnit barrier-SN bookkeeping, CHAOSLSQFwd --lsqfwd_o06) and COMPI |
+| O06-F6-W7 | O06 | 原子与同步 | F6 | BLOCKED | campaign:blocked(multicore-fs: W7 Atomic-Litmus workload; barrier-completion hook LANDED (MemDepUnit barrier-SN bookkeeping, CHAOSLSQFwd --lsqfwd_o06) and COMPI |
 | O07-F0-W7 | O07 | 原子与同步 | F0 | BLOCKED | campaign:blocked(multicore-fs: W7 Atomic-Litmus workload; order-tag exchange hook LANDED (MemDepUnit barrier-SN set as the ordering-tag proxy, CHAOSLSQFwd --lsq |
 | O07-F2-W7 | O07 | 原子与同步 | F2 | BLOCKED | campaign:blocked(multicore-fs: W7 Atomic-Litmus workload; order-tag exchange hook LANDED (MemDepUnit barrier-SN set as the ordering-tag proxy, CHAOSLSQFwd --lsq |
 | O07-F6-W7 | O07 | 原子与同步 | F6 | BLOCKED | campaign:blocked(multicore-fs: W7 Atomic-Litmus workload; order-tag exchange hook LANDED (MemDepUnit barrier-SN set as the ordering-tag proxy, CHAOSLSQFwd --lsq |

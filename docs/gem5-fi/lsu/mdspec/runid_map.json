@@ -791,7 +791,7 @@
    "spec_landed": "",
    "status": "BLOCKED",
    "status_reasons": [
-    "campaign:BLOCKED(load-side widen path + A06-b mask path landed but COMPILE-UNVERIFIED; spike (real gem5 run) pending — R4-6-A06 2026-10-22, MDSPEC §2 ruling 2026-10-19)"
+    "campaign:BLOCKED(load WIDEN + store size/shrink + A06-b store mask are real-machine verified (campaign trial: activated=1); load SHRINK is a PROVEN-unreachable path and is declined loudly (Packet::getRaw asserts sizeof(T) <= pkt->size — real SIGABRT evidence; faithful shrink needs an LSQ/AGU redesign). Remaining: A06 F0 span unmeasured (EARLY_BIAS alarm, eligible 1677 >> span 1000) and the pilot is 1 seed. SPEC-SCOPE ruling item (MDSPEC §2.d ruling 2026-10-19, A06 load-side contract) — R4-8-A06 + R4-8-INT 2026-10-22)"
    ],
    "target_activated_samples": "385"
   },
@@ -829,7 +829,7 @@
    "spec_landed": "",
    "status": "BLOCKED",
    "status_reasons": [
-    "campaign:BLOCKED(load-side widen path + A06-b mask path landed but COMPILE-UNVERIFIED; spike (real gem5 run) pending — R4-6-A06 2026-10-22, MDSPEC §2 ruling 2026-10-19)"
+    "campaign:BLOCKED(load WIDEN + store size/shrink + A06-b store mask are real-machine verified (campaign trial: activated=1); load SHRINK is a PROVEN-unreachable path and is declined loudly (Packet::getRaw asserts sizeof(T) <= pkt->size — real SIGABRT evidence; faithful shrink needs an LSQ/AGU redesign). Remaining: A06 F0 span unmeasured (EARLY_BIAS alarm, eligible 1677 >> span 1000) and the pilot is 1 seed. SPEC-SCOPE ruling item (MDSPEC §2.d ruling 2026-10-19, A06 load-side contract) — R4-8-A06 + R4-8-INT 2026-10-22)"
    ],
    "target_activated_samples": "385"
   },
@@ -867,7 +867,7 @@
    "spec_landed": "",
    "status": "BLOCKED",
    "status_reasons": [
-    "campaign:BLOCKED(load-side widen path + A06-b mask path landed but COMPILE-UNVERIFIED; spike (real gem5 run) pending — R4-6-A06 2026-10-22, MDSPEC §2 ruling 2026-10-19)"
+    "campaign:BLOCKED(load WIDEN + store size/shrink + A06-b store mask are real-machine verified (campaign trial: activated=1); load SHRINK is a PROVEN-unreachable path and is declined loudly (Packet::getRaw asserts sizeof(T) <= pkt->size — real SIGABRT evidence; faithful shrink needs an LSQ/AGU redesign). Remaining: A06 F0 span unmeasured (EARLY_BIAS alarm, eligible 1677 >> span 1000) and the pilot is 1 seed. SPEC-SCOPE ruling item (MDSPEC §2.d ruling 2026-10-19, A06 load-side contract) — R4-8-A06 + R4-8-INT 2026-10-22)"
    ],
    "target_activated_samples": "385"
   },
@@ -905,7 +905,7 @@
    "spec_landed": "",
    "status": "BLOCKED",
    "status_reasons": [
-    "campaign:BLOCKED(load-side widen path + A06-b mask path landed but COMPILE-UNVERIFIED; spike (real gem5 run) pending — R4-6-A06 2026-10-22, MDSPEC §2 ruling 2026-10-19)"
+    "campaign:BLOCKED(load WIDEN + store size/shrink + A06-b store mask are real-machine verified (campaign trial: activated=1); load SHRINK is a PROVEN-unreachable path and is declined loudly (Packet::getRaw asserts sizeof(T) <= pkt->size — real SIGABRT evidence; faithful shrink needs an LSQ/AGU redesign). Remaining: A06 F0 span unmeasured (EARLY_BIAS alarm, eligible 1677 >> span 1000) and the pilot is 1 seed. SPEC-SCOPE ruling item (MDSPEC §2.d ruling 2026-10-19, A06 load-side contract) — R4-8-A06 + R4-8-INT 2026-10-22)"
    ],
    "target_activated_samples": "385"
   },
@@ -943,7 +943,7 @@
    "spec_landed": "",
    "status": "BLOCKED",
    "status_reasons": [
-    "campaign:BLOCKED(load-side widen path + A06-b mask path landed but COMPILE-UNVERIFIED; spike (real gem5 run) pending — R4-6-A06 2026-10-22, MDSPEC §2 ruling 2026-10-19)"
+    "campaign:BLOCKED(load WIDEN + store size/shrink + A06-b store mask are real-machine verified (campaign trial: activated=1); load SHRINK is a PROVEN-unreachable path and is declined loudly (Packet::getRaw asserts sizeof(T) <= pkt->size — real SIGABRT evidence; faithful shrink needs an LSQ/AGU redesign). Remaining: A06 F0 span unmeasured (EARLY_BIAS alarm, eligible 1677 >> span 1000) and the pilot is 1 seed. SPEC-SCOPE ruling item (MDSPEC §2.d ruling 2026-10-19, A06 load-side contract) — R4-8-A06 + R4-8-INT 2026-10-22)"
    ],
    "target_activated_samples": "385"
   },
@@ -981,7 +981,7 @@
    "spec_landed": "",
    "status": "BLOCKED",
    "status_reasons": [
-    "campaign:BLOCKED(load-side widen path + A06-b mask path landed but COMPILE-UNVERIFIED; spike (real gem5 run) pending — R4-6-A06 2026-10-22, MDSPEC §2 ruling 2026-10-19)"
+    "campaign:BLOCKED(load WIDEN + store size/shrink + A06-b store mask are real-machine verified (campaign trial: activated=1); load SHRINK is a PROVEN-unreachable path and is declined loudly (Packet::getRaw asserts sizeof(T) <= pkt->size — real SIGABRT evidence; faithful shrink needs an LSQ/AGU redesign). Remaining: A06 F0 span unmeasured (EARLY_BIAS alarm, eligible 1677 >> span 1000) and the pilot is 1 seed. SPEC-SCOPE ruling item (MDSPEC §2.d ruling 2026-10-19, A06 load-side contract) — R4-8-A06 + R4-8-INT 2026-10-22)"
    ],
    "target_activated_samples": "385"
   },
@@ -6991,7 +6991,7 @@
    "spec_landed": "",
    "status": "BLOCKED",
    "status_reasons": [
-    "campaign:blocked(multicore-fs: W7 Atomic-Litmus workload; RMW-completion hook rmw_order LANDED @ SwapReq commit but COMPILE-UNVERIFIED + un-piloted, R4-9-FSMC)",
+    "campaign:blocked(multicore-fs: W7 Atomic-Litmus workload; RMW-completion hook rmw_order LANDED @ SwapReq commit and COMPILED (build OK) but un-piloted, R4-9-FSMC)",
     "spec:需新增（当前阻塞：需要多核FS的RMW请求/全局可见性）",
     "workload:workload-level:blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 该模型×档位亲和集合内：C08 是注入器宿主互斥，O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)"
    ],
@@ -7029,7 +7029,7 @@
    "spec_landed": "",
    "status": "BLOCKED",
    "status_reasons": [
-    "campaign:blocked(multicore-fs: W7 Atomic-Litmus workload; RMW-completion hook rmw_order LANDED @ SwapReq commit but COMPILE-UNVERIFIED + un-piloted, R4-9-FSMC)",
+    "campaign:blocked(multicore-fs: W7 Atomic-Litmus workload; RMW-completion hook rmw_order LANDED @ SwapReq commit and COMPILED (build OK) but un-piloted, R4-9-FSMC)",
     "spec:需新增（当前阻塞：需要多核FS的RMW请求/全局可见性）",
     "workload:workload-level:blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 该模型×档位亲和集合内：C08 是注入器宿主互斥，O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)"
    ],
@@ -7067,7 +7067,7 @@
    "spec_landed": "",
    "status": "BLOCKED",
    "status_reasons": [
-    "campaign:blocked(multicore-fs: W7 Atomic-Litmus workload; RMW-completion hook rmw_order LANDED @ SwapReq commit but COMPILE-UNVERIFIED + un-piloted, R4-9-FSMC)",
+    "campaign:blocked(multicore-fs: W7 Atomic-Litmus workload; RMW-completion hook rmw_order LANDED @ SwapReq commit and COMPILED (build OK) but un-piloted, R4-9-FSMC)",
     "spec:需新增（当前阻塞：需要多核FS的RMW请求/全局可见性）",
     "workload:workload-level:blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 该模型×档位亲和集合内：C08 是注入器宿主互斥，O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)"
    ],
@@ -7105,7 +7105,7 @@
    "spec_landed": "",
    "status": "BLOCKED",
    "status_reasons": [
-    "campaign:blocked(multicore-fs: W7 Atomic-Litmus workload; barrier-completion hook LANDED (MemDepUnit barrier-SN bookkeeping, CHAOSLSQFwd --lsqfwd_o06) but COMPILE-UNVERIFIED + un-piloted, R4-9-FSMC)",
+    "campaign:blocked(multicore-fs: W7 Atomic-Litmus workload; barrier-completion hook LANDED (MemDepUnit barrier-SN bookkeeping, CHAOSLSQFwd --lsqfwd_o06) and COMPILED but un-piloted, R4-9-FSMC)",
     "spec:需新增（当前阻塞：需要多核FS barrier完成跟踪）",
     "workload:workload-level:blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 该模型×档位亲和集合内：C08 是注入器宿主互斥，O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)"
    ],
@@ -7143,7 +7143,7 @@
    "spec_landed": "",
    "status": "BLOCKED",
    "status_reasons": [
-    "campaign:blocked(multicore-fs: W7 Atomic-Litmus workload; barrier-completion hook LANDED (MemDepUnit barrier-SN bookkeeping, CHAOSLSQFwd --lsqfwd_o06) but COMPILE-UNVERIFIED + un-piloted, R4-9-FSMC)",
+    "campaign:blocked(multicore-fs: W7 Atomic-Litmus workload; barrier-completion hook LANDED (MemDepUnit barrier-SN bookkeeping, CHAOSLSQFwd --lsqfwd_o06) and COMPILED but un-piloted, R4-9-FSMC)",
     "spec:需新增（当前阻塞：需要多核FS barrier完成跟踪）",
     "workload:workload-level:blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 该模型×档位亲和集合内：C08 是注入器宿主互斥，O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)"
    ],
@@ -7181,7 +7181,7 @@
    "spec_landed": "",
    "status": "BLOCKED",
    "status_reasons": [
-    "campaign:blocked(multicore-fs: W7 Atomic-Litmus workload; barrier-completion hook LANDED (MemDepUnit barrier-SN bookkeeping, CHAOSLSQFwd --lsqfwd_o06) but COMPILE-UNVERIFIED + un-piloted, R4-9-FSMC)",
+    "campaign:blocked(multicore-fs: W7 Atomic-Litmus workload; barrier-completion hook LANDED (MemDepUnit barrier-SN bookkeeping, CHAOSLSQFwd --lsqfwd_o06) and COMPILED but un-piloted, R4-9-FSMC)",
     "spec:需新增（当前阻塞：需要多核FS barrier完成跟踪）",
     "workload:workload-level:blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 该模型×档位亲和集合内：C08 是注入器宿主互斥，O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)"
    ],
@@ -7219,7 +7219,7 @@
    "spec_landed": "",
    "status": "BLOCKED",
    "status_reasons": [
-    "campaign:blocked(multicore-fs: W7 Atomic-Litmus workload; order-tag exchange hook LANDED (MemDepUnit barrier-SN set as the ordering-tag proxy, CHAOSLSQFwd --lsqfwd_o07) but COMPILE-UNVERIFIED + un-piloted, R4-9-FSMC)",
+    "campaign:blocked(multicore-fs: W7 Atomic-Litmus workload; order-tag exchange hook LANDED (MemDepUnit barrier-SN set as the ordering-tag proxy, CHAOSLSQFwd --lsqfwd_o07) and COMPILED but un-piloted, R4-9-FSMC)",
     "spec:需新增（当前阻塞：需要多核FS order-tag/ready跟踪）",
     "workload:workload-level:blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 该模型×档位亲和集合内：C08 是注入器宿主互斥，O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)"
    ],
@@ -7257,7 +7257,7 @@
    "spec_landed": "",
    "status": "BLOCKED",
    "status_reasons": [
-    "campaign:blocked(multicore-fs: W7 Atomic-Litmus workload; order-tag exchange hook LANDED (MemDepUnit barrier-SN set as the ordering-tag proxy, CHAOSLSQFwd --lsqfwd_o07) but COMPILE-UNVERIFIED + un-piloted, R4-9-FSMC)",
+    "campaign:blocked(multicore-fs: W7 Atomic-Litmus workload; order-tag exchange hook LANDED (MemDepUnit barrier-SN set as the ordering-tag proxy, CHAOSLSQFwd --lsqfwd_o07) and COMPILED but un-piloted, R4-9-FSMC)",
     "spec:需新增（当前阻塞：需要多核FS order-tag/ready跟踪）",
     "workload:workload-level:blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 该模型×档位亲和集合内：C08 是注入器宿主互斥，O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)"
    ],
@@ -7295,7 +7295,7 @@
    "spec_landed": "",
    "status": "BLOCKED",
    "status_reasons": [
-    "campaign:blocked(multicore-fs: W7 Atomic-Litmus workload; order-tag exchange hook LANDED (MemDepUnit barrier-SN set as the ordering-tag proxy, CHAOSLSQFwd --lsqfwd_o07) but COMPILE-UNVERIFIED + un-piloted, R4-9-FSMC)",
+    "campaign:blocked(multicore-fs: W7 Atomic-Litmus workload; order-tag exchange hook LANDED (MemDepUnit barrier-SN set as the ordering-tag proxy, CHAOSLSQFwd --lsqfwd_o07) and COMPILED but un-piloted, R4-9-FSMC)",
     "spec:需新增（当前阻塞：需要多核FS order-tag/ready跟踪）",
     "workload:workload-level:blocked(multicore-fs: 载体已就绪——2 核 Ruby/CHI FS + 仓库本地 freestanding litmus（O01/O02/O03 的 F0/F5 格已 routable，见 tools/lsu_fsmc_verdict.py）；本格不在 该模型×档位亲和集合内：C08 是注入器宿主互斥，O04-O09 是模型语义未实现。见 R4-9-FSMC-A 报告 §4)"
    ],

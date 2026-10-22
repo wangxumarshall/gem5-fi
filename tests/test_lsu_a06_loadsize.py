@@ -259,10 +259,15 @@ def main():
     a06_rows = [f"A06-F0-W3", "A06-F0-W5", "A06-F2-W3", "A06-F2-W5",
                 "A06-F6-W3", "A06-F6-W5"]
     reason = str(lc.MODEL_BLOCKED.get("A06", ""))
+    # [R4-8-INT] 集成后订正：C++ 已构建成功 ⇒ 理由里的 "COMPILE-UNVERIFIED"
+    # 已被证伪；真实残留 = ① load SHRINK 被判**已证不可达**并响亮拒绝
+    # （Packet::getRaw 断言 sizeof(T) <= pkt->size，真实 SIGABRT 证据）、
+    # ② A06 的 F0 跨度未实测（EARLY_BIAS 告警）+ pilot 仅 1 seed。
     check("C3b_blocked_reason_specific",
           "SHRINK" in reason.upper()
-          and "COMPILE-UNVERIFIED" in reason.upper(),
-          reason[:160])
+          and "COMPILE-UNVERIFIED" not in reason.upper()
+          and ("UNREACHABLE" in reason.upper() or "DECLINED" in reason.upper()),
+          reason[:200])
     # 6 个 RunID 的 model 前缀都必须落在 MODEL_BLOCKED（campaign 以 model
     # 为单位封锁；RunID 级封锁由该 model 条目派生）。
     check("C3c_all_six_a06_runids_blocked",
@@ -294,6 +299,23 @@ def main():
           in proxytxt,
           "config-time be_mode validation missing")
 
+    # [R4-8-INT] 运行时真值订正：load 侧的 SHRINK 方向**已被响亮拒绝**。
+    # 原 A2 断言的是「包络 = 另一合法值（widen 或 shrink）」——那是 R4-8-A06
+    # 分支的**意图**，集成后实测证伪：定宽完成合同在 Packet::getRaw<T> 上断言
+    # `sizeof(T) <= pkt->size`（src/mem/packet_access.hh:55），断言用的是
+    # **packet 的 size 字段**，与目的缓冲区无关 ⇒ 缓冲下限（chaosA06BufBytes）
+    # 在构造上无法阻止越界读。实测（二进制 sha256 前缀 78b8582966e83072）：
+    #   --agu_size_to_load 1 → SIGABRT `Assertion sizeof(T) <= size failed`
+    # 故在 a06LoadSize 里把 shrink 判为 ShrinkUnsafe（响亮计数，绝不注入）。
+    # 本断言把该真值钉死：widen / store-size / byte-enable 仍可用且已真机验证。
+    _d = SRC / "CHAOSAddrPath"
+    hh = (_d / "CHAOSAddrPath.hh").read_text(encoding="utf-8")
+    cc = (_d / "CHAOSAddrPath.cc").read_text(encoding="utf-8")
+    check("A11_load_shrink_declined_at_runtime",
+          "ShrinkUnsafe" in hh and "ShrinkUnsafe" in cc
+          and "load_size_block_shrink_unsafe" in cc
+          and "agu_size_to_load < (uint64_t)size" in cc,
+          "shrink 必须被响亮拒绝（A2 原『widen 或 shrink』已被实测证伪）")
     print(f"\nFAILURES: {fails if fails else '无'}")
     return 1 if fails else 0
 
