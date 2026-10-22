@@ -221,6 +221,29 @@ p.add_argument("--sysreg_target_regs", default="",
                     "sctlr_el1,ttbr0_el1,tcr_el1,mair_el1,vbar_el1")
 args = p.parse_args()
 
+# [MDSPEC][R4-6-T08] T08 walk_pairing pre-flight refusal. The C++ ctor
+# already panics when the mode lacks a tier or a walker (CHAOSArmTLB.cc
+# "[R4-5.9] ... panics loudly"), but that panic costs a full gem5 startup and
+# names the SimObject param, not the CLI flag. The R4-5.9 pilot showed how
+# expensive a silently half-wired T08 run is (a 1500 s FS run that produced
+# no walk evidence), so refuse here, first, with the flag names. Same
+# discipline as L04/S10: a mode that needs X must not run without X.
+if args.tlb_fault_type == "walk_pairing":
+    if not args.chaos_armtlb:
+        raise SystemExit(
+            "[arm_chaos_fs] --tlb_fault_type walk_pairing requires "
+            "--chaos_armtlb: without it no CHAOSArmTLB SimObject exists, so "
+            "neither the walk hook (TableWalker) nor the lookup hook (TLB) "
+            "is mounted and the run would silently inject nothing. "
+            "See docs/gem5-fi/lsu/mdspec/R4-6-T08-agent-report.md")
+    if args.tlb_lsu_tier == "off":
+        raise SystemExit(
+            "[arm_chaos_fs] --tlb_fault_type walk_pairing requires an "
+            "event-normalized tier (--tlb_lsu_tier F0/F4/F6): the "
+            "page-table-walk ISSUE stream is this model's eligible stream, "
+            "so a tierless run has no sampling rule. "
+            "See docs/gem5-fi/lsu/mdspec/R4-6-T08-agent-report.md")
+
 cpu_map = {"O3": CPUTypes.O3, "TIMING": CPUTypes.TIMING,
            "Atomic": CPUTypes.ATOMIC}
 
