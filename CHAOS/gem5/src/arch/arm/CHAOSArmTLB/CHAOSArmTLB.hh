@@ -80,6 +80,22 @@ class CHAOSArmTLB : public SimObject
     bool maybeDropWalkFill(uint64_t walk_id, Addr va, uint64_t req_seq,
                            uint64_t walk_start_tick, unsigned level);
 
+    // [MDSPEC][R4-10-T07] CAM-compare / way-select hook (called from
+    // TLB::lookup for BOTH outcomes). Returns the entry the MMU should use:
+    //   * false_hit  — on a MISS (entry == nullptr) fabricate a hit by
+    //     returning another VALID entry from the same TLB (a wrong
+    //     translation the CAM would never have produced);
+    //   * double_hit — on a HIT, record that a second entry also matches
+    //     this VA/ASID (match-vector popcount 2) — no pointer change;
+    //   * wrong_way  — on a HIT, return a DIFFERENT valid way's entry.
+    // For every other fault type this is a strict no-op returning `entry`
+    // unchanged AND consuming no budget, so the T01-T06/T08/T10 paths are
+    // byte-equivalent. The lookup-HIT-only tlb_state/attr/pfn models stay in
+    // maybeCorrupt; this hook exists because false_hit needs the MISS case
+    // and the returned-pointer slot, neither of which maybeCorrupt owns.
+    ArmISA::TlbEntry *maybeCorruptLookup(ArmISA::TlbEntry *entry, Addr va,
+                                         uint64_t req_seq, uint64_t req_size);
+
   private:
     // PfnToMappedPage = §2.10 F5 (Phase 4.4, FS-only): substitute the hit
     // entry's pfn with another MAPPED entry's pfn (legal domain -> silent
@@ -88,9 +104,47 @@ class CHAOSArmTLB : public SimObject
                            PfnToMappedPage,
                            // [R4-5.9] T08: FS page-table walk/fill pairing
                            // (walk_pairing) — see maybeDropWalkFill.
-                           WalkPairing };
+                           WalkPairing,
+                           // [R4-10-T05] entry identity / lifecycle STATE:
+                           // valid清零/伪置位、global翻转、ASID替换为别的
+                           // 活跃ASID（每次只改一种状态）。Lookup-HIT path.
+                           ValidClear, ValidSet, GlobalFlip, AsidSubst,
+                           // [R4-10-T06] access-attribute LEGAL substitution
+                           // (PPN不变): AP权限、memory type、page size 各替换
+                           // 为同 TLB 另一条 live 表项的合法编码。
+                           PermSubst, MemTypeSubst, PageSizeSubst,
+                           // [R4-10-T07] CAM compare / way select:
+                           // false hit / double hit / wrong-way selection.
+                           // Handled in maybeCorruptLookup (needs the miss
+                           // case + the returned-pointer slot).
+                           FalseHit, DoubleHit, WrongWay };
     static FaultType stringToFaultType(const std::string &s);
     const char *faultTypeToString(FaultType f);
+    // [R4-10] family predicates (single source of truth for which hook owns
+    // which model — no drift between maybeCorrupt / maybeCorruptLookup /
+    // maybeDropWalkFill).
+    static bool isEntryStateFault(FaultType f)
+    {
+        return f == FaultType::ValidClear || f == FaultType::ValidSet ||
+               f == FaultType::GlobalFlip || f == FaultType::AsidSubst;
+    }
+    static bool isAttrSubstFault(FaultType f)
+    {
+        return f == FaultType::PermSubst || f == FaultType::MemTypeSubst ||
+               f == FaultType::PageSizeSubst;
+    }
+    static bool isCamFault(FaultType f)
+    {
+        return f == FaultType::FalseHit || f == FaultType::DoubleHit ||
+               f == FaultType::WrongWay;
+    }
+    static bool isWalkFamily(FaultType f) { return f == FaultType::WalkPairing; }
+    // [R4-10-T05/T06] apply an entry-state or attribute-substitution fault to
+    // `entry` and register the tlb_state node. Returns true if applied (a
+    // legal substitute existed and the field changed), false = honest no-op
+    // (no candidate — nothing registered, nothing counted).
+    bool applyEntryFieldFault(ArmISA::TlbEntry *entry, FaultType ft, Addr va,
+                              uint64_t req_seq, uint64_t req_size);
 
     ArmISA::TLB *tlb;
     // [R4-5.9] T08 target walker (optional; nullptr unless the FS config
@@ -151,6 +205,8 @@ class CHAOSArmTLB : public SimObject
         statistics::Scalar numBitFlips;
         statistics::Scalar numStuckAtZero;
         statistics::Scalar numStuckAtOne;
+        // [R4-10-T05/T06/T07] entry-state / attribute / CAM faults applied.
+        statistics::Scalar numStateFaults;
         CHAOSArmTLBStats(statistics::Group *parent);
     };
     std::unique_ptr<CHAOSArmTLBStats> stats;

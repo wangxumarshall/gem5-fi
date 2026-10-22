@@ -467,6 +467,13 @@ MODEL_FLAGS = {
     # build nor the pilot can run here (see MODEL_BLOCKED["T08"] and the
     # R4-5.9 report). NOT removed from MODEL_BLOCKED: no real-run evidence.
     "T08": ("armtlb", ["--tlb_fault_type", "walk_pairing"]),
+    # [MDSPEC][R4-10-T05/T06/T07] entry-state / attribute / CAM-select
+    # modes — implemented in CHAOSArmTLB (R4-10, compile-unverified in the
+    # isolated worktree). The campaign default sub-model is the spec's
+    # "-a" arm; the other sub-models are reachable via --tlb_fault_type.
+    "T05": ("armtlb", ["--tlb_fault_type", "valid_clear"]),
+    "T06": ("armtlb", ["--tlb_fault_type", "perm_subst"]),
+    "T07": ("armtlb", ["--tlb_fault_type", "false_hit"]),
 }
 
 # [MDSPEC][R4-8-FS] The full TLB-translation model family (T01-T08 + T10;
@@ -631,13 +638,27 @@ MODEL_BLOCKED = {
     "T09": "不适用(B0无保护)",
     "C13": "不适用(B0无保护)",
     "O08": "不适用(B0无保护)",
-    # TLB models: T05-T08 modes NOT yet implemented in CHAOSArmTLB (W7
-    # follow-up — M3 plan Task 7 Step 3); T01-T04/T10 are mapped (armtlb
-    # family above), T09 is B0-N/A below. The old blanket T01-T10 block
-    # fired before MODEL_FLAGS and masked the new FS routing (dry-run caught).
-    "T05": "deferred(mode unimplemented: valid/global/ASID state)",
-    "T06": "deferred(mode unimplemented: permission legal-substitution)",
-    "T07": "deferred(mode unimplemented: hit fabrication/way select)",
+    # TLB models: T01-T04/T08/T10 are mapped (armtlb family above), T09 is
+    # B0-N/A below. The old blanket T01-T10 block fired before MODEL_FLAGS and
+    # masked the new FS routing (dry-run caught).
+    # [MDSPEC][R4-10-T05/T06/T07] the entry-state / attribute-substitution /
+    # CAM-select MODES are now IMPLEMENTED in CHAOSArmTLB (valid_clear/
+    # valid_set/global_flip/asid_subst; perm_subst/memtype_subst/
+    # pagesize_subst; false_hit/double_hit/wrong_way — see the R4-10 report
+    # and tests/test_lsu_hook_t05_state.py). The C++ is COMPILE-UNVERIFIED
+    # (the R4-10 worktree may not build) and no real FS run has asserted
+    # them, so the block is KEPT on the same discipline as O04/O09 (delete
+    # only on real-run evidence). The honest phrase replaces the old
+    # "mode unimplemented" gap statement.
+    "T05": ("deferred(T05 entry-state modes LANDED (valid_clear/valid_set/"
+            "global_flip/asid_subst) but COMPILE-UNVERIFIED — build + FS "
+            "pilot pending, R4-10)"),
+    "T06": ("deferred(T06 attribute legal-substitution modes LANDED "
+            "(perm_subst/memtype_subst/pagesize_subst) but "
+            "COMPILE-UNVERIFIED — build + FS pilot pending, R4-10)"),
+    "T07": ("deferred(T07 CAM/way-select modes LANDED (false_hit/double_hit/"
+            "wrong_way) but COMPILE-UNVERIFIED — build + FS pilot pending, "
+            "R4-10)"),
     # [MDSPEC][R4-5.9] T08: the walk/fill pairing MODE now exists
     # (faultType=walk_pairing, T08-a lost walk — TableWalker::walk drops the
     # walk; registerTlbWalkPair emits the tlb_walk/tlb_refill node pair).

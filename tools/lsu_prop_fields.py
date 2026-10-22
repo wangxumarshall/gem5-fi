@@ -79,6 +79,12 @@ KIND_LAYER = {
     "tlb_fault": "L2",
     # [MDSPEC][H2-FS] TLB-entry pfn 故障：old/new PFN 与 old/new PA
     "tlb_pfn": "L2",
+    # [MDSPEC][R4-10-T05/T06/T07] TLB 表项 STATE / 访问属性 / CAM 选择故障：
+    # 被改字段不是 pfn（valid/global/asid/ap/mtype/page-size 或 CAM 选择结果），
+    # PA 通常不变，故独立于 tlb_pfn。载荷 = field + state_before/state_after
+    # （字段文本 before/after；CAM 臂为选择结果 miss→hit / 命中数 / way 选择）。
+    # corr 与 tlb_pfn 同约定：空值合法（无关联面——req_seq=0，链诚实止于本事件）。
+    "tlb_state": "L2",
     # [MDSPEC][H7] LQ 逐事件（表 9：lq_idx 生命周期；read/completion 属
     # L3 访存发射与返回；insert 在 dispatch 期早于注入注册、结构性缺席）
     "lq_read": "L3", "lq_complete": "L3",
@@ -171,6 +177,12 @@ REQUIRED_FIELDS = {
     # corr 不列入必录：空值合法（无关联面），不得强制非空。
     "tlb_pfn": ["fault_id", "dyn_inst_seq", "request_id", "va", "before",
                 "after", "field", "state_before", "state_after"],
+    # [MDSPEC][R4-10-T05/T06/T07] entry-state / attribute / CAM faults:
+    # field + state_before/state_after are the payload (no before/after pfn —
+    # the pfn is not the fault surface). corr NOT required: empty is a legal
+    # honest no-surface value (req_seq=0 ⇒ chain stops at this event).
+    "tlb_state": ["fault_id", "dyn_inst_seq", "request_id", "va", "field",
+                  "state_before", "state_after"],
     # [MDSPEC][H7] LQ 生命周期（va 取注册表 base；pa=响应地址）
     "lq_read": ["fault_id", "corr", "dyn_inst_seq", "lq_idx", "va"],
     "lq_complete": ["fault_id", "corr", "dyn_inst_seq", "lq_idx", "va", "pa"],

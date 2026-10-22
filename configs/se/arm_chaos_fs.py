@@ -110,11 +110,20 @@ p.add_argument("--tlb_probability", type=float, default=0.0,
                help="CHAOSArmTLB per-lookup injection probability")
 p.add_argument("--tlb_fault_type", default="bit_flip",
                choices=["bit_flip", "stuck_at_zero", "stuck_at_one",
-                        "random", "pfn_to_mapped_page", "walk_pairing"],
+                        "random", "pfn_to_mapped_page", "walk_pairing",
+                        # [R4-10-T05] entry identity / lifecycle state
+                        "valid_clear", "valid_set", "global_flip", "asid_subst",
+                        # [R4-10-T06] access-attribute legal substitution
+                        "perm_subst", "memtype_subst", "pagesize_subst",
+                        # [R4-10-T07] CAM compare / way select
+                        "false_hit", "double_hit", "wrong_way"],
                help="CHAOSArmTLB fault type; pfn_to_mapped_page = §2.10 F5 "
                     "(substitute with another mapped entry's pfn); "
                     "walk_pairing = T08-a FS walk/fill lost (R4-5.9; needs "
-                    "--tlb_lsu_tier)")
+                    "--tlb_lsu_tier); valid_clear/valid_set/global_flip/"
+                    "asid_subst = T05 entry state; perm_subst/memtype_subst/"
+                    "pagesize_subst = T06 legal attribute substitution; "
+                    "false_hit/double_hit/wrong_way = T07 CAM/way select")
 # [R4-5.9] T08 walk/fill pairing trigger tier (event-normalized on the
 # page-table-walk issue stream). "off" = no trigger; walk_pairing panics
 # without a tier (loud refusal, L04/S10 discipline).

@@ -173,6 +173,18 @@ TLB::lookup(Lookup lookup_data)
                                chaosLookupReqSeq, chaosLookupReqSize);
     }
 
+    // [MDSPEC][R4-10-T07] CAM-compare / way-select hook. Runs for BOTH
+    // outcomes: false_hit fabricates a hit on a MISS (retval == nullptr),
+    // wrong_way returns a different valid way, double_hit observes a
+    // fabricated double match. For every non-T07 model this is a strict
+    // no-op returning `retval` unchanged (zero budget), so T01-T06/T08/T10
+    // stay byte-equivalent. See CHAOSArmTLB::maybeCorruptLookup.
+    if (chaosTLB) {
+        retval = chaosTLB->maybeCorruptLookup(retval, lookup_data.va,
+                                              chaosLookupReqSeq,
+                                              chaosLookupReqSize);
+    }
+
     // LSU W2 F6 event source (09 §2.1 map): TLB hit. FS-only by construction
     // — SE translates via translateSe and never reaches TLB::lookup.
     if (retval) {

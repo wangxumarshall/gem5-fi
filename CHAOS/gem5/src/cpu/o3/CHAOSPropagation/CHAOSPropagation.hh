@@ -458,6 +458,21 @@ class CHAOSPropagation : public SimObject
                               Addr old_pa, Addr new_pa, Addr pa_span,
                               const char *mode);
 
+    // [MDSPEC][R4-10-T05/T06/T07] TLB entry-STATE / access-attribute faults
+    // (valid / global / ASID / AP / memory-type / page-size). These mutate a
+    // field of the hit entry that is NOT the pfn, so the PA is usually
+    // unchanged and the tlb_pfn node (before/after pfn + PA) does not apply.
+    // Emits the L0 `inj` anchor plus ONE L2 `tlb_state` node carrying
+    // field + state_before/state_after (the mutated field's text before/after
+    // the mutation). corr follows the same arms as registerTlbFault
+    // (seq_primary when the in-flight request is published, else "" — honest
+    // no-surface: the chain honestly stops at the TLB layer rather than
+    // inventing a PA redirect). Returns the ptag (0 = disabled).
+    uint64_t registerTlbStateFault(uint64_t req_seq, Addr va, Addr size,
+                                   const char *field,
+                                   const std::string &before,
+                                   const std::string &after);
+
     // [MDSPEC][R4-5.9] T08 walk/fill pairing (FS-only): register a PAIR of
     // nodes for ONE page-table walk — `tlb_walk` (the walk issued by
     // TableWalker::walk) and `tlb_refill` (the refill completion of that
