@@ -1,8 +1,8 @@
 # 325 RunID READY 契约（R4-7）
 
-- 总数：325（**READY=224 / PARTIAL=0 / BLOCKED=101**）
+- 总数：325（**READY=241 / PARTIAL=0 / BLOCKED=84**）
 - 自洽：✅
-- BLOCKED 分类：{'RULING': 9, 'FS-INFRA': 24, 'UNRESOLVED': 21, 'FS-MULTICORE': 35, 'LICENSE': 12}
+- BLOCKED 分类：{'RULING': 6, 'FS-INFRA': 24, 'MODE-UNIMPL': 3, 'UNRESOLVED': 4, 'FS-MULTICORE': 35, 'LICENSE': 12}
 - 抽样：每 cell 3 seed，`--max-parallel 1`
 - FS checkpoint：`/home/sdc/gem5-fi-ding/runs/lsu/fs_cpt_boot/cpt.237949797015`
 
@@ -72,21 +72,21 @@
 | T07-F4-W4 | L1d-TLB | T07 | F4 | BLOCKED | FS-INFRA | BLOCKED | — |
 | T07-F6-W4 | L1d-TLB | T07 | F6 | BLOCKED | FS-INFRA | BLOCKED | — |
 | T08-F0-W4 | L1d-TLB | T08 | F0 | BLOCKED | FS-INFRA | BLOCKED | — |
-| T08-F0-W9 | L1d-TLB | T08 | F0 | BLOCKED | RULING | BLOCKED | — |
+| T08-F0-W9 | L1d-TLB | T08 | F0 | BLOCKED | MODE-UNIMPL | BLOCKED | — |
 | T08-F4-W4 | L1d-TLB | T08 | F4 | BLOCKED | FS-INFRA | BLOCKED | — |
-| T08-F4-W9 | L1d-TLB | T08 | F4 | BLOCKED | RULING | BLOCKED | — |
+| T08-F4-W9 | L1d-TLB | T08 | F4 | BLOCKED | MODE-UNIMPL | BLOCKED | — |
 | T08-F6-W4 | L1d-TLB | T08 | F6 | BLOCKED | FS-INFRA | BLOCKED | — |
-| T08-F6-W9 | L1d-TLB | T08 | F6 | BLOCKED | RULING | BLOCKED | — |
+| T08-F6-W9 | L1d-TLB | T08 | F6 | BLOCKED | MODE-UNIMPL | BLOCKED | — |
 | S01-F0-W1 | Store Queue | S01 | F0 | BLOCKED | UNRESOLVED | PASS | — |
 | S01-F0-W5 | Store Queue | S01 | F0 | READY | OK | PASS | `LSU_GEM5_BIN=$PWD/CHAOS/gem5/build/ARM/gem5.opt python3 tools/lsu_campaign.py --matrix artifacts/lsu-trial/07-expanded-matrix-backfilled.csv --outdir runs/lsu/formal_325 --cells S01-F0-W5 --phase trial --max-seeds-per-cell 3 --max-parallel 1` |
-| S01-F1-W1 | Store Queue | S01 | F1 | BLOCKED | UNRESOLVED | PASS | — |
+| S01-F1-W1 | Store Queue | S01 | F1 | READY | OK | PASS | `LSU_GEM5_BIN=$PWD/CHAOS/gem5/build/ARM/gem5.opt python3 tools/lsu_campaign.py --matrix artifacts/lsu-trial/07-expanded-matrix-backfilled.csv --outdir runs/lsu/formal_325 --cells S01-F1-W1 --phase trial --max-seeds-per-cell 3 --max-parallel 1` |
 | S01-F1-W5 | Store Queue | S01 | F1 | READY | OK | PASS | `LSU_GEM5_BIN=$PWD/CHAOS/gem5/build/ARM/gem5.opt python3 tools/lsu_campaign.py --matrix artifacts/lsu-trial/07-expanded-matrix-backfilled.csv --outdir runs/lsu/formal_325 --cells S01-F1-W5 --phase trial --max-seeds-per-cell 3 --max-parallel 1` |
-| S01-F2-W1 | Store Queue | S01 | F2 | BLOCKED | UNRESOLVED | PASS | — |
+| S01-F2-W1 | Store Queue | S01 | F2 | READY | OK | PASS | `LSU_GEM5_BIN=$PWD/CHAOS/gem5/build/ARM/gem5.opt python3 tools/lsu_campaign.py --matrix artifacts/lsu-trial/07-expanded-matrix-backfilled.csv --outdir runs/lsu/formal_325 --cells S01-F2-W1 --phase trial --max-seeds-per-cell 3 --max-parallel 1` |
 | S01-F2-W5 | Store Queue | S01 | F2 | READY | OK | PASS | `LSU_GEM5_BIN=$PWD/CHAOS/gem5/build/ARM/gem5.opt python3 tools/lsu_campaign.py --matrix artifacts/lsu-trial/07-expanded-matrix-backfilled.csv --outdir runs/lsu/formal_325 --cells S01-F2-W5 --phase trial --max-seeds-per-cell 3 --max-parallel 1` |
 | S02-F0-W5 | Store Queue | S02 | F0 | READY | OK | PASS | `LSU_GEM5_BIN=$PWD/CHAOS/gem5/build/ARM/gem5.opt python3 tools/lsu_campaign.py --matrix artifacts/lsu-trial/07-expanded-matrix-backfilled.csv --outdir runs/lsu/formal_325 --cells S02-F0-W5 --phase trial --max-seeds-per-cell 3 --max-parallel 1` |
 | S02-F0-W1 | Store Queue | S02 | F0 | BLOCKED | UNRESOLVED | PASS | — |
 | S02-F2-W5 | Store Queue | S02 | F2 | READY | OK | PASS | `LSU_GEM5_BIN=$PWD/CHAOS/gem5/build/ARM/gem5.opt python3 tools/lsu_campaign.py --matrix artifacts/lsu-trial/07-expanded-matrix-backfilled.csv --outdir runs/lsu/formal_325 --cells S02-F2-W5 --phase trial --max-seeds-per-cell 3 --max-parallel 1` |
-| S02-F2-W1 | Store Queue | S02 | F2 | BLOCKED | UNRESOLVED | PASS | — |
+| S02-F2-W1 | Store Queue | S02 | F2 | READY | OK | PASS | `LSU_GEM5_BIN=$PWD/CHAOS/gem5/build/ARM/gem5.opt python3 tools/lsu_campaign.py --matrix artifacts/lsu-trial/07-expanded-matrix-backfilled.csv --outdir runs/lsu/formal_325 --cells S02-F2-W1 --phase trial --max-seeds-per-cell 3 --max-parallel 1` |
 | S03-F5-W5 | Store Queue | S03 | F5 | READY | OK | PASS | `LSU_GEM5_BIN=$PWD/CHAOS/gem5/build/ARM/gem5.opt python3 tools/lsu_campaign.py --matrix artifacts/lsu-trial/07-expanded-matrix-backfilled.csv --outdir runs/lsu/formal_325 --cells S03-F5-W5 --phase trial --max-seeds-per-cell 3 --max-parallel 1` |
 | S03-F5-W10 | Store Queue | S03 | F5 | READY | OK | PASS | `LSU_GEM5_BIN=$PWD/CHAOS/gem5/build/ARM/gem5.opt python3 tools/lsu_campaign.py --matrix artifacts/lsu-trial/07-expanded-matrix-backfilled.csv --outdir runs/lsu/formal_325 --cells S03-F5-W10 --phase trial --max-seeds-per-cell 3 --max-parallel 1` |
 | S04-F0-W5 | Store Queue | S04 | F0 | READY | OK | PASS | `LSU_GEM5_BIN=$PWD/CHAOS/gem5/build/ARM/gem5.opt python3 tools/lsu_campaign.py --matrix artifacts/lsu-trial/07-expanded-matrix-backfilled.csv --outdir runs/lsu/formal_325 --cells S04-F0-W5 --phase trial --max-seeds-per-cell 3 --max-parallel 1` |
@@ -128,23 +128,23 @@
 | S11-F4-W6 | Store Queue | S11 | F4 | READY | OK | PASS | `LSU_GEM5_BIN=$PWD/CHAOS/gem5/build/ARM/gem5.opt python3 tools/lsu_campaign.py --matrix artifacts/lsu-trial/07-expanded-matrix-backfilled.csv --outdir runs/lsu/formal_325 --cells S11-F4-W6 --phase trial --max-seeds-per-cell 3 --max-parallel 1` |
 | S11-F6-W5 | Store Queue | S11 | F6 | READY | OK | PASS | `LSU_GEM5_BIN=$PWD/CHAOS/gem5/build/ARM/gem5.opt python3 tools/lsu_campaign.py --matrix artifacts/lsu-trial/07-expanded-matrix-backfilled.csv --outdir runs/lsu/formal_325 --cells S11-F6-W5 --phase trial --max-seeds-per-cell 3 --max-parallel 1` |
 | S11-F6-W6 | Store Queue | S11 | F6 | READY | OK | PASS | `LSU_GEM5_BIN=$PWD/CHAOS/gem5/build/ARM/gem5.opt python3 tools/lsu_campaign.py --matrix artifacts/lsu-trial/07-expanded-matrix-backfilled.csv --outdir runs/lsu/formal_325 --cells S11-F6-W6 --phase trial --max-seeds-per-cell 3 --max-parallel 1` |
-| C01-F0-W1 | L1d-Cache | C01 | F0 | BLOCKED | UNRESOLVED | PASS | — |
+| C01-F0-W1 | L1d-Cache | C01 | F0 | READY | OK | PASS | `LSU_GEM5_BIN=$PWD/CHAOS/gem5/build/ARM/gem5.opt python3 tools/lsu_campaign.py --matrix artifacts/lsu-trial/07-expanded-matrix-backfilled.csv --outdir runs/lsu/formal_325 --cells C01-F0-W1 --phase trial --max-seeds-per-cell 3 --max-parallel 1` |
 | C01-F0-W6 | L1d-Cache | C01 | F0 | READY | OK | PASS | `LSU_GEM5_BIN=$PWD/CHAOS/gem5/build/ARM/gem5.opt python3 tools/lsu_campaign.py --matrix artifacts/lsu-trial/07-expanded-matrix-backfilled.csv --outdir runs/lsu/formal_325 --cells C01-F0-W6 --phase trial --max-seeds-per-cell 3 --max-parallel 1` |
-| C01-F1-W1 | L1d-Cache | C01 | F1 | BLOCKED | UNRESOLVED | PASS | — |
+| C01-F1-W1 | L1d-Cache | C01 | F1 | READY | OK | PASS | `LSU_GEM5_BIN=$PWD/CHAOS/gem5/build/ARM/gem5.opt python3 tools/lsu_campaign.py --matrix artifacts/lsu-trial/07-expanded-matrix-backfilled.csv --outdir runs/lsu/formal_325 --cells C01-F1-W1 --phase trial --max-seeds-per-cell 3 --max-parallel 1` |
 | C01-F1-W6 | L1d-Cache | C01 | F1 | READY | OK | PASS | `LSU_GEM5_BIN=$PWD/CHAOS/gem5/build/ARM/gem5.opt python3 tools/lsu_campaign.py --matrix artifacts/lsu-trial/07-expanded-matrix-backfilled.csv --outdir runs/lsu/formal_325 --cells C01-F1-W6 --phase trial --max-seeds-per-cell 3 --max-parallel 1` |
-| C01-F2-W1 | L1d-Cache | C01 | F2 | BLOCKED | UNRESOLVED | PASS | — |
+| C01-F2-W1 | L1d-Cache | C01 | F2 | READY | OK | PASS | `LSU_GEM5_BIN=$PWD/CHAOS/gem5/build/ARM/gem5.opt python3 tools/lsu_campaign.py --matrix artifacts/lsu-trial/07-expanded-matrix-backfilled.csv --outdir runs/lsu/formal_325 --cells C01-F2-W1 --phase trial --max-seeds-per-cell 3 --max-parallel 1` |
 | C01-F2-W6 | L1d-Cache | C01 | F2 | READY | OK | PASS | `LSU_GEM5_BIN=$PWD/CHAOS/gem5/build/ARM/gem5.opt python3 tools/lsu_campaign.py --matrix artifacts/lsu-trial/07-expanded-matrix-backfilled.csv --outdir runs/lsu/formal_325 --cells C01-F2-W6 --phase trial --max-seeds-per-cell 3 --max-parallel 1` |
 | C02-F0-W6 | L1d-Cache | C02 | F0 | READY | OK | PASS | `LSU_GEM5_BIN=$PWD/CHAOS/gem5/build/ARM/gem5.opt python3 tools/lsu_campaign.py --matrix artifacts/lsu-trial/07-expanded-matrix-backfilled.csv --outdir runs/lsu/formal_325 --cells C02-F0-W6 --phase trial --max-seeds-per-cell 3 --max-parallel 1` |
-| C02-F0-W1 | L1d-Cache | C02 | F0 | BLOCKED | UNRESOLVED | PASS | — |
+| C02-F0-W1 | L1d-Cache | C02 | F0 | READY | OK | PASS | `LSU_GEM5_BIN=$PWD/CHAOS/gem5/build/ARM/gem5.opt python3 tools/lsu_campaign.py --matrix artifacts/lsu-trial/07-expanded-matrix-backfilled.csv --outdir runs/lsu/formal_325 --cells C02-F0-W1 --phase trial --max-seeds-per-cell 3 --max-parallel 1` |
 | C02-F2-W6 | L1d-Cache | C02 | F2 | READY | OK | PASS | `LSU_GEM5_BIN=$PWD/CHAOS/gem5/build/ARM/gem5.opt python3 tools/lsu_campaign.py --matrix artifacts/lsu-trial/07-expanded-matrix-backfilled.csv --outdir runs/lsu/formal_325 --cells C02-F2-W6 --phase trial --max-seeds-per-cell 3 --max-parallel 1` |
-| C02-F2-W1 | L1d-Cache | C02 | F2 | BLOCKED | UNRESOLVED | PASS | — |
+| C02-F2-W1 | L1d-Cache | C02 | F2 | READY | OK | PASS | `LSU_GEM5_BIN=$PWD/CHAOS/gem5/build/ARM/gem5.opt python3 tools/lsu_campaign.py --matrix artifacts/lsu-trial/07-expanded-matrix-backfilled.csv --outdir runs/lsu/formal_325 --cells C02-F2-W1 --phase trial --max-seeds-per-cell 3 --max-parallel 1` |
 | C03-F5-W6 | L1d-Cache | C03 | F5 | READY | OK | PASS | `LSU_GEM5_BIN=$PWD/CHAOS/gem5/build/ARM/gem5.opt python3 tools/lsu_campaign.py --matrix artifacts/lsu-trial/07-expanded-matrix-backfilled.csv --outdir runs/lsu/formal_325 --cells C03-F5-W6 --phase trial --max-seeds-per-cell 3 --max-parallel 1` |
 | C03-F5-W10 | L1d-Cache | C03 | F5 | READY | OK | PASS | `LSU_GEM5_BIN=$PWD/CHAOS/gem5/build/ARM/gem5.opt python3 tools/lsu_campaign.py --matrix artifacts/lsu-trial/07-expanded-matrix-backfilled.csv --outdir runs/lsu/formal_325 --cells C03-F5-W10 --phase trial --max-seeds-per-cell 3 --max-parallel 1` |
-| C04-F0-W1 | L1d-Cache | C04 | F0 | BLOCKED | UNRESOLVED | PASS | — |
+| C04-F0-W1 | L1d-Cache | C04 | F0 | READY | OK | PASS | `LSU_GEM5_BIN=$PWD/CHAOS/gem5/build/ARM/gem5.opt python3 tools/lsu_campaign.py --matrix artifacts/lsu-trial/07-expanded-matrix-backfilled.csv --outdir runs/lsu/formal_325 --cells C04-F0-W1 --phase trial --max-seeds-per-cell 3 --max-parallel 1` |
 | C04-F0-W6 | L1d-Cache | C04 | F0 | READY | OK | PASS | `LSU_GEM5_BIN=$PWD/CHAOS/gem5/build/ARM/gem5.opt python3 tools/lsu_campaign.py --matrix artifacts/lsu-trial/07-expanded-matrix-backfilled.csv --outdir runs/lsu/formal_325 --cells C04-F0-W6 --phase trial --max-seeds-per-cell 3 --max-parallel 1` |
-| C04-F1-W1 | L1d-Cache | C04 | F1 | BLOCKED | UNRESOLVED | PASS | — |
+| C04-F1-W1 | L1d-Cache | C04 | F1 | READY | OK | PASS | `LSU_GEM5_BIN=$PWD/CHAOS/gem5/build/ARM/gem5.opt python3 tools/lsu_campaign.py --matrix artifacts/lsu-trial/07-expanded-matrix-backfilled.csv --outdir runs/lsu/formal_325 --cells C04-F1-W1 --phase trial --max-seeds-per-cell 3 --max-parallel 1` |
 | C04-F1-W6 | L1d-Cache | C04 | F1 | READY | OK | PASS | `LSU_GEM5_BIN=$PWD/CHAOS/gem5/build/ARM/gem5.opt python3 tools/lsu_campaign.py --matrix artifacts/lsu-trial/07-expanded-matrix-backfilled.csv --outdir runs/lsu/formal_325 --cells C04-F1-W6 --phase trial --max-seeds-per-cell 3 --max-parallel 1` |
-| C04-F2-W1 | L1d-Cache | C04 | F2 | BLOCKED | UNRESOLVED | PASS | — |
+| C04-F2-W1 | L1d-Cache | C04 | F2 | READY | OK | PASS | `LSU_GEM5_BIN=$PWD/CHAOS/gem5/build/ARM/gem5.opt python3 tools/lsu_campaign.py --matrix artifacts/lsu-trial/07-expanded-matrix-backfilled.csv --outdir runs/lsu/formal_325 --cells C04-F2-W1 --phase trial --max-seeds-per-cell 3 --max-parallel 1` |
 | C04-F2-W6 | L1d-Cache | C04 | F2 | READY | OK | PASS | `LSU_GEM5_BIN=$PWD/CHAOS/gem5/build/ARM/gem5.opt python3 tools/lsu_campaign.py --matrix artifacts/lsu-trial/07-expanded-matrix-backfilled.csv --outdir runs/lsu/formal_325 --cells C04-F2-W6 --phase trial --max-seeds-per-cell 3 --max-parallel 1` |
 | C05-F0-W6 | L1d-Cache | C05 | F0 | READY | OK | PASS | `LSU_GEM5_BIN=$PWD/CHAOS/gem5/build/ARM/gem5.opt python3 tools/lsu_campaign.py --matrix artifacts/lsu-trial/07-expanded-matrix-backfilled.csv --outdir runs/lsu/formal_325 --cells C05-F0-W6 --phase trial --max-seeds-per-cell 3 --max-parallel 1` |
 | C05-F2-W6 | L1d-Cache | C05 | F2 | READY | OK | PASS | `LSU_GEM5_BIN=$PWD/CHAOS/gem5/build/ARM/gem5.opt python3 tools/lsu_campaign.py --matrix artifacts/lsu-trial/07-expanded-matrix-backfilled.csv --outdir runs/lsu/formal_325 --cells C05-F2-W6 --phase trial --max-seeds-per-cell 3 --max-parallel 1` |
@@ -265,25 +265,25 @@
 | T10-F2-W1 | L1d-TLB | T10 | F2 | READY | OK | PASS | `LSU_GEM5_BIN=$PWD/CHAOS/gem5/build/ARM/gem5.opt python3 tools/lsu_campaign.py --matrix artifacts/lsu-trial/07-expanded-matrix-backfilled.csv --outdir runs/lsu/formal_325 --cells T10-F2-W1 --phase trial --max-seeds-per-cell 3 --max-parallel 1 --fs-checkpoint /home/sdc/gem5-fi-ding/runs/lsu/fs_cpt_boot/cpt.237949797015` |
 | T10-F2-W4 | L1d-TLB | T10 | F2 | BLOCKED | FS-INFRA | BLOCKED | — |
 | T10-F2-W11 | L1d-TLB | T10 | F2 | BLOCKED | LICENSE | BLOCKED | — |
-| S13-F0-W1 | Store Queue | S13 | F0 | BLOCKED | UNRESOLVED | PASS | — |
+| S13-F0-W1 | Store Queue | S13 | F0 | READY | OK | PASS | `LSU_GEM5_BIN=$PWD/CHAOS/gem5/build/ARM/gem5.opt python3 tools/lsu_campaign.py --matrix artifacts/lsu-trial/07-expanded-matrix-backfilled.csv --outdir runs/lsu/formal_325 --cells S13-F0-W1 --phase trial --max-seeds-per-cell 3 --max-parallel 1` |
 | S13-F0-W5 | Store Queue | S13 | F0 | READY | OK | PASS | `LSU_GEM5_BIN=$PWD/CHAOS/gem5/build/ARM/gem5.opt python3 tools/lsu_campaign.py --matrix artifacts/lsu-trial/07-expanded-matrix-backfilled.csv --outdir runs/lsu/formal_325 --cells S13-F0-W5 --phase trial --max-seeds-per-cell 3 --max-parallel 1` |
 | S13-F0-W11 | Store Queue | S13 | F0 | BLOCKED | LICENSE | BLOCKED | — |
 | S13-F0-W12 | Store Queue | S13 | F0 | READY | OK | PASS | `LSU_GEM5_BIN=$PWD/CHAOS/gem5/build/ARM/gem5.opt python3 tools/lsu_campaign.py --matrix artifacts/lsu-trial/07-expanded-matrix-backfilled.csv --outdir runs/lsu/formal_325 --cells S13-F0-W12 --phase trial --max-seeds-per-cell 3 --max-parallel 1` |
-| S13-F1-W1 | Store Queue | S13 | F1 | BLOCKED | UNRESOLVED | PASS | — |
+| S13-F1-W1 | Store Queue | S13 | F1 | READY | OK | PASS | `LSU_GEM5_BIN=$PWD/CHAOS/gem5/build/ARM/gem5.opt python3 tools/lsu_campaign.py --matrix artifacts/lsu-trial/07-expanded-matrix-backfilled.csv --outdir runs/lsu/formal_325 --cells S13-F1-W1 --phase trial --max-seeds-per-cell 3 --max-parallel 1` |
 | S13-F1-W5 | Store Queue | S13 | F1 | READY | OK | PASS | `LSU_GEM5_BIN=$PWD/CHAOS/gem5/build/ARM/gem5.opt python3 tools/lsu_campaign.py --matrix artifacts/lsu-trial/07-expanded-matrix-backfilled.csv --outdir runs/lsu/formal_325 --cells S13-F1-W5 --phase trial --max-seeds-per-cell 3 --max-parallel 1` |
 | S13-F1-W11 | Store Queue | S13 | F1 | BLOCKED | LICENSE | BLOCKED | — |
 | S13-F1-W12 | Store Queue | S13 | F1 | READY | OK | PASS | `LSU_GEM5_BIN=$PWD/CHAOS/gem5/build/ARM/gem5.opt python3 tools/lsu_campaign.py --matrix artifacts/lsu-trial/07-expanded-matrix-backfilled.csv --outdir runs/lsu/formal_325 --cells S13-F1-W12 --phase trial --max-seeds-per-cell 3 --max-parallel 1` |
-| S13-F2-W1 | Store Queue | S13 | F2 | BLOCKED | UNRESOLVED | PASS | — |
+| S13-F2-W1 | Store Queue | S13 | F2 | READY | OK | PASS | `LSU_GEM5_BIN=$PWD/CHAOS/gem5/build/ARM/gem5.opt python3 tools/lsu_campaign.py --matrix artifacts/lsu-trial/07-expanded-matrix-backfilled.csv --outdir runs/lsu/formal_325 --cells S13-F2-W1 --phase trial --max-seeds-per-cell 3 --max-parallel 1` |
 | S13-F2-W5 | Store Queue | S13 | F2 | READY | OK | PASS | `LSU_GEM5_BIN=$PWD/CHAOS/gem5/build/ARM/gem5.opt python3 tools/lsu_campaign.py --matrix artifacts/lsu-trial/07-expanded-matrix-backfilled.csv --outdir runs/lsu/formal_325 --cells S13-F2-W5 --phase trial --max-seeds-per-cell 3 --max-parallel 1` |
 | S13-F2-W11 | Store Queue | S13 | F2 | BLOCKED | LICENSE | BLOCKED | — |
 | S13-F2-W12 | Store Queue | S13 | F2 | READY | OK | PASS | `LSU_GEM5_BIN=$PWD/CHAOS/gem5/build/ARM/gem5.opt python3 tools/lsu_campaign.py --matrix artifacts/lsu-trial/07-expanded-matrix-backfilled.csv --outdir runs/lsu/formal_325 --cells S13-F2-W12 --phase trial --max-seeds-per-cell 3 --max-parallel 1` |
-| L01-F0-W1 | Load Queue | L01 | F0 | BLOCKED | UNRESOLVED | PASS | — |
+| L01-F0-W1 | Load Queue | L01 | F0 | READY | OK | PASS | `LSU_GEM5_BIN=$PWD/CHAOS/gem5/build/ARM/gem5.opt python3 tools/lsu_campaign.py --matrix artifacts/lsu-trial/07-expanded-matrix-backfilled.csv --outdir runs/lsu/formal_325 --cells L01-F0-W1 --phase trial --max-seeds-per-cell 3 --max-parallel 1` |
 | L01-F0-W5 | Load Queue | L01 | F0 | READY | OK | PASS | `LSU_GEM5_BIN=$PWD/CHAOS/gem5/build/ARM/gem5.opt python3 tools/lsu_campaign.py --matrix artifacts/lsu-trial/07-expanded-matrix-backfilled.csv --outdir runs/lsu/formal_325 --cells L01-F0-W5 --phase trial --max-seeds-per-cell 3 --max-parallel 1` |
 | L01-F0-W12 | Load Queue | L01 | F0 | READY | OK | PASS | `LSU_GEM5_BIN=$PWD/CHAOS/gem5/build/ARM/gem5.opt python3 tools/lsu_campaign.py --matrix artifacts/lsu-trial/07-expanded-matrix-backfilled.csv --outdir runs/lsu/formal_325 --cells L01-F0-W12 --phase trial --max-seeds-per-cell 3 --max-parallel 1` |
-| L01-F1-W1 | Load Queue | L01 | F1 | BLOCKED | UNRESOLVED | PASS | — |
+| L01-F1-W1 | Load Queue | L01 | F1 | READY | OK | PASS | `LSU_GEM5_BIN=$PWD/CHAOS/gem5/build/ARM/gem5.opt python3 tools/lsu_campaign.py --matrix artifacts/lsu-trial/07-expanded-matrix-backfilled.csv --outdir runs/lsu/formal_325 --cells L01-F1-W1 --phase trial --max-seeds-per-cell 3 --max-parallel 1` |
 | L01-F1-W5 | Load Queue | L01 | F1 | READY | OK | PASS | `LSU_GEM5_BIN=$PWD/CHAOS/gem5/build/ARM/gem5.opt python3 tools/lsu_campaign.py --matrix artifacts/lsu-trial/07-expanded-matrix-backfilled.csv --outdir runs/lsu/formal_325 --cells L01-F1-W5 --phase trial --max-seeds-per-cell 3 --max-parallel 1` |
 | L01-F1-W12 | Load Queue | L01 | F1 | READY | OK | PASS | `LSU_GEM5_BIN=$PWD/CHAOS/gem5/build/ARM/gem5.opt python3 tools/lsu_campaign.py --matrix artifacts/lsu-trial/07-expanded-matrix-backfilled.csv --outdir runs/lsu/formal_325 --cells L01-F1-W12 --phase trial --max-seeds-per-cell 3 --max-parallel 1` |
-| L01-F2-W1 | Load Queue | L01 | F2 | BLOCKED | UNRESOLVED | PASS | — |
+| L01-F2-W1 | Load Queue | L01 | F2 | READY | OK | PASS | `LSU_GEM5_BIN=$PWD/CHAOS/gem5/build/ARM/gem5.opt python3 tools/lsu_campaign.py --matrix artifacts/lsu-trial/07-expanded-matrix-backfilled.csv --outdir runs/lsu/formal_325 --cells L01-F2-W1 --phase trial --max-seeds-per-cell 3 --max-parallel 1` |
 | L01-F2-W5 | Load Queue | L01 | F2 | READY | OK | PASS | `LSU_GEM5_BIN=$PWD/CHAOS/gem5/build/ARM/gem5.opt python3 tools/lsu_campaign.py --matrix artifacts/lsu-trial/07-expanded-matrix-backfilled.csv --outdir runs/lsu/formal_325 --cells L01-F2-W5 --phase trial --max-seeds-per-cell 3 --max-parallel 1` |
 | L01-F2-W12 | Load Queue | L01 | F2 | READY | OK | PASS | `LSU_GEM5_BIN=$PWD/CHAOS/gem5/build/ARM/gem5.opt python3 tools/lsu_campaign.py --matrix artifacts/lsu-trial/07-expanded-matrix-backfilled.csv --outdir runs/lsu/formal_325 --cells L01-F2-W12 --phase trial --max-seeds-per-cell 3 --max-parallel 1` |
 | L02-F0-W5 | Load Queue | L02 | F0 | READY | OK | PASS | `LSU_GEM5_BIN=$PWD/CHAOS/gem5/build/ARM/gem5.opt python3 tools/lsu_campaign.py --matrix artifacts/lsu-trial/07-expanded-matrix-backfilled.csv --outdir runs/lsu/formal_325 --cells L02-F0-W5 --phase trial --max-seeds-per-cell 3 --max-parallel 1` |

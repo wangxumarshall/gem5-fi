@@ -124,8 +124,9 @@ def main():
           f"runnable={len(runnable)} span={sorted(span_rows)} other={other}")
     check("the over-broad 'MiBench' workload block is gone; the four precise "
           "blockers remain",
+          # [R4-8-INT] SPEC 键已收窄为 SPEC_WL_IDENTITY（见 r4-8-spec-residual）。
           set(lc.WL_BLOCKED) == {"TLB-AliasPerm", "Atomic-Litmus", "PARSEC",
-                                 "SPEC"},
+                                 lc.SPEC_WL_IDENTITY},
           str(sorted(lc.WL_BLOCKED)))
     print(f"\nFAILURES: {fails if fails else '无'}")
     return 1 if fails else 0

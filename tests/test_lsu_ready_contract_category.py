@@ -27,8 +27,11 @@ import lsu_ready_contract as RC   # noqa: E402
 
 XLSX = ROOT / "docs/gem5-fi/lsu/gem5-fi-LSU单元故障注入方案.xlsx"
 
-EXPECTED = {"RULING": 6, "FS-INFRA": 24, "MODE-UNIMPL": 3, "UNRESOLVED": 19,
-            "PLATFORM-DEFECT": 6, "FS-MULTICORE": 35, "LICENSE": 12}
+# [R4-8-INT] 合并后重钉：PLATFORM-DEFECT 0（S10 平台缺陷修复 + F0 真机解锁）、
+# UNRESOLVED 19→4（W1/MiBench 过宽阻塞订正 + S10-F2 转精确拒绝）、
+# MODE-UNIMPL 保持 3（T08-W9，理由已改实测但仍属子模型模式未实现）。
+EXPECTED = {"RULING": 6, "FS-INFRA": 24, "MODE-UNIMPL": 3, "UNRESOLVED": 4,
+            "FS-MULTICORE": 35, "LICENSE": 12}
 
 
 def main():
@@ -56,8 +59,8 @@ def main():
           str(dict(cats)))
     check("no_unclassified_fallthrough", cats.get("UNCLASSIFIED", 0) == 0,
           "有理由语句落进兜底 UNCLASSIFIED —— 分类器需补显式判据")
-    check("status_census_ready220_blocked105",
-          st["READY"] == 220 and st["BLOCKED"] == 105 and st["PARTIAL"] == 0,
+    check("status_census_ready241_blocked84",
+          st["READY"] == 241 and st["BLOCKED"] == 84 and st["PARTIAL"] == 0,
           str(dict(st)))
 
     def cat_of(rid):

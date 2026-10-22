@@ -71,12 +71,12 @@
 | T07-F0-W4 | T07 | L1d-TLB | F0 | BLOCKED | campaign:deferred(mode unimplemented: hit fabrication/way select); spec:需新增（当前阻塞：hit fabrication/way select未实现）; workload:workload-level:blocked(fs-infra: TLB w |
 | T07-F4-W4 | T07 | L1d-TLB | F4 | BLOCKED | campaign:deferred(mode unimplemented: hit fabrication/way select); spec:需新增（当前阻塞：hit fabrication/way select未实现）; workload:workload-level:blocked(fs-infra: TLB w |
 | T07-F6-W4 | T07 | L1d-TLB | F6 | BLOCKED | campaign:deferred(mode unimplemented: hit fabrication/way select); spec:需新增（当前阻塞：hit fabrication/way select未实现）; workload:workload-level:blocked(fs-infra: TLB w |
-| T08-F0-W4 | T08 | L1d-TLB | F0 | BLOCKED | campaign:landed compile-unverified, pilot pending (FS-only; integration owns build + FS census + campaign; see R4-5.9 report); workload:workload-level:blocked(f |
-| T08-F0-W9 | T08 | L1d-TLB | F0 | BLOCKED | campaign:landed compile-unverified, pilot pending (FS-only; integration owns build + FS census + campaign; see R4-5.9 report) |
-| T08-F4-W4 | T08 | L1d-TLB | F4 | BLOCKED | campaign:landed compile-unverified, pilot pending (FS-only; integration owns build + FS census + campaign; see R4-5.9 report); workload:workload-level:blocked(f |
-| T08-F4-W9 | T08 | L1d-TLB | F4 | BLOCKED | campaign:landed compile-unverified, pilot pending (FS-only; integration owns build + FS census + campaign; see R4-5.9 report) |
-| T08-F6-W4 | T08 | L1d-TLB | F6 | BLOCKED | campaign:landed compile-unverified, pilot pending (FS-only; integration owns build + FS census + campaign; see R4-5.9 report); workload:workload-level:blocked(f |
-| T08-F6-W9 | T08 | L1d-TLB | F6 | BLOCKED | campaign:landed compile-unverified, pilot pending (FS-only; integration owns build + FS census + campaign; see R4-5.9 report) |
+| T08-F0-W4 | T08 | L1d-TLB | F0 | BLOCKED | campaign:walk_pairing (T08-a) landed AND real-run proven — F0-W4 seed1 (R4-8-FS-W1 §4.3: walk_issue_probe + walk_issue_drop walk_id=703 + tlb_walk/tlb_refill sh |
+| T08-F0-W9 | T08 | L1d-TLB | F0 | BLOCKED | campaign:walk_pairing (T08-a) landed AND real-run proven — F0-W4 seed1 (R4-8-FS-W1 §4.3: walk_issue_probe + walk_issue_drop walk_id=703 + tlb_walk/tlb_refill sh |
+| T08-F4-W4 | T08 | L1d-TLB | F4 | BLOCKED | campaign:walk_pairing (T08-a) landed AND real-run proven — F0-W4 seed1 (R4-8-FS-W1 §4.3: walk_issue_probe + walk_issue_drop walk_id=703 + tlb_walk/tlb_refill sh |
+| T08-F4-W9 | T08 | L1d-TLB | F4 | BLOCKED | campaign:walk_pairing (T08-a) landed AND real-run proven — F0-W4 seed1 (R4-8-FS-W1 §4.3: walk_issue_probe + walk_issue_drop walk_id=703 + tlb_walk/tlb_refill sh |
+| T08-F6-W4 | T08 | L1d-TLB | F6 | BLOCKED | campaign:walk_pairing (T08-a) landed AND real-run proven — F0-W4 seed1 (R4-8-FS-W1 §4.3: walk_issue_probe + walk_issue_drop walk_id=703 + tlb_walk/tlb_refill sh |
+| T08-F6-W9 | T08 | L1d-TLB | F6 | BLOCKED | campaign:walk_pairing (T08-a) landed AND real-run proven — F0-W4 seed1 (R4-8-FS-W1 §4.3: walk_issue_probe + walk_issue_drop walk_id=703 + tlb_walk/tlb_refill sh |
 | S01-F0-W1 | S01 | Store Queue | F0 | PASS |  |
 | S01-F0-W5 | S01 | Store Queue | F0 | PASS |  |
 | S01-F1-W1 | S01 | Store Queue | F1 | PASS |  |

@@ -130,9 +130,16 @@ def main():
         f, _g, why = C.resolve_cell(c)
         if f is None:
             unresolved.append((rid, c[C.COL_WORKLOAD], why))
-    # C1: 残余集合**全部**是 W1/MiBench 身份（另一个 agent 的口径订正范围）。
-    offclass = [(r, w) for r, w, _ in unresolved if not w.startswith("MiBench")]
-    check("C1_unresolved_is_exclusively_mibench", not offclass, str(offclass))
+    # [R4-8-INT] 合并 r4-7-fsinfra-w1（W1/MiBench 订正）后残余不再是"全部
+    # MiBench"：MiBench 的过宽阻塞已删，只剩 S01/S02-F0-W1 两格由**精确的**
+    # F0-span-unmeasured 拒绝；另两格 S10-F2 由 r4-8-S10 的
+    # interval-tier-unreachable 拒绝（spec 固定 interval 语义，非本任务范围）。
+    # 改钉**结构不变量**：每格残余必须归入已具名的精确拒绝，不允许无归属拒跑。
+    unexplained = [(r, w, y) for r, w, y in unresolved
+                   if not (y and ("F0-span-unmeasured" in y
+                                  or "interval-tier-unreachable" in y))]
+    check("C1_unresolved_is_explained_by_precise_refusals",
+          not unexplained, str(unexplained))
     # C2: 残余集合里没有 W11（许可证阻塞走的是 BLOCKED 通道，不进 UNRESOLVED）。
     check("C2_no_w11_in_unresolved",
           not any(r.endswith("-W11") for r, _w, _wh in unresolved),

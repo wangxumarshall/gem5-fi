@@ -187,11 +187,16 @@ def main():
           "it), not by a workload/mode gap",
           sorted(_fs_t08) == ["T08-F0-W4", "T08-F4-W4", "T08-F6-W4"],
           str(_fs_t08))
+    # [R4-8-INT] 合并 r4-8-spec-residual 后 T08 理由取并集（W4 证据来自
+    # r4-7-fsinfra-w1、W9 来自 r4-8-spec-residual），措辞随之变化 —— 故改钉
+    # **语义不变量**而非具体字面：两句被真机证伪的断言必须消失，且必须点名
+    # "real-run proven" 与 F4 的"诚实零"。
     check("T08's block reason no longer claims 'compile-unverified' / "
-          "'pilot pending' (that statement was disproved by the R4-8 real run)",
+          "'pilot pending'（已被 R4-8 真机证伪）",
           "compile-unverified" not in _lc.MODEL_BLOCKED["T08"]
-          and "real-run asserted" in _lc.MODEL_BLOCKED["T08"]
-          and "UNMEASURED" in _lc.MODEL_BLOCKED["T08"])
+          and "pilot pending" not in _lc.MODEL_BLOCKED["T08"]
+          and "real-run proven" in _lc.MODEL_BLOCKED["T08"]
+          and "honest zero" in _lc.MODEL_BLOCKED["T08"])
     check("no FS-INFRA row resolves to anything else", not _fs_other,
           str(_fs_other))
     check("the FS-INFRA reason is NEVER the bare workload-level fs-infra "
@@ -217,8 +222,10 @@ def main():
           "MiBench" not in _lc.WL_BLOCKED)
     check("WL_BLOCKED still carries the four precise blockers (not "
           "blanket-cleared)",
+          # [R4-8-INT] SPEC 键已由 r4-8-spec-residual 收窄为具名身份常量
+          # (SPEC_WL_IDENTITY="SPEC CPU2017")，故按常量断言，避免键漂移。
           set(_lc.WL_BLOCKED) == {"TLB-AliasPerm", "Atomic-Litmus", "PARSEC",
-                                  "SPEC"},
+                                  _lc.SPEC_WL_IDENTITY},
           str(sorted(_lc.WL_BLOCKED)))
     check("W1 carrier has an SE binary mapping + golden",
           _lc.WL_BINARY.get("MiBench-TC23") == "mibench/bin/w1_all"

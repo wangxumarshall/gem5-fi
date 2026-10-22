@@ -2,13 +2,14 @@
  "source": "runid_map.json + coverage_matrix.md + lsu_campaign.resolve_cell",
  "total": 325,
  "status": {
-  "READY": 224,
-  "BLOCKED": 101
+  "READY": 241,
+  "BLOCKED": 84
  },
  "blocked_by_category": {
-  "RULING": 9,
+  "RULING": 6,
   "FS-INFRA": 24,
-  "UNRESOLVED": 21,
+  "MODE-UNIMPL": 3,
+  "UNRESOLVED": 4,
   "FS-MULTICORE": 35,
   "LICENSE": 12
  },
@@ -841,7 +842,7 @@
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、lsq_sendfrag、tlb_translate、tlb_fault、mem_req、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
    "coverage": "BLOCKED",
-   "resolve_reason": "blocked(fs-infra: TLB workload needs FS)"
+   "resolve_reason": "deferred(mode unimplemented: valid/global/ASID state)"
   },
   {
    "run_id": "T05-F2-W4",
@@ -856,7 +857,7 @@
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、lsq_sendfrag、tlb_translate、tlb_fault、mem_req、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
    "coverage": "BLOCKED",
-   "resolve_reason": "blocked(fs-infra: TLB workload needs FS)"
+   "resolve_reason": "deferred(mode unimplemented: valid/global/ASID state)"
   },
   {
    "run_id": "T05-F6-W4",
@@ -871,7 +872,7 @@
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、lsq_sendfrag、tlb_translate、tlb_fault、mem_req、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
    "coverage": "BLOCKED",
-   "resolve_reason": "blocked(fs-infra: TLB workload needs FS)"
+   "resolve_reason": "deferred(mode unimplemented: valid/global/ASID state)"
   },
   {
    "run_id": "T06-F0-W4",
@@ -886,7 +887,7 @@
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、lsq_sendfrag、tlb_translate、tlb_fault、mem_req、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
    "coverage": "BLOCKED",
-   "resolve_reason": "blocked(fs-infra: TLB workload needs FS)"
+   "resolve_reason": "deferred(mode unimplemented: permission legal-substitution)"
   },
   {
    "run_id": "T06-F2-W4",
@@ -901,7 +902,7 @@
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、lsq_sendfrag、tlb_translate、tlb_fault、mem_req、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
    "coverage": "BLOCKED",
-   "resolve_reason": "blocked(fs-infra: TLB workload needs FS)"
+   "resolve_reason": "deferred(mode unimplemented: permission legal-substitution)"
   },
   {
    "run_id": "T06-F6-W4",
@@ -916,7 +917,7 @@
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、lsq_sendfrag、tlb_translate、tlb_fault、mem_req、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
    "coverage": "BLOCKED",
-   "resolve_reason": "blocked(fs-infra: TLB workload needs FS)"
+   "resolve_reason": "deferred(mode unimplemented: permission legal-substitution)"
   },
   {
    "run_id": "T07-F0-W4",
@@ -931,7 +932,7 @@
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、lsq_sendfrag、tlb_translate、tlb_fault、mem_req、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
    "coverage": "BLOCKED",
-   "resolve_reason": "blocked(fs-infra: TLB workload needs FS)"
+   "resolve_reason": "deferred(mode unimplemented: hit fabrication/way select)"
   },
   {
    "run_id": "T07-F4-W4",
@@ -946,7 +947,7 @@
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、lsq_sendfrag、tlb_translate、tlb_fault、mem_req、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
    "coverage": "BLOCKED",
-   "resolve_reason": "blocked(fs-infra: TLB workload needs FS)"
+   "resolve_reason": "deferred(mode unimplemented: hit fabrication/way select)"
   },
   {
    "run_id": "T07-F6-W4",
@@ -961,7 +962,7 @@
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、lsq_sendfrag、tlb_translate、tlb_fault、mem_req、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
    "coverage": "BLOCKED",
-   "resolve_reason": "blocked(fs-infra: TLB workload needs FS)"
+   "resolve_reason": "deferred(mode unimplemented: hit fabrication/way select)"
   },
   {
    "run_id": "T08-F0-W4",
@@ -971,12 +972,12 @@
    "status": "BLOCKED",
    "category": "FS-INFRA",
    "family": null,
-   "why": "campaign:landed compile-unverified, pilot pending (FS-only; integration owns build + FS census + campaign; see R4-5.9 report) ; workload:workload-level:blocked(fs-infra: TLB workload needs FS)",
+   "why": "campaign:walk_pairing (T08-a) landed AND real-run proven — F0-W4 seed1 (R4-8-FS-W1 §4.3: walk_issue_probe + walk_issue_drop walk_id=703 + tlb_walk/tlb_refill sharing walk_id=703/fault_id=1 with refill field=lost), F0-W9 (R4-6-T08) and F6-W9 (R4-8-SPEC §B.3) injected with the same walk_id/field=lost signature, activated=1; F4-W9 honest zero (burst interval 1e5 eligible events >> the ~1e3 walk-issue stream — hook reached, never fires), binary 7d52bc1392a10055. Block retained: pending T08-b/c/d sub-model modes have no real-run coverage and the pilots are 1 seed each; deletion is an integration decision ; workload:workload-level:blocked(fs-infra: TLB workload needs FS)",
    "precondition": "SE 构建二进制 + 载体 ELF（无需 FS 资产）",
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、lsq_sendfrag、tlb_translate、tlb_fault、mem_req、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
    "coverage": "BLOCKED",
-   "resolve_reason": "landed compile-unverified, pilot pending (FS-only; integration owns build + FS census + campaign; see R4-5.9 report)"
+   "resolve_reason": "walk_pairing (T08-a) landed AND real-run proven — F0-W4 seed1 (R4-8-FS-W1 §4.3: walk_issue_probe + walk_issue_drop walk_id=703 + tlb_walk/tlb_refill sharing walk_id=703/fault_id=1 with refill field=lost), F0-W9 (R4-6-T08) and F6-W9 (R4-8-SPEC §B.3) injected with the same walk_id/field=lost signature, activated=1; F4-W9 honest zero (burst interval 1e5 eligible events >> the ~1e3 walk-issue stream — hook reached, never fires), binary 7d52bc1392a10055. Block retained: pending T08-b/c/d sub-model modes have no real-run coverage and the pilots are 1 seed each; deletion is an integration decision"
   },
   {
    "run_id": "T08-F0-W9",
@@ -984,14 +985,14 @@
    "model": "T08",
    "freq": "F0",
    "status": "BLOCKED",
-   "category": "RULING",
+   "category": "MODE-UNIMPL",
    "family": null,
-   "why": "campaign:landed compile-unverified, pilot pending (FS-only; integration owns build + FS census + campaign; see R4-5.9 report)",
+   "why": "campaign:walk_pairing (T08-a) landed AND real-run proven — F0-W4 seed1 (R4-8-FS-W1 §4.3: walk_issue_probe + walk_issue_drop walk_id=703 + tlb_walk/tlb_refill sharing walk_id=703/fault_id=1 with refill field=lost), F0-W9 (R4-6-T08) and F6-W9 (R4-8-SPEC §B.3) injected with the same walk_id/field=lost signature, activated=1; F4-W9 honest zero (burst interval 1e5 eligible events >> the ~1e3 walk-issue stream — hook reached, never fires), binary 7d52bc1392a10055. Block retained: pending T08-b/c/d sub-model modes have no real-run coverage and the pilots are 1 seed each; deletion is an integration decision",
    "precondition": "SE 构建二进制 + 载体 ELF（无需 FS 资产）",
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、lsq_sendfrag、tlb_translate、tlb_fault、mem_req、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
    "coverage": "BLOCKED",
-   "resolve_reason": "landed compile-unverified, pilot pending (FS-only; integration owns build + FS census + campaign; see R4-5.9 report)"
+   "resolve_reason": "walk_pairing (T08-a) landed AND real-run proven — F0-W4 seed1 (R4-8-FS-W1 §4.3: walk_issue_probe + walk_issue_drop walk_id=703 + tlb_walk/tlb_refill sharing walk_id=703/fault_id=1 with refill field=lost), F0-W9 (R4-6-T08) and F6-W9 (R4-8-SPEC §B.3) injected with the same walk_id/field=lost signature, activated=1; F4-W9 honest zero (burst interval 1e5 eligible events >> the ~1e3 walk-issue stream — hook reached, never fires), binary 7d52bc1392a10055. Block retained: pending T08-b/c/d sub-model modes have no real-run coverage and the pilots are 1 seed each; deletion is an integration decision"
   },
   {
    "run_id": "T08-F4-W4",
@@ -1001,12 +1002,12 @@
    "status": "BLOCKED",
    "category": "FS-INFRA",
    "family": null,
-   "why": "campaign:landed compile-unverified, pilot pending (FS-only; integration owns build + FS census + campaign; see R4-5.9 report) ; workload:workload-level:blocked(fs-infra: TLB workload needs FS)",
+   "why": "campaign:walk_pairing (T08-a) landed AND real-run proven — F0-W4 seed1 (R4-8-FS-W1 §4.3: walk_issue_probe + walk_issue_drop walk_id=703 + tlb_walk/tlb_refill sharing walk_id=703/fault_id=1 with refill field=lost), F0-W9 (R4-6-T08) and F6-W9 (R4-8-SPEC §B.3) injected with the same walk_id/field=lost signature, activated=1; F4-W9 honest zero (burst interval 1e5 eligible events >> the ~1e3 walk-issue stream — hook reached, never fires), binary 7d52bc1392a10055. Block retained: pending T08-b/c/d sub-model modes have no real-run coverage and the pilots are 1 seed each; deletion is an integration decision ; workload:workload-level:blocked(fs-infra: TLB workload needs FS)",
    "precondition": "SE 构建二进制 + 载体 ELF（无需 FS 资产）",
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、lsq_sendfrag、tlb_translate、tlb_fault、mem_req、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
    "coverage": "BLOCKED",
-   "resolve_reason": "landed compile-unverified, pilot pending (FS-only; integration owns build + FS census + campaign; see R4-5.9 report)"
+   "resolve_reason": "walk_pairing (T08-a) landed AND real-run proven — F0-W4 seed1 (R4-8-FS-W1 §4.3: walk_issue_probe + walk_issue_drop walk_id=703 + tlb_walk/tlb_refill sharing walk_id=703/fault_id=1 with refill field=lost), F0-W9 (R4-6-T08) and F6-W9 (R4-8-SPEC §B.3) injected with the same walk_id/field=lost signature, activated=1; F4-W9 honest zero (burst interval 1e5 eligible events >> the ~1e3 walk-issue stream — hook reached, never fires), binary 7d52bc1392a10055. Block retained: pending T08-b/c/d sub-model modes have no real-run coverage and the pilots are 1 seed each; deletion is an integration decision"
   },
   {
    "run_id": "T08-F4-W9",
@@ -1014,14 +1015,14 @@
    "model": "T08",
    "freq": "F4",
    "status": "BLOCKED",
-   "category": "RULING",
+   "category": "MODE-UNIMPL",
    "family": null,
-   "why": "campaign:landed compile-unverified, pilot pending (FS-only; integration owns build + FS census + campaign; see R4-5.9 report)",
+   "why": "campaign:walk_pairing (T08-a) landed AND real-run proven — F0-W4 seed1 (R4-8-FS-W1 §4.3: walk_issue_probe + walk_issue_drop walk_id=703 + tlb_walk/tlb_refill sharing walk_id=703/fault_id=1 with refill field=lost), F0-W9 (R4-6-T08) and F6-W9 (R4-8-SPEC §B.3) injected with the same walk_id/field=lost signature, activated=1; F4-W9 honest zero (burst interval 1e5 eligible events >> the ~1e3 walk-issue stream — hook reached, never fires), binary 7d52bc1392a10055. Block retained: pending T08-b/c/d sub-model modes have no real-run coverage and the pilots are 1 seed each; deletion is an integration decision",
    "precondition": "SE 构建二进制 + 载体 ELF（无需 FS 资产）",
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、lsq_sendfrag、tlb_translate、tlb_fault、mem_req、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
    "coverage": "BLOCKED",
-   "resolve_reason": "landed compile-unverified, pilot pending (FS-only; integration owns build + FS census + campaign; see R4-5.9 report)"
+   "resolve_reason": "walk_pairing (T08-a) landed AND real-run proven — F0-W4 seed1 (R4-8-FS-W1 §4.3: walk_issue_probe + walk_issue_drop walk_id=703 + tlb_walk/tlb_refill sharing walk_id=703/fault_id=1 with refill field=lost), F0-W9 (R4-6-T08) and F6-W9 (R4-8-SPEC §B.3) injected with the same walk_id/field=lost signature, activated=1; F4-W9 honest zero (burst interval 1e5 eligible events >> the ~1e3 walk-issue stream — hook reached, never fires), binary 7d52bc1392a10055. Block retained: pending T08-b/c/d sub-model modes have no real-run coverage and the pilots are 1 seed each; deletion is an integration decision"
   },
   {
    "run_id": "T08-F6-W4",
@@ -1031,12 +1032,12 @@
    "status": "BLOCKED",
    "category": "FS-INFRA",
    "family": null,
-   "why": "campaign:landed compile-unverified, pilot pending (FS-only; integration owns build + FS census + campaign; see R4-5.9 report) ; workload:workload-level:blocked(fs-infra: TLB workload needs FS)",
+   "why": "campaign:walk_pairing (T08-a) landed AND real-run proven — F0-W4 seed1 (R4-8-FS-W1 §4.3: walk_issue_probe + walk_issue_drop walk_id=703 + tlb_walk/tlb_refill sharing walk_id=703/fault_id=1 with refill field=lost), F0-W9 (R4-6-T08) and F6-W9 (R4-8-SPEC §B.3) injected with the same walk_id/field=lost signature, activated=1; F4-W9 honest zero (burst interval 1e5 eligible events >> the ~1e3 walk-issue stream — hook reached, never fires), binary 7d52bc1392a10055. Block retained: pending T08-b/c/d sub-model modes have no real-run coverage and the pilots are 1 seed each; deletion is an integration decision ; workload:workload-level:blocked(fs-infra: TLB workload needs FS)",
    "precondition": "SE 构建二进制 + 载体 ELF（无需 FS 资产）",
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、lsq_sendfrag、tlb_translate、tlb_fault、mem_req、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
    "coverage": "BLOCKED",
-   "resolve_reason": "landed compile-unverified, pilot pending (FS-only; integration owns build + FS census + campaign; see R4-5.9 report)"
+   "resolve_reason": "walk_pairing (T08-a) landed AND real-run proven — F0-W4 seed1 (R4-8-FS-W1 §4.3: walk_issue_probe + walk_issue_drop walk_id=703 + tlb_walk/tlb_refill sharing walk_id=703/fault_id=1 with refill field=lost), F0-W9 (R4-6-T08) and F6-W9 (R4-8-SPEC §B.3) injected with the same walk_id/field=lost signature, activated=1; F4-W9 honest zero (burst interval 1e5 eligible events >> the ~1e3 walk-issue stream — hook reached, never fires), binary 7d52bc1392a10055. Block retained: pending T08-b/c/d sub-model modes have no real-run coverage and the pilots are 1 seed each; deletion is an integration decision"
   },
   {
    "run_id": "T08-F6-W9",
@@ -1044,14 +1045,14 @@
    "model": "T08",
    "freq": "F6",
    "status": "BLOCKED",
-   "category": "RULING",
+   "category": "MODE-UNIMPL",
    "family": null,
-   "why": "campaign:landed compile-unverified, pilot pending (FS-only; integration owns build + FS census + campaign; see R4-5.9 report)",
+   "why": "campaign:walk_pairing (T08-a) landed AND real-run proven — F0-W4 seed1 (R4-8-FS-W1 §4.3: walk_issue_probe + walk_issue_drop walk_id=703 + tlb_walk/tlb_refill sharing walk_id=703/fault_id=1 with refill field=lost), F0-W9 (R4-6-T08) and F6-W9 (R4-8-SPEC §B.3) injected with the same walk_id/field=lost signature, activated=1; F4-W9 honest zero (burst interval 1e5 eligible events >> the ~1e3 walk-issue stream — hook reached, never fires), binary 7d52bc1392a10055. Block retained: pending T08-b/c/d sub-model modes have no real-run coverage and the pilots are 1 seed each; deletion is an integration decision",
    "precondition": "SE 构建二进制 + 载体 ELF（无需 FS 资产）",
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、lsq_sendfrag、tlb_translate、tlb_fault、mem_req、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
    "coverage": "BLOCKED",
-   "resolve_reason": "landed compile-unverified, pilot pending (FS-only; integration owns build + FS census + campaign; see R4-5.9 report)"
+   "resolve_reason": "walk_pairing (T08-a) landed AND real-run proven — F0-W4 seed1 (R4-8-FS-W1 §4.3: walk_issue_probe + walk_issue_drop walk_id=703 + tlb_walk/tlb_refill sharing walk_id=703/fault_id=1 with refill field=lost), F0-W9 (R4-6-T08) and F6-W9 (R4-8-SPEC §B.3) injected with the same walk_id/field=lost signature, activated=1; F4-W9 honest zero (burst interval 1e5 eligible events >> the ~1e3 walk-issue stream — hook reached, never fires), binary 7d52bc1392a10055. Block retained: pending T08-b/c/d sub-model modes have no real-run coverage and the pilots are 1 seed each; deletion is an integration decision"
   },
   {
    "run_id": "S01-F0-W1",
@@ -1066,7 +1067,7 @@
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、lsq_push、lsq_sendfrag、sq_execute、sq_writeback、sq_complete、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
    "coverage": "PASS",
-   "resolve_reason": "blocked(fs-infra: SE has no MiBench FS pipeline)"
+   "resolve_reason": "BLOCKED(F0-span-unmeasured: model S01 on workload mibench/bin/w1_all — measure its eligible stream with a real run and set LSQFWD_F0_SPAN[('S01', 'mibench/bin/w1_all')] in tools/lsu_campaign.py; refusing rather than silently reusing another pair's span)"
   },
   {
    "run_id": "S01-F0-W5",
@@ -1088,15 +1089,15 @@
    "unit": "Store Queue",
    "model": "S01",
    "freq": "F1",
-   "status": "BLOCKED",
-   "category": "UNRESOLVED",
-   "family": null,
-   "why": "PASS",
+   "status": "READY",
+   "category": "OK",
+   "family": "lsqfwd",
+   "why": "",
    "precondition": "SE 构建二进制 + 载体 ELF（无需 FS 资产）",
-   "command": "",
+   "command": "LSU_GEM5_BIN=$PWD/CHAOS/gem5/build/ARM/gem5.opt python3 tools/lsu_campaign.py --matrix artifacts/lsu-trial/07-expanded-matrix-backfilled.csv --outdir runs/lsu/formal_325 --cells S01-F1-W1 --phase trial --max-seeds-per-cell 3 --max-parallel 1",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、lsq_push、lsq_sendfrag、sq_execute、sq_writeback、sq_complete、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
    "coverage": "PASS",
-   "resolve_reason": "blocked(fs-infra: SE has no MiBench FS pipeline)"
+   "resolve_reason": "mibench/bin/w1_all"
   },
   {
    "run_id": "S01-F1-W5",
@@ -1118,15 +1119,15 @@
    "unit": "Store Queue",
    "model": "S01",
    "freq": "F2",
-   "status": "BLOCKED",
-   "category": "UNRESOLVED",
-   "family": null,
-   "why": "PASS",
+   "status": "READY",
+   "category": "OK",
+   "family": "lsqfwd",
+   "why": "",
    "precondition": "SE 构建二进制 + 载体 ELF（无需 FS 资产）",
-   "command": "",
+   "command": "LSU_GEM5_BIN=$PWD/CHAOS/gem5/build/ARM/gem5.opt python3 tools/lsu_campaign.py --matrix artifacts/lsu-trial/07-expanded-matrix-backfilled.csv --outdir runs/lsu/formal_325 --cells S01-F2-W1 --phase trial --max-seeds-per-cell 3 --max-parallel 1",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、lsq_push、lsq_sendfrag、sq_execute、sq_writeback、sq_complete、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
    "coverage": "PASS",
-   "resolve_reason": "blocked(fs-infra: SE has no MiBench FS pipeline)"
+   "resolve_reason": "mibench/bin/w1_all"
   },
   {
    "run_id": "S01-F2-W5",
@@ -1171,7 +1172,7 @@
    "command": "",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、lsq_push、lsq_sendfrag、sq_execute、sq_writeback、sq_complete、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
    "coverage": "PASS",
-   "resolve_reason": "blocked(fs-infra: SE has no MiBench FS pipeline)"
+   "resolve_reason": "BLOCKED(F0-span-unmeasured: model S02 on workload mibench/bin/w1_all — measure its eligible stream with a real run and set LSQFWD_F0_SPAN[('S02', 'mibench/bin/w1_all')] in tools/lsu_campaign.py; refusing rather than silently reusing another pair's span)"
   },
   {
    "run_id": "S02-F2-W5",
@@ -1193,15 +1194,15 @@
    "unit": "Store Queue",
    "model": "S02",
    "freq": "F2",
-   "status": "BLOCKED",
-   "category": "UNRESOLVED",
-   "family": null,
-   "why": "PASS",
+   "status": "READY",
+   "category": "OK",
+   "family": "lsqfwd",
+   "why": "",
    "precondition": "SE 构建二进制 + 载体 ELF（无需 FS 资产）",
-   "command": "",
+   "command": "LSU_GEM5_BIN=$PWD/CHAOS/gem5/build/ARM/gem5.opt python3 tools/lsu_campaign.py --matrix artifacts/lsu-trial/07-expanded-matrix-backfilled.csv --outdir runs/lsu/formal_325 --cells S02-F2-W1 --phase trial --max-seeds-per-cell 3 --max-parallel 1",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、lsq_push、lsq_sendfrag、sq_execute、sq_writeback、sq_complete、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
    "coverage": "PASS",
-   "resolve_reason": "blocked(fs-infra: SE has no MiBench FS pipeline)"
+   "resolve_reason": "mibench/bin/w1_all"
   },
   {
    "run_id": "S03-F5-W5",
@@ -1823,15 +1824,15 @@
    "unit": "L1d-Cache",
    "model": "C01",
    "freq": "F0",
-   "status": "BLOCKED",
-   "category": "UNRESOLVED",
-   "family": null,
-   "why": "PASS",
+   "status": "READY",
+   "category": "OK",
+   "family": "cache",
+   "why": "",
    "precondition": "SE 构建二进制 + 载体 ELF（无需 FS 资产）",
-   "command": "",
+   "command": "LSU_GEM5_BIN=$PWD/CHAOS/gem5/build/ARM/gem5.opt python3 tools/lsu_campaign.py --matrix artifacts/lsu-trial/07-expanded-matrix-backfilled.csv --outdir runs/lsu/formal_325 --cells C01-F0-W1 --phase trial --max-seeds-per-cell 3 --max-parallel 1",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、cache_access、cache_return、mshr_alloc、mshr_merge、mshr_fill、mshr_free、cache_fill、cache_evict、cache_writeback、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
    "coverage": "PASS",
-   "resolve_reason": "blocked(fs-infra: SE has no MiBench FS pipeline)"
+   "resolve_reason": "mibench/bin/w1_all"
   },
   {
    "run_id": "C01-F0-W6",
@@ -1853,15 +1854,15 @@
    "unit": "L1d-Cache",
    "model": "C01",
    "freq": "F1",
-   "status": "BLOCKED",
-   "category": "UNRESOLVED",
-   "family": null,
-   "why": "PASS",
+   "status": "READY",
+   "category": "OK",
+   "family": "cache",
+   "why": "",
    "precondition": "SE 构建二进制 + 载体 ELF（无需 FS 资产）",
-   "command": "",
+   "command": "LSU_GEM5_BIN=$PWD/CHAOS/gem5/build/ARM/gem5.opt python3 tools/lsu_campaign.py --matrix artifacts/lsu-trial/07-expanded-matrix-backfilled.csv --outdir runs/lsu/formal_325 --cells C01-F1-W1 --phase trial --max-seeds-per-cell 3 --max-parallel 1",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、cache_access、cache_return、mshr_alloc、mshr_merge、mshr_fill、mshr_free、cache_fill、cache_evict、cache_writeback、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
    "coverage": "PASS",
-   "resolve_reason": "blocked(fs-infra: SE has no MiBench FS pipeline)"
+   "resolve_reason": "mibench/bin/w1_all"
   },
   {
    "run_id": "C01-F1-W6",
@@ -1883,15 +1884,15 @@
    "unit": "L1d-Cache",
    "model": "C01",
    "freq": "F2",
-   "status": "BLOCKED",
-   "category": "UNRESOLVED",
-   "family": null,
-   "why": "PASS",
+   "status": "READY",
+   "category": "OK",
+   "family": "cache",
+   "why": "",
    "precondition": "SE 构建二进制 + 载体 ELF（无需 FS 资产）",
-   "command": "",
+   "command": "LSU_GEM5_BIN=$PWD/CHAOS/gem5/build/ARM/gem5.opt python3 tools/lsu_campaign.py --matrix artifacts/lsu-trial/07-expanded-matrix-backfilled.csv --outdir runs/lsu/formal_325 --cells C01-F2-W1 --phase trial --max-seeds-per-cell 3 --max-parallel 1",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、cache_access、cache_return、mshr_alloc、mshr_merge、mshr_fill、mshr_free、cache_fill、cache_evict、cache_writeback、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
    "coverage": "PASS",
-   "resolve_reason": "blocked(fs-infra: SE has no MiBench FS pipeline)"
+   "resolve_reason": "mibench/bin/w1_all"
   },
   {
    "run_id": "C01-F2-W6",
@@ -1928,15 +1929,15 @@
    "unit": "L1d-Cache",
    "model": "C02",
    "freq": "F0",
-   "status": "BLOCKED",
-   "category": "UNRESOLVED",
-   "family": null,
-   "why": "PASS",
+   "status": "READY",
+   "category": "OK",
+   "family": "cache",
+   "why": "",
    "precondition": "SE 构建二进制 + 载体 ELF（无需 FS 资产）",
-   "command": "",
+   "command": "LSU_GEM5_BIN=$PWD/CHAOS/gem5/build/ARM/gem5.opt python3 tools/lsu_campaign.py --matrix artifacts/lsu-trial/07-expanded-matrix-backfilled.csv --outdir runs/lsu/formal_325 --cells C02-F0-W1 --phase trial --max-seeds-per-cell 3 --max-parallel 1",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、cache_access、cache_return、mshr_alloc、mshr_merge、mshr_fill、mshr_free、cache_fill、cache_evict、cache_writeback、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
    "coverage": "PASS",
-   "resolve_reason": "blocked(fs-infra: SE has no MiBench FS pipeline)"
+   "resolve_reason": "mibench/bin/w1_all"
   },
   {
    "run_id": "C02-F2-W6",
@@ -1958,15 +1959,15 @@
    "unit": "L1d-Cache",
    "model": "C02",
    "freq": "F2",
-   "status": "BLOCKED",
-   "category": "UNRESOLVED",
-   "family": null,
-   "why": "PASS",
+   "status": "READY",
+   "category": "OK",
+   "family": "cache",
+   "why": "",
    "precondition": "SE 构建二进制 + 载体 ELF（无需 FS 资产）",
-   "command": "",
+   "command": "LSU_GEM5_BIN=$PWD/CHAOS/gem5/build/ARM/gem5.opt python3 tools/lsu_campaign.py --matrix artifacts/lsu-trial/07-expanded-matrix-backfilled.csv --outdir runs/lsu/formal_325 --cells C02-F2-W1 --phase trial --max-seeds-per-cell 3 --max-parallel 1",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、cache_access、cache_return、mshr_alloc、mshr_merge、mshr_fill、mshr_free、cache_fill、cache_evict、cache_writeback、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
    "coverage": "PASS",
-   "resolve_reason": "blocked(fs-infra: SE has no MiBench FS pipeline)"
+   "resolve_reason": "mibench/bin/w1_all"
   },
   {
    "run_id": "C03-F5-W6",
@@ -2003,15 +2004,15 @@
    "unit": "L1d-Cache",
    "model": "C04",
    "freq": "F0",
-   "status": "BLOCKED",
-   "category": "UNRESOLVED",
-   "family": null,
-   "why": "PASS",
+   "status": "READY",
+   "category": "OK",
+   "family": "cache",
+   "why": "",
    "precondition": "SE 构建二进制 + 载体 ELF（无需 FS 资产）",
-   "command": "",
+   "command": "LSU_GEM5_BIN=$PWD/CHAOS/gem5/build/ARM/gem5.opt python3 tools/lsu_campaign.py --matrix artifacts/lsu-trial/07-expanded-matrix-backfilled.csv --outdir runs/lsu/formal_325 --cells C04-F0-W1 --phase trial --max-seeds-per-cell 3 --max-parallel 1",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、cache_access、cache_return、mshr_alloc、mshr_merge、mshr_fill、mshr_free、cache_fill、cache_evict、cache_writeback、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
    "coverage": "PASS",
-   "resolve_reason": "blocked(fs-infra: SE has no MiBench FS pipeline)"
+   "resolve_reason": "mibench/bin/w1_all"
   },
   {
    "run_id": "C04-F0-W6",
@@ -2033,15 +2034,15 @@
    "unit": "L1d-Cache",
    "model": "C04",
    "freq": "F1",
-   "status": "BLOCKED",
-   "category": "UNRESOLVED",
-   "family": null,
-   "why": "PASS",
+   "status": "READY",
+   "category": "OK",
+   "family": "cache",
+   "why": "",
    "precondition": "SE 构建二进制 + 载体 ELF（无需 FS 资产）",
-   "command": "",
+   "command": "LSU_GEM5_BIN=$PWD/CHAOS/gem5/build/ARM/gem5.opt python3 tools/lsu_campaign.py --matrix artifacts/lsu-trial/07-expanded-matrix-backfilled.csv --outdir runs/lsu/formal_325 --cells C04-F1-W1 --phase trial --max-seeds-per-cell 3 --max-parallel 1",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、cache_access、cache_return、mshr_alloc、mshr_merge、mshr_fill、mshr_free、cache_fill、cache_evict、cache_writeback、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
    "coverage": "PASS",
-   "resolve_reason": "blocked(fs-infra: SE has no MiBench FS pipeline)"
+   "resolve_reason": "mibench/bin/w1_all"
   },
   {
    "run_id": "C04-F1-W6",
@@ -2063,15 +2064,15 @@
    "unit": "L1d-Cache",
    "model": "C04",
    "freq": "F2",
-   "status": "BLOCKED",
-   "category": "UNRESOLVED",
-   "family": null,
-   "why": "PASS",
+   "status": "READY",
+   "category": "OK",
+   "family": "cache",
+   "why": "",
    "precondition": "SE 构建二进制 + 载体 ELF（无需 FS 资产）",
-   "command": "",
+   "command": "LSU_GEM5_BIN=$PWD/CHAOS/gem5/build/ARM/gem5.opt python3 tools/lsu_campaign.py --matrix artifacts/lsu-trial/07-expanded-matrix-backfilled.csv --outdir runs/lsu/formal_325 --cells C04-F2-W1 --phase trial --max-seeds-per-cell 3 --max-parallel 1",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、cache_access、cache_return、mshr_alloc、mshr_merge、mshr_fill、mshr_free、cache_fill、cache_evict、cache_writeback、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
    "coverage": "PASS",
-   "resolve_reason": "blocked(fs-infra: SE has no MiBench FS pipeline)"
+   "resolve_reason": "mibench/bin/w1_all"
   },
   {
    "run_id": "C04-F2-W6",
@@ -3878,15 +3879,15 @@
    "unit": "Store Queue",
    "model": "S13",
    "freq": "F0",
-   "status": "BLOCKED",
-   "category": "UNRESOLVED",
-   "family": null,
-   "why": "PASS",
+   "status": "READY",
+   "category": "OK",
+   "family": "addrpath",
+   "why": "",
    "precondition": "SE 构建二进制 + 载体 ELF（无需 FS 资产）",
-   "command": "",
+   "command": "LSU_GEM5_BIN=$PWD/CHAOS/gem5/build/ARM/gem5.opt python3 tools/lsu_campaign.py --matrix artifacts/lsu-trial/07-expanded-matrix-backfilled.csv --outdir runs/lsu/formal_325 --cells S13-F0-W1 --phase trial --max-seeds-per-cell 3 --max-parallel 1",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、lsq_push、lsq_sendfrag、sq_execute、sq_writeback、sq_complete、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
    "coverage": "PASS",
-   "resolve_reason": "blocked(fs-infra: SE has no MiBench FS pipeline)"
+   "resolve_reason": "mibench/bin/w1_all"
   },
   {
    "run_id": "S13-F0-W5",
@@ -3938,15 +3939,15 @@
    "unit": "Store Queue",
    "model": "S13",
    "freq": "F1",
-   "status": "BLOCKED",
-   "category": "UNRESOLVED",
-   "family": null,
-   "why": "PASS",
+   "status": "READY",
+   "category": "OK",
+   "family": "addrpath",
+   "why": "",
    "precondition": "SE 构建二进制 + 载体 ELF（无需 FS 资产）",
-   "command": "",
+   "command": "LSU_GEM5_BIN=$PWD/CHAOS/gem5/build/ARM/gem5.opt python3 tools/lsu_campaign.py --matrix artifacts/lsu-trial/07-expanded-matrix-backfilled.csv --outdir runs/lsu/formal_325 --cells S13-F1-W1 --phase trial --max-seeds-per-cell 3 --max-parallel 1",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、lsq_push、lsq_sendfrag、sq_execute、sq_writeback、sq_complete、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
    "coverage": "PASS",
-   "resolve_reason": "blocked(fs-infra: SE has no MiBench FS pipeline)"
+   "resolve_reason": "mibench/bin/w1_all"
   },
   {
    "run_id": "S13-F1-W5",
@@ -3998,15 +3999,15 @@
    "unit": "Store Queue",
    "model": "S13",
    "freq": "F2",
-   "status": "BLOCKED",
-   "category": "UNRESOLVED",
-   "family": null,
-   "why": "PASS",
+   "status": "READY",
+   "category": "OK",
+   "family": "addrpath",
+   "why": "",
    "precondition": "SE 构建二进制 + 载体 ELF（无需 FS 资产）",
-   "command": "",
+   "command": "LSU_GEM5_BIN=$PWD/CHAOS/gem5/build/ARM/gem5.opt python3 tools/lsu_campaign.py --matrix artifacts/lsu-trial/07-expanded-matrix-backfilled.csv --outdir runs/lsu/formal_325 --cells S13-F2-W1 --phase trial --max-seeds-per-cell 3 --max-parallel 1",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、lsq_push、lsq_sendfrag、sq_execute、sq_writeback、sq_complete、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
    "coverage": "PASS",
-   "resolve_reason": "blocked(fs-infra: SE has no MiBench FS pipeline)"
+   "resolve_reason": "mibench/bin/w1_all"
   },
   {
    "run_id": "S13-F2-W5",
@@ -4058,15 +4059,15 @@
    "unit": "Load Queue",
    "model": "L01",
    "freq": "F0",
-   "status": "BLOCKED",
-   "category": "UNRESOLVED",
-   "family": null,
-   "why": "PASS",
+   "status": "READY",
+   "category": "OK",
+   "family": "addrpath",
+   "why": "",
    "precondition": "SE 构建二进制 + 载体 ELF（无需 FS 资产）",
-   "command": "",
+   "command": "LSU_GEM5_BIN=$PWD/CHAOS/gem5/build/ARM/gem5.opt python3 tools/lsu_campaign.py --matrix artifacts/lsu-trial/07-expanded-matrix-backfilled.csv --outdir runs/lsu/formal_325 --cells L01-F0-W1 --phase trial --max-seeds-per-cell 3 --max-parallel 1",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、lsq_push、lq_read、lq_complete、resp、taint_reg、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
    "coverage": "PASS",
-   "resolve_reason": "blocked(fs-infra: SE has no MiBench FS pipeline)"
+   "resolve_reason": "mibench/bin/w1_all"
   },
   {
    "run_id": "L01-F0-W5",
@@ -4103,15 +4104,15 @@
    "unit": "Load Queue",
    "model": "L01",
    "freq": "F1",
-   "status": "BLOCKED",
-   "category": "UNRESOLVED",
-   "family": null,
-   "why": "PASS",
+   "status": "READY",
+   "category": "OK",
+   "family": "addrpath",
+   "why": "",
    "precondition": "SE 构建二进制 + 载体 ELF（无需 FS 资产）",
-   "command": "",
+   "command": "LSU_GEM5_BIN=$PWD/CHAOS/gem5/build/ARM/gem5.opt python3 tools/lsu_campaign.py --matrix artifacts/lsu-trial/07-expanded-matrix-backfilled.csv --outdir runs/lsu/formal_325 --cells L01-F1-W1 --phase trial --max-seeds-per-cell 3 --max-parallel 1",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、lsq_push、lq_read、lq_complete、resp、taint_reg、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
    "coverage": "PASS",
-   "resolve_reason": "blocked(fs-infra: SE has no MiBench FS pipeline)"
+   "resolve_reason": "mibench/bin/w1_all"
   },
   {
    "run_id": "L01-F1-W5",
@@ -4148,15 +4149,15 @@
    "unit": "Load Queue",
    "model": "L01",
    "freq": "F2",
-   "status": "BLOCKED",
-   "category": "UNRESOLVED",
-   "family": null,
-   "why": "PASS",
+   "status": "READY",
+   "category": "OK",
+   "family": "addrpath",
+   "why": "",
    "precondition": "SE 构建二进制 + 载体 ELF（无需 FS 资产）",
-   "command": "",
+   "command": "LSU_GEM5_BIN=$PWD/CHAOS/gem5/build/ARM/gem5.opt python3 tools/lsu_campaign.py --matrix artifacts/lsu-trial/07-expanded-matrix-backfilled.csv --outdir runs/lsu/formal_325 --cells L01-F2-W1 --phase trial --max-seeds-per-cell 3 --max-parallel 1",
    "acceptance": "① 注入日志非空（Site: … 行 ≥1）；② prop_evt.txt.gz 中 kind 覆盖 [inj、lsq_push、lq_read、lq_complete、resp、taint_reg、chain_end]；③ lsu_chain_check.py 逐边可连（无可连边则如实报 Unknown）；④ L5 分类落五类之一（Masked/Detected-Contained/SDC/Crash/Timeout）",
    "coverage": "PASS",
-   "resolve_reason": "blocked(fs-infra: SE has no MiBench FS pipeline)"
+   "resolve_reason": "mibench/bin/w1_all"
   },
   {
    "run_id": "L01-F2-W5",

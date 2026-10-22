@@ -84,7 +84,9 @@ def _classify(entry, cov_status, flags):
             cat = "LICENSE"
         elif "fs-infra" in joined:
             cat = "FS-INFRA"
-        elif "mode unimplemented" in joined or "pilot pending" in joined:
+        elif ("mode unimplemented" in joined or "pilot pending" in joined
+              or "sub-model modes" in joined):   # [R4-8-INT] 合并后的 T08 措辞
+                                                 # 仍属「子模型模式未实现」类
             cat = "MODE-UNIMPL"
         elif "ruling" in joined:
             cat = "RULING"

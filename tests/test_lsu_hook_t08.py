@@ -92,7 +92,8 @@ def main():
     # its reason names the landed arm + the still-pending sub-models.
     check("blocked phrase is honest (T08-a real-run proven + pending b/c/d)",
           "walk_pairing" in blk and "T08-a" in blk and "T08-b" in blk
-          and ("mode unimplemented" in blk or "pilot pending" in blk), blk)
+          and "real-run proven" in blk
+          and ("sub-model modes" in blk or "mode unimplemented" in blk), blk)
     wl = "TLB-AliasPerm 地址翻译探针"
     r = lc.resolve_cell(_cell("T08", "F0", wl, "T08-F0-W4"))
     check("resolve_cell(T08-F0-W4) -> blocked reason (not silently runnable)",
