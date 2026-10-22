@@ -28,9 +28,23 @@
       `resolve_cell` 里 `key == "SPEC"` 的字面量漂移（收窄键时若不改该字面量，
       T10-F{0,1,2}-W11 会**静默**改为解析到 `fs:tlb_probe` 载体 —— 被新测试 A4 抓到）；
       `tests/test_lsu_w11_spec_residual.py` 钉住 A/B/C 三组断言。
-- [ ] **T3** `docs/gem5-fi/lsu/mdspec/runid_map.json` 重生成（订正 12 条陈旧理由文本）。
-- [ ] **T4** T08-W9 残余：真机 FS pilot（F6-W9，必要时 F4-W9）+ `MODEL_BLOCKED["T08"]` 证据化订正。
-- [ ] **T5** 证据文件 `docs/gem5-fi/lsu/mdspec/R4-8-SPEC-residual-report.md`。
+- [x] **T3** `docs/gem5-fi/lsu/mdspec/runid_map.json` 重生成（订正 12 条陈旧理由文本：
+      A06×6 + T08×6）。
+- [x] **T3b**（做 T3 时暴露的**新 bug**，独立成 unit）`tools/lsu_ready_contract.py` 的互斥
+      类别改显式判据 + 兜底 `UNCLASSIFIED` 报警：`else: RULING` 兜底让 T08-W9 在文案变化后
+      **无声**从 MODE-UNIMPL 变 RULING（RULING 6→9）；+ 新增
+      `tests/test_lsu_ready_contract_category.py` 钉死普查。
+- [x] **T4** T08-W9 残余：真机 FS pilot（F6-W9 注入成功 / F4-W9 结构性零）+
+      `MODEL_BLOCKED["T08"]` 与 `SPEC_IMPL_LANDED["T08"]` 证据化订正 + 两个 T08 测试由
+      钉短语改为钉不变量。
+- [x] **T5** 证据文件 `docs/gem5-fi/lsu/mdspec/R4-8-SPEC-residual-report.md`。
+
+## 结论摘要（实测）
+
+- W11 12 行：**真外部阻塞，保留**（替代会重定义 cell；磁盘无授权数据）。
+- MODE-UNIMPL 3（T08-W9）：模式已实现且真机可注入（F6）、F0 已有 R4-6-T08 证据、
+  F4 结构性零 → 阻塞**保留但理由收窄**（T08-b/c/d 未落地 + 1 seed 广度）。
+- UNRESOLVED：重新推导 = **19**，全部为 W1/MiBench 身份（Agent 3 范围）→ 本任务无剩余。
 
 ## 判据（每项的验证命令）
 
