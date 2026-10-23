@@ -70,9 +70,20 @@ INJLINE = ("Tick: 887040, Site: lsq_sendFragmentToTranslation, mode=low_bit_flip
 REAL_TMP_DIRS = []
 
 
+# [R6-MERGEFIX 2026-10-23] 本进程内构造的 ObsDriver **必须**显式指向隔离
+# guard dir：`ObsDriver.__init__` 在 `args.guard_dir is None` 时会**硬改写**
+# LSU_GUARD_DIR 为**主树绝对路径** `/home/sdc/gem5-fi-ding/runs/lsu/guard`
+# （见 tools/lsu_obs_driver.py：212）。若不显式传，本套件的 claim 会泄漏进
+# 主树**全局共享**的 claims 目录——实测：主树 `runs/lsu/guard/claims/g2_r0/
+# A01-F0-W9/{s2,s3}.claim`（上次中止运行遗留，pid 已死）导致本次 g2 轮
+# `claim stale` → GUARD_FAILURE。显式隔离后本套件零外部耦合。
+_ISOLATED_GUARD_DIR = None
+
+
 def make_ns(**over):
     ns = dict(campaign="wk", obs_mode="l0l5", trace_budget_gib=40.0,
-              outdir_root="/tmp/obs_wk_unused", guard_dir=None, gem5_bin=None,
+              outdir_root="/tmp/obs_wk_unused",
+              guard_dir=_ISOLATED_GUARD_DIR, gem5_bin=None,
               slots=None, dry_run=False, phase="screening",
               items=["ITEM-002"], samples=None, target=30, cap=300,
               replay_policy="none", workers=1, acquire_retries=None,
@@ -182,6 +193,7 @@ def cli_env(guard_dir):
 
 def main():
     fails = []
+    env_skips = []
 
     def check(name, cond, detail=""):
         print(("PASS" if cond else "FAIL"), name,
@@ -189,12 +201,19 @@ def main():
         if not cond:
             fails.append(name)
 
+    def skip_env(name, reason):
+        """宿主环境阻塞项：显式跳过（非 PASS 亦非缺陷）。真实原因随行输出。"""
+        print("SKIP", name, f"  <- 宿主环境阻塞: {reason}"[:400], flush=True)
+        env_skips.append(name)
+
     tmp = Path(tempfile.mkdtemp(prefix="obs_workers_test_"))
     tmp_wt = Path(tempfile.mkdtemp(prefix="obs_workers_wt_", dir=str(WT)))
     try:
         # 环境（进程内所有 in-process 阶段共用一个隔离 guard dir——claims 用；
         # lsu_guard.GUARD_DIR 在 import 时冻结）
         gd_main = tmp / "guard"
+        global _ISOLATED_GUARD_DIR
+        _ISOLATED_GUARD_DIR = str(gd_main)   # make_ns 默认 guard_dir → 防泄漏
         os.environ["LSU_GUARD_DIR"] = str(gd_main)
         os.environ["LSU_GEM5_BIN"] = str(gem5_bin())
         os.environ["PYTHONHASHSEED"] = "0"
@@ -471,9 +490,14 @@ def main():
             text=True, env=env_real, cwd=str(WT))
         gate_ok = '"ok": true' in rgate.stdout
         if not gate_ok:
-            check("d_real_gate_precondition", False,
-                  f"guard gate BLOCKED（宿主内存/磁盘/编译进程状态不支持本项）: "
-                  f"{rgate.stdout[-300:]}")
+            # [R6-MERGEFIX 2026-10-23] guard gate 是**宿主环境前置条件**（内存/
+            # swap/编译进程/磁盘红线）。实测本机：disk free 64.4 GiB < 红线
+            # max(50, 0.20×353.2)=70.6 GiB → 合法 BLOCKED（blocked/compile 均空）。
+            # 这是环境阻塞、非缺陷：诚实结果 = 显式 ENV skip 并附真实 gate 输出，
+            # 绝不当 FAIL（假缺陷）也绝不当 PASS（假成功）。
+            skip_env("d_real_gate_precondition",
+                     f"guard gate BLOCKED（宿主内存/磁盘/编译进程状态不支持本项）: "
+                     f"{rgate.stdout[-300:]}")
         else:
             os.environ["LSU_GUARD_DIR"] = str(gd_real)
             results = {}
@@ -766,8 +790,19 @@ def main():
               and not c2,
               f"st1={st1} st2={st2} fin={fin} new={sorted(c2)}")
 
-        print(f"\nFAILURES: {fails if fails else '无'}")
-        return 1 if fails else 0
+        # 判定输出（lsu_test_runner 依末行分类）：
+        #   有 FAIL            → FAILURES: [...]（FAIL）
+        #   仅环境阻塞 skip    → 末行含 SKIPPED（SKIP：诚实跳过，非 PASS）
+        #   全绿               → FAILURES: 无（PASS）
+        if fails:
+            print(f"\nFAILURES: {fails}")
+            return 1
+        if env_skips:
+            print(f"\nSKIPPED（宿主环境阻塞 {len(env_skips)} 项，未判定："
+                  f"{env_skips}）——不计入 PASS")
+            return 0
+        print("\nFAILURES: 无")
+        return 0
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
         shutil.rmtree(tmp_wt, ignore_errors=True)
