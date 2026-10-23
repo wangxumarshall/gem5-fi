@@ -14,7 +14,13 @@
      在多形状事件流上给出**逐事件同结果**（含并列时的先到先得）；
   2. `write_chain_report` 在 ~222k 事件流上于限时内完成（真机 < 60s），且
      chain 判定与小流参考形状一致（terminal=full / provable_to=L5）；
-  3. 小流参考形状的 chain_report 判定载荷与出厂实现逐字段相同。
+  3. 小流参考形状的 chain_report 判定载荷与出厂实现逐字段相同；
+  4. 负例：仅生命周期 chain_end（无真实 L5 检测事件）绝不判 full
+     （只到 L4、beyond=Unknown、门禁不得 READY）。
+
+[R6-GATE-D1] 合成流须含**真实 L5 检测事件**：errant_commit 富化
+detection_layer=L5 + outcome + 链关联 corr（挂于 taint_reg 下，同一条
+parent_event_id DAG）——生命周期 chain_end 永不充当 L5。
 
 用法：python3 tests/test_lsu_campaign_large_stream.py   （退出码 0=全 PASS）
 """
@@ -76,29 +82,50 @@ def _cancel_alarm():
 # 流生成：与 r6_mc_O01-F0-W7 同形（单 fault_id；spine L0→L5 一条 + consumer
 # 链扇形展开，每条链挂到 spine 的 L3 节点上，祖先深度 ~CHAIN_LEN）。
 # --------------------------------------------------------------------------
-def _spine(n_events_out):
+def _spine(n_events_out, real_l5=True):
     """返回 (lines, spine_tail_id)。L0→L1→L2→L3→L4→L5 单链，形状对齐
-    T04 参考流（可在同一流内证得 full）。"""
+    T04 参考流（可在同一流内证得 full）。
+
+    [R6-GATE-D1] L5 的唯一合法证据是**真实检测事件**（非生命周期 kind +
+    detection_layer + outcome + 链关联 corr）。真实流里 errant_commit 就是
+    检测点——未富化时只到 L4；富化后（detection_layer=L5 + outcome=SDC +
+    corr=taint_prop）才占 L5，链据此证得 full。生命周期 chain_end 由
+    构造永不占 L5（corr=none，kind=chain_end → _layer_of=None）。
+
+    real_l5=False：errant_commit 保持未富化（只到 L4），仅剩生命周期
+    chain_end——供负例断言"仅有 chain_end 绝不判 full"。
+    """
+    errant = "dyn_inst_seq=5 request_id=77 corr=taint_prop"
+    if real_l5:
+        # 真实 L5 检测事件载荷：检测层 + 结局 + 链关联 corr（挂在 taint_reg 下）
+        errant += " detection_layer=L5 outcome=SDC"
     seq = [
-        ("inj", ""), ("addr_form", ""), ("mem_req", ""), ("resp", ""),
-        ("taint_reg", ""), ("errant_commit", ""),
-        ("chain_end", "detection_layer=Hardware contained= outcome=SDC"),
+        ("inj", "corr=origin"),
+        ("addr_form", "va=0x1000 corr=origin"),
+        ("mem_req", "dyn_inst_seq=5 va=0x1000 corr=seq_primary"),
+        ("resp", "dyn_inst_seq=5 corr=seq_primary"),
+        ("taint_reg", "dyn_inst_seq=5 arch_reg=3 phys_reg=9 corr=taint_prop"),
+        ("errant_commit", errant),
+        # 生命周期终局标记：corr=none；即便带 detection_layer/outcome 也
+        # 永不充当 L5（D1 结构性堵死 ready_by_chain_end_only）
+        ("chain_end", "detection_layer=Hardware contained= outcome=SDC "
+                      "corr=none"),
     ]
     lines = []
     parent = ""
     for i, (kind, extra) in enumerate(seq):
         lines.append(
             "PROP-EVT: kind=%s run_id=R6SCAL-F0-W1 sample_run_id=s1 "
-            "fault_id=1 event_id=%d parent_event_id=%s tick=%d %s corr=origin"
+            "fault_id=1 event_id=%d parent_event_id=%s tick=%d %s"
             % (kind, i, parent, 1000 + i, extra))
         parent = str(i)
     n_events_out.append(len(lines))
     return lines, 3   # resp (L3) 的 event_id
 
 
-def _stream_lines(n_chains, chain_len, n_events_out):
+def _stream_lines(n_chains, chain_len, n_events_out, real_l5=True):
     """spine + 扇形 consumer 链；事件计数写入 n_events_out。"""
-    lines, fanout_parent = _spine(n_events_out)
+    lines, fanout_parent = _spine(n_events_out, real_l5)
     eid = len(lines)
     for c in range(n_chains):
         parent = str(fanout_parent)
@@ -115,9 +142,9 @@ def _stream_lines(n_chains, chain_len, n_events_out):
     return lines
 
 
-def _write_stream(path, n_chains, chain_len):
+def _write_stream(path, n_chains, chain_len, real_l5=True):
     counts = []
-    lines = _stream_lines(n_chains, chain_len, counts)
+    lines = _stream_lines(n_chains, chain_len, counts, real_l5)
     with gzip.open(str(path), "wt", encoding="utf-8") as f:
         f.write("# prop-evt v1: test_lsu_campaign_large_stream\n")
         f.writelines(ln + "\n" for ln in lines)
@@ -238,10 +265,47 @@ def section_small_reference():
         check("未截断 → chain_valid True", rep["chain_valid"] is True)
 
 
+def section_negative_lifecycle_only():
+    """[4] 负例：仅生命周期 chain_end（无真实 L5 检测事件）绝不判 full。
+
+    [R6-GATE-D1] 生命周期 chain_end 由构造不占 L5（ready_by_chain_end_only
+    结构性堵死）：即便它带 detection_layer/outcome 文本，也不得把链推成
+    full；链只能诚实停在 L4（provable_to_L4_then_unknown，beyond=Unknown），
+    门禁不得 READY。
+    """
+    print("[4] 负例：仅 chain_end（无真实 L5 检测）→ 不得判 full")
+    with tempfile.TemporaryDirectory() as td:
+        d = Path(td)
+        _write_stream(d / "prop_evt.txt.gz", 2, 8, real_l5=False)
+        (d / "stats.txt").write_text("simTicks 1\n")
+        events, _tr = P.read_events(d / "prop_evt.txt.gz")
+        ref = CHAIN.check_chain(events, oracle_outcome="Crash")
+        f1 = ref["faults"]["1"]
+        check("负例 terminal != full", f1["terminal"] != "full",
+              f1["terminal"])
+        check("负例 terminal=provable_to_L4_then_unknown",
+              f1["terminal"] == "provable_to_L4_then_unknown",
+              f1["terminal"])
+        check("负例 provable_to=L4", f1["provable_to"] == "L4",
+              f1["provable_to"])
+        check("负例 beyond=Unknown（开放终局，绝不 full）",
+              f1["beyond"] == "Unknown", repr(f1["beyond"]))
+        adm = CHAIN.check_admission({"run_id": "R6SCAL-F0-W1", "activated": 1,
+                                     "events": events,
+                                     "oracle_outcome": "Crash"})
+        check("负例门禁不得 READY（not admitted）", adm["admitted"] is False,
+              adm["admitted"])
+        rep = LC.write_chain_report(d, "R6SCAL-F0-W1", 3,
+                                    {"outcome": "Crash"}, exit_code=0)
+        check("负例 chain_report terminal != full",
+              rep["terminal"] != "full", rep["terminal"])
+
+
 def main():
     section_equivalence()
     section_large_bound()
     section_small_reference()
+    section_negative_lifecycle_only()
     print()
     if FAILED:
         print("FAILED (%d): %s" % (len(FAILED), FAILED))
