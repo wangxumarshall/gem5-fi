@@ -311,6 +311,13 @@ def first_detection_source(l5):
     """
     outcome = (l5 or {}).get("outcome")
     note = None
+    # [R6-ORACLE][G7] 真实检测器信号优先（lsu_l5_classify 的 detection_layer
+    # 来自 CLI 或 stdout CHAOS_DETECT 行，且 detected_na=False）；无信号才走
+    # 既有降级映射（并 note "detector 未接线"）。
+    layer = (l5 or {}).get("detection_layer")
+    if layer in FIRST_DETECTION_SOURCES and not (l5 or {}).get("detected_na"):
+        return layer, (f"detector signal（{(l5 or {}).get('detection_layer_source')}"
+                       f"）: contained={(l5 or {}).get('contained')}")
     if outcome == "Crash" and (l5 or {}).get("crash_kind") == "guest_or_unknown":
         src = "OS"
         note = "guest crash observed via kernel trap; detector signal not wired"

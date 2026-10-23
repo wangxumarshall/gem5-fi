@@ -361,6 +361,15 @@ def main():
           "no hardware detector present"
           in (C.first_detection_source(make_l5("SDC"))[1] or ""),
           str(C.first_detection_source(make_l5("SDC"))))
+    # [R6-ORACLE][G7] 真实检测器信号优先于降级映射
+    l5_sig = make_l5("Detected/Contained")
+    l5_sig.update({"detection_layer": "Hardware RAS", "detected_na": False,
+                   "detection_layer_source": "stdout:CHAOS_DETECT",
+                   "contained": True})
+    src_sig, note_sig = C.first_detection_source(l5_sig)
+    check("g7_fds_from_detector_signal",
+          src_sig == "Hardware RAS" and "detector signal" in note_sig,
+          str((src_sig, note_sig)))
 
     # ---- 9) build_observation + chain_complete + 四状态拆分（纠偏 v2） ----
     ident = {"campaign": "t", "runid": "A01-F0-W9", "sample": "s0",

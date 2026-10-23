@@ -106,6 +106,51 @@ def _fault_linkage(injlog_text):
     return None
 
 
+_DETECT_RE = re.compile(r"CHAOS_DETECT:\s*(?P<kv>.*)$", re.M)
+_DETECT_LAYERS = ("Hardware RAS", "OS", "Application", "None")
+
+
+def _detection_signal(stdout, args):
+    """[R6-ORACLE][G7] 检测器信号（G7：Detected/Contained 必须可被填充）。
+
+    审计 G7：`detected` 硬编码 0、detected_na=True，五类分栏缺
+    Detected-contained 一类。信号来源（优先级）：
+      1. CLI 显式 --detected-layer / --contained（驱动或未来接线可传）
+      2. stdout 检测器行（**发射器侧字段契约**，见 plan 文件）：
+         CHAOS_DETECT: layer=<Hardware RAS|OS|Application|None>
+         contained=<0|1> tick=<n> ptag=<n> reason=<...>
+    无任何信号 → 返回 None（调用方记 detected_na=True + classes_na，n/a，
+    绝不静默写 0 冒充"实测零检出"）。layer 必须落在总方针 §32 的四值内，
+    否则拒绝采信（响亮，不猜测）。
+    """
+    cli_layer = getattr(args, "detected_layer", None)
+    if cli_layer:
+        if cli_layer not in _DETECT_LAYERS:
+            return None
+        return {"layer": cli_layer,
+                "contained": bool(getattr(args, "contained", False)),
+                "source": "cli", "raw": None, "tick": None, "ptag": None,
+                "reason": None}
+    # kv 解析：值可含空格（"Hardware RAS"），以"下一个 key="为界，不能按
+    # 空白切分（否则 layer 会被截成 "Hardware" —— 实测暴露）。
+    kv_re = re.compile(r"(layer|contained|tick|ptag|reason)=([^=]*?)(?=\s+\w+=|$)")
+    for m in _DETECT_RE.finditer(stdout or ""):
+        kv = {k: v.strip() for k, v in kv_re.findall(m.group("kv"))}
+        layer = kv.get("layer")
+        if layer not in _DETECT_LAYERS:
+            continue
+        return {"layer": layer,
+                "contained": kv.get("contained") in ("1", "true", "True"),
+                "source": "stdout:CHAOS_DETECT",
+                "raw": m.group(0).strip(),
+                "tick": (int(kv["tick"]) if kv.get("tick", "").isdigit()
+                         else None),
+                "ptag": (int(kv["ptag"]) if kv.get("ptag", "").isdigit()
+                         else None),
+                "reason": kv.get("reason")}
+    return None
+
+
 def _taint_chain(prop_trace_path):
     """污染链关联：给了 prop_trace 则取 taint 终点/ptag（复用 L3 解析器）。
 
@@ -435,13 +480,42 @@ def classify(args):
                 0, dp["tick"] - out["fault_linkage"]["injected_tick"])
 
     # ---- L5 five-class + conservation (04 L5 pinned identity) ----
-    # Detected/Contained: no detector wired yet (W6 protection modeling) —
-    # reported as detected=0 with detected_na=True, never silently.
-    detected = 0
-    out["detected_na"] = True
+    # ---- G7: 检测器信号 → Detected/Contained（五类分栏缺的那一类） ----
+    # 审计 G7：detected 硬编码 0 + detected_na=True → 该类永远无法被填充。
+    # 有真实信号（CLI 或 stdout CHAOS_DETECT 行）→ 采信并填充该类；无信号 →
+    # detected_na=True 且 classes_na 显式标该类为 n/a（绝不静默零：0 检出
+    # 只在真有检测器时才叫"实测零"）。
+    sig = _detection_signal(stdout, args)
+    classes_na = []
+    if sig is not None:
+        out["detection_layer"] = sig["layer"]
+        out["detection_layer_source"] = sig["source"]
+        out["detection_signal"] = sig
+        out["detected"] = True
+        out["detected_na"] = False
+        out["contained"] = sig["contained"]
+        if sig["contained"] and outcome == "Masked":
+            # 检出且被隔离 = 五类里的 Detected-contained（无架构可见损坏）
+            outcome = "Detected/Contained"
+        elif sig["contained"]:
+            # 信号说 contained 却有损坏/崩溃——证据矛盾，响亮记（保物理证据）
+            out["detection_inconsistency"] = (
+                f"检测器报 contained=1 但结局为 {outcome}——证据矛盾，"
+                f"保留实测结局并单列（不静默改判）")
+    else:
+        # 无信号：不覆盖 G1 已推导的层（Crash 的 detection_layer），只对
+        # 尚未设定者记 n/a；Detected/Contained 一类显式标 n/a（不静默零）。
+        out.setdefault("detection_layer", None)
+        out.setdefault("detection_layer_source",
+                       "无检测器信号（无 CLI --detected-layer、stdout 无 "
+                       "CHAOS_DETECT 行）→ n/a，不写静默零")
+        out["detected"] = None
+        out["detected_na"] = True
+        classes_na = ["Detected/Contained"]
+        out["classes_na"] = classes_na
     activated = injected if injected is not None else 0
     # single-run verdict: the whole activated count lands in one class
-    classes = {"Masked": 0, "Detected/Contained": detected, "SDC": 0,
+    classes = {"Masked": 0, "Detected/Contained": 0, "SDC": 0,
                "Crash": 0, "Timeout": 0}
     if outcome in classes:
         if activated:
@@ -479,6 +553,11 @@ def main():
                    help="oracle 口径（与 tools/classify.py 同名同义）")
     p.add_argument("--oracle-tol", dest="oracle_tol", type=int, default=0,
                    help="fp_ulp oracle 的容差（ULP）")
+    p.add_argument("--detected-layer", dest="detected_layer", default=None,
+                   choices=["Hardware RAS", "OS", "Application", "None"],
+                   help="检测层显式输入（总方针 §32 四值；G7）")
+    p.add_argument("--contained", dest="contained", action="store_true",
+                   help="该检测是隔离的（→ Detected/Contained；G7）")
     p.add_argument("--json", help="optional JSON output path")
     a = p.parse_args()
     r = classify(a)
