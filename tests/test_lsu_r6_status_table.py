@@ -89,6 +89,8 @@ def build(tmp):
     (d.parent / "cell_results.json").write_text(json.dumps(
         {"runs": [{"seed": 1, "outcome": "Detected/Contained",
                    "chain": {"exit_code": 0}}]}))
+    # 嵌套调试产物（seed1/dbgrun/...）不得计为样本/seed
+    _write_stream(d / "dbgrun", FULL_CHAIN)
     # CHAIN_INCOMPLETE：部分链（有 oracle）
     d = root / "r6_b" / "X02-F0-W1" / "seed1"
     _write_stream(d, PARTIAL_CHAIN)
@@ -156,6 +158,8 @@ def test_all_states_reachable_and_truncation_not_complete():
         # P1 完整流
         assert rows["X01-F0-W1"]["complete_streams"] == 1
         assert rows["X01-F0-W1"]["truncated_streams"] == 0
+        # 嵌套调试产物 seed1/dbgrun 不计样本
+        assert rows["X01-F0-W1"]["pilot_seeds"] == 1, rows["X01-F0-W1"]
         # 无流 ⇒ not measured，绝不 Masked/Contained
         assert rows["X06-F0-W1"]["oracle_result"] == "not measured"
         assert rows["X06-F0-W1"]["pilot_seeds"] == 0

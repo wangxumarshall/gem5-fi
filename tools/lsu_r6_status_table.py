@@ -165,7 +165,16 @@ def discover(runs_root: Path, known_runids: set) -> tuple[dict, list]:
                 continue
             seed_dir = p.parent
             run_id = _walk_ancestor_run_ids(seed_dir, known_runids)
-            m = re.search(r"(\d+)", seed_dir.name)
+            # 规格布局：<RunID>/seed<N>/prop_evt.txt.gz（也接受结果目录直挂流）。
+            # 嵌套的调试产物（如 seed1/dbgrun/prop_evt.txt.gz）不计为样本。
+            m = re.fullmatch(r"seed(\d+)", seed_dir.name)
+            if m is None:
+                if run_id is None:
+                    is_run_dir = False
+                else:
+                    is_run_dir = seed_dir.name == run_id
+                if not is_run_dir:
+                    continue
             seed = m.group(1) if m else "?"
             events, read_trunc = P.read_events(p)
             # read_events 遇异常会置 truncated；再独立复核 gzip EOF 一次
