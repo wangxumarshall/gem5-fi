@@ -221,12 +221,141 @@ def test_real_root_anchors():
         assert r["upstream_blocked"] is True
 
 
+# ---------------------------------------------------------------------------
+# [R6-FIXD2] 两轴表达（裁决 B）：axis A evidence_state（磁盘事实，仅五值，永不为
+# BLOCKED）× axis B eligibility（RUNNABLE/BLOCKED + blocker_code/blocker_detail）。
+# 两轴**并存**，绝不互相覆盖；汇总**同时**报告两轴计数与 blocker_code 分类。
+# ---------------------------------------------------------------------------
+def _two_axis_fixture(tmp):
+    """自足夹具：阻塞+截断 并存、阻塞+已准入 并存、无流、可运行+已准入。"""
+    root = tmp / "root"
+    runs = root / "runs/lsu"
+    runs.mkdir(parents=True)
+    # Y09 NOT_RUN：无任何流（不建目录）
+    # Y10 阻塞(FS-INFRA) + 截断：两轴并存
+    _write(runs / "r6_y10" / "Y10-F0-W1" / "seed1", refused_chain("Y10-F0-W1"),
+           truncate=True, stats=False)
+    # Y11 阻塞(FS-INFRA) + 已准入：磁盘事实 = PILOT_READY 质量，仍 BLOCKED
+    _write(runs / "r6_y11" / "Y11-F0-W1" / "seed1", admitted_chain("Y11-F0-W1"))
+    # Y12 可运行 + 已准入：RUNNABLE/PILOT_READY
+    _write(runs / "r6_y12" / "Y12-F0-W1" / "seed1", admitted_chain("Y12-F0-W1"))
+    entries = [
+        _entry("Y09-F0-W1"),
+        _entry("Y10-F0-W1", upstream="BLOCKED", cat="FS-INFRA"),
+        _entry("Y11-F0-W1", upstream="BLOCKED", cat="FS-INFRA"),
+        _entry("Y12-F0-W1"),
+    ]
+    contract = _contract(tmp, entries, root)
+    pilots = tmp / "pilot_evidence.json"
+    pilots.write_text(json.dumps({"pilots": {}}))
+    meta, rows, c = T.build(contract, pilots, root, runs)
+    return {r["run_id"]: r for r in rows}, meta, rows, c
+
+
+def test_two_axes_present_and_disjoint():
+    """每行两轴齐备；axis A 仅五值且永不为 BLOCKED（裁决 B 的硬性结构）。"""
+    with tempfile.TemporaryDirectory() as td:
+        rows, _, _, _ = _two_axis_fixture(Path(td))
+        assert set(T.EVIDENCE_STATES) == {"NOT_RUN", "EVIDENCE_MISSING",
+                                          "TRUNCATED", "UNPROVEN", "PILOT_READY"}
+        assert set(T.ELIGIBILITIES) == {"RUNNABLE", "BLOCKED"}
+        for rid, r in rows.items():
+            assert r["evidence_state"] in T.EVIDENCE_STATES, rid
+            assert r["evidence_state"] != "BLOCKED", f"{rid}: 阻塞污染了磁盘事实轴"
+            assert r["eligibility"] in T.ELIGIBILITIES, rid
+            assert isinstance(r["blocker_code"], str) and r["blocker_code"], rid
+            assert isinstance(r["blocker_detail"], str), rid
+        # 两轴联合覆盖 (PILOT_READY, BLOCKED) 这一"并存"组合
+        assert (rows["Y11-F0-W1"]["evidence_state"] == "PILOT_READY"
+                and rows["Y11-F0-W1"]["eligibility"] == "BLOCKED")
+
+
+def test_blocked_row_keeps_disk_fact_two_axes():
+    """有 blocker 的行：磁盘事实照实显示，eligibility 单独表达（两者并存）。"""
+    with tempfile.TemporaryDirectory() as td:
+        rows, _, _, _ = _two_axis_fixture(Path(td))
+        # 阻塞 + 截断：evidence=TRUNCATED 且 eligibility=BLOCKED 并存
+        y10 = rows["Y10-F0-W1"]
+        assert y10["evidence_state"] == "TRUNCATED", y10
+        assert y10["eligibility"] == "BLOCKED", y10
+        assert y10["blocker_code"] == "FS-INFRA", y10
+        # 阻塞 + 已准入：磁盘事实仍是 PILOT_READY，同时 BLOCKED（不是二选一）
+        y11 = rows["Y11-F0-W1"]
+        assert y11["evidence_state"] == "PILOT_READY", y11
+        assert y11["eligibility"] == "BLOCKED", y11
+        assert y11["blocker_code"] == "FS-INFRA", y11
+        # 无流：NOT_RUN 照实，且不被契约 status=BLOCKED 短路
+        y09 = rows["Y09-F0-W1"]
+        assert y09["evidence_state"] == "NOT_RUN", y09
+        assert y09["eligibility"] == "RUNNABLE", y09
+        assert y09["blocker_code"] == "NONE", y09
+
+
+def test_summary_reports_both_axes():
+    """汇总同时报告：各 evidence_state · RUNNABLE/BLOCKED · PILOT_READY · blocker_code 分类。"""
+    with tempfile.TemporaryDirectory() as td:
+        _, meta, rows, c = _two_axis_fixture(Path(td))
+        sumry = T.summarize(meta, rows, c)
+        assert set(sumry["evidence_states"]) == set(T.EVIDENCE_STATES), sumry
+        assert set(sumry["eligibility"]) == set(T.ELIGIBILITIES), sumry
+        assert sumry["evidence_states"]["TRUNCATED"] == 1, sumry
+        assert sumry["evidence_states"]["PILOT_READY"] == 2, sumry
+        assert sumry["eligibility"]["BLOCKED"] == 2, sumry
+        assert sumry["eligibility"]["RUNNABLE"] == 2, sumry
+        # 正式准入依据 = PILOT_READY ∧ RUNNABLE（阻塞的 Y11 不计入）
+        assert sumry["pilot_ready"]["count"] == 1, sumry
+        assert sumry["pilot_ready"]["run_ids"] == ["Y12-F0-W1"], sumry
+        assert sumry["blocker_codes"].get("FS-INFRA") == 2, sumry
+        # BLOCKED=0 解释注记必须存在（不得被读成"全部可运行/已通过"）
+        note = sumry["blocker_code_zero_note"]
+        assert "BLOCKED=0" in note and "不代表" in note, note
+
+
+def test_real_root_two_axes():
+    """真根锚点（两轴口径）：C01 / T06-T08 / L01 的真实取值。"""
+    import os
+    root = os.environ.get("LSU_CHAIN_EVIDENCE_ROOT")
+    if not root or not (Path(root) / "runs/lsu").is_dir():
+        print("[SKIP] 未设 LSU_CHAIN_EVIDENCE_ROOT（或 runs/lsu 不存在）")
+        return
+    contract = REPO / "docs/gem5-fi/lsu/mdspec/ready_contract.json"
+    pilots = REPO / "docs/gem5-fi/lsu/mdspec/pilot_evidence.json"
+    meta, rows, c = T.build(contract, pilots, Path(root), Path(root) / "runs/lsu")
+    by = {r["run_id"]: r for r in rows}
+    sumry = T.summarize(meta, rows, c)
+    # C01-F0-W1：磁盘无文件 ⇒ evidence_state=NOT_RUN（唯一命中在 /tmp 属草稿）
+    c01 = by["C01-F0-W1"]
+    assert c01["evidence_state"] == "NOT_RUN", c01
+    assert c01["eligibility"] in T.ELIGIBILITIES, c01
+    # T06/T08-F0-W4：TRUNCATED 与 BLOCKED(FS-INFRA) **并存**
+    for rid in ("T06-F0-W4", "T08-F0-W4"):
+        r = by[rid]
+        assert r["evidence_state"] == "TRUNCATED", r
+        assert r["eligibility"] == "BLOCKED", r
+        assert r["blocker_code"] == "FS-INFRA", r
+        assert r["evidence_state"] != "BLOCKED", r
+    # L01-F0-W5：TRUNCATED 与 UNPROVEN 并存表达（单轴取 TRUNCATED，UNPROVEN 独立布尔）
+    l01 = by["L01-F0-W5"]
+    assert l01["evidence_state"] == "TRUNCATED", l01
+    assert l01["conditions"]["unproven"] is True, l01
+    # 汇总两轴齐备，且 blocker_code 分类非空
+    assert set(sumry["evidence_states"]) == set(T.EVIDENCE_STATES)
+    assert set(sumry["eligibility"]) == set(T.ELIGIBILITIES)
+    assert sumry["eligibility"]["BLOCKED"] >= 1
+    assert sumry["blocker_codes"].get("FS-INFRA", 0) >= 1
+    assert "BLOCKED=0" in sumry["blocker_code_zero_note"]
+
+
 if __name__ == "__main__":
     fails = 0
     for fn in (test_six_states_reachable_and_not_overriding,
                test_truncated_and_unproven_coexist,
                test_evidence_root_mismatch_is_loud,
-               test_real_root_anchors):
+               test_real_root_anchors,
+               test_two_axes_present_and_disjoint,
+               test_blocked_row_keeps_disk_fact_two_axes,
+               test_summary_reports_both_axes,
+               test_real_root_two_axes):
         try:
             fn()
             print(f"PASS {fn.__name__}")
