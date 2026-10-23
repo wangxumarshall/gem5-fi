@@ -24,6 +24,7 @@ ROOT = HERE.parent
 sys.path.insert(0, str(ROOT / "tools"))
 import lsu_ready_contract as RC   # noqa: E402
 import lsu_chain_check as CC      # noqa: E402
+import lsu_prop_fields as P       # noqa: E402
 
 RID = "A04-F0-W3"          # 真实 READY 行（契约中 coverage=PASS）
 FAILS = []
@@ -115,9 +116,11 @@ def main():
     st = Counter(r["status"] for r in rows)
     check("计数自洽", sum(st.values()) == 325, str(dict(st)))
 
-    # 6) [R6-GATE-D2] 显式 containment（option 2）必须可达：真实 T08 pilot 是
-    #    tlb_translate_result field=walk_refill_lost detection_layer=L2
-    #    contained=1 outcome=translation_blocked —— 证真含住，须可准入。
+    # 6) [R6-GATE-D2] 显式 containment（option 2）必须可达 —— 但只在**完整收口**
+    #    的流上。[R6-FIXB] 真实 T08 pilot 的 prop_evt 流是**截断**的
+    #    （read_events → truncated=True，无 chain_end 收口）⇒ 含住主张不可证，
+    #    必须响亮拒绝（旧口径断言 admitted=True 是缺陷 #5）。合法含住的可达性
+    #    由下方"已收口"对照样本证明。
     T08_SRC = Path(os.environ.get(
         "LSU_R6_T08_EVT",
         "/home/sdc/gem5-fi-ding/runs/lsu/r6_tlb_C_T08-F0-W4/T08-F0-W4/seed1/"
@@ -130,10 +133,41 @@ def main():
                             "path": "T08-F0-W4/seed1/prop_evt.txt.gz",
                             "faults": 1, "truncated": True}}
         res = RC.chain_admission("T08-F0-W4", pl, evidence_root=str(tmp / "t08"))
-        check("真实 T08 显式含住 → admitted=True（option 2 可达）",
-              res["admitted"] is True, str(res["violations"]))
-        check("真实 T08 terminal=detected_contained",
+        _tr08 = P.read_events(d / "seed1" / "prop_evt.txt.gz")[1]
+        check("真实 T08 流确为截断（证据）", _tr08 is True, str(_tr08))
+        check("真实 T08 截断流不得凭 containment 准入（缺陷 #5 修正）",
+              res["admitted"] is False
+              and "containment_on_unclosed_stream"
+              in " ".join(res["violations"]), str(res["violations"]))
+        check("真实 T08 terminal=detected_contained（终局照旧，仅不予准入）",
               res["terminal"] == "detected_contained", str(res["terminal"]))
+
+        # 6b) [R6-FIXB] 对照组：同一含住形状 + **已收口**（chain_end）⇒ option 2
+        #     通路仍可达（不得过度收紧把合法含住也拒掉）。
+        d1b = tmp / "closed" / "T77-F0-W4"
+        (d1b / "seed1").mkdir(parents=True, exist_ok=True)
+        write_evt(d1b / "seed1" / "prop_evt.txt.gz", [
+            "PROP-EVT: kind=inj run_id=T77-F0-W4 fault_id=1 event_id=0 "
+            "parent_event_id= tick=1 corr=origin",
+            "PROP-EVT: kind=tlb_lookup run_id=T77-F0-W4 fault_id=1 event_id=1 "
+            "parent_event_id=0 tick=2 dyn_inst_seq=7 request_id=7 va=1000 "
+            "entry_index=1 field=post_lookup state_before=x state_after=y "
+            "corr=origin",
+            "PROP-EVT: kind=tlb_translate_result run_id=T77-F0-W4 fault_id=1 "
+            "event_id=2 parent_event_id=1 tick=3 dyn_inst_seq=7 request_id=7 "
+            "va=1000 pa=2000 field=walk_refill_lost detection_layer=L2 "
+            "contained=1 outcome=translation_blocked corr=origin",
+            "PROP-EVT: kind=chain_end run_id=T77-F0-W4 fault_id=1 event_id=3 "
+            "parent_event_id=2 tick=4 outcome=run_end detection_layer=None "
+            "contained=0 corr=none",
+        ])
+        pl1b = {"T77-F0-W4": {"unit": "L1d-TLB",
+                              "path": "T77-F0-W4/seed1/prop_evt.txt.gz",
+                              "faults": 1, "truncated": False}}
+        res1b = RC.chain_admission("T77-F0-W4", pl1b,
+                                   evidence_root=str(tmp / "closed"))
+        check("已收口的合法含住 → admitted=True（option 2 通路仍可达）",
+              res1b["admitted"] is True, str(res1b["violations"]))
         # 对照：无显式含住证据的样本不得凭 option 2 准入
         d2 = tmp / "no" / "T99-F0-W4"
         (d2 / "seed1").mkdir(parents=True, exist_ok=True)

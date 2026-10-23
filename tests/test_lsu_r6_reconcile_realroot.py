@@ -202,7 +202,7 @@ check("族由 RunID 前缀判定（T→tlb / L→lq / C→cache）",
       and CC._family_of([{"run_id": "L01-F0-W5"}]) == "lq")
 
 # ── [6] 性质 6：显式 containment 可准入，但仅当后续层无更深传播 (D2) ────────
-print("[6] 性质 6：显式 containment 准入须以「后续层确无更深传播」为前提")
+print("[6] 性质 6：显式 containment 准入须以「后续层确无更深传播」+「流已收口」为前提")
 def _cont(run, extra=()):
     return _evts([
         f"PROP-EVT: kind=inj run_id={run} fault_id=1 event_id=0 tick=1",
@@ -212,7 +212,14 @@ def _cont(run, extra=()):
         f"PROP-EVT: kind=tlb_translate_result run_id={run} fault_id=1 "
         "event_id=2 tick=3 dyn_inst_seq=7 request_id=7 va=1000 pa=2000 "
         "field=walk_refill_lost detection_layer=L2 contained=1 "
-        "outcome=translation_blocked",
+        # [R6-FIXB] 真实检测事件须带**链关联 corr**（真实 T05/T08 的
+        # tlb_translate_result 为 corr=seq_primary/origin）——缺 corr 的事件
+        # 不构成 L5/含住证据。
+        "outcome=translation_blocked corr=origin",
+        # [R6-FIXB] 含住主张只对**完整收口**的流成立：正常退出 ⇒ 退出回调
+        # 发射 chain_end（abort 截断样本没有，见 §[8] T08 实况）。
+        f"PROP-EVT: kind=chain_end run_id={run} fault_id=1 event_id=3 tick=4 "
+        "outcome=run_end detection_layer=None contained=0 corr=none",
         *extra,
     ])
 ok = _cont("T77-F0-W4")
@@ -290,12 +297,36 @@ check("T04 祖先上跨请求对计数 > 0（真实证据，非空报）", len(t
 check("T04 首例为同层 resp 跨请求（D3 点名形状）",
       any(x[0] == "resp" and x[2] == "resp" and x[1] != x[3] for x in _ex),
       str(_ex))
-check("T08-F0-W4 显式含住被直接承认（admitted=True, layer=L2）",
-      verdicts.get("T08-F0-W4", {}).get("admitted") is True
-      and CC.containment_from_events(
-          P.read_events(RD / CASES["T08-F0-W4"])[0], "T08-F0-W4")["layer"]
-      == "L2", str(verdicts.get("T08-F0-W4")))
-for rid in ("T05-F0-W4", "T01-F0-W4", "T10-F0-W4"):
+# [R6-FIXB] 缺陷 #5 修正：T08 的 prop_evt 流是**截断**的（gzip EOF）。含住是对
+# "该层之后无传播"的断言，只在**完整收口**（退出回调发射 chain_end）的流上可证
+# ——截断流里"更深的层未出现"只反映截断，不反映含住。故 T08 **不得**再凭
+# containment 准入（旧口径判 admitted=True 是缺陷）。
+_ev08, _tr08 = P.read_events(RD / CASES["T08-F0-W4"])
+check("T08-F0-W4 真流确为截断（read_events → truncated=True）",
+      _tr08 is True, str(_tr08))
+check("T08-F0-W4 截断流不得因 containment 准入（缺陷 #5 修正）",
+      verdicts.get("T08-F0-W4", {}).get("admitted") is False
+      and CC.containment_from_events(_ev08, "T08-F0-W4") is None,
+      str(verdicts.get("T08-F0-W4")))
+check("T08-F0-W4 拒绝理由响亮点名 containment_on_unclosed_stream",
+      "containment_on_unclosed_stream"
+      in " ".join(verdicts.get("T08-F0-W4", {}).get("violations", [])),
+      str(verdicts.get("T08-F0-W4", {}).get("violations")))
+# [R6-FIXB] 反证（不过度收紧）：T05-F0-W4 是**完整**运行的真实含住证据
+# （truncated=False + chain_end 收口 + tlb_translate_result dl=L2 contained=1
+# field=effective_pa_unchanged，其后无更深见证）——合法含住仍必须可准入。
+_ev05, _tr05 = P.read_events(RD / CASES["T05-F0-W4"])
+_b05 = CC.containment_from_events(_ev05, "T05-F0-W4")
+check("T05-F0-W4 真流为完整运行（truncated=False）", _tr05 is False,
+      str(_tr05))
+check("T05-F0-W4 合法含住仍可准入（real-evidence containment 不过度收紧）",
+      verdicts.get("T05-F0-W4", {}).get("admitted") is True
+      and bool(_b05) and _b05["layer"] == "L2"
+      and _b05["na_layers"] == ["L3", "L4", "L5"],
+      str(verdicts.get("T05-F0-W4")))
+check("T05-F0-W4 准入依据是真实检测事件（非生命周期链末）",
+      _b05["metrics"]["L2"]["kind"] == "tlb_translate_result", str(_b05))
+for rid in ("T01-F0-W4", "T10-F0-W4"):
     check(f"{rid} 未被链末/更深层见证误准入",
           verdicts.get(rid, {}).get("admitted") is False,
           str(verdicts.get(rid)))
@@ -349,8 +380,15 @@ with tempfile.TemporaryDirectory(prefix="l34contract_") as td:
           and all((r.get("chain") or {}).get("admitted") is not True
                   or r["status"] == "BLOCKED" for r in rows),
           str(cg["blocked_upstream_admitted"]))
-    check("准入行 = T06-F0-W4 / T08-F0-W4（显式含住，均上游 FS-INFRA 阻塞）",
-          sorted(cg["blocked_upstream_admitted"]) == ["T06-F0-W4", "T08-F0-W4"],
+    # [R6-FIXB] 旧值 = [T06-F0-W4, T08-F0-W4]：两行都是**截断流**上的含住准入
+    # （缺陷 #5）。收口后二者一律不准入；当前 325 行里唯一凭真实含住准入的是
+    # T05-F0-W4（完整运行：truncated=False + chain_end 收口），且它同样被上游
+    # FS-INFRA 独立阻塞 —— 准入 ≠ 解锁这一性质不变。
+    check("准入行 = T05-F0-W4（完整运行的显式含住；T06/T08 截断流不再准入）",
+          sorted(cg["blocked_upstream_admitted"]) == ["T05-F0-W4"]
+          and cg["admitted"] == 1
+          and "T06-F0-W4" not in cg["blocked_upstream_admitted"]
+          and "T08-F0-W4" not in cg["blocked_upstream_admitted"],
           str(cg["blocked_upstream_admitted"]))
     check("已评估=64 / 未准入(有样本)=44 / 无样本=197",
           cg["evaluated"] == 64 and cg["unproven"] == 44

@@ -493,6 +493,9 @@ def main():
         "PROP-EVT: kind=tlb_fault fault_id=1 event_id=2 parent_event_id=1 "
         "tick=3 detection_layer=Hardware contained=1 "
         "outcome=GenericPageTableFault",
+        # [R6-FIXB] 含住准入须以**完整收口**的流为前提（正常退出 ⇒ chain_end）。
+        "PROP-EVT: kind=chain_end fault_id=1 event_id=3 parent_event_id=2 "
+        "tick=4 outcome=run_end detection_layer=None contained=0 corr=none",
     ])
     r = adm(cont, run_id="CT1", containment={
         "layer": "L2", "reason": "翻译阶段 Hardware 检测并含住",
@@ -659,6 +662,12 @@ def main():
         "event_id=2 parent_event_id=1 tick=3 dyn_inst_seq=7 request_id=7 "
         "va=1000 pa=2000 field=walk_refill_lost detection_layer=L2 "
         "contained=1 outcome=translation_blocked corr=origin",
+        # [R6-FIXB] 含住主张须建立在**完整收口**的流上：正常退出的样本由
+        # 退出回调发射生命周期 chain_end（abort 样本没有）——故合法含住夹具
+        # 必须收口，否则与截断流不可区分（见 [18]）。
+        "PROP-EVT: kind=chain_end run_id=T77-F0-W4 fault_id=1 event_id=3 "
+        "parent_event_id=2 tick=4 outcome=run_end detection_layer=None "
+        "contained=0 corr=none",
     ])
     b = CC.containment_from_events(cont_ok, "T77-F0-W4")
     check("显式含住证据 → 束合法（layer=L2 / na_layers=L3,L4,L5）",
@@ -691,6 +700,157 @@ def main():
           CC.containment_from_events(
               _evts(["PROP-EVT: kind=inj fault_id=1 event_id=0 tick=1"]),
               "N1") is None)
+
+    print()
+    print("[17] R6-FIXB：chain_end 生命周期标记不得充当 L5 / 不得制造 containment")
+    # [R6-FIXB] 净新语义收口：**两处**曾把生命周期链条目 chain_end 当成真实 L5——
+    #   (i)  containment_from_events 只查 detection_layer+outcome+contained，
+    #        chain_end（退出回调，corr=none）于是被采信为含住见证；
+    #   (ii) _terminal 的 "explicit contained" 扫描读**原始** contained，
+    #        吃掉 chain_end 自带的 contained=1，把已有真实检测事件的链
+    #        从 full 拉低成 detected_contained。
+    # chain_end 是**生命周期标记**（C++ CHAOSPropagation.cc 退出回调；
+    # corr=none 无关联语义），其存在与否只表示"流是否正常收口"，
+    # 绝不表示检测/含住。
+    # (a) chain_end-only（富化载荷 contained=1 + detection_layer=L5），链上无
+    #     任何真实检测事件 → 不得 full、不得判含住、不得准入。
+    c17a = _evts([
+        "PROP-EVT: kind=inj run_id=X00-F0-W0 fault_id=1 event_id=0 tick=1",
+        "PROP-EVT: kind=addr_form run_id=X00-F0-W0 fault_id=1 event_id=1 tick=2",
+        "PROP-EVT: kind=mem_req run_id=X00-F0-W0 fault_id=1 event_id=2 tick=3",
+        "PROP-EVT: kind=resp run_id=X00-F0-W0 fault_id=1 event_id=3 tick=4",
+        "PROP-EVT: kind=taint_reg run_id=X00-F0-W0 fault_id=1 event_id=4 tick=5",
+        "PROP-EVT: kind=errant_commit run_id=X00-F0-W0 fault_id=1 event_id=5 "
+        "tick=6",
+        # 真实 T04/T02 形状：chain_end 带 dl=L5 + contained=1 + outcome
+        "PROP-EVT: kind=chain_end run_id=X00-F0-W0 fault_id=1 event_id=6 "
+        "tick=7 detection_layer=L5 contained=1 outcome=errant_commit_seen "
+        "corr=none",
+    ])
+    f17a = CC.check_chain(c17a)["faults"]["1"]
+    check("chain_end 富化载荷不占 L5（L4->L5 missing）",
+          f17a["edges"]["L4->L5"] == "missing", str(f17a["edges"]))
+    check("chain_end-only 不得 full", f17a["terminal"] != "full",
+          f17a["terminal"])
+    check("chain_end-only 诚实止于 L4（provable_to_L4_then_unknown）",
+          f17a["terminal"] == "provable_to_L4_then_unknown", f17a["terminal"])
+    b17a = CC.containment_from_events(c17a, "X00-F0-W0")
+    check("chain_end 不得制造含住束（束=None）", b17a is None, str(b17a))
+    r17a = adm(c17a, run_id="X00-F0-W0", containment=b17a)
+    check("chain_end-only 不准入", r17a["admitted"] is False,
+          str(r17a["violations"]))
+
+    # (b) 真实检测事件（富化 errant_commit）+ chain_end 自带 contained=1：
+    #     P6 决定性形状 —— 结论必须由真实检测事件给出（full），
+    #     chain_end 不得把它拉低成 detected_contained。
+    c17b = _evts([
+        "PROP-EVT: kind=inj run_id=X01-F0-W0 fault_id=1 event_id=0 tick=1",
+        "PROP-EVT: kind=addr_form run_id=X01-F0-W0 fault_id=1 event_id=1 tick=2",
+        "PROP-EVT: kind=mem_req run_id=X01-F0-W0 fault_id=1 event_id=2 tick=3",
+        "PROP-EVT: kind=resp run_id=X01-F0-W0 fault_id=1 event_id=3 tick=4",
+        "PROP-EVT: kind=taint_reg run_id=X01-F0-W0 fault_id=1 event_id=4 tick=5",
+        "PROP-EVT: kind=errant_commit run_id=X01-F0-W0 fault_id=1 event_id=5 "
+        "tick=6 detection_layer=L5 outcome=errant_commit contained=0 "
+        "corr=taint_prop",
+        "PROP-EVT: kind=chain_end run_id=X01-F0-W0 fault_id=1 event_id=6 "
+        "tick=7 detection_layer=L5 contained=1 outcome=errant_commit_seen "
+        "corr=none",
+    ])
+    f17b = CC.check_chain(c17b)["faults"]["1"]
+    check("真实检测事件 + chain_end 自带 contained=1 ⇒ 仍判 full（不被拉低）",
+          f17b["terminal"] == "full", f17b["terminal"])
+    check("含住束不得由 chain_end 制造（真实事件 contained=0）",
+          CC.containment_from_events(c17b, "X01-F0-W0") is None)
+    r17b = adm(c17b, run_id="X01-F0-W0",
+               containment=CC.containment_from_events(c17b, "X01-F0-W0"))
+    check("真实检测事件驱动的 full 仍准入（不过度收紧，对照组）",
+          r17b["admitted"] is True, str(r17b["violations"]))
+    check("full 链 path=full_chain", r17b["path"] == "full_chain",
+          str(r17b.get("path")))
+
+    # (c) P6 真流决定性证据（Lane B 归因引用）：删/不删 chain_end 结论必须相同。
+    p6 = Path(os.environ.get(
+        "LSU_R6_P6_EVT",
+        "/home/sdc/gem5-fi-ding/runs/lsu/r6_p1_T01-F0-W4/T01-F0-W4/seed2/"
+        "prop_evt.txt.gz"))
+    if p6.is_file():
+        ev6, _t6 = P.read_events(p6)
+        t6_with = CC.check_chain(ev6)["faults"]["1"]["terminal"]
+        t6_without = CC.check_chain(
+            [e for e in ev6 if e.get("kind") != "chain_end"]
+        )["faults"]["1"]["terminal"]
+        print(f"  INFO P6 带 chain_end={t6_with} / 删除后={t6_without}")
+        check("P6：chain_end 的存在不改变结论（不被拉低）",
+              t6_with == t6_without, f"{t6_with} vs {t6_without}")
+        check("P6：真实 errant_commit 检测事件驱动的终局为 full",
+              t6_with == "full", t6_with)
+        check("P6：chain_end 不得制造含住束",
+              CC.containment_from_events(ev6, "T01-F0-W4") is None)
+    else:
+        print("  SKIP P6 真流不在（合成例已覆盖）")
+
+    print("[18] R6-FIXB：截断 / 未收口流不得因 containment 被准入（缺陷 #5）")
+    t08p = Path(os.environ.get(
+        "LSU_R6_T08_EVT",
+        "/home/sdc/gem5-fi-ding/runs/lsu/r6_tlb_C_T08-F0-W4/T08-F0-W4/seed1/"
+        "prop_evt.txt.gz"))
+    if t08p.is_file():
+        ev08, tr08 = P.read_events(t08p)
+        check("T08 真流确为截断（gzip EOF，truncated=True）", tr08 is True)
+        check("截断流不得推出含住束（束=None）",
+              CC.containment_from_events(ev08, "T08-F0-W4") is None)
+        r08 = adm(ev08, run_id="T08-F0-W4",
+                  containment=CC.containment_from_events(ev08, "T08-F0-W4"))
+        j08 = " ".join(r08["violations"])
+        check("截断流不得因 containment 被准入", r08["admitted"] is False, j08)
+        check("截断流不准入须响亮给因（点名未收口/截断）",
+              "containment_on_unclosed_stream" in j08, j08[:200])
+    else:
+        print("  SKIP 真实 T08 流不在（合成例已覆盖）")
+    check("R6-FIXB 规则名登记在 GATE_VIOLATIONS",
+          {"containment_on_unclosed_stream", "containment_on_truncated_stream"}
+          <= set(CC.GATE_VIOLATIONS), str(CC.GATE_VIOLATIONS))
+
+    # 显式截断信号（bundle）——调用方已判定截断时，一律不得含住准入。
+    closed_like = _evts([
+        "PROP-EVT: kind=inj run_id=T77-F0-W4 fault_id=1 event_id=0 tick=1",
+        "PROP-EVT: kind=tlb_lookup run_id=T77-F0-W4 fault_id=1 event_id=1 "
+        "tick=2 dyn_inst_seq=7 request_id=7 va=1000 entry_index=1 "
+        "field=post_lookup state_before=x state_after=y",
+        "PROP-EVT: kind=tlb_translate_result run_id=T77-F0-W4 fault_id=1 "
+        "event_id=2 tick=3 dyn_inst_seq=7 request_id=7 va=1000 pa=2000 "
+        "field=walk_refill_lost detection_layer=L2 contained=1 "
+        "outcome=translation_blocked corr=origin",
+        "PROP-EVT: kind=chain_end run_id=T77-F0-W4 fault_id=1 event_id=3 "
+        "tick=4 outcome=run_end detection_layer=None contained=0 corr=none",
+    ])
+    b_ok = CC.containment_from_events(closed_like, "T77-F0-W4")
+    check("已收口的合法含住证据 → 束合法（layer=L2 / na=L3,L4,L5）",
+          bool(b_ok) and b_ok["layer"] == "L2"
+          and b_ok["na_layers"] == ["L3", "L4", "L5"], str(b_ok))
+    r_ok = adm(closed_like, run_id="T77-F0-W4", containment=b_ok)
+    check("已收口的合法含住 → 仍 admitted=True（反证不过度收紧）",
+          r_ok["admitted"] is True, str(r_ok["violations"]))
+    r_tr = adm(closed_like, run_id="T77-F0-W4", containment=b_ok,
+               truncated=True)
+    check("同一证据但显式 truncated=True ⇒ 拒绝含住准入",
+          r_tr["admitted"] is False, str(r_tr["violations"]))
+    check("显式截断响亮点名 containment_on_truncated_stream",
+          "containment_on_truncated_stream" in " ".join(r_tr["violations"]),
+          str(r_tr["violations"]))
+    check("显式 truncated 亦不得推出含住束",
+          CC.containment_from_events(closed_like, "T77-F0-W4",
+                                     truncated=True) is None)
+    # 未收口（无 chain_end）→ 含住主张不可证（同一含住检测事件）
+    unclosed = [e for e in closed_like if e.get("kind") != "chain_end"]
+    b_un = CC.containment_from_events(unclosed, "T77-F0-W4")
+    check("未收口（缺 chain_end）→ 含住束=None（含住是对缺席的断言）",
+          b_un is None, str(b_un))
+    r_un = adm(unclosed, run_id="T77-F0-W4", containment=b_un)
+    check("未收口 ⇒ 不准入 + 响亮点名 containment_on_unclosed_stream",
+          r_un["admitted"] is False
+          and "containment_on_unclosed_stream" in " ".join(r_un["violations"]),
+          str(r_un["violations"]))
 
     print()
     if FAILED:

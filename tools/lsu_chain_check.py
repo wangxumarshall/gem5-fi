@@ -20,11 +20,21 @@ contained，或 (3) 明确 squash/replay/mask 且无错误副作用。若链在�
                                 非生命周期 kind + detection_layer + outcome +
                                 链关联 corr；生命周期 chain_end 永不充当 L5）
   * provable_to_Ln_then_unknown —— 在 Ln 后缺事件（绝不推断 Masked）
-  * detected_contained      —— 存在显式 detection_layer 事件且 contained=1
+  * detected_contained      —— 存在**真实检测事件**（_explicit_l5）且 contained=1
   * squash_replay_masked    —— 存在显式 squash/replay/mask 证据事件
   （后两者只认显式事件，缺席不猜测——诚实纪律）
 - L5（检测/结局）事件当前由 runner/reclass 离线 join 产出；PROP-EVT 流内
   无 L5 kind 时链至 L4 止，L4→L5 标 missing（→ Unknown，非 Masked）。
+
+[R6-FIXB] containment 选项 2 的**完整性前提**：含住主张（"故障止于 Ln，
+之后无传播"）是对**缺席**的断言，只在**完整收口**的证据流上可证。PROP-EVT
+的收口标记是退出回调发射的生命周期 chain_end（abort/崩溃样本没有 ——
+CHAOSPropagation.cc 实证注释）。故 `containment_from_events` 对未收口流或
+调用方标记 `truncated` 的流一律返回 None；`check_admission` 在存在含住候选
+却拿不出束时响亮点名 containment_on_unclosed_stream /
+containment_on_truncated_stream。真实 T06/T08-F0-W4 的流即 abort 截断
+（read_events → truncated=True），旧口径据此判含住准入是缺陷 #5；收口后
+二者一律不准入，而完整运行的真实含住（如 T05-F0-W4）仍可准入。
 
 用法：python3 tools/lsu_chain_check.py <prop_evt.txt[.gz]> [--run-id X]
 （退出码 0=检查完成；结果打印 JSON；对多 fault_id 分别判定）
@@ -314,8 +324,16 @@ def _terminal(chain_events, edges, by_layer, path, family,
         else:
             return "detected_translation_outcome_pending"
     # 显式 contained 检测（L5 证据事件）
+    # [R6-FIXB] 这里必须用 **_explicit_l5**（真实检测事件：非生命周期 kind +
+    # detection_layer + outcome + 链关联 corr），而不是读**原始**
+    # `detection_layer`/`contained`。旧口径会把退出回调发射的 chain_end 自带的
+    # `contained=1`（corr=none，无关联语义）当成含住证据——P6 实证：真实
+    # T01-F0-W4/seed2 里 errant_commit(dl=L5 outcome=errant_commit corr=taint_prop)
+    # 已足以证明 full，却被 chain_end(contained=1) 拉低成 detected_contained；
+    # 删除 chain_end 即翻回 full。生命周期标记绝不参与终局判定。
     for e in chain_events:
-        if (e.get("detection_layer") and e.get("contained") == "1"
+        if (str(e.get("contained", "")).strip() in _CONTAINED_VALUES
+                and _explicit_l5(e)
                 and _event_has_prefix(chain_events, e, family)):
             return "detected_contained"
     # 显式 squash/replay/mask（L5 证据事件）
@@ -407,6 +425,10 @@ GATE_VIOLATIONS = (
     "missing_mandatory_metric",
     "contained_without_later_na",
     "no_closed_chain_and_no_containment",
+    # [R6-FIXB] 含住主张须建立在**完整收口**的证据流上（缺陷 #5：T06/T08-F0-W4
+    # 的 prop_evt 流被 abort 截断，却据此判含住准入）。
+    "containment_on_unclosed_stream",
+    "containment_on_truncated_stream",
 )
 
 # cache/memory kinds that must never stand in for the TLB family's L1 DTLB
@@ -547,6 +569,19 @@ def _time_reversed_gap(chain_events, family, path):
     return None
 
 
+def _truncated_flag(bundle):
+    """[R6-FIXB] 调用方（读流方）是否已判定证据流被截断。
+
+    兼容 `truncated` / `evidence_truncated`（lsu_prop_fields.read_events 的
+    截断旗标、campaign 的 evidence_truncated 记号）两种既有命名；缺省 False
+    ⇒ 由带内收口标记（chain_end 有无）自证，绝不静默放行。
+    """
+    for k in ("truncated", "evidence_truncated"):
+        if bundle.get(k):
+            return True
+    return False
+
+
 def _containment_issues(bundle, run_id):
     """Option-2 containment: returns issue list, or None when not claimed."""
     c = bundle.get("containment")
@@ -574,13 +609,84 @@ def _containment_issues(bundle, run_id):
     return issues
 
 
-def containment_from_events(events, run_id="?", fault_id=None):
+def _stream_closed(chain_events):
+    """[R6-FIXB] 证据流是否以**生命周期标记** chain_end 收口。
+
+    chain_end 由 CHAOSPropagation 的**退出回调**发射（每故障链一条），所以
+    "该链有没有 chain_end"恰好等价于"该样本是否走到正常退出"——C++ 侧铁证
+    （CHAOSPropagation.cc 的 emitDetectSignal 注释）："a crash/abort sample
+    never reaches the exit callback, **so the gz chain_end is absent**"。
+    真实 T06/T08-F0-W4 的 prop_evt 流即 abort 截断（read_events → truncated=True），
+    故无 chain_end。
+
+    含住（"故障止于 Ln，之后无传播"）是对**缺席**的断言——只有流本身完整时
+    才可证。未经收口的流无法区分"更深的层未出现"与"证据被截断"。
+    """
+    return any(e.get("kind", "") in _LIFECYCLE_KINDS for e in chain_events)
+
+
+def _key_evidence_ok(evt):
+    """[R6-FIXB] 零字节关键证据护栏：见证必须有事件身份 + 类型 + 检测载荷。
+
+    缺 event_id / kind / detection_layer / outcome 的"空壳"事件不得充当
+    含住见证（零字节关键证据不得准入）。
+    """
+    return all(str(evt.get(f, "")).strip()
+               for f in ("event_id", "kind", "detection_layer", "outcome"))
+
+
+def _obs_deepest_index(chain_events, family):
+    """最深的**观测层**索引（生命周期标记链末 chain_end 不占层、不计入）。
+
+    [R6-FIXB] 含住主张的"之后无更深传播"判定必须用观测层且排除生命周期标记：
+    chain_end 是退出回调的收口标记（`_obs_layer_of` 的 kind 映射表里虽写着
+    L5，语义上不占层）。旧口径把 chain_end 当成 L5 更深见证 ⇒ **已收口的
+    正常样本反而永远无法证明含住**（只有截断样本"没有 chain_end"才解得开）
+    ——这本身正是缺陷 #5 的另一面。
+    """
+    return max((LAYERS.index(l) for l in
+                (_obs_layer_of(x, family) for x in chain_events
+                 if x.get("kind", "") not in _LIFECYCLE_KINDS)
+                if l in LAYERS), default=-1)
+
+
+def _containment_candidate(chain_events, family):
+    """[R6-FIXB] 返回**本该**支撑含住主张的真实检测事件（或 None）。
+
+    判定与 `containment_from_events` 完全一致（contained + _explicit_l5 +
+    关键证据齐 + 前缀可证 + 无更深层见证），**只差"流已收口/未截断"这一条**。
+    用途：当束拿不出来时，用来把拒绝理由**响亮**地点名是"流未收口/被截断"
+    而不是"根本没有含住证据"。
+    """
+    for e in chain_events:
+        if str(e.get("contained", "")).strip() not in _CONTAINED_VALUES:
+            continue
+        if not _explicit_l5(e) or not _key_evidence_ok(e):
+            continue
+        if not _event_has_prefix(chain_events, e, family):
+            continue
+        layer = _obs_layer_of(e, family)
+        if layer not in LAYERS:
+            continue
+        if _obs_deepest_index(chain_events, family) > LAYERS.index(layer):
+            # 该层之后仍有见证 ⇒ 传播并未止于此，含住主张不成立
+            continue
+        return e
+    return None
+
+
+def containment_from_events(events, run_id="?", fault_id=None, truncated=False):
     """[R6-GATE-D2] 由**显式证据**推导 option-2 containment 束（绝不猜测）。
 
-    合法含住证据 = 某事件 contained=1 且 detection_layer 非空且 outcome 非空，
-    且该事件确实从单元自身 L0→L_obs 前缀可证（_event_has_prefix），且**没有**
-    更深的层见证（否则故障并未止于该层——含住主张不成立）。
+    合法含住证据 = 某事件 contained=1 且满足 `_explicit_l5`（真实检测事件：
+    **非生命周期 kind** + 非空 detection_layer + 非空 outcome + 链关联 corr），
+    关键字段齐备（非零字节），且该事件确实从单元自身 L0→L_obs 前缀可证
+    （_event_has_prefix），且**没有**更深的层见证（否则故障并未止于该层——
+    含住主张不成立），且**证据流已收口**（存在生命周期 chain_end，且调用方
+    未标记 truncated）——对"之后无传播"的断言只在完整流上可证。
 
+    [R6-FIXB] 生命周期 chain_end 恒不满足 `_explicit_l5`（corr=none），故
+    "chain_end 制造含住"由构造堵死；截断/未收口流一律返回 None。
     返回 {layer, reason, metrics, na_layers} 或 None（无证据/主张不成立）。
     """
     faults = _group_by_fault(events)
@@ -591,37 +697,25 @@ def containment_from_events(events, run_id="?", fault_id=None):
     else:
         fid, chain = max(faults.items(), key=lambda kv: len(kv[1]))
     family = _family_of(chain)
-    for e in chain:
-        if str(e.get("contained", "")).strip() not in _CONTAINED_VALUES:
-            continue
-        if str(e.get("detection_layer", "")).strip() in _EMPTY_DETECTION:
-            continue
-        if str(e.get("outcome", "")).strip() in _EMPTY_OUTCOME:
-            continue
-        if not _event_has_prefix(chain, e, family):
-            continue
-        layer = _obs_layer_of(e, family)
-        if layer not in LAYERS:
-            continue
-        deeper = max((LAYERS.index(_obs_layer_of(x, family)) for x in chain
-                      if _obs_layer_of(x, family) in LAYERS), default=-1)
-        if deeper > LAYERS.index(layer):
-            # 该层之后仍有见证 ⇒ 传播并未止于此，含住主张不成立
-            continue
-        return {
-            "layer": layer,
-            "reason": (f"{run_id} fault {fid} 显式含住：kind={e.get('kind')} "
-                       f"field={e.get('field', '')!r} detection_layer="
-                       f"{e.get('detection_layer')} outcome={e.get('outcome')}"),
-            "metrics": {layer: {"kind": e.get("kind", ""),
-                                "field": e.get("field", ""),
-                                "outcome": e.get("outcome", ""),
-                                "contained": e.get("contained", ""),
-                                "event_id": e.get("event_id", ""),
-                                "tick": e.get("tick", "")}},
-            "na_layers": LAYERS[LAYERS.index(layer) + 1:],
-        }
-    return None
+    if truncated or not _stream_closed(chain):
+        return None
+    e = _containment_candidate(chain, family)
+    if e is None:
+        return None
+    layer = _obs_layer_of(e, family)
+    return {
+        "layer": layer,
+        "reason": (f"{run_id} fault {fid} 显式含住：kind={e.get('kind')} "
+                   f"field={e.get('field', '')!r} detection_layer="
+                   f"{e.get('detection_layer')} outcome={e.get('outcome')}"),
+        "metrics": {layer: {"kind": e.get("kind", ""),
+                            "field": e.get("field", ""),
+                            "outcome": e.get("outcome", ""),
+                            "contained": e.get("contained", ""),
+                            "event_id": e.get("event_id", ""),
+                            "tick": e.get("tick", "")}},
+        "na_layers": LAYERS[LAYERS.index(layer) + 1:],
+    }
 
 
 def _missing_metrics(path, family):
@@ -756,10 +850,28 @@ def check_admission(bundle):
 
     # (1)/(2) admission decision.
     opt1 = (f["terminal"] == "full")
-    cont_issues = _containment_issues(bundle, run_id)
-    opt2 = cont_issues is not None and not cont_issues
+    cont_issues = _containment_issues(bundle, run_id) or []
+    claimed = isinstance(bundle.get("containment"), dict)
+    # [R6-FIXB] 含住主张（含调用方自带的束）须建立在**完整收口**的证据流上：
+    # 截断流（gzip EOF / 零字节关键证据，调用方显式标记）或未经 chain_end
+    # 收口的流（abort 样本）一律不得凭 containment 准入，且**响亮**点名。
+    # 不给 full 链添此限制（full 由真实检测事件 + 全边可证给出，与收口无关）。
+    if not opt1 and (claimed or _containment_candidate(chain, family)
+                     is not None):
+        if _truncated_flag(bundle):
+            cont_issues.append(
+                f"containment_on_truncated_stream: {run_id} 证据流被标记为截断"
+                f"（gzip EOF / 零字节关键证据）——含住是对'该层之后无传播'的"
+                f"断言，截断流上不可证，不得据此准入")
+        elif not _stream_closed(chain):
+            cont_issues.append(
+                f"containment_on_unclosed_stream: {run_id} fault {fid} 存在显式"
+                f"含住检测证据，但证据流未经生命周期 chain_end 收口（崩溃/"
+                f"截断样本：exit 回调未运行 ⇒ chain_end 缺失）——'之后无传播'"
+                f"不可证，不得据此准入")
     if cont_issues:
         viol.extend(cont_issues)
+    opt2 = claimed and not cont_issues
     if opt1:
         res["path"] = "full_chain"
     elif opt2:
