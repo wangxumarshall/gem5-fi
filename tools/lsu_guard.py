@@ -8,7 +8,9 @@ v2（用户指令 2026-10-12，LSU OBS 计划 T1）：
   * 锁记录 pid_start（/proc/<pid>/stat 字段22）+ monitor 每 60s 心跳重写；
     陈旧判定 = PID 不存活 **或** pid_start 不符（PID 复用免疫）。
   * claim 锁：(campaign, RunID, sample) 三元组 O_EXCL 原子认领，防重调度。
-  * 磁盘红线：GUARD_DIR 所在盘 free < max(50GiB, 20%) → gate 阻断。
+  * 磁盘：2026-10-23 用户裁决两次豁免（「去掉 /home 存储的约束」→「不再把
+    50 GiB 作为停止条件」）→ **磁盘不再是 gate 阻断条件**；仍测量并在 gate JSON
+    中如实输出 disk_free_gib/disk_total_gib（豁免，非隐藏）。
   * STOP_DISPATCH：MemAvailable < 10GiB → 拒绝新 experiment acquire。
 
 子命令：
@@ -38,7 +40,7 @@ v2（用户指令 2026-10-12，LSU OBS 计划 T1）：
 
 阈值（总方针 §8.3/§8.4 + 用户指令 2026-10-12 三.3，GiB=2^30）：
   GATE 阻断: MemAvailable < 12 或 SwapFree < 4 或存在编译进程或锁被占
-             或磁盘 free < max(50GiB, 20%×total)
+             （磁盘**不**参与阻断 —— 2026-10-23 用户裁决豁免）
   STOP_DISPATCH: MemAvailable < 10 → 拒绝新 experiment acquire（已持锁运行不受影响）
   WARNING  : MemAvailable < 10
   TRIP     : MemAvailable < 8 连续两次，或任一次 < 6，或 SwapFree < 2
