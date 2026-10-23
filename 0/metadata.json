@@ -1,0 +1,82 @@
+{
+  "cli_version": "0.10.2",
+  "checkpoint_id": "01M5M0KBD5WCBJVRR4X1P5F983",
+  "session_id": "5eba8fcb-a1a5-481f-815a-f220d1577a35",
+  "strategy": "manual-commit",
+  "created_at": "2026-10-23T09:13:50.988148825Z",
+  "branch": "lsu-mdspec-20261019",
+  "checkpoints_count": 6,
+  "save_step_count": 2,
+  "files_touched": [],
+  "agent": "Claude Code",
+  "model": "DeepSeek-V4.1-Flash",
+  "turn_id": "34c2b584d84c",
+  "checkpoint_transcript_start": 1546,
+  "transcript_lines_at_start": 1546,
+  "compact_transcript_start": 221,
+  "token_usage": {
+    "input_tokens": 65157,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 7748736,
+    "output_tokens": 15063,
+    "api_call_count": 17,
+    "subagent_tokens": {
+      "input_tokens": 266004,
+      "cache_creation_tokens": 0,
+      "cache_read_tokens": 11332480,
+      "output_tokens": 50534,
+      "api_call_count": 160
+    }
+  },
+  "skill_events_version": 1,
+  "skill_events": [
+    {
+      "id": "prompt-skill-claude-code-superpowers:executing-plans-2026-10-23T01:21:56.680324211Z",
+      "event_type": "prompt_invocation",
+      "skill": {
+        "name": "superpowers:executing-plans"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "prompt_slash_command",
+        "confidence": "explicit"
+      },
+      "turn_id": "48739cd35c6f",
+      "timestamp": "2026-10-23T01:21:56.680324211Z",
+      "native": {
+        "command": "/superpowers:executing-plans"
+      },
+      "collapse": {
+        "target": "user_message",
+        "label": "/superpowers:executing-plans",
+        "default_collapsed": true
+      }
+    }
+  ],
+  "session_metrics": {
+    "turn_count": 25
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    },
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 340116,
+      "agent_lines_removed": 39751
+    },
+    {
+      "checkpoint_number": 3,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 340116,
+      "agent_lines_removed": 39751
+    }
+  ]
+}

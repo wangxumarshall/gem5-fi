@@ -1,0 +1,211 @@
+/superpowers:executing-plans
+
+继续完成 LSU 正式实验准入。目标不是单纯将 BLOCKED 降为 0，而是确保每个正式实验 RunID 都能产出真实、完整、可审计的传播路径和各单元指标变换。满足正式准入条件后，在启动全量正式实验之前停止并通知我。
+
+先恢复现场：
+
+- 主工作目录：/home/sdc/gem5-fi-ding
+- 集成 worktree：/home/sdc/gem5-fi-ding/.claude/worktrees/lsu-mdspec-20261019
+- 当前集成分支已包含：
+  - 317c71bf：family-aware、父子 DAG 连续链检查
+  - 97f74786：T05–T08 trial-only evidence 路由
+- C++ 修补 worktree：
+  /home/sdc/gem5-fi-ding/.claude/worktrees/r6-tlb-hooks
+- 先检查该 C++ worktree 的未提交修改、构建进程和测试结果。保留有效修改，完成测试、提交和推送后再审查集成。
+- 不要直接在脏的 /home/sdc/gem5-fi-ding 主 checkout 修改或提交。
+- 检查正在运行或已结束的 S01 无注入 golden census，保留结果，不要无故重跑。
+
+使用多个 subagent 并行，但必须给每个 agent 独立 worktree和互不重叠的文件所有权。主 agent 负责审查、串行集成、统一编译、准入重算和最终裁决。
+
+并行工作建议：
+
+Agent A：完成并审查 TLB C++ 完整观测链
+- 继续 r6-tlb-hooks。
+- 必须记录故障请求自身的：
+  - L0：注入及 before/after；
+  - L1：真实 DTLB lookup，包括 entry/way、VPN、ASID、valid/global、PPN、权限、memory type、page size；
+  - L2：MMU 权限和对齐检查之后的真实 translation result，包括 PA 与 Fault；
+  - L3：LSQ request、cache/memory request/response；
+  - L4：load PRF、store 落点、异常或架构可见差异；
+  - L5：commit/squash/oracle，或有依据的 containment 结局。
+- fault_id、parent_event_id、request_id、walk_id、dyn_inst_seq 必须连续关联。
+- 对 effective PA 不变、权限拒绝、walk 丢失等路径发射明确 containment_layer 和 containment_reason。
+- chain_end 只能是生命周期事件，不能单独充当 L5。
+- 覆盖 T01–T10，尤其 T05–T08，不得只实现 lookup 内近似。
+
+Agent B：正式准入硬门禁
+- 在独立 worktree 修改 ready contract、audit 和相应测试。
+- activated 样本必须满足以下之一：
+  1. 同一 parent-event DAG 上的族专用完整 L0→L5 链；
+  2. 传播到某层后，有明确 containment 层、原因和逐层指标，后续层为有依据的 N/A(contained)。
+- 禁止 Unknown。
+- 禁止用 cache_access 冒充 TLB 的 L1。
+- 禁止拼接不同分支、不同请求或时间倒挂的边。
+- 禁止仅凭 activated=1、RC=0 或 chain_end 判 READY。
+- 逐层必录指标缺失必须响亮失败。
+
+Agent C：BLOCKED 可执行项
+- 重新读取最新 ready_contract 和 blocked_triage。
+- 优先处理约 54 个服务器侧可攻关项：
+  - FS-INFRA 24；
+  - MODE-UNIMPL 3；
+  - FS-MULTICORE W7 约25；
+  - S01/S02 census 2。
+- 不得把 LICENSE、缺失外部 workload 或规格裁决项伪造成 READY。
+- 单独列出：
+  - SPEC LICENSE 12；
+  - PARSEC/W13 6；
+  - C08 classic-cache/Ruby 互斥 4；
+  - A06 load SHRINK 6；
+  - S10-F2 2。
+- 对这些项目提供准确解除条件，不得移出325分母。
+
+Agent D：多核与 pilot 调度
+- 准备独立 outdir、guard、锁和结果清单。
+- 先等待相关代码合入和统一二进制编译完成，再启动 pilot。
+- 每个 pilot 必须生成 cell_results、原始事件流、chain_report、逐层指标和完整性结论。
+- 发现缺链立即停止同类批量任务，先修 hook，不要高速生成无效数据。
+
+服务器有约126个在线CPU，但只有约29 GiB内存，FS gem5约占2.5 GiB/进程。因此：
+
+- 代码修补 subagent：3–4个并行。
+- 统一 ARM 编译：只允许一个构建，使用 `-j16`，最多 `-j24`。
+- SE pilot：先16并发，资源稳定后可提高到24–32。
+- FS pilot：先6并发；只有 MemAvailable > 10 GiB 且 swap不增长时才能提高到8，禁止按CPU核数启动126个。
+- FS结果不要大量写入 `/tmp`，因为 `/tmp` 是约15 GiB的 tmpfs；使用 `/home/sdc` 下专用 runs 目录并及时压缩事件文件。
+- 每30秒记录 load、MemAvailable、swap、各gem5 RSS和磁盘空间。
+- MemAvailable < 8 GiB 或 swap持续增长时立即降低FS并发。
+- 不要运行 stress-ng 或无意义CPU backfill。
+
+集成顺序：
+
+1. 审查并合入严格链检查器；
+2. 合入 TLB L1/L2/containment C++ hook；
+3. 合入 T05–T08 trial路由；
+4. 合入完整链准入硬门禁；
+5. 统一构建 ARM gem5；
+6. 先做少量代表性负向和真实 pilot；
+7. 通过后按资源限制并行重跑 T系列；
+8. 并行处理多核 W7 和 S01/S02；
+9. 重新审计全部325个 RunID。
+
+每个 subagent 必须返回：
+- 分支和提交 SHA；
+- 修改文件；
+- RED→GREEN 测试；
+- 编译结果；
+- 真实 pilot 的输出路径；
+- 链完整性结论；
+- 尚未解决的风险。
+
+主 agent 不得盲目合并。每次合并后统一测试并推送。上下文接近上限时，把HEAD、任务状态、运行进程、证据路径和剩余项写入进度文件并提交，然后继续，不得因阶段总结或subagent完成而停止。
+
+只有同时满足以下条件才可停止：
+
+1. 所有可实现 hook、路由和观测点已经实现、编译并测试；
+2. 325个RunID全部重新审计；
+3. 每个可执行实验都有完整族专用传播链，或有明确、可审计的 containment 路径；
+4. 所有 activated 样本均无 Unknown；
+5. 每层关键指标及 before/after 均满足MD/Excel要求；
+6. 正式启动命令经过机器校验，不含 trial、dry-run或少量seed限制；
+7. Git工作树清楚，全部有效代码和证据已提交并推送；
+8. 独立审查 subagent 复核通过；
+9. 权威准入达到正式实验条件，外部资源或规格裁决项不得被隐瞒。
+
+满足条件后不要真正启动全量正式实验。在启动前停下，报告最终HEAD、READY/BLOCKED、325格审计结果、完整链统计、所有验证命令、剩余外部事项、正式命令以及预计CPU/内存/磁盘和运行时间。
+
+---
+
+补充一项强制回归要求：
+
+旧检查器曾把以下5个RunID误判为完整链：
+
+- T02-F0-W4
+- T02-F2-W4
+- T04-F0-W4
+- T04-F2-W4
+- T04-F6-W4
+
+它们目前不得继续视为full。原因是旧检查器使用后续cache_access/cache_return冒充TLB的L1/L2，并把corr=none、detection_layer=None、outcome=run_end的chain_end当成L5。
+
+完成TLB观测hook和严格链检查器修复后，必须使用新编译的统一二进制重新运行这5个RunID。每个RunID必须证明同一fault_id在同一条parent_event_id DAG路径上的：
+
+L0 inj
+→ L1 tlb_lookup（真实entry/way及VPN、ASID、valid/global、PPN、权限、memory type、page size before/after）
+→ L2 tlb_translate_result（权限/对齐检查后的PA或Fault）
+→ L3 LSQ request及cache/memory请求响应
+→ L4 PRF/store落点、异常或架构可见差异
+→ L5 与前述污染直接关联的commit/squash/oracle/detection结局。
+
+硬性要求：
+- 禁止用cache_access充当TLB L1；
+- 禁止跨请求或跨DAG分支拼接边；
+- 普通chain_end不能证明L5；
+- Crash必须记录实际检测点、detection_layer、outcome，并与污染链关联；
+- Masked必须记录明确的containment层和原因；
+- 不允许Unknown；
+- 每层必录指标缺失即失败。
+
+同时重新运行此前不完整的7个：
+T01-F0-W4、T01-F1-W4、T01-F2-W4、T03-F5-W4、T10-F0-W4、T10-F1-W4、T10-F2-W4。
+
+最终必须给出12个RunID逐项表格，包括：
+RunID、注入值before/after、各层事件、关联键、最终结局、chain verdict、证据路径。12项全部通过严格门禁后，才能解除对应FS-INFRA阻塞。不要仅凭activated=1、RC=0或旧chain_report宣布通过。
+
+---
+
+<task-notification>
+<task-id>af83e2d77330ae934</task-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi-ding/5eba8fcb-a1a5-481f-815a-f220d1577a35/tasks/af83e2d77330ae934.output</output-file>
+<status>failed</status>
+<summary>Background agent "L1 TLB support: fix L0/L5 emission" was running when the previous Claude Code process exited and did not complete. Its in-process state was lost. Check its worktree/output for partial work before assuming the task landed.</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a6120fc165c45dc30</task-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi-ding/5eba8fcb-a1a5-481f-815a-f220d1577a35/tasks/a6120fc165c45dc30.output</output-file>
+<status>failed</status>
+<summary>Background agent "L6 fix and verify Golden control" was running when the previous Claude Code process exited and did not complete. Its in-process state was lost. Check its worktree/output for partial work before assuming the task landed.</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a1e15ce971114a7fd</task-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi-ding/5eba8fcb-a1a5-481f-815a-f220d1577a35/tasks/a1e15ce971114a7fd.output</output-file>
+<status>failed</status>
+<summary>Background agent "L10 cache/mem response hook audit" was running when the previous Claude Code process exited and did not complete. Its in-process state was lost. Check its worktree/output for partial work before assuming the task landed.</summary>
+</task-notification>
+
+---
+
+当前多-subagent调度已经达到要求，但本机只有4个gem5进程、CPU仍有约95%空闲。请在避免重复RunID和输出目录冲突的前提下，立即再启动2个独立pilot，使gem5总并发达到6；不要再新增只做重复审计的agent。保持16个lane持续有任务，优先把已完成审计转化为修补、测试、真实pilot和集成。6个gem5稳定后，如available memory仍大于8 GiB且swap没有持续增长，再提升到8个。
+
+---
+
+<task-notification>
+<task-id>af894281817ee8f05</task-id>
+<tool-use-id>call_00_90d3he0fq2bftwwev3nolel7</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi-ding/b5962b79-3453-476f-89f9-13f9e0b52a92/tasks/af894281817ee8f05.output</output-file>
+<status>completed</status>
+<summary>Agent "L36 regenerate wedged O-series results" came to rest</summary>
+<note>A task-notification fires each time this agent comes to rest with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>Done. Lane L36 complete.
+
+**Offline invocation** (no gem5): driver `/tmp/L36_regen.py` imports the merged worktree's `tools/lsu_campaign.py` and calls `classify_fsmc_run(seed_dir, run.out, exit_code=None)` → `write_chain_report(seed_dir, runid, 1, res, None)`, then rebuilds the cell-loop roll-up (`runs[]/classes/wilson/conservation`) into `cell_results.json` + `chain_report.json` + `chain_summary.md`. Single command: `cd /tmp &amp;&amp; python3 /tmp/L36_regen.py`.
+
+**Wall time (O(n) proof, real 222k streams)** — per-cell `write_chain_report`, 3 runs: O01 10.30/10.13/10.30 s; O02-F0 11.46/11.50/11.55 s; O02-F5 11.47/11.38/11.63 s; whole script `real ≈ 33.2 s`. Was &gt;24 CPU-min with nothing written. Verdict is deterministic (seed+cell `chain_report.json`, `chain_summary.md` byte-identical across runs; only `cell_results.json`'s timing stamps vary).
+
+**Results** (all `stream_present=true, truncated=false, evidence_truncated=false, chain_valid=true`, `gzip -t` OK, `stats.txt` 1.2 MB):
+- O01-F0-W7: activated=1, Masked, 222,056 events, terminal `provable_to_L4_then_unknown`, provable_to=L4, beyond=Unknown.
+- O02-F0-W7: activated=1, Masked, 222,056 events, terminal `detected_contained`, L4.
+- O02-F5-W7: activated=104, Masked, 224,700 events, top-level `detected_contained` (fault "1"; 104 faults: 1 contained / 96 L4-unknown / 7 L1-unknown), L4.
+All L4→L5 edges `missing`; no chain violation. Not a PASS.
+
+**L22 cross-check**: activated/oracle match; event counts are 222,056 / 224,700, not L22's 222,057 / 224,701 (off-by-one). Chain `inj→addr_form→exmon_rmw→exmon_stxr→taint_reg` (path ids 0,1,8,9,12) proven through L4, stops at L4 — as expected. L22's claim that O02's `detection_layer` is empty is **wrong per the bytes**: O01 (44-col header, binary stamped 10:26:46) has `detection_layer= outcome=` empty, but O02-F0/F5 (46-col header, binary 11:41:40) have `errant_commit detection_layer=L5 outcome=errant_commit` and `chain_end contained=1`. So the streams are NOT one binary generation. I do **not** claim L27's emitter fix is verified — 11:41:40 predates L27's 13:07–13:36 builds.
+
+**Raw evidence**: md5 of all 42 original files identical before/after; only 12 new artifacts added, nothing deleted/overwritten. No failures. Report at `/home/sdc/gem5-fi-ding/runs/lsu/r6_reports/L36.md`. No tracked source touched, nothing pushed.</result>
+<usage><subagent_tokens>0</subagent_tokens><tool_uses>47</tool_uses><duration_ms>1580119</duration_ms></usage>
+</task-notification>
