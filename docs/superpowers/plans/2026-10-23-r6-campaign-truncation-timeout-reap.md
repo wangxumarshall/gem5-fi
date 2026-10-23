@@ -31,34 +31,34 @@ Baseline suite: `suites=52 ENV=5 FAIL=13 PASS=33 SKIP=1`.
 
 ## Unit 1 — truncated-evidence detector + loud marking  (commit 1)
 
-- [ ] RED: add `tests/test_lsu_campaign_truncation.py` asserting (a) `detect_evidence_truncation`
+- [x] RED: add `tests/test_lsu_campaign_truncation.py` asserting (a) `detect_evidence_truncation`
       returns True+reason on incomplete gz and on missing/0-byte `stats.txt`; (b) `write_chain_report`
       sets `evidence_truncated=True` + `truncation_reason` + `chain_valid=False` and prefixes the
       summary loudly; (c) a complete gz + non-empty stats ⇒ `evidence_truncated=False`. Run → FAIL.
-- [ ] GREEN: implement `detect_evidence_truncation(outdir)` in `tools/lsu_campaign.py`; wire into
+- [x] GREEN: implement `detect_evidence_truncation(outdir)` in `tools/lsu_campaign.py`; wire into
       `write_chain_report` (new keys + loud summary + `chain_valid`); surface in per-seed entry and
       `chain_summary.md` column. Unit pilot: `run_one` folds `evidence_truncated`/reason into the
       verdict. Run → PASS.
-- [ ] Prove against the REAL truncated files (T08, negative2) → loudly flagged; pilot2 → not flagged.
-- [ ] Existing `test_lsu_campaign_propagation.py` [5] still passes (prefix salvage preserved).
+- [x] Prove against the REAL truncated files (T08, negative2) → loudly flagged; pilot2 → not flagged.
+- [x] Existing `test_lsu_campaign_propagation.py` [5] still passes (prefix salvage preserved).
 
 ## Unit 2 — FS timeout default 2700 + visible effective budget  (commit 2)
 
-- [ ] RED: test asserting `--fs-timeout` default is 2700 and that the effective timeout appears in
+- [x] RED: test asserting `--fs-timeout` default is 2700 and that the effective timeout appears in
       the per-seed entry / cell result (`timeout_seconds`). Run → FAIL.
-- [ ] GREEN: change default to 2700; put `timeout_seconds` (effective) into the returned result →
+- [x] GREEN: change default to 2700; put `timeout_seconds` (effective) into the returned result →
       per-seed `_entry` and `cell_results.json`; print effective FS budget on the cell line. Run → PASS.
 
 ## Unit 3 — reap the gem5 child on timeout  (commit 3)
 
-- [ ] RED: test drives the run helper with a fake `Popen` that ignores SIGTERM, asserts: timeout path
+- [x] RED: test drives the run helper with a fake `Popen` that ignores SIGTERM, asserts: timeout path
       sends SIGTERM then SIGKILL to the process group, calls `wait()` (reaped), and records exit
       code / signal. Run → FAIL.
-- [ ] GREEN: add `_run_capture(cmd, timeout, out_file, err_file)` using `Popen(start_new_session=True)`;
+- [x] GREEN: add `_run_capture(cmd, timeout, out_file, err_file)` using `Popen(start_new_session=True)`;
       on `TimeoutExpired` killpg(SIGTERM) → killpg(SIGKILL) → `communicate()`/`wait()`; return
       `(exit_code, timed_out, term_signal)`. Route FS + SE paths through it. Update
       `test_lsu_campaign_propagation.py` fakes to patch `Popen`. Run → PASS.
-- [ ] Regression: full `python3 tools/lsu_test_runner.py` → FAIL count ≤ baseline 13, no NEW FAIL.
+- [x] Regression: full `python3 tools/lsu_test_runner.py` → FAIL count ≤ baseline 13, no NEW FAIL.
 
 ## Verification (per unit)
 `python3 tools/lsu_test_runner.py` (real summary quoted); targeted new test; real truncated-file proof.
