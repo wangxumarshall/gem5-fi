@@ -1,0 +1,233 @@
+<task-notification>
+<task-id>a2c1f5451b38812c2</task-id>
+<tool-use-id>call_03_5xh53mh7v5uxlj22dv4dfpub</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi-ding/b5962b79-3453-476f-89f9-13f9e0b52a92/tasks/a2c1f5451b38812c2.output</output-file>
+<status>completed</status>
+<summary>Agent "L6v2 golden control" came to rest</summary>
+<note>A task-notification fires each time this agent comes to rest with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>Clean tree, `a74a970b` pushed to `origin/r6-pilot` (0 ahead / 0 behind).
+
+**Inherited state assessment.** The routing fix was sound and kept (golden path → `$LSU_GEM5_BIN` → worktree CHAOS build, never the main checkout). Two real defects remained, both found by *running* the artifacts: (1) the inherited test failed its own check `[3]` (`tools/lsu_unit_pilot.py 走统一解析器` — the file delegates via `g5_path()`, so the substring assertion was wrong, not the code); (2) `lsu_r6_golden_control.py` called `GB.describe(repo=workdir)` against signature `describe(path, env, repo)` → `TypeError`, i.e. **the control entrypoint crashed on every invocation**. Also, `run_completed()` checked only `stats.txt`, so a truncated stream still "passed" — the very false negative this lane exists to prevent.
+
+**Fix + SHA — `a74a970b`** (pushed). `describe(path=None, …)`; golden entrypoint resolves the binary with `repo=workdir` (binary and `configs/` from the *same* checkout) + new `stream_status()` and `run_completed(outdir, evt_path)` requiring stats non-empty **AND** a complete gzip stream; test generalised (`code_const_hits`) with new checks for `repo=` resolution, truncated-stream detection, and "stats non-empty but stream truncated → NOT completed". Verification: `tests/test_lsu_r6_golden_control.py` → **ALL PASS, exit 0**; `py_compile` → `PY_COMPILE_OK`; `--dry-run` with and without `LSU_GEM5_BIN` both resolve to the r6-tlb-hooks build; regression `tests/test_lsu_fs_infra.py` → `ALL PASS, EXIT=0`. `tests/test_lsu_l3_propagation.py` fails in this worktree **either way** (missing `build/ARM/gem5.opt` — pre-existing/environmental, verified by `ls` on both the old and new default paths).
+
+**Control outcome — `runs/lsu/r6_golden_verify/seed1`** (I did not kill/restart it; it exited on its own at 11:35, `hostSeconds 1976.86`, before its 3600 s timeout): `kind_counts = {}` — **0 `inj`, 0 `chain_end`, 0 events of any kind**; `stream present=True readable=True truncated=False`; `completed=(True, 'stats.txt 非空且 prop_evt 流完整（含 gzip 收尾标记）')`; `verdict PASS`; `stats.txt` 427088 B; workload oracle `[tlb_probe.rcS] … rounds ok=10/10`. gem5's own `rc` is **n/a** — the launcher kept no stdout tail; clean exit is proven instead by the exit-callback-only gzip trailer *plus* non-empty `stats.txt` (the killed `r6_tlb_negative2` retained neither).
+
+**Conclusion.** The uninjected control is **clean and conclusive** — the injection path is provably inactive and the stream is complete, so the runner-up re-run into `r6_golden_final` was unnecessary and was **not** started (no extra gem5 process). Evidence: `/home/sdc/gem5-fi-ding/runs/lsu/r6_golden_verify/seed1/`; plan `docs/superpowers/plans/2026-10-23-lsu-r6-golden-control.md`; report `/home/sdc/gem5-fi-ding/runs/lsu/r6_reports/L6.md`.
+
+**Risks (loud).** (1) The r6-tlb-hooks binary was **0 bytes at 11:41** then 1.1 GB at 11:46 — a concurrent rebuild is truncating/replacing it in place; my run (ended 11:35) was unaffected, but any gem5 process running from that path inside that window could fault. (2) That run's binary sha256 is **unrecoverable** (log says `compiled Oct 23 2026 10:26:46`; on-disk file since replaced, now `1dd6d314…`), so no frozen-hash claim is made. (3) `tools/lsu_campaign.py::G5` still defaults to repo-root `build/ARM/gem5.opt` — that is the campaign/injected path (not golden), and it fails loudly rather than silently; left untouched (not my lane).</result>
+<usage><subagent_tokens>0</subagent_tokens><tool_uses>68</tool_uses><duration_ms>2229552</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>aef0c5081633a1553</task-id>
+<tool-use-id>call_02_7v6nut5s6yxvgpg10r3rpmuq</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi-ding/b5962b79-3453-476f-89f9-13f9e0b52a92/tasks/aef0c5081633a1553.output</output-file>
+<status>completed</status>
+<summary>Agent "L23 S01/S02 census" came to rest</summary>
+<note>A task-notification fires each time this agent comes to rest with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>All done. Census still running (17m), worktree clean, branch pushed.
+
+**L23 — S01/S02 span census**
+
+**What the census is:** `resolve_cell` refuses any `(model, carrier-binary)` pair whose F0 span is unmeasured; `LSQFWD_F0_SPAN` in `tools/lsu_campaign.py` holds those spans (F0 fires `1 + lcg(seed)%N` over the N eligible events). The census is the **uninjected** run that reports the whole stream in the teardown line `CHAOS_LSU_TRIGGER: injector=CHAOSLSQFwd tier=F0 attempted=&lt;N&gt; eligible=&lt;N&gt; injected=0`.
+
+**Existing evidence found (preserved):**
+- `runs/lsu/golden/w1_all/{g1,g2,g3}` — carrier golden, `EXIT_RC=0`, each `[w1] suite done: 14/14 ok`, identical hashes (`susan_edge.pgm fnv1a64=090bc05c2150bfec`). Measures no LSQFwd stream.
+- `runs/lsu/engineering/w1_cnt_lsqfwd.out` (2026-10-11): `attempted=515917150 eligible=515917150 injected=0`; `w1_ac_lsqfwd.out`: `eligible=498300231 injected=0`. Both used `--lsqfwd_l03` + the 10-11 binary ⇒ **generic family count, NOT the S01/S02 span**.
+- `R5-FS-PILOT-EVIDENCE.md` §4: the **injected** trial `eligible=17663390 injected=1 … ALARM mode=EARLY_BIAS` was explicitly declined as the census; the uninjected golden census it announced (PID 2133313, ~10-22 17:44) is **dead and wrote nothing** (no `EARLY_BIAS`, no `--max_faults 0`, no outdir anywhere).
+
+**Verdict:** no valid completed census existed. Relaunched the control: PID 2879934 → `runs/lsu/r6_census_S01/` (+`.log`), binary `lsu-mdspec-20261019/.../gem5.opt` sha `f4dbfb9a66e0df80`, carrier `w1_all` sha `adf23d2cd1257fed`, `--lsq_struct_mode byte_flip --lsqfwd_lsu_tier F0 --lsqfwd_warmup_events 1 --lsqfwd_span_events 9223372036854775807 --max_faults 0 --rng_seed 1`. Live no-injection witness: `lsq_fwd_injections.log` is 0 bytes. ETA ~7.5 h wall (SE carrier, so `--fs-timeout` is irrelevant — that 600 s figure truncates FS runs only).
+
+**Exact unblock condition** (verbatim from `ready_contract.json`): `BLOCKED(F0-span-unmeasured: model S0{1,2} on workload mibench/bin/w1_all — measure its eligible stream with a real run and set LSQFWD_F0_SPAN[('S0{1,2}','mibench/bin/w1_all')] in tools/lsu_campaign.py)`. **NOT met yet** — the two numbers don't exist, so no contract change; denominator untouched, nothing reclassified.
+
+**Blockers:** census is multi-hour and does not finish inside this lane; S02 needs its own `--bits_to_change 2` run (same gate ⇒ same expected value) for a measured key.
+
+**Artifacts:** `tools/lsu_census_w1_span.py` (verified: py_compile + parse on real/injected samples + `--help`), `docs/gem5-fi/lsu/mdspec/R6-CENSUS-S01-S02-span.md`, report `/home/sdc/gem5-fi-ding/runs/lsu/r6_reports/L23.md` (runs/ is gitignored). Commit `783cd82a` pushed to `origin/r6-census`.</result>
+<usage><subagent_tokens>0</subagent_tokens><tool_uses>59</tool_uses><duration_ms>2591494</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a0ccd71100bc2ad72</task-id>
+<tool-use-id>call_02_0cm1c4vvxhl0dqaqr5s7z0fb</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi-ding/b5962b79-3453-476f-89f9-13f9e0b52a92/tasks/a0ccd71100bc2ad72.output</output-file>
+<status>completed</status>
+<summary>Agent "L17v2 evidence registry" came to rest</summary>
+<note>A task-notification fires each time this agent comes to rest with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>**L17-v2 (/r6-evidence, commit `b3321b6f`, pushed `origin/r6-evidence`)**
+
+- **Script**: `/home/sdc/gem5-fi-ding/.claude/worktrees/r6-evidence/tools/lsu_r6_register_evidence.py` (new). Registry regenerated: `docs/gem5-fi/lsu/mdspec/pilot_evidence.json` — **162 pilots** (145 scanned + 17 carried-over aux), 45 kinds (old table 36; **LOST=[]**, gained 9). Report: `/home/sdc/gem5-fi-ding/runs/lsu/r6_reports/L17.md`.
+- **Caveat on the brief**: `chain_admission` does *not* exist on my base `97f74786`; it lives on `r6-gate` (`ec75cdb1`). I ran the gate read-only from a `git archive r6-gate -- tools docs artifacts/lsu-trial` copy in `/tmp` with `LSU_CHAIN_EVIDENCE_ROOT=/home/sdc/gem5-fi-ding`; no owned tool was edited.
+- **Real counts** (same as r6-gate's committed baseline): `total=325 READY=0 PARTIAL=0 BLOCKED=325 self_consistent=True`; `chain_gate={"evidence_root":"/home/sdc/gem5-fi-ding","event_cap":4000,"admitted":0,"unproven":44,"evidence_missing":197}`; verdict NO-GO. Baseline was `admitted=0 / unproven=43 / evidence_missing=198` → registering **all** discoverable evidence moves **exactly 1 row** (S10-F5-W9: MISSING→UNPROVEN). Nothing was tuned; READY stays 0. **Provisional — B2-v2's concurrent checker change requires a re-run.**
+- **ADMITS: none (0).** **REJECTS**, 241 rows reach the gate:
+  - 42 rows: chain provable only to L0–L4, no L0→L5 closure and no explicit containment (`no_closed_chain_and_no_containment`, `ready_by_activated_only/rc0/chain_end_only`); `S01-F0-W5`, `S02-F0-W5` also `time_reversed_edge`.
+  - 4 rows `chain_evidence_too_large` (samples &gt; 4000 events → loudly not evaluated): `S10-F5-W9`(46087), `C11-F0-W6`, `C12-F0-W6`, `P06-F0-W6`.
+  - 197 rows CHAIN-EVIDENCE-MISSING: **no prop_evt file exists anywhere on the host** for those RunIDs (verified by full-filesystem `find`) — never produced, not merely unregistered.
+  - 8 TLB rows (T01/T02/T04–T08/T10-F0-W4) have registered real evidence (e.g. T04-F0-W4, 1574 events) but are pre-gate `FS-INFRA` blocked (`chain=None`), so registration cannot help them.
+- **Real root cause found**: the old 154-entry registry's paths were all relative to *another* worktree (`lsu-mdspec-20261019`), so under the pinned evidence root all 154 missed. Evidence lives only in `runs/lsu` (24 files) and `.claude/worktrees/lsu-mdspec-20261019/runs/lsu` (248); other locations `n/a`.
+- **Truncated (32, registered + flagged)**: `gzip_read_incomplete` (abort samples by contract) and/or `no_sibling_stats_txt` — e.g. `A01-F0-W3-seed1`, `C14-F5-W6/W10-seed1..3`, `C15-*`, `L04-F0-W5-seed1/3`, `T06/T07/T08/T10-F0-W4`.
+- **Risks**: 147/162 entries point into the volatile `lsu-mdspec` worktree (another lane's; deletion → loud "missing", never silent); `--carry-existing` (default on) prevents silent kind loss (would have dropped `exmon_*`); dedup = newest mtime per RunID+seed, others in `shadowed_paths`, 137 dropped old entries itemized in `dropped_existing`; regression: 16/16 lsu-related tests pass, full suite 19 pass / 2 pre-existing fails in `test_claim_concurrency.py` (reproduced with registry reverted to HEAD).</result>
+<usage><subagent_tokens>0</subagent_tokens><tool_uses>78</tool_uses><duration_ms>3102307</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>ae240fb3d396702cb</task-id>
+<tool-use-id>call_01_hzemf50az95qanarsdg75795</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi-ding/b5962b79-3453-476f-89f9-13f9e0b52a92/tasks/ae240fb3d396702cb.output</output-file>
+<status>completed</status>
+<summary>Agent "L20v2 truncation and budget" came to rest</summary>
+<note>A task-notification fires each time this agent comes to rest with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>L20-v2 complete: 3 functional commits + 2 docs commits on `origin/r6-campaign` (HEAD `7710ba18`), worktree clean.
+
+**Reproduced (real):** `r6_tlb_C_T08-F0-W4/.../prop_evt.txt.gz` (635 B) and `r6_tlb_negative2/seed1/prop_evt.txt.gz` (238 B) both raise `EOFError: ... end-of-stream marker`; both `stats.txt` are 0 bytes. **Honest correction:** `r6_tlb_pilot2/T05-F0-W4/seed1` is **not** truncated — gzip reads OK, `truncated:false`, exit 0, `stats.txt` 427,682 B (a legitimate 5-event chain ending `chain_end run_end`).
+
+**Fix 1 — truncation LOUD** (`a772b9af`). RED: `AttributeError: module 'lsu_campaign' has no attribute 'detect_evidence_truncation'`. GREEN: `tests/test_lsu_campaign_truncation.py ... ALL PASS`. Real-file proof:
+```
+evidence_truncated=True  .../T08-F0-W4/seed1
+  prop_evt.txt.gz incomplete gzip stream (EOF before the end-of-stream marker; run killed mid-write)
+  stats.txt empty (0 bytes; gem5 never wrote it)
+evidence_truncated=True  .../r6_tlb_negative2/seed1   (same two reasons)
+evidence_truncated=False .../r6_tlb_pilot2/T05-F0-W4/seed1
+```
+`write_chain_report` now writes `evidence_truncated`/`truncation_reason`/`chain_valid` on every branch, prefixes the summary `EVIDENCE TRUNCATED:`, adds a `chain_summary.md` column, a `cell_results.json` roll-up and a console `EVIDENCE-TRUNCATED` line; unit-pilot `run_one` folds it into the verdict and `_valid_resumed` refuses to reuse a flagged verdict.
+
+**Fix 2 — budget** (`17ca815d`). RED: 5 FAILs. GREEN: `ALL PASS`; `--help` shows `(default: 2700)`; `build_parser()` extracted; effective budget exposed as `timeout_seconds` per seed, `timeout_budget{fs,se}` per cell, `budget[fs=2700s se=300s]` on the cell line. Dry-run smoke exit 0.
+
+**Fix 3 — reap** (`63c6aca0`). RED: `FAIL run_gem5 存在`. GREEN: `ALL PASS` with real children — SIGTERM path `exit=-15`, SIGTERM-ignoring child escalated to SIGKILL `exit=-9`, both reaped (`os.kill(pid,0)` → `ProcessLookupError`); FS timeout records `timeout_signal`/`timeout_exit_code`.
+
+**Suite:** baseline `FAIL=13 PASS=33` → after `suites=55 FAIL=13 PASS=36 SKIP=1 ENV=5`. **NEW FAIL = 0** (FAIL set byte-identical to baseline). Found/activated/injection untouched.
+
+**Risks:** (1) `tools/lsu_runner.py TIMEOUTS["FS"]=1800` still feeds unit-pilot manifests — out of my ownership; the 2700 fix covers the campaign only, so the two drivers drift until its owner raises it. (2) `test_lsu_guard_v2.py` and `pytest::collect` each flaked once under concurrent-lane contention; both pass standalone and on the pristine base. Report: `runs/lsu/r6_reports/L20.md`.</result>
+<usage><subagent_tokens>0</subagent_tokens><tool_uses>111</tool_uses><duration_ms>3591308</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>ab55c3e9d11f4bd52</task-id>
+<tool-use-id>call_02_nye0kevin64zbca8ba9k66id</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi-ding/b5962b79-3453-476f-89f9-13f9e0b52a92/tasks/ab55c3e9d11f4bd52.output</output-file>
+<status>completed</status>
+<summary>Agent "B2v2 checker semantics + containment" came to rest</summary>
+<note>A task-notification fires each time this agent comes to rest with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>All five defects fixed, verified, committed and pushed (`r6-gate`, HEAD `d859f5ca`).
+
+**Inherited state:** the predecessor's uncommitted `ready_contract.json/.md` rewrite pointed `chain_gate.evidence_root` at this worktree → every pilot row falsely `CHAIN-EVIDENCE-MISSING` although all 154 evidence files exist under `.claude/worktrees/lsu-mdspec-20261019` (HEAD's root). Discarded the per-row rewrite, reproduced its `.md` gate line honestly via a real `--gate` run.
+
+**RED→GREEN per defect (real output):**
+- **D1/D5** — RED `[13] FAIL … full` + `L4-&gt;L5: proven … L5:chain_end@t7`; GREEN `PASS chain_end 生命周期标记不证明 L4-&gt;L5`, `PASS _explicit_l5 要求链关联 corr（corr=none 不算）`. `_explicit_l5` now = non-lifecycle kind + `detection_layer` + `outcome` + chain `corr`; `chain_end` occupies **no layer** ⇒ `ready_by_chain_end_only` enforced structurally. New `_obs_layer_of` keeps containment/prefix proofs intact.
+- **D5 real T04** — was `TERMINAL full; admitted=True`; now `真实 T04 终局非 full / 止于 L4 / 不得 admitted` (all PASS).
+- **D3** — RED `AttributeError … _ancestry_request_breaks`; GREEN 3×PASS; real T04 yields `cross_request_edge: … 8 处相邻见证 request_id 不一致（首例 event 38:resp req='307' → 39:resp req='308'）`.
+- **D4** — RED 4×FAIL; GREEN 5×PASS; `_UNIT_FAMILY` by RunID prefix + `cache_l1_missing` / `cache_access_faked_l1` in `GATE_VIOLATIONS`; real C01 (`family=cache`) unregressed.
+- **D2** — RED `FAIL 真实 T08 显式含住 → admitted=True`; GREEN `PASS` — real T08 now `chain_admission admitted=True terminal=detected_contained violations=[]` via new `containment_from_events()` (explicit `contained=1` evidence only; refused if a deeper-layer witness exists) threaded with `oracle_outcome` through `chain_admission`.
+
+**T04-shape rejection:** not `full`, `provable_to=L4`, `admitted=False` (+8 cross-request breaks). **T08 containment admission:** `admitted=True` (also T05).
+
+**New counts:** `total=325 READY=0 PARTIAL=0 BLOCKED=325 self_consistent=True`; `chain_gate admitted=0 unproven=43 evidence_missing=198`; categories unchanged (RULING=6, LICENSE=12, FS-MULTICORE=35, FS-INFRA=24, MODE-UNIMPL=3, UNRESOLVED=4, CHAIN-UNPROVEN=43, CHAIN-EVIDENCE-MISSING=198) with stronger reasons (C11-F6-W6 `cross_request_edge`, P06-F0-W8 ×7, P06-F6-W6 `cache_access_faked_l1`, C14-F5-W6 `cache_l1_missing`). Verdict NO-GO with real gate evidence.
+
+**Suite:** `suites=53 ENV=5 FAIL=13 PASS=34 SKIP=1`; new-failure check by running the runner at base `2b87cd9d` in a scratch worktree → **NEW FAIL=[]** (0 new, 0 fixed); `test_lsu_hook_sq.py` output byte-identical before/after.
+
+**Risks:** the 13 pre-existing FAILs include the hook suites whose fixtures still encode "chain_end → full" (and `pytest::collect` 2 failed); hook owners should re-point those at a real detection witness. D2 admission is reachable but vacuously unexercised by the contract (no RunID in `pilot_evidence.json` carries containment evidence — T08/T05 pilots unregistered), so `admitted` stays 0. Report at `docs/gem5-fi/lsu/mdspec/R6-GATE-B2-report.md` and `/home/sdc/gem5-fi-ding/runs/lsu/r6_reports/B2.md`.</result>
+<usage><subagent_tokens>0</subagent_tokens><tool_uses>104</tool_uses><duration_ms>4539006</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>ab55c3e9d11f4bd52</task-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi-ding/b5962b79-3453-476f-89f9-13f9e0b52a92/tasks/ab55c3e9d11f4bd52.output</output-file>
+<status>completed</status>
+<summary>Agent "B2v2 checker semantics + containment" came to rest</summary>
+<note>A task-notification fires each time this agent comes to rest with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>Background scan `boq9zuqk5` (the abandoned cache_access-as-L1 sweep) was stopped — it was superseded by the direct `_family_of`/C01 check I ran, so no work is affected. The B2-v2 task is complete: D1–D5 fixed, verified, committed and pushed (`r6-gate`, HEAD `d859f5ca`), suite `FAIL=13 PASS=34` with `NEW FAIL=[]`, reports at `docs/gem5-fi/lsu/mdspec/R6-GATE-B2-report.md` and `/home/sdc/gem5-fi-ding/runs/lsu/r6_reports/B2.md`.</result>
+<usage><subagent_tokens>0</subagent_tokens><tool_uses>104</tool_uses><duration_ms>4998322</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>ab7d3b5195a0fa133</task-id>
+<tool-use-id>call_00_kby29b5fval639cmnz6oz9z9</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi-ding/b5962b79-3453-476f-89f9-13f9e0b52a92/tasks/ab7d3b5195a0fa133.output</output-file>
+<status>completed</status>
+<summary>Agent "L28 authoritative 12-RunID table" came to rest</summary>
+<note>A task-notification fires each time this agent comes to rest with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>L28 done: commit `dd38d479` pushed to `origin/r6-final`. Working tree clean.
+
+## Final 12-row table (checker = `origin/r6-gate` chain_check, blob `48853de3` / sha256 `eba5d4a0…`; driver = `origin/r6-rejudge` rejudge, `7f1ee9d6` — both copied verbatim, byte-identical)
+
+| RunID | stream (outdir) / compl. | inj bef→aft | L0..L5 (kinds) | corr keys | oracle | verdict | P/F |
+|---|---|---|---|---|---|---|---|
+| T02-F0-W4 | `r6_tlb_pilot2` COMPLETE 186ev | inj blank; log 81d75→100040000081d75 | inj/tlb_lookup/tlb_pfn+tlb_translate_result/L3 mixed/L4 consumer,taint_reg/- | fid=1, parent linear, req 301→391, seq 301→391 | Crash | NOT-ADMITTED [cross_request_edge, no_closed_chain_and_no_containment, ready_by_activated_only, ready_by_chain_end_only] term=provable_to_L4_then_unknown | FAIL |
+| T02-F2-W4 | — MISSING | n/a | n/a | n/a | n/a | MISSING | FAIL |
+| T04-F0-W4 | `r6_tlb_pilot2` COMPLETE 1574ev | inj blank; log 81d75→0 | inj/tlb_lookup/tlb_pfn+tlb_translate×29+tlb_translate_result/L3 mixed/L4 consumer×1296/- | fid=1, linear, req 301→391 | Crash | NOT-ADMITTED [same 4 tokens] term=provable_to_L4_then_unknown | FAIL |
+| T04-F2-W4 | `r6_tlb_G_*` COMPLETE 1574ev | inj blank; log 81d75→0 | as T04-F0 | fid=1, linear, req 301→391 | Crash | NOT-ADMITTED [same 4] | FAIL |
+| T04-F6-W4 | `r6_tlb_G_*` COMPLETE 1574ev | inj blank; log 81d75→0 | as T04-F0 | fid=1, linear, req 301→391 | Crash | NOT-ADMITTED [same 4] | FAIL |
+| T01-F0-W4 | `r6_tlb_F_*` COMPLETE 9ev | inj blank; log 81d75→100000000081d75 | inj/tlb_lookup/tlb_pfn/L3 resp,sq_*/-/tlb_translate_result | fid=1, linear, req 301 (consistent) | Masked | NOT-ADMITTED [no_closed_chain_and_no_containment, ready_by_activated_only, ready_by_chain_end_only] term=detected_contained | FAIL |
+| T01-F1-W4 | — MISSING | n/a | n/a | n/a | n/a | MISSING | FAIL |
+| T01-F2-W4 | — MISSING | n/a | n/a | n/a | n/a | MISSING | FAIL |
+| T03-F5-W4 | `r6_tlb_I_*` **TRUNCATED** 8ev | 81d75→81d75 | inj/tlb_lookup/tlb_pfn/L3 resp,sq_*/-/tlb_translate_result | fid=1, linear, req 301 | None | NOT-ADMITTED [no_closed_chain_and_no_containment, ready_by_activated_only] term=detected_contained | FAIL |
+| T10-F0-W4 | `r6_tlb_F_*` COMPLETE 9ev | inj blank; log 81d75→100000000081d75 | inj/tlb_lookup/tlb_pfn/L3 resp,sq_*/-/tlb_translate_result | fid=1, linear, req 301 | Masked | NOT-ADMITTED [no_closed_chain_and_no_containment, ready_by_activated_only, ready_by_chain_end_only] term=detected_contained | FAIL |
+| T10-F1-W4 | — MISSING | n/a | n/a | n/a | n/a | MISSING | FAIL |
+| T10-F2-W4 | — MISSING | n/a | n/a | n/a | n/a | MISSING | FAIL |
+
+**Completeness:** 6 COMPLETE (T02-F0/T04-F0/T04-F2/T04-F6/T01-F0/T10-F0), 1 TRUNCATED (T03-F5, gzip EOF + empty `stats.txt`), 5 MISSING (T02-F2, T01-F1, T01-F2, T10-F1, T10-F2). Outdirs used: `r6_tlb_pilot2`, `r6_tlb_G_*`, `r6_tlb_F_*`, `r6_tlb_I_*`.
+
+**Verdicts:** `check_admission` **admitted = 0/12**. All 7 present streams NOT-ADMITTED; 5 MISSING. L0 `inj` has no before/after on every stream (real emitter gap); truth only in L1 witness + `armtlb_injections.log`.
+
+**Task 4 — registry + contract.** Registry `pilot_evidence_r6final.json` built with `lsu_r6_register_evidence.py` (pilots=94 runids=82 unmatched=6 dup=6 truncated=19 kinds=44), adding T08-F0-W4 (truncated) and T05-F0-W4 (complete) + complete T-series. Contract run with `LSU_CHAIN_EVIDENCE_ROOT=/home/sdc/gem5-fi-ding`:
+
+```json
+{"rule": "READY requires lsu_chain_check.check_admission admission ...", "evidence_root": "/home/sdc/gem5-fi-ding", "event_cap": 4000, "admitted": 0, "unproven": 45, "evidence_missing": 196}
+```
+(original registry: 44/197; total=325, READY=0 PARTIAL=0 BLOCKED=325)
+
+**Now-admitted RunIDs: none.** Registering T08/T05 *cannot* move `admitted` — the chain gate only runs for READY/PARTIAL rows, and there are zero; all 24 T-series rows are blocked upstream as **FS-INFRA** (`chain=null`), so the containment path is unreachable through the contract. Only movement: `L01-F0-W5` EVIDENCE-MISSING→UNPROVEN. Containment *does* work when invoked directly: `containment_from_events()`+`check_admission` **admits T08-F0-W4** (L2, `walk_refill_lost`/`translation_blocked`) despite its truncated stream; T05/T01/T10 refused (deeper witness — for T05 solely the L5-mapped lifecycle `chain_end` — follows the marker). No tool hand-edited.
+
+**Remaining gaps:** (1) 5 RunIDs MISSING; (2) T03-F5 TRUNCATED; (3) L0 `inj` lacks before/after; (4) cross-request splice req 301→391 breaks L2→L4 on T02-F0/T04-{F0,F2,F6}; (5) no family-specific L0→L5 full chain on any of the 12, and the containment alternative is unreachable via the contract (FS-INFRA).
+
+**Artifacts:** `docs/gem5-fi/lsu/mdspec/R6-12RUNID-TABLE-FINAL.md`, `r6_rejudge_final.json`, `pilot_evidence_r6final.json`, `ready_contract_r6final.json`; report at `/home/sdc/gem5-fi-ding/runs/lsu/r6_reports/L28.md`. Verification: `pytest tools/tests/test_ooo_chain_audit.py` → 17 passed; chain_check CLI on T04 → 1574 events, 1 fault, not truncated.</result>
+<usage><subagent_tokens>0</subagent_tokens><tool_uses>65</tool_uses><duration_ms>704534</duration_ms></usage>
+</task-notification>
+
+---
+
+暂停启动新的 RunID 和 formal campaign，但不要中断当前正在运行的 T01-F1-W4、S01 census 和统一构建。现在进入准入收敛阶段：
+
+1. 修复集成分支当前3个新增测试失败，确保完整测试无新增失败。
+2. 修复或绕过约22万事件规模下 write_chain_report 后处理不可扩展的问题，避免O类任务长期占用CPU却不生成 cell_results.json。
+3. 完成统一构建，冻结唯一 gem5.opt，并记录完整 SHA-256；之后所有权威试验必须使用该二进制。
+4. 使用冻结二进制重新运行12个TLB锚点。每个RunID必须满足：
+   - prop_evt事件流完整且未截断；
+   - L0注入事件包含真实before/after；
+   - parent_event_id构成连续DAG；
+   - 相邻传播边的request_id一致；
+   - 存在真实L5检测，或有证据充分的显式containment；
+   - 不得用chain_end代替L5；
+   - 不允许Unknown；
+   - 不允许跨请求拼接证据。
+5. 输出12行权威结果表，逐行包含：
+   RunID、是否实际运行、事件流完整性、事件数、L0–L5覆盖、oracle结果、准入结论、失败原因、产物路径、gem5二进制SHA-256。
+6. 审计全部325个RunID，明确分为：
+   - 尚未执行、无prop_evt；
+   - 已执行但传播链不完整；
+   - 已形成完整链或显式containment；
+   - 规格决策阻塞；
+   - 外部资源/基础设施阻塞。
+   不得把“没有事件流”解释成物理上的“没有传播”或“被屏蔽”。
+7. 给出 admitted、unproven、evidence_missing、truncated 的准确数量及对应RunID清单。
+8. 暂不启动325项正式批次，不删除任何文件。FS gem5并发不得超过6，并继续遵守内存、swap和磁盘门禁。
+9. 完成上述收敛后停止，汇报：
+   - 已完成事项；
+   - 尚未解决的问题；
+   - 12个锚点的权威结果；
+   - 325个RunID的分类统计；
+   - 是否已满足正式实验启动条件。
+
+目标是先建立可信、统一、可复现的观测链准入基线，而不是继续扩展并行实验数量。
