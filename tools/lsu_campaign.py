@@ -1627,6 +1627,28 @@ def _linear_best_ordered_path(chain_events, family, module=None):
     return list(best)
 
 
+class _LinearPathSwap:
+    """把 `lsu_chain_check._best_ordered_path` 换成 O(n) 版本的上下文。
+
+    [R6-FIXD] `check_admission` 内部会再跑一次 `check_chain`（shipped 的
+    Θ(n·depth) `_best_ordered_path`）。222k 事件的多核流上这会把 cell 卡死
+    —— 与 L30 修 `check_chain_fast` 时实测的同一缺陷。因此**门禁调用也必须
+    在同一个线性替换下**进行（语义不变：两个实现返回同一条路径）。
+    """
+
+    def __enter__(self):
+        import lsu_chain_check as CHAIN
+        self._mod = CHAIN
+        self._shipped = _shipped_best_ordered_path(CHAIN)
+        CHAIN._best_ordered_path = (
+            lambda ce, fam: _linear_best_ordered_path(ce, fam, CHAIN))
+        return CHAIN
+
+    def __exit__(self, *exc):
+        self._mod._best_ordered_path = self._shipped
+        return False
+
+
 def check_chain_fast(events, oracle_outcome=None):
     """`lsu_chain_check.check_chain` with the linear best-path scan installed.
 
@@ -1638,17 +1660,67 @@ def check_chain_fast(events, oracle_outcome=None):
     wall time, never semantics.
     """
     import lsu_chain_check as CHAIN
-    shipped = _shipped_best_ordered_path(CHAIN)
 
-    def _fast(chain_events, family):
-        return _linear_best_ordered_path(chain_events, family, CHAIN)
+    with _LINEAR_PATH_LOCK, _LinearPathSwap():
+        return CHAIN.check_chain(events, oracle_outcome=oracle_outcome)
 
-    with _LINEAR_PATH_LOCK:
-        CHAIN._best_ordered_path = _fast
+
+def admission_gate(runid, events, activated, oracle_outcome=None, exit_code=None,
+                   containment=None):
+    """[LSU][MDSPEC][R6-FIXD] binding 硬门禁：调用**唯一**判定源
+    `lsu_chain_check.check_admission`。
+
+    真缺陷（实测）：campaign 此前只用 `check_chain` 记录判定，从不调用
+    `check_admission` —— 于是被门禁拒绝的样本照样以一条"完整链"呈现
+    （`chain_valid: true` + terminal/provable_to），与"只凭 coverage PASS 就判
+    READY"是同一类假象。这里让 campaign 的**最终结论**实际过这道门。
+
+    无激活（activated<=0）时门禁不适用，返回 admitted=None（诚实：不适用，
+    不是拒绝也不是通过）。检查器抛错时响亮返回 admitted=False + note，
+    绝不静默当作通过。
+    """
+    import lsu_chain_check as CHAIN
+    act = 0
+    try:
+        act = int(activated or 0)
+    except (TypeError, ValueError):
+        act = 0
+    if act <= 0:
+        return {"admitted": None, "path": None, "terminal": None,
+                "violations": [], "note": "无激活样本（fault_id≠0 的 inj 事件）"
+                                          "——门禁不适用"}
+    cont = containment
+    if cont is None:
         try:
-            return CHAIN.check_chain(events, oracle_outcome=oracle_outcome)
-        finally:
-            CHAIN._best_ordered_path = shipped
+            cont = CHAIN.containment_from_events(events, str(runid))
+        except Exception as exc:            # 门禁输入构造失败必须响亮
+            return {"admitted": False, "path": None, "terminal": None,
+                    "violations": [f"containment_from_events 失败: {exc!r}"],
+                    "note": "门禁输入构造失败——绝不默认通过"}
+    bundle = {"run_id": str(runid), "activated": act, "events": list(events),
+              "rc": (exit_code if exit_code is not None else 0),
+              "oracle_outcome": oracle_outcome, "containment": cont}
+    try:
+        # 与 check_chain_fast 同一 O(n) 路径替换：check_admission 内部会再跑
+        # 一次 check_chain，超大流上若不替换会卡死整个 cell（L30 同源缺陷）。
+        with _LINEAR_PATH_LOCK, _LinearPathSwap():
+            res = CHAIN.check_admission(bundle)
+    except Exception as exc:                # 检查器异常不得静默放行
+        return {"admitted": False, "path": None, "terminal": None,
+                "violations": [f"check_admission 异常: {exc!r}"],
+                "note": "检查器异常——绝不默认通过"}
+    return {"admitted": bool(res.get("admitted")), "path": res.get("path"),
+            "terminal": res.get("terminal"),
+            "violations": list(res.get("violations") or []),
+            "reasons": list(res.get("reasons") or []), "note": ""}
+
+
+def evidence_activated(events):
+    """该流是否含真实故障注入（kind=inj 且 fault_id≠0）。"""
+    for e in events:
+        if e.get("kind") == "inj" and str(e.get("fault_id", "")) not in ("", "0"):
+            return 1
+    return 0
 
 
 def write_chain_report(outdir, runid, seed, result, exit_code=None):
@@ -1672,19 +1744,41 @@ def write_chain_report(outdir, runid, seed, result, exit_code=None):
     # branch (stream present or absent) — a mid-write kill must be LOUD, never
     # a silently-complete chain.
     evidence_truncated, _trunc_reasons = detect_evidence_truncation(outdir)
-    rep = {"run_id": runid, "sample_run_id": str(seed),
+    # [R6-FIXD] 与事件流同源：propagation_flags 写 --prop_sample_run_id s<seed>，
+    # 报告此前写 str(seed)（"1"）——同一份证据出现两个样本 id，下游 join 错配。
+    rep = {"run_id": runid, "sample_run_id": "s%d" % int(seed),
            "oracle_outcome": oracle, "exit_code": exit_code,
            "stream_present": False, "truncated": None, "event_count": 0,
            "faults": {}, "terminal": None, "provable_to": None,
            "beyond": None, "summary": "",
            "evidence_truncated": evidence_truncated,
            "truncation_reason": "; ".join(_trunc_reasons),
-           "chain_valid": not evidence_truncated}
+           "chain_valid": not evidence_truncated,
+           # [R6-FIXD] binding 门禁结论：admitted/certified 只有**实际调用**
+           # check_admission 后才为布尔；无激活/无流时保持 None（不适用）。
+           "admitted": None, "admission": None, "certified": None}
     _loud = ("EVIDENCE TRUNCATED: %s | " % rep["truncation_reason"]
              if evidence_truncated else "")
     evt = Path(outdir) / "prop_evt.txt.gz"
     if evt.exists():
         events, truncated = PF.read_events(evt)
+        # [R6-FIXD] 最终结论必须过 binding 门禁（此前从不调用）。
+        _act = evidence_activated(events)
+        rep["activate"] = "on" if _act else "off"
+        gate = admission_gate(runid, events, _act, oracle, exit_code)
+        rep["admission"] = gate
+        if _act:
+            if evidence_truncated:
+                # 截断流上不得认证（与 Lane B 的 containment 口径一致）
+                gate = dict(gate, admitted=False,
+                            note="截断流：证据不完整，不得在截断流上认证"
+                                 "（链形完整也不算）")
+                rep["admission"] = gate
+            rep["admitted"] = bool(gate["admitted"])
+            rep["certified"] = bool(gate["admitted"])
+        if rep["admitted"] is False:
+            _v = "; ".join((gate.get("violations") or [])[:2]) or (gate.get("note") or "")
+            _loud = "NOT ADMITTED: %s | " % _v + _loud
         # [R6-SCAL] same verdict as CHAIN.check_chain, linear in event count —
         # a 222k-event multicore consumer chain otherwise wedges the cell (see
         # _linear_best_ordered_path for the measured defect).
@@ -2270,6 +2364,9 @@ def run_cell_adaptive(cell, args, outroot):
                   # without opening the chain).
                   "evidence_truncated": _chain.get("evidence_truncated"),
                   "truncation_reason": _chain.get("truncation_reason", ""),
+                  # [R6-FIXD] binding 门禁结论（来自 write_chain_report，真调
+                  # check_admission）；None=无激活/不适用。
+                  "admitted": _chain.get("admitted"),
                   # effective wall-clock budget this sample actually got
                   "timeout_seconds": r.get("timeout_seconds"),
                   "trigger_alarm": r.get("trigger_alarm")}
@@ -2290,15 +2387,34 @@ def run_cell_adaptive(cell, args, outroot):
             classes[oc] += act
 
     hw, lo, hi = _wilson_stats(classes, activated, runs, clustered)
-    sdc_rate = (classes["SDC"] / activated) if activated else 0.0
-    act_rate = (activated / attempted) if attempted else 0.0
+    # [R6-FIXD] 分母为 0 的"率"绝不静默报 0.0。attempted=0 而 activated>0 本身
+    # 就是计数矛盾（activated 不可能超过 attempted）：必须响亮说出，不得伪装
+    # 成一个"0 激活率"。activated=0 时 sdc_rate 同理（None = 不适用）。
+    count_contradiction = bool(attempted == 0 and activated > 0)
+    if attempted > 0:
+        act_rate = round(activated / attempted, 4)
+    elif activated == 0:
+        act_rate = 0.0                      # 真零（无矛盾）
+    else:
+        act_rate = None                     # 矛盾：不报数
+    sdc_rate = (round(classes["SDC"] / activated, 4) if activated else None)
+    rate_note = ""
+    if count_contradiction:
+        rate_note = (f"计数矛盾：attempted=0 而 activated={activated}"
+                     f"（activated 不可能超过 attempted）——activation_rate "
+                     f"不适用，绝不报 0.0")
+    if not activated:
+        rate_note = ((rate_note + "；") if rate_note else "") + \
+            "activated=0 → sdc_rate 不适用（n/a），非 0.0"
     cons = (activated == sum(classes.values()))
     result = {
         "runid": runid, "phase": args.phase, "seed_batches": seed,
         "clustered": clustered, "n_runs": len(runs),
         "attempted": attempted, "activated": activated,
-        "classes": classes, "sdc_rate": round(sdc_rate, 4),
-        "activation_rate": round(act_rate, 4),
+        "classes": classes, "sdc_rate": sdc_rate,
+        "activation_rate": act_rate,
+        "activation_rate_note": rate_note,
+        "count_contradiction": count_contradiction,
         "wilson": {"lo": round(lo, 4), "hi": round(hi, 4)},
         "stop_reason": stop_reason, "conservation": "OK" if cons else "VIOLATION",
         # [LSU][R6-CAMPAIGN] the effective budgets this cell ran under (visible,
@@ -2325,12 +2441,12 @@ def run_cell_adaptive(cell, args, outroot):
         json.dumps({"runid": runid, "samples": chains}, indent=1,
                    ensure_ascii=False), encoding="utf-8")
     lines = ["# chain summary — %s" % runid, "",
-             "| seed | oracle | stream | truncated | evid_truncated | events | "
-             "terminal | provable_to | beyond |",
-             "|---|---|---|---|---|---|---|---|---|"]
+             "| seed | oracle | admitted | stream | truncated | evid_truncated | "
+             "events | terminal | provable_to | beyond |",
+             "|---|---|---|---|---|---|---|---|---|---|"]
     for c in chains:
-        lines.append("| %s | %s | %s | %s | %s | %s | %s | %s | %s |" % (
-            c.get("sample_run_id"), c.get("oracle_outcome"),
+        lines.append("| %s | %s | %s | %s | %s | %s | %s | %s | %s | %s |" % (
+            c.get("sample_run_id"), c.get("oracle_outcome"), c.get("admitted"),
             c.get("stream_present"), c.get("truncated"),
             c.get("evidence_truncated"), c.get("event_count"),
             c.get("terminal"), c.get("provable_to"), c.get("beyond")))
@@ -2348,13 +2464,34 @@ def run_cell_adaptive(cell, args, outroot):
     trunc_msgs = ["seed%d: %s" % (rr["seed"], rr.get("truncation_reason", ""))
                   for rr in runs if rr.get("evidence_truncated")]
     result["evidence_truncated_samples"] = trunc_msgs
+    # [R6-FIXD] cell 级门禁结论：由**实际调用的** check_admission 结论汇总，
+    # 绝不由 chain 形状推断。截断证据优先（不完整流不得认证）。
+    _act_samples = [e for e in runs if int(e.get("activated") or 0) > 0]
+    if not _act_samples:
+        _gate_status = "NO-ACTIVATION"
+    elif any(e.get("evidence_truncated") for e in _act_samples):
+        _gate_status = "EVIDENCE-TRUNCATED"
+    elif all(e.get("admitted") is True for e in _act_samples):
+        _gate_status = "ADMITTED"
+    else:
+        _gate_status = "GATE-REFUSED"
+    # 模型级阻塞（MODEL_BLOCKED）是**独立**的上游阻塞，门禁汇总不得覆盖它；
+    # 两者分列（admission_status 记上游阻塞，admission_gate_status 记门禁）。
+    result["admission_gate_status"] = _gate_status
+    if result.get("admission_status") != "BLOCKED":
+        result["admission_status"] = _gate_status
     (cell_out / "cell_results.json").write_text(json.dumps(result, indent=1))
-    line = ("  %s: phase=%s n_runs=%d activated=%d sdc=%d "
-            "stop=%s cons=%s budget[fs=%ss se=%ss]" %
-            (runid, args.phase, len(runs), activated, classes["SDC"],
+    line = ("  %s: phase=%s n_runs=%d attempted=%s activated=%d sdc=%s "
+            "act_rate=%s stop=%s cons=%s budget[fs=%ss se=%ss]" %
+            (runid, args.phase, len(runs), attempted, activated,
+             classes["SDC"] if activated else "n/a",
+             act_rate if act_rate is not None else "n/a（不适用）",
              stop_reason, result["conservation"],
              result["timeout_budget"]["fs_timeout"],
              result["timeout_budget"]["se_timeout"]))
+    if count_contradiction:
+        # 响亮：绝不把计数矛盾静默成一个"0 激活率"
+        line += "\n  COUNT-CONTRADICTION %s: %s" % (runid, rate_note)
     if alarm_msgs:
         line += "\n  ALARM %s: %d trigger alarm(s): %s" % (
             runid, len(alarm_msgs), " | ".join(alarm_msgs))
