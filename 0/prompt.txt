@@ -1,93 +1,50 @@
-继续当前 LSU 完整观测链准入工作，不要因为单个 pilot 超时、失败或发现普通问题而停止，直到满足正式实验准入条件后再通知我。
+<task-notification>
+<task-id>a2c1f5451b38812c2</task-id>
+<tool-use-id>call_03_5xh53mh7v5uxlj22dv4dfpub</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi-ding/b5962b79-3453-476f-89f9-13f9e0b52a92/tasks/a2c1f5451b38812c2.output</output-file>
+<status>completed</status>
+<summary>Agent "L6v2 golden control" came to rest</summary>
+<note>A task-notification fires each time this agent comes to rest with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>Clean tree, `a74a970b` pushed to `origin/r6-pilot` (0 ahead / 0 behind).
 
-当前服务器有 126 个逻辑核但实验仍以 --max-parallel 1 串行运行。请立即采用多 subagent + 多进程推进，但必须保证不同 agent 使用隔离 worktree、不同输出目录，禁止多人同时修改同一文件或同一分支。
+**Inherited state assessment.** The routing fix was sound and kept (golden path → `$LSU_GEM5_BIN` → worktree CHAOS build, never the main checkout). Two real defects remained, both found by *running* the artifacts: (1) the inherited test failed its own check `[3]` (`tools/lsu_unit_pilot.py 走统一解析器` — the file delegates via `g5_path()`, so the substring assertion was wrong, not the code); (2) `lsu_r6_golden_control.py` called `GB.describe(repo=workdir)` against signature `describe(path, env, repo)` → `TypeError`, i.e. **the control entrypoint crashed on every invocation**. Also, `run_completed()` checked only `stats.txt`, so a truncated stream still "passed" — the very false negative this lane exists to prevent.
 
-先核实现有状态：
-1. T04-F0-W4 已获得完整 L0→L5，保留其证据。
-2. T05-F0-W4 正在运行，不要重复启动；等待其正常结束或 600 秒超时后分类。
-3. T08-F0-W4 尚未开始，可在独立输出目录立即并行运行。
-4. Golden 对照因错误使用 /home/sdc/gem5-fi-ding/CHAOS/gem5/build/ARM/gem5.opt 而启动失败；改用 r6-tlb-hooks worktree 中实际存在的 gem5.opt，重新运行 Golden。
-5. r6-tlb-hooks 中现有未提交源码和测试必须由其负责 agent 完成测试、提交和报告，不得丢失。
+**Fix + SHA — `a74a970b`** (pushed). `describe(path=None, …)`; golden entrypoint resolves the binary with `repo=workdir` (binary and `configs/` from the *same* checkout) + new `stream_status()` and `run_completed(outdir, evt_path)` requiring stats non-empty **AND** a complete gzip stream; test generalised (`code_const_hits`) with new checks for `repo=` resolution, truncated-stream detection, and "stats non-empty but stream truncated → NOT completed". Verification: `tests/test_lsu_r6_golden_control.py` → **ALL PASS, exit 0**; `py_compile` → `PY_COMPILE_OK`; `--dry-run` with and without `LSU_GEM5_BIN` both resolve to the r6-tlb-hooks build; regression `tests/test_lsu_fs_infra.py` → `ALL PASS, EXIT=0`. `tests/test_lsu_l3_propagation.py` fails in this worktree **either way** (missing `build/ARM/gem5.opt` — pre-existing/environmental, verified by `ls` on both the old and new default paths).
 
-并行划分至少包括：
-- Agent A：完成 TLB hook 实现、契约测试和代码提交。
-- Agent B：修复 Golden 启动路径，运行并验证无注入对照。
-- Agent C：在独立输出目录运行 T08 及其他互不冲突的 TLB pilot。
-- Agent D：检查各 pilot 的 chain_report、L0→L5 完整性、oracle 和正式准入门禁，并准备集成。
+**Control outcome — `runs/lsu/r6_golden_verify/seed1`** (I did not kill/restart it; it exited on its own at 11:35, `hostSeconds 1976.86`, before its 3600 s timeout): `kind_counts = {}` — **0 `inj`, 0 `chain_end`, 0 events of any kind**; `stream present=True readable=True truncated=False`; `completed=(True, 'stats.txt 非空且 prop_evt 流完整（含 gzip 收尾标记）')`; `verdict PASS`; `stats.txt` 427088 B; workload oracle `[tlb_probe.rcS] … rounds ok=10/10`. gem5's own `rc` is **n/a** — the launcher kept no stdout tail; clean exit is proven instead by the exit-callback-only gzip trailer *plus* non-empty `stats.txt` (the killed `r6_tlb_negative2` retained neither).
 
-实验进程初始设为最多 4 个并行 gem5。运行 10 分钟后检查 CPU、available memory、swap、I/O wait 和各进程 RSS；若 available memory 仍大于 10 GiB、iowait 低于 10%、无 OOM/换页恶化，可提升到最多 6 个并行 gem5。不要按 CPU 核数盲目启动 126 个进程。每个运行必须有独立 outdir、超时和 RunID/seed，禁止重复执行相同 cell。
+**Conclusion.** The uninjected control is **clean and conclusive** — the injection path is provably inactive and the stream is complete, so the runner-up re-run into `r6_golden_final` was unnecessary and was **not** started (no extra gem5 process). Evidence: `/home/sdc/gem5-fi-ding/runs/lsu/r6_golden_verify/seed1/`; plan `docs/superpowers/plans/2026-10-23-lsu-r6-golden-control.md`; report `/home/sdc/gem5-fi-ding/runs/lsu/r6_reports/L6.md`.
 
-主 agent 负责统一调度、避免重复任务、顺序集成各 worktree、执行回归和准入检查。普通失败应自动诊断、修复、重跑；只有需要我作出不可逆选择、缺少外部文件/权限，或所有安全方案均已穷尽时才能停下来询问。
-
-最终只有在以下条件全部满足时停止并通知我：
-- 正式实验所需 hook 全部实现并通过测试；
-- Golden 对照成功；
-- 各故障族至少有真实 pilot 证明激活和完整观测链，或有经验证的显式 containment；
-- 准入工具基于真实新产物运行并通过；
-- 分支完成集成，工作树状态和未提交文件得到明确处理；
-- 能够给出正式批量实验命令、建议并发数、输出目录和恢复方式。
-
-每完成一个并行 lane 就立即回收并分配下一个互不冲突的任务，不要等待其他 lane 全部结束才继续。
+**Risks (loud).** (1) The r6-tlb-hooks binary was **0 bytes at 11:41** then 1.1 GB at 11:46 — a concurrent rebuild is truncating/replacing it in place; my run (ended 11:35) was unaffected, but any gem5 process running from that path inside that window could fault. (2) That run's binary sha256 is **unrecoverable** (log says `compiled Oct 23 2026 10:26:46`; on-disk file since replaced, now `1dd6d314…`), so no frozen-hash claim is made. (3) `tools/lsu_campaign.py::G5` still defaults to repo-root `build/ARM/gem5.opt` — that is the campaign/injected path (not golden), and it fails loudly rather than silently; left untouched (not my lane).</result>
+<usage><subagent_tokens>0</subagent_tokens><tool_uses>68</tool_uses><duration_ms>2229552</duration_ms></usage>
+</task-notification>
 
 ---
 
-不要继续只维持 3 个 subagent。服务器有 126 个逻辑核，请立即扩展到 16 个并行 subagent/工作 lane，持续推进 LSU 正式实验准入，不要停留在制定计划或等待单个任务完成。
+<task-notification>
+<task-id>aef0c5081633a1553</task-id>
+<tool-use-id>call_02_7v6nut5s6yxvgpg10r3rpmuq</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi-ding/b5962b79-3453-476f-89f9-13f9e0b52a92/tasks/aef0c5081633a1553.output</output-file>
+<status>completed</status>
+<summary>Agent "L23 S01/S02 census" came to rest</summary>
+<note>A task-notification fires each time this agent comes to rest with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>All done. Census still running (17m), worktree clean, branch pushed.
 
-并行原则：
+**L23 — S01/S02 span census**
 
-1. 立即创建 16 个 subagent；如平台单批存在数量限制，就分批创建并保持 12～16 个持续活跃。某个 subagent 完成后，主 agent 立即给它分配下一个可执行任务，不允许空闲等待。
-2. 每个涉及代码修改的 subagent 必须使用独立 git worktree 和独立分支；禁止不同 agent 同时修改同一文件。
-3. 只读审计、日志分析、测试结果归类、RunID 选择和文档核对可以并行，不必各自创建源码副本。
-4. 主 agent 只负责维护任务图、解决文件归属冲突、验收结果和顺序集成，不要亲自串行处理所有任务。
-5. 不要因为一个 pilot 正在运行，就让其他 subagent 等待。立即安排其他互不冲突的 hook、故障族、测试和 pilot。
+**What the census is:** `resolve_cell` refuses any `(model, carrier-binary)` pair whose F0 span is unmeasured; `LSQFWD_F0_SPAN` in `tools/lsu_campaign.py` holds those spans (F0 fires `1 + lcg(seed)%N` over the N eligible events). The census is the **uninjected** run that reports the whole stream in the teardown line `CHAOS_LSU_TRIGGER: injector=CHAOSLSQFwd tier=F0 attempted=&lt;N&gt; eligible=&lt;N&gt; injected=0`.
 
-建议的 16 个 lane：
+**Existing evidence found (preserved):**
+- `runs/lsu/golden/w1_all/{g1,g2,g3}` — carrier golden, `EXIT_RC=0`, each `[w1] suite done: 14/14 ok`, identical hashes (`susan_edge.pgm fnv1a64=090bc05c2150bfec`). Measures no LSQFwd stream.
+- `runs/lsu/engineering/w1_cnt_lsqfwd.out` (2026-10-11): `attempted=515917150 eligible=515917150 injected=0`; `w1_ac_lsqfwd.out`: `eligible=498300231 injected=0`. Both used `--lsqfwd_l03` + the 10-11 binary ⇒ **generic family count, NOT the S01/S02 span**.
+- `R5-FS-PILOT-EVIDENCE.md` §4: the **injected** trial `eligible=17663390 injected=1 … ALARM mode=EARLY_BIAS` was explicitly declined as the census; the uninjected golden census it announced (PID 2133313, ~10-22 17:44) is **dead and wrote nothing** (no `EARLY_BIAS`, no `--max_faults 0`, no outdir anywhere).
 
-- Lane 1：完成并测试 L1d-TLB hook。
-- Lane 2：检查 TLB L0→L5 事件字段和关联键完整性。
-- Lane 3：运行并分析 T05-F0-W4。
-- Lane 4：运行 T07-F0-W4。
-- Lane 5：运行 T08-F0-W4。
-- Lane 6：修复并验证无注入 Golden。
-- Lane 7：审计 Load Queue 系列 hook 和缺失传播层。
-- Lane 8：审计 Store Queue 系列 hook 和缺失传播层。
-- Lane 9：审计 LSQ/提交路径 hook。
-- Lane 10：审计 Cache/内存响应路径 hook。
-- Lane 11：审计异常、Crash、Hang、SDC oracle。
-- Lane 12：审计 RunID/seed/correlation ID 的跨层一致性。
-- Lane 13：运行契约测试、负向测试和回归测试。
-- Lane 14：检查 325 个 RunID 的 BLOCKED 原因并按根因聚类。
-- Lane 15：准备正式批量实验调度、断点恢复和输出目录隔离。
-- Lane 16：独立 reviewer，核对真实产物是否满足正式准入，不接受仅凭代码或测试自报通过。
+**Verdict:** no valid completed census existed. Relaunched the control: PID 2879934 → `runs/lsu/r6_census_S01/` (+`.log`), binary `lsu-mdspec-20261019/.../gem5.opt` sha `f4dbfb9a66e0df80`, carrier `w1_all` sha `adf23d2cd1257fed`, `--lsq_struct_mode byte_flip --lsqfwd_lsu_tier F0 --lsqfwd_warmup_events 1 --lsqfwd_span_events 9223372036854775807 --max_faults 0 --rng_seed 1`. Live no-injection witness: `lsq_fwd_injections.log` is 0 bytes. ETA ~7.5 h wall (SE carrier, so `--fs-timeout` is irrelevant — that 600 s figure truncates FS runs only).
 
-实验进程也要提高并发，但必须按内存动态调度：
+**Exact unblock condition** (verbatim from `ready_contract.json`): `BLOCKED(F0-span-unmeasured: model S0{1,2} on workload mibench/bin/w1_all — measure its eligible stream with a real run and set LSQFWD_F0_SPAN[('S0{1,2}','mibench/bin/w1_all')] in tools/lsu_campaign.py)`. **NOT met yet** — the two numbers don't exist, so no contract change; denominator untouched, nothing reclassified.
 
-- 立即把 gem5 总并发提升到 6。
-- 每个 gem5 必须使用不同 RunID/seed 和独立 outdir，禁止重复运行和覆盖结果。
-- 每个进程必须具有硬超时、退出码记录和超时后的子进程回收。
-- 服务器总内存只有约 29 GiB，单个 gem5 当前约占 2.5～2.7 GiB，因此不要同时启动 20 个 gem5。
-- 每隔 5 分钟检查一次 available memory、swap、iowait、load 和进程 RSS。
-- 若 available memory 大于 8 GiB、iowait 小于 10%、没有持续换页和 OOM，提升到 8 个 gem5。
-- 若 available memory 低于 6 GiB、swap 持续增长或 iowait 超过 15%，降回 6 个。
-- 10～20 的目标用于 subagent/任务 lane；gem5 实际并发由内存门限控制。
+**Blockers:** census is multi-hour and does not finish inside this lane; S02 needs its own `--bits_to_change 2` run (same gate ⇒ same expected value) for a measured key.
 
-优先避免重复劳动：
-
-- 已经运行的 T05 不得重复启动。
-- 已成功获得完整 L0→L5 的 T04 保留为证据，不重复运行，除非代码变更使证据失效。
-- T07、T08、Golden 和其他互不冲突的代表性 RunID 应立即并行。
-- 已有工作树和分支先盘点后复用；不要无意义地重新实现已完成内容。
-
-主 agent 建立实时任务表，至少记录：
-lane、subagent、worktree、负责文件、RunID、进程 PID、状态、开始时间、超时、输出目录、验证结果、待集成 commit。
-
-不要在创建 subagent 后就停止回复，也不要因为某个 lane 失败而结束整个任务。失败的 lane 应自动诊断、修复、重跑；空闲 lane 应立即领取下一项。持续工作，直到所有正式实验准入条件满足后才停止通知我：
-
-- 所有要求的 hook 已实现并通过测试；
-- 代表性真实 pilot 能获得完整观测链，或给出经过验证的显式 containment；
-- Golden 成功；
-- 准入工具基于最新真实产物通过；
-- 分支完成集成且没有遗失未提交修改；
-- 给出正式实验命令、并发数、输出目录、恢复方式和资源上限。
-
-现在直接开始创建并调度 16 个 subagent，不要先停下来向我确认。
+**Artifacts:** `tools/lsu_census_w1_span.py` (verified: py_compile + parse on real/injected samples + `--help`), `docs/gem5-fi/lsu/mdspec/R6-CENSUS-S01-S02-span.md`, report `/home/sdc/gem5-fi-ding/runs/lsu/r6_reports/L23.md` (runs/ is gitignored). Commit `783cd82a` pushed to `origin/r6-census`.</result>
+<usage><subagent_tokens>0</subagent_tokens><tool_uses>59</tool_uses><duration_ms>2591494</duration_ms></usage>
+</task-notification>
