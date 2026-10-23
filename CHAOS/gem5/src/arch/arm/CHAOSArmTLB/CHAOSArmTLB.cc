@@ -1,4 +1,5 @@
 #include "arch/arm/CHAOSArmTLB/CHAOSArmTLB.hh"
+#include "arch/arm/CHAOSArmTLB/chaos_tlb_pfn.hh"  // [R6-FIXC] T04 candidate rule
 #include "params/CHAOSArmTLB.hh"
 #include "arch/arm/tlb.hh"
 #include "arch/arm/pagetable.hh"
@@ -418,13 +419,32 @@ namespace gem5
         // FS-only by construction (the hook fires under the MMU).
         if (chosen == FaultType::PfnToMappedPage) {
             if (!tlb) return;
-            // Collect candidate entries, retaining their deterministic table
-            // index so the observation says which legal alternative won.
+            // [R6-FIXC] Collect candidate entries, retaining their
+            // deterministic table index so the observation says which legal
+            // alternative won. The legality test is the shared predicate
+            // chaos_tlb::isSelectablePfnTarget (chaos_tlb_pfn.hh): it requires
+            // the candidate to be a LIVE (valid) mapping of the SAME page size
+            // and a DIFFERENT, non-zero physical frame. The pre-R6 filter
+            // (`!= entry && pfn != entry->pfn`) never checked `valid`, so
+            // stale/invalid slots holding pfn == 0 dominated the set and every
+            // seed produced new_pfn == 0x0 -> PA 0xfa8 -> guest level-0
+            // translation fault -> kernel Oops ("wrong page + crash"), not the
+            // spec §2.10 F5 silent wrong-LIVE-page read.
             std::vector<std::pair<const ArmISA::TlbEntry *, int>> candidates;
             const auto &tbl = tlb->entryTable();
+            chaos_tlb::PfnCandidateView hit_view{};
+            hit_view.valid = entry->valid;
+            hit_view.pfn = entry->pfn;
+            hit_view.page_size_bits = entry->N;
+            hit_view.is_hit_entry = false;
             int table_idx = 0;
             for (auto it = tbl.begin(); it != tbl.end(); ++it) {
-                if (&(*it) != entry && it->pfn != entry->pfn)
+                chaos_tlb::PfnCandidateView cand{};
+                cand.valid = it->valid;
+                cand.pfn = it->pfn;
+                cand.page_size_bits = it->N;
+                cand.is_hit_entry = (&(*it) == entry);
+                if (chaos_tlb::isSelectablePfnTarget(hit_view, cand))
                     candidates.emplace_back(&(*it), table_idx);
                 ++table_idx;
             }
@@ -435,7 +455,10 @@ namespace gem5
             const Addr old_pa = entry->pAddr(va);
             const int entry_way = entryIndex(entry);
             const std::string entry_before = snapshotEntry(entry, old_pa);
-            const auto &candidate = candidates[rng() % candidates.size()];
+            // [R6-FIXC] Deterministic, reproducible pick (same rngSeed -> same
+            // draw sequence -> same index; see selectPfnCandidateIndex).
+            const auto &candidate = candidates[
+                chaos_tlb::selectPfnCandidateIndex(candidates.size(), rng())];
             entry->pfn = candidate.first->pfn;
             const int candidate_way = candidate.second;
             stats->numFaultsInjected++;
