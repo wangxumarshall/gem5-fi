@@ -28,6 +28,10 @@ import lsu_prop_fields as P  # noqa: E402
 FAILED = []
 
 
+def src(path):
+    return (ROOT / path).read_text(encoding="utf-8")
+
+
 def check(name, cond, detail=""):
     if cond:
         print(f"  PASS {name}")
@@ -89,6 +93,17 @@ def main():
     check("store 链 L0→L4 全边 proven → full（含 sq_execute/complete）",
           f1["terminal"] == "full",
           f"{f1['terminal']} edges={ {k: v2 for k, v2 in f1['edges'].items() if not k.endswith('_witness')} }")
+
+    print("[5] A9 lq_read 携带 request_id（L2→L3 请求连续性）")
+    lu = src("CHAOS/gem5/src/cpu/o3/lsq_unit.cc")
+    lq_read = lu[lu.index("// [MDSPEC][H7] unified lq_read event"):]
+    lq_read = lq_read[:lq_read.index('notePropEvt("lq_read"')
+                      + lq_read[lq_read.index('notePropEvt("lq_read"'):]
+                                .index("});")]
+    check("lq_read 写 request_id",
+          '{"request_id"' in lq_read, lq_read[-200:])
+    check("lq_read request_id 来自 Request 盖戳 seq（或 load seq 兜底）",
+          "getReqInstSeqNum" in lq_read, lq_read[-200:])
 
     print()
     if FAILED:
