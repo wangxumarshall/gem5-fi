@@ -1,0 +1,28 @@
+<task-notification>
+<task-id>ac453046054f2eed2</task-id>
+<tool-use-id>call_01_y65mssplm993iceh1u7xasdx</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sdc-gem5-fi-ding/b5962b79-3453-476f-89f9-13f9e0b52a92/tasks/ac453046054f2eed2.output</output-file>
+<status>completed</status>
+<summary>Agent "L26 fix integration regressions" came to rest</summary>
+<note>A task-notification fires each time this agent comes to rest with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>Diff scope is exactly the 4 owned files + 1 new plan file; tree clean; pushed.
+
+## L26 报告（≤25 行）
+
+**逐套件定性（真机实测）**
+1. `test_lsu_r6_golden_control` — **测试环境敏感 bug**。本 worktree 未构建→PASS；集成树有 `CHAOS/gem5/build/ARM/gem5.opt`→`FAIL 缺文件必须 SystemExit &lt;- 返回了 .../CHAOS/gem5/build/ARM/gem5.opt`。解析器契约（`$LSU_GEM5_BIN`→本 checkout 构建→皆缺才 SystemExit）本就正确；测试未构造"本 checkout 无构建"。
+2. `test_lsu_coverage_matrix` — **测试 bug（schema 漂移）**，非证据缺失。L17（`b3321b6f`）重生成 evidence，键由裸 `&lt;RunID&gt;` 变**逐 seed** `&lt;RunID&gt;-seed&lt;N&gt;`；3 检查硬编码裸键落空。实据：`C11-F0-W6-seed1` 有 mshr_alloc/merge/fill/free，`C12-...-seed1` 有 mshr_fill/free/cache_fill，`P01-F0-W8-seed1` 有 pf_queue/pf_issue。
+3. `test_lsu_obs_driver_workers`（基线 ENV，从未真跑）— **混合**：`d_real_gate_precondition` 纯环境（`gate` 实测 `disk_free 64.4 &lt; floor max(50,0.20×353.2)=70.6`，blocked/compile 均空）；`g2_exact_stop_mixed_activation` **测试隔离缺陷**（`ObsDriver.__init__` 在 `guard_dir=None` 时硬改写 LSU_GUARD_DIR 为主树全局路径，claim 泄漏；主树遗留死 pid 陈旧 claim `g2_r0/A01-F0-W9/{s2,s3}.claim`）。
+
+**修复与 RED→GREEN**
+- U1 `405f3d62`：RED=落假 build→返回路径 FAIL；改指向保证无构建的临时 checkout；GREEN=有/无构建两环境 `ALL PASS`。
+- U2 `a27e3d86`：RED=`FAILURES: ['c11_...','prefetch_...','c12_...']`；工具新增 `runid_kinds`（裸键∪逐 seed，与 `aux_run_boundary` 同源）供测试聚合（**未放宽判据**：仍要求矩阵 RunID 自证）；GREEN=`FAILURES: 无`（25/25）。
+- U3 `ed78ad01`：`make_ns` 默认隔离 guard_dir + gate BLOCKED 判显式 ENV skip；GREEN=rc0，`PASS g2_exact_stop_mixed_activation`、`SKIP d_real_gate_precondition &lt;- 宿主环境阻塞`，主树 claims 无新泄漏。
+
+**修后汇总**：`suites=56 ENV=2 FAIL=13 PASS=39 SKIP=2`（基线 `52/5/13/33/1`；修前 `56/1/16/38/1`）。
+FAIL 集（13）与基线逐一相同，**无基线外新 FAIL**；3 个新 FAIL → 2 PASS + 1 诚实 SKIP。
+
+**剩余合理失败**：13 项即基线集（pytest::collect、campaign_propagation、hook_a07/c11/c12/c14/c15/cpf/l04/o0x/p06/s10/sq）。ENV=2 系我以另一 worktree 二进制运行的无资产套件（geom_distribution、slot_release_latency），非回归。
+**未修（超 lane 范围）**：`tools/lsu_guard.py::_disk_guard_reason` 在 GUARD_DIR 不存在时（`disk_total_gib=None`）崩溃 `TypeError`——已在报告中披露。报告：`/home/sdc/gem5-fi-ding/runs/lsu/r6_reports/L26.md`。</result>
+<usage><subagent_tokens>0</subagent_tokens><tool_uses>92</tool_uses><duration_ms>1516001</duration_ms></usage>
+</task-notification>
