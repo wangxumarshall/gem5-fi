@@ -33,6 +33,7 @@ import argparse
 import csv
 import json
 import os
+import signal
 import subprocess
 import sys
 import time
@@ -1752,6 +1753,50 @@ def classify_fsmc_run(outdir, run_stdout, exit_code):
     return out
 
 
+# [LSU][R6-CAMPAIGN] A timed-out gem5 child must actually be KILLED and REAPED
+# (no orphans holding the checkpoint/outdir), with exit code / signal recorded.
+# subprocess.run's TimeoutExpired path killed but left the signal unrecorded;
+# this Popen-based helper makes the kill auditable and reaps unconditionally.
+# The child leads its own process group (start_new_session=True) so SIGTERM /
+# SIGKILL reach any grandchildren too.
+def run_gem5(cmd, timeout, out_file, err_file, grace=10):
+    """Run gem5, capturing stdout/stderr to files.
+
+    Returns {timed_out, exit_code, signal, stdout, stderr, pid}.
+    On timeout: SIGTERM the process group, wait `grace` s, then SIGKILL if it
+    survives; wait() to reap either way. `signal` is the signum actually sent
+    (None on a clean run); `exit_code` is the (negative) wait status when killed.
+    """
+    proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                            text=True, start_new_session=True)
+    timed_out, used_sig = False, None
+    try:
+        out, err = proc.communicate(timeout=timeout)
+    except subprocess.TimeoutExpired:
+        timed_out = True
+        used_sig = int(signal.SIGTERM)
+        try:
+            os.killpg(os.getpgid(proc.pid), signal.SIGTERM)
+        except (ProcessLookupError, PermissionError):
+            pass
+        try:
+            out, err = proc.communicate(timeout=grace)
+        except subprocess.TimeoutExpired:
+            used_sig = int(signal.SIGKILL)
+            try:
+                os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
+            except (ProcessLookupError, PermissionError):
+                pass
+            out, err = proc.communicate()
+    if proc.returncode is None:          # never leave it unreaped
+        proc.wait()
+    Path(out_file).write_text(out or "")
+    Path(err_file).write_text(err or "")
+    return {"timed_out": timed_out, "exit_code": proc.returncode,
+            "signal": used_sig, "stdout": out or "", "stderr": err or "",
+            "pid": proc.pid}
+
+
 def run_single_cell(cell, args, seed, outdir):
     """Run one gem5 invocation for a single cell×seed. Returns classification dict."""
     runid = cell[COL_RUNID]
@@ -1804,15 +1849,12 @@ def run_single_cell(cell, args, seed, outdir):
         if model == "T03":
             i = cmd.index("--tlb_fault_type")
             cmd[i + 1] = "stuck_at_zero" if seed % 2 else "stuck_at_one"
-        try:
-            proc = subprocess.run(cmd, capture_output=True, text=True,
-                                  timeout=args.fs_timeout)
-            (outdir / "run.out").write_text(proc.stdout)
-            (outdir / "run.err").write_text(proc.stderr)
-            exit_code = proc.returncode
-        except subprocess.TimeoutExpired:
-            (outdir / "run.out").write_text("")
-            (outdir / "run.err").write_text("TIMEOUT")
+        _r = run_gem5(cmd, args.fs_timeout, outdir / "run.out",
+                      outdir / "run.err")
+        if _r["timed_out"]:
+            (outdir / "run.err").write_text(
+                "TIMEOUT signal=%d exit=%s (process group killed + reaped)"
+                % (_r["signal"], _r["exit_code"]))
             # Evidence-preserving timeout (the 6e0dcd52 family): a killed
             # run may already carry injections — read the log and classify
             # Timeout WITH the activated count. The T01 anchor trial hid
@@ -1834,13 +1876,17 @@ def run_single_cell(cell, args, seed, outdir):
             # losing it because there is no chain_end is evidence loss).
             _to = {"outcome": "Timeout", "injected": inj, "activated": inj,
                    "classes": classes, "mode": "FS",
-                   "timeout_seconds": args.fs_timeout}
+                   "timeout_seconds": args.fs_timeout,
+                   # auditable reap record: which signal killed it, its status
+                   "timeout_signal": _r["signal"],
+                   "timeout_exit_code": _r["exit_code"]}
             _to["chain_report"] = write_chain_report(
                 outdir, runid, seed, _to, exit_code=None)
             return _to
-        _fsres = (classify_fs_run(outdir, proc.stdout, exit_code)
+        exit_code = _r["exit_code"]
+        _fsres = (classify_fs_run(outdir, _r["stdout"], exit_code)
                   if family == "armtlb"
-                  else classify_fsmc_run(outdir, proc.stdout, exit_code))
+                  else classify_fsmc_run(outdir, _r["stdout"], exit_code))
         _fsres["timeout_seconds"] = args.fs_timeout   # effective budget, visible
         _fsres["chain_report"] = write_chain_report(
             outdir, runid, seed, _fsres, exit_code=exit_code)
@@ -1865,22 +1911,21 @@ def run_single_cell(cell, args, seed, outdir):
     # budget; every other SE carrier keeps the operator's --timeout.
     _se_timeout = (SE_W1_TIMEOUT if str(_binary).endswith("w1_all")
                    else args.timeout)
-    try:
-        proc = subprocess.run(cmd, capture_output=True, text=True,
-                              timeout=_se_timeout)
-        stdout_file.write_text(proc.stdout)
-        stderr_file.write_text(proc.stderr)
-        exit_code = proc.returncode
-    except subprocess.TimeoutExpired:
-        stdout_file.write_text("")
-        stderr_file.write_text("TIMEOUT")
+    _r = run_gem5(cmd, _se_timeout, stdout_file, stderr_file)
+    if _r["timed_out"]:
+        stderr_file.write_text(
+            "TIMEOUT signal=%d exit=%s (process group killed + reaped)"
+            % (_r["signal"], _r["exit_code"]))
         # [MDSPEC][C1] a killed run keeps its flushed prefix: build the chain
         # report BEFORE returning, so a Timeout is not evidence loss.
         _to = {"outcome": "Timeout", "injected": 0, "activated": 0,
-               "timeout_seconds": _se_timeout}
+               "timeout_seconds": _se_timeout,
+               "timeout_signal": _r["signal"],
+               "timeout_exit_code": _r["exit_code"]}
         _crep = write_chain_report(outdir, runid, seed, _to, exit_code=None)
         _to["chain_report"] = _crep
         return _to
+    exit_code = _r["exit_code"]
 
     # C-series: CHAOSCache logs to cache_injections.log, not stdout — read
     # it for the injection count (223e4b12 fix).
@@ -2123,8 +2168,10 @@ def run_cell_adaptive(cell, args, outroot):
         "stop_reason": stop_reason, "conservation": "OK" if cons else "VIOLATION",
         # [LSU][R6-CAMPAIGN] the effective budgets this cell ran under (visible,
         # never silently lowered).
-        "timeout_budget": {"fs_timeout": args.fs_timeout,
-                           "se_timeout": args.timeout},
+        "timeout_budget": {"fs_timeout": getattr(args, "fs_timeout",
+                                                  FS_TIMEOUT_DEFAULT),
+                           "se_timeout": getattr(args, "timeout",
+                                                 SE_TIMEOUT_DEFAULT)},
         "runs": runs,
     }
     if model in MODEL_BLOCKED:
@@ -2170,8 +2217,9 @@ def run_cell_adaptive(cell, args, outroot):
     line = ("  %s: phase=%s n_runs=%d activated=%d sdc=%d "
             "stop=%s cons=%s budget[fs=%ss se=%ss]" %
             (runid, args.phase, len(runs), activated, classes["SDC"],
-             stop_reason, result["conservation"], args.fs_timeout,
-             args.timeout))
+             stop_reason, result["conservation"],
+             result["timeout_budget"]["fs_timeout"],
+             result["timeout_budget"]["se_timeout"]))
     if alarm_msgs:
         line += "\n  ALARM %s: %d trigger alarm(s): %s" % (
             runid, len(alarm_msgs), " | ".join(alarm_msgs))
